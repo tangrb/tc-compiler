@@ -1,0 +1,3 @@
+var a: int8 = 127
+var b: int8 = 1
+var c: int8 = add(int8, overflow, a, b)

@@ -1,36 +1,78 @@
 # TC-Compiler
 
-#### Description
-TC-Compiler 是一个用纯 C99 实现的自定义伪汇编语言 TC 的编译器/虚拟机项目，包含直接执行引擎（TC-VM）和预留的提前编译框架（TC-AOT），支持词法分析、语法分析、静态类型检查及逐条指令执行。
+The implementation project of the **TC** language. Currently includes **TC-VM** (a direct execution engine, implemented) and **TC-AOT** (ahead-of-time compilation of `.tc` to native object code, directory reserved, not yet implemented).
 
-#### Software Architecture
-Software architecture description
+## Directory Structure
 
-#### Installation
+```text
+docs/                  Language specification, VM design documents, etc.
+src/
+├── vm/                TC-VM source code, CMakeLists.txt
+└── aot/               TC-AOT reserved (CMakeLists.txt)
+tests/                 Conformance tests (currently for VM)
+scripts/
+├── vm/                VM test scripts
+└── aot/               AOT test scripts (reserved)
+build/                 Build artifacts (git ignored)
+├── vm/bin/tc-vm       VM executable
+└── aot/bin/           AOT executable (reserved)
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Build
 
-#### Instructions
+The build is managed by **CMake**; the root `Makefile` is a thin wrapper around CMake, and `CMakeLists.txt` defines each component target.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+### Makefile (Recommended)
 
-#### Contribution
+```sh
+make            # Configure and build VM (default)
+make vm         # Same as above
+make aot        # Build AOT (not yet implemented, will error)
+make test       # Run VM conformance tests
+make test-vm    # Same as above
+make test-aot   # Run AOT tests (not yet implemented)
+make clean      # Remove build/ directory
+```
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+### CMake (Equivalent Commands)
 
+```sh
+cmake -S . -B build
+cmake --build build                  # Build tc-vm
+cmake --build build --target check-vm
+cmake --build build --target check-aot
+cmake --build build --target check   # Currently equivalent to check-vm
+```
 
-#### Gitee Feature
+## Usage
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+### File Mode
+
+```sh
+./build/vm/bin/tc-vm tests/valid/example.tc
+./build/vm/bin/tc-vm --check tests/valid/example.tc   # Static analysis only
+./build/vm/bin/tc-vm --help                           # View usage
+```
+
+### Interactive REPL
+
+```sh
+./build/vm/bin/tc-vm --repl        # Start interactive REPL
+./build/vm/bin/tc-vm -i            # Same (short option)
+```
+
+The REPL supports entering TC statements one by one with immediate execution; variables persist across lines. Built-in meta-commands include `:quit` (exit), `:reset` (clear variables), `:vars` (list variables), and `:help` (help).
+
+## Documents
+
+| Document | Description |
+|----------|-------------|
+| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.8.1) |
+| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation conventions (v1.2) |
+| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | Command-line instructions for using tc-vm with `.tc` source files (v1.3) |
+
+Implementation behavior follows the language specification; VM / AOT design documents define each backend's implementation architecture and do not redefine language semantics.
+
+## Author
+
+- **唐荣兵** ([yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)) — Project creator and maintainer

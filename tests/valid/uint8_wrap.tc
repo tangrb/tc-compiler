@@ -1,0 +1,3 @@
+var a: uint8 = 250
+var b: uint8 = 10
+var c: uint8 = add(uint8, a, b)

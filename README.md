@@ -1,37 +1,78 @@
 # TC-Compiler
 
-#### 介绍
-TC-Compiler 是一个用纯 C99 实现的自定义伪汇编语言 TC 的编译器/虚拟机项目，包含直接执行引擎（TC-VM）和预留的提前编译框架（TC-AOT），支持词法分析、语法分析、静态类型检查及逐条指令执行。
+TC 语言的实现工程。当前包含 **TC-VM**（直接执行引擎，已实现）；**TC-AOT**（ahead-of-time 编译，将 `.tc` 编译为原生目标代码）预留目录，尚未实现。
 
-#### 软件架构
-软件架构说明
+## 目录结构
 
+```text
+docs/                  语言标准、VM 详细设计等文档
+src/
+├── vm/                TC-VM 源码、CMakeLists.txt
+└── aot/               TC-AOT 预留（CMakeLists.txt）
+tests/                 一致性测试（当前供 VM 使用）
+scripts/
+├── vm/                VM 测试脚本
+└── aot/               AOT 测试脚本（预留）
+build/                 构建产物（git 忽略）
+├── vm/bin/tc-vm       VM 可执行文件
+└── aot/bin/           AOT 可执行文件（预留）
+```
 
-#### 安装教程
+## 构建
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+构建由 **CMake** 统一管理；根目录 `Makefile` 是对 CMake 的薄封装，`CMakeLists.txt` 定义各组件目标。
 
-#### 使用说明
+### Makefile（推荐）
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+```sh
+make            # 配置并编译 VM（默认）
+make vm         # 同上
+make aot        # 编译 AOT（尚未实现，会报错提示）
+make test       # 运行 VM 一致性测试
+make test-vm    # 同上
+make test-aot   # 运行 AOT 测试（尚未实现）
+make clean      # 删除 build/ 目录
+```
 
-#### 参与贡献
+### CMake（等价命令）
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+```sh
+cmake -S . -B build
+cmake --build build                  # 编译 tc-vm
+cmake --build build --target check-vm
+cmake --build build --target check-aot
+cmake --build build --target check   # 当前等同 check-vm
+```
 
+## 运行
 
-#### 特技
+### 文件模式
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+```sh
+./build/vm/bin/tc-vm tests/valid/example.tc
+./build/vm/bin/tc-vm --check tests/valid/example.tc   # 仅静态分析
+./build/vm/bin/tc-vm --help                           # 查看用法
+```
+
+### 交互式 REPL
+
+```sh
+./build/vm/bin/tc-vm --repl        # 启动交互式 REPL
+./build/vm/bin/tc-vm -i            # 同上（短选项）
+```
+
+REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置元命令包括 `:quit`（退出）、`:reset`（清空变量）、`:vars`（列出变量）、`:help`（帮助）。
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 语言语法与语义权威定义（v0.8.1） |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v1.2） |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v1.3） |
+
+实现行为以语言标准为准；VM / AOT 详细设计文档规定各后端的实现架构，不重复定义语言语义。
+
+## 作者
+
+- **唐荣兵** ([yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)) — 项目创建与维护者
