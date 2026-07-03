@@ -1,6 +1,6 @@
 # TC 语言标准设计说明书
 
-> **版本**：0.0.18（草案）  
+> **版本**：0.0.20（草案）  
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）  
 
 ---
@@ -17,16 +17,17 @@
 
 4. [程序结构与语句](#4-程序结构与语句)
 5. [算术运算](#5-算术运算)
-6. [类型转换](#6-类型转换)
+6. [比较运算与逻辑运算](#6-比较运算与逻辑运算)
+7. [类型转换](#7-类型转换)
 
 ### 第三部分：I/O 与交互
 
-7. [标准 I/O](#7-标准-io)
+8. [标准 I/O](#8-标准-io)
 
 ### 第四部分：完整示例与规范
 
-8. [完整示例集](#8-完整示例集)
-9. [错误与警告](#9-错误与警告)
+9. [完整示例集](#9-完整示例集)
+10. [错误与警告](#10-错误与警告)
 
 ### 第五部分：附录
 
@@ -51,12 +52,15 @@ TC 是一门伪汇编语言：语法接近高级语言的赋值表达式，执�
 本文档定义：
 
 - **8 种** 固定宽度整数类型（`int8`～`uint64`）
+- **1 种** 布尔类型（`bool`，取值为 `true`/`false`）
 - **7 类** 算术运算指令：
   - 双目运算（5 类）：`add`、`sub`、`mul`、`div`、`mod`
   - 单目运算（2 类）：`abs`（取绝对值）、`neg`（取负数）
+- **6 类** 比较运算指令：`eq`、`ne`、`lt`、`le`、`gt`、`ge`
+- **3 类** 逻辑运算指令：`and`、`or`、`not`
 - **1 类** 类型转换指令：`cast`
 - **3 条** 标准 I/O 语句：`write`、`writeln`、`read`
-  - `write`/`writeln` 支持格式化输出（7 种格式化符号）
+  - `write`/`writeln` 支持格式化输出（8 种格式化符号，含 `%t`）
 - 算术回绕模式关键字 **`wrap`**（用于 `add`/`sub`/`mul`/`neg`）
 - 类型转换截断模式关键字 **`truncate`**（用于 `cast`）
 
@@ -66,14 +70,14 @@ TC 是一门伪汇编语言：语法接近高级语言的赋值表达式，执�
 | -------------- | ------------------------------------------------------------ |
 | 声明与赋值分离 | 首次定义使用 `var`，后续修改省略 `var`                       |
 | 常量与变量分离 | 不可变常量使用 `let` 定义，须在编译期初始化                  |
-| 显式类型标注   | 变量/常量定义须声明具体整数类型                              |
-| 运算函数化     | 算术以 `op(<类型> [, wrap], 操作数...)` 形式调用（`div`/`mod`/`abs` 无 `wrap`） |
+| 显式类型标注   | 变量/常量定义须声明具体类型                                  |
+| 运算函数化     | 算术以 `op(<类型> [, wrap], 操作数...)` 形式调用；比较/逻辑以 `op(<类型>, 操作数...)` 形式调用 |
 | 类型参数首位   | 运算与转换的类型均作为 **第一个参数** 显式给出               |
 | 默认严格溢出   | 有符号 `add`/`sub`/`mul`/`neg` 与 `cast` 默认检测溢出并报错；回绕或位截断须显式传入对应关键字 |
-| 同类型运算     | 同一运算的操作数须为相同整数类型                             |
+| 同类型运算     | 同一运算的操作数须为相同类型                                 |
 | 显式类型转换   | 跨类型须通过 `cast` 完成，禁止隐式转换                       |
 | 逐条执行       | 每条语句独立执行，无隐式表达式嵌套求值                       |
-| 字面量类型显式 | 无后缀字面量为有符号整数；`u`/`U` 后缀字面量为无符号整数     |
+| 字面量类型显式 | 无后缀字面量为有符号整数；`u`/`U` 后缀字面量为无符号整数；`true`/`false` 为布尔字面量 |
 | I/O 格式化     | `write`/`writeln` 支持格式化符号，单符号单操作数             |
 
 ### 1.3 设计哲学
@@ -85,7 +89,7 @@ TC 的设计遵循以下核心理念：
 | **显式优于隐式** | 类型转换、溢出处理、符号性均须显式标注，杜绝隐式歧义         |
 | **安全优先**     | 默认检测溢出和转换错误，将运行时可预测性置于性能之上         |
 | **教学友好**     | 伪汇编风格让底层概念（位宽、符号、溢出、截断）直观可见       |
-| **渐进扩展**     | 当前聚焦整数子集，为未来浮点、布尔、复合类型预留清晰的设计空间 |
+| **渐进扩展**     | 当前聚焦整数与布尔子集，为未来浮点、复合类型预留清晰的设计空间 |
 
 ### 1.4 完整示例
 
@@ -98,6 +102,7 @@ TC 的设计遵循以下核心理念：
 var a: int32 = 10
 var b: int32 = 20
 let SCALE: int32 = 1000
+let DEBUG: bool = true
 
 ; ============================================================
 ; 算术运算
@@ -107,6 +112,17 @@ var diff: int32 = sub(int32, a, b)          ; -10
 var prod: int32 = mul(int32, a, b)          ; 200
 var quot: int32 = div(int32, b, a)          ; 2
 var rem: int32 = mod(int32, b, a)           ; 0
+
+; ============================================================
+; 比较运算
+; ============================================================
+var is_equal: bool = eq(int32, a, b)        ; false
+var is_less: bool = lt(int32, a, b)         ; true
+
+; ============================================================
+; 逻辑运算
+; ============================================================
+var is_less_or_equal: bool = or(bool, is_equal, is_less)  ; true
 
 ; ============================================================
 ; 回绕示例
@@ -121,11 +137,16 @@ var wrapped: int8 = add(int8, wrap, max_i8, one)  ; -128
 var scaled: int32 = mul(int32, sum, SCALE)
 var result_i8: int8 = cast(int8, truncate, scaled)  ; 截断
 
+; 布尔与整数互转
+var flag: bool = cast(bool, a)              ; true（a 非零）
+var as_int: int32 = cast(int32, is_equal)   ; 0
+
 ; ============================================================
 ; I/O
 ; ============================================================
 write(int32, %d, sum)                      ; 输出 "30"
 writeln(int32, %d, scaled)                 ; 输出 "30000\n"
+writeln(bool, %t, is_less)                 ; 输出 "true\n"
 ```
 
 ---
@@ -225,7 +246,25 @@ TC 支持四种进制字面量：
 2. 数字部分扫描完成后，检查后续字符是否为 `u`/`U`，归约为带后缀字面量
 3. 否则归约为无后缀字面量
 
-### 2.4 浮点字面量（预留）
+### 2.4 布尔字面量
+
+| 字面量  | 值   | 类型   |
+| ------- | ---- | ------ |
+| `true`  | 真   | `bool` |
+| `false` | 假   | `bool` |
+
+**约束**：
+- `true` 和 `false` 为保留关键字，不可用作标识符
+- 布尔字面量不区分大小写（均为小写）
+- 布尔字面量 **仅可用于** `bool` 类型上下文
+
+```text
+var flag: bool = true
+var done: bool = false
+var err: int32 = true      ; 字面量类型错误
+```
+
+### 2.5 浮点字面量（预留）
 
 > **扩展预留**：未来版本将支持浮点字面量，语法形式为：
 > - 十进制浮点：`3.14`、`-0.5`、`1.0`
@@ -234,7 +273,7 @@ TC 支持四种进制字面量：
 >
 > 当前版本中，包含 `.` 或 `e`/`E` 的数字序列为 **词法错误**。
 
-### 2.5 字符与字符串字面量（预留）
+### 2.6 字符与字符串字面量（预留）
 
 > **扩展预留**：未来版本将支持：
 > - 字符字面量：`'a'`、`'\n'`、`'\x41'`
@@ -242,23 +281,28 @@ TC 支持四种进制字面量：
 >
 > 当前版本中，单引号或双引号包裹的内容为 **词法错误**。
 
-### 2.6 注释
+### 2.7 注释
 
 - 行注释以 `;` 开始，延续至行尾
 - 示例：`var a: int32 = 10    ; 定义 32 位整数`
 
-### 2.7 关键字
+### 2.8 关键字
 
 以下 token 为保留关键字，不可用作标识符：
 
 ```text
-var  let  int8  uint8  int16  uint16  int32  uint32  int64  uint64
-add  sub  mul  div  mod  abs  neg  cast  wrap  truncate  write  writeln  read
+var  let  bool  true  false
+int8  uint8  int16  uint16  int32  uint32  int64  uint64
+add  sub  mul  div  mod  abs  neg
+eq  ne  lt  le  gt  ge
+and  or  not
+cast  wrap  truncate
+write  writeln  read
 ```
 
-> **扩展预留**：以下关键字为未来功能保留：`if`、`else`、`goto`、`loop`、`func`、`return`、`true`、`false`、`bool`、`float32`、`float64`、`string`、`array`、`struct`、`ptr`、`and`、`or`、`xor`、`shl`、`shr`、`eq`、`ne`、`lt`、`le`、`gt`、`ge`、`not`。
+> **扩展预留**：以下关键字为未来功能保留：`if`、`else`、`goto`、`loop`、`func`、`return`、`float32`、`float64`、`string`、`array`、`struct`、`ptr`、`xor`、`shl`、`shr`。
 
-### 2.8 语句与行结构
+### 2.9 语句与行结构
 
 - 每条语句独占一行
 - **空行**、**仅含空白符的行**、**仅含行注释**的行均合法，不产生语句
@@ -270,18 +314,18 @@ add  sub  mul  div  mod  abs  neg  cast  wrap  truncate  write  writeln  read
 
 ### 3.1 类型分类
 
-TC 的类型系统设计为可扩展的分类体系。当前支持 **整数类型**，未来将逐步引入其他类别：
+TC 的类型系统设计为可扩展的分类体系。当前支持 **整数类型** 和 **布尔类型**，未来将逐步引入其他类别：
 
 | 类别            | 当前支持           | 未来预留                 | 说明                   |
 | --------------- | ------------------ | ------------------------ | ---------------------- |
 | **整数类型**    | ✅ `int8`～`uint64` | `int128`、`uint128`      | 固定宽度二进制补码整数 |
+| **布尔类型**    | ✅ `bool`           | —                        | 逻辑真/假              |
 | **浮点类型**    | —                  | `float32`、`float64`     | IEEE 754 浮点数        |
-| **布尔类型**    | —                  | `bool`                   | 逻辑真/假              |
 | **字符/字符串** | —                  | `char`、`string`         | Unicode 字符与字符串   |
 | **复合类型**    | —                  | `array`、`struct`、`ptr` | 聚合与间接类型         |
 | **单位类型**    | —                  | `void`                   | 无值（用于函数返回）   |
 
-### 3.2 当前支持的整数类型
+### 3.2 整数类型
 
 | 类型     | 位宽 | 符号   | 最小值                     | 最大值                     |
 | -------- | ---- | ------ | -------------------------- | -------------------------- |
@@ -296,7 +340,28 @@ TC 的类型系统设计为可扩展的分类体系。当前支持 **整数类�
 
 类型命名规则：`<符号前缀><位宽>`，其中符号前缀为 `int`（有符号）或 `uint`（无符号），位宽为 `8`/`16`/`32`/`64`。
 
-### 3.3 类型性质
+### 3.3 布尔类型
+
+`bool` 类型表示逻辑真值，取值为 `true` 或 `false`。
+
+**内部表示**：
+- 在运行时，`bool` 值以存储单元的最小可寻址单位（通常为字节）存储。
+- `false` 的表示为其存储单元的所有位均为 `0`。
+- `true` 的表示为任何非零的位模式（建议实现统一为 `1`）。
+- 但 **不可** 将 `bool` 直接解释为整数（须通过 `cast` 显式转换）。
+
+**类型性质**：
+- 比较运算和逻辑运算的结果类型为 `bool`。
+- `bool` 变量可被赋值、读取、输出。
+- `bool` 变量默认值为 **未定义**（同其他类型）。
+
+```text
+var flag: bool           ; 声明但未初始化
+flag = true              ; 合法
+var done: bool = false   ; 声明并初始化
+```
+
+### 3.4 类型性质
 
 **有符号类型（`int8`～`int64`）**
 
@@ -310,15 +375,22 @@ TC 的类型系统设计为可扩展的分类体系。当前支持 **整数类�
 - 算术结果超出最大值时 **模 2^n 回绕**，不报错
 - `div`/`mod` 结果恒为非负
 
+**布尔类型**
+
+- 仅表示逻辑真值
+- 比较运算和逻辑运算返回 `bool`
+- 不参与算术运算（须显式 `cast`）
+
 **运行时值模型**
 
 TC 中每个变量的值由 **n 位位模式**（`n` 为类型位宽）与 **类型解释** 共同构成：
 
-- 内部以 n 位无符号位模式存储；有符号类型按 **二补码** 解释，无符号类型按非负整数解释
+- 整数内部以 n 位无符号位模式存储；有符号类型按 **二补码** 解释，无符号类型按非负整数解释
+- `bool` 内部以存储单元的最小单位存储，语义上仅区分零和非零
 - `wrap` 算术回绕与 `cast(..., truncate, ...)` 均在此位模式上操作
 - 有符号 `wrap` 下的 `add`/`sub`/`mul`/`neg` 与同位宽无符号默认回绕 **位模式一致**
 
-### 3.4 字面量与类型的关系
+### 3.5 字面量与类型的关系
 
 整数字面量的符号性由后缀决定，数值须满足上下文类型的约束：
 
@@ -336,10 +408,15 @@ var g: uint8 = -1           ; 字面量范围错误
 ; 无符号字面量（u 后缀）——仅可用于无符号类型
 var h: uint8 = 255u         ; 合法
 var j: int32 = 42u          ; 字面量类型错误
+
+; 布尔字面量——仅可用于 bool 类型
+var flag: bool = true       ; 合法
+var err: int32 = true       ; 字面量类型错误
 ```
 
 #### 字面量检查规则
 
+**整数字面量**：
 1. 解析字面量数值 `N`（`0 ≤ N ≤ 18446744073709551615`）
 2. 若带负号（仅无后缀字面量允许），取 `−N`（`N=0` 时 `−0 = 0`）
 3. 根据后缀确定符号性：
@@ -361,9 +438,14 @@ var j: int32 = 42u          ; 字面量类型错误
 | `int64`    | 无后缀                  | −9,223,372,036,854,775,808 ～ 9,223,372,036,854,775,807 |
 | `uint64`   | 无后缀（≥0）或 `u` 后缀 | 0 ～ 18,446,744,073,709,551,615                         |
 
+**布尔字面量**：
+- `true` 仅可用于 `bool` 类型上下文
+- `false` 仅可用于 `bool` 类型上下文
+- 用于非 `bool` 类型 → **字面量类型错误**
+
 **`wrap`/`truncate` 不绕过字面量检查**：即使运算或转换使用回绕/截断模式，字面量仍须在上下文类型范围内通过静态检查。
 
-### 3.5 类型转换的通用框架
+### 3.6 类型转换的通用框架
 
 TC 的所有类型转换统一使用 `cast` 指令。转换行为由以下维度决定：
 
@@ -373,9 +455,9 @@ TC 的所有类型转换统一使用 `cast` 指令。转换行为由以下维度
 | **目标类型** | 要转换到的类型                                               |
 | **模式**     | `strict`（默认）：数值可表示性检查；`truncate`：按位截断/扩展/重解释 |
 
-当前实现的转换规则针对整数类型。未来扩展浮点、布尔、复合类型时，将复用此框架，补充各类型特定的转换语义。
+当前实现的转换规则针对整数类型和布尔类型。未来扩展浮点、复合类型时，将复用此框架，补充各类型特定的转换语义。
 
-### 3.6 作用域
+### 3.7 作用域
 
 TC 采用 **单全局作用域**：
 
@@ -387,7 +469,7 @@ TC 采用 **单全局作用域**：
 
 > **扩展预留**：未来引入函数时，将增加函数级局部作用域，作用域规则将相应扩展。
 
-### 3.7 变量生命周期
+### 3.8 变量生命周期
 
 | 阶段             | 行为                                                    |
 | ---------------- | ------------------------------------------------------- |
@@ -430,6 +512,7 @@ var a: int32 = 10           ; 声明并初始化
 var b: int32                ; 声明但未初始化
 var c: int32 = add(int32, a, 20)  ; 合法（a 已初始化）
 var d: int8 = cast(int8, truncate, a)
+var flag: bool = true       ; 布尔变量
 ```
 
 ### 4.3 常量定义（`let`）
@@ -437,7 +520,7 @@ var d: int8 = cast(int8, truncate, a)
 使用 `let` 声明 **不可变常量**：
 
 - RHS **必须** 提供
-- RHS 须为 **编译期常量表达式**（当前版本仅支持整数字面量）
+- RHS 须为 **编译期常量表达式**（当前版本仅支持字面量：整数或布尔）
 - 常量在编译期求值，不生成运行时赋值指令
 - 常量 **不可** 作为赋值语句的左值
 - 常量名不可与变量名冲突
@@ -445,6 +528,7 @@ var d: int8 = cast(int8, truncate, a)
 ```text
 let PI: int32 = 31415
 let MASK: uint32 = 0xFFFF_0000u
+let DEBUG: bool = true
 let X: int32 = add(int32, 10, 20)  ; 静态错误：let RHS 仅允许字面量
 ```
 
@@ -456,6 +540,11 @@ let X: int32 = add(int32, 10, 20)  ; 静态错误：let RHS 仅允许字面量
 var c: int32 = add(int32, a, b)
 c = mul(int32, a, b)        ; 合法
 c = cast(int32, d)          ; 跨类型须先 cast
+
+var flag: bool = false
+flag = true                 ; 合法
+flag = lt(int32, a, b)      ; 合法
+flag = and(bool, flag, true) ; 合法
 ```
 
 **约束**：赋值左侧不可为 `let` 定义的常量。
@@ -465,8 +554,12 @@ c = cast(int32, d)          ; 跨类型须先 cast
 | 产生式              | 结果类型           | 说明                         |
 | ------------------- | ------------------ | ---------------------------- |
 | `integer_literal`   | 由左侧变量类型决定 | 须满足字面量符号性及范围约束 |
+| `bool_literal`      | `bool`             | `true` 或 `false`            |
 | `binary_arith_expr` | 第一参数类型       | 五种双目算术运算             |
 | `unary_arith_expr`  | 第一参数类型       | 两种单目算术运算             |
+| `compare_expr`      | `bool`             | 六种比较运算                 |
+| `binary_logic_expr` | `bool`             | `and`、`or` 逻辑运算         |
+| `unary_logic_expr`  | `bool`             | `not` 逻辑运算               |
 | `cast_expr`         | 第一参数类型       | 类型转换                     |
 
 ### 4.6 操作数（Operand）
@@ -475,6 +568,7 @@ c = cast(int32, d)          ; 跨类型须先 cast
 | ----------------- | ------------------------------------------------------------ |
 | *identifier*      | 已定义，且类型与运算类型一致；若为变量且未初始化 → **编译警告** |
 | *integer_literal* | 须满足字面量约束                                             |
+| *bool_literal*    | 仅用于 `bool` 类型上下文                                     |
 
 **不支持** 嵌套：操作数不可为算术表达式或 `cast` 表达式。复合计算须拆分为多条语句。
 
@@ -535,9 +629,9 @@ var d: int8 = add(int8, wrap, a, b)         ; d = -128
 | --------------------- | ------------------------------------------------------------ |
 | `add` / `sub` / `mul` | 和 / 差 / 积；strict 超范围报错，wrap 回绕                   |
 | `div`                 | 商，**向零截断**（同 C 有符号 `/`）；除数为 0 → **除零错误**；商不可表示 → **整数溢出错误** |
-| `mod`                 | 余数符号与 **被除数** 相同；除数为 0 → **除零错误**；余数不可表示 → **整数溢出错误**          |
-| `abs`                 | 返回绝对值；`INT_MIN` 时 strict 报错                                                         |
-| `neg`                 | 返回相反数；`INT_MIN` 时 strict 报错，wrap 回绕                                              |
+| `mod`                 | 余数符号与 **被除数** 相同；除数为 0 → **除零错误**；余数不可表示 → **整数溢出错误** |
+| `abs`                 | 返回绝对值；`INT_MIN` 时 strict 报错                         |
+| `neg`                 | 返回相反数；`INT_MIN` 时 strict 报错，wrap 回绕              |
 
 **strict 溢出检测**（`div`/`mod`，有符号类型）：
 
@@ -546,16 +640,16 @@ var d: int8 = add(int8, wrap, a, b)         ; d = -128
 3. `div`：计算向零截断商 \(q\)；若 \(q\) 不在 `<T>` 可表示范围内 → **整数溢出错误**
 4. `mod`：计算余数 \(r\)（满足 \(|r| < |b|\) 且符号与被除数相同）；若 \(r\) 不在 `<T>` 可表示范围内 → **整数溢出错误**
 
-**特殊情形**（`b ≠ 0`）：
+**特殊情形**（\(b \neq 0\)）：
 
-| 表达式                   | 结果 | 说明                                                         |
-| ------------------------ | ---- | ------------------------------------------------------------ |
+| 表达式                   | 结果 | 说明                                                        |
+| ------------------------ | ---- | ----------------------------------------------------------- |
 | `div(T, INT_MIN(T), −1)` | —    | **整数溢出错误**（数学商 \(+2^{n-1}\) 不可在 `<T>` 中表示） |
-| `mod(T, INT_MIN(T), −1)` | `0`  | 余数为 0，**不报错**                                         |
-| `abs(T, INT_MIN(T))`     | —    | **整数溢出错误**                                             |
-| `neg(T, INT_MIN(T))`     | —    | strict 时 **整数溢出错误**                                   |
+| `mod(T, INT_MIN(T), −1)` | `0`  | 余数为 0，**不报错**                                        |
+| `abs(T, INT_MIN(T))`     | —    | **整数溢出错误**                                            |
+| `neg(T, INT_MIN(T))`     | —    | strict 时 **整数溢出错误**                                  |
 
-**恒等式**（`b ≠ 0`，且 `div`/`mul`/`sub` 在 strict 模式下 **不溢出**）：
+**恒等式**（\(b \neq 0\)，且 `div`/`mul`/`sub` 在 strict 模式下 **不溢出**）：
 
 `mod(<T>, a, b) == sub(<T>, a, mul(<T>, div(<T>, a, b), b))`
 
@@ -601,23 +695,177 @@ var l: uint8 = neg(uint8, k)       ; l = 255
 
 ### 5.4 算术运算的扩展框架
 
-当前版本仅实现了 **整数算术**。未来将逐步扩展：
+当前版本已实现 **整数算术** 和 **逻辑运算**。未来将逐步扩展：
 
 | 运算类别     | 当前支持                                    | 未来扩展                                                    |
 | ------------ | ------------------------------------------- | ----------------------------------------------------------- |
 | **整数算术** | ✅ `add`/`sub`/`mul`/`div`/`mod`/`abs`/`neg` | 任意位宽整数                                                |
+| **比较运算** | ✅ `eq`/`ne`/`lt`/`le`/`gt`/`ge`             | —                                                           |
+| **逻辑运算** | ✅ `and`/`or`/`not`                          | —                                                           |
 | **浮点算术** | —                                           | `fadd`/`fsub`/`fmul`/`fdiv`/`fneg`/`fabs`、`sqrt`、`sin` 等 |
 | **位运算**   | —                                           | `and`/`or`/`xor`/`shl`/`shr`                                |
-| **比较运算** | —                                           | `eq`/`ne`/`lt`/`le`/`gt`/`ge`（返回 `bool`）                |
-| **逻辑运算** | —                                           | `not`/`and`/`or`（操作 `bool`）                             |
 
 > 未来新增运算将复用相同的语法风格：`<op>(<类型> [, 模式], 操作数...)`。
 
 ---
 
-## 6. 类型转换
+## 6. 比较运算与逻辑运算
 
-### 6.1 `truncate` 模式详解
+### 6.1 比较运算
+
+#### 6.1.1 比较运算总览
+
+所有比较运算：
+- 接受 **两个同类型整数操作数**（`int8`～`uint64`）
+- 返回 `bool` 类型值
+- **不涉及** `wrap` / `truncate` 模式
+- **不产生溢出**（比较本身无算术溢出风险）
+
+| 运算 | 名称     | 语义     |
+| ---- | -------- | -------- |
+| `eq` | 等于     | `a == b` |
+| `ne` | 不等于   | `a != b` |
+| `lt` | 小于     | `a < b`  |
+| `le` | 小于等于 | `a <= b` |
+| `gt` | 大于     | `a > b`  |
+| `ge` | 大于等于 | `a >= b` |
+
+#### 6.1.2 语法形式
+
+```text
+var eq_result: bool = eq(int32, a, b)   ; false
+var ne_result: bool = ne(int32, a, b)   ; true
+var lt_result: bool = lt(int32, a, b)   ; true
+var le_result: bool = le(int32, a, b)   ; true
+var gt_result: bool = gt(int32, a, b)   ; false
+var ge_result: bool = ge(int32, a, b)   ; false
+```
+
+#### 6.1.3 语义规则
+
+**有符号整数比较**（`int8`～`int64`）：
+- 按二进制补码解释后的数学值比较
+- 负数 < 正数，数值大者大
+
+**无符号整数比较**（`uint8`～`uint64`）：
+- 按非负整数值比较
+
+**混合符号性**：
+- 比较运算的**类型参数 `T` 决定了操作数的解释方式**
+- 两操作数须与 `T` 类型一致
+- 若需比较不同符号性的整数，须先 `cast` 统一类型
+
+```text
+var signed: int32 = -1
+var unsigned: uint32 = 42u
+; var cmp: bool = lt(int32, signed, unsigned)   ; 类型错误：unsigned 不是 int32
+; var cmp: bool = lt(uint32, signed, unsigned)  ; 类型错误：signed 不是 uint32
+
+var unsigned_as_int32: int32 = cast(int32, unsigned)  ; 42
+var cmp: bool = lt(int32, signed, unsigned_as_int32)  ; true（-1 < 42）
+```
+
+#### 6.1.4 比较运算的链式调用
+
+由于 TC 不支持表达式嵌套，**链式比较须拆分为多条语句**：
+
+```text
+; 判断 a < b < c（不支持直接链式）
+var a: int32 = 5
+var b: int32 = 10
+var c: int32 = 15
+
+var step1: bool = lt(int32, a, b)   ; true
+var step2: bool = lt(int32, b, c)   ; true
+var result: bool = and(bool, step1, step2)   ; 使用逻辑运算组合
+```
+
+#### 6.1.5 操作数规则
+
+比较运算的操作数遵循 §4.6 的通用操作数规则：
+- 变量：须已定义且类型与 `T` 一致
+- 字面量：须满足 §3.5 的字面量约束
+- 未初始化变量读取 → **编译警告**
+
+### 6.2 逻辑运算
+
+#### 6.2.1 逻辑运算总览
+
+所有逻辑运算：
+- 接受 **`bool` 类型操作数**
+- 返回 `bool` 类型值
+- **不涉及** `wrap` / `truncate` 模式
+- **不产生溢出**
+
+| 运算  | 名称   | 操作数数量 | 语义                                            |
+| ----- | ------ | ---------- | ----------------------------------------------- |
+| `and` | 逻辑与 | 2          | 两操作数均为 `true` 时返回 `true`，否则 `false` |
+| `or`  | 逻辑或 | 2          | 任一操作数为 `true` 时返回 `true`，否则 `false` |
+| `not` | 逻辑非 | 1          | 操作数为 `true` 时返回 `false`，否则 `true`     |
+
+#### 6.2.2 短路求值（Short-Circuit Evaluation）
+
+**`and` 短路规则**：
+- 左操作数为 `false` 时，**不计算** 右操作数，直接返回 `false`
+- 左操作数为 `true` 时，计算右操作数并返回其值
+
+**`or` 短路规则**：
+- 左操作数为 `true` 时，**不计算** 右操作数，直接返回 `true`
+- 左操作数为 `false` 时，计算右操作数并返回其值
+
+**`not` 短路规则**：
+- `not` 为单目运算，无短路行为
+
+**短路求值的意义**：
+- 右操作数若为未初始化变量，短路时可避免 **未初始化变量警告**
+- 为未来控制流扩展提供一致的语义基础
+
+#### 6.2.3 语法形式
+
+```text
+; 双目逻辑运算
+var and_result: bool = and(bool, a, b)   ; a && b
+var or_result: bool = or(bool, a, b)     ; a || b
+
+; 单目逻辑运算
+var not_result: bool = not(bool, a)      ; !a
+```
+
+#### 6.2.4 操作数约束
+
+- 所有操作数须为 `bool` 类型
+- 操作数可为 `bool` 变量、`true`/`false` 字面量、比较运算结果、其他逻辑运算结果
+- 未初始化 `bool` 变量读取 → **编译警告**
+- 操作数类型为整数 → **类型错误**
+
+```text
+var x: int32 = 42
+var flag: bool = true
+; var err: bool = and(bool, flag, x)   ; 类型错误：x 不是 bool
+```
+
+#### 6.2.5 真值表
+
+| `and`   | `true`  | `false` |
+| ------- | ------- | ------- |
+| `true`  | `true`  | `false` |
+| `false` | `false` | `false` |
+
+| `or`    | `true` | `false` |
+| ------- | ------ | ------- |
+| `true`  | `true` | `true`  |
+| `false` | `true` | `false` |
+
+| `not`   | 结果    |
+| ------- | ------- |
+| `true`  | `false` |
+| `false` | `true`  |
+
+---
+
+## 7. 类型转换
+
+### 7.1 `truncate` 模式详解
 
 `cast` 使用 `truncate` 关键字表示按位截断/扩展/重解释。`wrap` 关键字 **不可用于 cast**。
 
@@ -630,7 +878,7 @@ var n: int32 = sub(int32, 0, 1)                  ; n = -1
 var bits: uint8 = cast(uint8, truncate, n)       ; bits = 255
 ```
 
-### 6.2 整数严格转换规则（`strict`）
+### 7.2 整数严格转换规则（`strict`）
 
 #### 加宽（目标位宽 > 源位宽）
 
@@ -663,7 +911,7 @@ var bits: uint8 = cast(uint8, truncate, n)       ; bits = 255
 
 源类型与目标类型相同 → 恒等转换。
 
-### 6.3 整数截断转换规则（`truncate`）
+### 7.3 整数截断转换规则（`truncate`）
 
 设源位宽 n、目标位宽 m；先将源操作数表示为 n 位整数 `bits`（`0 ≤ bits < 2^n`）。
 
@@ -702,29 +950,65 @@ var u8:  uint8  = 200
 var ext3: int16 = cast(int16, truncate, u8)    ; ext3 = 200（零扩展）
 ```
 
-### 6.4 整数转换规则速查
+### 7.4 `bool` ↔ 整数转换规则
+
+`cast` 指令扩展支持 `bool` 与整数类型之间的转换。
+
+#### `bool` → 整数
+
+| 目标类型     | 规则                                      |
+| ------------ | ----------------------------------------- |
+| 任意整数类型 | `true` → `1`，`false` → `0`               |
+| 模式         | strict 和 truncate **行为相同**（无损失） |
+
+```text
+var flag: bool = true
+var as_int: int32 = cast(int32, flag)   ; 1
+var as_u8: uint8 = cast(uint8, flag)    ; 1u
+```
+
+#### 整数 → `bool`
+
+| 源类型       | 规则                                      |
+| ------------ | ----------------------------------------- |
+| 任意整数类型 | `0` → `false`，非 `0` → `true`            |
+| 模式         | strict 和 truncate **行为相同**（无损失） |
+
+```text
+var x: int32 = 42
+var flag: bool = cast(bool, x)   ; true
+var y: int32 = 0
+var zero_flag: bool = cast(bool, y)   ; false
+```
+
+#### `bool` ↔ `bool`（同类型）
+
+同类型转换：恒等，不报错。
+
+### 7.5 整数转换规则速查
 
 **strict**：
 
-| 源 ↓ / 目标 → | int（有符号）                    | uint（无符号）                |
-| ------------- | -------------------------------- | ----------------------------- |
-| **int**       | 范围内保留/符号扩展；超出 → 错误 | 非负且范围内；否则 → 错误     |
-| **uint**      | ≤ 目标 max；否则 → 错误          | 同宽/缩窄：截断；加宽：零扩展 |
+| 源 ↓ / 目标 → | int（有符号）                    | uint（无符号）                | `bool`                         |
+| ------------- | -------------------------------- | ----------------------------- | ------------------------------ |
+| **int**       | 范围内保留/符号扩展；超出 → 错误 | 非负且范围内；否则 → 错误     | `0` → `false`，非 `0` → `true` |
+| **uint**      | ≤ 目标 max；否则 → 错误          | 同宽/缩窄：截断；加宽：零扩展 | `0` → `false`，非 `0` → `true` |
+| **`bool`**    | `true` → `1`，`false` → `0`      | `true` → `1`，`false` → `0`   | 恒等                           |
 
-**truncate**：任意源 → 任意目标，按位模式算法处理，不报错。
+**truncate**：任意整数源 → 任意整数目标，按位模式算法处理，不报错。`bool` 与整数互转在 truncate 模式下与 strict 相同（无损失）。
 
-### 6.5 类型转换的扩展框架
+### 7.6 类型转换的扩展框架
 
-当前实现了 **整数 ↔ 整数** 的转换。未来将扩展：
+当前实现了 **整数 ↔ 整数** 和 **整数 ↔ `bool`** 的转换。未来将扩展：
 
-| 转换场景    | 当前支持 | 说明                                       |
-| ----------- | -------- | ------------------------------------------ |
-| 整数 ↔ 整数 | ✅        | 任意位宽组合                               |
-| 整数 ↔ 浮点 | —        | `cast(float32, int32_val)`                 |
-| 浮点 ↔ 浮点 | —        | 精度转换（如 `float32` ↔ `float64`）       |
-| 布尔 ↔ 整数 | —        | `cast(bool, int_val)`（0→false，非0→true） |
-| 指针 ↔ 整数 | —        | 地址与整数互转                             |
-| 复合类型    | —        | 结构体转换、数组重解释                     |
+| 转换场景    | 当前支持 | 说明                                 |
+| ----------- | -------- | ------------------------------------ |
+| 整数 ↔ 整数 | ✅        | 任意位宽组合                         |
+| 整数 ↔ 布尔 | ✅        | 整数与 `bool` 互转                   |
+| 整数 ↔ 浮点 | —        | `cast(float32, int32_val)`           |
+| 浮点 ↔ 浮点 | —        | 精度转换（如 `float32` ↔ `float64`） |
+| 指针 ↔ 整数 | —        | 地址与整数互转                       |
+| 复合类型    | —        | 结构体转换、数组重解释               |
 
 ---
 
@@ -732,32 +1016,32 @@ var ext3: int16 = cast(int16, truncate, u8)    ; ext3 = 200（零扩展）
 
 ---
 
-## 7. 标准 I/O
+## 8. 标准 I/O
 
-### 7.1 `write` — 不换行输出
+### 8.1 `write` — 不换行输出
 
 **形式一：无格式输出**
 
-| 项目       | 说明                                                        |
-| ---------- | ----------------------------------------------------------- |
-| 语法       | `write(int32, x)`、`write(uint8, 42u)`                      |
-| 功能       | 将操作数的值按类型解释，以十进制文本写入 stdout，**不换行** |
-| 操作数规则 | 变量（须已定义）或整数字面量                                |
-| 类型约束   | 变量类型与 `type` 一致；字面量满足 §3.4 约束                |
-| 输出格式   | 纯十进制，无前导零；有符号带 `-`；无符号无后缀              |
+| 项目       | 说明                                                         |
+| ---------- | ------------------------------------------------------------ |
+| 语法       | `write(int32, x)`、`write(uint8, 42u)`、`write(bool, flag)`  |
+| 功能       | 将操作数的值按类型解释，以十进制/文本写入 stdout，**不换行** |
+| 操作数规则 | 变量（须已定义）或字面量                                     |
+| 类型约束   | 变量类型与 `type` 一致；字面量满足 §3.5 约束                 |
+| 输出格式   | 整数：纯十进制，无前导零；有符号带 `-`；无符号无后缀；布尔：`true`/`false` |
 
 **形式二：格式化输出**
 
-| 项目       | 说明                                            |
-| ---------- | ----------------------------------------------- |
-| 语法       | `write(int32, %d, x)`、`write(uint8, %x, 255u)` |
-| 功能       | 按格式化符号输出操作数的值，**不换行**          |
-| 操作数规则 | 变量或整数字面量；**恰好一个**操作数            |
-| 类型约束   | 操作数类型与 `type` 一致，且与格式化符号兼容    |
+| 项目       | 说明                                                         |
+| ---------- | ------------------------------------------------------------ |
+| 语法       | `write(int32, %d, x)`、`write(uint8, %x, 255u)`、`write(bool, %t, flag)` |
+| 功能       | 按格式化符号输出操作数的值，**不换行**                       |
+| 操作数规则 | 变量或字面量；**恰好一个**操作数                             |
+| 类型约束   | 操作数类型与 `type` 一致，且与格式化符号兼容                 |
 
 **特别说明**：`int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`。
 
-### 7.2 `writeln` — 换行输出
+### 8.2 `writeln` — 换行输出
 
 与 `write` 相同，但在输出末尾追加换行符 `\n`。
 
@@ -765,27 +1049,35 @@ var ext3: int16 = cast(int16, truncate, u8)    ; ext3 = 200（零扩展）
 var x: int32 = 10
 write(int32, x)                    ; "10"
 writeln(int32, %d, x)              ; "10\n"
+
+var flag: bool = true
+writeln(bool, %t, flag)            ; "true\n"
 ```
 
-### 7.3 `read` — 标准输入
+### 8.3 `read` — 标准输入
 
-| 项目     | 说明                                               |
-| -------- | -------------------------------------------------- |
-| 语法     | `read(int32, x)`、`read(uint8, count)`             |
-| 功能     | 从 stdin 读取一个十进制整数，存入已定义变量        |
-| 目标变量 | 必须已声明，且类型与 `type` 一致                   |
-| 输入格式 | 十进制整数；`int*` 支持可选 `-` 前缀；跳过前导空白 |
-| 错误处理 | 非法输入/数值超范围/非预期 EOF → **I/O 错误**      |
+| 项目     | 说明                                                       |
+| -------- | ---------------------------------------------------------- |
+| 语法     | `read(int32, x)`、`read(uint8, count)`、`read(bool, flag)` |
+| 功能     | 从 stdin 读取一个值，存入已定义变量                        |
+| 目标变量 | 必须已声明，且类型与 `type` 一致                           |
+| 输入格式 | 见下表；跳过前导空白                                       |
+| 错误处理 | 非法输入/数值超范围/非预期 EOF → **I/O 错误**              |
 
 **输入规则**：
-1. 跳过前导空白
-2. `int*` 类型：可选 `-` 前缀
-3. `uint*` 类型：**不接受** `-` 前缀
-4. 读取连续十进制数字，至少一位
-5. 数值超出范围 → I/O 错误
-6. EOF 且无数字 → I/O 错误
 
-### 7.4 格式化符号定义
+| 目标类型 | 输入格式                                      |
+| -------- | --------------------------------------------- |
+| `int*`   | 可选 `-` 前缀 + 连续十进制数字，至少一位      |
+| `uint*`  | 连续十进制数字，至少一位；**不接受** `-` 前缀 |
+| `bool`   | `true` 或 `false`（大小写敏感，均为小写）     |
+
+**错误情形**：
+1. 数值超出目标类型范围 → I/O 错误
+2. EOF 且无有效输入 → I/O 错误
+3. `bool` 输入非 `true`/`false` → I/O 错误
+
+### 8.4 格式化符号定义
 
 | 符号 | 含义                    | 适用类型                       | 示例（值 42） |
 | ---- | ----------------------- | ------------------------------ | ------------- |
@@ -796,10 +1088,13 @@ writeln(int32, %d, x)              ; "10\n"
 | `%X` | 十六进制（大写 A-F）    | 任一整数类型（按无符号位模式） | `2A`          |
 | `%o` | 八进制                  | 任一整数类型（按无符号位模式） | `52`          |
 | `%b` | 二进制                  | 任一整数类型（按无符号位模式） | `101010`      |
+| `%t` | 布尔值文本              | `bool`                         | `true`        |
 
-**说明**：`%x`/`%X`/`%o`/`%b` 在有符号类型上输出其**无符号位模式**（二补码解释），如 `var x: int8 = -1; write(int8, %x, x)` 输出 `ff`。
+**说明**：
+- `%x`/`%X`/`%o`/`%b` 在有符号类型上输出其**无符号位模式**（二补码解释）
+- `%t` 输出 `true` 或 `false`（小写）
 
-### 7.5 类型兼容性
+### 8.5 类型兼容性
 
 | 符号                      | 可接受操作数类型                      |
 | ------------------------- | ------------------------------------- |
@@ -807,10 +1102,14 @@ writeln(int32, %d, x)              ; "10\n"
 | `%i`                      | `int8`, `int16`, `int32`, `int64`     |
 | `%u`                      | `uint8`, `uint16`, `uint32`, `uint64` |
 | `%x` / `%X` / `%o` / `%b` | 任一整数类型                          |
+| `%t`                      | `bool`                                |
 
-**错误示例**：`write(int8, %u, x)` ❌（`%u` 要求无符号类型）
+**错误示例**：
+- `write(int8, %u, x)` ❌（`%u` 要求无符号类型）
+- `write(int32, %t, x)` ❌（`%t` 要求 `bool` 类型）
+- `write(bool, %d, flag)` ❌（`%d` 要求整数类型）
 
-### 7.6 格式化输出扩展预留
+### 8.6 格式化输出扩展预留
 
 > **扩展预留**：未来版本将支持更多格式化符号：
 > - `%f` / `%F`：浮点数（十进制）
@@ -827,9 +1126,9 @@ writeln(int32, %d, x)              ; "10\n"
 
 ---
 
-## 8. 完整示例集
+## 9. 完整示例集
 
-### 8.1 变量定义与初始化
+### 9.1 变量定义与初始化
 
 ```text
 var a: int32 = 42
@@ -840,9 +1139,10 @@ var d: uint8
 let MAX_U8: uint8 = 255u
 let MASK_32: uint32 = 0xFFFF_FFFFu
 let PI_SCALED: int32 = 314159
+let DEBUG: bool = true
 ```
 
-### 8.2 字面量后缀与符号性
+### 9.2 字面量后缀与符号性
 
 ```text
 var a: int32 = 42
@@ -856,9 +1156,12 @@ var f: uint16 = 0b1111_1111_1111_1111u
 var g: uint8 = 255          ; 合法
 ; var h: uint8 = 256        ; 字面量范围错误
 ; var i: uint8 = -1         ; 字面量范围错误
+
+var flag: bool = true
+; var err: int32 = true    ; 字面量类型错误
 ```
 
-### 8.3 算术运算
+### 9.3 算术运算
 
 ```text
 var a: int32 = 10
@@ -870,7 +1173,7 @@ var quot: int32 = div(int32, b, a)
 var rem:  int32 = mod(int32, b, a)
 ```
 
-### 8.4 算术回绕
+### 9.4 算术回绕
 
 ```text
 var a: int8 = 127
@@ -882,7 +1185,7 @@ var small: int16 = 30000
 var prod: int16 = mul(int16, wrap, big, small)   ; -5888
 ```
 
-### 8.5 取绝对值与取负数
+### 9.5 取绝对值与取负数
 
 ```text
 var a: int8 = -42
@@ -903,7 +1206,90 @@ var f: uint8 = 1u
 var neg_f: uint8 = neg(uint8, f)        ; 255
 ```
 
-### 8.6 类型转换
+### 9.6 比较运算
+
+```text
+var a: int32 = 10
+var b: int32 = 20
+
+var eq_res: bool = eq(int32, a, b)   ; false
+var ne_res: bool = ne(int32, a, b)   ; true
+var lt_res: bool = lt(int32, a, b)   ; true
+var le_res: bool = le(int32, a, b)   ; true
+var gt_res: bool = gt(int32, a, b)   ; false
+var ge_res: bool = ge(int32, a, b)   ; false
+
+writeln(bool, %t, lt_res)   ; "true\n"
+```
+
+### 9.7 逻辑运算
+
+```text
+var a: bool = true
+var b: bool = false
+var c: bool = true
+
+var and_ab: bool = and(bool, a, b)        ; false
+var and_ac: bool = and(bool, a, c)        ; true
+var or_ab: bool = or(bool, a, b)          ; true
+var or_bb: bool = or(bool, b, b)          ; false
+var not_a: bool = not(bool, a)            ; false
+var not_b: bool = not(bool, b)            ; true
+
+writeln(bool, %t, and_ab)   ; "false\n"
+writeln(bool, %t, or_ab)    ; "true\n"
+writeln(bool, %t, not_a)    ; "false\n"
+```
+
+### 9.8 比较与逻辑运算组合
+
+```text
+var x: int32 = 10
+var y: int32 = 20
+var z: int32 = 15
+
+var x_lt_y: bool = lt(int32, x, y)          ; true
+var y_gt_z: bool = gt(int32, y, z)          ; true
+var both_true: bool = and(bool, x_lt_y, y_gt_z)  ; true
+
+var x_gt_y: bool = gt(int32, x, y)          ; false
+var any_true: bool = or(bool, x_gt_y, y_gt_z)   ; true
+
+writeln(bool, %t, both_true)   ; "true\n"
+writeln(bool, %t, any_true)    ; "true\n"
+```
+
+### 9.9 短路求值演示
+
+```text
+; 短路求值：左操作数为 false 时，右操作数不被计算
+var flag: bool = false
+var uninit: bool           ; 未初始化
+
+; 由于 flag 为 false，右操作数 uninit 不被读取
+var result: bool = and(bool, flag, uninit)   ; false（无未初始化警告）
+writeln(bool, %t, result)   ; "false\n"
+
+; or 短路：左操作数为 true 时，右操作数不被计算
+var flag2: bool = true
+var uninit2: bool          ; 未初始化
+
+var result2: bool = or(bool, flag2, uninit2) ; true（无未初始化警告）
+writeln(bool, %t, result2)  ; "true\n"
+```
+
+### 9.10 混合符号性比较
+
+```text
+var signed: int32 = -1
+var unsigned: uint32 = 42u
+
+; 须先 cast 统一类型
+var unsigned_as_int32: int32 = cast(int32, unsigned)
+var cmp: bool = lt(int32, signed, unsigned_as_int32)   ; true
+```
+
+### 9.11 类型转换
 
 ```text
 var x: int32 = 50
@@ -916,9 +1302,13 @@ var truncated: int8 = cast(int8, truncate, big)  ; -24
 
 var neg: int32 = -1
 var bits: uint8 = cast(uint8, truncate, neg)     ; 255
+
+; 布尔与整数互转
+var flag: bool = cast(bool, x)          ; true（x 非零）
+var as_int: int32 = cast(int32, flag)   ; 1
 ```
 
-### 8.7 复合计算
+### 9.12 复合计算
 
 ```text
 ; (a + b) * c
@@ -935,7 +1325,19 @@ var diff: int32 = sub(int32, x, y)       ; -5
 var dist: int32 = abs(int32, diff)       ; 5
 ```
 
-### 8.8 多进制字面量
+### 9.13 复合条件判断
+
+```text
+; 判断数值是否在 [0, 100] 范围内
+var value: int32 = 42
+var ge_zero: bool = ge(int32, value, 0)
+var le_hundred: bool = le(int32, value, 100)
+var in_range: bool = and(bool, ge_zero, le_hundred)
+
+writeln(bool, %t, in_range)   ; "true\n"
+```
+
+### 9.14 多进制字面量
 
 ```text
 var mask_lo: uint16 = 0x00FFu
@@ -951,22 +1353,54 @@ var min_i32: int32 = -0x8000_0000
 var max_i32: int32 = 0x7FFF_FFFF
 ```
 
-### 8.9 I/O 无格式输出
+### 9.15 综合示例：输入校验与三角形判断
+
+```text
+; 读取三个整数，判断它们是否能构成三角形
+var a: int32
+var b: int32
+var c: int32
+
+read(int32, a)
+read(int32, b)
+read(int32, c)
+
+; 三角形条件：a + b > c, a + c > b, b + c > a
+var sum_ab: int32 = add(int32, a, b)
+var sum_ac: int32 = add(int32, a, c)
+var sum_bc: int32 = add(int32, b, c)
+
+var cond1: bool = gt(int32, sum_ab, c)
+var cond2: bool = gt(int32, sum_ac, b)
+var cond3: bool = gt(int32, sum_bc, a)
+
+; 三个条件同时满足
+var cond12: bool = and(bool, cond1, cond2)
+var is_triangle: bool = and(bool, cond12, cond3)
+
+writeln(bool, %t, is_triangle)
+```
+
+### 9.16 I/O 无格式输出
 
 ```text
 var x: int32 = 42
 var y: uint8 = 255u
+var flag: bool = true
+
 write(int32, x)                    ; "42"
 writeln(uint8, y)                  ; "255\n"
+writeln(bool, flag)                ; "true\n"
 
 write(uint8, 0xFFu)                ; "255"
 write(int16, -128)                 ; "-128"
+write(bool, false)                 ; "false"
 
 var ch: int8 = 65
 write(int8, ch)                    ; "65"（而非 "A"）
 ```
 
-### 8.10 I/O 格式化输出
+### 9.17 I/O 格式化输出
 
 ```text
 var a: int32 = 42
@@ -990,38 +1424,52 @@ writeln(uint8, %b, f)              ; "10100011"
 var neg: int8 = -1
 writeln(int8, %x, neg)             ; "ff"
 writeln(int8, %b, neg)             ; "11111111"
+
+var flag: bool = true
+writeln(bool, %t, flag)            ; "true"
 ```
 
-### 8.11 I/O 输入输出综合
+### 9.18 I/O 输入输出综合
 
 ```text
+; 读取两个整数，比较大小
 var a: int32 = 0
 var b: int32 = 0
 read(int32, a)
 read(int32, b)
-var sum: int32 = add(int32, a, b)
-writeln(int32, %d, sum)
+
+var is_equal: bool = eq(int32, a, b)
+var is_less: bool = lt(int32, a, b)
+var is_greater_or_equal: bool = or(bool, is_equal, not(bool, is_less))
+
+writeln(bool, %t, is_equal)
+writeln(bool, %t, is_less)
+writeln(bool, %t, is_greater_or_equal)
 ```
 
-### 8.12 常量与变量混合
+### 9.19 常量与变量混合
 
 ```text
 let SCALE: int32 = 1000
 let OFFSET: int32 = 500
+let DEBUG: bool = true
 
 var raw: int32 = 42
 var scaled: int32 = mul(int32, raw, SCALE)
 var result: int32 = add(int32, scaled, OFFSET)
+
+var debug_flag: bool = DEBUG
 writeln(int32, %d, result)         ; "42500"
+writeln(bool, %t, debug_flag)      ; "true"
 ```
 
 ---
 
-## 9. 错误与警告
+## 10. 错误与警告
 
 遇到 **第一个** 错误即终止程序（fail-fast）。错误按发生阶段分为 **静态**（词法/语法/静态分析）与 **运行时** 两类。编译警告不影响程序执行。
 
-### 9.1 静态错误（18 种）
+### 10.1 静态错误（22 种）
 
 | 错误类型         | 触发条件                                                     |
 | ---------------- | ------------------------------------------------------------ |
@@ -1029,18 +1477,19 @@ writeln(int32, %d, result)         ; "42500"
 | 语法错误         | token 序列不符合附录 A 的产生式                              |
 | 未定义标识符错误 | 使用未 `var`/`let` 声明的标识符                              |
 | 重复定义错误     | 同一作用域重复 `var`/`let` 同名标识符                        |
-| 类型错误         | 运算或赋值时类型不一致                                       |
-| 字面量范围错误   | 字面量数值超出上下文类型可表示范围                           |
-| 字面量类型错误   | `u` 后缀字面量用于有符号类型上下文；或负号与 `u` 后缀组合    |
+| 类型错误         | 运算或赋值时类型不一致（如逻辑运算操作数非 `bool`）          |
+| 字面量范围错误   | 整数字面量数值超出上下文类型可表示范围                       |
+| 字面量类型错误   | `u` 后缀字面量用于有符号类型上下文；负号与 `u` 后缀组合；`true`/`false` 用于非 `bool` 类型；整数用于 `bool` 类型（未通过 `cast`） |
 | 溢出模式错误     | `div`/`mod` 使用 `wrap`；`abs` 使用 `wrap`                   |
 | 关键字错误       | `wrap` 用于 `cast`；`truncate` 用于算术运算；关键字用于错误上下文 |
 | 常量赋值错误     | 对 `let` 定义的常量进行赋值                                  |
 | 常量表达式错误   | `let` 的 RHS 不是编译期常量表达式                            |
-| 格式字符串错误   | 格式符号不是 `%d`/`%i`/`%u`/`%x`/`%X`/`%o`/`%b` 之一         |
+| 格式字符串错误   | 格式符号不是 `%d`/`%i`/`%u`/`%x`/`%X`/`%o`/`%b`/`%t` 之一    |
 | 格式类型不匹配   | 操作数类型与格式化符号不兼容                                 |
-| 操作数数量错误   | 格式化版本缺少操作数，或多于一个操作数                       |
+| 操作数数量错误   | 格式化版本缺少操作数，或多于一个操作数；`and`/`or` 操作数数量不为 2；`not` 操作数数量不为 1 |
+| 比较类型不匹配   | 比较运算的两操作数类型不一致，或与类型参数不一致             |
 
-### 9.2 运行时错误（4 种）
+### 10.2 运行时错误（4 种）
 
 | 错误类型     | 触发条件                                                    |
 | ------------ | ----------------------------------------------------------- |
@@ -1049,11 +1498,13 @@ writeln(int32, %d, result)         ; "42500"
 | 转换溢出错误 | `cast` strict 模式下结果无法在目标类型中表示                |
 | I/O 错误     | `read` 读取失败                                             |
 
-### 9.3 编译警告（1 种）
+### 10.3 编译警告（1 种）
 
 | 警告类型         | 触发条件                                                     |
 | ---------------- | ------------------------------------------------------------ |
 | 未初始化变量警告 | 读取尚未获得初值的变量。运行时值为 **未定义**（implementation-defined） |
+
+**注意**：短路求值时，未被读取的右操作数不触发未初始化变量警告。
 
 ---
 
@@ -1100,6 +1551,8 @@ integer_literal
              | oct_literal [ "u" | "U" ]
            ) ;
 
+bool_literal = "true" | "false" ;
+
 dec_literal = non_zero_digit , { digit | "_" } | "0" ;
 hex_literal = ( "0x" | "0X" ) , hex_digit , { hex_digit | "_" } ;
 bin_literal = ( "0b" | "0B" ) , ( "0" | "1" ) , { ( "0" | "1" ) | "_" } ;
@@ -1115,23 +1568,24 @@ int_type   = "int8"   | "uint8"
            | "int16"  | "uint16"
            | "int32"  | "uint32"
            | "int64"  | "uint64" ;
-/* 扩展预留：浮点类型 float32, float64；布尔 bool；复合类型 array, struct, ptr */
+bool_type  = "bool" ;
+type       = int_type | bool_type ;
+/* 扩展预留：浮点类型 float32, float64；复合类型 array, struct, ptr */
 
 /* ── 运算与模式关键字 ── */
 
 binary_op  = "add" | "sub" | "mul" | "div" | "mod" ;
-/* 扩展预留：位运算 and, or, xor, shl, shr；比较 eq, ne, lt, le, gt, ge */
-
 unary_op   = "abs" | "neg" ;
-/* 扩展预留：浮点一元 fneg, fabs, sqrt；逻辑 not */
-
+compare_op = "eq" | "ne" | "lt" | "le" | "gt" | "ge" ;
+logic_op   = "and" | "or" | "not" ;
 wrap_kw    = "wrap" ;
 truncate_kw = "truncate" ;
+/* 扩展预留：位运算 xor, shl, shr */
 
 /* ── 格式化符号 ── */
 
 format_specifier
-           = "%d" | "%i" | "%u" | "%x" | "%X" | "%o" | "%b" ;
+           = "%d" | "%i" | "%u" | "%x" | "%X" | "%o" | "%b" | "%t" ;
 /* 扩展预留：%f, %F, %e, %E, %c, %s, %p */
 
 /* ── 注释 ── */
@@ -1159,12 +1613,12 @@ statement  = variable_def
 
 /* ── 变量定义 ── */
 
-variable_def = "var" , ws , identifier , ws , ":" , ws , int_type
+variable_def = "var" , ws , identifier , ws , ":" , ws , type
              [ ws , "=" , ws , rhs ] ;
 
 /* ── 常量定义 ── */
 
-constant_def = "let" , ws , identifier , ws , ":" , ws , int_type , ws ,
+constant_def = "let" , ws , identifier , ws , ":" , ws , type , ws ,
                "=" , ws , const_rhs ;
 
 /* ── 赋值语句 ── */
@@ -1178,15 +1632,19 @@ stmt_terminator
 /* ── 右值表达式 ── */
 
 rhs        = integer_literal
+           | bool_literal
            | binary_arith_expr
            | unary_arith_expr
+           | compare_expr
+           | binary_logic_expr
+           | unary_logic_expr
            | cast_expr ;
 
-const_rhs  = integer_literal ;      /* 常量 RHS 仅允许字面量 */
+const_rhs  = integer_literal | bool_literal ;   /* 常量 RHS 仅允许字面量 */
 
 /* ── 操作数 ── */
 
-operand    = identifier | integer_literal ;
+operand    = identifier | integer_literal | bool_literal ;
 
 /* ── 双目算术表达式 ── */
 
@@ -1224,12 +1682,34 @@ wrap_unary_arith_expr
 /* unary_op ∈ { abs, neg }
    wrap 形式仅 neg 合法；abs 使用 wrap 则报错 */
 
+/* ── 比较表达式 ── */
+
+compare_expr = compare_op , "(" , ws , int_type , ws , ","
+               , ws , operand , ws , "," , ws , operand , ws , ")" ;
+
+/* compare_op ∈ { eq, ne, lt, le, gt, ge }
+   两操作数须为相同整数类型，返回 bool */
+
+/* ── 双目逻辑表达式 ── */
+
+binary_logic_expr
+           = logic_op , "(" , ws , bool_type , ws , ","
+             , ws , operand , ws , "," , ws , operand , ws , ")" ;
+
+logic_op   = "and" | "or" ;
+
+/* ── 单目逻辑表达式 ── */
+
+unary_logic_expr
+           = "not" , "(" , ws , bool_type , ws , ","
+             , ws , operand , ws , ")" ;
+
 /* ── 类型转换表达式 ── */
 
 cast_expr  = strict_cast_expr | truncate_cast_expr ;
 
 strict_cast_expr
-           = "cast" , "(" , ws , int_type , ws , ","
+           = "cast" , "(" , ws , type , ws , ","
              , ws , identifier , ws , ")" ;
 
 truncate_cast_expr
@@ -1237,23 +1717,24 @@ truncate_cast_expr
              , ws , truncate_kw , ws , ","
              , ws , identifier , ws , ")" ;
 
-/* cast 源操作数须为变量，不可为字面量或嵌套表达式 */
+/* cast 源操作数须为变量，不可为字面量或嵌套表达式
+   truncate 仅用于整数 → 整数转换；bool ↔ 整数转换中 truncate 与 strict 行为相同 */
 
 /* ── I/O 语句 ── */
 
-write_stmt = "write" , "(" , ws , int_type , ws , ","
+write_stmt = "write" , "(" , ws , type , ws , ","
              , ws , operand , ws , ")"
-           | "write" , "(" , ws , int_type , ws , ","
+           | "write" , "(" , ws , type , ws , ","
              , ws , format_specifier , ws , ","
              , ws , operand , ws , ")" ;
 
-writeln_stmt = "writeln" , "(" , ws , int_type , ws , ","
+writeln_stmt = "writeln" , "(" , ws , type , ws , ","
                , ws , operand , ws , ")"
-             | "writeln" , "(" , ws , int_type , ws , ","
+             | "writeln" , "(" , ws , type , ws , ","
                , ws , format_specifier , ws , ","
                , ws , operand , ws , ")" ;
 
-read_stmt  = "read" , "(" , ws , int_type , ws , ","
+read_stmt  = "read" , "(" , ws , type , ws , ","
              , ws , identifier , ws , ")" ;
 
 /* ── 空白 ── */
@@ -1266,34 +1747,43 @@ newline    = "\n" | "\r\n" | "\r" ;
 
 ## 附录 B：与 C 语言整数语义对照
 
-| 类型        | TC 类型  | C 语言等价 |
-| ----------- | -------- | ---------- |
-| 8 位有符号  | `int8`   | `int8_t`   |
-| 8 位无符号  | `uint8`  | `uint8_t`  |
-| 16 位有符号 | `int16`  | `int16_t`  |
-| 16 位无符号 | `uint16` | `uint16_t` |
-| 32 位有符号 | `int32`  | `int32_t`  |
-| 32 位无符号 | `uint32` | `uint32_t` |
-| 64 位有符号 | `int64`  | `int64_t`  |
-| 64 位无符号 | `uint64` | `uint64_t` |
+| 类型        | TC 类型  | C 语言等价                     |
+| ----------- | -------- | ------------------------------ |
+| 8 位有符号  | `int8`   | `int8_t`                       |
+| 8 位无符号  | `uint8`  | `uint8_t`                      |
+| 16 位有符号 | `int16`  | `int16_t`                      |
+| 16 位无符号 | `uint16` | `uint16_t`                     |
+| 32 位有符号 | `int32`  | `int32_t`                      |
+| 32 位无符号 | `uint32` | `uint32_t`                     |
+| 64 位有符号 | `int64`  | `int64_t`                      |
+| 64 位无符号 | `uint64` | `uint64_t`                     |
+| 布尔        | `bool`   | `bool`（C23） / `_Bool`（C99） |
 
-| 运算           | TC（新）                                | C 等价                       |
-| -------------- | --------------------------------------- | ---------------------------- |
-| 有符号字面量   | `42`                                    | `42`                         |
-| 无符号字面量   | `42u`                                   | `42u`                        |
-| 加             | `add(int32, a, b)`                      | `(int32_t)a + (int32_t)b`    |
-| 加（回绕）     | `add(int32, wrap, a, b)`                | 同宽无符号运算后 reinterpret |
-| 减 / 乘        | `sub` / `mul`                           | 对应 `-` / `*`               |
-| 整除 / 求余    | `div` / `mod`                           | `/` / `%`（`INT_MIN / −1` 在 C 为 UB） |
-| `INT_MIN / −1` | `div` → **整数溢出错误**；`mod` → `0`   | C 为 **UB**（Java/C# 定义 `div` 为 `INT_MIN`） |
-| 取绝对值       | `abs(int32, a)`                         | `llabs(a)`                   |
-| 取负数         | `neg(int32, a)`                         | `-a`                         |
-| 取负数（回绕） | `neg(int32, wrap, a)`                   | 同宽无符号运算后 reinterpret |
+| 运算           | TC                                    | C 等价                                         |
+| -------------- | ------------------------------------- | ---------------------------------------------- |
+| 有符号字面量   | `42`                                  | `42`                                           |
+| 无符号字面量   | `42u`                                 | `42u`                                          |
+| 布尔字面量     | `true` / `false`                      | `true` / `false`（C23）                        |
+| 加             | `add(int32, a, b)`                    | `(int32_t)a + (int32_t)b`                      |
+| 加（回绕）     | `add(int32, wrap, a, b)`              | 同宽无符号运算后 reinterpret                   |
+| 减 / 乘        | `sub` / `mul`                         | 对应 `-` / `*`                                 |
+| 整除 / 求余    | `div` / `mod`                         | `/` / `%`（`INT_MIN / −1` 在 C 为 UB）         |
+| `INT_MIN / −1` | `div` → **整数溢出错误**；`mod` → `0` | C 为 **UB**（Java/C# 定义 `div` 为 `INT_MIN`） |
+| 取绝对值       | `abs(int32, a)`                       | `llabs(a)`                                     |
+| 取负数         | `neg(int32, a)`                       | `-a`                                           |
+| 取负数（回绕） | `neg(int32, wrap, a)`                 | 同宽无符号运算后 reinterpret                   |
+| 相等比较       | `eq(int32, a, b)`                     | `a == b`                                       |
+| 小于比较       | `lt(int32, a, b)`                     | `a < b`                                        |
+| 逻辑与         | `and(bool, a, b)`                     | `a && b`                                       |
+| 逻辑或         | `or(bool, a, b)`                      | `a \|\| b`                                     |
+| 逻辑非         | `not(bool, a)`                        | `!a`                                           |
 
 | 转换     | TC                        | C                                 |
 | -------- | ------------------------- | --------------------------------- |
 | strict   | `cast(int8, a)`           | `(int8_t)a`（不可表示时 TC 报错） |
 | truncate | `cast(int8, truncate, a)` | `(int8_t)a`（按位截断）           |
+| bool→int | `cast(int32, flag)`       | `flag ? 1 : 0`                    |
+| int→bool | `cast(bool, x)`           | `x != 0`                          |
 
 | I/O          | TC                     | C 等价             |
 | ------------ | ---------------------- | ------------------ |
@@ -1304,13 +1794,16 @@ newline    = "\n" | "\r\n" | "\r" ;
 | 十六进制大写 | `write(uint32, %X, x)` | `printf("%X", x)`  |
 | 八进制       | `write(uint32, %o, x)` | `printf("%o", x)`  |
 | 二进制       | `write(uint32, %b, x)` | 无标准等价（扩展） |
+| 布尔输出     | `write(bool, %t, x)`   | 无标准等价（扩展） |
 
 **主要差异**：
 - TC 有符号 strict 溢出报错（C 为 UB）
 - TC `div(INT_MIN, −1)` 报整数溢出错误（C 为 UB；Java/C# 将 `div` 定义为 `INT_MIN`）
 - TC `cast` strict 对不可表示转换报错（C 为实现定义/UB）
 - TC 未初始化变量读取为编译警告 + 实现定义值（C 为 UB）
-- TC 二进制 `%b` 为扩展格式
+- TC 二进制 `%b` 和布尔 `%t` 为扩展格式
+- TC 比较运算返回 `bool`（C 中比较返回 `int`）
+- TC 逻辑运算严格操作 `bool`（C 中逻辑运算接受任意标量类型）
 
 ---
 
@@ -1326,6 +1819,7 @@ newline    = "\n" | "\r\n" | "\r" ;
 | `uint32` | 0                          | 4,294,967,295              | 无符号不支持           | `4294967295u`           | `0xFFFF_FFFFu`                                     |
 | `int64`  | −9,223,372,036,854,775,808 | 9,223,372,036,854,775,807  | `-9223372036854775808` | `9223372036854775807`   | `-0x8000_0000_0000_0000` / `0x7FFF_FFFF_FFFF_FFFF` |
 | `uint64` | 0                          | 18,446,744,073,709,551,615 | 无符号不支持           | `18446744073709551615u` | `0xFFFF_FFFF_FFFF_FFFFu`                           |
+| `bool`   | `false`                    | `true`                     | —                      | —                       | —                                                  |
 
 ---
 
@@ -1333,22 +1827,19 @@ newline    = "\n" | "\r\n" | "\r" ;
 
 以下功能已在文档结构中预留位置，将按版本逐步引入：
 
-| 扩展领域                                      | 状态     | 设计位置               | 预计引入版本 |
-| --------------------------------------------- | -------- | ---------------------- | ------------ |
-| **浮点类型**（`float32`/`float64`）           | 设计预留 | §3.1, §5.4, §6.5, §7.6 | v0.1.x       |
-| **布尔类型**（`bool`）                        | 设计预留 | §3.1, §5.4             | v0.1.x       |
-| **比较运算**（`eq`/`ne`/`lt`/`le`/`gt`/`ge`） | 设计预留 | §5.4                   | v0.1.x       |
-| **浮点字面量**（`3.14`、`1.2e5`）             | 设计预留 | §2.4                   | v0.1.x       |
-| **字符与字符串**（`char`/`string`）           | 设计预留 | §2.5, §3.1, §7.6       | v0.2.x       |
-| **位运算**（`and`/`or`/`xor`/`shl`/`shr`）    | 设计预留 | §5.4                   | v0.2.x       |
-| **逻辑运算**（`not`/`and`/`or`）              | 设计预留 | §5.4                   | v0.2.x       |
-| **控制流**（`if`/`goto`/`loop`）              | 设计预留 | §4.7                   | v0.2.x       |
-| **函数定义与调用**                            | 设计预留 | §4.7                   | v0.3.x       |
-| **数组与指针**                                | 设计预留 | §3.1, §6.5             | v0.3.x       |
-| **结构体**                                    | 设计预留 | §3.1                   | v0.4.x       |
-| **浮点格式化**（`%f`/`%e`/`%F`/`%E`）         | 设计预留 | §7.6                   | v0.1.x       |
-| **字符串格式化**（`%s`、`%c`）                | 设计预留 | §7.6                   | v0.2.x       |
-| **文件 I/O**                                  | 设计预留 | §7                     | v0.3.x       |
+| 扩展领域                              | 状态     | 设计位置               | 预计引入版本 |
+| ------------------------------------- | -------- | ---------------------- | ------------ |
+| **浮点类型**（`float32`/`float64`）   | 设计预留 | §3.1, §5.4, §7.6, §8.6 | v0.2.x       |
+| **浮点字面量**（`3.14`、`1.2e5`）     | 设计预留 | §2.5                   | v0.2.x       |
+| **字符与字符串**（`char`/`string`）   | 设计预留 | §2.6, §3.1, §8.6       | v0.3.x       |
+| **位运算**（`xor`/`shl`/`shr`）       | 设计预留 | §5.4                   | v0.3.x       |
+| **控制流**（`if`/`goto`/`loop`）      | 设计预留 | §4.7                   | v0.3.x       |
+| **函数定义与调用**                    | 设计预留 | §4.7                   | v0.4.x       |
+| **数组与指针**                        | 设计预留 | §3.1, §7.6             | v0.4.x       |
+| **结构体**                            | 设计预留 | §3.1                   | v0.5.x       |
+| **浮点格式化**（`%f`/`%e`/`%F`/`%E`） | 设计预留 | §8.6                   | v0.2.x       |
+| **字符串格式化**（`%s`、`%c`）        | 设计预留 | §8.6                   | v0.3.x       |
+| **文件 I/O**                          | 设计预留 | §8                     | v0.4.x       |
 
 ---
 
@@ -1372,8 +1863,10 @@ newline    = "\n" | "\r\n" | "\r" ;
 | 0.0.14     | 2026-07-03     | 与 TC-VM 实现对齐：`read` 视为变量初始化；自引用/前向引用说明 |
 | 0.0.15     | 2026-07-03     | 新增单目运算：`abs` 和 `neg`                                 |
 | 0.0.16     | 2026-07-03     | 新增 I/O 格式化输出（7 种格式化符号）                        |
-| **0.0.17** | **2026-07-03** | **文档结构重构**：按「基础→语句→I/O→示例→附录」重新编排；新增类型分类、运算扩展框架、转换扩展框架、扩展路线图附录；在各章节标注未来扩展预留位置；移除参考实现相关内容 |
-| **0.0.18** | **2026-07-03** | **整数除法语义**：`div(INT_MIN, −1)` 改为整数溢出错误；`mod(INT_MIN, −1)` 仍为 0；附录 B 澄清与 C/Java/C# 的差异 |
+| 0.0.17     | 2026-07-03     | 文档结构重构：按「基础→语句→I/O→示例→附录」重新编排；新增类型分类、运算扩展框架、转换扩展框架、扩展路线图附录 |
+| 0.0.18     | 2026-07-03     | 整数除法语义：`div(INT_MIN, −1)` 改为整数溢出错误；`mod(INT_MIN, −1)` 仍为 0；附录 B 澄清与 C/Java/C# 的差异 |
+| 0.0.19     | 2026-07-03     | 新增布尔类型、比较运算与逻辑运算：新增 `bool` 类型，`true`/`false` 字面量；新增 6 种比较运算；新增 3 种逻辑运算，支持短路求值；新增 `%t` 格式化符号；扩展 `cast` 支持整数 ↔ `bool` 转换 |
+| **0.0.20** | **2026-07-03** | **澄清与优化**：细化 `bool` 类型的内部表示描述，消除位宽歧义；确认 `read` 对无符号类型不接受负号前缀的规则，保持与语言"禁止隐式转换"原则一致 |
 
 ---
 
