@@ -1,0 +1,3 @@
+var a: int64 = 100
+var b: int64 = 0
+var c: int64 = mod(int64, a, b)

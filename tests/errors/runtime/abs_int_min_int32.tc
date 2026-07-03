@@ -1,0 +1,2 @@
+var a: int32 = -2147483648
+var b: int32 = abs(int32, a)

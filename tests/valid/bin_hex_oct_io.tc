@@ -1,0 +1,31 @@
+; 多进制字面量 + I/O 组合测试
+; 二进制字面量
+var b1: uint8 = 0b00001111
+var b2: uint8 = 0b11110000
+var b3: uint8 = add(uint8, b1, b2)
+writeln(uint8, %b, b3)
+
+; 八进制字面量
+var o1: uint16 = 0o777
+var o2: uint16 = 0o1000
+var o3: uint16 = add(uint16, o1, o2)
+writeln(uint16, %o, o3)
+
+; 十六进制字面量
+var h1: uint32 = 0xABCD
+var h2: uint32 = 0x5432
+var h3: uint32 = add(uint32, h1, h2)
+writeln(uint32, %X, h3)
+
+; 混合进制运算
+var mix: uint32 = add(uint32, 0xFF, 0o77)
+writeln(uint32, mix)
+var mix2: uint32 = add(uint32, 0b1111, 0x10)
+writeln(uint32, mix2)
+
+; 带下划线多进制（cast 场景）
+var src_bin: uint16 = 0b1010_0101_1111_0001
+var dst_oct: uint16 = cast(uint16, truncate, src_bin)
+writeln(uint16, %o, dst_oct)
+var dst_hex: uint8 = cast(uint8, truncate, src_bin)
+writeln(uint8, %x, dst_hex)

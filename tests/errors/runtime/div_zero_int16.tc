@@ -1,0 +1,3 @@
+var a: int16 = 100
+var b: int16 = 0
+var c: int16 = div(int16, a, b)

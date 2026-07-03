@@ -1,0 +1,29 @@
+; I/O 扩展测试
+; 用不同格式写入相同值
+var a: int8 = 42
+write(int8, %d, a)
+write(int8, %x, a)
+write(int8, %X, a)
+write(int8, %o, a)
+write(int8, %b, a)
+var newline: int8 = 0
+
+; 用格式符写入 uint8 边界值
+var u: uint8 = 255
+write(uint8, %u, u)
+write(uint8, %x, u)
+write(uint8, %X, u)
+write(uint8, %o, u)
+write(uint8, %b, u)
+writeln(uint8, u)
+
+; 多个 write 无换行输出
+write(int32, 10)
+write(int32, 20)
+write(int32, 30)
+writeln(int32, 40)
+
+; 用 uint64 写巨大值
+var big: uint64 = 18446744073709551615
+write(uint64, %u, big)
+writeln(uint64, %x, big)

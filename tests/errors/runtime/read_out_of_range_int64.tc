@@ -1,0 +1,2 @@
+var a: int64
+read(int64, a)

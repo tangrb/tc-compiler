@@ -1,0 +1,56 @@
+; 测试所有类型的 let 常量定义与使用
+let i8_val: int8 = 42
+let u8_val: uint8 = 200
+let i16_val: int16 = 1000
+let u16_val: uint16 = 50000
+let i32_val: int32 = 100000
+let u32_val: uint32 = 3000000000
+let i64_val: int64 = 5000000000
+let u64_val: uint64 = 10000000000
+
+; 直接输出常量
+writeln(int8, i8_val)
+writeln(uint8, u8_val)
+writeln(int16, i16_val)
+writeln(uint16, u16_val)
+writeln(int32, i32_val)
+writeln(uint32, u32_val)
+writeln(int64, i64_val)
+writeln(uint64, u64_val)
+
+; 常量参与算术运算（使用常量名作为操作数）
+var sum: int32 = add(int32, i32_val, 50000)
+writeln(int32, sum)
+var diff: int32 = sub(int32, i32_val, 50000)
+writeln(int32, diff)
+
+; 常量通过 cast 复制给变量
+var y: int16 = cast(int16, i8_val)
+writeln(int16, y)
+
+; 边界常量
+let i8_min: int8 = -128
+let i8_max: int8 = 127
+let u8_max: uint8 = 255
+let i16_min: int16 = -32768
+let i16_max: int16 = 32767
+let u16_max: uint16 = 65535
+let i32_min: int32 = -2147483648
+let i32_max: int32 = 2147483647
+let u32_max: uint32 = 4294967295
+let i64_min: int64 = -9223372036854775808
+let i64_max: int64 = 9223372036854775807
+let u64_max: uint64 = 18446744073709551615
+
+writeln(int8, i8_min)
+writeln(int8, i8_max)
+writeln(uint8, u8_max)
+writeln(int16, i16_min)
+writeln(int16, i16_max)
+writeln(uint16, u16_max)
+writeln(int32, i32_min)
+writeln(int32, i32_max)
+writeln(uint32, u32_max)
+writeln(int64, i64_min)
+writeln(int64, i64_max)
+writeln(uint64, u64_max)

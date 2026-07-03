@@ -1,0 +1,318 @@
+/*
+ * test_lexer_extended.c — Lexer 模块扩展单元测试
+ *
+ * 补充现有词法测试未覆盖的边界场景。
+ */
+#include "tc_diagnostic.h"
+#include "tc_lexer.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int g_passed = 0;
+static int g_failed = 0;
+
+static void check(int condition, const char *message) {
+    if (condition) {
+        g_passed++;
+    } else {
+        g_failed++;
+        fprintf(stderr, "FAIL: %s\n", message);
+    }
+}
+
+static int tokenize_line_ok(const char *line, TcTokenList *tokens, TcDiagnostic *diag) {
+    tc_token_list_init(tokens);
+    tc_diagnostic_clear(diag);
+    if (tc_tokenize_line(line, 1, tokens, diag) != 0) {
+        tc_token_list_free(tokens);
+        return 0;
+    }
+    return 1;
+}
+
+static const TcToken *find_token(const TcTokenList *tokens, TcTokenKind kind, size_t *index) {
+    size_t i;
+    for (i = *index; i < tokens->count; i++) {
+        if (tokens->items[i].kind == kind) {
+            *index = i + 1;
+            return &tokens->items[i];
+        }
+    }
+    return NULL;
+}
+
+static const TcToken *token_at(const TcTokenList *tokens, size_t index) {
+    if (index >= tokens->count) {
+        return NULL;
+    }
+    return &tokens->items[index];
+}
+
+/* 测试所有一元运算符 token */
+static void test_all_unary_ops(void) {
+    static const struct {
+        const char *text;
+        TcUnaryOp expected;
+    } cases[] = {
+        {"abs", TC_UNARY_ABS},
+        {"neg", TC_UNARY_NEG},
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcTokenList tokens;
+        TcDiagnostic diag;
+        char line[64];
+        size_t idx = 0;
+        const TcToken *tok;
+
+        snprintf(line, sizeof(line), "%s(int32, wrap, x)", cases[i].text);
+        tc_diagnostic_init(&diag);
+        check(tokenize_line_ok(line, &tokens, &diag), line);
+
+        tok = find_token(&tokens, TC_TOK_UNARY_OP, &idx);
+        check(tok != NULL && tok->u.unary_op == cases[i].expected,
+              "unary op token preserves enum value");
+
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+/* 测试 cast 关键字 */
+static void test_cast_keyword(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("cast(int8, truncate, x)", &tokens, &diag), "tokenize cast with truncate");
+
+    check(token_at(&tokens, 0)->kind == TC_TOK_CAST, "cast → TC_TOK_CAST");
+    /* tokens: CAST LPAREN INT_TYPE COMMA TRUNCATE COMMA IDENTIFIER RPAREN EOF */
+    check(token_at(&tokens, 4)->kind == TC_TOK_TRUNCATE, "truncate → TC_TOK_TRUNCATE");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试 write/writeln/read 关键字 */
+static void test_io_keywords(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("write(int32, x)", &tokens, &diag), "tokenize write");
+    check(token_at(&tokens, 0)->kind == TC_TOK_WRITE, "write → TC_TOK_WRITE");
+    tc_token_list_free(&tokens);
+
+    /* tokens: WRITELN LPAREN INT_TYPE COMMA FORMAT_SPEC COMMA IDENTIFIER RPAREN EOF */
+    check(tokenize_line_ok("writeln(int32, %d, x)", &tokens, &diag), "tokenize writeln with fmt");
+    check(token_at(&tokens, 0)->kind == TC_TOK_WRITELN, "writeln → TC_TOK_WRITELN");
+    check(token_at(&tokens, 4)->kind == TC_TOK_FORMAT_SPEC, "format spec → TC_TOK_FORMAT_SPEC");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("read(int32, x)", &tokens, &diag), "tokenize read");
+    check(token_at(&tokens, 0)->kind == TC_TOK_READ, "read → TC_TOK_READ");
+    tc_token_list_free(&tokens);
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试各种进制字面量的 token 值 */
+static void test_binary_literals(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: uint8 = 0b10101010", &tokens, &diag), "tokenize 0b10101010");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 170, "0b10101010 → magnitude 170");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_hex_literals(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: uint64 = 0xDEAD_BEEF", &tokens, &diag), "tokenize 0xDEAD_BEEF");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 0xDEADBEEFULL, "0xDEAD_BEEF → correct magnitude");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_oct_literals(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: uint32 = 0o7777_7777", &tokens, &diag), "tokenize 0o7777_7777");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    /* 0o77777777 = 16777215 */
+    check(tok != NULL && tok->u.literal.magnitude == 16777215ULL, "0o7777_7777 → correct magnitude");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试最大 uint64 字面量 */
+static void test_max_uint64_literal(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: uint64 = 18446744073709551615", &tokens, &diag),
+          "tokenize uint64 max literal");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 18446744073709551615ULL,
+          "uint64 max → correct magnitude");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试多种格式说明符 */
+static void test_format_specifiers(void) {
+    static const char *specs[] = {"%d", "%i", "%u", "%x", "%X", "%o", "%b"};
+    size_t i;
+
+    for (i = 0; i < sizeof(specs) / sizeof(specs[0]); i++) {
+        TcTokenList tokens;
+        TcDiagnostic diag;
+        char line[64];
+        size_t idx = 0;
+        const TcToken *tok;
+
+        snprintf(line, sizeof(line), "writeln(int32, %s, x)", specs[i]);
+        tc_diagnostic_init(&diag);
+        check(tokenize_line_ok(line, &tokens, &diag), line);
+        tok = find_token(&tokens, TC_TOK_FORMAT_SPEC, &idx);
+        check(tok != NULL, "format spec token present");
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+/* 测试 let 关键字 */
+static void test_let_keyword(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    /* tokens: LET IDENTIFIER COLON INT_TYPE EQUAL INTEGER EOF */
+    check(tokenize_line_ok("let N: int32 = 42", &tokens, &diag), "tokenize let N");
+    check(token_at(&tokens, 0)->kind == TC_TOK_LET, "let → TC_TOK_LET");
+    check(token_at(&tokens, 3)->kind == TC_TOK_INT_TYPE, "int32 type at index 3");
+    check(token_at(&tokens, 5)->kind == TC_TOK_INTEGER, "literal 42 at index 5");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试带下划线的多种分隔符字面量 */
+static void test_underscore_literals(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: int32 = 1_2_3_4_5", &tokens, &diag), "tokenize 1_2_3_4_5");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 12345, "1_2_3_4_5 → 12345");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("var b: uint64 = 1_000_000_000_000", &tokens, &diag),
+          "tokenize 1_000_000_000_000");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 1000000000000ULL,
+          "1_000_000_000_000 → correct");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("var c: uint8 = 0xFF_AA", &tokens, &diag), "tokenize 0xFF_AA");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 0xFFAA, "0xFF_AA → 0xFFAA");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("var d: uint16 = 0b1010_0101", &tokens, &diag), "tokenize 0b1010_0101");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 0xA5, "0b1010_0101 → 0xA5");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("var e: uint64 = 0x1_FFFF_FFFF_FFFF", &tokens, &diag),
+          "tokenize 0x1_FFFF_FFFF_FFFF");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 562949953421311ULL,
+          "0x1_FFFF_FFFF_FFFF → 562949953421311");
+    tc_token_list_free(&tokens);
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试 wrap 和 truncate 关键字 */
+static void test_wrap_truncate_keywords(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    /* tokens: ARITH_OP LPAREN INT_TYPE COMMA WRAP COMMA IDENTIFIER COMMA IDENTIFIER RPAREN EOF */
+    check(tokenize_line_ok("add(int8, wrap, x, y)", &tokens, &diag), "tokenize add with wrap");
+    check(token_at(&tokens, 4)->kind == TC_TOK_WRAP, "wrap at index 4 → TC_TOK_WRAP");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("cast(int8, truncate, x)", &tokens, &diag), "tokenize cast with truncate");
+    /* tokens: CAST LPAREN INT_TYPE COMMA TRUNCATE COMMA IDENTIFIER RPAREN EOF */
+    check(token_at(&tokens, 4)->kind == TC_TOK_TRUNCATE, "truncate at index 4 → TC_TOK_TRUNCATE");
+    tc_token_list_free(&tokens);
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* 测试空白行和纯注释行 */
+static void test_whitespace_and_comments(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("   ; indented comment", &tokens, &diag), "tokenize indented comment");
+    check(tokens.count == 2, "indented comment → SEMICOLON + EOF");
+    check(tokens.items[0].kind == TC_TOK_SEMICOLON, "first token is SEMICOLON");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("   \t  ", &tokens, &diag), "tokenize whitespace only");
+    check(tokens.count == 1 && tokens.items[0].kind == TC_TOK_EOF, "whitespace → EOF only");
+    tc_token_list_free(&tokens);
+
+    tc_diagnostic_clear(&diag);
+}
+
+int main(void) {
+    test_all_unary_ops();
+    test_cast_keyword();
+    test_io_keywords();
+    test_binary_literals();
+    test_hex_literals();
+    test_oct_literals();
+    test_max_uint64_literal();
+    test_format_specifiers();
+    test_let_keyword();
+    test_underscore_literals();
+    test_wrap_truncate_keywords();
+    test_whitespace_and_comments();
+
+    printf("%d passed, %d failed\n", g_passed, g_failed);
+    return g_failed == 0 ? 0 : 1;
+}

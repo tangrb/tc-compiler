@@ -1,0 +1,43 @@
+; 测试字面量边界情况
+; 超大十进制字面量
+var a: uint64 = 18446744073709551615
+writeln(uint64, a)
+
+; 无符号后缀
+var b: uint32 = 4000000000u
+writeln(uint32, b)
+var c: uint8 = 200u
+writeln(uint8, c)
+
+; 多进制 + 下划线组合
+var d: uint64 = 0xFF_FF_FF_FF_FF_FF_FF_FFu
+writeln(uint64, d)
+var e: uint32 = 0x7F_FF_FF_FF
+writeln(uint32, e)
+var f: uint16 = 0b1010_0101_1111_0000
+writeln(uint16, f)
+var g: uint8 = 0b1111_0000
+writeln(uint8, g)
+var h: uint32 = 0o777_777_7777
+writeln(uint32, h)
+var i: uint16 = 0o177_777
+writeln(uint16, i)
+
+; 二进制+无符号后缀
+var k: uint8 = 0b1111_1111u
+writeln(uint8, k)
+
+; 减法中的字面量直接使用（装得下的值）
+var l: int8 = 100
+var m: int8 = sub(int8, l, 50)
+writeln(int8, m)
+var n: int8 = sub(int8, l, 100)
+writeln(int8, n)
+
+; 负数字面量边界
+var q: int8 = -128
+var r: int16 = -32768
+var s: int32 = -2147483648
+writeln(int8, q)
+writeln(int16, r)
+writeln(int32, s)

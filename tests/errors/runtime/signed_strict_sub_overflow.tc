@@ -1,0 +1,3 @@
+var a: int8 = -128
+var b: int8 = 1
+var c: int8 = sub(int8, a, b)

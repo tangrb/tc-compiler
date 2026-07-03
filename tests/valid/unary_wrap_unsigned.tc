@@ -1,0 +1,5 @@
+; wrap 模式下无符号一元操作
+; abs 不支持 wrap，所以只用 neg
+var a: uint64 = 42
+var c: uint64 = neg(uint64, wrap, a)
+writeln(uint64, c)

@@ -1,0 +1,35 @@
+; 测试所有8种整数类型的边界值声明与输出
+var i8_min: int8 = -128
+var i8_max: int8 = 127
+var u8_min: uint8 = 0
+var u8_max: uint8 = 255
+var i16_min: int16 = -32768
+var i16_max: int16 = 32767
+var u16_min: uint16 = 0
+var u16_max: uint16 = 65535
+var i32_min: int32 = -2147483648
+var i32_max: int32 = 2147483647
+var u32_min: uint32 = 0
+var u32_max: uint32 = 4294967295
+var i64_min: int64 = -9223372036854775808
+var i64_max: int64 = 9223372036854775807
+var u64_min: uint64 = 0
+var u64_max: uint64 = 18446744073709551615
+
+; 输出所有值
+writeln(int8, i8_min)
+writeln(int8, i8_max)
+writeln(uint8, u8_min)
+writeln(uint8, u8_max)
+writeln(int16, i16_min)
+writeln(int16, i16_max)
+writeln(uint16, u16_min)
+writeln(uint16, u16_max)
+writeln(int32, i32_min)
+writeln(int32, i32_max)
+writeln(uint32, u32_min)
+writeln(uint32, u32_max)
+writeln(int64, i64_min)
+writeln(int64, i64_max)
+writeln(uint64, u64_min)
+writeln(uint64, u64_max)

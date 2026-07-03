@@ -27,3 +27,21 @@ add_custom_target(check-lexer
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running Lexer unit tests"
 )
+
+# Extended lexer tests
+add_executable(test-lexer-extended
+    test_lexer_extended.c
+    ${TC_VM_DIR}/lexer/lexer.c
+    ${TC_VM_DIR}/runtime/types.c
+    ${TC_VM_DIR}/runtime/diagnostic.c
+)
+
+target_include_directories(test-lexer-extended PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-lexer-extended PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-lexer-extended
+    COMMAND test-lexer-extended
+    DEPENDS test-lexer-extended
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Extended Lexer unit tests"
+)

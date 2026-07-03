@@ -1,0 +1,83 @@
+; 综合压力测试：大量变量定义 + 运算 + I/O
+var a0: int8 = 1
+var a1: int8 = 2
+var a2: int8 = 3
+var a3: int8 = 4
+var a4: int8 = 5
+var a5: int8 = 6
+var a6: int8 = 7
+var a7: int8 = 8
+var a8: int8 = 9
+var a9: int8 = 10
+var sum: int8 = add(int8, a0, a1)
+sum = add(int8, sum, a2)
+sum = add(int8, sum, a3)
+sum = add(int8, sum, a4)
+sum = add(int8, sum, a5)
+sum = add(int8, sum, a6)
+sum = add(int8, sum, a7)
+sum = add(int8, sum, a8)
+sum = add(int8, sum, a9)
+writeln(int8, sum)
+
+; 大量 let 常量
+let n0: int32 = 0
+let n1: int32 = 1
+let n2: int32 = 2
+let n3: int32 = 3
+let n4: int32 = 4
+let n5: int32 = 5
+let n6: int32 = 6
+let n7: int32 = 7
+let n8: int32 = 8
+let n9: int32 = 9
+let N: int32 = 10
+var big_sum: int32 = add(int32, n0, n1)
+big_sum = add(int32, big_sum, n2)
+big_sum = add(int32, big_sum, n3)
+big_sum = add(int32, big_sum, n4)
+big_sum = add(int32, big_sum, n5)
+big_sum = add(int32, big_sum, n6)
+big_sum = add(int32, big_sum, n7)
+big_sum = add(int32, big_sum, n8)
+big_sum = add(int32, big_sum, n9)
+writeln(int32, big_sum)
+
+; 大量 write 输出
+write(int8, a0)
+write(int8, a1)
+write(int8, a2)
+write(int8, a3)
+write(int8, a4)
+write(int8, a5)
+write(int8, a6)
+write(int8, a7)
+write(int8, a8)
+writeln(int8, a9)
+
+; 大量 cast 操作
+var src: int64 = 1234567890
+var d0: int8 = cast(int8, truncate, src)
+var d1: int16 = cast(int16, truncate, src)
+var d2: int32 = cast(int32, truncate, src)
+var d3: uint8 = cast(uint8, truncate, src)
+var d4: uint16 = cast(uint16, truncate, src)
+var d5: uint32 = cast(uint32, truncate, src)
+write(int8, d0)
+write(int16, d1)
+write(int32, d2)
+write(uint8, d3)
+write(uint16, d4)
+writeln(uint32, d5)
+
+; wrap 高密度运算
+var w: uint8 = 0
+var i: int32 = 0
+w = add(uint8, wrap, 255, 1)
+i = 1
+w = add(uint8, wrap, w, 1)
+i = 2
+w = add(uint8, wrap, w, 1)
+i = 3
+w = add(uint8, wrap, w, 1)
+writeln(uint8, w)
