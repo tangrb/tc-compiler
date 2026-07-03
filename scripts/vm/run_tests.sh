@@ -365,6 +365,10 @@ run_expect_stdout "$ROOT/tests/valid/div_mod_signed.tc" "-2
 "
 run_expect_stdout "$ROOT/tests/valid/int64_min.tc" "-9223372036854775808
 "
+run_expect_stdout "$ROOT/tests/valid/mod_int_min_neg_one.tc" "0
+0
+0
+"
 run_expect_stdout "$ROOT/tests/valid/hex_literal.tc" "255
 "
 run_expect_stdout "$ROOT/tests/valid/bin_literal.tc" "163
@@ -389,8 +393,8 @@ run_expect_stdout "$ROOT/tests/valid/sign_extend_cast.tc" "-100
 "
 run_expect_stdout "$ROOT/tests/valid/semicolon_inline_comment.tc" "10
 "
-run_expect_stdout "$ROOT/tests/valid/int64_min_div.tc" "-9223372036854775808
-"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/int64_min_div.tc" "signed division overflow"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/int32_min_div.tc" "signed division overflow"
 run_expect_stdout "$ROOT/tests/valid/abs_neg_signed.tc" "42
 42
 "

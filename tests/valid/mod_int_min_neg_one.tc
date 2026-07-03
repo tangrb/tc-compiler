@@ -1,0 +1,12 @@
+; mod(INT_MIN, -1) 余数为 0，各宽度均应成功
+var i8: int8 = -128
+var m8: int8 = mod(int8, i8, -1)
+writeln(int8, m8)
+
+var i32: int32 = -2147483648
+var m32: int32 = mod(int32, i32, -1)
+writeln(int32, m32)
+
+var i64: int64 = -9223372036854775808
+var m64: int64 = mod(int64, i64, -1)
+writeln(int64, m64)

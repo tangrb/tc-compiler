@@ -1,0 +1,3 @@
+; mod 不能使用 wrap 模式
+var a: int32 = 10
+var b: int32 = mod(int32, wrap, a, 2)

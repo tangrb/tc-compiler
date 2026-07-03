@@ -1,4 +1,4 @@
+; INT64_MIN / -1：数学商 +2^63 不可在 int64 中表示，报整数溢出错误
 var a: int64 = -9223372036854775808
 var b: int64 = -1
 var c: int64 = div(int64, a, b)
-writeln(int64, c)

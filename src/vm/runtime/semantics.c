@@ -310,17 +310,32 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     int64_t result = 0;
     char msg[128];
 
-    /* div/mod：先检查除零，再精确运算 */
+    /* div/mod：除零检查；INT_MIN/-1 时商不可表示（div 报错），余数为 0（mod 合法） */
     if (op == TC_DIV || op == TC_MOD) {
         if (b == 0) {
             tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
                               "division by zero");
             return -1;
         }
+        if (a == tc_type_min_signed(type) && b == -1) {
+            if (op == TC_MOD) {
+                *out = tc_value_make(type, 0);
+                return 0;
+            }
+            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "signed division overflow");
+            return -1;
+        }
         if (op == TC_DIV) {
             result = a / b;
         } else {
             result = a % b;
+        }
+        /* div/mod 结果也可能超出窄类型范围（如 int8(-128) / int8(-1) = 128） */
+        if (!tc_signed_in_range(result, type)) {
+            snprintf(msg, sizeof(msg), "result out of range for %s", tc_int_type_name(type));
+            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
         }
         *out = tc_value_make(type, tc_signed_to_bits(type, result));
         return 0;

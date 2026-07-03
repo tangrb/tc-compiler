@@ -1,0 +1,3 @@
+; abs(INT64_MIN) 溢出
+var a: int64 = -9223372036854775808
+var b: int64 = abs(int64, a)

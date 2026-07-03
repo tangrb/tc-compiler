@@ -18,11 +18,10 @@
 #include "tc_diagnostic.h"
 #include "tc_driver.h"
 #include "tc_repl.h"
+#include "tc_version.h"
 
 #include <getopt.h>
 #include <stdio.h>
-
-#define TC_VM_VERSION "0.0.17"
 
 static void tc_print_version(void) {
     printf("tc-vm %s\n", TC_VM_VERSION);

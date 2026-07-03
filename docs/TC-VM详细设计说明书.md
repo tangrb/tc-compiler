@@ -1,8 +1,8 @@
 # TC-VM 详细设计说明书（完整版）
 
-> **版本**：0.0.17（草案）  
+> **版本**：0.0.18（草案）  
 > **作者**：唐荣兵（yanhuang8923@qq.com）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.17  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.18  
 > **工程**：[TC-Compiler](../README.md) 之 `src/vm/` 组件  
 > **定位**：TC 源码即高级字节码；**不** lowering 为第二套字节码，经静态分析后直接执行
 
@@ -56,9 +56,9 @@ TC-VM 是 TC 语言的**直接执行引擎**：用户编写的 `.tc` 源文件�
 
 ### 1.3 实现版本
 
-可执行文件 `tc-vm` 与本文档同为 **v0.0.17**（`src/vm/driver/main.c` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
+可执行文件 `tc-vm` 与本文档同为 **v0.0.18**（`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
 
-### 1.4 非目标（v0.0.17）
+### 1.4 非目标（v0.0.18）
 
 - 不定义、不生成第二套字节码指令集
 - 不做 JIT / LLVM 后端
@@ -112,7 +112,7 @@ run_file(path: string) -> Result<void, Diagnostic>
 
 ### 3.1 语句即指令
 
-TC v0.0.17 中，每条合法语句对应一条「高级指令」：
+TC v0.0.18 中，每条合法语句对应一条「高级指令」：
 
 | 源形式                              | 指令含义                                                     |
 | ----------------------------------- | ------------------------------------------------------------ |
@@ -156,7 +156,7 @@ while PC < program.len:
 
 ## 4. 源文件与行模型
 
-语言标准 EBNF 对空行、文件尾换行未完全规定；**TC-VM v0.0.17 实现约定**如下（不影响 TC 语义，仅规范实现）：
+语言标准 EBNF 对空行、文件尾换行未完全规定；**TC-VM v0.0.18 实现约定**如下（不影响 TC 语义，仅规范实现）：
 
 | 规则                | 约定                                                         |
 | ------------------- | ------------------------------------------------------------ |
@@ -437,13 +437,13 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 | `UnaryRhs` | `UnaryRhs.type`    |
 | `CastRhs`  | `CastRhs.target`   |
 
-### 7.6 静态可判定性（v0.0.17）
+### 7.6 静态可判定性（v0.0.18）
 
-以下错误在 v0.0.17 **均可静态检查**，Analyzer 应尽可能在运行前报出：
+以下错误在 v0.0.18 **均可静态检查**，Analyzer 应尽可能在运行前报出：
 
 - 未定义标识符、重复定义、类型错误、字面量范围错误、字面量类型错误、溢出模式错误、关键字错误、常量赋值错误、常量表达式错误、格式字符串错误、格式类型不匹配、操作数数量错误
 
-以下在 v0.0.17 **依赖运行期操作数值**，Analyzer **无法**完全静态判定：
+以下在 v0.0.18 **依赖运行期操作数值**，Analyzer **无法**完全静态判定：
 
 - 除零错误
 - 有符号 strict 算术溢出（`add`/`sub`/`mul`/`neg`/`abs`）
@@ -547,6 +547,8 @@ TcValue { type: IntType, bits: uint64 }
 | 有符号 strict 乘法     | 宽整数路径；`uint64` 用 `tc_umul64`（32 位分块 64×64→128） |
 | 有符号 strict 取负     | 检测操作数是否为 `INT_MIN`                                 |
 | 有符号 strict 取绝对值 | 检测操作数是否为 `INT_MIN`                                 |
+| 有符号 strict 除法     | 向零截断；`INT_MIN / -1` 商不可表示 → 整数溢出错误         |
+| 有符号 strict 取余     | `INT_MIN % -1` 余数为 0；其余按数学定义，结果须落在类型范围内 |
 | 无符号运算             | 位宽掩码 `tc_mask_bits`；64 位乘法经 `tc_umul64`           |
 | cast                   | `tc_cast_strict` / `tc_cast_truncate` 在 `bits` 上操作     |
 
@@ -573,8 +575,8 @@ exec_cast(target, mode, source_slot) -> TcValue | Error      // 类型转换
 | op          | strict                        | wrap                          |
 | ----------- | ----------------------------- | ----------------------------- |
 | add/sub/mul | 结果超范围 → 整数溢出错误     | mod 2^n 回绕，位模式解释      |
-| div         | 向零截断；除零 → 错误         | 同 strict（div 无 wrap 模式） |
-| mod         | 余数符号同被除数；除零 → 错误 | 同 strict                     |
+| div         | 向零截断；商不可表示 → 整数溢出错误；除零 → 错误 | 同 strict（div 无 wrap 模式） |
+| mod         | 余数符号同被除数；余数不可表示 → 整数溢出错误；除零 → 错误 | 同 strict                     |
 
 **无符号 `uint8`～`uint64`**
 
@@ -589,13 +591,15 @@ exec_cast(target, mode, source_slot) -> TcValue | Error      // 类型转换
 
 **特殊情形**（`b ≠ 0`）：
 
-| 表达式                   | 结果         | 说明                        |
-| ------------------------ | ------------ | --------------------------- |
-| `div(T, INT_MIN(T), −1)` | `INT_MIN(T)` | 同 C 有符号除法，**不报错** |
-| `mod(T, INT_MIN(T), −1)` | `0`          | 同 C 有符号取余             |
+| 表达式                   | 结果 | 说明                                                         |
+| ------------------------ | ---- | ------------------------------------------------------------ |
+| `div(T, INT_MIN(T), −1)` | —    | **整数溢出错误**（数学商 \(+2^{n-1}\) 不可在 `<T>` 中表示） |
+| `mod(T, INT_MIN(T), −1)` | `0`  | 余数为 0，**不报错**                                         |
 
 **实现备注**：
-- `mod` 应直接按数学定义计算余数，无需依赖恒等式
+- `div` 在 `a == INT_MIN(T) && b == -1` 时直接报整数溢出错误，不调用 C `/`（`int64` 上为 UB）
+- `mod` 在同上输入时直接返回 0，不调用 C `%`
+- 其余 `div`/`mod` 在 int64 域计算后检查结果是否落在目标类型范围内
 - 检测除零在运算符求值后立即进行
 
 ### 10.3 单目算术（exec_unary）
@@ -689,7 +693,7 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 - TC 有符号 strict 溢出 **必须报错**（C 为 UB）
 - TC strict cast 不可表示 **必须报错**
 - 无符号回绕与 C 一致
-- `INT_MIN / -1` 与 C 一致
+- TC `div(INT_MIN, -1)` 报整数溢出错误；`mod(INT_MIN, -1)` 为 0（C 为 UB）
 
 ---
 
@@ -838,7 +842,7 @@ tc-vm [options] [<file.tc>]   # 执行文件，成功静默退出 0
 tc-vm --check <file.tc>       # 仅 Analyzer，不执行
 tc-vm --repl                  # 交互式 REPL
 tc-vm --help                  # 显示用法
-tc-vm --version               # 显示版本（v0.0.17）
+tc-vm --version               # 显示版本（v0.0.18）
 ```
 
 退出码：0 成功；非 0 失败（静态或运行时错误）。REPL 正常退出也返回 0。
@@ -858,7 +862,7 @@ VM 构建脚本与 AOT 分离；根目录 `Makefile` 转发至 CMake，也可直
 
 ## 13. 执行流程示例
 
-源文件 `example.tc`（含 v0.0.17 新特性）：
+源文件 `example.tc`（含 v0.0.18 新特性）：
 
 ```text
 ; 变量定义
@@ -933,7 +937,7 @@ tests/
 
 `scripts/vm/run_tests.sh` 由 CMake 目标 `check-vm` 调用；支持 `ASAN=1` 或 `--asan` 切换至 `build-asan/vm/bin/tc-vm`。
 
-### 14.3 回归用例（v0.0.17）
+### 14.3 回归用例（v0.0.18）
 
 #### valid — 执行成功
 
@@ -944,7 +948,7 @@ tests/
 | `uninitialized.tc`                                           | 成功且 stderr 含 `use of possibly uninitialized variable` |
 | `let_constant.tc`、`hex/oct/bin_literal.tc`、`literal_separator.tc` | stdout 期望值                                             |
 | `wrap_int8/uint8_output.tc`、`wrap_sub_mul.tc`、`truncate_cast.tc` | stdout 期望值                                             |
-| `div_mod_signed.tc`、`int64_min.tc`、`int64_min_div.tc`      | stdout 期望值                                             |
+| `div_mod_signed.tc`、`int64_min.tc`、`mod_int_min_neg_one.tc` | stdout 期望值                                             |
 | `strict_cast_widen.tc`、`sign_extend_cast.tc`                | stdout 期望值                                             |
 | `write_int8_number.tc`、`write_no_newline.tc`                | stdout 期望值                                             |
 | **`abs_neg_signed.tc`**                                      | stdout 期望值（新增）                                     |
@@ -968,6 +972,7 @@ tests/
 | `signed_strict_overflow.tc`、`signed_strict_mul.tc` | `out of range`             |
 | `neg_int_min.tc`                                    | `neg(INT_MIN) overflow`    |
 | `abs_int_min.tc`                                    | `abs(INT_MIN) overflow`    |
+| `int64_min_div.tc`、`int32_min_div.tc`              | `signed division overflow` |
 | `div_zero.tc`、`mod_zero.tc`                        | `division by zero`         |
 | `cast_strict_overflow.tc`                           | `out of range`             |
 | `read_invalid.tc`                                   | `unexpected end of input`  |
@@ -1324,6 +1329,7 @@ REPL 通过 POSIX `isatty()` 检测 stdin 和 stderr 是否为终端：
 | 0.0.13-fix | 2026-07-02     | 修复与语言标准对齐问题                                       |
 | 0.0.14     | 2026-07-03     | 与 TC-VM 源码全面对齐                                        |
 | **0.0.17** | **2026-07-03** | **与语言标准 v0.0.17 全面对齐**：新增单目运算 `abs`/`neg` 支持；新增 I/O 格式化输出（7 种格式符号）；完善字面量 `u` 后缀解析；完善常量 `let` 编译期值处理；完善 `cast` strict/truncate 语义实现；完善 `wrap` 模式位级一致性；补充格式字符串/类型不匹配/操作数数量等静态错误类型；更新 §5、§7、§10、§11、§14、§17、§18 及附录 A |
+| **0.0.18** | **2026-07-03** | **与语言标准 v0.0.18 对齐**：`div(INT_MIN, −1)` 报整数溢出错误、`mod(INT_MIN, −1)` 为 0；更新 §9.3、§10.2、§10.5、§14.3 及回归用例索引 |
 
 ---
 

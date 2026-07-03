@@ -89,6 +89,7 @@ run_diff_test "$ROOT/tests/valid/write_int8_number.tc"
 run_diff_test "$ROOT/tests/valid/truncate_cast.tc"
 run_diff_test "$ROOT/tests/valid/div_mod_signed.tc"
 run_diff_test "$ROOT/tests/valid/int64_min.tc"
+run_diff_test "$ROOT/tests/valid/mod_int_min_neg_one.tc"
 run_diff_test "$ROOT/tests/valid/hex_literal.tc"
 run_diff_test "$ROOT/tests/valid/bin_literal.tc"
 run_diff_test "$ROOT/tests/valid/oct_literal.tc"
@@ -101,7 +102,8 @@ run_diff_test "$ROOT/tests/valid/comments_semicolon.tc"
 run_diff_test "$ROOT/tests/valid/write_no_newline.tc"
 run_diff_test "$ROOT/tests/valid/sign_extend_cast.tc"
 run_diff_test "$ROOT/tests/valid/semicolon_inline_comment.tc"
-run_diff_test "$ROOT/tests/valid/int64_min_div.tc"
+# int64_min_div.tc 已移至 errors/runtime（INT64_MIN / -1 是溢出错误）
+# 不再作为 AOT 差分测试
 run_diff_test "$ROOT/tests/valid/signed_wrap.tc"
 run_diff_test "$ROOT/tests/valid/read_write.tc" "42
 "

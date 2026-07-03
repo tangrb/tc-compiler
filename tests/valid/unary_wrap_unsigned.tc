@@ -1,5 +1,21 @@
 ; wrap 模式下无符号一元操作
 ; abs 不支持 wrap，所以只用 neg
-var a: uint64 = 42
-var c: uint64 = neg(uint64, wrap, a)
-writeln(uint64, c)
+; uint8 wrap neg
+var a8: uint8 = 42
+var r8: uint8 = neg(uint8, wrap, a8)
+writeln(uint8, r8)
+
+; uint16 wrap neg
+var a16: uint16 = 42
+var r16: uint16 = neg(uint16, wrap, a16)
+writeln(uint16, r16)
+
+; uint32 wrap neg
+var a32: uint32 = 42
+var r32: uint32 = neg(uint32, wrap, a32)
+writeln(uint32, r32)
+
+; uint64 wrap neg
+var a64: uint64 = 42
+var r64: uint64 = neg(uint64, wrap, a64)
+writeln(uint64, r64)

@@ -397,6 +397,9 @@ run_expect_stdout "$ROOT/tests/valid/div_mod_all_signed.tc" "3
 8
 1010
 10"
+run_expect_stdout "$ROOT/tests/valid/mod_int_min_neg_one.tc" "0
+0
+0"
 
 # =============================================================
 # 10. 多进制 + I/O 测试
@@ -414,7 +417,10 @@ f1"
 # 11. 无符号一元 wrap
 # =============================================================
 echo "=== 11. 无符号一元 wrap ==="
-run_expect_stdout "$ROOT/tests/valid/unary_wrap_unsigned.tc" "18446744073709551574"
+run_expect_stdout "$ROOT/tests/valid/unary_wrap_unsigned.tc" "214
+65494
+4294967254
+18446744073709551574"
 
 # =============================================================
 # 12. 运行时错误测试
@@ -438,7 +444,13 @@ run_expect_fail "$ROOT/tests/errors/runtime/neg_int_min_int16.tc" "neg(INT_MIN) 
 run_expect_fail "$ROOT/tests/errors/runtime/neg_int_min_int32.tc" "neg(INT_MIN) overflow"
 run_expect_fail "$ROOT/tests/errors/runtime/abs_int_min_int16.tc" "abs(INT_MIN) overflow"
 run_expect_fail "$ROOT/tests/errors/runtime/abs_int_min_int32.tc" "abs(INT_MIN) overflow"
+run_expect_fail "$ROOT/tests/errors/runtime/abs_int_min_int64.tc" "abs(INT_MIN) overflow"
+run_expect_fail "$ROOT/tests/errors/runtime/neg_int_min_int64.tc" "neg(INT_MIN) overflow"
 run_expect_fail_stdin "$ROOT/tests/errors/runtime/read_out_of_range_int64.tc" "99999999999999999999" "out of range"
+run_expect_fail "$ROOT/tests/errors/runtime/signed_strict_overflow_int8.tc" "out of range"
+run_expect_fail "$ROOT/tests/errors/runtime/signed_strict_mul_overflow_int64.tc" "signed multiplication overflow"
+run_expect_fail "$ROOT/tests/errors/runtime/int64_min_div.tc" "signed division overflow"
+run_expect_fail "$ROOT/tests/errors/runtime/int32_min_div.tc" "signed division overflow"
 
 # =============================================================
 # 13. 静态错误测试
@@ -451,6 +463,7 @@ run_expect_fail "$ROOT/tests/errors/static/literal_range_int64.tc" "literal out 
 run_expect_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "literal out of range"
 run_expect_fail "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large"
 run_expect_fail "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
+run_expect_fail "$ROOT/tests/errors/static/wrap_mode_error_mod.tc" "div/mod do not support wrap mode"
 run_expect_fail "$ROOT/tests/errors/static/type_mismatch_arith_op.tc" "operand type does not match"
 run_expect_fail "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assign to constant"
 run_expect_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
