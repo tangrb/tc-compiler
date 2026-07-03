@@ -1,5 +1,11 @@
 # Build artifacts
 /build/
+build/
+build-asan/
+build-debug/
+
+# Generated stress baseline
+tests/stress/bench_baseline.tc
 
 # macOS
 .DS_Store

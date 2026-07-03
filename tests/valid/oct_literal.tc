@@ -1,0 +1,2 @@
+var perm: uint16 = 0o755u
+writeln(uint16, perm)

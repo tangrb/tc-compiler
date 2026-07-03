@@ -6,7 +6,9 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+add_subdirectory(src/libtc)
 add_subdirectory(src/vm)
 add_subdirectory(src/aot)
+add_subdirectory(tests)
 
-add_custom_target(check DEPENDS check-vm)
+add_custom_target(check DEPENDS check-vm check-unit check-aot)

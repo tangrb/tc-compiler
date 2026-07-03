@@ -1,8 +1,8 @@
 # TC-VM 命令行参考
 
-> **版本**：1.3（草案）  
+> **版本**：0.0.14（草案）  
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.8（同目录）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.14（同目录）  
 > **工程**：[TC-Compiler](../README.md) 之 `tc-vm` 可执行文件  
 > **定位**：`tc-vm` 命令行用法、退出码与诊断输出格式
 
@@ -135,7 +135,7 @@ tc-vm --check <file.tc>
 
 适用于 CI 或编辑器集成中快速验证语法与类型，无需触发运行时错误（如除零）。
 
-- 静态检查通过：无标准输出，退出码 **0**
+- 静态检查通过：无标准输出，退出码 **0**（若有编译警告，警告输出到 stderr，仍退出 0）
 - 静态检查失败：向 **stderr** 输出一条诊断，退出码 **1**
 
 ### 4.3 交互式 REPL 模式
@@ -180,15 +180,15 @@ tc-vm -i
 | `0` | 成功（执行完成，或 `--check` 下静态分析通过） |
 | `1` | 失败（参数错误、I/O 错误、静态错误、运行时错误） |
 
-v1.0 不区分不同失败原因的退出码；具体原因见 stderr 诊断中的错误类型与消息。
+v0.0.14 不区分不同失败原因的退出码；具体原因见 stderr 诊断中的错误类型与消息。
 
 ---
 
-## 6. 诊断输出
+## 6. 诊断与警告输出
 
-失败时，`tc-vm` 向 **stderr** 打印 **一条** 诊断（v1.0 遇首个致命错误即停止）。
+### 6.1 错误诊断格式
 
-### 6.1 格式
+失败时，`tc-vm` 向 **stderr** 打印 **一条** 错误诊断（遇首个致命错误即停止）。
 
 采用类 GCC/clang 的位置前缀格式：
 
@@ -218,7 +218,23 @@ v1.0 不区分不同失败原因的退出码；具体原因见 stderr 诊断中�
 - **列号**：1-based 字符位置（仅部分错误提供）；有列号时另附 `^` 指示符
 - **消息**：英文简短说明
 
-### 6.2 文件 I/O 错误
+### 6.2 编译警告格式
+
+静态分析产生的警告**不阻止执行**，在错误诊断之前输出到 stderr：
+
+```text
+warning: <消息> (line <行号>)
+```
+
+示例：
+
+```text
+warning: use of possibly uninitialized variable 'a' (line 2)
+```
+
+`--check` 模式下警告同样输出；测试用例 `no_warn_after_assign.tc` 验证赋值后不再警告。
+
+### 6.3 文件 I/O 错误
 
 无法打开或读取输入文件时，无行号：
 
@@ -231,22 +247,26 @@ v1.0 不区分不同失败原因的退出码；具体原因见 stderr 诊断中�
 
 ## 7. 错误类型
 
-`ErrorKind` 与《TC 语言标准设计说明书》§10 对齐；`SyntaxError` 为 TC-VM 扩展（词法/语法/文件 I/O）。
+`ErrorKind` 与《TC 语言标准设计说明书》§11 对齐；`SyntaxError` 为 TC-VM 扩展（词法/语法/文件 I/O）。
 
 | ErrorKind | 对应语言标准 | 典型阶段 |
 |-----------|--------------|----------|
 | `SyntaxError` | （VM 扩展） | 词法 / 语法 / 文件 I/O |
-| `UndefinedVariable` | 未定义变量错误 | 静态分析 |
+| `UndefinedVariable` | 未定义标识符错误 | 静态分析 |
 | `DuplicateDefinition` | 重复定义错误 | 静态分析 |
 | `TypeMismatch` | 类型错误 | 静态分析 |
 | `LiteralOutOfRange` | 字面量范围错误 | 词法 / 静态分析 |
+| `LiteralTypeError` | 字面量类型错误 | 静态分析 |
 | `OverflowModeError` | 溢出模式错误 | 静态分析 |
+| `KeywordError` | 关键字错误 | 静态分析 |
+| `ConstantAssignmentError` | 常量赋值错误 | 静态分析 |
+| `ConstantExpressionError` | 常量表达式错误 | 静态分析 |
 | `DivisionByZero` | 除零错误 | 执行 |
 | `IntegerOverflow` | 整数溢出错误 | 执行 |
 | `CastOverflow` | 转换溢出错误 | 执行 |
 | `IOError` | I/O 错误 | 执行（read 输入失败） |
 
-完整触发条件见语言标准 §10；实现架构见《TC-VM 详细设计说明书》§11。
+完整触发条件见语言标准 §11；实现架构见《TC-VM 详细设计说明书》§11。
 
 ---
 
@@ -357,11 +377,14 @@ $ echo $?
 
 | 用例目录 | 调用方式 | 预期 |
 |----------|----------|------|
-| `tests/valid/` | `tc-vm <file>` | 退出码 0 |
-| `tests/errors/static/` | `tc-vm <file>` | 退出码非 0 |
-| `tests/errors/runtime/` | `tc-vm <file>` | 退出码非 0 |
+| `tests/valid/` | `tc-vm <file>` | 退出码 0；部分用例校验 stdout 或警告 |
+| `tests/errors/static/` | `tc-vm <file>` | 退出码非 0；诊断含 `file:line: error:` |
+| `tests/errors/runtime/` | `tc-vm <file>` | 退出码非 0；诊断含 `file:line: error:` |
+| `tests/stress/` | `tc-vm <file>` | 退出码 0；stdout 期望 |
+| 静态错误子集 | `tc-vm --check <file>` | 退出码非 0 |
+| REPL | 管道输入 `tc-vm --repl` | 输出含期望子串 |
 
-测试脚本不解析诊断正文，仅检查退出码。`--check` 模式当前未纳入自动化回归，可自行用于静态用例验证。
+可选 ASAN 构建：`ASAN=1 make test` 或 `scripts/vm/run_tests.sh --asan`（使用 `build-asan/vm/bin/tc-vm`）。
 
 ---
 
@@ -373,3 +396,5 @@ $ echo $?
 | 1.1 | 2026-07-01 | 采用 getopt 解析；新增 `--help`/`--version`；选项顺序灵活 |
 | 1.2 | 2026-07-01 | 补充 I/O 支持描述；新增 I/O 管道执行示例；错误类型表新增 `IOError` |
 | 1.3 | 2026-07-01 | 新增 `-i/--repl` 选项及交互式 REPL 模式（§4.3）；新增 REPL 使用示例（§8.8、§8.9）；修复 I/O 错误示例消息；更新用法格式为文件可选 |
+| **0.0.13** | **2026-07-02** | **版本号对齐语言标准 v0.0.13；错误类型表新增 `LiteralTypeError`、`KeywordError`、`ConstantAssignmentError`、`ConstantExpressionError`；更正语言标准引用为 §11；更新退出码与诊断说明中的版本引用** |
+| **0.0.14** | **2026-07-03** | **与实现对齐**：新增 §6.2 编译警告格式；`--check` 模式纳入自动化回归；补充 stress/REPL/ASAN 测试说明；诊断格式校验说明 |

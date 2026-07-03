@@ -25,7 +25,7 @@
 #include <getopt.h>
 #include <stdio.h>
 
-#define TC_VM_VERSION "1.0"
+#define TC_VM_VERSION "0.0.14"
 
 /*
  * @brief 打印 tc-vm 版本号到 stdout

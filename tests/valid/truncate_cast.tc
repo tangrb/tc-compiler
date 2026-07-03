@@ -1,0 +1,3 @@
+var big: int32 = 1000
+var t: int8 = cast(int8, truncate, big)
+writeln(int8, t)

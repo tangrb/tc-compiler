@@ -9,13 +9,15 @@
 #ifndef TC_REPL_H
 #define TC_REPL_H
 
+#include "tc_analyzer.h"
 #include "tc_types.h"
 
 /**
- * @brief REPL 会话状态（符号表 + 运行时变量槽）
+ * @brief REPL 会话状态（符号表 + 轻量分析历史 + 运行时变量槽）
  */
 typedef struct {
     TcSymbolTable symbols;
+    TcReplAnalyzeCtx analyze_ctx;
     TcValue *slots;
     size_t slots_capacity;
     int line_no;

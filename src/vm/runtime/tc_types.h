@@ -14,6 +14,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* INT64_MIN 的绝对值（9223372036854775808），即 2^63 */
+#define TC_INT64_MIN_ABS_MAGNITUDE 9223372036854775808ULL
+
 /* TC 语言支持的 8 种定宽整数类型 */
 typedef enum {
     TC_INT8,
@@ -27,14 +30,24 @@ typedef enum {
 } TcIntType;
 
 /*
- * 算术溢出处理模式（仅对有符号运算生效；无符号运算始终按位宽截断）：
- *   TC_STRICT   — 溢出时报告 TC_ERR_INTEGER_OVERFLOW
- *   TC_OVERFLOW — 按目标类型位宽做环绕（wrap-around）
+ * 算术溢出处理模式：
+ *   TC_ARITH_STRICT — 有符号溢出时报 TC_ERR_INTEGER_OVERFLOW
+ *   TC_ARITH_WRAP   — 按目标类型位宽做环绕
  */
 typedef enum {
-    TC_STRICT,
-    TC_OVERFLOW
-} TcOverflowMode;
+    TC_ARITH_STRICT,
+    TC_ARITH_WRAP
+} TcWrapMode;
+
+/*
+ * 类型转换截断模式（truncate 关键字）：
+ *   TC_TRUNC_STRICT   — 不可表示时报 TC_ERR_CAST_OVERFLOW
+ *   TC_TRUNC_TRUNCATE — 按位模式截断/扩展，不报错
+ */
+typedef enum {
+    TC_TRUNC_STRICT,
+    TC_TRUNC_TRUNCATE
+} TcTruncateMode;
 
 /* 内建算术/取模运算符，对应源码中的 add / sub / mul / div / mod 关键字 */
 typedef enum {
@@ -45,40 +58,59 @@ typedef enum {
     TC_MOD
 } TcArithOp;
 
+/* 符号种类：变量或 let 常量 */
+typedef enum {
+    TC_SYM_VARIABLE,
+    TC_SYM_CONSTANT
+} TcSymKind;
+
 /* 诊断错误种类，与语言标准中定义的可观测错误一一对应 */
 typedef enum {
-    TC_ERR_SYNTAX,              /* 词法/语法错误 */
-    TC_ERR_UNDEFINED_VARIABLE,  /* 引用未定义变量 */
-    TC_ERR_DUPLICATE_DEFINITION,/* 重复定义同名变量 */
-    TC_ERR_TYPE_MISMATCH,       /* 类型不匹配 */
-    TC_ERR_LITERAL_OUT_OF_RANGE,  /* 字面量超出目标类型范围 */
-    TC_ERR_DIVISION_BY_ZERO,      /* 除零或模零 */
-    TC_ERR_INTEGER_OVERFLOW,      /* 有符号 strict 模式算术溢出 */
-    TC_ERR_OVERFLOW_MODE,         /* 非法 overflow 模式组合（如 div/mod 带 overflow） */
-    TC_ERR_CAST_OVERFLOW,         /* strict 模式下类型转换溢出 */
-    TC_ERR_IO                     /* read 输入失败（非法格式、超范围、EOF） */
+    TC_ERR_SYNTAX,
+    TC_ERR_UNDEFINED_VARIABLE,
+    TC_ERR_DUPLICATE_DEFINITION,
+    TC_ERR_TYPE_MISMATCH,
+    TC_ERR_LITERAL_OUT_OF_RANGE,
+    TC_ERR_LITERAL_TYPE,
+    TC_ERR_OVERFLOW_MODE,
+    TC_ERR_KEYWORD,
+    TC_ERR_CONSTANT_ASSIGNMENT,
+    TC_ERR_CONSTANT_EXPRESSION,
+    TC_ERR_DIVISION_BY_ZERO,
+    TC_ERR_INTEGER_OVERFLOW,
+    TC_ERR_CAST_OVERFLOW,
+    TC_ERR_IO
 } TcErrorKind;
+
+/* 编译警告种类（不阻止执行） */
+typedef enum {
+    TC_WARN_UNINITIALIZED_VARIABLE
+} TcWarningKind;
+
+/*
+ * 整数字面量词法表示（解析阶段暂存，Analyzer 按上下文类型校验）。
+ * magnitude 为绝对值；negative 表示负号前缀；unsigned_suffix 表示 u/U 后缀。
+ */
+typedef struct {
+    uint64_t magnitude;
+    int negative;
+    int unsigned_suffix;
+} TcLiteral;
 
 /* 算术运算的操作数：变量引用或整数字面量 */
 typedef enum {
-    TC_OPERAND_VAR,  /* 变量名 */
-    TC_OPERAND_LIT   /* 无符号 64 位字面量（解析阶段暂存，语义阶段再校验范围） */
+    TC_OPERAND_VAR,
+    TC_OPERAND_LIT
 } TcOperandKind;
 
 typedef struct {
     TcOperandKind kind;
     union {
-        char *name;     /* kind == TC_OPERAND_VAR 时有效 */
-        uint64_t lit;   /* kind == TC_OPERAND_LIT 时有效 */
+        char *name;
+        TcLiteral lit;
     } u;
 } TcOperand;
 
-/*
- * 语句右值（RHS）的三种形式：
- *   TC_RHS_LIT   — 整数字面量
- *   TC_RHS_ARITH — 内建算术表达式，如 add(int32, a, b)
- *   TC_RHS_CAST  — 类型转换，如 cast(uint8, overflow, x)
- */
 typedef enum {
     TC_RHS_LIT,
     TC_RHS_ARITH,
@@ -88,90 +120,96 @@ typedef enum {
 typedef struct {
     TcRhsKind kind;
     union {
-        uint64_t lit;
+        TcLiteral lit;
         struct {
             TcArithOp op;
-            TcIntType type;       /* 运算的目标整数类型 */
-            TcOverflowMode mode;  /* strict 或 overflow */
+            TcIntType type;
+            TcWrapMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } arith;
         struct {
-            TcIntType target;     /* 转换目标类型 */
-            TcOverflowMode mode;
-            char *source;         /* 源变量名 */
+            TcIntType target;
+            TcTruncateMode mode;
+            char *source;
         } cast;
     } u;
 } TcRhs;
 
-/* 语句种类：变量定义、赋值、I/O */
 typedef enum {
-    TC_STMT_VAR_DEF,  /* var name: type = rhs */
-    TC_STMT_ASSIGN,   /* name = rhs */
-    TC_STMT_WRITE,    /* write(type, operand) */
-    TC_STMT_WRITELN,  /* writeln(type, operand) */
-    TC_STMT_READ      /* read(type, identifier) */
+    TC_STMT_VAR_DEF,
+    TC_STMT_CONST_DEF,
+    TC_STMT_ASSIGN,
+    TC_STMT_WRITE,
+    TC_STMT_WRITELN,
+    TC_STMT_READ
 } TcStmtKind;
 
-/* 变量定义语句：var x: int32 = ... */
+typedef struct {
+    int line;
+    char *name;
+    TcIntType type;
+    int has_rhs;
+    TcRhs rhs;
+} TcVarDef;
+
 typedef struct {
     int line;
     char *name;
     TcIntType type;
     TcRhs rhs;
-} TcVarDef;
+} TcConstDef;
 
-/* 赋值语句：x = ... */
 typedef struct {
     int line;
     char *name;
     TcRhs rhs;
 } TcAssign;
 
-/* write / writeln 语句：write(type, operand) */
 typedef struct {
     int line;
     TcIntType type;
     TcOperand operand;
 } TcIoWrite;
 
-/* read 语句：read(type, identifier) */
 typedef struct {
     int line;
     TcIntType type;
     char *name;
 } TcRead;
 
-/*
- * 单条语句的通用表示（StatementRecord）。
- * 与源文件中一行语句 1:1 对应，是 Executor 直接 dispatch 的单位。
- */
 typedef struct {
     TcStmtKind kind;
     union {
         TcVarDef var_def;
+        TcConstDef const_def;
         TcAssign assign;
         TcIoWrite io_write;
         TcRead io_read;
     } u;
 } TcStatement;
 
-/* 程序 = 按源文件顺序排列的语句列表 */
 typedef struct {
     TcStatement *items;
     size_t count;
     size_t capacity;
 } TcProgram;
 
-/*
- * 符号表条目：记录变量名、静态类型、运行时槽位索引及定义行号。
- * slot 用于 Executor 在变量槽数组中定位该变量的 TcValue。
- */
+typedef struct {
+    TcIntType type;
+    uint64_t bits;
+} TcValue;
+
 typedef struct {
     char *name;
     TcIntType type;
     int slot;
     int def_line;
+    int def_stmt_index;
+    TcSymKind sym_kind;
+    int initialized;
+    int has_const_value;
+    TcValue const_value;
 } TcSymbol;
 
 typedef struct {
@@ -180,79 +218,42 @@ typedef struct {
     size_t capacity;
 } TcSymbolTable;
 
-/* Analyzer 产出：已类型化的程序 + 全局符号表 */
+typedef struct {
+    TcWarningKind kind;
+    char *message;
+    int line;
+} TcWarning;
+
+typedef struct {
+    TcWarning *items;
+    size_t count;
+    size_t capacity;
+} TcWarningList;
+
 typedef struct {
     TcProgram program;
     TcSymbolTable symbols;
+    TcWarningList warnings;
 } TcTypedProgram;
 
-/*
- * 运行时值：以无符号位模式（bits）存储，配合 type 解释为有符号或无符号。
- * 所有算术结果最终都归一化为目标类型的位宽掩码。
- */
-typedef struct {
-    TcIntType type;
-    uint64_t bits;
-} TcValue;
-
-/* 诊断信息：错误种类 + 人类可读消息 + 源位置 + 可选源文件上下文 */
 typedef struct {
     TcErrorKind kind;
     char *message;
-    char *filename;      /* 源文件路径（堆分配，由 diagnostic 模块管理） */
-    char *snippet;       /* 出错行源码副本（堆分配，设置诊断时捕获） */
-    const char *source;  /* 完整源文本（非拥有指针，仅在 run 期间有效） */
+    char *filename;
+    char *snippet;
+    const char *source;
     int line;
     int column;
 } TcDiagnostic;
 
-/* 列号未知时的占位值（如运行时错误无法精确定位列） */
 #define TC_COLUMN_UNKNOWN (-1)
 
-/* 类型/运算符工具函数（实现在 types.c） */
-
-/**
- * @brief 返回整数类型的位宽
- * @param type 整数类型枚举值
- * @return 位宽值：8 / 16 / 32 / 64；非法类型返回 0
- */
 int tc_type_bit_width(TcIntType type);
-
-/**
- * @brief 判断类型是否为有符号整数
- * @param type 整数类型枚举值
- * @return 有符号类型返回 1；无符号类型返回 0
- */
 int tc_type_is_signed(TcIntType type);
-
-/**
- * @brief 将字符串解析为 TcIntType 枚举值
- * @param text 类型名字符串（如 "int8"、"uint32"）
- * @param out  输出参数，写入解析后的 TcIntType
- * @return 解析成功返回 1；无法识别返回 0
- */
 int tc_type_parse(const char *text, TcIntType *out);
-
-/**
- * @brief 将算术运算符关键字解析为 TcArithOp 枚举值
- * @param text 运算符关键字（"add"/"sub"/"mul"/"div"/"mod"）
- * @param out  输出参数，写入解析后的 TcArithOp
- * @return 解析成功返回 1；无法识别返回 0
- */
 int tc_arith_op_parse(const char *text, TcArithOp *out);
-
-/**
- * @brief 将错误种类枚举转为对外展示的名称
- * @param kind 错误种类枚举值
- * @return 错误名称字符串（如 "SyntaxError"、"DivisionByZero"）
- */
 const char *tc_error_kind_name(TcErrorKind kind);
-
-/**
- * @brief 将 TcIntType 转为源码中的类型名字符串
- * @param type 整数类型枚举值
- * @return 类型名字符串（如 "int8"、"uint32"）；非法类型返回 "unknown"
- */
+const char *tc_warning_kind_name(TcWarningKind kind);
 const char *tc_int_type_name(TcIntType type);
 
 #endif

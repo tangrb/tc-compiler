@@ -9,7 +9,7 @@ docs/                  Language specification, VM design documents, etc.
 src/
 ├── vm/                TC-VM source code, CMakeLists.txt
 └── aot/               TC-AOT reserved (CMakeLists.txt)
-tests/                 Conformance tests (currently for VM)
+tests/                 Conformance tests (valid/ + errors/ + stress/)
 scripts/
 ├── vm/                VM test scripts
 └── aot/               AOT test scripts (reserved)
@@ -67,9 +67,9 @@ The REPL supports entering TC statements one by one with immediate execution; va
 
 | Document | Description |
 |----------|-------------|
-| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.8.1) |
-| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation conventions (v1.2) |
-| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | Command-line instructions for using tc-vm with `.tc` source files (v1.3) |
+| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.14) |
+| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation conventions (v0.0.14) |
+| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | Command-line instructions for using tc-vm with `.tc` source files (v0.0.14) |
 
 Implementation behavior follows the language specification; VM / AOT design documents define each backend's implementation architecture and do not redefine language semantics.
 

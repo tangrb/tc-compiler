@@ -1,4 +1,4 @@
 var a: int32 = 10
 var b: int32 = 20
 var sum: int32 = add(int32, a, b)
-var c: int8 = cast(int8, overflow, sum)
+var c: int8 = cast(int8, truncate, sum)

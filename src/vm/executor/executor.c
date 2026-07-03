@@ -13,10 +13,11 @@
  */
 #include "tc_executor.h"
 
-#include "tc_analyzer.h"
 #include "tc_diagnostic.h"
 #include "tc_semantics.h"
+#include "tc_symbol.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -67,9 +68,10 @@ static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots,
     TcValue value;
 
     if (io_write->operand.kind == TC_OPERAND_LIT) {
-        value = tc_value_make(io_write->type, io_write->operand.u.lit);
+        value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type);
     } else {
         const TcSymbol *symbol = tc_symbol_table_find(symbols, io_write->operand.u.name);
+        assert(symbol != NULL);
         value = slots[symbol->slot];
     }
 
@@ -99,6 +101,63 @@ static void tc_io_skip_whitespace(void) {
 }
 
 /*
+ * @brief 从 stdin 读取十进制数字字符序列，计算其绝对值
+ * @param c         当前已读取的首个字符（必须是 '-' 或数字才合法，否则返回 -1）
+ * @param line      当前行号
+ * @param diag      诊断对象
+ * @param out_abs   输出：数字序列的绝对值（无符号）
+ * @param out_sign  输出：符号（1 或 -1）
+ * @return 成功返回 0；输入非法或超出 uint64 范围返回 -1
+ *
+ * @note 提取 signed/unsigned 公共数字读取逻辑，消除重复代码。
+ *       此函数不负责判断值与目标类型的兼容性——由调用方根据 signed/unsigned
+ *       类型进行范围检查。
+ */
+static int tc_read_decimal_digits(int c, int line, TcDiagnostic *diag,
+                                  uint64_t *out_abs, int *out_sign) {
+    int sign = 1;
+    int digit_count = 0;
+    uint64_t abs_value = 0;
+
+    if (c == '-') {
+        sign = -1;
+        c = fgetc(stdin);
+        if (c == EOF) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+    }
+    if (!isdigit((unsigned char)c)) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+        return -1;
+    }
+    do {
+        int digit = c - '0';
+        if (abs_value > UINT64_MAX / 10ULL ||
+            (abs_value == UINT64_MAX / 10ULL &&
+             (uint64_t)digit > UINT64_MAX % 10ULL)) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                              "input value out of range");
+            return -1;
+        }
+        abs_value = abs_value * 10ULL + (uint64_t)digit;
+        digit_count++;
+        c = fgetc(stdin);
+    } while (c != EOF && isdigit((unsigned char)c));
+    if (c != EOF) {
+        ungetc(c, stdin);
+    }
+    if (digit_count == 0) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+        return -1;
+    }
+
+    *out_abs = abs_value;
+    *out_sign = sign;
+    return 0;
+}
+
+/*
  * @brief 从 stdin 读取一个十进制整数并存入目标变量槽
  * @param io_read  read 语句
  * @param slots    运行时变量槽位数组（可写）
@@ -110,9 +169,7 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
                            TcDiagnostic *diag) {
     int c = 0;
     int sign = 1;
-    int digit_count = 0;
-    int64_t signed_value = 0;
-    uint64_t unsigned_value = 0;
+    uint64_t abs_value = 0;
     const TcSymbol *symbol = NULL;
     TcValue value;
 
@@ -124,84 +181,38 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
         return -1;
     }
 
+    if (tc_read_decimal_digits(c, io_read->line, diag, &abs_value, &sign) != 0) {
+        return -1;
+    }
+
     if (tc_type_is_signed(io_read->type)) {
-        if (c == '-') {
-            sign = -1;
-            c = fgetc(stdin);
-            if (c == EOF) {
-                tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
-                                  "invalid input");
-                return -1;
-            }
-        }
-        if (!isdigit((unsigned char)c)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        do {
-            int digit = c - '0';
-            if (signed_value > INT64_MAX / 10 ||
-                (signed_value == INT64_MAX / 10 && digit > INT64_MAX % 10)) {
+        if (sign == -1 && abs_value == TC_INT64_MIN_ABS_MAGNITUDE) {
+            value = tc_value_make(io_read->type, tc_signed_to_bits(io_read->type, INT64_MIN));
+        } else {
+            int64_t signed_value = (int64_t)abs_value;
+            signed_value *= sign;
+            if (!tc_signed_in_range(signed_value, io_read->type)) {
                 tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
                                   "input value out of range");
                 return -1;
             }
-            signed_value = signed_value * 10 + digit;
-            digit_count++;
-            c = fgetc(stdin);
-        } while (c != EOF && isdigit((unsigned char)c));
-        if (c != EOF) {
-            ungetc(c, stdin);
+            value = tc_value_make(io_read->type, tc_signed_to_bits(io_read->type, signed_value));
         }
-        if (digit_count == 0) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        signed_value *= sign;
-        if (!tc_signed_in_range(signed_value, io_read->type)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
-                              "input value out of range");
-            return -1;
-        }
-        value = tc_value_make(io_read->type, tc_signed_to_bits(io_read->type, signed_value));
     } else {
-        if (c == '-') {
+        if (sign == -1) {
             tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
-        if (!isdigit((unsigned char)c)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        do {
-            int digit = c - '0';
-            if (unsigned_value > UINT64_MAX / 10ULL ||
-                (unsigned_value == UINT64_MAX / 10ULL &&
-                 (uint64_t)digit > UINT64_MAX % 10ULL)) {
-                tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
-                                  "input value out of range");
-                return -1;
-            }
-            unsigned_value = unsigned_value * 10ULL + (uint64_t)digit;
-            digit_count++;
-            c = fgetc(stdin);
-        } while (c != EOF && isdigit((unsigned char)c));
-        if (c != EOF) {
-            ungetc(c, stdin);
-        }
-        if (digit_count == 0) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        if (!tc_unsigned_in_range(unsigned_value, io_read->type)) {
+        if (!tc_unsigned_in_range(abs_value, io_read->type)) {
             tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
                               "input value out of range");
             return -1;
         }
-        value = tc_value_make(io_read->type, unsigned_value);
+        value = tc_value_make(io_read->type, abs_value);
     }
 
     symbol = tc_symbol_table_find(symbols, io_read->name);
+    assert(symbol != NULL);
     slots[symbol->slot] = value;
     return 0;
 }
@@ -218,10 +229,11 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
 static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type,
                                const TcValue *slots, const TcSymbolTable *symbols) {
     if (operand->kind == TC_OPERAND_LIT) {
-        return tc_value_make(expected_type, operand->u.lit);
+        return tc_literal_to_value(&operand->u.lit, expected_type);
     }
     {
         const TcSymbol *symbol = tc_symbol_table_find(symbols, operand->u.name);
+        assert(symbol != NULL);
         return slots[symbol->slot];
     }
 }
@@ -242,7 +254,7 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
                        const TcSymbolTable *symbols, TcValue *out, TcDiagnostic *diag,
                        int line) {
     if (rhs->kind == TC_RHS_LIT) {
-        *out = tc_value_make(expected_type, rhs->u.lit);
+        *out = tc_literal_to_value(&rhs->u.lit, expected_type);
         return 0;
     }
 
@@ -257,6 +269,7 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
 
     {
         const TcSymbol *source = tc_symbol_table_find(symbols, rhs->u.cast.source);
+        assert(source != NULL);
         const TcValue *src_value = &slots[source->slot];
         return tc_exec_cast(rhs->u.cast.target, rhs->u.cast.mode, src_value, out, diag, line);
     }
@@ -277,11 +290,20 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
         const TcSymbol *symbol = tc_symbol_table_find(symbols, var_def->name);
         TcValue value;
 
+        if (!var_def->has_rhs) {
+            return 0;
+        }
         if (tc_eval_rhs(&var_def->rhs, var_def->type, slots, symbols, &value, diag,
                         var_def->line) != 0) {
             return -1;
         }
         slots[symbol->slot] = value;
+    } else if (stmt->kind == TC_STMT_CONST_DEF) {
+        const TcConstDef *const_def = &stmt->u.const_def;
+        const TcSymbol *symbol = tc_symbol_table_find(symbols, const_def->name);
+        if (symbol->has_const_value) {
+            slots[symbol->slot] = symbol->const_value;
+        }
     } else if (stmt->kind == TC_STMT_ASSIGN) {
         const TcAssign *assign = &stmt->u.assign;
         const TcSymbol *symbol = tc_symbol_table_find(symbols, assign->name);
@@ -321,11 +343,12 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
     size_t i = 0;
 
     if (program->symbols.count > 0) {
-        slots = (TcValue *)calloc(program->symbols.count, sizeof(TcValue));
+        slots = (TcValue *)malloc(program->symbols.count * sizeof(TcValue));
         if (!slots) {
             tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
             return -1;
         }
+        memset(slots, 0xFE, program->symbols.count * sizeof(TcValue));
     }
 
     for (i = 0; i < program->program.count; i++) {

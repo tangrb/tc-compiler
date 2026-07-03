@@ -1,0 +1,175 @@
+; Stress test: ~200 variable definitions with arithmetic operations
+; Tests symbol table lookup performance and executor scalability
+
+; ======== int8 chain ========
+var a0: int8 = 10
+var a1: int8 = add(int8, wrap, a0, 20)
+var a2: int8 = add(int8, wrap, a1, 30)
+var a3: int8 = add(int8, wrap, a2, 40)
+var a4: int8 = add(int8, wrap, a3, 50)
+var a5: int8 = add(int8, wrap, a4, 60)
+var a6: int8 = add(int8, wrap, a5, 70)
+var a7: int8 = add(int8, wrap, a6, 80)
+var a8: int8 = add(int8, wrap, a7, 90)
+var a9: int8 = add(int8, wrap, a8, 100)
+
+; ======== int16 chain ========
+var b0: int16 = 100
+var b1: int16 = add(int16, b0, 200)
+var b2: int16 = add(int16, b1, 300)
+var b3: int16 = add(int16, b2, 400)
+var b4: int16 = add(int16, b3, 500)
+var b5: int16 = add(int16, b4, 600)
+var b6: int16 = add(int16, b5, 700)
+var b7: int16 = add(int16, b6, 800)
+var b8: int16 = add(int16, b7, 900)
+var b9: int16 = add(int16, b8, 1000)
+
+; ======== int32 chain ========
+var c0: int32 = 10000
+var c1: int32 = add(int32, c0, 20000)
+var c2: int32 = add(int32, c1, 30000)
+var c3: int32 = add(int32, c2, 40000)
+var c4: int32 = add(int32, c3, 50000)
+var c5: int32 = add(int32, c4, 60000)
+var c6: int32 = add(int32, c5, 70000)
+var c7: int32 = add(int32, c6, 80000)
+var c8: int32 = add(int32, c7, 90000)
+var c9: int32 = add(int32, c8, 100000)
+
+; ======== int64 chain ========
+var d0: int64 = 1000000
+var d1: int64 = add(int64, d0, 2000000)
+var d2: int64 = add(int64, d1, 3000000)
+var d3: int64 = add(int64, d2, 4000000)
+var d4: int64 = add(int64, d3, 5000000)
+var d5: int64 = add(int64, d4, 6000000)
+var d6: int64 = add(int64, d5, 7000000)
+var d7: int64 = add(int64, d6, 8000000)
+var d8: int64 = add(int64, d7, 9000000)
+var d9: int64 = add(int64, d8, 10000000)
+
+; ======== uint8 chain ========
+var e0: uint8 = 10
+var e1: uint8 = add(uint8, e0, 20)
+var e2: uint8 = add(uint8, e1, 30)
+var e3: uint8 = add(uint8, e2, 40)
+var e4: uint8 = add(uint8, e3, 50)
+var e5: uint8 = add(uint8, e4, 60)
+var e6: uint8 = add(uint8, e5, 70)
+var e7: uint8 = add(uint8, e6, 80)
+var e8: uint8 = add(uint8, e7, 90)
+var e9: uint8 = add(uint8, e8, 100)
+
+; ======== uint16 chain ========
+var f0: uint16 = 1000
+var f1: uint16 = add(uint16, f0, 2000)
+var f2: uint16 = add(uint16, f1, 3000)
+var f3: uint16 = add(uint16, f2, 4000)
+var f4: uint16 = add(uint16, f3, 5000)
+var f5: uint16 = add(uint16, f4, 6000)
+var f6: uint16 = add(uint16, f5, 7000)
+var f7: uint16 = add(uint16, f6, 8000)
+var f8: uint16 = add(uint16, f7, 9000)
+var f9: uint16 = add(uint16, f8, 10000)
+
+; ======== uint32 chain ========
+var g0: uint32 = 100000
+var g1: uint32 = add(uint32, g0, 200000)
+var g2: uint32 = add(uint32, g1, 300000)
+var g3: uint32 = add(uint32, g2, 400000)
+var g4: uint32 = add(uint32, g3, 500000)
+var g5: uint32 = add(uint32, g4, 600000)
+var g6: uint32 = add(uint32, g5, 700000)
+var g7: uint32 = add(uint32, g6, 800000)
+var g8: uint32 = add(uint32, g7, 900000)
+var g9: uint32 = add(uint32, g8, 1000000)
+
+; ======== uint64 chain ========
+var h0: uint64 = 10000000
+var h1: uint64 = add(uint64, h0, 20000000)
+var h2: uint64 = add(uint64, h1, 30000000)
+var h3: uint64 = add(uint64, h2, 40000000)
+var h4: uint64 = add(uint64, h3, 50000000)
+var h5: uint64 = add(uint64, h4, 60000000)
+var h6: uint64 = add(uint64, h5, 70000000)
+var h7: uint64 = add(uint64, h6, 80000000)
+var h8: uint64 = add(uint64, h7, 90000000)
+var h9: uint64 = add(uint64, h8, 100000000)
+
+; ======== int64 multiply/divide ========
+var i0: int64 = 1000
+var i1: int64 = mul(int64, i0, 500)
+var i2: int64 = sub(int64, i1, 10000)
+var i3: int64 = add(int64, i2, 5000)
+var i4: int64 = mul(int64, i3, 100)
+var i5: int64 = sub(int64, i4, 99999)
+var i6: int64 = div(int64, i5, 7)
+var i7: int64 = mod(int64, i6, 1000)
+var i8: int64 = add(int64, i7, 88888)
+var i9: int64 = sub(int64, i8, 12345)
+
+; ======== uint64 math ========
+var j0: uint64 = 1000
+var j1: uint64 = mul(uint64, j0, 500)
+var j2: uint64 = add(uint64, j1, 50000)
+var j3: uint64 = sub(uint64, j2, 25000)
+var j4: uint64 = mul(uint64, j3, 3)
+var j5: uint64 = div(uint64, j4, 7)
+var j6: uint64 = mod(uint64, j5, 9999)
+var j7: uint64 = add(uint64, j6, 12345)
+var j8: uint64 = sub(uint64, j7, 5555)
+var j9: uint64 = mul(uint64, j8, 2)
+
+; ======== Wrap mode ========
+var k0: int8 = add(int8, wrap, 120, 10)
+var k1: int8 = sub(int8, wrap, k0, 5)
+var k2: int8 = add(int8, wrap, k1, 100)
+var k3: int16 = add(int16, wrap, 30000, 5000)
+var k4: int16 = sub(int16, wrap, k3, 10000)
+var k5: int16 = add(int16, wrap, k4, 32000)
+var k6: int32 = add(int32, 1000000, 2000000)
+var k7: int32 = sub(int32, k6, 500000)
+var k8: int32 = add(int32, k7, 1500000)
+var k9: int32 = sub(int32, k8, 1000000)
+
+; ======== Cast operations ========
+var cast_src: int64 = 42
+var l0: int8 = cast(int8, cast_src)
+var l1: uint8 = cast(uint8, l0)
+var l2: int16 = cast(int16, l1)
+var l3: uint16 = cast(uint16, l2)
+var l4: int32 = cast(int32, l3)
+var l5: uint32 = cast(uint32, l4)
+var l6: int64 = cast(int64, l5)
+var l7: uint64 = cast(uint64, l6)
+var l8: int8 = cast(int8, truncate, l7)
+var l9: int16 = cast(int16, truncate, l8)
+
+; ======== Sequential assignments ========
+var m0: int32 = 0
+m0 = add(int32, m0, 1)
+m0 = add(int32, m0, 2)
+m0 = add(int32, m0, 3)
+m0 = add(int32, m0, 4)
+m0 = add(int32, m0, 5)
+m0 = add(int32, m0, 6)
+m0 = add(int32, m0, 7)
+m0 = add(int32, m0, 8)
+m0 = add(int32, m0, 9)
+m0 = add(int32, m0, 10)
+
+; ======== Zero-init variables ========
+var q0: int8
+var q1: int16
+var q2: int32
+var q3: int64
+var q4: uint8
+var q5: uint16
+var q6: uint32
+var q7: uint64
+var q8: int8 = 0
+var q9: int32 = 0
+
+; ======== Final output ========
+writeln(int32, m0)

@@ -98,6 +98,9 @@ TcValue tc_value_make(TcIntType type, uint64_t bits) {
  */
 static int64_t tc_type_min_signed(TcIntType type) {
     int n = tc_type_bit_width(type);
+    if (n == 64) {
+        return INT64_MIN;
+    }
     return -(1LL << (n - 1));
 }
 
@@ -109,6 +112,9 @@ static int64_t tc_type_min_signed(TcIntType type) {
  */
 static int64_t tc_type_max_signed(TcIntType type) {
     int n = tc_type_bit_width(type);
+    if (n == 64) {
+        return INT64_MAX;
+    }
     return (1LL << (n - 1)) - 1LL;
 }
 
@@ -137,6 +143,92 @@ int tc_literal_fits_type(uint64_t value, TcIntType type) {
         return tc_signed_in_range((int64_t)value, type);
     }
     return tc_unsigned_in_range(value, type);
+}
+
+int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *err_kind) {
+    if (lit->unsigned_suffix) {
+        if (tc_type_is_signed(type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_TYPE;
+            }
+            return 0;
+        }
+        if (!tc_unsigned_in_range(lit->magnitude, type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            }
+            return 0;
+        }
+        return 1;
+    }
+
+    if (lit->negative) {
+        if (!tc_type_is_signed(type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            }
+            return 0;
+        }
+        if (lit->magnitude == TC_INT64_MIN_ABS_MAGNITUDE) {
+            if (!tc_signed_in_range(INT64_MIN, type)) {
+                if (err_kind) {
+                    *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                }
+                return 0;
+            }
+            return 1;
+        }
+        if (lit->magnitude > (uint64_t)INT64_MAX) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            }
+            return 0;
+        }
+        if (!tc_signed_in_range(-(int64_t)lit->magnitude, type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            }
+            return 0;
+        }
+        return 1;
+    }
+
+    if (tc_type_is_signed(type)) {
+        if (lit->magnitude > (uint64_t)INT64_MAX) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            }
+            return 0;
+        }
+        if (!tc_signed_in_range((int64_t)lit->magnitude, type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            }
+            return 0;
+        }
+        return 1;
+    }
+
+    if (!tc_unsigned_in_range(lit->magnitude, type)) {
+        if (err_kind) {
+            *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+TcValue tc_literal_to_value(const TcLiteral *lit, TcIntType type) {
+    if (lit->unsigned_suffix) {
+        return tc_value_make(type, lit->magnitude);
+    }
+    if (lit->negative) {
+        if (lit->magnitude == TC_INT64_MIN_ABS_MAGNITUDE) {
+            return tc_value_make(type, tc_signed_to_bits(type, INT64_MIN));
+        }
+        return tc_value_make(type, tc_signed_to_bits(type, -(int64_t)lit->magnitude));
+    }
+    return tc_value_make(type, lit->magnitude);
 }
 
 /*
@@ -279,7 +371,7 @@ static uint64_t tc_wrap_bits(TcIntType type, uint64_t bits) {
  * @note div/mod 不支持 overflow 模式（由 Analyzer 静态拒绝）
  * @note overflow 模式下 add/sub/mul 在无符号位模式上做环绕运算
  */
-static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcOverflowMode mode,
+static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                                 const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                 TcDiagnostic *diag, int line) {
     int64_t a = tc_bits_to_signed(type, lhs->bits);
@@ -304,11 +396,14 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcOverflowMode mod
     }
 
     /* overflow 模式：在无符号位域上做环绕 */
-    if (mode == TC_OVERFLOW) {
+    if (mode == TC_ARITH_WRAP) {
         int n = tc_type_bit_width(type);
         uint64_t mask = tc_mask_bits(n);
         uint64_t wrapped = 0;
 
+        /* 对 add/sub：tc_value_to_unsigned 已归一化到 n 位，& mask 确保
+         * 结果在 n 位内（对无符号算术 & mask 虽是冗余但仍保留以显式表达
+         * 截断语义意图，避免依赖 C 标准无符号回绕的隐式行为） */
         if (op == TC_ADD) {
             wrapped = (tc_value_to_unsigned(type, (uint64_t)a) +
                        tc_value_to_unsigned(type, (uint64_t)b)) &
@@ -377,13 +472,12 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcOverflowMode mod
  * @return 成功返回 0；失败（除零）返回 -1
  * @note 无符号类型不支持 strict/overflow 区分，始终对结果做位宽掩码截断
  */
-static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcOverflowMode mode,
+static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                     TcDiagnostic *diag, int line) {
     (void)mode;  /* 无符号运算忽略 overflow 模式参数 */
     uint64_t a = tc_value_to_unsigned(type, lhs->bits);
     uint64_t b = tc_value_to_unsigned(type, rhs->bits);
-    uint64_t mask = tc_mask_bits(tc_type_bit_width(type));
     uint64_t result = 0;
 
     if (op == TC_DIV || op == TC_MOD) {
@@ -402,17 +496,17 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcOverflowMode m
     }
 
     if (op == TC_ADD) {
-        result = (a + b) & mask;
+        result = a + b;
     } else if (op == TC_SUB) {
-        result = (a - b) & mask;
+        result = a - b;
     } else {
         if (tc_type_bit_width(type) == 64) {
             uint64_t hi = 0;
             uint64_t lo = 0;
             tc_umul64(a, b, &hi, &lo);
-            result = lo & mask;
+            result = lo;
         } else {
-            result = (a * b) & mask;
+            result = a * b;
         }
     }
 
@@ -432,7 +526,7 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcOverflowMode m
  * @param line  当前语句行号
  * @return 成功返回 0；失败返回 -1 并设置 diag
  */
-int tc_exec_arith(TcArithOp op, TcIntType type, TcOverflowMode mode,
+int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line) {
     if (tc_type_is_signed(type)) {
@@ -442,92 +536,85 @@ int tc_exec_arith(TcArithOp op, TcIntType type, TcOverflowMode mode,
 }
 
 /*
- * @brief strict 模式类型转换（带范围检查）
- * @param target 目标整数类型
- * @param source 源运行时值
- * @param out    输出参数，写入转换后的 TcValue
- * @param diag   诊断对象，转换失败时填写错误信息
- * @param line   当前语句行号
- * @return 成功返回 0；值超出目标范围返回 -1
- * @note 根据源/目标类型的有符号性、位宽关系，分别处理：
- *       - 同类型：直接复制
- *       - 扩展（dst > src）：有符号做符号扩展，无符号零扩展
- *       - 同宽变符号性：检查负值或超范围
- *       - 窄化：检查值是否在目标范围内
+ * @brief 扩展转换（dst_bits > src_bits）：符号/零扩展，带范围检查
  */
-static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
-                          TcDiagnostic *diag, int line) {
-    TcIntType src_type = source->type;
-    int src_bits = tc_type_bit_width(src_type);
-    int dst_bits = tc_type_bit_width(target);
+static int tc_cast_widen(TcIntType target, TcIntType src_type, const TcValue *source,
+                         TcValue *out, TcDiagnostic *diag, int line) {
+    int src_signed = tc_type_is_signed(src_type);
+    int dst_signed = tc_type_is_signed(target);
+
+    if (src_signed && dst_signed) {
+        int64_t value = tc_bits_to_signed(src_type, source->bits);
+        *out = tc_value_make(target, tc_signed_to_bits(target, value));
+        return 0;
+    }
+    if (!src_signed && !dst_signed) {
+        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
+        *out = tc_value_make(target, value);
+        return 0;
+    }
+    if (src_signed && !dst_signed) {
+        int64_t value = tc_bits_to_signed(src_type, source->bits);
+        if (value < 0) {
+            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "cannot cast negative signed value to unsigned");
+            return -1;
+        }
+        *out = tc_value_make(target, (uint64_t)value);
+        return 0;
+    }
+    /* 无符号源 → 有符号目标（更宽） */
+    {
+        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
+        if (value > (uint64_t)tc_type_max_signed(target)) {
+            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "unsigned value out of signed target range");
+            return -1;
+        }
+        *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
+        return 0;
+    }
+}
+
+/*
+ * @brief 同位宽符号性转换（dst_bits == src_bits, 符号性不同）：检查负值或超范围
+ */
+static int tc_cast_same_width_diff_sign(TcIntType target, TcIntType src_type,
+                                        const TcValue *source, TcValue *out,
+                                        TcDiagnostic *diag, int line) {
+    int src_signed = tc_type_is_signed(src_type);
+
+    if (src_signed) {
+        int64_t value = tc_bits_to_signed(src_type, source->bits);
+        if (value < 0) {
+            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "cannot cast negative signed value to unsigned");
+            return -1;
+        }
+        *out = tc_value_make(target, (uint64_t)value);
+        return 0;
+    }
+    /* 无符号 → 有符号（同宽） */
+    {
+        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
+        if (value > (uint64_t)tc_type_max_signed(target)) {
+            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "unsigned value out of signed target range");
+            return -1;
+        }
+        *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
+        return 0;
+    }
+}
+
+/*
+ * @brief 窄化转换（dst_bits < src_bits）：检查值是否在目标范围内
+ */
+static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *source,
+                          TcValue *out, TcDiagnostic *diag, int line) {
     int src_signed = tc_type_is_signed(src_type);
     int dst_signed = tc_type_is_signed(target);
     char msg[128];
-
-    if (src_type == target) {
-        *out = *source;
-        return 0;
-    }
-
-    /* 目标位宽更大：扩展 */
-    if (dst_bits > src_bits) {
-        if (src_signed && dst_signed) {
-            int64_t value = tc_bits_to_signed(src_type, source->bits);
-            *out = tc_value_make(target, tc_signed_to_bits(target, value));
-            return 0;
-        }
-        if (!src_signed && !dst_signed) {
-            uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-            *out = tc_value_make(target, value);
-            return 0;
-        }
-        if (src_signed && !dst_signed) {
-            int64_t value = tc_bits_to_signed(src_type, source->bits);
-            if (value < 0) {
-                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                                  "cannot cast negative signed value to unsigned");
-                return -1;
-            }
-            *out = tc_value_make(target, (uint64_t)value);
-            return 0;
-        }
-        /* 无符号源 → 有符号目标（更宽） */
-        {
-            uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-            if (value > (uint64_t)tc_type_max_signed(target)) {
-                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                                  "unsigned value out of signed target range");
-                return -1;
-            }
-            *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
-            return 0;
-        }
-    }
-
-    /* 同位宽但符号性不同 */
-    if (dst_bits == src_bits) {
-        if (src_signed && !dst_signed) {
-            int64_t value = tc_bits_to_signed(src_type, source->bits);
-            if (value < 0) {
-                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                                  "cannot cast negative signed value to unsigned");
-                return -1;
-            }
-            *out = tc_value_make(target, (uint64_t)value);
-            return 0;
-        }
-        /* 无符号 → 有符号（同宽） */
-        {
-            uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-            if (value > (uint64_t)tc_type_max_signed(target)) {
-                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                                  "unsigned value out of signed target range");
-                return -1;
-            }
-            *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
-            return 0;
-        }
-    }
 
     /* 窄化：有符号 → 有符号 */
     if (src_signed && dst_signed) {
@@ -574,6 +661,42 @@ static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
 }
 
 /*
+ * @brief strict 模式类型转换（带范围检查）
+ * @param target 目标整数类型
+ * @param source 源运行时值
+ * @param out    输出参数，写入转换后的 TcValue
+ * @param diag   诊断对象，转换失败时填写错误信息
+ * @param line   当前语句行号
+ * @return 成功返回 0；值超出目标范围返回 -1
+ * @note 根据源/目标类型的有符号性、位宽关系，分派到子函数：
+ *       - 同类型：直接复制
+ *       - 扩展（dst > src）：tc_cast_widen
+ *       - 同宽变符号性：tc_cast_same_width_diff_sign
+ *       - 窄化（dst < src）：tc_cast_narrow
+ */
+static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
+                          TcDiagnostic *diag, int line) {
+    TcIntType src_type = source->type;
+    int src_bits = tc_type_bit_width(src_type);
+    int dst_bits = tc_type_bit_width(target);
+
+    if (src_type == target) {
+        *out = *source;
+        return 0;
+    }
+
+    if (dst_bits > src_bits) {
+        return tc_cast_widen(target, src_type, source, out, diag, line);
+    }
+
+    if (dst_bits == src_bits) {
+        return tc_cast_same_width_diff_sign(target, src_type, source, out, diag, line);
+    }
+
+    return tc_cast_narrow(target, src_type, source, out, diag, line);
+}
+
+/*
  * @brief 位扩展辅助：将 src_bits 宽的位模式扩展到 dst_bits
  * @param bits        原始位模式
  * @param src_bits    源位宽
@@ -607,7 +730,7 @@ static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int si
  * @return 始终返回 0（overflow 模式下永远不会失败）
  * @note 窄化直接截低 n 位；扩展时根据目标/源符号性选择零扩展或符号扩展
  */
-static int tc_cast_overflow(TcIntType target, const TcValue *source, TcValue *out) {
+static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *out) {
     TcIntType src_type = source->type;
     int src_bits = tc_type_bit_width(src_type);
     int dst_bits = tc_type_bit_width(target);
@@ -638,10 +761,10 @@ static int tc_cast_overflow(TcIntType target, const TcValue *source, TcValue *ou
  * @param line   当前语句行号
  * @return 成功返回 0；strict 模式下值溢出返回 -1
  */
-int tc_exec_cast(TcIntType target, TcOverflowMode mode, const TcValue *source,
+int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line) {
-    if (mode == TC_STRICT) {
+    if (mode == TC_TRUNC_STRICT) {
         return tc_cast_strict(target, source, out, diag, line);
     }
-    return tc_cast_overflow(target, source, out);
+    return tc_cast_truncate(target, source, out);
 }

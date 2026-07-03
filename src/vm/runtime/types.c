@@ -121,6 +121,14 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "TypeMismatch";
     case TC_ERR_LITERAL_OUT_OF_RANGE:
         return "LiteralOutOfRange";
+    case TC_ERR_LITERAL_TYPE:
+        return "LiteralTypeError";
+    case TC_ERR_KEYWORD:
+        return "KeywordError";
+    case TC_ERR_CONSTANT_ASSIGNMENT:
+        return "ConstantAssignmentError";
+    case TC_ERR_CONSTANT_EXPRESSION:
+        return "ConstantExpressionError";
     case TC_ERR_DIVISION_BY_ZERO:
         return "DivisionByZero";
     case TC_ERR_INTEGER_OVERFLOW:
@@ -133,6 +141,14 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "IOError";
     }
     return "UnknownError";
+}
+
+const char *tc_warning_kind_name(TcWarningKind kind) {
+    switch (kind) {
+    case TC_WARN_UNINITIALIZED_VARIABLE:
+        return "UninitializedVariable";
+    }
+    return "UnknownWarning";
 }
 
 /*

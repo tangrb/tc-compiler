@@ -1,0 +1,4 @@
+var a: int64 = -9223372036854775808
+var b: int64 = -1
+var c: int64 = div(int64, a, b)
+writeln(int64, c)

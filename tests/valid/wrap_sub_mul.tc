@@ -1,0 +1,6 @@
+var a: int8 = 100
+var b: int8 = 2
+var diff: int8 = sub(int8, wrap, a, b)
+var prod: int8 = mul(int8, wrap, a, b)
+writeln(int8, diff)
+writeln(int8, prod)

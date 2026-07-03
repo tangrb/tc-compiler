@@ -1,0 +1,8 @@
+var g: int32 = 7
+var h: int32 = -3
+var q: int32 = div(int32, g, h)
+var j: int32 = -7
+var k: int32 = 3
+var m: int32 = mod(int32, j, k)
+writeln(int32, q)
+writeln(int32, m)

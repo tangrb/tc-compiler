@@ -13,27 +13,8 @@
 #ifndef TC_ANALYZER_H
 #define TC_ANALYZER_H
 
+#include "tc_symbol.h"
 #include "tc_types.h"
-
-/**
- * @brief 初始化符号表为空状态
- * @param table 待初始化的符号表指针
- */
-void tc_symbol_table_init(TcSymbolTable *table);
-
-/**
- * @brief 释放符号表及其所有动态内存
- * @param table 待释放的符号表指针
- */
-void tc_symbol_table_free(TcSymbolTable *table);
-
-/**
- * @brief 在线性符号表中按名称查找符号
- * @param table 符号表指针
- * @param name  要查找的变量名
- * @return 找到返回对应 TcSymbol 指针；未找到返回 NULL
- */
-const TcSymbol *tc_symbol_table_find(const TcSymbolTable *table, const char *name);
 
 /**
  * @brief 初始化已类型化的程序
@@ -57,12 +38,25 @@ void tc_typed_program_free(TcTypedProgram *program);
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);
 
 /**
+ * @brief REPL 增量分析上下文（轻量初始化历史，替代完整语句列表）
+ */
+typedef struct {
+    size_t stmt_count;
+    int *last_init_stmt_index;
+    size_t last_init_capacity;
+} TcReplAnalyzeCtx;
+
+/**
  * @brief 对单条语句做增量静态分析（REPL 会话）
- * @param stmt    待分析的语句
- * @param symbols 会话符号表（var 定义成功后会追加新符号并分配 slot）
- * @param diag    诊断对象
+ * @param stmt      待分析的语句
+ * @param symbols   会话符号表（var 定义成功后会追加新符号并分配 slot）
+ * @param repl_ctx  REPL 分析上下文（stmt_count 为当前语句索引）
+ * @param warnings  警告输出列表
+ * @param diag      诊断对象
  * @return 成功返回 0；失败返回 -1 并设置 diag（symbols 不变）
  */
-int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols, TcDiagnostic *diag);
+int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
+                         TcReplAnalyzeCtx *repl_ctx, TcWarningList *warnings,
+                         TcDiagnostic *diag);
 
 #endif
