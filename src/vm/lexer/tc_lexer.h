@@ -1,46 +1,56 @@
 /*
  * tc_lexer.h — 词法分析器接口
+ *
+ * 将一行 TC 源码文本转换为 TcTokenList（Token 流），供 Parser 消费。
+ * 支持关键字、标识符、整数字面量（含多进制）、格式说明符及标点符号。
  */
 #ifndef TC_LEXER_H
 #define TC_LEXER_H
 
 #include "tc_types.h"
 
+/** Token 种类枚举 */
 typedef enum {
-    TC_TOK_EOF,
-    TC_TOK_VAR,
-    TC_TOK_LET,
-    TC_TOK_INT_TYPE,
-    TC_TOK_ARITH_OP,
-    TC_TOK_CAST,
-    TC_TOK_WRAP,
-    TC_TOK_TRUNCATE,
-    TC_TOK_WRITE,
-    TC_TOK_WRITELN,
-    TC_TOK_READ,
-    TC_TOK_IDENTIFIER,
-    TC_TOK_INTEGER,
-    TC_TOK_COLON,
-    TC_TOK_EQUAL,
-    TC_TOK_COMMA,
-    TC_TOK_LPAREN,
-    TC_TOK_RPAREN,
-    TC_TOK_SEMICOLON
+    TC_TOK_EOF,         /* 行结束 */
+    TC_TOK_VAR,         /* 'var' 关键字 */
+    TC_TOK_LET,         /* 'let' 关键字 */
+    TC_TOK_INT_TYPE,    /* 类型名（int8 / uint32 等） */
+    TC_TOK_ARITH_OP,    /* 算术运算符（add/sub/mul/div/mod） */
+    TC_TOK_UNARY_OP,    /* 单目运算符（abs/neg） */
+    TC_TOK_FORMAT_SPEC, /* 格式说明符（%d/%u/%x/%X/%o/%b） */
+    TC_TOK_CAST,        /* 'cast' 关键字 */
+    TC_TOK_WRAP,        /* 'wrap' 关键字 */
+    TC_TOK_TRUNCATE,    /* 'truncate' 关键字 */
+    TC_TOK_WRITE,       /* 'write' 关键字 */
+    TC_TOK_WRITELN,     /* 'writeln' 关键字 */
+    TC_TOK_READ,        /* 'read' 关键字 */
+    TC_TOK_IDENTIFIER,  /* 用户定义标识符（变量名） */
+    TC_TOK_INTEGER,     /* 整数字面量 */
+    TC_TOK_COLON,       /* ':' */
+    TC_TOK_EQUAL,       /* '=' */
+    TC_TOK_COMMA,       /* ',' */
+    TC_TOK_LPAREN,      /* '(' */
+    TC_TOK_RPAREN,      /* ')' */
+    TC_TOK_SEMICOLON    /* ';'（兼具语句结束与行注释作用） */
 } TcTokenKind;
 
+/** 单个 Token 的表示：种类 + 源码位置 + 语义值联合体 */
 typedef struct {
     TcTokenKind kind;
-    const char *start;
-    size_t length;
+    const char *start;  /* 源码中的起始位置（仅引用） */
+    size_t length;      /* 长度 */
     int line;
     int column;
     union {
         TcIntType int_type;
         TcArithOp arith_op;
+        TcUnaryOp unary_op;
+        TcFormatSpec format_spec;
         TcLiteral literal;
     } u;
 } TcToken;
 
+/** Token 动态数组，由 tc_tokenize_line 逐行填充 */
 typedef struct {
     TcToken *items;
     size_t count;
@@ -50,6 +60,14 @@ typedef struct {
 void tc_token_list_init(TcTokenList *list);
 void tc_token_list_free(TcTokenList *list);
 
+/**
+ * 对一行源码进行词法分析。
+ * @param line    待分析的源码行（不包含换行符）
+ * @param line_no 当前行号（1-based）
+ * @param out     输出 Token 列表（始终包含 TC_TOK_EOF 结尾）
+ * @param diag    诊断对象
+ * @return 成功返回 0；词法错误返回 -1 并设置 diag
+ */
 int tc_tokenize_line(const char *line, int line_no, TcTokenList *out,
                      TcDiagnostic *diag);
 

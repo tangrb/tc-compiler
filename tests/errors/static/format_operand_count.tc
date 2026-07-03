@@ -1,0 +1,2 @@
+var x: int32 = 1
+write(int32, %d)

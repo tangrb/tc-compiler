@@ -1,5 +1,10 @@
 /*
- * tc_aot_rt.c — AOT 运行时：将 uint64_t 槽位操作委托给 semantics.c
+ * tc_aot_rt.c — AOT 运行时辅助实现
+ *
+ * 将 AOT 生成的 C 代码中的 uint64_t 槽位操作委托给 semantics.c，
+ * 包括：字面量求值（tc_aot_lit）、算术运算（tc_aot_arith）、
+ * 单目运算（tc_aot_unary）、类型转换（tc_aot_cast）、
+ * 格式化输出（tc_aot_write）、输入（tc_aot_read）及错误中止（tc_aot_abort）。
  */
 #include "tc_aot_rt.h"
 
@@ -14,6 +19,10 @@
 void tc_aot_diag_init(TcDiagnostic *diag) {
     tc_diagnostic_init(diag);
 }
+
+/* ------------------------------------------------------------------ */
+/*  字面量 & 算术 & 单目 & cast 委托                                      */
+/* ------------------------------------------------------------------ */
 
 uint64_t tc_aot_lit(TcIntType type, uint64_t magnitude, int negative, int unsigned_suffix) {
     TcLiteral lit;
@@ -39,6 +48,18 @@ int tc_aot_arith(TcArithOp op, TcIntType type, TcWrapMode mode, uint64_t *out, u
     return 0;
 }
 
+int tc_aot_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t operand,
+                 TcDiagnostic *diag, int line) {
+    TcValue operand_value = tc_value_make(type, operand);
+    TcValue result;
+
+    if (tc_exec_unary(op, type, mode, &operand_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
 int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntType src_type,
                 uint64_t *out, TcDiagnostic *diag, int line) {
     TcValue src = tc_value_make(src_type, src_bits);
@@ -51,20 +72,67 @@ int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntT
     return 0;
 }
 
-void tc_aot_write(TcIntType type, uint64_t bits, int newline) {
-    if (tc_type_is_signed(type)) {
+/* ------------------------------------------------------------------ */
+/*  格式化输出                                                          */
+/* ------------------------------------------------------------------ */
+
+void tc_aot_write(TcIntType type, TcFormatSpec fmt, uint64_t bits, int newline) {
+    TcValue value = tc_value_make(type, bits);
+    int n = tc_type_bit_width(type);
+    uint64_t mask = tc_mask_bits(n);
+    uint64_t uval = tc_value_to_unsigned(type, bits) & mask;
+
+    if (fmt != TC_FMT_NONE) {
+        switch (fmt) {
+        case TC_FMT_D:
+        case TC_FMT_I:
+            if (!tc_type_is_signed(type)) {
+                fprintf(stdout, "%llu", (unsigned long long)uval);
+            } else {
+                fprintf(stdout, "%lld", (long long)tc_bits_to_signed(type, bits));
+            }
+            break;
+        case TC_FMT_U:
+            fprintf(stdout, "%llu", (unsigned long long)uval);
+            break;
+        case TC_FMT_X:
+            fprintf(stdout, "%llx", (unsigned long long)uval);
+            break;
+        case TC_FMT_XU:
+            fprintf(stdout, "%llX", (unsigned long long)uval);
+            break;
+        case TC_FMT_O:
+            fprintf(stdout, "%llo", (unsigned long long)uval);
+            break;
+        case TC_FMT_B: {
+            int i = 0;
+            for (i = n - 1; i >= 0; i--) {
+                fputc((uval >> i) & 1 ? '1' : '0', stdout);
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    } else if (tc_type_is_signed(type)) {
         int64_t signed_value = tc_bits_to_signed(type, bits);
         fprintf(stdout, "%" PRId64, signed_value);
     } else {
         uint64_t unsigned_value = tc_value_to_unsigned(type, bits);
         fprintf(stdout, "%" PRIu64, unsigned_value);
     }
+    (void)value;
     if (newline) {
         fputc('\n', stdout);
     }
     fflush(stdout);
 }
 
+/* ------------------------------------------------------------------ */
+/*  输入                                                               */
+/* ------------------------------------------------------------------ */
+
+/** 跳过 stdin 前导空白 */
 static void tc_aot_skip_whitespace(void) {
     int c = 0;
     for (;;) {
@@ -80,6 +148,18 @@ static void tc_aot_skip_whitespace(void) {
     }
 }
 
+/*
+ * @brief 从 stdin 读取十进制数字字符序列，计算其绝对值
+ * @param c        当前已读取的首个字符
+ * @param line     当前行号
+ * @param diag     诊断对象
+ * @param out_abs  输出：绝对值
+ * @param out_sign 输出：符号（1 或 -1）
+ * @return 成功 0；非法或超出范围 -1
+ *
+ * 提取 signed/unsigned 输入的公共数字读取逻辑，与 executor.c 中的
+ * tc_read_decimal_digits 功能相同（因 AOT 独立编译，无法共享）。
+ */
 static int tc_aot_read_decimal_digits(int c, int line, TcDiagnostic *diag, uint64_t *out_abs,
                                       int *out_sign) {
     int sign = 1;
@@ -166,6 +246,10 @@ int tc_aot_read(TcIntType type, uint64_t *out, TcDiagnostic *diag, int line) {
     *out = value.bits;
     return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  错误中止                                                           */
+/* ------------------------------------------------------------------ */
 
 void tc_aot_abort(const TcDiagnostic *diag, int line) {
     (void)line;

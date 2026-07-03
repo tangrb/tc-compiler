@@ -1,5 +1,8 @@
 /*
  * symbol.c — 符号表实现
+ *
+ * 简单的线性查找符号表。TC v1.0 为单全局作用域，暂无哈希表需求。
+ * 符号的 name 字段由符号表负责 strdup 并在释放时 free。
  */
 #include "tc_symbol.h"
 

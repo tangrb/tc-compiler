@@ -1,5 +1,12 @@
 /*
- * analyzer.c — TC 静态分析器实现（v0.0.14）
+ * analyzer.c — TC 静态分析器实现
+ *
+ * 两遍扫描架构：
+ *   Pass 1 — 符号收集：扫描所有 var/let 定义，分配运行时 slot，检测重复定义
+ *   Pass 2 — 类型与语义检查：按语句顺序校验类型兼容性、字面量范围、overflow 模式合法性、
+ *            let 常量编译期求值、未初始化变量警告
+ *
+ * 分析通过后产出 TcTypedProgram，Executor 可直接消费。
  */
 #include "tc_analyzer.h"
 
@@ -13,6 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* ------------------------------------------------------------------ */
+/*  TcTypedProgram 生命周期管理                                          */
+/* ------------------------------------------------------------------ */
+
 void tc_typed_program_init(TcTypedProgram *program) {
     tc_program_init(&program->program);
     tc_symbol_table_init(&program->symbols);
@@ -25,6 +36,14 @@ void tc_typed_program_free(TcTypedProgram *program) {
     tc_warning_list_free(&program->warnings);
 }
 
+/* ------------------------------------------------------------------ */
+/*  字面量检查辅助                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * @brief 检查 TcLiteral 能否放入目标类型
+ * @return 检查通过返回 0；失败返回 -1 并设置 diag
+ */
 static int tc_check_literal(const TcLiteral *lit, TcIntType expected, int line,
                             TcDiagnostic *diag) {
     TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
@@ -41,11 +60,22 @@ static int tc_check_literal(const TcLiteral *lit, TcIntType expected, int line,
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  初始化追踪 & 未初始化变量警告                                         */
+/* ------------------------------------------------------------------ */
+
+/** 初始化历史上下文，供未初始化变量检查使用 */
 typedef struct {
-    const TcProgram *program;
-    const int *last_init_stmt_index;
+    const TcProgram *program;               /* 完整程序（文件模式）；REPL 模式下为 NULL */
+    const int *last_init_stmt_index;        /* slot → 最后初始化语句序号，-1 表示从未 */
 } TcInitHistory;
 
+/*
+ * @brief 判断变量在 stmt_index 之前是否已被初始化
+ *
+ * 查询顺序：sym->initialized（定义时有值）→ last_init_stmt_index 缓存
+ * → 遍历 program 中从 def_stmt_index+1 到 before_index-1 的 ASSIGN/READ 语句
+ */
 static int tc_variable_is_initialized_before(const TcInitHistory *hist, const TcSymbol *sym,
                                              size_t before_index) {
     if (sym->initialized) {
@@ -71,11 +101,14 @@ static int tc_variable_is_initialized_before(const TcInitHistory *hist, const Tc
     return 0;
 }
 
+/*
+ * @brief 对可能未初始化的变量引用发出警告
+ */
 static void tc_maybe_warn_uninitialized(const TcInitHistory *hist, const TcSymbol *sym,
                                         size_t stmt_index, int line, TcWarningList *warnings) {
     char msg[128];
     if (sym->sym_kind == TC_SYM_CONSTANT) {
-        return;
+        return;  /* let 常量始终有编译期值，不需要警告 */
     }
     if (tc_variable_is_initialized_before(hist, sym, stmt_index)) {
         return;
@@ -84,6 +117,14 @@ static void tc_maybe_warn_uninitialized(const TcInitHistory *hist, const TcSymbo
     tc_warning_list_add(warnings, TC_WARN_UNINITIALIZED_VARIABLE, line, msg);
 }
 
+/* ------------------------------------------------------------------ */
+/*  操作数与 RHS 检查                                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * @brief 检查操作数的类型兼容性与变量定义存在性
+ * @param self_name 若非 NULL，表示当前定义中的变量名（用于自引用检测）
+ */
 static int tc_check_operand(const TcOperand *operand, TcIntType expected,
                             const TcSymbolTable *symbols, const TcInitHistory *hist,
                             size_t stmt_index, int line, TcDiagnostic *diag,
@@ -97,6 +138,7 @@ static int tc_check_operand(const TcOperand *operand, TcIntType expected,
     {
         const TcSymbol *symbol = NULL;
 
+        /* 自引用检查：变量不能在自身初始化器中引用自己 */
         if (self_name && strcmp(operand->u.name, self_name) == 0) {
             snprintf(msg, sizeof(msg),
                      "variable '%s' cannot reference itself in its initializer", self_name);
@@ -119,6 +161,39 @@ static int tc_check_operand(const TcOperand *operand, TcIntType expected,
     return 0;
 }
 
+/*
+ * @brief 校验格式说明符与操作数类型的匹配关系
+ *
+ * %d/%i 要求有符号类型；%u 要求无符号类型；%x/%X/%o/%b 无限制
+ */
+static int tc_check_io_format(TcIntType type, TcFormatSpec fmt, int line, TcDiagnostic *diag) {
+    if (fmt == TC_FMT_NONE) {
+        return 0;
+    }
+    if (fmt == TC_FMT_D || fmt == TC_FMT_I) {
+        if (!tc_type_is_signed(type)) {
+            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "%d requires signed type");
+            return -1;
+        }
+        return 0;
+    }
+    if (fmt == TC_FMT_U) {
+        if (tc_type_is_signed(type)) {
+            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "%u requires unsigned type");
+            return -1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+/*
+ * @brief 对 RHS 进行类型检查
+ * @param lhs_type  赋值目标的类型
+ * @param self_name 自引用检测（用于 var 初始化器）
+ */
 static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTable *symbols,
                         const TcInitHistory *hist, size_t stmt_index, int line,
                         TcDiagnostic *diag, TcWarningList *warnings, const char *self_name) {
@@ -141,6 +216,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
     }
 
     if (rhs->kind == TC_RHS_ARITH) {
+        /* div/mod 不支持 wrap 模式（TC 语言标准规定） */
         if ((rhs->u.arith.op == TC_DIV || rhs->u.arith.op == TC_MOD) &&
             rhs->u.arith.mode == TC_ARITH_WRAP) {
             tc_diagnostic_set(diag, TC_ERR_OVERFLOW_MODE, line, TC_COLUMN_UNKNOWN,
@@ -156,6 +232,25 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
             return -1;
         }
         if (rhs->u.arith.type != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_UNARY) {
+        /* abs 不支持 wrap 模式 */
+        if (rhs->u.unary.op == TC_UNARY_ABS && rhs->u.unary.mode == TC_ARITH_WRAP) {
+            tc_diagnostic_set(diag, TC_ERR_OVERFLOW_MODE, line, TC_COLUMN_UNKNOWN,
+                              "abs does not support wrap");
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.unary.operand, rhs->u.unary.type, symbols, hist, stmt_index,
+                             line, diag, warnings, self_name) != 0) {
+            return -1;
+        }
+        if (rhs->u.unary.type != lhs_type) {
             tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
@@ -188,6 +283,11 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  let 常量编译期求值                                                    */
+/* ------------------------------------------------------------------ */
+
+/** 将字面量 RHS 编码为运行时值，写入符号表的 const_value 字段 */
 static int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, int line,
                                     TcDiagnostic *diag) {
     if (rhs->kind != TC_RHS_LIT) {
@@ -208,6 +308,10 @@ static int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, int line,
     sym->has_const_value = 1;
     return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Pass 1 — 符号收集                                                   */
+/* ------------------------------------------------------------------ */
 
 static int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
                                     TcDiagnostic *diag) {
@@ -250,6 +354,10 @@ static int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Pass 2 — 类型与语义检查                                              */
+/* ------------------------------------------------------------------ */
+
 static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWarningList *warnings,
                                TcDiagnostic *diag) {
     TcSymbolTable visible;
@@ -258,7 +366,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
 
     tc_symbol_table_init(&visible);
 
-    /* 为每个变量槽分配 last_init_stmt_index 缓存，初始化为 -1 */
+    /* 分配 last_init_stmt_index 缓存，初始化为 -1 */
     if (symbols->count > 0) {
         last_init = (int *)malloc(symbols->count * sizeof(int));
         if (!last_init) {
@@ -271,7 +379,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
         }
     }
 
-    /* 预计算：扫描 ASSIGN/READ 语句，缓存最后初始化位置 */
+    /* 预计算：扫描所有 ASSIGN/READ 语句，缓存每个符号的最后初始化位置 */
     for (i = 0; i < program->count; i++) {
         const TcStatement *stmt = &program->items[i];
         if (stmt->kind == TC_STMT_ASSIGN) {
@@ -300,6 +408,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
                     goto cleanup;
                 }
             }
+            /* 将 var 加入 visible 表，供后续语句引用 */
             if (tc_symbol_table_add(&visible, var_def->name, var_def->type, (int)i,
                                     var_def->line, (int)i, TC_SYM_VARIABLE, var_def->has_rhs,
                                     diag) != 0) {
@@ -318,12 +427,16 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
             if (tc_resolve_const_value(global_sym, &const_def->rhs, const_def->line, diag) != 0) {
                 goto cleanup;
             }
+            /* 将 let 加入 visible 表 */
             if (tc_symbol_table_add(&visible, const_def->name, const_def->type, (int)i,
                                     const_def->line, (int)i, TC_SYM_CONSTANT, 1, diag) != 0) {
                 goto cleanup;
             }
         } else if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
             const TcIoWrite *io_write = &stmt->u.io_write;
+            if (tc_check_io_format(io_write->type, io_write->fmt, io_write->line, diag) != 0) {
+                goto cleanup;
+            }
             if (tc_check_operand(&io_write->operand, io_write->type, &visible, &hist, i,
                                  io_write->line, diag, warnings, NULL) != 0) {
                 goto cleanup;
@@ -379,31 +492,13 @@ cleanup:
     return -1;
 }
 
-/*
- * @brief 对程序执行两遍静态分析并输出类型化程序
- * @param program  原始程序（所有权被转移至 out，调用方不得再使用）
- * @param out      输出参数：类型化程序（含符号表和警告）
- * @param diag     诊断对象
- * @return 分析通过返回 0；任何错误返回 -1 并设置 diag
- *
- * @note 所有权转移策略：
- *   out->program 通过 struct 浅拷贝获取 program->items（语句列表）的所有权，
- *   然后将 program 中的 items/count/capacity 清零，确保调用方不会再次释放。
- *   此模式避免了深拷贝的开销，但调用方必须在 tc_analyze 返回后不再使用
- *   原始的 program 变量。
- */
-/*
- * @brief 对程序执行两遍静态分析并输出类型化程序
- *
- * 所有权策略（struct 浅拷贝转移）：
- *   通过 struct 字段逐成员拷贝将 program 中的语句列表所有权转移至
- *   out->program，然后将原始 program 中的 items/count/capacity 清零。
- *   调用方在 tc_analyze 返回后不得再使用原始 program 变量。
- *   此模式避免了深拷贝的开销（无需复制作业列表），但要求调用方遵守
- *   所有权转移约定。
- */
+/* ------------------------------------------------------------------ */
+/*  tc_analyze — 两遍分析入口                                            */
+/* ------------------------------------------------------------------ */
+
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {
     tc_typed_program_init(out);
+    /* 通过 struct 浅拷贝转移 program->items 所有权 */
     out->program = *program;
     program->items = NULL;
     program->count = 0;
@@ -419,6 +514,10 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {
     }
     return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  tc_analyze_statement — REPL 增量分析                                 */
+/* ------------------------------------------------------------------ */
 
 int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                          TcReplAnalyzeCtx *repl_ctx, TcWarningList *warnings,
@@ -482,6 +581,9 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
 
     if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
         const TcIoWrite *io_write = &stmt->u.io_write;
+        if (tc_check_io_format(io_write->type, io_write->fmt, io_write->line, diag) != 0) {
+            return -1;
+        }
         return tc_check_operand(&io_write->operand, io_write->type, symbols, &hist, stmt_index,
                                 io_write->line, diag, warnings, NULL);
     }

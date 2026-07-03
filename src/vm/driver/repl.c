@@ -1,17 +1,14 @@
 /*
  * repl.c — TC-VM 交互式 REPL 实现
  *
- * 逐行读取 TC 源码，经 Lexer → Parser → 增量 Analyze → Execute 执行。
+ * 逐行读取 TC 源码，经 Lexer → Parser → 增量 Analyze → Execute 单条执行。
  * 会话内变量定义与赋值状态跨行保留。
  *
  * 内置命令（以 ':' 开头）：
  *   :quit / :exit / :q  退出 REPL
- *   :reset              清空会话
- *   :vars               列出当前变量
- *   :help               显示帮助
- *
- * 作者：唐荣兵
- * 联系邮箱：yanhuang8923@qq.com
+ *   :reset              清空会话（变量、历史）
+ *   :vars               列出当前所有变量及其值
+ *   :help               显示帮助信息
  */
 #include "tc_repl.h"
 
@@ -38,9 +35,10 @@
 #define TC_REPL_PROMPT "tc> "
 #define TC_REPL_INIT_NONE (-1)
 
-/*
- * @brief 判断一行是否仅含空格/制表符
- */
+/* ------------------------------------------------------------------ */
+/*  行类型判断                                                          */
+/* ------------------------------------------------------------------ */
+
 static int tc_repl_is_only_whitespace(const char *line) {
     while (*line != '\0' && *line != '\r' && *line != '\n') {
         if (*line != ' ' && *line != '\t') {
@@ -51,9 +49,7 @@ static int tc_repl_is_only_whitespace(const char *line) {
     return 1;
 }
 
-/*
- * @brief 判断是否为注释行或空行
- */
+/** 判断是否为注释行（';' 开头）、空行或全空白行 */
 static int tc_repl_is_skippable_line(const char *line) {
     const char *cursor = line;
 
@@ -69,18 +65,16 @@ static int tc_repl_is_skippable_line(const char *line) {
     return *cursor == ';' || *cursor == '\0' || *cursor == '\r' || *cursor == '\n';
 }
 
-/*
- * @brief 初始化 REPL 分析上下文
- */
+/* ------------------------------------------------------------------ */
+/*  会话生命周期管理                                                     */
+/* ------------------------------------------------------------------ */
+
 static void tc_repl_analyze_ctx_init(TcReplAnalyzeCtx *ctx) {
     ctx->stmt_count = 0;
     ctx->last_init_stmt_index = NULL;
     ctx->last_init_capacity = 0;
 }
 
-/*
- * @brief 释放 REPL 分析上下文
- */
 static void tc_repl_analyze_ctx_free(TcReplAnalyzeCtx *ctx) {
     free(ctx->last_init_stmt_index);
     ctx->last_init_stmt_index = NULL;
@@ -88,9 +82,6 @@ static void tc_repl_analyze_ctx_free(TcReplAnalyzeCtx *ctx) {
     ctx->stmt_count = 0;
 }
 
-/*
- * @brief 初始化 REPL 会话
- */
 static void tc_repl_session_init(TcReplSession *session) {
     tc_symbol_table_init(&session->symbols);
     tc_repl_analyze_ctx_init(&session->analyze_ctx);
@@ -99,9 +90,6 @@ static void tc_repl_session_init(TcReplSession *session) {
     session->line_no = 1;
 }
 
-/*
- * @brief 释放 REPL 会话资源
- */
 static void tc_repl_session_free(TcReplSession *session) {
     tc_symbol_table_free(&session->symbols);
     tc_repl_analyze_ctx_free(&session->analyze_ctx);
@@ -111,17 +99,16 @@ static void tc_repl_session_free(TcReplSession *session) {
     session->line_no = 1;
 }
 
-/*
- * @brief 重置 REPL 会话（清空变量）
- */
 static void tc_repl_session_reset(TcReplSession *session) {
     tc_repl_session_free(session);
     tc_repl_session_init(session);
 }
 
-/*
- * @brief 确保初始化追踪数组与符号表槽位容量一致
- */
+/* ------------------------------------------------------------------ */
+/*  容量保障与初始化追踪                                                 */
+/* ------------------------------------------------------------------ */
+
+/** 确保初始化追踪数组与符号表槽位容量一致 */
 static int tc_repl_ensure_init_tracking(TcReplSession *session, TcDiagnostic *diag) {
     if (session->symbols.count <= session->analyze_ctx.last_init_capacity) {
         return 0;
@@ -147,9 +134,7 @@ static int tc_repl_ensure_init_tracking(TcReplSession *session, TcDiagnostic *di
     return 0;
 }
 
-/*
- * @brief 确保变量槽数组容量与符号表一致
- */
+/** 确保变量槽数组容量与符号表一致 */
 static int tc_repl_ensure_slots(TcReplSession *session, TcDiagnostic *diag) {
     if (tc_repl_ensure_init_tracking(session, diag) != 0) {
         return -1;
@@ -173,9 +158,11 @@ static int tc_repl_ensure_slots(TcReplSession *session, TcDiagnostic *diag) {
     return 0;
 }
 
-/*
- * @brief 记录成功执行语句的初始化副作用（供未初始化变量警告使用）
- */
+/* ------------------------------------------------------------------ */
+/*  语句执行后的副作用记录                                                */
+/* ------------------------------------------------------------------ */
+
+/** 记录成功执行语句的初始化副作用：更新 last_init_stmt_index */
 static void tc_repl_record_stmt(TcReplSession *session, const TcStatement *stmt) {
     size_t stmt_index = session->analyze_ctx.stmt_count;
 
@@ -194,9 +181,11 @@ static void tc_repl_record_stmt(TcReplSession *session, const TcStatement *stmt)
     session->analyze_ctx.stmt_count++;
 }
 
-/*
- * @brief 格式化变量值到缓冲区
- */
+/* ------------------------------------------------------------------ */
+/*  变量列表与帮助输出                                                    */
+/* ------------------------------------------------------------------ */
+
+/** 格式化变量值到缓冲区 */
 static void tc_repl_format_value(const TcValue *value, char *buf, size_t buf_size) {
     if (tc_type_is_signed(value->type)) {
         int64_t signed_value = tc_bits_to_signed(value->type, value->bits);
@@ -207,9 +196,7 @@ static void tc_repl_format_value(const TcValue *value, char *buf, size_t buf_siz
     }
 }
 
-/*
- * @brief 打印当前会话中所有变量
- */
+/** 打印当前会话中所有变量 */
 static void tc_repl_print_vars(const TcReplSession *session) {
     size_t i = 0;
 
@@ -227,9 +214,7 @@ static void tc_repl_print_vars(const TcReplSession *session) {
     }
 }
 
-/*
- * @brief 打印 REPL 内置命令帮助
- */
+/** 打印内置命令帮助 */
 static void tc_repl_print_help(void) {
     printf("TC-VM interactive mode. Enter one TC statement per line.\n"
            "\n"
@@ -243,9 +228,13 @@ static void tc_repl_print_help(void) {
            "Note: read() and REPL both use stdin.\n");
 }
 
-/*
- * @brief 处理 REPL 内置命令
- * @return 1 表示已处理（含退出）；0 表示非内置命令
+/* ------------------------------------------------------------------ */
+/*  内置命令处理                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 处理 REPL 内置命令。
+ * @return 1 表示已处理（含退出请求）；0 表示非内置命令（应为 TC 语句）
  */
 static int tc_repl_handle_meta(TcReplSession *session, const char *line, int *should_quit) {
     const char *cursor = line;
@@ -280,9 +269,11 @@ static int tc_repl_handle_meta(TcReplSession *session, const char *line, int *sh
     return 1;
 }
 
-/*
- * @brief 解析并执行一行 TC 源码
- */
+/* ------------------------------------------------------------------ */
+/*  单行求值                                                           */
+/* ------------------------------------------------------------------ */
+
+/** 解析并执行一行 TC 源码（Lexer → Parser → Analyze → Execute） */
 static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnostic *diag) {
     TcTokenList tokens;
     TcStatement stmt;
@@ -305,6 +296,7 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
     }
     tc_token_list_free(&tokens);
 
+    /* 增量静态分析 */
     if (tc_analyze_statement(&stmt, &session->symbols, &session->analyze_ctx, &warnings, diag) !=
         0) {
         tc_statement_free(&stmt);
@@ -316,6 +308,7 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
         added_symbol = 1;
     }
 
+    /* 打印警告（警告不阻断执行） */
     if (warnings.count > 0) {
         tc_warning_list_print(&warnings, stderr);
     }
@@ -330,6 +323,7 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
         return -1;
     }
 
+    /* 执行 */
     rc = tc_execute_statement(&stmt, session->slots, &session->symbols, diag);
     if (rc != 0) {
         tc_statement_free(&stmt);
@@ -341,9 +335,11 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
     return 0;
 }
 
-/*
- * @brief 去掉行尾换行符
- */
+/* ------------------------------------------------------------------ */
+/*  行尾处理                                                           */
+/* ------------------------------------------------------------------ */
+
+/** 去掉字符串末尾的换行符 */
 static void tc_repl_chomp(char *line) {
     size_t len = strlen(line);
 
@@ -353,9 +349,10 @@ static void tc_repl_chomp(char *line) {
     }
 }
 
-/*
- * @brief 进入交互式 REPL 主循环
- */
+/* ------------------------------------------------------------------ */
+/*  REPL 主循环                                                         */
+/* ------------------------------------------------------------------ */
+
 int tc_repl_run(TcDiagnostic *diag) {
     TcReplSession session;
     char *line = NULL;

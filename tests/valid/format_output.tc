@@ -1,0 +1,4 @@
+var a: int32 = 42
+var b: int32 = -128
+writeln(int32, %d, a)
+writeln(int32, %d, b)

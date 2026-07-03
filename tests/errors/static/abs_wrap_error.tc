@@ -1,0 +1,2 @@
+var x: int8 = -128
+var y: int8 = abs(int8, wrap, x)

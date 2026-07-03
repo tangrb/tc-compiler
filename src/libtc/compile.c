@@ -1,5 +1,9 @@
 /*
  * compile.c — libtc 编译入口（Parse + Analyze）
+ *
+ * 提供完整的编译流水线：读源（字符串/文件）→ 逐行 Lex+Parse → Analyze，
+ * 可选输出各阶段耗时（环境变量 TC_BENCH=1 启用）。
+ * 执行入口 tc_run_typed 委托 tc_execute。
  */
 #include "tc_lib.h"
 
@@ -12,6 +16,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+/* ------------------------------------------------------------------ */
+/*  性能计时辅助（环境变量 TC_BENCH=1 启用）                               */
+/* ------------------------------------------------------------------ */
 
 static double tc_bench_now(void) {
     struct timespec ts;
@@ -26,6 +34,10 @@ static void tc_bench_report(const char *phase, double seconds) {
         fprintf(stderr, "bench %s: %.6f s\n", phase, seconds);
     }
 }
+
+/* ------------------------------------------------------------------ */
+/*  行类型判断                                                          */
+/* ------------------------------------------------------------------ */
 
 static int tc_is_only_whitespace(const char *line) {
     while (*line != '\0' && *line != '\r' && *line != '\n') {
@@ -54,10 +66,20 @@ static int tc_is_skippable_line(const char *line) {
     return tc_is_comment_only_line(line);
 }
 
+/* ------------------------------------------------------------------ */
+/*  逐行解析源文本                                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * @brief 将完整源文本逐行解析为 TcProgram
+ * @param source  源文本（以 '\0' 结尾）
+ * @param program 输出：解析后的程序
+ * @param diag    诊断对象
+ * @return 成功返回 0；首条词法/语法错误立即返回 -1（fail-fast）
+ */
 static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic *diag) {
     const char *cursor = source;
     int line_no = 1;
-    int had_syntax_error = 0;
     double t0 = tc_bench_now();
 
     tc_program_init(program);
@@ -68,6 +90,7 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
         char *line_copy = NULL;
         TcTokenList tokens;
 
+        /* 定位到行尾 */
         while (*line_end != '\0' && *line_end != '\n' && *line_end != '\r') {
             line_end++;
         }
@@ -86,8 +109,8 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
             if (tc_tokenize_line(line_copy, line_no, &tokens, diag) != 0) {
                 free(line_copy);
                 tc_token_list_free(&tokens);
-                had_syntax_error = 1;
-                goto advance_line;
+                tc_program_free(program);
+                return -1;
             }
             {
                 TcStatement stmt;
@@ -96,8 +119,8 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
                     tc_statement_free(&stmt);
                     free(line_copy);
                     tc_token_list_free(&tokens);
-                    had_syntax_error = 1;
-                    goto advance_line;
+                    tc_program_free(program);
+                    return -1;
                 }
                 tc_token_list_free(&tokens);
                 if (tc_program_push(program, &stmt) != 0) {
@@ -112,7 +135,6 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
 
         free(line_copy);
 
-advance_line:
         if (*line_end == '\r') {
             line_end++;
         }
@@ -124,13 +146,12 @@ advance_line:
     }
 
     tc_bench_report("parse", tc_bench_now() - t0);
-
-    if (had_syntax_error) {
-        tc_program_free(program);
-        return -1;
-    }
     return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  文件读取                                                           */
+/* ------------------------------------------------------------------ */
 
 static char *tc_read_file(const char *path, TcDiagnostic *diag) {
     FILE *file = fopen(path, "rb");
@@ -174,6 +195,10 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
     buffer[read_size] = '\0';
     return buffer;
 }
+
+/* ------------------------------------------------------------------ */
+/*  对外 API                                                            */
+/* ------------------------------------------------------------------ */
 
 int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag) {
     TcProgram program;

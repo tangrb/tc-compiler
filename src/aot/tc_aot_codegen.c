@@ -1,5 +1,9 @@
 /*
  * tc_aot_codegen.c — TC → C99 转译
+ *
+ * 消费 Analyzer 产出的 TcTypedProgram，逐语句生成等价的 C99 代码。
+ * 算术、cast、I/O 操作通过 tc_aot_rt.h 中的运行时辅助函数委托 semantics.c，
+ * 保证与 TC-VM 行为完全一致。
  */
 #include "tc_aot_codegen.h"
 
@@ -9,10 +13,15 @@
 #include <stdio.h>
 #include <string.h>
 
+/* ------------------------------------------------------------------ */
+/*  辅助函数                                                           */
+/* ------------------------------------------------------------------ */
+
 static const TcSymbol *tc_aot_find_symbol(const TcSymbolTable *symbols, const char *name) {
     return tc_symbol_table_find(symbols, name);
 }
 
+/** 将 TcIntType 枚举映射为 C 源码中的枚举名 */
 static const char *tc_aot_type_enum(TcIntType type) {
     switch (type) {
     case TC_INT8:
@@ -35,11 +44,17 @@ static const char *tc_aot_type_enum(TcIntType type) {
     return "TC_INT32";
 }
 
+/* ------------------------------------------------------------------ */
+/*  表达式发射                                                          */
+/* ------------------------------------------------------------------ */
+
+/** 发射字面量构造表达式 */
 static void tc_aot_emit_literal_expr(FILE *out, TcIntType type, const TcLiteral *lit) {
     fprintf(out, "tc_aot_lit(%s, %" PRIu64 "ULL, %d, %d)", tc_aot_type_enum(type), lit->magnitude,
             lit->negative, lit->unsigned_suffix);
 }
 
+/** 发射操作数表达式：字面量或 slots[slot] */
 static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcIntType type,
                                      const TcSymbolTable *symbols) {
     if (operand->kind == TC_OPERAND_LIT) {
@@ -50,6 +65,11 @@ static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcIntT
     }
 }
 
+/* ------------------------------------------------------------------ */
+/*  RHS 发射                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 发射 RHS 求值代码（字面量赋值 / 算术/cast/单目调用） */
 static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type, int dst_slot,
                            const TcSymbolTable *symbols, int line) {
     if (rhs->kind == TC_RHS_LIT) {
@@ -92,6 +112,19 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_UNARY) {
+        const char *mode =
+            rhs->u.unary.mode == TC_ARITH_WRAP ? "TC_ARITH_WRAP" : "TC_ARITH_STRICT";
+        const char *op_name = rhs->u.unary.op == TC_UNARY_ABS ? "TC_UNARY_ABS" : "TC_UNARY_NEG";
+
+        fprintf(out, "    if (tc_aot_unary(%s, %s, %s, &slots[%d], ", op_name,
+                tc_aot_type_enum(rhs->u.unary.type), mode, dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.unary.operand, rhs->u.unary.type, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
     {
         const TcSymbol *source = tc_aot_find_symbol(symbols, rhs->u.cast.source);
         const char *mode =
@@ -105,13 +138,17 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  语句发射                                                            */
+/* ------------------------------------------------------------------ */
+
 static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSymbolTable *symbols) {
     if (stmt->kind == TC_STMT_VAR_DEF) {
         const TcVarDef *var_def = &stmt->u.var_def;
         const TcSymbol *symbol = tc_aot_find_symbol(symbols, var_def->name);
 
         if (!var_def->has_rhs) {
-            return 0;
+            return 0;  /* 无初始化表达式的 var，C 全局变量默认初始化为 0 */
         }
         return tc_aot_emit_rhs(out, &var_def->rhs, var_def->type, symbol->slot, symbols,
                                var_def->line);
@@ -122,6 +159,7 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
         const TcSymbol *symbol = tc_aot_find_symbol(symbols, const_def->name);
 
         if (symbol->has_const_value) {
+            /* let 常量使用编译期求值的位模式直接初始化 */
             fprintf(out, "    slots[%d] = 0x%016" PRIx64 "ULL;\n", symbol->slot,
                     symbol->const_value.bits);
         } else {
@@ -142,7 +180,15 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
         const TcIoWrite *io = &stmt->u.io_write;
         int newline = stmt->kind == TC_STMT_WRITELN ? 1 : 0;
 
-        fprintf(out, "    tc_aot_write(%s, ", tc_aot_type_enum(io->type));
+        fprintf(out, "    tc_aot_write(%s, %s, ", tc_aot_type_enum(io->type),
+                io->fmt == TC_FMT_NONE ? "TC_FMT_NONE"
+                : io->fmt == TC_FMT_D        ? "TC_FMT_D"
+                : io->fmt == TC_FMT_I        ? "TC_FMT_I"
+                : io->fmt == TC_FMT_U        ? "TC_FMT_U"
+                : io->fmt == TC_FMT_X        ? "TC_FMT_X"
+                : io->fmt == TC_FMT_XU       ? "TC_FMT_XU"
+                : io->fmt == TC_FMT_O        ? "TC_FMT_O"
+                                               : "TC_FMT_B");
         tc_aot_emit_operand_expr(out, &io->operand, io->type, symbols);
         fprintf(out, ", %d);\n", newline);
         return 0;
@@ -160,6 +206,10 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
 
     return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  C 文件生成入口                                                       */
+/* ------------------------------------------------------------------ */
 
 int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_name) {
     size_t i = 0;

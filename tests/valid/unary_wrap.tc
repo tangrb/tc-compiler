@@ -1,0 +1,3 @@
+var d: int16 = -32768
+var neg_d: int16 = neg(int16, wrap, d)
+writeln(int16, neg_d)

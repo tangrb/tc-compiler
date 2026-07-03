@@ -1,0 +1,3 @@
+var x: int8 = -128
+var y: int8 = abs(int8, x)
+writeln(int8, y)

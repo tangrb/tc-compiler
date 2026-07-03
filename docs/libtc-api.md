@@ -19,9 +19,12 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
 ```
 
 - **输入**：完整 TC 源文本（单行或多行，`source` 须在 `diag` 打印前保持有效）
-- **输出**：`out` 为已通过静态分析的 `TcTypedProgram`；警告写入 `out->warnings`
-- **返回**：`0` 成功；`-1` 失败（`diag` 已设置，`out` 未初始化）
-- **所有权**：成功时 `out` 由调用方拥有，须 `tc_typed_program_free(out)`
+- **输出**：成功时 `out` 为已通过静态分析的 `TcTypedProgram`；警告写入 `out->warnings`
+- **返回**：`0` 成功；`-1` 失败（`diag` 已设置）
+- **失败时 `out` 的状态**：
+  - **Parse 失败**（词法/语法/OOM）：`out` **不会被修改**；调用方不得读取 `out`，也**无需** `tc_typed_program_free`
+  - **Analyze 失败**（静态分析错误）：`tc_analyze` 内部已调用 `tc_typed_program_free(out)`，`out` 处于**空状态**（count 为 0、指针为 NULL）；**无需**再次释放
+- **所有权**：仅成功时 `out` 由调用方拥有，须 `tc_typed_program_free(out)`
 
 ### `tc_compile_file`
 
@@ -30,6 +33,9 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
 ```
 
 等价于读文件后调用 `tc_compile_source`；`diag->filename` 设为 `path`。
+
+- **返回**：与 `tc_compile_source` 相同
+- **失败时 `out` 的状态**：文件 I/O 失败时 `out` 不会被修改；编译阶段失败时的行为同 `tc_compile_source`
 
 ### `tc_run_typed`
 
@@ -48,14 +54,14 @@ int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
 void tc_typed_program_free(TcTypedProgram *program);
 ```
 
-释放 `TcTypedProgram` 内所有堆内存（语句、符号表、警告列表）。可安全重复调用前需保证指针有效。
+释放 `TcTypedProgram` 内所有堆内存（语句、符号表、警告列表）。释放后各子字段指针置 NULL；对已是空状态的 `TcTypedProgram` 再次调用是安全的（no-op）。
 
 ## 内存所有权约定
 
 | 对象 | 分配方 | 释放方 |
 |------|--------|--------|
 | `TcDiagnostic` | 调用方栈/堆 | `tc_diagnostic_clear`（可重复） |
-| `TcTypedProgram` | `tc_compile_*` | `tc_typed_program_free` |
+| `TcTypedProgram` | `tc_compile_*`（成功时） | `tc_typed_program_free`（Analyze 失败时 libtc 内部已释放） |
 | `source` 字符串（`tc_compile_source`） | 调用方 | 调用方（编译完成后即可释放） |
 | `diag->message` / `diag->filename` | libtc 内 `malloc` | `tc_diagnostic_clear` |
 
@@ -87,6 +93,7 @@ TcTypedProgram program;
 tc_diagnostic_init(&diag);
 if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0) {
     tc_diagnostic_print(&diag, stderr);
+    /* 编译失败：无需 tc_typed_program_free（Parse 未写入 out，Analyze 失败时已内部释放） */
     return 1;
 }
 if (program.warnings.count > 0) {

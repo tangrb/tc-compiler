@@ -391,6 +391,17 @@ run_expect_stdout "$ROOT/tests/valid/semicolon_inline_comment.tc" "10
 "
 run_expect_stdout "$ROOT/tests/valid/int64_min_div.tc" "-9223372036854775808
 "
+run_expect_stdout "$ROOT/tests/valid/abs_neg_signed.tc" "42
+42
+"
+run_expect_stdout "$ROOT/tests/valid/unary_wrap.tc" "-32768
+"
+run_expect_stdout "$ROOT/tests/valid/format_output.tc" "42
+-128
+"
+run_expect_stdout "$ROOT/tests/valid/format_hex_bin.tc" "ff
+11111111
+"
 
 run_expect_ok_warn "$ROOT/tests/valid/uninitialized.tc" "use of possibly uninitialized variable 'a'"
 run_expect_ok_no_warn "$ROOT/tests/valid/no_warn_after_assign.tc"
@@ -408,6 +419,8 @@ run_expect_stdout "$ROOT/tests/stress/massive_vars.tc" "55
 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow.tc" "out of range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_mul.tc" "out of range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overflow"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/abs_int_min.tc" "abs(INT_MIN) overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/div_zero.tc" "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/mod_zero.tc" "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow.tc" "out of range"
@@ -423,6 +436,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate defi
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" "literal type"
 run_expect_fail_msg "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
+run_expect_fail_msg "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
 run_expect_fail_msg "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_expr.tc" "constant initializer must be a literal"
@@ -436,6 +450,9 @@ run_expect_fail_msg "$ROOT/tests/errors/static/syntax_error.tc" "unexpected toke
 run_expect_fail_msg "$ROOT/tests/errors/static/cast_literal.tc" "cast source must be a variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch.tc" "%u requires unsigned type"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_operand_count.tc" "operand count error"
 
 # --check 模式下也应当捕获所有静态错误
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"

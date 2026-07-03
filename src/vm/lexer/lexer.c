@@ -1,5 +1,9 @@
 /*
- * lexer.c — TC 词法分析器实现（v0.0.14）
+ * lexer.c — TC 词法分析器实现
+ *
+ * 逐行扫描 TC 源码，识别关键字、标识符、多进制整数字面量、
+ * 格式说明符（%d/%u/%x/%X/%o/%b）及单字符标点（:=,() 等）。
+ * 每行产出 TcTokenList（含 TC_TOK_EOF），由 Parser 消费。
  */
 #include "tc_lexer.h"
 
@@ -8,6 +12,10 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ------------------------------------------------------------------ */
+/*  Token 列表管理                                                      */
+/* ------------------------------------------------------------------ */
 
 static int tc_token_list_push(TcTokenList *list, const TcToken *token) {
     if (list->count == list->capacity) {
@@ -36,6 +44,11 @@ void tc_token_list_free(TcTokenList *list) {
     list->capacity = 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  字符分类辅助函数                                                    */
+/* ------------------------------------------------------------------ */
+
+/** 判断字符是否为 TC 标识符的合法起始字符（字母或下划线） */
 static int tc_is_letter(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
@@ -44,10 +57,12 @@ static int tc_is_identifier_start(char c) {
     return tc_is_letter(c);
 }
 
+/** 判断字符是否为 TC 标识符的合法后续字符（字母、数字或下划线） */
 static int tc_is_identifier_part(char c) {
     return tc_is_letter(c) || (c >= '0' && c <= '9');
 }
 
+/** 跳过连续的空格/制表符，同时更新列号 */
 static void tc_skip_ws(const char **p, int *column) {
     while (**p == ' ' || **p == '\t') {
         (*p)++;
@@ -57,6 +72,7 @@ static void tc_skip_ws(const char **p, int *column) {
     }
 }
 
+/** 获取进制数字的数值；非法字符返回 -1 */
 static int tc_digit_value(char c, int base) {
     if (c >= '0' && c <= '9') {
         return c - '0';
@@ -71,6 +87,10 @@ static int tc_digit_value(char c, int base) {
     }
     return -1;
 }
+
+/* ------------------------------------------------------------------ */
+/*  辅助运算：uint64 溢出检测                                           */
+/* ------------------------------------------------------------------ */
 
 static int tc_mul_u64_overflow(uint64_t a, uint64_t b, uint64_t *out) {
     if (a != 0 && b > UINT64_MAX / a) {
@@ -88,6 +108,20 @@ static int tc_add_u64_overflow(uint64_t a, uint64_t b, uint64_t *out) {
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  进制数字串解析 & 整数字面量解析                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * @brief 解析指定进制的数字序列，支持下划线分隔
+ * @param p                 当前指针（会被更新到末位之后）
+ * @param base              进制（2 / 8 / 10 / 16）
+ * @param allow_underscore  是否支持下划线分隔符
+ * @param value             输出：解析出的整数值
+ * @param diag,line,column  诊断上下文
+ * @return 成功返回 0；非法格式或超范围返回 -1
+ * @note 下划线不能出现在开头、结尾或连续出现
+ */
 static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
                                  uint64_t *value, TcDiagnostic *diag, int line, int column) {
     int has_digit = 0;
@@ -110,6 +144,7 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
                 break;
             }
             has_digit = 1;
+            /* value = value * base + digit，带溢出检测 */
             {
                 uint64_t next = 0;
                 if (tc_mul_u64_overflow(*value, (uint64_t)base, value) ||
@@ -131,6 +166,20 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
     return 0;
 }
 
+/*
+ * @brief 解析 TC 整数字面量
+ * @param start     源码起始位置
+ * @param end       输出：解析结束位置
+ * @param lit       输出：解析结果 TcLiteral
+ * @param diag,line,column  诊断上下文
+ * @return 成功返回 0；失败返回 -1 并设置 diag
+ *
+ * 支持的格式：
+ *   [-]数字[数字|_]*[uU]        十进制
+ *   0x十六进制[0-9a-fA-F_]*[uU] 十六进制
+ *   0b二进制[01_]*[uU]           二进制
+ *   0o八进制[0-7_]*[uU]          八进制
+ */
 static int tc_parse_integer_literal(const char *start, const char **end, TcLiteral *lit,
                                     TcDiagnostic *diag, int line, int column) {
     const char *p = start;
@@ -149,6 +198,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
         }
     }
 
+    /* 判断进制前缀并分派解析 */
     if (*p == '0') {
         if (p[1] == 'x' || p[1] == 'X') {
             p += 2;
@@ -166,6 +216,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
                 return -1;
             }
         } else if (p[1] >= '0' && p[1] <= '9') {
+            /* 前导零后跟十进制数字不合法（如 0123） */
             tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid integer literal");
             return -1;
         } else {
@@ -181,6 +232,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
         return -1;
     }
 
+    /* 处理可选的 u/U 无符号后缀 */
     if (*p == 'u' || *p == 'U') {
         if (negative) {
             tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, column,
@@ -199,6 +251,17 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  关键字识别 & Token 发射                                             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * @brief 将标识符文本匹配为关键字 Token
+ * @param text  标识符文本
+ * @param len   长度
+ * @param token 输出：匹配成功时写入 Token 信息
+ * @return 匹配到关键字返回 1；未匹配返回 0（调用方应按普通标识符处理）
+ */
 static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     char buf[32];
     if (len >= sizeof(buf)) {
@@ -239,6 +302,7 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_READ;
         return 1;
     }
+    /* 类型名和运算符也是关键字（以标识符形式出现） */
     if (tc_type_parse(buf, &token->u.int_type)) {
         token->kind = TC_TOK_INT_TYPE;
         return 1;
@@ -247,9 +311,22 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_ARITH_OP;
         return 1;
     }
+    if (tc_unary_op_parse(buf, &token->u.unary_op)) {
+        token->kind = TC_TOK_UNARY_OP;
+        return 1;
+    }
     return 0;
 }
 
+/*
+ * @brief 构造 Token 并追加到列表末尾
+ * @param kind       Token 种类
+ * @param start      源码起始位置
+ * @param len        Token 长度
+ * @param line,column 位置信息
+ * @param int_type,arith_op,literal  语义值（未使用的参数传默认值）
+ * @return 成功返回 0；内存不足返回 -1
+ */
 static int tc_emit_token(TcTokenList *out, TcTokenKind kind, const char *start, size_t len,
                          int line, int column, TcIntType int_type, TcArithOp arith_op,
                          const TcLiteral *literal) {
@@ -268,6 +345,10 @@ static int tc_emit_token(TcTokenList *out, TcTokenKind kind, const char *start, 
     return tc_token_list_push(out, &token);
 }
 
+/* ------------------------------------------------------------------ */
+/*  词法分析入口                                                       */
+/* ------------------------------------------------------------------ */
+
 int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnostic *diag) {
     const char *p = line;
     int column = 1;
@@ -278,8 +359,8 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         const char *start = p;
         int tok_column = column;
 
+        /* 单字符标点符号 */
         if (*p == ':') {
-            /* int_type 和 arith_op 对单字符 token 无意义，传入默认值占位 */
             if (tc_emit_token(out, TC_TOK_COLON, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
                               NULL) != 0) {
                 return -1;
@@ -330,14 +411,49 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             continue;
         }
         if (*p == ';') {
+            /* ; 兼具语句结束符和行注释作用，忽略同行后续所有字符 */
             if (tc_emit_token(out, TC_TOK_SEMICOLON, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
                               NULL) != 0) {
                 return -1;
             }
-            /* ; 起语句结束与注释作用，忽略同行后续字符（语言标准 stmt_terminator） */
             break;
         }
 
+        /* 格式说明符：%d / %u / %x / %X / %o / %b */
+        if (*p == '%') {
+            char spec_buf[4];
+            TcFormatSpec fmt = TC_FMT_NONE;
+            if (p[1] == '\0') {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "unexpected character");
+                return -1;
+            }
+            spec_buf[0] = '%';
+            spec_buf[1] = p[1];
+            spec_buf[2] = '\0';
+            if (!tc_format_spec_parse(spec_buf, &fmt)) {
+                tc_diagnostic_set(diag, TC_ERR_FORMAT_STRING, line_no, tok_column,
+                                  "invalid format specifier");
+                return -1;
+            }
+            {
+                TcToken token;
+                token.kind = TC_TOK_FORMAT_SPEC;
+                token.start = start;
+                token.length = 2;
+                token.line = line_no;
+                token.column = tok_column;
+                token.u.format_spec = fmt;
+                if (tc_token_list_push(out, &token) != 0) {
+                    return -1;
+                }
+            }
+            p += 2;
+            column += 2;
+            tc_skip_ws(&p, &column);
+            continue;
+        }
+
+        /* 整数字面量：以数字或负号开头 */
         if (*p == '-' || isdigit((unsigned char)*p)) {
             TcLiteral lit;
             const char *end = NULL;
@@ -354,6 +470,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             continue;
         }
 
+        /* 标识符或关键字 */
         if (tc_is_identifier_start(*p)) {
             p++;
             column++;
@@ -381,10 +498,12 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             continue;
         }
 
+        /* 遇到无法识别的字符 */
         tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "unexpected character");
         return -1;
     }
 
+    /* 行末注入 EOF Token */
     {
         TcToken eof;
         eof.kind = TC_TOK_EOF;

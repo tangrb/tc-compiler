@@ -1,0 +1,5 @@
+var a: int8 = -42
+var abs_a: int8 = abs(int8, a)
+var neg_a: int8 = neg(int8, a)
+writeln(int8, abs_a)
+writeln(int8, neg_a)

@@ -1,5 +1,9 @@
 /*
- * parser.c — TC 语法分析器实现（v0.0.14）
+ * parser.c — TC 语法分析器实现
+ *
+ * 消费 tc_tokenize_line 产出的 TcTokenList，按 TC 语言语法规则
+ * 将单行 Token 流解析为一条 TcStatement（AST 节点）。
+ * 支持 6 种语句：var、let、赋值、write、writeln、read。
  */
 #include "tc_parser.h"
 
@@ -12,6 +16,9 @@
 static void tc_operand_free(TcOperand *operand);
 void tc_rhs_free(TcRhs *rhs);
 
+/* ------------------------------------------------------------------ */
+/*  便捷错误报告辅助函数                                                 */
+/* ------------------------------------------------------------------ */
 
 static int tc_syntax_error(TcDiagnostic *diag, int line, int column, const char *message) {
     tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, message);
@@ -23,12 +30,31 @@ static int tc_keyword_error(TcDiagnostic *diag, int line, int column, const char
     return -1;
 }
 
+static int tc_operand_count_error(TcDiagnostic *diag, int line, int column, const char *message) {
+    tc_diagnostic_set(diag, TC_ERR_OPERAND_COUNT, line, column, message);
+    return -1;
+}
+
+/* ------------------------------------------------------------------ */
+/*  底层解析工具函数                                                     */
+/* ------------------------------------------------------------------ */
+
+/** 读取 Token 列表中的第 index 个 Token（不做越界检查） */
 static const TcToken *tc_peek(const TcTokenList *tokens, size_t index) {
     assert(tokens->count > 0);
     assert(index < tokens->count);
     return &tokens->items[index];
 }
 
+/*
+ * @brief 解析一个操作数：变量引用或字面量
+ * @param tokens  Token 列表
+ * @param index   当前读取位置（解析成功后被推进）
+ * @param line_no 当前行号
+ * @param out     输出：解析结果 TcOperand
+ * @param diag    诊断对象
+ * @return 成功返回 0；失败返回 -1
+ */
 static int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
                             TcOperand *out, TcDiagnostic *diag) {
     const TcToken *tok = tc_peek(tokens, *index);
@@ -54,6 +80,7 @@ static int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_n
     return tc_syntax_error(diag, line_no, tok->column, "expected operand");
 }
 
+/** 断言当前位置的 Token 种类与期望的一致，然后推进 index */
 static int tc_expect_token(const TcTokenList *tokens, size_t *index, TcTokenKind kind,
                            int line_no, TcDiagnostic *diag) {
     const TcToken *tok = tc_peek(tokens, *index);
@@ -64,6 +91,27 @@ static int tc_expect_token(const TcTokenList *tokens, size_t *index, TcTokenKind
     return 0;
 }
 
+/** 检查语句结尾：允许可选的分号后紧跟 EOF */
+static int tc_expect_stmt_end(const TcTokenList *tokens, size_t *index, int line_no,
+                              TcDiagnostic *diag) {
+    const TcToken *tail = tc_peek(tokens, *index);
+    if (tail->kind == TC_TOK_SEMICOLON) {
+        (*index)++;
+        tail = tc_peek(tokens, *index);
+    }
+    if (tail->kind != TC_TOK_EOF) {
+        return tc_syntax_error(diag, line_no, tail->column, "unexpected trailing tokens");
+    }
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  RHS 解析：算术 / 单目 / cast / 字面量                                */
+/* ------------------------------------------------------------------ */
+
+/*
+ * @brief 解析算术 RHS：add/sub/mul/div/mod(type [,wrap,] lhs, rhs)
+ */
 static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                               TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
@@ -93,6 +141,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
         return -1;
     }
 
+    /* 可选的 wrap 关键字作为第二参数 */
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
         if (maybe_mode->kind == TC_TOK_WRAP) {
@@ -133,6 +182,75 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
     return 0;
 }
 
+/*
+ * @brief 解析单目 RHS：abs/neg(type [,wrap,] operand)
+ */
+static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                              TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+    TcUnaryOp op = op_tok->u.unary_op;
+    TcIntType type = TC_INT32;
+    TcWrapMode mode = TC_ARITH_STRICT;
+
+    if (op_tok->kind != TC_TOK_UNARY_OP) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected unary operation");
+    }
+    (*index)++;
+
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
+        }
+        type = type_tok->u.int_type;
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    /* 可选的 wrap 关键字作为第二参数 */
+    {
+        const TcToken *maybe_mode = tc_peek(tokens, *index);
+        if (maybe_mode->kind == TC_TOK_WRAP) {
+            mode = TC_ARITH_WRAP;
+            (*index)++;
+            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                return -1;
+            }
+        } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+            return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                    "truncate cannot be used with arithmetic operations");
+        }
+    }
+
+    out->kind = TC_RHS_UNARY;
+    out->u.unary.op = op;
+    out->u.unary.type = type;
+    out->u.unary.mode = mode;
+    memset(&out->u.unary.operand, 0, sizeof(out->u.unary.operand));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.unary.operand, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @brief 解析 cast RHS：cast(type [,truncate,] source_var)
+ *
+ * cast 的源操作数必须是变量（不允许字面量），这是 TC 语言标准的规定。
+ */
 static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                              TcRhs *out, TcDiagnostic *diag) {
     TcIntType target = TC_INT32;
@@ -158,6 +276,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
+    /* 可选的 truncate 关键字作为第二参数（默认 strict） */
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
         if (maybe_mode->kind == TC_TOK_TRUNCATE) {
@@ -201,10 +320,50 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  RHS 入口：分派到具体解析子函数                                         */
+/* ------------------------------------------------------------------ */
+
+static int tc_parse_rhs(const TcTokenList *tokens, size_t *index, int line_no, TcRhs *out,
+                        TcDiagnostic *diag) {
+    const TcToken *tok = tc_peek(tokens, *index);
+
+    if (tok->kind == TC_TOK_INTEGER) {
+        out->kind = TC_RHS_LIT;
+        out->u.lit = tok->u.literal;
+        (*index)++;
+        return 0;
+    }
+    if (tok->kind == TC_TOK_ARITH_OP) {
+        return tc_parse_arith_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_UNARY_OP) {
+        return tc_parse_unary_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_CAST) {
+        return tc_parse_cast_rhs(tokens, index, line_no, out, diag);
+    }
+    return tc_syntax_error(diag, line_no, tok->column, "expected rhs expression");
+}
+
+/* ------------------------------------------------------------------ */
+/*  语句解析：write / writeln / read / var / let / 赋值                  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * @brief 解析 write/writeln 语句的括号内参数
+ *
+ * 语法：write/writeln(type [, fmt,] operand)
+ *   - type 必选
+ *   - fmt 可选（%d/%u/%x/%X/%o/%b）
+ *   - operand 必选（变量或字面量）
+ *   额外操作数报 TC_ERR_OPERAND_COUNT
+ */
 static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                   TcIoWrite *out, TcDiagnostic *diag) {
     out->line = line_no;
     out->type = TC_INT32;
+    out->fmt = TC_FMT_NONE;
 
     if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
         return -1;
@@ -223,9 +382,37 @@ static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int 
         return -1;
     }
 
+    /* 可选的格式说明符（位于第二参数位置，后跟逗号和操作数） */
+    {
+        const TcToken *next = tc_peek(tokens, *index);
+        if (next->kind == TC_TOK_FORMAT_SPEC) {
+            out->fmt = next->u.format_spec;
+            (*index)++;
+            next = tc_peek(tokens, *index);
+            if (next->kind == TC_TOK_RPAREN) {
+                return tc_operand_count_error(diag, line_no, next->column, "operand count error");
+            }
+            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                return -1;
+            }
+            next = tc_peek(tokens, *index);
+            if (next->kind == TC_TOK_RPAREN) {
+                return tc_operand_count_error(diag, line_no, next->column, "operand count error");
+            }
+        }
+    }
+
     memset(&out->operand, 0, sizeof(out->operand));
     if (tc_parse_operand(tokens, index, line_no, &out->operand, diag) != 0) {
         return -1;
+    }
+
+    /* 检查是否有多余的操作数 */
+    {
+        const TcToken *tail = tc_peek(tokens, *index);
+        if (tail->kind == TC_TOK_COMMA) {
+            return tc_operand_count_error(diag, line_no, tail->column, "operand count error");
+        }
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
@@ -235,6 +422,7 @@ static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int 
     return 0;
 }
 
+/* 解析 read(type, id) 语句 */
 static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                               TcRead *out, TcDiagnostic *diag) {
     out->line = line_no;
@@ -279,115 +467,14 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
     return 0;
 }
 
-static int tc_expect_stmt_end(const TcTokenList *tokens, size_t *index, int line_no,
-                              TcDiagnostic *diag) {
-    const TcToken *tail = tc_peek(tokens, *index);
-    if (tail->kind == TC_TOK_SEMICOLON) {
-        (*index)++;
-        tail = tc_peek(tokens, *index);
-    }
-    if (tail->kind != TC_TOK_EOF) {
-        return tc_syntax_error(diag, line_no, tail->column, "unexpected trailing tokens");
-    }
-    return 0;
-}
-
-static int tc_parse_rhs(const TcTokenList *tokens, size_t *index, int line_no, TcRhs *out,
-                        TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-
-    if (tok->kind == TC_TOK_INTEGER) {
-        out->kind = TC_RHS_LIT;
-        out->u.lit = tok->u.literal;
-        (*index)++;
-        return 0;
-    }
-    if (tok->kind == TC_TOK_ARITH_OP) {
-        return tc_parse_arith_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_CAST) {
-        return tc_parse_cast_rhs(tokens, index, line_no, out, diag);
-    }
-    return tc_syntax_error(diag, line_no, tok->column, "expected rhs expression");
-}
-
-static void tc_operand_free(TcOperand *operand) {
-    if (operand->kind == TC_OPERAND_VAR) {
-        free(operand->u.name);
-        operand->u.name = NULL;
-    }
-}
-
-void tc_rhs_free(TcRhs *rhs) {
-    if (!rhs) {
-        return;
-    }
-    if (rhs->kind == TC_RHS_ARITH) {
-        tc_operand_free(&rhs->u.arith.lhs);
-        tc_operand_free(&rhs->u.arith.rhs);
-    } else if (rhs->kind == TC_RHS_CAST) {
-        free(rhs->u.cast.source);
-        rhs->u.cast.source = NULL;
-    }
-}
-
-void tc_statement_free(TcStatement *stmt) {
-    if (!stmt) {
-        return;
-    }
-    if (stmt->kind == TC_STMT_VAR_DEF) {
-        free(stmt->u.var_def.name);
-        stmt->u.var_def.name = NULL;
-        if (stmt->u.var_def.has_rhs) {
-            tc_rhs_free(&stmt->u.var_def.rhs);
-        }
-    } else if (stmt->kind == TC_STMT_CONST_DEF) {
-        free(stmt->u.const_def.name);
-        stmt->u.const_def.name = NULL;
-        tc_rhs_free(&stmt->u.const_def.rhs);
-    } else if (stmt->kind == TC_STMT_ASSIGN) {
-        free(stmt->u.assign.name);
-        stmt->u.assign.name = NULL;
-        tc_rhs_free(&stmt->u.assign.rhs);
-    } else if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
-        tc_operand_free(&stmt->u.io_write.operand);
-    } else if (stmt->kind == TC_STMT_READ) {
-        free(stmt->u.io_read.name);
-        stmt->u.io_read.name = NULL;
-    }
-}
-
-void tc_program_init(TcProgram *program) {
-    program->items = NULL;
-    program->count = 0;
-    program->capacity = 0;
-}
-
-void tc_program_free(TcProgram *program) {
-    size_t i = 0;
-    for (i = 0; i < program->count; i++) {
-        tc_statement_free(&program->items[i]);
-    }
-    free(program->items);
-    program->items = NULL;
-    program->count = 0;
-    program->capacity = 0;
-}
-
-int tc_program_push(TcProgram *program, const TcStatement *stmt) {
-    if (program->count == program->capacity) {
-        size_t new_cap = program->capacity == 0 ? 8 : program->capacity * 2;
-        TcStatement *items = (TcStatement *)realloc(program->items, new_cap * sizeof(TcStatement));
-        if (!items) {
-            return -1;
-        }
-        program->items = items;
-        program->capacity = new_cap;
-    }
-    program->items[program->count++] = *stmt;
-    return 0;
-}
-
+/*
+ * @brief 解析 var 或 let 定义
+ * @param is_const 1 表示 let 常量，0 表示 var 变量
+ *
+ * 语法：
+ *   var id: type [= rhs]
+ *   let id: type = rhs（必须初始化）
+ */
 static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, int line_no,
                                      int is_const, TcStatement *out, TcDiagnostic *diag) {
     char *name = NULL;
@@ -425,6 +512,7 @@ static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, i
         (*index)++;
     }
 
+    /* 可选的 = rhs 初始化 */
     {
         const TcToken *maybe_eq = tc_peek(tokens, *index);
         if (maybe_eq->kind == TC_TOK_EQUAL) {
@@ -437,6 +525,7 @@ static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, i
             }
             has_rhs = 1;
         } else if (is_const) {
+            /* let 常量必须初始化 */
             free(name);
             return tc_syntax_error(diag, line_no, maybe_eq->column,
                                    "constant definition requires initializer");
@@ -467,6 +556,97 @@ static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, i
     }
     return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  内存释放函数                                                        */
+/* ------------------------------------------------------------------ */
+
+static void tc_operand_free(TcOperand *operand) {
+    if (operand->kind == TC_OPERAND_VAR) {
+        free(operand->u.name);
+        operand->u.name = NULL;
+    }
+}
+
+void tc_rhs_free(TcRhs *rhs) {
+    if (!rhs) {
+        return;
+    }
+    if (rhs->kind == TC_RHS_ARITH) {
+        tc_operand_free(&rhs->u.arith.lhs);
+        tc_operand_free(&rhs->u.arith.rhs);
+    } else if (rhs->kind == TC_RHS_UNARY) {
+        tc_operand_free(&rhs->u.unary.operand);
+    } else if (rhs->kind == TC_RHS_CAST) {
+        free(rhs->u.cast.source);
+        rhs->u.cast.source = NULL;
+    }
+}
+
+void tc_statement_free(TcStatement *stmt) {
+    if (!stmt) {
+        return;
+    }
+    if (stmt->kind == TC_STMT_VAR_DEF) {
+        free(stmt->u.var_def.name);
+        stmt->u.var_def.name = NULL;
+        if (stmt->u.var_def.has_rhs) {
+            tc_rhs_free(&stmt->u.var_def.rhs);
+        }
+    } else if (stmt->kind == TC_STMT_CONST_DEF) {
+        free(stmt->u.const_def.name);
+        stmt->u.const_def.name = NULL;
+        tc_rhs_free(&stmt->u.const_def.rhs);
+    } else if (stmt->kind == TC_STMT_ASSIGN) {
+        free(stmt->u.assign.name);
+        stmt->u.assign.name = NULL;
+        tc_rhs_free(&stmt->u.assign.rhs);
+    } else if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
+        tc_operand_free(&stmt->u.io_write.operand);
+    } else if (stmt->kind == TC_STMT_READ) {
+        free(stmt->u.io_read.name);
+        stmt->u.io_read.name = NULL;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/*  TcProgram 动态数组管理                                              */
+/* ------------------------------------------------------------------ */
+
+void tc_program_init(TcProgram *program) {
+    program->items = NULL;
+    program->count = 0;
+    program->capacity = 0;
+}
+
+void tc_program_free(TcProgram *program) {
+    size_t i = 0;
+    for (i = 0; i < program->count; i++) {
+        tc_statement_free(&program->items[i]);
+    }
+    free(program->items);
+    program->items = NULL;
+    program->count = 0;
+    program->capacity = 0;
+}
+
+int tc_program_push(TcProgram *program, const TcStatement *stmt) {
+    if (program->count == program->capacity) {
+        size_t new_cap = program->capacity == 0 ? 8 : program->capacity * 2;
+        TcStatement *items = (TcStatement *)realloc(program->items, new_cap * sizeof(TcStatement));
+        if (!items) {
+            return -1;
+        }
+        program->items = items;
+        program->capacity = new_cap;
+    }
+    program->items[program->count++] = *stmt;
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  tc_parse_statement — 语法分析入口                                   */
+/* ------------------------------------------------------------------ */
 
 int tc_parse_statement(const TcTokenList *tokens, int line_no, TcStatement *out,
                        TcDiagnostic *diag) {

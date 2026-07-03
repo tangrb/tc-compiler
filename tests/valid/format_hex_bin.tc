@@ -1,0 +1,3 @@
+var v: int8 = -1
+writeln(int8, %x, v)
+writeln(int8, %b, v)

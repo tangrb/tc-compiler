@@ -3,13 +3,12 @@
  *
  * 本模块是 TC-VM 的语义核心，严格遵循 TC 语言标准：
  *   - 有符号 strict 模式：溢出检测，溢出时报 TC_ERR_INTEGER_OVERFLOW
- *   - 有符号 overflow 模式：按位宽做二进制环绕
- *   - 无符号运算：始终按位宽截断（div/mod 不支持 overflow 关键字）
- *   - cast strict：检查值能否表示为目标类型
- *   - cast overflow：截断或符号/零扩展
+ *   - 有符号 wrap 模式：按目标类型位宽做二进制环绕
+ *   - 无符号运算：始终按位宽截断（div/mod 不支持 wrap 关键字，由 Analyzer 拒绝）
+ *   - cast strict：检查值能否在目标类型中精确表示
+ *   - cast truncate：按位模式截断、符号扩展或零扩展，不报错
  *
- * 作者：唐荣兵
- * 联系邮箱：yanhuang8923@qq.com
+ * Executor 和 AOT RT 均委托此模块完成语义运算，保证行为一致。
  */
 #include "tc_semantics.h"
 
@@ -20,12 +19,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * @brief 生成 n 位全 1 掩码，用于位宽截断
- * @param bit_width  掩码位数
- * @return n 位全 1 的 uint64_t 值；n >= 64 时返回 UINT64_MAX
- * @note 例如 bit_width=8 返回 0xFF，bit_width=16 返回 0xFFFF
- */
+/* ------------------------------------------------------------------ */
+/*  位模式工具函数                                                       */
+/* ------------------------------------------------------------------ */
+
 uint64_t tc_mask_bits(int bit_width) {
     if (bit_width >= 64) {
         return UINT64_MAX;
@@ -33,12 +30,6 @@ uint64_t tc_mask_bits(int bit_width) {
     return (1ULL << (unsigned)bit_width) - 1ULL;
 }
 
-/*
- * @brief 将无符号位模式按目标有符号类型解释为有符号整数
- * @param type  目标有符号整数类型
- * @param bits  无符号位模式
- * @return 有符号整数值；若最高位为 1，按二补数规则减去 2^n 得到负值
- */
 int64_t tc_bits_to_signed(TcIntType type, uint64_t bits) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -49,40 +40,22 @@ int64_t tc_bits_to_signed(TcIntType type, uint64_t bits) {
         if (n == 64) {
             return (int64_t)masked;
         }
-        /* 非 64 位：手动做符号扩展减法 */
+        /* 非 64 位：手动做二补数符号扩展（减法） */
         return (int64_t)(masked - (1ULL << (unsigned)n));
     }
     return (int64_t)masked;
 }
 
-/*
- * @brief 将有符号整数编码为目标类型的 n 位无符号位模式
- * @param type  目标整数类型
- * @param value 有符号整数值
- * @return 截断高位后的无符号位模式（保留低 n 位）
- */
 uint64_t tc_signed_to_bits(TcIntType type, int64_t value) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     return ((uint64_t)value) & mask;
 }
 
-/*
- * @brief 将位模式归一化到目标类型的位宽（无符号视角）
- * @param type  目标整数类型
- * @param bits  原始位模式
- * @return 经位宽掩码掩码后的无符号值，高位被截断
- */
 uint64_t tc_value_to_unsigned(TcIntType type, uint64_t bits) {
     return bits & tc_mask_bits(tc_type_bit_width(type));
 }
 
-/*
- * @brief 构造运行时值
- * @param type  值的目标整数类型
- * @param bits  位模式值（会自动归一化到目标类型位宽）
- * @return 包含类型和归一化后 bits 的 TcValue 结构体
- */
 TcValue tc_value_make(TcIntType type, uint64_t bits) {
     TcValue value;
     value.type = type;
@@ -90,12 +63,11 @@ TcValue tc_value_make(TcIntType type, uint64_t bits) {
     return value;
 }
 
-/*
- * @brief 获取有符号类型的最小可表示值
- * @param type  有符号整数类型
- * @return 最小值：-(2^(n-1))，n 为位宽
- * @note 内部辅助函数，调用方应确保 type 为有符号类型
- */
+/* ------------------------------------------------------------------ */
+/*  类型范围辅助函数（内部）                                              */
+/* ------------------------------------------------------------------ */
+
+/** 有符号类型的最小值：-(2^(n-1)) */
 static int64_t tc_type_min_signed(TcIntType type) {
     int n = tc_type_bit_width(type);
     if (n == 64) {
@@ -104,12 +76,7 @@ static int64_t tc_type_min_signed(TcIntType type) {
     return -(1LL << (n - 1));
 }
 
-/*
- * @brief 获取有符号类型的最大可表示值
- * @param type  有符号整数类型
- * @return 最大值：2^(n-1) - 1，n 为位宽
- * @note 内部辅助函数，调用方应确保 type 为有符号类型
- */
+/** 有符号类型的最大值：2^(n-1) - 1 */
 static int64_t tc_type_max_signed(TcIntType type) {
     int n = tc_type_bit_width(type);
     if (n == 64) {
@@ -118,23 +85,15 @@ static int64_t tc_type_max_signed(TcIntType type) {
     return (1LL << (n - 1)) - 1LL;
 }
 
-/*
- * @brief 获取无符号类型的最大可表示值
- * @param type  无符号整数类型
- * @return 最大值：2^n - 1，n 为位宽
- * @note 内部辅助函数，调用方应确保 type 为无符号类型
- */
+/** 无符号类型的最大值：2^n - 1 */
 static uint64_t tc_type_max_unsigned(TcIntType type) {
     return tc_mask_bits(tc_type_bit_width(type));
 }
 
-/*
- * @brief 检查无符号字面量 value 能否放入 type 类型
- * @param value 无符号字面量值
- * @param type  目标整数类型
- * @return 可放入返回 1；超出范围返回 0
- * @note 有符号类型时先将 value 转为 int64_t 再检查有符号范围
- */
+/* ------------------------------------------------------------------ */
+/*  字面量检查                                                           */
+/* ------------------------------------------------------------------ */
+
 int tc_literal_fits_type(uint64_t value, TcIntType type) {
     if (tc_type_is_signed(type)) {
         if (value > (uint64_t)INT64_MAX) {
@@ -147,6 +106,7 @@ int tc_literal_fits_type(uint64_t value, TcIntType type) {
 
 int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *err_kind) {
     if (lit->unsigned_suffix) {
+        /* u 后缀的字面量不能用于有符号上下文 */
         if (tc_type_is_signed(type)) {
             if (err_kind) {
                 *err_kind = TC_ERR_LITERAL_TYPE;
@@ -163,6 +123,7 @@ int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *e
     }
 
     if (lit->negative) {
+        /* 有负号的字面量不能用于无符号上下文 */
         if (!tc_type_is_signed(type)) {
             if (err_kind) {
                 *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
@@ -231,33 +192,23 @@ TcValue tc_literal_to_value(const TcLiteral *lit, TcIntType type) {
     return tc_value_make(type, lit->magnitude);
 }
 
-/*
- * @brief 检查有符号整数值是否在指定类型的可表示范围内
- * @param value 有符号整数值
- * @param type  目标整数类型
- * @return 在范围内返回 1；超出返回 0
- */
+/* ------------------------------------------------------------------ */
+/*  范围检查                                                           */
+/* ------------------------------------------------------------------ */
+
 int tc_signed_in_range(int64_t value, TcIntType type) {
     return value >= tc_type_min_signed(type) && value <= tc_type_max_signed(type);
 }
 
-/*
- * @brief 检查无符号整数值是否在指定类型的可表示范围内
- * @param value 无符号整数值
- * @param type  目标整数类型
- * @return 在范围内返回 1；超出返回 0
- */
 int tc_unsigned_in_range(uint64_t value, TcIntType type) {
     return value <= tc_type_max_unsigned(type);
 }
 
-/*
- * @brief 有符号加法溢出检测（在 int64 范围内运算）
- * @param a      加数
- * @param b      加数
- * @param result 输出参数，无溢出时写入加法和
- * @return 溢出返回 1；无溢出返回 0
- */
+/* ------------------------------------------------------------------ */
+/*  int64 溢出检测辅助                                                   */
+/* ------------------------------------------------------------------ */
+
+/** 有符号加法溢出检测：若溢出返回 1，否则 *result = a + b */
 static int tc_sadd_overflow(int64_t a, int64_t b, int64_t *result) {
     if (b > 0 && a > INT64_MAX - b) {
         return 1;
@@ -269,13 +220,7 @@ static int tc_sadd_overflow(int64_t a, int64_t b, int64_t *result) {
     return 0;
 }
 
-/*
- * @brief 有符号减法溢出检测
- * @param a      被减数
- * @param b      减数
- * @param result 输出参数，无溢出时写入减法差
- * @return 溢出返回 1；无溢出返回 0
- */
+/** 有符号减法溢出检测：若溢出返回 1，否则 *result = a - b */
 static int tc_ssub_overflow(int64_t a, int64_t b, int64_t *result) {
     if (b < 0 && a > INT64_MAX + b) {
         return 1;
@@ -287,14 +232,7 @@ static int tc_ssub_overflow(int64_t a, int64_t b, int64_t *result) {
     return 0;
 }
 
-/*
- * @brief 有符号乘法溢出检测
- * @param a      乘数
- * @param b      乘数
- * @param result 输出参数，无溢出时写入乘积
- * @return 溢出返回 1；无溢出返回 0
- * @note 先检查边界条件避免溢出，再进行乘法运算
- */
+/** 有符号乘法溢出检测：若溢出返回 1，否则 *result = a * b */
 static int tc_smul_overflow(int64_t a, int64_t b, int64_t *result) {
     if (a == 0 || b == 0) {
         *result = 0;
@@ -321,14 +259,18 @@ static int tc_smul_overflow(int64_t a, int64_t b, int64_t *result) {
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  64 × 64 → 128 位分块乘法                                            */
+/* ------------------------------------------------------------------ */
+
 /*
  * @brief 64 位无符号乘法，返回 128 位结果的高/低 64 位
- * @param a  乘数
- * @param b  乘数
- * @param hi 输出参数，乘积的高 64 位
- * @param lo 输出参数，乘积的低 64 位
- * @note 采用 32 位分块乘法（a*b = (a_hi*2^32 + a_lo)*(b_hi*2^32 + b_lo)）
- *       避免直接 64×64 溢出。用于 int64/uint64 乘法时的位宽截断（取低 64 位）
+ * @param hi 输出：高 64 位
+ * @param lo 输出：低 64 位
+ *
+ * 采用 32 位分块法：
+ *   a * b = (a_hi * 2^32 + a_lo) * (b_hi * 2^32 + b_lo)
+ * 避免直接 64×64 溢出。用于 int64/uint64 类型乘法位宽截断（取低 64 位）。
  */
 static void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
     const uint64_t mask32 = 0xFFFFFFFFULL;
@@ -347,30 +289,19 @@ static void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
     *hi = p3 + (mid >> 32) + (p1 >> 32) + (p2 >> 32);
 }
 
-/*
- * @brief overflow 模式下将 bits 截断到目标类型位宽
- * @param type  目标整数类型
- * @param bits  原始位模式
- * @return 截断后的位模式（保留低 n 位）
- */
+/* ------------------------------------------------------------------ */
+/*  wrap 模式位宽截断辅助                                                */
+/* ------------------------------------------------------------------ */
+
+/** 将 bits 按目标类型位宽截断（wrap 模式下使用） */
 static uint64_t tc_wrap_bits(TcIntType type, uint64_t bits) {
     return tc_value_to_unsigned(type, bits);
 }
 
-/*
- * @brief 有符号算术运算核心实现
- * @param op    算术运算符（add/sub/mul/div/mod）
- * @param type  运算的目标整数类型
- * @param mode  溢出处理模式（strict / overflow）
- * @param lhs   左操作数
- * @param rhs   右操作数
- * @param out   输出参数，写入运算结果 TcValue
- * @param diag  诊断对象，出错时填写错误信息
- * @param line  当前语句行号，用于错误定位
- * @return 成功返回 0；失败（除零/溢出）返回 -1
- * @note div/mod 不支持 overflow 模式（由 Analyzer 静态拒绝）
- * @note overflow 模式下 add/sub/mul 在无符号位模式上做环绕运算
- */
+/* ------------------------------------------------------------------ */
+/*  有符号算术运算                                                       */
+/* ------------------------------------------------------------------ */
+
 static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                                 const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                 TcDiagnostic *diag, int line) {
@@ -379,7 +310,7 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     int64_t result = 0;
     char msg[128];
 
-    /* 除法与取模：div/mod 始终精确运算，仅检查除零 */
+    /* div/mod：先检查除零，再精确运算 */
     if (op == TC_DIV || op == TC_MOD) {
         if (b == 0) {
             tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
@@ -395,15 +326,12 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
         return 0;
     }
 
-    /* overflow 模式：在无符号位域上做环绕 */
+    /* overflow 模式：在无符号位域上做环绕运算 */
     if (mode == TC_ARITH_WRAP) {
         int n = tc_type_bit_width(type);
         uint64_t mask = tc_mask_bits(n);
         uint64_t wrapped = 0;
 
-        /* 对 add/sub：tc_value_to_unsigned 已归一化到 n 位，& mask 确保
-         * 结果在 n 位内（对无符号算术 & mask 虽是冗余但仍保留以显式表达
-         * 截断语义意图，避免依赖 C 标准无符号回绕的隐式行为） */
         if (op == TC_ADD) {
             wrapped = (tc_value_to_unsigned(type, (uint64_t)a) +
                        tc_value_to_unsigned(type, (uint64_t)b)) &
@@ -413,7 +341,7 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                        tc_value_to_unsigned(type, (uint64_t)b)) &
                       mask;
         } else {
-            /* 乘法：64 位用 128 位乘法取低字；较窄类型直接乘后截断 */
+            /* 有符号乘法 wrap：64 位用 128 位乘法取低字；较窄类型直接乘后截断 */
             if (n == 64) {
                 uint64_t hi = 0;
                 uint64_t lo = 0;
@@ -459,19 +387,10 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     return 0;
 }
 
-/*
- * @brief 无符号算术运算核心实现
- * @param op    算术运算符（add/sub/mul/div/mod）
- * @param type  运算的目标整数类型
- * @param mode  溢出处理模式（无符号运算忽略此参数）
- * @param lhs   左操作数
- * @param rhs   右操作数
- * @param out   输出参数，写入运算结果 TcValue
- * @param diag  诊断对象，出错时填写错误信息
- * @param line  当前语句行号，用于错误定位
- * @return 成功返回 0；失败（除零）返回 -1
- * @note 无符号类型不支持 strict/overflow 区分，始终对结果做位宽掩码截断
- */
+/* ------------------------------------------------------------------ */
+/*  无符号算术运算                                                       */
+/* ------------------------------------------------------------------ */
+
 static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                     TcDiagnostic *diag, int line) {
@@ -500,6 +419,7 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     } else if (op == TC_SUB) {
         result = a - b;
     } else {
+        /* 无符号乘法：64 位用 128 位乘法取低字；较窄类型直接乘 */
         if (tc_type_bit_width(type) == 64) {
             uint64_t hi = 0;
             uint64_t lo = 0;
@@ -514,18 +434,10 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     return 0;
 }
 
-/*
- * @brief 算术运算入口：按有符号/无符号分派到对应实现
- * @param op    算术运算符
- * @param type  运算的目标整数类型
- * @param mode  溢出处理模式
- * @param lhs   左操作数
- * @param rhs   右操作数
- * @param out   输出参数，写入运算结果 TcValue
- * @param diag  诊断对象
- * @param line  当前语句行号
- * @return 成功返回 0；失败返回 -1 并设置 diag
- */
+/* ------------------------------------------------------------------ */
+/*  算术运算入口                                                        */
+/* ------------------------------------------------------------------ */
+
 int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line) {
@@ -535,9 +447,59 @@ int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     return tc_exec_unsigned_arith(op, type, mode, lhs, rhs, out, diag, line);
 }
 
-/*
- * @brief 扩展转换（dst_bits > src_bits）：符号/零扩展，带范围检查
- */
+/* ------------------------------------------------------------------ */
+/*  单目运算：abs / neg                                                  */
+/* ------------------------------------------------------------------ */
+
+int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
+                  const TcValue *operand, TcValue *out,
+                  TcDiagnostic *diag, int line) {
+    int n = tc_type_bit_width(type);
+    uint64_t mask = tc_mask_bits(n);
+    uint64_t bits = tc_value_to_unsigned(type, operand->bits);
+
+    if (op == TC_UNARY_ABS) {
+        if (tc_type_is_signed(type)) {
+            int64_t val = tc_bits_to_signed(type, bits);
+            if (val == tc_type_min_signed(type)) {
+                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "abs(INT_MIN) overflow");
+                return -1;
+            }
+            if (val < 0) {
+                val = -val;
+            }
+            out->bits = (uint64_t)val & mask;
+        } else {
+            out->bits = bits;  /* 无符号 abs 无操作 */
+        }
+    } else {
+        /* NEG */
+        if (tc_type_is_signed(type) && mode == TC_ARITH_STRICT) {
+            int64_t val = tc_bits_to_signed(type, bits);
+            if (val == tc_type_min_signed(type)) {
+                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "neg(INT_MIN) overflow");
+                return -1;
+            }
+            val = -val;
+            out->bits = (uint64_t)val & mask;
+        } else {
+            /* wrap 模式或无符号：用二补数求反（~x + 1） */
+            out->bits = (bits == 0) ? 0 : (mask ^ bits) + 1;
+            out->bits &= mask;
+        }
+    }
+
+    out->type = type;
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  strict cast 子函数                                                   */
+/* ------------------------------------------------------------------ */
+
+/** cast 扩展：符号扩展或零扩展，带范围检查 */
 static int tc_cast_widen(TcIntType target, TcIntType src_type, const TcValue *source,
                          TcValue *out, TcDiagnostic *diag, int line) {
     int src_signed = tc_type_is_signed(src_type);
@@ -563,7 +525,7 @@ static int tc_cast_widen(TcIntType target, TcIntType src_type, const TcValue *so
         *out = tc_value_make(target, (uint64_t)value);
         return 0;
     }
-    /* 无符号源 → 有符号目标（更宽） */
+    /* 无符号 → 有符号（更宽） */
     {
         uint64_t value = tc_value_to_unsigned(src_type, source->bits);
         if (value > (uint64_t)tc_type_max_signed(target)) {
@@ -576,9 +538,7 @@ static int tc_cast_widen(TcIntType target, TcIntType src_type, const TcValue *so
     }
 }
 
-/*
- * @brief 同位宽符号性转换（dst_bits == src_bits, 符号性不同）：检查负值或超范围
- */
+/** cast 同位宽转换（bit width 相同但符号性不同）：检查负值或超范围 */
 static int tc_cast_same_width_diff_sign(TcIntType target, TcIntType src_type,
                                         const TcValue *source, TcValue *out,
                                         TcDiagnostic *diag, int line) {
@@ -607,16 +567,14 @@ static int tc_cast_same_width_diff_sign(TcIntType target, TcIntType src_type,
     }
 }
 
-/*
- * @brief 窄化转换（dst_bits < src_bits）：检查值是否在目标范围内
- */
+/** cast 窄化：检查值能否在更窄的类型中精确表示 */
 static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *source,
                           TcValue *out, TcDiagnostic *diag, int line) {
     int src_signed = tc_type_is_signed(src_type);
     int dst_signed = tc_type_is_signed(target);
     char msg[128];
 
-    /* 窄化：有符号 → 有符号 */
+    /* 有符号 → 有符号 */
     if (src_signed && dst_signed) {
         int64_t value = tc_bits_to_signed(src_type, source->bits);
         if (!tc_signed_in_range(value, target)) {
@@ -628,14 +586,14 @@ static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *s
         return 0;
     }
 
-    /* 窄化：无符号 → 无符号（直接截断，strict 下仍合法） */
+    /* 无符号 → 无符号（截断后在 strict 模式下仍合法） */
     if (!src_signed && !dst_signed) {
         uint64_t value = tc_value_to_unsigned(src_type, source->bits);
         *out = tc_value_make(target, tc_wrap_bits(target, value));
         return 0;
     }
 
-    /* 窄化：有符号 → 无符号 */
+    /* 有符号 → 无符号 */
     if (src_signed && !dst_signed) {
         int64_t value = tc_bits_to_signed(src_type, source->bits);
         if (value < 0 || (uint64_t)value > tc_type_max_unsigned(target)) {
@@ -647,7 +605,7 @@ static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *s
         return 0;
     }
 
-    /* 窄化：无符号 → 有符号 */
+    /* 无符号 → 有符号 */
     {
         uint64_t value = tc_value_to_unsigned(src_type, source->bits);
         if (value > (uint64_t)tc_type_max_signed(target)) {
@@ -660,20 +618,10 @@ static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *s
     }
 }
 
-/*
- * @brief strict 模式类型转换（带范围检查）
- * @param target 目标整数类型
- * @param source 源运行时值
- * @param out    输出参数，写入转换后的 TcValue
- * @param diag   诊断对象，转换失败时填写错误信息
- * @param line   当前语句行号
- * @return 成功返回 0；值超出目标范围返回 -1
- * @note 根据源/目标类型的有符号性、位宽关系，分派到子函数：
- *       - 同类型：直接复制
- *       - 扩展（dst > src）：tc_cast_widen
- *       - 同宽变符号性：tc_cast_same_width_diff_sign
- *       - 窄化（dst < src）：tc_cast_narrow
- */
+/* ------------------------------------------------------------------ */
+/*  strict cast 入口：按位宽和符号性分派子函数                             */
+/* ------------------------------------------------------------------ */
+
 static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
                           TcDiagnostic *diag, int line) {
     TcIntType src_type = source->type;
@@ -696,14 +644,17 @@ static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
     return tc_cast_narrow(target, src_type, source, out, diag, line);
 }
 
+/* ------------------------------------------------------------------ */
+/*  truncate cast 辅助: 位扩展                                           */
+/* ------------------------------------------------------------------ */
+
 /*
- * @brief 位扩展辅助：将 src_bits 宽的位模式扩展到 dst_bits
- * @param bits        原始位模式
- * @param src_bits    源位宽
- * @param dst_bits    目标位宽（必须 >= src_bits 才实际扩展）
- * @param sign_extend 符号扩展标志：1 表示符号扩展，0 表示零扩展
+ * @brief 位扩展：将 src_bits 宽的位模式扩展到 dst_bits
+ * @param bits         原始位模式
+ * @param src_bits     源位宽
+ * @param dst_bits     目标位宽（必须 >= src_bits 才实际扩展）
+ * @param sign_extend  符号扩展标志：1 符号扩展，0 零扩展
  * @return 扩展后的位模式
- * @note sign_extend=1 时若源最高位为 1 则高位填 1（符号扩展），否则零扩展
  */
 static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int sign_extend) {
     uint64_t mask = tc_mask_bits(src_bits);
@@ -714,6 +665,7 @@ static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int si
     if (!sign_extend) {
         return bits;
     }
+    /* 若源符号位为 1，高位全填 1 */
     if (bits & (1ULL << (unsigned)(src_bits - 1))) {
         uint64_t high_mask = ~tc_mask_bits(dst_bits);
         high_mask |= mask;
@@ -722,14 +674,10 @@ static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int si
     return bits;
 }
 
-/*
- * @brief overflow 模式类型转换（不做范围检查）
- * @param target 目标整数类型
- * @param source 源运行时值
- * @param out    输出参数，写入转换后的 TcValue
- * @return 始终返回 0（overflow 模式下永远不会失败）
- * @note 窄化直接截低 n 位；扩展时根据目标/源符号性选择零扩展或符号扩展
- */
+/* ------------------------------------------------------------------ */
+/*  truncate cast：不做范围检查，直接按位模式转换                           */
+/* ------------------------------------------------------------------ */
+
 static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *out) {
     TcIntType src_type = source->type;
     int src_bits = tc_type_bit_width(src_type);
@@ -738,10 +686,13 @@ static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *ou
     uint64_t result_bits = 0;
 
     if (dst_bits <= src_bits) {
+        /* 窄化：直接截低 n 位 */
         result_bits = bits & tc_mask_bits(dst_bits);
     } else if (!tc_type_is_signed(target) || !tc_type_is_signed(src_type)) {
+        /* 目标或源为无符号 → 零扩展 */
         result_bits = tc_extend_bits(bits, src_bits, dst_bits, 0);
     } else if (bits & (1ULL << (unsigned)(src_bits - 1))) {
+        /* 有符号 → 有符号，源符号位为 1 → 符号扩展 */
         result_bits = tc_extend_bits(bits, src_bits, dst_bits, 1);
     } else {
         result_bits = tc_extend_bits(bits, src_bits, dst_bits, 0);
@@ -751,16 +702,10 @@ static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *ou
     return 0;
 }
 
-/*
- * @brief cast 运算入口：按 strict / overflow 模式分派
- * @param target 目标整数类型
- * @param mode   转换模式（strict 或 overflow）
- * @param source 源运行时值
- * @param out    输出参数，写入转换后的 TcValue
- * @param diag   诊断对象（strict 模式出错时使用）
- * @param line   当前语句行号
- * @return 成功返回 0；strict 模式下值溢出返回 -1
- */
+/* ------------------------------------------------------------------ */
+/*  cast 运算入口                                                        */
+/* ------------------------------------------------------------------ */
+
 int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line) {
     if (mode == TC_TRUNC_STRICT) {

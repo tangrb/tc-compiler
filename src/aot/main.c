@@ -1,5 +1,20 @@
 /*
- * main.c — tc-aot 命令行：TC → C99 转译
+ * main.c — tc-aot 命令行入口：TC → C99 转译
+ *
+ * 读取 .tc 文件，经 libtc 编译后再转译为等价的 C99 源码。
+ * 可选编译并运行生成的 C 代码（依赖 host cc）。
+ *
+ * 用法：
+ *   tc-aot [options] <file.tc>
+ *
+ * 选项：
+ *   -o, --output FILE   输出路径（默认 <input>.c）
+ *   -c, --check         仅静态分析
+ *   -r, --run           编译并运行生成的 C
+ *   -h, --help          显示帮助
+ *   -V, --version       显示版本号
+ *
+ * 退出码：0 成功，1 失败。
  */
 #include "tc_aot_codegen.h"
 #include "tc_diagnostic.h"
@@ -28,6 +43,7 @@ static void tc_aot_print_usage(const char *program) {
             program);
 }
 
+/** 根据输入路径构造默认输出路径（.tc → .c） */
 static char *tc_aot_default_output_path(const char *input_path) {
     size_t len = strlen(input_path);
     char *out = (char *)malloc(len + 3);
@@ -42,6 +58,7 @@ static char *tc_aot_default_output_path(const char *input_path) {
     return out;
 }
 
+/** 编译并运行生成的 C 代码（需 host C 编译器） */
 static int tc_aot_run_generated(const char *c_path) {
     char cmd[8192];
     snprintf(cmd, sizeof(cmd),
@@ -113,6 +130,7 @@ int main(int argc, char **argv) {
     input_path = argv[optind];
     tc_diagnostic_init(&diag);
 
+    /* 编译 */
     if (tc_compile_file(input_path, &program, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_diagnostic_clear(&diag);
@@ -129,6 +147,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* 确定输出路径 */
     if (!output_path) {
         owned_output_path = tc_aot_default_output_path(input_path);
         if (!owned_output_path) {
@@ -139,6 +158,7 @@ int main(int argc, char **argv) {
         output_path = owned_output_path;
     }
 
+    /* 代码生成 */
     out_file = fopen(output_path, "w");
     if (!out_file) {
         fprintf(stderr, "%s: cannot open output file '%s'\n", argv[0], output_path);
@@ -158,6 +178,7 @@ int main(int argc, char **argv) {
     fclose(out_file);
     tc_typed_program_free(&program);
 
+    /* 可选：编译并运行 */
     if (run_mode) {
         rc = tc_aot_run_generated(output_path);
         if (rc != 0) {

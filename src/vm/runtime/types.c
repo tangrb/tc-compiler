@@ -1,21 +1,19 @@
 /*
  * types.c — TC 整数类型与运算符的工具函数
  *
- * 提供类型位宽查询、有符号/无符号判定、类型名/运算符名解析，
- * 以及错误种类与类型名的字符串化，供 Lexer、Analyzer 和诊断输出使用。
+ * 提供：
+ *   - 类型位宽查询（tc_type_bit_width）、符号性判定（tc_type_is_signed）
+ *   - 类型名解析（tc_type_parse）与字符串化（tc_int_type_name）
+ *   - 运算符解析（tc_arith_op_parse / tc_unary_op_parse）
+ *   - 格式说明符解析（tc_format_spec_parse）与字符串化（tc_format_spec_name）
+ *   - 错误/警告种类名称字符串化（tc_error_kind_name / tc_warning_kind_name）
  *
- * 作者：唐荣兵
- * 联系邮箱：yanhuang8923@qq.com
+ * 供 Lexer（类型/运算符关键字识别）、Analyzer（类型比较）、Executor/AOT（格式化输出）使用。
  */
 #include "tc_types.h"
 
 #include <string.h>
 
-/*
- * @brief 返回整数类型的位宽
- * @param type  整数类型枚举值（TcIntType）
- * @return 位宽值：8 / 16 / 32 / 64；非法类型返回 0
- */
 int tc_type_bit_width(TcIntType type) {
     switch (type) {
     case TC_INT8:
@@ -34,11 +32,6 @@ int tc_type_bit_width(TcIntType type) {
     return 0;
 }
 
-/*
- * @brief 判断类型是否为有符号整数
- * @param type  整数类型枚举值
- * @return 有符号类型（int8~int64）返回 1；无符号类型（uint*）返回 0
- */
 int tc_type_is_signed(TcIntType type) {
     switch (type) {
     case TC_INT8:
@@ -51,12 +44,6 @@ int tc_type_is_signed(TcIntType type) {
     }
 }
 
-/*
- * @brief 将字符串解析为 TcIntType 枚举值
- * @param text  类型名字符串（如 "int8"、"uint32" 等）
- * @param out   输出参数，解析成功时写入对应的 TcIntType 枚举值
- * @return 解析成功返回 1；无法识别返回 0
- */
 int tc_type_parse(const char *text, TcIntType *out) {
     if (strcmp(text, "int8") == 0) {
         *out = TC_INT8;
@@ -80,12 +67,6 @@ int tc_type_parse(const char *text, TcIntType *out) {
     return 1;
 }
 
-/*
- * @brief 将算术运算符关键字解析为 TcArithOp 枚举值
- * @param text  运算符关键字（"add" / "sub" / "mul" / "div" / "mod"）
- * @param out   输出参数，解析成功时写入对应的 TcArithOp 枚举值
- * @return 解析成功返回 1；无法识别返回 0
- */
 int tc_arith_op_parse(const char *text, TcArithOp *out) {
     if (strcmp(text, "add") == 0) {
         *out = TC_ADD;
@@ -103,12 +84,59 @@ int tc_arith_op_parse(const char *text, TcArithOp *out) {
     return 1;
 }
 
-/*
- * @brief 将错误种类枚举转为对外展示的名称
- * @param kind  错误种类枚举值
- * @return 错误名称字符串（如 "SyntaxError"、"DivisionByZero" 等）；
- *         无法识别的种类返回 "UnknownError"
- */
+int tc_unary_op_parse(const char *text, TcUnaryOp *out) {
+    if (strcmp(text, "abs") == 0) {
+        *out = TC_UNARY_ABS;
+    } else if (strcmp(text, "neg") == 0) {
+        *out = TC_UNARY_NEG;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
+int tc_format_spec_parse(const char *text, TcFormatSpec *out) {
+    if (strcmp(text, "%d") == 0) {
+        *out = TC_FMT_D;
+    } else if (strcmp(text, "%i") == 0) {
+        *out = TC_FMT_I;
+    } else if (strcmp(text, "%u") == 0) {
+        *out = TC_FMT_U;
+    } else if (strcmp(text, "%x") == 0) {
+        *out = TC_FMT_X;
+    } else if (strcmp(text, "%X") == 0) {
+        *out = TC_FMT_XU;
+    } else if (strcmp(text, "%o") == 0) {
+        *out = TC_FMT_O;
+    } else if (strcmp(text, "%b") == 0) {
+        *out = TC_FMT_B;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
+const char *tc_format_spec_name(TcFormatSpec fmt) {
+    switch (fmt) {
+    case TC_FMT_D:
+        return "%d";
+    case TC_FMT_I:
+        return "%i";
+    case TC_FMT_U:
+        return "%u";
+    case TC_FMT_X:
+        return "%x";
+    case TC_FMT_XU:
+        return "%X";
+    case TC_FMT_O:
+        return "%o";
+    case TC_FMT_B:
+        return "%b";
+    default:
+        return "";
+    }
+}
+
 const char *tc_error_kind_name(TcErrorKind kind) {
     switch (kind) {
     case TC_ERR_SYNTAX:
@@ -129,6 +157,12 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ConstantAssignmentError";
     case TC_ERR_CONSTANT_EXPRESSION:
         return "ConstantExpressionError";
+    case TC_ERR_FORMAT_STRING:
+        return "FormatStringError";
+    case TC_ERR_FORMAT_TYPE_MISMATCH:
+        return "FormatTypeMismatch";
+    case TC_ERR_OPERAND_COUNT:
+        return "OperandCountError";
     case TC_ERR_DIVISION_BY_ZERO:
         return "DivisionByZero";
     case TC_ERR_INTEGER_OVERFLOW:
@@ -151,11 +185,6 @@ const char *tc_warning_kind_name(TcWarningKind kind) {
     return "UnknownWarning";
 }
 
-/*
- * @brief 将 TcIntType 转为源码中的类型名字符串
- * @param type  整数类型枚举值
- * @return 类型名字符串（如 "int8"、"uint32" 等）；非法类型返回 "unknown"
- */
 const char *tc_int_type_name(TcIntType type) {
     switch (type) {
     case TC_INT8:
