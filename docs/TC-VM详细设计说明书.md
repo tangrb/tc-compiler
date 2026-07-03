@@ -1,8 +1,8 @@
-# TC-VM 详细设计说明书
+# TC-VM 详细设计说明书（完整版）
 
-> **版本**：0.0.14（草案）  
+> **版本**：0.0.17（草案）  
 > **作者**：唐荣兵（yanhuang8923@qq.com）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.14（同目录）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.17  
 > **工程**：[TC-Compiler](../README.md) 之 `src/vm/` 组件  
 > **定位**：TC 源码即高级字节码；**不** lowering 为第二套字节码，经静态分析后直接执行
 
@@ -14,7 +14,7 @@
 2. [总体架构](#2-总体架构)
 3. [TC 作为可执行指令文本](#3-tc-作为可执行指令文本)
 4. [源文件与行模型](#4-源文件与行模型)
-5. [内部表示：StatementRecord](#5-内部表示statementrecord)
+5. [内部表示：TcStatement](#5-内部表示tcstatement)
 6. [符号表与变量槽位](#6-符号表与变量槽位)
 7. [静态分析阶段（Analyzer）](#7-静态分析阶段analyzer)
 8. [执行阶段（Executor）](#8-执行阶段executor)
@@ -31,7 +31,7 @@
 
 附录
 
-- [附录 A：StatementRecord 与源语句对照](#附录-astatementrecord-与源语句对照)
+- [附录 A：TcStatement 与源语句对照](#附录-atcstatement-与源语句对照)
 - [附录 B：Fetch–Decode–Execute 对照](#附录-bfetchdecodeexecute-对照)
 - [附录 C：文档修订记录](#附录-c文档修订记录)
 
@@ -48,22 +48,22 @@ TC-VM 是 TC 语言的**直接执行引擎**：用户编写的 `.tc` 源文件�
 | 原则           | 说明                                                         |
 | -------------- | ------------------------------------------------------------ |
 | 源码即程序     | TC 文本是权威程序表示；不存在独立的 `.tcbc` 等第二语义层     |
-| 语句同构       | 内部 `StatementRecord` 与源语句 **1:1 对应**，仅便于 dispatch，不引入新语义 |
+| 语句同构       | 内部 `TcStatement` 与源语句 **1:1 对应**，仅便于 dispatch，不引入新语义 |
 | 先检后跑       | 全程序静态分析通过后，再进入顺序执行                         |
 | 语义归语言标准 | 算术、cast、I/O、常量、未初始化变量等行为以《TC 语言标准设计说明书》为准；本文档只规定**实现架构** |
-| 单作用域       | 与语言标准 §4.5 全局单作用域一致                             |
+| 单作用域       | 与语言标准 §3.6 全局单作用域一致                             |
 | 可观测即标准   | 对外可观测行为（结果值、错误类型、终止时机）必须与语言标准一致 |
 
-### 1.3 非目标（v0.0.14）
+### 1.3 实现版本
+
+可执行文件 `tc-vm` 与本文档同为 **v0.0.17**（`src/vm/driver/main.c` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
+
+### 1.4 非目标（v0.0.17）
 
 - 不定义、不生成第二套字节码指令集
 - 不做 JIT / LLVM 后端
-- 不实现语言标准 §12 后续扩展表中预留的控制流、函数、数组、浮点、位运算等扩展（仅预留接口）
-- `let` 常量当前版本 RHS 仅支持字面量，不支持 `add`/`sub` 等编译时常量表达式
-
-### 1.4 实现版本
-
-可执行文件 `tc-vm` 与本文档同为 **v0.0.14**（`src/vm/driver/main.c` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
+- 不实现语言标准 §5.4 扩展表中预留的浮点、布尔、位运算、比较、控制流、函数、复合类型等扩展（仅预留接口）
+- `let` 常量 RHS 仅支持字面量，不支持 `add`/`sub` 等编译时常量表达式
 
 ---
 
@@ -80,16 +80,16 @@ TC-VM 是 TC 语言的**直接执行引擎**：用户编写的 `.tc` 源文件�
                初步结构      类型检查       顺序执行
 ```
 
-**无 `Codegen` 模块**：Parser/Analyzer 产出 `StatementRecord` 列表，Executor 直接消费。
+**无 `Codegen` 模块**：Parser/Analyzer 产出 `TcStatement` 列表，Executor 直接消费。
 
 ### 2.2 组件职责
 
-| 组件         | 输入                   | 输出                              | 职责                                                         |
-| ------------ | ---------------------- | --------------------------------- | ------------------------------------------------------------ |
-| **Lexer**    | 源文本                 | `Token` 流                        | 按语言标准 §2.2 词法规则切分；记录行号、列号                 |
-| **Parser**   | `Token` 流             | `StatementRecord`（未完全类型化） | 按语言标准 §2.3 语法解析单条语句                             |
-| **Analyzer** | `StatementRecord` 列表 | 已类型化程序 + 符号表             | Pass 1 符号收集、Pass 2 源序可见性类型检查、常量编译期求值、未初始化警告 |
-| **Executor** | 已类型化程序           | 执行结果或运行时错误              | 按 PC 顺序 dispatch 内建语义                                 |
+| 组件         | 输入               | 输出                          | 职责                                                         |
+| ------------ | ------------------ | ----------------------------- | ------------------------------------------------------------ |
+| **Lexer**    | 源文本             | `Token` 流                    | 按语言标准 §2 词法规则切分；记录行号、列号                   |
+| **Parser**   | `Token` 流         | `TcStatement`（未完全类型化） | 按语言标准附录 A 语法解析单条语句                            |
+| **Analyzer** | `TcStatement` 列表 | 已类型化程序 + 符号表         | Pass 1 符号收集、Pass 2 源序可见性类型检查、常量编译期求值、未初始化警告 |
+| **Executor** | 已类型化程序       | 执行结果或运行时错误          | 按 PC 顺序 dispatch 内建语义                                 |
 
 ### 2.3 对外入口
 
@@ -112,24 +112,26 @@ run_file(path: string) -> Result<void, Diagnostic>
 
 ### 3.1 语句即指令
 
-TC v0.0.13 中，每条合法语句对应一条「高级指令」：
+TC v0.0.17 中，每条合法语句对应一条「高级指令」：
 
-| 源形式                          | 指令含义                                                     |
-| ------------------------------- | ------------------------------------------------------------ |
-| `var x: T = <rhs>`              | **DEF** — 定义槽位 `x` 为类型 `T` 并初始化                   |
-| `var x: T`                      | **DEF** — 定义槽位 `x` 为类型 `T`，**未初始化**              |
-| `let x: T = <literal>`          | **DEF_CONST** — 定义编译期常量槽位 `x`，不可赋值（RHS 仅限字面量） |
-| `x = <rhs>`                     | **MOV** — 将 `<rhs>` 结果写入已定义槽位 `x`                  |
-| `<rhs> = integer_literal`       | 加载字面量                                                   |
-| `<rhs> = add(T, …)`             | **ADD** — 类型 `T`，模式 strict/`wrap`                       |
-| `<rhs> = sub/mul/div/mod(T, …)` | 对应算术指令                                                 |
-| `<rhs> = cast(T, …)`            | **CAST** — 目标类型 `T`，模式 strict/`truncate`              |
+| 源形式                              | 指令含义                                                     |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `var x: T = <rhs>`                  | **DEF** — 定义槽位 `x` 为类型 `T` 并初始化                   |
+| `var x: T`                          | **DEF** — 定义槽位 `x` 为类型 `T`，**未初始化**              |
+| `let x: T = <literal>`              | **DEF_CONST** — 定义编译期常量槽位 `x`，不可赋值（RHS 仅限字面量） |
+| `x = <rhs>`                         | **MOV** — 将 `<rhs>` 结果写入已定义槽位 `x`                  |
+| `<rhs> = integer_literal`           | 加载字面量                                                   |
+| `<rhs> = add/sub/mul/div/mod(T, …)` | 双目算术指令                                                 |
+| `<rhs> = abs/neg(T, …)`             | 单目算术指令                                                 |
+| `<rhs> = cast(T, …)`                | **CAST** — 目标类型 `T`，模式 strict/`truncate`              |
+| `write/writeln(T, …)`               | **WRITE** — 标准输出                                         |
+| `read(T, x)`                        | **READ** — 标准输入                                          |
 
-`<rhs>` 仅三选一（字面量 / 算术 / cast），**无嵌套**，故一条语句的语义完全由该行决定。
+`<rhs>` 仅四选一（字面量 / 双目算术 / 单目算术 / cast），**无嵌套**，故一条语句的语义完全由该行决定。
 
 ### 3.2 执行模型
 
-采用与经典 VM 同构的 **Fetch–Decode–Execute**，但 Fetch 的对象是 **TC 语句**（或其 `StatementRecord`），而非二进制 opcode：
+采用与经典 VM 同构的 **Fetch–Decode–Execute**，但 Fetch 的对象是 **TC 语句**（或其 `TcStatement`），而非二进制 opcode：
 
 ```text
 PC ← 0
@@ -143,18 +145,18 @@ while PC < program.len:
 
 ### 3.3 与「字节码 VM」的区分
 
-| 维度      | 传统字节码 VM          | TC-VM（本设计）                                    |
-| --------- | ---------------------- | -------------------------------------------------- |
-| 程序表示  | 源语言 + 独立 bytecode | **仅 TC 源文本**                                   |
-| 持久化 IR | `.class` / `.bc` 等    | 可选内存缓存 `StatementRecord`，**无独立文件格式** |
-| 指令集    | 与源语言异构           | **与 TC 语法同构**                                 |
-| 反汇编    | 需要                   | **源文件即反汇编结果**                             |
+| 维度      | 传统字节码 VM          | TC-VM（本设计）                                |
+| --------- | ---------------------- | ---------------------------------------------- |
+| 程序表示  | 源语言 + 独立 bytecode | **仅 TC 源文本**                               |
+| 持久化 IR | `.class` / `.bc` 等    | 可选内存缓存 `TcStatement`，**无独立文件格式** |
+| 指令集    | 与源语言异构           | **与 TC 语法同构**                             |
+| 反汇编    | 需要                   | **源文件即反汇编结果**                         |
 
 ---
 
 ## 4. 源文件与行模型
 
-语言标准 EBNF 对空行、文件尾换行未完全规定；**TC-VM v0.0.13 实现约定**如下（不影响 TC 语义，仅规范实现）：
+语言标准 EBNF 对空行、文件尾换行未完全规定；**TC-VM v0.0.17 实现约定**如下（不影响 TC 语义，仅规范实现）：
 
 | 规则                | 约定                                                         |
 | ------------------- | ------------------------------------------------------------ |
@@ -179,85 +181,104 @@ for line_no, line in lines:
 
 ---
 
-## 5. 内部表示：StatementRecord（`TcStatement`）
+## 5. 内部表示：TcStatement
 
-源码中的实际类型名为 `TcStatement`（定义于 `runtime/tc_types.h`）。下文「StatementRecord」为设计文档中的同义称呼，与源码 1:1 对应。
+源码中的实际类型名为 `TcStatement`（定义于 `runtime/tc_types.h`）。本节为设计文档中的类型定义，与源码 1:1 对应。
 
-### 5.0 设计文档与 C 类型对照
+### 5.1 设计文档与 C 类型对照
 
-| 设计文档名称 | C 类型 / 枚举 | 头文件 |
-| ------------ | ------------- | ------ |
-| `StatementRecord` | `TcStatement` + `TcStmtKind` | `tc_types.h` |
-| `VarDef` | `TcVarDef`（`has_rhs` 标志可选 RHS） | `tc_types.h` |
-| `ConstDef` | `TcConstDef` | `tc_types.h` |
-| `Assign` | `TcAssign` | `tc_types.h` |
-| `Rhs` | `TcRhs` + `TcRhsKind` | `tc_types.h` |
-| `Operand` | `TcOperand` + `TcOperandKind` | `tc_types.h` |
-| `Literal` | `TcLiteral`（`magnitude`/`negative`/`unsigned_suffix`） | `tc_types.h` |
-| `WrapMode` | `TcWrapMode`（`TC_ARITH_STRICT` / `TC_ARITH_WRAP`） | `tc_types.h` |
+| 设计文档名称   | C 类型 / 枚举                                               | 头文件       |
+| -------------- | ----------------------------------------------------------- | ------------ |
+| `TcStatement`  | `TcStatement` + `TcStmtKind`                                | `tc_types.h` |
+| `VarDef`       | `TcVarDef`（`has_rhs` 标志可选 RHS）                        | `tc_types.h` |
+| `ConstDef`     | `TcConstDef`                                                | `tc_types.h` |
+| `Assign`       | `TcAssign`                                                  | `tc_types.h` |
+| `Rhs`          | `TcRhs` + `TcRhsKind`                                       | `tc_types.h` |
+| `Operand`      | `TcOperand` + `TcOperandKind`                               | `tc_types.h` |
+| `Literal`      | `TcLiteral`（`magnitude`/`negative`/`unsigned_suffix`）     | `tc_types.h` |
+| `WrapMode`     | `TcWrapMode`（`TC_ARITH_STRICT` / `TC_ARITH_WRAP`）         | `tc_types.h` |
 | `TruncateMode` | `TcTruncateMode`（`TC_TRUNC_STRICT` / `TC_TRUNC_TRUNCATE`） | `tc_types.h` |
-| `TypedProgram` | `TcTypedProgram`（`program` + `symbols` + `warnings`） | `tc_types.h` |
-| `SymbolEntry` | `TcSymbol`（含 `def_stmt_index`、`has_const_value`） | `tc_types.h` |
-| `SlotStore` | `TcValue[]`，按 `TcSymbol.slot` 索引 | `tc_types.h` |
-
-### 5.1 设计约束
-
-- 每个 `StatementRecord` 对应**恰好一条**源语句
-- 保留 `line`、`column`（可选）供诊断
-- Analyzer 完成后，所有类型字段为具体 `IntType` 枚举，非字符串
+| `TypedProgram` | `TcTypedProgram`（`program` + `symbols` + `warnings`）      | `tc_types.h` |
+| `SymbolEntry`  | `TcSymbol`（含 `def_stmt_index`、`has_const_value`）        | `tc_types.h` |
+| `SlotStore`    | `TcValue[]`，按 `TcSymbol.slot` 索引                        | `tc_types.h` |
+| `FormatSpec`   | `TcFormatSpec`（7 种格式化符号）                            | `tc_types.h` |
+| `UnaryOp`      | `TcUnaryOp`（`TC_UNARY_ABS` / `TC_UNARY_NEG`）              | `tc_types.h` |
+| `ErrorKind`    | `TcErrorKind`（含 21 种错误类型）                           | `tc_types.h` |
+| `WarningKind`  | `TcWarningKind`                                             | `tc_types.h` |
 
 ### 5.2 类型枚举
 
 ```text
 IntType ::= int8 | uint8 | int16 | uint16 | int32 | uint32 | int64 | uint64
 
-WrapMode ::= Strict | Wrap       // 关键字 wrap → TC_ARITH_WRAP；仅 add/sub/mul 可用
+WrapMode ::= Strict | Wrap       // 关键字 wrap → TC_ARITH_WRAP；仅 add/sub/mul/neg 可用
 TruncateMode ::= StrictTrunc | Truncate   // 关键字 truncate → TC_TRUNC_TRUNCATE；仅 cast 可用
 
 ArithOp ::= Add | Sub | Mul | Div | Mod
+
+UnaryOp ::= Abs | Neg              // 单目运算
+
+FormatSpec ::= D | I | U | X | XU | O | B   // %d, %i, %u, %x, %X, %o, %b
 ```
 
-### 5.3 操作数
+### 5.3 字面量（TcLiteral）
 
 ```text
-Operand ::= Variable(name: string)
-          | Literal(lit: TcLiteral)    // magnitude + negative + unsigned_suffix
+TcLiteral ::= {
+    magnitude: uint64,      // 数值绝对值
+    negative: bool,         // 是否有负号
+    unsigned_suffix: bool,  // 是否有 u/U 后缀
+    base: int               // 10 | 16 | 8 | 2
+}
+```
+
+### 5.4 操作数（TcOperand）
+
+```text
+TcOperand ::= Variable(name: string)
+            | Literal(lit: TcLiteral)
 ```
 
 解析阶段 `Literal` 可存原始十进制字符串，Analyzer 阶段按上下文类型校验范围。
 
-### 5.4 右值（Rhs）
+### 5.5 右值（TcRhs）
 
 ```text
-Rhs ::= LitRhs { value: uint64 }
-      | ArithRhs { op: ArithOp, type: IntType, mode: WrapMode, lhs: Operand, rhs: Operand }
-      | CastRhs { target: IntType, mode: TruncateMode, source: string /* 仅变量名，非字面量 */ }
+TcRhs ::= LitRhs { value: uint64 }
+        | ArithRhs { op: ArithOp, type: IntType, mode: WrapMode, lhs: Operand, rhs: Operand }
+        | UnaryRhs { op: UnaryOp, type: IntType, mode: WrapMode, operand: Operand }
+        | CastRhs { target: IntType, mode: TruncateMode, source: string }
 
-ConstRhs ::= LitRhs { value: uint64 }   /* 常量 RHS 仅允许字面量，对应 const_rhs 产生式 */
+ConstRhs ::= LitRhs { value: uint64 }   /* 常量 RHS 仅允许字面量 */
 ```
 
-> **CastRhs.source**：对应语言标准 §7.1，cast 的源操作数必须为已定义变量，不可为字面量或嵌套表达式。
+> **约束**：
+> - `ArithRhs` 中 `div`/`mod` 不支持 `Wrap` 模式
+> - `UnaryRhs` 中 `abs` 不支持 `Wrap` 模式
+> - `CastRhs.source` 必须为已定义变量，不可为字面量或嵌套表达式
 
-### 5.5 语句
+### 5.6 语句（TcStatement）
 
 ```text
-StatementRecord ::=
-    | VarDef { line, name, type: IntType, rhs: Rhs? }     /* rhs 可选：无 rhs 表示未初始化 */
+TcStatement ::=
+    | VarDef { line, name, type: IntType, rhs: TcRhs? }     /* rhs 可选：无 rhs 表示未初始化 */
     | ConstDef { line, name, type: IntType, rhs: ConstRhs }  /* let 常量定义，rhs 必填 */
-    | Assign { line, name, rhs: Rhs }
-    | Write { line, type: IntType, operand: Operand }       /* write(type, operand) */
-    | Writeln { line, type: IntType, operand: Operand }     /* writeln(type, operand) */
-    | Read { line, type: IntType, name: string }            /* read(type, identifier) */
+    | Assign { line, name, rhs: TcRhs }
+    | Write { line, type: IntType, fmt: FormatSpec?, operand: Operand }
+    | Writeln { line, type: IntType, fmt: FormatSpec?, operand: Operand }
+    | Read { line, type: IntType, name: string }
 ```
 
-> **let 常量**：常量值在编译期已确定，不生成运行时赋值指令。常量**不可**作为 `Assign` 的左值。
+> **说明**：
+> - `Write`/`Writeln` 中 `fmt` 为 `None` 时表示无格式输出
+> - `let` 常量值在编译期已确定，不生成运行时赋值指令；常量**不可**作为 `Assign` 的左值
 
-### 5.6 已类型化程序
+### 5.7 已类型化程序（TcTypedProgram）
 
 ```text
-TypedProgram ::= {
-    statements: StatementRecord[],
-    symbol_table: SymbolTable   // Analyzer 产出
+TcTypedProgram ::= {
+    statements: TcStatement[],
+    symbol_table: TcSymbolTable   // Analyzer 产出
 }
 ```
 
@@ -272,9 +293,9 @@ TypedProgram ::= {
 Analyzer 维护：
 
 ```text
-SymbolTable ::= Map<identifier, SymbolEntry>
+TcSymbolTable ::= Map<identifier, TcSymbol>
 
-SymbolEntry ::= {
+TcSymbol ::= {
     kind: SymKind,          // TC_SYM_VARIABLE | TC_SYM_CONSTANT
     type: IntType,
     slot: SlotIndex,        // 与 Executor 槽位一一对应
@@ -282,7 +303,8 @@ SymbolEntry ::= {
     def_stmt_index: int,    // 定义语句在 program 中的下标（源序可见性）
     initialized: bool,      // Variable 定义时是否有 RHS
     has_const_value: bool,
-    const_value: TcValue    // Constant 的编译期确定值（Pass 2 填入）
+    const_value: TcValue,   // Constant 的编译期确定值（Pass 2 填入）
+    name: string
 }
 ```
 
@@ -339,7 +361,7 @@ analyze(program):
 - 否则按出现顺序分配 `slot`（0, 1, 2, …），记录 `type`、`sym_kind`、`initialized`、`def_line`、`def_stmt_index`
 - `ConstDef` 的值留待 Pass 2 解析
 
-### 7.2.1 Pass 2 源序可见性（`visible` 符号表）
+### 7.3 Pass 2：源序可见性（`visible` 符号表）
 
 Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺序遍历语句，**仅在当前语句检查通过后**才将本条 `VarDef`/`ConstDef` 插入 `visible`。因此：
 
@@ -349,22 +371,23 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 
 全局符号表 `symbols`（Pass 1 产出）用于槽位分配、`def_stmt_index` 与常量 `const_value` 存储；`visible` 仅用于源序可见性检查。
 
-### 7.3 Pass 2：类型检查与常量值解析
+### 7.4 Pass 2：类型检查与常量值解析
 
-#### 7.3.1 常量值解析
+#### 7.4.1 常量值解析
 
 对每条 `ConstDef`：
 
 1. 从 `ConstRhs` 中提取字面量数值
-2. 按目标类型检查字面量范围（参见语言标准 §4.4）
-3. 若范围检查通过，将字面量编码为 `TcValue` 存入 `SymbolEntry.const_value`
+2. 按目标类型检查字面量范围（参见语言标准 §3.4）
+3. 若范围检查通过，将字面量编码为 `TcValue` 存入 `TcSymbol.const_value`
 4. 若字面量超出范围 → **字面量范围错误**
+5. 检查无符号字面量（`u`/`U` 后缀）是否用于有符号类型 → **字面量类型错误**
 
 常量值在编译期即已确定，Executor 执行到 `ConstDef` 时直接从符号表读取 `const_value` 写入槽位，不重新解析字面量。
 
-#### 7.3.2 类型检查表
+#### 7.4.2 类型检查表
 
-对每条语句检查下表（与语言标准 §2.5、§8.5 对齐）：
+对每条语句检查下表（与语言标准 §4、§5、§6 对齐）：
 
 | 检查项            | 规则                                                         |
 | ----------------- | ------------------------------------------------------------ |
@@ -373,20 +396,23 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 | const_rhs 约束    | `ConstDef` 的 rhs 必须为 `LitRhs`（仅字面量）→ 否则 **常量表达式错误** |
 | 算术 `type` 参数  | 必须与 lhs、rhs 操作数类型一致                               |
 | 操作数同型        | 两 `Operand` 解析后类型相同                                  |
-| 操作数 Variable   | 已定义且类型匹配；若为未初始化变量 → **未初始化变量警告**（见 §7.3.3） |
+| 操作数 Variable   | 已定义且类型匹配；若为未初始化变量 → **未初始化变量警告**（见 §7.4.4） |
 | Literal 范围      | 落在上下文 `IntType` 可表示范围内                            |
 | 字面量类型错误    | `u`/`U` 后缀字面量用于有符号类型上下文；或负号与 `u`/`U` 后缀组合 |
-| `wrap` 合法性     | `div`/`mod` 使用 `Wrap` 模式 → **溢出模式错误**              |
-| `truncate` 合法性 | 算术运算（`add`/`sub`/`mul`/`div`/`mod`）使用 `Truncate` 模式 → **关键字错误** |
+| `wrap` 合法性     | `div`/`mod`/`abs` 使用 `Wrap` 模式 → **溢出模式错误**        |
+| `truncate` 合法性 | 算术运算（`add`/`sub`/`mul`/`div`/`mod`/`abs`/`neg`）使用 `Truncate` 模式 → **关键字错误** |
 | `wrap` 用于 cast  | `CastRhs` 中使用 `Wrap` 模式 → **关键字错误**                |
 | cast 源           | 必须为已定义变量；`CastRhs.source` 仅变量名，非字面量        |
 | cast 目标         | `VarDef`/`Assign` 左侧类型 == `CastRhs.target`               |
+| 格式化符号兼容性  | `%d`/`%i` 要求有符号类型；`%u` 要求无符号类型；其他任意      |
+| 格式化操作数数量  | 格式化版本必须恰好一个操作数；无格式版本也恰好一个操作数     |
+| 格式字符串        | 必须是 `%d`/`%i`/`%u`/`%x`/`%X`/`%o`/`%b` 之一               |
 
-#### 7.3.3 未初始化变量检查算法
+#### 7.4.3 未初始化变量检查算法
 
 实现采用 `last_init_stmt_index[slot]` 缓存（Pass 2 预扫描 `Assign`/`Read` 语句填充；REPL 在 `TcReplAnalyzeCtx` 中增量维护）。
 
-对程序中每个变量读取点（`VarDef` RHS、`Assign` RHS、`Write`/`Writeln` operand、`ArithRhs` operand）：
+对程序中每个变量读取点（`VarDef` RHS、`Assign` RHS、`Write`/`Writeln` operand、`ArithRhs` operand、`UnaryRhs` operand）：
 
 1. 若符号为 `TC_SYM_CONSTANT` → 跳过
 2. 若定义时 `initialized == 1`（`VarDef` 有 RHS）→ 跳过
@@ -395,31 +421,32 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 
 **边界情况**：
 
-| 场景 | 行为 |
-| ---- | ---- |
-| `VarDef` RHS 引用自身 | **静态错误** `TC_ERR_UNDEFINED_VARIABLE`（非警告） |
-| 前向引用未定义变量 | **静态错误** `TC_ERR_UNDEFINED_VARIABLE` |
-| `read(type, var)` 之后的读取 | `read` 计入初始化，不再警告（见 `no_warn_after_read.tc`） |
-| 常量（`let`） | 不参与未初始化检查 |
+| 场景                         | 行为                                               |
+| ---------------------------- | -------------------------------------------------- |
+| `VarDef` RHS 引用自身        | **静态错误** `TC_ERR_UNDEFINED_VARIABLE`（非警告） |
+| 前向引用未定义变量           | **静态错误** `TC_ERR_UNDEFINED_VARIABLE`           |
+| `read(type, var)` 之后的读取 | `read` 计入初始化，不再警告                        |
+| 常量（`let`）                | 不参与未初始化检查                                 |
 
-### 7.4 rhs 结果类型推断
+### 7.5 rhs 结果类型推断
 
 | Rhs 形式   | 结果类型           |
 | ---------- | ------------------ |
 | `LitRhs`   | 由左侧变量类型决定 |
 | `ArithRhs` | `ArithRhs.type`    |
+| `UnaryRhs` | `UnaryRhs.type`    |
 | `CastRhs`  | `CastRhs.target`   |
 
-### 7.5 静态可判定性（v0.0.13）
+### 7.6 静态可判定性（v0.0.17）
 
-以下错误在 v0.0.13 **均可静态检查**，Analyzer 应尽可能在运行前报出：
+以下错误在 v0.0.17 **均可静态检查**，Analyzer 应尽可能在运行前报出：
 
-- 未定义标识符、重复定义、类型错误、字面量范围错误、字面量类型错误、溢出模式错误、关键字错误、常量赋值错误、常量表达式错误
+- 未定义标识符、重复定义、类型错误、字面量范围错误、字面量类型错误、溢出模式错误、关键字错误、常量赋值错误、常量表达式错误、格式字符串错误、格式类型不匹配、操作数数量错误
 
-以下在 v0.0.13 **依赖运行期操作数值**，Analyzer **无法**完全静态判定：
+以下在 v0.0.17 **依赖运行期操作数值**，Analyzer **无法**完全静态判定：
 
 - 除零错误
-- 有符号 strict 算术溢出
+- 有符号 strict 算术溢出（`add`/`sub`/`mul`/`neg`/`abs`）
 - strict cast 不可表示
 
 ---
@@ -431,28 +458,34 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 ```text
 execute(program: TypedProgram):
     slots ← Vec::new(size = symbol_table.len)
+    // 初始化时用毒化填充 0xFE
+    memset(slots, 0xFE, sizeof(TcValue) * symbol_table.len)
+    
     for stmt in program.statements:
         match stmt:
             VarDef with rhs → eval_rhs → slots[slot] ← value
-            VarDef without rhs → 跳过（槽位保持零值，视为未初始化）
-            ConstDef → slots[slot] ← symbol_table[slot].const_value  // 编译期已确定
+            VarDef without rhs → 跳过（槽位保持毒化填充）
+            ConstDef → slots[slot] ← symbol_table[slot].const_value
             Assign → eval_rhs → slots[slot] ← value
+            Write/Writeln → 格式化输出 operand 值
+            Read → 从 stdin 读取并写入 slots[slot]
     // 正常结束：无 HALT 指令，执行完最后一条即结束
 ```
 
 **注意**：
-- `VarDef` 在运行时再次执行初始化（与语义「定义并赋值」一致）；Pass 1 已分配槽位，执行时按语句顺序写入。
-- `VarDef` 无 RHS 时槽位保持 **毒化填充**（实现用 `0xFE` 模式 `memset`，值视为未定义）。
-- `ConstDef` 的值在编译期已确定并存入 `TcSymbol.const_value`，Executor 直接从符号表读取并写入槽位。
-- 分析通过后、执行前，`driver.c` 将 `TcTypedProgram.warnings` 打印到 stderr（`warning: <msg> (line N)`），**不阻止执行**。
+- `VarDef` 在运行时再次执行初始化（与语义「定义并赋值」一致）
+- `VarDef` 无 RHS 时槽位保持 **毒化填充**（实现用 `0xFE` 模式 `memset`，值视为未定义）
+- `ConstDef` 的值在编译期已确定并存入 `TcSymbol.const_value`，Executor 直接从符号表读取并写入槽位
+- 分析通过后、执行前，`driver.c` 将 `TcTypedProgram.warnings` 打印到 stderr（`warning: <msg> (line N)`），**不阻止执行**
 
 ### 8.2 eval_rhs
 
 ```text
 eval_rhs(rhs, expected_type, slots, symbols):
-    LitRhs(v)     → value(type=expected_type, bits=v)
-    ArithRhs(...) → exec_arith(op, type, mode, lhs, rhs, slots, symbols)
-    CastRhs(...)  → exec_cast(target, mode, source, slots, symbols)
+    LitRhs(v)          → value(type=expected_type, bits=v)
+    ArithRhs(op, ...)  → exec_arith(op, type, mode, lhs, rhs, slots, symbols)
+    UnaryRhs(op, ...)  → exec_unary(op, type, mode, operand, slots, symbols)
+    CastRhs(...)       → exec_cast(target, mode, source, slots, symbols)
 ```
 
 ### 8.3 操作数求值
@@ -463,20 +496,22 @@ eval_operand(Operand, expected_type, ...):
     Literal(v)     → value(expected_type, v)
 ```
 
-求值顺序（语言标准 §8.1）：
+求值顺序（语言标准 §4.6）：
 
-- 算术：先 `lhs`，再 `rhs`，再运算
+- 双目算术：先 `lhs`，再 `rhs`，再运算
+- 单目算术：求值 `operand`，再运算
 - `wrap`/`truncate` 为模式关键字，不参与运行时求值
 
 ### 8.4 运行时错误
 
 发生以下情况时，Executor **立即终止**，返回 `Diagnostic`（含源行号）：
 
-| 错误         | 条件                                           |
-| ------------ | ---------------------------------------------- |
-| 除零错误     | `div`/`mod` 右操作数 `bits == 0`               |
-| 整数溢出错误 | 有符号 + strict + `add`/`sub`/`mul` 结果超范围 |
-| 转换溢出错误 | strict `cast` 不可表示                         |
+| 错误         | 条件                                                       |
+| ------------ | ---------------------------------------------------------- |
+| 除零错误     | `div`/`mod` 右操作数 `bits == 0`                           |
+| 整数溢出错误 | 有符号 + strict + `add`/`sub`/`mul`/`neg`/`abs` 结果超范围 |
+| 转换溢出错误 | strict `cast` 不可表示                                     |
+| I/O 错误     | `read` 读取失败（非法输入/超范围/EOF）                     |
 
 无符号算术 **不** 报整数溢出错误（模 2^n 回绕）。
 
@@ -497,38 +532,41 @@ TcValue { type: IntType, bits: uint64 }
 
 - 词法为十进制非负整数（含可选的 `-` 前缀）
 - 解析为 `uint64`；若超过 `uint64` 最大值 → **字面量范围错误**（静态）
-- 带负号的无后缀字面量解析规则（对应语言标准 §15 的 `INT64_MIN` 边界情况）：
+- 带负号的无后缀字面量解析规则（对应语言标准 §2.3.5 的 `INT64_MIN` 边界情况）：
   1. 将数字部分（不含负号）解析为 `uint64` 值 `N`
   2. 要求 `0 ≤ N ≤ UINT64_MAX`
   3. 取 `-N` 作为有符号整数值
   4. `N = 9223372036854775808` 时，`-N = INT64_MIN`，为合法边界值
-- 与上下文类型结合时，按语言标准 §4.4 检查上界
+- 与上下文类型结合时，按语言标准 §3.4 检查上界
 
 ### 9.3 中间计算
 
-| 场景               | 实现要求（`runtime/semantics.c`）                            |
-| ------------------ | ------------------------------------------------------------ |
-| 有符号 strict 加减 | `tc_sadd_overflow` / `tc_ssub_overflow` 在 int64 域检测      |
-| 有符号 strict 乘法 | 宽整数路径；`uint64` 用 `tc_umul64`（32 位分块 64×64→128）   |
-| 无符号运算         | 位宽掩码 `tc_mask_bits`；64 位乘法同样经 `tc_umul64`         |
-| cast               | `tc_cast_strict` / `tc_cast_truncate` 在 `bits` 上操作       |
+| 场景                   | 实现要求（`runtime/semantics.c`）                          |
+| ---------------------- | ---------------------------------------------------------- |
+| 有符号 strict 加减     | `tc_sadd_overflow` / `tc_ssub_overflow` 在 int64 域检测    |
+| 有符号 strict 乘法     | 宽整数路径；`uint64` 用 `tc_umul64`（32 位分块 64×64→128） |
+| 有符号 strict 取负     | 检测操作数是否为 `INT_MIN`                                 |
+| 有符号 strict 取绝对值 | 检测操作数是否为 `INT_MIN`                                 |
+| 无符号运算             | 位宽掩码 `tc_mask_bits`；64 位乘法经 `tc_umul64`           |
+| cast                   | `tc_cast_strict` / `tc_cast_truncate` 在 `bits` 上操作     |
 
 ---
 
 ## 10. 内建指令语义实现
 
-内建函数是 TC 语义的**唯一实现入口**；行为必须与《TC 语言标准设计说明书》§6、§7 一致。
+内建函数是 TC 语义的**唯一实现入口**；行为必须与《TC 语言标准设计说明书》§5、§6 一致。
 
 ### 10.1 函数清单
 
 ```text
-exec_arith(op, type, mode, lhs, rhs) -> TcValue | Error
-exec_cast(target, mode, source_slot) -> TcValue | Error
+exec_arith(op, type, mode, lhs, rhs) -> TcValue | Error      // 双目算术
+exec_unary(op, type, mode, operand) -> TcValue | Error       // 单目算术
+exec_cast(target, mode, source_slot) -> TcValue | Error      // 类型转换
 ```
 
 可按 `IntType` 分派到具体实现，或统一实现后按 `type` 参数化。
 
-### 10.2 算术（exec_arith）
+### 10.2 双目算术（exec_arith）
 
 **有符号 `int8`～`int64`**
 
@@ -547,38 +585,111 @@ exec_cast(target, mode, source_slot) -> TcValue | Error
 
 **wrap 模式与无符号**：`add(T, wrap, …)` 对有符号 T 启用回绕；对无符号 T 与三参数形式行为相同（无符号默认回绕）。
 
-有符号 `wrap` 下的 `add`/`sub`/`mul` 与同位宽无符号默认回绕 **位模式一致**（语言标准 §6.1）。
+有符号 `wrap` 下的 `add`/`sub`/`mul` 与同位宽无符号默认回绕 **位模式一致**（语言标准 §5.1）。
+
+**特殊情形**（`b ≠ 0`）：
+
+| 表达式                   | 结果         | 说明                        |
+| ------------------------ | ------------ | --------------------------- |
+| `div(T, INT_MIN(T), −1)` | `INT_MIN(T)` | 同 C 有符号除法，**不报错** |
+| `mod(T, INT_MIN(T), −1)` | `0`          | 同 C 有符号取余             |
 
 **实现备注**：
-- `mod` 应直接按数学定义计算余数，无需依赖恒等式 `mod(T, a, b) == sub(T, a, mul(T, div(T, a, b), b))`
-- 该恒等式仅在 `mul` 和 `sub` 不溢出时成立，不作为实现要求
+- `mod` 应直接按数学定义计算余数，无需依赖恒等式
+- 检测除零在运算符求值后立即进行
 
-### 10.3 类型转换（exec_cast）
+### 10.3 单目算术（exec_unary）
+
+**有符号 `int8`～`int64`**
+
+| op   | strict                   | wrap                     |
+| ---- | ------------------------ | ------------------------ |
+| abs  | `INT_MIN` → 整数溢出错误 | 不支持（静态错误）       |
+| neg  | `INT_MIN` → 整数溢出错误 | mod 2^n 回绕，位模式解释 |
+
+**无符号 `uint8`～`uint64`**
+
+| op   | 行为                   |
+| ---- | ---------------------- |
+| abs  | 恒等返回（`abs` 恒等） |
+| neg  | `0 - operand` mod 2^n  |
+
+**实现伪代码**：
+
+```c
+int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
+                  const TcValue *operand, TcValue *out,
+                  TcDiagnostic *diag, int line) {
+    uint64_t bits = operand->bits & tc_type_mask(type);
+    int n = tc_type_bit_width(type);
+    uint64_t mask = (n == 64) ? UINT64_MAX : ((1ULL << n) - 1);
+    
+    switch (op) {
+    case TC_UNARY_ABS:
+        if (tc_type_is_signed(type)) {
+            int64_t val = tc_bits_to_signed(bits, n);
+            if (val == tc_type_min_signed(type)) {
+                return tc_diag_set(diag, TC_ERR_INTEGER_OVERFLOW, line,
+                                  "abs(INT_MIN) overflow");
+            }
+            if (val < 0) val = -val;
+            out->bits = (uint64_t)val & mask;
+        } else {
+            out->bits = bits;
+        }
+        break;
+        
+    case TC_UNARY_NEG:
+        if (tc_type_is_signed(type) && mode == TC_ARITH_STRICT) {
+            int64_t val = tc_bits_to_signed(bits, n);
+            if (val == tc_type_min_signed(type)) {
+                return tc_diag_set(diag, TC_ERR_INTEGER_OVERFLOW, line,
+                                  "neg(INT_MIN) overflow");
+            }
+            val = -val;
+            out->bits = (uint64_t)val & mask;
+        } else {
+            // 有符号 wrap 或无符号：二补码取负
+            out->bits = (bits == 0) ? 0 : (mask ^ bits) + 1;
+        }
+        break;
+    }
+    
+    out->type = type;
+    return 1;
+}
+```
+
+### 10.4 类型转换（exec_cast）
 
 分 `mode` 两支：
 
-**StrictTrunc（strict）** — 按语言标准 §7.3 表：
+**StrictTrunc（strict）** — 按语言标准 §6.2 表：
 
-- 加宽：符号扩展 / 零扩展；跨符号性检查可表示性
-- 等宽异符号：检查范围
-- 缩窄：有符号检查范围；无符号→无符号截断不报错
-- 同类型：恒等
+| 源 → 目标       | strict 规则                         |
+| --------------- | ----------------------------------- |
+| 有符号 → 有符号 | 加宽：符号扩展；缩窄：范围检查      |
+| 无符号 → 无符号 | 加宽：零扩展；缩窄：截断（不报错）  |
+| 有符号 → 无符号 | 源 ≥ 0 且范围内 → 转换；否则 → 错误 |
+| 无符号 → 有符号 | 源 ≤ 目标 max → 转换；否则 → 错误   |
+| 同类型          | 恒等                                |
 
-**Truncate** — 按语言标准 §7.4 位模式算法：
+**Truncate** — 按语言标准 §6.3 位模式算法：
 
 1. 源位宽 `n`，目标位宽 `m`，源位模式 `bits`
 2. `m ≤ n`：`bits mod 2^m`，按目标类型解释
-3. `m > n`：零扩展或符号扩展（见语言标准 §7.4 第 2 点）
+3. `m > n`：零扩展或符号扩展（见语言标准 §6.3 第 2 点）
 
 > `cast` 中 `wrap` 关键字不可用，使用则触发静态 **关键字错误**。
 
-### 10.4 与 C 语义对照
+### 10.5 与 C 语义对照
 
-实现与测试时以语言标准附录 A 为参考：
+实现与测试时以语言标准附录 B 为参考：
 
 - TC 有符号 strict 溢出 **必须报错**（C 为 UB）
 - TC strict cast 不可表示 **必须报错**
 - 无符号回绕与 C 一致
+- `INT_MIN / -1` 与 C 一致
 
 ---
 
@@ -586,13 +697,13 @@ exec_cast(target, mode, source_slot) -> TcValue | Error
 
 ### 11.1 错误分类
 
-| 阶段         | 错误类型                                           | 是否执行         |
-| ------------ | -------------------------------------------------- | ---------------- |
-| Lexer/Parser | 语法错误（非法 token、括号不匹配等）               | 否               |
-| Analyzer     | 语言标准 §11 中可静态确定的错误 + I/O 语句类型检查 | 否               |
-| Executor     | 除零、整数溢出、转换溢出、I/O 输入失败             | 否（已部分执行） |
+| 阶段         | 错误类型                               | 是否执行         |
+| ------------ | -------------------------------------- | ---------------- |
+| Lexer/Parser | 语法错误（非法 token、括号不匹配等）   | 否               |
+| Analyzer     | 语言标准 §9.1 中可静态确定的错误       | 否               |
+| Executor     | 除零、整数溢出、转换溢出、I/O 输入失败 | 否（已部分执行） |
 
-语法错误不在语言标准 §11 枚举内，TC-VM 扩展为 **语法错误**，建议单独错误码。
+语法错误不在语言标准 §9 枚举内，TC-VM 扩展为 **语法错误**。
 
 ### 11.2 Diagnostic 结构
 
@@ -608,34 +719,37 @@ Diagnostic ::= {
 
 ### 11.3 ErrorKind 枚举（`TcErrorKind`）
 
-与语言标准 §11 对齐（`runtime/tc_types.h`）：
+与语言标准 §9.1 对齐（`runtime/tc_types.h`）：
 
 ```text
 TcErrorKind ::=
     TC_ERR_SYNTAX                  // VM 扩展：词法/语法/OOM/文件 I/O
-    TC_ERR_UNDEFINED_VARIABLE
-    TC_ERR_DUPLICATE_DEFINITION
-    TC_ERR_TYPE_MISMATCH
-    TC_ERR_LITERAL_OUT_OF_RANGE
-    TC_ERR_LITERAL_TYPE
-    TC_ERR_OVERFLOW_MODE           // div/mod 使用 wrap
-    TC_ERR_KEYWORD                 // wrap/truncate 误用
-    TC_ERR_CONSTANT_ASSIGNMENT
-    TC_ERR_CONSTANT_EXPRESSION
-    TC_ERR_DIVISION_BY_ZERO
-    TC_ERR_INTEGER_OVERFLOW
-    TC_ERR_CAST_OVERFLOW
-    TC_ERR_IO
+    TC_ERR_UNDEFINED_VARIABLE      // 未定义标识符错误
+    TC_ERR_DUPLICATE_DEFINITION    // 重复定义错误
+    TC_ERR_TYPE_MISMATCH           // 类型错误
+    TC_ERR_LITERAL_OUT_OF_RANGE    // 字面量范围错误
+    TC_ERR_LITERAL_TYPE            // 字面量类型错误
+    TC_ERR_OVERFLOW_MODE           // 溢出模式错误（div/mod/abs 使用 wrap）
+    TC_ERR_KEYWORD                 // 关键字错误（wrap/truncate 误用）
+    TC_ERR_CONSTANT_ASSIGNMENT     // 常量赋值错误
+    TC_ERR_CONSTANT_EXPRESSION     // 常量表达式错误
+    TC_ERR_FORMAT_STRING           // 格式字符串错误
+    TC_ERR_FORMAT_TYPE_MISMATCH    // 格式类型不匹配
+    TC_ERR_OPERAND_COUNT           // 操作数数量错误
+    TC_ERR_DIVISION_BY_ZERO        // 除零错误
+    TC_ERR_INTEGER_OVERFLOW        // 整数溢出错误
+    TC_ERR_CAST_OVERFLOW           // 转换溢出错误
+    TC_ERR_IO                      // I/O 错误
 
 TcWarningKind ::=
-    TC_WARN_UNINITIALIZED_VARIABLE
+    TC_WARN_UNINITIALIZED_VARIABLE // 未初始化变量警告
 ```
 
 ### 11.4 诊断策略
 
-- **静态错误**：报告第一条致命错误即停止（v0.0.13）；后续可扩展为 collect-all
+- **静态错误**：报告第一条致命错误即停止；后续可扩展为 collect-all
 - **编译警告**：报告所有可检测的警告（如未初始化变量读取），**不阻止执行**
-- **运行时错误**：报告错误时 PC 对应当前 `StatementRecord.line`
+- **运行时错误**：报告错误时 PC 对应当前 `TcStatement.line`
 - 消息中应包含：错误/警告类型、行号、涉及变量名/类型（若适用）
 
 ---
@@ -649,16 +763,29 @@ TC-VM 位于 [TC-Compiler](../README.md) 的 `src/vm/`，与 TC-AOT（`src/aot/`
 ```text
 src/vm/
 ├── runtime/            # TcValue、TcIntType、TcDiagnostic、TcWarning、Semantics、Symbol
-│   ├── types.c         # tc_type_*、tc_arith_op_parse、tc_error_kind_name
-│   ├── diagnostic.c    # tc_diagnostic_init/set/print
-│   ├── symbol.c        # tc_symbol_table_*（符号表 CRUD）
-│   ├── warning.c       # tc_warning_list_*
-│   └── semantics.c     # tc_exec_arith、tc_exec_cast、字面量/位模式工具
+│   ├── tc_types.h      # 所有类型定义、枚举
+│   ├── tc_types.c      # tc_type_*、tc_error_kind_name、tc_format_spec_name
+│   ├── tc_diagnostic.c # tc_diagnostic_init/set/print
+│   ├── tc_symbol.c     # tc_symbol_table_*（符号表 CRUD）
+│   ├── tc_warning.c    # tc_warning_list_*
+│   └── tc_semantics.c  # tc_exec_arith、tc_exec_unary、tc_exec_cast、字面量/位模式工具
 ├── lexer/              # tc_tokenize_line（含多进制字面量、u 后缀）
+│   ├── tc_lexer.h
+│   └── tc_lexer.c
 ├── parser/             # tc_parse_statement、tc_program_push
+│   ├── tc_parser.h
+│   └── tc_parser.c
 ├── analyzer/           # tc_analyze、tc_analyze_statement（两遍分析 + REPL 增量）
+│   ├── tc_analyzer.h
+│   └── tc_analyzer.c
 ├── executor/           # tc_execute、tc_execute_statement、I/O
+│   ├── tc_executor.h
+│   └── tc_executor.c
 ├── driver/             # tc_run_source、tc_run_file、tc_repl_run、main
+│   ├── tc_driver.h
+│   ├── tc_driver.c
+│   ├── tc_repl.h
+│   └── tc_repl.c
 └── CMakeLists.txt      # tc-vm + check-vm（C99 -Wall -Wextra -pedantic）
 ```
 
@@ -667,35 +794,38 @@ src/vm/
 ### 12.2 核心接口（C API）
 
 ```c
-// lexer/lexer.c
+// lexer/tc_lexer.h
 int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnostic *diag);
 
-// parser/parser.c
+// parser/tc_parser.h
 int tc_parse_statement(const TcTokenList *tokens, int line_no, TcStatement *out, TcDiagnostic *diag);
 
-// analyzer/analyzer.c
+// analyzer/tc_analyzer.h
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);
 int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                          TcReplAnalyzeCtx *repl_ctx, TcWarningList *warnings,
                          TcDiagnostic *diag);
 
-// executor/executor.c
+// executor/tc_executor.h
 int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag);
 int tc_execute_statement(const TcStatement *stmt, TcValue *slots,
                          const TcSymbolTable *symbols, TcDiagnostic *diag);
 
-// runtime/semantics.c
+// runtime/tc_semantics.h
 int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                  TcDiagnostic *diag, int line);
+int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
+                  const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line);
 int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line);
 
-// driver/driver.c
+// driver/tc_driver.h
 int tc_run_source(const char *source, int check_only, TcDiagnostic *diag);
 int tc_run_file(const char *path, int check_only, TcDiagnostic *diag);
 
-// driver/repl.c
+// driver/tc_repl.h
 int tc_repl_run(TcDiagnostic *diag);
 ```
 
@@ -708,7 +838,7 @@ tc-vm [options] [<file.tc>]   # 执行文件，成功静默退出 0
 tc-vm --check <file.tc>       # 仅 Analyzer，不执行
 tc-vm --repl                  # 交互式 REPL
 tc-vm --help                  # 显示用法
-tc-vm --version               # 显示版本
+tc-vm --version               # 显示版本（v0.0.17）
 ```
 
 退出码：0 成功；非 0 失败（静态或运行时错误）。REPL 正常退出也返回 0。
@@ -728,42 +858,55 @@ VM 构建脚本与 AOT 分离；根目录 `Makefile` 转发至 CMake，也可直
 
 ## 13. 执行流程示例
 
-源文件 `example.tc`：
+源文件 `example.tc`（含 v0.0.17 新特性）：
 
 ```text
+; 变量定义
 var a: int32 = 10
 var b: int32 = 20
+
+; 双目算术
 var sum: int32 = add(int32, a, b)
-var c: int8 = cast(int8, truncate, sum)
+
+; 单目算术
+var neg_a: int32 = neg(int32, a)
+
+; 常量定义
+let SCALE: int32 = 1000
+
+; 类型转换
+var scaled: int32 = mul(int32, sum, SCALE)
+var c: int8 = cast(int8, truncate, scaled)
+
+; I/O 格式化
+writeln(int32, %d, c)
 ```
 
 ### 13.1 Analyzer 产出（示意）
 
-| PC   | 行   | 语句                                   | 槽位   |
-| ---- | ---- | -------------------------------------- | ------ |
-| 0    | 1    | VarDef a, int32, Lit(10)               | slot 0 |
-| 1    | 2    | VarDef b, int32, Lit(20)               | slot 1 |
-| 2    | 3    | VarDef sum, int32, Add strict          | slot 2 |
-| 3    | 4    | VarDef c, int8, Cast truncate from sum | slot 3 |
+| PC   | 行   | 语句                             | 槽位   |
+| ---- | ---- | -------------------------------- | ------ |
+| 0    | 2    | VarDef a, int32, Lit(10)         | slot 0 |
+| 1    | 3    | VarDef b, int32, Lit(20)         | slot 1 |
+| 2    | 6    | VarDef sum, int32, Add strict    | slot 2 |
+| 3    | 9    | VarDef neg_a, int32, Neg strict  | slot 3 |
+| 4    | 12   | ConstDef SCALE, int32, Lit(1000) | slot 4 |
+| 5    | 15   | VarDef scaled, int32, Mul strict | slot 5 |
+| 6    | 16   | VarDef c, int8, Cast truncate    | slot 6 |
+| 7    | 19   | Writeln fmt=%d, c                | —      |
 
 ### 13.2 Executor 逐步执行
 
-| PC   | 动作                          | slots 快照（示意） |
-| ---- | ----------------------------- | ------------------ |
-| 0    | a ← 10                        | a=10               |
-| 1    | b ← 20                        | b=20               |
-| 2    | sum ← add(10,20)=30           | sum=30             |
-| 3    | c ← cast int8 truncate(30)=30 | c=30               |
-
-源 `cast(int8, truncate, sum)` 中 sum=30 在 int8 范围内，truncate 与 strict 结果相同。
-
-### 13.3 运行时错误示例
-
-```text
-var x: int32 = 1
-var y: int32 = 0
-var z: int32 = div(int32, x, y)    ; 行 3：除零错误，PC=2 执行时终止
-```
+| PC   | 动作                        | slots 快照   |
+| ---- | --------------------------- | ------------ |
+| 0    | a ← 10                      | a=10         |
+| 1    | b ← 20                      | b=20         |
+| 2    | sum ← add(10,20)=30         | sum=30       |
+| 3    | neg_a ← neg(10)=-10         | neg_a=-10    |
+| 4    | SCALE ← 1000                | SCALE=1000   |
+| 5    | scaled ← mul(30,1000)=30000 | scaled=30000 |
+| 6    | c ← cast truncate(30000)    | c=-16        |
+| 7    | writeln " -16\n"            | stdout       |
 
 ---
 
@@ -771,12 +914,12 @@ var z: int32 = div(int32, x, y)    ; 行 3：除零错误，PC=2 执行时终止
 
 ### 14.1 测试分层
 
-| 层级 | 对象                                 | 方法                               |
-| ---- | ------------------------------------ | ---------------------------------- |
-| 单元 | `exec_arith`、`exec_cast`、`TcValue` | 表驱动，对照语言标准 §6、§7 边界   |
-| 组件 | Lexer、Parser、Analyzer              | 单条/多条语句快照                  |
-| 集成 | `run(source)`                        | 语言标准 §10 全文示例              |
-| 回归 | 错误用例                             | 每条语言标准 §11 错误至少 1 个负例 |
+| 层级 | 对象                                               | 方法                              |
+| ---- | -------------------------------------------------- | --------------------------------- |
+| 单元 | `exec_arith`、`exec_unary`、`exec_cast`、`TcValue` | 表驱动，对照语言标准 §5、§6 边界  |
+| 组件 | Lexer、Parser、Analyzer                            | 单条/多条语句快照                 |
+| 集成 | `run(source)`                                      | 语言标准 §8 全文示例              |
+| 回归 | 错误用例                                           | 每条语言标准 §9 错误至少 1 个负例 |
 
 ### 14.2 Conformance 目录
 
@@ -790,107 +933,112 @@ tests/
 
 `scripts/vm/run_tests.sh` 由 CMake 目标 `check-vm` 调用；支持 `ASAN=1` 或 `--asan` 切换至 `build-asan/vm/bin/tc-vm`。
 
-### 14.3 当前回归用例（v0.0.14）
-
-脚本对每类用例除检查退出码外，还对 **错误用例** 校验诊断格式（须含 `file:line: error:`），对 **输出用例** 比对 stdout 字节级一致。
+### 14.3 回归用例（v0.0.17）
 
 #### valid — 执行成功
 
-| 用例 | 验证方式 |
-| ---- | -------- |
-| `example.tc`、`signed_wrap.tc`、`uint8_wrap.tc`、`var_no_init.tc` | 退出码 0 |
-| `no_warn_after_assign.tc`、`no_warn_after_read.tc` | 成功且无 `warning:` |
-| `uninitialized.tc` | 成功且 stderr 含 `use of possibly uninitialized variable 'a'` |
-| `let_constant.tc`、`hex/oct/bin_literal.tc`、`literal_separator.tc` 等 | stdout 期望值 |
-| `wrap_int8/uint8_output.tc`、`wrap_sub_mul.tc`、`truncate_cast.tc` | stdout 期望值 |
-| `div_mod_signed.tc`、`int64_min.tc`、`int64_min_div.tc` | stdout 期望值 |
-| `strict_cast_widen.tc`、`sign_extend_cast.tc` | stdout 期望值 |
-| `write_int8_number.tc`、`write_no_newline.tc` | stdout 期望值（int8 按数字输出） |
-| `comments_semicolon.tc`、`semicolon_inline_comment.tc` | stdout 期望值 |
-| `read_write.tc` | 管道 stdin + stdout 期望 |
-| `example.tc`、`let_constant.tc` | `--check` 模式退出码 0 |
+| 用例                                                         | 验证方式                                                  |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| `example.tc`、`signed_wrap.tc`、`uint8_wrap.tc`、`var_no_init.tc` | 退出码 0                                                  |
+| `no_warn_after_assign.tc`、`no_warn_after_read.tc`           | 成功且无 `warning:`                                       |
+| `uninitialized.tc`                                           | 成功且 stderr 含 `use of possibly uninitialized variable` |
+| `let_constant.tc`、`hex/oct/bin_literal.tc`、`literal_separator.tc` | stdout 期望值                                             |
+| `wrap_int8/uint8_output.tc`、`wrap_sub_mul.tc`、`truncate_cast.tc` | stdout 期望值                                             |
+| `div_mod_signed.tc`、`int64_min.tc`、`int64_min_div.tc`      | stdout 期望值                                             |
+| `strict_cast_widen.tc`、`sign_extend_cast.tc`                | stdout 期望值                                             |
+| `write_int8_number.tc`、`write_no_newline.tc`                | stdout 期望值                                             |
+| **`abs_neg_signed.tc`**                                      | stdout 期望值（新增）                                     |
+| **`unary_wrap.tc`**                                          | stdout 期望值（新增）                                     |
+| **`format_output.tc`**                                       | stdout 期望值（新增）                                     |
+| **`format_hex_bin.tc`**                                      | stdout 期望值（新增）                                     |
+| `comments_semicolon.tc`、`semicolon_inline_comment.tc`       | stdout 期望值                                             |
+| `read_write.tc`                                              | 管道 stdin + stdout 期望                                  |
+| `example.tc`、`let_constant.tc`                              | `--check` 模式退出码 0                                    |
 
 #### stress
 
-| 用例 | 验证方式 |
-| ---- | -------- |
+| 用例              | 验证方式                 |
+| ----------------- | ------------------------ |
 | `massive_vars.tc` | 55 个变量定义后输出 `55` |
 
 #### errors/runtime
 
-| 用例 | 期望消息片段 |
-| ---- | ------------ |
-| `signed_strict_overflow.tc`、`signed_strict_mul.tc` | `out of range` |
-| `div_zero.tc`、`mod_zero.tc` | `division by zero` |
-| `cast_strict_overflow.tc` | `out of range` |
-| `read_invalid.tc` | `unexpected end of input` |
-| `read_invalid_input.tc` | `invalid input`（管道 `abc`） |
-| `read_out_of_range.tc` | `input value out of range` |
+| 用例                                                | 期望消息片段               |
+| --------------------------------------------------- | -------------------------- |
+| `signed_strict_overflow.tc`、`signed_strict_mul.tc` | `out of range`             |
+| `neg_int_min.tc`                                    | `neg(INT_MIN) overflow`    |
+| `abs_int_min.tc`                                    | `abs(INT_MIN) overflow`    |
+| `div_zero.tc`、`mod_zero.tc`                        | `division by zero`         |
+| `cast_strict_overflow.tc`                           | `out of range`             |
+| `read_invalid.tc`                                   | `unexpected end of input`  |
+| `read_invalid_input.tc`                             | `invalid input`            |
+| `read_out_of_range.tc`                              | `input value out of range` |
 
 #### errors/static
 
-| 用例 | 期望消息片段 |
-| ---- | ------------ |
-| `duplicate_def.tc`、`duplicate_let_var.tc` | `duplicate definition` |
-| `literal_range.tc` | `literal out of range` |
-| `literal_type_error.tc` | `literal type` |
-| `wrap_mode_error.tc` | `div/mod do not support wrap` |
-| `keyword_error.tc` | `wrap cannot be used with cast` |
-| `truncate_in_arith.tc` | `truncate cannot be used with arithmetic` |
-| `const_assign.tc` | `cannot assign to constant` |
-| `const_expr.tc` | `constant initializer must be a literal` |
-| `negative_unsigned_literal.tc` | `unsigned suffix` |
-| `leading_zero.tc` | `invalid integer literal` |
-| `undefined_variable.tc` | `undefined variable` |
-| `forward_reference.tc` | `undefined variable` |
-| `self_reference.tc` | `cannot reference itself` |
-| `type_mismatch.tc` | `operand type does not match` |
-| `syntax_error.tc` | `unexpected token` |
-| `cast_literal.tc` | `cast source must be a variable` |
+| 用例                                       | 期望消息片段                              |
+| ------------------------------------------ | ----------------------------------------- |
+| `duplicate_def.tc`、`duplicate_let_var.tc` | `duplicate definition`                    |
+| `literal_range.tc`                         | `literal out of range`                    |
+| `literal_type_error.tc`                    | `literal type`                            |
+| `wrap_mode_error.tc`                       | `div/mod do not support wrap`             |
+| `abs_wrap_error.tc`                        | `abs does not support wrap`               |
+| `keyword_error.tc`                         | `wrap cannot be used with cast`           |
+| `truncate_in_arith.tc`                     | `truncate cannot be used with arithmetic` |
+| `const_assign.tc`                          | `cannot assign to constant`               |
+| `const_expr.tc`                            | `constant initializer must be a literal`  |
+| `negative_unsigned_literal.tc`             | `unsigned suffix`                         |
+| `leading_zero.tc`                          | `invalid integer literal`                 |
+| `undefined_variable.tc`                    | `undefined variable`                      |
+| `forward_reference.tc`                     | `undefined variable`                      |
+| `self_reference.tc`                        | `cannot reference itself`                 |
+| `type_mismatch.tc`                         | `operand type does not match`             |
+| `syntax_error.tc`                          | `unexpected token`                        |
+| `cast_literal.tc`                          | `cast source must be a variable`          |
+| **`format_string_error.tc`**               | `invalid format specifier`                |
+| **`format_type_mismatch.tc`**              | `%d requires signed type`                 |
+| **`format_operand_count.tc`**              | `operand count error`                     |
 
-上述静态错误用例中，`duplicate_def`、`literal_range`、`undefined_variable`、`type_mismatch`、`wrap_mode_error`、`const_assign`、`const_expr`、`syntax_error` 同时在 `--check` 模式下验证失败。
+### 14.4 REPL 测试
 
-#### REPL（`tc-vm --repl`）
+| 场景                 | 期望                          |
+| -------------------- | ----------------------------- |
+| 跨行变量 + `writeln` | 输出含 `30`                   |
+| 重复 `var` 定义      | 诊断含 `duplicate definition` |
+| `:reset` + `:vars`   | `(no variables)`              |
+| `let` 常量           | 输出含 `99`                   |
+| `:help`              | 输出含 `Meta commands`        |
+| `let` 字面量超范围   | 会话无污染                    |
 
-| 场景 | 期望 |
-| ---- | ---- |
-| 跨行变量 + `writeln` | 输出含 `30` |
-| 重复 `var` 定义 | 诊断含 `duplicate definition of 'x'` |
-| `:reset` + `:vars` | `(no variables)` |
-| `let` 常量 | 输出含 `99` |
-| `:help` | 输出含 `Meta commands` |
-| `let` 字面量超范围 | 会话无污染（`:vars` 显示 `(no variables)`） |
+### 14.5 必测边界
 
-### 14.4 必测边界
-
-- 有符号 strict 溢出：`add(int8, 127, 1)`
-- 有符号 wrap：`add(int8, wrap, 127, 1)` → -128
-- 无符号回绕：`add(uint8, 250, 10)` → 4
-- div/mod 向零截断与 C 一致用例（语言标准 §6.2 示例）
-- strict / truncate cast 对照（语言标准 §7.2 示例）
-- `div`/`mod` 带 `wrap` → 静态溢出模式错误
+- 有符号 strict 溢出：`add(int8, 127, 1)`、`neg(int8, -128)`、`abs(int8, -128)`
+- 有符号 wrap：`add(int8, wrap, 127, 1)` → -128、`neg(int8, wrap, -128)` → -128
+- 无符号回绕：`add(uint8, 250, 10)` → 4、`neg(uint8, 1)` → 255
+- div/mod 向零截断与 C 一致用例
+- strict / truncate cast 对照
+- `div`/`mod`/`abs` 带 `wrap` → 静态溢出模式错误
 - `cast` 带 `wrap` → 静态关键字错误
-- 算术运算带 `truncate` → 静态关键字错误
+- 格式化输出：`%x` 输出无符号位模式（`-1` → `ff`）
 - `u` 后缀字面量用于有符号类型 → 字面量类型错误
 - 无 RHS 的 `var` 定义 → 不报错，读取时产生警告
 - `let` 常量定义 → 编译期确定，运行时只读
-- 对 `let` 常量赋值 → 常量赋值错误
 - `INT64_MIN` 字面量 `-9223372036854775808` → 合法
-- `int8`/`uint8` 的 `write` 输出数字而非 ASCII 字符
 
 ---
 
 ## 15. 与语言标准的边界
 
-| 主题                   | 语言标准        | TC-VM 本文档         |
-| ---------------------- | --------------- | -------------------- |
-| 语法、语义             | 权威            | 引用，不重复定义     |
-| 空行、文件尾           | §3.5 规定       | §4 实现约定          |
-| 语法错误               | §11 未枚举      | §11.1 VM 扩展        |
-| 静态 vs 运行时错误划分 | §11 区分两类    | §7.5、§8.4 实现约定  |
-| 编译警告               | §11.2 定义 1 种 | §11.3 WarningKind    |
-| 内部 `StatementRecord` | 无              | 实现细节，非语言成分 |
-| 诊断格式               | 无              | §11.2 实现约定       |
+| 主题                   | 语言标准       | TC-VM 本文档         |
+| ---------------------- | -------------- | -------------------- |
+| 语法、语义             | 权威           | 引用，不重复定义     |
+| 空行、文件尾           | §4.1 规定      | §4 实现约定          |
+| 语法错误               | §9.1 未枚举    | §11.1 VM 扩展        |
+| 静态 vs 运行时错误划分 | §9 区分两类    | §7.6、§8.4 实现约定  |
+| 编译警告               | §9.3 定义 1 种 | §11.3 WarningKind    |
+| 内部 `TcStatement`     | 无             | 实现细节，非语言成分 |
+| 诊断格式               | 无             | §11.2 实现约定       |
+| 格式化符号             | §7.4 定义 7 种 | §5.2 FormatSpec 枚举 |
 
 若实现约定与语言标准可观测语义冲突，**以语言标准为准**。
 
@@ -898,55 +1046,53 @@ tests/
 
 ## 16. 后续扩展预留
 
-语言标准 §12 预留特性在 TC-VM 中的预期挂载点。其中以下特性已在 v0.0.13 中实现：
+语言标准 §5.4、§6.5、§7.6 预留特性在 TC-VM 中的预期挂载点：
 
-- I/O 语句（`write`/`writeln`/`read`）— 已实现
-- 变量未初始化支持 — v0.0.13 实现
-- 常量定义（`let`）— v0.0.13 实现
-- `wrap`/`truncate` 关键字拆分 — v0.0.13 实现
-
-| 扩展             | Analyzer                        | Executor              | 状态 |
-| ---------------- | ------------------------------- | --------------------- | ---- |
-| 比较指令         | 新 `Rhs` 变体                   | 新 `exec_cmp`         | 预留 |
-| `label` / `goto` | 标签符号表、跳转目标检查        | PC 非线性更新         | 预留 |
-| `if`             | 条件类型检查                    | 条件分支              | 预留 |
-| 函数             | 多作用域符号表、参数槽          | 栈帧 / call-return    | 预留 |
-| 数组             | 元素类型、索引检查              | 连续内存 + load/store | 预留 |
-| 字符串           | 字符串类型、格式化输出          | 字符串缓冲区          | 预留 |
-| 编译期常量表达式 | 扩展 `ConstRhs` 支持 `ArithRhs` | 编译期求值            | 预留 |
+| 扩展             | Analyzer                 | Executor              | 状态 |
+| ---------------- | ------------------------ | --------------------- | ---- |
+| 比较指令         | 新 `Rhs` 变体            | 新 `exec_cmp`         | 预留 |
+| 位运算           | 新 `ArithOp` 值          | 新 `exec_bitwise`     | 预留 |
+| 逻辑运算         | 新 `bool` 类型           | 新 `exec_logic`       | 预留 |
+| `label` / `goto` | 标签符号表、跳转目标检查 | PC 非线性更新         | 预留 |
+| `if`             | 条件类型检查             | 条件分支              | 预留 |
+| 函数             | 多作用域符号表、参数槽   | 栈帧 / call-return    | 预留 |
+| 数组             | 元素类型、索引检查       | 连续内存 + load/store | 预留 |
+| 浮点类型         | `float32`/`float64` 类型 | 新 `exec_fp`          | 预留 |
+| 字符串           | 字符串类型、格式化输出   | 字符串缓冲区          | 预留 |
 
 扩展时：
 
 1. 仍保持 **TC 源码即指令**，不引入第二字节码
-2. 新语法纳入 EBNF 后，同步增加 `StatementRecord` / `Rhs` 变体
-3. 保持 `StatementRecord` 与源语句 1:1
+2. 新语法纳入 EBNF 后，同步增加 `TcStatement` / `TcRhs` 变体
+3. 保持 `TcStatement` 与源语句 1:1
 
 ---
 
 ## 17. I/O 语句实现
 
-TC-VM 实现三条 I/O 语句的机制，遵循语言标准 §9 定义的语义。
+TC-VM 实现三条 I/O 语句的机制，遵循语言标准 §7 定义的语义。
 
 ### 17.1 语句解析（Parser）
 
-`tc_parse_statement()` 新增三个解析分支，根据首 Token 分派：
+`tc_parse_statement()` 根据首 Token 分派：
 
 ```
 首 Token → TC_TOK_WRITE    → parse_write_stmt()
          → TC_TOK_WRITELN  → parse_writeln_stmt()
          → TC_TOK_READ     → parse_read_stmt()
          → TC_TOK_VAR      → parse_var_def()
-         → TC_TOK_LET      → parse_const_def()    /* let 常量定义 */
-         → TC_TOK_IDENTIFIER → 原有的 assign 分支
+         → TC_TOK_LET      → parse_const_def()
+         → TC_TOK_IDENTIFIER → assign 分支
 ```
 
-各分支解析完毕后构造对应的 `StatementRecord`：
+各分支解析完毕后构造对应的 `TcStatement`：
 
 ```text
-write(int32, x)       → Write { line, type: int32, operand: Variable("x") }
-write(uint8, 42)      → Write { line, type: uint8,  operand: Literal(42) }
-writeln(int32, x)     → Writeln { line, type: int32, operand: Variable("x") }
-read(int32, x)        → Read { line, type: int32, name: "x" }
+write(int32, x)           → Write { line, type: int32, fmt: 0, operand: Variable("x") }
+write(int32, %d, x)       → Write { line, type: int32, fmt: D, operand: Variable("x") }
+write(uint8, %x, 255u)    → Write { line, type: uint8, fmt: X, operand: Literal(255u) }
+writeln(int32, x)         → Writeln { line, type: int32, fmt: 0, operand: Variable("x") }
+read(int32, x)            → Read { line, type: int32, name: "x" }
 ```
 
 ### 17.2 静态分析（Analyzer）
@@ -957,20 +1103,60 @@ Pass 2 新增对三种 I/O 语句的检查：
 | ------------------- | -------------------------------------------------- | ------------------------------------ |
 | `write` / `writeln` | `operand` 为变量时：变量已定义且类型与 `type` 一致 | `TypeMismatch` / `UndefinedVariable` |
 | `write` / `writeln` | `operand` 为字面量时：值在 `type` 范围内           | `LiteralOutOfRange`                  |
+| `write` / `writeln` | 格式化符号与类型兼容性检查                         | `FormatTypeMismatch`                 |
+| `write` / `writeln` | 格式化版本恰好一个操作数                           | `OperandCount`                       |
 | `read`              | 目标变量已定义且声明的类型与 `type` 一致           | `TypeMismatch` / `UndefinedVariable` |
 
 ### 17.3 执行（Executor）
 
-Executor 在 dispatch 循环中新增三种分支：
-
 **Write / Writeln 执行流程**：
 
 1. 求值 `operand`，得到 `TcValue { type, bits }`
-2. 将 `bits` 按 `type` 解释并格式化为十进制字符串：
-   - 有符号类型：调用 `tc_bits_to_signed()` 得到 `int64_t`，再用 `fprintf` 输出
-   - 无符号类型：将 `bits` 截断到 `type` 位宽后，用 `fprintf("%llu")` 输出
-3. **特别说明**：`int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`，而非 `"A"`（与语言标准 §9.1 一致）
-4. `write` 只输出数值文本；`writeln` 追加 `\n`
+2. 若 `fmt == 0`（无格式）：输出十进制
+3. 若 `fmt != 0`（格式化）：按格式符号输出
+4. `write` 不换行；`writeln` 追加 `\n`
+
+**格式化输出实现**：
+
+```c
+static void write_formatted(TcIntType type, TcFormatSpec fmt,
+                            const TcValue *value, FILE *out) {
+    uint64_t bits = value->bits & tc_type_mask(type);
+    int n = tc_type_bit_width(type);
+    uint64_t mask = (n == 64) ? UINT64_MAX : ((1ULL << n) - 1);
+    uint64_t uval = bits & mask;
+    
+    switch (fmt) {
+    case TC_FMT_D:
+    case TC_FMT_I: {
+        if (!tc_type_is_signed(type)) {
+            fprintf(out, "%llu", (unsigned long long)uval);
+        } else {
+            int64_t sval = tc_bits_to_signed(bits, n);
+            fprintf(out, "%lld", (long long)sval);
+        }
+        break;
+    }
+    case TC_FMT_U:
+        fprintf(out, "%llu", (unsigned long long)uval);
+        break;
+    case TC_FMT_X:
+        fprintf(out, "%llx", (unsigned long long)uval);
+        break;
+    case TC_FMT_XU:
+        fprintf(out, "%llX", (unsigned long long)uval);
+        break;
+    case TC_FMT_O:
+        fprintf(out, "%llo", (unsigned long long)uval);
+        break;
+    case TC_FMT_B:
+        for (int i = n - 1; i >= 0; i--) {
+            fputc((uval >> i) & 1 ? '1' : '0', out);
+        }
+        break;
+    }
+}
+```
 
 **Read 执行流程**：
 
@@ -985,38 +1171,15 @@ Executor 在 dispatch 循环中新增三种分支：
    if not fits_type(value, type): → TC_ERR_IO
    if EOF before any digit: → TC_ERR_IO
    ```
-2. 将 `value` 编码为 `type` 的位模式，写入目标变量的 `slots[symbol->slot]`
+2. 将 `value` 编码为 `type` 的位模式，写入目标变量槽位
 
-### 17.4 Executor 接口
-
-Executor 直接使用 `stdio` 的 `stdout` / `stdin` 进行 I/O 操作。无需额外回调参数。
-
-```c
-int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag);
-```
-
-内部实现通过 `fprintf(stdout, ...)` 输出、`fgetc(stdin)` 读取。
-
-### 17.5 字面量操作数在 Executor 中的处理
-
-`write` / `writeln` 允许字面量操作数，例如 `write(int8, 42)`。Analyzer 已保证字面量在 `type` 范围内，Executor 直接将该字面量值按 `type` 格式化输出：
-
-```c
-// executor.c — write/writeln dispatch
-if (operand.kind == TC_OPERAND_LIT) {
-    value = tc_value_make(stmt->u.write.type, operand.u.lit);
-} else {
-    // 从符号表查找变量槽位
-    const TcSymbol *sym = tc_symbol_table_find(symbols, operand.u.name);
-    value = slots[sym->slot];
-}
-```
+**特别说明**：`int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`（与语言标准 §7.1 一致）。
 
 ---
 
 ## 18. 交互式 REPL 实现
 
-TC-VM 提供交互式 REPL 模式，支持逐条输入 TC 语句并立即执行，变量跨行保留。实现文件为 `driver/repl.c`，对外接口定义于 `driver/tc_repl.h`。
+TC-VM 提供交互式 REPL 模式，支持逐条输入 TC 语句并立即执行，变量跨行保留。实现文件为 `driver/repl.c`。
 
 ### 18.1 设计目标
 
@@ -1041,7 +1204,7 @@ TcReplSession {
 }
 
 TcReplAnalyzeCtx {
-    stmt_count:              size_t   // 已执行语句计数（作 stmt_index）
+    stmt_count:              size_t   // 已执行语句计数
     last_init_stmt_index:    int[]    // 每槽最后 Assign/Read 的 stmt_index
     last_init_capacity:      size_t
 }
@@ -1066,16 +1229,14 @@ while 未退出:
 
 与文件模式的关键区别：
 
-| 方面         | 文件模式                              | REPL 模式                                      |
-| ------------ | ------------------------------------- | ---------------------------------------------- |
-| 分析         | 全程序 `tc_analyze()`                 | 逐条 `tc_analyze_statement()`                  |
-| 符号表       | 嵌入 `TcTypedProgram`                 | 持久化在 `TcReplSession.symbols`               |
-| 初始化历史   | Pass 2 预扫描 `last_init_stmt_index`  | `TcReplAnalyzeCtx` 增量维护                    |
-| 变量槽       | Executor 临时分配                     | 持久化在 `TcReplSession.slots`，按需 `realloc` |
-| 警告         | 分析后批量打印                        | 每行分析后打印（若有）                         |
-| 错误处理     | 失败即终止                            | 报告错误后继续接受下一条输入                   |
-
-增量分析通过调用 `tc_analyze_statement()` 实现，该函数接受单个 `TcStatement` 和当前符号表指针，将新 `VarDef`/`ConstDef` 的变量插入符号表并做类型检查。若当前行 `Assign` 引用未定义变量，延迟于该时刻报错。
+| 方面       | 文件模式                             | REPL 模式                                |
+| ---------- | ------------------------------------ | ---------------------------------------- |
+| 分析       | 全程序 `tc_analyze()`                | 逐条 `tc_analyze_statement()`            |
+| 符号表     | 嵌入 `TcTypedProgram`                | 持久化在 `TcReplSession.symbols`         |
+| 初始化历史 | Pass 2 预扫描 `last_init_stmt_index` | `TcReplAnalyzeCtx` 增量维护              |
+| 变量槽     | Executor 临时分配                    | 持久化在 `TcReplSession.slots`，按需扩展 |
+| 警告       | 分析后批量打印                       | 每行分析后打印（若有）                   |
+| 错误处理   | 失败即终止                           | 报告错误后继续接受下一条输入             |
 
 ### 18.4 槽位管理
 
@@ -1088,109 +1249,81 @@ tc_repl_ensure_slots(session):
         新增部分置零
 ```
 
-槽索引由 `tc_analyze_statement()` 在插入新符号时分配，与文件模式的符号表槽分配策略一致。
+槽索引由 `tc_analyze_statement()` 在插入新符号时分配。
 
-### 18.5 内置元命令
+### 18.5 元命令
 
-REPL 支持 4 个以 `:` 开头的元命令，在 `tc_repl_handle_meta()` 中处理：
-
-| 命令                     | 实现                                                       |
-| ------------------------ | ---------------------------------------------------------- |
-| `:quit` / `:exit` / `:q` | 设置 `should_quit = 1`，退出主循环                         |
-| `:reset`                 | `tc_repl_session_reset()` 释放符号表+槽位+分析上下文       |
-| `:vars`                  | 遍历 `session.symbols`，输出 `name: type = value`          |
-| `:help`                  | 打印内置命令帮助（含 `:reset` 内存回收提示）               |
-
-未知 `:` 命令输出 `unknown command` 到 stderr，不退出 REPL。
+| 命令                     | 实现                                                 |
+| ------------------------ | ---------------------------------------------------- |
+| `:quit` / `:exit` / `:q` | 设置 `should_quit = 1`，退出主循环                   |
+| `:reset`                 | `tc_repl_session_reset()` 释放符号表+槽位+分析上下文 |
+| `:vars`                  | 遍历 `session.symbols`，输出 `name: type = value`    |
+| `:help`                  | 打印内置命令帮助                                     |
 
 ### 18.6 TTY 检测
 
 REPL 通过 POSIX `isatty()` 检测 stdin 和 stderr 是否为终端：
 
-- **TTY 模式**：输出欢迎信息、显示 `tc>` 提示符（到 stderr）、交互式会话
-- **非 TTY 模式**（管道输入）：静默处理，不显示提示符和欢迎信息；适用于脚本化输入：
+- **TTY 模式**：输出欢迎信息、显示 `tc>` 提示符、交互式会话
+- **非 TTY 模式**：静默处理，不显示提示符和欢迎信息
 
-```text
-printf 'var a: int32 = 10\nwriteln(int32, a)\n:quit\n' | tc-vm --repl
-→ 输出: 10
-```
+### 18.7 错误处理
 
-### 18.7 与 `read()` 语句的交互
-
-`read()` 语句与 REPL 共享 stdin。若 TC 程序中包含 `read()`，输入行与 REPL 提示在同一 stdin 流中交错：
-
-```text
-tc> read(int32, x)
-42                       ← 用户输入，被 read() 消费
-tc> writeln(int32, x)
-42                       ← writeln 输出
-```
-
-### 18.8 错误处理
-
-| 阶段          | 错误处理                                             |
-| ------------- | ---------------------------------------------------- |
-| 词法/语法错误 | 打印诊断到 stderr，不更新符号表和槽位，继续下一行    |
-| 静态分析错误  | 同上；`VarDef`/`ConstDef` 在 `tc_analyze_statement` 失败时**不**插入符号表 |
-| 槽位分配失败  | 若已插入符号则 `tc_symbol_table_pop_last` 回滚       |
-| 运行时错误    | 打印诊断；该语句副作用不发生，已有状态保留           |
+| 阶段          | 错误处理                                          |
+| ------------- | ------------------------------------------------- |
+| 词法/语法错误 | 打印诊断到 stderr，不更新符号表和槽位，继续下一行 |
+| 静态分析错误  | 同上；`VarDef`/`ConstDef` 失败时**不**插入符号表  |
+| 槽位分配失败  | 若已插入符号则 `tc_symbol_table_pop_last` 回滚    |
+| 运行时错误    | 打印诊断；该语句副作用不发生，已有状态保留        |
 
 所有错误均为非致命：REPL 不会因单行错误退出。
 
-### 18.9 与文件模式的异同
-
-| 维度           | 文件模式                          | REPL 模式                         |
-| -------------- | --------------------------------- | --------------------------------- |
-| 入口           | `main.c` 分派到 `tc_run_file()`   | `main.c` 分派到 `tc_repl_run()`   |
-| 分析           | `tc_analyze()` 全程序两趟         | `tc_analyze_statement()` 逐条增量 |
-| 符号表         | 临时，分析后嵌入 `TcTypedProgram` | 持久化在 `TcReplSession`          |
-| 槽位           | Executor 临时分配                 | REPL 生命周期内持久分配           |
-| 行号           | 从文件读取                        | 从 1 递增，存于 `session.line_no` |
-| 是否支持元命令 | 否                                | 是（`:quit` / `:reset` 等）       |
-| 多文件         | 支持                              | 一个会话仅处理单一输入流          |
-
 ---
 
-## 附录 A：StatementRecord 与源语句对照
+## 附录 A：TcStatement 与源语句对照
 
-| 源语句                        | StatementRecord                                              |
+| 源语句                        | TcStatement                                                  |
 | ----------------------------- | ------------------------------------------------------------ |
 | `var n: int32 = 0`            | `VarDef(line, "n", int32, LitRhs(0))`                        |
 | `var n: int32`                | `VarDef(line, "n", int32, None)`                             |
 | `let N: int32 = 42`           | `ConstDef(line, "N", int32, LitRhs(42))`                     |
 | `n = add(int32, a, b)`        | `Assign(line, "n", ArithRhs(Add, int32, Strict, Var(a), Var(b)))` |
 | `n = add(int32, wrap, a, b)`  | `ArithRhs(..., Wrap, ...)`                                   |
+| `n = abs(int32, a)`           | `Assign(line, "n", UnaryRhs(Abs, int32, Strict, Var(a)))`    |
+| `n = neg(int32, wrap, a)`     | `Assign(line, "n", UnaryRhs(Neg, int32, Wrap, Var(a)))`      |
 | `n = cast(int8, x)`           | `Assign(line, "n", CastRhs(int8, StrictTrunc, "x"))`         |
 | `n = cast(int8, truncate, x)` | `CastRhs(int8, Truncate, "x")`                               |
-| `write(int32, x)`             | `Write(line, int32, Variable("x"))`                          |
-| `writeln(int32, x)`           | `Writeln(line, int32, Variable("x"))`                        |
+| `write(int32, x)`             | `Write(line, int32, fmt=0, Variable("x"))`                   |
+| `write(int32, %d, x)`         | `Write(line, int32, fmt=D, Variable("x"))`                   |
+| `writeln(uint8, %x, 255u)`    | `Writeln(line, uint8, fmt=X, Literal(255u))`                 |
 | `read(int32, x)`              | `Read(line, int32, "x")`                                     |
 
 ---
 
 ## 附录 B：Fetch–Decode–Execute 对照
 
-| 经典 VM          | TC-VM                                  |
-| ---------------- | -------------------------------------- |
-| Fetch 二进制指令 | Fetch `program[PC]`（StatementRecord） |
-| Decode opcode    | `match stmt / rhs` 枚举                |
-| Execute          | `exec_arith` / `exec_cast` / 槽位写入  |
-| PC++             | 除非未来 `goto` 改 PC                  |
+| 经典 VM          | TC-VM                                                      |
+| ---------------- | ---------------------------------------------------------- |
+| Fetch 二进制指令 | Fetch `program[PC]`（TcStatement）                         |
+| Decode opcode    | `match stmt / rhs` 枚举                                    |
+| Execute          | `exec_arith` / `exec_unary` / `exec_cast` / 槽位写入 / I/O |
+| PC++             | 除非未来 `goto` 改 PC                                      |
 
 ---
 
 ## 附录 C：文档修订记录
 
-| 版本           | 日期           | 说明                                                         |
-| -------------- | -------------- | ------------------------------------------------------------ |
-| 1.0            | 2026-07-01     | 首版：直接执行式 TC-VM 架构                                  |
-| 1.0.1          | 2026-07-01     | 对齐 TC-Compiler 工程布局；补充 §12.4 构建与 §14.3 回归用例  |
-| 1.0.2          | 2026-07-01     | §12.3 引用《TC-VM 命令行参考》                               |
-| 1.1            | 2026-07-01     | 新增三条 I/O 语句实现（write/writeln/read）；补充 §17 I/O 实现章节 |
-| 1.2            | 2026-07-01     | 新增交互式 REPL 实现（§18）；更新 §1.3、§12.3、§14.3；补充 REPL 回归测试 |
-| **0.0.13**     | **2026-07-02** | **版本号对齐语言标准 v0.0.13；`overflow` 拆分为 `wrap`（算术回绕）和 `truncate`（类型截断）；新增 `let` 常量定义支持；新增变量未初始化支持（可选 RHS + 编译警告）；新增错误类型：`LiteralTypeError`、`KeywordError`、`ConstantAssignmentError`、`ConstantExpressionError`；新增 `WarningKind` 及 `UninitializedVariableWarning`；更新 §3.1、§5、§6、§7、§8、§10、§11、§13、§14、§15、§16、§17、§18 及附录 A** |
-| **0.0.13-fix** | **2026-07-02** | **修复与语言标准的对齐问题：① §5.4 CastRhs.source 明确为仅变量名；② §6.1 SymbolEntry 新增 const_value 字段用于编译期常量值；③ §7.3 新增常量值解析子章节；④ §7.3.3 新增未初始化变量检查算法；⑤ §9.2 补充 INT64_MIN 边界字面量解析规则；⑥ §10.2 补充 mod 实现备注；⑦ §11.3 LiteralTypeError 补充负号+u后缀组合；⑧ §17.3 补充 int8/uint8 输出格式说明** |
-| **0.0.14** | **2026-07-03** | **与 TC-VM 源码全面对齐**：§1.4 实现版本说明；§5.0 C 类型对照表；§6/§7 补充 `symbol.c`、`visible` 源序表、`last_init_stmt_index`、`read` 初始化；§8 槽位毒化与警告输出；§9.3 `tc_umul64`/`tc_sadd_overflow`；§12 实际 C API 与源文件清单；§14 完整回归用例表（含 stress、`--check`、诊断格式）；§18 `TcReplAnalyzeCtx` 与 REPL 回滚逻辑；`TC_VM_VERSION` 升至 0.0.14 |
+| 版本       | 日期           | 说明                                                         |
+| ---------- | -------------- | ------------------------------------------------------------ |
+| 1.0        | 2026-07-01     | 首版：直接执行式 TC-VM 架构                                  |
+| 1.0.1      | 2026-07-01     | 对齐 TC-Compiler 工程布局                                    |
+| 1.0.2      | 2026-07-01     | §12.3 引用《TC-VM 命令行参考》                               |
+| 1.1        | 2026-07-01     | 新增 I/O 语句实现                                            |
+| 1.2        | 2026-07-01     | 新增交互式 REPL 实现                                         |
+| 0.0.13     | 2026-07-02     | 版本号对齐；`overflow` 拆分；`let` 常量；未初始化变量        |
+| 0.0.13-fix | 2026-07-02     | 修复与语言标准对齐问题                                       |
+| 0.0.14     | 2026-07-03     | 与 TC-VM 源码全面对齐                                        |
+| **0.0.17** | **2026-07-03** | **与语言标准 v0.0.17 全面对齐**：新增单目运算 `abs`/`neg` 支持；新增 I/O 格式化输出（7 种格式符号）；完善字面量 `u` 后缀解析；完善常量 `let` 编译期值处理；完善 `cast` strict/truncate 语义实现；完善 `wrap` 模式位级一致性；补充格式字符串/类型不匹配/操作数数量等静态错误类型；更新 §5、§7、§10、§11、§14、§17、§18 及附录 A |
 
 ---
 
