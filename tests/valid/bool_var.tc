@@ -1,0 +1,5 @@
+; bool 变量定义与无格式输出
+var flag: bool = true
+var off: bool = false
+writeln(bool, flag)
+writeln(bool, off)

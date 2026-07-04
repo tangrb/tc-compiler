@@ -1,0 +1,5 @@
+; let bool constant
+let flag: bool = true
+let other: bool = false
+writeln(bool, flag)
+writeln(bool, other)

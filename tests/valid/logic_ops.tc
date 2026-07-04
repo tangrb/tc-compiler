@@ -1,0 +1,16 @@
+; 逻辑运算与短路求值
+var a: bool = true
+var b: bool = false
+var uninit: bool
+var and_ab: bool = and(bool, a, b)
+var and_ac: bool = and(bool, a, a)
+var or_ab: bool = or(bool, a, b)
+var not_a: bool = not(bool, a)
+var short_and: bool = and(bool, false, uninit)
+var short_or: bool = or(bool, true, uninit)
+writeln(bool, %t, and_ab)
+writeln(bool, %t, and_ac)
+writeln(bool, %t, or_ab)
+writeln(bool, %t, not_a)
+writeln(bool, %t, short_and)
+writeln(bool, %t, short_or)

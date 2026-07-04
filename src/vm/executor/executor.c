@@ -89,6 +89,11 @@ static int tc_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *v
         }
         break;
     }
+    case TC_FMT_T:
+        if (fprintf(out, "%s", value->bits != 0 ? "true" : "false") < 0) {
+            return -1;
+        }
+        break;
     default:
         return -1;
     }
@@ -105,6 +110,10 @@ static int tc_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *v
 static int tc_exec_write_value(const TcValue *value, TcFormatSpec fmt, int newline) {
     if (fmt != TC_FMT_NONE) {
         if (tc_write_formatted(value->type, fmt, value, stdout) != 0) {
+            return -1;
+        }
+    } else if (tc_type_is_bool(value->type)) {
+        if (fprintf(stdout, "%s", value->bits != 0 ? "true" : "false") < 0) {
             return -1;
         }
     } else if (tc_type_is_signed(value->type)) {
@@ -245,15 +254,46 @@ static int tc_read_decimal_digits(int c, int line, TcDiagnostic *diag,
 static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbolTable *symbols,
                            TcDiagnostic *diag) {
     int c = 0;
-    int sign = 1;
-    uint64_t abs_value = 0;
     const TcSymbol *symbol = NULL;
     TcValue value;
 
     tc_io_skip_whitespace();
 
-    c = fgetc(stdin);
-    if (c == EOF) {
+    if (tc_type_is_bool(io_read->type)) {
+        char word[8];
+        size_t i = 0;
+
+        c = fgetc(stdin);
+        while (c != EOF && i + 1 < sizeof(word) &&
+               (c == 't' || c == 'r' || c == 'u' || c == 'e' || c == 'f' || c == 'a' ||
+                c == 'l' || c == 's')) {
+            word[i++] = (char)c;
+            c = fgetc(stdin);
+        }
+        if (c != EOF) {
+            ungetc(c, stdin);
+        }
+        word[i] = '\0';
+        if (strcmp(word, "true") == 0) {
+            value = tc_value_make(TC_BOOL, 1);
+        } else if (strcmp(word, "false") == 0) {
+            value = tc_value_make(TC_BOOL, 0);
+        } else {
+            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        symbol = tc_symbol_table_find(symbols, io_read->name);
+        assert(symbol != NULL);
+        slots[symbol->slot] = value;
+        return 0;
+    }
+
+    {
+        int sign = 1;
+        uint64_t abs_value = 0;
+
+        c = fgetc(stdin);
+        if (c == EOF) {
         tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "unexpected end of input");
         return -1;
     }
@@ -294,6 +334,7 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
     assert(symbol != NULL);
     slots[symbol->slot] = value;
     return 0;
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -352,6 +393,38 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
             tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type, slots, symbols);
         return tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type, rhs->u.unary.mode, &operand,
                              out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_COMPARE) {
+        TcValue lhs =
+            tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type, slots, symbols);
+        TcValue rhs_value =
+            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type, slots, symbols);
+        return tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_value, out, diag,
+                               line);
+    }
+
+    if (rhs->kind == TC_RHS_LOGIC_BIN) {
+        TcValue lhs = tc_eval_operand(&rhs->u.logic_bin.lhs, TC_BOOL, slots, symbols);
+        if (rhs->u.logic_bin.op == TC_LOGIC_AND && lhs.bits == 0) {
+            *out = tc_value_make(TC_BOOL, 0);
+            return 0;
+        }
+        if (rhs->u.logic_bin.op == TC_LOGIC_OR && lhs.bits != 0) {
+            *out = tc_value_make(TC_BOOL, 1);
+            return 0;
+        }
+        {
+            TcValue rhs_value =
+                tc_eval_operand(&rhs->u.logic_bin.rhs, TC_BOOL, slots, symbols);
+            return tc_exec_logic_binary(rhs->u.logic_bin.op, &lhs, &rhs_value, out, diag, line);
+        }
+    }
+
+    if (rhs->kind == TC_RHS_LOGIC_UN) {
+        TcValue operand =
+            tc_eval_operand(&rhs->u.logic_un.operand, TC_BOOL, slots, symbols);
+        return tc_exec_logic_unary(rhs->u.logic_un.op, &operand, out, diag, line);
     }
 
     {

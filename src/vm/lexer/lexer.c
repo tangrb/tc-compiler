@@ -188,6 +188,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     lit->magnitude = 0;
     lit->negative = 0;
     lit->unsigned_suffix = 0;
+    lit->is_bool = 0;
 
     if (*p == '-') {
         negative = 1;
@@ -302,6 +303,22 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_READ;
         return 1;
     }
+    if (strcmp(buf, "true") == 0) {
+        token->kind = TC_TOK_BOOL_LIT;
+        token->u.literal.is_bool = 1;
+        token->u.literal.magnitude = 1;
+        token->u.literal.negative = 0;
+        token->u.literal.unsigned_suffix = 0;
+        return 1;
+    }
+    if (strcmp(buf, "false") == 0) {
+        token->kind = TC_TOK_BOOL_LIT;
+        token->u.literal.is_bool = 1;
+        token->u.literal.magnitude = 0;
+        token->u.literal.negative = 0;
+        token->u.literal.unsigned_suffix = 0;
+        return 1;
+    }
     /* 类型名和运算符也是关键字（以标识符形式出现） */
     if (tc_type_parse(buf, &token->u.int_type)) {
         token->kind = TC_TOK_INT_TYPE;
@@ -313,6 +330,14 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     }
     if (tc_unary_op_parse(buf, &token->u.unary_op)) {
         token->kind = TC_TOK_UNARY_OP;
+        return 1;
+    }
+    if (tc_compare_op_parse(buf, &token->u.compare_op)) {
+        token->kind = TC_TOK_COMPARE_OP;
+        return 1;
+    }
+    if (tc_logic_op_parse(buf, &token->u.logic_op)) {
+        token->kind = TC_TOK_LOGIC_OP;
         return 1;
     }
     return 0;

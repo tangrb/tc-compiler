@@ -1,0 +1,11 @@
+; 编译期常量表达式
+let BASE: int32 = 1000
+let MULT: int32 = 3
+let SUM: int32 = add(int32, BASE, MULT)
+let IS_GT: bool = gt(int32, SUM, BASE)
+let NOT_FALSE: bool = not(bool, false)
+let VALID: bool = and(bool, IS_GT, NOT_FALSE)
+let AS_U32: uint32 = cast(uint32, SUM)
+writeln(int32, %d, SUM)
+writeln(bool, %t, VALID)
+writeln(uint32, %u, AS_U32)

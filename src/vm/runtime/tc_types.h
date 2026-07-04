@@ -23,7 +23,7 @@
 /*  整数类型 & 运算符枚举                                               */
 /* ------------------------------------------------------------------ */
 
-/** TC 语言支持的 8 种定宽整数类型 */
+/** TC 语言支持的定宽整数类型与 bool */
 typedef enum {
     TC_INT8,
     TC_UINT8,
@@ -32,7 +32,8 @@ typedef enum {
     TC_INT32,
     TC_UINT32,
     TC_INT64,
-    TC_UINT64
+    TC_UINT64,
+    TC_BOOL
 } TcIntType;
 
 /**
@@ -70,6 +71,23 @@ typedef enum {
     TC_UNARY_NEG
 } TcUnaryOp;
 
+/* 内建比较运算符：eq / ne / lt / le / gt / ge，返回 bool */
+typedef enum {
+    TC_CMP_EQ,
+    TC_CMP_NE,
+    TC_CMP_LT,
+    TC_CMP_LE,
+    TC_CMP_GT,
+    TC_CMP_GE
+} TcCompareOp;
+
+/* 内建逻辑运算符：and / or / not，操作数与结果均为 bool */
+typedef enum {
+    TC_LOGIC_AND,
+    TC_LOGIC_OR,
+    TC_LOGIC_NOT
+} TcLogicOp;
+
 /**
  * I/O 格式化符号。
  * TC_FMT_NONE 表示无格式，按类型默认输出（有符号用 %d，无符号用 %u）。
@@ -82,7 +100,8 @@ typedef enum {
     TC_FMT_X,
     TC_FMT_XU,
     TC_FMT_O,
-    TC_FMT_B
+    TC_FMT_B,
+    TC_FMT_T
 } TcFormatSpec;
 
 /** 符号种类：变量或 let 常量 */
@@ -107,6 +126,11 @@ typedef enum {
     TC_ERR_KEYWORD,
     TC_ERR_CONSTANT_ASSIGNMENT,
     TC_ERR_CONSTANT_EXPRESSION,
+    TC_ERR_CONSTANT_CIRCULAR,
+    TC_ERR_CONSTANT_OVERFLOW,
+    TC_ERR_CONSTANT_DIV_ZERO,
+    TC_ERR_CONSTANT_CAST_OVERFLOW,
+    TC_ERR_COMPARISON_TYPE_MISMATCH,
     TC_ERR_FORMAT_STRING,
     TC_ERR_FORMAT_TYPE_MISMATCH,
     TC_ERR_OPERAND_COUNT,
@@ -134,6 +158,7 @@ typedef struct {
     uint64_t magnitude;
     int negative;
     int unsigned_suffix;
+    int is_bool; /* 1 表示 true/false 布尔字面量；magnitude 为 0/1 */
 } TcLiteral;
 
 /* ------------------------------------------------------------------ */
@@ -156,10 +181,15 @@ typedef struct {
 
 /** 右值表达式种类 */
 typedef enum {
-    TC_RHS_LIT,      /* 字面量 */
-    TC_RHS_ARITH,    /* 双目算术（add/sub/mul/div/mod） */
-    TC_RHS_UNARY,    /* 单目运算（abs/neg） */
-    TC_RHS_CAST      /* 类型转换 */
+    TC_RHS_LIT,        /* 字面量 */
+    TC_RHS_CONST_REF,  /* let 常量引用（编译期） */
+    TC_RHS_ARITH,      /* 双目算术（add/sub/mul/div/mod） */
+    TC_RHS_UNARY,      /* 单目运算（abs/neg） */
+    TC_RHS_COMPARE,    /* 比较运算（eq/ne/lt/le/gt/ge） */
+    TC_RHS_LOGIC_BIN,  /* 双目逻辑（and/or） */
+    TC_RHS_LOGIC_UN,   /* 单目逻辑（not） */
+    TC_RHS_CAST,       /* 类型转换（运行时：源为变量） */
+    TC_RHS_CONST_CAST  /* 编译期 cast（源为常量操作数） */
 } TcRhsKind;
 
 typedef struct {
@@ -180,10 +210,32 @@ typedef struct {
             TcOperand operand;
         } unary;                 /* TC_RHS_UNARY */
         struct {
+            TcCompareOp op;
+            TcIntType type;
+            TcOperand lhs;
+            TcOperand rhs;
+        } compare;               /* TC_RHS_COMPARE */
+        struct {
+            TcLogicOp op;
+            TcOperand lhs;
+            TcOperand rhs;
+        } logic_bin;             /* TC_RHS_LOGIC_BIN */
+        struct {
+            TcLogicOp op;
+            TcOperand operand;
+        } logic_un;              /* TC_RHS_LOGIC_UN */
+        struct {
             TcIntType target;
             TcTruncateMode mode;
             char *source;        /* 源变量名，堆分配 */
         } cast;                  /* TC_RHS_CAST */
+        struct {
+            TcIntType target;
+            TcOperand source;    /* 编译期操作数（字面量或 let 引用） */
+        } const_cast;            /* TC_RHS_CONST_CAST */
+        struct {
+            char *name;          /* 已定义的 let 常量名，堆分配 */
+        } const_ref;             /* TC_RHS_CONST_REF */
     } u;
 } TcRhs;
 
@@ -329,9 +381,13 @@ typedef struct {
 
 int tc_type_bit_width(TcIntType type);
 int tc_type_is_signed(TcIntType type);
+int tc_type_is_bool(TcIntType type);
+int tc_type_is_integer(TcIntType type);
 int tc_type_parse(const char *text, TcIntType *out);
 int tc_arith_op_parse(const char *text, TcArithOp *out);
 int tc_unary_op_parse(const char *text, TcUnaryOp *out);
+int tc_compare_op_parse(const char *text, TcCompareOp *out);
+int tc_logic_op_parse(const char *text, TcLogicOp *out);
 int tc_format_spec_parse(const char *text, TcFormatSpec *out);
 const char *tc_format_spec_name(TcFormatSpec fmt);
 const char *tc_error_kind_name(TcErrorKind kind);

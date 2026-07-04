@@ -1,0 +1,15 @@
+; 六种比较运算（有符号 int32）
+var a: int32 = 10
+var b: int32 = 20
+var eq_r: bool = eq(int32, a, b)
+var ne_r: bool = ne(int32, a, b)
+var lt_r: bool = lt(int32, a, b)
+var le_r: bool = le(int32, a, b)
+var gt_r: bool = gt(int32, a, b)
+var ge_r: bool = ge(int32, a, b)
+writeln(bool, %t, eq_r)
+writeln(bool, %t, ne_r)
+writeln(bool, %t, lt_r)
+writeln(bool, %t, le_r)
+writeln(bool, %t, gt_r)
+writeln(bool, %t, ge_r)

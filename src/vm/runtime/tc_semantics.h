@@ -103,5 +103,11 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
  */
 int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line);
+int tc_exec_compare(TcCompareOp op, TcIntType type, const TcValue *lhs, const TcValue *rhs,
+                    TcValue *out, TcDiagnostic *diag, int line);
+int tc_exec_logic_binary(TcLogicOp op, const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                         TcDiagnostic *diag, int line);
+int tc_exec_logic_unary(TcLogicOp op, const TcValue *operand, TcValue *out,
+                        TcDiagnostic *diag, int line);
 
 #endif

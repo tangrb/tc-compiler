@@ -1,8 +1,8 @@
 # TC-VM 命令行参考
 
-> **版本**：0.0.18（草案）  
+> **版本**：0.0.21（草案）  
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.18（同目录）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.21（同目录）  
 > **工程**：[TC-Compiler](../README.md) 之 `tc-vm` 可执行文件  
 > **定位**：`tc-vm` 命令行用法、退出码与诊断输出格式
 
@@ -180,7 +180,7 @@ tc-vm -i
 | `0` | 成功（执行完成，或 `--check` 下静态分析通过） |
 | `1` | 失败（参数错误、I/O 错误、静态错误、运行时错误） |
 
-v0.0.18 不区分不同失败原因的退出码；具体原因见 stderr 诊断中的错误类型与消息。
+v0.0.21 不区分不同失败原因的退出码；具体原因见 stderr 诊断中的错误类型与消息。
 
 ---
 
@@ -261,6 +261,14 @@ warning: use of possibly uninitialized variable 'a' (line 2)
 | `KeywordError` | 关键字错误 | 静态分析 |
 | `ConstantAssignmentError` | 常量赋值错误 | 静态分析 |
 | `ConstantExpressionError` | 常量表达式错误 | 静态分析 |
+| `ConstantCircularDependency` | 常量循环依赖错误 | 静态分析 |
+| `ConstantOverflow` | 常量溢出错误 | 静态分析 |
+| `ConstantDivisionByZero` | 常量除零错误 | 静态分析 |
+| `ConstantCastOverflow` | 常量转换溢出错误 | 静态分析 |
+| `ComparisonTypeMismatch` | 比较运算类型不匹配 | 静态分析 |
+| `FormatStringError` | 格式字符串错误 | 静态分析 |
+| `FormatTypeMismatch` | 格式类型不匹配 | 静态分析 |
+| `OperandCountError` | 操作数数量错误 | 静态分析 |
 | `DivisionByZero` | 除零错误 | 执行 |
 | `IntegerOverflow` | 整数溢出错误 | 执行 |
 | `CastOverflow` | 转换溢出错误 | 执行 |
@@ -399,5 +407,6 @@ $ echo $?
 | **0.0.13** | **2026-07-02** | **版本号对齐语言标准 v0.0.13；错误类型表新增 `LiteralTypeError`、`KeywordError`、`ConstantAssignmentError`、`ConstantExpressionError`；更正语言标准引用为 §11；更新退出码与诊断说明中的版本引用** |
 | **0.0.14** | **2026-07-03** | **与实现对齐**：新增 §6.2 编译警告格式；`--check` 模式纳入自动化回归；补充 stress/REPL/ASAN 测试说明；诊断格式校验说明 |
 | **0.0.18** | **2026-07-03** | **版本号对齐语言标准 v0.0.18**；`TC_VM_VERSION` 集中于 `tc_version.h` |
+| **0.0.21** | **2026-07-04** | **与语言标准 v0.0.21 对齐**：错误类型表新增 `ConstantCircularDependency`、`ConstantOverflow`、`ConstantDivisionByZero`、`ConstantCastOverflow`、`ComparisonTypeMismatch`、`FormatStringError`、`FormatTypeMismatch`、`OperandCountError`；版本、依赖更新至 v0.0.21 |
 
 ---

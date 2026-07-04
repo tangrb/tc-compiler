@@ -77,6 +77,13 @@ static int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_n
         return 0;
     }
 
+    if (tok->kind == TC_TOK_BOOL_LIT) {
+        out->kind = TC_OPERAND_LIT;
+        out->u.lit = tok->u.literal;
+        (*index)++;
+        return 0;
+    }
+
     return tc_syntax_error(diag, line_no, tok->column, "expected operand");
 }
 
@@ -130,8 +137,8 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
+        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
         }
         type = type_tok->u.int_type;
         (*index)++;
@@ -203,8 +210,8 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
+        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
         }
         type = type_tok->u.int_type;
         (*index)++;
@@ -320,6 +327,209 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
     return 0;
 }
 
+/*
+ * @brief 解析比较 RHS：eq/ne/lt/le/gt/ge(int_type, lhs, rhs)
+ */
+static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+    TcCompareOp op = op_tok->u.compare_op;
+    TcIntType type = TC_INT32;
+
+    if (op_tok->kind != TC_TOK_COMPARE_OP) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected compare operation");
+    }
+    (*index)++;
+
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
+        }
+        type = type_tok->u.int_type;
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    out->kind = TC_RHS_COMPARE;
+    out->u.compare.op = op;
+    out->u.compare.type = type;
+    memset(&out->u.compare.lhs, 0, sizeof(out->u.compare.lhs));
+    memset(&out->u.compare.rhs, 0, sizeof(out->u.compare.rhs));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.compare.lhs, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.compare.rhs, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @brief 解析双目逻辑 RHS：and/or(bool, lhs, rhs)
+ */
+static int tc_parse_logic_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                  TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+    TcLogicOp op = op_tok->u.logic_op;
+
+    if (op_tok->kind != TC_TOK_LOGIC_OP || op == TC_LOGIC_NOT) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected binary logic operation");
+    }
+    (*index)++;
+
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE || !tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected bool type");
+        }
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    out->kind = TC_RHS_LOGIC_BIN;
+    out->u.logic_bin.op = op;
+    memset(&out->u.logic_bin.lhs, 0, sizeof(out->u.logic_bin.lhs));
+    memset(&out->u.logic_bin.rhs, 0, sizeof(out->u.logic_bin.rhs));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.logic_bin.lhs, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.logic_bin.rhs, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @brief 解析单目逻辑 RHS：not(bool, operand)
+ */
+static int tc_parse_logic_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                 TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+
+    if (op_tok->kind != TC_TOK_LOGIC_OP || op_tok->u.logic_op != TC_LOGIC_NOT) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected not operation");
+    }
+    (*index)++;
+
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE || !tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected bool type");
+        }
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    out->kind = TC_RHS_LOGIC_UN;
+    out->u.logic_un.op = TC_LOGIC_NOT;
+    memset(&out->u.logic_un.operand, 0, sizeof(out->u.logic_un.operand));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.logic_un.operand, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @brief 解析编译期 cast RHS：cast(type, const_operand)，禁止 truncate
+ */
+static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                   TcRhs *out, TcDiagnostic *diag) {
+    TcIntType target = TC_INT32;
+
+    if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
+        }
+        target = type_tok->u.int_type;
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *maybe_mode = tc_peek(tokens, *index);
+        if (maybe_mode->kind == TC_TOK_TRUNCATE || maybe_mode->kind == TC_TOK_WRAP) {
+            return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                    "truncate cannot be used in constant expression");
+        }
+    }
+
+    out->kind = TC_RHS_CONST_CAST;
+    out->u.const_cast.target = target;
+    memset(&out->u.const_cast.source, 0, sizeof(out->u.const_cast.source));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.const_cast.source, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  RHS 入口：分派到具体解析子函数                                         */
 /* ------------------------------------------------------------------ */
@@ -334,16 +544,72 @@ static int tc_parse_rhs(const TcTokenList *tokens, size_t *index, int line_no, T
         (*index)++;
         return 0;
     }
+    if (tok->kind == TC_TOK_BOOL_LIT) {
+        out->kind = TC_RHS_LIT;
+        out->u.lit = tok->u.literal;
+        (*index)++;
+        return 0;
+    }
     if (tok->kind == TC_TOK_ARITH_OP) {
         return tc_parse_arith_rhs(tokens, index, line_no, out, diag);
     }
     if (tok->kind == TC_TOK_UNARY_OP) {
         return tc_parse_unary_rhs(tokens, index, line_no, out, diag);
     }
+    if (tok->kind == TC_TOK_COMPARE_OP) {
+        return tc_parse_compare_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_LOGIC_OP) {
+        if (tok->u.logic_op == TC_LOGIC_NOT) {
+            return tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
+        }
+        return tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
+    }
     if (tok->kind == TC_TOK_CAST) {
         return tc_parse_cast_rhs(tokens, index, line_no, out, diag);
     }
     return tc_syntax_error(diag, line_no, tok->column, "expected rhs expression");
+}
+
+static int tc_parse_const_rhs(const TcTokenList *tokens, size_t *index, int line_no, TcRhs *out,
+                              TcDiagnostic *diag) {
+    const TcToken *tok = tc_peek(tokens, *index);
+
+    if (tok->kind == TC_TOK_INTEGER || tok->kind == TC_TOK_BOOL_LIT) {
+        out->kind = TC_RHS_LIT;
+        out->u.lit = tok->u.literal;
+        (*index)++;
+        return 0;
+    }
+    if (tok->kind == TC_TOK_IDENTIFIER) {
+        out->kind = TC_RHS_CONST_REF;
+        out->u.const_ref.name = strndup(tok->start, tok->length);
+        if (!out->u.const_ref.name) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok->column, "out of memory");
+            return -1;
+        }
+        (*index)++;
+        return 0;
+    }
+    if (tok->kind == TC_TOK_ARITH_OP) {
+        return tc_parse_arith_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_UNARY_OP) {
+        return tc_parse_unary_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_COMPARE_OP) {
+        return tc_parse_compare_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_LOGIC_OP) {
+        if (tok->u.logic_op == TC_LOGIC_NOT) {
+            return tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
+        }
+        return tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
+    }
+    if (tok->kind == TC_TOK_CAST) {
+        return tc_parse_const_cast_rhs(tokens, index, line_no, out, diag);
+    }
+    return tc_syntax_error(diag, line_no, tok->column, "expected constant expression");
 }
 
 /* ------------------------------------------------------------------ */
@@ -518,7 +784,13 @@ static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, i
         if (maybe_eq->kind == TC_TOK_EQUAL) {
             (*index)++;
             memset(&rhs, 0, sizeof(rhs));
-            if (tc_parse_rhs(tokens, index, line_no, &rhs, diag) != 0) {
+            if (is_const) {
+                if (tc_parse_const_rhs(tokens, index, line_no, &rhs, diag) != 0) {
+                    free(name);
+                    tc_rhs_free(&rhs);
+                    return -1;
+                }
+            } else if (tc_parse_rhs(tokens, index, line_no, &rhs, diag) != 0) {
                 free(name);
                 tc_rhs_free(&rhs);
                 return -1;
@@ -577,9 +849,22 @@ void tc_rhs_free(TcRhs *rhs) {
         tc_operand_free(&rhs->u.arith.rhs);
     } else if (rhs->kind == TC_RHS_UNARY) {
         tc_operand_free(&rhs->u.unary.operand);
+    } else if (rhs->kind == TC_RHS_COMPARE) {
+        tc_operand_free(&rhs->u.compare.lhs);
+        tc_operand_free(&rhs->u.compare.rhs);
+    } else if (rhs->kind == TC_RHS_LOGIC_BIN) {
+        tc_operand_free(&rhs->u.logic_bin.lhs);
+        tc_operand_free(&rhs->u.logic_bin.rhs);
+    } else if (rhs->kind == TC_RHS_LOGIC_UN) {
+        tc_operand_free(&rhs->u.logic_un.operand);
     } else if (rhs->kind == TC_RHS_CAST) {
         free(rhs->u.cast.source);
         rhs->u.cast.source = NULL;
+    } else if (rhs->kind == TC_RHS_CONST_CAST) {
+        tc_operand_free(&rhs->u.const_cast.source);
+    } else if (rhs->kind == TC_RHS_CONST_REF) {
+        free(rhs->u.const_ref.name);
+        rhs->u.const_ref.name = NULL;
     }
 }
 

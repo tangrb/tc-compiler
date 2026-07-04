@@ -1,0 +1,5 @@
+; %i format specifier (synonym for %d)
+var a: int32 = 42
+var b: int32 = -128
+writeln(int32, %i, a)
+writeln(int32, %i, b)

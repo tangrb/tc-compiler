@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void tc_aot_diag_init(TcDiagnostic *diag) {
     tc_diagnostic_init(diag);
@@ -31,8 +32,51 @@ uint64_t tc_aot_lit(TcIntType type, uint64_t magnitude, int negative, int unsign
     lit.magnitude = magnitude;
     lit.negative = negative;
     lit.unsigned_suffix = unsigned_suffix;
+    lit.is_bool = tc_type_is_bool(type) ? 1 : 0;
     value = tc_literal_to_value(&lit, type);
     return value.bits;
+}
+
+int tc_aot_compare(TcCompareOp op, TcIntType type, uint64_t *out, uint64_t lhs, uint64_t rhs,
+                   TcDiagnostic *diag, int line) {
+    TcValue lhs_value = tc_value_make(type, lhs);
+    TcValue rhs_value = tc_value_make(type, rhs);
+    TcValue result;
+
+    if (tc_exec_compare(op, type, &lhs_value, &rhs_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
+int tc_aot_logic(TcLogicOp op, uint64_t *out, uint64_t lhs, uint64_t rhs, TcDiagnostic *diag,
+                 int line) {
+    TcValue lhs_value = tc_value_make(TC_BOOL, lhs);
+    TcValue rhs_value = tc_value_make(TC_BOOL, rhs);
+    TcValue result;
+
+    if (op == TC_LOGIC_NOT) {
+        if (tc_exec_logic_unary(op, &lhs_value, &result, diag, line) != 0) {
+            return -1;
+        }
+    } else if (tc_exec_logic_binary(op, &lhs_value, &rhs_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
+int tc_aot_logic_unary(TcLogicOp op, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
+                       int line) {
+    TcValue operand_value = tc_value_make(TC_BOOL, operand);
+    TcValue result;
+
+    if (tc_exec_logic_unary(op, &operand_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
 }
 
 int tc_aot_arith(TcArithOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t lhs,
@@ -111,9 +155,14 @@ void tc_aot_write(TcIntType type, TcFormatSpec fmt, uint64_t bits, int newline) 
             }
             break;
         }
+        case TC_FMT_T:
+            fprintf(stdout, "%s", value.bits != 0 ? "true" : "false");
+            break;
         default:
             break;
         }
+    } else if (tc_type_is_bool(type)) {
+        fprintf(stdout, "%s", value.bits != 0 ? "true" : "false");
     } else if (tc_type_is_signed(type)) {
         int64_t signed_value = tc_bits_to_signed(type, bits);
         fprintf(stdout, "%" PRId64, signed_value);
@@ -204,11 +253,41 @@ static int tc_aot_read_decimal_digits(int c, int line, TcDiagnostic *diag, uint6
 
 int tc_aot_read(TcIntType type, uint64_t *out, TcDiagnostic *diag, int line) {
     int c = 0;
-    int sign = 1;
-    uint64_t abs_value = 0;
     TcValue value;
 
     tc_aot_skip_whitespace();
+
+    if (tc_type_is_bool(type)) {
+        char word[8];
+        size_t i = 0;
+
+        c = fgetc(stdin);
+        while (c != EOF && i + 1 < sizeof(word) &&
+               (c == 't' || c == 'r' || c == 'u' || c == 'e' || c == 'f' || c == 'a' ||
+                c == 'l' || c == 's')) {
+            word[i++] = (char)c;
+            c = fgetc(stdin);
+        }
+        if (c != EOF) {
+            ungetc(c, stdin);
+        }
+        word[i] = '\0';
+        if (strcmp(word, "true") == 0) {
+            value = tc_value_make(TC_BOOL, 1);
+        } else if (strcmp(word, "false") == 0) {
+            value = tc_value_make(TC_BOOL, 0);
+        } else {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        *out = value.bits;
+        return 0;
+    }
+
+    {
+    int sign = 1;
+    uint64_t abs_value = 0;
+
     c = fgetc(stdin);
     if (c == EOF) {
         tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "unexpected end of input");
@@ -245,6 +324,7 @@ int tc_aot_read(TcIntType type, uint64_t *out, TcDiagnostic *diag, int line) {
 
     *out = value.bits;
     return 0;
+    }
 }
 
 /* ------------------------------------------------------------------ */

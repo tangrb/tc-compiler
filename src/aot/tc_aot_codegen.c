@@ -40,6 +40,8 @@ static const char *tc_aot_type_enum(TcIntType type) {
         return "TC_INT64";
     case TC_UINT64:
         return "TC_UINT64";
+    case TC_BOOL:
+        return "TC_BOOL";
     }
     return "TC_INT32";
 }
@@ -50,6 +52,11 @@ static const char *tc_aot_type_enum(TcIntType type) {
 
 /** 发射字面量构造表达式 */
 static void tc_aot_emit_literal_expr(FILE *out, TcIntType type, const TcLiteral *lit) {
+    if (lit->is_bool) {
+        fprintf(out, "tc_aot_lit(%s, %lluULL, 0, 0)", tc_aot_type_enum(TC_BOOL),
+                lit->magnitude ? 1ULL : 0ULL);
+        return;
+    }
     fprintf(out, "tc_aot_lit(%s, %" PRIu64 "ULL, %d, %d)", tc_aot_type_enum(type), lit->magnitude,
             lit->negative, lit->unsigned_suffix);
 }
@@ -125,6 +132,62 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_COMPARE) {
+        const char *op_name = "TC_CMP_EQ";
+        switch (rhs->u.compare.op) {
+        case TC_CMP_EQ:
+            op_name = "TC_CMP_EQ";
+            break;
+        case TC_CMP_NE:
+            op_name = "TC_CMP_NE";
+            break;
+        case TC_CMP_LT:
+            op_name = "TC_CMP_LT";
+            break;
+        case TC_CMP_LE:
+            op_name = "TC_CMP_LE";
+            break;
+        case TC_CMP_GT:
+            op_name = "TC_CMP_GT";
+            break;
+        case TC_CMP_GE:
+            op_name = "TC_CMP_GE";
+            break;
+        }
+        fprintf(out, "    if (tc_aot_compare(%s, %s, &slots[%d], ", op_name,
+                tc_aot_type_enum(rhs->u.compare.type), dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.compare.lhs, rhs->u.compare.type, symbols);
+        fprintf(out, ", ");
+        tc_aot_emit_operand_expr(out, &rhs->u.compare.rhs, rhs->u.compare.type, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_LOGIC_UN) {
+        fprintf(out, "    if (tc_aot_logic_unary(TC_LOGIC_NOT, &slots[%d], ", dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.logic_un.operand, TC_BOOL, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_LOGIC_BIN) {
+        const char *op_name =
+            rhs->u.logic_bin.op == TC_LOGIC_AND ? "TC_LOGIC_AND" : "TC_LOGIC_OR";
+        fprintf(out, "    if (tc_aot_logic(%s, &slots[%d], ", op_name, dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.lhs, TC_BOOL, symbols);
+        fprintf(out, ", ");
+        tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.rhs, TC_BOOL, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
+        return -1;
+    }
+
     {
         const TcSymbol *source = tc_aot_find_symbol(symbols, rhs->u.cast.source);
         const char *mode =
@@ -188,7 +251,8 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
                 : io->fmt == TC_FMT_X        ? "TC_FMT_X"
                 : io->fmt == TC_FMT_XU       ? "TC_FMT_XU"
                 : io->fmt == TC_FMT_O        ? "TC_FMT_O"
-                                               : "TC_FMT_B");
+                : io->fmt == TC_FMT_B        ? "TC_FMT_B"
+                                               : "TC_FMT_T");
         tc_aot_emit_operand_expr(out, &io->operand, io->type, symbols);
         fprintf(out, ", %d);\n", newline);
         return 0;

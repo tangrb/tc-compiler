@@ -19,6 +19,12 @@ int tc_aot_arith(TcArithOp op, TcIntType type, TcWrapMode mode, uint64_t *out, u
                  uint64_t rhs, TcDiagnostic *diag, int line);
 int tc_aot_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t operand,
                  TcDiagnostic *diag, int line);
+int tc_aot_compare(TcCompareOp op, TcIntType type, uint64_t *out, uint64_t lhs, uint64_t rhs,
+                   TcDiagnostic *diag, int line);
+int tc_aot_logic(TcLogicOp op, uint64_t *out, uint64_t lhs, uint64_t rhs, TcDiagnostic *diag,
+                 int line);
+int tc_aot_logic_unary(TcLogicOp op, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
+                       int line);
 int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntType src_type,
                 uint64_t *out, TcDiagnostic *diag, int line);
 void tc_aot_write(TcIntType type, TcFormatSpec fmt, uint64_t bits, int newline);

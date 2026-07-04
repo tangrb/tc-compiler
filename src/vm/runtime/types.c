@@ -28,11 +28,24 @@ int tc_type_bit_width(TcIntType type) {
     case TC_INT64:
     case TC_UINT64:
         return 64;
+    case TC_BOOL:
+        return 8;
     }
     return 0;
 }
 
+int tc_type_is_bool(TcIntType type) {
+    return type == TC_BOOL;
+}
+
+int tc_type_is_integer(TcIntType type) {
+    return !tc_type_is_bool(type);
+}
+
 int tc_type_is_signed(TcIntType type) {
+    if (tc_type_is_bool(type)) {
+        return 0;
+    }
     switch (type) {
     case TC_INT8:
     case TC_INT16:
@@ -61,6 +74,8 @@ int tc_type_parse(const char *text, TcIntType *out) {
         *out = TC_INT64;
     } else if (strcmp(text, "uint64") == 0) {
         *out = TC_UINT64;
+    } else if (strcmp(text, "bool") == 0) {
+        *out = TC_BOOL;
     } else {
         return 0;
     }
@@ -95,6 +110,38 @@ int tc_unary_op_parse(const char *text, TcUnaryOp *out) {
     return 1;
 }
 
+int tc_compare_op_parse(const char *text, TcCompareOp *out) {
+    if (strcmp(text, "eq") == 0) {
+        *out = TC_CMP_EQ;
+    } else if (strcmp(text, "ne") == 0) {
+        *out = TC_CMP_NE;
+    } else if (strcmp(text, "lt") == 0) {
+        *out = TC_CMP_LT;
+    } else if (strcmp(text, "le") == 0) {
+        *out = TC_CMP_LE;
+    } else if (strcmp(text, "gt") == 0) {
+        *out = TC_CMP_GT;
+    } else if (strcmp(text, "ge") == 0) {
+        *out = TC_CMP_GE;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
+int tc_logic_op_parse(const char *text, TcLogicOp *out) {
+    if (strcmp(text, "and") == 0) {
+        *out = TC_LOGIC_AND;
+    } else if (strcmp(text, "or") == 0) {
+        *out = TC_LOGIC_OR;
+    } else if (strcmp(text, "not") == 0) {
+        *out = TC_LOGIC_NOT;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
 int tc_format_spec_parse(const char *text, TcFormatSpec *out) {
     if (strcmp(text, "%d") == 0) {
         *out = TC_FMT_D;
@@ -110,6 +157,8 @@ int tc_format_spec_parse(const char *text, TcFormatSpec *out) {
         *out = TC_FMT_O;
     } else if (strcmp(text, "%b") == 0) {
         *out = TC_FMT_B;
+    } else if (strcmp(text, "%t") == 0) {
+        *out = TC_FMT_T;
     } else {
         return 0;
     }
@@ -132,6 +181,8 @@ const char *tc_format_spec_name(TcFormatSpec fmt) {
         return "%o";
     case TC_FMT_B:
         return "%b";
+    case TC_FMT_T:
+        return "%t";
     default:
         return "";
     }
@@ -157,6 +208,16 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ConstantAssignmentError";
     case TC_ERR_CONSTANT_EXPRESSION:
         return "ConstantExpressionError";
+    case TC_ERR_CONSTANT_CIRCULAR:
+        return "ConstantCircularDependency";
+    case TC_ERR_CONSTANT_OVERFLOW:
+        return "ConstantOverflow";
+    case TC_ERR_CONSTANT_DIV_ZERO:
+        return "ConstantDivisionByZero";
+    case TC_ERR_CONSTANT_CAST_OVERFLOW:
+        return "ConstantCastOverflow";
+    case TC_ERR_COMPARISON_TYPE_MISMATCH:
+        return "ComparisonTypeMismatch";
     case TC_ERR_FORMAT_STRING:
         return "FormatStringError";
     case TC_ERR_FORMAT_TYPE_MISMATCH:
@@ -203,6 +264,8 @@ const char *tc_int_type_name(TcIntType type) {
         return "int64";
     case TC_UINT64:
         return "uint64";
+    case TC_BOOL:
+        return "bool";
     }
     return "unknown";
 }

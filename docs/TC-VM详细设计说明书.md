@@ -1,8 +1,8 @@
 # TC-VM 详细设计说明书（完整版）
 
-> **版本**：0.0.18（草案）  
+> **版本**：0.0.21（草案）  
 > **作者**：唐荣兵（yanhuang8923@qq.com）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.18  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.21  
 > **工程**：[TC-Compiler](../README.md) 之 `src/vm/` 组件  
 > **定位**：TC 源码即高级字节码；**不** lowering 为第二套字节码，经静态分析后直接执行
 
@@ -56,14 +56,13 @@ TC-VM 是 TC 语言的**直接执行引擎**：用户编写的 `.tc` 源文件�
 
 ### 1.3 实现版本
 
-可执行文件 `tc-vm` 与本文档同为 **v0.0.18**（`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
+可执行文件 `tc-vm` 与本文档同为 **v0.0.21**（`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
 
-### 1.4 非目标（v0.0.18）
+### 1.4 非目标（v0.0.21）
 
 - 不定义、不生成第二套字节码指令集
 - 不做 JIT / LLVM 后端
-- 不实现语言标准 §5.4 扩展表中预留的浮点、布尔、位运算、比较、控制流、函数、复合类型等扩展（仅预留接口）
-- `let` 常量 RHS 仅支持字面量，不支持 `add`/`sub` 等编译时常量表达式
+- 不实现语言标准 §5.4、§7.6、附录 D 扩展表中预留的浮点、位运算、控制流、函数、复合类型等扩展（仅预留接口）
 
 ---
 
@@ -112,22 +111,25 @@ run_file(path: string) -> Result<void, Diagnostic>
 
 ### 3.1 语句即指令
 
-TC v0.0.18 中，每条合法语句对应一条「高级指令」：
+TC v0.0.21 中，每条合法语句对应一条「高级指令」：
 
 | 源形式                              | 指令含义                                                     |
 | ----------------------------------- | ------------------------------------------------------------ |
-| `var x: T = <rhs>`                  | **DEF** — 定义槽位 `x` 为类型 `T` 并初始化                   |
+| `var x: T = <rhs>`                  | **DEF** — 定义槽位 `x` 为类型 `T` 并初始化（`T` 可为 `int*`/`uint*`/`bool`） |
 | `var x: T`                          | **DEF** — 定义槽位 `x` 为类型 `T`，**未初始化**              |
-| `let x: T = <literal>`              | **DEF_CONST** — 定义编译期常量槽位 `x`，不可赋值（RHS 仅限字面量） |
+| `let x: T = <const_rhs>`           | **DEF_CONST** — 定义编译期常量槽位 `x`，不可赋值（RHS 支持编译期常量表达式） |
 | `x = <rhs>`                         | **MOV** — 将 `<rhs>` 结果写入已定义槽位 `x`                  |
 | `<rhs> = integer_literal`           | 加载字面量                                                   |
 | `<rhs> = add/sub/mul/div/mod(T, …)` | 双目算术指令                                                 |
 | `<rhs> = abs/neg(T, …)`             | 单目算术指令                                                 |
-| `<rhs> = cast(T, …)`                | **CAST** — 目标类型 `T`，模式 strict/`truncate`              |
-| `write/writeln(T, …)`               | **WRITE** — 标准输出                                         |
-| `read(T, x)`                        | **READ** — 标准输入                                          |
+| `<rhs> = eq/ne/lt/le/gt/ge(T, …)`  | **CMP** — 比较运算，返回 `bool`                              |
+| `<rhs> = and/or(bool, …)`           | **LOGIC_BIN** — 双目逻辑运算（短路求值）                     |
+| `<rhs> = not(bool, …)`              | **LOGIC_UN** — 单目逻辑运算                                  |
+| `<rhs> = cast(T, …)`                | **CAST** — 目标类型 `T`，模式 strict/`truncate`（支持 `bool` ↔ 整数） |
+| `write/writeln(T, …)`               | **WRITE** — 标准输出（支持 `%t` 布尔格式化）                 |
+| `read(T, x)`                        | **READ** — 标准输入（支持 `bool` 类型）                      |
 
-`<rhs>` 仅四选一（字面量 / 双目算术 / 单目算术 / cast），**无嵌套**，故一条语句的语义完全由该行决定。
+`<rhs>` 仅六七选一（字面量 / 双目算术 / 单目算术 / 比较 / 双目逻辑 / 单目逻辑 / cast），**无嵌套**，故一条语句的语义完全由该行决定。
 
 ### 3.2 执行模型
 
@@ -156,7 +158,7 @@ while PC < program.len:
 
 ## 4. 源文件与行模型
 
-语言标准 EBNF 对空行、文件尾换行未完全规定；**TC-VM v0.0.18 实现约定**如下（不影响 TC 语义，仅规范实现）：
+语言标准 EBNF 对空行、文件尾换行未完全规定；**TC-VM v0.0.21 实现约定**如下（不影响 TC 语义，仅规范实现）：
 
 | 规则                | 约定                                                         |
 | ------------------- | ------------------------------------------------------------ |
@@ -187,7 +189,7 @@ for line_no, line in lines:
 
 ### 5.1 设计文档与 C 类型对照
 
-| 设计文档名称   | C 类型 / 枚举                                               | 头文件       |
+| 设计文档名称     | C 类型 / 枚举                                               | 头文件       |
 | -------------- | ----------------------------------------------------------- | ------------ |
 | `TcStatement`  | `TcStatement` + `TcStmtKind`                                | `tc_types.h` |
 | `VarDef`       | `TcVarDef`（`has_rhs` 标志可选 RHS）                        | `tc_types.h` |
@@ -201,15 +203,20 @@ for line_no, line in lines:
 | `TypedProgram` | `TcTypedProgram`（`program` + `symbols` + `warnings`）      | `tc_types.h` |
 | `SymbolEntry`  | `TcSymbol`（含 `def_stmt_index`、`has_const_value`）        | `tc_types.h` |
 | `SlotStore`    | `TcValue[]`，按 `TcSymbol.slot` 索引                        | `tc_types.h` |
-| `FormatSpec`   | `TcFormatSpec`（7 种格式化符号）                            | `tc_types.h` |
+| `FormatSpec`   | `TcFormatSpec`（8 种格式化符号）                             | `tc_types.h` |
+| `ArithOp`      | `TcArithOp`（`TC_ARITH_ADD` / `TC_ARITH_SUB` / …）          | `tc_types.h` |
 | `UnaryOp`      | `TcUnaryOp`（`TC_UNARY_ABS` / `TC_UNARY_NEG`）              | `tc_types.h` |
-| `ErrorKind`    | `TcErrorKind`（含 21 种错误类型）                           | `tc_types.h` |
+| `CompareOp`    | `TcCompareOp`（`TC_CMP_EQ` / `TC_CMP_NE` / …）              | `tc_types.h` |
+| `LogicOp`      | `TcLogicOp`（`TC_LOGIC_AND` / `TC_LOGIC_OR` / `TC_LOGIC_NOT`） | `tc_types.h` |
+| `ErrorKind`    | `TcErrorKind`（含扩展错误类型）                             | `tc_types.h` |
 | `WarningKind`  | `TcWarningKind`                                             | `tc_types.h` |
 
 ### 5.2 类型枚举
 
 ```text
 IntType ::= int8 | uint8 | int16 | uint16 | int32 | uint32 | int64 | uint64
+
+Type ::= IntType | bool      // 类型参数与变量声明的完整类型
 
 WrapMode ::= Strict | Wrap       // 关键字 wrap → TC_ARITH_WRAP；仅 add/sub/mul/neg 可用
 TruncateMode ::= StrictTrunc | Truncate   // 关键字 truncate → TC_TRUNC_TRUNCATE；仅 cast 可用
@@ -218,7 +225,11 @@ ArithOp ::= Add | Sub | Mul | Div | Mod
 
 UnaryOp ::= Abs | Neg              // 单目运算
 
-FormatSpec ::= D | I | U | X | XU | O | B   // %d, %i, %u, %x, %X, %o, %b
+CompareOp ::= Eq | Ne | Lt | Le | Gt | Ge   // 比较运算，返回 bool
+
+LogicOp ::= And | Or | Not         // 逻辑运算，操作数与结果均为 bool
+
+FormatSpec ::= D | I | U | X | XU | O | B | T   // %d, %i, %u, %x, %X, %o, %b, %t
 ```
 
 ### 5.3 字面量（TcLiteral）
@@ -247,29 +258,50 @@ TcOperand ::= Variable(name: string)
 TcRhs ::= LitRhs { value: uint64 }
         | ArithRhs { op: ArithOp, type: IntType, mode: WrapMode, lhs: Operand, rhs: Operand }
         | UnaryRhs { op: UnaryOp, type: IntType, mode: WrapMode, operand: Operand }
-        | CastRhs { target: IntType, mode: TruncateMode, source: string }
+        | CompareRhs { op: CompareOp, type: IntType, lhs: Operand, rhs: Operand }
+        | BinaryLogicRhs { op: LogicOp, lhs: Operand, rhs: Operand }
+        | UnaryLogicRhs { op: LogicOp, operand: Operand }
+        | CastRhs { target: Type, mode: TruncateMode, source: string }
 
-ConstRhs ::= LitRhs { value: uint64 }   /* 常量 RHS 仅允许字面量 */
+/* 常量 RHS：let 的编译期常量表达式 */
+
+ConstRhs ::= ConstLitRhs { value: uint64 }
+           | ConstRefRhs { name: string }                        /* 已定义的 let 常量引用 */
+           | ConstArithRhs { op: ArithOp, type: IntType, lhs: ConstOperand, rhs: ConstOperand }
+           | ConstUnaryRhs { op: UnaryOp, type: IntType, operand: ConstOperand }
+           | ConstCompareRhs { op: CompareOp, type: IntType, lhs: ConstOperand, rhs: ConstOperand }
+           | ConstBinaryLogicRhs { op: LogicOp, lhs: ConstOperand, rhs: ConstOperand }
+           | ConstUnaryLogicRhs { op: LogicOp, operand: ConstOperand }
+           | ConstCastRhs { target: Type, source: ConstOperand }
+
+ConstOperand ::= ConstLit { value: uint64 }      /* 整数字面量 */
+               | ConstBool { value: bool }        /* true/false */
+               | ConstRef { name: string }        /* 已定义的 let 常量引用 */
 ```
 
 > **约束**：
 > - `ArithRhs` 中 `div`/`mod` 不支持 `Wrap` 模式
 > - `UnaryRhs` 中 `abs` 不支持 `Wrap` 模式
 > - `CastRhs.source` 必须为已定义变量，不可为字面量或嵌套表达式
+> - `CompareRhs` 两操作数须为同类型整数，结果为 `bool`
+> - `BinaryLogicRhs` / `UnaryLogicRhs` 操作数与结果均为 `bool`
+> - `ConstArithRhs` / `ConstUnaryRhs` **禁止** `Wrap` 模式
+> - `ConstCastRhs` **禁止** `Truncate` 模式，仅限无损转换（加宽、等宽符号转换、`bool ↔ int`）
 
 ### 5.6 语句（TcStatement）
 
 ```text
 TcStatement ::=
-    | VarDef { line, name, type: IntType, rhs: TcRhs? }     /* rhs 可选：无 rhs 表示未初始化 */
-    | ConstDef { line, name, type: IntType, rhs: ConstRhs }  /* let 常量定义，rhs 必填 */
+    | VarDef { line, name, type: Type, rhs: TcRhs? }          /* rhs 可选：无 rhs 表示未初始化 */
+    | ConstDef { line, name, type: Type, rhs: ConstRhs }       /* let 常量定义，rhs 必填 */
     | Assign { line, name, rhs: TcRhs }
-    | Write { line, type: IntType, fmt: FormatSpec?, operand: Operand }
-    | Writeln { line, type: IntType, fmt: FormatSpec?, operand: Operand }
-    | Read { line, type: IntType, name: string }
+    | Write { line, type: Type, fmt: FormatSpec?, operand: Operand }
+    | Writeln { line, type: Type, fmt: FormatSpec?, operand: Operand }
+    | Read { line, type: Type, name: string }
 ```
 
 > **说明**：
+> - `Type` 包含 `IntType`（8 种整数类型）和 `bool` 类型
 > - `Write`/`Writeln` 中 `fmt` 为 `None` 时表示无格式输出
 > - `let` 常量值在编译期已确定，不生成运行时赋值指令；常量**不可**作为 `Assign` 的左值
 
@@ -297,7 +329,7 @@ TcSymbolTable ::= Map<identifier, TcSymbol>
 
 TcSymbol ::= {
     kind: SymKind,          // TC_SYM_VARIABLE | TC_SYM_CONSTANT
-    type: IntType,
+    type: Type,             // IntType（8 种）或 BoolType
     slot: SlotIndex,        // 与 Executor 槽位一一对应
     def_line: int,
     def_stmt_index: int,    // 定义语句在 program 中的下标（源序可见性）
@@ -325,11 +357,12 @@ Executor 维护：
 ```text
 SlotStore ::= Vec<TcValue>   // 下标即 SlotIndex
 
-TcValue ::= { type: IntType, bits: uint64 }
+TcValue ::= { type: Type, bits: uint64 }
 ```
 
 - 所有运算在 `bits` 上进行，按 `type` 解释符号性与范围
 - 每种 `IntType` 统一用 64 位容器存储位模式；**窄类型运算前不隐式扩展语义**，仅在内建函数内按类型位宽处理
+- `bool` 类型：`bits` 取 `0` 为 `false`，`1` 为 `true`（仅低 1 位有效），其他位模式视实现定义
 
 ### 6.3 槽位分配
 
@@ -358,8 +391,8 @@ analyze(program):
 对每条 `VarDef` / `ConstDef`（`tc_pass1_collect_symbols`）：
 
 - 若 `name` 已存在 → `TC_ERR_DUPLICATE_DEFINITION`
-- 否则按出现顺序分配 `slot`（0, 1, 2, …），记录 `type`、`sym_kind`、`initialized`、`def_line`、`def_stmt_index`
-- `ConstDef` 的值留待 Pass 2 解析
+- 否则按出现顺序分配 `slot`（0, 1, 2, …），记录 `type`（含 `bool`）、`sym_kind`、`initialized`、`def_line`、`def_stmt_index`
+- `ConstDef` 的值留待 Pass 2 解析（含编译期常量表达式求值）
 
 ### 7.3 Pass 2：源序可见性（`visible` 符号表）
 
@@ -375,15 +408,24 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 
 #### 7.4.1 常量值解析
 
-对每条 `ConstDef`：
+对每条 `ConstDef`，根据 `ConstRhs` 的形式进行编译期求值：
 
-1. 从 `ConstRhs` 中提取字面量数值
-2. 按目标类型检查字面量范围（参见语言标准 §3.4）
-3. 若范围检查通过，将字面量编码为 `TcValue` 存入 `TcSymbol.const_value`
-4. 若字面量超出范围 → **字面量范围错误**
-5. 检查无符号字面量（`u`/`U` 后缀）是否用于有符号类型 → **字面量类型错误**
+1. **`ConstLitRhs`**：提取字面量数值 → 范围检查 → 编码为 `TcValue`
+2. **`ConstRefRhs`**：从符号表查找已定义常量的 `const_value` 直接使用
+3. **`ConstArithRhs` / `ConstUnaryRhs`**：递归求值操作数，调用 `exec_arith` / `exec_unary` 语义（**禁止 `Wrap` 模式**，有符号溢出 → **常量溢出错误**，除数 0 → **常量除零错误**）
+4. **`ConstCompareRhs`**：递归求值两操作数，调用比较语义返回 `TcValue`（`bool` 类型）
+5. **`ConstBinaryLogicRhs` / `ConstUnaryLogicRhs`**：递归求值操作数，调用逻辑语义返回 `TcValue`
+6. **`ConstCastRhs`**：递归求值源操作数，调用 `exec_cast`（**禁止 `Truncate` 模式**，缩窄 → **常量转换溢出错误**，仅限无损转换）
 
-常量值在编译期即已确定，Executor 执行到 `ConstDef` 时直接从符号表读取 `const_value` 写入槽位，不重新解析字面量。
+若求值过程中发生错误 → 立即终止，返回对应错误 Diagnostic。
+
+检查规则：
+- 符号表层面检查循环依赖：Pass 2 在处理 `ConstDef` 时，使用 visiting set 检测 A→B→A 的循环引用 → **常量循环依赖错误**
+- `ConstArithRhs` / `ConstUnaryRhs` 中若出现 `Wrap` 模式 → **常量表达式错误**
+- `ConstCastRhs` 中若出现 `Truncate` 模式 → **常量表达式错误**
+- `ConstRefRhs` 引用 `var` 变量 → **常量表达式错误**
+
+常量值在编译期即已确定，Executor 执行到 `ConstDef` 时直接从符号表读取 `const_value` 写入槽位，不重新计算表达式。
 
 #### 7.4.2 类型检查表
 
@@ -393,20 +435,23 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 | ----------------- | ------------------------------------------------------------ |
 | Assign 目标       | 必须已定义；若为 `let` 常量 → **常量赋值错误**               |
 | 左值类型 vs rhs   | `VarDef` / `ConstDef` / `Assign` 左侧类型必须与 rhs 结果类型一致 |
-| const_rhs 约束    | `ConstDef` 的 rhs 必须为 `LitRhs`（仅字面量）→ 否则 **常量表达式错误** |
+| const_rhs 约束    | `ConstDef` 的 rhs 须为编译期常量表达式（`ConstRhs` 变体）；引用 `var` → **常量表达式错误**；循环依赖 → **常量循环依赖错误** |
 | 算术 `type` 参数  | 必须与 lhs、rhs 操作数类型一致                               |
 | 操作数同型        | 两 `Operand` 解析后类型相同                                  |
 | 操作数 Variable   | 已定义且类型匹配；若为未初始化变量 → **未初始化变量警告**（见 §7.4.4） |
-| Literal 范围      | 落在上下文 `IntType` 可表示范围内                            |
-| 字面量类型错误    | `u`/`U` 后缀字面量用于有符号类型上下文；或负号与 `u`/`U` 后缀组合 |
+| Literal 范围      | 落在上下文 `Type` 可表示范围内（含 `bool` 类型的 `true`/`false`） |
+| 字面量类型错误    | `u`/`U` 后缀字面量用于有符号类型上下文；或负号与 `u`/`U` 后缀组合；`true`/`false` 用于非 `bool` 类型 |
 | `wrap` 合法性     | `div`/`mod`/`abs` 使用 `Wrap` 模式 → **溢出模式错误**        |
 | `truncate` 合法性 | 算术运算（`add`/`sub`/`mul`/`div`/`mod`/`abs`/`neg`）使用 `Truncate` 模式 → **关键字错误** |
 | `wrap` 用于 cast  | `CastRhs` 中使用 `Wrap` 模式 → **关键字错误**                |
 | cast 源           | 必须为已定义变量；`CastRhs.source` 仅变量名，非字面量        |
 | cast 目标         | `VarDef`/`Assign` 左侧类型 == `CastRhs.target`               |
-| 格式化符号兼容性  | `%d`/`%i` 要求有符号类型；`%u` 要求无符号类型；其他任意      |
+| **比较运算**      | 两操作数须为同类型整数，类型参数 `T` 与操作数类型一致；返回 `bool` |
+| **逻辑运算**      | 操作数须为 `bool` 类型；`and`/`or` 须恰好 2 个操作数；`not` 须恰好 1 个 |
+| **bool 上下文**   | `bool` 变量/字面量仅可用于 `bool` 类型上下文；`true`/`false` 字面量用于整数类型 → **字面量类型错误** |
+| 格式化符号兼容性  | `%d`/`%i` 要求有符号类型；`%u` 要求无符号类型；`%t` 要求 `bool` 类型；`%x`/`%X`/`%o`/`%b` 要求整数类型 |
 | 格式化操作数数量  | 格式化版本必须恰好一个操作数；无格式版本也恰好一个操作数     |
-| 格式字符串        | 必须是 `%d`/`%i`/`%u`/`%x`/`%X`/`%o`/`%b` 之一               |
+| 格式字符串        | 必须是 `%d`/`%i`/`%u`/`%x`/`%X`/`%o`/`%b`/`%t` 之一         |
 
 #### 7.4.3 未初始化变量检查算法
 
@@ -430,20 +475,23 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 
 ### 7.5 rhs 结果类型推断
 
-| Rhs 形式   | 结果类型           |
-| ---------- | ------------------ |
-| `LitRhs`   | 由左侧变量类型决定 |
-| `ArithRhs` | `ArithRhs.type`    |
-| `UnaryRhs` | `UnaryRhs.type`    |
-| `CastRhs`  | `CastRhs.target`   |
+| Rhs 形式           | 结果类型           |
+| ------------------ | ------------------ |
+| `LitRhs`           | 由左侧变量类型决定 |
+| `ArithRhs`         | `ArithRhs.type`    |
+| `UnaryRhs`         | `UnaryRhs.type`    |
+| `CompareRhs`       | `bool`             |
+| `BinaryLogicRhs`   | `bool`             |
+| `UnaryLogicRhs`    | `bool`             |
+| `CastRhs`          | `CastRhs.target`   |
 
-### 7.6 静态可判定性（v0.0.18）
+### 7.6 静态可判定性（v0.0.21）
 
-以下错误在 v0.0.18 **均可静态检查**，Analyzer 应尽可能在运行前报出：
+以下错误在 v0.0.21 **均可静态检查**，Analyzer 应尽可能在运行前报出：
 
-- 未定义标识符、重复定义、类型错误、字面量范围错误、字面量类型错误、溢出模式错误、关键字错误、常量赋值错误、常量表达式错误、格式字符串错误、格式类型不匹配、操作数数量错误
+- 未定义标识符、重复定义、类型错误、字面量范围错误、字面量类型错误、溢出模式错误、关键字错误、常量赋值错误、常量表达式错误、常量循环依赖错误、常量溢出错误、常量除零错误、常量转换溢出错误、格式字符串错误、格式类型不匹配、操作数数量错误、比较运算类型不匹配
 
-以下在 v0.0.18 **依赖运行期操作数值**，Analyzer **无法**完全静态判定：
+以下在 v0.0.21 **依赖运行期操作数值**，Analyzer **无法**完全静态判定：
 
 - 除零错误
 - 有符号 strict 算术溢出（`add`/`sub`/`mul`/`neg`/`abs`）
@@ -485,8 +533,19 @@ eval_rhs(rhs, expected_type, slots, symbols):
     LitRhs(v)          → value(type=expected_type, bits=v)
     ArithRhs(op, ...)  → exec_arith(op, type, mode, lhs, rhs, slots, symbols)
     UnaryRhs(op, ...)  → exec_unary(op, type, mode, operand, slots, symbols)
+    CompareRhs(op, ...)→ exec_compare(op, type, lhs, rhs, slots, symbols)
+    BinaryLogicRhs(op, lhs, rhs)
+                       → exec_logic_binary(op, lhs, rhs, slots, symbols)
+    UnaryLogicRhs(op, operand)
+                       → exec_logic_unary(op, operand, slots, symbols)
     CastRhs(...)       → exec_cast(target, mode, source, slots, symbols)
 ```
+
+**短路求值规则**（`exec_logic_binary` 中实现）：
+
+- `and(bool, lhs, rhs)`：先求值 `lhs`，若为 `false` 则跳过 `rhs` 直接返回 `false`；否则求值 `rhs` 并返回其值
+- `or(bool, lhs, rhs)`：先求值 `lhs`，若为 `true` 则跳过 `rhs` 直接返回 `true`；否则求值 `rhs` 并返回其值
+- `not(bool, operand)`：无短路行为，直接求值 `operand` 并取反
 
 ### 8.3 操作数求值
 
@@ -522,11 +581,13 @@ eval_operand(Operand, expected_type, ...):
 ### 9.1 统一容器
 
 ```text
-TcValue { type: IntType, bits: uint64 }
+TcValue { type: Type, bits: uint64 }
 ```
 
 - 存储 **位模式**（bit pattern），非数学抽象整数
-- 解释时按 `type` 的位宽 `n` 取 `bits mod 2^n`（有符号则按二补码解释）
+- 解释时按 `type` 分类：
+  - 整数类型：按位宽 `n` 取 `bits mod 2^n`（有符号则按二补码解释）
+  - `bool` 类型：`bits==0` 为 `false`，`bits!=0` 为 `true`（建议统一使用 `0`/`1`）
 
 ### 9.2 字面量解析
 
@@ -563,6 +624,9 @@ TcValue { type: IntType, bits: uint64 }
 ```text
 exec_arith(op, type, mode, lhs, rhs) -> TcValue | Error      // 双目算术
 exec_unary(op, type, mode, operand) -> TcValue | Error       // 单目算术
+exec_compare(op, type, lhs, rhs) -> TcValue | Error          // 比较运算，返回 bool
+exec_logic_binary(op, lhs, rhs) -> TcValue | Error           // 双目逻辑（含短路）
+exec_logic_unary(op, operand) -> TcValue | Error              // 单目逻辑
 exec_cast(target, mode, source_slot) -> TcValue | Error      // 类型转换
 ```
 
@@ -686,7 +750,99 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 
 > `cast` 中 `wrap` 关键字不可用，使用则触发静态 **关键字错误**。
 
-### 10.5 与 C 语义对照
+### 10.5 比较运算（exec_compare）
+
+| 运算 | 语义（有符号 `int8`～`int64`）         | 语义（无符号 `uint8`～`uint64`）  |
+| ---- | -------------------------------------- | --------------------------------- |
+| `eq` | 按二进制补码数学值相等                 | 按无符号数学值相等                 |
+| `ne` | 数学值不等                             | 数学值不等                         |
+| `lt` | 数学值小于                             | 数学值小于                         |
+| `le` | 数学值小于等于                         | 数学值小于等于                     |
+| `gt` | 数学值大于                             | 数学值大于                         |
+| `ge` | 数学值大于等于                         | 数学值大于等于                     |
+
+**实现伪代码**：
+
+```c
+int tc_exec_compare(TcCompareOp op, TcIntType type,
+                    const TcValue *lhs, const TcValue *rhs,
+                    TcValue *out, TcDiagnostic *diag, int line) {
+    int n = tc_type_bit_width(type);
+    bool result;
+    if (tc_type_is_signed(type)) {
+        int64_t a = tc_bits_to_signed(lhs->bits & tc_type_mask(type), n);
+        int64_t b = tc_bits_to_signed(rhs->bits & tc_type_mask(type), n);
+        switch (op) {
+        case TC_CMP_EQ: result = (a == b); break;
+        case TC_CMP_NE: result = (a != b); break;
+        case TC_CMP_LT: result = (a < b);  break;
+        case TC_CMP_LE: result = (a <= b); break;
+        case TC_CMP_GT: result = (a > b);  break;
+        case TC_CMP_GE: result = (a >= b); break;
+        }
+    } else {
+        uint64_t a = lhs->bits & tc_type_mask(type);
+        uint64_t b = rhs->bits & tc_type_mask(type);
+        switch (op) {
+        case TC_CMP_EQ: result = (a == b); break;
+        case TC_CMP_NE: result = (a != b); break;
+        case TC_CMP_LT: result = (a < b);  break;
+        case TC_CMP_LE: result = (a <= b); break;
+        case TC_CMP_GT: result = (a > b);  break;
+        case TC_CMP_GE: result = (a >= b); break;
+        }
+    }
+    out->type = TC_BOOL;
+    out->bits = result ? 1 : 0;
+    return 0;
+}
+```
+
+> 比较运算不涉及 `Wrap`/`Truncate` 模式，不产生算术溢出或除零错误。
+
+### 10.6 逻辑运算（exec_logic）
+
+**双目逻辑（`and` / `or`）**：
+
+```text
+exec_logic_binary(And, lhs, rhs):
+    lhs_val ← eval_operand(lhs)
+    if lhs_val.bits == 0:       // false
+        return TcValue(bool, 0) // 短路：不计算 rhs
+    rhs_val ← eval_operand(rhs)
+    return TcValue(bool, rhs_val.bits != 0 ? 1 : 0)
+
+exec_logic_binary(Or, lhs, rhs):
+    lhs_val ← eval_operand(lhs)
+    if lhs_val.bits != 0:       // true
+        return TcValue(bool, 1) // 短路：不计算 rhs
+    rhs_val ← eval_operand(rhs)
+    return TcValue(bool, rhs_val.bits != 0 ? 1 : 0)
+```
+
+**单目逻辑（`not`）**：
+
+```text
+exec_logic_unary(Not, operand):
+    val ← eval_operand(operand)
+    return TcValue(bool, val.bits == 0 ? 1 : 0)
+```
+
+> `exec_logic_binary` 的短路行为对语言标准 §6.2.2 规定的「未初始化变量警告抑制」至关重要：当短路导致右操作数不被求值时，该操作数中的未初始化变量读取不触发编译警告。
+
+### 10.7 cast 中的 `bool` ↔ 整数转换
+
+在 §10.4 基础上，补充 `bool` 与整数之间的转换规则：
+
+| 源 → 目标           | strict / truncate 规则         |
+| ------------------- | ------------------------------ |
+| `bool` → 整数类型   | `true` → `1`，`false` → `0`    |
+| 整数类型 → `bool`   | `0` → `false`，非 `0` → `true` |
+| `bool` → `bool`     | 恒等，不报错                   |
+
+> `bool` ↔ 整数转换在 strict 和 truncate 模式下行为相同（无损失，不报错）。
+
+### 10.8 与 C 语义对照
 
 实现与测试时以语言标准附录 B 为参考：
 
@@ -736,10 +892,15 @@ TcErrorKind ::=
     TC_ERR_OVERFLOW_MODE           // 溢出模式错误（div/mod/abs 使用 wrap）
     TC_ERR_KEYWORD                 // 关键字错误（wrap/truncate 误用）
     TC_ERR_CONSTANT_ASSIGNMENT     // 常量赋值错误
-    TC_ERR_CONSTANT_EXPRESSION     // 常量表达式错误
+    TC_ERR_CONSTANT_EXPRESSION     // 常量表达式错误（引用 var、含 wrap/truncate）
+    TC_ERR_CONSTANT_CIRCULAR       // 常量循环依赖错误
+    TC_ERR_CONSTANT_OVERFLOW       // 常量溢出错误（有符号算术溢出）
+    TC_ERR_CONSTANT_DIV_ZERO       // 常量除零错误
+    TC_ERR_CONSTANT_CAST_OVERFLOW  // 常量转换溢出错误
     TC_ERR_FORMAT_STRING           // 格式字符串错误
     TC_ERR_FORMAT_TYPE_MISMATCH    // 格式类型不匹配
     TC_ERR_OPERAND_COUNT           // 操作数数量错误
+    TC_ERR_COMPARISON_TYPE_MISMATCH // 比较运算操作数类型不一致
     TC_ERR_DIVISION_BY_ZERO        // 除零错误
     TC_ERR_INTEGER_OVERFLOW        // 整数溢出错误
     TC_ERR_CAST_OVERFLOW           // 转换溢出错误
@@ -822,6 +983,15 @@ int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
 int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line);
+int tc_exec_compare(TcCompareOp op, TcIntType type,
+                    const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                    TcDiagnostic *diag, int line);
+int tc_exec_logic_binary(TcLogicOp op,
+                         const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                         TcDiagnostic *diag, int line);
+int tc_exec_logic_unary(TcLogicOp op,
+                        const TcValue *operand, TcValue *out,
+                        TcDiagnostic *diag, int line);
 int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line);
 
@@ -842,7 +1012,7 @@ tc-vm [options] [<file.tc>]   # 执行文件，成功静默退出 0
 tc-vm --check <file.tc>       # 仅 Analyzer，不执行
 tc-vm --repl                  # 交互式 REPL
 tc-vm --help                  # 显示用法
-tc-vm --version               # 显示版本（v0.0.18）
+tc-vm --version               # 显示版本（v0.0.21）
 ```
 
 退出码：0 成功；非 0 失败（静态或运行时错误）。REPL 正常退出也返回 0。
@@ -862,7 +1032,7 @@ VM 构建脚本与 AOT 分离；根目录 `Makefile` 转发至 CMake，也可直
 
 ## 13. 执行流程示例
 
-源文件 `example.tc`（含 v0.0.18 新特性）：
+源文件 `example.tc`（含 v0.0.21 新特性）：
 
 ```text
 ; 变量定义
@@ -875,42 +1045,58 @@ var sum: int32 = add(int32, a, b)
 ; 单目算术
 var neg_a: int32 = neg(int32, a)
 
-; 常量定义
+; 常量定义（编译期表达式）
 let SCALE: int32 = 1000
+let STEPS: int32 = mul(int32, 2, 5)
+
+; 比较运算
+var is_lt: bool = lt(int32, a, b)
+
+; 逻辑运算
+var is_valid: bool = and(bool, is_lt, true)
 
 ; 类型转换
 var scaled: int32 = mul(int32, sum, SCALE)
 var c: int8 = cast(int8, truncate, scaled)
 
 ; I/O 格式化
+writeln(bool, %t, is_valid)
 writeln(int32, %d, c)
 ```
 
 ### 13.1 Analyzer 产出（示意）
 
-| PC   | 行   | 语句                             | 槽位   |
-| ---- | ---- | -------------------------------- | ------ |
-| 0    | 2    | VarDef a, int32, Lit(10)         | slot 0 |
-| 1    | 3    | VarDef b, int32, Lit(20)         | slot 1 |
-| 2    | 6    | VarDef sum, int32, Add strict    | slot 2 |
-| 3    | 9    | VarDef neg_a, int32, Neg strict  | slot 3 |
-| 4    | 12   | ConstDef SCALE, int32, Lit(1000) | slot 4 |
-| 5    | 15   | VarDef scaled, int32, Mul strict | slot 5 |
-| 6    | 16   | VarDef c, int8, Cast truncate    | slot 6 |
-| 7    | 19   | Writeln fmt=%d, c                | —      |
+| PC   | 行   | 语句                                     | 槽位   |
+| ---- | ---- | ---------------------------------------- | ------ |
+| 0    | 2    | VarDef a, int32, Lit(10)                 | slot 0 |
+| 1    | 3    | VarDef b, int32, Lit(20)                 | slot 1 |
+| 2    | 6    | VarDef sum, int32, Add strict            | slot 2 |
+| 3    | 9    | VarDef neg_a, int32, Neg strict          | slot 3 |
+| 4    | 12   | ConstDef SCALE, int32, Lit(1000)         | slot 4 |
+| 5    | 13   | ConstDef STEPS, int32, ConstArith(2,5)   | slot 5 |
+| 6    | 16   | VarDef is_lt, bool, Compare(Lt, a, b)   | slot 6 |
+| 7    | 19   | VarDef is_valid, bool, BinaryLogic(And)  | slot 7 |
+| 8    | 22   | VarDef scaled, int32, Mul strict         | slot 8 |
+| 9    | 23   | VarDef c, int8, Cast truncate            | slot 9 |
+| 10   | 26   | Writeln fmt=%t, is_valid (slot 7)        | —      |
+| 11   | 27   | Writeln fmt=%d, c (slot 9)              | —      |
 
 ### 13.2 Executor 逐步执行
 
-| PC   | 动作                        | slots 快照   |
-| ---- | --------------------------- | ------------ |
-| 0    | a ← 10                      | a=10         |
-| 1    | b ← 20                      | b=20         |
-| 2    | sum ← add(10,20)=30         | sum=30       |
-| 3    | neg_a ← neg(10)=-10         | neg_a=-10    |
-| 4    | SCALE ← 1000                | SCALE=1000   |
-| 5    | scaled ← mul(30,1000)=30000 | scaled=30000 |
-| 6    | c ← cast truncate(30000)    | c=-16        |
-| 7    | writeln " -16\n"            | stdout       |
+| PC   | 动作                                  | slots 快照                       |
+| ---- | ------------------------------------- | -------------------------------- |
+| 0    | a ← 10                                | a=10                             |
+| 1    | b ← 20                                | b=20                             |
+| 2    | sum ← add(10,20)=30                   | sum=30                           |
+| 3    | neg_a ← neg(10)=-10                   | neg_a=-10                        |
+| 4    | SCALE ← 1000                          | SCALE=1000                       |
+| 5    | STEPS ← 10（编译期求值）              | STEPS=10                         |
+| 6    | is_lt ← lt(10,20)=true                | is_lt=true                       |
+| 7    | is_valid ← and(true, true)=true       | is_valid=true                    |
+| 8    | scaled ← mul(30,1000)=30000           | scaled=30000                     |
+| 9    | c ← cast truncate(30000)              | c=-16                            |
+| 10   | writeln "true\n"                      | stdout                           |
+| 11   | writeln "-16\n"                       | stdout                           |
 
 ---
 
@@ -937,7 +1123,7 @@ tests/
 
 `scripts/vm/run_tests.sh` 由 CMake 目标 `check-vm` 调用；支持 `ASAN=1` 或 `--asan` 切换至 `build-asan/vm/bin/tc-vm`。
 
-### 14.3 回归用例（v0.0.18）
+### 14.3 回归用例（v0.0.21）
 
 #### valid — 执行成功
 
@@ -951,12 +1137,19 @@ tests/
 | `div_mod_signed.tc`、`int64_min.tc`、`mod_int_min_neg_one.tc` | stdout 期望值                                             |
 | `strict_cast_widen.tc`、`sign_extend_cast.tc`                | stdout 期望值                                             |
 | `write_int8_number.tc`、`write_no_newline.tc`                | stdout 期望值                                             |
-| **`abs_neg_signed.tc`**                                      | stdout 期望值（新增）                                     |
-| **`unary_wrap.tc`**                                          | stdout 期望值（新增）                                     |
-| **`format_output.tc`**                                       | stdout 期望值（新增）                                     |
-| **`format_hex_bin.tc`**                                      | stdout 期望值（新增）                                     |
+| `abs_neg_signed.tc`                                          | stdout 期望值                                             |
+| `unary_wrap.tc`                                              | stdout 期望值                                             |
+| `format_output.tc`                                           | stdout 期望值                                             |
+| `format_hex_bin.tc`                                          | stdout 期望值                                             |
+| **`bool_var.tc`**                                            | stdout 期望值（布尔变量定义与输出）                        |
+| **`compare_ops.tc`**                                         | stdout 期望值（6 种比较运算）                              |
+| **`logic_ops.tc`**                                           | stdout 期望值（3 种逻辑运算 + 短路求值）                  |
+| **`bool_cast.tc`**                                           | stdout 期望值（bool ↔ 整数互转）                          |
+| **`format_bool.tc`**                                         | stdout 期望值（`%t` 格式化布尔输出）                      |
+| **`const_expr.tc`**                                          | stdout 期望值（编译期算术/比较/逻辑/转换表达式）          |
 | `comments_semicolon.tc`、`semicolon_inline_comment.tc`       | stdout 期望值                                             |
 | `read_write.tc`                                              | 管道 stdin + stdout 期望                                  |
+| `read_bool.tc`                                               | 管道 stdin 含 `true`/`false` + stdout 期望                |
 | `example.tc`、`let_constant.tc`                              | `--check` 模式退出码 0                                    |
 
 #### stress
@@ -1000,9 +1193,15 @@ tests/
 | `type_mismatch.tc`                         | `operand type does not match`             |
 | `syntax_error.tc`                          | `unexpected token`                        |
 | `cast_literal.tc`                          | `cast source must be a variable`          |
-| **`format_string_error.tc`**               | `invalid format specifier`                |
-| **`format_type_mismatch.tc`**              | `%d requires signed type`                 |
-| **`format_operand_count.tc`**              | `operand count error`                     |
+| `format_string_error.tc`                   | `invalid format specifier`                |
+| `format_type_mismatch.tc`                  | `%d requires signed type`                 |
+| `format_operand_count.tc`                  | `operand count error`                     |
+| **`bool_literal_type_error.tc`**           | `literal type`（true 用于整数类型）        |
+| **`compare_type_mismatch.tc`**             | `comparison operand type mismatch`        |
+| **`logic_type_error.tc`**                  | `operand type does not match`（非 bool）  |
+| **`const_cyclic_dep.tc`**                  | `circular dependency in constant`         |
+| **`const_overflow.tc`**                    | `constant overflow`                       |
+| **`const_div_zero.tc`**                    | `constant division by zero`               |
 
 ### 14.4 REPL 测试
 
@@ -1011,9 +1210,11 @@ tests/
 | 跨行变量 + `writeln` | 输出含 `30`                   |
 | 重复 `var` 定义      | 诊断含 `duplicate definition` |
 | `:reset` + `:vars`   | `(no variables)`              |
-| `let` 常量           | 输出含 `99`                   |
+| `let` 常量（含表达式）| 输出含 `99`                   |
 | `:help`              | 输出含 `Meta commands`        |
 | `let` 字面量超范围   | 会话无污染                    |
+| `bool` 变量跨行使用  | 输出含 `true` / `false`       |
+| `read(bool, flag)`   | 输入 true/false 后输出正确    |
 
 ### 14.5 必测边界
 
@@ -1024,11 +1225,19 @@ tests/
 - strict / truncate cast 对照
 - `div`/`mod`/`abs` 带 `wrap` → 静态溢出模式错误
 - `cast` 带 `wrap` → 静态关键字错误
-- 格式化输出：`%x` 输出无符号位模式（`-1` → `ff`）
+- 格式化输出：`%x` 输出无符号位模式（`-1` → `ff`）；`%t` 输出 `true`/`false`
 - `u` 后缀字面量用于有符号类型 → 字面量类型错误
 - 无 RHS 的 `var` 定义 → 不报错，读取时产生警告
 - `let` 常量定义 → 编译期确定，运行时只读
 - `INT64_MIN` 字面量 `-9223372036854775808` → 合法
+- **`bool` 变量定义与赋值**：`var flag: bool = true` → 运行时正确输出
+- **比较运算全排列**：`eq/ne/lt/le/gt/ge` 对有符号/无符号类型的正确性
+- **短路求值**：`and(bool, false, uninit)` 不触发未初始化警告
+- **`bool` ↔ `int` cast**：`cast(int32, true)` → 1；`cast(bool, 42)` → true
+- **编译期常量表达式**：`let X: int32 = add(int32, 10, 20)` → 30
+- **常量循环依赖**：A 引用 B，B 引用 A → 静态错误
+- **常量表达式溢出**：`let X: int8 = add(int8, 100, 100)` → 常量溢出错误
+- **`%t` 格式类型检查**：`write(int32, %t, x)` → 格式类型不匹配错误
 
 ---
 
@@ -1043,7 +1252,7 @@ tests/
 | 编译警告               | §9.3 定义 1 种 | §11.3 WarningKind    |
 | 内部 `TcStatement`     | 无             | 实现细节，非语言成分 |
 | 诊断格式               | 无             | §11.2 实现约定       |
-| 格式化符号             | §7.4 定义 7 种 | §5.2 FormatSpec 枚举 |
+| 格式化符号             | §8.4 定义 8 种 | §5.2 FormatSpec 枚举 |
 
 若实现约定与语言标准可观测语义冲突，**以语言标准为准**。
 
@@ -1051,19 +1260,19 @@ tests/
 
 ## 16. 后续扩展预留
 
-语言标准 §5.4、§6.5、§7.6 预留特性在 TC-VM 中的预期挂载点：
+语言标准 §5.4、§7.6、附录 D 预留特性在 TC-VM 中的预期挂载点：
 
-| 扩展             | Analyzer                 | Executor              | 状态 |
-| ---------------- | ------------------------ | --------------------- | ---- |
-| 比较指令         | 新 `Rhs` 变体            | 新 `exec_cmp`         | 预留 |
-| 位运算           | 新 `ArithOp` 值          | 新 `exec_bitwise`     | 预留 |
-| 逻辑运算         | 新 `bool` 类型           | 新 `exec_logic`       | 预留 |
-| `label` / `goto` | 标签符号表、跳转目标检查 | PC 非线性更新         | 预留 |
-| `if`             | 条件类型检查             | 条件分支              | 预留 |
-| 函数             | 多作用域符号表、参数槽   | 栈帧 / call-return    | 预留 |
-| 数组             | 元素类型、索引检查       | 连续内存 + load/store | 预留 |
-| 浮点类型         | `float32`/`float64` 类型 | 新 `exec_fp`          | 预留 |
-| 字符串           | 字符串类型、格式化输出   | 字符串缓冲区          | 预留 |
+| 扩展             | Analyzer                 | Executor              | 状态       |
+| ---------------- | ------------------------ | --------------------- | ---------- |
+| 位运算           | 新 `ArithOp` 值          | 新 `exec_bitwise`     | 预留       |
+| `label` / `goto` | 标签符号表、跳转目标检查 | PC 非线性更新         | 预留       |
+| `if`             | 条件类型检查             | 条件分支              | 预留       |
+| 函数             | 多作用域符号表、参数槽   | 栈帧 / call-return    | 预留       |
+| 数组             | 元素类型、索引检查       | 连续内存 + load/store | 预留       |
+| 浮点类型         | `float32`/`float64` 类型 | 新 `exec_fp`          | 预留       |
+| 字符串           | 字符串类型、格式化输出   | 字符串缓冲区          | 预留       |
+
+**已实现（v0.0.21）**：比较指令、逻辑指令、`bool` 类型、`let` 编译期常量表达式、`%t` 格式化符号。
 
 扩展时：
 
@@ -1124,7 +1333,7 @@ Pass 2 新增对三种 I/O 语句的检查：
 **格式化输出实现**：
 
 ```c
-static void write_formatted(TcIntType type, TcFormatSpec fmt,
+static void write_formatted(TcType type, TcFormatSpec fmt,
                             const TcValue *value, FILE *out) {
     uint64_t bits = value->bits & tc_type_mask(type);
     int n = tc_type_bit_width(type);
@@ -1159,6 +1368,9 @@ static void write_formatted(TcIntType type, TcFormatSpec fmt,
             fputc((uval >> i) & 1 ? '1' : '0', out);
         }
         break;
+    case TC_FMT_T:
+        fprintf(out, "%s", (value->bits != 0) ? "true" : "false");
+        break;
     }
 }
 ```
@@ -1166,6 +1378,8 @@ static void write_formatted(TcIntType type, TcFormatSpec fmt,
 **Read 执行流程**：
 
 1. 从 `stdin` 读取输入：
+
+   **整数类型**（`int8`～`uint64`）：
    ```
    skip_whitespace()
    if type is signed and peek() == '-': sign = -1; advance()
@@ -1176,9 +1390,18 @@ static void write_formatted(TcIntType type, TcFormatSpec fmt,
    if not fits_type(value, type): → TC_ERR_IO
    if EOF before any digit: → TC_ERR_IO
    ```
+
+   **`bool` 类型**：
+   ```
+   skip_whitespace()
+   if next input is "true":  → out.bits = 1
+   else if next input is "false": → out.bits = 0
+   else: → TC_ERR_IO (invalid input for bool type)
+   ```
+
 2. 将 `value` 编码为 `type` 的位模式，写入目标变量槽位
 
-**特别说明**：`int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`（与语言标准 §7.1 一致）。
+**特别说明**：`int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`（与语言标准 §7.1 一致）。`bool` 类型 `true` 输出 `"true"`，`false` 输出 `"false"`。
 
 ---
 
@@ -1291,17 +1514,25 @@ REPL 通过 POSIX `isatty()` 检测 stdin 和 stderr 是否为终端：
 | ----------------------------- | ------------------------------------------------------------ |
 | `var n: int32 = 0`            | `VarDef(line, "n", int32, LitRhs(0))`                        |
 | `var n: int32`                | `VarDef(line, "n", int32, None)`                             |
-| `let N: int32 = 42`           | `ConstDef(line, "N", int32, LitRhs(42))`                     |
+| `var f: bool = true`          | `VarDef(line, "f", bool, LitRhs(1))`                         |
+| `let N: int32 = 42`           | `ConstDef(line, "N", int32, ConstLitRhs(42))`                 |
+| `let X: int32 = add(int32, 10, 20)` | `ConstDef(line, "X", int32, ConstArithRhs(Add, int32, ConstLit(10), ConstLit(20)))` |
 | `n = add(int32, a, b)`        | `Assign(line, "n", ArithRhs(Add, int32, Strict, Var(a), Var(b)))` |
 | `n = add(int32, wrap, a, b)`  | `ArithRhs(..., Wrap, ...)`                                   |
 | `n = abs(int32, a)`           | `Assign(line, "n", UnaryRhs(Abs, int32, Strict, Var(a)))`    |
 | `n = neg(int32, wrap, a)`     | `Assign(line, "n", UnaryRhs(Neg, int32, Wrap, Var(a)))`      |
+| `r = eq(int32, a, b)`         | `Assign(line, "r", CompareRhs(Eq, int32, Var(a), Var(b)))`   |
+| `r = and(bool, a, b)`         | `Assign(line, "r", BinaryLogicRhs(And, Var(a), Var(b)))`     |
+| `r = not(bool, a)`            | `Assign(line, "r", UnaryLogicRhs(Not, Var(a)))`              |
 | `n = cast(int8, x)`           | `Assign(line, "n", CastRhs(int8, StrictTrunc, "x"))`         |
 | `n = cast(int8, truncate, x)` | `CastRhs(int8, Truncate, "x")`                               |
+| `n = cast(bool, x)`           | `Assign(line, "n", CastRhs(bool, StrictTrunc, "x"))`         |
 | `write(int32, x)`             | `Write(line, int32, fmt=0, Variable("x"))`                   |
 | `write(int32, %d, x)`         | `Write(line, int32, fmt=D, Variable("x"))`                   |
 | `writeln(uint8, %x, 255u)`    | `Writeln(line, uint8, fmt=X, Literal(255u))`                 |
+| `writeln(bool, %t, flag)`     | `Writeln(line, bool, fmt=T, Variable("flag"))`               |
 | `read(int32, x)`              | `Read(line, int32, "x")`                                     |
+| `read(bool, flag)`            | `Read(line, bool, "flag")`                                   |
 
 ---
 
@@ -1330,6 +1561,7 @@ REPL 通过 POSIX `isatty()` 检测 stdin 和 stderr 是否为终端：
 | 0.0.14     | 2026-07-03     | 与 TC-VM 源码全面对齐                                        |
 | **0.0.17** | **2026-07-03** | **与语言标准 v0.0.17 全面对齐**：新增单目运算 `abs`/`neg` 支持；新增 I/O 格式化输出（7 种格式符号）；完善字面量 `u` 后缀解析；完善常量 `let` 编译期值处理；完善 `cast` strict/truncate 语义实现；完善 `wrap` 模式位级一致性；补充格式字符串/类型不匹配/操作数数量等静态错误类型；更新 §5、§7、§10、§11、§14、§17、§18 及附录 A |
 | **0.0.18** | **2026-07-03** | **与语言标准 v0.0.18 对齐**：`div(INT_MIN, −1)` 报整数溢出错误、`mod(INT_MIN, −1)` 为 0；更新 §9.3、§10.2、§10.5、§14.3 及回归用例索引 |
+| **0.0.21** | **2026-07-04** | **与语言标准 v0.0.21 全面对齐**：新增 `bool` 类型支持（定义/赋值/值表示/输入输出）；新增比较运算（`eq/ne/lt/le/gt/ge`）及其执行引擎 `exec_compare`；新增逻辑运算（`and/or/not`）及其执行引擎 `exec_logic_binary`/`exec_logic_unary`，实现短路求值；扩展 `let` 常量 RHS 为编译期常量表达式（算术/比较/逻辑/无损转换）；新增常量表达式错误类型（常量循环依赖/常量溢出/常量除零/常量转换溢出）；扩展 `cast` 支持 `bool` ↔ 整数转换；新增 `%t` 格式化符号支持；更新 §1、§3、§5、§6、§7、§8、§9、§10、§11、§12、§13、§14、§16、§17、§18 及附录 A、附录 B |
 
 ---
 

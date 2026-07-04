@@ -1,0 +1,11 @@
+; bool 与整数互转
+var x: int32 = 42
+var zero: int32 = 0
+var flag: bool = cast(bool, x)
+var zero_flag: bool = cast(bool, zero)
+var as_int: int32 = cast(int32, flag)
+var from_false: int32 = cast(int32, zero_flag)
+writeln(bool, %t, flag)
+writeln(bool, %t, zero_flag)
+writeln(int32, %d, as_int)
+writeln(int32, %d, from_false)

@@ -14,10 +14,12 @@ typedef enum {
     TC_TOK_EOF,         /* 行结束 */
     TC_TOK_VAR,         /* 'var' 关键字 */
     TC_TOK_LET,         /* 'let' 关键字 */
-    TC_TOK_INT_TYPE,    /* 类型名（int8 / uint32 等） */
+    TC_TOK_INT_TYPE,    /* 类型名（int8 / uint32 / bool 等） */
     TC_TOK_ARITH_OP,    /* 算术运算符（add/sub/mul/div/mod） */
     TC_TOK_UNARY_OP,    /* 单目运算符（abs/neg） */
-    TC_TOK_FORMAT_SPEC, /* 格式说明符（%d/%u/%x/%X/%o/%b） */
+    TC_TOK_COMPARE_OP,  /* 比较运算符（eq/ne/lt/le/gt/ge） */
+    TC_TOK_LOGIC_OP,    /* 逻辑运算符（and/or/not） */
+    TC_TOK_FORMAT_SPEC, /* 格式说明符（%d/%u/%x/%X/%o/%b/%t） */
     TC_TOK_CAST,        /* 'cast' 关键字 */
     TC_TOK_WRAP,        /* 'wrap' 关键字 */
     TC_TOK_TRUNCATE,    /* 'truncate' 关键字 */
@@ -26,6 +28,7 @@ typedef enum {
     TC_TOK_READ,        /* 'read' 关键字 */
     TC_TOK_IDENTIFIER,  /* 用户定义标识符（变量名） */
     TC_TOK_INTEGER,     /* 整数字面量 */
+    TC_TOK_BOOL_LIT,    /* 布尔字面量 true/false */
     TC_TOK_COLON,       /* ':' */
     TC_TOK_EQUAL,       /* '=' */
     TC_TOK_COMMA,       /* ',' */
@@ -45,6 +48,8 @@ typedef struct {
         TcIntType int_type;
         TcArithOp arith_op;
         TcUnaryOp unary_op;
+        TcCompareOp compare_op;
+        TcLogicOp logic_op;
         TcFormatSpec format_spec;
         TcLiteral literal;
     } u;

@@ -1,0 +1,1 @@
+let A: int32 = add(int32, A, 1)

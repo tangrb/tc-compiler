@@ -1,0 +1,5 @@
+; %t 格式化布尔输出
+var t: bool = true
+var f: bool = false
+writeln(bool, %t, t)
+writeln(bool, %t, f)

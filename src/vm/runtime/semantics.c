@@ -105,6 +105,23 @@ int tc_literal_fits_type(uint64_t value, TcIntType type) {
 }
 
 int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *err_kind) {
+    if (lit->is_bool) {
+        if (!tc_type_is_bool(type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_TYPE;
+            }
+            return 0;
+        }
+        return 1;
+    }
+
+    if (tc_type_is_bool(type)) {
+        if (err_kind) {
+            *err_kind = TC_ERR_LITERAL_TYPE;
+        }
+        return 0;
+    }
+
     if (lit->unsigned_suffix) {
         /* u 后缀的字面量不能用于有符号上下文 */
         if (tc_type_is_signed(type)) {
@@ -180,6 +197,9 @@ int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *e
 }
 
 TcValue tc_literal_to_value(const TcLiteral *lit, TcIntType type) {
+    if (lit->is_bool) {
+        return tc_value_make(TC_BOOL, lit->magnitude ? 1ULL : 0ULL);
+    }
     if (lit->unsigned_suffix) {
         return tc_value_make(type, lit->magnitude);
     }
@@ -640,23 +660,40 @@ static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *s
 static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
                           TcDiagnostic *diag, int line) {
     TcIntType src_type = source->type;
-    int src_bits = tc_type_bit_width(src_type);
+
+    if (tc_type_is_bool(src_type) && tc_type_is_bool(target)) {
+        *out = *source;
+        return 0;
+    }
+    if (tc_type_is_bool(src_type) && tc_type_is_integer(target)) {
+        *out = tc_value_make(target, source->bits != 0 ? 1ULL : 0ULL);
+        return 0;
+    }
+    if (tc_type_is_integer(src_type) && tc_type_is_bool(target)) {
+        *out = tc_value_make(TC_BOOL, source->bits != 0 ? 1ULL : 0ULL);
+        return 0;
+    }
+
+    {
+    TcIntType src_type_inner = source->type;
+    int src_bits = tc_type_bit_width(src_type_inner);
     int dst_bits = tc_type_bit_width(target);
 
-    if (src_type == target) {
+    if (src_type_inner == target) {
         *out = *source;
         return 0;
     }
 
     if (dst_bits > src_bits) {
-        return tc_cast_widen(target, src_type, source, out, diag, line);
+        return tc_cast_widen(target, src_type_inner, source, out, diag, line);
     }
 
     if (dst_bits == src_bits) {
-        return tc_cast_same_width_diff_sign(target, src_type, source, out, diag, line);
+        return tc_cast_same_width_diff_sign(target, src_type_inner, source, out, diag, line);
     }
 
-    return tc_cast_narrow(target, src_type, source, out, diag, line);
+    return tc_cast_narrow(target, src_type_inner, source, out, diag, line);
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -695,6 +732,17 @@ static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int si
 
 static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *out) {
     TcIntType src_type = source->type;
+
+    if (tc_type_is_bool(src_type) || tc_type_is_bool(target)) {
+        if (tc_type_is_bool(target)) {
+            *out = tc_value_make(TC_BOOL, source->bits != 0 ? 1ULL : 0ULL);
+        } else {
+            *out = tc_value_make(target, source->bits != 0 ? 1ULL : 0ULL);
+        }
+        return 0;
+    }
+
+    {
     int src_bits = tc_type_bit_width(src_type);
     int dst_bits = tc_type_bit_width(target);
     uint64_t bits = tc_value_to_unsigned(src_type, source->bits);
@@ -714,6 +762,100 @@ static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *ou
     }
 
     *out = tc_value_make(target, result_bits);
+    return 0;
+    }
+}
+
+int tc_exec_compare(TcCompareOp op, TcIntType type, const TcValue *lhs, const TcValue *rhs,
+                    TcValue *out, TcDiagnostic *diag, int line) {
+    int n = tc_type_bit_width(type);
+    int result = 0;
+
+    (void)diag;
+    (void)line;
+
+    if (tc_type_is_signed(type)) {
+        int64_t a = tc_bits_to_signed(type, lhs->bits & tc_mask_bits(n));
+        int64_t b = tc_bits_to_signed(type, rhs->bits & tc_mask_bits(n));
+        switch (op) {
+        case TC_CMP_EQ:
+            result = (a == b);
+            break;
+        case TC_CMP_NE:
+            result = (a != b);
+            break;
+        case TC_CMP_LT:
+            result = (a < b);
+            break;
+        case TC_CMP_LE:
+            result = (a <= b);
+            break;
+        case TC_CMP_GT:
+            result = (a > b);
+            break;
+        case TC_CMP_GE:
+            result = (a >= b);
+            break;
+        }
+    } else {
+        uint64_t a = lhs->bits & tc_mask_bits(n);
+        uint64_t b = rhs->bits & tc_mask_bits(n);
+        switch (op) {
+        case TC_CMP_EQ:
+            result = (a == b);
+            break;
+        case TC_CMP_NE:
+            result = (a != b);
+            break;
+        case TC_CMP_LT:
+            result = (a < b);
+            break;
+        case TC_CMP_LE:
+            result = (a <= b);
+            break;
+        case TC_CMP_GT:
+            result = (a > b);
+            break;
+        case TC_CMP_GE:
+            result = (a >= b);
+            break;
+        }
+    }
+
+    *out = tc_value_make(TC_BOOL, result ? 1ULL : 0ULL);
+    return 0;
+}
+
+int tc_exec_logic_binary(TcLogicOp op, const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                         TcDiagnostic *diag, int line) {
+    int lhs_true = lhs->bits != 0;
+
+    (void)diag;
+    (void)line;
+
+    if (op == TC_LOGIC_AND) {
+        if (!lhs_true) {
+            *out = tc_value_make(TC_BOOL, 0);
+            return 0;
+        }
+        *out = tc_value_make(TC_BOOL, rhs->bits != 0 ? 1ULL : 0ULL);
+        return 0;
+    }
+
+    if (lhs_true) {
+        *out = tc_value_make(TC_BOOL, 1);
+        return 0;
+    }
+    *out = tc_value_make(TC_BOOL, rhs->bits != 0 ? 1ULL : 0ULL);
+    return 0;
+}
+
+int tc_exec_logic_unary(TcLogicOp op, const TcValue *operand, TcValue *out,
+                        TcDiagnostic *diag, int line) {
+    (void)op;
+    (void)diag;
+    (void)line;
+    *out = tc_value_make(TC_BOOL, operand->bits == 0 ? 1ULL : 0ULL);
     return 0;
 }
 
