@@ -17,9 +17,11 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/runtime/symbol.c
     ${TC_VM_DIR}/runtime/warning.c
     ${TC_VM_DIR}/runtime/semantics.c
+    ${TC_VM_DIR}/runtime/tc_io.c
     ${TC_VM_DIR}/lexer/lexer.c
     ${TC_VM_DIR}/parser/parser.c
     ${TC_VM_DIR}/analyzer/analyzer.c
+    ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/executor/executor.c
 )
 

@@ -68,6 +68,7 @@ static int tc_aot_run_generated(const char *c_path) {
              "\"" TC_VM_DIR "/runtime/types.c\" "
              "\"" TC_VM_DIR "/runtime/diagnostic.c\" "
              "\"" TC_VM_DIR "/runtime/semantics.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_io.c\" "
              "-o \"%s.out\" && \"%s.out\"",
              c_path, c_path, c_path);
     return system(cmd);

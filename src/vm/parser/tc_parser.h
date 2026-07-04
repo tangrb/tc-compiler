@@ -19,6 +19,17 @@
 #include "tc_types.h"
 #include "tc_lexer.h"
 
+/** 递归 RHS 解析最大深度，超过此深度报 "expression too complex" */
+#define TC_PARSER_MAX_DEPTH 256
+
+/**
+ * Parser 上下文，承载递归深度计数器等解析状态。
+ * 调用方在每次 tc_parse_statement 调用前初始化 { .depth = 0 }。
+ */
+typedef struct {
+    int depth; /* 当前 RHS 递归深度 */
+} TcParserCtx;
+
 /**
  * 初始化 TcProgram 为空状态。
  * @param program 待初始化的程序指针
@@ -35,9 +46,10 @@ void tc_program_free(TcProgram *program);
  * 向程序末尾追加一条语句。
  * @param program 程序指针
  * @param stmt    待追加的语句（内容被浅拷贝，调用方可复用 stmt 空间）
+ * @param diag    诊断对象
  * @return 成功返回 0；内存不足返回 -1
  */
-int tc_program_push(TcProgram *program, const TcStatement *stmt);
+int tc_program_push(TcProgram *program, const TcStatement *stmt, TcDiagnostic *diag);
 
 /**
  * 释放 TcRhs 中的动态内存（name / source 等堆分配的字段）。
@@ -53,13 +65,14 @@ void tc_statement_free(TcStatement *stmt);
 
 /**
  * 解析单条语句。
+ * @param ctx     Parser 上下文（含递归深度计数器）
  * @param tokens  Token 列表（来自 tc_tokenize_line，含行尾 TC_TOK_EOF）
  * @param line_no 当前行号
  * @param out     输出参数，解析后的 TcStatement
  * @param diag    诊断对象
  * @return 成功返回 0；语法错误返回 -1 并设置 diag
  */
-int tc_parse_statement(const TcTokenList *tokens, int line_no, TcStatement *out,
+int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no, TcStatement *out,
                        TcDiagnostic *diag);
 
 #endif

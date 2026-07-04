@@ -278,6 +278,7 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
     TcTokenList tokens;
     TcStatement stmt;
     TcWarningList warnings;
+    TcParserCtx parse_ctx;
     int added_symbol = 0;
     int rc = 0;
 
@@ -288,7 +289,8 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
         tc_warning_list_free(&warnings);
         return -1;
     }
-    if (tc_parse_statement(&tokens, session->line_no, &stmt, diag) != 0) {
+    parse_ctx.depth = 0;
+    if (tc_parse_statement(&parse_ctx, &tokens, session->line_no, &stmt, diag) != 0) {
         tc_statement_free(&stmt);
         tc_token_list_free(&tokens);
         tc_warning_list_free(&warnings);

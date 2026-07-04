@@ -89,6 +89,9 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
         const char *line_end = cursor;
         char *line_copy = NULL;
         TcTokenList tokens;
+        TcParserCtx parse_ctx;
+
+        parse_ctx.depth = 0;
 
         /* 定位到行尾 */
         while (*line_end != '\0' && *line_end != '\n' && *line_end != '\r') {
@@ -115,7 +118,7 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
             {
                 TcStatement stmt;
                 memset(&stmt, 0, sizeof(stmt));
-                if (tc_parse_statement(&tokens, line_no, &stmt, diag) != 0) {
+                if (tc_parse_statement(&parse_ctx, &tokens, line_no, &stmt, diag) != 0) {
                     tc_statement_free(&stmt);
                     free(line_copy);
                     tc_token_list_free(&tokens);
@@ -123,11 +126,11 @@ static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic 
                     return -1;
                 }
                 tc_token_list_free(&tokens);
-                if (tc_program_push(program, &stmt) != 0) {
+                if (tc_program_push(program, &stmt, diag) != 0) {
                     tc_statement_free(&stmt);
                     free(line_copy);
                     tc_program_free(program);
-                    tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+                    /* tc_program_push 已设置 OOM 诊断 */
                     return -1;
                 }
             }

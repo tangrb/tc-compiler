@@ -13,6 +13,7 @@
 #include "tc_executor.h"
 
 #include "tc_diagnostic.h"
+#include "tc_io.h"
 #include "tc_semantics.h"
 #include "tc_symbol.h"
 
@@ -25,118 +26,8 @@
 #include <string.h>
 
 /* ------------------------------------------------------------------ */
-/*  格式化输出辅助                                                       */
+/*  格式化输出辅助（委托 tc_io.c）                                       */
 /* ------------------------------------------------------------------ */
-
-/*
- * @brief 按格式符号将 TcValue 写入 stdout
- * @param type  值的整数类型
- * @param fmt   格式说明符
- * @param value 待输出的运行时值
- * @param out   输出流（stdout）
- * @return 成功返回 0；I/O 错误返回 -1
- *
- * 支持的格式：
- *   %d/%i — 有符号十进制；%u — 无符号十进制；%x — 小写十六进制；
- *   %X — 大写十六进制；%o — 八进制；%b — 二进制
- */
-static int tc_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
-    int n = tc_type_bit_width(type);
-    uint64_t mask = tc_mask_bits(n);
-    uint64_t uval = tc_value_to_unsigned(type, value->bits) & mask;
-
-    switch (fmt) {
-    case TC_FMT_D:
-    case TC_FMT_I:
-        if (!tc_type_is_signed(type)) {
-            if (fprintf(out, "%llu", (unsigned long long)uval) < 0) {
-                return -1;
-            }
-        } else {
-            int64_t sval = tc_bits_to_signed(type, value->bits);
-            if (fprintf(out, "%lld", (long long)sval) < 0) {
-                return -1;
-            }
-        }
-        break;
-    case TC_FMT_U:
-        if (fprintf(out, "%llu", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_X:
-        if (fprintf(out, "%llx", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_XU:
-        if (fprintf(out, "%llX", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_O:
-        if (fprintf(out, "%llo", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_B: {
-        int i = 0;
-        /* 从最高位到最低位逐位输出 */
-        for (i = n - 1; i >= 0; i--) {
-            if (fputc((uval >> i) & 1 ? '1' : '0', out) == EOF) {
-                return -1;
-            }
-        }
-        break;
-    }
-    case TC_FMT_T:
-        if (fprintf(out, "%s", value->bits != 0 ? "true" : "false") < 0) {
-            return -1;
-        }
-        break;
-    default:
-        return -1;
-    }
-    return 0;
-}
-
-/*
- * @brief 将 TcValue 输出到 stdout
- * @param value   待输出的运行时值
- * @param fmt     格式说明符（TC_FMT_NONE 时按类型默认输出）
- * @param newline 是否追加换行符
- * @return 成功返回 0；I/O 错误返回 -1
- */
-static int tc_exec_write_value(const TcValue *value, TcFormatSpec fmt, int newline) {
-    if (fmt != TC_FMT_NONE) {
-        if (tc_write_formatted(value->type, fmt, value, stdout) != 0) {
-            return -1;
-        }
-    } else if (tc_type_is_bool(value->type)) {
-        if (fprintf(stdout, "%s", value->bits != 0 ? "true" : "false") < 0) {
-            return -1;
-        }
-    } else if (tc_type_is_signed(value->type)) {
-        int64_t signed_value = tc_bits_to_signed(value->type, value->bits);
-        if (fprintf(stdout, "%" PRId64, signed_value) < 0) {
-            return -1;
-        }
-    } else {
-        uint64_t unsigned_value = tc_value_to_unsigned(value->type, value->bits);
-        if (fprintf(stdout, "%" PRIu64, unsigned_value) < 0) {
-            return -1;
-        }
-    }
-    if (newline) {
-        if (fputc('\n', stdout) == EOF) {
-            return -1;
-        }
-    }
-    if (fflush(stdout) != 0) {
-        return -1;
-    }
-    return 0;
-}
 
 /* ------------------------------------------------------------------ */
 /*  I/O 语句实现                                                        */
@@ -163,85 +54,14 @@ static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots,
         value = slots[symbol->slot];
     }
 
-    if (tc_exec_write_value(&value, io_write->fmt, newline) != 0) {
+    if (tc_io_write_value(&value, io_write->fmt, newline, stdout) != 0) {
         tc_diagnostic_set(diag, TC_ERR_IO, io_write->line, TC_COLUMN_UNKNOWN, "output failed");
         return -1;
     }
     return 0;
 }
 
-/* 跳过 stdin 前导空白字符 */
-static void tc_io_skip_whitespace(void) {
-    int c = 0;
-    for (;;) {
-        c = fgetc(stdin);
-        if (c == EOF) {
-            return;
-        }
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            continue;
-        }
-        ungetc(c, stdin);
-        return;
-    }
-}
-
-/*
- * @brief 从 stdin 读取十进制数字字符序列，计算其绝对值
- * @param c        当前已读取的首个字符（必须是 '-' 或数字才合法）
- * @param line     当前行号（错误定位）
- * @param diag     诊断对象
- * @param out_abs  输出：数字序列的绝对值
- * @param out_sign 输出：符号（1 或 -1）
- * @return 成功返回 0；输入非法或超出 uint64 范围返回 -1
- *
- * @note 提取 signed/unsigned 输入的公共数字读取逻辑。不负责值域检查，
- *       调用方按 signed/unsigned 类型自行判断。
- */
-static int tc_read_decimal_digits(int c, int line, TcDiagnostic *diag,
-                                  uint64_t *out_abs, int *out_sign) {
-    int sign = 1;
-    int digit_count = 0;
-    uint64_t abs_value = 0;
-
-    if (c == '-') {
-        sign = -1;
-        c = fgetc(stdin);
-        if (c == EOF) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-    }
-    if (!isdigit((unsigned char)c)) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-        return -1;
-    }
-    do {
-        int digit = c - '0';
-        /* abs_value * 10 + digit <= UINT64_MAX */
-        if (abs_value > UINT64_MAX / 10ULL ||
-            (abs_value == UINT64_MAX / 10ULL &&
-             (uint64_t)digit > UINT64_MAX % 10ULL)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
-                              "input value out of range");
-            return -1;
-        }
-        abs_value = abs_value * 10ULL + (uint64_t)digit;
-        digit_count++;
-        c = fgetc(stdin);
-    } while (c != EOF && isdigit((unsigned char)c));
-    if (c != EOF) {
-        ungetc(c, stdin);
-    }
-    if (digit_count == 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-        return -1;
-    }
-
-    *out_abs = abs_value;
-    *out_sign = sign;
-    return 0;
-}
+/* 委托 tc_io.c 处理 stdin 输入 */
 
 /*
  * @brief 执行 read 语句：从 stdin 读取十进制整数并存入目标变量槽
@@ -253,88 +73,17 @@ static int tc_read_decimal_digits(int c, int line, TcDiagnostic *diag,
  */
 static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbolTable *symbols,
                            TcDiagnostic *diag) {
-    int c = 0;
     const TcSymbol *symbol = NULL;
-    TcValue value;
+    uint64_t bits = 0;
 
-    tc_io_skip_whitespace();
-
-    if (tc_type_is_bool(io_read->type)) {
-        char word[8];
-        size_t i = 0;
-
-        c = fgetc(stdin);
-        while (c != EOF && i + 1 < sizeof(word) &&
-               (c == 't' || c == 'r' || c == 'u' || c == 'e' || c == 'f' || c == 'a' ||
-                c == 'l' || c == 's')) {
-            word[i++] = (char)c;
-            c = fgetc(stdin);
-        }
-        if (c != EOF) {
-            ungetc(c, stdin);
-        }
-        word[i] = '\0';
-        if (strcmp(word, "true") == 0) {
-            value = tc_value_make(TC_BOOL, 1);
-        } else if (strcmp(word, "false") == 0) {
-            value = tc_value_make(TC_BOOL, 0);
-        } else {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        symbol = tc_symbol_table_find(symbols, io_read->name);
-        assert(symbol != NULL);
-        slots[symbol->slot] = value;
-        return 0;
-    }
-
-    {
-        int sign = 1;
-        uint64_t abs_value = 0;
-
-        c = fgetc(stdin);
-        if (c == EOF) {
-        tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "unexpected end of input");
+    if (tc_io_read_value(io_read->type, &bits, diag, io_read->line) != 0) {
         return -1;
-    }
-
-    if (tc_read_decimal_digits(c, io_read->line, diag, &abs_value, &sign) != 0) {
-        return -1;
-    }
-
-    /* 按目标类型的有符号性做范围检查并构造 TcValue */
-    if (tc_type_is_signed(io_read->type)) {
-        if (sign == -1 && abs_value == TC_INT64_MIN_ABS_MAGNITUDE) {
-            /* INT64_MIN 的特殊情况：abs_value == 2^63 需要单独处理 */
-            value = tc_value_make(io_read->type, tc_signed_to_bits(io_read->type, INT64_MIN));
-        } else {
-            int64_t signed_value = (int64_t)abs_value;
-            signed_value *= sign;
-            if (!tc_signed_in_range(signed_value, io_read->type)) {
-                tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
-                                  "input value out of range");
-                return -1;
-            }
-            value = tc_value_make(io_read->type, tc_signed_to_bits(io_read->type, signed_value));
-        }
-    } else {
-        if (sign == -1) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        if (!tc_unsigned_in_range(abs_value, io_read->type)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, io_read->line, TC_COLUMN_UNKNOWN,
-                              "input value out of range");
-            return -1;
-        }
-        value = tc_value_make(io_read->type, abs_value);
     }
 
     symbol = tc_symbol_table_find(symbols, io_read->name);
     assert(symbol != NULL);
-    slots[symbol->slot] = value;
+    slots[symbol->slot] = tc_value_make(io_read->type, bits);
     return 0;
-    }
 }
 
 /* ------------------------------------------------------------------ */

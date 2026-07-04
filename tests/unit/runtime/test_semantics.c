@@ -1,0 +1,898 @@
+/*
+ * test_semantics.c — 语义核心模块单元测试
+ *
+ * 覆盖 semantics.c 中所有公开函数：
+ *   - 位模式工具函数 (mask_bits / bits_to_signed / signed_to_bits / ...)
+ *   - 范围检查 (signed_in_range / unsigned_in_range)
+ *   - 字面量检查与转换 (literal_fits_type / literal_fits_context / literal_to_value)
+ *   - 算术运算 (tc_exec_arith) — 有符号/无符号 × strict/wrap × 5 种 op
+ *   - 单目运算 (tc_exec_unary) — abs/neg, strict/wrap, INT_MIN 边界
+ *   - 比较运算 (tc_exec_compare) — 6 种 op, 有符号/无符号
+ *   - 逻辑运算 (tc_exec_logic_binary / tc_exec_logic_unary)
+ *   - cast 运算 (tc_exec_cast) — strict/truncate, widen/narrow/same-width/bool
+ *
+ * 防止回归：位模式别名、溢出检测遗漏、短路逻辑错误、cast 范围检查遗漏
+ */
+
+#include "tc_semantics.h"
+#include "tc_diagnostic.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int g_passed = 0;
+static int g_failed = 0;
+
+static void check(int condition, const char *message) {
+    if (condition) {
+        g_passed++;
+    } else {
+        g_failed++;
+        fprintf(stderr, "FAIL: %s\n", message);
+    }
+}
+
+/* ================================================================== */
+/*  位模式工具函数                                                       */
+/* ================================================================== */
+
+static void test_mask_bits(void) {
+    check(tc_mask_bits(1) == 1ULL, "mask_bits(1) == 0x1");
+    check(tc_mask_bits(8) == 0xFFULL, "mask_bits(8) == 0xFF");
+    check(tc_mask_bits(16) == 0xFFFFULL, "mask_bits(16) == 0xFFFF");
+    check(tc_mask_bits(32) == 0xFFFFFFFFULL, "mask_bits(32) == 0xFFFFFFFF");
+    check(tc_mask_bits(64) == UINT64_MAX, "mask_bits(64) == UINT64_MAX");
+    check(tc_mask_bits(0) == 0ULL, "mask_bits(0) == 0");
+}
+
+static void test_bits_to_signed(void) {
+    /* int8: 0xFF = -1 */
+    check(tc_bits_to_signed(TC_INT8, 0xFF) == -1, "int8 0xFF → -1");
+    /* int8: 0x80 = -128 */
+    check(tc_bits_to_signed(TC_INT8, 0x80) == -128, "int8 0x80 → -128");
+    /* int8: 0x7F = 127 */
+    check(tc_bits_to_signed(TC_INT8, 0x7F) == 127, "int8 0x7F → 127");
+    /* int16: 0xFFFF = -1 */
+    check(tc_bits_to_signed(TC_INT16, 0xFFFF) == -1, "int16 0xFFFF → -1");
+    /* int32: 0xFFFFFFFF = -1 */
+    check(tc_bits_to_signed(TC_INT32, 0xFFFFFFFFULL) == -1, "int32 0xFFFFFFFF → -1");
+    /* int64: 0xFFFFFFFFFFFFFFFF = -1 */
+    check(tc_bits_to_signed(TC_INT64, UINT64_MAX) == -1, "int64 UINT64_MAX → -1");
+    /* int64: INT64_MIN */
+    check(tc_bits_to_signed(TC_INT64, (uint64_t)INT64_MIN) == INT64_MIN,
+          "int64 0x8000... → INT64_MIN");
+    /* int64: 正数 */
+    check(tc_bits_to_signed(TC_INT64, 42) == 42, "int64 42 → 42");
+}
+
+static void test_signed_to_bits(void) {
+    check(tc_signed_to_bits(TC_INT8, -1) == 0xFF, "int8 -1 → 0xFF");
+    check(tc_signed_to_bits(TC_INT8, -128) == 0x80, "int8 -128 → 0x80");
+    check(tc_signed_to_bits(TC_INT8, 127) == 0x7F, "int8 127 → 0x7F");
+    check(tc_signed_to_bits(TC_INT32, -1) == 0xFFFFFFFFULL, "int32 -1 → 0xFFFFFFFF");
+    check(tc_signed_to_bits(TC_INT64, INT64_MIN) == (uint64_t)INT64_MIN,
+          "int64 INT64_MIN → 0x8000...");
+}
+
+static void test_value_to_unsigned(void) {
+    /* int8, bits=0xFF → 归一化到 8 位 = 0xFF */
+    check(tc_value_to_unsigned(TC_INT8, 0xFF) == 0xFF, "int8 value_to_unsigned 0xFF");
+    /* int8, bits=0x1FF → 高位被掩码 = 0xFF */
+    check(tc_value_to_unsigned(TC_INT8, 0x1FF) == 0xFF,
+          "int8 value_to_unsigned 0x1FF → 0xFF");
+    /* uint32, 完整值 */
+    check(tc_value_to_unsigned(TC_UINT32, 0xDEADBEEFULL) == 0xDEADBEEFULL,
+          "uint32 value_to_unsigned 0xDEADBEEF");
+    /* uint64, 不截断 */
+    check(tc_value_to_unsigned(TC_UINT64, UINT64_MAX) == UINT64_MAX,
+          "uint64 value_to_unsigned UINT64_MAX");
+}
+
+static void test_value_make(void) {
+    TcValue v;
+
+    v = tc_value_make(TC_INT8, 0xFF);
+    check(v.type == TC_INT8 && v.bits == 0xFF, "value_make int8 0xFF → type=int8, bits=0xFF");
+
+    v = tc_value_make(TC_INT32, 0x1FFFFFFFFULL);
+    check(v.type == TC_INT32 && v.bits == 0xFFFFFFFFULL,
+          "value_make int32 0x1FFFFFFFF → bits=0xFFFFFFFF");
+
+    v = tc_value_make(TC_BOOL, 1);
+    check(v.type == TC_BOOL && v.bits == 1, "value_make bool 1 → type=bool, bits=1");
+
+    v = tc_value_make(TC_UINT64, 42);
+    check(v.type == TC_UINT64 && v.bits == 42, "value_make uint64 42");
+}
+
+/* ================================================================== */
+/*  范围检查                                                           */
+/* ================================================================== */
+
+static void test_signed_in_range(void) {
+    check(tc_signed_in_range(0, TC_INT8), "signed_in_range int8 0");
+    check(tc_signed_in_range(-128, TC_INT8), "signed_in_range int8 -128");
+    check(tc_signed_in_range(127, TC_INT8), "signed_in_range int8 127");
+    check(!tc_signed_in_range(-129, TC_INT8), "signed_in_range int8 -129 out");
+    check(!tc_signed_in_range(128, TC_INT8), "signed_in_range int8 128 out");
+
+    check(tc_signed_in_range(0, TC_INT32), "signed_in_range int32 0");
+    check(tc_signed_in_range(INT32_MAX, TC_INT32), "signed_in_range int32 INT32_MAX");
+    check(tc_signed_in_range(INT32_MIN, TC_INT32), "signed_in_range int32 INT32_MIN");
+    check(!tc_signed_in_range((int64_t)INT32_MAX + 1, TC_INT32),
+          "signed_in_range int32 INT32_MAX+1 out");
+
+    check(tc_signed_in_range(INT64_MIN, TC_INT64), "signed_in_range int64 INT64_MIN");
+    check(tc_signed_in_range(INT64_MAX, TC_INT64), "signed_in_range int64 INT64_MAX");
+}
+
+static void test_unsigned_in_range(void) {
+    check(tc_unsigned_in_range(0, TC_UINT8), "unsigned_in_range uint8 0");
+    check(tc_unsigned_in_range(255, TC_UINT8), "unsigned_in_range uint8 255");
+    check(!tc_unsigned_in_range(256, TC_UINT8), "unsigned_in_range uint8 256 out");
+
+    check(tc_unsigned_in_range(UINT32_MAX, TC_UINT32), "unsigned_in_range uint32 UINT32_MAX");
+    check(!tc_unsigned_in_range((uint64_t)UINT32_MAX + 1, TC_UINT32),
+          "unsigned_in_range uint32 UINT32_MAX+1 out");
+
+    check(tc_unsigned_in_range(UINT64_MAX, TC_UINT64), "unsigned_in_range uint64 UINT64_MAX");
+}
+
+/* ================================================================== */
+/*  字面量检查与转换                                                     */
+/* ================================================================== */
+
+static void test_literal_fits_type(void) {
+    /* 有符号类型 */
+    check(tc_literal_fits_type(0, TC_INT8), "literal_fits_type int8 0");
+    check(tc_literal_fits_type(127, TC_INT8), "literal_fits_type int8 127");
+    check(!tc_literal_fits_type(128, TC_INT8), "literal_fits_type int8 128 out");
+    check(!tc_literal_fits_type((uint64_t)INT64_MAX + 1, TC_INT64),
+          "literal_fits_type int64 >INT64_MAX out");
+
+    /* 无符号类型 */
+    check(tc_literal_fits_type(0, TC_UINT8), "literal_fits_type uint8 0");
+    check(tc_literal_fits_type(255, TC_UINT8), "literal_fits_type uint8 255");
+    check(!tc_literal_fits_type(256, TC_UINT8), "literal_fits_type uint8 256 out");
+}
+
+static void test_literal_fits_context(void) {
+    TcLiteral lit;
+    TcErrorKind err = TC_ERR_SYNTAX;
+
+    /* bool 字面量 → bool 类型：合法 */
+    memset(&lit, 0, sizeof(lit));
+    lit.is_bool = 1;
+    lit.magnitude = 1;
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_BOOL, &err) == 1, "bool literal → bool type ok");
+    /* bool 字面量 → int 类型：非法 → LiteralType */
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_INT32, &err) == 0, "bool literal → int32 fails");
+    check(err == TC_ERR_LITERAL_TYPE, "bool→int32 err_kind = LITERAL_TYPE");
+
+    /* int 字面量 → bool 类型：非法 */
+    memset(&lit, 0, sizeof(lit));
+    lit.magnitude = 42;
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_BOOL, &err) == 0, "int literal → bool fails");
+    check(err == TC_ERR_LITERAL_TYPE, "int→bool err_kind = LITERAL_TYPE");
+
+    /* unsigned suffix → unsigned type: 合法 */
+    memset(&lit, 0, sizeof(lit));
+    lit.magnitude = 100;
+    lit.unsigned_suffix = 1;
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_UINT32, &err) == 1,
+          "u-suffix literal → uint32 ok");
+    /* unsigned suffix → signed type: 非法 */
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_INT32, &err) == 0,
+          "u-suffix literal → int32 fails");
+    check(err == TC_ERR_LITERAL_TYPE, "u-suffix→int32 err_kind = LITERAL_TYPE");
+
+    /* 负数字面量 → signed type: 合法 */
+    memset(&lit, 0, sizeof(lit));
+    lit.magnitude = 42;
+    lit.negative = 1;
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_INT32, &err) == 1,
+          "negative literal → int32 ok");
+    /* 负数字面量 → unsigned type: 非法 */
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_UINT32, &err) == 0,
+          "negative literal → uint32 fails");
+    check(err == TC_ERR_LITERAL_OUT_OF_RANGE, "negative→uint32 err_kind = OUT_OF_RANGE");
+
+    /* INT64_MIN 绝对值（2^63）→ int64: 合法 */
+    memset(&lit, 0, sizeof(lit));
+    lit.magnitude = TC_INT64_MIN_ABS_MAGNITUDE;
+    lit.negative = 1;
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_INT64, &err) == 1,
+          "INT64_MIN magnitude → int64 ok");
+
+    /* 字面量超出范围 */
+    memset(&lit, 0, sizeof(lit));
+    lit.magnitude = 256;
+    err = TC_ERR_SYNTAX;
+    check(tc_literal_fits_context(&lit, TC_INT8, &err) == 0,
+          "256 literal → int8 out of range");
+    check(err == TC_ERR_LITERAL_OUT_OF_RANGE, "256→int8 err_kind = OUT_OF_RANGE");
+}
+
+static void test_literal_to_value(void) {
+    TcValue v;
+
+    /* bool 字面量 */
+    {
+    TcLiteral bool_true = {1, 0, 0, 1};
+    v = tc_literal_to_value(&bool_true, TC_BOOL);
+    check(v.type == TC_BOOL && v.bits == 1, "literal_to_value bool true → bits=1");
+    }
+
+    {
+    TcLiteral bool_false = {0, 0, 0, 1};
+    v = tc_literal_to_value(&bool_false, TC_BOOL);
+    check(v.type == TC_BOOL && v.bits == 0, "literal_to_value bool false → bits=0");
+    }
+
+    /* 无符号字面量 */
+    {
+    TcLiteral u_lit = {255, 0, 1, 0};
+    v = tc_literal_to_value(&u_lit, TC_UINT8);
+    check(v.type == TC_UINT8 && v.bits == 255, "literal_to_value uint8 255");
+    }
+
+    /* 负数字面量 */
+    {
+    TcLiteral neg_lit = {42, 1, 0, 0};
+    v = tc_literal_to_value(&neg_lit, TC_INT8);
+    check(v.type == TC_INT8 && v.bits == 0xD6, "literal_to_value int8 -42 → 0xD6");
+    check(tc_bits_to_signed(TC_INT8, v.bits) == -42, "int8 -42 value check");
+    }
+
+    /* INT64_MIN 绝对值 */
+    {
+    TcLiteral min_lit = {TC_INT64_MIN_ABS_MAGNITUDE, 1, 0, 0};
+    v = tc_literal_to_value(&min_lit, TC_INT64);
+    check(v.type == TC_INT64 && v.bits == (uint64_t)INT64_MIN,
+          "literal_to_value int64 INT64_MIN");
+    }
+
+    /* 正数字面量 */
+    {
+    TcLiteral pos_lit = {123, 0, 0, 0};
+    v = tc_literal_to_value(&pos_lit, TC_INT32);
+    check(v.type == TC_INT32 && v.bits == 123, "literal_to_value int32 123");
+    }
+}
+
+/* ================================================================== */
+/*  算术运算                                                           */
+/* ================================================================== */
+
+static void test_arith_signed_add_strict(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    TcValue a = tc_value_make(TC_INT32, 100);
+    TcValue b = tc_value_make(TC_INT32, 200);
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_arith(TC_ADD, TC_INT32, TC_ARITH_STRICT, &a, &b, &out, &diag, 1);
+    check(rc == 0, "signed add strict 100+200 ok");
+    check(out.type == TC_INT32 && out.bits == 300, "100+200=300");
+
+    /* 正溢出 */
+    TcValue max = tc_value_make(TC_INT32, INT32_MAX);
+    TcValue one = tc_value_make(TC_INT32, 1);
+    rc = tc_exec_arith(TC_ADD, TC_INT32, TC_ARITH_STRICT, &max, &one, &out, &diag, 1);
+    check(rc == -1, "signed add strict INT32_MAX+1 overflow");
+    check(diag.kind == TC_ERR_INTEGER_OVERFLOW, "overflow kind check");
+
+    /* 负溢出 */
+    TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
+    TcValue neg_one = tc_value_make(TC_INT32, (uint64_t)(int64_t)-1);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_arith(TC_ADD, TC_INT32, TC_ARITH_STRICT, &min, &neg_one, &out, &diag, 1);
+    check(rc == -1, "signed add strict INT32_MIN+(-1) overflow");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_arith_signed_sub_strict(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    TcValue a = tc_value_make(TC_INT32, 100);
+    TcValue b = tc_value_make(TC_INT32, 50);
+    int rc = tc_exec_arith(TC_SUB, TC_INT32, TC_ARITH_STRICT, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 50, "signed sub strict 100-50=50");
+
+    /* INT32_MIN - 1 */
+    TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
+    TcValue one = tc_value_make(TC_INT32, 1);
+    rc = tc_exec_arith(TC_SUB, TC_INT32, TC_ARITH_STRICT, &min, &one, &out, &diag, 1);
+    check(rc == -1, "signed sub strict INT32_MIN-1 overflow");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_arith_signed_mul_strict(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    TcValue a = tc_value_make(TC_INT32, 1000);
+    TcValue b = tc_value_make(TC_INT32, 2000);
+    int rc = tc_exec_arith(TC_MUL, TC_INT32, TC_ARITH_STRICT, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 2000000, "signed mul strict 1000*2000=2000000");
+
+    /* 溢出 */
+    TcValue big = tc_value_make(TC_INT32, 50000);
+    rc = tc_exec_arith(TC_MUL, TC_INT32, TC_ARITH_STRICT, &big, &big, &out, &diag, 1);
+    check(rc == -1, "signed mul strict 50000*50000 overflow");
+
+    /* 零乘 */
+    tc_diagnostic_clear(&diag);
+    TcValue zero = tc_value_make(TC_INT32, 0);
+    rc = tc_exec_arith(TC_MUL, TC_INT32, TC_ARITH_STRICT, &big, &zero, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "signed mul strict 50000*0=0");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_arith_signed_div_mod(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    TcValue a = tc_value_make(TC_INT32, 100);
+    TcValue b = tc_value_make(TC_INT32, 7);
+    int rc = tc_exec_arith(TC_DIV, TC_INT32, TC_ARITH_STRICT, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 14, "signed div strict 100/7=14");
+
+    rc = tc_exec_arith(TC_MOD, TC_INT32, TC_ARITH_STRICT, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 2, "signed mod strict 100%7=2");
+
+    /* 除零 */
+    TcValue zero = tc_value_make(TC_INT32, 0);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_arith(TC_DIV, TC_INT32, TC_ARITH_STRICT, &a, &zero, &out, &diag, 1);
+    check(rc == -1, "signed div strict 100/0 div by zero");
+    check(diag.kind == TC_ERR_DIVISION_BY_ZERO, "div by zero kind");
+
+    /* INT32_MIN / -1 → overflow */
+    TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
+    TcValue neg_one = tc_value_make(TC_INT32, (uint64_t)(int64_t)-1);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_arith(TC_DIV, TC_INT32, TC_ARITH_STRICT, &min, &neg_one, &out, &diag, 1);
+    check(rc == -1, "INT32_MIN/-1 overflow");
+
+    /* INT32_MIN % -1 → 0 (合法) */
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_arith(TC_MOD, TC_INT32, TC_ARITH_STRICT, &min, &neg_one, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "INT32_MIN%-1 = 0");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_arith_signed_wrap(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* int8 wrap: 127 + 1 = -128 */
+    TcValue max = tc_value_make(TC_INT8, 127);
+    TcValue one = tc_value_make(TC_INT8, 1);
+    int rc = tc_exec_arith(TC_ADD, TC_INT8, TC_ARITH_WRAP, &max, &one, &out, &diag, 1);
+    check(rc == 0, "signed wrap int8 127+1 ok");
+    check(tc_bits_to_signed(TC_INT8, out.bits) == -128, "signed wrap int8 127+1 = -128");
+
+    /* int8 wrap: -128 - 1 = 127 */
+    TcValue min = tc_value_make(TC_INT8, 0x80);
+    rc = tc_exec_arith(TC_SUB, TC_INT8, TC_ARITH_WRAP, &min, &one, &out, &diag, 1);
+    check(rc == 0, "signed wrap int8 -128-1 ok");
+    check(tc_bits_to_signed(TC_INT8, out.bits) == 127, "signed wrap int8 -128-1 = 127");
+
+    /* int16 wrap mul */
+    TcValue a = tc_value_make(TC_INT16, 256);
+    TcValue b = tc_value_make(TC_INT16, 256);
+    rc = tc_exec_arith(TC_MUL, TC_INT16, TC_ARITH_WRAP, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "signed wrap int16 256*256 = 0 (low 16 bits)");
+
+    /* int64 wrap mul: use 128-bit multiplication path */
+    TcValue big_a = tc_value_make(TC_INT64, (uint64_t)INT64_MAX);
+    TcValue big_b = tc_value_make(TC_INT64, 2);
+    rc = tc_exec_arith(TC_MUL, TC_INT64, TC_ARITH_WRAP, &big_a, &big_b, &out, &diag, 1);
+    check(rc == 0, "signed wrap int64 INT64_MAX*2 ok (wrap)");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_arith_unsigned(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    TcValue a = tc_value_make(TC_UINT32, 3000000000ULL);
+    TcValue b = tc_value_make(TC_UINT32, 1000000000ULL);
+    int rc = tc_exec_arith(TC_ADD, TC_UINT32, TC_ARITH_STRICT, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 4000000000ULL, "unsigned add 3B+1B=4B");
+
+    /* 无符号减法，不会借位 */
+    TcValue small = tc_value_make(TC_UINT32, 5);
+    TcValue big = tc_value_make(TC_UINT32, 10);
+    rc = tc_exec_arith(TC_SUB, TC_UINT32, TC_ARITH_STRICT, &small, &big, &out, &diag, 1);
+    /* 5 - 10 underflows to large number in unsigned */
+    check(rc == 0 && out.bits == 0xFFFFFFFBULL, "unsigned sub 5-10 → wrap around");
+
+    /* 无符号乘 */
+    TcValue x = tc_value_make(TC_UINT8, 200);
+    TcValue y = tc_value_make(TC_UINT8, 2);
+    rc = tc_exec_arith(TC_MUL, TC_UINT8, TC_ARITH_STRICT, &x, &y, &out, &diag, 1);
+    check(rc == 0 && out.bits == 144, "unsigned mul uint8 200*2 → 144 (0x90)");
+
+    /* 无符号乘 uint64 (128-bit path) */
+    TcValue u64_a = tc_value_make(TC_UINT64, 0x100000000ULL);
+    TcValue u64_b = tc_value_make(TC_UINT64, 0x100000000ULL);
+    rc = tc_exec_arith(TC_MUL, TC_UINT64, TC_ARITH_STRICT, &u64_a, &u64_b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "unsigned mul uint64 2^32*2^32 → low 64 bits = 0");
+
+    /* 除零 */
+    TcValue zero = tc_value_make(TC_UINT32, 0);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_arith(TC_DIV, TC_UINT32, TC_ARITH_STRICT, &a, &zero, &out, &diag, 1);
+    check(rc == -1, "unsigned div by zero");
+    check(diag.kind == TC_ERR_DIVISION_BY_ZERO, "unsigned div zero kind");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
+/*  单目运算                                                           */
+/* ================================================================== */
+
+static void test_unary_abs(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* int32 abs(42) = 42 */
+    TcValue pos = tc_value_make(TC_INT32, 42);
+    int rc = tc_exec_unary(TC_UNARY_ABS, TC_INT32, TC_ARITH_STRICT, &pos, &out, &diag, 1);
+    check(rc == 0 && out.bits == 42, "abs(42) = 42");
+
+    /* int32 abs(-42) = 42 */
+    TcValue neg = tc_value_make(TC_INT32, tc_signed_to_bits(TC_INT32, -42));
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_ABS, TC_INT32, TC_ARITH_STRICT, &neg, &out, &diag, 1);
+    check(rc == 0 && tc_bits_to_signed(TC_INT32, out.bits) == 42, "abs(-42) = 42");
+
+    /* int32 abs(INT32_MIN) → overflow */
+    TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_ABS, TC_INT32, TC_ARITH_STRICT, &min, &out, &diag, 1);
+    check(rc == -1, "abs(INT32_MIN) overflow");
+    check(diag.kind == TC_ERR_INTEGER_OVERFLOW, "abs overflow kind");
+
+    /* uint32 abs(100) = 100 (no-op for unsigned) */
+    TcValue u = tc_value_make(TC_UINT32, 100);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_ABS, TC_UINT32, TC_ARITH_STRICT, &u, &out, &diag, 1);
+    check(rc == 0 && out.bits == 100, "unsigned abs(100) = 100");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_unary_neg(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* int32 strict neg(42) = -42 */
+    TcValue pos = tc_value_make(TC_INT32, 42);
+    int rc = tc_exec_unary(TC_UNARY_NEG, TC_INT32, TC_ARITH_STRICT, &pos, &out, &diag, 1);
+    check(rc == 0, "neg(42) ok");
+    check(tc_bits_to_signed(TC_INT32, out.bits) == -42, "neg(42) = -42");
+
+    /* int32 strict neg(INT32_MIN) → overflow */
+    TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_NEG, TC_INT32, TC_ARITH_STRICT, &min, &out, &diag, 1);
+    check(rc == -1, "neg(INT32_MIN) overflow (strict)");
+    check(diag.kind == TC_ERR_INTEGER_OVERFLOW, "neg overflow kind");
+
+    /* int32 wrap neg(INT32_MIN) = INT32_MIN (2's complement wraps back) */
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_NEG, TC_INT32, TC_ARITH_WRAP, &min, &out, &diag, 1);
+    check(rc == 0, "neg(INT32_MIN) wrap ok");
+    check(out.bits == ((uint64_t)(int64_t)INT32_MIN & 0xFFFFFFFFULL),
+          "neg(INT32_MIN) wrap = INT32_MIN (self)");
+
+    /* uint32 neg(0) = 0 */
+    TcValue zero = tc_value_make(TC_UINT32, 0);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_NEG, TC_UINT32, TC_ARITH_STRICT, &zero, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "unsigned neg(0) = 0");
+
+    /* uint32 neg(1) = 0xFFFFFFFF */
+    TcValue one = tc_value_make(TC_UINT32, 1);
+    tc_diagnostic_clear(&diag);
+    rc = tc_exec_unary(TC_UNARY_NEG, TC_UINT32, TC_ARITH_STRICT, &one, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0xFFFFFFFFULL, "unsigned neg(1) = 0xFFFFFFFF");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
+/*  比较运算                                                           */
+/* ================================================================== */
+
+static void test_compare_signed(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+    TcValue a = tc_value_make(TC_INT32, 10);
+    TcValue b = tc_value_make(TC_INT32, 20);
+    TcValue neg_a = tc_value_make(TC_INT32, tc_signed_to_bits(TC_INT32, -10));
+    int rc;
+
+    rc = tc_exec_compare(TC_CMP_EQ, TC_INT32, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 0, "int32 10 eq 20 → false");
+
+    rc = tc_exec_compare(TC_CMP_NE, TC_INT32, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "int32 10 ne 20 → true");
+
+    rc = tc_exec_compare(TC_CMP_LT, TC_INT32, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "int32 10 lt 20 → true");
+
+    rc = tc_exec_compare(TC_CMP_LE, TC_INT32, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "int32 10 le 20 → true");
+
+    rc = tc_exec_compare(TC_CMP_GT, TC_INT32, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "int32 10 gt 20 → false");
+
+    rc = tc_exec_compare(TC_CMP_GE, TC_INT32, &a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "int32 10 ge 20 → false");
+
+    /* 负值比较：-10 < 20 */
+    rc = tc_exec_compare(TC_CMP_LT, TC_INT32, &neg_a, &b, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "int32 -10 lt 20 → true");
+
+    /* 相等 */
+    rc = tc_exec_compare(TC_CMP_EQ, TC_INT32, &a, &a, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "int32 10 eq 10 → true");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_compare_unsigned(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+    TcValue small = tc_value_make(TC_UINT32, 5);
+    TcValue big = tc_value_make(TC_UINT32, 4000000000ULL);
+    int rc;
+
+    rc = tc_exec_compare(TC_CMP_LT, TC_UINT32, &small, &big, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "uint32 5 lt 4B → true");
+
+    rc = tc_exec_compare(TC_CMP_GT, TC_UINT32, &small, &big, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "uint32 5 gt 4B → false");
+
+    rc = tc_exec_compare(TC_CMP_EQ, TC_UINT32, &big, &big, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "uint32 big eq big → true");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
+/*  逻辑运算                                                           */
+/* ================================================================== */
+
+static void test_logic_binary(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    TcValue t = tc_value_make(TC_BOOL, 1);
+    TcValue f = tc_value_make(TC_BOOL, 0);
+
+    /* AND: t && t = t */
+    int rc = tc_exec_logic_binary(TC_LOGIC_AND, &t, &t, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 1, "and(true,true) = true");
+
+    /* AND: t && f = f */
+    rc = tc_exec_logic_binary(TC_LOGIC_AND, &t, &f, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "and(true,false) = false");
+
+    /* AND: f && anything = f (short-circuit) */
+    rc = tc_exec_logic_binary(TC_LOGIC_AND, &f, &t, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "and(false,true) = false (short-circuit)");
+
+    /* OR: t || anything = t (short-circuit) */
+    rc = tc_exec_logic_binary(TC_LOGIC_OR, &t, &f, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "or(true,false) = true (short-circuit)");
+
+    /* OR: f || t = t */
+    rc = tc_exec_logic_binary(TC_LOGIC_OR, &f, &t, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "or(false,true) = true");
+
+    /* OR: f || f = f */
+    rc = tc_exec_logic_binary(TC_LOGIC_OR, &f, &f, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "or(false,false) = false");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_logic_unary(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    TcValue t = tc_value_make(TC_BOOL, 1);
+    TcValue f = tc_value_make(TC_BOOL, 0);
+
+    int rc = tc_exec_logic_unary(TC_LOGIC_NOT, &t, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 0, "not(true) = false");
+
+    rc = tc_exec_logic_unary(TC_LOGIC_NOT, &f, &out, &diag, 1);
+    check(rc == 0 && out.bits == 1, "not(false) = true");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
+/*  cast 运算 — strict mode                                            */
+/* ================================================================== */
+
+static void test_cast_strict_widen_signed_to_signed(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+    TcValue src = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -42));
+
+    int rc = tc_exec_cast(TC_INT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    check(rc == 0, "cast strict int8(-42) → int32 ok");
+    check(tc_bits_to_signed(TC_INT32, out.bits) == -42, "int8(-42) → int32 = -42");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_cast_strict_widen_unsigned_to_unsigned(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+    TcValue src = tc_value_make(TC_UINT8, 200);
+
+    int rc = tc_exec_cast(TC_UINT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    check(rc == 0 && out.bits == 200, "cast strict uint8(200) → uint32 = 200");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_cast_strict_widen_signed_to_unsigned(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* 负值 → 无符号：拒绝 */
+    TcValue neg = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
+    int rc = tc_exec_cast(TC_UINT32, TC_TRUNC_STRICT, &neg, &out, &diag, 1);
+    check(rc == -1, "cast strict int8(-1) → uint32 fails");
+    check(diag.kind == TC_ERR_CAST_OVERFLOW, "neg→unsigned overflow kind");
+
+    /* 正值 → 无符号：OK */
+    tc_diagnostic_clear(&diag);
+    TcValue pos = tc_value_make(TC_INT8, 100);
+    rc = tc_exec_cast(TC_UINT32, TC_TRUNC_STRICT, &pos, &out, &diag, 1);
+    check(rc == 0 && out.bits == 100, "cast strict int8(100) → uint32 = 100");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_cast_strict_widen_unsigned_to_signed(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* uint8 200 → int8 窄化（同宽），不触发 widen */
+    /* 测真正 widen: uint8 → int32 */
+    TcValue src = tc_value_make(TC_UINT8, 200);
+    int rc = tc_exec_cast(TC_INT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    check(rc == 0 && out.bits == 200, "cast strict uint8(200) → int32 = 200");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_cast_strict_same_width_diff_sign(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* int8(-1) → uint8: 拒绝（负值 → 无符号） */
+    TcValue neg = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
+    int rc = tc_exec_cast(TC_UINT8, TC_TRUNC_STRICT, &neg, &out, &diag, 1);
+    check(rc == -1, "cast strict int8(-1) → uint8 fails");
+
+    /* uint8(200) → int8: 200 > 127, 拒绝（超有符号范围） */
+    tc_diagnostic_clear(&diag);
+    TcValue big = tc_value_make(TC_UINT8, 200);
+    rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &big, &out, &diag, 1);
+    check(rc == -1, "cast strict uint8(200) → int8 fails (out of range)");
+
+    /* uint8(100) → int8: OK */
+    tc_diagnostic_clear(&diag);
+    TcValue pos = tc_value_make(TC_UINT8, 100);
+    rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &pos, &out, &diag, 1);
+    check(rc == 0 && tc_bits_to_signed(TC_INT8, out.bits) == 100,
+          "cast strict uint8(100) → int8 = 100");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_cast_strict_narrow(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* int32(1000) → int8: 1000 > 127, 拒绝 */
+    TcValue big = tc_value_make(TC_INT32, 1000);
+    int rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &big, &out, &diag, 1);
+    check(rc == -1, "cast strict int32(1000) → int8 fails (out of range)");
+
+    /* int32(42) → int8: OK */
+    tc_diagnostic_clear(&diag);
+    TcValue small = tc_value_make(TC_INT32, 42);
+    rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &small, &out, &diag, 1);
+    check(rc == 0 && tc_bits_to_signed(TC_INT8, out.bits) == 42,
+          "cast strict int32(42) → int8 = 42");
+
+    /* uint32(500) → uint8: 500 & 0xFF = 244 (narrow for unsigned is OK) */
+    tc_diagnostic_clear(&diag);
+    TcValue u_big = tc_value_make(TC_UINT32, 500);
+    rc = tc_exec_cast(TC_UINT8, TC_TRUNC_STRICT, &u_big, &out, &diag, 1);
+    check(rc == 0 && out.bits == 244, "cast strict uint32(500) → uint8 = 244");
+
+    /* int32(-1) → uint8: 拒绝（负值 → 无符号） */
+    tc_diagnostic_clear(&diag);
+    TcValue neg = tc_value_make(TC_INT32, (uint64_t)(int64_t)-1);
+    rc = tc_exec_cast(TC_UINT8, TC_TRUNC_STRICT, &neg, &out, &diag, 1);
+    check(rc == -1, "cast strict int32(-1) → uint8 fails");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_cast_strict_bool(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* bool → bool */
+    TcValue b_true = tc_value_make(TC_BOOL, 1);
+    int rc = tc_exec_cast(TC_BOOL, TC_TRUNC_STRICT, &b_true, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 1, "cast strict bool→bool ok");
+
+    /* bool → int32 */
+    rc = tc_exec_cast(TC_INT32, TC_TRUNC_STRICT, &b_true, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_INT32 && out.bits == 1, "cast strict bool→int32 = 1");
+
+    /* int32 → bool */
+    TcValue i42 = tc_value_make(TC_INT32, 42);
+    rc = tc_exec_cast(TC_BOOL, TC_TRUNC_STRICT, &i42, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 1, "cast strict int32(42)→bool = true");
+
+    TcValue i0 = tc_value_make(TC_INT32, 0);
+    rc = tc_exec_cast(TC_BOOL, TC_TRUNC_STRICT, &i0, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0, "cast strict int32(0)→bool = false");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
+/*  cast 运算 — truncate mode                                          */
+/* ================================================================== */
+
+static void test_cast_truncate(void) {
+    TcValue out;
+    TcDiagnostic diag;
+    tc_diagnostic_init(&diag);
+
+    /* int16(-128) → int8: 截断低 8 位 = 0x80 = -128 */
+    TcValue v = tc_value_make(TC_INT16, tc_signed_to_bits(TC_INT16, -128));
+    int rc = tc_exec_cast(TC_INT8, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    check(rc == 0, "cast truncate int16(-128) → int8 ok");
+    check(tc_bits_to_signed(TC_INT8, out.bits) == -128, "int16(-128) trunc→int8 = -128");
+
+    /* int16(511) → int8: 截断低 8 位 = 0xFF = -1 */
+    v = tc_value_make(TC_INT16, 511);
+    rc = tc_exec_cast(TC_INT8, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    check(rc == 0, "cast truncate int16(511) → int8 ok");
+    check(tc_bits_to_signed(TC_INT8, out.bits) == -1, "int16(511) trunc→int8 = -1");
+
+    /* int8(-1) → int16: 符号扩展到 16 位 */
+    v = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
+    rc = tc_exec_cast(TC_INT16, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    check(rc == 0, "cast truncate int8(-1) → int16 ok");
+    check(tc_bits_to_signed(TC_INT16, out.bits) == -1, "int8(-1) sign-extend→int16 = -1");
+
+    /* uint8(200) → int16: 零扩展 */
+    v = tc_value_make(TC_UINT8, 200);
+    rc = tc_exec_cast(TC_INT16, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    check(rc == 0 && out.bits == 200, "cast truncate uint8(200) → int16 = 200 (zero-extend)");
+
+    /* bool → int32 */
+    TcValue b = tc_value_make(TC_BOOL, 1);
+    rc = tc_exec_cast(TC_INT32, TC_TRUNC_TRUNCATE, &b, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_INT32 && out.bits == 1,
+          "cast truncate bool(true) → int32 = 1");
+
+    /* int32 → bool */
+    v = tc_value_make(TC_INT32, 42);
+    rc = tc_exec_cast(TC_BOOL, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 1,
+          "cast truncate int32(42) → bool = true");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
+/*  main                                                               */
+/* ================================================================== */
+
+int main(void) {
+    /* Bit tool functions */
+    test_mask_bits();
+    test_bits_to_signed();
+    test_signed_to_bits();
+    test_value_to_unsigned();
+    test_value_make();
+
+    /* Range checks */
+    test_signed_in_range();
+    test_unsigned_in_range();
+
+    /* Literal */
+    test_literal_fits_type();
+    test_literal_fits_context();
+    test_literal_to_value();
+
+    /* Arithmetic */
+    test_arith_signed_add_strict();
+    test_arith_signed_sub_strict();
+    test_arith_signed_mul_strict();
+    test_arith_signed_div_mod();
+    test_arith_signed_wrap();
+    test_arith_unsigned();
+
+    /* Unary */
+    test_unary_abs();
+    test_unary_neg();
+
+    /* Compare */
+    test_compare_signed();
+    test_compare_unsigned();
+
+    /* Logic */
+    test_logic_binary();
+    test_logic_unary();
+
+    /* Cast strict */
+    test_cast_strict_widen_signed_to_signed();
+    test_cast_strict_widen_unsigned_to_unsigned();
+    test_cast_strict_widen_signed_to_unsigned();
+    test_cast_strict_widen_unsigned_to_signed();
+    test_cast_strict_same_width_diff_sign();
+    test_cast_strict_narrow();
+    test_cast_strict_bool();
+
+    /* Cast truncate */
+    test_cast_truncate();
+
+    printf("%d passed, %d failed\n", g_passed, g_failed);
+    return g_failed == 0 ? 0 : 1;
+}

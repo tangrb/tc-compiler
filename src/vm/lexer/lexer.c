@@ -17,11 +17,12 @@
 /*  Token 列表管理                                                      */
 /* ------------------------------------------------------------------ */
 
-static int tc_token_list_push(TcTokenList *list, const TcToken *token) {
+static int tc_token_list_push(TcTokenList *list, const TcToken *token, TcDiagnostic *diag) {
     if (list->count == list->capacity) {
         size_t new_cap = list->capacity == 0 ? 16 : list->capacity * 2;
         TcToken *items = (TcToken *)realloc(list->items, new_cap * sizeof(TcToken));
         if (!items) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
             return -1;
         }
         list->items = items;
@@ -354,7 +355,7 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
  */
 static int tc_emit_token(TcTokenList *out, TcTokenKind kind, const char *start, size_t len,
                          int line, int column, TcIntType int_type, TcArithOp arith_op,
-                         const TcLiteral *literal) {
+                         const TcLiteral *literal, TcDiagnostic *diag) {
     TcToken token;
     token.kind = kind;
     token.start = start;
@@ -367,7 +368,7 @@ static int tc_emit_token(TcTokenList *out, TcTokenKind kind, const char *start, 
         token.u.int_type = int_type;
         token.u.arith_op = arith_op;
     }
-    return tc_token_list_push(out, &token);
+    return tc_token_list_push(out, &token, diag);
 }
 
 /* ------------------------------------------------------------------ */
@@ -387,7 +388,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         /* 单字符标点符号 */
         if (*p == ':') {
             if (tc_emit_token(out, TC_TOK_COLON, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
-                              NULL) != 0) {
+                              NULL, diag) != 0) {
                 return -1;
             }
             p++;
@@ -397,7 +398,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
         if (*p == '=') {
             if (tc_emit_token(out, TC_TOK_EQUAL, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
-                              NULL) != 0) {
+                              NULL, diag) != 0) {
                 return -1;
             }
             p++;
@@ -407,7 +408,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
         if (*p == ',') {
             if (tc_emit_token(out, TC_TOK_COMMA, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
-                              NULL) != 0) {
+                              NULL, diag) != 0) {
                 return -1;
             }
             p++;
@@ -417,7 +418,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
         if (*p == '(') {
             if (tc_emit_token(out, TC_TOK_LPAREN, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
-                              NULL) != 0) {
+                              NULL, diag) != 0) {
                 return -1;
             }
             p++;
@@ -427,7 +428,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
         if (*p == ')') {
             if (tc_emit_token(out, TC_TOK_RPAREN, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
-                              NULL) != 0) {
+                              NULL, diag) != 0) {
                 return -1;
             }
             p++;
@@ -438,7 +439,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         if (*p == ';') {
             /* ; 兼具语句结束符和行注释作用，忽略同行后续所有字符 */
             if (tc_emit_token(out, TC_TOK_SEMICOLON, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
-                              NULL) != 0) {
+                              NULL, diag) != 0) {
                 return -1;
             }
             break;
@@ -468,7 +469,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
                 token.line = line_no;
                 token.column = tok_column;
                 token.u.format_spec = fmt;
-                if (tc_token_list_push(out, &token) != 0) {
+                if (tc_token_list_push(out, &token, diag) != 0) {
                     return -1;
                 }
             }
@@ -486,7 +487,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
                 return -1;
             }
             if (tc_emit_token(out, TC_TOK_INTEGER, start, (size_t)(end - start), line_no, tok_column,
-                              TC_INT32, TC_ADD, &lit) != 0) {
+                              TC_INT32, TC_ADD, &lit, diag) != 0) {
                 return -1;
             }
             column += (int)(end - p);
@@ -511,11 +512,11 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
                     token.length = len;
                     token.line = line_no;
                     token.column = tok_column;
-                    if (tc_token_list_push(out, &token) != 0) {
+                    if (tc_token_list_push(out, &token, diag) != 0) {
                         return -1;
                     }
                 } else if (tc_emit_token(out, TC_TOK_IDENTIFIER, start, len, line_no, tok_column,
-                                         TC_INT32, TC_ADD, NULL) != 0) {
+                                         TC_INT32, TC_ADD, NULL, diag) != 0) {
                     return -1;
                 }
             }
@@ -537,7 +538,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         eof.line = line_no;
         eof.column = column;
         eof.u.int_type = TC_INT32;
-        if (tc_token_list_push(out, &eof) != 0) {
+        if (tc_token_list_push(out, &eof, diag) != 0) {
             return -1;
         }
     }

@@ -1123,6 +1123,17 @@ tests/
 
 `scripts/vm/run_tests.sh` 由 CMake 目标 `check-vm` 调用；支持 `ASAN=1` 或 `--asan` 切换至 `build-asan/vm/bin/tc-vm`。
 
+此外，`scripts/run_tests.sh` 提供统一顶层入口，依次运行 VM、AOT、单元测试：
+
+```bash
+bash scripts/run_tests.sh                # 运行全部测试
+bash scripts/run_tests.sh --verbose      # VM 部分显示详细日志
+bash scripts/run_tests.sh --filter foo   # 仅 VM 测试中匹配 "foo"
+bash scripts/run_tests.sh --asan         # AddressSanitizer 模式
+```
+
+此脚本等价的 cmake 入口为 `make test`（`check-vm` + `check-unit` + `check-aot`）。
+
 ### 14.3 回归用例（v0.0.21）
 
 #### valid — 执行成功
@@ -1238,6 +1249,68 @@ tests/
 - **常量循环依赖**：A 引用 B，B 引用 A → 静态错误
 - **常量表达式溢出**：`let X: int8 = add(int8, 100, 100)` → 常量溢出错误
 - **`%t` 格式类型检查**：`write(int32, %t, x)` → 格式类型不匹配错误
+
+### 14.6 AOT 差分测试
+
+TC-AOT（`src/aot/`）将 TC 源文件编译为 C99 后调用系统编译器（gcc/clang）生成可执行文件，其测试策略为**差分比较**：
+
+1. 用 `tc-vm` 运行 `.tc` 源文件，捕获 stdout
+2. 用 `tc-aot --run` 编译并运行同一源文件，捕获 stdout
+3. 比较两者是否完全一致
+
+该策略确保 AOT 生成的二进制输出与 VM 解释执行结果逐字节一致。
+
+#### 测试脚本
+
+| 脚本 | 职责 | 被调用方 |
+|------|------|----------|
+| `scripts/aot/run_tests.sh` | 注册 AOT 差分测试用例 | `check-aot` cmake target |
+| `scripts/vm/run_tests.sh` | 注册 VM conformance 测试 | `check-vm` cmake target |
+| `scripts/run_tests.sh` | 统一入口，顺序调用二者 | — |
+
+#### 新增 AOT 测试用例流程
+
+添加新的语言特性后，按以下步骤确保 AOT 覆盖：
+
+1. **在 `tests/valid/` 中编写正例**（与 VM conformance 共用同一文件）
+2. **在 `scripts/aot/run_tests.sh` 中注册**：
+   ```bash
+   run_diff_test "$ROOT/tests/valid/your_new_test.tc"
+   ```
+3. **在 `scripts/vm/run_tests.sh` 中注册**（预期 stdout 或成功退出码）
+4. **验证**：
+   ```bash
+   bash scripts/run_tests.sh           # 统一入口
+   # 或:
+   make test                            # cmake 入口
+   ```
+
+#### 注册规则
+
+- AOT 差分测试要求程序的 stdout **完全确定**（非 `--check` 模式，非常量错误场景）
+- 使用 stdin 输入的用例需传递第二参数：
+  ```bash
+  run_diff_test "$ROOT/tests/valid/read_foo.tc" "input_data\n"
+  ```
+- 涉及运行时错误的用例不在 AOT 差分测试中注册（AOT 测试仅验证成功执行的程序）
+
+#### 常见遗漏检查
+
+新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
+
+### 14.7 层间调用关系
+
+```text
+make test
+  ├─ make test-vm   → check-vm   → scripts/vm/run_tests.sh
+  ├─ make test-unit → check-unit → CTest 单元测试
+  └─ make test-aot  → check-aot  → scripts/aot/run_tests.sh
+
+bash scripts/run_tests.sh      (统一脚本入口)
+  ├─ scripts/vm/run_tests.sh   (VM conformance)
+  ├─ scripts/aot/run_tests.sh  (AOT differential)
+  └─ make test-unit            (单元测试)
+```
 
 ---
 

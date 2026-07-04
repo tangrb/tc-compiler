@@ -534,82 +534,99 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
 /*  RHS 入口：分派到具体解析子函数                                         */
 /* ------------------------------------------------------------------ */
 
-static int tc_parse_rhs(const TcTokenList *tokens, size_t *index, int line_no, TcRhs *out,
-                        TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
+static int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int line_no,
+                        TcRhs *out, TcDiagnostic *diag) {
+    int rc;
+    const TcToken *tok;
+
+    if (ctx->depth >= TC_PARSER_MAX_DEPTH) {
+        tok = tc_peek(tokens, *index);
+        return tc_syntax_error(diag, line_no, tok->column, "expression too complex");
+    }
+    ctx->depth++;
+
+    tok = tc_peek(tokens, *index);
 
     if (tok->kind == TC_TOK_INTEGER) {
         out->kind = TC_RHS_LIT;
         out->u.lit = tok->u.literal;
         (*index)++;
-        return 0;
-    }
-    if (tok->kind == TC_TOK_BOOL_LIT) {
+        rc = 0;
+    } else if (tok->kind == TC_TOK_BOOL_LIT) {
         out->kind = TC_RHS_LIT;
         out->u.lit = tok->u.literal;
         (*index)++;
-        return 0;
-    }
-    if (tok->kind == TC_TOK_ARITH_OP) {
-        return tc_parse_arith_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_UNARY_OP) {
-        return tc_parse_unary_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_COMPARE_OP) {
-        return tc_parse_compare_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_LOGIC_OP) {
+        rc = 0;
+    } else if (tok->kind == TC_TOK_ARITH_OP) {
+        rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_UNARY_OP) {
+        rc = tc_parse_unary_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_COMPARE_OP) {
+        rc = tc_parse_compare_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_LOGIC_OP) {
         if (tok->u.logic_op == TC_LOGIC_NOT) {
-            return tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
+            rc = tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
+        } else {
+            rc = tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
         }
-        return tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_CAST) {
+        rc = tc_parse_cast_rhs(tokens, index, line_no, out, diag);
+    } else {
+        rc = tc_syntax_error(diag, line_no, tok->column, "expected rhs expression");
     }
-    if (tok->kind == TC_TOK_CAST) {
-        return tc_parse_cast_rhs(tokens, index, line_no, out, diag);
-    }
-    return tc_syntax_error(diag, line_no, tok->column, "expected rhs expression");
+
+    ctx->depth--;
+    return rc;
 }
 
-static int tc_parse_const_rhs(const TcTokenList *tokens, size_t *index, int line_no, TcRhs *out,
-                              TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
+static int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
+                              int line_no, TcRhs *out, TcDiagnostic *diag) {
+    int rc;
+    const TcToken *tok;
+
+    if (ctx->depth >= TC_PARSER_MAX_DEPTH) {
+        tok = tc_peek(tokens, *index);
+        return tc_syntax_error(diag, line_no, tok->column, "expression too complex");
+    }
+    ctx->depth++;
+
+    tok = tc_peek(tokens, *index);
 
     if (tok->kind == TC_TOK_INTEGER || tok->kind == TC_TOK_BOOL_LIT) {
         out->kind = TC_RHS_LIT;
         out->u.lit = tok->u.literal;
         (*index)++;
-        return 0;
-    }
-    if (tok->kind == TC_TOK_IDENTIFIER) {
+        rc = 0;
+    } else if (tok->kind == TC_TOK_IDENTIFIER) {
         out->kind = TC_RHS_CONST_REF;
         out->u.const_ref.name = strndup(tok->start, tok->length);
         if (!out->u.const_ref.name) {
             tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok->column, "out of memory");
-            return -1;
+            rc = -1;
+        } else {
+            (*index)++;
+            rc = 0;
         }
-        (*index)++;
-        return 0;
-    }
-    if (tok->kind == TC_TOK_ARITH_OP) {
-        return tc_parse_arith_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_UNARY_OP) {
-        return tc_parse_unary_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_COMPARE_OP) {
-        return tc_parse_compare_rhs(tokens, index, line_no, out, diag);
-    }
-    if (tok->kind == TC_TOK_LOGIC_OP) {
+    } else if (tok->kind == TC_TOK_ARITH_OP) {
+        rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_UNARY_OP) {
+        rc = tc_parse_unary_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_COMPARE_OP) {
+        rc = tc_parse_compare_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_LOGIC_OP) {
         if (tok->u.logic_op == TC_LOGIC_NOT) {
-            return tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
+            rc = tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
+        } else {
+            rc = tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
         }
-        return tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_CAST) {
+        rc = tc_parse_const_cast_rhs(tokens, index, line_no, out, diag);
+    } else {
+        rc = tc_syntax_error(diag, line_no, tok->column, "expected constant expression");
     }
-    if (tok->kind == TC_TOK_CAST) {
-        return tc_parse_const_cast_rhs(tokens, index, line_no, out, diag);
-    }
-    return tc_syntax_error(diag, line_no, tok->column, "expected constant expression");
+
+    ctx->depth--;
+    return rc;
 }
 
 /* ------------------------------------------------------------------ */
@@ -741,8 +758,9 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
  *   var id: type [= rhs]
  *   let id: type = rhs（必须初始化）
  */
-static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, int line_no,
-                                     int is_const, TcStatement *out, TcDiagnostic *diag) {
+static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
+                                     int line_no, int is_const, TcStatement *out,
+                                     TcDiagnostic *diag) {
     char *name = NULL;
     TcIntType type = TC_INT32;
     TcRhs rhs;
@@ -785,12 +803,12 @@ static int tc_parse_var_or_const_def(const TcTokenList *tokens, size_t *index, i
             (*index)++;
             memset(&rhs, 0, sizeof(rhs));
             if (is_const) {
-                if (tc_parse_const_rhs(tokens, index, line_no, &rhs, diag) != 0) {
+                if (tc_parse_const_rhs(ctx, tokens, index, line_no, &rhs, diag) != 0) {
                     free(name);
                     tc_rhs_free(&rhs);
                     return -1;
                 }
-            } else if (tc_parse_rhs(tokens, index, line_no, &rhs, diag) != 0) {
+            } else if (tc_parse_rhs(ctx, tokens, index, line_no, &rhs, diag) != 0) {
                 free(name);
                 tc_rhs_free(&rhs);
                 return -1;
@@ -915,11 +933,12 @@ void tc_program_free(TcProgram *program) {
     program->capacity = 0;
 }
 
-int tc_program_push(TcProgram *program, const TcStatement *stmt) {
+int tc_program_push(TcProgram *program, const TcStatement *stmt, TcDiagnostic *diag) {
     if (program->count == program->capacity) {
         size_t new_cap = program->capacity == 0 ? 8 : program->capacity * 2;
         TcStatement *items = (TcStatement *)realloc(program->items, new_cap * sizeof(TcStatement));
         if (!items) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
             return -1;
         }
         program->items = items;
@@ -933,7 +952,7 @@ int tc_program_push(TcProgram *program, const TcStatement *stmt) {
 /*  tc_parse_statement — 语法分析入口                                   */
 /* ------------------------------------------------------------------ */
 
-int tc_parse_statement(const TcTokenList *tokens, int line_no, TcStatement *out,
+int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no, TcStatement *out,
                        TcDiagnostic *diag) {
     size_t index = 0;
     const TcToken *first = NULL;
@@ -942,11 +961,11 @@ int tc_parse_statement(const TcTokenList *tokens, int line_no, TcStatement *out,
     first = tc_peek(tokens, index);
 
     if (first->kind == TC_TOK_VAR) {
-        return tc_parse_var_or_const_def(tokens, &index, line_no, 0, out, diag);
+        return tc_parse_var_or_const_def(ctx, tokens, &index, line_no, 0, out, diag);
     }
 
     if (first->kind == TC_TOK_LET) {
-        return tc_parse_var_or_const_def(tokens, &index, line_no, 1, out, diag);
+        return tc_parse_var_or_const_def(ctx, tokens, &index, line_no, 1, out, diag);
     }
 
     if (first->kind == TC_TOK_WRITE || first->kind == TC_TOK_WRITELN) {
@@ -998,7 +1017,7 @@ int tc_parse_statement(const TcTokenList *tokens, int line_no, TcStatement *out,
             return -1;
         }
         memset(&assign.rhs, 0, sizeof(assign.rhs));
-        if (tc_parse_rhs(tokens, &index, line_no, &assign.rhs, diag) != 0) {
+        if (tc_parse_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
             free(assign.name);
             tc_rhs_free(&assign.rhs);
             return -1;

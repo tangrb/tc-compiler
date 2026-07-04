@@ -717,11 +717,10 @@ static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int si
     if (!sign_extend) {
         return bits;
     }
-    /* 若源符号位为 1，高位全填 1 */
+    /* 若源符号位为 1，高位全填 1（从 src_bits 到 dst_bits-1） */
     if (bits & (1ULL << (unsigned)(src_bits - 1))) {
-        uint64_t high_mask = ~tc_mask_bits(dst_bits);
-        high_mask |= mask;
-        return bits | high_mask;
+        uint64_t extend_mask = (~tc_mask_bits(src_bits)) & tc_mask_bits(dst_bits);
+        return bits | extend_mask;
     }
     return bits;
 }
