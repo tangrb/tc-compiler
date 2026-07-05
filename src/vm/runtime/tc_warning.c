@@ -1,5 +1,5 @@
 /*
- * warning.c — 编译警告列表管理
+ * tc_warning.c — 编译警告列表管理
  */
 #include "tc_warning.h"
 

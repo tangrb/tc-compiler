@@ -1,5 +1,5 @@
 /*
- * semantics.c — TC 整数语义运算的实现
+ * tc_semantics.c — TC 整数语义运算的实现
  *
  * 本模块是 TC-VM 的语义核心，严格遵循 TC 语言标准：
  *   - 有符号 strict 模式：溢出检测，溢出时报 TC_ERR_INTEGER_OVERFLOW

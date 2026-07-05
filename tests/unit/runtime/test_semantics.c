@@ -1,7 +1,7 @@
 /*
  * test_semantics.c — 语义核心模块单元测试
  *
- * 覆盖 semantics.c 中所有公开函数：
+ * 覆盖 tc_semantics.c 中所有公开函数：
  *   - 位模式工具函数 (mask_bits / bits_to_signed / signed_to_bits / ...)
  *   - 范围检查 (signed_in_range / unsigned_in_range)
  *   - 字面量检查与转换 (literal_fits_type / literal_fits_context / literal_to_value)

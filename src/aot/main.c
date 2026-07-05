@@ -65,9 +65,9 @@ static int tc_aot_run_generated(const char *c_path) {
              "cc -std=c99 -Wall -Wextra -pedantic "
              "-I\"" TC_AOT_RT_DIR "\" -I\"" TC_VM_DIR "/runtime\" "
              "\"%s\" \"" TC_AOT_RT_DIR "/tc_aot_rt.c\" "
-             "\"" TC_VM_DIR "/runtime/types.c\" "
-             "\"" TC_VM_DIR "/runtime/diagnostic.c\" "
-             "\"" TC_VM_DIR "/runtime/semantics.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_types.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_diagnostic.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_semantics.c\" "
              "\"" TC_VM_DIR "/runtime/tc_io.c\" "
              "-o \"%s.out\" && \"%s.out\"",
              c_path, c_path, c_path);

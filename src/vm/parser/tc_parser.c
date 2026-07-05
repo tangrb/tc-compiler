@@ -1,5 +1,5 @@
 /*
- * parser.c — TC 语法分析器实现
+ * tc_parser.c — TC 语法分析器实现
  *
  * 消费 tc_tokenize_line 产出的 TcTokenList，按 TC 语言语法规则
  * 将单行 Token 流解析为一条 TcStatement（AST 节点）。

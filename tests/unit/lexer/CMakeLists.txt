@@ -13,9 +13,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/bin)
 
 add_executable(test-lexer
     test_lexer.c
-    ${TC_VM_DIR}/lexer/lexer.c
-    ${TC_VM_DIR}/runtime/types.c
-    ${TC_VM_DIR}/runtime/diagnostic.c
+    ${TC_VM_DIR}/lexer/tc_lexer.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
 
 target_include_directories(test-lexer PRIVATE ${TC_VM_INCLUDE_DIRS})
@@ -31,9 +31,9 @@ add_custom_target(check-lexer
 # Extended lexer tests
 add_executable(test-lexer-extended
     test_lexer_extended.c
-    ${TC_VM_DIR}/lexer/lexer.c
-    ${TC_VM_DIR}/runtime/types.c
-    ${TC_VM_DIR}/runtime/diagnostic.c
+    ${TC_VM_DIR}/lexer/tc_lexer.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
 
 target_include_directories(test-lexer-extended PRIVATE ${TC_VM_INCLUDE_DIRS})

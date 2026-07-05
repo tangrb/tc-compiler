@@ -1,5 +1,5 @@
 /*
- * analyzer.c — TC 静态分析器实现
+ * tc_analyzer.c — TC 静态分析器实现
  *
  * 两遍扫描架构：
  *   Pass 1 — 符号收集：扫描所有 var/let 定义，分配运行时 slot，检测重复定义

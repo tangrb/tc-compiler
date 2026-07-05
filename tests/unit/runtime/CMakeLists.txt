@@ -17,9 +17,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/bin)
 
 add_executable(test-semantics
     test_semantics.c
-    ${TC_VM_DIR}/runtime/semantics.c
-    ${TC_VM_DIR}/runtime/types.c
-    ${TC_VM_DIR}/runtime/diagnostic.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
 
 target_include_directories(test-semantics PRIVATE ${TC_VM_INCLUDE_DIRS})
@@ -38,7 +38,7 @@ add_custom_target(check-semantics
 
 add_executable(test-types
     test_types.c
-    ${TC_VM_DIR}/runtime/types.c
+    ${TC_VM_DIR}/runtime/tc_types.c
 )
 
 target_include_directories(test-types PRIVATE ${TC_VM_INCLUDE_DIRS})
@@ -58,9 +58,9 @@ add_custom_target(check-types
 add_executable(test-io
     test_io.c
     ${TC_VM_DIR}/runtime/tc_io.c
-    ${TC_VM_DIR}/runtime/semantics.c
-    ${TC_VM_DIR}/runtime/types.c
-    ${TC_VM_DIR}/runtime/diagnostic.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
 
 target_include_directories(test-io PRIVATE ${TC_VM_INCLUDE_DIRS})

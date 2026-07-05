@@ -1,5 +1,5 @@
 /*
- * repl.c — TC-VM 交互式 REPL 实现
+ * tc_repl.c — TC-VM 交互式 REPL 实现
  *
  * 逐行读取 TC 源码，经 Lexer → Parser → 增量 Analyze → Execute 单条执行。
  * 会话内变量定义与赋值状态跨行保留。

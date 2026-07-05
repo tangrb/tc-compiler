@@ -1,5 +1,5 @@
 /*
- * diagnostic.c — 错误诊断的实现
+ * tc_diagnostic.c — 错误诊断的实现
  *
  * 管理 TcDiagnostic 结构体的生命周期：初始化、错误设置（深拷贝消息字符串）、
  * 格式化输出（类 GCC/clang 风格）、以及释放动态内存。

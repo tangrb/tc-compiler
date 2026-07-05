@@ -1,5 +1,5 @@
 /*
- * compile.c — libtc 编译入口（Parse + Analyze）
+ * tc_lib.c — libtc 编译入口（Parse + Analyze）
  *
  * 提供完整的编译流水线：读源（字符串/文件）→ 逐行 Lex+Parse → Analyze，
  * 可选输出各阶段耗时（环境变量 TC_BENCH=1 启用）。

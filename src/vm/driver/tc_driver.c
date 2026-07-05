@@ -1,5 +1,5 @@
 /*
- * driver.c — TC-VM 驱动层（基于 libtc）
+ * tc_driver.c — TC-VM 驱动层（基于 libtc）
  *
  * 串联完整流水线：编译（tc_compile_source / tc_compile_file）→ 打印警告 →
  * （非 check_only）执行（tc_run_typed）。作为 tc-vm 可执行文件的驱动后端。

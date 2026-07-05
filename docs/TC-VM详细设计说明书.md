@@ -392,7 +392,7 @@ TcSymbol ::= {
 }
 ```
 
-符号表 CRUD 由独立模块 `runtime/symbol.c`（`tc_symbol.h`）实现：`tc_symbol_table_init/free/find/add/pop_last`。
+符号表 CRUD 由独立模块 `runtime/tc_symbol.c`（`tc_symbol.h`）实现：`tc_symbol_table_init/free/find/add/pop_last`。
 
 规则：
 
@@ -542,7 +542,7 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 
 #### 7.4.4 逻辑短路与 Analyzer 行为
 
-Pass 2 对 `BinaryLogicRhs` 的右操作数未初始化检查，须与运行时短路规则对齐（`analyzer.c` → `tc_check_rhs`）：
+Pass 2 对 `BinaryLogicRhs` 的右操作数未初始化检查，须与运行时短路规则对齐（`tc_analyzer.c` → `tc_check_rhs`）：
 
 | 条件                                                         | Analyzer 行为                                              |
 | ------------------------------------------------------------ | ---------------------------------------------------------- |
@@ -604,7 +604,7 @@ execute(program: TypedProgram):
 - `VarDef` 在运行时再次执行初始化（与语义「定义并赋值」一致）
 - `VarDef` 无 RHS 时槽位保持 **毒化填充**（实现用 `0xFE` 模式 `memset`，值视为未定义）
 - `ConstDef` 的值在编译期已确定并存入 `TcSymbol.const_value`，Executor 直接从符号表读取并写入槽位
-- 分析通过后、执行前，`driver.c` 将 `TcTypedProgram.warnings` 打印到 stderr（`warning: <msg> (line N)`），**不阻止执行**
+- 分析通过后、执行前，`tc_driver.c` 将 `TcTypedProgram.warnings` 打印到 stderr（`warning: <msg> (line N)`），**不阻止执行**
 
 ### 8.2 eval_rhs
 
@@ -716,7 +716,7 @@ Analyzer 调用 `tc_literal_fits_context()` 进行检查，按以下表格判定
 
 ### 9.3 中间计算
 
-| 场景                   | 实现要求（`runtime/semantics.c`）                            |
+| 场景                   | 实现要求（`runtime/tc_semantics.c`）                            |
 | ---------------------- | ------------------------------------------------------------ |
 | 有符号 strict 加减     | `tc_sadd_overflow` / `tc_ssub_overflow` 在 int64 域检测      |
 | 有符号 strict 乘法     | 宽整数路径；`uint64` 用 `tc_umul64`（32 位分块 64×64→128）   |
@@ -1110,46 +1110,43 @@ TC-VM 位于 [TC-Compiler](../README.md) 的 `src/vm/`，与 **libtc**（`src/li
 ```text
 src/libtc/              # 嵌入 API：Parse + Analyze + Execute 委托
 │   ├── tc_lib.h        # tc_compile_source/file、tc_run_typed
-│   └── compile.c       # 逐行 tc_tokenize_line + tc_parse_statement → tc_analyze
+│   └── tc_lib.c        # 逐行 tc_tokenize_line + tc_parse_statement → tc_analyze
 
 src/vm/
 ├── runtime/            # TcValue、TcIntType、TcDiagnostic、TcWarning、Semantics、Symbol、I/O
 │   ├── tc_types.h      # 所有类型定义、枚举
-│   ├── types.c         # tc_type_*、tc_error_kind_name、tc_format_spec_name
-│   ├── diagnostic.c    # tc_diagnostic_init/set/print
-│   ├── symbol.c        # tc_symbol_table_*（符号表 CRUD）
-│   ├── tc_symbol.h     # 符号表 API（tc_symbol_table_*）
-│   ├── warning.c       # tc_warning_list_*
-│   ├── tc_warning.h    # 警告 API（tc_warning_*）
-│   ├── semantics.c     # tc_exec_arith、tc_exec_unary、tc_exec_cast、字面量/位模式工具
-│   ├── tc_semantics.h  # 语义 API 声明
-│   ├── tc_io.c         # tc_io_write_value、tc_io_read_value
-│   └── tc_io.h         # I/O API 声明
+│   ├── tc_types.c      # tc_type_*、tc_error_kind_name、tc_format_spec_name
+│   ├── tc_diagnostic.h / tc_diagnostic.c   # tc_diagnostic_init/set/print
+│   ├── tc_symbol.h / tc_symbol.c           # tc_symbol_table_*（符号表 CRUD）
+│   ├── tc_warning.h / tc_warning.c         # tc_warning_list_*
+│   ├── tc_semantics.h / tc_semantics.c     # tc_exec_arith、tc_exec_unary、tc_exec_cast、字面量/位模式工具
+│   ├── tc_io.h / tc_io.c                   # tc_io_write_value、tc_io_read_value
 ├── lexer/              # tc_tokenize_line（含多进制字面量、u 后缀）
 │   ├── tc_lexer.h
-│   └── lexer.c
+│   └── tc_lexer.c
 ├── parser/             # tc_parse_statement、tc_program_push
 │   ├── tc_parser.h
-│   └── parser.c
+│   └── tc_parser.c
 ├── analyzer/           # tc_analyze、tc_analyze_statement（两遍分析 + REPL 增量）
 │   ├── tc_analyzer.h
-│   ├── analyzer.c      # Pass1 + Pass2 主逻辑
-│   ├── tc_const_eval.c # 编译期常量表达式求值（let 依赖排序、循环检测）
-│   └── tc_const_eval.h # 常量求值 API
+│   ├── tc_analyzer.c   # Pass1 + Pass2 主逻辑
+│   ├── tc_const_eval.h / tc_const_eval.c   # 编译期常量表达式求值（let 依赖排序、循环检测）
 ├── executor/           # tc_execute、tc_execute_statement
 │   ├── tc_executor.h
-│   └── executor.c
+│   └── tc_executor.c
 ├── driver/             # tc_run_source、tc_run_file、tc_repl_run
 │   ├── tc_driver.h
-│   ├── driver.c        # tc_run_source/tc_run_file（委托 libtc，含 --check 模式）
+│   ├── tc_driver.c     # tc_run_source/tc_run_file（委托 libtc，含 --check 模式）
 │   ├── tc_repl.h
-│   ├── repl.c          # REPL 主循环（含 meta-commands）
+│   ├── tc_repl.c       # REPL 主循环（含 meta-commands）
 │   ├── tc_version.h    # TC_VM_VERSION
 │   └── main.c          # CLI 入口（getopt 参数解析）
 └── CMakeLists.txt      # tc-vm + check-vm（C99 -Wall -Wextra -pedantic）
 ```
 
-各模块对外接口见 `tc_*.h` 头文件；`tc_types.h` 为全模块共享的数据契约。`driver.c` 通过 libtc 完成编译，再调用 `tc_run_typed` 执行。
+各模块对外接口见 `tc_*.h` 头文件；`tc_types.h` 为全模块共享的数据契约。`tc_driver.c` 通过 libtc 完成编译，再调用 `tc_run_typed` 执行。
+
+**命名约定**：每个模块实现文件与头文件同名成对（`tc_<module>.h` ↔ `tc_<module>.c`）；CLI 入口为 `main.c`；版本常量见仅头文件 `tc_version.h`。CI 通过 `scripts/sync/check_source_naming.py` 校验。
 
 ### 12.2 核心接口（C API）
 
@@ -1697,7 +1694,7 @@ static void write_formatted(TcType type, TcFormatSpec fmt,
 
 ## 18. 交互式 REPL 实现
 
-TC-VM 提供交互式 REPL 模式，支持逐条输入 TC 语句并立即执行，变量跨行保留。实现文件为 `driver/repl.c`。
+TC-VM 提供交互式 REPL 模式，支持逐条输入 TC 语句并立即执行，变量跨行保留。实现文件为 `driver/tc_repl.c`。
 
 ### 18.1 设计目标
 

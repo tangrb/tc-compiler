@@ -2,7 +2,7 @@
  * tc_aot_codegen.c — TC → C99 转译
  *
  * 消费 Analyzer 产出的 TcTypedProgram，逐语句生成等价的 C99 代码。
- * 算术、cast、I/O 操作通过 tc_aot_rt.h 中的运行时辅助函数委托 semantics.c，
+ * 算术、cast、I/O 操作通过 tc_aot_rt.h 中的运行时辅助函数委托 tc_semantics.c，
  * 保证与 TC-VM 行为完全一致。
  */
 #include "tc_aot_codegen.h"

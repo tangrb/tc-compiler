@@ -1,7 +1,7 @@
 /*
  * tc_aot_rt.c — AOT 运行时辅助实现
  *
- * 将 AOT 生成的 C 代码中的 uint64_t 槽位操作委托给 semantics.c，
+ * 将 AOT 生成的 C 代码中的 uint64_t 槽位操作委托给 tc_semantics.c，
  * 包括：字面量求值（tc_aot_lit）、算术运算（tc_aot_arith）、
  * 单目运算（tc_aot_unary）、类型转换（tc_aot_cast）、
  * 格式化输出（tc_aot_write）、输入（tc_aot_read）及错误中止（tc_aot_abort）。

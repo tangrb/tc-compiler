@@ -1,7 +1,7 @@
 /*
  * test_types.c — 类型工具函数模块单元测试
  *
- * 覆盖 types.c 中所有公开函数：
+ * 覆盖 tc_types.c 中所有公开函数：
  *   - tc_type_bit_width — 9 种类型的位宽查询
  *   - tc_type_is_bool / tc_type_is_integer / tc_type_is_signed — 符号/种类判定
  *   - tc_type_parse — 类型名字符串→枚举

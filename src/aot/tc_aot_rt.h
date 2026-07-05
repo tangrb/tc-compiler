@@ -2,7 +2,7 @@
  * tc_aot_rt.h — AOT 生成 C 代码的运行时辅助接口
  *
  * 提供 tc_aot_arith / tc_aot_cast / tc_aot_write / tc_aot_read 等函数，
- * 内部委托 semantics.c 完成语义运算，保证 AOT 生成代码与 TC-VM 行为一致。
+ * 内部委托 tc_semantics.c 完成语义运算，保证 AOT 生成代码与 TC-VM 行为一致。
  * 这些函数被 tc-aot 生成的 main.c 调用。
  */
 #ifndef TC_AOT_RT_H

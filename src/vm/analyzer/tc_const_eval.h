@@ -1,7 +1,7 @@
 /*
  * tc_const_eval.h — let 常量编译期求值接口
  *
- * 从 analyzer.c 中拆分的独立模块，负责 let 定义的编译期常量计算。
+ * 从 tc_analyzer.c 中拆分的独立模块，负责 let 定义的编译期常量计算。
  * 包含循环依赖检测、运行时错误到常量错误映射、类型检查等逻辑。
  */
 #ifndef TC_CONST_EVAL_H

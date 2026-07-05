@@ -1,5 +1,5 @@
 /*
- * executor.c — TC 执行引擎实现
+ * tc_executor.c — TC 执行引擎实现
  *
  * 采用「变量槽位」模型：分配 symbols.count 个 TcValue 槽，按 TcSymbol.slot 索引。
  * 执行流程：
@@ -8,7 +8,7 @@
  *   3. var/let 定义：求值 RHS → 写入新槽；赋值：求值 RHS → 覆盖已有槽
  *   4. write/writeln：格式化输出到 stdout；read：从 stdin 解析十进制整数
  *
- * 算术/cast 语义委托给 semantics.c，保证与 AOT 行为一致。
+ * 算术/cast 语义委托给 tc_semantics.c，保证与 AOT 行为一致。
  */
 #include "tc_executor.h"
 
@@ -114,8 +114,8 @@ static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type
  * @return 成功返回 0；运行时错误（除零/溢出）返回 -1 并设置 diag
  *
  * 运行时形式：
- *   TC_RHS_LIT/COMPARE/LOGIC_* → 字面量或委托 semantics.c
- *   TC_RHS_ARITH/UNARY/CAST    → 委托 semantics.c
+ *   TC_RHS_LIT/COMPARE/LOGIC_* → 字面量或委托 tc_semantics.c
+ *   TC_RHS_ARITH/UNARY/CAST    → 委托 tc_semantics.c
  *   TC_RHS_CONST_REF/CAST      → 防御拒绝（仅 let 初始化合法）
  */
 static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue *slots,

@@ -59,7 +59,7 @@ DispatchPoint = {
 # 和因 fallthrough 等有意不显式检查的 kind
 DISPATCH_POINTS = [
     {
-        "path": "src/vm/parser/parser.c",
+        "path": "src/vm/parser/tc_parser.c",
         "func": "tc_rhs_free",
         "line_func": 861,
         "skip": {
@@ -67,7 +67,7 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/parser/parser.c",
+        "path": "src/vm/parser/tc_parser.c",
         "func": "tc_parse_rhs",
         "line_func": 537,
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
@@ -78,7 +78,7 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/parser/parser.c",
+        "path": "src/vm/parser/tc_parser.c",
         "func": "tc_parse_const_rhs",
         "line_func": 582,
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
@@ -88,7 +88,7 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/analyzer/analyzer.c",
+        "path": "src/vm/analyzer/tc_analyzer.c",
         "func": "tc_check_rhs",
         "line_func": 217,
         "skip": {
@@ -105,7 +105,7 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/executor/executor.c",
+        "path": "src/vm/executor/tc_executor.c",
         "func": "tc_eval_rhs",
         "line_func": 123,
         "skip": {},

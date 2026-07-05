@@ -11,18 +11,18 @@ set(TC_LIBTC_INCLUDE_DIRS
 )
 
 set(TC_LIBTC_SOURCES
-    compile.c
-    ${TC_VM_DIR}/runtime/types.c
-    ${TC_VM_DIR}/runtime/diagnostic.c
-    ${TC_VM_DIR}/runtime/symbol.c
-    ${TC_VM_DIR}/runtime/warning.c
-    ${TC_VM_DIR}/runtime/semantics.c
+    tc_lib.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+    ${TC_VM_DIR}/runtime/tc_symbol.c
+    ${TC_VM_DIR}/runtime/tc_warning.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_io.c
-    ${TC_VM_DIR}/lexer/lexer.c
-    ${TC_VM_DIR}/parser/parser.c
-    ${TC_VM_DIR}/analyzer/analyzer.c
+    ${TC_VM_DIR}/lexer/tc_lexer.c
+    ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
-    ${TC_VM_DIR}/executor/executor.c
+    ${TC_VM_DIR}/executor/tc_executor.c
 )
 
 add_library(libtc STATIC ${TC_LIBTC_SOURCES})
