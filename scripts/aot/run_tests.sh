@@ -107,6 +107,7 @@ run_diff_test "$ROOT/tests/valid/semicolon_inline_comment.tc"
 run_diff_test "$ROOT/tests/valid/signed_wrap.tc"
 run_diff_test "$ROOT/tests/valid/read_write.tc" "42
 "
+run_diff_test "$ROOT/tests/valid/uninit_slot_value.tc"
 
 echo ""
 echo "$PASSED passed, $FAILED failed"

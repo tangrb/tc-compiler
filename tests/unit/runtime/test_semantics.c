@@ -106,6 +106,20 @@ static void test_value_make(void) {
     check(v.type == TC_UINT64 && v.bits == 42, "value_make uint64 42");
 }
 
+static void test_uninitialized_slot_sentinel(void) {
+    TcValue vm_slots[2];
+    uint64_t aot_slots[2];
+
+    tc_slots_init_uninitialized(vm_slots, 2);
+    tc_slot_bits_init_uninitialized(aot_slots, 2);
+
+    check(vm_slots[0].bits == TC_UNINITIALIZED_SLOT_BITS,
+          "tc_slots_init_uninitialized sets bits sentinel");
+    check(aot_slots[0] == TC_UNINITIALIZED_SLOT_BITS,
+          "tc_slot_bits_init_uninitialized sets bits sentinel");
+    check(aot_slots[0] == vm_slots[0].bits, "VM/AOT uninitialized bits match");
+}
+
 /* ================================================================== */
 /*  范围检查                                                           */
 /* ================================================================== */
@@ -851,6 +865,7 @@ int main(void) {
     test_signed_to_bits();
     test_value_to_unsigned();
     test_value_make();
+    test_uninitialized_slot_sentinel();
 
     /* Range checks */
     test_signed_in_range();

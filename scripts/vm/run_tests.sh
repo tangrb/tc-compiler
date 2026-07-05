@@ -408,6 +408,8 @@ run_expect_stdout "$ROOT/tests/valid/format_hex_bin.tc" "ff
 "
 
 run_expect_ok_warn "$ROOT/tests/valid/uninitialized.tc" "use of possibly uninitialized variable 'a'"
+run_expect_stdout "$ROOT/tests/valid/uninit_slot_value.tc" "-16843010
+"
 run_expect_ok_no_warn "$ROOT/tests/valid/no_warn_after_assign.tc"
 run_expect_check_no_warn "$ROOT/tests/valid/no_warn_after_read.tc"
 run_with_stdin "$ROOT/tests/valid/read_write.tc" "42

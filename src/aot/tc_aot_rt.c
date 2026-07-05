@@ -22,6 +22,10 @@ void tc_aot_diag_init(TcDiagnostic *diag) {
     tc_diagnostic_init(diag);
 }
 
+void tc_aot_init_slots(uint64_t *slots, size_t count) {
+    tc_slot_bits_init_uninitialized(slots, count);
+}
+
 /* ------------------------------------------------------------------ */
 /*  字面量 & 算术 & 单目 & cast 委托                                      */
 /* ------------------------------------------------------------------ */

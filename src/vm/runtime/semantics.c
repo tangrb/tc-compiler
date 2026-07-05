@@ -63,6 +63,22 @@ TcValue tc_value_make(TcIntType type, uint64_t bits) {
     return value;
 }
 
+void tc_slots_init_uninitialized(TcValue *slots, size_t count) {
+    if (slots != NULL && count > 0) {
+        memset(slots, TC_UNINITIALIZED_SLOT_BYTE, count * sizeof(TcValue));
+    }
+}
+
+void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count) {
+    size_t i = 0;
+    if (slots == NULL) {
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        slots[i] = TC_UNINITIALIZED_SLOT_BITS;
+    }
+}
+
 /* ------------------------------------------------------------------ */
 /*  类型范围辅助函数（内部）                                              */
 /* ------------------------------------------------------------------ */

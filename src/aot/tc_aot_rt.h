@@ -14,6 +14,7 @@
 #include "tc_types.h"
 
 void tc_aot_diag_init(TcDiagnostic *diag);
+void tc_aot_init_slots(uint64_t *slots, size_t count);
 uint64_t tc_aot_lit(TcIntType type, uint64_t magnitude, int negative, int unsigned_suffix);
 int tc_aot_arith(TcArithOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t lhs,
                  uint64_t rhs, TcDiagnostic *diag, int line);

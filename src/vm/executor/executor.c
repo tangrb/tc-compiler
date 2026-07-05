@@ -3,7 +3,7 @@
  *
  * 采用「变量槽位」模型：分配 symbols.count 个 TcValue 槽，按 TcSymbol.slot 索引。
  * 执行流程：
- *   1. 分配 slots[] 并用 0xFE 填充（便于调试时识别未初始化的槽）
+ *   1. 分配 slots[] 并填充未初始化哨兵（tc_slots_init_uninitialized）
  *   2. 顺序遍历语句列表，对每条语句 dispatch 到对应的处理逻辑
  *   3. var/let 定义：求值 RHS → 写入新槽；赋值：求值 RHS → 覆盖已有槽
  *   4. write/writeln：格式化输出到 stdout；read：从 stdin 解析十进制整数
@@ -23,7 +23,6 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /* ------------------------------------------------------------------ */
 /*  格式化输出辅助（委托 tc_io.c）                                       */
@@ -196,7 +195,7 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
         TcValue value;
 
         if (!var_def->has_rhs) {
-            return 0;  /* 无初始化表达式的 var，槽位保持 0xFE */
+            return 0;  /* 无初始化表达式的 var，槽位保持未初始化哨兵 */
         }
         if (tc_eval_rhs(&var_def->rhs, var_def->type, slots, symbols, &value, diag,
                         var_def->line) != 0) {
@@ -250,8 +249,7 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
             tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
             return -1;
         }
-        /* 用 0xFE 填充初始化，便于调试时识别未初始化的槽位 */
-        memset(slots, 0xFE, program->symbols.count * sizeof(TcValue));
+        tc_slots_init_uninitialized(slots, program->symbols.count);
     }
 
     for (i = 0; i < program->program.count; i++) {

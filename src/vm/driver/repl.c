@@ -150,8 +150,8 @@ static int tc_repl_ensure_slots(TcReplSession *session, TcDiagnostic *diag) {
             tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
             return -1;
         }
-        memset(new_slots + session->slots_capacity, 0,
-               (session->symbols.count - session->slots_capacity) * sizeof(TcValue));
+        tc_slots_init_uninitialized(new_slots + session->slots_capacity,
+                                    session->symbols.count - session->slots_capacity);
         session->slots = new_slots;
         session->slots_capacity = session->symbols.count;
     }

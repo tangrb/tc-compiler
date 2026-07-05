@@ -57,6 +57,22 @@ uint64_t tc_value_to_unsigned(TcIntType type, uint64_t bits);
 TcValue tc_value_make(TcIntType type, uint64_t bits);
 
 /* ------------------------------------------------------------------ */
+/*  未初始化变量槽位哨兵                                                  */
+/* ------------------------------------------------------------------ */
+
+/** 未初始化槽位填充字节（VM TcValue 槽 memset 用） */
+#define TC_UNINITIALIZED_SLOT_BYTE 0xFE
+
+/** 未初始化槽位位模式（AOT uint64_t 槽与 TcValue.bits 一致） */
+#define TC_UNINITIALIZED_SLOT_BITS 0xFEFEFEFEFEFEFEFEULL
+
+/** 将 TcValue 槽数组填充为未初始化哨兵值 */
+void tc_slots_init_uninitialized(TcValue *slots, size_t count);
+
+/** 将 uint64_t 槽数组填充为未初始化哨兵值 */
+void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count);
+
+/* ------------------------------------------------------------------ */
 /*  算术 / 单目 / cast 运行时运算                                         */
 /* ------------------------------------------------------------------ */
 

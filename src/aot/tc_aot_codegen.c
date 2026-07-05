@@ -211,7 +211,7 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
         const TcSymbol *symbol = tc_aot_find_symbol(symbols, var_def->name);
 
         if (!var_def->has_rhs) {
-            return 0;  /* 无初始化表达式的 var，C 全局变量默认初始化为 0 */
+            return 0;  /* 无初始化表达式的 var，槽位保持未初始化哨兵 */
         }
         return tc_aot_emit_rhs(out, &var_def->rhs, var_def->type, symbol->slot, symbols,
                                var_def->line);
@@ -292,7 +292,11 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
 
     fprintf(out, "int main(void) {\n");
     fprintf(out, "    TcDiagnostic diag;\n");
-    fprintf(out, "    tc_aot_diag_init(&diag);\n\n");
+    fprintf(out, "    tc_aot_diag_init(&diag);\n");
+    if (slot_count > 0) {
+        fprintf(out, "    tc_aot_init_slots(slots, %zu);\n", slot_count);
+    }
+    fprintf(out, "\n");
 
     for (i = 0; i < program->program.count; i++) {
         if (tc_aot_emit_statement(out, &program->program.items[i], &program->symbols) != 0) {
