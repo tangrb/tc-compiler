@@ -113,11 +113,10 @@ static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type
  * @param line          当前语句行号（错误定位）
  * @return 成功返回 0；运行时错误（除零/溢出）返回 -1 并设置 diag
  *
- * 四种形式：
- *   TC_RHS_LIT    → tc_literal_to_value
- *   TC_RHS_ARITH  → tc_exec_arith（委托 semantics.c）
- *   TC_RHS_UNARY  → tc_exec_unary（委托 semantics.c）
- *   TC_RHS_CAST   → tc_exec_cast（委托 semantics.c）
+ * 运行时形式：
+ *   TC_RHS_LIT/COMPARE/LOGIC_* → 字面量或委托 semantics.c
+ *   TC_RHS_ARITH/UNARY/CAST    → 委托 semantics.c
+ *   TC_RHS_CONST_REF/CAST      → 防御拒绝（仅 let 初始化合法）
  */
 static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue *slots,
                        const TcSymbolTable *symbols, TcValue *out, TcDiagnostic *diag,
@@ -175,12 +174,21 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
         return tc_exec_logic_unary(rhs->u.logic_un.op, &operand, out, diag, line);
     }
 
-    {
+    if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
+        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "constant reference is only allowed in let initializer");
+        return -1;
+    }
+
+    if (rhs->kind == TC_RHS_CAST) {
         const TcSymbol *source = tc_symbol_table_find(symbols, rhs->u.cast.source);
         assert(source != NULL);
         const TcValue *src_value = &slots[source->slot];
         return tc_exec_cast(rhs->u.cast.target, rhs->u.cast.mode, src_value, out, diag, line);
     }
+
+    assert(0 && "unhandled TcRhsKind in tc_eval_rhs");
+    return -1;
 }
 
 /* ------------------------------------------------------------------ */

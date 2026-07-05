@@ -261,7 +261,7 @@ typedef struct {
     int line;
     char *name;      /* 常量名，堆分配 */
     TcIntType type;
-    TcRhs rhs;       /* let 初始化必须为字面量（由 Analyzer 确保） */
+    TcRhs rhs;       /* let 初始化必须为编译期常量表达式（由 Analyzer 确保） */
 } TcConstDef;
 
 typedef struct {

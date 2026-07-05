@@ -108,11 +108,8 @@ DISPATCH_POINTS = [
         "path": "src/vm/executor/executor.c",
         "func": "tc_eval_rhs",
         "line_func": 123,
-        "skip": {
-            "TC_RHS_CAST": "最后一条 if 链后的 fallthrough 块处理（无显式 rhs->kind == 检查）",
-            "TC_RHS_CONST_REF": "由 tc_eval_operand 在 operand 层处理，不进入 tc_eval_rhs",
-            "TC_RHS_CONST_CAST": "由 tc_eval_const_rhs 在编译期处理",
-        },
+        "skip": {},
+        "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
     {
         "path": "src/aot/tc_aot_codegen.c",

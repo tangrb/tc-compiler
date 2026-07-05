@@ -75,6 +75,9 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
             return -1;
         }
         break;
+    case TC_FMT_NONE:
+        /* 无格式输出由 tc_io_write_value 直接处理；此处防御误传 */
+        return -1;
     default:
         return -1;
     }
@@ -116,6 +119,7 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
 /*  stdin 输入辅助                                                      */
 /* ------------------------------------------------------------------ */
 
+/* 由 tc_io_read_value 调用；对外暴露供单元测试直接验证 */
 void tc_io_skip_whitespace(void) {
     int c = 0;
     for (;;) {

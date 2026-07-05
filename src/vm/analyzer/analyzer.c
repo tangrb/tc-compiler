@@ -47,11 +47,11 @@ void tc_typed_program_free(TcTypedProgram *program) {
  * @return 检查通过返回 0；失败返回 -1 并设置 diag
  */
 static int tc_check_literal(const TcLiteral *lit, TcIntType expected, int line,
-                            TcDiagnostic *diag) {
+                            TcDiagnostic *diag, TcErrorKind literal_type_err) {
     TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {
         if (err_kind == TC_ERR_LITERAL_TYPE) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, literal_type_err, line, TC_COLUMN_UNKNOWN,
                               "literal type does not match context");
         } else {
             tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
@@ -133,11 +133,12 @@ static void tc_maybe_warn_uninitialized(const TcInitHistory *hist, const TcSymbo
 static int tc_check_operand(const TcOperand *operand, TcIntType expected,
                             const TcSymbolTable *symbols, const TcInitHistory *hist,
                             size_t stmt_index, int line, TcDiagnostic *diag,
-                            TcWarningList *warnings, const char *self_name) {
+                            TcWarningList *warnings, const char *self_name,
+                            TcErrorKind type_err) {
     char msg[128];
 
     if (operand->kind == TC_OPERAND_LIT) {
-        return tc_check_literal(&operand->u.lit, expected, line, diag);
+        return tc_check_literal(&operand->u.lit, expected, line, diag, type_err);
     }
 
     {
@@ -156,7 +157,7 @@ static int tc_check_operand(const TcOperand *operand, TcIntType expected,
             return -1;
         }
         if (symbol->type != expected) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, type_err, line, TC_COLUMN_UNKNOWN,
                               "operand type does not match operation type");
             return -1;
         }
@@ -244,11 +245,11 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
             return -1;
         }
         if (tc_check_operand(&rhs->u.arith.lhs, rhs->u.arith.type, symbols, hist, stmt_index,
-                             line, diag, warnings, self_name) != 0) {
+                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.arith.rhs, rhs->u.arith.type, symbols, hist, stmt_index,
-                             line, diag, warnings, self_name) != 0) {
+                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.arith.type != lhs_type) {
@@ -267,7 +268,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
             return -1;
         }
         if (tc_check_operand(&rhs->u.unary.operand, rhs->u.unary.type, symbols, hist, stmt_index,
-                             line, diag, warnings, self_name) != 0) {
+                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.unary.type != lhs_type) {
@@ -280,11 +281,13 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
 
     if (rhs->kind == TC_RHS_COMPARE) {
         if (tc_check_operand(&rhs->u.compare.lhs, rhs->u.compare.type, symbols, hist, stmt_index,
-                             line, diag, warnings, self_name) != 0) {
+                             line, diag, warnings, self_name,
+                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.compare.rhs, rhs->u.compare.type, symbols, hist, stmt_index,
-                             line, diag, warnings, self_name) != 0) {
+                             line, diag, warnings, self_name,
+                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
@@ -297,7 +300,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
 
     if (rhs->kind == TC_RHS_LOGIC_BIN) {
         if (tc_check_operand(&rhs->u.logic_bin.lhs, TC_BOOL, symbols, hist, stmt_index, line, diag,
-                             warnings, self_name) != 0) {
+                             warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.logic_bin.op == TC_LOGIC_AND) {
@@ -306,11 +309,13 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
                 rhs->u.logic_bin.lhs.u.lit.magnitude == 0) {
                 /* 短路：false && rhs 不求值 rhs；仍校验 rhs 存在性与类型 */
                 if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, symbols, hist,
-                                     stmt_index, line, diag, NULL, self_name) != 0) {
+                                     stmt_index, line, diag, NULL, self_name,
+                                     TC_ERR_TYPE_MISMATCH) != 0) {
                     return -1;
                 }
             } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, symbols, hist,
-                                        stmt_index, line, diag, warnings, self_name) != 0) {
+                                        stmt_index, line, diag, warnings, self_name,
+                                        TC_ERR_TYPE_MISMATCH) != 0) {
                 return -1;
             }
         } else if (rhs->u.logic_bin.lhs.kind == TC_OPERAND_LIT &&
@@ -318,11 +323,12 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
                    rhs->u.logic_bin.lhs.u.lit.magnitude != 0) {
             /* 短路：true || rhs 不求值 rhs；仍校验 rhs 存在性与类型 */
             if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, symbols, hist,
-                                 stmt_index, line, diag, NULL, self_name) != 0) {
+                                 stmt_index, line, diag, NULL, self_name,
+                                 TC_ERR_TYPE_MISMATCH) != 0) {
                 return -1;
             }
         } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, symbols, hist, stmt_index,
-                                     line, diag, warnings, self_name) != 0) {
+                                     line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
@@ -335,7 +341,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
 
     if (rhs->kind == TC_RHS_LOGIC_UN) {
         if (tc_check_operand(&rhs->u.logic_un.operand, TC_BOOL, symbols, hist, stmt_index, line,
-                             diag, warnings, self_name) != 0) {
+                             diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
@@ -507,7 +513,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
                 goto cleanup;
             }
             if (tc_check_operand(&io_write->operand, io_write->type, &visible, &hist, i,
-                                 io_write->line, diag, warnings, NULL) != 0) {
+                                 io_write->line, diag, warnings, NULL, TC_ERR_TYPE_MISMATCH) != 0) {
                 goto cleanup;
             }
         } else if (stmt->kind == TC_STMT_READ) {
@@ -656,7 +662,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
             return -1;
         }
         return tc_check_operand(&io_write->operand, io_write->type, symbols, &hist, stmt_index,
-                                io_write->line, diag, warnings, NULL);
+                                io_write->line, diag, warnings, NULL, TC_ERR_TYPE_MISMATCH);
     }
 
     if (stmt->kind == TC_STMT_READ) {

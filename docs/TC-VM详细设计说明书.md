@@ -1337,7 +1337,7 @@ bash scripts/run_tests.sh --asan         # AddressSanitizer 模式
 
 ### 14.3 回归用例（v0.0.21）
 
-以下用例全部在 `scripts/vm/run_tests.sh` 中注册，共 **~204 条**（含 `--check` 重复验证）。每项 static 用例在 `--check` 模式下也独立注册。
+以下用例全部在 `scripts/vm/run_tests.sh` 中注册，共 **204 条**（2026-07-05 实测 `bash scripts/vm/run_tests.sh` 输出；含 `--check` 重复验证与 3 条 `--check` 正例）。每项 static 用例在 `--check` 模式下也独立注册。
 
 #### valid — 执行成功（~55 条）
 
@@ -1397,7 +1397,8 @@ bash scripts/run_tests.sh --asan         # AddressSanitizer 模式
 | **const 引用 var**      | `const_expr.tc`、`let_non_literal.tc`                        | `constant expression cannot reference var variable`         |
 | **const 循环依赖**      | `const_cyclic_dep.tc`、`self_ref_let.tc`                     | `circular dependency`                                       |
 | **const 溢出/除零**     | `const_overflow.tc`、`const_div_zero.tc`                     | `constant overflow` / `constant division by zero`           |
-| **类型不匹配**          | `type_mismatch.tc`、`type_mismatch_assign.tc`、`type_mismatch_arith_op.tc`、`type_mismatch_unary.tc`、`compare_type_mismatch.tc`、`logic_type_error.tc` | `operand type does not match`                               |
+| **类型不匹配**          | `type_mismatch.tc`、`type_mismatch_assign.tc`、`type_mismatch_arith_op.tc`、`type_mismatch_unary.tc`、`logic_type_error.tc` | `operand type does not match`                               |
+| **比较类型不匹配**      | `compare_type_mismatch.tc`                                   | `literal type does not match context`（`ComparisonTypeMismatch`） |
 | **未定义/前向引用**     | `undefined_variable.tc`、`forward_reference.tc`、`self_reference.tc` | `undefined variable` / `cannot reference itself`            |
 | **格式错误**            | `format_string_error.tc`、`invalid_format_spec_x.tc`、`format_type_mismatch.tc`、`format_type_mismatch_uint.tc`、`format_type_mismatch_signed.tc`、`format_operand_count.tc`、`format_missing_operand.tc`、`format_int_with_t.tc` | 对应字面消息                                                |
 | **句法错误**            | `syntax_error.tc`                                            | `unexpected token`                                          |
