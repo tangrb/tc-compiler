@@ -115,7 +115,7 @@ static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type
  *
  * 运行时形式：
  *   TC_RHS_LIT/COMPARE/LOGIC_* → 字面量或委托 tc_semantics.c
- *   TC_RHS_ARITH/UNARY/CAST    → 委托 tc_semantics.c
+ *   TC_RHS_ARITH/UNARY/CAST/BITWISE/SHIFT → 委托 tc_semantics.c
  *   TC_RHS_CONST_REF/CAST      → 防御拒绝（仅 let 初始化合法）
  */
 static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue *slots,
@@ -174,6 +174,30 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
         return tc_exec_logic_unary(rhs->u.logic_un.op, &operand, out, diag, line);
     }
 
+    if (rhs->kind == TC_RHS_BITWISE_BIN) {
+        TcValue lhs =
+            tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, slots, symbols);
+        TcValue rhs_value =
+            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, slots, symbols);
+        return tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type, &lhs,
+                                      &rhs_value, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_BITWISE_UN) {
+        TcValue operand =
+            tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, slots, symbols);
+        return tc_exec_bitwise_unary(rhs->u.bitwise_un.type, &operand, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_SHIFT) {
+        TcValue value =
+            tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type, slots, symbols);
+        TcValue count =
+            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type, slots, symbols);
+        return tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type, rhs->u.shift.mode, &value, &count,
+                             out, diag, line);
+    }
+
     if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
         tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "constant reference is only allowed in let initializer");
@@ -191,6 +215,18 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
     return -1;
 }
 
+/*
+ * 逐语句执行 dispatch。
+ * 按 TcStmtKind 分派到对应处理逻辑：
+ *   TC_STMT_VAR_DEF   → 求值 RHS（若有），写入 slot
+ *   TC_STMT_CONST_DEF → 从编译期 const_value 写入 slot
+ *   TC_STMT_ASSIGN    → 求值 RHS，覆盖 slot
+ *   TC_STMT_WRITE/_WRITELN → 委托 tc_io_write_value
+ *   TC_STMT_READ      → 委托 tc_io_read_value
+ *
+ * 语义运算（算术/cast/比较/逻辑/位运算/移位）统一委托 tc_semantics.c，
+ * I/O 统一委托 tc_io.c，保证 VM 与 AOT 行为一致。
+ */
 /* ------------------------------------------------------------------ */
 /*  语句执行入口                                                        */
 /* ------------------------------------------------------------------ */

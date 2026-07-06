@@ -1,9 +1,15 @@
 /*
- * tc_aot_codegen.c — TC → C99 转译
+ * tc_aot_codegen.c — TC → C99 转译（AOT Codegen）
  *
  * 消费 Analyzer 产出的 TcTypedProgram，逐语句生成等价的 C99 代码。
- * 算术、cast、I/O 操作通过 tc_aot_rt.h 中的运行时辅助函数委托 tc_semantics.c，
- * 保证与 TC-VM 行为完全一致。
+ * 生成的代码由一个 main() 函数 + 一个 uint64_t slot 数组组成，
+ * 格式为：`#include "tc_aot_rt.h"` → main → 初始化 slots → 逐语句 emit。
+ *
+ * 设计原则：
+ *   - 算术、cast、比较、逻辑、位运算、I/O 均通过 tc_aot_rt.h 中的 shim 函数
+ *     委托 tc_semantics.c / tc_io.c，保证与 TC-VM 行为完全一致。
+ *   - let 常量编译器已求值，Codegen 直接将 const_value.bits 写为字面量。
+ *   - CONST_REF / CONST_CAST 在 Analyzer 阶段应已被折叠，Codegen 发现则报错。
  */
 #include "tc_aot_codegen.h"
 
@@ -72,6 +78,17 @@ static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcIntT
     }
 }
 
+/*
+ * RHS 发射：按 TcRhsKind 分派到不同的代码生成逻辑。
+ *
+ * 每种 RHS 生成对应的 tc_aot_*() 调用（委托 tc_semantics.c），
+ * 调用结果以"if (tc_aot_*(...) != 0) tc_aot_abort(...)"模式包裹，
+ * 确保运行时错误能通过 tc_aot_abort 传播诊断信息。
+ *
+ * LIT 和 CONST_REF/CAST 特殊处理：
+ *   - LIT：直接 inline 字面量值到 slots[dst_slot]
+ *   - CONST_REF/CAST：理论上已在 Analyzer 折叠，出现即报内部错误
+ */
 /* ------------------------------------------------------------------ */
 /*  RHS 发射                                                            */
 /* ------------------------------------------------------------------ */
@@ -184,6 +201,62 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_BITWISE_BIN) {
+        const char *op_name = "TC_BIT_AND";
+
+        switch (rhs->u.bitwise_bin.op) {
+        case TC_BIT_AND:
+            op_name = "TC_BIT_AND";
+            break;
+        case TC_BIT_OR:
+            op_name = "TC_BIT_OR";
+            break;
+        case TC_BIT_XOR:
+            op_name = "TC_BIT_XOR";
+            break;
+        }
+
+        fprintf(out, "    if (tc_aot_bitwise_binary(%s, %s, &slots[%d], ", op_name,
+                tc_aot_type_enum(rhs->u.bitwise_bin.type), dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, symbols);
+        fprintf(out, ", ");
+        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_BITWISE_UN) {
+        fprintf(out, "    if (tc_aot_bitwise_unary(%s, &slots[%d], ",
+                tc_aot_type_enum(rhs->u.bitwise_un.type), dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_SHIFT) {
+        const char *op_name =
+            rhs->u.shift.op == TC_SHIFT_SHL ? "TC_SHIFT_SHL" : "TC_SHIFT_SHR";
+        const char *mode =
+            rhs->u.shift.mode == TC_ARITH_WRAP ? "TC_ARITH_WRAP" : "TC_ARITH_STRICT";
+
+        fprintf(out, "    if (tc_aot_shift(%s, %s, %s, &slots[%d], ", op_name,
+                tc_aot_type_enum(rhs->u.shift.type), mode, dst_slot);
+        tc_aot_emit_operand_expr(out, &rhs->u.shift.value, rhs->u.shift.type, symbols);
+        fprintf(out, ", ");
+        tc_aot_emit_operand_expr(out, &rhs->u.shift.count, rhs->u.shift.type, symbols);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "        tc_aot_abort(&diag, %d);\n", line);
+        return 0;
+    }
+
+    /*
+     * CONST_REF / CONST_CAST 应在 Analyzer 阶段已被编译期折叠
+     * （tc_resolve_const_value + const_value.bits 写入），
+     * 或在 tc_aot_emit_statement 中以字面量直接 emit。
+     * 若在此处遇到，说明 Analyzer 未正确处理，严格报错以防生成错误代码。
+     */
     if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
         return -1;
     }
@@ -222,7 +295,11 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
         const TcSymbol *symbol = tc_aot_find_symbol(symbols, const_def->name);
 
         if (symbol->has_const_value) {
-            /* let 常量使用编译期求值的位模式直接初始化 */
+            /*
+             * let 常量：编译器已通过 tc_resolve_const_value 完成
+             * 编译期求值（含循环依赖检测、溢出检查），此处直接以
+             * 16 进制位模式写入槽位，无需运行时求值。
+             */
             fprintf(out, "    slots[%d] = 0x%016" PRIx64 "ULL;\n", symbol->slot,
                     symbol->const_value.bits);
         } else {

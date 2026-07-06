@@ -1,0 +1,8 @@
+; %b / %x 输出位运算结果
+var a: uint8 = 0b1010_1010u
+var b: uint8 = 0b1111_0000u
+var and_res: uint8 = and(uint8, a, b)
+var xor_res: uint8 = xor(uint8, a, b)
+
+writeln(uint8, %b, and_res)
+writeln(uint8, %x, xor_res)

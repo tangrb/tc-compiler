@@ -59,6 +59,12 @@ static int tc_is_identifier_start(char c) {
 }
 
 /** 判断字符是否为 TC 标识符的合法后续字符（字母、数字或下划线） */
+/*
+ * 标识符后续字符：字母数字（下划线由 tc_is_letter 覆盖）。
+ * TC 语言标识符允许首字下划线，也允许中间含有下划线，
+ * 因为 tc_is_letter 包含 '_' = 0x5F（ASCII 字母集之上一位）；
+ * 但数字 0-9 不在字母判定范围内，所以此处补充数字检查。
+ */
 static int tc_is_identifier_part(char c) {
     return tc_is_letter(c) || (c >= '0' && c <= '9');
 }
@@ -218,7 +224,9 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
                 return -1;
             }
         } else if (p[1] >= '0' && p[1] <= '9') {
-            /* 前导零后跟十进制数字不合法（如 0123） */
+            /* 前导零后跟十进制数字（如 0123）——TC 语言视为非法。
+             * C 系语言的八进制前缀在 TC 中由 0o 显式表示，
+             * 0 后直接跟数字的歧义格式不被允许。 */
             tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid integer literal");
             return -1;
         } else {
@@ -258,11 +266,12 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
 /* ------------------------------------------------------------------ */
 
 /*
- * @brief 将标识符文本匹配为关键字 Token
- * @param text  标识符文本
- * @param len   长度
- * @param token 输出：匹配成功时写入 Token 信息
- * @return 匹配到关键字返回 1；未匹配返回 0（调用方应按普通标识符处理）
+ * 将标识符文本匹配为关键字 Token，匹配顺序如下：
+ *   1. 语言关键字：var / let / cast / wrap / truncate / write / writeln / read
+ *   2. 布尔字面量：true / false（TC_TOK_BOOL_LIT，带 is_bool 标志）
+ *   3. 类型名 & 运算符：int8 / uint32 / add / sub / eq / and / xor / shl ……
+ *      （委托 tc_types.h 中的 tc_*_parse 系列函数）
+ * 未匹配时返回 0，调用方应按普通标识符（TC_TOK_IDENTIFIER）处理。
  */
 static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     char buf[32];
@@ -335,6 +344,15 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     }
     if (tc_compare_op_parse(buf, &token->u.compare_op)) {
         token->kind = TC_TOK_COMPARE_OP;
+        return 1;
+    }
+    if (strcmp(buf, "xor") == 0) {
+        token->kind = TC_TOK_BITWISE_OP;
+        token->u.bitwise_op = TC_BIT_XOR;
+        return 1;
+    }
+    if (tc_shift_op_parse(buf, &token->u.shift_op)) {
+        token->kind = TC_TOK_SHIFT_OP;
         return 1;
     }
     if (tc_logic_op_parse(buf, &token->u.logic_op)) {
@@ -543,4 +561,62 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
     }
     return 0;
+}
+
+const char *tc_token_kind_name(TcTokenKind kind) {
+    switch (kind) {
+    case TC_TOK_EOF:
+        return "EOF";
+    case TC_TOK_VAR:
+        return "VAR";
+    case TC_TOK_LET:
+        return "LET";
+    case TC_TOK_INT_TYPE:
+        return "INT_TYPE";
+    case TC_TOK_ARITH_OP:
+        return "ARITH_OP";
+    case TC_TOK_UNARY_OP:
+        return "UNARY_OP";
+    case TC_TOK_COMPARE_OP:
+        return "COMPARE_OP";
+    case TC_TOK_LOGIC_OP:
+        return "LOGIC_OP";
+    case TC_TOK_BITWISE_OP:
+        return "BITWISE_OP";
+    case TC_TOK_SHIFT_OP:
+        return "SHIFT_OP";
+    case TC_TOK_FORMAT_SPEC:
+        return "FORMAT_SPEC";
+    case TC_TOK_CAST:
+        return "CAST";
+    case TC_TOK_WRAP:
+        return "WRAP";
+    case TC_TOK_TRUNCATE:
+        return "TRUNCATE";
+    case TC_TOK_WRITE:
+        return "WRITE";
+    case TC_TOK_WRITELN:
+        return "WRITELN";
+    case TC_TOK_READ:
+        return "READ";
+    case TC_TOK_IDENTIFIER:
+        return "IDENTIFIER";
+    case TC_TOK_INTEGER:
+        return "INTEGER";
+    case TC_TOK_BOOL_LIT:
+        return "BOOL_LIT";
+    case TC_TOK_COLON:
+        return "COLON";
+    case TC_TOK_EQUAL:
+        return "EQUAL";
+    case TC_TOK_COMMA:
+        return "COMMA";
+    case TC_TOK_LPAREN:
+        return "LPAREN";
+    case TC_TOK_RPAREN:
+        return "RPAREN";
+    case TC_TOK_SEMICOLON:
+        return "SEMICOLON";
+    }
+    return "UNKNOWN";
 }

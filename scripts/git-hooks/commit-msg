@@ -1,0 +1,16 @@
+#!/bin/sh
+# commit-msg — 剥离 Cursor agent 自动插入的 Co-authored-by trailer
+#
+# 安装：bash scripts/install-git-hooks.sh  或  make hooks
+
+msg_file="$1"
+pattern='^[Cc][Oo]-[Aa]uthored-[Bb]y: Cursor <cursoragent@cursor\.com>[[:space:]]*$'
+
+if grep -Eq "$pattern" "$msg_file"; then
+    tmp=$(mktemp)
+    grep -Ev "$pattern" "$msg_file" > "$tmp"
+    mv "$tmp" "$msg_file"
+    echo "commit-msg: removed Co-authored-by: Cursor <cursoragent@cursor.com>" >&2
+fi
+
+exit 0

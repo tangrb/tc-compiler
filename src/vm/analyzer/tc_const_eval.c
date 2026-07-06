@@ -13,6 +13,12 @@
 #include <stdio.h>
 #include <string.h>
 
+/*
+ * visiting 栈：在编译期求值一个 let 常量 RHS 时，递归地将当前常量名推入栈；
+ * 若递归到某个操作数时发现其名称已在栈中，则可判定循环依赖
+ * （如 let a = b + 1; let b = a + 1;），立刻报 TC_ERR_CONSTANT_CIRCULAR。
+ * 栈深度上限 TC_CONST_VISIT_MAX（64），超过则报表达式过于复杂。
+ */
 /* ------------------------------------------------------------------ */
 /*  常量求值辅助                                                         */
 /* ------------------------------------------------------------------ */
@@ -29,6 +35,14 @@ static int tc_const_visit_contains(const char *const *visiting, size_t count, co
     return 0;
 }
 
+/*
+ * 将运行时语义错误（tc_exec_* 产生的 TC_ERR_*）映射为对应的
+ * 编译期常量错误（TC_ERR_CONSTANT_*）。
+ *
+ * 运行时错误类型与常量错误类型一一对应，这种区分使 TC 语言的
+ * 错误报告能精确区分"运行时溢出"和"编译期常量溢出"，
+ * 便于测试断言和用户定位。
+ */
 static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int line) {
     switch (kind) {
     case TC_ERR_INTEGER_OVERFLOW:
@@ -48,6 +62,13 @@ static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int 
     }
 }
 
+/*
+ * 编译期 cast 合法性检查：仅允许扩宽 cast（dst_bits >= src_bits）。
+ * 窄化 cast（如 int32 → int16）在编译期不被允许，因为可能丢失位模式信息；
+ * 运行时通过 tc_exec_cast + TC_TRUNC_STRICT 做严格范围检查，
+ * 或者 TC_TRUNC_TRUNCATE 模式显式按位截断。
+ * bool↔整数转换允许任意方向（bool 按 0/1 映射到整数，反之亦然）。
+ */
 static int tc_const_cast_allowed(TcIntType target, const TcValue *source) {
     TcIntType src_type = source->type;
     int src_bits = tc_type_bit_width(src_type);
@@ -128,6 +149,13 @@ static int tc_eval_const_operand(const TcOperand *operand, TcIntType expected,
     }
 }
 
+/*
+ * 前向声明，因为 tc_eval_const_rhs 与 tc_eval_const_operand 互相递归：
+ *   tc_eval_const_rhs(ARITH) → tc_eval_const_operand(lhs) → 可能调用 tc_resolve_const_value → tc_eval_const_rhs
+ *   tc_eval_const_operand(CONST_REF) → 取 const_value（已求值直接返回，无递归）
+ *
+ * 入口为 tc_resolve_const_value，携带 visiting 栈检测循环依赖。
+ */
 static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
                              const char *const_name, const char *const *visiting,
@@ -328,6 +356,85 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
         }
         tc_diagnostic_init(&tmp_diag);
         if (tc_exec_logic_unary(rhs->u.logic_un.op, &lhs, out, &tmp_diag, line) != 0) {
+            tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+            tc_diagnostic_clear(&tmp_diag);
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp_diag);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_BITWISE_BIN) {
+        if (rhs->u.bitwise_bin.type != expected_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, visible,
+                                  global, const_name, visiting, visiting_count, &lhs, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, visible,
+                                  global, const_name, visiting, visiting_count, &rhs_val, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        if (tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type, &lhs,
+                                   &rhs_val, out, &tmp_diag, line) != 0) {
+            tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+            tc_diagnostic_clear(&tmp_diag);
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp_diag);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_BITWISE_UN) {
+        if (rhs->u.bitwise_un.type != expected_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, visible,
+                                  global, const_name, visiting, visiting_count, &lhs, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        if (tc_exec_bitwise_unary(rhs->u.bitwise_un.type, &lhs, out, &tmp_diag, line) != 0) {
+            tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+            tc_diagnostic_clear(&tmp_diag);
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp_diag);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_SHIFT) {
+        if (rhs->u.shift.mode == TC_ARITH_WRAP) {
+            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "wrap is not allowed in constant expression");
+            return -1;
+        }
+        if (rhs->u.shift.type != expected_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.shift.value, rhs->u.shift.type, visible, global,
+                                  const_name, visiting, visiting_count, &lhs, line, diag) != 0) {
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.shift.count, rhs->u.shift.type, visible, global,
+                                  const_name, visiting, visiting_count, &rhs_val, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        if (tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type, TC_ARITH_STRICT, &lhs, &rhs_val,
+                          out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
             return -1;

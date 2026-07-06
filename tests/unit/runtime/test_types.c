@@ -153,7 +153,48 @@ static void test_logic_op_parse(void) {
           "parse 'or' → TC_LOGIC_OR");
     check(tc_logic_op_parse("not", &out) == 1 && out == TC_LOGIC_NOT,
           "parse 'not' → TC_LOGIC_NOT");
-    check(tc_logic_op_parse("xor", &out) == 0, "parse 'xor' → 0 (not found)");
+    check(tc_logic_op_parse("xor", &out) == 0, "parse 'xor' → 0 (not logic op)");
+}
+
+/* ================================================================== */
+/*  tc_bitwise_op_parse / tc_bitwise_op_name                           */
+/* ================================================================== */
+
+static void test_bitwise_op_parse(void) {
+    TcBitwiseOp out = TC_BIT_AND;
+
+    check(tc_bitwise_op_parse("and", &out) == 1 && out == TC_BIT_AND,
+          "parse 'and' → TC_BIT_AND");
+    check(tc_bitwise_op_parse("or", &out) == 1 && out == TC_BIT_OR,
+          "parse 'or' → TC_BIT_OR");
+    check(tc_bitwise_op_parse("xor", &out) == 1 && out == TC_BIT_XOR,
+          "parse 'xor' → TC_BIT_XOR");
+    check(tc_bitwise_op_parse("not", &out) == 0, "parse 'not' → 0 (not bitwise bin op)");
+}
+
+static void test_bitwise_op_name(void) {
+    check(strcmp(tc_bitwise_op_name(TC_BIT_AND), "and") == 0, "TC_BIT_AND → 'and'");
+    check(strcmp(tc_bitwise_op_name(TC_BIT_OR), "or") == 0, "TC_BIT_OR → 'or'");
+    check(strcmp(tc_bitwise_op_name(TC_BIT_XOR), "xor") == 0, "TC_BIT_XOR → 'xor'");
+}
+
+/* ================================================================== */
+/*  tc_shift_op_parse / tc_shift_op_name                               */
+/* ================================================================== */
+
+static void test_shift_op_parse(void) {
+    TcShiftOp out = TC_SHIFT_SHL;
+
+    check(tc_shift_op_parse("shl", &out) == 1 && out == TC_SHIFT_SHL,
+          "parse 'shl' → TC_SHIFT_SHL");
+    check(tc_shift_op_parse("shr", &out) == 1 && out == TC_SHIFT_SHR,
+          "parse 'shr' → TC_SHIFT_SHR");
+    check(tc_shift_op_parse("shift", &out) == 0, "parse 'shift' → 0 (not found)");
+}
+
+static void test_shift_op_name(void) {
+    check(strcmp(tc_shift_op_name(TC_SHIFT_SHL), "shl") == 0, "TC_SHIFT_SHL → 'shl'");
+    check(strcmp(tc_shift_op_name(TC_SHIFT_SHR), "shr") == 0, "TC_SHIFT_SHR → 'shr'");
 }
 
 /* ================================================================== */
@@ -294,6 +335,10 @@ int main(void) {
     test_unary_op_parse();
     test_compare_op_parse();
     test_logic_op_parse();
+    test_bitwise_op_parse();
+    test_bitwise_op_name();
+    test_shift_op_parse();
+    test_shift_op_name();
     test_format_spec_parse();
     test_format_spec_name();
     test_error_kind_name();

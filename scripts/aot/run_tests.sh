@@ -105,6 +105,9 @@ run_diff_test "$ROOT/tests/valid/semicolon_inline_comment.tc"
 # int64_min_div.tc 已移至 errors/runtime（INT64_MIN / -1 是溢出错误）
 # 不再作为 AOT 差分测试
 run_diff_test "$ROOT/tests/valid/signed_wrap.tc"
+run_diff_test "$ROOT/tests/valid/bitwise_runtime.tc"
+run_diff_test "$ROOT/tests/valid/bitwise_let_const_valid.tc"
+run_diff_test "$ROOT/tests/valid/bitwise_io_format_valid.tc"
 run_diff_test "$ROOT/tests/valid/read_write.tc" "42
 "
 run_diff_test "$ROOT/tests/valid/uninit_slot_value.tc"

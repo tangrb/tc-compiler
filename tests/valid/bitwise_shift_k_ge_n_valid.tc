@@ -1,0 +1,9 @@
+; shr / shl(wrap) 当 k >= n
+var zero_shr: uint8 = shr(uint8, 0b1111_0000u, 8)
+writeln(uint8, zero_shr)
+
+var zero_shl_wrap: int8 = shl(int8, wrap, 1, 8)
+writeln(int8, zero_shl_wrap)
+
+var zero_shr_signed: int8 = shr(int8, -128, 8)
+writeln(int8, zero_shr_signed)

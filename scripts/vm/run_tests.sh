@@ -408,6 +408,7 @@ run_expect_stdout "$ROOT/tests/valid/format_hex_bin.tc" "ff
 "
 
 run_expect_ok_warn "$ROOT/tests/valid/uninitialized.tc" "use of possibly uninitialized variable 'a'"
+run_expect_ok_no_warn "$ROOT/tests/valid/assign_uninit_var_valid.tc" "uninitialized"
 run_expect_stdout "$ROOT/tests/valid/uninit_slot_value.tc" "-16843010
 "
 run_expect_ok_no_warn "$ROOT/tests/valid/no_warn_after_assign.tc"
@@ -434,6 +435,65 @@ true
 false
 false
 true
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_runtime.tc" "10100000
+01011010
+64
+-64
+0
+64
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_and_or_xor_not_valid.tc" "3
+15
+12
+-16
+0
+255
+255
+15
+15
+255
+240
+-256
+0
+65535
+65535
+255
+15
+255
+240
+-256
+0
+4278190335
+4278190335
+16777215
+15
+255
+240
+-256
+0
+18446744073709551615
+18446744073709551615
+255
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_shift_shl_shr_valid.tc" "64
+-64
+64
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_shl_wrap_valid.tc" "0
+0
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_shift_k_ge_n_valid.tc" "0
+0
+0
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_let_const_valid.tc" "255
+15
+15
+240
+"
+run_expect_stdout "$ROOT/tests/valid/bitwise_io_format_valid.tc" "10100000
+5a
 "
 run_expect_stdout "$ROOT/tests/valid/bool_cast.tc" "true
 false
@@ -514,6 +574,7 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/div_zero_uint32.tc" "division by
 run_expect_fail_msg "$ROOT/tests/errors/runtime/mod_zero_int64.tc" "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_sub_overflow.tc" "out of range for"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow_int8.tc" "out of range for"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/bitwise_shl_overflow_runtime.tc" "shift left overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow_int16.tc" "out of range for"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow_int32.tc" "out of range for"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow_int64.tc" "signed addition overflow"
@@ -541,6 +602,13 @@ run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" "literal type"
 run_expect_fail_msg "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
 run_expect_fail_msg "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "expected integer type"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_let_wrap_forbidden.tc" "wrap cannot be used in constant expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
@@ -551,6 +619,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/const_cyclic_dep.tc" "circular de
 run_expect_fail_msg "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
+run_expect_fail_msg "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate is only allowed for integer to integer conversion"
+run_expect_fail_msg "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate is only allowed for integer to integer conversion"
 run_expect_fail_msg "$ROOT/tests/errors/static/negative_unsigned_literal.tc" "unsigned suffix"
 run_expect_fail_msg "$ROOT/tests/errors/static/leading_zero.tc" "invalid integer literal"
 run_expect_fail_msg "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"
@@ -624,6 +694,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "lite
 run_expect_check_fail "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
 run_expect_check_fail "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
+run_expect_check_fail "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate is only allowed for integer to integer conversion"
+run_expect_check_fail "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate is only allowed for integer to integer conversion"
 run_expect_check_fail "$ROOT/tests/errors/static/negative_unsigned_literal.tc" "unsigned suffix"
 run_expect_check_fail "$ROOT/tests/errors/static/leading_zero.tc" "invalid integer literal"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_literal.tc" "cast source must be a variable"
@@ -635,6 +707,13 @@ run_expect_check_fail "$ROOT/tests/errors/static/format_operand_count.tc" "opera
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_check_fail "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "expected integer type"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_let_wrap_forbidden.tc" "wrap cannot be used in constant expression"
 
 # --- REPL ---
 

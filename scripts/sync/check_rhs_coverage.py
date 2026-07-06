@@ -33,6 +33,9 @@ TC_RHS_KINDS = [
     "TC_RHS_COMPARE",
     "TC_RHS_LOGIC_BIN",
     "TC_RHS_LOGIC_UN",
+    "TC_RHS_BITWISE_BIN",
+    "TC_RHS_BITWISE_UN",
+    "TC_RHS_SHIFT",
     "TC_RHS_CAST",
     "TC_RHS_CONST_CAST",
 ]
@@ -61,7 +64,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/parser/tc_parser.c",
         "func": "tc_rhs_free",
-        "line_func": 861,
+        "line_func": 1063,
         "skip": {
             "TC_RHS_LIT": "LIT 无动态内存，不需释放",
         },
@@ -69,7 +72,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/parser/tc_parser.c",
         "func": "tc_parse_rhs",
-        "line_func": 537,
+        "line_func": 738,
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
         "output_kinds": ["TC_RHS_LIT"],  # 通过 out->kind = 赋值，非 rhs->kind == 比较
         "skip": {
@@ -80,7 +83,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/parser/tc_parser.c",
         "func": "tc_parse_const_rhs",
-        "line_func": 582,
+        "line_func": 783,
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
         "output_kinds": ["TC_RHS_LIT"],
         "skip": {
@@ -90,7 +93,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/analyzer/tc_analyzer.c",
         "func": "tc_check_rhs",
-        "line_func": 217,
+        "line_func": 218,
         "skip": {
             "TC_RHS_CAST": "最后一条 if 链后的 fallthrough 块处理（无显式 rhs->kind == 检查）",
         },
@@ -107,7 +110,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/executor/tc_executor.c",
         "func": "tc_eval_rhs",
-        "line_func": 123,
+        "line_func": 121,
         "skip": {},
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
@@ -213,6 +216,9 @@ def get_aot_rt_shims(path):
         "TC_RHS_COMPARE": "tc_aot_compare",
         "TC_RHS_LOGIC_BIN": "tc_aot_logic",
         "TC_RHS_LOGIC_UN": "tc_aot_logic_unary",
+        "TC_RHS_BITWISE_BIN": "tc_aot_bitwise_binary",
+        "TC_RHS_BITWISE_UN": "tc_aot_bitwise_unary",
+        "TC_RHS_SHIFT": "tc_aot_shift",
         "TC_RHS_CAST": "tc_aot_cast",
     }
 
@@ -295,20 +301,67 @@ def check_dispatch_point(dp):
     return errors, warnings, info
 
 
+KNOWLEDGE_GRAPH_PATH = os.path.join(REPO_ROOT, ".cursor/rules/knowledge-graph.mdc")
+
+
 def find_function_line(path, func_name):
-    """在文件中找到函数定义的行号"""
+    """在文件中找到函数定义的行号（跳过前向声明）"""
     abs_path = os.path.join(REPO_ROOT, path)
     if not os.path.exists(abs_path):
         return 0
+    sig_re = re.compile(
+        rf'^(static\s+)?(int|void|TcRhsKind|const\s+char\s*\*)\s+{re.escape(func_name)}\s*\('
+    )
     with open(abs_path, "r") as f:
-        for i, line in enumerate(f, 1):
-            # 匹配 static int func_name( 或 int func_name( 或 void func_name(
-            if re.match(
-                rf'^(static\s+)?(int|void|TcRhsKind|const\s+char\s*\*)\s+{re.escape(func_name)}\s*\(',
-                line,
-            ):
-                return i
+        lines = f.readlines()
+    i = 0
+    while i < len(lines):
+        if not sig_re.match(lines[i]):
+            i += 1
+            continue
+        start = i
+        decl = ""
+        for j in range(i, min(i + 20, len(lines))):
+            decl += lines[j]
+            if "{" in lines[j]:
+                return start + 1
+            if ";" in lines[j]:
+                i = j + 1
+                break
+        else:
+            i += 1
     return 0
+
+
+def update_knowledge_graph_table():
+    """将 DISPATCH_POINTS 行号写回 knowledge-graph.mdc 表格"""
+    if not os.path.exists(KNOWLEDGE_GRAPH_PATH):
+        print(f"warning: {KNOWLEDGE_GRAPH_PATH} not found", file=sys.stderr)
+        return False
+    with open(KNOWLEDGE_GRAPH_PATH, "r") as f:
+        content = f.read()
+    changed = False
+    for dp in DISPATCH_POINTS:
+        func = dp["func"]
+        if func == "tc_aot_* shim":
+            continue
+        rel_path = (
+            os.path.basename(os.path.dirname(dp["path"]))
+            + "/"
+            + os.path.basename(dp["path"])
+        )
+        line_num = str(dp["line_func"])
+        pattern = (
+            rf'(\| `{re.escape(func)}` \| {re.escape(rel_path)} \| )\d+( \|)'
+        )
+        new_content, count = re.subn(pattern, rf"\g<1>{line_num}\2", content, count=1)
+        if count:
+            content = new_content
+            changed = True
+    if changed:
+        with open(KNOWLEDGE_GRAPH_PATH, "w") as f:
+            f.write(content)
+    return changed
 
 
 def sync_line_numbers():
@@ -375,6 +428,10 @@ def main():
                 print(f"  {func}: {old} → {new}")
         else:
             print("行号均已最新")
+        if update_knowledge_graph_table():
+            print(f"已写入 {KNOWLEDGE_GRAPH_PATH}")
+        else:
+            print("knowledge-graph.mdc 行号表无变更")
 
     # 检查每个分发点
     for dp in DISPATCH_POINTS:

@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TC_AOT_VERSION "0.1.0"
+#define TC_AOT_VERSION "0.0.23"
 
 static void tc_aot_print_usage(const char *program) {
     fprintf(stderr,
@@ -154,6 +154,7 @@ int main(int argc, char **argv) {
         if (!owned_output_path) {
             fprintf(stderr, "%s: out of memory\n", argv[0]);
             tc_typed_program_free(&program);
+            tc_diagnostic_clear(&diag);
             return 1;
         }
         output_path = owned_output_path;
@@ -165,6 +166,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "%s: cannot open output file '%s'\n", argv[0], output_path);
         free(owned_output_path);
         tc_typed_program_free(&program);
+        tc_diagnostic_clear(&diag);
         return 1;
     }
 
@@ -173,6 +175,7 @@ int main(int argc, char **argv) {
         fclose(out_file);
         free(owned_output_path);
         tc_typed_program_free(&program);
+        tc_diagnostic_clear(&diag);
         return 1;
     }
 

@@ -118,6 +118,8 @@ static int tc_expect_stmt_end(const TcTokenList *tokens, size_t *index, int line
 
 /*
  * @brief 解析算术 RHS：add/sub/mul/div/mod(type [,wrap,] lhs, rhs)
+ *
+ * wrap 亦适用于左移 shl（§5.1）；其余非算术运算见 tc_parse_shift_rhs / 按位路径。
  */
 static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                               TcRhs *out, TcDiagnostic *diag) {
@@ -283,10 +285,14 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    /* 可选的 truncate 关键字作为第二参数（默认 strict） */
+    /* 可选的 truncate 关键字作为第二参数（默认 strict；仅整数→整数，§8.5） */
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
         if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+            if (tc_type_is_bool(target)) {
+                return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                        "truncate is only allowed for integer to integer conversion");
+            }
             mode = TC_TRUNC_TRUNCATE;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
@@ -384,34 +390,10 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
 }
 
 /*
- * @brief 解析双目逻辑 RHS：and/or(bool, lhs, rhs)
+ * @brief 完成双目逻辑 RHS 操作数解析（类型参数 bool 已读）
  */
-static int tc_parse_logic_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
-                                  TcRhs *out, TcDiagnostic *diag) {
-    const TcToken *op_tok = tc_peek(tokens, *index);
-    TcLogicOp op = op_tok->u.logic_op;
-
-    if (op_tok->kind != TC_TOK_LOGIC_OP || op == TC_LOGIC_NOT) {
-        return tc_syntax_error(diag, line_no, op_tok->column, "expected binary logic operation");
-    }
-    (*index)++;
-
-    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
-        return -1;
-    }
-
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE || !tc_type_is_bool(type_tok->u.int_type)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected bool type");
-        }
-        (*index)++;
-    }
-
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
-        return -1;
-    }
-
+static int tc_finish_logic_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                   TcLogicOp op, TcRhs *out, TcDiagnostic *diag) {
     out->kind = TC_RHS_LOGIC_BIN;
     out->u.logic_bin.op = op;
     memset(&out->u.logic_bin.lhs, 0, sizeof(out->u.logic_bin.lhs));
@@ -437,14 +419,104 @@ static int tc_parse_logic_bin_rhs(const TcTokenList *tokens, size_t *index, int 
 }
 
 /*
- * @brief 解析单目逻辑 RHS：not(bool, operand)
+ * @brief 完成单目逻辑 RHS 操作数解析（类型参数 bool 已读）
  */
-static int tc_parse_logic_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
-                                 TcRhs *out, TcDiagnostic *diag) {
-    const TcToken *op_tok = tc_peek(tokens, *index);
+static int tc_finish_logic_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                  TcRhs *out, TcDiagnostic *diag) {
+    out->kind = TC_RHS_LOGIC_UN;
+    out->u.logic_un.op = TC_LOGIC_NOT;
+    memset(&out->u.logic_un.operand, 0, sizeof(out->u.logic_un.operand));
 
-    if (op_tok->kind != TC_TOK_LOGIC_OP || op_tok->u.logic_op != TC_LOGIC_NOT) {
-        return tc_syntax_error(diag, line_no, op_tok->column, "expected not operation");
+    if (tc_parse_operand(tokens, index, line_no, &out->u.logic_un.operand, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @brief 完成双目按位 RHS 操作数解析（类型参数整数已读）
+ */
+static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                     TcBitwiseOp op, TcIntType type, TcRhs *out,
+                                     TcDiagnostic *diag) {
+    out->kind = TC_RHS_BITWISE_BIN;
+    out->u.bitwise_bin.op = op;
+    out->u.bitwise_bin.type = type;
+    memset(&out->u.bitwise_bin.lhs, 0, sizeof(out->u.bitwise_bin.lhs));
+    memset(&out->u.bitwise_bin.rhs, 0, sizeof(out->u.bitwise_bin.rhs));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.bitwise_bin.lhs, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.bitwise_bin.rhs, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * @brief 完成单目按位 RHS 操作数解析（类型参数整数已读）
+ */
+static int tc_finish_bitwise_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                    TcIntType type, TcRhs *out, TcDiagnostic *diag) {
+    out->kind = TC_RHS_BITWISE_UN;
+    out->u.bitwise_un.type = type;
+    memset(&out->u.bitwise_un.operand, 0, sizeof(out->u.bitwise_un.operand));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.bitwise_un.operand, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+/** 按位运算禁止 wrap/truncate 关键字 */
+static int tc_reject_bitwise_mode_keyword(const TcTokenList *tokens, size_t index, int line_no,
+                                          TcDiagnostic *diag) {
+    const TcToken *mode_tok = tc_peek(tokens, index);
+
+    if (mode_tok->kind == TC_TOK_WRAP) {
+        return tc_keyword_error(diag, line_no, mode_tok->column,
+                                "wrap cannot be used with bitwise operations");
+    }
+    if (mode_tok->kind == TC_TOK_TRUNCATE) {
+        return tc_keyword_error(diag, line_no, mode_tok->column,
+                                "truncate cannot be used with bitwise operations");
+    }
+    return 0;
+}
+
+/*
+ * @brief 解析 and/or/not：读类型参数后分派逻辑或按位路径
+ */
+static int tc_parse_and_or_not_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                   TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+    TcLogicOp logic_op = op_tok->u.logic_op;
+    TcIntType type = TC_INT32;
+    int is_not = (logic_op == TC_LOGIC_NOT);
+
+    if (op_tok->kind != TC_TOK_LOGIC_OP) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected logic operation");
     }
     (*index)++;
 
@@ -454,9 +526,10 @@ static int tc_parse_logic_un_rhs(const TcTokenList *tokens, size_t *index, int l
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE || !tc_type_is_bool(type_tok->u.int_type)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected bool type");
+        if (type_tok->kind != TC_TOK_INT_TYPE) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
+        type = type_tok->u.int_type;
         (*index)++;
     }
 
@@ -464,11 +537,145 @@ static int tc_parse_logic_un_rhs(const TcTokenList *tokens, size_t *index, int l
         return -1;
     }
 
-    out->kind = TC_RHS_LOGIC_UN;
-    out->u.logic_un.op = TC_LOGIC_NOT;
-    memset(&out->u.logic_un.operand, 0, sizeof(out->u.logic_un.operand));
+    if (tc_type_is_bool(type)) {
+        if (is_not) {
+            return tc_finish_logic_un_rhs(tokens, index, line_no, out, diag);
+        }
+        if (logic_op != TC_LOGIC_AND && logic_op != TC_LOGIC_OR) {
+            const TcToken *tok = tc_peek(tokens, *index);
+            return tc_syntax_error(diag, line_no, tok->column, "expected binary logic operation");
+        }
+        return tc_finish_logic_bin_rhs(tokens, index, line_no, logic_op, out, diag);
+    }
 
-    if (tc_parse_operand(tokens, index, line_no, &out->u.logic_un.operand, diag) != 0) {
+    if (tc_reject_bitwise_mode_keyword(tokens, *index, line_no, diag) != 0) {
+        return -1;
+    }
+
+    if (is_not) {
+        return tc_finish_bitwise_un_rhs(tokens, index, line_no, type, out, diag);
+    }
+    if (logic_op == TC_LOGIC_AND) {
+        return tc_finish_bitwise_bin_rhs(tokens, index, line_no, TC_BIT_AND, type, out, diag);
+    }
+    if (logic_op == TC_LOGIC_OR) {
+        return tc_finish_bitwise_bin_rhs(tokens, index, line_no, TC_BIT_OR, type, out, diag);
+    }
+
+    {
+        const TcToken *tok = tc_peek(tokens, *index);
+        return tc_syntax_error(diag, line_no, tok->column, "expected binary logic operation");
+    }
+}
+
+/*
+ * @brief 解析双目按位 RHS：xor(int_type, op1, op2)
+ */
+static int tc_parse_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                    TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+    TcBitwiseOp op = op_tok->u.bitwise_op;
+    TcIntType type = TC_INT32;
+
+    if (op_tok->kind != TC_TOK_BITWISE_OP) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected bitwise operation");
+    }
+    (*index)++;
+
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
+        }
+        type = type_tok->u.int_type;
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    if (tc_reject_bitwise_mode_keyword(tokens, *index, line_no, diag) != 0) {
+        return -1;
+    }
+
+    return tc_finish_bitwise_bin_rhs(tokens, index, line_no, op, type, out, diag);
+}
+
+/*
+ * @brief 解析移位 RHS：shl(int [,wrap,] val, cnt) / shr(int, val, cnt)
+ */
+static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                              TcRhs *out, TcDiagnostic *diag, int is_const) {
+    const TcToken *op_tok = tc_peek(tokens, *index);
+    TcShiftOp op = op_tok->u.shift_op;
+    TcIntType type = TC_INT32;
+    TcWrapMode mode = TC_ARITH_STRICT;
+
+    if (op_tok->kind != TC_TOK_SHIFT_OP) {
+        return tc_syntax_error(diag, line_no, op_tok->column, "expected shift operation");
+    }
+    (*index)++;
+
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *type_tok = tc_peek(tokens, *index);
+        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
+            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
+        }
+        type = type_tok->u.int_type;
+        (*index)++;
+    }
+
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        return -1;
+    }
+
+    {
+        const TcToken *maybe_mode = tc_peek(tokens, *index);
+        if (maybe_mode->kind == TC_TOK_WRAP) {
+            if (op == TC_SHIFT_SHR) {
+                return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                        "wrap cannot be used with shift operations");
+            }
+            if (is_const) {
+                return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                        "wrap cannot be used in constant expression");
+            }
+            mode = TC_ARITH_WRAP;
+            (*index)++;
+            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                return -1;
+            }
+        } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+            return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                    "truncate cannot be used with shift operations");
+        }
+    }
+
+    out->kind = TC_RHS_SHIFT;
+    out->u.shift.op = op;
+    out->u.shift.type = type;
+    out->u.shift.mode = mode;
+    memset(&out->u.shift.value, 0, sizeof(out->u.shift.value));
+    memset(&out->u.shift.count, 0, sizeof(out->u.shift.count));
+
+    if (tc_parse_operand(tokens, index, line_no, &out->u.shift.value, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.shift.count, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -564,11 +771,11 @@ static int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *ind
     } else if (tok->kind == TC_TOK_COMPARE_OP) {
         rc = tc_parse_compare_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_LOGIC_OP) {
-        if (tok->u.logic_op == TC_LOGIC_NOT) {
-            rc = tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
-        } else {
-            rc = tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
-        }
+        rc = tc_parse_and_or_not_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_BITWISE_OP) {
+        rc = tc_parse_bitwise_bin_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_SHIFT_OP) {
+        rc = tc_parse_shift_rhs(tokens, index, line_no, out, diag, 0);
     } else if (tok->kind == TC_TOK_CAST) {
         rc = tc_parse_cast_rhs(tokens, index, line_no, out, diag);
     } else {
@@ -614,11 +821,11 @@ static int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_
     } else if (tok->kind == TC_TOK_COMPARE_OP) {
         rc = tc_parse_compare_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_LOGIC_OP) {
-        if (tok->u.logic_op == TC_LOGIC_NOT) {
-            rc = tc_parse_logic_un_rhs(tokens, index, line_no, out, diag);
-        } else {
-            rc = tc_parse_logic_bin_rhs(tokens, index, line_no, out, diag);
-        }
+        rc = tc_parse_and_or_not_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_BITWISE_OP) {
+        rc = tc_parse_bitwise_bin_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_SHIFT_OP) {
+        rc = tc_parse_shift_rhs(tokens, index, line_no, out, diag, 1);
     } else if (tok->kind == TC_TOK_CAST) {
         rc = tc_parse_const_cast_rhs(tokens, index, line_no, out, diag);
     } else {
@@ -875,6 +1082,14 @@ void tc_rhs_free(TcRhs *rhs) {
         tc_operand_free(&rhs->u.logic_bin.rhs);
     } else if (rhs->kind == TC_RHS_LOGIC_UN) {
         tc_operand_free(&rhs->u.logic_un.operand);
+    } else if (rhs->kind == TC_RHS_BITWISE_BIN) {
+        tc_operand_free(&rhs->u.bitwise_bin.lhs);
+        tc_operand_free(&rhs->u.bitwise_bin.rhs);
+    } else if (rhs->kind == TC_RHS_BITWISE_UN) {
+        tc_operand_free(&rhs->u.bitwise_un.operand);
+    } else if (rhs->kind == TC_RHS_SHIFT) {
+        tc_operand_free(&rhs->u.shift.value);
+        tc_operand_free(&rhs->u.shift.count);
     } else if (rhs->kind == TC_RHS_CAST) {
         free(rhs->u.cast.source);
         rhs->u.cast.source = NULL;
@@ -948,6 +1163,17 @@ int tc_program_push(TcProgram *program, const TcStatement *stmt, TcDiagnostic *d
     return 0;
 }
 
+/*
+ * 语句语法分析入口。
+ * 根据首个 Token 的种类 dispatch 到对应解析逻辑：
+ *   TC_TOK_VAR / TC_TOK_LET           → tc_parse_var_or_const_def
+ *   TC_TOK_WRITE / TC_TOK_WRITELN      → tc_parse_io_write_stmt
+ *   TC_TOK_READ                        → tc_parse_read_stmt
+ *   TC_TOK_IDENTIFIER                  → 赋值语句（= RHS）
+ *   其它                               → SyntaxError
+ *
+ * 所有子函数均通过 *diag 输出错误，调用方通过返回值判断成败。
+ */
 /* ------------------------------------------------------------------ */
 /*  tc_parse_statement — 语法分析入口                                   */
 /* ------------------------------------------------------------------ */

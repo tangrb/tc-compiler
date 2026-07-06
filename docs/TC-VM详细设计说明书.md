@@ -1,8 +1,8 @@
 # TC-VM 详细设计说明书
 
-> **版本**：0.0.21（草案）  
+> **版本**：0.0.23（草案）  
 > **作者**：唐荣兵（yanhuang8923@qq.com）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.21  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.23  
 > **工程**：[TC-Compiler](../README.md) 之 `src/vm/` 组件  
 > **定位**：TC 源码即高级字节码；**不** lowering 为第二套字节码，经静态分析后直接执行
 
@@ -51,18 +51,18 @@ TC-VM 是 TC 语言的**直接执行引擎**：用户编写的 `.tc` 源文件�
 | 语句同构       | 内部 `TcStatement` 与源语句 **1:1 对应**，仅便于 dispatch，不引入新语义 |
 | 先检后跑       | 全程序静态分析通过后，再进入顺序执行                         |
 | 语义归语言标准 | 算术、cast、I/O、常量、未初始化变量等行为以《TC 语言标准设计说明书》为准；本文档只规定**实现架构** |
-| 单作用域       | 与语言标准 §3.6 全局单作用域一致                             |
+| 单作用域       | 与语言标准 §3.7 全局单作用域一致                             |
 | 可观测即标准   | 对外可观测行为（结果值、错误类型、终止时机）必须与语言标准一致 |
 
 ### 1.3 实现版本
 
-可执行文件 `tc-vm` 与本文档同为 **v0.0.21**（`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
+可执行文件 `tc-vm` 与本文档同为 **v0.0.23**（`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION`；`tc-vm --version` 可查看）。
 
-### 1.4 非目标（v0.0.21）
+### 1.4 非目标（v0.0.23）
 
 - 不定义、不生成第二套字节码指令集
 - 不做 JIT / LLVM 后端
-- 不实现语言标准 §5.4、§7.6、附录 D 扩展表中预留的浮点、位运算、控制流、函数、复合类型等扩展（仅预留接口）
+- 不实现语言标准 §4.7、§5.4、§8.6、附录 D 扩展表中预留的浮点、控制流、函数、复合类型等扩展（仅预留接口）
 
 ---
 
@@ -111,7 +111,7 @@ run_file(path: string) -> Result<void, Diagnostic>
 
 ### 3.1 语句即指令
 
-TC v0.0.21 中，每条合法语句对应一条「高级指令」。TC 语言标准 §1.1 定义的语言能力映射为以下指令分类：
+TC v0.0.23 中，每条合法语句对应一条「高级指令」。TC 语言标准 §1.1 定义的语言能力映射为以下指令分类：
 
 | 能力分类           | 具体指令                                                     | 说明                           |
 | ------------------ | ------------------------------------------------------------ | ------------------------------ |
@@ -120,7 +120,9 @@ TC v0.0.21 中，每条合法语句对应一条「高级指令」。TC 语言标
 | **5 种双目算术**   | `add`/`sub`/`mul`/`div`/`mod`                                | §10.2 实现                     |
 | **2 种单目算术**   | `abs`（取绝对值）/ `neg`（取负数）                           | §10.3 实现                     |
 | **6 种比较运算**   | `eq`/`ne`/`lt`/`le`/`gt`/`ge`                                | 返回 `bool`，§10.5 实现        |
-| **3 种逻辑运算**   | `and`/`or`/`not`                                             | 短路求值，§10.6 实现           |
+| **3 种逻辑运算**   | `and`/`or`/`not`（`bool` 类型参数）                          | 短路求值，§10.6 实现           |
+| **4 类按位逻辑**   | `and`/`or`/`xor`/`not`（整数类型参数）                       | `tc_exec_bitwise_*`（§10.1）   |
+| **2 类移位**       | `shl`/`shr`                                                  | `tc_exec_shift`（§10.1）       |
 | **1 种类型转换**   | `cast`                                                       | 支持 strict/`truncate` 模式    |
 | **3 条 I/O 语句**  | `write`/`writeln`/`read`                                     | 支持 8 种格式化符号（含 `%t`） |
 | **2 个模式关键字** | `wrap`（回绕）/ `truncate`（截断）                           | 仅用于合法运算，否则静态错误   |
@@ -139,11 +141,14 @@ TC v0.0.21 中，每条合法语句对应一条「高级指令」。TC 语言标
 | `<rhs> = eq/ne/lt/le/gt/ge(T, …)`   | **CMP** — 比较运算，返回 `bool`                              |
 | `<rhs> = and/or(bool, …)`           | **LOGIC_BIN** — 双目逻辑运算（短路求值）                     |
 | `<rhs> = not(bool, …)`              | **LOGIC_UN** — 单目逻辑运算                                  |
+| `<rhs> = and/or/xor(T, …)`          | **BITWISE_BIN** — 双目按位运算（整数 `T`，无短路）           |
+| `<rhs> = not(T, …)`                 | **BITWISE_UN** — 单目按位取反（整数 `T`）                    |
+| `<rhs> = shl/shr(T, …)`             | **SHIFT** — 移位（`shl` 可选 `wrap`；`shr` 无模式）          |
 | `<rhs> = cast(T, …)`                | **CAST** — 目标类型 `T`，模式 strict/`truncate`（支持 `bool` ↔ 整数） |
 | `write/writeln(T, …)`               | **WRITE** — 标准输出（支持 `%t` 布尔格式化）                 |
 | `read(T, x)`                        | **READ** — 标准输入（支持 `bool` 类型）                      |
 
-`<rhs>` 仅七选一（字面量 / 双目算术 / 单目算术 / 比较 / 双目逻辑 / 单目逻辑 / cast），**无嵌套**，故一条语句的语义完全由该行决定。
+`<rhs>` 仅十选一（字面量 / 双目算术 / 单目算术 / 比较 / 双目逻辑 / 单目逻辑 / 双目按位 / 单目按位 / 移位 / cast），**无嵌套**，故一条语句的语义完全由该行决定。
 
 ### 3.2 执行模型
 
@@ -248,7 +253,7 @@ FormatSpec ::= None | D | I | U | X | XU | O | B | T   // None 为无格式
 
 > **实现映射**：`TC_FMT_NONE = 0`（`tc_types.h` 第 96 行）在枚举中显式赋值为 0，表示无格式说明符。Parser 解析 `write(type, operand)` 时将 `fmt` 字段设为 `TC_FMT_NONE`；Executor 遇此值时按类型默认输出（有符号用 `%d`，无符号用 `%u`，`bool` 输出 `"true"`/`"false"`）。
 
-**格式化符号定义**（语言标准 §8.4）：
+**格式化符号定义**（语言标准 §9.4）：
 
 | 符号 | 含义                    | 适用类型                       | 示例（值 42） | 枚举映射 |
 | ---- | ----------------------- | ------------------------------ | ------------- | -------- |
@@ -261,7 +266,7 @@ FormatSpec ::= None | D | I | U | X | XU | O | B | T   // None 为无格式
 | `%b` | 二进制                  | 任一整数类型（按无符号位模式） | `101010`      | `B`      |
 | `%t` | 布尔值文本              | `bool`                         | `true`        | `T`      |
 
-**兼容性表**（语言标准 §8.5）：
+**兼容性表**（语言标准 §9.5）：
 
 | 符号                      | 可接受操作数类型                      |
 | ------------------------- | ------------------------------------- |
@@ -270,7 +275,7 @@ FormatSpec ::= None | D | I | U | X | XU | O | B | T   // None 为无格式
 | `%x` / `%X` / `%o` / `%b` | 任一整数类型                          |
 | `%t`                      | `bool`                                |
 
-> **说明**（语言标准 §8.4）：
+> **说明**（语言标准 §9.4）：
 > - `%x`/`%X`/`%o`/`%b` 在有符号类型上输出其**无符号位模式**（二进制补码解释）
 > - `%t` 输出 `true` 或 `false`（小写）
 
@@ -497,7 +502,7 @@ Pass 2（`tc_pass2_type_check`）维护增量符号表 `visible`：按程序顺�
 
 #### 7.4.2 类型检查表
 
-对每条语句检查下表（与语言标准 §4、§5、§6 对齐）：
+对每条语句检查下表（与语言标准 §4～§8 对齐）：
 
 | 检查项            | 规则                                                         |
 | ----------------- | ------------------------------------------------------------ |
@@ -551,7 +556,7 @@ Pass 2 对 `BinaryLogicRhs` 的右操作数未初始化检查，须与运行时�
 | lhs 为 bool 变量、`let` 常量引用或其他非字面量               | 不抑制 rhs 未初始化警告（运行时仍可能短路）                |
 | `let` 编译期常量表达式                                       | `tc_const_eval.c` 按 `TcValue.bits` 短路，不依赖 `is_bool` |
 
-> 仅 **`is_bool=1` 的字面量** 可在 Analyzer 阶段确定短路；这与 §10.6 运行时 `exec_logic_binary` 的短路共同实现语言标准 §6.2.2 的未初始化警告抑制。
+> 仅 **`is_bool=1` 的字面量** 可在 Analyzer 阶段确定短路；这与 §10.6 运行时 `exec_logic_binary` 的短路共同实现语言标准 §7.2.2 的未初始化警告抑制。
 
 ### 7.5 rhs 结果类型推断
 
@@ -681,7 +686,7 @@ TcValue { type: Type, bits: uint64 }
   2. 要求 `0 ≤ N ≤ UINT64_MAX`
   3. 取 `-N` 作为有符号整数值
   4. `N = 9223372036854775808` 时，`-N = INT64_MIN`，为合法边界值
-- 与上下文类型结合时，调用 `tc_literal_fits_context()`（`is_bool=0` 分支）按语言标准 §3.4 检查上界
+- 与上下文类型结合时，调用 `tc_literal_fits_context()`（`is_bool=0` 分支）按语言标准 §3.5 检查范围
 
 **布尔字面量**（`is_bool=1`）：
 
@@ -763,7 +768,7 @@ TC 中每个变量的值由 **n 位位模式**（`n` 为类型位宽）与 **类
 
 ## 10. 内建指令语义实现
 
-内建函数是 TC 语义的**唯一实现入口**；行为必须与《TC 语言标准设计说明书》§5、§6 一致。
+内建函数是 TC 语义的**唯一实现入口**；行为必须与《TC 语言标准设计说明书》§5～§8 一致。
 
 ### 10.1 函数清单
 
@@ -773,6 +778,9 @@ exec_unary(op, type, mode, operand) -> TcValue | Error       // 单目算术
 exec_compare(op, type, lhs, rhs) -> TcValue | Error          // 比较运算，返回 bool
 exec_logic_binary(op, lhs, rhs) -> TcValue | Error           // 双目逻辑（含短路）
 exec_logic_unary(op, operand) -> TcValue | Error              // 单目逻辑
+exec_bitwise_binary(op, type, lhs, rhs) -> TcValue | Error   // 双目按位（整数）
+exec_bitwise_unary(type, operand) -> TcValue | Error         // 单目按位 not（整数）
+exec_shift(op, type, mode, value, count) -> TcValue | Error // 移位（shl/shr）
 exec_cast(target, mode, source_slot) -> TcValue | Error      // 类型转换
 ```
 
@@ -878,7 +886,7 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 
 分 `mode` 两支：
 
-**StrictTrunc（strict）** — 按语言标准 §6.2 表：
+**StrictTrunc（strict）** — 按语言标准 §8.2 表：
 
 | 源 → 目标       | strict 规则                         |
 | --------------- | ----------------------------------- |
@@ -888,15 +896,15 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 | 无符号 → 有符号 | 源 ≤ 目标 max → 转换；否则 → 错误   |
 | 同类型          | 恒等                                |
 
-**Truncate** — 按语言标准 §6.3 位模式算法：
+**Truncate** — 按语言标准 §8.3 位模式算法：
 
 1. 源位宽 `n`，目标位宽 `m`，源位模式 `bits`
 2. `m ≤ n`：`bits mod 2^m`，按目标类型解释
-3. `m > n`：零扩展或符号扩展（见语言标准 §6.3 第 2 点）
+3. `m > n`：零扩展或符号扩展（见语言标准 §8.3 第 2 点）
 
 > `cast` 中 `wrap` 关键字不可用，使用则触发静态 **关键字错误**。
 
-#### 整数转换规则速查（语言标准 §7.5）
+#### 整数转换规则速查（语言标准 §8.5）
 
 **严格模式（strict）**：
 
@@ -910,7 +918,7 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 
 #### 常量转换的额外约束
 
-当 `cast` 用于 `let` 常量表达式的 RHS 时（语言标准 §7.5「常量转换的额外约束」）：
+当 `cast` 用于 `let` 常量表达式的 RHS 时（语言标准 §8.5「常量转换的额外约束」）：
 
 | 转换方向            | 严格模式 | 截断模式 |
 | ------------------- | -------- | -------- |
@@ -921,7 +929,7 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 | 整数 → `bool`       | ✅ 允许   | ❌ 禁止   |
 | `bool` → `bool`     | ✅ 允许   | ❌ 禁止   |
 
-> **设计理由**（语言标准 §7.5）：常量表达式应保持值的精确可计算性。缩窄和 `truncate` 可能损失信息，违背"常量应清晰可读"的原则。如需截断或缩窄，应使用 `var` 在运行时完成。
+> **设计理由**（语言标准 §8.5）：常量表达式应保持值的精确可计算性。缩窄和 `truncate` 可能损失信息，违背"常量应清晰可读"的原则。如需截断或缩窄，应使用 `var` 在运行时完成。
 
 ### 10.5 比较运算（exec_compare）
 
@@ -1001,7 +1009,7 @@ exec_logic_unary(Not, operand):
     return TcValue(bool, val.bits == 0 ? 1 : 0)
 ```
 
-> `exec_logic_binary` 的短路行为对语言标准 §6.2.2 规定的「未初始化变量警告抑制」至关重要：当短路导致右操作数不被求值时，该操作数中的未初始化变量读取不触发编译警告。Analyzer 侧对 **`is_bool=1` 的 `false`/`true` 字面量** 提前抑制 rhs 未初始化检查（§7.4.4）；`let` 编译期逻辑短路由 `tc_const_eval.c` 按 `TcValue.bits` 实现。
+> `exec_logic_binary` 的短路行为对语言标准 §7.2.2 规定的「未初始化变量警告抑制」至关重要：当短路导致右操作数不被求值时，该操作数中的未初始化变量读取不触发编译警告。Analyzer 侧对 **`is_bool=1` 的 `false`/`true` 字面量** 提前抑制 rhs 未初始化检查（§7.4.4）；`let` 编译期逻辑短路由 `tc_const_eval.c` 按 `TcValue.bits` 实现。
 
 ### 10.7 cast 中的 `bool` ↔ 整数转换
 
@@ -1036,10 +1044,10 @@ exec_logic_unary(Not, operand):
 | 阶段         | 错误类型                               | 是否执行         |
 | ------------ | -------------------------------------- | ---------------- |
 | Lexer/Parser | 语法错误（非法 token、括号不匹配等）   | 否               |
-| Analyzer     | 语言标准 §9.1 中可静态确定的错误       | 否               |
+| Analyzer     | 语言标准 §11.1 中可静态确定的错误      | 否               |
 | Executor     | 除零、整数溢出、转换溢出、I/O 输入失败 | 否（已部分执行） |
 
-语法错误不在语言标准 §9 枚举内，TC-VM 扩展为 **语法错误**。
+语法错误不在语言标准 §11 枚举内，TC-VM 扩展为 **语法错误**。
 
 ### 11.2 Diagnostic 结构
 
@@ -1059,7 +1067,7 @@ Diagnostic ::= {
 
 ### 11.3 ErrorKind 枚举（`TcErrorKind`）
 
-与语言标准 §9.1 对齐（`runtime/tc_types.h`）：
+与语言标准 §11.1 对齐（`runtime/tc_types.h`）：
 
 ```text
 TcErrorKind ::=
@@ -1103,15 +1111,11 @@ TcWarningKind ::=
 
 ## 12. 模块划分与接口
 
-### 12.1 工程布局（TC-Compiler）
+### 12.1 工程布局（TC-VM）
 
-TC-VM 位于 [TC-Compiler](../README.md) 的 `src/vm/`，与 **libtc**（`src/libtc/`，编译 API）、TC-AOT（`src/aot/`，预留）并列。构建由 CMake 统一管理；根目录 `Makefile` 为薄封装，VM 在 `CMakeLists.txt` 中定义 `tc-vm` 与 `check-vm` 目标。
+TC-VM 位于 [TC-Compiler](../README.md) 的 `src/vm/`。构建由 CMake 统一管理；根目录 `Makefile` 为薄封装，VM 在 `CMakeLists.txt` 中定义 `tc-vm` 与 `check-vm` 目标。
 
 ```text
-src/libtc/              # 嵌入 API：Parse + Analyze + Execute 委托
-│   ├── tc_lib.h        # tc_compile_source/file、tc_run_typed
-│   └── tc_lib.c        # 逐行 tc_tokenize_line + tc_parse_statement → tc_analyze
-
 src/vm/
 ├── runtime/            # TcValue、TcIntType、TcDiagnostic、TcWarning、Semantics、Symbol、I/O
 │   ├── tc_types.h      # 所有类型定义、枚举
@@ -1144,9 +1148,11 @@ src/vm/
 └── CMakeLists.txt      # tc-vm + check-vm（C99 -Wall -Wextra -pedantic）
 ```
 
-各模块对外接口见 `tc_*.h` 头文件；`tc_types.h` 为全模块共享的数据契约。`tc_driver.c` 通过 libtc 完成编译，再调用 `tc_run_typed` 执行。
+各模块对外接口见 `tc_*.h` 头文件；`tc_types.h` 为全模块共享的数据契约。`tc_driver.c` 通过 libtc（见 [libtc 设计说明书](./libtc设计说明书.md)）完成编译，再调用 `tc_run_typed` 执行。
 
 **命名约定**：每个模块实现文件与头文件同名成对（`tc_<module>.h` ↔ `tc_<module>.c`）；CLI 入口为 `main.c`；版本常量见仅头文件 `tc_version.h`。CI 通过 `scripts/sync/check_source_naming.py` 校验。
+
+> TC-Compiler 另含 [libtc](../docs/libtc设计说明书.md)（`src/libtc/`，嵌入 API）与 [TC-AOT](../docs/TC-AOT详细设计说明书.md)（`src/aot/`，代码生成）两个组件，设计文档独立。
 
 ### 12.2 核心接口（C API）
 
@@ -1197,6 +1203,8 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
 int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
 int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
 
+// 完整 API 及设计说明见 [libtc 设计说明书](./libtc设计说明书.md)
+
 // driver/tc_repl.h
 int tc_repl_run(TcDiagnostic *diag);
 ```
@@ -1217,14 +1225,16 @@ tc-vm --version               # 显示版本（v0.0.21）
 
 ### 12.4 构建与测试
 
-VM 构建脚本与 AOT 分离；根目录 `Makefile` 转发至 CMake，也可直接调用 CMake。
+根目录 `Makefile` 转发至 CMake，也可直接调用 CMake。
 
 | 方式        | 编译                  | 测试                                    |
 | ----------- | --------------------- | --------------------------------------- |
-| 根 Makefile | `make` / `make vm`    | `make test` / `make test-vm`            |
+| 根 Makefile | `make` / `make vm`    | `make test-vm`                          |
 | 根 CMake    | `cmake --build build` | `cmake --build build --target check-vm` |
 
 测试脚本：`scripts/vm/run_tests.sh`（由 `check-vm` 目标调用）。
+
+> 全量测试（含 AOT 差分、单元测试）入口见 [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书.md#测试策略)。
 
 ---
 
@@ -1304,10 +1314,10 @@ writeln(int32, %d, c)
 
 | 层级 | 对象                                               | 方法                              |
 | ---- | -------------------------------------------------- | --------------------------------- |
-| 单元 | `exec_arith`、`exec_unary`、`exec_cast`、`TcValue` | 表驱动，对照语言标准 §5、§6 边界  |
+| 单元 | `exec_arith`、`exec_unary`、`exec_cast`、`TcValue` | 表驱动，对照语言标准 §5～§8 边界 |
 | 组件 | Lexer、Parser、Analyzer                            | 单条/多条语句快照                 |
-| 集成 | `run(source)`                                      | 语言标准 §8 全文示例              |
-| 回归 | 错误用例                                           | 每条语言标准 §9 错误至少 1 个负例 |
+| 集成 | `run(source)`                                      | 语言标准 §10 完整示例             |
+| 回归 | 错误用例                                           | 每条语言标准 §11 错误至少 1 个负例 |
 
 ### 14.2 Conformance 目录
 
@@ -1321,20 +1331,18 @@ tests/
 
 `scripts/vm/run_tests.sh` 由 CMake 目标 `check-vm` 调用；支持 `ASAN=1` 或 `--asan` 切换至 `build-asan/vm/bin/tc-vm`。
 
-此外，`scripts/run_tests.sh` 提供统一顶层入口，依次运行 VM、AOT、单元测试：
+VM 测试可通过 `--filter` 筛选：
 
 ```bash
-bash scripts/run_tests.sh                # 运行全部测试
-bash scripts/run_tests.sh --verbose      # VM 部分显示详细日志
-bash scripts/run_tests.sh --filter foo   # 仅 VM 测试中匹配 "foo"
-bash scripts/run_tests.sh --asan         # AddressSanitizer 模式
+bash scripts/vm/run_tests.sh --filter foo   # 仅匹配 "foo" 的用例
+bash scripts/vm/run_tests.sh --asan         # AddressSanitizer 模式
 ```
 
-此脚本等价的 cmake 入口为 `make test`（`check-vm` + `check-unit` + `check-aot`）。
+> 统一测试入口 `scripts/run_tests.sh` 及 `make test`（`check-vm` + `check-unit` + `check-aot`）见 [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书.md#测试策略)。
 
-### 14.3 回归用例（v0.0.21）
+### 14.3 回归用例（v0.0.23）
 
-以下用例全部在 `scripts/vm/run_tests.sh` 中注册，共 **204 条**（2026-07-05 实测 `bash scripts/vm/run_tests.sh` 输出；含 `--check` 重复验证与 3 条 `--check` 正例）。每项 static 用例在 `--check` 模式下也独立注册。
+以下用例全部在 `scripts/vm/run_tests.sh` 中注册，共 **231 条**（2026-07-06 实测；含 `--check` 重复验证与 `--check` 正例）。每项 static 用例在 `--check` 模式下也独立注册。
 
 #### valid — 执行成功（~55 条）
 
@@ -1445,65 +1453,22 @@ bash scripts/run_tests.sh --asan         # AddressSanitizer 模式
 
 ### 14.6 AOT 差分测试
 
-TC-AOT（`src/aot/`）将 TC 源文件编译为 C99 后调用系统编译器（gcc/clang）生成可执行文件，其测试策略为**差分比较**：
+TC-AOT 的差分测试策略、测试脚本、注册规则详见 **[TC-AOT 详细设计说明书](./TC-AOT详细设计说明书.md#测试策略)**。
 
-1. 用 `tc-vm` 运行 `.tc` 源文件，捕获 stdout
-2. 用 `tc-aot --run` 编译并运行同一源文件，捕获 stdout
-3. 比较两者是否完全一致
-
-该策略确保 AOT 生成的二进制输出与 VM 解释执行结果逐字节一致。
-
-#### 测试脚本
-
-| 脚本                       | 职责                     | 被调用方                 |
-| -------------------------- | ------------------------ | ------------------------ |
-| `scripts/aot/run_tests.sh` | 注册 AOT 差分测试用例    | `check-aot` cmake target |
-| `scripts/vm/run_tests.sh`  | 注册 VM conformance 测试 | `check-vm` cmake target  |
-| `scripts/run_tests.sh`     | 统一入口，顺序调用二者   | —                        |
-
-#### 新增 AOT 测试用例流程
-
-添加新的语言特性后，按以下步骤确保 AOT 覆盖：
-
-1. **在 `tests/valid/` 中编写正例**（与 VM conformance 共用同一文件）
-2. **在 `scripts/aot/run_tests.sh` 中注册**：
-   ```bash
-   run_diff_test "$ROOT/tests/valid/your_new_test.tc"
-   ```
-3. **在 `scripts/vm/run_tests.sh` 中注册**（预期 stdout 或成功退出码）
-4. **验证**：
-   ```bash
-   bash scripts/run_tests.sh           # 统一入口
-   # 或:
-   make test                            # cmake 入口
-   ```
-
-#### 注册规则
-
-- AOT 差分测试要求程序的 stdout **完全确定**（非 `--check` 模式，非常量错误场景）
-- 使用 stdin 输入的用例需传递第二参数：
-  ```bash
-  run_diff_test "$ROOT/tests/valid/read_foo.tc" "input_data\n"
-  ```
-- 涉及运行时错误的用例不在 AOT 差分测试中注册（AOT 测试仅验证成功执行的程序）
-
-#### 常见遗漏检查
-
-新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
+VM 侧在新增语言特性后，需同步在 `scripts/vm/run_tests.sh` 中注册 VM conformance 测试（见 §14.3），并确认 AOT 侧也注册了对应用例。
 
 ### 14.7 层间调用关系
 
 ```text
-make test
-  ├─ make test-vm   → check-vm   → scripts/vm/run_tests.sh
-  ├─ make test-unit → check-unit → CTest 单元测试
-  └─ make test-aot  → check-aot  → scripts/aot/run_tests.sh
-
-bash scripts/run_tests.sh      (统一脚本入口)
-  ├─ scripts/vm/run_tests.sh   (VM conformance)
-  ├─ scripts/aot/run_tests.sh  (AOT differential)
-  └─ make test-unit            (单元测试)
+bash scripts/vm/run_tests.sh   (VM conformance)
+  ├─ valid/            — 正例执行 + stdout 期望
+  ├─ errors/static/    — 分析阶段失败期望
+  ├─ errors/runtime/   — 执行阶段失败期望
+  ├─ stress/           — 压力测试
+  └─ REPL              — 交互式会话测试
 ```
+
+> 全量测试层次（VM + 单元 + AOT）见 [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书.md#测试策略)。
 
 ---
 
@@ -1513,12 +1478,12 @@ bash scripts/run_tests.sh      (统一脚本入口)
 | ---------------------- | -------------- | -------------------- |
 | 语法、语义             | 权威           | 引用，不重复定义     |
 | 空行、文件尾           | §4.1 规定      | §4 实现约定          |
-| 语法错误               | §9.1 未枚举    | §11.1 VM 扩展        |
-| 静态 vs 运行时错误划分 | §9 区分两类    | §7.6、§8.4 实现约定  |
-| 编译警告               | §9.3 定义 1 种 | §11.3 WarningKind    |
+| 语法错误               | §11.1 未单列   | §11.1 VM 扩展        |
+| 静态 vs 运行时错误划分 | §11 区分两类   | §11.1、§11.2 实现约定 |
+| 编译警告               | §11.3 定义 1 种 | §11.3 WarningKind    |
 | 内部 `TcStatement`     | 无             | 实现细节，非语言成分 |
 | 诊断格式               | 无             | §11.2 实现约定       |
-| 格式化符号             | §8.4 定义 8 种 | §5.2 FormatSpec 枚举 |
+| 格式化符号             | §9.4 定义 8 种 | §5.2 FormatSpec 枚举 |
 
 若实现约定与语言标准可观测语义冲突，**以语言标准为准**。
 
@@ -1526,11 +1491,10 @@ bash scripts/run_tests.sh      (统一脚本入口)
 
 ## 16. 后续扩展预留
 
-语言标准 §5.4、§7.6、附录 D 预留特性在 TC-VM 中的预期挂载点：
+语言标准 §4.7、§5.4、§8.6、附录 D 预留特性在 TC-VM 中的预期挂载点：
 
 | 扩展             | Analyzer                 | Executor              | 状态 |
 | ---------------- | ------------------------ | --------------------- | ---- |
-| 位运算           | 新 `ArithOp` 值          | 新 `exec_bitwise`     | 预留 |
 | `label` / `goto` | 标签符号表、跳转目标检查 | PC 非线性更新         | 预留 |
 | `if`             | 条件类型检查             | 条件分支              | 预留 |
 | 函数             | 多作用域符号表、参数槽   | 栈帧 / call-return    | 预留 |
@@ -1542,9 +1506,9 @@ bash scripts/run_tests.sh      (统一脚本入口)
 | 指针 ↔ 整数 cast | `ptr` 类型               | 地址与整数互转        | 预留 |
 | 复合类型转换     | `struct`/`array` 类型    | 重解释或逐字段转换    | 预留 |
 
-**已实现（v0.0.21）**：比较指令、逻辑指令、`bool` 类型、`let` 编译期常量表达式、`%t` 格式化符号、`bool` ↔ 整数 cast。
+**已实现（v0.0.23）**：比较指令、逻辑指令、**位运算/移位指令**（`and`/`or`/`xor`/`not` 整数重载、`shl`/`shr`）、`bool` 类型、`let` 编译期常量表达式、`%t` 格式化符号、`bool` ↔ 整数 cast。
 
-**类型转换扩展框架**（语言标准 §7.6）：当前实现了 **整数 ↔ 整数** 和 **整数 ↔ `bool`** 的转换。未来扩展将复用 `cast` 指令的框架，补充浮点、指针、复合类型各自的转换语义。
+**类型转换扩展框架**（语言标准 §8.6）：当前实现了 **整数 ↔ 整数** 和 **整数 ↔ `bool`** 的转换。未来扩展将复用 `cast` 指令的框架，补充浮点、指针、复合类型各自的转换语义。
 
 | 转换场景    | 当前支持 | 说明                                 |
 | ----------- | -------- | ------------------------------------ |
@@ -1565,7 +1529,7 @@ bash scripts/run_tests.sh      (统一脚本入口)
 
 ## 17. I/O 语句实现
 
-TC-VM 实现三条 I/O 语句的机制，遵循语言标准 §7 定义的语义。
+TC-VM 实现三条 I/O 语句的机制，遵循语言标准 §9 定义的语义。
 
 ### 17.1 语句解析（Parser）
 
@@ -1686,7 +1650,7 @@ static void write_formatted(TcType type, TcFormatSpec fmt,
 2. 将 `value` 编码为 `type` 的位模式，写入目标变量槽位
 
 **特别说明**：
-- `int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`（与语言标准 §7.1 一致）
+- `int8` 和 `uint8` 按整数数字输出，而非 ASCII 字符。例如 `write(int8, 65)` 输出 `"65"`（与语言标准 §9.1 一致）
 - `bool` 类型 `true` 输出 `"true"`，`false` 输出 `"false"`（均为小写）
 - `read` 对 `bool` 类型严格区分大小写：`True`、`TRUE` 等变体视为非法输入，报 I/O 错误
 
@@ -1855,6 +1819,8 @@ REPL 通过 POSIX `isatty()` 检测 stdin 和 stderr 是否为终端：
 | 0.0.21-doc4     | 2026-07-05     | 与语言标准 v0.0.21 全面内容跟进：§3.1 补齐语言能力分类表（8 整数/1 布尔/7 算术/6 比较/3 逻辑/1 cast/3 I/O/2 模式关键字）；§5.2 补充格式化符号定义表（`%d`～`%t` 8 种）及类型兼容性表；新增 §6.4 变量生命周期表（语言标准 §3.8）；§9.2 补充字面量检查规则速查表（逐类型）及检查规则；新增 §9.4 类型性质（有符号/无符号/布尔运行时行为特征）；§10.4 补充整数转换规则速查表（strict/truncate 双模式）及常量转换额外约束表；§10.8 扩展 C 语义对照（比较/逻辑/bool↔int）；§16 补充类型转换扩展框架表、已实现特性明细、预留扩展挂载点（浮点算术/浮点 cast/指针/复合类型） |
 | **0.0.21-doc5** | **2026-07-05** | **一致性审查修正**：§5.5、§7.4.2、§9.4、§10.2、§10.3、§11.3 补充 `wrap` 用于无符号类型→关键字错误的规则；§17.3 补充 `read` bool 大小写敏感性说明；§11.3 补充 `TC_ERR_OVERFLOW_MODE` 注释；§14.5 新增 `read` bool 大小写敏感边界测试；§5.2 补充格式化符号枚举映射表 |
 | **0.0.21-doc6** | **2026-07-05** | **实现符合性审查修正**：§5.5、§7.4.2、§9.4、§10.2、§10.3、§11.3 撤回 doc5 中「无符号 + wrap → 静态错误」规则，与语言标准 §5.1 及实现对齐（允许且语义同三参数形式）；§12.1 补充 `src/libtc/` 层、修正实际 `.c` 文件名；§12.2 补充 libtc API；§14.3 删除 `wrap_unsigned.tc` 索引、static 计数 49→48、补充 `unary_wrap_unsigned.tc` 正例；§14.5 更新无符号 wrap 边界说明 |
+| **0.0.23** | **2026-07-06** | 与语言标准 v0.0.23 对齐：新增位运算（`xor`；`and`/`or`/`not` 整数重载）与移位（`shl`/`shr`）；新增 `TcBitwiseOp`/`TcShiftOp` 及 `TC_RHS_BITWISE_BIN/UN/SHIFT`；语义层 `tc_exec_bitwise_*`/`tc_exec_shift`；let 编译期位运算；VM/AOT 全链路分发；§14.3 补充 `bitwise_*` 回归用例（231 VM） |
+| **0.0.23-doc1** | **2026-07-06** | **文档漂移修正**：§1.4/§16 移除位运算「预留」表述；语言标准交叉引用对齐 v0.0.23 章节号（§9.4 格式化、§8.5/§8.6 cast、§11 错误、§3.7 作用域等）；§3.1/§10.1 补全位运算/移位能力描述 |
 
 ---
 

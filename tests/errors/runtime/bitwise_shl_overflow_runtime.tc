@@ -1,0 +1,4 @@
+; 期望：shift left overflow；此前 writeln 应已执行
+writeln(int8, 1)
+var a: int8 = 127
+var r: int8 = shl(int8, a, 2)

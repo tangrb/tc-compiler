@@ -1,0 +1,23 @@
+; 测试目的：位运算与移位运行时语义（§10.21 子集）
+var a: uint8 = 0b1010_1010u
+var b: uint8 = 0b1111_0000u
+var and_res: uint8 = and(uint8, a, b)
+var xor_res: uint8 = xor(uint8, a, b)
+writeln(uint8, %b, and_res)
+writeln(uint8, %b, xor_res)
+
+var val: int8 = 16
+var shifted_strict: int8 = shl(int8, val, 2)
+writeln(int8, shifted_strict)
+
+var val_neg: int8 = -128
+var shifted_arith: int8 = shr(int8, val_neg, 1)
+writeln(int8, shifted_arith)
+
+var overflow_val: int8 = 64
+var wrapped: int8 = shl(int8, wrap, overflow_val, 2)
+writeln(int8, wrapped)
+
+var uval: uint8 = 0b1000_0000u
+var logic_shift: uint8 = shr(uint8, uval, 1)
+writeln(uint8, logic_shift)

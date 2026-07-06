@@ -72,3 +72,45 @@ add_custom_target(check-io
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running IO unit tests"
 )
+
+# ------------------------------------------------------------------ #
+#  test-bitwise — 按位运算语义单元测试                                  #
+# ------------------------------------------------------------------ #
+
+add_executable(test-bitwise
+    test_bitwise.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+
+target_include_directories(test-bitwise PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-bitwise PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-bitwise
+    COMMAND test-bitwise
+    DEPENDS test-bitwise
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Bitwise unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-shift — 移位运算语义单元测试                                    #
+# ------------------------------------------------------------------ #
+
+add_executable(test-shift
+    test_shift.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+
+target_include_directories(test-shift PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-shift PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-shift
+    COMMAND test-shift
+    DEPENDS test-shift
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Shift unit tests"
+)

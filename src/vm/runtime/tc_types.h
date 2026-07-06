@@ -88,6 +88,19 @@ typedef enum {
     TC_LOGIC_NOT
 } TcLogicOp;
 
+/* 内建按位运算符：and / or / xor（整数类型参数；not 见 TC_RHS_BITWISE_UN） */
+typedef enum {
+    TC_BIT_AND,
+    TC_BIT_OR,
+    TC_BIT_XOR
+} TcBitwiseOp;
+
+/* 内建移位运算符：shl / shr */
+typedef enum {
+    TC_SHIFT_SHL,
+    TC_SHIFT_SHR
+} TcShiftOp;
+
 /**
  * I/O 格式化符号。
  * TC_FMT_NONE 表示无格式，按类型默认输出（有符号用 %d，无符号用 %u）。
@@ -186,10 +199,13 @@ typedef enum {
     TC_RHS_ARITH,      /* 双目算术（add/sub/mul/div/mod） */
     TC_RHS_UNARY,      /* 单目运算（abs/neg） */
     TC_RHS_COMPARE,    /* 比较运算（eq/ne/lt/le/gt/ge） */
-    TC_RHS_LOGIC_BIN,  /* 双目逻辑（and/or） */
-    TC_RHS_LOGIC_UN,   /* 单目逻辑（not） */
-    TC_RHS_CAST,       /* 类型转换（运行时：源为变量） */
-    TC_RHS_CONST_CAST  /* 编译期 cast（源为常量操作数） */
+    TC_RHS_LOGIC_BIN,   /* 双目逻辑（and/or） */
+    TC_RHS_LOGIC_UN,    /* 单目逻辑（not） */
+    TC_RHS_BITWISE_BIN, /* 双目按位（and/or/xor，整数类型参数） */
+    TC_RHS_BITWISE_UN,  /* 单目按位（not，整数类型参数） */
+    TC_RHS_SHIFT,       /* 移位（shl/shr；shl 可选 wrap） */
+    TC_RHS_CAST,        /* 类型转换（运行时：源为变量） */
+    TC_RHS_CONST_CAST   /* 编译期 cast（源为常量操作数） */
 } TcRhsKind;
 
 typedef struct {
@@ -224,6 +240,23 @@ typedef struct {
             TcLogicOp op;
             TcOperand operand;
         } logic_un;              /* TC_RHS_LOGIC_UN */
+        struct {
+            TcBitwiseOp op;
+            TcIntType type;
+            TcOperand lhs;
+            TcOperand rhs;
+        } bitwise_bin;           /* TC_RHS_BITWISE_BIN */
+        struct {
+            TcIntType type;
+            TcOperand operand;
+        } bitwise_un;              /* TC_RHS_BITWISE_UN（恒为 not） */
+        struct {
+            TcShiftOp op;
+            TcIntType type;
+            TcWrapMode mode;     /* 仅 shl 使用；shr 恒为 TC_ARITH_STRICT */
+            TcOperand value;
+            TcOperand count;
+        } shift;                 /* TC_RHS_SHIFT */
         struct {
             TcIntType target;
             TcTruncateMode mode;
@@ -388,7 +421,11 @@ int tc_arith_op_parse(const char *text, TcArithOp *out);
 int tc_unary_op_parse(const char *text, TcUnaryOp *out);
 int tc_compare_op_parse(const char *text, TcCompareOp *out);
 int tc_logic_op_parse(const char *text, TcLogicOp *out);
+int tc_bitwise_op_parse(const char *text, TcBitwiseOp *out);
+int tc_shift_op_parse(const char *text, TcShiftOp *out);
 int tc_format_spec_parse(const char *text, TcFormatSpec *out);
+const char *tc_bitwise_op_name(TcBitwiseOp op);
+const char *tc_shift_op_name(TcShiftOp op);
 const char *tc_format_spec_name(TcFormatSpec fmt);
 const char *tc_error_kind_name(TcErrorKind kind);
 const char *tc_warning_kind_name(TcWarningKind kind);

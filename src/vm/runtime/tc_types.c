@@ -14,6 +14,11 @@
 
 #include <string.h>
 
+/*
+ * 返回 TC 整数类型的位宽。
+ * TC_BOOL 在 TC 语言中的存储宽度定义为 8 位（与 uint8 对齐），
+ * 但其语义值仅使用最低位 0/1。
+ */
 int tc_type_bit_width(TcIntType type) {
     switch (type) {
     case TC_INT8:
@@ -42,6 +47,11 @@ int tc_type_is_integer(TcIntType type) {
     return !tc_type_is_bool(type);
 }
 
+/*
+ * 有符号性判定。
+ * TC_BOOL 被视为无符号（逻辑上等价于 unsigned 1-bit），
+ * 参与运算时按 uint8 位宽截断，但 I/O 以 "true"/"false" 输出。
+ */
 int tc_type_is_signed(TcIntType type) {
     if (tc_type_is_bool(type)) {
         return 0;
@@ -140,6 +150,52 @@ int tc_logic_op_parse(const char *text, TcLogicOp *out) {
         return 0;
     }
     return 1;
+}
+
+int tc_bitwise_op_parse(const char *text, TcBitwiseOp *out) {
+    if (strcmp(text, "and") == 0) {
+        *out = TC_BIT_AND;
+    } else if (strcmp(text, "or") == 0) {
+        *out = TC_BIT_OR;
+    } else if (strcmp(text, "xor") == 0) {
+        *out = TC_BIT_XOR;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
+int tc_shift_op_parse(const char *text, TcShiftOp *out) {
+    if (strcmp(text, "shl") == 0) {
+        *out = TC_SHIFT_SHL;
+    } else if (strcmp(text, "shr") == 0) {
+        *out = TC_SHIFT_SHR;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
+const char *tc_bitwise_op_name(TcBitwiseOp op) {
+    switch (op) {
+    case TC_BIT_AND:
+        return "and";
+    case TC_BIT_OR:
+        return "or";
+    case TC_BIT_XOR:
+        return "xor";
+    }
+    return "unknown";
+}
+
+const char *tc_shift_op_name(TcShiftOp op) {
+    switch (op) {
+    case TC_SHIFT_SHL:
+        return "shl";
+    case TC_SHIFT_SHR:
+        return "shr";
+    }
+    return "unknown";
 }
 
 int tc_format_spec_parse(const char *text, TcFormatSpec *out) {

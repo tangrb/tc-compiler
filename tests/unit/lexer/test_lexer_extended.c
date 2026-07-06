@@ -299,6 +299,55 @@ static void test_whitespace_and_comments(void) {
     tc_diagnostic_clear(&diag);
 }
 
+/* 测试位运算与移位关键字 token */
+static void test_bitwise_shift_tokens(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+
+    check(tokenize_line_ok("xor(int8, a, b)", &tokens, &diag), "tokenize xor(int8, a, b)");
+    tok = find_token(&tokens, TC_TOK_BITWISE_OP, &idx);
+    check(tok != NULL && tok->u.bitwise_op == TC_BIT_XOR, "xor → TC_TOK_BITWISE_OP with TC_BIT_XOR");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("shl(int32, a, 2)", &tokens, &diag), "tokenize shl(int32, a, 2)");
+    tok = find_token(&tokens, TC_TOK_SHIFT_OP, &idx);
+    check(tok != NULL && tok->u.shift_op == TC_SHIFT_SHL, "shl → TC_TOK_SHIFT_OP with TC_SHIFT_SHL");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("shr(uint8, a, 1)", &tokens, &diag), "tokenize shr(uint8, a, 1)");
+    tok = find_token(&tokens, TC_TOK_SHIFT_OP, &idx);
+    check(tok != NULL && tok->u.shift_op == TC_SHIFT_SHR, "shr → TC_TOK_SHIFT_OP with TC_SHIFT_SHR");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("and(bool, x, y)", &tokens, &diag), "tokenize and(bool, x, y)");
+    tok = find_token(&tokens, TC_TOK_LOGIC_OP, &idx);
+    check(tok != NULL && tok->u.logic_op == TC_LOGIC_AND,
+          "and(bool, ...) → TC_TOK_LOGIC_OP (parser 按类型分派位运算)");
+    tc_token_list_free(&tokens);
+
+    idx = 0;
+    check(tokenize_line_ok("var a: uint8 = 0b1010_1010u", &tokens, &diag),
+          "tokenize 0b1010_1010u binary literal with suffix");
+    tok = find_token(&tokens, TC_TOK_INTEGER, &idx);
+    check(tok != NULL && tok->u.literal.magnitude == 0xAA && tok->u.literal.unsigned_suffix == 1,
+          "0b1010_1010u → magnitude 0xAA with unsigned suffix");
+    tc_token_list_free(&tokens);
+
+    check(strcmp(tc_token_kind_name(TC_TOK_BITWISE_OP), "BITWISE_OP") == 0,
+          "tc_token_kind_name(TC_TOK_BITWISE_OP) → BITWISE_OP");
+    check(strcmp(tc_token_kind_name(TC_TOK_SHIFT_OP), "SHIFT_OP") == 0,
+          "tc_token_kind_name(TC_TOK_SHIFT_OP) → SHIFT_OP");
+
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_all_unary_ops();
     test_cast_keyword();
@@ -311,6 +360,7 @@ int main(void) {
     test_let_keyword();
     test_underscore_literals();
     test_wrap_truncate_keywords();
+    test_bitwise_shift_tokens();
     test_whitespace_and_comments();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);

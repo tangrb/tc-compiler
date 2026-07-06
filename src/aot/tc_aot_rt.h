@@ -1,8 +1,12 @@
 /*
  * tc_aot_rt.h — AOT 生成 C 代码的运行时辅助接口
  *
- * 提供 tc_aot_arith / tc_aot_cast / tc_aot_write / tc_aot_read 等函数，
- * 内部委托 tc_semantics.c 完成语义运算，保证 AOT 生成代码与 TC-VM 行为一致。
+ * 提供全部 tc_aot_* shim 函数，覆盖：字面量构造、算术、单目、比较、
+ * 逻辑（含短路）、按位运算、移位、类型转换、I/O（write/read）、
+ * 诊断初始化和错误中止。
+ *
+ * 所有 shim 函数内部委托 tc_semantics.c / tc_io.c 完成实际语义运算，
+ * 保证 AOT 生成代码与 TC-VM 行为完全一致。
  * 这些函数被 tc-aot 生成的 main.c 调用。
  */
 #ifndef TC_AOT_RT_H
@@ -26,6 +30,12 @@ int tc_aot_logic(TcLogicOp op, uint64_t *out, uint64_t lhs, uint64_t rhs, TcDiag
                  int line);
 int tc_aot_logic_unary(TcLogicOp op, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
                        int line);
+int tc_aot_bitwise_binary(TcBitwiseOp op, TcIntType type, uint64_t *out, uint64_t lhs,
+                          uint64_t rhs, TcDiagnostic *diag, int line);
+int tc_aot_bitwise_unary(TcIntType type, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
+                         int line);
+int tc_aot_shift(TcShiftOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t value,
+                 uint64_t count, TcDiagnostic *diag, int line);
 int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntType src_type,
                 uint64_t *out, TcDiagnostic *diag, int line);
 void tc_aot_write(TcIntType type, TcFormatSpec fmt, uint64_t bits, int newline);

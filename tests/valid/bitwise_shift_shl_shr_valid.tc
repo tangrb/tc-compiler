@@ -1,0 +1,12 @@
+; 严格 shl、算术 shr、逻辑 shr
+var val: int8 = 16
+var shl_res: int8 = shl(int8, val, 2)
+writeln(int8, shl_res)
+
+var val_neg: int8 = -128
+var shr_arith: int8 = shr(int8, val_neg, 1)
+writeln(int8, shr_arith)
+
+var uval: uint8 = 0b1000_0000u
+var shr_logic: uint8 = shr(uint8, uval, 1)
+writeln(uint8, shr_logic)

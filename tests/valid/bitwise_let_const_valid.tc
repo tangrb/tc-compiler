@@ -1,0 +1,12 @@
+; let 编译期位运算
+let HIGH_BITS: uint8 = 0b1111_0000u
+let LOW_BITS: uint8 = 0b0000_1111u
+let COMBINED: uint8 = or(uint8, HIGH_BITS, LOW_BITS)
+let FLIPPED: uint8 = not(uint8, HIGH_BITS)
+let SHIFTED: uint8 = shr(uint8, HIGH_BITS, 4)
+let CHAIN: uint8 = xor(uint8, COMBINED, FLIPPED)
+
+writeln(uint8, COMBINED)
+writeln(uint8, FLIPPED)
+writeln(uint8, SHIFTED)
+writeln(uint8, CHAIN)

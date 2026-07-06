@@ -1,7 +1,7 @@
 BUILD_DIR := build
 CMAKE := cmake
 
-.PHONY: all vm aot test test-vm test-unit test-aot bench clean configure
+.PHONY: all vm aot test test-vm test-unit test-aot bench clean configure hooks
 
 all vm: configure
 	$(CMAKE) --build $(BUILD_DIR)
@@ -29,3 +29,6 @@ bench:
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+hooks:
+	bash scripts/install-git-hooks.sh

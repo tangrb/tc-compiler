@@ -19,6 +19,8 @@ typedef enum {
     TC_TOK_UNARY_OP,    /* 单目运算符（abs/neg） */
     TC_TOK_COMPARE_OP,  /* 比较运算符（eq/ne/lt/le/gt/ge） */
     TC_TOK_LOGIC_OP,    /* 逻辑运算符（and/or/not） */
+    TC_TOK_BITWISE_OP,  /* 按位运算符（xor；and/or 由 parser 按类型分派） */
+    TC_TOK_SHIFT_OP,    /* 移位运算符（shl/shr） */
     TC_TOK_FORMAT_SPEC, /* 格式说明符（%d/%u/%x/%X/%o/%b/%t） */
     TC_TOK_CAST,        /* 'cast' 关键字 */
     TC_TOK_WRAP,        /* 'wrap' 关键字 */
@@ -50,6 +52,8 @@ typedef struct {
         TcUnaryOp unary_op;
         TcCompareOp compare_op;
         TcLogicOp logic_op;
+        TcBitwiseOp bitwise_op;
+        TcShiftOp shift_op;
         TcFormatSpec format_spec;
         TcLiteral literal;
     } u;
@@ -75,5 +79,8 @@ void tc_token_list_free(TcTokenList *list);
  */
 int tc_tokenize_line(const char *line, int line_no, TcTokenList *out,
                      TcDiagnostic *diag);
+
+/** Token 种类名称（调试/诊断用） */
+const char *tc_token_kind_name(TcTokenKind kind);
 
 #endif

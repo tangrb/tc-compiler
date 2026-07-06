@@ -2,7 +2,7 @@
 
 The implementation project of the **TC** language (C99). Includes **libtc** (shared static library for compilation/execution), **TC-VM** (a direct execution engine), and **TC-AOT** (ahead-of-time compilation from `.tc` to C99 source code).
 
-Version: **v0.0.21** (`src/vm/driver/tc_version.h`)
+Version: **v0.0.23** (`src/vm/driver/tc_version.h`)
 
 ## Directory Structure
 

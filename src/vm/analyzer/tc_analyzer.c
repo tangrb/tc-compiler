@@ -303,6 +303,13 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
                              warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
+        /*
+         * 逻辑短路 Analyzer 行为（与 Executor 的运行时短路对称）：
+         *   lhs 为 false 字面量 → and 短路：不检查 rhs 的未初始化警告
+         *     （将 warnings 指针传 NULL 抑制警告，但保留类型/存在性检查）
+         *   lhs 为 true 字面量  → or  短路：同上
+         * 语言标准 §7.4.4 规定这种静态分析层面的短路抑制。
+         */
         if (rhs->u.logic_bin.op == TC_LOGIC_AND) {
             if (rhs->u.logic_bin.lhs.kind == TC_OPERAND_LIT &&
                 rhs->u.logic_bin.lhs.u.lit.is_bool &&
@@ -352,9 +359,84 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_BITWISE_BIN) {
+        if (tc_type_is_bool(rhs->u.bitwise_bin.type)) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "bitwise operation requires integer type");
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, symbols, hist,
+                             stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, symbols, hist,
+                             stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (rhs->u.bitwise_bin.type != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_BITWISE_UN) {
+        if (tc_type_is_bool(rhs->u.bitwise_un.type)) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "bitwise operation requires integer type");
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, symbols, hist,
+                             stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (rhs->u.bitwise_un.type != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_SHIFT) {
+        if (tc_type_is_bool(rhs->u.shift.type)) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "shift operation requires integer type");
+            return -1;
+        }
+        if (rhs->u.shift.op == TC_SHIFT_SHR && rhs->u.shift.mode == TC_ARITH_WRAP) {
+            tc_diagnostic_set(diag, TC_ERR_OVERFLOW_MODE, line, TC_COLUMN_UNKNOWN,
+                              "shift right does not support wrap mode");
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.shift.value, rhs->u.shift.type, symbols, hist, stmt_index,
+                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.shift.count, rhs->u.shift.type, symbols, hist, stmt_index,
+                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (rhs->u.shift.type != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
     if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
         tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "constant reference is only allowed in let initializer");
+        return -1;
+    }
+
+    if (rhs->kind != TC_RHS_CAST) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, "unsupported rhs kind");
         return -1;
     }
 
@@ -374,6 +456,12 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
             return -1;
         }
         tc_maybe_warn_uninitialized(hist, source, stmt_index, line, warnings);
+        if (rhs->u.cast.mode == TC_TRUNC_TRUNCATE &&
+            (tc_type_is_bool(rhs->u.cast.target) || tc_type_is_bool(source->type))) {
+            tc_diagnostic_set(diag, TC_ERR_KEYWORD, line, TC_COLUMN_UNKNOWN,
+                              "truncate is only allowed for integer to integer conversion");
+            return -1;
+        }
         if (rhs->u.cast.target != lhs_type) {
             tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "cast target type does not match variable type");
@@ -573,7 +661,11 @@ cleanup:
 
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {
     tc_typed_program_init(out);
-    /* 通过 struct 浅拷贝转移 program->items 所有权 */
+    /*
+     * 通过 struct 浅拷贝转移 program 的 items 所有权给 out->program。
+     * 然后将 program 清零，避免调用方二次 free（所有权转移模式）。
+     * 后续 Pass1/Pass2 失败时 tc_typed_program_free 统一回收所有资源。
+     */
     out->program = *program;
     program->items = NULL;
     program->count = 0;
