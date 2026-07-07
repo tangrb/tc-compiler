@@ -1,0 +1,6 @@
+; 期望：else 缩进与 if 不一致
+    if true then
+        writeln(int32, %d, 1)
+   else
+        writeln(int32, %d, 2)
+    end

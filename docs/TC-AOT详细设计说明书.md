@@ -1,7 +1,8 @@
 # TC-AOT 详细设计说明书
 
-> **版本**：0.0.23（草案）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.23  
+> **版本**：0.0.24（草案）  
+> **实现状态**：**规范与代码 v0.0.24**（`TC_AOT_VERSION` in `main.c`；if codegen 见 §4.6）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.24  
 > **工程**：[TC-Compiler](../README.md) 之 `src/aot/` 组件  
 > **定位**：将 TC 源文件提前编译（Ahead-of-Time）为 C99 源码，经系统编译器生成原生可执行文件
 
@@ -45,7 +46,9 @@ TC-AOT 将 `.tc` 源文件编译为 C99 源码，再调用系统 C 编译器（g
 
 ### 1.3 实现版本
 
-可执行文件 `tc-aot` 版本为 **v0.0.23**（`main.c` 中 `TC_AOT_VERSION`）；与 VM 共享 `tc_types.h` 中的类型定义。
+- **语言与本文档**：v0.0.24（草案）
+- **当前可执行文件**：v0.0.24（`TC_AOT_VERSION` in `main.c`）；与 VM 共享 `tc_types.h`
+- **v0.0.24 交付后**：AOT if codegen 与 VM 同步上线，差分测试扩展至 `tests/valid/if_*.tc`
 
 ---
 
@@ -181,6 +184,7 @@ int main(void) {
 | `Assign` | 调用 `tc_aot_emit_rhs()`，结果写入目标槽位 |
 | `Write` / `Writeln` | 调用 `tc_aot_write()` |
 | `Read` | 调用 `tc_aot_read()`，失败时 `tc_aot_abort()` |
+| **`IfStmt`** (v0.0.24) | **直接生成原生 C `if-else`**（见 §4.6） |
 
 ### 4.4 RHS 发射
 
@@ -214,6 +218,117 @@ tc_aot_lit(TC_BOOL, 1ULL, 0, 0)
 tc_aot_lit(TC_INT32, 42ULL, 0, 0)
 tc_aot_lit(TC_INT32, 10ULL, 1, 0)  /* 负数：magnitude=10, negative=1 */
 ```
+
+### 4.6 If-else 代码生成（v0.0.24 新增）
+
+AOT 对 `if` 语句直接生成原生 C `if-else`，**不新增** shim 函数。条件 RHS 复用 `tc_aot_emit_rhs()`，分支内的语句递归调用 `tc_aot_emit_statement()`。
+
+#### 4.6.1 生成策略
+
+```
+tc_aot_emit_statement(out, stmt, symbols):
+    if stmt.kind == TC_STMT_IF:
+        if_stmt ← &stmt->u.if_stmt
+        
+        // 1. 声明临时变量存储条件结果
+        fprintf(out, "    {\n")
+        fprintf(out, "        TcValue _cond;\\n")
+        
+        // 2. 生成条件 RHS 求值代码
+        //    该 RHS 结果类型必须为 TC_BOOL
+        fprintf(out, "        TcDiagnostic _diag;\n")
+        fprintf(out, "        tc_diagnostic_init(&_diag);\n")
+        tc_aot_emit_rhs(out, &if_stmt->condition, "_cond", symbols)
+        fprintf(out, "        if (_cond.bits != 0) {\n")
+        
+        // 3. 生成 then_body
+        for i in 0..if_stmt.then_count:
+            tc_aot_emit_statement(out, &if_stmt.then_body[i], symbols)
+        
+        // 4. 生成 else 分支（如果有）
+        if if_stmt.else_count > 0:
+            fprintf(out, "        } else {\n")
+            for i in 0..if_stmt.else_count:
+                tc_aot_emit_statement(out, &if_stmt.else_body[i], symbols)
+        
+        fprintf(out, "        }\n")
+        fprintf(out, "    }\n")
+```
+
+#### 4.6.2 生成的 C 代码示例
+
+输入 TC：
+```tc
+var a: int32 = 10
+var b: int32 = 20
+var max: int32
+if gt(int32, a, b) then
+    max = a
+else
+    max = b
+end
+writeln(int32, %d, max)
+```
+
+输出 C：
+```c
+static uint64_t slots[4];
+
+int main(void) {
+    TcDiagnostic diag;
+    tc_aot_diag_init(&diag);
+    tc_aot_init_slots(slots, 4);
+
+    slots[0] = tc_aot_lit(TC_INT32, 10ULL, 0, 0);       /* var a = 10 */
+    slots[1] = tc_aot_lit(TC_INT32, 20ULL, 0, 0);       /* var b = 20 */
+    /* var max: int32 — 无 RHS，跳过（槽位保持未初始化） */
+
+    /* if gt(int32, a, b) then */
+    {
+        TcValue _cond;
+        tc_diagnostic_init(&_diag);
+        if (tc_aot_compare(TC_CMP_GT, TC_INT32, &_cond,
+                           slots[0], slots[1], &_diag, 4) != 0)
+            tc_aot_abort(&_diag, 4);
+        if (_cond.bits != 0) {
+            slots[2] = slots[0];                          /* max = a */
+        } else {
+            slots[2] = slots[1];                          /* max = b */
+        }
+    }
+
+    tc_aot_write(TC_INT32, TC_FMT_D, slots[2], 1);       /* writeln */
+    tc_diagnostic_free(&diag);
+    return 0;
+}
+```
+
+#### 4.6.3 设计决策
+
+| 维度 | 决策 | 原因 |
+|------|------|------|
+| 条件求值 | 复用 `tc_aot_emit_rhs` | 条件 RHS 复用完整的 RHS 发射逻辑，**无需新 RHS kind** |
+| 分支生成 | 递归 `tc_aot_emit_statement` | 分支内语句与主程序语句同构，复用全部转发逻辑 |
+| 本地变量 | 用 `{}` 包裹，内部声明临时变量 | 避免 `_cond` 等临时变量与其他 slot 冲突 |
+| 错误处理 | 嵌套 `if (…) … tc_aot_abort()` | 与现有 RHS 错误处理模式一致 |
+| 新 shim | **无需**新增 shim | 条件 RHS 复用已有 shim（`tc_aot_compare`/`tc_aot_logic` 等），分支内语句复用已有 dispatch |
+| 无 else | 仅生成 `if { … }` | 自然对应 TC 语义 |
+
+#### 4.6.4 与 Analyzer / 槽位的一致性
+
+| 维度 | 约定 |
+|------|------|
+| 编译前端 | 与 VM 相同 `tc_compile_file()` → `TcTypedProgram`（含递归 Pass1/Pass2，见 VM 详设 §7） |
+| 槽位数量 | `static uint64_t slots[N]` 的 `N = symbols.count`，**含** then/else 块内局部（互斥路径仍各占 slot） |
+| 嵌套 if | `tc_aot_emit_statement` 递归；生成 C 嵌套 `if/else` 与 `{}` 块 |
+| 块内局部 | 不生成额外 C 局部变量表；仍用 `slots[slot]`，与 VM 统一 slot 池一致 |
+| REPL | 不支持（Analyzer 在 REPL 路径拒绝 `TC_STMT_IF`） |
+| 新 shim | **不需要**；条件 RHS 与分支语句均复用现有 `tc_aot_*` |
+
+#### 4.6.5 实现注意
+
+- 条件求值块用 `{ … }` 包裹临时 `TcValue _cond` 与 `TcDiagnostic`，避免与外层 `diag` 变量冲突（见 §4.6.1 伪代码）
+- 勿使用不存在的 `tc_aot_eval_rhs`；条件与赋值 RHS 均走 `tc_aot_emit_rhs`
 
 ---
 
@@ -318,7 +433,7 @@ tc-aot [options] <file.tc>
   -c, --check         仅静态分析，不生成 C
   -r, --run           编译并运行生成的 C（依赖 host C 编译器）
   -h, --help          显示帮助
-  -V, --version       显示版本号（v0.0.23）
+  -V, --version       显示版本号（v0.0.24）
 
 退出码: 0 成功，1 失败
 ```
@@ -389,9 +504,11 @@ AOT 测试采用**差分比较**策略，确保 AOT 生成的二进制输出与 
 
 新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
 
-### 9.6 当前覆盖（~22 条）
+### 9.6 当前覆盖（~32 条）
 
-AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释等——与 VM valid 正例共用测试文件。
+AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**等——与 VM valid 正例共用测试文件。
+
+v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.tc`、`if_nested.tc`、`if_chain.tc` 等）注册方式与普通 valid 用例相同。运行时错误场景不在 AOT 差分测试中注册。
 
 ---
 
@@ -415,6 +532,7 @@ AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常
 |------|------|
 | 新 `TcRhsKind` | 在 `tc_aot_emit_rhs()` 新增 case + `tc_aot_rt.c` 新增 shim |
 | 新语句类型 | 在 `tc_aot_emit_statement()` 新增 case |
+| **控制流 `if-else`** | **v0.0.24 已实现**：`TC_STMT_IF` + 原生 C `if-else`（§4.6） |
 | 位运算/移位 | `tc_aot_bitwise_*` / `tc_aot_shift` shim → `tc_exec_bitwise_*` / `tc_exec_shift` |
 | 运行时错误恢复 | 当前 `tc_aot_abort()` 策略（exit），未来可改为返回值传播 |
 
@@ -473,3 +591,6 @@ int main(void) {
 |------|------|------|
 | 0.0.21 | 2026-07-06 | 首版：从 TC-VM 详细设计说明书独立——提取 §14.6 AOT 差分测试、§12.1 工程布局、§14.7 层间调用关系相关内容；新增架构、codegen、shim 层、一致性保障等章节 |
 | 0.0.23 | 2026-07-06 | 位运算/移位：`tc_aot_bitwise_binary/unary`、`tc_aot_shift` shim；`tc_aot_emit_rhs` 新增 BITWISE/SHIFT case；差分测试增至 26（含 `bitwise_*`） |
+| **0.0.24** | **2026-07-07** | **控制流 if-else（规范）**：§4.6 原生 C `if-else`；§4.6.4 与 Analyzer 槽位一致性；实现状态标注 |
+| **0.0.24-rev1** | **2026-07-07** | 合规审查修订：then/else 双作用域对齐 VM；移除「已实现」误导；补充递归 codegen 与 REPL 限制 |
+| **0.0.24-impl** | **2026-07-07** | **代码交付**：`TC_AOT_VERSION` 0.0.24；`tc_aot_emit_statement` if-else codegen；差分测试 33（含 `if_*`） |

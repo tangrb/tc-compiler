@@ -1,0 +1,28 @@
+; 控制流 else：then/else 互斥路径
+var a: int32 = 5
+var b: int32 = 5
+if gt(int32, a, b) then
+    writeln(int32, %d, 1)
+else
+    writeln(int32, %d, 2)
+end
+if lt(int32, a, b) then
+    writeln(int32, %d, 3)
+else
+    writeln(int32, %d, 4)
+end
+if eq(int32, a, b) then
+    writeln(int32, %d, 5)
+else
+    writeln(int32, %d, 6)
+end
+if true then
+    writeln(int32, %d, 7)
+else
+    writeln(int32, %d, 8)
+end
+if false then
+    writeln(int32, %d, 9)
+else
+    writeln(int32, %d, 10)
+end

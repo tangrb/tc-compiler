@@ -1,0 +1,20 @@
+; 控制流基本：true/false、比较条件、无 else 跳过
+if true then
+    writeln(int32, %d, 1)
+end
+if false then
+    writeln(int32, %d, 99)
+end
+var a: int32 = 10
+var b: int32 = 20
+if gt(int32, a, b) then
+    writeln(int32, a)
+end
+if lt(int32, a, b) then
+    writeln(int32, a)
+end
+if eq(int32, a, b) then
+    writeln(int32, a)
+else
+    writeln(int32, b)
+end

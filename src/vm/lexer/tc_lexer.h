@@ -28,6 +28,10 @@ typedef enum {
     TC_TOK_WRITE,       /* 'write' 关键字 */
     TC_TOK_WRITELN,     /* 'writeln' 关键字 */
     TC_TOK_READ,        /* 'read' 关键字 */
+    TC_TOK_IF,          /* 'if' 关键字 */
+    TC_TOK_THEN,        /* 'then' 关键字 */
+    TC_TOK_ELSE,        /* 'else' 关键字 */
+    TC_TOK_END,         /* 'end' 关键字 */
     TC_TOK_IDENTIFIER,  /* 用户定义标识符（变量名） */
     TC_TOK_INTEGER,     /* 整数字面量 */
     TC_TOK_BOOL_LIT,    /* 布尔字面量 true/false */

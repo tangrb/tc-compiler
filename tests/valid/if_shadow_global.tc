@@ -1,0 +1,7 @@
+; 块内 var 屏蔽外层同名，end 后恢复外层绑定
+var x: int32 = 100
+if true then
+    var x: int32 = 1
+    writeln(int32, %d, x)
+end
+writeln(int32, %d, x)

@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TC_AOT_VERSION "0.0.23"
+#define TC_AOT_VERSION "0.0.24"
 
 static void tc_aot_print_usage(const char *program) {
     fprintf(stderr,

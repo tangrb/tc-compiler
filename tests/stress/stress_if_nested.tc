@@ -1,0 +1,24 @@
+; 压力：深度嵌套 if（10 层）
+var n: int32 = 0
+if true then
+    if true then
+        if true then
+            if true then
+                if true then
+                    if true then
+                        if true then
+                            if true then
+                                if true then
+                                    if true then
+                                        n = 10
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+writeln(int32, %d, n)

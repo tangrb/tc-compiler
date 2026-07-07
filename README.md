@@ -2,7 +2,7 @@
 
 TC 语言编译器（C99）。当前包含 **libtc**（编译/执行静态库）、**TC-VM**（直接执行引擎）、**TC-AOT**（ahead-of-time 编译，将 `.tc` 转译为 C99 源码）。
 
-版本：**v0.0.23**（`src/vm/driver/tc_version.h`）
+版本：**v0.0.24**（`src/vm/driver/tc_version.h`）
 
 ## 目录结构
 
@@ -115,10 +115,10 @@ REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置�
 
 | 文档 | 说明 |
 |------|------|
-| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 语言语法与语义权威定义（v0.0.23） |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v0.0.23） |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v0.0.23） |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | AOT 代码生成与 shim 层（v0.0.23） |
+| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 语言语法与语义权威定义（v0.0.24） |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v0.0.24） |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v0.0.24） |
+| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | AOT 代码生成与 shim 层（v0.0.24） |
 | [libtc 嵌入 API](docs/libtc-api.md) | libtc 静态库的嵌入编程接口 |
 
 实现行为以语言标准为准；VM / AOT 详细设计文档规定各后端的实现架构，不重复定义语言语义。
@@ -182,7 +182,7 @@ GitHub Actions 工作流位于 `.github/workflows/ci.yml`，在 push / PR 时自
 
 - **双平台**：Ubuntu + macOS
 - **测试阶段**：VM conformance → RHS 覆盖检查 → AOT 差分 → Codecov
-- 每次 CI 运行约 **719** 检测点（VM 231 + unit 462 + AOT 26）
+- 每次 CI 运行约 **832** 检测点（VM 277 + unit 522 + AOT 33）
 
 ### Git hooks（可选）
 

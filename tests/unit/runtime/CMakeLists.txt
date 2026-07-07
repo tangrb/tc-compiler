@@ -114,3 +114,24 @@ add_custom_target(check-shift
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running Shift unit tests"
 )
+
+# ------------------------------------------------------------------ #
+#  test-symbol — 符号表与块级作用域单元测试                             #
+# ------------------------------------------------------------------ #
+
+add_executable(test-symbol
+    test_symbol.c
+    ${TC_VM_DIR}/runtime/tc_symbol.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+
+target_include_directories(test-symbol PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-symbol PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-symbol
+    COMMAND test-symbol
+    DEPENDS test-symbol
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Symbol table unit tests"
+)

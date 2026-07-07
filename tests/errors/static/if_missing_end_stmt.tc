@@ -1,0 +1,4 @@
+; 期望：缺少 end（后续顶层语句）
+if true then
+    writeln(int32, %d, 1)
+var x: int32 = 1

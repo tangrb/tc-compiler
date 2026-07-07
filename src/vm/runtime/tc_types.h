@@ -23,7 +23,13 @@
 /*  整数类型 & 运算符枚举                                               */
 /* ------------------------------------------------------------------ */
 
-/** TC 语言支持的定宽整数类型与 bool */
+/**
+ * TC 语言支持的定宽整数类型与 bool。
+ *
+ * TC_BOOL 与 int8～uint64 共用本枚举以便统一位宽查询与 I/O 处理，
+ * 但概念上 bool 属于独立类型类别（见语言标准 §3.1）。
+ * tc_type_is_integer() 仅对 TC_INT8～TC_UINT64 返回真，不含 TC_BOOL。
+ */
 typedef enum {
     TC_INT8,
     TC_UINT8,
@@ -150,7 +156,14 @@ typedef enum {
     TC_ERR_DIVISION_BY_ZERO,
     TC_ERR_INTEGER_OVERFLOW,
     TC_ERR_CAST_OVERFLOW,
-    TC_ERR_IO
+    TC_ERR_IO,
+    TC_ERR_INDENT_MIXED,          /* 混用空格与制表符 */
+    TC_ERR_INDENT_INSUFFICIENT,   /* 块内缩进不足 */
+    TC_ERR_INDENT_ELSE_END,       /* else/end 缩进与 if 不一致 */
+    TC_ERR_MISSING_END,           /* if 语句缺少 end */
+    TC_ERR_ELSE_POSITION,         /* else 位置错误 */
+    TC_ERR_CONDITION_TYPE,        /* if 条件结果不是 bool */
+    TC_ERR_CROSS_BLOCK_REFERENCE  /* 跨块引用局部变量 */
 } TcErrorKind;
 
 /** 编译警告种类（不阻止执行，仅输出 warning 信息） */
@@ -279,7 +292,8 @@ typedef enum {
     TC_STMT_ASSIGN,      /* 赋值 */
     TC_STMT_WRITE,       /* write 输出 */
     TC_STMT_WRITELN,     /* writeln 输出 */
-    TC_STMT_READ         /* read 输入 */
+    TC_STMT_READ,        /* read 输入 */
+    TC_STMT_IF           /* if-then-else 控制流 */
 } TcStmtKind;
 
 typedef struct {
@@ -316,8 +330,19 @@ typedef struct {
     char *name;      /* 读取目标变量名，堆分配 */
 } TcRead;
 
-/** 统一语句表示，kind 决定活跃的 u 成员 */
+typedef struct TcStatement TcStatement;
+
 typedef struct {
+    int line;
+    TcRhs condition;           /* bool 类型条件表达式 */
+    TcStatement *then_body;    /* then 块语句数组，堆分配 */
+    size_t then_count;
+    TcStatement *else_body;    /* else 块语句数组（可为空），堆分配 */
+    size_t else_count;
+} TcIfStmt;
+
+/** 统一语句表示，kind 决定活跃的 u 成员 */
+struct TcStatement {
     TcStmtKind kind;
     union {
         TcVarDef var_def;
@@ -325,8 +350,9 @@ typedef struct {
         TcAssign assign;
         TcIoWrite io_write;
         TcRead io_read;
+        TcIfStmt if_stmt;
     } u;
-} TcStatement;
+};
 
 /* ------------------------------------------------------------------ */
 /*  程序 & 符号表 & 运行时值                                            */
@@ -356,12 +382,27 @@ typedef struct {
     int initialized;     /* 定义时是否有初始化值 */
     int has_const_value; /* let 常量编译期求值的结果是否有效 */
     TcValue const_value; /* let 常量编译期求值结果 */
+    int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
+    int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
 } TcSymbol;
+
+/** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */
+typedef struct {
+    size_t start_index;  /* 当前作用域在 symbols[] 中的起始索引 */
+    size_t end_index;    /* 结束索引（开区间）；TC_SCOPE_END_OPEN 表示仍活跃 */
+    int level;
+} TcScope;
+
+#define TC_SCOPE_END_OPEN ((size_t)-1)
 
 typedef struct {
     TcSymbol *symbols;
     size_t count;
     size_t capacity;
+
+    TcScope *scopes;          /* 作用域栈 */
+    size_t scope_count;
+    size_t scope_capacity;
 } TcSymbolTable;
 
 /* ------------------------------------------------------------------ */

@@ -1,0 +1,4 @@
+; 期望：同一文件混用空格与制表符缩进
+	if true then
+    writeln(int32, %d, 1)
+end

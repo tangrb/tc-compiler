@@ -1,0 +1,17 @@
+; 条件 bool 字面量与逻辑运算
+if true then
+    writeln(int32, %d, 1)
+end
+if false then
+    writeln(int32, %d, 2)
+else
+    writeln(int32, %d, 3)
+end
+if not(bool, false) then
+    writeln(int32, %d, 4)
+end
+if and(bool, true, true) then
+    writeln(int32, %d, 5)
+else
+    writeln(int32, %d, 6)
+end

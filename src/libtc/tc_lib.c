@@ -11,7 +11,6 @@
 #include "tc_parser.h"
 #include "tc_warning.h"
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,120 +35,15 @@ static void tc_bench_report(const char *phase, double seconds) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  行类型判断                                                          */
-/* ------------------------------------------------------------------ */
-
-static int tc_is_only_whitespace(const char *line) {
-    while (*line != '\0' && *line != '\r' && *line != '\n') {
-        if (*line != ' ' && *line != '\t') {
-            return 0;
-        }
-        line++;
-    }
-    return 1;
-}
-
-static int tc_is_comment_only_line(const char *line) {
-    while (*line == ' ' || *line == '\t') {
-        line++;
-    }
-    return *line == ';' || *line == '\0' || *line == '\r' || *line == '\n';
-}
-
-static int tc_is_skippable_line(const char *line) {
-    if (line == NULL) {
-        return 1;
-    }
-    if (tc_is_only_whitespace(line)) {
-        return 1;
-    }
-    return tc_is_comment_only_line(line);
-}
-
-/* ------------------------------------------------------------------ */
 /*  逐行解析源文本                                                       */
 /* ------------------------------------------------------------------ */
 
-/*
- * @brief 将完整源文本逐行解析为 TcProgram
- * @param source  源文本（以 '\0' 结尾）
- * @param program 输出：解析后的程序
- * @param diag    诊断对象
- * @return 成功返回 0；首条词法/语法错误立即返回 -1（fail-fast）
- */
 static int tc_parse_source(const char *source, TcProgram *program, TcDiagnostic *diag) {
-    const char *cursor = source;
-    int line_no = 1;
     double t0 = tc_bench_now();
-
-    tc_program_init(program);
-
-    while (*cursor != '\0') {
-        const char *line_start = cursor;
-        const char *line_end = cursor;
-        char *line_copy = NULL;
-        TcTokenList tokens;
-        TcParserCtx parse_ctx;
-
-        parse_ctx.depth = 0;
-
-        /* 定位到行尾 */
-        while (*line_end != '\0' && *line_end != '\n' && *line_end != '\r') {
-            line_end++;
-        }
-
-        line_copy = (char *)malloc((size_t)(line_end - line_start) + 1);
-        if (!line_copy) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
-            tc_program_free(program);
-            return -1;
-        }
-        memcpy(line_copy, line_start, (size_t)(line_end - line_start));
-        line_copy[line_end - line_start] = '\0';
-
-        if (!tc_is_skippable_line(line_copy)) {
-            tc_token_list_init(&tokens);
-            if (tc_tokenize_line(line_copy, line_no, &tokens, diag) != 0) {
-                free(line_copy);
-                tc_token_list_free(&tokens);
-                tc_program_free(program);
-                return -1;
-            }
-            {
-                TcStatement stmt;
-                memset(&stmt, 0, sizeof(stmt));
-                if (tc_parse_statement(&parse_ctx, &tokens, line_no, &stmt, diag) != 0) {
-                    tc_statement_free(&stmt);
-                    free(line_copy);
-                    tc_token_list_free(&tokens);
-                    tc_program_free(program);
-                    return -1;
-                }
-                tc_token_list_free(&tokens);
-                if (tc_program_push(program, &stmt, diag) != 0) {
-                    tc_statement_free(&stmt);
-                    free(line_copy);
-                    tc_program_free(program);
-                    /* tc_program_push 已设置 OOM 诊断 */
-                    return -1;
-                }
-            }
-        }
-
-        free(line_copy);
-
-        if (*line_end == '\r') {
-            line_end++;
-        }
-        if (*line_end == '\n') {
-            line_end++;
-        }
-        cursor = line_end;
-        line_no++;
-    }
+    int rc = tc_parse_source_to_program(source, program, diag);
 
     tc_bench_report("parse", tc_bench_now() - t0);
-    return 0;
+    return rc;
 }
 
 /* ------------------------------------------------------------------ */

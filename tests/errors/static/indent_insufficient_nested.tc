@@ -1,0 +1,6 @@
+; 期望：嵌套 if 块内缩进不足
+if true then
+    if true then
+      writeln(int32, %d, 1)
+    end
+end

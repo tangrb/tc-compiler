@@ -1,0 +1,4 @@
+; 期望：比较操作数类型不匹配
+if eq(int32, true, false) then
+    writeln(int32, %d, 1)
+end

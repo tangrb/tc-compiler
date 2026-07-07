@@ -289,6 +289,13 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
         tc_warning_list_free(&warnings);
         return -1;
     }
+    if (tokens.count > 0 && tokens.items[0].kind == TC_TOK_IF) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, session->line_no, tokens.items[0].column,
+                          "if statements are not supported in REPL mode");
+        tc_token_list_free(&tokens);
+        tc_warning_list_free(&warnings);
+        return -1;
+    }
     parse_ctx.depth = 0;
     if (tc_parse_statement(&parse_ctx, &tokens, session->line_no, &stmt, diag) != 0) {
         tc_statement_free(&stmt);

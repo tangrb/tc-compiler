@@ -526,6 +526,45 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
 
+# --- v0.0.24: if-then-else control flow ---
+
+run_expect_ok "$ROOT/tests/valid/if_basic.tc"
+run_expect_stdout "$ROOT/tests/valid/if_basic.tc" "1
+10
+20
+"
+run_expect_ok "$ROOT/tests/valid/if_else.tc"
+run_expect_stdout "$ROOT/tests/valid/if_else.tc" "2
+4
+5
+7
+10
+"
+run_expect_ok "$ROOT/tests/valid/if_nested.tc"
+run_expect_stdout "$ROOT/tests/valid/if_nested.tc" "5
+1
+42
+"
+run_expect_ok "$ROOT/tests/valid/if_chain.tc"
+run_expect_stdout "$ROOT/tests/valid/if_chain.tc" "2
+"
+run_expect_ok "$ROOT/tests/valid/if_bool_literal.tc"
+run_expect_stdout "$ROOT/tests/valid/if_bool_literal.tc" "1
+3
+4
+5
+"
+run_expect_ok "$ROOT/tests/valid/if_local_same_name.tc"
+run_expect_stdout "$ROOT/tests/valid/if_local_same_name.tc" "1
+4
+"
+run_expect_ok "$ROOT/tests/valid/if_shadow_global.tc"
+run_expect_stdout "$ROOT/tests/valid/if_shadow_global.tc" "1
+100
+"
+run_expect_check_ok "$ROOT/tests/valid/if_basic.tc"
+run_expect_check_ok "$ROOT/tests/valid/if_nested.tc"
+
 # --- stress test ---
 
 run_expect_stdout "$ROOT/tests/stress/massive_vars.tc" "55
@@ -549,6 +588,8 @@ run_expect_stdout "$ROOT/tests/stress/io_stress.tc" "$IO_EXP"
 run_expect_stdout "$ROOT/tests/stress/many_vars_stress.tc" "1275
 12750
 562949953421312
+"
+run_expect_stdout "$ROOT/tests/stress/stress_if_nested.tc" "10
 "
 run_expect_ok "$ROOT/tests/stress/type_combinatorial.tc"
 
@@ -715,6 +756,39 @@ run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_let_wrap_forbidden.tc" "wrap cannot be used in constant expression"
 
+# --- v0.0.24: if / indent static errors ---
+
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "cross-block reference"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "cross-block reference"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then.tc" "cross-block reference"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then.tc" "cross-block reference"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
+run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"
+run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_nested.tc" "insufficient indentation in block"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_insufficient_nested.tc" "insufficient indentation in block"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_block.tc" "insufficient indentation in block"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_insufficient_block.tc" "insufficient indentation in block"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_mixed_tab_body.tc" "mixed spaces and tabs in indentation"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_mixed_tab_body.tc" "mixed spaces and tabs in indentation"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_mixed_space_if.tc" "mixed spaces and tabs in indentation"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_mixed_space_if.tc" "mixed spaces and tabs in indentation"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indentation does not match if"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indentation does not match if"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_else_position.tc" "else must appear at same indentation as if"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_else_position.tc" "else must appear at same indentation as if"
+run_expect_fail_msg "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
+
 # --- REPL ---
 
 run_repl_expect "var a: int32 = 10
@@ -735,6 +809,9 @@ run_repl_expect "var a: int32 = 1
 run_repl_expect "let N: int32 = 99
 writeln(int32, N)
 :quit" "99" "let constant in REPL"
+
+run_repl_expect "if true then
+:quit" "if statements are not supported in REPL mode" "repl if unsupported"
 
 run_repl_expect ":help
 :quit" "Meta commands" "help command"

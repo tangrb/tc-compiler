@@ -281,6 +281,20 @@ static void test_error_kind_name(void) {
           "TC_ERR_CAST_OVERFLOW → CastOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_IO), "IOError") == 0,
           "TC_ERR_IO → IOError");
+    check(strcmp(tc_error_kind_name(TC_ERR_INDENT_MIXED), "IndentMixedError") == 0,
+          "TC_ERR_INDENT_MIXED → IndentMixedError");
+    check(strcmp(tc_error_kind_name(TC_ERR_INDENT_INSUFFICIENT), "IndentInsufficientError") == 0,
+          "TC_ERR_INDENT_INSUFFICIENT → IndentInsufficientError");
+    check(strcmp(tc_error_kind_name(TC_ERR_INDENT_ELSE_END), "IndentElseEndError") == 0,
+          "TC_ERR_INDENT_ELSE_END → IndentElseEndError");
+    check(strcmp(tc_error_kind_name(TC_ERR_MISSING_END), "MissingEndError") == 0,
+          "TC_ERR_MISSING_END → MissingEndError");
+    check(strcmp(tc_error_kind_name(TC_ERR_ELSE_POSITION), "ElsePositionError") == 0,
+          "TC_ERR_ELSE_POSITION → ElsePositionError");
+    check(strcmp(tc_error_kind_name(TC_ERR_CONDITION_TYPE), "ConditionTypeError") == 0,
+          "TC_ERR_CONDITION_TYPE → ConditionTypeError");
+    check(strcmp(tc_error_kind_name(TC_ERR_CROSS_BLOCK_REFERENCE), "CrossBlockReferenceError") == 0,
+          "TC_ERR_CROSS_BLOCK_REFERENCE → CrossBlockReferenceError");
 
     /* 未知错误种类 → UnknownError */
     check(strcmp(tc_error_kind_name((TcErrorKind)999), "UnknownError") == 0,

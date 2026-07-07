@@ -1,0 +1,5 @@
+; 期望：cross-block reference（end 之后块内 var 不可见）
+if true then
+    var inner: int32 = 1
+end
+writeln(int32, inner)

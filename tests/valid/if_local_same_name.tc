@@ -1,0 +1,15 @@
+; then/else 互斥子块允许同名局部变量
+if true then
+    var x: int32 = 1
+    writeln(int32, %d, x)
+else
+    var x: int32 = 2
+    writeln(int32, %d, x)
+end
+if false then
+    var x: int32 = 3
+    writeln(int32, %d, x)
+else
+    var x: int32 = 4
+    writeln(int32, %d, x)
+end

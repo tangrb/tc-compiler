@@ -111,6 +111,13 @@ run_diff_test "$ROOT/tests/valid/bitwise_io_format_valid.tc"
 run_diff_test "$ROOT/tests/valid/read_write.tc" "42
 "
 run_diff_test "$ROOT/tests/valid/uninit_slot_value.tc"
+run_diff_test "$ROOT/tests/valid/if_basic.tc"
+run_diff_test "$ROOT/tests/valid/if_else.tc"
+run_diff_test "$ROOT/tests/valid/if_nested.tc"
+run_diff_test "$ROOT/tests/valid/if_chain.tc"
+run_diff_test "$ROOT/tests/valid/if_bool_literal.tc"
+run_diff_test "$ROOT/tests/valid/if_local_same_name.tc"
+run_diff_test "$ROOT/tests/valid/if_shadow_global.tc"
 
 echo ""
 echo "$PASSED passed, $FAILED failed"

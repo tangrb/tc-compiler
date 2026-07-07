@@ -348,6 +348,40 @@ static void test_bitwise_shift_tokens(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_control_flow_keywords(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_token_list_init(&tokens);
+
+    check(tc_tokenize_line("if x then", 1, &tokens, &diag) == 0, "tokenize if line");
+    check(token_at(&tokens, 0)->kind == TC_TOK_IF, "if → TC_TOK_IF");
+    check(token_at(&tokens, 2)->kind == TC_TOK_THEN, "then → TC_TOK_THEN");
+
+    tc_token_list_free(&tokens);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line("else", 2, &tokens, &diag) == 0, "tokenize else");
+    check(token_at(&tokens, 0)->kind == TC_TOK_ELSE, "else → TC_TOK_ELSE");
+
+    tc_token_list_free(&tokens);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line("end", 3, &tokens, &diag) == 0, "tokenize end");
+    check(token_at(&tokens, 0)->kind == TC_TOK_END, "end → TC_TOK_END");
+
+    check(strcmp(tc_token_kind_name(TC_TOK_IF), "IF") == 0,
+          "tc_token_kind_name(TC_TOK_IF) → IF");
+    check(strcmp(tc_token_kind_name(TC_TOK_THEN), "THEN") == 0,
+          "tc_token_kind_name(TC_TOK_THEN) → THEN");
+    check(strcmp(tc_token_kind_name(TC_TOK_ELSE), "ELSE") == 0,
+          "tc_token_kind_name(TC_TOK_ELSE) → ELSE");
+    check(strcmp(tc_token_kind_name(TC_TOK_END), "END") == 0,
+          "tc_token_kind_name(TC_TOK_END) → END");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_all_unary_ops();
     test_cast_keyword();
@@ -361,6 +395,7 @@ int main(void) {
     test_underscore_literals();
     test_wrap_truncate_keywords();
     test_bitwise_shift_tokens();
+    test_control_flow_keywords();
     test_whitespace_and_comments();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);

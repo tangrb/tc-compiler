@@ -1,0 +1,17 @@
+; 链式 if-else（else 内嵌 if）
+var score: int32 = 85
+var grade: int8
+if ge(int32, score, 90) then
+    grade = 1
+else
+    if ge(int32, score, 80) then
+        grade = 2
+    else
+        if ge(int32, score, 70) then
+            grade = 3
+        else
+            grade = 4
+        end
+    end
+end
+writeln(int8, grade)

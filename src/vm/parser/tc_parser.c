@@ -3,7 +3,7 @@
  *
  * 消费 tc_tokenize_line 产出的 TcTokenList，按 TC 语言语法规则
  * 将单行 Token 流解析为一条 TcStatement（AST 节点）。
- * 支持 6 种语句：var、let、赋值、write、writeln、read。
+ * 支持 6 种语句：var、let、赋值、write、writeln、read；if 由 tc_parse_if_stmt 处理。
  */
 #include "tc_parser.h"
 
@@ -1124,6 +1124,22 @@ void tc_statement_free(TcStatement *stmt) {
     } else if (stmt->kind == TC_STMT_READ) {
         free(stmt->u.io_read.name);
         stmt->u.io_read.name = NULL;
+    } else if (stmt->kind == TC_STMT_IF) {
+        size_t i = 0;
+
+        tc_rhs_free(&stmt->u.if_stmt.condition);
+        for (i = 0; i < stmt->u.if_stmt.then_count; i++) {
+            tc_statement_free(&stmt->u.if_stmt.then_body[i]);
+        }
+        free(stmt->u.if_stmt.then_body);
+        stmt->u.if_stmt.then_body = NULL;
+        stmt->u.if_stmt.then_count = 0;
+        for (i = 0; i < stmt->u.if_stmt.else_count; i++) {
+            tc_statement_free(&stmt->u.if_stmt.else_body[i]);
+        }
+        free(stmt->u.if_stmt.else_body);
+        stmt->u.if_stmt.else_body = NULL;
+        stmt->u.if_stmt.else_count = 0;
     }
 }
 
@@ -1259,4 +1275,503 @@ int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
     }
 
     return tc_syntax_error(diag, line_no, first->column, "expected statement");
+}
+
+/* ------------------------------------------------------------------ */
+/*  缩进引擎与 if 语句（多行 parse）                                      */
+/* ------------------------------------------------------------------ */
+
+static int tc_is_only_whitespace(const char *line) {
+    while (*line != '\0' && *line != '\r' && *line != '\n') {
+        if (*line != ' ' && *line != '\t') {
+            return 0;
+        }
+        line++;
+    }
+    return 1;
+}
+
+static int tc_is_comment_only_line(const char *line) {
+    while (*line == ' ' || *line == '\t') {
+        line++;
+    }
+    return *line == ';' || *line == '\0' || *line == '\r' || *line == '\n';
+}
+
+static int tc_is_skippable_line(const char *line) {
+    if (line == NULL) {
+        return 1;
+    }
+    if (tc_is_only_whitespace(line)) {
+        return 1;
+    }
+    return tc_is_comment_only_line(line);
+}
+
+static int tc_indent_diag(TcDiagnostic *diag, TcErrorKind kind, int line_no, const char *message) {
+    tc_diagnostic_set(diag, kind, line_no, TC_COLUMN_UNKNOWN, message);
+    return -1;
+}
+
+static int tc_measure_line_indent(const char *line, TcFileIndent *file_indent, int line_no,
+                                  TcDiagnostic *diag, int *out_indent) {
+    int spaces = 0;
+    int tabs = 0;
+    const char *cursor = line;
+
+    while (*cursor == ' ' || *cursor == '\t') {
+        if (*cursor == ' ') {
+            spaces++;
+        } else {
+            tabs++;
+        }
+        cursor++;
+    }
+
+    if (spaces > 0 && tabs > 0) {
+        return tc_indent_diag(diag, TC_ERR_INDENT_MIXED, line_no,
+                              "mixed spaces and tabs in indentation");
+    }
+
+    if (spaces > 0) {
+        if (file_indent->indent_char == '\0') {
+            file_indent->indent_char = ' ';
+        } else if (file_indent->indent_char != ' ') {
+            return tc_indent_diag(diag, TC_ERR_INDENT_MIXED, line_no,
+                                  "mixed spaces and tabs in indentation");
+        }
+        *out_indent = spaces;
+        return 0;
+    }
+
+    if (tabs > 0) {
+        if (file_indent->indent_char == '\0') {
+            file_indent->indent_char = '\t';
+            file_indent->indent_width = 1;
+        } else if (file_indent->indent_char != '\t') {
+            return tc_indent_diag(diag, TC_ERR_INDENT_MIXED, line_no,
+                                  "mixed spaces and tabs in indentation");
+        }
+        *out_indent = tabs;
+        return 0;
+    }
+
+    *out_indent = 0;
+    return 0;
+}
+
+static void tc_source_lines_free(TcSourceLine *lines, size_t count) {
+    size_t i = 0;
+
+    if (!lines) {
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        free(lines[i].text);
+        lines[i].text = NULL;
+        tc_token_list_free(&lines[i].tokens);
+    }
+    free(lines);
+}
+
+static int tc_detect_indent_width(const TcSourceLine *lines, size_t count, char indent_char) {
+    size_t i = 0;
+
+    if (indent_char == '\t') {
+        return 1;
+    }
+
+    for (i = 0; i < count; i++) {
+        size_t j = 0;
+
+        if (lines[i].tokens.count == 0 ||
+            lines[i].tokens.items[0].kind != TC_TOK_IF) {
+            continue;
+        }
+        for (j = i + 1; j < count; j++) {
+            if (lines[j].indent <= lines[i].indent) {
+                break;
+            }
+            return lines[j].indent - lines[i].indent;
+        }
+    }
+    return 4;
+}
+
+static int tc_block_indent_valid(const TcFileIndent *file_indent, int base_indent, int indent,
+                                 TcDiagnostic *diag, int line_no) {
+    int delta = 0;
+
+    if (indent <= base_indent) {
+        return 0;
+    }
+    delta = indent - base_indent;
+    if (file_indent->indent_char == '\t') {
+        if (delta < file_indent->indent_width) {
+            return tc_indent_diag(diag, TC_ERR_INDENT_INSUFFICIENT, line_no,
+                                  "insufficient indentation in block");
+        }
+        return 0;
+    }
+
+    if (file_indent->indent_char == '\0' || file_indent->indent_char == ' ') {
+        if (delta < file_indent->indent_width ||
+            (delta % file_indent->indent_width) != 0) {
+            return tc_indent_diag(diag, TC_ERR_INDENT_INSUFFICIENT, line_no,
+                                  "insufficient indentation in block");
+        }
+        return 0;
+    }
+
+    return 0;
+}
+
+typedef struct {
+    TcStatement *items;
+    size_t count;
+    size_t capacity;
+} TcStmtBlock;
+
+static void tc_stmt_block_init(TcStmtBlock *block) {
+    block->items = NULL;
+    block->count = 0;
+    block->capacity = 0;
+}
+
+static void tc_stmt_block_free(TcStmtBlock *block) {
+    size_t i = 0;
+
+    for (i = 0; i < block->count; i++) {
+        tc_statement_free(&block->items[i]);
+    }
+    free(block->items);
+    block->items = NULL;
+    block->count = 0;
+    block->capacity = 0;
+}
+
+static int tc_stmt_block_push(TcStmtBlock *block, const TcStatement *stmt, TcDiagnostic *diag,
+                              int line_no) {
+    if (block->count == block->capacity) {
+        size_t new_cap = block->capacity == 0 ? 4 : block->capacity * 2;
+        TcStatement *items =
+            (TcStatement *)realloc(block->items, new_cap * sizeof(TcStatement));
+
+        if (!items) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+            return -1;
+        }
+        block->items = items;
+        block->capacity = new_cap;
+    }
+    block->items[block->count++] = *stmt;
+    return 0;
+}
+
+static int tc_first_token_kind(const TcSourceLine *line) {
+    if (line->tokens.count == 0) {
+        return TC_TOK_EOF;
+    }
+    return (int)line->tokens.items[0].kind;
+}
+
+static int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
+                               size_t *index, int base_indent,
+                               const TcFileIndent *file_indent, TcStmtBlock *block,
+                               TcDiagnostic *diag) {
+    while (*index < line_count) {
+        TcSourceLine *line = &lines[*index];
+        TcStatement stmt;
+        int first_kind = 0;
+
+        if (line->indent <= base_indent) {
+            break;
+        }
+        if (tc_block_indent_valid(file_indent, base_indent, line->indent, diag,
+                                  line->line_no) != 0) {
+            return -1;
+        }
+
+        first_kind = tc_first_token_kind(line);
+        if (first_kind == TC_TOK_ELSE) {
+            return tc_indent_diag(diag, TC_ERR_ELSE_POSITION, line->line_no,
+                                  "else must appear at same indentation as if");
+        }
+        if (first_kind == TC_TOK_END) {
+            return tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, line->line_no,
+                                  "end indentation does not match if");
+        }
+
+        memset(&stmt, 0, sizeof(stmt));
+        if (first_kind == TC_TOK_IF) {
+            if (tc_parse_if_stmt(ctx, lines, line_count, index, file_indent, &stmt, diag) != 0) {
+                return -1;
+            }
+        } else {
+            if (tc_parse_statement(ctx, &line->tokens, line->line_no, &stmt, diag) != 0) {
+                return -1;
+            }
+            (*index)++;
+        }
+
+        if (tc_stmt_block_push(block, &stmt, diag, line->line_no) != 0) {
+            tc_statement_free(&stmt);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
+                     const TcFileIndent *file_indent, TcStatement *out, TcDiagnostic *diag) {
+    TcSourceLine *if_line = NULL;
+    size_t tok_index = 0;
+    int base_indent = 0;
+    TcIfStmt if_stmt;
+    TcStmtBlock then_block;
+    TcStmtBlock else_block;
+    const TcToken *tok = NULL;
+
+    if (*index >= line_count) {
+        return tc_syntax_error(diag, 0, TC_COLUMN_UNKNOWN, "unexpected end of file");
+    }
+
+    if_line = &lines[*index];
+    base_indent = if_line->indent;
+    memset(&if_stmt, 0, sizeof(if_stmt));
+    if_stmt.line = if_line->line_no;
+    tc_stmt_block_init(&then_block);
+    tc_stmt_block_init(&else_block);
+
+    tok = tc_peek(&if_line->tokens, tok_index);
+    if (tok->kind != TC_TOK_IF) {
+        return tc_syntax_error(diag, if_line->line_no, tok->column, "expected if");
+    }
+    tok_index++;
+
+    if (tc_parse_rhs(ctx, &if_line->tokens, &tok_index, if_line->line_no, &if_stmt.condition,
+                     diag) != 0) {
+        goto fail;
+    }
+
+    if (tc_expect_token(&if_line->tokens, &tok_index, TC_TOK_THEN, if_line->line_no, diag) != 0) {
+        goto fail;
+    }
+    if (tc_expect_stmt_end(&if_line->tokens, &tok_index, if_line->line_no, diag) != 0) {
+        goto fail;
+    }
+
+    (*index)++;
+    if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, &then_block,
+                            diag) != 0) {
+        goto fail;
+    }
+
+    if (*index >= line_count) {
+        tc_indent_diag(diag, TC_ERR_MISSING_END, if_line->line_no, "missing end for if statement");
+        goto fail;
+    }
+
+    if (tc_first_token_kind(&lines[*index]) == TC_TOK_ELSE) {
+        if (lines[*index].indent != base_indent) {
+            tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+                           "else indentation does not match if");
+            goto fail;
+        }
+        (*index)++;
+        if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent,
+                                &else_block, diag) != 0) {
+            goto fail;
+        }
+    }
+
+    if (*index >= line_count) {
+        tc_indent_diag(diag, TC_ERR_MISSING_END, if_line->line_no, "missing end for if statement");
+        goto fail;
+    }
+
+    if (tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
+        tc_indent_diag(diag, TC_ERR_MISSING_END, if_line->line_no, "missing end for if statement");
+        goto fail;
+    }
+    if (lines[*index].indent != base_indent) {
+        tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+                        "end indentation does not match if");
+        goto fail;
+    }
+    (*index)++;
+
+    if_stmt.then_body = then_block.items;
+    if_stmt.then_count = then_block.count;
+    if_stmt.else_body = else_block.items;
+    if_stmt.else_count = else_block.count;
+    then_block.items = NULL;
+    else_block.items = NULL;
+
+    out->kind = TC_STMT_IF;
+    out->u.if_stmt = if_stmt;
+    return 0;
+
+fail:
+    tc_rhs_free(&if_stmt.condition);
+    tc_stmt_block_free(&then_block);
+    tc_stmt_block_free(&else_block);
+    return -1;
+}
+
+static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines, size_t *out_count,
+                                   TcFileIndent *file_indent, TcDiagnostic *diag) {
+    const char *cursor = source;
+    int line_no = 1;
+    TcSourceLine *lines = NULL;
+    size_t count = 0;
+    size_t capacity = 0;
+
+    *out_lines = NULL;
+    *out_count = 0;
+    file_indent->indent_char = '\0';
+    file_indent->indent_width = 4;
+
+    while (*cursor != '\0') {
+        const char *line_start = cursor;
+        const char *line_end = cursor;
+        char *line_copy = NULL;
+        int indent = 0;
+
+        while (*line_end != '\0' && *line_end != '\n' && *line_end != '\r') {
+            line_end++;
+        }
+
+        line_copy = (char *)malloc((size_t)(line_end - line_start) + 1);
+        if (!line_copy) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_source_lines_free(lines, count);
+            return -1;
+        }
+        memcpy(line_copy, line_start, (size_t)(line_end - line_start));
+        line_copy[line_end - line_start] = '\0';
+
+        if (!tc_is_skippable_line(line_copy)) {
+            TcSourceLine entry;
+
+            if (tc_measure_line_indent(line_copy, file_indent, line_no, diag, &indent) != 0) {
+                free(line_copy);
+                tc_source_lines_free(lines, count);
+                return -1;
+            }
+
+            memset(&entry, 0, sizeof(entry));
+            entry.line_no = line_no;
+            entry.indent = indent;
+            entry.text = strdup(line_copy);
+            if (!entry.text) {
+                free(line_copy);
+                tc_source_lines_free(lines, count);
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+                return -1;
+            }
+            tc_token_list_init(&entry.tokens);
+            if (tc_tokenize_line(entry.text, line_no, &entry.tokens, diag) != 0) {
+                free(line_copy);
+                free(entry.text);
+                tc_token_list_free(&entry.tokens);
+                tc_source_lines_free(lines, count);
+                return -1;
+            }
+
+            if (count == capacity) {
+                size_t new_cap = capacity == 0 ? 8 : capacity * 2;
+                TcSourceLine *new_lines =
+                    (TcSourceLine *)realloc(lines, new_cap * sizeof(TcSourceLine));
+
+                if (!new_lines) {
+                    free(line_copy);
+                    free(entry.text);
+                    tc_token_list_free(&entry.tokens);
+                    tc_source_lines_free(lines, count);
+                    tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN,
+                                      "out of memory");
+                    return -1;
+                }
+                lines = new_lines;
+                capacity = new_cap;
+            }
+            lines[count++] = entry;
+        }
+
+        free(line_copy);
+
+        if (*line_end == '\r') {
+            line_end++;
+        }
+        if (*line_end == '\n') {
+            line_end++;
+        }
+        cursor = line_end;
+        line_no++;
+    }
+
+    if (file_indent->indent_char == ' ') {
+        file_indent->indent_width = tc_detect_indent_width(lines, count, file_indent->indent_char);
+    }
+
+    *out_lines = lines;
+    *out_count = count;
+    return 0;
+}
+
+static int tc_parse_line_program(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
+                                 const TcFileIndent *file_indent, TcProgram *program,
+                                 TcDiagnostic *diag) {
+    size_t index = 0;
+
+    while (index < line_count) {
+        TcStatement stmt;
+        TcSourceLine *line = &lines[index];
+
+        memset(&stmt, 0, sizeof(stmt));
+        if (tc_first_token_kind(line) == TC_TOK_IF) {
+            if (tc_parse_if_stmt(ctx, lines, line_count, &index, file_indent, &stmt, diag) != 0) {
+                return -1;
+            }
+        } else {
+            if (tc_parse_statement(ctx, &line->tokens, line->line_no, &stmt, diag) != 0) {
+                return -1;
+            }
+            index++;
+        }
+
+        if (tc_program_push(program, &stmt, diag) != 0) {
+            tc_statement_free(&stmt);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnostic *diag) {
+    TcSourceLine *lines = NULL;
+    size_t line_count = 0;
+    TcFileIndent file_indent;
+    TcParserCtx ctx;
+    int rc = 0;
+
+    tc_program_init(program);
+    memset(&file_indent, 0, sizeof(file_indent));
+    file_indent.indent_width = 4;
+
+    rc = tc_collect_source_lines(source, &lines, &line_count, &file_indent, diag);
+    if (rc != 0) {
+        tc_program_free(program);
+        return -1;
+    }
+
+    ctx.depth = 0;
+    rc = tc_parse_line_program(&ctx, lines, line_count, &file_indent, program, diag);
+    tc_source_lines_free(lines, line_count);
+    if (rc != 0) {
+        tc_program_free(program);
+        return -1;
+    }
+    return 0;
 }

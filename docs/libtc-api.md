@@ -1,6 +1,24 @@
 # libtc 嵌入 API
 
+> **版本**：0.0.24 · **代码**：v0.0.24（`TC_VM_VERSION`）  
+> **详设**：[libtc设计说明书.md](./libtc设计说明书.md)
+
 libtc 是 TC 编译器的静态库，提供「编译（Parse + Analyze）」与「执行」分离的嵌入接口。
+
+## v0.0.24 简述
+
+| 项 | 说明 |
+|----|------|
+| **控制流** | `if-then-else-end` 经 `tc_compile_*` 全文件编译；`TcTypedProgram.program` 可含 `TC_STMT_IF`（嵌套 `then_body`/`else_body`） |
+| **解析** | `tc_lib.c` 内 `tc_parse_source` 将改为两遍行扫描（缩进 + `tc_parse_if_stmt`）；**API 不变** |
+| **作用域** | 块内 `var`/`let` 在 Analyze 阶段处理；`symbols.count` 含块局部 slot（AOT 同长度 `slots[]`） |
+| **释放** | `tc_typed_program_free` 递归释放 if 子树（`tc_statement_free`） |
+| **REPL** | **不**走 libtc；`tc-repl` 逐行路径且 **不支持** `if` |
+| **嵌入方** | 仍只需 `tc_compile_file` / `tc_compile_source` + 可选 `tc_run_typed`；无需为 if 单独调用 |
+
+Parse 失败类型在 v0.0.24 增加缩进相关静态错误（`TC_ERR_INDENT_*` 等），仍通过 `diag` 单槽返回。
+
+---
 
 ## 头文件
 
@@ -22,7 +40,7 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
 - **输出**：成功时 `out` 为已通过静态分析的 `TcTypedProgram`；警告写入 `out->warnings`
 - **返回**：`0` 成功；`-1` 失败（`diag` 已设置）
 - **失败时 `out` 的状态**：
-  - **Parse 失败**（词法/语法/OOM）：`out` **不会被修改**；调用方不得读取 `out`，也**无需** `tc_typed_program_free`
+  - **Parse 失败**（词法/语法/缩进/OOM）：`out` **不会被修改**；调用方不得读取 `out`，也**无需** `tc_typed_program_free`
   - **Analyze 失败**（静态分析错误）：`tc_analyze` 内部已调用 `tc_typed_program_free(out)`，`out` 处于**空状态**（count 为 0、指针为 NULL）；**无需**再次释放
 - **所有权**：仅成功时 `out` 由调用方拥有，须 `tc_typed_program_free(out)`
 
@@ -54,7 +72,7 @@ int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
 void tc_typed_program_free(TcTypedProgram *program);
 ```
 
-释放 `TcTypedProgram` 内所有堆内存（语句、符号表、警告列表）。释放后各子字段指针置 NULL；对已是空状态的 `TcTypedProgram` 再次调用是安全的（no-op）。
+释放 `TcTypedProgram` 内所有堆内存（语句树含嵌套 if、符号表、警告列表）。声明于 `tc_analyzer.h`（`tc_lib.h` 已 include）。释放后各子字段指针置 NULL；对已是空状态的 `TcTypedProgram` 再次调用是安全的（no-op）。
 
 ## 内存所有权约定
 
@@ -62,7 +80,9 @@ void tc_typed_program_free(TcTypedProgram *program);
 |------|--------|--------|
 | `TcDiagnostic` | 调用方栈/堆 | `tc_diagnostic_clear`（可重复） |
 | `TcTypedProgram` | `tc_compile_*`（成功时） | `tc_typed_program_free`（Analyze 失败时 libtc 内部已释放） |
+| `TcIfStmt` 子语句数组 | parser（`tc_parse_if_stmt`） | `tc_typed_program_free` → `tc_statement_free` 递归 |
 | `source` 字符串（`tc_compile_source`） | 调用方 | 调用方（编译完成后即可释放） |
+| `tc_compile_file` 读入缓冲 | `tc_read_file` | `tc_compile_file` 返回前 `free` |
 | `diag->message` / `diag->filename` | libtc 内 `malloc` | `tc_diagnostic_clear` |
 
 ## 性能分析

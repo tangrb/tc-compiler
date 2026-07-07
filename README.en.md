@@ -2,7 +2,7 @@
 
 The implementation project of the **TC** language (C99). Includes **libtc** (shared static library for compilation/execution), **TC-VM** (a direct execution engine), and **TC-AOT** (ahead-of-time compilation from `.tc` to C99 source code).
 
-Version: **v0.0.23** (`src/vm/driver/tc_version.h`)
+Version: **v0.0.24** (`src/vm/driver/tc_version.h`)
 
 ## Directory Structure
 
@@ -115,9 +115,9 @@ The REPL supports entering TC statements one by one with immediate execution; va
 
 | Document | Description |
 |----------|-------------|
-| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.21) |
-| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation (v0.0.21) |
-| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | CLI instructions for tc-vm (v0.0.21) |
+| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.24) |
+| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation (v0.0.24) |
+| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | CLI instructions for tc-vm (v0.0.24) |
 | [libtc Embedding API](docs/libtc-api.md) | Embedding programming interface for the libtc static library |
 
 Implementation behavior follows the language specification; VM / AOT design documents define each backend's architecture.

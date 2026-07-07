@@ -1,0 +1,21 @@
+; 嵌套 if 与块内局部变量
+var x: int32 = 5
+var y: int32 = 10
+if lt(int32, x, y) then
+    var diff: int32 = sub(int32, y, x)
+    writeln(int32, diff)
+    if gt(int32, diff, 0) then
+        writeln(int32, %d, 1)
+    else
+        writeln(int32, %d, 0)
+    end
+else
+    writeln(int32, %d, -1)
+end
+if true then
+    if true then
+        if true then
+            writeln(int32, %d, 42)
+        end
+    end
+end

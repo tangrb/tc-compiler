@@ -313,6 +313,22 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_READ;
         return 1;
     }
+    if (strcmp(buf, "if") == 0) {
+        token->kind = TC_TOK_IF;
+        return 1;
+    }
+    if (strcmp(buf, "then") == 0) {
+        token->kind = TC_TOK_THEN;
+        return 1;
+    }
+    if (strcmp(buf, "else") == 0) {
+        token->kind = TC_TOK_ELSE;
+        return 1;
+    }
+    if (strcmp(buf, "end") == 0) {
+        token->kind = TC_TOK_END;
+        return 1;
+    }
     if (strcmp(buf, "true") == 0) {
         token->kind = TC_TOK_BOOL_LIT;
         token->u.literal.is_bool = 1;
@@ -599,6 +615,14 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "WRITELN";
     case TC_TOK_READ:
         return "READ";
+    case TC_TOK_IF:
+        return "IF";
+    case TC_TOK_THEN:
+        return "THEN";
+    case TC_TOK_ELSE:
+        return "ELSE";
+    case TC_TOK_END:
+        return "END";
     case TC_TOK_IDENTIFIER:
         return "IDENTIFIER";
     case TC_TOK_INTEGER:

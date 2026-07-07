@@ -1,0 +1,6 @@
+; 期望：else must appear at same indentation as if（else 出现在 then 块内部）
+if true then
+    writeln(int32, %d, 1)
+    else
+        writeln(int32, %d, 2)
+end

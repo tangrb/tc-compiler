@@ -44,7 +44,7 @@ int tc_type_is_bool(TcIntType type) {
 }
 
 int tc_type_is_integer(TcIntType type) {
-    return !tc_type_is_bool(type);
+    return type >= TC_INT8 && type <= TC_UINT64; /* 显式范围，不依赖枚举顺序 */
 }
 
 /*
@@ -290,6 +290,20 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "CastOverflow";
     case TC_ERR_IO:
         return "IOError";
+    case TC_ERR_INDENT_MIXED:
+        return "IndentMixedError";
+    case TC_ERR_INDENT_INSUFFICIENT:
+        return "IndentInsufficientError";
+    case TC_ERR_INDENT_ELSE_END:
+        return "IndentElseEndError";
+    case TC_ERR_MISSING_END:
+        return "MissingEndError";
+    case TC_ERR_ELSE_POSITION:
+        return "ElsePositionError";
+    case TC_ERR_CONDITION_TYPE:
+        return "ConditionTypeError";
+    case TC_ERR_CROSS_BLOCK_REFERENCE:
+        return "CrossBlockReferenceError";
     }
     return "UnknownError";
 }
