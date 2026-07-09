@@ -14,7 +14,7 @@ src/
 └── aot/               TC-AOT 源码（codegen / rt shim / CLI）
 tests/
     ├── valid/             一致性测试（72 个，含 bool/let/I/O/format/if 等特性）
-    ├── errors/            错误测试（static 72 个 + runtime 36 个）
+    ├── errors/            错误测试（static 72 个 + runtime 37 个）
     ├── unit/              C 单元测试（lexer / runtime，含 test_warning）
     └── stress/            压力测试
 scripts/
@@ -186,7 +186,7 @@ GitHub Actions 工作流位于 `.github/workflows/ci.yml`，在 push / PR 时自
 
 - **双平台**：Ubuntu + macOS
 - **测试阶段**：VM conformance → RHS 覆盖检查 → AOT 差分 → Codecov
-- 每次 CI 运行约 **892** 检测点（VM 277 + unit 582 + AOT 33）
+- 每次 CI 运行约 **1064** 检测点（VM 281 + unit 644 + AOT 139）
 
 ### Git hooks（可选）
 

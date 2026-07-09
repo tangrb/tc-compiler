@@ -562,6 +562,8 @@ run_expect_ok "$ROOT/tests/valid/if_shadow_global.tc"
 run_expect_stdout "$ROOT/tests/valid/if_shadow_global.tc" "1
 100
 "
+run_expect_stdout "$ROOT/tests/valid/if_false_skip_nested_then.tc" "100
+"
 run_expect_check_ok "$ROOT/tests/valid/if_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/if_nested.tc"
 
@@ -607,6 +609,10 @@ run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_invalid_input.tc" "ab
 " "invalid input"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range.tc" "999
 " "input value out of range"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc" "trueish
+" "invalid input"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc" "falsehood
+" "invalid input"
 
 # --- errors/runtime: extended tests (per-type coverage) ---
 

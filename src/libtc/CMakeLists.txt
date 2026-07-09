@@ -18,6 +18,7 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/runtime/tc_warning.c
     ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_io.c
+    ${TC_VM_DIR}/runtime/tc_stmt_index.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
     ${TC_VM_DIR}/parser/tc_parser.c
     ${TC_VM_DIR}/analyzer/tc_analyzer.c

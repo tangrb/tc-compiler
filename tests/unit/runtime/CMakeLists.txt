@@ -155,3 +155,54 @@ add_custom_target(check-warning
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running Warning list unit tests"
 )
+
+# ------------------------------------------------------------------ #
+#  test-analyzer — 静态分析器单元测试                                   #
+# ------------------------------------------------------------------ #
+
+add_executable(test-analyzer
+    test_analyzer.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer.c
+    ${TC_VM_DIR}/analyzer/tc_const_eval.c
+    ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/lexer/tc_lexer.c
+    ${TC_VM_DIR}/runtime/tc_symbol.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_warning.c
+    ${TC_VM_DIR}/runtime/tc_stmt_index.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+
+target_include_directories(test-analyzer PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-analyzer PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-analyzer
+    COMMAND test-analyzer
+    DEPENDS test-analyzer
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Analyzer unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-stmt-index — stmt_index 子树 span 单元测试                      #
+# ------------------------------------------------------------------ #
+
+add_executable(test-stmt-index
+    test_stmt_index.c
+    ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/lexer/tc_lexer.c
+    ${TC_VM_DIR}/runtime/tc_stmt_index.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+
+target_include_directories(test-stmt-index PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-stmt-index PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-stmt-index
+    COMMAND test-stmt-index
+    DEPENDS test-stmt-index
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running stmt_index unit tests"
+)

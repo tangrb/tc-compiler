@@ -13,6 +13,7 @@
 #include "tc_diagnostic.h"
 #include "tc_parser.h"
 #include "tc_semantics.h"
+#include "tc_stmt_index.h"
 #include "tc_symbol.h"
 #include "tc_warning.h"
 
@@ -70,7 +71,7 @@ static int tc_check_literal(const TcLiteral *lit, TcIntType expected, int line,
 typedef struct {
     TcProgram *program;
     int *last_init;
-    int next_stmt_index;
+    TcStmtIndexCursor index;
 } TcAnalyzeCtx;
 
 /** 初始化历史上下文，供未初始化变量检查使用 */
@@ -635,9 +636,7 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
     if (stmt->kind == TC_STMT_IF) {
         const TcIfStmt *if_stmt = &stmt->u.if_stmt;
         size_t i = 0;
-        int if_stmt_index = ctx->next_stmt_index;
-
-        ctx->next_stmt_index++;
+        int if_stmt_index = tc_stmt_index_take(&ctx->index);
         if (tc_symbol_table_push_scope(symbols) < 0) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, if_stmt->line, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
@@ -667,7 +666,7 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
             }
             tc_symbol_table_pop_scope(symbols);
         }
-        tc_mark_if_scope_end(symbols, if_stmt_index, ctx->next_stmt_index);
+        tc_mark_if_scope_end(symbols, if_stmt_index, ctx->index.next);
         return 0;
     }
 
@@ -682,12 +681,11 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
             return -1;
         }
         if (tc_symbol_table_add(symbols, var_def->name, var_def->type, *next_slot, var_def->line,
-                                ctx->next_stmt_index, TC_SYM_VARIABLE, var_def->has_rhs,
+                                tc_stmt_index_take(&ctx->index), TC_SYM_VARIABLE, var_def->has_rhs,
                                 diag) != 0) {
             return -1;
         }
         (*next_slot)++;
-        ctx->next_stmt_index++;
         return 0;
     }
 
@@ -702,16 +700,15 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
             return -1;
         }
         if (tc_symbol_table_add(symbols, const_def->name, const_def->type, *next_slot,
-                                const_def->line, ctx->next_stmt_index, TC_SYM_CONSTANT, 1,
+                                const_def->line, tc_stmt_index_take(&ctx->index), TC_SYM_CONSTANT, 1,
                                 diag) != 0) {
             return -1;
         }
         (*next_slot)++;
-        ctx->next_stmt_index++;
         return 0;
     }
 
-    ctx->next_stmt_index++;
+    tc_stmt_index_take(&ctx->index);
     return 0;
 }
 
@@ -723,7 +720,7 @@ static int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
 
     ctx.program = program;
     ctx.last_init = NULL;
-    ctx.next_stmt_index = 0;
+    tc_stmt_index_reset(&ctx.index);
 
     for (i = 0; i < program->count; i++) {
         if (tc_pass1_collect_stmt(&program->items[i], symbols, &next_slot, &ctx, diag) != 0) {
@@ -743,7 +740,7 @@ static void tc_prescan_init_history_stmt(const TcStatement *stmt, TcAnalyzeCtx *
         const TcIfStmt *if_stmt = &stmt->u.if_stmt;
         size_t i = 0;
 
-        ctx->next_stmt_index++;
+        tc_stmt_index_take(&ctx->index);
         for (i = 0; i < if_stmt->then_count; i++) {
             tc_prescan_init_history_stmt(&if_stmt->then_body[i], ctx, symbols);
         }
@@ -755,25 +752,25 @@ static void tc_prescan_init_history_stmt(const TcStatement *stmt, TcAnalyzeCtx *
 
     if (stmt->kind == TC_STMT_ASSIGN) {
         const TcSymbol *sym =
-            tc_symbol_for_assign_target(symbols, stmt->u.assign.name, ctx->next_stmt_index);
+            tc_symbol_for_assign_target(symbols, stmt->u.assign.name, ctx->index.next);
         if (sym) {
-            ctx->last_init[sym->slot] = ctx->next_stmt_index;
+            ctx->last_init[sym->slot] = ctx->index.next;
         }
     } else if (stmt->kind == TC_STMT_READ) {
         const TcSymbol *sym =
-            tc_symbol_for_assign_target(symbols, stmt->u.io_read.name, ctx->next_stmt_index);
+            tc_symbol_for_assign_target(symbols, stmt->u.io_read.name, ctx->index.next);
         if (sym) {
-            ctx->last_init[sym->slot] = ctx->next_stmt_index;
+            ctx->last_init[sym->slot] = ctx->index.next;
         }
     }
-    ctx->next_stmt_index++;
+    tc_stmt_index_take(&ctx->index);
 }
 
 static void tc_prescan_init_history(TcProgram *program, TcSymbolTable *symbols,
                                     TcAnalyzeCtx *ctx) {
     size_t i = 0;
 
-    ctx->next_stmt_index = 0;
+    tc_stmt_index_reset(&ctx->index);
     for (i = 0; i < program->count; i++) {
         tc_prescan_init_history_stmt(&program->items[i], ctx, symbols);
     }
@@ -790,9 +787,7 @@ static int tc_pass2_check_stmt(const TcStatement *stmt, TcSymbolTable *symbols,
         const TcIfStmt *if_stmt = &stmt->u.if_stmt;
         TcSymbolTable visible_then;
         size_t i = 0;
-        size_t stmt_index = (size_t)ctx->next_stmt_index;
-
-        ctx->next_stmt_index++;
+        size_t stmt_index = (size_t)tc_stmt_index_take(&ctx->index);
 
         if (tc_check_if_condition(&if_stmt->condition, visible, symbols, hist, stmt_index,
                                   if_stmt->line, diag, warnings) != 0) {
@@ -830,8 +825,7 @@ static int tc_pass2_check_stmt(const TcStatement *stmt, TcSymbolTable *symbols,
     }
 
     {
-        size_t stmt_index = (size_t)ctx->next_stmt_index;
-        ctx->next_stmt_index++;
+        size_t stmt_index = (size_t)tc_stmt_index_take(&ctx->index);
 
         if (stmt->kind == TC_STMT_VAR_DEF) {
             const TcVarDef *var_def = &stmt->u.var_def;
@@ -928,7 +922,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
 
     tc_symbol_table_init(&visible);
     ctx.program = program;
-    ctx.next_stmt_index = 0;
+    tc_stmt_index_reset(&ctx.index);
 
     if (symbols->count > 0) {
         last_init = (int *)malloc(symbols->count * sizeof(int));
@@ -944,7 +938,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
     ctx.last_init = last_init;
     tc_prescan_init_history(program, symbols, &ctx);
 
-    ctx.next_stmt_index = 0;
+    tc_stmt_index_reset(&ctx.index);
     hist.program = program;
     hist.last_init_stmt_index = last_init;
 
@@ -1090,7 +1084,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
         return 0;
     }
 
-    {
+    if (stmt->kind == TC_STMT_ASSIGN) {
         const TcAssign *assign = &stmt->u.assign;
         const TcSymbol *target = tc_symbol_table_find(symbols, assign->name);
         char msg[128];
@@ -1110,6 +1104,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                          assign->line, diag, warnings, NULL) != 0) {
             return -1;
         }
+        return 0;
     }
-    return 0;
+    return -1;
 }

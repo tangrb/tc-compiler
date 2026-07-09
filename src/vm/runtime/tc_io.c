@@ -196,10 +196,15 @@ int tc_io_read_value(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int
             word[i++] = (char)c;
             c = fgetc(stdin);
         }
+        word[i] = '\0';
+        if ((strcmp(word, "true") == 0 || strcmp(word, "false") == 0) &&
+            c != EOF && c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
         if (c != EOF) {
             ungetc(c, stdin);
         }
-        word[i] = '\0';
         if (strcmp(word, "true") == 0) {
             value = tc_value_make(TC_BOOL, 1);
         } else if (strcmp(word, "false") == 0) {

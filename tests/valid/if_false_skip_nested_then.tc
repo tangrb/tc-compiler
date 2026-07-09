@@ -1,0 +1,11 @@
+; 外层 false 时跳过含嵌套 if 的 then 子树，else 仍可见全局 x
+var x: int32 = 100
+if false then
+    if true then
+        var x: int32 = 1
+        writeln(int32, x)
+    end
+    var y: int32 = 2
+else
+    writeln(int32, x)
+end

@@ -16,6 +16,7 @@
 #include "tc_diagnostic.h"
 #include "tc_io.h"
 #include "tc_semantics.h"
+#include "tc_stmt_index.h"
 #include "tc_symbol.h"
 
 #include <assert.h>
@@ -28,7 +29,7 @@
 
 /** 运行时 DFS 语句序号（与 Analyzer Pass2 一致，用于块内符号解析） */
 typedef struct {
-    int next_stmt_index;
+    TcStmtIndexCursor index;
 } TcExecuteCtx;
 
 /*
@@ -105,7 +106,11 @@ static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots,
     } else {
         const TcSymbol *symbol =
             tc_executor_find_visible_symbol(symbols, io_write->operand.u.name, stmt_index);
-        assert(symbol != NULL);
+        if (!symbol) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, io_write->line, TC_COLUMN_UNKNOWN,
+                              "internal error: symbol not found for write");
+            return -1;
+        }
         value = slots[symbol->slot];
     }
 
@@ -136,7 +141,11 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
     }
 
     symbol = tc_executor_find_visible_symbol(symbols, io_read->name, stmt_index);
-    assert(symbol != NULL);
+    if (!symbol) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, io_read->line, TC_COLUMN_UNKNOWN,
+                          "internal error: symbol not found for read");
+        return -1;
+    }
     slots[symbol->slot] = tc_value_make(io_read->type, bits);
     return 0;
 }
@@ -156,6 +165,9 @@ static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type
         const TcSymbol *symbol =
             tc_executor_find_visible_symbol(symbols, operand->u.name, stmt_index);
         assert(symbol != NULL);
+        if (!symbol) {
+            return tc_value_make(expected_type, 0);
+        }
         return slots[symbol->slot];
     }
 }
@@ -303,8 +315,7 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
         size_t i = 0;
         int cond_true = 0;
 
-        int stmt_index = ctx->next_stmt_index;
-        ctx->next_stmt_index++;
+        int stmt_index = tc_stmt_index_take(&ctx->index);
 
         if (tc_eval_rhs(&if_stmt->condition, TC_BOOL, slots, symbols, stmt_index, &cond_value,
                         diag, if_stmt->line) != 0) {
@@ -315,11 +326,11 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
             body = if_stmt->then_body;
             body_count = if_stmt->then_count;
         } else if (if_stmt->else_count > 0) {
-            ctx->next_stmt_index += (int)if_stmt->then_count;
+            tc_stmt_index_skip_block(&ctx->index, if_stmt->then_body, if_stmt->then_count);
             body = if_stmt->else_body;
             body_count = if_stmt->else_count;
         } else {
-            ctx->next_stmt_index += (int)if_stmt->then_count;
+            tc_stmt_index_skip_block(&ctx->index, if_stmt->then_body, if_stmt->then_count);
             return 0;
         }
         for (i = 0; i < body_count; i++) {
@@ -328,14 +339,13 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
             }
         }
         if (cond_true && if_stmt->else_count > 0) {
-            ctx->next_stmt_index += (int)if_stmt->else_count;
+            tc_stmt_index_skip_block(&ctx->index, if_stmt->else_body, if_stmt->else_count);
         }
         return 0;
     }
 
     {
-        int stmt_index = ctx->next_stmt_index;
-        ctx->next_stmt_index++;
+        int stmt_index = tc_stmt_index_take(&ctx->index);
 
         if (stmt->kind == TC_STMT_VAR_DEF) {
             const TcVarDef *var_def = &stmt->u.var_def;
@@ -343,7 +353,11 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
                 tc_executor_find_def_symbol(symbols, var_def->name, var_def->line);
             TcValue value;
 
-            assert(symbol != NULL);
+            if (!symbol) {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, var_def->line, TC_COLUMN_UNKNOWN,
+                                  "internal error: symbol not found for var def");
+                return -1;
+            }
             if (!var_def->has_rhs) {
                 return 0;
             }
@@ -357,7 +371,11 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
             const TcSymbol *symbol =
                 tc_executor_find_def_symbol(symbols, const_def->name, const_def->line);
 
-            assert(symbol != NULL);
+            if (!symbol) {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, const_def->line, TC_COLUMN_UNKNOWN,
+                                  "internal error: symbol not found for const def");
+                return -1;
+            }
             if (symbol->has_const_value) {
                 slots[symbol->slot] = symbol->const_value;
             }
@@ -367,7 +385,11 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
                 tc_executor_find_visible_symbol(symbols, assign->name, stmt_index);
             TcValue value;
 
-            assert(symbol != NULL);
+            if (!symbol) {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, assign->line, TC_COLUMN_UNKNOWN,
+                                  "internal error: symbol not found for assign");
+                return -1;
+            }
             if (tc_eval_rhs(&assign->rhs, symbol->type, slots, symbols, stmt_index, &value, diag,
                             assign->line) != 0) {
                 return -1;
@@ -394,7 +416,7 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
                          TcDiagnostic *diag) {
     TcExecuteCtx ctx;
 
-    ctx.next_stmt_index = 0;
+    tc_stmt_index_reset(&ctx.index);
     return tc_execute_statement_impl(stmt, slots, symbols, &ctx, diag);
 }
 
@@ -417,7 +439,7 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
 
     TcExecuteCtx ctx;
 
-    ctx.next_stmt_index = 0;
+    tc_stmt_index_reset(&ctx.index);
     for (i = 0; i < program->program.count; i++) {
         const TcStatement *stmt = &program->program.items[i];
         if (tc_execute_statement_impl(stmt, slots, &program->symbols, &ctx, diag) != 0) {

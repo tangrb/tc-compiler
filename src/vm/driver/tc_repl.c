@@ -326,7 +326,6 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
     if (tc_repl_ensure_slots(session, diag) != 0) {
         if (added_symbol) {
             tc_symbol_table_pop_last(&session->symbols);
-            session->analyze_ctx.last_init_capacity = session->symbols.count;
         }
         tc_statement_free(&stmt);
         return -1;

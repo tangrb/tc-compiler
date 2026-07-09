@@ -261,18 +261,78 @@ static void test_write_value_newline(void) {
 /*  tc_io_read_value — stdin 输入                                      */
 /* ================================================================== */
 
-/* 由于 tc_io_read_value 固定从 stdin 读取，且单元测试中不易重定向，
- * 本文件暂不包含 stdin 依赖的自动化用例。手动测试见 tests/valid/ 中
- * 的 read_write.tc、read_bool.tc 等集成测试。
- *
- * stdin 可测接口（tc_io_read_digits）的边界通过集成测试覆盖：
- *   - tests/valid/read_write.tc
- *   - tests/valid/read_bool.tc
- *   - tests/valid/io_extended.tc
- *   - tests/errors/runtime/read_invalid.tc
- *   - tests/errors/runtime/read_invalid_input.tc
- *   - tests/errors/runtime/read_out_of_range.tc
- */
+static int with_stdin(const char *input, int (*fn)(void)) {
+    FILE *saved = stdin;
+    FILE *tmp = tmpfile();
+    int rc = 0;
+
+    if (!tmp) {
+        fprintf(stderr, "FAIL: tmpfile() failed\n");
+        return -1;
+    }
+    if (fputs(input, tmp) == EOF) {
+        fclose(tmp);
+        return -1;
+    }
+    rewind(tmp);
+    stdin = tmp;
+    rc = fn();
+    clearerr(stdin);
+    stdin = saved;
+    fclose(tmp);
+    return rc;
+}
+
+static int read_bool_true_fn(void) {
+    uint64_t bits = 0;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_BOOL, &bits, &diag, 1) != 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    tc_diagnostic_clear(&diag);
+    return bits == 1 ? 0 : -1;
+}
+
+static int read_bool_false_fn(void) {
+    uint64_t bits = 0;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_BOOL, &bits, &diag, 1) != 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    tc_diagnostic_clear(&diag);
+    return bits == 0 ? 0 : -1;
+}
+
+static int read_bool_invalid_fn(void) {
+    TcDiagnostic diag;
+    uint64_t bits = 0;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_BOOL, &bits, &diag, 1) == 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    if (strstr(diag.message, "invalid input") == NULL) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    tc_diagnostic_clear(&diag);
+    return 0;
+}
+
+static void test_read_bool_stdin(void) {
+    check(with_stdin("true\n", read_bool_true_fn) == 0, "read bool true from stdin");
+    check(with_stdin("false\n", read_bool_false_fn) == 0, "read bool false from stdin");
+    check(with_stdin("trueish\n", read_bool_invalid_fn) == 0, "read bool reject trueish");
+    check(with_stdin("falsehood\n", read_bool_invalid_fn) == 0, "read bool reject falsehood");
+    check(with_stdin("True\n", read_bool_invalid_fn) == 0, "read bool reject True (case)");
+}
 
 /* ================================================================== */
 /*  主入口                                                              */
@@ -291,6 +351,8 @@ int main(void) {
     test_write_value_default_unsigned();
     test_write_value_bool();
     test_write_value_newline();
+
+    test_read_bool_stdin();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
