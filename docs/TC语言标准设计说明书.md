@@ -2018,7 +2018,7 @@ end
 
 ## 11. 错误与警告
 
-遇到 **第一个** 错误即终止程序（fail-fast）。错误按发生阶段分为 **静态**（词法/语法/静态分析）与 **运行时** 两类。编译警告不影响程序执行。
+遇到 **第一个** 错误即终止程序（fail-fast）。错误按发生阶段分为 **静态**（词法/语法/静态分析）与 **运行时** 两类。编译警告不影响程序执行。实现层 `TcErrorKind` 枚举与 §11.1/§11.2 语义类型的对照见 [§11.4](#114-错误码对照表tcerrorkind)。
 
 ### 11.1 静态错误
 
@@ -2066,6 +2066,51 @@ end
 | 未初始化变量警告 | 读取尚未获得初值的变量。运行时值为 **未定义**（implementation-defined） |
 
 **注意**：短路求值时，未被读取的右操作数不触发未初始化变量警告。
+
+### 11.4 错误码对照表（`TcErrorKind`）
+
+§11.1、§11.2 以**可观测语义**命名错误类型；TC-VM / libtc 通过 `TcErrorKind` 枚举编码诊断结果。枚举定义见 `src/vm/runtime/tc_types.h`，`tc_error_kind_name()` 返回的打印名用于日志与 API 输出。
+
+| 错误码 | 打印名 | 语言标准类型（§11.1 / §11.2） | 阶段 | 说明 |
+| ------ | ------ | ----------------------------- | ---- | ---- |
+| `TC_ERR_SYNTAX` | `SyntaxError` | 词法错误、语法错误 | 静态 | VM 扩展：无法打开/读取源文件、REPL 不支持 `if` 等亦归此类 |
+| `TC_ERR_UNDEFINED_VARIABLE` | `UndefinedVariable` | 未定义标识符错误 | 静态 | 含前向引用、初始化自引用 |
+| `TC_ERR_DUPLICATE_DEFINITION` | `DuplicateDefinition` | 重复定义错误 | 静态 | 同一作用域重复 `var`/`let` 同名 |
+| `TC_ERR_TYPE_MISMATCH` | `TypeMismatch` | 类型错误 | 静态 | 运算/赋值类型不一致；逻辑运算操作数非 `bool` 等 |
+| `TC_ERR_LITERAL_OUT_OF_RANGE` | `LiteralOutOfRange` | 字面量范围错误 | 静态 | 整数字面量超出上下文类型可表示范围 |
+| `TC_ERR_LITERAL_TYPE` | `LiteralTypeError` | 字面量类型错误 | 静态 | `u` 后缀误用、`true`/`false` 上下文错误等 |
+| `TC_ERR_OVERFLOW_MODE` | `OverflowModeError` | 关键字错误（子集） | 静态 | `div`/`mod`/`abs` 使用 `wrap`；无符号类型带 `wrap` 不触发 |
+| `TC_ERR_KEYWORD` | `KeywordError` | 关键字错误 | 静态 | `wrap`/`truncate` 在非法上下文使用 |
+| `TC_ERR_CONSTANT_ASSIGNMENT` | `ConstantAssignmentError` | 常量赋值错误 | 静态 | 对 `let` 常量赋值 |
+| `TC_ERR_CONSTANT_EXPRESSION` | `ConstantExpressionError` | 常量表达式错误 | 静态 | RHS 含 `var` 引用、`wrap`/`truncate`、缩窄转换等 |
+| `TC_ERR_CONSTANT_CIRCULAR` | `ConstantCircularDependency` | 常量循环依赖错误 | 静态 | `let` 常量间循环引用 |
+| `TC_ERR_CONSTANT_OVERFLOW` | `ConstantOverflow` | 常量溢出错误 | 静态 | 编译期有符号算术或 `shl` 严格模式溢出 |
+| `TC_ERR_CONSTANT_DIV_ZERO` | `ConstantDivisionByZero` | 常量除零错误 | 静态 | 编译期 `div`/`mod` 除数为 0 |
+| `TC_ERR_CONSTANT_CAST_OVERFLOW` | `ConstantCastOverflow` | 常量转换溢出错误 | 静态 | 编译期 `cast` 缩窄超范围 |
+| `TC_ERR_COMPARISON_TYPE_MISMATCH` | `ComparisonTypeMismatch` | 比较类型不匹配 | 静态 | 比较运算两操作数类型不一致 |
+| `TC_ERR_FORMAT_STRING` | `FormatStringError` | 格式字符串错误 | 静态 | 非法 `%` 格式化符号 |
+| `TC_ERR_FORMAT_TYPE_MISMATCH` | `FormatTypeMismatch` | 格式类型不匹配 | 静态 | 操作数类型与格式化符号不兼容 |
+| `TC_ERR_OPERAND_COUNT` | `OperandCountError` | 操作数数量错误 | 静态 | 格式化/I/O 或逻辑运算操作数个数非法 |
+| `TC_ERR_DIVISION_BY_ZERO` | `DivisionByZero` | 除零错误 | 运行时 | `div`/`mod` 除数为 0 |
+| `TC_ERR_INTEGER_OVERFLOW` | `IntegerOverflow` | 整数溢出错误 | 运行时 | 严格模式算术或 `shl` 超范围 |
+| `TC_ERR_CAST_OVERFLOW` | `CastOverflow` | 转换溢出错误 | 运行时 | 严格模式 `cast` 无法在目标类型表示 |
+| `TC_ERR_IO` | `IOError` | I/O 错误 | 运行时 | `read` 输入非法、EOF、超范围等 |
+| `TC_ERR_OUT_OF_MEMORY` | `OutOfMemory` | —（实现扩展） | 静态/运行时 | 编译器/运行时内部分配失败；**非**用户程序语义错误；诊断消息为 `memory allocation failed` |
+| `TC_ERR_INDENT_MIXED` | `IndentMixedError` | 缩进不一致 | 静态 | 同一文件混用空格与制表符 |
+| `TC_ERR_INDENT_INSUFFICIENT` | `IndentInsufficientError` | 块内缩进不足 | 静态 | 块内语句缩进未大于块级缩进 |
+| `TC_ERR_INDENT_ELSE_END` | `IndentElseEndError` | `else`/`end` 缩进错 | 静态 | `else` 或 `end` 与对应 `if` 缩进不一致 |
+| `TC_ERR_MISSING_END` | `MissingEndError` | 缺少 `end` | 静态 | `if` 未以 `end` 结束 |
+| `TC_ERR_ELSE_POSITION` | `ElsePositionError` | `else` 位置错误 | 静态 | `else` 前无对应 `if` 块 |
+| `TC_ERR_CONDITION_TYPE` | `ConditionTypeError` | 条件类型错误 | 静态 | `if` 条件 RHS 结果非 `bool` |
+| `TC_ERR_CROSS_BLOCK_REFERENCE` | `CrossBlockReferenceError` | 跨块引用局部变量 | 静态 | 块外引用块内局部标识符；实现亦可映射为 `TC_ERR_UNDEFINED_VARIABLE` |
+
+**警告码对照**（`TcWarningKind`，不阻止执行）：
+
+| 警告码 | 打印名 | 语言标准类型（§11.3） | 说明 |
+| ------ | ------ | --------------------- | ---- |
+| `TC_WARN_UNINITIALIZED_VARIABLE` | `UninitializedVariable` | 未初始化变量警告 | 读取尚无确定初值的变量槽位 |
+
+> **实现说明**：`TC_ERR_OUT_OF_MEMORY`（v0.0.24-rev2）将内存不足从 `TC_ERR_SYNTAX` 分离，便于嵌入方区分语法问题与系统资源失败。详细 VM 诊断格式见 [TC-VM详细设计说明书.md](./TC-VM详细设计说明书.md) §11.3。
 
 ---
 
@@ -2589,6 +2634,7 @@ newline    = "\n" | "\r\n" | "\r" ;
 | 0.0.23     | 2026-07-05     | **修订细节**：① 拆分 §8.5 类型转换速查表，分别为严格模式和截断模式绘制表格，明确截断仅适用整数→整数；② §6.2 开头增加重要约束框，强调移位计数类型一致；③ 补充 §2.3.7 词法匹配策略中八进制前缀；④ 修订 EBNF 位运算产生式，严格区分单目 `not` 与双目 `and`/`or`/`xor`；⑤ 在 §8.5 常量转换约束下方增加脚注说明截断模式禁止 `bool` 转换的原因；⑥ 修正 §5.2 中 `mod` 溢出描述，明确 `mod` 不会因值不可表示而报错；⑦ 补充 §6.2.2 右移 `k>=n` 结果为零的解释；⑧ 附录 B 增加 `mod(INT_MIN, -1)` 对照行。**优化改进**：⑨ §6.2 增加移位计数“不掩码”设计说明；⑩ §4.4 补充赋值左侧变量可未初始化说明；⑪ §8.5 增强截断模式仅用于整数转换的澄清说明。 |
 | **0.0.24** | **2026-07-07** | **重大修订**：① 新增 Pascal 风格 `if-else` 控制流，使用 `then`、`else`（单独行）、`end` 强制结束；② 引入块级局部作用域，允许 `var`/`let` 在块内定义；③ 强制缩进界定块范围，缩进错误为静态错误；④ 更新 EBNF、错误表、示例集和路线图。**一致性修订**：锁定文档版本号为 0.0.24；澄清 `then`/`else` 互斥子作用域及同名局部变量规则；补充 §3.8 块内生命周期、§4.1 语句种类、附录 A `indented_block` 产生式。 |
 | **0.0.24-impl** | **2026-07-07** | **代码实现**：VM/AOT/libtc 交付 `if-then-else-end`、块级作用域、缩进引擎；`TC_VM_VERSION` 0.0.24；回归 VM 277 + AOT 33 用例。 |
+| **0.0.24-rev2** | **2026-07-09** | **错误码表**：新增 §11.4 `TcErrorKind` 全量对照（含 `TC_ERR_OUT_OF_MEMORY` 实现扩展）；§11 引言交叉引用 §11.4。 |
 
 ---
 

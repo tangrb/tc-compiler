@@ -1288,7 +1288,7 @@ Diagnostic ::= {
 
 ```text
 TcErrorKind ::=
-    TC_ERR_SYNTAX                  // VM 扩展：词法/语法/OOM/文件 I/O
+    TC_ERR_SYNTAX                  // VM 扩展：词法/语法/文件 I/O
     TC_ERR_UNDEFINED_VARIABLE      // 未定义标识符错误
     TC_ERR_DUPLICATE_DEFINITION    // 重复定义错误
     TC_ERR_TYPE_MISMATCH           // 类型错误
@@ -1310,6 +1310,7 @@ TcErrorKind ::=
     TC_ERR_INTEGER_OVERFLOW        // 整数溢出错误
     TC_ERR_CAST_OVERFLOW           // 转换溢出错误
     TC_ERR_IO                      // I/O 错误
+    TC_ERR_OUT_OF_MEMORY           // 内存分配失败
     /* v0.0.24: 缩进/控制流错误 */
     TC_ERR_INDENT_MIXED            // 混用空格与制表符
     TC_ERR_INDENT_INSUFFICIENT     // 块内缩进不足

@@ -239,6 +239,8 @@ v0.0.24 起 REPL **显式拒绝** `TC_STMT_IF`（见 VM 详设 §18.8）；含�
 
 ### 5.1 Parse 失败（词法/语法/缩进/OOM）
 
+> **v0.0.24-rev2**：OOM 错误不再归类为 `TC_ERR_SYNTAX`，而是使用独立的 `TC_ERR_OUT_OF_MEMORY`（见 `tc_types.h`）。
+
 - `out` **不会被修改**
 - 调用方不得读取 `out`，也**无需**调用 `tc_typed_program_free`
 - `tc_parse_source` 内部已 `tc_program_free` 清理中间 `TcProgram`（含已解析的部分 if 子树）
@@ -511,6 +513,7 @@ tc-repl (tc_repl.c)
 | DFS `stmt_index` | 无 | analyzer Pass2 |
 | `tc_run_typed` / if 执行 | 无代码变更（委托 executor） | `tc_execute_statement` |
 | REPL 拒绝 if | 无 | `tc_analyze_statement` @ analyzer |
+| DIAG 错误码分离 | 无（`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`） | `tc_types.h`、全线 .c 模块 |
 
 **开发顺序**（与 [TC-0.0.24开发计划.md](./TC-0.0.24开发计划.md) 对齐）：types → symbol → lexer → **`tc_lib.c` parse** → analyzer → executor → AOT。
 
@@ -544,6 +547,7 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);  /*
 | 0.0.21 | 2026-07-06 | 首版：从 TC-VM 详设独立；API、错误契约、逐行解析流水线 |
 | **0.0.24** | **2026-07-07** | 对齐语言/VM/AOT v0.0.24：`tc_parse_source` 两遍扫描规划；`TcIfStmt` 树形 AST 与内存所有权；`TcTypedProgram` 数据契约；与 REPL 路径分叉；v0.0.24 libtc 变更表；实现状态标注 |
 | **0.0.24-rev1** | **2026-07-07** | 合规审查跟进：then/else 双作用域、Analyzer 递归、统一 slot 池、知识图谱交叉引用 |
+| **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离：`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY` 而非 `TC_ERR_SYNTAX`；§5.1 错误状态契约同步更新 |
 
 ---
 

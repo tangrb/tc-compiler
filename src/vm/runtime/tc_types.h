@@ -157,6 +157,7 @@ typedef enum {
     TC_ERR_INTEGER_OVERFLOW,
     TC_ERR_CAST_OVERFLOW,
     TC_ERR_IO,
+    TC_ERR_OUT_OF_MEMORY,         /* 内存分配失败 */
     TC_ERR_INDENT_MIXED,          /* 混用空格与制表符 */
     TC_ERR_INDENT_INSUFFICIENT,   /* 块内缩进不足 */
     TC_ERR_INDENT_ELSE_END,       /* else/end 缩进与 if 不一致 */

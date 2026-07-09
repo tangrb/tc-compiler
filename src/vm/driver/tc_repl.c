@@ -122,7 +122,7 @@ static int tc_repl_ensure_init_tracking(TcReplSession *session, TcDiagnostic *di
         size_t i = 0;
 
         if (!new_track) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         for (i = old_cap; i < new_cap; i++) {
@@ -147,7 +147,7 @@ static int tc_repl_ensure_slots(TcReplSession *session, TcDiagnostic *diag) {
         TcValue *new_slots =
             (TcValue *)realloc(session->slots, session->symbols.count * sizeof(TcValue));
         if (!new_slots) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         tc_slots_init_uninitialized(new_slots + session->slots_capacity,

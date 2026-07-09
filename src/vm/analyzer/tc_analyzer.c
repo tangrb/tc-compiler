@@ -639,8 +639,8 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
 
         ctx->next_stmt_index++;
         if (tc_symbol_table_push_scope(symbols) < 0) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, if_stmt->line, TC_COLUMN_UNKNOWN,
-                              "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, if_stmt->line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
             return -1;
         }
         for (i = 0; i < if_stmt->then_count; i++) {
@@ -654,8 +654,8 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
 
         if (if_stmt->else_count > 0) {
             if (tc_symbol_table_push_scope(symbols) < 0) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, if_stmt->line, TC_COLUMN_UNKNOWN,
-                                  "out of memory");
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, if_stmt->line, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
                 return -1;
             }
             for (i = 0; i < if_stmt->else_count; i++) {
@@ -934,7 +934,7 @@ static int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWar
         last_init = (int *)malloc(symbols->count * sizeof(int));
         if (!last_init) {
             tc_symbol_table_free(&visible);
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         for (i = 0; i < symbols->count; i++) {

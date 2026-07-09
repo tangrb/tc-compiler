@@ -24,21 +24,29 @@ void tc_warning_list_free(TcWarningList *list) {
 }
 
 int tc_warning_list_add(TcWarningList *list, TcWarningKind kind, int line, const char *message) {
+    char *msg_copy = NULL;
+
+    if (message) {
+        msg_copy = strdup(message);
+        if (!msg_copy) {
+            return -1;
+        }
+    }
+
     if (list->count == list->capacity) {
         size_t new_cap = list->capacity == 0 ? 8 : list->capacity * 2;
         TcWarning *items = (TcWarning *)realloc(list->items, new_cap * sizeof(TcWarning));
         if (!items) {
+            free(msg_copy);
             return -1;
         }
         list->items = items;
         list->capacity = new_cap;
     }
+
     list->items[list->count].kind = kind;
     list->items[list->count].line = line;
-    list->items[list->count].message = message ? strdup(message) : NULL;
-    if (message && !list->items[list->count].message) {
-        return -1;
-    }
+    list->items[list->count].message = msg_copy;
     list->count++;
     return 0;
 }

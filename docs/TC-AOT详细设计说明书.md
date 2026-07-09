@@ -504,7 +504,7 @@ AOT 测试采用**差分比较**策略，确保 AOT 生成的二进制输出与 
 
 新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
 
-### 9.6 当前覆盖（~32 条）
+### 9.6 当前覆盖（33 条）
 
 AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**等——与 VM valid 正例共用测试文件。
 
@@ -594,3 +594,4 @@ int main(void) {
 | **0.0.24** | **2026-07-07** | **控制流 if-else（规范）**：§4.6 原生 C `if-else`；§4.6.4 与 Analyzer 槽位一致性；实现状态标注 |
 | **0.0.24-rev1** | **2026-07-07** | 合规审查修订：then/else 双作用域对齐 VM；移除「已实现」误导；补充递归 codegen 与 REPL 限制 |
 | **0.0.24-impl** | **2026-07-07** | **代码交付**：`TC_AOT_VERSION` 0.0.24；`tc_aot_emit_statement` if-else codegen；差分测试 33（含 `if_*`） |
+| **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离对齐：`main.c` OOM 诊断消息 "memory allocation failed"（AOT `tc_read_file` 经 libtc 编译路径使用 `TC_ERR_OUT_OF_MEMORY`） |

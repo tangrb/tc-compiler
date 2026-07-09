@@ -135,3 +135,23 @@ add_custom_target(check-symbol
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running Symbol table unit tests"
 )
+
+# ------------------------------------------------------------------ #
+#  test-warning — 编译警告列表单元测试                                  #
+# ------------------------------------------------------------------ #
+
+add_executable(test-warning
+    test_warning.c
+    ${TC_VM_DIR}/runtime/tc_warning.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+)
+
+target_include_directories(test-warning PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-warning PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-warning
+    COMMAND test-warning
+    DEPENDS test-warning
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Warning list unit tests"
+)

@@ -409,7 +409,7 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
     if (program->symbols.count > 0) {
         slots = (TcValue *)malloc(program->symbols.count * sizeof(TcValue));
         if (!slots) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         tc_slots_init_uninitialized(slots, program->symbols.count);

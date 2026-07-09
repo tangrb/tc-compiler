@@ -290,6 +290,8 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "CastOverflow";
     case TC_ERR_IO:
         return "IOError";
+    case TC_ERR_OUT_OF_MEMORY:
+        return "OutOfMemory";
     case TC_ERR_INDENT_MIXED:
         return "IndentMixedError";
     case TC_ERR_INDENT_INSUFFICIENT:

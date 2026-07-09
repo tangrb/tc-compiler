@@ -170,7 +170,7 @@ int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcIntType type, 
         TcSymbol *symbols = (TcSymbol *)realloc(table->symbols, new_cap * sizeof(TcSymbol));
 
         if (!symbols) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, def_line, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, def_line, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         table->symbols = symbols;
@@ -178,7 +178,7 @@ int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcIntType type, 
     }
     table->symbols[table->count].name = strdup(name);
     if (!table->symbols[table->count].name) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, def_line, TC_COLUMN_UNKNOWN, "out of memory");
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, def_line, TC_COLUMN_UNKNOWN, "memory allocation failed");
         return -1;
     }
     table->symbols[table->count].type = type;

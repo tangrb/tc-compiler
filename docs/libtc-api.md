@@ -16,7 +16,7 @@ libtc 是 TC 编译器的静态库，提供「编译（Parse + Analyze）」与�
 | **REPL** | **不**走 libtc；`tc-repl` 逐行路径且 **不支持** `if` |
 | **嵌入方** | 仍只需 `tc_compile_file` / `tc_compile_source` + 可选 `tc_run_typed`；无需为 if 单独调用 |
 
-Parse 失败类型在 v0.0.24 增加缩进相关静态错误（`TC_ERR_INDENT_*` 等），仍通过 `diag` 单槽返回。
+Parse 失败类型在 v0.0.24 增加缩进相关静态错误（`TC_ERR_INDENT_*` 等）；OOM 错误从 `TC_ERR_SYNTAX` 分离为独立 `TC_ERR_OUT_OF_MEMORY`，仍通过 `diag` 单槽返回。
 
 ---
 
@@ -40,7 +40,7 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
 - **输出**：成功时 `out` 为已通过静态分析的 `TcTypedProgram`；警告写入 `out->warnings`
 - **返回**：`0` 成功；`-1` 失败（`diag` 已设置）
 - **失败时 `out` 的状态**：
-  - **Parse 失败**（词法/语法/缩进/OOM）：`out` **不会被修改**；调用方不得读取 `out`，也**无需** `tc_typed_program_free`
+  - **Parse 失败**（词法/语法/缩进/OOM）：`out` **不会被修改**；调用方不得读取 `out`，也**无需** `tc_typed_program_free`。OOM 错误使用独立 `TC_ERR_OUT_OF_MEMORY`（v0.0.24 Day1）。
   - **Analyze 失败**（静态分析错误）：`tc_analyze` 内部已调用 `tc_typed_program_free(out)`，`out` 处于**空状态**（count 为 0、指针为 NULL）；**无需**再次释放
 - **所有权**：仅成功时 `out` 由调用方拥有，须 `tc_typed_program_free(out)`
 

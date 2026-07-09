@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
     if (!output_path) {
         owned_output_path = tc_aot_default_output_path(input_path);
         if (!owned_output_path) {
-            fprintf(stderr, "%s: out of memory\n", argv[0]);
+            fprintf(stderr, "%s: memory allocation failed\n", argv[0]);
             tc_typed_program_free(&program);
             tc_diagnostic_clear(&diag);
             return 1;

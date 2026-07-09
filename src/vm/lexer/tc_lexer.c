@@ -22,7 +22,7 @@ static int tc_token_list_push(TcTokenList *list, const TcToken *token, TcDiagnos
         size_t new_cap = list->capacity == 0 ? 16 : list->capacity * 2;
         TcToken *items = (TcToken *)realloc(list->items, new_cap * sizeof(TcToken));
         if (!items) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         list->items = items;

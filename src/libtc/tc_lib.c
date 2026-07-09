@@ -83,7 +83,7 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
     buffer = (char *)malloc((size_t)size + 1);
     if (!buffer) {
         fclose(file);
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
         return NULL;
     }
 

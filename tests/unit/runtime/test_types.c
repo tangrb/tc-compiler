@@ -281,6 +281,8 @@ static void test_error_kind_name(void) {
           "TC_ERR_CAST_OVERFLOW → CastOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_IO), "IOError") == 0,
           "TC_ERR_IO → IOError");
+    check(strcmp(tc_error_kind_name(TC_ERR_OUT_OF_MEMORY), "OutOfMemory") == 0,
+          "TC_ERR_OUT_OF_MEMORY → OutOfMemory");
     check(strcmp(tc_error_kind_name(TC_ERR_INDENT_MIXED), "IndentMixedError") == 0,
           "TC_ERR_INDENT_MIXED → IndentMixedError");
     check(strcmp(tc_error_kind_name(TC_ERR_INDENT_INSUFFICIENT), "IndentInsufficientError") == 0,

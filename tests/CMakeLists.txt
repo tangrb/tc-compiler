@@ -10,5 +10,6 @@ add_custom_target(check-unit
     COMMAND echo "=== Running Bitwise unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-bitwise
     COMMAND echo "=== Running Shift unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-shift
     COMMAND echo "=== Running Symbol table unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-symbol
+    COMMAND echo "=== Running Warning list unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-warning
     COMMENT "Running all unit tests"
 )

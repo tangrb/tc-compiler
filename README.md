@@ -13,10 +13,10 @@ src/
 ├── vm/                TC-VM 源码（lexer / parser / analyzer / executor / runtime）
 └── aot/               TC-AOT 源码（codegen / rt shim / CLI）
 tests/
-├── valid/             一致性测试（56 个，含 bool/let/I/O/format 等特性）
-├── errors/            错误测试（static 52 个 + runtime 31 个）
-├── unit/              C 单元测试（lexer / runtime）
-└── stress/            压力测试
+    ├── valid/             一致性测试（72 个，含 bool/let/I/O/format/if 等特性）
+    ├── errors/            错误测试（static 72 个 + runtime 36 个）
+    ├── unit/              C 单元测试（lexer / runtime，含 test_warning）
+    └── stress/            压力测试
 scripts/
 ├── vm/                VM 测试脚本
 ├── aot/               AOT 差分测试脚本
@@ -40,8 +40,11 @@ build/                 构建产物（git 忽略）
 | 单目运算 | `abs` / `neg` |
 | 类型转换 | `cast`（支持 truncate / strict / widen 模式） |
 | I/O | `write` / `writeln` / `read`，支持格式说明符（`d`/`i`/`u`/`x`/`X`/`o`/`b`/`t`） |
-| 常量折叠 | `let` 初始化表达式的编译期求值（算术/比较/逻辑/cast 均支持） |
-| REPL | 交互式逐条执行，变量跨行保留 |
+| 常量折叠 | `let` 初始化表达式的编译期求值（算术/比较/逻辑/cast/位运算均支持） |
+| 控制流 | `if-then-else-end`（缩进敏感，支持嵌套，块级作用域） |
+| 块级作用域 | then/else 互斥子作用域，允许同名局部变量，嵌套 shadowing |
+| 位运算 | `and` / `or` / `xor` / `not`（按位，无溢出）；`shl`（strict/wrap）/ `shr`（算术/逻辑） |
+| REPL | 交互式逐条执行，变量跨行保留（不支持 if） |
 
 ## 构建
 
@@ -119,7 +122,8 @@ REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置�
 | [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v0.0.24） |
 | [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v0.0.24） |
 | [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | AOT 代码生成与 shim 层（v0.0.24） |
-| [libtc 嵌入 API](docs/libtc-api.md) | libtc 静态库的嵌入编程接口 |
+| [libtc 设计说明书](docs/libtc设计说明书.md) | libtc 静态库的设计架构与错误契约（v0.0.24） |
+| [libtc 嵌入 API](docs/libtc-api.md) | libtc 静态库的嵌入编程接口速查 |
 
 实现行为以语言标准为准；VM / AOT 详细设计文档规定各后端的实现架构，不重复定义语言语义。
 
@@ -182,7 +186,7 @@ GitHub Actions 工作流位于 `.github/workflows/ci.yml`，在 push / PR 时自
 
 - **双平台**：Ubuntu + macOS
 - **测试阶段**：VM conformance → RHS 覆盖检查 → AOT 差分 → Codecov
-- 每次 CI 运行约 **832** 检测点（VM 277 + unit 522 + AOT 33）
+- 每次 CI 运行约 **892** 检测点（VM 277 + unit 582 + AOT 33）
 
 ### Git hooks（可选）
 

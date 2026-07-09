@@ -252,6 +252,7 @@ warning: use of possibly uninitialized variable 'a' (line 2)
 | ErrorKind | 对应语言标准 | 典型阶段 |
 |-----------|--------------|----------|
 | `SyntaxError` | （VM 扩展） | 词法 / 语法 / 文件 I/O |
+| `OutOfMemoryError` | （v0.0.24 新增） | 内存分配失败 |
 | `UndefinedVariable` | 未定义标识符错误 | 静态分析 |
 | `DuplicateDefinition` | 重复定义错误 | 静态分析 |
 | `TypeMismatch` | 类型错误 | 静态分析 |

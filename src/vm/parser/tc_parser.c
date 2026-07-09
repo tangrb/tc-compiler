@@ -63,7 +63,7 @@ static int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_n
         out->kind = TC_OPERAND_VAR;
         out->u.name = strndup(tok->start, tok->length);
         if (!out->u.name) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok->column, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
             return -1;
         }
         (*index)++;
@@ -320,7 +320,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         out->u.cast.mode = mode;
         out->u.cast.source = strndup(src_tok->start, src_tok->length);
         if (!out->u.cast.source) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, src_tok->column, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, src_tok->column, "memory allocation failed");
             return -1;
         }
         (*index)++;
@@ -808,7 +808,7 @@ static int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_
         out->kind = TC_RHS_CONST_REF;
         out->u.const_ref.name = strndup(tok->start, tok->length);
         if (!out->u.const_ref.name) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok->column, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
             rc = -1;
         } else {
             (*index)++;
@@ -943,7 +943,7 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
         }
         out->name = strndup(name_tok->start, name_tok->length);
         if (!out->name) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, name_tok->column, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column, "memory allocation failed");
             return -1;
         }
         (*index)++;
@@ -982,7 +982,7 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         }
         name = strndup(name_tok->start, name_tok->length);
         if (!name) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, name_tok->column, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column, "memory allocation failed");
             return -1;
         }
         (*index)++;
@@ -1059,6 +1059,9 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
 /* ------------------------------------------------------------------ */
 
 static void tc_operand_free(TcOperand *operand) {
+    if (!operand) {
+        return;
+    }
     if (operand->kind == TC_OPERAND_VAR) {
         free(operand->u.name);
         operand->u.name = NULL;
@@ -1091,13 +1094,19 @@ void tc_rhs_free(TcRhs *rhs) {
         tc_operand_free(&rhs->u.shift.value);
         tc_operand_free(&rhs->u.shift.count);
     } else if (rhs->kind == TC_RHS_CAST) {
-        free(rhs->u.cast.source);
-        rhs->u.cast.source = NULL;
+        if (rhs->u.cast.source) {
+            free(rhs->u.cast.source);
+            rhs->u.cast.source = NULL;
+        }
     } else if (rhs->kind == TC_RHS_CONST_CAST) {
         tc_operand_free(&rhs->u.const_cast.source);
     } else if (rhs->kind == TC_RHS_CONST_REF) {
-        free(rhs->u.const_ref.name);
-        rhs->u.const_ref.name = NULL;
+        if (rhs->u.const_ref.name) {
+            free(rhs->u.const_ref.name);
+            rhs->u.const_ref.name = NULL;
+        }
+    } else {
+        /* unknown RHS kind, skip */
     }
 }
 
@@ -1106,24 +1115,32 @@ void tc_statement_free(TcStatement *stmt) {
         return;
     }
     if (stmt->kind == TC_STMT_VAR_DEF) {
-        free(stmt->u.var_def.name);
-        stmt->u.var_def.name = NULL;
+        if (stmt->u.var_def.name) {
+            free(stmt->u.var_def.name);
+            stmt->u.var_def.name = NULL;
+        }
         if (stmt->u.var_def.has_rhs) {
             tc_rhs_free(&stmt->u.var_def.rhs);
         }
     } else if (stmt->kind == TC_STMT_CONST_DEF) {
-        free(stmt->u.const_def.name);
-        stmt->u.const_def.name = NULL;
+        if (stmt->u.const_def.name) {
+            free(stmt->u.const_def.name);
+            stmt->u.const_def.name = NULL;
+        }
         tc_rhs_free(&stmt->u.const_def.rhs);
     } else if (stmt->kind == TC_STMT_ASSIGN) {
-        free(stmt->u.assign.name);
-        stmt->u.assign.name = NULL;
+        if (stmt->u.assign.name) {
+            free(stmt->u.assign.name);
+            stmt->u.assign.name = NULL;
+        }
         tc_rhs_free(&stmt->u.assign.rhs);
     } else if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
         tc_operand_free(&stmt->u.io_write.operand);
     } else if (stmt->kind == TC_STMT_READ) {
-        free(stmt->u.io_read.name);
-        stmt->u.io_read.name = NULL;
+        if (stmt->u.io_read.name) {
+            free(stmt->u.io_read.name);
+            stmt->u.io_read.name = NULL;
+        }
     } else if (stmt->kind == TC_STMT_IF) {
         size_t i = 0;
 
@@ -1140,6 +1157,8 @@ void tc_statement_free(TcStatement *stmt) {
         free(stmt->u.if_stmt.else_body);
         stmt->u.if_stmt.else_body = NULL;
         stmt->u.if_stmt.else_count = 0;
+    } else {
+        /* unknown STMT kind, skip */
     }
 }
 
@@ -1169,7 +1188,7 @@ int tc_program_push(TcProgram *program, const TcStatement *stmt, TcDiagnostic *d
         size_t new_cap = program->capacity == 0 ? 8 : program->capacity * 2;
         TcStatement *items = (TcStatement *)realloc(program->items, new_cap * sizeof(TcStatement));
         if (!items) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         program->items = items;
@@ -1250,7 +1269,7 @@ int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
         assign.line = line_no;
         assign.name = strndup(first->start, first->length);
         if (!assign.name) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, first->column, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, first->column, "memory allocation failed");
             return -1;
         }
         index++;
@@ -1458,7 +1477,7 @@ static int tc_stmt_block_push(TcStmtBlock *block, const TcStatement *stmt, TcDia
             (TcStatement *)realloc(block->items, new_cap * sizeof(TcStatement));
 
         if (!items) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         block->items = items;
@@ -1644,7 +1663,7 @@ static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines,
 
         line_copy = (char *)malloc((size_t)(line_end - line_start) + 1);
         if (!line_copy) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN, "memory allocation failed");
             tc_source_lines_free(lines, count);
             return -1;
         }
@@ -1667,7 +1686,7 @@ static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines,
             if (!entry.text) {
                 free(line_copy);
                 tc_source_lines_free(lines, count);
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN, "out of memory");
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN, "memory allocation failed");
                 return -1;
             }
             tc_token_list_init(&entry.tokens);
@@ -1689,8 +1708,8 @@ static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines,
                     free(entry.text);
                     tc_token_list_free(&entry.tokens);
                     tc_source_lines_free(lines, count);
-                    tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, TC_COLUMN_UNKNOWN,
-                                      "out of memory");
+                    tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN,
+                                      "memory allocation failed");
                     return -1;
                 }
                 lines = new_lines;
