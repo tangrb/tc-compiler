@@ -1,7 +1,7 @@
 BUILD_DIR := build
 CMAKE := cmake
 
-.PHONY: all vm aot test test-vm test-unit test-aot bench clean configure hooks
+.PHONY: all vm aot test test-vm test-unit test-aot bench clean configure hooks ci ci-coverage
 
 all vm: configure
 	$(CMAKE) --build $(BUILD_DIR)
@@ -22,6 +22,12 @@ test-unit: configure
 
 test-aot: configure
 	$(CMAKE) --build $(BUILD_DIR) --target check-aot
+
+ci:
+	sh scripts/ci.sh
+
+ci-coverage:
+	sh scripts/ci.sh --coverage
 
 bench:
 	sh scripts/vm/gen_bench_baseline.sh

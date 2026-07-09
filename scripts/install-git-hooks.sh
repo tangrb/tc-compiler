@@ -12,7 +12,7 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
     exit 1
 fi
 
-chmod +x "$hooks_dir/commit-msg"
+[ -f "$hooks_dir/commit-msg" ] && chmod +x "$hooks_dir/commit-msg"
 git config core.hooksPath scripts/git-hooks
 
 echo "Git hooks installed: core.hooksPath=scripts/git-hooks"

@@ -13,15 +13,18 @@ src/
 ├── vm/                TC-VM 源码（lexer / parser / analyzer / executor / runtime）
 └── aot/               TC-AOT 源码（codegen / rt shim / CLI）
 tests/
-    ├── valid/             一致性测试（72 个，含 bool/let/I/O/format/if 等特性）
+    ├── valid/             一致性测试（含 bool/let/I/O/format/if 等特性）
     ├── errors/            错误测试（static 72 个 + runtime 37 个）
-    ├── unit/              C 单元测试（lexer / runtime，含 test_warning）
+    ├── unit/              C 单元测试（lexer / parser / semantics / types / io / bitwise / shift / symbol / warning / analyzer / stmt-index）
     └── stress/            压力测试
 scripts/
-├── vm/                VM 测试脚本
-├── aot/               AOT 差分测试脚本
-├── sync/              RHS 覆盖检查（check_rhs_coverage.py）
-└── run_tests.sh       统一测试入口（推荐）
+├── ci.sh              本地 CI 流水线（构建 + 测试 + 静态检查）
+├── run_tests.sh        统一测试入口（推荐）
+├── git-hooks/          Git hooks（commit-msg 剥离 Cursor trailer）
+├── vm/                 VM 测试脚本
+├── aot/                AOT 差分测试脚本
+├── sync/               RHS 覆盖检查（check_rhs_coverage.py）
+└── install-git-hooks.sh
 build/                 构建产物（git 忽略）
 ├── vm/bin/tc-vm       VM 可执行文件
 └── aot/bin/tc-aot     AOT 可执行文件
@@ -61,6 +64,8 @@ make test-vm            # VM 一致性测试
 make test-aot           # AOT 差分测试
 make test-unit          # C 单元测试
 make bench              # 性能基准测试
+make ci                 # 本地 CI（构建 + 全部测试 + 静态检查）
+make ci-coverage        # 本地 CI + 覆盖率报告
 make clean              # 删除 build/ 目录
 ```
 
@@ -180,13 +185,34 @@ bash scripts/run_tests.sh --asan                   # AddressSanitizer 模式
 make test
 ```
 
-### CI
+### 本地 CI
 
-GitHub Actions 工作流位于 `.github/workflows/ci.yml`，在 push / PR 时自动运行：
+本地 CI 脚本替代远端 GitHub Actions，在本地执行完整的构建、测试和静态检查流水线。
 
-- **双平台**：Ubuntu + macOS
-- **测试阶段**：VM conformance → RHS 覆盖检查 → AOT 差分 → Codecov
-- 每次 CI 运行约 **1064** 检测点（VM 281 + unit 644 + AOT 139）
+**手动触发**（非自动，无需推送）：
+
+```sh
+make ci                          # 标准 CI（构建 + 全部测试 + 静态检查）
+make ci-coverage                 # 含覆盖率收集与 HTML 报告
+# 等价于：
+bash scripts/ci.sh               # 标准 CI
+bash scripts/ci.sh --coverage    # 含覆盖率
+bash scripts/ci.sh --full        # 同上
+```
+
+CI 流水线包含 5 个阶段：
+
+| 阶段 | 检查项 | 命令 |
+|------|--------|------|
+| 1/5 | 构建 (VM + AOT + libtc) | `cmake --build build` |
+| 2/5 | VM Conformance 测试 | `make test-vm` |
+| 3/5 | C 单元测试 | `make test-unit` |
+| 4/5 | AOT Differential 测试 | `make test-aot` |
+| 5/5 | 静态检查（RHS 覆盖 + 命名规范） | `check_rhs_coverage.py` + `check_source_naming.py` |
+
+每次 CI 运行约 **1000+** 检测点（VM + unit + AOT）。
+
+覆盖率报告生成于 `build-coverage/coverage_html/index.html`，可使用浏览器打开查看。
 
 ### Git hooks（可选）
 
