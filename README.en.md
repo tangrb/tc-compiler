@@ -18,10 +18,16 @@ tests/
 ├── unit/              C unit tests (lexer / runtime)
 └── stress/            Stress tests
 scripts/
+├── ci.sh              Local CI pipeline (build + test + static check)
+├── run_tests.sh       Unified test entry (recommended)
+├── run_asan_all.sh    ASan one-click build + full test
+├── run_memcheck_macos.sh  macOS memory check (MallocScribble + leaks)
+├── valgrind-suppressions.supp  Valgrind suppressions (libc startup alloc)
+├── git-hooks/         Git hooks (commit-msg strips Cursor trailer)
 ├── vm/                VM test scripts
 ├── aot/               AOT differential test scripts
 ├── sync/              RHS coverage checker (check_rhs_coverage.py)
-└── run_tests.sh       Unified test entry (recommended)
+└── install-git-hooks.sh
 build/                 Build artifacts (git ignored)
 ├── vm/bin/tc-vm       VM executable
 └── aot/bin/tc-aot     AOT executable
@@ -57,7 +63,14 @@ make test               # Run all tests (VM + AOT + unit)
 make test-vm            # VM conformance tests
 make test-aot           # AOT differential tests
 make test-unit          # C unit tests
+make test-valgrind      # Valgrind Memcheck mode (Linux)
+make test-leaks         # macOS leaks mode
+make memcheck-macos     # macOS full memory check (MallocScribble + leaks)
 make bench              # Performance benchmarks
+make build-asan         # ASan build
+make build-ubsan        # UBSan build
+make ci                 # Local CI (build + all tests + static checks)
+make ci-coverage        # Local CI + coverage report
 make clean              # Remove build/ directory
 ```
 
@@ -74,13 +87,58 @@ cmake --build build --target check-unit   # C unit tests
 cmake --build build --target check        # All tests
 ```
 
-### AddressSanitizer Mode
+### Sanitizer Modes
+
+#### AddressSanitizer (Memory Error Detection)
 
 ```sh
-cmake -S . -B build-asan -DCMAKE_C_FLAGS="-fsanitize=address -g"
+# Method 1: Makefile shortcut
+make build-asan
+bash scripts/run_tests.sh --asan
+
+# Method 2: Manual cmake
+cmake -S . -B build-asan -DCMAKE_C_FLAGS="-fsanitize=address -g" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
 cmake --build build-asan
 bash scripts/run_tests.sh --asan
+
+# Method 3: One-click script (build + full test + report)
+bash scripts/run_asan_all.sh
 ```
+
+#### UndefinedBehaviorSanitizer (UB Detection)
+
+```sh
+make build-ubsan
+bash scripts/run_tests.sh --ubsan
+```
+
+### Memory Safety Checks
+
+#### Linux: Valgrind Memcheck
+
+```sh
+make test-valgrind
+# Equivalent to:
+bash scripts/run_tests.sh --valgrind
+```
+
+#### macOS: leaks + MallocScribble
+
+```sh
+make test-leaks                   # Leak detection only (leaks --atExit)
+make memcheck-macos               # Two-phase: MallocScribble (OOB/UAF) + leaks
+# Equivalent to:
+bash scripts/run_tests.sh --leaks
+bash scripts/run_memcheck_macos.sh
+```
+
+The macOS `run_memcheck_macos.sh` script runs three steps:
+1. **Standard build** (`make vm`)
+2. **MallocScribble mode**: `MallocScribble=1 MallocPreScribble=1`, detects out-of-bounds reads and use-after-free
+3. **leaks --atExit mode**: Reports unreleased memory on process exit
+
+> **Note**: Valgrind has poor compatibility on macOS. Prefer the built-in `leaks` + `MallocScribble` combination.
 
 ## Usage
 
@@ -167,6 +225,9 @@ bash scripts/run_tests.sh                          # Run all tests
 bash scripts/run_tests.sh --filter foo             # VM tests matching "foo" only
 bash scripts/run_tests.sh --verbose                # Verbose logging
 bash scripts/run_tests.sh --asan                   # AddressSanitizer mode
+bash scripts/run_tests.sh --ubsan                  # UndefinedBehaviorSanitizer mode
+bash scripts/run_tests.sh --valgrind               # Valgrind Memcheck mode (Linux)
+bash scripts/run_tests.sh --leaks                  # macOS leaks mode
 ```
 
 ### Equivalent Makefile
@@ -175,13 +236,42 @@ bash scripts/run_tests.sh --asan                   # AddressSanitizer mode
 make test
 ```
 
-### CI
+### Local CI
 
-GitHub Actions workflow at `.github/workflows/ci.yml` runs on push / PR:
+The local CI script replaces remote GitHub Actions, running the full build, test, and static-check pipeline locally.
 
-- **Dual platform**: Ubuntu + macOS
-- **Pipeline**: VM conformance -> RHS coverage check -> AOT differential -> Codecov
-- Each run covers **550+** check points (VM ~198 + unit ~404 + AOT ~22 + RHS check)
+**Manual trigger** (no push required):
+
+```sh
+make ci                          # Standard CI (build + all tests + static checks)
+make ci-coverage                 # With coverage collection and HTML report
+# Equivalent to:
+bash scripts/ci.sh               # Standard CI
+bash scripts/ci.sh --coverage    # With coverage
+bash scripts/ci.sh --full        # Same
+```
+
+CI pipeline consists of 5 stages:
+
+| Stage | Check | Command |
+|-------|-------|---------|
+| 1/5 | Build (VM + AOT + libtc) | `cmake --build build` |
+| 2/5 | VM Conformance tests | `make test-vm` |
+| 3/5 | C unit tests | `make test-unit` |
+| 4/5 | AOT Differential tests | `make test-aot` |
+| 5/5 | Static checks (RHS coverage + naming) | `check_rhs_coverage.py` + `check_source_naming.py` |
+
+Each CI run covers about **1000+** check points (VM + unit + AOT).
+
+Coverage report is generated at `build-coverage/coverage_html/index.html`.
+
+### GitHub Actions: ASan CI
+
+`.github/workflows/asan.yml` runs on push to `main` or PR:
+
+- **Platform**: `ubuntu-latest`
+- **Pipeline**: cmake ASan configure → build → VM conformance → unit tests → AOT differential
+- Detects memory errors (leaks, out-of-bounds, use-after-free) and fails on any finding
 
 ## Author
 

@@ -1,0 +1,46 @@
+# ASan CI — AddressSanitizer 构建与测试
+#
+# 每次推送到 main 或 PR 时，在 ubuntu-latest 上执行 ASan 构建并运行全部测试。
+# 若发现内存错误（泄漏、越界、使用后释放等），CI 将失败。
+
+name: ASan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  BUILD_DIR: build-asan
+
+jobs:
+  asan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc
+
+      - name: Configure with ASan
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -DCMAKE_C_FLAGS="-fsanitize=address -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
+
+      - name: Build with ASan
+        run: cmake --build "$BUILD_DIR" -j "$(nproc)"
+
+      - name: Run VM conformance tests (ASan)
+        run: bash scripts/vm/run_tests.sh --asan
+
+      - name: Run unit tests (ASan)
+        run: cmake --build "$BUILD_DIR" --target check-unit
+
+      - name: Run AOT differential tests
+        run: bash scripts/aot/run_tests.sh

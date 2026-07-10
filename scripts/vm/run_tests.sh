@@ -8,6 +8,9 @@ PASSED=0
 FAILED=0
 FAILED_FILES=""
 ASAN_MODE=0
+LEAKS_MODE=0
+UBSAN_MODE=0
+VALGRIND_MODE=0
 VERBOSE=0
 FILTER=""
 
@@ -15,6 +18,18 @@ while [ $# -gt 0 ]; do
     case "$1" in
     --asan)
         ASAN_MODE=1
+        shift
+        ;;
+    --leaks)
+        LEAKS_MODE=1
+        shift
+        ;;
+    --ubsan)
+        UBSAN_MODE=1
+        shift
+        ;;
+    --valgrind)
+        VALGRIND_MODE=1
         shift
         ;;
     --verbose)
@@ -31,7 +46,7 @@ while [ $# -gt 0 ]; do
         ;;
     *)
         echo "error: unknown option: $1" >&2
-        echo "usage: run_tests.sh [--asan] [--verbose] [--filter PATTERN]" >&2
+        echo "usage: run_tests.sh [--asan] [--ubsan] [--valgrind] [--leaks] [--verbose] [--filter PATTERN]" >&2
         exit 1
         ;;
     esac
@@ -39,16 +54,42 @@ done
 
 if [ "$ASAN_MODE" -eq 1 ] || [ "${ASAN:-0}" = "1" ]; then
     ASAN_MODE=1
-    BIN="$ROOT/build-asan/vm/bin/tc-vm"
+    TC_VM_BIN="$ROOT/build-asan/vm/bin/tc-vm"
+    BUILD_HINT="make build-asan"
     echo "=== ASAN mode (build-asan) ==="
+elif [ "$UBSAN_MODE" -eq 1 ]; then
+    TC_VM_BIN="$ROOT/build-ubsan/vm/bin/tc-vm"
+    BUILD_HINT="make build-ubsan"
+    echo "=== UBSan mode (build-ubsan) ==="
 else
-    BIN="$ROOT/build/vm/bin/tc-vm"
+    TC_VM_BIN="$ROOT/build/vm/bin/tc-vm"
+    BUILD_HINT="make vm"
 fi
 
-if [ ! -x "$BIN" ]; then
-    echo "error: binary not found at $BIN" >&2
-    echo "  build first: make vm (or make build-asan for ASAN)" >&2
+if [ ! -x "$TC_VM_BIN" ]; then
+    echo "error: binary not found at $TC_VM_BIN" >&2
+    echo "  build first: ${BUILD_HINT}" >&2
     exit 1
+fi
+
+# Wrap with Valgrind / Leaks if requested
+if [ "$VALGRIND_MODE" -eq 1 ]; then
+    SUPP_FILE="$ROOT/scripts/valgrind-suppressions.supp"
+    if [ ! -f "$SUPP_FILE" ]; then
+        echo "error: suppression file not found: $SUPP_FILE" >&2
+        exit 1
+    fi
+    echo "=== Valgrind Memcheck mode ==="
+    BIN="valgrind --tool=memcheck --suppressions=$SUPP_FILE --error-exitcode=1 --leak-check=full $TC_VM_BIN"
+elif [ "$LEAKS_MODE" -eq 1 ]; then
+    if ! command -v leaks >/dev/null 2>&1; then
+        echo "error: 'leaks' not found — install Xcode or run 'xcode-select --install'" >&2
+        exit 1
+    fi
+    echo "=== macOS leaks mode (MallocStackLogging + leaks --atExit) ==="
+    BIN="env MallocStackLogging=1 leaks --atExit -- $TC_VM_BIN"
+else
+    BIN="$TC_VM_BIN"
 fi
 
 should_run() {
@@ -130,7 +171,7 @@ run_expect_stdout() {
     log_test "OUT $file"
 
     printf '%s' "$expected" > "$exp"
-    if ! "$BIN" "$file" </dev/null >"$got" 2>/dev/null; then
+    if ! $BIN "$file" </dev/null >"$got" 2>/dev/null; then
         fail "expected success: $file" "$file"
         rm -f "$exp" "$got"
         return
@@ -155,7 +196,7 @@ run_with_stdin() {
     log_test "IN  $file"
 
     printf '%s' "$expected" > "$exp"
-    if ! printf '%s' "$stdin" | "$BIN" "$file" >"$got" 2>/dev/null; then
+    if ! printf '%s' "$stdin" | $BIN "$file" >"$got" 2>/dev/null; then
         fail "expected success: $file" "$file"
         rm -f "$exp" "$got"
         return
@@ -176,7 +217,7 @@ run_expect_ok_warn() {
     should_run "$file" || return 0
     log_test "WRN $file"
 
-    output="$("$BIN" "$file" </dev/null 2>&1)" || {
+    output="$($BIN "$file" </dev/null 2>&1)" || {
         fail "expected success with warning: $file" "$file"
         return
     }
@@ -197,7 +238,7 @@ run_expect_fail_msg() {
     should_run "$file" || return 0
     log_test "ERR $file ($pattern)"
 
-    output="$("$BIN" "$file" </dev/null 2>&1)" && {
+    output="$($BIN "$file" </dev/null 2>&1)" && {
         fail "expected failure: $file" "$file"
         return
     }
@@ -220,7 +261,7 @@ run_expect_fail_stdin_msg() {
     should_run "$file" || return 0
     log_test "ERR $file ($pattern, stdin)"
 
-    output="$(printf '%s' "$stdin" | "$BIN" "$file" 2>&1)" && {
+    output="$(printf '%s' "$stdin" | $BIN "$file" 2>&1)" && {
         fail "expected failure: $file" "$file"
         return
     }
@@ -241,7 +282,7 @@ run_expect_ok_no_warn() {
     should_run "$file" || return 0
     log_test "NOW $file"
 
-    output="$("$BIN" "$file" </dev/null 2>&1)" || {
+    output="$($BIN "$file" </dev/null 2>&1)" || {
         fail "expected success without warning: $file" "$file"
         return
     }
@@ -261,7 +302,7 @@ run_expect_check_no_warn() {
     should_run "$file" || return 0
     log_test "CNW $file"
 
-    output="$("$BIN" --check "$file" </dev/null 2>&1)" || {
+    output="$($BIN --check "$file" </dev/null 2>&1)" || {
         fail "expected --check success without warning: $file" "$file"
         return
     }
@@ -281,7 +322,7 @@ run_expect_ok() {
     should_run "$file" || return 0
     log_test "OK  $file"
 
-    if ! "$BIN" "$file" </dev/null >/dev/null; then
+    if ! $BIN "$file" </dev/null >/dev/null; then
         fail "expected success: $file" "$file"
         return
     fi
@@ -294,7 +335,7 @@ run_expect_check_ok() {
     should_run "$file" || return 0
     log_test "CHK $file"
 
-    if ! "$BIN" --check "$file" </dev/null >/dev/null 2>&1; then
+    if ! $BIN --check "$file" </dev/null >/dev/null 2>&1; then
         fail "expected --check success: $file" "$file"
         return
     fi
@@ -308,7 +349,7 @@ run_expect_check_fail() {
     should_run "$file" || return 0
     log_test "CFL $file ($pattern)"
 
-    output="$("$BIN" --check "$file" </dev/null 2>&1)" && {
+    output="$($BIN --check "$file" </dev/null 2>&1)" && {
         fail "expected --check failure: $file" "$file"
         return
     }
@@ -331,7 +372,7 @@ run_repl_expect() {
     should_run "$label" || return 0
     log_test "REPL $label"
 
-    output="$(printf '%s\n' "$input" | "$BIN" --repl 2>&1)"
+    output="$(printf '%s\n' "$input" | $BIN --repl 2>&1)"
     if ! printf '%s' "$output" | grep -Fq "$expected"; then
         fail "REPL test failed: $label" "$label"
         echo "  expected substring: $expected" >&2

@@ -1,0 +1,22 @@
+# TC-Compiler Valgrind 压制文件
+#
+# 用法: valgrind --suppressions=scripts/valgrind-suppressions.supp
+#
+# 压制规则仅用于已知无害的告警（如 libc 启动期分配、工具链内部行为）。
+# 编译器自身代码的泄漏必须修复。
+
+{
+   <libc_startup_alloc>
+   Memcheck:Leak
+   fun:calloc
+   ...
+   fun:_dl_*
+}
+
+{
+   <libc_startup_alloc_realloc>
+   Memcheck:Leak
+   fun:realloc
+   ...
+   fun:_dl_*
+}

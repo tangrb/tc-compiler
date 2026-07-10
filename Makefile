@@ -1,7 +1,7 @@
 BUILD_DIR := build
 CMAKE := cmake
 
-.PHONY: all vm aot test test-vm test-unit test-aot bench clean configure hooks ci ci-coverage
+.PHONY: all vm aot test test-vm test-unit test-aot test-valgrind test-leaks memcheck-macos bench clean configure hooks ci ci-coverage build-asan build-ubsan
 
 all vm: configure
 	$(CMAKE) --build $(BUILD_DIR)
@@ -11,6 +11,14 @@ configure:
 
 aot: configure
 	$(CMAKE) --build $(BUILD_DIR) --target tc-aot
+
+build-asan:
+	$(CMAKE) -S . -B build-asan -DCMAKE_C_FLAGS="-fsanitize=address -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
+	$(CMAKE) --build build-asan
+
+build-ubsan:
+	$(CMAKE) -S . -B build-ubsan -DCMAKE_C_FLAGS="-fsanitize=undefined -fno-sanitize-recover=undefined -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=undefined"
+	$(CMAKE) --build build-ubsan
 
 test: test-vm test-unit test-aot
 
@@ -22,6 +30,15 @@ test-unit: configure
 
 test-aot: configure
 	$(CMAKE) --build $(BUILD_DIR) --target check-aot
+
+test-valgrind: vm
+	bash scripts/run_tests.sh --valgrind
+
+test-leaks: vm
+	bash scripts/run_tests.sh --leaks
+
+memcheck-macos: vm
+	bash scripts/run_memcheck_macos.sh
 
 ci:
 	sh scripts/ci.sh

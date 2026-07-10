@@ -20,6 +20,9 @@ tests/
 scripts/
 ├── ci.sh              本地 CI 流水线（构建 + 测试 + 静态检查）
 ├── run_tests.sh        统一测试入口（推荐）
+├── run_asan_all.sh     ASan 一键构建 + 全量测试
+├── run_memcheck_macos.sh  macOS 内存安全检查（MallocScribble + leaks）
+├── valgrind-suppressions.supp  Valgrind 压制文件（libc 启动期分配）
 ├── git-hooks/          Git hooks（commit-msg 剥离 Cursor trailer）
 ├── vm/                 VM 测试脚本
 ├── aot/                AOT 差分测试脚本
@@ -63,7 +66,12 @@ make test               # 运行全部测试（VM + AOT + 单元测试）
 make test-vm            # VM 一致性测试
 make test-aot           # AOT 差分测试
 make test-unit          # C 单元测试
+make test-valgrind      # Valgrind Memcheck 模式（Linux）
+make test-leaks         # macOS leaks 模式
+make memcheck-macos     # macOS 完整内存检查（MallocScribble + leaks）
 make bench              # 性能基准测试
+make build-asan         # ASan 构建
+make build-ubsan        # UBSan 构建
 make ci                 # 本地 CI（构建 + 全部测试 + 静态检查）
 make ci-coverage        # 本地 CI + 覆盖率报告
 make clean              # 删除 build/ 目录
@@ -82,13 +90,58 @@ cmake --build build --target check-unit   # C 单元测试
 cmake --build build --target check        # 全部测试
 ```
 
-### AddressSanitizer 模式
+### Sanitizer 模式
+
+#### AddressSanitizer（内存错误检测）
 
 ```sh
-cmake -S . -B build-asan -DCMAKE_C_FLAGS="-fsanitize=address -g"
+# 方式一：Makefile 快捷方式
+make build-asan
+bash scripts/run_tests.sh --asan
+
+# 方式二：手动 cmake
+cmake -S . -B build-asan -DCMAKE_C_FLAGS="-fsanitize=address -g" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
 cmake --build build-asan
 bash scripts/run_tests.sh --asan
+
+# 方式三：一键脚本（构建 + 全量测试 + 报告）
+bash scripts/run_asan_all.sh
 ```
+
+#### UndefinedBehaviorSanitizer（未定义行为检测）
+
+```sh
+make build-ubsan
+bash scripts/run_tests.sh --ubsan
+```
+
+### 内存安全检查
+
+#### Linux：Valgrind Memcheck
+
+```sh
+make test-valgrind
+# 等价于：
+bash scripts/run_tests.sh --valgrind
+```
+
+#### macOS：leaks + MallocScribble
+
+```sh
+make test-leaks                   # 仅泄漏检测（leaks --atExit）
+make memcheck-macos               # 双阶段：MallocScribble（越界/UAF）+ leaks（泄漏）
+# 等价于：
+bash scripts/run_tests.sh --leaks
+bash scripts/run_memcheck_macos.sh
+```
+
+macOS `run_memcheck_macos.sh` 脚本依次执行：
+1. **标准构建**（`make vm`）
+2. **MallocScribble 模式**：`MallocScribble=1 MallocPreScribble=1`，检测越界读取/使用已释放内存
+3. **leaks --atExit 模式**：进程退出时报告未释放的内存
+
+> **注意**：Valgrind 在 macOS 上兼容性不佳，请优先使用内置的 `leaks` + `MallocScribble` 组合。
 
 ## 运行
 
@@ -177,6 +230,9 @@ bash scripts/run_tests.sh                          # 运行全部测试
 bash scripts/run_tests.sh --filter foo             # 仅 VM 中匹配 "foo" 的用例
 bash scripts/run_tests.sh --verbose                # 显示详细日志
 bash scripts/run_tests.sh --asan                   # AddressSanitizer 模式
+bash scripts/run_tests.sh --ubsan                  # UndefinedBehaviorSanitizer 模式
+bash scripts/run_tests.sh --valgrind               # Valgrind Memcheck 模式（Linux）
+bash scripts/run_tests.sh --leaks                  # macOS leaks 模式
 ```
 
 ### 等价 Makefile
@@ -211,6 +267,14 @@ CI 流水线包含 5 个阶段：
 | 5/5 | 静态检查（RHS 覆盖 + 命名规范） | `check_rhs_coverage.py` + `check_source_naming.py` |
 
 每次 CI 运行约 **1000+** 检测点（VM + unit + AOT）。
+
+### GitHub Actions：ASan CI
+
+`.github/workflows/asan.yml` 在每次推送至 `main` 或 PR 时自动触发：
+
+- **平台**：`ubuntu-latest`
+- **流程**：cmake ASan 配置 → 构建 → VM 一致性测试 → 单元测试 → AOT 差分测试
+- 若发现内存错误（泄漏、越界、使用后释放等），CI 将失败
 
 覆盖率报告生成于 `build-coverage/coverage_html/index.html`，可使用浏览器打开查看。
 
