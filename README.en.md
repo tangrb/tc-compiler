@@ -1,6 +1,6 @@
 # TC-Compiler
 
-The implementation project of the **TC** language (C99). Includes **libtc** (shared static library for compilation/execution), **TC-VM** (a direct execution engine), and **TC-AOT** (ahead-of-time compilation from `.tc` to C99 source code).
+A **TC** language compiler implemented in C99. Includes **libtc** (compile/execute static library), **TC-VM** (direct execution engine), and **TC-AOT** (ahead-of-time compilation, transpiles `.tc` to C99 source code).
 
 Version: **v0.0.24** (`src/vm/driver/tc_version.h`)
 
@@ -13,22 +13,22 @@ src/
 ├── vm/                TC-VM source (lexer / parser / analyzer / executor / runtime)
 └── aot/               TC-AOT source (codegen / rt shim / CLI)
 tests/
-├── valid/             Conformance tests (56, covering bool/let/I/O/format etc.)
-├── errors/            Error tests (52 static + 31 runtime)
-├── unit/              C unit tests (lexer / runtime)
-└── stress/            Stress tests
+    ├── valid/              Conformance tests (covers bool/let/I/O/format/if/bitwise/shift etc.)
+    ├── errors/             Error tests (72 static + 37 runtime)
+    ├── unit/              C unit tests (lexer*2 / parser / semantics / types / io / bitwise / shift / symbol / warning / analyzer / stmt-index — 12 modules)
+    └── stress/             Stress tests
 scripts/
 ├── ci.sh              Local CI pipeline (build + test + static check)
-├── run_tests.sh       Unified test entry (recommended)
-├── run_asan_all.sh    ASan one-click build + full test
+├── run_tests.sh        Unified test entry (recommended)
+├── run_asan_all.sh     ASan one-click build + full test
 ├── run_memcheck_macos.sh  macOS memory check (MallocScribble + leaks)
 ├── valgrind-suppressions.supp  Valgrind suppressions (libc startup alloc)
-├── git-hooks/         Git hooks (commit-msg strips Cursor trailer)
-├── vm/                VM test scripts
-├── aot/               AOT differential test scripts
-├── sync/              RHS coverage checker (check_rhs_coverage.py)
+├── git-hooks/          Git hooks (commit-msg strips Cursor trailer)
+├── vm/                 VM test scripts
+├── aot/                AOT differential test scripts
+├── sync/               RHS coverage checker (check_rhs_coverage.py)
 └── install-git-hooks.sh
-build/                 Build artifacts (git ignored)
+build/                  Build artifacts (git ignored)
 ├── vm/bin/tc-vm       VM executable
 └── aot/bin/tc-aot     AOT executable
 ```
@@ -46,8 +46,11 @@ build/                 Build artifacts (git ignored)
 | Unary | `abs` / `neg` |
 | Cast | `cast` with truncate / strict / widen modes |
 | I/O | `write` / `writeln` / `read`, format specifiers (`d`/`i`/`u`/`x`/`X`/`o`/`b`/`t`) |
-| Constant Folding | Compile-time evaluation of `let` initializers (arith/compare/logic/cast) |
-| REPL | Interactive line-by-line execution with persistent variables |
+| Constant Folding | Compile-time evaluation of `let` initializers (arith/compare/logic/cast/bitwise all supported) |
+| Control Flow | `if-then-else-end` (indentation-sensitive, supports nesting, block scoping) |
+| Block Scoping | then/else mutually exclusive child scopes, allows same-name locals, nested shadowing |
+| Bitwise | `and` / `or` / `xor` / `not` (bitwise, no overflow); `shl` (strict/wrap) / `shr` (arithmetic/logical) |
+| REPL | Interactive line-by-line execution with persistent variables (if not supported) |
 
 ## Build
 
@@ -133,7 +136,7 @@ bash scripts/run_tests.sh --leaks
 bash scripts/run_memcheck_macos.sh
 ```
 
-The macOS `run_memcheck_macos.sh` script runs three steps:
+The macOS `run_memcheck_macos.sh` script runs sequentially:
 1. **Standard build** (`make vm`)
 2. **MallocScribble mode**: `MallocScribble=1 MallocPreScribble=1`, detects out-of-bounds reads and use-after-free
 3. **leaks --atExit mode**: Reports unreleased memory on process exit
@@ -157,7 +160,7 @@ The macOS `run_memcheck_macos.sh` script runs three steps:
 ./build/vm/bin/tc-vm -i            # Same (short option)
 ```
 
-The REPL supports entering TC statements one by one with immediate execution; variables persist across lines. Built-in meta-commands include `:quit` (exit), `:reset` (clear variables), `:vars` (list variables), and `:help` (help).
+The REPL supports entering TC statements one by one with immediate execution; variables persist across lines. Built-in meta-commands include `:quit` (exit), `:reset` (clear variables), `:vars` (list variables), and `:help` (help). The REPL does not support `if` statements.
 
 ### AOT Mode
 
@@ -176,13 +179,15 @@ The REPL supports entering TC statements one by one with immediate execution; va
 | [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.24) |
 | [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation (v0.0.24) |
 | [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | CLI instructions for tc-vm (v0.0.24) |
-| [libtc Embedding API](docs/libtc-api.md) | Embedding programming interface for the libtc static library |
+| [TC-AOT Design Document (Chinese)](docs/TC-AOT详细设计说明书.md) | AOT code generation and shim layer (v0.0.24) |
+| [libtc Design Document (Chinese)](docs/libtc设计说明书.md) | libtc static library architecture and error contract (v0.0.24) |
+| [libtc Embedding API](docs/libtc-api.md) | Quick reference for libtc embedding programming interface |
 
-Implementation behavior follows the language specification; VM / AOT design documents define each backend's architecture.
+Implementation behavior follows the language specification; VM / AOT design documents define each backend's architecture without duplicating language semantics.
 
 ## Performance Profiling
 
-Set `TC_BENCH=1` to output phase timing to stderr:
+Set the `TC_BENCH=1` environment variable to output phase timing to stderr:
 
 ```sh
 TC_BENCH=1 ./build/vm/bin/tc-vm tests/valid/example.tc
@@ -192,7 +197,7 @@ Use with `scripts/vm/bench.sh` for local regression comparison.
 
 ## Embedding libtc
 
-libtc provides a "compile (Parse + Analyze)" and "execute" separated API:
+libtc provides a compile (Parse + Analyze) and execute separated embedding interface:
 
 ```c
 #include "tc_lib.h"
@@ -201,17 +206,15 @@ TcDiagnostic diag;
 TcTypedProgram program;
 
 tc_diagnostic_init(&diag);
-if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0) {
-    tc_diagnostic_print(&diag, stderr);
-    return 1;
-}
-if (tc_run_typed(&program, &diag) != 0) {
+if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0
+    || tc_run_typed(&program, &diag) != 0) {
     tc_diagnostic_print(&diag, stderr);
     tc_typed_program_free(&program);
     return 1;
 }
 tc_typed_program_free(&program);
 tc_diagnostic_clear(&diag);
+return 0;
 ```
 
 See [docs/libtc-api.md](docs/libtc-api.md) for details.
@@ -263,15 +266,24 @@ CI pipeline consists of 5 stages:
 
 Each CI run covers about **1000+** check points (VM + unit + AOT).
 
-Coverage report is generated at `build-coverage/coverage_html/index.html`.
-
 ### GitHub Actions: ASan CI
 
-`.github/workflows/asan.yml` runs on push to `main` or PR:
+`.github/workflows/asan.yml` automatically triggers on push to `main` or PR:
 
 - **Platform**: `ubuntu-latest`
-- **Pipeline**: cmake ASan configure → build → VM conformance → unit tests → AOT differential
+- **Pipeline**: cmake ASan configure → build → VM conformance tests → unit tests → AOT differential tests
 - Detects memory errors (leaks, out-of-bounds, use-after-free) and fails on any finding
+
+Coverage report is generated at `build-coverage/coverage_html/index.html`, viewable in a browser.
+
+### Git hooks (Optional)
+
+It is recommended to install hooks after initial clone to automatically strip `Co-authored-by: Cursor <cursoragent@cursor.com>` from commit messages:
+
+```sh
+make hooks
+# Or: bash scripts/install-git-hooks.sh
+```
 
 ## Author
 

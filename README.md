@@ -206,17 +206,15 @@ TcDiagnostic diag;
 TcTypedProgram program;
 
 tc_diagnostic_init(&diag);
-if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0) {
-    tc_diagnostic_print(&diag, stderr);
-    return 1;
-}
-if (tc_run_typed(&program, &diag) != 0) {
+if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0
+    || tc_run_typed(&program, &diag) != 0) {
     tc_diagnostic_print(&diag, stderr);
     tc_typed_program_free(&program);
     return 1;
 }
 tc_typed_program_free(&program);
 tc_diagnostic_clear(&diag);
+return 0;
 ```
 
 详见 [docs/libtc-api.md](docs/libtc-api.md)。
