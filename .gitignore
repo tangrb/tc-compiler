@@ -3,6 +3,7 @@
 build/
 build-asan/
 build-debug/
+build-ubsan/
 
 # Generated stress baseline
 tests/stress/bench_baseline.tc
