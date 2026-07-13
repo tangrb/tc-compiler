@@ -608,6 +608,10 @@ run_expect_stdout "$ROOT/tests/valid/if_false_skip_nested_then.tc" "100
 run_expect_check_ok "$ROOT/tests/valid/if_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/if_nested.tc"
 
+# --- v0.0.25: float32/float64 ---
+
+run_expect_check_ok "$ROOT/tests/valid/fp_basic.tc"
+
 # --- stress test ---
 
 run_expect_stdout "$ROOT/tests/stress/massive_vars.tc" "55
@@ -690,7 +694,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" "literal type"
 run_expect_fail_msg "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
 run_expect_fail_msg "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
-run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "expected integer type"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "bitwise operation requires integer type"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
@@ -742,9 +746,10 @@ run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "
 run_expect_fail_msg "$ROOT/tests/errors/static/format_missing_operand.tc" "unexpected token"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
-run_expect_fail_msg "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected integer type"
+run_expect_fail_msg "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_int_with_t.tc" "%t requires bool type"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "float type requires float format specifier"
 
 # --check 模式下也应当捕获所有静态错误
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
@@ -771,8 +776,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "circular depe
 run_expect_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
 run_expect_check_fail "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
-run_expect_check_fail "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected integer type"
+run_expect_check_fail "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_int_with_t.tc" "%t requires bool type"
+run_expect_check_fail "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "float type requires float format specifier"
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_expect_check_fail "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large"
@@ -795,13 +801,26 @@ run_expect_check_fail "$ROOT/tests/errors/static/format_operand_count.tc" "opera
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_check_fail "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
-run_expect_check_fail "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "expected integer type"
+run_expect_check_fail "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "bitwise operation requires integer type"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_let_wrap_forbidden.tc" "wrap cannot be used in constant expression"
+
+# --- v0.0.25: float static errors ---
+
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
 
 # --- v0.0.24: if / indent static errors ---
 

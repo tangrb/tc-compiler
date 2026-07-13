@@ -1,0 +1,4 @@
+; 期望：ieee 仅用于浮点运算
+var a: int32 = 1
+var b: int32 = 2
+var c: int32 = add(int32, ieee, a, b)

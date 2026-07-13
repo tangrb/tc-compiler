@@ -1,0 +1,4 @@
+; 期望：按位运算不支持浮点
+var x: float64 = 1.0
+var y: float64 = 2.0
+var z: float64 = xor(float64, x, y)

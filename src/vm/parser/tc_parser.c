@@ -84,6 +84,13 @@ static int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_n
         return 0;
     }
 
+    if (tok->kind == TC_TOK_FLOAT_LIT) {
+        out->kind = TC_OPERAND_LIT;
+        out->u.lit = tok->u.literal;
+        (*index)++;
+        return 0;
+    }
+
     return tc_syntax_error(diag, line_no, tok->column, "expected operand");
 }
 
@@ -108,6 +115,46 @@ static int tc_expect_stmt_end(const TcTokenList *tokens, size_t *index, int line
     }
     if (tail->kind != TC_TOK_EOF) {
         return tc_syntax_error(diag, line_no, tail->column, "unexpected trailing tokens");
+    }
+    return 0;
+}
+
+static int tc_token_is_type(const TcToken *tok) {
+    return tok->kind == TC_TOK_INT_TYPE || tok->kind == TC_TOK_FLOAT_TYPE;
+}
+
+static int tc_parse_type_token(const TcTokenList *tokens, size_t *index, int line_no,
+                               TcIntType *out, TcDiagnostic *diag) {
+    const TcToken *type_tok = tc_peek(tokens, *index);
+
+    if (!tc_token_is_type(type_tok)) {
+        return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
+    }
+    *out = type_tok->u.int_type;
+    (*index)++;
+    return 0;
+}
+
+static int tc_parse_optional_float_mode(const TcTokenList *tokens, size_t *index, int line_no,
+                                        TcFloatMode *mode, TcDiagnostic *diag) {
+    const TcToken *maybe_mode = tc_peek(tokens, *index);
+
+    *mode = TC_FLOAT_STRICT;
+    if (maybe_mode->kind == TC_TOK_IEEE) {
+        *mode = TC_FLOAT_IEEE;
+        (*index)++;
+        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            return -1;
+        }
+    } else if (maybe_mode->kind == TC_TOK_WRAP) {
+        *mode = TC_FLOAT_WRAP;
+        (*index)++;
+        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            return -1;
+        }
+    } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+        return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                "truncate cannot be used with arithmetic operations");
     }
     return 0;
 }
@@ -137,22 +184,60 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
         return -1;
     }
 
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
-        }
-        type = type_tok->u.int_type;
-        (*index)++;
+    if (tc_parse_type_token(tokens, index, line_no, &type, diag) != 0) {
+        return -1;
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         return -1;
     }
 
-    /* 可选的 wrap 关键字作为第二参数 */
+    if (tc_type_is_float(type)) {
+        TcFloatMode fp_mode = TC_FLOAT_STRICT;
+
+        if (tc_parse_optional_float_mode(tokens, index, line_no, &fp_mode, diag) != 0) {
+            return -1;
+        }
+
+        out->kind = TC_RHS_FLOAT_ARITH;
+        out->u.float_arith.op = op;
+        out->u.float_arith.type = type;
+        out->u.float_arith.mode = fp_mode;
+        memset(&out->u.float_arith.lhs, 0, sizeof(out->u.float_arith.lhs));
+        memset(&out->u.float_arith.rhs, 0, sizeof(out->u.float_arith.rhs));
+
+        if (tc_parse_operand(tokens, index, line_no, &out->u.float_arith.lhs, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_parse_operand(tokens, index, line_no, &out->u.float_arith.rhs, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        return 0;
+    }
+
+    if (tc_type_is_bool(type)) {
+        return tc_syntax_error(diag, line_no, tc_peek(tokens, *index - 1)->column,
+                               "expected integer or float type");
+    }
+
+    /* 可选的 wrap 关键字作为第二参数（整数路径） */
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
+        if (maybe_mode->kind == TC_TOK_IEEE) {
+            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line_no, maybe_mode->column,
+                              "ieee mode is only allowed for float operations");
+            return -1;
+        }
         if (maybe_mode->kind == TC_TOK_WRAP) {
             mode = TC_ARITH_WRAP;
             (*index)++;
@@ -210,22 +295,51 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
         return -1;
     }
 
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
-        }
-        type = type_tok->u.int_type;
-        (*index)++;
+    if (tc_parse_type_token(tokens, index, line_no, &type, diag) != 0) {
+        return -1;
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         return -1;
     }
 
-    /* 可选的 wrap 关键字作为第二参数 */
+    if (tc_type_is_float(type)) {
+        TcFloatMode fp_mode = TC_FLOAT_STRICT;
+
+        if (tc_parse_optional_float_mode(tokens, index, line_no, &fp_mode, diag) != 0) {
+            return -1;
+        }
+
+        out->kind = TC_RHS_FLOAT_UNARY;
+        out->u.float_unary.op = op;
+        out->u.float_unary.type = type;
+        out->u.float_unary.mode = fp_mode;
+        memset(&out->u.float_unary.operand, 0, sizeof(out->u.float_unary.operand));
+
+        if (tc_parse_operand(tokens, index, line_no, &out->u.float_unary.operand, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        return 0;
+    }
+
+    if (tc_type_is_bool(type)) {
+        return tc_syntax_error(diag, line_no, tc_peek(tokens, *index - 1)->column,
+                               "expected integer or float type");
+    }
+
+    /* 可选的 wrap 关键字作为第二参数（整数路径） */
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
+        if (maybe_mode->kind == TC_TOK_IEEE) {
+            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line_no, maybe_mode->column,
+                              "ieee mode is only allowed for float operations");
+            return -1;
+        }
         if (maybe_mode->kind == TC_TOK_WRAP) {
             mode = TC_ARITH_WRAP;
             (*index)++;
@@ -272,17 +386,61 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
-        }
-        target = type_tok->u.int_type;
-        (*index)++;
+    if (tc_parse_type_token(tokens, index, line_no, &target, diag) != 0) {
+        return -1;
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         return -1;
+    }
+
+    if (tc_type_is_float(target)) {
+        /* 可选的 truncate 关键字（浮点 cast 位重解释） */
+        {
+            const TcToken *maybe_mode = tc_peek(tokens, *index);
+            if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+                mode = TC_TRUNC_TRUNCATE;
+                (*index)++;
+                if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                    return -1;
+                }
+            } else if (maybe_mode->kind == TC_TOK_WRAP) {
+                return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                        "wrap cannot be used with cast");
+            } else if (maybe_mode->kind == TC_TOK_IEEE) {
+                return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                        "ieee cannot be used with cast");
+            } else if (maybe_mode->kind == TC_TOK_IDENTIFIER) {
+                /* strict cast: cast(float64, source) */
+            } else {
+                return tc_syntax_error(diag, line_no, maybe_mode->column,
+                                       "cast source must be a variable");
+            }
+        }
+
+        {
+            const TcToken *src_tok = tc_peek(tokens, *index);
+            if (src_tok->kind != TC_TOK_IDENTIFIER) {
+                return tc_syntax_error(diag, line_no, src_tok->column,
+                                       "cast source must be a variable");
+            }
+            out->kind = TC_RHS_FLOAT_CAST;
+            out->u.float_cast.target = target;
+            out->u.float_cast.mode = mode;
+            out->u.float_cast.source = strndup(src_tok->start, src_tok->length);
+            if (!out->u.float_cast.source) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, src_tok->column,
+                                  "memory allocation failed");
+                return -1;
+            }
+            (*index)++;
+        }
+
+        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        return 0;
     }
 
     /* 可选的 truncate 关键字作为第二参数（默认 strict；仅整数→整数，§8.5） */
@@ -301,6 +459,9 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         } else if (maybe_mode->kind == TC_TOK_WRAP) {
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "wrap cannot be used with cast");
+        } else if (maybe_mode->kind == TC_TOK_IEEE) {
+            return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                    "ieee cannot be used with cast");
         } else if (maybe_mode->kind == TC_TOK_IDENTIFIER) {
             /* strict cast: cast(type, source) */
         } else {
@@ -351,17 +512,62 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
         return -1;
     }
 
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
-        }
-        type = type_tok->u.int_type;
-        (*index)++;
+    if (tc_parse_type_token(tokens, index, line_no, &type, diag) != 0) {
+        return -1;
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         return -1;
+    }
+
+    if (tc_type_is_float(type)) {
+        TcFloatMode fp_mode = TC_FLOAT_STRICT;
+        const TcToken *maybe_mode = tc_peek(tokens, *index);
+
+        if (maybe_mode->kind == TC_TOK_IEEE) {
+            fp_mode = TC_FLOAT_IEEE;
+            (*index)++;
+            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                return -1;
+            }
+        } else if (maybe_mode->kind == TC_TOK_WRAP) {
+            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line_no, maybe_mode->column,
+                              "wrap mode is not allowed for float comparison");
+            return -1;
+        } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+            return tc_keyword_error(diag, line_no, maybe_mode->column,
+                                    "truncate cannot be used with compare operations");
+        }
+
+        out->kind = TC_RHS_FLOAT_COMPARE;
+        out->u.float_compare.op = op;
+        out->u.float_compare.type = type;
+        out->u.float_compare.mode = fp_mode;
+        memset(&out->u.float_compare.lhs, 0, sizeof(out->u.float_compare.lhs));
+        memset(&out->u.float_compare.rhs, 0, sizeof(out->u.float_compare.rhs));
+
+        if (tc_parse_operand(tokens, index, line_no, &out->u.float_compare.lhs, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_parse_operand(tokens, index, line_no, &out->u.float_compare.rhs, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+            tc_rhs_free(out);
+            return -1;
+        }
+        return 0;
+    }
+
+    if (tc_type_is_bool(type)) {
+        return tc_syntax_error(diag, line_no, tc_peek(tokens, *index - 1)->column,
+                               "expected integer or float type");
     }
 
     out->kind = TC_RHS_COMPARE;
@@ -587,12 +793,9 @@ static int tc_parse_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, in
     }
 
     {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE || tc_type_is_bool(type_tok->u.int_type)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected integer type");
+        if (tc_parse_type_token(tokens, index, line_no, &type, diag) != 0) {
+            return -1;
         }
-        type = type_tok->u.int_type;
-        (*index)++;
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
@@ -764,6 +967,11 @@ static int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *ind
         out->u.lit = tok->u.literal;
         (*index)++;
         rc = 0;
+    } else if (tok->kind == TC_TOK_FLOAT_LIT) {
+        out->kind = TC_RHS_LIT;
+        out->u.lit = tok->u.literal;
+        (*index)++;
+        rc = 0;
     } else if (tok->kind == TC_TOK_ARITH_OP) {
         rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_UNARY_OP) {
@@ -799,7 +1007,7 @@ static int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_
 
     tok = tc_peek(tokens, *index);
 
-    if (tok->kind == TC_TOK_INTEGER || tok->kind == TC_TOK_BOOL_LIT) {
+    if (tok->kind == TC_TOK_INTEGER || tok->kind == TC_TOK_BOOL_LIT || tok->kind == TC_TOK_FLOAT_LIT) {
         out->kind = TC_RHS_LIT;
         out->u.lit = tok->u.literal;
         (*index)++;
@@ -861,7 +1069,7 @@ static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int 
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
+        if (!tc_token_is_type(type_tok)) {
             return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
         out->type = type_tok->u.int_type;
@@ -925,7 +1133,7 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
+        if (!tc_token_is_type(type_tok)) {
             return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
         out->type = type_tok->u.int_type;
@@ -995,7 +1203,7 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
+        if (!tc_token_is_type(type_tok)) {
             free(name);
             return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
@@ -1097,6 +1305,19 @@ void tc_rhs_free(TcRhs *rhs) {
         if (rhs->u.cast.source) {
             free(rhs->u.cast.source);
             rhs->u.cast.source = NULL;
+        }
+    } else if (rhs->kind == TC_RHS_FLOAT_ARITH) {
+        tc_operand_free(&rhs->u.float_arith.lhs);
+        tc_operand_free(&rhs->u.float_arith.rhs);
+    } else if (rhs->kind == TC_RHS_FLOAT_UNARY) {
+        tc_operand_free(&rhs->u.float_unary.operand);
+    } else if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
+        tc_operand_free(&rhs->u.float_compare.lhs);
+        tc_operand_free(&rhs->u.float_compare.rhs);
+    } else if (rhs->kind == TC_RHS_FLOAT_CAST) {
+        if (rhs->u.float_cast.source) {
+            free(rhs->u.float_cast.source);
+            rhs->u.float_cast.source = NULL;
         }
     } else if (rhs->kind == TC_RHS_CONST_CAST) {
         tc_operand_free(&rhs->u.const_cast.source);

@@ -166,6 +166,56 @@ int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntT
     return 0;
 }
 
+int tc_aot_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode, uint64_t *out, uint64_t lhs,
+                    uint64_t rhs, TcDiagnostic *diag, int line) {
+    TcValue lhs_value = tc_value_make(type, lhs);
+    TcValue rhs_value = tc_value_make(type, rhs);
+    TcValue result;
+
+    if (tc_exec_fp_arith(op, type, mode, &lhs_value, &rhs_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
+int tc_aot_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode, uint64_t *out,
+                    uint64_t operand, TcDiagnostic *diag, int line) {
+    TcValue operand_value = tc_value_make(type, operand);
+    TcValue result;
+
+    if (tc_exec_fp_unary(op, type, mode, &operand_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
+int tc_aot_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode, uint64_t *out,
+                      uint64_t lhs, uint64_t rhs, TcDiagnostic *diag, int line) {
+    TcValue lhs_value = tc_value_make(type, lhs);
+    TcValue rhs_value = tc_value_make(type, rhs);
+    TcValue result;
+
+    if (tc_exec_fp_compare(op, type, mode, &lhs_value, &rhs_value, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
+int tc_aot_fp_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntType src_type,
+                   uint64_t *out, TcDiagnostic *diag, int line) {
+    TcValue src = tc_value_make(src_type, src_bits);
+    TcValue result;
+
+    if (tc_exec_fp_cast(target, mode, &src, &result, diag, line) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */

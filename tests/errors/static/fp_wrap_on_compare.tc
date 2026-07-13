@@ -1,0 +1,4 @@
+; 期望：浮点比较不支持 wrap
+var x: float64 = 1.0
+var y: float64 = 2.0
+var b: bool = eq(float64, wrap, x, y)

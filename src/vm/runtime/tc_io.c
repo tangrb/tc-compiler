@@ -22,6 +22,19 @@
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
+/** 将 IEEE 754 位模式转为 double（float32 先转为 float 再提升到 double） */
+static double tc_io_fp_bits_to_double(TcIntType type, uint64_t bits) {
+    if (type == TC_FLOAT32) {
+        float f = 0.0f;
+        uint32_t b32 = (uint32_t)(bits & 0xFFFFFFFFu);
+        memcpy(&f, &b32, sizeof(f));
+        return (double)f;
+    }
+    double d = 0.0;
+    memcpy(&d, &bits, sizeof(d));
+    return d;
+}
+
 int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -75,6 +88,56 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
             return -1;
         }
         break;
+    case TC_FMT_F: {
+        if (!tc_type_is_float(type)) {
+            return -1;
+        }
+        double d = tc_io_fp_bits_to_double(type, value->bits);
+        if (fprintf(out, "%f", d) < 0) {
+            return -1;
+        }
+        break;
+    }
+    case TC_FMT_E: {
+        if (!tc_type_is_float(type)) {
+            return -1;
+        }
+        double d = tc_io_fp_bits_to_double(type, value->bits);
+        if (fprintf(out, "%e", d) < 0) {
+            return -1;
+        }
+        break;
+    }
+    case TC_FMT_EU: {
+        if (!tc_type_is_float(type)) {
+            return -1;
+        }
+        double d = tc_io_fp_bits_to_double(type, value->bits);
+        if (fprintf(out, "%E", d) < 0) {
+            return -1;
+        }
+        break;
+    }
+    case TC_FMT_G: {
+        if (!tc_type_is_float(type)) {
+            return -1;
+        }
+        double d = tc_io_fp_bits_to_double(type, value->bits);
+        if (fprintf(out, "%g", d) < 0) {
+            return -1;
+        }
+        break;
+    }
+    case TC_FMT_GU: {
+        if (!tc_type_is_float(type)) {
+            return -1;
+        }
+        double d = tc_io_fp_bits_to_double(type, value->bits);
+        if (fprintf(out, "%G", d) < 0) {
+            return -1;
+        }
+        break;
+    }
     case TC_FMT_NONE:
         /* 无格式输出由 tc_io_write_value 直接处理；此处防御误传 */
         return -1;
@@ -91,6 +154,11 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
         }
     } else if (tc_type_is_bool(value->type)) {
         if (fprintf(out, "%s", value->bits != 0 ? "true" : "false") < 0) {
+            return -1;
+        }
+    } else if (tc_type_is_float(value->type)) {
+        double d = tc_io_fp_bits_to_double(value->type, value->bits);
+        if (fprintf(out, "%g", d) < 0) {
             return -1;
         }
     } else if (tc_type_is_signed(value->type)) {

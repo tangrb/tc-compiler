@@ -9,6 +9,7 @@ static uint64_t slots[4];
 int main(void) {
     TcDiagnostic diag;
     tc_aot_diag_init(&diag);
+    tc_aot_init_slots(slots, 4);
 
     slots[0] = tc_aot_lit(TC_INT32, 10ULL, 0, 0);
     slots[1] = tc_aot_lit(TC_INT32, 20ULL, 0, 0);

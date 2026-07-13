@@ -1,0 +1,6 @@
+; 浮点基础：var/let 声明、字面量、算术、单目 neg
+var x: float64 = 3.14
+var y: float64 = -1.5
+let pi: float64 = 3.14159
+var z: float64 = add(float64, x, y)
+var w: float64 = neg(float64, z)

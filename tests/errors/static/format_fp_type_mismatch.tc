@@ -1,0 +1,3 @@
+; 期望：float 使用整数格式符 → FORMAT_TYPE_MISMATCH
+var x: float64 = 3.14
+writeln(float64, %d, x)

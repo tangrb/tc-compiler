@@ -147,7 +147,7 @@ int tc_exec_shift(TcShiftOp op, TcIntType type, TcWrapMode mode,
                   TcDiagnostic *diag, int line);
 
 /**
- * 浮点算术运算入口：add/sub/mul/div（strict/ieee；wrap 待完整实现）。
+ * 浮点算术运算入口：add/sub/mul/div（strict/ieee/wrap）。
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */
@@ -156,7 +156,7 @@ int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
                      TcDiagnostic *diag, int line);
 
 /**
- * 浮点单目运算入口：abs / neg（strict/ieee；wrap 待完整实现）。
+ * 浮点单目运算入口：abs / neg（strict/ieee/wrap）。
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */

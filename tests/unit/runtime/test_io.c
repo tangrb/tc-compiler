@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 static int g_passed = 0;
 static int g_failed = 0;
@@ -66,6 +67,23 @@ static char *close_capture(FILE *f) {
     buf[len] = '\0';
     fclose(f);
     return buf;
+}
+
+/* ================================================================== */
+/*  辅助：float TcValue 构造                                           */
+/* ================================================================== */
+
+static TcValue fp64_from_double(double value) {
+    uint64_t bits = 0;
+    memcpy(&bits, &value, sizeof(bits));
+    return tc_value_make(TC_FLOAT64, bits);
+}
+
+static TcValue fp32_from_double(double value) {
+    float f = (float)value;
+    uint32_t bits = 0;
+    memcpy(&bits, &f, sizeof(bits));
+    return tc_value_make(TC_FLOAT32, (uint64_t)bits);
 }
 
 /* ================================================================== */
@@ -199,6 +217,76 @@ static void test_write_formatted_int64_boundary(void) {
 }
 
 /* ================================================================== */
+/*  tc_io_write_formatted  — 浮点格式化输出                             */
+/* ================================================================== */
+
+static void test_write_formatted_float64(void) {
+    FILE *out = NULL;
+    char *result = NULL;
+    TcValue val = fp64_from_double(3.14);
+
+    /* %f — 固定小数点 */
+    out = open_capture();
+    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_F, &val, out) == 0, "write_fmt %%f float64 ok");
+    result = close_capture(out);
+    check(strcmp(result, "3.140000") == 0, "write_fmt %%f => 3.140000");
+    free(result);
+
+    /* %e — 科学计数法小写 */
+    out = open_capture();
+    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_E, &val, out) == 0, "write_fmt %%e float64 ok");
+    result = close_capture(out);
+    check(strstr(result, "3.140000e") != NULL || strstr(result, "3.14e") != NULL,
+          "write_fmt %%e => 3.14e+00");
+    free(result);
+
+    /* %E — 科学计数法大写 */
+    out = open_capture();
+    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_EU, &val, out) == 0, "write_fmt %%E float64 ok");
+    result = close_capture(out);
+    check(strstr(result, "3.140000E") != NULL || strstr(result, "3.14E") != NULL,
+          "write_fmt %%E => 3.14E+00");
+    free(result);
+
+    /* %g — 紧凑格式 */
+    out = open_capture();
+    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_G, &val, out) == 0, "write_fmt %%g float64 ok");
+    result = close_capture(out);
+    check(strcmp(result, "3.14") == 0, "write_fmt %%g => 3.14");
+    free(result);
+
+    /* %G — 紧凑格式大写指数 */
+    out = open_capture();
+    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_GU, &val, out) == 0, "write_fmt %%G float64 ok");
+    result = close_capture(out);
+    check(strcmp(result, "3.14") == 0, "write_fmt %%G => 3.14");
+    free(result);
+}
+
+static void test_write_formatted_float32(void) {
+    FILE *out = NULL;
+    char *result = NULL;
+    TcValue val = fp32_from_double(1.5);
+
+    out = open_capture();
+    check(tc_io_write_formatted(TC_FLOAT32, TC_FMT_F, &val, out) == 0, "write_fmt %%f float32 ok");
+    result = close_capture(out);
+    check(strcmp(result, "1.500000") == 0, "write_fmt %%f float32 => 1.500000");
+    free(result);
+}
+
+static void test_write_formatted_float_reject_int(void) {
+    FILE *out = NULL;
+    TcValue val = tc_value_make(TC_INT32, 42);
+
+    /* 对整数使用 %f 应拒绝 */
+    out = open_capture();
+    check(tc_io_write_formatted(TC_INT32, TC_FMT_F, &val, out) != 0,
+          "write_fmt %%f on int32 → fail");
+    fclose(out);
+}
+
+/* ================================================================== */
 /*  tc_io_write_value — 值输出                                         */
 /* ================================================================== */
 
@@ -243,6 +331,31 @@ static void test_write_value_bool(void) {
     result = close_capture(out);
     check(strcmp(result, "false") == 0, "write_val bool false");
     free(result);
+}
+
+static void test_write_value_float(void) {
+    FILE *out = NULL;
+    char *result = NULL;
+
+    /* float64 默认 %g 输出 */
+    {
+        TcValue val = fp64_from_double(3.14);
+        out = open_capture();
+        check(tc_io_write_value(&val, TC_FMT_NONE, 0, out) == 0, "write_val default float64 ok");
+        result = close_capture(out);
+        check(strcmp(result, "3.14") == 0, "write_val default float64 => 3.14");
+        free(result);
+    }
+
+    /* float32 默认 %g 输出 */
+    {
+        TcValue val = fp32_from_double(1.5);
+        out = open_capture();
+        check(tc_io_write_value(&val, TC_FMT_NONE, 0, out) == 0, "write_val default float32 ok");
+        result = close_capture(out);
+        check(strcmp(result, "1.5") == 0, "write_val default float32 => 1.5");
+        free(result);
+    }
 }
 
 static void test_write_value_newline(void) {
@@ -345,11 +458,15 @@ int main(void) {
     test_write_formatted_binary();
     test_write_formatted_bool();
     test_write_formatted_int64_boundary();
+    test_write_formatted_float64();
+    test_write_formatted_float32();
+    test_write_formatted_float_reject_int();
 
     /* 值输出 */
     test_write_value_default_signed();
     test_write_value_default_unsigned();
     test_write_value_bool();
+    test_write_value_float();
     test_write_value_newline();
 
     test_read_bool_stdin();

@@ -15,6 +15,7 @@
 #include "tc_diagnostic.h"
 
 #include <fenv.h>
+#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -125,6 +126,39 @@ int tc_literal_fits_type(uint64_t value, TcIntType type) {
 }
 
 int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *err_kind) {
+    if (lit->is_float) {
+        float f32 = 0.0f;
+
+        if (!tc_type_is_float(type)) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_TYPE;
+            }
+            return 0;
+        }
+        if (lit->float32_suffix && type != TC_FLOAT32) {
+            if (err_kind) {
+                *err_kind = TC_ERR_LITERAL_TYPE;
+            }
+            return 0;
+        }
+        if (type == TC_FLOAT32) {
+            f32 = (float)lit->float_value;
+            if (lit->float_value > (double)FLT_MAX || lit->float_value < -(double)FLT_MAX) {
+                if (err_kind) {
+                    *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                }
+                return 0;
+            }
+            if (isinf(lit->float_value) && !isinf((double)f32)) {
+                if (err_kind) {
+                    *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                }
+                return 0;
+            }
+        }
+        return 1;
+    }
+
     if (lit->is_bool) {
         if (!tc_type_is_bool(type)) {
             if (err_kind) {
@@ -136,6 +170,13 @@ int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *e
     }
 
     if (tc_type_is_bool(type)) {
+        if (err_kind) {
+            *err_kind = TC_ERR_LITERAL_TYPE;
+        }
+        return 0;
+    }
+
+    if (tc_type_is_float(type)) {
         if (err_kind) {
             *err_kind = TC_ERR_LITERAL_TYPE;
         }
@@ -217,6 +258,20 @@ int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *e
 }
 
 TcValue tc_literal_to_value(const TcLiteral *lit, TcIntType type) {
+    if (lit->is_float) {
+        if (type == TC_FLOAT32) {
+            float f = (float)lit->float_value;
+            uint32_t bits = 0;
+            memcpy(&bits, &f, sizeof(f));
+            return tc_value_make(TC_FLOAT32, (uint64_t)bits);
+        }
+        {
+            double d = lit->float_value;
+            uint64_t bits = 0;
+            memcpy(&bits, &d, sizeof(d));
+            return tc_value_make(TC_FLOAT64, bits);
+        }
+    }
     if (lit->is_bool) {
         return tc_value_make(TC_BOOL, lit->magnitude ? 1ULL : 0ULL);
     }
@@ -1231,6 +1286,279 @@ static int tc_exec_fp_arith_ieee(TcArithOp op, double lhs, double rhs, double *r
     return 0;
 }
 
+static int tc_exec_fp_arith_wrap(TcArithOp op, TcIntType type, uint64_t lhs_bits, uint64_t rhs_bits,
+                                 uint64_t *result_bits, TcDiagnostic *diag, int line) {
+    int width = tc_type_bit_width(type);
+    uint64_t mask = tc_mask_bits(width);
+    uint64_t a = lhs_bits & mask;
+    uint64_t b = rhs_bits & mask;
+    uint64_t result = 0;
+
+    (void)diag;
+    (void)line;
+    switch (op) {
+    case TC_ADD:
+        result = (a + b) & mask;
+        break;
+    case TC_SUB:
+        result = (a - b) & mask;
+        break;
+    case TC_MUL:
+        if (width >= 64) {
+            result = a * b;
+        } else {
+            result = (a * b) & mask;
+        }
+        break;
+    case TC_DIV:
+        if (b == 0) {
+            tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
+                              "division by zero");
+            return -1;
+        }
+        result = a / b;
+        break;
+    case TC_MOD:
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "mod not supported for float types");
+        return -1;
+    }
+    *result_bits = result & mask;
+    return 0;
+}
+
+static int tc_exec_fp_unary_wrap(TcUnaryOp op, TcIntType type, uint64_t operand_bits,
+                                 uint64_t *result_bits, TcDiagnostic *diag, int line) {
+    int width = tc_type_bit_width(type);
+    uint64_t mask = tc_mask_bits(width);
+    uint64_t bits = operand_bits & mask;
+    uint64_t sign_mask = (width == 32) ? 0x7FFFFFFFu : 0x7FFFFFFFFFFFFFFFULL;
+
+    (void)diag;
+    (void)line;
+    switch (op) {
+    case TC_UNARY_ABS:
+        *result_bits = bits & sign_mask;
+        return 0;
+    case TC_UNARY_NEG:
+        *result_bits = (0 - bits) & mask;
+        return 0;
+    }
+    return -1;
+}
+
+static int tc_fp_compare_result(TcCompareOp op, double lhs, double rhs, int *result) {
+    if (isnan(lhs) || isnan(rhs)) {
+        if (op == TC_CMP_NE) {
+            *result = 1;
+        } else {
+            *result = 0;
+        }
+        return 0;
+    }
+    switch (op) {
+    case TC_CMP_EQ:
+        *result = (lhs == rhs);
+        break;
+    case TC_CMP_NE:
+        *result = (lhs != rhs);
+        break;
+    case TC_CMP_LT:
+        *result = (lhs < rhs);
+        break;
+    case TC_CMP_LE:
+        *result = (lhs <= rhs);
+        break;
+    case TC_CMP_GT:
+        *result = (lhs > rhs);
+        break;
+    case TC_CMP_GE:
+        *result = (lhs >= rhs);
+        break;
+    }
+    return 0;
+}
+
+static int tc_fp_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
+                             TcDiagnostic *diag, int line) {
+    TcIntType src_type = source->type;
+
+    if (tc_type_is_bool(src_type) && tc_type_is_bool(target)) {
+        *out = *source;
+        return 0;
+    }
+    if (tc_type_is_bool(src_type)) {
+        double val = source->bits != 0 ? 1.0 : 0.0;
+        if (tc_type_is_float(target)) {
+            out->type = target;
+            out->bits = tc_fp_double_to_bits(target, val);
+            return 0;
+        }
+        if (tc_type_is_integer(target)) {
+            *out = tc_value_make(target, source->bits != 0 ? 1ULL : 0ULL);
+            return 0;
+        }
+    }
+    if (tc_type_is_bool(target)) {
+        if (tc_type_is_float(src_type)) {
+            double val = tc_fp_bits_to_double(src_type, source->bits);
+            *out = tc_value_make(TC_BOOL, (val != 0.0 || isnan(val)) ? 1ULL : 0ULL);
+            return 0;
+        }
+        *out = tc_value_make(TC_BOOL, source->bits != 0 ? 1ULL : 0ULL);
+        return 0;
+    }
+
+    if (tc_type_is_integer(src_type) && tc_type_is_float(target)) {
+        double val = 0.0;
+        if (tc_type_is_signed(src_type)) {
+            val = (double)tc_bits_to_signed(src_type, source->bits);
+        } else {
+            val = (double)tc_value_to_unsigned(src_type, source->bits);
+        }
+        if (target == TC_FLOAT32) {
+            float f = (float)val;
+            if (isinf(val) && !isinf((double)f)) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+            if ((double)f != val && !isinf(val) && val != 0.0) {
+                /* 整数在 float32 可精确表示范围内则 OK */
+                if (val > (double)FLT_MAX || val < -(double)FLT_MAX) {
+                    tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                      "float cast overflow");
+                    return -1;
+                }
+            }
+        } else if (val > (double)DBL_MAX || val < -(double)DBL_MAX) {
+            tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "float cast overflow");
+            return -1;
+        }
+        out->type = target;
+        out->bits = tc_fp_double_to_bits(target, val);
+        return 0;
+    }
+
+    if (tc_type_is_float(src_type) && tc_type_is_integer(target)) {
+        double val = tc_fp_bits_to_double(src_type, source->bits);
+        if (isnan(val) || isinf(val)) {
+            tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "float cast overflow");
+            return -1;
+        }
+        if (tc_type_is_signed(target)) {
+            int64_t ival = (int64_t)val;
+            if ((double)ival != val) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+            if (!tc_signed_in_range(ival, target)) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+            *out = tc_value_make(target, tc_signed_to_bits(target, ival));
+            return 0;
+        }
+        {
+            uint64_t ival = (uint64_t)val;
+            if ((double)ival != val || val < 0.0) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+            if (!tc_unsigned_in_range(ival, target)) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+            *out = tc_value_make(target, ival);
+            return 0;
+        }
+    }
+
+    if (tc_type_is_float(src_type) && tc_type_is_float(target)) {
+        double val = tc_fp_bits_to_double(src_type, source->bits);
+        if (target == TC_FLOAT32 && src_type == TC_FLOAT64) {
+            float f = (float)val;
+            if (isinf(val) && !isinf((double)f)) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+            if (val > (double)FLT_MAX || val < -(double)FLT_MAX) {
+                tc_diagnostic_set(diag, TC_ERR_FLOAT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "float cast overflow");
+                return -1;
+            }
+        }
+        out->type = target;
+        out->bits = tc_fp_double_to_bits(target, val);
+        return 0;
+    }
+
+    tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN, "incompatible cast types");
+    return -1;
+}
+
+static int tc_fp_cast_truncate(TcIntType target, const TcValue *source, TcValue *out,
+                               TcDiagnostic *diag, int line) {
+    TcIntType src_type = source->type;
+    int src_bits = tc_type_bit_width(src_type);
+    int dst_bits = tc_type_bit_width(target);
+    uint64_t bits = source->bits;
+
+    if (tc_type_is_bool(src_type) || tc_type_is_bool(target)) {
+        TcDiagnostic tmp;
+        tc_diagnostic_init(&tmp);
+        if (tc_fp_cast_strict(target, source, out, &tmp, 0) != 0) {
+            tc_diagnostic_clear(&tmp);
+            if (diag) {
+                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "incompatible cast types for truncate mode");
+            }
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp);
+        return 0;
+    }
+
+    if (src_bits == dst_bits && tc_type_is_integer(src_type) && tc_type_is_float(target)) {
+        out->type = target;
+        out->bits = bits & tc_mask_bits(dst_bits);
+        return 0;
+    }
+    if (src_bits == dst_bits && tc_type_is_float(src_type) && tc_type_is_integer(target)) {
+        out->type = target;
+        out->bits = bits & tc_mask_bits(dst_bits);
+        return 0;
+    }
+    if (src_bits == dst_bits && tc_type_is_float(src_type) && tc_type_is_float(target)) {
+        out->type = target;
+        out->bits = bits & tc_mask_bits(dst_bits);
+        return 0;
+    }
+    if (src_type == TC_FLOAT64 && target == TC_FLOAT32) {
+        out->type = TC_FLOAT32;
+        out->bits = bits & 0xFFFFFFFFu;
+        return 0;
+    }
+    if (src_type == TC_FLOAT32 && target == TC_FLOAT64) {
+        out->type = TC_FLOAT64;
+        out->bits = bits & 0xFFFFFFFFu;
+        return 0;
+    }
+
+    if (diag) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "incompatible cast types for truncate mode");
+    }
+    return -1;
+}
+
 int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
                      const TcValue *lhs, const TcValue *rhs, TcValue *out,
                      TcDiagnostic *diag, int line) {
@@ -1253,8 +1581,13 @@ int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
     } else if (mode == TC_FLOAT_IEEE) {
         rc = tc_exec_fp_arith_ieee(op, a, b, &result, diag, line);
     } else {
-        tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                          "float wrap mode not implemented yet");
+        uint64_t result_bits = 0;
+        rc = tc_exec_fp_arith_wrap(op, type, lhs->bits, rhs->bits, &result_bits, diag, line);
+        if (rc == 0) {
+            out->type = type;
+            out->bits = result_bits;
+            return 0;
+        }
         return -1;
     }
 
@@ -1265,6 +1598,108 @@ int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
     out->type = type;
     out->bits = tc_fp_double_to_bits(type, result);
     return 0;
+}
+
+static int tc_exec_fp_unary_strict(TcUnaryOp op, double operand, double *result,
+                                   TcDiagnostic *diag, int line) {
+    if (tc_fp_strict_check_nan_operand(operand, diag, line) != 0) {
+        return -1;
+    }
+    feclearexcept(FE_ALL_EXCEPT);
+    switch (op) {
+    case TC_UNARY_ABS:
+        *result = fabs(operand);
+        break;
+    case TC_UNARY_NEG:
+        *result = -operand;
+        break;
+    }
+    return tc_fp_strict_check_exceptions(*result, diag, line);
+}
+
+static int tc_exec_fp_unary_ieee(TcUnaryOp op, double operand, double *result) {
+    switch (op) {
+    case TC_UNARY_ABS:
+        *result = fabs(operand);
+        break;
+    case TC_UNARY_NEG:
+        *result = -operand;
+        break;
+    }
+    return 0;
+}
+
+int tc_exec_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode,
+                     const TcValue *operand, TcValue *out,
+                     TcDiagnostic *diag, int line) {
+    double val = 0.0;
+    double result = 0.0;
+    int rc = 0;
+
+    if (!tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "expected float type");
+        return -1;
+    }
+
+    val = tc_fp_bits_to_double(type, operand->bits);
+
+    if (mode == TC_FLOAT_STRICT) {
+        rc = tc_exec_fp_unary_strict(op, val, &result, diag, line);
+    } else if (mode == TC_FLOAT_IEEE) {
+        rc = tc_exec_fp_unary_ieee(op, val, &result);
+    } else {
+        uint64_t result_bits = 0;
+        rc = tc_exec_fp_unary_wrap(op, type, operand->bits, &result_bits, diag, line);
+        if (rc == 0) {
+            out->type = type;
+            out->bits = result_bits;
+            return 0;
+        }
+        return -1;
+    }
+
+    if (rc != 0) {
+        return -1;
+    }
+
+    out->type = type;
+    out->bits = tc_fp_double_to_bits(type, result);
+    return 0;
+}
+
+int tc_exec_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode,
+                       const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                       TcDiagnostic *diag, int line) {
+    double a = 0.0;
+    double b = 0.0;
+    int cmp_result = 0;
+
+    (void)mode;
+    if (!tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "expected float type");
+        return -1;
+    }
+
+    a = tc_fp_bits_to_double(type, lhs->bits);
+    b = tc_fp_bits_to_double(type, rhs->bits);
+
+    if (tc_fp_compare_result(op, a, b, &cmp_result) != 0) {
+        return -1;
+    }
+
+    out->type = TC_BOOL;
+    out->bits = cmp_result ? 1ULL : 0ULL;
+    return 0;
+}
+
+int tc_exec_fp_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
+                    TcValue *out, TcDiagnostic *diag, int line) {
+    if (mode == TC_TRUNC_STRICT) {
+        return tc_fp_cast_strict(target, source, out, diag, line);
+    }
+    return tc_fp_cast_truncate(target, source, out, diag, line);
 }
 
 /* ------------------------------------------------------------------ */

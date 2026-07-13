@@ -242,27 +242,27 @@ static void test_literal_to_value(void) {
 
     /* bool 字面量 */
     {
-    TcLiteral bool_true = {1, 0, 0, 1};
+    TcLiteral bool_true = {1, 0, 0, 1, 0, 0.0, 0};
     v = tc_literal_to_value(&bool_true, TC_BOOL);
     check(v.type == TC_BOOL && v.bits == 1, "literal_to_value bool true → bits=1");
     }
 
     {
-    TcLiteral bool_false = {0, 0, 0, 1};
+    TcLiteral bool_false = {0, 0, 0, 1, 0, 0.0, 0};
     v = tc_literal_to_value(&bool_false, TC_BOOL);
     check(v.type == TC_BOOL && v.bits == 0, "literal_to_value bool false → bits=0");
     }
 
     /* 无符号字面量 */
     {
-    TcLiteral u_lit = {255, 0, 1, 0};
+    TcLiteral u_lit = {255, 0, 1, 0, 0, 0.0, 0};
     v = tc_literal_to_value(&u_lit, TC_UINT8);
     check(v.type == TC_UINT8 && v.bits == 255, "literal_to_value uint8 255");
     }
 
     /* 负数字面量 */
     {
-    TcLiteral neg_lit = {42, 1, 0, 0};
+    TcLiteral neg_lit = {42, 1, 0, 0, 0, 0.0, 0};
     v = tc_literal_to_value(&neg_lit, TC_INT8);
     check(v.type == TC_INT8 && v.bits == 0xD6, "literal_to_value int8 -42 → 0xD6");
     check(tc_bits_to_signed(TC_INT8, v.bits) == -42, "int8 -42 value check");
@@ -270,7 +270,7 @@ static void test_literal_to_value(void) {
 
     /* INT64_MIN 绝对值 */
     {
-    TcLiteral min_lit = {TC_INT64_MIN_ABS_MAGNITUDE, 1, 0, 0};
+    TcLiteral min_lit = {TC_INT64_MIN_ABS_MAGNITUDE, 1, 0, 0, 0, 0.0, 0};
     v = tc_literal_to_value(&min_lit, TC_INT64);
     check(v.type == TC_INT64 && v.bits == (uint64_t)INT64_MIN,
           "literal_to_value int64 INT64_MIN");
@@ -278,7 +278,7 @@ static void test_literal_to_value(void) {
 
     /* 正数字面量 */
     {
-    TcLiteral pos_lit = {123, 0, 0, 0};
+    TcLiteral pos_lit = {123, 0, 0, 0, 0, 0.0, 0};
     v = tc_literal_to_value(&pos_lit, TC_INT32);
     check(v.type == TC_INT32 && v.bits == 123, "literal_to_value int32 123");
     }
@@ -1020,6 +1020,106 @@ static void test_fp_arith_div_float32_strict(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_fp_unary_neg_strict(void) {
+    TcValue operand = fp64_from_double(3.5);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_unary(TC_UNARY_NEG, TC_FLOAT64, TC_FLOAT_STRICT, &operand, &out, &diag, 1);
+    check(rc == 0 && fp64_approx_equal(out.bits, -3.5), "fp64 neg strict -3.5");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_unary_abs_ieee(void) {
+    TcValue operand = fp64_from_double(-2.5);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_unary(TC_UNARY_ABS, TC_FLOAT64, TC_FLOAT_IEEE, &operand, &out, &diag, 1);
+    check(rc == 0 && fp64_approx_equal(out.bits, 2.5), "fp64 abs ieee 2.5");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_compare_nan_ne(void) {
+    TcValue lhs = fp64_from_double(1.0);
+    TcValue rhs = fp64_from_double(1.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+    uint64_t nan_bits = 0;
+
+    memcpy(&nan_bits, &(double){NAN}, sizeof(nan_bits));
+    lhs.bits = nan_bits;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_compare(TC_CMP_NE, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 1, "fp64 ne(nan,1.0)=true");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_compare_eq_nan(void) {
+    TcValue lhs = fp64_from_double(1.0);
+    TcValue rhs = fp64_from_double(1.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+    uint64_t nan_bits = 0;
+
+    memcpy(&nan_bits, &(double){NAN}, sizeof(nan_bits));
+    lhs.bits = nan_bits;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_compare(TC_CMP_EQ, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_BOOL && out.bits == 0, "fp64 eq(nan,1.0)=false");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_int_to_float64(void) {
+    TcValue src = tc_value_make(TC_INT32, 42);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT64 && fp64_approx_equal(out.bits, 42.0),
+          "cast int32(42) → float64");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_float64_to_int32(void) {
+    TcValue src = fp64_from_double(7.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_INT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_INT32 && out.bits == 7, "cast float64(7.0) → int32");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_wrap_add(void) {
+    TcValue lhs = fp64_from_double(1.0);
+    TcValue rhs = fp64_from_double(2.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    (void)lhs;
+    (void)rhs;
+    tc_diagnostic_init(&diag);
+    lhs = fp64_from_double(1.0);
+    rhs = fp64_from_double(2.0);
+    rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT64, TC_FLOAT_WRAP, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT64, "fp64 add wrap completes");
+    tc_diagnostic_clear(&diag);
+}
+
 /* ================================================================== */
 /*  main                                                               */
 /* ================================================================== */
@@ -1085,6 +1185,13 @@ int main(void) {
     test_fp_arith_sub_float32_strict();
     test_fp_arith_mul_float32_strict();
     test_fp_arith_div_float32_strict();
+    test_fp_unary_neg_strict();
+    test_fp_unary_abs_ieee();
+    test_fp_compare_nan_ne();
+    test_fp_compare_eq_nan();
+    test_fp_cast_int_to_float64();
+    test_fp_cast_float64_to_int32();
+    test_fp_arith_wrap_add();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

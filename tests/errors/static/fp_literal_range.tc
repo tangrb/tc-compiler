@@ -1,0 +1,2 @@
+; 期望：float32 字面量超范围
+var x: float32 = 1e50

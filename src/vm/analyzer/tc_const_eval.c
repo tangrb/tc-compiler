@@ -443,6 +443,105 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_FLOAT_ARITH) {
+        if (rhs->u.float_arith.mode != TC_FLOAT_STRICT) {
+            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "ieee/wrap is not allowed in constant expression");
+            return -1;
+        }
+        if (rhs->u.float_arith.type != expected_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, visible,
+                                  global, const_name, visiting, visiting_count, &lhs, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, visible,
+                                  global, const_name, visiting, visiting_count, &rhs_val, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        if (tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type, TC_FLOAT_STRICT,
+                             &lhs, &rhs_val, out, &tmp_diag, line) != 0) {
+            tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+            tc_diagnostic_clear(&tmp_diag);
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp_diag);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_UNARY) {
+        if (rhs->u.float_unary.mode != TC_FLOAT_STRICT) {
+            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "ieee/wrap is not allowed in constant expression");
+            return -1;
+        }
+        if (rhs->u.float_unary.type != expected_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, visible,
+                                  global, const_name, visiting, visiting_count, &lhs, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        if (tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type, TC_FLOAT_STRICT,
+                             &lhs, out, &tmp_diag, line) != 0) {
+            tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+            tc_diagnostic_clear(&tmp_diag);
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp_diag);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
+        if (rhs->u.float_compare.mode != TC_FLOAT_STRICT &&
+            rhs->u.float_compare.mode != TC_FLOAT_IEEE) {
+            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "wrap is not allowed in constant expression");
+            return -1;
+        }
+        if (!tc_type_is_bool(expected_type)) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, visible,
+                                  global, const_name, visiting, visiting_count, &lhs, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        if (tc_eval_const_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, visible,
+                                  global, const_name, visiting, visiting_count, &rhs_val, line,
+                                  diag) != 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        if (tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+                               rhs->u.float_compare.mode, &lhs, &rhs_val, out, &tmp_diag,
+                               line) != 0) {
+            tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+            tc_diagnostic_clear(&tmp_diag);
+            return -1;
+        }
+        tc_diagnostic_clear(&tmp_diag);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_CAST) {
+        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "float cast is not allowed in constant expression");
+        return -1;
+    }
+
     if (rhs->kind == TC_RHS_CONST_CAST) {
         TcValue src_val = {0};
 

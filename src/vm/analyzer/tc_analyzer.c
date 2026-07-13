@@ -235,6 +235,25 @@ static int tc_check_io_format(TcIntType type, TcFormatSpec fmt, int line, TcDiag
     if (fmt == TC_FMT_NONE) {
         return 0;
     }
+
+    /* 浮点格式符：仅用于浮点类型 */
+    if (fmt == TC_FMT_F || fmt == TC_FMT_E || fmt == TC_FMT_EU ||
+        fmt == TC_FMT_G || fmt == TC_FMT_GU) {
+        if (!tc_type_is_float(type)) {
+            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "float format specifier requires float type");
+            return -1;
+        }
+        return 0;
+    }
+
+    /* 浮点类型不允许整数格式符 */
+    if (tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "float type requires float format specifier");
+        return -1;
+    }
+
     if (fmt == TC_FMT_T) {
         if (!tc_type_is_bool(type)) {
             tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -423,7 +442,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
     }
 
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
-        if (tc_type_is_bool(rhs->u.bitwise_bin.type)) {
+        if (tc_type_is_bool(rhs->u.bitwise_bin.type) || tc_type_is_float(rhs->u.bitwise_bin.type)) {
             tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitwise operation requires integer type");
             return -1;
@@ -447,7 +466,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
     }
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
-        if (tc_type_is_bool(rhs->u.bitwise_un.type)) {
+        if (tc_type_is_bool(rhs->u.bitwise_un.type) || tc_type_is_float(rhs->u.bitwise_un.type)) {
             tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitwise operation requires integer type");
             return -1;
@@ -471,6 +490,11 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
                               "shift operation requires integer type");
             return -1;
         }
+        if (tc_type_is_float(rhs->u.shift.type)) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "shift operation requires integer type");
+            return -1;
+        }
         if (rhs->u.shift.op == TC_SHIFT_SHR && rhs->u.shift.mode == TC_ARITH_WRAP) {
             tc_diagnostic_set(diag, TC_ERR_OVERFLOW_MODE, line, TC_COLUMN_UNKNOWN,
                               "shift right does not support wrap mode");
@@ -487,6 +511,91 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
         if (rhs->u.shift.type != lhs_type) {
             tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_ARITH) {
+        if (rhs->u.float_arith.op == TC_MOD) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "mod not supported for float types");
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, visible, global,
+                             hist, stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, visible, global,
+                             hist, stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (rhs->u.float_arith.type != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_UNARY) {
+        if (tc_check_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, visible,
+                             global, hist, stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (rhs->u.float_unary.type != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
+        if (rhs->u.float_compare.mode == TC_FLOAT_WRAP) {
+            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "wrap mode is not allowed for float comparison");
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, visible,
+                             global, hist, stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (tc_check_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, visible,
+                             global, hist, stmt_index, line, diag, warnings, self_name,
+                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
+            return -1;
+        }
+        if (!tc_type_is_bool(lhs_type)) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "assignment type does not match rhs result type");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_CAST) {
+        const TcSymbol *source = NULL;
+
+        if (self_name && strcmp(rhs->u.float_cast.source, self_name) == 0) {
+            snprintf(msg, sizeof(msg),
+                     "variable '%s' cannot reference itself in its initializer", self_name);
+            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        source = tc_resolve_visible_symbol(visible, global, rhs->u.float_cast.source, stmt_index,
+                                           line, diag);
+        if (!source) {
+            return -1;
+        }
+        tc_maybe_warn_uninitialized(hist, source, stmt_index, line, warnings);
+        if (rhs->u.float_cast.target != lhs_type) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "cast target type does not match variable type");
             return -1;
         }
         return 0;

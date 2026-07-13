@@ -280,7 +280,49 @@ static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue 
             tc_executor_find_visible_symbol(symbols, rhs->u.cast.source, stmt_index);
         assert(source != NULL);
         const TcValue *src_value = &slots[source->slot];
+        if (tc_type_is_float(source->type) || tc_type_is_float(rhs->u.cast.target)) {
+            return tc_exec_fp_cast(rhs->u.cast.target, rhs->u.cast.mode, src_value, out, diag,
+                                   line);
+        }
         return tc_exec_cast(rhs->u.cast.target, rhs->u.cast.mode, src_value, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_ARITH) {
+        TcValue lhs =
+            tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, slots, symbols,
+                            stmt_index);
+        TcValue rhs_value =
+            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, slots, symbols,
+                            stmt_index);
+        return tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type,
+                                rhs->u.float_arith.mode, &lhs, &rhs_value, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_UNARY) {
+        TcValue operand =
+            tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, slots, symbols,
+                            stmt_index);
+        return tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type,
+                                rhs->u.float_unary.mode, &operand, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
+        TcValue lhs =
+            tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, slots, symbols,
+                            stmt_index);
+        TcValue rhs_value =
+            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, slots, symbols,
+                            stmt_index);
+        return tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+                                  rhs->u.float_compare.mode, &lhs, &rhs_value, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_CAST) {
+        const TcSymbol *source =
+            tc_executor_find_visible_symbol(symbols, rhs->u.float_cast.source, stmt_index);
+        assert(source != NULL);
+        return tc_exec_fp_cast(rhs->u.float_cast.target, rhs->u.float_cast.mode,
+                               &slots[source->slot], out, diag, line);
     }
 
     assert(0 && "unhandled TcRhsKind in tc_eval_rhs");

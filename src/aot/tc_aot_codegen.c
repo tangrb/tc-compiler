@@ -335,6 +335,115 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         return -1;
     }
 
+    if (rhs->kind == TC_RHS_FLOAT_ARITH) {
+        const char *mode = rhs->u.float_arith.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE" :
+                           rhs->u.float_arith.mode == TC_FLOAT_WRAP ? "TC_FLOAT_WRAP" :
+                           "TC_FLOAT_STRICT";
+        const char *op_name = "TC_ADD";
+
+        switch (rhs->u.float_arith.op) {
+        case TC_ADD:
+            op_name = "TC_ADD";
+            break;
+        case TC_SUB:
+            op_name = "TC_SUB";
+            break;
+        case TC_MUL:
+            op_name = "TC_MUL";
+            break;
+        case TC_DIV:
+            op_name = "TC_DIV";
+            break;
+        case TC_MOD:
+            op_name = "TC_MOD";
+            break;
+        }
+        fprintf(out, "%sif (tc_aot_fp_arith(%s, %s, %s, &%s, ", indent, op_name,
+                tc_aot_type_enum(rhs->u.float_arith.type), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.float_arith.lhs, rhs->u.float_arith.type, symbols,
+                                 stmt_index);
+        fprintf(out, ", ");
+        tc_aot_emit_operand_expr(out, &rhs->u.float_arith.rhs, rhs->u.float_arith.type, symbols,
+                                 stmt_index);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_UNARY) {
+        const char *mode = rhs->u.float_unary.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE" :
+                           rhs->u.float_unary.mode == TC_FLOAT_WRAP ? "TC_FLOAT_WRAP" :
+                           "TC_FLOAT_STRICT";
+        const char *op_name =
+            rhs->u.float_unary.op == TC_UNARY_ABS ? "TC_UNARY_ABS" : "TC_UNARY_NEG";
+
+        fprintf(out, "%sif (tc_aot_fp_unary(%s, %s, %s, &%s, ", indent, op_name,
+                tc_aot_type_enum(rhs->u.float_unary.type), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.float_unary.operand, rhs->u.float_unary.type,
+                                 symbols, stmt_index);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
+        const char *mode = rhs->u.float_compare.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE" :
+                           "TC_FLOAT_STRICT";
+        const char *op_name = "TC_CMP_EQ";
+
+        switch (rhs->u.float_compare.op) {
+        case TC_CMP_EQ:
+            op_name = "TC_CMP_EQ";
+            break;
+        case TC_CMP_NE:
+            op_name = "TC_CMP_NE";
+            break;
+        case TC_CMP_LT:
+            op_name = "TC_CMP_LT";
+            break;
+        case TC_CMP_LE:
+            op_name = "TC_CMP_LE";
+            break;
+        case TC_CMP_GT:
+            op_name = "TC_CMP_GT";
+            break;
+        case TC_CMP_GE:
+            op_name = "TC_CMP_GE";
+            break;
+        }
+        fprintf(out, "%sif (tc_aot_fp_compare(%s, %s, %s, &%s, ", indent, op_name,
+                tc_aot_type_enum(rhs->u.float_compare.type), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.float_compare.lhs, rhs->u.float_compare.type,
+                                 symbols, stmt_index);
+        fprintf(out, ", ");
+        tc_aot_emit_operand_expr(out, &rhs->u.float_compare.rhs, rhs->u.float_compare.type,
+                                 symbols, stmt_index);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FLOAT_CAST) {
+        const TcSymbol *source =
+            tc_aot_find_visible_symbol(symbols, rhs->u.float_cast.source, stmt_index);
+        const char *mode =
+            rhs->u.float_cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
+
+        if (!source) {
+            return -1;
+        }
+
+        fprintf(out, "%sif (tc_aot_fp_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n",
+                indent, tc_aot_type_enum(rhs->u.float_cast.target), mode, source->slot,
+                tc_aot_type_enum(source->type), dst_expr, line);
+        fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
+        return 0;
+    }
+
+    if (rhs->kind != TC_RHS_CAST) {
+        return -1;
+    }
+
     {
         const TcSymbol *source =
             tc_aot_find_visible_symbol(symbols, rhs->u.cast.source, stmt_index);

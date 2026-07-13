@@ -38,6 +38,10 @@ TC_RHS_KINDS = [
     "TC_RHS_SHIFT",
     "TC_RHS_CAST",
     "TC_RHS_CONST_CAST",
+    "TC_RHS_FLOAT_ARITH",
+    "TC_RHS_FLOAT_UNARY",
+    "TC_RHS_FLOAT_COMPARE",
+    "TC_RHS_FLOAT_CAST",
 ]
 
 # ---------------------------------------------------------------------------
@@ -220,6 +224,10 @@ def get_aot_rt_shims(path):
         "TC_RHS_BITWISE_UN": "tc_aot_bitwise_unary",
         "TC_RHS_SHIFT": "tc_aot_shift",
         "TC_RHS_CAST": "tc_aot_cast",
+        "TC_RHS_FLOAT_ARITH": "tc_aot_fp_arith",
+        "TC_RHS_FLOAT_UNARY": "tc_aot_fp_unary",
+        "TC_RHS_FLOAT_COMPARE": "tc_aot_fp_compare",
+        "TC_RHS_FLOAT_CAST": "tc_aot_fp_cast",
     }
 
     present = set()
