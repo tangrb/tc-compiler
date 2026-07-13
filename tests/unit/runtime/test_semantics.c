@@ -17,6 +17,7 @@
 #include "tc_semantics.h"
 #include "tc_diagnostic.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -855,6 +856,171 @@ static void test_cast_truncate(void) {
 }
 
 /* ================================================================== */
+/*  浮点算术（tc_exec_fp_arith strict 骨架）                             */
+/* ================================================================== */
+
+static TcValue fp64_from_double(double value) {
+    uint64_t bits = 0;
+    memcpy(&bits, &value, sizeof(bits));
+    return tc_value_make(TC_FLOAT64, bits);
+}
+
+static int fp64_approx_equal(uint64_t bits, double expected) {
+    double actual = 0.0;
+    memcpy(&actual, &bits, sizeof(actual));
+    return fabs(actual - expected) < 1e-9;
+}
+
+static TcValue fp32_from_double(double value) {
+    float f = (float)value;
+    uint32_t bits = 0;
+    memcpy(&bits, &f, sizeof(bits));
+    return tc_value_make(TC_FLOAT32, (uint64_t)bits);
+}
+
+static int fp32_approx_equal(uint64_t bits, double expected) {
+    uint32_t b32 = (uint32_t)bits;
+    float actual_float = 0.0f;
+    memcpy(&actual_float, &b32, sizeof(actual_float));
+    return fabs((double)actual_float - expected) < 1e-6;
+}
+
+static void test_fp_arith_add_strict(void) {
+    TcValue lhs = fp64_from_double(1.5);
+    TcValue rhs = fp64_from_double(2.5);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT64 && fp64_approx_equal(out.bits, 4.0),
+          "fp64 add strict 1.5+2.5=4.0");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_div_strict(void) {
+    TcValue lhs = fp64_from_double(10.0);
+    TcValue rhs = fp64_from_double(2.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_DIV, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && fp64_approx_equal(out.bits, 5.0), "fp64 div strict 10/2=5.0");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_div_zero_strict(void) {
+    TcValue lhs = fp64_from_double(1.0);
+    TcValue rhs = fp64_from_double(0.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_DIV, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc != 0 && diag.kind == TC_ERR_DIVISION_BY_ZERO,
+          "fp64 div strict 1/0 → DIVISION_BY_ZERO");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_nan_operand_strict(void) {
+    TcValue lhs = fp64_from_double(NAN);
+    TcValue rhs = fp64_from_double(1.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc != 0 && diag.kind == TC_ERR_FLOAT_INVALID,
+          "fp64 add strict nan operand → FLOAT_INVALID");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_sub_strict(void) {
+    TcValue lhs = fp64_from_double(5.0);
+    TcValue rhs = fp64_from_double(3.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_SUB, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT64 && fp64_approx_equal(out.bits, 2.0),
+          "fp64 sub strict 5.0-3.0=2.0");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_mul_strict(void) {
+    TcValue lhs = fp64_from_double(1.5);
+    TcValue rhs = fp64_from_double(4.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && fp64_approx_equal(out.bits, 6.0), "fp64 mul strict 1.5*4.0=6.0");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_add_float32_strict(void) {
+    TcValue lhs = fp32_from_double(1.5);
+    TcValue rhs = fp32_from_double(2.5);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT32, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 4.0),
+          "fp32 add strict 1.5+2.5=4.0");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_sub_float32_strict(void) {
+    TcValue lhs = fp32_from_double(10.0);
+    TcValue rhs = fp32_from_double(3.5);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_SUB, TC_FLOAT32, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && fp32_approx_equal(out.bits, 6.5), "fp32 sub strict 10.0-3.5=6.5");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_mul_float32_strict(void) {
+    TcValue lhs = fp32_from_double(2.5);
+    TcValue rhs = fp32_from_double(3.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT32, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && fp32_approx_equal(out.bits, 7.5), "fp32 mul strict 2.5*3.0=7.5");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_div_float32_strict(void) {
+    TcValue lhs = fp32_from_double(7.0);
+    TcValue rhs = fp32_from_double(2.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_DIV, TC_FLOAT32, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && fp32_approx_equal(out.bits, 3.5), "fp32 div strict 7.0/2.0=3.5");
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================== */
 /*  main                                                               */
 /* ================================================================== */
 
@@ -907,6 +1073,18 @@ int main(void) {
 
     /* Cast truncate */
     test_cast_truncate();
+
+    /* Float arithmetic */
+    test_fp_arith_add_strict();
+    test_fp_arith_sub_strict();
+    test_fp_arith_mul_strict();
+    test_fp_arith_div_strict();
+    test_fp_arith_div_zero_strict();
+    test_fp_arith_nan_operand_strict();
+    test_fp_arith_add_float32_strict();
+    test_fp_arith_sub_float32_strict();
+    test_fp_arith_mul_float32_strict();
+    test_fp_arith_div_float32_strict();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

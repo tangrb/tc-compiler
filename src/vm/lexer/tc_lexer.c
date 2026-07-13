@@ -10,6 +10,9 @@
 #include "tc_diagnostic.h"
 
 #include <ctype.h>
+#include <errno.h>
+#include <float.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -196,6 +199,9 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     lit->negative = 0;
     lit->unsigned_suffix = 0;
     lit->is_bool = 0;
+    lit->is_float = 0;
+    lit->float_value = 0.0;
+    lit->float32_suffix = 0;
 
     if (*p == '-') {
         negative = 1;
@@ -255,6 +261,141 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
 
     if (negative && !lit->unsigned_suffix) {
         lit->negative = 1;
+    }
+
+    *end = p;
+    return 0;
+}
+
+/*
+ * 判断从 start 起的数字串是否应解析为浮点字面量（含 - 前缀）。
+ * 十六进制/二进制/八进制前缀走整数字面量路径。
+ */
+static int tc_peek_float_literal(const char *start) {
+    const char *p = start;
+
+    if (*p == '-') {
+        p++;
+    }
+    if (*p == '\0') {
+        return 0;
+    }
+    if (*p == '0' && p[1] != '\0' &&
+        (p[1] == 'x' || p[1] == 'X' || p[1] == 'b' || p[1] == 'B' ||
+         p[1] == 'o' || p[1] == 'O')) {
+        return 0;
+    }
+    while (*p != '\0') {
+        if (*p == '.') {
+            return 1;
+        }
+        if (*p == 'e' || *p == 'E') {
+            return 1;
+        }
+        if (!isdigit((unsigned char)*p)) {
+            break;
+        }
+        p++;
+    }
+    return 0;
+}
+
+/*
+ * @brief 解析 TC 浮点字面量（十进制、科学计数法、inf/-inf/nan、f/F 后缀）
+ */
+static int tc_parse_float_literal(const char *start, const char **end, TcLiteral *lit,
+                                  TcDiagnostic *diag, int line, int column) {
+    const char *p = start;
+    char buf[256];
+    size_t len = 0;
+    char *endptr = NULL;
+    double value = 0.0;
+
+    lit->magnitude = 0;
+    lit->negative = 0;
+    lit->unsigned_suffix = 0;
+    lit->is_bool = 0;
+    lit->is_float = 1;
+    lit->float_value = 0.0;
+    lit->float32_suffix = 0;
+
+    if (*p == '-') {
+        lit->negative = 1;
+        p++;
+    }
+
+    if (*p == '\0') {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "expected float literal");
+        return -1;
+    }
+
+    if (strncmp(p, "inf", 3) == 0 && !tc_is_identifier_part(p[3])) {
+        lit->float_value = lit->negative ? -INFINITY : INFINITY;
+        *end = p + 3;
+        return 0;
+    }
+
+    if (*p == '.') {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid float literal");
+        return -1;
+    }
+
+    while (*p != '\0' && len + 1 < sizeof(buf)) {
+        if (*p == 'f' || *p == 'F') {
+            if (len == 0) {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid float literal");
+                return -1;
+            }
+            lit->float32_suffix = 1;
+            p++;
+            break;
+        }
+        if (*p == 'u' || *p == 'U') {
+            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, column,
+                              "float literal cannot use unsigned suffix");
+            return -1;
+        }
+        if (!isdigit((unsigned char)*p) && *p != '.' && *p != 'e' && *p != 'E' &&
+            *p != '+' && *p != '-') {
+            break;
+        }
+        buf[len++] = *p;
+        p++;
+    }
+    buf[len] = '\0';
+
+    if (len == 0) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "expected float literal");
+        return -1;
+    }
+
+    errno = 0;
+    value = strtod(buf, &endptr);
+    if (endptr == buf || errno == ERANGE) {
+        tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, column,
+                          "float literal out of range");
+        return -1;
+    }
+    if (*endptr != '\0') {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column,
+                          "invalid float literal");
+        return -1;
+    }
+
+    if (lit->negative) {
+        value = -value;
+    }
+    lit->float_value = value;
+
+    if (lit->float32_suffix) {
+        double min_subnormal = ldexp(1.0, -149);
+        if (isfinite(value) &&
+            (fabs(value) > (double)FLT_MAX ||
+             (value != 0.0 && fabs(value) < min_subnormal))) {
+            tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, column,
+                              "float literal out of float32 range");
+            return -1;
+        }
     }
 
     *end = p;
@@ -335,6 +476,9 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->u.literal.magnitude = 1;
         token->u.literal.negative = 0;
         token->u.literal.unsigned_suffix = 0;
+        token->u.literal.is_float = 0;
+        token->u.literal.float_value = 0.0;
+        token->u.literal.float32_suffix = 0;
         return 1;
     }
     if (strcmp(buf, "false") == 0) {
@@ -343,6 +487,43 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->u.literal.magnitude = 0;
         token->u.literal.negative = 0;
         token->u.literal.unsigned_suffix = 0;
+        token->u.literal.is_float = 0;
+        token->u.literal.float_value = 0.0;
+        token->u.literal.float32_suffix = 0;
+        return 1;
+    }
+    if (strcmp(buf, "inf") == 0) {
+        token->kind = TC_TOK_FLOAT_LIT;
+        token->u.literal.is_float = 1;
+        token->u.literal.float_value = INFINITY;
+        token->u.literal.negative = 0;
+        token->u.literal.unsigned_suffix = 0;
+        token->u.literal.is_bool = 0;
+        token->u.literal.float32_suffix = 0;
+        return 1;
+    }
+    if (strcmp(buf, "nan") == 0) {
+        token->kind = TC_TOK_FLOAT_LIT;
+        token->u.literal.is_float = 1;
+        token->u.literal.float_value = NAN;
+        token->u.literal.negative = 0;
+        token->u.literal.unsigned_suffix = 0;
+        token->u.literal.is_bool = 0;
+        token->u.literal.float32_suffix = 0;
+        return 1;
+    }
+    if (strcmp(buf, "ieee") == 0) {
+        token->kind = TC_TOK_IEEE;
+        return 1;
+    }
+    if (strcmp(buf, "float32") == 0) {
+        token->kind = TC_TOK_FLOAT_TYPE;
+        token->u.int_type = TC_FLOAT32;
+        return 1;
+    }
+    if (strcmp(buf, "float64") == 0) {
+        token->kind = TC_TOK_FLOAT_TYPE;
+        token->u.int_type = TC_FLOAT64;
         return 1;
     }
     /* 类型名和运算符也是关键字（以标识符形式出现） */
@@ -513,16 +694,36 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             continue;
         }
 
-        /* 整数字面量：以数字或负号开头 */
+        /* 整数字面量或浮点字面量：以数字或负号开头 */
         if (*p == '-' || isdigit((unsigned char)*p)) {
             TcLiteral lit;
             const char *end = NULL;
-            if (tc_parse_integer_literal(p, &end, &lit, diag, line_no, tok_column) != 0) {
-                return -1;
-            }
-            if (tc_emit_token(out, TC_TOK_INTEGER, start, (size_t)(end - start), line_no, tok_column,
-                              TC_INT32, TC_ADD, &lit, diag) != 0) {
-                return -1;
+
+            if (*p == '-' && strncmp(p + 1, "inf", 3) == 0 &&
+                !tc_is_identifier_part(p[4])) {
+                if (tc_parse_float_literal(p, &end, &lit, diag, line_no, tok_column) != 0) {
+                    return -1;
+                }
+                if (tc_emit_token(out, TC_TOK_FLOAT_LIT, start, (size_t)(end - start), line_no,
+                                  tok_column, TC_INT32, TC_ADD, &lit, diag) != 0) {
+                    return -1;
+                }
+            } else if (tc_peek_float_literal(p)) {
+                if (tc_parse_float_literal(p, &end, &lit, diag, line_no, tok_column) != 0) {
+                    return -1;
+                }
+                if (tc_emit_token(out, TC_TOK_FLOAT_LIT, start, (size_t)(end - start), line_no,
+                                  tok_column, TC_INT32, TC_ADD, &lit, diag) != 0) {
+                    return -1;
+                }
+            } else {
+                if (tc_parse_integer_literal(p, &end, &lit, diag, line_no, tok_column) != 0) {
+                    return -1;
+                }
+                if (tc_emit_token(out, TC_TOK_INTEGER, start, (size_t)(end - start), line_no,
+                                  tok_column, TC_INT32, TC_ADD, &lit, diag) != 0) {
+                    return -1;
+                }
             }
             column += (int)(end - p);
             p = end;
@@ -589,6 +790,8 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "LET";
     case TC_TOK_INT_TYPE:
         return "INT_TYPE";
+    case TC_TOK_FLOAT_TYPE:
+        return "FLOAT_TYPE";
     case TC_TOK_ARITH_OP:
         return "ARITH_OP";
     case TC_TOK_UNARY_OP:
@@ -627,8 +830,12 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "IDENTIFIER";
     case TC_TOK_INTEGER:
         return "INTEGER";
+    case TC_TOK_FLOAT_LIT:
+        return "FLOAT_LIT";
     case TC_TOK_BOOL_LIT:
         return "BOOL_LIT";
+    case TC_TOK_IEEE:
+        return "IEEE";
     case TC_TOK_COLON:
         return "COLON";
     case TC_TOK_EQUAL:

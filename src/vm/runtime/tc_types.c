@@ -35,6 +35,10 @@ int tc_type_bit_width(TcIntType type) {
         return 64;
     case TC_BOOL:
         return 8;
+    case TC_FLOAT32:
+        return 32;
+    case TC_FLOAT64:
+        return 64;
     }
     return 0;
 }
@@ -45,6 +49,10 @@ int tc_type_is_bool(TcIntType type) {
 
 int tc_type_is_integer(TcIntType type) {
     return type >= TC_INT8 && type <= TC_UINT64; /* 显式范围，不依赖枚举顺序 */
+}
+
+int tc_type_is_float(TcIntType type) {
+    return type == TC_FLOAT32 || type == TC_FLOAT64;
 }
 
 /*
@@ -86,6 +94,21 @@ int tc_type_parse(const char *text, TcIntType *out) {
         *out = TC_UINT64;
     } else if (strcmp(text, "bool") == 0) {
         *out = TC_BOOL;
+    } else if (strcmp(text, "float32") == 0) {
+        *out = TC_FLOAT32;
+    } else if (strcmp(text, "float64") == 0) {
+        *out = TC_FLOAT64;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
+int tc_float_mode_parse(const char *text, TcFloatMode *out) {
+    if (strcmp(text, "ieee") == 0) {
+        *out = TC_FLOAT_IEEE;
+    } else if (strcmp(text, "wrap") == 0) {
+        *out = TC_FLOAT_WRAP;
     } else {
         return 0;
     }
@@ -215,6 +238,16 @@ int tc_format_spec_parse(const char *text, TcFormatSpec *out) {
         *out = TC_FMT_B;
     } else if (strcmp(text, "%t") == 0) {
         *out = TC_FMT_T;
+    } else if (strcmp(text, "%f") == 0) {
+        *out = TC_FMT_F;
+    } else if (strcmp(text, "%e") == 0) {
+        *out = TC_FMT_E;
+    } else if (strcmp(text, "%E") == 0) {
+        *out = TC_FMT_EU;
+    } else if (strcmp(text, "%g") == 0) {
+        *out = TC_FMT_G;
+    } else if (strcmp(text, "%G") == 0) {
+        *out = TC_FMT_GU;
     } else {
         return 0;
     }
@@ -239,6 +272,16 @@ const char *tc_format_spec_name(TcFormatSpec fmt) {
         return "%b";
     case TC_FMT_T:
         return "%t";
+    case TC_FMT_F:
+        return "%f";
+    case TC_FMT_E:
+        return "%e";
+    case TC_FMT_EU:
+        return "%E";
+    case TC_FMT_G:
+        return "%g";
+    case TC_FMT_GU:
+        return "%G";
     default:
         return "";
     }
@@ -306,6 +349,16 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ConditionTypeError";
     case TC_ERR_CROSS_BLOCK_REFERENCE:
         return "CrossBlockReferenceError";
+    case TC_ERR_FLOAT_OVERFLOW:
+        return "FloatOverflow";
+    case TC_ERR_FLOAT_UNDERFLOW:
+        return "FloatUnderflow";
+    case TC_ERR_FLOAT_INVALID:
+        return "FloatInvalidOperation";
+    case TC_ERR_FLOAT_CAST_OVERFLOW:
+        return "FloatCastOverflow";
+    case TC_ERR_MODE_MISMATCH:
+        return "ModeMismatch";
     }
     return "UnknownError";
 }
@@ -338,6 +391,10 @@ const char *tc_int_type_name(TcIntType type) {
         return "uint64";
     case TC_BOOL:
         return "bool";
+    case TC_FLOAT32:
+        return "float32";
+    case TC_FLOAT64:
+        return "float64";
     }
     return "unknown";
 }

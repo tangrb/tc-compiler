@@ -1,8 +1,8 @@
 # TC-AOT 详细设计说明书
 
-> **版本**：0.0.24（草案）  
-> **实现状态**：**规范与代码 v0.0.24**（`TC_AOT_VERSION` in `main.c`；if codegen 见 §4.6）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.24  
+> **版本**：0.0.25（草案）  
+> **实现状态**：**规范与代码 v0.0.25**（`TC_AOT_VERSION` in `main.c`；if codegen 见 §4.6；浮点全链路见 §4.4、§5.2、§6）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.25  
 > **工程**：[TC-Compiler](../README.md) 之 `src/aot/` 组件  
 > **定位**：将 TC 源文件提前编译（Ahead-of-Time）为 C99 源码，经系统编译器生成原生可执行文件
 
@@ -46,9 +46,10 @@ TC-AOT 将 `.tc` 源文件编译为 C99 源码，再调用系统 C 编译器（g
 
 ### 1.3 实现版本
 
-- **语言与本文档**：v0.0.24（草案）
-- **当前可执行文件**：v0.0.24（`TC_AOT_VERSION` in `main.c`）；与 VM 共享 `tc_types.h`
-- **v0.0.24 交付后**：AOT if codegen 与 VM 同步上线，差分测试扩展至 `tests/valid/if_*.tc`
+- **语言与本文档**：v0.0.25（草案）
+- **当前可执行文件**：v0.0.25（`TC_AOT_VERSION` in `main.c`）；与 VM 共享 `tc_types.h`
+- **v0.0.24 交付**：AOT if codegen 与 VM 同步上线，差分测试扩展至 `tests/valid/if_*.tc`
+- **v0.0.25 交付**：浮点类型 `float32`/`float64` 全链路——算术/比较/cast/I/O shim 新增；RHS 分发点新增 `FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST`；差分测试扩展至浮点用例
 
 ---
 
@@ -202,6 +203,10 @@ int main(void) {
 | `BITWISE_UN` | `tc_aot_bitwise_unary(type, &slots[dst], operand, &diag, line)` |
 | `SHIFT` | `tc_aot_shift(op, type, mode, &slots[dst], value, count, &diag, line)` |
 | `CAST` | `tc_aot_cast(target, mode, src_bits, src_type, &slots[dst], &diag, line)` |
+| **`FLOAT_ARITH`** (v0.0.25) | `tc_aot_fp_arith(op, type, mode, &slots[dst], lhs, rhs, &diag, line)` |
+| **`FLOAT_UNARY`** (v0.0.25) | `tc_aot_fp_unary(op, type, mode, &slots[dst], operand, &diag, line)` |
+| **`FLOAT_COMPARE`** (v0.0.25) | `tc_aot_fp_compare(op, type, &slots[dst], lhs, rhs, &diag, line)` |
+| **`FLOAT_CAST`** (v0.0.25) | `tc_aot_fp_cast(target, mode, src_bits, src_type, &slots[dst], &diag, line)` |
 | `CONST_REF` / `CONST_CAST` | 编译期已折叠，返回 `-1` 表示不应在运行时生成代码（参见 §7） |
 
 所有 RHS 调用均检查返回值：非 0 表示运行时错误，通过 `tc_aot_abort()` 终止。
@@ -217,6 +222,10 @@ tc_aot_lit(TC_BOOL, 1ULL, 0, 0)
 /* 整数字面量 */
 tc_aot_lit(TC_INT32, 42ULL, 0, 0)
 tc_aot_lit(TC_INT32, 10ULL, 1, 0)  /* 负数：magnitude=10, negative=1 */
+
+/* 浮点字面量（v0.0.25）：直接编码 IEEE 754 位模式 */
+tc_aot_lit(TC_FLOAT64, 0x400921FB54442D18ULL, 0, 0)  /* pi ≈ 3.14159... */
+tc_aot_lit(TC_FLOAT32, 0x40490FDBULL, 0, 0)           /* pi ≈ 3.14159... (binary32) */
 ```
 
 ### 4.6 If-else 代码生成（v0.0.24 新增）
@@ -362,6 +371,10 @@ tc_semantics.c (与 VM 共享)
 | `tc_aot_bitwise_unary` | `tc_exec_bitwise_unary` | `tc_eval_rhs`（BITWISE_UN 分支） |
 | `tc_aot_shift` | `tc_exec_shift` | `tc_eval_rhs`（SHIFT 分支） |
 | `tc_aot_cast` | `tc_exec_cast` | `tc_eval_rhs`（CAST 分支） |
+| **`tc_aot_fp_arith`** (v0.0.25) | `tc_exec_fp_arith` | `tc_eval_rhs`（FLOAT_ARITH 分支） |
+| **`tc_aot_fp_unary`** (v0.0.25) | `tc_exec_fp_unary` | `tc_eval_rhs`（FLOAT_UNARY 分支） |
+| **`tc_aot_fp_compare`** (v0.0.25) | `tc_exec_fp_compare` | `tc_eval_rhs`（FLOAT_COMPARE 分支） |
+| **`tc_aot_fp_cast`** (v0.0.25) | `tc_exec_fp_cast` | `tc_eval_rhs`（FLOAT_CAST 分支） |
 | `tc_aot_write` | `tc_io_write_value` | `tc_execute_statement`（Write 分支） |
 | `tc_aot_read` | `tc_io_read_value` | `tc_execute_statement`（Read 分支） |
 
@@ -395,6 +408,8 @@ AOT 的 I/O（`write` / `writeln` / `read`）与 VM 完全共享 `tc_io.c` 的�
 
 Codegen 阶段为 I/O 语句生成对 `tc_aot_write()` / `tc_aot_read()` 的直接调用，与 RHS 运算的 shim 模式一致。
 
+**浮点 I/O（v0.0.25）**：`tc_io_write_value()` 已扩展支持 `float32`/`float64` 类型及 `%f`/`%e`/`%E`/`%g`/`%G` 格式说明符；`tc_io_read_value()` 支持 `float32`/`float64` 输入解析。AOT 无需额外 shim 变更。
+
 ---
 
 ## 7. let 编译期常量优化
@@ -402,6 +417,15 @@ Codegen 阶段为 I/O 语句生成对 `tc_aot_write()` / `tc_aot_read()` 的直�
 ### 7.1 编译期折叠
 
 `let` 常量的编译期求值在 Analyzer Pass2 完成（`tc_const_eval.c`），求值结果存储在 `TcSymbol.const_value` 中。
+
+**浮点常量（v0.0.25）**：`let pi: float64 = 3.141592653589793` 在 Analyzer 阶段以 `float64` 精度预计算，结果位模式直接嵌入生成的 C 代码。浮点常量表达式中禁止使用 `ieee`/`wrap` 模式关键字（与整数常量约束一致）。
+
+**浮点常量精度规则**（语言标准 §4.3，VM 详设 §7.4.1）：
+
+1. 中间运算一律以 **`float64` 精度**执行
+2. 目标类型为 `float32` 时，最终写入 `const_value` 前**向最近偶数舍入**
+3. 上溢/下溢/无效操作 → **常量溢出错误**；除零 → **常量除零错误**
+4. 常量 `cast` 禁止 `truncate`；位重解释与缩窄转换禁止
 
 ### 7.2 Codegen 阶段
 
@@ -433,7 +457,7 @@ tc-aot [options] <file.tc>
   -c, --check         仅静态分析，不生成 C
   -r, --run           编译并运行生成的 C（依赖 host C 编译器）
   -h, --help          显示帮助
-  -V, --version       显示版本号（v0.0.24）
+  -V, --version       显示版本号（v0.0.25）
 
 退出码: 0 成功，1 失败
 ```
@@ -504,11 +528,13 @@ AOT 测试采用**差分比较**策略，确保 AOT 生成的二进制输出与 
 
 新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
 
-### 9.6 当前覆盖（33 条）
+### 9.6 当前覆盖（140 条）
 
-AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**等——与 VM valid 正例共用测试文件。
+AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**、**浮点全链路**——与 VM valid 正例共用测试文件。在 `scripts/aot/run_tests.sh` 中注册，当前 **140 条**差分用例（`bash scripts/aot/run_tests.sh` 实测）。
 
 v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.tc`、`if_nested.tc`、`if_chain.tc` 等）注册方式与普通 valid 用例相同。运行时错误场景不在 AOT 差分测试中注册。
+
+**v0.0.25 浮点扩展**：新增 `tests/valid/fp_basic.tc`、`fp_arith.tc`、`fp_compare.tc`、`fp_cast.tc`、`fp_io.tc` 等浮点正例，注册方式与普通 valid 用例相同。
 
 ---
 
@@ -533,6 +559,7 @@ v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.
 | 新 `TcRhsKind` | 在 `tc_aot_emit_rhs()` 新增 case + `tc_aot_rt.c` 新增 shim |
 | 新语句类型 | 在 `tc_aot_emit_statement()` 新增 case |
 | **控制流 `if-else`** | **v0.0.24 已实现**：`TC_STMT_IF` + 原生 C `if-else`（§4.6） |
+| **浮点全链路** (v0.0.25) | **已实现**：4 个新 RHS 分发点 + 4 个新 shim + float I/O（§4.4、§5.2、§6） |
 | 位运算/移位 | `tc_aot_bitwise_*` / `tc_aot_shift` shim → `tc_exec_bitwise_*` / `tc_exec_shift` |
 | 运行时错误恢复 | 当前 `tc_aot_abort()` 策略（exit），未来可改为返回值传播 |
 
@@ -585,6 +612,47 @@ int main(void) {
 
 ---
 
+### A.1 浮点示例 (v0.0.25)
+
+输入 `fp_demo.tc`：
+
+```tc
+var pi: float64 = 3.141592653589793
+var r: float64 = 2.0
+var area: float64 = mul(float64, pi, r)
+writeln(float64, %f, area)
+```
+
+输出 `fp_demo.c`：
+
+```c
+/* Auto-generated by tc-aot from fp_demo.tc. Do not edit. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "tc_aot_rt.h"
+
+static uint64_t slots[3];
+
+int main(void) {
+    TcDiagnostic diag;
+    tc_aot_diag_init(&diag);
+    tc_aot_init_slots(slots, 3);
+
+    slots[0] = tc_aot_lit(TC_FLOAT64, 0x400921FB54442D18ULL, 0, 0); /* var pi = 3.14159... */
+    slots[1] = tc_aot_lit(TC_FLOAT64, 0x4000000000000000ULL, 0, 0); /* var r = 2.0 */
+    if (tc_aot_fp_arith(TC_ADD, TC_FLOAT64, TC_ARITH_STRICT,        /* var area = mul(...) */
+                        &slots[2], slots[0], slots[1],
+                        &diag, 3) != 0)
+        tc_aot_abort(&diag, 3);
+    tc_aot_write(TC_FLOAT64, TC_FMT_F, slots[2], 1);                /* writeln(float64, %f, area) */
+
+    return 0;
+}
+```
+
+---
+
 ## 附录 B：文档修订记录
 
 | 版本 | 日期 | 说明 |
@@ -595,3 +663,7 @@ int main(void) {
 | **0.0.24-rev1** | **2026-07-07** | 合规审查修订：then/else 双作用域对齐 VM；移除「已实现」误导；补充递归 codegen 与 REPL 限制 |
 | **0.0.24-impl** | **2026-07-07** | **代码交付**：`TC_AOT_VERSION` 0.0.24；`tc_aot_emit_statement` if-else codegen；差分测试 33（含 `if_*`） |
 | **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离对齐：`main.c` OOM 诊断消息 "memory allocation failed"（AOT `tc_read_file` 经 libtc 编译路径使用 `TC_ERR_OUT_OF_MEMORY`） |
+| **0.0.25** | **2026-07-13** | **浮点全链路**：§4.4 新增 `FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST` 分发点；§4.5 浮点字面量位模式编码；§5.2 新增 `tc_aot_fp_arith`/`tc_aot_fp_unary`/`tc_aot_fp_compare`/`tc_aot_fp_cast` shim；§6 浮点 I/O 格式符说明；§7.1 浮点编译期折叠；§9.6 浮点测试用例覆盖；§A.1 浮点 codegen 示例；§11.1 浮点扩展状态标注 |
+| **0.0.25-doc1** | **2026-07-13** | **实现设计文档评审修正**：§7.1 补充语言标准 §4.3 浮点常量精度规则；§9.6 差分测试规模更新为 140 条 |
+
+---

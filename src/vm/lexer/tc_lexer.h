@@ -15,6 +15,7 @@ typedef enum {
     TC_TOK_VAR,         /* 'var' 关键字 */
     TC_TOK_LET,         /* 'let' 关键字 */
     TC_TOK_INT_TYPE,    /* 类型名（int8 / uint32 / bool 等） */
+    TC_TOK_FLOAT_TYPE,  /* 浮点类型名（float32 / float64） */
     TC_TOK_ARITH_OP,    /* 算术运算符（add/sub/mul/div/mod） */
     TC_TOK_UNARY_OP,    /* 单目运算符（abs/neg） */
     TC_TOK_COMPARE_OP,  /* 比较运算符（eq/ne/lt/le/gt/ge） */
@@ -34,7 +35,9 @@ typedef enum {
     TC_TOK_END,         /* 'end' 关键字 */
     TC_TOK_IDENTIFIER,  /* 用户定义标识符（变量名） */
     TC_TOK_INTEGER,     /* 整数字面量 */
+    TC_TOK_FLOAT_LIT,   /* 浮点字面量（含 inf / nan） */
     TC_TOK_BOOL_LIT,    /* 布尔字面量 true/false */
+    TC_TOK_IEEE,        /* 'ieee' 关键字（浮点运算模式） */
     TC_TOK_COLON,       /* ':' */
     TC_TOK_EQUAL,       /* '=' */
     TC_TOK_COMMA,       /* ',' */

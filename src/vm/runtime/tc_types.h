@@ -39,7 +39,9 @@ typedef enum {
     TC_UINT32,
     TC_INT64,
     TC_UINT64,
-    TC_BOOL
+    TC_BOOL,
+    TC_FLOAT32,
+    TC_FLOAT64
 } TcIntType;
 
 /**
@@ -51,6 +53,18 @@ typedef enum {
     TC_ARITH_STRICT,
     TC_ARITH_WRAP
 } TcWrapMode;
+
+/**
+ * 浮点运算模式：
+ *   TC_FLOAT_STRICT — 检测 IEEE 754 异常并报浮点错误
+ *   TC_FLOAT_IEEE   — 遵循 IEEE 754，返回 ±inf/nan，不报错
+ *   TC_FLOAT_WRAP   — 按位整数回绕
+ */
+typedef enum {
+    TC_FLOAT_STRICT,
+    TC_FLOAT_IEEE,
+    TC_FLOAT_WRAP
+} TcFloatMode;
 
 /**
  * 类型转换截断模式（truncate 关键字）：
@@ -120,7 +134,12 @@ typedef enum {
     TC_FMT_XU,
     TC_FMT_O,
     TC_FMT_B,
-    TC_FMT_T
+    TC_FMT_T,
+    TC_FMT_F,
+    TC_FMT_E,
+    TC_FMT_EU,
+    TC_FMT_G,
+    TC_FMT_GU
 } TcFormatSpec;
 
 /** 符号种类：变量或 let 常量 */
@@ -164,7 +183,12 @@ typedef enum {
     TC_ERR_MISSING_END,           /* if 语句缺少 end */
     TC_ERR_ELSE_POSITION,         /* else 位置错误 */
     TC_ERR_CONDITION_TYPE,        /* if 条件结果不是 bool */
-    TC_ERR_CROSS_BLOCK_REFERENCE  /* 跨块引用局部变量 */
+    TC_ERR_CROSS_BLOCK_REFERENCE, /* 跨块引用局部变量 */
+    TC_ERR_FLOAT_OVERFLOW,        /* 严格模式浮点上溢 */
+    TC_ERR_FLOAT_UNDERFLOW,       /* 严格模式浮点下溢 */
+    TC_ERR_FLOAT_INVALID,         /* 严格模式浮点无效操作（nan 等） */
+    TC_ERR_FLOAT_CAST_OVERFLOW,   /* 浮点 ↔ 整数转换超范围 */
+    TC_ERR_MODE_MISMATCH          /* ieee/wrap 用于非法上下文 */
 } TcErrorKind;
 
 /** 编译警告种类（不阻止执行，仅输出 warning 信息） */
@@ -185,7 +209,10 @@ typedef struct {
     uint64_t magnitude;
     int negative;
     int unsigned_suffix;
-    int is_bool; /* 1 表示 true/false 布尔字面量；magnitude 为 0/1 */
+    int is_bool;          /* 1 表示 true/false 布尔字面量；magnitude 为 0/1 */
+    int is_float;         /* 1 表示浮点字面量；float_value 有效 */
+    double float_value;   /* 浮点字面量双精度暂存（词法阶段） */
+    int float32_suffix;   /* 1 表示 f/F 后缀 → 上下文须为 float32 */
 } TcLiteral;
 
 /* ------------------------------------------------------------------ */
@@ -219,7 +246,11 @@ typedef enum {
     TC_RHS_BITWISE_UN,  /* 单目按位（not，整数类型参数） */
     TC_RHS_SHIFT,       /* 移位（shl/shr；shl 可选 wrap） */
     TC_RHS_CAST,        /* 类型转换（运行时：源为变量） */
-    TC_RHS_CONST_CAST   /* 编译期 cast（源为常量操作数） */
+    TC_RHS_CONST_CAST,  /* 编译期 cast（源为常量操作数） */
+    TC_RHS_FLOAT_ARITH,   /* 浮点双目算术 */
+    TC_RHS_FLOAT_UNARY,   /* 浮点单目运算 */
+    TC_RHS_FLOAT_COMPARE, /* 浮点比较 */
+    TC_RHS_FLOAT_CAST     /* 浮点类型转换 */
 } TcRhsKind;
 
 typedef struct {
@@ -283,6 +314,31 @@ typedef struct {
         struct {
             char *name;          /* 已定义的 let 常量名，堆分配 */
         } const_ref;             /* TC_RHS_CONST_REF */
+        struct {
+            TcArithOp op;
+            TcIntType type;      /* TC_FLOAT32 或 TC_FLOAT64 */
+            TcFloatMode mode;
+            TcOperand lhs;
+            TcOperand rhs;
+        } float_arith;           /* TC_RHS_FLOAT_ARITH */
+        struct {
+            TcUnaryOp op;
+            TcIntType type;
+            TcFloatMode mode;
+            TcOperand operand;
+        } float_unary;           /* TC_RHS_FLOAT_UNARY */
+        struct {
+            TcCompareOp op;
+            TcIntType type;
+            TcFloatMode mode;
+            TcOperand lhs;
+            TcOperand rhs;
+        } float_compare;         /* TC_RHS_FLOAT_COMPARE */
+        struct {
+            TcIntType target;
+            TcTruncateMode mode;
+            char *source;        /* 源变量名，堆分配 */
+        } float_cast;            /* TC_RHS_FLOAT_CAST */
     } u;
 } TcRhs;
 
@@ -458,7 +514,9 @@ int tc_type_bit_width(TcIntType type);
 int tc_type_is_signed(TcIntType type);
 int tc_type_is_bool(TcIntType type);
 int tc_type_is_integer(TcIntType type);
+int tc_type_is_float(TcIntType type);
 int tc_type_parse(const char *text, TcIntType *out);
+int tc_float_mode_parse(const char *text, TcFloatMode *out);
 int tc_arith_op_parse(const char *text, TcArithOp *out);
 int tc_unary_op_parse(const char *text, TcUnaryOp *out);
 int tc_compare_op_parse(const char *text, TcCompareOp *out);

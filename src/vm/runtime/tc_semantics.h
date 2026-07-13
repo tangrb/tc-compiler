@@ -146,4 +146,38 @@ int tc_exec_shift(TcShiftOp op, TcIntType type, TcWrapMode mode,
                   const TcValue *value, const TcValue *count, TcValue *out,
                   TcDiagnostic *diag, int line);
 
+/**
+ * 浮点算术运算入口：add/sub/mul/div（strict/ieee；wrap 待完整实现）。
+ * @param type  TC_FLOAT32 或 TC_FLOAT64
+ * @param mode  浮点运算模式
+ */
+int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
+                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                     TcDiagnostic *diag, int line);
+
+/**
+ * 浮点单目运算入口：abs / neg（strict/ieee；wrap 待完整实现）。
+ * @param type  TC_FLOAT32 或 TC_FLOAT64
+ * @param mode  浮点运算模式
+ */
+int tc_exec_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode,
+                     const TcValue *operand, TcValue *out,
+                     TcDiagnostic *diag, int line);
+
+/**
+ * 浮点比较运算入口：eq/ne/lt/le/gt/ge（strict/ieee；wrap 不支持）。
+ * @param type  TC_FLOAT32 或 TC_FLOAT64
+ * @param mode  浮点运算模式
+ */
+int tc_exec_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode,
+                       const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                       TcDiagnostic *diag, int line);
+
+/**
+ * 浮点类型转换入口（strict / truncate）。
+ * @param target  TC_FLOAT32 或 TC_FLOAT64
+ */
+int tc_exec_fp_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
+                    TcValue *out, TcDiagnostic *diag, int line);
+
 #endif

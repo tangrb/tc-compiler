@@ -45,6 +45,8 @@ static void test_type_bit_width(void) {
     check(tc_type_bit_width(TC_INT64) == 64, "TC_INT64 bit width = 64");
     check(tc_type_bit_width(TC_UINT64) == 64, "TC_UINT64 bit width = 64");
     check(tc_type_bit_width(TC_BOOL) == 8, "TC_BOOL bit width = 8");
+    check(tc_type_bit_width(TC_FLOAT32) == 32, "TC_FLOAT32 bit width = 32");
+    check(tc_type_bit_width(TC_FLOAT64) == 64, "TC_FLOAT64 bit width = 64");
 }
 
 /* ================================================================== */
@@ -61,6 +63,15 @@ static void test_type_is_integer(void) {
     check(tc_type_is_integer(TC_INT8) == 1, "TC_INT8 is integer");
     check(tc_type_is_integer(TC_UINT32) == 1, "TC_UINT32 is integer");
     check(tc_type_is_integer(TC_BOOL) == 0, "TC_BOOL is not integer");
+    check(tc_type_is_integer(TC_FLOAT32) == 0, "TC_FLOAT32 is not integer");
+    check(tc_type_is_integer(TC_FLOAT64) == 0, "TC_FLOAT64 is not integer");
+}
+
+static void test_type_is_float(void) {
+    check(tc_type_is_float(TC_FLOAT32) == 1, "TC_FLOAT32 is float");
+    check(tc_type_is_float(TC_FLOAT64) == 1, "TC_FLOAT64 is float");
+    check(tc_type_is_float(TC_INT32) == 0, "TC_INT32 is not float");
+    check(tc_type_is_float(TC_BOOL) == 0, "TC_BOOL is not float");
 }
 
 static void test_type_is_signed(void) {
@@ -91,6 +102,8 @@ static void test_type_parse(void) {
     check(tc_type_parse("int64", &out) == 1 && out == TC_INT64, "parse 'int64' → TC_INT64");
     check(tc_type_parse("uint64", &out) == 1 && out == TC_UINT64, "parse 'uint64' → TC_UINT64");
     check(tc_type_parse("bool", &out) == 1 && out == TC_BOOL, "parse 'bool' → TC_BOOL");
+    check(tc_type_parse("float32", &out) == 1 && out == TC_FLOAT32, "parse 'float32' → TC_FLOAT32");
+    check(tc_type_parse("float64", &out) == 1 && out == TC_FLOAT64, "parse 'float64' → TC_FLOAT64");
     check(tc_type_parse("unknown", &out) == 0, "parse 'unknown' → 0 (not found)");
     check(tc_type_parse("INT32", &out) == 0, "parse 'INT32' → 0 (case sensitive)");
 }
@@ -212,6 +225,11 @@ static void test_format_spec_parse(void) {
     check(tc_format_spec_parse("%o", &out) == 1 && out == TC_FMT_O, "parse '%%o' → TC_FMT_O");
     check(tc_format_spec_parse("%b", &out) == 1 && out == TC_FMT_B, "parse '%%b' → TC_FMT_B");
     check(tc_format_spec_parse("%t", &out) == 1 && out == TC_FMT_T, "parse '%%t' → TC_FMT_T");
+    check(tc_format_spec_parse("%f", &out) == 1 && out == TC_FMT_F, "parse '%%f' → TC_FMT_F");
+    check(tc_format_spec_parse("%e", &out) == 1 && out == TC_FMT_E, "parse '%%e' → TC_FMT_E");
+    check(tc_format_spec_parse("%E", &out) == 1 && out == TC_FMT_EU, "parse '%%E' → TC_FMT_EU");
+    check(tc_format_spec_parse("%g", &out) == 1 && out == TC_FMT_G, "parse '%%g' → TC_FMT_G");
+    check(tc_format_spec_parse("%G", &out) == 1 && out == TC_FMT_GU, "parse '%%G' → TC_FMT_GU");
     check(tc_format_spec_parse("%s", &out) == 0, "parse '%%s' → 0 (not found)");
 }
 
@@ -228,6 +246,11 @@ static void test_format_spec_name(void) {
     check(strcmp(tc_format_spec_name(TC_FMT_O), "%o") == 0, "TC_FMT_O → '%%o'");
     check(strcmp(tc_format_spec_name(TC_FMT_B), "%b") == 0, "TC_FMT_B → '%%b'");
     check(strcmp(tc_format_spec_name(TC_FMT_T), "%t") == 0, "TC_FMT_T → '%%t'");
+    check(strcmp(tc_format_spec_name(TC_FMT_F), "%f") == 0, "TC_FMT_F → '%%f'");
+    check(strcmp(tc_format_spec_name(TC_FMT_E), "%e") == 0, "TC_FMT_E → '%%e'");
+    check(strcmp(tc_format_spec_name(TC_FMT_EU), "%E") == 0, "TC_FMT_EU → '%%E'");
+    check(strcmp(tc_format_spec_name(TC_FMT_G), "%g") == 0, "TC_FMT_G → '%%g'");
+    check(strcmp(tc_format_spec_name(TC_FMT_GU), "%G") == 0, "TC_FMT_GU → '%%G'");
     check(strcmp(tc_format_spec_name(TC_FMT_NONE), "") == 0, "TC_FMT_NONE → ''");
 }
 
@@ -297,6 +320,16 @@ static void test_error_kind_name(void) {
           "TC_ERR_CONDITION_TYPE → ConditionTypeError");
     check(strcmp(tc_error_kind_name(TC_ERR_CROSS_BLOCK_REFERENCE), "CrossBlockReferenceError") == 0,
           "TC_ERR_CROSS_BLOCK_REFERENCE → CrossBlockReferenceError");
+    check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_OVERFLOW), "FloatOverflow") == 0,
+          "TC_ERR_FLOAT_OVERFLOW → FloatOverflow");
+    check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_UNDERFLOW), "FloatUnderflow") == 0,
+          "TC_ERR_FLOAT_UNDERFLOW → FloatUnderflow");
+    check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_INVALID), "FloatInvalidOperation") == 0,
+          "TC_ERR_FLOAT_INVALID → FloatInvalidOperation");
+    check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_CAST_OVERFLOW), "FloatCastOverflow") == 0,
+          "TC_ERR_FLOAT_CAST_OVERFLOW → FloatCastOverflow");
+    check(strcmp(tc_error_kind_name(TC_ERR_MODE_MISMATCH), "ModeMismatch") == 0,
+          "TC_ERR_MODE_MISMATCH → ModeMismatch");
 
     /* 未知错误种类 → UnknownError */
     check(strcmp(tc_error_kind_name((TcErrorKind)999), "UnknownError") == 0,
@@ -331,6 +364,8 @@ static void test_int_type_name(void) {
     check(strcmp(tc_int_type_name(TC_INT64), "int64") == 0, "TC_INT64 → 'int64'");
     check(strcmp(tc_int_type_name(TC_UINT64), "uint64") == 0, "TC_UINT64 → 'uint64'");
     check(strcmp(tc_int_type_name(TC_BOOL), "bool") == 0, "TC_BOOL → 'bool'");
+    check(strcmp(tc_int_type_name(TC_FLOAT32), "float32") == 0, "TC_FLOAT32 → 'float32'");
+    check(strcmp(tc_int_type_name(TC_FLOAT64), "float64") == 0, "TC_FLOAT64 → 'float64'");
 
     /* 未知类型 → unknown */
     check(strcmp(tc_int_type_name((TcIntType)999), "unknown") == 0,
@@ -345,6 +380,7 @@ int main(void) {
     test_type_bit_width();
     test_type_is_bool();
     test_type_is_integer();
+    test_type_is_float();
     test_type_is_signed();
     test_type_parse();
     test_arith_op_parse();

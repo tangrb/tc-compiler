@@ -1,8 +1,8 @@
 # TC-VM 命令行参考
 
-> **版本**：0.0.24（草案）  
+> **版本**：0.0.25（草案）  
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.24  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.25  
 > **工程**：[TC-Compiler](../README.md) 之 `tc-vm` 可执行文件  
 > **定位**：`tc-vm` 命令行用法、退出码与诊断输出格式
 
@@ -27,7 +27,7 @@
 
 `tc-vm` 是 TC 语言的直接执行引擎入口：读取 `.tc` 源文件，经词法、语法、静态分析后执行，或将源文件仅做静态检查。
 
-程序可通过 `write` / `writeln` 向 stdout 输出结果，通过 `read` 从 stdin 读取输入。
+程序可通过 `write` / `writeln` 向 stdout 输出数据（支持 `%f`/`%e`/`%E`/`%g`/`%G` 浮点格式符），通过 `read` 从 stdin 读取数据（支持 `float32`/`float64` 输入）。
 
 语言语义以《[TC 语言标准设计说明书](./TC语言标准设计说明书.md)》为准；内部架构见《[TC-VM 详细设计说明书](./TC-VM详细设计说明书.md)》。
 
@@ -270,9 +270,14 @@ warning: use of possibly uninitialized variable 'a' (line 2)
 | `FormatStringError` | 格式字符串错误 | 静态分析 |
 | `FormatTypeMismatch` | 格式类型不匹配 | 静态分析 |
 | `OperandCountError` | 操作数数量错误 | 静态分析 |
-| `DivisionByZero` | 除零错误 | 执行 |
+| `DivisionByZero` | 除零错误（含浮点严格模式） | 执行 |
 | `IntegerOverflow` | 整数溢出错误 | 执行 |
+| **`FloatOverflow`** (v0.0.25) | 浮点溢出错误（严格模式上溢） | 执行 |
+| **`FloatUnderflow`** (v0.0.25) | 浮点下溢错误（严格模式） | 执行 |
+| **`FloatInvalid`** (v0.0.25) | 浮点无效操作错误（NaN 产生） | 执行 |
+| **`FloatCastOverflow`** (v0.0.25) | 浮点转换溢出（浮点↔整数超范围） | 执行 |
 | `CastOverflow` | 转换溢出错误 | 执行 |
+| **`ModeMismatch`** (v0.0.25) | 模式不匹配（ieee 用于整数等） | 静态分析 |
 | `IOError` | I/O 错误 | 执行（read 输入失败） |
 
 完整触发条件见语言标准 §11；实现架构见《TC-VM 详细设计说明书》§11。
@@ -378,6 +383,24 @@ $ echo $?
 0
 ```
 
+### 8.10 浮点运算示例（v0.0.25）
+
+```sh
+$ tc-vm tests/valid/fp_basic.tc
+3.14159
+$ echo $?
+0
+```
+
+### 8.11 浮点 I/O 管道示例（v0.0.25）
+
+```sh
+$ echo "3.14" | tc-vm tests/valid/fp_read.tc
+input: 3.14
+$ echo $?
+0
+```
+
 ---
 
 ## 9. 与测试脚本的关系
@@ -409,5 +432,6 @@ $ echo $?
 | **0.0.14** | **2026-07-03** | **与实现对齐**：新增 §6.2 编译警告格式；`--check` 模式纳入自动化回归；补充 stress/REPL/ASAN 测试说明；诊断格式校验说明 |
 | **0.0.18** | **2026-07-03** | **版本号对齐语言标准 v0.0.18**；`TC_VM_VERSION` 集中于 `tc_version.h` |
 | **0.0.21** | **2026-07-04** | **与语言标准 v0.0.21 对齐**：错误类型表新增 `ConstantCircularDependency`、`ConstantOverflow`、`ConstantDivisionByZero`、`ConstantCastOverflow`、`ComparisonTypeMismatch`、`FormatStringError`、`FormatTypeMismatch`、`OperandCountError`；版本、依赖更新至 v0.0.21 |
+| **0.0.25** | **2026-07-13** | **浮点支持**：错误类型表新增 `FloatOverflow`/`FloatUnderflow`/`FloatInvalid`/`FloatCastOverflow`/`ModeMismatch`；概述补充浮点 I/O 与格式符说明；新增 §8.10–§8.11 浮点示例；版本、依赖更新至 v0.0.25 |
 
 ---

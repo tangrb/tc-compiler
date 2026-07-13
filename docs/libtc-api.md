@@ -1,16 +1,27 @@
 # libtc 嵌入 API
 
-> **版本**：0.0.24 · **代码**：v0.0.24（`TC_VM_VERSION`）  
+> **版本**：0.0.25 · **代码**：v0.0.25（`TC_VM_VERSION`）  
 > **详设**：[libtc设计说明书.md](./libtc设计说明书.md)
 
 libtc 是 TC 编译器的静态库，提供「编译（Parse + Analyze）」与「执行」分离的嵌入接口。
 
-## v0.0.24 简述
+## v0.0.25 简述
+
+| 项 | 说明 |
+|----|------|
+| **浮点支持** | `float32`/`float64` 类型经 `tc_compile_*` 全链路编译（词法/语法/分析/执行/AOT）；**API 不变** |
+| **类型扩展** | `TcType` 现在可编码 `FloatType`（`TC_FLOAT32`/`TC_FLOAT64`）；`TcLiteral` 新增 `is_float` 标记 |
+| **新 RHS** | 4 个浮点 RHS kind（`FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST`）经现有 RHS 分发路径 |
+| **错误码** | 新增 5 种浮点相关 `TcErrorKind`（`FLOAT_OVERFLOW`/`FLOAT_UNDERFLOW`/`FLOAT_INVALID`/`FLOAT_CAST_OVERFLOW`/`MODE_MISMATCH`） |
+| **运行时** | `tc_run_typed` 可产生浮点运行时错误（严格模式溢出/下溢/无效操作/转换溢出） |
+| **嵌入方** | 无需为新类型或 RHS 特殊处理；`TcTypedProgram` 结构体字段无变更 |
+
+v0.0.24 特性（控制流 `if-then-else-end`、块级作用域）仍通过现有 API 完整支持；浮点扩展不改变任何 API 签名。
 
 | 项 | 说明 |
 |----|------|
 | **控制流** | `if-then-else-end` 经 `tc_compile_*` 全文件编译；`TcTypedProgram.program` 可含 `TC_STMT_IF`（嵌套 `then_body`/`else_body`） |
-| **解析** | `tc_lib.c` 内 `tc_parse_source` 将改为两遍行扫描（缩进 + `tc_parse_if_stmt`）；**API 不变** |
+| **解析** | `tc_lib.c` 内 `tc_parse_source` **采用**两遍行扫描（缩进 + `tc_parse_if_stmt`）；**API 不变** |
 | **作用域** | 块内 `var`/`let` 在 Analyze 阶段处理；`symbols.count` 含块局部 slot（AOT 同长度 `slots[]`） |
 | **释放** | `tc_typed_program_free` 递归释放 if 子树（`tc_statement_free`） |
 | **REPL** | **不**走 libtc；`tc-repl` 逐行路径且 **不支持** `if` |

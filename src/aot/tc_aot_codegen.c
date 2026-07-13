@@ -91,6 +91,10 @@ static const char *tc_aot_type_enum(TcIntType type) {
         return "TC_UINT64";
     case TC_BOOL:
         return "TC_BOOL";
+    case TC_FLOAT32:
+        return "TC_FLOAT32";
+    case TC_FLOAT64:
+        return "TC_FLOAT64";
     }
     return "TC_INT32";
 }

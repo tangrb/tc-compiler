@@ -14,7 +14,9 @@
 
 #include "tc_diagnostic.h"
 
+#include <fenv.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1101,6 +1103,168 @@ int tc_exec_shift(TcShiftOp op, TcIntType type, TcWrapMode mode,
         return tc_exec_shl(type, mode, value, k, out, diag, line);
     }
     return tc_exec_shr(type, value, k, out);
+}
+
+/* ------------------------------------------------------------------ */
+/*  浮点算术（strict / ieee 骨架）                                      */
+/* ------------------------------------------------------------------ */
+
+static double tc_fp_bits_to_double(TcIntType type, uint64_t bits) {
+    if (type == TC_FLOAT32) {
+        float f = 0.0f;
+        uint32_t b32 = (uint32_t)(bits & 0xFFFFFFFFu);
+        memcpy(&f, &b32, sizeof(f));
+        return (double)f;
+    }
+    {
+        double d = 0.0;
+        memcpy(&d, &bits, sizeof(d));
+        return d;
+    }
+}
+
+static uint64_t tc_fp_double_to_bits(TcIntType type, double value) {
+    if (type == TC_FLOAT32) {
+        float f = (float)value;
+        uint32_t b32 = 0;
+        memcpy(&b32, &f, sizeof(b32));
+        return (uint64_t)b32;
+    }
+    {
+        double d = value;
+        uint64_t b64 = 0;
+        memcpy(&b64, &d, sizeof(b64));
+        return b64;
+    }
+}
+
+static int tc_fp_strict_check_nan_operand(double value, TcDiagnostic *diag, int line) {
+    if (isnan(value)) {
+        tc_diagnostic_set(diag, TC_ERR_FLOAT_INVALID, line, TC_COLUMN_UNKNOWN,
+                          "float invalid operation");
+        return -1;
+    }
+    return 0;
+}
+
+static int tc_fp_strict_check_exceptions(double result, TcDiagnostic *diag, int line) {
+    if (fetestexcept(FE_INVALID)) {
+        tc_diagnostic_set(diag, TC_ERR_FLOAT_INVALID, line, TC_COLUMN_UNKNOWN,
+                          "float invalid operation");
+        return -1;
+    }
+    if (fetestexcept(FE_DIVBYZERO)) {
+        tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
+                          "division by zero");
+        return -1;
+    }
+    if (fetestexcept(FE_OVERFLOW)) {
+        tc_diagnostic_set(diag, TC_ERR_FLOAT_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                          "float overflow");
+        return -1;
+    }
+    if (fetestexcept(FE_UNDERFLOW)) {
+        if (result != 0.0 && !isnan(result)) {
+            tc_diagnostic_set(diag, TC_ERR_FLOAT_UNDERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "float underflow");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int tc_exec_fp_arith_strict(TcArithOp op, TcIntType type,
+                                   double lhs, double rhs, double *result,
+                                   TcDiagnostic *diag, int line) {
+    (void)type;
+    if (tc_fp_strict_check_nan_operand(lhs, diag, line) != 0) {
+        return -1;
+    }
+    if (tc_fp_strict_check_nan_operand(rhs, diag, line) != 0) {
+        return -1;
+    }
+
+    feclearexcept(FE_ALL_EXCEPT);
+    switch (op) {
+    case TC_ADD:
+        *result = lhs + rhs;
+        break;
+    case TC_SUB:
+        *result = lhs - rhs;
+        break;
+    case TC_MUL:
+        *result = lhs * rhs;
+        break;
+    case TC_DIV:
+        *result = lhs / rhs;
+        break;
+    case TC_MOD:
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "mod not supported for float types");
+        return -1;
+    }
+    return tc_fp_strict_check_exceptions(*result, diag, line);
+}
+
+static int tc_exec_fp_arith_ieee(TcArithOp op, double lhs, double rhs, double *result,
+                                 TcDiagnostic *diag, int line) {
+    (void)diag;
+    (void)line;
+    switch (op) {
+    case TC_ADD:
+        *result = lhs + rhs;
+        break;
+    case TC_SUB:
+        *result = lhs - rhs;
+        break;
+    case TC_MUL:
+        *result = lhs * rhs;
+        break;
+    case TC_DIV:
+        *result = lhs / rhs;
+        break;
+    case TC_MOD:
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "mod not supported for float types");
+        return -1;
+    }
+    return 0;
+}
+
+int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
+                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
+                     TcDiagnostic *diag, int line) {
+    double a = 0.0;
+    double b = 0.0;
+    double result = 0.0;
+    int rc = 0;
+
+    if (!tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "expected float type");
+        return -1;
+    }
+
+    a = tc_fp_bits_to_double(type, lhs->bits);
+    b = tc_fp_bits_to_double(type, rhs->bits);
+
+    if (mode == TC_FLOAT_STRICT) {
+        rc = tc_exec_fp_arith_strict(op, type, a, b, &result, diag, line);
+    } else if (mode == TC_FLOAT_IEEE) {
+        rc = tc_exec_fp_arith_ieee(op, a, b, &result, diag, line);
+    } else {
+        tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "float wrap mode not implemented yet");
+        return -1;
+    }
+
+    if (rc != 0) {
+        return -1;
+    }
+
+    out->type = type;
+    out->bits = tc_fp_double_to_bits(type, result);
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */

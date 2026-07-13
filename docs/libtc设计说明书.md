@@ -1,8 +1,8 @@
 # libtc 设计说明书
 
-> **版本**：0.0.24（草案）  
-> **实现状态**：**规范与代码 v0.0.24**（`if` 控制流与块级作用域已交付；见 §12）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.24  
+> **版本**：0.0.25（草案）  
+> **实现状态**：**规范与代码 v0.0.25**（`if` 控制流与块级作用域 v0.0.24 已交付；浮点 `float32`/`float64` 全链路 v0.0.25 已交付；见 §12）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.25  
 > **关联**：[TC-VM详细设计说明书.md](./TC-VM详细设计说明书.md) · [TC-AOT详细设计说明书.md](./TC-AOT详细设计说明书.md)  
 > **工程**：[TC-Compiler](../README.md) 之 `src/libtc/` 组件  
 > **定位**：TC 编译器的嵌入式接口库——将「编译（Parse + Analyze）」与「执行」分离
@@ -24,6 +24,7 @@
 11. [示例](#11-示例)
 12. [与 VM / AOT / REPL 的关系](#12-与-vm--aot--repl-的关系)
 13. [v0.0.24 变更影响（libtc 层）](#13-v0024-变更影响libtc-层)
+14. [v0.0.25 变更影响（libtc 层）](#14-v0025-变更影响libtc-层)
 
 附录
 
@@ -57,9 +58,10 @@ libtc 是 TC 编译器的静态库，提供以下能力：
 
 | 项目 | 版本 |
 |------|------|
-| 本文档 / 语言标准 | 0.0.24（草案） |
-| 当前 `tc-vm`（`TC_VM_VERSION`） | 0.0.24 |
-| v0.0.24 交付后 | `tc_parse_source` 两遍扫描 + 树形 `TcIfStmt`；Analyzer 递归 Pass1/Pass2 |
+| 本文档 / 语言标准 | 0.0.25（草案） |
+| 当前 `tc-vm`（`TC_VM_VERSION`） | 0.0.25 |
+| v0.0.24 交付 | `tc_parse_source` 两遍扫描 + 树形 `TcIfStmt`；Analyzer 递归 Pass1/Pass2 |
+| v0.0.25 交付 | 浮点类型 `float32`/`float64` 全链路——词法/语法/分析/执行/AOT 代码生成；`tc_types.h` 扩展浮点枚举及相关 RHS kind/shim 函数；`tc_semantics.c`/`tc_io.c` 扩展浮点算术/比较/cast/I/O |
 
 ---
 
@@ -143,6 +145,8 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
 
 **v0.0.24 新增静态错误**（经 Analyze 报出，与语言标准 §11.1 一致）：缩进类 4 种、`TC_ERR_CONDITION_TYPE`、`TC_ERR_CROSS_BLOCK_REFERENCE`（或与 `TC_ERR_UNDEFINED_VARIABLE` 统一，见 VM 详设 §7.3）等。
 
+**v0.0.25 新增静态/运行时错误**（经 Analyze 或 `tc_run_typed` 报出）：`TC_ERR_FLOAT_OVERFLOW`、`TC_ERR_FLOAT_UNDERFLOW`、`TC_ERR_FLOAT_INVALID`、`TC_ERR_FLOAT_CAST_OVERFLOW`、`TC_ERR_MODE_MISMATCH`（见语言标准 §11.4、VM 详设 §11.3）。libtc API 不变，仍经 `diag` 单槽返回。
+
 ### 3.2 执行接口
 
 ```c
@@ -187,16 +191,14 @@ tc_compile_source(source, out, diag)
     ├─ diag->source = source
     │
     ├─ tc_parse_source(source, &program, diag)    /* static，tc_lib.c */
-    │     [v0.0.23 现状]
-    │       逐行: skippable? → tokenize_line → parse_statement → program_push
-    │     [v0.0.24 目标]
+    │     [v0.0.24+ 现状] 两遍扫描：
     │       第一遍: 切行 + tokenize + 记录行缩进 → line_tokens[]
     │       第二遍: 遇 TC_TOK_IF → tc_parse_if_stmt；否则 parse_statement
     │
     └─ tc_analyze(&program, out, diag)
-           ├─ tc_pass1_collect_symbols / collect_stmt   [v0.0.24 递归]
-           └─ tc_pass2_type_check / check_stmt         [v0.0.24 递归]
-                └─ tc_resolve_const_value → let 编译期求值
+           ├─ tc_pass1_collect_symbols / collect_stmt   [递归 if 块]
+           └─ tc_pass2_type_check / check_stmt         [递归 if 块]
+                └─ tc_resolve_const_value → let 编译期求值（含浮点 ConstFloat*，§7.4.1）
 ```
 
 ### 4.2 tc_compile_file
@@ -288,20 +290,9 @@ v0.0.24 起 REPL **显式拒绝** `TC_STMT_IF`（见 VM 详设 §18.8）；含�
 
 ## 7. 编译流水线与解析模型
 
-### 7.1 行模型（v0.0.23 现状）
+### 7.1 两遍扫描（v0.0.24+ 现状）
 
-`tc_parse_source` 按行拆分源文本，cursor 逐字符扫描行界：
-
-```text
-source → 行边界 (\n / \r\n / \r)
-    ├─ tc_is_skippable_line → 空行/纯注释跳过
-    └─ 非跳过行:
-         tc_tokenize_line → tc_parse_statement → tc_program_push
-```
-
-### 7.2 两遍扫描（v0.0.24 目标）
-
-多行 `if-then-else-end` 需要**行级缩进上下文**，`tc_parse_source` 扩展为：
+多行 `if-then-else-end` 需要**行级缩进上下文**，`tc_parse_source` 采用两遍扫描：
 
 ```text
 第一遍  for each line:
@@ -319,13 +310,15 @@ source → 行边界 (\n / \r\n / \r)
 
 缩进规则与语言标准 §4.7.2 / VM 详设 §19 一致。`tc_tokenize_line` **不变**；缩进在 libtc 编排层计算。
 
-### 7.3 空行与注释
+> **历史**：v0.0.23 及以前为逐行 `tokenize + tc_parse_statement`（无缩进上下文）；v0.0.24 起由本节两遍扫描取代。
+
+### 7.2 空行与注释
 
 - 空行和仅含空白字符的行跳过（不占 PC）
 - `;` 开头的整行注释跳过
 - 行内 `;` 由 lexer 作为语句终结符/注释处理
 
-### 7.4 语句树与顶层 PC
+### 7.3 语句树与顶层 PC
 
 - 顶层 `TcProgram.items[]`：顺序列表，PC 从 0 递增
 - `TC_STMT_IF`：顶层占 **1** 个 PC；`then_body`/`else_body` 为子数组，**不**进入顶层 PC 序列
@@ -521,6 +514,23 @@ tc-repl (tc_repl.c)
 
 ---
 
+## 14. v0.0.25 变更影响（libtc 层）
+
+| 变更项 | libtc 职责 | 关联模块 |
+|--------|------------|----------|
+| `FloatType` / `FloatMode` / 4 个浮点 `TcRhsKind` | **无 API 变更**；`tc_compile_*` 透传 Parse + Analyze | `tc_types.h`、`tc_parser.c`、`tc_analyzer.c`、`tc_const_eval.c` |
+| 浮点词法/语法/分析 | 无逻辑（委托现有流水线） | `tc_lexer.c`、`tc_parser.c`、`tc_analyzer.c` |
+| 浮点常量求值 | 无代码变更（委托 `tc_const_eval.c`） | 以 `float64` 精度编译期求值；禁 `ieee`/`wrap`（语言标准 §4.3） |
+| `tc_run_typed` | 无代码变更（委托 `tc_executor.c`） | `exec_fp_arith`/`exec_fp_unary`/`exec_fp_compare`/`exec_fp_cast` |
+| `TcTypedProgram` 契约 | **结构体字段无变更**；语句树含浮点 RHS 变体 | VM 详设 §5.5、§8 |
+| 槽位分配 | 规则不变：Pass1 统一 slot 池 | 浮点 `var`/`let` 与整数共用 slot 索引 |
+| 错误码 | 透传 Analyze / Execute 诊断 | 5 种浮点相关 `TcErrorKind` + `TC_ERR_MODE_MISMATCH` |
+| AOT 嵌入 | 无变更：仍 `tc_compile_file` → `tc_aot_emit_c` | AOT 详设 §4.4、§5.2 |
+
+**嵌入方影响**：无需为新类型或 RHS 特殊处理；`tc_compile_source` / `tc_compile_file` / `tc_run_typed` 签名与所有权契约不变（见 [libtc-api.md](./libtc-api.md) §v0.0.25 简述）。
+
+---
+
 ## 附录 A：API 签名速查
 
 ```c
@@ -548,6 +558,8 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);  /*
 | **0.0.24** | **2026-07-07** | 对齐语言/VM/AOT v0.0.24：`tc_parse_source` 两遍扫描规划；`TcIfStmt` 树形 AST 与内存所有权；`TcTypedProgram` 数据契约；与 REPL 路径分叉；v0.0.24 libtc 变更表；实现状态标注 |
 | **0.0.24-rev1** | **2026-07-07** | 合规审查跟进：then/else 双作用域、Analyzer 递归、统一 slot 池、知识图谱交叉引用 |
 | **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离：`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY` 而非 `TC_ERR_SYNTAX`；§5.1 错误状态契约同步更新 |
+| **0.0.25** | **2026-07-13** | **浮点全链路**：`tc_types.h` 扩展 `FloatType`/`FloatMode` 枚举、`TcRhsKind` 新增 4 个浮点变体；`tc_semantics.h/c` 新增 `exec_fp_arith`/`exec_fp_unary`/`exec_fp_compare`/`exec_fp_cast`；`tc_io.h/c` 扩展浮点格式符与输入解析；`tc_lib.c` 编译流水线无变化（Parse/Analyze 层已吸收浮点 AST 变体）；版本号同步更新 |
+| **0.0.25-doc1** | **2026-07-13** | **实现设计文档评审修正**：§3.1 补充 v0.0.25 浮点错误码；§7 合并为两遍扫描现状并标注 v0.0.23 历史；新增 §14 v0.0.25 变更影响表 |
 
 ---
 

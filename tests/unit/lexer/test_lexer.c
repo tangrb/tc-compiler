@@ -7,6 +7,7 @@
 #include "tc_diagnostic.h"
 #include "tc_lexer.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -290,6 +291,101 @@ static void test_statement_keywords(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_float_type_tokens(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var x: float32 = 0.0f", &tokens, &diag), "tokenize float32 type");
+    tok = find_token(&tokens, TC_TOK_FLOAT_TYPE, &idx);
+    check(tok != NULL && tok->u.int_type == TC_FLOAT32, "float32 → TC_TOK_FLOAT_TYPE");
+
+    idx = 0;
+    tc_token_list_free(&tokens);
+    check(tokenize_line_ok("var y: float64 = 1.0", &tokens, &diag), "tokenize float64 type");
+    tok = find_token(&tokens, TC_TOK_FLOAT_TYPE, &idx);
+    check(tok != NULL && tok->u.int_type == TC_FLOAT64, "float64 → TC_TOK_FLOAT_TYPE");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_float_literal_tokens(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var x: float64 = 3.14", &tokens, &diag), "tokenize 3.14");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && tok->u.literal.is_float == 1 && tok->u.literal.float_value == 3.14,
+          "3.14 → FLOAT_LIT is_float=1");
+
+    idx = 0;
+    tc_token_list_free(&tokens);
+    check(tokenize_line_ok("var y: float32 = 1.0f", &tokens, &diag), "tokenize 1.0f");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && tok->u.literal.float32_suffix == 1, "1.0f → float32_suffix");
+
+    idx = 0;
+    tc_token_list_free(&tokens);
+    check(tokenize_line_ok("var z: float64 = 1e5", &tokens, &diag), "tokenize 1e5");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && tok->u.literal.float_value == 100000.0, "1e5 → 100000.0");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_float_special_literals(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: float64 = inf", &tokens, &diag), "tokenize inf");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && isinf(tok->u.literal.float_value) &&
+              tok->u.literal.float_value > 0,
+          "inf → +inf FLOAT_LIT");
+
+    idx = 0;
+    tc_token_list_free(&tokens);
+    check(tokenize_line_ok("var b: float64 = -inf", &tokens, &diag), "tokenize -inf");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && isinf(tok->u.literal.float_value) &&
+              tok->u.literal.float_value < 0,
+          "-inf → -inf FLOAT_LIT");
+
+    idx = 0;
+    tc_token_list_free(&tokens);
+    check(tokenize_line_ok("var c: float64 = nan", &tokens, &diag), "tokenize nan");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && isnan(tok->u.literal.float_value), "nan → NAN FLOAT_LIT");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_ieee_keyword(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("add(float64, ieee, x, y)", &tokens, &diag), "tokenize ieee");
+    tok = find_token(&tokens, TC_TOK_IEEE, &idx);
+    check(tok != NULL, "ieee → TC_TOK_IEEE");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_uint8_type_token();
     test_unsigned_suffix_literal();
@@ -303,6 +399,10 @@ int main(void) {
     test_negative_decimal_literal();
     test_uint16_max_literal();
     test_statement_keywords();
+    test_float_type_tokens();
+    test_float_literal_tokens();
+    test_float_special_literals();
+    test_ieee_keyword();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

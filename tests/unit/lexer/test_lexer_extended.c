@@ -382,6 +382,74 @@ static void test_control_flow_keywords(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_float_format_specifiers(void) {
+    static const struct {
+        const char *spec;
+        TcFormatSpec expected;
+    } cases[] = {
+        {"%f", TC_FMT_F}, {"%e", TC_FMT_E}, {"%E", TC_FMT_EU},
+        {"%g", TC_FMT_G}, {"%G", TC_FMT_GU},
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcTokenList tokens;
+        TcDiagnostic diag;
+        char line[64];
+        size_t idx = 0;
+        const TcToken *tok;
+
+        snprintf(line, sizeof(line), "writeln(float64, %s, x)", cases[i].spec);
+        tc_diagnostic_init(&diag);
+        check(tokenize_line_ok(line, &tokens, &diag), line);
+        tok = find_token(&tokens, TC_TOK_FORMAT_SPEC, &idx);
+        check(tok != NULL && tok->u.format_spec == cases[i].expected,
+              "float format spec token");
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_float_literal_lex_errors(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line("var x: float64 = 3.14u", 1, &tokens, &diag) != 0,
+          "3.14u → literal type error");
+    check(diag.kind == TC_ERR_LITERAL_TYPE, "3.14u error kind");
+    tc_token_list_free(&tokens);
+
+    tc_token_list_init(&tokens);
+    tc_diagnostic_clear(&diag);
+    check(tc_tokenize_line("var x: float64 = .5", 1, &tokens, &diag) != 0,
+          ".5 → syntax error");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_scientific_float_literals(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+    size_t idx = 0;
+    const TcToken *tok;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("var a: float64 = -3.14e-2", &tokens, &diag), "tokenize -3.14e-2");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && tok->u.literal.float_value == -0.0314, "-3.14e-2 value");
+
+    idx = 0;
+    tc_token_list_free(&tokens);
+    check(tokenize_line_ok("var b: float64 = 1.2E+5", &tokens, &diag), "tokenize 1.2E+5");
+    tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
+    check(tok != NULL && tok->u.literal.float_value == 120000.0, "1.2E+5 value");
+
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_all_unary_ops();
     test_cast_keyword();
@@ -397,6 +465,9 @@ int main(void) {
     test_bitwise_shift_tokens();
     test_control_flow_keywords();
     test_whitespace_and_comments();
+    test_float_format_specifiers();
+    test_float_literal_lex_errors();
+    test_scientific_float_literals();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
