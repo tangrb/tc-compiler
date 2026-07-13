@@ -41,6 +41,11 @@ uint64_t tc_aot_lit(TcIntType type, uint64_t magnitude, int negative, int unsign
     TcLiteral lit;
     TcValue value;
 
+    if (tc_type_is_float(type)) {
+        return magnitude;
+    }
+
+    memset(&lit, 0, sizeof(lit));
     lit.magnitude = magnitude;
     lit.negative = negative;
     lit.unsigned_suffix = unsigned_suffix;

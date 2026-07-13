@@ -611,6 +611,63 @@ run_expect_check_ok "$ROOT/tests/valid/if_nested.tc"
 # --- v0.0.25: float32/float64 ---
 
 run_expect_check_ok "$ROOT/tests/valid/fp_basic.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_arith.tc" "13
+7
+30
+3.33333
+3
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_arith.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_arith_ieee.tc" "inf
+nan
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_arith_ieee.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_arith_wrap.tc" "inf
+1.17549e-38
+-4
+1
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_arith_wrap.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_compare.tc" "false
+true
+true
+true
+false
+false
+false
+true
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_compare.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_cast.tc" "42
+42
+1
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_cast.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_cast_truncate.tc" "1065353216
+1
+4607182418800017408
+1
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_cast_truncate.tc"
+run_with_stdin "$ROOT/tests/valid/fp_io.tc" "3.14
+" "3.1400003.140000e+003.140000E+003.143.14
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_io.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_const_expr.tc" "7
+false
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_const_expr.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_if_block.tc" "3.5
+1
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_if_block.tc"
+run_expect_stdout "$ROOT/tests/valid/format_spec_fp.tc" "3.141593
+3.141593e+00
+3.141593E+00
+3.14159
+3.14159
+"
+run_expect_check_ok "$ROOT/tests/valid/format_spec_fp.tc"
 
 # --- stress test ---
 
@@ -639,6 +696,18 @@ run_expect_stdout "$ROOT/tests/stress/many_vars_stress.tc" "1275
 run_expect_stdout "$ROOT/tests/stress/stress_if_nested.tc" "10
 "
 run_expect_ok "$ROOT/tests/stress/type_combinatorial.tc"
+run_expect_stdout "$ROOT/tests/stress/stress_fp_chain.tc" "3.14159
+6.28319
+7.28319
+6.78319
+3.39159
+true
+0.391593
+0.391593
+1053327061
+4.48046
+"
+run_expect_check_ok "$ROOT/tests/stress/stress_fp_chain.tc"
 
 # --- errors/runtime (expect failure + diagnostic) ---
 
@@ -657,6 +726,18 @@ run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range.tc" "999
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc" "trueish
 " "invalid input"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc" "falsehood
+" "invalid input"
+
+# --- errors/runtime: float ---
+
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_overflow.tc" "float overflow"
+run_expect_stdout "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "1
+0
+"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid.tc" "float invalid operation"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "float cast overflow"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "abc
 " "invalid input"
 
 # --- errors/runtime: extended tests (per-type coverage) ---
@@ -816,11 +897,13 @@ run_expect_fail_msg "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is 
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_const_ieee_forbidden.tc" "ieee/wrap is not allowed in constant expression"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_const_ieee_forbidden.tc" "ieee/wrap is not allowed in constant expression"
 
 # --- v0.0.24: if / indent static errors ---
 

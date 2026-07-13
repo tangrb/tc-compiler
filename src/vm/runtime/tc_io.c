@@ -12,8 +12,11 @@
 #include "tc_semantics.h"
 
 #include <ctype.h>
+#include <errno.h>
+#include <float.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +24,24 @@
 /* ------------------------------------------------------------------ */
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
+
+/** 将 double 转为 IEEE 754 位模式（float32 先舍入再编码） */
+static uint64_t tc_io_fp_double_to_bits(TcIntType type, double value) {
+    if (type == TC_FLOAT32) {
+        float f = (float)value;
+        uint32_t b32 = 0;
+
+        memcpy(&b32, &f, sizeof(b32));
+        return (uint64_t)b32;
+    }
+    {
+        double d = value;
+        uint64_t b64 = 0;
+
+        memcpy(&b64, &d, sizeof(d));
+        return b64;
+    }
+}
 
 /** 将 IEEE 754 位模式转为 double（float32 先转为 float 再提升到 double） */
 static double tc_io_fp_bits_to_double(TcIntType type, uint64_t bits) {
@@ -247,6 +268,102 @@ int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
     return 0;
 }
 
+static int tc_io_read_float_token(int line, TcDiagnostic *diag, char *buf, size_t buf_size) {
+    size_t i = 0;
+    int c = 0;
+    int has_digit = 0;
+
+    c = fgetc(stdin);
+    if (c == EOF) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "unexpected end of input");
+        return -1;
+    }
+
+    if (c == '+' || c == '-') {
+        if (i + 1 >= buf_size) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        buf[i++] = (char)c;
+        c = fgetc(stdin);
+        if (c == EOF) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+    }
+
+    for (;;) {
+        if (c == EOF || c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            break;
+        }
+        if (i + 1 >= buf_size) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        if (isdigit((unsigned char)c)) {
+            has_digit = 1;
+        }
+        if (!(isdigit((unsigned char)c) || c == '.' || c == 'e' || c == 'E' || c == '+' ||
+              c == '-')) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        buf[i++] = (char)c;
+        c = fgetc(stdin);
+    }
+    if (c != EOF) {
+        ungetc(c, stdin);
+    }
+    if (i == 0 || !has_digit) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+        return -1;
+    }
+    buf[i] = '\0';
+    return 0;
+}
+
+static int tc_io_read_float(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
+    char buf[256];
+    char *end = NULL;
+    double value = 0.0;
+
+    if (tc_io_read_float_token(line, diag, buf, sizeof(buf)) != 0) {
+        return -1;
+    }
+
+    errno = 0;
+    value = strtod(buf, &end);
+    if (end == buf || (end != NULL && *end != '\0')) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+        return -1;
+    }
+    if (errno == ERANGE && !isinf(value)) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input value out of range");
+        return -1;
+    }
+
+    if (type == TC_FLOAT32) {
+        float f32 = (float)value;
+
+        if (isinf(value) && !isinf((double)f32)) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                              "input value out of range");
+            return -1;
+        }
+        if (value > (double)FLT_MAX || value < -(double)FLT_MAX) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                              "input value out of range");
+            return -1;
+        }
+    } else if (value > DBL_MAX || value < -DBL_MAX) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input value out of range");
+        return -1;
+    }
+
+    *out_bits = tc_io_fp_double_to_bits(type, value);
+    return 0;
+}
+
 int tc_io_read_value(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
     int c = 0;
     TcValue value;
@@ -283,6 +400,10 @@ int tc_io_read_value(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int
         }
         *out_bits = value.bits;
         return 0;
+    }
+
+    if (tc_type_is_float(type)) {
+        return tc_io_read_float(type, out_bits, diag, line);
     }
 
     {

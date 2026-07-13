@@ -99,6 +99,41 @@ static const char *tc_aot_type_enum(TcIntType type) {
     return "TC_INT32";
 }
 
+/** 将 TcFormatSpec 枚举映射为 C 源码中的枚举名 */
+static const char *tc_aot_format_enum(TcFormatSpec fmt) {
+    switch (fmt) {
+    case TC_FMT_NONE:
+        return "TC_FMT_NONE";
+    case TC_FMT_D:
+        return "TC_FMT_D";
+    case TC_FMT_I:
+        return "TC_FMT_I";
+    case TC_FMT_U:
+        return "TC_FMT_U";
+    case TC_FMT_X:
+        return "TC_FMT_X";
+    case TC_FMT_XU:
+        return "TC_FMT_XU";
+    case TC_FMT_O:
+        return "TC_FMT_O";
+    case TC_FMT_B:
+        return "TC_FMT_B";
+    case TC_FMT_T:
+        return "TC_FMT_T";
+    case TC_FMT_F:
+        return "TC_FMT_F";
+    case TC_FMT_E:
+        return "TC_FMT_E";
+    case TC_FMT_EU:
+        return "TC_FMT_EU";
+    case TC_FMT_G:
+        return "TC_FMT_G";
+    case TC_FMT_GU:
+        return "TC_FMT_GU";
+    }
+    return "TC_FMT_NONE";
+}
+
 /** 在 base 缩进后追加 levels×4 个空格，写入 out（至少容纳 base + levels*4 + 1） */
 static void tc_aot_sub_indent(char *out, size_t out_size, const char *base, int levels) {
     size_t len = strlen(base);
@@ -122,6 +157,20 @@ static void tc_aot_emit_literal_expr(FILE *out, TcIntType type, const TcLiteral 
     if (lit->is_bool) {
         fprintf(out, "tc_aot_lit(%s, %lluULL, 0, 0)", tc_aot_type_enum(TC_BOOL),
                 lit->magnitude ? 1ULL : 0ULL);
+        return;
+    }
+    if (lit->is_float) {
+        double d = lit->float_value;
+        if (type == TC_FLOAT32) {
+            float f = (float)d;
+            uint32_t b32 = 0;
+            memcpy(&b32, &f, sizeof(b32));
+            fprintf(out, "tc_aot_lit(%s, 0x%xULL, 0, 0)", tc_aot_type_enum(type), b32);
+        } else {
+            uint64_t b64 = 0;
+            memcpy(&b64, &d, sizeof(b64));
+            fprintf(out, "tc_aot_lit(%s, 0x%" PRIx64 "ULL, 0, 0)", tc_aot_type_enum(type), b64);
+        }
         return;
     }
     fprintf(out, "tc_aot_lit(%s, %" PRIu64 "ULL, %d, %d)", tc_aot_type_enum(type), lit->magnitude,
@@ -454,9 +503,15 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
             return -1;
         }
 
-        fprintf(out, "%sif (tc_aot_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n", indent,
-                tc_aot_type_enum(rhs->u.cast.target), mode, source->slot,
-                tc_aot_type_enum(source->type), dst_expr, line);
+        if (tc_type_is_float(source->type) || tc_type_is_float(rhs->u.cast.target)) {
+            fprintf(out, "%sif (tc_aot_fp_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n",
+                    indent, tc_aot_type_enum(rhs->u.cast.target), mode, source->slot,
+                    tc_aot_type_enum(source->type), dst_expr, line);
+        } else {
+            fprintf(out, "%sif (tc_aot_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n", indent,
+                    tc_aot_type_enum(rhs->u.cast.target), mode, source->slot,
+                    tc_aot_type_enum(source->type), dst_expr, line);
+        }
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
     }
     return 0;
@@ -571,15 +626,7 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
             int newline = stmt->kind == TC_STMT_WRITELN ? 1 : 0;
 
             fprintf(out, "%stc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type),
-                    io->fmt == TC_FMT_NONE ? "TC_FMT_NONE"
-                    : io->fmt == TC_FMT_D        ? "TC_FMT_D"
-                    : io->fmt == TC_FMT_I        ? "TC_FMT_I"
-                    : io->fmt == TC_FMT_U        ? "TC_FMT_U"
-                    : io->fmt == TC_FMT_X        ? "TC_FMT_X"
-                    : io->fmt == TC_FMT_XU       ? "TC_FMT_XU"
-                    : io->fmt == TC_FMT_O        ? "TC_FMT_O"
-                    : io->fmt == TC_FMT_B        ? "TC_FMT_B"
-                                                   : "TC_FMT_T");
+                    tc_aot_format_enum(io->fmt));
             tc_aot_emit_operand_expr(out, &io->operand, io->type, symbols, stmt_index);
             fprintf(out, ", %d);\n", newline);
             return 0;

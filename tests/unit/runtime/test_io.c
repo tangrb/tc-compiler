@@ -18,6 +18,7 @@
 #include "tc_semantics.h"
 #include "tc_diagnostic.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -447,6 +448,76 @@ static void test_read_bool_stdin(void) {
     check(with_stdin("True\n", read_bool_invalid_fn) == 0, "read bool reject True (case)");
 }
 
+static int read_float64_fn(void) {
+    uint64_t bits = 0;
+    TcDiagnostic diag;
+    double actual = 0.0;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_FLOAT64, &bits, &diag, 1) != 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    memcpy(&actual, &bits, sizeof(actual));
+    tc_diagnostic_clear(&diag);
+    return fabs(actual - 3.14) < 1e-9 ? 0 : -1;
+}
+
+static int read_float32_fn(void) {
+    uint64_t bits = 0;
+    TcDiagnostic diag;
+    float actual = 0.0f;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_FLOAT32, &bits, &diag, 1) != 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    memcpy(&actual, &bits, sizeof(actual));
+    tc_diagnostic_clear(&diag);
+    return fabs((double)actual - 1.5) < 1e-6 ? 0 : -1;
+}
+
+static int read_float_scientific_fn(void) {
+    uint64_t bits = 0;
+    TcDiagnostic diag;
+    double actual = 0.0;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_FLOAT64, &bits, &diag, 1) != 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    memcpy(&actual, &bits, sizeof(actual));
+    tc_diagnostic_clear(&diag);
+    return fabs(actual - 120000.0) < 1e-3 ? 0 : -1;
+}
+
+static int read_float_invalid_fn(void) {
+    TcDiagnostic diag;
+    uint64_t bits = 0;
+
+    tc_diagnostic_init(&diag);
+    if (tc_io_read_value(TC_FLOAT64, &bits, &diag, 1) == 0) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    if (strstr(diag.message, "invalid input") == NULL) {
+        tc_diagnostic_clear(&diag);
+        return -1;
+    }
+    tc_diagnostic_clear(&diag);
+    return 0;
+}
+
+static void test_read_float_stdin(void) {
+    check(with_stdin("  3.14\n", read_float64_fn) == 0, "read float64 decimal from stdin");
+    check(with_stdin("1.5\n", read_float32_fn) == 0, "read float32 decimal from stdin");
+    check(with_stdin("1.2E+5\n", read_float_scientific_fn) == 0, "read float64 scientific from stdin");
+    check(with_stdin("abc\n", read_float_invalid_fn) == 0, "read float reject abc");
+    check(with_stdin("3.14u\n", read_float_invalid_fn) == 0, "read float reject 3.14u");
+}
+
 /* ================================================================== */
 /*  主入口                                                              */
 /* ================================================================== */
@@ -470,6 +541,7 @@ int main(void) {
     test_write_value_newline();
 
     test_read_bool_stdin();
+    test_read_float_stdin();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

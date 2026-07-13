@@ -1,0 +1,5 @@
+; 期望：float cast overflow
+; 浮点值超出整数目标类型的表示范围
+writeln(float64, 1.0)
+var x: float64 = 999.0
+var y: int8 = cast(int8, x)

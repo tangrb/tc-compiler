@@ -1,0 +1,7 @@
+; 五种浮点格式符全覆盖
+var pi: float64 = 3.141592653589793
+writeln(float64, %f, pi)
+writeln(float64, %e, pi)
+writeln(float64, %E, pi)
+writeln(float64, %g, pi)
+writeln(float64, %G, pi)

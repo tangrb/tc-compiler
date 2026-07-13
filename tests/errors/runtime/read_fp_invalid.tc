@@ -1,0 +1,5 @@
+; 期望：invalid input
+; 向 float64 变量输入非法浮点字符串
+writeln(float64, 1.0)
+var x: float64 = 0.0
+read(float64, x)

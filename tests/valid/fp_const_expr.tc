@@ -1,0 +1,7 @@
+; let 浮点常量表达式
+let a: float64 = add(float64, 1.5, 2.5)
+let b: float64 = mul(float64, a, 2.0)
+let c: float64 = sub(float64, b, 1.0)
+writeln(float64, c)
+let ok: bool = gt(float64, c, 7.0)
+writeln(bool, %t, ok)

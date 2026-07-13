@@ -1,0 +1,9 @@
+; 浮点 cast：整数↔浮点、bool↔浮点
+var i: int32 = 42
+var f: float64 = cast(float64, i)
+writeln(float64, f)
+var back: int32 = cast(int32, f)
+writeln(int32, back)
+var flag: bool = true
+var as_fp: float64 = cast(float64, flag)
+writeln(float64, as_fp)

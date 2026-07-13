@@ -1,0 +1,7 @@
+; if 块内浮点局部变量
+var outer: float64 = 1.0
+if true then
+    var inner: float64 = add(float64, outer, 2.5)
+    writeln(float64, inner)
+end
+writeln(float64, outer)

@@ -1,0 +1,8 @@
+; 浮点 I/O：read + write 五种格式符
+var x: float64 = 0.0
+read(float64, x)
+write(float64, %f, x)
+write(float64, %e, x)
+write(float64, %E, x)
+write(float64, %g, x)
+writeln(float64, %G, x)

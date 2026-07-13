@@ -600,7 +600,14 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_cast(rhs->u.const_cast.target, TC_TRUNC_STRICT, &src_val, out, &tmp_diag,
+        if (tc_type_is_float(rhs->u.const_cast.target) || tc_type_is_float(src_val.type)) {
+            if (tc_exec_fp_cast(rhs->u.const_cast.target, TC_TRUNC_STRICT, &src_val, out,
+                                &tmp_diag, line) != 0) {
+                tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+                tc_diagnostic_clear(&tmp_diag);
+                return -1;
+            }
+        } else if (tc_exec_cast(rhs->u.const_cast.target, TC_TRUNC_STRICT, &src_val, out, &tmp_diag,
                          line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);

@@ -1,0 +1,6 @@
+; 期望：division by zero
+; strict 模式（默认）下浮点除零
+writeln(float64, 1.0)
+var a: float64 = 1.0
+var b: float64 = 0.0
+var c: float64 = div(float64, a, b)

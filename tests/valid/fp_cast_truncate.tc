@@ -1,0 +1,19 @@
+; 浮点 truncate cast：位重解释 float32↔int32、float64↔int64
+var f32: float32 = 1.0
+var i32: int32 = cast(int32, truncate, f32)
+writeln(int32, i32)
+
+; int32 位模式重解释回 float32
+var bits_to_f32: int32 = 1065353216
+var f32_back: float32 = cast(float32, truncate, bits_to_f32)
+writeln(float32, f32_back)
+
+; float64 ↔ int64
+var f64: float64 = 1.0
+var i64: int64 = cast(int64, truncate, f64)
+writeln(int64, i64)
+
+; int64 位模式重解释回 float64
+var bits_to_f64: int64 = 4607182418800017408
+var f64_back: float64 = cast(float64, truncate, bits_to_f64)
+writeln(float64, f64_back)

@@ -1,0 +1,7 @@
+; ieee 模式：大数乘法产生 inf
+var big: float64 = 1e308
+var inf_val: float64 = mul(float64, ieee, big, big)
+writeln(float64, inf_val)
+var zero: float64 = 0.0
+var nan_val: float64 = div(float64, ieee, zero, zero)
+writeln(float64, nan_val)

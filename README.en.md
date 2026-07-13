@@ -2,7 +2,7 @@
 
 A **TC** language compiler implemented in C99. Includes **libtc** (compile/execute static library), **TC-VM** (direct execution engine), and **TC-AOT** (ahead-of-time compilation, transpiles `.tc` to C99 source code).
 
-Version: **v0.0.24** (`src/vm/driver/tc_version.h`)
+Version: **v0.0.25** (`src/vm/driver/tc_version.h`)
 
 ## Directory Structure
 
@@ -176,11 +176,11 @@ The REPL supports entering TC statements one by one with immediate execution; va
 
 | Document | Description |
 |----------|-------------|
-| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.24) |
-| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation (v0.0.24) |
-| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | CLI instructions for tc-vm (v0.0.24) |
-| [TC-AOT Design Document (Chinese)](docs/TC-AOT详细设计说明书.md) | AOT code generation and shim layer (v0.0.24) |
-| [libtc Design Document (Chinese)](docs/libtc设计说明书.md) | libtc static library architecture and error contract (v0.0.24) |
+| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.25) |
+| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation (v0.0.25) |
+| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | CLI instructions for tc-vm (v0.0.25) |
+| [TC-AOT Design Document (Chinese)](docs/TC-AOT详细设计说明书.md) | AOT code generation and shim layer (v0.0.25) |
+| [libtc Design Document (Chinese)](docs/libtc设计说明书.md) | libtc static library architecture and error contract (v0.0.25) |
 | [libtc Embedding API](docs/libtc-api.md) | Quick reference for libtc embedding programming interface |
 
 Implementation behavior follows the language specification; VM / AOT design documents define each backend's architecture without duplicating language semantics.

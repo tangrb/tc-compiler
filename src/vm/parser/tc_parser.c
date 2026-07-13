@@ -905,7 +905,7 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
 
     {
         const TcToken *type_tok = tc_peek(tokens, *index);
-        if (type_tok->kind != TC_TOK_INT_TYPE) {
+        if (!tc_token_is_type(type_tok)) {
             return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
         target = type_tok->u.int_type;

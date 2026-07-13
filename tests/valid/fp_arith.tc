@@ -1,0 +1,14 @@
+; 浮点算术：add/sub/mul/div/abs/neg strict 模式
+var a: float64 = 10.0
+var b: float64 = 3.0
+var sum: float64 = add(float64, a, b)
+var diff: float64 = sub(float64, a, b)
+var prod: float64 = mul(float64, a, b)
+var quot: float64 = div(float64, a, b)
+var neg_b: float64 = neg(float64, b)
+var abs_b: float64 = abs(float64, neg_b)
+writeln(float64, sum)
+writeln(float64, diff)
+writeln(float64, prod)
+writeln(float64, quot)
+writeln(float64, abs_b)

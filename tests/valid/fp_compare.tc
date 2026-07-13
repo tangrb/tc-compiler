@@ -1,0 +1,20 @@
+; 浮点比较：六种比较 + NaN 行为
+var a: float64 = 1.0
+var b: float64 = 2.0
+var eq_r: bool = eq(float64, a, b)
+var ne_r: bool = ne(float64, a, b)
+var lt_r: bool = lt(float64, a, b)
+var le_r: bool = le(float64, a, b)
+var gt_r: bool = gt(float64, a, b)
+var ge_r: bool = ge(float64, a, b)
+writeln(bool, %t, eq_r)
+writeln(bool, %t, ne_r)
+writeln(bool, %t, lt_r)
+writeln(bool, %t, le_r)
+writeln(bool, %t, gt_r)
+writeln(bool, %t, ge_r)
+var nan_a: float64 = nan
+var nan_eq: bool = eq(float64, nan_a, nan_a)
+var nan_ne: bool = ne(float64, nan_a, nan_a)
+writeln(bool, %t, nan_eq)
+writeln(bool, %t, nan_ne)
