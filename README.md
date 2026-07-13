@@ -264,7 +264,15 @@ CI 流水线包含 5 个阶段：
 | 4/5 | AOT Differential 测试 | `make test-aot` |
 | 5/5 | 静态检查（RHS 覆盖 + 命名规范） | `check_rhs_coverage.py` + `check_source_naming.py` |
 
-每次 CI 运行约 **1260+** 检测点（325 VM + 760 unit + 175 AOT）。
+每次 CI 运行约 **1326** 检测点（354 VM + 772 unit + 200 AOT）。
+
+### GitHub Actions：标准 CI
+
+`.github/workflows/ci.yml` 在每次推送至 `main` 或 PR 时自动触发，与 `scripts/ci.sh` 五阶段对齐：
+
+- **平台**：`ubuntu-latest` + `macos-latest` 矩阵；另含 `test-no-fenv` 浮点回退专项
+- **流程**：构建 → VM 一致性测试 → 单元测试 → AOT 差分测试 → RHS 覆盖 + 命名检查
+- 另含 `bench` 性能回归 job 与 `coverage` 覆盖率 artifact
 
 ### GitHub Actions：ASan CI
 

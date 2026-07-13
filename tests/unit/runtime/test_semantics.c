@@ -967,6 +967,34 @@ static void test_fp_arith_mul_strict(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_fp_arith_mul_underflow_flush_to_zero_strict(void) {
+    TcValue lhs = fp64_from_double(1e-200);
+    TcValue rhs = fp64_from_double(1e-200);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc == 0 && fp64_approx_equal(out.bits, 0.0),
+          "fp64 mul strict 1e-200*1e-200 flushes to zero without error");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_arith_mul_underflow_subnormal_strict(void) {
+    TcValue lhs = fp64_from_double(1e-300);
+    TcValue rhs = fp64_from_double(1e-10);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
+    check(rc != 0 && diag.kind == TC_ERR_FLOAT_UNDERFLOW,
+          "fp64 mul strict 1e-300*1e-10 → FLOAT_UNDERFLOW");
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_fp_arith_add_float32_strict(void) {
     TcValue lhs = fp32_from_double(1.5);
     TcValue rhs = fp32_from_double(2.5);
@@ -1294,6 +1322,8 @@ int main(void) {
     test_fp_arith_add_strict();
     test_fp_arith_sub_strict();
     test_fp_arith_mul_strict();
+    test_fp_arith_mul_underflow_flush_to_zero_strict();
+    test_fp_arith_mul_underflow_subnormal_strict();
     test_fp_arith_div_strict();
     test_fp_arith_div_zero_strict();
     test_fp_arith_nan_operand_strict();

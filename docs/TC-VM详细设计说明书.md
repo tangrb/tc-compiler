@@ -1223,7 +1223,7 @@ int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
 | 作用域 | 标志为进程级或线程局部（依 C 实现而定）；标准不保证跨线程隔离 |
 | TC-VM 现状 | 单线程顺序执行，每次 strict 浮点运算前清标志、运算后查标志，无并发冲突 |
 | 多线程嵌入 | 若 libtc 被多线程宿主并行调用，须在 `tc_exec_fp_*` 路径加锁或改用 per-thread fenv |
-| 无 fenv 平台 | `TC_HAVE_FENV` 未定义时回退为 NaN 结果检测（见 `tc_semantics.c` `#else` 分支） |
+| 无 fenv 平台 | `TC_HAVE_FENV` 未定义时回退为 NaN/inf/除零/非零非规格化结果检测（见 `tc_semantics.c` `#else` 分支）；与 fenv 路径在 `DBL_MIN×0.5` 等边界情形可能略有差异 |
 
 **浮点严格模式异常处理**：
 
@@ -1734,7 +1734,7 @@ bash scripts/vm/run_tests.sh --asan         # AddressSanitizer 模式
 
 ### 14.3 回归用例（v0.0.25）
 
-以下用例全部在 `scripts/vm/run_tests.sh` 中注册，共 **325 条**（v0.0.24：if 控制流与缩进 static；v0.0.25：浮点 valid/static/runtime）；含 `--check` 重复验证与 `--check` 正例。每项 static 用例在 `--check` 模式下也独立注册。
+以下用例全部在 `scripts/vm/run_tests.sh` 中注册，共 **354 条**（v0.0.24：if 控制流与缩进 static；v0.0.25：浮点 valid/static/runtime）；含 `--check` 重复验证与 `--check` 正例。每项 static 用例在 `--check` 模式下也独立注册。
 
 #### valid — 执行成功（~55 条）
 
@@ -2497,7 +2497,8 @@ int tc_parse_if_stmt(TcParserCtx *ctx, const TcLineTokens *lines, size_t *index,
 | **0.0.24** | **2026-07-07** | 与语言标准 v0.0.24 对齐：新增控制流 `if-else-end`（§3.1、§5.6、§8.5、§19）；新增块级作用域（§6.1、§6.3、§7.2、§7.3）；新增缩进引擎（§19）；新增 7 种错误类型（§11.3）；扩展 Analyzer/Executor 支持 if 分支执行；更新 §1.2/§1.4/§12.1/§16/§18/附录 A |
 | **0.0.24-rev1** | **2026-07-07** | 合规审查修订：§1.3 实现状态（规范/代码分离）；§6.1 then/else 双作用域 + `find_in_scope`；§7 Pass1/Pass2 递归与 DFS `stmt_index`；§18.8 REPL 显式拒绝；§19.9 标明 `tc_lib.c`；移除「if 已实现」误导表述 |
 | **0.0.24-impl** | **2026-07-07** | **代码交付**：`TC_VM_VERSION` 0.0.24；if 控制流全链路（libtc/parser/analyzer/executor/AOT）；块级作用域与缩进引擎；VM 277 + AOT 33 差分用例 |
-| **0.0.25-impl** | **2026-07-13** | **代码交付**：`TC_VM_VERSION`/`TC_AOT_VERSION` 0.0.25；浮点全链路；VM 325 + AOT 175 差分用例 |
+| **0.0.25-impl** | **2026-07-13** | **代码交付**：`TC_VM_VERSION`/`TC_AOT_VERSION` 0.0.25；浮点全链路；VM 354 + AOT 200 差分用例 |
+| **0.0.25-fix** | **2026-07-13** | **P0–P3 修复**：诊断 UAF；no-fenv 浮点 strict 回退；CI macOS 矩阵 |
 
 ---
 

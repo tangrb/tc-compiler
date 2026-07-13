@@ -1284,13 +1284,26 @@ static int tc_fp_strict_check_exceptions(double result, TcDiagnostic *diag, int 
 static void tc_fp_clear_exceptions(void) {
 }
 
-static int tc_fp_strict_check_exceptions_no_fenv(TcArithOp op, double lhs, double rhs,
-                                                 double result, TcDiagnostic *diag, int line) {
+/*
+ * 无 fenv 平台按语言标准检测非零非规格化结果（VM 详设 §10.9）。
+ * 与 fenv 路径在 DBL_MIN×0.5 等边界情形可能略有差异（硬件未置 FE_UNDERFLOW）。
+ */
+static int tc_fp_strict_check_result_no_fenv(double result, TcDiagnostic *diag, int line) {
     if (isnan(result)) {
         tc_diagnostic_set(diag, TC_ERR_FLOAT_INVALID, line, TC_COLUMN_UNKNOWN,
                           "float invalid operation");
         return -1;
     }
+    if (result != 0.0 && isfinite(result) && fabs(result) < DBL_MIN) {
+        tc_diagnostic_set(diag, TC_ERR_FLOAT_UNDERFLOW, line, TC_COLUMN_UNKNOWN,
+                          "float underflow");
+        return -1;
+    }
+    return 0;
+}
+
+static int tc_fp_strict_check_exceptions_no_fenv(TcArithOp op, double lhs, double rhs,
+                                                 double result, TcDiagnostic *diag, int line) {
     if (op == TC_DIV && rhs == 0.0) {
         tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
                           "division by zero");
@@ -1301,7 +1314,7 @@ static int tc_fp_strict_check_exceptions_no_fenv(TcArithOp op, double lhs, doubl
                           "float overflow");
         return -1;
     }
-    return 0;
+    return tc_fp_strict_check_result_no_fenv(result, diag, line);
 }
 
 #endif /* TC_HAVE_FENV */
@@ -1696,7 +1709,11 @@ static int tc_exec_fp_unary_strict(TcUnaryOp op, double operand, double *result,
         *result = -operand;
         break;
     }
+#ifdef TC_HAVE_FENV
     return tc_fp_strict_check_exceptions(*result, diag, line);
+#else
+    return tc_fp_strict_check_result_no_fenv(*result, diag, line);
+#endif
 }
 
 static int tc_exec_fp_unary_ieee(TcUnaryOp op, double operand, double *result) {

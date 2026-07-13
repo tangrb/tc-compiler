@@ -16,11 +16,15 @@ int main(void) {
 }
 " TC_HAVE_FENV)
 
-if(TC_HAVE_FENV)
+option(TC_FORCE_NO_FENV "Disable fenv.h strict checks even when available (test no-fenv fallback)" OFF)
+
+if(TC_FORCE_NO_FENV)
+    message(STATUS "fenv.h: forced off (float strict uses no-fenv fallback)")
+elseif(TC_HAVE_FENV)
     add_compile_definitions(TC_HAVE_FENV=1)
     message(STATUS "fenv.h: available (float strict exception checking enabled)")
 else()
-    message(STATUS "fenv.h: unavailable (float strict mode uses NaN fallback)")
+    message(STATUS "fenv.h: unavailable (float strict mode uses no-fenv fallback)")
 endif()
 
 add_subdirectory(src/libtc)

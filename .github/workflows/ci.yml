@@ -1,6 +1,8 @@
 # CI — 标准构建、测试与覆盖率
 #
-# push / PR 到 main 时运行全量测试；覆盖率报告作为 artifact 上传。
+# push / PR 到 main 时运行全量测试；与 scripts/ci.sh 五阶段对齐：
+#   构建 → VM → unit → AOT → check_rhs_coverage + check_source_naming
+# 覆盖率报告作为 artifact 上传。
 
 name: CI
 
@@ -15,22 +17,32 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq cmake gcc
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake
 
       - name: Configure
         run: cmake -S . -B "$BUILD_DIR"
 
       - name: Build
-        run: cmake --build "$BUILD_DIR" -j "$(nproc)"
+        run: cmake --build "$BUILD_DIR" -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 
       - name: Run VM conformance tests
         run: bash scripts/vm/run_tests.sh
@@ -46,6 +58,35 @@ jobs:
 
       - name: Check source naming
         run: python3 scripts/sync/check_source_naming.py
+
+  test-no-fenv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc
+
+      - name: Configure without fenv
+        run: cmake -S . -B build-nofenv -DTC_FORCE_NO_FENV=ON
+
+      - name: Build without fenv
+        run: cmake --build build-nofenv -j "$(nproc)"
+
+      - name: Run float strict regression (no-fenv fallback)
+        run: |
+          TC_VM_BIN="$PWD/build-nofenv/vm/bin/tc-vm" \
+            bash scripts/vm/run_tests.sh --filter fp_strict
+          TC_VM_BIN="$PWD/build-nofenv/vm/bin/tc-vm" \
+            TC_AOT_BIN="$PWD/build-nofenv/aot/bin/tc-aot" \
+            bash scripts/aot/run_tests.sh
+
+      - name: Run semantics unit tests (no-fenv fallback)
+        run: cmake --build build-nofenv --target check-semantics
 
   bench:
     runs-on: ubuntu-latest

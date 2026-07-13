@@ -528,9 +528,9 @@ AOT 测试采用**差分比较**策略，确保 AOT 生成的二进制输出与 
 
 新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
 
-### 9.6 当前覆盖（175 条）
+### 9.6 当前覆盖（200 条）
 
-AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**、**浮点全链路**——与 VM valid 正例共用测试文件。在 `scripts/aot/run_tests.sh` 中注册，当前 **175 条**差分用例（`bash scripts/aot/run_tests.sh` 实测）。
+AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**、**浮点全链路**——与 VM valid 正例共用测试文件。在 `scripts/aot/run_tests.sh` 中注册，当前 **200 条**差分用例（`bash scripts/aot/run_tests.sh` 实测）。
 
 v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.tc`、`if_nested.tc`、`if_chain.tc` 等）注册方式与普通 valid 用例相同。运行时错误场景不在 AOT 差分测试中注册。
 
@@ -664,6 +664,7 @@ int main(void) {
 | **0.0.24-impl** | **2026-07-07** | **代码交付**：`TC_AOT_VERSION` 0.0.24；`tc_aot_emit_statement` if-else codegen；差分测试 33（含 `if_*`） |
 | **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离对齐：`main.c` OOM 诊断消息 "memory allocation failed"（AOT `tc_read_file` 经 libtc 编译路径使用 `TC_ERR_OUT_OF_MEMORY`） |
 | **0.0.25** | **2026-07-13** | **浮点全链路**：§4.4 新增 `FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST` 分发点；§4.5 浮点字面量位模式编码；§5.2 新增 `tc_aot_fp_arith`/`tc_aot_fp_unary`/`tc_aot_fp_compare`/`tc_aot_fp_cast` shim；§6 浮点 I/O 格式符说明；§7.1 浮点编译期折叠；§9.6 浮点测试用例覆盖；§A.1 浮点 codegen 示例；§11.1 浮点扩展状态标注 |
-| **0.0.25-impl** | **2026-07-13** | **代码交付**：`TC_AOT_VERSION` 0.0.25；浮点 4 shim + 格式符；差分测试 175 条 |
+| **0.0.25-impl** | **2026-07-13** | **代码交付**：`TC_AOT_VERSION` 0.0.25；浮点 4 shim + 格式符；差分测试 200 条 |
+| **0.0.25-fix** | **2026-07-13** | **P0–P3 修复**：诊断 UAF 连带 static/runtime 回归；no-fenv CI 专项 |
 
 ---

@@ -78,10 +78,13 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
 }
 
 void tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source) {
+    char *new_filename = filename ? strdup(filename) : NULL;
+    char *new_source = source ? strdup(source) : NULL;
+
     free(diag->filename);
     free(diag->source);
-    diag->filename = filename ? strdup(filename) : NULL;
-    diag->source = source ? strdup(source) : NULL;
+    diag->filename = new_filename;
+    diag->source = new_source;
 }
 
 void tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
