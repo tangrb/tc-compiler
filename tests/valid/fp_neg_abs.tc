@@ -1,0 +1,20 @@
+; 浮点单目运算：neg / abs 各种数值
+var a: float64 = 3.5
+var neg_a: float64 = neg(float64, a)
+var abs_neg_a: float64 = abs(float64, neg_a)
+writeln(float64, neg_a)       ; -3.5
+writeln(float64, abs_neg_a)   ; 3.5
+
+; float32 neg/abs
+var b: float32 = -2.5
+var abs_b: float32 = abs(float32, b)
+var neg_b: float32 = neg(float32, 1.5)
+writeln(float32, abs_b)       ; 2.5
+writeln(float32, neg_b)       ; -1.5
+
+; 整数值的 neg/abs
+var c: float64 = 0.0
+var neg_c: float64 = neg(float64, c)
+var abs_c: float64 = abs(float64, neg_c)
+writeln(float64, neg_c)       ; -0
+writeln(float64, abs_c)       ; 0

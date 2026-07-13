@@ -2,8 +2,8 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VM_BIN="$ROOT/build/vm/bin/tc-vm"
-AOT_BIN="$ROOT/build/aot/bin/tc-aot"
+VM_BIN="${TC_VM_BIN:-$ROOT/build/vm/bin/tc-vm}"
+AOT_BIN="${TC_AOT_BIN:-$ROOT/build/aot/bin/tc-aot}"
 FAIL=0
 PASSED=0
 FAILED=0
@@ -226,6 +226,10 @@ run_diff_test "$ROOT/tests/valid/if_bool_literal.tc"
 run_diff_test "$ROOT/tests/valid/if_local_same_name.tc"
 run_diff_test "$ROOT/tests/valid/if_shadow_global.tc"
 run_diff_test "$ROOT/tests/valid/if_false_skip_nested_then.tc"
+run_diff_test "$ROOT/tests/valid/if_and_or_condition.tc"
+run_diff_test "$ROOT/tests/valid/if_comparison_condition.tc"
+run_diff_test "$ROOT/tests/valid/if_not_condition.tc"
+run_diff_test "$ROOT/tests/valid/if_empty_body.tc"
 run_diff_test "$ROOT/tests/valid/arithmetic_all_types.tc"
 run_diff_test "$ROOT/tests/valid/all_type_boundaries.tc"
 run_diff_test "$ROOT/tests/valid/literal_edge_cases.tc"
@@ -251,6 +255,10 @@ run_diff_test "$ROOT/tests/valid/fp_io.tc" "3.14
 run_diff_test "$ROOT/tests/valid/fp_const_expr.tc"
 run_diff_test "$ROOT/tests/valid/fp_if_block.tc"
 run_diff_test "$ROOT/tests/valid/format_spec_fp.tc"
+run_diff_test "$ROOT/tests/valid/fp_neg_abs.tc"
+run_diff_test "$ROOT/tests/valid/fp_const_let_arith.tc"
+run_diff_test "$ROOT/tests/valid/fp_ieee_ops.tc"
+run_diff_test "$ROOT/tests/valid/fp_wrap_arith.tc"
 run_diff_test "$ROOT/tests/valid/var_no_init.tc"
 run_diff_test "$ROOT/tests/valid/assign_uninit_var_valid.tc"
 run_diff_test "$ROOT/tests/valid/no_warn_after_assign.tc"
@@ -265,6 +273,10 @@ run_diff_test "$ROOT/tests/valid/read_int8.tc" "42
 "
 run_diff_test "$ROOT/tests/valid/read_int8.tc" "-128
 "
+run_diff_test "$ROOT/tests/valid/let_cast_const.tc"
+run_diff_test "$ROOT/tests/valid/compare_unsigned.tc"
+run_diff_test "$ROOT/tests/valid/shift_edge_cases.tc"
+run_diff_test "$ROOT/tests/valid/uninitialized_bool.tc"
 
 # --- stress (stdout parity) ---
 
@@ -277,6 +289,7 @@ run_diff_test "$ROOT/tests/stress/many_vars_stress.tc"
 run_diff_test "$ROOT/tests/stress/stress_if_nested.tc"
 run_diff_test "$ROOT/tests/stress/type_combinatorial.tc"
 run_diff_test "$ROOT/tests/stress/stress_fp_chain.tc"
+run_diff_test "$ROOT/tests/stress/stress_many_ifs.tc"
 
 # --- static analysis (--check VM vs AOT) ---
 
@@ -297,6 +310,18 @@ run_check_ok "$ROOT/tests/valid/fp_io.tc"
 run_check_ok "$ROOT/tests/valid/fp_const_expr.tc"
 run_check_ok "$ROOT/tests/valid/fp_if_block.tc"
 run_check_ok "$ROOT/tests/valid/format_spec_fp.tc"
+run_check_ok "$ROOT/tests/valid/fp_neg_abs.tc"
+run_check_ok "$ROOT/tests/valid/fp_const_let_arith.tc"
+run_check_ok "$ROOT/tests/valid/fp_ieee_ops.tc"
+run_check_ok "$ROOT/tests/valid/fp_wrap_arith.tc"
+run_check_ok "$ROOT/tests/valid/if_and_or_condition.tc"
+run_check_ok "$ROOT/tests/valid/if_comparison_condition.tc"
+run_check_ok "$ROOT/tests/valid/if_not_condition.tc"
+run_check_ok "$ROOT/tests/valid/if_empty_body.tc"
+run_check_ok "$ROOT/tests/valid/let_cast_const.tc"
+run_check_ok "$ROOT/tests/valid/compare_unsigned.tc"
+run_check_ok "$ROOT/tests/valid/shift_edge_cases.tc"
+run_check_ok "$ROOT/tests/valid/uninitialized_bool.tc"
 
 run_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
 run_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"

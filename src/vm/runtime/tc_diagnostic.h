@@ -16,7 +16,7 @@
 void tc_diagnostic_init(TcDiagnostic *diag);
 
 /**
- * 释放诊断对象的堆字段（message / filename / snippet）并清空位置信息。
+ * 释放诊断对象的堆字段（message / filename / snippet / source）并清空位置信息。
  * @note 可重复调用；每次 tc_diagnostic_set 前无需手动清除。
  */
 void tc_diagnostic_clear(TcDiagnostic *diag);
@@ -25,7 +25,7 @@ void tc_diagnostic_clear(TcDiagnostic *diag);
  * 绑定诊断所对应的源文件路径与完整源文本。
  * @param diag     诊断对象
  * @param filename 源文件路径（内部 strdup 复制）
- * @param source   完整源文本指针（仅保存引用，调用方须保证其在打印前有效）
+ * @param source   完整源文本（内部 strdup 复制；NULL 表示无源文本）
  */
 void tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source);
 

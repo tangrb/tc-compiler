@@ -193,7 +193,7 @@ REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置�
 TC_BENCH=1 ./build/vm/bin/tc-vm tests/valid/example.tc
 ```
 
-配合 `scripts/vm/bench.sh` 用于本地回归对比。
+配合 `scripts/vm/bench.sh` 用于本地性能观测；`bench.sh --check` 对照 `tests/stress/bench_limits.txt` 检测回归（CI 在 `.github/workflows/ci.yml` 的 `bench` job 中自动运行）。
 
 ## libtc 嵌入
 

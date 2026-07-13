@@ -1,7 +1,7 @@
 BUILD_DIR := build
 CMAKE := cmake
 
-.PHONY: all vm aot test test-vm test-unit test-aot test-valgrind test-leaks memcheck-macos bench clean configure hooks ci ci-coverage build-asan build-ubsan
+.PHONY: all vm aot test test-vm test-unit test-aot test-coverage test-valgrind test-leaks memcheck-macos bench clean configure hooks ci ci-coverage build-asan build-ubsan
 
 all vm: configure
 	$(CMAKE) --build $(BUILD_DIR)
@@ -30,6 +30,9 @@ test-unit: configure
 
 test-aot: configure
 	$(CMAKE) --build $(BUILD_DIR) --target check-aot
+
+test-coverage:
+	sh scripts/ci.sh --coverage
 
 test-valgrind: vm
 	bash scripts/run_tests.sh --valgrind

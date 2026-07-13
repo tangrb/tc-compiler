@@ -68,6 +68,7 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
     free(diag->message);
     free(diag->filename);
     free(diag->snippet);
+    free(diag->source);
     diag->message = NULL;
     diag->filename = NULL;
     diag->snippet = NULL;
@@ -78,8 +79,9 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
 
 void tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source) {
     free(diag->filename);
+    free(diag->source);
     diag->filename = filename ? strdup(filename) : NULL;
-    diag->source = source;
+    diag->source = source ? strdup(source) : NULL;
 }
 
 void tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,

@@ -37,7 +37,7 @@ void tc_aot_init_slots(uint64_t *slots, size_t count) {
 /*  字面量 & 算术 & 单目 & cast 委托                                      */
 /* ------------------------------------------------------------------ */
 
-uint64_t tc_aot_lit(TcIntType type, uint64_t magnitude, int negative, int unsigned_suffix) {
+uint64_t tc_aot_lit(TcType type, uint64_t magnitude, int negative, int unsigned_suffix) {
     TcLiteral lit;
     TcValue value;
 
@@ -54,7 +54,7 @@ uint64_t tc_aot_lit(TcIntType type, uint64_t magnitude, int negative, int unsign
     return value.bits;
 }
 
-int tc_aot_compare(TcCompareOp op, TcIntType type, uint64_t *out, uint64_t lhs, uint64_t rhs,
+int tc_aot_compare(TcCompareOp op, TcType type, uint64_t *out, uint64_t lhs, uint64_t rhs,
                    TcDiagnostic *diag, int line) {
     TcValue lhs_value = tc_value_make(type, lhs);
     TcValue rhs_value = tc_value_make(type, rhs);
@@ -96,7 +96,7 @@ int tc_aot_logic_unary(TcLogicOp op, uint64_t *out, uint64_t operand, TcDiagnost
     return 0;
 }
 
-int tc_aot_arith(TcArithOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t lhs,
+int tc_aot_arith(TcArithOp op, TcType type, TcWrapMode mode, uint64_t *out, uint64_t lhs,
                  uint64_t rhs, TcDiagnostic *diag, int line) {
     TcValue lhs_value = tc_value_make(type, lhs);
     TcValue rhs_value = tc_value_make(type, rhs);
@@ -109,7 +109,7 @@ int tc_aot_arith(TcArithOp op, TcIntType type, TcWrapMode mode, uint64_t *out, u
     return 0;
 }
 
-int tc_aot_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t operand,
+int tc_aot_unary(TcUnaryOp op, TcType type, TcWrapMode mode, uint64_t *out, uint64_t operand,
                  TcDiagnostic *diag, int line) {
     TcValue operand_value = tc_value_make(type, operand);
     TcValue result;
@@ -121,7 +121,7 @@ int tc_aot_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode, uint64_t *out, u
     return 0;
 }
 
-int tc_aot_bitwise_binary(TcBitwiseOp op, TcIntType type, uint64_t *out, uint64_t lhs,
+int tc_aot_bitwise_binary(TcBitwiseOp op, TcType type, uint64_t *out, uint64_t lhs,
                           uint64_t rhs, TcDiagnostic *diag, int line) {
     TcValue lhs_value = tc_value_make(type, lhs);
     TcValue rhs_value = tc_value_make(type, rhs);
@@ -134,7 +134,7 @@ int tc_aot_bitwise_binary(TcBitwiseOp op, TcIntType type, uint64_t *out, uint64_
     return 0;
 }
 
-int tc_aot_bitwise_unary(TcIntType type, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
+int tc_aot_bitwise_unary(TcType type, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
                          int line) {
     TcValue operand_value = tc_value_make(type, operand);
     TcValue result;
@@ -146,7 +146,7 @@ int tc_aot_bitwise_unary(TcIntType type, uint64_t *out, uint64_t operand, TcDiag
     return 0;
 }
 
-int tc_aot_shift(TcShiftOp op, TcIntType type, TcWrapMode mode, uint64_t *out, uint64_t value,
+int tc_aot_shift(TcShiftOp op, TcType type, TcWrapMode mode, uint64_t *out, uint64_t value,
                  uint64_t count, TcDiagnostic *diag, int line) {
     TcValue value_v = tc_value_make(type, value);
     TcValue count_v = tc_value_make(type, count);
@@ -159,7 +159,7 @@ int tc_aot_shift(TcShiftOp op, TcIntType type, TcWrapMode mode, uint64_t *out, u
     return 0;
 }
 
-int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntType src_type,
+int tc_aot_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType src_type,
                 uint64_t *out, TcDiagnostic *diag, int line) {
     TcValue src = tc_value_make(src_type, src_bits);
     TcValue result;
@@ -171,7 +171,7 @@ int tc_aot_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntT
     return 0;
 }
 
-int tc_aot_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode, uint64_t *out, uint64_t lhs,
+int tc_aot_fp_arith(TcArithOp op, TcType type, TcFloatMode mode, uint64_t *out, uint64_t lhs,
                     uint64_t rhs, TcDiagnostic *diag, int line) {
     TcValue lhs_value = tc_value_make(type, lhs);
     TcValue rhs_value = tc_value_make(type, rhs);
@@ -184,7 +184,7 @@ int tc_aot_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode, uint64_t *ou
     return 0;
 }
 
-int tc_aot_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode, uint64_t *out,
+int tc_aot_fp_unary(TcUnaryOp op, TcType type, TcFloatMode mode, uint64_t *out,
                     uint64_t operand, TcDiagnostic *diag, int line) {
     TcValue operand_value = tc_value_make(type, operand);
     TcValue result;
@@ -196,7 +196,7 @@ int tc_aot_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode, uint64_t *ou
     return 0;
 }
 
-int tc_aot_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode, uint64_t *out,
+int tc_aot_fp_compare(TcCompareOp op, TcType type, TcFloatMode mode, uint64_t *out,
                       uint64_t lhs, uint64_t rhs, TcDiagnostic *diag, int line) {
     TcValue lhs_value = tc_value_make(type, lhs);
     TcValue rhs_value = tc_value_make(type, rhs);
@@ -209,7 +209,7 @@ int tc_aot_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode, uint64_t
     return 0;
 }
 
-int tc_aot_fp_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcIntType src_type,
+int tc_aot_fp_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType src_type,
                    uint64_t *out, TcDiagnostic *diag, int line) {
     TcValue src = tc_value_make(src_type, src_bits);
     TcValue result;
@@ -225,7 +225,7 @@ int tc_aot_fp_cast(TcIntType target, TcTruncateMode mode, uint64_t src_bits, TcI
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
-void tc_aot_write(TcIntType type, TcFormatSpec fmt, uint64_t bits, int newline) {
+void tc_aot_write(TcType type, TcFormatSpec fmt, uint64_t bits, int newline) {
     TcValue value = tc_value_make(type, bits);
     tc_io_write_value(&value, fmt, newline, stdout);
 }
@@ -234,7 +234,7 @@ void tc_aot_write(TcIntType type, TcFormatSpec fmt, uint64_t bits, int newline) 
 /*  输入                                                               */
 /* ------------------------------------------------------------------ */
 
-int tc_aot_read(TcIntType type, uint64_t *out, TcDiagnostic *diag, int line) {
+int tc_aot_read(TcType type, uint64_t *out, TcDiagnostic *diag, int line) {
     return tc_io_read_value(type, out, diag, line);
 }
 

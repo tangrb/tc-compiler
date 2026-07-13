@@ -61,8 +61,15 @@ static char *tc_aot_default_output_path(const char *input_path) {
 /** 编译并运行生成的 C 代码（需 host C 编译器） */
 static int tc_aot_run_generated(const char *c_path) {
     char cmd[8192];
+#ifdef TC_AOT_HAVE_FENV
+    const char *fenv_flag = "-DTC_HAVE_FENV=1 ";
+#else
+    const char *fenv_flag = "";
+#endif
+
     snprintf(cmd, sizeof(cmd),
              "cc -std=c99 -Wall -Wextra -pedantic "
+             "%s"
              "-I\"" TC_AOT_RT_DIR "\" -I\"" TC_VM_DIR "/runtime\" "
              "\"%s\" \"" TC_AOT_RT_DIR "/tc_aot_rt.c\" "
              "\"" TC_VM_DIR "/runtime/tc_types.c\" "
@@ -70,7 +77,7 @@ static int tc_aot_run_generated(const char *c_path) {
              "\"" TC_VM_DIR "/runtime/tc_semantics.c\" "
              "\"" TC_VM_DIR "/runtime/tc_io.c\" "
              "-o \"%s.out\" && \"%s.out\"",
-             c_path, c_path, c_path);
+             fenv_flag, c_path, c_path, c_path);
     return system(cmd);
 }
 

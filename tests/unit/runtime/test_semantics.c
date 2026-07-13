@@ -1103,6 +1103,122 @@ static void test_fp_cast_float64_to_int32(void) {
     tc_diagnostic_clear(&diag);
 }
 
+/* ================================================================== */
+/*  浮点 truncate cast 边界                                              */
+/* ================================================================== */
+
+static void test_fp_cast_truncate_f32_to_i32(void) {
+    TcValue src = fp32_from_double(1.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_INT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_INT32 && out.bits == 1065353216u,
+          "truncate cast float32(1.0) → int32 bit pattern 0x3F800000");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_i32_to_f32(void) {
+    TcValue src = tc_value_make(TC_INT32, 1065353216u);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 1.0),
+          "truncate cast int32(0x3F800000) → float32(1.0)");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_f64_to_i64(void) {
+    TcValue src = fp64_from_double(1.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_INT64, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_INT64 && out.bits == 4607182418800017408ULL,
+          "truncate cast float64(1.0) → int64 bit pattern 0x3FF0000000000000");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_i64_to_f64(void) {
+    TcValue src = tc_value_make(TC_INT64, 4607182418800017408ULL);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT64 && fp64_approx_equal(out.bits, 1.0),
+          "truncate cast int64(0x3FF0000000000000) → float64(1.0)");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_f64_to_f32_mask(void) {
+    TcValue src = fp64_from_double(1.0);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 0.0),
+          "truncate cast float64(1.0) → float32 lower 32 bits = 0.0");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_f32_to_f64_mask(void) {
+    TcValue src = fp32_from_double(3.14159);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT64 && out.bits == (src.bits & 0xFFFFFFFFu),
+          "truncate cast float32 → float64 preserves lower 32 bits");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_f64_to_f32_roundtrip(void) {
+    TcValue src = fp32_from_double(3.14159);
+    TcValue mid;
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_TRUNCATE, &src, &mid, &diag, 1);
+    check(rc == 0, "truncate f32→f64 step ok");
+    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &mid, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 3.14159),
+          "truncate f64→f32 roundtrip preserves float32 bit pattern");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_cast_truncate_neg_zero_bits(void) {
+    TcValue src = tc_value_make(TC_INT32, (uint64_t)(uint32_t)0x80000000u);
+    TcValue out;
+    TcDiagnostic diag;
+    int rc;
+    uint32_t out_bits = 0;
+    float actual = 0.0f;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
+    out_bits = (uint32_t)out.bits;
+    memcpy(&actual, &out_bits, sizeof(actual));
+    check(rc == 0 && out.type == TC_FLOAT32 && out_bits == 0x80000000u,
+          "truncate cast int32(0x80000000) → float32 -0.0 bit pattern");
+    check(actual == 0.0f && signbit(actual), "truncate -0.0 is negative zero");
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_fp_arith_wrap_add(void) {
     TcValue lhs = fp64_from_double(1.0);
     TcValue rhs = fp64_from_double(2.0);
@@ -1191,6 +1307,14 @@ int main(void) {
     test_fp_compare_eq_nan();
     test_fp_cast_int_to_float64();
     test_fp_cast_float64_to_int32();
+    test_fp_cast_truncate_f32_to_i32();
+    test_fp_cast_truncate_i32_to_f32();
+    test_fp_cast_truncate_f64_to_i64();
+    test_fp_cast_truncate_i64_to_f64();
+    test_fp_cast_truncate_f64_to_f32_mask();
+    test_fp_cast_truncate_f32_to_f64_mask();
+    test_fp_cast_truncate_f64_to_f32_roundtrip();
+    test_fp_cast_truncate_neg_zero_bits();
     test_fp_arith_wrap_add();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);

@@ -193,7 +193,7 @@ Set the `TC_BENCH=1` environment variable to output phase timing to stderr:
 TC_BENCH=1 ./build/vm/bin/tc-vm tests/valid/example.tc
 ```
 
-Use with `scripts/vm/bench.sh` for local regression comparison.
+Use `scripts/vm/bench.sh` for local timing; `bench.sh --check` compares against `tests/stress/bench_limits.txt` for regressions (CI runs this in the `bench` job in `.github/workflows/ci.yml`).
 
 ## Embedding libtc
 

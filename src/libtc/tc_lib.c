@@ -101,7 +101,11 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
     TcProgram program;
     double t0;
 
-    diag->source = source;
+    tc_diagnostic_set_source(diag, diag->filename, source);
+    if (source && !diag->source) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
+        return -1;
+    }
 
     if (tc_parse_source(source, &program, diag) != 0) {
         return -1;

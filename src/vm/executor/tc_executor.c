@@ -155,7 +155,7 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
 /* ------------------------------------------------------------------ */
 
 /** 求值算术操作数：字面量按期望类型构造 TcValue；变量从 slots 中按 symbol->slot 读取 */
-static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type,
+static TcValue tc_eval_operand(const TcOperand *operand, TcType expected_type,
                                const TcValue *slots, const TcSymbolTable *symbols,
                                int stmt_index) {
     if (operand->kind == TC_OPERAND_LIT) {
@@ -188,7 +188,7 @@ static TcValue tc_eval_operand(const TcOperand *operand, TcIntType expected_type
  *   TC_RHS_ARITH/UNARY/CAST/BITWISE/SHIFT → 委托 tc_semantics.c
  *   TC_RHS_CONST_REF/CAST      → 防御拒绝（仅 let 初始化合法）
  */
-static int tc_eval_rhs(const TcRhs *rhs, TcIntType expected_type, const TcValue *slots,
+static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *slots,
                        const TcSymbolTable *symbols, int stmt_index, TcValue *out,
                        TcDiagnostic *diag, int line) {
     if (rhs->kind == TC_RHS_LIT) {

@@ -1,0 +1,34 @@
+; 无符号类型比较运算
+; 注意：比较结果需要先存入 bool 变量，不能直接嵌套在 writeln 参数中
+
+; uint32 比较
+var a: uint32 = 5
+var b: uint32 = 10
+var r1: bool = lt(uint32, a, b)
+var r2: bool = gt(uint32, a, b)
+var r3: bool = eq(uint32, a, b)
+var r4: bool = ne(uint32, a, b)
+var r5: bool = le(uint32, a, b)
+var r6: bool = ge(uint32, b, a)
+writeln(bool, %t, r1)               ; true
+writeln(bool, %t, r2)               ; false
+writeln(bool, %t, r3)               ; false
+writeln(bool, %t, r4)               ; true
+writeln(bool, %t, r5)               ; true
+writeln(bool, %t, r6)               ; true
+
+; uint8 比较（边界值）
+var x: uint8 = 200
+var y: uint8 = 100
+var r7: bool = gt(uint8, x, y)
+var r8: bool = lt(uint8, x, y)
+writeln(bool, %t, r7)               ; true
+writeln(bool, %t, r8)               ; false
+
+; uint64 比较（大数）
+var big_a: uint64 = 4294967296
+var big_b: uint64 = 4294967295
+var r9: bool = gt(uint64, big_a, big_b)
+var r10: bool = eq(uint64, big_a, big_a)
+writeln(bool, %t, r9)               ; true
+writeln(bool, %t, r10)              ; true

@@ -1,0 +1,18 @@
+; let 编译期常量 cast 操作（仅 int↔int 允许 const_cast）
+let a: int8 = cast(int8, 42)
+writeln(int8, a)               ; 42
+
+let b: int32 = cast(int32, a)
+writeln(int32, b)              ; 42
+
+let c: int32 = cast(int32, 255)
+writeln(int32, c)              ; 255
+
+let d: uint32 = cast(uint32, c)
+writeln(uint32, d)             ; 255
+
+let e: int64 = cast(int64, -100)
+writeln(int64, e)              ; -100
+
+let f: uint64 = cast(uint64, 1000)
+writeln(uint64, f)             ; 1000

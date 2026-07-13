@@ -47,7 +47,7 @@ void tc_typed_program_free(TcTypedProgram *program) {
  * @brief 检查 TcLiteral 能否放入目标类型
  * @return 检查通过返回 0；失败返回 -1 并设置 diag
  */
-static int tc_check_literal(const TcLiteral *lit, TcIntType expected, int line,
+static int tc_check_literal(const TcLiteral *lit, TcType expected, int line,
                             TcDiagnostic *diag, TcErrorKind literal_type_err) {
     TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {
@@ -126,7 +126,7 @@ static void tc_maybe_warn_uninitialized(const TcInitHistory *hist, const TcSymbo
     if (tc_variable_is_initialized_before(hist, sym, stmt_index)) {
         return;
     }
-    snprintf(msg, sizeof(msg), "use of possibly uninitialized variable '%s'", sym->name);
+    (void)snprintf(msg, sizeof(msg), "use of possibly uninitialized variable '%s'", sym->name);
     tc_warning_list_add(warnings, TC_WARN_UNINITIALIZED_VARIABLE, line, msg);
 }
 
@@ -173,12 +173,12 @@ static const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
             tc_symbol_for_assign_target(global, name, (int)stmt_index);
 
         if (block_sym && block_sym->scope_end_stmt_index >= 0) {
-            snprintf(msg, sizeof(msg), "cross-block reference to variable '%s'", name);
+            (void)snprintf(msg, sizeof(msg), "cross-block reference to variable '%s'", name);
             tc_diagnostic_set(diag, TC_ERR_CROSS_BLOCK_REFERENCE, line, TC_COLUMN_UNKNOWN, msg);
             return NULL;
         }
     }
-    snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+    (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
     tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
     return NULL;
 }
@@ -191,7 +191,7 @@ static const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
  * @brief 检查操作数的类型兼容性与变量定义存在性
  * @param self_name 若非 NULL，表示当前定义中的变量名（用于自引用检测）
  */
-static int tc_check_operand(const TcOperand *operand, TcIntType expected,
+static int tc_check_operand(const TcOperand *operand, TcType expected,
                             const TcSymbolTable *visible, const TcSymbolTable *global,
                             const TcInitHistory *hist, size_t stmt_index, int line,
                             TcDiagnostic *diag, TcWarningList *warnings, const char *self_name,
@@ -206,7 +206,7 @@ static int tc_check_operand(const TcOperand *operand, TcIntType expected,
         const TcSymbol *symbol = NULL;
 
         if (self_name && strcmp(operand->u.name, self_name) == 0) {
-            snprintf(msg, sizeof(msg),
+            (void)snprintf(msg, sizeof(msg),
                      "variable '%s' cannot reference itself in its initializer", self_name);
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
@@ -231,7 +231,7 @@ static int tc_check_operand(const TcOperand *operand, TcIntType expected,
  *
  * %d/%i 要求有符号类型；%u 要求无符号类型；%x/%X/%o/%b 无限制
  */
-static int tc_check_io_format(TcIntType type, TcFormatSpec fmt, int line, TcDiagnostic *diag) {
+static int tc_check_io_format(TcType type, TcFormatSpec fmt, int line, TcDiagnostic *diag) {
     if (fmt == TC_FMT_NONE) {
         return 0;
     }
@@ -294,7 +294,7 @@ static int tc_check_io_format(TcIntType type, TcFormatSpec fmt, int line, TcDiag
  * @param lhs_type  赋值目标的类型
  * @param self_name 自引用检测（用于 var 初始化器）
  */
-static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTable *visible,
+static int tc_check_rhs(const TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
                         const TcSymbolTable *global, const TcInitHistory *hist, size_t stmt_index,
                         int line, TcDiagnostic *diag, TcWarningList *warnings,
                         const char *self_name) {
@@ -582,7 +582,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
         const TcSymbol *source = NULL;
 
         if (self_name && strcmp(rhs->u.float_cast.source, self_name) == 0) {
-            snprintf(msg, sizeof(msg),
+            (void)snprintf(msg, sizeof(msg),
                      "variable '%s' cannot reference itself in its initializer", self_name);
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
@@ -616,7 +616,7 @@ static int tc_check_rhs(const TcRhs *rhs, TcIntType lhs_type, const TcSymbolTabl
         const TcSymbol *source = NULL;
 
         if (self_name && strcmp(rhs->u.cast.source, self_name) == 0) {
-            snprintf(msg, sizeof(msg),
+            (void)snprintf(msg, sizeof(msg),
                      "variable '%s' cannot reference itself in its initializer", self_name);
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
@@ -784,7 +784,7 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, var_def->name)) {
-            snprintf(msg, sizeof(msg), "duplicate definition of '%s'", var_def->name);
+            (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", var_def->name);
             tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, var_def->line,
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
@@ -803,7 +803,7 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, const_def->name)) {
-            snprintf(msg, sizeof(msg), "duplicate definition of '%s'", const_def->name);
+            (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", const_def->name);
             tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, const_def->line,
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
@@ -1113,7 +1113,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, var_def->name)) {
-            snprintf(msg, sizeof(msg), "duplicate definition of '%s'", var_def->name);
+            (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", var_def->name);
             tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, var_def->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
@@ -1136,7 +1136,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, const_def->name)) {
-            snprintf(msg, sizeof(msg), "duplicate definition of '%s'", const_def->name);
+            (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", const_def->name);
             tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, const_def->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
@@ -1180,7 +1180,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
         char msg[128];
 
         if (!target) {
-            snprintf(msg, sizeof(msg), "undefined variable '%s'", io_read->name);
+            (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", io_read->name);
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, io_read->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
@@ -1199,7 +1199,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
         char msg[128];
 
         if (!target) {
-            snprintf(msg, sizeof(msg), "undefined variable '%s'", assign->name);
+            (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", assign->name);
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, assign->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;

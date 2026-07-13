@@ -214,8 +214,12 @@ if [ "$DO_COVERAGE" -eq 1 ]; then
     heading "（可选）覆盖率收集"
 
     info "运行测试以生成 .gcda 文件..."
+    TC_VM_BIN="$COVERAGE_BUILD_DIR/vm/bin/tc-vm" \
+        bash "$ROOT/scripts/vm/run_tests.sh" 2>&1 || true
+    TC_VM_BIN="$COVERAGE_BUILD_DIR/vm/bin/tc-vm" \
+        TC_AOT_BIN="$COVERAGE_BUILD_DIR/aot/bin/tc-aot" \
+        bash "$ROOT/scripts/aot/run_tests.sh" 2>&1 || true
     cmake --build "$COVERAGE_BUILD_DIR" --target check-unit 2>&1 || true
-    # VM 和 AOT 测试也会生成覆盖率数据
 
     info "收集覆盖率数据..."
     if ! command -v lcov >/dev/null 2>&1; then

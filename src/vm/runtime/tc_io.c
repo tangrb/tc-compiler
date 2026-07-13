@@ -25,38 +25,7 @@
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
-/** 将 double 转为 IEEE 754 位模式（float32 先舍入再编码） */
-static uint64_t tc_io_fp_double_to_bits(TcIntType type, double value) {
-    if (type == TC_FLOAT32) {
-        float f = (float)value;
-        uint32_t b32 = 0;
-
-        memcpy(&b32, &f, sizeof(b32));
-        return (uint64_t)b32;
-    }
-    {
-        double d = value;
-        uint64_t b64 = 0;
-
-        memcpy(&b64, &d, sizeof(d));
-        return b64;
-    }
-}
-
-/** 将 IEEE 754 位模式转为 double（float32 先转为 float 再提升到 double） */
-static double tc_io_fp_bits_to_double(TcIntType type, uint64_t bits) {
-    if (type == TC_FLOAT32) {
-        float f = 0.0f;
-        uint32_t b32 = (uint32_t)(bits & 0xFFFFFFFFu);
-        memcpy(&f, &b32, sizeof(f));
-        return (double)f;
-    }
-    double d = 0.0;
-    memcpy(&d, &bits, sizeof(d));
-    return d;
-}
-
-int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
+int tc_io_write_formatted(TcType type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     uint64_t uval = tc_value_to_unsigned(type, value->bits) & mask;
@@ -113,7 +82,7 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
         if (!tc_type_is_float(type)) {
             return -1;
         }
-        double d = tc_io_fp_bits_to_double(type, value->bits);
+        double d = tc_fp_bits_to_double(type, value->bits);
         if (fprintf(out, "%f", d) < 0) {
             return -1;
         }
@@ -123,7 +92,7 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
         if (!tc_type_is_float(type)) {
             return -1;
         }
-        double d = tc_io_fp_bits_to_double(type, value->bits);
+        double d = tc_fp_bits_to_double(type, value->bits);
         if (fprintf(out, "%e", d) < 0) {
             return -1;
         }
@@ -133,7 +102,7 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
         if (!tc_type_is_float(type)) {
             return -1;
         }
-        double d = tc_io_fp_bits_to_double(type, value->bits);
+        double d = tc_fp_bits_to_double(type, value->bits);
         if (fprintf(out, "%E", d) < 0) {
             return -1;
         }
@@ -143,7 +112,7 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
         if (!tc_type_is_float(type)) {
             return -1;
         }
-        double d = tc_io_fp_bits_to_double(type, value->bits);
+        double d = tc_fp_bits_to_double(type, value->bits);
         if (fprintf(out, "%g", d) < 0) {
             return -1;
         }
@@ -153,7 +122,7 @@ int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value
         if (!tc_type_is_float(type)) {
             return -1;
         }
-        double d = tc_io_fp_bits_to_double(type, value->bits);
+        double d = tc_fp_bits_to_double(type, value->bits);
         if (fprintf(out, "%G", d) < 0) {
             return -1;
         }
@@ -178,7 +147,7 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
             return -1;
         }
     } else if (tc_type_is_float(value->type)) {
-        double d = tc_io_fp_bits_to_double(value->type, value->bits);
+        double d = tc_fp_bits_to_double(value->type, value->bits);
         if (fprintf(out, "%g", d) < 0) {
             return -1;
         }
@@ -322,7 +291,7 @@ static int tc_io_read_float_token(int line, TcDiagnostic *diag, char *buf, size_
     return 0;
 }
 
-static int tc_io_read_float(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
+static int tc_io_read_float(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
     char buf[256];
     char *end = NULL;
     double value = 0.0;
@@ -360,11 +329,11 @@ static int tc_io_read_float(TcIntType type, uint64_t *out_bits, TcDiagnostic *di
         return -1;
     }
 
-    *out_bits = tc_io_fp_double_to_bits(type, value);
+    *out_bits = tc_fp_double_to_bits(type, value);
     return 0;
 }
 
-int tc_io_read_value(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
+int tc_io_read_value(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
     int c = 0;
     TcValue value;
 

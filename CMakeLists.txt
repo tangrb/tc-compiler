@@ -6,6 +6,23 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+include(CheckCSourceCompiles)
+
+check_c_source_compiles("
+#include <fenv.h>
+int main(void) {
+    feclearexcept(FE_ALL_EXCEPT);
+    return fetestexcept(FE_INVALID) ? 1 : 0;
+}
+" TC_HAVE_FENV)
+
+if(TC_HAVE_FENV)
+    add_compile_definitions(TC_HAVE_FENV=1)
+    message(STATUS "fenv.h: available (float strict exception checking enabled)")
+else()
+    message(STATUS "fenv.h: unavailable (float strict mode uses NaN fallback)")
+endif()
+
 add_subdirectory(src/libtc)
 add_subdirectory(src/vm)
 add_subdirectory(src/aot)

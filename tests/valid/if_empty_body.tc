@@ -1,0 +1,28 @@
+; if/else 空 body 的正确处理
+
+; 空 then body
+var x: int32 = 0
+if true then
+end
+writeln(int32, x)             ; 0
+
+; false 条件跳过 then 块，else 不存在
+var y: int32 = 1
+if false then
+    y = 42
+end
+writeln(int32, y)             ; 1
+
+; false 条件 → else body
+var z: int32 = 2
+if false then
+    z = 99
+else
+    writeln(int32, z)         ; 2
+end
+
+; true 条件 → then body，空 else
+if true then
+    writeln(int32, 3)         ; 3
+else
+end

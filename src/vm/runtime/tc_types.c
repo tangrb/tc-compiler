@@ -3,7 +3,7 @@
  *
  * 提供：
  *   - 类型位宽查询（tc_type_bit_width）、符号性判定（tc_type_is_signed）
- *   - 类型名解析（tc_type_parse）与字符串化（tc_int_type_name）
+ *   - 类型名解析（tc_type_parse）与字符串化（tc_type_name）
  *   - 运算符解析（tc_arith_op_parse / tc_unary_op_parse）
  *   - 格式说明符解析（tc_format_spec_parse）与字符串化（tc_format_spec_name）
  *   - 错误/警告种类名称字符串化（tc_error_kind_name / tc_warning_kind_name）
@@ -19,7 +19,7 @@
  * TC_BOOL 在 TC 语言中的存储宽度定义为 8 位（与 uint8 对齐），
  * 但其语义值仅使用最低位 0/1。
  */
-int tc_type_bit_width(TcIntType type) {
+int tc_type_bit_width(TcType type) {
     switch (type) {
     case TC_INT8:
     case TC_UINT8:
@@ -43,15 +43,15 @@ int tc_type_bit_width(TcIntType type) {
     return 0;
 }
 
-int tc_type_is_bool(TcIntType type) {
+int tc_type_is_bool(TcType type) {
     return type == TC_BOOL;
 }
 
-int tc_type_is_integer(TcIntType type) {
+int tc_type_is_integer(TcType type) {
     return type >= TC_INT8 && type <= TC_UINT64; /* 显式范围，不依赖枚举顺序 */
 }
 
-int tc_type_is_float(TcIntType type) {
+int tc_type_is_float(TcType type) {
     return type == TC_FLOAT32 || type == TC_FLOAT64;
 }
 
@@ -60,7 +60,7 @@ int tc_type_is_float(TcIntType type) {
  * TC_BOOL 被视为无符号（逻辑上等价于 unsigned 1-bit），
  * 参与运算时按 uint8 位宽截断，但 I/O 以 "true"/"false" 输出。
  */
-int tc_type_is_signed(TcIntType type) {
+int tc_type_is_signed(TcType type) {
     if (tc_type_is_bool(type)) {
         return 0;
     }
@@ -75,7 +75,7 @@ int tc_type_is_signed(TcIntType type) {
     }
 }
 
-int tc_type_parse(const char *text, TcIntType *out) {
+int tc_type_parse(const char *text, TcType *out) {
     if (strcmp(text, "int8") == 0) {
         *out = TC_INT8;
     } else if (strcmp(text, "uint8") == 0) {
@@ -371,7 +371,7 @@ const char *tc_warning_kind_name(TcWarningKind kind) {
     return "UnknownWarning";
 }
 
-const char *tc_int_type_name(TcIntType type) {
+const char *tc_type_name(TcType type) {
     switch (type) {
     case TC_INT8:
         return "int8";

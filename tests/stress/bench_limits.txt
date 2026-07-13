@@ -1,0 +1,13 @@
+# TC-VM 性能基准上限（ubuntu-latest CI 标定，含余量）
+# Format: label mode phase max_seconds
+# 刷新: sh scripts/vm/bench.sh --update-limits [--multiplier N]
+massive_vars check parse 0.010000
+massive_vars check analyze 0.010000
+massive_vars run parse 0.010000
+massive_vars run analyze 0.010000
+massive_vars run execute 0.100000
+bench_baseline check parse 0.100000
+bench_baseline check analyze 1.000000
+bench_baseline run parse 0.100000
+bench_baseline run analyze 1.000000
+bench_baseline run execute 1.000000

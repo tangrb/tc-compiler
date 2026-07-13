@@ -1,0 +1,39 @@
+; if 使用比较运算作为条件
+var a: int32 = 10
+var b: int32 = 20
+
+; lt → then
+if lt(int32, a, b) then
+    writeln(int32, 1)         ; 1
+else
+    writeln(int32, -1)
+end
+
+; eq false → else
+if eq(int32, a, b) then
+    writeln(int32, -2)
+else
+    writeln(int32, 2)         ; 2
+end
+
+; ge true → then
+if ge(int32, b, a) then
+    writeln(int32, 3)         ; 3
+end
+
+; ne true → then
+if ne(int32, a, b) then
+    writeln(int32, 4)         ; 4
+end
+
+; le true → then (a=10, b=20, a <= b)
+if le(int32, a, b) then
+    writeln(int32, 5)         ; 5
+end
+
+; gt false → else
+if gt(int32, a, b) then
+    writeln(int32, -6)
+else
+    writeln(int32, 6)         ; 6
+end

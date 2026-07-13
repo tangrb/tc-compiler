@@ -25,6 +25,9 @@ target_compile_definitions(tc-aot PRIVATE
     TC_AOT_RT_DIR="${TC_AOT_DIR}"
     TC_VM_DIR="${TC_VM_DIR}"
 )
+if(TC_HAVE_FENV)
+    target_compile_definitions(tc-aot PRIVATE TC_AOT_HAVE_FENV=1)
+endif()
 target_compile_options(tc-aot PRIVATE -std=c99 -Wall -Wextra -pedantic)
 
 add_custom_target(check-aot

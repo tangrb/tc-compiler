@@ -1,0 +1,39 @@
+; 移位运算边界测试
+
+; shl/shr with k=0 → 原值
+var a: int32 = shl(int32, wrap, 42, 0)
+writeln(int32, a)              ; 42
+
+var b: int32 = shr(int32, 42, 0)
+writeln(int32, b)              ; 42
+
+; shr with k >= n → 0
+var c: int32 = shr(int32, 42, 32)
+writeln(int32, c)              ; 0
+
+var d: uint64 = shr(uint64, 100, 64)
+writeln(uint64, d)             ; 0
+
+; shl wrap with k >= n → 0
+var e: int32 = shl(int32, wrap, 42, 32)
+writeln(int32, e)              ; 0
+
+; uint8 shl wrap by 7 → 128 (0b10000000)
+var f: uint8 = shl(uint8, wrap, 1, 7)
+writeln(uint8, f)              ; 128
+
+; uint8 shr by 1
+var g: uint8 = shr(uint8, 128, 1)
+writeln(uint8, g)              ; 64
+
+; uint16 shl wrap by 15 → 32768
+var h: uint16 = shl(uint16, wrap, 1, 15)
+writeln(uint16, h)             ; 32768
+
+; uint16 shr by 8
+var i: uint16 = shr(uint16, 256, 8)
+writeln(uint16, i)             ; 1
+
+; uint32 shl wrap by 31
+var j: uint32 = shl(uint32, wrap, 1, 31)
+writeln(uint32, j)             ; 2147483648

@@ -21,7 +21,7 @@
  * @param out   输出流
  * @return 成功返回 0；I/O 错误返回 -1
  */
-int tc_io_write_formatted(TcIntType type, TcFormatSpec fmt, const TcValue *value, FILE *out);
+int tc_io_write_formatted(TcType type, TcFormatSpec fmt, const TcValue *value, FILE *out);
 
 /**
  * 将 TcValue 写入指定输出流，带可选格式和换行。
@@ -58,6 +58,6 @@ int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
  * @param line     当前行号（错误定位）
  * @return 成功返回 0；输入非法或超出目标类型范围返回 -1
  */
-int tc_io_read_value(TcIntType type, uint64_t *out_bits, TcDiagnostic *diag, int line);
+int tc_io_read_value(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line);
 
 #endif /* TC_IO_H */

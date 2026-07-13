@@ -1,0 +1,33 @@
+; 浮点 wrap 模式运算（位模式整数回绕）
+
+; float32 wrap add
+var a: float32 = add(float32, wrap, 1.5, 2.5)
+writeln(float32, a)            ; 4
+
+; float32 wrap sub
+var b: float32 = sub(float32, wrap, 5.0, 3.0)
+writeln(float32, b)            ; 2
+
+; float32 wrap mul
+var c: float32 = mul(float32, wrap, 2.0, 3.0)
+writeln(float32, c)            ; 6
+
+; float32 wrap div
+var d: float32 = div(float32, wrap, 10.0, 2.0)
+writeln(float32, d)            ; 5
+
+; float64 wrap add
+var e: float64 = add(float64, wrap, 100.0, 200.0)
+writeln(float64, e)            ; 300
+
+; float64 wrap sub
+var f: float64 = sub(float64, wrap, 50.0, 30.0)
+writeln(float64, f)            ; 20
+
+; float64 wrap mul
+var g: float64 = mul(float64, wrap, 7.0, 8.0)
+writeln(float64, g)            ; 56
+
+; float64 wrap div
+var h: float64 = div(float64, wrap, 100.0, 4.0)
+writeln(float64, h)            ; 25

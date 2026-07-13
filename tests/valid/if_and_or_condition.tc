@@ -1,0 +1,31 @@
+; if 使用 and/or 逻辑表达式作为条件
+; 注意：and/or 的操作数只能是变量或字面量，不能是嵌套 RHS 表达式
+var x: int32 = 5
+var y: int32 = 10
+
+; 先计算比较结果存入 bool 变量
+var cond_eq: bool = eq(int32, x, 5)    ; true
+var cond_lt: bool = lt(int32, x, y)    ; true
+var cond_lt_rev: bool = lt(int32, y, x) ; false
+var cond_ne: bool = ne(int32, x, 5)    ; false
+
+; and: both true → then
+if and(bool, cond_eq, cond_lt) then
+    writeln(int32, 1)         ; 1
+else
+    writeln(int32, -1)
+end
+
+; or: lhs false, rhs true → then
+if or(bool, cond_lt_rev, cond_eq) then
+    writeln(int32, 2)         ; 2
+else
+    writeln(int32, -2)
+end
+
+; or: both false → else
+if or(bool, cond_lt_rev, cond_ne) then
+    writeln(int32, -3)
+else
+    writeln(int32, 3)         ; 3
+end

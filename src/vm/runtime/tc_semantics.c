@@ -14,16 +14,36 @@
 
 #include "tc_diagnostic.h"
 
+#ifdef TC_HAVE_FENV
 #include <fenv.h>
+#endif
 #include <float.h>
 #include <limits.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /* ------------------------------------------------------------------ */
 /*  位模式工具函数                                                       */
+/* ------------------------------------------------------------------ */
+
+static int tc_semantics_format_msg(char *buf, size_t size, const char *fmt, ...) {
+    va_list ap;
+    int n;
+
+    va_start(ap, fmt);
+    n = vsnprintf(buf, size, fmt, ap);
+    va_end(ap);
+    if (n < 0 || (size_t)n >= size) {
+        return -1;
+    }
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  字面量检查与转换                                                     */
 /* ------------------------------------------------------------------ */
 
 uint64_t tc_mask_bits(int bit_width) {
@@ -33,7 +53,7 @@ uint64_t tc_mask_bits(int bit_width) {
     return (1ULL << (unsigned)bit_width) - 1ULL;
 }
 
-int64_t tc_bits_to_signed(TcIntType type, uint64_t bits) {
+int64_t tc_bits_to_signed(TcType type, uint64_t bits) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     uint64_t masked = bits & mask;
@@ -49,17 +69,17 @@ int64_t tc_bits_to_signed(TcIntType type, uint64_t bits) {
     return (int64_t)masked;
 }
 
-uint64_t tc_signed_to_bits(TcIntType type, int64_t value) {
+uint64_t tc_signed_to_bits(TcType type, int64_t value) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     return ((uint64_t)value) & mask;
 }
 
-uint64_t tc_value_to_unsigned(TcIntType type, uint64_t bits) {
+uint64_t tc_value_to_unsigned(TcType type, uint64_t bits) {
     return bits & tc_mask_bits(tc_type_bit_width(type));
 }
 
-TcValue tc_value_make(TcIntType type, uint64_t bits) {
+TcValue tc_value_make(TcType type, uint64_t bits) {
     TcValue value;
     /* 自动归一化 bits 到目标类型位宽：窄类型的高位被掩码清零，
      * 保证 TcValue 中 bits 的"脏高位"不会影响后续运算。 */
@@ -89,7 +109,7 @@ void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count) {
 /* ------------------------------------------------------------------ */
 
 /** 有符号类型的最小值：-(2^(n-1)) */
-static int64_t tc_type_min_signed(TcIntType type) {
+static int64_t tc_type_min_signed(TcType type) {
     int n = tc_type_bit_width(type);
     if (n == 64) {
         return INT64_MIN;
@@ -98,7 +118,7 @@ static int64_t tc_type_min_signed(TcIntType type) {
 }
 
 /** 有符号类型的最大值：2^(n-1) - 1 */
-static int64_t tc_type_max_signed(TcIntType type) {
+static int64_t tc_type_max_signed(TcType type) {
     int n = tc_type_bit_width(type);
     if (n == 64) {
         return INT64_MAX;
@@ -107,7 +127,7 @@ static int64_t tc_type_max_signed(TcIntType type) {
 }
 
 /** 无符号类型的最大值：2^n - 1 */
-static uint64_t tc_type_max_unsigned(TcIntType type) {
+static uint64_t tc_type_max_unsigned(TcType type) {
     return tc_mask_bits(tc_type_bit_width(type));
 }
 
@@ -115,7 +135,7 @@ static uint64_t tc_type_max_unsigned(TcIntType type) {
 /*  字面量检查                                                           */
 /* ------------------------------------------------------------------ */
 
-int tc_literal_fits_type(uint64_t value, TcIntType type) {
+int tc_literal_fits_type(uint64_t value, TcType type) {
     if (tc_type_is_signed(type)) {
         if (value > (uint64_t)INT64_MAX) {
             return 0;
@@ -125,7 +145,7 @@ int tc_literal_fits_type(uint64_t value, TcIntType type) {
     return tc_unsigned_in_range(value, type);
 }
 
-int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *err_kind) {
+int tc_literal_fits_context(const TcLiteral *lit, TcType type, TcErrorKind *err_kind) {
     if (lit->is_float) {
         float f32 = 0.0f;
 
@@ -257,7 +277,7 @@ int tc_literal_fits_context(const TcLiteral *lit, TcIntType type, TcErrorKind *e
     return 1;
 }
 
-TcValue tc_literal_to_value(const TcLiteral *lit, TcIntType type) {
+TcValue tc_literal_to_value(const TcLiteral *lit, TcType type) {
     if (lit->is_float) {
         if (type == TC_FLOAT32) {
             float f = (float)lit->float_value;
@@ -291,11 +311,11 @@ TcValue tc_literal_to_value(const TcLiteral *lit, TcIntType type) {
 /*  范围检查                                                           */
 /* ------------------------------------------------------------------ */
 
-int tc_signed_in_range(int64_t value, TcIntType type) {
+int tc_signed_in_range(int64_t value, TcType type) {
     return value >= tc_type_min_signed(type) && value <= tc_type_max_signed(type);
 }
 
-int tc_unsigned_in_range(uint64_t value, TcIntType type) {
+int tc_unsigned_in_range(uint64_t value, TcType type) {
     return value <= tc_type_max_unsigned(type);
 }
 
@@ -393,7 +413,7 @@ static void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
 /* ------------------------------------------------------------------ */
 
 /** 将 bits 按目标类型位宽截断（wrap 模式下使用） */
-static uint64_t tc_wrap_bits(TcIntType type, uint64_t bits) {
+static uint64_t tc_wrap_bits(TcType type, uint64_t bits) {
     return tc_value_to_unsigned(type, bits);
 }
 
@@ -401,7 +421,7 @@ static uint64_t tc_wrap_bits(TcIntType type, uint64_t bits) {
 /*  有符号算术运算                                                       */
 /* ------------------------------------------------------------------ */
 
-static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
+static int tc_exec_signed_arith(TcArithOp op, TcType type, TcWrapMode mode,
                                 const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                 TcDiagnostic *diag, int line) {
     int64_t a = tc_bits_to_signed(type, lhs->bits);
@@ -432,8 +452,13 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
         }
         /* div/mod 结果也可能超出窄类型范围（如 int8(-128) / int8(-1) = 128） */
         if (!tc_signed_in_range(result, type)) {
-            snprintf(msg, sizeof(msg), "result out of range for %s", tc_int_type_name(type));
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+            if (tc_semantics_format_msg(msg, sizeof(msg), "result out of range for %s",
+                                        tc_type_name(type)) != 0) {
+                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "result out of range");
+            } else {
+                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+            }
             return -1;
         }
         *out = tc_value_make(type, tc_signed_to_bits(type, result));
@@ -492,8 +517,13 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
     }
 
     if (!tc_signed_in_range(result, type)) {
-        snprintf(msg, sizeof(msg), "result out of range for %s", tc_int_type_name(type));
-        tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+        if (tc_semantics_format_msg(msg, sizeof(msg), "result out of range for %s",
+                                    tc_type_name(type)) != 0) {
+            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                              "result out of range");
+        } else {
+            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+        }
         return -1;
     }
 
@@ -510,7 +540,7 @@ static int tc_exec_signed_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
  * mode 参数仅用于签名兼容——无符号运算的截断语义等价于 wrap，
  * 无论传入什么模式都按位宽截断，所以入参被忽略（§5.1 语言标准）。
  */
-static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
+static int tc_exec_unsigned_arith(TcArithOp op, TcType type, TcWrapMode mode,
                                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                     TcDiagnostic *diag, int line) {
     (void)mode;
@@ -557,7 +587,7 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
 /*  算术运算入口                                                        */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
+int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line) {
     if (tc_type_is_signed(type)) {
@@ -570,7 +600,7 @@ int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
 /*  单目运算：abs / neg                                                  */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
+int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
@@ -619,7 +649,7 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 /* ------------------------------------------------------------------ */
 
 /** cast 扩展：符号扩展或零扩展，带范围检查 */
-static int tc_cast_widen(TcIntType target, TcIntType src_type, const TcValue *source,
+static int tc_cast_widen(TcType target, TcType src_type, const TcValue *source,
                          TcValue *out, TcDiagnostic *diag, int line) {
     int src_signed = tc_type_is_signed(src_type);
     int dst_signed = tc_type_is_signed(target);
@@ -658,7 +688,7 @@ static int tc_cast_widen(TcIntType target, TcIntType src_type, const TcValue *so
 }
 
 /** cast 同位宽转换（bit width 相同但符号性不同）：检查负值或超范围 */
-static int tc_cast_same_width_diff_sign(TcIntType target, TcIntType src_type,
+static int tc_cast_same_width_diff_sign(TcType target, TcType src_type,
                                         const TcValue *source, TcValue *out,
                                         TcDiagnostic *diag, int line) {
     int src_signed = tc_type_is_signed(src_type);
@@ -687,7 +717,7 @@ static int tc_cast_same_width_diff_sign(TcIntType target, TcIntType src_type,
 }
 
 /** cast 窄化：检查值能否在更窄的类型中精确表示 */
-static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *source,
+static int tc_cast_narrow(TcType target, TcType src_type, const TcValue *source,
                           TcValue *out, TcDiagnostic *diag, int line) {
     int src_signed = tc_type_is_signed(src_type);
     int dst_signed = tc_type_is_signed(target);
@@ -697,8 +727,13 @@ static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *s
     if (src_signed && dst_signed) {
         int64_t value = tc_bits_to_signed(src_type, source->bits);
         if (!tc_signed_in_range(value, target)) {
-            snprintf(msg, sizeof(msg), "value out of range for %s", tc_int_type_name(target));
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+            if (tc_semantics_format_msg(msg, sizeof(msg), "value out of range for %s",
+                                        tc_type_name(target)) != 0) {
+                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                                  "value out of range");
+            } else {
+                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+            }
             return -1;
         }
         *out = tc_value_make(target, tc_signed_to_bits(target, value));
@@ -741,9 +776,9 @@ static int tc_cast_narrow(TcIntType target, TcIntType src_type, const TcValue *s
 /*  strict cast 入口：按位宽和符号性分派子函数                             */
 /* ------------------------------------------------------------------ */
 
-static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
+static int tc_cast_strict(TcType target, const TcValue *source, TcValue *out,
                           TcDiagnostic *diag, int line) {
-    TcIntType src_type = source->type;
+    TcType src_type = source->type;
 
     if (tc_type_is_bool(src_type) && tc_type_is_bool(target)) {
         *out = *source;
@@ -759,7 +794,7 @@ static int tc_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
     }
 
     {
-    TcIntType src_type_inner = source->type;
+    TcType src_type_inner = source->type;
     int src_bits = tc_type_bit_width(src_type_inner);
     int dst_bits = tc_type_bit_width(target);
 
@@ -813,8 +848,8 @@ static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int si
 /*  truncate cast：不做范围检查，直接按位模式转换                           */
 /* ------------------------------------------------------------------ */
 
-static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *out) {
-    TcIntType src_type = source->type;
+static int tc_cast_truncate(TcType target, const TcValue *source, TcValue *out) {
+    TcType src_type = source->type;
 
     if (tc_type_is_bool(src_type) || tc_type_is_bool(target)) {
         if (tc_type_is_bool(target)) {
@@ -849,7 +884,7 @@ static int tc_cast_truncate(TcIntType target, const TcValue *source, TcValue *ou
     }
 }
 
-int tc_exec_compare(TcCompareOp op, TcIntType type, const TcValue *lhs, const TcValue *rhs,
+int tc_exec_compare(TcCompareOp op, TcType type, const TcValue *lhs, const TcValue *rhs,
                     TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     int result = 0;
@@ -946,7 +981,7 @@ int tc_exec_logic_unary(TcLogicOp op, const TcValue *operand, TcValue *out,
 /*  按位运算                                                            */
 /* ------------------------------------------------------------------ */
 
-static int tc_check_operand_types(TcIntType type, const TcValue *a, const TcValue *b,
+static int tc_check_operand_types(TcType type, const TcValue *a, const TcValue *b,
                                   TcDiagnostic *diag, int line) {
     if (a->type != type || (b != NULL && b->type != type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -956,7 +991,7 @@ static int tc_check_operand_types(TcIntType type, const TcValue *a, const TcValu
     return 0;
 }
 
-int tc_exec_bitwise_binary(TcBitwiseOp op, TcIntType type,
+int tc_exec_bitwise_binary(TcBitwiseOp op, TcType type,
                            const TcValue *lhs, const TcValue *rhs, TcValue *out,
                            TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
@@ -991,7 +1026,7 @@ int tc_exec_bitwise_binary(TcBitwiseOp op, TcIntType type,
     return 0;
 }
 
-int tc_exec_bitwise_unary(TcIntType type, const TcValue *operand, TcValue *out,
+int tc_exec_bitwise_unary(TcType type, const TcValue *operand, TcValue *out,
                           TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -1051,12 +1086,12 @@ static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
     }
 }
 
-static int tc_shift_count(TcIntType type, const TcValue *count, uint64_t *k_out) {
+static int tc_shift_count(TcType type, const TcValue *count, uint64_t *k_out) {
     *k_out = tc_value_to_unsigned(type, count->bits);
     return 0;
 }
 
-static int tc_exec_shl(TcIntType type, TcWrapMode mode, const TcValue *value,
+static int tc_exec_shl(TcType type, TcWrapMode mode, const TcValue *value,
                        uint64_t k, TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -1118,7 +1153,7 @@ static int tc_exec_shl(TcIntType type, TcWrapMode mode, const TcValue *value,
  *   - 无符号：逻辑右移（高位补 0）
  * k >= n 时直接返回 0。
  */
-static int tc_exec_shr(TcIntType type, const TcValue *value, uint64_t k, TcValue *out) {
+static int tc_exec_shr(TcType type, const TcValue *value, uint64_t k, TcValue *out) {
     int n = tc_type_bit_width(type);
     uint64_t val_bits = tc_value_to_unsigned(type, value->bits);
 
@@ -1137,7 +1172,7 @@ static int tc_exec_shr(TcIntType type, const TcValue *value, uint64_t k, TcValue
     return 0;
 }
 
-int tc_exec_shift(TcShiftOp op, TcIntType type, TcWrapMode mode,
+int tc_exec_shift(TcShiftOp op, TcType type, TcWrapMode mode,
                   const TcValue *value, const TcValue *count, TcValue *out,
                   TcDiagnostic *diag, int line) {
     uint64_t k = 0;
@@ -1164,7 +1199,7 @@ int tc_exec_shift(TcShiftOp op, TcIntType type, TcWrapMode mode,
 /*  浮点算术（strict / ieee 骨架）                                      */
 /* ------------------------------------------------------------------ */
 
-static double tc_fp_bits_to_double(TcIntType type, uint64_t bits) {
+double tc_fp_bits_to_double(TcType type, uint64_t bits) {
     if (type == TC_FLOAT32) {
         float f = 0.0f;
         uint32_t b32 = (uint32_t)(bits & 0xFFFFFFFFu);
@@ -1178,7 +1213,7 @@ static double tc_fp_bits_to_double(TcIntType type, uint64_t bits) {
     }
 }
 
-static uint64_t tc_fp_double_to_bits(TcIntType type, double value) {
+uint64_t tc_fp_double_to_bits(TcType type, double value) {
     if (type == TC_FLOAT32) {
         float f = (float)value;
         uint32_t b32 = 0;
@@ -1200,6 +1235,22 @@ static int tc_fp_strict_check_nan_operand(double value, TcDiagnostic *diag, int 
         return -1;
     }
     return 0;
+}
+
+#ifdef TC_HAVE_FENV
+
+/*
+ * 浮点 strict 模式通过 fenv.h 检测 IEEE 754 异常标志。
+ *
+ * 线程安全：feclearexcept / fetestexcept 读写进程级（C 实现中通常为
+ * 线程局部，但标准不保证）浮点异常标志；TC-VM 为单线程解释执行，
+ * 无并发浮点运算，当前用法安全。若将来嵌入多线程宿主（如并行 REPL
+ * 会话共享进程），须在每次 tc_exec_fp_* 调用前后加锁或改用 per-thread
+ * fenv，参见 TC-VM 详设 §10.9「浮点 strict 模式与 fenv 线程安全」。
+ */
+
+static void tc_fp_clear_exceptions(void) {
+    feclearexcept(FE_ALL_EXCEPT);
 }
 
 static int tc_fp_strict_check_exceptions(double result, TcDiagnostic *diag, int line) {
@@ -1228,7 +1279,34 @@ static int tc_fp_strict_check_exceptions(double result, TcDiagnostic *diag, int 
     return 0;
 }
 
-static int tc_exec_fp_arith_strict(TcArithOp op, TcIntType type,
+#else /* !TC_HAVE_FENV */
+
+static void tc_fp_clear_exceptions(void) {
+}
+
+static int tc_fp_strict_check_exceptions_no_fenv(TcArithOp op, double lhs, double rhs,
+                                                 double result, TcDiagnostic *diag, int line) {
+    if (isnan(result)) {
+        tc_diagnostic_set(diag, TC_ERR_FLOAT_INVALID, line, TC_COLUMN_UNKNOWN,
+                          "float invalid operation");
+        return -1;
+    }
+    if (op == TC_DIV && rhs == 0.0) {
+        tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
+                          "division by zero");
+        return -1;
+    }
+    if (isfinite(lhs) && isfinite(rhs) && isinf(result)) {
+        tc_diagnostic_set(diag, TC_ERR_FLOAT_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                          "float overflow");
+        return -1;
+    }
+    return 0;
+}
+
+#endif /* TC_HAVE_FENV */
+
+static int tc_exec_fp_arith_strict(TcArithOp op, TcType type,
                                    double lhs, double rhs, double *result,
                                    TcDiagnostic *diag, int line) {
     (void)type;
@@ -1239,7 +1317,7 @@ static int tc_exec_fp_arith_strict(TcArithOp op, TcIntType type,
         return -1;
     }
 
-    feclearexcept(FE_ALL_EXCEPT);
+    tc_fp_clear_exceptions();
     switch (op) {
     case TC_ADD:
         *result = lhs + rhs;
@@ -1258,7 +1336,11 @@ static int tc_exec_fp_arith_strict(TcArithOp op, TcIntType type,
                           "mod not supported for float types");
         return -1;
     }
+#ifdef TC_HAVE_FENV
     return tc_fp_strict_check_exceptions(*result, diag, line);
+#else
+    return tc_fp_strict_check_exceptions_no_fenv(op, lhs, rhs, *result, diag, line);
+#endif
 }
 
 static int tc_exec_fp_arith_ieee(TcArithOp op, double lhs, double rhs, double *result,
@@ -1286,7 +1368,7 @@ static int tc_exec_fp_arith_ieee(TcArithOp op, double lhs, double rhs, double *r
     return 0;
 }
 
-static int tc_exec_fp_arith_wrap(TcArithOp op, TcIntType type, uint64_t lhs_bits, uint64_t rhs_bits,
+static int tc_exec_fp_arith_wrap(TcArithOp op, TcType type, uint64_t lhs_bits, uint64_t rhs_bits,
                                  uint64_t *result_bits, TcDiagnostic *diag, int line) {
     int width = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(width);
@@ -1327,7 +1409,7 @@ static int tc_exec_fp_arith_wrap(TcArithOp op, TcIntType type, uint64_t lhs_bits
     return 0;
 }
 
-static int tc_exec_fp_unary_wrap(TcUnaryOp op, TcIntType type, uint64_t operand_bits,
+static int tc_exec_fp_unary_wrap(TcUnaryOp op, TcType type, uint64_t operand_bits,
                                  uint64_t *result_bits, TcDiagnostic *diag, int line) {
     int width = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(width);
@@ -1379,9 +1461,9 @@ static int tc_fp_compare_result(TcCompareOp op, double lhs, double rhs, int *res
     return 0;
 }
 
-static int tc_fp_cast_strict(TcIntType target, const TcValue *source, TcValue *out,
+static int tc_fp_cast_strict(TcType target, const TcValue *source, TcValue *out,
                              TcDiagnostic *diag, int line) {
-    TcIntType src_type = source->type;
+    TcType src_type = source->type;
 
     if (tc_type_is_bool(src_type) && tc_type_is_bool(target)) {
         *out = *source;
@@ -1504,9 +1586,9 @@ static int tc_fp_cast_strict(TcIntType target, const TcValue *source, TcValue *o
     return -1;
 }
 
-static int tc_fp_cast_truncate(TcIntType target, const TcValue *source, TcValue *out,
+static int tc_fp_cast_truncate(TcType target, const TcValue *source, TcValue *out,
                                TcDiagnostic *diag, int line) {
-    TcIntType src_type = source->type;
+    TcType src_type = source->type;
     int src_bits = tc_type_bit_width(src_type);
     int dst_bits = tc_type_bit_width(target);
     uint64_t bits = source->bits;
@@ -1559,7 +1641,7 @@ static int tc_fp_cast_truncate(TcIntType target, const TcValue *source, TcValue 
     return -1;
 }
 
-int tc_exec_fp_arith(TcArithOp op, TcIntType type, TcFloatMode mode,
+int tc_exec_fp_arith(TcArithOp op, TcType type, TcFloatMode mode,
                      const TcValue *lhs, const TcValue *rhs, TcValue *out,
                      TcDiagnostic *diag, int line) {
     double a = 0.0;
@@ -1605,7 +1687,7 @@ static int tc_exec_fp_unary_strict(TcUnaryOp op, double operand, double *result,
     if (tc_fp_strict_check_nan_operand(operand, diag, line) != 0) {
         return -1;
     }
-    feclearexcept(FE_ALL_EXCEPT);
+    tc_fp_clear_exceptions();
     switch (op) {
     case TC_UNARY_ABS:
         *result = fabs(operand);
@@ -1629,7 +1711,7 @@ static int tc_exec_fp_unary_ieee(TcUnaryOp op, double operand, double *result) {
     return 0;
 }
 
-int tc_exec_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode,
+int tc_exec_fp_unary(TcUnaryOp op, TcType type, TcFloatMode mode,
                      const TcValue *operand, TcValue *out,
                      TcDiagnostic *diag, int line) {
     double val = 0.0;
@@ -1668,7 +1750,7 @@ int tc_exec_fp_unary(TcUnaryOp op, TcIntType type, TcFloatMode mode,
     return 0;
 }
 
-int tc_exec_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode,
+int tc_exec_fp_compare(TcCompareOp op, TcType type, TcFloatMode mode,
                        const TcValue *lhs, const TcValue *rhs, TcValue *out,
                        TcDiagnostic *diag, int line) {
     double a = 0.0;
@@ -1694,7 +1776,7 @@ int tc_exec_fp_compare(TcCompareOp op, TcIntType type, TcFloatMode mode,
     return 0;
 }
 
-int tc_exec_fp_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
+int tc_exec_fp_cast(TcType target, TcTruncateMode mode, const TcValue *source,
                     TcValue *out, TcDiagnostic *diag, int line) {
     if (mode == TC_TRUNC_STRICT) {
         return tc_fp_cast_strict(target, source, out, diag, line);
@@ -1706,7 +1788,7 @@ int tc_exec_fp_cast(TcIntType target, TcTruncateMode mode, const TcValue *source
 /*  cast 运算入口                                                        */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
+int tc_exec_cast(TcType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line) {
     if (mode == TC_TRUNC_STRICT) {
         return tc_cast_strict(target, source, out, diag, line);

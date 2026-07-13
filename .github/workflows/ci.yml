@@ -1,0 +1,123 @@
+# CI — 标准构建、测试与覆盖率
+#
+# push / PR 到 main 时运行全量测试；覆盖率报告作为 artifact 上传。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  BUILD_DIR: build
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc
+
+      - name: Configure
+        run: cmake -S . -B "$BUILD_DIR"
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" -j "$(nproc)"
+
+      - name: Run VM conformance tests
+        run: bash scripts/vm/run_tests.sh
+
+      - name: Run unit tests
+        run: cmake --build "$BUILD_DIR" --target check-unit
+
+      - name: Run AOT differential tests
+        run: bash scripts/aot/run_tests.sh
+
+      - name: Check RHS coverage
+        run: python3 scripts/sync/check_rhs_coverage.py
+
+      - name: Check source naming
+        run: python3 scripts/sync/check_source_naming.py
+
+  bench:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc
+
+      - name: Configure
+        run: cmake -S . -B "$BUILD_DIR"
+
+      - name: Build VM
+        run: cmake --build "$BUILD_DIR" --target tc-vm -j "$(nproc)"
+
+      - name: Generate bench baseline and check regression
+        run: |
+          sh scripts/vm/gen_bench_baseline.sh
+          sh scripts/vm/bench.sh --check
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc lcov
+
+      - name: Build with coverage flags
+        run: |
+          cmake -S . -B build-coverage \
+            -DCMAKE_C_FLAGS="--coverage -O0 -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+          cmake --build build-coverage -j "$(nproc)"
+
+      - name: Run tests (coverage build)
+        run: |
+          TC_VM_BIN="$PWD/build-coverage/vm/bin/tc-vm" \
+            bash scripts/vm/run_tests.sh
+          TC_VM_BIN="$PWD/build-coverage/vm/bin/tc-vm" \
+            TC_AOT_BIN="$PWD/build-coverage/aot/bin/tc-aot" \
+            bash scripts/aot/run_tests.sh
+          cmake --build build-coverage --target check-unit
+
+      - name: Collect coverage
+        run: |
+          lcov --capture --directory build-coverage \
+            --output-file build-coverage/coverage_raw.info \
+            --rc lcov_branch_coverage=1
+          lcov --remove build-coverage/coverage_raw.info \
+            '/usr/*' '*/tests/*' \
+            --output-file build-coverage/coverage.info \
+            --rc lcov_branch_coverage=1
+          genhtml build-coverage/coverage.info \
+            --output-directory build-coverage/coverage_html \
+            --rc lcov_branch_coverage=1 \
+            --title "TC-Compiler Coverage"
+          lcov --summary build-coverage/coverage.info --rc lcov_branch_coverage=1
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build-coverage/coverage_html/
+          retention-days: 14

@@ -1,0 +1,11 @@
+; bool 变量的未初始化与赋值
+var b: bool
+b = true
+writeln(bool, %t, b)           ; true
+
+var c: bool = false
+writeln(bool, %t, c)           ; false
+
+var d: bool
+d = false
+writeln(bool, %t, d)           ; false

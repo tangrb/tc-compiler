@@ -1126,7 +1126,7 @@ exec_fp_cast(target, mode, source) -> TcValue | Error        // 浮点↔整数/
 **实现伪代码**：
 
 ```c
-int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
+int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line) {
     uint64_t bits = operand->bits & tc_type_mask(type);
@@ -1214,6 +1214,16 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 | `TC_FLOAT_STRICT`（默认） | 检测所有 IEEE 754 异常并报错 | C 运算后检查 `fetestexcept(FE_OVERFLOW|FE_UNDERFLOW|FE_DIVBYZERO|FE_INVALID)` |
 | `TC_FLOAT_IEEE` | 遵循 IEEE 754，返回 ±inf/nan，不报错 | 直接 C 运算，无异常检查 |
 | `TC_FLOAT_WRAP` | 按位整数回绕 | 将 bits 按 `uint64` 解释，执行整数算术后解释回浮点位模式 |
+
+**浮点 strict 模式与 fenv 线程安全**（`TC_HAVE_FENV` 启用时）：
+
+| 要点 | 说明 |
+|------|------|
+| API | `feclearexcept(FE_ALL_EXCEPT)` 清除、`fetestexcept(...)` 读取浮点异常标志 |
+| 作用域 | 标志为进程级或线程局部（依 C 实现而定）；标准不保证跨线程隔离 |
+| TC-VM 现状 | 单线程顺序执行，每次 strict 浮点运算前清标志、运算后查标志，无并发冲突 |
+| 多线程嵌入 | 若 libtc 被多线程宿主并行调用，须在 `tc_exec_fp_*` 路径加锁或改用 per-thread fenv |
+| 无 fenv 平台 | `TC_HAVE_FENV` 未定义时回退为 NaN 结果检测（见 `tc_semantics.c` `#else` 分支） |
 
 **浮点严格模式异常处理**：
 
@@ -1312,7 +1322,7 @@ int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
 **实现伪代码**：
 
 ```c
-int tc_exec_compare(TcCompareOp op, TcIntType type,
+int tc_exec_compare(TcCompareOp op, TcType type,
                     const TcValue *lhs, const TcValue *rhs,
                     TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
@@ -1499,7 +1509,7 @@ TC-VM 位于 [TC-Compiler](../README.md) 的 `src/vm/`。构建由 CMake 统一�
 
 ```text
 src/vm/
-├── runtime/            # TcValue、TcIntType、TcDiagnostic、TcWarning、Semantics、Symbol、I/O
+├── runtime/            # TcValue、TcType、TcDiagnostic、TcWarning、Semantics、Symbol、I/O
 │   ├── tc_types.h      # 所有类型定义、枚举
 │   ├── tc_types.c      # tc_type_*、tc_error_kind_name、tc_format_spec_name
 │   ├── tc_diagnostic.h / tc_diagnostic.c   # tc_diagnostic_init/set/print
@@ -1558,13 +1568,13 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots,
                          const TcSymbolTable *symbols, TcDiagnostic *diag);
 
 // runtime/tc_semantics.h
-int tc_exec_arith(TcArithOp op, TcIntType type, TcWrapMode mode,
+int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line);
-int tc_exec_unary(TcUnaryOp op, TcIntType type, TcWrapMode mode,
+int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line);
-int tc_exec_compare(TcCompareOp op, TcIntType type,
+int tc_exec_compare(TcCompareOp op, TcType type,
                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
                     TcDiagnostic *diag, int line);
 int tc_exec_logic_binary(TcLogicOp op,
@@ -1573,7 +1583,7 @@ int tc_exec_logic_binary(TcLogicOp op,
 int tc_exec_logic_unary(TcLogicOp op,
                         const TcValue *operand, TcValue *out,
                         TcDiagnostic *diag, int line);
-int tc_exec_cast(TcIntType target, TcTruncateMode mode, const TcValue *source,
+int tc_exec_cast(TcType target, TcTruncateMode mode, const TcValue *source,
                  TcValue *out, TcDiagnostic *diag, int line);
 
 // driver/tc_driver.h
@@ -1860,13 +1870,23 @@ bash scripts/vm/run_tests.sh --asan         # AddressSanitizer 模式
 - **`%t` 格式类型检查**：`write(int32, %t, x)` → 格式类型不匹配错误
 - **`read` bool 大小写敏感**：输入 `True` 或 `TRUE` → I/O 错误
 
-### 14.6 AOT 差分测试
+### 14.6 性能基准
+
+| 脚本 | 用途 |
+|------|------|
+| `scripts/vm/gen_bench_baseline.sh` | 生成 1000 变量 stress 文件 `tests/stress/bench_baseline.tc`（gitignore） |
+| `scripts/vm/bench.sh` | 对 `massive_vars.tc` 与 `bench_baseline.tc` 输出 parse/analyze/execute 耗时 |
+| `tests/stress/bench_limits.txt` | 各阶段上限（秒）；`bench.sh --check` 对照此文件检测回归 |
+
+环境变量 `TC_BENCH=1` 时 libtc / tc-vm 向 stderr 输出 `bench <phase>: <seconds> s`。CI 在 `.github/workflows/ci.yml` 的 `bench` job 中构建 VM 后运行 `gen_bench_baseline.sh` + `bench.sh --check`。刷新上限：`sh scripts/vm/bench.sh --update-limits [--multiplier N]`（默认 ×5）。
+
+### 14.7 AOT 差分测试
 
 TC-AOT 的差分测试策略、测试脚本、注册规则详见 **[TC-AOT 详细设计说明书](./TC-AOT详细设计说明书.md#测试策略)**。
 
 VM 侧在新增语言特性后，需同步在 `scripts/vm/run_tests.sh` 中注册 VM conformance 测试（见 §14.3），并确认 AOT 侧也注册了对应用例。
 
-### 14.7 层间调用关系
+### 14.8 层间调用关系
 
 ```text
 bash scripts/vm/run_tests.sh   (VM conformance)

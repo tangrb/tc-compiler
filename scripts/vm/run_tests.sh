@@ -13,6 +13,7 @@ UBSAN_MODE=0
 VALGRIND_MODE=0
 VERBOSE=0
 FILTER=""
+TC_VM_BIN="${TC_VM_BIN:-}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -52,7 +53,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ "$ASAN_MODE" -eq 1 ] || [ "${ASAN:-0}" = "1" ]; then
+if [ -n "$TC_VM_BIN" ]; then
+    BUILD_HINT="(TC_VM_BIN override)"
+elif [ "$ASAN_MODE" -eq 1 ] || [ "${ASAN:-0}" = "1" ]; then
     ASAN_MODE=1
     TC_VM_BIN="$ROOT/build-asan/vm/bin/tc-vm"
     BUILD_HINT="make build-asan"
@@ -607,6 +610,35 @@ run_expect_stdout "$ROOT/tests/valid/if_false_skip_nested_then.tc" "100
 "
 run_expect_check_ok "$ROOT/tests/valid/if_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/if_nested.tc"
+run_expect_ok "$ROOT/tests/valid/if_and_or_condition.tc"
+run_expect_stdout "$ROOT/tests/valid/if_and_or_condition.tc" "1
+2
+3
+"
+run_expect_check_ok "$ROOT/tests/valid/if_and_or_condition.tc"
+run_expect_ok "$ROOT/tests/valid/if_comparison_condition.tc"
+run_expect_stdout "$ROOT/tests/valid/if_comparison_condition.tc" "1
+2
+3
+4
+5
+6
+"
+run_expect_check_ok "$ROOT/tests/valid/if_comparison_condition.tc"
+run_expect_ok "$ROOT/tests/valid/if_not_condition.tc"
+run_expect_stdout "$ROOT/tests/valid/if_not_condition.tc" "1
+2
+3
+4
+"
+run_expect_check_ok "$ROOT/tests/valid/if_not_condition.tc"
+run_expect_ok "$ROOT/tests/valid/if_empty_body.tc"
+run_expect_stdout "$ROOT/tests/valid/if_empty_body.tc" "0
+1
+2
+3
+"
+run_expect_check_ok "$ROOT/tests/valid/if_empty_body.tc"
 
 # --- v0.0.25: float32/float64 ---
 
@@ -647,6 +679,24 @@ run_expect_stdout "$ROOT/tests/valid/fp_cast_truncate.tc" "1065353216
 1
 4607182418800017408
 1
+0
+3.14159
+-0
+nan
+0
+2139095040
+-8388608
+0
+1.4013e-45
+nan
+0
+9218868437227405312
+-4503599627370496
+0
+9218868437227405312
+-4503599627370496
+nan
+nan
 "
 run_expect_check_ok "$ROOT/tests/valid/fp_cast_truncate.tc"
 run_with_stdin "$ROOT/tests/valid/fp_io.tc" "3.14
@@ -668,6 +718,46 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_fp.tc" "3.141593
 3.14159
 "
 run_expect_check_ok "$ROOT/tests/valid/format_spec_fp.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_neg_abs.tc" "-3.5
+3.5
+2.5
+-1.5
+-0
+0
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_neg_abs.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_const_let_arith.tc" "5
+6
+3
+4
+-2
+true
+false
+7
+4
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_const_let_arith.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_ieee_ops.tc" "inf
+inf
+nan
+inf
+-inf
+nan
+inf
+inf
+inf
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_ieee_ops.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_wrap_arith.tc" "nan
+8.81621e-39
+0
+1.4013e-45
+-5.12657e-305
+1.52974e-308
+0
+4.94066e-324
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_wrap_arith.tc"
 
 # --- stress test ---
 
@@ -708,6 +798,9 @@ true
 4.48046
 "
 run_expect_check_ok "$ROOT/tests/stress/stress_fp_chain.tc"
+run_expect_stdout "$ROOT/tests/stress/stress_many_ifs.tc" "20
+5
+"
 
 # --- errors/runtime (expect failure + diagnostic) ---
 
@@ -1183,6 +1276,43 @@ run_expect_stdout "$ROOT/tests/valid/io_extended.tc" "422a2A5200101010255ffFF377
 
 run_expect_ok_warn "$ROOT/tests/valid/uninit_chain_warning.tc" "use of possibly uninitialized variable 'a'"
 run_expect_ok_warn "$ROOT/tests/valid/more_warning_cases.tc" "use of possibly uninitialized variable 'a'"
+run_expect_stdout "$ROOT/tests/valid/let_cast_const.tc" "42
+42
+255
+255
+-100
+1000
+"
+run_expect_check_ok "$ROOT/tests/valid/let_cast_const.tc"
+run_expect_stdout "$ROOT/tests/valid/compare_unsigned.tc" "true
+false
+false
+true
+true
+true
+true
+false
+true
+true
+"
+run_expect_check_ok "$ROOT/tests/valid/compare_unsigned.tc"
+run_expect_stdout "$ROOT/tests/valid/shift_edge_cases.tc" "42
+42
+0
+0
+0
+128
+64
+32768
+1
+2147483648
+"
+run_expect_check_ok "$ROOT/tests/valid/shift_edge_cases.tc"
+run_expect_stdout "$ROOT/tests/valid/uninitialized_bool.tc" "true
+false
+false
+"
+run_expect_check_ok "$ROOT/tests/valid/uninitialized_bool.tc"
 
 echo ""
 echo "$PASSED passed, $FAILED failed"

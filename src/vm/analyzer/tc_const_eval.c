@@ -69,8 +69,8 @@ static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int 
  * 或者 TC_TRUNC_TRUNCATE 模式显式按位截断。
  * bool↔整数转换允许任意方向（bool 按 0/1 映射到整数，反之亦然）。
  */
-static int tc_const_cast_allowed(TcIntType target, const TcValue *source) {
-    TcIntType src_type = source->type;
+static int tc_const_cast_allowed(TcType target, const TcValue *source) {
+    TcType src_type = source->type;
     int src_bits = tc_type_bit_width(src_type);
     int dst_bits = tc_type_bit_width(target);
 
@@ -83,7 +83,7 @@ static int tc_const_cast_allowed(TcIntType target, const TcValue *source) {
     return 1;
 }
 
-static int tc_eval_const_operand(const TcOperand *operand, TcIntType expected,
+static int tc_eval_const_operand(const TcOperand *operand, TcType expected,
                                  const TcSymbolTable *visible, const TcSymbolTable *global,
                                  const char *const_name, const char *const *visiting,
                                  size_t visiting_count, TcValue *out, int line,
@@ -115,7 +115,7 @@ static int tc_eval_const_operand(const TcOperand *operand, TcIntType expected,
         }
         symbol = tc_symbol_table_find(visible, operand->u.name);
         if (!symbol) {
-            snprintf(msg, sizeof(msg), "undefined variable '%s'", operand->u.name);
+            (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", operand->u.name);
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
@@ -156,12 +156,12 @@ static int tc_eval_const_operand(const TcOperand *operand, TcIntType expected,
  *
  * 入口为 tc_resolve_const_value，携带 visiting 栈检测循环依赖。
  */
-static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
+static int tc_eval_const_rhs(const TcRhs *rhs, TcType expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
                              const char *const_name, const char *const *visiting,
                              size_t visiting_count, TcValue *out, int line, TcDiagnostic *diag);
 
-static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
+static int tc_eval_const_rhs(const TcRhs *rhs, TcType expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
                              const char *const_name, const char *const *visiting,
                              size_t visiting_count, TcValue *out, int line, TcDiagnostic *diag) {
@@ -194,7 +194,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
             const TcSymbol *symbol = tc_symbol_table_find(visible, rhs->u.const_ref.name);
             char msg[128];
             if (!symbol) {
-                snprintf(msg, sizeof(msg), "undefined variable '%s'", rhs->u.const_ref.name);
+                (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", rhs->u.const_ref.name);
                 tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
@@ -574,7 +574,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcIntType expected_type,
                 return -1;
             }
             if (!symbol || symbol->sym_kind != TC_SYM_CONSTANT) {
-                snprintf(msg, sizeof(msg), "undefined variable '%s'",
+                (void)snprintf(msg, sizeof(msg), "undefined variable '%s'",
                          rhs->u.const_cast.source.u.name);
                 tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
                 return -1;

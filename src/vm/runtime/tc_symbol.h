@@ -11,6 +11,39 @@
 
 #include "tc_diagnostic.h"
 
+#define TC_SYM_NAME_BUCKETS 64
+
+typedef struct TcSymNameIndexNode {
+    size_t sym_index;
+    struct TcSymNameIndexNode *next;
+} TcSymNameIndexNode;
+
+/** 按符号名哈希的只读索引，用于 stmt_index 可见性查询 */
+typedef struct {
+    TcSymNameIndexNode *buckets[TC_SYM_NAME_BUCKETS];
+    TcSymNameIndexNode *nodes;
+    size_t node_count;
+} TcSymbolNameIndex;
+
+/** 初始化空索引 */
+void tc_symbol_name_index_init(TcSymbolNameIndex *index);
+
+/** 释放索引内存 */
+void tc_symbol_name_index_free(TcSymbolNameIndex *index);
+
+/**
+ * 为符号表构建按名哈希索引。
+ * @return 成功 0；内存不足 -1
+ */
+int tc_symbol_name_index_build(const TcSymbolTable *table, TcSymbolNameIndex *index,
+                               TcDiagnostic *diag);
+
+/**
+ * 按 stmt_index 可见性查找变量（索引加速；index 为 NULL 时线性扫描）。
+ */
+const TcSymbol *tc_symbol_table_find_visible(const TcSymbolTable *table, const char *name,
+                                             int stmt_index, const TcSymbolNameIndex *index);
+
 /** 初始化空符号表（含全局作用域 level 0） */
 void tc_symbol_table_init(TcSymbolTable *table);
 
@@ -49,7 +82,7 @@ const TcSymbol *tc_symbol_table_find_in_current_scope(const TcSymbolTable *table
  * @param diag            诊断对象（内存不足时设置）
  * @return 成功返回 0；内存不足返回 -1
  */
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcIntType type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcType type, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag);
 

@@ -210,7 +210,7 @@ static void tc_repl_print_vars(const TcReplSession *session) {
         char value_text[64];
 
         tc_repl_format_value(&session->slots[symbol->slot], value_text, sizeof(value_text));
-        printf("%s: %s = %s\n", symbol->name, tc_int_type_name(symbol->type), value_text);
+        printf("%s: %s = %s\n", symbol->name, tc_type_name(symbol->type), value_text);
     }
 }
 
@@ -398,7 +398,7 @@ int tc_repl_run(TcDiagnostic *diag) {
             continue;
         }
 
-        diag->source = line;
+        tc_diagnostic_set_source(diag, "<repl>", line);
         if (tc_repl_eval_line(&session, line, diag) != 0) {
             tc_diagnostic_print(diag, stderr);
             tc_diagnostic_clear(diag);

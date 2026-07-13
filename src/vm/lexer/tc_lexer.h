@@ -54,7 +54,7 @@ typedef struct {
     int line;
     int column;
     union {
-        TcIntType int_type;
+        TcType int_type;
         TcArithOp arith_op;
         TcUnaryOp unary_op;
         TcCompareOp compare_op;

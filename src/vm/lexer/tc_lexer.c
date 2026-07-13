@@ -569,7 +569,7 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
  * @return 成功返回 0；内存不足返回 -1
  */
 static int tc_emit_token(TcTokenList *out, TcTokenKind kind, const char *start, size_t len,
-                         int line, int column, TcIntType int_type, TcArithOp arith_op,
+                         int line, int column, TcType int_type, TcArithOp arith_op,
                          const TcLiteral *literal, TcDiagnostic *diag) {
     TcToken token;
     token.kind = kind;

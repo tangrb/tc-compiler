@@ -23,6 +23,7 @@
 /** Codegen 阶段 DFS 语句序号（与 Analyzer / Executor 一致） */
 typedef struct {
     TcStmtIndexCursor index;
+    TcSymbolNameIndex sym_index;
 } TcAotEmitCtx;
 
 static const TcSymbol *tc_aot_find_def_symbol(const TcSymbolTable *symbols, const char *name,
@@ -39,39 +40,12 @@ static const TcSymbol *tc_aot_find_def_symbol(const TcSymbolTable *symbols, cons
     return NULL;
 }
 
-static const TcSymbol *tc_aot_find_visible_symbol(const TcSymbolTable *symbols, const char *name,
-                                                  int stmt_index) {
-    size_t i = 0;
-    const TcSymbol *best = NULL;
-
-    for (i = 0; i < symbols->count; i++) {
-        const TcSymbol *sym = &symbols->symbols[i];
-
-        if (strcmp(sym->name, name) != 0) {
-            continue;
-        }
-        if (sym->def_stmt_index >= stmt_index) {
-            continue;
-        }
-        if (sym->scope_end_stmt_index >= 0 && stmt_index >= sym->scope_end_stmt_index) {
-            continue;
-        }
-        if (!best || sym->def_stmt_index > best->def_stmt_index) {
-            best = sym;
-        }
-    }
-    if (best) {
-        return best;
-    }
-    return tc_symbol_table_find(symbols, name);
-}
-
 /* ------------------------------------------------------------------ */
 /*  辅助函数                                                           */
 /* ------------------------------------------------------------------ */
 
-/** 将 TcIntType 枚举映射为 C 源码中的枚举名 */
-static const char *tc_aot_type_enum(TcIntType type) {
+/** 将 TcType 枚举映射为 C 源码中的枚举名 */
+static const char *tc_aot_type_enum(TcType type) {
     switch (type) {
     case TC_INT8:
         return "TC_INT8";
@@ -153,7 +127,7 @@ static void tc_aot_sub_indent(char *out, size_t out_size, const char *base, int 
 /* ------------------------------------------------------------------ */
 
 /** 发射字面量构造表达式 */
-static void tc_aot_emit_literal_expr(FILE *out, TcIntType type, const TcLiteral *lit) {
+static void tc_aot_emit_literal_expr(FILE *out, TcType type, const TcLiteral *lit) {
     if (lit->is_bool) {
         fprintf(out, "tc_aot_lit(%s, %lluULL, 0, 0)", tc_aot_type_enum(TC_BOOL),
                 lit->magnitude ? 1ULL : 0ULL);
@@ -178,13 +152,14 @@ static void tc_aot_emit_literal_expr(FILE *out, TcIntType type, const TcLiteral 
 }
 
 /** 发射操作数表达式：字面量或 slots[slot] */
-static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcIntType type,
-                                     const TcSymbolTable *symbols, int stmt_index) {
+static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcType type,
+                                     const TcSymbolTable *symbols,
+                                     const TcSymbolNameIndex *sym_index, int stmt_index) {
     if (operand->kind == TC_OPERAND_LIT) {
         tc_aot_emit_literal_expr(out, type, &operand->u.lit);
     } else {
         const TcSymbol *symbol =
-            tc_aot_find_visible_symbol(symbols, operand->u.name, stmt_index);
+            tc_symbol_table_find_visible(symbols, operand->u.name, stmt_index, sym_index);
 
         if (!symbol) {
             return;
@@ -209,9 +184,10 @@ static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcIntT
 /* ------------------------------------------------------------------ */
 
 /** 发射 RHS 求值代码；dst_expr 为目标左值（如 slots[3] 或 _cond） */
-static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
+static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
                            const char *dst_expr, const char *indent,
-                           const TcSymbolTable *symbols, int stmt_index, int line) {
+                           const TcSymbolTable *symbols, const TcSymbolNameIndex *sym_index,
+                           int stmt_index, int line) {
     char abort_indent[64];
 
     tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
@@ -248,9 +224,9 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 
         fprintf(out, "%sif (tc_aot_arith(%s, %s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.arith.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.arith.lhs, rhs->u.arith.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.arith.lhs, rhs->u.arith.type, symbols, sym_index, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.arith.rhs, rhs->u.arith.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.arith.rhs, rhs->u.arith.type, symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -263,7 +239,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 
         fprintf(out, "%sif (tc_aot_unary(%s, %s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.unary.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.unary.operand, rhs->u.unary.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.unary.operand, rhs->u.unary.type, symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -293,9 +269,9 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         }
         fprintf(out, "%sif (tc_aot_compare(%s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.compare.type), dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.compare.lhs, rhs->u.compare.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.compare.lhs, rhs->u.compare.type, symbols, sym_index, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.compare.rhs, rhs->u.compare.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.compare.rhs, rhs->u.compare.type, symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -303,7 +279,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 
     if (rhs->kind == TC_RHS_LOGIC_UN) {
         fprintf(out, "%sif (tc_aot_logic_unary(TC_LOGIC_NOT, &%s, ", indent, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.logic_un.operand, TC_BOOL, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.logic_un.operand, TC_BOOL, symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -313,9 +289,9 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         const char *op_name =
             rhs->u.logic_bin.op == TC_LOGIC_AND ? "TC_LOGIC_AND" : "TC_LOGIC_OR";
         fprintf(out, "%sif (tc_aot_logic(%s, &%s, ", indent, op_name, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.lhs, TC_BOOL, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.lhs, TC_BOOL, symbols, sym_index, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.rhs, TC_BOOL, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.rhs, TC_BOOL, symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -339,10 +315,10 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         fprintf(out, "%sif (tc_aot_bitwise_binary(%s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.bitwise_bin.type), dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, symbols,
-                                 stmt_index);
+                                 sym_index, stmt_index);
         fprintf(out, ", ");
         tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, symbols,
-                                 stmt_index);
+                                 sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -352,7 +328,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         fprintf(out, "%sif (tc_aot_bitwise_unary(%s, &%s, ", indent,
                 tc_aot_type_enum(rhs->u.bitwise_un.type), dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, symbols,
-                                 stmt_index);
+                                 sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -366,9 +342,9 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 
         fprintf(out, "%sif (tc_aot_shift(%s, %s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.shift.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.shift.value, rhs->u.shift.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.shift.value, rhs->u.shift.type, symbols, sym_index, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.shift.count, rhs->u.shift.type, symbols, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.shift.count, rhs->u.shift.type, symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -410,10 +386,10 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         fprintf(out, "%sif (tc_aot_fp_arith(%s, %s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.float_arith.type), mode, dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.float_arith.lhs, rhs->u.float_arith.type, symbols,
-                                 stmt_index);
+                                 sym_index, stmt_index);
         fprintf(out, ", ");
         tc_aot_emit_operand_expr(out, &rhs->u.float_arith.rhs, rhs->u.float_arith.type, symbols,
-                                 stmt_index);
+                                 sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -429,7 +405,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         fprintf(out, "%sif (tc_aot_fp_unary(%s, %s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.float_unary.type), mode, dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.float_unary.operand, rhs->u.float_unary.type,
-                                 symbols, stmt_index);
+                                 symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -463,10 +439,10 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
         fprintf(out, "%sif (tc_aot_fp_compare(%s, %s, %s, &%s, ", indent, op_name,
                 tc_aot_type_enum(rhs->u.float_compare.type), mode, dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.float_compare.lhs, rhs->u.float_compare.type,
-                                 symbols, stmt_index);
+                                 symbols, sym_index, stmt_index);
         fprintf(out, ", ");
         tc_aot_emit_operand_expr(out, &rhs->u.float_compare.rhs, rhs->u.float_compare.type,
-                                 symbols, stmt_index);
+                                 symbols, sym_index, stmt_index);
         fprintf(out, ", &diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
         return 0;
@@ -474,7 +450,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 
     if (rhs->kind == TC_RHS_FLOAT_CAST) {
         const TcSymbol *source =
-            tc_aot_find_visible_symbol(symbols, rhs->u.float_cast.source, stmt_index);
+            tc_symbol_table_find_visible(symbols, rhs->u.float_cast.source, stmt_index, sym_index);
         const char *mode =
             rhs->u.float_cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
 
@@ -495,7 +471,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 
     {
         const TcSymbol *source =
-            tc_aot_find_visible_symbol(symbols, rhs->u.cast.source, stmt_index);
+            tc_symbol_table_find_visible(symbols, rhs->u.cast.source, stmt_index, sym_index);
         const char *mode =
             rhs->u.cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
 
@@ -518,13 +494,14 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcIntType expected_type,
 }
 
 /** 将 RHS 结果写入 slots[dst_slot] */
-static int tc_aot_emit_rhs_slot(FILE *out, const TcRhs *rhs, TcIntType expected_type, int dst_slot,
-                                const char *indent, const TcSymbolTable *symbols, int stmt_index,
-                                int line) {
+static int tc_aot_emit_rhs_slot(FILE *out, const TcRhs *rhs, TcType expected_type, int dst_slot,
+                                const char *indent, const TcSymbolTable *symbols,
+                                const TcSymbolNameIndex *sym_index, int stmt_index, int line) {
     char dst_expr[32];
 
     snprintf(dst_expr, sizeof(dst_expr), "slots[%d]", dst_slot);
-    return tc_aot_emit_rhs(out, rhs, expected_type, dst_expr, indent, symbols, stmt_index, line);
+    return tc_aot_emit_rhs(out, rhs, expected_type, dst_expr, indent, symbols, sym_index,
+                           stmt_index, line);
 }
 
 /* ------------------------------------------------------------------ */
@@ -548,7 +525,7 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         fprintf(out, "%suint64_t _cond;\n", block_indent);
 
         if (tc_aot_emit_rhs(out, &if_stmt->condition, TC_BOOL, "_cond", block_indent, symbols,
-                            if_stmt_index, if_stmt->line) != 0) {
+                            &ctx->sym_index, if_stmt_index, if_stmt->line) != 0) {
             return -1;
         }
 
@@ -590,7 +567,7 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
                 return 0;
             }
             return tc_aot_emit_rhs_slot(out, &var_def->rhs, var_def->type, symbol->slot, indent,
-                                        symbols, stmt_index, var_def->line);
+                                        symbols, &ctx->sym_index, stmt_index, var_def->line);
         }
 
         if (stmt->kind == TC_STMT_CONST_DEF) {
@@ -605,7 +582,8 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
                         symbol->const_value.bits);
             } else {
                 return tc_aot_emit_rhs_slot(out, &const_def->rhs, const_def->type, symbol->slot,
-                                            indent, symbols, stmt_index, const_def->line);
+                                            indent, symbols, &ctx->sym_index, stmt_index,
+                                            const_def->line);
             }
             return 0;
         }
@@ -613,12 +591,12 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         if (stmt->kind == TC_STMT_ASSIGN) {
             const TcAssign *assign = &stmt->u.assign;
 
-            symbol = tc_aot_find_visible_symbol(symbols, assign->name, stmt_index);
+            symbol = tc_symbol_table_find_visible(symbols, assign->name, stmt_index, &ctx->sym_index);
             if (!symbol) {
                 return -1;
             }
             return tc_aot_emit_rhs_slot(out, &assign->rhs, symbol->type, symbol->slot, indent,
-                                        symbols, stmt_index, assign->line);
+                                        symbols, &ctx->sym_index, stmt_index, assign->line);
         }
 
         if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
@@ -627,7 +605,8 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
 
             fprintf(out, "%stc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type),
                     tc_aot_format_enum(io->fmt));
-            tc_aot_emit_operand_expr(out, &io->operand, io->type, symbols, stmt_index);
+            tc_aot_emit_operand_expr(out, &io->operand, io->type, symbols, &ctx->sym_index,
+                                     stmt_index);
             fprintf(out, ", %d);\n", newline);
             return 0;
         }
@@ -636,7 +615,8 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
             const TcRead *io_read = &stmt->u.io_read;
             char abort_indent[64];
 
-            symbol = tc_aot_find_visible_symbol(symbols, io_read->name, stmt_index);
+            symbol = tc_symbol_table_find_visible(symbols, io_read->name, stmt_index,
+                                                  &ctx->sym_index);
             if (!symbol) {
                 return -1;
             }
@@ -665,8 +645,16 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     size_t i = 0;
     size_t slot_count = program->symbols.count;
     TcAotEmitCtx ctx;
+    TcDiagnostic diag;
+    int rc = 0;
 
     tc_stmt_index_reset(&ctx.index);
+    tc_symbol_name_index_init(&ctx.sym_index);
+    tc_diagnostic_init(&diag);
+    if (tc_symbol_name_index_build(&program->symbols, &ctx.sym_index, &diag) != 0) {
+        tc_symbol_name_index_free(&ctx.sym_index);
+        return -1;
+    }
 
     fprintf(out, "/* Auto-generated by tc-aot from %s. Do not edit. */\n",
             source_name ? source_name : "<source>");
@@ -690,11 +678,14 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     for (i = 0; i < program->program.count; i++) {
         if (tc_aot_emit_statement(out, &program->program.items[i], &program->symbols, &ctx,
                                   "    ") != 0) {
-            return -1;
+            rc = -1;
+            break;
         }
     }
 
     fprintf(out, "\n    return 0;\n");
     fprintf(out, "}\n");
-    return 0;
+    tc_symbol_name_index_free(&ctx.sym_index);
+    tc_diagnostic_clear(&diag);
+    return rc;
 }

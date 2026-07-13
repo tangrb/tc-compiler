@@ -20,11 +20,11 @@
 #define TC_INT64_MIN_ABS_MAGNITUDE 9223372036854775808ULL
 
 /* ------------------------------------------------------------------ */
-/*  整数类型 & 运算符枚举                                               */
+/*  类型 & 运算符枚举                                                   */
 /* ------------------------------------------------------------------ */
 
 /**
- * TC 语言支持的定宽整数类型与 bool。
+ * TC 语言支持的全部标量类型：定宽整数、bool、浮点。
  *
  * TC_BOOL 与 int8～uint64 共用本枚举以便统一位宽查询与 I/O 处理，
  * 但概念上 bool 属于独立类型类别（见语言标准 §3.1）。
@@ -42,7 +42,7 @@ typedef enum {
     TC_BOOL,
     TC_FLOAT32,
     TC_FLOAT64
-} TcIntType;
+} TcType;
 
 /**
  * 算术溢出处理模式：
@@ -259,20 +259,20 @@ typedef struct {
         TcLiteral lit;           /* TC_RHS_LIT */
         struct {
             TcArithOp op;
-            TcIntType type;
+            TcType type;
             TcWrapMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } arith;                 /* TC_RHS_ARITH */
         struct {
             TcUnaryOp op;
-            TcIntType type;
+            TcType type;
             TcWrapMode mode;
             TcOperand operand;
         } unary;                 /* TC_RHS_UNARY */
         struct {
             TcCompareOp op;
-            TcIntType type;
+            TcType type;
             TcOperand lhs;
             TcOperand rhs;
         } compare;               /* TC_RHS_COMPARE */
@@ -287,28 +287,28 @@ typedef struct {
         } logic_un;              /* TC_RHS_LOGIC_UN */
         struct {
             TcBitwiseOp op;
-            TcIntType type;
+            TcType type;
             TcOperand lhs;
             TcOperand rhs;
         } bitwise_bin;           /* TC_RHS_BITWISE_BIN */
         struct {
-            TcIntType type;
+            TcType type;
             TcOperand operand;
         } bitwise_un;              /* TC_RHS_BITWISE_UN（恒为 not） */
         struct {
             TcShiftOp op;
-            TcIntType type;
+            TcType type;
             TcWrapMode mode;     /* 仅 shl 使用；shr 恒为 TC_ARITH_STRICT */
             TcOperand value;
             TcOperand count;
         } shift;                 /* TC_RHS_SHIFT */
         struct {
-            TcIntType target;
+            TcType target;
             TcTruncateMode mode;
             char *source;        /* 源变量名，堆分配 */
         } cast;                  /* TC_RHS_CAST */
         struct {
-            TcIntType target;
+            TcType target;
             TcOperand source;    /* 编译期操作数（字面量或 let 引用） */
         } const_cast;            /* TC_RHS_CONST_CAST */
         struct {
@@ -316,26 +316,26 @@ typedef struct {
         } const_ref;             /* TC_RHS_CONST_REF */
         struct {
             TcArithOp op;
-            TcIntType type;      /* TC_FLOAT32 或 TC_FLOAT64 */
+            TcType type;      /* TC_FLOAT32 或 TC_FLOAT64 */
             TcFloatMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } float_arith;           /* TC_RHS_FLOAT_ARITH */
         struct {
             TcUnaryOp op;
-            TcIntType type;
+            TcType type;
             TcFloatMode mode;
             TcOperand operand;
         } float_unary;           /* TC_RHS_FLOAT_UNARY */
         struct {
             TcCompareOp op;
-            TcIntType type;
+            TcType type;
             TcFloatMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } float_compare;         /* TC_RHS_FLOAT_COMPARE */
         struct {
-            TcIntType target;
+            TcType target;
             TcTruncateMode mode;
             char *source;        /* 源变量名，堆分配 */
         } float_cast;            /* TC_RHS_FLOAT_CAST */
@@ -356,7 +356,7 @@ typedef enum {
 typedef struct {
     int line;
     char *name;      /* 变量名，堆分配 */
-    TcIntType type;
+    TcType type;
     int has_rhs;     /* 是否有初始化表达式 */
     TcRhs rhs;
 } TcVarDef;
@@ -364,7 +364,7 @@ typedef struct {
 typedef struct {
     int line;
     char *name;      /* 常量名，堆分配 */
-    TcIntType type;
+    TcType type;
     TcRhs rhs;       /* let 初始化必须为编译期常量表达式（由 Analyzer 确保） */
 } TcConstDef;
 
@@ -376,14 +376,14 @@ typedef struct {
 
 typedef struct {
     int line;
-    TcIntType type;
+    TcType type;
     TcFormatSpec fmt;       /* TC_FMT_NONE 表示默认十进制输出 */
     TcOperand operand;
 } TcIoWrite;
 
 typedef struct {
     int line;
-    TcIntType type;
+    TcType type;
     char *name;      /* 读取目标变量名，堆分配 */
 } TcRead;
 
@@ -424,14 +424,14 @@ typedef struct {
 
 /** 运行时值：类型 + 位模式，统一 uint64_t 存储 */
 typedef struct {
-    TcIntType type;
+    TcType type;
     uint64_t bits;
 } TcValue;
 
 /** 符号表条目：一个变量或 let 常量的元信息 */
 typedef struct {
     char *name;          /* 堆分配 */
-    TcIntType type;
+    TcType type;
     int slot;            /* 运行时变量槽索引 */
     int def_line;
     int def_stmt_index;  /* 定义位置对应的语句序号 */
@@ -491,14 +491,14 @@ typedef struct {
 
 /**
  * 单槽诊断对象（fail-fast 模式下仅保存第一条错误）。
- * 调用方负责保证 source 在 tc_diagnostic_print 前有效。
+ * 调用方通过 tc_diagnostic_set_source 绑定源文本；source 由诊断模块 strdup 管理。
  */
 typedef struct {
     TcErrorKind kind;
     char *message;    /* 堆分配 */
     char *filename;   /* 堆分配 */
     char *snippet;    /* 堆分配，出错行源码 */
-    const char *source; /* 仅引用，调用方管理生命周期 */
+    char *source;     /* 堆分配，完整源文本 */
     int line;
     int column;
 } TcDiagnostic;
@@ -510,12 +510,12 @@ typedef struct {
 /*  公共工具函数声明                                                    */
 /* ------------------------------------------------------------------ */
 
-int tc_type_bit_width(TcIntType type);
-int tc_type_is_signed(TcIntType type);
-int tc_type_is_bool(TcIntType type);
-int tc_type_is_integer(TcIntType type);
-int tc_type_is_float(TcIntType type);
-int tc_type_parse(const char *text, TcIntType *out);
+int tc_type_bit_width(TcType type);
+int tc_type_is_signed(TcType type);
+int tc_type_is_bool(TcType type);
+int tc_type_is_integer(TcType type);
+int tc_type_is_float(TcType type);
+int tc_type_parse(const char *text, TcType *out);
 int tc_float_mode_parse(const char *text, TcFloatMode *out);
 int tc_arith_op_parse(const char *text, TcArithOp *out);
 int tc_unary_op_parse(const char *text, TcUnaryOp *out);
@@ -529,6 +529,6 @@ const char *tc_shift_op_name(TcShiftOp op);
 const char *tc_format_spec_name(TcFormatSpec fmt);
 const char *tc_error_kind_name(TcErrorKind kind);
 const char *tc_warning_kind_name(TcWarningKind kind);
-const char *tc_int_type_name(TcIntType type);
+const char *tc_type_name(TcType type);
 
 #endif

@@ -9,7 +9,7 @@
  *   - tc_compare_op_parse / tc_logic_op_parse — 比较/逻辑运算符解析
  *   - tc_format_spec_parse / tc_format_spec_name — 格式说明符
  *   - tc_error_kind_name / tc_warning_kind_name — 错误/警告名称
- *   - tc_int_type_name — 类型枚举→字符串
+ *   - tc_type_name — 类型枚举→字符串
  *
  * 防止回归：类型映射遗漏、未定义行为返回空串或 "unknown"
  */
@@ -91,7 +91,7 @@ static void test_type_is_signed(void) {
 /* ================================================================== */
 
 static void test_type_parse(void) {
-    TcIntType out = TC_INT8;
+    TcType out = TC_INT8;
 
     check(tc_type_parse("int8", &out) == 1 && out == TC_INT8, "parse 'int8' → TC_INT8");
     check(tc_type_parse("uint8", &out) == 1 && out == TC_UINT8, "parse 'uint8' → TC_UINT8");
@@ -351,24 +351,24 @@ static void test_warning_kind_name(void) {
 }
 
 /* ================================================================== */
-/*  tc_int_type_name                                                    */
+/*  tc_type_name                                                    */
 /* ================================================================== */
 
 static void test_int_type_name(void) {
-    check(strcmp(tc_int_type_name(TC_INT8), "int8") == 0, "TC_INT8 → 'int8'");
-    check(strcmp(tc_int_type_name(TC_UINT8), "uint8") == 0, "TC_UINT8 → 'uint8'");
-    check(strcmp(tc_int_type_name(TC_INT16), "int16") == 0, "TC_INT16 → 'int16'");
-    check(strcmp(tc_int_type_name(TC_UINT16), "uint16") == 0, "TC_UINT16 → 'uint16'");
-    check(strcmp(tc_int_type_name(TC_INT32), "int32") == 0, "TC_INT32 → 'int32'");
-    check(strcmp(tc_int_type_name(TC_UINT32), "uint32") == 0, "TC_UINT32 → 'uint32'");
-    check(strcmp(tc_int_type_name(TC_INT64), "int64") == 0, "TC_INT64 → 'int64'");
-    check(strcmp(tc_int_type_name(TC_UINT64), "uint64") == 0, "TC_UINT64 → 'uint64'");
-    check(strcmp(tc_int_type_name(TC_BOOL), "bool") == 0, "TC_BOOL → 'bool'");
-    check(strcmp(tc_int_type_name(TC_FLOAT32), "float32") == 0, "TC_FLOAT32 → 'float32'");
-    check(strcmp(tc_int_type_name(TC_FLOAT64), "float64") == 0, "TC_FLOAT64 → 'float64'");
+    check(strcmp(tc_type_name(TC_INT8), "int8") == 0, "TC_INT8 → 'int8'");
+    check(strcmp(tc_type_name(TC_UINT8), "uint8") == 0, "TC_UINT8 → 'uint8'");
+    check(strcmp(tc_type_name(TC_INT16), "int16") == 0, "TC_INT16 → 'int16'");
+    check(strcmp(tc_type_name(TC_UINT16), "uint16") == 0, "TC_UINT16 → 'uint16'");
+    check(strcmp(tc_type_name(TC_INT32), "int32") == 0, "TC_INT32 → 'int32'");
+    check(strcmp(tc_type_name(TC_UINT32), "uint32") == 0, "TC_UINT32 → 'uint32'");
+    check(strcmp(tc_type_name(TC_INT64), "int64") == 0, "TC_INT64 → 'int64'");
+    check(strcmp(tc_type_name(TC_UINT64), "uint64") == 0, "TC_UINT64 → 'uint64'");
+    check(strcmp(tc_type_name(TC_BOOL), "bool") == 0, "TC_BOOL → 'bool'");
+    check(strcmp(tc_type_name(TC_FLOAT32), "float32") == 0, "TC_FLOAT32 → 'float32'");
+    check(strcmp(tc_type_name(TC_FLOAT64), "float64") == 0, "TC_FLOAT64 → 'float64'");
 
     /* 未知类型 → unknown */
-    check(strcmp(tc_int_type_name((TcIntType)999), "unknown") == 0,
+    check(strcmp(tc_type_name((TcType)999), "unknown") == 0,
           "unknown type → 'unknown'");
 }
 

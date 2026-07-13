@@ -11,6 +11,110 @@
 #include <stdlib.h>
 #include <string.h>
 
+static unsigned tc_symbol_name_hash(const char *name) {
+    unsigned hash = 5381u;
+
+    while (*name != '\0') {
+        hash = ((hash << 5) + hash) + (unsigned char)*name;
+        name++;
+    }
+    return hash % TC_SYM_NAME_BUCKETS;
+}
+
+void tc_symbol_name_index_init(TcSymbolNameIndex *index) {
+    size_t i = 0;
+
+    for (i = 0; i < TC_SYM_NAME_BUCKETS; i++) {
+        index->buckets[i] = NULL;
+    }
+    index->nodes = NULL;
+    index->node_count = 0;
+}
+
+void tc_symbol_name_index_free(TcSymbolNameIndex *index) {
+    free(index->nodes);
+    tc_symbol_name_index_init(index);
+}
+
+int tc_symbol_name_index_build(const TcSymbolTable *table, TcSymbolNameIndex *index,
+                               TcDiagnostic *diag) {
+    size_t i = 0;
+
+    tc_symbol_name_index_free(index);
+    if (table->count == 0) {
+        return 0;
+    }
+
+    index->nodes = (TcSymNameIndexNode *)malloc(table->count * sizeof(TcSymNameIndexNode));
+    if (!index->nodes) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
+        return -1;
+    }
+    index->node_count = table->count;
+
+    for (i = 0; i < table->count; i++) {
+        unsigned bucket = tc_symbol_name_hash(table->symbols[i].name);
+        TcSymNameIndexNode *node = &index->nodes[i];
+
+        node->sym_index = i;
+        node->next = index->buckets[bucket];
+        index->buckets[bucket] = node;
+    }
+    return 0;
+}
+
+const TcSymbol *tc_symbol_table_find_visible(const TcSymbolTable *table, const char *name,
+                                             int stmt_index, const TcSymbolNameIndex *index) {
+    const TcSymbol *best = NULL;
+
+    if (index && index->nodes) {
+        unsigned bucket = tc_symbol_name_hash(name);
+        const TcSymNameIndexNode *node = index->buckets[bucket];
+
+        while (node) {
+            const TcSymbol *sym = &table->symbols[node->sym_index];
+
+            if (strcmp(sym->name, name) == 0) {
+                if (sym->def_stmt_index < stmt_index &&
+                    (sym->scope_end_stmt_index < 0 || stmt_index < sym->scope_end_stmt_index) &&
+                    (!best || sym->def_stmt_index > best->def_stmt_index)) {
+                    best = sym;
+                }
+            }
+            node = node->next;
+        }
+        if (best) {
+            return best;
+        }
+        return tc_symbol_table_find(table, name);
+    }
+
+    {
+        size_t i = 0;
+
+        for (i = 0; i < table->count; i++) {
+            const TcSymbol *sym = &table->symbols[i];
+
+            if (strcmp(sym->name, name) != 0) {
+                continue;
+            }
+            if (sym->def_stmt_index >= stmt_index) {
+                continue;
+            }
+            if (sym->scope_end_stmt_index >= 0 && stmt_index >= sym->scope_end_stmt_index) {
+                continue;
+            }
+            if (!best || sym->def_stmt_index > best->def_stmt_index) {
+                best = sym;
+            }
+        }
+        if (best) {
+            return best;
+        }
+        return tc_symbol_table_find(table, name);
+    }
+}
+
 static int tc_symbol_table_ensure_scope_capacity(TcSymbolTable *table, size_t need) {
     if (table->scope_capacity >= need) {
         return 0;
@@ -159,7 +263,7 @@ const TcSymbol *tc_symbol_table_find(const TcSymbolTable *table, const char *nam
     return tc_symbol_table_find_in_scope(table, name);
 }
 
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcIntType type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcType type, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag) {
     if (table->scope_count == 0) {

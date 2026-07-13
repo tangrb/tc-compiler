@@ -1,0 +1,40 @@
+; ieee 模式浮点运算（inf/nan 传播不报错）
+
+; 大数乘法产生 inf
+var big: float64 = 1e308
+var inf1: float64 = mul(float64, ieee, big, big)
+writeln(float64, inf1)         ; inf
+
+; 除零产生 inf
+var inf2: float64 = div(float64, ieee, 1.0, 0.0)
+writeln(float64, inf2)         ; inf
+
+; nan 传播
+var zero: float64 = 0.0
+var nan1: float64 = div(float64, ieee, zero, zero)
+writeln(float64, nan1)         ; nan
+
+; ieee inf + finite = inf
+var inf_plus: float64 = add(float64, ieee, inf2, 100.0)
+writeln(float64, inf_plus)     ; inf
+
+; ieee inf * -1 = -inf
+var neg_inf: float64 = mul(float64, ieee, inf2, -1.0)
+writeln(float64, neg_inf)      ; -inf
+
+; ieee nan 传播：nan + 1 = nan
+var nan_plus: float64 = add(float64, ieee, nan1, 1.0)
+writeln(float64, nan_plus)     ; nan
+
+; ieee abs(inf) = inf
+var abs_inf: float64 = abs(float64, ieee, inf2)
+writeln(float64, abs_inf)      ; inf
+
+; ieee neg(-inf) = inf
+var neg_inf2: float64 = neg(float64, ieee, neg_inf)
+writeln(float64, neg_inf2)     ; inf
+
+; float32 ieee 模式
+var f32_big: float32 = 1e38
+var f32_inf: float32 = mul(float32, ieee, f32_big, f32_big)
+writeln(float32, f32_inf)      ; inf
