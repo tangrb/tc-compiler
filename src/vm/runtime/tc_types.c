@@ -1,5 +1,5 @@
 /*
- * tc_types.c — TC 整数类型与运算符的工具函数
+ * tc_types.c — TC 整数与浮点类型及运算符的工具函数
  *
  * 提供：
  *   - 类型位宽查询（tc_type_bit_width）、符号性判定（tc_type_is_signed）

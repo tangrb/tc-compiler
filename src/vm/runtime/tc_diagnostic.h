@@ -1,7 +1,7 @@
 /*
  * tc_diagnostic.h — 错误诊断接口
  *
- * TC-VM 全流水线（Lexer / Parser / Analyzer / Executor）通过 TcDiagnostic
+ * TC 全流水线（Lexer / Parser / Analyzer / Executor / AOT）通过 TcDiagnostic
  * 统一报告错误。TcDiagnostic 设计为单槽（fail-fast），仅保留第一条错误。
  * 诊断最终由 driver 层格式化输出到 stderr（类 GCC/clang 格式）。
  */

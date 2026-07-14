@@ -14,7 +14,7 @@
  * 执行已类型化的程序。
  * @param program 已类型化的程序（含语句列表和符号表）
  * @param diag    诊断对象
- * @return 成功返回 0；运行时错误（溢出、除零等）返回 -1 并设置 diag
+ * @return 成功返回 0；运行时错误（溢出、除零、浮点异常等）返回 -1 并设置 diag
  */
 int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag);
 

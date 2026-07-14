@@ -274,7 +274,7 @@ warning: use of possibly uninitialized variable 'a' (line 2)
 | `IntegerOverflow` | 整数溢出错误 | 执行 |
 | **`FloatOverflow`** (v0.0.25) | 浮点溢出错误（严格模式上溢） | 执行 |
 | **`FloatUnderflow`** (v0.0.25) | 浮点下溢错误（严格模式） | 执行 |
-| **`FloatInvalid`** (v0.0.25) | 浮点无效操作错误（NaN 产生） | 执行 |
+| **`FloatInvalidOperation`** (v0.0.25) | 浮点无效操作错误（NaN 产生） | 执行 |
 | **`FloatCastOverflow`** (v0.0.25) | 浮点转换溢出（浮点↔整数超范围） | 执行 |
 | `CastOverflow` | 转换溢出错误 | 执行 |
 | **`ModeMismatch`** (v0.0.25) | 模式不匹配（ieee 用于整数等） | 静态分析 |
@@ -432,6 +432,6 @@ $ echo $?
 | **0.0.14** | **2026-07-03** | **与实现对齐**：新增 §6.2 编译警告格式；`--check` 模式纳入自动化回归；补充 stress/REPL/ASAN 测试说明；诊断格式校验说明 |
 | **0.0.18** | **2026-07-03** | **版本号对齐语言标准 v0.0.18**；`TC_VM_VERSION` 集中于 `tc_version.h` |
 | **0.0.21** | **2026-07-04** | **与语言标准 v0.0.21 对齐**：错误类型表新增 `ConstantCircularDependency`、`ConstantOverflow`、`ConstantDivisionByZero`、`ConstantCastOverflow`、`ComparisonTypeMismatch`、`FormatStringError`、`FormatTypeMismatch`、`OperandCountError`；版本、依赖更新至 v0.0.21 |
-| **0.0.25** | **2026-07-13** | **浮点支持**：错误类型表新增 `FloatOverflow`/`FloatUnderflow`/`FloatInvalid`/`FloatCastOverflow`/`ModeMismatch`；概述补充浮点 I/O 与格式符说明；新增 §8.10–§8.11 浮点示例；版本、依赖更新至 v0.0.25 |
+| **0.0.25** | **2026-07-13** | **浮点支持**：错误类型表新增 `FloatOverflow`/`FloatUnderflow`/`FloatInvalidOperation`/`FloatCastOverflow`/`ModeMismatch`；概述补充浮点 I/O 与格式符说明；新增 §8.10–§8.11 浮点示例；版本、依赖更新至 v0.0.25 |
 
 ---

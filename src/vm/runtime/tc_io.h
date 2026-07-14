@@ -2,7 +2,7 @@
  * tc_io.h — TC 统一 I/O 接口
  *
  * 提供 write/read 的共享实现，消除 tc_executor.c 和 tc_aot_rt.c 间的代码重复。
- * 支持格式化输出（%d/%i/%u/%x/%X/%o/%b/%t）和 stdin 输入（十进制整数/bool 文本）。
+ * 支持格式化输出（%d/%i/%u/%x/%X/%o/%b/%t/%f/%e/%E/%g/%G）和 stdin 输入（十进制整数/bool 文本/浮点数）。
  */
 #ifndef TC_IO_H
 #define TC_IO_H

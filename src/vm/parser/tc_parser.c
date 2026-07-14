@@ -3,7 +3,7 @@
  *
  * 消费 tc_tokenize_line 产出的 TcTokenList，按 TC 语言语法规则
  * 将单行 Token 流解析为一条 TcStatement（AST 节点）。
- * 支持 6 种语句：var、let、赋值、write、writeln、read；if 由 tc_parse_if_stmt 处理。
+ * 支持 9 种语句：var、let、赋值、write、writeln、read、if（tc_parse_if_stmt）、label、goto。
  */
 #include "tc_parser.h"
 
@@ -1053,7 +1053,7 @@ static int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_
  *
  * 语法：write/writeln(type [, fmt,] operand)
  *   - type 必选
- *   - fmt 可选（%d/%u/%x/%X/%o/%b）
+ *   - fmt 可选（%d/%i/%u/%x/%X/%o/%b/%t/%f/%e/%E/%g/%G）
  *   - operand 必选（变量或字面量）
  *   额外操作数报 TC_ERR_OPERAND_COUNT
  */

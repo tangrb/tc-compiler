@@ -1,5 +1,5 @@
 /*
- * tc_semantics.c — TC 整数语义运算的实现
+ * tc_semantics.c — TC 整数与浮点语义运算的实现
  *
  * 本模块是 TC-VM 的语义核心，严格遵循 TC 语言标准：
  *   - 有符号 strict 模式：溢出检测，溢出时报 TC_ERR_INTEGER_OVERFLOW
@@ -819,7 +819,7 @@ static int tc_cast_strict(TcType target, const TcValue *source, TcValue *out,
 /*  truncate cast 辅助: 位扩展                                           */
 /* ------------------------------------------------------------------ */
 
-/*
+/**
  * @brief 位扩展：将 src_bits 宽的位模式扩展到 dst_bits
  * @param bits         原始位模式
  * @param src_bits     源位宽

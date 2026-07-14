@@ -2,7 +2,7 @@
  * tc_lexer.c — TC 词法分析器实现
  *
  * 逐行扫描 TC 源码，识别关键字、标识符、多进制整数字面量、
- * 格式说明符（%d/%u/%x/%X/%o/%b）及单字符标点（:=,() 等）。
+ * 格式说明符（%d/%i/%u/%x/%X/%o/%b/%t/%f/%e/%E/%g/%G）及单字符标点（:=,() 等）。
  * 每行产出 TcTokenList（含 TC_TOK_EOF），由 Parser 消费。
  */
 #include "tc_lexer.h"

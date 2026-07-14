@@ -107,7 +107,7 @@ static const TcLabelEntry *tc_exec_resolve_goto_label(const TcSymbolTable *table
     return any;
 }
 
-/*
+/**
  * @brief 查找定义行与名称均匹配的符号（var/let 定义语句写入 slot）
  */
 static const TcSymbol *tc_executor_find_def_symbol(const TcSymbolTable *symbols,
@@ -199,7 +199,7 @@ static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots,
 /* 委托 tc_io.c 处理 stdin 输入 */
 
 /*
- * @brief 执行 read 语句：从 stdin 读取十进制整数并存入目标变量槽
+ * @brief 执行 read 语句：从 stdin 读取十进制整数/浮点数/bool 文本并存入目标变量槽
  * @param io_read  read 语句结构
  * @param slots    运行时变量槽位数组（可写）
  * @param symbols  全局符号表
@@ -404,7 +404,7 @@ static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *sl
     return -1;
 }
 
-/*
+/**
  * 逐语句执行 dispatch。
  * 按 TcStmtKind 分派到对应处理逻辑：
  *   TC_STMT_VAR_DEF   → 求值 RHS（若有），写入 slot
