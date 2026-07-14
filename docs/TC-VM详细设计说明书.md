@@ -3,7 +3,7 @@
 > **版本**：0.0.26  
 > **实现状态**：**已实现 v0.0.26**（对齐 [开发计划](./TC编译器开发计划_v0.0.26.md) 与 [语言标准](./TC语言标准设计说明书.md)；`TC_VM_VERSION` 0.0.26。goto/label 见 §6.1.7/§7.7/§8.6；数据流见 §7.4.3）  
 > **作者**：唐荣兵（yanhuang8923@qq.com）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26（权威）；草案快照见 [TC语言标准设计说明书_0.0.26.md](./TC语言标准设计说明书_0.0.26.md)  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26（权威）  
 > **工程**：[TC-Compiler](../README.md) 之 `src/vm/` 组件  
 > **定位**：TC 源码即高级字节码；**不** lowering 为第二套字节码，经静态分析后直接执行
 
@@ -1692,35 +1692,40 @@ TC-VM 位于 [TC-Compiler](../README.md) 的 `src/vm/`。构建由 CMake 统一�
 
 ```text
 src/vm/
-├── runtime/            # TcValue、TcType、TcDiagnostic、TcWarning、Semantics、Symbol、I/O
-│   ├── tc_types.h      # 所有类型定义、枚举
-│   ├── tc_types.c      # tc_type_*、tc_error_kind_name、tc_format_spec_name
+├── runtime/            # TcValue、TcType、TcDiagnostic、Semantics、Symbol、I/O
+│   ├── tc_types.h / tc_types.c             # 类型、枚举、tc_error_kind_name
 │   ├── tc_diagnostic.h / tc_diagnostic.c   # tc_diagnostic_init/set/print
-│   ├── tc_symbol.h / tc_symbol.c           # tc_symbol_table_*（符号表 CRUD）
-│   ├── tc_warning.h / tc_warning.c         # tc_warning_list_*
-│   ├── tc_semantics.h / tc_semantics.c     # tc_exec_arith、tc_exec_unary、tc_exec_cast、字面量/位模式工具
-│   ├── tc_io.h / tc_io.c                   # tc_io_write_value、tc_io_read_value
-├── lexer/              # tc_tokenize_line（含多进制字面量、u 后缀）
-│   ├── tc_lexer.h
-│   └── tc_lexer.c
-├── parser/             # tc_parse_statement、tc_program_push
-│   ├── tc_parser.h
-│   └── tc_parser.c
-├── analyzer/           # tc_analyze、tc_analyze_statement（两遍分析 + REPL 增量）
-│   ├── tc_analyzer.h
-│   ├── tc_analyzer.c   # Pass1 + Pass2 主逻辑
-│   ├── tc_const_eval.h / tc_const_eval.c   # 编译期常量表达式求值（let 依赖排序、循环检测）
-├── executor/           # tc_execute、tc_execute_statement
-│   ├── tc_executor.h
-│   └── tc_executor.c
-├── driver/             # tc_run_source、tc_run_file、tc_repl_run
-│   ├── tc_driver.h
-│   ├── tc_driver.c     # tc_run_source/tc_run_file（委托 libtc，含 --check 模式）
-│   ├── tc_repl.h
-│   ├── tc_repl.c       # REPL 主循环（含 meta-commands）
-│   ├── tc_version.h    # TC_VM_VERSION
-│   └── main.c          # CLI 入口（getopt 参数解析）
-└── CMakeLists.txt      # tc-vm + check-vm（C99 -Wall -Wextra -pedantic）
+│   ├── tc_symbol.h / tc_symbol.c           # 符号表 / 标签表
+│   ├── tc_warning.h / tc_warning.c         # @deprecated 警告列表空壳（无活跃种类）
+│   ├── tc_stmt_index.h                     # header-only：DFS stmt_index 工具
+│   ├── tc_semantics.h / tc_semantics.c     # 字面量/位模式工具、共享语义入口
+│   ├── tc_sem_int.h / tc_sem_int.c         # 整数算术 / cast
+│   ├── tc_sem_fp.h / tc_sem_fp.c           # 浮点算术 / 比较 / cast
+│   ├── tc_sem_bitwise.h / tc_sem_bitwise.c # 位运算 / 移位
+│   └── tc_io.h / tc_io.c                   # I/O 与格式符
+├── lexer/
+│   ├── tc_lexer.h / tc_lexer.c
+├── parser/
+│   ├── tc_parser.h / tc_parser.c           # 源→program、if/缩进、语句入口
+│   ├── tc_parser_rhs.h / tc_parser_rhs.c   # 16 种 RHS parse
+│   ├── tc_parser_free.h / tc_parser_free.c # AST / program 释放
+│   └── tc_parser_internal.h                # parser 内部共享
+├── analyzer/
+│   ├── tc_analyzer.h / tc_analyzer.c       # tc_analyze、TcTypedProgram 生命周期
+│   ├── tc_analyzer_pass1.h / .c            # Pass1 符号收集
+│   ├── tc_analyzer_pass2.h / .c            # Pass2 类型检查 / 标签 / goto
+│   ├── tc_analyzer_dfa.h / .c              # 未初始化数据流
+│   ├── tc_analyzer_repl.h / .c             # REPL 增量分析
+│   ├── tc_analyzer_internal.h
+│   └── tc_const_eval.h / tc_const_eval.c   # let 编译期求值
+├── executor/
+│   ├── tc_executor.h / tc_executor.c       # 含 goto IP 跳转
+├── driver/
+│   ├── tc_driver.h / tc_driver.c           # 委托 libtc（含 --check）
+│   ├── tc_repl.h / tc_repl.c
+│   ├── tc_version.h                        # TC_VM_VERSION
+│   └── main.c                              # CLI 入口
+└── CMakeLists.txt
 ```
 
 各模块对外接口见 `tc_*.h` 头文件；`tc_types.h` 为全模块共享的数据契约。`tc_driver.c` 通过 libtc（见 [libtc 设计说明书](./libtc设计说明书.md)）完成编译，再调用 `tc_run_typed` 执行。
@@ -2699,6 +2704,7 @@ int tc_parse_if_stmt(TcParserCtx *ctx, const TcLineTokens *lines, size_t *index,
 | **0.0.25-fix** | **2026-07-13** | **P0–P3 修复**：诊断 UAF；no-fenv 浮点 strict 回退；CI macOS 矩阵 |
 | **0.0.26** | **2026-07-14** | **安全与控制流（规范）**：对齐语言标准/开发计划 v0.0.26——§6.1.7 标签表；§7.4.3 数据流未初始化静态错误；§7.7 受限 goto 块路径判定；§8.6 Executor IP 跳转；§11.3 新增 5 错误码并移除未初始化警告；§14.3/§16/附录 A–B 同步 |
 | **0.0.26-impl** | **2026-07-14** | **代码+文档交付**：`TC_VM_VERSION` 0.0.26；M1–M8 实现；主语言标准升版现行；384 VM + 857 unit + 210 AOT |
+| **0.0.26-doc1** | **2026-07-14** | **文档同步**：依赖行移除已删标准快照链接；§12.1 工程布局对齐 parser/semantics/analyzer 模块拆分与 `tc_stmt_index.h` header-only |
 
 ---
 

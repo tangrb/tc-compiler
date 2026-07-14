@@ -2,7 +2,7 @@
 
 > **版本**：0.0.26  
 > **实现状态**：**已实现 v0.0.26**（对齐 [开发计划](./TC编译器开发计划_v0.0.26.md) 与 [语言标准](./TC语言标准设计说明书.md)；`TC_AOT_VERSION` 0.0.26。if codegen 见 §4.6；浮点见 §4.4、§5.2、§6；goto/label 见 §4.7）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26（权威）；草案快照见 [TC语言标准设计说明书_0.0.26.md](./TC语言标准设计说明书_0.0.26.md)  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26（权威）  
 > **工程**：[TC-Compiler](../README.md) 之 `src/aot/` 组件  
 > **定位**：将 TC 源文件提前编译（Ahead-of-Time）为 C99 源码，经系统编译器生成原生可执行文件
 
@@ -91,7 +91,7 @@ add_executable(tc-aot main.c tc_aot_codegen.c)
 target_link_libraries(tc-aot PRIVATE libtc)
 ```
 
-AOT 生成的可执行文件在链接时包含 `tc_aot_rt.c`、`tc_types.c`、`tc_diagnostic.c`、`tc_semantics.c`、`tc_io.c`，与 VM 共享运行时实现。
+AOT 生成的可执行文件在链接时包含 `tc_aot_rt.c`、`tc_types.c`、`tc_diagnostic.c`、`tc_semantics.c`、`tc_sem_int.c` / `tc_sem_fp.c` / `tc_sem_bitwise.c`、`tc_io.c`，与 VM 共享运行时实现。
 
 ---
 
@@ -134,6 +134,9 @@ cc -std=c99 -Wall -Wextra -pedantic \
   "<vm_dir>/runtime/tc_types.c" \
   "<vm_dir>/runtime/tc_diagnostic.c" \
   "<vm_dir>/runtime/tc_semantics.c" \
+  "<vm_dir>/runtime/tc_sem_int.c" \
+  "<vm_dir>/runtime/tc_sem_fp.c" \
+  "<vm_dir>/runtime/tc_sem_bitwise.c" \
   "<vm_dir>/runtime/tc_io.c" \
   -o "<file>.out" && "<file>.out"
 ```
@@ -782,5 +785,6 @@ tc_label_2:                          /* label skip */
 | **0.0.25-fix** | **2026-07-13** | **P0–P3 修复**：诊断 UAF 连带 static/runtime 回归；no-fenv CI 专项 |
 | **0.0.26** | **2026-07-14** | **受限 goto（规范）**：§4.7 原生 C `tc_label_<n>` / `goto`；§1.2/§4.3/§9.6/§10/§11.1/§A.2 对齐 VM 标签表与开发计划 M7；无新 RHS/shim |
 | **0.0.26-impl** | **2026-07-14** | **代码+文档交付**：`TC_AOT_VERSION` 0.0.26；codegen 已实现；差分 210 条；主语言标准升版现行 |
+| **0.0.26-doc1** | **2026-07-14** | **文档同步**：依赖行移除已删语言标准快照链接；§2.2/§3.3 对齐 `tc_sem_{int,fp,bitwise}.c` 链接列表 |
 
 ---

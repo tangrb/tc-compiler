@@ -108,19 +108,19 @@ libtc 是静态库，链接 VM 各模块源文件：
 src/libtc/
 └── tc_lib.c              ← 编排：parse 入口 + compile/run API
 
-src/vm/runtime/           ← 类型、诊断、符号、语义、I/O
-├── tc_types.c
-├── tc_diagnostic.c
-├── tc_symbol.c
-├── tc_warning.c
-├── tc_semantics.c
+src/vm/runtime/
+├── tc_types.c / tc_diagnostic.c / tc_symbol.c
+├── tc_warning.c          ← @deprecated 空壳（无活跃警告）
+├── tc_semantics.c + tc_sem_int.c / tc_sem_fp.c / tc_sem_bitwise.c
 └── tc_io.c
+（tc_stmt_index.h 为 header-only，无独立 .c）
 
 src/vm/lexer/tc_lexer.c
-src/vm/parser/tc_parser.c
+src/vm/parser/
+├── tc_parser.c / tc_parser_rhs.c / tc_parser_free.c
 src/vm/analyzer/
-├── tc_analyzer.c
-└── tc_const_eval.c
+├── tc_analyzer.c / tc_analyzer_pass1.c / tc_analyzer_pass2.c
+├── tc_analyzer_dfa.c / tc_analyzer_repl.c / tc_const_eval.c
 src/vm/executor/tc_executor.c
 ```
 
@@ -334,17 +334,17 @@ Analyzer 通过后，`TcTypedProgram` 是 VM 与 AOT 的**唯一程序表示**�
 
 ```c
 typedef struct {
-    TcProgram program;        /* TcStatement[]，可含 TC_STMT_IF 树 */
-    TcSymbolTable symbols;    /* Pass1 符号表：含 scope_level、slot */
-    TcWarningList warnings;   /* Pass2 未初始化变量等警告 */
+    TcProgram program;        /* TcStatement[]，可含 TC_STMT_IF / LABEL / GOTO */
+    TcSymbolTable symbols;    /* Pass1 符号表：含 scope_level、slot、标签 */
+    TcWarningList warnings;   /* 预留；v0.0.26 起无活跃警告种类 */
 } TcTypedProgram;
 ```
 
 | 字段 | 用途 | 消费方 |
 |------|------|--------|
 | `program` | 语句 AST | `tc_execute`、`tc_aot_emit_c` |
-| `symbols` | 变量/常量槽位、`const_value`、作用域 | Executor 查 slot；AOT 生成 `slots[N]` |
-| `warnings` | 编译期警告 | 调用方打印；不阻止执行 |
+| `symbols` | 变量/常量槽位、`const_value`、作用域、标签 | Executor 查 slot；AOT 生成 `slots[N]` / 标签 |
+| `warnings` | 编译期警告列表（空壳） | 调用方可打印；当前恒为空；未初始化已升为 `diag` 错误 |
 
 **v0.0.24 符号表**：块内 `var`/`let` 在 Pass1 分配全局唯一 `slot`（统一 slot 池）；`scope_level` + `pop_scope` 控制可见性。`symbols.count` 决定 AOT `slots[]` 长度（含互斥分支上的局部变量）。
 
@@ -510,7 +510,7 @@ tc-repl (tc_repl.c)
 | REPL 拒绝 if | 无 | `tc_analyze_statement` @ analyzer |
 | DIAG 错误码分离 | 无（`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`） | `tc_types.h`、全线 .c 模块 |
 
-**开发顺序**（与 [TC-0.0.24开发计划.md](./TC-0.0.24开发计划.md) 对齐）：types → symbol → lexer → **`tc_lib.c` parse** → analyzer → executor → AOT。
+**开发顺序**（v0.0.24 历史路径）：types → symbol → lexer → **`tc_lib.c` parse** → analyzer → executor → AOT。
 
 **知识图谱**：`tc_parse_source` 分发点登记在 `@knowledge-graph` §TcStmtKind（文件：`libtc/tc_lib.c`）。
 
@@ -577,6 +577,7 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);  /*
 | **0.0.25** | **2026-07-13** | **浮点全链路**：`tc_types.h` 扩展 `FloatType`/`FloatMode` 枚举、`TcRhsKind` 新增 4 个浮点变体；`tc_semantics.h/c` 新增 `exec_fp_arith`/`exec_fp_unary`/`exec_fp_compare`/`exec_fp_cast`；`tc_io.h/c` 扩展浮点格式符与输入解析；`tc_lib.c` 编译流水线无变化（Parse/Analyze 层已吸收浮点 AST 变体）；版本号同步更新 |
 | **0.0.25-doc1** | **2026-07-13** | **实现设计文档评审修正**：§3.1 补充 v0.0.25 浮点错误码；§7 合并为两遍扫描现状并标注 v0.0.23 历史；新增 §14 v0.0.25 变更影响表 |
 | **0.0.26** | **2026-07-14** | **goto/未初始化**：依赖语言标准升版现行；新增 §15 变更影响（libtc API 无变更）；版本号与 `TC_VM_VERSION` 0.0.26 对齐 |
+| **0.0.26-doc1** | **2026-07-14** | **文档同步**：§2.2 依赖树对齐模块拆分；§8 `warnings` 改为预留空壳；移除已删 `TC-0.0.24开发计划.md` 链接 |
 
 ---
 

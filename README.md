@@ -2,7 +2,7 @@
 
 TC 语言编译器（C99）。当前包含 **libtc**（编译/执行静态库）、**TC-VM**（直接执行引擎）、**TC-AOT**（ahead-of-time 编译，将 `.tc` 转译为 C99 源码）。
 
-版本：**v0.0.25**（`src/vm/driver/tc_version.h`）
+版本：**v0.0.26**（`src/vm/driver/tc_version.h`）
 
 ## 目录结构
 
@@ -14,7 +14,7 @@ src/
 └── aot/               TC-AOT 源码（codegen / rt shim / CLI）
 tests/
     ├── valid/             一致性测试（含 bool/let/I/O/format/if 等特性）
-    ├── errors/            错误测试（static 79 个 + runtime 43 个）
+    ├── errors/            错误测试（static 89 个 + runtime 43 个）
     ├── unit/              C 单元测试（lexer / parser / semantics / types / io / bitwise / shift / symbol / warning / analyzer / stmt-index）
     └── stress/            压力测试
 scripts/
@@ -176,11 +176,11 @@ REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置�
 
 | 文档 | 说明 |
 |------|------|
-| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 语言语法与语义权威定义（v0.0.25） |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v0.0.25） |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v0.0.25） |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | AOT 代码生成与 shim 层（v0.0.25） |
-| [libtc 设计说明书](docs/libtc设计说明书.md) | libtc 静态库的设计架构与错误契约（v0.0.25） |
+| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 语言语法与语义权威定义（v0.0.26） |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v0.0.26） |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v0.0.26） |
+| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | AOT 代码生成与 shim 层（v0.0.26） |
+| [libtc 设计说明书](docs/libtc设计说明书.md) | libtc 静态库的设计架构与错误契约（v0.0.26） |
 | [libtc 嵌入 API](docs/libtc-api.md) | libtc 静态库的嵌入编程接口速查 |
 
 实现行为以语言标准为准；VM / AOT 详细设计文档规定各后端的实现架构，不重复定义语言语义。

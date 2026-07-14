@@ -1,9 +1,9 @@
 # TC-VM 命令行参考
 
-> **版本**：0.0.25（草案）  
+> **版本**：0.0.26  
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.25  
-> **工程**：[TC-Compiler](../README.md) 之 `tc-vm` 可执行文件  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26  
+> **工程**：[TC-Compiler](../README.md) 之 `tc-vm` 可执行文件（`TC_VM_VERSION` 0.0.26）  
 > **定位**：`tc-vm` 命令行用法、退出码与诊断输出格式
 
 ---
@@ -28,6 +28,8 @@
 `tc-vm` 是 TC 语言的直接执行引擎入口：读取 `.tc` 源文件，经词法、语法、静态分析后执行，或将源文件仅做静态检查。
 
 程序可通过 `write` / `writeln` 向 stdout 输出数据（支持 `%f`/`%e`/`%E`/`%g`/`%G` 浮点格式符），通过 `read` 从 stdin 读取数据（支持 `float32`/`float64` 输入）。
+
+v0.0.26 起：受限 `goto`/`label`；读取未初始化变量为**静态错误**（不再发出编译警告）。文件模式支持 `if`/`goto`；REPL **拒绝**多行控制流（见 VM 详设 §18.8）。
 
 语言语义以《[TC 语言标准设计说明书](./TC语言标准设计说明书.md)》为准；内部架构见《[TC-VM 详细设计说明书](./TC-VM详细设计说明书.md)》。
 
@@ -135,8 +137,8 @@ tc-vm --check <file.tc>
 
 适用于 CI 或编辑器集成中快速验证语法与类型，无需触发运行时错误（如除零）。
 
-- 静态检查通过：无标准输出，退出码 **0**（若有编译警告，警告输出到 stderr，仍退出 0）
-- 静态检查失败：向 **stderr** 输出一条诊断，退出码 **1**
+- 静态检查通过：无标准输出，退出码 **0**（v0.0.26 起当前无活跃编译警告种类；`TcWarningList` 为空壳预留）
+- 静态检查失败：向 **stderr** 输出一条诊断，退出码 **1**（含未初始化变量、非法 `goto` 等静态错误）
 
 ### 4.3 交互式 REPL 模式
 
@@ -180,11 +182,11 @@ tc-vm -i
 | `0` | 成功（执行完成，或 `--check` 下静态分析通过） |
 | `1` | 失败（参数错误、I/O 错误、静态错误、运行时错误） |
 
-v0.0.21 不区分不同失败原因的退出码；具体原因见 stderr 诊断中的错误类型与消息。
+不区分不同失败原因的退出码；具体原因见 stderr 诊断中的错误类型与消息（`tc_error_kind_name()`）。
 
 ---
 
-## 6. 诊断与警告输出
+## 6. 诊断输出
 
 ### 6.1 错误诊断格式
 
@@ -218,21 +220,11 @@ v0.0.21 不区分不同失败原因的退出码；具体原因见 stderr 诊断�
 - **列号**：1-based 字符位置（仅部分错误提供）；有列号时另附 `^` 指示符
 - **消息**：英文简短说明
 
-### 6.2 编译警告格式
+### 6.2 编译警告（预留）
 
-静态分析产生的警告**不阻止执行**，在错误诊断之前输出到 stderr：
+`TcWarningList` 与 `warning: …` 打印路径仍保留，供未来警告种类使用。
 
-```text
-warning: <消息> (line <行号>)
-```
-
-示例：
-
-```text
-warning: use of possibly uninitialized variable 'a' (line 2)
-```
-
-`--check` 模式下警告同样输出；测试用例 `no_warn_after_assign.tc` 验证赋值后不再警告。
+v0.0.26 起：原「读取未初始化变量」警告已升级为静态错误 `UninitializedVariable`（`TC_ERR_UNINITIALIZED_VARIABLE`），**当前无活跃警告种类**；正常编译/执行路径下不应再出现未初始化相关 `warning:` 行。
 
 ### 6.3 文件 I/O 错误
 
@@ -247,38 +239,50 @@ warning: use of possibly uninitialized variable 'a' (line 2)
 
 ## 7. 错误类型
 
-`ErrorKind` 与《TC 语言标准设计说明书》§11 对齐；`SyntaxError` 为 TC-VM 扩展（词法/语法/文件 I/O）。
+`ErrorKind` 字符串与 `tc_error_kind_name()` / 语言标准 §11.4 对齐；`SyntaxError` 为实现扩展（词法/语法/文件 I/O）。
 
-| ErrorKind | 对应语言标准 | 典型阶段 |
-|-----------|--------------|----------|
-| `SyntaxError` | （VM 扩展） | 词法 / 语法 / 文件 I/O |
-| `OutOfMemoryError` | （v0.0.24 新增） | 内存分配失败 |
-| `UndefinedVariable` | 未定义标识符错误 | 静态分析 |
-| `DuplicateDefinition` | 重复定义错误 | 静态分析 |
-| `TypeMismatch` | 类型错误 | 静态分析 |
-| `LiteralOutOfRange` | 字面量范围错误 | 词法 / 静态分析 |
+| ErrorKind | 说明 | 典型阶段 |
+|-----------|------|----------|
+| `SyntaxError` | 词法 / 语法 / 部分文件 I/O | 词法 / 语法 |
+| `OutOfMemory` | 内存分配失败 | 任意 |
+| `UndefinedVariable` | 未定义标识符 | 静态分析 |
+| `DuplicateDefinition` | 重复定义 | 静态分析 |
+| `TypeMismatch` | 类型不匹配 | 静态分析 |
+| `LiteralOutOfRange` | 字面量超出类型范围 | 词法 / 静态分析 |
 | `LiteralTypeError` | 字面量类型错误 | 静态分析 |
-| `OverflowModeError` | 溢出模式错误 | 静态分析 |
-| `KeywordError` | 关键字错误 | 静态分析 |
-| `ConstantAssignmentError` | 常量赋值错误 | 静态分析 |
-| `ConstantExpressionError` | 常量表达式错误 | 静态分析 |
-| `ConstantCircularDependency` | 常量循环依赖错误 | 静态分析 |
-| `ConstantOverflow` | 常量溢出错误 | 静态分析 |
-| `ConstantDivisionByZero` | 常量除零错误 | 静态分析 |
-| `ConstantCastOverflow` | 常量转换溢出错误 | 静态分析 |
+| `OverflowModeError` | 溢出模式关键字非法 | 静态分析 |
+| `KeywordError` | 关键字误用 | 静态分析 |
+| `ConstantAssignmentError` | 对 `let` 赋值 | 静态分析 |
+| `ConstantExpressionError` | 非常量表达式用于 `let` | 静态分析 |
+| `ConstantCircularDependency` | `let` 循环依赖 | 静态分析 |
+| `ConstantOverflow` | 常量算术溢出 | 静态分析 |
+| `ConstantDivisionByZero` | 常量除零 | 静态分析 |
+| `ConstantCastOverflow` | 常量转换溢出 | 静态分析 |
 | `ComparisonTypeMismatch` | 比较运算类型不匹配 | 静态分析 |
-| `FormatStringError` | 格式字符串错误 | 静态分析 |
-| `FormatTypeMismatch` | 格式类型不匹配 | 静态分析 |
+| `FormatStringError` | 格式字符串非法 | 静态分析 |
+| `FormatTypeMismatch` | 格式符与操作数类型不匹配 | 静态分析 |
 | `OperandCountError` | 操作数数量错误 | 静态分析 |
-| `DivisionByZero` | 除零错误（含浮点严格模式） | 执行 |
-| `IntegerOverflow` | 整数溢出错误 | 执行 |
-| **`FloatOverflow`** (v0.0.25) | 浮点溢出错误（严格模式上溢） | 执行 |
-| **`FloatUnderflow`** (v0.0.25) | 浮点下溢错误（严格模式） | 执行 |
-| **`FloatInvalidOperation`** (v0.0.25) | 浮点无效操作错误（NaN 产生） | 执行 |
-| **`FloatCastOverflow`** (v0.0.25) | 浮点转换溢出（浮点↔整数超范围） | 执行 |
-| `CastOverflow` | 转换溢出错误 | 执行 |
-| **`ModeMismatch`** (v0.0.25) | 模式不匹配（ieee 用于整数等） | 静态分析 |
-| `IOError` | I/O 错误 | 执行（read 输入失败） |
+| `IndentMixedError` | 空格与制表符混用 (v0.0.24) | 语法 |
+| `IndentInsufficientError` | 块内缩进不足 (v0.0.24) | 语法 |
+| `IndentElseEndError` | `else`/`end` 缩进与 `if` 不一致 (v0.0.24) | 语法 |
+| `MissingEndError` | `if` 缺少 `end` (v0.0.24) | 语法 |
+| `ElsePositionError` | `else` 位置错误 (v0.0.24) | 语法 |
+| `ConditionTypeError` | `if` 条件非 `bool` (v0.0.24) | 静态分析 |
+| `CrossBlockReferenceError` | 跨块引用局部变量 (v0.0.24) | 静态分析 |
+| **`UninitializedVariable`** (v0.0.26) | 存在读取未初始化变量的可达路径 | 静态分析 |
+| **`LabelNotFound`** (v0.0.26) | `goto` 目标标签未定义 | 静态分析 |
+| **`DuplicateLabel`** (v0.0.26) | 同作用域重复定义标签 | 静态分析 |
+| **`JumpIntoBlockError`** (v0.0.26) | `goto` 跳入内层子块 | 静态分析 |
+| **`JumpToSiblingBlockError`** (v0.0.26) | `goto` 跳入兄弟分支 | 静态分析 |
+| `DivisionByZero` | 除零（含浮点严格模式） | 执行 |
+| `IntegerOverflow` | 整数溢出 | 执行 |
+| `FloatOverflow` | 浮点上溢（严格模式）(v0.0.25) | 执行 |
+| `FloatUnderflow` | 浮点下溢（严格模式）(v0.0.25) | 执行 |
+| `FloatInvalidOperation` | 浮点无效操作（严格模式）(v0.0.25) | 执行 |
+| `FloatCastOverflow` | 浮点↔整数转换超范围 (v0.0.25) | 执行 |
+| `CastOverflow` | 整数转换溢出 | 执行 |
+| `ModeMismatch` | `ieee`/`wrap` 用于非法上下文 (v0.0.25) | 静态分析 |
+| `IOError` | `read` 输入失败 | 执行 |
 
 完整触发条件见语言标准 §11；实现架构见《TC-VM 详细设计说明书》§11。
 
@@ -409,7 +413,7 @@ $ echo $?
 
 | 用例目录 | 调用方式 | 预期 |
 |----------|----------|------|
-| `tests/valid/` | `tc-vm <file>` | 退出码 0；部分用例校验 stdout 或警告 |
+| `tests/valid/` | `tc-vm <file>` | 退出码 0；部分用例校验 stdout |
 | `tests/errors/static/` | `tc-vm <file>` | 退出码非 0；诊断含 `file:line: error:` |
 | `tests/errors/runtime/` | `tc-vm <file>` | 退出码非 0；诊断含 `file:line: error:` |
 | `tests/stress/` | `tc-vm <file>` | 退出码 0；stdout 期望 |
@@ -433,5 +437,6 @@ $ echo $?
 | **0.0.18** | **2026-07-03** | **版本号对齐语言标准 v0.0.18**；`TC_VM_VERSION` 集中于 `tc_version.h` |
 | **0.0.21** | **2026-07-04** | **与语言标准 v0.0.21 对齐**：错误类型表新增 `ConstantCircularDependency`、`ConstantOverflow`、`ConstantDivisionByZero`、`ConstantCastOverflow`、`ComparisonTypeMismatch`、`FormatStringError`、`FormatTypeMismatch`、`OperandCountError`；版本、依赖更新至 v0.0.21 |
 | **0.0.25** | **2026-07-13** | **浮点支持**：错误类型表新增 `FloatOverflow`/`FloatUnderflow`/`FloatInvalidOperation`/`FloatCastOverflow`/`ModeMismatch`；概述补充浮点 I/O 与格式符说明；新增 §8.10–§8.11 浮点示例；版本、依赖更新至 v0.0.25 |
+| **0.0.26** | **2026-07-14** | **对齐语言标准 v0.0.26**：版本/依赖升版；§6.2 未初始化改为静态错误说明；§7 补齐 if/缩进与 goto/label/未初始化错误码；概述补充控制流限制；修正 `OutOfMemory` 名称与测试约定中的警告表述 |
 
 ---
