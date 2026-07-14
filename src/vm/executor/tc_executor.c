@@ -4,10 +4,11 @@
  * 采用「变量槽位」模型：分配 symbols.count 个 TcValue 槽，按 TcSymbol.slot 索引。
  * 执行流程：
  *   1. 分配 slots[] 并填充未初始化哨兵（tc_slots_init_uninitialized）
- *   2. 顺序遍历语句列表，对每条语句 dispatch 到对应的处理逻辑
+ *   2. 按 DFS stmt_index 调度：块内顺序执行，goto 改写 index.next 后寻的
  *   3. var/let 定义：求值 RHS → 写入新槽；赋值：求值 RHS → 覆盖已有槽
  *   4. write/writeln：格式化输出到 stdout；read：从 stdin 解析十进制整数
- *   5. if-then-else：求值条件 → 递归执行选中分支（统一 slot 池，不 pop slot）
+ *   5. if-then-else：求值条件 → 执行选中分支；goto 可跳出而不经 end
+ *   6. label 零成本；goto → index.next = label.stmt_index + 1（§8.6）
  *
  * 算术/cast 语义委托给 tc_semantics.c，保证与 AOT 行为一致。
  */
@@ -27,10 +28,84 @@
 #include <stdlib.h>
 #include <string.h>
 
-/** 运行时 DFS 语句序号（与 Analyzer Pass2 一致，用于块内符号解析） */
+/** 块路径深度上限（与分析器同构编码：then=if*2，else=if*2+1） */
+#define TC_EXEC_BLOCK_DEPTH_MAX 64
+
+typedef struct {
+    int path[TC_EXEC_BLOCK_DEPTH_MAX];
+    int depth;
+} TcExecBlockPath;
+
+/** 运行时 DFS 语句序号 + 块路径（goto 同名标签解析） */
 typedef struct {
     TcStmtIndexCursor index;
+    TcExecBlockPath block_path;
 } TcExecuteCtx;
+
+static int tc_exec_paths_equal_prefix(const int *a, const int *b, int depth) {
+    int i = 0;
+
+    for (i = 0; i < depth; i++) {
+        if (a[i] != b[i]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int tc_exec_block_path_push(TcExecBlockPath *bp, int block_id, TcDiagnostic *diag,
+                                   int line) {
+    if (bp->depth >= TC_EXEC_BLOCK_DEPTH_MAX) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                          "internal error: block path depth exceeded");
+        return -1;
+    }
+    bp->path[bp->depth++] = block_id;
+    return 0;
+}
+
+static void tc_exec_block_path_pop(TcExecBlockPath *bp) {
+    if (bp->depth > 0) {
+        bp->depth--;
+    }
+}
+
+/**
+ * 解析 goto 目标：优先同路径，其次最近祖先（与 Analyzer 一致）。
+ */
+static const TcLabelEntry *tc_exec_resolve_goto_label(const TcSymbolTable *table, const char *name,
+                                                      const TcExecBlockPath *goto_path) {
+    const TcLabelEntry *best_same = NULL;
+    const TcLabelEntry *best_ancestor = NULL;
+    const TcLabelEntry *any = NULL;
+    size_t i = 0;
+
+    for (i = 0; i < table->label_count; i++) {
+        const TcLabelEntry *entry = &table->labels[i];
+
+        if (strcmp(entry->name, name) != 0) {
+            continue;
+        }
+        any = entry;
+        if (entry->block_depth == goto_path->depth &&
+            tc_exec_paths_equal_prefix(entry->block_path, goto_path->path, entry->block_depth)) {
+            best_same = entry;
+        } else if (entry->block_depth < goto_path->depth &&
+                   tc_exec_paths_equal_prefix(entry->block_path, goto_path->path,
+                                              entry->block_depth)) {
+            if (!best_ancestor || entry->block_depth > best_ancestor->block_depth) {
+                best_ancestor = entry;
+            }
+        }
+    }
+    if (best_same) {
+        return best_same;
+    }
+    if (best_ancestor) {
+        return best_ancestor;
+    }
+    return any;
+}
 
 /*
  * @brief 查找定义行与名称均匹配的符号（var/let 定义语句写入 slot）
@@ -337,7 +412,9 @@ static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *sl
  *   TC_STMT_ASSIGN    → 求值 RHS，覆盖 slot
  *   TC_STMT_WRITE/_WRITELN → 委托 tc_io_write_value
  *   TC_STMT_READ      → 委托 tc_io_read_value
- *   TC_STMT_IF        → 条件求值 → 递归执行 then/else 分支
+ *   TC_STMT_IF        → 条件求值 → 执行 then/else；支持 goto 寻的/跳出
+ *   TC_STMT_LABEL_DEF → 零成本（仅消耗 stmt_index）
+ *   TC_STMT_GOTO      → index.next = label.stmt_index + 1
  *
  * 语义运算（算术/cast/比较/逻辑/位运算/移位）统一委托 tc_semantics.c，
  * I/O 统一委托 tc_io.c，保证 VM 与 AOT 行为一致。
@@ -346,43 +423,152 @@ static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *sl
 /*  语句执行入口                                                        */
 /* ------------------------------------------------------------------ */
 
-static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
-                                     const TcSymbolTable *symbols, TcExecuteCtx *ctx,
-                                     TcDiagnostic *diag) {
-    if (stmt->kind == TC_STMT_IF) {
-        const TcIfStmt *if_stmt = &stmt->u.if_stmt;
+static int tc_execute_statement_at(const TcStatement *stmt, int stmt_start, TcValue *slots,
+                                   const TcSymbolTable *symbols, TcExecuteCtx *ctx,
+                                   TcDiagnostic *diag);
+
+/**
+ * 在 [block_start, block_end) 内按 stmt_index 调度语句；goto 改写 next 后寻的。
+ * 若跳到块外，保留 index.next 并返回 0，由上层继续处理。
+ */
+static int tc_execute_block(const TcStatement *items, size_t count, int block_start,
+                            int block_end, TcValue *slots, const TcSymbolTable *symbols,
+                            TcExecuteCtx *ctx, TcDiagnostic *diag) {
+    size_t i = 0;
+    int stmt_start = block_start;
+
+    while (i < count) {
+        int span = tc_stmt_subtree_index_count(&items[i]);
+        int stmt_end = stmt_start + span;
+
+        if (ctx->index.next < block_start || ctx->index.next >= block_end) {
+            return 0;
+        }
+        if (ctx->index.next >= stmt_end) {
+            stmt_start = stmt_end;
+            i++;
+            continue;
+        }
+        /* next 落在本语句子树内（普通入口 next==stmt_start，或寻的进入 if） */
+        if (tc_execute_statement_at(&items[i], stmt_start, slots, symbols, ctx, diag) != 0) {
+            return -1;
+        }
+        if (ctx->index.next < block_start || ctx->index.next >= block_end) {
+            return 0;
+        }
+        if (ctx->index.next != stmt_end) {
+            /* goto 在块内跳转：从头寻的到目标序号 */
+            i = 0;
+            stmt_start = block_start;
+            continue;
+        }
+        i++;
+        stmt_start = stmt_end;
+    }
+    return 0;
+}
+
+static int tc_execute_if_at(const TcStatement *stmt, int if_index, int seeking, TcValue *slots,
+                            const TcSymbolTable *symbols, TcExecuteCtx *ctx,
+                            TcDiagnostic *diag) {
+    const TcIfStmt *if_stmt = &stmt->u.if_stmt;
+    int then_start = if_index + 1;
+    int then_span = tc_stmt_block_index_span(if_stmt->then_body, if_stmt->then_count);
+    int else_start = then_start + then_span;
+    int else_span = tc_stmt_block_index_span(if_stmt->else_body, if_stmt->else_count);
+    int if_end = else_start + else_span;
+    int run_then = 0;
+
+    if (!seeking) {
         TcValue cond_value;
-        const TcStatement *body = NULL;
-        size_t body_count = 0;
-        size_t i = 0;
-        int cond_true = 0;
+        int taken = tc_stmt_index_take(&ctx->index);
 
-        int stmt_index = tc_stmt_index_take(&ctx->index);
-
-        if (tc_eval_rhs(&if_stmt->condition, TC_BOOL, slots, symbols, stmt_index, &cond_value,
+        (void)taken;
+        if (tc_eval_rhs(&if_stmt->condition, TC_BOOL, slots, symbols, if_index, &cond_value,
                         diag, if_stmt->line) != 0) {
             return -1;
         }
-        cond_true = (cond_value.bits != 0);
-        if (cond_true) {
-            body = if_stmt->then_body;
-            body_count = if_stmt->then_count;
+        if (cond_value.bits != 0) {
+            run_then = 1;
         } else if (if_stmt->else_count > 0) {
             tc_stmt_index_skip_block(&ctx->index, if_stmt->then_body, if_stmt->then_count);
-            body = if_stmt->else_body;
-            body_count = if_stmt->else_count;
+            run_then = 0;
         } else {
             tc_stmt_index_skip_block(&ctx->index, if_stmt->then_body, if_stmt->then_count);
             return 0;
         }
-        for (i = 0; i < body_count; i++) {
-            if (tc_execute_statement_impl(&body[i], slots, symbols, ctx, diag) != 0) {
+    } else {
+        /* 寻的进入 if 子树：按 next 落点选择 then/else，不再求值条件 */
+        if (ctx->index.next < else_start) {
+            run_then = 1;
+        } else if (if_stmt->else_count > 0 && ctx->index.next < if_end) {
+            run_then = 0;
+        } else {
+            ctx->index.next = if_end;
+            return 0;
+        }
+    }
+
+    if (run_then) {
+        if (tc_exec_block_path_push(&ctx->block_path, if_index * 2, diag, if_stmt->line) != 0) {
+            return -1;
+        }
+        if (if_stmt->then_count > 0) {
+            if (tc_execute_block(if_stmt->then_body, if_stmt->then_count, then_start, else_start,
+                                 slots, symbols, ctx, diag) != 0) {
+                tc_exec_block_path_pop(&ctx->block_path);
                 return -1;
             }
         }
-        if (cond_true && if_stmt->else_count > 0) {
-            tc_stmt_index_skip_block(&ctx->index, if_stmt->else_body, if_stmt->else_count);
+        tc_exec_block_path_pop(&ctx->block_path);
+        if (ctx->index.next == else_start) {
+            /* then 正常结束：跳过 else */
+            ctx->index.next = if_end;
         }
+        return 0;
+    }
+
+    if (tc_exec_block_path_push(&ctx->block_path, if_index * 2 + 1, diag, if_stmt->line) != 0) {
+        return -1;
+    }
+    if (tc_execute_block(if_stmt->else_body, if_stmt->else_count, else_start, if_end, slots,
+                         symbols, ctx, diag) != 0) {
+        tc_exec_block_path_pop(&ctx->block_path);
+        return -1;
+    }
+    tc_exec_block_path_pop(&ctx->block_path);
+    return 0;
+}
+
+static int tc_execute_statement_at(const TcStatement *stmt, int stmt_start, TcValue *slots,
+                                   const TcSymbolTable *symbols, TcExecuteCtx *ctx,
+                                   TcDiagnostic *diag) {
+    if (stmt->kind == TC_STMT_IF) {
+        int seeking = (ctx->index.next != stmt_start);
+
+        return tc_execute_if_at(stmt, stmt_start, seeking, slots, symbols, ctx, diag);
+    }
+
+    if (stmt->kind == TC_STMT_LABEL_DEF) {
+        tc_stmt_index_take(&ctx->index);
+        return 0;
+    }
+
+    if (stmt->kind == TC_STMT_GOTO) {
+        const TcGoto *goto_stmt = &stmt->u.goto_stmt;
+        const TcLabelEntry *entry = NULL;
+        char msg[128];
+
+        tc_stmt_index_take(&ctx->index);
+        entry = tc_exec_resolve_goto_label(symbols, goto_stmt->target, &ctx->block_path);
+        if (!entry) {
+            (void)snprintf(msg, sizeof(msg), "internal error: label '%s' not resolved",
+                           goto_stmt->target);
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, goto_stmt->line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        /* 跳到标签之后的下一条（§8.6） */
+        ctx->index.next = entry->stmt_index + 1;
         return 0;
     }
 
@@ -457,9 +643,11 @@ static int tc_execute_statement_impl(const TcStatement *stmt, TcValue *slots,
 int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbolTable *symbols,
                          TcDiagnostic *diag) {
     TcExecuteCtx ctx;
+    int span = tc_stmt_subtree_index_count(stmt);
 
+    memset(&ctx, 0, sizeof(ctx));
     tc_stmt_index_reset(&ctx.index);
-    return tc_execute_statement_impl(stmt, slots, symbols, &ctx, diag);
+    return tc_execute_block(stmt, 1, 0, span, slots, symbols, &ctx, diag);
 }
 
 /* ------------------------------------------------------------------ */
@@ -468,26 +656,26 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
 
 int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
     TcValue *slots = NULL;
-    size_t i = 0;
+    TcExecuteCtx ctx;
+    int total_span = 0;
 
     if (program->symbols.count > 0) {
         slots = (TcValue *)malloc(program->symbols.count * sizeof(TcValue));
         if (!slots) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
             return -1;
         }
         tc_slots_init_uninitialized(slots, program->symbols.count);
     }
 
-    TcExecuteCtx ctx;
-
+    memset(&ctx, 0, sizeof(ctx));
     tc_stmt_index_reset(&ctx.index);
-    for (i = 0; i < program->program.count; i++) {
-        const TcStatement *stmt = &program->program.items[i];
-        if (tc_execute_statement_impl(stmt, slots, &program->symbols, &ctx, diag) != 0) {
-            free(slots);
-            return -1;
-        }
+    total_span = tc_stmt_block_index_span(program->program.items, program->program.count);
+    if (tc_execute_block(program->program.items, program->program.count, 0, total_span, slots,
+                         &program->symbols, &ctx, diag) != 0) {
+        free(slots);
+        return -1;
     }
 
     free(slots);

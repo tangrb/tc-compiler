@@ -1,0 +1,3 @@
+; 期望：duplicate label 'dup'
+label dup:
+label dup:

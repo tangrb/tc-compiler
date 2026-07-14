@@ -1,0 +1,4 @@
+; 字面量 false 短路，右侧未初始化变量不被检查
+var uninit: bool
+var result: bool = and(bool, false, uninit)
+writeln(bool, %t, result)

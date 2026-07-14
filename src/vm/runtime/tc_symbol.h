@@ -101,4 +101,29 @@ void tc_symbol_table_pop_last(TcSymbolTable *table);
 /** 按 name 查找符号（可变，内层作用域优先），用于修改符号字段（如 const_value） */
 TcSymbol *tc_symbol_table_find_mut(TcSymbolTable *table, const char *name);
 
+/**
+ * 添加标签。
+ * @param block_path  块路径（长度 block_depth）；NULL 表示仅按 depth 查重（Pass1）
+ * @param block_depth 路径深度；Pass1 传当前作用域层级
+ * 同作用域重名 → TC_ERR_DUPLICATE_LABEL；不同块路径允许同名。
+ * @return 成功 0；重复标签或 OOM 返回 -1
+ */
+int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index,
+                              int line, const int *block_path, int block_depth,
+                              TcDiagnostic *diag);
+
+/**
+ * 自表尾向前按名查找标签（不区分块；跳转解析见 Analyzer）。
+ * @return TcLabelEntry* 或 NULL（未找到）
+ */
+const TcLabelEntry *tc_symbol_table_find_label(const TcSymbolTable *table, const char *name);
+
+/**
+ * 移除当前块深度内的所有标签（作用域退出时由 pop_scope 自动调用）。
+ */
+void tc_symbol_table_pop_labels(TcSymbolTable *table);
+
+/** 清空全部标签（Pass2 重新收集前调用） */
+void tc_symbol_table_clear_labels(TcSymbolTable *table);
+
 #endif

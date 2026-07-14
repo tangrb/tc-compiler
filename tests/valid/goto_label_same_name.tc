@@ -1,0 +1,10 @@
+; 不同块同名标签（then/else 互斥作用域）
+var result: int32 = 0
+if eq(int32, 1, 0) then
+    label L:
+    result = 10
+else
+    label L:
+    result = 20
+end
+writeln(int32, %d, result)

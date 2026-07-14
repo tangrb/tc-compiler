@@ -451,10 +451,7 @@ run_expect_stdout "$ROOT/tests/valid/format_hex_bin.tc" "ff
 11111111
 "
 
-run_expect_ok_warn "$ROOT/tests/valid/uninitialized.tc" "use of possibly uninitialized variable 'a'"
 run_expect_ok_no_warn "$ROOT/tests/valid/assign_uninit_var_valid.tc" "uninitialized"
-run_expect_stdout "$ROOT/tests/valid/uninit_slot_value.tc" "-16843010
-"
 run_expect_ok_no_warn "$ROOT/tests/valid/no_warn_after_assign.tc"
 run_expect_check_no_warn "$ROOT/tests/valid/no_warn_after_read.tc"
 run_with_stdin "$ROOT/tests/valid/read_write.tc" "42
@@ -569,6 +566,30 @@ true
 run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
+
+# --- v0.0.26: goto / label execution ---
+
+run_expect_stdout "$ROOT/tests/valid/goto_simple.tc" "10
+"
+run_expect_stdout "$ROOT/tests/valid/goto_forward.tc" "10
+"
+run_expect_stdout "$ROOT/tests/valid/goto_out_of_if.tc" "10
+"
+run_expect_stdout "$ROOT/tests/valid/goto_nested_out.tc" "99
+"
+run_expect_stdout "$ROOT/tests/valid/goto_label_same_name.tc" "20
+"
+run_expect_stdout "$ROOT/tests/valid/uninit_both_paths.tc" "11
+"
+run_expect_stdout "$ROOT/tests/valid/uninit_shortcircuit.tc" "false
+"
+run_expect_check_ok "$ROOT/tests/valid/goto_simple.tc"
+run_expect_check_ok "$ROOT/tests/valid/goto_forward.tc"
+run_expect_check_ok "$ROOT/tests/valid/goto_out_of_if.tc"
+run_expect_check_ok "$ROOT/tests/valid/goto_nested_out.tc"
+run_expect_check_ok "$ROOT/tests/valid/goto_label_same_name.tc"
+run_expect_check_ok "$ROOT/tests/valid/uninit_both_paths.tc"
+run_expect_check_ok "$ROOT/tests/valid/uninit_shortcircuit.tc"
 
 # --- v0.0.24: if-then-else control flow ---
 
@@ -863,6 +884,16 @@ run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range_int64.tc
 
 # --- errors/static (expect failure + diagnostic) ---
 
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_simple.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_chain.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_slot_value.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_if_path.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_goto_skip_init.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
+run_expect_fail_msg "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" "literal type"
@@ -926,6 +957,16 @@ run_expect_fail_msg "$ROOT/tests/errors/static/format_int_with_t.tc" "%t require
 run_expect_fail_msg "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "float type requires float format specifier"
 
 # --check 模式下也应当捕获所有静态错误
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_simple.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_chain.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_slot_value.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_if_path.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_goto_skip_init.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
+run_expect_check_fail "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"
@@ -1274,8 +1315,6 @@ run_expect_stdout "$ROOT/tests/valid/io_extended.tc" "422a2A5200101010255ffFF377
 18446744073709551615ffffffffffffffff
 "
 
-run_expect_ok_warn "$ROOT/tests/valid/uninit_chain_warning.tc" "use of possibly uninitialized variable 'a'"
-run_expect_ok_warn "$ROOT/tests/valid/more_warning_cases.tc" "use of possibly uninitialized variable 'a'"
 run_expect_stdout "$ROOT/tests/valid/let_cast_const.tc" "42
 42
 255

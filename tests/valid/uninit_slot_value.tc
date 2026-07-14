@@ -1,4 +1,0 @@
-; 未初始化变量槽位哨兵值：VM 与 AOT 应产生相同算术结果
-var a: int32
-var b: int32 = add(int32, a, 0)
-writeln(int32, b)

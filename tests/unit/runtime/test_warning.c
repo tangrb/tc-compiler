@@ -51,11 +51,11 @@ static void test_warning_list_add_basic(void) {
 
     tc_warning_list_init(&list);
 
-    rc = tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, 5, "uninitialized var 'x'");
+    rc = tc_warning_list_add(&list, TC_WARN_NONE, 5, "uninitialized var 'x'");
     check(rc == 0, "add one warning returns 0");
     check(list.count == 1, "add one: count == 1");
     check(list.capacity == 8, "add one: capacity == 8 (initial)");
-    check(list.items[0].kind == TC_WARN_UNINITIALIZED_VARIABLE, "add one: kind == UNINITIALIZED_VARIABLE");
+    check(list.items[0].kind == TC_WARN_NONE, "add one: kind == NONE");
     check(list.items[0].line == 5, "add one: line == 5");
     check(strcmp(list.items[0].message, "uninitialized var 'x'") == 0,
           "add one: message matches");
@@ -76,7 +76,7 @@ static void test_warning_list_add_capacity_growth(void) {
 
     /* 添加 9 条，触发 8 → 16 扩容 */
     for (i = 0; i < 9; i++) {
-        rc = tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, (int)i, "warn");
+        rc = tc_warning_list_add(&list, TC_WARN_NONE, (int)i, "warn");
         check(rc == 0, "add warning during growth");
     }
     check(list.count == 9, "growth: count == 9");
@@ -84,7 +84,7 @@ static void test_warning_list_add_capacity_growth(void) {
 
     /* 添加至 17 条，触发 16 → 32 扩容 */
     for (i = 9; i < 17; i++) {
-        rc = tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, (int)i, "warn");
+        rc = tc_warning_list_add(&list, TC_WARN_NONE, (int)i, "warn");
         check(rc == 0, "add warning during second growth");
     }
     check(list.count == 17, "growth: count == 17");
@@ -108,7 +108,7 @@ static void test_warning_list_add_null_message(void) {
 
     tc_warning_list_init(&list);
 
-    rc = tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, 1, NULL);
+    rc = tc_warning_list_add(&list, TC_WARN_NONE, 1, NULL);
     check(rc == 0, "add with NULL message returns 0");
     check(list.count == 1, "add NULL msg: count == 1");
     check(list.items[0].message == NULL, "add NULL msg: message == NULL");
@@ -128,9 +128,9 @@ static void test_warning_list_print(void) {
 
     tc_warning_list_init(&list);
 
-    (void)tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, 3, "test message");
-    (void)tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, 0, "no line");
-    (void)tc_warning_list_add(&list, TC_WARN_UNINITIALIZED_VARIABLE, 5, NULL);
+    (void)tc_warning_list_add(&list, TC_WARN_NONE, 3, "test message");
+    (void)tc_warning_list_add(&list, TC_WARN_NONE, 0, "no line");
+    (void)tc_warning_list_add(&list, TC_WARN_NONE, 5, NULL);
 
     /* 输出到临时文件验证格式 */
     f = tmpfile();
@@ -157,9 +157,9 @@ static void test_warning_list_print(void) {
 /* ================================================================== */
 
 static void test_warning_kind_name(void) {
-    check(strcmp(tc_warning_kind_name(TC_WARN_UNINITIALIZED_VARIABLE),
-                 "UninitializedVariable") == 0,
-          "TC_WARN_UNINITIALIZED_VARIABLE → UninitializedVariable");
+    check(strcmp(tc_warning_kind_name(TC_WARN_NONE),
+                 "None") == 0,
+          "TC_WARN_NONE → None");
     check(strcmp(tc_warning_kind_name((TcWarningKind)999), "UnknownWarning") == 0,
           "unknown warning kind → UnknownWarning");
 }

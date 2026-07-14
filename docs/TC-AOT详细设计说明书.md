@@ -1,8 +1,8 @@
 # TC-AOT 详细设计说明书
 
-> **版本**：0.0.25（草案）  
-> **实现状态**：**规范与代码 v0.0.25**（`TC_AOT_VERSION` in `main.c`；if codegen 见 §4.6；浮点全链路见 §4.4、§5.2、§6）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.25  
+> **版本**：0.0.26  
+> **实现状态**：**已实现 v0.0.26**（对齐 [开发计划](./TC编译器开发计划_v0.0.26.md) 与 [语言标准](./TC语言标准设计说明书.md)；`TC_AOT_VERSION` 0.0.26。if codegen 见 §4.6；浮点见 §4.4、§5.2、§6；goto/label 见 §4.7）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26（权威）；草案快照见 [TC语言标准设计说明书_0.0.26.md](./TC语言标准设计说明书_0.0.26.md)  
 > **工程**：[TC-Compiler](../README.md) 之 `src/aot/` 组件  
 > **定位**：将 TC 源文件提前编译（Ahead-of-Time）为 C99 源码，经系统编译器生成原生可执行文件
 
@@ -27,6 +27,8 @@
 - [附录 A：生成 C 代码示例](#附录-a生成-c-代码示例)
 - [附录 B：文档修订记录](#附录-b文档修订记录)
 
+> v0.0.26 增量重点：§4.7 标签 / `goto` 原生 C 代码生成
+
 ---
 
 ## 1. 设计目标与原则
@@ -43,13 +45,16 @@ TC-AOT 将 `.tc` 源文件编译为 C99 源码，再调用系统 C 编译器（g
 | **差分一致** | 对同一 `.tc` 源文件，`tc-vm` 与 `tc-aot --run` 的输出逐字节一致 |
 | **编译期折叠** | `let` 常量的编译期求值结果由 Analyzer 完成，AOT codegen 直接使用位模式，不重复求值 |
 | **TC 源码即程序** | 不引入中间表示或 IR，直接从 `TcTypedProgram` 生成 C 代码 |
+| **控制流转原生** | `if` → C `if-else`；`label`/`goto` → C 标签 / `goto`（**无**新 shim） |
+| **槽位提升** | 全部 `var`/`let` 映射为函数顶部 `slots[]`，避免 C「跳转跨越初始化」 |
 
 ### 1.3 实现版本
 
-- **语言与本文档**：v0.0.25（草案）
-- **当前可执行文件**：v0.0.25（`TC_AOT_VERSION` in `main.c`）；与 VM 共享 `tc_types.h`
+- **语言与本文档**：v0.0.26（已实现）
+- **可执行文件版本**：`TC_AOT_VERSION` = `0.0.26`（`src/aot/main.c`）；与 VM 共享 `tc_types.h`
 - **v0.0.24 交付**：AOT if codegen 与 VM 同步上线，差分测试扩展至 `tests/valid/if_*.tc`
-- **v0.0.25 交付**：浮点类型 `float32`/`float64` 全链路——算术/比较/cast/I/O shim 新增；RHS 分发点新增 `FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST`；差分测试扩展至浮点用例
+- **v0.0.25 交付**：浮点全链路（4 个 `FLOAT_*` RHS + 4 shim + 浮点 I/O）；差分约 200 条
+- **v0.0.26 交付**：`TC_STMT_LABEL_DEF` / `TC_STMT_GOTO` → 原生 C `tc_label_<n>`（§4.7）；差分含 `goto_*.tc` / `uninit_both_paths` / `uninit_shortcircuit`
 
 ---
 
@@ -186,6 +191,8 @@ int main(void) {
 | `Write` / `Writeln` | 调用 `tc_aot_write()` |
 | `Read` | 调用 `tc_aot_read()`，失败时 `tc_aot_abort()` |
 | **`IfStmt`** (v0.0.24) | **直接生成原生 C `if-else`**（见 §4.6） |
+| **`LabelDef`** (v0.0.26) | **生成 C 标签** `tc_label_<stmt_index>:`（见 §4.7） |
+| **`GotoStmt`** (v0.0.26) | **生成** `goto tc_label_<target_stmt_index>;`（见 §4.7） |
 
 ### 4.4 RHS 发射
 
@@ -339,6 +346,83 @@ int main(void) {
 - 条件求值块用 `{ … }` 包裹临时 `TcValue _cond` 与 `TcDiagnostic`，避免与外层 `diag` 变量冲突（见 §4.6.1 伪代码）
 - 勿使用不存在的 `tc_aot_eval_rhs`；条件与赋值 RHS 均走 `tc_aot_emit_rhs`
 
+### 4.7 标签与 goto 代码生成（v0.0.26）
+
+AOT 对 `label` / `goto` 生成**原生 C 标签与跳转**，与 VM Executor 的 `stmt_index` 语义对齐；**不新增** `tc_aot_rt` shim（同 if）。
+
+分发点：`tc_aot_emit_statement_impl`（`tc_aot_codegen.c`）；知识图谱 `TcStmtKind` 表与 VM 同步。
+
+#### 4.7.1 标签命名
+
+以 Analyzer 写入的 `TcLabelEntry.stmt_index` 构造唯一 C 标识符，避免与用户标识符、临时变量冲突：
+
+```text
+label "foo" @ stmt_index = 5  →  tc_label_5:
+goto "foo"                    →  goto tc_label_5;
+```
+
+可选含源名调试缀：`tc_l_<name>_<stmt_index>:`（须保证 C 标识符合法；非法字符需清洗）。简化实现优先 `tc_label_<n>`。
+
+#### 4.7.2 生成策略
+
+```c
+/* TC_STMT_LABEL_DEF */
+stmt_index_val = tc_stmt_index_take(&ctx->index);
+fprintf(out, "%stc_label_%d:\n", indent, stmt_index_val);
+return 0;
+
+/* TC_STMT_GOTO */
+tc_stmt_index_take(&ctx->index);
+entry = tc_symbol_table_find_label(symbols, stmt->u.goto_stmt.target);
+/* Analyzer 已保证 entry 非 NULL */
+fprintf(out, "%sgoto tc_label_%d;\n", indent, entry->stmt_index);
+return 0;
+```
+
+须与 emit 过程中的 `tc_stmt_index` 游标一致：标签处 take 得到的值 == 符号表中登记的 `stmt_index`。
+
+#### 4.7.3 生成示例
+
+输入 TC：
+
+```tc
+var i: int32 = 0
+label start:
+i = add(int32, i, 1)
+if lt(int32, i, 3) then
+    goto start
+end
+writeln(int32, %d, i)
+```
+
+输出 C（示意）：
+
+```c
+slots[0] = tc_aot_lit(TC_INT32, 0ULL, 0, 0);   /* var i */
+tc_label_1:                                    /* label start */
+if (tc_aot_arith(TC_ADD, ...) != 0) tc_aot_abort(...);
+/* if lt(...) then { goto tc_label_1; } */
+tc_aot_write(TC_INT32, TC_FMT_D, slots[0], 1);
+```
+
+#### 4.7.4 与槽位 / C 编译器约束
+
+| 风险 | 处理 |
+| ---- | ---- |
+| C：`jump to label crosses initialization` | AOT **已将全部槽位**声明为 `main` 顶部 `static uint64_t slots[N]` + `tc_aot_init_slots`；语句不引入「带初值的 C 自动变量」作为 TC 变量存储 |
+| 自 if 内 `goto` 跳出 | 生成的 `goto` 可跳出 C `if` 块，等价 VM 不经 `end` |
+| 向后跳转循环 | 合法 C `goto` 回跳；语义差分由共享 Analyzer + 差分测试保证 |
+| REPL | Analyzer 拒绝 `TC_STMT_GOTO` / `TC_STMT_LABEL_DEF`（与 if 一致） |
+
+#### 4.7.5 设计决策
+
+| 维度 | 决策 | 原因 |
+| ---- | ---- | ---- |
+| 跳转机制 | 原生 C `goto` | 与 TC 受限 goto 同构；零 shim 开销 |
+| 目标解析 | `tc_symbol_table_find_label` | 与 VM Executor 同一数据源 |
+| RHS | 不变 | goto/label **不新增** `TcRhsKind`；`check_rhs_coverage` 无改 |
+| 合法性 | 仅依赖 libtc Analyzer | AOT 不重复块路径/未初始化检查 |
+
 ---
 
 ## 5. 运行时 Shim 层
@@ -457,7 +541,7 @@ tc-aot [options] <file.tc>
   -c, --check         仅静态分析，不生成 C
   -r, --run           编译并运行生成的 C（依赖 host C 编译器）
   -h, --help          显示帮助
-  -V, --version       显示版本号（v0.0.25）
+  -V, --version       显示版本号（v0.0.26）
 
 退出码: 0 成功，1 失败
 ```
@@ -528,13 +612,11 @@ AOT 测试采用**差分比较**策略，确保 AOT 生成的二进制输出与 
 
 新增 `TcRhsKind` 或语句变体后，运行 `python3 scripts/sync/check_rhs_coverage.py` 验证所有分发点（含 `tc_aot_emit_rhs`）已覆盖。代码生成变更后务必执行 `make test-aot` 确认无 regression。
 
-### 9.6 当前覆盖（200 条）
+### 9.6 当前覆盖（200 条基线 → v0.0.26 增量）
 
-AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**、**浮点全链路**——与 VM valid 正例共用测试文件。在 `scripts/aot/run_tests.sh` 中注册，当前 **200 条**差分用例（`bash scripts/aot/run_tests.sh` 实测）。
+AOT 差分测试覆盖：基本运算、wrap 模式、cast、字面量、let 常量、I/O、注释、**if-else 控制流**、**浮点全链路**、**goto/label**——与 VM valid 正例共用测试文件。在 `scripts/aot/run_tests.sh` 中注册，v0.0.26 基线 **210 条**。
 
-v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.tc`、`if_nested.tc`、`if_chain.tc` 等）注册方式与普通 valid 用例相同。运行时错误场景不在 AOT 差分测试中注册。
-
-**v0.0.25 浮点扩展**：新增 `tests/valid/fp_basic.tc`、`fp_arith.tc`、`fp_compare.tc`、`fp_cast.tc`、`fp_io.tc` 等浮点正例，注册方式与普通 valid 用例相同。
+v0.0.24 / v0.0.25：`if_*`、`fp_*` 正例注册方式与普通 valid 相同。v0.0.26：`goto_*.tc`、`uninit_both_paths`、`uninit_shortcircuit` 已注册差分。运行时错误与 static 非法 goto/未初始化**不**进 AOT 差分（仅 VM/`--check` 覆盖）。
 
 ---
 
@@ -542,11 +624,13 @@ v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.
 
 | 保障机制 | 说明 |
 |---------|------|
-| **共享编译流水线** | 使用相同的 libtc `tc_compile_file()`，Parse + Analyze 结果一致 |
+| **共享编译流水线** | 使用相同的 libtc `tc_compile_file()`，Parse + Analyze（含 goto 合法性与数据流）结果一致 |
 | **共享语义实现** | shim 层委托 `tc_semantics.c` / `tc_io.c`，与 VM 执行器共享所有运算函数 |
-| **共享未初始化哨兵** | 使用 `tc_slot_bits_init_uninitialized()`，与 `tc_slots_init_uninitialized()` 值一致 |
-| **差分测试** | 同一 `.tc` 文件在 VM 和 AOT 下的 stdout 逐字节比较 |
-| **RHS 分发点同步** | `check_rhs_coverage.py` 验证 `tc_aot_emit_rhs` 与所有 VM 分发点同步 |
+| **共享未初始化哨兵** | 使用 `tc_slot_bits_init_uninitialized()`，与 `tc_slots_init_uninitialized()` 值一致；v0.0.26 起未初始化读取在 Analyze 阶段即拒绝，哨兵主要用于调试 |
+| **共享标签表** | `TcLabelEntry.stmt_index` → VM IP / AOT `tc_label_<n>` |
+| **差分测试** | 同一 `.tc` 文件在 VM 和 AOT 下的 stdout 逐字节比较（含 goto 正例） |
+| **RHS 分发点同步** | `check_rhs_coverage.py` 验证 `tc_aot_emit_rhs`（goto **不**新增 RHS） |
+| **STMT 分发同步** | `tc_aot_emit_statement_impl` 与 `tc_execute_statement_impl` 同步 `LABEL_DEF`/`GOTO`（知识图谱） |
 
 ---
 
@@ -560,6 +644,7 @@ v0.0.24 新增 AOT 控制流差分测试（`tests/valid/if_basic.tc`、`if_else.
 | 新语句类型 | 在 `tc_aot_emit_statement()` 新增 case |
 | **控制流 `if-else`** | **v0.0.24 已实现**：`TC_STMT_IF` + 原生 C `if-else`（§4.6） |
 | **浮点全链路** (v0.0.25) | **已实现**：4 个新 RHS 分发点 + 4 个新 shim + float I/O（§4.4、§5.2、§6） |
+| **`label` / `goto`** (v0.0.26) | **已实现**：`TC_STMT_LABEL_DEF`/`GOTO` → 原生 C `tc_label_<n>`（§4.7）；无新 shim |
 | 位运算/移位 | `tc_aot_bitwise_*` / `tc_aot_shift` shim → `tc_exec_bitwise_*` / `tc_exec_shift` |
 | 运行时错误恢复 | 当前 `tc_aot_abort()` 策略（exit），未来可改为返回值传播 |
 
@@ -651,6 +736,35 @@ int main(void) {
 }
 ```
 
+### A.2 goto / label 示例 (v0.0.26)
+
+输入 `goto_forward.tc`：
+
+```tc
+goto skip
+var x: int32 = 42
+label skip:
+writeln(int32, %d, 1)
+```
+
+输出示意（槽位仍提升到顶部；被跳过的赋值语句不生成或生成在不可达路径之外——以当前 emit 顺序为准，合法程序中 Analyzer 已保证数据流安全）：
+
+```c
+static uint64_t slots[1];
+
+int main(void) {
+    TcDiagnostic diag;
+    tc_aot_diag_init(&diag);
+    tc_aot_init_slots(slots, 1);
+
+    goto tc_label_2;                 /* goto skip */
+    slots[0] = tc_aot_lit(TC_INT32, 42ULL, 0, 0);  /* 可达性由源程序决定 */
+tc_label_2:                          /* label skip */
+    tc_aot_write(TC_INT32, TC_FMT_D, tc_aot_lit(TC_INT32, 1ULL, 0, 0), 1);
+    return 0;
+}
+```
+
 ---
 
 ## 附录 B：文档修订记录
@@ -666,5 +780,7 @@ int main(void) {
 | **0.0.25** | **2026-07-13** | **浮点全链路**：§4.4 新增 `FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST` 分发点；§4.5 浮点字面量位模式编码；§5.2 新增 `tc_aot_fp_arith`/`tc_aot_fp_unary`/`tc_aot_fp_compare`/`tc_aot_fp_cast` shim；§6 浮点 I/O 格式符说明；§7.1 浮点编译期折叠；§9.6 浮点测试用例覆盖；§A.1 浮点 codegen 示例；§11.1 浮点扩展状态标注 |
 | **0.0.25-impl** | **2026-07-13** | **代码交付**：`TC_AOT_VERSION` 0.0.25；浮点 4 shim + 格式符；差分测试 200 条 |
 | **0.0.25-fix** | **2026-07-13** | **P0–P3 修复**：诊断 UAF 连带 static/runtime 回归；no-fenv CI 专项 |
+| **0.0.26** | **2026-07-14** | **受限 goto（规范）**：§4.7 原生 C `tc_label_<n>` / `goto`；§1.2/§4.3/§9.6/§10/§11.1/§A.2 对齐 VM 标签表与开发计划 M7；无新 RHS/shim |
+| **0.0.26-impl** | **2026-07-14** | **代码+文档交付**：`TC_AOT_VERSION` 0.0.26；codegen 已实现；差分 210 条；主语言标准升版现行 |
 
 ---

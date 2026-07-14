@@ -33,6 +33,8 @@ typedef enum {
     TC_TOK_THEN,        /* 'then' 关键字 */
     TC_TOK_ELSE,        /* 'else' 关键字 */
     TC_TOK_END,         /* 'end' 关键字 */
+    TC_TOK_GOTO,        /* 'goto' 关键字 */
+    TC_TOK_LABEL,       /* 'label' 关键字 */
     TC_TOK_IDENTIFIER,  /* 用户定义标识符（变量名） */
     TC_TOK_INTEGER,     /* 整数字面量 */
     TC_TOK_FLOAT_LIT,   /* 浮点字面量（含 inf / nan） */

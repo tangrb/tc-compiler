@@ -1,9 +1,19 @@
 # libtc 嵌入 API
 
-> **版本**：0.0.25 · **代码**：v0.0.25（`TC_VM_VERSION`）  
+> **版本**：0.0.26 · **代码**：v0.0.26（`TC_VM_VERSION`）  
 > **详设**：[libtc设计说明书.md](./libtc设计说明书.md)
 
 libtc 是 TC 编译器的静态库，提供「编译（Parse + Analyze）」与「执行」分离的嵌入接口。
+
+## v0.0.26 简述
+
+| 项 | 说明 |
+|----|------|
+| **goto / label** | 经 `tc_compile_*` Analyze 做跳转合法性检查；执行经 `tc_run_typed`；**API 不变** |
+| **未初始化** | Analyze 路径敏感数据流 → `TC_ERR_UNINITIALIZED_VARIABLE`（不再是警告） |
+| **新错误码** | `LABEL_NOT_FOUND` / `DUPLICATE_LABEL` / `JUMP_INTO_BLOCK` / `JUMP_TO_SIBLING_BLOCK` / `UNINITIALIZED_VARIABLE` |
+| **REPL** | **不支持** `if` / `goto` / `label` |
+| **嵌入方** | 签名与所有权契约不变；非法 goto / 未初始化在编译阶段经 `diag` 返回 |
 
 ## v0.0.25 简述
 

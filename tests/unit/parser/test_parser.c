@@ -2,7 +2,7 @@
  * test_parser.c — Parser 单元测试
  *
  * 覆盖：
- *   - tc_parse_statement — var / let / write / assign
+ *   - tc_parse_statement — var / let / write / assign / goto / label
  *   - tc_parse_source_to_program — 多行 if 与缩进
  *   - 静态错误 — 缺少 end、缩进不足
  */
@@ -154,6 +154,82 @@ static void test_parse_indent_insufficient(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_parse_goto(void) {
+    TcTokenList tokens;
+    TcStatement stmt;
+    TcParserCtx ctx;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_token_list_init(&tokens);
+    memset(&ctx, 0, sizeof(ctx));
+    check(tc_tokenize_line("goto start", 1, &tokens, &diag) == 0, "tokenize goto");
+    check(tc_parse_statement(&ctx, &tokens, 1, &stmt, &diag) == 0, "parse goto");
+    check(stmt.kind == TC_STMT_GOTO, "goto kind");
+    check(strcmp(stmt.u.goto_stmt.target, "start") == 0, "goto target");
+    tc_statement_free(&stmt);
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_label(void) {
+    TcTokenList tokens;
+    TcStatement stmt;
+    TcParserCtx ctx;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_token_list_init(&tokens);
+    memset(&ctx, 0, sizeof(ctx));
+    check(tc_tokenize_line("label start:", 1, &tokens, &diag) == 0, "tokenize label");
+    check(tc_parse_statement(&ctx, &tokens, 1, &stmt, &diag) == 0, "parse label");
+    check(stmt.kind == TC_STMT_LABEL_DEF, "label kind");
+    check(strcmp(stmt.u.label_def.name, "start") == 0, "label name");
+    tc_statement_free(&stmt);
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_label_missing_colon(void) {
+    TcTokenList tokens;
+    TcStatement stmt;
+    TcParserCtx ctx;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_token_list_init(&tokens);
+    memset(&ctx, 0, sizeof(ctx));
+    check(tc_tokenize_line("label start", 1, &tokens, &diag) == 0, "tokenize label no colon");
+    check(tc_parse_statement(&ctx, &tokens, 1, &stmt, &diag) != 0, "parse label missing colon fails");
+    check(diag.kind == TC_ERR_SYNTAX, "missing colon → SyntaxError");
+    tc_statement_free(&stmt);
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_goto_in_if_block(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "label done:\n"
+        "if true then\n"
+        "    goto done\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse goto in if");
+    check(program.count == 2, "goto-in-if top count");
+    check(program.items[0].kind == TC_STMT_LABEL_DEF, "first stmt label");
+    check(program.items[1].kind == TC_STMT_IF, "second stmt if");
+    check(program.items[1].u.if_stmt.then_count == 1, "then has goto");
+    check(program.items[1].u.if_stmt.then_body[0].kind == TC_STMT_GOTO, "then body is goto");
+    check(strcmp(program.items[1].u.if_stmt.then_body[0].u.goto_stmt.target, "done") == 0,
+          "then goto target");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_parse_nested_if(void) {
     TcProgram program;
     TcDiagnostic diag;
@@ -178,6 +254,10 @@ int main(void) {
     test_parse_var_def();
     test_parse_let_const();
     test_parse_write();
+    test_parse_goto();
+    test_parse_label();
+    test_parse_label_missing_colon();
+    test_parse_goto_in_if_block();
     test_parse_if_program();
     test_parse_if_else_program();
     test_parse_missing_end();

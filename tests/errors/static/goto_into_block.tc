@@ -1,0 +1,5 @@
+; 期望：cannot jump into inner block
+goto inner
+if eq(int32, 1, 1) then
+    label inner:
+end

@@ -330,6 +330,16 @@ static void test_error_kind_name(void) {
           "TC_ERR_FLOAT_CAST_OVERFLOW → FloatCastOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_MODE_MISMATCH), "ModeMismatch") == 0,
           "TC_ERR_MODE_MISMATCH → ModeMismatch");
+    check(strcmp(tc_error_kind_name(TC_ERR_UNINITIALIZED_VARIABLE), "UninitializedVariable") == 0,
+          "TC_ERR_UNINITIALIZED_VARIABLE → UninitializedVariable");
+    check(strcmp(tc_error_kind_name(TC_ERR_LABEL_NOT_FOUND), "LabelNotFound") == 0,
+          "TC_ERR_LABEL_NOT_FOUND → LabelNotFound");
+    check(strcmp(tc_error_kind_name(TC_ERR_DUPLICATE_LABEL), "DuplicateLabel") == 0,
+          "TC_ERR_DUPLICATE_LABEL → DuplicateLabel");
+    check(strcmp(tc_error_kind_name(TC_ERR_JUMP_INTO_BLOCK), "JumpIntoBlockError") == 0,
+          "TC_ERR_JUMP_INTO_BLOCK → JumpIntoBlockError");
+    check(strcmp(tc_error_kind_name(TC_ERR_JUMP_TO_SIBLING_BLOCK), "JumpToSiblingBlockError") == 0,
+          "TC_ERR_JUMP_TO_SIBLING_BLOCK → JumpToSiblingBlockError");
 
     /* 未知错误种类 → UnknownError */
     check(strcmp(tc_error_kind_name((TcErrorKind)999), "UnknownError") == 0,
@@ -341,9 +351,8 @@ static void test_error_kind_name(void) {
 /* ================================================================== */
 
 static void test_warning_kind_name(void) {
-    check(strcmp(tc_warning_kind_name(TC_WARN_UNINITIALIZED_VARIABLE),
-                 "UninitializedVariable") == 0,
-          "TC_WARN_UNINITIALIZED_VARIABLE → UninitializedVariable");
+    check(strcmp(tc_warning_kind_name(TC_WARN_NONE), "None") == 0,
+          "TC_WARN_NONE → None");
 
     /* 未知警告种类 → UnknownWarning */
     check(strcmp(tc_warning_kind_name((TcWarningKind)999), "UnknownWarning") == 0,

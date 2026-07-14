@@ -1,0 +1,6 @@
+; 期望：use of uninitialized variable（goto 跳过赋值）
+var x: int32
+goto skip
+x = 42
+label skip:
+var y: int32 = add(int32, x, 1)

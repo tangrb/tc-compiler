@@ -1,4 +1,4 @@
-; 测试多种未初始化警告场景
+; 期望：use of uninitialized variable
 var a: int32
 var b: int32
 var c: int32 = add(int32, a, b)

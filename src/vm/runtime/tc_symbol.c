@@ -1,13 +1,15 @@
 /*
  * tc_symbol.c — 符号表实现
  *
- * 线性符号数组 + 作用域栈。符号按定义顺序追加；pop_scope 截断当前层符号。
+ * 线性符号数组 + 作用域栈。符号按定义顺序追加；pop_scope 关闭当前层可见性（符号保留）。
  * find_in_scope 自尾部向前扫描，内层 shadowing 优先。
+ * 标签表：同深度禁止重名；pop_scope 时删除当前深度标签（兄弟块可复用同名）。
  */
 #include "tc_symbol.h"
 
 #include "tc_diagnostic.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -152,7 +154,22 @@ void tc_symbol_table_init(TcSymbolTable *table) {
     table->scopes = NULL;
     table->scope_count = 0;
     table->scope_capacity = 0;
+    table->labels = NULL;
+    table->label_count = 0;
+    table->label_capacity = 0;
     tc_symbol_table_push_global_scope(table);
+}
+
+void tc_symbol_table_clear_labels(TcSymbolTable *table) {
+    size_t i = 0;
+
+    for (i = 0; i < table->label_count; i++) {
+        free(table->labels[i].name);
+        free(table->labels[i].block_path);
+        table->labels[i].name = NULL;
+        table->labels[i].block_path = NULL;
+    }
+    table->label_count = 0;
 }
 
 void tc_symbol_table_free(TcSymbolTable *table) {
@@ -163,12 +180,17 @@ void tc_symbol_table_free(TcSymbolTable *table) {
     }
     free(table->symbols);
     free(table->scopes);
+    tc_symbol_table_clear_labels(table);
+    free(table->labels);
     table->symbols = NULL;
     table->count = 0;
     table->capacity = 0;
     table->scopes = NULL;
     table->scope_count = 0;
     table->scope_capacity = 0;
+    table->labels = NULL;
+    table->label_count = 0;
+    table->label_capacity = 0;
 }
 
 int tc_symbol_table_current_scope(const TcSymbolTable *table) {
@@ -198,12 +220,126 @@ int tc_symbol_table_push_scope(TcSymbolTable *table) {
     return new_level;
 }
 
+static int tc_label_paths_equal(const int *a, const int *b, int depth) {
+    int i = 0;
+
+    if (depth == 0) {
+        return 1;
+    }
+    if (!a || !b) {
+        return a == b;
+    }
+    for (i = 0; i < depth; i++) {
+        if (a[i] != b[i]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void tc_symbol_table_pop_labels(TcSymbolTable *table) {
+    int depth = tc_symbol_table_current_scope(table);
+
+    while (table->label_count > 0) {
+        TcLabelEntry *entry = &table->labels[table->label_count - 1];
+
+        if (entry->block_depth != depth) {
+            break;
+        }
+        free(entry->name);
+        free(entry->block_path);
+        entry->name = NULL;
+        entry->block_path = NULL;
+        table->label_count--;
+    }
+}
+
 void tc_symbol_table_pop_scope(TcSymbolTable *table) {
     if (table->scope_count <= 1) {
         return;
     }
+    /* 先按退出深度清理标签，再关闭作用域帧 */
+    tc_symbol_table_pop_labels(table);
     table->scopes[table->scope_count - 1].end_index = table->count;
     table->scope_count--;
+}
+
+int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index, int line,
+                              const int *block_path, int block_depth, TcDiagnostic *diag) {
+    size_t i = 0;
+    char msg[128];
+    int *path_copy = NULL;
+
+    for (i = 0; i < table->label_count; i++) {
+        const TcLabelEntry *entry = &table->labels[i];
+
+        if (strcmp(entry->name, name) != 0 || entry->block_depth != block_depth) {
+            continue;
+        }
+        if (block_path != NULL) {
+            if (!tc_label_paths_equal(entry->block_path, block_path, block_depth)) {
+                continue;
+            }
+        }
+        (void)snprintf(msg, sizeof(msg), "duplicate label '%s'", name);
+        tc_diagnostic_set(diag, TC_ERR_DUPLICATE_LABEL, line, TC_COLUMN_UNKNOWN, msg);
+        return -1;
+    }
+
+    if (block_depth > 0 && block_path != NULL) {
+        path_copy = (int *)malloc((size_t)block_depth * sizeof(int));
+        if (!path_copy) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        memcpy(path_copy, block_path, (size_t)block_depth * sizeof(int));
+    }
+
+    if (table->label_count == table->label_capacity) {
+        size_t new_cap = table->label_capacity == 0 ? 8 : table->label_capacity * 2;
+        TcLabelEntry *labels =
+            (TcLabelEntry *)realloc(table->labels, new_cap * sizeof(TcLabelEntry));
+
+        if (!labels) {
+            free(path_copy);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        table->labels = labels;
+        table->label_capacity = new_cap;
+    }
+
+    table->labels[table->label_count].name = strdup(name);
+    if (!table->labels[table->label_count].name) {
+        free(path_copy);
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    table->labels[table->label_count].stmt_index = stmt_index;
+    table->labels[table->label_count].block_depth = block_depth;
+    table->labels[table->label_count].block_path = path_copy;
+    table->labels[table->label_count].def_line = line;
+    table->label_count++;
+    return 0;
+}
+
+const TcLabelEntry *tc_symbol_table_find_label(const TcSymbolTable *table, const char *name) {
+    size_t i = 0;
+
+    if (!table || !name) {
+        return NULL;
+    }
+    for (i = table->label_count; i > 0; i--) {
+        const TcLabelEntry *entry = &table->labels[i - 1];
+
+        if (strcmp(entry->name, name) == 0) {
+            return entry;
+        }
+    }
+    return NULL;
 }
 
 const TcSymbol *tc_symbol_table_find_in_scope(const TcSymbolTable *table, const char *name) {

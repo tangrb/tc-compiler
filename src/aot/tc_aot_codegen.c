@@ -10,6 +10,7 @@
  *     委托 tc_semantics.c / tc_io.c，保证与 TC-VM 行为完全一致。
  *   - let 常量编译器已求值，Codegen 直接将 const_value.bits 写为字面量。
  *   - CONST_REF / CONST_CAST 在 Analyzer 阶段应已被折叠，Codegen 发现则报错。
+ *   - if → 原生 C if-else；label/goto → tc_label_<stmt_index>（无 shim）。
  */
 #include "tc_aot_codegen.h"
 
@@ -20,11 +21,82 @@
 #include <stdio.h>
 #include <string.h>
 
-/** Codegen 阶段 DFS 语句序号（与 Analyzer / Executor 一致） */
+/** 块路径深度上限（与 Analyzer / Executor 同构：then=if*2，else=if*2+1） */
+#define TC_AOT_BLOCK_DEPTH_MAX 64
+
+typedef struct {
+    int path[TC_AOT_BLOCK_DEPTH_MAX];
+    int depth;
+} TcAotBlockPath;
+
+/** Codegen 阶段 DFS 语句序号 + 块路径（与 Analyzer / Executor 一致） */
 typedef struct {
     TcStmtIndexCursor index;
     TcSymbolNameIndex sym_index;
+    TcAotBlockPath block_path;
 } TcAotEmitCtx;
+
+static int tc_aot_paths_equal_prefix(const int *a, const int *b, int depth) {
+    int i = 0;
+
+    for (i = 0; i < depth; i++) {
+        if (a[i] != b[i]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int tc_aot_block_path_push(TcAotBlockPath *bp, int block_id) {
+    if (bp->depth >= TC_AOT_BLOCK_DEPTH_MAX) {
+        return -1;
+    }
+    bp->path[bp->depth++] = block_id;
+    return 0;
+}
+
+static void tc_aot_block_path_pop(TcAotBlockPath *bp) {
+    if (bp->depth > 0) {
+        bp->depth--;
+    }
+}
+
+/**
+ * 解析 goto 目标：优先同路径，其次最近祖先（与 Analyzer / Executor 一致）。
+ */
+static const TcLabelEntry *tc_aot_resolve_goto_label(const TcSymbolTable *table, const char *name,
+                                                     const TcAotBlockPath *goto_path) {
+    const TcLabelEntry *best_same = NULL;
+    const TcLabelEntry *best_ancestor = NULL;
+    const TcLabelEntry *any = NULL;
+    size_t i = 0;
+
+    for (i = 0; i < table->label_count; i++) {
+        const TcLabelEntry *entry = &table->labels[i];
+
+        if (strcmp(entry->name, name) != 0) {
+            continue;
+        }
+        any = entry;
+        if (entry->block_depth == goto_path->depth &&
+            tc_aot_paths_equal_prefix(entry->block_path, goto_path->path, entry->block_depth)) {
+            best_same = entry;
+        } else if (entry->block_depth < goto_path->depth &&
+                   tc_aot_paths_equal_prefix(entry->block_path, goto_path->path,
+                                              entry->block_depth)) {
+            if (!best_ancestor || entry->block_depth > best_ancestor->block_depth) {
+                best_ancestor = entry;
+            }
+        }
+    }
+    if (best_same) {
+        return best_same;
+    }
+    if (best_ancestor) {
+        return best_ancestor;
+    }
+    return any;
+}
 
 static const TcSymbol *tc_aot_find_def_symbol(const TcSymbolTable *symbols, const char *name,
                                               int def_line) {
@@ -530,25 +602,54 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         }
 
         fprintf(out, "%sif (_cond != 0) {\n", block_indent);
+        if (tc_aot_block_path_push(&ctx->block_path, if_stmt_index * 2) != 0) {
+            return -1;
+        }
         for (i = 0; i < if_stmt->then_count; i++) {
             if (tc_aot_emit_statement_impl(out, &if_stmt->then_body[i], symbols, ctx,
                                            branch_indent) != 0) {
                 return -1;
             }
         }
+        tc_aot_block_path_pop(&ctx->block_path);
 
         if (if_stmt->else_count > 0) {
             fprintf(out, "%s} else {\n", block_indent);
+            if (tc_aot_block_path_push(&ctx->block_path, if_stmt_index * 2 + 1) != 0) {
+                return -1;
+            }
             for (i = 0; i < if_stmt->else_count; i++) {
                 if (tc_aot_emit_statement_impl(out, &if_stmt->else_body[i], symbols, ctx,
                                                branch_indent) != 0) {
                     return -1;
                 }
             }
+            tc_aot_block_path_pop(&ctx->block_path);
         }
 
         fprintf(out, "%s}\n", block_indent);
         fprintf(out, "%s}\n", indent);
+        return 0;
+    }
+
+    /* 标签：生成原生 C 标签；空语句保证可位于复合语句末尾 */
+    if (stmt->kind == TC_STMT_LABEL_DEF) {
+        int stmt_index_val = tc_stmt_index_take(&ctx->index);
+
+        fprintf(out, "%stc_label_%d: ;\n", indent, stmt_index_val);
+        return 0;
+    }
+
+    /* goto：按块路径解析目标，生成 goto tc_label_<stmt_index> */
+    if (stmt->kind == TC_STMT_GOTO) {
+        const TcLabelEntry *entry = NULL;
+
+        tc_stmt_index_take(&ctx->index);
+        entry = tc_aot_resolve_goto_label(symbols, stmt->u.goto_stmt.target, &ctx->block_path);
+        if (!entry) {
+            return -1;
+        }
+        fprintf(out, "%sgoto tc_label_%d;\n", indent, entry->stmt_index);
         return 0;
     }
 
@@ -650,6 +751,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
 
     tc_stmt_index_reset(&ctx.index);
     tc_symbol_name_index_init(&ctx.sym_index);
+    ctx.block_path.depth = 0;
     tc_diagnostic_init(&diag);
     if (tc_symbol_name_index_build(&program->symbols, &ctx.sym_index, &diag) != 0) {
         tc_symbol_name_index_free(&ctx.sym_index);

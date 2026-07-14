@@ -369,6 +369,19 @@ static void test_control_flow_keywords(void) {
     check(tc_tokenize_line("end", 3, &tokens, &diag) == 0, "tokenize end");
     check(token_at(&tokens, 0)->kind == TC_TOK_END, "end → TC_TOK_END");
 
+    tc_token_list_free(&tokens);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line("goto start", 4, &tokens, &diag) == 0, "tokenize goto");
+    check(token_at(&tokens, 0)->kind == TC_TOK_GOTO, "goto → TC_TOK_GOTO");
+    check(token_at(&tokens, 1)->kind == TC_TOK_IDENTIFIER, "goto target → IDENTIFIER");
+
+    tc_token_list_free(&tokens);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line("label start:", 5, &tokens, &diag) == 0, "tokenize label");
+    check(token_at(&tokens, 0)->kind == TC_TOK_LABEL, "label → TC_TOK_LABEL");
+    check(token_at(&tokens, 1)->kind == TC_TOK_IDENTIFIER, "label name → IDENTIFIER");
+    check(token_at(&tokens, 2)->kind == TC_TOK_COLON, "label colon → TC_TOK_COLON");
+
     check(strcmp(tc_token_kind_name(TC_TOK_IF), "IF") == 0,
           "tc_token_kind_name(TC_TOK_IF) → IF");
     check(strcmp(tc_token_kind_name(TC_TOK_THEN), "THEN") == 0,
@@ -377,6 +390,10 @@ static void test_control_flow_keywords(void) {
           "tc_token_kind_name(TC_TOK_ELSE) → ELSE");
     check(strcmp(tc_token_kind_name(TC_TOK_END), "END") == 0,
           "tc_token_kind_name(TC_TOK_END) → END");
+    check(strcmp(tc_token_kind_name(TC_TOK_GOTO), "GOTO") == 0,
+          "tc_token_kind_name(TC_TOK_GOTO) → GOTO");
+    check(strcmp(tc_token_kind_name(TC_TOK_LABEL), "LABEL") == 0,
+          "tc_token_kind_name(TC_TOK_LABEL) → LABEL");
 
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);

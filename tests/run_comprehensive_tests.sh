@@ -481,8 +481,14 @@ run_expect_fail "$ROOT/tests/errors/static/type_mismatch_unary.tc" "operand type
 # 14. 警告测试
 # =============================================================
 echo "=== 14. 警告测试 ==="
-run_expect_ok_warn "$ROOT/tests/valid/more_warning_cases.tc" "use of possibly uninitialized variable 'a'"
-run_expect_ok_warn "$ROOT/tests/valid/uninit_chain_warning.tc" "use of possibly uninitialized variable 'a'"
+run_expect_fail "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninitialized variable"
+run_expect_fail "$ROOT/tests/errors/static/uninit_chain.tc" "use of uninitialized variable"
+run_expect_fail "$ROOT/tests/errors/static/uninit_if_path.tc" "use of uninitialized variable"
+run_expect_fail "$ROOT/tests/errors/static/uninit_goto_skip_init.tc" "use of uninitialized variable"
+run_expect_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
+run_expect_fail "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
+run_expect_fail "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
+run_expect_fail "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
 
 # =============================================================
 # 15. 压力测试

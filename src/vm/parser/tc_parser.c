@@ -1378,6 +1378,16 @@ void tc_statement_free(TcStatement *stmt) {
         free(stmt->u.if_stmt.else_body);
         stmt->u.if_stmt.else_body = NULL;
         stmt->u.if_stmt.else_count = 0;
+    } else if (stmt->kind == TC_STMT_LABEL_DEF) {
+        if (stmt->u.label_def.name) {
+            free(stmt->u.label_def.name);
+            stmt->u.label_def.name = NULL;
+        }
+    } else if (stmt->kind == TC_STMT_GOTO) {
+        if (stmt->u.goto_stmt.target) {
+            free(stmt->u.goto_stmt.target);
+            stmt->u.goto_stmt.target = NULL;
+        }
     } else {
         /* unknown STMT kind, skip */
     }
@@ -1425,6 +1435,8 @@ int tc_program_push(TcProgram *program, const TcStatement *stmt, TcDiagnostic *d
  *   TC_TOK_VAR / TC_TOK_LET           → tc_parse_var_or_const_def
  *   TC_TOK_WRITE / TC_TOK_WRITELN      → tc_parse_io_write_stmt
  *   TC_TOK_READ                        → tc_parse_read_stmt
+ *   TC_TOK_GOTO                        → goto 语句
+ *   TC_TOK_LABEL                       → label 定义
  *   TC_TOK_IDENTIFIER                  → 赋值语句（= RHS）
  *   其它                               → SyntaxError
  *
@@ -1482,6 +1494,70 @@ int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
         }
         out->kind = TC_STMT_READ;
         out->u.io_read = io_read;
+        return 0;
+    }
+
+    if (first->kind == TC_TOK_GOTO) {
+        TcGoto goto_stmt;
+        const TcToken *name_tok = NULL;
+
+        index++;
+        memset(&goto_stmt, 0, sizeof(goto_stmt));
+        goto_stmt.line = line_no;
+        name_tok = tc_peek(tokens, index);
+        if (name_tok->kind != TC_TOK_IDENTIFIER) {
+            return tc_syntax_error(diag, line_no, name_tok->column,
+                                   "expected identifier after 'goto'");
+        }
+        goto_stmt.target = strndup(name_tok->start, name_tok->length);
+        if (!goto_stmt.target) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column,
+                              "memory allocation failed");
+            return -1;
+        }
+        index++;
+        if (tc_expect_stmt_end(tokens, &index, line_no, diag) != 0) {
+            free(goto_stmt.target);
+            return -1;
+        }
+        out->kind = TC_STMT_GOTO;
+        out->u.goto_stmt = goto_stmt;
+        return 0;
+    }
+
+    if (first->kind == TC_TOK_LABEL) {
+        TcLabelDef label_def;
+        const TcToken *name_tok = NULL;
+        const TcToken *colon_tok = NULL;
+
+        index++;
+        memset(&label_def, 0, sizeof(label_def));
+        label_def.line = line_no;
+        name_tok = tc_peek(tokens, index);
+        if (name_tok->kind != TC_TOK_IDENTIFIER) {
+            return tc_syntax_error(diag, line_no, name_tok->column,
+                                   "expected identifier after 'label'");
+        }
+        label_def.name = strndup(name_tok->start, name_tok->length);
+        if (!label_def.name) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column,
+                              "memory allocation failed");
+            return -1;
+        }
+        index++;
+        colon_tok = tc_peek(tokens, index);
+        if (colon_tok->kind != TC_TOK_COLON) {
+            free(label_def.name);
+            return tc_syntax_error(diag, line_no, colon_tok->column,
+                                   "expected ':' after label name");
+        }
+        index++;
+        if (tc_expect_stmt_end(tokens, &index, line_no, diag) != 0) {
+            free(label_def.name);
+            return -1;
+        }
+        out->kind = TC_STMT_LABEL_DEF;
+        out->u.label_def = label_def;
         return 0;
     }
 

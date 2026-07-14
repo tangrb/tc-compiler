@@ -1,0 +1,6 @@
+; 期望：use of uninitialized variable（无 else 路径未赋值）
+var x: int32
+if true then
+    x = 10
+end
+var y: int32 = add(int32, x, 1)

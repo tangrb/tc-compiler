@@ -1,0 +1,8 @@
+; 向后平级跳转（模拟循环）；初始化须在 label 之前
+var i: int32 = 0
+label start:
+i = add(int32, i, 1)
+if lt(int32, i, 10) then
+    goto start
+end
+writeln(int32, %d, i)

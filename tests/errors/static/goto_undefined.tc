@@ -1,0 +1,2 @@
+; 期望：label 'nonexistent' not found
+goto nonexistent

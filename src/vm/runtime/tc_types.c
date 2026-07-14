@@ -359,14 +359,24 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "FloatCastOverflow";
     case TC_ERR_MODE_MISMATCH:
         return "ModeMismatch";
+    case TC_ERR_UNINITIALIZED_VARIABLE:
+        return "UninitializedVariable";
+    case TC_ERR_LABEL_NOT_FOUND:
+        return "LabelNotFound";
+    case TC_ERR_DUPLICATE_LABEL:
+        return "DuplicateLabel";
+    case TC_ERR_JUMP_INTO_BLOCK:
+        return "JumpIntoBlockError";
+    case TC_ERR_JUMP_TO_SIBLING_BLOCK:
+        return "JumpToSiblingBlockError";
     }
     return "UnknownError";
 }
 
 const char *tc_warning_kind_name(TcWarningKind kind) {
     switch (kind) {
-    case TC_WARN_UNINITIALIZED_VARIABLE:
-        return "UninitializedVariable";
+    case TC_WARN_NONE:
+        return "None";
     }
     return "UnknownWarning";
 }

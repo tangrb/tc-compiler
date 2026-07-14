@@ -1,8 +1,8 @@
 # libtc 设计说明书
 
-> **版本**：0.0.25（草案）  
-> **实现状态**：**规范与代码 v0.0.25**（`if` 控制流与块级作用域 v0.0.24 已交付；浮点 `float32`/`float64` 全链路 v0.0.25 已交付；见 §12）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.25  
+> **版本**：0.0.26  
+> **实现状态**：**规范与代码 v0.0.26**（浮点全链路 v0.0.25；受限 `goto`/`label` + 未初始化静态错误 v0.0.26；libtc API 签名不变，见 §14/§15）  
+> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26
 > **关联**：[TC-VM详细设计说明书.md](./TC-VM详细设计说明书.md) · [TC-AOT详细设计说明书.md](./TC-AOT详细设计说明书.md)  
 > **工程**：[TC-Compiler](../README.md) 之 `src/libtc/` 组件  
 > **定位**：TC 编译器的嵌入式接口库——将「编译（Parse + Analyze）」与「执行」分离
@@ -25,6 +25,7 @@
 12. [与 VM / AOT / REPL 的关系](#12-与-vm--aot--repl-的关系)
 13. [v0.0.24 变更影响（libtc 层）](#13-v0024-变更影响libtc-层)
 14. [v0.0.25 变更影响（libtc 层）](#14-v0025-变更影响libtc-层)
+15. [v0.0.26 变更影响（libtc 层）](#15-v0026-变更影响libtc-层)
 
 附录
 
@@ -58,10 +59,11 @@ libtc 是 TC 编译器的静态库，提供以下能力：
 
 | 项目 | 版本 |
 |------|------|
-| 本文档 / 语言标准 | 0.0.25（草案） |
-| 当前 `tc-vm`（`TC_VM_VERSION`） | 0.0.25 |
+| 本文档 / 语言标准 | 0.0.26 |
+| 当前 `tc-vm`（`TC_VM_VERSION`） | 0.0.26 |
 | v0.0.24 交付 | `tc_parse_source` 两遍扫描 + 树形 `TcIfStmt`；Analyzer 递归 Pass1/Pass2 |
 | v0.0.25 交付 | 浮点类型 `float32`/`float64` 全链路——词法/语法/分析/执行/AOT 代码生成；`tc_types.h` 扩展浮点枚举及相关 RHS kind/shim 函数；`tc_semantics.c`/`tc_io.c` 扩展浮点算术/比较/cast/I/O |
+| v0.0.26 交付 | 受限 `goto`/`label` + 未初始化静态错误；libtc **无 API 变更**（透传共享 Analyze/Execute） |
 
 ---
 
@@ -531,6 +533,20 @@ tc-repl (tc_repl.c)
 
 ---
 
+## 15. v0.0.26 变更影响（libtc 层）
+
+| 变更项 | libtc 职责 | 关联模块 |
+|--------|------------|----------|
+| `TC_STMT_LABEL_DEF` / `TC_STMT_GOTO` | **无 API 变更**；`tc_compile_*` 透传 Parse + Analyze | `tc_parser.c`、`tc_analyzer.c`、`tc_symbol.c` |
+| 标签表 / 跳转合法性 | 无逻辑（委托 Analyzer） | 块路径判定；5 个新 `TcErrorKind` |
+| 未初始化数据流 | 无逻辑（委托 Analyzer） | `TC_ERR_UNINITIALIZED_VARIABLE` 替代原警告 |
+| `tc_run_typed` | 无代码变更（委托 Executor goto IP） | `tc_executor.c` §8.6 |
+| AOT 嵌入 | 无变更：仍 `tc_compile_file` → `tc_aot_emit_c` | AOT 详设 §4.7 |
+
+**嵌入方影响**：非法 goto / 未初始化在 Analyze 阶段失败，经 `diag` 单槽返回；API 与所有权契约不变。
+
+---
+
 ## 附录 A：API 签名速查
 
 ```c
@@ -560,6 +576,7 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);  /*
 | **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离：`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY` 而非 `TC_ERR_SYNTAX`；§5.1 错误状态契约同步更新 |
 | **0.0.25** | **2026-07-13** | **浮点全链路**：`tc_types.h` 扩展 `FloatType`/`FloatMode` 枚举、`TcRhsKind` 新增 4 个浮点变体；`tc_semantics.h/c` 新增 `exec_fp_arith`/`exec_fp_unary`/`exec_fp_compare`/`exec_fp_cast`；`tc_io.h/c` 扩展浮点格式符与输入解析；`tc_lib.c` 编译流水线无变化（Parse/Analyze 层已吸收浮点 AST 变体）；版本号同步更新 |
 | **0.0.25-doc1** | **2026-07-13** | **实现设计文档评审修正**：§3.1 补充 v0.0.25 浮点错误码；§7 合并为两遍扫描现状并标注 v0.0.23 历史；新增 §14 v0.0.25 变更影响表 |
+| **0.0.26** | **2026-07-14** | **goto/未初始化**：依赖语言标准升版现行；新增 §15 变更影响（libtc API 无变更）；版本号与 `TC_VM_VERSION` 0.0.26 对齐 |
 
 ---
 

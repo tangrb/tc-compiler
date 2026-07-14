@@ -107,7 +107,7 @@ static void test_analyze_cross_block_reference(void) {
     tc_diagnostic_clear(&diag);
 }
 
-static void test_analyze_uninit_warning(void) {
+static void test_analyze_uninit_error(void) {
     TcProgram program;
     TcTypedProgram typed;
     TcDiagnostic diag;
@@ -119,9 +119,69 @@ static void test_analyze_uninit_warning(void) {
     tc_program_init(&program);
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse uninit");
-    check(tc_analyze(&program, &typed, &diag) == 0, "analyze uninit ok with warning");
-    check(typed.warnings.count == 1, "uninit warning count");
-    check(typed.warnings.items[0].kind == TC_WARN_UNINITIALIZED_VARIABLE, "uninit warning kind");
+    check(tc_analyze(&program, &typed, &diag) != 0, "analyze uninit fails");
+    check(diag.kind == TC_ERR_UNINITIALIZED_VARIABLE, "→ UNINITIALIZED_VARIABLE");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_uninit_if_merge(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "var x: int32\n"
+        "if true then\n"
+        "    x = 10\n"
+        "end\n"
+        "var y: int32 = add(int32, x, 1)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse if-path uninit");
+    check(tc_analyze(&program, &typed, &diag) != 0, "if-path uninit fails");
+    check(diag.kind == TC_ERR_UNINITIALIZED_VARIABLE, "if-path → UNINITIALIZED_VARIABLE");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_uninit_both_paths_ok(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "var x: int32\n"
+        "if true then\n"
+        "    x = 10\n"
+        "else\n"
+        "    x = 20\n"
+        "end\n"
+        "var y: int32 = add(int32, x, 1)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse both-paths");
+    check(tc_analyze(&program, &typed, &diag) == 0, "both paths init ok");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_shortcircuit_uninit_ok(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "var flag: bool = false\n"
+        "var uninit: bool\n"
+        "var result: bool = and(bool, false, uninit)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse shortcircuit");
+    check(tc_analyze(&program, &typed, &diag) == 0, "shortcircuit skips uninit rhs");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -166,14 +226,175 @@ static void test_analyze_const_cyclic(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_analyze_duplicate_label(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "label dup:\n"
+        "label dup:\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse duplicate label");
+    check(tc_analyze(&program, &typed, &diag) != 0, "analyze duplicate label fails");
+    check(diag.kind == TC_ERR_DUPLICATE_LABEL, "duplicate label → TC_ERR_DUPLICATE_LABEL");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_sibling_label_same_name(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "if true then\n"
+        "    label L:\n"
+        "else\n"
+        "    label L:\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse sibling labels");
+    check(tc_analyze(&program, &typed, &diag) == 0, "sibling same-name labels ok");
+    check(typed.symbols.label_count == 2, "Pass2 retains both sibling labels");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_goto_ok(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "label start:\n"
+        "goto start\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse goto ok");
+    check(tc_analyze(&program, &typed, &diag) == 0, "analyze goto ok");
+    check(typed.symbols.label_count == 1, "goto ok label retained");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_goto_forward(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "goto skip\n"
+        "label skip:\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse forward goto");
+    check(tc_analyze(&program, &typed, &diag) == 0, "forward goto ok");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_goto_undefined(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source = "goto nonexistent\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse undefined goto");
+    check(tc_analyze(&program, &typed, &diag) != 0, "undefined goto fails");
+    check(diag.kind == TC_ERR_LABEL_NOT_FOUND, "→ LABEL_NOT_FOUND");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_goto_into_block(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "goto inner\n"
+        "if true then\n"
+        "    label inner:\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse jump into block");
+    check(tc_analyze(&program, &typed, &diag) != 0, "jump into block fails");
+    check(diag.kind == TC_ERR_JUMP_INTO_BLOCK, "→ JUMP_INTO_BLOCK");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_goto_sibling(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "if true then\n"
+        "    goto else_branch\n"
+        "else\n"
+        "    label else_branch:\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse sibling jump");
+    check(tc_analyze(&program, &typed, &diag) != 0, "sibling jump fails");
+    check(diag.kind == TC_ERR_JUMP_TO_SIBLING_BLOCK, "→ JUMP_TO_SIBLING_BLOCK");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_goto_out_of_if(void) {
+    TcProgram program;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "label after:\n"
+        "if true then\n"
+        "    goto after\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    tc_typed_program_init(&typed);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse outward goto");
+    check(tc_analyze(&program, &typed, &diag) == 0, "outward goto ok");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_analyze_valid_program();
     test_analyze_let_const();
     test_analyze_if_condition_type();
     test_analyze_cross_block_reference();
-    test_analyze_uninit_warning();
+    test_analyze_uninit_error();
+    test_analyze_uninit_if_merge();
+    test_analyze_uninit_both_paths_ok();
+    test_analyze_shortcircuit_uninit_ok();
     test_analyze_if_block_scope();
     test_analyze_const_cyclic();
+    test_analyze_duplicate_label();
+    test_analyze_sibling_label_same_name();
+    test_analyze_goto_ok();
+    test_analyze_goto_forward();
+    test_analyze_goto_undefined();
+    test_analyze_goto_into_block();
+    test_analyze_goto_sibling();
+    test_analyze_goto_out_of_if();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

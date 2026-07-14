@@ -1,0 +1,8 @@
+; 跳出 if 块
+var x: int32 = 5
+if gt(int32, x, 0) then
+    x = mul(int32, x, 2)
+    goto after_if
+end
+label after_if:
+writeln(int32, %d, x)

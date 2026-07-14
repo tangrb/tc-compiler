@@ -470,6 +470,14 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_END;
         return 1;
     }
+    if (strcmp(buf, "goto") == 0) {
+        token->kind = TC_TOK_GOTO;
+        return 1;
+    }
+    if (strcmp(buf, "label") == 0) {
+        token->kind = TC_TOK_LABEL;
+        return 1;
+    }
     if (strcmp(buf, "true") == 0) {
         token->kind = TC_TOK_BOOL_LIT;
         token->u.literal.is_bool = 1;
@@ -826,6 +834,10 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "ELSE";
     case TC_TOK_END:
         return "END";
+    case TC_TOK_GOTO:
+        return "GOTO";
+    case TC_TOK_LABEL:
+        return "LABEL";
     case TC_TOK_IDENTIFIER:
         return "IDENTIFIER";
     case TC_TOK_INTEGER:

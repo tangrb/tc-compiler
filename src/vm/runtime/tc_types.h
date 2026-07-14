@@ -188,12 +188,21 @@ typedef enum {
     TC_ERR_FLOAT_UNDERFLOW,       /* 严格模式浮点下溢 */
     TC_ERR_FLOAT_INVALID,         /* 严格模式浮点无效操作（nan 等） */
     TC_ERR_FLOAT_CAST_OVERFLOW,   /* 浮点 ↔ 整数转换超范围 */
-    TC_ERR_MODE_MISMATCH          /* ieee/wrap 用于非法上下文 */
+    TC_ERR_MODE_MISMATCH,         /* ieee/wrap 用于非法上下文 */
+    TC_ERR_UNINITIALIZED_VARIABLE,  /* §4.2 读取未初始化变量 */
+    TC_ERR_LABEL_NOT_FOUND,         /* §4.8.3 goto 引用未定义标签 */
+    TC_ERR_DUPLICATE_LABEL,         /* §4.8.3 同一作用域重定义标签 */
+    TC_ERR_JUMP_INTO_BLOCK,         /* §4.8.3 跳入内层子块 */
+    TC_ERR_JUMP_TO_SIBLING_BLOCK    /* §4.8.3 跳入兄弟分支 */
 } TcErrorKind;
 
-/** 编译警告种类（不阻止执行，仅输出 warning 信息） */
+/*
+ * 编译警告种类（不阻止执行，仅输出 warning 信息）。
+ * v0.0.26：TC_WARN_UNINITIALIZED_VARIABLE 已升级为 TC_ERR_UNINITIALIZED_VARIABLE。
+ * TcWarningKind / TcWarningList 保留空壳供未来警告类型使用。
+ */
 typedef enum {
-    TC_WARN_UNINITIALIZED_VARIABLE
+    TC_WARN_NONE = 0  /* 占位；当前无活跃警告种类 */
 } TcWarningKind;
 
 /* ------------------------------------------------------------------ */
@@ -350,7 +359,9 @@ typedef enum {
     TC_STMT_WRITE,       /* write 输出 */
     TC_STMT_WRITELN,     /* writeln 输出 */
     TC_STMT_READ,        /* read 输入 */
-    TC_STMT_IF           /* if-then-else 控制流 */
+    TC_STMT_IF,          /* if-then-else 控制流 */
+    TC_STMT_LABEL_DEF,   /* label name: 定义标签 */
+    TC_STMT_GOTO         /* goto name  无条件跳转 */
 } TcStmtKind;
 
 typedef struct {
@@ -398,6 +409,16 @@ typedef struct {
     size_t else_count;
 } TcIfStmt;
 
+typedef struct {
+    int line;
+    char *name;        /* 标签名，堆分配 */
+} TcLabelDef;
+
+typedef struct {
+    int line;
+    char *target;      /* 目标标签名，堆分配 */
+} TcGoto;
+
 /** 统一语句表示，kind 决定活跃的 u 成员 */
 struct TcStatement {
     TcStmtKind kind;
@@ -408,6 +429,8 @@ struct TcStatement {
         TcIoWrite io_write;
         TcRead io_read;
         TcIfStmt if_stmt;
+        TcLabelDef label_def;
+        TcGoto goto_stmt;
     } u;
 };
 
@@ -452,6 +475,15 @@ typedef struct {
 
 #define TC_SCOPE_END_OPEN ((size_t)-1)
 
+/** 标签表条目（v0.0.26）；Pass1 按深度 pop；Pass2 保留全部并带块路径 */
+typedef struct {
+    char *name;              /* 标签名，堆分配 */
+    int stmt_index;          /* 标签语句的扁平序号 */
+    int block_depth;         /* 标签所在的作用域深度 / 块路径长度 */
+    int *block_path;         /* 块路径（堆分配），长度 = block_depth；Pass1 可为 NULL */
+    int def_line;            /* 定义行号（用于错误报告） */
+} TcLabelEntry;
+
 typedef struct {
     TcSymbol *symbols;
     size_t count;
@@ -460,6 +492,11 @@ typedef struct {
     TcScope *scopes;          /* 作用域栈 */
     size_t scope_count;
     size_t scope_capacity;
+
+    /* v0.0.26：标签表（块退出时 pop 当前深度条目） */
+    TcLabelEntry *labels;
+    size_t label_count;
+    size_t label_capacity;
 } TcSymbolTable;
 
 /* ------------------------------------------------------------------ */

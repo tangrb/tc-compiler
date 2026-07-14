@@ -1,0 +1,9 @@
+; then/else 均初始化后读取合法
+var x: int32
+if true then
+    x = 10
+else
+    x = 20
+end
+var y: int32 = add(int32, x, 1)
+writeln(int32, %d, y)
