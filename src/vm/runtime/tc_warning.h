@@ -1,9 +1,9 @@
 /*
  * tc_warning.h — 编译警告接口
  *
- * TC-VM 的警告系统不阻止执行。Analyzer 通过后将警告批量打印到 stderr。
- * v0.0.26：未初始化读取已改为 TC_ERR_UNINITIALIZED_VARIABLE；
- * TcWarningList 保留，供未来新警告类型使用（当前 TcWarningKind 为空壳）。
+ * @deprecated — no active warning kinds (v0.0.26+: 未初始化读取已为错误)。
+ * 基础设施保留：TC-VM 警告不阻止执行；Analyzer 通过后批量打印到 stderr。
+ * 当前 TcWarningKind 为空壳，供未来新警告类型使用。
  */
 #ifndef TC_WARNING_H
 #define TC_WARNING_H

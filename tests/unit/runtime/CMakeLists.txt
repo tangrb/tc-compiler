@@ -18,6 +18,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/bin)
 add_executable(test-semantics
     test_semantics.c
     ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_sem_int.c
+    ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
@@ -59,6 +62,9 @@ add_executable(test-io
     test_io.c
     ${TC_VM_DIR}/runtime/tc_io.c
     ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_sem_int.c
+    ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
@@ -80,6 +86,9 @@ add_custom_target(check-io
 add_executable(test-bitwise
     test_bitwise.c
     ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_sem_int.c
+    ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
@@ -101,6 +110,9 @@ add_custom_target(check-bitwise
 add_executable(test-shift
     test_shift.c
     ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_sem_int.c
+    ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
@@ -163,13 +175,21 @@ add_custom_target(check-warning
 add_executable(test-analyzer
     test_analyzer.c
     ${TC_VM_DIR}/analyzer/tc_analyzer.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer_pass1.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer_pass2.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer_repl.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_rhs.c
+    ${TC_VM_DIR}/parser/tc_parser_free.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
     ${TC_VM_DIR}/runtime/tc_symbol.c
     ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_sem_int.c
+    ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_warning.c
-    ${TC_VM_DIR}/runtime/tc_stmt_index.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )
@@ -191,8 +211,9 @@ add_custom_target(check-analyzer
 add_executable(test-stmt-index
     test_stmt_index.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_rhs.c
+    ${TC_VM_DIR}/parser/tc_parser_free.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
-    ${TC_VM_DIR}/runtime/tc_stmt_index.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
 )

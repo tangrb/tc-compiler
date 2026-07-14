@@ -75,6 +75,9 @@ static int tc_aot_run_generated(const char *c_path) {
              "\"" TC_VM_DIR "/runtime/tc_types.c\" "
              "\"" TC_VM_DIR "/runtime/tc_diagnostic.c\" "
              "\"" TC_VM_DIR "/runtime/tc_semantics.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_sem_int.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_sem_fp.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_sem_bitwise.c\" "
              "\"" TC_VM_DIR "/runtime/tc_io.c\" "
              "-o \"%s.out\" && \"%s.out\"",
              fenv_flag, c_path, c_path, c_path);

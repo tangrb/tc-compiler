@@ -1,3 +1,11 @@
+/*
+ * lexer_debug — 手工词法调试工具（非 CI 回归用例）
+ *
+ * 构建示例（在仓库根目录、已 cmake 配置后）:
+ *   cc -I src/vm/runtime -I src/vm/lexer tools/lexer_debug/lexer_debug.c \\
+ *      src/vm/lexer/tc_lexer.c src/vm/runtime/tc_diagnostic.c \\
+ *      src/vm/runtime/tc_types.c -o /tmp/lexer_debug
+ */
 #include "tc_diagnostic.h"
 #include "tc_lexer.h"
 #include <stdio.h>

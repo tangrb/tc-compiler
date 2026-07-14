@@ -2,7 +2,7 @@
  * tc_parser.h — 语法分析器接口
  *
  * 将 Token 流解析为 TcStatement（变量/常量定义、赋值、I/O、if 控制流等）。
- * 同时提供 TcProgram 动态数组管理及 AST 节点内存释放函数。
+ * AST 释放与 TcProgram 管理见 tc_parser_free.h；RHS 解析见 tc_parser_rhs.h。
  *
  * TC 语言语法概要（分号可选）：
  *   var id: type [= rhs]        变量定义
@@ -17,6 +17,7 @@
 
 #include "tc_types.h"
 #include "tc_lexer.h"
+#include "tc_parser_free.h"
 
 /** 递归 RHS 解析最大深度，超过此深度报 "expression too complex" */
 #define TC_PARSER_MAX_DEPTH 256
@@ -49,39 +50,6 @@ typedef struct {
     char indent_char; /* '\0' 表示尚未确定 */
     int indent_width; /* 默认 4 */
 } TcFileIndent;
-
-/**
- * 初始化 TcProgram 为空状态。
- * @param program 待初始化的程序指针
- */
-void tc_program_init(TcProgram *program);
-
-/**
- * 释放整个 TcProgram 包含的所有语句及其动态内存。
- * @param program 待释放的程序指针
- */
-void tc_program_free(TcProgram *program);
-
-/**
- * 向程序末尾追加一条语句。
- * @param program 程序指针
- * @param stmt    待追加的语句（内容被浅拷贝，调用方可复用 stmt 空间）
- * @param diag    诊断对象
- * @return 成功返回 0；内存不足返回 -1
- */
-int tc_program_push(TcProgram *program, const TcStatement *stmt, TcDiagnostic *diag);
-
-/**
- * 释放 TcRhs 中的动态内存（name / source 等堆分配的字段）。
- * @param rhs 待释放的 RHS 指针
- */
-void tc_rhs_free(TcRhs *rhs);
-
-/**
- * 释放单条语句中的动态内存，与 tc_rhs_free 协同使用。
- * @param stmt 待释放的语句指针
- */
-void tc_statement_free(TcStatement *stmt);
 
 /**
  * 解析单条语句（不含 if；if 由 tc_parse_source_to_program 多行处理）。
@@ -118,4 +86,4 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
 int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
                      const TcFileIndent *file_indent, TcStatement *out, TcDiagnostic *diag);
 
-#endif
+#endif /* TC_PARSER_H */

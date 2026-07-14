@@ -14,6 +14,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/bin)
 add_executable(test-parser
     test_parser.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_rhs.c
+    ${TC_VM_DIR}/parser/tc_parser_free.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c

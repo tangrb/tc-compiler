@@ -1,5 +1,7 @@
 /*
  * tc_warning.c — 编译警告列表管理
+ *
+ * @deprecated — no active warning kinds；保留空壳基础设施供未来警告类型使用。
  */
 #include "tc_warning.h"
 

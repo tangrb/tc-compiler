@@ -22,7 +22,12 @@ REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..")
 SRC_ROOT = os.path.join(REPO_ROOT, "src")
 
 ENTRY_POINT_C = frozenset({"main.c"})
-HEADER_ONLY_H = frozenset({"tc_version.h"})
+HEADER_ONLY_H = frozenset({
+    "tc_version.h",
+    "tc_parser_internal.h",  # parser 子模块共享声明，实现在 tc_parser.c
+    "tc_analyzer_internal.h",  # analyzer 子模块共享类型/声明
+    "tc_stmt_index.h",  # header-only inline 实现
+})
 
 
 def iter_source_files(root):

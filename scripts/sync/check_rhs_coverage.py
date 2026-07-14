@@ -8,7 +8,7 @@ TC-Compiler: TcRhsKind 分发点全覆盖检查
 用法:
     python3 scripts/sync/check_rhs_coverage.py
     python3 scripts/sync/check_rhs_coverage.py --verbose   # 详细输出
-    python3 scripts/sync/check_rhs_coverage.py --fix       # 自动更新 knowledge-graph.mdc 行号
+    python3 scripts/sync/check_rhs_coverage.py --fix       # 校验函数名并同步 knowledge-graph.mdc 文件路径
 
 返回码: 0=全部覆盖, 1=有遗漏/错误
 """
@@ -50,7 +50,7 @@ TC_RHS_KINDS = [
 # 每个分发点:
 #   path:      相对于 REPO_ROOT 的文件路径
 #   func:      函数名
-#   line_func: 函数定义的大致行号（人工标注，用于知识图谱表）
+#   line_func: 已废弃（P4-04）；保留字段兼容旧配置，--fix 不再写回行号
 #   pattern:   grep 模式，用于提取 rhs->kind 检查
 #   skip:      有意不处理的 kinds，带说明
 #   note:      额外说明（如 "fallthrough" 表示最后一个 if 块无显式 kind 检查）
@@ -66,17 +66,17 @@ DispatchPoint = {
 # 和因 fallthrough 等有意不显式检查的 kind
 DISPATCH_POINTS = [
     {
-        "path": "src/vm/parser/tc_parser.c",
+        "path": "src/vm/parser/tc_parser_free.c",
         "func": "tc_rhs_free",
-        "line_func": 1063,
+        "line_func": 0,
         "skip": {
             "TC_RHS_LIT": "LIT 无动态内存，不需释放",
         },
     },
     {
-        "path": "src/vm/parser/tc_parser.c",
+        "path": "src/vm/parser/tc_parser_rhs.c",
         "func": "tc_parse_rhs",
-        "line_func": 738,
+        "line_func": 0,
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
         "output_kinds": ["TC_RHS_LIT"],  # 通过 out->kind = 赋值，非 rhs->kind == 比较
         "skip": {
@@ -85,9 +85,9 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/parser/tc_parser.c",
+        "path": "src/vm/parser/tc_parser_rhs.c",
         "func": "tc_parse_const_rhs",
-        "line_func": 783,
+        "line_func": 0,
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
         "output_kinds": ["TC_RHS_LIT"],
         "skip": {
@@ -95,9 +95,9 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/analyzer/tc_analyzer.c",
+        "path": "src/vm/analyzer/tc_analyzer_pass2.c",
         "func": "tc_check_rhs",
-        "line_func": 218,
+        "line_func": 0,
         "skip": {
             "TC_RHS_CAST": "最后一条 if 链后的 fallthrough 块处理（无显式 rhs->kind == 检查）",
         },
@@ -106,7 +106,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/analyzer/tc_const_eval.c",
         "func": "tc_eval_const_rhs",
-        "line_func": 136,
+        "line_func": 0,
         "skip": {
             "TC_RHS_CAST": "CAST 用于运行时变量，不进入编译期常量求值",
         },
@@ -114,14 +114,14 @@ DISPATCH_POINTS = [
     {
         "path": "src/vm/executor/tc_executor.c",
         "func": "tc_eval_rhs",
-        "line_func": 121,
+        "line_func": 0,
         "skip": {},
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
     {
         "path": "src/aot/tc_aot_codegen.c",
         "func": "tc_aot_emit_rhs",
-        "line_func": 80,
+        "line_func": 0,
         "skip": {
             "TC_RHS_CAST": "最后一条 if 链后的 fallthrough 块处理（无显式 rhs->kind == 检查）",
         },
@@ -130,7 +130,7 @@ DISPATCH_POINTS = [
     {
         "path": "src/aot/tc_aot_rt.c",
         "func": "tc_aot_* shim",
-        "line_func": 1,
+        "line_func": 0,
         "note": "按函数名分派（非 switch on kind），只需验证 shim 函数存在",
         "skip": {
             "TC_RHS_LIT": "LIT 在 codegen 内联展开",
@@ -312,8 +312,8 @@ def check_dispatch_point(dp):
 KNOWLEDGE_GRAPH_PATH = os.path.join(REPO_ROOT, ".cursor/rules/knowledge-graph.mdc")
 
 
-def find_function_line(path, func_name):
-    """在文件中找到函数定义的行号（跳过前向声明）"""
+def find_function_def(path, func_name):
+    """在文件中确认函数定义存在（跳过前向声明）；返回 1-based 行号，未找到返回 0。"""
     abs_path = os.path.join(REPO_ROOT, path)
     if not os.path.exists(abs_path):
         return 0
@@ -328,9 +328,7 @@ def find_function_line(path, func_name):
             i += 1
             continue
         start = i
-        decl = ""
         for j in range(i, min(i + 20, len(lines))):
-            decl += lines[j]
             if "{" in lines[j]:
                 return start + 1
             if ";" in lines[j]:
@@ -341,8 +339,16 @@ def find_function_line(path, func_name):
     return 0
 
 
+def dispatch_rel_path(dp):
+    return (
+        os.path.basename(os.path.dirname(dp["path"]))
+        + "/"
+        + os.path.basename(dp["path"])
+    )
+
+
 def update_knowledge_graph_table():
-    """将 DISPATCH_POINTS 行号写回 knowledge-graph.mdc 表格"""
+    """将 DISPATCH_POINTS 的「函数→文件」写回 knowledge-graph.mdc（不含行号）。"""
     if not os.path.exists(KNOWLEDGE_GRAPH_PATH):
         print(f"warning: {KNOWLEDGE_GRAPH_PATH} not found", file=sys.stderr)
         return False
@@ -352,18 +358,17 @@ def update_knowledge_graph_table():
     for dp in DISPATCH_POINTS:
         func = dp["func"]
         if func == "tc_aot_* shim":
-            continue
-        rel_path = (
-            os.path.basename(os.path.dirname(dp["path"]))
-            + "/"
-            + os.path.basename(dp["path"])
+            # 表格里写作 tc_aot_*
+            kg_func = "tc_aot_*"
+        else:
+            kg_func = func
+        rel_path = dispatch_rel_path(dp)
+        # | `func` | old/path | 说明 |  → 更新文件列
+        pattern = rf'(\| `{re.escape(kg_func)}` \| )[^|]+( \|)'
+        new_content, count = re.subn(
+            pattern, rf"\g<1>{rel_path}\2", content, count=1
         )
-        line_num = str(dp["line_func"])
-        pattern = (
-            rf'(\| `{re.escape(func)}` \| {re.escape(rel_path)} \| )\d+( \|)'
-        )
-        new_content, count = re.subn(pattern, rf"\g<1>{line_num}\2", content, count=1)
-        if count:
+        if count and new_content != content:
             content = new_content
             changed = True
     if changed:
@@ -372,31 +377,35 @@ def update_knowledge_graph_table():
     return changed
 
 
-def sync_line_numbers():
-    """自动校正 DISPATCH_POINTS 中的行号"""
-    updated = []
+def verify_function_bindings():
+    """按函数名校验各分发点实现仍存在于声明的文件中。"""
+    missing = []
+    ok = []
     for dp in DISPATCH_POINTS:
         func = dp["func"]
         path = dp["path"]
         if func == "tc_aot_* shim":
+            ok.append((func, path, "shim-by-name"))
             continue
-        actual_line = find_function_line(path, func)
-        if actual_line and actual_line != dp["line_func"]:
-            updated.append((dp["func"], dp["line_func"], actual_line))
-            dp["line_func"] = actual_line
-    return updated
+        line = find_function_def(path, func)
+        if line:
+            ok.append((func, path, f"@{line}"))
+        else:
+            missing.append((func, path))
+    return ok, missing
 
 
 def format_dispatch_table():
-    """生成 Markdown 表格供 knowledge-graph.mdc 使用"""
+    """生成 Markdown 表格供 knowledge-graph.mdc 使用（函数名绑定，无行号）。"""
     lines = [
-        "| 函数 | 文件 | 行号 | 说明 |",
-        "|------|------|------|------|",
+        "| 函数 | 文件 | 说明 |",
+        "|------|------|------|",
     ]
     for dp in DISPATCH_POINTS:
         func = dp["func"]
-        path = os.path.basename(os.path.dirname(dp["path"])) + "/" + os.path.basename(dp["path"])
-        line_num = str(dp["line_func"]) if dp["line_func"] else "-"
+        if func == "tc_aot_* shim":
+            func = "tc_aot_*"
+        path = dispatch_rel_path(dp)
         note = dp.get("note", "")
         skip_info = dp.get("skip", {})
         if skip_info:
@@ -406,7 +415,10 @@ def format_dispatch_table():
             if note:
                 note += "; "
             note += f"跳过: {skipped}"
-        lines.append(f"| `{func}` | {path} | {line_num} | {note} |")
+        # 精简默认说明：无 note 时用空
+        if not note:
+            note = "—"
+        lines.append(f"| `{func}` | {path} | {note} |")
     return "\n".join(lines)
 
 
@@ -415,7 +427,11 @@ def main():
         description="TcRhsKind 分发点全覆盖检查"
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="详细输出")
-    parser.add_argument("--fix", action="store_true", help="自动更新 knowledge-graph.mdc 行号")
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="按函数名校验绑定，并同步 knowledge-graph.mdc 文件路径（不再写行号）",
+    )
     parser.add_argument("--table", action="store_true", help="仅输出知识图谱 Markdown 表格")
     args = parser.parse_args()
 
@@ -427,19 +443,26 @@ def main():
         print(format_dispatch_table())
         return 0
 
-    # 同步行号
+    # 函数名绑定校验（替代旧行号同步）
+    ok_binds, missing_binds = verify_function_bindings()
     if args.fix:
-        updated = sync_line_numbers()
-        if updated:
-            print("行号更新:")
-            for func, old, new in updated:
-                print(f"  {func}: {old} → {new}")
+        if missing_binds:
+            print("函数绑定缺失:")
+            for func, path in missing_binds:
+                print(f"  {func} not found in {path}")
         else:
-            print("行号均已最新")
+            print("函数名绑定均有效:")
+            for func, path, where in ok_binds:
+                print(f"  {func} → {path} ({where})")
         if update_knowledge_graph_table():
             print(f"已写入 {KNOWLEDGE_GRAPH_PATH}")
         else:
-            print("knowledge-graph.mdc 行号表无变更")
+            print("knowledge-graph.mdc 分发点表无路径变更")
+    elif missing_binds:
+        for func, path in missing_binds:
+            all_errors.append(
+                f"  [{func}] 在 {path} 中未找到函数定义（请检查 DISPATCH_POINTS 路径）"
+            )
 
     # 检查每个分发点
     for dp in DISPATCH_POINTS:
