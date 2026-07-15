@@ -1,150 +1,308 @@
 # libtc 嵌入 API
 
-> **版本**：0.0.26 · **代码**：v0.0.26（`TC_VM_VERSION`）  
-> **详设**：[libtc设计说明书.md](./libtc设计说明书.md)
-
-libtc 是 TC 编译器的静态库，提供「编译（Parse + Analyze）」与「执行」分离的嵌入接口。
-
-## v0.0.26 简述
-
-| 项 | 说明 |
-|----|------|
-| **goto / label** | 经 `tc_compile_*` Analyze 做跳转合法性检查；执行经 `tc_run_typed`；**API 不变** |
-| **未初始化** | Analyze 路径敏感数据流 → `TC_ERR_UNINITIALIZED_VARIABLE`（不再是警告） |
-| **新错误码** | `LABEL_NOT_FOUND` / `DUPLICATE_LABEL` / `JUMP_INTO_BLOCK` / `JUMP_TO_SIBLING_BLOCK` / `UNINITIALIZED_VARIABLE` |
-| **REPL** | **不支持** `if` / `goto` / `label` |
-| **嵌入方** | 签名与所有权契约不变；非法 goto / 未初始化在编译阶段经 `diag` 返回 |
-
-## v0.0.25 简述
-
-| 项 | 说明 |
-|----|------|
-| **浮点支持** | `float32`/`float64` 类型经 `tc_compile_*` 全链路编译（词法/语法/分析/执行/AOT）；**API 不变** |
-| **类型扩展** | `TcType` 现在可编码 `FloatType`（`TC_FLOAT32`/`TC_FLOAT64`）；`TcLiteral` 新增 `is_float` 标记 |
-| **新 RHS** | 4 个浮点 RHS kind（`FLOAT_ARITH`/`FLOAT_UNARY`/`FLOAT_COMPARE`/`FLOAT_CAST`）经现有 RHS 分发路径 |
-| **错误码** | 新增 5 种浮点相关 `TcErrorKind`（`FLOAT_OVERFLOW`/`FLOAT_UNDERFLOW`/`FLOAT_INVALID`/`FLOAT_CAST_OVERFLOW`/`MODE_MISMATCH`） |
-| **运行时** | `tc_run_typed` 可产生浮点运行时错误（严格模式溢出/下溢/无效操作/转换溢出） |
-| **嵌入方** | 无需为新类型或 RHS 特殊处理；`TcTypedProgram` 结构体字段无变更 |
-
-v0.0.24 特性（控制流 `if-then-else-end`、块级作用域）仍通过现有 API 完整支持；浮点扩展不改变任何 API 签名。
-
-| 项 | 说明 |
-|----|------|
-| **控制流** | `if-then-else-end` 经 `tc_compile_*` 全文件编译；`TcTypedProgram.program` 可含 `TC_STMT_IF`（嵌套 `then_body`/`else_body`） |
-| **解析** | `tc_lib.c` 内 `tc_parse_source` **采用**两遍行扫描（缩进 + `tc_parse_if_stmt`）；**API 不变** |
-| **作用域** | 块内 `var`/`let` 在 Analyze 阶段处理；`symbols.count` 含块局部 slot（AOT 同长度 `slots[]`） |
-| **释放** | `tc_typed_program_free` 递归释放 if 子树（`tc_statement_free`） |
-| **REPL** | **不**走 libtc；`tc-repl` 逐行路径且 **不支持** `if` |
-| **嵌入方** | 仍只需 `tc_compile_file` / `tc_compile_source` + 可选 `tc_run_typed`；无需为 if 单独调用 |
-
-Parse 失败类型在 v0.0.24 增加缩进相关静态错误（`TC_ERR_INDENT_*` 等）；OOM 错误从 `TC_ERR_SYNTAX` 分离为独立 `TC_ERR_OUT_OF_MEMORY`，仍通过 `diag` 单槽返回。
+> **当前 API 实现**：libtc / TC-VM v0.0.26
+>
+> **目标语言规范**：[TC 0.0.31](./TC语言标准设计说明书_0.0.31.md)
+>
+> **文档职责**：本页是当前调用者速查；0.0.31 内部目标见 [libtc 设计说明书](./libtc设计说明书.md)。
 
 ---
 
-## 头文件
+## 1. 头文件与链接
 
 ```c
 #include "tc_lib.h"
 ```
 
-构建后 include 路径：`src/libtc/` 及各 VM 模块头文件目录（见 CMake `TC_LIBTC_INCLUDE_DIRS`）。
+当前公共头文件：[src/libtc/tc_lib.h](../src/libtc/tc_lib.h)。CMake target 为静态库 `libtc`，并公开 libtc 与 VM runtime/parser/analyzer/executor 的包含目录。
 
-## API
+最小 CMake 用法：
 
-### `tc_compile_source`
-
-```c
-int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag);
+```cmake
+target_link_libraries(my_program PRIVATE libtc)
 ```
 
-- **输入**：完整 TC 源文本（单行或多行，`source` 须在 `diag` 打印前保持有效）
-- **输出**：成功时 `out` 为已通过静态分析的 `TcTypedProgram`；警告写入 `out->warnings`
-- **返回**：`0` 成功；`-1` 失败（`diag` 已设置）
-- **失败时 `out` 的状态**：
-  - **Parse 失败**（词法/语法/缩进/OOM）：`out` **不会被修改**；调用方不得读取 `out`，也**无需** `tc_typed_program_free`。OOM 错误使用独立 `TC_ERR_OUT_OF_MEMORY`（v0.0.24 Day1）。
-  - **Analyze 失败**（静态分析错误）：`tc_analyze` 内部已调用 `tc_typed_program_free(out)`，`out` 处于**空状态**（count 为 0、指针为 NULL）；**无需**再次释放
-- **所有权**：仅成功时 `out` 由调用方拥有，须 `tc_typed_program_free(out)`
+libtc 以 C99 编译。
 
-### `tc_compile_file`
+---
+
+## 2. API 一览
 
 ```c
-int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
-```
+int tc_compile_source(const char *source,
+                      TcTypedProgram *out,
+                      TcDiagnostic *diag);
 
-等价于读文件后调用 `tc_compile_source`；`diag->filename` 设为 `path`。
+int tc_compile_file(const char *path,
+                    TcTypedProgram *out,
+                    TcDiagnostic *diag);
 
-- **返回**：与 `tc_compile_source` 相同
-- **失败时 `out` 的状态**：文件 I/O 失败时 `out` 不会被修改；编译阶段失败时的行为同 `tc_compile_source`
+int tc_run_typed(const TcTypedProgram *program,
+                 TcDiagnostic *diag);
 
-### `tc_run_typed`
-
-```c
-int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
-```
-
-- **输入**：已通过 `tc_analyze` 的程序（不可修改）
-- **返回**：`0` 成功；`-1` 运行时错误（除零、溢出、I/O 等）
-- **副作用**：`write`/`writeln` 输出到 stdout；`read` 从 stdin 读取
-- **警告**：不在此函数内打印；调用方应在执行前自行 `tc_warning_list_print`
-
-### `tc_typed_program_free`
-
-```c
 void tc_typed_program_free(TcTypedProgram *program);
 ```
 
-释放 `TcTypedProgram` 内所有堆内存（语句树含嵌套 if、符号表、警告列表）。声明于 `tc_analyzer.h`（`tc_lib.h` 已 include）。释放后各子字段指针置 NULL；对已是空状态的 `TcTypedProgram` 再次调用是安全的（no-op）。
+| 函数 | 成功 | 失败 | 所有权 |
+| ---- | ---- | ---- | ------ |
+| `tc_compile_source` | 返回 0，写入 typed program | 返回 -1，设置 diag | 仅成功时调用方取得 `out` |
+| `tc_compile_file` | 返回 0，写入 typed program | 返回 -1，设置 diag | 仅成功时调用方取得 `out` |
+| `tc_run_typed` | 返回 0 | 返回 -1，设置运行时 diag | 不取得 program |
+| `tc_typed_program_free` | 释放并清空 | — | 只对成功编译所得对象调用 |
 
-## 内存所有权约定
+---
 
-| 对象 | 分配方 | 释放方 |
-|------|--------|--------|
-| `TcDiagnostic` | 调用方栈/堆 | `tc_diagnostic_clear`（可重复） |
-| `TcTypedProgram` | `tc_compile_*`（成功时） | `tc_typed_program_free`（Analyze 失败时 libtc 内部已释放） |
-| `TcIfStmt` 子语句数组 | parser（`tc_parse_if_stmt`） | `tc_typed_program_free` → `tc_statement_free` 递归 |
-| `source` 字符串（`tc_compile_source`） | 调用方 | 调用方（编译完成后即可释放） |
-| `tc_compile_file` 读入缓冲 | `tc_read_file` | `tc_compile_file` 返回前 `free` |
-| `diag->message` / `diag->filename` | libtc 内 `malloc` | `tc_diagnostic_clear` |
+## 3. `tc_compile_source`
 
-## 性能分析
-
-设置环境变量 `TC_BENCH=1` 时，`tc_compile_source` / `tc_run_typed` 向 stderr 输出各阶段耗时：
-
-```text
-bench parse: 0.001234 s
-bench analyze: 0.000567 s
-bench execute: 0.000890 s
+```c
+int tc_compile_source(const char *source,
+                      TcTypedProgram *out,
+                      TcDiagnostic *diag);
 ```
 
-配合 `scripts/vm/bench.sh` 用于本地回归对比。
+### 当前行为
 
-## 链接
+- 对完整 NUL 结尾 source 执行 Parse + Analyze；
+- 成功后 `out` 包含程序树、符号表和 warnings 字段；
+- v0.0.26 支持 if/else、受限 goto/label、整数、bool 与浮点；
+- v0.0.26 的未初始化检查在编译阶段完成；
+- `diag` 保存 source 副本以生成源码片段，调用返回后可释放原 source。
 
-```cmake
-target_link_libraries(my_app PRIVATE libtc)
-target_include_directories(my_app PRIVATE ${TC_LIBTC_INCLUDE_DIRS})
+### 失败时 `out`
+
+- Parse 失败：`out` 不被修改；
+- Analyze 失败：内部释放并清空已构造的 `out`；
+- 两种情况下调用方都不读取 `out`，也不调用 `tc_typed_program_free(out)`。
+
+### 前置条件
+
+- `source`、`out`、`diag` 为有效指针；
+- `diag` 已初始化；
+- `out` 当前不持有未释放的 typed program。
+
+---
+
+## 4. `tc_compile_file`
+
+```c
+int tc_compile_file(const char *path,
+                    TcTypedProgram *out,
+                    TcDiagnostic *diag);
 ```
 
-## 示例
+### 当前行为
+
+1. 读取整个文件；
+2. 把 filename/source 复制到 diag；
+3. 调用与 `tc_compile_source` 相同的 Parse + Analyze；
+4. 返回前释放内部文件缓冲。
+
+文件打开/读取失败时 `out` 不被修改。当前 v0.0.26 把这些工具/API 失败记录为 `TC_ERR_SYNTAX`；这是已知的 0.0.31 迁移差距，不应理解为文件内容存在语法错误。
+
+---
+
+## 5. `tc_run_typed`
+
+```c
+int tc_run_typed(const TcTypedProgram *program,
+                 TcDiagnostic *diag);
+```
+
+- program 必须来自成功的 `tc_compile_source/file`；
+- 每次调用建立新的 runtime slots；
+- program 在执行期间只读；
+- 可对同一个 program 重复调用；
+- 成功返回 0；除零、溢出、cast、浮点或 I/O 运行时错误返回 -1；
+- 失败后 program 仍归调用方，必须正常释放。
+
+`tc_run_typed` 不打印诊断；调用方决定是否调用 `tc_diagnostic_print`。
+
+---
+
+## 6. 诊断生命周期
+
+### 初始化与释放
 
 ```c
 TcDiagnostic diag;
-TcTypedProgram program;
 
 tc_diagnostic_init(&diag);
-if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0) {
-    tc_diagnostic_print(&diag, stderr);
-    /* 编译失败：无需 tc_typed_program_free（Parse 未写入 out，Analyze 失败时已内部释放） */
-    return 1;
-}
-if (program.warnings.count > 0) {
-    tc_warning_list_print(&program.warnings, stderr);
-}
-if (tc_run_typed(&program, &diag) != 0) {
-    tc_diagnostic_print(&diag, stderr);
-    tc_typed_program_free(&program);
-    return 1;
-}
-tc_typed_program_free(&program);
+/* compile / run */
 tc_diagnostic_clear(&diag);
 ```
+
+`tc_diagnostic_clear` 释放 message、filename、snippet 和 source，可在已初始化对象上重复调用。
+
+### 打印
+
+```c
+tc_diagnostic_print(&diag, stderr);
+```
+
+当前格式：
+
+```text
+<file>:<line>:<column>: error: <message>
+  <source line>
+  <spaces>^
+```
+
+### 程序化访问
+
+当前 `TcDiagnostic` 包含：
+
+- `TcErrorKind kind`；
+- message、filename、snippet、source；
+- 1-based line/column，未知列使用 `TC_COLUMN_UNKNOWN`。
+
+v0.0.26 为单槽 fail-fast，只保留第一条错误。当前 CLI 打印 message，不自动打印 `tc_error_kind_name(kind)`。
+
+---
+
+## 7. Typed program 所有权
+
+### 成功路径
+
+```text
+tc_compile_* succeeds
+  → caller owns TcTypedProgram
+  → zero or more tc_run_typed / AOT reads
+  → tc_typed_program_free exactly once
+```
+
+### 所有权表
+
+| 对象 | 所有者 | 释放 |
+| ---- | ------ | ---- |
+| 输入 source | 调用方 | 调用方；compile 返回后即可释放 |
+| `TcDiagnostic` | 调用方 | `tc_diagnostic_clear` |
+| 成功的 `TcTypedProgram` | 调用方 | `tc_typed_program_free` |
+| program 内 AST/名称/if 子树 | typed program | 随 `tc_typed_program_free` 递归释放 |
+| 符号、标签、常量值 | typed program | 随 `tc_typed_program_free` |
+| runtime slots | libtc Executor | `tc_run_typed` 返回前 |
+| `tc_compile_file` 文件缓冲 | libtc | compile 返回前 |
+
+### 禁止模式
+
+- 编译失败后调用 `tc_typed_program_free`；
+- 成功对象不释放或释放两次；
+- 在 program 释放后执行；
+- 对同一个 out 覆盖编译而未先释放旧对象；
+- 多线程无同步地共享并释放同一对象。
+
+---
+
+## 8. 当前 warnings
+
+`TcTypedProgram` v0.0.26 仍有 `warnings` 字段，但 `TcWarningKind` 只有空壳 `TC_WARN_NONE`，当前没有活跃编译警告。调用方无需打印 warning list。
+
+未初始化使用是静态错误，不是警告。
+
+---
+
+## 9. 性能计时
+
+设置环境变量 `TC_BENCH` 即可让 libtc 向 stderr 输出阶段耗时：
+
+```bash
+TC_BENCH=1 ./my_program
+```
+
+当前阶段名：
+
+```text
+bench parse: <seconds> s
+bench analyze: <seconds> s
+bench execute: <seconds> s
+```
+
+默认不输出。嵌入应用若需要干净 stderr，不设置该变量。
+
+---
+
+## 10. 最小示例
+
+```c
+#include <stdio.h>
+
+#include "tc_lib.h"
+
+int main(void) {
+    static const char source[] =
+        "var x: int32 = 7\n"
+        "writeln(int32, %d, x)\n";
+    TcDiagnostic diag;
+    TcTypedProgram program;
+    int rc = 0;
+
+    tc_diagnostic_init(&diag);
+
+    if (tc_compile_source(source, &program, &diag) != 0) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
+
+    if (tc_run_typed(&program, &diag) != 0) {
+        tc_diagnostic_print(&diag, stderr);
+        rc = 1;
+    }
+
+    tc_typed_program_free(&program);
+    tc_diagnostic_clear(&diag);
+    return rc;
+}
+```
+
+成功输出：
+
+```text
+7
+```
+
+---
+
+## 11. v0.0.26 当前能力边界
+
+| 能力 | 当前状态 |
+| ---- | -------- |
+| if/else、块作用域、缩进 | 支持 |
+| goto/label 与 v0.0.26 跳转限制 | 支持 |
+| float32/float64 与旧模式 | 支持 |
+| `var` 无 RHS | 当前接受；0.0.31 将禁止 |
+| while/break/continue | 当前不可用 |
+| bitcast | 当前不可用 |
+| 0.0.31 完整 CFG 固定点 | 未交付；已有部分 DFA 基础 |
+| 0.0.31 错误枚举 | 未交付 |
+
+不要仅根据 0.0.31 标准向当前头文件传入新语法并预期成功。
+
+---
+
+## 12. 0.0.31 兼容性预期
+
+### 函数
+
+目标设计不增加新的 compile/run/free 公共函数；现有调用序列保持。
+
+### 行为变化
+
+- 编译接受集按 0.0.31 收敛；
+- while/break/continue/bitcast 加入 typed program；
+- `var` 缺初始化器成为专用静态错误；
+- 完整 CFG 决定 `UninitializedVariable`；
+- strict cast、truncate、浮点模式与 `let` 精度迁移；
+- 文件/API 错误与语言错误分域；
+- 错误枚举调整为标准 41 项语言错误 + OutOfMemory。
+
+### 重新编译
+
+函数签名预计源兼容，但 `TcTypedProgram`、`TcDiagnostic` 和枚举是公开结构。升级到 0.0.31 时，嵌入应用需要重新编译，并审查直接访问结构字段或具体错误枚举的代码。
+
+### 交付判定
+
+只有实现版本升为 0.0.31、全量/新增测试通过且合规报告关闭全部差距后，调用方才能把上述目标行为当成当前 API 契约。
+
+---
+
+*当前调用契约以 [src/libtc/tc_lib.h](../src/libtc/tc_lib.h) 和 v0.0.26 实现为准；目标规则以 [TC 0.0.31 标准](./TC语言标准设计说明书_0.0.31.md) 为准。*
