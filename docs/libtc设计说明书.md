@@ -1,6 +1,6 @@
 # libtc 设计说明书
 
-> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
+> **规范基线（唯一权威）**：[TC 语言标准 0.0.31](./TC语言标准设计说明书.md)
 >
 > **当前实现基线**：libtc / TC-VM v0.0.31
 >
@@ -349,7 +349,7 @@ OOM 不得降级为 `SyntaxError`。`realloc` 采用临时指针，失败时保�
 | API/Environment | 文件无法打开/读取、无效调用前置条件 | 否 |
 | Implementation | OutOfMemory、内部不变量破坏 | 否 |
 
-文件打开失败不得继续使用 `TC_ERR_SYNTAX`。目标 `TcDiagnostic` 应增加 domain/origin，并为 API 文件错误提供独立 code；函数签名无需变化。
+文件打开失败不使用 `TC_ERR_SYNTAX`。当前 `TcDiagnostic` 已包含 `domain`，API 文件错误通过独立的 `TcApiErrorCode` 表示；函数签名保持不变。
 
 ### 7.2 语言错误
 
@@ -443,7 +443,7 @@ REPL 增量分析是 driver 侧的独立实现能力。它可以拒绝多行控�
 
 ### 10.1 性能阶段
 
-当前 `TC_BENCH=1` 输出 parse、analyze、execute 时间。0.0.31 目标可把 analyze 细分为：
+当前 `TC_BENCH=1` 输出 parse、analyze、execute 时间。后续版本可选择把 analyze 进一步细分为：
 
 ```text
 bench parse
@@ -593,4 +593,4 @@ tc_diagnostic_clear(&diag);
 
 ---
 
-*语言合法性与错误种类以 [TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md) 为准；当前可调用行为以 [libtc API](./libtc-api.md) 为准。*
+*语言合法性与错误种类以 [TC 语言标准 0.0.31](./TC语言标准设计说明书.md) 为准；当前可调用行为以 [libtc API](./libtc-api.md) 为准。*
