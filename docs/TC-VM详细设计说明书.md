@@ -1,6 +1,6 @@
 # TC-VM 详细设计说明书
 
-> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
+> **规范基线（唯一权威）**：[TC 语言标准 0.0.31](./TC语言标准设计说明书.md)
 >
 > **当前实现基线**：TC-VM v0.0.31（`TC_VM_VERSION`）
 >
@@ -672,7 +672,7 @@ libtc 公共函数签名保持不变；`TcTypedProgram` 已包含只读 `TcCfg *
 
 ### 15.3 交付证据
 
-0.0.31 发布门禁实测为 VM 435/435、unit 1617/1617、AOT 257/257。`check_rhs_coverage.py` 与 `check_source_naming.py` 通过；ASan、UBSan、no-fenv 494/494、MallocScribble 全矩阵及 libtc `leaks` 0 bytes 均通过。错误名测试覆盖 41 个语言错误与 `OutOfMemory`，并验证名称无重复。
+0.0.31 发布门禁实测为 VM 459/459、unit 1726/1726、AOT 272/272。`check_rhs_coverage.py` 与 `check_source_naming.py` 通过；ASan、UBSan、no-fenv 494/494、MallocScribble 全矩阵及 libtc `leaks` 0 bytes 均通过。错误名测试覆盖 41 个语言错误与 `OutOfMemory`，并验证名称无重复。
 
 | 目标 | 实现链接 | 测试链接 |
 | ---- | -------- | -------- |
@@ -692,7 +692,7 @@ libtc 公共函数签名保持不变；`TcTypedProgram` 已包含只读 `TcCfg *
 - 已交付：强制 var 初始化、while/break/continue、范式隔离、完整 CFG、bitcast、strict cast/truncate、浮点与 let 语义收敛。
 - `tc_cfg.c/h` 构建完整控制流图并执行固定点确定初始化；`tc_sem_cast.c/h` 由 VM、AOT 与常量求值共享。
 - 旧浮点 wrap、浮点 truncate 位重解释和旧错误分类均已从成功路径删除。
-- 当前测试基线：435 VM、1617 unit、257 AOT。
+- 当前测试基线：459 VM、1726 unit、272 AOT。
 
 ### 16.2 已完成的迁移顺序
 
@@ -718,4 +718,4 @@ libtc 公共函数签名保持不变；`TcTypedProgram` 已包含只读 `TcCfg *
 
 ---
 
-*本文的规范性语言规则均以 [TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md) 为准。*
+*本文的规范性语言规则均以 [TC 语言标准 0.0.31](./TC语言标准设计说明书.md) 为准。*

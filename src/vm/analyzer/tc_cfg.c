@@ -192,18 +192,19 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
                    ? -1
                    : 0;
     case TC_RHS_LOGIC_BIN:
+    {
+        TcStaticBoolResult lhs_value = TC_STATIC_BOOL_UNKNOWN;
+
         if (tc_cfg_add_operand_read(ctx, node_id, &rhs->u.logic_bin.lhs, stmt_index) != 0) {
             return -1;
         }
-        if (rhs->u.logic_bin.lhs.kind == TC_OPERAND_LIT &&
-            rhs->u.logic_bin.lhs.u.lit.is_bool &&
-            ((rhs->u.logic_bin.op == TC_LOGIC_AND &&
-              rhs->u.logic_bin.lhs.u.lit.magnitude == 0) ||
-             (rhs->u.logic_bin.op == TC_LOGIC_OR &&
-              rhs->u.logic_bin.lhs.u.lit.magnitude != 0))) {
+        tc_try_eval_static_bool_operand(&rhs->u.logic_bin.lhs, &lhs_value);
+        if ((rhs->u.logic_bin.op == TC_LOGIC_AND && lhs_value == TC_STATIC_BOOL_FALSE) ||
+            (rhs->u.logic_bin.op == TC_LOGIC_OR && lhs_value == TC_STATIC_BOOL_TRUE)) {
             return 0;
         }
         return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.logic_bin.rhs, stmt_index);
+    }
     case TC_RHS_LOGIC_UN:
         return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.logic_un.operand, stmt_index);
     case TC_RHS_BITWISE_BIN:
@@ -306,20 +307,19 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
         int merge = -1;
         int then_end = -1;
         int else_end = -1;
-        int is_constant = 0;
-        int value = 0;
+        TcStaticBoolResult value = TC_STATIC_BOOL_UNKNOWN;
 
         node = tc_cfg_add_node(ctx, TC_CFG_BRANCH, stmt_index, if_stmt->line, stmt->kind);
         if (node < 0 || tc_cfg_add_edge(ctx, predecessor, node, incoming) != 0 ||
             tc_cfg_add_rhs_reads(ctx, node, &if_stmt->condition, stmt_index) != 0) {
             return -2;
         }
-        if (tc_try_eval_static_bool(&if_stmt->condition, ctx->symbols, stmt_index, &is_constant,
-                                    &value, ctx->diag) != 0) {
+        if (tc_try_eval_static_bool(&if_stmt->condition, if_stmt->line, &value,
+                                    ctx->diag) != 0) {
             return -2;
         }
-        if (is_constant) {
-            ctx->cfg->nodes[node].constant_condition = value;
+        if (value != TC_STATIC_BOOL_UNKNOWN) {
+            ctx->cfg->nodes[node].constant_condition = (int)value;
         }
         merge = tc_cfg_add_node(ctx, TC_CFG_MERGE, -1, if_stmt->line, stmt->kind);
         if (merge < 0) {
@@ -350,8 +350,7 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
         const TcWhileStmt *while_stmt = &stmt->u.while_stmt;
         int loop_exit = -1;
         int body_end = -1;
-        int is_constant = 0;
-        int value = 0;
+        TcStaticBoolResult value = TC_STATIC_BOOL_UNKNOWN;
 
         node = tc_cfg_add_node(ctx, TC_CFG_LOOP_CONDITION, stmt_index, while_stmt->line,
                                stmt->kind);
@@ -359,12 +358,12 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             tc_cfg_add_rhs_reads(ctx, node, &while_stmt->condition, stmt_index) != 0) {
             return -2;
         }
-        if (tc_try_eval_static_bool(&while_stmt->condition, ctx->symbols, stmt_index,
-                                    &is_constant, &value, ctx->diag) != 0) {
+        if (tc_try_eval_static_bool(&while_stmt->condition, while_stmt->line, &value,
+                                    ctx->diag) != 0) {
             return -2;
         }
-        if (is_constant) {
-            ctx->cfg->nodes[node].constant_condition = value;
+        if (value != TC_STATIC_BOOL_UNKNOWN) {
+            ctx->cfg->nodes[node].constant_condition = (int)value;
         }
         loop_exit =
             tc_cfg_add_node(ctx, TC_CFG_LOOP_EXIT, -1, while_stmt->line, stmt->kind);

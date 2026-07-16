@@ -1,299 +1,271 @@
 # TC-Compiler
 
-TC 语言编译器（C99）。当前包含 **libtc**（编译/执行静态库）、**TC-VM**（直接执行引擎）、**TC-AOT**（ahead-of-time 编译，将 `.tc` 转译为 C99 源码）。
+TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 
-版本：**v0.0.31**（`src/vm/driver/tc_version.h`）
+- **libtc**：编译、静态分析和执行的嵌入式静态库；
+- **TC-VM**：直接执行 TC 源文件的命令行工具；
+- **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器。
 
-## 目录结构
+当前版本：**v0.0.31**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) 为唯一权威来源。
 
-```text
-docs/                  语言标准、VM 详细设计、AOT、libtc API 等文档
-src/
-├── libtc/             共享静态库（编译 + 执行流水线，CMakeLists.txt）
-├── vm/                TC-VM 源码（lexer / parser / analyzer / executor / runtime）
-└── aot/               TC-AOT 源码（codegen / rt shim / CLI）
-tests/
-    ├── valid/             一致性测试（含 while/bitcast/CFG/let/I/O 等特性）
-    ├── errors/            静态与运行时错误测试
-    ├── unit/              16 个 C 单元目标（含 CFG/executor/diagnostic/libtc）
-    └── stress/            压力测试
-scripts/
-├── ci.sh              本地 CI 流水线（构建 + 测试 + 静态检查）
-├── run_tests.sh        统一测试入口（推荐）
-├── run_asan_all.sh     ASan 一键构建 + 全量测试
-├── run_memcheck_macos.sh  macOS 内存安全检查（MallocScribble + leaks）
-├── valgrind-suppressions.supp  Valgrind 压制文件（libc 启动期分配）
-├── git-hooks/          Git hooks（commit-msg 剥离 Cursor trailer）
-├── vm/                 VM 测试脚本
-├── aot/                AOT 差分测试脚本
-├── sync/               RHS 覆盖检查（check_rhs_coverage.py）
-└── install-git-hooks.sh
-build/                 构建产物（git 忽略）
-├── vm/bin/tc-vm       VM 可执行文件
-└── aot/bin/tc-aot     AOT 可执行文件
+## 快速开始
+
+环境要求：C99 编译器、CMake 和 Make。TC-AOT 的 `--run` 模式还需要可用的宿主 `cc`。
+
+```sh
+make
+./build/vm/bin/tc-vm tests/valid/example.tc
 ```
 
-## 已实现的特性
+检查源码但不执行：
 
-| 类别 | 特性 |
-|------|------|
-| 类型系统 | `int8` / `int16` / `int32` / `int64` / `uint8` / `uint16` / `uint32` / `uint64` / `bool` / `float32` / `float64` |
-| 字面量 | 十进制、十六进制（`0x`/`0X`）、八进制（`0o`/`0O`）、二进制（`0b`/`0B`）、数字分隔符（`_`）、浮点（科学计数法、`f` 后缀、`inf`/`nan`） |
-| 变量 | `var` 声明（强制初始化）、`let` 常量（编译期求值、无运行时槽） |
-| 算术运算 | `add` / `sub` / `mul` / `div` / `mod`；整数支持 strict/wrap，浮点支持 strict/ieee |
-| 比较运算 | `eq` / `neq` / `lt` / `gt` / `le` / `ge` |
-| 逻辑运算 | `and` / `or`（短路求值）、`not` |
-| 单目运算 | `abs` / `neg` |
-| 类型转换 | strict 数值 `cast`、整数窄化 `truncate`、非 bool 等宽 `bitcast` |
-| I/O | `write` / `writeln` / `read`，支持格式说明符（`d`/`i`/`u`/`x`/`X`/`o`/`b`/`t`/`f`/`e`/`E`/`g`/`G`） |
-| 常量折叠 | `let` 初始化表达式的编译期求值（算术/比较/逻辑/cast/位运算均支持） |
-| 控制流 | `if-then-else-end`、`while-then-end`、最内层 `break`/`continue`、受限 `goto`/`label` |
-| 静态分析 | 完整 CFG、可达性、常量剪枝与固定点确定初始化；while 内禁止 goto/label |
-| 块级作用域 | if 分支与 while body 独立作用域，固定 slot，支持 shadowing |
-| 位运算 | `and` / `or` / `xor` / `not`（按位，无溢出）；`shl`（strict/wrap）/ `shr`（算术/逻辑） |
-| REPL | 事务式逐条执行、变量跨行保留；明确拒绝多行控制流与 label |
+```sh
+./build/vm/bin/tc-vm --check tests/valid/example.tc
+```
+
+将 TC 转译为 C99：
+
+```sh
+./build/aot/bin/tc-aot tests/valid/example.tc
+# 输出 tests/valid/example.c
+```
+
+运行完整标准回归：
+
+```sh
+bash scripts/run_tests.sh
+```
+
+当前发布基线为 **459 VM + 1726 unit + 272 AOT**，共 2457 个测试断言或场景，三组均为零失败。
+
+## 已实现能力
+
+| 类别 | 当前能力 |
+| ---- | -------- |
+| 类型 | `int8` / `int16` / `int32` / `int64`、对应无符号整数、`bool`、`float32`、`float64` |
+| 字面量 | 十进制、十六进制、八进制、二进制、数字分隔符、科学计数法、`f` 后缀、`inf` / `nan` |
+| 绑定 | 强制初始化的 `var`；编译期求值且无运行时槽的 `let` |
+| 运算 | 整数与浮点算术、比较、逻辑短路、单目运算、位运算和移位 |
+| 转换 | 严格数值 `cast`、整数窄化 `truncate`、非 `bool` 等宽 `bitcast` |
+| 控制流 | `if-then-else-end`、`while-then-end`、最内层 `break` / `continue`、受限 `goto` / `label` |
+| 静态分析 | 词法作用域、完整 CFG、可达性、静态布尔剪枝和固定点确定初始化 |
+| I/O | `write` / `writeln` / `read`；13 种整数、布尔和浮点格式符 |
+| 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
+| REPL | 事务式逐条执行并保留变量；拒绝多行控制流和 `label` |
+
+0.0.31 不包含函数、数组、结构体、指针、字符串、模块系统、JIT 或字节码文件格式。结构化 `while` 内禁止使用 `goto` / `label`；这属于语言规范边界。
 
 ## 构建
 
-构建由 **CMake** 统一管理；根目录 `Makefile` 是对 CMake 的薄封装。
-
-### Makefile（推荐）
+根目录 Makefile 是 CMake 的便捷入口。
 
 ```sh
-make                    # 配置并编译全部（libtc + VM + AOT）
-make vm                 # 仅 VM
-make aot                # 仅 AOT
-make test               # 运行全部测试（VM + AOT + 单元测试）
-make test-vm            # VM 一致性测试
-make test-aot           # AOT 差分测试
-make test-unit          # C 单元测试
-make test-valgrind      # Valgrind Memcheck 模式（Linux）
-make test-leaks         # macOS leaks 模式
-make memcheck-macos     # macOS 完整内存检查（MallocScribble + leaks）
-make bench              # 性能基准测试
-make build-asan         # ASan 构建
-make build-ubsan        # UBSan 构建
-make ci                 # 本地 CI（构建 + 全部测试 + 静态检查）
-make ci-coverage        # 本地 CI + 覆盖率报告
-make clean              # 删除 build/ 目录
+make                    # 配置并构建默认全部目标：libtc、TC-VM、TC-AOT
+make vm                 # 当前与 make 相同，构建默认全部目标
+make aot                # 构建 TC-AOT 及其依赖
+make clean              # 删除 build/
 ```
 
-### CMake（等价命令）
+需要精确构建单个 CMake 目标时：
 
 ```sh
 cmake -S . -B build
-cmake --build build                       # 编译全部
-cmake --build build --target tc-vm        # 仅 VM
-cmake --build build --target tc-aot       # 仅 AOT
-cmake --build build --target check-vm     # VM 一致性测试
-cmake --build build --target check-aot    # AOT 差分测试
-cmake --build build --target check-unit   # C 单元测试
-cmake --build build --target check        # 全部测试
+cmake --build build --target tc-vm
+cmake --build build --target tc-aot
+cmake --build build --target libtc
 ```
 
-### Sanitizer 模式
+项目以 `-std=c99 -Wall -Wextra -pedantic` 编译；AOT 差分测试对生成的 C 额外启用 `-Werror`。
 
-#### AddressSanitizer（内存错误检测）
+## 使用
+
+### TC-VM
 
 ```sh
-# 方式一：Makefile 快捷方式
-make build-asan
-bash scripts/run_tests.sh --asan
-
-# 方式二：手动 cmake
-cmake -S . -B build-asan -DCMAKE_C_FLAGS="-fsanitize=address -g" \
-  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
-cmake --build build-asan
-bash scripts/run_tests.sh --asan
-
-# 方式三：一键脚本（构建 + 全量测试 + 报告）
-bash scripts/run_asan_all.sh
+./build/vm/bin/tc-vm program.tc          # 编译并执行
+./build/vm/bin/tc-vm --check program.tc  # 仅编译与静态分析
+./build/vm/bin/tc-vm --repl              # 进入单行 REPL
+./build/vm/bin/tc-vm --help
+./build/vm/bin/tc-vm --version
 ```
 
-#### UndefinedBehaviorSanitizer（未定义行为检测）
+REPL 元命令包括 `:quit`、`:reset`、`:vars` 和 `:help`。完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考.md)。
+
+### TC-AOT
 
 ```sh
+./build/aot/bin/tc-aot source.tc             # 生成 source.c
+./build/aot/bin/tc-aot -o output.c source.tc # 指定 C 输出路径
+./build/aot/bin/tc-aot --check source.tc      # 仅静态分析，不生成 C
+./build/aot/bin/tc-aot --run source.tc        # 生成、用宿主 cc 编译并执行
+./build/aot/bin/tc-aot --help
+```
+
+`--run` 依赖宿主 C99 工具链；纯代码生成和 `--check` 不要求把宿主编译器可用性视为 TC 语言合规条件。
+
+## 嵌入 libtc
+
+libtc 采用“成功才转移所有权”的契约：编译成功后，调用方必须释放 `TcTypedProgram`；编译失败时，调用方没有取得输出所有权，不得释放本次输出。
+
+```c
+#include <stdio.h>
+
+#include "tc_lib.h"
+
+int main(void) {
+    const char *source =
+        "var x: int32 = 1\n"
+        "writeln(int32, %d, x)\n";
+    TcDiagnostic diag;
+    TcTypedProgram program;
+
+    tc_diagnostic_init(&diag);
+
+    if (tc_compile_source(source, &program, &diag) != 0) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
+
+    if (tc_run_typed(&program, &diag) != 0) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_typed_program_free(&program);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
+
+    tc_typed_program_free(&program);
+    tc_diagnostic_clear(&diag);
+    return 0;
+}
+```
+
+公共入口为 `tc_compile_source`、`tc_compile_file` 和 `tc_run_typed`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api.md)。
+
+## 测试与质量门禁
+
+### 标准回归
+
+```sh
+bash scripts/run_tests.sh                # VM + AOT + unit
+bash scripts/run_tests.sh --filter foo   # 仅过滤 VM；AOT 和 unit 仍全量运行
+bash scripts/run_tests.sh --verbose      # 仅增加 VM 日志
+```
+
+也可分别运行：
+
+```sh
+make test-vm
+make test-unit
+make test-aot
+make test
+```
+
+当前标准回归规模：
+
+| 测试组 | 规模 | 覆盖重点 |
+| ------ | ---: | -------- |
+| VM conformance | 459 | 执行、`--check`、诊断、REPL、压力场景 |
+| C unit | 1726 | lexer、parser、semantics、CFG、analyzer、libtc、executor 等 16 个目标 |
+| AOT differential | 272 | VM/AOT stdout、静态接受集、运行时错误、I/O 和位模式差分 |
+
+这些数字是测试脚本报告的断言或场景数，不等于测试源文件数量。
+
+### 静态结构检查
+
+```sh
+python3 scripts/sync/check_rhs_coverage.py
+python3 scripts/sync/check_source_naming.py
+```
+
+### Sanitizer 与内存检查
+
+```sh
+bash scripts/run_asan_all.sh                 # ASan 构建及 VM/AOT/unit 全矩阵
+
 make build-ubsan
-bash scripts/run_tests.sh --ubsan
+bash scripts/run_tests.sh --ubsan            # UBSan VM；AOT/unit 使用标准构建
+
+make test-valgrind                           # Linux；Valgrind VM + 标准 AOT/unit
+make memcheck-macos                          # macOS；MallocScribble + leaks
 ```
 
-### 内存安全检查
+`bash scripts/run_tests.sh --asan`、`--ubsan`、`--valgrind` 和 `--leaks` 只把模式参数传给 VM 测试；AOT 与 unit 仍按标准构建运行。需要完整 ASan 矩阵时使用 `scripts/run_asan_all.sh`。
 
-#### Linux：Valgrind Memcheck
+### 本地与远端 CI
 
 ```sh
-make test-valgrind
-# 等价于：
-bash scripts/run_tests.sh --valgrind
+make ci                  # 构建、三组测试、RHS 覆盖和源文件命名检查
+make ci-coverage         # 额外生成覆盖率报告
 ```
 
-#### macOS：leaks + MallocScribble
+本地入口由 `scripts/ci.sh` 实现，与 `.github/workflows/ci.yml` 的核心五阶段一致。GitHub Actions 还运行：
 
-```sh
-make test-leaks                   # 仅泄漏检测（leaks --atExit）
-make memcheck-macos               # 双阶段：MallocScribble（越界/UAF）+ leaks（泄漏）
-# 等价于：
-bash scripts/run_tests.sh --leaks
-bash scripts/run_memcheck_macos.sh
-```
+- Ubuntu 与 macOS 标准矩阵；
+- no-fenv 浮点后备路径；
+- benchmark 回归；
+- coverage artifact；
+- 独立 Ubuntu ASan 工作流。
 
-macOS `run_memcheck_macos.sh` 脚本依次执行：
-1. **标准构建**（`make vm`）
-2. **MallocScribble 模式**：`MallocScribble=1 MallocPreScribble=1`，检测越界读取/使用已释放内存
-3. **leaks --atExit 模式**：进程退出时报告未释放的内存
+覆盖率 HTML 输出到 `build-coverage/coverage_html/index.html`。
 
-> **注意**：Valgrind 在 macOS 上兼容性不佳，请优先使用内置的 `leaks` + `MallocScribble` 组合。
+## 性能观测
 
-## 运行
-
-### 文件模式
-
-```sh
-./build/vm/bin/tc-vm tests/valid/example.tc
-./build/vm/bin/tc-vm --check tests/valid/example.tc   # 仅静态分析
-./build/vm/bin/tc-vm --help                           # 查看用法
-```
-
-### 交互式 REPL
-
-```sh
-./build/vm/bin/tc-vm --repl        # 启动交互式 REPL
-./build/vm/bin/tc-vm -i            # 同上（短选项）
-```
-
-REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置元命令包括 `:quit`（退出）、`:reset`（清空变量）、`:vars`（列出变量）、`:help`（帮助）。
-
-### AOT 模式
-
-```sh
-./build/aot/bin/tc-aot source.tc                      # 转译为 C99 源码（输出 source.tc.c）
-./build/aot/bin/tc-aot -o output.c source.tc           # 指定输出路径
-./build/aot/bin/tc-aot -r source.tc                    # 编译并运行生成的 C 代码
-./build/aot/bin/tc-aot --check source.tc               # 仅静态分析
-./build/aot/bin/tc-aot --help                          # 查看用法
-```
-
-## 文档
-
-| 文档 | 说明 |
-|------|------|
-| [TC 0.0.31 语言标准](docs/TC语言标准设计说明书_0.0.31.md) | 语言语法与语义权威定义 |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 0.0.31 直接执行引擎架构与实现约定 |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 0.0.31 tc-vm 命令说明 |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | 0.0.31 AOT 代码生成与 shim 层 |
-| [libtc 设计说明书](docs/libtc设计说明书.md) | 0.0.31 libtc 架构与错误契约 |
-| [libtc 嵌入 API](docs/libtc-api.md) | libtc 静态库的嵌入编程接口速查 |
-
-实现行为以语言标准为准；VM / AOT 详细设计文档规定各后端的实现架构，不重复定义语言语义。
-
-## 性能分析
-
-设置环境变量 `TC_BENCH=1` 时，编译/执行各阶段向 stderr 输出耗时：
+设置 `TC_BENCH` 后，parse、analyze 和 execute 阶段耗时会写入 stderr：
 
 ```sh
 TC_BENCH=1 ./build/vm/bin/tc-vm tests/valid/example.tc
 ```
 
-配合 `scripts/vm/bench.sh` 用于本地性能观测；`bench.sh --check` 对照 `tests/stress/bench_limits.txt` 检测回归（CI 在 `.github/workflows/ci.yml` 的 `bench` job 中自动运行）。
-
-## libtc 嵌入
-
-libtc 是 TC 编译器的静态库，提供「编译（Parse + Analyze）」与「执行」分离的嵌入接口：
-
-```c
-#include "tc_lib.h"
-
-TcDiagnostic diag;
-TcTypedProgram program;
-
-tc_diagnostic_init(&diag);
-if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0
-    || tc_run_typed(&program, &diag) != 0) {
-    tc_diagnostic_print(&diag, stderr);
-    tc_typed_program_free(&program);
-    return 1;
-}
-tc_typed_program_free(&program);
-tc_diagnostic_clear(&diag);
-return 0;
-```
-
-详见 [docs/libtc-api.md](docs/libtc-api.md)。
-
-## 测试
-
-### 统一入口（推荐）
+本地 benchmark：
 
 ```sh
-bash scripts/run_tests.sh                          # 运行全部测试
-bash scripts/run_tests.sh --filter foo             # 仅 VM 中匹配 "foo" 的用例
-bash scripts/run_tests.sh --verbose                # 显示详细日志
-bash scripts/run_tests.sh --asan                   # AddressSanitizer 模式
-bash scripts/run_tests.sh --ubsan                  # UndefinedBehaviorSanitizer 模式
-bash scripts/run_tests.sh --valgrind               # Valgrind Memcheck 模式（Linux）
-bash scripts/run_tests.sh --leaks                  # macOS leaks 模式
+make bench
+sh scripts/vm/bench.sh --check
 ```
 
-### 等价 Makefile
+回归阈值位于 `tests/stress/bench_limits.txt`。
 
-```sh
-make test
+## 项目结构
+
+```text
+docs/               正式语言、实现、CLI 与 API 文档
+src/
+├── libtc/          嵌入式编译/执行库
+├── vm/             lexer、parser、analyzer、executor、runtime、driver
+└── aot/            C99 codegen、runtime shim 与 CLI
+tests/
+├── valid/          合法程序与可观察输出
+├── errors/         静态和运行时错误
+├── unit/           C 单元测试
+└── stress/         压力与性能场景
+scripts/
+├── vm/             VM 回归与 benchmark
+├── aot/            AOT 差分测试
+└── sync/           RHS 分发与源文件命名检查
 ```
 
-### 本地 CI
+## 文档
 
-本地 CI 脚本替代远端 GitHub Actions，在本地执行完整的构建、测试和静态检查流水线。
+| 文档 | 职责 |
+| ---- | ---- |
+| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 0.0.31 语法、语义和诊断的唯一权威来源 |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | `tc-vm` 使用方式、输出和退出行为 |
+| [libtc 嵌入 API](docs/libtc-api.md) | 公共函数、所有权与诊断速查 |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | VM 流水线、IR、CFG、执行器和 REPL 设计 |
+| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | C99 生成、runtime shim 与差分验证 |
+| [libtc 设计说明书](docs/libtc设计说明书.md) | libtc 架构、事务、生命周期和错误契约 |
+| [设计—实现合规审查报告](docs/设计实现合规审查报告.md) | 0.0.31 的 48 项合规矩阵与发布证据 |
 
-**手动触发**（非自动，无需推送）：
+## Git hooks
 
-```sh
-make ci                          # 标准 CI（构建 + 全部测试 + 静态检查）
-make ci-coverage                 # 含覆盖率收集与 HTML 报告
-# 等价于：
-bash scripts/ci.sh               # 标准 CI
-bash scripts/ci.sh --coverage    # 含覆盖率
-bash scripts/ci.sh --full        # 同上
-```
-
-CI 流水线包含 5 个阶段：
-
-| 阶段 | 检查项 | 命令 |
-|------|--------|------|
-| 1/5 | 构建 (VM + AOT + libtc) | `cmake --build build` |
-| 2/5 | VM Conformance 测试 | `make test-vm` |
-| 3/5 | C 单元测试 | `make test-unit` |
-| 4/5 | AOT Differential 测试 | `make test-aot` |
-| 5/5 | 静态检查（RHS 覆盖 + 命名规范） | `check_rhs_coverage.py` + `check_source_naming.py` |
-
-每次 CI 运行约 **1326** 检测点（354 VM + 772 unit + 200 AOT）。
-
-### GitHub Actions：标准 CI
-
-`.github/workflows/ci.yml` 在每次推送至 `main` 或 PR 时自动触发，与 `scripts/ci.sh` 五阶段对齐：
-
-- **平台**：`ubuntu-latest` + `macos-latest` 矩阵；另含 `test-no-fenv` 浮点回退专项
-- **流程**：构建 → VM 一致性测试 → 单元测试 → AOT 差分测试 → RHS 覆盖 + 命名检查
-- 另含 `bench` 性能回归 job 与 `coverage` 覆盖率 artifact
-
-### GitHub Actions：ASan CI
-
-`.github/workflows/asan.yml` 在每次推送至 `main` 或 PR 时自动触发：
-
-- **平台**：`ubuntu-latest`
-- **流程**：cmake ASan 配置 → 构建 → VM 一致性测试 → 单元测试 → AOT 差分测试
-- 若发现内存错误（泄漏、越界、使用后释放等），CI 将失败
-
-覆盖率报告生成于 `build-coverage/coverage_html/index.html`，可使用浏览器打开查看。
-
-### Git hooks（可选）
-
-首次克隆后建议安装，自动剥离提交信息中的 `Co-authored-by: Cursor <cursoragent@cursor.com>`：
+可选安装仓库 hooks：
 
 ```sh
 make hooks
-# 或：bash scripts/install-git-hooks.sh
+# 或 bash scripts/install-git-hooks.sh
 ```
 
 ## 作者
 
-- **唐荣兵** ([yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)) — 项目创建与维护者
+**唐荣兵**（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）— 项目创建与维护者

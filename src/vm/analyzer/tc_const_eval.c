@@ -14,27 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 
-int tc_try_eval_static_bool(const TcRhs *rhs, const TcSymbolTable *symbols, int stmt_index,
-                            int *is_constant, int *value, TcDiagnostic *diag) {
-    (void)diag;
-    *is_constant = 0;
-    *value = 0;
-    if (rhs->kind == TC_RHS_LIT && rhs->u.lit.is_bool) {
-        *is_constant = 1;
-        *value = rhs->u.lit.magnitude != 0;
-    } else if (rhs->kind == TC_RHS_CONST_REF) {
-        const TcSymbol *sym = tc_symbol_table_find_visible(
-            symbols, rhs->u.const_ref.name, stmt_index, NULL);
-
-        if (sym && sym->sym_kind == TC_SYM_CONSTANT && sym->def_stmt_index < stmt_index &&
-            sym->has_const_value && sym->const_value.type == TC_BOOL) {
-            *is_constant = 1;
-            *value = sym->const_value.bits != 0;
-        }
-    }
-    return 0;
-}
-
 /* ------------------------------------------------------------------ */
 /*  常量求值辅助                                                         */
 /* ------------------------------------------------------------------ */
@@ -73,6 +52,124 @@ static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int 
     default:
         return -1;
     }
+}
+
+static int tc_try_eval_bound_operand(const TcOperand *operand, TcType expected, TcValue *out) {
+    if (operand->kind == TC_OPERAND_LIT) {
+        if (!tc_literal_fits_context(&operand->u.lit, expected, NULL)) {
+            return 0;
+        }
+        *out = tc_literal_to_value(&operand->u.lit, expected);
+        return 1;
+    }
+    if (!operand->binding.resolved || !operand->binding.is_const ||
+        operand->binding.type != expected) {
+        return 0;
+    }
+    *out = tc_value_make(expected, operand->binding.const_bits);
+    return 1;
+}
+
+static int tc_try_eval_bound_const_ref(const TcRhs *rhs, TcValue *out) {
+    const TcResolvedBinding *binding = &rhs->u.const_ref.binding;
+
+    if (!binding->resolved || !binding->is_const || binding->type != TC_BOOL) {
+        return 0;
+    }
+    *out = tc_value_make(TC_BOOL, binding->const_bits);
+    return 1;
+}
+
+void tc_try_eval_static_bool_operand(const TcOperand *operand, TcStaticBoolResult *result) {
+    TcValue value = {0};
+
+    *result = TC_STATIC_BOOL_UNKNOWN;
+    if (tc_try_eval_bound_operand(operand, TC_BOOL, &value)) {
+        *result = value.bits == 0 ? TC_STATIC_BOOL_FALSE : TC_STATIC_BOOL_TRUE;
+    }
+}
+
+int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *result,
+                            TcDiagnostic *diag) {
+    TcDiagnostic tmp_diag;
+    TcValue lhs = {0};
+    TcValue rhs_value = {0};
+    TcValue out = {0};
+    int status = 0;
+
+    *result = TC_STATIC_BOOL_UNKNOWN;
+    if (rhs->kind == TC_RHS_LIT) {
+        if (rhs->u.lit.is_bool) {
+            *result = rhs->u.lit.magnitude == 0 ? TC_STATIC_BOOL_FALSE : TC_STATIC_BOOL_TRUE;
+        }
+        return 0;
+    }
+    if (rhs->kind == TC_RHS_CONST_REF) {
+        if (tc_try_eval_bound_const_ref(rhs, &out)) {
+            *result = out.bits == 0 ? TC_STATIC_BOOL_FALSE : TC_STATIC_BOOL_TRUE;
+        }
+        return 0;
+    }
+
+    switch (rhs->kind) {
+    case TC_RHS_COMPARE:
+        if (!tc_try_eval_bound_operand(&rhs->u.compare.lhs, rhs->u.compare.type, &lhs) ||
+            !tc_try_eval_bound_operand(&rhs->u.compare.rhs, rhs->u.compare.type, &rhs_value)) {
+            return 0;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        status = tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_value, &out,
+                                 &tmp_diag, line);
+        break;
+    case TC_RHS_FLOAT_COMPARE:
+        if (!tc_try_eval_bound_operand(&rhs->u.float_compare.lhs,
+                                       rhs->u.float_compare.type, &lhs) ||
+            !tc_try_eval_bound_operand(&rhs->u.float_compare.rhs,
+                                       rhs->u.float_compare.type, &rhs_value)) {
+            return 0;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        status = tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+                                    rhs->u.float_compare.mode, &lhs, &rhs_value, &out,
+                                    &tmp_diag, line);
+        break;
+    case TC_RHS_LOGIC_BIN:
+        if (!tc_try_eval_bound_operand(&rhs->u.logic_bin.lhs, TC_BOOL, &lhs) ||
+            !tc_try_eval_bound_operand(&rhs->u.logic_bin.rhs, TC_BOOL, &rhs_value)) {
+            return 0;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        status = tc_exec_logic_binary(rhs->u.logic_bin.op, &lhs, &rhs_value, &out, &tmp_diag,
+                                      line);
+        break;
+    case TC_RHS_LOGIC_UN:
+        if (!tc_try_eval_bound_operand(&rhs->u.logic_un.operand, TC_BOOL, &lhs)) {
+            return 0;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        status = tc_exec_logic_unary(rhs->u.logic_un.op, &lhs, &out, &tmp_diag, line);
+        break;
+    case TC_RHS_CAST:
+        if (rhs->u.cast.target != TC_BOOL || rhs->u.cast.mode != TC_TRUNC_STRICT ||
+            !rhs->u.cast.source_type_resolved ||
+            !tc_try_eval_bound_operand(&rhs->u.cast.source, rhs->u.cast.source_type, &lhs)) {
+            return 0;
+        }
+        tc_diagnostic_init(&tmp_diag);
+        status = tc_exec_cast(TC_BOOL, &lhs, &out, &tmp_diag, line);
+        break;
+    default:
+        return 0;
+    }
+
+    if (status != 0) {
+        (void)tc_const_map_runtime_error(tmp_diag.kind, diag, line);
+        tc_diagnostic_clear(&tmp_diag);
+        return -1;
+    }
+    tc_diagnostic_clear(&tmp_diag);
+    *result = out.bits == 0 ? TC_STATIC_BOOL_FALSE : TC_STATIC_BOOL_TRUE;
+    return 0;
 }
 
 static int tc_eval_const_operand(const TcOperand *operand, TcType expected,

@@ -1,0 +1,10 @@
+; 复合常量 false 的 while 体不可达，不参与确定初始化分析
+let TEN: int32 = 10
+let FIVE: int32 = 5
+goto use
+var pending: int32 = 1
+label use:
+while lt(int32, TEN, FIVE) then
+    writeln(int32, %d, pending)
+end
+writeln(bool, %t, true)

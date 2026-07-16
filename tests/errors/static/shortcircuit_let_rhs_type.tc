@@ -1,0 +1,4 @@
+; 短路只裁剪未初始化读边，类型检查仍先执行
+let FALSE: bool = false
+var number: int32 = 1
+var result: bool = and(bool, FALSE, number)

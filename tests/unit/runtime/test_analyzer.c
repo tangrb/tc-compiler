@@ -8,6 +8,7 @@
  */
 #include "tc_analyzer.h"
 
+#include "tc_cfg.h"
 #include "tc_diagnostic.h"
 #include "tc_parser.h"
 #include "tc_warning.h"
@@ -364,6 +365,108 @@ static void test_analyze_unreachable_let_branch_still_checks_names(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_analyze_diagnostic_priority_matrix(void) {
+    static const struct {
+        const char *source;
+        int parse_failure;
+        TcErrorKind kind;
+        const char *message;
+    } cases[] = {
+        {
+            "var value: int32 = @\n"
+            "writeln(int32, missing)\n",
+            1,
+            TC_ERR_SYNTAX,
+            "lexical error precedes later name error",
+        },
+        {
+            "var result: bool = and(bool, missing)\n",
+            1,
+            TC_ERR_SYNTAX,
+            "syntax error precedes missing operand name resolution",
+        },
+        {
+            "var result: bool = and(bool, 1, missing)\n",
+            0,
+            TC_ERR_UNDEFINED_VARIABLE,
+            "name resolution precedes operand type checking in one RHS",
+        },
+        {
+            "var bad: float32 = add(float32, wrap, 1.0, 2.0)\n",
+            0,
+            TC_ERR_MODE_MISMATCH,
+            "mode legality precedes literal context typing",
+        },
+        {
+            "let BAD: int32 = div(int32, 1, 0)\n"
+            "goto use\n"
+            "var pending: int32 = 1\n"
+            "label use:\n"
+            "writeln(int32, pending)\n",
+            0,
+            TC_ERR_CONSTANT_DIV_ZERO,
+            "constant evaluation precedes CFG definite-init failure",
+        },
+        {
+            "let NEVER: bool = false\n"
+            "if NEVER then\n"
+            "    writeln(int32, missing)\n"
+            "end\n",
+            0,
+            TC_ERR_UNDEFINED_VARIABLE,
+            "unreachable branch still reports name error before CFG",
+        },
+        {
+            "let NEVER: bool = false\n"
+            "var number: int32 = 1\n"
+            "if NEVER then\n"
+            "    var bad: bool = and(bool, false, number)\n"
+            "end\n",
+            0,
+            TC_ERR_TYPE_MISMATCH,
+            "unreachable branch still reports type error before CFG",
+        },
+        {
+            "var runtime: bool = false\n"
+            "goto use\n"
+            "var pending: bool = true\n"
+            "label use:\n"
+            "var result: bool = and(bool, runtime, pending)\n",
+            0,
+            TC_ERR_UNINITIALIZED_VARIABLE,
+            "DFA reports uninitialized read after all earlier phases pass",
+        },
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcProgram program;
+        TcTypedProgram typed;
+        TcDiagnostic diag;
+        int parse_status = 0;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        tc_typed_program_init(&typed);
+        parse_status = tc_parse_source_to_program(cases[i].source, &program, &diag);
+        if (cases[i].parse_failure) {
+            check(parse_status != 0, cases[i].message);
+        } else {
+            check(parse_status == 0, "parse diagnostic-priority analyzer case");
+            if (parse_status == 0) {
+                check(tc_analyze(&program, &typed, &diag) != 0, cases[i].message);
+            }
+        }
+        check(diag.kind == cases[i].kind, "diagnostic-priority matrix error kind");
+        if (parse_status != 0) {
+            tc_program_free(&program);
+        } else {
+            tc_typed_program_free(&typed);
+        }
+        tc_diagnostic_clear(&diag);
+    }
+}
+
 static void test_analyze_let_runtime_error_mapping(void) {
     static const struct {
         const char *source;
@@ -524,6 +627,188 @@ static void test_analyze_shortcircuit_uninit_ok(void) {
     check(tc_analyze(&program, &typed, &diag) == 0, "shortcircuit skips uninit rhs");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
+}
+
+static int first_condition_value(const TcCfg *cfg) {
+    size_t i = 0;
+
+    if (!cfg) {
+        return -2;
+    }
+    for (i = 0; i < cfg->node_count; i++) {
+        if (cfg->nodes[i].kind == TC_CFG_BRANCH ||
+            cfg->nodes[i].kind == TC_CFG_LOOP_CONDITION) {
+            return cfg->nodes[i].constant_condition;
+        }
+    }
+    return -2;
+}
+
+static void test_analyze_static_bool_operand_matrix(void) {
+    static const struct {
+        const char *source;
+        int expected;
+        const char *message;
+    } valid_cases[] = {
+        {
+            "if true then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            1,
+            "bool literal is a static condition",
+        },
+        {
+            "let FLAG: bool = false\n"
+            "if FLAG then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            0,
+            "earlier visible let bool is a static condition",
+        },
+        {
+            "var flag: bool = false\n"
+            "if flag then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            -1,
+            "var bool remains an unknown static condition",
+        },
+        {
+            "let TEN: int32 = 10\n"
+            "let FIVE: int32 = 5\n"
+            "if gt(int32, TEN, FIVE) then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            1,
+            "single-level comparison is a static condition",
+        },
+        {
+            "let LOW: float64 = 1.0\n"
+            "let HIGH: float64 = 2.0\n"
+            "if lt(float64, LOW, HIGH) then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            1,
+            "single-level float comparison is a static condition",
+        },
+        {
+            "let A: bool = true\n"
+            "let B: bool = false\n"
+            "if and(bool, A, B) then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            0,
+            "single-level logic binary RHS is a static condition",
+        },
+        {
+            "let FLAG: bool = false\n"
+            "if not(bool, FLAG) then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            1,
+            "single-level logic unary RHS is a static condition",
+        },
+        {
+            "let ZERO: int32 = 0\n"
+            "if cast(bool, ZERO) then\n"
+            "    writeln(bool, true)\n"
+            "end\n",
+            0,
+            "legal strict bool cast is a static condition",
+        },
+    };
+    static const char *invalid_cases[] = {
+        "if LATER then\n"
+        "    writeln(bool, true)\n"
+        "end\n"
+        "let LATER: bool = false\n",
+        "if true then\n"
+        "    let LOCAL: bool = false\n"
+        "end\n"
+        "if LOCAL then\n"
+        "    writeln(bool, true)\n"
+        "end\n",
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(valid_cases) / sizeof(valid_cases[0]); i++) {
+        TcProgram program;
+        TcTypedProgram typed;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        tc_typed_program_init(&typed);
+        check(tc_parse_source_to_program(valid_cases[i].source, &program, &diag) == 0,
+              "parse static bool operand case");
+        check(tc_analyze(&program, &typed, &diag) == 0, valid_cases[i].message);
+        check(first_condition_value(typed.cfg) == valid_cases[i].expected,
+              "static bool operand produces expected tri-state value");
+        tc_typed_program_free(&typed);
+        tc_diagnostic_clear(&diag);
+    }
+
+    for (i = 0; i < sizeof(invalid_cases) / sizeof(invalid_cases[0]); i++) {
+        TcProgram program;
+        TcTypedProgram typed;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        tc_typed_program_init(&typed);
+        check(tc_parse_source_to_program(invalid_cases[i], &program, &diag) == 0,
+              "parse unavailable let condition case");
+        check(tc_analyze(&program, &typed, &diag) != 0,
+              "forward or invisible let condition is rejected before CFG");
+        check(diag.kind == TC_ERR_UNDEFINED_VARIABLE,
+              "unavailable let condition uses name-stage diagnostic");
+        tc_typed_program_free(&typed);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_analyze_static_bool_dfa_pruning(void) {
+    static const char *cases[] = {
+        "let TEN: int32 = 10\n"
+        "let FIVE: int32 = 5\n"
+        "goto branch\n"
+        "var value: int32 = 0\n"
+        "label branch:\n"
+        "if gt(int32, TEN, FIVE) then\n"
+        "    value = 10\n"
+        "end\n"
+        "writeln(int32, value)\n",
+        "let FALSE: bool = false\n"
+        "goto use\n"
+        "var pending: bool = true\n"
+        "label use:\n"
+        "var result: bool = and(bool, FALSE, pending)\n",
+        "let TEN: int32 = 10\n"
+        "let FIVE: int32 = 5\n"
+        "goto use\n"
+        "var pending: int32 = 1\n"
+        "label use:\n"
+        "while lt(int32, TEN, FIVE) then\n"
+        "    writeln(int32, pending)\n"
+        "end\n",
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcProgram program;
+        TcTypedProgram typed;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        tc_typed_program_init(&typed);
+        check(tc_parse_source_to_program(cases[i], &program, &diag) == 0,
+              "parse static bool DFA case");
+        check(tc_analyze(&program, &typed, &diag) == 0,
+              "pruned predecessors do not enter definite-init intersection");
+        tc_typed_program_free(&typed);
+        tc_diagnostic_clear(&diag);
+    }
 }
 
 static void test_analyze_if_block_scope(void) {
@@ -944,6 +1229,7 @@ int main(void) {
     test_analyze_short_circuit_still_validates_rhs();
     test_analyze_let_mode_matrix();
     test_analyze_unreachable_let_branch_still_checks_names();
+    test_analyze_diagnostic_priority_matrix();
     test_analyze_let_runtime_error_mapping();
     test_analyze_if_condition_type();
     test_analyze_cross_block_reference();
@@ -951,6 +1237,8 @@ int main(void) {
     test_analyze_uninit_if_merge();
     test_analyze_uninit_both_paths_ok();
     test_analyze_shortcircuit_uninit_ok();
+    test_analyze_static_bool_operand_matrix();
+    test_analyze_static_bool_dfa_pruning();
     test_analyze_if_block_scope();
     test_analyze_const_cyclic();
     test_analyze_duplicate_label();

@@ -1,10 +1,10 @@
 # TC-AOT 详细设计说明书
 
-> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
+> **规范基线（唯一权威）**：[TC 语言标准 0.0.31](./TC语言标准设计说明书.md)
 >
 > **当前实现基线**：TC-AOT v0.0.31（`TC_AOT_VERSION`）
 >
-> **状态**：0.0.31 代码生成架构已实现，并通过 257 项 VM/AOT 差分与 C99 严格编译门禁。
+> **状态**：0.0.31 代码生成架构已实现，并通过 272 项 VM/AOT 差分与 C99 严格编译门禁。
 >
 > **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书.md) 的 typed program、完整 CFG 与共享运行时语义
 
@@ -36,7 +36,7 @@
 | 维度 | 版本 | 状态 |
 | ---- | ---- | ---- |
 | 目标语言 | TC 0.0.31 | 规范已确定 |
-| 当前转译器 | TC-AOT v0.0.31 | 已实现、已有 257 项差分基线 |
+| 当前转译器 | TC-AOT v0.0.31 | 已实现、已有 272 项差分基线 |
 | 本文 | 0.0.31 已实现设计 | 代码与测试均已交付 |
 
 当前 `tc-aot` 已支持 `while`、`break`、`continue`、`bitcast`、强制 `var` 初始化器和 0.0.31 诊断集合。
@@ -495,7 +495,7 @@ AOT 的核心正确性证据是同一源文件经 VM 与 AOT 产生相同可观�
 
 ### 12.3 当前基线
 
-v0.0.31 有 257 项 AOT 差分并全部通过，覆盖新语法、静态接受集、运行时错误、I/O 与数值位模式。
+v0.0.31 有 272 项 AOT 差分并全部通过，覆盖新语法、静态接受集、运行时错误、I/O 与数值位模式。
 
 ### 12.4 提交门槛
 
@@ -503,7 +503,7 @@ v0.0.31 有 257 项 AOT 差分并全部通过，覆盖新语法、静态接受�
 - `check_rhs_coverage.py` 通过；
 - VM/AOT/let 数值一致性通过；
 - 生成 C 以 C99 严格警告编译；
-- 全量 VM 435、unit 1617、AOT 257 基线不回退；
+- 全量 VM 459、unit 1726、AOT 272 基线不回退；
 - 后续新增用例后，总数继续以脚本实测为准。
 
 ---
@@ -559,7 +559,7 @@ int tc_aot_emit_c(FILE *out,
 
 ### 14.3 发布证据
 
-VM/AOT 差分 257/257、完整 `--check` 接受集与 runtime 诊断矩阵均通过；生成 C 全部经 `-std=c99 -Wall -Wextra -Werror -pedantic` 零警告编译。ASan、UBSan 和 no-fenv 门禁同时覆盖共享 runtime。
+VM/AOT 差分 272/272、完整 `--check` 接受集与 runtime 诊断矩阵均通过；生成 C 全部经 `-std=c99 -Wall -Wextra -Werror -pedantic` 零警告编译。ASan、UBSan 和 no-fenv 门禁同时覆盖共享 runtime。
 
 | 目标 | 实现链接 | 测试链接 |
 | ---- | -------- | -------- |
@@ -567,8 +567,8 @@ VM/AOT 差分 257/257、完整 `--check` 接受集与 runtime 诊断矩阵均通
 | goto/resolved target | [tc_aot_codegen.c](../src/aot/tc_aot_codegen.c) | [goto_var_reinitialize.tc](../tests/valid/goto_var_reinitialize.tc) |
 | 共享数值与 bitcast shim | [tc_aot_rt.c](../src/aot/tc_aot_rt.c)、[tc_sem_cast.c](../src/vm/runtime/tc_sem_cast.c) | [fp_bitcast_roundtrip.tc](../tests/valid/fp_bitcast_roundtrip.tc)、[let_runtime_equivalence.tc](../tests/valid/let_runtime_equivalence.tc) |
 | 共享 I/O | [tc_io.c](../src/vm/runtime/tc_io.c) | [test_io.c](../tests/unit/runtime/test_io.c)、[fp_io.tc](../tests/valid/fp_io.tc) |
-| 完整差分与 C99 编译 | [AOT runner](../scripts/aot/run_tests.sh) | 257/257 发布输出 |
+| 完整差分与 C99 编译 | [AOT runner](../scripts/aot/run_tests.sh) | 272/272 发布输出 |
 
 ---
 
-*语言合法性与可观察语义以 [TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md) 为准。*
+*语言合法性与可观察语义以 [TC 语言标准 0.0.31](./TC语言标准设计说明书.md) 为准。*
