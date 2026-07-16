@@ -58,7 +58,7 @@ typedef enum {
  * 浮点运算模式：
  *   TC_FLOAT_STRICT — 检测 IEEE 754 异常并报浮点错误
  *   TC_FLOAT_IEEE   — 遵循 IEEE 754，返回 ±inf/nan，不报错
- *   TC_FLOAT_WRAP   — 按位整数回绕
+ *   TC_FLOAT_WRAP   — Parser 非法模式哨兵；成功 typed program 中不可出现
  */
 typedef enum {
     TC_FLOAT_STRICT,
@@ -68,8 +68,8 @@ typedef enum {
 
 /**
  * 类型转换截断模式（truncate 关键字）：
- *   TC_TRUNC_STRICT   — 不可表示时报 TC_ERR_CAST_OVERFLOW
- *   TC_TRUNC_TRUNCATE — 按位模式截断/扩展，永不报错
+ *   TC_TRUNC_STRICT   — 数值转换，不可表示时报 TC_ERR_CAST_OVERFLOW
+ *   TC_TRUNC_TRUNCATE — 仅整数到更窄整数，保留低位
  */
 typedef enum {
     TC_TRUNC_STRICT,
@@ -160,11 +160,9 @@ typedef enum {
     TC_ERR_TYPE_MISMATCH,
     TC_ERR_LITERAL_OUT_OF_RANGE,
     TC_ERR_LITERAL_TYPE,
-    TC_ERR_OVERFLOW_MODE,
     TC_ERR_KEYWORD,
     TC_ERR_CONSTANT_ASSIGNMENT,
     TC_ERR_CONSTANT_EXPRESSION,
-    TC_ERR_CONSTANT_CIRCULAR,
     TC_ERR_CONSTANT_OVERFLOW,
     TC_ERR_CONSTANT_DIV_ZERO,
     TC_ERR_CONSTANT_CAST_OVERFLOW,
@@ -183,17 +181,21 @@ typedef enum {
     TC_ERR_MISSING_END,           /* if 语句缺少 end */
     TC_ERR_ELSE_POSITION,         /* else 位置错误 */
     TC_ERR_CONDITION_TYPE,        /* if 条件结果不是 bool */
-    TC_ERR_CROSS_BLOCK_REFERENCE, /* 跨块引用局部变量 */
     TC_ERR_FLOAT_OVERFLOW,        /* 严格模式浮点上溢 */
     TC_ERR_FLOAT_UNDERFLOW,       /* 严格模式浮点下溢 */
     TC_ERR_FLOAT_INVALID,         /* 严格模式浮点无效操作（nan 等） */
-    TC_ERR_FLOAT_CAST_OVERFLOW,   /* 浮点 ↔ 整数转换超范围 */
     TC_ERR_MODE_MISMATCH,         /* ieee/wrap 用于非法上下文 */
     TC_ERR_UNINITIALIZED_VARIABLE,  /* §4.2 读取未初始化变量 */
     TC_ERR_LABEL_NOT_FOUND,         /* §4.8.3 goto 引用未定义标签 */
     TC_ERR_DUPLICATE_LABEL,         /* §4.8.3 同一作用域重定义标签 */
     TC_ERR_JUMP_INTO_BLOCK,         /* §4.8.3 跳入内层子块 */
-    TC_ERR_JUMP_TO_SIBLING_BLOCK    /* §4.8.3 跳入兄弟分支 */
+    TC_ERR_JUMP_TO_SIBLING_BLOCK,   /* §4.8.3 跳入兄弟分支 */
+    TC_ERR_VAR_MISSING_INIT,        /* §4.2 var 声明缺少初始化器 */
+    TC_ERR_BITCAST_WIDTH,           /* §8.6 bitcast 源/目标位宽不等 */
+    TC_ERR_LABEL_INSIDE_LOOP,       /* label 不得出现在 while 内 */
+    TC_ERR_GOTO_INSIDE_LOOP,        /* goto 不得出现在 while 内 */
+    TC_ERR_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
+    TC_ERR_CONTINUE_OUTSIDE_LOOP    /* continue 必须出现在 while 内 */
 } TcErrorKind;
 
 /*
@@ -234,12 +236,22 @@ typedef enum {
     TC_OPERAND_LIT
 } TcOperandKind;
 
+/** Analyzer 持久化的绑定结果；Executor/AOT 不再按名称重新解析。 */
+typedef struct {
+    int resolved;
+    int slot;             /* var 的固定运行时槽；let 为 -1 */
+    int is_const;         /* let 常量绑定时为 1 */
+    TcType type;          /* Analyzer 解析的声明类型 */
+    uint64_t const_bits;  /* let 的规范化 TcValue.bits */
+} TcResolvedBinding;
+
 typedef struct {
     TcOperandKind kind;
     union {
         char *name;     /* TC_OPERAND_VAR：变量名，堆分配 */
         TcLiteral lit;  /* TC_OPERAND_LIT：字面量 */
     } u;
+    TcResolvedBinding binding; /* TC_OPERAND_VAR 分析成功后有效 */
 } TcOperand;
 
 /** 右值表达式种类 */
@@ -254,13 +266,28 @@ typedef enum {
     TC_RHS_BITWISE_BIN, /* 双目按位（and/or/xor，整数类型参数） */
     TC_RHS_BITWISE_UN,  /* 单目按位（not，整数类型参数） */
     TC_RHS_SHIFT,       /* 移位（shl/shr；shl 可选 wrap） */
-    TC_RHS_CAST,        /* 类型转换（运行时：源为变量） */
+    TC_RHS_CAST,        /* 运行时数值转换（源为变量或字面量） */
     TC_RHS_CONST_CAST,  /* 编译期 cast（源为常量操作数） */
     TC_RHS_FLOAT_ARITH,   /* 浮点双目算术 */
     TC_RHS_FLOAT_UNARY,   /* 浮点单目运算 */
     TC_RHS_FLOAT_COMPARE, /* 浮点比较 */
-    TC_RHS_FLOAT_CAST     /* 浮点类型转换 */
+    TC_RHS_BITCAST        /* 等宽整数/浮点位重解释 */
 } TcRhsKind;
+
+typedef struct {
+    TcType target;
+    TcType source_type;
+    int source_type_resolved;
+    TcOperand source;
+} TcBitcastRhs;
+
+typedef struct {
+    TcType target;
+    TcTruncateMode mode;
+    TcType source_type;
+    int source_type_resolved;
+    TcOperand source;
+} TcCastRhs;
 
 typedef struct {
     TcRhsKind kind;
@@ -311,17 +338,11 @@ typedef struct {
             TcOperand value;
             TcOperand count;
         } shift;                 /* TC_RHS_SHIFT */
-        struct {
-            TcType target;
-            TcTruncateMode mode;
-            char *source;        /* 源变量名，堆分配 */
-        } cast;                  /* TC_RHS_CAST */
-        struct {
-            TcType target;
-            TcOperand source;    /* 编译期操作数（字面量或 let 引用） */
-        } const_cast;            /* TC_RHS_CONST_CAST */
+        TcCastRhs cast;          /* TC_RHS_CAST */
+        TcCastRhs const_cast;    /* TC_RHS_CONST_CAST */
         struct {
             char *name;          /* 已定义的 let 常量名，堆分配 */
+            TcResolvedBinding binding; /* 分析成功后的直接绑定 */
         } const_ref;             /* TC_RHS_CONST_REF */
         struct {
             TcArithOp op;
@@ -343,11 +364,7 @@ typedef struct {
             TcOperand lhs;
             TcOperand rhs;
         } float_compare;         /* TC_RHS_FLOAT_COMPARE */
-        struct {
-            TcType target;
-            TcTruncateMode mode;
-            char *source;        /* 源变量名，堆分配 */
-        } float_cast;            /* TC_RHS_FLOAT_CAST */
+        TcBitcastRhs bitcast;    /* TC_RHS_BITCAST */
     } u;
 } TcRhs;
 
@@ -361,15 +378,18 @@ typedef enum {
     TC_STMT_READ,        /* read 输入 */
     TC_STMT_IF,          /* if-then-else 控制流 */
     TC_STMT_LABEL_DEF,   /* label name: 定义标签 */
-    TC_STMT_GOTO         /* goto name  无条件跳转 */
+    TC_STMT_GOTO,        /* goto name  无条件跳转 */
+    TC_STMT_WHILE,       /* while-then-end 结构化循环 */
+    TC_STMT_BREAK,       /* 退出最内层 while */
+    TC_STMT_CONTINUE     /* 继续最内层 while */
 } TcStmtKind;
 
 typedef struct {
     int line;
     char *name;      /* 变量名，堆分配 */
     TcType type;
-    int has_rhs;     /* 是否有初始化表达式 */
     TcRhs rhs;
+    TcResolvedBinding binding; /* 定义对应的固定 slot */
 } TcVarDef;
 
 typedef struct {
@@ -383,6 +403,7 @@ typedef struct {
     int line;
     char *name;      /* 赋值目标变量名，堆分配 */
     TcRhs rhs;
+    TcResolvedBinding binding; /* Analyzer 解析的赋值目标 */
 } TcAssign;
 
 typedef struct {
@@ -396,6 +417,7 @@ typedef struct {
     int line;
     TcType type;
     char *name;      /* 读取目标变量名，堆分配 */
+    TcResolvedBinding binding; /* Analyzer 解析的读取目标 */
 } TcRead;
 
 typedef struct TcStatement TcStatement;
@@ -411,12 +433,27 @@ typedef struct {
 
 typedef struct {
     int line;
+    int loop_id;                /* Analyzer 成功后 >= 0 */
+    TcRhs condition;            /* bool 类型条件表达式 */
+    TcStatement *body;          /* 循环体语句数组，堆分配 */
+    size_t body_count;
+} TcWhileStmt;
+
+typedef struct {
+    int line;
+    int loop_id;                /* Analyzer 成功后指向最内层 while */
+} TcLoopControlStmt;
+
+typedef struct {
+    int line;
     char *name;        /* 标签名，堆分配 */
 } TcLabelDef;
 
 typedef struct {
     int line;
     char *target;      /* 目标标签名，堆分配 */
+    int resolved_target_stmt_index; /* Analyzer 解析的标签 stmt_index */
+    int resolved;      /* 分析成功后为 1 */
 } TcGoto;
 
 /** 统一语句表示，kind 决定活跃的 u 成员 */
@@ -429,6 +466,9 @@ struct TcStatement {
         TcIoWrite io_write;
         TcRead io_read;
         TcIfStmt if_stmt;
+        TcWhileStmt while_stmt;
+        TcLoopControlStmt break_stmt;
+        TcLoopControlStmt continue_stmt;
         TcLabelDef label_def;
         TcGoto goto_stmt;
     } u;
@@ -475,12 +515,24 @@ typedef struct {
 
 #define TC_SCOPE_END_OPEN ((size_t)-1)
 
+typedef enum {
+    TC_BLOCK_GLOBAL,
+    TC_BLOCK_IF_THEN,
+    TC_BLOCK_IF_ELSE,
+    TC_BLOCK_WHILE
+} TcBlockKind;
+
+typedef struct {
+    int owner_stmt_index;
+    TcBlockKind kind;
+} TcBlockId;
+
 /** 标签表条目（v0.0.26）；Pass1 按深度 pop；Pass2 保留全部并带块路径 */
 typedef struct {
     char *name;              /* 标签名，堆分配 */
     int stmt_index;          /* 标签语句的扁平序号 */
     int block_depth;         /* 标签所在的作用域深度 / 块路径长度 */
-    int *block_path;         /* 块路径（堆分配），长度 = block_depth；Pass1 可为 NULL */
+    TcBlockId *block_path;   /* 块路径（堆分配），长度 = block_depth；Pass1 可为 NULL */
     int def_line;            /* 定义行号（用于错误报告） */
 } TcLabelEntry;
 
@@ -519,20 +571,39 @@ typedef struct {
 /*  类型化程序（Analyzer 产出）与诊断                                   */
 /* ------------------------------------------------------------------ */
 
-/** Analyzer 分析通过后的完整程序：语句 + 符号表 + 警告 */
+typedef struct TcCfg TcCfg;
+
+/** Analyzer 分析通过后的完整程序：语句 + 符号表 + CFG + 警告 */
 typedef struct {
     TcProgram program;
     TcSymbolTable symbols;
+    TcCfg *cfg;
     TcWarningList warnings;
 } TcTypedProgram;
+
+typedef enum {
+    TC_DIAG_NONE,
+    TC_DIAG_LANGUAGE,
+    TC_DIAG_API,
+    TC_DIAG_IMPLEMENTATION
+} TcDiagnosticDomain;
+
+typedef enum {
+    TC_API_ERR_NONE,
+    TC_API_ERR_INVALID_ARGUMENT,
+    TC_API_ERR_FILE_OPEN,
+    TC_API_ERR_FILE_READ
+} TcApiErrorCode;
 
 /**
  * 单槽诊断对象（fail-fast 模式下仅保存第一条错误）。
  * 调用方通过 tc_diagnostic_set_source 绑定源文本；source 由诊断模块 strdup 管理。
  */
 typedef struct {
+    TcDiagnosticDomain domain;
+    TcApiErrorCode api_code;
     TcErrorKind kind;
-    char *message;    /* 堆分配 */
+    char *message;    /* 由 diagnostic 模块管理；OOM 可使用免分配静态回退 */
     char *filename;   /* 堆分配 */
     char *snippet;    /* 堆分配，出错行源码 */
     char *source;     /* 堆分配，完整源文本 */
@@ -565,6 +636,7 @@ const char *tc_bitwise_op_name(TcBitwiseOp op);
 const char *tc_shift_op_name(TcShiftOp op);
 const char *tc_format_spec_name(TcFormatSpec fmt);
 const char *tc_error_kind_name(TcErrorKind kind);
+const char *tc_api_error_code_name(TcApiErrorCode code);
 const char *tc_warning_kind_name(TcWarningKind kind);
 const char *tc_type_name(TcType type);
 

@@ -1,0 +1,8 @@
+; let bitcast 保留非 canonical NaN payload
+let PAYLOAD: uint64 = 0x7FF8000000001234u
+let NAN_VALUE: float64 = bitcast(float64, PAYLOAD)
+let PAYLOAD_BACK: uint64 = bitcast(uint64, NAN_VALUE)
+var runtime_nan: float64 = bitcast(float64, PAYLOAD)
+var runtime_back: uint64 = bitcast(uint64, runtime_nan)
+writeln(uint64, %X, PAYLOAD_BACK)
+writeln(uint64, %X, runtime_back)

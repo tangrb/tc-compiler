@@ -307,8 +307,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ConstantAssignmentError";
     case TC_ERR_CONSTANT_EXPRESSION:
         return "ConstantExpressionError";
-    case TC_ERR_CONSTANT_CIRCULAR:
-        return "ConstantCircularDependency";
     case TC_ERR_CONSTANT_OVERFLOW:
         return "ConstantOverflow";
     case TC_ERR_CONSTANT_DIV_ZERO:
@@ -327,8 +325,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "DivisionByZero";
     case TC_ERR_INTEGER_OVERFLOW:
         return "IntegerOverflow";
-    case TC_ERR_OVERFLOW_MODE:
-        return "OverflowModeError";
     case TC_ERR_CAST_OVERFLOW:
         return "CastOverflow";
     case TC_ERR_IO:
@@ -347,16 +343,12 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ElsePositionError";
     case TC_ERR_CONDITION_TYPE:
         return "ConditionTypeError";
-    case TC_ERR_CROSS_BLOCK_REFERENCE:
-        return "CrossBlockReferenceError";
     case TC_ERR_FLOAT_OVERFLOW:
         return "FloatOverflow";
     case TC_ERR_FLOAT_UNDERFLOW:
         return "FloatUnderflow";
     case TC_ERR_FLOAT_INVALID:
         return "FloatInvalidOperation";
-    case TC_ERR_FLOAT_CAST_OVERFLOW:
-        return "FloatCastOverflow";
     case TC_ERR_MODE_MISMATCH:
         return "ModeMismatch";
     case TC_ERR_UNINITIALIZED_VARIABLE:
@@ -369,8 +361,34 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "JumpIntoBlockError";
     case TC_ERR_JUMP_TO_SIBLING_BLOCK:
         return "JumpToSiblingBlockError";
+    case TC_ERR_VAR_MISSING_INIT:
+        return "VarMissingInitializer";
+    case TC_ERR_BITCAST_WIDTH:
+        return "BitcastWidthError";
+    case TC_ERR_LABEL_INSIDE_LOOP:
+        return "LabelInsideLoop";
+    case TC_ERR_GOTO_INSIDE_LOOP:
+        return "GotoInsideLoop";
+    case TC_ERR_BREAK_OUTSIDE_LOOP:
+        return "BreakOutsideLoop";
+    case TC_ERR_CONTINUE_OUTSIDE_LOOP:
+        return "ContinueOutsideLoop";
     }
     return "UnknownError";
+}
+
+const char *tc_api_error_code_name(TcApiErrorCode code) {
+    switch (code) {
+    case TC_API_ERR_NONE:
+        return "None";
+    case TC_API_ERR_INVALID_ARGUMENT:
+        return "InvalidArgument";
+    case TC_API_ERR_FILE_OPEN:
+        return "FileOpen";
+    case TC_API_ERR_FILE_READ:
+        return "FileRead";
+    }
+    return "UnknownApiError";
 }
 
 const char *tc_warning_kind_name(TcWarningKind kind) {

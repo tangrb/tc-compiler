@@ -117,6 +117,21 @@ const TcSymbol *tc_symbol_table_find_visible(const TcSymbolTable *table, const c
     }
 }
 
+size_t tc_symbol_table_runtime_slot_count(const TcSymbolTable *table) {
+    size_t i = 0;
+    size_t count = 0;
+
+    for (i = 0; i < table->count; i++) {
+        const TcSymbol *sym = &table->symbols[i];
+
+        if (sym->sym_kind == TC_SYM_VARIABLE && sym->slot >= 0 &&
+            (size_t)(sym->slot + 1) > count) {
+            count = (size_t)(sym->slot + 1);
+        }
+    }
+    return count;
+}
+
 static int tc_symbol_table_ensure_scope_capacity(TcSymbolTable *table, size_t need) {
     if (table->scope_capacity >= need) {
         return 0;
@@ -220,7 +235,7 @@ int tc_symbol_table_push_scope(TcSymbolTable *table) {
     return new_level;
 }
 
-static int tc_label_paths_equal(const int *a, const int *b, int depth) {
+static int tc_label_paths_equal(const TcBlockId *a, const TcBlockId *b, int depth) {
     int i = 0;
 
     if (depth == 0) {
@@ -230,7 +245,7 @@ static int tc_label_paths_equal(const int *a, const int *b, int depth) {
         return a == b;
     }
     for (i = 0; i < depth; i++) {
-        if (a[i] != b[i]) {
+        if (a[i].owner_stmt_index != b[i].owner_stmt_index || a[i].kind != b[i].kind) {
             return 0;
         }
     }
@@ -265,10 +280,10 @@ void tc_symbol_table_pop_scope(TcSymbolTable *table) {
 }
 
 int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index, int line,
-                              const int *block_path, int block_depth, TcDiagnostic *diag) {
+                              const TcBlockId *block_path, int block_depth, TcDiagnostic *diag) {
     size_t i = 0;
     char msg[128];
-    int *path_copy = NULL;
+    TcBlockId *path_copy = NULL;
 
     for (i = 0; i < table->label_count; i++) {
         const TcLabelEntry *entry = &table->labels[i];
@@ -287,13 +302,13 @@ int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_i
     }
 
     if (block_depth > 0 && block_path != NULL) {
-        path_copy = (int *)malloc((size_t)block_depth * sizeof(int));
+        path_copy = (TcBlockId *)malloc((size_t)block_depth * sizeof(TcBlockId));
         if (!path_copy) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
             return -1;
         }
-        memcpy(path_copy, block_path, (size_t)block_depth * sizeof(int));
+        memcpy(path_copy, block_path, (size_t)block_depth * sizeof(TcBlockId));
     }
 
     if (table->label_count == table->label_capacity) {

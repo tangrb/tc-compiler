@@ -1,0 +1,11 @@
+; cast 字面量源类型由标准 §8.1.1 唯一确定
+var i: int32 = cast(int32, 10)
+var u: uint32 = cast(uint32, 10u)
+var f: float32 = cast(float32, 1.5)
+var rounded: int32 = cast(int32, 3.9)
+var truth: bool = cast(bool, nan)
+writeln(int32, i)
+writeln(uint32, u)
+writeln(float32, f)
+writeln(int32, rounded)
+writeln(bool, truth)

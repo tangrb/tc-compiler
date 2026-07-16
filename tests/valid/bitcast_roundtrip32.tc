@@ -1,0 +1,18 @@
+; 32 位 bitcast 保留符号位、Infinity 与 NaN payload
+var neg_one: float32 = -1.0f
+var neg_one_bits: uint32 = bitcast(uint32, neg_one)
+writeln(uint32, %X, neg_one_bits)
+
+var payload: uint32 = 0x7FC12345u
+var payload_float: float32 = bitcast(float32, payload)
+var payload_back: uint32 = bitcast(uint32, payload_float)
+writeln(uint32, %X, payload_back)
+
+var neg_zero_bits: uint32 = 0x80000000u
+var neg_zero: float32 = bitcast(float32, neg_zero_bits)
+var neg_zero_back: uint32 = bitcast(uint32, neg_zero)
+writeln(uint32, %X, neg_zero_back)
+
+var infinity: float32 = inf
+var infinity_bits: uint32 = bitcast(uint32, infinity)
+writeln(uint32, %X, infinity_bits)

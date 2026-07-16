@@ -41,7 +41,7 @@ TC_RHS_KINDS = [
     "TC_RHS_FLOAT_ARITH",
     "TC_RHS_FLOAT_UNARY",
     "TC_RHS_FLOAT_COMPARE",
-    "TC_RHS_FLOAT_CAST",
+    "TC_RHS_BITCAST",
 ]
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,6 @@ DISPATCH_POINTS = [
         "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
         "output_kinds": ["TC_RHS_LIT"],  # 通过 out->kind = 赋值，非 rhs->kind == 比较
         "skip": {
-            "TC_RHS_CONST_REF": "只在 tc_parse_const_rhs 中创建",
             "TC_RHS_CONST_CAST": "只在 tc_parse_const_rhs 中创建",
         },
     },
@@ -134,7 +133,7 @@ DISPATCH_POINTS = [
         "note": "按函数名分派（非 switch on kind），只需验证 shim 函数存在",
         "skip": {
             "TC_RHS_LIT": "LIT 在 codegen 内联展开",
-            "TC_RHS_CONST_REF": "代码生成时返回 -1，不产生 shim 调用",
+            "TC_RHS_CONST_REF": "codegen 直接发射 let 位模式或 var slot，不产生 shim 调用",
             "TC_RHS_CONST_CAST": "代码生成时返回 -1，不产生 shim 调用",
         },
     },
@@ -227,7 +226,7 @@ def get_aot_rt_shims(path):
         "TC_RHS_FLOAT_ARITH": "tc_aot_fp_arith",
         "TC_RHS_FLOAT_UNARY": "tc_aot_fp_unary",
         "TC_RHS_FLOAT_COMPARE": "tc_aot_fp_compare",
-        "TC_RHS_FLOAT_CAST": "tc_aot_fp_cast",
+        "TC_RHS_BITCAST": "tc_aot_bitcast",
     }
 
     present = set()

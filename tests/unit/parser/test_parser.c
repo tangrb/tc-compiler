@@ -38,12 +38,40 @@ static void test_parse_var_def(void) {
     check(tc_tokenize_line("var x: int32 = 42", 1, &tokens, &diag) == 0, "tokenize var def");
     check(tc_parse_statement(&ctx, &tokens, 1, &stmt, &diag) == 0, "parse var def");
     check(stmt.kind == TC_STMT_VAR_DEF, "var def kind");
-    check(stmt.u.var_def.has_rhs != 0, "var def has rhs");
+    check(stmt.u.var_def.rhs.kind == TC_RHS_LIT, "var def initializer rhs");
     check(strcmp(stmt.u.var_def.name, "x") == 0, "var def name");
     check(stmt.u.var_def.type == TC_INT32, "var def type");
     tc_statement_free(&stmt);
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_var_requires_initializer(void) {
+    static const char *cases[] = {"var x: int32", "var x: int32 ="};
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcTokenList tokens;
+        TcStatement stmt;
+        TcParserCtx ctx;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_token_list_init(&tokens);
+        memset(&ctx, 0, sizeof(ctx));
+        memset(&stmt, 0, sizeof(stmt));
+        check(tc_tokenize_line(cases[i], (int)i + 1, &tokens, &diag) == 0,
+              "tokenize var missing initializer");
+        check(tc_parse_statement(&ctx, &tokens, (int)i + 1, &stmt, &diag) != 0,
+              "var missing initializer fails in parser");
+        check(diag.kind == TC_ERR_VAR_MISSING_INIT,
+              "var missing initializer uses dedicated error kind");
+        check(strcmp(tc_error_kind_name(diag.kind), "VarMissingInitializer") == 0,
+              "var missing initializer print name");
+        tc_statement_free(&stmt);
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
 }
 
 static void test_parse_let_const(void) {
@@ -250,8 +278,145 @@ static void test_parse_nested_if(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_parse_while_programs(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "while true then\n"
+        "    if false then\n"
+        "        break\n"
+        "    else\n"
+        "        continue\n"
+        "    end\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program("while false then\nend\n", &program, &diag) == 0,
+          "parse empty while body");
+    check(program.count == 1 && program.items && program.items[0].kind == TC_STMT_WHILE,
+          "empty while produces while statement");
+    if (program.count == 1 && program.items && program.items[0].kind == TC_STMT_WHILE) {
+        check(program.items[0].u.while_stmt.body_count == 0, "empty while body count");
+        check(program.items[0].u.while_stmt.loop_id == -1,
+              "parser leaves while loop id unresolved");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0,
+          "parse while containing if and loop controls");
+    check(program.count == 1 && program.items && program.items[0].kind == TC_STMT_WHILE,
+          "nested source top-level while");
+    if (program.count == 1 && program.items && program.items[0].kind == TC_STMT_WHILE &&
+        program.items[0].u.while_stmt.body_count == 1 &&
+        program.items[0].u.while_stmt.body[0].kind == TC_STMT_IF) {
+        const TcIfStmt *nested_if = &program.items[0].u.while_stmt.body[0].u.if_stmt;
+
+        check(1, "while body contains nested if");
+        check(nested_if->then_count == 1 && nested_if->then_body[0].kind == TC_STMT_BREAK,
+              "parse break as statement");
+        check(nested_if->else_count == 1 && nested_if->else_body[0].kind == TC_STMT_CONTINUE,
+              "parse continue as statement");
+        if (nested_if->then_count == 1 && nested_if->then_body[0].kind == TC_STMT_BREAK) {
+            check(nested_if->then_body[0].u.break_stmt.loop_id == -1,
+                  "parser leaves break loop id unresolved");
+        }
+    } else {
+        check(0, "while body contains nested if");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_while_missing_end(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "while true then\n"
+        "    writeln(int32, 1)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) != 0,
+          "while missing end fails");
+    check(diag.kind == TC_ERR_MISSING_END, "while missing end kind");
+    check(strstr(diag.message, "missing end for while statement") != NULL,
+          "while missing end message");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_while_inside_if(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "if true then\n"
+        "    while false then\n"
+        "    end\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse while inside if");
+    check(program.count == 1 && program.items && program.items[0].kind == TC_STMT_IF &&
+              program.items[0].u.if_stmt.then_count == 1 &&
+              program.items[0].u.if_stmt.then_body[0].kind == TC_STMT_WHILE,
+          "if body contains while");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_bitcast_rhs(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "var bits: uint32 = bitcast(uint32, 0x3F800000u)\n"
+        "let payload: uint64 = bitcast(uint64, 0x7FF8000000001234u)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse runtime and let bitcast");
+    if (program.count == 2) {
+        check(program.items[0].u.var_def.rhs.kind == TC_RHS_BITCAST,
+              "runtime bitcast rhs kind");
+        check(program.items[0].u.var_def.rhs.u.bitcast.target == TC_UINT32,
+              "runtime bitcast target");
+        check(program.items[0].u.var_def.rhs.u.bitcast.source.kind == TC_OPERAND_LIT,
+              "runtime bitcast literal source");
+        check(program.items[1].u.const_def.rhs.kind == TC_RHS_BITCAST,
+              "let bitcast rhs kind");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_bitcast_invalid_syntax(void) {
+    static const char *sources[] = {
+        "var bits: uint32 = bitcast(uint32)\n",
+        "var bits: uint32 = bitcast(uint32, truncate, 1u)\n",
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(sources) / sizeof(sources[0]); i++) {
+        TcProgram program;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        check(tc_parse_source_to_program(sources[i], &program, &diag) != 0,
+              "invalid bitcast syntax is rejected by parser");
+        check(diag.kind == TC_ERR_SYNTAX,
+              "invalid bitcast syntax reports SyntaxError");
+        tc_program_free(&program);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
 int main(void) {
     test_parse_var_def();
+    test_parse_var_requires_initializer();
     test_parse_let_const();
     test_parse_write();
     test_parse_goto();
@@ -263,6 +428,11 @@ int main(void) {
     test_parse_missing_end();
     test_parse_indent_insufficient();
     test_parse_nested_if();
+    test_parse_while_programs();
+    test_parse_while_missing_end();
+    test_parse_while_inside_if();
+    test_parse_bitcast_rhs();
+    test_parse_bitcast_invalid_syntax();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

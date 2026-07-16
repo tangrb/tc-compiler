@@ -1,6 +1,4 @@
-/*
- * tc_sem_int.c — 整数算术（add/sub/mul/div/mod/abs/neg）与整数 cast
- */
+/* tc_sem_int.c — integer arithmetic and unary semantics */
 #include "tc_semantics.h"
 
 #include "tc_diagnostic.h"
@@ -113,15 +111,6 @@ static void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
     uint64_t mid = p1 + p2 + (p0 >> 32);
     *lo = (p0 & mask32) | ((mid & mask32) << 32);
     *hi = p3 + (mid >> 32) + (p1 >> 32) + (p2 >> 32);
-}
-
-/* ------------------------------------------------------------------ */
-/*  wrap 模式位宽截断辅助                                                */
-/* ------------------------------------------------------------------ */
-
-/** 将 bits 按目标类型位宽截断（wrap 模式下使用） */
-static uint64_t tc_wrap_bits(TcType type, uint64_t bits) {
-    return tc_value_to_unsigned(type, bits);
 }
 
 /* ------------------------------------------------------------------ */
@@ -297,6 +286,9 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcType type, TcWrapMode mode,
 int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line) {
+    if (tc_validate_arith_mode(op, type, mode, diag, line) != 0) {
+        return -1;
+    }
     if (tc_type_is_signed(type)) {
         return tc_exec_signed_arith(op, type, mode, lhs, rhs, out, diag, line);
     }
@@ -313,6 +305,10 @@ int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     uint64_t bits = tc_value_to_unsigned(type, operand->bits);
+
+    if (tc_validate_unary_mode(op, type, mode, diag, line) != 0) {
+        return -1;
+    }
 
     if (op == TC_UNARY_ABS) {
         if (tc_type_is_signed(type)) {
@@ -354,252 +350,3 @@ int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
 /* ------------------------------------------------------------------ */
 /*  strict cast 子函数                                                   */
 /* ------------------------------------------------------------------ */
-
-/** cast 扩展：符号扩展或零扩展，带范围检查 */
-static int tc_cast_widen(TcType target, TcType src_type, const TcValue *source,
-                         TcValue *out, TcDiagnostic *diag, int line) {
-    int src_signed = tc_type_is_signed(src_type);
-    int dst_signed = tc_type_is_signed(target);
-
-    if (src_signed && dst_signed) {
-        int64_t value = tc_bits_to_signed(src_type, source->bits);
-        *out = tc_value_make(target, tc_signed_to_bits(target, value));
-        return 0;
-    }
-    if (!src_signed && !dst_signed) {
-        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-        *out = tc_value_make(target, value);
-        return 0;
-    }
-    if (src_signed && !dst_signed) {
-        int64_t value = tc_bits_to_signed(src_type, source->bits);
-        if (value < 0) {
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                              "cannot cast negative signed value to unsigned");
-            return -1;
-        }
-        *out = tc_value_make(target, (uint64_t)value);
-        return 0;
-    }
-    /* 无符号 → 有符号（更宽） */
-    {
-        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-        if (value > (uint64_t)tc_type_max_signed(target)) {
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                              "unsigned value out of signed target range");
-            return -1;
-        }
-        *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
-        return 0;
-    }
-}
-
-/** cast 同位宽转换（bit width 相同但符号性不同）：检查负值或超范围 */
-static int tc_cast_same_width_diff_sign(TcType target, TcType src_type,
-                                        const TcValue *source, TcValue *out,
-                                        TcDiagnostic *diag, int line) {
-    int src_signed = tc_type_is_signed(src_type);
-
-    if (src_signed) {
-        int64_t value = tc_bits_to_signed(src_type, source->bits);
-        if (value < 0) {
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                              "cannot cast negative signed value to unsigned");
-            return -1;
-        }
-        *out = tc_value_make(target, (uint64_t)value);
-        return 0;
-    }
-    /* 无符号 → 有符号（同宽） */
-    {
-        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-        if (value > (uint64_t)tc_type_max_signed(target)) {
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                              "unsigned value out of signed target range");
-            return -1;
-        }
-        *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
-        return 0;
-    }
-}
-
-/** cast 窄化：检查值能否在更窄的类型中精确表示 */
-static int tc_cast_narrow(TcType target, TcType src_type, const TcValue *source,
-                          TcValue *out, TcDiagnostic *diag, int line) {
-    int src_signed = tc_type_is_signed(src_type);
-    int dst_signed = tc_type_is_signed(target);
-    char msg[128];
-
-    /* 有符号 → 有符号 */
-    if (src_signed && dst_signed) {
-        int64_t value = tc_bits_to_signed(src_type, source->bits);
-        if (!tc_signed_in_range(value, target)) {
-            if (tc_semantics_format_msg(msg, sizeof(msg), "value out of range for %s",
-                                        tc_type_name(target)) != 0) {
-                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                                  "value out of range");
-            } else {
-                tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
-            }
-            return -1;
-        }
-        *out = tc_value_make(target, tc_signed_to_bits(target, value));
-        return 0;
-    }
-
-    /* 无符号 → 无符号（截断后在 strict 模式下仍合法） */
-    if (!src_signed && !dst_signed) {
-        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-        *out = tc_value_make(target, tc_wrap_bits(target, value));
-        return 0;
-    }
-
-    /* 有符号 → 无符号 */
-    if (src_signed && !dst_signed) {
-        int64_t value = tc_bits_to_signed(src_type, source->bits);
-        if (value < 0 || (uint64_t)value > tc_type_max_unsigned(target)) {
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                              "signed value cannot be represented as unsigned target");
-            return -1;
-        }
-        *out = tc_value_make(target, (uint64_t)value);
-        return 0;
-    }
-
-    /* 无符号 → 有符号 */
-    {
-        uint64_t value = tc_value_to_unsigned(src_type, source->bits);
-        if (value > (uint64_t)tc_type_max_signed(target)) {
-            tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
-                              "unsigned value out of signed target range");
-            return -1;
-        }
-        *out = tc_value_make(target, tc_signed_to_bits(target, (int64_t)value));
-        return 0;
-    }
-}
-
-/* ------------------------------------------------------------------ */
-/*  strict cast 入口：按位宽和符号性分派子函数                             */
-/* ------------------------------------------------------------------ */
-
-static int tc_cast_strict(TcType target, const TcValue *source, TcValue *out,
-                          TcDiagnostic *diag, int line) {
-    TcType src_type = source->type;
-
-    if (tc_type_is_bool(src_type) && tc_type_is_bool(target)) {
-        *out = *source;
-        return 0;
-    }
-    if (tc_type_is_bool(src_type) && tc_type_is_integer(target)) {
-        *out = tc_value_make(target, source->bits != 0 ? 1ULL : 0ULL);
-        return 0;
-    }
-    if (tc_type_is_integer(src_type) && tc_type_is_bool(target)) {
-        *out = tc_value_make(TC_BOOL, source->bits != 0 ? 1ULL : 0ULL);
-        return 0;
-    }
-
-    {
-    TcType src_type_inner = source->type;
-    int src_bits = tc_type_bit_width(src_type_inner);
-    int dst_bits = tc_type_bit_width(target);
-
-    if (src_type_inner == target) {
-        *out = *source;
-        return 0;
-    }
-
-    if (dst_bits > src_bits) {
-        return tc_cast_widen(target, src_type_inner, source, out, diag, line);
-    }
-
-    if (dst_bits == src_bits) {
-        return tc_cast_same_width_diff_sign(target, src_type_inner, source, out, diag, line);
-    }
-
-    return tc_cast_narrow(target, src_type_inner, source, out, diag, line);
-    }
-}
-
-/* ------------------------------------------------------------------ */
-/*  truncate cast 辅助: 位扩展                                           */
-/* ------------------------------------------------------------------ */
-
-/**
- * @brief 位扩展：将 src_bits 宽的位模式扩展到 dst_bits
- * @param bits         原始位模式
- * @param src_bits     源位宽
- * @param dst_bits     目标位宽（必须 >= src_bits 才实际扩展）
- * @param sign_extend  符号扩展标志：1 符号扩展，0 零扩展
- * @return 扩展后的位模式
- */
-static uint64_t tc_extend_bits(uint64_t bits, int src_bits, int dst_bits, int sign_extend) {
-    uint64_t mask = tc_mask_bits(src_bits);
-    bits &= mask;
-    if (dst_bits <= src_bits) {
-        return bits;
-    }
-    if (!sign_extend) {
-        return bits;
-    }
-    /* 若源符号位为 1，高位全填 1（从 src_bits 到 dst_bits-1） */
-    if (bits & (1ULL << (unsigned)(src_bits - 1))) {
-        uint64_t extend_mask = (~tc_mask_bits(src_bits)) & tc_mask_bits(dst_bits);
-        return bits | extend_mask;
-    }
-    return bits;
-}
-
-/* ------------------------------------------------------------------ */
-/*  truncate cast：不做范围检查，直接按位模式转换                           */
-/* ------------------------------------------------------------------ */
-
-static int tc_cast_truncate(TcType target, const TcValue *source, TcValue *out) {
-    TcType src_type = source->type;
-
-    if (tc_type_is_bool(src_type) || tc_type_is_bool(target)) {
-        if (tc_type_is_bool(target)) {
-            *out = tc_value_make(TC_BOOL, source->bits != 0 ? 1ULL : 0ULL);
-        } else {
-            *out = tc_value_make(target, source->bits != 0 ? 1ULL : 0ULL);
-        }
-        return 0;
-    }
-
-    {
-    int src_bits = tc_type_bit_width(src_type);
-    int dst_bits = tc_type_bit_width(target);
-    uint64_t bits = tc_value_to_unsigned(src_type, source->bits);
-    uint64_t result_bits = 0;
-
-    if (dst_bits <= src_bits) {
-        /* 窄化：直接截低 n 位 */
-        result_bits = bits & tc_mask_bits(dst_bits);
-    } else if (!tc_type_is_signed(target) || !tc_type_is_signed(src_type)) {
-        /* 目标或源为无符号 → 零扩展 */
-        result_bits = tc_extend_bits(bits, src_bits, dst_bits, 0);
-    } else if (bits & (1ULL << (unsigned)(src_bits - 1))) {
-        /* 有符号 → 有符号，源符号位为 1 → 符号扩展 */
-        result_bits = tc_extend_bits(bits, src_bits, dst_bits, 1);
-    } else {
-        result_bits = tc_extend_bits(bits, src_bits, dst_bits, 0);
-    }
-
-    *out = tc_value_make(target, result_bits);
-    return 0;
-    }
-}
-
-/* ------------------------------------------------------------------ */
-/*  cast 运算入口                                                        */
-/* ------------------------------------------------------------------ */
-
-int tc_exec_cast(TcType target, TcTruncateMode mode, const TcValue *source,
-                 TcValue *out, TcDiagnostic *diag, int line) {
-    if (mode == TC_TRUNC_STRICT) {
-        return tc_cast_strict(target, source, out, diag, line);
-    }
-    return tc_cast_truncate(target, source, out);
-}
-

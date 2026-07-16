@@ -1,10 +1,10 @@
 # TC-VM 命令行参考
 
-> **当前命令实现**：tc-vm v0.0.26
+> **当前版本**：TC-VM v0.0.31
 >
 > **目标语言规范**：[TC 0.0.31](./TC语言标准设计说明书_0.0.31.md)
 >
-> **文档职责**：本页准确描述当前可执行文件；0.0.31 尚未交付的能力单列于 §10。
+> **文档职责**：本页准确描述 0.0.31 可执行文件行为与兼容边界。
 >
 > **内部架构**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书.md)
 
@@ -21,14 +21,14 @@
 7. [当前错误种类](#7-当前错误种类)
 8. [性能计时](#8-性能计时)
 9. [当前示例](#9-当前示例)
-10. [0.0.31 规划与迁移边界](#10-0031-规划与迁移边界)
+10. [0.0.31 迁移与兼容边界](#10-0031-迁移与兼容边界)
 11. [测试脚本约定](#11-测试脚本约定)
 
 ---
 
 ## 1. 概述
 
-`tc-vm` 是 TC 源文件的直接执行引擎。当前 v0.0.26 提供：
+`tc-vm` 是 TC 源文件的直接执行引擎。0.0.31 提供：
 
 - 批量编译并执行一个 `.tc` 文件；
 - 只做静态检查；
@@ -36,9 +36,12 @@
 - 整数、bool、float32/float64；
 - if/else 块与缩进检查；
 - 受限 goto/label；
-- v0.0.26 的路径敏感未初始化检查。
+- while/break/continue 与循环范式隔离；
+- 等宽 `bitcast`、收敛后的 cast/float/let 语义；
+- 强制 `var` 初始化器和完整 CFG 确定初始化检查；
+- Language、API/Environment、Implementation 三类诊断域。
 
-0.0.31 新增或收敛的 `while`、`break`、`continue`、`bitcast`、强制 `var` 初始化器和完整诊断迁移，在当前版本均不可用。
+上述能力均已通过 M10 发布门禁。
 
 查看实际版本：
 
@@ -49,7 +52,7 @@ build/vm/bin/tc-vm --version
 当前输出：
 
 ```text
-tc-vm 0.0.26
+tc-vm 0.0.31
 ```
 
 ---
@@ -110,7 +113,7 @@ read file
   → free typed program
 ```
 
-v0.0.26 没有活跃 warning kind，正常路径不输出编译警告。
+当前分支没有活跃 warning kind，正常路径不输出编译警告。
 
 ### 3.3 输出
 
@@ -141,7 +144,7 @@ build/vm/bin/tc-vm -c path/to/program.tc
 - 不产生程序 stdout；
 - 不读取 TC `read` 的 stdin；
 - 不触发仅运行时才能出现的除零、溢出或 I/O 错误；
-- 会报告语法、名称、类型、缩进、goto/label 和未初始化等静态错误。
+- 会报告语法、名称、类型、缩进、控制流、bitcast 和 CFG 确定初始化等静态错误。
 
 ### 4.3 结果
 
@@ -194,12 +197,15 @@ unknown command: :<command> (try :help)
 当前 REPL 显式拒绝：
 
 - `if`；
+- `while`；
 - `goto`；
-- `label`。
+- `label`；
+- `break`；
+- `continue`。
 
-相应消息为 `... statements are not supported in REPL mode`。当前 Lexer 尚不认识 0.0.31 的 while/break/continue/bitcast。
+相应消息为 `... statements are not supported in REPL mode`，诊断域为 API/Environment，当前打印前缀为 `api error: InvalidArgument`。`bitcast` 是单行 RHS，可在 REPL 支持的普通语句中使用。
 
-这些限制是 tc-vm v0.0.26 的交互实现策略，不是 TC 0.0.31 批量源文件语法规则。
+这些限制是 tc-vm 的单行交互能力边界，不是 TC 0.0.31 批量源文件语法规则。失败语句不会提交新变量或常量，也不会修改已经提交的值。
 
 ### 5.5 stdin 注意事项
 
@@ -220,7 +226,7 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 | 0 | 帮助/版本成功、文件执行成功、静态检查成功或 REPL 正常结束 |
 | 1 | 命令行用法错误、文件/编译失败或运行时失败 |
 
-当前没有更细的进程退出码。程序化错误种类通过 libtc 的 `TcDiagnostic.kind` 提供，CLI 只返回 0/1。
+当前没有更细的进程退出码。程序化调用方通过 libtc 的 `TcDiagnostic.domain` 区分 Language、API/Environment 与 Implementation；Language/Implementation 使用 `kind`，API/Environment 使用 `api_code`。CLI 只返回 0/1。
 
 ### 6.2 诊断格式
 
@@ -230,6 +236,8 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 <filename>:<line>:<column>: error: <message>
   <source line>
   <spaces>^
+<filename>: api error: <ApiCode>: <message>
+<filename>: implementation error: <ErrorKind>: <message>
 ```
 
 行或列未知时相应位置会省略。CLI 当前打印人类可读 message，不把 `SyntaxError`、`TypeMismatch` 等 kind 名直接写在诊断首行。
@@ -256,13 +264,13 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 
 ### 7.1 说明
 
-下表描述 v0.0.26 的 `TcErrorKind`，用于理解当前实现和 libtc 程序化接口。CLI 默认打印 message，不直接打印这些名称。
+下表完整描述 0.0.31 的 `TcErrorKind`，用于理解实现和 libtc 程序化接口。Language 诊断默认打印 message，不直接打印这些名称。
 
 ### 7.2 词法、语法、名称与类型
 
 | 打印名 | 典型条件 |
 | ------ | -------- |
-| `SyntaxError` | Token/语法错误；当前文件打开失败也误用此 kind |
+| `SyntaxError` | Token 或语法错误；不包含文件错误和 REPL 能力限制 |
 | `UndefinedVariable` | 名称未定义或前向引用 |
 | `DuplicateDefinition` | 同一作用域重复 var/let |
 | `TypeMismatch` | 运算、赋值或 operand 类型不匹配 |
@@ -270,8 +278,8 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 | `LiteralTypeError` | 字面量类别/后缀与上下文冲突 |
 | `KeywordError` | 关键字位置或旧模式组合错误 |
 | `ComparisonTypeMismatch` | 比较 operand 类型不一致 |
-| `OverflowModeError` | v0.0.26 的旧模式错误分类 |
 | `ModeMismatch` | 浮点/模式组合不合法 |
+| `BitcastWidthError` | bitcast 源/目标位宽不相等 |
 
 ### 7.3 常量、格式与 I/O
 
@@ -279,7 +287,6 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 | ------ | -------- |
 | `ConstantAssignmentError` | 给 let 赋值 |
 | `ConstantExpressionError` | let RHS 非法 |
-| `ConstantCircularDependency` | v0.0.26 常量循环/自引用分类 |
 | `ConstantOverflow` | 编译期溢出 |
 | `ConstantDivisionByZero` | 编译期除零 |
 | `ConstantCastOverflow` | 编译期转换超范围 |
@@ -295,11 +302,10 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 | ------ | -------- |
 | `DivisionByZero` | 整数/严格浮点除零 |
 | `IntegerOverflow` | 严格整数运算超范围 |
-| `CastOverflow` | 整数严格转换超范围 |
+| `CastOverflow` | 整数或浮点严格转换超范围 |
 | `FloatOverflow` | 严格浮点上溢 |
 | `FloatUnderflow` | 严格浮点下溢 |
 | `FloatInvalidOperation` | 严格浮点无效操作 |
-| `FloatCastOverflow` | v0.0.26 浮点相关转换超范围 |
 
 ### 7.5 块、控制流与初始化
 
@@ -311,16 +317,20 @@ REPL 自身和 TC `read` 都读取 stdin。在自动化输入中，`read` 会消
 | `MissingEndError` | if 缺 end |
 | `ElsePositionError` | else 位置非法 |
 | `ConditionTypeError` | if 条件非 bool |
-| `CrossBlockReferenceError` | v0.0.26 专用跨块引用分类 |
 | `UninitializedVariable` | 路径敏感分析发现未初始化使用 |
+| `VarMissingInitializer` | var 声明缺少初始化器 |
 | `LabelNotFound` | goto 目标不存在 |
 | `DuplicateLabel` | 同一作用域重复标签 |
 | `JumpIntoBlockError` | goto 跳入子块 |
 | `JumpToSiblingBlockError` | goto 跳入兄弟块 |
+| `LabelInsideLoop` | while 内出现 label |
+| `GotoInsideLoop` | while 内出现 goto |
+| `BreakOutsideLoop` | while 外出现 break |
+| `ContinueOutsideLoop` | while 外出现 continue |
 
 ### 7.6 警告
 
-v0.0.26 没有活跃 `TcWarningKind`。`TcWarningList` 仍在内部/API 结构中，但正常编译不产生 warning 行。
+0.0.31 没有活跃 `TcWarningKind`。`TcWarningList` 仍在内部/API 结构中，但正常编译不产生 warning 行。
 
 ---
 
@@ -355,7 +365,7 @@ bench execute: 0.000078 s
 
 ## 9. 当前示例
 
-以下示例均适用于 v0.0.26，也避免依赖已在 0.0.31 废止的写法。
+以下示例适用于 v0.0.31，并避免依赖已经废止的旧写法。
 
 ### 9.1 执行
 
@@ -384,7 +394,7 @@ build/vm/bin/tc-vm --check sum.tc
 
 检查通过时无输出，退出 0。
 
-### 9.3 v0.0.26 非结构化循环
+### 9.3 受限 goto 非结构化循环
 
 ```text
 var i: int32 = 0
@@ -408,26 +418,25 @@ printf 'var x: int32 = 7\nwriteln(int32, %d, x)\n:q\n' | build/vm/bin/tc-vm --re
 
 ---
 
-## 10. 0.0.31 规划与迁移边界
+## 10. 0.0.31 迁移与兼容边界
 
-### 10.1 目标能力，不是当前能力
+### 10.1 当前发布状态
 
-| 0.0.31 项目 | 当前 v0.0.26 状态 |
+| 0.0.31 项目 | 当前状态 |
 | ----------- | ----------------- |
-| `var` 声明必须有 RHS | 尚未实现；当前仍接受无初始化器 var |
-| `while`/`break`/`continue` | 尚未实现 |
-| while 内禁止 goto/label | 尚未实现，因为当前无 while |
-| 完整 CFG 固定点 | 部分路径敏感基础可复用，未达到目标契约 |
-| `bitcast` | 尚未实现 |
-| 浮点只保留 strict/ieee | 尚未迁移；当前仍有旧浮点模式路径 |
-| `truncate` 仅整数窄化 | 尚未迁移；当前存在旧浮点位重解释用法 |
-| 严格 cast 全可表示性 | 尚未完整迁移 |
-| 41 个语言错误 + OutOfMemory | 当前错误枚举不同 |
-| 文件/API 错误与语言诊断分域 | 尚未实现；当前文件错误误用 SyntaxError |
+| `var` 声明必须有 RHS | 已实现，缺失时为专用静态错误 |
+| `while`/`break`/`continue` | 已实现；REPL 单行模式明确拒绝 |
+| while 内禁止 goto/label | 已实现 |
+| 完整 CFG 固定点 | 已实现并由 VM/AOT 共用 typed program |
+| `bitcast` | 已实现 |
+| 浮点、cast、truncate、let 收敛 | 已实现并完成 VM/AOT 差分 |
+| 文件/API/REPL 与语言诊断分域 | 已实现 |
+| 41 个语言错误 + OutOfMemory | 已完成全表、完整性与唯一性验收 |
+| 发布版本号 | 0.0.31 |
 
 ### 10.2 预计不变的 CLI
 
-0.0.31 目标设计不要求新增命令行选项。文件执行、`--check`、`--repl`、`--help`、`--version` 可以保持；实现交付后更新版本、帮助和错误参考即可。
+0.0.31 不新增命令行选项。文件执行与 `--check` 走同一完整 libtc 批量流水线；`tc-aot --check` 使用相同接受集。
 
 ### 10.3 REPL
 
@@ -438,8 +447,8 @@ printf 'var x: int32 = 7\nwriteln(int32, %d, x)\n:q\n' | build/vm/bin/tc-vm --re
 - 依赖浮点 wrap 的源文件改用 ieee 数值语义，或 bitcast 到等宽整数后处理位模式；
 - 依赖浮点 truncate 位重解释的源文件改用 bitcast；
 - 无 RHS 的 `var` 改为声明时初始化；
-- 自动化脚本不要在 v0.0.26 上预期新的错误名；
-- 只有 `--version` 显示 0.0.31 且合规门槛通过后，才能把新能力当成当前行为。
+- 嵌入调用方应按新的诊断域读取 `domain`、`api_code` 或 `kind`；
+- 嵌入应用升级时需重新编译，并审查直接依赖旧错误枚举或公开结构布局的代码。
 
 ---
 
@@ -457,10 +466,10 @@ bash scripts/vm/run_tests.sh --filter <name>
 
 VM 脚本输出中的 `OK`、`OUT`、`ERR`、`CHK`、`CFL` 等是测试运行器标签，不是 tc-vm 用户输出。
 
-### 11.3 当前基线
+### 11.3 0.0.31 发布基线
 
-v0.0.26 当前注册 384 项 VM 测试。该数字只证明当前实现；0.0.31 新用例加入后应以脚本实际汇总为准。
+0.0.31 发布门禁实测为 VM 435、unit 1617、AOT 257；后续变更仍以脚本实际汇总为准。
 
 ---
 
-*当前命令行为以 v0.0.26 源码为准；目标语言规则以 [TC 0.0.31 标准](./TC语言标准设计说明书_0.0.31.md) 为准。*
+*当前命令行为以 0.0.31 源码与本页为准，语言规则以 [TC 0.0.31 标准](./TC语言标准设计说明书_0.0.31.md) 为准。*

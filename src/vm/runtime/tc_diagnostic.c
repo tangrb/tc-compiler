@@ -10,6 +10,46 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef TC_DIAGNOSTIC_TESTING
+static int tc_diagnostic_allocations_before_failure = -1;
+
+void tc_diagnostic_test_fail_alloc_after(int successful_allocations) {
+    tc_diagnostic_allocations_before_failure = successful_allocations;
+}
+#endif
+
+static char *tc_diagnostic_strdup(const char *text) {
+#ifdef TC_DIAGNOSTIC_TESTING
+    if (tc_diagnostic_allocations_before_failure == 0) {
+        return NULL;
+    }
+    if (tc_diagnostic_allocations_before_failure > 0) {
+        tc_diagnostic_allocations_before_failure--;
+    }
+#endif
+    return strdup(text);
+}
+
+static char tc_diagnostic_oom_message[] = "memory allocation failed";
+
+static void tc_diagnostic_free_message(char *message) {
+    if (message != tc_diagnostic_oom_message) {
+        free(message);
+    }
+}
+
+static void tc_diagnostic_mark_oom(TcDiagnostic *diag) {
+    tc_diagnostic_free_message(diag->message);
+    free(diag->snippet);
+    diag->domain = TC_DIAG_IMPLEMENTATION;
+    diag->api_code = TC_API_ERR_NONE;
+    diag->kind = TC_ERR_OUT_OF_MEMORY;
+    diag->line = 0;
+    diag->column = TC_COLUMN_UNKNOWN;
+    diag->message = tc_diagnostic_oom_message;
+    diag->snippet = NULL;
+}
+
 /**
  * @brief 从 source 中提取 1-based 行号的文本
  * @param source   完整源文本
@@ -55,6 +95,8 @@ static size_t tc_extract_source_line(const char *source, int line_no, char *buf,
 }
 
 void tc_diagnostic_init(TcDiagnostic *diag) {
+    diag->domain = TC_DIAG_NONE;
+    diag->api_code = TC_API_ERR_NONE;
     diag->kind = TC_ERR_SYNTAX;
     diag->message = NULL;
     diag->filename = NULL;
@@ -65,7 +107,7 @@ void tc_diagnostic_init(TcDiagnostic *diag) {
 }
 
 void tc_diagnostic_clear(TcDiagnostic *diag) {
-    free(diag->message);
+    tc_diagnostic_free_message(diag->message);
     free(diag->filename);
     free(diag->snippet);
     free(diag->source);
@@ -73,40 +115,98 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
     diag->filename = NULL;
     diag->snippet = NULL;
     diag->source = NULL;
+    diag->domain = TC_DIAG_NONE;
+    diag->api_code = TC_API_ERR_NONE;
+    diag->kind = TC_ERR_SYNTAX;
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
 }
 
-void tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source) {
-    char *new_filename = filename ? strdup(filename) : NULL;
-    char *new_source = source ? strdup(source) : NULL;
+int tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source) {
+    char *new_filename = NULL;
+    char *new_source = NULL;
+
+    if (filename) {
+        new_filename = tc_diagnostic_strdup(filename);
+        if (!new_filename) {
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
+    if (source) {
+        new_source = tc_diagnostic_strdup(source);
+        if (!new_source) {
+            free(new_filename);
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
 
     free(diag->filename);
     free(diag->source);
     diag->filename = new_filename;
     diag->source = new_source;
+    return 0;
 }
 
-void tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
-                       const char *message) {
+int tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                      const char *message) {
     char line_buf[512];
     size_t line_len = 0;
+    char *new_message = NULL;
+    char *new_snippet = NULL;
 
-    free(diag->message);
-    free(diag->snippet);
-    diag->kind = kind;
-    diag->line = line;
-    diag->column = column;
-    diag->message = message ? strdup(message) : NULL;
-    diag->snippet = NULL;
-
-    /* 若 source 可用，提取出错行源码作为 snippet */
+    if (message) {
+        new_message = tc_diagnostic_strdup(message);
+        if (!new_message) {
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
     if (diag->source && line > 0) {
         line_len = tc_extract_source_line(diag->source, line, line_buf, sizeof(line_buf));
         if (line_len > 0) {
-            diag->snippet = strdup(line_buf);
+            new_snippet = tc_diagnostic_strdup(line_buf);
+            if (!new_snippet) {
+                free(new_message);
+                tc_diagnostic_mark_oom(diag);
+                return -1;
+            }
         }
     }
+
+    tc_diagnostic_free_message(diag->message);
+    free(diag->snippet);
+    diag->domain = kind == TC_ERR_OUT_OF_MEMORY ? TC_DIAG_IMPLEMENTATION : TC_DIAG_LANGUAGE;
+    diag->api_code = TC_API_ERR_NONE;
+    diag->kind = kind;
+    diag->line = line;
+    diag->column = column;
+    diag->message = new_message;
+    diag->snippet = new_snippet;
+    return 0;
+}
+
+int tc_diagnostic_set_api(TcDiagnostic *diag, TcApiErrorCode code, const char *message) {
+    char *new_message = NULL;
+
+    if (message) {
+        new_message = tc_diagnostic_strdup(message);
+        if (!new_message) {
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
+    tc_diagnostic_free_message(diag->message);
+    free(diag->snippet);
+    diag->domain = TC_DIAG_API;
+    diag->api_code = code;
+    diag->kind = TC_ERR_SYNTAX;
+    diag->line = 0;
+    diag->column = TC_COLUMN_UNKNOWN;
+    diag->message = new_message;
+    diag->snippet = NULL;
+    return 0;
 }
 
 /*
@@ -154,6 +254,13 @@ void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out) {
             fprintf(out, ":%d", diag->column);
         }
     }
-    fprintf(out, ": error: %s\n", message);
-    tc_diagnostic_print_snippet(diag, out);
+    if (diag->domain == TC_DIAG_API) {
+        fprintf(out, ": api error: %s: %s\n", tc_api_error_code_name(diag->api_code), message);
+    } else if (diag->domain == TC_DIAG_IMPLEMENTATION) {
+        fprintf(out, ": implementation error: %s: %s\n", tc_error_kind_name(diag->kind),
+                message);
+    } else {
+        fprintf(out, ": error: %s\n", message);
+        tc_diagnostic_print_snippet(diag, out);
+    }
 }

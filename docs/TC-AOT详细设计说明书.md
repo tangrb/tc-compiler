@@ -1,10 +1,10 @@
 # TC-AOT 详细设计说明书
 
-> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)（目标设计）
+> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
 >
-> **当前实现基线**：TC-AOT v0.0.26（`TC_AOT_VERSION`）
+> **当前实现基线**：TC-AOT v0.0.31（`TC_AOT_VERSION`）
 >
-> **状态**：本文定义 0.0.31 目标代码生成架构；新增能力尚未实现与验证。
+> **状态**：0.0.31 代码生成架构已实现，并通过 257 项 VM/AOT 差分与 C99 严格编译门禁。
 >
 > **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书.md) 的 typed program、完整 CFG 与共享运行时语义
 
@@ -31,15 +31,15 @@
 
 ## 1. 边界与目标
 
-### 1.1 两条版本线
+### 1.1 版本基线
 
 | 维度 | 版本 | 状态 |
 | ---- | ---- | ---- |
 | 目标语言 | TC 0.0.31 | 规范已确定 |
-| 当前转译器 | TC-AOT v0.0.26 | 已实现、已有 210 项差分基线 |
-| 本文 | 0.0.31 目标设计 | 待代码与测试交付 |
+| 当前转译器 | TC-AOT v0.0.31 | 已实现、已有 257 项差分基线 |
+| 本文 | 0.0.31 已实现设计 | 代码与测试均已交付 |
 
-当前 `tc-aot` 不得因本文而被视为已支持 `while`、`break`、`continue`、`bitcast`、强制 `var` 初始化器或 0.0.31 新诊断。
+当前 `tc-aot` 已支持 `while`、`break`、`continue`、`bitcast`、强制 `var` 初始化器和 0.0.31 诊断集合。
 
 ### 1.2 目标
 
@@ -421,7 +421,7 @@ Analyzer/const evaluator 已把合法 `let` 求为声明类型的精确 `TcValue
 
 ### 10.3 静态诊断
 
-AOT `--check` 和普通转译都经 libtc 完成全部静态阶段。0.0.31 的 41 个语言错误码和 `OutOfMemory` 只有在代码、枚举和测试全部交付后才能作为当前输出对外承诺。
+AOT `--check` 和普通转译都经 libtc 完成全部静态阶段。当前实现覆盖 41 个语言错误码和 `OutOfMemory`，错误名由共享 `tc_error_kind_name()` 全表测试固定。
 
 ### 10.4 非语言失败
 
@@ -431,7 +431,7 @@ AOT `--check` 和普通转译都经 libtc 完成全部静态阶段。0.0.31 的 
 
 ## 11. CLI、构建与产物
 
-### 11.1 当前 v0.0.26 CLI
+### 11.1 当前 v0.0.31 CLI
 
 ```text
 tc-aot [options] <file.tc>
@@ -442,11 +442,11 @@ tc-aot [options] <file.tc>
   -V, --version
 ```
 
-0.0.31 目标设计不要求新增 CLI 选项。现有入口可以在实现完成后继续使用，只更新版本和帮助中的语言能力说明。
+0.0.31 未新增 CLI 选项；现有入口保持兼容，版本和帮助已同步当前语言能力。
 
 ### 11.2 C99 构建
 
-`--run` 当前调用 host `cc -std=c99 -Wall -Wextra -pedantic` 并链接 AOT runtime 与共享 runtime 模块。目标要求：
+`--run` 调用 host `cc -std=c99 -Wall -Wextra -Werror -pedantic` 并链接 AOT runtime 与共享 runtime 模块，满足：
 
 - 不依赖 GNU C 扩展；
 - fenv 能力有明确配置与回退；
@@ -495,7 +495,7 @@ AOT 的核心正确性证据是同一源文件经 VM 与 AOT 产生相同可观�
 
 ### 12.3 当前基线
 
-v0.0.26 有 210 项 AOT 差分并全部通过。该数字只证明当前语言与实现，不包含 0.0.31 新语法或新语义。
+v0.0.31 有 257 项 AOT 差分并全部通过，覆盖新语法、静态接受集、运行时错误、I/O 与数值位模式。
 
 ### 12.4 提交门槛
 
@@ -503,8 +503,8 @@ v0.0.26 有 210 项 AOT 差分并全部通过。该数字只证明当前语言�
 - `check_rhs_coverage.py` 通过；
 - VM/AOT/let 数值一致性通过；
 - 生成 C 以 C99 严格警告编译；
-- 全量 384/857/210 基线不回退；
-- 新 0.0.31 用例加入后，总数以脚本实测为准，不在设计阶段预填。
+- 全量 VM 435、unit 1617、AOT 257 基线不回退；
+- 后续新增用例后，总数继续以脚本实测为准。
 
 ---
 
@@ -538,29 +538,36 @@ int tc_aot_emit_c(FILE *out,
 
 ## 14. 实现基线与迁移
 
-### 14.1 v0.0.26 当前事实
+### 14.1 v0.0.31 当前事实
 
-- `TC_AOT_VERSION` 为 0.0.26。
-- 当前支持 var/let/赋值、I/O、if/else、受限 goto/label，以及整数、布尔、浮点 RHS。
-- 当前生成静态 `uint64_t slots[]`，if 使用原生 C，goto 使用 `tc_label_<stmt_index>`。
-- runtime shim 委托共享 semantics 和 I/O。
-- 当前代码仍包含 0.0.31 已废止或收敛的浮点模式/转换路径。
-- 当前无 while/break/continue/bitcast codegen。
+- `TC_AOT_VERSION` 为 0.0.31。
+- 支持 var/let/赋值、I/O、if/else、while/break/continue、受限 goto/label 与全部 0.0.31 RHS。
+- 生成静态 `uint64_t slots[]`；if/while 使用原生 C，goto 使用 `tc_label_<stmt_index>`。
+- runtime shim 委托共享 semantics、`tc_sem_cast` 和 I/O。
+- bitcast 发射等宽位复制；旧浮点 wrap 与 truncate 位重解释不进入 codegen。
 
-### 14.2 迁移顺序
+### 14.2 已完成的迁移顺序
 
-1. 等待共享 types/Analyzer 完成目标 kind 与静态契约；
+1. 共享 types/Analyzer 完成目标 kind 与静态契约；
 2. 增加 while/break/continue statement emission；
 3. 增加 bitcast 安全位复制；
 4. 收敛 strict cast、truncate 和浮点模式；
 5. 移除 `let` 运行时兼容发射，统一内联位模式；
 6. 扩展 runtime shim 与错误打印名；
 7. 增加差分和 C99 可移植性测试；
-8. 全部通过后再升版。
+8. 全部门禁通过后升版。
 
-### 14.3 状态变更条件
+### 14.3 发布证据
 
-本文首页只有在 0.0.31 全部 AOT 目标实现、与 VM/let 差分通过、CLI/API/合规报告同步后，才能从“目标设计”改为“已实现”。
+VM/AOT 差分 257/257、完整 `--check` 接受集与 runtime 诊断矩阵均通过；生成 C 全部经 `-std=c99 -Wall -Wextra -Werror -pedantic` 零警告编译。ASan、UBSan 和 no-fenv 门禁同时覆盖共享 runtime。
+
+| 目标 | 实现链接 | 测试链接 |
+| ---- | -------- | -------- |
+| 结构化 while 与最内层控制 | [tc_aot_codegen.c](../src/aot/tc_aot_codegen.c) | [while_nested.tc](../tests/valid/while_nested.tc)、[while_break_continue.tc](../tests/valid/while_break_continue.tc) |
+| goto/resolved target | [tc_aot_codegen.c](../src/aot/tc_aot_codegen.c) | [goto_var_reinitialize.tc](../tests/valid/goto_var_reinitialize.tc) |
+| 共享数值与 bitcast shim | [tc_aot_rt.c](../src/aot/tc_aot_rt.c)、[tc_sem_cast.c](../src/vm/runtime/tc_sem_cast.c) | [fp_bitcast_roundtrip.tc](../tests/valid/fp_bitcast_roundtrip.tc)、[let_runtime_equivalence.tc](../tests/valid/let_runtime_equivalence.tc) |
+| 共享 I/O | [tc_io.c](../src/vm/runtime/tc_io.c) | [test_io.c](../tests/unit/runtime/test_io.c)、[fp_io.tc](../tests/valid/fp_io.tc) |
+| 完整差分与 C99 编译 | [AOT runner](../scripts/aot/run_tests.sh) | 257/257 发布输出 |
 
 ---
 

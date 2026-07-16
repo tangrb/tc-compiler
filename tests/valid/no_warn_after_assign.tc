@@ -1,3 +1,5 @@
-var a: int32
+goto assign_a
+var a: int32 = 0
+label assign_a:
 a = 1
 var b: int32 = add(int32, a, 0)

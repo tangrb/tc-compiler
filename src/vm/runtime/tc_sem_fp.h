@@ -1,13 +1,11 @@
-/*
- * tc_sem_fp.h — 浮点算术、比较与 cast 语义接口
- */
+/* tc_sem_fp.h — deterministic float arithmetic, unary, and comparison interface */
 #ifndef TC_SEM_FP_H
 #define TC_SEM_FP_H
 
 #include "tc_types.h"
 
 /**
- * 浮点算术运算入口：add/sub/mul/div（strict/ieee/wrap）。
+ * 浮点算术运算入口：add/sub/mul/div（strict/ieee；wrap 非法）。
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */
@@ -16,7 +14,7 @@ int tc_exec_fp_arith(TcArithOp op, TcType type, TcFloatMode mode,
                      TcDiagnostic *diag, int line);
 
 /**
- * 浮点单目运算入口：abs / neg（strict/ieee/wrap）。
+ * 浮点单目运算入口：abs / neg（纯符号位操作；wrap 非法）。
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */
@@ -32,12 +30,5 @@ int tc_exec_fp_unary(TcUnaryOp op, TcType type, TcFloatMode mode,
 int tc_exec_fp_compare(TcCompareOp op, TcType type, TcFloatMode mode,
                        const TcValue *lhs, const TcValue *rhs, TcValue *out,
                        TcDiagnostic *diag, int line);
-
-/**
- * 浮点类型转换入口（strict / truncate）。
- * @param target  TC_FLOAT32 或 TC_FLOAT64
- */
-int tc_exec_fp_cast(TcType target, TcTruncateMode mode, const TcValue *source,
-                    TcValue *out, TcDiagnostic *diag, int line);
 
 #endif /* TC_SEM_FP_H */

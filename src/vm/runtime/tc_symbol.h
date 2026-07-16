@@ -44,6 +44,9 @@ int tc_symbol_name_index_build(const TcSymbolTable *table, TcSymbolNameIndex *in
 const TcSymbol *tc_symbol_table_find_visible(const TcSymbolTable *table, const char *name,
                                              int stmt_index, const TcSymbolNameIndex *index);
 
+/** 返回变量所需的运行时槽数；let 常量不占槽。 */
+size_t tc_symbol_table_runtime_slot_count(const TcSymbolTable *table);
+
 /** 初始化空符号表（含全局作用域 level 0） */
 void tc_symbol_table_init(TcSymbolTable *table);
 
@@ -109,7 +112,7 @@ TcSymbol *tc_symbol_table_find_mut(TcSymbolTable *table, const char *name);
  * @return 成功 0；重复标签或 OOM 返回 -1
  */
 int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index,
-                              int line, const int *block_path, int block_depth,
+                              int line, const TcBlockId *block_path, int block_depth,
                               TcDiagnostic *diag);
 
 /**

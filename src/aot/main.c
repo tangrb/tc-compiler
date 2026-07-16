@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TC_AOT_VERSION "0.0.26"
+#define TC_AOT_VERSION "0.0.31"
 
 static void tc_aot_print_usage(const char *program) {
     fprintf(stderr,
@@ -39,7 +39,10 @@ static void tc_aot_print_usage(const char *program) {
             "  -c, --check         static analysis only, do not emit C\n"
             "  -r, --run           compile and run generated C (requires host C compiler)\n"
             "  -h, --help          show this help\n"
-            "  -V, --version       show version\n",
+            "  -V, --version       show version\n"
+            "\n"
+            "Notes:\n"
+            "  --check uses the same libtc batch-language acceptance set as tc-vm --check.\n",
             program);
 }
 
@@ -68,7 +71,7 @@ static int tc_aot_run_generated(const char *c_path) {
 #endif
 
     snprintf(cmd, sizeof(cmd),
-             "cc -std=c99 -Wall -Wextra -pedantic "
+             "cc -std=c99 -Wall -Wextra -Werror -pedantic "
              "%s"
              "-I\"" TC_AOT_RT_DIR "\" -I\"" TC_VM_DIR "/runtime\" "
              "\"%s\" \"" TC_AOT_RT_DIR "/tc_aot_rt.c\" "
@@ -77,6 +80,7 @@ static int tc_aot_run_generated(const char *c_path) {
              "\"" TC_VM_DIR "/runtime/tc_semantics.c\" "
              "\"" TC_VM_DIR "/runtime/tc_sem_int.c\" "
              "\"" TC_VM_DIR "/runtime/tc_sem_fp.c\" "
+             "\"" TC_VM_DIR "/runtime/tc_sem_cast.c\" "
              "\"" TC_VM_DIR "/runtime/tc_sem_bitwise.c\" "
              "\"" TC_VM_DIR "/runtime/tc_io.c\" "
              "-o \"%s.out\" && \"%s.out\"",

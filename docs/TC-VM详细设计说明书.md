@@ -1,10 +1,10 @@
 # TC-VM 详细设计说明书
 
-> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)（目标设计）
+> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
 >
-> **当前实现基线**：TC-VM v0.0.26（`TC_VM_VERSION`）
+> **当前实现基线**：TC-VM v0.0.31（`TC_VM_VERSION`）
 >
-> **状态**：本文定义 0.0.31 目标架构；除明确标注的 v0.0.26 内容外，均待实现与验证。
+> **状态**：0.0.31 架构已实现，并通过 VM/AOT/unit、ASan、UBSan、no-fenv 与平台内存门禁。
 >
 > **适用范围**：批量源文件的 Parse、Analyze、Execute，以及 tc-vm 的实现边界
 
@@ -33,15 +33,15 @@
 
 ## 1. 文档边界与设计目标
 
-### 1.1 两条版本线
+### 1.1 版本基线
 
 | 维度 | 版本 | 含义 |
 | ---- | ---- | ---- |
 | 语言规范 | 0.0.31 | 本文必须满足的合法程序集合、结果和诊断阶段 |
-| 当前代码 | v0.0.26 | 仓库当前可构建、可运行、已有回归证据的实现 |
-| 本文架构 | 0.0.31 目标设计 | 从 v0.0.26 演进到规范符合实现的内部设计 |
+| 当前代码 | v0.0.31 | 仓库当前可构建、可运行、已有发布门禁证据的实现 |
+| 本文架构 | 0.0.31 已实现设计 | 当前规范符合实现的内部设计 |
 
-本文不得用于声称当前 `tc-vm` 已支持 `while`、`break`、`continue`、`bitcast` 或 0.0.31 的完整错误集合。当前命令行为见 [TC-VM 命令行参考](./TC-VM命令行参考.md)。
+当前 `tc-vm` 已支持 `while`、`break`、`continue`、`bitcast`、完整 CFG 与 0.0.31 错误集合。命令行为见 [TC-VM 命令行参考](./TC-VM命令行参考.md)。
 
 ### 1.2 目标
 
@@ -57,7 +57,7 @@
 - 不在 VM 内引入 JIT、字节码文件格式或寄存器分配器。
 - 不为未纳入 0.0.31 的函数、数组、结构体、指针或字符串预先定义 ABI。
 - 不以更强的可选静态规则缩小 0.0.31 合法程序集。
-- 不为尚未实现的目标符号承诺 C API 稳定性。
+- 不为未纳入公开 API 的内部符号承诺 C ABI 稳定性。
 
 ### 1.4 规范到实现的约束
 
@@ -101,9 +101,9 @@ source
 - Parser 失败不修改输出程序；Analyzer 失败不产生可释放义务不明确的 `TcTypedProgram`。
 - OOM 可发生在任意阶段，但始终映射为 `OutOfMemory`。
 
-### 2.3 v0.0.26 可复用基础
+### 2.3 0.0.31 已实现基础
 
-当前模块拆分、`TcValue` 位模式、树形 `TcIfStmt`、`tc_stmt_index`、两遍 Analyzer、路径敏感 DFA、执行器和 AOT 共用语义函数均可作为迁移基础。它们不能自动证明 0.0.31 合规；尤其是循环、完整 CFG、强制初始化器和新转换规则仍需实现。
+当前实现以 `TcValue` 位模式、树形块语句、`tc_stmt_index`、两遍 Analyzer、`tc_cfg` 固定点 DFA、Executor 以及 VM/AOT 共用语义函数组成。循环、完整 CFG、强制初始化器和新转换规则均已纳入该流水线。
 
 ---
 
@@ -121,7 +121,7 @@ source
 
 ### 3.2 目标 `TcStmtKind`
 
-v0.0.26 已有 `VAR_DEF`、`CONST_DEF`、`ASSIGN`、`WRITE`、`WRITELN`、`READ`、`IF`、`LABEL_DEF`、`GOTO`。0.0.31 目标增加：
+0.0.31 的 statement 集合在既有 `VAR_DEF`、`CONST_DEF`、`ASSIGN`、`WRITE`、`WRITELN`、`READ`、`IF`、`LABEL_DEF`、`GOTO` 上增加：
 
 ```c
 TC_STMT_WHILE,
@@ -158,7 +158,7 @@ TC_RHS_BITCAST
 
 ### 3.4 `var` 收敛
 
-0.0.31 的 `TcVarDef` 不再需要表达合法的“无 RHS”状态。Parser 可以在识别缺失初始化器时直接产生 `TC_ERR_VAR_MISSING_INIT`；若为错误恢复保留 `has_rhs`，该字段不得进入成功的 `TcTypedProgram`。
+0.0.31 的 `TcVarDef` 不表达“无 RHS”状态，结构中已删除 `has_rhs`。Parser 在缺失初始化器时直接产生 `TC_ERR_VAR_MISSING_INIT`，成功 AST 的 `rhs` 始终有效。
 
 ### 3.5 语句序号
 
@@ -295,7 +295,7 @@ Pass1 为每个词法 `var` 绑定分配唯一 slot。槽位生命周期与词�
 
 ### 6.1 目标
 
-0.0.31 要求所有可达控制路径参与同一确定初始化分析。v0.0.26 的路径敏感基础必须扩展为显式、可固定点求解的完整控制流图。
+0.0.31 让所有可达控制路径参与同一确定初始化分析；当前 `tc_cfg` 将早期路径敏感基础实现为显式、可固定点求解的完整控制流图。
 
 ### 6.2 节点
 
@@ -424,7 +424,7 @@ Executor 只接收成功的 `TcTypedProgram`：
 
 ### 8.2 目标执行控制
 
-v0.0.26 的树形块执行和 `stmt_index` seeking 可复用，但 0.0.31 必须显式表达以下控制结果：
+0.0.31 在树形块执行和 `stmt_index` seeking 上显式表达以下控制结果：
 
 ```text
 NORMAL
@@ -599,21 +599,21 @@ TC 0.0.31 没有编译警告；`TcWarningList` 若为 ABI/结构兼容保留，�
 
 ## 13. 模块与接口
 
-### 13.1 当前 v0.0.26 模块
+### 13.1 当前 v0.0.31 模块
 
 | 目录 | 责任 |
 | ---- | ---- |
 | `src/vm/lexer/` | Token 与词法位置 |
 | `src/vm/parser/` | 语句/RHS 解析、递归释放 |
-| `src/vm/analyzer/` | Pass1、Pass2、DFA、常量求值、REPL 分析 |
+| `src/vm/analyzer/` | Pass1、Pass2、`tc_cfg`、固定点 DFA、常量求值、REPL 分析 |
 | `src/vm/executor/` | typed program 执行 |
-| `src/vm/runtime/` | 类型、诊断、符号、语义、I/O、stmt_index |
+| `src/vm/runtime/` | 类型、诊断、符号、`tc_sem_cast` 等共享语义、I/O、stmt_index |
 | `src/vm/driver/` | CLI、文件模式、REPL、版本 |
 | `src/libtc/` | 嵌入式编译/执行入口 |
 
 ### 13.2 0.0.31 模块边界
 
-实现可以在现有 Analyzer 内新增 CFG 子模块，或把 CFG 抽为同目录独立 `tc_cfg.c/h`。无论命名如何，接口边界必须满足：
+完整 CFG 已实现为 Analyzer 目录中的 `tc_cfg.c/h`，共享转换语义已实现为 runtime 目录中的 `tc_sem_cast.c/h`。接口边界满足：
 
 - Parser 不执行全局类型或可达性判断；
 - CFG 不重新解析源码；
@@ -625,13 +625,13 @@ TC 0.0.31 没有编译警告；`TcWarningList` 若为 ABI/结构兼容保留，�
 
 ### 13.3 公共接口
 
-libtc 公共函数签名目标上保持不变，内部 `TcTypedProgram` 可扩展。所有尚未存在的 target kind、CFG 结构和辅助函数都属于目标设计，不构成当前 API 承诺。
+libtc 公共函数签名保持不变；`TcTypedProgram` 已包含只读 `TcCfg *cfg`，Executor 与 AOT 复用 Analyzer 的静态结果。内部 CFG 辅助函数不构成公开 API 承诺。
 
 ---
 
 ## 14. REPL 边界
 
-0.0.31 语言标准只定义批量源文件语义。当前 v0.0.26 REPL 采用逐行增量 Parse/Analyze/Execute，并拒绝多行控制流。
+0.0.31 语言标准只定义批量源文件语义。当前 REPL 采用逐行增量 Parse/Analyze/Execute，并拒绝多行控制流。
 
 0.0.31 目标允许 tc-vm 继续采用以下实现策略：
 
@@ -670,33 +670,33 @@ libtc 公共函数签名目标上保持不变，内部 `TcTypedProgram` 可扩�
 - float32 常量每步舍入与运行时相同。
 - 旧浮点 wrap、浮点 truncate 位重解释和严格无符号窄化旧行为按迁移规则拒绝或改写。
 
-### 15.3 交付声明
+### 15.3 交付证据
 
-只有在：
+0.0.31 发布门禁实测为 VM 435/435、unit 1617/1617、AOT 257/257。`check_rhs_coverage.py` 与 `check_source_naming.py` 通过；ASan、UBSan、no-fenv 494/494、MallocScribble 全矩阵及 libtc `leaks` 0 bytes 均通过。错误名测试覆盖 41 个语言错误与 `OutOfMemory`，并验证名称无重复。
 
-1. 全部 0.0.31 目标 kind 与分发点实现；
-2. 标准错误集合和打印名实现；
-3. VM、AOT、let 一致性测试通过；
-4. 全量 VM/unit/AOT 与覆盖/命名检查通过；
-5. CLI/API/合规文档同步更新；
-
-之后，`TC_VM_VERSION` 才能升为 0.0.31 并把本文状态改为已实现。
+| 目标 | 实现链接 | 测试链接 |
+| ---- | -------- | -------- |
+| while/块/强制初始化器 | [tc_parser.c](../src/vm/parser/tc_parser.c)、[tc_types.h](../src/vm/runtime/tc_types.h) | [test_parser.c](../tests/unit/parser/test_parser.c)、[VM fixtures](../tests/valid/while_counted.tc) |
+| 作用域与控制元数据 | [tc_analyzer_pass1.c](../src/vm/analyzer/tc_analyzer_pass1.c)、[tc_analyzer_pass2.c](../src/vm/analyzer/tc_analyzer_pass2.c) | [test_analyzer.c](../tests/unit/runtime/test_analyzer.c) |
+| 完整 CFG 与固定点 | [tc_cfg.c](../src/vm/analyzer/tc_cfg.c)、[tc_analyzer_dfa.c](../src/vm/analyzer/tc_analyzer_dfa.c) | [test_cfg.c](../tests/unit/runtime/test_cfg.c) |
+| cast/truncate/bitcast/float | [tc_sem_cast.c](../src/vm/runtime/tc_sem_cast.c)、[tc_sem_fp.c](../src/vm/runtime/tc_sem_fp.c) | [test_semantics.c](../tests/unit/runtime/test_semantics.c)、[bitcast fixture](../tests/valid/fp_bitcast_roundtrip.tc) |
+| VM 控制执行 | [tc_executor.c](../src/vm/executor/tc_executor.c) | [test_executor.c](../tests/unit/runtime/test_executor.c) |
 
 ---
 
 ## 16. 实现基线与迁移
 
-### 16.1 v0.0.26 当前事实
+### 16.1 v0.0.31 当前事实
 
-- 版本宏：`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION = 0.0.26`。
-- 已交付：整数、布尔、浮点、if/else、块作用域、受限 goto/label、路径敏感未初始化错误。
-- 当前 IR：16 个 RHS kind、9 个 statement kind；无 while/break/continue/bitcast。
-- 当前测试基线：384 VM、857 unit、210 AOT，证明 v0.0.26 实现状态。
-- 当前仍接受 0.0.31 已删除的部分行为，例如无初始化器 `var`、浮点 wrap 与浮点 truncate 位重解释。
+- 版本宏：`src/vm/driver/tc_version.h` 中 `TC_VM_VERSION = 0.0.31`。
+- 已交付：强制 var 初始化、while/break/continue、范式隔离、完整 CFG、bitcast、strict cast/truncate、浮点与 let 语义收敛。
+- `tc_cfg.c/h` 构建完整控制流图并执行固定点确定初始化；`tc_sem_cast.c/h` 由 VM、AOT 与常量求值共享。
+- 旧浮点 wrap、浮点 truncate 位重解释和旧错误分类均已从成功路径删除。
+- 当前测试基线：435 VM、1617 unit、257 AOT。
 
-### 16.2 迁移顺序
+### 16.2 已完成的迁移顺序
 
-建议按以下依赖顺序实现：
+本版本按以下依赖顺序交付：
 
 1. types/IR 与错误枚举；
 2. Lexer/Parser 与通用块；
@@ -714,7 +714,7 @@ libtc 公共函数签名目标上保持不变，内部 `TcTypedProgram` 可扩�
 | 0.0.24 | if/else、块作用域、缩进引擎 |
 | 0.0.25 | float32/float64 全链路 |
 | 0.0.26 | 受限 goto/label、路径敏感未初始化错误 |
-| 0.0.31 | 本文目标：循环、完整 CFG、强制初始化、bitcast 与语义收敛；尚未交付 |
+| 0.0.31 | 循环、完整 CFG、强制初始化、bitcast、API/诊断域与语义收敛 |
 
 ---
 

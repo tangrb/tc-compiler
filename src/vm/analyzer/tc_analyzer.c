@@ -13,10 +13,13 @@
 #include "tc_analyzer_internal.h"
 #include "tc_analyzer_pass1.h"
 #include "tc_analyzer_pass2.h"
+#include "tc_cfg.h"
 
 #include "tc_diagnostic.h"
 #include "tc_parser.h"
 #include "tc_semantics.h"
+
+#include <stdlib.h>
 
 /* ------------------------------------------------------------------ */
 /*  TcTypedProgram 生命周期管理                                          */
@@ -25,10 +28,16 @@
 void tc_typed_program_init(TcTypedProgram *program) {
     tc_program_init(&program->program);
     tc_symbol_table_init(&program->symbols);
+    program->cfg = NULL;
     tc_warning_list_init(&program->warnings);
 }
 
 void tc_typed_program_free(TcTypedProgram *program) {
+    if (program->cfg) {
+        tc_cfg_free(program->cfg);
+        free(program->cfg);
+        program->cfg = NULL;
+    }
     tc_program_free(&program->program);
     tc_symbol_table_free(&program->symbols);
     tc_warning_list_free(&program->warnings);
@@ -84,6 +93,19 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {
         tc_typed_program_free(out);
         return -1;
     }
+    out->cfg = (TcCfg *)malloc(sizeof(TcCfg));
+    if (!out->cfg) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        tc_typed_program_free(out);
+        return -1;
+    }
+    tc_cfg_init(out->cfg);
+    if (tc_cfg_build(&out->program, &out->symbols, out->cfg, diag) != 0 ||
+        tc_analyze_definite_init(out->cfg,
+                                 tc_symbol_table_runtime_slot_count(&out->symbols), diag) != 0) {
+        tc_typed_program_free(out);
+        return -1;
+    }
     return 0;
 }
-

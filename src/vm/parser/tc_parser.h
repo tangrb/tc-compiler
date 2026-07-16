@@ -51,6 +51,8 @@ typedef struct {
     int indent_width; /* 默认 4 */
 } TcFileIndent;
 
+typedef TcBlockKind TcParserBlockKind;
+
 /**
  * 解析单条语句（不含 if；if 由 tc_parse_source_to_program 多行处理）。
  * @param ctx     Parser 上下文（含递归深度计数器）
@@ -85,5 +87,9 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
  */
 int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
                      const TcFileIndent *file_indent, TcStatement *out, TcDiagnostic *diag);
+
+/** 解析 while-then-end 语句（含缩进检查）。 */
+int tc_parse_while_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
+                        const TcFileIndent *file_indent, TcStatement *out, TcDiagnostic *diag);
 
 #endif /* TC_PARSER_H */

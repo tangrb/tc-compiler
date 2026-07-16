@@ -164,7 +164,21 @@ int tc_aot_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType sr
     TcValue src = tc_value_make(src_type, src_bits);
     TcValue result;
 
-    if (tc_exec_cast(target, mode, &src, &result, diag, line) != 0) {
+    if ((mode == TC_TRUNC_TRUNCATE
+             ? tc_exec_truncate(target, &src, &result, diag, line)
+             : tc_exec_cast(target, &src, &result, diag, line)) != 0) {
+        return -1;
+    }
+    *out = result.bits;
+    return 0;
+}
+
+int tc_aot_bitcast(TcType target, TcType source_type, uint64_t *out, uint64_t source_bits,
+                   TcDiagnostic *diag, int line) {
+    TcValue source = tc_value_make(source_type, source_bits);
+    TcValue result;
+
+    if (tc_exec_bitcast(target, &source, &result, diag, line) != 0) {
         return -1;
     }
     *out = result.bits;
@@ -214,7 +228,9 @@ int tc_aot_fp_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType
     TcValue src = tc_value_make(src_type, src_bits);
     TcValue result;
 
-    if (tc_exec_fp_cast(target, mode, &src, &result, diag, line) != 0) {
+    if ((mode == TC_TRUNC_TRUNCATE
+             ? tc_exec_truncate(target, &src, &result, diag, line)
+             : tc_exec_cast(target, &src, &result, diag, line)) != 0) {
         return -1;
     }
     *out = result.bits;
@@ -225,9 +241,15 @@ int tc_aot_fp_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
-void tc_aot_write(TcType type, TcFormatSpec fmt, uint64_t bits, int newline) {
+int tc_aot_write(TcType type, TcFormatSpec fmt, uint64_t bits, int newline,
+                 TcDiagnostic *diag, int line) {
     TcValue value = tc_value_make(type, bits);
-    tc_io_write_value(&value, fmt, newline, stdout);
+
+    if (tc_io_write_value(&value, fmt, newline, stdout) != 0) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "output failed");
+        return -1;
+    }
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */

@@ -25,7 +25,7 @@ writeln(uint32, mix2)
 
 ; 带下划线多进制（cast 场景）
 var src_bin: uint16 = 0b1010_0101_1111_0001
-var dst_oct: uint16 = cast(uint16, truncate, src_bin)
+var dst_oct: uint16 = src_bin
 writeln(uint16, %o, dst_oct)
 var dst_hex: uint8 = cast(uint8, truncate, src_bin)
 writeln(uint8, %x, dst_hex)

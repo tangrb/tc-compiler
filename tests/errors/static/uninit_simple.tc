@@ -1,3 +1,5 @@
 ; 期望：use of uninitialized variable
-var a: int32
+goto use_a
+var a: int32 = 0
+label use_a:
 var b: int32 = add(int32, a, 0)

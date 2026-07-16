@@ -24,12 +24,16 @@ typedef enum {
     TC_TOK_SHIFT_OP,    /* 移位运算符（shl/shr） */
     TC_TOK_FORMAT_SPEC, /* 格式说明符（%d/%u/%x/%X/%o/%b/%t） */
     TC_TOK_CAST,        /* 'cast' 关键字 */
+    TC_TOK_BITCAST,     /* 'bitcast' 关键字 */
     TC_TOK_WRAP,        /* 'wrap' 关键字 */
     TC_TOK_TRUNCATE,    /* 'truncate' 关键字 */
     TC_TOK_WRITE,       /* 'write' 关键字 */
     TC_TOK_WRITELN,     /* 'writeln' 关键字 */
     TC_TOK_READ,        /* 'read' 关键字 */
     TC_TOK_IF,          /* 'if' 关键字 */
+    TC_TOK_WHILE,       /* 'while' 关键字 */
+    TC_TOK_BREAK,       /* 'break' 关键字 */
+    TC_TOK_CONTINUE,    /* 'continue' 关键字 */
     TC_TOK_THEN,        /* 'then' 关键字 */
     TC_TOK_ELSE,        /* 'else' 关键字 */
     TC_TOK_END,         /* 'end' 关键字 */

@@ -1,0 +1,9 @@
+var outer: int32 = 0
+while lt(int32, outer, 2) then
+    var inner: int32 = 0
+    while lt(int32, inner, 3) then
+        writeln(int32, inner)
+        inner = add(int32, inner, 1)
+    end
+    outer = add(int32, outer, 1)
+end

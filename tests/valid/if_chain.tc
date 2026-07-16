@@ -1,6 +1,8 @@
 ; 链式 if-else（else 内嵌 if）
 var score: int32 = 85
-var grade: int8
+goto choose_grade
+var grade: int8 = 0
+label choose_grade:
 if ge(int32, score, 90) then
     grade = 1
 else

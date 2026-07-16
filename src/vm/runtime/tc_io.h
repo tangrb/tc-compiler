@@ -15,7 +15,9 @@
 
 /**
  * 按格式符号将 TcValue 写入指定输出流。
- * @param type  值的整数类型
+ * 输出遵循 0.0.31 的确定性文本规则：十进制点固定为 '.'，浮点特殊值与
+ * 大小写固定，二进制正数省略前导零、负数保留完整类型位宽。
+ * @param type  值的声明类型
  * @param fmt   格式说明符
  * @param value 待输出的运行时值
  * @param out   输出流
@@ -51,12 +53,13 @@ int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
                       uint64_t *out_abs, int *out_sign);
 
 /**
- * 从 stdin 读取一个类型化的值（bool 文本或十进制整数）。
+ * 从 stdin 读取一个完整 ASCII Token，并按目标类型解析。
  * @param type     期望的目标类型
  * @param out_bits 输出：读取值的位模式
  * @param diag     诊断对象
  * @param line     当前行号（错误定位）
- * @return 成功返回 0；输入非法或超出目标类型范围返回 -1
+ * @return 成功返回 0；EOF、流失败、Token 非法或超出目标类型范围返回 -1；
+ *         失败时不修改 out_bits
  */
 int tc_io_read_value(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line);
 

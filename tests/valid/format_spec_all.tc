@@ -4,6 +4,7 @@ var a: int8 = 65
 var b: int8 = -128
 writeln(int8, %d, a)
 writeln(int8, %d, b)
+writeln(int8, %i, b)
 writeln(int8, %x, a)
 writeln(int8, %X, a)
 writeln(int8, %o, a)
@@ -60,3 +61,29 @@ writeln(uint64, %x, ue)
 writeln(uint64, %X, ue)
 writeln(uint64, %o, ue)
 writeln(uint64, %b, ue)
+
+; bool
+var truth: bool = true
+var falsehood: bool = false
+writeln(bool, %t, truth)
+writeln(bool, %t, falsehood)
+
+; float32/float64 的五种格式
+var f32: float32 = 1.5
+writeln(float32, %f, f32)
+writeln(float32, %e, f32)
+writeln(float32, %E, f32)
+writeln(float32, %g, f32)
+writeln(float32, %G, f32)
+
+var f64: float64 = 3.14159265
+writeln(float64, %f, f64)
+writeln(float64, %e, f64)
+writeln(float64, %E, f64)
+writeln(float64, %g, f64)
+writeln(float64, %G, f64)
+
+; write 不换行，writeln 只追加一个 LF
+write(int8, %d, a)
+write(bool, %t, truth)
+writeln(float64, %g, f64)

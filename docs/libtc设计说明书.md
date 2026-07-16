@@ -1,10 +1,10 @@
 # libtc 设计说明书
 
-> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)（目标设计）
+> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
 >
-> **当前实现基线**：libtc / TC-VM v0.0.26
+> **当前实现基线**：libtc / TC-VM v0.0.31
 >
-> **状态**：本文定义承载 TC 0.0.31 的 libtc 目标架构；当前公共函数仍只提供 v0.0.26 行为。
+> **状态**：承载 TC 0.0.31 的 libtc 架构与公共契约已实现并通过所有权、OOM 与平台内存门禁。
 >
 > **调用者速查**：[libtc API](./libtc-api.md)
 
@@ -30,13 +30,13 @@
 
 ## 1. 边界与目标
 
-### 1.1 两条版本线
+### 1.1 版本基线
 
 | 维度 | 版本 | 说明 |
 | ---- | ---- | ---- |
 | 目标语言规范 | 0.0.31 | libtc 最终必须实现的接受集、结果和诊断阶段 |
-| 当前库实现 | v0.0.26 | 当前头文件、结构和运行行为 |
-| 本文 | 0.0.31 目标设计 | 从当前实现演进的编译门面与所有权契约 |
+| 当前库实现 | v0.0.31 | 当前头文件、结构和运行行为 |
+| 本文 | 0.0.31 已实现设计 | 当前编译门面与所有权契约 |
 
 ### 1.2 libtc 的职责
 
@@ -190,19 +190,20 @@ Analyzer 成功意味着：
 
 ## 4. `TcTypedProgram` 数据契约
 
-### 4.1 v0.0.26 当前形态
+### 4.1 v0.0.31 当前形态
 
 ```c
 typedef struct {
     TcProgram program;
     TcSymbolTable symbols;
+    TcCfg *cfg;
     TcWarningList warnings;
 } TcTypedProgram;
 ```
 
 该结构承载语句树、符号/标签和空警告预留。
 
-### 4.2 0.0.31 目标信息
+### 4.2 0.0.31 静态信息
 
 目标 typed program 还必须直接保存或能够无歧义重建：
 
@@ -216,18 +217,18 @@ typedef struct {
 - `let` 的目标精度位模式；
 - 源位置映射。
 
-一种目标形态：
+当前形态：
 
 ```c
 typedef struct {
     TcProgram program;
     TcSymbolTable symbols;
-    TcCfg cfg;
+    TcCfg *cfg;
     TcWarningList warnings; /* 兼容空壳；0.0.31 无语言警告 */
 } TcTypedProgram;
 ```
 
-`TcCfg` 是否公开由实现决定；若结构对调用者可见，必须提供稳定 init/free 并记录 ABI 变化。Executor/AOT 不得各自重建语义不同的 CFG。
+`TcCfg` 使用前置声明和只读指针保存在公开结构中，其节点细节保持内部；`tc_typed_program_free` 统一释放。Executor/AOT 不各自重建语义不同的 CFG。
 
 ### 4.3 不变量
 
@@ -332,7 +333,7 @@ OOM 不得降级为 `SyntaxError`。`realloc` 采用临时指针，失败时保�
 - 调用方不释放 `out`；
 - libtc 保证已释放本次调用创建的所有对象。
 
-这个调用者规则兼容 v0.0.26 的 Parse/Analyze 失败差异，同时为 0.0.31 提供单一稳定契约。
+这个调用者规则消除了早期 Parse/Analyze 失败差异，为 0.0.31 提供单一稳定契约。
 
 ---
 
@@ -492,7 +493,7 @@ libtc 由 CMake 生成并链接 Lexer、Parser、Analyzer、Executor、runtime s
 
 ### 11.3 版本
 
-当前 libtc 没有独立公开版本函数，随 TC-VM 版本管理。若 0.0.31 需要运行时兼容查询，应另行设计；本轮目标不新增未证明必要的公共 API。
+libtc 没有独立公开版本函数，随 TC-VM 0.0.31 版本管理。本轮未新增运行时版本查询 API。
 
 ### 11.4 最小调用模式
 
@@ -552,22 +553,30 @@ tc_diagnostic_clear(&diag);
 
 ### 12.4 工具
 
-除正常 unit/VM/AOT 回归外，所有权变更需通过 ASan；平台允许时运行 Valgrind 或 macOS leaks。文档设计阶段不以当前全绿替代新能力测试。
+正常 unit/VM/AOT、ASan、UBSan 与 no-fenv 均已通过；macOS MallocScribble 全矩阵通过，`test-libtc` 在系统 `leaks` 下为 0 leaks / 0 bytes。
+
+| 契约 | 实现链接 | 测试链接 |
+| ---- | -------- | -------- |
+| success-only ownership 与阶段回滚 | [tc_lib.c](../src/libtc/tc_lib.c) | [test_libtc.c](../tests/unit/runtime/test_libtc.c) |
+| typed program + CFG 生命周期 | [tc_analyzer.c](../src/vm/analyzer/tc_analyzer.c)、[tc_cfg.c](../src/vm/analyzer/tc_cfg.c) | [test_cfg.c](../tests/unit/runtime/test_cfg.c)、[test_libtc.c](../tests/unit/runtime/test_libtc.c) |
+| 诊断域、OOM 与免分配后备 | [tc_diagnostic.c](../src/vm/runtime/tc_diagnostic.c) | [test_diagnostic.c](../tests/unit/runtime/test_diagnostic.c) |
+| 重复 VM/AOT 消费 | [tc_executor.c](../src/vm/executor/tc_executor.c)、[tc_aot_codegen.c](../src/aot/tc_aot_codegen.c) | `test_libtc.c` 重复执行/发射用例 |
+| REPL 事务边界 | [tc_repl.c](../src/vm/driver/tc_repl.c)、[tc_analyzer_repl.c](../src/vm/analyzer/tc_analyzer_repl.c) | [repl_extended_scenarios.txt](../tests/valid/repl_extended_scenarios.txt) |
 
 ---
 
 ## 13. 实现基线与迁移
 
-### 13.1 v0.0.26 当前事实
+### 13.1 v0.0.31 当前事实
 
 - 公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_run_typed`。
-- Parse → Analyze 成功后返回 program/symbols/warnings。
+- Parse → Analyze 成功后返回 program/symbols/CFG/空 warnings。
 - `tc_run_typed` 委托 `tc_execute`。
-- 当前文件读取错误使用 `TC_ERR_SYNTAX`，这不符合 0.0.31 的 API/语言边界目标。
-- 当前 typed program 无 while/break/continue/bitcast 目标节点和显式完整 CFG 契约。
-- 当前 warning list 为空壳；0.0.31 继续无语言警告。
+- 文件打开/读取与无效参数使用 API 诊断域，不冒充语言错误。
+- typed program 包含 while/break/continue/bitcast 元数据和显式完整 CFG。
+- warning list 是兼容空壳；0.0.31 无语言警告。
 
-### 13.2 0.0.31 迁移
+### 13.2 已完成的 0.0.31 迁移
 
 1. 扩展共享 types、statement/RHS kind 与释放分发；
 2. 把 Parser 与 Analyzer 的结果构建改为成功才转移所有权；
@@ -576,7 +585,7 @@ tc_diagnostic_clear(&diag);
 5. 收敛诊断枚举并引入 API/Environment 诊断域；
 6. 更新 Executor/AOT 消费；
 7. 增加 OOM、所有权、API、语言和差分测试；
-8. 全量通过后再把实现版本升至 0.0.31。
+8. 全部门禁通过后把实现版本升至 0.0.31。
 
 ### 13.3 兼容结论
 

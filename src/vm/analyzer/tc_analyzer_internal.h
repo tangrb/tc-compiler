@@ -23,7 +23,7 @@
  * then = if_stmt_index * 2；else = if_stmt_index * 2 + 1（区分兄弟块）。
  */
 typedef struct {
-    int *path;
+    TcBlockId *path;
     int depth;
     int capacity;
 } TcBlockPath;
@@ -44,6 +44,9 @@ typedef struct {
     TcInitState *init_states;    /* slot → 当前路径初始化状态 */
     int num_slots;
     int path_reachable;          /* 0：goto 后至下一 label 之前，跳过 init 副作用 */
+    int next_loop_id;            /* Pass1 源序分配稳定 loop id */
+    int current_loop_id;         /* Pass2 当前最内层 while；-1 表示无 */
+    int loop_depth;              /* 词法祖先 while 数，用于范式隔离 */
 } TcAnalyzeCtx;
 
 /** 初始化历史 / 数据流上下文，供未初始化变量检查使用 */
@@ -53,6 +56,7 @@ typedef struct {
     TcInitState *init_states;               /* Pass2 路径敏感状态；NULL 则回退 last_init */
     int num_slots;
     int check_init;                         /* 0：短路或不可达路径，跳过未初始化错误 */
+    int defer_to_cfg;                       /* 文件模式由完整 CFG 统一检查 */
 } TcInitHistory;
 
 /* ------------------------------------------------------------------ */
@@ -73,11 +77,12 @@ void tc_init_states_merge(TcInitState *merged, const TcInitState *a, const TcIni
 
 void tc_block_path_init(TcBlockPath *bp);
 void tc_block_path_free(TcBlockPath *bp);
-int tc_block_path_push(TcBlockPath *bp, int block_id, TcDiagnostic *diag);
+int tc_block_path_push(TcBlockPath *bp, TcBlockId block_id, TcDiagnostic *diag);
 void tc_block_path_pop(TcBlockPath *bp);
-int tc_block_id_then(int if_stmt_index);
-int tc_block_id_else(int if_stmt_index);
-int tc_paths_equal_prefix(const int *a, const int *b, int depth);
+TcBlockId tc_block_id_then(int if_stmt_index);
+TcBlockId tc_block_id_else(int if_stmt_index);
+TcBlockId tc_block_id_while(int while_stmt_index);
+int tc_paths_equal_prefix(const TcBlockId *a, const TcBlockId *b, int depth);
 
 int tc_check_operand_init(TcInitHistory *hist, const TcSymbol *sym, size_t stmt_index,
                           int line, TcDiagnostic *diag);
@@ -90,12 +95,12 @@ void tc_prescan_init_history(TcProgram *program, TcSymbolTable *symbols, TcAnaly
 /*  Pass2 类型检查辅助（实现于 tc_analyzer_pass2.c；REPL 亦用）              */
 /* ------------------------------------------------------------------ */
 
-int tc_check_operand(const TcOperand *operand, TcType expected,
+int tc_check_operand(TcOperand *operand, TcType expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,
                      TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                      TcWarningList *warnings, const char *self_name, TcErrorKind type_err);
 int tc_check_io_format(TcType type, TcFormatSpec fmt, int line, TcDiagnostic *diag);
-int tc_check_rhs(const TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
+int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
                  const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                  int line, TcDiagnostic *diag, TcWarningList *warnings, const char *self_name);
 

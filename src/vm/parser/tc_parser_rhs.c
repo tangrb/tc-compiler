@@ -15,6 +15,34 @@ static int tc_keyword_error(TcDiagnostic *diag, int line, int column, const char
     return -1;
 }
 
+static int tc_token_starts_call(TcTokenKind kind) {
+    return kind == TC_TOK_ARITH_OP || kind == TC_TOK_UNARY_OP ||
+           kind == TC_TOK_COMPARE_OP || kind == TC_TOK_LOGIC_OP ||
+           kind == TC_TOK_BITWISE_OP || kind == TC_TOK_SHIFT_OP ||
+           kind == TC_TOK_CAST || kind == TC_TOK_BITCAST;
+}
+
+static int tc_find_nested_const_call(const TcTokenList *tokens, size_t start) {
+    size_t i = 0;
+    int depth = 0;
+
+    for (i = start + 1; i + 1 < tokens->count; i++) {
+        if (tokens->items[i].kind == TC_TOK_LPAREN) {
+            depth++;
+            continue;
+        }
+        if (tokens->items[i].kind == TC_TOK_RPAREN) {
+            depth--;
+            continue;
+        }
+        if (depth > 0 && tc_token_starts_call(tokens->items[i].kind) &&
+            tokens->items[i + 1].kind == TC_TOK_LPAREN) {
+            return tokens->items[i].column;
+        }
+    }
+    return TC_COLUMN_UNKNOWN;
+}
+
 static int tc_parse_type_token(const TcTokenList *tokens, size_t *index, int line_no,
                                TcType *out, TcDiagnostic *diag) {
     const TcToken *type_tok = tc_peek(tokens, *index);
@@ -261,11 +289,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
     return 0;
 }
 
-/*
- * @brief 解析 cast RHS：cast(type [,truncate,] source_var)
- *
- * cast 的源操作数必须是变量（不允许字面量），这是 TC 语言标准的规定。
- */
+/* @brief 解析 cast RHS：cast(type [,truncate,] operand) */
 static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                              TcRhs *out, TcDiagnostic *diag) {
     TcType target = TC_INT32;
@@ -286,63 +310,10 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    if (tc_type_is_float(target)) {
-        /* 可选的 truncate 关键字（浮点 cast 位重解释） */
-        {
-            const TcToken *maybe_mode = tc_peek(tokens, *index);
-            if (maybe_mode->kind == TC_TOK_TRUNCATE) {
-                mode = TC_TRUNC_TRUNCATE;
-                (*index)++;
-                if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
-                    return -1;
-                }
-            } else if (maybe_mode->kind == TC_TOK_WRAP) {
-                return tc_keyword_error(diag, line_no, maybe_mode->column,
-                                        "wrap cannot be used with cast");
-            } else if (maybe_mode->kind == TC_TOK_IEEE) {
-                return tc_keyword_error(diag, line_no, maybe_mode->column,
-                                        "ieee cannot be used with cast");
-            } else if (maybe_mode->kind == TC_TOK_IDENTIFIER) {
-                /* strict cast: cast(float64, source) */
-            } else {
-                return tc_syntax_error(diag, line_no, maybe_mode->column,
-                                       "cast source must be a variable");
-            }
-        }
-
-        {
-            const TcToken *src_tok = tc_peek(tokens, *index);
-            if (src_tok->kind != TC_TOK_IDENTIFIER) {
-                return tc_syntax_error(diag, line_no, src_tok->column,
-                                       "cast source must be a variable");
-            }
-            out->kind = TC_RHS_FLOAT_CAST;
-            out->u.float_cast.target = target;
-            out->u.float_cast.mode = mode;
-            out->u.float_cast.source = strndup(src_tok->start, src_tok->length);
-            if (!out->u.float_cast.source) {
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, src_tok->column,
-                                  "memory allocation failed");
-                return -1;
-            }
-            (*index)++;
-        }
-
-        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
-            tc_rhs_free(out);
-            return -1;
-        }
-        return 0;
-    }
-
-    /* 可选的 truncate 关键字作为第二参数（默认 strict；仅整数→整数，§8.5） */
+    /* 可选 truncate；类型与位宽约束由 Analyzer 稳定映射为 ModeMismatch。 */
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
         if (maybe_mode->kind == TC_TOK_TRUNCATE) {
-            if (tc_type_is_bool(target)) {
-                return tc_keyword_error(diag, line_no, maybe_mode->column,
-                                        "truncate is only allowed for integer to integer conversion");
-            }
             mode = TC_TRUNC_TRUNCATE;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
@@ -354,35 +325,44 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         } else if (maybe_mode->kind == TC_TOK_IEEE) {
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "ieee cannot be used with cast");
-        } else if (maybe_mode->kind == TC_TOK_IDENTIFIER) {
-            /* strict cast: cast(type, source) */
-        } else {
-            return tc_syntax_error(diag, line_no, maybe_mode->column,
-                                   "cast source must be a variable");
         }
     }
 
-    {
-        const TcToken *src_tok = tc_peek(tokens, *index);
-        if (src_tok->kind != TC_TOK_IDENTIFIER) {
-            return tc_syntax_error(diag, line_no, src_tok->column,
-                                   "cast source must be a variable");
-        }
-        out->kind = TC_RHS_CAST;
-        out->u.cast.target = target;
-        out->u.cast.mode = mode;
-        out->u.cast.source = strndup(src_tok->start, src_tok->length);
-        if (!out->u.cast.source) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, src_tok->column, "memory allocation failed");
-            return -1;
-        }
-        (*index)++;
+    out->kind = TC_RHS_CAST;
+    memset(&out->u.cast, 0, sizeof(out->u.cast));
+    out->u.cast.target = target;
+    out->u.cast.mode = mode;
+    if (tc_parse_operand(tokens, index, line_no, &out->u.cast.source, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
+    return 0;
+}
+
+static int tc_parse_bitcast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                TcRhs *out, TcDiagnostic *diag) {
+    TcBitcastRhs bitcast;
+
+    memset(&bitcast, 0, sizeof(bitcast));
+    if (tc_expect_token(tokens, index, TC_TOK_BITCAST, line_no, diag) != 0 ||
+        tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0 ||
+        tc_parse_type_token(tokens, index, line_no, &bitcast.target, diag) != 0 ||
+        tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
+        tc_parse_operand(tokens, index, line_no, &bitcast.source, diag) != 0) {
+        tc_operand_free(&bitcast.source);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_operand_free(&bitcast.source);
+        return -1;
+    }
+    out->kind = TC_RHS_BITCAST;
+    out->u.bitcast = bitcast;
     return 0;
 }
 
@@ -740,10 +720,6 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
                 return tc_keyword_error(diag, line_no, maybe_mode->column,
                                         "wrap cannot be used with shift operations");
             }
-            if (is_const) {
-                return tc_keyword_error(diag, line_no, maybe_mode->column,
-                                        "wrap cannot be used in constant expression");
-            }
             mode = TC_ARITH_WRAP;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
@@ -756,6 +732,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
     }
 
     out->kind = TC_RHS_SHIFT;
+    (void)is_const;
     out->u.shift.op = op;
     out->u.shift.type = type;
     out->u.shift.mode = mode;
@@ -782,7 +759,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
 }
 
 /*
- * @brief 解析编译期 cast RHS：cast(type, const_operand)，禁止 truncate
+ * @brief 解析编译期 cast RHS：cast(type [,truncate,], const_operand)
  */
 static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                    TcRhs *out, TcDiagnostic *diag) {
@@ -808,17 +785,24 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
         return -1;
     }
 
+    out->kind = TC_RHS_CONST_CAST;
+    memset(&out->u.const_cast, 0, sizeof(out->u.const_cast));
+    out->u.const_cast.target = target;
+    out->u.const_cast.mode = TC_TRUNC_STRICT;
+
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
-        if (maybe_mode->kind == TC_TOK_TRUNCATE || maybe_mode->kind == TC_TOK_WRAP) {
+        if (maybe_mode->kind == TC_TOK_TRUNCATE) {
+            out->u.const_cast.mode = TC_TRUNC_TRUNCATE;
+            (*index)++;
+            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                return -1;
+            }
+        } else if (maybe_mode->kind == TC_TOK_WRAP || maybe_mode->kind == TC_TOK_IEEE) {
             return tc_keyword_error(diag, line_no, maybe_mode->column,
-                                    "truncate cannot be used in constant expression");
+                                    "invalid mode for cast");
         }
     }
-
-    out->kind = TC_RHS_CONST_CAST;
-    out->u.const_cast.target = target;
-    memset(&out->u.const_cast.source, 0, sizeof(out->u.const_cast.source));
 
     if (tc_parse_operand(tokens, index, line_no, &out->u.const_cast.source, diag) != 0) {
         tc_rhs_free(out);
@@ -864,6 +848,17 @@ int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int
         out->u.lit = tok->u.literal;
         (*index)++;
         rc = 0;
+    } else if (tok->kind == TC_TOK_IDENTIFIER) {
+        out->kind = TC_RHS_CONST_REF;
+        out->u.const_ref.name = strndup(tok->start, tok->length);
+        if (!out->u.const_ref.name) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                              "memory allocation failed");
+            rc = -1;
+        } else {
+            (*index)++;
+            rc = 0;
+        }
     } else if (tok->kind == TC_TOK_ARITH_OP) {
         rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_UNARY_OP) {
@@ -878,6 +873,8 @@ int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int
         rc = tc_parse_shift_rhs(tokens, index, line_no, out, diag, 0);
     } else if (tok->kind == TC_TOK_CAST) {
         rc = tc_parse_cast_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_BITCAST) {
+        rc = tc_parse_bitcast_rhs(tokens, index, line_no, out, diag);
     } else {
         rc = tc_syntax_error(diag, line_no, tok->column, "expected rhs expression");
     }
@@ -898,6 +895,17 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
     ctx->depth++;
 
     tok = tc_peek(tokens, *index);
+
+    if (tc_token_starts_call(tok->kind)) {
+        int nested_column = tc_find_nested_const_call(tokens, *index);
+
+        if (nested_column != TC_COLUMN_UNKNOWN) {
+            ctx->depth--;
+            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line_no, nested_column,
+                              "nested calls are not allowed in constant expression");
+            return -1;
+        }
+    }
 
     if (tok->kind == TC_TOK_INTEGER || tok->kind == TC_TOK_BOOL_LIT || tok->kind == TC_TOK_FLOAT_LIT) {
         out->kind = TC_RHS_LIT;
@@ -928,6 +936,8 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
         rc = tc_parse_shift_rhs(tokens, index, line_no, out, diag, 1);
     } else if (tok->kind == TC_TOK_CAST) {
         rc = tc_parse_const_cast_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_BITCAST) {
+        rc = tc_parse_bitcast_rhs(tokens, index, line_no, out, diag);
     } else {
         rc = tc_syntax_error(diag, line_no, tok->column, "expected constant expression");
     }

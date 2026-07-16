@@ -1,1 +1,0 @@
-let ERR: uint8 = shl(uint8, wrap, 1, 8)

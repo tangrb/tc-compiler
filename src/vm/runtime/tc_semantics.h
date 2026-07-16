@@ -96,6 +96,23 @@ void tc_slots_init_uninitialized(TcValue *slots, size_t count);
 void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count);
 
 /* ------------------------------------------------------------------ */
+/*  §5.1 操作 × 类型 × 模式矩阵                                        */
+/* ------------------------------------------------------------------ */
+
+int tc_validate_arith_mode(TcArithOp op, TcType type, TcWrapMode mode,
+                           TcDiagnostic *diag, int line);
+int tc_validate_unary_mode(TcUnaryOp op, TcType type, TcWrapMode mode,
+                           TcDiagnostic *diag, int line);
+int tc_validate_shift_mode(TcShiftOp op, TcType type, TcWrapMode mode,
+                           TcDiagnostic *diag, int line);
+int tc_validate_fp_arith_mode(TcArithOp op, TcType type, TcFloatMode mode,
+                              TcDiagnostic *diag, int line);
+int tc_validate_fp_unary_mode(TcUnaryOp op, TcType type, TcFloatMode mode,
+                              TcDiagnostic *diag, int line);
+int tc_validate_fp_compare_mode(TcType type, TcFloatMode mode,
+                                TcDiagnostic *diag, int line);
+
+/* ------------------------------------------------------------------ */
 /*  比较 / 逻辑                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -108,6 +125,7 @@ int tc_exec_logic_unary(TcLogicOp op, const TcValue *operand, TcValue *out,
 
 #include "tc_sem_int.h"
 #include "tc_sem_fp.h"
+#include "tc_sem_cast.h"
 #include "tc_sem_bitwise.h"
 
 #endif /* TC_SEMANTICS_H */

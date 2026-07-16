@@ -73,11 +73,11 @@ writeln(uint32, d5)
 ; wrap 高密度运算
 var w: uint8 = 0
 var i: int32 = 0
-w = add(uint8, wrap, 255, 1)
+w = add(uint8, 255, 1)
 i = 1
-w = add(uint8, wrap, w, 1)
+w = add(uint8, w, 1)
 i = 2
-w = add(uint8, wrap, w, 1)
+w = add(uint8, w, 1)
 i = 3
-w = add(uint8, wrap, w, 1)
+w = add(uint8, w, 1)
 writeln(uint8, w)

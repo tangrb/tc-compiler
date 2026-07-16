@@ -19,6 +19,7 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_sem_int.c
     ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_cast.c
     ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_io.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
@@ -30,6 +31,7 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass2.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_repl.c
+    ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/executor/tc_executor.c
 )

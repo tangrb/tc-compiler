@@ -1,0 +1,2 @@
+var flag: bool = true
+var bad: uint8 = bitcast(uint8, flag)

@@ -3,7 +3,7 @@
  *
  * Analyzer / Executor / AOT 共用同一套 DFS 先序编号规则：
  *   - 每条语句（含 if 自身）占 1 个 index
- *   - if 的 then/else 块递归编号
+ *   - if 的 then/else 块和 while body 递归编号
  *   - Executor 跳过未执行分支时须按子树 span 推进，而非仅 then_count/else_count
  */
 #ifndef TC_STMT_INDEX_H
@@ -64,6 +64,11 @@ static inline int tc_stmt_subtree_index_count(const TcStatement *stmt) {
         span += tc_stmt_block_index_span(if_stmt->then_body, if_stmt->then_count);
         span += tc_stmt_block_index_span(if_stmt->else_body, if_stmt->else_count);
         return span;
+    }
+    if (stmt->kind == TC_STMT_WHILE) {
+        const TcWhileStmt *while_stmt = &stmt->u.while_stmt;
+
+        return 1 + tc_stmt_block_index_span(while_stmt->body, while_stmt->body_count);
     }
     return 1;
 }

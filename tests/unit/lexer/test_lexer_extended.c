@@ -97,6 +97,25 @@ static void test_cast_keyword(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_bitcast_keyword(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("bitcast(float32, bits)", &tokens, &diag),
+          "tokenize bitcast expression");
+    check(token_at(&tokens, 0)->kind == TC_TOK_BITCAST,
+          "bitcast -> TC_TOK_BITCAST");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("var bitcast_value: uint32 = 1u", &tokens, &diag),
+          "tokenize identifier beginning with bitcast");
+    check(token_at(&tokens, 1)->kind == TC_TOK_IDENTIFIER,
+          "bitcast prefix does not consume a longer identifier");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
 /* 测试 write/writeln/read 关键字 */
 static void test_io_keywords(void) {
     TcTokenList tokens;
@@ -382,6 +401,22 @@ static void test_control_flow_keywords(void) {
     check(token_at(&tokens, 1)->kind == TC_TOK_IDENTIFIER, "label name → IDENTIFIER");
     check(token_at(&tokens, 2)->kind == TC_TOK_COLON, "label colon → TC_TOK_COLON");
 
+    tc_token_list_free(&tokens);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line(
+              "while break continue whilex breakfast continued While BREAK Continue", 6,
+              &tokens, &diag) == 0,
+          "tokenize loop keywords and identifier boundaries");
+    check(token_at(&tokens, 0)->kind == TC_TOK_WHILE, "while → TC_TOK_WHILE");
+    check(token_at(&tokens, 1)->kind == TC_TOK_BREAK, "break → TC_TOK_BREAK");
+    check(token_at(&tokens, 2)->kind == TC_TOK_CONTINUE, "continue → TC_TOK_CONTINUE");
+    check(token_at(&tokens, 3)->kind == TC_TOK_IDENTIFIER, "whilex remains identifier");
+    check(token_at(&tokens, 4)->kind == TC_TOK_IDENTIFIER, "breakfast remains identifier");
+    check(token_at(&tokens, 5)->kind == TC_TOK_IDENTIFIER, "continued remains identifier");
+    check(token_at(&tokens, 6)->kind == TC_TOK_IDENTIFIER, "While remains identifier");
+    check(token_at(&tokens, 7)->kind == TC_TOK_IDENTIFIER, "BREAK remains identifier");
+    check(token_at(&tokens, 8)->kind == TC_TOK_IDENTIFIER, "Continue remains identifier");
+
     check(strcmp(tc_token_kind_name(TC_TOK_IF), "IF") == 0,
           "tc_token_kind_name(TC_TOK_IF) → IF");
     check(strcmp(tc_token_kind_name(TC_TOK_THEN), "THEN") == 0,
@@ -394,6 +429,12 @@ static void test_control_flow_keywords(void) {
           "tc_token_kind_name(TC_TOK_GOTO) → GOTO");
     check(strcmp(tc_token_kind_name(TC_TOK_LABEL), "LABEL") == 0,
           "tc_token_kind_name(TC_TOK_LABEL) → LABEL");
+    check(strcmp(tc_token_kind_name(TC_TOK_WHILE), "WHILE") == 0,
+          "tc_token_kind_name(TC_TOK_WHILE) → WHILE");
+    check(strcmp(tc_token_kind_name(TC_TOK_BREAK), "BREAK") == 0,
+          "tc_token_kind_name(TC_TOK_BREAK) → BREAK");
+    check(strcmp(tc_token_kind_name(TC_TOK_CONTINUE), "CONTINUE") == 0,
+          "tc_token_kind_name(TC_TOK_CONTINUE) → CONTINUE");
 
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);
@@ -470,6 +511,7 @@ static void test_scientific_float_literals(void) {
 int main(void) {
     test_all_unary_ops();
     test_cast_keyword();
+    test_bitcast_keyword();
     test_io_keywords();
     test_binary_literals();
     test_hex_literals();

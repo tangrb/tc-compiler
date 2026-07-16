@@ -11,11 +11,14 @@
 
 #include "tc_semantics.h"
 
-#include <ctype.h>
 #include <errno.h>
+#ifdef TC_HAVE_FENV
+#include <fenv.h>
+#endif
 #include <float.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,10 +28,124 @@
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
+static int tc_io_format_accepts_type(TcType type, TcFormatSpec fmt) {
+    switch (fmt) {
+    case TC_FMT_D:
+    case TC_FMT_I:
+        return tc_type_is_signed(type);
+    case TC_FMT_U:
+        return tc_type_is_integer(type) && !tc_type_is_signed(type);
+    case TC_FMT_X:
+    case TC_FMT_XU:
+    case TC_FMT_O:
+    case TC_FMT_B:
+        return tc_type_is_integer(type);
+    case TC_FMT_T:
+        return tc_type_is_bool(type);
+    case TC_FMT_F:
+    case TC_FMT_E:
+    case TC_FMT_EU:
+    case TC_FMT_G:
+    case TC_FMT_GU:
+        return tc_type_is_float(type);
+    case TC_FMT_NONE:
+        return 0;
+    }
+    return 0;
+}
+
+static int tc_io_normalize_decimal_point(char *buf) {
+    const struct lconv *locale = localeconv();
+    const char *decimal_point = locale ? locale->decimal_point : NULL;
+    char *position = NULL;
+    size_t point_len = 0;
+    size_t suffix_len = 0;
+
+    if (!decimal_point || decimal_point[0] == '\0' || strcmp(decimal_point, ".") == 0) {
+        return 0;
+    }
+    position = strstr(buf, decimal_point);
+    if (!position) {
+        return 0;
+    }
+    point_len = strlen(decimal_point);
+    suffix_len = strlen(position + point_len);
+    position[0] = '.';
+    if (point_len > 1U) {
+        memmove(position + 1, position + point_len, suffix_len + 1U);
+    }
+    return 0;
+}
+
+static int tc_io_write_float(TcType type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
+    char buf[128];
+    double number = tc_fp_bits_to_double(type, value->bits);
+    const char *format = NULL;
+    int written = 0;
+#ifdef TC_HAVE_FENV
+    int saved_round = fegetround();
+#endif
+
+    if (isnan(number)) {
+        const char *text = (fmt == TC_FMT_EU || fmt == TC_FMT_GU) ? "NAN" : "nan";
+        return fputs(text, out) == EOF ? -1 : 0;
+    }
+    if (isinf(number)) {
+        const int uppercase = fmt == TC_FMT_EU || fmt == TC_FMT_GU;
+        const char *text = signbit(number) ? (uppercase ? "-INF" : "-inf")
+                                           : (uppercase ? "INF" : "inf");
+        return fputs(text, out) == EOF ? -1 : 0;
+    }
+
+    switch (fmt) {
+    case TC_FMT_F:
+        format = "%f";
+        break;
+    case TC_FMT_E:
+        format = "%e";
+        break;
+    case TC_FMT_EU:
+        format = "%E";
+        break;
+    case TC_FMT_G:
+        format = "%g";
+        break;
+    case TC_FMT_GU:
+        format = "%G";
+        break;
+    default:
+        return -1;
+    }
+
+#ifdef TC_HAVE_FENV
+    if (saved_round != -1 && saved_round != FE_TONEAREST) {
+        (void)fesetround(FE_TONEAREST);
+    }
+#endif
+    written = snprintf(buf, sizeof(buf), format, number);
+#ifdef TC_HAVE_FENV
+    if (saved_round != -1 && saved_round != FE_TONEAREST) {
+        (void)fesetround(saved_round);
+    }
+#endif
+    if (written < 0 || (size_t)written >= sizeof(buf)) {
+        return -1;
+    }
+    tc_io_normalize_decimal_point(buf);
+    return fputs(buf, out) == EOF ? -1 : 0;
+}
+
 int tc_io_write_formatted(TcType type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
-    int n = tc_type_bit_width(type);
-    uint64_t mask = tc_mask_bits(n);
-    uint64_t uval = tc_value_to_unsigned(type, value->bits) & mask;
+    int n = 0;
+    uint64_t mask = 0;
+    uint64_t uval = 0;
+
+    if (!value || !out || value->type != type || !tc_io_format_accepts_type(type, fmt)) {
+        return -1;
+    }
+    n = tc_type_bit_width(type);
+    mask = tc_mask_bits(n);
+    uval = tc_value_to_unsigned(type, value->bits) & mask;
 
     switch (fmt) {
     case TC_FMT_D:
@@ -65,8 +182,13 @@ int tc_io_write_formatted(TcType type, TcFormatSpec fmt, const TcValue *value, F
         }
         break;
     case TC_FMT_B: {
-        int i = 0;
-        for (i = n - 1; i >= 0; i--) {
+        int i = n - 1;
+        int keep_full_width = tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0;
+
+        while (!keep_full_width && i > 0 && ((uval >> i) & 1U) == 0U) {
+            i--;
+        }
+        for (; i >= 0; i--) {
             if (fputc((uval >> i) & 1 ? '1' : '0', out) == EOF) {
                 return -1;
             }
@@ -78,56 +200,12 @@ int tc_io_write_formatted(TcType type, TcFormatSpec fmt, const TcValue *value, F
             return -1;
         }
         break;
-    case TC_FMT_F: {
-        if (!tc_type_is_float(type)) {
-            return -1;
-        }
-        double d = tc_fp_bits_to_double(type, value->bits);
-        if (fprintf(out, "%f", d) < 0) {
-            return -1;
-        }
-        break;
-    }
-    case TC_FMT_E: {
-        if (!tc_type_is_float(type)) {
-            return -1;
-        }
-        double d = tc_fp_bits_to_double(type, value->bits);
-        if (fprintf(out, "%e", d) < 0) {
-            return -1;
-        }
-        break;
-    }
-    case TC_FMT_EU: {
-        if (!tc_type_is_float(type)) {
-            return -1;
-        }
-        double d = tc_fp_bits_to_double(type, value->bits);
-        if (fprintf(out, "%E", d) < 0) {
-            return -1;
-        }
-        break;
-    }
-    case TC_FMT_G: {
-        if (!tc_type_is_float(type)) {
-            return -1;
-        }
-        double d = tc_fp_bits_to_double(type, value->bits);
-        if (fprintf(out, "%g", d) < 0) {
-            return -1;
-        }
-        break;
-    }
-    case TC_FMT_GU: {
-        if (!tc_type_is_float(type)) {
-            return -1;
-        }
-        double d = tc_fp_bits_to_double(type, value->bits);
-        if (fprintf(out, "%G", d) < 0) {
-            return -1;
-        }
-        break;
-    }
+    case TC_FMT_F:
+    case TC_FMT_E:
+    case TC_FMT_EU:
+    case TC_FMT_G:
+    case TC_FMT_GU:
+        return tc_io_write_float(type, fmt, value, out);
     case TC_FMT_NONE:
         /* 无格式输出由 tc_io_write_value 直接处理；此处防御误传 */
         return -1;
@@ -147,8 +225,7 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
             return -1;
         }
     } else if (tc_type_is_float(value->type)) {
-        double d = tc_fp_bits_to_double(value->type, value->bits);
-        if (fprintf(out, "%g", d) < 0) {
+        if (tc_io_write_float(value->type, TC_FMT_G, value, out) != 0) {
             return -1;
         }
     } else if (tc_type_is_signed(value->type)) {
@@ -177,247 +254,375 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
 /*  stdin 输入辅助                                                      */
 /* ------------------------------------------------------------------ */
 
-/* 由 tc_io_read_value 调用；对外暴露供单元测试直接验证 */
+static int tc_io_is_ascii_space(int c) {
+    return c == ' ' || (c >= '\t' && c <= '\r');
+}
+
+/* 由 tc_io_read_value 调用；对外暴露供单元测试直接验证。 */
 void tc_io_skip_whitespace(void) {
     int c = 0;
+
     for (;;) {
         c = fgetc(stdin);
         if (c == EOF) {
             return;
         }
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        if (tc_io_is_ascii_space(c)) {
             continue;
         }
-        ungetc(c, stdin);
+        (void)ungetc(c, stdin);
         return;
     }
 }
 
-int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
-                      uint64_t *out_abs, int *out_sign) {
-    int sign = 1;
-    int digit_count = 0;
-    uint64_t abs_value = 0;
-
-    if (c == '-') {
-        sign = -1;
-        c = fgetc(stdin);
-        if (c == EOF) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-    }
-    if (!isdigit((unsigned char)c)) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-        return -1;
-    }
-    do {
-        int digit = c - '0';
-        if (abs_value > UINT64_MAX / 10ULL ||
-            (abs_value == UINT64_MAX / 10ULL &&
-             (uint64_t)digit > UINT64_MAX % 10ULL)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
-                              "input value out of range");
-            return -1;
-        }
-        abs_value = abs_value * 10ULL + (uint64_t)digit;
-        digit_count++;
-        c = fgetc(stdin);
-    } while (c != EOF && isdigit((unsigned char)c));
-    if (c != EOF) {
-        ungetc(c, stdin);
-    }
-    if (digit_count == 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-        return -1;
-    }
-
-    *out_abs = abs_value;
-    *out_sign = sign;
-    return 0;
-}
-
-static int tc_io_read_float_token(int line, TcDiagnostic *diag, char *buf, size_t buf_size) {
+static int tc_io_read_token(char *buf, size_t buf_size, TcDiagnostic *diag, int line) {
     size_t i = 0;
     int c = 0;
-    int has_digit = 0;
 
+    tc_io_skip_whitespace();
     c = fgetc(stdin);
     if (c == EOF) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "unexpected end of input");
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                          ferror(stdin) ? "input failed" : "unexpected end of input");
         return -1;
     }
 
-    if (c == '+' || c == '-') {
-        if (i + 1 >= buf_size) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        buf[i++] = (char)c;
-        c = fgetc(stdin);
-        if (c == EOF) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-    }
-
-    for (;;) {
-        if (c == EOF || c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            break;
-        }
-        if (i + 1 >= buf_size) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        if (isdigit((unsigned char)c)) {
-            has_digit = 1;
-        }
-        if (!(isdigit((unsigned char)c) || c == '.' || c == 'e' || c == 'E' || c == '+' ||
-              c == '-')) {
+    while (c != EOF && !tc_io_is_ascii_space(c)) {
+        if (i + 1U >= buf_size) {
             tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
         buf[i++] = (char)c;
         c = fgetc(stdin);
     }
-    if (c != EOF) {
-        ungetc(c, stdin);
-    }
-    if (i == 0 || !has_digit) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+    if (c == EOF && ferror(stdin)) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input failed");
         return -1;
     }
     buf[i] = '\0';
     return 0;
 }
 
-static int tc_io_read_float(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
-    char buf[256];
-    char *end = NULL;
+static int tc_io_parse_abs_digits(const char *digits, uint64_t *out_abs) {
+    uint64_t value = 0;
+    const unsigned char *p = (const unsigned char *)digits;
+
+    if (*p == '\0') {
+        return -1;
+    }
+    while (*p != '\0') {
+        unsigned int digit = 0;
+
+        if (*p < '0' || *p > '9') {
+            return -1;
+        }
+        digit = (unsigned int)(*p - '0');
+        if (value > UINT64_MAX / UINT64_C(10) ||
+            (value == UINT64_MAX / UINT64_C(10) &&
+             (uint64_t)digit > UINT64_MAX % UINT64_C(10))) {
+            return 1;
+        }
+        value = value * UINT64_C(10) + (uint64_t)digit;
+        p++;
+    }
+    *out_abs = value;
+    return 0;
+}
+
+int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
+                      uint64_t *out_abs, int *out_sign) {
+    char token[256];
+    size_t i = 0;
+    int sign = 1;
+    int parse_rc = 0;
+
+    if (c == '-') {
+        sign = -1;
+    } else {
+        token[i++] = (char)c;
+    }
+    c = fgetc(stdin);
+    while (c != EOF && !tc_io_is_ascii_space(c)) {
+        if (i + 1U >= sizeof(token)) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        token[i++] = (char)c;
+        c = fgetc(stdin);
+    }
+    if (c == EOF && ferror(stdin)) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input failed");
+        return -1;
+    }
+    token[i] = '\0';
+    parse_rc = tc_io_parse_abs_digits(token, out_abs);
+    if (parse_rc != 0) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                          parse_rc > 0 ? "input value out of range" : "invalid input");
+        return -1;
+    }
+    *out_sign = sign;
+    return 0;
+}
+
+static int tc_io_parse_integer(TcType type, const char *token, uint64_t *out_bits,
+                               TcDiagnostic *diag, int line) {
+    const char *digits = token;
+    uint64_t abs_value = 0;
+    uint64_t limit = 0;
+    int negative = 0;
+    int parse_rc = 0;
+    int width = tc_type_bit_width(type);
+
+    if (*digits == '-') {
+        negative = 1;
+        digits++;
+    }
+    parse_rc = tc_io_parse_abs_digits(digits, &abs_value);
+    if (parse_rc != 0) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                          parse_rc > 0 ? "input value out of range" : "invalid input");
+        return -1;
+    }
+    if (!tc_type_is_signed(type)) {
+        if (negative) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        limit = width == 64 ? UINT64_MAX : (UINT64_C(1) << width) - UINT64_C(1);
+        if (abs_value > limit) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                              "input value out of range");
+            return -1;
+        }
+        *out_bits = abs_value;
+        return 0;
+    }
+
+    limit = UINT64_C(1) << (width - 1);
+    if ((!negative && abs_value >= limit) || (negative && abs_value > limit)) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                          "input value out of range");
+        return -1;
+    }
+    if (negative && abs_value == TC_INT64_MIN_ABS_MAGNITUDE) {
+        *out_bits = tc_signed_to_bits(type, INT64_MIN);
+    } else {
+        int64_t signed_value = (int64_t)abs_value;
+        if (negative) {
+            signed_value = -signed_value;
+        }
+        *out_bits = tc_signed_to_bits(type, signed_value);
+    }
+    return 0;
+}
+
+static int tc_io_float_token_is_decimal(const char *token) {
+    const unsigned char *p = (const unsigned char *)token;
+    int digits_before = 0;
+    int digits_after = 0;
+
+    if (*p == '-') {
+        p++;
+    }
+    while (*p >= '0' && *p <= '9') {
+        digits_before++;
+        p++;
+    }
+    if (*p == '.') {
+        p++;
+        while (*p >= '0' && *p <= '9') {
+            digits_after++;
+            p++;
+        }
+    }
+    if (digits_before == 0 && digits_after == 0) {
+        return 0;
+    }
+    if (*p == 'e' || *p == 'E') {
+        int exponent_digits = 0;
+
+        p++;
+        if (*p == '+' || *p == '-') {
+            p++;
+        }
+        while (*p >= '0' && *p <= '9') {
+            exponent_digits++;
+            p++;
+        }
+        if (exponent_digits == 0) {
+            return 0;
+        }
+    }
+    return *p == '\0';
+}
+
+static int tc_io_float_token_is_nonzero(const char *token) {
+    const unsigned char *p = (const unsigned char *)token;
+
+    while (*p != '\0' && *p != 'e' && *p != 'E') {
+        if (*p >= '1' && *p <= '9') {
+            return 1;
+        }
+        p++;
+    }
+    return 0;
+}
+
+static int tc_io_localize_decimal_token(const char *token, char *buf, size_t buf_size) {
+    const struct lconv *locale = localeconv();
+    const char *decimal_point = locale ? locale->decimal_point : NULL;
+    const char *dot = strchr(token, '.');
+    size_t prefix_len = 0;
+    size_t point_len = 0;
+    size_t suffix_len = 0;
+
+    if (!dot || !decimal_point || decimal_point[0] == '\0' ||
+        strcmp(decimal_point, ".") == 0) {
+        if (strlen(token) + 1U > buf_size) {
+            return -1;
+        }
+        strcpy(buf, token);
+        return 0;
+    }
+    prefix_len = (size_t)(dot - token);
+    point_len = strlen(decimal_point);
+    suffix_len = strlen(dot + 1);
+    if (prefix_len + point_len + suffix_len + 1U > buf_size) {
+        return -1;
+    }
+    memcpy(buf, token, prefix_len);
+    memcpy(buf + prefix_len, decimal_point, point_len);
+    memcpy(buf + prefix_len + point_len, dot + 1, suffix_len + 1U);
+    return 0;
+}
+
+static float tc_io_strtof_nearest(const char *text, char **end) {
+#ifdef TC_HAVE_FENV
+    int saved_round = fegetround();
+    float value = 0.0f;
+
+    if (saved_round != -1 && saved_round != FE_TONEAREST) {
+        (void)fesetround(FE_TONEAREST);
+    }
+    value = strtof(text, end);
+    if (saved_round != -1 && saved_round != FE_TONEAREST) {
+        (void)fesetround(saved_round);
+    }
+    return value;
+#else
+    return strtof(text, end);
+#endif
+}
+
+static double tc_io_strtod_nearest(const char *text, char **end) {
+#ifdef TC_HAVE_FENV
+    int saved_round = fegetround();
     double value = 0.0;
 
-    if (tc_io_read_float_token(line, diag, buf, sizeof(buf)) != 0) {
+    if (saved_round != -1 && saved_round != FE_TONEAREST) {
+        (void)fesetround(FE_TONEAREST);
+    }
+    value = strtod(text, end);
+    if (saved_round != -1 && saved_round != FE_TONEAREST) {
+        (void)fesetround(saved_round);
+    }
+    return value;
+#else
+    return strtod(text, end);
+#endif
+}
+
+static int tc_io_parse_float(TcType type, const char *token, uint64_t *out_bits,
+                             TcDiagnostic *diag, int line) {
+    char localized[512];
+    char *end = NULL;
+
+    if (strcmp(token, "inf") == 0) {
+        *out_bits = type == TC_FLOAT32 ? UINT64_C(0x7F800000)
+                                       : UINT64_C(0x7FF0000000000000);
+        return 0;
+    }
+    if (strcmp(token, "-inf") == 0) {
+        *out_bits = type == TC_FLOAT32 ? UINT64_C(0xFF800000)
+                                       : UINT64_C(0xFFF0000000000000);
+        return 0;
+    }
+    if (strcmp(token, "nan") == 0) {
+        *out_bits = type == TC_FLOAT32 ? UINT64_C(0x7FC00000)
+                                       : UINT64_C(0x7FF8000000000000);
+        return 0;
+    }
+    if (!tc_io_float_token_is_decimal(token) ||
+        tc_io_localize_decimal_token(token, localized, sizeof(localized)) != 0) {
+        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
         return -1;
     }
 
     errno = 0;
-    value = strtod(buf, &end);
-    if (end == buf || (end != NULL && *end != '\0')) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-        return -1;
-    }
-    if (errno == ERANGE && !isinf(value)) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input value out of range");
-        return -1;
-    }
-
     if (type == TC_FLOAT32) {
-        float f32 = (float)value;
+        float value = tc_io_strtof_nearest(localized, &end);
+        uint32_t bits = 0;
 
-        if (isinf(value) && !isinf((double)f32)) {
+        if (end == localized || *end != '\0') {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+        if (isinf((double)value) ||
+            (value == 0.0f && tc_io_float_token_is_nonzero(token))) {
             tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
                               "input value out of range");
             return -1;
         }
-        if (value > (double)FLT_MAX || value < -(double)FLT_MAX) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
-                              "input value out of range");
-            return -1;
-        }
-    } else if (value > DBL_MAX || value < -DBL_MAX) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input value out of range");
-        return -1;
-    }
-
-    *out_bits = tc_fp_double_to_bits(type, value);
-    return 0;
-}
-
-int tc_io_read_value(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
-    int c = 0;
-    TcValue value;
-
-    tc_io_skip_whitespace();
-
-    if (tc_type_is_bool(type)) {
-        char word[8];
-        size_t i = 0;
-
-        c = fgetc(stdin);
-        while (c != EOF && i + 1 < sizeof(word) &&
-               (c == 't' || c == 'r' || c == 'u' || c == 'e' || c == 'f' || c == 'a' ||
-                c == 'l' || c == 's')) {
-            word[i++] = (char)c;
-            c = fgetc(stdin);
-        }
-        word[i] = '\0';
-        if ((strcmp(word, "true") == 0 || strcmp(word, "false") == 0) &&
-            c != EOF && c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        if (c != EOF) {
-            ungetc(c, stdin);
-        }
-        if (strcmp(word, "true") == 0) {
-            value = tc_value_make(TC_BOOL, 1);
-        } else if (strcmp(word, "false") == 0) {
-            value = tc_value_make(TC_BOOL, 0);
-        } else {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-            return -1;
-        }
-        *out_bits = value.bits;
+        memcpy(&bits, &value, sizeof(bits));
+        *out_bits = (uint64_t)bits;
         return 0;
-    }
-
-    if (tc_type_is_float(type)) {
-        return tc_io_read_float(type, out_bits, diag, line);
     }
 
     {
-        int sign = 1;
-        uint64_t abs_value = 0;
+        double value = tc_io_strtod_nearest(localized, &end);
+        uint64_t bits = 0;
 
-        c = fgetc(stdin);
-        if (c == EOF) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "unexpected end of input");
+        if (end == localized || *end != '\0') {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
-
-        if (tc_io_read_digits(c, line, diag, &abs_value, &sign) != 0) {
+        if (isinf(value) || (value == 0.0 && tc_io_float_token_is_nonzero(token))) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+                              "input value out of range");
             return -1;
         }
-
-        /* 按目标类型的有符号性做范围检查并构造 TcValue */
-        if (tc_type_is_signed(type)) {
-            if (sign == -1 && abs_value == TC_INT64_MIN_ABS_MAGNITUDE) {
-                /* INT64_MIN 的特殊情况：abs_value == 2^63 需要单独处理 */
-                value = tc_value_make(type, tc_signed_to_bits(type, INT64_MIN));
-            } else {
-                int64_t signed_value = (int64_t)abs_value;
-                signed_value *= sign;
-                if (!tc_signed_in_range(signed_value, type)) {
-                    tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
-                                      "input value out of range");
-                    return -1;
-                }
-                value = tc_value_make(type, tc_signed_to_bits(type, signed_value));
-            }
-        } else {
-            if (sign == -1) {
-                tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
-                return -1;
-            }
-            if (!tc_unsigned_in_range(abs_value, type)) {
-                tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
-                                  "input value out of range");
-                return -1;
-            }
-            value = tc_value_make(type, abs_value);
-        }
-
-        *out_bits = value.bits;
+        memcpy(&bits, &value, sizeof(bits));
+        *out_bits = bits;
         return 0;
     }
+}
+
+int tc_io_read_value(TcType type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
+    char token[256];
+    uint64_t bits = 0;
+
+    if (!out_bits || !diag ||
+        (!tc_type_is_integer(type) && !tc_type_is_bool(type) && !tc_type_is_float(type))) {
+        return -1;
+    }
+    if (tc_io_read_token(token, sizeof(token), diag, line) != 0) {
+        return -1;
+    }
+    if (tc_type_is_bool(type)) {
+        if (strcmp(token, "true") == 0) {
+            bits = UINT64_C(1);
+        } else if (strcmp(token, "false") != 0) {
+            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            return -1;
+        }
+    } else if (tc_type_is_float(type)) {
+        if (tc_io_parse_float(type, token, &bits, diag, line) != 0) {
+            return -1;
+        }
+    } else if (tc_io_parse_integer(type, token, &bits, diag, line) != 0) {
+        return -1;
+    }
+    *out_bits = bits;
+    return 0;
 }

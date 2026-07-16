@@ -20,6 +20,7 @@ add_executable(test-semantics
     ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_sem_int.c
     ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_cast.c
     ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
@@ -55,6 +56,49 @@ add_custom_target(check-types
 )
 
 # ------------------------------------------------------------------ #
+#  test-diagnostic — 诊断域与所有权单元测试                            #
+# ------------------------------------------------------------------ #
+
+add_executable(test-diagnostic
+    test_diagnostic.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+)
+target_include_directories(test-diagnostic PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_definitions(test-diagnostic PRIVATE TC_DIAGNOSTIC_TESTING=1)
+target_compile_options(test-diagnostic PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-diagnostic
+    COMMAND test-diagnostic
+    DEPENDS test-diagnostic
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Diagnostic unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-libtc — transactional ownership and repeatable consumption    #
+# ------------------------------------------------------------------ #
+
+add_executable(test-libtc
+    test_libtc.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_codegen.c
+)
+target_link_libraries(test-libtc PRIVATE libtc)
+target_include_directories(test-libtc PRIVATE
+    ${TC_VM_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/libtc
+    ${CMAKE_SOURCE_DIR}/src/aot
+)
+target_compile_options(test-libtc PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-libtc
+    COMMAND test-libtc
+    DEPENDS test-libtc
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running libtc unit tests"
+)
+
+# ------------------------------------------------------------------ #
 #  test-io — 统一 I/O 模块单元测试                                     #
 # ------------------------------------------------------------------ #
 
@@ -64,6 +108,7 @@ add_executable(test-io
     ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_sem_int.c
     ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_cast.c
     ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
@@ -88,6 +133,7 @@ add_executable(test-bitwise
     ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_sem_int.c
     ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_cast.c
     ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_types.c
     ${TC_VM_DIR}/runtime/tc_diagnostic.c
@@ -179,6 +225,7 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass2.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_repl.c
+    ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/parser/tc_parser.c
     ${TC_VM_DIR}/parser/tc_parser_rhs.c
@@ -188,6 +235,7 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/runtime/tc_semantics.c
     ${TC_VM_DIR}/runtime/tc_sem_int.c
     ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_cast.c
     ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
     ${TC_VM_DIR}/runtime/tc_warning.c
     ${TC_VM_DIR}/runtime/tc_types.c
@@ -202,6 +250,38 @@ add_custom_target(check-analyzer
     DEPENDS test-analyzer
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running Analyzer unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-cfg — 显式控制流图与可达性单元测试                         #
+# ------------------------------------------------------------------ #
+
+add_executable(test-cfg test_cfg.c)
+target_link_libraries(test-cfg PRIVATE libtc)
+target_include_directories(test-cfg PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-cfg PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-cfg
+    COMMAND test-cfg
+    DEPENDS test-cfg
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running CFG unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-executor — structured VM control and fixed-slot lifecycle     #
+# ------------------------------------------------------------------ #
+
+add_executable(test-executor test_executor.c)
+target_link_libraries(test-executor PRIVATE libtc)
+target_include_directories(test-executor PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-executor PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-executor
+    COMMAND test-executor
+    DEPENDS test-executor
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Executor unit tests"
 )
 
 # ------------------------------------------------------------------ #

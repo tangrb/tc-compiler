@@ -23,31 +23,38 @@
 
 /** 块路径深度上限（与 Analyzer / Executor 同构：then=if*2，else=if*2+1） */
 #define TC_AOT_BLOCK_DEPTH_MAX 64
+#define TC_AOT_LOOP_DEPTH_MAX 64
 
 typedef struct {
-    int path[TC_AOT_BLOCK_DEPTH_MAX];
+    TcBlockId path[TC_AOT_BLOCK_DEPTH_MAX];
     int depth;
 } TcAotBlockPath;
+
+typedef struct {
+    int loop_ids[TC_AOT_LOOP_DEPTH_MAX];
+    int depth;
+} TcAotLoopStack;
 
 /** Codegen 阶段 DFS 语句序号 + 块路径（与 Analyzer / Executor 一致） */
 typedef struct {
     TcStmtIndexCursor index;
     TcSymbolNameIndex sym_index;
     TcAotBlockPath block_path;
+    TcAotLoopStack loops;
 } TcAotEmitCtx;
 
-static int tc_aot_paths_equal_prefix(const int *a, const int *b, int depth) {
+static int tc_aot_paths_equal_prefix(const TcBlockId *a, const TcBlockId *b, int depth) {
     int i = 0;
 
     for (i = 0; i < depth; i++) {
-        if (a[i] != b[i]) {
+        if (a[i].owner_stmt_index != b[i].owner_stmt_index || a[i].kind != b[i].kind) {
             return 0;
         }
     }
     return 1;
 }
 
-static int tc_aot_block_path_push(TcAotBlockPath *bp, int block_id) {
+static int tc_aot_block_path_push(TcAotBlockPath *bp, TcBlockId block_id) {
     if (bp->depth >= TC_AOT_BLOCK_DEPTH_MAX) {
         return -1;
     }
@@ -58,6 +65,20 @@ static int tc_aot_block_path_push(TcAotBlockPath *bp, int block_id) {
 static void tc_aot_block_path_pop(TcAotBlockPath *bp) {
     if (bp->depth > 0) {
         bp->depth--;
+    }
+}
+
+static int tc_aot_loop_stack_push(TcAotLoopStack *loops, int loop_id) {
+    if (loop_id < 0 || loops->depth >= TC_AOT_LOOP_DEPTH_MAX) {
+        return -1;
+    }
+    loops->loop_ids[loops->depth++] = loop_id;
+    return 0;
+}
+
+static void tc_aot_loop_stack_pop(TcAotLoopStack *loops) {
+    if (loops->depth > 0) {
+        loops->depth--;
     }
 }
 
@@ -194,6 +215,41 @@ static void tc_aot_sub_indent(char *out, size_t out_size, const char *base, int 
     out[len + extra] = '\0';
 }
 
+/** 将任意源文件名发射为不依赖宿主扩展的 C99 字符串字面量。 */
+static void tc_aot_emit_c_string(FILE *out, const char *value) {
+    const unsigned char *p = (const unsigned char *)(value ? value : "<source>");
+
+    fputc('"', out);
+    while (*p != '\0') {
+        switch (*p) {
+        case '\\':
+            fputs("\\\\", out);
+            break;
+        case '"':
+            fputs("\\\"", out);
+            break;
+        case '\n':
+            fputs("\\n", out);
+            break;
+        case '\r':
+            fputs("\\r", out);
+            break;
+        case '\t':
+            fputs("\\t", out);
+            break;
+        default:
+            if (*p < 0x20U || *p >= 0x7fU) {
+                fprintf(out, "\\%03o", (unsigned int)*p);
+            } else {
+                fputc((int)*p, out);
+            }
+            break;
+        }
+        p++;
+    }
+    fputc('"', out);
+}
+
 /* ------------------------------------------------------------------ */
 /*  表达式发射                                                          */
 /* ------------------------------------------------------------------ */
@@ -223,7 +279,7 @@ static void tc_aot_emit_literal_expr(FILE *out, TcType type, const TcLiteral *li
             lit->negative, lit->unsigned_suffix);
 }
 
-/** 发射操作数表达式：字面量或 slots[slot] */
+/** 发射操作数表达式：字面量、内联 let 位模式或 var 槽。 */
 static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcType type,
                                      const TcSymbolTable *symbols,
                                      const TcSymbolNameIndex *sym_index, int stmt_index) {
@@ -236,7 +292,11 @@ static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcType
         if (!symbol) {
             return;
         }
-        fprintf(out, "slots[%d]", symbol->slot);
+        if (symbol->sym_kind == TC_SYM_CONSTANT && symbol->has_const_value) {
+            fprintf(out, "0x%016" PRIx64 "ULL", symbol->const_value.bits);
+        } else {
+            fprintf(out, "slots[%d]", symbol->slot);
+        }
     }
 }
 
@@ -249,7 +309,8 @@ static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcType
  *
  * LIT 和 CONST_REF/CAST 特殊处理：
  *   - LIT：直接 inline 字面量值到 slots[dst_slot]
- *   - CONST_REF/CAST：理论上已在 Analyzer 折叠，出现即报内部错误
+ *   - CONST_REF：let 发射规范化十六进制位模式，var 发射 slot 读取
+ *   - CONST_CAST：理论上已在 Analyzer 折叠，出现即报内部错误
  */
 /* ------------------------------------------------------------------ */
 /*  RHS 发射                                                            */
@@ -268,6 +329,22 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
         fprintf(out, "%s%s = ", indent, dst_expr);
         tc_aot_emit_literal_expr(out, expected_type, &rhs->u.lit);
         fprintf(out, ";\n");
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_CONST_REF) {
+        const TcSymbol *symbol = tc_symbol_table_find_visible(
+            symbols, rhs->u.const_ref.name, stmt_index, sym_index);
+
+        if (!symbol) {
+            return -1;
+        }
+        if (symbol->sym_kind == TC_SYM_CONSTANT && symbol->has_const_value) {
+            fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
+                    symbol->const_value.bits);
+        } else {
+            fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr, symbol->slot);
+        }
         return 0;
     }
 
@@ -422,20 +499,30 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_BITCAST) {
+        fprintf(out, "%sif (tc_aot_bitcast(%s, %s, &%s, ", indent,
+                tc_aot_type_enum(rhs->u.bitcast.target),
+                tc_aot_type_enum(rhs->u.bitcast.source_type), dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.bitcast.source,
+                                 rhs->u.bitcast.source_type, symbols, sym_index, stmt_index);
+        fprintf(out, ", &diag, %d) != 0)\n", line);
+        fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
+        return 0;
+    }
+
     /*
      * CONST_REF / CONST_CAST 应在 Analyzer 阶段已被编译期折叠
      * （tc_resolve_const_value + const_value.bits 写入），
      * 或在 tc_aot_emit_statement 中以字面量直接 emit。
      * 若在此处遇到，说明 Analyzer 未正确处理，严格报错以防生成错误代码。
      */
-    if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
+    if (rhs->kind == TC_RHS_CONST_CAST) {
         return -1;
     }
 
     if (rhs->kind == TC_RHS_FLOAT_ARITH) {
-        const char *mode = rhs->u.float_arith.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE" :
-                           rhs->u.float_arith.mode == TC_FLOAT_WRAP ? "TC_FLOAT_WRAP" :
-                           "TC_FLOAT_STRICT";
+        const char *mode = rhs->u.float_arith.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE"
+                                                                    : "TC_FLOAT_STRICT";
         const char *op_name = "TC_ADD";
 
         switch (rhs->u.float_arith.op) {
@@ -468,9 +555,8 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
     }
 
     if (rhs->kind == TC_RHS_FLOAT_UNARY) {
-        const char *mode = rhs->u.float_unary.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE" :
-                           rhs->u.float_unary.mode == TC_FLOAT_WRAP ? "TC_FLOAT_WRAP" :
-                           "TC_FLOAT_STRICT";
+        const char *mode = rhs->u.float_unary.mode == TC_FLOAT_IEEE ? "TC_FLOAT_IEEE"
+                                                                    : "TC_FLOAT_STRICT";
         const char *op_name =
             rhs->u.float_unary.op == TC_UNARY_ABS ? "TC_UNARY_ABS" : "TC_UNARY_NEG";
 
@@ -520,46 +606,20 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
         return 0;
     }
 
-    if (rhs->kind == TC_RHS_FLOAT_CAST) {
-        const TcSymbol *source =
-            tc_symbol_table_find_visible(symbols, rhs->u.float_cast.source, stmt_index, sym_index);
-        const char *mode =
-            rhs->u.float_cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
-
-        if (!source) {
-            return -1;
-        }
-
-        fprintf(out, "%sif (tc_aot_fp_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n",
-                indent, tc_aot_type_enum(rhs->u.float_cast.target), mode, source->slot,
-                tc_aot_type_enum(source->type), dst_expr, line);
-        fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
-        return 0;
-    }
-
     if (rhs->kind != TC_RHS_CAST) {
         return -1;
     }
 
     {
-        const TcSymbol *source =
-            tc_symbol_table_find_visible(symbols, rhs->u.cast.source, stmt_index, sym_index);
         const char *mode =
             rhs->u.cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
 
-        if (!source) {
-            return -1;
-        }
-
-        if (tc_type_is_float(source->type) || tc_type_is_float(rhs->u.cast.target)) {
-            fprintf(out, "%sif (tc_aot_fp_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n",
-                    indent, tc_aot_type_enum(rhs->u.cast.target), mode, source->slot,
-                    tc_aot_type_enum(source->type), dst_expr, line);
-        } else {
-            fprintf(out, "%sif (tc_aot_cast(%s, %s, slots[%d], %s, &%s, &diag, %d) != 0)\n", indent,
-                    tc_aot_type_enum(rhs->u.cast.target), mode, source->slot,
-                    tc_aot_type_enum(source->type), dst_expr, line);
-        }
+        fprintf(out, "%sif (tc_aot_cast(%s, %s, ", indent,
+                tc_aot_type_enum(rhs->u.cast.target), mode);
+        tc_aot_emit_operand_expr(out, &rhs->u.cast.source, rhs->u.cast.source_type,
+                                 symbols, sym_index, stmt_index);
+        fprintf(out, ", %s, &%s, &diag, %d) != 0)\n",
+                tc_aot_type_enum(rhs->u.cast.source_type), dst_expr, line);
         fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, line);
     }
     return 0;
@@ -583,6 +643,58 @@ static int tc_aot_emit_rhs_slot(FILE *out, const TcRhs *rhs, TcType expected_typ
 static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
                                       const TcSymbolTable *symbols, TcAotEmitCtx *ctx,
                                       const char *indent) {
+    if (stmt->kind == TC_STMT_WHILE) {
+        const TcWhileStmt *while_stmt = &stmt->u.while_stmt;
+        char loop_indent[64];
+        char body_indent[64];
+        char control_indent[64];
+        char cond_name[32];
+        size_t i = 0;
+        int while_stmt_index = tc_stmt_index_take(&ctx->index);
+
+        tc_aot_sub_indent(loop_indent, sizeof(loop_indent), indent, 1);
+        tc_aot_sub_indent(body_indent, sizeof(body_indent), loop_indent, 1);
+        tc_aot_sub_indent(control_indent, sizeof(control_indent), body_indent, 1);
+        if (loop_indent[0] == '\0' || body_indent[0] == '\0' ||
+            control_indent[0] == '\0') {
+            return -1;
+        }
+        if (snprintf(cond_name, sizeof(cond_name), "tc_cond_%d", while_stmt_index) < 0) {
+            return -1;
+        }
+
+        fprintf(out, "%s{\n", indent);
+        fprintf(out, "%sfor (;;) {\n", loop_indent);
+        fprintf(out, "%suint64_t %s;\n", body_indent, cond_name);
+        if (tc_aot_emit_rhs(out, &while_stmt->condition, TC_BOOL, cond_name, body_indent,
+                            symbols, &ctx->sym_index, while_stmt_index,
+                            while_stmt->line) != 0) {
+            return -1;
+        }
+        fprintf(out, "%sif (%s == 0) {\n", body_indent, cond_name);
+        fprintf(out, "%sbreak;\n", control_indent);
+        fprintf(out, "%s}\n", body_indent);
+
+        if (tc_aot_block_path_push(
+                &ctx->block_path,
+                (TcBlockId){while_stmt_index, TC_BLOCK_WHILE}) != 0 ||
+            tc_aot_loop_stack_push(&ctx->loops, while_stmt->loop_id) != 0) {
+            return -1;
+        }
+        for (i = 0; i < while_stmt->body_count; i++) {
+            if (tc_aot_emit_statement_impl(out, &while_stmt->body[i], symbols, ctx,
+                                           body_indent) != 0) {
+                return -1;
+            }
+        }
+        tc_aot_loop_stack_pop(&ctx->loops);
+        tc_aot_block_path_pop(&ctx->block_path);
+
+        fprintf(out, "%s}\n", loop_indent);
+        fprintf(out, "%s}\n", indent);
+        return 0;
+    }
+
     if (stmt->kind == TC_STMT_IF) {
         const TcIfStmt *if_stmt = &stmt->u.if_stmt;
         char block_indent[64];
@@ -602,7 +714,9 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         }
 
         fprintf(out, "%sif (_cond != 0) {\n", block_indent);
-        if (tc_aot_block_path_push(&ctx->block_path, if_stmt_index * 2) != 0) {
+        if (tc_aot_block_path_push(
+                &ctx->block_path,
+                (TcBlockId){if_stmt_index, TC_BLOCK_IF_THEN}) != 0) {
             return -1;
         }
         for (i = 0; i < if_stmt->then_count; i++) {
@@ -615,7 +729,9 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
 
         if (if_stmt->else_count > 0) {
             fprintf(out, "%s} else {\n", block_indent);
-            if (tc_aot_block_path_push(&ctx->block_path, if_stmt_index * 2 + 1) != 0) {
+            if (tc_aot_block_path_push(
+                    &ctx->block_path,
+                    (TcBlockId){if_stmt_index, TC_BLOCK_IF_ELSE}) != 0) {
                 return -1;
             }
             for (i = 0; i < if_stmt->else_count; i++) {
@@ -636,6 +752,8 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
     if (stmt->kind == TC_STMT_LABEL_DEF) {
         int stmt_index_val = tc_stmt_index_take(&ctx->index);
 
+        /* 未被 TC goto 引用的合法标签也必须通过 host cc 的 -Wunused-label。 */
+        fprintf(out, "%sif (0) goto tc_label_%d;\n", indent, stmt_index_val);
         fprintf(out, "%stc_label_%d: ;\n", indent, stmt_index_val);
         return 0;
     }
@@ -653,6 +771,20 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         return 0;
     }
 
+    if (stmt->kind == TC_STMT_BREAK || stmt->kind == TC_STMT_CONTINUE) {
+        const TcLoopControlStmt *loop_control =
+            stmt->kind == TC_STMT_BREAK ? &stmt->u.break_stmt : &stmt->u.continue_stmt;
+
+        tc_stmt_index_take(&ctx->index);
+        if (ctx->loops.depth == 0 ||
+            ctx->loops.loop_ids[ctx->loops.depth - 1] != loop_control->loop_id) {
+            return -1;
+        }
+        fprintf(out, "%s%s;\n", indent,
+                stmt->kind == TC_STMT_BREAK ? "break" : "continue");
+        return 0;
+    }
+
     {
         int stmt_index = tc_stmt_index_take(&ctx->index);
         const TcSymbol *symbol = NULL;
@@ -664,28 +796,12 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
             if (!symbol) {
                 return -1;
             }
-            if (!var_def->has_rhs) {
-                return 0;
-            }
             return tc_aot_emit_rhs_slot(out, &var_def->rhs, var_def->type, symbol->slot, indent,
                                         symbols, &ctx->sym_index, stmt_index, var_def->line);
         }
 
         if (stmt->kind == TC_STMT_CONST_DEF) {
-            const TcConstDef *const_def = &stmt->u.const_def;
-
-            symbol = tc_aot_find_def_symbol(symbols, const_def->name, const_def->line);
-            if (!symbol) {
-                return -1;
-            }
-            if (symbol->has_const_value) {
-                fprintf(out, "%sslots[%d] = 0x%016" PRIx64 "ULL;\n", indent, symbol->slot,
-                        symbol->const_value.bits);
-            } else {
-                return tc_aot_emit_rhs_slot(out, &const_def->rhs, const_def->type, symbol->slot,
-                                            indent, symbols, &ctx->sym_index, stmt_index,
-                                            const_def->line);
-            }
+            /* let 是纯编译期声明，不发射运行时代码。 */
             return 0;
         }
 
@@ -703,12 +819,15 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
             const TcIoWrite *io = &stmt->u.io_write;
             int newline = stmt->kind == TC_STMT_WRITELN ? 1 : 0;
+            char abort_indent[64];
 
-            fprintf(out, "%stc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type),
+            tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
+            fprintf(out, "%sif (tc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type),
                     tc_aot_format_enum(io->fmt));
             tc_aot_emit_operand_expr(out, &io->operand, io->type, symbols, &ctx->sym_index,
                                      stmt_index);
-            fprintf(out, ", %d);\n", newline);
+            fprintf(out, ", %d, &diag, %d) != 0)\n", newline, io->line);
+            fprintf(out, "%stc_aot_abort(&diag, %d);\n", abort_indent, io->line);
             return 0;
         }
 
@@ -730,7 +849,7 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt,
         }
     }
 
-    return 0;
+    return -1;
 }
 
 static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSymbolTable *symbols,
@@ -744,7 +863,7 @@ static int tc_aot_emit_statement(FILE *out, const TcStatement *stmt, const TcSym
 
 int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_name) {
     size_t i = 0;
-    size_t slot_count = program->symbols.count;
+    size_t slot_count = tc_symbol_table_runtime_slot_count(&program->symbols);
     TcAotEmitCtx ctx;
     TcDiagnostic diag;
     int rc = 0;
@@ -752,14 +871,14 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     tc_stmt_index_reset(&ctx.index);
     tc_symbol_name_index_init(&ctx.sym_index);
     ctx.block_path.depth = 0;
+    ctx.loops.depth = 0;
     tc_diagnostic_init(&diag);
     if (tc_symbol_name_index_build(&program->symbols, &ctx.sym_index, &diag) != 0) {
         tc_symbol_name_index_free(&ctx.sym_index);
         return -1;
     }
 
-    fprintf(out, "/* Auto-generated by tc-aot from %s. Do not edit. */\n",
-            source_name ? source_name : "<source>");
+    fprintf(out, "/* Auto-generated by tc-aot. Do not edit. */\n");
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stdio.h>\n");
     fprintf(out, "#include <stdlib.h>\n");
@@ -772,6 +891,11 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     fprintf(out, "int main(void) {\n");
     fprintf(out, "    TcDiagnostic diag;\n");
     fprintf(out, "    tc_aot_diag_init(&diag);\n");
+    fprintf(out, "    if (tc_diagnostic_set_source(&diag, ");
+    tc_aot_emit_c_string(out, source_name);
+    fprintf(out, ", NULL) != 0) {\n");
+    fprintf(out, "        tc_aot_abort(&diag, 0);\n");
+    fprintf(out, "    }\n");
     if (slot_count > 0) {
         fprintf(out, "    tc_aot_init_slots(slots, %zu);\n", slot_count);
     }

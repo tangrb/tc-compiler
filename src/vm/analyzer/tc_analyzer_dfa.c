@@ -49,10 +49,11 @@ void tc_block_path_free(TcBlockPath *bp) {
     tc_block_path_init(bp);
 }
 
-int tc_block_path_push(TcBlockPath *bp, int block_id, TcDiagnostic *diag) {
+int tc_block_path_push(TcBlockPath *bp, TcBlockId block_id, TcDiagnostic *diag) {
     if (bp->depth == bp->capacity) {
         int new_cap = bp->capacity == 0 ? 8 : bp->capacity * 2;
-        int *path = (int *)realloc(bp->path, (size_t)new_cap * sizeof(int));
+        TcBlockId *path =
+            (TcBlockId *)realloc(bp->path, (size_t)new_cap * sizeof(TcBlockId));
 
         if (!path) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
@@ -72,19 +73,29 @@ void tc_block_path_pop(TcBlockPath *bp) {
     }
 }
 
-int tc_block_id_then(int if_stmt_index) {
-    return if_stmt_index * 2;
+TcBlockId tc_block_id_then(int if_stmt_index) {
+    TcBlockId id = {if_stmt_index, TC_BLOCK_IF_THEN};
+
+    return id;
 }
 
-int tc_block_id_else(int if_stmt_index) {
-    return if_stmt_index * 2 + 1;
+TcBlockId tc_block_id_else(int if_stmt_index) {
+    TcBlockId id = {if_stmt_index, TC_BLOCK_IF_ELSE};
+
+    return id;
 }
 
-int tc_paths_equal_prefix(const int *a, const int *b, int depth) {
+TcBlockId tc_block_id_while(int while_stmt_index) {
+    TcBlockId id = {while_stmt_index, TC_BLOCK_WHILE};
+
+    return id;
+}
+
+int tc_paths_equal_prefix(const TcBlockId *a, const TcBlockId *b, int depth) {
     int i = 0;
 
     for (i = 0; i < depth; i++) {
-        if (a[i] != b[i]) {
+        if (a[i].owner_stmt_index != b[i].owner_stmt_index || a[i].kind != b[i].kind) {
             return 0;
         }
     }
@@ -126,7 +137,7 @@ int tc_check_operand_init(TcInitHistory *hist, const TcSymbol *sym, size_t stmt_
                                  int line, TcDiagnostic *diag) {
     char msg[128];
 
-    if (!hist || !hist->check_init) {
+    if (!hist || !hist->check_init || hist->defer_to_cfg) {
         return 0;
     }
     if (sym->sym_kind == TC_SYM_CONSTANT) {
@@ -188,16 +199,29 @@ static void tc_prescan_init_history_stmt(const TcStatement *stmt, TcAnalyzeCtx *
         return;
     }
 
+    if (stmt->kind == TC_STMT_WHILE) {
+        const TcWhileStmt *while_stmt = &stmt->u.while_stmt;
+        size_t i = 0;
+
+        tc_stmt_index_take(&ctx->index);
+        for (i = 0; i < while_stmt->body_count; i++) {
+            tc_prescan_init_history_stmt(&while_stmt->body[i], ctx, symbols);
+        }
+        return;
+    }
+
     if (stmt->kind == TC_STMT_ASSIGN) {
         const TcSymbol *sym =
             tc_symbol_for_assign_target(symbols, stmt->u.assign.name, ctx->index.next);
-        if (sym) {
+        if (sym && sym->sym_kind == TC_SYM_VARIABLE && sym->slot >= 0 &&
+            sym->slot < ctx->num_slots) {
             ctx->last_init[sym->slot] = ctx->index.next;
         }
     } else if (stmt->kind == TC_STMT_READ) {
         const TcSymbol *sym =
             tc_symbol_for_assign_target(symbols, stmt->u.io_read.name, ctx->index.next);
-        if (sym) {
+        if (sym && sym->sym_kind == TC_SYM_VARIABLE && sym->slot >= 0 &&
+            sym->slot < ctx->num_slots) {
             ctx->last_init[sym->slot] = ctx->index.next;
         }
     }
@@ -213,4 +237,3 @@ void tc_prescan_init_history(TcProgram *program, TcSymbolTable *symbols,
         tc_prescan_init_history_stmt(&program->items[i], ctx, symbols);
     }
 }
-

@@ -111,11 +111,48 @@ static void test_block_span(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_while_and_loop_control_span(void) {
+    TcStatement outer;
+    TcStatement while_body[2];
+    TcStatement nested_if_body[1];
+    TcStatement outer_else[1];
+
+    memset(&outer, 0, sizeof(outer));
+    memset(while_body, 0, sizeof(while_body));
+    memset(nested_if_body, 0, sizeof(nested_if_body));
+    memset(outer_else, 0, sizeof(outer_else));
+
+    outer.kind = TC_STMT_IF;
+    outer.u.if_stmt.then_body = while_body;
+    outer.u.if_stmt.then_count = 1;
+    outer.u.if_stmt.else_body = outer_else;
+    outer.u.if_stmt.else_count = 1;
+
+    while_body[0].kind = TC_STMT_WHILE;
+    while_body[0].u.while_stmt.body = &while_body[1];
+    while_body[0].u.while_stmt.body_count = 1;
+    while_body[1].kind = TC_STMT_IF;
+    while_body[1].u.if_stmt.then_body = nested_if_body;
+    while_body[1].u.if_stmt.then_count = 1;
+    nested_if_body[0].kind = TC_STMT_CONTINUE;
+    outer_else[0].kind = TC_STMT_BREAK;
+
+    check(tc_stmt_subtree_index_count(&while_body[0]) == 3,
+          "while span includes nested if and continue");
+    check(tc_stmt_subtree_index_count(&outer) == 5,
+          "if/while DFS span includes all loop control statements");
+
+    memset(&outer, 0, sizeof(outer));
+    outer.kind = TC_STMT_WHILE;
+    check(tc_stmt_subtree_index_count(&outer) == 1, "empty while occupies one index");
+}
+
 int main(void) {
     test_leaf_count();
     test_nested_if_subtree_count();
     test_skip_block_matches_dfs();
     test_block_span();
+    test_while_and_loop_control_span();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

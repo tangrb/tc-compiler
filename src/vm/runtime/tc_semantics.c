@@ -8,6 +8,9 @@
 
 #include "tc_diagnostic.h"
 
+#ifdef TC_HAVE_FENV
+#include <fenv.h>
+#endif
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -76,6 +79,116 @@ void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  §5.1 操作 × 类型 × 模式矩阵                                        */
+/* ------------------------------------------------------------------ */
+
+static int tc_sem_mode_error(TcDiagnostic *diag, int line, const char *message) {
+    tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN, message);
+    return -1;
+}
+
+int tc_validate_arith_mode(TcArithOp op, TcType type, TcWrapMode mode,
+                           TcDiagnostic *diag, int line) {
+    if (tc_type_is_bool(type) || tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "integer arithmetic requires integer type");
+        return -1;
+    }
+    if (mode != TC_ARITH_WRAP) {
+        return 0;
+    }
+    if (!tc_type_is_signed(type)) {
+        return tc_sem_mode_error(diag, line,
+                                 "unsigned arithmetic does not accept wrap mode");
+    }
+    if (op == TC_DIV || op == TC_MOD) {
+        return tc_sem_mode_error(diag, line, "div/mod do not support wrap mode");
+    }
+    return 0;
+}
+
+int tc_validate_unary_mode(TcUnaryOp op, TcType type, TcWrapMode mode,
+                           TcDiagnostic *diag, int line) {
+    if (tc_type_is_bool(type) || tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "integer unary operation requires integer type");
+        return -1;
+    }
+    if (mode != TC_ARITH_WRAP) {
+        return 0;
+    }
+    if (op != TC_UNARY_NEG) {
+        return tc_sem_mode_error(diag, line, "abs does not support wrap mode");
+    }
+    if (!tc_type_is_signed(type)) {
+        return tc_sem_mode_error(diag, line,
+                                 "unsigned unary operation does not accept wrap mode");
+    }
+    return 0;
+}
+
+int tc_validate_shift_mode(TcShiftOp op, TcType type, TcWrapMode mode,
+                           TcDiagnostic *diag, int line) {
+    if (tc_type_is_bool(type) || tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "shift operation requires integer type");
+        return -1;
+    }
+    if (mode == TC_ARITH_WRAP && op != TC_SHIFT_SHL) {
+        return tc_sem_mode_error(diag, line, "shift right does not support wrap mode");
+    }
+    return 0;
+}
+
+int tc_validate_fp_arith_mode(TcArithOp op, TcType type, TcFloatMode mode,
+                              TcDiagnostic *diag, int line) {
+    if (!tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "expected float type");
+        return -1;
+    }
+    if (op == TC_MOD) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "mod not supported for float types");
+        return -1;
+    }
+    if (mode == TC_FLOAT_WRAP) {
+        return tc_sem_mode_error(diag, line,
+                                 "wrap mode is not allowed for float arithmetic");
+    }
+    return 0;
+}
+
+int tc_validate_fp_unary_mode(TcUnaryOp op, TcType type, TcFloatMode mode,
+                              TcDiagnostic *diag, int line) {
+    (void)op;
+    if (!tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "expected float type");
+        return -1;
+    }
+    if (mode != TC_FLOAT_STRICT) {
+        return tc_sem_mode_error(diag, line,
+                                 "float unary operations do not accept mode keywords");
+    }
+    return 0;
+}
+
+int tc_validate_fp_compare_mode(TcType type, TcFloatMode mode,
+                                TcDiagnostic *diag, int line) {
+    if (!tc_type_is_float(type)) {
+        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "expected float type");
+        return -1;
+    }
+    if (mode != TC_FLOAT_STRICT) {
+        return tc_sem_mode_error(diag, line,
+                                 "float comparisons do not accept mode keywords");
+    }
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /*  类型范围辅助函数（内部）                                              */
 /* ------------------------------------------------------------------ */
 
@@ -134,7 +247,9 @@ int tc_literal_fits_context(const TcLiteral *lit, TcType type, TcErrorKind *err_
         }
         if (type == TC_FLOAT32) {
             f32 = (float)lit->float_value;
-            if (lit->float_value > (double)FLT_MAX || lit->float_value < -(double)FLT_MAX) {
+            if (isfinite(lit->float_value) &&
+                (lit->float_value > (double)FLT_MAX ||
+                 lit->float_value < -(double)FLT_MAX)) {
                 if (err_kind) {
                     *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
                 }
@@ -310,8 +425,23 @@ double tc_fp_bits_to_double(TcType type, uint64_t bits) {
 
 uint64_t tc_fp_double_to_bits(TcType type, double value) {
     if (type == TC_FLOAT32) {
-        float f = (float)value;
+        float f = 0.0f;
         uint32_t b32 = 0;
+#ifdef TC_HAVE_FENV
+        int saved_round = fegetround();
+        int restore_round = saved_round != -1 && saved_round != FE_TONEAREST;
+        volatile double source = value;
+
+        if (restore_round) {
+            (void)fesetround(FE_TONEAREST);
+        }
+        f = (float)source;
+        if (restore_round) {
+            (void)fesetround(saved_round);
+        }
+#else
+        f = (float)value;
+#endif
         memcpy(&b32, &f, sizeof(b32));
         return (uint64_t)b32;
     }
@@ -419,4 +549,3 @@ int tc_exec_logic_unary(TcLogicOp op, const TcValue *operand, TcValue *out,
     *out = tc_value_make(TC_BOOL, operand->bits == 0 ? 1ULL : 0ULL);
     return 0;
 }
-

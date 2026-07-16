@@ -47,10 +47,7 @@ void tc_rhs_free(TcRhs *rhs) {
         tc_operand_free(&rhs->u.shift.value);
         tc_operand_free(&rhs->u.shift.count);
     } else if (rhs->kind == TC_RHS_CAST) {
-        if (rhs->u.cast.source) {
-            free(rhs->u.cast.source);
-            rhs->u.cast.source = NULL;
-        }
+        tc_operand_free(&rhs->u.cast.source);
     } else if (rhs->kind == TC_RHS_FLOAT_ARITH) {
         tc_operand_free(&rhs->u.float_arith.lhs);
         tc_operand_free(&rhs->u.float_arith.rhs);
@@ -59,11 +56,6 @@ void tc_rhs_free(TcRhs *rhs) {
     } else if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
         tc_operand_free(&rhs->u.float_compare.lhs);
         tc_operand_free(&rhs->u.float_compare.rhs);
-    } else if (rhs->kind == TC_RHS_FLOAT_CAST) {
-        if (rhs->u.float_cast.source) {
-            free(rhs->u.float_cast.source);
-            rhs->u.float_cast.source = NULL;
-        }
     } else if (rhs->kind == TC_RHS_CONST_CAST) {
         tc_operand_free(&rhs->u.const_cast.source);
     } else if (rhs->kind == TC_RHS_CONST_REF) {
@@ -71,6 +63,8 @@ void tc_rhs_free(TcRhs *rhs) {
             free(rhs->u.const_ref.name);
             rhs->u.const_ref.name = NULL;
         }
+    } else if (rhs->kind == TC_RHS_BITCAST) {
+        tc_operand_free(&rhs->u.bitcast.source);
     } else {
         /* unknown RHS kind, skip */
     }
@@ -85,9 +79,7 @@ void tc_statement_free(TcStatement *stmt) {
             free(stmt->u.var_def.name);
             stmt->u.var_def.name = NULL;
         }
-        if (stmt->u.var_def.has_rhs) {
-            tc_rhs_free(&stmt->u.var_def.rhs);
-        }
+        tc_rhs_free(&stmt->u.var_def.rhs);
     } else if (stmt->kind == TC_STMT_CONST_DEF) {
         if (stmt->u.const_def.name) {
             free(stmt->u.const_def.name);
@@ -123,6 +115,18 @@ void tc_statement_free(TcStatement *stmt) {
         free(stmt->u.if_stmt.else_body);
         stmt->u.if_stmt.else_body = NULL;
         stmt->u.if_stmt.else_count = 0;
+    } else if (stmt->kind == TC_STMT_WHILE) {
+        size_t i = 0;
+
+        tc_rhs_free(&stmt->u.while_stmt.condition);
+        for (i = 0; i < stmt->u.while_stmt.body_count; i++) {
+            tc_statement_free(&stmt->u.while_stmt.body[i]);
+        }
+        free(stmt->u.while_stmt.body);
+        stmt->u.while_stmt.body = NULL;
+        stmt->u.while_stmt.body_count = 0;
+    } else if (stmt->kind == TC_STMT_BREAK || stmt->kind == TC_STMT_CONTINUE) {
+        /* loop control statements have no heap payload */
     } else if (stmt->kind == TC_STMT_LABEL_DEF) {
         if (stmt->u.label_def.name) {
             free(stmt->u.label_def.name);

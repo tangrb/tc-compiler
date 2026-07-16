@@ -6,3 +6,15 @@ write(float64, %e, x)
 write(float64, %E, x)
 write(float64, %g, x)
 writeln(float64, %G, x)
+
+; 特殊文本、负零符号与大小写固定
+var negative_zero: float64 = -0.0
+var positive_infinity: float64 = inf
+var negative_infinity: float64 = -inf
+var quiet_nan: float64 = nan
+writeln(float64, %f, negative_zero)
+writeln(float64, %g, negative_zero)
+writeln(float64, %e, positive_infinity)
+writeln(float64, %E, negative_infinity)
+writeln(float64, %g, quiet_nan)
+writeln(float64, %G, quiet_nan)

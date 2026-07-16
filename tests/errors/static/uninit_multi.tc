@@ -1,4 +1,6 @@
 ; 期望：use of uninitialized variable
-var a: int32
-var b: int32
+goto use_values
+var a: int32 = 0
+var b: int32 = 0
+label use_values:
 var c: int32 = add(int32, a, b)
