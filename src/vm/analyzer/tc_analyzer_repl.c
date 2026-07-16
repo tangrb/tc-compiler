@@ -16,7 +16,40 @@
 /*  tc_analyze_statement — REPL 增量分析                                 */
 /* ------------------------------------------------------------------ */
 
-int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
+static void tc_repl_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol) {
+    binding->resolved = 1;
+    binding->slot = symbol->sym_kind == TC_SYM_VARIABLE ? symbol->slot : -1;
+    binding->is_const = symbol->sym_kind == TC_SYM_CONSTANT;
+    binding->type = symbol->type;
+    binding->const_bits = symbol->has_const_value ? symbol->const_value.bits : 0;
+}
+
+static int tc_repl_reject_control_statement(const TcStatement *stmt, TcDiagnostic *diag) {
+    const char *message = NULL;
+
+    switch (stmt->kind) {
+    case TC_STMT_IF:
+        message = "if statements are not supported in REPL mode";
+        break;
+    case TC_STMT_WHILE:
+        message = "while statements are not supported in REPL mode";
+        break;
+    case TC_STMT_GOTO:
+    case TC_STMT_LABEL_DEF:
+        message = "goto/label statements are not supported in REPL mode";
+        break;
+    case TC_STMT_BREAK:
+    case TC_STMT_CONTINUE:
+        message = "break/continue statements are not supported in REPL mode";
+        break;
+    default:
+        return 0;
+    }
+    tc_diagnostic_set_api(diag, TC_API_ERR_INVALID_ARGUMENT, message);
+    return -1;
+}
+
+int tc_analyze_statement(TcStatement *stmt, TcSymbolTable *symbols,
                          TcReplAnalyzeCtx *repl_ctx, TcWarningList *warnings,
                          TcDiagnostic *diag) {
     TcInitHistory hist;
@@ -25,25 +58,15 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
     memset(&hist, 0, sizeof(hist));
     hist.last_init_stmt_index = repl_ctx->last_init_stmt_index;
     hist.check_init = 1;
+    hist.defer_to_cfg = 0;
 
-    if (stmt->kind == TC_STMT_IF) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, stmt->u.if_stmt.line, TC_COLUMN_UNKNOWN,
-                          "if statements are not supported in REPL mode");
-        return -1;
-    }
-    if (stmt->kind == TC_STMT_GOTO) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, stmt->u.goto_stmt.line, TC_COLUMN_UNKNOWN,
-                          "goto/label statements are not supported in REPL mode");
-        return -1;
-    }
-    if (stmt->kind == TC_STMT_LABEL_DEF) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, stmt->u.label_def.line, TC_COLUMN_UNKNOWN,
-                          "goto/label statements are not supported in REPL mode");
+    if (tc_repl_reject_control_statement(stmt, diag) != 0) {
         return -1;
     }
 
     if (stmt->kind == TC_STMT_VAR_DEF) {
-        const TcVarDef *var_def = &stmt->u.var_def;
+        TcVarDef *var_def = &stmt->u.var_def;
+        int slot = (int)tc_symbol_table_runtime_slot_count(symbols);
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, var_def->name)) {
@@ -52,15 +75,16 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                               msg);
             return -1;
         }
-        if (var_def->has_rhs) {
-            if (tc_check_rhs(&var_def->rhs, var_def->type, symbols, NULL, &hist, stmt_index,
-                             var_def->line, diag, warnings, var_def->name) != 0) {
-                return -1;
-            }
+        if (tc_check_rhs(&var_def->rhs, var_def->type, symbols, NULL, &hist, stmt_index,
+                         var_def->line, diag, warnings, var_def->name) != 0) {
+            return -1;
         }
-        return tc_symbol_table_add(symbols, var_def->name, var_def->type, (int)symbols->count,
-                                   var_def->line, (int)stmt_index, TC_SYM_VARIABLE,
-                                   var_def->has_rhs, diag);
+        if (tc_symbol_table_add(symbols, var_def->name, var_def->type, slot, var_def->line,
+                                (int)stmt_index, TC_SYM_VARIABLE, 1, diag) != 0) {
+            return -1;
+        }
+        tc_repl_binding_set(&var_def->binding, &symbols->symbols[symbols->count - 1]);
+        return 0;
     }
 
     if (stmt->kind == TC_STMT_CONST_DEF) {
@@ -87,7 +111,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                                    diag) != 0) {
             return -1;
         }
-        if (tc_symbol_table_add(symbols, const_def->name, const_def->type, (int)symbols->count,
+        if (tc_symbol_table_add(symbols, const_def->name, const_def->type, -1,
                                 const_def->line, (int)stmt_index, TC_SYM_CONSTANT, 1,
                                 diag) != 0) {
             return -1;
@@ -99,7 +123,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
     }
 
     if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
-        const TcIoWrite *io_write = &stmt->u.io_write;
+        TcIoWrite *io_write = &stmt->u.io_write;
         if (tc_check_io_format(io_write->type, io_write->fmt, io_write->line, diag) != 0) {
             return -1;
         }
@@ -109,7 +133,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
     }
 
     if (stmt->kind == TC_STMT_READ) {
-        const TcRead *io_read = &stmt->u.io_read;
+        TcRead *io_read = &stmt->u.io_read;
         const TcSymbol *target = tc_symbol_table_find(symbols, io_read->name);
         char msg[128];
 
@@ -124,11 +148,12 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                               "read type does not match variable type");
             return -1;
         }
+        tc_repl_binding_set(&io_read->binding, target);
         return 0;
     }
 
     if (stmt->kind == TC_STMT_ASSIGN) {
-        const TcAssign *assign = &stmt->u.assign;
+        TcAssign *assign = &stmt->u.assign;
         const TcSymbol *target = tc_symbol_table_find(symbols, assign->name);
         char msg[128];
 
@@ -143,6 +168,7 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
                               "cannot assign to constant");
             return -1;
         }
+        tc_repl_binding_set(&assign->binding, target);
         if (tc_check_rhs(&assign->rhs, target->type, symbols, NULL, &hist, stmt_index,
                          assign->line, diag, warnings, NULL) != 0) {
             return -1;
@@ -151,4 +177,3 @@ int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
     }
     return -1;
 }
-

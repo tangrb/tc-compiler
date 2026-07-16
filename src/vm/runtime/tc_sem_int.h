@@ -37,17 +37,4 @@ int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line);
 
-/**
- * cast 运算入口：按 strict / truncate 模式分派。
- * @param target 目标类型
- * @param mode   转换模式
- * @param source 源运行时值
- * @param out    输出结果
- * @param diag   诊断对象
- * @param line   当前行号
- * @return 成功 0；strict 模式值溢出 -1
- */
-int tc_exec_cast(TcType target, TcTruncateMode mode, const TcValue *source,
-                 TcValue *out, TcDiagnostic *diag, int line);
-
 #endif /* TC_SEM_INT_H */

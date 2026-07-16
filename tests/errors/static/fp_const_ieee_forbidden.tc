@@ -1,2 +1,0 @@
-; 期望：ieee/wrap 不允许在常量表达式
-let a: float64 = add(float64, ieee, 1.0, 2.0)

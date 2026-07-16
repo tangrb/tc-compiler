@@ -2,7 +2,7 @@
 
 A **TC** language compiler implemented in C99. Includes **libtc** (compile/execute static library), **TC-VM** (direct execution engine), and **TC-AOT** (ahead-of-time compilation, transpiles `.tc` to C99 source code).
 
-Version: **v0.0.25** (`src/vm/driver/tc_version.h`)
+Version: **v0.0.31** (`src/vm/driver/tc_version.h`)
 
 ## Directory Structure
 
@@ -13,9 +13,9 @@ src/
 ├── vm/                TC-VM source (lexer / parser / analyzer / executor / runtime)
 └── aot/               TC-AOT source (codegen / rt shim / CLI)
 tests/
-    ├── valid/              Conformance tests (covers bool/let/I/O/format/if/bitwise/shift etc.)
-    ├── errors/             Error tests (72 static + 37 runtime)
-    ├── unit/              C unit tests (lexer*2 / parser / semantics / types / io / bitwise / shift / symbol / warning / analyzer / stmt-index — 12 modules)
+    ├── valid/              Conformance tests (while/bitcast/CFG/let/I/O and more)
+    ├── errors/             Static and runtime error tests
+    ├── unit/               16 C unit targets, including CFG/executor/diagnostic/libtc
     └── stress/             Stress tests
 scripts/
 ├── ci.sh              Local CI pipeline (build + test + static check)
@@ -37,20 +37,21 @@ build/                  Build artifacts (git ignored)
 
 | Category | Features |
 |----------|----------|
-| Type System | `int8` / `int16` / `int32` / `int64` / `uint8` / `uint16` / `uint32` / `uint64` / `bool` |
-| Literals | Decimal, hex (`0x`/`0X`), octal (`0o`/`0O`), binary (`0b`/`0B`), digit separators (`_`) |
-| Variables | `var` declarations (optional init), `let` constants (compile-time evaluation) |
-| Arithmetic | `add` / `sub` / `mul` / `div` / `mod`, strict (overflow error) and wrap modes |
+| Type System | Fixed-width signed/unsigned integers, `bool`, `float32`, and `float64` |
+| Literals | Decimal/hex/octal/binary integers, separators, floating point, scientific notation, `inf`/`nan` |
+| Variables | `var` declarations with mandatory initializers; compile-time `let` constants with no runtime slot |
+| Arithmetic | `add` / `sub` / `mul` / `div` / `mod`; integer strict/wrap and float strict/ieee modes |
 | Comparison | `eq` / `neq` / `lt` / `gt` / `le` / `ge` |
 | Logic | `and` / `or` (short-circuit), `not` |
 | Unary | `abs` / `neg` |
-| Cast | `cast` with truncate / strict / widen modes |
-| I/O | `write` / `writeln` / `read`, format specifiers (`d`/`i`/`u`/`x`/`X`/`o`/`b`/`t`) |
-| Constant Folding | Compile-time evaluation of `let` initializers (arith/compare/logic/cast/bitwise all supported) |
-| Control Flow | `if-then-else-end` (indentation-sensitive, supports nesting, block scoping) |
-| Block Scoping | then/else mutually exclusive child scopes, allows same-name locals, nested shadowing |
+| Cast | Strict numeric `cast`, integer narrowing `truncate`, and equal-width non-bool `bitcast` |
+| I/O | `write` / `writeln` / `read` with integer, bool, and floating-point format specifiers |
+| Constant Folding | Runtime-equivalent one-level `let` evaluation with target-precision rounding |
+| Control Flow | Indented if/else, while, innermost break/continue, and restricted goto/label |
+| Static Analysis | Full CFG, reachability, constant edge pruning, and fixed-point definite initialization |
+| Block Scoping | Independent if branches and while bodies, fixed slots, and nested shadowing |
 | Bitwise | `and` / `or` / `xor` / `not` (bitwise, no overflow); `shl` (strict/wrap) / `shr` (arithmetic/logical) |
-| REPL | Interactive line-by-line execution with persistent variables (if not supported) |
+| REPL | Transactional line-by-line execution with persistent variables; multi-line control flow is rejected |
 
 ## Build
 
@@ -160,7 +161,7 @@ The macOS `run_memcheck_macos.sh` script runs sequentially:
 ./build/vm/bin/tc-vm -i            # Same (short option)
 ```
 
-The REPL supports entering TC statements one by one with immediate execution; variables persist across lines. Built-in meta-commands include `:quit` (exit), `:reset` (clear variables), `:vars` (list variables), and `:help` (help). The REPL does not support `if` statements.
+The REPL supports entering TC statements one by one with immediate execution; variables persist across lines. Built-in meta-commands include `:quit`, `:reset`, `:vars`, and `:help`. Multi-line control flow and labels are intentionally rejected in REPL mode.
 
 ### AOT Mode
 
@@ -176,11 +177,11 @@ The REPL supports entering TC statements one by one with immediate execution; va
 
 | Document | Description |
 |----------|-------------|
-| [TC Language Specification (Chinese)](docs/TC语言标准设计说明书.md) | Authoritative definition of TC syntax and semantics (v0.0.25) |
-| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | Direct execution engine architecture and implementation (v0.0.25) |
-| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | CLI instructions for tc-vm (v0.0.25) |
-| [TC-AOT Design Document (Chinese)](docs/TC-AOT详细设计说明书.md) | AOT code generation and shim layer (v0.0.25) |
-| [libtc Design Document (Chinese)](docs/libtc设计说明书.md) | libtc static library architecture and error contract (v0.0.25) |
+| [TC 0.0.31 Language Specification (Chinese)](docs/TC语言标准设计说明书_0.0.31.md) | Authoritative definition of TC syntax and semantics |
+| [TC-VM Design Document (Chinese)](docs/TC-VM详细设计说明书.md) | 0.0.31 direct execution architecture |
+| [TC-VM Command Reference (Chinese)](docs/TC-VM命令行参考.md) | 0.0.31 tc-vm CLI reference |
+| [TC-AOT Design Document (Chinese)](docs/TC-AOT详细设计说明书.md) | 0.0.31 AOT code generation and shim layer |
+| [libtc Design Document (Chinese)](docs/libtc设计说明书.md) | 0.0.31 libtc architecture and error contract |
 | [libtc Embedding API](docs/libtc-api.md) | Quick reference for libtc embedding programming interface |
 
 Implementation behavior follows the language specification; VM / AOT design documents define each backend's architecture without duplicating language semantics.

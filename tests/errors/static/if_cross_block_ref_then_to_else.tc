@@ -1,4 +1,4 @@
-; 期望：undefined variable（then 侧引用仅存在于 else 且尚未定义的 x）
+; 0.0.31：then 侧不能引用 else 局部变量，统一为 UndefinedVariable。
 if false then
     writeln(int32, x)
 else

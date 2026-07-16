@@ -136,29 +136,46 @@ run_runtime_fail() {
     vm_err="$(mktemp)"
     aot_err="$(mktemp)"
     aot_c="$(mktemp "${TMPDIR:-/tmp}/tcaot.XXXXXX").c"
+    vm_status=0
+    aot_status=0
 
     if [ -n "$stdin_data" ]; then
         if printf '%s' "$stdin_data" | "$VM_BIN" "$file" >/dev/null 2>"$vm_err"; then
-            fail "vm expected runtime failure: $file" "$file"
-            rm -f "$vm_err" "$aot_err" "$aot_c"
-            return
+            vm_status=0
+        else
+            vm_status=$?
         fi
         if printf '%s' "$stdin_data" | "$AOT_BIN" --run -o "$aot_c" "$file" >/dev/null 2>"$aot_err"; then
-            fail "aot expected runtime failure: $file" "$file"
-            rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
-            return
+            aot_status=0
+        else
+            aot_status=$?
         fi
     else
         if "$VM_BIN" "$file" </dev/null >/dev/null 2>"$vm_err"; then
-            fail "vm expected runtime failure: $file" "$file"
-            rm -f "$vm_err" "$aot_err" "$aot_c"
-            return
+            vm_status=0
+        else
+            vm_status=$?
         fi
         if "$AOT_BIN" --run -o "$aot_c" "$file" </dev/null >/dev/null 2>"$aot_err"; then
-            fail "aot expected runtime failure: $file" "$file"
-            rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
-            return
+            aot_status=0
+        else
+            aot_status=$?
         fi
+    fi
+    if [ "$vm_status" -eq 0 ]; then
+        fail "vm expected runtime failure: $file" "$file"
+        rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
+        return
+    fi
+    if [ "$aot_status" -eq 0 ]; then
+        fail "aot expected runtime failure: $file" "$file"
+        rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
+        return
+    fi
+    if [ "$vm_status" -ne "$aot_status" ]; then
+        fail "vm/aot runtime exit status mismatch ($vm_status != $aot_status): $file" "$file"
+        rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
+        return
     fi
     if ! grep -Fq "$msg" "$vm_err"; then
         fail "vm runtime stderr missing '$msg': $file" "$file"
@@ -170,11 +187,98 @@ run_runtime_fail() {
         rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
         return
     fi
+    vm_diag="$(sed -n '/: error:/{p;q;}' "$vm_err")"
+    aot_diag="$(sed -n '/: error:/{p;q;}' "$aot_err")"
+    if [ -z "$vm_diag" ] || [ "$vm_diag" != "$aot_diag" ]; then
+        fail "vm/aot runtime diagnostic mismatch: $file" "$file"
+        if command -v diff >/dev/null 2>&1; then
+            diff -u "$vm_err" "$aot_err" >&2 || true
+        fi
+        rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
+        return
+    fi
     pass
     rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
 }
 
+run_codegen_contains() {
+    file="$1"
+    pattern="$2"
+    aot_c="$(mktemp "${TMPDIR:-/tmp}/tcaot.XXXXXX").c"
+
+    echo "CODEGEN $file"
+    if ! "$AOT_BIN" -o "$aot_c" "$file" >/dev/null 2>/dev/null; then
+        fail "aot codegen failed: $file" "$file"
+    elif ! grep -Fq "$pattern" "$aot_c"; then
+        fail "aot codegen missing canonical bit pattern '$pattern': $file" "$file"
+    else
+        pass
+    fi
+    rm -f "$aot_c"
+}
+
+run_codegen_not_contains() {
+    file="$1"
+    pattern="$2"
+    aot_c="$(mktemp "${TMPDIR:-/tmp}/tcaot.XXXXXX").c"
+
+    echo "CODEGEN_NO $file"
+    if ! "$AOT_BIN" -o "$aot_c" "$file" >/dev/null 2>/dev/null; then
+        fail "aot codegen failed: $file" "$file"
+    elif grep -Fq "$pattern" "$aot_c"; then
+        fail "aot codegen unexpectedly contains '$pattern': $file" "$file"
+    else
+        pass
+    fi
+    rm -f "$aot_c"
+}
+
+run_aot_cli_golden() {
+    argument="$1"
+    expected_status="$2"
+    expected_stdout="$3"
+    expected_stderr="$4"
+    label="$5"
+    stdout_file="$(mktemp)"
+    stderr_file="$(mktemp)"
+    status=0
+
+    echo "CLI $label"
+    "$AOT_BIN" "$argument" >"$stdout_file" 2>"$stderr_file" || status=$?
+    actual_stdout="$(cat "$stdout_file")"
+    actual_stderr="$(cat "$stderr_file")"
+    rm -f "$stdout_file" "$stderr_file"
+
+    if [ "$status" -ne "$expected_status" ] ||
+       [ "$actual_stdout" != "$expected_stdout" ] ||
+       [ "$actual_stderr" != "$expected_stderr" ]; then
+        fail "aot CLI golden failed: $label" "$label"
+        return
+    fi
+    pass
+}
+
 # --- differential tests: valid programs (stdout VM vs AOT) ---
+
+run_aot_cli_golden "--version" 0 "tc-aot 0.0.31" "" "aot version golden"
+
+run_aot_cli_golden "--help" 0 "" "Usage: $AOT_BIN [options] <file.tc>
+
+TC ahead-of-time compiler (TC → C99).
+
+Options:
+  -o, --output FILE   write generated C to FILE (default: <input>.c)
+  -c, --check         static analysis only, do not emit C
+  -r, --run           compile and run generated C (requires host C compiler)
+  -h, --help          show this help
+  -V, --version       show version
+
+Notes:
+  --check uses the same libtc batch-language acceptance set as tc-vm --check." "aot help golden"
+
+AOT_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-aot-missing.XXXXXX")"
+rm -f "$AOT_MISSING_PATH"
+run_aot_cli_golden "$AOT_MISSING_PATH" 1 "" "$AOT_MISSING_PATH: api error: FileOpen: cannot open input file" "aot file-open golden"
 
 run_diff_test "$ROOT/tests/valid/example.tc"
 run_diff_test "$ROOT/tests/valid/wrap_int8_output.tc"
@@ -225,6 +329,12 @@ run_diff_test "$ROOT/tests/valid/goto_nested_out.tc"
 run_diff_test "$ROOT/tests/valid/goto_label_same_name.tc"
 run_diff_test "$ROOT/tests/valid/uninit_both_paths.tc"
 run_diff_test "$ROOT/tests/valid/uninit_shortcircuit.tc"
+run_diff_test "$ROOT/tests/valid/while_false.tc"
+run_diff_test "$ROOT/tests/valid/while_counted.tc"
+run_diff_test "$ROOT/tests/valid/while_nested.tc"
+run_diff_test "$ROOT/tests/valid/while_break_continue.tc"
+run_diff_test "$ROOT/tests/valid/while_var_reinitialize.tc"
+run_diff_test "$ROOT/tests/valid/goto_var_reinitialize.tc"
 run_diff_test "$ROOT/tests/valid/if_else.tc"
 run_diff_test "$ROOT/tests/valid/if_nested.tc"
 run_diff_test "$ROOT/tests/valid/if_chain.tc"
@@ -252,11 +362,30 @@ run_diff_test "$ROOT/tests/valid/io_extended.tc"
 run_diff_test "$ROOT/tests/valid/fp_basic.tc"
 run_diff_test "$ROOT/tests/valid/fp_arith.tc"
 run_diff_test "$ROOT/tests/valid/fp_arith_ieee.tc"
-run_diff_test "$ROOT/tests/valid/fp_arith_wrap.tc"
 run_diff_test "$ROOT/tests/valid/fp_compare.tc"
 run_diff_test "$ROOT/tests/valid/fp_cast.tc"
-run_diff_test "$ROOT/tests/valid/fp_cast_truncate.tc"
+run_diff_test "$ROOT/tests/valid/fp_bitcast_roundtrip.tc"
+run_diff_test "$ROOT/tests/valid/bitcast_roundtrip32.tc"
+run_diff_test "$ROOT/tests/valid/bitcast_roundtrip64.tc"
+run_diff_test "$ROOT/tests/valid/let_runtime_equivalence.tc"
+run_diff_test "$ROOT/tests/valid/let_wrap_allowed.tc"
+run_diff_test "$ROOT/tests/valid/let_float_ieee.tc"
+run_diff_test "$ROOT/tests/valid/let_float32_step_rounding.tc"
+run_diff_test "$ROOT/tests/valid/let_bitcast_payload.tc"
+run_diff_test "$ROOT/tests/valid/let_goto_inline.tc"
+run_diff_test "$ROOT/tests/valid/let_block_local_chain.tc"
+run_codegen_contains "$ROOT/tests/valid/let_float32_step_rounding.tc" \
+    "0x000000004b800000ULL"
+run_codegen_contains "$ROOT/tests/valid/let_bitcast_payload.tc" \
+    "0x7ff8000000001234ULL"
+run_codegen_not_contains "$ROOT/tests/valid/let_constant.tc" "slots["
+run_codegen_contains "$ROOT/tests/valid/write_int8_number.tc" "if (tc_aot_write("
+run_diff_test "$ROOT/tests/valid/cast_literal.tc"
 run_diff_test "$ROOT/tests/valid/fp_io.tc" "3.14
+"
+run_diff_test "$ROOT/tests/valid/fp_io.tc" "nan
+"
+run_diff_test "$ROOT/tests/valid/fp_io.tc" "-inf
 "
 run_diff_test "$ROOT/tests/valid/fp_const_expr.tc"
 run_diff_test "$ROOT/tests/valid/fp_if_block.tc"
@@ -264,8 +393,6 @@ run_diff_test "$ROOT/tests/valid/format_spec_fp.tc"
 run_diff_test "$ROOT/tests/valid/fp_neg_abs.tc"
 run_diff_test "$ROOT/tests/valid/fp_const_let_arith.tc"
 run_diff_test "$ROOT/tests/valid/fp_ieee_ops.tc"
-run_diff_test "$ROOT/tests/valid/fp_wrap_arith.tc"
-run_diff_test "$ROOT/tests/valid/var_no_init.tc"
 run_diff_test "$ROOT/tests/valid/assign_uninit_var_valid.tc"
 run_diff_test "$ROOT/tests/valid/no_warn_after_assign.tc"
 run_diff_test "$ROOT/tests/valid/read_write.tc" "42
@@ -306,16 +433,31 @@ run_check_ok "$ROOT/tests/valid/goto_nested_out.tc"
 run_check_ok "$ROOT/tests/valid/goto_label_same_name.tc"
 run_check_ok "$ROOT/tests/valid/uninit_both_paths.tc"
 run_check_ok "$ROOT/tests/valid/uninit_shortcircuit.tc"
+run_check_ok "$ROOT/tests/valid/while_false.tc"
+run_check_ok "$ROOT/tests/valid/while_counted.tc"
+run_check_ok "$ROOT/tests/valid/while_nested.tc"
+run_check_ok "$ROOT/tests/valid/while_break_continue.tc"
+run_check_ok "$ROOT/tests/valid/while_var_reinitialize.tc"
+run_check_ok "$ROOT/tests/valid/goto_var_reinitialize.tc"
 run_check_ok "$ROOT/tests/valid/if_nested.tc"
 run_check_ok "$ROOT/tests/valid/bitwise_runtime.tc"
 run_check_ok "$ROOT/tests/valid/const_expr.tc"
 run_check_ok "$ROOT/tests/valid/fp_basic.tc"
 run_check_ok "$ROOT/tests/valid/fp_arith.tc"
 run_check_ok "$ROOT/tests/valid/fp_arith_ieee.tc"
-run_check_ok "$ROOT/tests/valid/fp_arith_wrap.tc"
 run_check_ok "$ROOT/tests/valid/fp_compare.tc"
 run_check_ok "$ROOT/tests/valid/fp_cast.tc"
-run_check_ok "$ROOT/tests/valid/fp_cast_truncate.tc"
+run_check_ok "$ROOT/tests/valid/fp_bitcast_roundtrip.tc"
+run_check_ok "$ROOT/tests/valid/bitcast_roundtrip32.tc"
+run_check_ok "$ROOT/tests/valid/bitcast_roundtrip64.tc"
+run_check_ok "$ROOT/tests/valid/let_runtime_equivalence.tc"
+run_check_ok "$ROOT/tests/valid/let_wrap_allowed.tc"
+run_check_ok "$ROOT/tests/valid/let_float_ieee.tc"
+run_check_ok "$ROOT/tests/valid/let_float32_step_rounding.tc"
+run_check_ok "$ROOT/tests/valid/let_bitcast_payload.tc"
+run_check_ok "$ROOT/tests/valid/let_goto_inline.tc"
+run_check_ok "$ROOT/tests/valid/let_block_local_chain.tc"
+run_check_ok "$ROOT/tests/valid/cast_literal.tc"
 run_check_ok "$ROOT/tests/valid/fp_io.tc"
 run_check_ok "$ROOT/tests/valid/fp_const_expr.tc"
 run_check_ok "$ROOT/tests/valid/fp_if_block.tc"
@@ -323,7 +465,6 @@ run_check_ok "$ROOT/tests/valid/format_spec_fp.tc"
 run_check_ok "$ROOT/tests/valid/fp_neg_abs.tc"
 run_check_ok "$ROOT/tests/valid/fp_const_let_arith.tc"
 run_check_ok "$ROOT/tests/valid/fp_ieee_ops.tc"
-run_check_ok "$ROOT/tests/valid/fp_wrap_arith.tc"
 run_check_ok "$ROOT/tests/valid/if_and_or_condition.tc"
 run_check_ok "$ROOT/tests/valid/if_comparison_condition.tc"
 run_check_ok "$ROOT/tests/valid/if_not_condition.tc"
@@ -341,7 +482,9 @@ run_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of rang
 run_check_fail "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
 run_check_fail "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_check_fail "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
-run_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "circular dependency in constant expression"
+run_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
+run_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "nested calls are not allowed in constant expression"
+run_check_fail "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
 run_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
@@ -349,6 +492,9 @@ run_check_fail "$ROOT/tests/errors/static/logic_type_error.tc" "operand type doe
 run_check_fail "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
 run_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
+run_check_fail "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
+run_check_fail "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
+run_check_fail "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
 run_check_fail "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "bitwise operation requires integer type"
 run_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
@@ -359,10 +505,10 @@ run_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end fo
 run_check_fail "$ROOT/tests/errors/static/indent_mixed_tab_body.tc" "mixed spaces and tabs in indentation"
 run_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_check_fail "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indentation does not match if"
-run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "cross-block reference"
+run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assign to constant"
-run_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "circular dependency"
+run_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
 run_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "literal type does not match variable type"
 run_check_fail "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
@@ -370,9 +516,15 @@ run_check_fail "$ROOT/tests/errors/static/format_operand_count.tc" "operand coun
 run_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
 run_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_check_fail "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
+run_check_fail "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
+run_check_fail "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
 run_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
 run_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
-run_check_fail "$ROOT/tests/errors/static/fp_const_ieee_forbidden.tc" "ieee/wrap is not allowed in constant expression"
+run_check_fail "$ROOT/tests/errors/static/goto_inside_loop.tc" "goto is not allowed inside while"
+run_check_fail "$ROOT/tests/errors/static/label_inside_loop.tc" "label is not allowed inside while"
+run_check_fail "$ROOT/tests/errors/static/break_outside_loop.tc" "break used outside while"
+run_check_fail "$ROOT/tests/errors/static/continue_outside_loop.tc" "continue used outside while"
 
 # --- runtime errors (VM vs AOT --run) ---
 
@@ -401,9 +553,9 @@ run_runtime_fail "$ROOT/tests/errors/runtime/int64_min_div.tc" "signed division 
 run_runtime_fail "$ROOT/tests/errors/runtime/read_out_of_range_int64.tc" "input value out of range" "99999999999999999999
 "
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_overflow.tc" "float overflow"
-run_diff_test "$ROOT/tests/errors/runtime/fp_strict_underflow.tc"
+run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "float underflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_invalid.tc" "float invalid operation"
-run_runtime_fail "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "float cast overflow"
+run_runtime_fail "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_runtime_fail "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "invalid input" "abc
 "

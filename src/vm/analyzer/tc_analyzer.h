@@ -5,7 +5,7 @@
  *   Pass 1 — 收集所有 var/let 定义，分配运行时槽位，检测重复定义
  *   Pass 2 — 按语句顺序做类型检查、字面量范围校验、overflow 合法性检查、常量编译期求值
  *
- * 分析通过后产出 TcTypedProgram（语句列表 + 全局符号表 + 警告列表），供 Executor 使用。
+ * 分析通过后产出 TcTypedProgram（语句、符号表、完整 CFG、空警告列表），供 VM/AOT 使用。
  */
 #ifndef TC_ANALYZER_H
 #define TC_ANALYZER_H
@@ -57,7 +57,7 @@ typedef struct {
  * @param diag      诊断对象
  * @return 成功返回 0；失败返回 -1 并设置 diag（symbols 不变）
  */
-int tc_analyze_statement(const TcStatement *stmt, TcSymbolTable *symbols,
+int tc_analyze_statement(TcStatement *stmt, TcSymbolTable *symbols,
                          TcReplAnalyzeCtx *repl_ctx, TcWarningList *warnings,
                          TcDiagnostic *diag);
 

@@ -1,4 +1,4 @@
-; 期望：cross-block reference（else 侧不可见 then 局部变量）
+; 0.0.31：else 侧不可见 then 局部变量，统一为 UndefinedVariable。
 if true then
     var x: int32 = 1
 else

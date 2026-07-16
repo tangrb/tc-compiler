@@ -144,7 +144,7 @@ var l5: uint32 = cast(uint32, l4)
 var l6: int64 = cast(int64, l5)
 var l7: uint64 = cast(uint64, l6)
 var l8: int8 = cast(int8, truncate, l7)
-var l9: int16 = cast(int16, truncate, l8)
+var l9: int16 = cast(int16, l8)
 
 ; ======== Sequential assignments ========
 var m0: int32 = 0
@@ -160,14 +160,14 @@ m0 = add(int32, m0, 9)
 m0 = add(int32, m0, 10)
 
 ; ======== Zero-init variables ========
-var q0: int8
-var q1: int16
-var q2: int32
-var q3: int64
-var q4: uint8
-var q5: uint16
-var q6: uint32
-var q7: uint64
+var q0: int8 = 0
+var q1: int16 = 0
+var q2: int32 = 0
+var q3: int64 = 0
+var q4: uint8 = 0
+var q5: uint16 = 0
+var q6: uint32 = 0
+var q7: uint64 = 0
 var q8: int8 = 0
 var q9: int32 = 0
 

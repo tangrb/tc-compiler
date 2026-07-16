@@ -259,6 +259,12 @@ static void test_format_spec_name(void) {
 /* ================================================================== */
 
 static void test_error_kind_name(void) {
+    int all_named = 1;
+    int all_unique = 1;
+    size_t i;
+    size_t j;
+    const size_t error_kind_count = (size_t)TC_ERR_CONTINUE_OUTSIDE_LOOP + 1U;
+
     /* 验证全部错误种类都有对应的名称 */
     check(strcmp(tc_error_kind_name(TC_ERR_SYNTAX), "SyntaxError") == 0,
           "TC_ERR_SYNTAX → SyntaxError");
@@ -278,8 +284,6 @@ static void test_error_kind_name(void) {
           "TC_ERR_CONSTANT_ASSIGNMENT → ConstantAssignmentError");
     check(strcmp(tc_error_kind_name(TC_ERR_CONSTANT_EXPRESSION), "ConstantExpressionError") == 0,
           "TC_ERR_CONSTANT_EXPRESSION → ConstantExpressionError");
-    check(strcmp(tc_error_kind_name(TC_ERR_CONSTANT_CIRCULAR), "ConstantCircularDependency") == 0,
-          "TC_ERR_CONSTANT_CIRCULAR → ConstantCircularDependency");
     check(strcmp(tc_error_kind_name(TC_ERR_CONSTANT_OVERFLOW), "ConstantOverflow") == 0,
           "TC_ERR_CONSTANT_OVERFLOW → ConstantOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_CONSTANT_DIV_ZERO), "ConstantDivisionByZero") == 0,
@@ -298,8 +302,6 @@ static void test_error_kind_name(void) {
           "TC_ERR_DIVISION_BY_ZERO → DivisionByZero");
     check(strcmp(tc_error_kind_name(TC_ERR_INTEGER_OVERFLOW), "IntegerOverflow") == 0,
           "TC_ERR_INTEGER_OVERFLOW → IntegerOverflow");
-    check(strcmp(tc_error_kind_name(TC_ERR_OVERFLOW_MODE), "OverflowModeError") == 0,
-          "TC_ERR_OVERFLOW_MODE → OverflowModeError");
     check(strcmp(tc_error_kind_name(TC_ERR_CAST_OVERFLOW), "CastOverflow") == 0,
           "TC_ERR_CAST_OVERFLOW → CastOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_IO), "IOError") == 0,
@@ -318,16 +320,12 @@ static void test_error_kind_name(void) {
           "TC_ERR_ELSE_POSITION → ElsePositionError");
     check(strcmp(tc_error_kind_name(TC_ERR_CONDITION_TYPE), "ConditionTypeError") == 0,
           "TC_ERR_CONDITION_TYPE → ConditionTypeError");
-    check(strcmp(tc_error_kind_name(TC_ERR_CROSS_BLOCK_REFERENCE), "CrossBlockReferenceError") == 0,
-          "TC_ERR_CROSS_BLOCK_REFERENCE → CrossBlockReferenceError");
     check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_OVERFLOW), "FloatOverflow") == 0,
           "TC_ERR_FLOAT_OVERFLOW → FloatOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_UNDERFLOW), "FloatUnderflow") == 0,
           "TC_ERR_FLOAT_UNDERFLOW → FloatUnderflow");
     check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_INVALID), "FloatInvalidOperation") == 0,
           "TC_ERR_FLOAT_INVALID → FloatInvalidOperation");
-    check(strcmp(tc_error_kind_name(TC_ERR_FLOAT_CAST_OVERFLOW), "FloatCastOverflow") == 0,
-          "TC_ERR_FLOAT_CAST_OVERFLOW → FloatCastOverflow");
     check(strcmp(tc_error_kind_name(TC_ERR_MODE_MISMATCH), "ModeMismatch") == 0,
           "TC_ERR_MODE_MISMATCH → ModeMismatch");
     check(strcmp(tc_error_kind_name(TC_ERR_UNINITIALIZED_VARIABLE), "UninitializedVariable") == 0,
@@ -340,10 +338,69 @@ static void test_error_kind_name(void) {
           "TC_ERR_JUMP_INTO_BLOCK → JumpIntoBlockError");
     check(strcmp(tc_error_kind_name(TC_ERR_JUMP_TO_SIBLING_BLOCK), "JumpToSiblingBlockError") == 0,
           "TC_ERR_JUMP_TO_SIBLING_BLOCK → JumpToSiblingBlockError");
+    check(strcmp(tc_error_kind_name(TC_ERR_VAR_MISSING_INIT), "VarMissingInitializer") == 0,
+          "TC_ERR_VAR_MISSING_INIT → VarMissingInitializer");
+    check(strcmp(tc_error_kind_name(TC_ERR_BITCAST_WIDTH), "BitcastWidthError") == 0,
+          "TC_ERR_BITCAST_WIDTH → BitcastWidthError");
+    check(strcmp(tc_error_kind_name(TC_ERR_LABEL_INSIDE_LOOP), "LabelInsideLoop") == 0,
+          "TC_ERR_LABEL_INSIDE_LOOP → LabelInsideLoop");
+    check(strcmp(tc_error_kind_name(TC_ERR_GOTO_INSIDE_LOOP), "GotoInsideLoop") == 0,
+          "TC_ERR_GOTO_INSIDE_LOOP → GotoInsideLoop");
+    check(strcmp(tc_error_kind_name(TC_ERR_BREAK_OUTSIDE_LOOP), "BreakOutsideLoop") == 0,
+          "TC_ERR_BREAK_OUTSIDE_LOOP → BreakOutsideLoop");
+    check(strcmp(tc_error_kind_name(TC_ERR_CONTINUE_OUTSIDE_LOOP), "ContinueOutsideLoop") == 0,
+          "TC_ERR_CONTINUE_OUTSIDE_LOOP → ContinueOutsideLoop");
+
+    /* 0.0.31 固定为 41 个语言错误加 1 个 Implementation/OOM 错误。 */
+    check(error_kind_count == 42U, "0.0.31 error kind table has 42 entries");
+    for (i = 0; i < error_kind_count; i++) {
+        const char *name = tc_error_kind_name((TcErrorKind)i);
+
+        if (strcmp(name, "UnknownError") == 0) {
+            all_named = 0;
+        }
+        for (j = 0; j < i; j++) {
+            if (strcmp(name, tc_error_kind_name((TcErrorKind)j)) == 0) {
+                all_unique = 0;
+            }
+        }
+    }
+    check(all_named, "every error kind has a name");
+    check(all_unique, "error kind names are unique");
 
     /* 未知错误种类 → UnknownError */
     check(strcmp(tc_error_kind_name((TcErrorKind)999), "UnknownError") == 0,
           "unknown error kind → UnknownError");
+}
+
+static void test_loop_statement_contracts(void) {
+    TcStatement while_stmt;
+    TcStatement break_stmt;
+    TcStatement continue_stmt;
+
+    memset(&while_stmt, 0, sizeof(while_stmt));
+    memset(&break_stmt, 0, sizeof(break_stmt));
+    memset(&continue_stmt, 0, sizeof(continue_stmt));
+
+    while_stmt.kind = TC_STMT_WHILE;
+    while_stmt.u.while_stmt.line = 11;
+    while_stmt.u.while_stmt.loop_id = -1;
+    break_stmt.kind = TC_STMT_BREAK;
+    break_stmt.u.break_stmt.line = 12;
+    break_stmt.u.break_stmt.loop_id = -1;
+    continue_stmt.kind = TC_STMT_CONTINUE;
+    continue_stmt.u.continue_stmt.line = 13;
+    continue_stmt.u.continue_stmt.loop_id = -1;
+
+    check(while_stmt.u.while_stmt.line == 11, "while statement stores source line");
+    check(while_stmt.u.while_stmt.loop_id == -1, "while loop id unresolved before analysis");
+    check(while_stmt.u.while_stmt.body == NULL && while_stmt.u.while_stmt.body_count == 0,
+          "while body starts empty");
+    check(break_stmt.u.break_stmt.line == 12 && break_stmt.u.break_stmt.loop_id == -1,
+          "break control contract");
+    check(continue_stmt.u.continue_stmt.line == 13 &&
+              continue_stmt.u.continue_stmt.loop_id == -1,
+          "continue control contract");
 }
 
 /* ================================================================== */
@@ -403,6 +460,7 @@ int main(void) {
     test_format_spec_parse();
     test_format_spec_name();
     test_error_kind_name();
+    test_loop_statement_contracts();
     test_warning_kind_name();
     test_int_type_name();
 

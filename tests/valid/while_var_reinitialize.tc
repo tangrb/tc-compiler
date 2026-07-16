@@ -1,0 +1,6 @@
+var index: int32 = 0
+while lt(int32, index, 3) then
+    var current: int32 = add(int32, index, 10)
+    writeln(int32, current)
+    index = add(int32, index, 1)
+end

@@ -387,12 +387,99 @@ run_repl_expect() {
     pass
 }
 
+run_repl_expect_not_contains() {
+    input="$1"
+    expected="$2"
+    unexpected="$3"
+    label="$4"
+
+    should_run "$label" || return 0
+    log_test "REPL $label"
+
+    output="$(printf '%s\n' "$input" | $BIN --repl 2>&1)"
+    if ! printf '%s' "$output" | grep -Fq "$expected"; then
+        fail "REPL test failed: $label" "$label"
+        echo "  expected substring: $expected" >&2
+        if [ "$VERBOSE" -eq 1 ]; then
+            printf '%s\n' "$output" >&2
+        fi
+        return
+    fi
+    if printf '%s' "$output" | grep -Fq "$unexpected"; then
+        fail "REPL test failed: $label" "$label"
+        echo "  unexpected substring: $unexpected" >&2
+        if [ "$VERBOSE" -eq 1 ]; then
+            printf '%s\n' "$output" >&2
+        fi
+        return
+    fi
+    pass
+}
+
+run_cli_golden() {
+    argument="$1"
+    expected_status="$2"
+    expected_stdout="$3"
+    expected_stderr="$4"
+    label="$5"
+    stdout_file="$(mktemp)"
+    stderr_file="$(mktemp)"
+    status=0
+
+    should_run "$label" || {
+        rm -f "$stdout_file" "$stderr_file"
+        return 0
+    }
+    log_test "CLI $label"
+    "$TC_VM_BIN" "$argument" >"$stdout_file" 2>"$stderr_file" || status=$?
+    actual_stdout="$(cat "$stdout_file")"
+    actual_stderr="$(cat "$stderr_file")"
+    rm -f "$stdout_file" "$stderr_file"
+
+    if [ "$status" -ne "$expected_status" ] ||
+       [ "$actual_stdout" != "$expected_stdout" ] ||
+       [ "$actual_stderr" != "$expected_stderr" ]; then
+        fail "CLI golden failed: $label" "$label"
+        if [ "$VERBOSE" -eq 1 ]; then
+            echo "  status: $status (expected $expected_status)" >&2
+            printf '  stdout: <%s>\n' "$actual_stdout" >&2
+            printf '  stderr: <%s>\n' "$actual_stderr" >&2
+        fi
+        return
+    fi
+    pass
+}
+
 # --- valid: execution succeeds ---
+
+run_cli_golden "--version" 0 "tc-vm 0.0.31" "" "cli version golden"
+
+run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN [options] [<file.tc>]
+
+TC language direct execution engine.
+
+Options:
+  -c, --check       static analysis only, do not execute
+  -i, --repl        interactive single-line REPL mode
+  -h, --help        show this help and exit
+  -V, --version     show version and exit
+
+Notes:
+  File execution and --check use the full libtc batch-language pipeline.
+  REPL rejects if/while/goto/label/break/continue; use a source file for them.
+
+Examples:
+  $TC_VM_BIN tests/valid/example.tc
+  $TC_VM_BIN --check tests/valid/example.tc
+  $TC_VM_BIN --repl" "cli help golden"
+
+CLI_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-vm-missing.XXXXXX")"
+rm -f "$CLI_MISSING_PATH"
+run_cli_golden "$CLI_MISSING_PATH" 1 "" "$CLI_MISSING_PATH: api error: FileOpen: cannot open input file" "cli file-open golden"
 
 run_expect_ok "$ROOT/tests/valid/example.tc"
 run_expect_ok "$ROOT/tests/valid/signed_wrap.tc"
 run_expect_ok "$ROOT/tests/valid/uint8_wrap.tc"
-run_expect_ok "$ROOT/tests/valid/var_no_init.tc"
 run_expect_ok "$ROOT/tests/valid/no_warn_after_assign.tc"
 run_expect_check_ok "$ROOT/tests/valid/example.tc"
 run_expect_check_ok "$ROOT/tests/valid/let_constant.tc"
@@ -478,7 +565,7 @@ false
 true
 "
 run_expect_stdout "$ROOT/tests/valid/bitwise_runtime.tc" "10100000
-01011010
+1011010
 64
 -64
 0
@@ -591,6 +678,50 @@ run_expect_check_ok "$ROOT/tests/valid/goto_label_same_name.tc"
 run_expect_check_ok "$ROOT/tests/valid/uninit_both_paths.tc"
 run_expect_check_ok "$ROOT/tests/valid/uninit_shortcircuit.tc"
 
+# --- v0.0.31: while / break / continue execution ---
+
+run_expect_stdout "$ROOT/tests/valid/while_false.tc" "0
+"
+run_expect_stdout "$ROOT/tests/valid/while_counted.tc" "0
+1
+2
+3
+4
+"
+run_expect_stdout "$ROOT/tests/valid/while_nested.tc" "0
+1
+2
+0
+1
+2
+"
+run_expect_stdout "$ROOT/tests/valid/while_break_continue.tc" "1
+3
+4
+"
+run_expect_stdout "$ROOT/tests/valid/while_var_reinitialize.tc" "10
+11
+12
+"
+run_expect_stdout "$ROOT/tests/valid/goto_var_reinitialize.tc" "20
+21
+22
+"
+run_expect_check_ok "$ROOT/tests/valid/while_false.tc"
+run_expect_check_ok "$ROOT/tests/valid/while_counted.tc"
+run_expect_check_ok "$ROOT/tests/valid/while_nested.tc"
+run_expect_check_ok "$ROOT/tests/valid/while_break_continue.tc"
+run_expect_check_ok "$ROOT/tests/valid/while_var_reinitialize.tc"
+run_expect_check_ok "$ROOT/tests/valid/goto_var_reinitialize.tc"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_inside_loop.tc" \
+    "goto is not allowed inside while"
+run_expect_fail_msg "$ROOT/tests/errors/static/label_inside_loop.tc" \
+    "label is not allowed inside while"
+run_expect_fail_msg "$ROOT/tests/errors/static/break_outside_loop.tc" \
+    "break used outside while"
+run_expect_fail_msg "$ROOT/tests/errors/static/continue_outside_loop.tc" \
+    "continue used outside while"
+
 # --- v0.0.24: if-then-else control flow ---
 
 run_expect_ok "$ROOT/tests/valid/if_basic.tc"
@@ -675,12 +806,6 @@ run_expect_stdout "$ROOT/tests/valid/fp_arith_ieee.tc" "inf
 nan
 "
 run_expect_check_ok "$ROOT/tests/valid/fp_arith_ieee.tc"
-run_expect_stdout "$ROOT/tests/valid/fp_arith_wrap.tc" "inf
-1.17549e-38
--4
-1
-"
-run_expect_check_ok "$ROOT/tests/valid/fp_arith_wrap.tc"
 run_expect_stdout "$ROOT/tests/valid/fp_compare.tc" "false
 true
 true
@@ -696,32 +821,71 @@ run_expect_stdout "$ROOT/tests/valid/fp_cast.tc" "42
 1
 "
 run_expect_check_ok "$ROOT/tests/valid/fp_cast.tc"
-run_expect_stdout "$ROOT/tests/valid/fp_cast_truncate.tc" "1065353216
+run_expect_stdout "$ROOT/tests/valid/fp_bitcast_roundtrip.tc" "3F800000
 1
-4607182418800017408
+3FF0000000000000
 1
-0
-3.14159
--0
-nan
-0
-2139095040
--8388608
-0
-1.4013e-45
-nan
-0
-9218868437227405312
--4503599627370496
-0
-9218868437227405312
--4503599627370496
-nan
-nan
 "
-run_expect_check_ok "$ROOT/tests/valid/fp_cast_truncate.tc"
+run_expect_check_ok "$ROOT/tests/valid/fp_bitcast_roundtrip.tc"
+run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip32.tc" "BF800000
+7FC12345
+80000000
+7F800000
+"
+run_expect_check_ok "$ROOT/tests/valid/bitcast_roundtrip32.tc"
+run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip64.tc" "7FF8000000001234
+8000000000000000
+"
+run_expect_check_ok "$ROOT/tests/valid/bitcast_roundtrip64.tc"
+run_expect_stdout "$ROOT/tests/valid/let_runtime_equivalence.tc" "-116
+-116
+-24
+-24
+7F800000
+7F800000
+"
+run_expect_check_ok "$ROOT/tests/valid/let_runtime_equivalence.tc"
+run_expect_stdout "$ROOT/tests/valid/let_wrap_allowed.tc" "-116
+-116
+0
+0
+"
+run_expect_check_ok "$ROOT/tests/valid/let_wrap_allowed.tc"
+run_expect_stdout "$ROOT/tests/valid/let_float_ieee.tc" "4008000000000000
+"
+run_expect_check_ok "$ROOT/tests/valid/let_float_ieee.tc"
+run_expect_stdout "$ROOT/tests/valid/let_float32_step_rounding.tc" "4B800000
+4B800000
+0
+0
+"
+run_expect_check_ok "$ROOT/tests/valid/let_float32_step_rounding.tc"
+run_expect_stdout "$ROOT/tests/valid/let_bitcast_payload.tc" "7FF8000000001234
+7FF8000000001234
+"
+run_expect_check_ok "$ROOT/tests/valid/let_bitcast_payload.tc"
+run_expect_stdout "$ROOT/tests/valid/let_goto_inline.tc" "42
+42
+"
+run_expect_check_ok "$ROOT/tests/valid/let_goto_inline.tc"
+run_expect_stdout "$ROOT/tests/valid/let_block_local_chain.tc" "2
+"
+run_expect_check_ok "$ROOT/tests/valid/let_block_local_chain.tc"
+run_expect_stdout "$ROOT/tests/valid/cast_literal.tc" "10
+10
+1.5
+3
+true
+"
+run_expect_check_ok "$ROOT/tests/valid/cast_literal.tc"
 run_with_stdin "$ROOT/tests/valid/fp_io.tc" "3.14
 " "3.1400003.140000e+003.140000E+003.143.14
+-0.000000
+-0
+inf
+-INF
+nan
+NAN
 "
 run_expect_check_ok "$ROOT/tests/valid/fp_io.tc"
 run_expect_stdout "$ROOT/tests/valid/fp_const_expr.tc" "7
@@ -769,16 +933,6 @@ inf
 inf
 "
 run_expect_check_ok "$ROOT/tests/valid/fp_ieee_ops.tc"
-run_expect_stdout "$ROOT/tests/valid/fp_wrap_arith.tc" "nan
-8.81621e-39
-0
-1.4013e-45
--5.12657e-305
-1.52974e-308
-0
-4.94066e-324
-"
-run_expect_check_ok "$ROOT/tests/valid/fp_wrap_arith.tc"
 
 # --- stress test ---
 
@@ -815,7 +969,7 @@ run_expect_stdout "$ROOT/tests/stress/stress_fp_chain.tc" "3.14159
 true
 0.391593
 0.391593
-1053327061
+0
 4.48046
 "
 run_expect_check_ok "$ROOT/tests/stress/stress_fp_chain.tc"
@@ -845,11 +999,9 @@ run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc
 # --- errors/runtime: float ---
 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_overflow.tc" "float overflow"
-run_expect_stdout "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "1
-0
-"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "float underflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid.tc" "float invalid operation"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "float cast overflow"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "abc
 " "invalid input"
@@ -874,11 +1026,11 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/neg_int_min_int64.tc" "neg(INT_M
 run_expect_fail_msg "$ROOT/tests/errors/runtime/abs_int_min_int16.tc" "abs(INT_MIN) overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/abs_int_min_int32.tc" "abs(INT_MIN) overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/abs_int_min_int64.tc" "abs(INT_MIN) overflow"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int8_to_uint8.tc" "cannot cast negative signed value to unsigned"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int16_to_int8.tc" "value out of range for"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int32_to_int16.tc" "value out of range for"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_uint16_to_int16.tc" "unsigned value out of signed target range"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_uint32_to_int32.tc" "unsigned value out of signed target range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int8_to_uint8.tc" "cast result out of range for target type"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int16_to_int8.tc" "cast result out of range for target type"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int32_to_int16.tc" "cast result out of range for target type"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_uint16_to_int16.tc" "cast result out of range for target type"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_uint32_to_int32.tc" "cast result out of range for target type"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range_int64.tc" "99999999999999999999
 " "input value out of range"
 
@@ -905,26 +1057,28 @@ run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
-run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_let_wrap_forbidden.tc" "wrap cannot be used in constant expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/bool_literal_type_error.tc" "literal type does not match variable type"
 run_expect_fail_msg "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
 run_expect_fail_msg "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
-run_expect_fail_msg "$ROOT/tests/errors/static/const_cyclic_dep.tc" "circular dependency in constant expression"
+run_expect_fail_msg "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/let_nested_call.tc" "nested calls are not allowed in constant expression"
+run_expect_fail_msg "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
-run_expect_fail_msg "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate is only allowed for integer to integer conversion"
-run_expect_fail_msg "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate is only allowed for integer to integer conversion"
+run_expect_fail_msg "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate requires an integer target narrower than the source"
+run_expect_fail_msg "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate requires an integer target narrower than the source"
 run_expect_fail_msg "$ROOT/tests/errors/static/negative_unsigned_literal.tc" "unsigned suffix"
 run_expect_fail_msg "$ROOT/tests/errors/static/leading_zero.tc" "invalid integer literal"
 run_expect_fail_msg "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/type_mismatch.tc" "operand type does not match"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
-run_expect_fail_msg "$ROOT/tests/errors/static/cast_literal.tc" "cast source must be a variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
@@ -944,7 +1098,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assign 
 run_expect_fail_msg "$ROOT/tests/errors/static/type_mismatch_assign.tc" "operand type does not match"
 run_expect_fail_msg "$ROOT/tests/errors/static/type_mismatch_arith_op.tc" "operand type does not match"
 run_expect_fail_msg "$ROOT/tests/errors/static/type_mismatch_unary.tc" "operand type does not match"
-run_expect_fail_msg "$ROOT/tests/errors/static/self_ref_let.tc" "circular dependency"
+run_expect_fail_msg "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
@@ -974,7 +1128,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch.tc" "operand type
 run_expect_check_fail "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
 run_expect_check_fail "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_expect_check_fail "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
-run_expect_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "circular dependency in constant expression"
+run_expect_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "nested calls are not allowed in constant expression"
+run_expect_check_fail "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_var_let.tc" "duplicate definition"
@@ -987,7 +1143,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assig
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_assign.tc" "operand type does not match"
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_arith_op.tc" "operand type does not match"
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_unary.tc" "operand type does not match"
-run_expect_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "circular dependency"
+run_expect_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
 run_expect_check_fail "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
@@ -1003,11 +1159,12 @@ run_expect_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "lite
 run_expect_check_fail "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
 run_expect_check_fail "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
-run_expect_check_fail "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate is only allowed for integer to integer conversion"
-run_expect_check_fail "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate is only allowed for integer to integer conversion"
+run_expect_check_fail "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate requires an integer target narrower than the source"
+run_expect_check_fail "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate requires an integer target narrower than the source"
 run_expect_check_fail "$ROOT/tests/errors/static/negative_unsigned_literal.tc" "unsigned suffix"
 run_expect_check_fail "$ROOT/tests/errors/static/leading_zero.tc" "invalid integer literal"
-run_expect_check_fail "$ROOT/tests/errors/static/cast_literal.tc" "cast source must be a variable"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
 run_expect_check_fail "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_check_fail "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
@@ -1022,29 +1179,32 @@ run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_err
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
-run_expect_check_fail "$ROOT/tests/errors/static/bitwise_let_wrap_forbidden.tc" "wrap cannot be used in constant expression"
 
 # --- v0.0.25: float static errors ---
 
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
-run_expect_fail_msg "$ROOT/tests/errors/static/fp_const_ieee_forbidden.tc" "ieee/wrap is not allowed in constant expression"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
-run_expect_check_fail "$ROOT/tests/errors/static/fp_const_ieee_forbidden.tc" "ieee/wrap is not allowed in constant expression"
 
 # --- v0.0.24: if / indent static errors ---
 
-run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "cross-block reference"
-run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "cross-block reference"
-run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then.tc" "cross-block reference"
-run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then.tc" "cross-block reference"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
@@ -1055,6 +1215,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing e
 run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"
 run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"
+run_expect_fail_msg "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
+run_expect_check_fail "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_nested.tc" "insufficient indentation in block"
@@ -1093,15 +1255,42 @@ run_repl_expect "let N: int32 = 99
 writeln(int32, N)
 :quit" "99" "let constant in REPL"
 
-run_repl_expect "if true then
-:quit" "if statements are not supported in REPL mode" "repl if unsupported"
+run_repl_expect_not_contains "if true then
+:quit" "api error: InvalidArgument: if statements are not supported in REPL mode" ": error:" "repl if unsupported"
+
+run_repl_expect_not_contains "while true then
+:quit" "api error: InvalidArgument: while statements are not supported in REPL mode" ": error:" "repl while unsupported"
+
+run_repl_expect_not_contains "goto done
+:quit" "api error: InvalidArgument: goto/label statements are not supported in REPL mode" ": error:" "repl goto unsupported"
+
+run_repl_expect_not_contains "label done:
+:quit" "api error: InvalidArgument: goto/label statements are not supported in REPL mode" ": error:" "repl label unsupported"
+
+run_repl_expect_not_contains "break
+:quit" "api error: InvalidArgument: break/continue statements are not supported in REPL mode" ": error:" "repl break unsupported"
+
+run_repl_expect_not_contains "continue
+:quit" "api error: InvalidArgument: break/continue statements are not supported in REPL mode" ": error:" "repl continue unsupported"
 
 run_repl_expect ":help
-:quit" "Meta commands" "help command"
+:quit" "Unsupported in REPL: if, while, goto, label, break, continue." "help command"
 
 run_repl_expect "let X: int8 = 999
 :vars
 :quit" "(no variables)" "let const failure does not pollute session"
+
+run_repl_expect "var stable: int32 = 7
+var failed: int32 = div(int32, 1, 0)
+writeln(int32, stable)
+writeln(int32, failed)
+:quit" "7" "failed var preserves committed values"
+
+run_repl_expect "var stable: int32 = 7
+var failed: int32 = div(int32, 1, 0)
+writeln(int32, stable)
+writeln(int32, failed)
+:quit" "undefined variable 'failed'" "failed var does not pollute symbols"
 
 # --- valid: extended tests (all types, format specs, cast, wrap, complex) ---
 
@@ -1177,10 +1366,11 @@ run_expect_stdout "$ROOT/tests/valid/unary_all_types.tc" "42
 "
 run_expect_stdout "$ROOT/tests/valid/format_spec_all.tc" "65
 -128
+-128
 41
 41
 101
-01000001
+1000001
 255
 ff
 FF
@@ -1212,6 +1402,19 @@ ffffffffffffffff
 FFFFFFFFFFFFFFFF
 1777777777777777777777
 1111111111111111111111111111111111111111111111111111111111111111
+true
+false
+1.500000
+1.500000e+00
+1.500000E+00
+1.5
+1.5
+3.141593
+3.141593e+00
+3.141593E+00
+3.14159
+3.14159
+65true3.14159
 "
 run_expect_stdout "$ROOT/tests/valid/wrap_arithmetic_all.tc" "-128
 0
@@ -1310,7 +1513,7 @@ run_expect_stdout "$ROOT/tests/valid/unary_wrap_unsigned.tc" "214
 4294967254
 18446744073709551574
 "
-run_expect_stdout "$ROOT/tests/valid/io_extended.tc" "422a2A5200101010255ffFF37711111111255
+run_expect_stdout "$ROOT/tests/valid/io_extended.tc" "422a2A52101010255ffFF37711111111255
 10203040
 18446744073709551615ffffffffffffffff
 "

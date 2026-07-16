@@ -16,7 +16,7 @@
 void tc_diagnostic_init(TcDiagnostic *diag);
 
 /**
- * 释放诊断对象的堆字段（message / filename / snippet / source）并清空位置信息。
+ * 释放诊断模块管理的文本字段（message / filename / snippet / source）并清空位置信息。
  * @note 可重复调用；每次 tc_diagnostic_set 前无需手动清除。
  */
 void tc_diagnostic_clear(TcDiagnostic *diag);
@@ -26,8 +26,9 @@ void tc_diagnostic_clear(TcDiagnostic *diag);
  * @param diag     诊断对象
  * @param filename 源文件路径（内部 strdup 复制）
  * @param source   完整源文本（内部 strdup 复制；NULL 表示无源文本）
+ * @return 成功返回 0；文本分配失败返回 -1 并设置 Implementation/OutOfMemory
  */
-void tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source);
+int tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source);
 
 /**
  * 设置一条新的诊断信息。
@@ -36,10 +37,14 @@ void tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const ch
  * @param line    出错行号（1-based），0 表示无行号
  * @param column  出错列号（1-based），可传入 TC_COLUMN_UNKNOWN
  * @param message 错误描述（内部 strdup 复制）
+ * @return 成功返回 0；文本分配失败返回 -1 并设置 Implementation/OutOfMemory
  * @note 若 diag->source 可用且 line > 0，同时捕获出错行源码到 snippet 字段
  */
-void tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
-                       const char *message);
+int tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                      const char *message);
+
+/** 设置 API/环境域诊断；成功返回 0，文本分配失败返回 -1 并改设 OOM。 */
+int tc_diagnostic_set_api(TcDiagnostic *diag, TcApiErrorCode code, const char *message);
 
 /**
  * 将诊断信息格式化输出到指定流。
@@ -53,5 +58,10 @@ void tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int colum
  *   随后附加出错行源码与 ^ 指示符（若有 snippet）
  */
 void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out);
+
+#ifdef TC_DIAGNOSTIC_TESTING
+/** 单元测试专用：在指定成功分配次数后令诊断文本复制失败；负数关闭。 */
+void tc_diagnostic_test_fail_alloc_after(int successful_allocations);
+#endif
 
 #endif

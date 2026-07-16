@@ -110,13 +110,15 @@ static void tc_repl_session_reset(TcReplSession *session) {
 
 /** 确保初始化追踪数组与符号表槽位容量一致 */
 static int tc_repl_ensure_init_tracking(TcReplSession *session, TcDiagnostic *diag) {
-    if (session->symbols.count <= session->analyze_ctx.last_init_capacity) {
+    size_t slot_count = tc_symbol_table_runtime_slot_count(&session->symbols);
+
+    if (slot_count <= session->analyze_ctx.last_init_capacity) {
         return 0;
     }
 
     {
         size_t old_cap = session->analyze_ctx.last_init_capacity;
-        size_t new_cap = session->symbols.count;
+        size_t new_cap = slot_count;
         int *new_track =
             (int *)realloc(session->analyze_ctx.last_init_stmt_index, new_cap * sizeof(int));
         size_t i = 0;
@@ -136,24 +138,26 @@ static int tc_repl_ensure_init_tracking(TcReplSession *session, TcDiagnostic *di
 
 /** 确保变量槽数组容量与符号表一致 */
 static int tc_repl_ensure_slots(TcReplSession *session, TcDiagnostic *diag) {
+    size_t slot_count = tc_symbol_table_runtime_slot_count(&session->symbols);
+
     if (tc_repl_ensure_init_tracking(session, diag) != 0) {
         return -1;
     }
-    if (session->symbols.count <= session->slots_capacity) {
+    if (slot_count <= session->slots_capacity) {
         return 0;
     }
 
     {
         TcValue *new_slots =
-            (TcValue *)realloc(session->slots, session->symbols.count * sizeof(TcValue));
+            (TcValue *)realloc(session->slots, slot_count * sizeof(TcValue));
         if (!new_slots) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN, "memory allocation failed");
             return -1;
         }
         tc_slots_init_uninitialized(new_slots + session->slots_capacity,
-                                    session->symbols.count - session->slots_capacity);
+                                    slot_count - session->slots_capacity);
         session->slots = new_slots;
-        session->slots_capacity = session->symbols.count;
+        session->slots_capacity = slot_count;
     }
     return 0;
 }
@@ -209,7 +213,11 @@ static void tc_repl_print_vars(const TcReplSession *session) {
         const TcSymbol *symbol = &session->symbols.symbols[i];
         char value_text[64];
 
-        tc_repl_format_value(&session->slots[symbol->slot], value_text, sizeof(value_text));
+        if (symbol->sym_kind == TC_SYM_CONSTANT && symbol->has_const_value) {
+            tc_repl_format_value(&symbol->const_value, value_text, sizeof(value_text));
+        } else {
+            tc_repl_format_value(&session->slots[symbol->slot], value_text, sizeof(value_text));
+        }
         printf("%s: %s = %s\n", symbol->name, tc_type_name(symbol->type), value_text);
     }
 }
@@ -224,6 +232,7 @@ static void tc_repl_print_help(void) {
            "  :vars              list current variables\n"
            "  :help              show this help\n"
            "\n"
+           "Unsupported in REPL: if, while, goto, label, break, continue.\n"
            "Tip: use :reset during long sessions to reclaim memory.\n"
            "Note: read() and REPL both use stdin.\n");
 }
@@ -273,6 +282,31 @@ static int tc_repl_handle_meta(TcReplSession *session, const char *line, int *sh
 /*  单行求值                                                           */
 /* ------------------------------------------------------------------ */
 
+static int tc_repl_reject_control_token(const TcToken *token, TcDiagnostic *diag) {
+    const char *message = NULL;
+
+    switch (token->kind) {
+    case TC_TOK_IF:
+        message = "if statements are not supported in REPL mode";
+        break;
+    case TC_TOK_WHILE:
+        message = "while statements are not supported in REPL mode";
+        break;
+    case TC_TOK_GOTO:
+    case TC_TOK_LABEL:
+        message = "goto/label statements are not supported in REPL mode";
+        break;
+    case TC_TOK_BREAK:
+    case TC_TOK_CONTINUE:
+        message = "break/continue statements are not supported in REPL mode";
+        break;
+    default:
+        return 0;
+    }
+    tc_diagnostic_set_api(diag, TC_API_ERR_INVALID_ARGUMENT, message);
+    return -1;
+}
+
 /** 解析并执行一行 TC 源码（Lexer → Parser → Analyze → Execute） */
 static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnostic *diag) {
     TcTokenList tokens;
@@ -289,17 +323,7 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
         tc_warning_list_free(&warnings);
         return -1;
     }
-    if (tokens.count > 0 && tokens.items[0].kind == TC_TOK_IF) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, session->line_no, tokens.items[0].column,
-                          "if statements are not supported in REPL mode");
-        tc_token_list_free(&tokens);
-        tc_warning_list_free(&warnings);
-        return -1;
-    }
-    if (tokens.count > 0 &&
-        (tokens.items[0].kind == TC_TOK_GOTO || tokens.items[0].kind == TC_TOK_LABEL)) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, session->line_no, tokens.items[0].column,
-                          "goto/label statements are not supported in REPL mode");
+    if (tokens.count > 0 && tc_repl_reject_control_token(&tokens.items[0], diag) != 0) {
         tc_token_list_free(&tokens);
         tc_warning_list_free(&warnings);
         return -1;
@@ -342,6 +366,9 @@ static int tc_repl_eval_line(TcReplSession *session, const char *line, TcDiagnos
     /* 执行 */
     rc = tc_execute_statement(&stmt, session->slots, &session->symbols, diag);
     if (rc != 0) {
+        if (added_symbol) {
+            tc_symbol_table_pop_last(&session->symbols);
+        }
         tc_statement_free(&stmt);
         return -1;
     }
@@ -369,14 +396,30 @@ static void tc_repl_chomp(char *line) {
 /*  REPL 主循环                                                         */
 /* ------------------------------------------------------------------ */
 
+static int tc_repl_report_and_reset_diagnostic(TcDiagnostic *diag) {
+    tc_diagnostic_print(diag, stderr);
+    tc_diagnostic_clear(diag);
+    if (tc_diagnostic_set_source(diag, "<repl>", NULL) != 0) {
+        tc_diagnostic_print(diag, stderr);
+        return -1;
+    }
+    return 0;
+}
+
 int tc_repl_run(TcDiagnostic *diag) {
     TcReplSession session;
     char *line = NULL;
     size_t line_size = 0;
     int should_quit = 0;
+    int fatal_error = 0;
 
     tc_repl_session_init(&session);
-    tc_diagnostic_set_source(diag, "<repl>", NULL);
+    if (tc_diagnostic_set_source(diag, "<repl>", NULL) != 0) {
+        tc_diagnostic_print(diag, stderr);
+        tc_repl_session_free(&session);
+        tc_diagnostic_clear(diag);
+        return 1;
+    }
 
     if (isatty(fileno(stdin)) && isatty(fileno(stderr))) {
         tc_repl_print_help();
@@ -406,11 +449,19 @@ int tc_repl_run(TcDiagnostic *diag) {
             continue;
         }
 
-        tc_diagnostic_set_source(diag, "<repl>", line);
+        if (tc_diagnostic_set_source(diag, "<repl>", line) != 0) {
+            fatal_error = tc_repl_report_and_reset_diagnostic(diag) != 0;
+            session.line_no++;
+            if (fatal_error) {
+                break;
+            }
+            continue;
+        }
         if (tc_repl_eval_line(&session, line, diag) != 0) {
-            tc_diagnostic_print(diag, stderr);
-            tc_diagnostic_clear(diag);
-            tc_diagnostic_set_source(diag, "<repl>", NULL);
+            fatal_error = tc_repl_report_and_reset_diagnostic(diag) != 0;
+            if (fatal_error) {
+                break;
+            }
         }
         session.line_no++;
     }
@@ -418,5 +469,5 @@ int tc_repl_run(TcDiagnostic *diag) {
     free(line);
     tc_repl_session_free(&session);
     tc_diagnostic_clear(diag);
-    return 0;
+    return fatal_error ? 1 : 0;
 }

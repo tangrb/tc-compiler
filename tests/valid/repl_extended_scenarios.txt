@@ -1,4 +1,5 @@
-; REPL 扩展场景
+; REPL 手工场景目录：每个编号须在独立 tc-vm --repl 会话中运行。
+; 自动回归以 scripts/vm/run_tests.sh 的 REPL 区块为准。
 ; 1. 多行变量链式运算
 var a: int32 = 10
 var b: int32 = 20
@@ -41,8 +42,25 @@ var c: int8 = add(int8, wrap, a, b)
 writeln(int8, c)
 :quit
 
-; 7. 赋值操作给未初始化 var
-var u: int32
+; 7. 已初始化 var 的后续赋值
+var u: int32 = 0
 u = 42
 writeln(int32, u)
+:quit
+
+; 8. 控制流是 REPL 能力限制，不是语言 SyntaxError
+if true then
+while true then
+goto done
+label done:
+break
+continue
+:help
+:quit
+
+; 9. 运行时失败的定义不污染已提交会话状态
+var stable: int32 = 7
+var failed: int32 = div(int32, 1, 0)
+writeln(int32, stable)
+writeln(int32, failed)
 :quit

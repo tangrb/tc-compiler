@@ -1,0 +1,5 @@
+var count: int32 = 0
+while false then
+    count = add(int32, count, 1)
+end
+writeln(int32, count)

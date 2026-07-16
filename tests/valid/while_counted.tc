@@ -1,0 +1,6 @@
+var count: int32 = 0
+while lt(int32, count, 4) then
+    writeln(int32, count)
+    count = add(int32, count, 1)
+end
+writeln(int32, count)

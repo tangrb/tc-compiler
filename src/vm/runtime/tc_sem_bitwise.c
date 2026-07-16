@@ -205,14 +205,14 @@ int tc_exec_shift(TcShiftOp op, TcType type, TcWrapMode mode,
                   TcDiagnostic *diag, int line) {
     uint64_t k = 0;
 
+    if (tc_validate_shift_mode(op, type, mode, diag, line) != 0) {
+        return -1;
+    }
+
     if (value->type != type || count->type != type) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;
-    }
-
-    if (op == TC_SHIFT_SHR) {
-        (void)mode;  /* shr 恒为 strict，传参仅签名对齐 */
     }
 
     tc_shift_count(type, count, &k);
@@ -222,4 +222,3 @@ int tc_exec_shift(TcShiftOp op, TcType type, TcWrapMode mode,
     }
     return tc_exec_shr(type, value, k, out);
 }
-

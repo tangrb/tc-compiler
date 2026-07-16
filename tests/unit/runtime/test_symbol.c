@@ -268,7 +268,10 @@ static void test_label_find_prefers_inner(void) {
 static void test_label_block_path_copy(void) {
     TcSymbolTable table;
     TcDiagnostic diag;
-    int path[] = {0, 3};
+    TcBlockId path[] = {
+        {1, TC_BLOCK_IF_THEN},
+        {3, TC_BLOCK_WHILE},
+    };
     const TcLabelEntry *entry = NULL;
 
     tc_diagnostic_init(&diag);
@@ -277,7 +280,10 @@ static void test_label_block_path_copy(void) {
           "add label with path");
     entry = tc_symbol_table_find_label(&table, "inner");
     check(entry != NULL && entry->block_path != NULL, "path stored");
-    check(entry != NULL && entry->block_path[0] == 0 && entry->block_path[1] == 3,
+    check(entry != NULL && entry->block_path[0].owner_stmt_index == 1 &&
+              entry->block_path[0].kind == TC_BLOCK_IF_THEN &&
+              entry->block_path[1].owner_stmt_index == 3 &&
+              entry->block_path[1].kind == TC_BLOCK_WHILE,
           "path values copied");
     check(entry != NULL && entry->block_path != path, "path is deep copy");
     tc_symbol_table_free(&table);

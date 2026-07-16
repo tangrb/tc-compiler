@@ -23,4 +23,7 @@
 int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, const TcSymbolTable *visible,
                            const TcSymbolTable *global, int line, TcDiagnostic *diag);
 
+int tc_try_eval_static_bool(const TcRhs *rhs, const TcSymbolTable *symbols, int stmt_index,
+                            int *is_constant, int *value, TcDiagnostic *diag);
+
 #endif /* TC_CONST_EVAL_H */

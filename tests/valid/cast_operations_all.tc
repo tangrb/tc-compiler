@@ -41,14 +41,14 @@ var big_u64: uint64 = 200000
 var t_u16: uint16 = cast(uint16, truncate, big_u64)
 writeln(uint16, t_u16)
 
-; truncate cast: 符号扩展 (int8 -1 → int32)
+; strict cast: 符号扩展 (int8 -1 → int32)
 var neg_i8: int8 = -1
-var t_i32_neg: int32 = cast(int32, truncate, neg_i8)
+var t_i32_neg: int32 = cast(int32, neg_i8)
 writeln(int32, t_i32_neg)
 
-; truncate cast: 零扩展 (uint8 255 → int32)
+; strict cast: 零扩展 (uint8 255 → int32)
 var big_u8: uint8 = 255
-var t_i32_zero: int32 = cast(int32, truncate, big_u8)
+var t_i32_zero: int32 = cast(int32, big_u8)
 writeln(int32, t_i32_zero)
 
 ; strict cast: uint32 → uint64 (安全)

@@ -7,8 +7,7 @@
  * 典型使用：
  *   TcTypedProgram prog;
  *   if (tc_compile_file("input.tc", &prog, &diag) == 0) {
- *       // 打印警告
- *       if (prog.warnings.count > 0) tc_warning_list_print(&prog.warnings, stderr);
+ *       // 0.0.31 无语言警告；成功对象可直接重复执行或交给 AOT。
  *       tc_run_typed(&prog, &diag);
  *       tc_typed_program_free(&prog);
  *   }
@@ -25,12 +24,12 @@
 
 /**
  * 将源字符串编译为已类型化程序（Parse + Analyze）。
- * @param source 源字符串（调用方须保证在 diag 使用期间有效）
+ * @param source 源字符串（仅调用期间须有效；返回后可立即释放）
  * @param out    输出参数，成功时写入 TcTypedProgram（调用方须 tc_typed_program_free）
  * @param diag   诊断对象
  * @return 成功返回 0；失败返回 -1 并设置 diag
- * @note 失败时无需 tc_typed_program_free：Parse 失败不修改 out；
- *       Analyze 失败时内部已释放并清空 out。
+ * @note 仅成功时写入 out 并转移所有权。任一失败阶段都不修改 out，
+ *       调用方无需也不得释放本次调用的输出。
  */
 int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag);
 
@@ -48,7 +47,7 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
  * @param program 已通过静态分析的程序
  * @param diag    诊断对象
  * @return 成功返回 0；运行时失败返回 -1
- * @note 警告已在 compile 阶段收集于 program->warnings，执行前由调用方决定是否打印。
+ * @note program->warnings 是兼容空壳；0.0.31 成功编译时始终为空。
  */
 int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
 

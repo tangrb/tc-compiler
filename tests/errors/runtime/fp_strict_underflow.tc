@@ -1,5 +1,4 @@
-; 期望：float underflow → 结果为 0.0 时静默接受
-; strict 模式下，float64 乘法下溢（结果为 0.0 时不报错）
+; 期望：strict 模式下微小且不精确的结果即使舍入为 0 也报 FloatUnderflow
 writeln(float64, 1.0)
 var a: float64 = 1e-200
 var b: float64 = 1e-200

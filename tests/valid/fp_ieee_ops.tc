@@ -26,12 +26,12 @@ writeln(float64, neg_inf)      ; -inf
 var nan_plus: float64 = add(float64, ieee, nan1, 1.0)
 writeln(float64, nan_plus)     ; nan
 
-; ieee abs(inf) = inf
-var abs_inf: float64 = abs(float64, ieee, inf2)
+; abs(inf) = inf（浮点一元运算不接受模式关键字）
+var abs_inf: float64 = abs(float64, inf2)
 writeln(float64, abs_inf)      ; inf
 
-; ieee neg(-inf) = inf
-var neg_inf2: float64 = neg(float64, ieee, neg_inf)
+; neg(-inf) = inf（浮点一元运算不接受模式关键字）
+var neg_inf2: float64 = neg(float64, neg_inf)
 writeln(float64, neg_inf2)     ; inf
 
 ; float32 ieee 模式

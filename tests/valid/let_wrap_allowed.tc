@@ -1,0 +1,9 @@
+; integer wrap and wrap shift are legal single-layer let operations
+let LET_ADD: int8 = add(int8, wrap, 120, 20)
+let LET_SHIFT: uint8 = shl(uint8, wrap, 1u, 8u)
+var runtime_add: int8 = add(int8, wrap, 120, 20)
+var runtime_shift: uint8 = shl(uint8, wrap, 1u, 8u)
+writeln(int8, LET_ADD)
+writeln(int8, runtime_add)
+writeln(uint8, LET_SHIFT)
+writeln(uint8, runtime_shift)

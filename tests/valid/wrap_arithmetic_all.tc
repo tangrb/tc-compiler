@@ -8,11 +8,11 @@ writeln(int8, r1)
 ; wrap: uint8 溢出回绕
 var ua: uint8 = 255
 var ub: uint8 = 1
-var r2: uint8 = add(uint8, wrap, ua, ub)
+var r2: uint8 = add(uint8, ua, ub)
 writeln(uint8, r2)
 
 ; wrap: uint8 减法下溢
-var r3: uint8 = sub(uint8, wrap, ub, ua)
+var r3: uint8 = sub(uint8, ub, ua)
 writeln(uint8, r3)
 
 ; wrap: int16 溢出
@@ -24,7 +24,7 @@ writeln(int16, r4)
 ; wrap: uint16 溢出
 var uia: uint16 = 65535
 var uib: uint16 = 1
-var r5: uint16 = add(uint16, wrap, uia, uib)
+var r5: uint16 = add(uint16, uia, uib)
 writeln(uint16, r5)
 
 ; wrap: int32 溢出
@@ -38,7 +38,7 @@ writeln(int32, r7)
 ; wrap: uint32 溢出
 var ui32a: uint32 = 4294967295
 var ui32b: uint32 = 1
-var r8: uint32 = add(uint32, wrap, ui32a, ui32b)
+var r8: uint32 = add(uint32, ui32a, ui32b)
 writeln(uint32, r8)
 
 ; wrap: int64 溢出
@@ -50,9 +50,9 @@ writeln(int64, r9)
 ; wrap: uint64 溢出
 var ui64a: uint64 = 18446744073709551615
 var ui64b: uint64 = 1
-var r10: uint64 = add(uint64, wrap, ui64a, ui64b)
-var r11: uint64 = sub(uint64, wrap, 0, 1)
-var r12: uint64 = mul(uint64, wrap, ui64a, ui64b)
+var r10: uint64 = add(uint64, ui64a, ui64b)
+var r11: uint64 = sub(uint64, 0, 1)
+var r12: uint64 = mul(uint64, ui64a, ui64b)
 writeln(uint64, r10)
 writeln(uint64, r11)
 writeln(uint64, r12)

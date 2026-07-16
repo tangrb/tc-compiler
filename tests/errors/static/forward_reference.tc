@@ -1,2 +1,3 @@
-var b: int32 = add(int32, a, 1)
-var a: int32 = 10
+; A later let is not visible to an earlier let initializer.
+let b: int32 = add(int32, a, 1)
+let a: int32 = 10

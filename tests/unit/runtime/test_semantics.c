@@ -17,6 +17,10 @@
 #include "tc_semantics.h"
 #include "tc_diagnostic.h"
 
+#ifdef TC_HAVE_FENV
+#include <fenv.h>
+#endif
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -671,7 +675,7 @@ static void test_cast_strict_widen_signed_to_signed(void) {
     tc_diagnostic_init(&diag);
     TcValue src = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -42));
 
-    int rc = tc_exec_cast(TC_INT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_INT32, &src, &out, &diag, 1);
     check(rc == 0, "cast strict int8(-42) → int32 ok");
     check(tc_bits_to_signed(TC_INT32, out.bits) == -42, "int8(-42) → int32 = -42");
 
@@ -684,7 +688,7 @@ static void test_cast_strict_widen_unsigned_to_unsigned(void) {
     tc_diagnostic_init(&diag);
     TcValue src = tc_value_make(TC_UINT8, 200);
 
-    int rc = tc_exec_cast(TC_UINT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_UINT32, &src, &out, &diag, 1);
     check(rc == 0 && out.bits == 200, "cast strict uint8(200) → uint32 = 200");
 
     tc_diagnostic_clear(&diag);
@@ -697,14 +701,14 @@ static void test_cast_strict_widen_signed_to_unsigned(void) {
 
     /* 负值 → 无符号：拒绝 */
     TcValue neg = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
-    int rc = tc_exec_cast(TC_UINT32, TC_TRUNC_STRICT, &neg, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_UINT32, &neg, &out, &diag, 1);
     check(rc == -1, "cast strict int8(-1) → uint32 fails");
     check(diag.kind == TC_ERR_CAST_OVERFLOW, "neg→unsigned overflow kind");
 
     /* 正值 → 无符号：OK */
     tc_diagnostic_clear(&diag);
     TcValue pos = tc_value_make(TC_INT8, 100);
-    rc = tc_exec_cast(TC_UINT32, TC_TRUNC_STRICT, &pos, &out, &diag, 1);
+    rc = tc_exec_cast(TC_UINT32, &pos, &out, &diag, 1);
     check(rc == 0 && out.bits == 100, "cast strict int8(100) → uint32 = 100");
 
     tc_diagnostic_clear(&diag);
@@ -718,7 +722,7 @@ static void test_cast_strict_widen_unsigned_to_signed(void) {
     /* uint8 200 → int8 窄化（同宽），不触发 widen */
     /* 测真正 widen: uint8 → int32 */
     TcValue src = tc_value_make(TC_UINT8, 200);
-    int rc = tc_exec_cast(TC_INT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_INT32, &src, &out, &diag, 1);
     check(rc == 0 && out.bits == 200, "cast strict uint8(200) → int32 = 200");
 
     tc_diagnostic_clear(&diag);
@@ -731,19 +735,19 @@ static void test_cast_strict_same_width_diff_sign(void) {
 
     /* int8(-1) → uint8: 拒绝（负值 → 无符号） */
     TcValue neg = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
-    int rc = tc_exec_cast(TC_UINT8, TC_TRUNC_STRICT, &neg, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_UINT8, &neg, &out, &diag, 1);
     check(rc == -1, "cast strict int8(-1) → uint8 fails");
 
     /* uint8(200) → int8: 200 > 127, 拒绝（超有符号范围） */
     tc_diagnostic_clear(&diag);
     TcValue big = tc_value_make(TC_UINT8, 200);
-    rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &big, &out, &diag, 1);
+    rc = tc_exec_cast(TC_INT8, &big, &out, &diag, 1);
     check(rc == -1, "cast strict uint8(200) → int8 fails (out of range)");
 
     /* uint8(100) → int8: OK */
     tc_diagnostic_clear(&diag);
     TcValue pos = tc_value_make(TC_UINT8, 100);
-    rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &pos, &out, &diag, 1);
+    rc = tc_exec_cast(TC_INT8, &pos, &out, &diag, 1);
     check(rc == 0 && tc_bits_to_signed(TC_INT8, out.bits) == 100,
           "cast strict uint8(100) → int8 = 100");
 
@@ -757,26 +761,27 @@ static void test_cast_strict_narrow(void) {
 
     /* int32(1000) → int8: 1000 > 127, 拒绝 */
     TcValue big = tc_value_make(TC_INT32, 1000);
-    int rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &big, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_INT8, &big, &out, &diag, 1);
     check(rc == -1, "cast strict int32(1000) → int8 fails (out of range)");
 
     /* int32(42) → int8: OK */
     tc_diagnostic_clear(&diag);
     TcValue small = tc_value_make(TC_INT32, 42);
-    rc = tc_exec_cast(TC_INT8, TC_TRUNC_STRICT, &small, &out, &diag, 1);
+    rc = tc_exec_cast(TC_INT8, &small, &out, &diag, 1);
     check(rc == 0 && tc_bits_to_signed(TC_INT8, out.bits) == 42,
           "cast strict int32(42) → int8 = 42");
 
-    /* uint32(500) → uint8: 500 & 0xFF = 244 (narrow for unsigned is OK) */
+    /* uint32(500) → uint8: strict conversion checks mathematical range. */
     tc_diagnostic_clear(&diag);
     TcValue u_big = tc_value_make(TC_UINT32, 500);
-    rc = tc_exec_cast(TC_UINT8, TC_TRUNC_STRICT, &u_big, &out, &diag, 1);
-    check(rc == 0 && out.bits == 244, "cast strict uint32(500) → uint8 = 244");
+    rc = tc_exec_cast(TC_UINT8, &u_big, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_CAST_OVERFLOW,
+          "cast strict uint32(500) → uint8 fails");
 
     /* int32(-1) → uint8: 拒绝（负值 → 无符号） */
     tc_diagnostic_clear(&diag);
     TcValue neg = tc_value_make(TC_INT32, (uint64_t)(int64_t)-1);
-    rc = tc_exec_cast(TC_UINT8, TC_TRUNC_STRICT, &neg, &out, &diag, 1);
+    rc = tc_exec_cast(TC_UINT8, &neg, &out, &diag, 1);
     check(rc == -1, "cast strict int32(-1) → uint8 fails");
 
     tc_diagnostic_clear(&diag);
@@ -789,20 +794,20 @@ static void test_cast_strict_bool(void) {
 
     /* bool → bool */
     TcValue b_true = tc_value_make(TC_BOOL, 1);
-    int rc = tc_exec_cast(TC_BOOL, TC_TRUNC_STRICT, &b_true, &out, &diag, 1);
+    int rc = tc_exec_cast(TC_BOOL, &b_true, &out, &diag, 1);
     check(rc == 0 && out.type == TC_BOOL && out.bits == 1, "cast strict bool→bool ok");
 
     /* bool → int32 */
-    rc = tc_exec_cast(TC_INT32, TC_TRUNC_STRICT, &b_true, &out, &diag, 1);
+    rc = tc_exec_cast(TC_INT32, &b_true, &out, &diag, 1);
     check(rc == 0 && out.type == TC_INT32 && out.bits == 1, "cast strict bool→int32 = 1");
 
     /* int32 → bool */
     TcValue i42 = tc_value_make(TC_INT32, 42);
-    rc = tc_exec_cast(TC_BOOL, TC_TRUNC_STRICT, &i42, &out, &diag, 1);
+    rc = tc_exec_cast(TC_BOOL, &i42, &out, &diag, 1);
     check(rc == 0 && out.type == TC_BOOL && out.bits == 1, "cast strict int32(42)→bool = true");
 
     TcValue i0 = tc_value_make(TC_INT32, 0);
-    rc = tc_exec_cast(TC_BOOL, TC_TRUNC_STRICT, &i0, &out, &diag, 1);
+    rc = tc_exec_cast(TC_BOOL, &i0, &out, &diag, 1);
     check(rc == 0 && out.bits == 0, "cast strict int32(0)→bool = false");
 
     tc_diagnostic_clear(&diag);
@@ -819,38 +824,54 @@ static void test_cast_truncate(void) {
 
     /* int16(-128) → int8: 截断低 8 位 = 0x80 = -128 */
     TcValue v = tc_value_make(TC_INT16, tc_signed_to_bits(TC_INT16, -128));
-    int rc = tc_exec_cast(TC_INT8, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    int rc = tc_exec_truncate(TC_INT8, &v, &out, &diag, 1);
     check(rc == 0, "cast truncate int16(-128) → int8 ok");
     check(tc_bits_to_signed(TC_INT8, out.bits) == -128, "int16(-128) trunc→int8 = -128");
 
     /* int16(511) → int8: 截断低 8 位 = 0xFF = -1 */
     v = tc_value_make(TC_INT16, 511);
-    rc = tc_exec_cast(TC_INT8, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
+    rc = tc_exec_truncate(TC_INT8, &v, &out, &diag, 1);
     check(rc == 0, "cast truncate int16(511) → int8 ok");
     check(tc_bits_to_signed(TC_INT8, out.bits) == -1, "int16(511) trunc→int8 = -1");
 
-    /* int8(-1) → int16: 符号扩展到 16 位 */
+    /* truncate rejects widening. */
     v = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
-    rc = tc_exec_cast(TC_INT16, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
-    check(rc == 0, "cast truncate int8(-1) → int16 ok");
-    check(tc_bits_to_signed(TC_INT16, out.bits) == -1, "int8(-1) sign-extend→int16 = -1");
+    rc = tc_exec_truncate(TC_INT16, &v, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "cast truncate int8(-1) → int16 rejects widening");
 
     /* uint8(200) → int16: 零扩展 */
     v = tc_value_make(TC_UINT8, 200);
-    rc = tc_exec_cast(TC_INT16, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
-    check(rc == 0 && out.bits == 200, "cast truncate uint8(200) → int16 = 200 (zero-extend)");
+    rc = tc_exec_truncate(TC_INT16, &v, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "cast truncate uint8(200) → int16 rejects widening");
 
     /* bool → int32 */
     TcValue b = tc_value_make(TC_BOOL, 1);
-    rc = tc_exec_cast(TC_INT32, TC_TRUNC_TRUNCATE, &b, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_INT32 && out.bits == 1,
-          "cast truncate bool(true) → int32 = 1");
+    rc = tc_exec_truncate(TC_INT32, &b, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "cast truncate rejects bool source");
 
     /* int32 → bool */
     v = tc_value_make(TC_INT32, 42);
-    rc = tc_exec_cast(TC_BOOL, TC_TRUNC_TRUNCATE, &v, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_BOOL && out.bits == 1,
-          "cast truncate int32(42) → bool = true");
+    rc = tc_exec_truncate(TC_BOOL, &v, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "cast truncate rejects bool target");
+
+    v = tc_value_make(TC_INT16, UINT64_C(0xFF7F));
+    rc = tc_exec_truncate(TC_UINT8, &v, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_UINT8 && out.bits == UINT64_C(0x7F),
+          "truncate signed source to unsigned target preserves low bits");
+
+    v = tc_value_make(TC_UINT16, UINT64_C(0xABCD));
+    rc = tc_exec_truncate(TC_INT8, &v, &out, &diag, 1);
+    check(rc == 0 && out.type == TC_INT8 && out.bits == UINT64_C(0xCD),
+          "truncate unsigned source to signed target preserves low bits");
+
+    v = tc_value_make(TC_INT8, UINT64_C(0xFF));
+    rc = tc_exec_truncate(TC_UINT8, &v, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects equal-width integer conversion");
 
     tc_diagnostic_clear(&diag);
 }
@@ -883,6 +904,89 @@ static int fp32_approx_equal(uint64_t bits, double expected) {
     float actual_float = 0.0f;
     memcpy(&actual_float, &b32, sizeof(actual_float));
     return fabs((double)actual_float - expected) < 1e-6;
+}
+
+static void test_cast_strict_matrix(void) {
+    static const TcValue sources[] = {
+        {TC_INT8, UINT64_C(0xFF)},
+        {TC_UINT8, UINT64_C(255)},
+        {TC_INT16, UINT64_C(0xFF7F)},
+        {TC_UINT16, UINT64_C(65535)},
+        {TC_INT32, UINT64_C(0xFFFF7FFF)},
+        {TC_UINT32, UINT64_C(0xFFFFFFFF)},
+        {TC_INT64, UINT64_C(0x8000000000000000)},
+        {TC_UINT64, UINT64_MAX},
+        {TC_BOOL, UINT64_C(1)},
+        {TC_FLOAT32, UINT64_C(0x437FC000)},
+        {TC_FLOAT64, UINT64_C(0xC060380000000000)},
+    };
+    static const int succeeds[11][11] = {
+        {1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1},
+        {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+        {0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1},
+        {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1},
+        {0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1},
+        {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1},
+    };
+    size_t source_index = 0;
+
+    for (source_index = 0; source_index < 11; source_index++) {
+        TcType target = TC_INT8;
+        for (target = TC_INT8; target <= TC_FLOAT64; target = (TcType)(target + 1)) {
+            TcDiagnostic diag;
+            TcValue out = {0};
+            char message[128];
+            int rc = 0;
+
+            tc_diagnostic_init(&diag);
+            rc = tc_exec_cast(target, &sources[source_index], &out, &diag, 1);
+            (void)snprintf(message, sizeof(message), "strict cast matrix %s -> %s status",
+                           tc_type_name(sources[source_index].type), tc_type_name(target));
+            check((rc == 0) == succeeds[source_index][target], message);
+            if (succeeds[source_index][target]) {
+                (void)snprintf(message, sizeof(message), "strict cast matrix %s -> %s value type",
+                               tc_type_name(sources[source_index].type), tc_type_name(target));
+                check(out.type == target, message);
+                if (target == sources[source_index].type) {
+                    (void)snprintf(message, sizeof(message),
+                                   "strict same-type cast %s preserves complete bits",
+                                   tc_type_name(target));
+                    check(out.bits == sources[source_index].bits, message);
+                }
+            } else {
+                (void)snprintf(message, sizeof(message), "strict cast matrix %s -> %s error kind",
+                               tc_type_name(sources[source_index].type), tc_type_name(target));
+                check(diag.kind == TC_ERR_CAST_OVERFLOW, message);
+            }
+            tc_diagnostic_clear(&diag);
+        }
+    }
+}
+
+static void test_cast_same_type_float_bit_identity(void) {
+    static const TcValue sources[] = {
+        {TC_FLOAT32, UINT64_C(0x80000000)},
+        {TC_FLOAT32, UINT64_C(0x7FC12345)},
+        {TC_FLOAT64, UINT64_C(0x8000000000000000)},
+        {TC_FLOAT64, UINT64_C(0x7FF8000000001234)},
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(sources) / sizeof(sources[0]); i++) {
+        TcDiagnostic diag;
+        TcValue out = {0};
+
+        tc_diagnostic_init(&diag);
+        check(tc_exec_cast(sources[i].type, &sources[i], &out, &diag, 1) == 0 &&
+                  out.type == sources[i].type && out.bits == sources[i].bits,
+              "same-type float cast preserves negative zero or complete NaN payload");
+        tc_diagnostic_clear(&diag);
+    }
 }
 
 static void test_fp_arith_add_strict(void) {
@@ -976,8 +1080,220 @@ static void test_fp_arith_mul_underflow_flush_to_zero_strict(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
-    check(rc == 0 && fp64_approx_equal(out.bits, 0.0),
-          "fp64 mul strict 1e-200*1e-200 flushes to zero without error");
+    check(rc != 0 && diag.kind == TC_ERR_FLOAT_UNDERFLOW,
+          "fp64 mul strict inexact tiny result rounded to zero -> FLOAT_UNDERFLOW");
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_strict_exception_priority(void) {
+    static const struct {
+        TcType type;
+        TcArithOp op;
+        uint64_t lhs_bits;
+        uint64_t rhs_bits;
+        TcErrorKind expected;
+        const char *message;
+    } cases[] = {
+        {TC_FLOAT64, TC_DIV, UINT64_C(0x0000000000000000),
+         UINT64_C(0x0000000000000000), TC_ERR_FLOAT_INVALID,
+         "strict 0/0 reports invalid before division by zero"},
+        {TC_FLOAT64, TC_DIV, UINT64_C(0x7FF8000000001234),
+         UINT64_C(0x0000000000000000), TC_ERR_FLOAT_INVALID,
+         "strict NaN/0 reports invalid before division by zero"},
+        {TC_FLOAT64, TC_DIV, UINT64_C(0x3FF0000000000000),
+         UINT64_C(0x0000000000000000), TC_ERR_DIVISION_BY_ZERO,
+         "strict 1/0 reports division by zero"},
+        {TC_FLOAT32, TC_MUL, UINT64_C(0x7149F2CA), UINT64_C(0x7149F2CA),
+         TC_ERR_FLOAT_OVERFLOW, "strict float32 overflow is detected at binary32 precision"},
+        {TC_FLOAT32, TC_MUL, UINT64_C(0x0DA24260), UINT64_C(0x1E3CE508),
+         TC_ERR_FLOAT_UNDERFLOW,
+         "strict float32 inexact tiny result rounded to zero reports underflow"},
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcDiagnostic diag;
+        TcValue lhs = tc_value_make(cases[i].type, cases[i].lhs_bits);
+        TcValue rhs = tc_value_make(cases[i].type, cases[i].rhs_bits);
+        TcValue out = {0};
+        int rc = 0;
+
+        tc_diagnostic_init(&diag);
+        rc = tc_exec_fp_arith(cases[i].op, cases[i].type, TC_FLOAT_STRICT,
+                              &lhs, &rhs, &out, &diag, 1);
+        check(rc != 0 && diag.kind == cases[i].expected, cases[i].message);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_fp_ieee_canonical_nan(void) {
+    static const struct {
+        TcType type;
+        uint64_t lhs_bits;
+        uint64_t rhs_bits;
+        uint64_t expected_bits;
+        const char *message;
+    } cases[] = {
+        {TC_FLOAT32, UINT64_C(0), UINT64_C(0), UINT64_C(0x7FC00000),
+         "ieee float32 0/0 returns canonical quiet NaN"},
+        {TC_FLOAT64, UINT64_C(0), UINT64_C(0), UINT64_C(0x7FF8000000000000),
+         "ieee float64 0/0 returns canonical quiet NaN"},
+        {TC_FLOAT32, UINT64_C(0x7FC12345), UINT64_C(0x3F800000),
+         UINT64_C(0x7FC00000), "ieee float32 NaN payload input is canonicalized"},
+        {TC_FLOAT64, UINT64_C(0x7FF8000000001234), UINT64_C(0x3FF0000000000000),
+         UINT64_C(0x7FF8000000000000), "ieee float64 NaN payload input is canonicalized"},
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcDiagnostic diag;
+        TcValue lhs = tc_value_make(cases[i].type, cases[i].lhs_bits);
+        TcValue rhs = tc_value_make(cases[i].type, cases[i].rhs_bits);
+        TcValue out = {0};
+        TcArithOp op = i < 2 ? TC_DIV : TC_ADD;
+
+        tc_diagnostic_init(&diag);
+        check(tc_exec_fp_arith(op, cases[i].type, TC_FLOAT_IEEE,
+                               &lhs, &rhs, &out, &diag, 1) == 0 &&
+                  out.type == cases[i].type && out.bits == cases[i].expected_bits,
+              cases[i].message);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_fp_round_ties_to_even(void) {
+    TcDiagnostic diag;
+    TcValue lhs = tc_value_make(TC_FLOAT32, UINT64_C(0x3F800000));
+    TcValue rhs = tc_value_make(TC_FLOAT32, UINT64_C(0x33800000));
+    TcValue out = {0};
+#ifdef TC_HAVE_FENV
+    int saved_round = fegetround();
+    (void)fesetround(FE_UPWARD);
+#endif
+
+    tc_diagnostic_init(&diag);
+    check(tc_exec_fp_arith(TC_ADD, TC_FLOAT32, TC_FLOAT_IEEE,
+                           &lhs, &rhs, &out, &diag, 1) == 0 &&
+              out.bits == UINT64_C(0x3F800000),
+          "float32 halfway addition uses roundTiesToEven independent of host rounding mode");
+    tc_diagnostic_clear(&diag);
+#ifdef TC_HAVE_FENV
+    (void)fesetround(saved_round);
+#endif
+}
+
+static void test_cast_round_ties_to_even(void) {
+    TcDiagnostic diag;
+    TcValue float_midpoint = tc_value_make(TC_FLOAT64, UINT64_C(0x3FF0000010000000));
+    TcValue integer_midpoint = tc_value_make(TC_INT64, UINT64_C(16777217));
+    TcValue uint64_max = tc_value_make(TC_UINT64, UINT64_MAX);
+    TcValue out = {0};
+#ifdef TC_HAVE_FENV
+    int saved_round = fegetround();
+    (void)fesetround(FE_UPWARD);
+#endif
+
+    tc_diagnostic_init(&diag);
+    check(tc_exec_cast(TC_FLOAT32, &float_midpoint, &out, &diag, 1) == 0 &&
+              out.bits == UINT64_C(0x3F800000),
+          "float64 to float32 cast midpoint uses roundTiesToEven");
+    check(tc_exec_cast(TC_FLOAT32, &integer_midpoint, &out, &diag, 1) == 0 &&
+              out.bits == UINT64_C(0x4B800000),
+          "integer to float32 cast midpoint uses roundTiesToEven");
+#ifdef TC_HAVE_FENV
+    (void)fesetround(FE_DOWNWARD);
+#endif
+    check(tc_exec_cast(TC_FLOAT64, &uint64_max, &out, &diag, 1) == 0 &&
+              out.bits == UINT64_C(0x43F0000000000000),
+          "uint64 to float64 cast uses roundTiesToEven");
+    tc_diagnostic_clear(&diag);
+#ifdef TC_HAVE_FENV
+    (void)fesetround(saved_round);
+#endif
+}
+
+static void test_fp_nan_compare_matrix(void) {
+    static const uint64_t nan_bits[] = {UINT64_C(0x7FC12345),
+                                        UINT64_C(0x7FF8000000001234)};
+    static const uint64_t one_bits[] = {UINT64_C(0x3F800000),
+                                        UINT64_C(0x3FF0000000000000)};
+    static const int expected[] = {0, 1, 0, 0, 0, 0};
+    TcType type = TC_FLOAT32;
+
+    for (type = TC_FLOAT32; type <= TC_FLOAT64; type = (TcType)(type + 1)) {
+        size_t type_index = (size_t)(type - TC_FLOAT32);
+        TcCompareOp op = TC_CMP_EQ;
+        for (op = TC_CMP_EQ; op <= TC_CMP_GE; op = (TcCompareOp)(op + 1)) {
+            TcDiagnostic diag;
+            TcValue nan = tc_value_make(type, nan_bits[type_index]);
+            TcValue one = tc_value_make(type, one_bits[type_index]);
+            TcValue out = {0};
+            char message[128];
+
+            tc_diagnostic_init(&diag);
+            (void)snprintf(message, sizeof(message), "NaN compare matrix %s op=%d",
+                           tc_type_name(type), (int)op);
+            check(tc_exec_fp_compare(op, type, TC_FLOAT_STRICT, &nan, &one, &out, &diag, 1) == 0 &&
+                      out.type == TC_BOOL && out.bits == (uint64_t)expected[op],
+                  message);
+            tc_diagnostic_clear(&diag);
+        }
+        {
+            TcDiagnostic diag;
+            TcValue nan = tc_value_make(type, nan_bits[type_index]);
+            TcValue one = tc_value_make(type, one_bits[type_index]);
+            TcValue out = {0};
+
+            tc_diagnostic_init(&diag);
+            check(tc_exec_fp_compare(TC_CMP_EQ, type, TC_FLOAT_IEEE, &nan, &one,
+                                     &out, &diag, 1) != 0 &&
+                      diag.kind == TC_ERR_MODE_MISMATCH,
+                  "float compare rejects ieee mode keyword");
+            tc_diagnostic_clear(&diag);
+        }
+    }
+}
+
+static void test_fp_unary_preserves_payload_bits(void) {
+    static const struct {
+        TcType type;
+        uint64_t source;
+        uint64_t negated;
+        uint64_t absolute;
+    } cases[] = {
+        {TC_FLOAT32, UINT64_C(0x7FC12345), UINT64_C(0xFFC12345), UINT64_C(0x7FC12345)},
+        {TC_FLOAT64, UINT64_C(0xFFF8000000001234), UINT64_C(0x7FF8000000001234),
+         UINT64_C(0x7FF8000000001234)},
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcDiagnostic diag;
+        TcValue source = tc_value_make(cases[i].type, cases[i].source);
+        TcValue out = {0};
+
+        tc_diagnostic_init(&diag);
+        check(tc_exec_fp_unary(TC_UNARY_NEG, cases[i].type, TC_FLOAT_STRICT,
+                               &source, &out, &diag, 1) == 0 && out.bits == cases[i].negated,
+              "float neg flips only the sign bit and preserves NaN payload");
+        check(tc_exec_fp_unary(TC_UNARY_ABS, cases[i].type, TC_FLOAT_STRICT,
+                               &source, &out, &diag, 1) == 0 && out.bits == cases[i].absolute,
+              "float abs clears only the sign bit and preserves NaN payload");
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_fp_compare_rejects_wrap(void) {
+    TcDiagnostic diag;
+    TcValue lhs = fp32_from_double(1.0);
+    TcValue rhs = fp32_from_double(1.0);
+    TcValue out = {0};
+
+    tc_diagnostic_init(&diag);
+    check(tc_exec_fp_compare(TC_CMP_EQ, TC_FLOAT32, TC_FLOAT_WRAP,
+                             &lhs, &rhs, &out, &diag, 1) != 0 &&
+              diag.kind == TC_ERR_MODE_MISMATCH,
+          "float comparison rejects wrap mode at shared semantics boundary");
     tc_diagnostic_clear(&diag);
 }
 
@@ -993,6 +1309,36 @@ static void test_fp_arith_mul_underflow_subnormal_strict(void) {
     check(rc != 0 && diag.kind == TC_ERR_FLOAT_UNDERFLOW,
           "fp64 mul strict 1e-300*1e-10 → FLOAT_UNDERFLOW");
     tc_diagnostic_clear(&diag);
+}
+
+static void test_fp_exact_subnormal_does_not_underflow(void) {
+    static const struct {
+        TcType type;
+        uint64_t lhs_bits;
+        uint64_t rhs_bits;
+        uint64_t expected_bits;
+        const char *message;
+    } cases[] = {
+        {TC_FLOAT32, UINT64_C(0x00800000), UINT64_C(0x3F000000),
+         UINT64_C(0x00400000), "exact float32 subnormal result is allowed"},
+        {TC_FLOAT64, UINT64_C(0x0010000000000000), UINT64_C(0x3FE0000000000000),
+         UINT64_C(0x0008000000000000), "exact float64 subnormal result is allowed"},
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcDiagnostic diag;
+        TcValue lhs = tc_value_make(cases[i].type, cases[i].lhs_bits);
+        TcValue rhs = tc_value_make(cases[i].type, cases[i].rhs_bits);
+        TcValue out = {0};
+
+        tc_diagnostic_init(&diag);
+        check(tc_exec_fp_arith(TC_MUL, cases[i].type, TC_FLOAT_STRICT,
+                               &lhs, &rhs, &out, &diag, 1) == 0 &&
+                  out.bits == cases[i].expected_bits,
+              cases[i].message);
+        tc_diagnostic_clear(&diag);
+    }
 }
 
 static void test_fp_arith_add_float32_strict(void) {
@@ -1060,15 +1406,21 @@ static void test_fp_unary_neg_strict(void) {
     tc_diagnostic_clear(&diag);
 }
 
-static void test_fp_unary_abs_ieee(void) {
+static void test_fp_unary_abs_mode_matrix(void) {
     TcValue operand = fp64_from_double(-2.5);
     TcValue out;
     TcDiagnostic diag;
     int rc;
 
     tc_diagnostic_init(&diag);
+    rc = tc_exec_fp_unary(TC_UNARY_ABS, TC_FLOAT64, TC_FLOAT_STRICT, &operand, &out, &diag, 1);
+    check(rc == 0 && fp64_approx_equal(out.bits, 2.5), "fp64 abs strict 2.5");
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
     rc = tc_exec_fp_unary(TC_UNARY_ABS, TC_FLOAT64, TC_FLOAT_IEEE, &operand, &out, &diag, 1);
-    check(rc == 0 && fp64_approx_equal(out.bits, 2.5), "fp64 abs ieee 2.5");
+    check(rc != 0 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "fp64 abs rejects ieee mode keyword");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1113,7 +1465,7 @@ static void test_fp_cast_int_to_float64(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    rc = tc_exec_cast(TC_FLOAT64, &src, &out, &diag, 1);
     check(rc == 0 && out.type == TC_FLOAT64 && fp64_approx_equal(out.bits, 42.0),
           "cast int32(42) → float64");
     tc_diagnostic_clear(&diag);
@@ -1126,7 +1478,7 @@ static void test_fp_cast_float64_to_int32(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_INT32, TC_TRUNC_STRICT, &src, &out, &diag, 1);
+    rc = tc_exec_cast(TC_INT32, &src, &out, &diag, 1);
     check(rc == 0 && out.type == TC_INT32 && out.bits == 7, "cast float64(7.0) → int32");
     tc_diagnostic_clear(&diag);
 }
@@ -1142,9 +1494,9 @@ static void test_fp_cast_truncate_f32_to_i32(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_INT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_INT32 && out.bits == 1065353216u,
-          "truncate cast float32(1.0) → int32 bit pattern 0x3F800000");
+    rc = tc_exec_truncate(TC_INT32, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects float32 → int32");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1155,9 +1507,9 @@ static void test_fp_cast_truncate_i32_to_f32(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 1.0),
-          "truncate cast int32(0x3F800000) → float32(1.0)");
+    rc = tc_exec_truncate(TC_FLOAT32, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects int32 → float32");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1168,9 +1520,9 @@ static void test_fp_cast_truncate_f64_to_i64(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_INT64, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_INT64 && out.bits == 4607182418800017408ULL,
-          "truncate cast float64(1.0) → int64 bit pattern 0x3FF0000000000000");
+    rc = tc_exec_truncate(TC_INT64, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects float64 → int64");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1181,9 +1533,9 @@ static void test_fp_cast_truncate_i64_to_f64(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_FLOAT64 && fp64_approx_equal(out.bits, 1.0),
-          "truncate cast int64(0x3FF0000000000000) → float64(1.0)");
+    rc = tc_exec_truncate(TC_FLOAT64, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects int64 → float64");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1194,9 +1546,9 @@ static void test_fp_cast_truncate_f64_to_f32_mask(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 0.0),
-          "truncate cast float64(1.0) → float32 lower 32 bits = 0.0");
+    rc = tc_exec_truncate(TC_FLOAT32, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects float64 → float32");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1207,9 +1559,9 @@ static void test_fp_cast_truncate_f32_to_f64_mask(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_FLOAT64 && out.bits == (src.bits & 0xFFFFFFFFu),
-          "truncate cast float32 → float64 preserves lower 32 bits");
+    rc = tc_exec_truncate(TC_FLOAT64, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects float32 → float64");
     tc_diagnostic_clear(&diag);
 }
 
@@ -1221,11 +1573,10 @@ static void test_fp_cast_truncate_f64_to_f32_roundtrip(void) {
     int rc;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT64, TC_TRUNC_TRUNCATE, &src, &mid, &diag, 1);
-    check(rc == 0, "truncate f32→f64 step ok");
-    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &mid, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_FLOAT32 && fp32_approx_equal(out.bits, 3.14159),
-          "truncate f64→f32 roundtrip preserves float32 bit pattern");
+    rc = tc_exec_truncate(TC_FLOAT64, &src, &mid, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate float roundtrip is rejected at first step");
+    (void)out;
     tc_diagnostic_clear(&diag);
 }
 
@@ -1234,16 +1585,12 @@ static void test_fp_cast_truncate_neg_zero_bits(void) {
     TcValue out;
     TcDiagnostic diag;
     int rc;
-    uint32_t out_bits = 0;
-    float actual = 0.0f;
 
     tc_diagnostic_init(&diag);
-    rc = tc_exec_fp_cast(TC_FLOAT32, TC_TRUNC_TRUNCATE, &src, &out, &diag, 1);
-    out_bits = (uint32_t)out.bits;
-    memcpy(&actual, &out_bits, sizeof(actual));
-    check(rc == 0 && out.type == TC_FLOAT32 && out_bits == 0x80000000u,
-          "truncate cast int32(0x80000000) → float32 -0.0 bit pattern");
-    check(actual == 0.0f && signbit(actual), "truncate -0.0 is negative zero");
+    rc = tc_exec_truncate(TC_FLOAT32, &src, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "truncate rejects integer → float negative-zero bit pattern");
+    (void)out;
     tc_diagnostic_clear(&diag);
 }
 
@@ -1260,13 +1607,47 @@ static void test_fp_arith_wrap_add(void) {
     lhs = fp64_from_double(1.0);
     rhs = fp64_from_double(2.0);
     rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT64, TC_FLOAT_WRAP, &lhs, &rhs, &out, &diag, 1);
-    check(rc == 0 && out.type == TC_FLOAT64, "fp64 add wrap completes");
+    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+          "fp64 add wrap is rejected");
     tc_diagnostic_clear(&diag);
 }
 
 /* ================================================================== */
 /*  main                                                               */
 /* ================================================================== */
+
+static void test_bitcast_semantics(void) {
+    TcDiagnostic diag;
+    TcValue f32 = {TC_FLOAT32, UINT64_C(0xBF800000)};
+    TcValue u32 = {TC_UINT32, UINT64_C(0x7FC12345)};
+    TcValue u64 = {TC_UINT64, UINT64_C(0x7FF8000000001234)};
+    TcValue boolean = {TC_BOOL, 1};
+    TcValue out = {0};
+
+    tc_diagnostic_init(&diag);
+    check(tc_exec_bitcast(TC_UINT32, &f32, &out, &diag, 1) == 0,
+          "bitcast float32 to uint32");
+    check(out.type == TC_UINT32 && out.bits == UINT64_C(0xBF800000),
+          "bitcast32 preserves all bits");
+    check(tc_exec_bitcast(TC_FLOAT32, &u32, &out, &diag, 1) == 0,
+          "bitcast uint32 NaN payload to float32");
+    check(out.type == TC_FLOAT32 && out.bits == UINT64_C(0x7FC12345),
+          "bitcast32 preserves NaN payload");
+    check(tc_exec_bitcast(TC_FLOAT64, &u64, &out, &diag, 1) == 0,
+          "bitcast uint64 NaN payload to float64");
+    check(out.type == TC_FLOAT64 && out.bits == UINT64_C(0x7FF8000000001234),
+          "bitcast64 preserves NaN payload");
+    check(tc_exec_bitcast(TC_UINT32, &u32, &out, &diag, 1) == 0 &&
+              out.type == TC_UINT32 && out.bits == u32.bits,
+          "same-type bitcast is a bit-preserving identity");
+    check(tc_exec_bitcast(TC_UINT64, &f32, &out, &diag, 1) != 0,
+          "bitcast rejects unequal widths");
+    check(diag.kind == TC_ERR_BITCAST_WIDTH, "bitcast unequal width error kind");
+    check(tc_exec_bitcast(TC_UINT8, &boolean, &out, &diag, 1) != 0,
+          "bitcast rejects bool source");
+    check(diag.kind == TC_ERR_TYPE_MISMATCH, "bitcast bool error kind");
+    tc_diagnostic_clear(&diag);
+}
 
 int main(void) {
     /* Bit tool functions */
@@ -1317,6 +1698,9 @@ int main(void) {
 
     /* Cast truncate */
     test_cast_truncate();
+    test_cast_strict_matrix();
+    test_cast_same_type_float_bit_identity();
+    test_bitcast_semantics();
 
     /* Float arithmetic */
     test_fp_arith_add_strict();
@@ -1324,17 +1708,25 @@ int main(void) {
     test_fp_arith_mul_strict();
     test_fp_arith_mul_underflow_flush_to_zero_strict();
     test_fp_arith_mul_underflow_subnormal_strict();
+    test_fp_exact_subnormal_does_not_underflow();
     test_fp_arith_div_strict();
     test_fp_arith_div_zero_strict();
     test_fp_arith_nan_operand_strict();
+    test_fp_strict_exception_priority();
+    test_fp_ieee_canonical_nan();
+    test_fp_round_ties_to_even();
+    test_cast_round_ties_to_even();
     test_fp_arith_add_float32_strict();
     test_fp_arith_sub_float32_strict();
     test_fp_arith_mul_float32_strict();
     test_fp_arith_div_float32_strict();
     test_fp_unary_neg_strict();
-    test_fp_unary_abs_ieee();
+    test_fp_unary_abs_mode_matrix();
     test_fp_compare_nan_ne();
     test_fp_compare_eq_nan();
+    test_fp_nan_compare_matrix();
+    test_fp_unary_preserves_payload_bits();
+    test_fp_compare_rejects_wrap();
     test_fp_cast_int_to_float64();
     test_fp_cast_float64_to_int32();
     test_fp_cast_truncate_f32_to_i32();

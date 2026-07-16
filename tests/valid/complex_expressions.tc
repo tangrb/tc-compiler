@@ -45,8 +45,8 @@ var final_val: int32 = add(int32, abs_val, 50)
 writeln(int32, final_val)
 
 ; wrap + arith 链
-var wrap_v: uint8 = sub(uint8, wrap, 0, 1)
-var wrap_r: uint8 = add(uint8, wrap, wrap_v, 5)
+var wrap_v: uint8 = sub(uint8, 0, 1)
+var wrap_r: uint8 = add(uint8, wrap_v, 5)
 writeln(uint8, wrap_r)
 
 ; 使用注释中的空行和分号

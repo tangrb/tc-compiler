@@ -1,0 +1,2 @@
+; 0.0.31：var 缺少 RHS 固定为 VarMissingInitializer。
+var x: int32

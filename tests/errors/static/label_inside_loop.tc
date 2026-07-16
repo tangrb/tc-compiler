@@ -1,0 +1,4 @@
+while true then
+    label inside:
+    break
+end

@@ -1,4 +1,6 @@
 ; 期望：use of uninitialized variable（原哨兵值差分用例，现为静态错误）
-var a: int32
+goto use_a
+var a: int32 = 0
+label use_a:
 var b: int32 = add(int32, a, 0)
 writeln(int32, b)

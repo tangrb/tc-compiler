@@ -1,0 +1,13 @@
+; binary32 每一步立即舍入，第二步必须读取第一步已规范化的 binary32 值
+let LET_STEP1: float32 = add(float32, 16777216.0f, 1.0f)
+let LET_STEP2: float32 = sub(float32, LET_STEP1, 16777216.0f)
+let LET_STEP1_BITS: uint32 = bitcast(uint32, LET_STEP1)
+let LET_STEP2_BITS: uint32 = bitcast(uint32, LET_STEP2)
+var runtime_step1: float32 = add(float32, 16777216.0f, 1.0f)
+var runtime_step2: float32 = sub(float32, runtime_step1, 16777216.0f)
+var runtime_step1_bits: uint32 = bitcast(uint32, runtime_step1)
+var runtime_step2_bits: uint32 = bitcast(uint32, runtime_step2)
+writeln(uint32, %X, LET_STEP1_BITS)
+writeln(uint32, %X, runtime_step1_bits)
+writeln(uint32, %X, LET_STEP2_BITS)
+writeln(uint32, %X, runtime_step2_bits)

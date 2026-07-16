@@ -14,7 +14,8 @@
 /*  Pass 1 — 符号收集（DFS 递归）                                        */
 /* ------------------------------------------------------------------ */
 
-static void tc_mark_if_scope_end(TcSymbolTable *symbols, int if_stmt_index, int if_end_index) {
+static void tc_mark_block_scope_end(TcSymbolTable *symbols, int owner_stmt_index,
+                                    int block_end_index) {
     size_t i = 0;
 
     for (i = 0; i < symbols->count; i++) {
@@ -23,13 +24,13 @@ static void tc_mark_if_scope_end(TcSymbolTable *symbols, int if_stmt_index, int 
         if (sym->scope_end_stmt_index >= 0) {
             continue;
         }
-        if (sym->def_stmt_index > if_stmt_index && sym->def_stmt_index < if_end_index) {
-            sym->scope_end_stmt_index = if_end_index;
+        if (sym->def_stmt_index > owner_stmt_index && sym->def_stmt_index < block_end_index) {
+            sym->scope_end_stmt_index = block_end_index;
         }
     }
 }
 
-static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols, int *next_slot,
+static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int *next_slot,
                                  TcAnalyzeCtx *ctx, TcDiagnostic *diag) {
     if (stmt->kind == TC_STMT_IF) {
         const TcIfStmt *if_stmt = &stmt->u.if_stmt;
@@ -64,12 +65,34 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
             }
             tc_symbol_table_pop_scope(symbols);
         }
-        tc_mark_if_scope_end(symbols, if_stmt_index, ctx->index.next);
+        tc_mark_block_scope_end(symbols, if_stmt_index, ctx->index.next);
+        return 0;
+    }
+
+    if (stmt->kind == TC_STMT_WHILE) {
+        TcWhileStmt *while_stmt = &stmt->u.while_stmt;
+        size_t i = 0;
+        int while_stmt_index = tc_stmt_index_take(&ctx->index);
+
+        while_stmt->loop_id = ctx->next_loop_id++;
+        if (tc_symbol_table_push_scope(symbols) < 0) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, while_stmt->line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        for (i = 0; i < while_stmt->body_count; i++) {
+            if (tc_pass1_collect_stmt(&while_stmt->body[i], symbols, next_slot, ctx, diag) != 0) {
+                tc_symbol_table_pop_scope(symbols);
+                return -1;
+            }
+        }
+        tc_symbol_table_pop_scope(symbols);
+        tc_mark_block_scope_end(symbols, while_stmt_index, ctx->index.next);
         return 0;
     }
 
     if (stmt->kind == TC_STMT_VAR_DEF) {
-        const TcVarDef *var_def = &stmt->u.var_def;
+        TcVarDef *var_def = &stmt->u.var_def;
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, var_def->name)) {
@@ -79,10 +102,15 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
             return -1;
         }
         if (tc_symbol_table_add(symbols, var_def->name, var_def->type, *next_slot, var_def->line,
-                                tc_stmt_index_take(&ctx->index), TC_SYM_VARIABLE, var_def->has_rhs,
+                                tc_stmt_index_take(&ctx->index), TC_SYM_VARIABLE, 1,
                                 diag) != 0) {
             return -1;
         }
+        var_def->binding.resolved = 1;
+        var_def->binding.slot = *next_slot;
+        var_def->binding.is_const = 0;
+        var_def->binding.type = var_def->type;
+        var_def->binding.const_bits = 0;
         (*next_slot)++;
         return 0;
     }
@@ -97,12 +125,11 @@ static int tc_pass1_collect_stmt(const TcStatement *stmt, TcSymbolTable *symbols
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
-        if (tc_symbol_table_add(symbols, const_def->name, const_def->type, *next_slot,
+        if (tc_symbol_table_add(symbols, const_def->name, const_def->type, -1,
                                 const_def->line, tc_stmt_index_take(&ctx->index), TC_SYM_CONSTANT, 1,
                                 diag) != 0) {
             return -1;
         }
-        (*next_slot)++;
         return 0;
     }
 
@@ -132,6 +159,7 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
 
     ctx.program = program;
     ctx.last_init = NULL;
+    ctx.next_loop_id = 0;
     tc_stmt_index_reset(&ctx.index);
 
     for (i = 0; i < program->count; i++) {
@@ -141,4 +169,3 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
     }
     return 0;
 }
-

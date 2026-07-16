@@ -2,7 +2,7 @@
 
 TC 语言编译器（C99）。当前包含 **libtc**（编译/执行静态库）、**TC-VM**（直接执行引擎）、**TC-AOT**（ahead-of-time 编译，将 `.tc` 转译为 C99 源码）。
 
-版本：**v0.0.26**（`src/vm/driver/tc_version.h`）
+版本：**v0.0.31**（`src/vm/driver/tc_version.h`）
 
 ## 目录结构
 
@@ -13,9 +13,9 @@ src/
 ├── vm/                TC-VM 源码（lexer / parser / analyzer / executor / runtime）
 └── aot/               TC-AOT 源码（codegen / rt shim / CLI）
 tests/
-    ├── valid/             一致性测试（含 bool/let/I/O/format/if 等特性）
-    ├── errors/            错误测试（static 89 个 + runtime 43 个）
-    ├── unit/              C 单元测试（lexer / parser / semantics / types / io / bitwise / shift / symbol / warning / analyzer / stmt-index）
+    ├── valid/             一致性测试（含 while/bitcast/CFG/let/I/O 等特性）
+    ├── errors/            静态与运行时错误测试
+    ├── unit/              16 个 C 单元目标（含 CFG/executor/diagnostic/libtc）
     └── stress/            压力测试
 scripts/
 ├── ci.sh              本地 CI 流水线（构建 + 测试 + 静态检查）
@@ -39,18 +39,19 @@ build/                 构建产物（git 忽略）
 |------|------|
 | 类型系统 | `int8` / `int16` / `int32` / `int64` / `uint8` / `uint16` / `uint32` / `uint64` / `bool` / `float32` / `float64` |
 | 字面量 | 十进制、十六进制（`0x`/`0X`）、八进制（`0o`/`0O`）、二进制（`0b`/`0B`）、数字分隔符（`_`）、浮点（科学计数法、`f` 后缀、`inf`/`nan`） |
-| 变量 | `var` 声明（可选初始化）、`let` 常量（编译期求值） |
-| 算术运算 | `add` / `sub` / `mul` / `div` / `mod`，支持 strict（溢出报错）和 wrap 模式；浮点支持 strict / ieee / wrap |
+| 变量 | `var` 声明（强制初始化）、`let` 常量（编译期求值、无运行时槽） |
+| 算术运算 | `add` / `sub` / `mul` / `div` / `mod`；整数支持 strict/wrap，浮点支持 strict/ieee |
 | 比较运算 | `eq` / `neq` / `lt` / `gt` / `le` / `ge` |
 | 逻辑运算 | `and` / `or`（短路求值）、`not` |
 | 单目运算 | `abs` / `neg` |
-| 类型转换 | `cast`（支持 truncate / strict / widen 模式） |
+| 类型转换 | strict 数值 `cast`、整数窄化 `truncate`、非 bool 等宽 `bitcast` |
 | I/O | `write` / `writeln` / `read`，支持格式说明符（`d`/`i`/`u`/`x`/`X`/`o`/`b`/`t`/`f`/`e`/`E`/`g`/`G`） |
 | 常量折叠 | `let` 初始化表达式的编译期求值（算术/比较/逻辑/cast/位运算均支持） |
-| 控制流 | `if-then-else-end`（缩进敏感，支持嵌套，块级作用域） |
-| 块级作用域 | then/else 互斥子作用域，允许同名局部变量，嵌套 shadowing |
+| 控制流 | `if-then-else-end`、`while-then-end`、最内层 `break`/`continue`、受限 `goto`/`label` |
+| 静态分析 | 完整 CFG、可达性、常量剪枝与固定点确定初始化；while 内禁止 goto/label |
+| 块级作用域 | if 分支与 while body 独立作用域，固定 slot，支持 shadowing |
 | 位运算 | `and` / `or` / `xor` / `not`（按位，无溢出）；`shl`（strict/wrap）/ `shr`（算术/逻辑） |
-| REPL | 交互式逐条执行，变量跨行保留（不支持 if） |
+| REPL | 事务式逐条执行、变量跨行保留；明确拒绝多行控制流与 label |
 
 ## 构建
 
@@ -176,11 +177,11 @@ REPL 支持逐条输入 TC 语句并立即执行，变量跨行保留。内置�
 
 | 文档 | 说明 |
 |------|------|
-| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 语言语法与语义权威定义（v0.0.26） |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 直接执行引擎架构与实现约定（v0.0.26） |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 使用 tc-vm 处理 `.tc` 源文件的命令说明（v0.0.26） |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | AOT 代码生成与 shim 层（v0.0.26） |
-| [libtc 设计说明书](docs/libtc设计说明书.md) | libtc 静态库的设计架构与错误契约（v0.0.26） |
+| [TC 0.0.31 语言标准](docs/TC语言标准设计说明书_0.0.31.md) | 语言语法与语义权威定义 |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | 0.0.31 直接执行引擎架构与实现约定 |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | 0.0.31 tc-vm 命令说明 |
+| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | 0.0.31 AOT 代码生成与 shim 层 |
+| [libtc 设计说明书](docs/libtc设计说明书.md) | 0.0.31 libtc 架构与错误契约 |
 | [libtc 嵌入 API](docs/libtc-api.md) | libtc 静态库的嵌入编程接口速查 |
 
 实现行为以语言标准为准；VM / AOT 详细设计文档规定各后端的实现架构，不重复定义语言语义。

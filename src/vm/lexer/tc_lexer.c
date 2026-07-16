@@ -434,6 +434,10 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_CAST;
         return 1;
     }
+    if (strcmp(buf, "bitcast") == 0) {
+        token->kind = TC_TOK_BITCAST;
+        return 1;
+    }
     if (strcmp(buf, "wrap") == 0) {
         token->kind = TC_TOK_WRAP;
         return 1;
@@ -456,6 +460,18 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     }
     if (strcmp(buf, "if") == 0) {
         token->kind = TC_TOK_IF;
+        return 1;
+    }
+    if (strcmp(buf, "while") == 0) {
+        token->kind = TC_TOK_WHILE;
+        return 1;
+    }
+    if (strcmp(buf, "break") == 0) {
+        token->kind = TC_TOK_BREAK;
+        return 1;
+    }
+    if (strcmp(buf, "continue") == 0) {
+        token->kind = TC_TOK_CONTINUE;
         return 1;
     }
     if (strcmp(buf, "then") == 0) {
@@ -816,6 +832,8 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "FORMAT_SPEC";
     case TC_TOK_CAST:
         return "CAST";
+    case TC_TOK_BITCAST:
+        return "BITCAST";
     case TC_TOK_WRAP:
         return "WRAP";
     case TC_TOK_TRUNCATE:
@@ -828,6 +846,12 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "READ";
     case TC_TOK_IF:
         return "IF";
+    case TC_TOK_WHILE:
+        return "WHILE";
+    case TC_TOK_BREAK:
+        return "BREAK";
+    case TC_TOK_CONTINUE:
+        return "CONTINUE";
     case TC_TOK_THEN:
         return "THEN";
     case TC_TOK_ELSE:

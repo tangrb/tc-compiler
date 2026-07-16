@@ -1,4 +1,4 @@
-; 期望：cross-block reference（end 之后块内 var 不可见）
+; 0.0.31：end 之后块内 var 不可见，统一为 UndefinedVariable。
 if true then
     var inner: int32 = 1
 end

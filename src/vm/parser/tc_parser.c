@@ -247,7 +247,7 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
  * @param is_const 1 表示 let 常量，0 表示 var 变量
  *
  * 语法：
- *   var id: type [= rhs]
+ *   var id: type = rhs
  *   let id: type = rhs（必须初始化）
  */
 static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
@@ -256,7 +256,6 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
     char *name = NULL;
     TcType type = TC_INT32;
     TcRhs rhs;
-    int has_rhs = 0;
 
     (*index)++;
 
@@ -288,11 +287,22 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         (*index)++;
     }
 
-    /* 可选的 = rhs 初始化 */
+    /* 0.0.31：var 和 let 都必须带 = rhs 初始化。 */
     {
         const TcToken *maybe_eq = tc_peek(tokens, *index);
         if (maybe_eq->kind == TC_TOK_EQUAL) {
             (*index)++;
+            if (tc_peek(tokens, *index)->kind == TC_TOK_EOF ||
+                tc_peek(tokens, *index)->kind == TC_TOK_SEMICOLON) {
+                free(name);
+                if (!is_const) {
+                    tc_diagnostic_set(diag, TC_ERR_VAR_MISSING_INIT, line_no, maybe_eq->column,
+                                      "variable definition requires initializer");
+                    return -1;
+                }
+                return tc_syntax_error(diag, line_no, maybe_eq->column,
+                                       "constant definition requires initializer");
+            }
             memset(&rhs, 0, sizeof(rhs));
             if (is_const) {
                 if (tc_parse_const_rhs(ctx, tokens, index, line_no, &rhs, diag) != 0) {
@@ -305,20 +315,21 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
                 tc_rhs_free(&rhs);
                 return -1;
             }
-            has_rhs = 1;
-        } else if (is_const) {
-            /* let 常量必须初始化 */
+        } else {
             free(name);
-            return tc_syntax_error(diag, line_no, maybe_eq->column,
-                                   "constant definition requires initializer");
+            if (is_const) {
+                return tc_syntax_error(diag, line_no, maybe_eq->column,
+                                       "constant definition requires initializer");
+            }
+            tc_diagnostic_set(diag, TC_ERR_VAR_MISSING_INIT, line_no, maybe_eq->column,
+                              "variable definition requires initializer");
+            return -1;
         }
     }
 
     if (tc_expect_stmt_end(tokens, index, line_no, diag) != 0) {
         free(name);
-        if (has_rhs) {
-            tc_rhs_free(&rhs);
-        }
+        tc_rhs_free(&rhs);
         return -1;
     }
 
@@ -333,7 +344,6 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         out->u.var_def.line = line_no;
         out->u.var_def.name = name;
         out->u.var_def.type = type;
-        out->u.var_def.has_rhs = has_rhs;
         out->u.var_def.rhs = rhs;
     }
     return 0;
@@ -405,6 +415,26 @@ int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
         }
         out->kind = TC_STMT_READ;
         out->u.io_read = io_read;
+        return 0;
+    }
+
+    if (first->kind == TC_TOK_BREAK || first->kind == TC_TOK_CONTINUE) {
+        TcLoopControlStmt control;
+
+        memset(&control, 0, sizeof(control));
+        control.line = line_no;
+        control.loop_id = -1;
+        index++;
+        if (tc_expect_stmt_end(tokens, &index, line_no, diag) != 0) {
+            return -1;
+        }
+        if (first->kind == TC_TOK_BREAK) {
+            out->kind = TC_STMT_BREAK;
+            out->u.break_stmt = control;
+        } else {
+            out->kind = TC_STMT_CONTINUE;
+            out->u.continue_stmt = control;
+        }
         return 0;
     }
 
@@ -612,7 +642,8 @@ static int tc_detect_indent_width(const TcSourceLine *lines, size_t count, char 
         size_t j = 0;
 
         if (lines[i].tokens.count == 0 ||
-            lines[i].tokens.items[0].kind != TC_TOK_IF) {
+            (lines[i].tokens.items[0].kind != TC_TOK_IF &&
+             lines[i].tokens.items[0].kind != TC_TOK_WHILE)) {
             continue;
         }
         for (j = i + 1; j < count; j++) {
@@ -734,6 +765,10 @@ static int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t lin
             if (tc_parse_if_stmt(ctx, lines, line_count, index, file_indent, &stmt, diag) != 0) {
                 return -1;
             }
+        } else if (first_kind == TC_TOK_WHILE) {
+            if (tc_parse_while_stmt(ctx, lines, line_count, index, file_indent, &stmt, diag) != 0) {
+                return -1;
+            }
         } else {
             if (tc_parse_statement(ctx, &line->tokens, line->line_no, &stmt, diag) != 0) {
                 return -1;
@@ -843,6 +878,72 @@ fail:
     tc_rhs_free(&if_stmt.condition);
     tc_stmt_block_free(&then_block);
     tc_stmt_block_free(&else_block);
+    return -1;
+}
+
+int tc_parse_while_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
+                        const TcFileIndent *file_indent, TcStatement *out, TcDiagnostic *diag) {
+    TcSourceLine *while_line = NULL;
+    size_t tok_index = 0;
+    int base_indent = 0;
+    TcWhileStmt while_stmt;
+    TcStmtBlock body;
+    const TcToken *tok = NULL;
+
+    if (*index >= line_count) {
+        return tc_syntax_error(diag, 0, TC_COLUMN_UNKNOWN, "unexpected end of file");
+    }
+
+    while_line = &lines[*index];
+    base_indent = while_line->indent;
+    memset(&while_stmt, 0, sizeof(while_stmt));
+    while_stmt.line = while_line->line_no;
+    while_stmt.loop_id = -1;
+    tc_stmt_block_init(&body);
+
+    tok = tc_peek(&while_line->tokens, tok_index);
+    if (tok->kind != TC_TOK_WHILE) {
+        return tc_syntax_error(diag, while_line->line_no, tok->column, "expected while");
+    }
+    tok_index++;
+
+    if (tc_parse_rhs(ctx, &while_line->tokens, &tok_index, while_line->line_no,
+                     &while_stmt.condition, diag) != 0) {
+        goto fail;
+    }
+    if (tc_expect_token(&while_line->tokens, &tok_index, TC_TOK_THEN, while_line->line_no,
+                        diag) != 0 ||
+        tc_expect_stmt_end(&while_line->tokens, &tok_index, while_line->line_no, diag) != 0) {
+        goto fail;
+    }
+
+    (*index)++;
+    if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, &body,
+                            diag) != 0) {
+        goto fail;
+    }
+    if (*index >= line_count || tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
+        tc_indent_diag(diag, TC_ERR_MISSING_END, while_line->line_no,
+                       "missing end for while statement");
+        goto fail;
+    }
+    if (lines[*index].indent != base_indent) {
+        tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+                       "end indentation does not match while");
+        goto fail;
+    }
+    (*index)++;
+
+    while_stmt.body = body.items;
+    while_stmt.body_count = body.count;
+    body.items = NULL;
+    out->kind = TC_STMT_WHILE;
+    out->u.while_stmt = while_stmt;
+    return 0;
+
+fail:
+    tc_rhs_free(&while_stmt.condition);
+    tc_stmt_block_free(&body);
     return -1;
 }
 
@@ -959,6 +1060,11 @@ static int tc_parse_line_program(TcParserCtx *ctx, TcSourceLine *lines, size_t l
         memset(&stmt, 0, sizeof(stmt));
         if (tc_first_token_kind(line) == TC_TOK_IF) {
             if (tc_parse_if_stmt(ctx, lines, line_count, &index, file_indent, &stmt, diag) != 0) {
+                return -1;
+            }
+        } else if (tc_first_token_kind(line) == TC_TOK_WHILE) {
+            if (tc_parse_while_stmt(ctx, lines, line_count, &index, file_indent, &stmt, diag) !=
+                0) {
                 return -1;
             }
         } else {

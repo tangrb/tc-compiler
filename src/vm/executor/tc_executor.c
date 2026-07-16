@@ -1,7 +1,7 @@
 /*
  * tc_executor.c — TC 执行引擎实现
  *
- * 采用「变量槽位」模型：分配 symbols.count 个 TcValue 槽，按 TcSymbol.slot 索引。
+ * 采用「变量槽位」模型：仅为 var 分配 TcValue 槽，let 在使用处内联 const_value。
  * 执行流程：
  *   1. 分配 slots[] 并填充未初始化哨兵（tc_slots_init_uninitialized）
  *   2. 按 DFS stmt_index 调度：块内顺序执行，goto 改写 index.next 后寻的
@@ -28,130 +28,54 @@
 #include <stdlib.h>
 #include <string.h>
 
-/** 块路径深度上限（与分析器同构编码：then=if*2，else=if*2+1） */
-#define TC_EXEC_BLOCK_DEPTH_MAX 64
-
-typedef struct {
-    int path[TC_EXEC_BLOCK_DEPTH_MAX];
-    int depth;
-} TcExecBlockPath;
-
-/** 运行时 DFS 语句序号 + 块路径（goto 同名标签解析） */
 typedef struct {
     TcStmtIndexCursor index;
-    TcExecBlockPath block_path;
 } TcExecuteCtx;
 
-static int tc_exec_paths_equal_prefix(const int *a, const int *b, int depth) {
-    int i = 0;
+static TcExecControl tc_exec_control(TcExecControlKind kind, int loop_id,
+                                     int target_stmt_index) {
+    TcExecControl control;
 
-    for (i = 0; i < depth; i++) {
-        if (a[i] != b[i]) {
-            return 0;
-        }
-    }
-    return 1;
+    control.kind = kind;
+    control.loop_id = loop_id;
+    control.target_stmt_index = target_stmt_index;
+    return control;
 }
 
-static int tc_exec_block_path_push(TcExecBlockPath *bp, int block_id, TcDiagnostic *diag,
-                                   int line) {
-    if (bp->depth >= TC_EXEC_BLOCK_DEPTH_MAX) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
-                          "internal error: block path depth exceeded");
+static TcExecControl tc_exec_normal(void) {
+    return tc_exec_control(TC_EXEC_NORMAL, -1, -1);
+}
+
+static TcExecControl tc_exec_error(void) {
+    return tc_exec_control(TC_EXEC_ERROR, -1, -1);
+}
+
+static void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char *message) {
+    tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, message);
+    diag->domain = TC_DIAG_IMPLEMENTATION;
+}
+
+static int tc_exec_load_binding(const TcResolvedBinding *binding, TcType type,
+                                const TcValue *slots, TcValue *out, TcDiagnostic *diag,
+                                int line) {
+    if (!binding->resolved) {
+        tc_exec_set_internal_error(diag, line, "internal error: unresolved binding metadata");
         return -1;
     }
-    bp->path[bp->depth++] = block_id;
+    if (binding->type != type) {
+        tc_exec_set_internal_error(diag, line, "internal error: binding type metadata mismatch");
+        return -1;
+    }
+    if (binding->is_const) {
+        *out = tc_value_make(type, binding->const_bits);
+        return 0;
+    }
+    if (binding->slot < 0 || !slots) {
+        tc_exec_set_internal_error(diag, line, "internal error: invalid runtime slot metadata");
+        return -1;
+    }
+    *out = slots[binding->slot];
     return 0;
-}
-
-static void tc_exec_block_path_pop(TcExecBlockPath *bp) {
-    if (bp->depth > 0) {
-        bp->depth--;
-    }
-}
-
-/**
- * 解析 goto 目标：优先同路径，其次最近祖先（与 Analyzer 一致）。
- */
-static const TcLabelEntry *tc_exec_resolve_goto_label(const TcSymbolTable *table, const char *name,
-                                                      const TcExecBlockPath *goto_path) {
-    const TcLabelEntry *best_same = NULL;
-    const TcLabelEntry *best_ancestor = NULL;
-    const TcLabelEntry *any = NULL;
-    size_t i = 0;
-
-    for (i = 0; i < table->label_count; i++) {
-        const TcLabelEntry *entry = &table->labels[i];
-
-        if (strcmp(entry->name, name) != 0) {
-            continue;
-        }
-        any = entry;
-        if (entry->block_depth == goto_path->depth &&
-            tc_exec_paths_equal_prefix(entry->block_path, goto_path->path, entry->block_depth)) {
-            best_same = entry;
-        } else if (entry->block_depth < goto_path->depth &&
-                   tc_exec_paths_equal_prefix(entry->block_path, goto_path->path,
-                                              entry->block_depth)) {
-            if (!best_ancestor || entry->block_depth > best_ancestor->block_depth) {
-                best_ancestor = entry;
-            }
-        }
-    }
-    if (best_same) {
-        return best_same;
-    }
-    if (best_ancestor) {
-        return best_ancestor;
-    }
-    return any;
-}
-
-/**
- * @brief 查找定义行与名称均匹配的符号（var/let 定义语句写入 slot）
- */
-static const TcSymbol *tc_executor_find_def_symbol(const TcSymbolTable *symbols,
-                                                   const char *name, int def_line) {
-    size_t i = 0;
-
-    for (i = 0; i < symbols->count; i++) {
-        const TcSymbol *sym = &symbols->symbols[i];
-
-        if (sym->def_line == def_line && strcmp(sym->name, name) == 0) {
-            return sym;
-        }
-    }
-    return NULL;
-}
-
-/*
- * @brief 按源序可见性查找变量（stmt_index 之前最近定义的同名校验）
- */
-static const TcSymbol *tc_executor_find_visible_symbol(const TcSymbolTable *symbols,
-                                                       const char *name, int stmt_index) {
-    size_t i = 0;
-    const TcSymbol *best = NULL;
-
-    for (i = 0; i < symbols->count; i++) {
-        const TcSymbol *sym = &symbols->symbols[i];
-
-        if (strcmp(sym->name, name) != 0) {
-            continue;
-        }
-        if (sym->def_stmt_index >= stmt_index) {
-            continue;
-        }
-        if (sym->scope_end_stmt_index >= 0 && stmt_index >= sym->scope_end_stmt_index) {
-            continue;
-        }
-        if (!best || sym->def_stmt_index > best->def_stmt_index) {
-            best = sym;
-        }
-    }
-    if (best) {
-        return best;
-    }
-    return tc_symbol_table_find(symbols, name);
 }
 
 /* ------------------------------------------------------------------ */
@@ -171,22 +95,15 @@ static const TcSymbol *tc_executor_find_visible_symbol(const TcSymbolTable *symb
  * @param diag     诊断对象
  * @return 成功返回 0；I/O 错误返回 -1
  */
-static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots,
-                            const TcSymbolTable *symbols, int stmt_index, int newline,
+static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots, int newline,
                             TcDiagnostic *diag) {
     TcValue value;
 
     if (io_write->operand.kind == TC_OPERAND_LIT) {
         value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type);
-    } else {
-        const TcSymbol *symbol =
-            tc_executor_find_visible_symbol(symbols, io_write->operand.u.name, stmt_index);
-        if (!symbol) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, io_write->line, TC_COLUMN_UNKNOWN,
-                              "internal error: symbol not found for write");
-            return -1;
-        }
-        value = slots[symbol->slot];
+    } else if (tc_exec_load_binding(&io_write->operand.binding, io_write->type, slots, &value,
+                                    diag, io_write->line) != 0) {
+        return -1;
     }
 
     if (tc_io_write_value(&value, io_write->fmt, newline, stdout) != 0) {
@@ -206,22 +123,19 @@ static int tc_exec_io_write(const TcIoWrite *io_write, const TcValue *slots,
  * @param diag     诊断对象
  * @return 成功返回 0；输入非法或超范围返回 -1
  */
-static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbolTable *symbols,
-                           int stmt_index, TcDiagnostic *diag) {
-    const TcSymbol *symbol = NULL;
+static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, TcDiagnostic *diag) {
     uint64_t bits = 0;
 
+    if (!io_read->binding.resolved || io_read->binding.is_const || io_read->binding.slot < 0 ||
+        !slots) {
+        tc_exec_set_internal_error(diag, io_read->line,
+                                   "internal error: unresolved read target metadata");
+        return -1;
+    }
     if (tc_io_read_value(io_read->type, &bits, diag, io_read->line) != 0) {
         return -1;
     }
-
-    symbol = tc_executor_find_visible_symbol(symbols, io_read->name, stmt_index);
-    if (!symbol) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, io_read->line, TC_COLUMN_UNKNOWN,
-                          "internal error: symbol not found for read");
-        return -1;
-    }
-    slots[symbol->slot] = tc_value_make(io_read->type, bits);
+    slots[io_read->binding.slot] = tc_value_make(io_read->type, bits);
     return 0;
 }
 
@@ -229,22 +143,14 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, const TcSymbol
 /*  RHS 求值                                                           */
 /* ------------------------------------------------------------------ */
 
-/** 求值算术操作数：字面量按期望类型构造 TcValue；变量从 slots 中按 symbol->slot 读取 */
-static TcValue tc_eval_operand(const TcOperand *operand, TcType expected_type,
-                               const TcValue *slots, const TcSymbolTable *symbols,
-                               int stmt_index) {
+/** 求值操作数：字面量直接构造；标识符消费 Analyzer 持久化绑定。 */
+static int tc_eval_operand(const TcOperand *operand, TcType expected_type,
+                           const TcValue *slots, TcValue *out, TcDiagnostic *diag, int line) {
     if (operand->kind == TC_OPERAND_LIT) {
-        return tc_literal_to_value(&operand->u.lit, expected_type);
+        *out = tc_literal_to_value(&operand->u.lit, expected_type);
+        return 0;
     }
-    {
-        const TcSymbol *symbol =
-            tc_executor_find_visible_symbol(symbols, operand->u.name, stmt_index);
-        assert(symbol != NULL);
-        if (!symbol) {
-            return tc_value_make(expected_type, 0);
-        }
-        return slots[symbol->slot];
-    }
+    return tc_exec_load_binding(&operand->binding, expected_type, slots, out, diag, line);
 }
 
 /*
@@ -261,43 +167,56 @@ static TcValue tc_eval_operand(const TcOperand *operand, TcType expected_type,
  * 运行时形式：
  *   TC_RHS_LIT/COMPARE/LOGIC_* → 字面量或委托 tc_semantics.c
  *   TC_RHS_ARITH/UNARY/CAST/BITWISE/SHIFT → 委托 tc_semantics.c
- *   TC_RHS_CONST_REF/CAST      → 防御拒绝（仅 let 初始化合法）
+ *   TC_RHS_CONST_REF           → 读取已解析的 var/let slot
+ *   TC_RHS_CONST_CAST          → 防御拒绝（仅 let 初始化合法）
  */
 static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *slots,
-                       const TcSymbolTable *symbols, int stmt_index, TcValue *out,
-                       TcDiagnostic *diag, int line) {
+                       TcValue *out, TcDiagnostic *diag, int line) {
     if (rhs->kind == TC_RHS_LIT) {
         *out = tc_literal_to_value(&rhs->u.lit, expected_type);
         return 0;
     }
 
     if (rhs->kind == TC_RHS_ARITH) {
-        TcValue lhs =
-            tc_eval_operand(&rhs->u.arith.lhs, rhs->u.arith.type, slots, symbols, stmt_index);
-        TcValue rhs_value =
-            tc_eval_operand(&rhs->u.arith.rhs, rhs->u.arith.type, slots, symbols, stmt_index);
+        TcValue lhs;
+        TcValue rhs_value;
+        if (tc_eval_operand(&rhs->u.arith.lhs, rhs->u.arith.type, slots, &lhs, diag, line) != 0 ||
+            tc_eval_operand(&rhs->u.arith.rhs, rhs->u.arith.type, slots, &rhs_value, diag,
+                            line) != 0) {
+            return -1;
+        }
         return tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type, rhs->u.arith.mode, &lhs,
                              &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_UNARY) {
-        TcValue operand =
-            tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type, slots, symbols, stmt_index);
+        TcValue operand;
+        if (tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type, slots, &operand, diag,
+                            line) != 0) {
+            return -1;
+        }
         return tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type, rhs->u.unary.mode, &operand,
                              out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_COMPARE) {
-        TcValue lhs =
-            tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type, slots, symbols, stmt_index);
-        TcValue rhs_value =
-            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type, slots, symbols, stmt_index);
+        TcValue lhs;
+        TcValue rhs_value;
+        if (tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type, slots, &lhs, diag, line) !=
+                0 ||
+            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type, slots, &rhs_value, diag,
+                            line) != 0) {
+            return -1;
+        }
         return tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_value, out, diag,
                                line);
     }
 
     if (rhs->kind == TC_RHS_LOGIC_BIN) {
-        TcValue lhs = tc_eval_operand(&rhs->u.logic_bin.lhs, TC_BOOL, slots, symbols, stmt_index);
+        TcValue lhs;
+        if (tc_eval_operand(&rhs->u.logic_bin.lhs, TC_BOOL, slots, &lhs, diag, line) != 0) {
+            return -1;
+        }
         if (rhs->u.logic_bin.op == TC_LOGIC_AND && lhs.bits == 0) {
             *out = tc_value_make(TC_BOOL, 0);
             return 0;
@@ -307,100 +226,128 @@ static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *sl
             return 0;
         }
         {
-            TcValue rhs_value =
-                tc_eval_operand(&rhs->u.logic_bin.rhs, TC_BOOL, slots, symbols, stmt_index);
+            TcValue rhs_value;
+            if (tc_eval_operand(&rhs->u.logic_bin.rhs, TC_BOOL, slots, &rhs_value, diag, line) !=
+                0) {
+                return -1;
+            }
             return tc_exec_logic_binary(rhs->u.logic_bin.op, &lhs, &rhs_value, out, diag, line);
         }
     }
 
     if (rhs->kind == TC_RHS_LOGIC_UN) {
-        TcValue operand =
-            tc_eval_operand(&rhs->u.logic_un.operand, TC_BOOL, slots, symbols, stmt_index);
+        TcValue operand;
+        if (tc_eval_operand(&rhs->u.logic_un.operand, TC_BOOL, slots, &operand, diag, line) != 0) {
+            return -1;
+        }
         return tc_exec_logic_unary(rhs->u.logic_un.op, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
-        TcValue lhs = tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, slots,
-                                      symbols, stmt_index);
-        TcValue rhs_value =
-            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, slots, symbols,
-                            stmt_index);
+        TcValue lhs;
+        TcValue rhs_value;
+        if (tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, slots, &lhs, diag,
+                            line) != 0 ||
+            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, slots, &rhs_value,
+                            diag, line) != 0) {
+            return -1;
+        }
         return tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type, &lhs,
                                       &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
-        TcValue operand = tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type,
-                                          slots, symbols, stmt_index);
+        TcValue operand;
+        if (tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, slots, &operand,
+                            diag, line) != 0) {
+            return -1;
+        }
         return tc_exec_bitwise_unary(rhs->u.bitwise_un.type, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_SHIFT) {
-        TcValue value =
-            tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type, slots, symbols, stmt_index);
-        TcValue count =
-            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type, slots, symbols, stmt_index);
+        TcValue value;
+        TcValue count;
+        if (tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type, slots, &value, diag, line) !=
+                0 ||
+            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type, slots, &count, diag, line) !=
+                0) {
+            return -1;
+        }
         return tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type, rhs->u.shift.mode, &value, &count,
                              out, diag, line);
     }
 
-    if (rhs->kind == TC_RHS_CONST_REF || rhs->kind == TC_RHS_CONST_CAST) {
+    if (rhs->kind == TC_RHS_CONST_REF) {
+        return tc_exec_load_binding(&rhs->u.const_ref.binding, expected_type, slots, out, diag,
+                                    line);
+    }
+
+    if (rhs->kind == TC_RHS_CONST_CAST) {
         tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
-                          "constant reference is only allowed in let initializer");
+                          "constant cast is only allowed in let initializer");
         return -1;
     }
 
-    if (rhs->kind == TC_RHS_CAST) {
-        const TcSymbol *source =
-            tc_executor_find_visible_symbol(symbols, rhs->u.cast.source, stmt_index);
-        assert(source != NULL);
-        const TcValue *src_value = &slots[source->slot];
-        if (tc_type_is_float(source->type) || tc_type_is_float(rhs->u.cast.target)) {
-            return tc_exec_fp_cast(rhs->u.cast.target, rhs->u.cast.mode, src_value, out, diag,
-                                   line);
+    if (rhs->kind == TC_RHS_BITCAST) {
+        TcValue source;
+        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type, slots, &source,
+                            diag, line) != 0) {
+            return -1;
         }
-        return tc_exec_cast(rhs->u.cast.target, rhs->u.cast.mode, src_value, out, diag, line);
+
+        return tc_exec_bitcast(rhs->u.bitcast.target, &source, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_CAST) {
+        TcValue source;
+        if (tc_eval_operand(&rhs->u.cast.source, rhs->u.cast.source_type, slots, &source, diag,
+                            line) != 0) {
+            return -1;
+        }
+        return rhs->u.cast.mode == TC_TRUNC_TRUNCATE
+                   ? tc_exec_truncate(rhs->u.cast.target, &source, out, diag, line)
+                   : tc_exec_cast(rhs->u.cast.target, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_ARITH) {
-        TcValue lhs =
-            tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, slots, symbols,
-                            stmt_index);
-        TcValue rhs_value =
-            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, slots, symbols,
-                            stmt_index);
+        TcValue lhs;
+        TcValue rhs_value;
+        if (tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, slots, &lhs, diag,
+                            line) != 0 ||
+            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, slots, &rhs_value,
+                            diag, line) != 0) {
+            return -1;
+        }
         return tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type,
                                 rhs->u.float_arith.mode, &lhs, &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_UNARY) {
-        TcValue operand =
-            tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, slots, symbols,
-                            stmt_index);
+        TcValue operand;
+        if (tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, slots, &operand,
+                            diag, line) != 0) {
+            return -1;
+        }
         return tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type,
                                 rhs->u.float_unary.mode, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
-        TcValue lhs =
-            tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, slots, symbols,
-                            stmt_index);
-        TcValue rhs_value =
-            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, slots, symbols,
-                            stmt_index);
+        TcValue lhs;
+        TcValue rhs_value;
+        if (tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, slots, &lhs,
+                            diag, line) != 0 ||
+            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, slots,
+                            &rhs_value, diag, line) != 0) {
+            return -1;
+        }
         return tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
                                   rhs->u.float_compare.mode, &lhs, &rhs_value, out, diag, line);
     }
 
-    if (rhs->kind == TC_RHS_FLOAT_CAST) {
-        const TcSymbol *source =
-            tc_executor_find_visible_symbol(symbols, rhs->u.float_cast.source, stmt_index);
-        assert(source != NULL);
-        return tc_exec_fp_cast(rhs->u.float_cast.target, rhs->u.float_cast.mode,
-                               &slots[source->slot], out, diag, line);
-    }
-
     assert(0 && "unhandled TcRhsKind in tc_eval_rhs");
+    tc_exec_set_internal_error(diag, line, "internal error: unhandled rhs metadata");
     return -1;
 }
 
@@ -423,26 +370,27 @@ static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *sl
 /*  语句执行入口                                                        */
 /* ------------------------------------------------------------------ */
 
-static int tc_execute_statement_at(const TcStatement *stmt, int stmt_start, TcValue *slots,
-                                   const TcSymbolTable *symbols, TcExecuteCtx *ctx,
-                                   TcDiagnostic *diag);
+static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_start,
+                                             TcValue *slots, TcExecuteCtx *ctx,
+                                             TcDiagnostic *diag);
 
 /**
  * 在 [block_start, block_end) 内按 stmt_index 调度语句；goto 改写 next 后寻的。
  * 若跳到块外，保留 index.next 并返回 0，由上层继续处理。
  */
-static int tc_execute_block(const TcStatement *items, size_t count, int block_start,
-                            int block_end, TcValue *slots, const TcSymbolTable *symbols,
-                            TcExecuteCtx *ctx, TcDiagnostic *diag) {
+static TcExecControl tc_execute_block(const TcStatement *items, size_t count, int block_start,
+                                      int block_end, TcValue *slots, TcExecuteCtx *ctx,
+                                      TcDiagnostic *diag) {
     size_t i = 0;
     int stmt_start = block_start;
 
     while (i < count) {
         int span = tc_stmt_subtree_index_count(&items[i]);
         int stmt_end = stmt_start + span;
+        TcExecControl control;
 
         if (ctx->index.next < block_start || ctx->index.next >= block_end) {
-            return 0;
+            return tc_exec_normal();
         }
         if (ctx->index.next >= stmt_end) {
             stmt_start = stmt_end;
@@ -450,11 +398,23 @@ static int tc_execute_block(const TcStatement *items, size_t count, int block_st
             continue;
         }
         /* next 落在本语句子树内（普通入口 next==stmt_start，或寻的进入 if） */
-        if (tc_execute_statement_at(&items[i], stmt_start, slots, symbols, ctx, diag) != 0) {
-            return -1;
+        control = tc_execute_statement_at(&items[i], stmt_start, slots, ctx, diag);
+        if (control.kind == TC_EXEC_GOTO) {
+            if (control.target_stmt_index >= block_start &&
+                control.target_stmt_index < block_end) {
+                /* label 本身零成本；恢复于其后的第一条语句（可等于 block_end）。 */
+                ctx->index.next = control.target_stmt_index + 1;
+                i = 0;
+                stmt_start = block_start;
+                continue;
+            }
+            return control;
+        }
+        if (control.kind != TC_EXEC_NORMAL) {
+            return control;
         }
         if (ctx->index.next < block_start || ctx->index.next >= block_end) {
-            return 0;
+            return tc_exec_normal();
         }
         if (ctx->index.next != stmt_end) {
             /* goto 在块内跳转：从头寻的到目标序号 */
@@ -465,12 +425,11 @@ static int tc_execute_block(const TcStatement *items, size_t count, int block_st
         i++;
         stmt_start = stmt_end;
     }
-    return 0;
+    return tc_exec_normal();
 }
 
-static int tc_execute_if_at(const TcStatement *stmt, int if_index, int seeking, TcValue *slots,
-                            const TcSymbolTable *symbols, TcExecuteCtx *ctx,
-                            TcDiagnostic *diag) {
+static TcExecControl tc_execute_if_at(const TcStatement *stmt, int if_index, int seeking,
+                                      TcValue *slots, TcExecuteCtx *ctx, TcDiagnostic *diag) {
     const TcIfStmt *if_stmt = &stmt->u.if_stmt;
     int then_start = if_index + 1;
     int then_span = tc_stmt_block_index_span(if_stmt->then_body, if_stmt->then_count);
@@ -484,9 +443,9 @@ static int tc_execute_if_at(const TcStatement *stmt, int if_index, int seeking, 
         int taken = tc_stmt_index_take(&ctx->index);
 
         (void)taken;
-        if (tc_eval_rhs(&if_stmt->condition, TC_BOOL, slots, symbols, if_index, &cond_value,
-                        diag, if_stmt->line) != 0) {
-            return -1;
+        if (tc_eval_rhs(&if_stmt->condition, TC_BOOL, slots, &cond_value, diag,
+                        if_stmt->line) != 0) {
+            return tc_exec_error();
         }
         if (cond_value.bits != 0) {
             run_then = 1;
@@ -495,7 +454,7 @@ static int tc_execute_if_at(const TcStatement *stmt, int if_index, int seeking, 
             run_then = 0;
         } else {
             tc_stmt_index_skip_block(&ctx->index, if_stmt->then_body, if_stmt->then_count);
-            return 0;
+            return tc_exec_normal();
         }
     } else {
         /* 寻的进入 if 子树：按 next 落点选择 then/else，不再求值条件 */
@@ -505,149 +464,200 @@ static int tc_execute_if_at(const TcStatement *stmt, int if_index, int seeking, 
             run_then = 0;
         } else {
             ctx->index.next = if_end;
-            return 0;
+            return tc_exec_normal();
         }
     }
 
     if (run_then) {
-        if (tc_exec_block_path_push(&ctx->block_path, if_index * 2, diag, if_stmt->line) != 0) {
-            return -1;
-        }
         if (if_stmt->then_count > 0) {
-            if (tc_execute_block(if_stmt->then_body, if_stmt->then_count, then_start, else_start,
-                                 slots, symbols, ctx, diag) != 0) {
-                tc_exec_block_path_pop(&ctx->block_path);
-                return -1;
+            TcExecControl control =
+                tc_execute_block(if_stmt->then_body, if_stmt->then_count, then_start, else_start,
+                                 slots, ctx, diag);
+
+            if (control.kind != TC_EXEC_NORMAL) {
+                return control;
             }
         }
-        tc_exec_block_path_pop(&ctx->block_path);
         if (ctx->index.next == else_start) {
             /* then 正常结束：跳过 else */
             ctx->index.next = if_end;
         }
-        return 0;
+        return tc_exec_normal();
     }
 
-    if (tc_exec_block_path_push(&ctx->block_path, if_index * 2 + 1, diag, if_stmt->line) != 0) {
-        return -1;
-    }
-    if (tc_execute_block(if_stmt->else_body, if_stmt->else_count, else_start, if_end, slots,
-                         symbols, ctx, diag) != 0) {
-        tc_exec_block_path_pop(&ctx->block_path);
-        return -1;
-    }
-    tc_exec_block_path_pop(&ctx->block_path);
-    return 0;
+    return tc_execute_block(if_stmt->else_body, if_stmt->else_count, else_start, if_end, slots,
+                            ctx, diag);
 }
 
-static int tc_execute_statement_at(const TcStatement *stmt, int stmt_start, TcValue *slots,
-                                   const TcSymbolTable *symbols, TcExecuteCtx *ctx,
-                                   TcDiagnostic *diag) {
+static TcExecControl tc_execute_while_at(const TcStatement *stmt, int while_index,
+                                         TcValue *slots, TcExecuteCtx *ctx,
+                                         TcDiagnostic *diag) {
+    const TcWhileStmt *while_stmt = &stmt->u.while_stmt;
+    int body_start = while_index + 1;
+    int while_end = while_index + tc_stmt_subtree_index_count(stmt);
+
+    if (ctx->index.next != while_index) {
+        tc_exec_set_internal_error(diag, while_stmt->line,
+                                   "internal error: control entered while body directly");
+        return tc_exec_error();
+    }
+    if (while_stmt->loop_id < 0) {
+        tc_exec_set_internal_error(diag, while_stmt->line,
+                                   "internal error: unresolved while loop metadata");
+        return tc_exec_error();
+    }
+
+    for (;;) {
+        TcValue condition;
+        TcExecControl control;
+
+        if (tc_eval_rhs(&while_stmt->condition, TC_BOOL, slots, &condition, diag,
+                        while_stmt->line) != 0) {
+            return tc_exec_error();
+        }
+        if (condition.bits == 0) {
+            ctx->index.next = while_end;
+            return tc_exec_normal();
+        }
+
+        ctx->index.next = body_start;
+        control = tc_execute_block(while_stmt->body, while_stmt->body_count, body_start,
+                                   while_end, slots, ctx, diag);
+        if (control.kind == TC_EXEC_BREAK && control.loop_id == while_stmt->loop_id) {
+            ctx->index.next = while_end;
+            return tc_exec_normal();
+        }
+        if (control.kind == TC_EXEC_CONTINUE && control.loop_id == while_stmt->loop_id) {
+            continue;
+        }
+        if (control.kind != TC_EXEC_NORMAL) {
+            return control;
+        }
+    }
+}
+
+static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_start,
+                                             TcValue *slots, TcExecuteCtx *ctx,
+                                             TcDiagnostic *diag) {
     if (stmt->kind == TC_STMT_IF) {
         int seeking = (ctx->index.next != stmt_start);
 
-        return tc_execute_if_at(stmt, stmt_start, seeking, slots, symbols, ctx, diag);
+        return tc_execute_if_at(stmt, stmt_start, seeking, slots, ctx, diag);
+    }
+
+    if (stmt->kind == TC_STMT_WHILE) {
+        return tc_execute_while_at(stmt, stmt_start, slots, ctx, diag);
     }
 
     if (stmt->kind == TC_STMT_LABEL_DEF) {
         tc_stmt_index_take(&ctx->index);
-        return 0;
+        return tc_exec_normal();
     }
 
     if (stmt->kind == TC_STMT_GOTO) {
         const TcGoto *goto_stmt = &stmt->u.goto_stmt;
-        const TcLabelEntry *entry = NULL;
         char msg[128];
 
         tc_stmt_index_take(&ctx->index);
-        entry = tc_exec_resolve_goto_label(symbols, goto_stmt->target, &ctx->block_path);
-        if (!entry) {
+        if (!goto_stmt->resolved) {
             (void)snprintf(msg, sizeof(msg), "internal error: label '%s' not resolved",
                            goto_stmt->target);
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, goto_stmt->line, TC_COLUMN_UNKNOWN, msg);
-            return -1;
+            tc_exec_set_internal_error(diag, goto_stmt->line, msg);
+            return tc_exec_error();
         }
-        /* 跳到标签之后的下一条（§8.6） */
-        ctx->index.next = entry->stmt_index + 1;
-        return 0;
+        return tc_exec_control(TC_EXEC_GOTO, -1, goto_stmt->resolved_target_stmt_index);
+    }
+
+    if (stmt->kind == TC_STMT_BREAK || stmt->kind == TC_STMT_CONTINUE) {
+        const TcLoopControlStmt *loop_control =
+            stmt->kind == TC_STMT_BREAK ? &stmt->u.break_stmt : &stmt->u.continue_stmt;
+
+        tc_stmt_index_take(&ctx->index);
+        if (loop_control->loop_id < 0) {
+            tc_exec_set_internal_error(diag, loop_control->line,
+                                       "internal error: unresolved loop control metadata");
+            return tc_exec_error();
+        }
+        return tc_exec_control(stmt->kind == TC_STMT_BREAK ? TC_EXEC_BREAK
+                                                            : TC_EXEC_CONTINUE,
+                               loop_control->loop_id, -1);
     }
 
     {
-        int stmt_index = tc_stmt_index_take(&ctx->index);
+        tc_stmt_index_take(&ctx->index);
 
         if (stmt->kind == TC_STMT_VAR_DEF) {
             const TcVarDef *var_def = &stmt->u.var_def;
-            const TcSymbol *symbol =
-                tc_executor_find_def_symbol(symbols, var_def->name, var_def->line);
             TcValue value;
 
-            if (!symbol) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, var_def->line, TC_COLUMN_UNKNOWN,
-                                  "internal error: symbol not found for var def");
-                return -1;
+            if (!var_def->binding.resolved || var_def->binding.is_const ||
+                var_def->binding.slot < 0 || var_def->binding.type != var_def->type || !slots) {
+                tc_exec_set_internal_error(diag, var_def->line,
+                                           "internal error: unresolved var slot metadata");
+                return tc_exec_error();
             }
-            if (!var_def->has_rhs) {
-                return 0;
-            }
-            if (tc_eval_rhs(&var_def->rhs, var_def->type, slots, symbols, stmt_index, &value, diag,
+            if (tc_eval_rhs(&var_def->rhs, var_def->type, slots, &value, diag,
                             var_def->line) != 0) {
-                return -1;
+                return tc_exec_error();
             }
-            slots[symbol->slot] = value;
+            slots[var_def->binding.slot] = value;
         } else if (stmt->kind == TC_STMT_CONST_DEF) {
-            const TcConstDef *const_def = &stmt->u.const_def;
-            const TcSymbol *symbol =
-                tc_executor_find_def_symbol(symbols, const_def->name, const_def->line);
-
-            if (!symbol) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, const_def->line, TC_COLUMN_UNKNOWN,
-                                  "internal error: symbol not found for const def");
-                return -1;
-            }
-            if (symbol->has_const_value) {
-                slots[symbol->slot] = symbol->const_value;
-            }
+            /* let 已在 Analyzer 求值，运行期声明行不产生任何动作。 */
+            (void)slots;
         } else if (stmt->kind == TC_STMT_ASSIGN) {
             const TcAssign *assign = &stmt->u.assign;
-            const TcSymbol *symbol =
-                tc_executor_find_visible_symbol(symbols, assign->name, stmt_index);
             TcValue value;
 
-            if (!symbol) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, assign->line, TC_COLUMN_UNKNOWN,
-                                  "internal error: symbol not found for assign");
-                return -1;
+            if (!assign->binding.resolved || assign->binding.is_const ||
+                assign->binding.slot < 0 || !slots) {
+                tc_exec_set_internal_error(diag, assign->line,
+                                           "internal error: unresolved assignment metadata");
+                return tc_exec_error();
             }
-            if (tc_eval_rhs(&assign->rhs, symbol->type, slots, symbols, stmt_index, &value, diag,
+            if (tc_eval_rhs(&assign->rhs, assign->binding.type, slots, &value, diag,
                             assign->line) != 0) {
-                return -1;
+                return tc_exec_error();
             }
-            slots[symbol->slot] = value;
+            slots[assign->binding.slot] = value;
         } else if (stmt->kind == TC_STMT_WRITE) {
-            if (tc_exec_io_write(&stmt->u.io_write, slots, symbols, stmt_index, 0, diag) != 0) {
-                return -1;
+            if (tc_exec_io_write(&stmt->u.io_write, slots, 0, diag) != 0) {
+                return tc_exec_error();
             }
         } else if (stmt->kind == TC_STMT_WRITELN) {
-            if (tc_exec_io_write(&stmt->u.io_write, slots, symbols, stmt_index, 1, diag) != 0) {
-                return -1;
+            if (tc_exec_io_write(&stmt->u.io_write, slots, 1, diag) != 0) {
+                return tc_exec_error();
             }
         } else if (stmt->kind == TC_STMT_READ) {
-            if (tc_exec_io_read(&stmt->u.io_read, slots, symbols, stmt_index, diag) != 0) {
-                return -1;
+            if (tc_exec_io_read(&stmt->u.io_read, slots, diag) != 0) {
+                return tc_exec_error();
             }
+        } else {
+            tc_exec_set_internal_error(diag, 0, "internal error: unhandled statement kind");
+            return tc_exec_error();
         }
     }
-    return 0;
+    return tc_exec_normal();
 }
 
 int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbolTable *symbols,
                          TcDiagnostic *diag) {
     TcExecuteCtx ctx;
+    TcExecControl control;
     int span = tc_stmt_subtree_index_count(stmt);
 
+    (void)symbols;
     memset(&ctx, 0, sizeof(ctx));
     tc_stmt_index_reset(&ctx.index);
-    return tc_execute_block(stmt, 1, 0, span, slots, symbols, &ctx, diag);
+    control = tc_execute_block(stmt, 1, 0, span, slots, &ctx, diag);
+    if (control.kind == TC_EXEC_ERROR) {
+        return -1;
+    }
+    if (control.kind != TC_EXEC_NORMAL) {
+        tc_exec_set_internal_error(diag, 0,
+                                   "internal error: unconsumed control at statement boundary");
+        return -1;
+    }
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -657,23 +667,32 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
 int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
     TcValue *slots = NULL;
     TcExecuteCtx ctx;
+    TcExecControl control;
     int total_span = 0;
+    size_t slot_count = tc_symbol_table_runtime_slot_count(&program->symbols);
 
-    if (program->symbols.count > 0) {
-        slots = (TcValue *)malloc(program->symbols.count * sizeof(TcValue));
+    if (slot_count > 0) {
+        slots = (TcValue *)malloc(slot_count * sizeof(TcValue));
         if (!slots) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
             return -1;
         }
-        tc_slots_init_uninitialized(slots, program->symbols.count);
+        tc_slots_init_uninitialized(slots, slot_count);
     }
 
     memset(&ctx, 0, sizeof(ctx));
     tc_stmt_index_reset(&ctx.index);
     total_span = tc_stmt_block_index_span(program->program.items, program->program.count);
-    if (tc_execute_block(program->program.items, program->program.count, 0, total_span, slots,
-                         &program->symbols, &ctx, diag) != 0) {
+    control = tc_execute_block(program->program.items, program->program.count, 0, total_span,
+                               slots, &ctx, diag);
+    if (control.kind == TC_EXEC_ERROR) {
+        free(slots);
+        return -1;
+    }
+    if (control.kind != TC_EXEC_NORMAL) {
+        tc_exec_set_internal_error(diag, 0,
+                                   "internal error: unconsumed control at program boundary");
         free(slots);
         return -1;
     }

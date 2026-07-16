@@ -1,584 +1,596 @@
 # libtc 设计说明书
 
-> **版本**：0.0.26  
-> **实现状态**：**规范与代码 v0.0.26**（浮点全链路 v0.0.25；受限 `goto`/`label` + 未初始化静态错误 v0.0.26；libtc API 签名不变，见 §14/§15）  
-> **依赖**：[TC语言标准设计说明书.md](./TC语言标准设计说明书.md) v0.0.26
-> **关联**：[TC-VM详细设计说明书.md](./TC-VM详细设计说明书.md) · [TC-AOT详细设计说明书.md](./TC-AOT详细设计说明书.md)  
-> **工程**：[TC-Compiler](../README.md) 之 `src/libtc/` 组件  
-> **定位**：TC 编译器的嵌入式接口库——将「编译（Parse + Analyze）」与「执行」分离
+> **规范基线**：[TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md)
+>
+> **当前实现基线**：libtc / TC-VM v0.0.31
+>
+> **状态**：承载 TC 0.0.31 的 libtc 架构与公共契约已实现并通过所有权、OOM 与平台内存门禁。
+>
+> **调用者速查**：[libtc API](./libtc-api.md)
 
 ---
 
 ## 目录
 
-1. [设计目标与原则](#1-设计目标与原则)
-2. [总体架构](#2-总体架构)
-3. [API 设计](#3-api-设计)
-4. [内部调用链](#4-内部调用链)
-5. [错误状态契约](#5-错误状态契约)
-6. [内存所有权约定](#6-内存所有权约定)
-7. [编译流水线与解析模型](#7-编译流水线与解析模型)
-8. [TcTypedProgram 数据契约](#8-tctypedprogram-数据契约)
-9. [性能分析支持](#9-性能分析支持)
-10. [构建集成](#10-构建集成)
-11. [示例](#11-示例)
-12. [与 VM / AOT / REPL 的关系](#12-与-vm--aot--repl-的关系)
-13. [v0.0.24 变更影响（libtc 层）](#13-v0024-变更影响libtc-层)
-14. [v0.0.25 变更影响（libtc 层）](#14-v0025-变更影响libtc-层)
-15. [v0.0.26 变更影响（libtc 层）](#15-v0026-变更影响libtc-层)
-
-附录
-
-- [附录 A：API 签名速查](#附录-aapi-签名速查)
-- [附录 B：文档修订记录](#附录-b文档修订记录)
+1. [边界与目标](#1-边界与目标)
+2. [公共 API](#2-公共-api)
+3. [目标编译流水线](#3-目标编译流水线)
+4. [`TcTypedProgram` 数据契约](#4-tctypedprogram-数据契约)
+5. [所有权与生命周期](#5-所有权与生命周期)
+6. [失败、回滚与 OOM](#6-失败回滚与-oom)
+7. [诊断契约](#7-诊断契约)
+8. [Parser 与 Analyzer 集成](#8-parser-与-analyzer-集成)
+9. [Executor 与 AOT 消费边界](#9-executor-与-aot-消费边界)
+10. [性能与并发](#10-性能与并发)
+11. [构建与嵌入](#11-构建与嵌入)
+12. [验证](#12-验证)
+13. [实现基线与迁移](#13-实现基线与迁移)
 
 ---
 
-## 1. 设计目标与原则
+## 1. 边界与目标
 
-### 1.1 目标
+### 1.1 版本基线
 
-libtc 是 TC 编译器的静态库，提供以下能力：
+| 维度 | 版本 | 说明 |
+| ---- | ---- | ---- |
+| 目标语言规范 | 0.0.31 | libtc 最终必须实现的接受集、结果和诊断阶段 |
+| 当前库实现 | v0.0.31 | 当前头文件、结构和运行行为 |
+| 本文 | 0.0.31 已实现设计 | 当前编译门面与所有权契约 |
 
-- **嵌入友好**：其他 C 程序可调用 libtc 编译并执行 TC 源码，无需启动子进程
-- **编译与执行分离**：调用方可先编译（`tc_compile_source`），再独立执行（`tc_run_typed`）
-- **与 CLI 共享**：`tc-vm`（经 `tc_driver`）和 `tc-aot` 的 CLI 入口都通过 libtc 完成编译，不重复实现解析流水线
-- **单一编译前端**：VM 解释执行与 AOT 代码生成消费**同一份** `TcTypedProgram`，保证语义一致
+### 1.2 libtc 的职责
 
-### 1.2 核心原则
+libtc 是 TC 编译器前端与执行器的嵌入入口：
 
-| 原则 | 说明 |
-| ---- | ---- |
-| **薄封装** | libtc 是 VM 各模块（lexer/parser/analyzer/executor）的**编排层**，本身不含运算/I/O 语义 |
-| **fail-fast** | 词法/语法/分析阶段遇首错即停，不累积错误（`TcDiagnostic` 单槽） |
-| **所有权明确** | 成功时调用方拥有 `TcTypedProgram`；失败时 libtc 内部处理清理 |
-| **零外部依赖** | 仅依赖 POSIX 标准 API（`fopen`、`clock_gettime` 等） |
-| **解析入口集中** | 全文件解析逻辑位于 `tc_lib.c` 的 `tc_parse_source()`，便于 v0.0.24 扩展多行 `if` |
+- 从字符串或文件建立完整编译单元；
+- 调用 Lexer/Parser 构造 `TcProgram`；
+- 完成名称、类型、控制上下文、完整 CFG 与确定初始化；
+- 成功时返回可被 VM/AOT 消费的 `TcTypedProgram`；
+- 执行 typed program 并传播运行时诊断；
+- 管理阶段间所有权转移和失败回滚。
 
-### 1.3 实现版本
+### 1.3 非职责
 
-| 项目 | 版本 |
-|------|------|
-| 本文档 / 语言标准 | 0.0.26 |
-| 当前 `tc-vm`（`TC_VM_VERSION`） | 0.0.26 |
-| v0.0.24 交付 | `tc_parse_source` 两遍扫描 + 树形 `TcIfStmt`；Analyzer 递归 Pass1/Pass2 |
-| v0.0.25 交付 | 浮点类型 `float32`/`float64` 全链路——词法/语法/分析/执行/AOT 代码生成；`tc_types.h` 扩展浮点枚举及相关 RHS kind/shim 函数；`tc_semantics.c`/`tc_io.c` 扩展浮点算术/比较/cast/I/O |
-| v0.0.26 交付 | 受限 `goto`/`label` + 未初始化静态错误；libtc **无 API 变更**（透传共享 Analyze/Execute） |
+- libtc 不定义语言规范；合法性以 0.0.31 标准为准。
+- libtc 不把 REPL 的逐行限制应用到批量编译。
+- libtc 不提供 AOT 输出文件或 host C 工具链管理。
+- libtc 不累积多错误；目标仍采用 fail-fast 单诊断。
 
----
+### 1.4 设计原则
 
-## 2. 总体架构
-
-```text
-调用方 C 程序 / tc-vm driver / tc-aot
-    │
-    ├─ tc_compile_source / tc_compile_file
-    │      │  Parse:  tc_parse_source()     ← libtc/tc_lib.c（编排入口）
-    │      │           ├─ [v0.0.23] 逐行 tokenize + tc_parse_statement
-    │      │           └─ [v0.0.24] 两遍行扫描 + tc_parse_if_stmt（缩进敏感）
-    │      │  Analyze: tc_analyze()
-    │      │           ├─ tc_pass1_collect_stmt()   [v0.0.24 递归]
-    │      │           └─ tc_pass2_check_stmt()     [v0.0.24 递归]
-    │      ▼
-    │      TcTypedProgram { program, symbols, warnings }
-    │
-    ├─ tc_run_typed
-    │      │  Execute: tc_execute() → tc_execute_statement() [含 if 分支递归]
-    │      ▼
-    │      stdout / stderr / runtime errors
-    │
-    └─ tc_typed_program_free
-          释放语句树、符号表、警告（含嵌套 if body）
-```
-
-### 2.1 文件结构
-
-| 文件 | 职责 |
-|------|------|
-| `tc_lib.h` | 对外 API 声明（`tc_compile_*`、`tc_run_typed`） |
-| `tc_lib.c` | **全文件解析编排**（`tc_parse_source`）、文件读取、`TC_BENCH` 计时 |
-
-> **边界**：`tc_parse_source` 为 `static`，不对外导出；嵌入方仅通过 `tc_compile_*` 间接使用。
-
-### 2.2 编译时依赖
-
-libtc 是静态库，链接 VM 各模块源文件：
-
-```text
-src/libtc/
-└── tc_lib.c              ← 编排：parse 入口 + compile/run API
-
-src/vm/runtime/
-├── tc_types.c / tc_diagnostic.c / tc_symbol.c
-├── tc_warning.c          ← @deprecated 空壳（无活跃警告）
-├── tc_semantics.c + tc_sem_int.c / tc_sem_fp.c / tc_sem_bitwise.c
-└── tc_io.c
-（tc_stmt_index.h 为 header-only，无独立 .c）
-
-src/vm/lexer/tc_lexer.c
-src/vm/parser/
-├── tc_parser.c / tc_parser_rhs.c / tc_parser_free.c
-src/vm/analyzer/
-├── tc_analyzer.c / tc_analyzer_pass1.c / tc_analyzer_pass2.c
-├── tc_analyzer_dfa.c / tc_analyzer_repl.c / tc_const_eval.c
-src/vm/executor/tc_executor.c
-```
+1. **成功才转移所有权**：失败不把半构造对象交给调用方。
+2. **静态完成后才执行**：`tc_run_typed` 不补做 Parser/Analyzer 检查。
+3. **一个 typed program，多后端**：VM 与 AOT 消费同一静态结果。
+4. **错误域分离**：语言错误、API/文件错误和 OOM 不互相冒充。
+5. **公共入口稳定**：0.0.31 目标不要求新增编译或执行函数。
 
 ---
 
-## 3. API 设计
+## 2. 公共 API
 
-### 3.1 编译接口
+### 2.1 目标保持的函数签名
 
 ```c
-int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag);
-int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
+int tc_compile_source(const char *source,
+                      TcTypedProgram *out,
+                      TcDiagnostic *diag);
+
+int tc_compile_file(const char *path,
+                    TcTypedProgram *out,
+                    TcDiagnostic *diag);
+
+int tc_run_typed(const TcTypedProgram *program,
+                 TcDiagnostic *diag);
+
+void tc_typed_program_free(TcTypedProgram *program);
 ```
 
-**输入输出**：
+前三个入口声明在 `src/libtc/tc_lib.h`；释放函数由共享 types 接口提供。0.0.31 新语法和语义通过内部结构扩展，不要求调用者选择另一套 API。
 
-| 参数 | 方向 | 说明 |
-|------|------|------|
-| `source` / `path` | 输入 | 源文本或文件路径；`source` 须在 `diag` 打印前保持有效 |
-| `out` | 输出 | 成功时写入已通过静态分析的 `TcTypedProgram` |
-| `diag` | 输出 | 失败时写入诊断信息（首错单槽） |
+### 2.2 源兼容与二进制兼容
 
-**返回值**：`0` 成功；`-1` 失败（`diag` 已设置）。
+函数签名目标上保持源兼容，但 `TcTypedProgram`、`TcDiagnostic` 和错误枚举是公开可见 C 结构；0.0.31 扩展这些结构时，嵌入方必须重新编译。本文不承诺跨 v0.0.26/0.0.31 的二进制 ABI 兼容。
 
-**v0.0.24 新增静态错误**（经 Analyze 报出，与语言标准 §11.1 一致）：缩进类 4 种、`TC_ERR_CONDITION_TYPE`、`TC_ERR_CROSS_BLOCK_REFERENCE`（或与 `TC_ERR_UNDEFINED_VARIABLE` 统一，见 VM 详设 §7.3）等。
+### 2.3 `tc_compile_source`
 
-**v0.0.25 新增静态/运行时错误**（经 Analyze 或 `tc_run_typed` 报出）：`TC_ERR_FLOAT_OVERFLOW`、`TC_ERR_FLOAT_UNDERFLOW`、`TC_ERR_FLOAT_INVALID`、`TC_ERR_FLOAT_CAST_OVERFLOW`、`TC_ERR_MODE_MISMATCH`（见语言标准 §11.4、VM 详设 §11.3）。libtc API 不变，仍经 `diag` 单槽返回。
+前置条件：
 
-### 3.2 执行接口
+- `source` 指向 NUL 结尾字符串；
+- `out` 与 `diag` 非空；
+- `diag` 已由 `tc_diagnostic_init` 初始化；
+- `out` 不持有尚未释放的 typed program。
 
-```c
-int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
-```
+成功：返回 0，把完整 `TcTypedProgram` 所有权交给调用方。
 
-**约束**：`program` 必须已通过 `tc_compile_*` 且返回值 `0`。
+失败：返回 -1，设置 `diag`；调用方不取得 `out` 所有权，不调用 `tc_typed_program_free(out)`。实现可以保持 `out` 原值或清空它，但不得留下要求调用方猜测是否释放的部分所有权。
 
-**返回值**：`0` 成功；`-1` 运行时错误（除零、溢出、I/O 等）。
+source 内容在编译期间只读。诊断若需要保留 source/snippet，libtc 复制所需文本；函数返回后调用方可释放 source。
 
-**副作用**：`write`/`writeln` 输出到 stdout；`read` 从 stdin 读取。
+### 2.4 `tc_compile_file`
 
-**v0.0.24**：`tc_execute` 对顶层 `TC_STMT_IF` 在运行时分支，块内语句递归 `tc_execute_statement`；PC 仅递增顶层语句（每个 `if` 占一条顶层 PC）。
+`tc_compile_file` 读取整个文件并复用与 `tc_compile_source` 相同的批量流水线。成功与 typed program 所有权契约完全相同。文件打开、定位、读取失败属于 API/环境错误，不是 TC 源码 `SyntaxError`。
 
-### 3.3 释放接口
+### 2.5 `tc_run_typed`
 
-```c
-void tc_typed_program_free(TcTypedProgram *program);   /* 声明于 tc_analyzer.h */
-```
+- 输入必须来自成功编译且尚未释放；
+- program 在执行期间只读，可在执行后再次运行；
+- 成功返回 0；运行时算术、cast、浮点或 I/O 错误返回 -1；
+- 执行不取得 program 所有权；
+- 运行失败后仍由调用方释放 program。
 
-由 Analyzer 模块实现，libtc 调用方通过 `tc_analyzer.h` 或 `tc_lib.h`（间接 include）使用。
-
-释放 `TcTypedProgram` 内所有堆内存，含嵌套 `TcIfStmt` 的 `then_body`/`else_body`（经 `tc_statement_free` 递归）。释放后各子字段指针置 NULL；对空状态再次调用安全。
-
-### 3.4 接口设计决策
-
-**为什么传递裸指针而非结构体**：`TcDiagnostic` 和 `TcTypedProgram` 由调用方在栈上分配，libtc 内部填充；避免堆分配所有权模糊。
-
-**为什么编译和执行分离**：允许调用方在执行前检查警告列表；支持 `tc-vm --check`（仅编译不执行）；AOT 仅需 `tc_compile_file` 无需 `tc_run_typed`。
-
-**为什么 `tc_parse_source` 留在 libtc 而非 parser 模块**：parser 提供单行/块级原语（`tc_parse_statement`、`tc_parse_if_stmt`）；**全文件行扫描与两遍调度**属于编译驱动职责，与 `tc_driver` 解耦。
+重复执行时每次建立新的 runtime slots 和执行上下文，不复用上一次的变量值。
 
 ---
 
-## 4. 内部调用链
+## 3. 目标编译流水线
 
-### 4.1 tc_compile_source
-
-```text
-tc_compile_source(source, out, diag)
-    │
-    ├─ diag->source = source
-    │
-    ├─ tc_parse_source(source, &program, diag)    /* static，tc_lib.c */
-    │     [v0.0.24+ 现状] 两遍扫描：
-    │       第一遍: 切行 + tokenize + 记录行缩进 → line_tokens[]
-    │       第二遍: 遇 TC_TOK_IF → tc_parse_if_stmt；否则 parse_statement
-    │
-    └─ tc_analyze(&program, out, diag)
-           ├─ tc_pass1_collect_symbols / collect_stmt   [递归 if 块]
-           └─ tc_pass2_type_check / check_stmt         [递归 if 块]
-                └─ tc_resolve_const_value → let 编译期求值（含浮点 ConstFloat*，§7.4.1）
-```
-
-### 4.2 tc_compile_file
+### 3.1 阶段图
 
 ```text
-tc_compile_file(path, out, diag)
-    ├─ tc_diagnostic_set_source(diag, path, NULL)
-    ├─ tc_read_file(path)              → malloc 缓冲区
-    ├─ tc_compile_source(source, out, diag)
-    └─ free(source)                    → 文件缓冲由 libtc 释放
+source bytes
+  │
+  ├─ source/filename capture
+  ├─ Lex + Parse
+  │    └─ TcProgram
+  ├─ Bind + Scope + Slot allocation
+  ├─ Type + Mode + Statement checks
+  ├─ Control-context and label resolution
+  ├─ Complete CFG construction
+  ├─ Reachability + definite initialization fixed point
+  ├─ let constant evaluation / canonical values
+  │
+  └─ TcTypedProgram
+       ├─ tc_run_typed → Executor
+       └─ tc_aot_emit_c → AOT
 ```
 
-### 4.3 tc_run_typed
+### 3.2 编译事务
+
+目标实现用局部临时对象承载每一阶段：
 
 ```text
-tc_run_typed(program, diag)
-    └─ tc_execute(program, diag)
-         for each top-level stmt:
-              tc_execute_statement()
-                   ├─ VarDef/ConstDef/Assign/IO …
-                   └─ [v0.0.24] TC_STMT_IF:
-                        eval condition → 递归执行 then_body 或 else_body
+init temporary program/typed state
+parse
+analyze
+if success:
+    move complete typed state to *out
+else:
+    free all temporary state
 ```
 
-### 4.4 与 REPL 的路径分叉
+这样可以实现“成功才转移所有权”，避免 Parse 与 Analyze 失败产生两套调用者规则。
 
-REPL（`tc_repl.c`）**不经过** libtc 的 `tc_compile_source`：
+### 3.3 Parser 输出
 
-```text
-tc_repl:  tokenize_line → parse_statement → tc_analyze_statement → tc_execute_statement
-```
+`TcProgram` 保留：
 
-v0.0.24 起 REPL **显式拒绝** `TC_STMT_IF`（见 VM 详设 §18.8）；含控制流的程序须经 `tc_compile_file` / `tc_compile_source`（文件模式）。
+- 树形 if/while 子块；
+- break/continue/goto/label 节点；
+- var/let/赋值/I/O；
+- RHS 和 operand；
+- 行、列、缩进相关源位置；
+- 尚未解析的标识符文本。
+
+Parser 直接拒绝缺初始化器的 `var`，使用 `VarMissingInitializer`。其它名称、类型和控制上下文留给 Analyzer。
+
+### 3.4 Analyzer 输出
+
+Analyzer 成功意味着：
+
+- 每个名称绑定确定；
+- 每个 `var` 有固定 slot；
+- 每个 RHS 的类型和模式确定；
+- `let` 有规范化 `TcValue`；
+- goto、label、break、continue 的目标确定；
+- 完整 CFG 与可达性确定；
+- 所有可达使用满足确定初始化；
+- 不存在任何静态错误。
 
 ---
 
-## 5. 错误状态契约
+## 4. `TcTypedProgram` 数据契约
 
-`tc_compile_source` 和 `tc_compile_file` 失败时，`out` 的状态取决于失败阶段：
-
-### 5.1 Parse 失败（词法/语法/缩进/OOM）
-
-> **v0.0.24-rev2**：OOM 错误不再归类为 `TC_ERR_SYNTAX`，而是使用独立的 `TC_ERR_OUT_OF_MEMORY`（见 `tc_types.h`）。
-
-- `out` **不会被修改**
-- 调用方不得读取 `out`，也**无需**调用 `tc_typed_program_free`
-- `tc_parse_source` 内部已 `tc_program_free` 清理中间 `TcProgram`（含已解析的部分 if 子树）
-
-### 5.2 Analyze 失败（静态分析错误）
-
-- `tc_analyze` 内部已调用 `tc_typed_program_free(out)`
-- `out` 处于**空状态**（`count` 为 0、指针为 NULL）
-- 调用方**无需**再次释放；再次调用 `tc_typed_program_free` 安全（no-op）
-
-### 5.3 文件 I/O 失败
-
-- `tc_compile_file` 在打开/读取文件阶段失败时，`out` 不会被修改
-- 行为同 Parse 失败
-
-### 5.4 成功
-
-- 调用方拥有 `TcTypedProgram`，必须调用 `tc_typed_program_free` 释放
-
-### 5.5 执行阶段失败
-
-- `tc_run_typed` 失败不改变 `program` 内容；调用方仍可 `tc_typed_program_free`
-- 已执行的语句副作用保留（与 VM fail-fast 一致）
-
----
-
-## 6. 内存所有权约定
-
-| 对象 | 分配方 | 释放方 |
-|------|--------|--------|
-| `TcDiagnostic` | 调用方栈/堆 | `tc_diagnostic_clear`（可重复使用） |
-| `TcTypedProgram` | `tc_compile_*` 成功时 | `tc_typed_program_free` |
-| `TcProgram.items[]` | `tc_program_push` / if 解析 | `tc_program_free` → `tc_statement_free` 递归 |
-| `TcIfStmt.then_body/else_body` | `tc_parse_if_stmt` | `tc_statement_free`（`TC_STMT_IF` 分支） |
-| `source`（`tc_compile_source`） | 调用方 | 调用方（编译返回后即可释放） |
-| `tc_compile_file` 读入缓冲 | `tc_read_file` | `tc_compile_file` 内 `free` |
-| `diag->message` / `filename` / `snippet` | libtc/analyzer 内 `malloc` | `tc_diagnostic_clear` |
-
-**特别说明**：
-
-- `diag->source` 在 `tc_compile_source` 中指向调用方 `source`；`tc_compile_file` 在 `free` 文件缓冲**之前**已完成编译，故诊断打印不依赖该缓冲（行片段已拷贝至 `diag->snippet` 若适用）
-- 嵌套 if 形成**树形**语句结构；`tc_typed_program_free` 必须递归释放，不可仅 `free` 顶层数组
-
----
-
-## 7. 编译流水线与解析模型
-
-### 7.1 两遍扫描（v0.0.24+ 现状）
-
-多行 `if-then-else-end` 需要**行级缩进上下文**，`tc_parse_source` 采用两遍扫描：
-
-```text
-第一遍  for each line:
-            tokenize_line + 计算 leading whitespace（缩进列）
-            存入 line_tokens[]
-
-第二遍  index = 0
-        while index < n:
-            if first_token == TC_TOK_IF:
-                tc_parse_if_stmt(...)   /* 消费多行，递归嵌套 if */
-            else:
-                tc_parse_statement(single line)
-            tc_program_push(top-level stmt)
-```
-
-缩进规则与语言标准 §4.7.2 / VM 详设 §19 一致。`tc_tokenize_line` **不变**；缩进在 libtc 编排层计算。
-
-> **历史**：v0.0.23 及以前为逐行 `tokenize + tc_parse_statement`（无缩进上下文）；v0.0.24 起由本节两遍扫描取代。
-
-### 7.2 空行与注释
-
-- 空行和仅含空白字符的行跳过（不占 PC）
-- `;` 开头的整行注释跳过
-- 行内 `;` 由 lexer 作为语句终结符/注释处理
-
-### 7.3 语句树与顶层 PC
-
-- 顶层 `TcProgram.items[]`：顺序列表，PC 从 0 递增
-- `TC_STMT_IF`：顶层占 **1** 个 PC；`then_body`/`else_body` 为子数组，**不**进入顶层 PC 序列
-- Executor / AOT 在 if 分支内递归处理子语句
-
----
-
-## 8. TcTypedProgram 数据契约
-
-Analyzer 通过后，`TcTypedProgram` 是 VM 与 AOT 的**唯一程序表示**：
+### 4.1 v0.0.31 当前形态
 
 ```c
 typedef struct {
-    TcProgram program;        /* TcStatement[]，可含 TC_STMT_IF / LABEL / GOTO */
-    TcSymbolTable symbols;    /* Pass1 符号表：含 scope_level、slot、标签 */
-    TcWarningList warnings;   /* 预留；v0.0.26 起无活跃警告种类 */
+    TcProgram program;
+    TcSymbolTable symbols;
+    TcCfg *cfg;
+    TcWarningList warnings;
 } TcTypedProgram;
 ```
 
-| 字段 | 用途 | 消费方 |
-|------|------|--------|
-| `program` | 语句 AST | `tc_execute`、`tc_aot_emit_c` |
-| `symbols` | 变量/常量槽位、`const_value`、作用域、标签 | Executor 查 slot；AOT 生成 `slots[N]` / 标签 |
-| `warnings` | 编译期警告列表（空壳） | 调用方可打印；当前恒为空；未初始化已升为 `diag` 错误 |
+该结构承载语句树、符号/标签和空警告预留。
 
-**v0.0.24 符号表**：块内 `var`/`let` 在 Pass1 分配全局唯一 `slot`（统一 slot 池）；`scope_level` + `pop_scope` 控制可见性。`symbols.count` 决定 AOT `slots[]` 长度（含互斥分支上的局部变量）。
+### 4.2 0.0.31 静态信息
 
-**嵌入方只读约束**：`tc_run_typed` 不修改 `program`；若需多次执行，应重复 `tc_compile_*` 或自行拷贝（当前未提供 clone API）。
+目标 typed program 还必须直接保存或能够无歧义重建：
+
+- 完整作用域树与 block path；
+- statement → scope 映射；
+- binding → slot 映射；
+- label/goto 解析目标；
+- break/continue → loop id；
+- 每个 RHS 的源/目标类型与合法模式；
+- 完整 CFG、可达性或等价的稳定只读表示；
+- `let` 的目标精度位模式；
+- 源位置映射。
+
+当前形态：
+
+```c
+typedef struct {
+    TcProgram program;
+    TcSymbolTable symbols;
+    TcCfg *cfg;
+    TcWarningList warnings; /* 兼容空壳；0.0.31 无语言警告 */
+} TcTypedProgram;
+```
+
+`TcCfg` 使用前置声明和只读指针保存在公开结构中，其节点细节保持内部；`tc_typed_program_free` 统一释放。Executor/AOT 不各自重建语义不同的 CFG。
+
+### 4.3 不变量
+
+成功的 typed program 满足：
+
+- 所有指针字段要么有效、要么为可释放的 NULL；
+- count/capacity/items 三元组一致；
+- statement/RHS kind 全部属于已实现集合；
+- slot 在 `[0, variable_slot_count)`；
+- `let` 不占 runtime slot；
+- CFG 目标引用有效节点；
+- 不存在未解析名称或待定类型；
+- warnings 为空。
+
+### 4.4 可重复消费
+
+Executor 和 AOT 只读 typed program。一个成功对象可以：
+
+1. 执行零次或多次；
+2. 生成 C 零次或多次；
+3. 在消费完成后释放一次。
+
+任何消费者不得修改共享 symbol、const value 或 CFG。
 
 ---
 
-## 9. 性能分析支持
+## 5. 所有权与生命周期
 
-设置环境变量 `TC_BENCH=1` 时，libtc 向 stderr 输出各阶段耗时：
+### 5.1 总表
+
+| 对象 | 创建者 | 成功后的所有者 | 释放者 |
+| ---- | ------ | -------------- | ------ |
+| 调用方 source | 调用方 | 调用方 | 调用方 |
+| 文件缓冲 | `tc_compile_file` | libtc | `tc_compile_file` 返回前 |
+| `TcProgram` | Parser | Analyzer/typed program | 失败回滚或 `tc_typed_program_free` |
+| 符号/作用域/标签 | Analyzer | typed program | `tc_typed_program_free` |
+| CFG | Analyzer | typed program | `tc_typed_program_free` |
+| `let` 值 | Analyzer | typed program 内嵌 | 随 typed program |
+| runtime slots | Executor | Executor | 每次运行返回前 |
+| `TcDiagnostic` 内部字符串 | diagnostic 模块 | 调用方持有的 diag | `tc_diagnostic_clear` |
+
+### 5.2 AST 递归释放
+
+`tc_statement_free` 必须按 kind 释放：
+
+- var/let/assign 的名称与 RHS；
+- I/O operand 名称；
+- if then/else 数组；
+- while body 数组；
+- label/goto 字符串；
+- bitcast/cast operand 中的名称。
+
+每个新增 kind 必须同步 free 分发；未知 kind 在调试构建中断言，不能静默泄漏。
+
+### 5.3 CFG 所有权
+
+CFG 的 nodes、edges、前驱/后继数组、bitset 和 source mapping 使用单一所有权根。构建过程中的临时工作队列由 Analyzer 自身释放，不进入 typed program。
+
+### 5.4 诊断 source
+
+`tc_diagnostic_set_source` 复制 filename/source 所需内容。新的错误覆盖旧单槽时，先释放旧 message/snippet，再保存新内容；不得保留指向 `tc_compile_file` 临时缓冲的悬空指针。
+
+---
+
+## 6. 失败、回滚与 OOM
+
+### 6.1 阶段回滚
+
+| 失败点 | 必须释放 |
+| ------ | -------- |
+| source capture | 已复制 filename/source |
+| Lexer/Parser | tokens、当前语句、已完成语句树、块栈 |
+| Binder/Type | program、symbols、scope/label 路径、临时绑定 |
+| CFG | 全部已建 nodes/edges/bitsets、program、symbols |
+| Const eval | 临时值/名称、program、symbols/CFG |
+| Executor | runtime slots、执行上下文；typed program 仍归调用方 |
+
+### 6.2 统一返回
+
+- 0：成功，输出契约成立；
+- -1：失败，diag 有可打印信息；
+- 不使用正数编码阶段；具体类别由诊断域和 kind 表达。
+
+### 6.3 OOM
+
+所有 `malloc/calloc/realloc/strdup` 失败：
 
 ```text
-bench parse: 0.001234 s
-bench analyze: 0.000567 s
-bench execute: 0.000890 s
+domain  = implementation
+kind    = TC_ERR_OUT_OF_MEMORY
+message = memory allocation failed
+return  = -1
 ```
 
-实现：`clock_gettime(CLOCK_MONOTONIC)`；埋点位于 `tc_parse_source`（parse）、`tc_compile_source`（analyze）、`tc_run_typed`（execute）。
+OOM 不得降级为 `SyntaxError`。`realloc` 采用临时指针，失败时保留旧块以便统一回滚。
 
-配合 `scripts/vm/bench.sh` 用于本地回归对比。v0.0.24 两遍 parse 可能略增 parse 阶段耗时，属预期。
+### 6.4 输出对象
+
+推荐实现只在全部成功后赋值 `*out`。在任意失败路径：
+
+- 调用方不读取 `out`；
+- 调用方不释放 `out`；
+- libtc 保证已释放本次调用创建的所有对象。
+
+这个调用者规则消除了早期 Parse/Analyze 失败差异，为 0.0.31 提供单一稳定契约。
 
 ---
 
-## 10. 构建集成
+## 7. 诊断契约
 
-### 10.1 CMake 目标
+### 7.1 三个诊断域
 
-```cmake
-target_link_libraries(my_app PRIVATE libtc)
-target_include_directories(my_app PRIVATE ${TC_LIBTC_INCLUDE_DIRS})
-```
+0.0.31 目标明确区分：
 
-### 10.2 头文件路径
+| 域 | 例子 | 是否决定 TC 程序合法性 |
+| -- | ---- | ----------------------- |
+| Language | Syntax、TypeMismatch、UninitializedVariable、运行时 overflow | 是 |
+| API/Environment | 文件无法打开/读取、无效调用前置条件 | 否 |
+| Implementation | OutOfMemory、内部不变量破坏 | 否 |
 
-| 路径 | 内容 |
-|------|------|
-| `src/libtc/` | `tc_lib.h` |
-| `src/vm/runtime/` | `tc_types.h`、`tc_diagnostic.h`、… |
-| `src/vm/analyzer/` | `tc_analyzer.h`（`tc_typed_program_free`） |
-| `src/vm/lexer/`、`parser/`、`executor/` | 各模块头文件 |
+文件打开失败不得继续使用 `TC_ERR_SYNTAX`。目标 `TcDiagnostic` 应增加 domain/origin，并为 API 文件错误提供独立 code；函数签名无需变化。
 
-完整速查见 [libtc-api.md](./libtc-api.md)。
+### 7.2 语言错误
 
-### 10.3 编译选项
+0.0.31 标准 §11.4 是 `TcErrorKind` 的权威清单：41 个语言错误码加 `OutOfMemory` 实现扩展。关键迁移包括：
 
-`-std=c99 -Wall -Wextra -pedantic`，与 VM 一致。
+- 新增/恢复 VarMissingInitializer、UninitializedVariable、BitcastWidth；
+- 新增循环/范式隔离错误；
+- 删除 ConstantCircular、CrossBlockReference、OverflowMode、FloatCastOverflow、GotoSkipsVarInit；
+- 模式和 cast 错误统一。
+
+### 7.3 阶段确定性
+
+同一源程序经 `tc_compile_source` 与 `tc_compile_file` 应在相同语言阶段返回相同 language kind。文件 API 仅在读取源码前增加 API/Environment 失败可能。
+
+### 7.4 单槽
+
+libtc 继续只报告第一条错误。阶段排序必须固定，避免实现遍历顺序改变可观察 kind。建议顺序：形态/语法 → 名称 → 类型/模式 → 控制合法性 → CFG 初始化。
+
+### 7.5 打印与程序化访问
+
+- `tc_diagnostic_print` 根据 domain 打印适当前缀和源片段；
+- `tc_error_kind_name()` 只字符串化语言/实现错误枚举；
+- API 文件错误使用 API code 的独立 name；
+- line/column 不适用于文件打开时可为 0/unknown，但不得伪造源码位置。
 
 ---
 
-## 11. 示例
+## 8. Parser 与 Analyzer 集成
 
-### 11.1 完整嵌入流程
+### 8.1 批量解析
+
+`tc_compile_source` 始终解析完整 source。`if`/`while` 的缩进和 `end` 必须在 Parser 返回前闭合。REPL 的逐行 Parser 不是该入口的替代实现。
+
+### 8.2 0.0.31 新结构
+
+Parser/Analyzer 的目标扩展：
+
+| 能力 | Parser | Analyzer |
+| ---- | ------ | -------- |
+| 强制 var RHS | 形态与专用错误 | RHS 类型 |
+| while | 块与 condition AST | bool、scope、CFG |
+| break/continue | statement AST | 最内层 loop 绑定 |
+| goto/label 隔离 | statement AST | while 祖先检查 |
+| bitcast | RHS AST | 非 bool、等位宽 |
+| let 单层表达式 | 语法形态 | 来源、类型、逐步语义 |
+
+### 8.3 完整 CFG
+
+libtc 的 Analyze 阶段必须在成功返回前完成完整 CFG 固定点。AOT `--check`、VM 文件模式和嵌入 API 都走同一检查，不能由调用方选择跳过。
+
+### 8.4 常量与可达性
+
+合法 `let` 条件可剪除 if/while 的不可能边，但不可达语句仍做语法、名称和类型检查。该顺序由 Analyzer 内部保证，libtc 只暴露最终结果。
+
+---
+
+## 9. Executor 与 AOT 消费边界
+
+### 9.1 Executor
+
+`tc_run_typed`：
+
+```text
+allocate fresh slots/context
+execute typed statements
+on runtime error: set diag, free runtime state, return -1
+on success: free runtime state, return 0
+```
+
+typed program 不被修改。完整执行设计见 [TC-VM 详细设计说明书](./TC-VM详细设计说明书.md)。
+
+### 9.2 AOT
+
+AOT 通过同一 public/internal typed program 读取语句、slot、目标和常量。libtc 不提供 AOT 特化编译入口；`tc-aot` 先调用 `tc_compile_file`，再调用 codegen。详见 [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书.md)。
+
+### 9.3 一致性
+
+- 静态接受集完全由 libtc 决定；
+- VM/AOT 不各自放宽或收紧；
+- 数值和 I/O 使用共享 runtime；
+- `let` 的位模式由 Analyzer 一次确定；
+- 新后端必须消费同一 typed contract。
+
+### 9.4 REPL
+
+REPL 增量分析是 driver 侧的独立实现能力。它可以拒绝多行控制流，但不得影响 `tc_compile_source` 的批量语义。未来多行 REPL 应先缓冲完整单元再调用 libtc。
+
+---
+
+## 10. 性能与并发
+
+### 10.1 性能阶段
+
+当前 `TC_BENCH=1` 输出 parse、analyze、execute 时间。0.0.31 目标可把 analyze 细分为：
+
+```text
+bench parse
+bench bind-type
+bench cfg
+bench dataflow
+bench execute
+```
+
+默认不输出性能行；bench 输出到 stderr，不改变程序 stdout。
+
+### 10.2 复杂度目标
+
+- Lex/Parse：O(source bytes + statements)；
+- binding：平均 O(statements)；
+- CFG build：O(nodes + edges)；
+- bitset dataflow：O(iterations × edges × bitset words)；
+- execution：O(dynamic statements)。
+
+循环固定点必须有单调传递函数和有限终止，不使用无界路径枚举。
+
+### 10.3 可重入
+
+除环境变量读取和标准 I/O 外，编译状态都在调用栈/对象中，不使用可变全局编译器状态。不同线程可使用各自 `TcDiagnostic`、`TcTypedProgram` 和输入并发编译；同一对象不得无同步并发修改/释放。
+
+### 10.4 复用
+
+同一 typed program 可重复执行或 AOT 发射。若未来缓存 CFG/后端临时信息，缓存必须只读或由调用方显式同步，不能破坏当前 const 输入契约。
+
+---
+
+## 11. 构建与嵌入
+
+### 11.1 头文件
+
+调用者包含：
 
 ```c
 #include "tc_lib.h"
-#include "tc_diagnostic.h"
-#include "tc_warning.h"
-
-int main(void) {
-    TcDiagnostic diag;
-    TcTypedProgram program;
-
-    tc_diagnostic_init(&diag);
-    if (tc_compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &program, &diag) != 0) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    if (program.warnings.count > 0) {
-        tc_warning_list_print(&program.warnings, stderr);
-    }
-
-    if (tc_run_typed(&program, &diag) != 0) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_typed_program_free(&program);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    tc_typed_program_free(&program);
-    tc_diagnostic_clear(&diag);
-    return 0;
-}
 ```
 
-### 11.2 仅编译（AOT / --check 模式）
+`tc_lib.h` 当前传递包含 Analyzer、Diagnostic、Executor 和 Types 头。0.0.31 可通过前置声明减少暴露，但不能让公共类型不完整到无法按当前模式栈分配。
+
+### 11.2 链接
+
+libtc 由 CMake 生成并链接 Lexer、Parser、Analyzer、Executor、runtime semantics 和 I/O。新增 CFG 模块必须进入相同静态库，不要求嵌入方单独链接内部对象。
+
+### 11.3 版本
+
+libtc 没有独立公开版本函数，随 TC-VM 0.0.31 版本管理。本轮未新增运行时版本查询 API。
+
+### 11.4 最小调用模式
 
 ```c
+TcDiagnostic diag;
 TcTypedProgram program;
-if (tc_compile_file("input.tc", &program, &diag) != 0) { /* 错误处理 */ }
 
-/* AOT: tc_aot_emit_c(&program, fp); 不调用 tc_run_typed */
-/* --check: 打印警告后 tc_typed_program_free */
+tc_diagnostic_init(&diag);
+if (tc_compile_file("input.tc", &program, &diag) != 0) {
+    tc_diagnostic_print(&diag, stderr);
+    tc_diagnostic_clear(&diag);
+    return 1;
+}
+
+if (tc_run_typed(&program, &diag) != 0) {
+    tc_diagnostic_print(&diag, stderr);
+}
 
 tc_typed_program_free(&program);
+tc_diagnostic_clear(&diag);
 ```
 
-### 11.3 v0.0.24 含 if 的源文件
-
-含 `if-then-else-end` 的 `.tc` 文件经**同一** `tc_compile_file` 编译；无需嵌入方特殊处理。解析与作用域由 libtc 内部完成。
+0.0.31 无语言警告，调用者不需要警告打印步骤。
 
 ---
 
-## 12. 与 VM / AOT / REPL 的关系
+## 12. 验证
 
-### 12.1 组件调用关系
+### 12.1 API 契约测试
 
-```text
-tc-vm (main.c)
-    └─ tc_run_source / tc_run_file     [driver/tc_driver.c]
-           └─ tc_compile_* + tc_run_typed + tc_typed_program_free
-                  └─ libtc (tc_lib.c)
+- compile source/file 成功只转移一次所有权；
+- 每个失败阶段不要求调用方释放 out；
+- source 在 compile 返回后可释放；
+- typed program 可重复运行；
+- runtime 失败后 program 仍可释放；
+- diagnostic 可 clear 并复用；
+- 文件/API 错误不返回 SyntaxError；
+- OOM 每个分配点无泄漏且 kind 正确。
 
-tc-aot (main.c)
-    └─ tc_compile_file
-           └─ libtc
-    └─ tc_aot_emit_c(program)          [不经过 tc_run_typed]
+### 12.2 结构所有权测试
 
-tc-repl (tc_repl.c)
-    └─ 绕过 libtc 全文件编译
-    └─ 逐行 analyze_statement / execute_statement
-    └─ v0.0.24: 不支持 if
-```
+- 深层 if/while 树递归释放；
+- break/continue/label/goto/bitcast payload 释放；
+- CFG 构建中途失败释放 nodes/edges/bitsets；
+- Analyze 成功后原始 program 不被双重释放；
+- AOT/Executor 只读消费。
 
-| 组件 | libtc API | 说明 |
-|------|-----------|------|
-| **tc-vm 文件模式** | `tc_compile_*` + `tc_run_typed` | 经 `tc_driver` 封装 |
-| **tc-vm --check** | 仅 `tc_compile_*` | 不执行 |
-| **tc-aot** | 仅 `tc_compile_*` | 然后 `tc_aot_emit_c` |
-| **嵌入应用** | `tc_compile_*` + 可选 `tc_run_typed` | 直接使用 |
-| **tc-repl** | **不使用** `tc_compile_source` | 增量单行路径 |
+### 12.3 语言集成测试
 
-### 12.2 共享模块
+- while/loop control；
+- goto 范式隔离；
+- 完整 CFG 确定初始化；
+- var missing initializer；
+- strict cast/truncate/bitcast；
+- float strict/ieee 与 let 精度；
+- 42 项错误码/扩展映射。
 
-| 模块 | libtc 链接 | AOT 额外链接 |
-|------|------------|--------------|
-| `tc_lexer/parser/analyzer/executor` | ✅ | 间接（经 libtc 编译） |
-| `tc_semantics.c` / `tc_io.c` | ✅（执行路径） | ✅（生成代码 + shim） |
-| `tc_aot_codegen.c` | ❌ | ✅ |
+### 12.4 工具
 
-### 12.3 行为一致性
+正常 unit/VM/AOT、ASan、UBSan 与 no-fenv 均已通过；macOS MallocScribble 全矩阵通过，`test-libtc` 在系统 `leaks` 下为 0 leaks / 0 bytes。
 
-对同一 `.tc` 源文件：
-
-1. `tc_compile_file` 产出相同 `TcTypedProgram`（VM 与 AOT 共享）
-2. VM：`tc_run_typed` 解释执行
-3. AOT：`tc_aot_emit_c` 生成 C 后原生执行
-4. 差分测试要求 stdout 逐字节一致（见 AOT 详设 §10）
+| 契约 | 实现链接 | 测试链接 |
+| ---- | -------- | -------- |
+| success-only ownership 与阶段回滚 | [tc_lib.c](../src/libtc/tc_lib.c) | [test_libtc.c](../tests/unit/runtime/test_libtc.c) |
+| typed program + CFG 生命周期 | [tc_analyzer.c](../src/vm/analyzer/tc_analyzer.c)、[tc_cfg.c](../src/vm/analyzer/tc_cfg.c) | [test_cfg.c](../tests/unit/runtime/test_cfg.c)、[test_libtc.c](../tests/unit/runtime/test_libtc.c) |
+| 诊断域、OOM 与免分配后备 | [tc_diagnostic.c](../src/vm/runtime/tc_diagnostic.c) | [test_diagnostic.c](../tests/unit/runtime/test_diagnostic.c) |
+| 重复 VM/AOT 消费 | [tc_executor.c](../src/vm/executor/tc_executor.c)、[tc_aot_codegen.c](../src/aot/tc_aot_codegen.c) | `test_libtc.c` 重复执行/发射用例 |
+| REPL 事务边界 | [tc_repl.c](../src/vm/driver/tc_repl.c)、[tc_analyzer_repl.c](../src/vm/analyzer/tc_analyzer_repl.c) | [repl_extended_scenarios.txt](../tests/valid/repl_extended_scenarios.txt) |
 
 ---
 
-## 13. v0.0.24 变更影响（libtc 层）
+## 13. 实现基线与迁移
 
-| 变更项 | libtc 职责 | 关联模块 |
-|--------|------------|----------|
-| 两遍 `tc_parse_source` | **主改造文件** `tc_lib.c` | `tc_parse_if_stmt` @ parser |
-| `TcIfStmt` AST | 无类型变更（types.h） | `tc_statement_free` @ parser |
-| 块级作用域 Analyze | 无逻辑（委托 `tc_analyze`） | `tc_symbol.c` push/pop、`find_in_scope` |
-| then/else 双作用域 | 无 | analyzer Pass1/Pass2 递归 |
-| DFS `stmt_index` | 无 | analyzer Pass2 |
-| `tc_run_typed` / if 执行 | 无代码变更（委托 executor） | `tc_execute_statement` |
-| REPL 拒绝 if | 无 | `tc_analyze_statement` @ analyzer |
-| DIAG 错误码分离 | 无（`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`） | `tc_types.h`、全线 .c 模块 |
+### 13.1 v0.0.31 当前事实
 
-**开发顺序**（v0.0.24 历史路径）：types → symbol → lexer → **`tc_lib.c` parse** → analyzer → executor → AOT。
+- 公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_run_typed`。
+- Parse → Analyze 成功后返回 program/symbols/CFG/空 warnings。
+- `tc_run_typed` 委托 `tc_execute`。
+- 文件打开/读取与无效参数使用 API 诊断域，不冒充语言错误。
+- typed program 包含 while/break/continue/bitcast 元数据和显式完整 CFG。
+- warning list 是兼容空壳；0.0.31 无语言警告。
 
-**知识图谱**：`tc_parse_source` 分发点登记在 `@knowledge-graph` §TcStmtKind（文件：`libtc/tc_lib.c`）。
+### 13.2 已完成的 0.0.31 迁移
 
----
+1. 扩展共享 types、statement/RHS kind 与释放分发；
+2. 把 Parser 与 Analyzer 的结果构建改为成功才转移所有权；
+3. 加入通用块、循环与 bitcast；
+4. 建立作用域/目标元数据和完整 CFG；
+5. 收敛诊断枚举并引入 API/Environment 诊断域；
+6. 更新 Executor/AOT 消费；
+7. 增加 OOM、所有权、API、语言和差分测试；
+8. 全部门禁通过后把实现版本升至 0.0.31。
 
-## 14. v0.0.25 变更影响（libtc 层）
+### 13.3 兼容结论
 
-| 变更项 | libtc 职责 | 关联模块 |
-|--------|------------|----------|
-| `FloatType` / `FloatMode` / 4 个浮点 `TcRhsKind` | **无 API 变更**；`tc_compile_*` 透传 Parse + Analyze | `tc_types.h`、`tc_parser.c`、`tc_analyzer.c`、`tc_const_eval.c` |
-| 浮点词法/语法/分析 | 无逻辑（委托现有流水线） | `tc_lexer.c`、`tc_parser.c`、`tc_analyzer.c` |
-| 浮点常量求值 | 无代码变更（委托 `tc_const_eval.c`） | 以 `float64` 精度编译期求值；禁 `ieee`/`wrap`（语言标准 §4.3） |
-| `tc_run_typed` | 无代码变更（委托 `tc_executor.c`） | `exec_fp_arith`/`exec_fp_unary`/`exec_fp_compare`/`exec_fp_cast` |
-| `TcTypedProgram` 契约 | **结构体字段无变更**；语句树含浮点 RHS 变体 | VM 详设 §5.5、§8 |
-| 槽位分配 | 规则不变：Pass1 统一 slot 池 | 浮点 `var`/`let` 与整数共用 slot 索引 |
-| 错误码 | 透传 Analyze / Execute 诊断 | 5 种浮点相关 `TcErrorKind` + `TC_ERR_MODE_MISMATCH` |
-| AOT 嵌入 | 无变更：仍 `tc_compile_file` → `tc_aot_emit_c` | AOT 详设 §4.4、§5.2 |
-
-**嵌入方影响**：无需为新类型或 RHS 特殊处理；`tc_compile_source` / `tc_compile_file` / `tc_run_typed` 签名与所有权契约不变（见 [libtc-api.md](./libtc-api.md) §v0.0.25 简述）。
+0.0.31 目标不要求调用者改用新函数，但错误枚举、公开结构和接受程序集变化，因此嵌入方需要重新编译并审查对具体错误 kind 或结构字段的依赖。
 
 ---
 
-## 15. v0.0.26 变更影响（libtc 层）
-
-| 变更项 | libtc 职责 | 关联模块 |
-|--------|------------|----------|
-| `TC_STMT_LABEL_DEF` / `TC_STMT_GOTO` | **无 API 变更**；`tc_compile_*` 透传 Parse + Analyze | `tc_parser.c`、`tc_analyzer.c`、`tc_symbol.c` |
-| 标签表 / 跳转合法性 | 无逻辑（委托 Analyzer） | 块路径判定；5 个新 `TcErrorKind` |
-| 未初始化数据流 | 无逻辑（委托 Analyzer） | `TC_ERR_UNINITIALIZED_VARIABLE` 替代原警告 |
-| `tc_run_typed` | 无代码变更（委托 Executor goto IP） | `tc_executor.c` §8.6 |
-| AOT 嵌入 | 无变更：仍 `tc_compile_file` → `tc_aot_emit_c` | AOT 详设 §4.7 |
-
-**嵌入方影响**：非法 goto / 未初始化在 Analyze 阶段失败，经 `diag` 单槽返回；API 与所有权契约不变。
-
----
-
-## 附录 A：API 签名速查
-
-```c
-/* src/libtc/tc_lib.h */
-
-int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag);
-int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
-int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag);
-
-/* src/vm/analyzer/tc_analyzer.h — tc_lib.h 已 include */
-
-void tc_typed_program_free(TcTypedProgram *program);
-int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);  /* 一般不经嵌入方直接调用 */
-```
-
-用户向速查：[libtc-api.md](./libtc-api.md)。
-
----
-
-## 附录 B：文档修订记录
-
-| 版本 | 日期 | 说明 |
-|------|------|------|
-| 0.0.21 | 2026-07-06 | 首版：从 TC-VM 详设独立；API、错误契约、逐行解析流水线 |
-| **0.0.24** | **2026-07-07** | 对齐语言/VM/AOT v0.0.24：`tc_parse_source` 两遍扫描规划；`TcIfStmt` 树形 AST 与内存所有权；`TcTypedProgram` 数据契约；与 REPL 路径分叉；v0.0.24 libtc 变更表；实现状态标注 |
-| **0.0.24-rev1** | **2026-07-07** | 合规审查跟进：then/else 双作用域、Analyzer 递归、统一 slot 池、知识图谱交叉引用 |
-| **0.0.24-rev2** | **2026-07-09** | OOM 错误码分离：`tc_lib.c` OOM 路径使用 `TC_ERR_OUT_OF_MEMORY` 而非 `TC_ERR_SYNTAX`；§5.1 错误状态契约同步更新 |
-| **0.0.25** | **2026-07-13** | **浮点全链路**：`tc_types.h` 扩展 `FloatType`/`FloatMode` 枚举、`TcRhsKind` 新增 4 个浮点变体；`tc_semantics.h/c` 新增 `exec_fp_arith`/`exec_fp_unary`/`exec_fp_compare`/`exec_fp_cast`；`tc_io.h/c` 扩展浮点格式符与输入解析；`tc_lib.c` 编译流水线无变化（Parse/Analyze 层已吸收浮点 AST 变体）；版本号同步更新 |
-| **0.0.25-doc1** | **2026-07-13** | **实现设计文档评审修正**：§3.1 补充 v0.0.25 浮点错误码；§7 合并为两遍扫描现状并标注 v0.0.23 历史；新增 §14 v0.0.25 变更影响表 |
-| **0.0.26** | **2026-07-14** | **goto/未初始化**：依赖语言标准升版现行；新增 §15 变更影响（libtc API 无变更）；版本号与 `TC_VM_VERSION` 0.0.26 对齐 |
-| **0.0.26-doc1** | **2026-07-14** | **文档同步**：§2.2 依赖树对齐模块拆分；§8 `warnings` 改为预留空壳；移除已删 `TC-0.0.24开发计划.md` 链接 |
-
----
-
-*— 文档结束 —*
+*语言合法性与错误种类以 [TC 语言标准 0.0.31](./TC语言标准设计说明书_0.0.31.md) 为准；当前可调用行为以 [libtc API](./libtc-api.md) 为准。*

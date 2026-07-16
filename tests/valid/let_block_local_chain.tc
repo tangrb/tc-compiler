@@ -1,0 +1,9 @@
+; 块内更早 let 可供普通引用、算术、cast 与 bitcast 连续使用
+if true then
+    let A: int32 = 1
+    let B: int32 = A
+    let C: int32 = add(int32, B, 1)
+    let D: int16 = cast(int16, truncate, C)
+    let E: uint16 = bitcast(uint16, D)
+    writeln(uint16, E)
+end
