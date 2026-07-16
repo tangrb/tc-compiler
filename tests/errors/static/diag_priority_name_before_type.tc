@@ -1,0 +1,2 @@
+; 名称解析阶段先于同一 RHS 中的操作数类型检查
+var result: bool = and(bool, 1, missing)

@@ -130,6 +130,121 @@ static const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
     return NULL;
 }
 
+static int tc_precheck_name_binding(const char *name, TcResolvedBinding *binding,
+                                    const TcSymbolTable *visible,
+                                    const TcSymbolTable *global, size_t stmt_index, int line,
+                                    TcDiagnostic *diag, const char *self_name) {
+    const TcSymbol *symbol = NULL;
+    char msg[128];
+
+    if (self_name && strcmp(name, self_name) == 0) {
+        (void)snprintf(msg, sizeof(msg),
+                       "variable '%s' cannot reference itself in its initializer", self_name);
+        tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        return -1;
+    }
+    symbol = tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag);
+    if (!symbol) {
+        return -1;
+    }
+    tc_resolved_binding_set(binding, symbol);
+    return 0;
+}
+
+static int tc_precheck_operand_name(TcOperand *operand, const TcSymbolTable *visible,
+                                    const TcSymbolTable *global, size_t stmt_index, int line,
+                                    TcDiagnostic *diag, const char *self_name) {
+    if (operand->kind == TC_OPERAND_LIT) {
+        return 0;
+    }
+    return tc_precheck_name_binding(operand->u.name, &operand->binding, visible, global,
+                                    stmt_index, line, diag, self_name);
+}
+
+/* §11.0：同一 RHS 先完成名称解析，再进入类型、模式与常量阶段。 */
+static int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
+                                 const TcSymbolTable *global, size_t stmt_index, int line,
+                                 TcDiagnostic *diag, const char *self_name) {
+    switch (rhs->kind) {
+    case TC_RHS_ARITH:
+        if (tc_precheck_operand_name(&rhs->u.arith.lhs, visible, global, stmt_index, line, diag,
+                                     self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.arith.rhs, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_UNARY:
+        return tc_precheck_operand_name(&rhs->u.unary.operand, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_COMPARE:
+        if (tc_precheck_operand_name(&rhs->u.compare.lhs, visible, global, stmt_index, line,
+                                     diag, self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.compare.rhs, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_LOGIC_BIN:
+        if (tc_precheck_operand_name(&rhs->u.logic_bin.lhs, visible, global, stmt_index, line,
+                                     diag, self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.logic_bin.rhs, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_LOGIC_UN:
+        return tc_precheck_operand_name(&rhs->u.logic_un.operand, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_BITWISE_BIN:
+        if (tc_precheck_operand_name(&rhs->u.bitwise_bin.lhs, visible, global, stmt_index, line,
+                                     diag, self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.bitwise_bin.rhs, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_BITWISE_UN:
+        return tc_precheck_operand_name(&rhs->u.bitwise_un.operand, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_SHIFT:
+        if (tc_precheck_operand_name(&rhs->u.shift.value, visible, global, stmt_index, line, diag,
+                                     self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.shift.count, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_CAST:
+        return tc_precheck_operand_name(&rhs->u.cast.source, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_CONST_CAST:
+        return tc_precheck_operand_name(&rhs->u.const_cast.source, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_FLOAT_ARITH:
+        if (tc_precheck_operand_name(&rhs->u.float_arith.lhs, visible, global, stmt_index, line,
+                                     diag, self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.float_arith.rhs, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_FLOAT_UNARY:
+        return tc_precheck_operand_name(&rhs->u.float_unary.operand, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_FLOAT_COMPARE:
+        if (tc_precheck_operand_name(&rhs->u.float_compare.lhs, visible, global, stmt_index, line,
+                                     diag, self_name) != 0) {
+            return -1;
+        }
+        return tc_precheck_operand_name(&rhs->u.float_compare.rhs, visible, global, stmt_index,
+                                        line, diag, self_name);
+    case TC_RHS_BITCAST:
+        return tc_precheck_operand_name(&rhs->u.bitcast.source, visible, global, stmt_index, line,
+                                        diag, self_name);
+    case TC_RHS_CONST_REF:
+        return tc_precheck_name_binding(rhs->u.const_ref.name, &rhs->u.const_ref.binding,
+                                        visible, global, stmt_index, line, diag, self_name);
+    case TC_RHS_LIT:
+        return 0;
+    }
+    return 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  操作数与 RHS 检查                                                    */
 /* ------------------------------------------------------------------ */
@@ -250,6 +365,10 @@ int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
                         const char *self_name) {
     char msg[128];
 
+    if (tc_precheck_rhs_names(rhs, visible, global, stmt_index, line, diag, self_name) != 0) {
+        return -1;
+    }
+
     if (rhs->kind == TC_RHS_LIT) {
         if (!tc_literal_fits_context(&rhs->u.lit, lhs_type, NULL)) {
             TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
@@ -327,42 +446,20 @@ int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_LOGIC_BIN) {
         int saved_check_init = hist ? hist->check_init : 1;
+        TcStaticBoolResult lhs_value = TC_STATIC_BOOL_UNKNOWN;
 
         if (tc_check_operand(&rhs->u.logic_bin.lhs, TC_BOOL, visible, global, hist, stmt_index, line, diag,
                              warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         /*
-         * 逻辑短路（与 Executor / §7.4.4 对称）：
-         *   and + lhs false 字面量 / or + lhs true 字面量 → 不检查 rhs 未初始化
+         * 逻辑短路（与 Executor / §7.2.2 对称）：
+         *   and + 静态 false / or + 静态 true → 不检查 rhs 未初始化
          *   仍校验 rhs 存在性与类型（临时关闭 check_init）。
          */
-        if (rhs->u.logic_bin.op == TC_LOGIC_AND) {
-            if (rhs->u.logic_bin.lhs.kind == TC_OPERAND_LIT &&
-                rhs->u.logic_bin.lhs.u.lit.is_bool &&
-                rhs->u.logic_bin.lhs.u.lit.magnitude == 0) {
-                if (hist) {
-                    hist->check_init = 0;
-                }
-                if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
-                                     stmt_index, line, diag, warnings, self_name,
-                                     TC_ERR_TYPE_MISMATCH) != 0) {
-                    if (hist) {
-                        hist->check_init = saved_check_init;
-                    }
-                    return -1;
-                }
-                if (hist) {
-                    hist->check_init = saved_check_init;
-                }
-            } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
-                                        stmt_index, line, diag, warnings, self_name,
-                                        TC_ERR_TYPE_MISMATCH) != 0) {
-                return -1;
-            }
-        } else if (rhs->u.logic_bin.lhs.kind == TC_OPERAND_LIT &&
-                   rhs->u.logic_bin.lhs.u.lit.is_bool &&
-                   rhs->u.logic_bin.lhs.u.lit.magnitude != 0) {
+        tc_try_eval_static_bool_operand(&rhs->u.logic_bin.lhs, &lhs_value);
+        if ((rhs->u.logic_bin.op == TC_LOGIC_AND && lhs_value == TC_STATIC_BOOL_FALSE) ||
+            (rhs->u.logic_bin.op == TC_LOGIC_OR && lhs_value == TC_STATIC_BOOL_TRUE)) {
             if (hist) {
                 hist->check_init = 0;
             }
@@ -377,8 +474,9 @@ int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
             if (hist) {
                 hist->check_init = saved_check_init;
             }
-        } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist, stmt_index,
-                                     line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+        } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
+                                    stmt_index, line, diag, warnings, self_name,
+                                    TC_ERR_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {

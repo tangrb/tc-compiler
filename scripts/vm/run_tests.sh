@@ -90,7 +90,20 @@ elif [ "$LEAKS_MODE" -eq 1 ]; then
         exit 1
     fi
     echo "=== macOS leaks mode (MallocStackLogging + leaks --atExit) ==="
-    BIN="env MallocStackLogging=1 leaks --atExit -- $TC_VM_BIN"
+    run_with_leaks() (
+        # macOS 26 writes the report to the child's stdout and masks the
+        # child's non-zero status.  Run the leak probe with isolated streams,
+        # then replay once normally to preserve the conformance-test contract.
+        input="$(mktemp)" || exit 1
+        trap 'rm -f "$input"' EXIT HUP INT TERM
+        cat >"$input"
+        if ! env MallocStackLogging=1 leaks --quiet --atExit -- \
+            "$TC_VM_BIN" "$@" <"$input" >/dev/null 2>/dev/null; then
+            exit 1
+        fi
+        "$TC_VM_BIN" "$@" <"$input"
+    )
+    BIN="run_with_leaks"
 else
     BIN="$TC_VM_BIN"
 fi
@@ -713,6 +726,19 @@ run_expect_check_ok "$ROOT/tests/valid/while_nested.tc"
 run_expect_check_ok "$ROOT/tests/valid/while_break_continue.tc"
 run_expect_check_ok "$ROOT/tests/valid/while_var_reinitialize.tc"
 run_expect_check_ok "$ROOT/tests/valid/goto_var_reinitialize.tc"
+
+# --- v0.0.31: static bool CFG pruning ---
+
+run_expect_stdout "$ROOT/tests/valid/uninit_shortcircuit_let_bool.tc" "false
+true
+"
+run_expect_stdout "$ROOT/tests/valid/uninit_const_condition_if.tc" "11
+"
+run_expect_stdout "$ROOT/tests/valid/uninit_const_condition_while.tc" "true
+"
+run_expect_check_ok "$ROOT/tests/valid/uninit_shortcircuit_let_bool.tc"
+run_expect_check_ok "$ROOT/tests/valid/uninit_const_condition_if.tc"
+run_expect_check_ok "$ROOT/tests/valid/uninit_const_condition_while.tc"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_inside_loop.tc" \
     "goto is not allowed inside while"
 run_expect_fail_msg "$ROOT/tests/errors/static/label_inside_loop.tc" \
@@ -1042,6 +1068,15 @@ run_expect_fail_msg "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninitia
 run_expect_fail_msg "$ROOT/tests/errors/static/uninit_slot_value.tc" "use of uninitialized variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/uninit_if_path.tc" "use of uninitialized variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/uninit_goto_skip_init.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_invalid_rhs.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_rhs_type.tc" "operand type does not match operation type"
+run_expect_fail_msg "$ROOT/tests/errors/static/uninit_shortcircuit_var_lhs.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_forward_lhs.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_lhs.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
 run_expect_fail_msg "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
@@ -1117,6 +1152,15 @@ run_expect_check_fail "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninit
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_slot_value.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_if_path.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_goto_skip_init.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_invalid_rhs.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_rhs_type.tc" "operand type does not match operation type"
+run_expect_check_fail "$ROOT/tests/errors/static/uninit_shortcircuit_var_lhs.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_forward_lhs.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_lhs.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
 run_expect_check_fail "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"

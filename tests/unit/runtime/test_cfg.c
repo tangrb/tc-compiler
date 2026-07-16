@@ -64,6 +64,17 @@ static int find_node_for_stmt(const TcCfg *cfg, TcCfgNodeKind kind, int stmt_ind
     return -1;
 }
 
+static int find_first_node(const TcCfg *cfg, TcCfgNodeKind kind) {
+    size_t i = 0;
+
+    for (i = 0; i < cfg->node_count; i++) {
+        if (cfg->nodes[i].kind == kind) {
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
 static size_t enabled_edges_from(const TcCfg *cfg, int from, TcCfgEdgeKind kind) {
     size_t count = 0;
     size_t i = 0;
@@ -255,6 +266,141 @@ static void test_local_let_shadow_branch_pruning(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_static_bool_rhs_pruning(void) {
+    static const struct {
+        const char *source;
+        TcCfgNodeKind kind;
+        int expected;
+        const char *message;
+    } cases[] = {
+        {
+            "if true then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            1,
+            "literal true branch",
+        },
+        {
+            "let FLAG: bool = false\n"
+            "if FLAG then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            0,
+            "const-ref false branch",
+        },
+        {
+            "let A: int32 = 10\nlet B: int32 = 5\n"
+            "if gt(int32, A, B) then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            1,
+            "integer comparison branch",
+        },
+        {
+            "let A: float64 = 1.0\nlet B: float64 = 2.0\n"
+            "if lt(float64, A, B) then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            1,
+            "float comparison branch",
+        },
+        {
+            "let A: bool = true\nlet B: bool = false\n"
+            "if and(bool, A, B) then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            0,
+            "logic binary branch",
+        },
+        {
+            "let A: bool = false\n"
+            "if not(bool, A) then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            1,
+            "logic unary branch",
+        },
+        {
+            "let ZERO: int32 = 0\n"
+            "if cast(bool, ZERO) then\n    writeln(bool, true)\nend\n",
+            TC_CFG_BRANCH,
+            0,
+            "strict bool cast branch",
+        },
+        {
+            "var runtime: bool = true\n"
+            "while runtime then\n    runtime = false\nend\n",
+            TC_CFG_LOOP_CONDITION,
+            -1,
+            "var loop condition remains unknown",
+        },
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcTypedProgram typed;
+        TcDiagnostic diag;
+        int node = -1;
+
+        tc_diagnostic_init(&diag);
+        check(compile_source(cases[i].source, &typed, &diag) == 0, cases[i].message);
+        if (typed.cfg) {
+            node = find_first_node(typed.cfg, cases[i].kind);
+            check(node >= 0, "static bool case owns condition node");
+            if (node >= 0) {
+                check(typed.cfg->nodes[node].constant_condition == cases[i].expected,
+                      "static bool RHS produces expected tri-state value");
+                check(enabled_edges_from(typed.cfg, node, TC_CFG_TRUE) ==
+                          (cases[i].expected == 0 ? 0u : 1u),
+                      "static bool RHS controls true edge");
+                check(enabled_edges_from(typed.cfg, node, TC_CFG_FALSE) ==
+                          (cases[i].expected == 1 ? 0u : 1u),
+                      "static bool RHS controls false edge");
+            }
+        } else {
+            check(0, "static bool case owns cfg");
+        }
+        tc_typed_program_free(&typed);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_short_circuit_read_sets(void) {
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    const char *source =
+        "let FALSE: bool = false\n"
+        "let TRUE: bool = true\n"
+        "var rhs: bool = true\n"
+        "var runtime_false: bool = false\n"
+        "var literal_and: bool = and(bool, false, rhs)\n"
+        "var literal_or: bool = or(bool, true, rhs)\n"
+        "var const_and: bool = and(bool, FALSE, rhs)\n"
+        "var const_or: bool = or(bool, TRUE, rhs)\n"
+        "var runtime_and: bool = and(bool, runtime_false, rhs)\n";
+    static const int pruned_stmt_indices[] = {4, 5, 6, 7};
+    size_t i = 0;
+    int node = -1;
+
+    tc_diagnostic_init(&diag);
+    check(compile_source(source, &typed, &diag) == 0,
+          "compile logic RHS read-set matrix");
+    if (typed.cfg) {
+        for (i = 0; i < sizeof(pruned_stmt_indices) / sizeof(pruned_stmt_indices[0]); i++) {
+            node = find_node_for_stmt(typed.cfg, TC_CFG_STATEMENT, pruned_stmt_indices[i]);
+            check(node >= 0, "find pruned logic statement node");
+            if (node >= 0) {
+                check(typed.cfg->nodes[node].read_count == 0,
+                      "literal or let bool short circuit omits RHS read slot");
+            }
+        }
+        node = find_node_for_stmt(typed.cfg, TC_CFG_STATEMENT, 8);
+        check(node >= 0, "find runtime logic statement node");
+        if (node >= 0) {
+            check(typed.cfg->nodes[node].read_count == 2,
+                  "var lhs keeps both logic operand read slots");
+        }
+    } else {
+        check(0, "logic RHS read-set compile owns cfg");
+    }
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_cfg_size_is_linear(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
@@ -286,6 +432,8 @@ int main(void) {
     test_constant_loop_pruning();
     test_let_constant_branch_pruning();
     test_local_let_shadow_branch_pruning();
+    test_static_bool_rhs_pruning();
+    test_short_circuit_read_sets();
     test_cfg_size_is_linear();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

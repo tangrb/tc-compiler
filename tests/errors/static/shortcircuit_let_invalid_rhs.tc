@@ -1,0 +1,3 @@
+; 短路只裁剪未初始化读边，名称检查仍先执行
+let FALSE: bool = false
+var result: bool = and(bool, FALSE, missing)

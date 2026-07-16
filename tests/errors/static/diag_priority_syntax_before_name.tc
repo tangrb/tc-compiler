@@ -1,0 +1,2 @@
+; 操作数数量阶段先于名称解析
+var result: bool = and(bool, missing)

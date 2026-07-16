@@ -699,7 +699,7 @@ OUT[其他语句]    = IN[n]
 - 任何可达的变量读取、赋值目标或 `read` 目标都要求对应绑定属于当前 `IN`。逻辑短路的右操作数是否可达按 §7.2.2 判定。
 - 会合点取可达前驱集合的交集；只有所有可达路径均已初始化才成立。
 - 循环按上述传递函数迭代到固定点。
-- 可达性在 §4.3 常量求值完成后确定。若 `if`/`while` 条件是仅由字面量与源序中更早 `let` 组成的合法单层常量表达式，按 §4.3 求得的布尔结果删除不可能边；其他条件必须同时保留 `true` 与 `false` 边。
+- 可达性在 §4.3 常量求值与静态布尔三态判定完成后确定。若 `if`/`while` 条件按 §4.3 判定为静态 `true` 或静态 `false`，删除不可能边；判定为 `unknown` 时同时保留 `true` 与 `false` 边。CFG 不另行维护运算符白名单。
 - 不可达语句不参与可达前驱交集，但仍须通过词法、语法、名称与类型检查。
 - 分析结果是 0.0.31 的强制语义，不允许实现通过更弱或更强的默认规则改变合法程序集合。
 
@@ -808,6 +808,20 @@ var d: int32                      ; ❌ TC_ERR_VAR_MISSING_INIT
 - 常量表达式中整数 `div`/`mod` 的除数为 0，或浮点严格 `div` 的最高优先级异常为除零，视为 **常量除零错误** 并终止编译
 - 常量移位、转换、NaN 与模式合法性完全复用 §5～§8 的运行时规则
 
+#### 静态布尔条件与三态判定
+
+“静态布尔条件”是结果类型为 `bool`，且整体符合本节“编译期常量表达式”定义的单层 RHS。其原子操作数只能是字面量，或在当前词法作用域可见、定义语句位于使用点之前且已成功求值的 `let`；不得把 `var` 的当前值或跨语句运行时结果当作常量传播。
+
+名称和类型检查完成后，编译器对 `if`/`while` 条件执行以下三态判定：
+
+- **静态 `true`**：RHS 合法且按本节共享常量语义求值为 `true`；CFG 仅保留真边。
+- **静态 `false`**：RHS 合法且求值为 `false`；CFG 仅保留假边。
+- **`unknown`**：RHS 不是合法的单层常量表达式，或含 `var` 等不能静态解析的操作数；CFG 同时保留真、假边。
+
+静态布尔判定只复用本节的表达式定义和 §5～§8 的共享语义，不建立第二套运算符白名单。布尔字面量、可见的更早 `let bool`、结果为 `bool` 的整数/浮点比较、布尔逻辑运算，以及目标为 `bool` 的合法严格 `cast` 均因此自然受支持；`bitcast` 不允许 `bool`，整数 `truncate` 也不能产生合法布尔条件。
+
+前向 `let`、不可见 `let`、嵌套调用或其他非法形态在内部静态判定中不得被折叠；它们仍分别由更早的名称、语法或类型阶段报告错误，因此不会进入 CFG。若表达式形态合法但求值发生整数/浮点溢出、除零、无效浮点操作或严格转换失败，必须按本节既有映射报告 `TC_ERR_CONSTANT_OVERFLOW`、`TC_ERR_CONSTANT_DIV_ZERO`、`TC_ERR_CONSTANT_EXPRESSION` 或 `TC_ERR_CONSTANT_CAST_OVERFLOW` 并终止编译；不得降级为 `unknown`。
+
 #### 浮点常量算术的精度规则
 
 常量表达式中的浮点算术遵循以下规则：
@@ -844,6 +858,24 @@ let CIRCUMFERENCE: float64 = mul(float64, PI, 2.0)  ; 6.283185307179586
 ; 编译期比较与逻辑
 let IS_POSITIVE: bool = gt(float64, PI, 0.0)  ; true
 let RESULT: bool = and(bool, IS_POSITIVE, true)  ; true
+
+; 静态布尔条件：完整合法单层 RHS 均参与 CFG 剪枝
+let TEN: int32 = 10
+let FIVE: int32 = 5
+let FLAG_A: bool = true
+let FLAG_B: bool = false
+if gt(int32, TEN, FIVE) then                 ; 静态 true
+    writeln(bool, %t, true)
+end
+while and(bool, FLAG_A, FLAG_B) then         ; 静态 false，循环体不可达
+    writeln(bool, %t, true)
+end
+
+; var 不做值推测：即使运行时初值为 true，静态判定仍为 unknown
+var runtime_flag: bool = true
+if runtime_flag then
+    writeln(bool, %t, runtime_flag)
+end
 
 ; 编译期转换
 let FLAG_INT: int32 = cast(int32, DEBUG)      ; 1
@@ -1736,7 +1768,26 @@ var not_nan: bool = eq(float64, x, x)   ; false
 - 左操作数为 `true` 时，**不计算** 右操作数，直接返回 `true`
 - 左操作数为 `false` 时，计算右操作数并返回其值
 
-确定初始化分析必须为短路求值建立操作数级的可达边。当左操作数是布尔字面量或源序中更早的 `let bool` 时，使用其编译期值删除不可能的右操作数读取边；左操作数为 `var` 时不做值推测，保守认为右操作数可达。被短路排除的右操作数不触发 `TC_ERR_UNINITIALIZED_VARIABLE`，但仍必须通过词法、语法、名称与类型检查。
+确定初始化分析必须为短路求值建立操作数级的可达边。当左操作数是布尔字面量，或是在当前词法作用域可见、定义语句位于使用点之前且已求值的 `let bool` 时，使用其编译期值删除不可能的右操作数读取边：`false and RHS` 与 `true or RHS` 均不记录 RHS 的变量读取。左操作数为 `var` 时不做值推测，保守认为右操作数可达。
+
+该裁剪只影响 CFG/DFA 的确定初始化读边，不跳过前序静态阶段。被短路排除的 RHS 不触发 `TC_ERR_UNINITIALIZED_VARIABLE`，但仍必须通过词法、语法、名称、类型、操作数数量与模式检查；前向或不可见 `let` 仍按名称解析规则报 `TC_ERR_UNDEFINED_VARIABLE`。
+
+```text
+let FALSE: bool = false
+let TRUE: bool = true
+goto use
+var pending: bool = true
+label use:
+var a: bool = and(bool, FALSE, pending) ; 合法：pending 的读取边被裁剪
+var b: bool = or(bool, TRUE, pending)   ; 合法：pending 的读取边被裁剪
+
+var runtime_false: bool = false
+var c: bool = and(bool, runtime_false, pending)
+; 上一行仍报 TC_ERR_UNINITIALIZED_VARIABLE：var 的值不参与静态推测
+
+var d: bool = and(bool, FALSE, missing)
+; 上一行仍报 TC_ERR_UNDEFINED_VARIABLE：名称检查不被短路绕过
+```
 
 #### 7.2.3 语法形式
 
@@ -2463,11 +2514,13 @@ writeln(uint32, %X, hash)
 4. 名称解析与作用域检查；
 5. 类型、操作数数量与模式检查；
 6. `let` 常量求值；
-7. CFG 构建与确定初始化分析。
+7. 按 §4.3 执行 `if`/`while` 静态布尔三态判定，并按 §7.2.2 判定逻辑 RHS 读边；
+8. CFG 构建与不可达边裁剪；
+9. 在最终 CFG 上执行确定初始化数据流固定点分析（DFA）。
 
 阶段按上述顺序完整执行；只有前一阶段无错时才进入后一阶段。同一阶段存在多个错误时，按源文件行、列顺序报告第一个。若同一 Token 位置同时违反多个类型/模式规则，固定按“操作数数量 → 运算支持的类型类别 → 模式合法性 → `bitcast` 位宽 → 字面量范围/类型 → 格式符与其他操作数类型”的顺序选择诊断。计算操作数数量时，紧跟类型参数的 `wrap`/`ieee`/`truncate` 先识别为候选模式位，不计为普通操作数；若非模式指令写了数量正确的候选模式形式，因而稳定映射为 `TC_ERR_MODE_MISMATCH`。
 
-非法 UTF-8 映射为 `TC_ERR_SYNTAX`；缩进与语法阶段已有专用错误码的情形优先使用专用码，其余才使用 `TC_ERR_SYNTAX`。`let` RHS 中的嵌套调用在语法阶段专门映射为 `TC_ERR_CONSTANT_EXPRESSION`；自引用和前向引用在名称阶段映射为 `TC_ERR_UNDEFINED_VARIABLE`；已解析为 `var` 的引用在常量求值阶段映射为 `TC_ERR_CONSTANT_EXPRESSION`。初始化相关错误按下表严格分工：
+非法 UTF-8 映射为 `TC_ERR_SYNTAX`；缩进与语法阶段已有专用错误码的情形优先使用专用码，其余才使用 `TC_ERR_SYNTAX`。`let` RHS 中的嵌套调用在语法阶段专门映射为 `TC_ERR_CONSTANT_EXPRESSION`；自引用和前向引用在名称阶段映射为 `TC_ERR_UNDEFINED_VARIABLE`；已解析为 `var` 的引用在常量求值阶段映射为 `TC_ERR_CONSTANT_EXPRESSION`。静态布尔判定仅在名称和类型检查以及全部源序更早的 `let` 求值成功后运行；合法常量形态的求值错误按 §4.3 映射并在 CFG/DFA 前终止，不得以“条件未知”吞掉。不可达代码仍完成词法、语法、名称和类型检查，只有 CFG 裁剪后不再可达的变量读取免于未初始化错误。初始化相关错误按下表严格分工：
 
 | 层次 | 违规形态 | 错误码 | 检查性质 | 规范依据 |
 | ---- | -------- | ------ | -------- | -------- |
