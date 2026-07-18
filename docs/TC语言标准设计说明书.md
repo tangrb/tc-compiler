@@ -1,6 +1,6 @@
 # TC 语言标准设计说明书
 
-> **版本**：0.0.32-rev13
+> **版本**：0.0.32-rev14
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）
 > **日期**：2026-07-18
 
@@ -501,6 +501,7 @@ var d: int32                      ; ❌ TC_ERR_VAR_MISSING_INIT
 
 - RHS **必须** 提供
 - RHS 须为 §4.3.1 定义的**单层编译期常量表达式**
+- `let` 声明类型是整个 RHS 的唯一期望结果类型；RHS 结果必须与声明类型**完全一致**，不执行隐式转换，具体检查与诊断见 §4.3.1
 - 常量在编译期求值；使用处**直接内联**编译期结果，**不生成运行时算术指令，亦不分配运行时变量槽**（与 §11.2、附录 B 一致）。源文件中 `let` 语句仍占一行，仅作为编译期声明
 - 常量 **不可** 作为赋值语句的左值
 - **在同一作用域内**，常量名不可与变量名或其他常量名冲突。
@@ -522,6 +523,13 @@ var d: int32                      ; ❌ TC_ERR_VAR_MISSING_INIT
 - 比较运算：`eq`/`ne`/`lt`/`le`/`gt`/`ge`（浮点比较允许但不推荐，因浮点精度）
 - 逻辑运算：`and`/`or`/`xor`/`not`（布尔）
 - 转换：严格 `cast`、整数 `cast(..., truncate, ...)` 与等宽 `bitcast`
+
+**声明类型闭合与检查顺序**：
+
+1. 先完成 `const_rhs` 内部的名称、运算支持类型、模式、操作数类型和字面量检查。单个调用表达式的操作数期望类型仅由该调用的显式类型参数决定；外层 `let` 声明类型不向调用内部传播，也不改变 §8.1.1 的 `cast` / `bitcast` 字面量源类型规则。
+2. RHS 为直接字面量时，以 `let` 声明类型作为 §3.6 的期望类型：符号性、类别或浮点后缀不符时报 `TC_ERR_LITERAL_TYPE`，值不可表示时报 `TC_ERR_LITERAL_OUT_OF_RANGE`。
+3. RHS 为标识符时，名称解析后以该绑定的声明类型为结果类型；RHS 为单个调用表达式时，按该调用的自身规则确定结果类型。若结果类型与外层 `let` 声明类型不完全一致，报 `TC_ERR_TYPE_MISMATCH`，定位到 RHS 的首个 Token。禁止因数值可表示而执行隐式窄化、加宽、符号性变换或整数/浮点转换。标识符若解析为 `var` 或函数参数，在本阶段完成类型闭合检查后，仍按本节约束于常量求值阶段报 `TC_ERR_CONSTANT_EXPRESSION`。
+4. 只有上述名称和类型检查全部成功后才进入编译期求值。因此“RHS 结果类型不匹配”先于同一 RHS 的常量溢出、除零或无效浮点操作诊断。
 
 **约束**：
 - 常量表达式**不可** 引用任何 `var` 变量
@@ -590,6 +598,8 @@ let PI_BITS: uint64 = bitcast(uint64, PI)
 ; let ERR1: int32 = add(int32, a, 10)        ; 错误：a 是 var 变量
 ; let ERR2: int32 = add(int32, mul(int32, 2, 3), 4) ; 错误：调用嵌套
 ; let ERR3: float64 = div(float64, 1.0, 0.0)  ; 错误：常量除零
+; let ERR4: int32 = add(int64, 1, 2)          ; TC_ERR_TYPE_MISMATCH：RHS 结果为 int64
+; let ERR5: float32 = 1.0                     ; TC_ERR_LITERAL_TYPE：无后缀浮点为 float64
 ```
 
 块内 `let` 仍受 §11.1 的词法作用域约束。
@@ -1969,7 +1979,7 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 3. 语法解析；
 4. 收集全部函数签名；
 5. 检查函数重名、签名和名称空间；
-6. 检查 `goto` / `label` 的函数上下文，分别解析函数体和顶层的名称与词法作用域，仅为各函数建立标签表和解析 `goto`，并检查普通 RHS 的类型、操作数数量和模式；
+6. 检查 `goto` / `label` 的函数上下文，分别解析函数体和顶层的名称与词法作用域，仅为各函数建立标签表和解析 `goto`，并检查普通 RHS 与 `const_rhs` 的类型、操作数数量和模式，其中 `let` 按 §4.3.1 检查 RHS 结果类型与声明类型是否闭合；
 7. 检查符合 EBNF 的 `funcall` 之目标、使用位置、实参和接收类型；
 8. 检查符合 EBNF 的 `return [operand]` 之位置、形式和返回类型；
 9. 求值 `let` 常量；
@@ -2011,7 +2021,9 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 
 只有完整 Token 序列符合附录 A 某一产生式时，才进入普通类型/模式诊断。语法已接受的同一位置同时违反多项静态语义时，固定按“运算支持的类型类别 → 模式合法性 → `bitcast` 位宽 → 字面量范围/类型 → 格式符与其他操作数类型”选择。`wrap` / `ieee` / `truncate` 仅在对应产生式明确提供的位置才是候选模式；若相关操作或上下文的产生式没有该参数位置，或类型参数已被专用非终结符排除，且没有上述语法专用诊断，统一在第 3 阶段报告 `TC_ERR_SYNTAX`。例如普通 RHS 的 `shr(int32, wrap, x, k)` 是语法错误，而 `const_shift_expr` 已接受的同形 `let` RHS 随后报告 `TC_ERR_MODE_MISMATCH`。
 
-非法 UTF-8、文件起始 BOM、U+0000，以及注释外违反 §2.1 的非法源字符均映射为 `TC_ERR_SYNTAX`；缩进和语法阶段有专用错误码时优先专用码。此处的专用语法码只改变错误分类，不改变附录 A 接受的程序集合。`let` RHS 嵌套调用在语法阶段映射为 `TC_ERR_CONSTANT_EXPRESSION`；自引用和前向引用在名称阶段映射为 `TC_ERR_UNDEFINED_VARIABLE`；解析为 `var` 的引用在常量求值阶段映射为 `TC_ERR_CONSTANT_EXPRESSION`。静态布尔判定仅在名称、类型及更早 `let` 求值成功后运行；合法常量形态的求值错误不得降级为 `unknown`。不可达代码仍完成词法、语法、名称和类型检查。
+`let` 的类型闭合检查属于第 6 阶段，并在第 9 阶段常量求值之前完成。直接字面量以声明类型作为期望类型，按 §3.6 报 `TC_ERR_LITERAL_TYPE` 或 `TC_ERR_LITERAL_OUT_OF_RANGE`；标识符或合法单层调用的结果类型与声明类型不同时，报 `TC_ERR_TYPE_MISMATCH` 并定位到 RHS 首 Token。单层调用必须先完成其内部类型、模式、位宽、字面量和操作数检查，再比较调用结果与 `let` 声明类型；外层类型不向调用操作数传播。
+
+非法 UTF-8、文件起始 BOM、U+0000，以及注释外违反 §2.1 的非法源字符均映射为 `TC_ERR_SYNTAX`；缩进和语法阶段有专用错误码时优先专用码。此处的专用语法码只改变错误分类，不改变附录 A 接受的程序集合。`let` RHS 嵌套调用在语法阶段映射为 `TC_ERR_CONSTANT_EXPRESSION`；自引用和前向引用在名称阶段映射为 `TC_ERR_UNDEFINED_VARIABLE`；解析为 `var` 或函数参数的引用在完成第 6 阶段类型闭合检查后，于常量求值阶段映射为 `TC_ERR_CONSTANT_EXPRESSION`。静态布尔判定仅在名称、类型及更早 `let` 求值成功后运行；合法常量形态的求值错误不得降级为 `unknown`。不可达代码仍完成词法、语法、名称和类型检查。
 
 ##### 13.1.2 函数签名错误优先级
 
@@ -2103,7 +2115,7 @@ TC 无编译警告，也不以 `TcWarningKind` 放行初始化、溢出、类型
 
 #### 13.5 错误码对照表（`TcErrorKind`）
 
-下列两表是 0.0.32-rev13 完整、权威的 `TcErrorKind` 对照，共 65 项：64 个语言错误码（56 个静态、8 个运行时）和实现扩展码 `TC_ERR_OUT_OF_MEMORY`。枚举名、`tc_error_kind_name()` 打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
+下列两表是 0.0.32-rev14 完整、权威的 `TcErrorKind` 对照，共 65 项：64 个语言错误码（56 个静态、8 个运行时）和实现扩展码 `TC_ERR_OUT_OF_MEMORY`。枚举名、`tc_error_kind_name()` 打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
 
 **实现专用错误码说明**
 
@@ -2116,12 +2128,12 @@ TC 无编译警告，也不以 `TcWarningKind` 放行初始化、溢出、类型
 | `TC_ERR_DUPLICATE_DEFINITION`      | `DuplicateDefinition`        | 重复定义错误                  | 静态        | 同一作用域重复 `var`/`let` 同名                              |
 | **`TC_ERR_VAR_MISSING_INIT`**      | **`VarMissingInitializer`**  | **变量缺少初始化器**          | **静态**    | **声明时必须初始化（§4.2 / §13.1）；形态检查，与控制流无关** |
 | **`TC_ERR_UNINITIALIZED_VARIABLE`** | **`UninitializedVariable`** | **未初始化变量错误**          | **静态**    | **声明存在，但当前 CFG 点不满足确定初始化（§11.2）**          |
-| `TC_ERR_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的运算/赋值/转换发生类型不一致；EBNF 已排除的操作类型参数组合使用 `TC_ERR_SYNTAX` |
+| `TC_ERR_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的运算/变量或常量定义/赋值/转换发生类型不一致；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合使用 `TC_ERR_SYNTAX` |
 | `TC_ERR_LITERAL_OUT_OF_RANGE`      | `LiteralOutOfRange`          | 字面量范围错误                | 静态        | 整数/浮点字面量超出上下文类型范围                            |
 | `TC_ERR_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态        | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀类型与显式上下文不一致 |
 | `TC_ERR_KEYWORD`                   | `KeywordError`               | 关键字错误                    | 静态        | 保留关键字出现在必须为标识符的位置；仅当 EBNF 明确接受模式参数且组合非法时使用 `TC_ERR_MODE_MISMATCH`，无对应模式位置时使用 `TC_ERR_SYNTAX` |
 | `TC_ERR_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` 常量赋值                                            |
-| `TC_ERR_CONSTANT_EXPRESSION`       | `ConstantExpressionError`    | 常量表达式错误                | 静态        | RHS 含 `var`、嵌套调用、其他非法形式，浮点严格常量算术触发无效操作，或常量移位计数为负；自引用/前向引用使用 `TC_ERR_UNDEFINED_VARIABLE` |
+| `TC_ERR_CONSTANT_EXPRESSION`       | `ConstantExpressionError`    | 常量表达式错误                | 静态        | RHS 含 `var` 或函数参数、嵌套调用、其他非法形式，浮点严格常量算术触发无效操作，或常量移位计数为负；自引用/前向引用使用 `TC_ERR_UNDEFINED_VARIABLE` |
 | `TC_ERR_CONSTANT_OVERFLOW`         | `ConstantOverflow`           | 常量溢出错误                  | 静态        | 编译期有符号整数或 `shl` 严格模式溢出，或浮点严格运算上溢/下溢 |
 | `TC_ERR_CONSTANT_DIV_ZERO`         | `ConstantDivisionByZero`     | 常量除零错误                  | 静态        | 编译期整数 `div`/`mod` 除数为 0，或浮点严格 `div`/`mod` 的最高优先级异常为除零 |
 | `TC_ERR_CONSTANT_CAST_OVERFLOW`    | `ConstantCastOverflow`       | 常量转换溢出错误              | 静态        | 编译期严格 `cast` 的数学结果无法由目标类型表示                 |
@@ -2469,6 +2481,8 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_ERR_SYNTAX`，不得为产生 `TC_ERR_TYPE_MISMATCH` 或 `TC_ERR_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_ERR_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §9.3 和 §13.1.5 在静态语义阶段强制执行。
 
+`constant_def` 只规定 `let` 声明的语法外形；`const_rhs` 结果类型与声明 `type` 的闭合由 §4.3.1 在后续静态语义阶段强制，不改变 EBNF 的语法接受集。
+
 ```ebnf
 /* ── 程序 ── */
 
@@ -2542,6 +2556,8 @@ variable_def = "var" , identifier , ":" , type , "=" , rhs ;
 /* ── 常量定义 ── */
 
 constant_def = "let" , identifier , ":" , type , "=" , const_rhs ;
+/* const_rhs 结果类型必须与声明 type 完全一致；这是 §4.3.1
+   的静态语义约束，不改变本产生式的语法接受集。 */
 
 /* ── 赋值语句 ── */
 
