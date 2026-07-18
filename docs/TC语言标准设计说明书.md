@@ -1,6 +1,6 @@
 # TC 语言标准设计说明书
 
-> **版本**：0.0.32-rev6
+> **版本**：0.0.32-rev13
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）
 > **日期**：2026-07-18
 
@@ -14,8 +14,8 @@
 - [第四部分：I/O 与诊断](#第四部分io-与诊断)：标准 I/O、诊断顺序与错误码
 - [第五部分：资料性示例](#第五部分资料性示例)：覆盖关键边界的组合示例
 - [附录 A：形式化语法（EBNF）](#附录-a形式化语法ebnf)
-- [附录 B：与 C 语言标量语义对照](#附录-b与-c-语言标量语义对照)
-- [附录 C：各类型边界常量速查](#附录-c各类型边界常量速查)
+- [附录 B：与 C99 语言标量语义对照](#附录-b与-c99-语言标量语义对照)
+- [附录 C：各类型边界常量速查（C99 对照）](#附录-c各类型边界常量速查c99-对照)
 
 ---
 
@@ -61,13 +61,13 @@ TC 是一门伪汇编语言：语法接近高级语言的赋值表达式，执�
 | 单调用语句     | `funcall` 的每个实参及 `return` 的返回值均限于 `operand`；复杂计算须拆为独立语句，禁止调用嵌套 |
 | 字面量类型显式 | 无后缀整数字面量为有符号整数；`u`/`U` 后缀为无符号整数；无后缀浮点字面量为 `float64`；`f`/`F` 后缀为 `float32`；`true`/`false` 为布尔字面量 |
 | I/O 格式化     | `write`/`writeln` 支持单个格式说明符和单个操作数；格式说明符可含 C99 风格的标志、字段宽度与精度 |
-| 缩进强制       | 块结构由缩进界定，`if`/`else`/`end`/`while` 缩进必须一致，块内语句缩进必须多一级 |
+| 缩进强制       | 块结构由缩进界定；行首缩进仅允许水平制表符 U+0009，一个 Tab 表示一级；`if`/`else`/`end`/`while` 缩进必须对齐，块内语句必须多一级 |
 | **内存安全**   | 语法层要求声明时初始化；控制流层对完整 CFG 做确定初始化分析，任何可达的未初始化读取均为静态错误（§11.2、§9.3.4） |
 | **实现一致性** | VM、AOT 与常量求值必须遵循相同的位宽、舍入、错误和控制流规则；规范正文不提供可改变合法程序集合的可选加强项 |
 
 #### 1.3 设计哲学
 
-TC 以**显式、安全、可教学、可扩展**为核心：类型转换、异常模式、块结束、控制流范式、参数名和返回均显式表达；默认检测溢出、转换和初始化错误，并禁止递归环；伪汇编与强制缩进用于直观呈现位宽、浮点、调用帧和跳转；复合类型、字符串与高阶函数留待后续版本。
+TC 以**显式、安全、可教学**为核心：类型转换、异常模式、块结束、控制流范式、参数名和返回均显式表达；默认检测溢出、转换和初始化错误，并禁止递归环；伪汇编与强制缩进用于直观呈现位宽、浮点、调用帧和跳转。
 
 ---
 
@@ -81,8 +81,8 @@ TC 源文件的“编码字符集”与“可形成 Token 的字符集”分层�
 
 1. **源编码**：文件必须是有效 UTF-8 字节序列。不接受 UTF-8 BOM；文件起始的 U+FEFF 按非法源字符处理。U+0000 在源文件任何位置均非法。
 2. **Token 与结构字符**：除行注释内容外，只允许附录 A 终结符使用的 ASCII 字符：`A`–`Z`、`a`–`z`、`0`–`9`、`_`、`+`、`-`、`#`、`%`、`=`、`:`、`,`、`(`、`)`、`;`、`.`。字符是否能出现在具体位置仍由最长匹配规则与附录 A 决定；“属于本字符表”不代表在任意位置都是合法 Token。
-3. **源空白与行结束**：注释外的水平空白仅为 ASCII 空格 U+0020 和水平制表符 U+0009；逻辑行结束仅为 LF（U+000A）、CRLF（U+000D U+000A）或 CR（U+000D）。其他 Unicode 空白不是 TC 空白。
-4. **注释内容**：分号 `;` 之后到当前逻辑行结束之前，允许任意已正确 UTF-8 解码的 Unicode 标量值（U+0000 除外）。注释内容不产生 Token，其中的非 ASCII 字符、引号、关键字或类似数值的文本均不参与词法分析。
+3. **源空白、缩进与行结束**：Token 之间的水平空白可为 ASCII 空格 U+0020 或水平制表符 U+0009；但对非空、非纯注释逻辑行，第一个 Token 之前的**行首缩进只能由 U+0009 组成**，每个 U+0009 表示一级，不得使用 U+0020 空格缩进。逻辑行结束仅为 LF（U+000A）、CRLF（U+000D U+000A）或 CR（U+000D）。其他 Unicode 空白不是 TC 空白。
+4. **注释内容**：分号 `;` 之后到当前逻辑行结束之前，允许任意已正确 UTF-8 解码的 Unicode 标量值（U+0000 除外）。注释内容不产生 Token，其中的非 ASCII 字符、关键字或类似数值的文本均不参与词法分析。
 
 非法 UTF-8 在 UTF-8 解码阶段拒绝；BOM、U+0000，以及注释外的非 ASCII 字符、未列出的 ASCII 字符或非法空白在随后的词法/源字符检查中拒绝。两类均映射为 `TC_ERR_SYNTAX`。
 
@@ -239,21 +239,13 @@ var done: bool = false
 var err: int32 = true      ; 字面量类型错误
 ```
 
-#### 2.6 字符与字符串字面量（预留）
-
-> **扩展预留**：未来版本将支持：
-> - 字符字面量：`'a'`、`'\n'`、`'\x41'`
-> - 字符串字面量：`"hello"`、`"world\n"`
->
-> 当前版本中，注释外出现单引号或双引号为 **词法错误**。引号位于行注释内时只是注释文本。
-
-#### 2.7 注释
+#### 2.6 注释
 
 - 行注释以 `;` 开始，延续至行尾
 - 注释内容可以使用 Unicode；注释之外的 Token 仍仅使用 §2.1 规定的 ASCII 字符
 - 示例：`var a: int32 = 10    ; 定义 32 位整数`
 
-#### 2.8 关键字
+#### 2.7 关键字
 
 以下 token 为保留关键字，不可用作标识符：
 
@@ -274,14 +266,12 @@ func  funcall  return  void  ; 函数定义、调用与返回
 inf  nan
 ```
 
-> **扩展预留**：以下关键字为未来功能保留：`string`、`array`、`struct`、`ptr`、`sqrt`、`sin`、`cos`。浮点取模已统一由 `mod` 提供，不预留其他浮点余数运算关键字。
-
 `call` 不是 0.0.32 的调用关键字；函数调用必须写作 `funcall`。`void` 只允许出现在函数返回类型位置。
 
-#### 2.9 语句与行结构
+#### 2.8 语句与行结构
 
 - 每条语句独占一行
-- **空行**、**仅含 ASCII 空格/制表符的行**、**仅含行注释**的行均合法，不产生语句；非 ASCII 空白不能构成空白行
+- **空行**、**仅含 ASCII 空格/制表符的行**、**仅含行注释**的行均合法，不产生语句；这些行的行首空白不构成缩进。非 ASCII 空白不能构成空白行
 - 语句由 `NEWLINE` 结束。`;` 始终是行注释起始符；因注释可紧跟语句，外观上可写为“语句末尾的可选 `;`”，但语法 Token 序列中不存在分号终结符
 
 ---
@@ -290,16 +280,14 @@ inf  nan
 
 #### 3.1 类型分类
 
-TC 的类型系统设计为可扩展的分类体系。当前支持 **整数类型**、**浮点类型**、**布尔类型**，并以 `void` 表示函数不返回值；未来将逐步引入其他类别：
+TC 0.0.32 支持 **整数类型**、**浮点类型**、**布尔类型**，并以 `void` 表示函数不返回值：
 
-| 类别            | 当前支持               | 未来预留                 | 说明                   |
-| --------------- | ---------------------- | ------------------------ | ---------------------- |
-| **整数类型**    | ✅ `int8`～`uint64`     | `int128`、`uint128`      | 固定宽度二进制补码整数 |
-| **浮点类型**    | ✅ `float32`、`float64` | `float128`               | IEEE 754 浮点数        |
-| **布尔类型**    | ✅ `bool`               | —                        | 逻辑真/假              |
-| **字符/字符串** | —                      | `char`、`string`         | Unicode 字符与字符串   |
-| **复合类型**    | —                      | `array`、`struct`、`ptr` | 聚合与间接类型         |
-| **单位类型**    | ✅ `void`               | —                        | 无值，仅用于函数返回类型 |
+| 类别         | 支持的类型               | 说明                   |
+| ------------ | ---------------------- | ---------------------- |
+| **整数类型** | `int8`～`uint64`       | 固定宽度二进制补码整数 |
+| **浮点类型** | `float32`、`float64`   | IEEE 754 浮点数        |
+| **布尔类型** | `bool`                 | 逻辑真/假              |
+| **单位类型** | `void`                 | 无值，仅用于函数返回类型 |
 
 > **实现注记**：编译器内部 `TcType` 枚举将 `TC_BOOL`、整数类型及浮点类型统一管理，但类型分类函数（如 `tc_type_is_integer()`、`tc_type_is_float()`）分别返回对应真值。
 
@@ -434,7 +422,7 @@ TC 0.0.32 将数值转换、整数截断与位重解释分开：
 | `cast(T, truncate, operand)` | 整数缩窄 | 仅整数→更窄整数，保留低位 |
 | `bitcast(T, operand)` | 位重解释 | 源、目标等宽；不改变任何位；`bool` 不参与 |
 
-严格 `cast` 覆盖整数 ↔ 整数、整数 ↔ 浮点、浮点 ↔ 浮点，以及整数/浮点 ↔ `bool`。`truncate` 不再承担浮点位重解释；所有整数/浮点位模式互转统一使用 `bitcast`。未来扩展复合类型时，不得复用这三种形式表达地址、所有权等不同性质的转换。
+严格 `cast` 覆盖整数 ↔ 整数、整数 ↔ 浮点、浮点 ↔ 浮点，以及整数/浮点 ↔ `bool`。`truncate` 不再承担浮点位重解释；所有整数/浮点位模式互转统一使用 `bitcast`。
 
 ---
 
@@ -591,7 +579,7 @@ let IS_POSITIVE: bool = gt(float64, PI, 0.0)       ; true
 let DIFFERS: bool = xor(bool, IS_POSITIVE, false)  ; true
 
 if IS_POSITIVE then                              ; 静态 true，仅保留真边
-    writeln(bool, %t, true)
+	writeln(bool, %t, true)
 end
 
 let FLAG_INT: int32 = cast(int32, DEBUG)      ; 1
@@ -1075,21 +1063,21 @@ var ne_nan: bool = ne(float64, nan_val, nan_val)  ; true
 
 ```text
 func check_short_circuit() void then
-    let FALSE: bool = false
-    let TRUE: bool = true
-    goto use
-    var pending: bool = true
-    label use:
-    var a: bool = and(bool, FALSE, pending) ; 合法：pending 的读取边被裁剪
-    var b: bool = or(bool, TRUE, pending)   ; 合法：pending 的读取边被裁剪
+	let FALSE: bool = false
+	let TRUE: bool = true
+	goto use
+	var pending: bool = true
+	label use:
+	var a: bool = and(bool, FALSE, pending) ; 合法：pending 的读取边被裁剪
+	var b: bool = or(bool, TRUE, pending)   ; 合法：pending 的读取边被裁剪
 
-    var runtime_false: bool = false
-    var c: bool = and(bool, runtime_false, pending)
-    ; 上一行仍报 TC_ERR_UNINITIALIZED_VARIABLE：var 的值不参与静态推测
+	var runtime_false: bool = false
+	var c: bool = and(bool, runtime_false, pending)
+	; 上一行仍报 TC_ERR_UNINITIALIZED_VARIABLE：var 的值不参与静态推测
 
-    var d: bool = and(bool, FALSE, missing)
-    ; 上一行仍报 TC_ERR_UNDEFINED_VARIABLE：名称检查不被短路绕过
-    return
+	var d: bool = and(bool, FALSE, missing)
+	; 上一行仍报 TC_ERR_UNDEFINED_VARIABLE：名称检查不被短路绕过
+	return
 end
 ```
 
@@ -1220,9 +1208,9 @@ TC 提供 **Pascal 风格** 的 `if-then-else` 条件分支语句，采用 **缩
 
 ```text
 if <bool_rhs> then
-    语句序列
+	语句序列
 [else
-    语句序列]
+	语句序列]
 end
 ```
 
@@ -1235,13 +1223,15 @@ end
 
 | 规则编号 | 规则说明                                                     |
 | -------- | ------------------------------------------------------------ |
-| R1       | 缩进使用**空格**或**制表符**，但同一文件中**必须保持一致**（不可混用）。 |
-| R2       | 一个缩进级别必须恰好为 **4 个空格**或 **1 个制表符**。整个文件选定一种后必须统一，不得混用或改变每级宽度。 |
+| R1       | 非空、非纯注释逻辑行的行首缩进**只能使用水平制表符 U+0009（Tab）**。行首缩进中出现 ASCII 空格 U+0020，无论是单独使用还是与 Tab 混用，均为缩进错误。Token 之间的空格不属于行首缩进，仍然合法。 |
+| R2       | **1 个 Tab 恰好表示 1 个缩进级别**。层级由行首连续 Tab 的数量决定，不依赖编辑器的 Tab 显示宽度，也不存在“每级若干空格”的等价写法。 |
 | R3       | `func`/`if`/`while`、`else` 和对应 `end` 行的缩进级别必须**完全一致**，称为**当前块级缩进**。 |
-| R4       | `func` / `if` / `else` / `while` 的直接块内语句必须比当前块级缩进**恰好多一级**。过少、无对应嵌套语句却多于一级，或同一语句序列内宽度不一致，均为缩进错误。 |
+| R4       | `func` / `if` / `else` / `while` 的直接块内语句必须比当前块级缩进**恰好多一级**。过少、无对应嵌套语句却多于一级，或同一语句序列内行首 Tab 数量不一致，均为缩进错误。 |
 | R5       | `end` 行缩进必须等于当前块级缩进；若缩进不足或过多，均为静态错误。 |
 | R6       | 嵌套 `if`/`while` 时，内层块行缩进必须比外层块内语句的缩进再多一级（即外层缩进 + 2 个级别）。内层块的块内语句再比内层块多一级，其 `end` 与内层块对齐。 |
 | R7       | 合法的函数内 `label` **不产生**新的缩进层级、不开启代码块。`label` 行缩进与同作用域其它普通语句一致；其后仍属同一作用域、且非新子块内的语句，缩进必须与该 `label` 行**完全一致**。仅当后续语句本身开启 `if`/`while` 子块时，子块内部才按 R3–R6 增加缩进（详见 §9.3.2）。 |
+
+> **源码示例约定**：本文所有标记为 `text` 的 TC 源码块均使用字面 U+0009 表示层级；Tab 在阅读器中显示为多少列不影响其语义。
 
 ##### 9.1.3 多分支写法（链式 `if-else`）
 
@@ -1249,17 +1239,17 @@ end
 
 ```text
 if <cond1> then
-    语句序列1
+	语句序列1
 else
-    if <cond2> then
-        语句序列2
-    else
-        if <cond3> then
-            语句序列3
-        else
-            语句序列4
-        end
-    end
+	if <cond2> then
+		语句序列2
+	else
+		if <cond3> then
+			语句序列3
+		else
+			语句序列4
+		end
+	end
 end
 ```
 
@@ -1297,7 +1287,7 @@ TC 提供 **Pascal 风格** 的 `while` 结构化循环语句，采用 **缩进�
 
 ```text
 while <bool_rhs> then
-    语句序列
+	语句序列
 end
 ```
 
@@ -1365,13 +1355,13 @@ TC 提供**仅限函数体内**的受限 `goto` 跳转语句，在保留汇编�
 
 ```text
 func count_to_ten() int32 then
-    var i: int32 = 0
-    label loop_start:            ; 函数体直接层级，不产生新缩进
-    i = add(int32, i, 1)         ; 与 label 同缩进
-    if lt(int32, i, 10) then
-        goto loop_start          ; 函数内向外跳回 loop_start
-    end
-    return i
+	var i: int32 = 0
+	label loop_start:            ; 函数体直接层级，不产生新缩进
+	i = add(int32, i, 1)         ; 与 label 同缩进
+	if lt(int32, i, 10) then
+		goto loop_start          ; 函数内向外跳回 loop_start
+	end
+	return i
 end
 
 var result: int32 = funcall(count_to_ten)
@@ -1411,19 +1401,19 @@ var result: int32 = funcall(count_to_ten)
 **示例**：
 ```text
 func invalid_path() void then
-    goto label_skip
-    var x: int32 = 10
-    label label_skip:
-    writeln(int32, %d, x)   ; TC_ERR_UNINITIALIZED_VARIABLE
-    return
+	goto label_skip
+	var x: int32 = 10
+	label label_skip:
+	writeln(int32, %d, x)   ; TC_ERR_UNINITIALIZED_VARIABLE
+	return
 end
 
 func valid_path() void then
-    goto after_unused
-    var unused: int32 = 10
-    label after_unused:
-    writeln(int32, %d, 0)    ; 合法：被跳过的 var 从未使用
-    return
+	goto after_unused
+	var unused: int32 = 10
+	label after_unused:
+	writeln(int32, %d, 0)    ; 合法：被跳过的 var 从未使用
+	return
 end
 ```
 
@@ -1465,10 +1455,10 @@ continue
 
 ```text
 while lt(int32, i, 10) then
-    if eq(int32, i, 5) then
-        break
-    end
-    i = add(int32, i, 1)
+	if eq(int32, i, 5) then
+		break
+	end
+	i = add(int32, i, 1)
 end
 ```
 
@@ -1488,7 +1478,7 @@ end
 
 ```text
 func <函数名>([<形参名>: <值类型> [, ...]]) <返回类型> then
-    语句序列
+	语句序列
 end
 ```
 
@@ -1521,7 +1511,7 @@ end
 var input: int32 = 10
 
 func get_value() int32 then   ; 非法：顶层语句区开始后又定义函数
-    return 10
+	return 10
 end
 ```
 
@@ -1606,8 +1596,8 @@ var result: int32 = funcall(get_value)
 
 ```text
 func forward() int32 then
-    var result: int32 = funcall(get_value)
-    return result
+	var result: int32 = funcall(get_value)
+	return result
 end
 ```
 
@@ -1649,11 +1639,11 @@ return result
 
 ```text
 func choose(flag: bool) int32 then
-    if flag then
-        return 1
-    else
-        return 2
-    end
+	if flag then
+		return 1
+	else
+		return 2
+	end
 end
 ```
 
@@ -1854,12 +1844,43 @@ OUT[其他语句]    = IN[n]
 | ------------------- | --------------------------------------------- |
 | `int*`              | 可选 `-` 前缀 + 连续十进制数字，至少一位      |
 | `uint*`             | 连续十进制数字，至少一位；**不接受** `-` 前缀 |
-| `float32`/`float64` | 可选 `-` 前缀 + 十进制浮点/科学计数法，或 `inf`/`-inf`/`nan` |
+| `float32`/`float64` | 必须完整匹配下述 `input_float_token` |
 | `bool`              | `true` 或 `false`（大小写敏感，均为小写）     |
 
 本节的 ASCII 空白仅指 U+0009～U+000D 与 U+0020，不受 locale 影响。输入必须完整匹配目标格式；例如 `12abc` 整体非法，不得只接受前缀 `12`。
 
-有限浮点输入先解析为精确十进制数学值，再按 roundTiesToEven 舍入到目标 binary32/binary64；不得先通过另一浮点类型中转。显式 `-0.0` 保留负零符号。非零有限值舍入为零、有限值舍入为无穷，或整数超出目标范围，均报 `TC_ERR_IO`；可表示的非规格化数合法。`nan` 输入生成 §5.3 规定的 canonical quiet NaN。非法 Token 与意外 EOF 同样报 `TC_ERR_IO`。
+**浮点输入 Token 的权威 EBNF**：
+
+```ebnf
+input_float_token
+           = finite_input_float
+           | "inf"
+           | "-" , "inf"
+           | "nan" ;
+
+finite_input_float
+           = [ "-" ] , input_digits , [
+               "." , input_digits , [ input_exponent ]
+             | input_exponent
+           ] ;
+
+input_exponent
+           = ( "e" | "E" ) , [ "+" | "-" ] , input_digits ;
+
+input_digits = input_digit , { input_digit } ;
+input_digit  = "0" … "9" ;
+```
+
+该 EBNF 是 `read(float32, ...)` 与 `read(float64, ...)` 接受集的完整定义：
+
+- 完整的十进制整数数字串是有限浮点输入的一种特殊书写形式；因此 `1`、`-42`、`0` 和 `0007` 均合法，分别表示 `1.0`、`-42.0`、`0.0` 和 `7.0` 的精确十进制数学值。
+- 十进制小数必须在 `.` 前后都有至少一位数字；因此 `1.` 和 `.5` 均非法，应分别写作 `1.0` 和 `0.5`。
+- 整数形式或含小数点的完整形式均可带完整指数；`1e5`、`1E+5`、`1e-5` 与 `1.25e-3` 均合法。
+- 前导 `-` 仅适用于有限值和 `inf`；前导 `+`、`-nan`、不完整指数（`1e`、`1e+`）均非法。`+` / `-` 可作为完整指数内的号。
+- 目标类型已由 `read` 的第一个参数确定，因此输入不接受 `f` / `F` 后缀、数字分隔符、十六进制浮点、NaN payload 或其他宿主浮点扩展形式。`inf` 和 `nan` 大小写敏感。
+- 实现必须先完整匹配上述 EBNF，再做数值转换；不得因宿主转换函数能接受 `1.`、`.5`、`+1.0` 或十六进制浮点而扩大 TC 输入集。
+
+有限浮点输入（包括整数书写形式）先解析为精确十进制数学值，再按 roundTiesToEven 直接舍入到目标 binary32/binary64；不得先解析为 TC 整数类型，也不得通过另一浮点类型中转。因此整数书写形式不受 `uint64` 字面量词法上限约束，其可表示性只按目标浮点类型判定。有限输入的精确数学值为零且 Token 显式带前导 `-` 时生成负零，其余零输入生成正零。非零有限值舍入为零、有限值舍入为无穷，或整数目标的输入超出目标整数类型范围，均报 `TC_ERR_IO`；可表示的非规格化数合法。`nan` 输入生成 §5.3 规定的 canonical quiet NaN。非法 Token 与意外 EOF 同样报 `TC_ERR_IO`。
 
 #### 12.4 格式转换符定义
 
@@ -1900,7 +1921,7 @@ OUT[其他语句]    = IN[n]
 %[flags][width][.precision]conversion
 ```
 
-TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是字符串：一条 `write`/`writeln` 仍只包含一个格式说明符和一个操作数。`flags` 中每个标志至多出现一次，顺序不限；`width` 与 `precision` 只能写十进制常量，不支持 `*` 动态取值。
+TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时值：一条 `write`/`writeln` 仍只包含一个格式说明符和一个操作数。`flags` 中每个标志至多出现一次，顺序不限；`width` 与 `precision` 只能写十进制常量，不支持 `*` 动态取值。
 
 | 控制项 | 语法 | 语义 |
 | ------ | ---- | ---- |
@@ -1931,7 +1952,7 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是字符串
 
 字段宽度按最终 ASCII 输出字符数计算；符号和进制前缀计入宽度，精度不包含它们。处理顺序为：按转换符和精度生成数字文本，添加符号或进制前缀，再按字段宽度填充。对 `inf`/`nan`，精度不改变文本，`0` 按空格填充处理。无 `width` 时 `-`/`0` 不产生填充，因此 `%0.3f` 与 `%.3f` 输出相同；例如值 `3.14159265` 分别得到 `3.142`，而 `%08.3f` 得到 `0003.142`。
 
-已匹配附录 A `format_specifier` 形态后，重复标志、宽度或精度超出上述范围，以及转换符不适用的标志/精度，均在静态阶段报告 `TC_ERR_FORMAT_STRING`。不符合该 EBNF 的形式按语法阶段规则报告 `TC_ERR_SYNTAX`。`%c`、`%s`、`%p`、C99 空格标志、长度修饰符（如 `hh`/`l`/`ll`/`L`）和 `*` 均不受支持；TC 的类型已由第一个参数显式给出。
+已匹配附录 A `format_specifier` 形态后，重复标志、宽度或精度超出上述范围，以及转换符不适用的标志/精度，均在静态阶段报告 `TC_ERR_FORMAT_SPECIFIER`。不符合该 EBNF 的形式按语法阶段规则报告 `TC_ERR_SYNTAX`。`%p`、C99 空格标志、长度修饰符（如 `hh`/`l`/`ll`/`L`）和 `*` 均不受支持；TC 的类型已由第一个参数显式给出。
 
 ---
 
@@ -1971,7 +1992,22 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是字符串
 4. **关联位置**：重复定义、跨域跳转和递归环使用下文指定的主位置比较；其他位置只作附注。
 5. **遍历无关**：函数表、哈希表、CFG、调用图和实参集合的内部遍历顺序不得改变结果。
 
-附录 A 首先决定 Token 序列能否进入静态语义。若不符合产生式，第 3 阶段按已明确规定的语法专用诊断分类：缺少变量初始化器使用 `TC_ERR_VAR_MISSING_INIT`，可识别调用外壳中的操作数数量错误使用 `TC_ERR_OPERAND_COUNT`，非法格式符使用 `TC_ERR_FORMAT_STRING`，保留关键字误占标识符位置使用 `TC_ERR_KEYWORD`，缩进/块形态使用对应专用码；没有专用语法诊断的其他形态使用 `TC_ERR_SYNTAX`。这些专用映射只细化语法错误类别，不得使不符合 EBNF 的程序进入类型或模式检查。
+附录 A 首先决定 Token 序列能否进入静态语义。若不符合产生式，第 3 阶段按已明确规定的语法专用诊断分类：缺少变量初始化器使用 `TC_ERR_VAR_MISSING_INIT`，符合下述固定元数外壳的操作数数量错误使用 `TC_ERR_OPERAND_COUNT`，保留关键字误占标识符位置使用 `TC_ERR_KEYWORD`，缩进/块形态使用对应专用码；没有专用语法诊断的其他形态使用 `TC_ERR_SYNTAX`。格式说明符按 §12.5 单独分流：完整匹配附录 A `format_specifier` 产生式后，重复标志、宽度或精度超出范围，以及转换符不适用的标志/精度使用 `TC_ERR_FORMAT_SPECIFIER`；无法完整匹配该产生式时使用 `TC_ERR_SYNTAX`。这些专用映射只细化语法错误类别，不得使不符合 EBNF 的程序进入类型或模式检查。
+
+`TC_ERR_OPERAND_COUNT` 的适用范围是完整且权威的：仅当逻辑行中已识别出“内建关键字 `(` 顶层逗号分隔项 `)`”的平衡调用外壳，但其**值操作数**数量不符合下表时使用该错误码。类型参数、位于类型参数之后候选模式位置的 `wrap` / `ieee` / `truncate` 关键字，以及 `write` / `writeln` 的格式说明符均不计入值操作数。语法形态/数量的诊断优先级高于类型和模式组合：因此只要外壳平衡且顶层字段可分隔，先按上述方式计数值操作数；数量正确后，才由 EBNF 和 §5.1 判定类型参数或候选模式在当前操作中是否合法。
+
+| 固定元数外壳 | 期望的值操作数 | 说明 |
+| ---------------- | ------------------ | ---- |
+| `add` / `sub` / `mul` / `div` / `mod` | 2 | 普通 RHS 与 `let` 常量 RHS 均适用 |
+| `and` / `or` / `xor` | 2 | 整数按位与 `bool` 逻辑重载均适用 |
+| `shl` / `shr` | 2 | 模式位置的合法性仍由 EBNF 与 §5.1 判定 |
+| `eq` / `ne` / `lt` / `le` / `gt` / `ge` | 2 | 整数与浮点比较均适用 |
+| `abs` / `neg` / `not` | 1 | `not` 的整数按位与 `bool` 逻辑重载均适用 |
+| 严格 `cast` / `cast(..., truncate, ...)` / `bitcast` | 1 | 目标类型与 `truncate` 不计为值操作数 |
+| `write` / `writeln` | 1 | 有格式和无格式形式均恰好输出一个值 |
+| `read` | 1 | 唯一的目标标识符按一个操作数计 |
+
+缺少右括号、顶层逗号结构破损或无法识别内建调用外壳时，使用 `TC_ERR_SYNTAX` 而非 `TC_ERR_OPERAND_COUNT`。嵌套调用也不属于操作数数量错误：`let` RHS 中的嵌套调用按本节后文报 `TC_ERR_CONSTANT_EXPRESSION`，其他不允许嵌套的位置报 `TC_ERR_SYNTAX`。`funcall` 的项是命名实参，不纳入本错误码；其缺失、重复、未知与顺序错误分别使用 §13.1.3 的专用诊断。`return`、`if` / `while`、变量/常量定义与其他语句形态也不属于内建固定元数调用外壳，沿用各自的语法或专用诊断。
 
 只有完整 Token 序列符合附录 A 某一产生式时，才进入普通类型/模式诊断。语法已接受的同一位置同时违反多项静态语义时，固定按“运算支持的类型类别 → 模式合法性 → `bitcast` 位宽 → 字面量范围/类型 → 格式符与其他操作数类型”选择。`wrap` / `ieee` / `truncate` 仅在对应产生式明确提供的位置才是候选模式；若相关操作或上下文的产生式没有该参数位置，或类型参数已被专用非终结符排除，且没有上述语法专用诊断，统一在第 3 阶段报告 `TC_ERR_SYNTAX`。例如普通 RHS 的 `shr(int32, wrap, x, k)` 是语法错误，而 `const_shift_expr` 已接受的同形 `let` RHS 随后报告 `TC_ERR_MODE_MISMATCH`。
 
@@ -2067,7 +2103,7 @@ TC 无编译警告，也不以 `TcWarningKind` 放行初始化、溢出、类型
 
 #### 13.5 错误码对照表（`TcErrorKind`）
 
-下列两表是 0.0.32-rev6 完整、权威的 `TcErrorKind` 对照，共 65 项：64 个语言错误码（56 个静态、8 个运行时）和实现扩展码 `TC_ERR_OUT_OF_MEMORY`。枚举名、`tc_error_kind_name()` 打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
+下列两表是 0.0.32-rev13 完整、权威的 `TcErrorKind` 对照，共 65 项：64 个语言错误码（56 个静态、8 个运行时）和实现扩展码 `TC_ERR_OUT_OF_MEMORY`。枚举名、`tc_error_kind_name()` 打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
 
 **实现专用错误码说明**
 
@@ -2090,9 +2126,9 @@ TC 无编译警告，也不以 `TcWarningKind` 放行初始化、溢出、类型
 | `TC_ERR_CONSTANT_DIV_ZERO`         | `ConstantDivisionByZero`     | 常量除零错误                  | 静态        | 编译期整数 `div`/`mod` 除数为 0，或浮点严格 `div`/`mod` 的最高优先级异常为除零 |
 | `TC_ERR_CONSTANT_CAST_OVERFLOW`    | `ConstantCastOverflow`       | 常量转换溢出错误              | 静态        | 编译期严格 `cast` 的数学结果无法由目标类型表示                 |
 | `TC_ERR_COMPARISON_TYPE_MISMATCH`  | `ComparisonTypeMismatch`     | 比较类型不匹配                | 静态        | 比较运算两操作数类型不一致                                   |
-| `TC_ERR_FORMAT_STRING`             | `FormatStringError`          | 格式说明符错误                | 静态        | 已匹配格式说明符 EBNF，但存在重复/不适用的控制项或超范围的宽度/精度 |
+| `TC_ERR_FORMAT_SPECIFIER`          | `FormatSpecifierError`       | 格式说明符错误                | 静态        | 已匹配格式说明符 EBNF，但存在重复/不适用的控制项或超范围的宽度/精度 |
 | `TC_ERR_FORMAT_TYPE_MISMATCH`      | `FormatTypeMismatch`         | 格式类型不匹配                | 静态        | 操作数类型与格式转换符不兼容                                 |
-| `TC_ERR_OPERAND_COUNT`             | `OperandCountError`          | 操作数数量错误                | 静态        | 格式化/I/O 或逻辑运算操作数个数非法                          |
+| `TC_ERR_OPERAND_COUNT`             | `OperandCountError`          | 操作数数量错误                | 静态        | §13.1.1 权威表列出的内建固定元数调用外壳中，值操作数数量与要求不符；不适用于 `funcall` |
 | `TC_ERR_DIVISION_BY_ZERO`          | `DivisionByZero`             | 除零错误                      | 运行时      | 整数 `div`/`mod` 的除数为 0，或严格浮点 `div`/`mod` 的最高优先级异常为除零 |
 | `TC_ERR_INTEGER_OVERFLOW`          | `IntegerOverflow`            | 整数溢出错误                  | 运行时      | 严格模式整数算术或 `shl` 超范围                              |
 | `TC_ERR_NEGATIVE_SHIFT_COUNT`      | `NegativeShiftCount`         | 负移位计数错误              | 运行时      | `shl`/`shr` 的移位计数按 `T` 的数值语义解码后小于 0          |
@@ -2102,8 +2138,8 @@ TC 无编译警告，也不以 `TcWarningKind` 放行初始化、溢出、类型
 | `TC_ERR_CAST_OVERFLOW`             | `CastOverflow`               | 转换溢出错误                  | 运行时      | 严格模式 `cast` 无法在目标类型表示                           |
 | `TC_ERR_IO`                        | `IOError`                    | I/O 错误                      | 运行时      | `read` 输入非法、EOF、超范围，或标准输入/输出读写失败                 |
 | `TC_ERR_OUT_OF_MEMORY`             | `OutOfMemory`                | —（实现扩展）                 | 静态/运行时 | **实现专用**：内部分配失败；诊断消息为 `memory allocation failed` |
-| `TC_ERR_INDENT_MIXED`              | `IndentMixedError`           | 缩进不一致                    | 静态        | 同一文件混用空格与制表符                                     |
-| `TC_ERR_INDENT_INSUFFICIENT`       | `IndentInsufficientError`    | 块内缩进层级错误              | 静态        | 直接块内语句未恰好多一级，一次意外增加多级，或回退宽度不在缩进栈中 |
+| `TC_ERR_INDENT_MIXED`              | `IndentMixedError`           | 缩进字符错误                  | 静态        | 非空、非纯注释行的行首缩进出现 ASCII 空格（单独使用或与 Tab 混用） |
+| `TC_ERR_INDENT_INSUFFICIENT`       | `IndentInsufficientError`    | 块内缩进层级错误              | 静态        | 直接块内语句未恰好多一级，一次意外增加多个 Tab 层级，或回退后的 Tab 数量不在缩进栈中 |
 | `TC_ERR_INDENT_ELSE_END`           | `IndentElseEndError`         | `else`/`end` 缩进错           | 静态        | `else` 或 `end` 与对应 `func`/`if`/`while` 缩进不一致        |
 | `TC_ERR_MISSING_END`               | `MissingEndError`            | 缺少 `end`                    | 静态        | `func`/`if`/`while` 未以 `end` 结束                          |
 | `TC_ERR_ELSE_POSITION`             | `ElsePositionError`          | `else` 位置错误               | 静态        | `else` 前无对应 `if` 块                                      |
@@ -2192,7 +2228,7 @@ var sum: int32 = add(int32, a, b)
 var result: int32 = mul(int32, sum, 5) ; 35
 
 if READY then                          ; 静态 true，仅保留真边
-    writeln(int32, %d, result)
+	writeln(int32, %d, result)
 end
 ```
 
@@ -2203,15 +2239,15 @@ var total: int32 = 0
 var i: int32 = 0
 
 while lt(int32, i, 10) then
-    i = add(int32, i, 1)
-    var even: int32 = mod(int32, i, 2)
-    if eq(int32, even, 0) then
-        continue                      ; 回到条件求值
-    end
-    total = add(int32, total, i)
-    if gt(int32, total, 20) then
-        break                         ; 退出最内层 while
-    end
+	i = add(int32, i, 1)
+	var even: int32 = mod(int32, i, 2)
+	if eq(int32, even, 0) then
+		continue                      ; 回到条件求值
+	end
+	total = add(int32, total, i)
+	if gt(int32, total, 20) then
+		break                         ; 退出最内层 while
+	end
 end
 
 writeln(int32, %d, total)
@@ -2223,22 +2259,22 @@ writeln(int32, %d, total)
 
 ```text
 func sum_to(limit: int32) int32 then
-    var total: int32 = 0
-    var i: int32 = 1
-    label loop:
-    if gt(int32, i, limit) then
-        goto done
-    end
-    total = add(int32, total, i)
-    i = add(int32, i, 1)
-    goto loop
-    label done:
-    return total
+	var total: int32 = 0
+	var i: int32 = 1
+	label loop:
+	if gt(int32, i, limit) then
+		goto done
+	end
+	total = add(int32, total, i)
+	i = add(int32, i, 1)
+	goto loop
+	label done:
+	return total
 end
 
 func show(value: int32) void then
-    writeln(int32, %d, value)
-    return
+	writeln(int32, %d, value)
+	return
 end
 
 var total: int32 = funcall(sum_to, limit: 10)
@@ -2419,17 +2455,17 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 **缩进 Token 化规则**：
 
-1. 词法器维护缩进宽度栈，初始仅含顶层宽度 `0`。
-2. 每个非空、非纯注释逻辑行开始时，将其缩进与栈顶比较：增加时必须恰好增加一级，压栈并生成一个 `INDENT`；一次增加多级为缩进错误。减少时逐项出栈并为每次出栈生成一个 `DEDENT`。减少后的宽度必须等于某个既有栈值，否则为缩进错误。
-3. 一级缩进恒为 4 个空格或 1 个制表符；同一文件二者不可混用，每级宽度不可变化。
-4. 空行和纯注释行只生成 `NEWLINE`，不改变缩进栈；它们的行首 ASCII 空格/制表符不参与缩进风格或宽度检查。非 ASCII 空白仍按 §2.1 拒绝。
+1. 词法器维护“行首连续 Tab 数量”构成的缩进级别栈，初始仅含顶层级别 `0`。
+2. 每个非空、非纯注释逻辑行开始时，先检查第一个 Token 之前的字符：它们只能是 U+0009；任何 U+0020 均报 `TC_ERR_INDENT_MIXED`。然后将 Tab 数量与栈顶比较：增加时必须恰好增加 `1`，压栈并生成一个 `INDENT`；一次增加多级为缩进错误。减少时逐项出栈并为每次出栈生成一个 `DEDENT`。减少后的 Tab 数量必须等于某个既有栈值，否则为缩进错误。
+3. 一级缩进恒为 1 个 U+0009。编辑器将 Tab 显示为 2、4、8 或其他列宽均不影响 TC 缩进层级。
+4. 空行和纯注释行只生成 `NEWLINE`，不改变缩进栈；它们的行首 ASCII 空格/制表符不参与缩进字符或层级检查。非 ASCII 空白仍按 §2.1 拒绝。
 5. LF（`\n`）、CRLF（`\r\n`）或 CR（`\r`）均表示一个逻辑行结束，并生成一个 `NEWLINE`；文件结尾先补最后一个 `NEWLINE`（若缺少），再生成剩余 `DEDENT`，最后生成 `EOF`。
 6. `INDENT`/`DEDENT` 只反映 `func`/`if`/`else`/`while` 语句体的实际缩进；合法的函数内 `label` 是普通语句，不改变缩进栈。
-7. 空格/制表符混用报 `TC_ERR_INDENT_MIXED`；`else`/`end` 与对应 `func`/`if`/`while` 块头不对齐报 `TC_ERR_INDENT_ELSE_END`；其他违反上述缩进层级/栈规则的情形报 `TC_ERR_INDENT_INSUFFICIENT`。
+7. 非空、非纯注释行的行首缩进使用空格（单独使用或与 Tab 混用）报 `TC_ERR_INDENT_MIXED`；`else`/`end` 与对应 `func`/`if`/`while` 块头不对齐报 `TC_ERR_INDENT_ELSE_END`；其他违反上述 Tab 缩进层级/栈规则的情形报 `TC_ERR_INDENT_INSUFFICIENT`。
 
 #### A.3 语法
 
-本节作用于 A.2 输出的 Token 序列。`NEWLINE`、`INDENT`、`DEDENT`、`EOF` 是虚拟终结符；`identifier`、`integer_literal` 等名称引用 A.2 的完整 Token 类别。引号中的关键字或标点表示一个完整 Token，不是字符子串匹配。非行首空白与行末注释已由词法层移除。
+本节作用于 A.2 输出的 Token 序列。`NEWLINE`、`INDENT`、`DEDENT`、`EOF` 是虚拟终结符；`identifier`、`integer_literal` 等名称引用 A.2 的完整 Token 类别。EBNF 中以 `"…"` 标记的关键字或标点表示一个完整 Token，不按子序列匹配。非行首空白与行末注释已由词法层移除。
 
 本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_ERR_SYNTAX`，不得为产生 `TC_ERR_TYPE_MISMATCH` 或 `TC_ERR_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_ERR_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §9.3 和 §13.1.5 在静态语义阶段强制执行。
 
@@ -2738,11 +2774,11 @@ read_stmt  = "read" , "(" , type , "," , identifier , ")" ;
 
 ---
 
-### 附录 B：与 C 语言标量语义对照
+### 附录 B：与 C99 语言标量语义对照
 
 #### B.1 类型与运算对照
 
-| 类型        | TC 类型   | C 语言等价                     |
+| 类型        | TC 类型   | C99 等价                       |
 | ----------- | --------- | ------------------------------ |
 | 8 位有符号  | `int8`    | `int8_t`                       |
 | 8 位无符号  | `uint8`   | `uint8_t`                      |
@@ -2754,32 +2790,32 @@ read_stmt  = "read" , "(" , type , "," , identifier , ")" ;
 | 64 位无符号 | `uint64`  | `uint64_t`                     |
 | 单精度浮点  | `float32` | `float`                        |
 | 双精度浮点  | `float64` | `double`                       |
-| 布尔        | `bool`    | `bool`（C23） / `_Bool`（C99） |
+| 布尔        | `bool`    | `_Bool`                        |
 | 无返回值    | `void`    | `void`（仅函数返回类型）       |
 
-| 运算              | TC                                    | C 等价                                         |
+| 运算              | TC                                    | C99 等价                                       |
 | ----------------- | ------------------------------------- | ---------------------------------------------- |
 | 有符号字面量      | `42`                                  | `42`                                           |
 | 无符号字面量      | `42u`                                 | `42u`                                          |
 | 浮点字面量        | `3.14f` / `3.14`                      | `3.14f` / `3.14`                               |
 | 加                | `add(int32, a, b)`                    | `(int32_t)a + (int32_t)b`                      |
 | 加（回绕）        | `add(int32, wrap, a, b)`              | 同宽无符号运算后 reinterpret                   |
-| 浮点加（严格）    | `add(float64, a, b)`（默认严格模式）  | `a + b`（C 不检测异常）                        |
-| 浮点加（IEEE）    | `add(float64, ieee, a, b)`            | `a + b`（C 默认行为）                          |
+| 浮点加（严格）    | `add(float64, a, b)`（默认严格模式）  | `a + b`（C99 不检测异常）                      |
+| 浮点加（IEEE）    | `add(float64, ieee, a, b)`            | `a + b`（C99 默认行为）                        |
 | 整除 / 求余       | `div` / `mod`                         | `/` / `%`                                      |
-| 浮点取模          | `mod(float64, a, b)`                  | C 无对应运算符；商向零截断的数学余数           |
-| `div(INT_MIN,−1)` | `div` → **整数溢出错误**；`mod` → `0` | C 为 **UB**（Java/C# 定义 `div` 为 `INT_MIN`） |
+| 浮点取模          | `mod(float64, a, b)`                  | C99 无对应运算符；商向零截断的数学余数         |
+| `div(INT_MIN,−1)` | `div` → **整数溢出错误**；`mod` → `0` | C99 为 **UB**                                  |
 | 取绝对值          | `abs(int32, a)`                       | `llabs(a)`                                     |
 | 按位与            | `and(int32, a, b)`                    | `a & b`                                        |
-| 左移（严格）      | `shl(int32, a, b)`                    | `a << b`（TC 检测溢出，C 为 UB）               |
+| 左移（严格）      | `shl(int32, a, b)`                    | `a << b`（TC 检测溢出，C99 为 UB）             |
 | 左移（回绕）      | `shl(int32, wrap, a, b)`              | `(uint32_t)a << b` 后 reinterpret              |
-| 右移（有符号）    | `shr(int32, a, b)`                    | `a >> b`（TC 固定算术右移，C 为实现定义）      |
-| 负移位计数         | `shl`/`shr` → `TC_ERR_NEGATIVE_SHIFT_COUNT` | C 为 UB                                         |
+| 右移（有符号）    | `shr(int32, a, b)`                    | `a >> b`（TC 固定算术右移，C99 为实现定义）    |
+| 负移位计数         | `shl`/`shr` → `TC_ERR_NEGATIVE_SHIFT_COUNT` | C99 为 UB                                       |
 | 比较              | `eq(int32, a, b)`                     | `a == b`                                       |
 | 逻辑与            | `and(bool, a, b)`                     | `a && b`                                       |
 | 逻辑异或          | `xor(bool, a, b)`                     | `a != b`                                       |
 
-| 转换                       | TC                              | C                                           |
+| 转换                       | TC                              | C99                                         |
 | -------------------------- | ------------------------------- | ------------------------------------------- |
 | 严格数值转换（默认）   | `cast(int8, a)`                 | `(int8_t)a`（TC 在不可表示时报错）       |
 | 整数窄化（`truncate`） | `cast(int8, truncate, a)`       | 取源整数低 8 位后按目标符号性解释        |
@@ -2787,7 +2823,7 @@ read_stmt  = "read" , "(" , type , "," , identifier , ")" ;
 | bool→int                   | `cast(int32, flag)`             | `flag ? 1 : 0`                              |
 | int→bool                   | `cast(bool, x)`                 | `x != 0`                                    |
 
-| I/O          | TC                              | C 等价                    |
+| I/O          | TC                              | C99 等价                  |
 | ------------ | ------------------------------- | ------------------------- |
 | 无格式输出   | `write(int32, x)`               | `printf("%d", x)`         |
 | 有符号十进制 | `write(int32, %d, x)`           | `printf("%d", x)`         |
@@ -2802,40 +2838,28 @@ read_stmt  = "read" , "(" , type , "," , identifier , ")" ;
 | 布尔输出     | `write(bool, %-8t, x)`          | 无标准等价（TC 扩展）     |
 
 **主要差异**：
-- TC 严格模式下有符号溢出报错（C 为 UB）
-- TC `div(INT_MIN, −1)` 报整数溢出错误（C 为 UB；Java/C# 将 `div` 定义为 `INT_MIN`）
-- TC `cast` 对所有整数窄化和符号性变换做可表示性检查；C 的对应转换可能为实现定义行为
-- TC **声明时必须初始化**（`var … = …`；缺省 → `TC_ERR_VAR_MISSING_INIT`，§4.2）。此外，编译器必须在完整 CFG 上证明每次变量读取前都已执行其当前生命周期的初始化；否则报 `TC_ERR_UNINITIALIZED_VARIABLE`。`goto` 跳过但未读取某变量本身不构成错误。C 读取未初始化对象可产生未定义行为
-- TC 二进制 `%b` 和布尔 `%t` 为扩展格式；格式控制参考 C99，但不支持空格标志、动态 `*`、长度修饰符或多转换格式字符串
-- TC 比较运算返回 `bool`（C 中比较返回 `int`）
-- TC 逻辑运算严格操作 `bool`（C 中逻辑运算接受任意标量类型）
-- TC 右移有符号固定算术右移，C 为实现定义
+- TC 严格模式下有符号溢出报错（C99 为 UB）
+- TC `div(INT_MIN, −1)` 报整数溢出错误（C99 为 UB）
+- TC `cast` 对所有整数窄化和符号性变换做可表示性检查；C99 的对应转换可能为实现定义行为
+- TC **声明时必须初始化**（`var … = …`；缺省 → `TC_ERR_VAR_MISSING_INIT`，§4.2）。此外，编译器必须在完整 CFG 上证明每次变量读取前都已执行其当前生命周期的初始化；否则报 `TC_ERR_UNINITIALIZED_VARIABLE`。`goto` 跳过但未读取某变量本身不构成错误。C99 读取未初始化对象可产生未定义行为
+- TC 二进制 `%b` 和布尔 `%t` 为扩展格式；格式控制参考 C99，但不支持空格标志、动态 `*`、长度修饰符或多转换项格式文本
+- TC 比较运算返回 `bool`（C99 中比较返回 `int`）
+- TC 逻辑运算严格操作 `bool`（C99 中逻辑运算接受任意标量类型）
+- TC 右移有符号固定算术右移，C99 为实现定义
 - TC 的移位计数按其整数类型直接取数学值；负值报 `TC_ERR_NEGATIVE_SHIFT_COUNT`，不做掩码或无符号重解释
 
-#### B.2 `let` 常量与 C 语言 `const` 语义对照
+#### B.2 `let` 常量与 C99 `const` 语义对照
 
-| 特性               | TC `let`     | C `const`    | 说明                    |
+| 特性               | TC `let`     | C99 `const`  | 说明                    |
 | ------------------ | ------------ | ------------ | ----------------------- |
 | 编译期求值         | ✅ 必须       | ❌ 不要求     | TC `let` 保证编译期求值 |
 | 运行时存储         | ❌ 不分配     | 通常分配     | TC 常量不生成运行时数据 |
-| 可用于数组大小     | 未来扩展     | ✅            | TC 预留，未来数组将支持 |
 | 地址可取值         | ❌ 不可取     | ✅ 可取       | TC 常量无运行时地址     |
 | RHS 可为算术表达式 | ✅            | ✅            | TC 常量支持编译期算术   |
 | 溢出检查           | ✅ 编译期报错 | ❌ UB         | TC 在编译期捕获常量溢出 |
 | 优化器可推导       | ✅ 恒为常量   | ⚠️ 视实现而定 | TC 语义保证             |
 
-#### B.3 与 C++ `constexpr` 语义对照
-
-| 特性           | TC `let`                | C++ `constexpr` |
-| -------------- | ----------------------- | --------------- |
-| 编译期求值     | ✅ 必须                  | ✅ 必须          |
-| 运行时存储     | ❌ 不分配                | 视上下文而定    |
-| 支持条件表达式 | ❌ `let` 不含控制流      | ✅               |
-| 支持循环       | ❌                       | ✅               |
-| 支持函数调用   | ❌（0.0.32 的 `let` 仍禁止 `funcall`） | ✅               |
-| 溢出检查       | ✅ 编译期报错            | ❌ 通常 UB       |
-
-#### B.4 0.0.32 函数与控制流边界
+#### B.3 0.0.32 函数与控制流边界
 
 - 顶层语句区仍是程序入口，但只允许结构化控制流；顶层以及顶层嵌套块不得出现 `goto` 或 `label`。
 - `goto` 与 `label` 只能出现在函数体内。每个函数独立建立标签表，跳转目标必须位于当前函数并满足 §9.3 的块关系规则。
@@ -2845,21 +2869,55 @@ read_stmt  = "read" , "(" , type , "," , identifier , ")" ;
 
 ---
 
-### 附录 C：各类型边界常量速查
+### 附录 C：各类型边界常量速查（C99 对照）
 
-| 类型      | 范围                                                    | 十六进制边界字面量                                |
-| --------- | ------------------------------------------------------- | ------------------------------------------------- |
-| `int8`    | −128 ～ 127                                             | `-0x80`, `0x7F`                                   |
-| `uint8`   | 0 ～ 255                                                | `0xFFu`                                           |
-| `int16`   | −32,768 ～ 32,767                                       | `-0x8000`, `0x7FFF`                               |
-| `uint16`  | 0 ～ 65,535                                             | `0xFFFFu`                                         |
-| `int32`   | −2,147,483,648 ～ 2,147,483,647                         | `-0x8000_0000`, `0x7FFF_FFFF`                     |
-| `uint32`  | 0 ～ 4,294,967,295                                      | `0xFFFF_FFFFu`                                    |
-| `int64`   | −9,223,372,036,854,775,808 ～ 9,223,372,036,854,775,807 | `-0x8000_0000_0000_0000`, `0x7FFF_FFFF_FFFF_FFFF` |
-| `uint64`  | 0 ～ 18,446,744,073,709,551,615                         | `0xFFFF_FFFF_FFFF_FFFFu`                          |
-| `float32` | 有限值约 −3.4e38 ～ +3.4e38；最小正非零值约 1.4e-45 | —                                                 |
-| `float64` | 有限值约 −1.8e308 ～ +1.8e308；最小正非零值约 5e-324 | —                                                 |
-| `bool`    | `false` ～ `true`                                       | —                                                 |
+本附录严格以 ISO/IEC 9899:1999 及其 TC1～TC3 汇编文本的 C99 规则为准，主要对应 §7.18 `<stdint.h>`、§5.2.4.2.2 `<float.h>` 和 §7.16 `<stdbool.h>`。不使用 C11 及后续版本增加的宏、类型或语法。
+
+#### C.1 精确宽度整数
+
+C99 的 `intN_t` / `uintN_t` 是**可选**的精确宽度类型。仅当实现提供满足相应位宽、无填充位，且有符号类型采用二进制补码表示的整数类型时，才定义对应 typedef 及界限宏。下表中的直接对应关系因此均以“该 C99 实现实际定义相应名称”为前提：
+
+| TC 类型 | C99 条件 typedef | C99 最小值宏 | C99 最大值宏 |
+| ------- | --------------- | ------------ | ------------ |
+| `int8` | `int8_t` | `INT8_MIN` | `INT8_MAX` |
+| `uint8` | `uint8_t` | `0` | `UINT8_MAX` |
+| `int16` | `int16_t` | `INT16_MIN` | `INT16_MAX` |
+| `uint16` | `uint16_t` | `0` | `UINT16_MAX` |
+| `int32` | `int32_t` | `INT32_MIN` | `INT32_MAX` |
+| `uint32` | `uint32_t` | `0` | `UINT32_MAX` |
+| `int64` | `int64_t` | `INT64_MIN` | `INT64_MAX` |
+| `uint64` | `uint64_t` | `0` | `UINT64_MAX` |
+
+- C99 源码应使用上述 `<stdint.h>` 界限宏表达边界，尤其不得用 `-9223372036854775808` 之类宿主整数字面量假定 `int64_t` 最小值的类型和求值过程。
+- `int_leastN_t` / `uint_leastN_t` 只保证**至少** N 位，不能替代 TC 的精确位宽类型，否则回绕、移位、`bitcast` 和边界检查可能改变。
+- 若宿主 C99 实现没有定义某个精确宽度 typedef，AOT 必须使用能保持 TC 规定值域和位模式的其他实现策略；不得把缺失的名称视为 TC 不支持对应类型。
+
+#### C.2 浮点边界
+
+C99 不要求 `float` 和 `double` 采用 IEEE 754 binary32 / binary64，也不保证存在非规格化数。`<float.h>` 中的 `FLT_MIN` / `DBL_MIN` 表示**最小正正规值**，不是最小正非零值；C99 没有 `FLT_TRUE_MIN`、`DBL_TRUE_MIN`、`FLT_HAS_SUBNORM` 或 `DBL_HAS_SUBNORM`。
+
+| TC 类型 | TC 最大有限绝对值 | TC 最小正正规值 | TC 最小正非零值 | 匹配宿主格式时的 C99 宏 |
+| ------- | ----------------- | -------------- | -------------- | ----------------------- |
+| `float32` | `(2 − 2^-23) × 2^127` | `2^-126` | `2^-149` | `FLT_MAX`、`FLT_MIN`；C99 无最小正非零值宏 |
+| `float64` | `(2 − 2^-52) × 2^1023` | `2^-1022` | `2^-1074` | `DBL_MAX`、`DBL_MIN`；C99 无最小正非零值宏 |
+
+只有宿主 `<float.h>` 至少满足下列特征时，才能把 C99 `float` / `double` 分别作为 TC `float32` / `float64` 的候选存储类型：
+
+| TC 类型 | 必要的 C99 `<float.h>` 特征 |
+| ------- | --------------------------- |
+| `float32` | `FLT_RADIX == 2`、`FLT_MANT_DIG == 24`、`FLT_MIN_EXP == -125`、`FLT_MAX_EXP == 128` |
+| `float64` | `FLT_RADIX == 2`、`DBL_MANT_DIG == 53`、`DBL_MIN_EXP == -1021`、`DBL_MAX_EXP == 1024` |
+
+这些特征只确认基本值域和精度，不能单独证明全部 TC 浮点语义。AOT 仍须确认非规格化数、NaN、无穷、roundTiesToEven 和位模式要求，并处理 C99 `FLT_EVAL_METHOD` 允许的额外中间精度；每条 TC 浮点指令结束时必须按目标 TC 类型舍入。
+
+#### C.3 布尔值
+
+C99 的对应类型为 `_Bool`；包含 `<stdbool.h>` 后，宏 `bool` 展开为 `_Bool`，`false` 和 `true` 分别展开为整数常量 `0` 和 `1`。该对应只保证逻辑值语义，不保证 C99 `_Bool` 与 TC `bool` 具有相同对象大小或可观察位模式。
+
+| TC 值 | C99 表达 |
+| ----- | -------- |
+| `false` | `false`（或 `_Bool` 值 `0`） |
+| `true` | `true`（或 `_Bool` 值 `1`） |
 
 ---
 
