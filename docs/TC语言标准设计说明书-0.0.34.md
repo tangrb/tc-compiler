@@ -40,7 +40,7 @@ TC 的五项核心定位：
 
 | 类别 | 当前定义 |
 | ---- | -------- |
-| 类型 | 8 种固定宽度整数（`int8`～`uint64`）、`float32`、`float64`、`bool`；`void` 仅表示函数无返回值 |
+| 类型 | 8 种固定宽度整数（`int8`～`uint64`）、`float32`、`float64`、`bool`、`memblock<T>`（参数化内存块类型）；`void` 仅表示函数无返回值 |
 | 算术 | `add`、`sub`、`mul`、`div`、`mod`、`abs`、`neg`；整数与浮点均支持，浮点 `mod` 的商向零截断 |
 | 位与逻辑 | 整数按位 `and`/`or`/`xor`/`not` 和 `shl`/`shr`；布尔逻辑 `and`/`or`/`xor`/`not`；由首个类型参数区分重载 |
 | 比较 | `eq`、`ne`、`lt`、`le`、`gt`、`ge`，支持整数和浮点，结果为 `bool` |
@@ -334,6 +334,7 @@ func  funcall  return  void  ; 函数定义、调用与返回
 import                       ; 库模块导入
 static  Self                  ; 库模块静态成员与当前模块限定符
 public  private               ; 模块成员可见性修饰符
+memblock  memblock_load  memblock_store  memblock_size  ; 内存块类型与操作
 inf  nan
 ```
 
@@ -351,13 +352,14 @@ inf  nan
 
 #### 3.1 类型分类
 
-TC 0.0.34 支持 **整数类型**、**浮点类型**、**布尔类型**，并以 `void` 表示函数不返回值：
+TC 0.0.34 支持 **整数类型**、**浮点类型**、**布尔类型**、**内存块类型**，并以 `void` 表示函数不返回值：
 
 | 类别         | 支持的类型               | 说明                   |
 | ------------ | ---------------------- | ---------------------- |
 | **整数类型** | `int8`～`uint64`       | 固定宽度二进制补码整数 |
 | **浮点类型** | `float32`、`float64`   | IEEE 754 浮点数        |
 | **布尔类型** | `bool`                 | 逻辑真/假              |
+| **内存块类型** | `memblock<T>`        | 固定大小、紧密排列的标量元素连续内存块 |
 | **无值标记** | `void`                 | 不是值类型，仅用于函数返回类型 |
 
 #### 3.2 整数类型
@@ -497,6 +499,92 @@ TC 0.0.34 将数值转换、整数截断与位重解释分开：
 | `bitcast(T, operand)` | 位重解释 | 源、目标等宽；不改变任何位；`bool` 不参与 |
 
 严格 `cast` 覆盖整数 ↔ 整数、整数 ↔ 浮点、浮点 ↔ 浮点，以及整数/浮点 ↔ `bool`。`truncate` 不再承担浮点位重解释；所有整数/浮点位模式互转统一使用 `bitcast`。
+
+#### 3.8 内存块类型（`memblock`）
+
+`memblock<T>` 是 TC 的参数化值类型，表示一段固定大小、紧密排列的标量元素连续内存块。它直接映射到伪汇编模型中的可寻址内存块，使内存读写显式化为原子操作，不引入指针、地址运算或隐式解引用。
+
+##### 3.8.1 类型语法
+
+```
+memblock<T>
+```
+
+`T` 为元素类型，仅限 13 种标量类型：
+
+```
+int8, uint8, int16, uint16, int32, uint32, int64, uint64
+float32, float64, bool
+```
+
+`memblock<T>` 本身是值类型，不可嵌套：`memblock<memblock<T>>` 不支持，语法层直接拒绝。需要多维时，用一维 `memblock` 通过自行计算偏移来模拟，这符合 TC 伪汇编将地址计算显式化的哲学。
+
+##### 3.8.2 运行时布局
+
+memblock 变量占据 `count × sizeof(T)` 位，元素紧密排列，无填充：
+
+```text
+memblock<int32>(count=4):
+[ elem0:32bit | elem1:32bit | elem2:32bit | elem3:32bit ]
+```
+
+##### 3.8.3 构造器
+
+`memblock` 同时作为类型构造器（`memblock<int32>`）和值构造器（`memblock(int32, 256)`），上下文区分：出现在 `:` 之后为类型构造器，出现在 `=` 右侧为值构造器。
+
+`count` 必须是编译期常量（字面量或 `let` 标识符），必须 ≥ 1。memblock 不可动态伸缩。
+
+**零值填充** — `memblock(T, count)`：
+
+创建 `count` 个元素，全部以零值初始化：
+
+| 元素类型 | 零值 |
+|----------|------|
+| 整数 | `0` / `0u` |
+| 浮点 | `0.0` / `0.0f` |
+| `bool` | `false` |
+
+```tc
+var buf: memblock<uint8> = memblock(uint8, 256)
+; 256 个 0u
+```
+
+**指定值填充** — `memblock(T, count, fill)`：
+
+创建 `count` 个元素，全部以 `fill` 初始化。`fill` 的类型必须与 `T` 严格一致。
+
+```tc
+var ones: memblock<int32> = memblock(int32, 100, 1)
+var padded: memblock<uint8> = memblock(uint8, 64, 0xFFu)
+```
+
+**逐值初始化** — `memblock(T, count, v0, v1, ..., vN)`：
+
+以 `N` 个值依次初始化各元素。约束：
+
+- 值个数必须等于 `count`，否则静态错误
+- 每个值的类型必须与 `T` 严格一致
+
+```tc
+let PRIMES: memblock<int32> = memblock(int32, 5, 2, 3, 5, 7, 11)
+var CRC: memblock<uint32> = memblock(uint32, 4,
+    0x00000000u, 0x77073096u, 0xEE0E612Cu, 0x990951BAu)
+```
+
+##### 3.8.4 赋值语义
+
+`memblock<T>` 是值类型，赋值整体复制。**赋值左右操作数的元素个数必须在编译期一致**，否则静态错误。无别名语义，无指针，无浅/深拷贝歧义。
+
+```tc
+var a: memblock<int32> = memblock(int32, 256, 0)
+var b: memblock<int32> = memblock(int32, 256, 1)
+
+memblock_store(int32, a, 0, 42)
+b = a    ; 合法，整个块复制，b 现在 b[0] = 42
+
+; var c: memblock<int32> = memblock(int32, 128)
+; a = c   ; ❌ 编译期错误：元素个数不匹配
+```
 
 ---
 
@@ -706,6 +794,8 @@ var d: int32                      ; ❌ TC_ERR_VAR_MISSING_INIT
 - 比较运算：`eq`/`ne`/`lt`/`le`/`gt`/`ge`（浮点比较允许但不推荐，因浮点精度）
 - 逻辑运算：`and`/`or`/`xor`/`not`（布尔）
 - 转换：严格 `cast`、整数 `cast(..., truncate, ...)` 与等宽 `bitcast`
+- memblock 构造器：`memblock(T, count)`、`memblock(T, count, fill)` 和 `memblock(T, count, v0, ..., vN)`，其中 count 及全部值必须是编译期常量
+- memblock 大小查询：`memblock_size(T, mb)`，其中 `mb` 是已定义的 `let` memblock 常量
 
 **声明类型闭合与检查顺序**：
 
@@ -837,6 +927,8 @@ count = funcall(get_next)   ; 合法（funcall 赋值）
 | `unary_logic_expr`   | `bool`             | `not` 逻辑运算（布尔）          |
 | `cast_expr`          | 第一参数类型       | 类型转换                        |
 | `bitcast_expr`       | 第一参数类型       | 等宽位重解释                    |
+| `memblock_load_expr` | 第一参数类型       | 从 memblock 读取一个元素         |
+| `memblock_size_expr` | `uint64`           | 返回 memblock 的元素个数         |
 
 `funcall` 不属于普通 `rhs`。它只在 `var <名>: <类型> = funcall(...)`、`<identifier> = funcall(...)` 或独立 `funcall(...)` 三种专用语法位置出现；其合法位置由被调函数返回类型决定（§10.2.3）。
 
@@ -853,6 +945,84 @@ count = funcall(get_next)   ; 合法（funcall 赋值）
 因此，凡规范引用 `operand` 的位置——包括运算、转换、`funcall` 命名实参、`return` 和输出——均可使用符合本行规则的 `let` 标识符。只有运行时绑定读取才执行 `TC_ERR_UNINITIALIZED_VARIABLE` 检查；编译期 `let` 永不因不属于 `IN` 集合而触发该错误。
 
 不支持 嵌套：操作数不可为算术表达式、`cast`、`bitcast` 或 `funcall` 调用。复合计算须拆分为多条语句。
+
+#### 4.7 memblock 变量定义
+
+memblock 变量遵循 TC 现有的 `var` / `let` 规则，声明时必须初始化：
+
+```tc
+var  mb: memblock<int32> = memblock(int32, 256)
+let  MB: memblock<int32> = memblock(int32, 4, 1, 2, 3, 4)
+```
+
+| 规则 | 说明 |
+|------|------|
+| 强制初始化 | 不可省略初始化器，`var mb: memblock<int32>` 非法，与标量变量一致，触发 `TC_ERR_VAR_MISSING_INIT` |
+| `let` 只读 | `let` memblock 编译期求值，不可作为 `memblock_store` 目标 |
+| `let` 常量 | count 和 fill 值必须全是编译期常量 |
+| 多维禁止 | `memblock<memblock<T>>` 不支持，语法层拒绝 |
+| `funcall` 初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: memblock<T> = funcall(...)` 初始化新变量（§10.2）；`funcall` 不属于普通 RHS |
+
+同一作用域内不可重复定义同名 memblock 变量，也不可与标量变量或常量冲突。
+
+#### 4.8 memblock 操作
+
+所有 memblock 操作遵循 TC 的 `op(类型, 操作数…)` 约定。
+
+##### 4.8.1 读取 — `memblock_load`
+
+```text
+memblock_load(T, mb, index)
+```
+
+从 `mb` 中读取第 `index` 个元素，返回类型 `T`。`index` 为整数，0-based。类别：RHS。
+
+```tc
+var val: int32 = memblock_load(int32, mb, 3)
+```
+
+##### 4.8.2 写入 — `memblock_store`
+
+```text
+memblock_store(T, mb, index, value)
+```
+
+将 `value` 写入 `mb` 的第 `index` 个位置。`value` 类型必须与 `T` 严格一致。类别：独立语句（非 RHS）。
+
+```tc
+memblock_store(int32, mb, 3, 42)
+memblock_store(uint8, buf, idx, 0xFFu)
+```
+
+##### 4.8.3 大小 — `memblock_size`
+
+```text
+memblock_size(T, mb)
+```
+
+返回 `mb` 的元素个数，类型为 `uint64`。返回值在编译期已知，可用于 `let` 常量表达式。类别：RHS。
+
+```tc
+let N: uint64 = memblock_size(int32, mb)
+```
+
+##### 4.8.4 越界检查
+
+| 场景 | 诊断 |
+|------|------|
+| 编译期常量索引 ≥ count | 静态错误 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` |
+| 运行时索引 ≥ count | 运行时错误 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` |
+
+```tc
+; memblock_load(int32, mb, 256)   ; ❌ mb 只有 256 个元素 (0..255)
+```
+
+##### 4.8.5 约束
+
+- 不可取 `memblock` 或其元素的地址，无 `&` 语义
+- 不提供子块视图或切片
+- `memblock_load` / `memblock_store` 的 `index` 为运行时整数
+- 索引须先写入局部变量，`memblock_load(T, mb, add(int32, base, offset))` 不合法
 
 ---
 
@@ -1719,8 +1889,8 @@ func <函数名>([<形参名>: <值类型> [, ...]]) <返回类型> then
 end
 ```
 
-- 形参类型只能是 `bool`、8 种整数类型或 2 种浮点类型。
-- 返回类型可以是上述值类型或 `void`。
+- 形参类型可以是现有值类型（`bool`、8 种整数类型、2 种浮点类型）或 `memblock<T>`，其中 `T` 仅限 13 种标量类型。`memblock<T>` 形参严格按值传递：调用时整个内存块复制到被调函数的调用帧。memblock 形参与标量形参一样是只读绑定——`memblock_store(T, param, idx, val)` 合法（修改副本内容），但 `param = <另一个 memblock>` 不合法（禁止对形参整体赋值）。
+- 返回类型可以是上述值类型或 `void`。返回类型同样允许 `memblock<T>`，返回时整块复制。
 - 函数体直接语句必须比 `func` 行恰好多一个缩进级别；函数 `end` 必须与 `func` 行对齐。
 - 函数体可以为空，但空函数体仍须满足返回路径规则；因此空的非 `void` 函数和空的 `void` 函数都会因可达函数末尾而报缺少返回。
 
@@ -1787,6 +1957,16 @@ funcall(show_value, value: total)
 - 每个实参只能是 §4.6 的 `operand`：标识符、整数字面量、浮点字面量、浮点特殊值或布尔字面量。算术、位、比较、逻辑、转换和 `funcall` 均不得直接作为实参。
 - 复杂值先写入临时 `var`；一条 `funcall` 只含一个运行时调用。
 - 每个形参类型是对应实参的唯一期望类型，不做隐式转换。普通浮点字面量的源类型由后缀决定；整数字面量与浮点特殊值由形参提供上下文，并按 §3.6 检查。
+- 当形参类型为 `memblock<T>` 时，实参可为以下形式之一：
+
+| 实参形式 | 示例 | 说明 |
+|---------|------|------|
+| 标识符 | `buf: my_buf` | 已声明的 `var` / `let` memblock 变量 |
+| 零值构造器 | `buf: memblock(uint8, 256)` | 编译期常量 |
+| 填充构造器 | `data: memblock(int32, 100, 1)` | 编译期常量 |
+| 逐值构造器 | `table: PRIMES` | `let` 常量 memblock 标识符，或直接逐值构造器 |
+
+memblock 实参不允许使用算术、位运算或其他运算表达式。
 
 合法：
 
@@ -2489,7 +2669,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 #### 13.5 标准错误码对照表
 
-下列两表是 0.0.34 完整、权威的标准错误码对照，共 65 项：64 个语言错误码（56 个静态、8 个运行时）和实现资源失败码 `TC_ERR_OUT_OF_MEMORY`。语言错误码、打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
+下列两表是 0.0.34 完整、权威的标准错误码对照，共 68 项：67 个语言错误码和实现资源失败码 `TC_ERR_OUT_OF_MEMORY`。语言错误码、打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
 
 **实现专用错误码说明**
 
@@ -2581,6 +2761,9 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_ERR_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccessError` | 函数越界名称错误 | 名称（第 6b/7/8 阶段） | 函数内普通值查找失败，但同名 `var` / `let` 存在于全文件顶层值作用域直接声明索引；顶层嵌套块局部绑定不触发本错误（§10.4.1） |
 | `TC_ERR_CROSS_CONTROL_FLOW_JUMP` | `CrossControlFlowJumpError` | 跨控制流域跳转错误 | 名称/控制流解析（第 6 阶段） | 当前函数无同名标签、但另一函数控制流域存在同名标签 |
 | `TC_ERR_RECURSION` | `RecursionError` | 递归错误 | 调用图 | 全局函数调用图存在环 |
+| `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` | `MemblockIndexOutOfRange` | memblock 索引越界 | 静态（常量索引）/ 运行时 | 编译期常量索引 ≥ count 为静态错误；运行时索引 ≥ count 为运行时错误 |
+| `TC_ERR_MEMBLOCK_SIZE_MISMATCH` | `MemblockSizeMismatch` | memblock 大小不匹配 | 静态 | memblock 赋值时左右操作数元素个数不一致 |
+| `TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH` | `MemblockElementCountMismatch` | memblock 逐值初始化数量错误 | 静态 | 逐值初始化 `memblock(T, count, v0, ..., vN)` 的值个数 ≠ count |
 
 ---
 
@@ -2802,7 +2985,8 @@ int_type   = "int8"   | "uint8"
            | "int64"  | "uint64" ;
 float_type = "float32" | "float64" ;
 bool_type  = "bool" ;
-type       = int_type | float_type | bool_type ;
+memblock_type = "memblock" , "<" , ( int_type | float_type | bool_type ) , ">" ;
+type       = int_type | float_type | bool_type | memblock_type ;
 value_type = type ;
 return_type = value_type | "void" ;
 
@@ -2944,7 +3128,8 @@ simple_statement
            | goto_stmt
            | var_funcall_def
            | void_funcall_stmt
-           | return_stmt ;
+           | return_stmt
+           | memblock_store_stmt ;
 /* label_def / goto_stmt 出现在 top_level_program 或其嵌套 suite 中时，
    分别报 TC_ERR_LABEL_OUTSIDE_FUNCTION / TC_ERR_GOTO_OUTSIDE_FUNCTION。 */
 
@@ -2978,7 +3163,9 @@ qualified_identifier = "Self" , "." , identifier ;
 imported_member_name = identifier , "." , identifier ;
 
 named_argument
-           = identifier , ":" , operand ;
+           = identifier , ":" , ( operand | memblock_constructor ) ;
+/* memblock_constructor 仅在对应形参类型为 memblock<T> 时合法；
+   其他情况由静态语义拒绝（§10.2.2）。 */
 
 var_funcall_def
            = "var" , identifier , ":" , value_type , "=" , funcall ;
@@ -3058,7 +3245,10 @@ rhs        = identifier
            | binary_logic_expr
            | unary_logic_expr
            | cast_expr
-           | bitcast_expr ;
+           | bitcast_expr
+           | memblock_load_expr
+           | memblock_size_expr
+           | memblock_constructor ;
 
 /* ── 常量右值表达式 ── */
 
@@ -3076,7 +3266,9 @@ const_rhs  = integer_literal
            | const_binary_logic_expr
            | const_unary_logic_expr
            | const_cast_expr
-           | const_bitcast_expr ;
+           | const_bitcast_expr
+           | const_memblock_size_expr
+           | const_memblock_constructor ;
 
 /* ── 常量表达式（只允许单层调用） ── */
 
@@ -3231,6 +3423,37 @@ bitcast_expr
 
 /* 所有运算类型/模式组合均受 §5.1 权威矩阵约束。
    truncate 仅允许整数窄化；bitcast 要求等位宽且两端非 bool（§8）。 */
+
+/* ── memblock 操作 ── */
+
+memblock_load_expr
+           = "memblock_load" , "(" , type , "," , identifier , "," ,
+             operand , ")" ;
+
+memblock_size_expr
+           = "memblock_size" , "(" , type , "," , identifier , ")" ;
+
+memblock_store_stmt
+           = "memblock_store" , "(" , type , "," , identifier , "," ,
+             operand , "," , operand , ")" ;
+/* memblock_store 是独立语句，非 RHS。 */
+
+memblock_constructor
+           = "memblock" , "(" , type , "," ,
+             ( integer_literal | identifier ) ,
+             { "," , operand } , ")" ;
+/* 语法接受三种语义形式：memblock(T, count) 零值填充、
+   memblock(T, count, fill) 指定值填充、
+   memblock(T, count, v0, v1, ..., vN) 逐值初始化。
+   形式合法性由静态语义决定（§3.8.3）。 */
+
+const_memblock_size_expr
+           = "memblock_size" , "(" , type , "," , identifier , ")" ;
+
+const_memblock_constructor
+           = "memblock" , "(" , type , "," ,
+             ( integer_literal | identifier ) ,
+             { "," , const_operand } , ")" ;
 
 /* ── I/O 语句 ── */
 
