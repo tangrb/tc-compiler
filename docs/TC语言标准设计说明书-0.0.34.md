@@ -45,7 +45,7 @@ TC 的五项核心定位：
 
 | 类别 | 当前定义 |
 | ---- | -------- |
-| 类型 | 8 种固定宽度整数（`int8`～`uint64`）、`float32`、`float64`、`bool`、`memblock<T>`（参数化内存块类型）；`void` 仅表示函数无返回值 |
+| 类型 | 8 种固定宽度整数（`int8`～`uint64`）、`float32`、`float64`、`bool`（固定 1 字节，规范位 `0x00`/`0x01`）、`memblock<T>`（参数化内存块类型；`load`/`store`/`size`/`copy` 见 §6.7）；`void` 仅表示函数无返回值 |
 | 算术 | `add`、`sub`、`mul`、`div`、`mod`、`abs`、`neg`；整数与浮点均支持，浮点 `mod` 的商向零截断 |
 | 位与逻辑 | 整数按位 `and`/`or`/`xor`/`not` 和 `shl`/`shr`；布尔逻辑 `and`/`or`/`xor`/`not`；由首个类型参数区分重载 |
 | 比较 | `eq`、`ne`、`lt`、`le`、`gt`、`ge`，支持整数和浮点，结果为 `bool` |
@@ -53,8 +53,8 @@ TC 的五项核心定位：
 | 模式 | 默认 strict；有符号整数算术及整数 `shl` 可按规则使用 `wrap`，浮点算术可按规则使用 `ieee`；浮点不支持 `wrap` |
 | 控制流 | 缩进敏感且以 `end` 结束的 `if`/`while`；`break`/`continue`；仅函数内允许受限 `goto`/`label`，且 `while` 内禁止二者 |
 | 函数 | 顶层 `func`、命名且有序的 `funcall`、显式 `return`；参数按值且只读，各函数作用域、调用帧和 CFG 独立，调用图无环 |
-| 模块 | 一个 `.tc` 文件恰好定义一个全程序唯一的静态命名空间；模块不可实例化；首个有效行以 `#program` 或 `#lib` 声明模式；以 `import xxx` 导入 `xxx.tc` 库模块，以 `xxx.id` 访问其公开成员 |
-| I/O | `write`、`writeln`、`read`；输出支持 13 种转换符及 C99 风格的标志、字段宽度和精度控制 |
+| 模块 | 一个 `.tc` 文件恰好一个模块；`#program` / `#lib` 二分；`import` + `xxx.id` 访问公开成员（可复用逻辑须双文件，§1.5） |
+| I/O | `write`、`writeln`、`read`，仅限 11 种标量类型（禁止 `memblock`）；输出支持 13 种转换符及 C99 风格的标志、字段宽度和精度控制 |
 | 入口 | `#program` 模块的顶层语句按源序执行；无特殊 `main`，顶层只允许结构化控制流 |
 
 ### 1.2 设计原则
@@ -89,7 +89,7 @@ TC 的五项核心定位：
 | ---- | -------- | ---- |
 | 显式类型转换 | 跨类型须通过 `cast` 完成，禁止隐式转换；阅读者不会漏掉类型改变 | §6.6 |
 | 命名空间限定 | `module.id` 与 `Self.id` 是静态限定名，调用来源和状态归属完全透明 | §4 |
-| 显式函数数据流 | 值仅通过参数/返回值进出函数，库状态访问须显式 `Self.id` | §8.4.1, §4.3 |
+| 显式函数数据流 | 值默认仅通过参数/返回值进出函数；库成员访问须显式 `Self.id` / `module.id`（公开 `static var` 的副作用见 §1.5） | §8.4.1, §4.3, §1.5 |
 | I/O 格式化 | 单语句单操作数输出，格式说明符集中表达意图，无需拼接推断 | §10 |
 
 #### 1.2.4 安全计算：默认检测，杜绝静默错误
@@ -116,8 +116,13 @@ TC 不优化人类编码效率，所有设计取舍优先服务于代码的阅�
 为避免资料性内容、示例和强制规则相互覆盖，本说明书使用以下规范层次：
 
 1. **必须 / 禁止 / 仅可 / 不得** 表示一致性实现必须满足的规范性要求；**应当 / 建议** 表示不改变合法程序集合的实现或风格建议；**可以** 表示实现自由，但不得改变可观察语义。
-2. 附录 A 只决定 Token 序列的语法接受集；正文决定通过语法后的静态语义、抽象执行语义和诊断映射。两者分工而非互相覆盖：正文不得放宽附录 A，附录 A 也不替代正文的类型、模式、作用域和运行时规则。
-3. 第 14 章、附录 B、附录 C，以及标为“示例”或“设计说明”的段落均为资料性内容。资料性内容若与规范性正文或附录 A 冲突，不改变语言语义；应视为文档缺陷并以规范性条款为准。
+2. **语法拒绝与静态语义拒绝**（全文权威口径；后文“语法层拒绝 / 不符合 EBNF / 语法错误 / 静态语义拒绝 / 语义阶段拒绝”等表述均按本款理解，不以口语变体另立规则）：
+   1. **语法拒绝**：Token 序列不符合附录 A 的适用产生式。默认在第 3 阶段报告 `TC_ERR_SYNTAX`。若 §11.1 对该类失配规定了**受限语法诊断恢复**的专用错误码（例如 `TC_ERR_VAR_MISSING_INIT`、`TC_ERR_OPERAND_COUNT`、`TC_ERR_MODULE_LAYER`、缩进/块结构专用码、`TC_ERR_KEYWORD`），则使用该专用码。语法拒绝的程序**不得**进入第 4 及以后阶段的名称、类型、模式、CFG 或调用图分析；专用码只改变错误分类，不放宽附录 A 接受集。
+   2. **静态语义拒绝**：附录 A 已接受该形态，但正文的类型、模式、作用域、可见性、字面量上下文、确定初始化、返回路径或调用图等规则不成立。在第 4–12 阶段按 §11.1 报告对应语义错误码（例如 `TC_ERR_TYPE_MISMATCH`、`TC_ERR_MODE_MISMATCH`、`TC_ERR_PRIVATE_MEMBER_ACCESS`、`TC_ERR_UNINITIALIZED_VARIABLE`）。
+   3. 附录 A 只决定语法接受集；正文决定通过语法后的静态语义、抽象执行语义和诊断映射。两者分工而非互相覆盖：正文不得放宽附录 A，附录 A 也不替代正文的类型、模式、作用域和运行时规则。
+   4. 同一表面形态在不同产生式中的分流（例如 `let` 的 `const_shift_expr` 接受候选 `mode`，而运行时 `shift_expr` 不接受）属于**语法接受集**差异；进入语义后的模式/类型合法性仍按本款第 2 项处理。
+   5. 正文若仅写“静态错误”而未标明阶段：若该形态可由附录 A 排除，则按语法拒绝；否则按静态语义拒绝。资料性示例中的“❌”注释不改变上述分类。
+3. 第 12 章、附录 B、附录 C，以及标为“示例”或“设计说明”的段落均为资料性内容。资料性内容若与规范性正文或附录 A 冲突，不改变语言语义；应视为文档缺陷并以规范性条款为准。
 4. TC 程序的可观察行为包括：是否通过静态检查、首个规范诊断及其错误码、按源序成功提交到 TC 抽象标准输出的字节、正常结束或首个运行时错误，以及运行时错误码。失败输出语句可能泄漏到宿主设备的物理前缀按 §10.2 明确排除在 TC 语言级可观察行为之外。槽位地址、调用帧物理布局、宿主字节序、宿主浮点环境和该类宿主设备泄漏不是可观察行为。
 5. 除明确标为实现扩展的资源失败，以及 §10.2 明确隔离的宿主 I/O 设备物理行为外，不存在“实现自行选择”的未定义行为。规范未为某种源程序形态给出语法或静态语义时，该程序不合法；规范允许实现自由时，实现仍须保持相同的合法程序集合和可观察行为。给定相同的抽象输入 Token 序列和 I/O 成功/失败结果，VM 与 AOT 必须得到相同的 TC 抽象行为。
 6. 浮点术语以 IEEE 754-2019 的 binary32、binary64、roundTiesToEven、NaN、无穷和非规格化数定义为准；与 C99 宿主规则不一致时，以本说明书定义的 TC 抽象机器为准。AOT 不得把宿主 C99 的未定义行为、实现定义行为、额外精度或当前舍入环境泄漏为 TC 行为。
@@ -125,6 +130,15 @@ TC 不优化人类编码效率，所有设计取舍优先服务于代码的阅�
 
 “一致性实现”是指其前端与执行后端共同满足以上规则的实现。仅解析而不执行的工具可以只声明其所覆盖的阶段，但不得把实现限制描述为 TC 语言限制。
 
+### 1.5 设计代价与有意取舍
+
+下列代价是 0.0.34 为满足 §1.1–§1.3 而**显式接受**的，不是文档疏漏或后续补丁空间：
+
+1. **双文件才是“带函数的最小程序”**：`#program` 不得定义函数（§4.1）。任意可复用或需 `goto`/`label` 的逻辑必须放在独立的 `#lib` 源文件中，并由 `#program`（或其他库）通过 `import` 调用。单文件内“顶层语句 + 辅助函数”的写法非法。
+2. **公开 `static var` 是显式的模块级副作用通道**：导入者可通过 `<模块名>.<名>` 读写公开 `static var`（含作为 `read` 目标，§4.4 / §10.3）。这与“局部值默认只经参数/返回值流动”并存——共享状态必须经限定名出现，从而对阅读者可见；但一旦标为 `public`，即成为跨模块可变全局槽，规范不提供隐式隔离或写屏障。
+3. **编码冗长换取合法程序集合更小、首诊可复现**：单层表达式、命名且有序的实参、强制 `public`/`private`、无编译警告等，使人手编写成本高于多数主流语言；其回报是 AI 生成与人工审查时更少的歧义路径，以及 §11 下确定的首个诊断。
+
+实现不得以“降低上述代价”为由放宽语法接受集、静默接受私有成员访问，或把公开 `static var` 的跨模块写入降级为警告。
 ---
 
 
@@ -139,7 +153,7 @@ TC 不优化人类编码效率，所有设计取舍优先服务于代码的阅�
 TC 源文件的“编码字符集”与“可形成 Token 的字符集”分层规定：
 
 1. 源编码：文件必须是有效 UTF-8 字节序列。不接受 UTF-8 BOM；文件起始的 U+FEFF 按非法源字符处理。U+0000 在源文件任何位置均非法。
-2. Token 与结构字符：除行注释内容外，只允许附录 A 终结符使用的 ASCII 字符：`A`–`Z`、`a`–`z`、`0`–`9`、`_`、`+`、`-`、`#`、`%`、`=`、`:`、`,`、`(`、`)`、`;`、`.`。字符是否能出现在具体位置仍由最长匹配规则与附录 A 决定；“属于本字符表”不代表在任意位置都是合法 Token。
+2. Token 与结构字符：除行注释内容外，只允许附录 A 终结符使用的 ASCII 字符：`A`–`Z`、`a`–`z`、`0`–`9`、`_`、`+`、`-`、`#`、`%`、`=`、`:`、`,`、`(`、`)`、`<`、`>`、`;`、`.`。其中 `<` / `>` 仅用于 `memblock<T>` 类型构造器的尖括号（§3.8、附录 A）；字符是否能出现在具体位置仍由最长匹配规则与附录 A 决定；“属于本字符表”不代表在任意位置都是合法 Token。
 3. 源空白、缩进与行结束：Token 之间的水平空白可为 ASCII 空格 U+0020 或水平制表符 U+0009；但对非空、非纯注释逻辑行，第一个 Token 之前的行首缩进只能由 ASCII 空格 U+0020 组成，每连续 4 个空格表示一级，行首空格总数必须能被 4 整除，不得使用 U+0009 制表符缩进。逻辑行结束仅为 LF（U+000A）、CRLF（U+000D U+000A）或 CR（U+000D）。其他 Unicode 空白不是 TC 空白。
 4. 注释内容：分号 `;` 之后到当前逻辑行结束之前，允许任意已正确 UTF-8 解码的 Unicode 标量值（U+0000 除外）。注释内容不产生 Token，其中的非 ASCII 字符、关键字或类似数值的文本均不参与词法分析。
 
@@ -342,7 +356,7 @@ func  funcall  return  void  ; 函数定义、调用与返回
 import                       ; 库模块导入
 static  Self                  ; 库模块静态成员与当前模块限定符
 public  private               ; 模块成员可见性修饰符
-memblock  memblock_load  memblock_store  memblock_size  ; 内存块类型与操作
+memblock  memblock_load  memblock_store  memblock_size  memblock_copy  ; 内存块类型与操作
 inf  nan
 ```
 
@@ -405,11 +419,12 @@ TC 0.0.34 支持 **整数类型**、**浮点类型**、**布尔类型**、**内�
 
 `bool` 类型表示逻辑真值，取值为 `true` 或 `false`。
 
-**抽象表示**：
-- `bool` 的抽象值域恰好为 `false` 与 `true`，所有产生 `bool` 的指令、`read` 和 `cast` 都必须把结果规范化为其中之一。
-- `bool` 没有可由 TC 程序观察的位宽、对象布局或第三种“非零真值”位模式；其物理存储由后端自行决定。
-- 若后端在 ABI 或内部载体上接收非规范布尔表示，必须先规范化再进入 TC 抽象机器；不得让该表示影响比较、逻辑、I/O 或函数传参结果。
-- 不可 将 `bool` 直接解释为整数；数值互转须通过 `cast`。`bitcast` 明确排除 `bool`，因此内部布局不会成为语言语义。
+**抽象表示与固定宽度**：
+- `bool` 在 TC 抽象机器中占据**固定 1 字节（8 位）**，与 `int8` / `uint8` 等位宽。该宽度参与 `memblock` 布局、按值传参/返回与整体复制的大小计算，VM 与 AOT 必须一致。
+- 规范位模式唯一：`false` = `0x00`，`true` = `0x01`。不存在第三种可由合法 TC 程序提交的“非零真值”字节。
+- `bool` 的抽象值域恰好为 `false` 与 `true`；所有产生 `bool` 的指令、`read`、`cast` 与 `memblock_store`（元素类型为 `bool` 时）都必须把结果规范化为上述二者之一后再提交。
+- 若后端在 ABI 或内部载体上接收非规范布尔字节，必须先规范化为 `0x00` / `0x01` 再进入 TC 抽象机器；不得让非规范字节影响比较、逻辑、I/O、函数传参或 `memblock` 元素内容。
+- 不可将 `bool` 直接解释为整数；数值互转须通过 `cast`。尽管位宽与 `int8`/`uint8` 相同，`bitcast` 仍明确排除 `bool`（§6.6.6），以杜绝经位重解释写入非 `0x00`/`0x01` 字节。
 
 **类型性质**：
 - 比较运算和逻辑运算的结果类型为 `bool`。
@@ -417,12 +432,12 @@ TC 0.0.34 支持 **整数类型**、**浮点类型**、**布尔类型**、**内�
 - 与所有类型相同：`bool` 的 `var` 定义**声明时必须初始化**（§5.1）。
 
 ```text
-var flag: bool = true      ; 声明并初始化
-var done: bool = false     ; 声明并初始化
+var flag: bool = true      ; 声明并初始化；抽象字节 0x01
+var done: bool = false     ; 声明并初始化；抽象字节 0x00
 ; var uninit: bool         ; ❌ 静态错误：变量定义必须初始化
 ```
 
-由于 `bitcast` 明确排除 `bool` 类型（§6.6.6），TC 程序不存在通过位重解释将非规范位模式引入 `bool` 变量的路径；所有产生 `bool` 值的指令和转换均保证结果已规范化。
+由于 `bitcast` 明确排除 `bool` 类型（§6.6.6），TC 程序不存在通过位重解释将非规范位模式引入 `bool` 绑定的路径；所有产生 `bool` 值的指令和转换均保证结果已规范化为 `0x00` 或 `0x01`。
 
 ### 3.5 类型性质
 
@@ -452,9 +467,9 @@ var done: bool = false     ; 声明并初始化
 
 **布尔类型**
 
-- 仅表示逻辑真值
+- 固定宽度 1 字节；规范位模式为 `false` = `0x00`、`true` = `0x01`（§3.4）
 - 比较运算和逻辑运算返回 `bool`
-- 不参与算术运算（须显式 `cast`）
+- 不参与算术运算（须显式 `cast`）；不参与 `bitcast`
 
 **无值返回标记（`void`）**
 
@@ -464,12 +479,12 @@ var done: bool = false     ; 声明并初始化
 
 **运行时值模型**
 
-TC 中每个整数或浮点变量的值由 n 位抽象位串（`n` 为类型位宽）与 类型解释 共同构成：
+TC 中每个整数、浮点或布尔变量的值由 n 位抽象位串（`n` 为类型位宽）与类型解释共同构成：
 
 - 整数内部以 n 位无符号位模式存储；有符号类型按 二进制补码 解释，无符号类型按非负整数解释
 - 浮点数内部以 IEEE 754 位模式存储
-- `bool` 只具有 `false` / `true` 两个抽象值，不参与本位串模型
-- `wrap` 算术回绕、整数 `cast(..., truncate, ...)` 与等宽 `bitcast` 均在此位模式上操作
+- `bool` 的 `n = 8`；合法提交的位模式仅 `0x00`（`false`）与 `0x01`（`true`）
+- `wrap` 算术回绕、整数 `cast(..., truncate, ...)` 与等宽 `bitcast` 均在整数/浮点位模式上操作；`bitcast` 不作用于 `bool`
 - 有符号 `wrap` 下的 `add`/`sub`/`mul`/`neg` 与同位宽无符号默认回绕 位模式一致
 
 抽象位串按“最高有效位到最低有效位”的数值位权定义，与宿主内存的大小端字节序无关。`bitcast` 保持的是该抽象位串，不是对宿主对象表示执行类型别名访问；VM 与 AOT 在不同字节序主机上必须得到相同数值结果。
@@ -521,22 +536,36 @@ TC 0.0.34 将数值转换、整数截断与位重解释分开：
 memblock<T>
 ```
 
-`T` 为元素类型，仅限 13 种标量类型：
+`T` 为元素类型，仅限 11 种标量类型：
 
 ```
 int8, uint8, int16, uint16, int32, uint32, int64, uint64
 float32, float64, bool
 ```
 
-`memblock<T>` 本身是值类型，不可嵌套：`memblock<memblock<T>>` 不支持，语法层直接拒绝。需要多维时，用一维 `memblock` 通过自行计算偏移来模拟，这符合 TC 伪汇编将地址计算显式化的哲学。
+`memblock<T>` 本身是值类型，不可嵌套：`memblock<memblock<T>>` 不支持。附录 A 以 `scalar_type` 限定类型构造器与值构造器的元素类型参数，因此嵌套形态不符合 EBNF，第 3 阶段报告 `TC_ERR_SYNTAX`。需要多维时，用一维 `memblock` 通过自行计算偏移来模拟，这符合 TC 伪汇编将地址计算显式化的哲学。
 
 #### 3.8.2 运行时布局
 
-memblock 变量占据 `count × sizeof(T)` 位，元素紧密排列，无填充：
+元素类型 `T` 的抽象宽度 `sizeof_bits(T)` 固定如下，与宿主 ABI 无关：
+
+| `T` | 宽度（位） |
+| --- | ---------- |
+| `int8` / `uint8` / `bool` | 8 |
+| `int16` / `uint16` | 16 |
+| `int32` / `uint32` / `float32` | 32 |
+| `int64` / `uint64` / `float64` | 64 |
+
+其中 `bool` 按 §3.4 固定为 1 字节：`false` 存 `0x00`，`true` 存 `0x01`。`memblock_store` 写入 `bool` 元素前必须规范化；`memblock_load` 读出的 `bool` 必须已是规范字节。
+
+memblock 变量占据 `count × sizeof_bits(T)` 位，元素按抽象位串紧密排列，无填充：
 
 ```text
 memblock<int32>(count=4):
 [ elem0:32bit | elem1:32bit | elem2:32bit | elem3:32bit ]
+
+memblock<bool>(count=4):
+[ e0:8bit | e1:8bit | e2:8bit | e3:8bit ]   ; 每元素仅 0x00 或 0x01
 ```
 
 #### 3.8.3 构造器
@@ -584,7 +613,9 @@ var CRC: memblock<uint32> = memblock(uint32, 4,
 
 #### 3.8.4 赋值语义
 
-`memblock<T>` 是值类型，赋值整体复制。**赋值左右操作数的元素个数必须在编译期一致**，否则静态错误。无别名语义，无指针，无浅/深拷贝歧义。
+`memblock<T>` 是值类型，赋值整体复制。**赋值左右操作数的元素个数必须在编译期一致**，否则静态错误 `TC_ERR_MEMBLOCK_SIZE_MISMATCH`。无别名语义，无指针，无浅/深拷贝歧义。
+
+整块赋值只覆盖「源与目标元素个数相同」的完整复制。需要按偏移复制子区间、或在元素个数不同的块之间搬运连续元素时，使用独立语句 `memblock_copy`（§6.7.2.4）。
 
 ```tc
 var a: memblock<int32> = memblock(int32, 256, 0)
@@ -594,7 +625,10 @@ memblock_store(int32, a, 0, 42)
 b = a    ; 合法，整个块复制，b 现在 b[0] = 42
 
 ; var c: memblock<int32> = memblock(int32, 128)
-; a = c   ; ❌ 编译期错误：元素个数不匹配
+; a = c   ; ❌ 编译期错误：元素个数不匹配（TC_ERR_MEMBLOCK_SIZE_MISMATCH）
+
+; 子区间拷贝（元素个数可不同，只要区间可容纳）：
+; memblock_copy(int32, c, 0, a, 0, 128)
 ```
 
 ---
@@ -608,22 +642,22 @@ b = a    ; 合法，整个块复制，b 现在 b[0] = 42
 
 模块是全程序唯一的静态命名空间，不是值或运行时对象。模块不能实例化、复制、赋值、作为实参传递或作为返回值；TC 不定义模块实例身份、构造或多实例生命周期。`<模块名>.<成员名>` 与 `Self.<成员名>` 是静态名称限定形式，其中 `.` 不是通用的运行时成员访问运算符。
 
-**模块语句分层排序规则**：除空行和纯注释行外，模块内顶层构造必须按以下固定层级顺序依次出现，跨层交错为静态错误：
+**模块语句分层排序规则**：除空行和纯注释行外，模块内顶层构造必须按以下固定层级顺序依次出现，跨层交错为静态错误 `TC_ERR_MODULE_LAYER`：
 
 1. **第一层**：模式指令 `#program` 或 `#lib`（文件首个有效行）；
 2. **第二层**：`import` 声明区（所有 `import` 连续出现，可为空）；
-3. **第三层**：声明定义区——`#lib` 中为 `static var` / `static let`（须带 `static` 关键字）；`#program` 中 `static var` / `static let` 为静态错误，仅允许顶层 `var` / `let`（不得使用 `static` 关键字）；
+3. **第三层**：声明定义区——`#lib` 中为 `static var` / `static let`（须带 `static` 关键字）；`#program` 中 `static var` / `static let` 为 `TC_ERR_PROGRAM_MODE_MISUSE`，仅允许顶层 `var` / `let`（不得使用 `static` 关键字）；
 4. **第四层（最末等）**：
-   - `#lib` 模块：`func` 函数定义。函数定义只允许在 `#lib` 模块中出现，且全部函数定义必须在所有 `static var` / `static let` 之后。
-   - `#program` 模块：顶层可执行语句。`#program` 不得定义函数，第三层之后直接进入顶层语句区；语句区可以为空，此时程序运行到文件末尾后正常终止。
+   - `#lib` 模块：`func` 函数定义。函数定义只允许在 `#lib` 模块中出现，且全部函数定义必须在所有 `static var` / `static let` 之后；违反该排序报 `TC_ERR_MODULE_LAYER`。
+   - `#program` 模块：顶层可执行语句。`#program` 不得定义函数（出现 `func` 报 `TC_ERR_PROGRAM_MODE_MISUSE`），第三层之后直接进入顶层语句区；语句区可以为空，此时程序运行到文件末尾后正常终止。`#program` 一旦进入顶层可执行语句区后若再出现 `var` / `let` / `var_funcall_def`，报 `TC_ERR_MODULE_LAYER`（附录 A 分区 + 第 3 阶段受限恢复）。
 
 各层内部构造之间允许任意空行和纯注释行，但不得插入其他层的构造。前三层全部处理完毕后，才允许进入第四层的 `func` 定义区或顶层语句区。模块中不得超过一个模式指令，且不得有跨层构造。
 
 #### 4.1 程序模式（`#program`）
 
-`#program` 模块不得定义函数；`static var` / `static let` 声明定义属于 `#lib` 模块专有构造，不得在 `#program` 中使用。`#program` 仅由三层构成：模式指令行（第一层）、可为空的 `import` 声明区（第二层）、可为空的顶层 `var` / `let` 声明定义区（第三层），之后为顶层语句区。顶层语句区由一系列可执行语句（赋值、I/O、控制流、`funcall` 等）按源序组成。`var` / `let` 声明不是可执行语句，必须全部位于第一条顶层可执行语句之前；一旦进入顶层可执行语句区，后续不得再声明 `var` / `let`。
+`#program` 模块不得定义函数；`static var` / `static let` 声明定义属于 `#lib` 模块专有构造，不得在 `#program` 中使用。因此“带辅助函数的完整小程序”在 0.0.34 中至少需要 `#lib` + `#program` 两个源文件（§1.5）。`#program` 仅由三层构成：模式指令行（第一层）、可为空的 `import` 声明区（第二层）、可为空的顶层 `var` / `let` / `var … = funcall(...)` 声明定义区（第三层），之后为顶层语句区。顶层语句区由一系列可执行语句（赋值、I/O、控制流、`funcall` 等）按源序组成。`var` / `let` 声明不是可执行语句，必须全部位于第一条顶层可执行语句之前；一旦进入顶层可执行语句区，后续不得再声明 `var` / `let`（含 `var_funcall_def`），违者报 `TC_ERR_MODULE_LAYER`。附录 A 以 `program_decl_region` / `program_exec_region` 强制该分区。
 
-程序模块可由宿主独立加载并运行。每次运行建立一个新的程序运行环境，完成可达库模块的静态存储初始化后，从顶层语句区的第一条可执行语句开始，按源序执行至文件末尾或首个运行时错误。新的程序运行重新初始化全部可达库模块的 `static var`，但不创建任何模块实例。TC 没有特殊 `main` 入口。`#program` 模块不得使用 `func` 或 `Self`，也不得出现 `static var` / `static let`；出现任何带 `static` 关键字的声明定义均为静态错误。
+程序模块可由宿主独立加载并运行。每次运行建立一个新的程序运行环境，完成可达库模块的静态存储初始化后，从顶层语句区的第一条可执行语句开始，按源序执行至文件末尾或首个运行时错误。新的程序运行重新初始化全部可达库模块的 `static var`，但不创建任何模块实例。TC 没有特殊 `main` 入口。`#program` 模块不得使用 `func` 或 `Self`，也不得出现 `static var` / `static let`，亦不得出现 `public` / `private`；上述误用一律报告 `TC_ERR_PROGRAM_MODE_MISUSE`。
 
 #### 4.2 库模式（`#lib`）
 
@@ -632,10 +666,10 @@ b = a    ; 合法，整个块复制，b 现在 b[0] = 42
 - `public func` 或 `private func` 函数定义；
 - `public static let` 或 `private static let <名>: <类型> = <const_rhs>` 模块常量；
 - `public static var` 或 `private static var <名>: <类型> = <rhs>` 模块变量。
-- 可见性修饰符只允许在 `#lib` 模块中使用；`#program` 模块不得出现 `public` 或 `private`。缺少可见性修饰符的库成员定义是静态错误。
+- 可见性修饰符只允许在 `#lib` 模块中使用；`#program` 模块出现 `public` 或 `private` 报 `TC_ERR_PROGRAM_MODE_MISUSE`。缺少可见性修饰符的库成员定义报 `TC_ERR_MISSING_VISIBILITY`。
 - `public` 表示该成员可被导入者通过 `<模块名>.<成员名>` 访问；`private` 表示仅限本模块内部使用。
 
-所有 `static let` 和 `static var` 声明定义必须出现在任何 `func` 函数定义之前；`static` 成员之间及函数定义之间的顺序不限。违反该排序（函数定义出现在 `static` 成员之前）为静态错误。
+所有 `static let` 和 `static var` 声明定义必须出现在任何 `func` 函数定义之前；`static` 成员之间及函数定义之间的顺序不限。违反该排序（函数定义出现在 `static` 成员之前）报 `TC_ERR_MODULE_LAYER`。
 
 库模块不存在顶层语句区；未带 `static` 的顶层 `let` / `var`、赋值、调用、I/O 和控制流均为语法错误。`static let` 遵守 §5.2.1 的编译期常量规则。`static var` 初始化器不得包含 `funcall`，并且只得引用源序中更早已成功初始化的 `Self` 静态成员。
 
@@ -648,32 +682,32 @@ b = a    ; 合法，整个块复制，b 现在 b[0] = 42
 ```tc
 #lib
 
-static let step: int32 = 1
-static var count: int32 = 0
+public static let step: int32 = 1
+public static var count: int32 = 0
 
-func next() int32 then
-	Self.count = add(int32, Self.count, Self.step)
-	return Self.count
+public func next() int32 then
+    Self.count = add(int32, Self.count, Self.step)
+    return Self.count
 end
 
-func twice() int32 then
-	var first: int32 = funcall(Self.next)
-	return add(int32, first, Self.step)
+public func twice() int32 then
+    var first: int32 = funcall(Self.next)
+    return add(int32, first, Self.step)
 end
 ```
 
-`Self.<名>` 必须恰好解析为当前库模块的一个顶层 `func`、`static let` 或 `static var`。当它解析为 `static let` 绑定时只读，解析为 `static var` 绑定时可读且可赋值；二者的确定初始化在程序准备成功后对所有函数成立。库函数内对本库函数或静态成员使用未限定的裸名是静态错误；局部绑定和形参仍使用裸名。这一规则避免局部名与模块成员之间的隐式捕获。`Self` 只表示当前模块命名空间，不能用于访问导入模块。
+`Self.<名>` 必须恰好解析为当前库模块的一个顶层 `func`、`static let` 或 `static var`。当它解析为 `static let` 绑定时只读，解析为 `static var` 绑定时可读且可赋值；二者的确定初始化在程序准备成功后对所有函数成立。库函数内对本库函数或静态成员使用未限定的裸名必须报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`（须改为 `Self.<名>`），不得降级为笼统的 `TC_ERR_UNDEFINED_VARIABLE` / `TC_ERR_UNDEFINED_FUNCTION`；局部绑定和形参仍使用裸名。这一规则避免局部名与模块成员之间的隐式捕获。`Self` 只表示当前模块命名空间，不能用于访问导入模块；在 `#program` 中出现 `Self` 报 `TC_ERR_PROGRAM_MODE_MISUSE`。
 
 #### 4.4 库成员可见性
 
 `#lib` 模块的顶层 `func`、`static let` 和 `static var` 均为模块成员。每个成员必须以 `public` 或 `private` 关键字作为第一个修饰符，必须显式书写，没有默认可见性：
 
-- `public` 表示该成员可被导入者通过 `<模块名>.<成员名>` 访问。公开函数可调用，公开 `static let` 可读，公开 `static var` 可读且可赋值（包括作为 `read` 目标）。
+- `public` 表示该成员可被导入者通过 `<模块名>.<成员名>` 访问。公开函数可调用，公开 `static let` 可读，公开标量 `static var` 可读且可赋值（包括作为 `read` 目标）；公开 `memblock` `static var` 可读可赋值，但不得作为 `read`/`write`/`writeln` 的整块目标（§10）。公开 `static var` 构成跨模块可变共享状态，属 §1.5 明示的设计代价，不是隐式捕获。
 - `private` 表示该成员仅限本模块内部使用。私有成员只能通过 `Self.<成员名>` 在模块内部访问。
 
 可见性只由声明前的 `public` / `private` 修饰符决定，与成员名的字符形式无关。局部 `var` / `let`、函数形参和标签不是模块成员，不能带有 `public` / `private` 修饰符。
 
-库内部使用 `Self.<成员名>` 可访问本模块的公开和私有成员。导入者使用 `<模块名>.<成员名>` 时只能解析公开成员。从导入者访问私有成员是静态可见性错误；实现不得将它降级为“成员不存在”，也不得因为 AOT 符号可被宿主链接器观察而绕过该检查。
+库内部使用 `Self.<成员名>` 可访问本模块的公开和私有成员。导入者使用 `<模块名>.<成员名>` 时只能解析公开成员。从导入者访问私有成员必须报告 `TC_ERR_PRIVATE_MEMBER_ACCESS`；实现不得将它降级为“成员不存在”（`TC_ERR_UNDEFINED_VARIABLE` / `TC_ERR_UNDEFINED_FUNCTION`），也不得因为 AOT 符号可被宿主链接器观察而绕过该检查。
 
 #### 4.5 模块导入（`import`）
 
@@ -684,17 +718,17 @@ end
 
 import counter
 
-var value: int32 = funcall(counter.Next)
-writeln(int32, "%d", value)
+var value: int32 = funcall(counter.next)
+writeln(int32, %d, value)
 ```
 
-模式指令之后是可为空的导入区（第二层）。`import` 声明必须位于模式指令之后、所有 `static var` / `static let`（`#lib`）或顶层 `var` / `let`（`#program`）声明之前，不得出现在函数体或控制流块中。所有 `import` 必须连续出现，不得与 `static var` / `static let`、`var` / `let` 声明或函数定义交错。同一模块不得重复导入同名模块，导入名也不得与本模块的函数、静态成员或顶层值绑定同名。
+模式指令之后是可为空的导入区（第二层）。`import` 声明必须位于模式指令之后、所有 `static var` / `static let`（`#lib`）或顶层 `var` / `let`（`#program`）声明之前，不得出现在函数体或控制流块中。所有 `import` 必须连续出现，不得与 `static var` / `static let`、`var` / `let` 声明或函数定义交错；违反连续导入区或层序报 `TC_ERR_MODULE_LAYER`。同一模块不得重复导入同名模块（`TC_ERR_DUPLICATE_IMPORT`），导入名也不得与本模块的函数、静态成员或顶层值绑定同名（`TC_ERR_IMPORT_NAME_CONFLICT`）。
 
-`import xxx` 要求宿主的模块解析器唯一定位名为 `xxx.tc` 的源模块。导入目标必须声明为 `#lib`；导入 `#program`、找不到目标或同一逻辑名对应多个目标均是静态错误。源语言不接受路径、扩展名或字符串形式的导入；搜索目录的配置属于宿主接口，不属于 TC 源语法。
+`import xxx` 要求宿主的模块解析器唯一定位名为 `xxx.tc` 的源模块。导入目标必须声明为 `#lib`。找不到目标报 `TC_ERR_IMPORT_NOT_FOUND`；目标为 `#program` 报 `TC_ERR_IMPORT_NOT_LIB`；同一逻辑名对应多个目标报 `TC_ERR_IMPORT_AMBIGUOUS`。源语言不接受路径、扩展名或字符串形式的导入；搜索目录的配置属于宿主接口，不属于 TC 源语法。
 
-导入名在当前模块中引入对全程序唯一目标模块命名空间的静态引用；导入不构造、复制或实例化模块。导入成员必须使用 `<模块名>.<成员名>` 限定，不得省略模块名；该成员还必须具有 `public` 可见性（§4.4）。限定名中的模块名不是可求值的操作数，限定名整体在静态名称解析中确定其成员。0.0.34 不定义导入别名、选择性导入或通配导入。
+导入名在当前模块中引入对全程序唯一目标模块命名空间的静态引用；导入不构造、复制或实例化模块。导入成员必须使用 `<模块名>.<成员名>` 限定，不得省略模块名；该成员还必须具有 `public` 可见性（§4.4），否则报 `TC_ERR_PRIVATE_MEMBER_ACCESS`。限定名中的模块名不是可求值的操作数，限定名整体在静态名称解析中确定其成员。0.0.34 不定义导入别名、选择性导入或通配导入。
 
-**禁止循环导入**：以模块为顶点、`import` 为有向边建立完整模块依赖图。该图必须是有向无环图（DAG）；任一模块都不得经过一条或多条导入边回到自身。自导入、直接循环和任意长度的间接循环均是静态错误；即使环中的导入函数从未被调用，也不改变该结论。
+**禁止循环导入**：以模块为顶点、`import` 为有向边建立完整模块依赖图。该图必须是有向无环图（DAG）；任一模块都不得经过一条或多条导入边回到自身。自导入、直接循环和任意长度的间接循环均报告 `TC_ERR_CIRCULAR_IMPORT`；即使环中的导入函数从未被调用，也不改变该结论。
 
 ```text
 ; a.tc: import b
@@ -721,7 +755,7 @@ writeln(int32, "%d", value)
 
 **程序结构约束**：
 - 模式指令必须是第一个非空、非注释逻辑行，且必须顶格书写
-- 模块内顶层构造必须严格遵守 §4 的四层排序规则：模式指令（第一层）→ `import`（第二层）→ `static var` / `static let` 或顶层 `var` / `let`（第三层）→ `func` 函数定义或顶层可执行语句（第四层）。跨层交错为静态错误
+- 模块内顶层构造必须严格遵守 §4 的四层排序规则：模式指令（第一层）→ `import`（第二层）→ `static var` / `static let` 或顶层 `var` / `let`（第三层）→ `func` 函数定义或顶层可执行语句（第四层）。跨层交错为 `TC_ERR_MODULE_LAYER`
 - `import` 必须位于模式指令之后的连续导入区，且必须顶格书写
 - 源文件由若干行组成；每行至多一条语句
 - 空行、纯注释行均合法，不产生语句
@@ -754,7 +788,7 @@ var <identifier>: <type> = <initializer>
 | 非法形态 | `var <identifier>: <type>`（无初始化器）→ 静态错误 `TC_ERR_VAR_MISSING_INIT` |
 | RHS | 字面量、已定义标识符、单个运算、`cast` 或 `bitcast`（见 §6.1.1）；须与声明类型一致 |
 | 函数返回初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: <类型> = funcall(...)` 初始化新变量（§8.2）；`funcall` 不属于普通 RHS |
-| 再赋值 | 首次引入之后，修改写作 `<identifier> = <rhs>` 或 `<identifier> = funcall(...>`，不再写 `var`（§6.2） |
+| 再赋值 | 首次引入之后，修改写作 `<identifier> = <rhs>` 或 `<identifier> = funcall(...)`，不再写 `var`（§6.2） |
 
 0.0.34 不允许“先声明、后首次赋值”。`read` 也不能代替初始化器：目标变量必须先以带初始化器的 `var` 定义，`read` 仅覆盖当前值（§10.3）。
 
@@ -879,7 +913,7 @@ let IS_POSITIVE: bool = gt(float64, PI, 0.0)       ; true
 let DIFFERS: bool = xor(bool, IS_POSITIVE, false)  ; true
 
 if IS_POSITIVE then                              ; 静态 true，仅保留真边
-	writeln(bool, %t, true)
+    writeln(bool, %t, true)
 end
 
 let FLAG_INT: int32 = cast(int32, DEBUG)      ; 1
@@ -932,12 +966,14 @@ let PI_BITS: uint64 = bitcast(uint64, PI)
 | 形式              | 约束                                                         |
 | ----------------- | ------------------------------------------------------------ |
 | *identifier*      | 先按词法作用域解析绑定并检查类型：解析为运行时 `var` 或参数时，必须在当前 CFG 点确定初始化（参数在函数入口已初始化，§9.2）；解析为 `let` 时，必须在使用点可见且已成功完成编译期求值，随后直接内联，不进入确定初始化集合 |
+| *qualified_identifier* | `Self.<名>`（仅 `#lib`）：按 §4.3 / §8.4.1 解析为本库 `static let` / `static var`；只读或可写规则与绑定种类一致；`static var` 在程序准备成功后已确定初始化 |
+| *imported_member_name* | `<模块名>.<名>`：按 §4.4 / §4.5 解析为已导入库的公开 `static let` / `static var`；可见性与读写规则同上 |
 | *integer_literal* | 须满足字面量约束                                             |
 | *float_literal*   | 须满足字面量约束                                             |
 | *float_special*   | `inf`/`-inf`/`nan`，仅用于浮点类型上下文                     |
 | *bool_literal*    | 仅用于 `bool` 类型上下文                                     |
 
-因此，凡规范引用 `operand` 的位置——包括运算、转换、`funcall` 命名实参、`return` 和输出——均可使用符合本行规则的 `let` 标识符。只有运行时绑定读取才执行 `TC_ERR_UNINITIALIZED_VARIABLE` 检查；编译期 `let` 永不因不属于 `IN` 集合而触发该错误。
+因此，凡规范引用 `operand` 的位置——包括运算、转换、`funcall` 命名实参、`return` 和输出——均可使用符合本行规则的 `let` 标识符（含经 `Self.` / 导入限定解析到的 `static let`）。只有运行时绑定读取才执行 `TC_ERR_UNINITIALIZED_VARIABLE` 检查；编译期 `let` / `static let` 永不因不属于 `IN` 集合而触发该错误。
 
 不支持 嵌套：操作数不可为算术表达式、`cast`、`bitcast` 或 `funcall` 调用。复合计算须拆分为多条语句。
 
@@ -959,12 +995,13 @@ flag = true                 ; 合法
 flag = lt(float64, f, 10.0) ; 合法
 flag = and(bool, flag, true) ; 合法
 
+; #program 中（已 import nextlib）
 var count: int32 = 0
-count = funcall(get_next)   ; 合法（funcall 赋值）
+count = funcall(nextlib.get_next)   ; 合法（funcall 赋值）
 ```
 
 **约束**：
-- 赋值左侧按当前值作用域解析：函数内普通查找失败但命中 §8.4.1 的顶层值作用域直接声明索引时报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`；除此之外未解析到值绑定时报告 `TC_ERR_UNDEFINED_VARIABLE`；解析为 `let` 时报告 `TC_ERR_CONSTANT_ASSIGNMENT`；解析为函数参数时报告 `TC_ERR_PARAMETER_ASSIGNMENT`；只有解析为 `var` 才继续类型与确定初始化检查。全局函数名不属于值绑定，不能成为赋值目标。
+- 赋值左侧按当前值作用域解析：函数内普通查找失败但命中 §8.4.1 的本库顶层成员名索引时报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`；除此之外未解析到值绑定时报告 `TC_ERR_UNDEFINED_VARIABLE`；解析为 `let` 或 `static let`（含经 `Self.` / 导入限定解析到的只读绑定）时报告 `TC_ERR_CONSTANT_ASSIGNMENT`；解析为函数参数时报告 `TC_ERR_PARAMETER_ASSIGNMENT`；只有解析为 `var` 或可写 `static var` 才继续类型与确定初始化检查。全局函数名不属于值绑定，不能成为赋值目标。
 - 赋值目标必须在当前 CFG 点确定初始化；赋值不能补救被控制流绕过的声明初始化（§9.2）。
 - 赋值 RHS 为普通 `<rhs>` 或 `<funcall>`。`funcall` 只能直接出现在 `=` 右侧，不得嵌套在其他 RHS 内部。非 `void` `funcall` 的返回类型须与赋值目标声明类型严格相同；`void` `funcall` 不得用于赋值（应使用独立 `funcall(...)` 语句）。若 `funcall` 发生运行时错误，目标变量保留原值，随后程序终止（§11.3）。
 
@@ -972,7 +1009,7 @@ count = funcall(get_next)   ; 合法（funcall 赋值）
 
 ### 6.3.1 运算模式总览
 
-0.0.34 先以附录 A EBNF 判定表达式形态是否合法；仅对 EBNF 已接受的表达式，再以“操作 × 类型 × 模式”矩阵判定静态语义是否合法：
+0.0.34 先以附录 A EBNF 判定表达式形态是否合法（**语法拒绝**，§1.4）；仅对 EBNF 已接受的表达式，再以“操作 × 类型 × 模式”矩阵判定是否构成**静态语义拒绝**：
 
 | 运算 | 类型 | 合法模式 |
 | ---- | ---- | -------- |
@@ -987,8 +1024,8 @@ count = funcall(get_next)   ; 合法（funcall 赋值）
 本表是语法通过后的静态语义矩阵，不得用于放宽附录 A：
 
 - EBNF 已接受某个操作、类型参数与模式位置，但组合不在上表时，才报告 `TC_ERR_TYPE_MISMATCH` 或 `TC_ERR_MODE_MISMATCH`。例如 `mod(bool, true, false)` 符合通用算术产生式，随后报类型错误；`add(int32, ieee, a, b)` 符合带模式算术产生式，随后报模式错误。
-- EBNF 已通过专用产生式排除的形态统一在语法阶段报 `TC_ERR_SYNTAX`，不得为了产生类型或模式专用诊断而放宽语法。例如运行时浮点位运算类型参数、移位使用 `bool` 类型参数、`shr(T, wrap, ...)`、比较/逻辑/位运算携带模式参数，均不符合运行时 RHS 产生式。
-- `let` 常量表达式使用独立的 `const_*` 产生式。其 `const_shift_expr` 语法允许候选 `mode`，因此 `let` 中 `shr(int32, wrap, ...)` 或 `shl(int32, ieee, ...)` 会进入静态语义并报告 `TC_ERR_MODE_MISMATCH`；相同形态用于普通 `var`/赋值 RHS 时因不符合 `shift_expr` 而报告 `TC_ERR_SYNTAX`。
+- EBNF 已通过专用产生式排除的形态统一按**语法拒绝**在第 3 阶段报 `TC_ERR_SYNTAX`（或 §11.1 规定的专用语法恢复码），不得为了产生类型或模式专用诊断而放宽语法。例如运行时浮点位运算类型参数、移位使用 `bool` 类型参数、`shr(T, wrap, ...)`、比较/逻辑/位运算携带模式参数，均不符合运行时 RHS 产生式。
+- `let` 常量表达式使用独立的 `const_*` 产生式。其 `const_shift_expr` 语法允许候选 `mode`，因此 `let` 中 `shr(int32, wrap, ...)` 或 `shl(int32, ieee, ...)` 会进入**静态语义拒绝**并报告 `TC_ERR_MODE_MISMATCH`；相同形态用于普通 `var`/赋值 RHS 时因不符合 `shift_expr` 而属**语法拒绝**（`TC_ERR_SYNTAX`）。
 
 0.0.34 不支持浮点 `wrap`，也不接受冗余的无符号 `wrap`；具体错误类别必须先按上述 EBNF 边界确定。
 
@@ -1176,11 +1213,11 @@ var mod_nan: float64 = mod(float64, ieee, 1.0, 0.0)  ; nan
 
 ### 6.4 位运算
 
-本章定义整数位级操作，包括按位逻辑运算与移位运算。`and`、`or`、`xor`、`not` 均由类型参数重载：类型参数为整数时执行本章的按位运算，类型参数为 `bool` 时执行第 7 章的布尔逻辑运算。浮点类型不参与这组重载。
+本章定义整数位级操作，包括按位逻辑运算与移位运算。`and`、`or`、`xor`、`not` 均由类型参数重载：类型参数为整数时执行本章的按位运算，类型参数为 `bool` 时执行 §6.5 的布尔逻辑运算。浮点类型不参与这组重载。
 
 > **重要约束**：
 > - 移位运算（`shl`/`shr`）中，**被移位数与移位计数必须为相同类型 `T`**。若需要不同位宽，必须先用 `cast` 统一类型。
-> - 浮点类型 不支持 任何位运算，包括 `and`/`or`/`xor`/`not`/`shl`/`shr`。附录 A 的位运算与移位产生式仅接受 `int_type`，因此以浮点类型作为这些指令的类型参数 → 语法错误 `TC_ERR_SYNTAX`；类型参数合法但操作数类型不匹配时，才进入静态语义并报告类型错误。
+> - 浮点类型 不支持 任何位运算，包括 `and`/`or`/`xor`/`not`/`shl`/`shr`。附录 A 的位运算与移位产生式仅接受 `int_type`，因此以浮点类型作为这些指令的类型参数属**语法拒绝**（`TC_ERR_SYNTAX`）；类型参数合法但操作数类型不匹配时，才构成**静态语义拒绝**并报告类型错误。
 
 **设计说明：移位计数不掩码**
 
@@ -1203,7 +1240,7 @@ TC 对移位计数 `k` 的处理方式与主流语言不同，不进行掩码，
 | `xor` | 按位异或 | 2          | 整数类型                     | 每位：两操作数不同 → 1，相同 → 0 |
 | `not` | 按位非   | 1          | 整数类型                     | 每位取反                         |
 
-> **重载规则**：`and`/`or`/`xor`/`not` 均由类型参数 `T` 重载——`T` 为整数时执行本章的按位运算，`T` 为 `bool` 时执行第 7 章的逻辑运算。两类重载的操作数数量保持一致：`and`/`or`/`xor` 为双目，`not` 为单目。
+> **重载规则**：`and`/`or`/`xor`/`not` 均由类型参数 `T` 重载——`T` 为整数时执行本章的按位运算，`T` 为 `bool` 时执行 §6.5 的逻辑运算。两类重载的操作数数量保持一致：`and`/`or`/`xor` 为双目，`not` 为单目。
 
 #### 6.4.1.2 语法形式
 
@@ -1227,7 +1264,7 @@ var not_res: int8 = not(int8, a)      ; 0b0101_0011 -> 83
 
 **操作数约束**：
 - 两操作数必须与类型参数 `T` 一致（整数类型）。
-- 若类型参数为 `bool`，则 `and`/`or`/`xor`/`not` 由逻辑运算产生式解析（参见第 7 章）。
+- 若类型参数为 `bool`，则 `and`/`or`/`xor`/`not` 由逻辑运算产生式解析（参见 §6.5）。
 - 若类型参数为浮点类型，按位与移位产生式均不接受该形态，触发 `TC_ERR_SYNTAX`。
 - 当类型参数已经是 EBNF 要求的整数类型，但标识符或字面量操作数与该类型不一致时，才触发对应的类型或字面量错误。
 
@@ -1315,7 +1352,7 @@ var r7: int8 = shr(int8, neg, bad_count) ; TC_ERR_NEGATIVE_SHIFT_COUNT
 - **浮点比较**使用 IEEE 754 普通比较谓词（NaN 为 unordered），不使用 `totalOrder`；仅接受无模式形式。
 - 不产生溢出（比较本身无算术溢出风险）
 
-附录 A 的 `compare_expr` 仅接受整数或浮点类型参数，且没有模式参数位置。因此 `eq(bool, ...)` 或 `eq(float64, ieee, ...)` 等形态在语法阶段报告 `TC_ERR_SYNTAX`。产生式已接受后，任一标识符操作数的声明类型不等于 `T`，统一报告 `TC_ERR_COMPARISON_TYPE_MISMATCH`，定位到源位置最早的不匹配操作数；即使两个操作数彼此具有相同的另一类型，也使用该错误码。字面量与 `T` 的类别、后缀或范围不兼容时，仍优先使用 `TC_ERR_LITERAL_TYPE` / `TC_ERR_LITERAL_OUT_OF_RANGE`。比较操作数类型错误不再与通用 `TC_ERR_TYPE_MISMATCH` 重叠。
+附录 A 的 `compare_expr` 仅接受整数或浮点类型参数，且没有模式参数位置。因此 `eq(bool, ...)` 或 `eq(float64, ieee, ...)` 等形态属**语法拒绝**，在第 3 阶段报告 `TC_ERR_SYNTAX`。产生式已接受后，任一标识符操作数的声明类型不等于 `T`，属**静态语义拒绝**，统一报告 `TC_ERR_COMPARISON_TYPE_MISMATCH`，定位到源位置最早的不匹配操作数；即使两个操作数彼此具有相同的另一类型，也使用该错误码。字面量与 `T` 的类别、后缀或范围不兼容时，仍优先使用 `TC_ERR_LITERAL_TYPE` / `TC_ERR_LITERAL_OUT_OF_RANGE`。比较操作数类型错误不再与通用 `TC_ERR_TYPE_MISMATCH` 重叠。
 
 | 运算 | 名称     | 语义     |
 | ---- | -------- | -------- |
@@ -1368,7 +1405,7 @@ var ne_nan: bool = ne(float64, nan_val, nan_val)  ; true
 - 不涉及 `wrap` / `truncate` 模式
 - 不产生溢出
 
-附录 A 的逻辑产生式要求显式类型参数为 `bool`，且没有模式参数位置。不能由整数按位运算产生式或布尔逻辑产生式匹配的形态，以及逻辑调用中额外写入模式关键字的形态，均在语法阶段报告 `TC_ERR_SYNTAX`。产生式已接受后，操作数不是 `bool` 才报告类型或字面量错误。
+附录 A 的逻辑产生式要求显式类型参数为 `bool`，且没有模式参数位置。不能由整数按位运算产生式或布尔逻辑产生式匹配的形态，以及逻辑调用中额外写入模式关键字的形态，均属**语法拒绝**，在第 3 阶段报告 `TC_ERR_SYNTAX`。产生式已接受后，操作数不是 `bool` 才构成**静态语义拒绝**并报告类型或字面量错误。
 
 | 运算  | 名称   | 操作数数量 | 语义                                            |
 | ----- | ------ | ---------- | ----------------------------------------------- |
@@ -1396,22 +1433,24 @@ var ne_nan: bool = ne(float64, nan_val, nan_val)  ; true
 该裁剪只影响 CFG/DFA 的确定初始化读边，不跳过前序静态阶段。被短路排除的 RHS 不触发 `TC_ERR_UNINITIALIZED_VARIABLE`，但仍必须通过词法、语法、名称、类型、操作数数量与模式检查；前向或不可见 `let` 仍按名称解析规则报 `TC_ERR_UNDEFINED_VARIABLE`。
 
 ```text
-func check_short_circuit() void then
-	let FALSE: bool = false
-	let TRUE: bool = true
-	goto use
-	var pending: bool = true
-	label use:
-	var a: bool = and(bool, FALSE, pending) ; 合法：pending 的读取边被裁剪
-	var b: bool = or(bool, TRUE, pending)   ; 合法：pending 的读取边被裁剪
+#lib
 
-	var runtime_false: bool = false
-	var c: bool = and(bool, runtime_false, pending)
-	; 上一行仍报 TC_ERR_UNINITIALIZED_VARIABLE：var 的值不参与静态推测
+public func check_short_circuit() void then
+    let FALSE: bool = false
+    let TRUE: bool = true
+    goto use
+    var pending: bool = true
+    label use:
+    var a: bool = and(bool, FALSE, pending) ; 合法：pending 的读取边被裁剪
+    var b: bool = or(bool, TRUE, pending)   ; 合法：pending 的读取边被裁剪
 
-	var d: bool = and(bool, FALSE, missing)
-	; 上一行仍报 TC_ERR_UNDEFINED_VARIABLE：名称检查不被短路绕过
-	return
+    var runtime_false: bool = false
+    var c: bool = and(bool, runtime_false, pending)
+    ; 上一行仍报 TC_ERR_UNINITIALIZED_VARIABLE：var 的值不参与静态推测
+
+    var d: bool = and(bool, FALSE, missing)
+    ; 上一行仍报 TC_ERR_UNDEFINED_VARIABLE：名称检查不被短路绕过
+    return
 end
 ```
 
@@ -1497,14 +1536,16 @@ var huge: float64 = 1.0e100
 
 | 方向               | 规则                                           |
 | ------------------ | ---------------------------------------------- |
-| `bool` → 整数/浮点 | `true` → `1`/`1.0`，`false` → `0`/`0.0`        |
-| 整数/浮点 → `bool` | `0`/`0.0` → `false`，非零 → `true`（含 `nan`） |
+| `bool` → 整数/浮点 | `true`（字节 `0x01`）→ `1`/`1.0`，`false`（字节 `0x00`）→ `0`/`0.0` |
+| 整数/浮点 → `bool` | `0`/`0.0` → `false`（`0x00`），非零 → `true`（`0x01`，含 `nan`） |
+
+提交到 `bool` 目标槽或 `memblock<bool>` 元素时，结果字节必须已是 §3.4 的规范形式；不得保留“非零即真”的其它字节值。
 
 ```text
 var flag: bool = true
 var as_int: int32 = cast(int32, flag)      ; 1
 var as_float: float64 = cast(float64, flag) ; 1.0
-var back: bool = cast(bool, 3.14)          ; true
+var back: bool = cast(bool, 3.14)          ; true（0x01）
 ```
 
 ### 6.6.6 等宽位重解释（`bitcast`）与速查
@@ -1512,7 +1553,7 @@ var back: bool = cast(bool, 3.14)          ; true
 `bitcast(TargetType, operand)` 保持源位模式的全部位不变，仅改用目标类型解释：
 
 - 源与目标必须为整数或浮点类型，且位宽完全相同。
-- `bool` 不允许参与，否则报 `TC_ERR_TYPE_MISMATCH`。
+- `bool` 不允许参与，否则报 `TC_ERR_TYPE_MISMATCH`。尽管 `bool` 抽象宽度为 8 位（与 `int8`/`uint8` 相同），仍禁止 `bitcast`，以免把非 `0x00`/`0x01` 字节写入 `bool` 绑定；`bool` ↔ 整数/浮点只能经 §6.6.5 的数值 `cast`。
 - 源、目标类型相同时是保持位模式不变的合法恒等操作。
 - 位宽不一致报 `TC_ERR_BITCAST_WIDTH`。
 - `bitcast` 不触发数值溢出，也不规范化 NaN payload。
@@ -1547,9 +1588,9 @@ let  MB: memblock<int32> = memblock(int32, 4, 1, 2, 3, 4)
 | 规则 | 说明 |
 |------|------|
 | 强制初始化 | 不可省略初始化器，`var mb: memblock<int32>` 非法，与标量变量一致，触发 `TC_ERR_VAR_MISSING_INIT` |
-| `let` 只读 | `let` memblock 编译期求值，不可作为 `memblock_store` 目标 |
+| `let` 只读 | `let` memblock 编译期求值，不可作为 `memblock_store` / `memblock_copy` 的目标块 |
 | `let` 常量 | count 和 fill 值必须全是编译期常量 |
-| 多维禁止 | `memblock<memblock<T>>` 不支持，语法层拒绝 |
+| 多维禁止 | `memblock<memblock<T>>` 不支持；附录 A 仅接受 `scalar_type` 元素，嵌套为 `TC_ERR_SYNTAX` |
 | `funcall` 初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: memblock<T> = funcall(...)` 初始化新变量（§8.2）；`funcall` 不属于普通 RHS |
 
 同一作用域内不可重复定义同名 memblock 变量，也不可与标量变量或常量冲突。
@@ -1592,27 +1633,100 @@ memblock_size(T, mb)
 返回 `mb` 的元素个数，类型为 `uint64`。返回值在编译期已知，可用于 `let` 常量表达式。类别：RHS。
 
 ```tc
-let N: uint64 = memblock_size(int32, mb)
+let MB: memblock<int32> = memblock(int32, 4)
+let N: uint64 = memblock_size(int32, MB)   ; 操作数须为 let memblock（§5.2.1）
 ```
 
-#### 6.7.2.4 越界检查
+#### 6.7.2.4 区间拷贝 — `memblock_copy`
+
+```text
+memblock_copy(T, dst, dst_index, src, src_index, length)
+```
+
+将 `src` 中从 `src_index` 起连续 `length` 个元素，按元素抽象位串复制到 `dst` 中从 `dst_index` 起的对应区间。类别：独立语句（非 RHS）。不改变 `dst` / `src` 的元素个数，不分配新块。
+
+**操作数**：
+
+| 位置 | 约束 |
+| ---- | ---- |
+| `T` | 显式元素标量类型；必须与 `dst`、`src` 的元素类型同时严格一致 |
+| `dst` | `memblock_name`；必须是可写运行时绑定（局部/顶层 `var`、可写 `static var`，或函数形参 memblock——与 `memblock_store` 相同，只改副本元素）；`let` / `static let` 作目标 → `TC_ERR_CONSTANT_ASSIGNMENT` |
+| `dst_index` / `src_index` / `length` | §6.1.2 `operand`，且均为整数类型（彼此类型可不同，也不必等于 `T`） |
+| `src` | `memblock_name`；可为 `var` / `let` / `static` / 形参 / 导入公开成员；运行时 `var` 须确定初始化 |
+
+**区间合法性**（半开区间；`count_dst` / `count_src` 为两块的编译期元素个数）：
+
+将三个整数操作数分别解码为数学整数 `d`、`s`、`n` 后，合法当且仅当：
+
+```text
+n ≥ 0
+0 ≤ d
+0 ≤ s
+d + n ≤ count_dst
+s + n ≤ count_src
+```
+
+因此 `n = 0` 是合法空拷贝：此时只要求 `0 ≤ d ≤ count_dst` 且 `0 ≤ s ≤ count_src`（允许下标等于 `count`），语句不修改任何元素。`n < 0` 或任一端区间越出块边界，与单元素越界相同，报告 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE`（常量可折叠时为静态错误，否则为运行时错误）；主位置为源序最早导致失败的那个整数操作数（`dst_index`、`src_index` 或 `length`）。
+
+**抽象执行语义**：
+
+1. 先读取并检查 `dst_index`、`src_index`、`length`；再确认 `dst` 与 `src` 在当前 CFG 点可读/可写要求已满足。
+2. 区间非法则不修改 `dst` 的任何元素，并按 §11.3 终止（运行时）或拒绝编译（静态）。
+3. 区间合法时，语义等价于：先把源区间 `[s, s+n)` 的 `n` 个元素按抽象位串拷入长度为 `n` 的临时缓冲，再按相同顺序写入目标区间 `[d, d+n)`。因此：
+   - `dst` 与 `src` 为不同绑定时，结果与逐元素 `load`/`store` 一致；
+   - **同一绑定上的重叠区间**行为完全确定，等价于 `memmove`，不得依赖宿主 `memcpy` 的重叠 UB；
+   - 不重新规范化元素位模式：源元素已是合法 TC 值（含 `bool` 的 `0x00`/`0x01`），拷贝保持位串不变。
+4. 成功后 `dst` 仍为同一词法槽上的已初始化绑定；`OUT` 集合成员关系不变（与赋值覆盖相同，§9.2.1）。
+
+```tc
+var dst: memblock<uint8> = memblock(uint8, 16, 0u)
+var src: memblock<uint8> = memblock(uint8, 8, 0xAAu)
+
+memblock_copy(uint8, dst, 4, src, 0, 8)   ; dst[4..12) ← src[0..8)
+
+; 同一块内重叠：行为确定（先快照再写回）
+memblock_copy(uint8, dst, 2, dst, 0, 6)
+
+; memblock_copy(uint8, dst, 9, src, 0, 8) ; ❌ 目标区间越界
+; memblock_copy(uint8, dst, 0, src, 0, -1) ; ❌ length < 0
+```
+
+`memblock_copy` 不是 `let` 常量表达式的一部分；不得出现在 `const_rhs` 中。
+
+#### 6.7.2.5 索引与拷贝区间检查
+
+`memblock_load` / `memblock_store` 的 `index`，以及 `memblock_copy` 的 `dst_index` / `src_index` / `length`，都必须是 §6.1.2 的 `operand`，且其类型必须是整数类型（`int8`～`uint64` 之一）。浮点、`bool`、`memblock<U>` 均非法：若类型参数位置或操作数类别使该形态不符合附录 A，报 `TC_ERR_SYNTAX`；形态已接受但整数位置的操作数声明类型非整数时，报 `TC_ERR_TYPE_MISMATCH`，定位到该操作数。这些整数操作数的类型不必与元素类型 `T` 相同，彼此之间亦不必相同，也无需与 `count` 的书写类型相同。
+
+**单下标**（`load` / `store`）：将索引按其整数类型解码为数学整数 `i` 后，合法下标满足：
+
+```text
+0 ≤ i < count
+```
+
+**拷贝区间**（`memblock_copy`）：按 §6.7.2.4 的半开区间规则检查；空拷贝（`n = 0`）允许下标等于对应块的 `count`。
 
 | 场景 | 诊断 |
 |------|------|
-| 编译期常量索引 ≥ count | 静态错误 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` |
-| 运行时索引 ≥ count | 运行时错误 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` |
+| 编译期可确定的常量下标/区间不满足上述规则 | 静态错误 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` |
+| 运行时下标/区间不满足上述规则 | 运行时错误 `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` |
+
+因此有符号负下标、负 `length`，以及“区间右端超出 `count`”同属越界，不得静默回绕或按无符号位模式重解释。无符号操作数在类型上恒满足 `≥ 0`，只需检查上界与区间右端。常量操作数包括整数字面量，以及在当前词法作用域可见、已成功求值且结果为整数的 `let`；`var` 的当前值不参与静态越界折叠。对 `memblock_copy`，仅当 `dst_index`、`src_index`、`length` **三者均可**在编译期折叠时，才做静态区间检查；任一为运行时 `var` 则推迟到运行时。
 
 ```tc
 ; memblock_load(int32, mb, 256)   ; ❌ mb 只有 256 个元素 (0..255)
+; memblock_load(int32, mb, -1)    ; ❌ 负索引 → TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE
+; memblock_copy(int32, dst, 0, src, 0, 257) ; ❌ 若 src/dst 长度不足以容纳区间
 ```
 
-#### 6.7.2.5 约束
+#### 6.7.2.6 约束
 
 - 不可取 `memblock` 或其元素的地址，无 `&` 语义
-- 不提供子块视图或切片
-- `memblock_load` / `memblock_store` 的 `index` 为运行时整数
-- 索引须先写入局部变量，`memblock_load(T, mb, add(int32, base, offset))` 不合法
-
+- 不提供子块视图或切片；需要搬运连续元素时使用 `memblock_copy`，需要整块且等长时使用赋值
+- `memblock` 操作数可为局部/顶层 `var` 或 `let` 的裸名，或（在 `#lib` 内）`Self.<名>`，或已导入库的公开 `<模块名>.<名>`；名称解析与可见性规则与赋值目标一致（§4.3、§4.4、§8.4.1）
+- `let` memblock 不可作为 `memblock_store` / `memblock_copy` 的目标（只读），与标量 `let` 相同，报 `TC_ERR_CONSTANT_ASSIGNMENT`；`let` 可作为 `memblock_copy` 的 `src`
+- 索引与长度须先写入局部变量或使用字面量/`let`，`memblock_load(T, mb, add(int32, base, offset))` 与 `memblock_copy(..., add(...), ...)` 不合法
+- `memblock_load` / `memblock_store` / `memblock_size` / `memblock_copy` 的显式类型参数必须是元素标量类型，且与所涉 memblock 操作数的元素类型 `T` 一致；不一致报 `TC_ERR_TYPE_MISMATCH`
+- `write` / `writeln` / `read` 的显式类型参数仅接受 `scalar_type`，禁止 `memblock<T>`（§10、附录 A）；整块 I/O 须由程序自行按元素循环读写
 ---
 
 
@@ -1638,9 +1752,9 @@ TC 提供 Pascal 风格 的 `if-then-else` 条件分支语句，采用 缩进敏
 
 ```text
 if <bool_rhs> then
-	语句序列
+    语句序列
 [else
-	语句序列]
+    语句序列]
 end
 ```
 
@@ -1669,17 +1783,17 @@ end
 
 ```text
 if <cond1> then
-	语句序列1
+    语句序列1
 else
-	if <cond2> then
-		语句序列2
-	else
-		if <cond3> then
-			语句序列3
-		else
-			语句序列4
-		end
-	end
+    if <cond2> then
+        语句序列2
+    else
+        if <cond3> then
+            语句序列3
+        else
+            语句序列4
+        end
+    end
 end
 ```
 
@@ -1717,7 +1831,7 @@ TC 提供 Pascal 风格 的 `while` 结构化循环语句，采用 缩进敏感 
 
 ```text
 while <bool_rhs> then
-	语句序列
+    语句序列
 end
 ```
 
@@ -1786,20 +1900,28 @@ TC 提供仅限函数体内的受限 `goto` 跳转语句，在保留汇编级灵
 - 标签本身无运行时动作；跳转目标是 `label` 节点本身，执行该零动作节点后沿正常落入边继续。这样连续标签、块末尾标签和标签后无普通语句的情形都有唯一语义：连续标签依次落入，块末尾标签落入该块的正常退出续点。`label` 不改变代码块关系，但作为跳转目标必须形成新的 CFG 基本块入口。
 
 ```text
-func count_to_ten() int32 then
-	var i: int32 = 0
-	label loop_start:            ; 函数体直接层级，不产生新缩进
-	i = add(int32, i, 1)         ; 与 label 同缩进
-	if lt(int32, i, 10) then
-		goto loop_start          ; 函数内向外跳回 loop_start
-	end
-	return i
+; ---- countlib.tc ----
+#lib
+
+public func count_to_ten() int32 then
+    var i: int32 = 0
+    label loop_start:            ; 函数体直接层级，不产生新缩进
+    i = add(int32, i, 1)         ; 与 label 同缩进
+    if lt(int32, i, 10) then
+        goto loop_start          ; 函数内向外跳回 loop_start
+    end
+    return i
 end
 
-var result: int32 = funcall(count_to_ten)
+; ---- main.tc ----
+#program
+
+import countlib
+
+var result: int32 = funcall(countlib.count_to_ten)
 ```
 
-顶层的 `var result` 与 `funcall` 合法；如果把函数内任一 `goto` 或 `label` 移到顶层，即使缩进为 0、目标也在顶层，仍属于函数外使用并必须拒绝。
+`#program` 通过导入调用库函数合法；如果把函数内任一 `goto` 或 `label` 移到 `#program` 顶层（或其嵌套块），即使缩进为 0、目标也在顶层，仍属于函数外使用并必须拒绝。
 
 #### 7.3.3 作用域跳转的形式化规则
 
@@ -1832,20 +1954,22 @@ var result: int32 = funcall(count_to_ten)
 
 示例：
 ```text
-func invalid_path() void then
-	goto label_skip
-	var x: int32 = 10
-	label label_skip:
-	writeln(int32, %d, x)   ; TC_ERR_UNINITIALIZED_VARIABLE
-	return
+#lib
+
+public func invalid_path() void then
+    goto label_skip
+    var x: int32 = 10
+    label label_skip:
+    writeln(int32, %d, x)   ; TC_ERR_UNINITIALIZED_VARIABLE
+    return
 end
 
-func valid_path() void then
-	goto after_unused
-	var unused: int32 = 10
-	label after_unused:
-	writeln(int32, %d, 0)    ; 合法：被跳过的 var 从未使用
-	return
+public func valid_path() void then
+    goto after_unused
+    var unused: int32 = 10
+    label after_unused:
+    writeln(int32, %d, 0)    ; 合法：被跳过的 var 从未使用
+    return
 end
 ```
 
@@ -1887,10 +2011,10 @@ continue
 
 ```text
 while lt(int32, i, 10) then
-	if eq(int32, i, 5) then
-		break
-	end
-	i = add(int32, i, 1)
+    if eq(int32, i, 5) then
+        break
+    end
+    i = add(int32, i, 1)
 end
 ```
 
@@ -1912,12 +2036,12 @@ end
 #### 8.1.1 定义形式
 
 ```text
-func <函数名>([<形参名>: <值类型> [, ...]]) <返回类型> then
-	语句序列
+public|private func <函数名>([<形参名>: <值类型> [, ...]]) <返回类型> then
+    语句序列
 end
 ```
 
-- 形参类型可以是现有值类型（`bool`、8 种整数类型、2 种浮点类型）或 `memblock<T>`，其中 `T` 仅限 13 种标量类型。`memblock<T>` 形参严格按值传递：调用时整个内存块复制到被调函数的调用帧。memblock 形参与标量形参一样是只读绑定——`memblock_store(T, param, idx, val)` 合法（修改副本内容），但 `param = <另一个 memblock>` 不合法（禁止对形参整体赋值）。
+- 形参类型可以是现有值类型（`bool`、8 种整数类型、2 种浮点类型）或 `memblock<T>`，其中 `T` 仅限 11 种标量类型。`memblock<T>` 形参严格按值传递：调用时整个内存块复制到被调函数的调用帧。memblock 形参与标量形参一样是只读绑定——`memblock_store` / `memblock_copy` 以该形参为**目标块**时合法（修改副本内容），但 `param = <另一个 memblock>` 不合法（禁止对形参整体赋值）。
 - 返回类型可以是上述值类型或 `void`。返回类型同样允许 `memblock<T>`，返回时整块复制。
 - 函数体直接语句必须比 `func` 行恰好多一个缩进级别；函数 `end` 必须与 `func` 行对齐。
 - 函数体可以为空，但空函数体仍须满足返回路径规则；因此空的非 `void` 函数和空的 `void` 函数都会因可达函数末尾而报缺少返回。
@@ -1943,10 +2067,13 @@ end
 非法示例：
 
 ```text
-var input: int32 = 10
+#program
 
-func get_value() int32 then   ; 非法：顶层语句区开始后又定义函数
-	return 10
+var input: int32 = 10
+writeln(int32, %d, input)
+
+func get_value() int32 then   ; 非法：#program 不得定义函数（TC_ERR_PROGRAM_MODE_MISUSE）
+    return 10
 end
 ```
 
@@ -1959,30 +2086,39 @@ end
 #### 8.2.1 调用形式
 
 ```text
-funcall(<函数名> | Self.<函数名> | <模块名>.<函数名>
+funcall(Self.<函数名> | <模块名>.<函数名>
         [, <形参名>: <operand> ...])
 ```
 
-非 `void` 函数：
+（附录 A 语法上亦接受裸 `identifier` 作为第一项，但按下方规则在静态语义中拒绝：`#program` 不得使用裸名或 `Self.`；`#lib` 对本库函数须写 `Self.`。）
+
+非 `void` 函数（`#program`，已 `import mathlib`）：
 
 ```text
-var total: int32 = funcall(add_values, lhs: 10, rhs: 20)
+var total: int32 = funcall(mathlib.add_values, lhs: 10, rhs: 20)
 ```
 
 `void` 函数：
 
 ```text
-funcall(show_value, value: total)
+funcall(mathlib.show_value, value: total)
 ```
 
-`funcall` 的第一项必须是静态函数名，而不是普通 RHS 或函数值。程序模块调用本模块函数使用裸 `identifier`；库函数体调用本库函数必须使用 `Self.identifier`；两种模式调用已导入库函数都必须使用 `<模块名>.identifier`。名称分别在本模块函数签名表或对应导入模块的函数签名表中解析。
+`funcall` 的第一项必须是静态函数名，而不是普通 RHS 或函数值。由于函数定义仅允许出现在 `#lib`（§4.1 / §8.1），调用目标的书写形式固定为：
+
+- `#program` 顶层只能通过 `<模块名>.<函数名>` 调用已导入库的公开函数；不得使用裸 `identifier`，也不得使用 `Self.`（后者属 `TC_ERR_PROGRAM_MODE_MISUSE`）。
+- `#lib` 函数体调用本库函数必须使用 `Self.<函数名>`；对已导入库函数必须使用 `<模块名>.<函数名>`。
+- 在 `#lib` 中以裸 `identifier` 作为 `funcall` 第一项，且该名恰好是本库某个顶层 `func` 时，报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`；该名不是本库函数时报告 `TC_ERR_UNDEFINED_FUNCTION`。
+
+名称分别在对应导入模块的函数签名表，或（仅当使用 `Self.` 时）当前库模块的函数签名表中解析。
 
 #### 8.2.2 命名且有序的实参
 
-- 除函数名外，每一项必须使用 `<形参名>: <operand>` 形式。
+- 除函数名外，每一项必须使用 `<形参名>: <实参>` 形式。
 - 每个形参恰好匹配一个实参；缺失、重复或未知名称均为静态错误。第 `i` 个实参必须命名为第 `i` 个形参，文本顺序不同也报错；编译器不得重排。
 - 实参操作数严格按调用点从左到右读取并依次绑定。VM 与 AOT 不得改变该可观测顺序。
-- 每个实参只能是 §6.1.2 的 `operand`：标识符、整数字面量、浮点字面量、浮点特殊值或布尔字面量。算术、位、比较、逻辑、转换和 `funcall` 均不得直接作为实参。
+- **标量形参**的实参只能是附录 A / §6.1.2 的 `operand`：裸标识符、`Self.<名>`、`<模块名>.<名>`、整数字面量、浮点字面量、浮点特殊值或布尔字面量。算术、位、比较、逻辑、转换、`memblock` 构造器和 `funcall` 均不得直接作为标量实参。
+- **`memblock<T>` 形参**的实参可为 `operand` 中的 memblock 标识符（含限定名），或附录 A 允许的 `memblock_constructor`（见下表）；不得使用算术、位运算或其他运算表达式。
 - 复杂值先写入临时 `var`；一条 `funcall` 只含一个运行时调用。
 - 每个形参类型是对应实参的唯一期望类型，不做隐式转换。普通浮点字面量的源类型由后缀决定；整数字面量与浮点特殊值由形参提供上下文，并按 §3.6 检查。
 - 当形参类型为 `memblock<T>` 时，实参可为以下形式之一：
@@ -1994,27 +2130,26 @@ funcall(show_value, value: total)
 | 填充构造器 | `data: memblock(int32, 100, 1)` | 编译期常量 |
 | 逐值构造器 | `table: PRIMES` | `let` 常量 memblock 标识符，或直接逐值构造器 |
 
-memblock 实参不允许使用算术、位运算或其他运算表达式。
-
 合法：
 
 ```text
-var total: int32 = funcall(add_values, lhs: 10, rhs: 20)
+; #program（已 import mathlib）
+var total: int32 = funcall(mathlib.add_values, lhs: 10, rhs: 20)
 ```
 
 下列位置实参、乱序实参和复杂实参均非法：
 
 ```text
-var a: int32 = funcall(add_values, 10, 20)
-var b: int32 = funcall(add_values, rhs: 20, lhs: 10)
-var c: int32 = funcall(add_values, lhs: add(int32, x, y), rhs: 20)
+var a: int32 = funcall(mathlib.add_values, 10, 20)
+var b: int32 = funcall(mathlib.add_values, rhs: 20, lhs: 10)
+var c: int32 = funcall(mathlib.add_values, lhs: add(int32, x, y), rhs: 20)
 ```
 
 复杂实参必须拆分：
 
 ```text
 var lhs_value: int32 = add(int32, x, y)
-var total: int32 = funcall(add_values, lhs: lhs_value, rhs: 20)
+var total: int32 = funcall(mathlib.add_values, lhs: lhs_value, rhs: 20)
 ```
 
 #### 8.2.3 返回值使用位置
@@ -2022,9 +2157,10 @@ var total: int32 = funcall(add_values, lhs: lhs_value, rhs: 20)
 非 `void` 函数调用的返回值可由**新声明的 `var` 接收**或**覆盖已有变量**；`void` 函数调用只能作为独立语句。三种合法形态如下：
 
 ```text
-var result: int32 = funcall(get_value)    ; 新声明 var，接收非 void 返回值
-result = funcall(get_next)                ; 覆盖已有变量，返回值写入 result
-funcall(show_value, value: result)        ; 独立调用 void 函数
+; #program（已 import nextlib）
+var result: int32 = funcall(nextlib.get_value)    ; 新声明 var，接收非 void 返回值
+result = funcall(nextlib.get_next)                ; 覆盖已有变量，返回值写入 result
+funcall(nextlib.show_value, value: result)        ; 独立调用 void 函数
 ```
 
 调用位置矩阵如下：
@@ -2044,17 +2180,28 @@ funcall(show_value, value: result)        ; 独立调用 void 函数
 - 非 `void` 调用用于已有变量赋值时，实参合法后检查目标变量的声明类型；不匹配时报调用结果类型错误。赋值目标必须在当前 CFG 点确定初始化（§9.2）。
 - `void` 调用仅可独立成句，不得用于 `var` 声明或已有变量赋值。
 
-返回值转发可通过新 `var` 或已有变量：
+返回值转发可通过新 `var` 或已有局部变量（不可对形参赋值）：
 
 ```text
-func forward() int32 then
-	var result: int32 = funcall(get_value)
-	return result
+#lib
+
+public func get_value() int32 then
+    return 1
 end
 
-func accumulate(total: int32) int32 then
-	total = funcall(add_next, value: total)  ; 读取 total，调用后再覆盖
-	return total
+public func add_next(value: int32) int32 then
+    return add(int32, value, 1)
+end
+
+public func forward() int32 then
+    var result: int32 = funcall(Self.get_value)
+    return result
+end
+
+public func accumulate(start: int32) int32 then
+    var total: int32 = start
+    total = funcall(Self.add_next, value: total)  ; 读取后再覆盖局部 total
+    return total
 end
 ```
 
@@ -2082,18 +2229,20 @@ return [operand]
 - `return` 终结当前 CFG 路径，只连接当前函数的正常返回终止节点，不产生到源序后继语句的 CFG 边。`return` 后继节点是否不可达，与 `break` / `continue` / `goto` 的后继节点一样，统一由 §9.2.1 的完整 CFG 入口可达性分析判定；不再对“同一代码块内 `return` 之后到下一 `label` 之前”建立局部特例。
 
 ```text
-func invalid_after_return() void then
-	return
-	var x: int32 = 0      ; TC_ERR_UNREACHABLE_STATEMENT
+#lib
+
+public func invalid_after_return() void then
+    return
+    var x: int32 = 0      ; TC_ERR_UNREACHABLE_STATEMENT
 end
 
-func valid_label_entry(flag: bool) void then
-	if flag then
-		goto resume
-	end
-	return                 ; flag == false 时可达
-	label resume:          ; 可由可达的 goto resume 边到达
-	return
+public func valid_label_entry(flag: bool) void then
+    if flag then
+        goto resume
+    end
+    return                 ; flag == false 时可达
+    label resume:          ; 可由可达的 goto resume 边到达
+    return
 end
 ```
 
@@ -2111,12 +2260,14 @@ return result
 全路径返回示例：
 
 ```text
-func choose(flag: bool) int32 then
-	if flag then
-		return 1
-	else
-		return 2
-	end
+#lib
+
+public func choose(flag: bool) int32 then
+    if flag then
+        return 1
+    else
+        return 2
+    end
 end
 ```
 
@@ -2139,9 +2290,14 @@ end
 
 #### 8.4.1 名称查找和局部绑定
 
-函数体内普通裸标识符按以下顺序查找：当前块、逐层外部块、函数体直接局部绑定、当前函数参数；到函数边界即停止。函数仅存在于 `#lib` 模块中。函数体仅可按 §4.3 以 `Self.id` 访问本模块的 `static let` / `static var`；该限定查找不参与局部词法作用域的屏蔽。
+函数体内普通裸标识符按以下顺序查找：当前块、逐层外部块、函数体直接局部绑定、当前函数参数；到函数边界即停止。函数仅存在于 `#lib` 模块中。函数体仅可按 §4.3 以 `Self.id` 访问本模块的 `static let` / `static var` / `func`；该限定查找不参与局部词法作用域的屏蔽。
 
-为使越界名称诊断唯一，语法解析后必须建立一个只含顶层值作用域直接声明（不在任何顶层 `if` / `while` 块内）的 `var` / `let` 名称索引；该索引覆盖整个顶层语句区，但只用于错误分类，绝不赋予函数可见性。函数内普通查找失败后，若同名绑定存在于该索引，报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`；否则报告 `TC_ERR_UNDEFINED_VARIABLE`。顶层嵌套块中的局部绑定不属于顶层值作用域直接声明，不能触发本专用错误。此分类统一适用于普通 RHS、赋值目标、`read` 目标、`let` 依赖、`funcall` 实参和 `return` 操作数，并在各构造所属的第 6/7/8 阶段执行。
+0.0.34 中 `#program` 不得定义函数，`#lib` 也没有非 `static` 的顶层值作用域，因此不再存在“同文件顶层 `var` / `let` 对函数可见性越界”的诊断场景。为使忘记 `Self.` 的诊断唯一且可观察，编译器必须为当前 `#lib` 模块建立**本库顶层成员名索引**（全部 `func` / `static let` / `static var` 的声明名，不分 `public` / `private`）。该索引只用于错误分类，绝不把这些名字注入函数体的普通裸名查找。函数内普通裸名查找失败后：
+
+1. 若该名存在于本库顶层成员名索引，报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`（须改为 `Self.<名>`）；
+2. 否则报告 `TC_ERR_UNDEFINED_VARIABLE`（值位置）或由第 7 阶段按 `funcall` 规则报告 `TC_ERR_UNDEFINED_FUNCTION`（调用目标位置）。
+
+此分类统一适用于普通 RHS、赋值目标、`read` 目标、`let` 依赖、`funcall` 第一项与实参、以及 `return` 操作数，并在各构造所属的第 6/7/8 阶段执行。
 
 - 函数体直接声明的 `var` / `let` 从声明完成后可见，到函数返回时失效。
 - 同一作用域不得重复定义同名值绑定；内层块可按 §9.1 屏蔽普通外层局部绑定，但不得屏蔽参数或与任何全局函数同名。任意层级的 `var` / `let` 与当前函数形参同名均按参数保护冲突报告 `TC_ERR_DUPLICATE_DEFINITION`；与全局函数同名则报告 `TC_ERR_FUNCTION_NAME_CONFLICT`。两者都不解释为普通跨作用域屏蔽。
@@ -2219,7 +2375,7 @@ end
 TC 采用 **全局函数签名表**、**顶层值作用域**、**函数作用域** 与 **块级作用域** 相结合的设计：
 
 - **全局函数签名表**：编译器在分析函数体和顶层语句前收集全部函数签名。函数名全局可见，不受定义源序限制；普通 RHS 不把函数名解析为值，只有 `funcall` 的第一项在该表中解析。
-- **顶层值作用域**：`#program` 模块中，所有 `import` 和顶层 `var` / `let` 声明之后、且不在任何 `if`/`while` 块内部定义的 `var` 和 `let` 属于顶层值作用域。它们在顶层语句区遵循源序可见性，生命周期贯穿程序运行始终。`#lib` 模块中函数为 `#lib` 私有，不存在独立的顶层值作用域。
+- **顶层值作用域**：`#program` 模块中，所有 `import` 和顶层 `var` / `let` 声明之后、且不在任何 `if`/`while` 块内部定义的 `var` 和 `let` 属于顶层值作用域。它们在顶层语句区遵循源序可见性，生命周期贯穿程序运行始终。`#lib` 模块没有非 `static` 的顶层值作用域；模块级状态只能是 `static let` / `static var`，且函数体内必须通过 `Self.` 访问（§4.3）。
 - **函数作用域**：每个函数体形成独立函数作用域，包含只读参数、函数体直接声明的局部 `var` / `let`，以及嵌套块。普通值名称查找到函数边界即停止，不得继续查找顶层值。每次调用创建独立函数帧，不同调用之间不共享参数或局部 `var`。
 - 代码块与块级作用域：函数的 `then … end` 是函数体代码块。`if` 的 `then` 与 `else` 直接语句序列分别是两个互斥、互不包含且不可比的兄弟代码块；无 `else` 时只有 `then` 块。`while` 的 `then … end` 是循环体代码块。除函数体另按函数作用域管理外，每个分支/循环代码块同时构成独立块级作用域；嵌套 `if` / `while` 开启新代码块。两个兄弟分支中的局部标识符互不可见，但允许分别定义同名局部变量。代码块内定义的 `var` / `let` 在离开该块之后不可访问（见下「变量生命周期」）；嵌套块支持内层屏蔽普通外层同名值绑定（建议避免），但全局函数名与函数形参的保护规则优先，不得通过任何顶层或函数内嵌套块重新声明同名 `var` / `let`。
 - **标签作用域**：标签只存在于函数内，遵循与函数局部变量（`var`）和常量（`let`）相同的块级可见性，并额外受函数边界与范式隔离约束：
@@ -2241,7 +2397,7 @@ TC 采用 **全局函数签名表**、**顶层值作用域**、**函数作用域
 | ---- | ---- |
 | 作用域进入 | 建立本作用域全部 `var` 的固定槽位，初始状态为“未初始化” |
 | `var` 执行 | 先检查并计算普通 RHS 或执行非 `void` `funcall` 初始化器，再写入对应槽位；成功后状态变为“已初始化” |
-| 赋值 / `read` | 目标变量必须已确定初始化；成功后更新同一槽位，不改变其生命周期 |
+| 赋值 / `read` / `memblock_store` / `memblock_copy` | 目标变量（及 `copy`/`store` 的目标块）必须已确定初始化；成功后更新同一槽位内容，不改变其生命周期；`memblock_copy` 另须读取源块（`let` 源不进入 `IN` 检查） |
 | 运行时绑定读取 | `var` 或参数绑定必须在当前 CFG 点上确定初始化，否则静态错误 `TC_ERR_UNINITIALIZED_VARIABLE`；`let` 已在编译期内联，不属于本行 |
 | 反向跳转 / 下一迭代 | 再次执行 `var` 时重新初始化同一槽位，不创建新绑定或新槽位 |
 | 作用域离开 | 因正常 `end` / 循环回边、`break`、`continue`、`return` 或向外 `goto` 离开当前块实例时，结束局部生命周期并清除其确定初始化状态；物理槽可复用 |
@@ -2305,6 +2461,8 @@ OUT[其他语句]    = IN[n]
 
 ## 10. 标准 I/O
 
+标准 I/O **仅操作标量类型**（§3.1 的 11 种：`int8`～`uint64`、`float32`、`float64`、`bool`）。附录 A 的 `write_stmt` / `writeln_stmt` / `read_stmt` 以 `scalar_type` 限定显式类型参数，因此 `write(memblock<int32>, …)`、`read(memblock<uint8>, …)` 等形态不符合 EBNF，第 3 阶段报告 `TC_ERR_SYNTAX`；不得进入类型检查，也不得降级为 `TC_ERR_TYPE_MISMATCH`。`memblock` 的输入输出须由程序按元素调用标量 I/O（配合 `memblock_load` / `memblock_store`）自行完成。
+
 ### 10.1 `write` — 不换行输出
 
 **形式一：无格式输出**
@@ -2314,10 +2472,10 @@ OUT[其他语句]    = IN[n]
 | 语法       | `write(int32, x)`、`write(float64, pi)`、`write(bool, flag)` |
 | 功能       | 将操作数的值按类型解释写入 stdout，不换行                |
 | 操作数规则 | 一个 §6.1.2 `operand`：运行时 `var` / 参数须确定初始化，`let` 须可见且已成功求值，或使用合法字面量 |
-| 类型约束   | 标识符绑定类型与 `type` 一致；字面量满足 §3.6 约束            |
+| 类型约束   | 显式类型参数必须是 `scalar_type`；标识符绑定类型与该标量类型一致；字面量满足 §3.6 约束 |
 | 输出格式   | 整数：十进制；浮点：与 `%g` 相同的 6 位有效数字；布尔：`true`/`false` |
 
-无格式形式先解析操作数名称并按显式 `type` 检查字面量；标识符操作数的声明类型与 `type` 不一致时报 `TC_ERR_TYPE_MISMATCH`，主位置为操作数首 Token。字面量的类别、后缀或范围不符合 `type` 时，继续使用 `TC_ERR_LITERAL_TYPE` / `TC_ERR_LITERAL_OUT_OF_RANGE`，不降级为通用类型错误。
+无格式形式先解析操作数名称并按显式标量类型检查字面量；标识符操作数的声明类型与显式类型不一致时报 `TC_ERR_TYPE_MISMATCH`，主位置为操作数首 Token。字面量的类别、后缀或范围不符合该类型时，继续使用 `TC_ERR_LITERAL_TYPE` / `TC_ERR_LITERAL_OUT_OF_RANGE`，不降级为通用类型错误。
 
 **形式二：格式化输出**
 
@@ -2326,14 +2484,14 @@ OUT[其他语句]    = IN[n]
 | 语法       | `write(int32, %d, x)`、`write(float64, %0.3f, pi)`、`write(bool, %-8t, flag)` |
 | 功能       | 按格式说明符输出操作数的值，不换行                       |
 | 操作数规则 | 一个 §6.1.2 `operand`；恰好一个操作数                      |
-| 类型约束   | 操作数类型与 `type` 一致，且与格式说明符的转换符兼容         |
+| 类型约束   | 显式类型参数为 `scalar_type`；操作数类型与其一致，且与格式说明符的转换符兼容 |
 
 格式化形式的类型检查顺序固定为：
 
-1. 先按无格式形式的规则检查操作数是否与显式 `type` 一致；标识符不一致报 `TC_ERR_TYPE_MISMATCH`，字面量不一致使用字面量专用错误。
-2. 只有第 1 步成功后，才以该已闭合的 `type` 检查转换符兼容性；不兼容报 `TC_ERR_FORMAT_TYPE_MISMATCH`，主位置为格式说明符中的转换符字符。
+1. 先按无格式形式的规则检查操作数是否与显式标量类型一致；标识符不一致报 `TC_ERR_TYPE_MISMATCH`，字面量不一致使用字面量专用错误。
+2. 只有第 1 步成功后，才以该已闭合的标量类型检查转换符兼容性；不兼容报 `TC_ERR_FORMAT_TYPE_MISMATCH`，主位置为格式说明符中的转换符字符。
 
-因此，同一条 `write` / `writeln` 中同时存在“操作数 ↔ `type`”和“`type` ↔ 转换符”两类不一致时，前者先报；不得跳过第 1 步直接报格式类型错误。
+因此，同一条 `write` / `writeln` 中同时存在“操作数 ↔ 显式类型”和“显式类型 ↔ 转换符”两类不一致时，前者先报；不得跳过第 1 步直接报格式类型错误。
 
 ### 10.2 `writeln` — 换行输出
 
@@ -2349,16 +2507,16 @@ OUT[其他语句]    = IN[n]
 | -------- | ------------------------------------------------------------ |
 | 语法     | `read(int32, x)`、`read(float64, radius)`、`read(bool, flag)` |
 | 功能     | 从 stdin 读取一个值，覆盖已定义变量的当前值              |
-| 目标变量 | 必须是已通过带 RHS 的 `var` 声明、在当前 CFG 点确定初始化且类型与 `type` 一致的可写变量；函数参数只读，不得作为目标 |
+| 目标变量 | 必须是已通过带 RHS 的 `var` 声明、在当前 CFG 点确定初始化且类型与显式 `scalar_type` 一致的可写**标量**变量；函数参数只读，不得作为目标；`memblock` 目标不合法（语法拒绝） |
 | 与初始化 | `read` 不是初始化器，不能代替 `var … = …` 或补救被控制流绕过的初始化 |
 | 输入格式 | 见下表；跳过前导 ASCII 空白，并读取一个以 ASCII 空白或 EOF 结束的完整 Token |
 | 错误处理 | 非法输入/数值超范围/非预期 EOF → I/O 错误                |
 
-`read` 目标名称使用与赋值左侧相同的分类顺序：函数内普通查找失败但命中 §8.4.1 的顶层值作用域直接声明索引 → `TC_ERR_FUNCTION_SCOPE_ACCESS`，其他未定义值名 → `TC_ERR_UNDEFINED_VARIABLE`，`let` → `TC_ERR_CONSTANT_ASSIGNMENT`，函数参数 → `TC_ERR_PARAMETER_ASSIGNMENT`，只有可写 `var` 才继续检查类型和 `TC_ERR_UNINITIALIZED_VARIABLE`。全局函数名不属于值绑定。上述静态错误在执行前完成，不消费 stdin。
+`read` 目标名称使用与赋值左侧相同的分类顺序：函数内普通查找失败但命中 §8.4.1 的本库顶层成员名索引 → `TC_ERR_FUNCTION_SCOPE_ACCESS`，其他未定义值名 → `TC_ERR_UNDEFINED_VARIABLE`，`let` / `static let` → `TC_ERR_CONSTANT_ASSIGNMENT`，函数参数 → `TC_ERR_PARAMETER_ASSIGNMENT`，只有可写 `var` 或可写 `static var` 才继续检查类型和 `TC_ERR_UNINITIALIZED_VARIABLE`。全局函数名不属于值绑定。上述静态错误在执行前完成，不消费 stdin。目标若为 `memblock` 绑定，因显式类型参数已在语法阶段被 `scalar_type` 拒绝，不会进入本名称分类。
 
-目标名称已解析为可写 `var` 后，若其声明类型与 `read` 的显式 `type` 不一致，报 `TC_ERR_TYPE_MISMATCH`，主位置为目标标识符。该类型检查在 CFG 确定初始化检查之前完成；类型不一致时不再产生 `TC_ERR_UNINITIALIZED_VARIABLE`。
+目标名称已解析为可写标量 `var` 后，若其声明类型与 `read` 的显式标量类型不一致，报 `TC_ERR_TYPE_MISMATCH`，主位置为目标标识符。该类型检查在 CFG 确定初始化检查之前完成；类型不一致时不再产生 `TC_ERR_UNINITIALIZED_VARIABLE`。
 
-**静态成员作为 `read` 目标**：`read` 的目标可以是 `Self.<成员名>` 或 `<模块名>.<成员名>`，用于覆盖导入库的公开 `static var` 或本库函数内通过 `Self.` 限定的 `static var`。其名称解析和可见性规则与赋值目标一致（§4.3、§4.4）：`Self.<名>` 解析为本库的 `static var`（不区分公开/私有），`<模块名>.<名>` 解析为对应导入库的公开 `static var`。目标 `static var` 在程序准备阶段已完成初始化，因此在首次 `read` 之前已确定初始化。`read` 覆盖其当前值，不改变该 `static var` 的类型或可见性。
+**静态成员作为 `read` 目标**：`read` 的目标可以是 `Self.<成员名>` 或 `<模块名>.<成员名>`，用于覆盖导入库的公开**标量** `static var` 或本库函数内通过 `Self.` 限定的标量 `static var`。其名称解析和可见性规则与赋值目标一致（§4.3、§4.4）：`Self.<名>` 解析为本库的 `static var`（不区分公开/私有），`<模块名>.<名>` 解析为对应导入库的公开 `static var`。目标 `static var` 在程序准备阶段已完成初始化，因此在首次 `read` 之前已确定初始化。`read` 覆盖其当前值，不改变该 `static var` 的类型或可见性。公开 `static var` 若类型为 `memblock<T>`，不得作为 `read` 目标（须按元素读写）。
 
 **输入规则**：
 
@@ -2508,34 +2666,43 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 
 1. 源字节的 UTF-8 解码（文件打开失败属于实现/API 层）；
 2. 词法与缩进扫描；在形成字面量 Token 时执行 §2.3.5 的整数绝对值上限，以及 §2.4.1 中由浮点后缀唯一确定源类型后的舍入为零/无穷检查，这两类只依赖 Token 自身的失败均报告 `TC_ERR_LITERAL_OUT_OF_RANGE`；
-3. 语法解析；
-4. 收集全部函数签名；
+3. 语法解析；附录 A 已分区的 `#program` 顶层若在可执行语句之后再出现声明，按受限恢复报告 `TC_ERR_MODULE_LAYER`（附录 A.3），不进入后续阶段；
+4. **模块结构、导入解析与函数签名收集**。本阶段内部按以下子阶段顺序执行，前一子阶段有错时不进入后一子阶段；跨文件诊断的主位置与关联位置规则见 §11.1.8：
+
+    4a. **单文件模块结构**：检查四层排序（`TC_ERR_MODULE_LAYER`）、`#lib` 成员是否带显式 `public` / `private`（`TC_ERR_MISSING_VISIBILITY`）、以及 `#program` 是否误用 `func` / `Self` / `static` / `public` / `private`（`TC_ERR_PROGRAM_MODE_MISUSE`）。
+
+    4b. **导入解析**：对每个 `import` 唯一定位目标模块；找不到 → `TC_ERR_IMPORT_NOT_FOUND`；目标非 `#lib` → `TC_ERR_IMPORT_NOT_LIB`；逻辑名歧义 → `TC_ERR_IMPORT_AMBIGUOUS`；同名重复导入 → `TC_ERR_DUPLICATE_IMPORT`；导入名与本模块成员/顶层值绑定冲突 → `TC_ERR_IMPORT_NAME_CONFLICT`。
+
+    4c. **依赖图环检查**：在完整可达依赖图上检查自环与任意长度间接环 → `TC_ERR_CIRCULAR_IMPORT`（§11.1.8）。
+
+    4d. **收集函数签名**：在 4a–4c 成功后，收集全部可达 `#lib` 模块的函数签名，供后续阶段使用。
+
 5. 检查函数重名、签名和名称空间；本阶段完成全局函数名与顶层值作用域直接 `var` / `let`、以及全部形参的冲突检查；
 6. 名称、作用域与类型语义阶段。本阶段内部按以下子阶段顺序执行，每个子阶段内按同一源文件的行列序选择首个诊断；前一子阶段有错时不进入后一子阶段：
 
     6a. **控制流上下文检查**：检查 `goto` / `label` 是否具有 `func` 词法祖先；再检查是否具有 `while` 词法祖先（函数内 `while` 中的 `goto`/`label` 分别报 `TC_ERR_GOTO_INSIDE_LOOP` / `TC_ERR_LABEL_INSIDE_LOOP`）。
 
-    6b. **名称作用域预建**：分别解析函数体和顶层的名称与词法作用域；对顶层嵌套块及函数体任意层级的 `var` / `let` 执行全局函数名冲突检查（报告 `TC_ERR_FUNCTION_NAME_CONFLICT`）；仅为各函数建立标签表。
+    6b. **名称作用域预建**：分别解析函数体和顶层的名称与词法作用域；为当前 `#lib` 建立 §8.4.1 的本库顶层成员名索引；对顶层嵌套块及函数体任意层级的 `var` / `let` 执行全局函数名冲突检查（报告 `TC_ERR_FUNCTION_NAME_CONFLICT`）；仅为各函数建立标签表。
 
     6c. **goto/label 名称解析**：完成 `goto` 的标签查找（沿祖先链找到最近同名标签）、跨控制流域判定与块关系检查（§7.3.3）。本子阶段使用 6b 建立的标签表；固定元数内建调用外壳的操作数数量已在第 3 阶段完成，本阶段不得再次分类或改写。
 
-    6d. **类型、模式与字面量语义检查**：检查普通 RHS 与 `const_rhs` 的类型、模式及上下文字面量约束。其中 `let` 按 §5.2.1 先检查名称绑定类别（`var` 或参数引用立即报 `TC_ERR_CONSTANT_EXPRESSION`），再检查 RHS 结果类型与声明类型是否闭合。标识符操作数的声明类型与显式类型不一致时报告对应错误；字面量的类别、后缀或范围不符合上下文时使用字面量专用错误。
+    6d. **类型、模式与字面量语义检查**：检查普通 RHS 与 `const_rhs` 的类型、模式及上下文字面量约束。其中 `let` 按 §5.2.1 先检查名称绑定类别（`var` 或参数引用立即报 `TC_ERR_CONSTANT_EXPRESSION`），再检查 RHS 结果类型与声明类型是否闭合。标识符操作数的声明类型与显式类型不一致时报告对应错误；字面量的类别、后缀或范围不符合上下文时使用字面量专用错误。解析 `<模块名>.<成员名>` 时若成员存在但为 `private`，报告 `TC_ERR_PRIVATE_MEMBER_ACCESS`，不得改报未定义。函数内裸名命中本库顶层成员名索引时报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`。
 
     6e. **I/O 格式检查**：检查 `write` / `writeln` / `read` 的显式类型、格式说明符静态控制项及转换符兼容性。已匹配 EBNF 但格式控制非法时报告 `TC_ERR_FORMAT_SPECIFIER`；操作数类型与转换符不兼容时报告 `TC_ERR_FORMAT_TYPE_MISMATCH`。
 
     `funcall` 实参和 `return` 操作数的上下文字面量检查分别保留到第 7、8 阶段。
 
-7. 检查符合 EBNF 的 `funcall` 之目标、使用位置、实参、实参上下文字面量约束和接收类型；
+7. 检查符合 EBNF 的 `funcall` 之目标、使用位置、实参、实参上下文字面量约束和接收类型；调用目标若以裸名命中本库 `func`，报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`；经导入限定解析到 `private` 函数时报告 `TC_ERR_PRIVATE_MEMBER_ACCESS`；
 8. 检查符合 EBNF 的 `return [operand]` 之位置、形式、操作数名称、返回类型和返回上下文字面量约束；返回操作数的名称类诊断在本阶段产生，不回到第 6 阶段；
-9. 求值 `let` 常量（名称类别、类型闭合和依赖合法性已在第 6 阶段完成检查，本阶段仅执行算术、位运算和转换的编译期计算）；
+9. 求值 `let` 常量（名称类别、类型闭合和依赖合法性已在第 6 阶段完成检查，本阶段仅执行算术、位运算和转换的编译期计算）；亦按源序求值各可达库的 `static let`，并检查 `static var` 初始化器的编译期约束（§4.2）；
 10. 按 §5.2 执行 `if`/`while` 静态布尔三态判定，并按 §6.5.2.2 判定逻辑 RHS 读边；
 11. 构建唯一顶层 CFG，再分别构建各函数 CFG；按 §9.2.1 从每个域的唯一入口计算可达节点，报告不可达语句，然后仅在可达子图上执行确定初始化固定点；仅函数 CFG 执行函数末尾检查；
 12. 检查函数调用图中的递归环；
 13. 生成 VM / AOT 代码。
 
-第 6 阶段（名称、作用域与类型语义）建立后续检查所需的作用域和名称环境。其内部子阶段 6a–6e 按序执行，前一子阶段有错时不进入后一子阶段。`funcall` 内部名称与 `return` 操作数必须按第 7、8 阶段的专用优先级协调解析：未定义调用目标会抑制该调用的实参名称错误；调用位置错误会抑制实参错误；返回形式错误会先于返回操作数名称错误。下列专用规则覆盖通用阶段内的源位置顺序。
+第 6 阶段（名称、作用域与类型语义）建立后续检查所需的作用域和名称环境。其内部子阶段 6a–6e 按序执行，前一子阶段有错时不进入后一子阶段。`funcall` 内部名称与 `return` 操作数必须按第 7、8 阶段的专用优先级协调解析：未定义调用目标会抑制该调用的实参名称错误；`TC_ERR_FUNCTION_SCOPE_ACCESS` / `TC_ERR_PRIVATE_MEMBER_ACCESS` 与未定义目标同级，均抑制实参错误；调用位置错误会抑制实参错误；返回形式错误会先于返回操作数名称错误。下列专用规则覆盖通用阶段内的源位置顺序。
 
-权威 EBNF 不接受的形式必须在第 3 阶段拒绝，不得为产生后续专用诊断而放宽语法。阶段按顺序完整执行，前一阶段有错时不进入后一阶段。
+权威 EBNF 不接受的形式必须按 §1.4 作**语法拒绝**（第 3 阶段），不得为产生后续专用语义诊断而放宽语法。阶段按顺序完整执行，前一阶段有错时不进入后一阶段。
 
 #### 11.1.1 首个诊断的通用规则
 
@@ -2561,7 +2728,7 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 - `TC_ERR_LITERAL_TYPE` 与 `TC_ERR_LITERAL_OUT_OF_RANGE` 定位到完整字面量的第一个 Token；前导 `-` 属于该字面量时，定位到 `-`。
 - `TC_ERR_CONDITION_TYPE` 定位到 `if` / `while` 条件 RHS 的第一个 Token。
 - `TC_ERR_FORMAT_TYPE_MISMATCH` 定位到格式说明符中的转换符字符。格式说明符是单个 Token，但主列号仍精确指向该 Token 内对应的 Unicode 标量位置。
-- `write` / `writeln` 的标识符操作数与显式 `type` 不一致，或 `read` 目标 `var` 的声明类型与显式 `type` 不一致时，使用 `TC_ERR_TYPE_MISMATCH` 并定位到操作数或目标标识符。格式化输出只在该检查成功后才检查转换符兼容性（§10.1）。
+- `write` / `writeln` 的标识符操作数与显式 `scalar_type` 不一致，或 `read` 目标 `var` 的声明类型与显式 `scalar_type` 不一致时，使用 `TC_ERR_TYPE_MISMATCH` 并定位到操作数或目标标识符。格式化输出只在该检查成功后才检查转换符兼容性（§10.1）。以 `memblock<…>` 作为 I/O 显式类型参数属语法拒绝（`TC_ERR_SYNTAX`），不适用本条。
 
 词法、缩进、语法及格式控制专用诊断的主位置按下表固定：
 
@@ -2584,7 +2751,7 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 
 全局函数名在整个编译单元中受保护。与顶层值作用域直接 `var` / `let` 或任一形参同名的冲突在第 5 阶段报告 `TC_ERR_FUNCTION_NAME_CONFLICT`；与顶层嵌套块或函数体任意层级 `var` / `let` 同名的冲突在第 6 阶段报告同一错误。主位置恒为冲突的值绑定名，关联位置为对应全局函数定义名；多个冲突按阶段优先、再按主位置源序选择。该规则覆盖普通内外层值屏蔽规则。
 
-附录 A 首先决定 Token 序列能否进入静态语义。若不符合产生式，第 3 阶段按已明确规定的语法专用诊断分类：缺少变量初始化器使用 `TC_ERR_VAR_MISSING_INIT`，符合下述固定元数外壳的操作数数量错误使用 `TC_ERR_OPERAND_COUNT`，保留关键字误占标识符位置使用 `TC_ERR_KEYWORD`，缩进/块形态使用对应专用码；没有专用语法诊断的其他形态使用 `TC_ERR_SYNTAX`。格式说明符按 §10.5 单独分流：无法完整匹配附录 A `format_specifier` 产生式时在第 3 阶段使用 `TC_ERR_SYNTAX`；完整匹配该产生式后，重复标志、宽度或精度超出范围，以及转换符不适用的标志/精度在第 6 阶段使用 `TC_ERR_FORMAT_SPECIFIER`。这些专用映射不得使不符合 EBNF 的程序进入类型或模式检查。
+附录 A 首先决定 Token 序列能否进入静态语义（§1.4）。若不符合产生式，属**语法拒绝**：第 3 阶段按已明确规定的语法专用诊断分类——缺少变量初始化器使用 `TC_ERR_VAR_MISSING_INIT`，符合下述固定元数外壳的操作数数量错误使用 `TC_ERR_OPERAND_COUNT`，保留关键字误占标识符位置使用 `TC_ERR_KEYWORD`，缩进/块形态使用对应专用码，`#program` 声明/语句分区破坏使用 `TC_ERR_MODULE_LAYER`；没有专用语法诊断的其他形态使用 `TC_ERR_SYNTAX`。格式说明符按 §10.5 单独分流：无法完整匹配附录 A `format_specifier` 产生式时在第 3 阶段使用 `TC_ERR_SYNTAX`；完整匹配该产生式后，重复标志、宽度或精度超出范围，以及转换符不适用的标志/精度属**静态语义拒绝**，在第 6 阶段使用 `TC_ERR_FORMAT_SPECIFIER`。这些专用映射不得使不符合 EBNF 的程序进入类型或模式检查。
 
 `TC_ERR_OPERAND_COUNT` 的适用范围是完整且权威的：仅当逻辑行中已识别出“内建关键字 `(` 顶层逗号分隔项 `)`”的平衡调用外壳，但其值操作数数量不符合下表时使用该错误码。类型参数、位于类型参数之后候选模式位置的 `wrap` / `ieee` / `truncate` 关键字，以及 `write` / `writeln` 的格式说明符均不计入值操作数。语法形态/数量的诊断优先级高于类型和模式组合：因此只要外壳平衡且顶层字段可分隔，先按上述方式计数值操作数；数量正确后，才由 EBNF 和 §6.3.1 判定类型参数或候选模式在当前操作中是否合法。
 
@@ -2626,7 +2793,7 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 
 多个调用有错时选择 `funcall` 位置最早的调用。选定调用后依次检查：
 
-1. 目标函数是否存在；不存在时定位到函数名，不再检查实参。
+1. 目标函数是否存在或是否因作用域/可见性不可直接以当前书写形式调用：不存在时定位到函数名，报告 `TC_ERR_UNDEFINED_FUNCTION`，不再检查实参；裸名命中本库 `func` 时报告 `TC_ERR_FUNCTION_SCOPE_ACCESS`；经导入限定解析到存在但为 `private` 的函数时报告 `TC_ERR_PRIVATE_MEMBER_ACCESS`。后两者与“不存在”同级，均抑制实参检查。
 2. 调用位置是否适合返回类型；非 `void` 独立调用、`void` 用于 `var` 初始化、`void` 用于已有变量赋值均定位到 `funcall`，不再检查实参。
 3. 实参重复、未知、缺失、顺序、类型，按此顺序检查。
 4. 非 `void` 调用接收变量的声明类型：`var` 声明为声明类型 Token，已有变量赋值为赋值目标标识符。在实参全部合法后检查，错误定位到声明类型 Token 或目标标识符。
@@ -2675,9 +2842,29 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 
 `TC_ERR_VAR_MISSING_INIT` 不得降级为通用语法错误；`TC_ERR_UNINITIALIZED_VARIABLE` 不得替代名称解析错误。0.0.34 不定义 `TC_ERR_GOTO_SKIPS_VAR_INIT`，因为未初始化是跨全部控制流种类的通用性质，不应绑定到单一语句。
 
+#### 11.1.8 模块结构与导入错误优先级
+
+第 4 阶段的模块类错误按子阶段 4a → 4b → 4c 选择；同一子阶段内按主位置源序，主位置相同时按下表规则优先顺序。跨文件比较时，先按**导入方**源文件中触发该诊断的 `import` 或限定名主位置选择；环诊断的主位置规则见下。
+
+**4a 单文件结构**（同一文件内）：`TC_ERR_MODULE_LAYER` → `TC_ERR_MISSING_VISIBILITY` → `TC_ERR_PROGRAM_MODE_MISUSE`。
+
+- `TC_ERR_MODULE_LAYER` 定位到破坏层序的最早构造首 Token（例如插在导入区中的 `var`、`#program` 顶层可执行语句区之后的 `let` / `var` / `var_funcall_def`、`static` 区之前的 `func`）。其中「`#program` 声明出现在可执行语句之后」由附录 A 分区产生式拒绝，并在第 3 阶段按受限恢复映射为本错误码（见附录 A.3），主位置仍为该声明首 Token。
+- `TC_ERR_MISSING_VISIBILITY` 定位到缺少修饰符的 `static` / `func` 关键字。
+- `TC_ERR_PROGRAM_MODE_MISUSE` 定位到误用的 `func` / `Self` / `static` / `public` / `private` 关键字。
+
+**4b 导入解析**：同一导入方文件内按 `import` 行源序；同一 `import` 上依次为：`TC_ERR_IMPORT_NOT_FOUND` → `TC_ERR_IMPORT_NOT_LIB` → `TC_ERR_IMPORT_AMBIGUOUS` → `TC_ERR_DUPLICATE_IMPORT` → `TC_ERR_IMPORT_NAME_CONFLICT`。
+
+- 找不到/非库/歧义均定位到该 `import` 的模块名标识符；歧义时把实现枚举到的最早候选路径作为关联附注（附注不参与主位置比较）。
+- 重复导入定位到第二次及后续 `import` 的模块名，关联位置为首次同名 `import`。
+- 导入名冲突定位到 `import` 的模块名，关联位置为冲突的本模块成员或顶层值绑定名。
+
+**4c 循环导入**：存在多个环时，选择包含源位置最早之 `import` 边的环；将该边固定为首边。环路径的确定算法与 §11.1.7 递归环相同（以模块为顶点、`import` 为边），主位置为该首边 `import` 的模块名标识符。不得由模块表或邻接表遍历顺序改变结果。
+
+`TC_ERR_PRIVATE_MEMBER_ACCESS` 属于第 6/7 阶段的名称/调用解析，定位到限定名中的成员名标识符，关联位置为该私有成员的声明名；不得改报 `TC_ERR_UNDEFINED_VARIABLE` 或 `TC_ERR_UNDEFINED_FUNCTION`。
+
 ### 11.2 静态错误
 
-静态错误覆盖词法/语法、名称与作用域、类型/字面量/模式、常量求值、缩进与控制流、函数调用与返回、CFG 确定初始化及调用图。具体触发条件、标准错误码、打印名和阶段以 §11.5 为准，多个错误的选择顺序以 §11.1 为准。
+静态错误覆盖词法/语法、模块结构与导入、名称与作用域、类型/字面量/模式、常量求值、缩进与控制流、函数调用与返回、CFG 确定初始化及调用图。具体触发条件、标准错误码、打印名和阶段以 §11.5 为准，多个错误的选择顺序以 §11.1 为准。
 
 0.0.34 不定义 `TC_ERR_GOTO_SKIPS_VAR_INIT`、常量循环依赖专用错误、跨块引用专用错误或重复的 overflow-mode 错误：它们分别由确定初始化、源序可见性/名称解析，以及“EBNF 先行、模式语义随后”的统一规则处理。
 
@@ -2693,10 +2880,11 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 | 浮点无效操作错误 | 严格 `add/sub/mul/div/mod` 的输入含 NaN 或产生无效结果（如 0/0、∞−∞、0×∞、∞ mod x）；`abs/neg` 除外 |
 | 转换溢出错误     | 严格 `cast` 的数学结果无法在目标类型中表示，或浮点源为 NaN/无穷且目标为整数 |
 | I/O 错误         | `read` 输入非法/超范围/EOF，标准输入读取失败，或 `write`/`writeln` 写入失败 |
+| memblock 越界    | `memblock_load` / `memblock_store` 的运行时下标不满足 `0 ≤ i < count`；或 `memblock_copy` 的运行时区间不满足 §6.7.2.4 |
 
 对 `shl` / `shr` 运行时指令，必须先按类型 `T` 解码移位计数的数学值并检查是否为负；只有该检查通过后，才检查 `k >= n` 或 `shl` 结果溢出。因此同一条指令不得以 `TC_ERR_INTEGER_OVERFLOW` 代替 `TC_ERR_NEGATIVE_SHIFT_COUNT`。
 
-**运行时错误提交规则**：每条 TC 指令在抽象机器中先读取全部实际需要读取的操作数并完成检查，再提交目标值。算术、移位、转换或函数调用发生运行时错误时，不提交当前指令的目标槽、调用返回值或新 `var` 的已初始化状态；`read` / 输出失败的外部 I/O 边界按 §10 单独规定。首个运行时错误立即终止整个程序，不执行清理代码、后续语句或调用者续点，也不回滚此前已成功完成的赋值与 I/O。
+**运行时错误提交规则**：每条 TC 指令在抽象机器中先读取全部实际需要读取的操作数并完成检查，再提交目标值。算术、移位、转换或函数调用发生运行时错误时，不提交当前指令的目标槽、调用返回值或新 `var` 的已初始化状态；`memblock_store` / `memblock_copy` 在下标或区间检查失败时不修改目标块的任何元素；`read` / 输出失败的外部 I/O 边界按 §10 单独规定。首个运行时错误立即终止整个程序，不执行清理代码、后续语句或调用者续点，也不回滚此前已成功完成的赋值与 I/O。
 
 ### 11.4 编译警告
 
@@ -2704,7 +2892,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 ### 11.5 标准错误码对照表
 
-下列两表是 0.0.34 完整、权威的标准错误码对照，共 68 项：67 个语言错误码和实现资源失败码 `TC_ERR_OUT_OF_MEMORY`。语言错误码、打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
+下列各表是 0.0.34 完整、权威的标准错误码对照，共 78 项：77 个语言错误码和实现资源失败码 `TC_ERR_OUT_OF_MEMORY`。语言错误码、打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。
 
 **实现专用错误码说明**
 
@@ -2712,12 +2900,12 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 | 错误码                             | 打印名                       | 诊断类别                      | 阶段        | 说明                                                         |
 | ---------------------------------- | ---------------------------- | ----------------------------- | ----------- | ------------------------------------------------------------ |
-| `TC_ERR_SYNTAX`                    | `SyntaxError`                | 词法错误、语法错误            | 静态        | 非法 Token 或不符合附录 A 且没有其他语法专用错误码；不含文件打开失败 |
+| `TC_ERR_SYNTAX`                    | `SyntaxError`                | 词法错误、语法错误            | 静态        | 非法 Token 或不符合附录 A 且没有其他语法专用错误码（含 `write`/`writeln`/`read` 以 `memblock` 为显式类型，§10）；不含文件打开失败 |
 | `TC_ERR_UNDEFINED_VARIABLE`        | `UndefinedVariable`          | 未定义标识符错误              | 静态        | 命名解析失败：未声明、前向引用、初始化自引用、跨块不可见等；不表示缺 RHS |
 | `TC_ERR_DUPLICATE_DEFINITION`      | `DuplicateDefinition`        | 重复定义错误                  | 静态        | 同一作用域重复 `var`/`let` 同名；亦用于函数内任意层级 `var`/`let` 与当前函数形参同名的参数保护冲突，后者在第 6 阶段定位到内层声明标识符并关联形参声明位置（§8.1.2、§11.1.1） |
 | `TC_ERR_VAR_MISSING_INIT`      | `VarMissingInitializer`  | 变量缺少初始化器          | 静态    | 声明时必须初始化（§5.1 / §11.1）；形态检查，与控制流无关 |
 | `TC_ERR_UNINITIALIZED_VARIABLE` | `UninitializedVariable` | 未初始化变量错误          | 静态    | 声明存在，但当前 CFG 点不满足确定初始化（§9.2）          |
-| `TC_ERR_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的非比较运算、变量或常量定义、赋值、转换发生类型不一致，以及 `write` / `writeln` 的标识符操作数或 `read` 目标 `var` 的声明类型与显式 `type` 不一致；比较标识符操作数与显式 `T` 不一致专用 `TC_ERR_COMPARISON_TYPE_MISMATCH`；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合使用 `TC_ERR_SYNTAX` |
+| `TC_ERR_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的非比较运算、变量或常量定义、赋值、转换发生类型不一致，以及 `write` / `writeln` 的标识符操作数或 `read` 目标 `var` 的声明类型与显式 `scalar_type` 不一致；比较标识符操作数与显式 `T` 不一致专用 `TC_ERR_COMPARISON_TYPE_MISMATCH`；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合（含 I/O 使用 `memblock`）使用 `TC_ERR_SYNTAX` |
 | `TC_ERR_LITERAL_OUT_OF_RANGE`      | `LiteralOutOfRange`          | 字面量范围错误                | 静态（第 2/6/7/8 阶段） | 第 2 阶段：整数绝对值超过 §2.3.5 上限，或有限浮点字面量按后缀源类型舍入为零/无穷；第 6/7/8 阶段：已形成的字面量超出对应普通上下文、形参或返回类型范围 |
 | `TC_ERR_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态（第 6/7/8 阶段） | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀源类型与普通上下文、形参或返回类型不一致；字面量 Token 自身的形成与范围检查属于第 2 阶段，不使用本错误码 |
 | `TC_ERR_KEYWORD`                   | `KeywordError`               | 关键字错误                    | 静态        | 保留关键字出现在必须为标识符的位置；仅当 EBNF 明确接受模式参数且组合非法时使用 `TC_ERR_MODE_MISMATCH`，无对应模式位置时使用 `TC_ERR_SYNTAX` |
@@ -2772,12 +2960,12 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 **0.0.34 函数诊断错误码**
 
-下表固定附录 A 已接受的程序形式所需的 20 个专用语义诊断。不符合 EBNF 的位置实参、复杂实参、`let`/赋值接收调用、直接返回运算或调用，以及 `void` 出现在非返回类型位置等，统一使用第一张表的 `TC_ERR_SYNTAX`。下列标准错误码与打印名属于规范的可观察结果。
+下表固定附录 A 已接受的程序形式所需的 **20** 个函数相关专用语义诊断。不符合 EBNF 的位置实参、复杂实参、`let`/赋值接收调用、直接返回运算或调用，以及 `void` 出现在非返回类型位置等，统一使用第一张表的 `TC_ERR_SYNTAX`。下列标准错误码与打印名属于规范的可观察结果。
 
 | 错误码 | 打印名 | 诊断类别 | 阶段 | 触发条件 |
 | --- | --- | --- | --- | --- |
 | `TC_ERR_DUPLICATE_FUNCTION` | `DuplicateFunction` | 函数重复定义 | 函数签名 | 同一文件存在同名函数 |
-| `TC_ERR_FUNCTION_NAME_CONFLICT` | `FunctionNameConflict` | 函数名冲突 | 函数签名/名称 | 任何值绑定与全局函数同名：包括顶层值作用域直接 `var` / `let`、顶层嵌套块 `var` / `let`、形参与函数体任意层级 `var` / `let`；阶段、主位置与关联位置见 §11.1.1 / §11.1.2 |
+| `TC_ERR_FUNCTION_NAME_CONFLICT` | `FunctionNameConflict` | 函数名冲突 | 函数签名/名称 | 任何值绑定与全局函数同名：包括 `#program` 顶层值作用域直接 `var` / `let`、顶层嵌套块 `var` / `let`、`#lib` 的 `static let` / `static var`、形参与函数体任意层级 `var` / `let`；阶段、主位置与关联位置见 §11.1.1 / §11.1.2 |
 | `TC_ERR_UNDEFINED_FUNCTION` | `UndefinedFunction` | 未定义函数 | `funcall` | 调用目标不存在 |
 | `TC_ERR_DUPLICATE_PARAMETER` | `DuplicateParameter` | 参数重名 | 函数签名 | 同一签名含重复参数名 |
 | `TC_ERR_MISSING_ARGUMENT` | `MissingArgument` | 实参缺失 | `funcall` | 未为某形参提供实参 |
@@ -2793,12 +2981,36 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_ERR_MISSING_RETURN` | `MissingReturn` | 缺少返回 | CFG | 函数末尾节点可达 |
 | `TC_ERR_UNREACHABLE_STATEMENT` | `UnreachableStatement` | 不可达语句 | CFG | 完成静态条件边裁剪后，该语句节点不能从当前顶层或函数控制流域的唯一入口到达（§9.2.1） |
 | `TC_ERR_PARAMETER_ASSIGNMENT` | `ParameterAssignmentError` | 参数赋值错误 | 名称/类型 | 对参数赋值或将其作为 `read` 目标 |
-| `TC_ERR_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccessError` | 函数越界名称错误 | 名称（第 6b/7/8 阶段） | 函数内普通值查找失败，但同名 `var` / `let` 存在于全文件顶层值作用域直接声明索引；顶层嵌套块局部绑定不触发本错误（§8.4.1） |
+| `TC_ERR_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccessError` | 函数越界名称错误 | 名称（第 6b/7/8 阶段） | `#lib` 函数内普通裸名查找失败，但该名存在于本库顶层成员名索引（`func` / `static let` / `static var`）；须改用 `Self.<名>`。不再用于“同文件顶层值作用域”场景（0.0.34 中 `#program` 不得定义函数，§8.4.1） |
 | `TC_ERR_CROSS_CONTROL_FLOW_JUMP` | `CrossControlFlowJumpError` | 跨控制流域跳转错误 | 名称/控制流解析（第 6 阶段） | 当前函数无同名标签、但另一函数控制流域存在同名标签 |
 | `TC_ERR_RECURSION` | `RecursionError` | 递归错误 | 调用图 | 全局函数调用图存在环 |
-| `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` | `MemblockIndexOutOfRange` | memblock 索引越界 | 静态（常量索引）/ 运行时 | 编译期常量索引 ≥ count 为静态错误；运行时索引 ≥ count 为运行时错误 |
+
+**0.0.34 memblock 诊断错误码**
+
+下表固定 §3.8 / §6.7 所需的 **3** 个 memblock 专用诊断。下列标准错误码与打印名属于规范的可观察结果。
+
+| 错误码 | 打印名 | 诊断类别 | 阶段 | 触发条件 |
+| --- | --- | --- | --- | --- |
+| `TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE` | `MemblockIndexOutOfRange` | memblock 索引越界 | 静态（常量下标/区间）/ 运行时 | `load`/`store` 的下标不满足 `0 ≤ i < count`，或 `memblock_copy` 的区间不满足 §6.7.2.4（含 `length < 0`）；编译期可确定时为静态错误，否则为运行时错误 |
 | `TC_ERR_MEMBLOCK_SIZE_MISMATCH` | `MemblockSizeMismatch` | memblock 大小不匹配 | 静态 | memblock 赋值时左右操作数元素个数不一致 |
 | `TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH` | `MemblockElementCountMismatch` | memblock 逐值初始化数量错误 | 静态 | 逐值初始化 `memblock(T, count, v0, ..., vN)` 的值个数 ≠ count |
+
+**0.0.34 模块诊断错误码**
+
+下表固定 §4 模块系统所需的 10 个专用诊断。模式指令缺失、导入关键字形态错误等不符合 EBNF 的情形仍使用第一张表的 `TC_ERR_SYNTAX`。`#program` 顶层声明/语句分区破坏由附录 A 拒绝，并经第 3 阶段受限恢复映射为 `TC_ERR_MODULE_LAYER`。下列标准错误码与打印名属于规范的可观察结果；优先级与定位见 §11.1.8。
+
+| 错误码 | 打印名 | 诊断类别 | 阶段 | 触发条件 |
+| --- | --- | --- | --- | --- |
+| `TC_ERR_MODULE_LAYER` | `ModuleLayerError` | 模块层序错误 | 模块结构（第 3 阶段受限恢复 / 第 4a 阶段） | 顶层构造跨层交错；`#program` 在进入可执行语句区后再次声明 `var` / `let` / `var_funcall_def`（附录 A 分区 + 第 3 阶段受限恢复）；`#lib` 中 `func` 出现在全部 `static` 成员之前等（§4） |
+| `TC_ERR_MISSING_VISIBILITY` | `MissingVisibilityError` | 缺少可见性修饰符 | 模块结构（第 4a 阶段） | `#lib` 顶层 `func` / `static let` / `static var` 未显式写 `public` 或 `private` |
+| `TC_ERR_PROGRAM_MODE_MISUSE` | `ProgramModeMisuseError` | 程序模式误用 | 模块结构（第 4a 阶段） | `#program` 中出现 `func`、`Self`、`static`、`public` 或 `private` |
+| `TC_ERR_IMPORT_NOT_FOUND` | `ImportNotFound` | 导入目标未找到 | 导入解析（第 4b 阶段） | `import xxx` 无法唯一定位 `xxx.tc` |
+| `TC_ERR_IMPORT_NOT_LIB` | `ImportNotLib` | 导入目标非库模块 | 导入解析（第 4b 阶段） | 导入目标源文件模式为 `#program` 而非 `#lib` |
+| `TC_ERR_IMPORT_AMBIGUOUS` | `ImportAmbiguous` | 导入目标歧义 | 导入解析（第 4b 阶段） | 同一逻辑名对应多个候选模块 |
+| `TC_ERR_DUPLICATE_IMPORT` | `DuplicateImport` | 重复导入 | 导入解析（第 4b 阶段） | 同一模块重复 `import` 同名模块 |
+| `TC_ERR_IMPORT_NAME_CONFLICT` | `ImportNameConflict` | 导入名冲突 | 导入解析（第 4b 阶段） | 导入名与本模块函数、静态成员或顶层值绑定同名 |
+| `TC_ERR_CIRCULAR_IMPORT` | `CircularImport` | 循环导入 | 依赖图（第 4c 阶段） | 模块依赖图存在自环或任意长度间接环（§4.5、§11.1.8） |
+| `TC_ERR_PRIVATE_MEMBER_ACCESS` | `PrivateMemberAccessError` | 私有成员访问 | 名称/`funcall`（第 6/7 阶段） | 导入者通过 `<模块名>.<成员名>` 访问目标库的 `private` 成员；不得降级为未定义（§4.4） |
 
 ---
 
@@ -2807,11 +3019,13 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 ## 12. 资料性示例
 
-本章仅演示规则组合，不新增语义；若示例与正文或附录 A 冲突，以正文和附录 A 为准。
+本章仅演示规则组合，不新增语义；若示例与正文或附录 A 冲突，以正文和附录 A 为准。完整可运行示例均显式写出 `#program` / `#lib` 与可见性修饰符。
 
 ### 12.1 类型、运算模式与转换
 
 ```text
+#program
+
 let PI: float64 = 3.141592653589793
 let ENABLED: bool = true
 
@@ -2835,6 +3049,8 @@ var low: int8 = cast(int8, truncate, wide)           ; -24
 复合计算必须拆为多条语句；`let` 也只允许单层调用。
 
 ```text
+#program
+
 let BASE: int32 = 20
 let LIMIT: int32 = mul(int32, BASE, 5) ; 100
 let READY: bool = ge(int32, LIMIT, 100)
@@ -2845,26 +3061,28 @@ var sum: int32 = add(int32, a, b)
 var result: int32 = mul(int32, sum, 5) ; 35
 
 if READY then                          ; 静态 true，仅保留真边
-	writeln(int32, %d, result)
+    writeln(int32, %d, result)
 end
 ```
 
 ### 12.3 结构化控制流
 
 ```text
+#program
+
 var total: int32 = 0
 var i: int32 = 0
 
 while lt(int32, i, 10) then
-	i = add(int32, i, 1)
-	var even: int32 = mod(int32, i, 2)
-	if eq(int32, even, 0) then
-		continue                      ; 回到条件求值
-	end
-	total = add(int32, total, i)
-	if gt(int32, total, 20) then
-		break                         ; 退出最内层 while
-	end
+    i = add(int32, i, 1)
+    var even: int32 = mod(int32, i, 2)
+    if eq(int32, even, 0) then
+        continue                      ; 回到条件求值
+    end
+    total = add(int32, total, i)
+    if gt(int32, total, 20) then
+        break                         ; 退出最内层 while
+    end
 end
 
 writeln(int32, %d, total)
@@ -2872,39 +3090,50 @@ writeln(int32, %d, total)
 
 ### 12.4 函数与非结构化控制流
 
-`goto`/`label` 只允许位于函数内，且不得位于 `while` 内；标签不增加缩进。
+`goto`/`label` 只允许位于 `#lib` 函数内，且不得位于 `while` 内；标签不增加缩进。`#program` 通过导入调用库函数。
 
 ```text
-func sum_to(limit: int32) int32 then
-	var total: int32 = 0
-	var i: int32 = 1
-	label loop:
-	if gt(int32, i, limit) then
-		goto done
-	end
-	total = add(int32, total, i)
-	i = add(int32, i, 1)
-	goto loop
-	label done:
-	return total
+; ---- sumlib.tc ----
+#lib
+
+public func sum_to(limit: int32) int32 then
+    var total: int32 = 0
+    var i: int32 = 1
+    label loop:
+    if gt(int32, i, limit) then
+        goto done
+    end
+    total = add(int32, total, i)
+    i = add(int32, i, 1)
+    goto loop
+    label done:
+    return total
 end
 
-func show(value: int32) void then
-	writeln(int32, %d, value)
-	return
+public func show(value: int32) void then
+    writeln(int32, %d, value)
+    return
 end
 
-var total: int32 = funcall(sum_to, limit: 10)
-funcall(show, value: total)
+; ---- main.tc ----
+#program
+
+import sumlib
+
+var total: int32 = funcall(sumlib.sum_to, limit: 10)
+funcall(sumlib.show, value: total)
 ```
 
 以下边界分别由专用诊断拒绝：
 
 ```text
+#program
+
 ; label top:                    ; TC_ERR_LABEL_OUTSIDE_FUNCTION
 ; goto top                      ; TC_ERR_GOTO_OUTSIDE_FUNCTION
 
-; func invalid() void then
+; ---- 若写在 #lib 函数内 ----
+; public func invalid() void then
 ;     goto use
 ;     var x: int32 = 1
 ;     label use:
@@ -2916,6 +3145,8 @@ funcall(show, value: total)
 ### 12.5 浮点 I/O 与位模式
 
 ```text
+#program
+
 let PI: float64 = 3.141592653589793
 var radius: float64 = 0.0
 var radius_sq: float64 = 0.0
@@ -2933,12 +3164,31 @@ writeln(float64, %08.3f, 3.14159265)    ; 0003.142
 writeln(uint32, %X, raw)                ; BF800000
 ```
 
+### 12.6 memblock 区间拷贝
+
+整块等长复制用赋值；子区间或不等长块之间的连续搬运用 `memblock_copy`。
+
+```text
+#program
+
+var dst: memblock<int32> = memblock(int32, 8, 0)
+var src: memblock<int32> = memblock(int32, 4, 10, 20, 30, 40)
+
+memblock_copy(int32, dst, 2, src, 0, 4)  ; dst[2..6) ← 10,20,30,40
+
+; 同一块重叠区间：规范保证先快照再写回
+memblock_copy(int32, dst, 0, dst, 2, 4)
+
+var first: int32 = memblock_load(int32, dst, 0)
+writeln(int32, %d, first)
+```
+
 ---
 
 
 ## 附录 A：形式化语法（EBNF）
 
-本附录为 TC 语言的 权威语法定义。语义规则以正文为准。
+本附录为 TC 语言的权威语法定义。语义规则以正文为准。**语法拒绝**与**静态语义拒绝**的判定口径以 §1.4 第 2 款为准：不符合本附录产生式的 Token 序列属语法拒绝；本附录已接受、但正文类型/模式/作用域等规则不成立时属静态语义拒绝。
 
 ### A.1 符号约定
 
@@ -3020,8 +3270,9 @@ int_type   = "int8"   | "uint8"
            | "int64"  | "uint64" ;
 float_type = "float32" | "float64" ;
 bool_type  = "bool" ;
-memblock_type = "memblock" , "<" , ( int_type | float_type | bool_type ) , ">" ;
-type       = int_type | float_type | bool_type | memblock_type ;
+scalar_type = int_type | float_type | bool_type ;
+memblock_type = "memblock" , "<" , scalar_type , ">" ;
+type       = scalar_type | memblock_type ;
 value_type = type ;
 return_type = value_type | "void" ;
 
@@ -3096,7 +3347,9 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 本节作用于 A.2 输出的 Token 序列。`NEWLINE`、`INDENT`、`DEDENT`、`EOF` 是虚拟终结符；`identifier`、`integer_literal` 等名称引用 A.2 的完整 Token 类别。EBNF 中以 `"…"` 标记的关键字或标点表示一个完整 Token，不按子序列匹配。非行首空白与行末注释已由词法层移除。
 
-本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_ERR_SYNTAX`，不得为产生 `TC_ERR_TYPE_MISMATCH` 或 `TC_ERR_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_ERR_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §7.3 和 §11.1.5 在静态语义阶段强制执行。
+本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；`write` / `writeln` / `read` 的显式类型参数只接受 `scalar_type`，因此 `write(memblock<int32>, …)` / `read(memblock<uint8>, …)` 为 `TC_ERR_SYNTAX`；`memblock` 类型构造器与值构造器的元素类型、以及 `memblock_load` / `memblock_store` / `memblock_size` / `memblock_copy` 的显式类型参数只接受 `scalar_type`，因此 `memblock<memblock<T>>` 与 `memblock(memblock<int32>, …)` 等嵌套形态为 `TC_ERR_SYNTAX`；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_ERR_SYNTAX`，不得为产生 `TC_ERR_TYPE_MISMATCH` 或 `TC_ERR_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_ERR_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §7.3 和 §11.1.5 在静态语义阶段强制执行。
+
+`#program` 的顶层分为声明区与可执行语句区（见 `program_decl_region` / `program_exec_region`）。块内 `suite` 仍使用完整 `statement`，因此 `if` / `while` 体内可以声明 `var` / `let`。若 Token 序列在顶层已进入可执行语句区后又出现顶层 `var` / `let` / `var_funcall_def`，则不符合 `program_module`；第 3 阶段在 EBNF 失配后的受限语法诊断恢复中，对此类分区破坏报告 `TC_ERR_MODULE_LAYER`（定位到该声明首 Token），不得仅报笼统 `TC_ERR_SYNTAX`。该恢复不放宽接受集，也不进入第 4 阶段以后的语义分析。
 
 `constant_def` 只规定 `let` 声明的语法外形；`const_rhs` 结果类型与声明 `type` 的闭合由 §5.2.1 在后续静态语义阶段强制，不改变 EBNF 的语法接受集。
 
@@ -3115,7 +3368,41 @@ import_declaration
            = "import" , identifier ;
 
 program_module
-           = top_level_program ;
+           = program_decl_region , program_exec_region ;
+/* #program：第三层声明区（可为空）必须全部位于第四层可执行语句区之前。
+   顶层声明区之后再出现 var / let / var_funcall_def → 受限恢复为
+   TC_ERR_MODULE_LAYER（§11.1.8）。 */
+
+program_decl_region
+           = { program_declaration , NEWLINE , blank_lines } ;
+
+program_declaration
+           = variable_def
+           | constant_def
+           | var_funcall_def ;
+
+program_exec_region
+           = { program_exec_statement , NEWLINE , blank_lines } ;
+
+program_exec_statement
+           = assignment
+           | funcall_assign_stmt
+           | write_stmt
+           | writeln_stmt
+           | read_stmt
+           | break_stmt
+           | continue_stmt
+           | label_def
+           | goto_stmt
+           | void_funcall_stmt
+           | return_stmt
+           | memblock_store_stmt
+           | memblock_copy_stmt
+           | if_stmt
+           | while_stmt ;
+/* 顶层可执行区不含 variable_def / constant_def / var_funcall_def。
+   label_def / goto_stmt / break / continue / return 出现在顶层时，
+   由后续静态语义分别报告专用错误码（§7 / §8）。 */
 
 library_module
            = static_region , function_region ;
@@ -3137,17 +3424,10 @@ blank_lines = { NEWLINE } ;
 function_region
            = { function_definition , NEWLINE , blank_lines } ;
 
-top_level_program
-           = { statement , NEWLINE , blank_lines } ;
-/* #program 模块消费顶层语句区。
-   #lib 模块先消费 static 成员区，再消费函数定义区。
-   #program 不得包含函数定义或 static var / static let 声明定义，
-   static var / static let 只在 #lib 模块中出现。
-   该分层不改变任何 Token 序列的接受结果。 */
-
 statement  = simple_statement
            | if_stmt
            | while_stmt ;
+/* statement 用于 func / if / while 的 suite；可含块内声明。 */
 
 simple_statement
            = variable_def
@@ -3164,8 +3444,9 @@ simple_statement
            | var_funcall_def
            | void_funcall_stmt
            | return_stmt
-           | memblock_store_stmt ;
-/* label_def / goto_stmt 出现在 top_level_program 或其嵌套 suite 中时，
+           | memblock_store_stmt
+           | memblock_copy_stmt ;
+/* label_def / goto_stmt 出现在 program_exec_region 或其嵌套 suite 中时，
    分别报 TC_ERR_LABEL_OUTSIDE_FUNCTION / TC_ERR_GOTO_OUTSIDE_FUNCTION。 */
 
 /* ── 函数定义 ── */
@@ -3352,8 +3633,8 @@ const_cast_expr
 
 const_bitcast_expr
            = "bitcast" , "(" , type , "," , const_operand , ")" ;
-/* bitcast 语法上接受 type 的全部取值，但 §6.6.6 在语义阶段拒绝 bool 类型并报
-   TC_ERR_TYPE_MISMATCH；bitcast 也不接受 void。 */
+/* bitcast 语法上接受 type 的全部取值，但 §6.6.6 按静态语义拒绝 bool
+   （TC_ERR_TYPE_MISMATCH，§1.4）；bitcast 也不接受 void。 */
 
 /* ── 常量操作数 ── */
 
@@ -3453,54 +3734,71 @@ truncate_cast_expr
 
 bitcast_expr
            = "bitcast" , "(" , type , "," , operand , ")" ;
-/* bitcast 语法上接受 type 的全部取值，但 §6.6.6 在语义阶段拒绝 bool 类型并报
-   TC_ERR_TYPE_MISMATCH；bitcast 也不接受 void。 */
+/* bitcast 语法上接受 type 的全部取值，但 §6.6.6 按静态语义拒绝 bool
+   （TC_ERR_TYPE_MISMATCH，§1.4）；bitcast 也不接受 void。 */
 
 /* 所有运算类型/模式组合均受 §6.3.1 权威矩阵约束。
    truncate 仅允许整数窄化；bitcast 要求等位宽且两端非 bool（§6.6）。 */
 
 /* ── memblock 操作 ── */
 
+memblock_name
+           = identifier
+           | qualified_identifier
+           | imported_member_name ;
+/* 名称解析与可见性：局部/顶层绑定用 identifier；本库 static 用 Self.id；
+   导入公开成员用 module.id（§4.3、§4.4、§6.7.2.5）。 */
+
 memblock_load_expr
-           = "memblock_load" , "(" , type , "," , identifier , "," ,
+           = "memblock_load" , "(" , scalar_type , "," , memblock_name , "," ,
              operand , ")" ;
 
 memblock_size_expr
-           = "memblock_size" , "(" , type , "," , identifier , ")" ;
+           = "memblock_size" , "(" , scalar_type , "," , memblock_name , ")" ;
 
 memblock_store_stmt
-           = "memblock_store" , "(" , type , "," , identifier , "," ,
+           = "memblock_store" , "(" , scalar_type , "," , memblock_name , "," ,
              operand , "," , operand , ")" ;
-/* memblock_store 是独立语句，非 RHS。 */
+/* memblock_store 是独立语句，非 RHS。索引操作数须为整数类型（§6.7.2.5）。 */
+
+memblock_copy_stmt
+           = "memblock_copy" , "(" , scalar_type , "," ,
+             memblock_name , "," , operand , "," ,
+             memblock_name , "," , operand , "," ,
+             operand , ")" ;
+/* memblock_copy 是独立语句，非 RHS。将 src[src_index, src_index+length)
+   按元素抽象位串拷入 dst[dst_index, dst_index+length)；区间与重叠语义见 §6.7.2.4。
+   三个整数操作数（dst_index / src_index / length）须为整数类型（§6.7.2.5）。 */
 
 memblock_constructor
-           = "memblock" , "(" , type , "," ,
+           = "memblock" , "(" , scalar_type , "," ,
              ( integer_literal | identifier ) ,
              { "," , operand } , ")" ;
-/* 语法接受三种语义形式：memblock(T, count) 零值填充、
+/* 元素类型仅为 scalar_type，故 memblock(memblock<…>, …) 为 TC_ERR_SYNTAX。
+   语法接受三种语义形式：memblock(T, count) 零值填充、
    memblock(T, count, fill) 指定值填充、
    memblock(T, count, v0, v1, ..., vN) 逐值初始化。
    形式合法性由静态语义决定（§3.8.3）。 */
 
 const_memblock_size_expr
-           = "memblock_size" , "(" , type , "," , identifier , ")" ;
+           = "memblock_size" , "(" , scalar_type , "," , memblock_name , ")" ;
 
 const_memblock_constructor
-           = "memblock" , "(" , type , "," ,
+           = "memblock" , "(" , scalar_type , "," ,
              ( integer_literal | identifier ) ,
              { "," , const_operand } , ")" ;
 
-/* ── I/O 语句 ── */
+/* ── I/O 语句（显式类型仅 scalar_type；禁止 memblock，§10） ── */
 
-write_stmt = "write" , "(" , type , "," , operand , ")"
-           | "write" , "(" , type , "," , format_specifier , "," ,
+write_stmt = "write" , "(" , scalar_type , "," , operand , ")"
+           | "write" , "(" , scalar_type , "," , format_specifier , "," ,
              operand , ")" ;
 
-writeln_stmt = "writeln" , "(" , type , "," , operand , ")"
-             | "writeln" , "(" , type , "," , format_specifier , "," ,
+writeln_stmt = "writeln" , "(" , scalar_type , "," , operand , ")"
+             | "writeln" , "(" , scalar_type , "," , format_specifier , "," ,
                operand , ")" ;
 
-read_stmt  = "read" , "(" , type , "," ,
+read_stmt  = "read" , "(" , scalar_type , "," ,
              ( identifier | qualified_identifier | imported_member_name ) , ")" ;
 ```
 
@@ -3522,7 +3820,7 @@ read_stmt  = "read" , "(" , type , "," ,
 | 64 位无符号 | `uint64`  | `uint64_t`                     |
 | 单精度浮点  | `float32` | `float`                        |
 | 双精度浮点  | `float64` | `double`                       |
-| 布尔        | `bool`    | `_Bool`                        |
+| 布尔        | `bool`    | 固定 1 字节的 `_Bool` 语义载体（规范字节 `0x00`/`0x01`；不等于“宿主 `_Bool` 对象大小任意”） |
 | 无返回值    | `void`    | `void`（仅函数返回类型）       |
 
 | 运算              | TC                                    | C99 等价                                       |
@@ -3644,12 +3942,14 @@ C99 不要求 `float` 和 `double` 采用 IEEE 754 binary32 / binary64，也不�
 
 ### C.3 布尔值
 
-C99 的对应类型为 `_Bool`；包含 `<stdbool.h>` 后，宏 `bool` 展开为 `_Bool`，`false` 和 `true` 分别展开为整数常量 `0` 和 `1`。该对应只保证逻辑值语义，不保证 C99 `_Bool` 与 TC `bool` 具有相同对象大小或可观察位模式。
+TC `bool` 在抽象机器中**固定为 1 字节（8 位）**，规范位模式为 `false` = `0x00`、`true` = `0x01`（§3.4）。该宽度用于 `memblock<bool>` 布局与按值复制；与 C99 `_Bool` 的宿主对象大小无关——AOT 若用 `_Bool` 作载体，必须在进出 TC 抽象边界时保证可观察字节仅为 `0x00`/`0x01`，且 `memblock` 中按 1 字节元素紧密排列。
 
-| TC 值 | C99 表达 |
-| ----- | -------- |
-| `false` | `false`（或 `_Bool` 值 `0`） |
-| `true` | `true`（或 `_Bool` 值 `1`） |
+C99 包含 `<stdbool.h>` 后，宏 `bool` 展开为 `_Bool`，`false` / `true` 展开为整数常量 `0` / `1`。逻辑值对应如下；**对象大小与可观察布局以 TC 的 1 字节规则为准**，不得把宿主 `_Bool` 可能大于 1 字节或填充布局泄漏为 TC `memblock<bool>` 语义。
+
+| TC 值 | TC 抽象字节 | C99 逻辑表达 |
+| ----- | ----------- | ------------ |
+| `false` | `0x00` | `false`（或 `_Bool` 值 `0`） |
+| `true` | `0x01` | `true`（或 `_Bool` 值 `1`） |
 
 ---
 
