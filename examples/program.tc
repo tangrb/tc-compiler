@@ -1,0 +1,186 @@
+#program
+
+import math_utils
+import math_const
+
+; =============================================================================
+; 声明区  — 所有 var / let 必须在第一条可执行语句之前
+; 按源序依次初始化，后面的声明可引用已初始化的前面声明
+; =============================================================================
+
+let SIZE: usize = 8
+let ZERO_F: float64 = 0.0
+
+; -- 简单初始化 --
+var counter: int32 = 0
+var radius: float64 = 5.0
+var flag: bool = true
+var scores: memblock<int32, 8> = memblock(int32, SIZE)
+
+var heat: int32 = 75
+var deg: float64 = 90.0
+var score: int32 = 95
+var wide: int32 = 255
+var float_val: float64 = 3.14
+
+; -- funcall 初始化（依赖已声明的 let / var） --
+var n_val: int32 = 6
+var sq: int32 = funcall(math_utils.calc_square, n: n_val)
+var rad_val: float64 = funcall(math_const.to_radians, deg: 180.0)
+var seq: memblock<int32, 8> = funcall(math_utils.fill_sequence, start: 10)
+var origin: math_utils.Point2D = math_utils.Point2D(x: 0.0, y: 0.0)
+var v: math_utils.Vec3 = math_utils.Vec3(dx: 3.0, dy: 4.0, dz: 0.0)
+var v_len_sq: float64 = funcall(math_utils.vec3_length_sq, v: v)
+var rad90: float64 = funcall(math_const.to_radians, deg: deg)
+var deg_back: float64 = funcall(math_const.to_degrees, rad: rad90)
+
+; -- 指针初始化 --
+var addr: ptr<int32> = ptr_address(int32, counter)
+var a_ptr: ptr<int32> = ptr_address(int32, counter)
+var null_p: ptr<int32> = ptr_null
+
+; -- 占位初值，后续在可执行区通过 funcall / 运算覆写 --
+var is_even: bool = false
+var total: int32 = 0
+var first_val: int32 = 0
+var copied_val: int32 = 0
+var has_target: bool = false
+var loaded: int32 = 0
+var sum_result: int32 = 0
+var ptrs_equal: bool = ptr_eq(int32, a_ptr, a_ptr)
+var ptrs_differ: bool = ptr_ne(int32, a_ptr, null_p)
+var i: int32 = 0
+var short_circuit: bool = false
+var ieee_div: float64 = 0.0
+var nan_check: bool = false
+var narrow: uint8 = 0
+var int_val: int32 = 0
+var mb_len: usize = 0
+var len64: uint64 = 0
+
+; =============================================================================
+; 可执行语句区  — 赋值、控制流、I/O（不可声明新的顶层 var）
+; =============================================================================
+
+; --- 1. 基本 I/O ---
+writeln(int32, counter)
+writeln(float64, radius)
+
+; --- 2. 函数调用结果覆写现有 var ---
+counter = funcall(math_utils.factorial_loop, n: 3)
+writeln(int32, counter)
+
+writeln(int32, sq)
+writeln(float64, rad_val)
+
+is_even = funcall(math_utils.is_even, n: sq)
+if is_even then
+    writeln(bool, true)
+else
+    writeln(bool, false)
+end
+
+; --- 3. 多条件嵌套 ---
+if gt(int32, heat, 100) then
+    var hot: int32 = 999
+    writeln(int32, hot)
+else
+    if gt(int32, heat, 50) then
+        var warm: int32 = 500
+        writeln(int32, warm)
+    else
+        var cold: int32 = 100
+        writeln(int32, cold)
+    end
+end
+
+; --- 4. 结构体字段修改 ---
+origin.y = 10.0
+writeln(float64, origin.x)
+writeln(float64, origin.y)
+
+writeln(float64, v_len_sq)
+
+; --- 5. memblock：函数返回的序列求和 ---
+total = funcall(math_utils.sum_memblock, data: seq)
+writeln(int32, total)
+
+; --- 6. memblock：逐元素读写 ---
+memblock_store(int32, seq, 0, 42)
+memblock_store(int32, seq, 1, 99)
+first_val = memblock_load(int32, seq, 0)
+writeln(int32, first_val)
+
+; --- 7. memblock：区间拷贝 ---
+memblock_copy(int32, scores, 0, seq, 0, 4)
+copied_val = memblock_load(int32, scores, 1)
+writeln(int32, copied_val)
+
+; --- 8. memblock：搜索 ---
+has_target = funcall(math_utils.search_in_block, data: scores, target: 99)
+writeln(bool, has_target)
+
+; --- 9. 指针：解引用读写 ---
+ptr_store(int32, addr, 77)
+loaded = ptr_load(int32, addr)
+writeln(int32, loaded)
+
+; --- 10. 指针：通过指针调用 accumulate ---
+funcall(math_utils.accumulate, addr: addr, delta: 23)
+sum_result = ptr_load(int32, addr)
+writeln(int32, sum_result)
+
+; --- 11. 指针比较 ---
+writeln(bool, ptrs_equal)
+writeln(bool, ptrs_differ)
+
+; --- 12. while 循环 + break + continue ---
+; 输出：1, 2, 4, 5（跳过 3，在 6 处 break）
+i = 0
+while lt(int32, i, SIZE) then
+    i = add(int32, i, 1)
+    var is3: bool = eq(int32, i, 3)
+    if is3 then
+        continue
+    end
+    var is6: bool = eq(int32, i, 6)
+    if is6 then
+        break
+    end
+    writeln(int32, i)
+end
+
+; --- 13. 逻辑短路 ---
+var left_false: bool = false
+var right_flag: bool = true
+short_circuit = and(bool, left_false, right_flag)
+writeln(bool, short_circuit)
+
+; --- 14. 导入库使用 ---
+writeln(float64, rad90)
+writeln(float64, deg_back)
+
+; --- 15. 浮点 ieee 模式（除零不报错） ---
+ieee_div = div(float64, ieee, 1.0, 0.0)
+writeln(float64, ieee_div)
+
+; 检测 NaN：ne(nan, nan) 恒为 true
+nan_check = ne(float64, ieee_div, ieee_div)
+writeln(bool, nan_check)
+
+; --- 16. 格式化输出 ---
+write(int32, %d, counter)
+write(int32, %04d, score)
+writeln(int32, score)
+
+; --- 17. cast 类型转换 ---
+narrow = cast(uint8, wide)
+writeln(uint8, narrow)
+
+int_val = cast(int32, float_val)
+writeln(int32, int_val)
+
+; --- 18. memblock_size 读取长度头部 ---
+mb_len = memblock_size(seq)
+len64 = cast(uint64, mb_len)
+writeln(uint64, len64)

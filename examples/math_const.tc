@@ -1,0 +1,15 @@
+#lib
+
+public static let E: float64 = 2.71828182845905
+public static let GOLDEN_RATIO: float64 = 1.61803398874989
+public static let DEG_TO_RAD: float64 = 0.01745329251994
+
+public func to_radians(deg: float64) float64 then
+    var result: float64 = mul(float64, deg, DEG_TO_RAD)
+    return result
+end
+
+public func to_degrees(rad: float64) float64 then
+    var result: float64 = div(float64, rad, DEG_TO_RAD)
+    return result
+end

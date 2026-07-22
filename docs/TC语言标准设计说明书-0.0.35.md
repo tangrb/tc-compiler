@@ -251,7 +251,7 @@ import                       ; 库模块导入
 static  Self                  ; 库模块静态成员与当前模块限定符
 public  private               ; 模块成员可见性修饰符
 memblock  memblock_load  memblock_store  memblock_copy  ; 内存块类型与操作
-ptr  ptr_null  ptr_load  ptr_store  ptr_address  ptr_size  ptr_add  ptr_sub  ptr_diff  ptr_lt  ptr_le  ptr_gt  ptr_ge  ; 指针类型与操作
+ptr  ptr_null  ptr_load  ptr_store  ptr_address  ptr_size  ptr_add  ptr_sub  ptr_diff  ptr_eq  ptr_ne  ptr_lt  ptr_le  ptr_gt  ptr_ge  ; 指针类型与操作
 struct                             ; 结构体类型定义（§3.9）
 inf  nan
 ```
@@ -396,7 +396,7 @@ TC 0.0.35 支持 **整数类型**、**浮点类型**、**布尔类型**、**指�
 - 宽度恒为目标平台指针宽度（与 `isize`/`usize` 相同，32 或 64 位；§3.10.5）；宽度与 `T` 无关
 - `ptr<T>` 的 `T` 不能是 `isize` / `usize`：`isize`/`usize` 宽度等于指针自身宽度，`ptr<isize>` / `ptr<usize>` 不合法
 - `ptr_null` 表示空指针，与任意 `ptr<T>` 兼容
-- 仅支持相等/不等比较（`eq`/`neq`，同型 `ptr<T>`）以及专用序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`，同型 `ptr<T>`，§3.10.7）；不参与通用整数/浮点比较运算
+- 仅支持专用等值比较（`ptr_eq`/`ptr_ne`，同型 `ptr<T>`）以及专用序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`，同型 `ptr<T>`，§3.10.7）；不参与通用整数/浮点比较运算
 - 支持专用指针算术 `ptr_add(T, p, offset)` / `ptr_sub(T, p, offset)` / `ptr_diff(T, p1, p2)`（§3.10.8）；不参与通用算术、位运算、逻辑或标量 I/O
 - 支持 `ptr_address(T, ident)` 从运行时绑定取地址（§3.10.3）；仅可用于 `var` / `static var` / 形参，不可用于 `let`
 - 支持 `ptr_load`（按值读取所指对象）和 `ptr_store`（覆盖写入所指对象）；`ptr_load`/`ptr_store` 空指针时报告运行时错误
@@ -771,19 +771,19 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 #### 3.10.7 比较运算
 
-`ptr<T>` 支持等值比较与序关系比较：
+`ptr<T>` 支持等值比较与序关系比较，**全部使用专用 `ptr_*` 指令**，不借用通用 `eq`/`neq` 等比较运算。
 
 **等值比较（显式类型参数）**
 
 | 运算 | 操作数类型 | 结果类型 | 语义 |
 | ---- | ---------- | -------- | ---- |
-| `eq(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值相等（指向同一对象或同为 `ptr_null`）；`ptr_null eq ptr_null` 为 `true`；非空指针与 `ptr_null` 比较为 `false` |
-| `neq(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值不等 |
+| `ptr_eq(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值相等（指向同一对象或同为 `ptr_null`）；`ptr_eq(T, ptr_null, ptr_null)` 为 `true`；非空指针与 `ptr_null` 比较为 `false` |
+| `ptr_ne(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值不等 |
 
 等值比较的约束：
 
 - 显式类型参数 `T` 须为完整类型（排除 `isize` 与 `usize`），决定指针的所指类型；两个操作数必须同为 `ptr<T>` 类型。
-- 等值比较接受带类型参数的 `eq(T, ptr1, ptr2)` / `neq(T, ptr1, ptr2)` 语法，不接受序关系比较的 `ptr_lt` 等运算符。
+- 通用 `eq`/`neq` 不接受 `ptr<T>` 类型操作数。
 
 **序关系比较（显式类型参数）**
 
@@ -800,7 +800,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 - 两个操作数必须同为 `ptr<T>` 类型（`T` 由显式类型参数决定），且必须均为非 `ptr_null` 的指针值；`ptr_null` 参与序关系比较报告运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
 - 两个指针必须指向同一对象（即来自同一个 `ptr_address` 调用链）的同一连续存储区域内的元素或字段；跨不同对象或不同函数栈帧的指针参与序关系比较，行为为实现定义。
-- 序关系比较不接受 `eq`/`neq` 的运算符；`eq`/`neq` 不接受 `ptr_lt` 等的运算符。所有指针比较操作均带显式类型参数 `T`。
+- 所有指针比较操作（等值与序关系）均使用专用 `ptr_eq`/`ptr_ne`/`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 指令，均带显式类型参数 `T`。通用 `eq`/`neq`/`lt`/`le`/`gt`/`ge` 不接受 `ptr<T>` 类型操作数。
 - 不支持跨 `ptr<T>` 与 `ptr<U>`（`T ≠ U`）的任何比较。
 
 #### 3.10.8 指针算术
@@ -847,7 +847,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | `bitcast` | `bitcast(T, ptr_val)` 支持 `ptr<U>` ↔ `usize`/同宽整数的等宽位重解释，以及 `ptr<U>` ↔ `ptr<T>` 的等宽指针位重解释（等宽约束与 `bitcast` 通用规则一致，见 §6.6.6）；所得到的位模式再经目标类型解释后的行为见 §3.10.7（指针比较仅在同型 `ptr<T>` 上有定义） |
 | 算术 / 移位 / 逻辑 / 按位 | 不接受 `ptr<T>` 类型操作数；指针算术仅可通过专用的 `ptr_add` / `ptr_sub` / `ptr_diff` 进行（§3.10.8） |
 | 指针算术 | `ptr_add(T, p, offset)` / `ptr_sub(T, p, offset)`（步长为 `sizeof_bits(T)` 位，偏移类型 `isize`）；`ptr_diff(T, p1, p2)`（`isize` 结果，元素个数差）。不检查越界；越界指针解引用行为为实现定义 |
-| 指针比较 | 等值比较 `eq(T, ptr1, ptr2)` / `neq(T, ptr1, ptr2)` 与序关系比较 `ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 均带显式类型参数 `T`（§3.10.7）。序关系比较操作数必须为非 `ptr_null`、同 `ptr<T>` |
+| 指针比较 | 等值比较 `ptr_eq(T, ptr1, ptr2)` / `ptr_ne(T, ptr1, ptr2)` 与序关系比较 `ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 均带显式类型参数 `T`（§3.10.7）。序关系比较操作数必须为非 `ptr_null`、同 `ptr<T>` |
 | `memblock` | `memblock` 元素类型不得为 `ptr<T>`；`memblock<T, count>` 的元素类型仅限 `scalar_type`（§3.8.1） |
 | 结构体字段 | 结构体字段类型可为 `ptr<T>`（`T` 为非 `isize`/`usize` 的任意完整类型）；含 `ptr<T>` 字段的结构体整块赋值复制指针值，产生所指对象别名 |
 | 模块 | `ptr<T>` 作为类型可直接使用，无需模块级定义；`ptr` 是关键字，不可用作标识符 |
@@ -1080,8 +1080,8 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | `bitwise_expr`       | 第一参数类型       | 按位 `and`/`or`/`xor`（仅整数） |
 | `unary_bitwise_expr` | 第一参数类型       | 按位 `not`（仅整数）            |
 | `shift_expr`         | 第一参数类型       | `shl`/`shr` 移位运算（仅整数）  |
-| `compare_expr`       | `bool`             | 六种比较运算（整数+浮点，含显式类型参数）；指针等值比较见 `ptr_equal_compare_expr` |
-| `ptr_equal_compare_expr` | `bool`         | `eq`/`neq` 指针等值比较，带显式类型参数 `T`：`eq(T, ptr1, ptr2)`（§3.10.7） |
+| `compare_expr`       | `bool`             | 六种比较运算（整数+浮点，含显式类型参数）；不接受 `ptr<T>` 类型 |
+| `ptr_eq_compare_expr` | `bool`         | `ptr_eq`/`ptr_ne` 指针等值比较，带显式类型参数 `T`：`ptr_eq(T, ptr1, ptr2)`（§3.10.7） |
 | `binary_logic_expr`  | `bool`             | `and`/`or`/`xor` 逻辑运算（布尔） |
 | `unary_logic_expr`   | `bool`             | `not` 逻辑运算（布尔）          |
 | `cast_expr`          | 第一参数类型       | 类型转换                        |
@@ -1153,7 +1153,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 组合不在上表时报告 `TC_CE_TYPE_MISMATCH` 或 `TC_CE_MODE_MISMATCH`。附录 A 已排除的形态属语法拒绝（`TC_CE_SYNTAX`）；`let` 的 `const_shift_expr` 接受候选 `mode`（不合法组合报 `TC_CE_MODE_MISMATCH`），运行时 `shift_expr` 不接受 `mode`。浮点 `wrap` 和无符号冗余 `wrap` 不支持。
 
-**指针类型排除**：指针类型（`ptr<T>`）不参与任何通用标量算术运算（`add`/`sub`/`mul`/`div`/`mod`/`abs`/`neg`）、按位运算（`and`/`or`/`xor`/`not`）、移位运算（`shl`/`shr`）、通用比较运算（`eq`/`ne`/`lt`/`le`/`gt`/`ge`）或逻辑运算（`and`/`or`/`xor`/`not` 的重载布尔形式）。指针算术仅可通过专用的 `ptr_add` / `ptr_sub` / `ptr_diff` 指令进行（§3.10.8）；指针比较仅可通过带显式类型参数的 `eq(T, ptr1, ptr2)` / `neq(T, ptr1, ptr2)` 和专用序关系比较指令 `ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 进行（§3.10.7）。`ptr<T>` 值用于上述标量运算时报 `TC_CE_TYPE_MISMATCH`。
+**指针类型排除**：指针类型（`ptr<T>`）不参与任何通用标量算术运算（`add`/`sub`/`mul`/`div`/`mod`/`abs`/`neg`）、按位运算（`and`/`or`/`xor`/`not`）、移位运算（`shl`/`shr`）、通用比较运算（`eq`/`ne`/`lt`/`le`/`gt`/`ge`）或逻辑运算（`and`/`or`/`xor`/`not` 的重载布尔形式）。指针算术仅可通过专用的 `ptr_add` / `ptr_sub` / `ptr_diff` 指令进行（§3.10.8）；指针比较仅可通过专用等值比较指令 `ptr_eq` / `ptr_ne` 和专用序关系比较指令 `ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 进行（§3.10.7）。`ptr<T>` 值用于上述标量运算时报 `TC_CE_TYPE_MISMATCH`。
 
 #### 6.3.2 严格模式（默认）
 
@@ -1375,7 +1375,7 @@ r = a - q * b
 
 `compare_expr` 仅接受整数或浮点类型参数，无模式位置。`eq(bool, ...)` 或带 `ieee` 的形态属语法拒绝（`TC_CE_SYNTAX`）。标识符操作数类型不等于 `T` 时报 `TC_CE_COMPARISON_TYPE_MISMATCH`（即使两操作数同类型也不降级）。字面量不兼容时使用 `TC_CE_LITERAL_TYPE` / `TC_CE_LITERAL_OUT_OF_RANGE`。
 
-此外，`ptr<T>` 类型支持等值比较：`eq(T, ptr1, ptr2)` 与 `neq(T, ptr1, ptr2)`，两个操作数同为 `ptr<T>`，比较指针值相等性（指向同一对象或同为 `ptr_null`）。`ptr_null eq ptr_null` 为 `true`；非空指针与 `ptr_null` 比较为 `false`。
+此外，`ptr<T>` 类型支持专用等值比较：`ptr_eq(T, ptr1, ptr2)` 与 `ptr_ne(T, ptr1, ptr2)`，两个操作数同为 `ptr<T>`，比较指针值相等性（指向同一对象或同为 `ptr_null`）。`ptr_null` 之间的等值比较结果为 `true`；非空指针与 `ptr_null` 比较为 `false`。通用 `eq`/`neq` 不接受 `ptr<T>` 类型操作数。
 
 指针序关系比较（`<`/`>`/`<=`/`>=`）通过专用指令 `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 进行，需显式类型参数 `T`，且操作数必须为非 `ptr_null` 的同型 `ptr<T>`（详见 §3.10.7、§6.8.8）。
 
@@ -1749,7 +1749,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 - 所有指针指令的第一个参数均为显式类型参数 `T`（所指类型），`T` 须为非 `isize`/`usize` 的完整类型，且必须与指针操作数的声明类型一致。该参数统一决定指令的所指类型、步长或返回类型，不从操作数推断
 - `let` 类型的 `ptr<T>` 指针不可作为 `ptr_store` 的目标（只读），与标量 `let` 相同，报 `TC_CE_CONSTANT_ASSIGNMENT`
 - `ptr_address` 仅可用于 `var` / `static var` / 形参绑定；对 `let` 使用报 `TC_CE_CONSTANT_ASSIGNMENT`。`ptr_address` 的显式类型参数 `T` 不能是 `isize` / `usize`
-- `ptr_add` / `ptr_sub` / `ptr_diff` / `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` / `ptr_load` / `ptr_store` / `ptr_size` 以及 `eq`/`neq` 指针比较的显式类型参数 `T` 不能是 `isize` / `usize`
+- `ptr_add` / `ptr_sub` / `ptr_diff` / `ptr_eq` / `ptr_ne` / `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` / `ptr_load` / `ptr_store` / `ptr_size` 的显式类型参数 `T` 不能是 `isize` / `usize`
 - `ptr_load` / `ptr_store` 不支持嵌套解引用（如 `ptr_load(int32, ptr_load(ptr_int32, ptr))` 不合法）；须分步：先 `ptr_load` 得到内层 `ptr<T>`，再对其做 `ptr_load`
 - `write` / `writeln` / `read` 不接受 `ptr<T>` 类型（§10、附录 A）
 - `ptr_size` 的显式类型参数 `T` 必须与操作数的声明类型一致；`ptr_size` 是合法的编译期常量（`const_operand`），可在 `let` 中使用，`ptr_size(T, ptr_null)` 同样合法
@@ -2738,7 +2738,7 @@ rhs        = identifier
            | unary_bitwise_expr
            | shift_expr
            | compare_expr
-           | ptr_equal_compare_expr
+           | ptr_eq_compare_expr
            | ptr_compare_expr
            | binary_logic_expr
            | unary_logic_expr
@@ -2911,15 +2911,15 @@ compare_expr
            = compare_op , "(" , ( int_type | float_type ) , "," ,
              operand , "," , operand , ")" ;
 /* 整数或浮点比较，接受 compare_op 的全部六种运算符（§6.5.1）。
-   指针的等值比较和序关系比较由单独的 ptr_equal_compare_expr
+   指针的等值比较和序关系比较由单独的 ptr_eq_compare_expr
    和 ptr_compare_expr 产生式处理（§3.10.7）。 */
 
-ptr_equal_compare_expr
-           = ( "eq" | "neq" ) , "(" , type , "," , operand , "," , operand , ")" ;
-/* 指针等值比较，带显式类型参数 T（§3.10.7）。
+ptr_eq_compare_expr
+           = ( "ptr_eq" | "ptr_ne" ) , "(" , type , "," , operand , "," , operand , ")" ;
+/* 指针等值比较，使用专用 ptr_eq / ptr_ne 指令，带显式类型参数 T（§3.10.7）。
    T 须为非 isize/usize 的完整类型；两个 operand 须同为 ptr<T>。
-   ptr_null eq ptr_null 为 true。
-   若 operand 不为 ptr<T> 类型，由静态语义报告 TC_CE_TYPE_MISMATCH。 */
+   ptr_null 等值比较结果为 true。
+   通用 eq / neq 不接受 ptr<T> 类型操作数（TC_CE_TYPE_MISMATCH）。 */
 
 /* ── 双目逻辑表达式（布尔） ── */
 

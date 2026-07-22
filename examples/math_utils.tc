@@ -1,0 +1,106 @@
+#lib
+
+import math_const
+
+public struct Point2D then
+    let x: float64
+    var y: float64
+end
+
+public struct Vec3 then
+    var dx: float64
+    var dy: float64
+    var dz: float64
+end
+
+public static let PI: float64 = 3.14159265358979
+public static let HALF_PI: float64 = div(float64, PI, 2.0)
+public static let TWO_PI: float64 = mul(float64, PI, 2.0)
+
+private static let MAX_COUNT: usize = 8
+private static var call_counter: int32 = 0
+
+public func calc_square(n: int32) int32 then
+    var result: int32 = mul(int32, n, n)
+    return result
+end
+
+public func is_even(n: int32) bool then
+    var zero: int32 = 0
+    var two: int32 = 2
+    var rem: int32 = mod(int32, n, two)
+    var chk: bool = eq(int32, rem, zero)
+    return chk
+end
+
+public func is_positive(n: float64) bool then
+    var z: float64 = 0.0
+    var chk: bool = gt(float64, n, z)
+    return chk
+end
+
+public func factorial_loop(n: int32) int32 then
+    var one: int32 = 1
+    var zero: int32 = 0
+    var result: int32 = one
+    var i: int32 = n
+    while gt(int32, i, zero) then
+        result = mul(int32, result, i)
+        i = sub(int32, i, one)
+    end
+    return result
+end
+
+public func accumulate(addr: ptr<int32>, delta: int32) void then
+    var cur: int32 = ptr_load(int32, addr)
+    var sum: int32 = add(int32, cur, delta)
+    ptr_store(int32, addr, sum)
+    return
+end
+
+public func vec3_length_sq(v: Vec3) float64 then
+    var dx2: float64 = mul(float64, v.dx, v.dx)
+    var dy2: float64 = mul(float64, v.dy, v.dy)
+    var dz2: float64 = mul(float64, v.dz, v.dz)
+    var s2: float64 = add(float64, dx2, dy2)
+    var s3: float64 = add(float64, s2, dz2)
+    return s3
+end
+
+public func fill_sequence(start: int32) memblock<int32, 8> then
+    var result: memblock<int32, 8> = memblock(int32, Self.MAX_COUNT)
+    var i: int32 = 0
+    var val: int32 = start
+    while lt(int32, i, 8) then
+        memblock_store(int32, result, i, val)
+        i = add(int32, i, 1)
+        val = add(int32, val, 1)
+    end
+    return result
+end
+
+public func sum_memblock(data: memblock<int32, 8>) int32 then
+    var total: int32 = 0
+    var i: int32 = 0
+    while lt(int32, i, 8) then
+        var elem: int32 = memblock_load(int32, data, i)
+        total = add(int32, total, elem)
+        i = add(int32, i, 1)
+    end
+    return total
+end
+
+public func search_in_block(data: memblock<int32, 8>, target: int32) bool then
+    var found: bool = false
+    var i: int32 = 0
+    while lt(int32, i, 8) then
+        var elem: int32 = memblock_load(int32, data, i)
+        var match: bool = eq(int32, elem, target)
+        if match then
+            found = true
+            break
+        end
+        i = add(int32, i, 1)
+    end
+    return found
+end
