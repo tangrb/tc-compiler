@@ -28,7 +28,7 @@ TC 是面向教学、AI 自动化编程与人类阅读的指令式编程语言�
 | 类别 | 范围 | 详见 |
 | ---- | ---- | ---- |
 | 类型 | 固定宽度整数 `int8`～`uint64`；平台字长整数 `isize` / `usize`；`float32` / `float64`；`bool`；`ptr<T>`（指针类型）；`memblock<T, count>`（带长度头部）；`struct`；`void` 仅作函数返回类型 | §3 |
-| 运算 | 算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与长度查询（`memblock_size`）；`ptr_load` / `ptr_store` 指针读写；`ptr_address` 取地址；`ptr_add` / `ptr_sub` / `ptr_diff` 指针算术；`ptr_size` 所指类型宽度查询；`ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 指针序关系比较 | §6 |
+| 运算 | 算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与 `.count` 长度访问；`ptr_load` / `ptr_store` 指针读写；`ptr_address` 取地址；`ptr_add` / `ptr_sub` / `ptr_diff` 指针算术；`ptr_size` 所指类型宽度查询；`ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 指针序关系比较；`memcopy_unsafe` 原始内存块拷贝 | §6 |
 | 模式 | 默认 strict；有符号整数算术与 `shl` 可按规则使用 `wrap`；浮点算术可按规则使用 `ieee` | §6.3 |
 | 控制流 | 缩进敏感的 `if` / `while`（以 `end` 结束）；`break` / `continue`；函数内受限 `goto` / `label`（`while` 内禁止） | §7 |
 | 函数 | `#lib` 中 `func`；命名且有序的 `funcall`；显式 `return`；按值只读形参；调用图无环 | §8 |
@@ -61,6 +61,13 @@ TC 是面向教学、AI 自动化编程与人类阅读的指令式编程语言�
 **可观察行为**：包括是否通过静态检查、首个规范诊断及其错误码、按源序成功提交到 TC 抽象标准输出的字节、正常结束或首个运行时错误及错误码。槽位地址、帧布局、宿主字节序等宿主实现细节不是可观察行为。
 
 **零未定义行为**：除实现资源失败和 §10.2 的 I/O 物理行为外，不存在实现自行选择的未定义行为。规范未给出的形态不合法。相同输入下 VM 与 AOT 必须得到相同抽象行为。
+
+**实现定义行为**：以下场景的结果为实现定义（即同一实现的不同运行保持一致，但不同实现之间允许不同），不属于未定义行为：
+- `ptr_add` / `ptr_sub` 产生越界指针后对其执行 `ptr_load` / `ptr_store` 的结果（§3.10.8、§6.8.5）；
+- 跨不同对象或不同函数栈帧的指针序关系比较结果（§3.10.7）；
+- 跨不同对象的 `ptr_diff` 结果（§3.10.8、§6.8.7）。
+
+实现定义行为不作为跨 VM 与 AOT 的一致性要求；符合一致性的多个实现可以给出不同结果，但单个实现必须在每次运行时保持确定。不存在程序可在 TC 抽象机器中观测的非确定性行为。
 
 **浮点**：以 IEEE 754-2019 定义为准；与 C99 宿主不一致时以 TC 抽象机器为准。
 
@@ -251,7 +258,7 @@ import                       ; 库模块导入
 static  Self                  ; 库模块静态成员与当前模块限定符
 public  private               ; 模块成员可见性修饰符
 memblock  memblock_load  memblock_store  memblock_copy  ; 内存块类型与操作
-ptr  ptr_null  ptr_load  ptr_store  ptr_address  ptr_size  ptr_add  ptr_sub  ptr_diff  ptr_eq  ptr_ne  ptr_lt  ptr_le  ptr_gt  ptr_ge  ; 指针类型与操作
+ptr  nullptr  ptr_load  ptr_store  ptr_address  ptr_size  ptr_add  ptr_sub  ptr_diff  ptr_eq  ptr_ne  ptr_lt  ptr_le  ptr_gt  ptr_ge  ; 指针类型与操作
 struct                             ; 结构体类型定义（§3.9）
 inf  nan
 ```
@@ -281,6 +288,14 @@ TC 0.0.35 支持 **整数类型**、**浮点类型**、**布尔类型**、**指�
 | **内存块类型** | `memblock<T, count>` | 带长度头部的内存块值类型；`count` 为编译期 `usize` 常量（§3.8） |
 | **结构体类型** | 用户定义的 `struct` 名 | 命名字段的值类型聚合；默认无内部填充，可选 `@padding(N)`（§3.9） |
 | **无值标记** | `void`                 | 不是值类型，仅用于函数返回类型 |
+
+**完整类型**：在 TC 中，"完整类型"指具有已知编译期宽度（`sizeof_bits`）且可以作为变量槽、`memblock` 元素类型或 `ptr<T>` 的所指类型的类型，具体包括：
+- 全部标量类型（`scalar_type`）：13 种固定宽度整数、`isize`/`usize`、`float32`/`float64`、`bool`；
+- `memblock<T, count>`（`T` 为标量类型，`count` 为编译期常量）；
+- 已定义的结构体类型（字段均含编译期已知宽度）；
+- `ptr<T>`（`T` 为非 `isize`/`usize` 的完整类型）。
+
+`void` 不是完整类型。`ptr<isize>` / `ptr<usize>` / `ptr<void>` 不合法。`isize` 与 `usize` 自身是完整类型，但不能作为 `ptr<T>` 的 `T`（因其宽度等于指针宽度，§3.10.1）。
 
 ### 3.2 整数类型
 
@@ -395,7 +410,7 @@ TC 0.0.35 支持 **整数类型**、**浮点类型**、**布尔类型**、**指�
 - 是值类型：赋值、按值传参与返回均复制指针值（地址），而非所指对象（§3.10.6）
 - 宽度恒为目标平台指针宽度（与 `isize`/`usize` 相同，32 或 64 位；§3.10.5）；宽度与 `T` 无关
 - `ptr<T>` 的 `T` 不能是 `isize` / `usize`：`isize`/`usize` 宽度等于指针自身宽度，`ptr<isize>` / `ptr<usize>` 不合法
-- `ptr_null` 表示空指针，与任意 `ptr<T>` 兼容
+- `nullptr` 表示空指针，与任意 `ptr<T>` 兼容
 - 仅支持专用等值比较（`ptr_eq`/`ptr_ne`，同型 `ptr<T>`）以及专用序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`，同型 `ptr<T>`，§3.10.7）；不参与通用整数/浮点比较运算
 - 支持专用指针算术 `ptr_add(T, p, offset)` / `ptr_sub(T, p, offset)` / `ptr_diff(T, p1, p2)`（§3.10.8）；不参与通用算术、位运算、逻辑或标量 I/O
 - 支持 `ptr_address(T, ident)` 从运行时绑定取地址（§3.10.3）；仅可用于 `var` / `static var` / 形参，不可用于 `let`
@@ -412,7 +427,7 @@ TC 中每个整数、浮点、布尔或指针变量的值由 n 位抽象位串�
 - `wrap` 算术回绕、整数 `cast(..., truncate, ...)` 与等宽 `bitcast` 均在整数/浮点位模式上操作；`bitcast` 不作用于 `bool`
 - 有符号 `wrap` 下的 `add`/`sub`/`mul`/`neg` 与同位宽无符号默认回绕 位模式一致
 - 结构体值由按 §3.9.3 规定的字段与填充字节序列构成；填充字节在构造与整块复制时均为 `0x00`
-- 指针值（`ptr<T>`）以目标平台指针宽度的抽象位串存储；位模式对程序不可见；`ptr_null` 的位模式为实现定义，与用户值产生的位模式明确区分
+- 指针值（`ptr<T>`）以目标平台指针宽度的抽象位串存储；位模式对程序不可见；`nullptr` 的位模式为实现定义，与用户值产生的位模式明确区分
 
 抽象位串按“最高有效位到最低有效位”的数值位权定义，与宿主内存的大小端字节序无关。`bitcast` 保持的是该抽象位串，不是对宿主对象表示执行类型别名访问；VM 与 AOT 在不同字节序主机上必须得到相同数值结果。
 
@@ -541,18 +556,18 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 
 需要按偏移复制子区间、或只搬运部分元素时，使用独立语句 `memblock_copy`（§6.7.2.3）；`memblock_copy` 的 `length` 操作数是**本次拷贝的元素个数**。
 
-#### 3.8.5 `memblock_size` — 读取长度头部
+#### 3.8.5 `.count` — 访问长度头部
 
-`memblock_size(mb)` 从 memblock 的长度头部读取 `usize` 值并返回（语法见附录 A）。类别：RHS（结果类型为 `usize`）。
+`mb.count` 以字段访问的形式从 memblock 的长度头部读取 `usize` 值并返回。语法见附录 A。类别：RHS（结果类型为 `usize`）。
 
-| 约束 | 规则 |
-| ---- | ---- |
-| 操作数类型 | `mb` 必须是 `memblock<T, count>` 类型 |
-| 返回类型 | `usize`，值为类型参数 `count` 的数学值（与头部存储值一致） |
-| 读操作 | 不改变 memblock 内容或已初始化状态 |
-| 确定初始化 | `mb` 为运行时 `var` 时须已确定初始化 |
+|| 约束 | 规则 |
+|| ---- | ---- |
+|| 基址类型 | `mb` 必须是 `memblock<T, count>` 类型 |
+|| 返回类型 | `usize`，值为类型参数 `count` 的数学值（与头部存储值一致） |
+|| 读操作 | 不改变 memblock 内容或已初始化状态 |
+|| 确定初始化 | `mb` 为运行时 `var` 时须已确定初始化 |
 
-`memblock_size` 不是 `let` 常量表达式的一部分；不得出现在 `const_rhs` 中。在 `let` 中需要 `count` 值时直接引用对应的 `usize` 常量绑定即可。
+`.count` 不是 `let` 常量表达式的一部分；不得出现在 `const_rhs` 中。在 `let` 中需要 `count` 值时直接引用对应的 `usize` 常量绑定即可。
 
 ### 3.9 结构体类型（`struct`）
 
@@ -568,7 +583,7 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 | 字段数量 | 至少 1 个；空结构体不合法 |
 | 字段名 | 同一结构体内唯一；区分大小写 |
 | 字段种类 | `let` 字段：构造后不可通过字段赋值修改；`var` 字段：仅当外层绑定为可写 `var` / `static var` 时可通过字段赋值修改（§3.9.5） |
-| 字段类型 | 全部标量类型（`scalar_type`）、`memblock<T, count>`（带长度，§3.8），或**本模块中源序更早**已成功定义的结构体类型；禁止自引用与前向引用；禁止 `void` |
+| 字段类型 | 全部标量类型（`scalar_type`）、`memblock<T, count>`（带长度，§3.8）、`ptr<T>`（`T` 为非 `isize`/`usize` 的完整类型，§3.10），或**本模块中源序更早**已成功定义的结构体类型；禁止自引用与前向引用；禁止 `void` |
 | 字段初始化器 | 定义处**不得**写 `=`；字段值只在值构造器中提供（§3.9.2） |
 | 缩进 | 字段行比 `struct` 行恰好多一级；`end` 与 `struct` 行对齐（与 `func`/`if`/`while` 相同） |
 
@@ -596,6 +611,7 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 | -------- | ------------------------ |
 | 标量 `T` | `sizeof_bits(T)`（与 §3.8.2 相同；`bool` 固定 8 位；`isize`/`usize` 为平台指针宽度）——类型级固定 |
 | `memblock<U, N>` | `sizeof_bits(usize) + N × sizeof_bits(U)`——类型级固定（§3.8.2）；字段声明写 `memblock<U, N>` |
+| `ptr<T>` | `sizeof_bits(usize)`（目标平台指针宽度：32 或 64，§3.10.5）——类型级固定 |
 | 嵌套结构体 `S` | 该嵌套字段值的抽象宽度（按本款对嵌套值递归计算） |
 
 可选属性 `@padding(N)`：
@@ -607,7 +623,7 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 
 **类型级宽度**：
 
-结构体类型 `S` 的字段均含编译期已知宽度的类型（标量、`memblock<T, count>`、不含 `memblock` 的嵌套结构体），因此 `S` 具有唯一的类型级宽度：
+结构体类型 `S` 的字段均含编译期已知宽度的类型（标量、`memblock<T, count>`、`ptr<T>`、不含 `memblock` 的嵌套结构体），因此 `S` 具有唯一的类型级宽度：
 
 ```text
 sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
@@ -676,9 +692,9 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 | **无指针算术** | 不允许对 `ptr<T>` 值做加、减等通用算术运算或位运算；`ptr<T>` 不是整数类型。指针算术仅可通过专用的 `ptr_add` / `ptr_sub` / `ptr_diff` 指令进行（§3.10.8），偏移量以所指类型 `T` 的元素大小为步长。 |
 | **无宿主角度的地址保证** | `ptr<T>` 的抽象位模式对程序不可见；不保证任何指针值的位模式等于宿主内存地址。 |
 
-#### 3.10.2 `ptr_null` 空指针
+#### 3.10.2 `nullptr` 空指针
 
-`ptr_null` 是空指针字面量，类别为 RHS（`operand`）。`ptr_null` 本身不携带所指类型；它在所有上下文中统一由该位置的**期望类型**唯一决定：
+`nullptr` 是空指针字面量，类别为 RHS（`operand`）。`nullptr` 本身不携带所指类型；它在所有上下文中统一由该位置的**期望类型**唯一决定：
 
 | 上下文 | 期望类型的来源 |
 | ------ | -------------- |
@@ -690,9 +706,9 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 
 **运行时语义**：
 
-- `ptr_load(ptr_null)` → 运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
-- `ptr_store(ptr_null, val)` → 运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
-- 将 `ptr_null` 赋值给 `ptr<T>` 绑定、作为实参传递或作为 `return` 返回值均合法，不触发运行时错误。
+- `ptr_load(nullptr)` → 运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
+- `ptr_store(nullptr, val)` → 运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
+- 将 `nullptr` 赋值给 `ptr<T>` 绑定、作为实参传递或作为 `return` 返回值均合法，不触发运行时错误。
 
 #### 3.10.3 指针读写与取地址（`ptr_load` / `ptr_store` / `ptr_address`）
 
@@ -706,7 +722,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 | 类型参数 | `T` 须为完整类型（排除 `isize` 与 `usize`），即指针的所指类型 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型 |
 | 结果类型 | `T`（与类型参数一致，也与 `ptr` 的所指类型一致） |
-| 执行语义 | 若 `ptr` 为 `ptr_null`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`；否则，将所指对象的值**按值复制**返回为 `T` 类型结果。读出不改变指针值，也不改变所指对象。 |
+| 执行语义 | 若 `ptr` 为 `nullptr`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`；否则，将所指对象的值**按值复制**返回为 `T` 类型结果。读出不改变指针值，也不改变所指对象。 |
 | 所指对象的可变性 | 所指绑定为 `let`/`static let` 时，`ptr_load` 合法（仅读）；所指绑定为 `var` 时，`ptr_load` 同样合法。 |
 
 **`ptr_store`**
@@ -716,7 +732,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 | 类别 | 语句 |
 | 类型参数 | `T` 须为完整类型（排除 `isize` 与 `usize`），即指针的所指类型 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型；`value` 须为 `T` 类型的操作数（类型须严格一致；字面量以 `T` 为期望类型检查） |
-| 执行语义 | 若 `ptr` 为 `ptr_null`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`；否则，将 `value` 的位模式完整写入 `ptr` 所指对象（覆盖）。 |
+| 执行语义 | 若 `ptr` 为 `nullptr`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`；否则，将 `value` 的位模式完整写入 `ptr` 所指对象（覆盖）。 |
 | 可变性约束 | 仅当 `ptr` 所指的**外层绑定**为可写（`var` / 可写 `static var`）时允许 `ptr_store`；所指为 `let`/`static let`/形参时报告 `TC_CE_CONSTANT_ASSIGNMENT`。`ptr_store` 不能绕过 §5.1 的可变性规则。 |
 | 类型级约束 | `value` 类型须与 `T` 严格一致；不支持通过指针做跨类型写入。 |
 
@@ -733,7 +749,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 | 编译期上下文 | `const_rhs` 中非法（`ptr_address` 不是编译期常量） |
 | 执行语义 | 计算该绑定的抽象存储位置并返回对应的 `ptr<T>`。取地址后，指针与绑定共享同一存储；通过 `ptr_store` 写入会同步反映到绑定的 `ptr_load` 与直接读取 |
 
-**可变性交互**：`ptr_address` 本身是只读操作（只计算地址），不修改绑定值。但若取地址的目标是一个 `let` / `static let` 绑定，即使 `ptr_address` 调用本身成功，后续通过该指针做 `ptr_store` 仍会受 §6.8.3 的可变性约束——绑定的只读性质不因取地址而改变。因此 `ptr_address` 仅接受 `var` / `static var` / 可写形参绑定的标识符；将 `let` 标识符用于 `ptr_address` 报 `TC_CE_CONSTANT_ASSIGNMENT`。
+**可变性交互**：`ptr_address` 本身是只读操作（只计算地址），不修改绑定值。但若取地址的目标是一个 `let` / `static let` 绑定，即使 `ptr_address` 调用本身成功，后续通过该指针做 `ptr_store` 仍会受 §6.8.3 的可变性约束——绑定的只读性质不因取地址而改变。因此 `ptr_address` 仅接受 `var` / `static var` / 形参绑定的标识符；将 `let` 标识符用于 `ptr_address` 报 `TC_CE_CONSTANT_ASSIGNMENT`。
 
 **别名规则**：多个 `ptr<T>` 值可能指向同一对象（允许多个指针别名）。对同一对象的连续 `ptr_load` 与 `ptr_store` 按源序执行，次序由抽象机规定；实现不得重排序跨 `ptr_store` 的 `ptr_load`。
 
@@ -743,7 +759,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 
 | 来源 | 说明 |
 | ---- | ---- |
-| `ptr_null` | 空指针字面量，与任意 `ptr<T>` 兼容（§3.10.2） |
+| `nullptr` | 空指针字面量，与任意 `ptr<T>` 兼容（§3.10.2） |
 | `ptr_address(T, ident)` | 从运行时绑定取地址，产生指向该绑定的 `ptr<T>`（§3.10.3）。仅可作用于 `var` / `static var` 绑定或函数形参；`let` 禁止 |
 | 现有绑定（变量/常量/形参/`static`） | 将声明类型为 `ptr<T>` 的现有绑定用作操作数，即得到 `ptr<T>` 值（复制指针值本身，而非复制所指对象） |
 | 函数返回值 | 函数返回类型为 `ptr<T>` 时，`funcall` 调用结果亦为 `ptr<T>` |
@@ -765,7 +781,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 `ptr<T>` 是值类型：
 
-- **整块赋值** `dst = src`（`dst` 为可写 `ptr<T>` 绑定，`src` 为同类型 `ptr<T>` 操作数或 `ptr_null`）复制指针值（所指地址），而非所指对象；左右类型必须同为某一 `ptr<T>`，否则 `TC_CE_TYPE_MISMATCH`。
+- **整块赋值** `dst = src`（`dst` 为可写 `ptr<T>` 绑定，`src` 为同类型 `ptr<T>` 操作数或 `nullptr`）复制指针值（所指地址），而非所指对象；左右类型必须同为某一 `ptr<T>`，否则 `TC_CE_TYPE_MISMATCH`。
 - **按值传参 / 返回**：调用与 `return` 时复制指针值；形参是只读绑定，禁止对形参做整块赋值（报 `TC_CE_PARAMETER_ASSIGNMENT`）。
 - **无别名于所指对象**：复制指针后，源与目标互为别名（指向同一对象）；通过任一指针做 `ptr_store` 会影响通过另一指针的 `ptr_load` 结果。这是有别于 `memblock` 和结构体的关键语义差异：指针复制产生的是**所指对象共享**，而非所指对象深拷贝。
 
@@ -777,7 +793,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 | 运算 | 操作数类型 | 结果类型 | 语义 |
 | ---- | ---------- | -------- | ---- |
-| `ptr_eq(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值相等（指向同一对象或同为 `ptr_null`）；`ptr_eq(T, ptr_null, ptr_null)` 为 `true`；非空指针与 `ptr_null` 比较为 `false` |
+| `ptr_eq(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值相等（指向同一对象或同为 `nullptr`）；`ptr_eq(T, nullptr, nullptr)` 为 `true`；非空指针与 `nullptr` 比较为 `false` |
 | `ptr_ne(T, ptr1, ptr2)` | 同为 `ptr<T>` | `bool` | 指针值不等 |
 
 等值比较的约束：
@@ -791,14 +807,14 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 | 运算 | 操作数类型 | 结果类型 | 语义 |
 | ---- | ---------- | -------- | ---- |
-| `ptr_lt(T, ptr1, ptr2)` | `ptr1`、`ptr2` 同为 `ptr<T>`，均为非 `ptr_null` | `bool` | 指针值小于（`ptr1` 的抽象地址在 `ptr2` 之前） |
+| `ptr_lt(T, ptr1, ptr2)` | `ptr1`、`ptr2` 同为 `ptr<T>`，均为非 `nullptr` | `bool` | 指针值小于（`ptr1` 的抽象地址在 `ptr2` 之前） |
 | `ptr_le(T, ptr1, ptr2)` | 同上 | `bool` | 指针值小于或等于 |
 | `ptr_gt(T, ptr1, ptr2)` | 同上 | `bool` | 指针值大于 |
 | `ptr_ge(T, ptr1, ptr2)` | 同上 | `bool` | 指针值大于或等于 |
 
 序关系比较的约束：
 
-- 两个操作数必须同为 `ptr<T>` 类型（`T` 由显式类型参数决定），且必须均为非 `ptr_null` 的指针值；`ptr_null` 参与序关系比较报告运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
+- 两个操作数必须同为 `ptr<T>` 类型（`T` 由显式类型参数决定），且必须均为非 `nullptr` 的指针值；`nullptr` 参与序关系比较报告运行时错误 `TC_ERR_NULL_POINTER_DEREFERENCE`。
 - 两个指针必须指向同一对象（即来自同一个 `ptr_address` 调用链）的同一连续存储区域内的元素或字段；跨不同对象或不同函数栈帧的指针参与序关系比较，行为为实现定义。
 - 所有指针比较操作（等值与序关系）均使用专用 `ptr_eq`/`ptr_ne`/`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 指令，均带显式类型参数 `T`。通用 `eq`/`neq`/`lt`/`le`/`gt`/`ge` 不接受 `ptr<T>` 类型操作数。
 - 不支持跨 `ptr<T>` 与 `ptr<U>`（`T ≠ U`）的任何比较。
@@ -815,7 +831,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | 类型参数 | `T` 须为完整类型（排除 `isize`/`usize`），决定指针所指类型与偏移步长 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型；`offset` 须为 `isize` 类型（有符号偏移，可正可负） |
 | 结果类型 | `ptr<T>` |
-| 执行语义 | 若 `ptr` 为 `ptr_null`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`；否则计算 `ptr + offset × sizeof_bits(T)` 位，返回新的 `ptr<T>` 值。偏移为负数时等价于向低位地址方向移动 |
+| 执行语义 | 若 `ptr` 为 `nullptr`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`；否则计算 `ptr + offset × sizeof_bits(T)` 位，返回新的 `ptr<T>` 值。偏移为负数时等价于向低位地址方向移动 |
 | 边界 | `ptr_add` 不检查结果指针是否越界；越界指针的 `ptr_load`/`ptr_store` 行为为实现定义 |
 
 **`ptr_sub`**
@@ -834,9 +850,9 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | ---- | ---- |
 | 类别 | RHS（`operand`） |
 | 类型参数 | `T` 须为完整类型（排除 `isize`/`usize`） |
-| 操作数 | `ptr1`、`ptr2` 同为 `ptr<T>` 类型，均为非 `ptr_null` |
+| 操作数 | `ptr1`、`ptr2` 同为 `ptr<T>` 类型，均为非 `nullptr` |
 | 结果类型 | `isize`，值为 `(ptr1 − ptr2) / sizeof_bits(T)` 的数学商（有符号） |
-| 执行语义 | 若任一指针为 `ptr_null`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。两个指针必须指向同一对象（即来自同一个 `ptr_address` 调用链）的存储区域内；跨不同对象计算指针差，结果为实现定义 |
+| 执行语义 | 若任一指针为 `nullptr`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。两个指针必须指向同一对象（即来自同一个 `ptr_address` 调用链）的存储区域内；跨不同对象计算指针差，结果为实现定义 |
 
 #### 3.10.9 与其他特性的边界
 
@@ -847,7 +863,8 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | `bitcast` | `bitcast(T, ptr_val)` 支持 `ptr<U>` ↔ `usize`/同宽整数的等宽位重解释，以及 `ptr<U>` ↔ `ptr<T>` 的等宽指针位重解释（等宽约束与 `bitcast` 通用规则一致，见 §6.6.6）；所得到的位模式再经目标类型解释后的行为见 §3.10.7（指针比较仅在同型 `ptr<T>` 上有定义） |
 | 算术 / 移位 / 逻辑 / 按位 | 不接受 `ptr<T>` 类型操作数；指针算术仅可通过专用的 `ptr_add` / `ptr_sub` / `ptr_diff` 进行（§3.10.8） |
 | 指针算术 | `ptr_add(T, p, offset)` / `ptr_sub(T, p, offset)`（步长为 `sizeof_bits(T)` 位，偏移类型 `isize`）；`ptr_diff(T, p1, p2)`（`isize` 结果，元素个数差）。不检查越界；越界指针解引用行为为实现定义 |
-| 指针比较 | 等值比较 `ptr_eq(T, ptr1, ptr2)` / `ptr_ne(T, ptr1, ptr2)` 与序关系比较 `ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 均带显式类型参数 `T`（§3.10.7）。序关系比较操作数必须为非 `ptr_null`、同 `ptr<T>` |
+| 指针比较 | 等值比较 `ptr_eq(T, ptr1, ptr2)` / `ptr_ne(T, ptr1, ptr2)` 与序关系比较 `ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 均带显式类型参数 `T`（§3.10.7）。序关系比较操作数必须为非 `nullptr`、同 `ptr<T>` |
+| `memcopy_unsafe` | `memcopy_unsafe(T, dst, dst_idx, src, src_idx, length)` 按元素抽象位串从 `src` 区间拷贝到 `dst` 区间。两个指针操作数须同为 `ptr<T>` 类型；下标和 `length` 须为整数类型。不执行越界检查，越界拷贝行为为实现定义。空指针时报 `TC_ERR_NULL_POINTER_DEREFERENCE`（§6.8.10） |
 | `memblock` | `memblock` 元素类型不得为 `ptr<T>`；`memblock<T, count>` 的元素类型仅限 `scalar_type`（§3.8.1） |
 | 结构体字段 | 结构体字段类型可为 `ptr<T>`（`T` 为非 `isize`/`usize` 的任意完整类型）；含 `ptr<T>` 字段的结构体整块赋值复制指针值，产生所指对象别名 |
 | 模块 | `ptr<T>` 作为类型可直接使用，无需模块级定义；`ptr` 是关键字，不可用作标识符 |
@@ -1000,7 +1017,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 - 浮点字面量（`3.14`、`2.71828f`、`1.0e-5`）
 - 特殊浮点值（`inf`、`-inf`、`nan`）
 - 布尔字面量（`true`、`false`）
-- 空指针字面量（`ptr_null`，§3.10.2）
+- 空指针字面量（`nullptr`，§3.10.2）
 - 此前已定义的 `let` 常量引用（`PI`、`MASK`）
 
 **单个调用表达式**（每个操作数只能是上述原子表达式）：
@@ -1011,7 +1028,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 - 转换：严格 `cast`、整数 `cast(..., truncate, ...)` 与等宽 `bitcast`
 - memblock 构造器：`memblock(T, N)`、`memblock(T, N, fill: v)` 和 `memblock(T, N, v0, …, vₙ)`（§3.8.3）；其中 `N` 须为合法的编译期 `usize` 常量（整数字面量或以 `usize` 为类型的 `let` / `static let` 标识符）；全部填充/逐值操作数必须也为编译期常量
 - 结构体值构造器：`<结构体名>(字段: 常量操作数, …)`（或导入的 `<模块名>.<结构体名>(…)`），须满足 §3.9.2；每个字段实参必须是合法编译期常量操作数
-- 指针宽度查询：`ptr_size(p)`（§3.10.5, §6.8.4）；`p` 须为 `ptr<T>` 类型的编译期常量（含 `ptr_null` 或此前定义的 `let ptr<T>`）
+- 指针宽度查询：`ptr_size(p)`（§3.10.5, §6.8.4）；`p` 须为 `ptr<T>` 类型的编译期常量（含 `nullptr` 或此前定义的 `let ptr<T>`）
 
 **声明类型闭合与检查顺序**：
 
@@ -1086,10 +1103,10 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | `unary_logic_expr`   | `bool`             | `not` 逻辑运算（布尔）          |
 | `cast_expr`          | 第一参数类型       | 类型转换                        |
 | `bitcast_expr`       | 第一参数类型       | 等宽位重解释                    |
-| `memblock_size_expr` | `usize`            | 从 memblock 读取长度头部（§3.8） |
+| *memblock_count_access* | `usize`            | 从 memblock 读取 `.count` 长度头部（§3.8） |
 | `memblock_constructor` | `memblock<T, N>` | 三种带长度构造器（§3.8.3）：零值 / `fill:` 填充 / 逐值列表 |
 | `struct_constructor` | 对应结构体类型     | 命名字段值构造器（§3.9.2）       |
-| `ptr_null_literal`    | 由上下文期望类型决定 | `ptr_null` 空指针字面量，与任意 `ptr<T>` 兼容（§3.10.2） |
+| `nullptr_literal`    | 由上下文期望类型决定 | `nullptr` 空指针字面量，与任意 `ptr<T>` 兼容（§3.10.2） |
 | `ptr_load_expr`       | 类型参数 `T` | 从 `ptr<T>` 解引用读取：`ptr_load(T, ptr)`（§3.10.3, §6.8.2） |
 | `ptr_address_expr`    | `ptr<T>`            | 从变量标识符取地址：`ptr_address(T, ident)`（§3.10.3, §6.8.4） |
 | `ptr_add_expr`        | `ptr<T>`            | 指针加法：`ptr_add(T, ptr, offset)`，偏移单位为 `sizeof_bits(T)` 位（§3.10.8） |
@@ -1114,7 +1131,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | *float_literal*   | 须满足字面量约束                                             |
 | *float_special*   | `inf`/`-inf`/`nan`，仅用于浮点类型上下文                     |
 | *bool_literal*    | 仅用于 `bool` 类型上下文                                     |
-| *ptr_null*        | `ptr_null` 空指针字面量，与任意 `ptr<T>` 兼容；不参与确定初始化检查（自身恒为已定义字面量） |
+| *nullptr*        | `nullptr` 空指针字面量，与任意 `ptr<T>` 兼容；不参与确定初始化检查（自身恒为已定义字面量） |
 
 因此，凡规范引用 `operand` 的位置——包括运算、转换、`funcall` 命名实参、`return` 和输出——均可使用符合本行规则的 `let` 标识符（含经 `Self.` / 导入限定解析到的 `static let`），以及结构体字段读取。只有运行时绑定读取才执行 `TC_CE_UNINITIALIZED_VARIABLE` 检查；编译期 `let` / `static let` 永不因不属于 `IN` 集合而触发该错误。
 
@@ -1375,9 +1392,9 @@ r = a - q * b
 
 `compare_expr` 仅接受整数或浮点类型参数，无模式位置。`eq(bool, ...)` 或带 `ieee` 的形态属语法拒绝（`TC_CE_SYNTAX`）。标识符操作数类型不等于 `T` 时报 `TC_CE_COMPARISON_TYPE_MISMATCH`（即使两操作数同类型也不降级）。字面量不兼容时使用 `TC_CE_LITERAL_TYPE` / `TC_CE_LITERAL_OUT_OF_RANGE`。
 
-此外，`ptr<T>` 类型支持专用等值比较：`ptr_eq(T, ptr1, ptr2)` 与 `ptr_ne(T, ptr1, ptr2)`，两个操作数同为 `ptr<T>`，比较指针值相等性（指向同一对象或同为 `ptr_null`）。`ptr_null` 之间的等值比较结果为 `true`；非空指针与 `ptr_null` 比较为 `false`。通用 `eq`/`neq` 不接受 `ptr<T>` 类型操作数。
+此外，`ptr<T>` 类型支持专用等值比较：`ptr_eq(T, ptr1, ptr2)` 与 `ptr_ne(T, ptr1, ptr2)`，两个操作数同为 `ptr<T>`，比较指针值相等性（指向同一对象或同为 `nullptr`）。`nullptr` 之间的等值比较结果为 `true`；非空指针与 `nullptr` 比较为 `false`。通用 `eq`/`neq` 不接受 `ptr<T>` 类型操作数。
 
-指针序关系比较（`<`/`>`/`<=`/`>=`）通过专用指令 `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 进行，需显式类型参数 `T`，且操作数必须为非 `ptr_null` 的同型 `ptr<T>`（详见 §3.10.7、§6.8.8）。
+指针序关系比较（`<`/`>`/`<=`/`>=`）通过专用指令 `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 进行，需显式类型参数 `T`，且操作数必须为非 `nullptr` 的同型 `ptr<T>`（详见 §3.10.7、§6.8.8）。
 
 | 运算 | 名称     | 语义     |
 | ---- | -------- | -------- |
@@ -1608,9 +1625,9 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 
 负下标、负 `length` 或区间越界同属越界，不得静默回绕。由于 `count` 为编译期常量，其边界在编译期可完整判定。
 
-#### 6.7.2.5 `memblock_size` — 读取长度头部
+#### 6.7.2.5 `.count` — 访问长度头部
 
-`memblock_size(mb)` 从带长度 memblock 的长度头部读取 `usize` 值并返回。语法见附录 A。类别：RHS，结果类型为 `usize`。
+`mb.count` 以字段访问的形式从带长度 memblock 的长度头部读取 `usize` 值并返回。语法见附录 A。类别：RHS，结果类型为 `usize`。
 
 | 约束 | 规则 |
 | ---- | ---- |
@@ -1619,33 +1636,33 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 不修改 | 不改变 memblock 内容；不改变已初始化状态 |
 | 确定初始化 | 运行时 `var` 须确定初始化；`let` 已在编译期内联，不检查 |
 
-`memblock_size` 不是独立语句：只能出现在 RHS 或操作数位置。它不是 `let` 常量表达式的一部分（`let` 中需要 `count` 值时直接引用对应的 `usize` 常量绑定即可）。
+`.count` 不是独立语句：只能出现在 RHS 或操作数位置。它不是 `let` 常量表达式的一部分（`let` 中需要 `count` 值时直接引用对应的 `usize` 常量绑定即可）。
 
 #### 6.7.2.6 约束
 
 - 不可取 `memblock` 或其元素的地址，无 `&` 语义
 - 不提供子块视图或切片；需要搬运连续元素时使用 `memblock_copy`，需要整块复制时使用赋值（类型检查含 `count`，§3.8.4）
-- memblock 的 `count` 已由类型参数给出，且可通过 `memblock_size` 在运行时读取长度头部
+- memblock 的 `count` 已由类型参数给出，且可通过 `.count` 在运行时读取长度头部
 - `memblock` 操作数可为局部/顶层 `var` 或 `let` 的裸名，或（在 `#lib` 内）`Self.<名>`，或已导入库的公开 `<模块名>.<名>`；名称解析与可见性规则与赋值目标一致（§4.3、§4.4、§8.4.1）
-- `let` memblock 不可作为 `memblock_store` / `memblock_copy` 的目标（只读），与标量 `let` 相同，报 `TC_CE_CONSTANT_ASSIGNMENT`；`let` 可作为 `memblock_copy` 的 `src` 及 `memblock_size` 的操作数
+- `let` memblock 不可作为 `memblock_store` / `memblock_copy` 的目标（只读），与标量 `let` 相同，报 `TC_CE_CONSTANT_ASSIGNMENT`；`let` 可作为 `memblock_copy` 的 `src` 及 `.count` 的操作数
 - 索引与拷贝跨度须先写入局部变量或使用字面量/`let`，`memblock_load(T, mb, add(int32, base, offset))` 与 `memblock_copy(..., add(...), ...)` 不合法
 - `memblock_load` / `memblock_store` / `memblock_copy` 的显式类型参数必须是元素标量类型，且与所涉 memblock 操作数的元素类型 `T` 一致；不一致报 `TC_CE_TYPE_MISMATCH`
-- `memblock_size` 无显式类型参数；操作数须为 memblock 类型
+- `.count` 无显式类型参数；基址操作数须为 memblock 类型
 - `write` / `writeln` / `read` 的显式类型参数仅接受 `scalar_type`，禁止 `memblock<T>`（§10、附录 A）；整块 I/O 须由程序自行按元素循环读写
 
 ### 6.8 指针操作
 
 所有指针操作遵循 TC 的 `op(操作数…)` 约定。`ptr<T>` 的类型参数由操作数自身的声明类型决定，无需在操作中显式书写类型参数（与 `memblock_load`/`memblock_store` 不同，后者的显式类型参数是元素类型而非 memblock 类型）。
 
-#### 6.8.1 空指针字面量 — `ptr_null`
+#### 6.8.1 空指针字面量 — `nullptr`
 
-`ptr_null` 是空指针字面量，类别为 RHS（`operand`）。语法见附录 A。
+`nullptr` 是空指针字面量，类别为 RHS（`operand`）。语法见附录 A。
 
 | 规则 | 说明 |
 | ---- | ---- |
 | 结果类型 | 由上下文期望的 `ptr<T>` 类型唯一决定（§3.10.2） |
-| `let` 上下文 | `ptr_null` 是合法的编译期常量（`const_operand`） |
-| 运行时语义 | 本身不触发错误；`ptr_load(T, ptr_null)` 和 `ptr_store(T, ptr_null, ...)` 触发 `TC_ERR_NULL_POINTER_DEREFERENCE` |
+| `let` 上下文 | `nullptr` 是合法的编译期常量（`const_operand`） |
+| 运行时语义 | 本身不触发错误；`ptr_load(T, nullptr)` 和 `ptr_store(T, nullptr, ...)` 触发 `TC_ERR_NULL_POINTER_DEREFERENCE` |
 
 #### 6.8.2 读取 — `ptr_load`
 
@@ -1657,7 +1674,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 操作数 | `ptr` 须为 `ptr<T>` 类型 |
 | 结果类型 | `T`（与类型参数一致） |
 | `let` 上下文 | `ptr_load` 不可用于 `let` / `static let` 的 `const_rhs`（不是编译期常量） |
-| 运行时语义 | `ptr` 为 `ptr_null` 时 → `TC_ERR_NULL_POINTER_DEREFERENCE`；否则返回所指对象的当前值（按值复制） |
+| 运行时语义 | `ptr` 为 `nullptr` 时 → `TC_ERR_NULL_POINTER_DEREFERENCE`；否则返回所指对象的当前值（按值复制） |
 
 #### 6.8.3 写入 — `ptr_store`
 
@@ -1668,7 +1685,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 类型参数 `T` | 须为除 `isize`/`usize` 之外的完整类型；决定指针所指类型，且必须与 `ptr` 的声明类型一致 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型；`value` 须为 `T` 类型操作数（字面量以 `T` 为期望类型检查） |
 | 可变性 | 仅当 `ptr` 所指外层绑定为可写（`var` / 可写 `static var`）时允许；所指为 `let`/`static let`/形参时报 `TC_CE_CONSTANT_ASSIGNMENT` |
-| 运行时语义 | `ptr` 为 `ptr_null` 时 → `TC_ERR_NULL_POINTER_DEREFERENCE`；否则覆盖写入所指对象的存储 |
+| 运行时语义 | `ptr` 为 `nullptr` 时 → `TC_ERR_NULL_POINTER_DEREFERENCE`；否则覆盖写入所指对象的存储 |
 
 #### 6.8.4 取地址 — `ptr_address`
 
@@ -1693,7 +1710,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 操作数 | `ptr` 须为 `ptr<T>` 类型；`offset` 须为 `isize` 类型操作数（有符号，可正可负） |
 | 结果类型 | `ptr<T>` |
 | `let` 上下文 | `ptr_add` 不是编译期常量，不可用于 `const_rhs` |
-| 运行时语义 | `ptr` 为 `ptr_null` 时 → `TC_ERR_NULL_POINTER_DEREFERENCE`；否则计算 `ptr + offset × sizeof_bits(T)` 位并返回新的 `ptr<T>`。偏移为负数时向低位地址方向移动 |
+| 运行时语义 | `ptr` 为 `nullptr` 时 → `TC_ERR_NULL_POINTER_DEREFERENCE`；否则计算 `ptr + offset × sizeof_bits(T)` 位并返回新的 `ptr<T>`。偏移为负数时向低位地址方向移动 |
 | 越界 | `ptr_add` 不检查结果指针是否越界；越界指针的 `ptr_load`/`ptr_store` 行为为实现定义 |
 
 #### 6.8.6 指针减法 — `ptr_sub`
@@ -1714,10 +1731,10 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 规则 | 说明 |
 | ---- | ---- |
 | 类型参数 `T` | 须为除 `isize`/`usize` 之外的完整类型 |
-| 操作数 | `ptr1`、`ptr2` 同为 `ptr<T>` 类型，均为非 `ptr_null` |
+| 操作数 | `ptr1`、`ptr2` 同为 `ptr<T>` 类型，均为非 `nullptr` |
 | 结果类型 | `isize`，值为 `(ptr1 − ptr2) / sizeof_bits(T)` 的数学商（有符号） |
 | `let` 上下文 | `ptr_diff` 不是编译期常量，不可用于 `const_rhs` |
-| 运行时语义 | 若任一指针为 `ptr_null`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。两个指针必须指向同一对象的存储区域内，否则结果为实现定义 |
+| 运行时语义 | 若任一指针为 `nullptr`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。两个指针必须指向同一对象的存储区域内，否则结果为实现定义 |
 
 #### 6.8.8 指针序关系比较 — `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge`
 
@@ -1726,10 +1743,10 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 规则 | 说明 |
 | ---- | ---- |
 | 类型参数 `T` | 须为除 `isize`/`usize` 之外的完整类型 |
-| 操作数 | `ptr1`、`ptr2` 同为 `ptr<T>` 类型，均为非 `ptr_null` |
+| 操作数 | `ptr1`、`ptr2` 同为 `ptr<T>` 类型，均为非 `nullptr` |
 | 结果类型 | `bool` |
 | `let` 上下文 | 不可用于 `const_rhs`（须在运行时比较实际地址） |
-| 运行时语义 | 若任一指针为 `ptr_null`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。比较两指针抽象地址的序关系。两个指针必须指向同一对象的存储区域内，否则结果为实现定义 |
+| 运行时语义 | 若任一指针为 `nullptr`，报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。比较两指针抽象地址的序关系。两个指针必须指向同一对象的存储区域内，否则结果为实现定义 |
 
 #### 6.8.9 指针宽度查询 — `ptr_size`
 
@@ -1740,19 +1757,54 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ extent_dst  ∧  s + n ≤ e
 | 类型参数 `T` | 须为除 `isize`/`usize` 之外的完整类型；决定所指类型的宽度 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型 |
 | 返回类型 | `usize`，值为 `sizeof_bits(T)`（位） |
-| 空指针语义 | `ptr_size(T, ptr_null)` 合法：`ptr_null` 的所指类型 `T` 由显式类型参数决定，返回 `sizeof_bits(T)`。显式类型参数 `T` 必须与 `ptr_null` 被绑定的 `ptr<T>` 声明类型一致 |
+| 空指针语义 | `ptr_size(T, nullptr)` 合法：`nullptr` 的所指类型 `T` 由显式类型参数决定，返回 `sizeof_bits(T)`。显式类型参数 `T` 必须与 `nullptr` 被绑定的 `ptr<T>` 声明类型一致 |
 | 编译期常量 | 类型级信息，可在编译期完全确定，因此 `ptr_size` 是合法的 `const_operand` |
 
-#### 6.8.10 注意事项
+#### 6.8.10 `memcopy_unsafe` — 原始内存块拷贝
 
-- `ptr_load` / `ptr_store` / `ptr_address` / `ptr_add` / `ptr_sub` / `ptr_diff` 的操作数除 `ptr_null` 外，须是 `ptr<T>` 类型的局部/顶层 `var` 或 `let` 的裸名，或（在 `#lib` 内）`Self.<名>`，或已导入库的公开 `<模块名>.<名>`；名称解析与可见性规则与赋值目标一致（§4.3、§4.4、§8.4.1）
+语法见附录 A。将 `src` 中从 `src_idx` 起连续 `length` 个元素，按元素抽象位串复制到 `dst` 中从 `dst_idx` 起的对应区间。类别：独立语句（非 RHS）。与 `memblock_copy` 不同，`memcopy_unsafe` 操作的是 `ptr<T>` 值而非 `memblock<T, count>` 值，**不执行越界检查**，因此适用于对原始内存块（如外部 FFI 传入的裸指针）进行区间拷贝。
+
+**操作数**：
+
+| 位置 | 约束 |
+| ---- | ---- |
+| `T` | 显式元素类型；须为非 `isize`/`usize` 的完整类型；拷贝步长为 `sizeof_bits(T)` 位 |
+| `dst` | `operand`，须为 `ptr<T>` 类型；所指的外层绑定为 `let`/`static let`/形参时报 `TC_CE_CONSTANT_ASSIGNMENT` |
+| `dst_idx` | `operand`，须为整数类型（有符号/无符号均可，不必等于 `T` 或特定类型） |
+| `src` | `operand`，须为 `ptr<T>` 类型；运行时 `var` 须确定初始化 |
+| `src_idx` | `operand`，须为整数类型 |
+| `length` | `operand`，须为整数类型且数学值 ≥ 0 |
+
+**区间合法性**：
+
+```text
+length ≥ 0  ∧  dst_idx ≥ 0  ∧  src_idx ≥ 0
+```
+
+`length = 0` 合法（不修改任何元素）。`length < 0` 时，若编译期可确定则报 `TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE`（与 `memblock_copy` 共用该错误码），运行时则报 `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`。
+
+**抽象执行语义**：
+
+1. 先读取并检查所有操作数；`dst` 或 `src` 为 `nullptr` 时报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。
+2. 若 `length` 的数学值 < 0，发生运行时错误，不修改 `dst` 所指内存的任何元素。
+3. 正常执行时，语义等价于：先把源区间 `[src_idx, src_idx + length)` 的 `length` 个元素按抽象位串拷入临时缓冲，再按相同顺序写入目标区间 `[dst_idx, dst_idx + length)`。因此重叠区间（同一指针用作 `src` 和 `dst` 且区间有重叠）行为完全确定，等价于 `memmove`。
+4. 不重新规范化元素位模式，保持位串不变。
+
+**越界行为**：`memcopy_unsafe` 不检查 `dst_idx + length` 和 `src_idx + length` 所指内存的可用范围。若拷贝区间超出实际分配的内存边界，行为为实现定义（与 `ptr_add` 越界后 `ptr_load`/`ptr_store` 相同，§1.3）。对于通过 FFI 传入的指针，程序有责任保证区间合法；对于取自 TC 内 `var` 绑定的指针，越界拷贝是实现定义行为而非运行时错误。
+
+`memcopy_unsafe` 不是 `let` 常量表达式的一部分；不得出现在 `const_rhs` 中。
+
+#### 6.8.11 注意事项
+
+- `ptr_load` / `ptr_store` / `ptr_address` / `ptr_add` / `ptr_sub` / `ptr_diff` 及 `memcopy_unsafe` 的操作数除 `nullptr` 外，须是 `ptr<T>` 类型的局部/顶层 `var` 或 `let` 的裸名，或（在 `#lib` 内）`Self.<名>`，或已导入库的公开 `<模块名>.<名>`；名称解析与可见性规则与赋值目标一致（§4.3、§4.4、§8.4.1）
 - 所有指针指令的第一个参数均为显式类型参数 `T`（所指类型），`T` 须为非 `isize`/`usize` 的完整类型，且必须与指针操作数的声明类型一致。该参数统一决定指令的所指类型、步长或返回类型，不从操作数推断
-- `let` 类型的 `ptr<T>` 指针不可作为 `ptr_store` 的目标（只读），与标量 `let` 相同，报 `TC_CE_CONSTANT_ASSIGNMENT`
+- `let` 类型的 `ptr<T>` 指针不可作为 `ptr_store` 或 `memcopy_unsafe` 的目标（只读），与标量 `let` 相同，报 `TC_CE_CONSTANT_ASSIGNMENT`
 - `ptr_address` 仅可用于 `var` / `static var` / 形参绑定；对 `let` 使用报 `TC_CE_CONSTANT_ASSIGNMENT`。`ptr_address` 的显式类型参数 `T` 不能是 `isize` / `usize`
-- `ptr_add` / `ptr_sub` / `ptr_diff` / `ptr_eq` / `ptr_ne` / `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` / `ptr_load` / `ptr_store` / `ptr_size` 的显式类型参数 `T` 不能是 `isize` / `usize`
+- `ptr_add` / `ptr_sub` / `ptr_diff` / `ptr_eq` / `ptr_ne` / `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` / `ptr_load` / `ptr_store` / `ptr_size` / `memcopy_unsafe` 的显式类型参数 `T` 不能是 `isize` / `usize`
 - `ptr_load` / `ptr_store` 不支持嵌套解引用（如 `ptr_load(int32, ptr_load(ptr_int32, ptr))` 不合法）；须分步：先 `ptr_load` 得到内层 `ptr<T>`，再对其做 `ptr_load`
 - `write` / `writeln` / `read` 不接受 `ptr<T>` 类型（§10、附录 A）
-- `ptr_size` 的显式类型参数 `T` 必须与操作数的声明类型一致；`ptr_size` 是合法的编译期常量（`const_operand`），可在 `let` 中使用，`ptr_size(T, ptr_null)` 同样合法
+- `ptr_size` 的显式类型参数 `T` 必须与操作数的声明类型一致；`ptr_size` 是合法的编译期常量（`const_operand`），可在 `let` 中使用，`ptr_size(T, nullptr)` 同样合法
+- `memcopy_unsafe` 不检查越界（§6.8.10），`src` 或 `dst` 为 `nullptr` 时报告 `TC_ERR_NULL_POINTER_DEREFERENCE`。`dst` 与 `src` 可以为同一指针（重叠拷贝）
 ---
 
 ## 7. 控制流
@@ -2287,6 +2339,7 @@ TC 参考 C99 `printf` 的静态格式控制，但格式说明符不是运行时
 | 浮点下溢错误     | `TC_RE_FLOAT_UNDERFLOW`              | 严格模式浮点运算的结果为微小非精确非规格化数                  |
 | 浮点无效操作     | `TC_RE_FLOAT_INVALID`                | 严格浮点运算输入含 NaN 或产生 0/0、∞−∞、0×∞ 等               |
 | 转换溢出错误     | `TC_RE_CAST_OVERFLOW`                | 严格 `cast` 的数学结果无法在目标类型中表示                     |
+| 空指针解引用错误 | `TC_ERR_NULL_POINTER_DEREFERENCE`    | `ptr_load`/`ptr_store`/`ptr_add`/`ptr_sub`/`ptr_diff`/`memcopy_unsafe` 或指针序关系比较的操作数为 `nullptr` |
 | I/O 错误         | `TC_RE_IO`                           | `read` 输入非法/超范围/EOF，或标准输入/输出读写失败            |
 | memblock 越界    | `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`  | `memblock_load`/`store` 下标越界，或 `memblock_copy` 区间不合法 |
 
@@ -2475,7 +2528,7 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 本节作用于 A.2 输出的 Token 序列。`NEWLINE`、`INDENT`、`DEDENT`、`EOF` 是虚拟终结符；`identifier`、`integer_literal` 等名称引用 A.2 的完整 Token 类别。EBNF 中以 `"…"` 标记的关键字或标点表示一个完整 Token，不按子序列匹配。非行首空白与行末注释已由词法层移除。
 
-本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；`write` / `writeln` / `read` 的显式类型参数只接受 `scalar_type`，因此 `write(memblock<int32>, …)` / `read(memblock<uint8>, …)` 为 `TC_CE_SYNTAX`；`memblock` 类型构造器与值构造器的元素类型、以及 `memblock_load` / `memblock_store` / `memblock_copy` 的显式类型参数只接受 `scalar_type`，因此 `memblock<memblock<T>>` 与 `memblock(memblock<int32>, …)` 等嵌套形态为 `TC_CE_SYNTAX`；`memblock` 值构造器必须匹配 `memblock_zero_ctor` / `memblock_fill_ctor` / `memblock_elems_ctor`（位置实参 `usize_operand` 及可选 `fill:` 标签，§3.8.3）；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_CE_SYNTAX`，不得为产生 `TC_CE_TYPE_MISMATCH` 或 `TC_CE_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_CE_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §7.3 在静态语义阶段强制执行。
+本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；`write` / `writeln` / `read` 的显式类型参数只接受 `scalar_type`，因此 `write(memblock<int32>, …)` / `read(memblock<uint8>, …)` 为 `TC_CE_SYNTAX`；`memblock` 类型构造器与值构造器的元素类型、以及 `memblock_load` / `memblock_store` / `memblock_copy` 的显式类型参数只接受 `scalar_type`，因此 `memblock<memblock<T>>` 与 `memblock(memblock<int32>, …)` 等嵌套形态为 `TC_CE_SYNTAX`； `memcopy_unsafe` 的显式类型参数 `T` 接受任意非 `isize`/`usize` 的完整类型（包括 `ptr<U>` 和结构体），在语法层使用通用 `type` 非终结符，类型有效性在静态语义阶段检查；`memblock` 值构造器必须匹配 `memblock_zero_ctor` / `memblock_fill_ctor` / `memblock_elems_ctor`（位置实参 `usize_operand` 及可选 `fill:` 标签，§3.8.3）；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_CE_SYNTAX`，不得为产生 `TC_CE_TYPE_MISMATCH` 或 `TC_CE_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_CE_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §7.3 在静态语义阶段强制执行。
 
 `#program` 的顶层分为类型定义区、声明区与可执行语句区（见 `program_type_region` / `program_decl_region` / `program_exec_region`）。块内 `suite` 仍使用完整 `statement`，因此 `if` / `while` 体内可以声明 `var` / `let`。若 Token 序列在顶层已进入可执行语句区后又出现顶层 `var` / `let` / `var_funcall_def`，则不符合 `program_module`；语法阶段对此类分区破坏报告 `TC_CE_MODULE_LAYER`（定位到该声明首 Token），不得仅报笼统 `TC_CE_SYNTAX`。
 
@@ -2534,6 +2587,7 @@ program_exec_statement
            | memblock_store_stmt
            | memblock_copy_stmt
            | ptr_store_stmt
+           | memcopy_unsafe_stmt
            | if_stmt
            | while_stmt ;
 /* 顶层可执行区不含 variable_def / constant_def / var_funcall_def /
@@ -2591,7 +2645,8 @@ simple_statement
            | return_stmt
            | memblock_store_stmt
            | memblock_copy_stmt
-           | ptr_store_stmt ;
+           | ptr_store_stmt
+           | memcopy_unsafe_stmt ;
 /* label_def / goto_stmt 出现在 program_exec_region 或其嵌套 suite 中时，
    分别报 TC_CE_LABEL_OUTSIDE_FUNCTION / TC_CE_GOTO_OUTSIDE_FUNCTION。 */
 
@@ -2731,7 +2786,7 @@ rhs        = identifier
            | float_literal
            | float_special
            | bool_literal
-           | ptr_null_literal
+           | nullptr_literal
            | binary_arith_expr
            | unary_arith_expr
            | bitwise_expr
@@ -2745,7 +2800,7 @@ rhs        = identifier
            | cast_expr
            | bitcast_expr
            | memblock_load_expr
-           | memblock_size_expr
+           | memblock_count_access
            | memblock_constructor
            | struct_constructor
            | ptr_load_expr
@@ -2761,7 +2816,7 @@ const_rhs  = integer_literal
            | float_literal
            | float_special
            | bool_literal
-           | ptr_null_literal
+           | nullptr_literal
            | identifier
            | qualified_identifier
            | imported_member_name
@@ -2836,19 +2891,19 @@ const_operand
            | float_literal
            | float_special
            | bool_literal
-           | ptr_null_literal
+           | nullptr_literal
            | identifier
            | qualified_identifier
            | imported_member_name
            | field_access ;
 /* field_access 的基址在常量上下文中必须解析为 let / static let 结构体绑定。
-   ptr_null 是合法的编译期常量（§3.10.2）。 */
+   nullptr 是合法的编译期常量（§3.10.2）。 */
 
 /* ── 操作数 ── */
 
 operand    = identifier | qualified_identifier | integer_literal | float_literal
-           | float_special | bool_literal | ptr_null_literal
-           | imported_member_name | field_access ;
+           | float_special | bool_literal | nullptr_literal
+           | imported_member_name | field_access | memblock_count_access ;
 
 field_access
            = ( identifier | qualified_identifier | imported_member_name ) ,
@@ -2918,7 +2973,7 @@ ptr_eq_compare_expr
            = ( "ptr_eq" | "ptr_ne" ) , "(" , type , "," , operand , "," , operand , ")" ;
 /* 指针等值比较，使用专用 ptr_eq / ptr_ne 指令，带显式类型参数 T（§3.10.7）。
    T 须为非 isize/usize 的完整类型；两个 operand 须同为 ptr<T>。
-   ptr_null 等值比较结果为 true。
+   nullptr 等值比较结果为 true。
    通用 eq / neq 不接受 ptr<T> 类型操作数（TC_CE_TYPE_MISMATCH）。 */
 
 /* ── 双目逻辑表达式（布尔） ── */
@@ -3004,12 +3059,12 @@ memblock_elems_ctor
 /* 元素类型仅为 scalar_type，故 memblock(memblock<…>, …) 为 TC_CE_SYNTAX。
    逐值初始化的实参个数必须等于 usize_operand 的数学值（TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH）。 */
 
-/* ── memblock_size 表达式 ── */
+/* ── .count 长度访问 ── */
 
-memblock_size_expr
-           = "memblock_size" , "(" , memblock_name , ")" ;
-/* 操作数须为 memblock<T, count> 类型。
-   结果类型为 usize。不是 let 常量表达式的构成部分（§3.8）。 */
+memblock_count_access
+           = memblock_name , "." , "count" ;
+/* 从 memblock 访问长度头部（§3.8.5）。返回类型为 usize。
+   不是 let 常量表达式的构成部分（§3.8）。 */
 
 const_memblock_constructor
            = const_memblock_zero_ctor
@@ -3047,7 +3102,7 @@ const_struct_constructor
 
 /* ── 指针操作 ── */
 
-ptr_null_literal = "ptr_null" ;
+nullptr_literal = "nullptr" ;
 /* 空指针字面量；与任意 ptr<T> 兼容（§3.10.2）。
    本身不触发运行时错误；ptr_load / ptr_store 空指针时触发
    TC_ERR_NULL_POINTER_DEREFERENCE。 */
@@ -3066,17 +3121,20 @@ ptr_store_stmt
    可变性由 §6.8.3 约束。 */
 
 ptr_address_expr
-           = "ptr_address" , "(" , type , "," , identifier , ")" ;
+           = "ptr_address" , "(" , type , "," ,
+             ( identifier | qualified_identifier | imported_member_name ) , ")" ;
 /* 从变量标识符取地址，返回 ptr<T>（§6.8.4）。
    显式类型参数 T 须为非 isize/usize 的完整类型，
-   且必须与 identifier 的声明类型严格一致。
-   仅可用于 var / static var / 形参；let 绑定的标识符禁止。 */
+   且必须与标识符的声明类型严格一致。
+   仅可用于 var / static var / 形参；
+   qualified_identifier / imported_member_name 须解析为可写 static var；
+   let 绑定的标识符禁止。 */
 
 ptr_add_expr
            = "ptr_add" , "(" , type , "," , operand , "," , operand , ")" ;
 /* 指针加法（§6.8.5）。T 为所指类型（非 isize/usize）。
    第一个 operand 为 ptr<T>，第二个 operand 为 isize（有符号偏移）。
-   偏移单位为 sizeof_bits(T) 位。ptr_null 时报运行时错误。 */
+   偏移单位为 sizeof_bits(T) 位。nullptr 时报运行时错误。 */
 
 ptr_sub_expr
            = "ptr_sub" , "(" , type , "," , operand , "," , operand , ")" ;
@@ -3085,14 +3143,14 @@ ptr_sub_expr
 ptr_diff_expr
            = "ptr_diff" , "(" , type , "," , operand , "," , operand , ")" ;
 /* 指针差（§6.8.7）。T 为所指类型（非 isize/usize）。
-   两个 operand 同为 ptr<T> 且均为非 ptr_null。
+   两个 operand 同为 ptr<T> 且均为非 nullptr。
    结果类型为 isize，值为元素个数差。 */
 
 ptr_compare_expr
            = ( "ptr_lt" | "ptr_le" | "ptr_gt" | "ptr_ge" ) ,
              "(" , type , "," , operand , "," , operand , ")" ;
 /* 指针序关系比较（§6.8.8）。T 为所指类型（非 isize/usize）。
-   两个 operand 同为 ptr<T> 且均为非 ptr_null。
+   两个 operand 同为 ptr<T> 且均为非 nullptr。
    结果类型为 bool。指针对比抽象地址序。 */
 
 ptr_size_expr
@@ -3100,8 +3158,25 @@ ptr_size_expr
 /* 返回 ptr<T> 的所指类型宽度 sizeof_bits(T)（§6.8.9）。
    显式类型参数 T 须为非 isize/usize 的完整类型，且必须与
    操作数的声明类型一致。结果类型为 usize。
-   ptr_null 合法（由显式类型参数决定 T）。
+   nullptr 合法（由显式类型参数决定 T）。
    编译期可求值，是合法的 const_operand。 */
+
+/* ── memcopy_unsafe 语句 ── */
+
+memcopy_unsafe_stmt
+           = "memcopy_unsafe" , "(" , type , "," ,
+             operand , "," , operand , "," ,
+             operand , "," , operand , "," ,
+             operand , ")" ;
+/* 原始内存块拷贝（§6.8.10）。独立语句，非 RHS。
+   操作数依次为：T（所指类型，非 isize/usize）、
+   dst（ptr<T>）、dst_idx（整数）、src（ptr<T>）、src_idx（整数）、
+   length（整数，≥0）。
+   dst 或 src 为 nullptr 时报告 TC_ERR_NULL_POINTER_DEREFERENCE。
+   不执行越界检查；重叠区间行为等价于 memmove。
+   length < 0 时报 TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE。
+   下标操作数须为整数类型（彼此类型可不同，也不必等于 T）；
+   dst 和 src 可以是任意 operand（非仅裸名）。 */
 
 /* ── I/O 语句（显式类型仅 scalar_type；禁止 memblock 和 ptr<T>，§10） ── */
 
@@ -3241,7 +3316,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE` | RT | memblock 运行时下标越界或 `memblock_copy` 区间越界 |
 | `TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH` | SEM | memblock 逐值构造器的位置实参数量不等于 `count` 的数学值 |
 | `TC_RE_IO` | RT | `read` 输入非法/超范围/非预期 EOF；`write`/`writeln` 写到 stdout 失败 |
-| `TC_ERR_NULL_POINTER_DEREFERENCE` | RT | `ptr_load` 或 `ptr_store` 的操作数为 `ptr_null`；`ptr_add` / `ptr_sub` 的操作数为 `ptr_null`；`ptr_diff` 或指针序关系比较的操作数包含 `ptr_null` |
+| `TC_ERR_NULL_POINTER_DEREFERENCE` | RT | `ptr_load` 或 `ptr_store` 的操作数为 `nullptr`；`ptr_add` / `ptr_sub` 的操作数为 `nullptr`；`ptr_diff` / `memcopy_unsafe` 或指针序关系比较的操作数包含 `nullptr` |
 
 > **说明**：编译期错误（LT / SYN / SEM / CT）使用 `TC_CE_*` 前缀，运行时错误（RT）使用 `TC_RE_*` 前缀。其余详细规则以正文交叉引用的条款为准。
 
