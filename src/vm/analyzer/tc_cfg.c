@@ -241,6 +241,26 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
         return tc_cfg_node_add_read(ctx, node_id, rhs->u.const_ref.name, stmt_index);
     case TC_RHS_LIT:
         return 0;
+    case TC_RHS_MEMBLOCK_LOAD:
+    case TC_RHS_MEMBLOCK_CONSTRUCTOR:
+    case TC_RHS_MEMBLOCK_COUNT:
+    case TC_RHS_STRUCT_CONSTRUCTOR:
+    case TC_RHS_FIELD_READ:
+    case TC_RHS_PTR_LOAD:
+    case TC_RHS_PTR_ADDRESS:
+    case TC_RHS_PTR_ADD:
+    case TC_RHS_PTR_SUB:
+    case TC_RHS_PTR_EQ:
+    case TC_RHS_PTR_NE:
+    case TC_RHS_PTR_LT:
+    case TC_RHS_PTR_LE:
+    case TC_RHS_PTR_GT:
+    case TC_RHS_PTR_GE:
+    case TC_RHS_PTR_SIZE:
+    case TC_RHS_FUNCALL_EXPR:
+    case TC_RHS_SELF_MEMBER:
+        /* 0.0.35 Phase 1：枚举已预留 */
+        return 0;
     }
     return 0;
 }

@@ -85,7 +85,7 @@ const TcSymbol *tc_symbol_table_find_in_current_scope(const TcSymbolTable *table
  * @param diag            诊断对象（内存不足时设置）
  * @return 成功返回 0；内存不足返回 -1
  */
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcType type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeKind type, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag);
 

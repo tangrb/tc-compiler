@@ -25,7 +25,7 @@ static void check(int condition, const char *message) {
     }
 }
 
-static TcValue make_int(TcType type, uint64_t bits) {
+static TcValue make_int(TcTypeKind type, uint64_t bits) {
     return tc_value_make(type, bits);
 }
 

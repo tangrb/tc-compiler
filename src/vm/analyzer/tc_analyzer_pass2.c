@@ -241,6 +241,26 @@ static int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
                                         visible, global, stmt_index, line, diag, self_name);
     case TC_RHS_LIT:
         return 0;
+    case TC_RHS_MEMBLOCK_LOAD:
+    case TC_RHS_MEMBLOCK_CONSTRUCTOR:
+    case TC_RHS_MEMBLOCK_COUNT:
+    case TC_RHS_STRUCT_CONSTRUCTOR:
+    case TC_RHS_FIELD_READ:
+    case TC_RHS_PTR_LOAD:
+    case TC_RHS_PTR_ADDRESS:
+    case TC_RHS_PTR_ADD:
+    case TC_RHS_PTR_SUB:
+    case TC_RHS_PTR_EQ:
+    case TC_RHS_PTR_NE:
+    case TC_RHS_PTR_LT:
+    case TC_RHS_PTR_LE:
+    case TC_RHS_PTR_GT:
+    case TC_RHS_PTR_GE:
+    case TC_RHS_PTR_SIZE:
+    case TC_RHS_FUNCALL_EXPR:
+    case TC_RHS_SELF_MEMBER:
+        /* 0.0.35 Phase 1：枚举已预留，解析/检查在后续阶段落地 */
+        return 0;
     }
     return 0;
 }
@@ -253,7 +273,7 @@ static int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
  * @brief 检查操作数的类型兼容性与变量定义存在性
  * @param self_name 若非 NULL，表示当前定义中的变量名（用于自引用检测）
  */
-int tc_check_operand(TcOperand *operand, TcType expected,
+int tc_check_operand(TcOperand *operand, TcTypeKind expected,
                             const TcSymbolTable *visible, const TcSymbolTable *global,
                             TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                             TcWarningList *warnings, const char *self_name, TcErrorKind type_err) {
@@ -296,7 +316,7 @@ int tc_check_operand(TcOperand *operand, TcType expected,
  *
  * %d/%i 要求有符号类型；%u 要求无符号类型；%x/%X/%o/%b 无限制
  */
-int tc_check_io_format(TcType type, TcFormatSpec fmt, int line, TcDiagnostic *diag) {
+int tc_check_io_format(TcTypeKind type, TcFormatSpec fmt, int line, TcDiagnostic *diag) {
     if (fmt == TC_FMT_NONE) {
         return 0;
     }
@@ -359,7 +379,7 @@ int tc_check_io_format(TcType type, TcFormatSpec fmt, int line, TcDiagnostic *di
  * @param lhs_type  赋值目标的类型
  * @param self_name 自引用检测（用于 var 初始化器）
  */
-int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
+int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
                         const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                         int line, TcDiagnostic *diag, TcWarningList *warnings,
                         const char *self_name) {
@@ -630,7 +650,7 @@ int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_BITCAST) {
         TcBitcastRhs *bitcast = &rhs->u.bitcast;
-        TcType source_type = TC_INT32;
+        TcTypeKind source_type = TC_INT32;
         const TcSymbol *source = NULL;
         int width = tc_type_bit_width(bitcast->target);
 
@@ -741,7 +761,7 @@ int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
     {
         TcCastRhs *cast = &rhs->u.cast;
         const TcSymbol *source = NULL;
-        TcType source_type = TC_INT64;
+        TcTypeKind source_type = TC_INT64;
 
         if (cast->source.kind == TC_OPERAND_VAR) {
             if (self_name && strcmp(cast->source.u.name, self_name) == 0) {

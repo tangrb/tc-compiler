@@ -60,7 +60,7 @@ typedef struct {
     int line;
     int column;
     union {
-        TcType int_type;
+        TcTypeKind int_type;
         TcArithOp arith_op;
         TcUnaryOp unary_op;
         TcCompareOp compare_op;

@@ -42,7 +42,48 @@ TC_RHS_KINDS = [
     "TC_RHS_FLOAT_UNARY",
     "TC_RHS_FLOAT_COMPARE",
     "TC_RHS_BITCAST",
+    # 0.0.35 Phase 1 预留；解析/求值在后续阶段落地
+    "TC_RHS_MEMBLOCK_LOAD",
+    "TC_RHS_MEMBLOCK_CONSTRUCTOR",
+    "TC_RHS_MEMBLOCK_COUNT",
+    "TC_RHS_STRUCT_CONSTRUCTOR",
+    "TC_RHS_FIELD_READ",
+    "TC_RHS_PTR_LOAD",
+    "TC_RHS_PTR_ADDRESS",
+    "TC_RHS_PTR_ADD",
+    "TC_RHS_PTR_SUB",
+    "TC_RHS_PTR_EQ",
+    "TC_RHS_PTR_NE",
+    "TC_RHS_PTR_LT",
+    "TC_RHS_PTR_LE",
+    "TC_RHS_PTR_GT",
+    "TC_RHS_PTR_GE",
+    "TC_RHS_PTR_SIZE",
+    "TC_RHS_FUNCALL_EXPR",
+    "TC_RHS_SELF_MEMBER",
 ]
+
+# Phase 1：新 RHS 尚未进入各分发实现，统一 skip（落地后逐项移除）
+TC_RHS_PHASE1_RESERVED = {
+    "TC_RHS_MEMBLOCK_LOAD": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_MEMBLOCK_CONSTRUCTOR": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_MEMBLOCK_COUNT": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_STRUCT_CONSTRUCTOR": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_FIELD_READ": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_LOAD": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_ADDRESS": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_ADD": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_SUB": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_EQ": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_NE": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_LT": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_LE": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_GT": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_GE": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_PTR_SIZE": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_FUNCALL_EXPR": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_SELF_MEMBER": "0.0.35 Phase 1 enum reserved",
+}
 
 # ---------------------------------------------------------------------------
 # 分发点定义
@@ -240,7 +281,8 @@ def get_aot_rt_shims(path):
 def check_dispatch_point(dp):
     """检查单个分发点是否完整覆盖所有 TC_RHS_KINDS"""
     path = dp["path"]
-    skip = dp["skip"]
+    skip = dict(TC_RHS_PHASE1_RESERVED)
+    skip.update(dp["skip"])
     note = dp.get("note", "")
     extra_kinds = dp.get("extra_kinds", [])
     func = dp["func"]

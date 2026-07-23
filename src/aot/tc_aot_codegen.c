@@ -137,8 +137,8 @@ static const TcSymbol *tc_aot_find_def_symbol(const TcSymbolTable *symbols, cons
 /*  辅助函数                                                           */
 /* ------------------------------------------------------------------ */
 
-/** 将 TcType 枚举映射为 C 源码中的枚举名 */
-static const char *tc_aot_type_enum(TcType type) {
+/** 将 TcTypeKind 枚举映射为 C 源码中的枚举名 */
+static const char *tc_aot_type_enum(TcTypeKind type) {
     switch (type) {
     case TC_INT8:
         return "TC_INT8";
@@ -255,7 +255,7 @@ static void tc_aot_emit_c_string(FILE *out, const char *value) {
 /* ------------------------------------------------------------------ */
 
 /** 发射字面量构造表达式 */
-static void tc_aot_emit_literal_expr(FILE *out, TcType type, const TcLiteral *lit) {
+static void tc_aot_emit_literal_expr(FILE *out, TcTypeKind type, const TcLiteral *lit) {
     if (lit->is_bool) {
         fprintf(out, "tc_aot_lit(%s, %lluULL, 0, 0)", tc_aot_type_enum(TC_BOOL),
                 lit->magnitude ? 1ULL : 0ULL);
@@ -280,7 +280,7 @@ static void tc_aot_emit_literal_expr(FILE *out, TcType type, const TcLiteral *li
 }
 
 /** 发射操作数表达式：字面量、内联 let 位模式或 var 槽。 */
-static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcType type,
+static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeKind type,
                                      const TcSymbolTable *symbols,
                                      const TcSymbolNameIndex *sym_index, int stmt_index) {
     if (operand->kind == TC_OPERAND_LIT) {
@@ -317,7 +317,7 @@ static void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcType
 /* ------------------------------------------------------------------ */
 
 /** 发射 RHS 求值代码；dst_expr 为目标左值（如 slots[3] 或 _cond） */
-static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
+static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeKind expected_type,
                            const char *dst_expr, const char *indent,
                            const TcSymbolTable *symbols, const TcSymbolNameIndex *sym_index,
                            int stmt_index, int line) {
@@ -626,7 +626,7 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcType expected_type,
 }
 
 /** 将 RHS 结果写入 slots[dst_slot] */
-static int tc_aot_emit_rhs_slot(FILE *out, const TcRhs *rhs, TcType expected_type, int dst_slot,
+static int tc_aot_emit_rhs_slot(FILE *out, const TcRhs *rhs, TcTypeKind expected_type, int dst_slot,
                                 const char *indent, const TcSymbolTable *symbols,
                                 const TcSymbolNameIndex *sym_index, int stmt_index, int line) {
     char dst_expr[32];

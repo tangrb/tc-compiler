@@ -63,7 +63,7 @@ typedef struct {
 /*  字面量（实现于 tc_analyzer.c）                                        */
 /* ------------------------------------------------------------------ */
 
-int tc_check_literal(const TcLiteral *lit, TcType expected, int line,
+int tc_check_literal(const TcLiteral *lit, TcTypeKind expected, int line,
                      TcDiagnostic *diag, TcErrorKind literal_type_err);
 
 /* ------------------------------------------------------------------ */
@@ -95,12 +95,12 @@ void tc_prescan_init_history(TcProgram *program, TcSymbolTable *symbols, TcAnaly
 /*  Pass2 类型检查辅助（实现于 tc_analyzer_pass2.c；REPL 亦用）              */
 /* ------------------------------------------------------------------ */
 
-int tc_check_operand(TcOperand *operand, TcType expected,
+int tc_check_operand(TcOperand *operand, TcTypeKind expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,
                      TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                      TcWarningList *warnings, const char *self_name, TcErrorKind type_err);
-int tc_check_io_format(TcType type, TcFormatSpec fmt, int line, TcDiagnostic *diag);
-int tc_check_rhs(TcRhs *rhs, TcType lhs_type, const TcSymbolTable *visible,
+int tc_check_io_format(TcTypeKind type, TcFormatSpec fmt, int line, TcDiagnostic *diag);
+int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
                  const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                  int line, TcDiagnostic *diag, TcWarningList *warnings, const char *self_name);
 

@@ -9,7 +9,7 @@
 /*  按位运算                                                            */
 /* ------------------------------------------------------------------ */
 
-static int tc_check_operand_types(TcType type, const TcValue *a, const TcValue *b,
+static int tc_check_operand_types(TcTypeKind type, const TcValue *a, const TcValue *b,
                                   TcDiagnostic *diag, int line) {
     if (a->type != type || (b != NULL && b->type != type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -19,7 +19,7 @@ static int tc_check_operand_types(TcType type, const TcValue *a, const TcValue *
     return 0;
 }
 
-int tc_exec_bitwise_binary(TcBitwiseOp op, TcType type,
+int tc_exec_bitwise_binary(TcBitwiseOp op, TcTypeKind type,
                            const TcValue *lhs, const TcValue *rhs, TcValue *out,
                            TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
@@ -54,7 +54,7 @@ int tc_exec_bitwise_binary(TcBitwiseOp op, TcType type,
     return 0;
 }
 
-int tc_exec_bitwise_unary(TcType type, const TcValue *operand, TcValue *out,
+int tc_exec_bitwise_unary(TcTypeKind type, const TcValue *operand, TcValue *out,
                           TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -114,12 +114,12 @@ static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
     }
 }
 
-static int tc_shift_count(TcType type, const TcValue *count, uint64_t *k_out) {
+static int tc_shift_count(TcTypeKind type, const TcValue *count, uint64_t *k_out) {
     *k_out = tc_value_to_unsigned(type, count->bits);
     return 0;
 }
 
-static int tc_exec_shl(TcType type, TcWrapMode mode, const TcValue *value,
+static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
                        uint64_t k, TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -181,7 +181,7 @@ static int tc_exec_shl(TcType type, TcWrapMode mode, const TcValue *value,
  *   - 无符号：逻辑右移（高位补 0）
  * k >= n 时直接返回 0。
  */
-static int tc_exec_shr(TcType type, const TcValue *value, uint64_t k, TcValue *out) {
+static int tc_exec_shr(TcTypeKind type, const TcValue *value, uint64_t k, TcValue *out) {
     int n = tc_type_bit_width(type);
     uint64_t val_bits = tc_value_to_unsigned(type, value->bits);
 
@@ -200,7 +200,7 @@ static int tc_exec_shr(TcType type, const TcValue *value, uint64_t k, TcValue *o
     return 0;
 }
 
-int tc_exec_shift(TcShiftOp op, TcType type, TcWrapMode mode,
+int tc_exec_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
                   const TcValue *value, const TcValue *count, TcValue *out,
                   TcDiagnostic *diag, int line) {
     uint64_t k = 0;

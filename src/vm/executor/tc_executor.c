@@ -55,7 +55,7 @@ static void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char 
     diag->domain = TC_DIAG_IMPLEMENTATION;
 }
 
-static int tc_exec_load_binding(const TcResolvedBinding *binding, TcType type,
+static int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeKind type,
                                 const TcValue *slots, TcValue *out, TcDiagnostic *diag,
                                 int line) {
     if (!binding->resolved) {
@@ -144,7 +144,7 @@ static int tc_exec_io_read(const TcRead *io_read, TcValue *slots, TcDiagnostic *
 /* ------------------------------------------------------------------ */
 
 /** 求值操作数：字面量直接构造；标识符消费 Analyzer 持久化绑定。 */
-static int tc_eval_operand(const TcOperand *operand, TcType expected_type,
+static int tc_eval_operand(const TcOperand *operand, TcTypeKind expected_type,
                            const TcValue *slots, TcValue *out, TcDiagnostic *diag, int line) {
     if (operand->kind == TC_OPERAND_LIT) {
         *out = tc_literal_to_value(&operand->u.lit, expected_type);
@@ -170,7 +170,7 @@ static int tc_eval_operand(const TcOperand *operand, TcType expected_type,
  *   TC_RHS_CONST_REF           → 读取已解析的 var/let slot
  *   TC_RHS_CONST_CAST          → 防御拒绝（仅 let 初始化合法）
  */
-static int tc_eval_rhs(const TcRhs *rhs, TcType expected_type, const TcValue *slots,
+static int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, const TcValue *slots,
                        TcValue *out, TcDiagnostic *diag, int line) {
     if (rhs->kind == TC_RHS_LIT) {
         *out = tc_literal_to_value(&rhs->u.lit, expected_type);

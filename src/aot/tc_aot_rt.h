@@ -19,38 +19,38 @@
 
 void tc_aot_diag_init(TcDiagnostic *diag);
 void tc_aot_init_slots(uint64_t *slots, size_t count);
-uint64_t tc_aot_lit(TcType type, uint64_t magnitude, int negative, int unsigned_suffix);
-int tc_aot_arith(TcArithOp op, TcType type, TcWrapMode mode, uint64_t *out, uint64_t lhs,
+uint64_t tc_aot_lit(TcTypeKind type, uint64_t magnitude, int negative, int unsigned_suffix);
+int tc_aot_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode, uint64_t *out, uint64_t lhs,
                  uint64_t rhs, TcDiagnostic *diag, int line);
-int tc_aot_unary(TcUnaryOp op, TcType type, TcWrapMode mode, uint64_t *out, uint64_t operand,
+int tc_aot_unary(TcUnaryOp op, TcTypeKind type, TcWrapMode mode, uint64_t *out, uint64_t operand,
                  TcDiagnostic *diag, int line);
-int tc_aot_compare(TcCompareOp op, TcType type, uint64_t *out, uint64_t lhs, uint64_t rhs,
+int tc_aot_compare(TcCompareOp op, TcTypeKind type, uint64_t *out, uint64_t lhs, uint64_t rhs,
                    TcDiagnostic *diag, int line);
 int tc_aot_logic(TcLogicOp op, uint64_t *out, uint64_t lhs, uint64_t rhs, TcDiagnostic *diag,
                  int line);
 int tc_aot_logic_unary(TcLogicOp op, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
                        int line);
-int tc_aot_bitwise_binary(TcBitwiseOp op, TcType type, uint64_t *out, uint64_t lhs,
+int tc_aot_bitwise_binary(TcBitwiseOp op, TcTypeKind type, uint64_t *out, uint64_t lhs,
                           uint64_t rhs, TcDiagnostic *diag, int line);
-int tc_aot_bitwise_unary(TcType type, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
+int tc_aot_bitwise_unary(TcTypeKind type, uint64_t *out, uint64_t operand, TcDiagnostic *diag,
                          int line);
-int tc_aot_shift(TcShiftOp op, TcType type, TcWrapMode mode, uint64_t *out, uint64_t value,
+int tc_aot_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode, uint64_t *out, uint64_t value,
                  uint64_t count, TcDiagnostic *diag, int line);
-int tc_aot_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType src_type,
+int tc_aot_cast(TcTypeKind target, TcTruncateMode mode, uint64_t src_bits, TcTypeKind src_type,
                 uint64_t *out, TcDiagnostic *diag, int line);
-int tc_aot_bitcast(TcType target, TcType source_type, uint64_t *out, uint64_t source_bits,
+int tc_aot_bitcast(TcTypeKind target, TcTypeKind source_type, uint64_t *out, uint64_t source_bits,
                    TcDiagnostic *diag, int line);
-int tc_aot_fp_arith(TcArithOp op, TcType type, TcFloatMode mode, uint64_t *out, uint64_t lhs,
+int tc_aot_fp_arith(TcArithOp op, TcTypeKind type, TcFloatMode mode, uint64_t *out, uint64_t lhs,
                     uint64_t rhs, TcDiagnostic *diag, int line);
-int tc_aot_fp_unary(TcUnaryOp op, TcType type, TcFloatMode mode, uint64_t *out,
+int tc_aot_fp_unary(TcUnaryOp op, TcTypeKind type, TcFloatMode mode, uint64_t *out,
                     uint64_t operand, TcDiagnostic *diag, int line);
-int tc_aot_fp_compare(TcCompareOp op, TcType type, TcFloatMode mode, uint64_t *out,
+int tc_aot_fp_compare(TcCompareOp op, TcTypeKind type, TcFloatMode mode, uint64_t *out,
                         uint64_t lhs, uint64_t rhs, TcDiagnostic *diag, int line);
-int tc_aot_fp_cast(TcType target, TcTruncateMode mode, uint64_t src_bits, TcType src_type,
+int tc_aot_fp_cast(TcTypeKind target, TcTruncateMode mode, uint64_t src_bits, TcTypeKind src_type,
                    uint64_t *out, TcDiagnostic *diag, int line);
-int tc_aot_write(TcType type, TcFormatSpec fmt, uint64_t bits, int newline,
+int tc_aot_write(TcTypeKind type, TcFormatSpec fmt, uint64_t bits, int newline,
                  TcDiagnostic *diag, int line);
-int tc_aot_read(TcType type, uint64_t *out, TcDiagnostic *diag, int line);
+int tc_aot_read(TcTypeKind type, uint64_t *out, TcDiagnostic *diag, int line);
 void tc_aot_abort(const TcDiagnostic *diag, int line);
 
 #endif

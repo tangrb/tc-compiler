@@ -30,6 +30,8 @@ void tc_typed_program_init(TcTypedProgram *program) {
     tc_symbol_table_init(&program->symbols);
     program->cfg = NULL;
     tc_warning_list_init(&program->warnings);
+    program->toplevel_slot_count = 0;
+    program->static_slot_count = 0;
 }
 
 void tc_typed_program_free(TcTypedProgram *program) {
@@ -52,7 +54,7 @@ void tc_typed_program_free(TcTypedProgram *program) {
  * @brief 检查 TcLiteral 能否放入目标类型
  * @return 检查通过返回 0；失败返回 -1 并设置 diag
  */
-int tc_check_literal(const TcLiteral *lit, TcType expected, int line,
+int tc_check_literal(const TcLiteral *lit, TcTypeKind expected, int line,
                             TcDiagnostic *diag, TcErrorKind literal_type_err) {
     TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {

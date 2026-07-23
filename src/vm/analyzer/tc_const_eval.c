@@ -54,7 +54,7 @@ static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int 
     }
 }
 
-static int tc_try_eval_bound_operand(const TcOperand *operand, TcType expected, TcValue *out) {
+static int tc_try_eval_bound_operand(const TcOperand *operand, TcTypeKind expected, TcValue *out) {
     if (operand->kind == TC_OPERAND_LIT) {
         if (!tc_literal_fits_context(&operand->u.lit, expected, NULL)) {
             return 0;
@@ -172,7 +172,7 @@ int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *resu
     return 0;
 }
 
-static int tc_eval_const_operand(const TcOperand *operand, TcType expected,
+static int tc_eval_const_operand(const TcOperand *operand, TcTypeKind expected,
                                  const TcSymbolTable *visible, const TcSymbolTable *global,
                                  const char *const_name, TcValue *out, int line,
                                  TcDiagnostic *diag) {
@@ -223,12 +223,12 @@ static int tc_eval_const_operand(const TcOperand *operand, TcType expected,
     }
 }
 
-static int tc_eval_const_rhs(const TcRhs *rhs, TcType expected_type,
+static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
                              const char *const_name, TcValue *out, int line,
                              TcDiagnostic *diag);
 
-static int tc_eval_const_rhs(const TcRhs *rhs, TcType expected_type,
+static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
                              const char *const_name, TcValue *out, int line,
                              TcDiagnostic *diag) {
@@ -587,7 +587,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcType expected_type,
     if (rhs->kind == TC_RHS_BITCAST) {
         TcBitcastRhs *bitcast = (TcBitcastRhs *)&rhs->u.bitcast;
         TcValue source = {0};
-        TcType source_type = TC_INT32;
+        TcTypeKind source_type = TC_INT32;
         int width = tc_type_bit_width(bitcast->target);
 
         if (bitcast->target != expected_type) {
@@ -656,7 +656,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcType expected_type,
     if (rhs->kind == TC_RHS_CONST_CAST) {
         TcCastRhs *cast = (TcCastRhs *)&rhs->u.const_cast;
         TcValue src_val = {0};
-        TcType source_type = TC_INT64;
+        TcTypeKind source_type = TC_INT64;
 
         if (cast->target != expected_type) {
             tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,

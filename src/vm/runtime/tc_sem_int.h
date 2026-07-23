@@ -18,7 +18,7 @@
  * @param line  当前行号
  * @return 成功 0；失败（除零/溢出）-1
  */
-int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
+int tc_exec_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line);
 
@@ -33,7 +33,7 @@ int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
  * @param line    当前行号
  * @return 成功 0；失败（abs/neg(INT_MIN) 溢出）-1
  */
-int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
+int tc_exec_unary(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line);
 

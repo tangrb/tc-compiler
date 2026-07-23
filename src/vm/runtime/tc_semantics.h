@@ -18,7 +18,7 @@
 /* ------------------------------------------------------------------ */
 
 /** 检查无符号字面量量值能否放入目标类型的表示范围 */
-int tc_literal_fits_type(uint64_t value, TcType type);
+int tc_literal_fits_type(uint64_t value, TcTypeKind type);
 
 /**
  * 按上下文类型检查 TcLiteral 合法性（考虑负号、u 后缀和类型符号性）。
@@ -27,26 +27,26 @@ int tc_literal_fits_type(uint64_t value, TcType type);
  * @param err_kind 失败时写入具体错误种类（LiteralOutOfRange 或 LiteralTypeError）
  * @return 合法返回 1；非法返回 0
  */
-int tc_literal_fits_context(const TcLiteral *lit, TcType type, TcErrorKind *err_kind);
+int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *err_kind);
 
 /** 将字面量编码为运行时值（Analyzer 已校验范围，此函数假定合法） */
-TcValue tc_literal_to_value(const TcLiteral *lit, TcType type);
+TcValue tc_literal_to_value(const TcLiteral *lit, TcTypeKind type);
 
 /* ------------------------------------------------------------------ */
 /*  范围检查                                                           */
 /* ------------------------------------------------------------------ */
 
-int tc_signed_in_range(int64_t value, TcType type);
-int tc_unsigned_in_range(uint64_t value, TcType type);
+int tc_signed_in_range(int64_t value, TcTypeKind type);
+int tc_unsigned_in_range(uint64_t value, TcTypeKind type);
 
 /** 有符号类型的最小值：-(2^(n-1))（子模块共用） */
-int64_t tc_type_min_signed(TcType type);
+int64_t tc_type_min_signed(TcTypeKind type);
 
 /** 有符号类型的最大值：2^(n-1) - 1（子模块共用） */
-int64_t tc_type_max_signed(TcType type);
+int64_t tc_type_max_signed(TcTypeKind type);
 
 /** 无符号类型的最大值：2^n - 1（子模块共用） */
-uint64_t tc_type_max_unsigned(TcType type);
+uint64_t tc_type_max_unsigned(TcTypeKind type);
 
 /* ------------------------------------------------------------------ */
 /*  位模式变换工具函数                                                    */
@@ -59,25 +59,25 @@ uint64_t tc_mask_bits(int bit_width);
  * 将 IEEE 754 位模式转为 double（float32 先转为 float 再提升到 double）。
  * 供 tc_semantics.c 内部及 tc_io.c 等外部模块共用。
  */
-double tc_fp_bits_to_double(TcType type, uint64_t bits);
+double tc_fp_bits_to_double(TcTypeKind type, uint64_t bits);
 
 /**
  * 将 double 编码为 IEEE 754 位模式（float32 先截断再编码）。
  * 供 tc_semantics.c 内部及 tc_io.c 等外部模块共用。
  */
-uint64_t tc_fp_double_to_bits(TcType type, double value);
+uint64_t tc_fp_double_to_bits(TcTypeKind type, double value);
 
 /** 将无符号位模式按目标有符号类型解释为 int64（二补数） */
-int64_t tc_bits_to_signed(TcType type, uint64_t bits);
+int64_t tc_bits_to_signed(TcTypeKind type, uint64_t bits);
 
 /** 将 int64 编码为目标类型位宽的无符号位模式 */
-uint64_t tc_signed_to_bits(TcType type, int64_t value);
+uint64_t tc_signed_to_bits(TcTypeKind type, int64_t value);
 
 /** 将位模式用目标类型的位宽掩码归一化（无符号视角） */
-uint64_t tc_value_to_unsigned(TcType type, uint64_t bits);
+uint64_t tc_value_to_unsigned(TcTypeKind type, uint64_t bits);
 
 /** 构造运行时值（自动归一化 bits 到目标类型位宽） */
-TcValue tc_value_make(TcType type, uint64_t bits);
+TcValue tc_value_make(TcTypeKind type, uint64_t bits);
 
 /* ------------------------------------------------------------------ */
 /*  未初始化变量槽位哨兵                                                  */
@@ -99,24 +99,24 @@ void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count);
 /*  §5.1 操作 × 类型 × 模式矩阵                                        */
 /* ------------------------------------------------------------------ */
 
-int tc_validate_arith_mode(TcArithOp op, TcType type, TcWrapMode mode,
+int tc_validate_arith_mode(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line);
-int tc_validate_unary_mode(TcUnaryOp op, TcType type, TcWrapMode mode,
+int tc_validate_unary_mode(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line);
-int tc_validate_shift_mode(TcShiftOp op, TcType type, TcWrapMode mode,
+int tc_validate_shift_mode(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line);
-int tc_validate_fp_arith_mode(TcArithOp op, TcType type, TcFloatMode mode,
+int tc_validate_fp_arith_mode(TcArithOp op, TcTypeKind type, TcFloatMode mode,
                               TcDiagnostic *diag, int line);
-int tc_validate_fp_unary_mode(TcUnaryOp op, TcType type, TcFloatMode mode,
+int tc_validate_fp_unary_mode(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
                               TcDiagnostic *diag, int line);
-int tc_validate_fp_compare_mode(TcType type, TcFloatMode mode,
+int tc_validate_fp_compare_mode(TcTypeKind type, TcFloatMode mode,
                                 TcDiagnostic *diag, int line);
 
 /* ------------------------------------------------------------------ */
 /*  比较 / 逻辑                                                         */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_compare(TcCompareOp op, TcType type, const TcValue *lhs, const TcValue *rhs,
+int tc_exec_compare(TcCompareOp op, TcTypeKind type, const TcValue *lhs, const TcValue *rhs,
                     TcValue *out, TcDiagnostic *diag, int line);
 int tc_exec_logic_binary(TcLogicOp op, const TcValue *lhs, const TcValue *rhs, TcValue *out,
                          TcDiagnostic *diag, int line);

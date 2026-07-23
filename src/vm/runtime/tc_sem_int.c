@@ -117,7 +117,7 @@ static void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
 /*  有符号算术运算                                                       */
 /* ------------------------------------------------------------------ */
 
-static int tc_exec_signed_arith(TcArithOp op, TcType type, TcWrapMode mode,
+static int tc_exec_signed_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                                 const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                 TcDiagnostic *diag, int line) {
     int64_t a = tc_bits_to_signed(type, lhs->bits);
@@ -236,7 +236,7 @@ static int tc_exec_signed_arith(TcArithOp op, TcType type, TcWrapMode mode,
  * mode 参数仅用于签名兼容——无符号运算的截断语义等价于 wrap，
  * 无论传入什么模式都按位宽截断，所以入参被忽略（§5.1 语言标准）。
  */
-static int tc_exec_unsigned_arith(TcArithOp op, TcType type, TcWrapMode mode,
+static int tc_exec_unsigned_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                                     const TcValue *lhs, const TcValue *rhs, TcValue *out,
                                     TcDiagnostic *diag, int line) {
     (void)mode;
@@ -283,7 +283,7 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcType type, TcWrapMode mode,
 /*  算术运算入口                                                        */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
+int tc_exec_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                   const TcValue *lhs, const TcValue *rhs, TcValue *out,
                   TcDiagnostic *diag, int line) {
     if (tc_validate_arith_mode(op, type, mode, diag, line) != 0) {
@@ -299,7 +299,7 @@ int tc_exec_arith(TcArithOp op, TcType type, TcWrapMode mode,
 /*  单目运算：abs / neg                                                  */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_unary(TcUnaryOp op, TcType type, TcWrapMode mode,
+int tc_exec_unary(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);

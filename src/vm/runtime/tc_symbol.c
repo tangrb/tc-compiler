@@ -414,7 +414,7 @@ const TcSymbol *tc_symbol_table_find(const TcSymbolTable *table, const char *nam
     return tc_symbol_table_find_in_scope(table, name);
 }
 
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcType type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeKind type, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag) {
     if (table->scope_count == 0) {
@@ -447,6 +447,9 @@ int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcType type, int
     table->symbols[table->count].const_value.bits = 0;
     table->symbols[table->count].scope_level = tc_symbol_table_current_scope(table);
     table->symbols[table->count].scope_end_stmt_index = -1;
+    table->symbols[table->count].slot_domain = TC_SLOT_TOPLEVEL;
+    table->symbols[table->count].memblock_count = 0;
+    table->symbols[table->count].struct_id = -1;
     table->count++;
     return 0;
 }

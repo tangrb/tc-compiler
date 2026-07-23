@@ -24,11 +24,16 @@
 /* ------------------------------------------------------------------ */
 
 /**
- * TC 语言支持的全部标量类型：定宽整数、bool、浮点。
+ * TC 0.0.35 类型种类（TcTypeKind）。
  *
- * TC_BOOL 与 int8～uint64 共用本枚举以便统一位宽查询与 I/O 处理，
- * 但概念上 bool 属于独立类型类别（见语言标准 §3.1）。
- * tc_type_is_integer() 仅对 TC_INT8～TC_UINT64 返回真，不含 TC_BOOL。
+ * 标量：定宽整数、bool、浮点、isize/usize。
+ * 复合：ptr / memblock / struct；void 仅作函数返回类型。
+ *
+ * TC_BOOL 与整数共用枚举以便统一查询，但概念上属独立类别（语言标准 §3.1）。
+ * tc_type_is_integer() 对 TC_INT8～TC_UINT64 与 TC_ISIZE/TC_USIZE 返回真，不含 TC_BOOL。
+ *
+ * 完整类型值见下方 TcType（kind + 参数）。现网 AST/API 仍以 TcTypeKind
+ * 传递标量种类；复合类型经 TcType / tc_type_equals / tc_sizeof_bits。
  */
 typedef enum {
     TC_INT8,
@@ -41,8 +46,40 @@ typedef enum {
     TC_UINT64,
     TC_BOOL,
     TC_FLOAT32,
-    TC_FLOAT64
+    TC_FLOAT64,
+    TC_ISIZE,
+    TC_USIZE,
+    TC_VOID,      /* 仅函数返回类型 */
+    TC_PTR,       /* ptr<T>，params.ptr_type */
+    TC_MEMBLOCK,  /* memblock<T,N>，params.memblock_type；等价仅看 T */
+    TC_STRUCT     /* 结构体，params.struct_type.struct_id */
+} TcTypeKind;
+
+/**
+ * 完整类型表示（开发计划 A-2 / VM 详设 §8.1）。
+ * 标量与 void：仅 kind 有意义，params 为零。
+ * ptr：pointee 堆分配或指向持久类型节点。
+ * memblock：element + 声明 count（N）；tc_type_equals 忽略 N。
+ * struct：struct_id 索引模块内结构体定义表。
+ */
+typedef struct TcType {
+    TcTypeKind kind;
+    union {
+        struct {
+            struct TcType *pointee;
+        } ptr_type;
+        struct {
+            struct TcType *element;
+            uint64_t count;
+        } memblock_type;
+        struct {
+            int struct_id;
+        } struct_type;
+    } params;
 } TcType;
+
+/* 过渡期：既有标量代码路径仍用「种类」传参；见 tc_type_scalar() */
+typedef TcTypeKind TcScalarType;
 
 /**
  * 算术溢出处理模式：
@@ -142,11 +179,25 @@ typedef enum {
     TC_FMT_GU
 } TcFormatSpec;
 
-/** 符号种类：变量或 let 常量 */
+/** 符号种类：变量、let、形参、static var/let（0.0.35） */
 typedef enum {
     TC_SYM_VARIABLE,
-    TC_SYM_CONSTANT
+    TC_SYM_CONSTANT,
+    TC_SYM_PARAMETER,    /* 函数形参（只读绑定） */
+    TC_SYM_STATIC_VAR,   /* #lib static var */
+    TC_SYM_STATIC_LET    /* #lib static let（编译期内联，无运行时槽） */
 } TcSymKind;
+
+/**
+ * 运行时槽位域（开发计划 A-8）。
+ * let / static let 无槽；其余运行时绑定落入下列之一。
+ */
+typedef enum {
+    TC_SLOT_TOPLEVEL = 0, /* #program 顶层 var */
+    TC_SLOT_STATIC,       /* 全程序唯一 static var 槽 */
+    TC_SLOT_PARAM,        /* 调用帧形参区 */
+    TC_SLOT_LOCAL         /* 调用帧局部 var 区 */
+} TcSlotDomain;
 
 /* ------------------------------------------------------------------ */
 /*  错误与警告枚举                                                     */
@@ -195,7 +246,69 @@ typedef enum {
     TC_ERR_LABEL_INSIDE_LOOP,       /* label 不得出现在 while 内 */
     TC_ERR_GOTO_INSIDE_LOOP,        /* goto 不得出现在 while 内 */
     TC_ERR_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
-    TC_ERR_CONTINUE_OUTSIDE_LOOP    /* continue 必须出现在 while 内 */
+    TC_ERR_CONTINUE_OUTSIDE_LOOP,   /* continue 必须出现在 while 内 */
+
+    /* ---- 0.0.35：控制流补充（编译器标准 §11.4.1） ---- */
+    TC_ERR_GOTO_OUTSIDE_FUNCTION,
+    TC_ERR_LABEL_OUTSIDE_FUNCTION,
+    TC_ERR_JUMP_INCOMPATIBLE_BLOCK,
+    TC_ERR_NEGATIVE_SHIFT_COUNT,    /* 运行时负移位计数 */
+    TC_ERR_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
+
+    /* ---- 0.0.35：函数诊断（§11.4.2，20 个） ---- */
+    TC_ERR_DUPLICATE_FUNCTION,
+    TC_ERR_FUNCTION_NAME_CONFLICT,
+    TC_ERR_UNDEFINED_FUNCTION,
+    TC_ERR_DUPLICATE_PARAMETER,
+    TC_ERR_MISSING_ARGUMENT,
+    TC_ERR_DUPLICATE_ARGUMENT,
+    TC_ERR_UNKNOWN_ARGUMENT,
+    TC_ERR_ARGUMENT_ORDER,
+    TC_ERR_ARGUMENT_TYPE,
+    TC_ERR_FUNCALL_POSITION,
+    TC_ERR_FUNCALL_RESULT_TYPE,
+    TC_ERR_RETURN_OUTSIDE_FUNCTION,
+    TC_ERR_RETURN_FORM,
+    TC_ERR_RETURN_TYPE,
+    TC_ERR_MISSING_RETURN,
+    TC_ERR_UNREACHABLE_STATEMENT,
+    TC_ERR_PARAMETER_ASSIGNMENT,
+    TC_ERR_FUNCTION_SCOPE_ACCESS,
+    TC_ERR_CROSS_CONTROL_FLOW_JUMP,
+    TC_ERR_RECURSION,
+
+    /* ---- 0.0.35：memblock（§11.4.3） ---- */
+    TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE,       /* 静态越界 */
+    TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT,    /* 运行时越界；打印名同静态 */
+    TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH,
+    TC_ERR_MEMBLOCK_SIZE_MISMATCH,
+
+    /* ---- 0.0.35：struct（§11.4.4） ---- */
+    TC_ERR_STRUCT_MISSING_FIELD,
+    TC_ERR_STRUCT_UNKNOWN_FIELD,
+    TC_ERR_STRUCT_DUPLICATE_FIELD,
+    TC_ERR_STRUCT_FIELD_ORDER,
+    TC_ERR_STRUCT_IMMUTABLE_FIELD,
+    TC_ERR_DUPLICATE_STRUCT,
+    TC_ERR_UNDEFINED_STRUCT,
+
+    /* ---- 0.0.35：模块（§11.4.5，10 个） ---- */
+    TC_ERR_MODULE_LAYER,
+    TC_ERR_MISSING_VISIBILITY,
+    TC_ERR_PROGRAM_MODE_MISUSE,
+    TC_ERR_IMPORT_NOT_FOUND,
+    TC_ERR_IMPORT_NOT_LIB,
+    TC_ERR_IMPORT_AMBIGUOUS,
+    TC_ERR_DUPLICATE_IMPORT,
+    TC_ERR_IMPORT_NAME_CONFLICT,
+    TC_ERR_CIRCULAR_IMPORT,
+    TC_ERR_PRIVATE_MEMBER_ACCESS,
+
+    /* ---- 0.0.35：指针与 memcopy（§11.4.6） ---- */
+    TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
+    TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT,   /* 运行时；打印名同静态 */
+    TC_ERR_NULL_POINTER_DEREFERENCE,
+    TC_ERR_NULL_POINTER_ARITHMETIC
 } TcErrorKind;
 
 /*
@@ -241,7 +354,7 @@ typedef struct {
     int resolved;
     int slot;             /* var 的固定运行时槽；let 为 -1 */
     int is_const;         /* let 常量绑定时为 1 */
-    TcType type;          /* Analyzer 解析的声明类型 */
+    TcTypeKind type;          /* Analyzer 解析的声明类型 */
     uint64_t const_bits;  /* let 的规范化 TcValue.bits */
 } TcResolvedBinding;
 
@@ -271,20 +384,40 @@ typedef enum {
     TC_RHS_FLOAT_ARITH,   /* 浮点双目算术 */
     TC_RHS_FLOAT_UNARY,   /* 浮点单目运算 */
     TC_RHS_FLOAT_COMPARE, /* 浮点比较 */
-    TC_RHS_BITCAST        /* 等宽整数/浮点位重解释 */
+    TC_RHS_BITCAST,       /* 等宽整数/浮点位重解释 */
+
+    /* ---- 0.0.35 新增 RHS（开发计划 A-6 / VM 详设 §3.3） ---- */
+    TC_RHS_MEMBLOCK_LOAD,
+    TC_RHS_MEMBLOCK_CONSTRUCTOR,
+    TC_RHS_MEMBLOCK_COUNT,
+    TC_RHS_STRUCT_CONSTRUCTOR,
+    TC_RHS_FIELD_READ,
+    TC_RHS_PTR_LOAD,
+    TC_RHS_PTR_ADDRESS,
+    TC_RHS_PTR_ADD,
+    TC_RHS_PTR_SUB,
+    TC_RHS_PTR_EQ,
+    TC_RHS_PTR_NE,
+    TC_RHS_PTR_LT,
+    TC_RHS_PTR_LE,
+    TC_RHS_PTR_GT,
+    TC_RHS_PTR_GE,
+    TC_RHS_PTR_SIZE,
+    TC_RHS_FUNCALL_EXPR,
+    TC_RHS_SELF_MEMBER
 } TcRhsKind;
 
 typedef struct {
-    TcType target;
-    TcType source_type;
+    TcTypeKind target;
+    TcTypeKind source_type;
     int source_type_resolved;
     TcOperand source;
 } TcBitcastRhs;
 
 typedef struct {
-    TcType target;
+    TcTypeKind target;
     TcTruncateMode mode;
-    TcType source_type;
+    TcTypeKind source_type;
     int source_type_resolved;
     TcOperand source;
 } TcCastRhs;
@@ -295,20 +428,20 @@ typedef struct {
         TcLiteral lit;           /* TC_RHS_LIT */
         struct {
             TcArithOp op;
-            TcType type;
+            TcTypeKind type;
             TcWrapMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } arith;                 /* TC_RHS_ARITH */
         struct {
             TcUnaryOp op;
-            TcType type;
+            TcTypeKind type;
             TcWrapMode mode;
             TcOperand operand;
         } unary;                 /* TC_RHS_UNARY */
         struct {
             TcCompareOp op;
-            TcType type;
+            TcTypeKind type;
             TcOperand lhs;
             TcOperand rhs;
         } compare;               /* TC_RHS_COMPARE */
@@ -323,17 +456,17 @@ typedef struct {
         } logic_un;              /* TC_RHS_LOGIC_UN */
         struct {
             TcBitwiseOp op;
-            TcType type;
+            TcTypeKind type;
             TcOperand lhs;
             TcOperand rhs;
         } bitwise_bin;           /* TC_RHS_BITWISE_BIN */
         struct {
-            TcType type;
+            TcTypeKind type;
             TcOperand operand;
         } bitwise_un;              /* TC_RHS_BITWISE_UN（恒为 not） */
         struct {
             TcShiftOp op;
-            TcType type;
+            TcTypeKind type;
             TcWrapMode mode;     /* 仅 shl 使用；shr 恒为 TC_ARITH_STRICT */
             TcOperand value;
             TcOperand count;
@@ -346,20 +479,20 @@ typedef struct {
         } const_ref;             /* TC_RHS_CONST_REF */
         struct {
             TcArithOp op;
-            TcType type;      /* TC_FLOAT32 或 TC_FLOAT64 */
+            TcTypeKind type;      /* TC_FLOAT32 或 TC_FLOAT64 */
             TcFloatMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } float_arith;           /* TC_RHS_FLOAT_ARITH */
         struct {
             TcUnaryOp op;
-            TcType type;
+            TcTypeKind type;
             TcFloatMode mode;
             TcOperand operand;
         } float_unary;           /* TC_RHS_FLOAT_UNARY */
         struct {
             TcCompareOp op;
-            TcType type;
+            TcTypeKind type;
             TcFloatMode mode;
             TcOperand lhs;
             TcOperand rhs;
@@ -381,13 +514,27 @@ typedef enum {
     TC_STMT_GOTO,        /* goto name  无条件跳转 */
     TC_STMT_WHILE,       /* while-then-end 结构化循环 */
     TC_STMT_BREAK,       /* 退出最内层 while */
-    TC_STMT_CONTINUE     /* 继续最内层 while */
+    TC_STMT_CONTINUE,    /* 继续最内层 while */
+
+    /* ---- 0.0.35 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
+    TC_STMT_FIELD_ASSIGN,       /* a.b = rhs */
+    TC_STMT_FUNC_DEF,
+    TC_STMT_FUNCALL,
+    TC_STMT_RETURN,
+    TC_STMT_MEMBLOCK_STORE,
+    TC_STMT_MEMBLOCK_COPY,
+    TC_STMT_PTR_STORE,
+    TC_STMT_MEMCOPY_UNSAFE,
+    TC_STMT_STRUCT_DEF,
+    TC_STMT_STATIC_VAR_DEF,
+    TC_STMT_STATIC_LET_DEF,
+    TC_STMT_IMPORT
 } TcStmtKind;
 
 typedef struct {
     int line;
     char *name;      /* 变量名，堆分配 */
-    TcType type;
+    TcTypeKind type;
     TcRhs rhs;
     TcResolvedBinding binding; /* 定义对应的固定 slot */
 } TcVarDef;
@@ -395,7 +542,7 @@ typedef struct {
 typedef struct {
     int line;
     char *name;      /* 常量名，堆分配 */
-    TcType type;
+    TcTypeKind type;
     TcRhs rhs;       /* let 初始化必须为编译期常量表达式（由 Analyzer 确保） */
 } TcConstDef;
 
@@ -408,14 +555,14 @@ typedef struct {
 
 typedef struct {
     int line;
-    TcType type;
+    TcTypeKind type;
     TcFormatSpec fmt;       /* TC_FMT_NONE 表示默认十进制输出 */
     TcOperand operand;
 } TcIoWrite;
 
 typedef struct {
     int line;
-    TcType type;
+    TcTypeKind type;
     char *name;      /* 读取目标变量名，堆分配 */
     TcResolvedBinding binding; /* Analyzer 解析的读取目标 */
 } TcRead;
@@ -485,17 +632,42 @@ typedef struct {
     size_t capacity;
 } TcProgram;
 
-/** 运行时值：类型 + 位模式，统一 uint64_t 存储 */
+/** 运行时值：类型种类 + 位模式载体（开发计划 A-8）
+ *
+ * 标量 / ptr：bits 存抽象位模式。
+ * memblock：bits 存指向 memblock 堆存储区的指针（实现指针转 uint64_t）。
+ * struct：bits 存指向按布局排列的连续字节区的指针；小结构体亦可内联策略（后续 Executor）。
+ */
 typedef struct {
-    TcType type;
+    TcTypeKind type;
     uint64_t bits;
 } TcValue;
+
+/**
+ * 程序级运行时槽组（A-8）。
+ * Executor / AOT 共享同一模型：顶层槽 + 全程序 static 槽；
+ * 形参/局部槽在调用帧内分配（见 TcCallFrame，Phase 4/5）。
+ * memblock_storage / struct_storage 跟踪堆块以便释放。
+ */
+typedef struct {
+    TcValue *toplevel_slots;
+    size_t toplevel_count;
+    TcValue *static_slots;
+    size_t static_count;
+    void **memblock_storage;
+    size_t memblock_storage_count;
+    size_t memblock_storage_capacity;
+    void **struct_storage;
+    size_t struct_storage_count;
+    size_t struct_storage_capacity;
+} TcRuntimeSlots;
 
 /** 符号表条目：一个变量或 let 常量的元信息 */
 typedef struct {
     char *name;          /* 堆分配 */
-    TcType type;
-    int slot;            /* 运行时变量槽索引 */
+    TcTypeKind type;
+    int slot;            /* 运行时变量槽索引（在所属 slot_domain 内） */
+    TcSlotDomain slot_domain; /* 顶层 / static / 形参 / 局部 */
     int def_line;
     int def_stmt_index;  /* 定义位置对应的语句序号 */
     TcSymKind sym_kind;
@@ -504,6 +676,8 @@ typedef struct {
     TcValue const_value; /* let 常量编译期求值结果 */
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
+    uint64_t memblock_count; /* type 为 memblock 时声明的 N；否则 0 */
+    int struct_id;       /* type 为 struct 时的结构体 id；否则 -1 */
 } TcSymbol;
 
 /** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */
@@ -579,6 +753,9 @@ typedef struct {
     TcSymbolTable symbols;
     TcCfg *cfg;
     TcWarningList warnings;
+    /* A-8：程序级槽元数据（Executor/AOT 消费；帧内槽由调用帧管理） */
+    size_t toplevel_slot_count;
+    size_t static_slot_count;
 } TcTypedProgram;
 
 typedef enum {
@@ -618,12 +795,30 @@ typedef struct {
 /*  公共工具函数声明                                                    */
 /* ------------------------------------------------------------------ */
 
-int tc_type_bit_width(TcType type);
-int tc_type_is_signed(TcType type);
-int tc_type_is_bool(TcType type);
-int tc_type_is_integer(TcType type);
-int tc_type_is_float(TcType type);
-int tc_type_parse(const char *text, TcType *out);
+/* 标量种类查询（现网路径） */
+int tc_type_bit_width(TcTypeKind type);
+int tc_type_is_signed(TcTypeKind type);
+int tc_type_is_bool(TcTypeKind type);
+int tc_type_is_integer(TcTypeKind type);
+int tc_type_is_float(TcTypeKind type);
+int tc_type_is_void(TcTypeKind type);
+int tc_type_is_ptr_kind(TcTypeKind type);
+int tc_type_is_memblock_kind(TcTypeKind type);
+int tc_type_is_struct_kind(TcTypeKind type);
+int tc_type_parse(const char *text, TcTypeKind *out);
+
+/* 完整类型（A-2～A-4） */
+TcType tc_type_scalar(TcTypeKind kind);
+TcType tc_type_make_ptr(TcType *pointee);
+TcType tc_type_make_memblock(TcType *element, uint64_t count);
+TcType tc_type_make_struct(int struct_id);
+int tc_type_equals(const TcType *a, const TcType *b);
+size_t tc_target_ptr_width_bits(void);
+size_t tc_sizeof_bits(const TcType *type);
+/* 结构体宽度表回调：未注册时 TC_STRUCT 宽度为 0；Analyzer 落地后注入 */
+typedef size_t (*TcStructWidthFn)(int struct_id, void *userdata);
+void tc_sizeof_bits_set_struct_width_fn(TcStructWidthFn fn, void *userdata);
+
 int tc_float_mode_parse(const char *text, TcFloatMode *out);
 int tc_arith_op_parse(const char *text, TcArithOp *out);
 int tc_unary_op_parse(const char *text, TcUnaryOp *out);
@@ -638,6 +833,10 @@ const char *tc_format_spec_name(TcFormatSpec fmt);
 const char *tc_error_kind_name(TcErrorKind kind);
 const char *tc_api_error_code_name(TcApiErrorCode code);
 const char *tc_warning_kind_name(TcWarningKind kind);
-const char *tc_type_name(TcType type);
+const char *tc_type_name(TcTypeKind type);
+
+/* A-8 运行时槽组 */
+void tc_runtime_slots_init(TcRuntimeSlots *slots);
+void tc_runtime_slots_free(TcRuntimeSlots *slots);
 
 #endif

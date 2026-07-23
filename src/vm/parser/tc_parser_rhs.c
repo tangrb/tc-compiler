@@ -44,7 +44,7 @@ static int tc_find_nested_const_call(const TcTokenList *tokens, size_t start) {
 }
 
 static int tc_parse_type_token(const TcTokenList *tokens, size_t *index, int line_no,
-                               TcType *out, TcDiagnostic *diag) {
+                               TcTypeKind *out, TcDiagnostic *diag) {
     const TcToken *type_tok = tc_peek(tokens, *index);
 
     if (!tc_token_is_type(type_tok)) {
@@ -92,7 +92,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
                               TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcArithOp op = op_tok->u.arith_op;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
     TcWrapMode mode = TC_ARITH_STRICT;
 
     if (op_tok->kind != TC_TOK_ARITH_OP) {
@@ -203,7 +203,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
                               TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcUnaryOp op = op_tok->u.unary_op;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
     TcWrapMode mode = TC_ARITH_STRICT;
 
     if (op_tok->kind != TC_TOK_UNARY_OP) {
@@ -292,7 +292,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
 /* @brief 解析 cast RHS：cast(type [,truncate,] operand) */
 static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                              TcRhs *out, TcDiagnostic *diag) {
-    TcType target = TC_INT32;
+    TcTypeKind target = TC_INT32;
     TcTruncateMode mode = TC_TRUNC_STRICT;
 
     if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
@@ -373,7 +373,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
                                 TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcCompareOp op = op_tok->u.compare_op;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
 
     if (op_tok->kind != TC_TOK_COMPARE_OP) {
         return tc_syntax_error(diag, line_no, op_tok->column, "expected compare operation");
@@ -520,7 +520,7 @@ static int tc_finish_logic_un_rhs(const TcTokenList *tokens, size_t *index, int 
  * @brief 完成双目按位 RHS 操作数解析（类型参数整数已读）
  */
 static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
-                                     TcBitwiseOp op, TcType type, TcRhs *out,
+                                     TcBitwiseOp op, TcTypeKind type, TcRhs *out,
                                      TcDiagnostic *diag) {
     out->kind = TC_RHS_BITWISE_BIN;
     out->u.bitwise_bin.op = op;
@@ -551,7 +551,7 @@ static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, i
  * @brief 完成单目按位 RHS 操作数解析（类型参数整数已读）
  */
 static int tc_finish_bitwise_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
-                                    TcType type, TcRhs *out, TcDiagnostic *diag) {
+                                    TcTypeKind type, TcRhs *out, TcDiagnostic *diag) {
     out->kind = TC_RHS_BITWISE_UN;
     out->u.bitwise_un.type = type;
     memset(&out->u.bitwise_un.operand, 0, sizeof(out->u.bitwise_un.operand));
@@ -590,7 +590,7 @@ static int tc_parse_and_or_not_rhs(const TcTokenList *tokens, size_t *index, int
                                    TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcLogicOp logic_op = op_tok->u.logic_op;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
     int is_not = (logic_op == TC_LOGIC_NOT);
 
     if (op_tok->kind != TC_TOK_LOGIC_OP) {
@@ -653,7 +653,7 @@ static int tc_parse_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, in
                                     TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcBitwiseOp op = op_tok->u.bitwise_op;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
 
     if (op_tok->kind != TC_TOK_BITWISE_OP) {
         return tc_syntax_error(diag, line_no, op_tok->column, "expected bitwise operation");
@@ -688,7 +688,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
                               TcRhs *out, TcDiagnostic *diag, int is_const) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcShiftOp op = op_tok->u.shift_op;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
     TcWrapMode mode = TC_ARITH_STRICT;
 
     if (op_tok->kind != TC_TOK_SHIFT_OP) {
@@ -763,7 +763,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
  */
 static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                    TcRhs *out, TcDiagnostic *diag) {
-    TcType target = TC_INT32;
+    TcTypeKind target = TC_INT32;
 
     if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
         return -1;

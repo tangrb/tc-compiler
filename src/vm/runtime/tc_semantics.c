@@ -27,7 +27,7 @@ uint64_t tc_mask_bits(int bit_width) {
     return (1ULL << (unsigned)bit_width) - 1ULL;
 }
 
-int64_t tc_bits_to_signed(TcType type, uint64_t bits) {
+int64_t tc_bits_to_signed(TcTypeKind type, uint64_t bits) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     uint64_t masked = bits & mask;
@@ -43,17 +43,17 @@ int64_t tc_bits_to_signed(TcType type, uint64_t bits) {
     return (int64_t)masked;
 }
 
-uint64_t tc_signed_to_bits(TcType type, int64_t value) {
+uint64_t tc_signed_to_bits(TcTypeKind type, int64_t value) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
     return ((uint64_t)value) & mask;
 }
 
-uint64_t tc_value_to_unsigned(TcType type, uint64_t bits) {
+uint64_t tc_value_to_unsigned(TcTypeKind type, uint64_t bits) {
     return bits & tc_mask_bits(tc_type_bit_width(type));
 }
 
-TcValue tc_value_make(TcType type, uint64_t bits) {
+TcValue tc_value_make(TcTypeKind type, uint64_t bits) {
     TcValue value;
     /* 自动归一化 bits 到目标类型位宽：窄类型的高位被掩码清零，
      * 保证 TcValue 中 bits 的"脏高位"不会影响后续运算。 */
@@ -87,7 +87,7 @@ static int tc_sem_mode_error(TcDiagnostic *diag, int line, const char *message) 
     return -1;
 }
 
-int tc_validate_arith_mode(TcArithOp op, TcType type, TcWrapMode mode,
+int tc_validate_arith_mode(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line) {
     if (tc_type_is_bool(type) || tc_type_is_float(type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -107,7 +107,7 @@ int tc_validate_arith_mode(TcArithOp op, TcType type, TcWrapMode mode,
     return 0;
 }
 
-int tc_validate_unary_mode(TcUnaryOp op, TcType type, TcWrapMode mode,
+int tc_validate_unary_mode(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line) {
     if (tc_type_is_bool(type) || tc_type_is_float(type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -127,7 +127,7 @@ int tc_validate_unary_mode(TcUnaryOp op, TcType type, TcWrapMode mode,
     return 0;
 }
 
-int tc_validate_shift_mode(TcShiftOp op, TcType type, TcWrapMode mode,
+int tc_validate_shift_mode(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line) {
     if (tc_type_is_bool(type) || tc_type_is_float(type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -140,7 +140,7 @@ int tc_validate_shift_mode(TcShiftOp op, TcType type, TcWrapMode mode,
     return 0;
 }
 
-int tc_validate_fp_arith_mode(TcArithOp op, TcType type, TcFloatMode mode,
+int tc_validate_fp_arith_mode(TcArithOp op, TcTypeKind type, TcFloatMode mode,
                               TcDiagnostic *diag, int line) {
     if (!tc_type_is_float(type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -159,7 +159,7 @@ int tc_validate_fp_arith_mode(TcArithOp op, TcType type, TcFloatMode mode,
     return 0;
 }
 
-int tc_validate_fp_unary_mode(TcUnaryOp op, TcType type, TcFloatMode mode,
+int tc_validate_fp_unary_mode(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
                               TcDiagnostic *diag, int line) {
     (void)op;
     if (!tc_type_is_float(type)) {
@@ -174,7 +174,7 @@ int tc_validate_fp_unary_mode(TcUnaryOp op, TcType type, TcFloatMode mode,
     return 0;
 }
 
-int tc_validate_fp_compare_mode(TcType type, TcFloatMode mode,
+int tc_validate_fp_compare_mode(TcTypeKind type, TcFloatMode mode,
                                 TcDiagnostic *diag, int line) {
     if (!tc_type_is_float(type)) {
         tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -193,7 +193,7 @@ int tc_validate_fp_compare_mode(TcType type, TcFloatMode mode,
 /* ------------------------------------------------------------------ */
 
 /** 有符号类型的最小值：-(2^(n-1)) */
-int64_t tc_type_min_signed(TcType type) {
+int64_t tc_type_min_signed(TcTypeKind type) {
     int n = tc_type_bit_width(type);
     if (n == 64) {
         return INT64_MIN;
@@ -202,7 +202,7 @@ int64_t tc_type_min_signed(TcType type) {
 }
 
 /** 有符号类型的最大值：2^(n-1) - 1 */
-int64_t tc_type_max_signed(TcType type) {
+int64_t tc_type_max_signed(TcTypeKind type) {
     int n = tc_type_bit_width(type);
     if (n == 64) {
         return INT64_MAX;
@@ -211,7 +211,7 @@ int64_t tc_type_max_signed(TcType type) {
 }
 
 /** 无符号类型的最大值：2^n - 1 */
-uint64_t tc_type_max_unsigned(TcType type) {
+uint64_t tc_type_max_unsigned(TcTypeKind type) {
     return tc_mask_bits(tc_type_bit_width(type));
 }
 
@@ -219,7 +219,7 @@ uint64_t tc_type_max_unsigned(TcType type) {
 /*  字面量检查                                                           */
 /* ------------------------------------------------------------------ */
 
-int tc_literal_fits_type(uint64_t value, TcType type) {
+int tc_literal_fits_type(uint64_t value, TcTypeKind type) {
     if (tc_type_is_signed(type)) {
         if (value > (uint64_t)INT64_MAX) {
             return 0;
@@ -229,7 +229,7 @@ int tc_literal_fits_type(uint64_t value, TcType type) {
     return tc_unsigned_in_range(value, type);
 }
 
-int tc_literal_fits_context(const TcLiteral *lit, TcType type, TcErrorKind *err_kind) {
+int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *err_kind) {
     if (lit->is_float) {
         float f32 = 0.0f;
 
@@ -363,7 +363,7 @@ int tc_literal_fits_context(const TcLiteral *lit, TcType type, TcErrorKind *err_
     return 1;
 }
 
-TcValue tc_literal_to_value(const TcLiteral *lit, TcType type) {
+TcValue tc_literal_to_value(const TcLiteral *lit, TcTypeKind type) {
     if (lit->is_float) {
         if (type == TC_FLOAT32) {
             float f = (float)lit->float_value;
@@ -397,11 +397,11 @@ TcValue tc_literal_to_value(const TcLiteral *lit, TcType type) {
 /*  范围检查                                                           */
 /* ------------------------------------------------------------------ */
 
-int tc_signed_in_range(int64_t value, TcType type) {
+int tc_signed_in_range(int64_t value, TcTypeKind type) {
     return value >= tc_type_min_signed(type) && value <= tc_type_max_signed(type);
 }
 
-int tc_unsigned_in_range(uint64_t value, TcType type) {
+int tc_unsigned_in_range(uint64_t value, TcTypeKind type) {
     return value <= tc_type_max_unsigned(type);
 }
 
@@ -409,7 +409,7 @@ int tc_unsigned_in_range(uint64_t value, TcType type) {
 /*  浮点位模式转换                                                       */
 /* ------------------------------------------------------------------ */
 
-double tc_fp_bits_to_double(TcType type, uint64_t bits) {
+double tc_fp_bits_to_double(TcTypeKind type, uint64_t bits) {
     if (type == TC_FLOAT32) {
         float f = 0.0f;
         uint32_t b32 = (uint32_t)(bits & 0xFFFFFFFFu);
@@ -423,7 +423,7 @@ double tc_fp_bits_to_double(TcType type, uint64_t bits) {
     }
 }
 
-uint64_t tc_fp_double_to_bits(TcType type, double value) {
+uint64_t tc_fp_double_to_bits(TcTypeKind type, double value) {
     if (type == TC_FLOAT32) {
         float f = 0.0f;
         uint32_t b32 = 0;
@@ -457,7 +457,7 @@ uint64_t tc_fp_double_to_bits(TcType type, double value) {
 /*  整数比较与逻辑运算                                                    */
 /* ------------------------------------------------------------------ */
 
-int tc_exec_compare(TcCompareOp op, TcType type, const TcValue *lhs, const TcValue *rhs,
+int tc_exec_compare(TcCompareOp op, TcTypeKind type, const TcValue *lhs, const TcValue *rhs,
                     TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     int result = 0;

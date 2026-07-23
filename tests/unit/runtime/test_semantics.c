@@ -936,8 +936,8 @@ static void test_cast_strict_matrix(void) {
     size_t source_index = 0;
 
     for (source_index = 0; source_index < 11; source_index++) {
-        TcType target = TC_INT8;
-        for (target = TC_INT8; target <= TC_FLOAT64; target = (TcType)(target + 1)) {
+        TcTypeKind target = TC_INT8;
+        for (target = TC_INT8; target <= TC_FLOAT64; target = (TcTypeKind)(target + 1)) {
             TcDiagnostic diag;
             TcValue out = {0};
             char message[128];
@@ -1087,7 +1087,7 @@ static void test_fp_arith_mul_underflow_flush_to_zero_strict(void) {
 
 static void test_fp_strict_exception_priority(void) {
     static const struct {
-        TcType type;
+        TcTypeKind type;
         TcArithOp op;
         uint64_t lhs_bits;
         uint64_t rhs_bits;
@@ -1128,7 +1128,7 @@ static void test_fp_strict_exception_priority(void) {
 
 static void test_fp_ieee_canonical_nan(void) {
     static const struct {
-        TcType type;
+        TcTypeKind type;
         uint64_t lhs_bits;
         uint64_t rhs_bits;
         uint64_t expected_bits;
@@ -1218,9 +1218,9 @@ static void test_fp_nan_compare_matrix(void) {
     static const uint64_t one_bits[] = {UINT64_C(0x3F800000),
                                         UINT64_C(0x3FF0000000000000)};
     static const int expected[] = {0, 1, 0, 0, 0, 0};
-    TcType type = TC_FLOAT32;
+    TcTypeKind type = TC_FLOAT32;
 
-    for (type = TC_FLOAT32; type <= TC_FLOAT64; type = (TcType)(type + 1)) {
+    for (type = TC_FLOAT32; type <= TC_FLOAT64; type = (TcTypeKind)(type + 1)) {
         size_t type_index = (size_t)(type - TC_FLOAT32);
         TcCompareOp op = TC_CMP_EQ;
         for (op = TC_CMP_EQ; op <= TC_CMP_GE; op = (TcCompareOp)(op + 1)) {
@@ -1256,7 +1256,7 @@ static void test_fp_nan_compare_matrix(void) {
 
 static void test_fp_unary_preserves_payload_bits(void) {
     static const struct {
-        TcType type;
+        TcTypeKind type;
         uint64_t source;
         uint64_t negated;
         uint64_t absolute;
@@ -1313,7 +1313,7 @@ static void test_fp_arith_mul_underflow_subnormal_strict(void) {
 
 static void test_fp_exact_subnormal_does_not_underflow(void) {
     static const struct {
-        TcType type;
+        TcTypeKind type;
         uint64_t lhs_bits;
         uint64_t rhs_bits;
         uint64_t expected_bits;

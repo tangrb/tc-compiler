@@ -254,7 +254,7 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
                                      int line_no, int is_const, TcStatement *out,
                                      TcDiagnostic *diag) {
     char *name = NULL;
-    TcType type = TC_INT32;
+    TcTypeKind type = TC_INT32;
     TcRhs rhs;
 
     (*index)++;
