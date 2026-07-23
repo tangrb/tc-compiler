@@ -329,10 +329,10 @@ TC 0.0.35 支持 **整数类型**、**浮点类型**、**布尔类型**、**指�
 
 ### 3.3 浮点类型
 
-| 类型      | 位宽 | IEEE 754 对应 | 最小正非零值（约） | 最大有限绝对值（约） | 精度（十进制） |
-| --------- | ---- | ------------- | ------------ | ------------ | -------------- |
-| `float32` | 32   | binary32      | 1.4e-45      | 3.4e38       | ~7 位          |
-| `float64` | 64   | binary64      | 5e-324       | 1.8e308      | ~16 位         |
+| 类型      | 位宽 | IEEE 754 对应 | 最大有限绝对值（精确） | 最小正正规值 | 最小正非零值 | 精度（十进制约） |
+| --------- | ---- | ------------- | ---------------------- | ------------ | ------------ | ---------------- |
+| `float32` | 32   | binary32      | (2 − 2^−23) × 2^127   | 2^−126       | 2^−149       | ~7 位            |
+| `float64` | 64   | binary64      | (2 − 2^−52) × 2^1023  | 2^−1022      | 2^−1074      | ~16 位           |
 
 **内部表示**：
 - 浮点数以 IEEE 754 二进制格式存储
@@ -2789,6 +2789,29 @@ rhs        = identifier
            | ptr_sub_expr
            | ptr_size_expr ;
 
+/* ── rhs 与 const_rhs 的差异说明 ──
+ *
+ * const_rhs 是 rhs 的子集：所有需要求值运行时常量方可确定结果的产生式均在
+ * const_rhs 中排除。差异按类别总结如下：
+ *
+ *   - 指针操作：ptr_load / ptr_address / ptr_add / ptr_sub / ptr_eq_compare /
+ *     ptr_compare 都需要运行时指针值或运行时地址，因此不在 const_rhs 中。
+ *     仅 ptr_size 是纯类型级查询，同时在 rhs 和 const_rhs 中。
+ *
+ *   - memblock 操作：memblock_load 读运行时内存，memblock_count_access 依赖
+ *     运行时 memblock 值，均不在 const_rhs 中。memblock_constructor 有独立的
+ *     const_memblock_constructor 变体（全部元素操作数要求为 const_operand）。
+ *
+ *   - 结构体构造器：struct_constructor 有独立的 const_struct_constructor 变体
+ *     （全部字段实参要求为 const_operand）。
+ *
+ *   - 运算/转换：所有算术、位、移位、比较、逻辑、cast / bitcast 在两层均有
+ *     对应产生式（带 const_ 前缀的变体），差异仅在于操作数是 operand 还是
+ *     const_operand，以及 const_shift_expr 接受候选 mode。
+ *
+ *   各产生式的独立注释同样记录其适用的 rhs 集合。正文 §5.2.1 权威定义
+ *   const_rhs 的语义边界。 */
+
 /* ── 常量右值表达式 ── */
 
 const_rhs  = integer_literal
@@ -2876,7 +2899,9 @@ const_operand
            | imported_member_name
            | field_access ;
 /* field_access 的基址在常量上下文中必须解析为 let / static let 结构体绑定。
-   nullptr 是合法的编译期常量（§3.10.2）。 */
+   nullptr 是合法的编译期常量（§3.10.2）。
+   memblock_count_access 排除：.count 访问的是运行时 memblock 长度头部，
+   不是编译期常量（§3.8.5）。let 中需要 count 值时直接引用 usize 常量绑定。 */
 
 /* ── 操作数 ── */
 
@@ -3295,39 +3320,6 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | `TC_ERR_NULL_POINTER_DEREFERENCE` | RT | `ptr_load` 或 `ptr_store` 的操作数为 `nullptr`；`ptr_add` / `ptr_sub` 的操作数为 `nullptr`；`memcopy_unsafe` 或指针序关系比较的操作数包含 `nullptr` |
 
 > **说明**：编译期错误（LT / SYN / SEM / CT）使用 `TC_CE_*` 前缀，运行时错误（RT）使用 `TC_RE_*` 前缀。其余详细规则以正文交叉引用的条款为准。
-
----
-
-## 附录 C：各类型边界常量速查
-
-### C.1 整数类型
-
-| TC 类型 | 位宽 | 最小值 | 最大值 |
-| ------- | ---- | ------ | ------ |
-| `int8` | 8 | −2^7 | 2^7 − 1 |
-| `uint8` | 8 | 0 | 2^8 − 1 |
-| `int16` | 16 | −2^15 | 2^15 − 1 |
-| `uint16` | 16 | 0 | 2^16 − 1 |
-| `int32` | 32 | −2^31 | 2^31 − 1 |
-| `uint32` | 32 | 0 | 2^32 − 1 |
-| `int64` | 64 | −2^63 | 2^63 − 1 |
-| `uint64` | 64 | 0 | 2^64 − 1 |
-| `isize` | 32 或 64（平台字长） | 32 位：−2^31；64 位：−2^63 | 32 位：2^31 − 1；64 位：2^63 − 1 |
-| `usize` | 32 或 64（平台字长） | 0 | 32 位：2^32 − 1；64 位：2^64 − 1 |
-
-### C.2 浮点类型
-
-| TC 类型 | 位宽 | IEEE 754 | 最大有限绝对值 | 最小正正规值 | 最小正非零值 |
-| ------- | ---- | -------- | -------------- | ------------ | ------------ |
-| `float32` | 32 | binary32 | (2 − 2^−23) × 2^127 | 2^−126 | 2^−149 |
-| `float64` | 64 | binary64 | (2 − 2^−52) × 2^1023 | 2^−1022 | 2^−1074 |
-
-### C.3 布尔类型
-
-| 值 | 抽象字节 |
-| -- | -------- |
-| `false` | `0x00` |
-| `true` | `0x01` |
 
 ---
 
