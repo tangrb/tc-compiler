@@ -1,3 +1,4 @@
+#program
 ; 控制流 else：then/else 互斥路径
 var a: int32 = 5
 var b: int32 = 5

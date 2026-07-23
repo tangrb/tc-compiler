@@ -1,2 +1,3 @@
+#program
 var a: int8 = -1
 var b: uint8 = cast(uint8, a)

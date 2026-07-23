@@ -1,2 +1,3 @@
+#program
 var min: int64 = -9223372036854775808
 writeln(int64, min)

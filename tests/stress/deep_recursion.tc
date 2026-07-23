@@ -1,3 +1,4 @@
+#program
 ; Stress test: 200-level sequential operation chain
 ; TC 的操作数只能是变量/字面量（不支持函数调用嵌套），
 ; 因此用长链顺序运算模拟深层递归场景：

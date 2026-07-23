@@ -1,2 +1,3 @@
+#program
 var x: int32 = 1
 var r: bool = and(bool, x, true)

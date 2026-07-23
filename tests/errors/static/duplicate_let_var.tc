@@ -1,2 +1,3 @@
+#program
 let K: int32 = 1
 var K: int32 = 2

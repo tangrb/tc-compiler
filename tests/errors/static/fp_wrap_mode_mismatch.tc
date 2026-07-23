@@ -1,2 +1,3 @@
+#program
 var value: float32 = 1.0f
 var bad: float32 = neg(float32, wrap, value)

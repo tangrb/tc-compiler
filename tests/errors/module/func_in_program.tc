@@ -1,0 +1,4 @@
+; 期望：func is not allowed in #program mode
+#program
+func bad() void then
+end

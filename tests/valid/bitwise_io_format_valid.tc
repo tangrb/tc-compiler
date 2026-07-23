@@ -1,3 +1,4 @@
+#program
 ; %b / %x 输出位运算结果
 var a: uint8 = 0b1010_1010u
 var b: uint8 = 0b1111_0000u

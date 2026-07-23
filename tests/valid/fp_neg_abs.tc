@@ -1,3 +1,4 @@
+#program
 ; 浮点单目运算：neg / abs 各种数值
 var a: float64 = 3.5
 var neg_a: float64 = neg(float64, a)

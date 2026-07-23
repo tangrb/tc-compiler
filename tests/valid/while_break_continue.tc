@@ -1,3 +1,4 @@
+#program
 var value: int32 = 0
 while true then
     value = add(int32, value, 1)

@@ -1,2 +1,3 @@
+#program
 var a: int32 = 42
 write(int32, a)

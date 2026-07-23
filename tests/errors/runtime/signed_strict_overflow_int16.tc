@@ -1,3 +1,4 @@
+#program
 var a: int16 = 32767
 var b: int16 = 1
 var c: int16 = add(int16, a, b)

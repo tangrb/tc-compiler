@@ -1,3 +1,4 @@
+#program
 ; 0.0.31 source-order visibility makes a cycle impossible: B is undefined here.
 let A: int32 = add(int32, B, 1)
 let B: int32 = add(int32, A, 1)

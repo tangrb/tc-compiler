@@ -34,7 +34,13 @@
 int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag);
 
 /**
- * 从文件路径读取源码并编译。
+ * 设置模块搜索路径（-I 等价；复制路径字符串）。
+ * 传入 count=0 可清空。线程不安全（进程级全局）。
+ */
+int tc_set_module_search_paths(char *const *paths, size_t count, TcDiagnostic *diag);
+
+/**
+ * 从文件路径读取源码并编译；自动解析 import 的 #lib。
  * @param path 源文件路径
  * @param out  输出参数
  * @param diag 诊断对象

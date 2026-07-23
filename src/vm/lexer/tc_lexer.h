@@ -49,6 +49,26 @@ typedef enum {
     TC_TOK_COMMA,       /* ',' */
     TC_TOK_LPAREN,      /* '(' */
     TC_TOK_RPAREN,      /* ')' */
+    TC_TOK_PTR,         /* 'ptr' 关键字 */
+    TC_TOK_MEMBLOCK,    /* 'memblock' 关键字 */
+    TC_TOK_STRUCT,      /* 'struct' 关键字 */
+    TC_TOK_FUNC,        /* 'func' 关键字 */
+    TC_TOK_FUNCALL,     /* 'funcall' 关键字 */
+    TC_TOK_RETURN,      /* 'return' 关键字 */
+    TC_TOK_VOID,        /* 'void' 关键字 */
+    TC_TOK_SELF,        /* 'Self' 关键字 */
+    TC_TOK_PUBLIC,      /* 'public' 关键字 */
+    TC_TOK_PRIVATE,     /* 'private' 关键字 */
+    TC_TOK_STATIC,      /* 'static' 关键字 */
+    TC_TOK_IMPORT,      /* 'import' 关键字 */
+    TC_TOK_PROGRAM,     /* '#program' 模块指令 */
+    TC_TOK_LIB,         /* '#lib' 模块指令 */
+    TC_TOK_NULLPTR,     /* 'nullptr' 关键字 */
+    TC_TOK_AT,          /* '@' */
+    TC_TOK_LT,          /* '<'（类型参数） */
+    TC_TOK_GT,          /* '>'（类型参数） */
+    TC_TOK_DOT,         /* '.'（Self.x / a.b） */
+    TC_TOK_PADDING,     /* 'padding'（@padding） */
     TC_TOK_SEMICOLON    /* ';'（兼具语句结束与行注释作用） */
 } TcTokenKind;
 

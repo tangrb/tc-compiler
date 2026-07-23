@@ -1,3 +1,4 @@
+#program
 ; 不同块同名标签（then/else 互斥作用域）
 var result: int32 = 0
 if eq(int32, 1, 0) then

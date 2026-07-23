@@ -1,3 +1,4 @@
+#program
 ; mod(INT_MIN, -1) 余数为 0，各宽度均应成功
 var i8: int8 = -128
 var m8: int8 = mod(int8, i8, -1)

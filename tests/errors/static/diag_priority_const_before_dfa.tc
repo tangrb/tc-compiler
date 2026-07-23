@@ -1,3 +1,4 @@
+#program
 ; let 常量求值错误先于后续 CFG/DFA 未初始化错误
 let BAD: int32 = div(int32, 1, 0)
 goto use

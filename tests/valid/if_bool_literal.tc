@@ -1,3 +1,4 @@
+#program
 ; 条件 bool 字面量与逻辑运算
 if true then
     writeln(int32, %d, 1)

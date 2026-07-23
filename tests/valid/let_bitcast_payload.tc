@@ -1,3 +1,4 @@
+#program
 ; let bitcast 保留非 canonical NaN payload
 let PAYLOAD: uint64 = 0x7FF8000000001234u
 let NAN_VALUE: float64 = bitcast(float64, PAYLOAD)

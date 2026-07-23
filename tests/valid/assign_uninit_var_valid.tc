@@ -1,3 +1,4 @@
+#program
 ; §4.4：对未初始化变量赋值视为初始化，后续读取无警告
 goto assign_a
 var a: int32 = 0

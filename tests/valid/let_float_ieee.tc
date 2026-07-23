@@ -1,3 +1,4 @@
+#program
 ; IEEE mode is legal in a single-layer let operation
 let RESULT: float64 = add(float64, ieee, 1.0, 2.0)
 let BITS: uint64 = bitcast(uint64, RESULT)

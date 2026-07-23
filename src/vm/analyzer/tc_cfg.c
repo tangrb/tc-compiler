@@ -412,7 +412,13 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
                            : stmt->kind == TC_STMT_LABEL_DEF ? stmt->u.label_def.line
                            : stmt->kind == TC_STMT_GOTO       ? stmt->u.goto_stmt.line
                            : stmt->kind == TC_STMT_BREAK      ? stmt->u.break_stmt.line
-                                                              : stmt->u.continue_stmt.line,
+                           : stmt->kind == TC_STMT_CONTINUE   ? stmt->u.continue_stmt.line
+                           : stmt->kind == TC_STMT_IMPORT     ? stmt->u.import_stmt.line
+                           : stmt->kind == TC_STMT_STRUCT_DEF ? stmt->u.struct_def.line
+                           : stmt->kind == TC_STMT_FUNC_DEF   ? stmt->u.func_def.line
+                           : stmt->kind == TC_STMT_STATIC_VAR_DEF ? stmt->u.static_var_def.line
+                           : stmt->kind == TC_STMT_STATIC_LET_DEF ? stmt->u.static_let_def.line
+                                                              : 0,
                            stmt->kind);
     if (node < 0 || tc_cfg_add_edge(ctx, predecessor, node, incoming) != 0) {
         return -2;

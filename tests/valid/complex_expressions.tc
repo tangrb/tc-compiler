@@ -1,3 +1,4 @@
+#program
 ; 复杂表达式链测试
 var a: int32 = 100
 var b: int32 = 200

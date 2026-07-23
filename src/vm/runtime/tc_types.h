@@ -498,6 +498,77 @@ typedef struct {
             TcOperand rhs;
         } float_compare;         /* TC_RHS_FLOAT_COMPARE */
         TcBitcastRhs bitcast;    /* TC_RHS_BITCAST */
+        /* 0.0.35 Phase 2 RHS payload（前向：结构体在下方定义后即可用；
+         * 此处用匿名结构镜像，完整 typedef 见语句区后的同名类型）。 */
+        struct {
+            TcType element_type;
+            TcOperand memblock;
+            TcOperand index;
+        } memblock_load;
+        struct {
+            TcType element_type;
+            uint64_t count;
+            char *count_name;
+            int is_fill;
+            TcOperand fill_value;
+            TcOperand *values;
+            size_t value_count;
+        } memblock_ctor;
+        struct {
+            char *memblock_name;
+        } memblock_count;
+        struct {
+            char *struct_name;
+            struct {
+                char *param_name;
+                /* value filled after TcRhs self-complete — see named args on stmt */
+                TcOperand value_op;
+                int has_rhs;
+                struct TcRhs *value_rhs;
+            } *fields;
+            size_t field_count;
+        } struct_ctor;
+        struct {
+            char *base;
+            char **fields;
+            size_t field_count;
+        } field_read;
+        struct {
+            TcType pointee_type;
+            TcOperand ptr;
+        } ptr_load;
+        struct {
+            TcType pointee_type;
+            char *name;
+        } ptr_address;
+        struct {
+            TcType pointee_type;
+            TcOperand ptr;
+            TcOperand offset;
+        } ptr_arith;
+        struct {
+            TcType pointee_type;
+            TcOperand lhs;
+            TcOperand rhs;
+        } ptr_compare;
+        struct {
+            TcType pointee_type;
+            TcOperand ptr;
+        } ptr_size;
+        struct {
+            char *target;
+            int is_self;
+            char *qualifier;
+            char *member_name;
+            struct {
+                char *param_name;
+                struct TcRhs *value;
+            } *args;
+            size_t arg_count;
+        } funcall_expr;
+        struct {
+            char *member_name;
+        } self_member;
     } u;
 } TcRhs;
 
@@ -531,10 +602,24 @@ typedef enum {
     TC_STMT_IMPORT
 } TcStmtKind;
 
+typedef enum {
+    TC_VIS_NONE = 0, /* #program 顶层无可见性修饰 */
+    TC_VIS_PUBLIC,
+    TC_VIS_PRIVATE
+} TcVisibility;
+
+typedef enum {
+    TC_MODULE_UNSET = 0,
+    TC_MODULE_PROGRAM,
+    TC_MODULE_LIB
+} TcModuleMode;
+
 typedef struct {
     int line;
     char *name;      /* 变量名，堆分配 */
-    TcTypeKind type;
+    TcTypeKind type; /* 标量快捷字段；复合时等于 full_type.kind */
+    TcType full_type; /* 完整类型（含 ptr/memblock/struct 参数） */
+    char *struct_type_name; /* 未解析 struct 名（堆）；非 struct 为 NULL */
     TcRhs rhs;
     TcResolvedBinding binding; /* 定义对应的固定 slot */
 } TcVarDef;
@@ -543,6 +628,8 @@ typedef struct {
     int line;
     char *name;      /* 常量名，堆分配 */
     TcTypeKind type;
+    TcType full_type;
+    char *struct_type_name;
     TcRhs rhs;       /* let 初始化必须为编译期常量表达式（由 Analyzer 确保） */
 } TcConstDef;
 
@@ -603,6 +690,132 @@ typedef struct {
     int resolved;      /* 分析成功后为 1 */
 } TcGoto;
 
+/* ---- 0.0.35 新增语句 / RHS payload（Phase 2） ---- */
+
+typedef struct {
+    int line;
+    char *module_name; /* import 目标模块名，堆分配 */
+} TcImportStmt;
+
+typedef struct {
+    char *name;              /* 字段名，堆分配 */
+    int is_var;              /* 1=var 字段，0=let 字段 */
+    TcType type;
+    char *struct_type_name;  /* 未解析 struct 类型名；否则 NULL */
+    uint64_t padding;        /* @padding(N)；缺省 0 */
+} TcStructField;
+
+typedef struct {
+    int line;
+    TcVisibility visibility; /* #lib 必填；#program 为 NONE */
+    char *name;              /* 结构体名，堆分配 */
+    TcStructField *fields;
+    size_t field_count;
+    int struct_id;           /* Analyzer 分配；解析后为 -1 */
+} TcStructDef;
+
+typedef struct {
+    char *name;              /* 形参名，堆分配 */
+    TcType type;
+    char *struct_type_name;
+} TcFuncParam;
+
+typedef struct {
+    int line;
+    TcVisibility visibility;
+    char *name;              /* 函数名，堆分配 */
+    TcFuncParam *params;
+    size_t param_count;
+    TcType return_type;      /* 可为 TC_VOID */
+    char *return_struct_name;
+    TcStatement *body;
+    size_t body_count;
+    int func_id;             /* Analyzer；解析后为 -1 */
+} TcFuncDef;
+
+typedef struct {
+    char *param_name; /* 命名实参形参名，堆分配 */
+    TcRhs value;
+} TcNamedArg;
+
+typedef struct {
+    int line;
+    char *target;            /* 调用目标文本（裸名 / Self.x / mod.x），堆分配 */
+    int is_self;             /* target 以 Self. 开头时为 1 */
+    char *qualifier;         /* 限定前缀（Self 或模块名）；无则 NULL */
+    char *member_name;       /* 限定后的成员名；裸名时与 target 相同逻辑由 Analyzer 解析 */
+    TcNamedArg *args;
+    size_t arg_count;
+} TcFuncallStmt;
+
+typedef struct {
+    int line;
+    int has_value;           /* 1=return operand；0=裸 return */
+    TcOperand value;
+} TcReturnStmt;
+
+typedef struct {
+    int line;
+    char *base;              /* 最左标识符，堆分配 */
+    char **fields;           /* 字段链 a.b.c → ["b","c"] */
+    size_t field_count;
+    TcRhs rhs;
+} TcFieldAssign;
+
+typedef struct {
+    int line;
+    TcVisibility visibility;
+    char *name;
+    TcType type;
+    char *struct_type_name;
+    TcRhs rhs;
+    int static_slot;         /* Analyzer 分配的 static 槽；-1 未定 */
+} TcStaticVarDef;
+
+typedef struct {
+    int line;
+    TcVisibility visibility;
+    char *name;
+    TcType type;
+    char *struct_type_name;
+    TcRhs rhs;
+} TcStaticLetDef;
+
+typedef struct {
+    int line;
+    TcType element_type;
+    char *memblock_name;     /* 目标 memblock 绑定名 */
+    TcOperand index;
+    TcOperand value;
+} TcMemblockStoreStmt;
+
+typedef struct {
+    int line;
+    TcType element_type;
+    char *dst_name;
+    TcOperand dst_index;
+    char *src_name;
+    TcOperand src_index;
+    TcOperand length;
+} TcMemblockCopyStmt;
+
+typedef struct {
+    int line;
+    TcType pointee_type;
+    TcOperand ptr;
+    TcOperand value;
+} TcPtrStoreStmt;
+
+typedef struct {
+    int line;
+    TcType element_type;
+    TcOperand dst_ptr;
+    TcOperand dst_index;
+    TcOperand src_ptr;
+    TcOperand src_index;
+    TcOperand length;
+} TcMemcopyUnsafeStmt;
+
 /** 统一语句表示，kind 决定活跃的 u 成员 */
 struct TcStatement {
     TcStmtKind kind;
@@ -618,6 +831,18 @@ struct TcStatement {
         TcLoopControlStmt continue_stmt;
         TcLabelDef label_def;
         TcGoto goto_stmt;
+        TcImportStmt import_stmt;
+        TcStructDef struct_def;
+        TcFuncDef func_def;
+        TcFuncallStmt funcall_stmt;
+        TcReturnStmt return_stmt;
+        TcFieldAssign field_assign;
+        TcStaticVarDef static_var_def;
+        TcStaticLetDef static_let_def;
+        TcMemblockStoreStmt memblock_store;
+        TcMemblockCopyStmt memblock_copy;
+        TcPtrStoreStmt ptr_store;
+        TcMemcopyUnsafeStmt memcopy_unsafe;
     } u;
 };
 
@@ -625,8 +850,11 @@ struct TcStatement {
 /*  程序 & 符号表 & 运行时值                                            */
 /* ------------------------------------------------------------------ */
 
-/** 未类型化的原始程序（Parser 产出，Analyzer 消费） */
+/** 未类型化的原始程序 / 单模块（Parser 产出，Analyzer 消费） */
 typedef struct {
+    TcModuleMode mode;
+    char *module_name; /* #lib 由文件名推导；#program 可为 NULL */
+    char *source_path; /* 源路径（导入解析用）；可为 NULL */
     TcStatement *items;
     size_t count;
     size_t capacity;
@@ -749,7 +977,10 @@ typedef struct TcCfg TcCfg;
 
 /** Analyzer 分析通过后的完整程序：语句 + 符号表 + CFG + 警告 */
 typedef struct {
-    TcProgram program;
+    TcProgram program;       /* 入口模块 */
+    TcProgram *deps;         /* 已加载的依赖 #lib（不含入口） */
+    size_t dep_count;
+    size_t dep_capacity;
     TcSymbolTable symbols;
     TcCfg *cfg;
     TcWarningList warnings;
@@ -812,6 +1043,7 @@ TcType tc_type_scalar(TcTypeKind kind);
 TcType tc_type_make_ptr(TcType *pointee);
 TcType tc_type_make_memblock(TcType *element, uint64_t count);
 TcType tc_type_make_struct(int struct_id);
+void tc_type_free(TcType *type);
 int tc_type_equals(const TcType *a, const TcType *b);
 size_t tc_target_ptr_width_bits(void);
 size_t tc_sizeof_bits(const TcType *type);

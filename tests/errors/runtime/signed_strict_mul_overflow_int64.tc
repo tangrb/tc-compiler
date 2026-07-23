@@ -1,3 +1,4 @@
+#program
 ; int64 strict 乘法溢出：4000000000 * 3000000000 > INT64_MAX
 var a: int64 = 4000000000
 var b: int64 = 3000000000

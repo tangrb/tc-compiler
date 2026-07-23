@@ -1,3 +1,4 @@
+#program
 ; 期望：float invalid operation
 ; ieee 模式产生 inf，default(strict) inf - inf 引发 FE_INVALID
 writeln(float64, 1.0)

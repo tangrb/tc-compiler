@@ -1,2 +1,3 @@
+#program
 ; 值级短路不能跳过名称与类型校验
 let BAD: bool = and(bool, false, missing)

@@ -99,6 +99,25 @@ add_custom_target(check-libtc
 )
 
 # ------------------------------------------------------------------ #
+#  test-module — Phase 2 模块系统（导入/DAG/签名/Self）单元测试         #
+# ------------------------------------------------------------------ #
+
+add_executable(test-module test_module.c)
+target_link_libraries(test-module PRIVATE libtc)
+target_include_directories(test-module PRIVATE
+    ${TC_VM_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/libtc
+)
+target_compile_options(test-module PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-module
+    COMMAND test-module
+    DEPENDS test-module
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Module system unit tests"
+)
+
+# ------------------------------------------------------------------ #
 #  test-io — 统一 I/O 模块单元测试                                     #
 # ------------------------------------------------------------------ #
 
@@ -227,6 +246,8 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_analyzer_repl.c
     ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
+    ${TC_VM_DIR}/analyzer/tc_module.c
+    ${TC_VM_DIR}/analyzer/tc_scope.c
     ${TC_VM_DIR}/parser/tc_parser.c
     ${TC_VM_DIR}/parser/tc_parser_rhs.c
     ${TC_VM_DIR}/parser/tc_parser_free.c

@@ -1,3 +1,4 @@
+#program
 ; 期望：use of uninitialized variable
 goto use_a
 var a: int32 = 0

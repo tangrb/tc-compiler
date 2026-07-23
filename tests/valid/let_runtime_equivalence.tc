@@ -1,3 +1,4 @@
+#program
 ; let 与 runtime 对相同共享语义逐项等价
 let LET_WRAP: int8 = add(int8, wrap, 120, 20)
 var runtime_wrap: int8 = add(int8, wrap, 120, 20)

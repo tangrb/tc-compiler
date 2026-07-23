@@ -1,3 +1,4 @@
+#program
 ; 期望：if 行混用空格与制表符
 	if true then
     writeln(int32, %d, 1)

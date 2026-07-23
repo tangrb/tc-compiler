@@ -1,3 +1,4 @@
+#program
 ; 测试所有有符号类型的 div/mod 正负组合
 ; int8 div/mod
 var a: int8 = 10

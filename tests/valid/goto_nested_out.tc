@@ -1,3 +1,4 @@
+#program
 ; 跨多层向外跳转
 var a: int32 = 1
 if eq(int32, a, 0) then

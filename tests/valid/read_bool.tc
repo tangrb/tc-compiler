@@ -1,3 +1,4 @@
+#program
 ; read(bool) 输入 true/false
 var flag: bool = false
 read(bool, flag)

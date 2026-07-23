@@ -33,6 +33,8 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/analyzer/tc_analyzer_repl.c
     ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
+    ${TC_VM_DIR}/analyzer/tc_module.c
+    ${TC_VM_DIR}/analyzer/tc_scope.c
     ${TC_VM_DIR}/executor/tc_executor.c
 )
 

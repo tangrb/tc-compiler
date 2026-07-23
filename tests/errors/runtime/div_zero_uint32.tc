@@ -1,3 +1,4 @@
+#program
 var a: uint32 = 100
 var b: uint32 = 0
 var c: uint32 = div(uint32, a, b)

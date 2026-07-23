@@ -1,1 +1,2 @@
+#program
 var r: bool = xor(bool, true, false)

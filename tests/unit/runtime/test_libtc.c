@@ -59,14 +59,14 @@ static void check_failure_preserves_out(const char *source, TcErrorKind expected
 }
 
 static void test_compile_failures_are_transactional(void) {
-    check_failure_preserves_out("var x int32 = 1\n", TC_ERR_SYNTAX,
+    check_failure_preserves_out("#program\nvar x int32 = 1\n", TC_ERR_SYNTAX,
                                 "parser failure returns -1");
-    check_failure_preserves_out("var x: int32 = missing\n", TC_ERR_UNDEFINED_VARIABLE,
+    check_failure_preserves_out("#program\nvar x: int32 = missing\n", TC_ERR_UNDEFINED_VARIABLE,
                                 "binder failure returns -1");
-    check_failure_preserves_out("let X: int32 = div(int32, 10, 0)\n",
+    check_failure_preserves_out("#program\nlet X: int32 = div(int32, 10, 0)\n",
                                 TC_ERR_CONSTANT_DIV_ZERO,
                                 "constant evaluation failure returns -1");
-    check_failure_preserves_out("goto use_a\n"
+    check_failure_preserves_out("#program\ngoto use_a\n"
                                 "var a: int32 = 0\n"
                                 "label use_a:\n"
                                 "var b: int32 = add(int32, a, 0)\n",
@@ -75,7 +75,7 @@ static void test_compile_failures_are_transactional(void) {
 }
 
 static void test_source_lifetime_and_repeated_execution(void) {
-    static const char text[] = "var value: int32 = 7\n";
+    static const char text[] = "#program\nvar value: int32 = 7\n";
     char *source = (char *)malloc(sizeof(text));
     TcTypedProgram program;
     TcDiagnostic diag;
@@ -115,7 +115,7 @@ static void test_file_lifetime(void) {
         unlink(path);
         return;
     }
-    check(fputs("var value: int32 = 9\n", file) >= 0,
+    check(fputs("#program\nvar value: int32 = 9\n", file) >= 0,
           "write temporary TC source");
     check(fclose(file) == 0, "close temporary TC source");
 
@@ -147,7 +147,7 @@ static void test_repeated_aot_consumption(void) {
     }
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("var value: int32 = 11\n", &program, &diag) == 0,
+    check(tc_compile_source("#program\nvar value: int32 = 11\n", &program, &diag) == 0,
           "compile program for repeated AOT consumption");
     check(tc_aot_emit_c(first, &program, "<first>") == 0,
           "first AOT emission succeeds");
@@ -167,7 +167,7 @@ static void test_typed_program_free_clears_all_roots(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("var value: int32 = 13\n", &program, &diag) == 0,
+    check(tc_compile_source("#program\nvar value: int32 = 13\n", &program, &diag) == 0,
           "compile program before ownership cleanup");
     check(program.program.items != NULL && program.symbols.symbols != NULL &&
               program.cfg != NULL,
@@ -246,7 +246,7 @@ static void test_invalid_arguments_use_api_domain(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("var", NULL, &diag) == -1,
+    check(tc_compile_source("#program\nvar", NULL, &diag) == -1,
           "null compile_source output is rejected before parsing");
     check(diag.domain == TC_DIAG_API,
           "null compile_source output uses API diagnostic domain");
@@ -268,7 +268,7 @@ static void test_null_diagnostic_and_program_do_not_crash(void) {
     TcTypedProgram program;
     TcDiagnostic diag;
 
-    check(tc_compile_source("var value: int32 = 1\n", &program, NULL) == -1,
+    check(tc_compile_source("#program\nvar value: int32 = 1\n", &program, NULL) == -1,
           "null diagnostic returns -1 without crashing");
     tc_diagnostic_init(&diag);
     check(tc_compile_source(NULL, &program, &diag) == -1,
@@ -283,7 +283,7 @@ static void test_null_diagnostic_and_program_do_not_crash(void) {
 }
 
 static void test_source_and_file_language_kinds_match(void) {
-    static const char source[] = "var value: int32 = missing\n";
+    static const char source[] = "#program\nvar value: int32 = missing\n";
     char path[] = "/tmp/tc-libtc-language-kind-XXXXXX";
     int fd = mkstemp(path);
     FILE *file = NULL;

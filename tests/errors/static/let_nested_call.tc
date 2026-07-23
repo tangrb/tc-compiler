@@ -1,1 +1,2 @@
+#program
 let BAD: int32 = add(int32, mul(int32, 2, 3), 4)

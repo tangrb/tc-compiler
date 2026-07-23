@@ -1,3 +1,4 @@
+#program
 ; shr / shl(wrap) 当 k >= n
 var zero_shr: uint8 = shr(uint8, 0b1111_0000u, 8)
 writeln(uint8, zero_shr)

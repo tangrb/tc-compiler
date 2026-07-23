@@ -1,3 +1,4 @@
+#program
 ; 测试所有类型的 let 常量定义与使用
 let i8_val: int8 = 42
 let u8_val: uint8 = 200

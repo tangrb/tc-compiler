@@ -1,3 +1,4 @@
+#program
 ; 测试所有类型在 wrap 模式下的算术运算
 ; wrap: int8 溢出回绕
 var a: int8 = 127

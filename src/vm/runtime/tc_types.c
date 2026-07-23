@@ -57,6 +57,22 @@ TcType tc_type_make_struct(int struct_id) {
     return t;
 }
 
+void tc_type_free(TcType *type) {
+    if (!type) {
+        return;
+    }
+    if (type->kind == TC_PTR && type->params.ptr_type.pointee) {
+        tc_type_free(type->params.ptr_type.pointee);
+        free(type->params.ptr_type.pointee);
+        type->params.ptr_type.pointee = NULL;
+    } else if (type->kind == TC_MEMBLOCK && type->params.memblock_type.element) {
+        tc_type_free(type->params.memblock_type.element);
+        free(type->params.memblock_type.element);
+        type->params.memblock_type.element = NULL;
+    }
+    memset(type, 0, sizeof(*type));
+}
+
 int tc_type_equals(const TcType *a, const TcType *b) {
     if (!a || !b) {
         return 0;

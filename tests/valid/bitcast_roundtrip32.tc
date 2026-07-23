@@ -1,3 +1,4 @@
+#program
 ; 32 位 bitcast 保留符号位、Infinity 与 NaN payload
 var neg_one: float32 = -1.0f
 var neg_one_bits: uint32 = bitcast(uint32, neg_one)

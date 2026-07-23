@@ -1,3 +1,4 @@
+#program
 ; 无符号 neg 固定使用模 2^n 语义，不接受冗余 wrap 关键字
 ; uint8 neg
 var a8: uint8 = 42

@@ -1,2 +1,3 @@
+#program
 let N: int32 = 10
 N = 20

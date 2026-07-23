@@ -1,3 +1,4 @@
+#program
 var x: int32 = 7
 var y: int32 = 0
 var z: int32 = mod(int32, x, y)

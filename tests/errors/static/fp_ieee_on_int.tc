@@ -1,3 +1,4 @@
+#program
 ; 期望：ieee 仅用于浮点运算
 var a: int32 = 1
 var b: int32 = 2

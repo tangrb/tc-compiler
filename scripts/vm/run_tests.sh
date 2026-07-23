@@ -1600,6 +1600,26 @@ false
 "
 run_expect_check_ok "$ROOT/tests/valid/uninitialized_bool.tc"
 
+# Phase 2: module system errors (strict #program/#lib header)
+run_expect_check_fail "$ROOT/tests/errors/module/no_header.tc" "expected #program or #lib"
+run_expect_check_fail "$ROOT/tests/errors/module/missing_visibility.tc" \
+    "missing public or private visibility"
+run_expect_check_fail "$ROOT/tests/errors/module/program_mode_misuse.tc" \
+    "public is not allowed in #program mode"
+run_expect_check_fail "$ROOT/tests/errors/module/module_layer.tc" \
+    "import must appear before other declarations"
+run_expect_check_fail "$ROOT/tests/errors/module/import_not_found.tc" "import module not found"
+run_expect_check_fail "$ROOT/tests/errors/module/self_import.tc" "circular import"
+run_expect_check_fail "$ROOT/tests/errors/module/self_in_program.tc" "Self is not allowed in #program"
+run_expect_check_fail "$ROOT/tests/errors/module/func_in_program.tc" \
+    "func is not allowed in #program mode"
+run_expect_check_fail "$ROOT/tests/errors/module/static_in_program.tc" \
+    "static is not allowed in #program mode"
+run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"
+run_expect_check_fail "$ROOT/tests/modules/duplicate_import.tc" "duplicate import"
+run_expect_check_fail "$ROOT/tests/modules/import_not_lib.tc" "imported module is not #lib"
+run_expect_check_ok "$ROOT/tests/modules/import_ok.tc"
+
 echo ""
 echo "$PASSED passed, $FAILED failed"
 

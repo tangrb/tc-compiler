@@ -1,2 +1,3 @@
+#program
 var x: int8 = 1
 write(int8, %u, x)

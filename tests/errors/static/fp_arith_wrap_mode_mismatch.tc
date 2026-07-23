@@ -1,3 +1,4 @@
+#program
 ; 0.0.31：浮点 wrap 已删除，统一为 ModeMismatch。
 var a: float32 = 1.0f
 var b: float32 = 2.0f

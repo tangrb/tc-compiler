@@ -1,3 +1,4 @@
+#program
 ; 不可见的块内 let 不按常量折叠，先由名称阶段拒绝
 if true then
     let LOCAL_FALSE: bool = false

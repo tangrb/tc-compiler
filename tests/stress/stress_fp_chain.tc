@@ -1,3 +1,4 @@
+#program
 ; stress: 长链浮点 let + 嵌套 cast
 ; 验证编译期折叠 + 运行时精度稳定性
 let A: float64 = 3.141592653589793

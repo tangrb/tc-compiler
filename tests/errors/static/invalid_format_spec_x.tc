@@ -1,2 +1,3 @@
+#program
 var a: int32 = 42
 writeln(int32, %z, a)

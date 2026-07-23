@@ -10,6 +10,201 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void tc_string_list_free_rhs(char **items, size_t count) {
+    size_t i = 0;
+    if (!items) {
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        free(items[i]);
+    }
+    free(items);
+}
+
+static int tc_parse_field_read_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                   TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *tok = tc_peek(tokens, *index);
+    char *base = NULL;
+    char **fields = NULL;
+    size_t field_count = 0;
+    size_t field_cap = 0;
+
+    if (tok->kind != TC_TOK_IDENTIFIER) {
+        return tc_syntax_error(diag, line_no, tok->column, "expected identifier");
+    }
+    base = tc_token_strdup(tok, line_no, diag);
+    if (!base) {
+        return -1;
+    }
+    (*index)++;
+
+    while (tc_peek(tokens, *index)->kind == TC_TOK_DOT) {
+        char *field_name = NULL;
+        (*index)++;
+        tok = tc_peek(tokens, *index);
+        if (tok->kind != TC_TOK_IDENTIFIER) {
+            free(base);
+            tc_string_list_free_rhs(fields, field_count);
+            return tc_syntax_error(diag, line_no, tok->column, "expected field name");
+        }
+        field_name = tc_token_strdup(tok, line_no, diag);
+        if (!field_name) {
+            free(base);
+            tc_string_list_free_rhs(fields, field_count);
+            return -1;
+        }
+        if (field_count == field_cap) {
+            size_t new_cap = field_cap == 0 ? 4 : field_cap * 2;
+            char **new_fields = (char **)realloc(fields, new_cap * sizeof(char *));
+            if (!new_fields) {
+                free(field_name);
+                free(base);
+                tc_string_list_free_rhs(fields, field_count);
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                                  "memory allocation failed");
+                return -1;
+            }
+            fields = new_fields;
+            field_cap = new_cap;
+        }
+        fields[field_count++] = field_name;
+        (*index)++;
+    }
+
+    out->kind = TC_RHS_FIELD_READ;
+    out->u.field_read.base = base;
+    out->u.field_read.fields = fields;
+    out->u.field_read.field_count = field_count;
+    return 0;
+}
+
+static int tc_parse_self_member_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                    TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *member_tok = NULL;
+
+    (*index)++; /* Self */
+    if (tc_expect_token(tokens, index, TC_TOK_DOT, line_no, diag) != 0) {
+        return -1;
+    }
+    member_tok = tc_peek(tokens, *index);
+    if (member_tok->kind != TC_TOK_IDENTIFIER) {
+        return tc_syntax_error(diag, line_no, member_tok->column, "expected member name");
+    }
+    out->kind = TC_RHS_SELF_MEMBER;
+    out->u.self_member.member_name = tc_token_strdup(member_tok, line_no, diag);
+    if (!out->u.self_member.member_name) {
+        return -1;
+    }
+    (*index)++;
+    return 0;
+}
+
+static int tc_parse_ptr_load_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                 TcRhs *out, TcDiagnostic *diag) {
+    char *struct_name = NULL;
+
+    (*index)++; /* ptr_load */
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    out->kind = TC_RHS_PTR_LOAD;
+    memset(&out->u.ptr_load, 0, sizeof(out->u.ptr_load));
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &out->u.ptr_load.pointee_type,
+                             &struct_name, diag) != 0) {
+        return -1;
+    }
+    free(struct_name);
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.ptr_load.ptr, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+static int tc_parse_ptr_address_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                    TcRhs *out, TcDiagnostic *diag) {
+    const TcToken *name_tok = NULL;
+    char *struct_name = NULL;
+
+    (*index)++; /* ptr_address */
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    out->kind = TC_RHS_PTR_ADDRESS;
+    memset(&out->u.ptr_address, 0, sizeof(out->u.ptr_address));
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &out->u.ptr_address.pointee_type,
+                             &struct_name, diag) != 0) {
+        return -1;
+    }
+    free(struct_name);
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    name_tok = tc_peek(tokens, *index);
+    if (name_tok->kind != TC_TOK_IDENTIFIER) {
+        tc_rhs_free(out);
+        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
+    }
+    out->u.ptr_address.name = tc_token_strdup(name_tok, line_no, diag);
+    if (!out->u.ptr_address.name) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    (*index)++;
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
+static int tc_parse_memblock_load_rhs(const TcTokenList *tokens, size_t *index, int line_no,
+                                      TcRhs *out, TcDiagnostic *diag) {
+    char *struct_name = NULL;
+
+    (*index)++; /* memblock_load */
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    out->kind = TC_RHS_MEMBLOCK_LOAD;
+    memset(&out->u.memblock_load, 0, sizeof(out->u.memblock_load));
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &out->u.memblock_load.element_type,
+                             &struct_name, diag) != 0) {
+        return -1;
+    }
+    free(struct_name);
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.memblock_load.memblock, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &out->u.memblock_load.index, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_rhs_free(out);
+        return -1;
+    }
+    return 0;
+}
+
 static int tc_keyword_error(TcDiagnostic *diag, int line, int column, const char *message) {
     tc_diagnostic_set(diag, TC_ERR_KEYWORD, line, column, message);
     return -1;
@@ -848,16 +1043,32 @@ int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int
         out->u.lit = tok->u.literal;
         (*index)++;
         rc = 0;
+    } else if (tok->kind == TC_TOK_NULLPTR) {
+        out->kind = TC_RHS_LIT;
+        memset(&out->u.lit, 0, sizeof(out->u.lit));
+        (*index)++;
+        rc = 0;
+    } else if (tok->kind == TC_TOK_SELF) {
+        rc = tc_parse_self_member_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_IDENTIFIER) {
-        out->kind = TC_RHS_CONST_REF;
-        out->u.const_ref.name = strndup(tok->start, tok->length);
-        if (!out->u.const_ref.name) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
-                              "memory allocation failed");
-            rc = -1;
+        if (tc_token_is_ident_named(tok, "ptr_load")) {
+            rc = tc_parse_ptr_load_rhs(tokens, index, line_no, out, diag);
+        } else if (tc_token_is_ident_named(tok, "ptr_address")) {
+            rc = tc_parse_ptr_address_rhs(tokens, index, line_no, out, diag);
+        } else if (tc_token_is_ident_named(tok, "memblock_load")) {
+            rc = tc_parse_memblock_load_rhs(tokens, index, line_no, out, diag);
+        } else if (*index + 1 < tokens->count &&
+                   tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
+            rc = tc_parse_field_read_rhs(tokens, index, line_no, out, diag);
         } else {
-            (*index)++;
-            rc = 0;
+            out->kind = TC_RHS_CONST_REF;
+            out->u.const_ref.name = tc_token_strdup(tok, line_no, diag);
+            if (!out->u.const_ref.name) {
+                rc = -1;
+            } else {
+                (*index)++;
+                rc = 0;
+            }
         }
     } else if (tok->kind == TC_TOK_ARITH_OP) {
         rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);
@@ -910,6 +1121,11 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
     if (tok->kind == TC_TOK_INTEGER || tok->kind == TC_TOK_BOOL_LIT || tok->kind == TC_TOK_FLOAT_LIT) {
         out->kind = TC_RHS_LIT;
         out->u.lit = tok->u.literal;
+        (*index)++;
+        rc = 0;
+    } else if (tok->kind == TC_TOK_NULLPTR) {
+        out->kind = TC_RHS_LIT;
+        memset(&out->u.lit, 0, sizeof(out->u.lit));
         (*index)++;
         rc = 0;
     } else if (tok->kind == TC_TOK_IDENTIFIER) {

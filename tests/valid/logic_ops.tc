@@ -1,3 +1,4 @@
+#program
 ; 逻辑运算与短路求值
 var a: bool = true
 var b: bool = false

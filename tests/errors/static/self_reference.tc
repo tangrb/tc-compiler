@@ -1,1 +1,2 @@
+#program
 var a: int32 = add(int32, a, 1)

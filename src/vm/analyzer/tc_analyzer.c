@@ -14,6 +14,7 @@
 #include "tc_analyzer_pass1.h"
 #include "tc_analyzer_pass2.h"
 #include "tc_cfg.h"
+#include "tc_module.h"
 
 #include "tc_diagnostic.h"
 #include "tc_parser.h"
@@ -27,6 +28,9 @@
 
 void tc_typed_program_init(TcTypedProgram *program) {
     tc_program_init(&program->program);
+    program->deps = NULL;
+    program->dep_count = 0;
+    program->dep_capacity = 0;
     tc_symbol_table_init(&program->symbols);
     program->cfg = NULL;
     tc_warning_list_init(&program->warnings);
@@ -35,12 +39,20 @@ void tc_typed_program_init(TcTypedProgram *program) {
 }
 
 void tc_typed_program_free(TcTypedProgram *program) {
+    size_t i = 0;
     if (program->cfg) {
         tc_cfg_free(program->cfg);
         free(program->cfg);
         program->cfg = NULL;
     }
     tc_program_free(&program->program);
+    for (i = 0; i < program->dep_count; i++) {
+        tc_program_free(&program->deps[i]);
+    }
+    free(program->deps);
+    program->deps = NULL;
+    program->dep_count = 0;
+    program->dep_capacity = 0;
     tc_symbol_table_free(&program->symbols);
     tc_warning_list_free(&program->warnings);
 }
@@ -86,6 +98,21 @@ int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {
     program->items = NULL;
     program->count = 0;
     program->capacity = 0;
+    program->mode = TC_MODULE_UNSET;
+    program->module_name = NULL;
+    program->source_path = NULL;
+
+    if (out->program.mode == TC_MODULE_UNSET) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, 1, TC_COLUMN_UNKNOWN,
+                          "expected #program or #lib");
+        tc_typed_program_free(out);
+        return -1;
+    }
+
+    if (tc_module_check_structure(&out->program, diag) != 0) {
+        tc_typed_program_free(out);
+        return -1;
+    }
 
     if (tc_pass1_collect_symbols(&out->program, &out->symbols, diag) != 0) {
         tc_typed_program_free(out);

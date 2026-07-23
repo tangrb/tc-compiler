@@ -1,2 +1,3 @@
+#program
 var flags: uint8 = 0b1010_0011u
 writeln(uint8, flags)

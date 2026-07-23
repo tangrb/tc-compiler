@@ -110,10 +110,154 @@ static void test_parse_write(void) {
     tc_diagnostic_clear(&diag);
 }
 
+#define TC_PROGRAM_HDR "#program\n"
+
+static void test_parse_module_header_required(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program("var x: int32 = 1\n", &program, &diag) != 0,
+          "source without module header fails");
+    check(diag.kind == TC_ERR_SYNTAX, "missing header is syntax error");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(TC_PROGRAM_HDR "var x: int32 = 1\n", &program, &diag) == 0,
+          "source with #program header parses");
+    check(program.mode == TC_MODULE_PROGRAM, "program mode set");
+    check(program.count == 1, "program body stmt count");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_import(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source = TC_PROGRAM_HDR "import mylib\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse import");
+    check(program.count == 1, "import stmt count");
+    check(program.items[0].kind == TC_STMT_IMPORT, "import kind");
+    check(strcmp(program.items[0].u.import_stmt.module_name, "mylib") == 0, "import name");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_program_struct(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        TC_PROGRAM_HDR
+        "struct Point then\n"
+        "    let x: int32 @padding(0)\n"
+        "    var y: int32\n"
+        "end\n"
+        "var p: Point = nullptr\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse program struct");
+    check(program.count == 2, "struct program stmt count");
+    check(program.items[0].kind == TC_STMT_STRUCT_DEF, "struct def kind");
+    check(strcmp(program.items[0].u.struct_def.name, "Point") == 0, "struct name");
+    check(program.items[0].u.struct_def.field_count == 2, "struct field count");
+    check(program.items[1].kind == TC_STMT_VAR_DEF, "var after struct");
+    check(program.items[1].u.var_def.type == TC_STRUCT, "struct typed var");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_lib_func_and_static(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "#lib\n"
+        "public struct Box then\n"
+        "    var value: int32\n"
+        "end\n"
+        "private static let K: int32 = 1\n"
+        "public func inc ( n: int32 ) int32 then\n"
+        "    return n\n"
+        "end\n";
+
+    int parsed = 0;
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    parsed = tc_parse_source_to_program(source, &program, &diag);
+    check(parsed == 0, "parse lib func/static");
+    if (parsed == 0) {
+        check(program.mode == TC_MODULE_LIB, "lib mode set");
+        check(program.count == 3, "lib decl count");
+        if (program.count >= 3 && program.items) {
+            check(program.items[0].kind == TC_STMT_STRUCT_DEF, "lib struct");
+            check(program.items[0].u.struct_def.visibility == TC_VIS_PUBLIC, "struct visibility");
+            check(program.items[1].kind == TC_STMT_STATIC_LET_DEF, "static let");
+            check(program.items[2].kind == TC_STMT_FUNC_DEF, "func def");
+            check(strcmp(program.items[2].u.func_def.name, "inc") == 0, "func name");
+            check(program.items[2].u.func_def.return_type.kind == TC_INT32, "func return type");
+        }
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_missing_visibility_lib(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source = "#lib\nstruct Bad then\nend\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) != 0,
+          "lib struct without visibility fails");
+    check(diag.kind == TC_ERR_MISSING_VISIBILITY, "missing visibility error");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_program_mode_misuse(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source = TC_PROGRAM_HDR "public var x: int32 = 0\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) != 0,
+          "public in #program fails");
+    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "program mode misuse error");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_module_layer_error(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        TC_PROGRAM_HDR
+        "var x: int32 = 1\n"
+        "import bad\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) != 0,
+          "import after value decl fails");
+    check(diag.kind == TC_ERR_MODULE_LAYER, "module layer error");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_parse_if_program(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "var x: int32 = 1\n"
         "if eq(int32, x, 1) then\n"
         "    writeln(int32, x)\n"
@@ -135,6 +279,7 @@ static void test_parse_if_else_program(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "if false then\n"
         "    writeln(int32, 1)\n"
         "else\n"
@@ -156,6 +301,7 @@ static void test_parse_missing_end(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "if true then\n"
         "    writeln(int32, 1)\n";
 
@@ -170,6 +316,7 @@ static void test_parse_indent_insufficient(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "if true then\n"
         "    writeln(int32, 1)\n"
         "  writeln(int32, 2)\n"
@@ -239,6 +386,7 @@ static void test_parse_goto_in_if_block(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "label done:\n"
         "if true then\n"
         "    goto done\n"
@@ -262,6 +410,7 @@ static void test_parse_nested_if(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "if true then\n"
         "    if false then\n"
         "        writeln(int32, 1)\n"
@@ -282,6 +431,7 @@ static void test_parse_while_programs(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "while true then\n"
         "    if false then\n"
         "        break\n"
@@ -292,7 +442,7 @@ static void test_parse_while_programs(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    check(tc_parse_source_to_program("while false then\nend\n", &program, &diag) == 0,
+    check(tc_parse_source_to_program(TC_PROGRAM_HDR "while false then\nend\n", &program, &diag) == 0,
           "parse empty while body");
     check(program.count == 1 && program.items && program.items[0].kind == TC_STMT_WHILE,
           "empty while produces while statement");
@@ -335,6 +485,7 @@ static void test_parse_while_missing_end(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "while true then\n"
         "    writeln(int32, 1)\n";
 
@@ -352,6 +503,7 @@ static void test_parse_while_inside_if(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "if true then\n"
         "    while false then\n"
         "    end\n"
@@ -372,6 +524,7 @@ static void test_parse_bitcast_rhs(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
+        TC_PROGRAM_HDR
         "var bits: uint32 = bitcast(uint32, 0x3F800000u)\n"
         "let payload: uint64 = bitcast(uint64, 0x7FF8000000001234u)\n";
 
@@ -394,8 +547,8 @@ static void test_parse_bitcast_rhs(void) {
 
 static void test_parse_bitcast_invalid_syntax(void) {
     static const char *sources[] = {
-        "var bits: uint32 = bitcast(uint32)\n",
-        "var bits: uint32 = bitcast(uint32, truncate, 1u)\n",
+        TC_PROGRAM_HDR "var bits: uint32 = bitcast(uint32)\n",
+        TC_PROGRAM_HDR "var bits: uint32 = bitcast(uint32, truncate, 1u)\n",
     };
     size_t i = 0;
 
@@ -414,7 +567,135 @@ static void test_parse_bitcast_invalid_syntax(void) {
     }
 }
 
+static void test_parse_type_ptr_memblock(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        TC_PROGRAM_HDR
+        "var p: ptr<int32> = nullptr\n"
+        "var mb: memblock<int32, 4> = nullptr\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse ptr/memblock types");
+    check(program.count == 2, "two typed vars");
+    if (program.count >= 2) {
+        check(program.items[0].u.var_def.full_type.kind == TC_PTR, "ptr full_type");
+        check(program.items[0].u.var_def.full_type.params.ptr_type.pointee != NULL &&
+                  program.items[0].u.var_def.full_type.params.ptr_type.pointee->kind == TC_INT32,
+              "ptr pointee int32");
+        check(program.items[1].u.var_def.full_type.kind == TC_MEMBLOCK, "memblock full_type");
+        check(program.items[1].u.var_def.full_type.params.memblock_type.count == 4,
+              "memblock count 4");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_return_and_funcall(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        "#lib\n"
+        "public func bump ( n: int32 ) int32 then\n"
+        "    return n\n"
+        "end\n"
+        "public func noop ( ) void then\n"
+        "    return\n"
+        "end\n"
+        "public func call_it ( ) void then\n"
+        "    funcall(Self.bump, n: 1)\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse return/funcall lib");
+    check(program.count == 3, "three funcs");
+    if (program.count >= 3) {
+        TcFuncDef *bump = &program.items[0].u.func_def;
+        TcFuncDef *noop = &program.items[1].u.func_def;
+        TcFuncDef *call_it = &program.items[2].u.func_def;
+
+        check(bump->body_count == 1 && bump->body[0].kind == TC_STMT_RETURN,
+              "bump has return stmt");
+        check(bump->body[0].u.return_stmt.has_value, "return with value");
+        check(noop->return_type.kind == TC_VOID, "noop returns void");
+        check(noop->body_count == 1 && noop->body[0].kind == TC_STMT_RETURN,
+              "noop has bare return");
+        check(!noop->body[0].u.return_stmt.has_value, "bare return has no value");
+        check(call_it->body_count == 1 && call_it->body[0].kind == TC_STMT_FUNCALL,
+              "funcall stmt");
+        check(call_it->body[0].u.funcall_stmt.is_self, "funcall Self target");
+        check(call_it->body[0].u.funcall_stmt.member_name != NULL &&
+                  strcmp(call_it->body[0].u.funcall_stmt.member_name, "bump") == 0,
+              "funcall member bump");
+        check(call_it->body[0].u.funcall_stmt.arg_count == 1, "funcall one named arg");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_program_rejects_func_static(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(TC_PROGRAM_HDR "func bad ( ) void then\nend\n", &program,
+                                     &diag) != 0,
+          "func in #program fails");
+    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "func misuse kind");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(TC_PROGRAM_HDR "static let K: int32 = 1\n", &program,
+                                     &diag) != 0,
+          "static in #program fails");
+    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "static misuse kind");
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_field_assign_and_ptr_store(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        TC_PROGRAM_HDR
+        "struct Point then\n"
+        "    var x: int32\n"
+        "end\n"
+        "var p: Point = nullptr\n"
+        "p.x = 1\n"
+        "var q: ptr<int32> = nullptr\n"
+        "ptr_store(int32, q, 2)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0,
+          "parse field assign and ptr_store");
+    check(program.count == 5, "struct+vars+stmts");
+    if (program.count >= 5) {
+        check(program.items[2].kind == TC_STMT_FIELD_ASSIGN, "field assign kind");
+        check(program.items[4].kind == TC_STMT_PTR_STORE, "ptr_store kind");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
+    test_parse_module_header_required();
+    test_parse_import();
+    test_parse_program_struct();
+    test_parse_lib_func_and_static();
+    test_parse_missing_visibility_lib();
+    test_parse_program_mode_misuse();
+    test_parse_module_layer_error();
+    test_parse_type_ptr_memblock();
+    test_parse_return_and_funcall();
+    test_parse_program_rejects_func_static();
+    test_parse_field_assign_and_ptr_store();
     test_parse_var_def();
     test_parse_var_requires_initializer();
     test_parse_let_const();

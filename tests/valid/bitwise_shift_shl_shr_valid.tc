@@ -1,3 +1,4 @@
+#program
 ; 严格 shl、算术 shr、逻辑 shr
 var val: int8 = 16
 var shl_res: int8 = shl(int8, val, 2)

@@ -1,3 +1,4 @@
+#program
 var y: uint8 = 200u
 var y32: int32 = cast(int32, y)
 writeln(int32, y32)

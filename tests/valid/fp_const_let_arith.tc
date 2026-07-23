@@ -1,3 +1,4 @@
+#program
 ; let 浮点常量编译期算术
 ; 注意：let 的操作数不能是嵌套 RHS，须用中间变量
 let a: float64 = 2.0

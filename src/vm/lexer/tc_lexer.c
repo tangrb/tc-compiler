@@ -540,6 +540,62 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_IEEE;
         return 1;
     }
+    if (strcmp(buf, "ptr") == 0) {
+        token->kind = TC_TOK_PTR;
+        return 1;
+    }
+    if (strcmp(buf, "memblock") == 0) {
+        token->kind = TC_TOK_MEMBLOCK;
+        return 1;
+    }
+    if (strcmp(buf, "struct") == 0) {
+        token->kind = TC_TOK_STRUCT;
+        return 1;
+    }
+    if (strcmp(buf, "func") == 0) {
+        token->kind = TC_TOK_FUNC;
+        return 1;
+    }
+    if (strcmp(buf, "funcall") == 0) {
+        token->kind = TC_TOK_FUNCALL;
+        return 1;
+    }
+    if (strcmp(buf, "return") == 0) {
+        token->kind = TC_TOK_RETURN;
+        return 1;
+    }
+    if (strcmp(buf, "void") == 0) {
+        token->kind = TC_TOK_VOID;
+        return 1;
+    }
+    if (strcmp(buf, "Self") == 0) {
+        token->kind = TC_TOK_SELF;
+        return 1;
+    }
+    if (strcmp(buf, "public") == 0) {
+        token->kind = TC_TOK_PUBLIC;
+        return 1;
+    }
+    if (strcmp(buf, "private") == 0) {
+        token->kind = TC_TOK_PRIVATE;
+        return 1;
+    }
+    if (strcmp(buf, "static") == 0) {
+        token->kind = TC_TOK_STATIC;
+        return 1;
+    }
+    if (strcmp(buf, "import") == 0) {
+        token->kind = TC_TOK_IMPORT;
+        return 1;
+    }
+    if (strcmp(buf, "nullptr") == 0) {
+        token->kind = TC_TOK_NULLPTR;
+        return 1;
+    }
+    if (strcmp(buf, "padding") == 0) {
+        token->kind = TC_TOK_PADDING;
+        return 1;
+    }
     if (strcmp(buf, "float32") == 0) {
         token->kind = TC_TOK_FLOAT_TYPE;
         token->u.int_type = TC_FLOAT32;
@@ -682,6 +738,86 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
                 return -1;
             }
             break;
+        }
+        if (*p == '#') {
+            const char *directive_start = p;
+            const char *name_start = NULL;
+            size_t name_len = 0;
+            TcTokenKind directive_kind;
+
+            p++;
+            column++;
+            if (!tc_is_identifier_start(*p)) {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "expected module directive");
+                return -1;
+            }
+            name_start = p;
+            p++;
+            column++;
+            while (tc_is_identifier_part(*p)) {
+                p++;
+                column++;
+            }
+            name_len = (size_t)(p - name_start);
+            if (name_len == 7 && strncmp(name_start, "program", 7) == 0) {
+                directive_kind = TC_TOK_PROGRAM;
+            } else if (name_len == 3 && strncmp(name_start, "lib", 3) == 0) {
+                directive_kind = TC_TOK_LIB;
+            } else {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "invalid module directive");
+                return -1;
+            }
+            if (tc_emit_token(out, directive_kind, directive_start,
+                              (size_t)(p - directive_start), line_no, tok_column,
+                              TC_INT32, TC_ADD, NULL, diag) != 0) {
+                return -1;
+            }
+            tc_skip_ws(&p, &column);
+            continue;
+        }
+        if (*p == '@') {
+            if (tc_emit_token(out, TC_TOK_AT, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
+                              NULL, diag) != 0) {
+                return -1;
+            }
+            p++;
+            column++;
+            tc_skip_ws(&p, &column);
+            continue;
+        }
+        if (*p == '.') {
+            if (isdigit((unsigned char)p[1])) {
+                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "invalid float literal");
+                return -1;
+            }
+            if (tc_emit_token(out, TC_TOK_DOT, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
+                              NULL, diag) != 0) {
+                return -1;
+            }
+            p++;
+            column++;
+            tc_skip_ws(&p, &column);
+            continue;
+        }
+        if (*p == '<') {
+            if (tc_emit_token(out, TC_TOK_LT, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
+                              NULL, diag) != 0) {
+                return -1;
+            }
+            p++;
+            column++;
+            tc_skip_ws(&p, &column);
+            continue;
+        }
+        if (*p == '>') {
+            if (tc_emit_token(out, TC_TOK_GT, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
+                              NULL, diag) != 0) {
+                return -1;
+            }
+            p++;
+            column++;
+            tc_skip_ws(&p, &column);
+            continue;
         }
 
         /* 格式说明符：%d / %u / %x / %X / %o / %b */
@@ -882,6 +1018,46 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "LPAREN";
     case TC_TOK_RPAREN:
         return "RPAREN";
+    case TC_TOK_PTR:
+        return "PTR";
+    case TC_TOK_MEMBLOCK:
+        return "MEMBLOCK";
+    case TC_TOK_STRUCT:
+        return "STRUCT";
+    case TC_TOK_FUNC:
+        return "FUNC";
+    case TC_TOK_FUNCALL:
+        return "FUNCALL";
+    case TC_TOK_RETURN:
+        return "RETURN";
+    case TC_TOK_VOID:
+        return "VOID";
+    case TC_TOK_SELF:
+        return "SELF";
+    case TC_TOK_PUBLIC:
+        return "PUBLIC";
+    case TC_TOK_PRIVATE:
+        return "PRIVATE";
+    case TC_TOK_STATIC:
+        return "STATIC";
+    case TC_TOK_IMPORT:
+        return "IMPORT";
+    case TC_TOK_PROGRAM:
+        return "PROGRAM";
+    case TC_TOK_LIB:
+        return "LIB";
+    case TC_TOK_NULLPTR:
+        return "NULLPTR";
+    case TC_TOK_AT:
+        return "AT";
+    case TC_TOK_LT:
+        return "LT";
+    case TC_TOK_GT:
+        return "GT";
+    case TC_TOK_DOT:
+        return "DOT";
+    case TC_TOK_PADDING:
+        return "PADDING";
     case TC_TOK_SEMICOLON:
         return "SEMICOLON";
     }

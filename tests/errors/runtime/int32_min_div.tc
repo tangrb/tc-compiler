@@ -1,3 +1,4 @@
+#program
 ; INT32_MIN / -1 商 2147483648 超出 int32 表示范围
 var a: int32 = -2147483648
 var b: int32 = -1

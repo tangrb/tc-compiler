@@ -1,2 +1,3 @@
+#program
 var a: int32 = 100
 var b: int8 = cast(int8, wrap, a)

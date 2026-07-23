@@ -19,7 +19,7 @@ static void check(int condition, const char *message) {
 
 static void test_nested_loop_control_and_repeat(void) {
     static const char *source =
-        "var outer: int32 = 0\n"
+        "#program\nvar outer: int32 = 0\n"
         "while lt(int32, outer, 3) then\n"
         "    var inner: int32 = 0\n"
         "    while true then\n"
@@ -51,7 +51,7 @@ static void test_zero_iteration(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("var x: int32 = 0\nwhile false then\n    x = 1\nend\n",
+    check(tc_compile_source("#program\nvar x: int32 = 0\nwhile false then\n    x = 1\nend\n",
                             &typed, &diag) == 0,
           "compile zero-iteration loop");
     check(tc_run_typed(&typed, &diag) == 0, "zero-iteration loop executes");
@@ -61,7 +61,7 @@ static void test_zero_iteration(void) {
 
 static void test_execution_uses_resolved_slots(void) {
     static const char *source =
-        "var counter: int32 = 0\n"
+        "#program\nvar counter: int32 = 0\n"
         "while lt(int32, counter, 2) then\n"
         "    counter = add(int32, counter, 1)\n"
         "end\n";
@@ -96,7 +96,7 @@ static void test_var_reexecution_overwrites_fixed_slot(void) {
     int resolved_slot = -1;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("var value: int32 = 7\n", &typed, &diag) == 0,
+    check(tc_compile_source("#program\nvar value: int32 = 7\n", &typed, &diag) == 0,
           "compile fixed-slot reexecution program");
     resolved_slot = typed.program.items[0].u.var_def.binding.slot;
     check(resolved_slot == 0, "first lexical var has stable slot zero");
@@ -118,7 +118,7 @@ static void test_var_reexecution_overwrites_fixed_slot(void) {
 
 static void test_goto_to_final_label_exits_normally(void) {
     static const char *source =
-        "goto done\n"
+        "#program\ngoto done\n"
         "var skipped: int32 = 1\n"
         "label done:\n";
     TcTypedProgram typed;

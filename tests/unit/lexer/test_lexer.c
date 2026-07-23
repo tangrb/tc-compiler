@@ -386,6 +386,90 @@ static void test_ieee_keyword(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_phase2_keywords(void) {
+    static const struct {
+        const char *text;
+        TcTokenKind kind;
+    } cases[] = {
+        {"ptr", TC_TOK_PTR},
+        {"memblock", TC_TOK_MEMBLOCK},
+        {"struct", TC_TOK_STRUCT},
+        {"func", TC_TOK_FUNC},
+        {"funcall", TC_TOK_FUNCALL},
+        {"return", TC_TOK_RETURN},
+        {"void", TC_TOK_VOID},
+        {"Self", TC_TOK_SELF},
+        {"public", TC_TOK_PUBLIC},
+        {"private", TC_TOK_PRIVATE},
+        {"static", TC_TOK_STATIC},
+        {"import", TC_TOK_IMPORT},
+        {"nullptr", TC_TOK_NULLPTR},
+        {"padding", TC_TOK_PADDING},
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcTokenList tokens;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        check(tokenize_line_ok(cases[i].text, &tokens, &diag), cases[i].text);
+        check(token_at(&tokens, 0)->kind == cases[i].kind, cases[i].text);
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_module_directives_and_type_punct(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("#program", &tokens, &diag), "tokenize #program");
+    check(token_at(&tokens, 0)->kind == TC_TOK_PROGRAM, "#program kind");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("#lib", &tokens, &diag), "tokenize #lib");
+    check(token_at(&tokens, 0)->kind == TC_TOK_LIB, "#lib kind");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("@padding", &tokens, &diag), "tokenize @padding");
+    check(token_at(&tokens, 0)->kind == TC_TOK_AT, "@ kind");
+    check(token_at(&tokens, 1)->kind == TC_TOK_PADDING, "padding kind");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("ptr<int32>", &tokens, &diag), "tokenize ptr<int32>");
+    check(token_at(&tokens, 0)->kind == TC_TOK_PTR, "ptr");
+    check(token_at(&tokens, 1)->kind == TC_TOK_LT, "<");
+    check(token_at(&tokens, 2)->kind == TC_TOK_INT_TYPE, "int32");
+    check(token_at(&tokens, 3)->kind == TC_TOK_GT, ">");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("Self.member", &tokens, &diag), "tokenize Self.member");
+    check(token_at(&tokens, 0)->kind == TC_TOK_SELF, "Self");
+    check(token_at(&tokens, 1)->kind == TC_TOK_DOT, "dot");
+    check(token_at(&tokens, 2)->kind == TC_TOK_IDENTIFIER, "member");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_isize_usize_not_identifiers(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tokenize_line_ok("isize", &tokens, &diag), "tokenize isize");
+    check(token_at(&tokens, 0)->kind == TC_TOK_INT_TYPE, "isize → INT_TYPE");
+    check(token_at(&tokens, 0)->u.int_type == TC_ISIZE, "isize type value");
+    tc_token_list_free(&tokens);
+
+    check(tokenize_line_ok("usize", &tokens, &diag), "tokenize usize");
+    check(token_at(&tokens, 0)->kind == TC_TOK_INT_TYPE, "usize → INT_TYPE");
+    check(token_at(&tokens, 0)->u.int_type == TC_USIZE, "usize type value");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_uint8_type_token();
     test_unsigned_suffix_literal();
@@ -403,6 +487,9 @@ int main(void) {
     test_float_literal_tokens();
     test_float_special_literals();
     test_ieee_keyword();
+    test_phase2_keywords();
+    test_module_directives_and_type_punct();
+    test_isize_usize_not_identifiers();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

@@ -1,3 +1,4 @@
+#program
 ; Stress test: 300+ variable/let definitions across all integer types
 ; Tests symbol table capacity and lookup performance
 ; a-chain (int8):   a_n = a_{n-1} + (n+1)    → a49 = 1275

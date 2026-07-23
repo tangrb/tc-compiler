@@ -1,3 +1,4 @@
+#program
 ; 浮点位模式操作统一使用 bitcast，不再借用 truncate
 var one32: float32 = 1.0f
 var one32_bits: uint32 = bitcast(uint32, one32)

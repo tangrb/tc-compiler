@@ -1,3 +1,4 @@
+#program
 ; 六种比较运算（有符号 int32）
 var a: int32 = 10
 var b: int32 = 20

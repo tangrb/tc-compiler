@@ -1,3 +1,4 @@
+#program
 var a: int32 = 0
 read(int32, a)
 var b: int32 = add(int32, a, 0)

@@ -1,3 +1,4 @@
+#program
 var a: int32 = 10
 var b: uint32 = 20
 var c: uint32 = abs(uint32, a)

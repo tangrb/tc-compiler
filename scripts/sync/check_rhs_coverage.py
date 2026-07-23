@@ -42,7 +42,7 @@ TC_RHS_KINDS = [
     "TC_RHS_FLOAT_UNARY",
     "TC_RHS_FLOAT_COMPARE",
     "TC_RHS_BITCAST",
-    # 0.0.35 Phase 1 预留；解析/求值在后续阶段落地
+    # 0.0.35 Phase 2：部分已可解析；深度语义在后续阶段
     "TC_RHS_MEMBLOCK_LOAD",
     "TC_RHS_MEMBLOCK_CONSTRUCTOR",
     "TC_RHS_MEMBLOCK_COUNT",
@@ -63,26 +63,21 @@ TC_RHS_KINDS = [
     "TC_RHS_SELF_MEMBER",
 ]
 
-# Phase 1：新 RHS 尚未进入各分发实现，统一 skip（落地后逐项移除）
+# Phase 2：已解析/释放的 kind 从本表移除；未解析或深度语义未落地的保留 skip
 TC_RHS_PHASE1_RESERVED = {
-    "TC_RHS_MEMBLOCK_LOAD": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_MEMBLOCK_CONSTRUCTOR": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_MEMBLOCK_COUNT": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_STRUCT_CONSTRUCTOR": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_FIELD_READ": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_LOAD": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_ADDRESS": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_ADD": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_SUB": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_EQ": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_NE": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_LT": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_LE": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_GT": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_GE": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_PTR_SIZE": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_FUNCALL_EXPR": "0.0.35 Phase 1 enum reserved",
-    "TC_RHS_SELF_MEMBER": "0.0.35 Phase 1 enum reserved",
+    "TC_RHS_MEMBLOCK_CONSTRUCTOR": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_MEMBLOCK_COUNT": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_STRUCT_CONSTRUCTOR": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_ADD": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_SUB": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_EQ": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_NE": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_LT": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_LE": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_GT": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_GE": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_PTR_SIZE": "0.0.35 Phase 2+: parse/eval deferred",
+    "TC_RHS_FUNCALL_EXPR": "0.0.35 Phase 2: stmt/free only; expr eval deferred",
 }
 
 # ---------------------------------------------------------------------------
@@ -140,6 +135,11 @@ DISPATCH_POINTS = [
         "line_func": 0,
         "skip": {
             "TC_RHS_CAST": "最后一条 if 链后的 fallthrough 块处理（无显式 rhs->kind == 检查）",
+            "TC_RHS_MEMBLOCK_LOAD": "Phase 2 parse; deep type check Phase 3",
+            "TC_RHS_FIELD_READ": "Phase 2 parse; deep type check Phase 3",
+            "TC_RHS_PTR_LOAD": "Phase 2 parse; deep type check Phase 3",
+            "TC_RHS_PTR_ADDRESS": "Phase 2 parse; deep type check Phase 3",
+            "TC_RHS_SELF_MEMBER": "Phase 2 parse; deep type check Phase 3",
         },
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
@@ -149,13 +149,24 @@ DISPATCH_POINTS = [
         "line_func": 0,
         "skip": {
             "TC_RHS_CAST": "CAST 用于运行时变量，不进入编译期常量求值",
+            "TC_RHS_MEMBLOCK_LOAD": "Phase 2 parse; const eval deferred",
+            "TC_RHS_FIELD_READ": "Phase 2 parse; const eval deferred",
+            "TC_RHS_PTR_LOAD": "Phase 2 parse; const eval deferred",
+            "TC_RHS_PTR_ADDRESS": "Phase 2 parse; const eval deferred",
+            "TC_RHS_SELF_MEMBER": "Phase 2 parse; const eval deferred",
         },
     },
     {
         "path": "src/vm/executor/tc_executor.c",
         "func": "tc_eval_rhs",
         "line_func": 0,
-        "skip": {},
+        "skip": {
+            "TC_RHS_MEMBLOCK_LOAD": "Phase 2 parse; runtime Phase 5",
+            "TC_RHS_FIELD_READ": "Phase 2 parse; runtime Phase 5",
+            "TC_RHS_PTR_LOAD": "Phase 2 parse; runtime Phase 5",
+            "TC_RHS_PTR_ADDRESS": "Phase 2 parse; runtime Phase 5",
+            "TC_RHS_SELF_MEMBER": "Phase 2 parse; runtime Phase 5",
+        },
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
     {
@@ -164,6 +175,11 @@ DISPATCH_POINTS = [
         "line_func": 0,
         "skip": {
             "TC_RHS_CAST": "最后一条 if 链后的 fallthrough 块处理（无显式 rhs->kind == 检查）",
+            "TC_RHS_MEMBLOCK_LOAD": "Phase 2 parse; AOT Phase 5",
+            "TC_RHS_FIELD_READ": "Phase 2 parse; AOT Phase 5",
+            "TC_RHS_PTR_LOAD": "Phase 2 parse; AOT Phase 5",
+            "TC_RHS_PTR_ADDRESS": "Phase 2 parse; AOT Phase 5",
+            "TC_RHS_SELF_MEMBER": "Phase 2 parse; AOT Phase 5",
         },
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
@@ -176,6 +192,11 @@ DISPATCH_POINTS = [
             "TC_RHS_LIT": "LIT 在 codegen 内联展开",
             "TC_RHS_CONST_REF": "codegen 直接发射 let 位模式或 var slot，不产生 shim 调用",
             "TC_RHS_CONST_CAST": "代码生成时返回 -1，不产生 shim 调用",
+            "TC_RHS_MEMBLOCK_LOAD": "Phase 2 parse; AOT shim Phase 5",
+            "TC_RHS_FIELD_READ": "Phase 2 parse; AOT shim Phase 5",
+            "TC_RHS_PTR_LOAD": "Phase 2 parse; AOT shim Phase 5",
+            "TC_RHS_PTR_ADDRESS": "Phase 2 parse; AOT shim Phase 5",
+            "TC_RHS_SELF_MEMBER": "Phase 2 parse; AOT shim Phase 5",
         },
     },
 ]

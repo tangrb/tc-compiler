@@ -1,2 +1,3 @@
+#program
 ; 模式合法性先于字面量上下文类型检查
 var bad: float32 = add(float32, wrap, 1.0, 2.0)

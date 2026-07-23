@@ -1,2 +1,3 @@
+#program
 ; 0.0.31：浮点 wrap 已删除，统一为 ModeMismatch。
 var bad: float64 = mul(float64, wrap, 2.0, 3.0)

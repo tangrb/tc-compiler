@@ -1,3 +1,4 @@
+#program
 var a: int16 = 256
 var b: int16 = 128
 var c: int16 = mul(int16, a, b)

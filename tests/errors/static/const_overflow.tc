@@ -1,1 +1,2 @@
+#program
 let X: int8 = add(int8, 100, 100)

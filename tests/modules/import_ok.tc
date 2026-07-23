@@ -1,0 +1,5 @@
+; 成功导入 #lib（仅 --check；执行器尚不支持 IMPORT 语句）
+#program
+import Util
+var x: int32 = 1
+writeln(int32, x)

@@ -93,7 +93,7 @@ static void test_sequential_cfg(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(compile_source("var x: int32 = 1\nwriteln(int32, x)\n", &typed, &diag) == 0,
+    check(compile_source("#program\nvar x: int32 = 1\nwriteln(int32, x)\n", &typed, &diag) == 0,
           "compile sequential cfg");
     if (typed.cfg) {
         check(typed.cfg->node_count == 4, "entry + two statements + exit");
@@ -112,7 +112,7 @@ static void test_structured_edges(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "while false then\n"
+        "#program\nwhile false then\n"
         "    if true then\n"
         "        continue\n"
         "    else\n"
@@ -139,7 +139,7 @@ static void test_structured_edges(void) {
 static void test_goto_edge(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
-    const char *source = "goto done\nvar x: int32 = 1\nlabel done:\n";
+    const char *source = "#program\ngoto done\nvar x: int32 = 1\nlabel done:\n";
 
     tc_diagnostic_init(&diag);
     check(compile_source(source, &typed, &diag) == 0, "compile goto cfg");
@@ -154,7 +154,7 @@ static void test_constant_loop_pruning(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "while false then\n"
+        "#program\nwhile false then\n"
         "    writeln(int32, 1)\n"
         "end\n"
         "writeln(int32, 2)\n";
@@ -207,7 +207,7 @@ static void check_let_branch_pruning(const char *source, int expected,
 
 static void test_let_constant_branch_pruning(void) {
     check_let_branch_pruning(
-        "let FLAG: bool = true\n"
+        "#program\nlet FLAG: bool = true\n"
         "if FLAG then\n"
         "    writeln(int32, 1)\n"
         "else\n"
@@ -215,7 +215,7 @@ static void test_let_constant_branch_pruning(void) {
         "end\n",
         1, "compile let true branch");
     check_let_branch_pruning(
-        "let FLAG: bool = false\n"
+        "#program\nlet FLAG: bool = false\n"
         "if FLAG then\n"
         "    writeln(int32, 1)\n"
         "else\n"
@@ -223,7 +223,7 @@ static void test_let_constant_branch_pruning(void) {
         "end\n",
         0, "compile let false branch");
     check_let_branch_pruning(
-        "let FLAG: bool = eq(int32, 7, 7)\n"
+        "#program\nlet FLAG: bool = eq(int32, 7, 7)\n"
         "if FLAG then\n"
         "    writeln(int32, 1)\n"
         "else\n"
@@ -236,7 +236,7 @@ static void test_local_let_shadow_branch_pruning(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "let FLAG: bool = false\n"
+        "#program\nlet FLAG: bool = false\n"
         "if true then\n"
         "    let FLAG: bool = true\n"
         "    if FLAG then\n"
@@ -274,55 +274,55 @@ static void test_static_bool_rhs_pruning(void) {
         const char *message;
     } cases[] = {
         {
-            "if true then\n    writeln(bool, true)\nend\n",
+            "#program\nif true then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             1,
             "literal true branch",
         },
         {
-            "let FLAG: bool = false\n"
+            "#program\nlet FLAG: bool = false\n"
             "if FLAG then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             0,
             "const-ref false branch",
         },
         {
-            "let A: int32 = 10\nlet B: int32 = 5\n"
+            "#program\nlet A: int32 = 10\nlet B: int32 = 5\n"
             "if gt(int32, A, B) then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             1,
             "integer comparison branch",
         },
         {
-            "let A: float64 = 1.0\nlet B: float64 = 2.0\n"
+            "#program\nlet A: float64 = 1.0\nlet B: float64 = 2.0\n"
             "if lt(float64, A, B) then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             1,
             "float comparison branch",
         },
         {
-            "let A: bool = true\nlet B: bool = false\n"
+            "#program\nlet A: bool = true\nlet B: bool = false\n"
             "if and(bool, A, B) then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             0,
             "logic binary branch",
         },
         {
-            "let A: bool = false\n"
+            "#program\nlet A: bool = false\n"
             "if not(bool, A) then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             1,
             "logic unary branch",
         },
         {
-            "let ZERO: int32 = 0\n"
+            "#program\nlet ZERO: int32 = 0\n"
             "if cast(bool, ZERO) then\n    writeln(bool, true)\nend\n",
             TC_CFG_BRANCH,
             0,
             "strict bool cast branch",
         },
         {
-            "var runtime: bool = true\n"
+            "#program\nvar runtime: bool = true\n"
             "while runtime then\n    runtime = false\nend\n",
             TC_CFG_LOOP_CONDITION,
             -1,
@@ -363,7 +363,7 @@ static void test_short_circuit_read_sets(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "let FALSE: bool = false\n"
+        "#program\nlet FALSE: bool = false\n"
         "let TRUE: bool = true\n"
         "var rhs: bool = true\n"
         "var runtime_false: bool = false\n"
@@ -405,7 +405,7 @@ static void test_cfg_size_is_linear(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "var a: int32 = 1\n"
+        "#program\nvar a: int32 = 1\n"
         "if true then\n"
         "    var b: int32 = 2\n"
         "else\n"

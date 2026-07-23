@@ -1,0 +1,4 @@
+#lib
+import self_import
+public func noop() void then
+end

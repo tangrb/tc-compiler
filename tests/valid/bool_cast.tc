@@ -1,3 +1,4 @@
+#program
 ; bool 与整数互转
 var x: int32 = 42
 var zero: int32 = 0

@@ -1,3 +1,4 @@
+#program
 ; 按位四运算 8 类型抽样
 var i8a: int8 = 15
 var i8b: int8 = 3

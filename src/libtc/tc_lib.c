@@ -8,6 +8,7 @@
 #include "tc_lib.h"
 
 #include "tc_lexer.h"
+#include "tc_module.h"
 #include "tc_parser.h"
 #include "tc_warning.h"
 
@@ -15,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+static TcModuleSearchPaths g_module_search_paths;
 
 /* ------------------------------------------------------------------ */
 /*  性能计时辅助（环境变量 TC_BENCH=1 启用）                               */
@@ -143,14 +146,24 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
     if (tc_analyze(&program, &typed, diag) != 0) {
         return -1;
     }
+    /* 无路径的内存源：仅做结构检查；导入解析在 tc_compile_file */
     tc_bench_report("analyze", tc_bench_now() - t0);
     *out = typed;
     return 0;
 }
 
+int tc_set_module_search_paths(char *const *paths, size_t count, TcDiagnostic *diag) {
+    if (!diag) {
+        return -1;
+    }
+    return tc_module_search_paths_set(&g_module_search_paths, paths, count, diag);
+}
+
 int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag) {
     char *source = NULL;
-    int rc = 0;
+    TcProgram program;
+    TcTypedProgram typed;
+    double t0;
 
     if (!diag) {
         return -1;
@@ -165,10 +178,28 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag) {
     if (!source) {
         return -1;
     }
+    if (tc_diagnostic_set_source(diag, path, source) != 0) {
+        free(source);
+        return -1;
+    }
 
-    rc = tc_compile_source(source, out, diag);
+    if (tc_parse_source(source, &program, diag) != 0) {
+        free(source);
+        return -1;
+    }
     free(source);
-    return rc;
+
+    t0 = tc_bench_now();
+    if (tc_analyze(&program, &typed, diag) != 0) {
+        return -1;
+    }
+    if (tc_module_resolve_imports(&typed, path, &g_module_search_paths, diag) != 0) {
+        tc_typed_program_free(&typed);
+        return -1;
+    }
+    tc_bench_report("analyze+modules", tc_bench_now() - t0);
+    *out = typed;
+    return 0;
 }
 
 int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag) {

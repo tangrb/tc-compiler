@@ -79,7 +79,7 @@ static void test_allocation_failures_become_oom(void) {
 
     tc_diagnostic_init(&diag);
     tc_diagnostic_test_fail_alloc_after(0);
-    tc_diagnostic_set_source(&diag, "input.tc", "var x: int32 = 1\n");
+    tc_diagnostic_set_source(&diag, "input.tc", "#program\nvar x: int32 = 1\n");
     check(diag.domain == TC_DIAG_IMPLEMENTATION && diag.kind == TC_ERR_OUT_OF_MEMORY,
           "source capture allocation failure becomes implementation OOM");
     check(diag.message != NULL && strcmp(diag.message, "memory allocation failed") == 0,
@@ -98,7 +98,7 @@ static void test_allocation_failures_become_oom(void) {
     tc_diagnostic_clear(&diag);
 
     tc_diagnostic_init(&diag);
-    tc_diagnostic_set_source(&diag, "input.tc", "var x: int32 = true\n");
+    tc_diagnostic_set_source(&diag, "input.tc", "#program\nvar x: int32 = true\n");
     tc_diagnostic_test_fail_alloc_after(1);
     tc_diagnostic_set(&diag, TC_ERR_TYPE_MISMATCH, 1, 1, "bad type");
     check(diag.domain == TC_DIAG_IMPLEMENTATION && diag.kind == TC_ERR_OUT_OF_MEMORY,

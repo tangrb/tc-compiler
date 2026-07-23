@@ -1,3 +1,4 @@
+#program
 ; read into int8
 var a: int8 = 0
 read(int8, a)

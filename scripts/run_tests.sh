@@ -60,6 +60,12 @@ echo " TC-Compiler 统一测试入口"
 echo "================================================================"
 echo ""
 
+# 确保 VM/AOT 二进制与 libtc 同源，避免夹具已更新而二进制过期
+echo "Building tc-vm / tc-aot ..."
+cmake -S "$ROOT" -B "$ROOT/build" >/dev/null
+cmake --build "$ROOT/build" --target tc-vm tc-aot
+echo ""
+
 # ---- 1. VM conformance tests ----
 echo "================================================================"
 echo " [1/3] VM Conformance Tests"

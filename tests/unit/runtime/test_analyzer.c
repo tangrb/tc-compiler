@@ -33,7 +33,7 @@ static void test_analyze_valid_program(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "var x: int32 = 10\n"
+        "#program\nvar x: int32 = 10\n"
         "writeln(int32, x)\n";
 
     tc_diagnostic_init(&diag);
@@ -52,7 +52,7 @@ static void test_analyze_let_const(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "let N: int32 = 42\n"
+        "#program\nlet N: int32 = 42\n"
         "let M: int32 = add(int32, N, 8)\n"
         "writeln(int32, M)\n";
 
@@ -74,7 +74,7 @@ static void test_analyze_let_does_not_consume_var_slots(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "let A: int32 = 1\n"
+        "#program\nlet A: int32 = 1\n"
         "var x: int32 = A\n"
         "let B: int32 = 2\n"
         "var y: int32 = B\n";
@@ -107,7 +107,7 @@ static void test_analyze_let_allowed_forms(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "let LITERAL: int32 = 42\n"
+        "#program\nlet LITERAL: int32 = 42\n"
         "let EARLIER: int32 = add(int32, LITERAL, 8)\n"
         "let WRAP: int8 = add(int8, wrap, 120, 20)\n"
         "let IEEE: float32 = div(float32, ieee, 1.0f, 0.0f)\n"
@@ -143,7 +143,7 @@ static void test_analyze_let_nested_call_error(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
-        "let BAD: int32 = add(int32, mul(int32, 2, 3), 4)\n";
+        "#program\nlet BAD: int32 = add(int32, mul(int32, 2, 3), 4)\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -162,33 +162,33 @@ static void test_analyze_let_reference_errors(void) {
         const char *message;
     } cases[] = {
         {
-            "var runtime: int32 = 1\n"
+            "#program\nvar runtime: int32 = 1\n"
             "let BAD: int32 = add(int32, runtime, 1)\n",
             TC_ERR_CONSTANT_EXPRESSION,
-            "let rejects var reference",
+            "#program\nlet rejects var reference",
         },
         {
-            "var runtime: int64 = 1\n"
+            "#program\nvar runtime: int64 = 1\n"
             "let BAD: int32 = cast(int32, runtime)\n",
             TC_ERR_CONSTANT_EXPRESSION,
-            "let cast rejects var reference",
+            "#program\nlet cast rejects var reference",
         },
         {
-            "var runtime: uint32 = 0x3F800000u\n"
+            "#program\nvar runtime: uint32 = 0x3F800000u\n"
             "let BAD: float32 = bitcast(float32, runtime)\n",
             TC_ERR_CONSTANT_EXPRESSION,
-            "let bitcast rejects var reference",
+            "#program\nlet bitcast rejects var reference",
         },
         {
-            "let SELF: int32 = SELF\n",
+            "#program\nlet SELF: int32 = SELF\n",
             TC_ERR_UNDEFINED_VARIABLE,
-            "let self-reference is undefined by source order",
+            "#program\nlet self-reference is undefined by source order",
         },
         {
-            "let FIRST: int32 = add(int32, LATER, 1)\n"
+            "#program\nlet FIRST: int32 = add(int32, LATER, 1)\n"
             "let LATER: int32 = 1\n",
             TC_ERR_UNDEFINED_VARIABLE,
-            "let forward reference is undefined by source order",
+            "#program\nlet forward reference is undefined by source order",
         },
     };
     size_t i = 0;
@@ -215,7 +215,7 @@ static void test_analyze_block_local_let_chain(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "if true then\n"
+        "#program\nif true then\n"
         "    let A: int32 = 1\n"
         "    let B: int32 = A\n"
         "    let C: int32 = add(int32, B, 1)\n"
@@ -254,35 +254,35 @@ static void test_analyze_short_circuit_still_validates_rhs(void) {
         const char *message;
     } cases[] = {
         {
-            "let BAD: bool = and(bool, false, missing)\n",
+            "#program\nlet BAD: bool = and(bool, false, missing)\n",
             TC_ERR_UNDEFINED_VARIABLE,
             "and false still validates missing rhs",
         },
         {
-            "let BAD: bool = or(bool, true, missing)\n",
+            "#program\nlet BAD: bool = or(bool, true, missing)\n",
             TC_ERR_UNDEFINED_VARIABLE,
             "or true still validates missing rhs",
         },
         {
-            "let BAD: bool = and(bool, false, LATER)\n"
+            "#program\nlet BAD: bool = and(bool, false, LATER)\n"
             "let LATER: bool = true\n",
             TC_ERR_UNDEFINED_VARIABLE,
             "and false still validates forward rhs",
         },
         {
-            "let BAD: bool = or(bool, true, LATER)\n"
+            "#program\nlet BAD: bool = or(bool, true, LATER)\n"
             "let LATER: bool = false\n",
             TC_ERR_UNDEFINED_VARIABLE,
             "or true still validates forward rhs",
         },
         {
-            "var runtime: bool = true\n"
+            "#program\nvar runtime: bool = true\n"
             "let BAD: bool = and(bool, false, runtime)\n",
             TC_ERR_CONSTANT_EXPRESSION,
             "and false still rejects var rhs",
         },
         {
-            "var runtime: bool = false\n"
+            "#program\nvar runtime: bool = false\n"
             "let BAD: bool = or(bool, true, runtime)\n",
             TC_ERR_CONSTANT_EXPRESSION,
             "or true still rejects var rhs",
@@ -309,17 +309,17 @@ static void test_analyze_short_circuit_still_validates_rhs(void) {
 
 static void test_analyze_let_mode_matrix(void) {
     static const char *cases[] = {
-        "let BAD: uint8 = add(uint8, wrap, 255u, 1u)\n",
-        "let BAD: uint8 = neg(uint8, wrap, 1u)\n",
-        "let BAD: int32 = div(int32, wrap, 4, 2)\n",
-        "let BAD: int32 = mod(int32, wrap, 4, 2)\n",
-        "let BAD: int32 = abs(int32, wrap, -1)\n",
-        "let BAD: float64 = neg(float64, ieee, 1.0)\n",
-        "let BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
-        "var BAD: uint8 = add(uint8, wrap, 255u, 1u)\n",
-        "var BAD: uint8 = neg(uint8, wrap, 1u)\n",
-        "var BAD: float64 = neg(float64, ieee, 1.0)\n",
-        "var BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
+        "#program\nlet BAD: uint8 = add(uint8, wrap, 255u, 1u)\n",
+        "#program\nlet BAD: uint8 = neg(uint8, wrap, 1u)\n",
+        "#program\nlet BAD: int32 = div(int32, wrap, 4, 2)\n",
+        "#program\nlet BAD: int32 = mod(int32, wrap, 4, 2)\n",
+        "#program\nlet BAD: int32 = abs(int32, wrap, -1)\n",
+        "#program\nlet BAD: float64 = neg(float64, ieee, 1.0)\n",
+        "#program\nlet BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
+        "#program\nvar BAD: uint8 = add(uint8, wrap, 255u, 1u)\n",
+        "#program\nvar BAD: uint8 = neg(uint8, wrap, 1u)\n",
+        "#program\nvar BAD: float64 = neg(float64, ieee, 1.0)\n",
+        "#program\nvar BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
     };
     size_t i = 0;
 
@@ -347,7 +347,7 @@ static void test_analyze_unreachable_let_branch_still_checks_names(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "let NEVER: bool = false\n"
+        "#program\nlet NEVER: bool = false\n"
         "if NEVER then\n"
         "    writeln(int32, missing)\n"
         "end\n";
@@ -373,32 +373,32 @@ static void test_analyze_diagnostic_priority_matrix(void) {
         const char *message;
     } cases[] = {
         {
-            "var value: int32 = @\n"
+            "#program\nvar value: int32 = @\n"
             "writeln(int32, missing)\n",
             1,
             TC_ERR_SYNTAX,
             "lexical error precedes later name error",
         },
         {
-            "var result: bool = and(bool, missing)\n",
+            "#program\nvar result: bool = and(bool, missing)\n",
             1,
             TC_ERR_SYNTAX,
             "syntax error precedes missing operand name resolution",
         },
         {
-            "var result: bool = and(bool, 1, missing)\n",
+            "#program\nvar result: bool = and(bool, 1, missing)\n",
             0,
             TC_ERR_UNDEFINED_VARIABLE,
             "name resolution precedes operand type checking in one RHS",
         },
         {
-            "var bad: float32 = add(float32, wrap, 1.0, 2.0)\n",
+            "#program\nvar bad: float32 = add(float32, wrap, 1.0, 2.0)\n",
             0,
             TC_ERR_MODE_MISMATCH,
             "mode legality precedes literal context typing",
         },
         {
-            "let BAD: int32 = div(int32, 1, 0)\n"
+            "#program\nlet BAD: int32 = div(int32, 1, 0)\n"
             "goto use\n"
             "var pending: int32 = 1\n"
             "label use:\n"
@@ -408,7 +408,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "constant evaluation precedes CFG definite-init failure",
         },
         {
-            "let NEVER: bool = false\n"
+            "#program\nlet NEVER: bool = false\n"
             "if NEVER then\n"
             "    writeln(int32, missing)\n"
             "end\n",
@@ -417,7 +417,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "unreachable branch still reports name error before CFG",
         },
         {
-            "let NEVER: bool = false\n"
+            "#program\nlet NEVER: bool = false\n"
             "var number: int32 = 1\n"
             "if NEVER then\n"
             "    var bad: bool = and(bool, false, number)\n"
@@ -427,7 +427,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "unreachable branch still reports type error before CFG",
         },
         {
-            "var runtime: bool = false\n"
+            "#program\nvar runtime: bool = false\n"
             "goto use\n"
             "var pending: bool = true\n"
             "label use:\n"
@@ -472,12 +472,12 @@ static void test_analyze_let_runtime_error_mapping(void) {
         const char *source;
         TcErrorKind kind;
     } cases[] = {
-        {"let BAD: int8 = add(int8, 127, 1)\n", TC_ERR_CONSTANT_OVERFLOW},
-        {"let BAD: int32 = div(int32, 1, 0)\n", TC_ERR_CONSTANT_DIV_ZERO},
-        {"let BAD: int8 = cast(int8, 128)\n", TC_ERR_CONSTANT_CAST_OVERFLOW},
-        {"let BAD: float32 = div(float32, 0.0f, 0.0f)\n",
+        {"#program\nlet BAD: int8 = add(int8, 127, 1)\n", TC_ERR_CONSTANT_OVERFLOW},
+        {"#program\nlet BAD: int32 = div(int32, 1, 0)\n", TC_ERR_CONSTANT_DIV_ZERO},
+        {"#program\nlet BAD: int8 = cast(int8, 128)\n", TC_ERR_CONSTANT_CAST_OVERFLOW},
+        {"#program\nlet BAD: float32 = div(float32, 0.0f, 0.0f)\n",
          TC_ERR_CONSTANT_EXPRESSION},
-        {"let BAD: float32 = mul(float32, 3.4e38f, 2.0f)\n",
+        {"#program\nlet BAD: float32 = mul(float32, 3.4e38f, 2.0f)\n",
          TC_ERR_CONSTANT_OVERFLOW},
     };
     size_t i = 0;
@@ -505,7 +505,7 @@ static void test_analyze_if_condition_type(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "if add(int32, 1, 2) then\n"
+        "#program\nif add(int32, 1, 2) then\n"
         "    writeln(int32, 1)\n"
         "end\n";
 
@@ -514,7 +514,7 @@ static void test_analyze_if_condition_type(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse if arith cond");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze if arith cond fails");
-    check(strstr(diag.message, "if condition must be bool") != NULL, "if cond type message");
+    check(strstr(diag.message, "if condition must be bool") != NULL, "#program\nif cond type message");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -524,7 +524,7 @@ static void test_analyze_cross_block_reference(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "if true then\n"
+        "#program\nif true then\n"
         "    var x: int32 = 1\n"
         "end\n"
         "writeln(int32, x)\n";
@@ -546,7 +546,7 @@ static void test_analyze_uninit_error(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "goto use\n"
+        "#program\ngoto use\n"
         "var a: int32 = 1\n"
         "label use:\n"
         "writeln(int32, a)\n";
@@ -566,7 +566,7 @@ static void test_analyze_uninit_if_merge(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "var condition: int32 = 1\n"
+        "#program\nvar condition: int32 = 1\n"
         "goto branch\n"
         "var x: int32 = 0\n"
         "label branch:\n"
@@ -590,7 +590,7 @@ static void test_analyze_uninit_both_paths_ok(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "goto branch\n"
+        "#program\ngoto branch\n"
         "var x: int32 = 0\n"
         "label branch:\n"
         "if true then\n"
@@ -614,7 +614,7 @@ static void test_analyze_shortcircuit_uninit_ok(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "var flag: bool = false\n"
+        "#program\nvar flag: bool = false\n"
         "goto use\n"
         "var uninit: bool = true\n"
         "label use:\n"
@@ -651,14 +651,14 @@ static void test_analyze_static_bool_operand_matrix(void) {
         const char *message;
     } valid_cases[] = {
         {
-            "if true then\n"
+            "#program\nif true then\n"
             "    writeln(bool, true)\n"
             "end\n",
             1,
             "bool literal is a static condition",
         },
         {
-            "let FLAG: bool = false\n"
+            "#program\nlet FLAG: bool = false\n"
             "if FLAG then\n"
             "    writeln(bool, true)\n"
             "end\n",
@@ -666,15 +666,15 @@ static void test_analyze_static_bool_operand_matrix(void) {
             "earlier visible let bool is a static condition",
         },
         {
-            "var flag: bool = false\n"
+            "#program\nvar flag: bool = false\n"
             "if flag then\n"
             "    writeln(bool, true)\n"
             "end\n",
             -1,
-            "var bool remains an unknown static condition",
+            "#program\nvar bool remains an unknown static condition",
         },
         {
-            "let TEN: int32 = 10\n"
+            "#program\nlet TEN: int32 = 10\n"
             "let FIVE: int32 = 5\n"
             "if gt(int32, TEN, FIVE) then\n"
             "    writeln(bool, true)\n"
@@ -683,7 +683,7 @@ static void test_analyze_static_bool_operand_matrix(void) {
             "single-level comparison is a static condition",
         },
         {
-            "let LOW: float64 = 1.0\n"
+            "#program\nlet LOW: float64 = 1.0\n"
             "let HIGH: float64 = 2.0\n"
             "if lt(float64, LOW, HIGH) then\n"
             "    writeln(bool, true)\n"
@@ -692,7 +692,7 @@ static void test_analyze_static_bool_operand_matrix(void) {
             "single-level float comparison is a static condition",
         },
         {
-            "let A: bool = true\n"
+            "#program\nlet A: bool = true\n"
             "let B: bool = false\n"
             "if and(bool, A, B) then\n"
             "    writeln(bool, true)\n"
@@ -701,7 +701,7 @@ static void test_analyze_static_bool_operand_matrix(void) {
             "single-level logic binary RHS is a static condition",
         },
         {
-            "let FLAG: bool = false\n"
+            "#program\nlet FLAG: bool = false\n"
             "if not(bool, FLAG) then\n"
             "    writeln(bool, true)\n"
             "end\n",
@@ -709,7 +709,7 @@ static void test_analyze_static_bool_operand_matrix(void) {
             "single-level logic unary RHS is a static condition",
         },
         {
-            "let ZERO: int32 = 0\n"
+            "#program\nlet ZERO: int32 = 0\n"
             "if cast(bool, ZERO) then\n"
             "    writeln(bool, true)\n"
             "end\n",
@@ -718,11 +718,11 @@ static void test_analyze_static_bool_operand_matrix(void) {
         },
     };
     static const char *invalid_cases[] = {
-        "if LATER then\n"
+        "#program\nif LATER then\n"
         "    writeln(bool, true)\n"
         "end\n"
         "let LATER: bool = false\n",
-        "if true then\n"
+        "#program\nif true then\n"
         "    let LOCAL: bool = false\n"
         "end\n"
         "if LOCAL then\n"
@@ -769,7 +769,7 @@ static void test_analyze_static_bool_operand_matrix(void) {
 
 static void test_analyze_static_bool_dfa_pruning(void) {
     static const char *cases[] = {
-        "let TEN: int32 = 10\n"
+        "#program\nlet TEN: int32 = 10\n"
         "let FIVE: int32 = 5\n"
         "goto branch\n"
         "var value: int32 = 0\n"
@@ -778,12 +778,12 @@ static void test_analyze_static_bool_dfa_pruning(void) {
         "    value = 10\n"
         "end\n"
         "writeln(int32, value)\n",
-        "let FALSE: bool = false\n"
+        "#program\nlet FALSE: bool = false\n"
         "goto use\n"
         "var pending: bool = true\n"
         "label use:\n"
         "var result: bool = and(bool, FALSE, pending)\n",
-        "let TEN: int32 = 10\n"
+        "#program\nlet TEN: int32 = 10\n"
         "let FIVE: int32 = 5\n"
         "goto use\n"
         "var pending: int32 = 1\n"
@@ -816,7 +816,7 @@ static void test_analyze_if_block_scope(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "var x: int32 = 1\n"
+        "#program\nvar x: int32 = 1\n"
         "if true then\n"
         "    var x: int32 = 2\n"
         "    writeln(int32, x)\n"
@@ -837,7 +837,7 @@ static void test_analyze_const_cyclic(void) {
     TcProgram program;
     TcTypedProgram typed;
     TcDiagnostic diag;
-    const char *source = "let A: int32 = add(int32, A, 1)\n";
+    const char *source = "#program\nlet A: int32 = add(int32, A, 1)\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -855,7 +855,7 @@ static void test_analyze_duplicate_label(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "label dup:\n"
+        "#program\nlabel dup:\n"
         "label dup:\n";
 
     tc_diagnostic_init(&diag);
@@ -873,7 +873,7 @@ static void test_analyze_sibling_label_same_name(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "if true then\n"
+        "#program\nif true then\n"
         "    label L:\n"
         "else\n"
         "    label L:\n"
@@ -894,7 +894,7 @@ static void test_analyze_goto_ok(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "label start:\n"
+        "#program\nlabel start:\n"
         "goto start\n";
 
     tc_diagnostic_init(&diag);
@@ -912,7 +912,7 @@ static void test_analyze_goto_forward(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "goto skip\n"
+        "#program\ngoto skip\n"
         "label skip:\n";
 
     tc_diagnostic_init(&diag);
@@ -931,7 +931,7 @@ static void test_analyze_goto_undefined(void) {
     TcProgram program;
     TcTypedProgram typed;
     TcDiagnostic diag;
-    const char *source = "goto nonexistent\n";
+    const char *source = "#program\ngoto nonexistent\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -948,7 +948,7 @@ static void test_analyze_goto_into_block(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "goto inner\n"
+        "#program\ngoto inner\n"
         "if true then\n"
         "    label inner:\n"
         "end\n";
@@ -968,7 +968,7 @@ static void test_analyze_goto_sibling(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "if true then\n"
+        "#program\nif true then\n"
         "    goto else_branch\n"
         "else\n"
         "    label else_branch:\n"
@@ -989,7 +989,7 @@ static void test_analyze_goto_out_of_if(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "label after:\n"
+        "#program\nlabel after:\n"
         "if true then\n"
         "    goto after\n"
         "end\n";
@@ -1008,7 +1008,7 @@ static void test_analyze_while_scope_and_slots(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "var x: int32 = 1\n"
+        "#program\nvar x: int32 = 1\n"
         "while false then\n"
         "    var x: int32 = 2\n"
         "    writeln(int32, x)\n"
@@ -1035,7 +1035,7 @@ static void test_analyze_nested_loop_targets(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "while false then\n"
+        "#program\nwhile false then\n"
         "    while false then\n"
         "        continue\n"
         "    end\n"
@@ -1071,13 +1071,13 @@ static void test_analyze_loop_context_errors(void) {
         const char *source;
         TcErrorKind kind;
     } cases[] = {
-        {"break\n", TC_ERR_BREAK_OUTSIDE_LOOP},
-        {"continue\n", TC_ERR_CONTINUE_OUTSIDE_LOOP},
-        {"while false then\n    goto out\nend\nlabel out:\n", TC_ERR_GOTO_INSIDE_LOOP},
-        {"while false then\n    label inner:\nend\n", TC_ERR_LABEL_INSIDE_LOOP},
-        {"while false then\n    if true then\n        goto out\n    end\nend\nlabel out:\n",
+        {"#program\nbreak\n", TC_ERR_BREAK_OUTSIDE_LOOP},
+        {"#program\ncontinue\n", TC_ERR_CONTINUE_OUTSIDE_LOOP},
+        {"#program\nwhile false then\n    goto out\nend\nlabel out:\n", TC_ERR_GOTO_INSIDE_LOOP},
+        {"#program\nwhile false then\n    label inner:\nend\n", TC_ERR_LABEL_INSIDE_LOOP},
+        {"#program\nwhile false then\n    if true then\n        goto out\n    end\nend\nlabel out:\n",
          TC_ERR_GOTO_INSIDE_LOOP},
-        {"while false then\n    if true then\n        label inner:\n    end\nend\n",
+        {"#program\nwhile false then\n    if true then\n        label inner:\n    end\nend\n",
          TC_ERR_LABEL_INSIDE_LOOP},
     };
     size_t i = 0;
@@ -1103,7 +1103,7 @@ static void test_analyze_while_condition_type(void) {
     TcProgram program;
     TcTypedProgram typed;
     TcDiagnostic diag;
-    const char *source = "while add(int32, 1, 2) then\nend\n";
+    const char *source = "#program\nwhile add(int32, 1, 2) then\nend\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -1122,7 +1122,7 @@ static void test_analyze_bitcast(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *valid =
-        "var f: float32 = 1.0f\n"
+        "#program\nvar f: float32 = 1.0f\n"
         "var bits: uint32 = bitcast(uint32, f)\n"
         "var f2: float32 = bitcast(float32, 0x3F800000u)\n"
         "var inf_bits: uint32 = bitcast(uint32, inf)\n"
@@ -1157,11 +1157,11 @@ static void test_analyze_bitcast_errors(void) {
         const char *source;
         TcErrorKind kind;
     } cases[] = {
-        {"var f: float32 = 1.0f\nvar bad: uint64 = bitcast(uint64, f)\n",
+        {"#program\nvar f: float32 = 1.0f\nvar bad: uint64 = bitcast(uint64, f)\n",
          TC_ERR_BITCAST_WIDTH},
-        {"var b: bool = true\nvar bad: uint8 = bitcast(uint8, b)\n", TC_ERR_TYPE_MISMATCH},
-        {"var bad: bool = bitcast(bool, 1u)\n", TC_ERR_TYPE_MISMATCH},
-        {"var bad: float32 = bitcast(float32, 1.0)\n", TC_ERR_BITCAST_WIDTH},
+        {"#program\nvar b: bool = true\nvar bad: uint8 = bitcast(uint8, b)\n", TC_ERR_TYPE_MISMATCH},
+        {"#program\nvar bad: bool = bitcast(bool, 1u)\n", TC_ERR_TYPE_MISMATCH},
+        {"#program\nvar bad: float32 = bitcast(float32, 1.0)\n", TC_ERR_BITCAST_WIDTH},
     };
     size_t i = 0;
 
@@ -1188,7 +1188,7 @@ static void test_analyze_cast_literal_source_types(void) {
         TC_FLOAT64, TC_FLOAT64, TC_BOOL,
     };
     const char *source =
-        "var a: int64 = cast(int64, 1)\n"
+        "#program\nvar a: int64 = cast(int64, 1)\n"
         "var b: uint64 = cast(uint64, 1u)\n"
         "var c: float32 = cast(float32, 1.0f)\n"
         "var d: float64 = cast(float64, 1.0)\n"

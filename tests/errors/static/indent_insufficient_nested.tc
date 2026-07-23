@@ -1,3 +1,4 @@
+#program
 ; 期望：嵌套 if 块内缩进不足
 if true then
     if true then

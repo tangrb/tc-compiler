@@ -1,3 +1,4 @@
+#program
 ; 测试所有8种整数类型的边界值声明与输出
 var i8_min: int8 = -128
 var i8_max: int8 = 127

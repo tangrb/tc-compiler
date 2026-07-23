@@ -1,3 +1,4 @@
+#program
 ; 控制流基本：true/false、比较条件、无 else 跳过
 if true then
     writeln(int32, %d, 1)

@@ -1,3 +1,4 @@
+#program
 ; let 常量表达式不可引用 var 变量
 var a: int32 = 1
 let X: int32 = add(int32, a, 2)

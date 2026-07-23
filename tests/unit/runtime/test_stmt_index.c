@@ -42,7 +42,7 @@ static void test_nested_if_subtree_count(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
-        "if false then\n"
+        "#program\nif false then\n"
         "    if true then\n"
         "        writeln(int32, 1)\n"
         "    end\n"
@@ -65,7 +65,7 @@ static void test_skip_block_matches_dfs(void) {
     TcDiagnostic diag;
     TcStmtIndexCursor cursor;
     const char *source =
-        "var a: int32 = 1\n"
+        "#program\nvar a: int32 = 1\n"
         "if false then\n"
         "    if true then\n"
         "        var b: int32 = 2\n"
@@ -95,7 +95,7 @@ static void test_block_span(void) {
     TcProgram program;
     TcDiagnostic diag;
     const char *source =
-        "if true then\n"
+        "#program\nif true then\n"
         "    writeln(int32, 1)\n"
         "    writeln(int32, 2)\n"
         "end\n";

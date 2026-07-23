@@ -1,3 +1,4 @@
+#program
 ; 压力测试：大量独立 if 语句（20 个）
 var result: int32 = 0
 

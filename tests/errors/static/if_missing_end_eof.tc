@@ -1,3 +1,4 @@
+#program
 ; 期望：缺少 end
 if true then
     writeln(int32, %d, 1)

@@ -1,3 +1,4 @@
+#program
 ; if 使用 and/or 逻辑表达式作为条件
 ; 注意：and/or 的操作数只能是变量或字面量，不能是嵌套 RHS 表达式
 var x: int32 = 5
