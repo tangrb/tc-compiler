@@ -520,33 +520,21 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 
 `memblock` 同时作为类型构造器（`memblock<int32, 10>`）和值构造器（`memblock(int32, 10, …)`），上下文区分：出现在类型位置的 `:` 之后为类型构造器，出现在 `=` 右侧（或其它 RHS / 实参位置）为值构造器。
 
-值构造器的 `count` 作为第一个位置实参（不带标签），后面可带零个或多个数据实参：
+值构造器的 `count` 作为命名实参（带 `count:` 标签），支持以下两种形式：
 
 | 形态 | 产生式 | 语义 |
 | ---- | ------ | ---- |
-| 零值填充 | `memblock_zero_ctor` | 分配 `sizeof_bits(usize) + count × sizeof_bits(T)` 存储区，头部写入 `count`，元素全部为零值 |
-| 指定值填充 | `memblock_fill_ctor` | 同上，所有元素以 `v` 初始化；`v` 类型须与 `T` 严格一致 |
+| 指定值填充 | `memblock_fill_ctor` | 分配 `sizeof_bits(usize) + count × sizeof_bits(T)` 存储区，头部写入 `count`，所有元素以 `v` 初始化；`v` 类型须与 `T` 严格一致 |
 | 逐值初始化 | `memblock_elems_ctor` | 同上，以 `count` 个位置实参依次初始化各元素 |
 
-`fill:` 标签在词法上是普通标识符 Token，按拼写匹配，不是 §2.7 保留关键字。
+`count:` 标签在词法上是普通标识符 Token，按拼写匹配，不是 §2.7 保留关键字。`fill:` 同理。
 
 约束：
 
-- `count` 实参必须是合法的编译期 `usize` 常量（同 §3.8.1 的 `count` 来源规则），数学值 ≥ 1。该值同时决定类型参数与分配的元素数。
+- `count:` 实参的取值必须是合法的编译期 `usize` 常量（同 §3.8.1 的 `count` 来源规则），数学值 ≥ 1。该值同时决定类型参数与分配的元素数。
 - 逐值初始化时，位置实参数量必须等于 `count` 的数学值，否则静态错误 `TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH`。
 - 每个值的类型必须与 `T` 严格一致；每个值均为 `operand`（`let` 上下文中为 `const_operand`）。
 - 构造成功时，头部 `usize` 值写入 `count` 的数学值。
-
-**零值表**：
-
-| 元素类型 | 零值 |
-|----------|------|
-| 整数 | `0` / `0u` |
-| 浮点 | `0.0` / `0.0f` |
-| `bool` | `false` |
-| `ptr<U>` | `nullptr`（对所有 `U`） |
-| `memblock<U, N>` | 递归零值填充（头部写入 `N`，所有元素按上表递归填零） |
-| 结构体 `S` | 递归零值填充（各字段按声明的零值递归初始化，填充字节为 `0x00`） |
 
 #### 3.8.4 赋值语义
 
@@ -1018,7 +1006,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 - 比较运算：`eq`/`ne`/`lt`/`le`/`gt`/`ge`（浮点比较允许但不推荐，因浮点精度）
 - 逻辑运算：`and`/`or`/`xor`/`not`（布尔）
 - 转换：严格 `cast`、整数 `cast(..., truncate, ...)` 与等宽 `bitcast`
-- memblock 构造器：`memblock(T, N)`、`memblock(T, N, fill: v)` 和 `memblock(T, N, v0, …, vₙ)`（§3.8.3）；其中 `N` 须为合法的编译期 `usize` 常量（整数字面量或以 `usize` 为类型的 `let` / `static let` 标识符）；全部填充/逐值操作数必须也为编译期常量
+- memblock 构造器：`memblock(T, count: N, fill: v)` 和 `memblock(T, count: N, v0, …, vₙ)`（§3.8.3）；其中 `N` 须为合法的编译期 `usize` 常量（整数字面量或以 `usize` 为类型的 `let` / `static let` 标识符）；全部填充/逐值操作数必须也为编译期常量
 - 结构体值构造器：`<结构体名>(字段: 常量操作数, …)`（或导入的 `<模块名>.<结构体名>(…)`），须满足 §3.9.2；每个字段实参必须是合法编译期常量操作数
 - 指针宽度查询：`ptr_size(p)`（§3.10.5, §6.8.8）；`p` 须为 `ptr<T>` 类型的编译期常量（含 `nullptr` 或此前定义的 `let ptr<T>`）
 
@@ -1096,7 +1084,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | `cast_expr`          | 第一参数类型       | 类型转换                        |
 | `bitcast_expr`       | 第一参数类型       | 等宽位重解释                    |
 | *memblock_count_access* | `usize`            | 从 memblock 读取 `.count` 长度头部（§3.8） |
-| `memblock_constructor` | `memblock<T, N>` | 三种带长度构造器（§3.8.3）：零值 / `fill:` 填充 / 逐值列表 |
+| `memblock_constructor` | `memblock<T, N>` | 两种带长度构造器（§3.8.3）：`count:` `fill:` 填充 / 逐值列表 |
 | `struct_constructor` | 对应结构体类型     | 命名字段值构造器（§3.9.2）       |
 | `nullptr_literal`    | 由上下文期望类型决定 | `nullptr` 空指针字面量，与任意 `ptr<T>` 兼容（§3.10.2） |
 | `ptr_load_expr`       | 类型参数 `T` | 从 `ptr<T>` 解引用读取：`ptr_load(T, ptr)`（§3.10.3, §6.8.2） |
@@ -1550,7 +1538,7 @@ memblock 变量遵循 TC 现有的 `var` / `let` 规则，声明时必须初始�
 | 类型 | `memblock<T, N>`；`T` 为 `void` 以外的任意完整类型（标量、`memblock<U, M>`、结构体、`ptr<U>`），`N` 为编译期 `usize` 常量（≥ 1），长度是类型的一部分（§3.8.1） |
 | 强制初始化 | 不可省略初始化器，`var mb: memblock<int32, 10>` 须带 `=` 或 `funcall` 初始化，触发 `TC_CE_VAR_MISSING_INIT` |
 | `let` 只读 | `let` memblock 编译期求值，不可作为 `memblock_store` / `memblock_copy` 的目标块 |
-| `let` 常量 | `N` 及全部填充/逐值操作数必须全是编译期常量 |
+| `let` 常量 | `N` 及全部填充/逐值操作数必须全是编译期常量；`count:` 标签必须提供 |
 | `funcall` 初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: memblock<T, N> = funcall(...)` 初始化新变量（§8.2）；返回类型须完全匹配（`T` 与 `N` 均相同） |
 
 同一作用域内不可重复定义同名 memblock 变量，也不可与标量变量或常量冲突。
@@ -1991,7 +1979,7 @@ length ≥ 0  ∧  dst_idx ≥ 0  ∧  src_idx ≥ 0
 | 形参类型 | 合法实参形式 |
 |---------|------------|
 | 标量 | 仅 `operand`（标识符/限定名/字段读取/字面量）；运算、转换、构造器、`funcall` 不可 |
-| `memblock<T, count>` | 标识符（已声明带长度 memblock 绑定），或 `memblock_constructor`（零值/填充/逐值） |
+| `memblock<T, count>` | 标识符（已声明带长度 memblock 绑定），或 `memblock_constructor`（填充/逐值） |
 | 结构体 | 同类型标识符（含限定名、字段读取），或同类型 `struct_constructor` |
 
 每个形参类型是实参的唯一期望类型，不做隐式转换。字面量按 §3.6 以形参类型为上下文检查。
@@ -2509,7 +2497,7 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 本节作用于 A.2 输出的 Token 序列。`NEWLINE`、`INDENT`、`DEDENT`、`EOF` 是虚拟终结符；`identifier`、`integer_literal` 等名称引用 A.2 的完整 Token 类别。EBNF 中以 `"…"` 标记的关键字或标点表示一个完整 Token，不按子序列匹配。非行首空白与行末注释已由词法层移除。
 
-本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；`write` / `writeln` / `read` 的显式类型参数只接受 `scalar_type`，因此 `write(memblock<int32>, …)` / `read(memblock<uint8>, …)` 为 `TC_CE_SYNTAX`；`memblock` 类型构造器与值构造器的元素类型、以及 `memblock_load` / `memblock_store` / `memblock_copy` 的显式类型参数接受 `void` 以外的任意完整类型（`memblock_element_type`），因此 `memblock<ptr<int32>, 4>`、`memblock<MyStruct, 8>`、`memblock<memblock<int32, 3>, 5>` 等嵌套形态均可通过语法阶段；`memcopy_unsafe` 的显式类型参数 `T` 接受 `void` 以外的完整类型；`memblock` 值构造器必须匹配 `memblock_zero_ctor` / `memblock_fill_ctor` / `memblock_elems_ctor`（位置实参 `usize_operand` 及可选 `fill:` 标签，§3.8.3）；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_CE_SYNTAX`，不得为产生 `TC_CE_TYPE_MISMATCH` 或 `TC_CE_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_CE_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §7.3 在静态语义阶段强制执行。
+本 EBNF 同时规定全部语法诊断边界。位置实参、非 `operand` 实参、作为 `let` 或赋值 RHS 的 `funcall`、`return` 后的运算/转换/`funcall`，以及 `void` 出现在函数返回类型以外的位置，均必须在语法阶段拒绝。各专用产生式中的类型非终结符和模式参数位置同样具有约束力：例如位运算/移位只接受 `int_type`，逻辑运算只接受 `bool_type`，比较只接受整数或浮点类型；`write` / `writeln` / `read` 的显式类型参数只接受 `scalar_type`，因此 `write(memblock<int32>, …)` / `read(memblock<uint8>, …)` 为 `TC_CE_SYNTAX`；`memblock` 类型构造器与值构造器的元素类型、以及 `memblock_load` / `memblock_store` / `memblock_copy` 的显式类型参数接受 `void` 以外的任意完整类型（`memblock_element_type`），因此 `memblock<ptr<int32>, 4>`、`memblock<MyStruct, 8>`、`memblock<memblock<int32, 3>, 5>` 等嵌套形态均可通过语法阶段；`memcopy_unsafe` 的显式类型参数 `T` 接受 `void` 以外的完整类型；`memblock` 值构造器必须匹配 `memblock_fill_ctor` / `memblock_elems_ctor`（命名实参 `count:`、`usize_operand` 及可选 `fill:` 标签，§3.8.3）；运行时 `wrap_shift_expr` 只接受 `shl`，比较、逻辑和按位运算没有模式参数位置。不满足这些形态时统一报告 `TC_CE_SYNTAX`，不得为产生 `TC_CE_TYPE_MISMATCH` 或 `TC_CE_MODE_MISMATCH` 而放宽语法。常量表达式由独立 `const_*` 产生式决定边界；其中 `const_shift_expr` 接受候选 `mode`，非法组合在后续静态语义阶段报告 `TC_CE_MODE_MISMATCH`。`var_funcall_def`、独立 `funcall` 和 `return [operand]` 的返回类型适配属于后续静态语义。`statement` 产生式复用 `label_def` / `goto_stmt` 只表示其行内语法；二者必须具有 `func` 词法祖先的上下文约束由 §7.3 在静态语义阶段强制执行。
 
 `#program` 的顶层分为类型定义区、声明区与可执行语句区（见 `program_type_region` / `program_decl_region` / `program_exec_region`）。块内 `suite` 仍使用完整 `statement`，因此 `if` / `while` 体内可以声明 `var` / `let`。若 Token 序列在顶层已进入可执行语句区后又出现顶层 `var` / `let` / `var_funcall_def`，则不符合 `program_module`；语法阶段对此类分区破坏报告 `TC_CE_MODULE_LAYER`（定位到该声明首 Token），不得仅报笼统 `TC_CE_SYNTAX`。
 
@@ -3043,26 +3031,20 @@ memblock_copy_stmt
    length 为本次拷贝跨度。 */
 
 memblock_constructor
-           = memblock_zero_ctor
-           | memblock_fill_ctor
+           = memblock_fill_ctor
            | memblock_elems_ctor ;
 
-/* count 为第一个位置实参，是编译期 usize 常量（usize_operand，§3.8.1）。
-   fill: 标签按拼写匹配，在词法上是普通 identifier Token，不是 §2.7 保留关键字。 */
-
-memblock_zero_ctor
-           = "memblock" , "(" , memblock_element_type , "," ,
-             usize_operand , ")" ;
-/* 零值填充；count 由 usize_operand 决定。元素类型 T 为 void 以外的任意完整类型。 */
+/* count 为命名实参（带 count: 标签），取值是编译期 usize 常量（usize_operand，§3.8.1）。
+   count: 和 fill: 标签按拼写匹配，在词法上是普通 identifier Token，不是 §2.7 保留关键字。 */
 
 memblock_fill_ctor
            = "memblock" , "(" , memblock_element_type , "," ,
-             usize_operand , "," ,
+             "count" , ":" , usize_operand , "," ,
              "fill" , ":" , operand , ")" ;
 
 memblock_elems_ctor
            = "memblock" , "(" , memblock_element_type , "," ,
-             usize_operand , "," ,
+             "count" , ":" , usize_operand , "," ,
              operand , { "," , operand } , ")" ;
 /* 逐值初始化的实参个数必须等于 usize_operand 的数学值（TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH）。 */
 
@@ -3074,22 +3056,17 @@ memblock_count_access
    不是 let 常量表达式的构成部分（§3.8）。 */
 
 const_memblock_constructor
-           = const_memblock_zero_ctor
-           | const_memblock_fill_ctor
+           = const_memblock_fill_ctor
            | const_memblock_elems_ctor ;
-
-const_memblock_zero_ctor
-           = "memblock" , "(" , memblock_element_type , "," ,
-             usize_operand , ")" ;
 
 const_memblock_fill_ctor
            = "memblock" , "(" , memblock_element_type , "," ,
-             usize_operand , "," ,
+             "count" , ":" , usize_operand , "," ,
              "fill" , ":" , const_operand , ")" ;
 
 const_memblock_elems_ctor
            = "memblock" , "(" , memblock_element_type , "," ,
-             usize_operand , "," ,
+             "count" , ":" , usize_operand , "," ,
              const_operand , { "," , const_operand } , ")" ;
 /* usize_operand 须为编译期 usize 常量；全部元素操作数均为 const_operand。 */
 
@@ -3321,7 +3298,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | `TC_RE_CAST_OVERFLOW` | RT | 严格 `cast` 的数学结果无法在目标类型中表示 |
 | `TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE` | SEM | memblock 下标在编译期为负或常量 `length < 0` |
 | `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE` | RT | memblock 运行时下标越界或 `memblock_copy` 区间越界 |
-| `TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH` | SEM | memblock 逐值构造器的位置实参数量不等于 `count` 的数学值 |
+| `TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH` | SEM | memblock 逐值构造器的数据实参数量不等于 `count:` 实参的数学值 |
 | `TC_RE_IO` | RT | `read` 输入非法/超范围/非预期 EOF；`write`/`writeln` 写到 stdout 失败 |
 | `TC_RE_NULL_POINTER_DEREFERENCE` | RT | `ptr_load` 或 `ptr_store` 的操作数为 `nullptr`；`ptr_add` / `ptr_sub` 的操作数为 `nullptr`；`memcopy_unsafe` 或指针序关系比较的操作数包含 `nullptr` |
 
