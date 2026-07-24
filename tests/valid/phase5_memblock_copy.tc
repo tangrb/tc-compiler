@@ -1,0 +1,9 @@
+#program
+; Phase 5：memblock_copy
+var a: memblock<int32, 3> = memblock(int32, count: 3, 1, 2, 3)
+var b: memblock<int32, 3> = memblock(int32, count: 3, 0, 0, 0)
+memblock_copy(int32, b, 0, a, 1, 2)
+var x: int32 = memblock_load(int32, b, 0)
+var y: int32 = memblock_load(int32, b, 1)
+writeln(int32, x)
+writeln(int32, y)

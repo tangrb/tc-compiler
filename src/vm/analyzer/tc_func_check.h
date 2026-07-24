@@ -50,7 +50,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
                           size_t arg_count, int position, const TcType *expected, int line,
                           const TcSymbolTable *visible, const TcSymbolTable *global,
                           TcInitHistory *hist, size_t stmt_index, TcWarningList *warnings,
-                          TcDiagnostic *diag);
+                          int *resolved_func_id, TcDiagnostic *diag);
 
 int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
                          const TcSymbolTable *visible, const TcSymbolTable *global,

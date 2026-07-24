@@ -1,0 +1,5 @@
+#program
+; Phase 5：跨模块 funcall 与 return
+import MathLib
+var r: int32 = funcall(MathLib.plus, a: 1, b: 2)
+writeln(int32, r)

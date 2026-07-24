@@ -53,4 +53,32 @@ int tc_aot_write(TcTypeKind type, TcFormatSpec fmt, uint64_t bits, int newline,
 int tc_aot_read(TcTypeKind type, uint64_t *out, TcDiagnostic *diag, int line);
 void tc_aot_abort(const TcDiagnostic *diag, int line);
 
+/* ---- Phase 5: ptr / memblock（槽抽象地址编码与 VM 一致） ---- */
+
+uint64_t tc_aot_ptr_address(int slot);
+int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnostic *diag,
+                    int line);
+int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
+                     TcTypeKind store_type, TcDiagnostic *diag, int line);
+int tc_aot_ptr_arith(int is_add, uint64_t ptr_bits, int64_t offset, uint64_t *out,
+                     TcDiagnostic *diag, int line);
+int tc_aot_ptr_compare(TcCompareOp op, uint64_t lhs, uint64_t rhs, uint64_t *out,
+                       TcDiagnostic *diag, int line);
+uint64_t tc_aot_ptr_size(size_t sizeof_bits);
+
+uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnostic *diag,
+                               int line);
+void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                              uint64_t value_bits);
+uint64_t tc_aot_memblock_get_count(uint64_t mb_bits);
+int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                         TcTypeKind elem_type, uint64_t *out, TcDiagnostic *diag, int line);
+int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                          uint64_t value_bits, TcTypeKind elem_type, TcDiagnostic *diag,
+                          int line);
+int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
+                         uint64_t src_index, uint64_t length, size_t element_bytes,
+                         TcDiagnostic *diag, int line);
+void tc_aot_memblock_heap_free_all(void);
+
 #endif

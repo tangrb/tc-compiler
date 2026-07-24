@@ -568,6 +568,7 @@ typedef struct {
                 struct TcRhs *value;
             } *args;
             size_t arg_count;
+            int resolved_func_id; /* Analyzer 解析；-1 未定 */
         } funcall_expr;
         struct {
             char *member_name;
@@ -750,6 +751,7 @@ typedef struct {
     char *member_name;       /* 限定后的成员名；裸名时与 target 相同逻辑由 Analyzer 解析 */
     TcNamedArg *args;
     size_t arg_count;
+    int resolved_func_id; /* Analyzer 解析；-1 未定 */
 } TcFuncallStmt;
 
 typedef struct {

@@ -1,0 +1,4 @@
+#program
+; 期望：null pointer dereference（ptr_store）
+var p: ptr<int32> = nullptr
+ptr_store(int32, p, 1)

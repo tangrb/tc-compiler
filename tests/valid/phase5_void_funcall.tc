@@ -1,0 +1,5 @@
+#program
+; Phase 5：void funcall 语句
+import VoidLib
+funcall(VoidLib.bump, x: 1)
+writeln(int32, 1)

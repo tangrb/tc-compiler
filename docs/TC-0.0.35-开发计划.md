@@ -590,7 +590,8 @@ src/
 
 ### 模块 I：VM 执行器 (Executor)
 
-> **目标**：实现完整的 TC-VM 解释执行引擎
+> **目标**：实现完整的 TC-VM 解释执行引擎  
+> **状态**：**Phase 5 已完成（2026-07-24）** — 调用帧（扁平全局槽 + CE 禁递归）、funcall/return、static var 初始化、ptr/memblock 运行时；**struct 运行时除外**
 
 #### I.1 核心执行框架
 
@@ -650,7 +651,8 @@ src/
 
 ### 模块 J：AOT 代码生成 (C99)
 
-> **目标**：将 TcTypedProgram 确定性转译为可移植 C99 代码
+> **目标**：将 TcTypedProgram 确定性转译为可移植 C99 代码  
+> **状态**：**Phase 5 已完成（2026-07-24）** — 函数 codegen、ptr/memblock shim、static var 初始化、与 VM 差分；**struct_storage / 字段赋值除外**
 
 #### J.1 C99 目标骨架
 
@@ -814,7 +816,7 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 | P2 | B: Lexer + C: Parser + D: 模块 | 12-16 | A | **已完成（2026-07-23）** |
 | P3 | E: 类型验证 + G: CFG | 11-14 | B,C,D | **已完成（2026-07-24）** |
 | P4 | H: 常量 + F: 函数 | 8-10 | C,E | **已完成（2026-07-24）** |
-| P5 | I: Executor + J: AOT | 13-17 | F,G,H |
+| P5 | I: Executor + J: AOT | 13-17 | F,G,H | **已完成（2026-07-24）** — I+J；struct 运行时除外 |
 | P6 | K: CLI/API/测试/清理 | 5-7 | I,J |
 | **合计** | | **51-67 天** | |
 

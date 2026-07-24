@@ -278,7 +278,7 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
                                     TcDiagnostic *diag) {
     TcAnalyzeCtx ctx;
     size_t i = 0;
-    int next_slot = 0;
+    int next_slot = (int)tc_symbol_table_runtime_slot_count(symbols);
 
     ctx.program = program;
     ctx.last_init = NULL;

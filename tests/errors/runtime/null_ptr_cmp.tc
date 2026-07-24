@@ -1,0 +1,7 @@
+#program
+; 期望：null pointer dereference（ptr 序比较遇 nullptr）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = nullptr
+var less: bool = ptr_lt(int32, p, q)
+writeln(bool, less)

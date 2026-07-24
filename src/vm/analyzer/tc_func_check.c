@@ -642,7 +642,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
                           size_t arg_count, int position, const TcType *expected, int line,
                           const TcSymbolTable *visible, const TcSymbolTable *global,
                           TcInitHistory *hist, size_t stmt_index, TcWarningList *warnings,
-                          TcDiagnostic *diag) {
+                          int *resolved_func_id, TcDiagnostic *diag) {
     const TcFuncSignature *sig = NULL;
     int is_void = 0;
 
@@ -680,6 +680,9 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
         tc_diagnostic_set(diag, TC_ERR_FUNCALL_RESULT_TYPE, line, TC_COLUMN_UNKNOWN,
                           "function call result type does not match");
         return -1;
+    }
+    if (resolved_func_id) {
+        *resolved_func_id = sig->func_id;
     }
     return 0;
 }

@@ -1,0 +1,5 @@
+#lib
+public func plus(a: int32, b: int32) int32 then
+    var sum: int32 = add(int32, a, b)
+    return sum
+end

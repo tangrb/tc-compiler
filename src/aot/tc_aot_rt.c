@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -273,4 +274,287 @@ void tc_aot_abort(const TcDiagnostic *diag, int line) {
     (void)line;
     tc_diagnostic_print(diag, stderr);
     exit(1);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Phase 5: ptr / memblock                                             */
+/* ------------------------------------------------------------------ */
+
+#define TC_AOT_PTR_TAG 1ULL
+
+static void **tc_aot_mb_heap = NULL;
+static size_t tc_aot_mb_heap_count = 0;
+static size_t tc_aot_mb_heap_cap = 0;
+
+static int tc_aot_mb_track(void *block, TcDiagnostic *diag, int line) {
+    void **items = NULL;
+
+    if (tc_aot_mb_heap_count == tc_aot_mb_heap_cap) {
+        size_t new_cap = tc_aot_mb_heap_cap == 0 ? 8 : tc_aot_mb_heap_cap * 2;
+        items = (void **)realloc(tc_aot_mb_heap, new_cap * sizeof(void *));
+        if (!items) {
+            free(block);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        tc_aot_mb_heap = items;
+        tc_aot_mb_heap_cap = new_cap;
+    }
+    tc_aot_mb_heap[tc_aot_mb_heap_count++] = block;
+    return 0;
+}
+
+static int tc_aot_ptr_decode(uint64_t bits, int *slot) {
+    if (bits == 0 || (bits & TC_AOT_PTR_TAG) == 0) {
+        return -1;
+    }
+    *slot = (int)(bits >> 1);
+    return 0;
+}
+
+uint64_t tc_aot_ptr_address(int slot) {
+    return ((uint64_t)slot << 1) | TC_AOT_PTR_TAG;
+}
+
+int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnostic *diag,
+                    int line) {
+    int slot = 0;
+
+    if (ptr_bits == 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    *out = slots[slot];
+    return 0;
+}
+
+int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
+                     TcTypeKind store_type, TcDiagnostic *diag, int line) {
+    int slot = 0;
+
+    if (ptr_bits == 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    if (store_type == TC_BOOL) {
+        value_bits = value_bits ? 1ULL : 0ULL;
+    }
+    slots[slot] = value_bits;
+    return 0;
+}
+
+int tc_aot_ptr_arith(int is_add, uint64_t ptr_bits, int64_t offset, uint64_t *out,
+                     TcDiagnostic *diag, int line) {
+    int slot = 0;
+    int64_t new_slot = 0;
+
+    if (ptr_bits == 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
+                          "null pointer arithmetic");
+        return -1;
+    }
+    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
+                          "null pointer arithmetic");
+        return -1;
+    }
+    new_slot = is_add ? (int64_t)slot + offset : (int64_t)slot - offset;
+    *out = tc_aot_ptr_address((int)new_slot);
+    return 0;
+}
+
+int tc_aot_ptr_compare(TcCompareOp op, uint64_t lhs, uint64_t rhs, uint64_t *out,
+                       TcDiagnostic *diag, int line) {
+    int result = 0;
+
+    if (op == TC_CMP_EQ || op == TC_CMP_NE) {
+        result = (lhs == rhs) ? 1 : 0;
+        if (op == TC_CMP_NE) {
+            result = result ? 0 : 1;
+        }
+        *out = result ? 1ULL : 0ULL;
+        return 0;
+    }
+    if (lhs == 0 || rhs == 0) {
+        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    switch (op) {
+    case TC_CMP_LT:
+        result = lhs < rhs;
+        break;
+    case TC_CMP_LE:
+        result = lhs <= rhs;
+        break;
+    case TC_CMP_GT:
+        result = lhs > rhs;
+        break;
+    case TC_CMP_GE:
+        result = lhs >= rhs;
+        break;
+    default:
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                          "internal error: invalid pointer compare");
+        return -1;
+    }
+    *out = result ? 1ULL : 0ULL;
+    return 0;
+}
+
+uint64_t tc_aot_ptr_size(size_t sizeof_bits) {
+    return (uint64_t)sizeof_bits;
+}
+
+static uint8_t *tc_aot_mb_elem_ptr(void *block, size_t element_bytes, uint64_t index) {
+    return (uint8_t *)block + sizeof(uint64_t) + index * element_bytes;
+}
+
+uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnostic *diag,
+                               int line) {
+    size_t payload = (size_t)count * element_bytes;
+    void *block = malloc(sizeof(uint64_t) + payload);
+
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    memcpy(block, &count, sizeof(uint64_t));
+    memset((uint8_t *)block + sizeof(uint64_t), 0, payload);
+    if (tc_aot_mb_track(block, diag, line) != 0) {
+        return 0;
+    }
+    return (uint64_t)(uintptr_t)block;
+}
+
+void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                              uint64_t value_bits) {
+    void *block = (void *)(uintptr_t)mb_bits;
+
+    if (!block) {
+        return;
+    }
+    memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), &value_bits, element_bytes);
+}
+
+uint64_t tc_aot_memblock_get_count(uint64_t mb_bits) {
+    void *block = (void *)(uintptr_t)mb_bits;
+    uint64_t count = 0;
+
+    if (!block) {
+        return 0;
+    }
+    memcpy(&count, block, sizeof(uint64_t));
+    return count;
+}
+
+int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                         TcTypeKind elem_type, uint64_t *out, TcDiagnostic *diag, int line) {
+    void *block = (void *)(uintptr_t)mb_bits;
+    uint64_t count = 0;
+    uint64_t bits = 0;
+
+    (void)elem_type;
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+                          "memblock index out of range");
+        return -1;
+    }
+    memcpy(&count, block, sizeof(uint64_t));
+    if (index >= count) {
+        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+                          "memblock index out of range");
+        return -1;
+    }
+    memcpy(&bits, tc_aot_mb_elem_ptr(block, element_bytes, index), element_bytes);
+    *out = bits;
+    return 0;
+}
+
+int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                          uint64_t value_bits, TcTypeKind elem_type, TcDiagnostic *diag,
+                          int line) {
+    void *block = (void *)(uintptr_t)mb_bits;
+    uint64_t count = 0;
+
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+                          "memblock index out of range");
+        return -1;
+    }
+    memcpy(&count, block, sizeof(uint64_t));
+    if (index >= count) {
+        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+                          "memblock index out of range");
+        return -1;
+    }
+    if (elem_type == TC_BOOL) {
+        value_bits = value_bits ? 1ULL : 0ULL;
+    }
+    memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), &value_bits, element_bytes);
+    return 0;
+}
+
+int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
+                         uint64_t src_index, uint64_t length, size_t element_bytes,
+                         TcDiagnostic *diag, int line) {
+    void *dst = (void *)(uintptr_t)dst_bits;
+    void *src = (void *)(uintptr_t)src_bits;
+    uint64_t dst_count = 0;
+    uint64_t src_count = 0;
+    size_t nbytes = 0;
+    void *temp = NULL;
+
+    if (!dst || !src) {
+        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+                          "memblock index out of range");
+        return -1;
+    }
+    memcpy(&dst_count, dst, sizeof(uint64_t));
+    memcpy(&src_count, src, sizeof(uint64_t));
+    if (length > 0 && (dst_index + length > dst_count || src_index + length > src_count)) {
+        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+                          "memblock index out of range");
+        return -1;
+    }
+    if (length == 0) {
+        return 0;
+    }
+    nbytes = (size_t)length * element_bytes;
+    temp = malloc(nbytes);
+    if (!temp) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    memcpy(temp, tc_aot_mb_elem_ptr(src, element_bytes, src_index), nbytes);
+    memcpy(tc_aot_mb_elem_ptr(dst, element_bytes, dst_index), temp, nbytes);
+    free(temp);
+    return 0;
+}
+
+void tc_aot_memblock_heap_free_all(void) {
+    size_t i = 0;
+
+    for (i = 0; i < tc_aot_mb_heap_count; i++) {
+        free(tc_aot_mb_heap[i]);
+    }
+    free(tc_aot_mb_heap);
+    tc_aot_mb_heap = NULL;
+    tc_aot_mb_heap_count = 0;
+    tc_aot_mb_heap_cap = 0;
 }

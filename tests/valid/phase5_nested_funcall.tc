@@ -1,0 +1,8 @@
+#program
+; Phase 5：连续 funcall（变量实参 + 多次调用帧）
+import MathLib
+var x: int32 = 3
+var y: int32 = 4
+var t: int32 = funcall(MathLib.plus, a: x, b: y)
+var r: int32 = funcall(MathLib.plus, a: t, b: t)
+writeln(int32, r)

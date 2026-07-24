@@ -1112,7 +1112,15 @@ static int tc_pass2_check_funcall_rhs(TcRhs *rhs, const TcType *expected, int po
                                rhs->u.funcall_expr.qualifier, rhs->u.funcall_expr.member_name,
                                rhs->u.funcall_expr.target, args, rhs->u.funcall_expr.arg_count,
                                position, expected, line, visible, symbols, hist, stmt_index,
-                               warnings, diag);
+                               warnings, &rhs->u.funcall_expr.resolved_func_id, diag);
+    if (rc == 0 && args) {
+        /* type_check 写在副本上的 binding 须写回 AST，供 Executor 消费 */
+        for (i = 0; i < rhs->u.funcall_expr.arg_count; i++) {
+            if (rhs->u.funcall_expr.args[i].value) {
+                memcpy(rhs->u.funcall_expr.args[i].value, &args[i].value, sizeof(TcRhs));
+            }
+        }
+    }
     free(args);
     return rc;
 }
@@ -1447,7 +1455,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         return tc_func_check_funcall(ctx->func_env, call->is_self, call->qualifier,
                                      call->member_name, call->target, call->args, call->arg_count,
                                      0, NULL, call->line, visible, symbols, hist, stmt_index,
-                                     warnings, diag);
+                                     warnings, &call->resolved_func_id, diag);
     }
 
     if (stmt->kind == TC_STMT_RETURN) {

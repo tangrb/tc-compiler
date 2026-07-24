@@ -1,0 +1,17 @@
+#program
+; Phase 5：ptr_sub / ptr_ne / ptr_le / ptr_gt / ptr_ge
+var a: int32 = 1
+var b: int32 = 2
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, b)
+var r: ptr<int32> = ptr_sub(int32, q, 1)
+var same: bool = ptr_eq(int32, r, p)
+writeln(bool, same)
+var is_ne: bool = ptr_ne(int32, p, q)
+writeln(bool, is_ne)
+var is_le: bool = ptr_le(int32, p, q)
+writeln(bool, is_le)
+var is_gt: bool = ptr_gt(int32, q, p)
+writeln(bool, is_gt)
+var is_ge: bool = ptr_ge(int32, q, p)
+writeln(bool, is_ge)

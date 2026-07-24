@@ -1,0 +1,5 @@
+#program
+; 期望：memblock index out of range（运行时下标）
+var mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var i: usize = 2
+var x: int32 = memblock_load(int32, mb, i)

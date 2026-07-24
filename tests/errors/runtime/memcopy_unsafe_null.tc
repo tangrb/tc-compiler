@@ -1,0 +1,5 @@
+#program
+; 期望：null pointer dereference（memcopy_unsafe）
+var p: ptr<int32> = nullptr
+var q: ptr<int32> = nullptr
+memcopy_unsafe(int32, p, 0, q, 0, 1)

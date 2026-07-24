@@ -26,6 +26,7 @@ HEADER_ONLY_H = frozenset({
     "tc_version.h",
     "tc_parser_internal.h",  # parser 子模块共享声明，实现在 tc_parser.c
     "tc_analyzer_internal.h",  # analyzer 子模块共享类型/声明
+    "tc_executor_internal.h",  # executor / ptr / memblock 共享上下文
     "tc_stmt_index.h",  # header-only inline 实现
 })
 

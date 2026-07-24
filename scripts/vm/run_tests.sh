@@ -894,6 +894,61 @@ run_expect_check_ok "$ROOT/tests/valid/phase4_self_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase4_static_let.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase4_func_goto.tc"
 
+# --- Phase 5 / Module I: Executor (funcall, ptr, memblock) ---
+
+run_expect_stdout "$ROOT/tests/valid/phase5_funcall_return.tc" "3
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_basic.tc" "2
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
+2
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc" "true
+true
+32
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_memblock_copy.tc" "2
+3
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_void_funcall.tc" "1
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_static_var.tc" "7
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cmp_more.tc" "true
+true
+true
+true
+true
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_nullptr_eq.tc" "true
+false
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_memblock_fill.tc" "5
+5
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_nested_funcall.tc" "14
+"
+run_expect_check_ok "$ROOT/tests/valid/phase5_funcall_return.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_basic.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_basic.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_copy.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_void_funcall.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_static_var.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
+
+run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_deref.tc" "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_arith.tc" "null pointer arithmetic"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_store.tc" "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_cmp.tc" "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_oob_rt.tc" "memblock index out of range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_oob_store_rt.tc" "memblock index out of range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_null.tc" "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg.tc" "memcopy_unsafe invalid range"
+
 run_expect_stdout "$ROOT/tests/valid/uninit_both_paths.tc" "11
 "
 run_expect_stdout "$ROOT/tests/valid/uninit_shortcircuit.tc" "false

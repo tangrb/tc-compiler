@@ -159,6 +159,19 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         return -1;
     }
 
+    {
+        size_t di = 0;
+        for (di = 0; di < out->dep_count; di++) {
+            if (tc_pass1_collect_symbols(&out->deps[di], &out->symbols, diag) != 0) {
+                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+                tc_struct_table_free(&struct_table);
+                tc_func_signature_list_free(&sigs);
+                tc_typed_program_free(out);
+                return -1;
+            }
+        }
+    }
+
     if (tc_pass1_collect_symbols(&out->program, &out->symbols, diag) != 0) {
         tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
         tc_struct_table_free(&struct_table);

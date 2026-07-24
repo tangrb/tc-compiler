@@ -1,0 +1,5 @@
+#lib
+public func bump(x: int32) void then
+    ; void return — side effect via writeln only from caller
+    return
+end

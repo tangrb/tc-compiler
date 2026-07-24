@@ -1,0 +1,4 @@
+#program
+; 期望：null pointer arithmetic
+var p: ptr<int32> = nullptr
+var q: ptr<int32> = ptr_add(int32, p, 1)

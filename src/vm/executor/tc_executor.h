@@ -15,6 +15,7 @@ typedef enum {
     TC_EXEC_BREAK,
     TC_EXEC_CONTINUE,
     TC_EXEC_GOTO,
+    TC_EXEC_RETURN,
     TC_EXEC_ERROR
 } TcExecControlKind;
 
@@ -22,6 +23,8 @@ typedef struct {
     TcExecControlKind kind;
     int loop_id;
     int target_stmt_index; /* TC_EXEC_GOTO 时为 Analyzer 解析的 label stmt_index */
+    TcValue return_value;
+    int has_return_value;
 } TcExecControl;
 
 /**

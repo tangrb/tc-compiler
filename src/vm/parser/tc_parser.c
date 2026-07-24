@@ -869,6 +869,7 @@ static int tc_parse_funcall_target(const TcTokenList *tokens, size_t *index, int
 
     memset(out, 0, sizeof(*out));
     out->line = line_no;
+    out->resolved_func_id = -1;
 
     if (tok->kind == TC_TOK_SELF) {
         const TcToken *member_tok = NULL;
@@ -1204,6 +1205,7 @@ static int tc_parse_funcall_rhs(TcParserCtx *ctx, const TcTokenList *tokens, siz
     out->u.funcall_expr.is_self = call.is_self;
     out->u.funcall_expr.qualifier = call.qualifier;
     out->u.funcall_expr.member_name = call.member_name;
+    out->u.funcall_expr.resolved_func_id = -1;
     out->u.funcall_expr.arg_count = arg_count;
     if (arg_count > 0) {
         out->u.funcall_expr.args =
