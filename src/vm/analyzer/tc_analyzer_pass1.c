@@ -143,7 +143,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
             if (tc_symbol_table_find_in_current_scope(symbols, param->name)) {
                 (void)snprintf(msg, sizeof(msg), "duplicate parameter '%s'", param->name);
-                tc_diagnostic_set(diag, TC_ERR_DUPLICATE_PARAMETER, func->line,
+                tc_diagnostic_set(diag, TC_CE_DUPLICATE_PARAMETER, func->line,
                                   TC_COLUMN_UNKNOWN, msg);
                 tc_symbol_table_pop_scope(symbols);
                 return -1;
@@ -174,7 +174,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
         if (tc_symbol_table_find_in_current_scope(symbols, var_def->name)) {
             (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", var_def->name);
-            tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, var_def->line,
+            tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, var_def->line,
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
@@ -200,7 +200,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
         if (tc_symbol_table_find_in_current_scope(symbols, const_def->name)) {
             (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", const_def->name);
-            tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, const_def->line,
+            tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, const_def->line,
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
@@ -221,7 +221,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
         if (tc_symbol_table_find_in_current_scope(symbols, sv->name)) {
             (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", sv->name);
-            tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, sv->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, sv->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
         }
@@ -243,7 +243,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
         if (tc_symbol_table_find_in_current_scope(symbols, sl->name)) {
             (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", sl->name);
-            tc_diagnostic_set(diag, TC_ERR_DUPLICATE_DEFINITION, sl->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, sl->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
         }

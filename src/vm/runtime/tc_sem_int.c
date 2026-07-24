@@ -128,7 +128,7 @@ static int tc_exec_signed_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
     /* div/mod：除零检查；INT_MIN/-1 时商不可表示（div 报错，§5.2 mod 仍为 0） */
     if (op == TC_DIV || op == TC_MOD) {
         if (b == 0) {
-            tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
                               "division by zero");
             return -1;
         }
@@ -137,7 +137,7 @@ static int tc_exec_signed_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                 *out = tc_value_make(type, 0);
                 return 0;
             }
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "signed division overflow");
             return -1;
         }
@@ -150,10 +150,10 @@ static int tc_exec_signed_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
         if (!tc_signed_in_range(result, type)) {
             if (tc_semantics_format_msg(msg, sizeof(msg), "result out of range for %s",
                                         tc_type_name(type)) != 0) {
-                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                                   "result out of range");
             } else {
-                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+                tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
             }
             return -1;
         }
@@ -196,18 +196,18 @@ static int tc_exec_signed_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
     /* strict 模式：检测 int64 运算溢出，再检查结果是否落在目标类型范围内 */
     if (op == TC_ADD) {
         if (tc_sadd_overflow(a, b, &result)) {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "signed addition overflow");
             return -1;
         }
     } else if (op == TC_SUB) {
         if (tc_ssub_overflow(a, b, &result)) {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "signed subtraction overflow");
             return -1;
         }
     } else if (tc_smul_overflow(a, b, &result)) {
-        tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "signed multiplication overflow");
         return -1;
     }
@@ -215,10 +215,10 @@ static int tc_exec_signed_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode,
     if (!tc_signed_in_range(result, type)) {
         if (tc_semantics_format_msg(msg, sizeof(msg), "result out of range for %s",
                                     tc_type_name(type)) != 0) {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "result out of range");
         } else {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN, msg);
         }
         return -1;
     }
@@ -246,7 +246,7 @@ static int tc_exec_unsigned_arith(TcArithOp op, TcTypeKind type, TcWrapMode mode
 
     if (op == TC_DIV || op == TC_MOD) {
         if (b == 0) {
-            tc_diagnostic_set(diag, TC_ERR_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_DIVISION_BY_ZERO, line, TC_COLUMN_UNKNOWN,
                               "division by zero");
             return -1;
         }
@@ -314,7 +314,7 @@ int tc_exec_unary(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
         if (tc_type_is_signed(type)) {
             int64_t val = tc_bits_to_signed(type, bits);
             if (val == tc_type_min_signed(type)) {
-                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                                   "abs(INT_MIN) overflow");
                 return -1;
             }
@@ -330,7 +330,7 @@ int tc_exec_unary(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
         if (tc_type_is_signed(type) && mode == TC_ARITH_STRICT) {
             int64_t val = tc_bits_to_signed(type, bits);
             if (val == tc_type_min_signed(type)) {
-                tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                                   "neg(INT_MIN) overflow");
                 return -1;
             }

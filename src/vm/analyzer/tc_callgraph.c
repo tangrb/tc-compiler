@@ -598,7 +598,7 @@ int tc_callgraph_check(const TcFuncCheckEnv *env, TcDiagnostic *diag) {
         goto done;
     }
 
-    tc_diagnostic_set(diag, TC_ERR_RECURSION, report_line, TC_COLUMN_UNKNOWN,
+    tc_diagnostic_set(diag, TC_CE_RECURSION, report_line, TC_COLUMN_UNKNOWN,
                       "recursive function call");
     rc = -1;
 

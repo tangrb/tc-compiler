@@ -461,7 +461,7 @@ static void test_float_format_specifiers(void) {
         tc_diagnostic_init(&diag);
         check(tokenize_line_ok(line, &tokens, &diag), line);
         tok = find_token(&tokens, TC_TOK_FORMAT_SPEC, &idx);
-        check(tok != NULL && tok->u.format_spec == cases[i].expected,
+        check(tok != NULL && tok->u.format_spec.spec == cases[i].expected,
               "float format spec token");
         tc_token_list_free(&tokens);
         tc_diagnostic_clear(&diag);
@@ -476,7 +476,7 @@ static void test_float_literal_lex_errors(void) {
     tc_token_list_init(&tokens);
     check(tc_tokenize_line("var x: float64 = 3.14u", 1, &tokens, &diag) != 0,
           "3.14u → literal type error");
-    check(diag.kind == TC_ERR_LITERAL_TYPE, "3.14u error kind");
+    check(diag.kind == TC_CE_LITERAL_TYPE, "3.14u error kind");
     tc_token_list_free(&tokens);
 
     tc_token_list_init(&tokens);

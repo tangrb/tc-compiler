@@ -161,28 +161,28 @@ static int tc_stmt_check_self(const TcStatement *stmt, TcModuleMode mode, TcDiag
     }
 
     if (stmt->kind == TC_STMT_FUNCALL && stmt->u.funcall_stmt.is_self) {
-        tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, stmt->u.funcall_stmt.line,
+        tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, stmt->u.funcall_stmt.line,
                           TC_COLUMN_UNKNOWN, "Self is not allowed in #program");
         return -1;
     }
     if (stmt->kind == TC_STMT_VAR_DEF && tc_rhs_mentions_self(&stmt->u.var_def.rhs, NULL)) {
-        tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, stmt->u.var_def.line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, stmt->u.var_def.line, TC_COLUMN_UNKNOWN,
                           "Self is not allowed in #program");
         return -1;
     }
     if (stmt->kind == TC_STMT_CONST_DEF && tc_rhs_mentions_self(&stmt->u.const_def.rhs, NULL)) {
-        tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, stmt->u.const_def.line,
+        tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, stmt->u.const_def.line,
                           TC_COLUMN_UNKNOWN, "Self is not allowed in #program");
         return -1;
     }
     if (stmt->kind == TC_STMT_ASSIGN && tc_rhs_mentions_self(&stmt->u.assign.rhs, NULL)) {
-        tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, stmt->u.assign.line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, stmt->u.assign.line, TC_COLUMN_UNKNOWN,
                           "Self is not allowed in #program");
         return -1;
     }
     if (stmt->kind == TC_STMT_IF) {
         if (tc_rhs_mentions_self(&stmt->u.if_stmt.condition, NULL)) {
-            tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, stmt->u.if_stmt.line,
+            tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, stmt->u.if_stmt.line,
                               TC_COLUMN_UNKNOWN, "Self is not allowed in #program");
             return -1;
         }
@@ -199,7 +199,7 @@ static int tc_stmt_check_self(const TcStatement *stmt, TcModuleMode mode, TcDiag
     }
     if (stmt->kind == TC_STMT_WHILE) {
         if (tc_rhs_mentions_self(&stmt->u.while_stmt.condition, NULL)) {
-            tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, stmt->u.while_stmt.line,
+            tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, stmt->u.while_stmt.line,
                               TC_COLUMN_UNKNOWN, "Self is not allowed in #program");
             return -1;
         }

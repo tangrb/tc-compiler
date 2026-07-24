@@ -247,7 +247,7 @@ int tc_aot_write(TcTypeKind type, TcFormatSpec fmt, uint64_t bits, int newline,
     TcValue value = tc_value_make(type, bits);
 
     if (tc_io_write_value(&value, fmt, newline, stdout) != 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "output failed");
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "output failed");
         return -1;
     }
     return 0;
@@ -322,12 +322,12 @@ int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnos
     int slot = 0;
 
     if (ptr_bits == 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
     if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
@@ -340,12 +340,12 @@ int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
     int slot = 0;
 
     if (ptr_bits == 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
     if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
@@ -362,12 +362,12 @@ int tc_aot_ptr_arith(int is_add, uint64_t ptr_bits, int64_t offset, uint64_t *ou
     int64_t new_slot = 0;
 
     if (ptr_bits == 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
                           "null pointer arithmetic");
         return -1;
     }
     if (tc_aot_ptr_decode(ptr_bits, &slot) != 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
                           "null pointer arithmetic");
         return -1;
     }
@@ -389,7 +389,7 @@ int tc_aot_ptr_compare(TcCompareOp op, uint64_t lhs, uint64_t rhs, uint64_t *out
         return 0;
     }
     if (lhs == 0 || rhs == 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
@@ -407,7 +407,7 @@ int tc_aot_ptr_compare(TcCompareOp op, uint64_t lhs, uint64_t rhs, uint64_t *out
         result = lhs >= rhs;
         break;
     default:
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
                           "internal error: invalid pointer compare");
         return -1;
     }
@@ -470,13 +470,13 @@ int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
 
     (void)elem_type;
     if (!block) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
     memcpy(&count, block, sizeof(uint64_t));
     if (index >= count) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
@@ -492,13 +492,13 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
     uint64_t count = 0;
 
     if (!block) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
     memcpy(&count, block, sizeof(uint64_t));
     if (index >= count) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
@@ -520,14 +520,14 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
     void *temp = NULL;
 
     if (!dst || !src) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
     memcpy(&dst_count, dst, sizeof(uint64_t));
     memcpy(&src_count, src, sizeof(uint64_t));
     if (length > 0 && (dst_index + length > dst_count || src_index + length > src_count)) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }

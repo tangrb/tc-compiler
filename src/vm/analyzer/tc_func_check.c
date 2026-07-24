@@ -118,7 +118,7 @@ static int tc_check_func_params(const TcFuncDef *func, const TcFuncSignatureList
                 strcmp(func->params[i].name, func->params[j].name) == 0) {
                 (void)snprintf(msg, sizeof(msg), "duplicate parameter '%s'",
                                func->params[i].name);
-                tc_diagnostic_set(diag, TC_ERR_DUPLICATE_PARAMETER, func->line,
+                tc_diagnostic_set(diag, TC_CE_DUPLICATE_PARAMETER, func->line,
                                   TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
@@ -129,7 +129,7 @@ static int tc_check_func_params(const TcFuncDef *func, const TcFuncSignatureList
             tc_func_name_in_module(sigs, module_index, func->params[i].name)) {
             (void)snprintf(msg, sizeof(msg), "parameter '%s' conflicts with function name",
                            func->params[i].name);
-            tc_diagnostic_set(diag, TC_ERR_FUNCTION_NAME_CONFLICT, func->line,
+            tc_diagnostic_set(diag, TC_CE_FUNCTION_NAME_CONFLICT, func->line,
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
@@ -160,7 +160,7 @@ static int tc_check_value_binding_func_conflicts(const TcProgram *program,
         if (tc_func_name_in_module(sigs, module_index, name)) {
             (void)snprintf(msg, sizeof(msg),
                            "function name conflicts with value binding '%s'", name);
-            tc_diagnostic_set(diag, TC_ERR_FUNCTION_NAME_CONFLICT, tc_value_binding_line(stmt),
+            tc_diagnostic_set(diag, TC_CE_FUNCTION_NAME_CONFLICT, tc_value_binding_line(stmt),
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
@@ -189,7 +189,7 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
                 strcmp(args[i].param_name, args[j].param_name) == 0) {
                 (void)snprintf(msg, sizeof(msg), "duplicate argument '%s'",
                                args[j].param_name);
-                tc_diagnostic_set(diag, TC_ERR_DUPLICATE_ARGUMENT, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_DUPLICATE_ARGUMENT, line, TC_COLUMN_UNKNOWN,
                                   msg);
                 return -1;
             }
@@ -200,7 +200,7 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
         int known = 0;
 
         if (!args[i].param_name) {
-            tc_diagnostic_set(diag, TC_ERR_UNKNOWN_ARGUMENT, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_UNKNOWN_ARGUMENT, line, TC_COLUMN_UNKNOWN,
                               "unknown argument");
             return -1;
         }
@@ -213,7 +213,7 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
         }
         if (!known) {
             (void)snprintf(msg, sizeof(msg), "unknown argument '%s'", args[i].param_name);
-            tc_diagnostic_set(diag, TC_ERR_UNKNOWN_ARGUMENT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNKNOWN_ARGUMENT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
     }
@@ -230,7 +230,7 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
         }
         if (!present) {
             (void)snprintf(msg, sizeof(msg), "missing argument '%s'", sig->params[pi].name);
-            tc_diagnostic_set(diag, TC_ERR_MISSING_ARGUMENT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_MISSING_ARGUMENT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
     }
@@ -238,7 +238,7 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
     for (i = 0; i < arg_count; i++) {
         if (i >= sig->param_count || !sig->params[i].name || !args[i].param_name ||
             strcmp(args[i].param_name, sig->params[i].name) != 0) {
-            tc_diagnostic_set(diag, TC_ERR_ARGUMENT_ORDER, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_ARGUMENT_ORDER, line, TC_COLUMN_UNKNOWN,
                               "argument order does not match parameter order");
             return -1;
         }
@@ -249,13 +249,13 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
 
         if (tc_type_check_rhs(value, &sig->params[i].type, visible, global, env->struct_table,
                               hist, stmt_index, line, diag, warnings, NULL) != 0) {
-            if (diag->kind == TC_ERR_TYPE_MISMATCH || diag->kind == TC_ERR_LITERAL_TYPE ||
-                diag->kind == TC_ERR_LITERAL_OUT_OF_RANGE) {
+            if (diag->kind == TC_CE_TYPE_MISMATCH || diag->kind == TC_CE_LITERAL_TYPE ||
+                diag->kind == TC_CE_LITERAL_OUT_OF_RANGE) {
                 /* 字面量专用诊断保留，不降级为 ARGUMENT_TYPE */
                 return -1;
             }
-            if (diag->kind == TC_ERR_TYPE_MISMATCH) {
-                tc_diagnostic_set(diag, TC_ERR_ARGUMENT_TYPE, line, TC_COLUMN_UNKNOWN,
+            if (diag->kind == TC_CE_TYPE_MISMATCH) {
+                tc_diagnostic_set(diag, TC_CE_ARGUMENT_TYPE, line, TC_COLUMN_UNKNOWN,
                                   "argument type does not match parameter type");
             }
             return -1;
@@ -343,7 +343,7 @@ static int tc_static_var_operand_valid(const TcOperand *operand, int current_stm
         return 0;
     }
     if (operand->kind == TC_OPERAND_VAR) {
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "static var initializer has invalid operand");
         (void)current_stmt_index;
         (void)members;
@@ -362,7 +362,7 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
         return 0;
     }
     if (rhs->kind == TC_RHS_FUNCALL_EXPR) {
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "static var initializer has invalid operand");
         return -1;
     }
@@ -370,7 +370,7 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
         return 0;
     }
     if (rhs->kind == TC_RHS_CONST_REF) {
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "static var initializer has invalid operand");
         return -1;
     }
@@ -379,7 +379,7 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
         const char *member = rhs->u.self_member.member_name;
 
         if (!member) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "static var initializer has invalid operand");
             return -1;
         }
@@ -387,7 +387,7 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
         if (!entry ||
             (entry->kind != TC_MEMBER_STATIC_LET && entry->kind != TC_MEMBER_STATIC_VAR) ||
             entry->stmt_index >= current_stmt_index) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "static var initializer has invalid operand");
             return -1;
         }
@@ -465,7 +465,7 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
         return tc_static_var_operand_valid(&rhs->u.bitcast.source, current_stmt_index, members,
                                            line, diag);
     default:
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "static var initializer has invalid operand");
         return -1;
     }
@@ -491,18 +491,18 @@ static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable
         const TcSymbol *src = NULL;
 
         if (!member) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
                               "invalid static let initializer");
             return -1;
         }
         src = tc_symbol_table_find(symbols, member);
         if (!src || !src->has_const_value) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
                               "constant value is not available by source order");
             return -1;
         }
         if (!tc_type_equals(&src->full_type, &sym->full_type)) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
                               "static let type mismatch in Self member reference");
             return -1;
         }
@@ -544,7 +544,7 @@ int tc_func_check_signatures(TcTypedProgram *prog, const TcFuncSignatureList *si
                     prev->u.func_def.name && func->name &&
                     strcmp(prev->u.func_def.name, func->name) == 0) {
                     (void)snprintf(msg, sizeof(msg), "duplicate function '%s'", func->name);
-                    tc_diagnostic_set(diag, TC_ERR_DUPLICATE_FUNCTION, func->line,
+                    tc_diagnostic_set(diag, TC_CE_DUPLICATE_FUNCTION, func->line,
                                       TC_COLUMN_UNKNOWN, msg);
                     return -1;
                 }
@@ -581,19 +581,19 @@ int tc_func_resolve_call_target(const TcFuncCheckEnv *env, int is_self, const ch
 
         if (!env->members) {
             (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         entry = tc_member_index_find(env->members, func_name);
         if (!entry || entry->kind != TC_MEMBER_FUNC) {
             (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         *out_sig = tc_sig_find_in_module(env->sigs, -1, func_name);
         if (!*out_sig) {
             (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         return 0;
@@ -605,17 +605,17 @@ int tc_func_resolve_call_target(const TcFuncCheckEnv *env, int is_self, const ch
 
         if (dep_index < 0) {
             (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         sig = tc_sig_find_in_module(env->sigs, dep_index, func_name);
         if (!sig) {
             (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (sig->visibility == TC_VIS_PRIVATE) {
-            tc_diagnostic_set(diag, TC_ERR_PRIVATE_MEMBER_ACCESS, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_PRIVATE_MEMBER_ACCESS, line, TC_COLUMN_UNKNOWN,
                               "private member access");
             return -1;
         }
@@ -627,13 +627,13 @@ int tc_func_resolve_call_target(const TcFuncCheckEnv *env, int is_self, const ch
         const TcMemberEntry *entry = tc_member_index_find(env->members, func_name);
         if (entry && entry->kind == TC_MEMBER_FUNC) {
             (void)snprintf(msg, sizeof(msg), "function scope access: use Self.%s", func_name);
-            tc_diagnostic_set(diag, TC_ERR_FUNCTION_SCOPE_ACCESS, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_FUNCTION_SCOPE_ACCESS, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
     }
 
     (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
-    tc_diagnostic_set(diag, TC_ERR_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
+    tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
     return -1;
 }
 
@@ -661,12 +661,12 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
 
     is_void = tc_type_is_void(sig->return_type.kind);
     if (position == 0 && !is_void) {
-        tc_diagnostic_set(diag, TC_ERR_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
                           "non-void function call must be used as initializer or assignment");
         return -1;
     }
     if (position == 1 && is_void) {
-        tc_diagnostic_set(diag, TC_ERR_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
                           "void function call cannot be used as value");
         return -1;
     }
@@ -677,7 +677,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
     }
 
     if (expected && !is_void && !tc_type_equals(&sig->return_type, expected)) {
-        tc_diagnostic_set(diag, TC_ERR_FUNCALL_RESULT_TYPE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_FUNCALL_RESULT_TYPE, line, TC_COLUMN_UNKNOWN,
                           "function call result type does not match");
         return -1;
     }
@@ -699,7 +699,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         return -1;
     }
     if (!env->current_func) {
-        tc_diagnostic_set(diag, TC_ERR_RETURN_OUTSIDE_FUNCTION, ret->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_RETURN_OUTSIDE_FUNCTION, ret->line, TC_COLUMN_UNKNOWN,
                           "return outside function");
         return -1;
     }
@@ -708,12 +708,12 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
     is_void = tc_type_is_void(return_type->kind);
 
     if (is_void && ret->has_value) {
-        tc_diagnostic_set(diag, TC_ERR_RETURN_FORM, ret->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_RETURN_FORM, ret->line, TC_COLUMN_UNKNOWN,
                           "void function cannot return a value");
         return -1;
     }
     if (!is_void && !ret->has_value) {
-        tc_diagnostic_set(diag, TC_ERR_RETURN_FORM, ret->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_RETURN_FORM, ret->line, TC_COLUMN_UNKNOWN,
                           "non-void function must return a value");
         return -1;
     }
@@ -732,7 +732,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
             return -1;
         }
         if (!tc_type_equals(&sym->full_type, return_type)) {
-            tc_diagnostic_set(diag, TC_ERR_RETURN_TYPE, ret->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_RETURN_TYPE, ret->line, TC_COLUMN_UNKNOWN,
                               "return type does not match function return type");
             return -1;
         }
@@ -744,7 +744,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
     }
 
     return tc_check_operand(&ret->value, return_type->kind, visible, global, hist, stmt_index,
-                            ret->line, diag, warnings, NULL, TC_ERR_RETURN_TYPE);
+                            ret->line, diag, warnings, NULL, TC_CE_RETURN_TYPE);
 }
 
 int tc_func_check_writable_target(const TcSymbol *target, int line, TcDiagnostic *diag) {
@@ -752,7 +752,7 @@ int tc_func_check_writable_target(const TcSymbol *target, int line, TcDiagnostic
         return -1;
     }
     if (target->slot_domain == TC_SLOT_PARAM) {
-        tc_diagnostic_set(diag, TC_ERR_PARAMETER_ASSIGNMENT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_PARAMETER_ASSIGNMENT, line, TC_COLUMN_UNKNOWN,
                           "cannot assign to function parameter");
         return -1;
     }
@@ -774,7 +774,7 @@ int tc_func_try_function_scope_access(const TcMemberIndex *members, const char *
     if (entry->kind == TC_MEMBER_FUNC || entry->kind == TC_MEMBER_STATIC_VAR ||
         entry->kind == TC_MEMBER_STATIC_LET) {
         (void)snprintf(msg, sizeof(msg), "function scope access: use Self.%s", name);
-        tc_diagnostic_set(diag, TC_ERR_FUNCTION_SCOPE_ACCESS, line, TC_COLUMN_UNKNOWN, msg);
+        tc_diagnostic_set(diag, TC_CE_FUNCTION_SCOPE_ACCESS, line, TC_COLUMN_UNKNOWN, msg);
         return 1;
     }
     return 0;
@@ -903,7 +903,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols, TcDiagn
 
         sym = tc_symbol_table_find_mut(symbols, entries[idx].def->name);
         if (!sym) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, entries[idx].def->line,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, entries[idx].def->line,
                               TC_COLUMN_UNKNOWN, "static let symbol not found");
             rc = -1;
             goto cleanup;
@@ -931,7 +931,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols, TcDiagn
                 line = entries[ei].def->line;
             }
         }
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "circular static let dependency");
         rc = -1;
     }

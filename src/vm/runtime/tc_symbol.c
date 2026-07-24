@@ -298,7 +298,7 @@ int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_i
             }
         }
         (void)snprintf(msg, sizeof(msg), "duplicate label '%s'", name);
-        tc_diagnostic_set(diag, TC_ERR_DUPLICATE_LABEL, line, TC_COLUMN_UNKNOWN, msg);
+        tc_diagnostic_set(diag, TC_CE_DUPLICATE_LABEL, line, TC_COLUMN_UNKNOWN, msg);
         return -1;
     }
 

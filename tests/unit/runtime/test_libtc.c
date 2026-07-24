@@ -59,12 +59,12 @@ static void check_failure_preserves_out(const char *source, TcErrorKind expected
 }
 
 static void test_compile_failures_are_transactional(void) {
-    check_failure_preserves_out("#program\nvar x int32 = 1\n", TC_ERR_SYNTAX,
+    check_failure_preserves_out("#program\nvar x int32 = 1\n", TC_CE_SYNTAX,
                                 "parser failure returns -1");
-    check_failure_preserves_out("#program\nvar x: int32 = missing\n", TC_ERR_UNDEFINED_VARIABLE,
+    check_failure_preserves_out("#program\nvar x: int32 = missing\n", TC_CE_UNDEFINED_VARIABLE,
                                 "binder failure returns -1");
     check_failure_preserves_out("#program\nlet X: int32 = div(int32, 10, 0)\n",
-                                TC_ERR_CONSTANT_DIV_ZERO,
+                                TC_CE_CONSTANT_DIV_ZERO,
                                 "constant evaluation failure returns -1");
     check_failure_preserves_out("#lib\npublic func f() void then\n"
                                 "    goto use_a\n"
@@ -73,7 +73,7 @@ static void test_compile_failures_are_transactional(void) {
                                 "    var b: int32 = add(int32, a, 0)\n"
                                 "    return\n"
                                 "end\n",
-                                TC_ERR_UNINITIALIZED_VARIABLE,
+                                TC_CE_UNINITIALIZED_VARIABLE,
                                 "CFG dataflow failure returns -1");
 }
 
@@ -390,7 +390,7 @@ static void test_module_search_paths_resolve_import(void) {
     check(tc_set_module_search_paths(NULL, 0, &diag) == 0, "clear module search paths");
     check(tc_compile_file(path, &program, &diag) == -1,
           "cleared search paths make ExtraLib unresolved");
-    check(diag.kind == TC_ERR_IMPORT_NOT_FOUND, "cleared paths → IMPORT_NOT_FOUND");
+    check(diag.kind == TC_CE_IMPORT_NOT_FOUND, "cleared paths → IMPORT_NOT_FOUND");
     unlink(path);
     tc_diagnostic_clear(&diag);
 }

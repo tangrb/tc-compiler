@@ -83,7 +83,7 @@ typedef TcTypeKind TcScalarType;
 
 /**
  * 算术溢出处理模式：
- *   TC_ARITH_STRICT — 有符号溢出时报 TC_ERR_INTEGER_OVERFLOW
+ *   TC_ARITH_STRICT — 有符号溢出时报 TC_RE_INTEGER_OVERFLOW
  *   TC_ARITH_WRAP   — 按目标类型位宽做二进制环绕
  */
 typedef enum {
@@ -105,7 +105,7 @@ typedef enum {
 
 /**
  * 类型转换截断模式（truncate 关键字）：
- *   TC_TRUNC_STRICT   — 数值转换，不可表示时报 TC_ERR_CAST_OVERFLOW
+ *   TC_TRUNC_STRICT   — 数值转换，不可表示时报 TC_RE_CAST_OVERFLOW
  *   TC_TRUNC_TRUNCATE — 仅整数到更窄整数，保留低位
  */
 typedef enum {
@@ -179,6 +179,30 @@ typedef enum {
     TC_FMT_GU
 } TcFormatSpec;
 
+/**
+ * 完整格式说明符（§10.1）。
+ * 包含标志、宽度、精度和基础转换符。
+ * width/precision 为 0 表示未指定；precision_set 区分 "未指定" 与 "指定为 0"。
+ */
+typedef struct {
+    int flag_minus;       /* '-' 左对齐 */
+    int flag_plus;        /* '+' 强制符号 */
+    int flag_hash;        /* '#' 备用形式 */
+    int flag_zero;        /* '0' 零填充 */
+    int width;            /* 字段宽度 1~65535，0 表示未指定 */
+    int precision_set;    /* 是否指定精度 */
+    int precision;        /* 精度值 0~65535 */
+    TcFormatSpec spec;    /* 基础转换符 */
+} TcFormatFullSpec;
+
+/** 从基础转换符构建默认的完整格式说明符（无标志/宽度/精度）。 */
+static inline TcFormatFullSpec tc_format_spec_make(TcFormatSpec spec) {
+    TcFormatFullSpec fs = {0};
+
+    fs.spec = spec;
+    return fs;
+}
+
 /** 符号种类：变量、let、形参、static var/let（0.0.35） */
 typedef enum {
     TC_SYM_VARIABLE,
@@ -205,115 +229,120 @@ typedef enum {
 
 /** 诊断错误种类，与 TC 语言标准定义的可观测错误一一对应 */
 typedef enum {
-    TC_ERR_SYNTAX,
-    TC_ERR_UNDEFINED_VARIABLE,
-    TC_ERR_DUPLICATE_DEFINITION,
-    TC_ERR_TYPE_MISMATCH,
-    TC_ERR_LITERAL_OUT_OF_RANGE,
-    TC_ERR_LITERAL_TYPE,
-    TC_ERR_KEYWORD,
-    TC_ERR_CONSTANT_ASSIGNMENT,
-    TC_ERR_CONSTANT_EXPRESSION,
-    TC_ERR_CONSTANT_OVERFLOW,
-    TC_ERR_CONSTANT_DIV_ZERO,
-    TC_ERR_CONSTANT_CAST_OVERFLOW,
-    TC_ERR_COMPARISON_TYPE_MISMATCH,
-    TC_ERR_FORMAT_STRING,
-    TC_ERR_FORMAT_TYPE_MISMATCH,
-    TC_ERR_OPERAND_COUNT,
-    TC_ERR_DIVISION_BY_ZERO,
-    TC_ERR_INTEGER_OVERFLOW,
-    TC_ERR_CAST_OVERFLOW,
-    TC_ERR_IO,
-    TC_ERR_OUT_OF_MEMORY,         /* 内存分配失败 */
-    TC_ERR_INDENT_MIXED,          /* 混用空格与制表符 */
-    TC_ERR_INDENT_INSUFFICIENT,   /* 块内缩进不足 */
-    TC_ERR_INDENT_ELSE_END,       /* else/end 缩进与 if 不一致 */
-    TC_ERR_MISSING_END,           /* if 语句缺少 end */
-    TC_ERR_ELSE_POSITION,         /* else 位置错误 */
-    TC_ERR_CONDITION_TYPE,        /* if 条件结果不是 bool */
-    TC_ERR_FLOAT_OVERFLOW,        /* 严格模式浮点上溢 */
-    TC_ERR_FLOAT_UNDERFLOW,       /* 严格模式浮点下溢 */
-    TC_ERR_FLOAT_INVALID,         /* 严格模式浮点无效操作（nan 等） */
-    TC_ERR_MODE_MISMATCH,         /* ieee/wrap 用于非法上下文 */
-    TC_ERR_UNINITIALIZED_VARIABLE,  /* §4.2 读取未初始化变量 */
-    TC_ERR_LABEL_NOT_FOUND,         /* §4.8.3 goto 引用未定义标签 */
-    TC_ERR_DUPLICATE_LABEL,         /* §4.8.3 同一作用域重定义标签 */
-    TC_ERR_JUMP_INTO_BLOCK,         /* §4.8.3 跳入内层子块 */
-    TC_ERR_JUMP_TO_SIBLING_BLOCK,   /* §4.8.3 跳入兄弟分支 */
-    TC_ERR_VAR_MISSING_INIT,        /* §4.2 var 声明缺少初始化器 */
-    TC_ERR_BITCAST_WIDTH,           /* §8.6 bitcast 源/目标位宽不等 */
-    TC_ERR_LABEL_INSIDE_LOOP,       /* label 不得出现在 while 内 */
-    TC_ERR_GOTO_INSIDE_LOOP,        /* goto 不得出现在 while 内 */
-    TC_ERR_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
-    TC_ERR_CONTINUE_OUTSIDE_LOOP,   /* continue 必须出现在 while 内 */
+    /* ---- 静态/编译期错误（TC_CE_*） ---- */
+    TC_CE_SYNTAX,
+    TC_CE_UNDEFINED_VARIABLE,
+    TC_CE_DUPLICATE_DEFINITION,
+    TC_CE_TYPE_MISMATCH,
+    TC_CE_LITERAL_OUT_OF_RANGE,
+    TC_CE_LITERAL_TYPE,
+    TC_CE_KEYWORD,
+    TC_CE_CONSTANT_ASSIGNMENT,
+    TC_CE_CONSTANT_EXPRESSION,
+    TC_CE_CONSTANT_OVERFLOW,
+    TC_CE_CONSTANT_DIV_ZERO,
+    TC_CE_CONSTANT_CAST_OVERFLOW,
+    TC_CE_COMPARISON_TYPE_MISMATCH,
+    TC_CE_FORMAT_STRING,
+    TC_CE_FORMAT_TYPE_MISMATCH,
+    TC_CE_OPERAND_COUNT,
+    TC_CE_INDENT_MIXED,          /* 混用空格与制表符 */
+    TC_CE_INDENT_INSUFFICIENT,   /* 块内缩进不足 */
+    TC_CE_INDENT_ELSE_END,       /* else/end 缩进与 if 不一致 */
+    TC_CE_MISSING_END,           /* if 语句缺少 end */
+    TC_CE_ELSE_POSITION,         /* else 位置错误 */
+    TC_CE_CONDITION_TYPE,        /* if 条件结果不是 bool */
+    TC_CE_MODE_MISMATCH,         /* ieee/wrap 用于非法上下文 */
+    TC_CE_UNINITIALIZED_VARIABLE,  /* §4.2 读取未初始化变量 */
+    TC_CE_LABEL_NOT_FOUND,         /* §4.8.3 goto 引用未定义标签 */
+    TC_CE_DUPLICATE_LABEL,         /* §4.8.3 同一作用域重定义标签 */
+    TC_CE_JUMP_INTO_BLOCK,         /* §4.8.3 跳入内层子块 */
+    TC_CE_JUMP_TO_SIBLING_BLOCK,   /* §4.8.3 跳入兄弟分支 */
+    TC_CE_VAR_MISSING_INIT,        /* §4.2 var 声明缺少初始化器 */
+    TC_CE_BITCAST_WIDTH,           /* §8.6 bitcast 源/目标位宽不等 */
+    TC_CE_LABEL_INSIDE_LOOP,       /* label 不得出现在 while 内 */
+    TC_CE_GOTO_INSIDE_LOOP,        /* goto 不得出现在 while 内 */
+    TC_CE_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
+    TC_CE_CONTINUE_OUTSIDE_LOOP,   /* continue 必须出现在 while 内 */
 
     /* ---- 0.0.35：控制流补充（编译器标准 §11.4.1） ---- */
-    TC_ERR_GOTO_OUTSIDE_FUNCTION,
-    TC_ERR_LABEL_OUTSIDE_FUNCTION,
-    TC_ERR_JUMP_INCOMPATIBLE_BLOCK,
-    TC_ERR_NEGATIVE_SHIFT_COUNT,    /* 运行时负移位计数 */
-    TC_ERR_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
+    TC_CE_GOTO_OUTSIDE_FUNCTION,
+    TC_CE_LABEL_OUTSIDE_FUNCTION,
+    TC_CE_JUMP_INCOMPATIBLE_BLOCK,
+    TC_CE_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
 
     /* ---- 0.0.35：函数诊断（§11.4.2，20 个） ---- */
-    TC_ERR_DUPLICATE_FUNCTION,
-    TC_ERR_FUNCTION_NAME_CONFLICT,
-    TC_ERR_UNDEFINED_FUNCTION,
-    TC_ERR_DUPLICATE_PARAMETER,
-    TC_ERR_MISSING_ARGUMENT,
-    TC_ERR_DUPLICATE_ARGUMENT,
-    TC_ERR_UNKNOWN_ARGUMENT,
-    TC_ERR_ARGUMENT_ORDER,
-    TC_ERR_ARGUMENT_TYPE,
-    TC_ERR_FUNCALL_POSITION,
-    TC_ERR_FUNCALL_RESULT_TYPE,
-    TC_ERR_RETURN_OUTSIDE_FUNCTION,
-    TC_ERR_RETURN_FORM,
-    TC_ERR_RETURN_TYPE,
-    TC_ERR_MISSING_RETURN,
-    TC_ERR_UNREACHABLE_STATEMENT,
-    TC_ERR_PARAMETER_ASSIGNMENT,
-    TC_ERR_FUNCTION_SCOPE_ACCESS,
-    TC_ERR_CROSS_CONTROL_FLOW_JUMP,
-    TC_ERR_RECURSION,
+    TC_CE_DUPLICATE_FUNCTION,
+    TC_CE_FUNCTION_NAME_CONFLICT,
+    TC_CE_UNDEFINED_FUNCTION,
+    TC_CE_DUPLICATE_PARAMETER,
+    TC_CE_MISSING_ARGUMENT,
+    TC_CE_DUPLICATE_ARGUMENT,
+    TC_CE_UNKNOWN_ARGUMENT,
+    TC_CE_ARGUMENT_ORDER,
+    TC_CE_ARGUMENT_TYPE,
+    TC_CE_FUNCALL_POSITION,
+    TC_CE_FUNCALL_RESULT_TYPE,
+    TC_CE_RETURN_OUTSIDE_FUNCTION,
+    TC_CE_RETURN_FORM,
+    TC_CE_RETURN_TYPE,
+    TC_CE_MISSING_RETURN,
+    TC_CE_UNREACHABLE_STATEMENT,
+    TC_CE_PARAMETER_ASSIGNMENT,
+    TC_CE_FUNCTION_SCOPE_ACCESS,
+    TC_CE_CROSS_CONTROL_FLOW_JUMP,
+    TC_CE_RECURSION,
 
     /* ---- 0.0.35：memblock（§11.4.3） ---- */
-    TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE,       /* 静态越界 */
-    TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT,    /* 运行时越界；打印名同静态 */
-    TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH,
-    TC_ERR_MEMBLOCK_SIZE_MISMATCH,
+    TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE,       /* 静态越界 */
+    TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH,
+    TC_CE_MEMBLOCK_SIZE_MISMATCH,
 
     /* ---- 0.0.35：struct（§11.4.4） ---- */
-    TC_ERR_STRUCT_MISSING_FIELD,
-    TC_ERR_STRUCT_UNKNOWN_FIELD,
-    TC_ERR_STRUCT_DUPLICATE_FIELD,
-    TC_ERR_STRUCT_FIELD_ORDER,
-    TC_ERR_STRUCT_IMMUTABLE_FIELD,
-    TC_ERR_DUPLICATE_STRUCT,
-    TC_ERR_UNDEFINED_STRUCT,
+    TC_CE_STRUCT_MISSING_FIELD,
+    TC_CE_STRUCT_UNKNOWN_FIELD,
+    TC_CE_STRUCT_DUPLICATE_FIELD,
+    TC_CE_STRUCT_FIELD_ORDER,
+    TC_CE_STRUCT_IMMUTABLE_FIELD,
+    TC_CE_DUPLICATE_STRUCT,
+    TC_CE_UNDEFINED_STRUCT,
 
     /* ---- 0.0.35：模块（§11.4.5，10 个） ---- */
-    TC_ERR_MODULE_LAYER,           /* 顶层声明层序违反（import→struct→值→func/exec） */
-    TC_ERR_MISSING_VISIBILITY,     /* #lib 成员缺少 public/private */
-    TC_ERR_PROGRAM_MODE_MISUSE,    /* #program 中使用了库专用构造（func/static/Self/可见性等） */
-    TC_ERR_IMPORT_NOT_FOUND,       /* 找不到 import 目标 .tc */
-    TC_ERR_IMPORT_NOT_LIB,         /* import 目标不是 #lib */
-    TC_ERR_IMPORT_AMBIGUOUS,       /* 多条 -I/相对路径同时命中不同文件 */
-    TC_ERR_DUPLICATE_IMPORT,       /* 同一文件重复 import 同名模块 */
-    TC_ERR_IMPORT_NAME_CONFLICT,   /* 导入名与本地声明冲突（后续阶段） */
-    TC_ERR_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
-    TC_ERR_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
+    TC_CE_MODULE_LAYER,           /* 顶层声明层序违反（import→struct→值→func/exec） */
+    TC_CE_MISSING_VISIBILITY,     /* #lib 成员缺少 public/private */
+    TC_CE_PROGRAM_MODE_MISUSE,    /* #program 中使用了库专用构造（func/static/Self/可见性等） */
+    TC_CE_IMPORT_NOT_FOUND,       /* 找不到 import 目标 .tc */
+    TC_CE_IMPORT_NOT_LIB,         /* import 目标不是 #lib */
+    TC_CE_IMPORT_AMBIGUOUS,       /* 多条 -I/相对路径同时命中不同文件 */
+    TC_CE_DUPLICATE_IMPORT,       /* 同一文件重复 import 同名模块 */
+    TC_CE_IMPORT_NAME_CONFLICT,   /* 导入名与本地声明冲突（后续阶段） */
+    TC_CE_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
+    TC_CE_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
 
     /* ---- 0.0.35：指针与 memcopy（§11.4.6） ---- */
-    TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
-    TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT,   /* 运行时；打印名同静态 */
-    TC_ERR_NULL_POINTER_DEREFERENCE,
-    TC_ERR_NULL_POINTER_ARITHMETIC
+    TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
+
+    /* ---- 运行时错误（TC_RE_*，§11.4.1 / §11.4.6） ---- */
+    TC_RE_DIVISION_BY_ZERO,
+    TC_RE_INTEGER_OVERFLOW,
+    TC_RE_NEGATIVE_SHIFT_COUNT,    /* 运行时负移位计数 */
+    TC_RE_FLOAT_OVERFLOW,          /* 严格模式浮点上溢 */
+    TC_RE_FLOAT_UNDERFLOW,         /* 严格模式浮点下溢 */
+    TC_RE_FLOAT_INVALID,           /* 严格模式浮点无效操作（nan 等） */
+    TC_RE_CAST_OVERFLOW,
+    TC_RE_IO,
+    TC_RE_NULL_POINTER_DEREFERENCE,
+    TC_RE_NULL_POINTER_ARITHMETIC,
+    TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE,    /* 运行时越界；打印名同静态 */
+    TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE,   /* 运行时；打印名同静态 */
+
+    /* ---- 实现专用错误码 ---- */
+    TC_ERR_OUT_OF_MEMORY          /* 内存分配失败（实现资源失败，保留 TC_ERR_ 前缀） */
 } TcErrorKind;
 
 /*
  * 编译警告种类（不阻止执行，仅输出 warning 信息）。
- * v0.0.26：TC_WARN_UNINITIALIZED_VARIABLE 已升级为 TC_ERR_UNINITIALIZED_VARIABLE。
+ * v0.0.26：TC_WARN_UNINITIALIZED_VARIABLE 已升级为 TC_CE_UNINITIALIZED_VARIABLE。
  * TcWarningKind / TcWarningList 保留空壳供未来警告类型使用。
  */
 typedef enum {
@@ -648,7 +677,7 @@ typedef struct {
 typedef struct {
     int line;
     TcTypeKind type;
-    TcFormatSpec fmt;       /* TC_FMT_NONE 表示默认十进制输出 */
+    TcFormatFullSpec fmt;       /* TC_FMT_NONE 表示默认十进制输出 */
     TcOperand operand;
 } TcIoWrite;
 
@@ -1073,7 +1102,7 @@ int tc_compare_op_parse(const char *text, TcCompareOp *out);
 int tc_logic_op_parse(const char *text, TcLogicOp *out);
 int tc_bitwise_op_parse(const char *text, TcBitwiseOp *out);
 int tc_shift_op_parse(const char *text, TcShiftOp *out);
-int tc_format_spec_parse(const char *text, TcFormatSpec *out);
+int tc_format_spec_parse(const char *text, TcFormatFullSpec *out);
 const char *tc_bitwise_op_name(TcBitwiseOp op);
 const char *tc_shift_op_name(TcShiftOp op);
 const char *tc_format_spec_name(TcFormatSpec fmt);

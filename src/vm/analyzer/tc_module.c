@@ -161,7 +161,7 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
     TcModuleLayer max_layer = TC_LAYER_IMPORT;
 
     if (!program || program->mode == TC_MODULE_UNSET) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, 1, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, TC_COLUMN_UNKNOWN,
                           "expected #program or #lib");
         return -1;
     }
@@ -188,7 +188,7 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
         }
 
         if (norm_layer < norm_max) {
-            tc_diagnostic_set(diag, TC_ERR_MODULE_LAYER, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_MODULE_LAYER, line, TC_COLUMN_UNKNOWN,
                               "module layer order violated");
             return -1;
         }
@@ -198,13 +198,13 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
             /* #program 禁止函数、库级 static、以及任何可见性修饰 */
             if (stmt->kind == TC_STMT_FUNC_DEF || stmt->kind == TC_STMT_STATIC_VAR_DEF ||
                 stmt->kind == TC_STMT_STATIC_LET_DEF) {
-                tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, line, TC_COLUMN_UNKNOWN,
                                   "construct not allowed in #program");
                 return -1;
             }
             if (stmt->kind == TC_STMT_STRUCT_DEF &&
                 stmt->u.struct_def.visibility != TC_VIS_NONE) {
-                tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_PROGRAM_MODE_MISUSE, line, TC_COLUMN_UNKNOWN,
                                   "visibility not allowed in #program");
                 return -1;
             }
@@ -212,30 +212,30 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
             /* #lib：公开成员必须显式 public/private；禁止局部 var/let */
             if (stmt->kind == TC_STMT_STRUCT_DEF &&
                 stmt->u.struct_def.visibility == TC_VIS_NONE) {
-                tc_diagnostic_set(diag, TC_ERR_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
                                   "library member requires public or private");
                 return -1;
             }
             if (stmt->kind == TC_STMT_FUNC_DEF &&
                 stmt->u.func_def.visibility == TC_VIS_NONE) {
-                tc_diagnostic_set(diag, TC_ERR_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
                                   "library member requires public or private");
                 return -1;
             }
             if (stmt->kind == TC_STMT_STATIC_VAR_DEF &&
                 stmt->u.static_var_def.visibility == TC_VIS_NONE) {
-                tc_diagnostic_set(diag, TC_ERR_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
                                   "library member requires public or private");
                 return -1;
             }
             if (stmt->kind == TC_STMT_STATIC_LET_DEF &&
                 stmt->u.static_let_def.visibility == TC_VIS_NONE) {
-                tc_diagnostic_set(diag, TC_ERR_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
                                   "library member requires public or private");
                 return -1;
             }
             if (stmt->kind == TC_STMT_VAR_DEF || stmt->kind == TC_STMT_CONST_DEF) {
-                tc_diagnostic_set(diag, TC_ERR_MODULE_LAYER, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_MODULE_LAYER, line, TC_COLUMN_UNKNOWN,
                                   "non-static value declaration not allowed in #lib");
                 return -1;
             }
@@ -319,7 +319,7 @@ static int tc_read_file_text(const char *path, char **out_text, TcDiagnostic *di
     }
     if (fseek(fp, 0, SEEK_END) != 0 || (size = ftell(fp)) < 0 || fseek(fp, 0, SEEK_SET) != 0) {
         fclose(fp);
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "failed to read module file");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, 0, TC_COLUMN_UNKNOWN, "failed to read module file");
         return -1;
     }
     buf = (char *)malloc((size_t)size + 1);
@@ -417,13 +417,13 @@ static int tc_locate_module_file(const char *name, const char *entry_dir,
     }
 
     if (hits == 0) {
-        tc_diagnostic_set(diag, TC_ERR_IMPORT_NOT_FOUND, 1, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_IMPORT_NOT_FOUND, 1, TC_COLUMN_UNKNOWN,
                           "import module not found");
         return -1;
     }
     if (hits > 1) {
         free(first);
-        tc_diagnostic_set(diag, TC_ERR_IMPORT_AMBIGUOUS, 1, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_IMPORT_AMBIGUOUS, 1, TC_COLUMN_UNKNOWN,
                           "import module path is ambiguous");
         return -1;
     }
@@ -443,7 +443,7 @@ static int tc_load_lib_file(const char *path, const char *expected_name, TcProgr
     rc = tc_read_file_text(path, &text, diag);
     if (rc != 0) {
         if (rc > 0) {
-            tc_diagnostic_set(diag, TC_ERR_IMPORT_NOT_FOUND, 1, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_IMPORT_NOT_FOUND, 1, TC_COLUMN_UNKNOWN,
                               "import module not found");
         }
         return -1;
@@ -455,7 +455,7 @@ static int tc_load_lib_file(const char *path, const char *expected_name, TcProgr
     }
     if (out->mode != TC_MODULE_LIB) {
         tc_program_free(out);
-        tc_diagnostic_set(diag, TC_ERR_IMPORT_NOT_LIB, 1, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_IMPORT_NOT_LIB, 1, TC_COLUMN_UNKNOWN,
                           "imported module is not #lib");
         return -1;
     }
@@ -543,7 +543,7 @@ static int tc_dag_dfs(TcDagNode *nodes, size_t n, int idx, TcDiagnostic *diag) {
             continue;
         }
         if (nodes[dep].color == 1) {
-            tc_diagnostic_set(diag, TC_ERR_CIRCULAR_IMPORT, 1, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CIRCULAR_IMPORT, 1, TC_COLUMN_UNKNOWN,
                               "circular import");
             return -1;
         }
@@ -591,7 +591,7 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
         for (j = 0; j < i; j++) {
             if (current->items[j].kind == TC_STMT_IMPORT &&
                 strcmp(current->items[j].u.import_stmt.module_name, mod_name) == 0) {
-                tc_diagnostic_set(diag, TC_ERR_DUPLICATE_IMPORT, stmt->u.import_stmt.line,
+                tc_diagnostic_set(diag, TC_CE_DUPLICATE_IMPORT, stmt->u.import_stmt.line,
                                   TC_COLUMN_UNKNOWN, "duplicate import");
                 return -1;
             }
@@ -599,7 +599,7 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
 
         /* 模块 import 自身（最短环） */
         if (current->module_name && strcmp(current->module_name, mod_name) == 0) {
-            tc_diagnostic_set(diag, TC_ERR_CIRCULAR_IMPORT, stmt->u.import_stmt.line,
+            tc_diagnostic_set(diag, TC_CE_CIRCULAR_IMPORT, stmt->u.import_stmt.line,
                               TC_COLUMN_UNKNOWN, "circular import");
             return -1;
         }

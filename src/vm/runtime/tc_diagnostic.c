@@ -97,7 +97,7 @@ static size_t tc_extract_source_line(const char *source, int line_no, char *buf,
 void tc_diagnostic_init(TcDiagnostic *diag) {
     diag->domain = TC_DIAG_NONE;
     diag->api_code = TC_API_ERR_NONE;
-    diag->kind = TC_ERR_SYNTAX;
+    diag->kind = TC_CE_SYNTAX;
     diag->message = NULL;
     diag->filename = NULL;
     diag->snippet = NULL;
@@ -117,7 +117,7 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
     diag->source = NULL;
     diag->domain = TC_DIAG_NONE;
     diag->api_code = TC_API_ERR_NONE;
-    diag->kind = TC_ERR_SYNTAX;
+    diag->kind = TC_CE_SYNTAX;
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
 }
@@ -201,7 +201,7 @@ int tc_diagnostic_set_api(TcDiagnostic *diag, TcApiErrorCode code, const char *m
     free(diag->snippet);
     diag->domain = TC_DIAG_API;
     diag->api_code = code;
-    diag->kind = TC_ERR_SYNTAX;
+    diag->kind = TC_CE_SYNTAX;
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
     diag->message = new_message;

@@ -50,13 +50,13 @@ static int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t lin
 /* ------------------------------------------------------------------ */
 
 int tc_syntax_error(TcDiagnostic *diag, int line, int column, const char *message) {
-    tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, message);
+    tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, message);
     return -1;
 }
 
 
 static int tc_operand_count_error(TcDiagnostic *diag, int line, int column, const char *message) {
-    tc_diagnostic_set(diag, TC_ERR_OPERAND_COUNT, line, column, message);
+    tc_diagnostic_set(diag, TC_CE_OPERAND_COUNT, line, column, message);
     return -1;
 }
 
@@ -430,7 +430,7 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
     *out_vis = TC_VIS_NONE;
     if (tok->kind == TC_TOK_PUBLIC) {
         if (mode == TC_MODULE_PROGRAM) {
-            return tc_module_diag(diag, TC_ERR_PROGRAM_MODE_MISUSE, line_no, tok->column,
+            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
                                   "public is not allowed in #program mode");
         }
         *out_vis = TC_VIS_PUBLIC;
@@ -439,7 +439,7 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
     }
     if (tok->kind == TC_TOK_PRIVATE) {
         if (mode == TC_MODULE_PROGRAM) {
-            return tc_module_diag(diag, TC_ERR_PROGRAM_MODE_MISUSE, line_no, tok->column,
+            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
                                   "private is not allowed in #program mode");
         }
         *out_vis = TC_VIS_PRIVATE;
@@ -447,7 +447,7 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
         return 0;
     }
     if (require_vis && mode == TC_MODULE_LIB) {
-        return tc_module_diag(diag, TC_ERR_MISSING_VISIBILITY, line_no, tok->column,
+        return tc_module_diag(diag, TC_CE_MISSING_VISIBILITY, line_no, tok->column,
                               "missing public or private visibility");
     }
     return 0;
@@ -465,13 +465,14 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
  *   - type 必选
  *   - fmt 可选（%d/%i/%u/%x/%X/%o/%b/%t/%f/%e/%E/%g/%G）
  *   - operand 必选（变量或字面量）
- *   额外操作数报 TC_ERR_OPERAND_COUNT
+ *   额外操作数报 TC_CE_OPERAND_COUNT
  */
 static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                   TcIoWrite *out, TcDiagnostic *diag) {
     out->line = line_no;
     out->type = TC_INT32;
-    out->fmt = TC_FMT_NONE;
+    memset(&out->fmt, 0, sizeof(out->fmt));
+    out->fmt.spec = TC_FMT_NONE;
 
     if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
         return -1;
@@ -628,7 +629,7 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
                 free(struct_name);
                 tc_type_free(&full_type);
                 if (!is_const) {
-                    tc_diagnostic_set(diag, TC_ERR_VAR_MISSING_INIT, line_no, maybe_eq->column,
+                    tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, maybe_eq->column,
                                       "variable definition requires initializer");
                     return -1;
                 }
@@ -667,7 +668,7 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
                 return tc_syntax_error(diag, line_no, maybe_eq->column,
                                        "constant definition requires initializer");
             }
-            tc_diagnostic_set(diag, TC_ERR_VAR_MISSING_INIT, line_no, maybe_eq->column,
+            tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, maybe_eq->column,
                               "variable definition requires initializer");
             return -1;
         }
@@ -716,12 +717,12 @@ static int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size
 
     if (mode == TC_MODULE_PROGRAM) {
         const TcToken *tok = tc_peek(tokens, *index);
-        return tc_module_diag(diag, TC_ERR_PROGRAM_MODE_MISUSE, line_no, tok->column,
+        return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
                               "static is not allowed in #program mode");
     }
     if (mode == TC_MODULE_LIB && vis == TC_VIS_NONE) {
         const TcToken *tok = tc_peek(tokens, *index);
-        return tc_module_diag(diag, TC_ERR_MISSING_VISIBILITY, line_no, tok->column,
+        return tc_module_diag(diag, TC_CE_MISSING_VISIBILITY, line_no, tok->column,
                               "missing public or private visibility");
     }
 
@@ -1785,12 +1786,12 @@ static int tc_parse_struct_def(TcParserCtx *ctx, TcSourceLine *lines, size_t lin
 
     if (*index >= line_count || tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
         tc_struct_def_fail(&def);
-        return tc_indent_diag(diag, TC_ERR_MISSING_END, struct_line->line_no,
+        return tc_indent_diag(diag, TC_CE_MISSING_END, struct_line->line_no,
                               "missing end for struct definition");
     }
     if (lines[*index].indent != base_indent) {
         tc_struct_def_fail(&def);
-        return tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+        return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                               "end indentation does not match struct");
     }
     (*index)++;
@@ -1851,7 +1852,7 @@ static int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
 
     if (mode == TC_MODULE_PROGRAM) {
         const TcToken *tok = tc_peek(&func_line->tokens, tok_index);
-        return tc_module_diag(diag, TC_ERR_PROGRAM_MODE_MISUSE, func_line->line_no, tok->column,
+        return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, func_line->line_no, tok->column,
                               "func is not allowed in #program mode");
     }
 
@@ -1949,13 +1950,13 @@ static int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
     if (*index >= line_count || tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
         tc_func_def_fail(&def);
         tc_stmt_block_free(&body);
-        return tc_indent_diag(diag, TC_ERR_MISSING_END, func_line->line_no,
+        return tc_indent_diag(diag, TC_CE_MISSING_END, func_line->line_no,
                               "missing end for function definition");
     }
     if (lines[*index].indent != base_indent) {
         tc_func_def_fail(&def);
         tc_stmt_block_free(&body);
-        return tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+        return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                               "end indentation does not match function");
     }
     (*index)++;
@@ -1996,7 +1997,7 @@ static int tc_classify_top_layer(const TcSourceLine *line, TcModuleMode mode, Tc
         return 0;
     }
     if (tok->kind == TC_TOK_SELF) {
-        return tc_module_diag(diag, TC_ERR_PROGRAM_MODE_MISUSE, line->line_no, tok->column,
+        return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line->line_no, tok->column,
                               "Self is not allowed at module top level");
     }
     *layer = TC_PARSE_LAYER_EXEC;
@@ -2019,13 +2020,13 @@ static int tc_check_layer(TcParseLayer stmt_layer, TcParseLayer *cur, int line_n
 
     if (stmt_layer == TC_PARSE_LAYER_IMPORT) {
         if (*cur > TC_PARSE_LAYER_IMPORT) {
-            return tc_module_diag(diag, TC_ERR_MODULE_LAYER, line_no, TC_COLUMN_UNKNOWN,
+            return tc_module_diag(diag, TC_CE_MODULE_LAYER, line_no, TC_COLUMN_UNKNOWN,
                                   "import must appear before other declarations");
         }
         return 0;
     }
     if (norm_stmt < norm_cur) {
-        return tc_module_diag(diag, TC_ERR_MODULE_LAYER, line_no, TC_COLUMN_UNKNOWN,
+        return tc_module_diag(diag, TC_CE_MODULE_LAYER, line_no, TC_COLUMN_UNKNOWN,
                               "declaration out of module layer order");
     }
     if (stmt_layer > *cur) {
@@ -2357,7 +2358,7 @@ static int tc_measure_line_indent(const char *line, TcFileIndent *file_indent, i
     }
 
     if (spaces > 0 && tabs > 0) {
-        return tc_indent_diag(diag, TC_ERR_INDENT_MIXED, line_no,
+        return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
                               "mixed spaces and tabs in indentation");
     }
 
@@ -2365,7 +2366,7 @@ static int tc_measure_line_indent(const char *line, TcFileIndent *file_indent, i
         if (file_indent->indent_char == '\0') {
             file_indent->indent_char = ' ';
         } else if (file_indent->indent_char != ' ') {
-            return tc_indent_diag(diag, TC_ERR_INDENT_MIXED, line_no,
+            return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
                                   "mixed spaces and tabs in indentation");
         }
         *out_indent = spaces;
@@ -2377,7 +2378,7 @@ static int tc_measure_line_indent(const char *line, TcFileIndent *file_indent, i
             file_indent->indent_char = '\t';
             file_indent->indent_width = 1;
         } else if (file_indent->indent_char != '\t') {
-            return tc_indent_diag(diag, TC_ERR_INDENT_MIXED, line_no,
+            return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
                                   "mixed spaces and tabs in indentation");
         }
         *out_indent = tabs;
@@ -2437,7 +2438,7 @@ static int tc_block_indent_valid(const TcFileIndent *file_indent, int base_inden
     delta = indent - base_indent;
     if (file_indent->indent_char == '\t') {
         if (delta < file_indent->indent_width) {
-            return tc_indent_diag(diag, TC_ERR_INDENT_INSUFFICIENT, line_no,
+            return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
                                   "insufficient indentation in block");
         }
         return 0;
@@ -2446,7 +2447,7 @@ static int tc_block_indent_valid(const TcFileIndent *file_indent, int base_inden
     if (file_indent->indent_char == '\0' || file_indent->indent_char == ' ') {
         if (delta < file_indent->indent_width ||
             (delta % file_indent->indent_width) != 0) {
-            return tc_indent_diag(diag, TC_ERR_INDENT_INSUFFICIENT, line_no,
+            return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
                                   "insufficient indentation in block");
         }
         return 0;
@@ -2517,11 +2518,11 @@ static int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_
 
         first_kind = tc_first_token_kind(line);
         if (first_kind == TC_TOK_ELSE) {
-            return tc_indent_diag(diag, TC_ERR_ELSE_POSITION, line->line_no,
+            return tc_indent_diag(diag, TC_CE_ELSE_POSITION, line->line_no,
                                   "else must appear at same indentation as if");
         }
         if (first_kind == TC_TOK_END) {
-            return tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, line->line_no,
+            return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no,
                                   "end indentation does not match if");
         }
 
@@ -2603,13 +2604,13 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
     }
 
     if (*index >= line_count) {
-        tc_indent_diag(diag, TC_ERR_MISSING_END, if_line->line_no, "missing end for if statement");
+        tc_indent_diag(diag, TC_CE_MISSING_END, if_line->line_no, "missing end for if statement");
         goto fail;
     }
 
     if (tc_first_token_kind(&lines[*index]) == TC_TOK_ELSE) {
         if (lines[*index].indent != base_indent) {
-            tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+            tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                            "else indentation does not match if");
             goto fail;
         }
@@ -2621,16 +2622,16 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
     }
 
     if (*index >= line_count) {
-        tc_indent_diag(diag, TC_ERR_MISSING_END, if_line->line_no, "missing end for if statement");
+        tc_indent_diag(diag, TC_CE_MISSING_END, if_line->line_no, "missing end for if statement");
         goto fail;
     }
 
     if (tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
-        tc_indent_diag(diag, TC_ERR_MISSING_END, if_line->line_no, "missing end for if statement");
+        tc_indent_diag(diag, TC_CE_MISSING_END, if_line->line_no, "missing end for if statement");
         goto fail;
     }
     if (lines[*index].indent != base_indent) {
-        tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+        tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                         "end indentation does not match if");
         goto fail;
     }
@@ -2696,12 +2697,12 @@ int tc_parse_while_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count
         goto fail;
     }
     if (*index >= line_count || tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
-        tc_indent_diag(diag, TC_ERR_MISSING_END, while_line->line_no,
+        tc_indent_diag(diag, TC_CE_MISSING_END, while_line->line_no,
                        "missing end for while statement");
         goto fail;
     }
     if (lines[*index].indent != base_indent) {
-        tc_indent_diag(diag, TC_ERR_INDENT_ELSE_END, lines[*index].line_no,
+        tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                        "end indentation does not match while");
         goto fail;
     }
@@ -2866,7 +2867,7 @@ static int tc_parse_module_body(TcParserCtx *ctx, TcSourceLine *lines, size_t li
                     return -1;
                 }
             } else {
-                return tc_module_diag(diag, TC_ERR_PROGRAM_MODE_MISUSE, line->line_no,
+                return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line->line_no,
                                       first->column, "invalid use of visibility modifier");
             }
             index++;

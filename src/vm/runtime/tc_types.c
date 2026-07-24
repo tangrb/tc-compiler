@@ -9,6 +9,7 @@
  */
 #include "tc_types.h"
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -450,36 +451,89 @@ const char *tc_shift_op_name(TcShiftOp op) {
     return "unknown";
 }
 
-int tc_format_spec_parse(const char *text, TcFormatSpec *out) {
-    if (strcmp(text, "%d") == 0) {
-        *out = TC_FMT_D;
-    } else if (strcmp(text, "%i") == 0) {
-        *out = TC_FMT_I;
-    } else if (strcmp(text, "%u") == 0) {
-        *out = TC_FMT_U;
-    } else if (strcmp(text, "%x") == 0) {
-        *out = TC_FMT_X;
-    } else if (strcmp(text, "%X") == 0) {
-        *out = TC_FMT_XU;
-    } else if (strcmp(text, "%o") == 0) {
-        *out = TC_FMT_O;
-    } else if (strcmp(text, "%b") == 0) {
-        *out = TC_FMT_B;
-    } else if (strcmp(text, "%t") == 0) {
-        *out = TC_FMT_T;
-    } else if (strcmp(text, "%f") == 0) {
-        *out = TC_FMT_F;
-    } else if (strcmp(text, "%e") == 0) {
-        *out = TC_FMT_E;
-    } else if (strcmp(text, "%E") == 0) {
-        *out = TC_FMT_EU;
-    } else if (strcmp(text, "%g") == 0) {
-        *out = TC_FMT_G;
-    } else if (strcmp(text, "%G") == 0) {
-        *out = TC_FMT_GU;
-    } else {
+int tc_format_spec_parse(const char *text, TcFormatFullSpec *out) {
+    const char *p;
+
+    if (!text || !out) {
         return 0;
     }
+    memset(out, 0, sizeof(*out));
+    out->spec = TC_FMT_NONE;
+
+    if (text[0] != '%') {
+        return 0;
+    }
+    p = text + 1;
+
+    /* 标志字符：- + # 0，逐个读取，重复 → 非法 */
+    for (;;) {
+        char c = *p;
+        if (c == '-') {
+            if (out->flag_minus) return 0;
+            out->flag_minus = 1;
+        } else if (c == '+') {
+            if (out->flag_plus) return 0;
+            out->flag_plus = 1;
+        } else if (c == '#') {
+            if (out->flag_hash) return 0;
+            out->flag_hash = 1;
+        } else if (c == '0') {
+            if (out->flag_zero) return 0;
+            out->flag_zero = 1;
+        } else {
+            break;
+        }
+        p++;
+    }
+
+    /* 宽度：1–65535，前导不可为 0 */
+    if (isdigit((unsigned char)*p) && *p != '0') {
+        int w = 0;
+        while (isdigit((unsigned char)*p)) {
+            w = w * 10 + (*p - '0');
+            if (w > 65535) return 0;
+            p++;
+        }
+        out->width = w;
+    }
+
+    /* 精度：.N */
+    if (*p == '.') {
+        p++;
+        {
+            int prec = 0;
+            while (isdigit((unsigned char)*p)) {
+                prec = prec * 10 + (*p - '0');
+                if (prec > 65535) return 0;
+                p++;
+            }
+            out->precision_set = 1;
+            out->precision = prec;
+        }
+    }
+
+    /* 转换字符 */
+    switch (*p) {
+    case 'd': out->spec = TC_FMT_D; break;
+    case 'i': out->spec = TC_FMT_I; break;
+    case 'u': out->spec = TC_FMT_U; break;
+    case 'x': out->spec = TC_FMT_X; break;
+    case 'X': out->spec = TC_FMT_XU; break;
+    case 'o': out->spec = TC_FMT_O; break;
+    case 'b': out->spec = TC_FMT_B; break;
+    case 't': out->spec = TC_FMT_T; break;
+    case 'f': out->spec = TC_FMT_F; break;
+    case 'e': out->spec = TC_FMT_E; break;
+    case 'E': out->spec = TC_FMT_EU; break;
+    case 'g': out->spec = TC_FMT_G; break;
+    case 'G': out->spec = TC_FMT_GU; break;
+    default:  return 0;
+    }
+    p++;
+
+    /* 不允许尾随字符 */
+    if (*p != '\0') return 0;
+
     return 1;
 }
 
@@ -518,187 +572,187 @@ const char *tc_format_spec_name(TcFormatSpec fmt) {
 
 const char *tc_error_kind_name(TcErrorKind kind) {
     switch (kind) {
-    case TC_ERR_SYNTAX:
+    case TC_CE_SYNTAX:
         return "SyntaxError";
-    case TC_ERR_UNDEFINED_VARIABLE:
+    case TC_CE_UNDEFINED_VARIABLE:
         return "UndefinedVariable";
-    case TC_ERR_DUPLICATE_DEFINITION:
+    case TC_CE_DUPLICATE_DEFINITION:
         return "DuplicateDefinition";
-    case TC_ERR_TYPE_MISMATCH:
+    case TC_CE_TYPE_MISMATCH:
         return "TypeMismatch";
-    case TC_ERR_LITERAL_OUT_OF_RANGE:
+    case TC_CE_LITERAL_OUT_OF_RANGE:
         return "LiteralOutOfRange";
-    case TC_ERR_LITERAL_TYPE:
+    case TC_CE_LITERAL_TYPE:
         return "LiteralTypeError";
-    case TC_ERR_KEYWORD:
+    case TC_CE_KEYWORD:
         return "KeywordError";
-    case TC_ERR_CONSTANT_ASSIGNMENT:
+    case TC_CE_CONSTANT_ASSIGNMENT:
         return "ConstantAssignmentError";
-    case TC_ERR_CONSTANT_EXPRESSION:
+    case TC_CE_CONSTANT_EXPRESSION:
         return "ConstantExpressionError";
-    case TC_ERR_CONSTANT_OVERFLOW:
+    case TC_CE_CONSTANT_OVERFLOW:
         return "ConstantOverflow";
-    case TC_ERR_CONSTANT_DIV_ZERO:
+    case TC_CE_CONSTANT_DIV_ZERO:
         return "ConstantDivisionByZero";
-    case TC_ERR_CONSTANT_CAST_OVERFLOW:
+    case TC_CE_CONSTANT_CAST_OVERFLOW:
         return "ConstantCastOverflow";
-    case TC_ERR_COMPARISON_TYPE_MISMATCH:
+    case TC_CE_COMPARISON_TYPE_MISMATCH:
         return "ComparisonTypeMismatch";
-    case TC_ERR_FORMAT_STRING:
+    case TC_CE_FORMAT_STRING:
         return "FormatStringError";
-    case TC_ERR_FORMAT_TYPE_MISMATCH:
+    case TC_CE_FORMAT_TYPE_MISMATCH:
         return "FormatTypeMismatch";
-    case TC_ERR_OPERAND_COUNT:
+    case TC_CE_OPERAND_COUNT:
         return "OperandCountError";
-    case TC_ERR_DIVISION_BY_ZERO:
+    case TC_RE_DIVISION_BY_ZERO:
         return "DivisionByZero";
-    case TC_ERR_INTEGER_OVERFLOW:
+    case TC_RE_INTEGER_OVERFLOW:
         return "IntegerOverflow";
-    case TC_ERR_CAST_OVERFLOW:
+    case TC_RE_CAST_OVERFLOW:
         return "CastOverflow";
-    case TC_ERR_IO:
+    case TC_RE_IO:
         return "IOError";
     case TC_ERR_OUT_OF_MEMORY:
         return "OutOfMemory";
-    case TC_ERR_INDENT_MIXED:
+    case TC_CE_INDENT_MIXED:
         return "IndentMixedError";
-    case TC_ERR_INDENT_INSUFFICIENT:
+    case TC_CE_INDENT_INSUFFICIENT:
         return "IndentInsufficientError";
-    case TC_ERR_INDENT_ELSE_END:
+    case TC_CE_INDENT_ELSE_END:
         return "IndentElseEndError";
-    case TC_ERR_MISSING_END:
+    case TC_CE_MISSING_END:
         return "MissingEndError";
-    case TC_ERR_ELSE_POSITION:
+    case TC_CE_ELSE_POSITION:
         return "ElsePositionError";
-    case TC_ERR_CONDITION_TYPE:
+    case TC_CE_CONDITION_TYPE:
         return "ConditionTypeError";
-    case TC_ERR_FLOAT_OVERFLOW:
+    case TC_RE_FLOAT_OVERFLOW:
         return "FloatOverflow";
-    case TC_ERR_FLOAT_UNDERFLOW:
+    case TC_RE_FLOAT_UNDERFLOW:
         return "FloatUnderflow";
-    case TC_ERR_FLOAT_INVALID:
+    case TC_RE_FLOAT_INVALID:
         return "FloatInvalidOperation";
-    case TC_ERR_MODE_MISMATCH:
+    case TC_CE_MODE_MISMATCH:
         return "ModeMismatch";
-    case TC_ERR_UNINITIALIZED_VARIABLE:
+    case TC_CE_UNINITIALIZED_VARIABLE:
         return "UninitializedVariable";
-    case TC_ERR_LABEL_NOT_FOUND:
+    case TC_CE_LABEL_NOT_FOUND:
         return "LabelNotFound";
-    case TC_ERR_DUPLICATE_LABEL:
+    case TC_CE_DUPLICATE_LABEL:
         return "DuplicateLabel";
-    case TC_ERR_JUMP_INTO_BLOCK:
+    case TC_CE_JUMP_INTO_BLOCK:
         return "JumpIntoBlockError";
-    case TC_ERR_JUMP_TO_SIBLING_BLOCK:
+    case TC_CE_JUMP_TO_SIBLING_BLOCK:
         return "JumpToSiblingBlockError";
-    case TC_ERR_VAR_MISSING_INIT:
+    case TC_CE_VAR_MISSING_INIT:
         return "VarMissingInitializer";
-    case TC_ERR_BITCAST_WIDTH:
+    case TC_CE_BITCAST_WIDTH:
         return "BitcastWidthError";
-    case TC_ERR_LABEL_INSIDE_LOOP:
+    case TC_CE_LABEL_INSIDE_LOOP:
         return "LabelInsideLoop";
-    case TC_ERR_GOTO_INSIDE_LOOP:
+    case TC_CE_GOTO_INSIDE_LOOP:
         return "GotoInsideLoop";
-    case TC_ERR_BREAK_OUTSIDE_LOOP:
+    case TC_CE_BREAK_OUTSIDE_LOOP:
         return "BreakOutsideLoop";
-    case TC_ERR_CONTINUE_OUTSIDE_LOOP:
+    case TC_CE_CONTINUE_OUTSIDE_LOOP:
         return "ContinueOutsideLoop";
-    case TC_ERR_GOTO_OUTSIDE_FUNCTION:
+    case TC_CE_GOTO_OUTSIDE_FUNCTION:
         return "GotoOutsideFunction";
-    case TC_ERR_LABEL_OUTSIDE_FUNCTION:
+    case TC_CE_LABEL_OUTSIDE_FUNCTION:
         return "LabelOutsideFunction";
-    case TC_ERR_JUMP_INCOMPATIBLE_BLOCK:
+    case TC_CE_JUMP_INCOMPATIBLE_BLOCK:
         return "JumpIncompatibleBlockError";
-    case TC_ERR_NEGATIVE_SHIFT_COUNT:
+    case TC_RE_NEGATIVE_SHIFT_COUNT:
         return "NegativeShiftCount";
-    case TC_ERR_FORMAT_SPECIFIER:
+    case TC_CE_FORMAT_SPECIFIER:
         return "FormatSpecifierError";
-    case TC_ERR_DUPLICATE_FUNCTION:
+    case TC_CE_DUPLICATE_FUNCTION:
         return "DuplicateFunction";
-    case TC_ERR_FUNCTION_NAME_CONFLICT:
+    case TC_CE_FUNCTION_NAME_CONFLICT:
         return "FunctionNameConflict";
-    case TC_ERR_UNDEFINED_FUNCTION:
+    case TC_CE_UNDEFINED_FUNCTION:
         return "UndefinedFunction";
-    case TC_ERR_DUPLICATE_PARAMETER:
+    case TC_CE_DUPLICATE_PARAMETER:
         return "DuplicateParameter";
-    case TC_ERR_MISSING_ARGUMENT:
+    case TC_CE_MISSING_ARGUMENT:
         return "MissingArgument";
-    case TC_ERR_DUPLICATE_ARGUMENT:
+    case TC_CE_DUPLICATE_ARGUMENT:
         return "DuplicateArgument";
-    case TC_ERR_UNKNOWN_ARGUMENT:
+    case TC_CE_UNKNOWN_ARGUMENT:
         return "UnknownArgument";
-    case TC_ERR_ARGUMENT_ORDER:
+    case TC_CE_ARGUMENT_ORDER:
         return "ArgumentOrderError";
-    case TC_ERR_ARGUMENT_TYPE:
+    case TC_CE_ARGUMENT_TYPE:
         return "ArgumentTypeError";
-    case TC_ERR_FUNCALL_POSITION:
+    case TC_CE_FUNCALL_POSITION:
         return "FunctionCallPositionError";
-    case TC_ERR_FUNCALL_RESULT_TYPE:
+    case TC_CE_FUNCALL_RESULT_TYPE:
         return "FunctionCallResultTypeError";
-    case TC_ERR_RETURN_OUTSIDE_FUNCTION:
+    case TC_CE_RETURN_OUTSIDE_FUNCTION:
         return "ReturnOutsideFunction";
-    case TC_ERR_RETURN_FORM:
+    case TC_CE_RETURN_FORM:
         return "ReturnFormError";
-    case TC_ERR_RETURN_TYPE:
+    case TC_CE_RETURN_TYPE:
         return "ReturnTypeError";
-    case TC_ERR_MISSING_RETURN:
+    case TC_CE_MISSING_RETURN:
         return "MissingReturn";
-    case TC_ERR_UNREACHABLE_STATEMENT:
+    case TC_CE_UNREACHABLE_STATEMENT:
         return "UnreachableStatement";
-    case TC_ERR_PARAMETER_ASSIGNMENT:
+    case TC_CE_PARAMETER_ASSIGNMENT:
         return "ParameterAssignmentError";
-    case TC_ERR_FUNCTION_SCOPE_ACCESS:
+    case TC_CE_FUNCTION_SCOPE_ACCESS:
         return "FunctionScopeAccessError";
-    case TC_ERR_CROSS_CONTROL_FLOW_JUMP:
+    case TC_CE_CROSS_CONTROL_FLOW_JUMP:
         return "CrossControlFlowJumpError";
-    case TC_ERR_RECURSION:
+    case TC_CE_RECURSION:
         return "RecursionError";
-    case TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE:
-    case TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT:
+    case TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE:
+    case TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE:
         return "MemblockIndexOutOfRange";
-    case TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH:
+    case TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH:
         return "MemblockElementCountMismatch";
-    case TC_ERR_MEMBLOCK_SIZE_MISMATCH:
+    case TC_CE_MEMBLOCK_SIZE_MISMATCH:
         return "MemblockSizeMismatch";
-    case TC_ERR_STRUCT_MISSING_FIELD:
+    case TC_CE_STRUCT_MISSING_FIELD:
         return "StructMissingField";
-    case TC_ERR_STRUCT_UNKNOWN_FIELD:
+    case TC_CE_STRUCT_UNKNOWN_FIELD:
         return "StructUnknownField";
-    case TC_ERR_STRUCT_DUPLICATE_FIELD:
+    case TC_CE_STRUCT_DUPLICATE_FIELD:
         return "StructDuplicateField";
-    case TC_ERR_STRUCT_FIELD_ORDER:
+    case TC_CE_STRUCT_FIELD_ORDER:
         return "StructFieldOrderError";
-    case TC_ERR_STRUCT_IMMUTABLE_FIELD:
+    case TC_CE_STRUCT_IMMUTABLE_FIELD:
         return "StructImmutableFieldError";
-    case TC_ERR_DUPLICATE_STRUCT:
+    case TC_CE_DUPLICATE_STRUCT:
         return "DuplicateStruct";
-    case TC_ERR_UNDEFINED_STRUCT:
+    case TC_CE_UNDEFINED_STRUCT:
         return "UndefinedStruct";
-    case TC_ERR_MODULE_LAYER:
+    case TC_CE_MODULE_LAYER:
         return "ModuleLayerError";
-    case TC_ERR_MISSING_VISIBILITY:
+    case TC_CE_MISSING_VISIBILITY:
         return "MissingVisibilityError";
-    case TC_ERR_PROGRAM_MODE_MISUSE:
+    case TC_CE_PROGRAM_MODE_MISUSE:
         return "ProgramModeMisuseError";
-    case TC_ERR_IMPORT_NOT_FOUND:
+    case TC_CE_IMPORT_NOT_FOUND:
         return "ImportNotFound";
-    case TC_ERR_IMPORT_NOT_LIB:
+    case TC_CE_IMPORT_NOT_LIB:
         return "ImportNotLib";
-    case TC_ERR_IMPORT_AMBIGUOUS:
+    case TC_CE_IMPORT_AMBIGUOUS:
         return "ImportAmbiguous";
-    case TC_ERR_DUPLICATE_IMPORT:
+    case TC_CE_DUPLICATE_IMPORT:
         return "DuplicateImport";
-    case TC_ERR_IMPORT_NAME_CONFLICT:
+    case TC_CE_IMPORT_NAME_CONFLICT:
         return "ImportNameConflict";
-    case TC_ERR_CIRCULAR_IMPORT:
+    case TC_CE_CIRCULAR_IMPORT:
         return "CircularImport";
-    case TC_ERR_PRIVATE_MEMBER_ACCESS:
+    case TC_CE_PRIVATE_MEMBER_ACCESS:
         return "PrivateMemberAccessError";
-    case TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE:
-    case TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT:
+    case TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE:
+    case TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE:
         return "MemcopyUnsafeInvalidRange";
-    case TC_ERR_NULL_POINTER_DEREFERENCE:
+    case TC_RE_NULL_POINTER_DEREFERENCE:
         return "NullPointerDereference";
-    case TC_ERR_NULL_POINTER_ARITHMETIC:
+    case TC_RE_NULL_POINTER_ARITHMETIC:
         return "NullPointerArithmetic";
     }
     return "UnknownError";

@@ -89,7 +89,7 @@ typedef struct {
         TcLogicOp logic_op;
         TcBitwiseOp bitwise_op;
         TcShiftOp shift_op;
-        TcFormatSpec format_spec;
+        TcFormatFullSpec format_spec;
         TcLiteral literal;
     } u;
 } TcToken;

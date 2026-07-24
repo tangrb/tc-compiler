@@ -126,7 +126,7 @@ static void test_goto_outside_function_rejected(void) {
     tc_diagnostic_init(&diag);
     check(tc_compile_source(source, "<test>", &typed, &diag) != 0,
           "top-level goto rejected at compile time");
-    check(diag.kind == TC_ERR_GOTO_OUTSIDE_FUNCTION, "→ GOTO_OUTSIDE_FUNCTION");
+    check(diag.kind == TC_CE_GOTO_OUTSIDE_FUNCTION, "→ GOTO_OUTSIDE_FUNCTION");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }

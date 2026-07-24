@@ -2,7 +2,7 @@
  * tc_sem_cast.c — 共享数值转换语义（基于规范化 TcValue 位模式）
  *
  * Analyzer / const_eval / Executor / AOT 均委托此处，保证 strict/truncate 行为一致。
- * 覆盖整数↔整数、整数↔浮点、浮点↔浮点；溢出走 TC_ERR_CAST_OVERFLOW。
+ * 覆盖整数↔整数、整数↔浮点、浮点↔浮点；溢出走 TC_RE_CAST_OVERFLOW。
  */
 #include "tc_sem_cast.h"
 
@@ -16,7 +16,7 @@
 #include <math.h>
 
 static int tc_cast_overflow(TcDiagnostic *diag, int line) {
-    tc_diagnostic_set(diag, TC_ERR_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+    tc_diagnostic_set(diag, TC_RE_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                       "cast result out of range for target type");
     return -1;
 }
@@ -181,7 +181,7 @@ int tc_exec_cast(TcTypeKind target, const TcValue *source, TcValue *out,
         return 0;
     }
 
-    tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+    tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                       "incompatible cast types");
     return -1;
 }
@@ -190,7 +190,7 @@ int tc_exec_truncate(TcTypeKind target, const TcValue *source, TcValue *out,
                      TcDiagnostic *diag, int line) {
     if (!tc_type_is_integer(source->type) || !tc_type_is_integer(target) ||
         tc_type_bit_width(target) >= tc_type_bit_width(source->type)) {
-        tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "truncate requires an integer target narrower than the source");
         return -1;
     }
@@ -206,12 +206,12 @@ int tc_exec_bitcast(TcTypeKind target, const TcValue *source, TcValue *out,
     if (tc_type_is_bool(target) || tc_type_is_bool(source->type) ||
         (!tc_type_is_integer(target) && !tc_type_is_float(target)) ||
         (!tc_type_is_integer(source->type) && !tc_type_is_float(source->type))) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "bitcast requires non-bool integer or float types");
         return -1;
     }
     if (target_width != source_width) {
-        tc_diagnostic_set(diag, TC_ERR_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
                           "bitcast source and target widths must match");
         return -1;
     }

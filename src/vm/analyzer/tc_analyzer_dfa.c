@@ -131,7 +131,7 @@ static int tc_variable_is_initialized_before(const TcInitHistory *hist, const Tc
 }
 
 /*
- * @brief 读取未初始化变量 → TC_ERR_UNINITIALIZED_VARIABLE
+ * @brief 读取未初始化变量 → TC_CE_UNINITIALIZED_VARIABLE
  */
 int tc_check_operand_init(TcInitHistory *hist, const TcSymbol *sym, size_t stmt_index,
                                  int line, TcDiagnostic *diag) {
@@ -155,7 +155,7 @@ int tc_check_operand_init(TcInitHistory *hist, const TcSymbol *sym, size_t stmt_
         return 0;
     }
     (void)snprintf(msg, sizeof(msg), "use of uninitialized variable '%s'", sym->name);
-    tc_diagnostic_set(diag, TC_ERR_UNINITIALIZED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+    tc_diagnostic_set(diag, TC_CE_UNINITIALIZED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
     return -1;
 }
 

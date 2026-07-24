@@ -62,13 +62,13 @@ static int tc_struct_validate_field_type(const char *struct_name, const TcStruct
     char msg[160];
 
     if (field->type.kind == TC_VOID) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "struct field type cannot be void");
         return -1;
     }
     if (field->struct_type_name &&
         strcmp(field->struct_type_name, struct_name) == 0) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "struct field cannot have the same type as enclosing struct");
         return -1;
     }
@@ -81,13 +81,13 @@ static int tc_struct_validate_field_type(const char *struct_name, const TcStruct
         if (sid >= 0 && sid >= self_id) {
             (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
                            field->name ? field->name : "");
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (sid < 0 && !field->struct_type_name) {
             (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
                            field->name ? field->name : "");
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
     }
@@ -95,14 +95,14 @@ static int tc_struct_validate_field_type(const char *struct_name, const TcStruct
         const TcStructEntry *nested = tc_struct_table_find(table, field->struct_type_name);
         if (!nested) {
             (void)snprintf(msg, sizeof(msg), "undefined struct '%s'", field->struct_type_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (nested->struct_id >= self_id) {
             (void)snprintf(msg, sizeof(msg),
                            "struct field type '%s' must refer to an earlier struct definition",
                            field->struct_type_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
     }
@@ -121,7 +121,7 @@ static int tc_struct_resolve_type(TcType *type, char **struct_type_name, const T
         const TcStructEntry *entry = tc_struct_table_find(table, *struct_type_name);
         if (!entry) {
             (void)snprintf(msg, sizeof(msg), "undefined struct '%s'", *struct_type_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         tc_type_free(type);
@@ -286,7 +286,7 @@ int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char 
 
     entry = tc_struct_table_get(table, struct_id);
     if (!entry || !fields || field_count == 0) {
-        tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
                           "undefined struct type for field path");
         return -1;
     }
@@ -298,7 +298,7 @@ int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char 
 
         entry = tc_struct_table_get(table, cursor_sid);
         if (!entry) {
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
                               "undefined struct type for field path");
             return -1;
         }
@@ -312,14 +312,14 @@ int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char 
         if (!field) {
             char msg[128];
             (void)snprintf(msg, sizeof(msg), "unknown struct field '%s'", fields[i]);
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         bit_off += before;
         final_type = &field->type;
         if (i + 1 < field_count) {
             if (field->type.kind != TC_STRUCT) {
-                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "field path requires struct base");
                 return -1;
             }
@@ -361,11 +361,11 @@ int tc_struct_table_register_program(TcProgram *program, TcStructTable *table,
         def = &stmt->u.struct_def;
         if (tc_struct_table_find(table, def->name)) {
             (void)snprintf(msg, sizeof(msg), "duplicate struct definition '%s'", def->name);
-            tc_diagnostic_set(diag, TC_ERR_DUPLICATE_STRUCT, def->line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_DUPLICATE_STRUCT, def->line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (def->field_count == 0) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, def->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, def->line, TC_COLUMN_UNKNOWN,
                               "struct must have at least one field");
             return -1;
         }
@@ -485,12 +485,12 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
     (void)warnings;
     /* 目标必须是 struct，且构造器名解析出的 id 与期望一致 */
     if (!expected || expected->kind != TC_STRUCT) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "struct constructor requires struct destination type");
         return -1;
     }
     if (rhs->kind != TC_RHS_STRUCT_CONSTRUCTOR) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "expected struct constructor expression");
         return -1;
     }
@@ -498,11 +498,11 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
     if (!def) {
         (void)snprintf(msg, sizeof(msg), "undefined struct '%s'",
                        rhs->u.struct_ctor.struct_name);
-        tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
         return -1;
     }
     if (def->struct_id != expected->params.struct_type.struct_id) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "struct constructor type does not match destination");
         return -1;
     }
@@ -518,7 +518,7 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
         if (!found) {
             (void)snprintf(msg, sizeof(msg), "missing field '%s' in struct constructor",
                            def->fields[i].name);
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_MISSING_FIELD, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_STRUCT_MISSING_FIELD, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
     }
@@ -530,13 +530,13 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
 
         if (!field_def) {
             (void)snprintf(msg, sizeof(msg), "unknown struct field '%s'", pname);
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         for (j = 0; j < i; j++) {
             if (strcmp(rhs->u.struct_ctor.fields[j].param_name, pname) == 0) {
                 (void)snprintf(msg, sizeof(msg), "duplicate struct field '%s'", pname);
-                tc_diagnostic_set(diag, TC_ERR_STRUCT_DUPLICATE_FIELD, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_STRUCT_DUPLICATE_FIELD, line, TC_COLUMN_UNKNOWN,
                                   msg);
                 return -1;
             }
@@ -548,7 +548,7 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
             }
         }
         if (i != expected_index) {
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_FIELD_ORDER, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_STRUCT_FIELD_ORDER, line, TC_COLUMN_UNKNOWN,
                               "struct constructor fields must follow declaration order");
             return -1;
         }
@@ -561,7 +561,7 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
             }
         } else if (tc_check_operand((TcOperand *)&rhs->u.struct_ctor.fields[i].value_op,
                                     field_def->type.kind, visible, global, hist, stmt_index, line,
-                                    diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+                                    diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
     }
@@ -582,7 +582,7 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
     (void)hist;
     (void)self_name;
     if (rhs->kind != TC_RHS_FIELD_READ || rhs->u.field_read.field_count == 0) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
                           "invalid struct field read");
         return -1;
     }
@@ -592,7 +592,7 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
         return -1;
     }
     if (base_sym->type != TC_STRUCT) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "field read requires struct base");
         return -1;
     }
@@ -602,7 +602,7 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
         const TcStructField *field = NULL;
 
         if (cursor_type->kind != TC_STRUCT) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "field read requires struct base");
             return -1;
         }
@@ -611,7 +611,7 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
                       ? &table->items[(size_t)cursor_type->params.struct_type.struct_id]
                       : NULL;
         if (!cur_def) {
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
                               "undefined struct type for field read");
             return -1;
         }
@@ -620,13 +620,13 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
             char msg[128];
             (void)snprintf(msg, sizeof(msg), "unknown struct field '%s'",
                            rhs->u.field_read.fields[i]);
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         cursor_type = &field->type;
     }
     if (expected && !tc_type_equals(cursor_type, expected)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "field read result type does not match expected type");
         return -1;
     }
@@ -650,18 +650,18 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
         return -1;
     }
     if (base_sym->sym_kind == TC_SYM_CONSTANT || base_sym->sym_kind == TC_SYM_STATIC_LET) {
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_ASSIGNMENT, assign->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, assign->line, TC_COLUMN_UNKNOWN,
                           "cannot assign to constant binding");
         return -1;
     }
     if (base_sym->sym_kind == TC_SYM_PARAMETER ||
         base_sym->slot_domain == TC_SLOT_PARAM) {
-        tc_diagnostic_set(diag, TC_ERR_PARAMETER_ASSIGNMENT, assign->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_PARAMETER_ASSIGNMENT, assign->line, TC_COLUMN_UNKNOWN,
                           "cannot assign to function parameter");
         return -1;
     }
     if (base_sym->type != TC_STRUCT) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
                           "field assignment requires struct base");
         return -1;
     }
@@ -670,7 +670,7 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
         const TcStructEntry *cur_def = NULL;
 
         if (cursor_type->kind != TC_STRUCT) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
                               "field assignment requires struct base");
             return -1;
         }
@@ -679,21 +679,21 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
                       ? &table->items[(size_t)cursor_type->params.struct_type.struct_id]
                       : NULL;
         if (!cur_def) {
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, assign->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, assign->line, TC_COLUMN_UNKNOWN,
                               "undefined struct type for field assignment");
             return -1;
         }
         field = tc_struct_find_field(cur_def, assign->fields[i]);
         if (!field) {
             (void)snprintf(msg, sizeof(msg), "unknown struct field '%s'", assign->fields[i]);
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_UNKNOWN_FIELD, assign->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_STRUCT_UNKNOWN_FIELD, assign->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
         }
         if (!field->is_var) {
             (void)snprintf(msg, sizeof(msg), "cannot assign to immutable struct field '%s'",
                            field->name);
-            tc_diagnostic_set(diag, TC_ERR_STRUCT_IMMUTABLE_FIELD, assign->line,
+            tc_diagnostic_set(diag, TC_CE_STRUCT_IMMUTABLE_FIELD, assign->line,
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }

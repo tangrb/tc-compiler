@@ -149,7 +149,7 @@ static void test_analyze_let_nested_call_error(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "nested let call is rejected while parsing");
-    check(diag.kind == TC_ERR_CONSTANT_EXPRESSION,
+    check(diag.kind == TC_CE_CONSTANT_EXPRESSION,
           "nested let call uses constant-expression error");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
@@ -164,30 +164,30 @@ static void test_analyze_let_reference_errors(void) {
         {
             "#program\nvar runtime: int32 = 1\n"
             "let BAD: int32 = add(int32, runtime, 1)\n",
-            TC_ERR_CONSTANT_EXPRESSION,
+            TC_CE_CONSTANT_EXPRESSION,
             "#program\nlet rejects var reference",
         },
         {
             "#program\nvar runtime: int64 = 1\n"
             "let BAD: int32 = cast(int32, runtime)\n",
-            TC_ERR_CONSTANT_EXPRESSION,
+            TC_CE_CONSTANT_EXPRESSION,
             "#program\nlet cast rejects var reference",
         },
         {
             "#program\nvar runtime: uint32 = 0x3F800000u\n"
             "let BAD: float32 = bitcast(float32, runtime)\n",
-            TC_ERR_CONSTANT_EXPRESSION,
+            TC_CE_CONSTANT_EXPRESSION,
             "#program\nlet bitcast rejects var reference",
         },
         {
             "#program\nlet SELF: int32 = SELF\n",
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "#program\nlet self-reference is undefined by source order",
         },
         {
             "#program\nlet FIRST: int32 = add(int32, LATER, 1)\n"
             "let LATER: int32 = 1\n",
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "#program\nlet forward reference is undefined by source order",
         },
     };
@@ -255,36 +255,36 @@ static void test_analyze_short_circuit_still_validates_rhs(void) {
     } cases[] = {
         {
             "#program\nlet BAD: bool = and(bool, false, missing)\n",
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "and false still validates missing rhs",
         },
         {
             "#program\nlet BAD: bool = or(bool, true, missing)\n",
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "or true still validates missing rhs",
         },
         {
             "#program\nlet BAD: bool = and(bool, false, LATER)\n"
             "let LATER: bool = true\n",
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "and false still validates forward rhs",
         },
         {
             "#program\nlet BAD: bool = or(bool, true, LATER)\n"
             "let LATER: bool = false\n",
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "or true still validates forward rhs",
         },
         {
             "#program\nvar runtime: bool = true\n"
             "let BAD: bool = and(bool, false, runtime)\n",
-            TC_ERR_CONSTANT_EXPRESSION,
+            TC_CE_CONSTANT_EXPRESSION,
             "and false still rejects var rhs",
         },
         {
             "#program\nvar runtime: bool = false\n"
             "let BAD: bool = or(bool, true, runtime)\n",
-            TC_ERR_CONSTANT_EXPRESSION,
+            TC_CE_CONSTANT_EXPRESSION,
             "or true still rejects var rhs",
         },
     };
@@ -335,7 +335,7 @@ static void test_analyze_let_mode_matrix(void) {
               "parse forbidden mode matrix case");
         check(tc_analyze(&program, &typed, &diag) != 0,
               "reject forbidden operation/type/mode combination");
-        check(diag.kind == TC_ERR_MODE_MISMATCH,
+        check(diag.kind == TC_CE_MODE_MISMATCH,
               "forbidden combination uses mode mismatch");
         tc_typed_program_free(&typed);
         tc_diagnostic_clear(&diag);
@@ -359,7 +359,7 @@ static void test_analyze_unreachable_let_branch_still_checks_names(void) {
           "parse statically unreachable let branch");
     check(tc_analyze(&program, &typed, &diag) != 0,
           "unreachable let branch still checks names");
-    check(diag.kind == TC_ERR_UNDEFINED_VARIABLE,
+    check(diag.kind == TC_CE_UNDEFINED_VARIABLE,
           "unreachable let branch preserves undefined-variable error");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
@@ -376,25 +376,25 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "#program\nvar value: int32 = @\n"
             "writeln(int32, missing)\n",
             1,
-            TC_ERR_SYNTAX,
+            TC_CE_SYNTAX,
             "lexical error precedes later name error",
         },
         {
             "#program\nvar result: bool = and(bool, missing)\n",
             1,
-            TC_ERR_SYNTAX,
+            TC_CE_SYNTAX,
             "syntax error precedes missing operand name resolution",
         },
         {
             "#program\nvar result: bool = and(bool, 1, missing)\n",
             0,
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "name resolution precedes operand type checking in one RHS",
         },
         {
             "#program\nvar bad: float32 = add(float32, wrap, 1.0, 2.0)\n",
             0,
-            TC_ERR_MODE_MISMATCH,
+            TC_CE_MODE_MISMATCH,
             "mode legality precedes literal context typing",
         },
         {
@@ -407,7 +407,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "    return\n"
             "end\n",
             0,
-            TC_ERR_CONSTANT_DIV_ZERO,
+            TC_CE_CONSTANT_DIV_ZERO,
             "constant evaluation precedes CFG definite-init failure",
         },
         {
@@ -416,7 +416,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "    writeln(int32, missing)\n"
             "end\n",
             0,
-            TC_ERR_UNDEFINED_VARIABLE,
+            TC_CE_UNDEFINED_VARIABLE,
             "unreachable branch still reports name error before CFG",
         },
         {
@@ -426,7 +426,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "    var bad: bool = and(bool, false, number)\n"
             "end\n",
             0,
-            TC_ERR_TYPE_MISMATCH,
+            TC_CE_TYPE_MISMATCH,
             "unreachable branch still reports type error before CFG",
         },
         {
@@ -439,7 +439,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "    return\n"
             "end\n",
             0,
-            TC_ERR_UNINITIALIZED_VARIABLE,
+            TC_CE_UNINITIALIZED_VARIABLE,
             "DFA reports uninitialized read after all earlier phases pass",
         },
     };
@@ -478,13 +478,13 @@ static void test_analyze_let_runtime_error_mapping(void) {
         const char *source;
         TcErrorKind kind;
     } cases[] = {
-        {"#program\nlet BAD: int8 = add(int8, 127, 1)\n", TC_ERR_CONSTANT_OVERFLOW},
-        {"#program\nlet BAD: int32 = div(int32, 1, 0)\n", TC_ERR_CONSTANT_DIV_ZERO},
-        {"#program\nlet BAD: int8 = cast(int8, 128)\n", TC_ERR_CONSTANT_CAST_OVERFLOW},
+        {"#program\nlet BAD: int8 = add(int8, 127, 1)\n", TC_CE_CONSTANT_OVERFLOW},
+        {"#program\nlet BAD: int32 = div(int32, 1, 0)\n", TC_CE_CONSTANT_DIV_ZERO},
+        {"#program\nlet BAD: int8 = cast(int8, 128)\n", TC_CE_CONSTANT_CAST_OVERFLOW},
         {"#program\nlet BAD: float32 = div(float32, 0.0f, 0.0f)\n",
-         TC_ERR_CONSTANT_EXPRESSION},
+         TC_CE_CONSTANT_EXPRESSION},
         {"#program\nlet BAD: float32 = mul(float32, 3.4e38f, 2.0f)\n",
-         TC_ERR_CONSTANT_OVERFLOW},
+         TC_CE_CONSTANT_OVERFLOW},
     };
     size_t i = 0;
 
@@ -565,7 +565,7 @@ static void test_analyze_uninit_error(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse uninit");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze uninit fails");
-    check(diag.kind == TC_ERR_UNINITIALIZED_VARIABLE, "→ UNINITIALIZED_VARIABLE");
+    check(diag.kind == TC_CE_UNINITIALIZED_VARIABLE, "→ UNINITIALIZED_VARIABLE");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -592,7 +592,7 @@ static void test_analyze_uninit_if_merge(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse if-path uninit");
     check(tc_analyze(&program, &typed, &diag) != 0, "if-path uninit fails");
-    check(diag.kind == TC_ERR_UNINITIALIZED_VARIABLE, "if-path → UNINITIALIZED_VARIABLE");
+    check(diag.kind == TC_CE_UNINITIALIZED_VARIABLE, "if-path → UNINITIALIZED_VARIABLE");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -779,7 +779,7 @@ static void test_analyze_static_bool_operand_matrix(void) {
               "parse unavailable let condition case");
         check(tc_analyze(&program, &typed, &diag) != 0,
               "forward or invisible let condition is rejected before CFG");
-        check(diag.kind == TC_ERR_UNDEFINED_VARIABLE,
+        check(diag.kind == TC_CE_UNDEFINED_VARIABLE,
               "unavailable let condition uses name-stage diagnostic");
         tc_typed_program_free(&typed);
         tc_diagnostic_clear(&diag);
@@ -873,7 +873,7 @@ static void test_analyze_const_cyclic(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse cyclic let");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze cyclic let fails");
-    check(diag.kind == TC_ERR_UNDEFINED_VARIABLE,
+    check(diag.kind == TC_CE_UNDEFINED_VARIABLE,
           "self-reference is undefined, never ConstantCircular");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
@@ -895,7 +895,7 @@ static void test_analyze_duplicate_label(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse duplicate label");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze duplicate label fails");
-    check(diag.kind == TC_ERR_DUPLICATE_LABEL, "duplicate label → TC_ERR_DUPLICATE_LABEL");
+    check(diag.kind == TC_CE_DUPLICATE_LABEL, "duplicate label → TC_CE_DUPLICATE_LABEL");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -993,7 +993,7 @@ static void test_analyze_goto_undefined(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse undefined goto");
     check(tc_analyze(&program, &typed, &diag) != 0, "undefined goto fails");
-    check(diag.kind == TC_ERR_LABEL_NOT_FOUND, "→ LABEL_NOT_FOUND");
+    check(diag.kind == TC_CE_LABEL_NOT_FOUND, "→ LABEL_NOT_FOUND");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -1016,7 +1016,7 @@ static void test_analyze_goto_into_block(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse jump into block");
     check(tc_analyze(&program, &typed, &diag) != 0, "jump into block fails");
-    check(diag.kind == TC_ERR_JUMP_INTO_BLOCK, "→ JUMP_INTO_BLOCK");
+    check(diag.kind == TC_CE_JUMP_INTO_BLOCK, "→ JUMP_INTO_BLOCK");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -1040,7 +1040,7 @@ static void test_analyze_goto_sibling(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse sibling jump");
     check(tc_analyze(&program, &typed, &diag) != 0, "sibling jump fails");
-    check(diag.kind == TC_ERR_JUMP_TO_SIBLING_BLOCK, "→ JUMP_TO_SIBLING_BLOCK");
+    check(diag.kind == TC_CE_JUMP_TO_SIBLING_BLOCK, "→ JUMP_TO_SIBLING_BLOCK");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -1135,16 +1135,16 @@ static void test_analyze_loop_context_errors(void) {
         const char *source;
         TcErrorKind kind;
     } cases[] = {
-        {"#program\nbreak\n", TC_ERR_BREAK_OUTSIDE_LOOP},
-        {"#program\ncontinue\n", TC_ERR_CONTINUE_OUTSIDE_LOOP},
+        {"#program\nbreak\n", TC_CE_BREAK_OUTSIDE_LOOP},
+        {"#program\ncontinue\n", TC_CE_CONTINUE_OUTSIDE_LOOP},
         {"#lib\npublic func f() void then\n    while false then\n        goto out\n    end\n    label out:\n    return\nend\n",
-         TC_ERR_GOTO_INSIDE_LOOP},
+         TC_CE_GOTO_INSIDE_LOOP},
         {"#lib\npublic func f() void then\n    while false then\n        label inner:\n    end\n    return\nend\n",
-         TC_ERR_LABEL_INSIDE_LOOP},
+         TC_CE_LABEL_INSIDE_LOOP},
         {"#lib\npublic func f() void then\n    while false then\n        if true then\n            goto out\n        end\n    end\n    label out:\n    return\nend\n",
-         TC_ERR_GOTO_INSIDE_LOOP},
+         TC_CE_GOTO_INSIDE_LOOP},
         {"#lib\npublic func f() void then\n    while false then\n        if true then\n            label inner:\n        end\n    end\n    return\nend\n",
-         TC_ERR_LABEL_INSIDE_LOOP},
+         TC_CE_LABEL_INSIDE_LOOP},
     };
     size_t i = 0;
 
@@ -1176,7 +1176,7 @@ static void test_analyze_while_condition_type(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse while bad condition");
     check(tc_analyze(&program, &typed, &diag) != 0, "while bad condition fails");
-    check(diag.kind == TC_ERR_CONDITION_TYPE, "while condition uses condition type error");
+    check(diag.kind == TC_CE_CONDITION_TYPE, "while condition uses condition type error");
     check(diag.message && strstr(diag.message, "while condition must be bool") != NULL,
           "while condition message");
     tc_typed_program_free(&typed);
@@ -1224,10 +1224,10 @@ static void test_analyze_bitcast_errors(void) {
         TcErrorKind kind;
     } cases[] = {
         {"#program\nvar f: float32 = 1.0f\nvar bad: uint64 = bitcast(uint64, f)\n",
-         TC_ERR_BITCAST_WIDTH},
-        {"#program\nvar b: bool = true\nvar bad: uint8 = bitcast(uint8, b)\n", TC_ERR_TYPE_MISMATCH},
-        {"#program\nvar bad: bool = bitcast(bool, 1u)\n", TC_ERR_TYPE_MISMATCH},
-        {"#program\nvar bad: float32 = bitcast(float32, 1.0)\n", TC_ERR_BITCAST_WIDTH},
+         TC_CE_BITCAST_WIDTH},
+        {"#program\nvar b: bool = true\nvar bad: uint8 = bitcast(uint8, b)\n", TC_CE_TYPE_MISMATCH},
+        {"#program\nvar bad: bool = bitcast(bool, 1u)\n", TC_CE_TYPE_MISMATCH},
+        {"#program\nvar bad: float32 = bitcast(float32, 1.0)\n", TC_CE_BITCAST_WIDTH},
     };
     size_t i = 0;
 

@@ -143,7 +143,7 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
     while (**p != '\0') {
         if (allow_underscore && **p == '_') {
             if (!has_digit || prev_underscore) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid integer literal");
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid integer literal");
                 return -1;
             }
             prev_underscore = 1;
@@ -162,7 +162,7 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
                 uint64_t next = 0;
                 if (tc_mul_u64_overflow(*value, (uint64_t)base, value) ||
                     tc_add_u64_overflow(*value, (uint64_t)digit, &next)) {
-                    tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, column,
+                    tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
                                       "integer literal too large");
                     return -1;
                 }
@@ -173,7 +173,7 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
     }
 
     if (!has_digit || prev_underscore) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid integer literal");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid integer literal");
         return -1;
     }
     return 0;
@@ -213,7 +213,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
         negative = 1;
         p++;
         if (*p == '\0') {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "expected integer literal");
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "expected integer literal");
             return -1;
         }
     }
@@ -239,7 +239,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
             /* 前导零后跟十进制数字（如 0123）——TC 语言视为非法。
              * C 系语言的八进制前缀在 TC 中由 0o 显式表示，
              * 0 后直接跟数字的歧义格式不被允许。 */
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid integer literal");
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid integer literal");
             return -1;
         } else {
             lit->magnitude = 0;
@@ -250,14 +250,14 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
             return -1;
         }
     } else {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "expected integer literal");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "expected integer literal");
         return -1;
     }
 
     /* 处理可选的 u/U 无符号后缀 */
     if (*p == 'u' || *p == 'U') {
         if (negative) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, column,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, column,
                               "negative value cannot use unsigned suffix");
             return -1;
         }
@@ -334,7 +334,7 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     }
 
     if (*p == '\0') {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "expected float literal");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "expected float literal");
         return -1;
     }
 
@@ -347,14 +347,14 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     }
 
     if (*p == '.') {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid float literal");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid float literal");
         return -1;
     }
 
     while (*p != '\0' && len + 1 < sizeof(buf)) {
         if (*p == 'f' || *p == 'F') {
             if (len == 0) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "invalid float literal");
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid float literal");
                 return -1;
             }
             lit->float32_suffix = 1;
@@ -362,7 +362,7 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
             break;
         }
         if (*p == 'u' || *p == 'U') {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, column,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, column,
                               "float literal cannot use unsigned suffix");
             return -1;
         }
@@ -376,19 +376,19 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     buf[len] = '\0';
 
     if (len == 0) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column, "expected float literal");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "expected float literal");
         return -1;
     }
 
     errno = 0;
     value = strtod(buf, &endptr);
     if (endptr == buf || errno == ERANGE) {
-        tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, column,
+        tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
                           "float literal out of range");
         return -1;
     }
     if (*endptr != '\0') {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, column,
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column,
                           "invalid float literal");
         return -1;
     }
@@ -403,7 +403,7 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
         if (isfinite(value) &&
             (fabs(value) > (double)FLT_MAX ||
              (value != 0.0 && fabs(value) < min_subnormal))) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, column,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
                               "float literal out of float32 range");
             return -1;
         }
@@ -753,7 +753,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             p++;
             column++;
             if (!tc_is_identifier_start(*p)) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "expected module directive");
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column, "expected module directive");
                 return -1;
             }
             name_start = p;
@@ -769,7 +769,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             } else if (name_len == 3 && strncmp(name_start, "lib", 3) == 0) {
                 directive_kind = TC_TOK_LIB;
             } else {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "invalid module directive");
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column, "invalid module directive");
                 return -1;
             }
             if (tc_emit_token(out, directive_kind, directive_start,
@@ -792,7 +792,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
         if (*p == '.') {
             if (isdigit((unsigned char)p[1])) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "invalid float literal");
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column, "invalid float literal");
                 return -1;
             }
             if (tc_emit_token(out, TC_TOK_DOT, start, 1, line_no, tok_column, TC_INT32, TC_ADD,
@@ -825,19 +825,82 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             continue;
         }
 
-        /* 格式说明符：%d / %u / %x / %X / %o / %b */
+        /* 格式说明符：%[flags][width][.precision]spec */
         if (*p == '%') {
-            char spec_buf[4];
-            TcFormatSpec fmt = TC_FMT_NONE;
-            if (p[1] == '\0') {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "unexpected character");
+            char spec_buf[32];
+            int spec_len = 0;
+            TcFormatFullSpec full_fmt;
+            spec_buf[spec_len++] = *p; /* % */
+            ++p;
+            ++column;
+
+            if (*p == '\0') {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                  "unexpected end of line after %%");
                 return -1;
             }
-            spec_buf[0] = '%';
-            spec_buf[1] = p[1];
-            spec_buf[2] = '\0';
-            if (!tc_format_spec_parse(spec_buf, &fmt)) {
-                tc_diagnostic_set(diag, TC_ERR_FORMAT_STRING, line_no, tok_column,
+
+            /* 标志字符 */
+            while (*p == '-' || *p == '+' || *p == '#' || *p == '0') {
+                if (spec_len >= (int)sizeof(spec_buf) - 1) {
+                    tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                      "format specifier too long");
+                    return -1;
+                }
+                spec_buf[spec_len++] = *p;
+                ++p;
+                ++column;
+            }
+
+            /* 宽度数字 */
+            if (isdigit((unsigned char)*p) && *p != '0') {
+                while (isdigit((unsigned char)*p)) {
+                    if (spec_len >= (int)sizeof(spec_buf) - 1) {
+                        tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                          "format specifier too long");
+                        return -1;
+                    }
+                    spec_buf[spec_len++] = *p;
+                    ++p;
+                    ++column;
+                }
+            }
+
+            /* 精度 */
+            if (*p == '.') {
+                if (spec_len >= (int)sizeof(spec_buf) - 1) {
+                    tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                      "format specifier too long");
+                    return -1;
+                }
+                spec_buf[spec_len++] = *p;
+                ++p;
+                ++column;
+                while (isdigit((unsigned char)*p)) {
+                    if (spec_len >= (int)sizeof(spec_buf) - 1) {
+                        tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                          "format specifier too long");
+                        return -1;
+                    }
+                    spec_buf[spec_len++] = *p;
+                    ++p;
+                    ++column;
+                }
+            }
+
+            /* 转换字符 */
+            if (spec_len >= (int)sizeof(spec_buf) - 1) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                  "format specifier too long");
+                return -1;
+            }
+            spec_buf[spec_len++] = *p;
+            spec_buf[spec_len] = '\0';
+            ++p;
+            ++column;
+
+            if (!tc_format_spec_parse(spec_buf, &full_fmt)) {
+                tc_diagnostic_set(diag, TC_CE_FORMAT_STRING, line_no, tok_column,
                                   "invalid format specifier");
                 return -1;
             }
@@ -845,16 +908,14 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
                 TcToken token;
                 token.kind = TC_TOK_FORMAT_SPEC;
                 token.start = start;
-                token.length = 2;
+                token.length = (size_t)(p - start);
                 token.line = line_no;
                 token.column = tok_column;
-                token.u.format_spec = fmt;
+                token.u.format_spec = full_fmt;
                 if (tc_token_list_push(out, &token, diag) != 0) {
                     return -1;
                 }
             }
-            p += 2;
-            column += 2;
             tc_skip_ws(&p, &column);
             continue;
         }
@@ -925,7 +986,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         }
 
         /* 遇到无法识别的字符 */
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line_no, tok_column, "unexpected character");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column, "unexpected character");
         return -1;
     }
 

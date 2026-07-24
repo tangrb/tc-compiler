@@ -58,7 +58,7 @@ int tc_exec_ptr_load(const TcType *pointee, const TcOperand *ptr_op, TcExecuteCt
         return -1;
     }
     if (tc_ptr_is_null(ptr_value.bits)) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
@@ -81,7 +81,7 @@ int tc_exec_ptr_store(const TcType *pointee, const TcOperand *ptr_op, const TcOp
         return -1;
     }
     if (tc_ptr_is_null(ptr_value.bits)) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
@@ -129,7 +129,7 @@ int tc_exec_ptr_arith(int is_add, const TcType *pointee, const TcOperand *ptr_op
         return -1;
     }
     if (tc_ptr_is_null(ptr_value.bits)) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
                           "null pointer arithmetic");
         return -1;
     }
@@ -168,7 +168,7 @@ int tc_exec_ptr_compare(TcCompareOp op, const TcType *pointee, const TcOperand *
         return 0;
     }
     if (tc_ptr_is_null(lhs.bits) || tc_ptr_is_null(rhs_value.bits)) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }

@@ -51,7 +51,7 @@ static TcExecControl tc_exec_return_value(TcValue value, int has_value) {
 }
 
 void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char *message) {
-    tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, message);
+    tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, message);
     diag->domain = TC_DIAG_IMPLEMENTATION;
 }
 
@@ -199,8 +199,8 @@ static int tc_exec_io_write(const TcIoWrite *io_write, TcExecuteCtx *ctx, int ne
         return -1;
     }
 
-    if (tc_io_write_value(&value, io_write->fmt, newline, stdout) != 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, io_write->line, TC_COLUMN_UNKNOWN, "output failed");
+    if (tc_io_write_value(&value, io_write->fmt.spec, newline, stdout) != 0) {
+        tc_diagnostic_set(diag, TC_RE_IO, io_write->line, TC_COLUMN_UNKNOWN, "output failed");
         return -1;
     }
     return 0;
@@ -459,7 +459,7 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
     }
 
     if (rhs->kind == TC_RHS_CONST_CAST) {
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "constant cast is only allowed in let initializer");
         return -1;
     }

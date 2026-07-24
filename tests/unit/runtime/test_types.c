@@ -212,21 +212,21 @@ static void test_shift_op_name(void) {
 /* ================================================================== */
 
 static void test_format_spec_parse(void) {
-    TcFormatSpec out = TC_FMT_NONE;
+    TcFormatFullSpec out;
 
-    check(tc_format_spec_parse("%d", &out) == 1 && out == TC_FMT_D, "parse '%%d' → TC_FMT_D");
-    check(tc_format_spec_parse("%i", &out) == 1 && out == TC_FMT_I, "parse '%%i' → TC_FMT_I");
-    check(tc_format_spec_parse("%u", &out) == 1 && out == TC_FMT_U, "parse '%%u' → TC_FMT_U");
-    check(tc_format_spec_parse("%x", &out) == 1 && out == TC_FMT_X, "parse '%%x' → TC_FMT_X");
-    check(tc_format_spec_parse("%X", &out) == 1 && out == TC_FMT_XU, "parse '%%X' → TC_FMT_XU");
-    check(tc_format_spec_parse("%o", &out) == 1 && out == TC_FMT_O, "parse '%%o' → TC_FMT_O");
-    check(tc_format_spec_parse("%b", &out) == 1 && out == TC_FMT_B, "parse '%%b' → TC_FMT_B");
-    check(tc_format_spec_parse("%t", &out) == 1 && out == TC_FMT_T, "parse '%%t' → TC_FMT_T");
-    check(tc_format_spec_parse("%f", &out) == 1 && out == TC_FMT_F, "parse '%%f' → TC_FMT_F");
-    check(tc_format_spec_parse("%e", &out) == 1 && out == TC_FMT_E, "parse '%%e' → TC_FMT_E");
-    check(tc_format_spec_parse("%E", &out) == 1 && out == TC_FMT_EU, "parse '%%E' → TC_FMT_EU");
-    check(tc_format_spec_parse("%g", &out) == 1 && out == TC_FMT_G, "parse '%%g' → TC_FMT_G");
-    check(tc_format_spec_parse("%G", &out) == 1 && out == TC_FMT_GU, "parse '%%G' → TC_FMT_GU");
+    check(tc_format_spec_parse("%d", &out) == 1 && out.spec == TC_FMT_D, "parse '%%d' → TC_FMT_D");
+    check(tc_format_spec_parse("%i", &out) == 1 && out.spec == TC_FMT_I, "parse '%%i' → TC_FMT_I");
+    check(tc_format_spec_parse("%u", &out) == 1 && out.spec == TC_FMT_U, "parse '%%u' → TC_FMT_U");
+    check(tc_format_spec_parse("%x", &out) == 1 && out.spec == TC_FMT_X, "parse '%%x' → TC_FMT_X");
+    check(tc_format_spec_parse("%X", &out) == 1 && out.spec == TC_FMT_XU, "parse '%%X' → TC_FMT_XU");
+    check(tc_format_spec_parse("%o", &out) == 1 && out.spec == TC_FMT_O, "parse '%%o' → TC_FMT_O");
+    check(tc_format_spec_parse("%b", &out) == 1 && out.spec == TC_FMT_B, "parse '%%b' → TC_FMT_B");
+    check(tc_format_spec_parse("%t", &out) == 1 && out.spec == TC_FMT_T, "parse '%%t' → TC_FMT_T");
+    check(tc_format_spec_parse("%f", &out) == 1 && out.spec == TC_FMT_F, "parse '%%f' → TC_FMT_F");
+    check(tc_format_spec_parse("%e", &out) == 1 && out.spec == TC_FMT_E, "parse '%%e' → TC_FMT_E");
+    check(tc_format_spec_parse("%E", &out) == 1 && out.spec == TC_FMT_EU, "parse '%%E' → TC_FMT_EU");
+    check(tc_format_spec_parse("%g", &out) == 1 && out.spec == TC_FMT_G, "parse '%%g' → TC_FMT_G");
+    check(tc_format_spec_parse("%G", &out) == 1 && out.spec == TC_FMT_GU, "parse '%%G' → TC_FMT_GU");
     check(tc_format_spec_parse("%s", &out) == 0, "parse '%%s' → 0 (not found)");
 }
 
@@ -257,14 +257,14 @@ static void test_format_spec_name(void) {
 
 /* CE/RE 越界对按设计共享打印名（编译器标准 §11.4.3 / §11.4.6） */
 static int error_names_allowed_duplicate(TcErrorKind a, TcErrorKind b) {
-    if ((a == TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE && b == TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT) ||
-        (b == TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE && a == TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT)) {
+    if ((a == TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE && b == TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE) ||
+        (b == TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE && a == TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE)) {
         return 1;
     }
-    if ((a == TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE &&
-         b == TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT) ||
-        (b == TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE &&
-         a == TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT)) {
+    if ((a == TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE &&
+         b == TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE) ||
+        (b == TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE &&
+         a == TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE)) {
         return 1;
     }
     return 0;
@@ -275,74 +275,74 @@ static void test_error_kind_name(void) {
     int all_unique = 1;
     size_t i;
     size_t j;
-    const size_t error_kind_count = (size_t)TC_ERR_NULL_POINTER_ARITHMETIC + 1U;
+    const size_t error_kind_count = (size_t)TC_ERR_OUT_OF_MEMORY + 1U;
 
-    check(strcmp(tc_error_kind_name(TC_ERR_SYNTAX), "SyntaxError") == 0,
-          "TC_ERR_SYNTAX → SyntaxError");
-    check(strcmp(tc_error_kind_name(TC_ERR_TYPE_MISMATCH), "TypeMismatch") == 0,
-          "TC_ERR_TYPE_MISMATCH → TypeMismatch");
+    check(strcmp(tc_error_kind_name(TC_CE_SYNTAX), "SyntaxError") == 0,
+          "TC_CE_SYNTAX → SyntaxError");
+    check(strcmp(tc_error_kind_name(TC_CE_TYPE_MISMATCH), "TypeMismatch") == 0,
+          "TC_CE_TYPE_MISMATCH → TypeMismatch");
     check(strcmp(tc_error_kind_name(TC_ERR_OUT_OF_MEMORY), "OutOfMemory") == 0,
           "TC_ERR_OUT_OF_MEMORY → OutOfMemory");
-    check(strcmp(tc_error_kind_name(TC_ERR_CONTINUE_OUTSIDE_LOOP), "ContinueOutsideLoop") == 0,
-          "TC_ERR_CONTINUE_OUTSIDE_LOOP → ContinueOutsideLoop");
-    check(strcmp(tc_error_kind_name(TC_ERR_GOTO_OUTSIDE_FUNCTION), "GotoOutsideFunction") == 0,
-          "TC_ERR_GOTO_OUTSIDE_FUNCTION → GotoOutsideFunction");
-    check(strcmp(tc_error_kind_name(TC_ERR_LABEL_OUTSIDE_FUNCTION), "LabelOutsideFunction") == 0,
-          "TC_ERR_LABEL_OUTSIDE_FUNCTION → LabelOutsideFunction");
-    check(strcmp(tc_error_kind_name(TC_ERR_NEGATIVE_SHIFT_COUNT), "NegativeShiftCount") == 0,
-          "TC_ERR_NEGATIVE_SHIFT_COUNT → NegativeShiftCount");
-    check(strcmp(tc_error_kind_name(TC_ERR_FORMAT_SPECIFIER), "FormatSpecifierError") == 0,
-          "TC_ERR_FORMAT_SPECIFIER → FormatSpecifierError");
-    check(strcmp(tc_error_kind_name(TC_ERR_DUPLICATE_FUNCTION), "DuplicateFunction") == 0,
-          "TC_ERR_DUPLICATE_FUNCTION → DuplicateFunction");
-    check(strcmp(tc_error_kind_name(TC_ERR_UNDEFINED_FUNCTION), "UndefinedFunction") == 0,
-          "TC_ERR_UNDEFINED_FUNCTION → UndefinedFunction");
-    check(strcmp(tc_error_kind_name(TC_ERR_MISSING_ARGUMENT), "MissingArgument") == 0,
-          "TC_ERR_MISSING_ARGUMENT → MissingArgument");
-    check(strcmp(tc_error_kind_name(TC_ERR_FUNCALL_POSITION), "FunctionCallPositionError") == 0,
-          "TC_ERR_FUNCALL_POSITION → FunctionCallPositionError");
-    check(strcmp(tc_error_kind_name(TC_ERR_RETURN_OUTSIDE_FUNCTION), "ReturnOutsideFunction") == 0,
-          "TC_ERR_RETURN_OUTSIDE_FUNCTION → ReturnOutsideFunction");
-    check(strcmp(tc_error_kind_name(TC_ERR_MISSING_RETURN), "MissingReturn") == 0,
-          "TC_ERR_MISSING_RETURN → MissingReturn");
-    check(strcmp(tc_error_kind_name(TC_ERR_PARAMETER_ASSIGNMENT), "ParameterAssignmentError") == 0,
-          "TC_ERR_PARAMETER_ASSIGNMENT → ParameterAssignmentError");
-    check(strcmp(tc_error_kind_name(TC_ERR_RECURSION), "RecursionError") == 0,
-          "TC_ERR_RECURSION → RecursionError");
-    check(strcmp(tc_error_kind_name(TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH),
+    check(strcmp(tc_error_kind_name(TC_CE_CONTINUE_OUTSIDE_LOOP), "ContinueOutsideLoop") == 0,
+          "TC_CE_CONTINUE_OUTSIDE_LOOP → ContinueOutsideLoop");
+    check(strcmp(tc_error_kind_name(TC_CE_GOTO_OUTSIDE_FUNCTION), "GotoOutsideFunction") == 0,
+          "TC_CE_GOTO_OUTSIDE_FUNCTION → GotoOutsideFunction");
+    check(strcmp(tc_error_kind_name(TC_CE_LABEL_OUTSIDE_FUNCTION), "LabelOutsideFunction") == 0,
+          "TC_CE_LABEL_OUTSIDE_FUNCTION → LabelOutsideFunction");
+    check(strcmp(tc_error_kind_name(TC_RE_NEGATIVE_SHIFT_COUNT), "NegativeShiftCount") == 0,
+          "TC_RE_NEGATIVE_SHIFT_COUNT → NegativeShiftCount");
+    check(strcmp(tc_error_kind_name(TC_CE_FORMAT_SPECIFIER), "FormatSpecifierError") == 0,
+          "TC_CE_FORMAT_SPECIFIER → FormatSpecifierError");
+    check(strcmp(tc_error_kind_name(TC_CE_DUPLICATE_FUNCTION), "DuplicateFunction") == 0,
+          "TC_CE_DUPLICATE_FUNCTION → DuplicateFunction");
+    check(strcmp(tc_error_kind_name(TC_CE_UNDEFINED_FUNCTION), "UndefinedFunction") == 0,
+          "TC_CE_UNDEFINED_FUNCTION → UndefinedFunction");
+    check(strcmp(tc_error_kind_name(TC_CE_MISSING_ARGUMENT), "MissingArgument") == 0,
+          "TC_CE_MISSING_ARGUMENT → MissingArgument");
+    check(strcmp(tc_error_kind_name(TC_CE_FUNCALL_POSITION), "FunctionCallPositionError") == 0,
+          "TC_CE_FUNCALL_POSITION → FunctionCallPositionError");
+    check(strcmp(tc_error_kind_name(TC_CE_RETURN_OUTSIDE_FUNCTION), "ReturnOutsideFunction") == 0,
+          "TC_CE_RETURN_OUTSIDE_FUNCTION → ReturnOutsideFunction");
+    check(strcmp(tc_error_kind_name(TC_CE_MISSING_RETURN), "MissingReturn") == 0,
+          "TC_CE_MISSING_RETURN → MissingReturn");
+    check(strcmp(tc_error_kind_name(TC_CE_PARAMETER_ASSIGNMENT), "ParameterAssignmentError") == 0,
+          "TC_CE_PARAMETER_ASSIGNMENT → ParameterAssignmentError");
+    check(strcmp(tc_error_kind_name(TC_CE_RECURSION), "RecursionError") == 0,
+          "TC_CE_RECURSION → RecursionError");
+    check(strcmp(tc_error_kind_name(TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH),
                  "MemblockElementCountMismatch") == 0,
-          "TC_ERR_MEMBLOCK_ELEMENT_COUNT_MISMATCH");
-    check(strcmp(tc_error_kind_name(TC_ERR_MEMBLOCK_SIZE_MISMATCH), "MemblockSizeMismatch") == 0,
-          "TC_ERR_MEMBLOCK_SIZE_MISMATCH → MemblockSizeMismatch");
-    check(strcmp(tc_error_kind_name(TC_ERR_STRUCT_MISSING_FIELD), "StructMissingField") == 0,
-          "TC_ERR_STRUCT_MISSING_FIELD → StructMissingField");
-    check(strcmp(tc_error_kind_name(TC_ERR_STRUCT_FIELD_ORDER), "StructFieldOrderError") == 0,
-          "TC_ERR_STRUCT_FIELD_ORDER → StructFieldOrderError");
-    check(strcmp(tc_error_kind_name(TC_ERR_DUPLICATE_STRUCT), "DuplicateStruct") == 0,
-          "TC_ERR_DUPLICATE_STRUCT → DuplicateStruct");
-    check(strcmp(tc_error_kind_name(TC_ERR_UNDEFINED_STRUCT), "UndefinedStruct") == 0,
-          "TC_ERR_UNDEFINED_STRUCT → UndefinedStruct");
-    check(strcmp(tc_error_kind_name(TC_ERR_MODULE_LAYER), "ModuleLayerError") == 0,
-          "TC_ERR_MODULE_LAYER → ModuleLayerError");
-    check(strcmp(tc_error_kind_name(TC_ERR_MISSING_VISIBILITY), "MissingVisibilityError") == 0,
-          "TC_ERR_MISSING_VISIBILITY → MissingVisibilityError");
-    check(strcmp(tc_error_kind_name(TC_ERR_PROGRAM_MODE_MISUSE), "ProgramModeMisuseError") == 0,
-          "TC_ERR_PROGRAM_MODE_MISUSE → ProgramModeMisuseError");
-    check(strcmp(tc_error_kind_name(TC_ERR_IMPORT_NOT_FOUND), "ImportNotFound") == 0,
-          "TC_ERR_IMPORT_NOT_FOUND → ImportNotFound");
-    check(strcmp(tc_error_kind_name(TC_ERR_CIRCULAR_IMPORT), "CircularImport") == 0,
-          "TC_ERR_CIRCULAR_IMPORT → CircularImport");
-    check(strcmp(tc_error_kind_name(TC_ERR_PRIVATE_MEMBER_ACCESS), "PrivateMemberAccessError") == 0,
-          "TC_ERR_PRIVATE_MEMBER_ACCESS → PrivateMemberAccessError");
-    check(strcmp(tc_error_kind_name(TC_ERR_NULL_POINTER_DEREFERENCE), "NullPointerDereference") == 0,
-          "TC_ERR_NULL_POINTER_DEREFERENCE → NullPointerDereference");
-    check(strcmp(tc_error_kind_name(TC_ERR_NULL_POINTER_ARITHMETIC), "NullPointerArithmetic") == 0,
-          "TC_ERR_NULL_POINTER_ARITHMETIC → NullPointerArithmetic");
-    check(strcmp(tc_error_kind_name(TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE),
-                 tc_error_kind_name(TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT)) == 0,
+          "TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH");
+    check(strcmp(tc_error_kind_name(TC_CE_MEMBLOCK_SIZE_MISMATCH), "MemblockSizeMismatch") == 0,
+          "TC_CE_MEMBLOCK_SIZE_MISMATCH → MemblockSizeMismatch");
+    check(strcmp(tc_error_kind_name(TC_CE_STRUCT_MISSING_FIELD), "StructMissingField") == 0,
+          "TC_CE_STRUCT_MISSING_FIELD → StructMissingField");
+    check(strcmp(tc_error_kind_name(TC_CE_STRUCT_FIELD_ORDER), "StructFieldOrderError") == 0,
+          "TC_CE_STRUCT_FIELD_ORDER → StructFieldOrderError");
+    check(strcmp(tc_error_kind_name(TC_CE_DUPLICATE_STRUCT), "DuplicateStruct") == 0,
+          "TC_CE_DUPLICATE_STRUCT → DuplicateStruct");
+    check(strcmp(tc_error_kind_name(TC_CE_UNDEFINED_STRUCT), "UndefinedStruct") == 0,
+          "TC_CE_UNDEFINED_STRUCT → UndefinedStruct");
+    check(strcmp(tc_error_kind_name(TC_CE_MODULE_LAYER), "ModuleLayerError") == 0,
+          "TC_CE_MODULE_LAYER → ModuleLayerError");
+    check(strcmp(tc_error_kind_name(TC_CE_MISSING_VISIBILITY), "MissingVisibilityError") == 0,
+          "TC_CE_MISSING_VISIBILITY → MissingVisibilityError");
+    check(strcmp(tc_error_kind_name(TC_CE_PROGRAM_MODE_MISUSE), "ProgramModeMisuseError") == 0,
+          "TC_CE_PROGRAM_MODE_MISUSE → ProgramModeMisuseError");
+    check(strcmp(tc_error_kind_name(TC_CE_IMPORT_NOT_FOUND), "ImportNotFound") == 0,
+          "TC_CE_IMPORT_NOT_FOUND → ImportNotFound");
+    check(strcmp(tc_error_kind_name(TC_CE_CIRCULAR_IMPORT), "CircularImport") == 0,
+          "TC_CE_CIRCULAR_IMPORT → CircularImport");
+    check(strcmp(tc_error_kind_name(TC_CE_PRIVATE_MEMBER_ACCESS), "PrivateMemberAccessError") == 0,
+          "TC_CE_PRIVATE_MEMBER_ACCESS → PrivateMemberAccessError");
+    check(strcmp(tc_error_kind_name(TC_RE_NULL_POINTER_DEREFERENCE), "NullPointerDereference") == 0,
+          "TC_RE_NULL_POINTER_DEREFERENCE → NullPointerDereference");
+    check(strcmp(tc_error_kind_name(TC_RE_NULL_POINTER_ARITHMETIC), "NullPointerArithmetic") == 0,
+          "TC_RE_NULL_POINTER_ARITHMETIC → NullPointerArithmetic");
+    check(strcmp(tc_error_kind_name(TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE),
+                 tc_error_kind_name(TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE)) == 0,
           "memblock index CE/RE share print name");
-    check(strcmp(tc_error_kind_name(TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE),
-                 tc_error_kind_name(TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT)) == 0,
+    check(strcmp(tc_error_kind_name(TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE),
+                 tc_error_kind_name(TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE)) == 0,
           "memcopy unsafe CE/RE share print name");
 
     check(error_kind_count == 92U, "0.0.35 error kind table has 92 entries");

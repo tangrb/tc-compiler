@@ -500,7 +500,7 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
         if (!stmt->u.goto_stmt.resolved ||
             tc_cfg_add_pending_goto(ctx, node,
                                     stmt->u.goto_stmt.resolved_target_stmt_index) != 0) {
-            tc_diagnostic_set(ctx->diag, TC_ERR_SYNTAX, stmt->u.goto_stmt.line,
+            tc_diagnostic_set(ctx->diag, TC_CE_SYNTAX, stmt->u.goto_stmt.line,
                               TC_COLUMN_UNKNOWN, "internal unresolved goto");
             return -2;
         }
@@ -627,7 +627,7 @@ int tc_cfg_build(const TcProgram *program, const TcSymbolTable *symbols, TcCfg *
                          : -1;
 
         if (target < 0 || tc_cfg_add_edge(&ctx, ctx.gotos[i].node, target, TC_CFG_GOTO) != 0) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, 0, TC_COLUMN_UNKNOWN,
                               "internal invalid goto target");
             goto fail;
         }
@@ -765,7 +765,7 @@ int tc_analyze_definite_init(const TcCfg *cfg, size_t slot_count, TcDiagnostic *
 
             if (slot < slot_count &&
                 (in_sets[i * words + slot / 64u] & (UINT64_C(1) << (slot % 64u))) == 0) {
-                tc_diagnostic_set(diag, TC_ERR_UNINITIALIZED_VARIABLE, node->line,
+                tc_diagnostic_set(diag, TC_CE_UNINITIALIZED_VARIABLE, node->line,
                                   TC_COLUMN_UNKNOWN, "use of uninitialized variable");
                 free(in_sets);
                 free(out_sets);
@@ -844,7 +844,7 @@ static int tc_cfg_build_items(const TcStatement *items, size_t count, int start_
                          : -1;
 
         if (target < 0 || tc_cfg_add_edge(&ctx, ctx.gotos[i].node, target, TC_CFG_GOTO) != 0) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, 0, TC_COLUMN_UNKNOWN,
                               "internal invalid goto target");
             goto fail;
         }
@@ -1006,7 +1006,7 @@ static int tc_cfg_diagnose_unreachable(const TcCfg *cfg, TcDiagnostic *diag) {
             continue;
         }
         if (!structural[i]) {
-            tc_diagnostic_set(diag, TC_ERR_UNREACHABLE_STATEMENT, node->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_UNREACHABLE_STATEMENT, node->line, TC_COLUMN_UNKNOWN,
                               "unreachable statement");
             free(queue);
             free(structural);
@@ -1035,7 +1035,7 @@ static int tc_cfg_diagnose_missing_return(const TcCfg *cfg, const TcFuncDef *fun
             continue;
         }
         if (edge->kind == TC_CFG_FALLTHROUGH && cfg->nodes[edge->from].reachable) {
-            tc_diagnostic_set(diag, TC_ERR_MISSING_RETURN, func->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_MISSING_RETURN, func->line, TC_COLUMN_UNKNOWN,
                               "missing return on reachable path");
             return -1;
         }

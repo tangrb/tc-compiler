@@ -214,7 +214,7 @@ static void test_label_duplicate_same_scope(void) {
     check(tc_symbol_table_add_label(&table, "dup", 0, 1, NULL, 0, &diag) == 0, "add first dup");
     check(tc_symbol_table_add_label(&table, "dup", 1, 2, NULL, 0, &diag) != 0,
           "duplicate label fails");
-    check(diag.kind == TC_ERR_DUPLICATE_LABEL, "duplicate → TC_ERR_DUPLICATE_LABEL");
+    check(diag.kind == TC_CE_DUPLICATE_LABEL, "duplicate → TC_CE_DUPLICATE_LABEL");
     check(table.label_count == 1, "duplicate not inserted");
     tc_symbol_table_free(&table);
     tc_diagnostic_clear(&diag);

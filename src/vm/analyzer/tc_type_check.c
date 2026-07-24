@@ -19,7 +19,7 @@
 
 int tc_type_check_literal(const TcLiteral *lit, const TcType *expected, int line,
                           TcDiagnostic *diag) {
-    TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+    TcErrorKind err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
 
     if (!expected) {
         return -1;
@@ -27,7 +27,7 @@ int tc_type_check_literal(const TcLiteral *lit, const TcType *expected, int line
     /* nullptr 仅可出现在 ptr 期望上下文 */
     if (lit->is_nullptr) {
         if (expected->kind != TC_PTR) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                               "nullptr is only allowed in pointer context");
             return -1;
         }
@@ -35,37 +35,37 @@ int tc_type_check_literal(const TcLiteral *lit, const TcType *expected, int line
     }
     if (lit->is_float_special || lit->is_float) {
         if (!tc_type_is_float(expected->kind)) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                               "float literal type does not match context");
             return -1;
         }
         /* f/F 后缀强制 float32 上下文 */
         if (lit->float32_suffix && expected->kind != TC_FLOAT32) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                               "float32 suffix requires float32 context");
             return -1;
         }
-        return tc_check_literal(lit, expected->kind, line, diag, TC_ERR_LITERAL_TYPE);
+        return tc_check_literal(lit, expected->kind, line, diag, TC_CE_LITERAL_TYPE);
     }
     if (lit->is_bool) {
         if (!tc_type_is_bool(expected->kind)) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                               "bool literal requires bool context");
             return -1;
         }
         return 0;
     }
     if (lit->unsigned_suffix && tc_type_is_signed(expected->kind)) {
-        tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                           "unsigned suffix literal cannot be used in signed context");
         return -1;
     }
     if (!tc_literal_fits_context(lit, expected->kind, &err_kind)) {
-        if (err_kind == TC_ERR_LITERAL_TYPE) {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+        if (err_kind == TC_CE_LITERAL_TYPE) {
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                               "literal type does not match context");
         } else {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                               "literal out of range for context type");
         }
         return -1;
@@ -78,7 +78,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
                       TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                       TcWarningList *warnings, const char *self_name) {
     if (!expected) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, "missing expected type");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, "missing expected type");
         return -1;
     }
 
@@ -93,7 +93,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
 
         if (self_name && strcmp(rhs->u.const_ref.name, self_name) == 0) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", self_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         source = tc_resolve_visible_symbol(visible, global, rhs->u.const_ref.name, stmt_index,
@@ -105,24 +105,24 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
             /* memblock：元素类型相等，且声明 N 在目标指定时必须一致 */
             if (source->type != TC_MEMBLOCK ||
                 !tc_type_equals(&source->full_type, expected)) {
-                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "identifier type does not match destination type");
                 return -1;
             }
             if (source->memblock_count != expected->params.memblock_type.count &&
                 expected->params.memblock_type.count != 0) {
-                tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_SIZE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "memblock size mismatch");
                 return -1;
             }
         } else if (expected->kind == TC_PTR || expected->kind == TC_STRUCT) {
             if (!tc_type_equals(&source->full_type, expected)) {
-                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "identifier type does not match destination type");
                 return -1;
             }
         } else if (source->type != expected->kind) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "identifier type does not match destination type");
             return -1;
         }
@@ -173,7 +173,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
         (void)self_name;
         (void)stmt_index;
         if (!member) {
-            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
                               "missing Self member name");
             return -1;
         }
@@ -181,23 +181,23 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
         source = global ? tc_symbol_table_find(global, member) : NULL;
         if (!source) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", member);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (source->slot_domain != TC_SLOT_STATIC) {
             (void)snprintf(msg, sizeof(msg), "Self.%s is not a static member", member);
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (expected->kind == TC_PTR || expected->kind == TC_MEMBLOCK ||
             expected->kind == TC_STRUCT) {
             if (!tc_type_equals(&source->full_type, expected)) {
-                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "identifier type does not match destination type");
                 return -1;
             }
         } else if (source->type != expected->kind) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "identifier type does not match destination type");
             return -1;
         }
@@ -207,7 +207,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
     default:
         if (expected->kind == TC_PTR || expected->kind == TC_MEMBLOCK ||
             expected->kind == TC_STRUCT) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "rhs kind does not match composite destination type");
             return -1;
         }

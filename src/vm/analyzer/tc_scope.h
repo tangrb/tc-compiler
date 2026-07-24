@@ -49,7 +49,7 @@ const TcMemberEntry *tc_member_index_find(const TcMemberIndex *index, const char
 /**
  * 校验 Self 仅出现在 #lib。
  * 扫描 AST 中的 TC_RHS_SELF_MEMBER、funcall 的 is_self，以及嵌套 if/while/func 体。
- * #program 中出现 Self → TC_ERR_PROGRAM_MODE_MISUSE。
+ * #program 中出现 Self → TC_CE_PROGRAM_MODE_MISUSE。
  */
 int tc_scope_check_self_usage(const TcProgram *program, TcDiagnostic *diag);
 

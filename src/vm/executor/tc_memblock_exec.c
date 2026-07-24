@@ -66,7 +66,7 @@ static int tc_memblock_read_index(const TcOperand *index_op, TcExecuteCtx *ctx, 
         return -1;
     }
     if (index_value.type == TC_ISIZE && (int64_t)tc_bits_to_signed(TC_ISIZE, index_value.bits) < 0) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
@@ -77,7 +77,7 @@ static int tc_memblock_read_index(const TcOperand *index_op, TcExecuteCtx *ctx, 
 static int tc_memblock_bounds_check(uint64_t index, uint64_t count, int line,
                                     TcDiagnostic *diag) {
     if (index >= count) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
@@ -289,7 +289,7 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
         return -1;
     }
     if (length > 0 && (dst_index + length > dst_count || src_index + length > src_count)) {
-        tc_diagnostic_set(diag, TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT, stmt->line,
+        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, stmt->line,
                           TC_COLUMN_UNKNOWN, "memblock index out of range");
         return -1;
     }
@@ -328,7 +328,7 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
         return -1;
     }
     if (dst_ptr.bits == 0 || src_ptr.bits == 0) {
-        tc_diagnostic_set(diag, TC_ERR_NULL_POINTER_DEREFERENCE, stmt->line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, stmt->line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
     }
@@ -355,7 +355,7 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
         }
     }
     if (length_signed < 0) {
-        tc_diagnostic_set(diag, TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT, stmt->line,
+        tc_diagnostic_set(diag, TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE, stmt->line,
                           TC_COLUMN_UNKNOWN, "memcopy_unsafe invalid range");
         return -1;
     }

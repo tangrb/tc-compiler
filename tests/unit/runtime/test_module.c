@@ -75,7 +75,7 @@ static void test_module_check_self_in_program(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse Self in #program");
     check(tc_module_check_structure(&program, &diag) != 0, "Self in #program fails structure");
-    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "Self misuse kind");
+    check(diag.kind == TC_CE_PROGRAM_MODE_MISUSE, "Self misuse kind");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }
@@ -129,7 +129,7 @@ static void test_import_not_found_via_compile_file(void) {
           "write import-not-found fixture");
     tc_diagnostic_init(&diag);
     check(tc_compile_file(path, &out, &diag) == -1, "compile missing import fails");
-    check(diag.kind == TC_ERR_IMPORT_NOT_FOUND, "import not found kind");
+    check(diag.kind == TC_CE_IMPORT_NOT_FOUND, "import not found kind");
     unlink(path);
     tc_diagnostic_clear(&diag);
 }
@@ -237,7 +237,7 @@ static void test_circular_import_pair(void) {
 
     tc_diagnostic_init(&diag);
     check(tc_compile_file(entry_path, &out, &diag) == -1, "circular import fails");
-    check(diag.kind == TC_ERR_CIRCULAR_IMPORT, "circular import kind");
+    check(diag.kind == TC_CE_CIRCULAR_IMPORT, "circular import kind");
     tc_diagnostic_clear(&diag);
 
     unlink(a_path);
@@ -270,7 +270,7 @@ static void test_import_not_lib(void) {
 
     tc_diagnostic_init(&diag);
     check(tc_compile_file(entry_path, &out, &diag) == -1, "import #program fails");
-    check(diag.kind == TC_ERR_IMPORT_NOT_LIB, "import not lib kind");
+    check(diag.kind == TC_CE_IMPORT_NOT_LIB, "import not lib kind");
     tc_diagnostic_clear(&diag);
 
     unlink(lib_path);
@@ -302,7 +302,7 @@ static void test_duplicate_import(void) {
 
     tc_diagnostic_init(&diag);
     check(tc_compile_file(entry_path, &out, &diag) == -1, "duplicate import fails");
-    check(diag.kind == TC_ERR_DUPLICATE_IMPORT, "duplicate import kind");
+    check(diag.kind == TC_CE_DUPLICATE_IMPORT, "duplicate import kind");
     tc_diagnostic_clear(&diag);
 
     unlink(lib_path);
@@ -348,7 +348,7 @@ static void test_ambiguous_import_search_paths(void) {
     tc_diagnostic_init(&diag);
     check(tc_set_module_search_paths(paths, 2, &diag) == 0, "set ambiguous search paths");
     check(tc_compile_file(entry_path, &out, &diag) == -1, "ambiguous import fails");
-    check(diag.kind == TC_ERR_IMPORT_AMBIGUOUS, "ambiguous import kind");
+    check(diag.kind == TC_CE_IMPORT_AMBIGUOUS, "ambiguous import kind");
     {
         TcDiagnostic clear_diag;
         tc_diagnostic_init(&clear_diag);
@@ -384,7 +384,7 @@ static void test_self_import_file(void) {
 
     tc_diagnostic_init(&diag);
     check(tc_compile_file(path, &out, &diag) == -1, "self-import fails");
-    check(diag.kind == TC_ERR_CIRCULAR_IMPORT, "self-import is circular");
+    check(diag.kind == TC_CE_CIRCULAR_IMPORT, "self-import is circular");
     tc_diagnostic_clear(&diag);
 
     unlink(path);
@@ -400,7 +400,7 @@ static void test_lib_missing_visibility_structure(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "parser rejects lib without visibility");
-    check(diag.kind == TC_ERR_MISSING_VISIBILITY, "missing visibility from parser");
+    check(diag.kind == TC_CE_MISSING_VISIBILITY, "missing visibility from parser");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }

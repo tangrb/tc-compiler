@@ -19,8 +19,8 @@
 /* ------------------------------------------------------------------ */
 
 /*
- * 将运行时语义错误（tc_exec_* 产生的 TC_ERR_*）映射为对应的
- * 编译期常量错误（TC_ERR_CONSTANT_*）。
+ * 将运行时语义错误（tc_exec_* 产生的 TC_RE_*）映射为对应的
+ * 编译期常量错误（TC_CE_CONSTANT_*）。
  *
  * 运行时错误类型与常量错误类型一一对应，这种区分使 TC 语言的
  * 错误报告能精确区分"运行时溢出"和"编译期常量溢出"，
@@ -28,25 +28,25 @@
  */
 static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int line) {
     switch (kind) {
-    case TC_ERR_INTEGER_OVERFLOW:
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+    case TC_RE_INTEGER_OVERFLOW:
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "constant overflow");
         return -1;
-    case TC_ERR_DIVISION_BY_ZERO:
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_DIV_ZERO, line, TC_COLUMN_UNKNOWN,
+    case TC_RE_DIVISION_BY_ZERO:
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_DIV_ZERO, line, TC_COLUMN_UNKNOWN,
                           "constant division by zero");
         return -1;
-    case TC_ERR_CAST_OVERFLOW:
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+    case TC_RE_CAST_OVERFLOW:
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "constant cast overflow");
         return -1;
-    case TC_ERR_FLOAT_OVERFLOW:
-    case TC_ERR_FLOAT_UNDERFLOW:
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+    case TC_RE_FLOAT_OVERFLOW:
+    case TC_RE_FLOAT_UNDERFLOW:
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "constant overflow");
         return -1;
-    case TC_ERR_FLOAT_INVALID:
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+    case TC_RE_FLOAT_INVALID:
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "invalid floating-point constant expression");
         return -1;
     default:
@@ -180,7 +180,7 @@ static int tc_eval_const_operand(const TcOperand *operand, TcTypeKind expected,
 
     if (operand->kind == TC_OPERAND_LIT) {
         if (!tc_literal_fits_context(&operand->u.lit, expected, NULL)) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid literal in constant expression");
             return -1;
         }
@@ -193,28 +193,28 @@ static int tc_eval_const_operand(const TcOperand *operand, TcTypeKind expected,
 
         if (const_name && strcmp(operand->u.name, const_name) == 0) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", operand->u.name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         symbol = tc_symbol_table_find(visible, operand->u.name);
         if (!symbol) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", operand->u.name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         if (symbol->sym_kind != TC_SYM_CONSTANT) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "constant expression cannot reference var variable");
             return -1;
         }
         (void)global;
         if (!symbol->has_const_value) {
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
                               "constant value is not available by source order");
             return -1;
         }
         if (symbol->type != expected) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "operand type does not match operation type");
             return -1;
         }
@@ -238,7 +238,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_LIT) {
         if (!tc_literal_fits_context(&rhs->u.lit, expected_type, NULL)) {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid literal in constant expression");
             return -1;
         }
@@ -251,7 +251,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             char msg[128];
 
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", rhs->u.const_ref.name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         {
@@ -259,21 +259,21 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             char msg[128];
             if (!symbol) {
                 (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", rhs->u.const_ref.name);
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
             if (symbol->sym_kind != TC_SYM_CONSTANT) {
-                tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                                   "constant expression cannot reference var variable");
                 return -1;
             }
             if (!symbol->has_const_value) {
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
                                   "constant value is not available by source order");
                 return -1;
             }
             if (symbol->type != expected_type) {
-                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "constant type does not match expected type");
                 return -1;
             }
@@ -288,7 +288,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             return -1;
         }
         if (rhs->u.arith.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -318,7 +318,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             return -1;
         }
         if (rhs->u.unary.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -339,7 +339,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_COMPARE) {
         if (!tc_type_is_bool(expected_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -365,7 +365,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_LOGIC_BIN) {
         if (!tc_type_is_bool(expected_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -397,7 +397,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_LOGIC_UN) {
         if (!tc_type_is_bool(expected_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -417,7 +417,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
         if (rhs->u.bitwise_bin.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -444,7 +444,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
         if (rhs->u.bitwise_un.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -469,7 +469,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             return -1;
         }
         if (rhs->u.shift.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -499,7 +499,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             return -1;
         }
         if (rhs->u.float_arith.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -531,7 +531,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             return -1;
         }
         if (rhs->u.float_unary.type != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -558,7 +558,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             return -1;
         }
         if (!tc_type_is_bool(expected_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
@@ -591,7 +591,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
         int width = tc_type_bit_width(bitcast->target);
 
         if (bitcast->target != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant bitcast type mismatch");
             return -1;
         }
@@ -602,19 +602,19 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             if (!symbol) {
                 (void)snprintf(msg, sizeof(msg), "undefined variable '%s'",
                                bitcast->source.u.name);
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line,
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line,
                                   TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
             if (symbol->sym_kind != TC_SYM_CONSTANT) {
-                tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line,
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line,
                                   TC_COLUMN_UNKNOWN,
                                   "constant expression cannot reference var variable");
                 return -1;
             }
             source_type = symbol->type;
         } else if (bitcast->source.u.lit.is_bool) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
         } else if (bitcast->source.u.lit.is_float) {
@@ -634,12 +634,12 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             source_type = bitcast->source.u.lit.unsigned_suffix ? TC_UINT8 : TC_INT8;
         }
         if (tc_type_is_bool(bitcast->target) || tc_type_is_bool(source_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
         }
         if (tc_type_bit_width(source_type) != width) {
-            tc_diagnostic_set(diag, TC_ERR_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
                               "bitcast source and target widths must match");
             return -1;
         }
@@ -659,7 +659,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
         TcTypeKind source_type = TC_INT64;
 
         if (cast->target != expected_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant cast target type mismatch");
             return -1;
         }
@@ -672,7 +672,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
                 source_type = cast->source.u.lit.unsigned_suffix ? TC_UINT64 : TC_INT64;
             }
             if (!tc_literal_fits_context(&cast->source.u.lit, source_type, NULL)) {
-                tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                                   "invalid literal in constant cast");
                 return -1;
             }
@@ -685,30 +685,30 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             if (const_name && strcmp(cast->source.u.name, const_name) == 0) {
                 (void)snprintf(msg, sizeof(msg), "undefined variable '%s'",
                                cast->source.u.name);
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
             if (!symbol) {
                 (void)snprintf(msg, sizeof(msg), "undefined variable '%s'",
                                cast->source.u.name);
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
             if (symbol->sym_kind != TC_SYM_CONSTANT) {
-                tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line,
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line,
                                   TC_COLUMN_UNKNOWN,
                                   "constant expression cannot reference var variable");
                 return -1;
             }
             if (!symbol->has_const_value) {
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
                                   "constant value is not available by source order");
                 return -1;
             }
             src_val = symbol->const_value;
             source_type = symbol->type;
         } else {
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid constant cast source");
             return -1;
         }
@@ -718,8 +718,8 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
         if ((cast->mode == TC_TRUNC_TRUNCATE
                  ? tc_exec_truncate(cast->target, &src_val, out, &tmp_diag, line)
                  : tc_exec_cast(cast->target, &src_val, out, &tmp_diag, line)) != 0) {
-            if (tmp_diag.kind == TC_ERR_MODE_MISMATCH) {
-                tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            if (tmp_diag.kind == TC_CE_MODE_MISMATCH) {
+                tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "truncate requires an integer target narrower than the source");
             } else {
                 tc_const_map_runtime_error(tmp_diag.kind, diag, line);
@@ -733,7 +733,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
 
     if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
         if (expected_type != TC_STRUCT) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "struct constructor type mismatch in constant expression");
             return -1;
         }
@@ -743,7 +743,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
         return 0;
     }
 
-    tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+    tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                       "invalid constant expression");
     return -1;
 }

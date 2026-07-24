@@ -40,7 +40,7 @@ static void test_domain_lifecycle(void) {
     check(diag.domain == TC_DIAG_NONE, "init domain is none");
     check(diag.api_code == TC_API_ERR_NONE, "init api code is none");
 
-    tc_diagnostic_set(&diag, TC_ERR_TYPE_MISMATCH, 2, 3, "bad type");
+    tc_diagnostic_set(&diag, TC_CE_TYPE_MISMATCH, 2, 3, "bad type");
     check(diag.domain == TC_DIAG_LANGUAGE, "language setter selects language domain");
     check(diag.api_code == TC_API_ERR_NONE, "language setter clears api code");
     check(print_contains(&diag, ": error: bad type"), "language print remains compatible");
@@ -92,7 +92,7 @@ static void test_allocation_failures_become_oom(void) {
 
     tc_diagnostic_init(&diag);
     tc_diagnostic_test_fail_alloc_after(0);
-    tc_diagnostic_set(&diag, TC_ERR_TYPE_MISMATCH, 1, 1, "bad type");
+    tc_diagnostic_set(&diag, TC_CE_TYPE_MISMATCH, 1, 1, "bad type");
     check(diag.domain == TC_DIAG_IMPLEMENTATION && diag.kind == TC_ERR_OUT_OF_MEMORY,
           "language message allocation failure becomes implementation OOM");
     tc_diagnostic_test_fail_alloc_after(-1);
@@ -101,7 +101,7 @@ static void test_allocation_failures_become_oom(void) {
     tc_diagnostic_init(&diag);
     tc_diagnostic_set_source(&diag, "input.tc", "#program\nvar x: int32 = true\n");
     tc_diagnostic_test_fail_alloc_after(1);
-    tc_diagnostic_set(&diag, TC_ERR_TYPE_MISMATCH, 1, 1, "bad type");
+    tc_diagnostic_set(&diag, TC_CE_TYPE_MISMATCH, 1, 1, "bad type");
     check(diag.domain == TC_DIAG_IMPLEMENTATION && diag.kind == TC_ERR_OUT_OF_MEMORY,
           "snippet allocation failure becomes implementation OOM");
     tc_diagnostic_test_fail_alloc_after(-1);
@@ -124,11 +124,11 @@ static void test_oom_not_used_as_size_limit_proxy(void) {
 
     check(strcmp(tc_error_kind_name(TC_ERR_OUT_OF_MEMORY), "OutOfMemory") == 0,
           "D-15 OOM print name is OutOfMemory");
-    check(strcmp(tc_error_kind_name(TC_ERR_SYNTAX), "SyntaxError") == 0,
+    check(strcmp(tc_error_kind_name(TC_CE_SYNTAX), "SyntaxError") == 0,
           "D-15 language size/form errors keep distinct names");
-    check(strcmp(tc_error_kind_name(TC_ERR_FORMAT_SPECIFIER), "FormatSpecifierError") == 0,
+    check(strcmp(tc_error_kind_name(TC_CE_FORMAT_SPECIFIER), "FormatSpecifierError") == 0,
           "D-15 format limits use FormatSpecifierError not OutOfMemory");
-    check(strcmp(tc_error_kind_name(TC_ERR_LITERAL_OUT_OF_RANGE), "LiteralOutOfRange") == 0,
+    check(strcmp(tc_error_kind_name(TC_CE_LITERAL_OUT_OF_RANGE), "LiteralOutOfRange") == 0,
           "D-15 literal limits use LiteralOutOfRange not OutOfMemory");
 
     tc_diagnostic_init(&diag);
@@ -143,7 +143,7 @@ static void test_oom_not_used_as_size_limit_proxy(void) {
     tc_diagnostic_clear(&diag);
 
     tc_diagnostic_init(&diag);
-    tc_diagnostic_set(&diag, TC_ERR_SYNTAX, 1, 1, "unexpected token");
+    tc_diagnostic_set(&diag, TC_CE_SYNTAX, 1, 1, "unexpected token");
     check(diag.domain == TC_DIAG_LANGUAGE && diag.kind != TC_ERR_OUT_OF_MEMORY,
           "D-15 syntax rejection is language domain not OOM");
     tc_diagnostic_clear(&diag);

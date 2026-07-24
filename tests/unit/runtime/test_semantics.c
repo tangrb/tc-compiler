@@ -178,67 +178,67 @@ static void test_literal_fits_type(void) {
 
 static void test_literal_fits_context(void) {
     TcLiteral lit;
-    TcErrorKind err = TC_ERR_SYNTAX;
+    TcErrorKind err = TC_CE_SYNTAX;
 
     /* bool 字面量 → bool 类型：合法 */
     memset(&lit, 0, sizeof(lit));
     lit.is_bool = 1;
     lit.magnitude = 1;
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_BOOL, &err) == 1, "bool literal → bool type ok");
     /* bool 字面量 → int 类型：非法 → LiteralType */
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_INT32, &err) == 0, "bool literal → int32 fails");
-    check(err == TC_ERR_LITERAL_TYPE, "bool→int32 err_kind = LITERAL_TYPE");
+    check(err == TC_CE_LITERAL_TYPE, "bool→int32 err_kind = LITERAL_TYPE");
 
     /* int 字面量 → bool 类型：非法 */
     memset(&lit, 0, sizeof(lit));
     lit.magnitude = 42;
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_BOOL, &err) == 0, "int literal → bool fails");
-    check(err == TC_ERR_LITERAL_TYPE, "int→bool err_kind = LITERAL_TYPE");
+    check(err == TC_CE_LITERAL_TYPE, "int→bool err_kind = LITERAL_TYPE");
 
     /* unsigned suffix → unsigned type: 合法 */
     memset(&lit, 0, sizeof(lit));
     lit.magnitude = 100;
     lit.unsigned_suffix = 1;
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_UINT32, &err) == 1,
           "u-suffix literal → uint32 ok");
     /* unsigned suffix → signed type: 非法 */
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_INT32, &err) == 0,
           "u-suffix literal → int32 fails");
-    check(err == TC_ERR_LITERAL_TYPE, "u-suffix→int32 err_kind = LITERAL_TYPE");
+    check(err == TC_CE_LITERAL_TYPE, "u-suffix→int32 err_kind = LITERAL_TYPE");
 
     /* 负数字面量 → signed type: 合法 */
     memset(&lit, 0, sizeof(lit));
     lit.magnitude = 42;
     lit.negative = 1;
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_INT32, &err) == 1,
           "negative literal → int32 ok");
     /* 负数字面量 → unsigned type: 非法 */
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_UINT32, &err) == 0,
           "negative literal → uint32 fails");
-    check(err == TC_ERR_LITERAL_OUT_OF_RANGE, "negative→uint32 err_kind = OUT_OF_RANGE");
+    check(err == TC_CE_LITERAL_OUT_OF_RANGE, "negative→uint32 err_kind = OUT_OF_RANGE");
 
     /* INT64_MIN 绝对值（2^63）→ int64: 合法 */
     memset(&lit, 0, sizeof(lit));
     lit.magnitude = TC_INT64_MIN_ABS_MAGNITUDE;
     lit.negative = 1;
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_INT64, &err) == 1,
           "INT64_MIN magnitude → int64 ok");
 
     /* 字面量超出范围 */
     memset(&lit, 0, sizeof(lit));
     lit.magnitude = 256;
-    err = TC_ERR_SYNTAX;
+    err = TC_CE_SYNTAX;
     check(tc_literal_fits_context(&lit, TC_INT8, &err) == 0,
           "256 literal → int8 out of range");
-    check(err == TC_ERR_LITERAL_OUT_OF_RANGE, "256→int8 err_kind = OUT_OF_RANGE");
+    check(err == TC_CE_LITERAL_OUT_OF_RANGE, "256→int8 err_kind = OUT_OF_RANGE");
 }
 
 static void test_literal_to_value(void) {
@@ -309,7 +309,7 @@ static void test_arith_signed_add_strict(void) {
     TcValue one = tc_value_make(TC_INT32, 1);
     rc = tc_exec_arith(TC_ADD, TC_INT32, TC_ARITH_STRICT, &max, &one, &out, &diag, 1);
     check(rc == -1, "signed add strict INT32_MAX+1 overflow");
-    check(diag.kind == TC_ERR_INTEGER_OVERFLOW, "overflow kind check");
+    check(diag.kind == TC_RE_INTEGER_OVERFLOW, "overflow kind check");
 
     /* 负溢出 */
     TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
@@ -382,7 +382,7 @@ static void test_arith_signed_div_mod(void) {
     tc_diagnostic_clear(&diag);
     rc = tc_exec_arith(TC_DIV, TC_INT32, TC_ARITH_STRICT, &a, &zero, &out, &diag, 1);
     check(rc == -1, "signed div strict 100/0 div by zero");
-    check(diag.kind == TC_ERR_DIVISION_BY_ZERO, "div by zero kind");
+    check(diag.kind == TC_RE_DIVISION_BY_ZERO, "div by zero kind");
 
     /* INT32_MIN / -1 → overflow */
     TcValue min = tc_value_make(TC_INT32, (uint64_t)(int64_t)INT32_MIN);
@@ -466,7 +466,7 @@ static void test_arith_unsigned(void) {
     tc_diagnostic_clear(&diag);
     rc = tc_exec_arith(TC_DIV, TC_UINT32, TC_ARITH_STRICT, &a, &zero, &out, &diag, 1);
     check(rc == -1, "unsigned div by zero");
-    check(diag.kind == TC_ERR_DIVISION_BY_ZERO, "unsigned div zero kind");
+    check(diag.kind == TC_RE_DIVISION_BY_ZERO, "unsigned div zero kind");
 
     tc_diagnostic_clear(&diag);
 }
@@ -496,7 +496,7 @@ static void test_unary_abs(void) {
     tc_diagnostic_clear(&diag);
     rc = tc_exec_unary(TC_UNARY_ABS, TC_INT32, TC_ARITH_STRICT, &min, &out, &diag, 1);
     check(rc == -1, "abs(INT32_MIN) overflow");
-    check(diag.kind == TC_ERR_INTEGER_OVERFLOW, "abs overflow kind");
+    check(diag.kind == TC_RE_INTEGER_OVERFLOW, "abs overflow kind");
 
     /* uint32 abs(100) = 100 (no-op for unsigned) */
     TcValue u = tc_value_make(TC_UINT32, 100);
@@ -523,7 +523,7 @@ static void test_unary_neg(void) {
     tc_diagnostic_clear(&diag);
     rc = tc_exec_unary(TC_UNARY_NEG, TC_INT32, TC_ARITH_STRICT, &min, &out, &diag, 1);
     check(rc == -1, "neg(INT32_MIN) overflow (strict)");
-    check(diag.kind == TC_ERR_INTEGER_OVERFLOW, "neg overflow kind");
+    check(diag.kind == TC_RE_INTEGER_OVERFLOW, "neg overflow kind");
 
     /* int32 wrap neg(INT32_MIN) = INT32_MIN (2's complement wraps back) */
     tc_diagnostic_clear(&diag);
@@ -703,7 +703,7 @@ static void test_cast_strict_widen_signed_to_unsigned(void) {
     TcValue neg = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
     int rc = tc_exec_cast(TC_UINT32, &neg, &out, &diag, 1);
     check(rc == -1, "cast strict int8(-1) → uint32 fails");
-    check(diag.kind == TC_ERR_CAST_OVERFLOW, "neg→unsigned overflow kind");
+    check(diag.kind == TC_RE_CAST_OVERFLOW, "neg→unsigned overflow kind");
 
     /* 正值 → 无符号：OK */
     tc_diagnostic_clear(&diag);
@@ -775,7 +775,7 @@ static void test_cast_strict_narrow(void) {
     tc_diagnostic_clear(&diag);
     TcValue u_big = tc_value_make(TC_UINT32, 500);
     rc = tc_exec_cast(TC_UINT8, &u_big, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_CAST_OVERFLOW,
+    check(rc == -1 && diag.kind == TC_RE_CAST_OVERFLOW,
           "cast strict uint32(500) → uint8 fails");
 
     /* int32(-1) → uint8: 拒绝（负值 → 无符号） */
@@ -837,25 +837,25 @@ static void test_cast_truncate(void) {
     /* truncate rejects widening. */
     v = tc_value_make(TC_INT8, tc_signed_to_bits(TC_INT8, -1));
     rc = tc_exec_truncate(TC_INT16, &v, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "cast truncate int8(-1) → int16 rejects widening");
 
     /* uint8(200) → int16: 零扩展 */
     v = tc_value_make(TC_UINT8, 200);
     rc = tc_exec_truncate(TC_INT16, &v, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "cast truncate uint8(200) → int16 rejects widening");
 
     /* bool → int32 */
     TcValue b = tc_value_make(TC_BOOL, 1);
     rc = tc_exec_truncate(TC_INT32, &b, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "cast truncate rejects bool source");
 
     /* int32 → bool */
     v = tc_value_make(TC_INT32, 42);
     rc = tc_exec_truncate(TC_BOOL, &v, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "cast truncate rejects bool target");
 
     v = tc_value_make(TC_INT16, UINT64_C(0xFF7F));
@@ -870,7 +870,7 @@ static void test_cast_truncate(void) {
 
     v = tc_value_make(TC_INT8, UINT64_C(0xFF));
     rc = tc_exec_truncate(TC_UINT8, &v, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects equal-width integer conversion");
 
     tc_diagnostic_clear(&diag);
@@ -961,7 +961,7 @@ static void test_cast_strict_matrix(void) {
             } else {
                 (void)snprintf(message, sizeof(message), "strict cast matrix %s -> %s error kind",
                                tc_type_name(sources[source_index].type), tc_type_name(target));
-                check(diag.kind == TC_ERR_CAST_OVERFLOW, message);
+                check(diag.kind == TC_RE_CAST_OVERFLOW, message);
             }
             tc_diagnostic_clear(&diag);
         }
@@ -1025,7 +1025,7 @@ static void test_fp_arith_div_zero_strict(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_fp_arith(TC_DIV, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
-    check(rc != 0 && diag.kind == TC_ERR_DIVISION_BY_ZERO,
+    check(rc != 0 && diag.kind == TC_RE_DIVISION_BY_ZERO,
           "fp64 div strict 1/0 → DIVISION_BY_ZERO");
     tc_diagnostic_clear(&diag);
 }
@@ -1039,7 +1039,7 @@ static void test_fp_arith_nan_operand_strict(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
-    check(rc != 0 && diag.kind == TC_ERR_FLOAT_INVALID,
+    check(rc != 0 && diag.kind == TC_RE_FLOAT_INVALID,
           "fp64 add strict nan operand → FLOAT_INVALID");
     tc_diagnostic_clear(&diag);
 }
@@ -1080,7 +1080,7 @@ static void test_fp_arith_mul_underflow_flush_to_zero_strict(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
-    check(rc != 0 && diag.kind == TC_ERR_FLOAT_UNDERFLOW,
+    check(rc != 0 && diag.kind == TC_RE_FLOAT_UNDERFLOW,
           "fp64 mul strict inexact tiny result rounded to zero -> FLOAT_UNDERFLOW");
     tc_diagnostic_clear(&diag);
 }
@@ -1095,18 +1095,18 @@ static void test_fp_strict_exception_priority(void) {
         const char *message;
     } cases[] = {
         {TC_FLOAT64, TC_DIV, UINT64_C(0x0000000000000000),
-         UINT64_C(0x0000000000000000), TC_ERR_FLOAT_INVALID,
+         UINT64_C(0x0000000000000000), TC_RE_FLOAT_INVALID,
          "strict 0/0 reports invalid before division by zero"},
         {TC_FLOAT64, TC_DIV, UINT64_C(0x7FF8000000001234),
-         UINT64_C(0x0000000000000000), TC_ERR_FLOAT_INVALID,
+         UINT64_C(0x0000000000000000), TC_RE_FLOAT_INVALID,
          "strict NaN/0 reports invalid before division by zero"},
         {TC_FLOAT64, TC_DIV, UINT64_C(0x3FF0000000000000),
-         UINT64_C(0x0000000000000000), TC_ERR_DIVISION_BY_ZERO,
+         UINT64_C(0x0000000000000000), TC_RE_DIVISION_BY_ZERO,
          "strict 1/0 reports division by zero"},
         {TC_FLOAT32, TC_MUL, UINT64_C(0x7149F2CA), UINT64_C(0x7149F2CA),
-         TC_ERR_FLOAT_OVERFLOW, "strict float32 overflow is detected at binary32 precision"},
+         TC_RE_FLOAT_OVERFLOW, "strict float32 overflow is detected at binary32 precision"},
         {TC_FLOAT32, TC_MUL, UINT64_C(0x0DA24260), UINT64_C(0x1E3CE508),
-         TC_ERR_FLOAT_UNDERFLOW,
+         TC_RE_FLOAT_UNDERFLOW,
          "strict float32 inexact tiny result rounded to zero reports underflow"},
     };
     size_t i = 0;
@@ -1247,7 +1247,7 @@ static void test_fp_nan_compare_matrix(void) {
             tc_diagnostic_init(&diag);
             check(tc_exec_fp_compare(TC_CMP_EQ, type, TC_FLOAT_IEEE, &nan, &one,
                                      &out, &diag, 1) != 0 &&
-                      diag.kind == TC_ERR_MODE_MISMATCH,
+                      diag.kind == TC_CE_MODE_MISMATCH,
                   "float compare rejects ieee mode keyword");
             tc_diagnostic_clear(&diag);
         }
@@ -1292,7 +1292,7 @@ static void test_fp_compare_rejects_wrap(void) {
     tc_diagnostic_init(&diag);
     check(tc_exec_fp_compare(TC_CMP_EQ, TC_FLOAT32, TC_FLOAT_WRAP,
                              &lhs, &rhs, &out, &diag, 1) != 0 &&
-              diag.kind == TC_ERR_MODE_MISMATCH,
+              diag.kind == TC_CE_MODE_MISMATCH,
           "float comparison rejects wrap mode at shared semantics boundary");
     tc_diagnostic_clear(&diag);
 }
@@ -1306,7 +1306,7 @@ static void test_fp_arith_mul_underflow_subnormal_strict(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_fp_arith(TC_MUL, TC_FLOAT64, TC_FLOAT_STRICT, &lhs, &rhs, &out, &diag, 1);
-    check(rc != 0 && diag.kind == TC_ERR_FLOAT_UNDERFLOW,
+    check(rc != 0 && diag.kind == TC_RE_FLOAT_UNDERFLOW,
           "fp64 mul strict 1e-300*1e-10 → FLOAT_UNDERFLOW");
     tc_diagnostic_clear(&diag);
 }
@@ -1419,7 +1419,7 @@ static void test_fp_unary_abs_mode_matrix(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_fp_unary(TC_UNARY_ABS, TC_FLOAT64, TC_FLOAT_IEEE, &operand, &out, &diag, 1);
-    check(rc != 0 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc != 0 && diag.kind == TC_CE_MODE_MISMATCH,
           "fp64 abs rejects ieee mode keyword");
     tc_diagnostic_clear(&diag);
 }
@@ -1495,7 +1495,7 @@ static void test_fp_cast_truncate_f32_to_i32(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_INT32, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects float32 → int32");
     tc_diagnostic_clear(&diag);
 }
@@ -1508,7 +1508,7 @@ static void test_fp_cast_truncate_i32_to_f32(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_FLOAT32, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects int32 → float32");
     tc_diagnostic_clear(&diag);
 }
@@ -1521,7 +1521,7 @@ static void test_fp_cast_truncate_f64_to_i64(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_INT64, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects float64 → int64");
     tc_diagnostic_clear(&diag);
 }
@@ -1534,7 +1534,7 @@ static void test_fp_cast_truncate_i64_to_f64(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_FLOAT64, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects int64 → float64");
     tc_diagnostic_clear(&diag);
 }
@@ -1547,7 +1547,7 @@ static void test_fp_cast_truncate_f64_to_f32_mask(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_FLOAT32, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects float64 → float32");
     tc_diagnostic_clear(&diag);
 }
@@ -1560,7 +1560,7 @@ static void test_fp_cast_truncate_f32_to_f64_mask(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_FLOAT64, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects float32 → float64");
     tc_diagnostic_clear(&diag);
 }
@@ -1574,7 +1574,7 @@ static void test_fp_cast_truncate_f64_to_f32_roundtrip(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_FLOAT64, &src, &mid, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate float roundtrip is rejected at first step");
     (void)out;
     tc_diagnostic_clear(&diag);
@@ -1588,7 +1588,7 @@ static void test_fp_cast_truncate_neg_zero_bits(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_truncate(TC_FLOAT32, &src, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "truncate rejects integer → float negative-zero bit pattern");
     (void)out;
     tc_diagnostic_clear(&diag);
@@ -1607,7 +1607,7 @@ static void test_fp_arith_wrap_add(void) {
     lhs = fp64_from_double(1.0);
     rhs = fp64_from_double(2.0);
     rc = tc_exec_fp_arith(TC_ADD, TC_FLOAT64, TC_FLOAT_WRAP, &lhs, &rhs, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_MODE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_MODE_MISMATCH,
           "fp64 add wrap is rejected");
     tc_diagnostic_clear(&diag);
 }
@@ -1642,10 +1642,10 @@ static void test_bitcast_semantics(void) {
           "same-type bitcast is a bit-preserving identity");
     check(tc_exec_bitcast(TC_UINT64, &f32, &out, &diag, 1) != 0,
           "bitcast rejects unequal widths");
-    check(diag.kind == TC_ERR_BITCAST_WIDTH, "bitcast unequal width error kind");
+    check(diag.kind == TC_CE_BITCAST_WIDTH, "bitcast unequal width error kind");
     check(tc_exec_bitcast(TC_UINT8, &boolean, &out, &diag, 1) != 0,
           "bitcast rejects bool source");
-    check(diag.kind == TC_ERR_TYPE_MISMATCH, "bitcast bool error kind");
+    check(diag.kind == TC_CE_TYPE_MISMATCH, "bitcast bool error kind");
     tc_diagnostic_clear(&diag);
 }
 

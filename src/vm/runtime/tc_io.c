@@ -324,21 +324,21 @@ static int tc_io_read_token(char *buf, size_t buf_size, TcDiagnostic *diag, int 
     tc_io_skip_whitespace();
     c = fgetc(stdin);
     if (c == EOF) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                           ferror(stdin) ? "input failed" : "unexpected end of input");
         return -1;
     }
 
     while (c != EOF && !tc_io_is_ascii_space(c)) {
         if (i + 1U >= buf_size) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
         buf[i++] = (char)c;
         c = fgetc(stdin);
     }
     if (c == EOF && ferror(stdin)) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input failed");
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "input failed");
         return -1;
     }
     buf[i] = '\0';
@@ -386,20 +386,20 @@ int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
     c = fgetc(stdin);
     while (c != EOF && !tc_io_is_ascii_space(c)) {
         if (i + 1U >= sizeof(token)) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
         token[i++] = (char)c;
         c = fgetc(stdin);
     }
     if (c == EOF && ferror(stdin)) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "input failed");
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "input failed");
         return -1;
     }
     token[i] = '\0';
     parse_rc = tc_io_parse_abs_digits(token, out_abs);
     if (parse_rc != 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                           parse_rc > 0 ? "input value out of range" : "invalid input");
         return -1;
     }
@@ -422,18 +422,18 @@ static int tc_io_parse_integer(TcTypeKind type, const char *token, uint64_t *out
     }
     parse_rc = tc_io_parse_abs_digits(digits, &abs_value);
     if (parse_rc != 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                           parse_rc > 0 ? "input value out of range" : "invalid input");
         return -1;
     }
     if (!tc_type_is_signed(type)) {
         if (negative) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
         limit = width == 64 ? UINT64_MAX : (UINT64_C(1) << width) - UINT64_C(1);
         if (abs_value > limit) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                               "input value out of range");
             return -1;
         }
@@ -443,7 +443,7 @@ static int tc_io_parse_integer(TcTypeKind type, const char *token, uint64_t *out
 
     limit = UINT64_C(1) << (width - 1);
     if ((!negative && abs_value >= limit) || (negative && abs_value > limit)) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                           "input value out of range");
         return -1;
     }
@@ -597,7 +597,7 @@ static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_b
     }
     if (!tc_io_float_token_is_decimal(token) ||
         tc_io_localize_decimal_token(token, localized, sizeof(localized)) != 0) {
-        tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+        tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
         return -1;
     }
 
@@ -607,12 +607,12 @@ static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_b
         uint32_t bits = 0;
 
         if (end == localized || *end != '\0') {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
         if (isinf((double)value) ||
             (value == 0.0f && tc_io_float_token_is_nonzero(token))) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                               "input value out of range");
             return -1;
         }
@@ -626,11 +626,11 @@ static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_b
         uint64_t bits = 0;
 
         if (end == localized || *end != '\0') {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
         if (isinf(value) || (value == 0.0 && tc_io_float_token_is_nonzero(token))) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN,
                               "input value out of range");
             return -1;
         }
@@ -655,7 +655,7 @@ int tc_io_read_value(TcTypeKind type, uint64_t *out_bits, TcDiagnostic *diag, in
         if (strcmp(token, "true") == 0) {
             bits = UINT64_C(1);
         } else if (strcmp(token, "false") != 0) {
-            tc_diagnostic_set(diag, TC_ERR_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
+            tc_diagnostic_set(diag, TC_RE_IO, line, TC_COLUMN_UNKNOWN, "invalid input");
             return -1;
         }
     } else if (tc_type_is_float(type)) {

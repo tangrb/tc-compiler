@@ -83,14 +83,14 @@ void tc_slot_bits_init_uninitialized(uint64_t *slots, size_t count) {
 /* ------------------------------------------------------------------ */
 
 static int tc_sem_mode_error(TcDiagnostic *diag, int line, const char *message) {
-    tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN, message);
+    tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN, message);
     return -1;
 }
 
 int tc_validate_arith_mode(TcArithOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line) {
     if (tc_type_is_bool(type) || tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "integer arithmetic requires integer type");
         return -1;
     }
@@ -110,7 +110,7 @@ int tc_validate_arith_mode(TcArithOp op, TcTypeKind type, TcWrapMode mode,
 int tc_validate_unary_mode(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line) {
     if (tc_type_is_bool(type) || tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "integer unary operation requires integer type");
         return -1;
     }
@@ -130,7 +130,7 @@ int tc_validate_unary_mode(TcUnaryOp op, TcTypeKind type, TcWrapMode mode,
 int tc_validate_shift_mode(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
                            TcDiagnostic *diag, int line) {
     if (tc_type_is_bool(type) || tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "shift operation requires integer type");
         return -1;
     }
@@ -143,12 +143,12 @@ int tc_validate_shift_mode(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
 int tc_validate_fp_arith_mode(TcArithOp op, TcTypeKind type, TcFloatMode mode,
                               TcDiagnostic *diag, int line) {
     if (!tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "expected float type");
         return -1;
     }
     if (op == TC_MOD) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "mod not supported for float types");
         return -1;
     }
@@ -163,7 +163,7 @@ int tc_validate_fp_unary_mode(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
                               TcDiagnostic *diag, int line) {
     (void)op;
     if (!tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "expected float type");
         return -1;
     }
@@ -177,7 +177,7 @@ int tc_validate_fp_unary_mode(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
 int tc_validate_fp_compare_mode(TcTypeKind type, TcFloatMode mode,
                                 TcDiagnostic *diag, int line) {
     if (!tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "expected float type");
         return -1;
     }
@@ -235,13 +235,13 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
 
         if (!tc_type_is_float(type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_TYPE;
+                *err_kind = TC_CE_LITERAL_TYPE;
             }
             return 0;
         }
         if (lit->float32_suffix && type != TC_FLOAT32) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_TYPE;
+                *err_kind = TC_CE_LITERAL_TYPE;
             }
             return 0;
         }
@@ -251,13 +251,13 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
                 (lit->float_value > (double)FLT_MAX ||
                  lit->float_value < -(double)FLT_MAX)) {
                 if (err_kind) {
-                    *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                    *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
                 }
                 return 0;
             }
             if (isinf(lit->float_value) && !isinf((double)f32)) {
                 if (err_kind) {
-                    *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                    *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
                 }
                 return 0;
             }
@@ -268,7 +268,7 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
     if (lit->is_bool) {
         if (!tc_type_is_bool(type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_TYPE;
+                *err_kind = TC_CE_LITERAL_TYPE;
             }
             return 0;
         }
@@ -277,14 +277,14 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
 
     if (tc_type_is_bool(type)) {
         if (err_kind) {
-            *err_kind = TC_ERR_LITERAL_TYPE;
+            *err_kind = TC_CE_LITERAL_TYPE;
         }
         return 0;
     }
 
     if (tc_type_is_float(type)) {
         if (err_kind) {
-            *err_kind = TC_ERR_LITERAL_TYPE;
+            *err_kind = TC_CE_LITERAL_TYPE;
         }
         return 0;
     }
@@ -293,13 +293,13 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
         /* u 后缀的字面量不能用于有符号上下文 */
         if (tc_type_is_signed(type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_TYPE;
+                *err_kind = TC_CE_LITERAL_TYPE;
             }
             return 0;
         }
         if (!tc_unsigned_in_range(lit->magnitude, type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             }
             return 0;
         }
@@ -310,14 +310,14 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
         /* 有负号的字面量不能用于无符号上下文 */
         if (!tc_type_is_signed(type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             }
             return 0;
         }
         if (lit->magnitude == TC_INT64_MIN_ABS_MAGNITUDE) {
             if (!tc_signed_in_range(INT64_MIN, type)) {
                 if (err_kind) {
-                    *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                    *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
                 }
                 return 0;
             }
@@ -325,13 +325,13 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
         }
         if (lit->magnitude > (uint64_t)INT64_MAX) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             }
             return 0;
         }
         if (!tc_signed_in_range(-(int64_t)lit->magnitude, type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             }
             return 0;
         }
@@ -341,13 +341,13 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
     if (tc_type_is_signed(type)) {
         if (lit->magnitude > (uint64_t)INT64_MAX) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             }
             return 0;
         }
         if (!tc_signed_in_range((int64_t)lit->magnitude, type)) {
             if (err_kind) {
-                *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+                *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             }
             return 0;
         }
@@ -356,7 +356,7 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeKind type, TcErrorKind *
 
     if (!tc_unsigned_in_range(lit->magnitude, type)) {
         if (err_kind) {
-            *err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            *err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
         }
         return 0;
     }

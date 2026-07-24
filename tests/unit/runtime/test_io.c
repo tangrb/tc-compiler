@@ -634,7 +634,7 @@ static int read_table_case_fn(void) {
             tc_diagnostic_clear(&diag);
             return -1;
         }
-    } else if (rc == 0 || bits != sentinel || diag.kind != TC_ERR_IO || !diag.message ||
+    } else if (rc == 0 || bits != sentinel || diag.kind != TC_RE_IO || !diag.message ||
                strstr(diag.message, g_read_error) == NULL) {
         tc_diagnostic_clear(&diag);
         return -1;

@@ -118,12 +118,12 @@ static void test_type_mismatch_defense(void) {
     tc_diagnostic_init(&diag);
 
     rc = tc_exec_bitwise_binary(TC_BIT_AND, TC_INT8, &lhs, &rhs, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_TYPE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_TYPE_MISMATCH,
           "bitwise binary rejects mismatched operand types");
 
     tc_diagnostic_clear(&diag);
     rc = tc_exec_bitwise_unary(TC_INT8, &rhs, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_TYPE_MISMATCH,
+    check(rc == -1 && diag.kind == TC_CE_TYPE_MISMATCH,
           "bitwise unary rejects mismatched operand type");
 
     tc_diagnostic_clear(&diag);

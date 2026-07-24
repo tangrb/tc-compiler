@@ -12,7 +12,7 @@
 static int tc_check_operand_types(TcTypeKind type, const TcValue *a, const TcValue *b,
                                   TcDiagnostic *diag, int line) {
     if (a->type != type || (b != NULL && b->type != type)) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;
     }
@@ -46,7 +46,7 @@ int tc_exec_bitwise_binary(TcBitwiseOp op, TcTypeKind type,
         result = a ^ b;
         break;
     default:
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, "unknown bitwise operator");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, "unknown bitwise operator");
         return -1;
     }
 
@@ -135,7 +135,7 @@ static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
             *out = tc_value_make(type, 0);
             return 0;
         }
-        tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "shift left overflow");
         return -1;
     }
@@ -150,12 +150,12 @@ static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
         int64_t wide = 0;
 
         if (tc_smul_pow2_overflow(val, (unsigned)k, &wide)) {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "shift left overflow");
             return -1;
         }
         if (!tc_signed_in_range(wide, type)) {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "shift left overflow");
             return -1;
         }
@@ -166,7 +166,7 @@ static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
     {
         uint64_t max = tc_type_max_unsigned(type);
         if (k > 0 && val_bits > (max >> (unsigned)k)) {
-            tc_diagnostic_set(diag, TC_ERR_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                               "shift left overflow");
             return -1;
         }
@@ -210,7 +210,7 @@ int tc_exec_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
     }
 
     if (value->type != type || count->type != type) {
-        tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;
     }

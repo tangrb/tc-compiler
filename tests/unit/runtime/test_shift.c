@@ -39,7 +39,7 @@ static void test_shl_strict_overflow(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT8, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_INTEGER_OVERFLOW,
+    check(rc == -1 && diag.kind == TC_RE_INTEGER_OVERFLOW,
           "shl(int8, 127, 2) strict overflow");
 
     tc_diagnostic_clear(&diag);
@@ -139,7 +139,7 @@ static void test_negative_shift_count(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT8, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_INTEGER_OVERFLOW,
+    check(rc == -1 && diag.kind == TC_RE_INTEGER_OVERFLOW,
           "shl strict with count -1 (k=255) overflow");
 
     tc_diagnostic_clear(&diag);
@@ -162,7 +162,7 @@ static void test_k_ge_n_strict_shl(void) {
 
     tc_diagnostic_init(&diag);
     rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT8, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
-    check(rc == -1 && diag.kind == TC_ERR_INTEGER_OVERFLOW,
+    check(rc == -1 && diag.kind == TC_RE_INTEGER_OVERFLOW,
           "shl strict k=8 >= n=8 overflow");
 
     tc_diagnostic_clear(&diag);

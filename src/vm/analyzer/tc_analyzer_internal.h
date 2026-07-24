@@ -110,7 +110,7 @@ int tc_check_operand(TcOperand *operand, TcTypeKind expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,
                      TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                      TcWarningList *warnings, const char *self_name, TcErrorKind type_err);
-int tc_check_io_format(TcTypeKind type, TcFormatSpec fmt, int line, TcDiagnostic *diag);
+int tc_check_io_format(TcTypeKind type, const TcFormatFullSpec *spec, int line, TcDiagnostic *diag);
 int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
                  const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                  int line, TcDiagnostic *diag, TcWarningList *warnings, const char *self_name);

@@ -64,7 +64,7 @@ static void test_parse_var_requires_initializer(void) {
               "tokenize var missing initializer");
         check(tc_parse_statement(&ctx, &tokens, (int)i + 1, &stmt, &diag) != 0,
               "var missing initializer fails in parser");
-        check(diag.kind == TC_ERR_VAR_MISSING_INIT,
+        check(diag.kind == TC_CE_VAR_MISSING_INIT,
               "var missing initializer uses dedicated error kind");
         check(strcmp(tc_error_kind_name(diag.kind), "VarMissingInitializer") == 0,
               "var missing initializer print name");
@@ -120,7 +120,7 @@ static void test_parse_module_header_required(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program("var x: int32 = 1\n", &program, &diag) != 0,
           "source without module header fails");
-    check(diag.kind == TC_ERR_SYNTAX, "missing header is syntax error");
+    check(diag.kind == TC_CE_SYNTAX, "missing header is syntax error");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 
@@ -217,7 +217,7 @@ static void test_parse_missing_visibility_lib(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "lib struct without visibility fails");
-    check(diag.kind == TC_ERR_MISSING_VISIBILITY, "missing visibility error");
+    check(diag.kind == TC_CE_MISSING_VISIBILITY, "missing visibility error");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }
@@ -231,7 +231,7 @@ static void test_parse_program_mode_misuse(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "public in #program fails");
-    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "program mode misuse error");
+    check(diag.kind == TC_CE_PROGRAM_MODE_MISUSE, "program mode misuse error");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }
@@ -248,7 +248,7 @@ static void test_parse_module_layer_error(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "import after value decl fails");
-    check(diag.kind == TC_ERR_MODULE_LAYER, "module layer error");
+    check(diag.kind == TC_CE_MODULE_LAYER, "module layer error");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }
@@ -376,7 +376,7 @@ static void test_parse_label_missing_colon(void) {
     memset(&ctx, 0, sizeof(ctx));
     check(tc_tokenize_line("label start", 1, &tokens, &diag) == 0, "tokenize label no colon");
     check(tc_parse_statement(&ctx, &tokens, 1, &stmt, &diag) != 0, "parse label missing colon fails");
-    check(diag.kind == TC_ERR_SYNTAX, "missing colon → SyntaxError");
+    check(diag.kind == TC_CE_SYNTAX, "missing colon → SyntaxError");
     tc_statement_free(&stmt);
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);
@@ -493,7 +493,7 @@ static void test_parse_while_missing_end(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "while missing end fails");
-    check(diag.kind == TC_ERR_MISSING_END, "while missing end kind");
+    check(diag.kind == TC_CE_MISSING_END, "while missing end kind");
     check(strstr(diag.message, "missing end for while statement") != NULL,
           "while missing end message");
     tc_diagnostic_clear(&diag);
@@ -560,7 +560,7 @@ static void test_parse_bitcast_invalid_syntax(void) {
         tc_program_init(&program);
         check(tc_parse_source_to_program(sources[i], &program, &diag) != 0,
               "invalid bitcast syntax is rejected by parser");
-        check(diag.kind == TC_ERR_SYNTAX,
+        check(diag.kind == TC_CE_SYNTAX,
               "invalid bitcast syntax reports SyntaxError");
         tc_program_free(&program);
         tc_diagnostic_clear(&diag);
@@ -644,7 +644,7 @@ static void test_parse_program_rejects_func_static(void) {
     check(tc_parse_source_to_program(TC_PROGRAM_HDR "func bad ( ) void then\nend\n", &program,
                                      &diag) != 0,
           "func in #program fails");
-    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "func misuse kind");
+    check(diag.kind == TC_CE_PROGRAM_MODE_MISUSE, "func misuse kind");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 
@@ -653,7 +653,7 @@ static void test_parse_program_rejects_func_static(void) {
     check(tc_parse_source_to_program(TC_PROGRAM_HDR "static let K: int32 = 1\n", &program,
                                      &diag) != 0,
           "static in #program fails");
-    check(diag.kind == TC_ERR_PROGRAM_MODE_MISUSE, "static misuse kind");
+    check(diag.kind == TC_CE_PROGRAM_MODE_MISUSE, "static misuse kind");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }

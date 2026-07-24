@@ -5,6 +5,8 @@
  * tc_struct_check_* 分派；label/goto 仅允许出现在函数体内。
  */
 #include "tc_analyzer_pass2.h"
+#include "tc_analyze_6a.h"
+#include "tc_analyze_6e.h"
 #include "tc_type_check.h"
 #include "tc_memblock_check.h"
 #include "tc_ptr_check.h"
@@ -75,7 +77,7 @@ static int tc_check_goto_jump(const TcBlockPath *goto_path, const TcLabelEntry *
         if (tc_paths_equal_prefix(goto_path->path, label_path.path, goto_path->depth)) {
             return 0; /* 平级跳转 */
         }
-        tc_diagnostic_set(diag, TC_ERR_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
                           "cannot jump into sibling block");
         return -1;
     }
@@ -84,18 +86,18 @@ static int tc_check_goto_jump(const TcBlockPath *goto_path, const TcLabelEntry *
         if (tc_paths_equal_prefix(goto_path->path, label_path.path, label_path.depth)) {
             return 0; /* 向外跳转（祖先） */
         }
-        tc_diagnostic_set(diag, TC_ERR_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
                           "cannot jump into sibling block");
         return -1;
     }
 
     /* goto 更浅：若 label 在 goto 的子路径上 → 跳入子块，否则兄弟 */
     if (tc_paths_equal_prefix(label_path.path, goto_path->path, goto_path->depth)) {
-        tc_diagnostic_set(diag, TC_ERR_JUMP_INTO_BLOCK, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_JUMP_INTO_BLOCK, line, TC_COLUMN_UNKNOWN,
                           "cannot jump into inner block");
         return -1;
     }
-    tc_diagnostic_set(diag, TC_ERR_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
+    tc_diagnostic_set(diag, TC_CE_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
                       "cannot jump into sibling block");
     return -1;
 }
@@ -129,12 +131,12 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
 
         if (block_sym && block_sym->scope_end_stmt_index >= 0) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return NULL;
         }
     }
     (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
-    tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+    tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
     return NULL;
 }
 
@@ -161,7 +163,7 @@ static const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *vis
                 return NULL;
             }
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return NULL;
         }
     }
@@ -170,7 +172,7 @@ static const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *vis
         return NULL;
     }
     (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
-    tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+    tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
     return NULL;
 }
 
@@ -184,7 +186,7 @@ static int tc_precheck_name_binding(const char *name, TcResolvedBinding *binding
     if (self_name && strcmp(name, self_name) == 0) {
         (void)snprintf(msg, sizeof(msg),
                        "variable '%s' cannot reference itself in its initializer", self_name);
-        tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
         return -1;
     }
     symbol = tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag);
@@ -334,7 +336,7 @@ int tc_check_operand(TcOperand *operand, TcTypeKind expected,
         if (self_name && strcmp(operand->u.name, self_name) == 0) {
             (void)snprintf(msg, sizeof(msg),
                      "variable '%s' cannot reference itself in its initializer", self_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         symbol = tc_resolve_visible_symbol(visible, global, operand->u.name, stmt_index, line,
@@ -355,68 +357,8 @@ int tc_check_operand(TcOperand *operand, TcTypeKind expected,
     return 0;
 }
 
-/*
- * @brief 校验格式说明符与操作数类型的匹配关系
- *
- * %d/%i 要求有符号类型；%u 要求无符号类型；%x/%X/%o/%b 无限制
- */
-int tc_check_io_format(TcTypeKind type, TcFormatSpec fmt, int line, TcDiagnostic *diag) {
-    if (fmt == TC_FMT_NONE) {
-        return 0;
-    }
-
-    /* 浮点格式符：仅用于浮点类型 */
-    if (fmt == TC_FMT_F || fmt == TC_FMT_E || fmt == TC_FMT_EU ||
-        fmt == TC_FMT_G || fmt == TC_FMT_GU) {
-        if (!tc_type_is_float(type)) {
-            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "float format specifier requires float type");
-            return -1;
-        }
-        return 0;
-    }
-
-    /* 浮点类型不允许整数格式符 */
-    if (tc_type_is_float(type)) {
-        tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                          "float type requires float format specifier");
-        return -1;
-    }
-
-    if (fmt == TC_FMT_T) {
-        if (!tc_type_is_bool(type)) {
-            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "%t requires bool type");
-            return -1;
-        }
-        return 0;
-    }
-    if (tc_type_is_bool(type)) {
-        tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                          "bool type requires %t format specifier");
-        return -1;
-    }
-    if (fmt == TC_FMT_D || fmt == TC_FMT_I) {
-        if (!tc_type_is_signed(type)) {
-            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "%d requires signed type");
-            return -1;
-        }
-        return 0;
-    }
-    if (fmt == TC_FMT_U) {
-        if (tc_type_is_signed(type)) {
-            tc_diagnostic_set(diag, TC_ERR_FORMAT_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "%u requires unsigned type");
-            return -1;
-        }
-        return 0;
-    }
-    if (fmt == TC_FMT_X || fmt == TC_FMT_XU || fmt == TC_FMT_O || fmt == TC_FMT_B) {
-        return 0;
-    }
-    return 0;
-}
+/* tc_check_io_format 实现已迁移至 tc_analyze_6e.c（6e 子阶段） */
+/* 声明保留于 tc_analyzer_internal.h */
 
 /*
  * @brief 对 RHS 进行类型检查
@@ -435,13 +377,13 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_LIT) {
         if (!tc_literal_fits_context(&rhs->u.lit, lhs_type, NULL)) {
-            TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+            TcErrorKind err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
             tc_literal_fits_context(&rhs->u.lit, lhs_type, &err_kind);
-            if (err_kind == TC_ERR_LITERAL_TYPE) {
-                tc_diagnostic_set(diag, TC_ERR_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
+            if (err_kind == TC_CE_LITERAL_TYPE) {
+                tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                                   "literal type does not match variable type");
             } else {
-                tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                                   "literal out of range for variable type");
             }
             return -1;
@@ -456,16 +398,16 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         }
         if (tc_check_operand(&rhs->u.arith.lhs, rhs->u.arith.type, visible, global, hist,
                              stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.arith.rhs, rhs->u.arith.type, visible, global, hist,
                              stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.arith.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -478,11 +420,11 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             return -1;
         }
         if (tc_check_operand(&rhs->u.unary.operand, rhs->u.unary.type, visible, global, hist, stmt_index,
-                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+                             line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.unary.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -492,16 +434,16 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
     if (rhs->kind == TC_RHS_COMPARE) {
         if (tc_check_operand(&rhs->u.compare.lhs, rhs->u.compare.type, visible, global, hist, stmt_index,
                              line, diag, warnings, self_name,
-                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
+                             TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.compare.rhs, rhs->u.compare.type, visible, global, hist, stmt_index,
                              line, diag, warnings, self_name,
-                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
+                             TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -513,7 +455,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         TcStaticBoolResult lhs_value = TC_STATIC_BOOL_UNKNOWN;
 
         if (tc_check_operand(&rhs->u.logic_bin.lhs, TC_BOOL, visible, global, hist, stmt_index, line, diag,
-                             warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+                             warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         /*
@@ -529,7 +471,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             }
             if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
                                  stmt_index, line, diag, warnings, self_name,
-                                 TC_ERR_TYPE_MISMATCH) != 0) {
+                                 TC_CE_TYPE_MISMATCH) != 0) {
                 if (hist) {
                     hist->check_init = saved_check_init;
                 }
@@ -540,11 +482,11 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             }
         } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
                                     stmt_index, line, diag, warnings, self_name,
-                                    TC_ERR_TYPE_MISMATCH) != 0) {
+                                    TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -553,11 +495,11 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_LOGIC_UN) {
         if (tc_check_operand(&rhs->u.logic_un.operand, TC_BOOL, visible, global, hist, stmt_index, line,
-                             diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+                             diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -566,22 +508,22 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
         if (tc_type_is_bool(rhs->u.bitwise_bin.type) || tc_type_is_float(rhs->u.bitwise_bin.type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitwise operation requires integer type");
             return -1;
         }
         if (tc_check_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, visible, global, hist,
                              stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, visible, global, hist,
                              stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.bitwise_bin.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -590,17 +532,17 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
         if (tc_type_is_bool(rhs->u.bitwise_un.type) || tc_type_is_float(rhs->u.bitwise_un.type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitwise operation requires integer type");
             return -1;
         }
         if (tc_check_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, visible, global, hist,
                              stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.bitwise_un.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -613,15 +555,15 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             return -1;
         }
         if (tc_check_operand(&rhs->u.shift.value, rhs->u.shift.type, visible, global, hist, stmt_index,
-                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+                             line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.shift.count, rhs->u.shift.type, visible, global, hist, stmt_index,
-                             line, diag, warnings, self_name, TC_ERR_TYPE_MISMATCH) != 0) {
+                             line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.shift.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -635,16 +577,16 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         }
         if (tc_check_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, visible, global,
                              hist, stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, visible, global,
                              hist, stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.float_arith.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -658,11 +600,11 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         }
         if (tc_check_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, visible,
                              global, hist, stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_TYPE_MISMATCH) != 0) {
+                             TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (rhs->u.float_unary.type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -676,16 +618,16 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         }
         if (tc_check_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, visible,
                              global, hist, stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
+                             TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, visible,
                              global, hist, stmt_index, line, diag, warnings, self_name,
-                             TC_ERR_COMPARISON_TYPE_MISMATCH) != 0) {
+                             TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (!tc_type_is_bool(lhs_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "assignment type does not match rhs result type");
             return -1;
         }
@@ -700,13 +642,13 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
         if (tc_type_is_bool(bitcast->target) ||
             (!tc_type_is_integer(bitcast->target) && !tc_type_is_float(bitcast->target))) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitcast target must be a non-bool integer or float type");
             return -1;
         }
         if (bitcast->source.kind == TC_OPERAND_VAR) {
             if (self_name && strcmp(bitcast->source.u.name, self_name) == 0) {
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
                                   "variable cannot reference itself in its initializer");
                 return -1;
             }
@@ -721,7 +663,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             }
             tc_resolved_binding_set(&bitcast->source.binding, source);
         } else if (bitcast->source.u.lit.is_bool) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
         } else if (bitcast->source.u.lit.is_float) {
@@ -741,22 +683,22 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             source_type = bitcast->source.u.lit.unsigned_suffix ? TC_UINT8 : TC_INT8;
         }
         if (tc_type_is_bool(source_type)) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
         }
         if (tc_type_bit_width(source_type) != width) {
-            tc_diagnostic_set(diag, TC_ERR_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
                               "bitcast source and target widths must match");
             return -1;
         }
         if (bitcast->source.kind == TC_OPERAND_LIT &&
             tc_check_literal(&bitcast->source.u.lit, source_type, line, diag,
-                             TC_ERR_LITERAL_TYPE) != 0) {
+                             TC_CE_LITERAL_TYPE) != 0) {
             return -1;
         }
         if (bitcast->target != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitcast target type does not match variable type");
             return -1;
         }
@@ -770,7 +712,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
         if (self_name && strcmp(rhs->u.const_ref.name, self_name) == 0) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", self_name);
-            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
         source = tc_resolve_visible_symbol(visible, global, rhs->u.const_ref.name, stmt_index,
@@ -779,7 +721,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             return -1;
         }
         if (source->type != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "identifier type does not match destination type");
             return -1;
         }
@@ -792,13 +734,13 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
     }
 
     if (rhs->kind == TC_RHS_CONST_CAST) {
-        tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "constant cast is only allowed in let initializer");
         return -1;
     }
 
     if (rhs->kind != TC_RHS_CAST) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, "unsupported rhs kind");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, "unsupported rhs kind");
         return -1;
     }
 
@@ -811,7 +753,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             if (self_name && strcmp(cast->source.u.name, self_name) == 0) {
                 (void)snprintf(msg, sizeof(msg),
                          "variable '%s' cannot reference itself in its initializer", self_name);
-                tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
                 return -1;
             }
             source = tc_resolve_visible_symbol(visible, global, cast->source.u.name, stmt_index,
@@ -833,18 +775,18 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         }
         if (cast->source.kind == TC_OPERAND_LIT &&
             tc_check_literal(&cast->source.u.lit, source_type, line, diag,
-                             TC_ERR_LITERAL_TYPE) != 0) {
+                             TC_CE_LITERAL_TYPE) != 0) {
             return -1;
         }
         if (cast->mode == TC_TRUNC_TRUNCATE &&
             (!tc_type_is_integer(cast->target) || !tc_type_is_integer(source_type) ||
              tc_type_bit_width(cast->target) >= tc_type_bit_width(source_type))) {
-            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "truncate requires an integer target narrower than the source");
             return -1;
         }
         if (cast->target != lhs_type) {
-            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "cast target type does not match variable type");
             return -1;
         }
@@ -863,11 +805,11 @@ static int tc_check_condition(TcRhs *rhs, const TcSymbolTable *visible,
                               TcDiagnostic *diag, TcWarningList *warnings) {
     if (tc_check_rhs(rhs, TC_BOOL, visible, global, hist, stmt_index, line, diag, warnings,
                      NULL) != 0) {
-        if (diag->kind == TC_ERR_TYPE_MISMATCH) {
+        if (diag->kind == TC_CE_TYPE_MISMATCH) {
             char msg[64];
 
             (void)snprintf(msg, sizeof(msg), "%s condition must be bool", owner);
-            tc_diagnostic_set(diag, TC_ERR_CONDITION_TYPE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_CONDITION_TYPE, line, TC_COLUMN_UNKNOWN,
                               msg);
         }
         return -1;
@@ -930,7 +872,7 @@ static int tc_visible_add_from_global(const TcSymbolTable *global, const char *n
     TcSymbol *added = NULL;
 
     if (!sym) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "internal analyzer error");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, 0, TC_COLUMN_UNKNOWN, "internal analyzer error");
         return -1;
     }
     if (tc_symbol_table_add_ex(visible, sym->name, sym->type, &sym->full_type,
@@ -943,136 +885,6 @@ static int tc_visible_add_from_global(const TcSymbolTable *global, const char *n
     added->has_const_value = sym->has_const_value;
     added->const_value = sym->const_value;
     added->scope_end_stmt_index = sym->scope_end_stmt_index;
-    return 0;
-}
-
-
-/* ------------------------------------------------------------------ */
-/*  Pass 2a — 收集全部标签（带块路径，支持前向 goto）                    */
-/* ------------------------------------------------------------------ */
-
-static int tc_pass2_collect_labels_stmt(TcStatement *stmt, TcSymbolTable *symbols,
-                                        TcAnalyzeCtx *ctx, TcDiagnostic *diag) {
-    if (stmt->kind == TC_STMT_IF) {
-        TcIfStmt *if_stmt = &stmt->u.if_stmt;
-        size_t i = 0;
-        int if_stmt_index = tc_stmt_index_take(&ctx->index);
-
-        if (tc_block_path_push(&ctx->block_path, tc_block_id_then(if_stmt_index), diag) != 0) {
-            return -1;
-        }
-        for (i = 0; i < if_stmt->then_count; i++) {
-            if (tc_pass2_collect_labels_stmt(&if_stmt->then_body[i], symbols, ctx, diag) != 0) {
-                return -1;
-            }
-        }
-        tc_block_path_pop(&ctx->block_path);
-
-        if (if_stmt->else_count > 0) {
-            if (tc_block_path_push(&ctx->block_path, tc_block_id_else(if_stmt_index), diag) !=
-                0) {
-                return -1;
-            }
-            for (i = 0; i < if_stmt->else_count; i++) {
-                if (tc_pass2_collect_labels_stmt(&if_stmt->else_body[i], symbols, ctx, diag) !=
-                    0) {
-                    return -1;
-                }
-            }
-            tc_block_path_pop(&ctx->block_path);
-        }
-        return 0;
-    }
-
-    if (stmt->kind == TC_STMT_WHILE) {
-        TcWhileStmt *while_stmt = &stmt->u.while_stmt;
-        size_t i = 0;
-        int while_stmt_index = tc_stmt_index_take(&ctx->index);
-
-        if (tc_block_path_push(&ctx->block_path, tc_block_id_while(while_stmt_index), diag) != 0) {
-            return -1;
-        }
-        ctx->loop_depth++;
-        for (i = 0; i < while_stmt->body_count; i++) {
-            if (tc_pass2_collect_labels_stmt(&while_stmt->body[i], symbols, ctx, diag) != 0) {
-                ctx->loop_depth--;
-                tc_block_path_pop(&ctx->block_path);
-                return -1;
-            }
-        }
-        ctx->loop_depth--;
-        tc_block_path_pop(&ctx->block_path);
-        return 0;
-    }
-
-    if (stmt->kind == TC_STMT_LABEL_DEF) {
-        const TcLabelDef *label_def = &stmt->u.label_def;
-        int stmt_index = tc_stmt_index_take(&ctx->index);
-
-        if (ctx->func_depth == 0) {
-            tc_diagnostic_set(diag, TC_ERR_LABEL_OUTSIDE_FUNCTION, label_def->line,
-                              TC_COLUMN_UNKNOWN, "label is only allowed inside a function");
-            return -1;
-        }
-        if (ctx->loop_depth > 0) {
-            tc_diagnostic_set(diag, TC_ERR_LABEL_INSIDE_LOOP, label_def->line,
-                              TC_COLUMN_UNKNOWN, "label is not allowed inside while");
-            return -1;
-        }
-
-        return tc_symbol_table_add_label(symbols, label_def->name, stmt_index, label_def->line,
-                                         ctx->block_path.path, ctx->block_path.depth, diag);
-    }
-
-    if (stmt->kind == TC_STMT_GOTO) {
-        tc_stmt_index_take(&ctx->index);
-        if (ctx->func_depth == 0) {
-            tc_diagnostic_set(diag, TC_ERR_GOTO_OUTSIDE_FUNCTION, stmt->u.goto_stmt.line,
-                              TC_COLUMN_UNKNOWN, "goto is only allowed inside a function");
-            return -1;
-        }
-        if (ctx->loop_depth > 0) {
-            tc_diagnostic_set(diag, TC_ERR_GOTO_INSIDE_LOOP, stmt->u.goto_stmt.line,
-                              TC_COLUMN_UNKNOWN, "goto is not allowed inside while");
-            return -1;
-        }
-        return 0;
-    }
-
-    if (stmt->kind == TC_STMT_FUNC_DEF) {
-        TcFuncDef *func = &stmt->u.func_def;
-        size_t i = 0;
-
-        (void)tc_stmt_index_take(&ctx->index);
-        ctx->func_depth++;
-        for (i = 0; i < func->body_count; i++) {
-            if (tc_pass2_collect_labels_stmt(&func->body[i], symbols, ctx, diag) != 0) {
-                ctx->func_depth--;
-                return -1;
-            }
-        }
-        ctx->func_depth--;
-        return 0;
-    }
-
-    tc_stmt_index_take(&ctx->index);
-    return 0;
-}
-
-static int tc_pass2_collect_labels(TcProgram *program, TcSymbolTable *symbols,
-                                   TcAnalyzeCtx *ctx, TcDiagnostic *diag) {
-    size_t i = 0;
-
-    tc_symbol_table_clear_labels(symbols);
-    tc_stmt_index_reset(&ctx->index);
-    ctx->block_path.depth = 0;
-    ctx->loop_depth = 0;
-    ctx->func_depth = 0;
-    for (i = 0; i < program->count; i++) {
-        if (tc_pass2_collect_labels_stmt(&program->items[i], symbols, ctx, diag) != 0) {
-            return -1;
-        }
-    }
     return 0;
 }
 
@@ -1091,7 +903,7 @@ static int tc_pass2_check_funcall_rhs(TcRhs *rhs, const TcType *expected, int po
     int rc = 0;
 
     if (!ctx->func_env || rhs->kind != TC_RHS_FUNCALL_EXPR) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, "expected funcall");
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, "expected funcall");
         return -1;
     }
     if (rhs->u.funcall_expr.arg_count > 0) {
@@ -1312,8 +1124,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         tc_stmt_index_take(&ctx->index);
         if (ctx->current_loop_id < 0) {
-            TcErrorKind kind = stmt->kind == TC_STMT_BREAK ? TC_ERR_BREAK_OUTSIDE_LOOP
-                                                            : TC_ERR_CONTINUE_OUTSIDE_LOOP;
+            TcErrorKind kind = stmt->kind == TC_STMT_BREAK ? TC_CE_BREAK_OUTSIDE_LOOP
+                                                            : TC_CE_CONTINUE_OUTSIDE_LOOP;
             const char *message = stmt->kind == TC_STMT_BREAK ? "break used outside while"
                                                                : "continue used outside while";
 
@@ -1335,14 +1147,14 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         tc_stmt_index_take(&ctx->index);
         if (ctx->func_depth == 0) {
-            tc_diagnostic_set(diag, TC_ERR_GOTO_OUTSIDE_FUNCTION, goto_stmt->line,
+            tc_diagnostic_set(diag, TC_CE_GOTO_OUTSIDE_FUNCTION, goto_stmt->line,
                               TC_COLUMN_UNKNOWN, "goto is only allowed inside a function");
             return -1;
         }
         entry = tc_resolve_goto_label(symbols, goto_stmt->target, &ctx->block_path);
         if (!entry) {
             (void)snprintf(msg, sizeof(msg), "label '%s' not found", goto_stmt->target);
-            tc_diagnostic_set(diag, TC_ERR_LABEL_NOT_FOUND, goto_stmt->line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LABEL_NOT_FOUND, goto_stmt->line, TC_COLUMN_UNKNOWN,
                               msg);
             return -1;
         }
@@ -1433,7 +1245,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
     if (stmt->kind == TC_STMT_LABEL_DEF) {
         tc_stmt_index_take(&ctx->index);
         if (ctx->func_depth == 0) {
-            tc_diagnostic_set(diag, TC_ERR_LABEL_OUTSIDE_FUNCTION, stmt->u.label_def.line,
+            tc_diagnostic_set(diag, TC_CE_LABEL_OUTSIDE_FUNCTION, stmt->u.label_def.line,
                               TC_COLUMN_UNKNOWN, "label is only allowed inside a function");
             return -1;
         }
@@ -1512,13 +1324,13 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 (TcSymbol *)tc_find_symbol_by_def_index(symbols, const_def->name, (int)stmt_index);
 
             if (const_def->rhs.kind == TC_RHS_CAST) {
-                tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, const_def->line,
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, const_def->line,
                                   TC_COLUMN_UNKNOWN,
                                   "constant initializer must be a constant expression");
                 return -1;
             }
             if (global_sym == NULL) {
-                tc_diagnostic_set(diag, TC_ERR_SYNTAX, const_def->line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, const_def->line, TC_COLUMN_UNKNOWN,
                                   "internal analyzer error");
                 return -1;
             }
@@ -1547,12 +1359,12 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
             TcIoWrite *io_write = &stmt->u.io_write;
 
-            if (tc_check_io_format(io_write->type, io_write->fmt, io_write->line, diag) != 0) {
+            if (tc_check_io_format(io_write->type, &io_write->fmt, io_write->line, diag) != 0) {
                 return -1;
             }
             return tc_check_operand(&io_write->operand, io_write->type, visible, symbols, hist,
                                     stmt_index, io_write->line, diag, warnings, NULL,
-                                    TC_ERR_TYPE_MISMATCH);
+                                    TC_CE_TYPE_MISMATCH);
         }
 
         if (stmt->kind == TC_STMT_READ) {
@@ -1570,7 +1382,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 return -1;
             }
             if (target->type != io_read->type) {
-                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, io_read->line, TC_COLUMN_UNKNOWN,
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, io_read->line, TC_COLUMN_UNKNOWN,
                                   "read type does not match variable type");
                 return -1;
             }
@@ -1594,7 +1406,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 return -1;
             }
             if (target->sym_kind == TC_SYM_CONSTANT) {
-                tc_diagnostic_set(diag, TC_ERR_CONSTANT_ASSIGNMENT, assign->line,
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, assign->line,
                                   TC_COLUMN_UNKNOWN, "cannot assign to constant");
                 return -1;
             }
@@ -1701,7 +1513,13 @@ int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcStructTabl
     ctx.init_states = init_states;
     tc_prescan_init_history(program, symbols, &ctx);
 
-    if (tc_pass2_collect_labels(program, symbols, &ctx, diag) != 0) {
+    /* 6a: 收集全部标签（带块路径，支持前向 goto） */
+    tc_symbol_table_clear_labels(symbols);
+    tc_stmt_index_reset(&ctx.index);
+    ctx.block_path.depth = 0;
+    ctx.loop_depth = 0;
+    ctx.func_depth = 0;
+    if (tc_analyze_6a_collect_labels(program, symbols, &ctx, diag) != 0) {
         tc_symbol_table_free(&visible);
         tc_block_path_free(&ctx.block_path);
         free(last_init);

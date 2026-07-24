@@ -83,13 +83,13 @@ void tc_typed_program_free(TcTypedProgram *program) {
  */
 int tc_check_literal(const TcLiteral *lit, TcTypeKind expected, int line,
                             TcDiagnostic *diag, TcErrorKind literal_type_err) {
-    TcErrorKind err_kind = TC_ERR_LITERAL_OUT_OF_RANGE;
+    TcErrorKind err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {
-        if (err_kind == TC_ERR_LITERAL_TYPE) {
+        if (err_kind == TC_CE_LITERAL_TYPE) {
             tc_diagnostic_set(diag, literal_type_err, line, TC_COLUMN_UNKNOWN,
                               "literal type does not match context");
         } else {
-            tc_diagnostic_set(diag, TC_ERR_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                               "literal out of range for context type");
         }
         return -1;
@@ -122,7 +122,7 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     program->source_path = NULL;
 
     if (out->program.mode == TC_MODULE_UNSET) {
-        tc_diagnostic_set(diag, TC_ERR_SYNTAX, 1, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, TC_COLUMN_UNKNOWN,
                           "expected #program or #lib");
         tc_typed_program_free(out);
         return -1;
@@ -257,6 +257,21 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     func_env.current_func = NULL;
     func_env.struct_table = &struct_table;
 
+    /*
+     * 阶段 6 (a-e)：类型与语义分析
+     *
+     * 6a  控制流上下文检查 (goto/label 词法祖先校验，建立标签表)
+     * 6b  名称作用域预建 (符号 slot 分配 + 成员索引 + 全局名称冲突)
+     * 6c  goto/label 名称解析 (标签沿祖先链查找，块关系校验)
+     * 6d  类型/模式/字面量检查 (RHS 类型、memblock/struct/ptr 字段访问)
+     * 6e  I/O 格式检查 (write/read 格式符兼容性)
+     *
+     * 当前实现中 6a-6e 由 tc_pass2_type_check() 统一驱动（6a 标签收集
+     * 已提取至 tc_analyze_6a.c，6e 格式检查已提取至 tc_analyze_6e.c）。
+     * 子阶段间 fail-fast：任一步骤返回 -1 则立即中止。
+     */
+
+    /* ==== 阶段 6 入口：类型与语义分析（6a→6b→6c→6d→6e） ==== */
     if (tc_pass2_type_check(&out->program, &out->symbols, &struct_table, &func_env, &out->warnings,
                             diag) != 0) {
         tc_sizeof_bits_set_struct_width_fn(NULL, NULL);

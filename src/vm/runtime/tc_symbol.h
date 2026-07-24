@@ -120,7 +120,7 @@ TcSymbol *tc_symbol_table_find_mut(TcSymbolTable *table, const char *name);
  * 添加标签。
  * @param block_path  块路径（长度 block_depth）；NULL 表示仅按 depth 查重（Pass1）
  * @param block_depth 路径深度；Pass1 传当前作用域层级
- * 同作用域重名 → TC_ERR_DUPLICATE_LABEL；不同块路径允许同名。
+ * 同作用域重名 → TC_CE_DUPLICATE_LABEL；不同块路径允许同名。
  * @return 成功 0；重复标签或 OOM 返回 -1
  */
 int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index,

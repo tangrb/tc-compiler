@@ -201,31 +201,31 @@ static int tc_fp_check_strict_result(TcArithOp op, TcTypeKind type,
     (void)result;
 #endif
     if (tc_fp_invalid_operation(op, lhs, rhs)) {
-        return tc_fp_set_error(TC_ERR_FLOAT_INVALID, "float invalid operation", diag, line);
+        return tc_fp_set_error(TC_RE_FLOAT_INVALID, "float invalid operation", diag, line);
     }
     if (tc_fp_division_by_zero(op, lhs, rhs)) {
-        return tc_fp_set_error(TC_ERR_DIVISION_BY_ZERO, "division by zero", diag, line);
+        return tc_fp_set_error(TC_RE_DIVISION_BY_ZERO, "division by zero", diag, line);
     }
 #ifdef TC_HAVE_FENV
     if ((exceptions & FE_INVALID) != 0) {
-        return tc_fp_set_error(TC_ERR_FLOAT_INVALID, "float invalid operation", diag, line);
+        return tc_fp_set_error(TC_RE_FLOAT_INVALID, "float invalid operation", diag, line);
     }
     if ((exceptions & FE_DIVBYZERO) != 0) {
-        return tc_fp_set_error(TC_ERR_DIVISION_BY_ZERO, "division by zero", diag, line);
+        return tc_fp_set_error(TC_RE_DIVISION_BY_ZERO, "division by zero", diag, line);
     }
     if ((exceptions & FE_OVERFLOW) != 0) {
-        return tc_fp_set_error(TC_ERR_FLOAT_OVERFLOW, "float overflow", diag, line);
+        return tc_fp_set_error(TC_RE_FLOAT_OVERFLOW, "float overflow", diag, line);
     }
     if ((exceptions & FE_UNDERFLOW) != 0) {
-        return tc_fp_set_error(TC_ERR_FLOAT_UNDERFLOW, "float underflow", diag, line);
+        return tc_fp_set_error(TC_RE_FLOAT_UNDERFLOW, "float underflow", diag, line);
     }
 #else
     (void)exceptions;
     if (isfinite(lhs) && isfinite(rhs) && isinf(result)) {
-        return tc_fp_set_error(TC_ERR_FLOAT_OVERFLOW, "float overflow", diag, line);
+        return tc_fp_set_error(TC_RE_FLOAT_OVERFLOW, "float overflow", diag, line);
     }
     if (tc_fp_no_fenv_underflow(op, type, lhs, rhs, result)) {
-        return tc_fp_set_error(TC_ERR_FLOAT_UNDERFLOW, "float underflow", diag, line);
+        return tc_fp_set_error(TC_RE_FLOAT_UNDERFLOW, "float underflow", diag, line);
     }
 #endif
     return 0;
@@ -246,7 +246,7 @@ int tc_exec_fp_arith(TcArithOp op, TcTypeKind type, TcFloatMode mode,
     a = tc_fp_bits_to_double(type, lhs->bits);
     b = tc_fp_bits_to_double(type, rhs->bits);
     if (tc_fp_compute(op, type, a, b, &result, &exceptions) != 0) {
-        return tc_fp_set_error(TC_ERR_TYPE_MISMATCH,
+        return tc_fp_set_error(TC_CE_TYPE_MISMATCH,
                                "unsupported float operation", diag, line);
     }
     if (mode == TC_FLOAT_STRICT &&
@@ -278,7 +278,7 @@ int tc_exec_fp_unary(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
     } else if (op == TC_UNARY_NEG) {
         bits ^= sign_bit;
     } else {
-        return tc_fp_set_error(TC_ERR_TYPE_MISMATCH,
+        return tc_fp_set_error(TC_CE_TYPE_MISMATCH,
                                "unsupported float unary operation", diag, line);
     }
     *out = tc_value_make(type, bits);

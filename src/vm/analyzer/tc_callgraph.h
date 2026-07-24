@@ -3,7 +3,7 @@
  *
  * 在 Pass2 + CFG 之后运行：基于已解析的签名表构建 func_id 有向图，
  * Tarjan 求强连通分量；若存在递归（自环或 size>1 的 SCC），
- * 按「定义行最小的递归 SCC → 该 SCC 内调用边行号最小」确定性报 TC_ERR_RECURSION。
+ * 按「定义行最小的递归 SCC → 该 SCC 内调用边行号最小」确定性报 TC_CE_RECURSION。
  *
  * 顶层独立 funcall 的 caller 记为 TC_CALLGRAPH_NO_CALLER（不参与邻接表）。
  */

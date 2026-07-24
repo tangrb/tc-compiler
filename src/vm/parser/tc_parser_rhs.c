@@ -554,7 +554,7 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
 }
 
 static int tc_keyword_error(TcDiagnostic *diag, int line, int column, const char *message) {
-    tc_diagnostic_set(diag, TC_ERR_KEYWORD, line, column, message);
+    tc_diagnostic_set(diag, TC_CE_KEYWORD, line, column, message);
     return -1;
 }
 
@@ -697,7 +697,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
         if (maybe_mode->kind == TC_TOK_IEEE) {
-            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line_no, maybe_mode->column,
+            tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line_no, maybe_mode->column,
                               "ieee mode is only allowed for float operations");
             return -1;
         }
@@ -799,7 +799,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
     {
         const TcToken *maybe_mode = tc_peek(tokens, *index);
         if (maybe_mode->kind == TC_TOK_IEEE) {
-            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line_no, maybe_mode->column,
+            tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line_no, maybe_mode->column,
                               "ieee mode is only allowed for float operations");
             return -1;
         }
@@ -946,7 +946,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_WRAP) {
-            tc_diagnostic_set(diag, TC_ERR_MODE_MISMATCH, line_no, maybe_mode->column,
+            tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line_no, maybe_mode->column,
                               "wrap mode is not allowed for float comparison");
             return -1;
         } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
@@ -1498,7 +1498,7 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
 
         if (nested_column != TC_COLUMN_UNKNOWN) {
             ctx->depth--;
-            tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line_no, nested_column,
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line_no, nested_column,
                               "nested calls are not allowed in constant expression");
             return -1;
         }
