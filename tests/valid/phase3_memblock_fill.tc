@@ -1,0 +1,5 @@
+#program
+; analyze-only：memblock fill 构造器
+var mb: memblock<int32, 3> = memblock(int32, count: 3, fill: 0)
+var n: usize = mb.count
+var x: int32 = memblock_load(int32, mb, 1)

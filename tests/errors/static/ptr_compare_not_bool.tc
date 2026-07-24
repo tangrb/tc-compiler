@@ -1,0 +1,5 @@
+#program
+; 期望：pointer comparison result must be bool
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var x: int32 = ptr_eq(int32, p, p)

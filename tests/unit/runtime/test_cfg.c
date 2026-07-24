@@ -139,12 +139,20 @@ static void test_structured_edges(void) {
 static void test_goto_edge(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
-    const char *source = "#program\ngoto done\nvar x: int32 = 1\nlabel done:\n";
+    const char *source =
+        "#lib\npublic func f() void then\n"
+        "    goto done\n"
+        "    label done:\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     check(compile_source(source, &typed, &diag) == 0, "compile goto cfg");
-    if (typed.cfg) {
-        check(edge_count(typed.cfg, TC_CFG_GOTO, 1) == 1, "resolved goto edge exists");
+    if (typed.cfg_set && typed.cfg_set->func_count == 1) {
+        check(edge_count(&typed.cfg_set->funcs[0], TC_CFG_GOTO, 1) == 1,
+              "resolved goto edge exists in function CFG");
+    } else {
+        check(0, "function CFG set available for goto edge test");
     }
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);

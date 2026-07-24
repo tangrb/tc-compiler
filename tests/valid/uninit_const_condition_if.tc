@@ -4,15 +4,11 @@ let TEN: int32 = 10
 let FIVE: int32 = 5
 let FLAG_A: bool = true
 let FLAG_B: bool = false
-goto branch
 var value: int32 = 0
-label branch:
 if gt(int32, TEN, FIVE) then
     value = 10
 end
-goto pending_use
 var pending: bool = true
-label pending_use:
 if and(bool, FLAG_A, FLAG_B) then
     writeln(bool, %t, pending)
 end

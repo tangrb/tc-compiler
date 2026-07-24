@@ -1,0 +1,4 @@
+#program
+; 期望：expected type（I/O 排除 ptr）
+var p: ptr<int32> = nullptr
+writeln(ptr<int32>, p)

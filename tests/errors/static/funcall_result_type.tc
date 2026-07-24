@@ -1,0 +1,9 @@
+#lib
+; 期望：function call result type
+public func get() int32 then
+    return 1
+end
+public func caller() void then
+    var x: bool = funcall(Self.get)
+    return
+end

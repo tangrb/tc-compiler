@@ -12,6 +12,7 @@
 
 #include "tc_symbol.h"
 #include "tc_types.h"
+#include "tc_module.h"
 
 /**
  * 初始化已类型化程序为空状态。
@@ -26,15 +27,15 @@ void tc_typed_program_init(TcTypedProgram *program);
 void tc_typed_program_free(TcTypedProgram *program);
 
 /**
- * 对 program 做两遍静态分析，结果写入 out。
- * @param program 待分析的源程序（成功后所有权被转移至 out，调用方不得再使用）
- * @param out     输出参数，分析通过后的 TcTypedProgram
- * @param diag    诊断对象
- * @return 成功返回 0；失败返回 -1 并设置 diag（out 已被清空，无需 tc_typed_program_free）
- *
- * @note 所有权转移策略：通过 struct 浅拷贝转移 program->items 的所有权，
- *       然后将原始 program 清零。此模式避免了深拷贝开销，但要求调用方
- *       在 tc_analyze 返回后不再使用原始的 program 变量。
+ * 对 program 做静态分析，结果写入 out。
+ * @param entry_path 入口文件路径；非 NULL 时在结构检查后解析 import（4b/4c）
+ * @param search     模块搜索路径；可为 NULL
+ */
+int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_path,
+                  const TcModuleSearchPaths *search, TcDiagnostic *diag);
+
+/**
+ * 等价于 tc_analyze_ex(..., NULL, NULL, diag)（不解析 import）。
  */
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);
 

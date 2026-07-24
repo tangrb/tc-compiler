@@ -1,5 +1,9 @@
-#program
-while true then
-    label inside:
-    break
+#lib
+; 期望：label is not allowed inside while
+public func f() void then
+    while true then
+        label inside:
+        break
+    end
+    return
 end

@@ -73,7 +73,19 @@ const TcSymbol *tc_symbol_table_find_in_current_scope(const TcSymbolTable *table
                                                       const char *name);
 
 /**
- * 向符号表追加一个符号（scope_level 取当前作用域层级）。
+ * 向符号表追加一个符号（完整类型版本）。
+ * @param full_type       完整类型；NULL 则按 type 构造标量 full_type
+ * @param memblock_count  memblock 声明 N；非 memblock 传 0
+ * @param struct_id       struct id；非 struct 传 -1
+ * @param slot_domain     槽域
+ */
+int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind type,
+                           const TcType *full_type, uint64_t memblock_count, int struct_id,
+                           int slot, TcSlotDomain slot_domain, int def_line, int def_stmt_index,
+                           TcSymKind sym_kind, int initialized, TcDiagnostic *diag);
+
+/**
+ * 向符号表追加一个符号（scope_level 取当前作用域层级；标量快捷入口）。
  * @param table           符号表
  * @param name            符号名（内部 strdup 复制）
  * @param type            整数类型

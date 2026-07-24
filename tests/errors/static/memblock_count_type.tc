@@ -1,0 +1,4 @@
+#program
+; 期望：memblock count result must be usize/isize
+var mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var n: int32 = mb.count

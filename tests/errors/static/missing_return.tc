@@ -1,0 +1,5 @@
+#lib
+; 期望：missing return on reachable path
+public func add1() int32 then
+    var y: int32 = 1
+end

@@ -1,4 +1,9 @@
-/* tc_sem_fp.c — deterministic float arithmetic, unary, and comparison semantics */
+/*
+ * tc_sem_fp.c — 确定性浮点算术 / 单目 / 比较语义
+ *
+ * strict 模式检测 IEEE 异常（invalid/overflow/underflow/div0）；
+ * ieee 模式按 IEEE 754 返回 ±inf/nan 且不报错。
+ */
 #include "tc_sem_fp.h"
 
 #include "tc_diagnostic.h"

@@ -1,7 +1,10 @@
-#program
+#lib
 ; 期望：cannot jump into sibling block
-if eq(int32, 1, 1) then
-    goto else_branch
-else
-    label else_branch:
+public func f() void then
+    if eq(int32, 1, 1) then
+        goto else_branch
+    else
+        label else_branch:
+    end
+    return
 end

@@ -1,4 +1,9 @@
-/* tc_cfg.c — linear explicit CFG construction and fixed-point dataflow */
+/* tc_cfg.c — 显式 CFG 构建与确定初始化不动点分析
+ *
+ * 线性扫描语句序列建图；支持 if/while/goto/短路边。
+ * Phase 3 起：tc_cfg_build_all 为每个函数体单独建域；
+ * definite init 在各域独立运行，并报告不可达与缺 return。
+ */
 #include "tc_cfg.h"
 
 #include "tc_const_eval.h"
@@ -34,12 +39,16 @@ typedef struct {
     TcCfgPendingGoto *gotos;
     size_t goto_count;
     size_t goto_capacity;
+    int *pending_returns;
+    size_t return_count;
+    size_t return_capacity;
 } TcCfgBuildCtx;
 
 void tc_cfg_init(TcCfg *cfg) {
     memset(cfg, 0, sizeof(*cfg));
     cfg->entry_id = -1;
     cfg->exit_id = -1;
+    cfg->func_id = -1;
 }
 
 void tc_cfg_free(TcCfg *cfg) {
@@ -53,6 +62,7 @@ void tc_cfg_free(TcCfg *cfg) {
     }
     free(cfg->nodes);
     free(cfg->edges);
+    free(cfg->entry_init_slots);
     tc_cfg_init(cfg);
 }
 
@@ -314,6 +324,21 @@ static int tc_cfg_add_pending_goto(TcCfgBuildCtx *ctx, int node, int target_stmt
     return 0;
 }
 
+static int tc_cfg_add_pending_return(TcCfgBuildCtx *ctx, int node) {
+    if (ctx->return_count == ctx->return_capacity) {
+        size_t capacity = ctx->return_capacity == 0 ? 4 : ctx->return_capacity * 2;
+        int *rets = (int *)realloc(ctx->pending_returns, capacity * sizeof(int));
+
+        if (!rets) {
+            return tc_cfg_oom(ctx->diag, 0);
+        }
+        ctx->pending_returns = rets;
+        ctx->return_capacity = capacity;
+    }
+    ctx->pending_returns[ctx->return_count++] = node;
+    return 0;
+}
+
 static int tc_cfg_build_block(TcCfgBuildCtx *ctx, const TcStatement *items, size_t count,
                               int predecessor, TcCfgEdgeKind incoming);
 
@@ -480,6 +505,17 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             return -2;
         }
         return -1;
+    } else if (stmt->kind == TC_STMT_RETURN) {
+        if (tc_cfg_add_pending_return(ctx, node) != 0) {
+            return -2;
+        }
+        return -1;
+    } else if (stmt->kind == TC_STMT_FUNC_DEF) {
+        /* 顶层域：不展开函数体；推进 stmt_index 与 Pass1 对齐 */
+        int body_span =
+            tc_stmt_block_index_span(stmt->u.func_def.body, stmt->u.func_def.body_count);
+        ctx->index.next += body_span;
+        return node;
     }
     return node;
 }
@@ -596,6 +632,11 @@ int tc_cfg_build(const TcProgram *program, const TcSymbolTable *symbols, TcCfg *
             goto fail;
         }
     }
+    for (i = 0; i < ctx.return_count; i++) {
+        if (tc_cfg_add_edge(&ctx, ctx.pending_returns[i], out->exit_id, TC_CFG_RETURN) != 0) {
+            goto fail;
+        }
+    }
     tc_cfg_prune_constant_edges(out);
     if (tc_cfg_mark_reachable(out, diag) != 0) {
         goto fail;
@@ -603,12 +644,14 @@ int tc_cfg_build(const TcProgram *program, const TcSymbolTable *symbols, TcCfg *
     free(ctx.stmt_nodes);
     free(ctx.loops);
     free(ctx.gotos);
+    free(ctx.pending_returns);
     return 0;
 
 fail:
     free(ctx.stmt_nodes);
     free(ctx.loops);
     free(ctx.gotos);
+    free(ctx.pending_returns);
     tc_cfg_free(out);
     return -1;
 }
@@ -648,6 +691,19 @@ int tc_analyze_definite_init(const TcCfg *cfg, size_t slot_count, TcDiagnostic *
         if (cfg->nodes[i].reachable && (int)i != cfg->entry_id) {
             tc_bitset_fill(&in_sets[i * words], words, slot_count);
             tc_bitset_fill(&out_sets[i * words], words, slot_count);
+        }
+    }
+    /* 函数域：入口 OUT 含全部形参已初始化 */
+    if (cfg->entry_id >= 0 && cfg->entry_init_slots && cfg->entry_init_count > 0) {
+        size_t s = 0;
+
+        for (s = 0; s < cfg->entry_init_count; s++) {
+            int slot = cfg->entry_init_slots[s];
+
+            if (slot >= 0 && (size_t)slot < slot_count) {
+                out_sets[(size_t)cfg->entry_id * words + (size_t)slot / 64u] |=
+                    UINT64_C(1) << ((size_t)slot % 64u);
+            }
         }
     }
 
@@ -724,3 +780,301 @@ int tc_analyze_definite_init(const TcCfg *cfg, size_t slot_count, TcDiagnostic *
     free(next);
     return 0;
 }
+
+void tc_cfg_set_init(TcCfgSet *set) {
+    memset(set, 0, sizeof(*set));
+    tc_cfg_init(&set->toplevel);
+}
+
+void tc_cfg_set_free(TcCfgSet *set) {
+    size_t i = 0;
+
+    if (!set) {
+        return;
+    }
+    tc_cfg_free(&set->toplevel);
+    for (i = 0; i < set->func_count; i++) {
+        tc_cfg_free(&set->funcs[i]);
+    }
+    free(set->funcs);
+    set->funcs = NULL;
+    set->func_count = 0;
+    set->func_capacity = 0;
+}
+
+static int tc_cfg_build_items(const TcStatement *items, size_t count, int start_index,
+                              const TcSymbolTable *symbols, TcCfg *out, TcDiagnostic *diag) {
+    TcCfgBuildCtx ctx;
+    int last = -1;
+    int stmt_count = start_index + tc_stmt_block_index_span(items, count);
+    size_t i = 0;
+
+    tc_cfg_init(out);
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.cfg = out;
+    ctx.symbols = symbols;
+    ctx.diag = diag;
+    ctx.stmt_node_count = stmt_count > 0 ? (size_t)stmt_count : 1;
+    ctx.stmt_nodes = (int *)malloc(ctx.stmt_node_count * sizeof(int));
+    if (!ctx.stmt_nodes) {
+        return tc_cfg_oom(diag, 0);
+    }
+    for (i = 0; i < ctx.stmt_node_count; i++) {
+        ctx.stmt_nodes[i] = -1;
+    }
+    tc_stmt_index_reset(&ctx.index);
+    ctx.index.next = start_index;
+    out->slot_count = tc_symbol_table_runtime_slot_count(symbols);
+    out->entry_id = tc_cfg_add_node(&ctx, TC_CFG_ENTRY, -1, 0, TC_STMT_VAR_DEF);
+    if (out->entry_id < 0) {
+        goto fail;
+    }
+    last = tc_cfg_build_block(&ctx, items, count, out->entry_id, TC_CFG_FALLTHROUGH);
+    if (last == -2) {
+        goto fail;
+    }
+    out->exit_id = tc_cfg_add_node(&ctx, TC_CFG_EXIT, -1, 0, TC_STMT_VAR_DEF);
+    if (out->exit_id < 0 || tc_cfg_add_edge(&ctx, last, out->exit_id, TC_CFG_FALLTHROUGH) != 0) {
+        goto fail;
+    }
+    for (i = 0; i < ctx.goto_count; i++) {
+        int target_index = ctx.gotos[i].target_stmt_index;
+        int target = target_index >= 0 && (size_t)target_index < ctx.stmt_node_count
+                         ? ctx.stmt_nodes[target_index]
+                         : -1;
+
+        if (target < 0 || tc_cfg_add_edge(&ctx, ctx.gotos[i].node, target, TC_CFG_GOTO) != 0) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN,
+                              "internal invalid goto target");
+            goto fail;
+        }
+    }
+    for (i = 0; i < ctx.return_count; i++) {
+        if (tc_cfg_add_edge(&ctx, ctx.pending_returns[i], out->exit_id, TC_CFG_RETURN) != 0) {
+            goto fail;
+        }
+    }
+    tc_cfg_prune_constant_edges(out);
+    if (tc_cfg_mark_reachable(out, diag) != 0) {
+        goto fail;
+    }
+    free(ctx.stmt_nodes);
+    free(ctx.loops);
+    free(ctx.gotos);
+    free(ctx.pending_returns);
+    return 0;
+
+fail:
+    free(ctx.stmt_nodes);
+    free(ctx.loops);
+    free(ctx.gotos);
+    free(ctx.pending_returns);
+    tc_cfg_free(out);
+    return -1;
+}
+
+static int tc_cfg_collect_param_slots(const TcSymbolTable *symbols, int body_start,
+                                      int **out_slots, size_t *out_count,
+                                      TcDiagnostic *diag) {
+    size_t i = 0;
+    size_t count = 0;
+    size_t cap = 0;
+    int *slots = NULL;
+
+    for (i = 0; i < symbols->count; i++) {
+        const TcSymbol *sym = &symbols->symbols[i];
+
+        if (sym->slot_domain != TC_SLOT_PARAM || sym->slot < 0) {
+            continue;
+        }
+        if (sym->def_stmt_index != body_start) {
+            continue;
+        }
+        if (count == cap) {
+            size_t new_cap = cap == 0 ? 4 : cap * 2;
+            int *grown = (int *)realloc(slots, new_cap * sizeof(int));
+
+            if (!grown) {
+                free(slots);
+                return tc_cfg_oom(diag, 0);
+            }
+            slots = grown;
+            cap = new_cap;
+        }
+        slots[count++] = sym->slot;
+    }
+    *out_slots = slots;
+    *out_count = count;
+    return 0;
+}
+
+int tc_cfg_build_all(const TcProgram *program, const TcSymbolTable *symbols, TcCfgSet *out,
+                     TcDiagnostic *diag) {
+    size_t i = 0;
+    int cursor = 0;
+
+    tc_cfg_set_init(out);
+    if (tc_cfg_build(program, symbols, &out->toplevel, diag) != 0) {
+        tc_cfg_set_free(out);
+        return -1;
+    }
+    out->toplevel.is_function_domain = 0;
+    out->toplevel.func_id = -1;
+
+    for (i = 0; i < program->count; i++) {
+        const TcStatement *stmt = &program->items[i];
+
+        if (stmt->kind != TC_STMT_FUNC_DEF) {
+            cursor += tc_stmt_subtree_index_count(stmt);
+            continue;
+        }
+        {
+            const TcFuncDef *func = &stmt->u.func_def;
+            int func_index = cursor;
+            int body_start = func_index + 1;
+            TcCfg *fcfg = NULL;
+
+            if (out->func_count == out->func_capacity) {
+                size_t cap = out->func_capacity == 0 ? 4 : out->func_capacity * 2;
+                TcCfg *grown = (TcCfg *)realloc(out->funcs, cap * sizeof(TcCfg));
+
+                if (!grown) {
+                    tc_cfg_set_free(out);
+                    return tc_cfg_oom(diag, func->line);
+                }
+                out->funcs = grown;
+                out->func_capacity = cap;
+            }
+            fcfg = &out->funcs[out->func_count];
+            tc_cfg_init(fcfg);
+            if (tc_cfg_build_items(func->body, func->body_count, body_start, symbols, fcfg,
+                                   diag) != 0) {
+                tc_cfg_set_free(out);
+                return -1;
+            }
+            fcfg->is_function_domain = 1;
+            fcfg->func_id = func->func_id >= 0 ? func->func_id : (int)out->func_count;
+            if (tc_cfg_collect_param_slots(symbols, body_start, &fcfg->entry_init_slots,
+                                           &fcfg->entry_init_count, diag) != 0) {
+                tc_cfg_set_free(out);
+                return -1;
+            }
+            out->func_count++;
+            cursor += tc_stmt_subtree_index_count(stmt);
+        }
+    }
+    return 0;
+}
+
+static int tc_cfg_diagnose_unreachable(const TcCfg *cfg, TcDiagnostic *diag) {
+    int *queue = NULL;
+    int *structural = NULL;
+    size_t head = 0;
+    size_t tail = 0;
+    size_t i = 0;
+
+    if (cfg->node_count == 0 || cfg->entry_id < 0) {
+        return 0;
+    }
+    queue = (int *)malloc(cfg->node_count * sizeof(int));
+    structural = (int *)calloc(cfg->node_count, sizeof(int));
+    if (!queue || !structural) {
+        free(queue);
+        free(structural);
+        return tc_cfg_oom(diag, 0);
+    }
+    /* 结构可达：忽略常量边剪枝，仅捕捉 return/goto 后无标签汇合的死码 */
+    structural[cfg->entry_id] = 1;
+    queue[tail++] = cfg->entry_id;
+    while (head < tail) {
+        int from = queue[head++];
+
+        for (i = 0; i < cfg->edge_count; i++) {
+            const TcCfgEdge *edge = &cfg->edges[i];
+
+            if (edge->from != from || structural[edge->to]) {
+                continue;
+            }
+            structural[edge->to] = 1;
+            queue[tail++] = edge->to;
+        }
+    }
+    for (i = 0; i < cfg->node_count; i++) {
+        const TcCfgNode *node = &cfg->nodes[i];
+
+        if (node->kind != TC_CFG_STATEMENT || node->stmt_index < 0) {
+            continue;
+        }
+        if (!structural[i]) {
+            tc_diagnostic_set(diag, TC_ERR_UNREACHABLE_STATEMENT, node->line, TC_COLUMN_UNKNOWN,
+                              "unreachable statement");
+            free(queue);
+            free(structural);
+            return -1;
+        }
+    }
+    free(queue);
+    free(structural);
+    return 0;
+}
+
+static int tc_cfg_diagnose_missing_return(const TcCfg *cfg, const TcFuncDef *func,
+                                          TcDiagnostic *diag) {
+    size_t e = 0;
+
+    if (!func || func->return_type.kind == TC_VOID) {
+        return 0;
+    }
+    if (cfg->exit_id < 0 || !cfg->nodes[cfg->exit_id].reachable) {
+        return 0;
+    }
+    for (e = 0; e < cfg->edge_count; e++) {
+        const TcCfgEdge *edge = &cfg->edges[e];
+
+        if (!edge->enabled || edge->to != cfg->exit_id) {
+            continue;
+        }
+        if (edge->kind == TC_CFG_FALLTHROUGH && cfg->nodes[edge->from].reachable) {
+            tc_diagnostic_set(diag, TC_ERR_MISSING_RETURN, func->line, TC_COLUMN_UNKNOWN,
+                              "missing return on reachable path");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int tc_analyze_definite_init_all(const TcCfgSet *set, const TcProgram *program,
+                                 size_t slot_count, TcDiagnostic *diag) {
+    size_t i = 0;
+    size_t fi = 0;
+
+    if (tc_analyze_definite_init(&set->toplevel, slot_count, diag) != 0) {
+        return -1;
+    }
+    if (tc_cfg_diagnose_unreachable(&set->toplevel, diag) != 0) {
+        return -1;
+    }
+    for (i = 0; i < set->func_count; i++) {
+        const TcFuncDef *func = NULL;
+
+        if (tc_analyze_definite_init(&set->funcs[i], slot_count, diag) != 0) {
+            return -1;
+        }
+        if (tc_cfg_diagnose_unreachable(&set->funcs[i], diag) != 0) {
+            return -1;
+        }
+        /* 按源序匹配第 fi 个 FUNC_DEF */
+        while (fi < program->count && program->items[fi].kind != TC_STMT_FUNC_DEF) {
+            fi++;
+        }
+        if (fi < program->count) {
+            func = &program->items[fi].u.func_def;
+            if (tc_cfg_diagnose_missing_return(&set->funcs[i], func, diag) != 0) {
+                return -1;
+            }
+            fi++;
+        }
+    }
+    return 0;
+}
+

@@ -1,0 +1,10 @@
+#lib
+; 期望：recursive function call
+public func a() void then
+    funcall(Self.b)
+    return
+end
+public func b() void then
+    funcall(Self.a)
+    return
+end

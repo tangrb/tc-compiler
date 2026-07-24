@@ -1,0 +1,7 @@
+#program
+; analyze-only：外层 var × 字段 var 可写
+struct Point then
+    var x: int32
+end
+var p: Point = Point(x: 1)
+p.x = 2

@@ -1,0 +1,6 @@
+#program
+; analyze-only：ptr_load / ptr_store 配对
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+ptr_store(int32, p, 2)
+var b: int32 = ptr_load(int32, p)

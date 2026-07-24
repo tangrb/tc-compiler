@@ -1,7 +1,10 @@
-#program
+#lib
 ; let 常量求值错误先于后续 CFG/DFA 未初始化错误
-let BAD: int32 = div(int32, 1, 0)
-goto use
-var pending: int32 = 1
-label use:
-writeln(int32, pending)
+public func f() void then
+    let BAD: int32 = div(int32, 1, 0)
+    goto use
+    var pending: int32 = 1
+    label use:
+    writeln(int32, pending)
+    return
+end

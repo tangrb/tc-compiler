@@ -1,0 +1,6 @@
+#lib
+; 期望：unreachable statement
+public func f() void then
+    return
+    var x: int32 = 1
+end

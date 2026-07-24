@@ -1,0 +1,9 @@
+#lib
+; 期望：cannot assign to function parameter（形参 × 字段 var）
+public struct Point then
+    var x: int32
+end
+public func f(p: Point) void then
+    p.x = 2
+    return
+end

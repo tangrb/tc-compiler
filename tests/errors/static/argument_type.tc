@@ -1,0 +1,9 @@
+#lib
+; 期望：argument type
+public func sum(a: int32) int32 then
+    return a
+end
+public func caller() void then
+    var x: int32 = funcall(Self.sum, a: true)
+    return
+end

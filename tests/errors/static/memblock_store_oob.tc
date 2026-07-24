@@ -1,0 +1,4 @@
+#program
+; 期望：memblock index out of range（store）
+var mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+memblock_store(int32, mb, 2, 9)

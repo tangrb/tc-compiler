@@ -1,0 +1,3 @@
+#program
+; analyze-only：nullptr 定型
+var p: ptr<int32> = nullptr

@@ -66,10 +66,13 @@ static void test_compile_failures_are_transactional(void) {
     check_failure_preserves_out("#program\nlet X: int32 = div(int32, 10, 0)\n",
                                 TC_ERR_CONSTANT_DIV_ZERO,
                                 "constant evaluation failure returns -1");
-    check_failure_preserves_out("#program\ngoto use_a\n"
-                                "var a: int32 = 0\n"
-                                "label use_a:\n"
-                                "var b: int32 = add(int32, a, 0)\n",
+    check_failure_preserves_out("#lib\npublic func f() void then\n"
+                                "    goto use_a\n"
+                                "    var a: int32 = 0\n"
+                                "    label use_a:\n"
+                                "    var b: int32 = add(int32, a, 0)\n"
+                                "    return\n"
+                                "end\n",
                                 TC_ERR_UNINITIALIZED_VARIABLE,
                                 "CFG dataflow failure returns -1");
 }

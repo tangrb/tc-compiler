@@ -3,16 +3,16 @@
  *
  * 提供：
  *   - 类型位宽查询（tc_type_bit_width / tc_sizeof_bits）、符号性判定
- *   - 完整类型构造与等价（tc_type_scalar / tc_type_equals）
- *   - 类型名解析（tc_type_parse）与字符串化（tc_type_name）
- *   - 运算符解析与格式说明符
- *   - 错误/警告种类名称字符串化
+ *   - 完整类型构造 / 深拷贝 / 等价（tc_type_scalar / tc_type_copy / tc_type_equals）
+ *   - struct 布局位宽回调（tc_sizeof_bits_set_struct_width_fn，Phase 3）
+ *   - 类型名解析与字符串化、运算符/格式说明符、错误种类名
  */
 #include "tc_types.h"
 
 #include <stdlib.h>
 #include <string.h>
 
+/* Analyzer 注册的 struct 位宽查询；未注册时 sizeof(struct) 返回 0 */
 static TcStructWidthFn g_struct_width_fn = NULL;
 static void *g_struct_width_userdata = NULL;
 
@@ -71,6 +71,51 @@ void tc_type_free(TcType *type) {
         type->params.memblock_type.element = NULL;
     }
     memset(type, 0, sizeof(*type));
+}
+
+int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
+    TcType copy;
+
+    (void)diag;
+    if (!src || !out) {
+        return -1;
+    }
+    memset(&copy, 0, sizeof(copy));
+    copy.kind = src->kind;
+    if (src->kind == TC_PTR) {
+        TcType *pointee = NULL;
+
+        if (src->params.ptr_type.pointee) {
+            pointee = (TcType *)malloc(sizeof(TcType));
+            if (!pointee) {
+                return -1;
+            }
+            if (tc_type_copy(src->params.ptr_type.pointee, pointee, diag) != 0) {
+                free(pointee);
+                return -1;
+            }
+        }
+        copy.params.ptr_type.pointee = pointee;
+    } else if (src->kind == TC_MEMBLOCK) {
+        TcType *element = NULL;
+
+        if (src->params.memblock_type.element) {
+            element = (TcType *)malloc(sizeof(TcType));
+            if (!element) {
+                return -1;
+            }
+            if (tc_type_copy(src->params.memblock_type.element, element, diag) != 0) {
+                free(element);
+                return -1;
+            }
+        }
+        copy.params.memblock_type.element = element;
+        copy.params.memblock_type.count = src->params.memblock_type.count;
+    } else if (src->kind == TC_STRUCT) {
+        copy.params.struct_type.struct_id = src->params.struct_type.struct_id;
+    }
+    *out = copy;
+    return 0;
 }
 
 int tc_type_equals(const TcType *a, const TcType *b) {

@@ -1,0 +1,5 @@
+#program
+; 期望：ptr_size result must be usize/isize
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var n: int32 = ptr_size(int32, p)

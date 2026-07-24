@@ -1,0 +1,8 @@
+#program
+; analyze-only：结构体构造与字段读
+struct Point then
+    var x: int32
+    var y: int32
+end
+var p: Point = Point(x: 1, y: 2)
+var v: int32 = p.x

@@ -1,7 +1,10 @@
-#program
+#lib
 ; var 左操作数不做值推测，RHS 的未初始化读取保持可达
-var runtime_false: bool = false
-goto use
-var pending: bool = true
-label use:
-var result: bool = and(bool, runtime_false, pending)
+public func f() void then
+    var runtime_false: bool = false
+    goto use
+    var pending: bool = true
+    label use:
+    var result: bool = and(bool, runtime_false, pending)
+    return
+end

@@ -1,0 +1,4 @@
+#program
+; 期望：private member access
+import PrivLib
+funcall(PrivLib.secret)

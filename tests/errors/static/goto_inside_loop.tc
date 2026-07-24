@@ -1,5 +1,8 @@
-#program
-while true then
-    goto outside
+#lib
+public func f() void then
+    while true then
+        goto outside
+    end
+    label outside:
+    return
 end
-label outside:

@@ -20,5 +20,6 @@ add_custom_target(check-unit
     COMMAND echo "=== Running CFG unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-cfg
     COMMAND echo "=== Running Executor unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-executor
     COMMAND echo "=== Running stmt_index unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-stmt-index
+    COMMAND echo "=== Running Type-check unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-type-check
     COMMENT "Running all unit tests"
 )

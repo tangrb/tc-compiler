@@ -1,0 +1,10 @@
+#lib
+; 期望：memblock size mismatch（funcall 传参 N 不等）
+public func take(mb: memblock<int32, 2>) void then
+    return
+end
+public func caller() void then
+    var a: memblock<int32, 3> = memblock(int32, count: 3, fill: 0)
+    funcall(Self.take, mb: a)
+    return
+end

@@ -1,0 +1,6 @@
+#program
+; 期望：unknown struct field
+struct Point then
+    var x: int32
+end
+var p: Point = Point(x: 1, z: 2)

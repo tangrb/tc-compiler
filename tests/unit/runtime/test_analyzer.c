@@ -398,11 +398,14 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "mode legality precedes literal context typing",
         },
         {
-            "#program\nlet BAD: int32 = div(int32, 1, 0)\n"
-            "goto use\n"
-            "var pending: int32 = 1\n"
-            "label use:\n"
-            "writeln(int32, pending)\n",
+            "#lib\npublic func f() void then\n"
+            "    let BAD: int32 = div(int32, 1, 0)\n"
+            "    goto use\n"
+            "    var pending: int32 = 1\n"
+            "    label use:\n"
+            "    writeln(int32, pending)\n"
+            "    return\n"
+            "end\n",
             0,
             TC_ERR_CONSTANT_DIV_ZERO,
             "constant evaluation precedes CFG definite-init failure",
@@ -427,11 +430,14 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "unreachable branch still reports type error before CFG",
         },
         {
-            "#program\nvar runtime: bool = false\n"
-            "goto use\n"
-            "var pending: bool = true\n"
-            "label use:\n"
-            "var result: bool = and(bool, runtime, pending)\n",
+            "#lib\npublic func f() void then\n"
+            "    var runtime: bool = not(bool, true)\n"
+            "    goto use\n"
+            "    var pending: bool = not(bool, true)\n"
+            "    label use:\n"
+            "    var result: bool = and(bool, runtime, pending)\n"
+            "    return\n"
+            "end\n",
             0,
             TC_ERR_UNINITIALIZED_VARIABLE,
             "DFA reports uninitialized read after all earlier phases pass",
@@ -546,10 +552,13 @@ static void test_analyze_uninit_error(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\ngoto use\n"
-        "var a: int32 = 1\n"
-        "label use:\n"
-        "writeln(int32, a)\n";
+        "#lib\npublic func f() void then\n"
+        "    goto use\n"
+        "    var a: int32 = 1\n"
+        "    label use:\n"
+        "    writeln(int32, a)\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -566,14 +575,17 @@ static void test_analyze_uninit_if_merge(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nvar condition: int32 = 1\n"
-        "goto branch\n"
-        "var x: int32 = 0\n"
-        "label branch:\n"
-        "if eq(int32, condition, 1) then\n"
-        "    x = 10\n"
-        "end\n"
-        "var y: int32 = add(int32, x, 1)\n";
+        "#lib\npublic func f() void then\n"
+        "    var condition: int32 = 1\n"
+        "    goto branch\n"
+        "    var x: int32 = 0\n"
+        "    label branch:\n"
+        "    if eq(int32, condition, 1) then\n"
+        "        x = 10\n"
+        "    end\n"
+        "    var y: int32 = add(int32, x, 1)\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -590,15 +602,18 @@ static void test_analyze_uninit_both_paths_ok(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\ngoto branch\n"
-        "var x: int32 = 0\n"
-        "label branch:\n"
-        "if true then\n"
-        "    x = 10\n"
-        "else\n"
-        "    x = 20\n"
-        "end\n"
-        "var y: int32 = add(int32, x, 1)\n";
+        "#lib\npublic func f() void then\n"
+        "    var x: int32 = 0\n"
+        "    goto branch\n"
+        "    label branch:\n"
+        "    if true then\n"
+        "        x = 10\n"
+        "    else\n"
+        "        x = 20\n"
+        "    end\n"
+        "    var y: int32 = add(int32, x, 1)\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -614,11 +629,15 @@ static void test_analyze_shortcircuit_uninit_ok(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nvar flag: bool = false\n"
-        "goto use\n"
-        "var uninit: bool = true\n"
-        "label use:\n"
-        "var result: bool = and(bool, false, uninit)\n";
+        "#lib\npublic func f() void then\n"
+        "    let FALSE: bool = not(bool, true)\n"
+        "    var uninit: bool = not(bool, true)\n"
+        "    if eq(int32, 1, 0) then\n"
+        "        uninit = not(bool, true)\n"
+        "    end\n"
+        "    var result: bool = and(bool, FALSE, uninit)\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -769,27 +788,37 @@ static void test_analyze_static_bool_operand_matrix(void) {
 
 static void test_analyze_static_bool_dfa_pruning(void) {
     static const char *cases[] = {
-        "#program\nlet TEN: int32 = 10\n"
-        "let FIVE: int32 = 5\n"
-        "goto branch\n"
-        "var value: int32 = 0\n"
-        "label branch:\n"
-        "if gt(int32, TEN, FIVE) then\n"
-        "    value = 10\n"
-        "end\n"
-        "writeln(int32, value)\n",
-        "#program\nlet FALSE: bool = false\n"
-        "goto use\n"
-        "var pending: bool = true\n"
-        "label use:\n"
-        "var result: bool = and(bool, FALSE, pending)\n",
-        "#program\nlet TEN: int32 = 10\n"
-        "let FIVE: int32 = 5\n"
-        "goto use\n"
-        "var pending: int32 = 1\n"
-        "label use:\n"
-        "while lt(int32, TEN, FIVE) then\n"
-        "    writeln(int32, pending)\n"
+        "#lib\npublic func f() void then\n"
+        "    let TEN: int32 = 10\n"
+        "    let FIVE: int32 = 5\n"
+        "    var value: int32 = 0\n"
+        "    goto branch\n"
+        "    label branch:\n"
+        "    if gt(int32, TEN, FIVE) then\n"
+        "        value = 10\n"
+        "    end\n"
+        "    writeln(int32, value)\n"
+        "    return\n"
+        "end\n",
+        "#lib\npublic func f() void then\n"
+        "    let FALSE: bool = not(bool, true)\n"
+        "    var pending: bool = not(bool, true)\n"
+        "    if eq(int32, 1, 0) then\n"
+        "        pending = not(bool, true)\n"
+        "    end\n"
+        "    var result: bool = and(bool, FALSE, pending)\n"
+        "    return\n"
+        "end\n",
+        "#lib\npublic func f() void then\n"
+        "    let TEN: int32 = 10\n"
+        "    let FIVE: int32 = 5\n"
+        "    var pending: int32 = 1\n"
+        "    goto use\n"
+        "    label use:\n"
+        "    while lt(int32, TEN, FIVE) then\n"
+        "        writeln(int32, pending)\n"
+        "    end\n"
+        "    return\n"
         "end\n",
     };
     size_t i = 0;
@@ -855,8 +884,11 @@ static void test_analyze_duplicate_label(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nlabel dup:\n"
-        "label dup:\n";
+        "#lib\npublic func f() void then\n"
+        "    label dup:\n"
+        "    label dup:\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -873,10 +905,13 @@ static void test_analyze_sibling_label_same_name(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nif true then\n"
-        "    label L:\n"
-        "else\n"
-        "    label L:\n"
+        "#lib\npublic func f() void then\n"
+        "    if true then\n"
+        "        label L:\n"
+        "    else\n"
+        "        label L:\n"
+        "    end\n"
+        "    return\n"
         "end\n";
 
     tc_diagnostic_init(&diag);
@@ -894,8 +929,10 @@ static void test_analyze_goto_ok(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nlabel start:\n"
-        "goto start\n";
+        "#lib\npublic func f() void then\n"
+        "    label start:\n"
+        "    goto start\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -912,16 +949,30 @@ static void test_analyze_goto_forward(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\ngoto skip\n"
-        "label skip:\n";
+        "#lib\npublic func f() void then\n"
+        "    goto skip\n"
+        "    label skip:\n"
+        "    return\n"
+        "end\n";
+    TcFuncDef *func = NULL;
+    TcGoto *goto_stmt = NULL;
+    const TcLabelEntry *label = NULL;
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse forward goto");
     check(tc_analyze(&program, &typed, &diag) == 0, "forward goto ok");
-    check(typed.program.items[0].u.goto_stmt.resolved != 0, "forward goto is resolved");
-    check(typed.program.items[0].u.goto_stmt.resolved_target_stmt_index == 1,
+    check(typed.program.count == 1 && typed.program.items[0].kind == TC_STMT_FUNC_DEF,
+          "forward goto program has one func");
+    func = &typed.program.items[0].u.func_def;
+    check(func->body_count == 3, "forward goto func body count");
+    goto_stmt = &func->body[0].u.goto_stmt;
+    check(goto_stmt->resolved != 0, "forward goto is resolved");
+    check(typed.symbols.label_count == 1, "forward goto retains one label");
+    label = &typed.symbols.labels[0];
+    check(strcmp(label->name, "skip") == 0, "forward goto target label name");
+    check(goto_stmt->resolved_target_stmt_index == label->stmt_index,
           "forward goto stores target stmt index");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
@@ -931,7 +982,11 @@ static void test_analyze_goto_undefined(void) {
     TcProgram program;
     TcTypedProgram typed;
     TcDiagnostic diag;
-    const char *source = "#program\ngoto nonexistent\n";
+    const char *source =
+        "#lib\npublic func f() void then\n"
+        "    goto nonexistent\n"
+        "    return\n"
+        "end\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
@@ -948,9 +1003,12 @@ static void test_analyze_goto_into_block(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\ngoto inner\n"
-        "if true then\n"
-        "    label inner:\n"
+        "#lib\npublic func f() void then\n"
+        "    goto inner\n"
+        "    if true then\n"
+        "        label inner:\n"
+        "    end\n"
+        "    return\n"
         "end\n";
 
     tc_diagnostic_init(&diag);
@@ -968,10 +1026,13 @@ static void test_analyze_goto_sibling(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nif true then\n"
-        "    goto else_branch\n"
-        "else\n"
-        "    label else_branch:\n"
+        "#lib\npublic func f() void then\n"
+        "    if true then\n"
+        "        goto else_branch\n"
+        "    else\n"
+        "        label else_branch:\n"
+        "    end\n"
+        "    return\n"
         "end\n";
 
     tc_diagnostic_init(&diag);
@@ -989,9 +1050,12 @@ static void test_analyze_goto_out_of_if(void) {
     TcTypedProgram typed;
     TcDiagnostic diag;
     const char *source =
-        "#program\nlabel after:\n"
-        "if true then\n"
-        "    goto after\n"
+        "#lib\npublic func f() void then\n"
+        "    label after:\n"
+        "    if true then\n"
+        "        goto after\n"
+        "    end\n"
+        "    return\n"
         "end\n";
 
     tc_diagnostic_init(&diag);
@@ -1073,11 +1137,13 @@ static void test_analyze_loop_context_errors(void) {
     } cases[] = {
         {"#program\nbreak\n", TC_ERR_BREAK_OUTSIDE_LOOP},
         {"#program\ncontinue\n", TC_ERR_CONTINUE_OUTSIDE_LOOP},
-        {"#program\nwhile false then\n    goto out\nend\nlabel out:\n", TC_ERR_GOTO_INSIDE_LOOP},
-        {"#program\nwhile false then\n    label inner:\nend\n", TC_ERR_LABEL_INSIDE_LOOP},
-        {"#program\nwhile false then\n    if true then\n        goto out\n    end\nend\nlabel out:\n",
+        {"#lib\npublic func f() void then\n    while false then\n        goto out\n    end\n    label out:\n    return\nend\n",
          TC_ERR_GOTO_INSIDE_LOOP},
-        {"#program\nwhile false then\n    if true then\n        label inner:\n    end\nend\n",
+        {"#lib\npublic func f() void then\n    while false then\n        label inner:\n    end\n    return\nend\n",
+         TC_ERR_LABEL_INSIDE_LOOP},
+        {"#lib\npublic func f() void then\n    while false then\n        if true then\n            goto out\n        end\n    end\n    label out:\n    return\nend\n",
+         TC_ERR_GOTO_INSIDE_LOOP},
+        {"#lib\npublic func f() void then\n    while false then\n        if true then\n            label inner:\n        end\n    end\n    return\nend\n",
          TC_ERR_LABEL_INSIDE_LOOP},
     };
     size_t i = 0;

@@ -1,0 +1,7 @@
+#program
+; 期望：cannot assign to immutable struct field
+struct Point then
+    let x: int32
+end
+var p: Point = Point(x: 1)
+p.x = 2

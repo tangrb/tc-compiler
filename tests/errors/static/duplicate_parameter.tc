@@ -1,0 +1,5 @@
+#lib
+; 期望：duplicate parameter
+public func f(a: int32, a: int32) void then
+    return
+end

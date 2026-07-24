@@ -14,6 +14,9 @@
 
 #include <stddef.h>
 
+/* Phase 4：完整定义在 tc_func_check.h */
+typedef struct TcFuncCheckEnv TcFuncCheckEnv;
+
 /* ------------------------------------------------------------------ */
 /*  共享类型                                                            */
 /* ------------------------------------------------------------------ */
@@ -47,6 +50,8 @@ typedef struct {
     int next_loop_id;            /* Pass1 源序分配稳定 loop id */
     int current_loop_id;         /* Pass2 当前最内层 while；-1 表示无 */
     int loop_depth;              /* 词法祖先 while 数，用于范式隔离 */
+    int func_depth;              /* 词法祖先 func 数；0 表示顶层 */
+    TcFuncCheckEnv *func_env;    /* Phase 4；可为 NULL */
 } TcAnalyzeCtx;
 
 /** 初始化历史 / 数据流上下文，供未初始化变量检查使用 */
@@ -94,6 +99,12 @@ void tc_prescan_init_history(TcProgram *program, TcSymbolTable *symbols, TcAnaly
 /* ------------------------------------------------------------------ */
 /*  Pass2 类型检查辅助（实现于 tc_analyzer_pass2.c；REPL 亦用）              */
 /* ------------------------------------------------------------------ */
+
+void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol);
+
+const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
+                                          const TcSymbolTable *global, const char *name,
+                                          size_t stmt_index, int line, TcDiagnostic *diag);
 
 int tc_check_operand(TcOperand *operand, TcTypeKind expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,

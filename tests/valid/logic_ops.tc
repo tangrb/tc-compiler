@@ -2,9 +2,7 @@
 ; 逻辑运算与短路求值
 var a: bool = true
 var b: bool = false
-goto after_uninit
 var uninit: bool = true
-label after_uninit:
 var and_ab: bool = and(bool, a, b)
 var and_ac: bool = and(bool, a, a)
 var or_ab: bool = or(bool, a, b)

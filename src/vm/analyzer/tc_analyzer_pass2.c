@@ -1,7 +1,15 @@
 /*
  * tc_analyzer_pass2.c — Pass2 类型检查、标签收集、goto 跳转合法性
+ *
+ * Phase 3：复合类型经 tc_type_check_rhs / tc_ptr_check_* / tc_memblock_check_* /
+ * tc_struct_check_* 分派；label/goto 仅允许出现在函数体内。
  */
 #include "tc_analyzer_pass2.h"
+#include "tc_type_check.h"
+#include "tc_memblock_check.h"
+#include "tc_ptr_check.h"
+#include "tc_struct_check.h"
+#include "tc_func_check.h"
 #include "tc_analyzer_dfa.h"
 
 #include "tc_const_eval.h"
@@ -97,7 +105,7 @@ static int tc_check_goto_jump(const TcBlockPath *goto_path, const TcLabelEntry *
 /*  操作数与 RHS 检查                                                    */
 /* ------------------------------------------------------------------ */
 
-static void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol) {
+void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol) {
     binding->resolved = 1;
     binding->slot = symbol->sym_kind == TC_SYM_VARIABLE ? symbol->slot : -1;
     binding->is_const = symbol->sym_kind == TC_SYM_CONSTANT;
@@ -105,7 +113,7 @@ static void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *
     binding->const_bits = symbol->has_const_value ? symbol->const_value.bits : 0;
 }
 
-static const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
+const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                                  const TcSymbolTable *global, const char *name,
                                                  size_t stmt_index, int line,
                                                  TcDiagnostic *diag) {
@@ -124,6 +132,42 @@ static const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
             tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return NULL;
         }
+    }
+    (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+    tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+    return NULL;
+}
+
+/** 带本库成员索引的名称解析（函数体内裸名命中成员 → FUNCTION_SCOPE_ACCESS） */
+static const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *visible,
+                                                        const TcSymbolTable *global,
+                                                        const char *name, size_t stmt_index,
+                                                        int line, TcDiagnostic *diag,
+                                                        const TcMemberIndex *members,
+                                                        int in_function) {
+    const TcSymbol *symbol = tc_symbol_table_find(visible, name);
+    char msg[128];
+
+    if (symbol) {
+        return symbol;
+    }
+    if (global) {
+        const TcSymbol *block_sym =
+            tc_symbol_for_assign_target(global, name, (int)stmt_index);
+
+        if (block_sym && block_sym->scope_end_stmt_index >= 0) {
+            if (in_function && members &&
+                tc_func_try_function_scope_access(members, name, line, diag)) {
+                return NULL;
+            }
+            (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            return NULL;
+        }
+    }
+    if (in_function && members &&
+        tc_func_try_function_scope_access(members, name, line, diag)) {
+        return NULL;
     }
     (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
     tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
@@ -889,13 +933,16 @@ static int tc_visible_add_from_global(const TcSymbolTable *global, const char *n
         tc_diagnostic_set(diag, TC_ERR_SYNTAX, 0, TC_COLUMN_UNKNOWN, "internal analyzer error");
         return -1;
     }
-    if (tc_symbol_table_add(visible, sym->name, sym->type, sym->slot, sym->def_line,
-                            sym->def_stmt_index, sym->sym_kind, sym->initialized, diag) != 0) {
+    if (tc_symbol_table_add_ex(visible, sym->name, sym->type, &sym->full_type,
+                               sym->memblock_count, sym->struct_id, sym->slot, sym->slot_domain,
+                               sym->def_line, sym->def_stmt_index, sym->sym_kind,
+                               sym->initialized, diag) != 0) {
         return -1;
     }
     added = &visible->symbols[visible->count - 1];
     added->has_const_value = sym->has_const_value;
     added->const_value = sym->const_value;
+    added->scope_end_stmt_index = sym->scope_end_stmt_index;
     return 0;
 }
 
@@ -962,6 +1009,11 @@ static int tc_pass2_collect_labels_stmt(TcStatement *stmt, TcSymbolTable *symbol
         const TcLabelDef *label_def = &stmt->u.label_def;
         int stmt_index = tc_stmt_index_take(&ctx->index);
 
+        if (ctx->func_depth == 0) {
+            tc_diagnostic_set(diag, TC_ERR_LABEL_OUTSIDE_FUNCTION, label_def->line,
+                              TC_COLUMN_UNKNOWN, "label is only allowed inside a function");
+            return -1;
+        }
         if (ctx->loop_depth > 0) {
             tc_diagnostic_set(diag, TC_ERR_LABEL_INSIDE_LOOP, label_def->line,
                               TC_COLUMN_UNKNOWN, "label is not allowed inside while");
@@ -972,11 +1024,35 @@ static int tc_pass2_collect_labels_stmt(TcStatement *stmt, TcSymbolTable *symbol
                                          ctx->block_path.path, ctx->block_path.depth, diag);
     }
 
-    if (stmt->kind == TC_STMT_GOTO && ctx->loop_depth > 0) {
+    if (stmt->kind == TC_STMT_GOTO) {
         tc_stmt_index_take(&ctx->index);
-        tc_diagnostic_set(diag, TC_ERR_GOTO_INSIDE_LOOP, stmt->u.goto_stmt.line,
-                          TC_COLUMN_UNKNOWN, "goto is not allowed inside while");
-        return -1;
+        if (ctx->func_depth == 0) {
+            tc_diagnostic_set(diag, TC_ERR_GOTO_OUTSIDE_FUNCTION, stmt->u.goto_stmt.line,
+                              TC_COLUMN_UNKNOWN, "goto is only allowed inside a function");
+            return -1;
+        }
+        if (ctx->loop_depth > 0) {
+            tc_diagnostic_set(diag, TC_ERR_GOTO_INSIDE_LOOP, stmt->u.goto_stmt.line,
+                              TC_COLUMN_UNKNOWN, "goto is not allowed inside while");
+            return -1;
+        }
+        return 0;
+    }
+
+    if (stmt->kind == TC_STMT_FUNC_DEF) {
+        TcFuncDef *func = &stmt->u.func_def;
+        size_t i = 0;
+
+        (void)tc_stmt_index_take(&ctx->index);
+        ctx->func_depth++;
+        for (i = 0; i < func->body_count; i++) {
+            if (tc_pass2_collect_labels_stmt(&func->body[i], symbols, ctx, diag) != 0) {
+                ctx->func_depth--;
+                return -1;
+            }
+        }
+        ctx->func_depth--;
+        return 0;
     }
 
     tc_stmt_index_take(&ctx->index);
@@ -991,6 +1067,7 @@ static int tc_pass2_collect_labels(TcProgram *program, TcSymbolTable *symbols,
     tc_stmt_index_reset(&ctx->index);
     ctx->block_path.depth = 0;
     ctx->loop_depth = 0;
+    ctx->func_depth = 0;
     for (i = 0; i < program->count; i++) {
         if (tc_pass2_collect_labels_stmt(&program->items[i], symbols, ctx, diag) != 0) {
             return -1;
@@ -1004,9 +1081,46 @@ static int tc_pass2_collect_labels(TcProgram *program, TcSymbolTable *symbols,
 /*  Pass 2b — 类型与语义检查（DFS 递归）+ goto 跳转合法性                */
 /* ------------------------------------------------------------------ */
 
+static int tc_pass2_check_funcall_rhs(TcRhs *rhs, const TcType *expected, int position,
+                                      TcAnalyzeCtx *ctx, const TcSymbolTable *visible,
+                                      const TcSymbolTable *symbols, TcInitHistory *hist,
+                                      size_t stmt_index, int line, TcWarningList *warnings,
+                                      TcDiagnostic *diag) {
+    TcNamedArg *args = NULL;
+    size_t i = 0;
+    int rc = 0;
+
+    if (!ctx->func_env || rhs->kind != TC_RHS_FUNCALL_EXPR) {
+        tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN, "expected funcall");
+        return -1;
+    }
+    if (rhs->u.funcall_expr.arg_count > 0) {
+        args = (TcNamedArg *)calloc(rhs->u.funcall_expr.arg_count, sizeof(TcNamedArg));
+        if (!args) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        for (i = 0; i < rhs->u.funcall_expr.arg_count; i++) {
+            args[i].param_name = rhs->u.funcall_expr.args[i].param_name;
+            if (rhs->u.funcall_expr.args[i].value) {
+                memcpy(&args[i].value, rhs->u.funcall_expr.args[i].value, sizeof(TcRhs));
+            }
+        }
+    }
+    rc = tc_func_check_funcall(ctx->func_env, rhs->u.funcall_expr.is_self,
+                               rhs->u.funcall_expr.qualifier, rhs->u.funcall_expr.member_name,
+                               rhs->u.funcall_expr.target, args, rhs->u.funcall_expr.arg_count,
+                               position, expected, line, visible, symbols, hist, stmt_index,
+                               warnings, diag);
+    free(args);
+    return rc;
+}
+
 static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
-                               TcSymbolTable *visible, TcAnalyzeCtx *ctx, TcInitHistory *hist,
-                               TcWarningList *warnings, TcDiagnostic *diag) {
+                               TcSymbolTable *visible, TcStructTable *struct_table,
+                               TcAnalyzeCtx *ctx, TcInitHistory *hist, TcWarningList *warnings,
+                               TcDiagnostic *diag) {
     if (stmt->kind == TC_STMT_WHILE) {
         TcWhileStmt *while_stmt = &stmt->u.while_stmt;
         TcSymbolTable visible_body;
@@ -1039,8 +1153,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         ctx->loop_depth++;
         ctx->current_loop_id = while_stmt->loop_id;
         for (i = 0; i < while_stmt->body_count; i++) {
-            if (tc_pass2_check_stmt(&while_stmt->body[i], symbols, &visible_body, ctx, hist,
-                                    warnings, diag) != 0) {
+            if (tc_pass2_check_stmt(&while_stmt->body[i], symbols, &visible_body, struct_table,
+                                    ctx, hist, warnings, diag) != 0) {
                 ctx->current_loop_id = saved_loop_id;
                 ctx->loop_depth--;
                 tc_symbol_table_free(&visible_body);
@@ -1107,8 +1221,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             return -1;
         }
         for (i = 0; i < if_stmt->then_count; i++) {
-            if (tc_pass2_check_stmt(&if_stmt->then_body[i], symbols, &visible_then, ctx, hist,
-                                    warnings, diag) != 0) {
+            if (tc_pass2_check_stmt(&if_stmt->then_body[i], symbols, &visible_then, struct_table,
+                                    ctx, hist, warnings, diag) != 0) {
                 tc_symbol_table_free(&visible_then);
                 free(before_then);
                 free(after_then);
@@ -1142,8 +1256,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 return -1;
             }
             for (i = 0; i < if_stmt->else_count; i++) {
-                if (tc_pass2_check_stmt(&if_stmt->else_body[i], symbols, &visible_else, ctx, hist,
-                                        warnings, diag) != 0) {
+                if (tc_pass2_check_stmt(&if_stmt->else_body[i], symbols, &visible_else,
+                                        struct_table, ctx, hist, warnings, diag) != 0) {
                     tc_symbol_table_free(&visible_else);
                     free(before_then);
                     free(after_then);
@@ -1206,22 +1320,17 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         return 0;
     }
 
-    if (stmt->kind == TC_STMT_LABEL_DEF) {
-        tc_stmt_index_take(&ctx->index);
-        /* 标签合流点：恢复可达（简化：不合并多入边状态） */
-        ctx->path_reachable = 1;
-        if (hist) {
-            hist->check_init = 1;
-        }
-        return 0;
-    }
-
     if (stmt->kind == TC_STMT_GOTO) {
         TcGoto *goto_stmt = &stmt->u.goto_stmt;
         const TcLabelEntry *entry = NULL;
         char msg[128];
 
         tc_stmt_index_take(&ctx->index);
+        if (ctx->func_depth == 0) {
+            tc_diagnostic_set(diag, TC_ERR_GOTO_OUTSIDE_FUNCTION, goto_stmt->line,
+                              TC_COLUMN_UNKNOWN, "goto is only allowed inside a function");
+            return -1;
+        }
         entry = tc_resolve_goto_label(symbols, goto_stmt->target, &ctx->block_path);
         if (!entry) {
             (void)snprintf(msg, sizeof(msg), "label '%s' not found", goto_stmt->target);
@@ -1242,6 +1351,123 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         return 0;
     }
 
+    if (stmt->kind == TC_STMT_FUNC_DEF) {
+        TcFuncDef *func = &stmt->u.func_def;
+        TcSymbolTable visible_body;
+        size_t i = 0;
+        const TcFuncSignature *saved_func = NULL;
+
+        (void)tc_stmt_index_take(&ctx->index);
+        tc_symbol_table_init(&visible_body);
+        ctx->func_depth++;
+        if (ctx->func_env) {
+            saved_func = ctx->func_env->current_func;
+            ctx->func_env->current_func = NULL;
+            if (ctx->func_env->sigs) {
+                size_t si = 0;
+                for (si = 0; si < ctx->func_env->sigs->count; si++) {
+                    if (ctx->func_env->sigs->items[si].func_id == func->func_id) {
+                        ctx->func_env->current_func = &ctx->func_env->sigs->items[si];
+                        break;
+                    }
+                }
+            }
+        }
+        for (i = 0; i < func->param_count; i++) {
+            const TcFuncParam *param = &func->params[i];
+            const TcSymbol *sym = NULL;
+            size_t si = 0;
+
+            /* Pass1 已 pop 函数作用域；按 def_line + PARAM 域找回形参符号 */
+            for (si = 0; si < symbols->count; si++) {
+                const TcSymbol *cand = &symbols->symbols[si];
+
+                if (cand->slot_domain == TC_SLOT_PARAM && cand->def_line == func->line &&
+                    cand->name && param->name && strcmp(cand->name, param->name) == 0) {
+                    sym = cand;
+                    break;
+                }
+            }
+
+            if (sym && tc_visible_add_from_global(symbols, param->name, sym->def_stmt_index,
+                                                    &visible_body, diag) != 0) {
+                if (ctx->func_env) {
+                    ctx->func_env->current_func = saved_func;
+                }
+                ctx->func_depth--;
+                tc_symbol_table_free(&visible_body);
+                return -1;
+            }
+            /* 形参入口已初始化 */
+            if (sym && ctx->init_states && sym->slot >= 0 && sym->slot < ctx->num_slots) {
+                ctx->init_states[sym->slot] = TC_INIT_INIT;
+            }
+        }
+        for (i = 0; i < func->body_count; i++) {
+            if (tc_pass2_check_stmt(&func->body[i], symbols, &visible_body, struct_table, ctx,
+                                    hist, warnings, diag) != 0) {
+                if (ctx->func_env) {
+                    ctx->func_env->current_func = saved_func;
+                }
+                ctx->func_depth--;
+                tc_symbol_table_free(&visible_body);
+                return -1;
+            }
+        }
+        if (ctx->func_env) {
+            ctx->func_env->current_func = saved_func;
+        }
+        ctx->func_depth--;
+        tc_symbol_table_free(&visible_body);
+        return 0;
+    }
+
+    if (stmt->kind == TC_STMT_LABEL_DEF) {
+        tc_stmt_index_take(&ctx->index);
+        if (ctx->func_depth == 0) {
+            tc_diagnostic_set(diag, TC_ERR_LABEL_OUTSIDE_FUNCTION, stmt->u.label_def.line,
+                              TC_COLUMN_UNKNOWN, "label is only allowed inside a function");
+            return -1;
+        }
+        /* 标签合流点：恢复可达（简化：不合并多入边状态） */
+        ctx->path_reachable = 1;
+        if (hist) {
+            hist->check_init = 1;
+        }
+        return 0;
+    }
+
+    if (stmt->kind == TC_STMT_FUNCALL) {
+        TcFuncallStmt *call = &stmt->u.funcall_stmt;
+        size_t stmt_index = (size_t)tc_stmt_index_take(&ctx->index);
+
+        if (!ctx->func_env) {
+            return 0;
+        }
+        return tc_func_check_funcall(ctx->func_env, call->is_self, call->qualifier,
+                                     call->member_name, call->target, call->args, call->arg_count,
+                                     0, NULL, call->line, visible, symbols, hist, stmt_index,
+                                     warnings, diag);
+    }
+
+    if (stmt->kind == TC_STMT_RETURN) {
+        TcReturnStmt *ret = &stmt->u.return_stmt;
+        size_t stmt_index = (size_t)tc_stmt_index_take(&ctx->index);
+
+        if (!ctx->func_env) {
+            return 0;
+        }
+        if (tc_func_check_return(ctx->func_env, ret, visible, symbols, hist, stmt_index, warnings,
+                                 diag) != 0) {
+            return -1;
+        }
+        ctx->path_reachable = 0;
+        if (hist) {
+            hist->check_init = 0;
+        }
+        return 0;
+    }
+
     {
         size_t stmt_index = (size_t)tc_stmt_index_take(&ctx->index);
 
@@ -1249,8 +1475,15 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             TcVarDef *var_def = &stmt->u.var_def;
             const TcSymbol *sym = NULL;
 
-            if (tc_check_rhs(&var_def->rhs, var_def->type, visible, symbols, hist, stmt_index,
-                             var_def->line, diag, warnings, var_def->name) != 0) {
+            if (var_def->rhs.kind == TC_RHS_FUNCALL_EXPR && ctx->func_env) {
+                if (tc_pass2_check_funcall_rhs(&var_def->rhs, &var_def->full_type, 1, ctx,
+                                               visible, symbols, hist, stmt_index, var_def->line,
+                                               warnings, diag) != 0) {
+                    return -1;
+                }
+            } else if (tc_type_check_rhs(&var_def->rhs, &var_def->full_type, visible, symbols,
+                                         struct_table, hist, stmt_index, var_def->line, diag,
+                                         warnings, var_def->name) != 0) {
                 return -1;
             }
             if (tc_visible_add_from_global(symbols, var_def->name, (int)stmt_index, visible,
@@ -1309,10 +1542,16 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_READ) {
             TcRead *io_read = &stmt->u.io_read;
-            const TcSymbol *target = tc_resolve_visible_symbol(visible, symbols, io_read->name,
-                                                               stmt_index, io_read->line, diag);
+            const TcSymbol *target =
+                tc_resolve_visible_symbol_scoped(visible, symbols, io_read->name, stmt_index,
+                                                 io_read->line, diag,
+                                                 ctx->func_env ? ctx->func_env->members : NULL,
+                                                 ctx->func_depth > 0);
 
             if (!target) {
+                return -1;
+            }
+            if (tc_func_check_writable_target(target, io_read->line, diag) != 0) {
                 return -1;
             }
             if (target->type != io_read->type) {
@@ -1330,8 +1569,11 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_ASSIGN) {
             TcAssign *assign = &stmt->u.assign;
-            const TcSymbol *target = tc_resolve_visible_symbol(visible, symbols, assign->name,
-                                                               stmt_index, assign->line, diag);
+            const TcSymbol *target =
+                tc_resolve_visible_symbol_scoped(visible, symbols, assign->name, stmt_index,
+                                                 assign->line, diag,
+                                                 ctx->func_env ? ctx->func_env->members : NULL,
+                                                 ctx->func_depth > 0);
 
             if (!target) {
                 return -1;
@@ -1341,9 +1583,19 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                   TC_COLUMN_UNKNOWN, "cannot assign to constant");
                 return -1;
             }
+            if (tc_func_check_writable_target(target, assign->line, diag) != 0) {
+                return -1;
+            }
             tc_resolved_binding_set(&assign->binding, target);
-            if (tc_check_rhs(&assign->rhs, target->type, visible, symbols, hist, stmt_index,
-                             assign->line, diag, warnings, NULL) != 0) {
+            if (assign->rhs.kind == TC_RHS_FUNCALL_EXPR && ctx->func_env) {
+                if (tc_pass2_check_funcall_rhs(&assign->rhs, &target->full_type, 1, ctx, visible,
+                                               symbols, hist, stmt_index, assign->line, warnings,
+                                               diag) != 0) {
+                    return -1;
+                }
+            } else if (tc_type_check_rhs(&assign->rhs, &target->full_type, visible, symbols,
+                                         struct_table, hist, stmt_index, assign->line, diag,
+                                         warnings, NULL) != 0) {
                 return -1;
             }
             if (ctx->init_states && ctx->path_reachable && target->slot >= 0 &&
@@ -1352,13 +1604,39 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             }
             return 0;
         }
+
+        if (stmt->kind == TC_STMT_FIELD_ASSIGN) {
+            return tc_struct_check_field_assign(&stmt->u.field_assign, struct_table, visible,
+                                                symbols, hist, stmt_index, diag, warnings);
+        }
+
+        /* Phase 3：指针 / memblock 语句侧检查 */
+        if (stmt->kind == TC_STMT_PTR_STORE) {
+            return tc_ptr_check_store(&stmt->u.ptr_store, visible, symbols, hist, stmt_index, diag,
+                                      warnings);
+        }
+
+        if (stmt->kind == TC_STMT_MEMBLOCK_STORE) {
+            return tc_memblock_check_store(&stmt->u.memblock_store, visible, symbols, hist,
+                                           stmt_index, diag, warnings);
+        }
+
+        if (stmt->kind == TC_STMT_MEMBLOCK_COPY) {
+            return tc_memblock_check_copy(&stmt->u.memblock_copy, visible, symbols, hist,
+                                          stmt_index, diag, warnings);
+        }
+
+        if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {
+            return tc_memblock_check_memcopy_unsafe(&stmt->u.memcopy_unsafe, visible, symbols,
+                                                    hist, stmt_index, diag, warnings);
+        }
     }
 
     return 0;
 }
 
-int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWarningList *warnings,
-                               TcDiagnostic *diag) {
+int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcStructTable *struct_table,
+                        TcFuncCheckEnv *func_env, TcWarningList *warnings, TcDiagnostic *diag) {
     TcSymbolTable visible;
     TcAnalyzeCtx ctx;
     TcInitHistory hist;
@@ -1369,11 +1647,13 @@ int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWarningLis
     tc_symbol_table_init(&visible);
     memset(&ctx, 0, sizeof(ctx));
     ctx.program = program;
+    ctx.func_env = func_env;
     tc_stmt_index_reset(&ctx.index);
     tc_block_path_init(&ctx.block_path);
     ctx.path_reachable = 1;
     ctx.current_loop_id = -1;
     ctx.loop_depth = 0;
+    ctx.func_depth = 0;
     ctx.num_slots = (int)tc_symbol_table_runtime_slot_count(symbols);
 
     if (ctx.num_slots > 0) {
@@ -1427,8 +1707,8 @@ int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcWarningLis
     hist.defer_to_cfg = 1;
 
     for (i = 0; i < program->count; i++) {
-        if (tc_pass2_check_stmt(&program->items[i], symbols, &visible, &ctx, &hist, warnings,
-                                diag) != 0) {
+        if (tc_pass2_check_stmt(&program->items[i], symbols, &visible, struct_table, &ctx, &hist,
+                                warnings, diag) != 0) {
             tc_symbol_table_free(&visible);
             tc_block_path_free(&ctx.block_path);
             free(last_init);

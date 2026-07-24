@@ -1,5 +1,8 @@
 /*
  * tc_parser_free.c — AST / TcProgram 内存释放与动态数组管理
+ *
+ * 与 tc_parser.c / tc_parser_rhs.c 配对：覆盖全部 TcStmtKind / TcRhsKind，
+ * 含 Phase 2 的 import / struct / func / static / Self 相关节点。
  */
 #include "tc_parser_free.h"
 

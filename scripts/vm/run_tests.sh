@@ -667,27 +667,237 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
 
-# --- v0.0.26: goto / label execution ---
+# --- v0.0.35 Phase 3: top-level goto/label rejected ---
 
-run_expect_stdout "$ROOT/tests/valid/goto_simple.tc" "10
-"
-run_expect_stdout "$ROOT/tests/valid/goto_forward.tc" "10
-"
-run_expect_stdout "$ROOT/tests/valid/goto_out_of_if.tc" "10
-"
-run_expect_stdout "$ROOT/tests/valid/goto_nested_out.tc" "99
-"
-run_expect_stdout "$ROOT/tests/valid/goto_label_same_name.tc" "20
-"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_outside_function.tc" \
+    "goto is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/label_outside_function.tc" \
+    "label is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_simple.tc" \
+    "label is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_forward.tc" \
+    "goto is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_out_of_if.tc" \
+    "goto is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_nested_out.tc" \
+    "goto is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_label_same_name.tc" \
+    "label is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_var_reinitialize.tc" \
+    "label is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_toplevel_let_inline.tc" \
+    "goto is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_outside_function.tc" \
+    "goto is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/label_outside_function.tc" \
+    "label is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_simple.tc" \
+    "label is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_forward.tc" \
+    "goto is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_out_of_if.tc" \
+    "goto is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_nested_out.tc" \
+    "goto is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_label_same_name.tc" \
+    "label is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_var_reinitialize.tc" \
+    "label is only allowed inside a function"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_toplevel_let_inline.tc" \
+    "goto is only allowed inside a function"
+run_expect_fail_msg "$ROOT/tests/errors/static/missing_return.tc" \
+    "missing return"
+run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_struct.tc" \
+    "duplicate struct"
+run_expect_fail_msg "$ROOT/tests/errors/static/nullptr_non_ptr.tc" \
+    "nullptr is only allowed"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_element_count.tc" \
+    "memblock constructor value count"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_size_mismatch.tc" \
+    "memblock constructor count does not match destination size"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_assign_size.tc" \
+    "memblock size mismatch"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_index_oob.tc" \
+    "memblock index out of range"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_type.tc" \
+    "memblock count result must be usize/isize"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_copy_size.tc" \
+    "memblock copy size mismatch"
+run_expect_fail_msg "$ROOT/tests/errors/static/undefined_struct.tc" \
+    "undefined struct"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_missing_field.tc" \
+    "missing field"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_unknown_field.tc" \
+    "unknown struct field"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_duplicate_field.tc" \
+    "duplicate struct field"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_field_order.tc" \
+    "struct constructor fields must follow declaration order"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_immutable_field.tc" \
+    "cannot assign to immutable struct field"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_empty.tc" \
+    "struct must have at least one field"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_self_ref.tc" \
+    "struct field cannot have the same type as enclosing struct"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_address_const.tc" \
+    "cannot take address of constant binding"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
+    "cannot store through read-only pointer binding"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_compare_not_bool.tc" \
+    "pointer comparison result must be bool"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
+    "ptr_size result must be usize/isize"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
+    "identifier type does not match destination type"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_io_writeln.tc" \
+    "expected type"
+run_expect_fail_msg "$ROOT/tests/errors/static/float_special_non_float.tc" \
+    "float literal type does not match context"
+run_expect_fail_msg "$ROOT/tests/errors/static/float32_suffix_mismatch.tc" \
+    "float32 suffix requires float32 context"
+run_expect_fail_msg "$ROOT/tests/errors/static/unreachable_after_return.tc" \
+    "unreachable statement"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_fill_type.tc" \
+    "bool literal requires bool context"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_zero.tc" \
+    "memblock count must be at least 1"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_store_oob.tc" \
+    "memblock index out of range"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_scalar_arith.tc" \
+    "operand type does not match operation type"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_offset_type.tc" \
+    "literal type does not match context"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_result_type.tc" \
+    "pointer arithmetic result type does not match destination"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_nested_non_struct.tc" \
+    "field read requires struct base"
+run_expect_check_fail "$ROOT/tests/errors/static/missing_return.tc" \
+    "missing return"
+run_expect_check_fail "$ROOT/tests/errors/static/duplicate_struct.tc" \
+    "duplicate struct"
+run_expect_check_fail "$ROOT/tests/errors/static/nullptr_non_ptr.tc" \
+    "nullptr is only allowed"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_element_count.tc" \
+    "memblock constructor value count"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_size_mismatch.tc" \
+    "memblock constructor count does not match destination size"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_assign_size.tc" \
+    "memblock size mismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_index_oob.tc" \
+    "memblock index out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_type.tc" \
+    "memblock count result must be usize/isize"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_size.tc" \
+    "memblock copy size mismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/undefined_struct.tc" \
+    "undefined struct"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_missing_field.tc" \
+    "missing field"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_unknown_field.tc" \
+    "unknown struct field"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_duplicate_field.tc" \
+    "duplicate struct field"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_field_order.tc" \
+    "struct constructor fields must follow declaration order"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_immutable_field.tc" \
+    "cannot assign to immutable struct field"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_empty.tc" \
+    "struct must have at least one field"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_self_ref.tc" \
+    "struct field cannot have the same type as enclosing struct"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_address_const.tc" \
+    "cannot take address of constant binding"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
+    "cannot store through read-only pointer binding"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_compare_not_bool.tc" \
+    "pointer comparison result must be bool"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
+    "ptr_size result must be usize/isize"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
+    "identifier type does not match destination type"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_io_writeln.tc" \
+    "expected type"
+run_expect_check_fail "$ROOT/tests/errors/static/float_special_non_float.tc" \
+    "float literal type does not match context"
+run_expect_check_fail "$ROOT/tests/errors/static/float32_suffix_mismatch.tc" \
+    "float32 suffix requires float32 context"
+run_expect_check_fail "$ROOT/tests/errors/static/unreachable_after_return.tc" \
+    "unreachable statement"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_fill_type.tc" \
+    "bool literal requires bool context"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" \
+    "memblock count must be at least 1"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_store_oob.tc" \
+    "memblock index out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_scalar_arith.tc" \
+    "operand type does not match operation type"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_add_offset_type.tc" \
+    "literal type does not match context"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_add_result_type.tc" \
+    "pointer arithmetic result type does not match destination"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_nested_non_struct.tc" \
+    "field read requires struct base"
+run_expect_check_ok "$ROOT/tests/valid/phase3_nullptr.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_struct_ctor.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_memblock.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_memblock_fill.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_memblock_store.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_ptr_ops.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_ptr_load.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_ptr_cmp.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_struct_nested.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase3_struct_mut_ok.tc"
+
+# --- Phase 4: function semantics / static let ---
+run_expect_check_fail "$ROOT/tests/errors/static/duplicate_function.tc" "duplicate function"
+run_expect_check_fail "$ROOT/tests/errors/static/function_name_conflict.tc" \
+    "function name conflicts"
+run_expect_check_fail "$ROOT/tests/errors/static/duplicate_parameter.tc" "duplicate parameter"
+run_expect_check_fail "$ROOT/tests/errors/static/undefined_function.tc" "undefined function"
+run_expect_check_fail "$ROOT/tests/errors/static/function_scope_access.tc" \
+    "function scope access"
+run_expect_check_fail "$ROOT/tests/errors/static/funcall_position.tc" \
+    "non-void function call must be used"
+run_expect_check_fail "$ROOT/tests/errors/static/duplicate_argument.tc" "duplicate argument"
+run_expect_check_fail "$ROOT/tests/errors/static/unknown_argument.tc" "unknown argument"
+run_expect_check_fail "$ROOT/tests/errors/static/missing_argument.tc" "missing argument"
+run_expect_check_fail "$ROOT/tests/errors/static/argument_order.tc" "argument order"
+run_expect_check_fail "$ROOT/tests/errors/static/argument_type.tc" \
+    "bool literal requires bool context"
+run_expect_check_fail "$ROOT/tests/errors/static/funcall_result_type.tc" \
+    "function call result type"
+run_expect_check_fail "$ROOT/tests/errors/static/return_outside_function.tc" \
+    "return outside function"
+run_expect_check_fail "$ROOT/tests/errors/static/return_form.tc" \
+    "void function cannot return a value"
+run_expect_check_fail "$ROOT/tests/errors/static/return_type.tc" "bool literal requires bool context"
+run_expect_check_fail "$ROOT/tests/errors/static/parameter_assignment.tc" \
+    "cannot assign to function parameter"
+run_expect_check_fail "$ROOT/tests/errors/static/recursion_direct.tc" "recursive function call"
+run_expect_check_fail "$ROOT/tests/errors/static/recursion_indirect.tc" "recursive function call"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
+    "circular static let"
+run_expect_check_fail "$ROOT/tests/errors/static/static_var_bad_init.tc" \
+    "static var initializer"
+run_expect_check_fail "$ROOT/tests/modules/private_member_access.tc" "private member access"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
+    "cannot assign to function parameter"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_param_let.tc" \
+    "cannot assign to function parameter"
+run_expect_check_fail "$ROOT/tests/errors/static/parameter_name_conflict.tc" \
+    "conflicts with function name"
+run_expect_check_fail "$ROOT/tests/errors/static/param_shadow_local.tc" \
+    "duplicate definition"
+run_expect_check_fail "$ROOT/tests/errors/static/funcall_memblock_size.tc" \
+    "memblock size mismatch"
+run_expect_check_ok "$ROOT/tests/valid/phase4_self_funcall.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase4_static_let.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase4_func_goto.tc"
+
 run_expect_stdout "$ROOT/tests/valid/uninit_both_paths.tc" "11
 "
 run_expect_stdout "$ROOT/tests/valid/uninit_shortcircuit.tc" "false
 "
-run_expect_check_ok "$ROOT/tests/valid/goto_simple.tc"
-run_expect_check_ok "$ROOT/tests/valid/goto_forward.tc"
-run_expect_check_ok "$ROOT/tests/valid/goto_out_of_if.tc"
-run_expect_check_ok "$ROOT/tests/valid/goto_nested_out.tc"
-run_expect_check_ok "$ROOT/tests/valid/goto_label_same_name.tc"
 run_expect_check_ok "$ROOT/tests/valid/uninit_both_paths.tc"
 run_expect_check_ok "$ROOT/tests/valid/uninit_shortcircuit.tc"
 
@@ -716,16 +926,11 @@ run_expect_stdout "$ROOT/tests/valid/while_var_reinitialize.tc" "10
 11
 12
 "
-run_expect_stdout "$ROOT/tests/valid/goto_var_reinitialize.tc" "20
-21
-22
-"
 run_expect_check_ok "$ROOT/tests/valid/while_false.tc"
 run_expect_check_ok "$ROOT/tests/valid/while_counted.tc"
 run_expect_check_ok "$ROOT/tests/valid/while_nested.tc"
 run_expect_check_ok "$ROOT/tests/valid/while_break_continue.tc"
 run_expect_check_ok "$ROOT/tests/valid/while_var_reinitialize.tc"
-run_expect_check_ok "$ROOT/tests/valid/goto_var_reinitialize.tc"
 
 # --- v0.0.31: static bool CFG pruning ---
 
@@ -890,10 +1095,6 @@ run_expect_stdout "$ROOT/tests/valid/let_bitcast_payload.tc" "7FF8000000001234
 7FF8000000001234
 "
 run_expect_check_ok "$ROOT/tests/valid/let_bitcast_payload.tc"
-run_expect_stdout "$ROOT/tests/valid/let_goto_inline.tc" "42
-42
-"
-run_expect_check_ok "$ROOT/tests/valid/let_goto_inline.tc"
 run_expect_stdout "$ROOT/tests/valid/let_block_local_chain.tc" "2
 "
 run_expect_check_ok "$ROOT/tests/valid/let_block_local_chain.tc"
@@ -1083,7 +1284,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump 
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
-run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" "literal type"
+run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" \
+    "unsigned suffix literal cannot be used in signed context"
 run_expect_fail_msg "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
 run_expect_fail_msg "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "bitwise operation requires integer type"
@@ -1095,7 +1297,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "c
 run_expect_fail_msg "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
-run_expect_fail_msg "$ROOT/tests/errors/static/bool_literal_type_error.tc" "literal type does not match variable type"
+run_expect_fail_msg "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
 run_expect_fail_msg "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
 run_expect_fail_msg "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
@@ -1162,6 +1364,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_name_before_type.
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_inside_loop.tc" \
+    "goto is not allowed inside while"
+run_expect_check_fail "$ROOT/tests/errors/static/label_inside_loop.tc" \
+    "label is not allowed inside while"
 run_expect_check_fail "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
@@ -1197,8 +1403,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "fl
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_expect_check_fail "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large"
-run_expect_check_fail "$ROOT/tests/errors/static/literal_type_error.tc" "literal type does not match variable type"
-run_expect_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "literal type does not match variable type"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_type_error.tc" \
+    "unsigned suffix literal cannot be used in signed context"
+run_expect_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
 run_expect_check_fail "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"

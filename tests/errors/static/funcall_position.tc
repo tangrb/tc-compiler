@@ -1,0 +1,9 @@
+#lib
+; 期望：non-void function call must be used
+public func get() int32 then
+    return 1
+end
+public func caller() void then
+    funcall(Self.get)
+    return
+end

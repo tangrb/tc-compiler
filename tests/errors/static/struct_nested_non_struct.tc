@@ -1,0 +1,7 @@
+#program
+; 期望：field read requires struct base
+struct Point then
+    var x: int32
+end
+var p: Point = Point(x: 1)
+var v: int32 = p.x.y

@@ -1,0 +1,5 @@
+#program
+; 期望：memblock copy size mismatch
+var a: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var b: memblock<int32, 3> = memblock(int32, count: 3, 1, 2, 3)
+memblock_copy(int32, a, 0, b, 0, 2)

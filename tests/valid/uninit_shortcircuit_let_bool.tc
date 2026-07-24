@@ -2,9 +2,7 @@
 ; 更早且可见的 let bool 必须裁剪逻辑 RHS 的未初始化读取边
 let FALSE: bool = false
 let TRUE: bool = true
-goto use
 var pending: bool = true
-label use:
 var and_result: bool = and(bool, FALSE, pending)
 var or_result: bool = or(bool, TRUE, pending)
 writeln(bool, %t, and_result)

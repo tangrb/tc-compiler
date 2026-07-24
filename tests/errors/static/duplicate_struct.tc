@@ -1,0 +1,9 @@
+#program
+; 期望：duplicate struct
+struct Point then
+    var x: int32
+end
+struct Point then
+    var y: int32
+end
+var p: Point = Point(x: 1)

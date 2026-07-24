@@ -1,0 +1,7 @@
+#program
+; analyze-only：ptr_address / add / eq / size
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_add(int32, p, 1)
+var b: bool = ptr_eq(int32, p, q)
+var s: usize = ptr_size(int32, p)

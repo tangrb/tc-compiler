@@ -1,0 +1,4 @@
+#program
+; 期望：cannot take address of constant binding
+let a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)

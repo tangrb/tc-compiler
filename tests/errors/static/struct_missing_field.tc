@@ -1,0 +1,7 @@
+#program
+; 期望：missing field in struct constructor
+struct Point then
+    var x: int32
+    var y: int32
+end
+var p: Point = Point(x: 1)

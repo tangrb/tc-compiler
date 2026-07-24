@@ -1,5 +1,12 @@
 /*
  * tc_module.c — 模块结构检查、导入解析、DAG 与签名收集
+ *
+ * 流水线位置（Phase 2）：
+ *   Parser → tc_module_check_structure（Analyzer 入口复核）
+ *          → tc_module_resolve_imports（仅 tc_compile_file / 有路径入口）
+ *          → tc_module_collect_signatures（签名表，供后续函数阶段）
+ *
+ * 错误均为 fail-fast：首条诊断写入 TcDiagnostic 后立即返回 -1。
  */
 #include "tc_module.h"
 
@@ -10,6 +17,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ------------------------------------------------------------------ */
+/*  搜索路径与签名表：init / free / set                                 */
+/* ------------------------------------------------------------------ */
 
 void tc_module_search_paths_init(TcModuleSearchPaths *paths) {
     paths->paths = NULL;
@@ -91,6 +102,14 @@ void tc_func_signature_list_free(TcFuncSignatureList *list) {
     list->capacity = 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  阶段 4a：五层结构与可见性复核                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 模块顶层声明分层（数值越大越靠后，不可回退到更小层）。
+ * #program 将 VALUE 与 FUNC_OR_EXEC 归一为同层（见 check_structure）。
+ */
 typedef enum {
     TC_LAYER_IMPORT = 0,
     TC_LAYER_STRUCT,
@@ -98,6 +117,7 @@ typedef enum {
     TC_LAYER_FUNC_OR_EXEC
 } TcModuleLayer;
 
+/** 将语句映射到所属模块层；未识别的可执行语句落入 FUNC_OR_EXEC。 */
 static TcModuleLayer tc_stmt_layer(const TcStatement *stmt) {
     switch (stmt->kind) {
     case TC_STMT_IMPORT:
@@ -114,6 +134,7 @@ static TcModuleLayer tc_stmt_layer(const TcStatement *stmt) {
     }
 }
 
+/** 取语句行号；无专用行号字段的可执行语句回退为 1。 */
 static int tc_stmt_line(const TcStatement *stmt) {
     switch (stmt->kind) {
     case TC_STMT_IMPORT:
@@ -152,7 +173,11 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
         TcModuleLayer norm_max = max_layer;
         int line = tc_stmt_line(stmt);
 
-        /* #program：值声明与可执行语句同层，允许交错 */
+        /*
+         * #program：值声明与可执行语句同层，允许交错。
+         * 比较时用 norm_*；推进 max_layer 仍用原始 layer，
+         * 以便后续仍能区分「已进入可执行区」与「仅值声明」。
+         */
         if (program->mode == TC_MODULE_PROGRAM) {
             if (norm_layer == TC_LAYER_FUNC_OR_EXEC) {
                 norm_layer = TC_LAYER_VALUE;
@@ -170,6 +195,7 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
         max_layer = layer;
 
         if (program->mode == TC_MODULE_PROGRAM) {
+            /* #program 禁止函数、库级 static、以及任何可见性修饰 */
             if (stmt->kind == TC_STMT_FUNC_DEF || stmt->kind == TC_STMT_STATIC_VAR_DEF ||
                 stmt->kind == TC_STMT_STATIC_LET_DEF) {
                 tc_diagnostic_set(diag, TC_ERR_PROGRAM_MODE_MISUSE, line, TC_COLUMN_UNKNOWN,
@@ -183,6 +209,7 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
                 return -1;
             }
         } else {
+            /* #lib：公开成员必须显式 public/private；禁止局部 var/let */
             if (stmt->kind == TC_STMT_STRUCT_DEF &&
                 stmt->u.struct_def.visibility == TC_VIS_NONE) {
                 tc_diagnostic_set(diag, TC_ERR_MISSING_VISIBILITY, line, TC_COLUMN_UNKNOWN,
@@ -215,12 +242,18 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
         }
     }
 
+    /* Self 使用规则委托 tc_scope（#program 禁用） */
     if (tc_scope_check_self_usage(program, diag) != 0) {
         return -1;
     }
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  路径工具与文件定位（4b）                                            */
+/* ------------------------------------------------------------------ */
+
+/** 复制 dirname；无斜杠或空路径时返回 "."。 */
 static char *tc_dirname_dup(const char *path) {
     const char *slash;
     size_t len;
@@ -246,6 +279,7 @@ static char *tc_dirname_dup(const char *path) {
     return out;
 }
 
+/** 取路径基名并去掉扩展名，用作默认 module_name（如 Util.tc → Util）。 */
 static char *tc_module_stem(const char *path) {
     const char *base;
     const char *dot;
@@ -268,6 +302,10 @@ static char *tc_module_stem(const char *path) {
     return out;
 }
 
+/**
+ * 整文件读入为 NUL 结尾字符串。
+ * @return 0 成功；1 打开失败（调用方映射为 IMPORT_NOT_FOUND）；-1 其它错误已写 diag
+ */
 static int tc_read_file_text(const char *path, char **out_text, TcDiagnostic *diag) {
     FILE *fp;
     long size;
@@ -317,6 +355,7 @@ static int tc_join_module_path(const char *dir, const char *name, char **out,
     return 0;
 }
 
+/** 以尝试打开方式探测文件是否存在（不区分权限错误）。 */
 static int tc_file_exists(const char *path) {
     FILE *fp = fopen(path, "rb");
     if (!fp) {
@@ -326,6 +365,10 @@ static int tc_file_exists(const char *path) {
     return 1;
 }
 
+/**
+ * 按名定位模块文件：先入口目录，再 -I 路径。
+ * 同一路径重复命中不计为歧义；不同路径各命中一次则 IMPORT_AMBIGUOUS。
+ */
 static int tc_locate_module_file(const char *name, const char *entry_dir,
                                  const TcModuleSearchPaths *search, char **out_path,
                                  TcDiagnostic *diag) {
@@ -335,6 +378,7 @@ static int tc_locate_module_file(const char *name, const char *entry_dir,
 
     *out_path = NULL;
 
+    /* 1) 入口文件所在目录（或 "."） */
     {
         char *candidate = NULL;
         if (tc_join_module_path(entry_dir ? entry_dir : ".", name, &candidate, diag) != 0) {
@@ -348,6 +392,7 @@ static int tc_locate_module_file(const char *name, const char *entry_dir,
         }
     }
 
+    /* 2) 额外 -I 搜索路径 */
     if (search) {
         for (i = 0; i < search->count; i++) {
             char *candidate = NULL;
@@ -386,6 +431,10 @@ static int tc_locate_module_file(const char *name, const char *entry_dir,
     return 0;
 }
 
+/**
+ * 解析并校验单个 #lib 文件：必须为 TC_MODULE_LIB，且通过结构检查。
+ * 成功后写入 source_path / module_name（优先 expected_name）。
+ */
 static int tc_load_lib_file(const char *path, const char *expected_name, TcProgram *out,
                             TcDiagnostic *diag) {
     char *text = NULL;
@@ -427,6 +476,7 @@ static int tc_load_lib_file(const char *path, const char *expected_name, TcProgr
     return 0;
 }
 
+/** 将已解析的依赖模块追加到 out->deps，并清空 *mod 所有权。 */
 static int tc_typed_push_dep(TcTypedProgram *out, TcProgram *mod, TcDiagnostic *diag) {
     if (out->dep_count == out->dep_capacity) {
         size_t new_cap = out->dep_capacity == 0 ? 4 : out->dep_capacity * 2;
@@ -444,6 +494,16 @@ static int tc_typed_push_dep(TcTypedProgram *out, TcProgram *mod, TcDiagnostic *
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/*  阶段 4c：依赖 DAG 与环检测                                          */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 三色标记：
+ *   color 0 — 未访问
+ *   color 1 — 递归栈上（灰）；再次碰到即成环
+ *   color 2 — 已完成（黑）
+ */
 typedef struct {
     int *deps;
     size_t count;
@@ -495,6 +555,7 @@ static int tc_dag_dfs(TcDagNode *nodes, size_t n, int idx, TcDiagnostic *diag) {
     return 0;
 }
 
+/** 按 module_name 在已加载 deps 中查找下标；未找到返回 -1。 */
 static int tc_find_dep_index(const TcTypedProgram *out, const char *name) {
     size_t i = 0;
     for (i = 0; i < out->dep_count; i++) {
@@ -505,6 +566,10 @@ static int tc_find_dep_index(const TcTypedProgram *out, const char *name) {
     return -1;
 }
 
+/**
+ * 递归收集 current 的全部 import：定位 → 加载 #lib → 入 deps → 再收集其 import。
+ * 已按名加载的模块跳过（共享依赖只解析一次）；环在后续 DAG 阶段统一检出。
+ */
 static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
                                         const char *entry_dir, const TcModuleSearchPaths *search,
                                         TcDiagnostic *diag) {
@@ -522,7 +587,7 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
         }
         mod_name = stmt->u.import_stmt.module_name;
 
-        /* duplicate import in same file */
+        /* 同一源文件内重复 import 同名模块 */
         for (j = 0; j < i; j++) {
             if (current->items[j].kind == TC_STMT_IMPORT &&
                 strcmp(current->items[j].u.import_stmt.module_name, mod_name) == 0) {
@@ -532,13 +597,14 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
             }
         }
 
-        /* self-import */
+        /* 模块 import 自身（最短环） */
         if (current->module_name && strcmp(current->module_name, mod_name) == 0) {
             tc_diagnostic_set(diag, TC_ERR_CIRCULAR_IMPORT, stmt->u.import_stmt.line,
                               TC_COLUMN_UNKNOWN, "circular import");
             return -1;
         }
 
+        /* 已被其它路径加载过：跳过，边关系留待 DAG 构建 */
         if (tc_find_dep_index(out, mod_name) >= 0) {
             continue;
         }
@@ -556,7 +622,7 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
             tc_program_free(&loaded);
             return -1;
         }
-        /* recurse into newly loaded module */
+        /* 对新加入的依赖继续向下收集 */
         if (tc_collect_imports_recursive(out, &out->deps[out->dep_count - 1], entry_dir, search,
                                          diag) != 0) {
             return -1;
@@ -565,6 +631,10 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
     return 0;
 }
 
+/**
+ * 根据各 dep 的 import 语句建边，并对整图做三色 DFS。
+ * 入口程序自身不参与节点表（入口→dep 边由加载顺序保证可达）。
+ */
 static int tc_build_and_check_dag(TcTypedProgram *out, TcDiagnostic *diag) {
     size_t n = out->dep_count;
     size_t i = 0;
@@ -623,6 +693,7 @@ int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
     if (!out) {
         return -1;
     }
+    /* 入口自身先过 4a，再展开依赖 */
     if (tc_module_check_structure(&out->program, diag) != 0) {
         return -1;
     }
@@ -656,8 +727,15 @@ int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
     return tc_build_and_check_dag(out, diag);
 }
 
-static int tc_sig_push_from_func(TcFuncSignatureList *out, const TcFuncDef *fn, int module_index,
-                                 TcDiagnostic *diag) {
+/* ------------------------------------------------------------------ */
+/*  阶段 4d：函数签名收集                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 将一条 TcFuncDef 拷贝为签名表条目（完整类型深拷贝；func_id 由收集阶段分配）。
+ */
+static int tc_sig_push_from_func(TcFuncSignatureList *out, TcFuncDef *fn, int module_index,
+                                 int func_id, TcDiagnostic *diag) {
     TcFuncSignature *items;
     TcFuncSignature sig;
     size_t i = 0;
@@ -665,20 +743,23 @@ static int tc_sig_push_from_func(TcFuncSignatureList *out, const TcFuncDef *fn, 
     memset(&sig, 0, sizeof(sig));
     sig.name = strdup(fn->name);
     sig.visibility = fn->visibility;
-    /* Phase 2：签名表保留 kind / struct_id；嵌套 ptr/memblock 深度克隆留后续阶段 */
-    sig.return_type = tc_type_scalar(fn->return_type.kind);
-    if (fn->return_type.kind == TC_STRUCT) {
-        sig.return_type = tc_type_make_struct(fn->return_type.params.struct_type.struct_id);
+    if (tc_type_copy(&fn->return_type, &sig.return_type, diag) != 0) {
+        free(sig.name);
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
     }
     if (fn->return_struct_name) {
         sig.return_struct_name = strdup(fn->return_struct_name);
     }
     sig.param_count = fn->param_count;
     sig.module_index = module_index;
-    sig.func_id = fn->func_id;
+    sig.func_id = func_id;
     sig.def_line = fn->line;
+    fn->func_id = func_id;
     if (!sig.name) {
         free(sig.return_struct_name);
+        tc_type_free(&sig.return_type);
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                           "memory allocation failed");
         return -1;
@@ -688,21 +769,43 @@ static int tc_sig_push_from_func(TcFuncSignatureList *out, const TcFuncDef *fn, 
         if (!sig.params) {
             free(sig.name);
             free(sig.return_struct_name);
+            tc_type_free(&sig.return_type);
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
             return -1;
         }
         for (i = 0; i < fn->param_count; i++) {
             sig.params[i].name = strdup(fn->params[i].name);
-            sig.params[i].type = tc_type_scalar(fn->params[i].type.kind);
-            if (fn->params[i].type.kind == TC_STRUCT) {
-                sig.params[i].type =
-                    tc_type_make_struct(fn->params[i].type.params.struct_type.struct_id);
+            if (tc_type_copy(&fn->params[i].type, &sig.params[i].type, diag) != 0) {
+                size_t j = 0;
+                for (j = 0; j < i; j++) {
+                    free(sig.params[j].name);
+                    free(sig.params[j].struct_type_name);
+                    tc_type_free(&sig.params[j].type);
+                }
+                free(sig.params[i].name);
+                free(sig.params);
+                free(sig.name);
+                free(sig.return_struct_name);
+                tc_type_free(&sig.return_type);
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                return -1;
             }
             if (fn->params[i].struct_type_name) {
                 sig.params[i].struct_type_name = strdup(fn->params[i].struct_type_name);
             }
             if (!sig.params[i].name) {
+                size_t j = 0;
+                for (j = 0; j <= i; j++) {
+                    free(sig.params[j].name);
+                    free(sig.params[j].struct_type_name);
+                    tc_type_free(&sig.params[j].type);
+                }
+                free(sig.params);
+                free(sig.name);
+                free(sig.return_struct_name);
+                tc_type_free(&sig.return_type);
                 tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                                   "memory allocation failed");
                 return -1;
@@ -716,9 +819,11 @@ static int tc_sig_push_from_func(TcFuncSignatureList *out, const TcFuncDef *fn, 
         if (!items) {
             free(sig.name);
             free(sig.return_struct_name);
+            tc_type_free(&sig.return_type);
             for (i = 0; i < sig.param_count; i++) {
                 free(sig.params[i].name);
                 free(sig.params[i].struct_type_name);
+                tc_type_free(&sig.params[i].type);
             }
             free(sig.params);
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
@@ -732,41 +837,43 @@ static int tc_sig_push_from_func(TcFuncSignatureList *out, const TcFuncDef *fn, 
     return 0;
 }
 
-static int tc_collect_from_program(const TcProgram *prog, int module_index,
+static int tc_collect_from_program(TcProgram *prog, int module_index, int *next_func_id,
                                    TcFuncSignatureList *out, TcDiagnostic *diag) {
     size_t i = 0;
     for (i = 0; i < prog->count; i++) {
         if (prog->items[i].kind == TC_STMT_FUNC_DEF) {
-            if (tc_sig_push_from_func(out, &prog->items[i].u.func_def, module_index, diag) != 0) {
+            if (tc_sig_push_from_func(out, &prog->items[i].u.func_def, module_index,
+                                      *next_func_id, diag) != 0) {
                 return -1;
             }
+            (*next_func_id)++;
         }
     }
     return 0;
 }
 
-int tc_module_collect_signatures(const TcTypedProgram *prog, TcFuncSignatureList *out,
+int tc_module_collect_signatures(TcTypedProgram *prog, TcFuncSignatureList *out,
                                  TcDiagnostic *diag) {
     size_t i = 0;
+    int next_func_id = 0;
     tc_func_signature_list_init(out);
     if (!prog) {
         return 0;
     }
-    /* 仅 #lib 模块贡献签名；#program 无 func */
+    /* 依赖 #lib 先入表；入口若本身是 #lib（module_index=-1）再追加 */
     for (i = 0; i < prog->dep_count; i++) {
         if (prog->deps[i].mode == TC_MODULE_LIB) {
-            if (tc_collect_from_program(&prog->deps[i], (int)i, out, diag) != 0) {
+            if (tc_collect_from_program(&prog->deps[i], (int)i, &next_func_id, out, diag) != 0) {
                 tc_func_signature_list_free(out);
                 return -1;
             }
         }
     }
     if (prog->program.mode == TC_MODULE_LIB) {
-        if (tc_collect_from_program(&prog->program, -1, out, diag) != 0) {
+        if (tc_collect_from_program(&prog->program, -1, &next_func_id, out, diag) != 0) {
             tc_func_signature_list_free(out);
             return -1;
         }
     }
-    (void)diag;
     return 0;
 }

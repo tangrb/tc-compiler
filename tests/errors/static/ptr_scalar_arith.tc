@@ -1,0 +1,5 @@
+#program
+; 期望：operand type does not match（ptr 禁止标量运算）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var x: int32 = add(int32, p, 1)

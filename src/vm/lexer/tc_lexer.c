@@ -4,6 +4,9 @@
  * 逐行扫描 TC 源码，识别关键字、标识符、多进制整数字面量、
  * 格式说明符（%d/%i/%u/%x/%X/%o/%b/%t/%f/%e/%E/%g/%G）及单字符标点（:=,() 等）。
  * 每行产出 TcTokenList（含 TC_TOK_EOF），由 Parser 消费。
+ *
+ * Phase 2：识别 #program/#lib 模块指令，以及 import/func/struct/
+ * public/private/static/Self 等模块关键字。
  */
 #include "tc_lexer.h"
 
@@ -202,6 +205,9 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     lit->is_float = 0;
     lit->float_value = 0.0;
     lit->float32_suffix = 0;
+    lit->is_nullptr = 0;
+    lit->is_float_special = 0;
+    lit->float_special = 0;
 
     if (*p == '-') {
         negative = 1;
@@ -318,6 +324,9 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     lit->is_float = 1;
     lit->float_value = 0.0;
     lit->float32_suffix = 0;
+    lit->is_nullptr = 0;
+    lit->is_float_special = 0;
+    lit->float_special = 0;
 
     if (*p == '-') {
         lit->negative = 1;
@@ -331,6 +340,8 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
 
     if (strncmp(p, "inf", 3) == 0 && !tc_is_identifier_part(p[3])) {
         lit->float_value = lit->negative ? -INFINITY : INFINITY;
+        lit->is_float_special = 1;
+        lit->float_special = lit->negative ? -1 : 1;
         *end = p + 3;
         return 0;
     }
@@ -496,44 +507,34 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     }
     if (strcmp(buf, "true") == 0) {
         token->kind = TC_TOK_BOOL_LIT;
+        memset(&token->u.literal, 0, sizeof(token->u.literal));
         token->u.literal.is_bool = 1;
         token->u.literal.magnitude = 1;
-        token->u.literal.negative = 0;
-        token->u.literal.unsigned_suffix = 0;
-        token->u.literal.is_float = 0;
-        token->u.literal.float_value = 0.0;
-        token->u.literal.float32_suffix = 0;
         return 1;
     }
     if (strcmp(buf, "false") == 0) {
         token->kind = TC_TOK_BOOL_LIT;
+        memset(&token->u.literal, 0, sizeof(token->u.literal));
         token->u.literal.is_bool = 1;
         token->u.literal.magnitude = 0;
-        token->u.literal.negative = 0;
-        token->u.literal.unsigned_suffix = 0;
-        token->u.literal.is_float = 0;
-        token->u.literal.float_value = 0.0;
-        token->u.literal.float32_suffix = 0;
         return 1;
     }
     if (strcmp(buf, "inf") == 0) {
         token->kind = TC_TOK_FLOAT_LIT;
+        memset(&token->u.literal, 0, sizeof(token->u.literal));
         token->u.literal.is_float = 1;
         token->u.literal.float_value = INFINITY;
-        token->u.literal.negative = 0;
-        token->u.literal.unsigned_suffix = 0;
-        token->u.literal.is_bool = 0;
-        token->u.literal.float32_suffix = 0;
+        token->u.literal.is_float_special = 1;
+        token->u.literal.float_special = 1;
         return 1;
     }
     if (strcmp(buf, "nan") == 0) {
         token->kind = TC_TOK_FLOAT_LIT;
+        memset(&token->u.literal, 0, sizeof(token->u.literal));
         token->u.literal.is_float = 1;
         token->u.literal.float_value = NAN;
-        token->u.literal.negative = 0;
-        token->u.literal.unsigned_suffix = 0;
-        token->u.literal.is_bool = 0;
-        token->u.literal.float32_suffix = 0;
+        token->u.literal.is_float_special = 1;
+        token->u.literal.float_special = 0;
         return 1;
     }
     if (strcmp(buf, "ieee") == 0) {
@@ -740,6 +741,10 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             break;
         }
         if (*p == '#') {
+            /*
+             * 模块指令：#program / #lib（标识符紧跟 #，中间无空白）。
+             * 其它 #xxx 一律 SYNTAX；不作为预处理注释。
+             */
             const char *directive_start = p;
             const char *name_start = NULL;
             size_t name_len = 0;

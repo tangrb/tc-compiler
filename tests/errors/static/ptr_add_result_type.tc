@@ -1,0 +1,5 @@
+#program
+; 期望：pointer arithmetic result type does not match destination
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<float64> = ptr_add(int32, p, 1)

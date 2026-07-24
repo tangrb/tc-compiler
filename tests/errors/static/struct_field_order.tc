@@ -1,0 +1,7 @@
+#program
+; 期望：struct constructor fields must follow declaration order
+struct Point then
+    var x: int32
+    var y: int32
+end
+var p: Point = Point(y: 2, x: 1)

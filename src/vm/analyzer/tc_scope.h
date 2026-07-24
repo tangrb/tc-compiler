@@ -1,5 +1,11 @@
 /*
- * tc_scope.h — 本库成员索引与 Self / 限定名查找骨架（阶段 6b 预留 / Phase 2 D-6/D-8）
+ * tc_scope.h — 本库成员索引与 Self / 限定名查找骨架
+ *
+ * Phase 2（D-6/D-8）落地：
+ *   - 从 #lib AST 收集顶层成员名（func / static / struct）
+ *   - 校验 Self 仅允许出现在 #lib（#program → PROGRAM_MODE_MISUSE）
+ *
+ * 完整限定名解析与 private 访问检查属后续阶段（函数语义 / 可见性）。
  */
 #ifndef TC_SCOPE_H
 #define TC_SCOPE_H
@@ -7,6 +13,7 @@
 #include "tc_types.h"
 #include "tc_diagnostic.h"
 
+/** 本库顶层成员种类（索引表条目） */
 typedef enum {
     TC_MEMBER_FUNC,
     TC_MEMBER_STATIC_VAR,
@@ -18,7 +25,7 @@ typedef struct {
     char *name;
     TcMemberKind kind;
     TcVisibility visibility;
-    int stmt_index;
+    int stmt_index; /* 在 TcProgram.items[] 中的下标 */
 } TcMemberEntry;
 
 typedef struct {
@@ -30,14 +37,19 @@ typedef struct {
 void tc_member_index_init(TcMemberIndex *index);
 void tc_member_index_free(TcMemberIndex *index);
 
-/** 收集 #lib 顶层 func / static let / static var / struct 声明名 */
+/**
+ * 收集 #lib（或任意程序）顶层 func / static let / static var / struct 声明名。
+ * 线性扫描，不做重名冲突检测（由 Analyzer 其它阶段负责）。
+ */
 int tc_member_index_build(const TcProgram *program, TcMemberIndex *out, TcDiagnostic *diag);
 
+/** 按名查找；未找到返回 NULL。线性扫描，适合小规模成员表。 */
 const TcMemberEntry *tc_member_index_find(const TcMemberIndex *index, const char *name);
 
 /**
- * 校验 Self 仅出现在 #lib；#program 中 Self → PROGRAM_MODE_MISUSE。
- * 扫描程序 AST 中的 SELF_MEMBER / 限定目标。
+ * 校验 Self 仅出现在 #lib。
+ * 扫描 AST 中的 TC_RHS_SELF_MEMBER、funcall 的 is_self，以及嵌套 if/while/func 体。
+ * #program 中出现 Self → TC_ERR_PROGRAM_MODE_MISUSE。
  */
 int tc_scope_check_self_usage(const TcProgram *program, TcDiagnostic *diag);
 

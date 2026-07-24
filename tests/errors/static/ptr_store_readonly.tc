@@ -1,0 +1,4 @@
+#program
+; 期望：cannot store through read-only pointer binding
+let p: ptr<int32> = nullptr
+ptr_store(int32, p, 2)

@@ -1,0 +1,3 @@
+#program
+; 期望：memblock constructor element type / fill 类型
+var mb: memblock<int32, 2> = memblock(int32, count: 2, fill: true)

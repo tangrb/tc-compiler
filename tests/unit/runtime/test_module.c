@@ -1,5 +1,8 @@
 /*
  * test_module.c — Phase 2 模块系统（tc_module / tc_scope）单元测试
+ *
+ * 覆盖：结构检查、Self 禁用、成员索引、import 定位/歧义/环、
+ * #lib 可见性、签名收集。端到端行为另见 tests/modules/ 与 tests/errors/module/。
  */
 #include "tc_diagnostic.h"
 #include "tc_lib.h"

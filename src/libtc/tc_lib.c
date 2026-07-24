@@ -4,6 +4,9 @@
  * 提供完整的编译流水线：读源（字符串/文件）→ 逐行 Lex+Parse → Analyze，
  * 可选输出各阶段耗时（环境变量 TC_BENCH=1 启用）。
  * 执行入口 tc_run_typed 委托 tc_execute。
+ *
+ * Phase 2：tc_compile_file 在 Analyze 后调用 tc_module_resolve_imports
+ * 加载可达 #lib；tc_compile_source（无路径）仅做结构检查、不解析 import。
  */
 #include "tc_lib.h"
 
@@ -17,6 +20,7 @@
 #include <string.h>
 #include <time.h>
 
+/* 进程级 -I 搜索路径；由 tc_set_module_search_paths 设置（非线程安全） */
 static TcModuleSearchPaths g_module_search_paths;
 
 /* ------------------------------------------------------------------ */
@@ -190,11 +194,7 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag) {
     free(source);
 
     t0 = tc_bench_now();
-    if (tc_analyze(&program, &typed, diag) != 0) {
-        return -1;
-    }
-    if (tc_module_resolve_imports(&typed, path, &g_module_search_paths, diag) != 0) {
-        tc_typed_program_free(&typed);
+    if (tc_analyze_ex(&program, &typed, path, &g_module_search_paths, diag) != 0) {
         return -1;
     }
     tc_bench_report("analyze+modules", tc_bench_now() - t0);

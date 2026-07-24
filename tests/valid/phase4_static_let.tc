@@ -1,0 +1,7 @@
+#lib
+; Phase 4：static let 拓扑求值
+public static let K: int32 = 2
+public static let M: int32 = Self.K
+public func f() void then
+    return
+end

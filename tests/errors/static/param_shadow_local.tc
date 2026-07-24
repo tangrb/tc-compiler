@@ -1,0 +1,6 @@
+#lib
+; 期望：duplicate definition（局部与形参同名）
+public func f(a: int32) void then
+    var a: int32 = 1
+    return
+end

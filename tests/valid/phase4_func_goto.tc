@@ -1,0 +1,7 @@
+#lib
+; Phase 4 analyze-only：函数内 goto/label（执行属 Phase 5；标签名不可为 end）
+public func f() void then
+    goto done
+    label done:
+    return
+end

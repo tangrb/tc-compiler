@@ -1,0 +1,6 @@
+#lib
+; 期望：function name conflicts
+public static let f: int32 = 1
+public func f() void then
+    return
+end

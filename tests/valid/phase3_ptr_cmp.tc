@@ -1,0 +1,11 @@
+#program
+; analyze-only：指针比较族 ptr_ne/lt/le/gt/ge（变量名避开 eq/ne/lt 等保留算符）
+var a: int32 = 1
+var b: int32 = 2
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, b)
+var c_ne: bool = ptr_ne(int32, p, q)
+var c_lt: bool = ptr_lt(int32, p, q)
+var c_le: bool = ptr_le(int32, p, q)
+var c_gt: bool = ptr_gt(int32, p, q)
+var c_ge: bool = ptr_ge(int32, p, q)

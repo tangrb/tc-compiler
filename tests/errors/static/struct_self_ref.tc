@@ -1,0 +1,5 @@
+#program
+; 期望：struct field cannot have the same type as enclosing struct
+struct Node then
+    var next: Node
+end

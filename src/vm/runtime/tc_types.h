@@ -293,16 +293,16 @@ typedef enum {
     TC_ERR_UNDEFINED_STRUCT,
 
     /* ---- 0.0.35：模块（§11.4.5，10 个） ---- */
-    TC_ERR_MODULE_LAYER,
-    TC_ERR_MISSING_VISIBILITY,
-    TC_ERR_PROGRAM_MODE_MISUSE,
-    TC_ERR_IMPORT_NOT_FOUND,
-    TC_ERR_IMPORT_NOT_LIB,
-    TC_ERR_IMPORT_AMBIGUOUS,
-    TC_ERR_DUPLICATE_IMPORT,
-    TC_ERR_IMPORT_NAME_CONFLICT,
-    TC_ERR_CIRCULAR_IMPORT,
-    TC_ERR_PRIVATE_MEMBER_ACCESS,
+    TC_ERR_MODULE_LAYER,           /* 顶层声明层序违反（import→struct→值→func/exec） */
+    TC_ERR_MISSING_VISIBILITY,     /* #lib 成员缺少 public/private */
+    TC_ERR_PROGRAM_MODE_MISUSE,    /* #program 中使用了库专用构造（func/static/Self/可见性等） */
+    TC_ERR_IMPORT_NOT_FOUND,       /* 找不到 import 目标 .tc */
+    TC_ERR_IMPORT_NOT_LIB,         /* import 目标不是 #lib */
+    TC_ERR_IMPORT_AMBIGUOUS,       /* 多条 -I/相对路径同时命中不同文件 */
+    TC_ERR_DUPLICATE_IMPORT,       /* 同一文件重复 import 同名模块 */
+    TC_ERR_IMPORT_NAME_CONFLICT,   /* 导入名与本地声明冲突（后续阶段） */
+    TC_ERR_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
+    TC_ERR_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
 
     /* ---- 0.0.35：指针与 memcopy（§11.4.6） ---- */
     TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
@@ -337,6 +337,9 @@ typedef struct {
     int is_float;         /* 1 表示浮点字面量；float_value 有效 */
     double float_value;   /* 浮点字面量双精度暂存（词法阶段） */
     int float32_suffix;   /* 1 表示 f/F 后缀 → 上下文须为 float32 */
+    int is_nullptr;       /* 1 表示 nullptr；仅合法于 ptr 期望上下文 */
+    int is_float_special; /* 1 表示 inf / -inf / nan */
+    int float_special;    /* 0=nan, 1=+inf, -1=-inf；is_float_special 时有效 */
 } TcLiteral;
 
 /* ------------------------------------------------------------------ */
@@ -403,8 +406,8 @@ typedef enum {
     TC_RHS_PTR_GT,
     TC_RHS_PTR_GE,
     TC_RHS_PTR_SIZE,
-    TC_RHS_FUNCALL_EXPR,
-    TC_RHS_SELF_MEMBER
+    TC_RHS_FUNCALL_EXPR,   /* 表达式位置的函数调用（含命名实参） */
+    TC_RHS_SELF_MEMBER     /* Self.member；仅 #lib */
 } TcRhsKind;
 
 typedef struct {
@@ -589,25 +592,26 @@ typedef enum {
 
     /* ---- 0.0.35 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
     TC_STMT_FIELD_ASSIGN,       /* a.b = rhs */
-    TC_STMT_FUNC_DEF,
-    TC_STMT_FUNCALL,
-    TC_STMT_RETURN,
+    TC_STMT_FUNC_DEF,           /* #lib 函数定义 */
+    TC_STMT_FUNCALL,            /* funcall 语句（可 Self./限定名） */
+    TC_STMT_RETURN,             /* return / return operand */
     TC_STMT_MEMBLOCK_STORE,
     TC_STMT_MEMBLOCK_COPY,
     TC_STMT_PTR_STORE,
     TC_STMT_MEMCOPY_UNSAFE,
-    TC_STMT_STRUCT_DEF,
-    TC_STMT_STATIC_VAR_DEF,
-    TC_STMT_STATIC_LET_DEF,
-    TC_STMT_IMPORT
+    TC_STMT_STRUCT_DEF,         /* struct 定义（#lib 须带可见性） */
+    TC_STMT_STATIC_VAR_DEF,     /* #lib static var */
+    TC_STMT_STATIC_LET_DEF,     /* #lib static let */
+    TC_STMT_IMPORT              /* import ModuleName; */
 } TcStmtKind;
 
 typedef enum {
     TC_VIS_NONE = 0, /* #program 顶层无可见性修饰 */
-    TC_VIS_PUBLIC,
-    TC_VIS_PRIVATE
+    TC_VIS_PUBLIC,   /* #lib 对外可见 */
+    TC_VIS_PRIVATE   /* #lib 仅本库可见 */
 } TcVisibility;
 
+/** 源文件模块模式：由首行 #program / #lib 设定；UNSET 表示尚未解析头 */
 typedef enum {
     TC_MODULE_UNSET = 0,
     TC_MODULE_PROGRAM,
@@ -770,7 +774,7 @@ typedef struct {
     char *struct_type_name;
     TcRhs rhs;
     int static_slot;         /* Analyzer 分配的 static 槽；-1 未定 */
-} TcStaticVarDef;
+} TcStaticVarDef; /* #lib：public/private static var */
 
 typedef struct {
     int line;
@@ -779,7 +783,7 @@ typedef struct {
     TcType type;
     char *struct_type_name;
     TcRhs rhs;
-} TcStaticLetDef;
+} TcStaticLetDef; /* #lib：public/private static let */
 
 typedef struct {
     int line;
@@ -904,6 +908,7 @@ typedef struct {
     TcValue const_value; /* let 常量编译期求值结果 */
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
+    TcType full_type;    /* 完整类型（ptr/memblock/struct 参数）；标量时 kind 同 type */
     uint64_t memblock_count; /* type 为 memblock 时声明的 N；否则 0 */
     int struct_id;       /* type 为 struct 时的结构体 id；否则 -1 */
 } TcSymbol;
@@ -974,6 +979,7 @@ typedef struct {
 /* ------------------------------------------------------------------ */
 
 typedef struct TcCfg TcCfg;
+typedef struct TcCfgSet TcCfgSet;
 
 /** Analyzer 分析通过后的完整程序：语句 + 符号表 + CFG + 警告 */
 typedef struct {
@@ -982,7 +988,8 @@ typedef struct {
     size_t dep_count;
     size_t dep_capacity;
     TcSymbolTable symbols;
-    TcCfg *cfg;
+    TcCfg *cfg;              /* 顶层域（兼容既有测试） */
+    TcCfgSet *cfg_set;       /* 多域集合；非 NULL 时 cfg == &cfg_set->toplevel */
     TcWarningList warnings;
     /* A-8：程序级槽元数据（Executor/AOT 消费；帧内槽由调用帧管理） */
     size_t toplevel_slot_count;
@@ -1044,6 +1051,8 @@ TcType tc_type_make_ptr(TcType *pointee);
 TcType tc_type_make_memblock(TcType *element, uint64_t count);
 TcType tc_type_make_struct(int struct_id);
 void tc_type_free(TcType *type);
+/** 深拷贝完整类型；失败返回 -1（OOM 时 *out 未修改） */
+int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag);
 int tc_type_equals(const TcType *a, const TcType *b);
 size_t tc_target_ptr_width_bits(void);
 size_t tc_sizeof_bits(const TcType *type);

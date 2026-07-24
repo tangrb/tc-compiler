@@ -1,16 +1,12 @@
 #program
 ; bool 变量的未初始化与赋值
-goto assign_b
 var b: bool = false
-label assign_b:
 b = true
 writeln(bool, %t, b)           ; true
 
 var c: bool = false
 writeln(bool, %t, c)           ; false
 
-goto assign_d
 var d: bool = true
-label assign_d:
 d = false
 writeln(bool, %t, d)           ; false

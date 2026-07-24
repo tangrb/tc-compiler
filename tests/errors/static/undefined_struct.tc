@@ -1,0 +1,3 @@
+#program
+; 期望：undefined struct
+var p: Missing = Missing(x: 1)

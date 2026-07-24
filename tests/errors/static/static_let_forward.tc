@@ -1,0 +1,4 @@
+#lib
+; 期望：circular static let 或 constant
+public static let A: int32 = Self.B
+public static let B: int32 = Self.A

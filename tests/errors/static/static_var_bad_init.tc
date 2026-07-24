@@ -1,0 +1,3 @@
+#lib
+; 期望：static var initializer has invalid operand
+public static var X: int32 = unknown

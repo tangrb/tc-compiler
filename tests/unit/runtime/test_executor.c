@@ -116,7 +116,7 @@ static void test_var_reexecution_overwrites_fixed_slot(void) {
     tc_diagnostic_clear(&diag);
 }
 
-static void test_goto_to_final_label_exits_normally(void) {
+static void test_goto_outside_function_rejected(void) {
     static const char *source =
         "#program\ngoto done\n"
         "var skipped: int32 = 1\n"
@@ -125,10 +125,9 @@ static void test_goto_to_final_label_exits_normally(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(source, &typed, &diag) == 0,
-          "compile goto-to-final-label program");
-    check(tc_run_typed(&typed, &diag) == 0,
-          "goto to final label continues at the program boundary");
+    check(tc_compile_source(source, &typed, &diag) != 0,
+          "top-level goto rejected at compile time");
+    check(diag.kind == TC_ERR_GOTO_OUTSIDE_FUNCTION, "→ GOTO_OUTSIDE_FUNCTION");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -138,7 +137,7 @@ int main(void) {
     test_zero_iteration();
     test_execution_uses_resolved_slots();
     test_var_reexecution_overwrites_fixed_slot();
-    test_goto_to_final_label_exits_normally();
+    test_goto_outside_function_rejected();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

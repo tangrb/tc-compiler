@@ -1,6 +1,9 @@
-#program
+#lib
 ; 期望：use of uninitialized variable（goto 跳过声明初始化）
-goto skip_init
-var x: int32 = 42
-label skip_init:
-var y: int32 = add(int32, x, 1)
+public func f() void then
+    goto skip_init
+    var x: int32 = 42
+    label skip_init:
+    var y: int32 = add(int32, x, 1)
+    return
+end

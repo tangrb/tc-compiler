@@ -1,0 +1,3 @@
+#program
+; 期望：memblock element count mismatch
+var mb: memblock<int32, 2> = memblock(int32, count: 2, 1)

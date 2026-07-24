@@ -2,8 +2,11 @@
  * tc_parser.c — TC 语法分析器实现
  *
  * 消费 tc_tokenize_line 产出的 TcTokenList，按 TC 语言语法规则
- * 将单行 Token 流解析为一条 TcStatement（AST 节点）。
- * 支持 9 种语句：var、let、赋值、write、writeln、read、if（tc_parse_if_stmt）、label、goto。
+ * 将 Token 流解析为 TcStatement / TcProgram（AST）。
+ *
+ * Phase 2 起强制模块头：首行须为 #program 或 #lib；并支持
+ * import / struct / func / static / 可见性 / Self 等模块语法。
+ * 顶层声明按五层顺序校验（见 TcParseLayer）。
  */
 #include "tc_parser.h"
 #include "tc_parser_free.h"
@@ -116,6 +119,7 @@ int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
     if (tok->kind == TC_TOK_NULLPTR) {
         out->kind = TC_OPERAND_LIT;
         memset(&out->u.lit, 0, sizeof(out->u.lit));
+        out->u.lit.is_nullptr = 1;
         (*index)++;
         return 0;
     }
@@ -177,6 +181,7 @@ int tc_token_is_ident_named(const TcToken *tok, const char *name) {
 
 static int tc_module_diag(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
                           const char *message) {
+    /* 模块语义错误：写入指定 TcErrorKind（非一律 SYNTAX） */
     tc_diagnostic_set(diag, kind, line, column, message);
     return -1;
 }
@@ -298,6 +303,11 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
     return tc_syntax_error(diag, line_no, tok->column, "expected type");
 }
 
+/*
+ * 模块顶层声明分层（Parser 侧，与 tc_module 五层语义对齐）。
+ * IMPORT → STRUCT → VALUE → FUNC → EXEC；数值越大越靠后。
+ * #program 比较时将 EXEC 与 VALUE 归一（见 tc_check_layer）。
+ */
 typedef enum {
     TC_PARSE_LAYER_IMPORT = 1,
     TC_PARSE_LAYER_STRUCT = 2,
@@ -408,6 +418,10 @@ static int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int li
     return 0;
 }
 
+/**
+ * 解析可选的 public/private 前缀。
+ * #program 禁止可见性；#lib 在 require_vis=1 时缺失则报 MISSING_VISIBILITY。
+ */
 static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
                                       TcModuleMode mode, TcVisibility *out_vis,
                                       int require_vis, TcDiagnostic *diag, int line_no) {
@@ -561,6 +575,9 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
     return 0;
 }
 
+static int tc_parse_funcall_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
+                                int line_no, TcRhs *out, TcDiagnostic *diag);
+
 /*
  * @brief 解析 var 或 let 定义
  * @param is_const 1 表示 let 常量，0 表示 var 变量
@@ -627,6 +644,14 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
                     tc_rhs_free(&rhs);
                     return -1;
                 }
+            } else if (tc_peek(tokens, *index)->kind == TC_TOK_FUNCALL) {
+                if (tc_parse_funcall_rhs(ctx, tokens, index, line_no, &rhs, diag) != 0) {
+                    free(name);
+                    free(struct_name);
+                    tc_type_free(&full_type);
+                    tc_rhs_free(&rhs);
+                    return -1;
+                }
             } else if (tc_parse_rhs(ctx, tokens, index, line_no, &rhs, diag) != 0) {
                 free(name);
                 free(struct_name);
@@ -676,6 +701,10 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
     return 0;
 }
 
+/**
+ * 解析 #lib 内 static var / static let。
+ * #program 中出现 static → PROGRAM_MODE_MISUSE；缺可见性 → MISSING_VISIBILITY。
+ */
 static int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
                                int line_no, TcModuleMode mode, TcVisibility vis,
                                TcStatement *out, TcDiagnostic *diag) {
@@ -778,6 +807,7 @@ static int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size
     return 0;
 }
 
+/** 解析 `import Name;` —— 目标须为标识符（模块文件名不含 .tc）。 */
 static int tc_parse_import_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                 TcStatement *out, TcDiagnostic *diag) {
     const TcToken *name_tok = NULL;
@@ -829,6 +859,10 @@ static int tc_parse_return_stmt(const TcTokenList *tokens, size_t *index, int li
     return 0;
 }
 
+/**
+ * 解析 funcall 调用目标：Self.member / Qual.member / 裸名。
+ * 写入 is_self、qualifier、member_name、target（规范化文本）。
+ */
 static int tc_parse_funcall_target(const TcTokenList *tokens, size_t *index, int line_no,
                                    TcFuncallStmt *out, TcDiagnostic *diag) {
     const TcToken *tok = tc_peek(tokens, *index);
@@ -942,64 +976,87 @@ static int tc_parse_funcall_stmt(TcParserCtx *ctx, const TcTokenList *tokens, si
     if (tc_parse_funcall_target(tokens, index, line_no, &call, diag) != 0) {
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
-        tc_funcall_stmt_free_partial(&call);
-        return -1;
-    }
-
-    while (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-        const TcToken *param_tok = tc_peek(tokens, *index);
-        TcNamedArg arg;
-
-        memset(&arg, 0, sizeof(arg));
-        if (param_tok->kind != TC_TOK_IDENTIFIER) {
-            tc_funcall_stmt_free_partial(&call);
-            tc_string_list_free_local((char **)args, arg_count);
-            return tc_syntax_error(diag, line_no, param_tok->column, "expected parameter name");
-        }
-        arg.param_name = tc_token_strdup(param_tok, line_no, diag);
-        if (!arg.param_name) {
-            tc_funcall_stmt_free_partial(&call);
-            tc_string_list_free_local((char **)args, arg_count);
-            return -1;
-        }
+    /* 允许零实参：funcall(Self.f)；有实参时 target 后须有逗号 */
+    if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
         (*index)++;
-        if (tc_expect_token(tokens, index, TC_TOK_COLON, line_no, diag) != 0) {
-            free(arg.param_name);
-            tc_funcall_stmt_free_partial(&call);
-            tc_string_list_free_local((char **)args, arg_count);
-            return -1;
-        }
-        if (tc_parse_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
-            free(arg.param_name);
-            tc_funcall_stmt_free_partial(&call);
-            tc_string_list_free_local((char **)args, arg_count);
-            return -1;
-        }
-        if (arg_count == arg_cap) {
-            size_t new_cap = arg_cap == 0 ? 4 : arg_cap * 2;
-            TcNamedArg *new_args = (TcNamedArg *)realloc(args, new_cap * sizeof(TcNamedArg));
-            if (!new_args) {
-                free(arg.param_name);
-                tc_rhs_free(&arg.value);
+        while (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+            const TcToken *param_tok = tc_peek(tokens, *index);
+            TcNamedArg arg;
+
+            memset(&arg, 0, sizeof(arg));
+            if (param_tok->kind != TC_TOK_IDENTIFIER) {
                 tc_funcall_stmt_free_partial(&call);
-                tc_string_list_free_local((char **)args, arg_count);
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, param_tok->column,
-                                  "memory allocation failed");
+                for (size_t j = 0; j < arg_count; j++) {
+                    free(args[j].param_name);
+                    tc_rhs_free(&args[j].value);
+                }
+                free(args);
+                return tc_syntax_error(diag, line_no, param_tok->column, "expected parameter name");
+            }
+            arg.param_name = tc_token_strdup(param_tok, line_no, diag);
+            if (!arg.param_name) {
+                tc_funcall_stmt_free_partial(&call);
+                for (size_t j = 0; j < arg_count; j++) {
+                    free(args[j].param_name);
+                    tc_rhs_free(&args[j].value);
+                }
+                free(args);
                 return -1;
             }
-            args = new_args;
-            arg_cap = new_cap;
-        }
-        args[arg_count++] = arg;
-
-        if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
             (*index)++;
-        } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-            tc_funcall_stmt_free_partial(&call);
-            tc_string_list_free_local((char **)args, arg_count);
-            return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
-                                   "expected , or )");
+            if (tc_expect_token(tokens, index, TC_TOK_COLON, line_no, diag) != 0) {
+                free(arg.param_name);
+                tc_funcall_stmt_free_partial(&call);
+                for (size_t j = 0; j < arg_count; j++) {
+                    free(args[j].param_name);
+                    tc_rhs_free(&args[j].value);
+                }
+                free(args);
+                return -1;
+            }
+            if (tc_parse_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
+                free(arg.param_name);
+                tc_funcall_stmt_free_partial(&call);
+                for (size_t j = 0; j < arg_count; j++) {
+                    free(args[j].param_name);
+                    tc_rhs_free(&args[j].value);
+                }
+                free(args);
+                return -1;
+            }
+            if (arg_count == arg_cap) {
+                size_t new_cap = arg_cap == 0 ? 4 : arg_cap * 2;
+                TcNamedArg *new_args = (TcNamedArg *)realloc(args, new_cap * sizeof(TcNamedArg));
+                if (!new_args) {
+                    free(arg.param_name);
+                    tc_rhs_free(&arg.value);
+                    tc_funcall_stmt_free_partial(&call);
+                    for (size_t j = 0; j < arg_count; j++) {
+                        free(args[j].param_name);
+                        tc_rhs_free(&args[j].value);
+                    }
+                    free(args);
+                    tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, param_tok->column,
+                                      "memory allocation failed");
+                    return -1;
+                }
+                args = new_args;
+                arg_cap = new_cap;
+            }
+            args[arg_count++] = arg;
+
+            if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
+                (*index)++;
+            } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+                tc_funcall_stmt_free_partial(&call);
+                for (size_t j = 0; j < arg_count; j++) {
+                    free(args[j].param_name);
+                    tc_rhs_free(&args[j].value);
+                }
+                free(args);
+                return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                       "expected , or )");
+            }
         }
     }
 
@@ -1028,6 +1085,171 @@ static int tc_parse_funcall_stmt(TcParserCtx *ctx, const TcTokenList *tokens, si
     call.arg_count = arg_count;
     out->kind = TC_STMT_FUNCALL;
     out->u.funcall_stmt = call;
+    return 0;
+}
+
+/**
+ * 解析 `funcall(...)` 为 RHS（用于 var/赋值右侧；不含语句结尾检查）。
+ */
+static int tc_parse_funcall_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
+                                int line_no, TcRhs *out, TcDiagnostic *diag) {
+    TcFuncallStmt call;
+    TcNamedArg *args = NULL;
+    size_t arg_count = 0;
+    size_t arg_cap = 0;
+    size_t i = 0;
+
+    (*index)++; /* funcall */
+    memset(&call, 0, sizeof(call));
+    memset(out, 0, sizeof(*out));
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_parse_funcall_target(tokens, index, line_no, &call, diag) != 0) {
+        return -1;
+    }
+    if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
+        (*index)++;
+        while (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+            const TcToken *param_tok = tc_peek(tokens, *index);
+            TcNamedArg arg;
+
+            memset(&arg, 0, sizeof(arg));
+            if (param_tok->kind != TC_TOK_IDENTIFIER) {
+                tc_funcall_stmt_free_partial(&call);
+                for (i = 0; i < arg_count; i++) {
+                    free(args[i].param_name);
+                    tc_rhs_free(&args[i].value);
+                }
+                free(args);
+                return tc_syntax_error(diag, line_no, param_tok->column, "expected parameter name");
+            }
+            arg.param_name = tc_token_strdup(param_tok, line_no, diag);
+            if (!arg.param_name) {
+                tc_funcall_stmt_free_partial(&call);
+                for (i = 0; i < arg_count; i++) {
+                    free(args[i].param_name);
+                    tc_rhs_free(&args[i].value);
+                }
+                free(args);
+                return -1;
+            }
+            (*index)++;
+            if (tc_expect_token(tokens, index, TC_TOK_COLON, line_no, diag) != 0) {
+                free(arg.param_name);
+                tc_funcall_stmt_free_partial(&call);
+                for (i = 0; i < arg_count; i++) {
+                    free(args[i].param_name);
+                    tc_rhs_free(&args[i].value);
+                }
+                free(args);
+                return -1;
+            }
+            if (tc_parse_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
+                free(arg.param_name);
+                tc_funcall_stmt_free_partial(&call);
+                for (i = 0; i < arg_count; i++) {
+                    free(args[i].param_name);
+                    tc_rhs_free(&args[i].value);
+                }
+                free(args);
+                return -1;
+            }
+            if (arg_count == arg_cap) {
+                size_t new_cap = arg_cap == 0 ? 4 : arg_cap * 2;
+                TcNamedArg *new_args = (TcNamedArg *)realloc(args, new_cap * sizeof(TcNamedArg));
+                if (!new_args) {
+                    free(arg.param_name);
+                    tc_rhs_free(&arg.value);
+                    tc_funcall_stmt_free_partial(&call);
+                    for (i = 0; i < arg_count; i++) {
+                        free(args[i].param_name);
+                        tc_rhs_free(&args[i].value);
+                    }
+                    free(args);
+                    tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, param_tok->column,
+                                      "memory allocation failed");
+                    return -1;
+                }
+                args = new_args;
+                arg_cap = new_cap;
+            }
+            args[arg_count++] = arg;
+            if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
+                (*index)++;
+            } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+                tc_funcall_stmt_free_partial(&call);
+                for (i = 0; i < arg_count; i++) {
+                    free(args[i].param_name);
+                    tc_rhs_free(&args[i].value);
+                }
+                free(args);
+                return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                       "expected , or )");
+            }
+        }
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        for (i = 0; i < arg_count; i++) {
+            free(args[i].param_name);
+            tc_rhs_free(&args[i].value);
+        }
+        free(args);
+        tc_funcall_stmt_free_partial(&call);
+        return -1;
+    }
+
+    out->kind = TC_RHS_FUNCALL_EXPR;
+    out->u.funcall_expr.target = call.target;
+    out->u.funcall_expr.is_self = call.is_self;
+    out->u.funcall_expr.qualifier = call.qualifier;
+    out->u.funcall_expr.member_name = call.member_name;
+    out->u.funcall_expr.arg_count = arg_count;
+    if (arg_count > 0) {
+        out->u.funcall_expr.args =
+            calloc(arg_count, sizeof(*out->u.funcall_expr.args));
+        if (!out->u.funcall_expr.args) {
+            for (i = 0; i < arg_count; i++) {
+                free(args[i].param_name);
+                tc_rhs_free(&args[i].value);
+            }
+            free(args);
+            tc_funcall_stmt_free_partial(&call);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        for (i = 0; i < arg_count; i++) {
+            TcRhs *value_copy = (TcRhs *)malloc(sizeof(TcRhs));
+
+            out->u.funcall_expr.args[i].param_name = args[i].param_name;
+            if (!value_copy) {
+                size_t k = 0;
+                for (k = 0; k < i; k++) {
+                    free(out->u.funcall_expr.args[k].param_name);
+                    tc_rhs_free((TcRhs *)out->u.funcall_expr.args[k].value);
+                    free(out->u.funcall_expr.args[k].value);
+                }
+                free(out->u.funcall_expr.args);
+                for (k = i; k < arg_count; k++) {
+                    free(args[k].param_name);
+                    tc_rhs_free(&args[k].value);
+                }
+                free(args);
+                free(call.target);
+                free(call.qualifier);
+                free(call.member_name);
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                return -1;
+            }
+            *value_copy = args[i].value;
+            out->u.funcall_expr.args[i].value = (struct TcRhs *)value_copy;
+        }
+        free(args);
+    } else {
+        out->u.funcall_expr.args = NULL;
+    }
     return 0;
 }
 
@@ -1114,6 +1336,294 @@ static int tc_parse_ptr_store_stmt(const TcTokenList *tokens, size_t *index, int
     }
     out->kind = TC_STMT_PTR_STORE;
     out->u.ptr_store = stmt;
+    return 0;
+}
+
+static int tc_parse_memblock_store_stmt(const TcTokenList *tokens, size_t *index, int line_no,
+                                        TcStatement *out, TcDiagnostic *diag) {
+    TcMemblockStoreStmt stmt;
+    const TcToken *name_tok = NULL;
+    char *struct_name = NULL;
+
+    (*index)++; /* memblock_store */
+    memset(&stmt, 0, sizeof(stmt));
+    stmt.line = line_no;
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &stmt.element_type, &struct_name, diag) !=
+        0) {
+        return -1;
+    }
+    free(struct_name);
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        return -1;
+    }
+    name_tok = tc_peek(tokens, *index);
+    if (name_tok->kind != TC_TOK_IDENTIFIER) {
+        tc_type_free(&stmt.element_type);
+        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
+    }
+    stmt.memblock_name = tc_token_strdup(name_tok, line_no, diag);
+    if (!stmt.memblock_name) {
+        tc_type_free(&stmt.element_type);
+        return -1;
+    }
+    (*index)++;
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.memblock_name);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.index, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.memblock_name);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.memblock_name);
+        tc_operand_free(&stmt.index);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.value, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.memblock_name);
+        tc_operand_free(&stmt.index);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.memblock_name);
+        tc_operand_free(&stmt.index);
+        tc_operand_free(&stmt.value);
+        return -1;
+    }
+    if (tc_expect_stmt_end(tokens, index, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.memblock_name);
+        tc_operand_free(&stmt.index);
+        tc_operand_free(&stmt.value);
+        return -1;
+    }
+    out->kind = TC_STMT_MEMBLOCK_STORE;
+    out->u.memblock_store = stmt;
+    return 0;
+}
+
+static int tc_parse_memblock_copy_stmt(const TcTokenList *tokens, size_t *index, int line_no,
+                                       TcStatement *out, TcDiagnostic *diag) {
+    TcMemblockCopyStmt stmt;
+    const TcToken *name_tok = NULL;
+    char *struct_name = NULL;
+
+    (*index)++; /* memblock_copy */
+    memset(&stmt, 0, sizeof(stmt));
+    stmt.line = line_no;
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &stmt.element_type, &struct_name, diag) !=
+        0) {
+        return -1;
+    }
+    free(struct_name);
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        return -1;
+    }
+    name_tok = tc_peek(tokens, *index);
+    if (name_tok->kind != TC_TOK_IDENTIFIER) {
+        tc_type_free(&stmt.element_type);
+        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
+    }
+    stmt.dst_name = tc_token_strdup(name_tok, line_no, diag);
+    if (!stmt.dst_name) {
+        tc_type_free(&stmt.element_type);
+        return -1;
+    }
+    (*index)++;
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.dst_index, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        tc_operand_free(&stmt.dst_index);
+        return -1;
+    }
+    name_tok = tc_peek(tokens, *index);
+    if (name_tok->kind != TC_TOK_IDENTIFIER) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        tc_operand_free(&stmt.dst_index);
+        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
+    }
+    stmt.src_name = tc_token_strdup(name_tok, line_no, diag);
+    if (!stmt.src_name) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        tc_operand_free(&stmt.dst_index);
+        return -1;
+    }
+    (*index)++;
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        free(stmt.src_name);
+        tc_operand_free(&stmt.dst_index);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.src_index, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        free(stmt.src_name);
+        tc_operand_free(&stmt.dst_index);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        free(stmt.src_name);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_index);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.length, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        free(stmt.src_name);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_index);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        free(stmt.src_name);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_index);
+        tc_operand_free(&stmt.length);
+        return -1;
+    }
+    if (tc_expect_stmt_end(tokens, index, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        free(stmt.dst_name);
+        free(stmt.src_name);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_index);
+        tc_operand_free(&stmt.length);
+        return -1;
+    }
+    out->kind = TC_STMT_MEMBLOCK_COPY;
+    out->u.memblock_copy = stmt;
+    return 0;
+}
+
+static int tc_parse_memcopy_unsafe_stmt(const TcTokenList *tokens, size_t *index, int line_no,
+                                        TcStatement *out, TcDiagnostic *diag) {
+    TcMemcopyUnsafeStmt stmt;
+    char *struct_name = NULL;
+
+    (*index)++; /* memcopy_unsafe */
+    memset(&stmt, 0, sizeof(stmt));
+    stmt.line = line_no;
+    if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &stmt.element_type, &struct_name, diag) !=
+        0) {
+        return -1;
+    }
+    free(struct_name);
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.dst_ptr, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.dst_index, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.src_ptr, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_ptr);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.src_index, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_ptr);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_ptr);
+        tc_operand_free(&stmt.src_index);
+        return -1;
+    }
+    if (tc_parse_operand(tokens, index, line_no, &stmt.length, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_ptr);
+        tc_operand_free(&stmt.src_index);
+        return -1;
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_ptr);
+        tc_operand_free(&stmt.src_index);
+        tc_operand_free(&stmt.length);
+        return -1;
+    }
+    if (tc_expect_stmt_end(tokens, index, line_no, diag) != 0) {
+        tc_type_free(&stmt.element_type);
+        tc_operand_free(&stmt.dst_ptr);
+        tc_operand_free(&stmt.dst_index);
+        tc_operand_free(&stmt.src_ptr);
+        tc_operand_free(&stmt.src_index);
+        tc_operand_free(&stmt.length);
+        return -1;
+    }
+    out->kind = TC_STMT_MEMCOPY_UNSAFE;
+    out->u.memcopy_unsafe = stmt;
     return 0;
 }
 
@@ -1456,6 +1966,7 @@ static int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
     return 0;
 }
 
+/** 根据行首 Token 判定顶层所属分层；Self 单独出现于顶层则报错。 */
 static int tc_classify_top_layer(const TcSourceLine *line, TcModuleMode mode, TcParseLayer *layer,
                                  TcDiagnostic *diag) {
     size_t idx = 0;
@@ -1521,6 +2032,10 @@ static int tc_check_layer(TcParseLayer stmt_layer, TcParseLayer *cur, int line_n
     return 0;
 }
 
+/**
+ * 强制模块头：源文件第一非空逻辑行必须是单独的 #program 或 #lib（可选分号）。
+ * 成功后 *start_index = 1，后续从第二行起解析主体。
+ */
 static int tc_parse_module_header(TcSourceLine *lines, size_t line_count, TcProgram *program,
                                   size_t *start_index, TcDiagnostic *diag) {
     const TcSourceLine *hdr = NULL;
@@ -1555,14 +2070,16 @@ static int tc_parse_module_header(TcSourceLine *lines, size_t line_count, TcProg
  * 语句语法分析入口。
  * 根据首个 Token 的种类 dispatch 到对应解析逻辑：
  *   TC_TOK_VAR / TC_TOK_LET           → tc_parse_var_or_const_def
+ *   TC_TOK_STATIC                     → tc_parse_static_def（#lib）
+ *   TC_TOK_IMPORT                     → tc_parse_import_stmt
+ *   TC_TOK_PUBLIC / TC_TOK_PRIVATE    → 可见性前缀后再分派
  *   TC_TOK_WRITE / TC_TOK_WRITELN      → tc_parse_io_write_stmt
  *   TC_TOK_READ                        → tc_parse_read_stmt
- *   TC_TOK_GOTO                        → goto 语句
- *   TC_TOK_LABEL                       → label 定义
- *   TC_TOK_IDENTIFIER                  → 赋值语句（= RHS）
+ *   TC_TOK_GOTO / TC_TOK_LABEL         → goto / label
+ *   TC_TOK_IDENTIFIER                  → 赋值
  *   其它                               → SyntaxError
  *
- * 所有子函数均通过 *diag 输出错误，调用方通过返回值判断成败。
+ * tc_parse_statement 默认按 #program 模式；整文件解析走 tc_parse_statement_mode。
  */
 /* ------------------------------------------------------------------ */
 /*  tc_parse_statement — 语法分析入口                                   */
@@ -1737,6 +2254,15 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
         if (tc_token_is_ident_named(first, "ptr_store")) {
             return tc_parse_ptr_store_stmt(tokens, &index, line_no, out, diag);
         }
+        if (tc_token_is_ident_named(first, "memblock_store")) {
+            return tc_parse_memblock_store_stmt(tokens, &index, line_no, out, diag);
+        }
+        if (tc_token_is_ident_named(first, "memblock_copy")) {
+            return tc_parse_memblock_copy_stmt(tokens, &index, line_no, out, diag);
+        }
+        if (tc_token_is_ident_named(first, "memcopy_unsafe")) {
+            return tc_parse_memcopy_unsafe_stmt(tokens, &index, line_no, out, diag);
+        }
         if (index + 1 < tokens->count && tc_peek(tokens, index + 1)->kind == TC_TOK_DOT) {
             return tc_parse_field_assign_stmt(ctx, tokens, &index, line_no, out, diag);
         }
@@ -1753,7 +2279,13 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
             return -1;
         }
         memset(&assign.rhs, 0, sizeof(assign.rhs));
-        if (tc_parse_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
+        if (tc_peek(tokens, index)->kind == TC_TOK_FUNCALL) {
+            if (tc_parse_funcall_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
+                free(assign.name);
+                tc_rhs_free(&assign.rhs);
+                return -1;
+            }
+        } else if (tc_parse_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
             free(assign.name);
             tc_rhs_free(&assign.rhs);
             return -1;

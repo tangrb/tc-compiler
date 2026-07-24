@@ -1,0 +1,13 @@
+#lib
+; Phase 4：Self.funcall 静态合法
+public func bump() void then
+    return
+end
+public func get() int32 then
+    return 42
+end
+public func main() void then
+    funcall(Self.bump)
+    var x: int32 = funcall(Self.get)
+    return
+end

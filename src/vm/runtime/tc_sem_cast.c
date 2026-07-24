@@ -1,4 +1,9 @@
-/* tc_sem_cast.c — C99-safe shared conversion semantics over canonical TcValue bits */
+/*
+ * tc_sem_cast.c — 共享数值转换语义（基于规范化 TcValue 位模式）
+ *
+ * Analyzer / const_eval / Executor / AOT 均委托此处，保证 strict/truncate 行为一致。
+ * 覆盖整数↔整数、整数↔浮点、浮点↔浮点；溢出走 TC_ERR_CAST_OVERFLOW。
+ */
 #include "tc_sem_cast.h"
 
 #include "tc_diagnostic.h"

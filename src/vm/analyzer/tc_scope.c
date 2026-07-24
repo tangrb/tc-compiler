@@ -1,5 +1,9 @@
 /*
  * tc_scope.c — 本库成员索引与 Self 使用检查
+ *
+ * 与 tc_module.c 协作：
+ *   tc_module_check_structure 末尾调用 tc_scope_check_self_usage；
+ *   成员索引供后续限定名 / private 访问解析（Phase 2 仅建表与查找）。
  */
 #include "tc_scope.h"
 
@@ -7,6 +11,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+/* ------------------------------------------------------------------ */
+/*  成员索引                                                            */
+/* ------------------------------------------------------------------ */
 
 void tc_member_index_init(TcMemberIndex *index) {
     index->items = NULL;
@@ -65,6 +73,7 @@ int tc_member_index_build(const TcProgram *program, TcMemberIndex *out, TcDiagno
     if (!program) {
         return 0;
     }
+    /* 仅索引库级顶层成员；普通 var/let / 可执行语句不入表 */
     for (i = 0; i < program->count; i++) {
         const TcStatement *stmt = &program->items[i];
         if (stmt->kind == TC_STMT_FUNC_DEF) {
@@ -109,6 +118,14 @@ const TcMemberEntry *tc_member_index_find(const TcMemberIndex *index, const char
     return NULL;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Self 使用检查（#program 禁用）                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * RHS 是否提及 Self（Self.member 或 Self.xxx(...) 调用）。
+ * 当前仅下钻 FUNCALL_EXPR 实参；其它复合 RHS 的 Self 由语句层覆盖。
+ */
 static int tc_rhs_mentions_self(const TcRhs *rhs, int *out_line) {
     size_t i = 0;
     if (!rhs) {
@@ -132,6 +149,10 @@ static int tc_rhs_mentions_self(const TcRhs *rhs, int *out_line) {
     return 0;
 }
 
+/**
+ * 在 #program 模式下禁止出现 Self；#lib 直接放行。
+ * 递归进入 if/while/func 体，覆盖嵌套作用域。
+ */
 static int tc_stmt_check_self(const TcStatement *stmt, TcModuleMode mode, TcDiagnostic *diag) {
     size_t i = 0;
 

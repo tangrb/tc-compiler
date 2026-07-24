@@ -35,6 +35,12 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/analyzer/tc_module.c
     ${TC_VM_DIR}/analyzer/tc_scope.c
+    ${TC_VM_DIR}/analyzer/tc_struct_check.c
+    ${TC_VM_DIR}/analyzer/tc_ptr_check.c
+    ${TC_VM_DIR}/analyzer/tc_memblock_check.c
+    ${TC_VM_DIR}/analyzer/tc_type_check.c
+    ${TC_VM_DIR}/analyzer/tc_func_check.c
+    ${TC_VM_DIR}/analyzer/tc_callgraph.c
     ${TC_VM_DIR}/executor/tc_executor.c
 )
 

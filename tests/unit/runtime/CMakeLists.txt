@@ -248,6 +248,12 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/analyzer/tc_module.c
     ${TC_VM_DIR}/analyzer/tc_scope.c
+    ${TC_VM_DIR}/analyzer/tc_struct_check.c
+    ${TC_VM_DIR}/analyzer/tc_ptr_check.c
+    ${TC_VM_DIR}/analyzer/tc_memblock_check.c
+    ${TC_VM_DIR}/analyzer/tc_type_check.c
+    ${TC_VM_DIR}/analyzer/tc_func_check.c
+    ${TC_VM_DIR}/analyzer/tc_callgraph.c
     ${TC_VM_DIR}/parser/tc_parser.c
     ${TC_VM_DIR}/parser/tc_parser_rhs.c
     ${TC_VM_DIR}/parser/tc_parser_free.c
@@ -327,4 +333,20 @@ add_custom_target(check-stmt-index
     DEPENDS test-stmt-index
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running stmt_index unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-type-check — Phase 3 类型验证 / CFG 诊断单元测试               #
+# ------------------------------------------------------------------ #
+
+add_executable(test-type-check test_type_check.c)
+target_link_libraries(test-type-check PRIVATE libtc)
+target_include_directories(test-type-check PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-type-check PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-type-check
+    COMMAND test-type-check
+    DEPENDS test-type-check
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Type-check unit tests"
 )

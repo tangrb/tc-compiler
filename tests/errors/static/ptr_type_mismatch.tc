@@ -1,0 +1,7 @@
+#program
+; 期望：identifier type does not match destination type
+var a: int32 = 1
+var b: float64 = 1.0
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<float64> = ptr_address(float64, b)
+var r: ptr<int32> = q

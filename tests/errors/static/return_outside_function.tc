@@ -1,0 +1,3 @@
+#program
+; 期望：return outside function
+return

@@ -1,0 +1,3 @@
+#program
+; 期望：float32 suffix requires float32 context
+var x: float64 = 1.0f

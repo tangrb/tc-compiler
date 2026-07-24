@@ -1,0 +1,5 @@
+#lib
+; 期望：return type
+public func f() int32 then
+    return true
+end

@@ -1,8 +1,6 @@
 #program
 ; then/else 均初始化后读取合法
-goto branch
 var x: int32 = 0
-label branch:
 if true then
     x = 10
 else
