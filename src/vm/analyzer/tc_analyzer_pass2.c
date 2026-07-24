@@ -1,8 +1,8 @@
 /*
- * tc_analyzer_pass2.c — Pass2 类型检查、标签收集、goto 跳转合法性
+ * tc_analyzer_pass2.c — Pass2 类型与语义检查（6c+6d 主体：goto 解析+类型/mode 检查）
  *
- * Phase 3：复合类型经 tc_type_check_rhs / tc_ptr_check_* / tc_memblock_check_* /
- * tc_struct_check_* 分派；label/goto 仅允许出现在函数体内。
+ * 6a 标签收集已提取到 tc_analyze_6a.c，6e 格式检查已提取到 tc_analyze_6e.c。
+ * 本文件保留 6c（goto/label 名称解析+跳转合法性）和 6d（类型/模式/字面量检查）。
  */
 #include "tc_analyzer_pass2.h"
 #include "tc_analyze_6a.h"
