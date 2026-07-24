@@ -37,10 +37,10 @@ static void test_nested_loop_control_and_repeat(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(source, &typed, &diag) == 0,
+    check(tc_compile_source(source, "<test>", &typed, &diag) == 0,
           "compile nested loop control program");
-    check(tc_run_typed(&typed, &diag) == 0, "first structured execution succeeds");
-    check(tc_run_typed(&typed, &diag) == 0,
+    check(tc_run_program(&typed, &diag) == 0, "first structured execution succeeds");
+    check(tc_run_program(&typed, &diag) == 0,
           "second execution uses fresh fixed slots and succeeds");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
@@ -51,10 +51,9 @@ static void test_zero_iteration(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("#program\nvar x: int32 = 0\nwhile false then\n    x = 1\nend\n",
-                            &typed, &diag) == 0,
+    check(tc_compile_source("#program\nvar x: int32 = 0\nwhile false then\n    x = 1\nend\n", "<test>", &typed, &diag) == 0,
           "compile zero-iteration loop");
-    check(tc_run_typed(&typed, &diag) == 0, "zero-iteration loop executes");
+    check(tc_run_program(&typed, &diag) == 0, "zero-iteration loop executes");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -72,7 +71,7 @@ static void test_execution_uses_resolved_slots(void) {
     TcStatement *assign_stmt = NULL;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(source, &typed, &diag) == 0,
+    check(tc_compile_source(source, "<test>", &typed, &diag) == 0,
           "compile resolved-slot execution program");
 
     var_stmt = &typed.program.items[0];
@@ -83,7 +82,7 @@ static void test_execution_uses_resolved_slots(void) {
     assign_stmt->u.assign.name[0] = 'x';
     assign_stmt->u.assign.rhs.u.arith.lhs.u.name[0] = 'x';
 
-    check(tc_run_typed(&typed, &diag) == 0,
+    check(tc_run_program(&typed, &diag) == 0,
           "executor consumes Analyzer-resolved slots instead of AST names");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
@@ -96,7 +95,7 @@ static void test_var_reexecution_overwrites_fixed_slot(void) {
     int resolved_slot = -1;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("#program\nvar value: int32 = 7\n", &typed, &diag) == 0,
+    check(tc_compile_source("#program\nvar value: int32 = 7\n", "<test>", &typed, &diag) == 0,
           "compile fixed-slot reexecution program");
     resolved_slot = typed.program.items[0].u.var_def.binding.slot;
     check(resolved_slot == 0, "first lexical var has stable slot zero");
@@ -125,7 +124,7 @@ static void test_goto_outside_function_rejected(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(source, &typed, &diag) != 0,
+    check(tc_compile_source(source, "<test>", &typed, &diag) != 0,
           "top-level goto rejected at compile time");
     check(diag.kind == TC_ERR_GOTO_OUTSIDE_FUNCTION, "→ GOTO_OUTSIDE_FUNCTION");
     tc_typed_program_free(&typed);

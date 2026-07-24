@@ -260,18 +260,19 @@ run_aot_cli_golden() {
 
 # --- differential tests: valid programs (stdout VM vs AOT) ---
 
-run_aot_cli_golden "--version" 0 "tc-aot 0.0.31" "" "aot version golden"
+run_aot_cli_golden "--version" 0 "tc-aot 0.0.35" "" "aot version golden"
 
 run_aot_cli_golden "--help" 0 "" "Usage: $AOT_BIN [options] <file.tc>
 
 TC ahead-of-time compiler (TC → C99).
 
 Options:
-  -o, --output FILE   write generated C to FILE (default: <input>.c)
-  -c, --check         static analysis only, do not emit C
-  -r, --run           compile and run generated C (requires host C compiler)
-  -h, --help          show this help
-  -V, --version       show version
+  -o, --output FILE      write generated C to FILE (default: <input>.c)
+  -c, --check            static analysis only, do not emit C
+  -r, --run              compile and run generated C (requires host C compiler)
+  -I, --include <path>   add module search path (repeatable)
+  -h, --help             show this help
+  -V, --version          show version
 
 Notes:
   --check uses the same libtc batch-language acceptance set as tc-vm --check." "aot help golden"
@@ -429,6 +430,8 @@ run_diff_test "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_diff_test "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_diff_test "$ROOT/tests/valid/phase5_memblock_fill.tc"
 run_diff_test "$ROOT/tests/valid/phase5_nested_funcall.tc"
+run_diff_test "$ROOT/tests/valid/isize_arith.tc"
+run_diff_test "$ROOT/tests/valid/usize_arith.tc"
 
 # --- static analysis (--check VM vs AOT) ---
 
@@ -489,6 +492,8 @@ run_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
 run_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
+run_check_ok "$ROOT/tests/valid/isize_arith.tc"
+run_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
 run_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
 run_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"

@@ -1,0 +1,2 @@
+#lib
+public static let A: int32 = 1

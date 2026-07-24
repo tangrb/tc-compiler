@@ -1,0 +1,6 @@
+#lib
+; 期望：cannot assign to function parameter（read 目标为形参）
+public func f(a: int32) void then
+    read(int32, a)
+    return
+end

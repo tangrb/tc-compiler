@@ -3,10 +3,10 @@
  *
  * 提供完整的编译流水线：读源（字符串/文件）→ 逐行 Lex+Parse → Analyze，
  * 可选输出各阶段耗时（环境变量 TC_BENCH=1 启用）。
- * 执行入口 tc_run_typed 委托 tc_execute。
+ * 执行入口 tc_run_program 委托 tc_execute。
  *
- * Phase 2：tc_compile_file 在 Analyze 后调用 tc_module_resolve_imports
- * 加载可达 #lib；tc_compile_source（无路径）仅做结构检查、不解析 import。
+ * tc_compile_file 在 Analyze 后加载可达 #lib；
+ * tc_compile_source（无路径）仅做结构检查、不解析 import。
  */
 #include "tc_lib.h"
 
@@ -127,7 +127,8 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
 /*  对外 API                                                            */
 /* ------------------------------------------------------------------ */
 
-int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *diag) {
+int tc_compile_source(const char *source, const char *name, TcTypedProgram *out,
+                      TcDiagnostic *diag) {
     TcProgram program;
     TcTypedProgram typed;
     double t0;
@@ -135,10 +136,10 @@ int tc_compile_source(const char *source, TcTypedProgram *out, TcDiagnostic *dia
     if (!diag) {
         return -1;
     }
-    if (!source || !out) {
-        return tc_invalid_argument(diag, "source and output program must not be null");
+    if (!source || !name || !out) {
+        return tc_invalid_argument(diag, "source, name, and output program must not be null");
     }
-    if (tc_diagnostic_set_source(diag, diag->filename, source) != 0) {
+    if (tc_diagnostic_set_source(diag, name, source) != 0) {
         return -1;
     }
 
@@ -202,7 +203,7 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag) {
     return 0;
 }
 
-int tc_run_typed(const TcTypedProgram *program, TcDiagnostic *diag) {
+int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag) {
     double t0;
     int rc;
 

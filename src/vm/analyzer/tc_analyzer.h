@@ -39,27 +39,4 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
  */
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);
 
-/**
- * REPL 增量分析上下文。
- * 轻量初始化历史（替代完整语句列表），跟踪每个变量的最后赋值位置。
- */
-typedef struct {
-    size_t stmt_count;
-    int *last_init_stmt_index;  /* 按 slot 索引的最后初始化语句序号，-1 表示未初始化 */
-    size_t last_init_capacity;
-} TcReplAnalyzeCtx;
-
-/**
- * 对单条语句做增量静态分析（REPL 会话使用）。
- * @param stmt      待分析的语句
- * @param symbols   会话符号表（var/let 定义成功后自动追加新符号并分配 slot）
- * @param repl_ctx  REPL 分析上下文（stmt_count 为当前语句索引）
- * @param warnings  警告输出列表
- * @param diag      诊断对象
- * @return 成功返回 0；失败返回 -1 并设置 diag（symbols 不变）
- */
-int tc_analyze_statement(TcStatement *stmt, TcSymbolTable *symbols,
-                         TcReplAnalyzeCtx *repl_ctx, TcWarningList *warnings,
-                         TcDiagnostic *diag);
-
 #endif

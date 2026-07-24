@@ -42,7 +42,8 @@ int tc_run_program(const TcTypedProgram *program,
 
 void tc_typed_program_free(TcTypedProgram *program);
 
-void tc_set_module_search_paths(const char **paths, int count);
+int tc_set_module_search_paths(char *const *paths, size_t count,
+                               TcDiagnostic *diag);
 ```
 
 | 函数 | 成功 | 失败 | 所有权 |
@@ -51,7 +52,7 @@ void tc_set_module_search_paths(const char **paths, int count);
 | `tc_compile_file` | 返回 0，写入 typed program | 返回 -1，设置 diag | 仅成功时调用方取得 `out` |
 | `tc_run_program` | 返回 0 | 返回 -1，设置运行时 diag | 不取得 program |
 | `tc_typed_program_free` | 释放并清空 | — | 只对成功编译所得对象调用 |
-| `tc_set_module_search_paths` | — | — | 必须在编译前调用 |
+| `tc_set_module_search_paths` | 返回 0 | OOM 返回 -1 | 必须在编译前调用；复制路径 |
 
 0.0.35 新增 `tc_set_module_search_paths` 用于多文件模块系统；`tc_compile_source` 增加 `name` 参数以在诊断中区分源码名称。
 
@@ -132,10 +133,11 @@ int tc_run_program(const TcTypedProgram *program,
 ## 6. `tc_set_module_search_paths`
 
 ```c
-void tc_set_module_search_paths(const char **paths, int count);
+int tc_set_module_search_paths(char *const *paths, size_t count,
+                               TcDiagnostic *diag);
 ```
 
-设置导入模块的搜索路径。必须在任何编译调用之前设置。路径按传入顺序搜索，入口文件所在目录总是最先搜索。可多次调用来累计路径，通常由 CLI driver 在一次设置中完成。
+设置导入模块的搜索路径（复制路径字符串；`count=0` 清空）。必须在编译前调用。路径按传入顺序搜索，入口文件所在目录总是最先搜索。成功返回 0；OOM 返回 -1。进程级全局，非线程安全。
 
 ---
 

@@ -1,0 +1,4 @@
+#program
+; isize 算术与 writeln
+var x: isize = add(isize, 3, 4)
+writeln(isize, x)

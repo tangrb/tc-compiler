@@ -15,7 +15,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vm/bin)
 
 add_executable(tc-vm
     ${TC_VM_DIR}/driver/tc_driver.c
-    ${TC_VM_DIR}/driver/tc_repl.c
     ${TC_VM_DIR}/driver/main.c
 )
 

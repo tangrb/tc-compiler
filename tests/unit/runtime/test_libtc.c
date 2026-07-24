@@ -50,7 +50,7 @@ static void check_failure_preserves_out(const char *source, TcErrorKind expected
     memset(&out, 0xa5, sizeof(out));
     memcpy(&before, &out, sizeof(before));
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(source, &out, &diag) == -1, message);
+    check(tc_compile_source(source, "<test>", &out, &diag) == -1, message);
     check(diag.domain == TC_DIAG_LANGUAGE, "compile failure remains in language domain");
     check(diag.kind == expected_kind, "compile failure preserves the expected language kind");
     check(memcmp(&out, &before, sizeof(out)) == 0,
@@ -89,12 +89,12 @@ static void test_source_lifetime_and_repeated_execution(void) {
     }
     memcpy(source, text, sizeof(text));
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(source, &program, &diag) == 0,
+    check(tc_compile_source(source, "<test>", &program, &diag) == 0,
           "compile caller-owned source successfully");
     free(source);
-    check(tc_run_typed(&program, &diag) == 0,
+    check(tc_run_program(&program, &diag) == 0,
           "typed program remains executable after source is freed");
-    check(tc_run_typed(&program, &diag) == 0,
+    check(tc_run_program(&program, &diag) == 0,
           "typed program supports repeated execution with fresh slots");
     tc_typed_program_free(&program);
     tc_diagnostic_clear(&diag);
@@ -126,7 +126,7 @@ static void test_file_lifetime(void) {
     check(tc_compile_file(path, &program, &diag) == 0,
           "compile file into caller-owned typed program");
     unlink(path);
-    check(tc_run_typed(&program, &diag) == 0,
+    check(tc_run_program(&program, &diag) == 0,
           "typed program remains executable after source file is removed");
     tc_typed_program_free(&program);
     tc_diagnostic_clear(&diag);
@@ -150,14 +150,14 @@ static void test_repeated_aot_consumption(void) {
     }
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("#program\nvar value: int32 = 11\n", &program, &diag) == 0,
+    check(tc_compile_source("#program\nvar value: int32 = 11\n", "<test>", &program, &diag) == 0,
           "compile program for repeated AOT consumption");
     check(tc_aot_emit_c(first, &program, "<first>") == 0,
           "first AOT emission succeeds");
     check(tc_aot_emit_c(second, &program, "<first>") == 0,
           "second AOT emission succeeds");
     check(streams_equal(first, second), "repeated AOT emissions are byte-identical");
-    check(tc_run_typed(&program, &diag) == 0,
+    check(tc_run_program(&program, &diag) == 0,
           "AOT emission does not consume or mutate typed program");
     fclose(first);
     fclose(second);
@@ -170,7 +170,7 @@ static void test_typed_program_free_clears_all_roots(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("#program\nvar value: int32 = 13\n", &program, &diag) == 0,
+    check(tc_compile_source("#program\nvar value: int32 = 13\n", "<test>", &program, &diag) == 0,
           "compile program before ownership cleanup");
     check(program.program.items != NULL && program.symbols.symbols != NULL &&
               program.cfg != NULL,
@@ -246,15 +246,23 @@ static void test_file_errors_use_api_domain(void) {
 }
 
 static void test_invalid_arguments_use_api_domain(void) {
+    TcTypedProgram program;
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("#program\nvar", NULL, &diag) == -1,
+    check(tc_compile_source("#program\nvar", "<test>", NULL, &diag) == -1,
           "null compile_source output is rejected before parsing");
     check(diag.domain == TC_DIAG_API,
           "null compile_source output uses API diagnostic domain");
     check(diag.api_code == TC_API_ERR_INVALID_ARGUMENT,
           "null compile_source output uses InvalidArgument code");
+
+    tc_diagnostic_clear(&diag);
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source("#program\nvar x: int32 = 1\n", NULL, &program, &diag) == -1,
+          "null compile_source name is rejected");
+    check(diag.domain == TC_DIAG_API && diag.api_code == TC_API_ERR_INVALID_ARGUMENT,
+          "null compile_source name uses InvalidArgument code");
 
     tc_diagnostic_clear(&diag);
     tc_diagnostic_init(&diag);
@@ -267,18 +275,32 @@ static void test_invalid_arguments_use_api_domain(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_compile_source_name_appears_in_diagnostics(void) {
+    TcTypedProgram out;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source("#program\nvar value: int32 = missing\n", "mem://unit", &out,
+                            &diag) == -1,
+          "compile_source reports undefined variable");
+    check(diag.domain == TC_DIAG_LANGUAGE, "name test remains language domain");
+    check(diag.filename != NULL && strcmp(diag.filename, "mem://unit") == 0,
+          "compile_source uses caller-provided name in diagnostics");
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_null_diagnostic_and_program_do_not_crash(void) {
     TcTypedProgram program;
     TcDiagnostic diag;
 
-    check(tc_compile_source("#program\nvar value: int32 = 1\n", &program, NULL) == -1,
+    check(tc_compile_source("#program\nvar value: int32 = 1\n", "<test>", &program, NULL) == -1,
           "null diagnostic returns -1 without crashing");
     tc_diagnostic_init(&diag);
-    check(tc_compile_source(NULL, &program, &diag) == -1,
+    check(tc_compile_source(NULL, "<test>", &program, &diag) == -1,
           "null source returns -1 without crashing");
     check(diag.domain == TC_DIAG_API && diag.api_code == TC_API_ERR_INVALID_ARGUMENT,
           "null source uses InvalidArgument API diagnostic");
-    check(tc_run_typed(NULL, &diag) == -1,
+    check(tc_run_program(NULL, &diag) == -1,
           "null typed program returns -1 without crashing");
     check(diag.domain == TC_DIAG_API && diag.api_code == TC_API_ERR_INVALID_ARGUMENT,
           "null typed program uses InvalidArgument API diagnostic");
@@ -310,7 +332,7 @@ static void test_source_and_file_language_kinds_match(void) {
 
     tc_diagnostic_init(&source_diag);
     tc_diagnostic_init(&file_diag);
-    check(tc_compile_source(source, &out, &source_diag) == -1,
+    check(tc_compile_source(source, "<test>", &out, &source_diag) == -1,
           "compile_source rejects comparison source");
     check(tc_compile_file(path, &out, &file_diag) == -1,
           "compile_file rejects comparison source");
@@ -323,6 +345,56 @@ static void test_source_and_file_language_kinds_match(void) {
     tc_diagnostic_clear(&file_diag);
 }
 
+static void test_module_search_paths_resolve_import(void) {
+    static const char *entry =
+        "#program\n"
+        "import ExtraLib\n"
+        "var x: int32 = funcall(ExtraLib.extra_answer)\n"
+        "writeln(int32, x)\n";
+    char path[] = "/tmp/tc-libtc-search-XXXXXX";
+    int fd = mkstemp(path);
+    FILE *file = NULL;
+    char *paths[1];
+    char extra_dir[512];
+    TcTypedProgram program;
+    TcDiagnostic diag;
+    const char *root = getenv("TC_TEST_ROOT");
+
+    check(fd >= 0, "create search-path entry file");
+    if (fd < 0) {
+        return;
+    }
+    file = fdopen(fd, "w");
+    check(file != NULL, "open search-path entry stream");
+    if (!file) {
+        close(fd);
+        unlink(path);
+        return;
+    }
+    check(fputs(entry, file) >= 0, "write search-path entry source");
+    check(fclose(file) == 0, "close search-path entry source");
+
+    if (!root || root[0] == '\0') {
+        root = ".";
+    }
+    snprintf(extra_dir, sizeof(extra_dir), "%s/tests/modules/extra_libs", root);
+    paths[0] = extra_dir;
+
+    tc_diagnostic_init(&diag);
+    check(tc_set_module_search_paths(paths, 1, &diag) == 0, "set ExtraLib search path");
+    check(tc_compile_file(path, &program, &diag) == 0,
+          "compile_file finds ExtraLib via search path");
+    check(tc_run_program(&program, &diag) == 0, "run ExtraLib import program");
+    tc_typed_program_free(&program);
+
+    check(tc_set_module_search_paths(NULL, 0, &diag) == 0, "clear module search paths");
+    check(tc_compile_file(path, &program, &diag) == -1,
+          "cleared search paths make ExtraLib unresolved");
+    check(diag.kind == TC_ERR_IMPORT_NOT_FOUND, "cleared paths → IMPORT_NOT_FOUND");
+    unlink(path);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_compile_failures_are_transactional();
     test_source_lifetime_and_repeated_execution();
@@ -331,8 +403,10 @@ int main(void) {
     test_typed_program_free_clears_all_roots();
     test_file_errors_use_api_domain();
     test_invalid_arguments_use_api_domain();
+    test_compile_source_name_appears_in_diagnostics();
     test_null_diagnostic_and_program_do_not_crash();
     test_source_and_file_language_kinds_match();
+    test_module_search_paths_resolve_import();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

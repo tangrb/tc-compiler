@@ -380,54 +380,6 @@ run_expect_check_fail() {
     pass
 }
 
-run_repl_expect() {
-    input="$1"
-    expected="$2"
-    label="$3"
-
-    should_run "$label" || return 0
-    log_test "REPL $label"
-
-    output="$(printf '%s\n' "$input" | $BIN --repl 2>&1)"
-    if ! printf '%s' "$output" | grep -Fq "$expected"; then
-        fail "REPL test failed: $label" "$label"
-        echo "  expected substring: $expected" >&2
-        if [ "$VERBOSE" -eq 1 ]; then
-            printf '%s\n' "$output" >&2
-        fi
-        return
-    fi
-    pass
-}
-
-run_repl_expect_not_contains() {
-    input="$1"
-    expected="$2"
-    unexpected="$3"
-    label="$4"
-
-    should_run "$label" || return 0
-    log_test "REPL $label"
-
-    output="$(printf '%s\n' "$input" | $BIN --repl 2>&1)"
-    if ! printf '%s' "$output" | grep -Fq "$expected"; then
-        fail "REPL test failed: $label" "$label"
-        echo "  expected substring: $expected" >&2
-        if [ "$VERBOSE" -eq 1 ]; then
-            printf '%s\n' "$output" >&2
-        fi
-        return
-    fi
-    if printf '%s' "$output" | grep -Fq "$unexpected"; then
-        fail "REPL test failed: $label" "$label"
-        echo "  unexpected substring: $unexpected" >&2
-        if [ "$VERBOSE" -eq 1 ]; then
-            printf '%s\n' "$output" >&2
-        fi
-        return
-    fi
-    pass
-}
 
 run_cli_golden() {
     argument="$1"
@@ -465,26 +417,26 @@ run_cli_golden() {
 
 # --- valid: execution succeeds ---
 
-run_cli_golden "--version" 0 "tc-vm 0.0.31" "" "cli version golden"
+run_cli_golden "--version" 0 "tc-vm 0.0.35" "" "cli version golden"
 
-run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN [options] [<file.tc>]
+run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN [options] <file.tc>
 
 TC language direct execution engine.
 
 Options:
-  -c, --check       static analysis only, do not execute
-  -i, --repl        interactive single-line REPL mode
-  -h, --help        show this help and exit
-  -V, --version     show version and exit
+  -c, --check            static analysis only, do not execute
+  -I, --include <path>   add module search path (repeatable)
+  -h, --help             show this help and exit
+  -V, --version          show version and exit
 
 Notes:
   File execution and --check use the full libtc batch-language pipeline.
-  REPL rejects if/while/goto/label/break/continue; use a source file for them.
+  Module search order: entry directory, then -I paths.
 
 Examples:
   $TC_VM_BIN tests/valid/example.tc
   $TC_VM_BIN --check tests/valid/example.tc
-  $TC_VM_BIN --repl" "cli help golden"
+  $TC_VM_BIN -I ./lib tests/modules/import_ok.tc" "cli help golden"
 
 CLI_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-vm-missing.XXXXXX")"
 rm -f "$CLI_MISSING_PATH"
@@ -873,6 +825,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/return_form.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/return_type.tc" "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/parameter_assignment.tc" \
     "cannot assign to function parameter"
+run_expect_check_fail "$ROOT/tests/errors/static/parameter_assignment_read.tc" \
+    "cannot assign to function parameter"
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_direct.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_indirect.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
@@ -928,6 +882,10 @@ run_expect_stdout "$ROOT/tests/valid/phase5_memblock_fill.tc" "5
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_nested_funcall.tc" "14
 "
+run_expect_stdout "$ROOT/tests/valid/isize_arith.tc" "7
+"
+run_expect_stdout "$ROOT/tests/valid/usize_arith.tc" "7
+"
 run_expect_check_ok "$ROOT/tests/valid/phase5_funcall_return.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_basic.tc"
@@ -939,6 +897,8 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
+run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"
+run_expect_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_deref.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_arith.tc" "null pointer arithmetic"
@@ -1354,12 +1314,16 @@ run_expect_fail_msg "$ROOT/tests/errors/static/const_assign.tc" "cannot assign t
 run_expect_fail_msg "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
 run_expect_fail_msg "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
+run_expect_fail_msg "$ROOT/tests/errors/static/compare_type_mismatch_var.tc" \
+    "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_nested_call.tc" "nested calls are not allowed in constant expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/static/let_const_cast_overflow.tc" "constant cast overflow"
+run_expect_fail_msg "$ROOT/tests/errors/static/let_const_cast_overflow_fp.tc" "constant cast overflow"
 run_expect_fail_msg "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate requires an integer target narrower than the source"
 run_expect_fail_msg "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate requires an integer target narrower than the source"
@@ -1462,8 +1426,12 @@ run_expect_check_fail "$ROOT/tests/errors/static/literal_type_error.tc" \
     "unsigned suffix literal cannot be used in signed context"
 run_expect_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
+run_expect_check_fail "$ROOT/tests/errors/static/compare_type_mismatch_var.tc" \
+    "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
+run_expect_check_fail "$ROOT/tests/errors/static/let_const_cast_overflow.tc" "constant cast overflow"
+run_expect_check_fail "$ROOT/tests/errors/static/let_const_cast_overflow_fp.tc" "constant cast overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_bool_truncate_keyword_error.tc" "truncate requires an integer target narrower than the source"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_truncate_bool_source_error.tc" "truncate requires an integer target narrower than the source"
@@ -1515,12 +1483,16 @@ run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.t
 run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
+run_expect_fail_msg "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
+run_expect_check_fail "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
 run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"
 run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"
+run_expect_fail_msg "$ROOT/tests/errors/static/while_missing_end.tc" "missing end for while statement"
+run_expect_check_fail "$ROOT/tests/errors/static/while_missing_end.tc" "missing end for while statement"
 run_expect_fail_msg "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
 run_expect_check_fail "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
@@ -1540,63 +1512,6 @@ run_expect_check_fail "$ROOT/tests/errors/static/indent_else_position.tc" "else 
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
 
-# --- REPL ---
-
-run_repl_expect "var a: int32 = 10
-var b: int32 = 20
-var sum: int32 = add(int32, a, b)
-writeln(int32, sum)
-:quit" "30" "cross-line variables"
-
-run_repl_expect "var x: int32 = 1
-var x: int32 = 2
-:quit" "duplicate definition of 'x'" "duplicate definition error"
-
-run_repl_expect "var a: int32 = 1
-:reset
-:vars
-:quit" "(no variables)" "session reset"
-
-run_repl_expect "let N: int32 = 99
-writeln(int32, N)
-:quit" "99" "let constant in REPL"
-
-run_repl_expect_not_contains "if true then
-:quit" "api error: InvalidArgument: if statements are not supported in REPL mode" ": error:" "repl if unsupported"
-
-run_repl_expect_not_contains "while true then
-:quit" "api error: InvalidArgument: while statements are not supported in REPL mode" ": error:" "repl while unsupported"
-
-run_repl_expect_not_contains "goto done
-:quit" "api error: InvalidArgument: goto/label statements are not supported in REPL mode" ": error:" "repl goto unsupported"
-
-run_repl_expect_not_contains "label done:
-:quit" "api error: InvalidArgument: goto/label statements are not supported in REPL mode" ": error:" "repl label unsupported"
-
-run_repl_expect_not_contains "break
-:quit" "api error: InvalidArgument: break/continue statements are not supported in REPL mode" ": error:" "repl break unsupported"
-
-run_repl_expect_not_contains "continue
-:quit" "api error: InvalidArgument: break/continue statements are not supported in REPL mode" ": error:" "repl continue unsupported"
-
-run_repl_expect ":help
-:quit" "Unsupported in REPL: if, while, goto, label, break, continue." "help command"
-
-run_repl_expect "let X: int8 = 999
-:vars
-:quit" "(no variables)" "let const failure does not pollute session"
-
-run_repl_expect "var stable: int32 = 7
-var failed: int32 = div(int32, 1, 0)
-writeln(int32, stable)
-writeln(int32, failed)
-:quit" "7" "failed var preserves committed values"
-
-run_repl_expect "var stable: int32 = 7
-var failed: int32 = div(int32, 1, 0)
-writeln(int32, stable)
-writeln(int32, failed)
-:quit" "undefined variable 'failed'" "failed var does not pollute symbols"
 
 # --- valid: extended tests (all types, format specs, cast, wrap, complex) ---
 
@@ -1881,6 +1796,43 @@ run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"
 run_expect_check_fail "$ROOT/tests/modules/duplicate_import.tc" "duplicate import"
 run_expect_check_fail "$ROOT/tests/modules/import_not_lib.tc" "imported module is not #lib"
 run_expect_check_ok "$ROOT/tests/modules/import_ok.tc"
+
+# -I module search path
+run_include_search() {
+    label="$1"
+    should_run "$label" || return 0
+    log_test "OK $label"
+    output="$($BIN -c -I "$ROOT/tests/modules/extra_libs" \
+        "$ROOT/tests/modules/include_search_ok.tc" 2>&1)" || {
+        fail "expected success with -I: include_search_ok.tc" "include_search_ok.tc"
+        if [ "$VERBOSE" -eq 1 ]; then
+            printf '%s\n' "$output" >&2
+        fi
+        return
+    }
+    pass
+}
+run_include_search "module -I search path"
+run_expect_check_fail "$ROOT/tests/modules/include_search_ok.tc" "import module not found"
+
+run_ambiguous_import() {
+    label="$1"
+    should_run "$label" || return 0
+    log_test "CFL $label"
+    output="$($BIN -c \
+        -I "$ROOT/tests/modules/ambiguous_a" \
+        -I "$ROOT/tests/modules/ambiguous_b" \
+        "$ROOT/tests/modules/import_ambiguous.tc" 2>&1)" || true
+    if ! printf '%s' "$output" | grep -Fq "import module path is ambiguous"; then
+        fail "expected ambiguous import: import_ambiguous.tc" "import_ambiguous.tc"
+        if [ "$VERBOSE" -eq 1 ]; then
+            printf '%s\n' "$output" >&2
+        fi
+        return
+    fi
+    pass
+}
+run_ambiguous_import "module ambiguous -I import"
 
 echo ""
 echo "$PASSED passed, $FAILED failed"

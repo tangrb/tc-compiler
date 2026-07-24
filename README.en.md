@@ -6,7 +6,7 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **TC-VM**: a command-line tool that directly executes TC source files;
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99.
 
-Current version: **v0.0.31**. The [TC Language Specification](docs/TC语言标准设计说明书.md) is the sole authority for language syntax and observable semantics.
+Current version: **v0.0.35**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.35.md) is the sole authority for language syntax and observable semantics.
 
 ## Quick Start
 
@@ -51,7 +51,8 @@ The current release baseline is **459 VM + 1726 unit + 272 AOT**, for 2,457 test
 | Static analysis | Lexical scope, complete CFG, reachability, static boolean pruning, and fixed-point definite initialization |
 | I/O | `write` / `writeln` / `read` with 13 integer, boolean, and floating-point format specifiers |
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
-| REPL | Transactional statement-by-statement execution with persistent variables; multi-line control flow and `label` are rejected |
+| Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
+| Compound types | `ptr<T>`, `memblock<T,N>` (struct static checks landed; struct runtime pending) |
 
 Version 0.0.31 does not include functions, arrays, structures, pointers, strings, a module system, JIT, or a bytecode file format. Structured `while` bodies cannot contain `goto` / `label`; this is a language specification boundary.
 
@@ -84,12 +85,12 @@ The project compiles with `-std=c99 -Wall -Wextra -pedantic`; AOT differential t
 ```sh
 ./build/vm/bin/tc-vm program.tc          # Compile and execute
 ./build/vm/bin/tc-vm --check program.tc  # Compile and statically analyze only
-./build/vm/bin/tc-vm --repl              # Enter the single-line REPL
+./build/vm/bin/tc-vm -I ./lib program.tc # Add module search paths
 ./build/vm/bin/tc-vm --help
 ./build/vm/bin/tc-vm --version
 ```
 
-REPL meta-commands include `:quit`, `:reset`, `:vars`, and `:help`. See the [TC-VM Command Reference](docs/TC-VM命令行参考.md) for complete behavior.
+See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.35.md) for complete behavior.
 
 ### TC-AOT
 
@@ -114,6 +115,7 @@ libtc uses a success-only ownership contract: after successful compilation, the 
 
 int main(void) {
     const char *source =
+        "#program\n"
         "var x: int32 = 1\n"
         "writeln(int32, %d, x)\n";
     TcDiagnostic diag;
@@ -121,13 +123,13 @@ int main(void) {
 
     tc_diagnostic_init(&diag);
 
-    if (tc_compile_source(source, &program, &diag) != 0) {
+    if (tc_compile_source(source, "example.tc", &program, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_diagnostic_clear(&diag);
         return 1;
     }
 
-    if (tc_run_typed(&program, &diag) != 0) {
+    if (tc_run_program(&program, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_typed_program_free(&program);
         tc_diagnostic_clear(&diag);
@@ -140,7 +142,7 @@ int main(void) {
 }
 ```
 
-The public entry points are `tc_compile_source`, `tc_compile_file`, and `tc_run_typed`. See the [libtc Embedding API](docs/libtc-api.md) for complete ownership, diagnostics, and build details.
+The public entry points are `tc_compile_source`, `tc_compile_file`, `tc_set_module_search_paths`, and `tc_run_program`. See the [libtc Embedding API](docs/libtc-api-0.0.35.md) for complete ownership, diagnostics, and build details.
 
 ## Tests and Quality Gates
 
@@ -249,7 +251,7 @@ scripts/
 
 | Document | Responsibility |
 | -------- | -------------- |
-| [TC Language Specification](docs/TC语言标准设计说明书.md) | Sole authority for 0.0.31 syntax, semantics, and diagnostics |
+| [TC Language Specification](docs/TC语言标准设计说明书-0.0.35.md) | Sole authority for 0.0.31 syntax, semantics, and diagnostics |
 | [TC-VM Command Reference](docs/TC-VM命令行参考.md) | `tc-vm` usage, output, and exit behavior |
 | [libtc Embedding API](docs/libtc-api.md) | Quick reference for public functions, ownership, and diagnostics |
 | [TC-VM Design Document](docs/TC-VM详细设计说明书.md) | VM pipeline, IR, CFG, executor, and REPL design |

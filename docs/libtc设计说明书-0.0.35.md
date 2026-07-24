@@ -88,7 +88,8 @@ int tc_run_program(const TcTypedProgram *program,
 
 void tc_typed_program_free(TcTypedProgram *program);
 
-void tc_set_module_search_paths(const char **paths, int count);
+int tc_set_module_search_paths(char *const *paths, size_t count,
+                               TcDiagnostic *diag);
 ```
 
 0.0.35 新增 `tc_set_module_search_paths` 用于多文件模块搜索；`tc_compile_source` 新增 `name` 参数用于诊断和模块解析。`tc_run_typed` 重命名为 `tc_run_program` 以反映其涵盖模块静态初始化的语义。

@@ -1,0 +1,5 @@
+#program
+; 期望：operand type does not match operation type（比较两侧变量类型不一致）
+var a: int32 = 1
+var b: bool = true
+var r: bool = eq(int32, a, b)

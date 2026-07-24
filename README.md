@@ -6,7 +6,7 @@ TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 - **TC-VM**：直接执行 TC 源文件的命令行工具；
 - **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器。
 
-当前版本：**v0.0.31**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) 为唯一权威来源。
+当前版本：**v0.0.35**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.35.md) 为唯一权威来源。
 
 ## 快速开始
 
@@ -51,9 +51,10 @@ bash scripts/run_tests.sh
 | 静态分析 | 词法作用域、完整 CFG、可达性、静态布尔剪枝和固定点确定初始化 |
 | I/O | `write` / `writeln` / `read`；13 种整数、布尔和浮点格式符 |
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
-| REPL | 事务式逐条执行并保留变量；拒绝多行控制流和 `label` |
+| 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
+| 复合类型 | `ptr<T>`、`memblock<T,N>`（struct 静态验证已落地；struct 运行时待后续） |
 
-0.0.31 不包含函数、数组、结构体、指针、字符串、模块系统、JIT 或字节码文件格式。结构化 `while` 内禁止使用 `goto` / `label`；这属于语言规范边界。
+0.0.35 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 
 ## 构建
 
@@ -84,12 +85,12 @@ cmake --build build --target libtc
 ```sh
 ./build/vm/bin/tc-vm program.tc          # 编译并执行
 ./build/vm/bin/tc-vm --check program.tc  # 仅编译与静态分析
-./build/vm/bin/tc-vm --repl              # 进入单行 REPL
+./build/vm/bin/tc-vm -I ./lib program.tc # 附加模块搜索路径
 ./build/vm/bin/tc-vm --help
 ./build/vm/bin/tc-vm --version
 ```
 
-REPL 元命令包括 `:quit`、`:reset`、`:vars` 和 `:help`。完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考.md)。
+完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.35.md)。
 
 ### TC-AOT
 
@@ -114,6 +115,7 @@ libtc 采用“成功才转移所有权”的契约：编译成功后，调用�
 
 int main(void) {
     const char *source =
+        "#program\n"
         "var x: int32 = 1\n"
         "writeln(int32, %d, x)\n";
     TcDiagnostic diag;
@@ -121,13 +123,13 @@ int main(void) {
 
     tc_diagnostic_init(&diag);
 
-    if (tc_compile_source(source, &program, &diag) != 0) {
+    if (tc_compile_source(source, "example.tc", &program, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_diagnostic_clear(&diag);
         return 1;
     }
 
-    if (tc_run_typed(&program, &diag) != 0) {
+    if (tc_run_program(&program, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_typed_program_free(&program);
         tc_diagnostic_clear(&diag);
@@ -140,7 +142,7 @@ int main(void) {
 }
 ```
 
-公共入口为 `tc_compile_source`、`tc_compile_file` 和 `tc_run_typed`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api.md)。
+公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_set_module_search_paths` 和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.35.md)。
 
 ## 测试与质量门禁
 

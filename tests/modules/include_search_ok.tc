@@ -1,0 +1,5 @@
+; -I 搜索路径：ExtraLib 仅在 extra_libs/，须 -I 才能找到
+#program
+import ExtraLib
+var x: int32 = funcall(ExtraLib.extra_answer)
+writeln(int32, x)

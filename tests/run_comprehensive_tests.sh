@@ -128,20 +128,6 @@ run_expect_ok_warn() {
     pass
 }
 
-run_repl_test() {
-    input="$1"
-    expected="$2"
-    label="$3"
-    log_test "REPL $label"
-    output="$(printf '%s\n' "$input" | "$BIN" --repl 2>&1)"
-    if ! printf '%s' "$output" | grep -Fq "$expected"; then
-        fail "REPL test failed: $label" "$label"
-        echo "  expected substring: $expected" >&2
-        [ "$VERBOSE" -eq 1 ] && printf '%s\n' "$output" >&2
-        return
-    fi
-    pass
-}
 
 # Helper: compare multi-line expected output using temp files
 expect_stdout_file() {
@@ -505,59 +491,18 @@ run_expect_stdout "$ROOT/tests/stress/many_operations.tc" "55
 run_expect_ok "$ROOT/tests/stress/massive_vars.tc"
 
 # =============================================================
-# 16. REPL 扩展测试
+# 16. 回归测试
 # =============================================================
-echo "=== 16. REPL 扩展测试 ==="
-run_repl_test "var a: int32 = 10
-var b: int32 = 20
-var c: int32 = add(int32, a, b)
-var d: int32 = mul(int32, c, 2)
-writeln(int32, d)
-:quit" "60" "repl chain arithmetic"
-
-run_repl_test "let N: int32 = 100
-var x: int32 = add(int32, N, 50)
-writeln(int32, x)
-:quit" "150" "repl let constant arithmetic"
-
-run_repl_test "var z: int32 = 99
-:reset
-var z2: int32 = 11
-var z3: int32 = 22
-var z4: int32 = add(int32, z2, z3)
-writeln(int32, z4)
-:quit" "33" "repl reset then compute"
-
-run_repl_test "var a: uint32 = 0xFF
-var b: uint32 = 0b1010
-writeln(uint32, add(uint32, a, b))
-writeln(uint32, a)
-:quit" "269
-255" "repl hex and bin literals"
-
-run_repl_test "let N: int8 = 42
-var using_n: int16 = cast(int16, N)
-writeln(int16, using_n)
-:quit" "42" "repl let cast"
-
-run_repl_test "var u: int32
-u = 42
-writeln(int32, u)
-:quit" "42" "repl assign after decl"
-
-# =============================================================
-# 17. 回归测试
-# =============================================================
-echo "=== 17. 回归测试（运行原有 VM 测试）==="
+echo "=== 16. 回归测试（运行原有 VM 测试）==="
 sh "$ROOT"/scripts/vm/run_tests.sh
 if [ $? -ne 0 ]; then
     fail "regression: original VM tests failed" ""
 fi
 
 # =============================================================
-# 18. 词法单元测试
+# 17. 词法单元测试
 # =============================================================
-echo "=== 18. 词法单元测试 ==="
+echo "=== 17. 词法单元测试 ==="
 LEXER_RESULT=$("$ROOT"/build/tests/bin/test-lexer 2>&1)
 echo "$LEXER_RESULT" | tail -1 | grep -q "0 failed"
 if [ $? -ne 0 ]; then

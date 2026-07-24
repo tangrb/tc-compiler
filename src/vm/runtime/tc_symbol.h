@@ -110,7 +110,7 @@ void tc_symbol_table_pop_scope(TcSymbolTable *table);
 /** 获取当前作用域层级；无栈帧时返回 0 */
 int tc_symbol_table_current_scope(const TcSymbolTable *table);
 
-/** 移除最后一个符号（REPL 分析失败时回滚） */
+/** 移除最后一个符号（分析失败回滚） */
 void tc_symbol_table_pop_last(TcSymbolTable *table);
 
 /** 按 name 查找符号（可变，内层作用域优先），用于修改符号字段（如 const_value） */

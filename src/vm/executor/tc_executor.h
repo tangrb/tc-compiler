@@ -36,7 +36,7 @@ typedef struct {
 int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag);
 
 /**
- * 执行单条语句（REPL 会话专用，使用已有变量槽数组）。
+ * 执行单条语句（单元测试 / 白盒驱动；使用已有变量槽数组）。
  * @param stmt    待执行的语句
  * @param slots   运行时变量槽位数组（长度至少 symbols->count）
  * @param symbols 全局符号表

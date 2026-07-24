@@ -11,6 +11,7 @@
  *   -o, --output FILE   输出路径（默认 <input>.c）
  *   -c, --check         仅静态分析
  *   -r, --run           编译并运行生成的 C
+ *   -I, --include PATH  添加模块搜索路径
  *   -h, --help          显示帮助
  *   -V, --version       显示版本号
  *
@@ -26,7 +27,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TC_AOT_VERSION "0.0.31"
+#define TC_AOT_VERSION "0.0.35"
+
+#define TC_AOT_MAX_INCLUDE_PATHS 64
 
 static void tc_aot_print_usage(const char *program) {
     fprintf(stderr,
@@ -35,11 +38,12 @@ static void tc_aot_print_usage(const char *program) {
             "TC ahead-of-time compiler (TC → C99).\n"
             "\n"
             "Options:\n"
-            "  -o, --output FILE   write generated C to FILE (default: <input>.c)\n"
-            "  -c, --check         static analysis only, do not emit C\n"
-            "  -r, --run           compile and run generated C (requires host C compiler)\n"
-            "  -h, --help          show this help\n"
-            "  -V, --version       show version\n"
+            "  -o, --output FILE      write generated C to FILE (default: <input>.c)\n"
+            "  -c, --check            static analysis only, do not emit C\n"
+            "  -r, --run              compile and run generated C (requires host C compiler)\n"
+            "  -I, --include <path>   add module search path (repeatable)\n"
+            "  -h, --help             show this help\n"
+            "  -V, --version          show version\n"
             "\n"
             "Notes:\n"
             "  --check uses the same libtc batch-language acceptance set as tc-vm --check.\n",
@@ -93,6 +97,7 @@ int main(int argc, char **argv) {
         {"output", required_argument, NULL, 'o'},
         {"check", no_argument, NULL, 'c'},
         {"run", no_argument, NULL, 'r'},
+        {"include", required_argument, NULL, 'I'},
         {"help", no_argument, NULL, 'h'},
         {"version", no_argument, NULL, 'V'},
         {NULL, 0, NULL, 0},
@@ -101,6 +106,8 @@ int main(int argc, char **argv) {
     const char *input_path = NULL;
     const char *output_path = NULL;
     char *owned_output_path = NULL;
+    char *include_paths[TC_AOT_MAX_INCLUDE_PATHS];
+    size_t include_count = 0;
     int check_only = 0;
     int run_mode = 0;
     TcDiagnostic diag;
@@ -109,7 +116,7 @@ int main(int argc, char **argv) {
     int opt;
     int rc = 0;
 
-    while ((opt = getopt_long(argc, argv, "o:crhV", longopts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "o:crI:hV", longopts, NULL)) != -1) {
         switch (opt) {
         case 'o':
             output_path = optarg;
@@ -119,6 +126,15 @@ int main(int argc, char **argv) {
             break;
         case 'r':
             run_mode = 1;
+            break;
+        case 'I':
+            if (include_count >= TC_AOT_MAX_INCLUDE_PATHS) {
+                fprintf(stderr, "%s: too many -I paths (max %d)\n", argv[0],
+                        TC_AOT_MAX_INCLUDE_PATHS);
+                tc_aot_print_usage(argv[0]);
+                return 1;
+            }
+            include_paths[include_count++] = optarg;
             break;
         case 'h':
             tc_aot_print_usage(argv[0]);
@@ -144,6 +160,14 @@ int main(int argc, char **argv) {
 
     input_path = argv[optind];
     tc_diagnostic_init(&diag);
+
+    if (include_count > 0) {
+        if (tc_set_module_search_paths(include_paths, include_count, &diag) != 0) {
+            tc_diagnostic_print(&diag, stderr);
+            tc_diagnostic_clear(&diag);
+            return 1;
+        }
+    }
 
     /* 编译 */
     if (tc_compile_file(input_path, &program, &diag) != 0) {

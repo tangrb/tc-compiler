@@ -1,0 +1,3 @@
+#program
+; 期望：constant cast overflow（let 编译期浮点→整型 cast）
+let BAD: int8 = cast(int8, 300.0)

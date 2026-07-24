@@ -243,7 +243,6 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass1.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass2.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
-    ${TC_VM_DIR}/analyzer/tc_analyzer_repl.c
     ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
     ${TC_VM_DIR}/analyzer/tc_module.c
