@@ -1,0 +1,24 @@
+#lib
+; struct 按值传参 / 返回 / 深拷贝（在库内跑通，避免 #program 导入类型名）
+public struct Point then
+    var x: int32
+    var y: int32
+end
+
+public func run_struct_funcall_demo() int32 then
+    var p: Point = Point(x: 3, y: 4)
+    var a: int32 = p.x
+    var b: int32 = p.y
+    var s: int32 = add(int32, a, b)
+    var q: Point = p
+    var qx0: int32 = q.x
+    q.x = add(int32, qx0, 1)
+    var qx: int32 = q.x
+    var px: int32 = p.x
+    ; 期望 s=7, qx=4, px=3 → 编码为 100*s+10*qx+px = 743
+    var t: int32 = mul(int32, s, 100)
+    var u: int32 = mul(int32, qx, 10)
+    var v: int32 = add(int32, t, u)
+    var r: int32 = add(int32, v, px)
+    return r
+end

@@ -1,0 +1,10 @@
+#program
+; ptr 字段：存槽地址、再 load
+struct Holder then
+    var p: ptr<int32>
+end
+var x: int32 = 7
+var h: Holder = Holder(p: ptr_address(int32, x))
+var q: ptr<int32> = h.p
+var v: int32 = ptr_load(int32, q)
+writeln(int32, v)

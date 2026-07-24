@@ -983,6 +983,9 @@ typedef struct {
 typedef struct TcCfg TcCfg;
 typedef struct TcCfgSet TcCfgSet;
 
+/** 结构体定义表（定义见 tc_struct_check.h；Analyzer 拥有并移交 TypedProgram） */
+struct TcStructTable;
+
 /** Analyzer 分析通过后的完整程序：语句 + 符号表 + CFG + 警告 */
 typedef struct {
     TcProgram program;       /* 入口模块 */
@@ -996,6 +999,7 @@ typedef struct {
     /* A-8：程序级槽元数据（Executor/AOT 消费；帧内槽由调用帧管理） */
     size_t toplevel_slot_count;
     size_t static_slot_count;
+    struct TcStructTable *struct_table; /* 拥有；供 Executor/AOT 布局与字段偏移 */
 } TcTypedProgram;
 
 typedef enum {

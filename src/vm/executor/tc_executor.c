@@ -9,6 +9,7 @@
 #include "tc_io.h"
 #include "tc_memblock_exec.h"
 #include "tc_ptr_exec.h"
+#include "tc_struct_exec.h"
 #include "tc_semantics.h"
 #include "tc_stmt_index.h"
 #include "tc_symbol.h"
@@ -269,7 +270,15 @@ static int tc_exec_eval_funcall_args(const TcFuncDef *func, TcNamedArg *args, st
             tc_exec_set_internal_error(diag, line, "internal error: unresolved parameter slot");
             return -1;
         }
-        ctx->slots[slot] = value;
+        if (param->type.kind == TC_STRUCT) {
+            if (tc_exec_struct_store_value(&ctx->slots[slot], &value,
+                                          param->type.params.struct_type.struct_id, ctx, diag,
+                                          line) != 0) {
+                return -1;
+            }
+        } else {
+            ctx->slots[slot] = value;
+        }
     }
     return 0;
 }
@@ -526,6 +535,14 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
 
     if (rhs->kind == TC_RHS_MEMBLOCK_COUNT) {
         return tc_exec_memblock_count(rhs->u.memblock_count.memblock_name, ctx, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
+        return tc_exec_struct_ctor(rhs, ctx, out, diag, line);
+    }
+
+    if (rhs->kind == TC_RHS_FIELD_READ) {
+        return tc_exec_struct_field_read(rhs, expected_type, ctx, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_PTR_ADDRESS) {
@@ -880,6 +897,15 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                 value.bits = value.bits ? 1ULL : 0ULL;
                 value.type = TC_BOOL;
             }
+            if (ret_type == TC_STRUCT && func) {
+                TcValue cloned;
+                if (tc_exec_struct_store_value(&cloned, &value,
+                                              func->return_type.params.struct_type.struct_id, ctx,
+                                              diag, ret->line) != 0) {
+                    return tc_exec_error();
+                }
+                value = cloned;
+            }
         }
         return tc_exec_return_value(value, 1);
     }
@@ -936,9 +962,10 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
 
     if (stmt->kind == TC_STMT_FIELD_ASSIGN) {
         tc_stmt_index_take(&ctx->index);
-        tc_exec_set_internal_error(diag, stmt->u.field_assign.line,
-                                   "internal error: struct field assign not implemented");
-        return tc_exec_error();
+        if (tc_exec_struct_field_assign(&stmt->u.field_assign, ctx, diag) != 0) {
+            return tc_exec_error();
+        }
+        return tc_exec_normal();
     }
 
     {
@@ -957,11 +984,21 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
             }
             if (var_def->full_type.kind == TC_MEMBLOCK) {
                 rhs_type = TC_MEMBLOCK;
+            } else if (var_def->full_type.kind == TC_STRUCT) {
+                rhs_type = TC_STRUCT;
             }
             if (tc_eval_rhs(&var_def->rhs, rhs_type, ctx, &value, diag, var_def->line) != 0) {
                 return tc_exec_error();
             }
-            ctx->slots[var_def->binding.slot] = value;
+            if (var_def->full_type.kind == TC_STRUCT) {
+                if (tc_exec_struct_store_value(&ctx->slots[var_def->binding.slot], &value,
+                                              var_def->full_type.params.struct_type.struct_id, ctx,
+                                              diag, var_def->line) != 0) {
+                    return tc_exec_error();
+                }
+            } else {
+                ctx->slots[var_def->binding.slot] = value;
+            }
         } else if (stmt->kind == TC_STMT_CONST_DEF) {
             (void)ctx;
         } else if (stmt->kind == TC_STMT_ASSIGN) {
@@ -978,7 +1015,22 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                             assign->line) != 0) {
                 return tc_exec_error();
             }
-            ctx->slots[assign->binding.slot] = value;
+            if (assign->binding.type == TC_STRUCT) {
+                const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, assign->name);
+                int sid = sym ? sym->struct_id : -1;
+
+                if (sid < 0) {
+                    tc_exec_set_internal_error(diag, assign->line,
+                                               "internal error: struct assign missing id");
+                    return tc_exec_error();
+                }
+                if (tc_exec_struct_store_value(&ctx->slots[assign->binding.slot], &value, sid, ctx,
+                                              diag, assign->line) != 0) {
+                    return tc_exec_error();
+                }
+            } else {
+                ctx->slots[assign->binding.slot] = value;
+            }
         } else if (stmt->kind == TC_STMT_WRITE) {
             if (tc_exec_io_write(&stmt->u.io_write, ctx, 0, diag) != 0) {
                 return tc_exec_error();
@@ -1010,9 +1062,16 @@ static int tc_exec_init_static_var(const TcStaticVarDef *sv, TcExecuteCtx *ctx,
     }
     if (sv->type.kind == TC_MEMBLOCK) {
         rhs_type = TC_MEMBLOCK;
+    } else if (sv->type.kind == TC_STRUCT) {
+        rhs_type = TC_STRUCT;
     }
     if (tc_eval_rhs(&sv->rhs, rhs_type, ctx, &value, diag, sv->line) != 0) {
         return -1;
+    }
+    if (sv->type.kind == TC_STRUCT) {
+        return tc_exec_struct_store_value(&ctx->slots[sv->static_slot], &value,
+                                         sv->type.params.struct_type.struct_id, ctx, diag,
+                                         sv->line);
     }
     ctx->slots[sv->static_slot] = value;
     return 0;
@@ -1093,6 +1152,7 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
 
     if (tc_exec_init_all_static_vars(program, &ctx, diag) != 0) {
         tc_exec_memblock_heap_free(&ctx);
+        tc_exec_struct_heap_free(&ctx);
         free(slots);
         return -1;
     }
@@ -1102,6 +1162,7 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
                                diag);
     if (control.kind == TC_EXEC_ERROR) {
         tc_exec_memblock_heap_free(&ctx);
+        tc_exec_struct_heap_free(&ctx);
         free(slots);
         return -1;
     }
@@ -1109,11 +1170,13 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
         tc_exec_set_internal_error(diag, 0,
                                    "internal error: unconsumed control at program boundary");
         tc_exec_memblock_heap_free(&ctx);
+        tc_exec_struct_heap_free(&ctx);
         free(slots);
         return -1;
     }
 
     tc_exec_memblock_heap_free(&ctx);
+    tc_exec_struct_heap_free(&ctx);
     free(slots);
     return 0;
 }

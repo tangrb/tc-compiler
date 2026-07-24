@@ -14,6 +14,7 @@
 #include "tc_aot_codegen.h"
 
 #include "tc_stmt_index.h"
+#include "tc_struct_check.h"
 #include "tc_symbol.h"
 
 #include <inttypes.h>
@@ -43,6 +44,7 @@ typedef struct {
     const TcTypedProgram *program;
     int current_func_id; /* -1 = 顶层 */
     TcTypeKind current_return_type;
+    int tmp_seq; /* 嵌套 RHS 临时变量唯一序号 */
 } TcAotEmitCtx;
 
 static int tc_aot_paths_equal_prefix(const TcBlockId *a, const TcBlockId *b, int depth) {
@@ -583,8 +585,32 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeKind expected_type
                 fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
                         rhs->u.const_ref.binding.const_bits);
             } else if (rhs->u.const_ref.binding.slot >= 0) {
-                fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr,
-                        rhs->u.const_ref.binding.slot);
+                if (expected_type == TC_STRUCT) {
+                    const TcSymbol *sym = tc_symbol_table_find_visible(
+                        symbols, rhs->u.const_ref.name, stmt_index, &ctx->sym_index);
+                    size_t bytes = 0;
+
+                    if (sym && sym->struct_id >= 0 && ctx->program->struct_table) {
+                        const TcStructEntry *e =
+                            tc_struct_table_get(ctx->program->struct_table, sym->struct_id);
+                        if (e) {
+                            bytes = (e->width_bits + 7U) / 8U;
+                        }
+                    }
+                    if (bytes == 0) {
+                        return -1;
+                    }
+                    fprintf(out,
+                            "%s%s = tc_aot_struct_clone(slots[%d], %zu, tc_aot_cur_diag, %d);\n",
+                            indent, dst_expr, rhs->u.const_ref.binding.slot, bytes, line);
+                    fprintf(out,
+                            "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                            "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                            abort_indent, line);
+                } else {
+                    fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr,
+                            rhs->u.const_ref.binding.slot);
+                }
             } else {
                 return -1;
             }
@@ -600,6 +626,24 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeKind expected_type
             if (symbol->sym_kind == TC_SYM_CONSTANT && symbol->has_const_value) {
                 fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
                         symbol->const_value.bits);
+            } else if (expected_type == TC_STRUCT) {
+                size_t bytes = 0;
+                if (symbol->struct_id >= 0 && ctx->program->struct_table) {
+                    const TcStructEntry *e =
+                        tc_struct_table_get(ctx->program->struct_table, symbol->struct_id);
+                    if (e) {
+                        bytes = (e->width_bits + 7U) / 8U;
+                    }
+                }
+                if (bytes == 0) {
+                    return -1;
+                }
+                fprintf(out, "%s%s = tc_aot_struct_clone(slots[%d], %zu, tc_aot_cur_diag, %d);\n",
+                        indent, dst_expr, symbol->slot, bytes, line);
+                fprintf(out,
+                        "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                        "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, line);
             } else {
                 fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr, symbol->slot);
             }
@@ -1040,6 +1084,123 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeKind expected_type
         return -1;
     }
 
+    if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
+        const TcStructTable *table = ctx->program->struct_table;
+        const TcStructEntry *entry = NULL;
+        size_t bytes = 0;
+        size_t bit_off = 0;
+        size_t i = 0;
+        TcDiagnostic local_diag;
+
+        entry = tc_struct_table_find(table, rhs->u.struct_ctor.struct_name);
+        if (!entry) {
+            return -1;
+        }
+        bytes = (entry->width_bits + 7U) / 8U;
+        fprintf(out, "%s%s = tc_aot_struct_alloc(%zu, tc_aot_cur_diag, %d);\n", indent, dst_expr,
+                bytes, line);
+        fprintf(out,
+                "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                abort_indent, line);
+        tc_diagnostic_init(&local_diag);
+        for (i = 0; i < entry->field_count; i++) {
+            const TcStructField *field = &entry->fields[i];
+            size_t offset = bit_off / 8U;
+            size_t nbytes = 0;
+            size_t fi = 0;
+            char tmp[48];
+            int found = 0;
+            int tmp_id = ctx->tmp_seq++;
+
+            if (field->type.kind == TC_STRUCT) {
+                const TcStructEntry *nested =
+                    tc_struct_table_get(table, field->type.params.struct_type.struct_id);
+                nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+            } else {
+                nbytes = (tc_sizeof_bits(&field->type) + 7U) / 8U;
+            }
+            snprintf(tmp, sizeof(tmp), "_tc_sf_%d_%d", stmt_index, tmp_id);
+            for (fi = 0; fi < rhs->u.struct_ctor.field_count; fi++) {
+                if (strcmp(rhs->u.struct_ctor.fields[fi].param_name, field->name) != 0) {
+                    continue;
+                }
+                found = 1;
+                fprintf(out, "%s{\n", indent);
+                fprintf(out, "%s    uint64_t %s;\n", indent, tmp);
+                if (rhs->u.struct_ctor.fields[fi].has_rhs) {
+                    if (tc_aot_emit_rhs(out, (const TcRhs *)rhs->u.struct_ctor.fields[fi].value_rhs,
+                                        field->type.kind, tmp, abort_indent, ctx, stmt_index,
+                                        line) != 0) {
+                        return -1;
+                    }
+                } else if (tc_aot_emit_operand_assign(out, &rhs->u.struct_ctor.fields[fi].value_op,
+                                                      field->type.kind, tmp, abort_indent, ctx,
+                                                      stmt_index) != 0) {
+                    return -1;
+                }
+                if (field->type.kind == TC_STRUCT) {
+                    fprintf(out, "%s    tc_aot_struct_memcpy_field(%s, %zu, %zu, %s);\n",
+                            abort_indent, dst_expr, offset, nbytes, tmp);
+                } else {
+                    fprintf(out, "%s    tc_aot_struct_store_bits(%s, %zu, %zu, %s);\n", abort_indent,
+                            dst_expr, offset, nbytes, tmp);
+                }
+                fprintf(out, "%s}\n", indent);
+                break;
+            }
+            if (!found) {
+                return -1;
+            }
+            if (field->type.kind == TC_STRUCT) {
+                const TcStructEntry *nested =
+                    tc_struct_table_get(table, field->type.params.struct_type.struct_id);
+                bit_off += nested ? nested->width_bits : 0;
+            } else {
+                bit_off += tc_sizeof_bits(&field->type);
+            }
+            bit_off += (size_t)field->padding * 8U;
+        }
+        (void)local_diag;
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FIELD_READ) {
+        const TcStructTable *table = ctx->program->struct_table;
+        const TcSymbol *base_sym = tc_symbol_table_find_visible(
+            symbols, rhs->u.field_read.base, stmt_index, &ctx->sym_index);
+        size_t offset = 0;
+        const TcType *field_type = NULL;
+        size_t nbytes = 0;
+        TcDiagnostic local_diag;
+
+        if (!base_sym || base_sym->slot < 0 || base_sym->struct_id < 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&local_diag);
+        if (tc_struct_path_offset_bytes(table, base_sym->struct_id, rhs->u.field_read.fields,
+                                        rhs->u.field_read.field_count, &offset, &field_type,
+                                        &local_diag, line) != 0) {
+            return -1;
+        }
+        if (field_type->kind == TC_STRUCT) {
+            const TcStructEntry *nested =
+                tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+            nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+            fprintf(out,
+                    "%s%s = tc_aot_struct_extract(slots[%d], %zu, %zu, tc_aot_cur_diag, %d);\n",
+                    indent, dst_expr, base_sym->slot, offset, nbytes, line);
+            fprintf(out,
+                    "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                    "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                    abort_indent, line);
+        } else {
+            nbytes = (tc_sizeof_bits(field_type) + 7U) / 8U;
+            fprintf(out, "%stc_aot_struct_load_bits(slots[%d], %zu, %zu, &%s);\n", indent,
+                    base_sym->slot, offset, nbytes, dst_expr);
+        }
+        return 0;
+    }
+
     if (rhs->kind == TC_RHS_FUNCALL_EXPR) {
         if (rhs->u.funcall_expr.resolved_func_id < 0) {
             return -1;
@@ -1345,9 +1506,55 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotE
         return 0;
     }
 
-    if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE || stmt->kind == TC_STMT_FIELD_ASSIGN) {
+    if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {
         tc_stmt_index_take(&ctx->index);
         return -1;
+    }
+
+    if (stmt->kind == TC_STMT_FIELD_ASSIGN) {
+        const TcFieldAssign *assign = &stmt->u.field_assign;
+        const TcStructTable *table = ctx->program->struct_table;
+        const TcSymbol *base_sym = NULL;
+        size_t offset = 0;
+        const TcType *field_type = NULL;
+        size_t nbytes = 0;
+        char tmp[48];
+        char abort_indent[64];
+        int stmt_index = 0;
+        TcDiagnostic local_diag;
+
+        stmt_index = tc_stmt_index_take(&ctx->index);
+        tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
+        base_sym = tc_symbol_table_find_visible(symbols, assign->base, stmt_index, &ctx->sym_index);
+        if (!base_sym || base_sym->slot < 0 || base_sym->struct_id < 0) {
+            return -1;
+        }
+        tc_diagnostic_init(&local_diag);
+        if (tc_struct_path_offset_bytes(table, base_sym->struct_id, assign->fields,
+                                        assign->field_count, &offset, &field_type, &local_diag,
+                                        assign->line) != 0) {
+            return -1;
+        }
+        snprintf(tmp, sizeof(tmp), "_tc_fa_%d", stmt_index);
+        fprintf(out, "%s{\n", indent);
+        fprintf(out, "%s    uint64_t %s;\n", indent, tmp);
+        if (tc_aot_emit_rhs(out, &assign->rhs, field_type->kind, tmp, abort_indent, ctx, stmt_index,
+                            assign->line) != 0) {
+            return -1;
+        }
+        if (field_type->kind == TC_STRUCT) {
+            const TcStructEntry *nested =
+                tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+            nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+            fprintf(out, "%s    tc_aot_struct_memcpy_field(slots[%d], %zu, %zu, %s);\n", indent,
+                    base_sym->slot, offset, nbytes, tmp);
+        } else {
+            nbytes = (tc_sizeof_bits(field_type) + 7U) / 8U;
+            fprintf(out, "%s    tc_aot_struct_store_bits(slots[%d], %zu, %zu, %s);\n", indent,
+                    base_sym->slot, offset, nbytes, tmp);
+        }
+        fprintf(out, "%s}\n", indent);
+        return 0;
     }
 
     {
@@ -1363,6 +1570,8 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotE
                 expected_type = TC_MEMBLOCK;
             } else if (var_def->full_type.kind == TC_PTR) {
                 expected_type = TC_PTR;
+            } else if (var_def->full_type.kind == TC_STRUCT) {
+                expected_type = TC_STRUCT;
             }
             if (var_def->binding.resolved && !var_def->binding.is_const &&
                 var_def->binding.slot >= 0) {
@@ -1561,6 +1770,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     ctx.program = program;
     ctx.current_func_id = -1;
     ctx.current_return_type = TC_VOID;
+    ctx.tmp_seq = 0;
     tc_diagnostic_init(&diag);
     if (tc_symbol_name_index_build(&program->symbols, &ctx.sym_index, &diag) != 0) {
         tc_symbol_name_index_free(&ctx.sym_index);
@@ -1645,6 +1855,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     }
 
     fprintf(out, "\n    tc_aot_memblock_heap_free_all();\n");
+    fprintf(out, "    tc_aot_struct_heap_free_all();\n");
     fprintf(out, "    return 0;\n");
     fprintf(out, "}\n");
     tc_symbol_name_index_free(&ctx.sym_index);

@@ -27,11 +27,24 @@ typedef struct {
     size_t width_bits;     /* 含各字段 @padding 的布局位宽 */
 } TcStructEntry;
 
-typedef struct {
+struct TcStructTable {
     TcStructEntry *items;
     size_t count;
     size_t capacity;
-} TcStructTable;
+};
+
+typedef struct TcStructTable TcStructTable;
+
+/** 按 struct_id 取条目；越界返回 NULL */
+const TcStructEntry *tc_struct_table_get(const TcStructTable *table, int struct_id);
+
+/**
+ * 计算字段链相对基结构体起始处的字节偏移与末字段类型。
+ * @return 0 成功；-1 失败（已写 diag）
+ */
+int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char *const *fields,
+                                size_t field_count, size_t *out_offset_bytes,
+                                const TcType **out_field_type, TcDiagnostic *diag, int line);
 
 void tc_struct_table_init(TcStructTable *table);
 void tc_struct_table_free(TcStructTable *table);

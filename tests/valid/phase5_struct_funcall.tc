@@ -1,0 +1,5 @@
+#program
+; struct 跨模块：库内传参/返回/深拷贝后写回编码结果
+import StructLib
+var r: int32 = funcall(StructLib.run_struct_funcall_demo)
+writeln(int32, r)

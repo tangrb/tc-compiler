@@ -1,0 +1,12 @@
+#program
+; 嵌套字段赋值 o.inner.x
+struct Inner then
+    var x: int32
+end
+struct Outer then
+    var inner: Inner
+end
+var o: Outer = Outer(inner: Inner(x: 1))
+o.inner.x = 99
+var v: int32 = o.inner.x
+writeln(int32, v)

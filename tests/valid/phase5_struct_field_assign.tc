@@ -1,0 +1,9 @@
+#program
+; 字段赋值（外层 var × 字段 var）
+struct Point then
+    var x: int32
+end
+var p: Point = Point(x: 1)
+p.x = 42
+var v: int32 = p.x
+writeln(int32, v)

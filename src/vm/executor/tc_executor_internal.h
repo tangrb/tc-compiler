@@ -18,6 +18,9 @@ typedef struct TcExecuteCtx {
     void **memblock_heap;
     size_t memblock_heap_count;
     size_t memblock_heap_capacity;
+    void **struct_heap;
+    size_t struct_heap_count;
+    size_t struct_heap_capacity;
 } TcExecuteCtx;
 
 const TcFuncDef *tc_find_func_def(const TcTypedProgram *prog, int func_id,

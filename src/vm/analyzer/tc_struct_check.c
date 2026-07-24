@@ -36,7 +36,7 @@ static int tc_struct_entry_push(TcStructTable *table, const TcStructEntry *entry
     return 0;
 }
 
-/** 单字段位宽 = sizeof(type) + @padding；嵌套 struct 查表 width_bits。 */
+/** 单字段位宽 = sizeof(type) + 8×@padding(N 字节)；嵌套 struct 查表 width_bits。 */
 static size_t tc_struct_field_width_bits(const TcStructField *field,
                                          const TcStructTable *table) {
     size_t field_bits = 0;
@@ -49,7 +49,7 @@ static size_t tc_struct_field_width_bits(const TcStructField *field,
     } else {
         field_bits = tc_sizeof_bits(&field->type);
     }
-    return field_bits + (size_t)field->padding;
+    return field_bits + (size_t)field->padding * 8U;
 }
 
 /**
@@ -132,55 +132,94 @@ static int tc_struct_resolve_type(TcType *type, char **struct_type_name, const T
     return 0;
 }
 
-/** 扫程序中的 var/let/static/func，解析其上挂着的 struct 类型名。 */
+/** 解析单条语句（及嵌套块 / 函数体）上的 struct 类型名。 */
+static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
+                                        TcDiagnostic *diag) {
+    size_t i = 0;
+
+    if (!stmt) {
+        return 0;
+    }
+    if (stmt->kind == TC_STMT_VAR_DEF) {
+        TcVarDef *def = &stmt->u.var_def;
+        if (tc_struct_resolve_type(&def->full_type, &def->struct_type_name, table, def->line,
+                                   diag) != 0) {
+            return -1;
+        }
+        def->type = def->full_type.kind;
+        return 0;
+    }
+    if (stmt->kind == TC_STMT_CONST_DEF) {
+        TcConstDef *def = &stmt->u.const_def;
+        if (tc_struct_resolve_type(&def->full_type, &def->struct_type_name, table, def->line,
+                                   diag) != 0) {
+            return -1;
+        }
+        def->type = def->full_type.kind;
+        return 0;
+    }
+    if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
+        TcStaticVarDef *def = &stmt->u.static_var_def;
+        return tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line, diag);
+    }
+    if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
+        TcStaticLetDef *def = &stmt->u.static_let_def;
+        return tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line, diag);
+    }
+    if (stmt->kind == TC_STMT_FUNC_DEF) {
+        TcFuncDef *func = &stmt->u.func_def;
+        size_t j = 0;
+
+        if (tc_struct_resolve_type(&func->return_type, &func->return_struct_name, table, func->line,
+                                   diag) != 0) {
+            return -1;
+        }
+        for (j = 0; j < func->param_count; j++) {
+            TcFuncParam *param = &func->params[j];
+            if (tc_struct_resolve_type(&param->type, &param->struct_type_name, table, func->line,
+                                       diag) != 0) {
+                return -1;
+            }
+        }
+        for (i = 0; i < func->body_count; i++) {
+            if (tc_struct_resolve_stmt_types(&func->body[i], table, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+    if (stmt->kind == TC_STMT_IF) {
+        for (i = 0; i < stmt->u.if_stmt.then_count; i++) {
+            if (tc_struct_resolve_stmt_types(&stmt->u.if_stmt.then_body[i], table, diag) != 0) {
+                return -1;
+            }
+        }
+        for (i = 0; i < stmt->u.if_stmt.else_count; i++) {
+            if (tc_struct_resolve_stmt_types(&stmt->u.if_stmt.else_body[i], table, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+    if (stmt->kind == TC_STMT_WHILE) {
+        for (i = 0; i < stmt->u.while_stmt.body_count; i++) {
+            if (tc_struct_resolve_stmt_types(&stmt->u.while_stmt.body[i], table, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+    return 0;
+}
+
+/** 扫程序中的 var/let/static/func（含函数体与块），解析 struct 类型名。 */
 static int tc_struct_resolve_var_types(TcProgram *program, TcStructTable *table,
                                        TcDiagnostic *diag) {
     size_t i = 0;
 
     for (i = 0; i < program->count; i++) {
-        TcStatement *stmt = &program->items[i];
-
-        if (stmt->kind == TC_STMT_VAR_DEF) {
-            TcVarDef *def = &stmt->u.var_def;
-            if (tc_struct_resolve_type(&def->full_type, &def->struct_type_name, table, def->line,
-                                       diag) != 0) {
-                return -1;
-            }
-            def->type = def->full_type.kind;
-        } else if (stmt->kind == TC_STMT_CONST_DEF) {
-            TcConstDef *def = &stmt->u.const_def;
-            if (tc_struct_resolve_type(&def->full_type, &def->struct_type_name, table, def->line,
-                                       diag) != 0) {
-                return -1;
-            }
-            def->type = def->full_type.kind;
-        } else if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
-            TcStaticVarDef *def = &stmt->u.static_var_def;
-            if (tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line,
-                                       diag) != 0) {
-                return -1;
-            }
-        } else if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
-            TcStaticLetDef *def = &stmt->u.static_let_def;
-            if (tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line,
-                                       diag) != 0) {
-                return -1;
-            }
-        } else if (stmt->kind == TC_STMT_FUNC_DEF) {
-            TcFuncDef *func = &stmt->u.func_def;
-            size_t j = 0;
-
-            if (tc_struct_resolve_type(&func->return_type, &func->return_struct_name, table,
-                                       func->line, diag) != 0) {
-                return -1;
-            }
-            for (j = 0; j < func->param_count; j++) {
-                TcFuncParam *param = &func->params[j];
-                if (tc_struct_resolve_type(&param->type, &param->struct_type_name, table,
-                                           func->line, diag) != 0) {
-                    return -1;
-                }
-            }
+        if (tc_struct_resolve_stmt_types(&program->items[i], table, diag) != 0) {
+            return -1;
         }
     }
     return 0;
@@ -227,6 +266,71 @@ const TcStructEntry *tc_struct_table_find(const TcStructTable *table, const char
         }
     }
     return NULL;
+}
+
+const TcStructEntry *tc_struct_table_get(const TcStructTable *table, int struct_id) {
+    if (!table || struct_id < 0 || (size_t)struct_id >= table->count) {
+        return NULL;
+    }
+    return &table->items[(size_t)struct_id];
+}
+
+int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char *const *fields,
+                                size_t field_count, size_t *out_offset_bytes,
+                                const TcType **out_field_type, TcDiagnostic *diag, int line) {
+    const TcStructEntry *entry = NULL;
+    size_t bit_off = 0;
+    size_t i = 0;
+    int cursor_sid = struct_id;
+    const TcType *final_type = NULL;
+
+    entry = tc_struct_table_get(table, struct_id);
+    if (!entry || !fields || field_count == 0) {
+        tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
+                          "undefined struct type for field path");
+        return -1;
+    }
+
+    for (i = 0; i < field_count; i++) {
+        size_t j = 0;
+        const TcStructField *field = NULL;
+        size_t before = 0;
+
+        entry = tc_struct_table_get(table, cursor_sid);
+        if (!entry) {
+            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
+                              "undefined struct type for field path");
+            return -1;
+        }
+        for (j = 0; j < entry->field_count; j++) {
+            if (strcmp(entry->fields[j].name, fields[i]) == 0) {
+                field = &entry->fields[j];
+                break;
+            }
+            before += tc_struct_field_width_bits(&entry->fields[j], table);
+        }
+        if (!field) {
+            char msg[128];
+            (void)snprintf(msg, sizeof(msg), "unknown struct field '%s'", fields[i]);
+            tc_diagnostic_set(diag, TC_ERR_STRUCT_UNKNOWN_FIELD, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        bit_off += before;
+        final_type = &field->type;
+        if (i + 1 < field_count) {
+            if (field->type.kind != TC_STRUCT) {
+                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "field path requires struct base");
+                return -1;
+            }
+            cursor_sid = field->type.params.struct_type.struct_id;
+        }
+    }
+    *out_offset_bytes = bit_off / 8U;
+    if (out_field_type) {
+        *out_field_type = final_type;
+    }
+    return 0;
 }
 
 size_t tc_struct_table_width_bits(int struct_id, void *userdata) {

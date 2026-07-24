@@ -877,6 +877,47 @@ true
 run_expect_stdout "$ROOT/tests/valid/phase5_nullptr_eq.tc" "true
 false
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_basic.tc" "3
+4
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_field_assign.tc" "42
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_nested.tc" "7
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_copy.tc" "10
+20
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_padding.tc" "1
+2
+9
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_nested_assign.tc" "99
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_whole_assign.tc" "10
+20
+30
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_mixed_types.tc" "1.5
+true
+2.25
+false
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_extract_indep.tc" "5
+8
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_funcall.tc" "743
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_memblock.tc" "10
+20
+10
+99
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_multi_field.tc" "10
+20
+30
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_ptr_field.tc" "7
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_fill.tc" "5
 5
 "
@@ -895,6 +936,19 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_void_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_static_var.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_basic.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_field_assign.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_nested.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_copy.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_padding.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_nested_assign.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_whole_assign.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mixed_types.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_extract_indep.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_funcall.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_multi_field.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"

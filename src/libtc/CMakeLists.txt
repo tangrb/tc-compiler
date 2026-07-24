@@ -43,6 +43,7 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/executor/tc_call_frame.c
     ${TC_VM_DIR}/executor/tc_ptr_exec.c
     ${TC_VM_DIR}/executor/tc_memblock_exec.c
+    ${TC_VM_DIR}/executor/tc_struct_exec.c
     ${TC_VM_DIR}/executor/tc_executor.c
 )
 

@@ -1,0 +1,14 @@
+#program
+; @padding 不影响字段读写
+struct Padded then
+    var a: int32 @padding(4)
+    var b: int32
+end
+var p: Padded = Padded(a: 1, b: 2)
+var a: int32 = p.a
+var b: int32 = p.b
+writeln(int32, a)
+writeln(int32, b)
+p.b = 9
+var b2: int32 = p.b
+writeln(int32, b2)

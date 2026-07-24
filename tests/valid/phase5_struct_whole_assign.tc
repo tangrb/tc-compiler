@@ -1,0 +1,15 @@
+#program
+; 整块赋值可更新 let 字段；字段赋值仍禁止
+struct Point then
+    let x: int32
+    var y: int32
+end
+var p: Point = Point(x: 1, y: 2)
+p = Point(x: 10, y: 20)
+var x: int32 = p.x
+var y: int32 = p.y
+writeln(int32, x)
+writeln(int32, y)
+p.y = 30
+var y2: int32 = p.y
+writeln(int32, y2)

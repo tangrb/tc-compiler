@@ -558,3 +558,126 @@ void tc_aot_memblock_heap_free_all(void) {
     tc_aot_mb_heap_count = 0;
     tc_aot_mb_heap_cap = 0;
 }
+
+/* ------------------------------------------------------------------ */
+/*  struct                                                              */
+/* ------------------------------------------------------------------ */
+
+static void **tc_aot_st_heap = NULL;
+static size_t tc_aot_st_heap_count = 0;
+static size_t tc_aot_st_heap_cap = 0;
+
+static int tc_aot_st_track(void *block, TcDiagnostic *diag, int line) {
+    void **items = NULL;
+
+    if (tc_aot_st_heap_count == tc_aot_st_heap_cap) {
+        size_t new_cap = tc_aot_st_heap_cap == 0 ? 8 : tc_aot_st_heap_cap * 2;
+        items = (void **)realloc(tc_aot_st_heap, new_cap * sizeof(void *));
+        if (!items) {
+            free(block);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        tc_aot_st_heap = items;
+        tc_aot_st_heap_cap = new_cap;
+    }
+    tc_aot_st_heap[tc_aot_st_heap_count++] = block;
+    return 0;
+}
+
+uint64_t tc_aot_struct_alloc(size_t bytes, TcDiagnostic *diag, int line) {
+    void *block = NULL;
+
+    if (bytes == 0) {
+        return 0;
+    }
+    block = calloc(1, bytes);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    if (tc_aot_st_track(block, diag, line) != 0) {
+        return 0;
+    }
+    return (uint64_t)(uintptr_t)block;
+}
+
+uint64_t tc_aot_struct_clone(uint64_t src_bits, size_t bytes, TcDiagnostic *diag, int line) {
+    void *src = (void *)(uintptr_t)src_bits;
+    uint64_t dst_bits = 0;
+    void *dst = NULL;
+
+    if (!src || bytes == 0) {
+        return 0;
+    }
+    dst_bits = tc_aot_struct_alloc(bytes, diag, line);
+    if (dst_bits == 0) {
+        return 0;
+    }
+    dst = (void *)(uintptr_t)dst_bits;
+    memcpy(dst, src, bytes);
+    return dst_bits;
+}
+
+void tc_aot_struct_store_bits(uint64_t dst_bits, size_t offset, size_t nbytes, uint64_t value_bits) {
+    uint8_t *dst = (uint8_t *)(uintptr_t)dst_bits;
+
+    if (!dst || nbytes == 0) {
+        return;
+    }
+    memset(dst + offset, 0, nbytes);
+    memcpy(dst + offset, &value_bits, nbytes <= sizeof(value_bits) ? nbytes : sizeof(value_bits));
+}
+
+void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, uint64_t *out) {
+    const uint8_t *src = (const uint8_t *)(uintptr_t)src_bits;
+
+    if (!src || !out || nbytes == 0) {
+        return;
+    }
+    *out = 0;
+    memcpy(out, src + offset, nbytes <= sizeof(*out) ? nbytes : sizeof(*out));
+}
+
+void tc_aot_struct_memcpy_field(uint64_t dst_bits, size_t offset, size_t nbytes,
+                                uint64_t src_bits) {
+    uint8_t *dst = (uint8_t *)(uintptr_t)dst_bits;
+    const void *src = (const void *)(uintptr_t)src_bits;
+
+    if (!dst || !src || nbytes == 0) {
+        return;
+    }
+    memcpy(dst + offset, src, nbytes);
+}
+
+uint64_t tc_aot_struct_extract(uint64_t src_bits, size_t offset, size_t nbytes,
+                               TcDiagnostic *diag, int line) {
+    const uint8_t *src = (const uint8_t *)(uintptr_t)src_bits;
+    uint64_t dst_bits = 0;
+    void *dst = NULL;
+
+    if (!src || nbytes == 0) {
+        return 0;
+    }
+    dst_bits = tc_aot_struct_alloc(nbytes, diag, line);
+    if (dst_bits == 0) {
+        return 0;
+    }
+    dst = (void *)(uintptr_t)dst_bits;
+    memcpy(dst, src + offset, nbytes);
+    return dst_bits;
+}
+
+void tc_aot_struct_heap_free_all(void) {
+    size_t i = 0;
+
+    for (i = 0; i < tc_aot_st_heap_count; i++) {
+        free(tc_aot_st_heap[i]);
+    }
+    free(tc_aot_st_heap);
+    tc_aot_st_heap = NULL;
+    tc_aot_st_heap_count = 0;
+    tc_aot_st_heap_cap = 0;
+}

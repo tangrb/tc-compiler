@@ -1,0 +1,15 @@
+#program
+; 嵌套结构体提取后独立修改
+struct Inner then
+    var x: int32
+end
+struct Outer then
+    var inner: Inner
+end
+var o: Outer = Outer(inner: Inner(x: 5))
+var i: Inner = o.inner
+i.x = 8
+var ox: int32 = o.inner.x
+var ix: int32 = i.x
+writeln(int32, ox)
+writeln(int32, ix)

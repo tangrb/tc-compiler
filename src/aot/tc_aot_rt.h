@@ -81,4 +81,15 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
                          TcDiagnostic *diag, int line);
 void tc_aot_memblock_heap_free_all(void);
 
+/* ---- struct 运行时（堆块指针存于 slots[]，与 VM 一致） ---- */
+uint64_t tc_aot_struct_alloc(size_t bytes, TcDiagnostic *diag, int line);
+uint64_t tc_aot_struct_clone(uint64_t src_bits, size_t bytes, TcDiagnostic *diag, int line);
+void tc_aot_struct_store_bits(uint64_t dst_bits, size_t offset, size_t nbytes, uint64_t value_bits);
+void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, uint64_t *out);
+void tc_aot_struct_memcpy_field(uint64_t dst_bits, size_t offset, size_t nbytes,
+                                uint64_t src_bits);
+uint64_t tc_aot_struct_extract(uint64_t src_bits, size_t offset, size_t nbytes,
+                               TcDiagnostic *diag, int line);
+void tc_aot_struct_heap_free_all(void);
+
 #endif

@@ -40,6 +40,7 @@ void tc_typed_program_init(TcTypedProgram *program) {
     tc_warning_list_init(&program->warnings);
     program->toplevel_slot_count = 0;
     program->static_slot_count = 0;
+    program->struct_table = NULL;
 }
 
 void tc_typed_program_free(TcTypedProgram *program) {
@@ -64,6 +65,11 @@ void tc_typed_program_free(TcTypedProgram *program) {
     program->dep_capacity = 0;
     tc_symbol_table_free(&program->symbols);
     tc_warning_list_free(&program->warnings);
+    if (program->struct_table) {
+        tc_struct_table_free(program->struct_table);
+        free(program->struct_table);
+        program->struct_table = NULL;
+    }
 }
 
 
@@ -136,6 +142,16 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     }
 
     tc_struct_table_init(&struct_table);
+    {
+        size_t di = 0;
+        for (di = 0; di < out->dep_count; di++) {
+            if (tc_struct_table_register_program(&out->deps[di], &struct_table, diag) != 0) {
+                tc_struct_table_free(&struct_table);
+                tc_typed_program_free(out);
+                return -1;
+            }
+        }
+    }
     if (tc_struct_table_register_program(&out->program, &struct_table, diag) != 0) {
         tc_struct_table_free(&struct_table);
         tc_typed_program_free(out);
@@ -223,6 +239,20 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         tc_typed_program_free(out);
         return -1;
     }
+    {
+        size_t di = 0;
+        for (di = 0; di < out->dep_count; di++) {
+            if (tc_pass2_type_check(&out->deps[di], &out->symbols, &struct_table, &func_env,
+                                    &out->warnings, diag) != 0) {
+                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+                tc_struct_table_free(&struct_table);
+                tc_func_signature_list_free(&sigs);
+                tc_member_index_free(&members);
+                tc_typed_program_free(out);
+                return -1;
+            }
+        }
+    }
 
     out->cfg_set = (TcCfgSet *)malloc(sizeof(TcCfgSet));
     if (!out->cfg_set) {
@@ -259,8 +289,23 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         return -1;
     }
 
+    {
+        TcStructTable *owned = (TcStructTable *)malloc(sizeof(TcStructTable));
+        if (!owned) {
+            tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+            tc_struct_table_free(&struct_table);
+            tc_func_signature_list_free(&sigs);
+            tc_member_index_free(&members);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            tc_typed_program_free(out);
+            return -1;
+        }
+        *owned = struct_table;
+        out->struct_table = owned;
+    }
+
     tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-    tc_struct_table_free(&struct_table);
     tc_func_signature_list_free(&sigs);
     tc_member_index_free(&members);
     return 0;
