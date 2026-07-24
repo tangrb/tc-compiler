@@ -139,7 +139,8 @@ src/
 │   │   ├── tc_executor.c/h       # 执行主循环
 │   │   ├── tc_call_frame.c/h     # 调用帧管理 [新增]
 │   │   ├── tc_memblock_exec.c    # memblock运行时 [新增]
-│   │   └── tc_ptr_exec.c         # 指针运行时 [新增]
+│   │   ├── tc_ptr_exec.c         # 指针运行时 [新增]
+│   │   └── tc_struct_exec.c/h    # struct运行时 [新增]
 │   └── runtime/                  # 共享运行时
 │       ├── tc_types.c/h          # 类型系统(TcTypeKind, TcType, 等价, 宽度)
 │       ├── tc_error.c/h          # 错误码(TcErrorKind, 打印名)
@@ -154,7 +155,7 @@ src/
 ├── aot/                          # TC-AOT 编译器
 │   ├── main.c                    # tc-aot CLI
 │   ├── tc_aot_codegen.c/h        # TcTypedProgram → C99
-│   └── tc_aot_rt.c/h             # 运行时shim(ptr/memblock)
+│   └── tc_aot_rt.c/h             # 运行时shim(ptr/memblock/struct)
 └── libtc/                        # 嵌入库入口
     └── tc_lib.c/h                # tc_compile_source/file/run
 ```
@@ -367,7 +368,7 @@ src/
 | A-5 | 扩展 `TcStmtKind` 枚举 | 新增 14 种: FUNC_DEF, FUNCALL, RETURN, MEMBLOCK_STORE/COPY, PTR_STORE, MEMCOPY_UNSAFE, STRUCT_DEF, STATIC_VAR/LET_DEF, IMPORT 等 | check_rhs_coverage.py 通过 |
 | A-6 | 扩展 `TcRhsKind` 枚举 | 新增 18 种: MEMBLOCK_LOAD/CONSTRUCTOR/COUNT, STRUCT_CONSTRUCTOR, FIELD_READ, PTR_LOAD/ADDRESS/ADD/SUB/EQ~GE/SIZE, FUNCALL_EXPR, SELF_MEMBER | check_rhs_coverage.py 通过 |
 | A-7 | 扩展 `TcErrorKind` 枚举 | 新增 ~30 个错误码（函数20+memblock4+struct7+模块10+指针4） | tc_error_kind_name() 所有打印名唯一 |
-| A-8 | 扩展槽位模型 | 顶层var槽、static_slots[]全程序唯一槽、函数形参/局部槽、memblock_storage[]指针数组、struct_storage[]字节数组 | Executor/AOT 消费一致 |
+| A-8 | 扩展槽位模型 | 顶层var槽、static_slots[]全程序唯一槽、函数形参/局部槽；memblock/struct 值以堆块指针存于 `slots[]`/`static_slots[]`（实现未采用独立 `struct_storage[]` 字节数组，与 AOT 详设早期草稿不同） | Executor/AOT 消费一致 |
 
 ### 模块 B：词法分析器 (Lexer)
 
@@ -649,6 +650,16 @@ src/
 | I5-3 | memblock_copy(T,dst,di,src,si,len) | 区间检查→先拷入临时缓冲再写目标(memmove); 越界不修改 |
 | I5-4 | memcopy_unsafe(T,dst,di,src,si,len) | nullptr→解引用; len<0→无效; 不检查越界; memmove 语义 |
 
+#### I.6 结构体运行时操作
+
+| ID | 任务 | 运行时语义 |
+| -- | ---- | ---------- |
+| I6-1 | 构造器 | 按布局分配堆块；写入各字段（标量/嵌套 struct/memblock/ptr）；槽存堆指针 |
+| I6-2 | 字段读取 | 按偏移读出；嵌套 struct 字段按值深拷贝抽出 |
+| I6-3 | 字段写入 | 按偏移写入（可变性由 Analyzer 保证） |
+| I6-4 | 整块赋值/传参 | 深拷贝堆块；形参只读（赋值由 CE 拒绝） |
+| I6-5 | 与 ptr/memblock 字段 | 字段可为 ptr/memblock；嵌套复合类型按各自语义复制 |
+
 ### 模块 J：AOT 代码生成 (C99)
 
 > **目标**：将 TcTypedProgram 确定性转译为可移植 C99 代码  
@@ -658,8 +669,8 @@ src/
 
 | ID | 任务 | 产出 |
 | -- | ---- | ---- |
-| J1-1 | 槽位布局 | slots[] + static_slots[] + memblock_storage[] + struct_storage[] 数组声明 |
-| J1-2 | memblock 堆管理 | tc_aot_memblock_alloc/free/copy; memblock_heap[] 数组 |
+| J1-1 | 槽位布局 | slots[] + static_slots[]；memblock/struct 堆指针存于槽内（非独立 struct_storage[]） |
+| J1-2 | memblock/struct 堆管理 | tc_aot_memblock_* / tc_aot_struct_*；程序结束统一释放 |
 | J1-3 | static var 初始化 | tc_init_static_vars() 按拓扑序生成初始化代码 |
 | J1-4 | main() 入口 | 槽初始化 → static var 初始化 → 顶层语句 → 清理 |
 
@@ -671,7 +682,7 @@ src/
 | J2-2 | static var | RHS→static_slots[id] (在 tc_init_static_vars 中) |
 | J2-3 | let/static let | 不生成运行时语句; 内联十六进制位模式 |
 | J2-4 | x = rhs | RHS→已有slot; 目标须已初始化(Analyzer保证) |
-| J2-5 | a.b = rhs | 按字段偏移写入 struct_storage |
+| J2-5 | a.b = rhs | tc_aot_struct_store_bits / memcpy_field（按字段偏移写入堆块） |
 | J2-6 | write/writeln | tc_aot_write + abort guard |
 | J2-7 | read | tc_aot_read + abort guard |
 | J2-8 | if | 条件RHS + 原生 C if/else |
@@ -709,6 +720,11 @@ src/
 | J4-8 | tc_aot_memblock_store | memblock 写入+边界 |
 | J4-9 | tc_aot_memblock_copy | memblock 区间拷贝 |
 | J4-10 | tc_aot_memcopy_unsafe | 原始内存块拷贝 |
+| J4-11 | tc_aot_struct_alloc/clone | struct 堆分配与深拷贝 |
+| J4-12 | tc_aot_struct_load/store_bits | 标量字段读写 |
+| J4-13 | tc_aot_struct_memcpy_field | 复合字段按字节写入 |
+| J4-14 | tc_aot_struct_extract | 嵌套 struct 字段抽出（深拷贝） |
+| J4-15 | tc_aot_struct_heap_free_all | 程序结束释放 |
 
 #### J.5 数值一致性
 
@@ -745,6 +761,8 @@ src/
 
 #### K.3 测试覆盖 (全量)
 
+> **状态（2026-07-24）**：VM/AOT/unit 门禁已落地（见 `test-map.md` 规模）；下表为规划估算，**非**尚未实现的任务清单。struct 双层可变性矩阵与合规证据随本收尾补齐。
+
 | 测试层 | 测试内容 | 预计数量 |
 | ------ | -------- | -------- |
 | **Lexer** | 14个新关键字, nullptr/inf/-inf/nan/float_special, @padding | ~30 |
@@ -773,7 +791,7 @@ src/
 | K4-3 | test-map.md | 0.0.35 测试映射更新 |
 | K4-4 | REPL 移除 | 删除 tc_repl.c/h; 移除 --repl 选项 |
 | K4-5 | 版本号 | src/vm/driver/tc_version.h → v0.0.35; src/aot/main.c → TC_AOT_VERSION |
-| K4-6 | 文档同步 | 9份文档版本标记一致 |
+| K4-6 | 文档同步 | 9份文档版本标记一致；合规审查证据回填（2026-07-24） |
 
 ---
 

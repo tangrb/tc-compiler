@@ -1,0 +1,7 @@
+#program
+; Self.static let 跨模块读取
+import SelfStaticLetLib
+var k: int32 = funcall(SelfStaticLetLib.get_k)
+var m: int32 = funcall(SelfStaticLetLib.get_m)
+writeln(int32, k)
+writeln(int32, m)

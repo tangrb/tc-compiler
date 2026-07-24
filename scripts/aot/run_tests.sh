@@ -281,6 +281,29 @@ AOT_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-aot-missing.XXXXXX")"
 rm -f "$AOT_MISSING_PATH"
 run_aot_cli_golden "$AOT_MISSING_PATH" 1 "" "$AOT_MISSING_PATH: api error: FileOpen: cannot open input file" "aot file-open golden"
 
+# D-15：AOT 公开 -I 上限不得报 OutOfMemory
+{
+    echo "CLI aot -I path limit is not OutOfMemory"
+    args=()
+    i=0
+    while [ "$i" -lt 65 ]; do
+        args+=(-I "/tmp/tc-aot-include-limit-$i")
+        i=$((i + 1))
+    done
+    stderr_file="$(mktemp)"
+    status=0
+    "$AOT_BIN" "${args[@]}" --check "$ROOT/tests/valid/example.tc" >/dev/null 2>"$stderr_file" || status=$?
+    actual_stderr="$(cat "$stderr_file")"
+    rm -f "$stderr_file"
+    if [ "$status" -eq 0 ] ||
+       ! printf '%s' "$actual_stderr" | grep -Fq "too many -I paths" ||
+       printf '%s' "$actual_stderr" | grep -Eqi 'OutOfMemory|memory allocation failed'; then
+        fail "expected non-OOM include-path limit" "aot -I path limit"
+    else
+        pass
+    fi
+}
+
 run_diff_test "$ROOT/tests/valid/example.tc"
 run_diff_test "$ROOT/tests/valid/wrap_int8_output.tc"
 run_diff_test "$ROOT/tests/valid/wrap_uint8_output.tc"
@@ -390,6 +413,7 @@ run_diff_test "$ROOT/tests/valid/format_spec_fp.tc"
 run_diff_test "$ROOT/tests/valid/fp_neg_abs.tc"
 run_diff_test "$ROOT/tests/valid/fp_const_let_arith.tc"
 run_diff_test "$ROOT/tests/valid/fp_ieee_ops.tc"
+run_diff_test "$ROOT/tests/valid/fp_exact_subnormal.tc"
 run_diff_test "$ROOT/tests/valid/assign_uninit_var_valid.tc"
 run_diff_test "$ROOT/tests/valid/no_warn_after_assign.tc"
 run_diff_test "$ROOT/tests/valid/read_write.tc" "42
@@ -426,6 +450,8 @@ run_diff_test "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"
 run_diff_test "$ROOT/tests/valid/phase5_memblock_copy.tc"
 run_diff_test "$ROOT/tests/valid/phase5_void_funcall.tc"
 run_diff_test "$ROOT/tests/valid/phase5_static_var.tc"
+run_diff_test "$ROOT/tests/valid/phase5_self_static_let.tc"
+run_diff_test "$ROOT/tests/valid/phase5_self_static_ops.tc"
 run_diff_test "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_diff_test "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_diff_test "$ROOT/tests/valid/phase5_memblock_fill.tc"
@@ -443,6 +469,7 @@ run_diff_test "$ROOT/tests/valid/phase5_struct_funcall.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_ptr_field.tc"
+run_diff_test "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
 run_diff_test "$ROOT/tests/valid/usize_arith.tc"
 
@@ -486,6 +513,7 @@ run_check_ok "$ROOT/tests/valid/format_spec_fp.tc"
 run_check_ok "$ROOT/tests/valid/fp_neg_abs.tc"
 run_check_ok "$ROOT/tests/valid/fp_const_let_arith.tc"
 run_check_ok "$ROOT/tests/valid/fp_ieee_ops.tc"
+run_check_ok "$ROOT/tests/valid/fp_exact_subnormal.tc"
 run_check_ok "$ROOT/tests/valid/if_and_or_condition.tc"
 run_check_ok "$ROOT/tests/valid/if_comparison_condition.tc"
 run_check_ok "$ROOT/tests/valid/if_not_condition.tc"
@@ -501,6 +529,8 @@ run_check_ok "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"
 run_check_ok "$ROOT/tests/valid/phase5_memblock_copy.tc"
 run_check_ok "$ROOT/tests/valid/phase5_void_funcall.tc"
 run_check_ok "$ROOT/tests/valid/phase5_static_var.tc"
+run_check_ok "$ROOT/tests/valid/phase5_self_static_let.tc"
+run_check_ok "$ROOT/tests/valid/phase5_self_static_ops.tc"
 run_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
@@ -551,7 +581,21 @@ run_check_fail "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indenta
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assign to constant"
+run_check_fail "$ROOT/tests/errors/static/struct_immutable_field.tc" \
+    "cannot assign to immutable struct field"
+run_check_fail "$ROOT/tests/errors/static/struct_assign_let_outer_let_field.tc" \
+    "cannot assign to constant binding"
+run_check_fail "$ROOT/tests/errors/static/struct_assign_let_outer_var_field.tc" \
+    "cannot assign to constant binding"
+run_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
+    "cannot assign to function parameter"
+run_check_fail "$ROOT/tests/errors/static/struct_assign_param_let.tc" \
+    "cannot assign to function parameter"
 run_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
+run_check_fail "$ROOT/tests/errors/static/self_member_undefined.tc" "undefined variable"
+run_check_fail "$ROOT/tests/errors/static/self_member_type_mismatch.tc" \
+    "identifier type does not match destination type"
+run_check_fail "$ROOT/tests/errors/static/self_member_bare_name.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
 run_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
 run_check_fail "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"
@@ -598,6 +642,8 @@ run_runtime_fail "$ROOT/tests/errors/runtime/read_out_of_range_int64.tc" "input 
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_overflow.tc" "float overflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "float underflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_invalid.tc" "float invalid operation"
+run_runtime_fail "$ROOT/tests/errors/runtime/fp_strict_invalid_before_divzero.tc" \
+    "float invalid operation"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_runtime_fail "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "invalid input" "abc

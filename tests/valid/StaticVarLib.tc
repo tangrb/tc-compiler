@@ -1,5 +1,5 @@
 #lib
-; Phase 5：static var 拓扑初始化 + Self 读取
+; Phase 5：跨模块 static var 初始化后经 funcall 读取
 public static var C: int32 = 7
 public func get_c() int32 then
     var v: int32 = Self.C

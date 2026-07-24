@@ -1516,14 +1516,27 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
         (*index)++;
         rc = 0;
     } else if (tok->kind == TC_TOK_IDENTIFIER) {
-        out->kind = TC_RHS_CONST_REF;
-        out->u.const_ref.name = strndup(tok->start, tok->length);
-        if (!out->u.const_ref.name) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
-            rc = -1;
+        if (*index + 1 < tokens->count &&
+            tc_peek(tokens, *index + 1)->kind == TC_TOK_LPAREN &&
+            !tc_is_rhs_builtin_ident(tok)) {
+            rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
+        } else if (*index + 3 < tokens->count &&
+                   tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
+                   tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
+                   tc_peek(tokens, *index + 3)->kind == TC_TOK_LPAREN &&
+                   !tc_is_rhs_builtin_ident(tok)) {
+            rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
         } else {
-            (*index)++;
-            rc = 0;
+            out->kind = TC_RHS_CONST_REF;
+            out->u.const_ref.name = strndup(tok->start, tok->length);
+            if (!out->u.const_ref.name) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                                  "memory allocation failed");
+                rc = -1;
+            } else {
+                (*index)++;
+                rc = 0;
+            }
         }
     } else if (tok->kind == TC_TOK_ARITH_OP) {
         rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);

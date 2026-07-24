@@ -687,6 +687,10 @@ run_expect_fail_msg "$ROOT/tests/errors/static/struct_field_order.tc" \
     "struct constructor fields must follow declaration order"
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_immutable_field.tc" \
     "cannot assign to immutable struct field"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_assign_let_outer_let_field.tc" \
+    "cannot assign to constant binding"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_assign_let_outer_var_field.tc" \
+    "cannot assign to constant binding"
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_empty.tc" \
     "struct must have at least one field"
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_self_ref.tc" \
@@ -753,6 +757,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/struct_field_order.tc" \
     "struct constructor fields must follow declaration order"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_immutable_field.tc" \
     "cannot assign to immutable struct field"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_let_outer_let_field.tc" \
+    "cannot assign to constant binding"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_let_outer_var_field.tc" \
+    "cannot assign to constant binding"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_empty.tc" \
     "struct must have at least one field"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_self_ref.tc" \
@@ -833,6 +841,12 @@ run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
     "circular static let"
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_bad_init.tc" \
     "static var initializer"
+run_expect_check_fail "$ROOT/tests/errors/static/self_member_undefined.tc" \
+    "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/self_member_type_mismatch.tc" \
+    "identifier type does not match destination type"
+run_expect_check_fail "$ROOT/tests/errors/static/self_member_bare_name.tc" \
+    "undefined variable"
 run_expect_check_fail "$ROOT/tests/modules/private_member_access.tc" "private member access"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
     "cannot assign to function parameter"
@@ -867,6 +881,12 @@ run_expect_stdout "$ROOT/tests/valid/phase5_memblock_copy.tc" "2
 run_expect_stdout "$ROOT/tests/valid/phase5_void_funcall.tc" "1
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_static_var.tc" "7
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_self_static_let.tc" "11
+11
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_self_static_ops.tc" "7
+8
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cmp_more.tc" "true
 true
@@ -918,6 +938,9 @@ run_expect_stdout "$ROOT/tests/valid/phase5_struct_multi_field.tc" "10
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_struct_ptr_field.tc" "7
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc" "10
+30
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_fill.tc" "5
 5
 "
@@ -934,6 +957,8 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_copy.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_void_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_static_var.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_self_static_let.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_self_static_ops.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_basic.tc"
@@ -949,6 +974,7 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_struct_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_field.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"
@@ -1229,6 +1255,9 @@ inf
 inf
 "
 run_expect_check_ok "$ROOT/tests/valid/fp_ieee_ops.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_exact_subnormal.tc" "8000000000000
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_exact_subnormal.tc"
 
 # --- stress test ---
 
@@ -1297,6 +1326,8 @@ run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_overflow.tc" "float overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "float underflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid.tc" "float invalid operation"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid_before_divzero.tc" \
+    "float invalid operation"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "abc
@@ -1868,6 +1899,35 @@ run_include_search() {
 }
 run_include_search "module -I search path"
 run_expect_check_fail "$ROOT/tests/modules/include_search_ok.tc" "import module not found"
+
+# D-15：公开规模上限（-I 路径数）必须用 CLI 文案，不得报 OutOfMemory
+run_include_path_limit() {
+    label="$1"
+    should_run "$label" || return 0
+    log_test "CLI $label"
+    args=()
+    i=0
+    while [ "$i" -lt 65 ]; do
+        args+=(-I "/tmp/tc-include-limit-$i")
+        i=$((i + 1))
+    done
+    stderr_file="$(mktemp)"
+    status=0
+    "$BIN" "${args[@]}" -c "$ROOT/tests/valid/example.tc" >/dev/null 2>"$stderr_file" || status=$?
+    actual_stderr="$(cat "$stderr_file")"
+    rm -f "$stderr_file"
+    if [ "$status" -eq 0 ] ||
+       ! printf '%s' "$actual_stderr" | grep -Fq "too many -I paths" ||
+       printf '%s' "$actual_stderr" | grep -Eqi 'OutOfMemory|memory allocation failed'; then
+        fail "expected non-OOM include-path limit: $label" "$label"
+        if [ "$VERBOSE" -eq 1 ]; then
+            printf '  status=%s stderr=<%s>\n' "$status" "$actual_stderr" >&2
+        fi
+        return
+    fi
+    pass
+}
+run_include_path_limit "cli -I path limit is not OutOfMemory"
 
 run_ambiguous_import() {
     label="$1"

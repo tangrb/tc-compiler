@@ -52,7 +52,7 @@ bash scripts/run_tests.sh
 | I/O | `write` / `writeln` / `read`；13 种整数、布尔和浮点格式符 |
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
 | 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
-| 复合类型 | `ptr<T>`、`memblock<T,N>`（struct 静态验证已落地；struct 运行时待后续） |
+| 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；VM + AOT） |
 
 0.0.35 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 

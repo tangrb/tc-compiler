@@ -152,7 +152,6 @@ DISPATCH_POINTS = [
             "TC_RHS_MEMBLOCK_LOAD": "Phase 3 type check; const eval deferred",
             "TC_RHS_MEMBLOCK_CONSTRUCTOR": "Phase 3 type check; const eval deferred",
             "TC_RHS_MEMBLOCK_COUNT": "Phase 3 type check; const eval deferred",
-            "TC_RHS_STRUCT_CONSTRUCTOR": "Phase 3 type check; const eval deferred",
             "TC_RHS_FIELD_READ": "Phase 3 type check; const eval deferred",
             "TC_RHS_PTR_LOAD": "Phase 3 type check; const eval deferred",
             "TC_RHS_PTR_ADDRESS": "Phase 3 type check; const eval deferred",

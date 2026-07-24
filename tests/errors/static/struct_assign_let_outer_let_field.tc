@@ -1,0 +1,7 @@
+#program
+; 期望：cannot assign to constant binding（外层 let × 字段 let）
+struct Point then
+    let x: int32
+end
+let p: Point = Point(x: 1)
+p.x = 2

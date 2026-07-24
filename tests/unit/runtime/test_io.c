@@ -3,7 +3,7 @@
  *
  * 覆盖 tc_io.c 中所有公开函数：
  *   - tc_io_write_formatted — 13 种格式符 × 整数/bool/float32/float64
- *   - tc_io_write_value — 默认格式输出、空 IO 错误处理
+ *   - tc_io_write_value — 默认格式输出、空 IO 错误处理、原子提交
  *   - tc_io_skip_whitespace — 前导空白跳过
  *   - tc_io_read_digits — 数字字符读取、负号处理、溢出检测
  *   - tc_io_read_value — bool/十进制整数读取、范围检查
@@ -13,6 +13,9 @@
  * 注意：stdin 依赖的测试通过 tmpfile + freopen 重定向实现。
  *       写函数直接接受 FILE *out 参数，无需重定向。
  */
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 
 #include "tc_io.h"
 #include "tc_semantics.h"
@@ -21,10 +24,14 @@
 #ifdef TC_HAVE_FENV
 #include <fenv.h>
 #endif
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#if defined(__linux__)
+#include <sys/types.h>
+#endif
 
 static int g_passed = 0;
 static int g_failed = 0;
@@ -490,6 +497,100 @@ static void test_write_stream_failure(void) {
     fclose(read_only);
 }
 
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+typedef struct {
+    size_t accepted;
+    size_t fail_after;
+} TcIoFailCookie;
+
+static int tc_io_fail_write(void *cookie, const char *buf, int n) {
+    TcIoFailCookie *state = (TcIoFailCookie *)cookie;
+
+    (void)buf;
+    if (!state || n < 0) {
+        errno = EIO;
+        return -1;
+    }
+    if (state->accepted + (size_t)n > state->fail_after) {
+        errno = EIO;
+        return -1;
+    }
+    state->accepted += (size_t)n;
+    return n;
+}
+
+static void test_write_atomic_commit_no_partial(void) {
+    /* I-10：单次提交整串；若目标流拒绝该次写入，已接受字节必须为 0
+     * （相对「边写边失败留下前缀」的非原子路径）。 */
+    TcValue value = tc_value_make(TC_INT32, 42);
+    TcIoFailCookie cookie;
+    FILE *out = NULL;
+
+    memset(&cookie, 0, sizeof(cookie));
+    cookie.fail_after = 1; /* 允许至多 1 字节；整串 "42" 一次提交应全败 */
+    out = funopen(&cookie, NULL, tc_io_fail_write, NULL, NULL);
+    check(out != NULL, "funopen cookie stream for atomic commit");
+    if (!out) {
+        return;
+    }
+    (void)setvbuf(out, NULL, _IONBF, 0);
+    check(tc_io_write_value(&value, TC_FMT_NONE, 0, out) != 0,
+          "atomic write fails when destination rejects whole payload");
+    check(cookie.accepted == 0,
+          "failed write contributes zero bytes to destination stream");
+    fclose(out);
+}
+#elif defined(__linux__)
+typedef struct {
+    size_t accepted;
+    size_t fail_after;
+} TcIoFailCookie;
+
+static ssize_t tc_io_fail_write(void *cookie, const char *buf, size_t n) {
+    TcIoFailCookie *state = (TcIoFailCookie *)cookie;
+
+    (void)buf;
+    if (!state) {
+        errno = EIO;
+        return -1;
+    }
+    if (state->accepted + n > state->fail_after) {
+        errno = EIO;
+        return -1;
+    }
+    state->accepted += n;
+    return (ssize_t)n;
+}
+
+static void test_write_atomic_commit_no_partial(void) {
+    TcValue value = tc_value_make(TC_INT32, 42);
+    TcIoFailCookie cookie;
+    cookie_io_functions_t funcs;
+    FILE *out = NULL;
+
+    memset(&cookie, 0, sizeof(cookie));
+    cookie.fail_after = 1;
+    memset(&funcs, 0, sizeof(funcs));
+    funcs.write = tc_io_fail_write;
+    out = fopencookie(&cookie, "w", funcs);
+    check(out != NULL, "fopencookie stream for atomic commit");
+    if (!out) {
+        return;
+    }
+    (void)setvbuf(out, NULL, _IONBF, 0);
+    check(tc_io_write_value(&value, TC_FMT_NONE, 0, out) != 0,
+          "atomic write fails when destination rejects whole payload");
+    check(cookie.accepted == 0,
+          "failed write contributes zero bytes to destination stream");
+    fclose(out);
+}
+#else
+static void test_write_atomic_commit_no_partial(void) {
+    /* 无 cookie 流宿主：至少验证失败路径仍返回 -1（read-only）。 */
+    test_write_stream_failure();
+}
+#endif
+
 /* ================================================================== */
 /*  tc_io_read_value — stdin 输入                                      */
 /* ================================================================== */
@@ -742,6 +843,7 @@ int main(void) {
     test_write_value_float();
     test_write_value_newline();
     test_write_stream_failure();
+    test_write_atomic_commit_no_partial();
 
     test_read_bool_stdin();
     test_read_float_stdin();

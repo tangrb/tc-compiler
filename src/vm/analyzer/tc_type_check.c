@@ -162,6 +162,48 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
     case TC_RHS_FIELD_READ:
         return tc_struct_check_field_read(rhs, expected, struct_table, visible, global, hist,
                                           stmt_index, line, diag, warnings, self_name);
+    case TC_RHS_SELF_MEMBER: {
+        const char *member = rhs->u.self_member.member_name;
+        const TcSymbol *source = NULL;
+        char msg[128];
+
+        (void)visible;
+        (void)struct_table;
+        (void)warnings;
+        (void)self_name;
+        (void)stmt_index;
+        if (!member) {
+            tc_diagnostic_set(diag, TC_ERR_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                              "missing Self member name");
+            return -1;
+        }
+        /* Self.member 显式访问本库顶层成员，不经函数体 visible 表 */
+        source = global ? tc_symbol_table_find(global, member) : NULL;
+        if (!source) {
+            (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", member);
+            tc_diagnostic_set(diag, TC_ERR_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        if (source->slot_domain != TC_SLOT_STATIC) {
+            (void)snprintf(msg, sizeof(msg), "Self.%s is not a static member", member);
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        if (expected->kind == TC_PTR || expected->kind == TC_MEMBLOCK ||
+            expected->kind == TC_STRUCT) {
+            if (!tc_type_equals(&source->full_type, expected)) {
+                tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "identifier type does not match destination type");
+                return -1;
+            }
+        } else if (source->type != expected->kind) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "identifier type does not match destination type");
+            return -1;
+        }
+        /* static var/let 在程序入口前已初始化；函数体内读取不走局部 uninit 检查 */
+        return 0;
+    }
     default:
         if (expected->kind == TC_PTR || expected->kind == TC_MEMBLOCK ||
             expected->kind == TC_STRUCT) {

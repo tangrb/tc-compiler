@@ -27,6 +27,8 @@ int tc_io_write_formatted(TcTypeKind type, TcFormatSpec fmt, const TcValue *valu
 
 /**
  * 将 TcValue 写入指定输出流，带可选格式和换行。
+ * 先在内存中生成完整输出字节串，再一次提交到 out（编译器标准 §10.5）：
+ * 成功则整串追加；失败则本语句对目标流贡献零字节。
  * @param value   待输出的运行时值
  * @param fmt     格式说明符（TC_FMT_NONE 时按类型默认输出）
  * @param newline 是否追加换行符

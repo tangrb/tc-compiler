@@ -1,5 +1,6 @@
 /* test_diagnostic.c — diagnostic domain and ownership contracts */
 #include "tc_diagnostic.h"
+#include "tc_types.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -115,9 +116,43 @@ static void test_allocation_failures_become_oom(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_oom_not_used_as_size_limit_proxy(void) {
+    /* D-15：OutOfMemory 仅表示真实分配失败；打印名/消息固定，且不得
+     * 被误当成「规模限制」类语言错误的别名。公开规模上限（如 CLI -I）
+     * 由 CLI 测试断言使用非 OutOfMemory 文案。 */
+    TcDiagnostic diag;
+
+    check(strcmp(tc_error_kind_name(TC_ERR_OUT_OF_MEMORY), "OutOfMemory") == 0,
+          "D-15 OOM print name is OutOfMemory");
+    check(strcmp(tc_error_kind_name(TC_ERR_SYNTAX), "SyntaxError") == 0,
+          "D-15 language size/form errors keep distinct names");
+    check(strcmp(tc_error_kind_name(TC_ERR_FORMAT_SPECIFIER), "FormatSpecifierError") == 0,
+          "D-15 format limits use FormatSpecifierError not OutOfMemory");
+    check(strcmp(tc_error_kind_name(TC_ERR_LITERAL_OUT_OF_RANGE), "LiteralOutOfRange") == 0,
+          "D-15 literal limits use LiteralOutOfRange not OutOfMemory");
+
+    tc_diagnostic_init(&diag);
+    tc_diagnostic_set(&diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                      "memory allocation failed");
+    check(diag.domain == TC_DIAG_IMPLEMENTATION, "D-15 OOM stays implementation domain");
+    check(diag.kind == TC_ERR_OUT_OF_MEMORY, "D-15 OOM kind is TC_ERR_OUT_OF_MEMORY");
+    check(diag.message != NULL && strcmp(diag.message, "memory allocation failed") == 0,
+          "D-15 OOM message is fixed to memory allocation failed");
+    check(!print_contains(&diag, "too many") && !print_contains(&diag, "limit"),
+          "D-15 OOM message is not a size-limit phrase");
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    tc_diagnostic_set(&diag, TC_ERR_SYNTAX, 1, 1, "unexpected token");
+    check(diag.domain == TC_DIAG_LANGUAGE && diag.kind != TC_ERR_OUT_OF_MEMORY,
+          "D-15 syntax rejection is language domain not OOM");
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_domain_lifecycle();
     test_allocation_failures_become_oom();
+    test_oom_not_used_as_size_limit_proxy();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

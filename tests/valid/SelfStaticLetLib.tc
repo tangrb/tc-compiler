@@ -1,0 +1,12 @@
+#lib
+; Phase 5：Self.static let 在函数体内作 RHS
+public static let K: int32 = 11
+public static let M: int32 = Self.K
+public func get_k() int32 then
+    var v: int32 = Self.K
+    return v
+end
+public func get_m() int32 then
+    var v: int32 = Self.M
+    return v
+end

@@ -1522,6 +1522,13 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                   "internal analyzer error");
                 return -1;
             }
+            if (const_def->rhs.kind == TC_RHS_STRUCT_CONSTRUCTOR) {
+                if (tc_type_check_rhs((TcRhs *)&const_def->rhs, &const_def->full_type, visible,
+                                      symbols, struct_table, hist, stmt_index, const_def->line,
+                                      diag, warnings, NULL) != 0) {
+                    return -1;
+                }
+            }
             if (tc_resolve_const_value(global_sym, &const_def->rhs, visible, symbols,
                                        const_def->line, diag) != 0) {
                 return -1;

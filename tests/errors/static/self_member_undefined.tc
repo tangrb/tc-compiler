@@ -1,0 +1,7 @@
+#lib
+; 期望：undefined variable（Self 指向未声明成员）
+public static var C: int32 = 1
+public func f() void then
+    var x: int32 = Self.missing
+    return
+end

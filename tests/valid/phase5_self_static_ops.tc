@@ -1,0 +1,7 @@
+#program
+; Self.static var：直读 + 局部算术
+import SelfStaticOpsLib
+var a: int32 = funcall(SelfStaticOpsLib.get_c)
+var b: int32 = funcall(SelfStaticOpsLib.get_c_plus_one)
+writeln(int32, a)
+writeln(int32, b)

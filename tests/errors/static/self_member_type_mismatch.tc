@@ -1,0 +1,7 @@
+#lib
+; 期望：identifier type does not match destination type
+public static var C: int32 = 1
+public func f() void then
+    var x: bool = Self.C
+    return
+end

@@ -1,0 +1,12 @@
+#lib
+; Phase 5：Self.static var 直读 + 局部算术后再返回
+public static var C: int32 = 7
+public func get_c() int32 then
+    var v: int32 = Self.C
+    return v
+end
+public func get_c_plus_one() int32 then
+    var v: int32 = Self.C
+    var w: int32 = add(int32, v, 1)
+    return w
+end

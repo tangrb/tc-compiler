@@ -205,7 +205,8 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         return -1;
     }
 
-    /* H-5 / H-6 */
+    /* H-5 / H-6：入口与依赖库的 static let/var 均需求值/检查，
+     * 否则跨模块 Self.static_let 在运行期无 const_value。 */
     if (tc_func_eval_static_lets(&out->program, &out->symbols, diag) != 0) {
         tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
         tc_struct_table_free(&struct_table);
@@ -214,6 +215,19 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         tc_typed_program_free(out);
         return -1;
     }
+    {
+        size_t di = 0;
+        for (di = 0; di < out->dep_count; di++) {
+            if (tc_func_eval_static_lets(&out->deps[di], &out->symbols, diag) != 0) {
+                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+                tc_struct_table_free(&struct_table);
+                tc_func_signature_list_free(&sigs);
+                tc_member_index_free(&members);
+                tc_typed_program_free(out);
+                return -1;
+            }
+        }
+    }
     if (tc_func_check_static_vars(&out->program, &members, diag) != 0) {
         tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
         tc_struct_table_free(&struct_table);
@@ -221,6 +235,19 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         tc_member_index_free(&members);
         tc_typed_program_free(out);
         return -1;
+    }
+    {
+        size_t di = 0;
+        for (di = 0; di < out->dep_count; di++) {
+            if (tc_func_check_static_vars(&out->deps[di], &members, diag) != 0) {
+                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+                tc_struct_table_free(&struct_table);
+                tc_func_signature_list_free(&sigs);
+                tc_member_index_free(&members);
+                tc_typed_program_free(out);
+                return -1;
+            }
+        }
     }
 
     memset(&func_env, 0, sizeof(func_env));

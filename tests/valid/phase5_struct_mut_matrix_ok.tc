@@ -1,0 +1,13 @@
+#program
+; 外层 var × 字段 var：允许；整块赋值可更新 let 字段
+struct Pair then
+    let a: int32
+    var b: int32
+end
+var p: Pair = Pair(a: 1, b: 2)
+p.b = 20
+p = Pair(a: 10, b: 30)
+var a: int32 = p.a
+var b: int32 = p.b
+writeln(int32, a)
+writeln(int32, b)

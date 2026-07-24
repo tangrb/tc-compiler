@@ -52,7 +52,7 @@ The current release baseline is **459 VM + 1726 unit + 272 AOT**, for 2,457 test
 | I/O | `write` / `writeln` / `read` with 13 integer, boolean, and floating-point format specifiers |
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
-| Compound types | `ptr<T>`, `memblock<T,N>` (struct static checks landed; struct runtime pending) |
+| Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; VM + AOT) |
 
 Version 0.0.31 does not include functions, arrays, structures, pointers, strings, a module system, JIT, or a bytecode file format. Structured `while` bodies cannot contain `goto` / `label`; this is a language specification boundary.
 

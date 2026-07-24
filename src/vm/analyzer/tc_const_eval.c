@@ -731,6 +731,18 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
+        if (expected_type != TC_STRUCT) {
+            tc_diagnostic_set(diag, TC_ERR_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "struct constructor type mismatch in constant expression");
+            return -1;
+        }
+        /* 字段合法性由类型检查保证；编译期 struct 值占位（bits=0），供 let 绑定注册 */
+        out->type = TC_STRUCT;
+        out->bits = 0;
+        return 0;
+    }
+
     tc_diagnostic_set(diag, TC_ERR_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                       "invalid constant expression");
     return -1;

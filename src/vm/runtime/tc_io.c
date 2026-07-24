@@ -6,7 +6,14 @@
  *
  * write 函数使用 FILE *out 参数支持灵活输出，并检查 I/O 错误；
  * read 函数从 stdin 解析十进制整数或 bool 文本，含范围检查。
+ *
+ * write/writeln：先在内存中生成完整字节串，再一次 fwrite 提交到目标流
+ * （语言标准 §10 / 编译器标准 §10.5 原子逻辑提交）。
  */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include "tc_io.h"
 
 #include "tc_semantics.h"
@@ -215,7 +222,7 @@ int tc_io_write_formatted(TcTypeKind type, TcFormatSpec fmt, const TcValue *valu
     return 0;
 }
 
-int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
+static int tc_io_render_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
     if (fmt != TC_FMT_NONE) {
         if (tc_io_write_formatted(value->type, fmt, value, out) != 0) {
             return -1;
@@ -244,6 +251,41 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
             return -1;
         }
     }
+    return 0;
+}
+
+int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
+    char *buf = NULL;
+    size_t len = 0;
+    FILE *stage = NULL;
+
+    if (!value || !out) {
+        return -1;
+    }
+
+    /* 先完整渲染到内存缓冲，再一次提交到 out（失败则目标流零字节）。 */
+    stage = open_memstream(&buf, &len);
+    if (!stage) {
+        return -1;
+    }
+    if (tc_io_render_value(value, fmt, newline, stage) != 0) {
+        fclose(stage);
+        free(buf);
+        return -1;
+    }
+    if (fclose(stage) != 0) {
+        free(buf);
+        return -1;
+    }
+    stage = NULL;
+
+    if (len > 0U) {
+        if (fwrite(buf, 1U, len, out) != len) {
+            free(buf);
+            return -1;
+        }
+    }
+    free(buf);
     if (fflush(out) != 0) {
         return -1;
     }

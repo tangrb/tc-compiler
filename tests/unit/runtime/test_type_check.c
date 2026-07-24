@@ -193,6 +193,30 @@ static void test_phase3_ok_paths(void) {
               "ptr_load/store ok");
 }
 
+static void test_self_member_rhs(void) {
+    expect_ok("#lib\npublic static var C: int32 = 7\n"
+              "public func f() int32 then\n    var v: int32 = Self.C\n    return v\nend\n",
+              "Self.static var RHS ok");
+    expect_ok("#lib\npublic static let K: int32 = 3\n"
+              "public func f() int32 then\n    var v: int32 = Self.K\n    return v\nend\n",
+              "Self.static let RHS ok");
+    expect_err("#lib\npublic static var C: int32 = 1\n"
+               "public func f() void then\n    var x: int32 = Self.missing\n    return\nend\n",
+               TC_ERR_UNDEFINED_VARIABLE, "Self.undefined member");
+    expect_err("#lib\npublic static var C: int32 = 1\n"
+               "public func f() void then\n    var x: bool = Self.C\n    return\nend\n",
+               TC_ERR_TYPE_MISMATCH, "Self.member type mismatch");
+    expect_err("#lib\npublic static var C: int32 = 1\n"
+               "public func f() void then\n    var x: int32 = C\n    return\nend\n",
+               TC_ERR_UNDEFINED_VARIABLE, "bare static name in function");
+    expect_err("#program\nstruct Point then\n    let x: int32\nend\n"
+               "let p: Point = Point(x: 1)\np.x = 2\n",
+               TC_ERR_CONSTANT_ASSIGNMENT, "let×let field assign");
+    expect_err("#program\nstruct Point then\n    var x: int32\nend\n"
+               "let p: Point = Point(x: 1)\np.x = 2\n",
+               TC_ERR_CONSTANT_ASSIGNMENT, "let×var field assign");
+}
+
 static void test_phase4_func_extras(void) {
     expect_err("#lib\npublic func g() void then\n    return\nend\n"
                "public func f(g: int32) void then\n    return\nend\n",
@@ -214,6 +238,7 @@ int main(void) {
     test_ptr_errors();
     test_struct_nested_and_mutability();
     test_phase3_ok_paths();
+    test_self_member_rhs();
     test_phase4_func_extras();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);

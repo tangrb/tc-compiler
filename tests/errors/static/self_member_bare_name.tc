@@ -1,0 +1,7 @@
+#lib
+; 期望：undefined variable（函数体内裸名访问 static，须用 Self.）
+public static var C: int32 = 1
+public func f() void then
+    var x: int32 = C
+    return
+end
