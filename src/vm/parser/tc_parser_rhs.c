@@ -510,6 +510,8 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
             out->u.struct_ctor.fields = new_fields;
         }
         field_idx = out->u.struct_ctor.field_count++;
+        memset(&out->u.struct_ctor.fields[field_idx], 0,
+               sizeof(out->u.struct_ctor.fields[field_idx]));
         out->u.struct_ctor.fields[field_idx].param_name = tc_token_strdup(field_tok, line_no, diag);
         if (!out->u.struct_ctor.fields[field_idx].param_name) {
             tc_rhs_free(out);
