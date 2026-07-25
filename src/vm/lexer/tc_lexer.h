@@ -71,6 +71,23 @@ typedef enum {
     TC_TOK_GT,          /* '>'（类型参数） */
     TC_TOK_DOT,         /* '.'（Self.x / a.b） */
     TC_TOK_PADDING,     /* 'padding'（@padding） */
+    /* 0.0.35 ptr/memblock 操作关键字 */
+    TC_TOK_PTR_ADD,
+    TC_TOK_PTR_SUB,
+    TC_TOK_PTR_LOAD,
+    TC_TOK_PTR_STORE,
+    TC_TOK_PTR_ADDRESS,
+    TC_TOK_PTR_SIZE,
+    TC_TOK_PTR_EQ,
+    TC_TOK_PTR_NE,
+    TC_TOK_PTR_LT,
+    TC_TOK_PTR_LE,
+    TC_TOK_PTR_GT,
+    TC_TOK_PTR_GE,
+    TC_TOK_MEMBLOCK_LOAD,
+    TC_TOK_MEMBLOCK_STORE,
+    TC_TOK_MEMBLOCK_COPY,
+    TC_TOK_MEMCOPY_UNSAFE,
     TC_TOK_SEMICOLON    /* ';'（兼具语句结束与行注释作用） */
 } TcTokenKind;
 

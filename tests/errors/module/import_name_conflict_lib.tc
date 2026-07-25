@@ -1,0 +1,6 @@
+#lib
+import helper
+public func helper() int32 then
+    var x: int32 = 1
+    return x
+end

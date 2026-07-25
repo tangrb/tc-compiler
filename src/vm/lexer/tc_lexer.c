@@ -597,6 +597,70 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_PADDING;
         return 1;
     }
+    if (strcmp(buf, "ptr_add") == 0) {
+        token->kind = TC_TOK_PTR_ADD;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_sub") == 0) {
+        token->kind = TC_TOK_PTR_SUB;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_load") == 0) {
+        token->kind = TC_TOK_PTR_LOAD;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_store") == 0) {
+        token->kind = TC_TOK_PTR_STORE;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_address") == 0) {
+        token->kind = TC_TOK_PTR_ADDRESS;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_size") == 0) {
+        token->kind = TC_TOK_PTR_SIZE;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_eq") == 0) {
+        token->kind = TC_TOK_PTR_EQ;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_ne") == 0) {
+        token->kind = TC_TOK_PTR_NE;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_lt") == 0) {
+        token->kind = TC_TOK_PTR_LT;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_le") == 0) {
+        token->kind = TC_TOK_PTR_LE;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_gt") == 0) {
+        token->kind = TC_TOK_PTR_GT;
+        return 1;
+    }
+    if (strcmp(buf, "ptr_ge") == 0) {
+        token->kind = TC_TOK_PTR_GE;
+        return 1;
+    }
+    if (strcmp(buf, "memblock_load") == 0) {
+        token->kind = TC_TOK_MEMBLOCK_LOAD;
+        return 1;
+    }
+    if (strcmp(buf, "memblock_store") == 0) {
+        token->kind = TC_TOK_MEMBLOCK_STORE;
+        return 1;
+    }
+    if (strcmp(buf, "memblock_copy") == 0) {
+        token->kind = TC_TOK_MEMBLOCK_COPY;
+        return 1;
+    }
+    if (strcmp(buf, "memcopy_unsafe") == 0) {
+        token->kind = TC_TOK_MEMCOPY_UNSAFE;
+        return 1;
+    }
     if (strcmp(buf, "float32") == 0) {
         token->kind = TC_TOK_FLOAT_TYPE;
         token->u.int_type = TC_FLOAT32;
@@ -1124,6 +1188,38 @@ const char *tc_token_kind_name(TcTokenKind kind) {
         return "DOT";
     case TC_TOK_PADDING:
         return "PADDING";
+    case TC_TOK_PTR_ADD:
+        return "PTR_ADD";
+    case TC_TOK_PTR_SUB:
+        return "PTR_SUB";
+    case TC_TOK_PTR_LOAD:
+        return "PTR_LOAD";
+    case TC_TOK_PTR_STORE:
+        return "PTR_STORE";
+    case TC_TOK_PTR_ADDRESS:
+        return "PTR_ADDRESS";
+    case TC_TOK_PTR_SIZE:
+        return "PTR_SIZE";
+    case TC_TOK_PTR_EQ:
+        return "PTR_EQ";
+    case TC_TOK_PTR_NE:
+        return "PTR_NE";
+    case TC_TOK_PTR_LT:
+        return "PTR_LT";
+    case TC_TOK_PTR_LE:
+        return "PTR_LE";
+    case TC_TOK_PTR_GT:
+        return "PTR_GT";
+    case TC_TOK_PTR_GE:
+        return "PTR_GE";
+    case TC_TOK_MEMBLOCK_LOAD:
+        return "MEMBLOCK_LOAD";
+    case TC_TOK_MEMBLOCK_STORE:
+        return "MEMBLOCK_STORE";
+    case TC_TOK_MEMBLOCK_COPY:
+        return "MEMBLOCK_COPY";
+    case TC_TOK_MEMCOPY_UNSAFE:
+        return "MEMCOPY_UNSAFE";
     case TC_TOK_SEMICOLON:
         return "SEMICOLON";
     }

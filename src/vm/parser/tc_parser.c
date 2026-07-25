@@ -2253,19 +2253,20 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
         return 0;
     }
 
+    if (first->kind == TC_TOK_PTR_STORE) {
+        return tc_parse_ptr_store_stmt(tokens, &index, line_no, out, diag);
+    }
+    if (first->kind == TC_TOK_MEMBLOCK_STORE) {
+        return tc_parse_memblock_store_stmt(tokens, &index, line_no, out, diag);
+    }
+    if (first->kind == TC_TOK_MEMBLOCK_COPY) {
+        return tc_parse_memblock_copy_stmt(tokens, &index, line_no, out, diag);
+    }
+    if (first->kind == TC_TOK_MEMCOPY_UNSAFE) {
+        return tc_parse_memcopy_unsafe_stmt(tokens, &index, line_no, out, diag);
+    }
+
     if (first->kind == TC_TOK_IDENTIFIER) {
-        if (tc_token_is_ident_named(first, "ptr_store")) {
-            return tc_parse_ptr_store_stmt(tokens, &index, line_no, out, diag);
-        }
-        if (tc_token_is_ident_named(first, "memblock_store")) {
-            return tc_parse_memblock_store_stmt(tokens, &index, line_no, out, diag);
-        }
-        if (tc_token_is_ident_named(first, "memblock_copy")) {
-            return tc_parse_memblock_copy_stmt(tokens, &index, line_no, out, diag);
-        }
-        if (tc_token_is_ident_named(first, "memcopy_unsafe")) {
-            return tc_parse_memcopy_unsafe_stmt(tokens, &index, line_no, out, diag);
-        }
         if (index + 1 < tokens->count && tc_peek(tokens, index + 1)->kind == TC_TOK_DOT) {
             return tc_parse_field_assign_stmt(ctx, tokens, &index, line_no, out, diag);
         }

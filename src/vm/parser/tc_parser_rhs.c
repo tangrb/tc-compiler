@@ -432,19 +432,24 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
 }
 
 static int tc_is_rhs_builtin_ident(const TcToken *tok) {
-    return tc_token_is_ident_named(tok, "ptr_load") ||
-           tc_token_is_ident_named(tok, "ptr_address") ||
-           tc_token_is_ident_named(tok, "ptr_add") ||
-           tc_token_is_ident_named(tok, "ptr_sub") ||
-           tc_token_is_ident_named(tok, "ptr_eq") ||
-           tc_token_is_ident_named(tok, "ptr_ne") ||
-           tc_token_is_ident_named(tok, "ptr_lt") ||
-           tc_token_is_ident_named(tok, "ptr_le") ||
-           tc_token_is_ident_named(tok, "ptr_gt") ||
-           tc_token_is_ident_named(tok, "ptr_ge") ||
-           tc_token_is_ident_named(tok, "ptr_size") ||
-           tc_token_is_ident_named(tok, "memblock_load") ||
-           tc_token_is_ident_named(tok, "memblock");
+    switch (tok->kind) {
+    case TC_TOK_PTR_LOAD:
+    case TC_TOK_PTR_ADDRESS:
+    case TC_TOK_PTR_ADD:
+    case TC_TOK_PTR_SUB:
+    case TC_TOK_PTR_EQ:
+    case TC_TOK_PTR_NE:
+    case TC_TOK_PTR_LT:
+    case TC_TOK_PTR_LE:
+    case TC_TOK_PTR_GT:
+    case TC_TOK_PTR_GE:
+    case TC_TOK_PTR_SIZE:
+    case TC_TOK_MEMBLOCK_LOAD:
+    case TC_TOK_MEMBLOCK:
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
@@ -1401,34 +1406,32 @@ int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int
         rc = tc_parse_self_member_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_MEMBLOCK) {
         rc = tc_parse_memblock_ctor_rhs(ctx, tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_LOAD) {
+        rc = tc_parse_ptr_load_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_ADDRESS) {
+        rc = tc_parse_ptr_address_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_MEMBLOCK_LOAD) {
+        rc = tc_parse_memblock_load_rhs(tokens, index, line_no, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_ADD) {
+        rc = tc_parse_ptr_arith_rhs(tokens, index, line_no, TC_RHS_PTR_ADD, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_SUB) {
+        rc = tc_parse_ptr_arith_rhs(tokens, index, line_no, TC_RHS_PTR_SUB, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_EQ) {
+        rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_EQ, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_NE) {
+        rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_NE, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_LT) {
+        rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_LT, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_LE) {
+        rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_LE, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_GT) {
+        rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_GT, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_GE) {
+        rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_GE, out, diag);
+    } else if (tok->kind == TC_TOK_PTR_SIZE) {
+        rc = tc_parse_ptr_size_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_IDENTIFIER) {
-        if (tc_token_is_ident_named(tok, "ptr_load")) {
-            rc = tc_parse_ptr_load_rhs(tokens, index, line_no, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_address")) {
-            rc = tc_parse_ptr_address_rhs(tokens, index, line_no, out, diag);
-        } else if (tc_token_is_ident_named(tok, "memblock_load")) {
-            rc = tc_parse_memblock_load_rhs(tokens, index, line_no, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_add")) {
-            rc = tc_parse_ptr_arith_rhs(tokens, index, line_no, TC_RHS_PTR_ADD, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_sub")) {
-            rc = tc_parse_ptr_arith_rhs(tokens, index, line_no, TC_RHS_PTR_SUB, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_eq")) {
-            rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_EQ, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_ne")) {
-            rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_NE, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_lt")) {
-            rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_LT, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_le")) {
-            rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_LE, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_gt")) {
-            rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_GT, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_ge")) {
-            rc = tc_parse_ptr_compare_rhs(tokens, index, line_no, TC_RHS_PTR_GE, out, diag);
-        } else if (tc_token_is_ident_named(tok, "ptr_size")) {
-            rc = tc_parse_ptr_size_rhs(tokens, index, line_no, out, diag);
-        } else if (tc_token_is_ident_named(tok, "memblock")) {
-            rc = tc_parse_memblock_ctor_rhs(ctx, tokens, index, line_no, out, diag);
-        } else if (*index + 1 < tokens->count &&
+        if (*index + 1 < tokens->count &&
                    tc_peek(tokens, *index + 1)->kind == TC_TOK_LPAREN &&
                    !tc_is_rhs_builtin_ident(tok)) {
             rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);

@@ -875,3 +875,186 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 ---
 
 *本计划基于 TC 0.0.35 全套设计文档（语言标准、编译器标准、VM 设计、AOT 设计、libtc 设计、libtc API、VM 命令参考、合规审查报告）。所有规范要求以原设计文档为准。*
+
+---
+
+## 第五部分：合规审查修复计划
+
+> **审查日期**：2026-07-25  
+> **审查范围**：对照 `TC语言标准设计说明书-0.0.35.md` 和 `TC编译器标准设计说明书-0.0.35.md` 两份文档的逐项检查  
+> **审查结论**：整体实现完整度约 99%，全部测试通过（VM + AOT + Unit），发现 1 个中等合规偏差和 1 个可选优化项
+
+### 审查结果总览
+
+| 审查维度 | 检查项数 | 通过 | 偏差 |
+|---------|---------|------|------|
+| 关键字与词法 (75+) | 88 | 87 | 1（可选优化） |
+| 错误码覆盖 | 90 | 90 | 0 |
+| RHS 分发覆盖 | 36 | 36 | 0 |
+| 13 阶段管线 | 13 | 13 | 0 |
+| 子阶段实现 | 23 | 22 | 1（合规偏差） |
+| 类型系统 | 18 | 18 | 0 |
+| 模块系统 | 14 | 13 | 1（合规偏差） |
+| 控制流与函数 | 22 | 22 | 0 |
+| I/O | 10 | 10 | 0 |
+| 诊断优先级 | 9 | 9 | 0 |
+| **合计** | **~320** | **~318** | **2** |
+
+---
+
+### 修复任务清单
+
+#### R-1 [中] 阶段 4b：补充 `TC_CE_IMPORT_NAME_CONFLICT` 独立检查
+
+| 项目 | 说明 |
+|------|------|
+| **规范依据** | 编译器标准 §1.2 子阶段 4b：*"导入名与本模块任何顶层名称冲突 → `TC_CE_IMPORT_NAME_CONFLICT`（完整范围见 §4.6）"* |
+| **当前行为** | `tc_module_resolve_imports()` 实现了 5 种导入错误（NOT_FOUND / NOT_LIB / AMBIGUOUS / DUPLICATE_IMPORT / CIRCULAR_IMPORT），但未在 4b 子阶段内独立检查 import 名是否与本模块顶层名称冲突 |
+| **预期行为** | 在 4b 导入解析阶段，对每条 `import` 语句，检查导入名是否与本模块已收集的顶层名称冲突。对于 `#program`，检查 `var`/`let` 名；对于 `#lib`，检查 `func`/`struct`/`static let`/`static var` 名。若冲突则报告 `TC_CE_IMPORT_NAME_CONFLICT` |
+| **当前绕过路径** | 冲突可能在后续阶段通过符号表重复定义或函数名冲突检查捕获，但规范明确要求在 4b 子阶段产生专用错误码，不得降级为其他错误 |
+| **修复位置** | `src/vm/analyzer/tc_module.c` → `tc_module_resolve_imports()` 函数 |
+| **修复方案** | 在 4b 子阶段中，在重复导入检查之后、循环导入检查之前，新增函数 `tc_module_check_import_name_conflicts()`，遍历所有 import 并与本模块顶层名称集合对比 |
+
+<details>
+<summary>详细修复步骤</summary>
+
+**步骤 1**：在 `tc_module_resolve_imports()` 中，调用 4b 各子检查后，新增冲突检查调用：
+
+```c
+/* 4b: 导入名与本模块名称冲突检查 */
+if (!tc_is_error(diag)) {
+    if (tc_module_check_import_name_conflicts(prog, ctx, diag) != 0) {
+        return -1;
+    }
+}
+```
+
+**步骤 2**：实现 `tc_module_check_import_name_conflicts()` 函数：
+
+```c
+/**
+ * 4b 子阶段：检查 import 名是否与本模块顶层名称冲突
+ * 
+ * #program 模式：检查顶层 var/let 名
+ * #lib 模式：检查 func/struct/static let/static var 名
+ */
+static int tc_module_check_import_name_conflicts(
+        const TcProgram *prog, TcAnalyzerContext *ctx, TcDiagnostic *diag)
+{
+    /* 遍历所有 import 语句 */
+    for (int i = 0; i < ctx->import_count; i++) {
+        const char *import_name = ctx->imports[i].module_name;
+        
+        /* 检查是否与本模块已有顶层名称冲突 */
+        if (tc_module_is_top_level_name(prog, import_name)) {
+            /* 定位到该 import 的模块名 Token，关联位置为冲突的本模块成员名 */
+            tc_diagnostic_set(diag, TC_CE_IMPORT_NAME_CONFLICT,
+                ctx->imports[i].name_line, ctx->imports[i].name_col,
+                "import name '%s' conflicts with a top-level declaration "
+                "in this module", import_name);
+            return -1;
+        }
+    }
+    return 0;
+}
+```
+
+**步骤 3**：实现辅助函数 `tc_module_is_top_level_name()`，根据模块模式返回不同集合：
+
+| 模式 | 检查范围 |
+|------|---------|
+| `#program` | 顶层 `var`/`let` 名（含 `var_funcall_def` 引入的名称） |
+| `#lib` | `func` 名 / `struct` 名 / `static let` 名 / `static var` 名 |
+
+**步骤 4**：确保 4b 子阶段的优先级顺序为：
+```
+NOT_FOUND → NOT_LIB → AMBIGUOUS → DUPLICATE_IMPORT → IMPORT_NAME_CONFLICT
+```
+规范 §4.1 要求同一 `import` 上按此顺序选择首个错误。
+
+**步骤 5**：添加测试用例：
+
+```
+tests/errors/module/import_name_conflict_program.tc
+tests/errors/module/import_name_conflict_lib.tc
+```
+
+- `#program` 场景：顶层有 `var math: int32 = 42`，`import math`
+- `#lib` 场景：有 `public func math() int32 then end`，`import math`
+- 验证：产生 `TC_CE_IMPORT_NAME_CONFLICT`，而非 `TC_CE_DUPLICATE_DEFINITION` 或其他错误
+
+</details>
+
+---
+
+#### R-2 [低/可选] 词法分析器：`ptr_*` / `memblock_*` / `memcopy_unsafe` 关键字提权
+
+| 项目 | 说明 |
+|------|------|
+| **规范依据** | 语言标准 §2.7 关键字列表明确包含全部 `ptr_add`、`memblock_load`、`memcopy_unsafe` 等 16 个名称 |
+| **当前行为** | 这 16 个名称在词法层被标记为 `TC_TOK_IDENTIFIER`（普通标识符），由解析器通过 `tc_token_is_ident_named()` 按字符串匹配识别。功能正确，全量测试通过 |
+| **建议行为** | 将这些名称提升为词法层关键字，分配独立的 Token 类型（如 `TC_TOK_PTR_ADD` 等），在 `tc_keyword_token()` 中统一识别，解析器直接检查 Token 类型而非字符串 |
+| **影响评估** | 不改变语义行为，不影响测试结果。属代码质量优化，非合规问题 |
+
+<details>
+<summary>涉及的关键字清单（16 个）</summary>
+
+| 关键字 | 当前识别方式 | 当前 Token 类型 | s建议 Token 类型 |
+|--------|------------|----------------|-----------------|
+| `ptr_add` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_ADD` |
+| `ptr_sub` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_SUB` |
+| `ptr_load` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_LOAD` |
+| `ptr_store` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_STORE` |
+| `ptr_address` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_ADDRESS` |
+| `ptr_size` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_SIZE` |
+| `ptr_eq` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_EQ` |
+| `ptr_ne` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_NE` |
+| `ptr_lt` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_LT` |
+| `ptr_le` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_LE` |
+| `ptr_gt` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_GT` |
+| `ptr_ge` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_GE` |
+| `memblock_load` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMBLOCK_LOAD` |
+| `memblock_store` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMBLOCK_STORE` |
+| `memblock_copy` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMBLOCK_COPY` |
+| `memcopy_unsafe` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMCOPY_UNSAFE` |
+
+</details>
+
+---
+
+### 修复优先级与排期
+
+| 编号 | 任务 | 严重程度 | 预计工时 | 依赖 | 排期 |
+|------|------|---------|---------|------|------|
+| R-1 | 4b `TC_CE_IMPORT_NAME_CONFLICT` | **中**（合规偏差） | 2-3h | 无 | 立即 |
+| R-2 | `ptr_*`/`memblock_*` 关键字提权 | **低**（可选优化） | 3-4h | 无 | 可延后 |
+
+---
+
+### 验证标准
+
+| 编号 | 验证项 |
+|------|-------|
+| R-1-V1 | `#program` 模式：`import <名>` 与顶层 `var`/`let` 同名 → 产生 `TC_CE_IMPORT_NAME_CONFLICT`，且优先于后续阶段的通用错误 |
+| R-1-V2 | `#lib` 模式：`import <名>` 与 `func`/`struct`/`static let`/`static var` 同名 → 产生 `TC_CE_IMPORT_NAME_CONFLICT` |
+| R-1-V3 | 不冲突的合法 import 不受影响（回归测试全部通过） |
+| R-1-V4 | `TC_CE_IMPORT_NAME_CONFLICT` 与 `TC_CE_DUPLICATE_IMPORT` 在同一 import 上的优先级正确（后者优先） |
+| R-2-V1 | 所有 16 个名称在词法层被正确识别为新 Token 类型 |
+| R-2-V2 | 解析器中所有 `tc_token_is_ident_named("ptr_add", ...)` 调用替换为 Token 类型检查 |
+| R-2-V3 | 回归测试全部通过，无行为变化 |
+
+---
+
+### 已确认无需修复的项
+
+以下检查发现的问题经分析确认无需修复：
+
+| 项 | 描述 | 无需修复的理由 |
+|----|------|---------------|
+| `padding` 关键字 | 词法层将 `padding` 识别为 `TC_TOK_PADDING`，但规范关键字列表中无此词 | `padding` 仅作为 `@padding(N)` 属性名出现，按普通标识符拼写匹配，但词法检测为独立 Token 类型是合理的实现选择。语言标准 §3.9 明确 `padding` 不是保留关键字 |
+| 阶段 7/8 子阶段边界 | funcall/return 检查在 Pass2 中内联执行，未完全分离为独立函数调用 | 功能正确，流水线满足 fail-fast 语义，诊断优先级与规范一致 |
+| `static var` 初始化器运行时执行 | `tc_func_check_static_vars()` 仅校验不执行，运行时由 executor 完成 | 符合规范 §9 "仅检查 static var 初始化器的编译期约束" 的描述 |
+
+---
+
+*本修复计划基于 2026-07-25 合规审查结果。修复完成后应将其标记为已完成。*

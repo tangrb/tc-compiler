@@ -567,6 +567,42 @@ static int tc_find_dep_index(const TcTypedProgram *out, const char *name) {
 }
 
 /**
+ * 4b 子阶段：检查 import 名是否与本模块顶层声明冲突。
+ *
+ * #program 模式：检查顶层 var / let 名
+ * #lib 模式：检查 func / struct / static let / static var 名
+ *
+ * @return 1 表示冲突，0 表示无冲突
+ */
+static int tc_module_check_import_name_conflict(const TcProgram *prog, const char *name) {
+    size_t i = 0;
+    for (i = 0; i < prog->count; i++) {
+        const TcStatement *stmt = &prog->items[i];
+        const char *decl_name = NULL;
+
+        if (stmt->kind == TC_STMT_VAR_DEF) {
+            decl_name = stmt->u.var_def.name;
+        } else if (stmt->kind == TC_STMT_CONST_DEF) {
+            decl_name = stmt->u.const_def.name;
+        } else if (prog->mode == TC_MODULE_LIB) {
+            if (stmt->kind == TC_STMT_FUNC_DEF) {
+                decl_name = stmt->u.func_def.name;
+            } else if (stmt->kind == TC_STMT_STRUCT_DEF) {
+                decl_name = stmt->u.struct_def.name;
+            } else if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
+                decl_name = stmt->u.static_var_def.name;
+            } else if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
+                decl_name = stmt->u.static_let_def.name;
+            }
+        }
+        if (decl_name && strcmp(decl_name, name) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/**
  * 递归收集 current 的全部 import：定位 → 加载 #lib → 入 deps → 再收集其 import。
  * 已按名加载的模块跳过（共享依赖只解析一次）；环在后续 DAG 阶段统一检出。
  */
@@ -595,6 +631,14 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
                                   TC_COLUMN_UNKNOWN, "duplicate import");
                 return -1;
             }
+        }
+
+        /* 导入名与本模块顶层声明冲突 */
+        if (tc_module_check_import_name_conflict(current, mod_name)) {
+            tc_diagnostic_set(diag, TC_CE_IMPORT_NAME_CONFLICT, stmt->u.import_stmt.line,
+                              TC_COLUMN_UNKNOWN,
+                              "import name conflicts with a top-level declaration");
+            return -1;
         }
 
         /* 模块 import 自身（最短环） */

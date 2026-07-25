@@ -313,7 +313,7 @@ typedef enum {
     TC_CE_IMPORT_NOT_LIB,         /* import 目标不是 #lib */
     TC_CE_IMPORT_AMBIGUOUS,       /* 多条 -I/相对路径同时命中不同文件 */
     TC_CE_DUPLICATE_IMPORT,       /* 同一文件重复 import 同名模块 */
-    TC_CE_IMPORT_NAME_CONFLICT,   /* 导入名与本地声明冲突（后续阶段） */
+    TC_CE_IMPORT_NAME_CONFLICT,   /* 4b 导入名与本地声明冲突 */
     TC_CE_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
     TC_CE_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
 
