@@ -1,0 +1,20 @@
+#program
+; xor(bool, ...) 布尔逻辑异或不短路测试
+var a: bool = true
+var b: bool = false
+var x0: bool = xor(bool, true, false)
+var x1: bool = xor(bool, true, true)
+var x2: bool = xor(bool, false, true)
+var x3: bool = xor(bool, false, false)
+var x4: bool = xor(bool, a, b)
+var x5: bool = xor(bool, a, a)
+var x6: bool = xor(bool, b, a)
+var x7: bool = xor(bool, b, b)
+writeln(bool, %t, x0)   ; true ^ false = true
+writeln(bool, %t, x1)   ; true ^ true = false
+writeln(bool, %t, x2)   ; false ^ true = true
+writeln(bool, %t, x3)   ; false ^ false = false
+writeln(bool, %t, x4)   ; true ^ false = true
+writeln(bool, %t, x5)   ; true ^ true = false
+writeln(bool, %t, x6)   ; false ^ true = true
+writeln(bool, %t, x7)   ; false ^ false = false

@@ -400,6 +400,9 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
             *out = tc_value_make(TC_BOOL, 1);
             return 0;
         }
+        if (rhs->u.logic_bin.op == TC_LOGIC_XOR) {
+            /* xor 不短路：两侧均需求值 */
+        }
         {
             TcValue rhs_value;
             if (tc_eval_operand(&rhs->u.logic_bin.rhs, TC_BOOL, ctx, &rhs_value, diag, line) !=

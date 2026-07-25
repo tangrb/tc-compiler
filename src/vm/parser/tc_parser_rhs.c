@@ -1167,7 +1167,7 @@ static int tc_parse_and_or_not_rhs(const TcTokenList *tokens, size_t *index, int
         if (is_not) {
             return tc_finish_logic_un_rhs(tokens, index, line_no, out, diag);
         }
-        if (logic_op != TC_LOGIC_AND && logic_op != TC_LOGIC_OR) {
+        if (logic_op != TC_LOGIC_AND && logic_op != TC_LOGIC_OR && logic_op != TC_LOGIC_XOR) {
             const TcToken *tok = tc_peek(tokens, *index);
             return tc_syntax_error(diag, line_no, tok->column, "expected binary logic operation");
         }
@@ -1186,6 +1186,9 @@ static int tc_parse_and_or_not_rhs(const TcTokenList *tokens, size_t *index, int
     }
     if (logic_op == TC_LOGIC_OR) {
         return tc_finish_bitwise_bin_rhs(tokens, index, line_no, TC_BIT_OR, type, out, diag);
+    }
+    if (logic_op == TC_LOGIC_XOR) {
+        return tc_finish_bitwise_bin_rhs(tokens, index, line_no, TC_BIT_XOR, type, out, diag);
     }
 
     {

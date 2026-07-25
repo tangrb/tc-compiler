@@ -738,8 +738,14 @@ static int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeKind expected_type
     }
 
     if (rhs->kind == TC_RHS_LOGIC_BIN) {
-        const char *op_name =
-            rhs->u.logic_bin.op == TC_LOGIC_AND ? "TC_LOGIC_AND" : "TC_LOGIC_OR";
+        const char *op_name;
+        if (rhs->u.logic_bin.op == TC_LOGIC_AND) {
+            op_name = "TC_LOGIC_AND";
+        } else if (rhs->u.logic_bin.op == TC_LOGIC_XOR) {
+            op_name = "TC_LOGIC_XOR";
+        } else {
+            op_name = "TC_LOGIC_OR";
+        }
         fprintf(out, "%sif (tc_aot_logic(%s, &%s, ", indent, op_name, dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.logic_bin.lhs, TC_BOOL, ctx, stmt_index);
         fprintf(out, ", ");

@@ -138,10 +138,11 @@ typedef enum {
     TC_CMP_GE
 } TcCompareOp;
 
-/* 内建逻辑运算符：and / or / not，操作数与结果均为 bool */
+/* 内建逻辑运算符：and / or / xor / not，操作数与结果均为 bool */
 typedef enum {
     TC_LOGIC_AND,
     TC_LOGIC_OR,
+    TC_LOGIC_XOR,
     TC_LOGIC_NOT
 } TcLogicOp;
 

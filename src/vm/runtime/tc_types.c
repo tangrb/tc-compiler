@@ -397,6 +397,8 @@ int tc_logic_op_parse(const char *text, TcLogicOp *out) {
         *out = TC_LOGIC_AND;
     } else if (strcmp(text, "or") == 0) {
         *out = TC_LOGIC_OR;
+    } else if (strcmp(text, "xor") == 0) {
+        *out = TC_LOGIC_XOR;
     } else if (strcmp(text, "not") == 0) {
         *out = TC_LOGIC_NOT;
     } else {

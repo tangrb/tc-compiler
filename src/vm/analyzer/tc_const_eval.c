@@ -385,6 +385,9 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeKind expected_type,
             *out = tc_value_make(TC_BOOL, 1);
             return 0;
         }
+        if (rhs->u.logic_bin.op == TC_LOGIC_XOR) {
+            /* xor 不短路：两侧均需求值 */
+        }
         tc_diagnostic_init(&tmp_diag);
         if (tc_exec_logic_binary(rhs->u.logic_bin.op, &lhs, &rhs_val, out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);

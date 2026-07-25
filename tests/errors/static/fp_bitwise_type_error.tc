@@ -1,5 +1,5 @@
 #program
-; 期望：按位运算不支持浮点
+; 期望：expected type（xor 按 int 或 bool 分派，不支持浮点数类型参数）
 var x: float64 = 1.0
 var y: float64 = 2.0
 var z: float64 = xor(float64, x, y)

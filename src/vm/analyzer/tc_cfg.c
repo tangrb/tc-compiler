@@ -213,6 +213,7 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
             (rhs->u.logic_bin.op == TC_LOGIC_OR && lhs_value == TC_STATIC_BOOL_TRUE)) {
             return 0;
         }
+        /* xor 不短路：始终读取 rhs */
         return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.logic_bin.rhs, stmt_index);
     }
     case TC_RHS_LOGIC_UN:

@@ -22,7 +22,7 @@ typedef enum {
     TC_TOK_UNARY_OP,    /* 单目运算符（abs/neg） */
     TC_TOK_COMPARE_OP,  /* 比较运算符（eq/ne/lt/le/gt/ge） */
     TC_TOK_LOGIC_OP,    /* 逻辑运算符（and/or/not） */
-    TC_TOK_BITWISE_OP,  /* 按位运算符（xor；and/or 由 parser 按类型分派） */
+    TC_TOK_BITWISE_OP,  /* 按位运算符（and/or/xor 由 parser 按类型分派） */
     TC_TOK_SHIFT_OP,    /* 移位运算符（shl/shr） */
     TC_TOK_FORMAT_SPEC, /* 格式说明符（%d/%u/%x/%X/%o/%b/%t） */
     TC_TOK_CAST,        /* 'cast' 关键字 */

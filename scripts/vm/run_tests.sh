@@ -529,6 +529,15 @@ false
 false
 true
 "
+run_expect_stdout "$ROOT/tests/valid/logic_xor.tc" "true
+false
+true
+false
+true
+false
+true
+false
+"
 run_expect_stdout "$ROOT/tests/valid/bitwise_runtime.tc" "10100000
 1011010
 64
@@ -1388,7 +1397,6 @@ run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" \
     "unsigned suffix literal cannot be used in signed context"
 run_expect_fail_msg "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
 run_expect_fail_msg "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
-run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "bitwise operation requires integer type"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
@@ -1532,7 +1540,6 @@ run_expect_check_fail "$ROOT/tests/errors/static/format_operand_count.tc" "opera
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
 run_expect_check_fail "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not support wrap"
-run_expect_check_fail "$ROOT/tests/errors/static/bitwise_xor_bool_type_error.tc" "bitwise operation requires integer type"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
@@ -1547,7 +1554,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
-run_expect_fail_msg "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
@@ -1555,7 +1562,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mo
 run_expect_check_fail "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
-run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "bitwise operation requires integer type"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
 
 # --- v0.0.24: if / indent static errors ---

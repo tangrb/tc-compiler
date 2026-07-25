@@ -163,7 +163,8 @@ static void test_logic_op_parse(void) {
           "parse 'or' → TC_LOGIC_OR");
     check(tc_logic_op_parse("not", &out) == 1 && out == TC_LOGIC_NOT,
           "parse 'not' → TC_LOGIC_NOT");
-    check(tc_logic_op_parse("xor", &out) == 0, "parse 'xor' → 0 (not logic op)");
+    check(tc_logic_op_parse("xor", &out) == 1 && out == TC_LOGIC_XOR,
+          "parse 'xor' → TC_LOGIC_XOR");
 }
 
 /* ================================================================== */

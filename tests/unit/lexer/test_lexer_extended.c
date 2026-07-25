@@ -328,8 +328,9 @@ static void test_bitwise_shift_tokens(void) {
     tc_diagnostic_init(&diag);
 
     check(tokenize_line_ok("xor(int8, a, b)", &tokens, &diag), "tokenize xor(int8, a, b)");
-    tok = find_token(&tokens, TC_TOK_BITWISE_OP, &idx);
-    check(tok != NULL && tok->u.bitwise_op == TC_BIT_XOR, "xor → TC_TOK_BITWISE_OP with TC_BIT_XOR");
+    tok = find_token(&tokens, TC_TOK_LOGIC_OP, &idx);
+    check(tok != NULL && tok->u.logic_op == TC_LOGIC_XOR,
+          "xor → TC_TOK_LOGIC_OP with TC_LOGIC_XOR (parser 按类型分派位运算)");
     tc_token_list_free(&tokens);
 
     idx = 0;

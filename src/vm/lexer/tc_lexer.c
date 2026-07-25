@@ -688,11 +688,6 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_COMPARE_OP;
         return 1;
     }
-    if (strcmp(buf, "xor") == 0) {
-        token->kind = TC_TOK_BITWISE_OP;
-        token->u.bitwise_op = TC_BIT_XOR;
-        return 1;
-    }
     if (tc_shift_op_parse(buf, &token->u.shift_op)) {
         token->kind = TC_TOK_SHIFT_OP;
         return 1;

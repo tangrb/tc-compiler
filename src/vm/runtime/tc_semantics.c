@@ -520,6 +520,7 @@ int tc_exec_compare(TcCompareOp op, TcTypeKind type, const TcValue *lhs, const T
 int tc_exec_logic_binary(TcLogicOp op, const TcValue *lhs, const TcValue *rhs, TcValue *out,
                          TcDiagnostic *diag, int line) {
     int lhs_true = lhs->bits != 0;
+    int rhs_true = rhs->bits != 0;
 
     (void)diag;
     (void)line;
@@ -529,15 +530,21 @@ int tc_exec_logic_binary(TcLogicOp op, const TcValue *lhs, const TcValue *rhs, T
             *out = tc_value_make(TC_BOOL, 0);
             return 0;
         }
-        *out = tc_value_make(TC_BOOL, rhs->bits != 0 ? 1ULL : 0ULL);
+        *out = tc_value_make(TC_BOOL, rhs_true ? 1ULL : 0ULL);
         return 0;
     }
 
+    if (op == TC_LOGIC_XOR) {
+        *out = tc_value_make(TC_BOOL, (lhs_true != rhs_true) ? 1ULL : 0ULL);
+        return 0;
+    }
+
+    /* TC_LOGIC_OR */
     if (lhs_true) {
         *out = tc_value_make(TC_BOOL, 1);
         return 0;
     }
-    *out = tc_value_make(TC_BOOL, rhs->bits != 0 ? 1ULL : 0ULL);
+    *out = tc_value_make(TC_BOOL, rhs_true ? 1ULL : 0ULL);
     return 0;
 }
 
