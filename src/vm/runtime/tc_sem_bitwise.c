@@ -1,14 +1,36 @@
 /*
  * tc_sem_bitwise.c — 按位运算（and/or/xor/not）与移位（shl/shr）
+ *
+ * 所有按位运算统一采用 uint64 无符号算术 + 位宽掩码，确保符号无关的确定性结果。
+ * Bool 类型的值在计算后额外归一化为 0x00/0x01，防止位操作产生非规范位模式
+ * （例如 true & 0xFF 得到 0xFF 而非 0x01），保证后续逻辑/I/O 不受污染。
  */
 #include "tc_semantics.h"
 
 #include "tc_diagnostic.h"
 
 /* ------------------------------------------------------------------ */
+/*  bool 值规范化                                                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC_BOOL 的规范位模式为 0x00（假）或 0x01（真）。
+ * 位运算直接操作底层比特时可能产生非规范值，归一化可消除这一隐患。
+ */
+static void tc_normalize_bool(TcTypeKind type, TcValue *out) {
+    if (type == TC_BOOL) {
+        out->bits = out->bits ? 1ULL : 0ULL;
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /*  按位运算                                                            */
 /* ------------------------------------------------------------------ */
 
+/*
+ * 校验操作数的运行时类型是否与声明的运算类型一致。
+ * b 可为 NULL（单目运算时省略第二个操作数），此时只检查 a。
+ */
 static int tc_check_operand_types(TcTypeKind type, const TcValue *a, const TcValue *b,
                                   TcDiagnostic *diag, int line) {
     if (a->type != type || (b != NULL && b->type != type)) {
@@ -51,6 +73,7 @@ int tc_exec_bitwise_binary(TcBitwiseOp op, TcTypeKind type,
     }
 
     *out = tc_value_make(type, result & mask);
+    tc_normalize_bool(type, out);
     return 0;
 }
 
@@ -66,6 +89,7 @@ int tc_exec_bitwise_unary(TcTypeKind type, const TcValue *operand, TcValue *out,
 
     bits = tc_value_to_unsigned(type, operand->bits);
     *out = tc_value_make(type, (~bits) & mask);
+    tc_normalize_bool(type, out);
     return 0;
 }
 
@@ -73,7 +97,12 @@ int tc_exec_bitwise_unary(TcTypeKind type, const TcValue *operand, TcValue *out,
 /*  移位运算辅助                                                         */
 /* ------------------------------------------------------------------ */
 
-/** 有符号 val * 2^k，检测 int64 乘法溢出 */
+/*
+ * 检测有符号 val * 2^k 是否溢出 int64 范围。
+ * 使用无符号除法做边界检查以避免有符号溢出未定义行为。
+ * k >= 64 时 val 非零即溢出（移位超越 int64 表示范围）。
+ * 返回 1 表示溢出，0 表示结果存于 *result。
+ */
 static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
     uint64_t pow2 = 0;
 
@@ -114,11 +143,18 @@ static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
     }
 }
 
+/* 将移位计数字段的位模式解包为无符号整数 k */
 static int tc_shift_count(TcTypeKind type, const TcValue *count, uint64_t *k_out) {
     *k_out = tc_value_to_unsigned(type, count->bits);
     return 0;
 }
 
+/*
+ * shl 左移：对无符号/有符号整数做 val << k。
+ * strict 模式：有符号检测乘法溢出（tc_smul_pow2_overflow + 窄类型范围），
+ *   无符号检查 val > max >> k；wrap 模式：直接截断到 mask。
+ * k >= 位宽时 wrap 返回 0，strict 报 overflow。
+ */
 static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
                        uint64_t k, TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
@@ -200,6 +236,14 @@ static int tc_exec_shr(TcTypeKind type, const TcValue *value, uint64_t k, TcValu
     return 0;
 }
 
+/*
+ * tc_exec_shift — 移位分派入口
+ *
+ * 先校验操作模式（shl 支持 strict/wrap；shr 仅 strict），
+ * 再校验操作数类型一致性（value 和 count 须同类型），
+ * 最后按 shl/shr 分派各自的执行函数。
+ * Bool 移位结果归一化以防构造非规范位模式。
+ */
 int tc_exec_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
                   const TcValue *value, const TcValue *count, TcValue *out,
                   TcDiagnostic *diag, int line) {
@@ -218,7 +262,15 @@ int tc_exec_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
     tc_shift_count(type, count, &k);
 
     if (op == TC_SHIFT_SHL) {
-        return tc_exec_shl(type, mode, value, k, out, diag, line);
+        if (tc_exec_shl(type, mode, value, k, out, diag, line) != 0) {
+            return -1;
+        }
+    } else {
+        if (tc_exec_shr(type, value, k, out) != 0) {
+            return -1;
+        }
     }
-    return tc_exec_shr(type, value, k, out);
+
+    tc_normalize_bool(type, out);
+    return 0;
 }

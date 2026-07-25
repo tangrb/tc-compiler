@@ -1,4 +1,9 @@
-/* tc_sem_int.c — integer arithmetic and unary semantics */
+/*
+ * tc_sem_int.c — 整数算术（add/sub/mul/div/mod）与单目运算（abs/neg）
+ *
+ * 有符号严格模式使用两步溢出检测：先验证 int64 运算不溢出，再检查窄类型范围。
+ * 无符号算术的截断语义等价于 wrap，mode 参数仅用于签名兼容。
+ */
 #include "tc_semantics.h"
 
 #include "tc_diagnostic.h"

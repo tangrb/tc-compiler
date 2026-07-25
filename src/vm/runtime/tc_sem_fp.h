@@ -1,4 +1,9 @@
-/* tc_sem_fp.h — deterministic float arithmetic, unary, and comparison interface */
+/*
+ * tc_sem_fp.h — 浮点算术 / 单目 / 比较语义接口
+ *
+ * 支持 strict（IEEE 异常检测）和 ieee（静默返回 ±inf/nan）两种模式，
+ * wrap 模式对浮点运算非法。abs/neg 为纯符号位操作。
+ */
 #ifndef TC_SEM_FP_H
 #define TC_SEM_FP_H
 
