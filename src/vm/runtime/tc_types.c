@@ -598,8 +598,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ConstantCastOverflow";
     case TC_CE_COMPARISON_TYPE_MISMATCH:
         return "ComparisonTypeMismatch";
-    case TC_CE_FORMAT_STRING:
-        return "FormatStringError";
     case TC_CE_FORMAT_TYPE_MISMATCH:
         return "FormatTypeMismatch";
     case TC_CE_OPERAND_COUNT:
@@ -642,8 +640,8 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "DuplicateLabel";
     case TC_CE_JUMP_INTO_BLOCK:
         return "JumpIntoBlockError";
-    case TC_CE_JUMP_TO_SIBLING_BLOCK:
-        return "JumpToSiblingBlockError";
+    case TC_CE_JUMP_INCOMPATIBLE_BLOCK:
+        return "JumpIncompatibleBlockError";
     case TC_CE_VAR_MISSING_INIT:
         return "VarMissingInitializer";
     case TC_CE_BITCAST_WIDTH:
@@ -660,8 +658,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "GotoOutsideFunction";
     case TC_CE_LABEL_OUTSIDE_FUNCTION:
         return "LabelOutsideFunction";
-    case TC_CE_JUMP_INCOMPATIBLE_BLOCK:
-        return "JumpIncompatibleBlockError";
     case TC_RE_NEGATIVE_SHIFT_COUNT:
         return "NegativeShiftCount";
     case TC_CE_FORMAT_SPECIFIER:

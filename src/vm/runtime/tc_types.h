@@ -243,7 +243,6 @@ typedef enum {
     TC_CE_CONSTANT_DIV_ZERO,
     TC_CE_CONSTANT_CAST_OVERFLOW,
     TC_CE_COMPARISON_TYPE_MISMATCH,
-    TC_CE_FORMAT_STRING,
     TC_CE_FORMAT_TYPE_MISMATCH,
     TC_CE_OPERAND_COUNT,
     TC_CE_INDENT_MIXED,          /* 混用空格与制表符 */
@@ -257,7 +256,6 @@ typedef enum {
     TC_CE_LABEL_NOT_FOUND,         /* §4.8.3 goto 引用未定义标签 */
     TC_CE_DUPLICATE_LABEL,         /* §4.8.3 同一作用域重定义标签 */
     TC_CE_JUMP_INTO_BLOCK,         /* §4.8.3 跳入内层子块 */
-    TC_CE_JUMP_TO_SIBLING_BLOCK,   /* §4.8.3 跳入兄弟分支 */
     TC_CE_VAR_MISSING_INIT,        /* §4.2 var 声明缺少初始化器 */
     TC_CE_BITCAST_WIDTH,           /* §8.6 bitcast 源/目标位宽不等 */
     TC_CE_LABEL_INSIDE_LOOP,       /* label 不得出现在 while 内 */

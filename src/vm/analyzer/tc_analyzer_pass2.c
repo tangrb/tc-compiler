@@ -77,8 +77,8 @@ static int tc_check_goto_jump(const TcBlockPath *goto_path, const TcLabelEntry *
         if (tc_paths_equal_prefix(goto_path->path, label_path.path, goto_path->depth)) {
             return 0; /* 平级跳转 */
         }
-        tc_diagnostic_set(diag, TC_CE_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
-                          "cannot jump into sibling block");
+        tc_diagnostic_set(diag, TC_CE_JUMP_INCOMPATIBLE_BLOCK, line, TC_COLUMN_UNKNOWN,
+                          "cannot jump into incompatible block");
         return -1;
     }
 
@@ -86,8 +86,8 @@ static int tc_check_goto_jump(const TcBlockPath *goto_path, const TcLabelEntry *
         if (tc_paths_equal_prefix(goto_path->path, label_path.path, label_path.depth)) {
             return 0; /* 向外跳转（祖先） */
         }
-        tc_diagnostic_set(diag, TC_CE_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
-                          "cannot jump into sibling block");
+        tc_diagnostic_set(diag, TC_CE_JUMP_INCOMPATIBLE_BLOCK, line, TC_COLUMN_UNKNOWN,
+                          "cannot jump into incompatible block");
         return -1;
     }
 
@@ -97,8 +97,8 @@ static int tc_check_goto_jump(const TcBlockPath *goto_path, const TcLabelEntry *
                           "cannot jump into inner block");
         return -1;
     }
-    tc_diagnostic_set(diag, TC_CE_JUMP_TO_SIBLING_BLOCK, line, TC_COLUMN_UNKNOWN,
-                      "cannot jump into sibling block");
+    tc_diagnostic_set(diag, TC_CE_JUMP_INCOMPATIBLE_BLOCK, line, TC_COLUMN_UNKNOWN,
+                      "cannot jump into incompatible block");
     return -1;
 }
 

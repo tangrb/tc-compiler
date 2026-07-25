@@ -1040,7 +1040,7 @@ static void test_analyze_goto_sibling(void) {
     tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse sibling jump");
     check(tc_analyze(&program, &typed, &diag) != 0, "sibling jump fails");
-    check(diag.kind == TC_CE_JUMP_TO_SIBLING_BLOCK, "→ JUMP_TO_SIBLING_BLOCK");
+    check(diag.kind == TC_CE_JUMP_INCOMPATIBLE_BLOCK, "→ JUMP_INCOMPATIBLE_BLOCK");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }

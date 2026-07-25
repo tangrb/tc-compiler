@@ -1,5 +1,5 @@
 #lib
-; 期望：cannot jump into sibling block
+; 期望：cannot jump into incompatible block
 public func f() void then
     if eq(int32, 1, 1) then
         goto else_branch

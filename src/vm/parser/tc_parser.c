@@ -2905,6 +2905,16 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
     int rc = 0;
 
     tc_program_init(program);
+
+    /* 检查 UTF-8 BOM */
+    if ((unsigned char)source[0] == 0xEF &&
+        (unsigned char)source[1] == 0xBB &&
+        (unsigned char)source[2] == 0xBF) {
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, 1, "UTF-8 BOM not allowed in source file");
+        tc_program_free(program);
+        return -1;
+    }
+
     memset(&file_indent, 0, sizeof(file_indent));
     file_indent.indent_width = 4;
 

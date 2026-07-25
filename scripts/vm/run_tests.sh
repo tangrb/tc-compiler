@@ -1381,7 +1381,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
 run_expect_fail_msg "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
-run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into incompatible block"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" \
@@ -1474,7 +1474,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/label_inside_loop.tc" \
     "label is not allowed inside while"
 run_expect_check_fail "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
-run_expect_check_fail "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into sibling block"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into incompatible block"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"

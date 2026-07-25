@@ -108,6 +108,44 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
     if (read_size != (size_t)size || ferror(file)) {
         return tc_file_read_error(file, buffer, diag);
     }
+
+    /* 检查文件起始 UTF-8 BOM */
+    if (read_size >= 3 &&
+        (unsigned char)buffer[0] == 0xEF &&
+        (unsigned char)buffer[1] == 0xBB &&
+        (unsigned char)buffer[2] == 0xBF) {
+        free(buffer);
+        fclose(file);
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, 1, "UTF-8 BOM not allowed in source file");
+        return NULL;
+    }
+
+    /* 检查源文件中是否含有非法 U+0000 空字符 */
+    {
+        size_t i;
+        int line = 1;
+        int col = 1;
+
+        for (i = 0; i < read_size; i++) {
+            if (buffer[i] == '\0') {
+                free(buffer);
+                fclose(file);
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col,
+                                  "null character (U+0000) not allowed in source");
+                return NULL;
+            }
+            if (buffer[i] == '\r' && i + 1 < read_size && buffer[i + 1] == '\n') {
+                line++;
+                col = 1;
+                i++;
+            } else if (buffer[i] == '\n') {
+                line++;
+                col = 1;
+            } else {
+                col++;
+            }
+        }
+    }
     {
         int first = fgetc(file);
         if (first != EOF || ferror(file)) {

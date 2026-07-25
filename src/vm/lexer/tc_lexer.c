@@ -900,7 +900,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
             ++column;
 
             if (!tc_format_spec_parse(spec_buf, &full_fmt)) {
-                tc_diagnostic_set(diag, TC_CE_FORMAT_STRING, line_no, tok_column,
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
                                   "invalid format specifier");
                 return -1;
             }
