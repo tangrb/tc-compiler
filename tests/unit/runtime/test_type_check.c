@@ -29,7 +29,8 @@ static int analyze_source(const char *source, TcTypedProgram *typed, TcDiagnosti
     TcProgram program;
 
     tc_program_init(&program);
-    tc_typed_program_init(typed);
+    /* NOTE: tc_analyze (→ tc_analyze_ex) calls tc_typed_program_init internally.
+     * Do NOT call tc_typed_program_init here — it would double‑init and leak. */
     if (tc_parse_source_to_program(source, &program, diag) != 0) {
         return -1;
     }
@@ -37,7 +38,7 @@ static int analyze_source(const char *source, TcTypedProgram *typed, TcDiagnosti
 }
 
 static void expect_err(const char *source, TcErrorKind kind, const char *label) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
@@ -47,7 +48,7 @@ static void expect_err(const char *source, TcErrorKind kind, const char *label) 
 }
 
 static void expect_ok(const char *source, const char *label) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);

@@ -30,7 +30,7 @@ static void check(int condition, const char *message) {
 
 static void test_analyze_valid_program(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nvar x: int32 = 10\n"
@@ -38,7 +38,6 @@ static void test_analyze_valid_program(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse valid program");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze valid program");
     check(typed.program.count == 2, "typed program stmt count");
@@ -49,7 +48,7 @@ static void test_analyze_valid_program(void) {
 
 static void test_analyze_let_const(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nlet N: int32 = 42\n"
@@ -58,7 +57,6 @@ static void test_analyze_let_const(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse let program");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze let program");
     check(typed.symbols.count == 2, "let symbol count");
@@ -71,7 +69,7 @@ static void test_analyze_let_const(void) {
 
 static void test_analyze_let_does_not_consume_var_slots(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nlet A: int32 = 1\n"
@@ -81,7 +79,6 @@ static void test_analyze_let_does_not_consume_var_slots(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0,
           "parse interleaved let and var slots");
     check(tc_analyze(&program, &typed, &diag) == 0,
@@ -104,7 +101,7 @@ static void test_analyze_let_does_not_consume_var_slots(void) {
 
 static void test_analyze_let_allowed_forms(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nlet LITERAL: int32 = 42\n"
@@ -116,7 +113,6 @@ static void test_analyze_let_allowed_forms(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0,
           "parse all permitted let forms");
     check(tc_analyze(&program, &typed, &diag) == 0,
@@ -195,12 +191,11 @@ static void test_analyze_let_reference_errors(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i].source, &program, &diag) == 0,
               "parse let reference error case");
         check(tc_analyze(&program, &typed, &diag) != 0, cases[i].message);
@@ -212,7 +207,7 @@ static void test_analyze_let_reference_errors(void) {
 
 static void test_analyze_block_local_let_chain(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nif true then\n"
@@ -226,7 +221,6 @@ static void test_analyze_block_local_let_chain(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0,
           "parse block-local let chain");
     check(tc_analyze(&program, &typed, &diag) == 0,
@@ -292,12 +286,11 @@ static void test_analyze_short_circuit_still_validates_rhs(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i].source, &program, &diag) == 0,
               "parse short-circuit validation case");
         check(tc_analyze(&program, &typed, &diag) != 0, cases[i].message);
@@ -325,12 +318,11 @@ static void test_analyze_let_mode_matrix(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i], &program, &diag) == 0,
               "parse forbidden mode matrix case");
         check(tc_analyze(&program, &typed, &diag) != 0,
@@ -344,7 +336,7 @@ static void test_analyze_let_mode_matrix(void) {
 
 static void test_analyze_unreachable_let_branch_still_checks_names(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nlet NEVER: bool = false\n"
@@ -354,7 +346,6 @@ static void test_analyze_unreachable_let_branch_still_checks_names(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0,
           "parse statically unreachable let branch");
     check(tc_analyze(&program, &typed, &diag) != 0,
@@ -447,13 +438,12 @@ static void test_analyze_diagnostic_priority_matrix(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
         int parse_status = 0;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         parse_status = tc_parse_source_to_program(cases[i].source, &program, &diag);
         if (cases[i].parse_failure) {
             check(parse_status != 0, cases[i].message);
@@ -490,12 +480,11 @@ static void test_analyze_let_runtime_error_mapping(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i].source, &program, &diag) == 0,
               "parse let runtime-error mapping case");
         check(tc_analyze(&program, &typed, &diag) != 0,
@@ -508,7 +497,7 @@ static void test_analyze_let_runtime_error_mapping(void) {
 
 static void test_analyze_if_condition_type(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nif add(int32, 1, 2) then\n"
@@ -517,7 +506,6 @@ static void test_analyze_if_condition_type(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse if arith cond");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze if arith cond fails");
     check(strstr(diag.message, "if condition must be bool") != NULL, "#program\nif cond type message");
@@ -527,7 +515,7 @@ static void test_analyze_if_condition_type(void) {
 
 static void test_analyze_cross_block_reference(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nif true then\n"
@@ -537,7 +525,6 @@ static void test_analyze_cross_block_reference(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse cross block");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze cross block fails");
     check(strstr(diag.message, "cross-block reference") != NULL ||
@@ -549,7 +536,7 @@ static void test_analyze_cross_block_reference(void) {
 
 static void test_analyze_uninit_error(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -562,7 +549,6 @@ static void test_analyze_uninit_error(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse uninit");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze uninit fails");
     check(diag.kind == TC_CE_UNINITIALIZED_VARIABLE, "→ UNINITIALIZED_VARIABLE");
@@ -572,7 +558,7 @@ static void test_analyze_uninit_error(void) {
 
 static void test_analyze_uninit_if_merge(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -589,7 +575,6 @@ static void test_analyze_uninit_if_merge(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse if-path uninit");
     check(tc_analyze(&program, &typed, &diag) != 0, "if-path uninit fails");
     check(diag.kind == TC_CE_UNINITIALIZED_VARIABLE, "if-path → UNINITIALIZED_VARIABLE");
@@ -599,7 +584,7 @@ static void test_analyze_uninit_if_merge(void) {
 
 static void test_analyze_uninit_both_paths_ok(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -617,7 +602,6 @@ static void test_analyze_uninit_both_paths_ok(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse both-paths");
     check(tc_analyze(&program, &typed, &diag) == 0, "both paths init ok");
     tc_typed_program_free(&typed);
@@ -626,7 +610,7 @@ static void test_analyze_uninit_both_paths_ok(void) {
 
 static void test_analyze_shortcircuit_uninit_ok(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -641,7 +625,6 @@ static void test_analyze_shortcircuit_uninit_ok(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse shortcircuit");
     check(tc_analyze(&program, &typed, &diag) == 0, "shortcircuit skips uninit rhs");
     tc_typed_program_free(&typed);
@@ -752,12 +735,11 @@ static void test_analyze_static_bool_operand_matrix(void) {
 
     for (i = 0; i < sizeof(valid_cases) / sizeof(valid_cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(valid_cases[i].source, &program, &diag) == 0,
               "parse static bool operand case");
         check(tc_analyze(&program, &typed, &diag) == 0, valid_cases[i].message);
@@ -769,12 +751,11 @@ static void test_analyze_static_bool_operand_matrix(void) {
 
     for (i = 0; i < sizeof(invalid_cases) / sizeof(invalid_cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(invalid_cases[i], &program, &diag) == 0,
               "parse unavailable let condition case");
         check(tc_analyze(&program, &typed, &diag) != 0,
@@ -825,12 +806,11 @@ static void test_analyze_static_bool_dfa_pruning(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i], &program, &diag) == 0,
               "parse static bool DFA case");
         check(tc_analyze(&program, &typed, &diag) == 0,
@@ -842,7 +822,7 @@ static void test_analyze_static_bool_dfa_pruning(void) {
 
 static void test_analyze_if_block_scope(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nvar x: int32 = 1\n"
@@ -854,7 +834,6 @@ static void test_analyze_if_block_scope(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse if shadow");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze if shadow");
     check(typed.symbols.count == 2, "if shadow symbol count");
@@ -864,13 +843,12 @@ static void test_analyze_if_block_scope(void) {
 
 static void test_analyze_const_cyclic(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source = "#program\nlet A: int32 = add(int32, A, 1)\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse cyclic let");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze cyclic let fails");
     check(diag.kind == TC_CE_UNDEFINED_VARIABLE,
@@ -881,7 +859,7 @@ static void test_analyze_const_cyclic(void) {
 
 static void test_analyze_duplicate_label(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -892,7 +870,6 @@ static void test_analyze_duplicate_label(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse duplicate label");
     check(tc_analyze(&program, &typed, &diag) != 0, "analyze duplicate label fails");
     check(diag.kind == TC_CE_DUPLICATE_LABEL, "duplicate label → TC_CE_DUPLICATE_LABEL");
@@ -902,7 +879,7 @@ static void test_analyze_duplicate_label(void) {
 
 static void test_analyze_sibling_label_same_name(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -916,7 +893,6 @@ static void test_analyze_sibling_label_same_name(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse sibling labels");
     check(tc_analyze(&program, &typed, &diag) == 0, "sibling same-name labels ok");
     check(typed.symbols.label_count == 2, "Pass2 retains both sibling labels");
@@ -926,7 +902,7 @@ static void test_analyze_sibling_label_same_name(void) {
 
 static void test_analyze_goto_ok(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -936,7 +912,6 @@ static void test_analyze_goto_ok(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse goto ok");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze goto ok");
     check(typed.symbols.label_count == 1, "goto ok label retained");
@@ -946,7 +921,7 @@ static void test_analyze_goto_ok(void) {
 
 static void test_analyze_goto_forward(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -960,7 +935,6 @@ static void test_analyze_goto_forward(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse forward goto");
     check(tc_analyze(&program, &typed, &diag) == 0, "forward goto ok");
     check(typed.program.count == 1 && typed.program.items[0].kind == TC_STMT_FUNC_DEF,
@@ -980,7 +954,7 @@ static void test_analyze_goto_forward(void) {
 
 static void test_analyze_goto_undefined(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -990,7 +964,6 @@ static void test_analyze_goto_undefined(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse undefined goto");
     check(tc_analyze(&program, &typed, &diag) != 0, "undefined goto fails");
     check(diag.kind == TC_CE_LABEL_NOT_FOUND, "→ LABEL_NOT_FOUND");
@@ -1000,7 +973,7 @@ static void test_analyze_goto_undefined(void) {
 
 static void test_analyze_goto_into_block(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -1013,7 +986,6 @@ static void test_analyze_goto_into_block(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse jump into block");
     check(tc_analyze(&program, &typed, &diag) != 0, "jump into block fails");
     check(diag.kind == TC_CE_JUMP_INTO_BLOCK, "→ JUMP_INTO_BLOCK");
@@ -1023,7 +995,7 @@ static void test_analyze_goto_into_block(void) {
 
 static void test_analyze_goto_sibling(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -1037,7 +1009,6 @@ static void test_analyze_goto_sibling(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse sibling jump");
     check(tc_analyze(&program, &typed, &diag) != 0, "sibling jump fails");
     check(diag.kind == TC_CE_JUMP_INCOMPATIBLE_BLOCK, "→ JUMP_INCOMPATIBLE_BLOCK");
@@ -1047,7 +1018,7 @@ static void test_analyze_goto_sibling(void) {
 
 static void test_analyze_goto_out_of_if(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -1060,7 +1031,6 @@ static void test_analyze_goto_out_of_if(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse outward goto");
     check(tc_analyze(&program, &typed, &diag) == 0, "outward goto ok");
     tc_typed_program_free(&typed);
@@ -1069,7 +1039,7 @@ static void test_analyze_goto_out_of_if(void) {
 
 static void test_analyze_while_scope_and_slots(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nvar x: int32 = 1\n"
@@ -1081,7 +1051,6 @@ static void test_analyze_while_scope_and_slots(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse while scope");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze while scope");
     if (typed.program.count == 3 && typed.program.items[1].kind == TC_STMT_WHILE) {
@@ -1096,7 +1065,7 @@ static void test_analyze_while_scope_and_slots(void) {
 
 static void test_analyze_nested_loop_targets(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nwhile false then\n"
@@ -1108,7 +1077,6 @@ static void test_analyze_nested_loop_targets(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse nested loops");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze nested loops");
     if (typed.program.count == 1 && typed.program.items[0].kind == TC_STMT_WHILE) {
@@ -1150,12 +1118,11 @@ static void test_analyze_loop_context_errors(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i].source, &program, &diag) == 0,
               "parse loop context error case");
         check(tc_analyze(&program, &typed, &diag) != 0, "loop context case fails analysis");
@@ -1167,13 +1134,12 @@ static void test_analyze_loop_context_errors(void) {
 
 static void test_analyze_while_condition_type(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source = "#program\nwhile add(int32, 1, 2) then\nend\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse while bad condition");
     check(tc_analyze(&program, &typed, &diag) != 0, "while bad condition fails");
     check(diag.kind == TC_CE_CONDITION_TYPE, "while condition uses condition type error");
@@ -1185,7 +1151,7 @@ static void test_analyze_while_condition_type(void) {
 
 static void test_analyze_bitcast(void) {
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *valid =
         "#program\nvar f: float32 = 1.0f\n"
@@ -1196,7 +1162,6 @@ static void test_analyze_bitcast(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(valid, &program, &diag) == 0, "parse valid bitcast");
     check(tc_analyze(&program, &typed, &diag) == 0, "analyze valid bitcast");
     if (typed.program.count == 5) {
@@ -1233,12 +1198,11 @@ static void test_analyze_bitcast_errors(void) {
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         TcProgram program;
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
 
         tc_diagnostic_init(&diag);
         tc_program_init(&program);
-        tc_typed_program_init(&typed);
         check(tc_parse_source_to_program(cases[i].source, &program, &diag) == 0,
               "parse bitcast error case");
         check(tc_analyze(&program, &typed, &diag) != 0, "bitcast error fails analysis");
@@ -1262,13 +1226,12 @@ static void test_analyze_cast_literal_source_types(void) {
         "var f: float64 = cast(float64, nan)\n"
         "var g: bool = cast(bool, true)\n";
     TcProgram program;
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     size_t i = 0;
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    tc_typed_program_init(&typed);
     check(tc_parse_source_to_program(source, &program, &diag) == 0,
           "parse cast literal source-type matrix");
     check(tc_analyze(&program, &typed, &diag) == 0,

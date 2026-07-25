@@ -22,7 +22,8 @@ static int compile_source(const char *source, TcTypedProgram *typed, TcDiagnosti
     TcProgram program;
 
     tc_program_init(&program);
-    tc_typed_program_init(typed);
+    /* NOTE: tc_analyze (→ tc_analyze_ex) calls tc_typed_program_init internally.
+     * Do NOT call tc_typed_program_init here — it would double‑init and leak. */
     if (tc_parse_source_to_program(source, &program, diag) != 0) {
         return -1;
     }
@@ -89,7 +90,7 @@ static size_t enabled_edges_from(const TcCfg *cfg, int from, TcCfgEdgeKind kind)
 }
 
 static void test_sequential_cfg(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
@@ -109,7 +110,7 @@ static void test_sequential_cfg(void) {
 }
 
 static void test_structured_edges(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nwhile false then\n"
@@ -137,7 +138,7 @@ static void test_structured_edges(void) {
 }
 
 static void test_goto_edge(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#lib\npublic func f() void then\n"
@@ -159,7 +160,7 @@ static void test_goto_edge(void) {
 }
 
 static void test_constant_loop_pruning(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nwhile false then\n"
@@ -189,7 +190,7 @@ static void test_constant_loop_pruning(void) {
 
 static void check_let_branch_pruning(const char *source, int expected,
                                      const char *compile_message) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
@@ -241,7 +242,7 @@ static void test_let_constant_branch_pruning(void) {
 }
 
 static void test_local_let_shadow_branch_pruning(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nlet FLAG: bool = false\n"
@@ -340,7 +341,7 @@ static void test_static_bool_rhs_pruning(void) {
     size_t i = 0;
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-        TcTypedProgram typed;
+        TcTypedProgram typed = {0};
         TcDiagnostic diag;
         int node = -1;
 
@@ -368,7 +369,7 @@ static void test_static_bool_rhs_pruning(void) {
 }
 
 static void test_short_circuit_read_sets(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nlet FALSE: bool = false\n"
@@ -410,7 +411,7 @@ static void test_short_circuit_read_sets(void) {
 }
 
 static void test_cfg_size_is_linear(void) {
-    TcTypedProgram typed;
+    TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
         "#program\nvar a: int32 = 1\n"

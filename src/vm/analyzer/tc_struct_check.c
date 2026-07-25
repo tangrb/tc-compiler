@@ -415,6 +415,13 @@ int tc_struct_table_register_program(TcProgram *program, TcStructTable *table,
             if (tc_struct_validate_field_type(def->name, dst, entry.struct_id, table, def->line,
                                               diag) != 0) {
                 tc_struct_table_free(table);
+                free(entry.name);
+                for (k = 0; k < entry.field_count; k++) {
+                    free(entry.fields[k].name);
+                    free(entry.fields[k].struct_type_name);
+                    tc_type_free(&entry.fields[k].type);
+                }
+                free(entry.fields);
                 return -1;
             }
         }
