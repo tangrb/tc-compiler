@@ -345,6 +345,65 @@ static int tc_exec_call_function(int func_id, TcNamedArg *args, struct TcRhs **a
     return 0;
 }
 
+int tc_exec_call_function_public(int func_id, TcExecuteCtx *ctx,
+                                  TcValue *ret_out, int want_return,
+                                  TcDiagnostic *diag, int line) {
+    const TcProgram *module = NULL;
+    const TcFuncDef *func = NULL;
+    int body_start = 0;
+    int body_end = 0;
+    TcExecControl control;
+    int saved_func_id = ctx->current_func_id;
+    TcStmtIndexCursor saved_index = ctx->index;
+
+    func = tc_find_func_def(ctx->program, func_id, &module);
+    if (!func || !module) {
+        tc_exec_set_internal_error(diag, line, "internal error: unresolved funcall target");
+        return -1;
+    }
+    if (tc_func_body_index_range(module, func_id, &body_start, &body_end) != 0) {
+        tc_exec_set_internal_error(diag, line, "internal error: function body index missing");
+        return -1;
+    }
+
+    if (tc_call_frame_push(&ctx->call_frame, func_id) != 0) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    ctx->current_func_id = func_id;
+    tc_stmt_index_reset(&ctx->index);
+    ctx->index.next = body_start;
+    control = tc_execute_block(func->body, func->body_count, body_start, body_end, ctx, diag);
+    ctx->index = saved_index;
+    ctx->current_func_id = saved_func_id;
+    tc_call_frame_pop(&ctx->call_frame);
+
+    if (control.kind == TC_EXEC_ERROR) {
+        return -1;
+    }
+    if (control.kind == TC_EXEC_RETURN) {
+        if (want_return) {
+            if (!control.has_return_value) {
+                tc_exec_set_internal_error(diag, line,
+                                           "internal error: missing function return value");
+                return -1;
+            }
+            *ret_out = control.return_value;
+        }
+        return 0;
+    }
+    if (control.kind != TC_EXEC_NORMAL) {
+        tc_exec_set_internal_error(diag, line, "internal error: unconsumed control in function");
+        return -1;
+    }
+    if (want_return) {
+        tc_exec_set_internal_error(diag, line, "internal error: function fell through without return");
+        return -1;
+    }
+    return 0;
+}
+
 int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, TcValue *out,
                 TcDiagnostic *diag, int line) {
     if (rhs->kind == TC_RHS_LIT) {
@@ -1094,7 +1153,7 @@ static int tc_exec_init_static_vars_program(const TcProgram *program, TcExecuteC
     return 0;
 }
 
-static int tc_exec_init_all_static_vars(const TcTypedProgram *program, TcExecuteCtx *ctx,
+int tc_exec_init_all_static_vars(const TcTypedProgram *program, TcExecuteCtx *ctx,
                                         TcDiagnostic *diag) {
     size_t i = 0;
 

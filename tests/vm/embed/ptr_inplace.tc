@@ -1,0 +1,6 @@
+; TC-Embed 测试：ptr_store（常量偏移）
+#lib
+public func store_at_one(data: ptr<int32>, val: int32) void then
+    var p1: ptr<int32> = ptr_add(int32, data, 1)
+    ptr_store(int32, p1, val)
+end

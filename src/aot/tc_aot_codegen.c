@@ -45,6 +45,7 @@ typedef struct {
     int current_func_id; /* -1 = 顶层 */
     TcTypeKind current_return_type;
     int tmp_seq; /* 嵌套 RHS 临时变量唯一序号 */
+    int embed_mode; /* 1 = 嵌入库模式 */
 } TcAotEmitCtx;
 
 static int tc_aot_paths_equal_prefix(const TcBlockId *a, const TcBlockId *b, int depth) {
@@ -555,11 +556,11 @@ static int tc_aot_emit_funcall(FILE *out, int func_id, const TcNamedArg *stmt_ar
         }
     }
 
-    fprintf(out, "%stc_func_%d(tc_aot_cur_diag);\n", indent, func_id);
+    fprintf(out, "%stc_aot_func_%d(tc_aot_cur_diag);\n", indent, func_id);
     fprintf(out, "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) tc_aot_abort(tc_aot_cur_diag, %d);\n",
             abort_indent, line);
     if (want_result && dst_expr) {
-        fprintf(out, "%s%s = tc_ret_%d;\n", indent, dst_expr, func_id);
+        fprintf(out, "%s%s = tc_aot_ret_%d;\n", indent, dst_expr, func_id);
     }
     return 0;
 }
@@ -1400,12 +1401,12 @@ static int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotE
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
         fprintf(out, "%s{\n", indent);
         if (ret->value.kind == TC_OPERAND_LIT) {
-            fprintf(out, "%s    tc_ret_%d = ", indent, ctx->current_func_id);
+            fprintf(out, "%s    tc_aot_ret_%d = ", indent, ctx->current_func_id);
             tc_aot_emit_literal_expr(out, ctx->current_return_type, &ret->value.u.lit);
             fprintf(out, ";\n");
         } else {
             char ret_tmp[32];
-            snprintf(ret_tmp, sizeof(ret_tmp), "tc_ret_%d", ctx->current_func_id);
+            snprintf(ret_tmp, sizeof(ret_tmp), "tc_aot_ret_%d", ctx->current_func_id);
             if (tc_aot_emit_operand_assign(out, &ret->value, ctx->current_return_type, ret_tmp,
                                            abort_indent, ctx, ctx->index.next - 1) != 0) {
                 return -1;
@@ -1687,12 +1688,14 @@ static int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgra
     int body_start = 0;
     int body_end = 0;
     size_t i = 0;
+    const char *qual = ctx->embed_mode ? "" : "static ";
 
     (void)body_end;
     if (tc_aot_func_body_index_range(module, func->func_id, &body_start, &body_end) != 0) {
         return -1;
     }
-    fprintf(out, "static void tc_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n", func->func_id);
+    fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
+            qual, func->func_id);
     ctx->current_func_id = func->func_id;
     ctx->current_return_type = func->return_type.kind;
     ctx->block_path.depth = 0;
@@ -1723,10 +1726,12 @@ static int tc_aot_emit_functions_program(FILE *out, const TcProgram *program, Tc
     return 0;
 }
 
-static void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program) {
+static void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program,
+                                    TcAotEmitCtx *ctx) {
     size_t di = 0;
     size_t i = 0;
     int wrote = 0;
+    const char *qual = ctx->embed_mode ? "" : "static ";
 
     for (di = 0; di < program->dep_count; di++) {
         for (i = 0; i < program->deps[di].count; i++) {
@@ -1734,9 +1739,9 @@ static void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program) {
                 const TcFuncDef *func = &program->deps[di].items[i].u.func_def;
 
                 if (func->return_type.kind != TC_VOID) {
-                    fprintf(out, "static uint64_t tc_ret_%d;\n", func->func_id);
+                    fprintf(out, "%suint64_t tc_aot_ret_%d;\n", qual, func->func_id);
                 }
-                fprintf(out, "static void tc_func_%d(TcDiagnostic *diag);\n", func->func_id);
+                fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag);\n", qual, func->func_id);
                 wrote = 1;
             }
         }
@@ -1746,9 +1751,9 @@ static void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program) {
             const TcFuncDef *func = &program->program.items[i].u.func_def;
 
             if (func->return_type.kind != TC_VOID) {
-                fprintf(out, "static uint64_t tc_ret_%d;\n", func->func_id);
+                fprintf(out, "%suint64_t tc_aot_ret_%d;\n", qual, func->func_id);
             }
-            fprintf(out, "static void tc_func_%d(TcDiagnostic *diag);\n", func->func_id);
+            fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag);\n", qual, func->func_id);
             wrote = 1;
         }
     }
@@ -1757,11 +1762,88 @@ static void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program) {
     }
 }
 
+/* ── 嵌入模式：生成函数表 ── */
+static int tc_aot_emit_func_table(FILE *out, const TcTypedProgram *program) {
+    size_t di = 0;
+    size_t i = 0;
+
+    fprintf(out, "/* ── 函数表 ── */\n");
+    fprintf(out, "const tc_aot_func_entry tc_aot_func_table[] = {\n");
+
+    for (di = 0; di < program->dep_count; di++) {
+        for (i = 0; i < program->deps[di].count; i++) {
+            if (program->deps[di].items[i].kind == TC_STMT_FUNC_DEF) {
+                const TcFuncDef *func = &program->deps[di].items[i].u.func_def;
+                if (func->return_type.kind != TC_VOID) {
+                    fprintf(out, "    { %d, tc_aot_func_%d, &tc_aot_ret_%d },\n",
+                            func->func_id, func->func_id, func->func_id);
+                } else {
+                    fprintf(out, "    { %d, tc_aot_func_%d, NULL },\n",
+                            func->func_id, func->func_id);
+                }
+            }
+        }
+    }
+    for (i = 0; i < program->program.count; i++) {
+        if (program->program.items[i].kind == TC_STMT_FUNC_DEF) {
+            const TcFuncDef *func = &program->program.items[i].u.func_def;
+            if (func->return_type.kind != TC_VOID) {
+                fprintf(out, "    { %d, tc_aot_func_%d, &tc_aot_ret_%d },\n",
+                        func->func_id, func->func_id, func->func_id);
+            } else {
+                fprintf(out, "    { %d, tc_aot_func_%d, NULL },\n",
+                        func->func_id, func->func_id);
+            }
+        }
+    }
+
+    fprintf(out, "    { -1, NULL, NULL }\n");
+    fprintf(out, "};\n\n");
+    return 0;
+}
+
+/* ── 嵌入模式：生成头文件 ── */
+int tc_aot_emit_embed_header(FILE *out, const TcTypedProgram *program,
+                              const char *source_name) {
+    size_t slot_count = tc_symbol_table_runtime_slot_count(&program->symbols);
+
+    (void)source_name;
+    fprintf(out, "/* Auto-generated header by tc-aot --embed. Do not edit. */\n");
+    fprintf(out, "#ifndef TC_AOT_EMBED_H\n");
+    fprintf(out, "#define TC_AOT_EMBED_H\n\n");
+    fprintf(out, "#include <stddef.h>\n");
+    fprintf(out, "#include <stdint.h>\n");
+    fprintf(out, "#include \"tc_diagnostic.h\"\n");
+    fprintf(out, "#include \"tc_aot_embed_rt.h\"\n\n");
+    if (slot_count > 0) {
+        fprintf(out, "#define TC_AOT_SLOT_COUNT %zu\n\n", slot_count);
+        fprintf(out, "extern uint64_t slots[%zu];\n\n", slot_count);
+    } else {
+        fprintf(out, "#define TC_AOT_SLOT_COUNT 1\n\n");
+        fprintf(out, "extern uint64_t slots[1];\n\n");
+    }
+    fprintf(out, "int tc_aot_init(TcDiagnostic *diag);\n");
+    fprintf(out, "void tc_aot_cleanup(void);\n\n");
+
+    /* 函数表类型 */
+    fprintf(out, "typedef void (*tc_aot_func_entry_t)(TcDiagnostic *diag);\n\n");
+    fprintf(out, "typedef struct {\n");
+    fprintf(out, "    int func_id;\n");
+    fprintf(out, "    tc_aot_func_entry_t entry;\n");
+    fprintf(out, "    uint64_t *ret_ptr;\n");
+    fprintf(out, "} tc_aot_func_entry;\n\n");
+    fprintf(out, "extern const tc_aot_func_entry tc_aot_func_table[];\n\n");
+
+    fprintf(out, "#endif /* TC_AOT_EMBED_H */\n");
+    return 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  C 文件生成入口                                                       */
 /* ------------------------------------------------------------------ */
 
-int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_name) {
+int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_name,
+                  int embed_mode) {
     size_t i = 0;
     size_t di = 0;
     size_t slot_count = tc_symbol_table_runtime_slot_count(&program->symbols);
@@ -1777,6 +1859,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     ctx.current_func_id = -1;
     ctx.current_return_type = TC_VOID;
     ctx.tmp_seq = 0;
+    ctx.embed_mode = embed_mode;
     tc_diagnostic_init(&diag);
     if (tc_symbol_name_index_build(&program->symbols, &ctx.sym_index, &diag) != 0) {
         tc_symbol_name_index_free(&ctx.sym_index);
@@ -1787,17 +1870,38 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stdio.h>\n");
     fprintf(out, "#include <stdlib.h>\n");
-    fprintf(out, "#include \"tc_aot_rt.h\"\n\n");
+    fprintf(out, "#include \"tc_aot_rt.h\"\n");
+    if (embed_mode) {
+        fprintf(out, "#include \"tc_aot_embed_rt.h\"\n");
+        /* 宏替换：将 tc_aot_abort 重定向为非致命 + return */
+        fprintf(out, "#define tc_aot_abort(diag, line) do { \\\n");
+        fprintf(out, "    tc_aot_embed_abort(diag, line); \\\n");
+        fprintf(out, "    return; \\\n");
+        fprintf(out, "} while (0)\n");
+    }
+    fputc('\n', out);
 
-    if (slot_count > 0) {
-        fprintf(out, "static uint64_t slots[%zu];\n\n", slot_count);
+    if (slot_count > 0 || embed_mode) {
+        size_t count = slot_count > 0 ? slot_count : 1;
+        const char *qual = embed_mode ? "" : "static ";
+        fprintf(out, "%suint64_t slots[%zu];\n\n", qual, count);
     }
 
-    fprintf(out, "static TcDiagnostic *tc_aot_cur_diag;\n\n");
+    if (embed_mode) {
+        fprintf(out, "TcDiagnostic *tc_aot_cur_diag;\n");
+        fprintf(out, "int tc_aot_embed_error_flag;\n\n");
+    } else {
+        fprintf(out, "static TcDiagnostic *tc_aot_cur_diag;\n\n");
+    }
 
-    tc_aot_emit_func_decls(out, program);
+    tc_aot_emit_func_decls(out, program, &ctx);
 
-    fprintf(out, "static void tc_init_static_vars(TcDiagnostic *diag) {\n");
+    /* ── 静态初始化 ── */
+    if (embed_mode) {
+        fprintf(out, "int tc_aot_init(TcDiagnostic *diag) {\n");
+    } else {
+        fprintf(out, "static void tc_init_static_vars(TcDiagnostic *diag) {\n");
+    }
     fprintf(out, "    tc_aot_cur_diag = diag;\n");
     for (di = 0; di < program->dep_count; di++) {
         if (tc_aot_emit_static_vars_program(out, &program->deps[di], &ctx) != 0) {
@@ -1810,8 +1914,12 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
             rc = -1;
         }
     }
+    if (embed_mode) {
+        fprintf(out, "    return 0;\n");
+    }
     fprintf(out, "}\n\n");
 
+    /* ── 函数定义 ── */
     if (rc == 0) {
         for (di = 0; di < program->dep_count; di++) {
             if (tc_aot_emit_functions_program(out, &program->deps[di], &ctx) != 0) {
@@ -1832,6 +1940,23 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
         return rc;
     }
 
+    /* ── 嵌入模式：函数表 + 清理函数 ── */
+    if (embed_mode) {
+        if (tc_aot_emit_func_table(out, program) != 0) {
+            tc_symbol_name_index_free(&ctx.sym_index);
+            tc_diagnostic_clear(&diag);
+            return -1;
+        }
+        fprintf(out, "void tc_aot_cleanup(void) {\n");
+        fprintf(out, "    tc_aot_memblock_heap_free_all();\n");
+        fprintf(out, "    tc_aot_struct_heap_free_all();\n");
+        fprintf(out, "}\n");
+        tc_symbol_name_index_free(&ctx.sym_index);
+        tc_diagnostic_clear(&diag);
+        return 0;
+    }
+
+    /* ── 独立程序模式：生成 main() ── */
     fprintf(out, "int main(void) {\n");
     fprintf(out, "    TcDiagnostic diag;\n");
     fprintf(out, "    tc_aot_diag_init(&diag);\n");

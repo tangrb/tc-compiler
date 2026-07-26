@@ -8,12 +8,14 @@
  *   tc-aot [options] <file.tc>
  *
  * 选项：
- *   -o, --output FILE   输出路径（默认 <input>.c）
- *   -c, --check         仅静态分析
- *   -r, --run           编译并运行生成的 C
- *   -I, --include PATH  添加模块搜索路径
- *   -h, --help          显示帮助
- *   -V, --version       显示版本号
+ *   -o, --output FILE     输出路径（默认 <input>.c）
+ *   -H, --header FILE     生成嵌入模式头文件（仅在 --embed 时有效）
+ *   -c, --check           仅静态分析
+ *   -r, --run             编译并运行生成的 C
+ *   -I, --include PATH    添加模块搜索路径
+ *   -e, --embed           嵌入库模式（不生成 main()，生成非 static 符号 + 函数表）
+ *   -h, --help            显示帮助
+ *   -V, --version         显示版本号
  *
  * 退出码：0 成功，1 失败。
  */
@@ -27,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TC_AOT_VERSION "0.0.35-01"
+#define TC_AOT_VERSION "0.0.35"
 
 #define TC_AOT_MAX_INCLUDE_PATHS 64
 
@@ -39,9 +41,11 @@ static void tc_aot_print_usage(const char *program) {
             "\n"
             "Options:\n"
             "  -o, --output FILE      write generated C to FILE (default: <input>.c)\n"
+            "  -H, --header FILE      write embed header to FILE (requires --embed)\n"
             "  -c, --check            static analysis only, do not emit C\n"
             "  -r, --run              compile and run generated C (requires host C compiler)\n"
             "  -I, --include <path>   add module search path (repeatable)\n"
+            "  -e, --embed            embed library mode (no main(), public symbols + func table)\n"
             "  -h, --help             show this help\n"
             "  -V, --version          show version\n"
             "\n"
@@ -95,9 +99,11 @@ static int tc_aot_run_generated(const char *c_path) {
 int main(int argc, char **argv) {
     static const struct option longopts[] = {
         {"output", required_argument, NULL, 'o'},
+        {"header", required_argument, NULL, 'H'},
         {"check", no_argument, NULL, 'c'},
         {"run", no_argument, NULL, 'r'},
         {"include", required_argument, NULL, 'I'},
+        {"embed", no_argument, NULL, 'e'},
         {"help", no_argument, NULL, 'h'},
         {"version", no_argument, NULL, 'V'},
         {NULL, 0, NULL, 0},
@@ -105,21 +111,27 @@ int main(int argc, char **argv) {
 
     const char *input_path = NULL;
     const char *output_path = NULL;
+    const char *header_path = NULL;
     char *owned_output_path = NULL;
     char *include_paths[TC_AOT_MAX_INCLUDE_PATHS];
     size_t include_count = 0;
     int check_only = 0;
     int run_mode = 0;
+    int embed_mode = 0;
     TcDiagnostic diag;
     TcTypedProgram program;
     FILE *out_file = NULL;
+    FILE *header_file = NULL;
     int opt;
     int rc = 0;
 
-    while ((opt = getopt_long(argc, argv, "o:crI:hV", longopts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "o:H:crI:ehV", longopts, NULL)) != -1) {
         switch (opt) {
         case 'o':
             output_path = optarg;
+            break;
+        case 'H':
+            header_path = optarg;
             break;
         case 'c':
             check_only = 1;
@@ -135,6 +147,9 @@ int main(int argc, char **argv) {
                 return 1;
             }
             include_paths[include_count++] = optarg;
+            break;
+        case 'e':
+            embed_mode = 1;
             break;
         case 'h':
             tc_aot_print_usage(argv[0]);
@@ -159,6 +174,18 @@ int main(int argc, char **argv) {
     }
 
     input_path = argv[optind];
+
+    /* 校验：--embed + -r 不兼容 */
+    if (embed_mode && run_mode) {
+        fprintf(stderr, "%s: --embed and --run are mutually exclusive\n", argv[0]);
+        return 1;
+    }
+    /* 校验：-H 需要 --embed */
+    if (header_path && !embed_mode) {
+        fprintf(stderr, "%s: --header requires --embed\n", argv[0]);
+        return 1;
+    }
+
     tc_diagnostic_init(&diag);
 
     if (include_count > 0) {
@@ -208,7 +235,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (tc_aot_emit_c(out_file, &program, input_path) != 0) {
+    if (tc_aot_emit_c(out_file, &program, input_path, embed_mode) != 0) {
         fprintf(stderr, "%s: code generation failed\n", argv[0]);
         fclose(out_file);
         free(owned_output_path);
@@ -218,6 +245,28 @@ int main(int argc, char **argv) {
     }
 
     fclose(out_file);
+
+    /* 嵌入模式头文件 */
+    if (embed_mode && header_path) {
+        header_file = fopen(header_path, "w");
+        if (!header_file) {
+            fprintf(stderr, "%s: cannot open header file '%s'\n", argv[0], header_path);
+            free(owned_output_path);
+            tc_typed_program_free(&program);
+            tc_diagnostic_clear(&diag);
+            return 1;
+        }
+        if (tc_aot_emit_embed_header(header_file, &program, input_path) != 0) {
+            fprintf(stderr, "%s: header generation failed\n", argv[0]);
+            fclose(header_file);
+            free(owned_output_path);
+            tc_typed_program_free(&program);
+            tc_diagnostic_clear(&diag);
+            return 1;
+        }
+        fclose(header_file);
+    }
+
     tc_typed_program_free(&program);
 
     /* 可选：编译并运行 */

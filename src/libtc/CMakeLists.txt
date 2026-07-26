@@ -3,11 +3,13 @@ set(TC_VM_DIR ${CMAKE_SOURCE_DIR}/src/vm)
 
 set(TC_LIBTC_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/aot
     ${TC_VM_DIR}/runtime
     ${TC_VM_DIR}/lexer
     ${TC_VM_DIR}/parser
     ${TC_VM_DIR}/analyzer
     ${TC_VM_DIR}/executor
+    ${TC_VM_DIR}/embed
 )
 
 set(TC_LIBTC_SOURCES
@@ -47,6 +49,8 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/executor/tc_memblock_exec.c
     ${TC_VM_DIR}/executor/tc_struct_exec.c
     ${TC_VM_DIR}/executor/tc_executor.c
+    ${TC_VM_DIR}/embed/tc_embed.c
+    ${TC_VM_DIR}/embed/tc_embed_aot.c
 )
 
 add_library(libtc STATIC ${TC_LIBTC_SOURCES})

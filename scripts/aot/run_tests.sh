@@ -268,9 +268,11 @@ TC ahead-of-time compiler (TC → C99).
 
 Options:
   -o, --output FILE      write generated C to FILE (default: <input>.c)
+  -H, --header FILE      write embed header to FILE (requires --embed)
   -c, --check            static analysis only, do not emit C
   -r, --run              compile and run generated C (requires host C compiler)
   -I, --include <path>   add module search path (repeatable)
+  -e, --embed            embed library mode (no main(), public symbols + func table)
   -h, --help             show this help
   -V, --version          show version
 
@@ -647,6 +649,50 @@ run_runtime_fail "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_runtime_fail "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "invalid input" "abc
 "
+
+# --- embed mode (--embed) codegen ---
+
+run_codegen_embed_contains() {
+    file="$1"
+    pattern="$2"
+    aot_c="$(mktemp "${TMPDIR:-/tmp}/tcaot.XXXXXX").c"
+
+    echo "EMBED_CODEGEN $file"
+    if ! "$AOT_BIN" --embed -o "$aot_c" "$file" >/dev/null 2>/dev/null; then
+        fail "aot --embed codegen failed: $file" "$file"
+    elif ! grep -Fq "$pattern" "$aot_c"; then
+        fail "aot --embed codegen missing '$pattern': $file" "$file"
+    else
+        pass
+    fi
+    rm -f "$aot_c"
+}
+
+run_codegen_embed_not_contains() {
+    file="$1"
+    pattern="$2"
+    aot_c="$(mktemp "${TMPDIR:-/tmp}/tcaot.XXXXXX").c"
+
+    echo "EMBED_CODEGEN_NO $file"
+    if ! "$AOT_BIN" --embed -o "$aot_c" "$file" >/dev/null 2>/dev/null; then
+        fail "aot --embed codegen failed: $file" "$file"
+    elif grep -Fq "$pattern" "$aot_c"; then
+        fail "aot --embed codegen unexpectedly contains '$pattern': $file" "$file"
+    else
+        pass
+    fi
+    rm -f "$aot_c"
+}
+
+# embed mode: 必须包含嵌入运行时头文件和函数表
+run_codegen_embed_contains "$ROOT/tests/vm/embed/nested_call.tc" 'tc_aot_embed_rt.h'
+run_codegen_embed_contains "$ROOT/tests/vm/embed/nested_call.tc" 'tc_aot_func_table'
+run_codegen_embed_contains "$ROOT/tests/vm/embed/nested_call.tc" 'tc_aot_init'
+run_codegen_embed_contains "$ROOT/tests/vm/embed/nested_call.tc" 'tc_aot_cleanup'
+# embed mode: 不生成 main()
+run_codegen_embed_not_contains "$ROOT/tests/vm/embed/nested_call.tc" 'int main(void)'
+# embed mode: 函数非 static
+run_codegen_embed_not_contains "$ROOT/tests/vm/embed/nested_call.tc" 'static void tc_'
 
 echo ""
 echo "$PASSED passed, $FAILED failed"

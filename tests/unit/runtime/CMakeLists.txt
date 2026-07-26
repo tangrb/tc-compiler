@@ -6,6 +6,7 @@ set(TC_VM_INCLUDE_DIRS
     ${TC_VM_DIR}/parser
     ${TC_VM_DIR}/analyzer
     ${TC_VM_DIR}/executor
+    ${TC_VM_DIR}/embed
     ${TC_VM_DIR}/driver
 )
 
@@ -350,4 +351,45 @@ add_custom_target(check-type-check
     DEPENDS test-type-check
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running Type-check unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-embed — TC-Embed 嵌入运行时单元测试                             #
+# ------------------------------------------------------------------ #
+
+add_executable(test-embed test_embed.c)
+target_link_libraries(test-embed PRIVATE libtc)
+target_include_directories(test-embed PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-embed PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-embed
+    COMMAND test-embed
+    DEPENDS test-embed
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Embed unit tests"
+)
+
+# ------------------------------------------------------------------ #
+#  test-embed-aot — TC-Embed AOT 模式单元测试                          #
+# ------------------------------------------------------------------ #
+
+add_executable(test-embed-aot test_embed_aot.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_codegen.c
+)
+target_link_libraries(test-embed-aot PRIVATE libtc)
+target_include_directories(test-embed-aot PRIVATE
+    ${TC_VM_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/libtc
+    ${CMAKE_SOURCE_DIR}/src/aot
+)
+target_compile_definitions(test-embed-aot PRIVATE
+    TC_SRC_DIR="${CMAKE_SOURCE_DIR}"
+)
+target_compile_options(test-embed-aot PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-embed-aot
+    COMMAND test-embed-aot
+    DEPENDS test-embed-aot
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Embed AOT unit tests"
 )

@@ -1,0 +1,11 @@
+; TC-Embed 测试：while 循环计数（用于重复调用验证）
+; 在 embed 上下文中测试 while 控制流与重复调用
+; 与 ptr_sum.tc（基于 ptr）和 nested_call.tc（funcall 嵌套）互补
+#lib
+public func run_loop(n: int32) int32 then
+    var count: int32 = 0
+    while lt(int32, count, n) then
+        count = add(int32, count, 1)
+    end
+    return count
+end

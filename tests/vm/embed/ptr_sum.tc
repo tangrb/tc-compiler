@@ -1,0 +1,9 @@
+; TC-Embed 测试：ptr_load（常量偏移）
+#lib
+public func sum(data: ptr<int32>) int32 then
+    var a: int32 = ptr_load(int32, data)
+    var p1: ptr<int32> = ptr_add(int32, data, 1)
+    var b: int32 = ptr_load(int32, p1)
+    var total: int32 = add(int32, a, b)
+    return total
+end

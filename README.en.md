@@ -4,9 +4,10 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 
 - **libtc**: an embeddable static library for compilation, static analysis, and execution;
 - **TC-VM**: a command-line tool that directly executes TC source files;
-- **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99.
+- **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
+- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (new in v0.0.36).
 
-Current version: **v0.0.35**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.35.md) is the sole authority for language syntax and observable semantics.
+Current core version: **v0.0.35**, Embed module version: **v0.0.36**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.35.md) is the sole authority for language syntax and observable semantics.
 
 ## Quick Start
 
@@ -36,8 +37,6 @@ Run the complete standard regression suite:
 bash scripts/run_tests.sh
 ```
 
-The current release baseline is **661 VM + 2042 unit + 313 AOT**, for 3,016 test assertions or scenarios, with zero failures in all three groups.
-
 ## Implemented Capabilities
 
 | Category | Current capabilities |
@@ -53,6 +52,7 @@ The current release baseline is **661 VM + 2042 unit + 313 AOT**, for 3,016 test
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
 | Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; VM + AOT) |
+| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.36) |
 
 Version 0.0.35 does not include strings, a bytecode file format, or JIT.
 
@@ -95,14 +95,16 @@ See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.35.md) for compl
 ### TC-AOT
 
 ```sh
-./build/aot/bin/tc-aot source.tc             # Generate source.c
+./build/aot/bin/tc-aot source.tc             # Generate source.c (standard mode, with main())
 ./build/aot/bin/tc-aot -o output.c source.tc # Select the C output path
 ./build/aot/bin/tc-aot --check source.tc      # Static analysis only; emit no C
 ./build/aot/bin/tc-aot --run source.tc        # Generate, compile with host cc, and run
+./build/aot/bin/tc-aot --embed source.tc      # Embed library mode: no main(), public symbols + func table
+./build/aot/bin/tc-aot --embed -H out.h source.tc  # Embed mode + generate host header file
 ./build/aot/bin/tc-aot --help
 ```
 
-`--run` depends on a host C99 toolchain. Pure code generation and `--check` do not make host compiler availability a condition of TC language conformance.
+`--run` depends on a host C99 toolchain. Pure code generation and `--check` do not make host compiler availability a condition of TC language conformance. `--embed` and `--run` are mutually exclusive.
 
 ## Embedding libtc
 
@@ -144,6 +146,77 @@ int main(void) {
 
 The public entry points are `tc_compile_source`, `tc_compile_file`, `tc_set_module_search_paths`, and `tc_run_program`. See the [libtc Embedding API](docs/libtc-api-0.0.35.md) for complete ownership, diagnostics, and build details.
 
+## Embedding TC-Embed (v0.0.36)
+
+TC-Embed provides C host programs with zero-copy calling of TC compilation artifacts. C and TC share the same `TcValue slots[]` array, and the `ptr<T>` slot encoding `(slot << 1) | 1` serves as the unified handle for passing variable references between C and TC.
+
+Core headers: `src/vm/embed/tc_embed.h` + `src/vm/embed/tc_value_bridge.h`.
+
+### VM Mode
+
+Compile TC source via libtc, then create an embed context with `tc_embed_create`:
+
+```c
+#include "tc_embed.h"
+#include "tc_value_bridge.h"
+#include "tc_lib.h"
+
+int main(void) {
+    const char *src =
+        "#lib\n"
+        "func add(a: int32, b: int32) -> int32\n"
+        "    return(a + b)\n"
+        "end\n";
+    TcDiagnostic diag;
+    TcTypedProgram prog;
+
+    tc_diagnostic_init(&diag);
+    if (tc_compile_source(src, "add.tc", &prog, &diag) != 0) { /* handle */ }
+
+    TcEmbedCtx *ctx = tc_embed_create(&prog, &diag);
+
+    /* Look up function info */
+    const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, NULL, "add");
+
+    /* Construct arguments and call */
+    TcValue args[] = { tc_value_from_int32(3), tc_value_from_int32(4) };
+    TcValue result;
+    tc_embed_call(ctx, NULL, "add", 2, args, &result);
+
+    int32_t ret;
+    tc_value_to_int32(result, &ret);
+    printf("3 + 4 = %d\n", ret);  /* Prints: 3 + 4 = 7 */
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+    return 0;
+}
+```
+
+### AOT Mode
+
+Transpile TC source via `tc-aot --embed` into embed-library C code, compile with host `cc` as a shared library, and load via `tc_embed_create_aot`. The same `tc_embed_call` / `tc_embed_slot_*` / `tc_embed_ptr_*` API is compatible across VM and AOT modes.
+
+```sh
+# Generate embed library C code and header
+./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
+# Compile as a shared library, link with host program
+cc -shared -o libmylib.so mylib.c src/vm/runtime/tc_sem_*.c -I src/vm/runtime
+```
+
+### Value Bridging
+
+`tc_value_bridge.h` provides `tc_value_from_*` / `tc_value_to_*` pure inline helper functions covering `int8`–`int64`, `uint8`–`uint64`, `float32`, `float64`, and `bool`, with no extra compilation units or runtime overhead.
+
+```c
+TcValue v = tc_value_from_int64(42);
+int64_t x;
+tc_value_to_int64(v, &x);
+```
+
+See the [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.36.md) for the complete API design.
+
 ## Tests and Quality Gates
 
 ### Standard Regression
@@ -162,16 +235,6 @@ make test-unit
 make test-aot
 make test
 ```
-
-Current standard regression size:
-
-| Test group | Size | Primary coverage |
-| ---------- | ---: | ---------------- |
-| VM conformance | 661 | Execution, `--check`, diagnostics, and stress scenarios |
-| C unit | 2042 | 18 targets covering lexer, parser, semantics, cfg, analyzer, libtc, executor, and more |
-| AOT differential | 313 | VM/AOT stdout, static acceptance, runtime errors, I/O, and bit-pattern differentials |
-
-These numbers are assertions or scenarios reported by the test scripts, not source-file counts.
 
 ### Static Structure Checks
 
@@ -234,16 +297,25 @@ Regression limits are stored in `tests/stress/bench_limits.txt`.
 docs/               Formal language, implementation, CLI, and API documents
 src/
 ├── libtc/          Embeddable compile/execute library
-├── vm/             lexer, parser, analyzer, executor, runtime, and driver
-└── aot/            C99 codegen, runtime shim, and CLI
+├── vm/
+│   ├── lexer/      Lexer
+│   ├── parser/     Parser
+│   ├── analyzer/   Static analysis (CFG, type checking, function/call graph)
+│   ├── executor/   Executor and call frames
+│   ├── runtime/    Runtime (types, semantics, I/O, symbols, diagnostics)
+│   ├── embed/      TC-Embed embedded runtime (v0.0.36)
+│   └── driver/     Entry point and version
+└── aot/            C99 codegen, runtime shim, CLI, embed-mode runtime
 tests/
 ├── valid/          Valid programs and observable output
 ├── errors/         Static and runtime errors
-├── unit/           C unit tests
+├── vm/embed/       TC-Embed integration tests
+├── unit/           C unit tests (27 targets, incl. check-embed / check-embed-aot)
+├── modules/        Module system tests
 └── stress/         Stress and performance scenarios
 scripts/
 ├── vm/             VM regression and benchmarks
-├── aot/            AOT differential tests
+├── aot/            AOT differential and embed codegen tests
 └── sync/           RHS dispatch and source naming checks
 ```
 
@@ -258,6 +330,7 @@ scripts/
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.35.md) | VM pipeline, IR, CFG, and executor design |
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.35.md) | C99 generation, runtime shim, and differential verification |
 | [libtc Design Document](docs/libtc设计说明书-0.0.35.md) | libtc architecture, transactions, lifecycle, and error contract |
+| [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.36.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Design–Implementation Conformance Report](docs/设计实现合规审查报告-0.0.35.md) | The ~182-item 0.0.35 conformance matrix and release evidence |
 
 ## Git Hooks
@@ -268,6 +341,10 @@ Optionally install the repository hooks:
 make hooks
 # Or: bash scripts/install-git-hooks.sh
 ```
+
+## License
+
+This project is released under the Apache License 2.0. See [LICENSE](LICENSE).
 
 ## Author
 

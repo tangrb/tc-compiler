@@ -28,6 +28,9 @@ HEADER_ONLY_H = frozenset({
     "tc_analyzer_internal.h",  # analyzer 子模块共享类型/声明
     "tc_executor_internal.h",  # executor / ptr / memblock 共享上下文
     "tc_stmt_index.h",  # header-only inline 实现
+    "tc_embed_internal.h",  # embed 内部结构，实现在 tc_embed.c + tc_embed_aot.c
+    "tc_value_bridge.h",  # header-only 值桥接 inline 函数
+    "tc_aot_embed_rt.h",  # header-only AOT 嵌入运行时 shim
 })
 
 
