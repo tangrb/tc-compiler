@@ -1,0 +1,465 @@
+#program
+; ============================================================
+; TC 0.0.35 综合演示程序
+; 演示全部语言特性：类型系统、运算符、控制流、函数调用、
+; 指针、内存块、结构体、I/O
+; ============================================================
+
+; --- 模块导入 ---
+import MyLib
+
+; ============================================================
+; 一、struct 结构体定义
+; ============================================================
+struct Point3D then
+    var x: int32
+    var y: int32
+    var z: int32
+end
+
+struct Person then
+    var age: int32
+    var height: float64
+end
+
+; ============================================================
+; 二、let 编译期常量
+; ============================================================
+let ANSWER: int32 = 42
+let GOLDEN_RATIO: float64 = 1.618033988749895
+let MAX_COUNT: int32 = 10
+
+; ============================================================
+; 三、全部整数类型变量声明
+; ============================================================
+; 1 表示开始: 整数类型演示
+writeln(int32, 1)
+
+var i8: int8 = 100
+var u8: uint8 = 200u
+var i16: int16 = 30000
+var u16: uint16 = 60000u
+var i32: int32 = 2000000000
+var u32: uint32 = 4000000000u
+var i64: int64 = 9000000000000000000
+var u64: uint64 = 18000000000000000000u
+
+writeln(int8, %d, i8)
+writeln(uint8, %u, u8)
+writeln(int16, %d, i16)
+writeln(uint16, %u, u16)
+writeln(int32, %d, i32)
+writeln(uint32, %u, u32)
+writeln(int64, %d, i64)
+writeln(uint64, %u, u64)
+
+var is: isize = -1
+var us: usize = 9999
+writeln(isize, %d, is)
+writeln(usize, %u, us)
+
+; ============================================================
+; 四、浮点类型
+; ============================================================
+; 2 表示开始: 浮点类型演示
+writeln(int32, 2)
+
+var f32: float32 = 3.14f
+var f64: float64 = 2.718281828459045
+writeln(float32, %f, f32)
+writeln(float64, %.6f, f64)
+
+var pos_inf: float64 = inf
+var neg_inf: float64 = -inf
+var not_num: float64 = nan
+writeln(float64, pos_inf)
+writeln(float64, neg_inf)
+writeln(float64, not_num)
+
+; ============================================================
+; 五、布尔类型
+; ============================================================
+; 3 表示开始: 布尔类型演示
+writeln(int32, 3)
+
+var t: bool = true
+var f: bool = false
+writeln(bool, t)
+writeln(bool, f)
+
+; ============================================================
+; 六、算术运算 (add/sub/mul/div/mod/abs/neg)
+; ============================================================
+; 4 表示开始: 算术运算演示
+writeln(int32, 4)
+
+var a1: int32 = add(int32, 100, 50)
+var a2: int32 = sub(int32, a1, 30)
+var a3: int32 = mul(int32, a2, 2)
+var a4: int32 = div(int32, a3, 4)
+var a5: int32 = mod(int32, a4, 7)
+var a6: int32 = abs(int32, -99)
+var a7: int32 = neg(int32, 55)
+
+writeln(int32, %d, a1)
+writeln(int32, %d, a2)
+writeln(int32, %d, a3)
+writeln(int32, %d, a4)
+writeln(int32, %d, a5)
+writeln(int32, %d, a6)
+writeln(int32, %d, a7)
+
+var ua1: uint32 = add(uint32, 1000u, 2000u)
+var ua2: uint32 = mul(uint32, ua1, 2u)
+writeln(uint32, %u, ua2)
+
+var fp1: float64 = add(float64, 1.5, 2.5)
+var fp2: float64 = mul(float64, fp1, 3.0)
+var fp3: float64 = div(float64, fp2, 2.0)
+writeln(float64, %.1f, fp1)
+writeln(float64, %.1f, fp2)
+writeln(float64, %.1f, fp3)
+
+var w1: int8 = sub(int8, wrap, -128, 1)
+writeln(int8, %d, w1)
+
+var ieee_div: float64 = div(float64, ieee, 1.0, 0.0)
+writeln(float64, ieee_div)
+
+; ============================================================
+; 七、位运算 (and/or/xor/not/shl/shr)
+; ============================================================
+; 5 表示开始: 位运算演示
+writeln(int32, 5)
+
+var b1: uint8 = and(uint8, 0xF0u, 0x0Fu)
+var b2: uint8 = or(uint8, 0xF0u, 0x0Fu)
+var b3: uint8 = xor(uint8, 0xAAu, 0x55u)
+var b4: uint8 = not(uint8, 0x0Fu)
+var b5: uint8 = shl(uint8, 1u, 3)
+var b6: uint8 = shr(uint8, 0x80u, 4)
+
+writeln(uint8, %x, b1)
+writeln(uint8, %x, b2)
+writeln(uint8, %x, b3)
+writeln(uint8, %x, b4)
+writeln(uint8, %x, b5)
+writeln(uint8, %x, b6)
+
+; ============================================================
+; 八、比较运算 (eq/ne/lt/le/gt/ge)
+; ============================================================
+; 6 表示开始: 比较运算演示
+writeln(int32, 6)
+
+var eq_v: bool = eq(int32, 5, 5)
+var ne_v: bool = ne(int32, 5, 3)
+var lt_v: bool = lt(int32, 3, 5)
+var le_v: bool = le(int32, 5, 5)
+var gt_v: bool = gt(int32, 5, 3)
+var ge_v: bool = ge(int32, 5, 5)
+
+writeln(bool, eq_v)
+writeln(bool, ne_v)
+writeln(bool, lt_v)
+writeln(bool, le_v)
+writeln(bool, gt_v)
+writeln(bool, ge_v)
+
+; ============================================================
+; 九、逻辑运算 (and/or/xor/not for bool)
+; ============================================================
+; 7 表示开始: 逻辑运算演示
+writeln(int32, 7)
+
+var land: bool = and(bool, true, false)
+var lor: bool = or(bool, false, true)
+var lxor: bool = xor(bool, true, false)
+var lnot: bool = not(bool, true)
+
+writeln(bool, land)
+writeln(bool, lor)
+writeln(bool, lxor)
+writeln(bool, lnot)
+
+; ============================================================
+; 十、类型转换 (cast / truncate / bitcast)
+; ============================================================
+; 8 表示开始: 类型转换演示
+writeln(int32, 8)
+
+var cv1: int64 = cast(int64, 100)
+var cv2: int8 = cast(int8, truncate, 1000)
+writeln(int64, %d, cv1)
+writeln(int8, %d, cv2)
+
+var cf1: float64 = cast(float64, 42)
+var cf2: int32 = cast(int32, 3.14)
+writeln(float64, %.1f, cf1)
+writeln(int32, %d, cf2)
+
+var cb1: int32 = cast(int32, true)
+var cb2: bool = cast(bool, 0)
+writeln(int32, %d, cb1)
+writeln(bool, cb2)
+
+var bcv1: uint32 = bitcast(uint32, 1.0f)
+writeln(uint32, %x, bcv1)
+
+; ============================================================
+; 十一、控制流 — if / else / end
+; ============================================================
+; 9 表示开始: if/else 演示
+writeln(int32, 9)
+
+var score: int32 = 85
+if ge(int32, score, 90) then
+    writeln(int32, 90)
+else
+    if ge(int32, score, 80) then
+        writeln(int32, 80)
+    else
+        if ge(int32, score, 60) then
+            writeln(int32, 60)
+        else
+            writeln(int32, 0)
+        end
+    end
+end
+
+; ============================================================
+; 十二、控制流 — while / break / continue
+; ============================================================
+; 10 表示开始: while 循环演示
+writeln(int32, 10)
+
+var count: int32 = 0
+while lt(int32, count, 5) then
+    writeln(int32, %d, count)
+    count = add(int32, count, 1)
+end
+
+var num: int32 = 1
+var found: int32 = 0
+while le(int32, num, 100) then
+    var rem: int32 = mod(int32, num, 7)
+    if eq(int32, rem, 0) then
+        found = num
+        break
+    end
+    num = add(int32, num, 1)
+end
+writeln(int32, %d, found)
+
+; ============================================================
+; 十三、指针操作 (ptr)
+; ============================================================
+; 11 表示开始: 指针操作演示
+writeln(int32, 11)
+
+var origin: int32 = 42
+var p: ptr<int32> = ptr_address(int32, origin)
+var read_val: int32 = ptr_load(int32, p)
+writeln(int32, %d, read_val)
+
+ptr_store(int32, p, 99)
+var after: int32 = ptr_load(int32, p)
+writeln(int32, %d, after)
+
+var arr0: int32 = 10
+var pbase: ptr<int32> = ptr_address(int32, arr0)
+
+; ptr_add / ptr_sub — 偏移0 (安全，指向自身)
+var p_off0: usize = 0
+var p1: ptr<int32> = ptr_add(int32, pbase, p_off0)
+var v1: int32 = ptr_load(int32, p1)
+writeln(int32, %d, v1)
+
+; ptr_eq / ptr_ne
+var same: bool = ptr_eq(int32, pbase, pbase)
+var diff: bool = ptr_ne(int32, pbase, p1)
+writeln(bool, same)
+writeln(bool, diff)
+
+var psize: usize = ptr_size(int32, pbase)
+writeln(usize, %u, psize)
+
+; ============================================================
+; 十四、内存块 (memblock)
+; ============================================================
+; 12 表示开始: memblock 操作演示
+writeln(int32, 12)
+
+var mb: memblock<int32, 3> = memblock(int32, count: 3, 100, 200, 300)
+
+var mbc: usize = mb.count
+writeln(usize, %u, mbc)
+
+var mb0: int32 = memblock_load(int32, mb, 0)
+var mb1: int32 = memblock_load(int32, mb, 1)
+var mb2: int32 = memblock_load(int32, mb, 2)
+
+writeln(int32, %d, mb0)
+writeln(int32, %d, mb1)
+writeln(int32, %d, mb2)
+
+memblock_store(int32, mb, 1, 999)
+var mb1_new: int32 = memblock_load(int32, mb, 1)
+writeln(int32, %d, mb1_new)
+
+; ============================================================
+; 十五、结构体操作
+; ============================================================
+; 13 表示开始: struct 操作演示
+writeln(int32, 13)
+
+var pt: Point3D = Point3D(x: 1, y: 2, z: 3)
+
+var px: int32 = pt.x
+var py: int32 = pt.y
+var pz: int32 = pt.z
+
+writeln(int32, %d, px)
+writeln(int32, %d, py)
+writeln(int32, %d, pz)
+
+pt.x = 10
+pt.y = 20
+pt.z = 30
+
+var px2: int32 = pt.x
+var py2: int32 = pt.y
+var pz2: int32 = pt.z
+writeln(int32, %d, px2)
+writeln(int32, %d, py2)
+writeln(int32, %d, pz2)
+
+var person: Person = Person(age: 25, height: 1.75)
+var page: int32 = person.age
+var pheight: float64 = person.height
+writeln(int32, %d, page)
+writeln(float64, %.2f, pheight)
+
+; ============================================================
+; 十六、函数调用 (funcall)
+; ============================================================
+; 14 表示开始: funcall 函数调用演示
+writeln(int32, 14)
+
+var sum: int32 = funcall(MyLib.add_two, a: 10, b: 20)
+writeln(int32, %d, sum)
+
+var mac: int32 = funcall(MyLib.multiply_add, x: 2, y: 3, z: 4)
+writeln(int32, %d, mac)
+
+var area: float64 = funcall(MyLib.circle_area, radius: 5.0)
+writeln(float64, %.6f, area)
+
+var even: bool = funcall(MyLib.is_even, n: 42)
+writeln(bool, even)
+
+; void 函数调用 (独立语句) -> 改为 get_counter
+var cnt1: int32 = funcall(MyLib.get_counter)
+writeln(int32, %d, cnt1)
+
+var fac: int32 = funcall(MyLib.factorial, n: 5)
+writeln(int32, %d, fac)
+
+var rsum: int32 = funcall(MyLib.range_sum, from: 1, to: 10)
+writeln(int32, %d, rsum)
+
+var v: Vec2 = funcall(MyLib.make_vec2, x: 3.0, y: 4.0)
+var vx: float64 = v.x
+var vy: float64 = v.y
+writeln(float64, %.1f, vx)
+writeln(float64, %.1f, vy)
+
+var mb3: memblock<int32, 5> = memblock(int32, count: 5, 1, 2, 3, 4, 5)
+var mb_sum: int32 = funcall(MyLib.memblock_sum, mb: mb3)
+writeln(int32, %d, mb_sum)
+
+var wr: int8 = sub(int8, wrap, -128, 1)
+writeln(int8, %d, wr)
+
+var sd: float64 = div(float64, ieee, 1.0, 0.0)
+writeln(float64, sd)
+
+var mv: int32 = 7
+var mp: ptr<int32> = ptr_address(int32, mv)
+funcall(MyLib.double_value, p: mp)
+var doubled_val: int32 = ptr_load(int32, mp)
+writeln(int32, %d, doubled_val)
+
+var st_val: int32 = funcall(MyLib.get_counter)
+writeln(int32, %d, st_val)
+
+; ============================================================
+; 十七、I/O 格式化输出演示
+; ============================================================
+; 15 表示开始: 格式演示
+writeln(int32, 15)
+
+var fmt_i: int32 = -42
+writeln(int32, %d, fmt_i)
+writeln(int32, %i, fmt_i)
+writeln(int32, %+d, fmt_i)
+writeln(int32, %08d, fmt_i)
+
+var fmt_u: uint32 = 255u
+writeln(uint32, %u, fmt_u)
+writeln(uint32, %x, fmt_u)
+writeln(uint32, %X, fmt_u)
+writeln(uint32, %#x, fmt_u)
+writeln(uint32, %o, fmt_u)
+writeln(uint32, %b, fmt_u)
+
+var fmt_f: float64 = 3.14159265
+writeln(float64, %f, fmt_f)
+writeln(float64, %.2f, fmt_f)
+writeln(float64, %e, fmt_f)
+writeln(float64, %E, fmt_f)
+writeln(float64, %g, fmt_f)
+writeln(float64, %G, fmt_f)
+
+var fmt_b: bool = true
+writeln(bool, %t, fmt_b)
+writeln(bool, %t, fmt_b)
+
+; ============================================================
+; 十八、复合示例: 使用let常量 + 位运算构建标志位
+; ============================================================
+; 16 表示开始: 标志位演示
+writeln(int32, 16)
+
+let FLAG_READ: uint8 = 1u
+let FLAG_WRITE: uint8 = 2u
+let FLAG_EXEC: uint8 = 4u
+
+var flags: uint8 = or(uint8, FLAG_READ, FLAG_WRITE)
+flags = or(uint8, flags, FLAG_EXEC)
+writeln(uint8, %b, flags)
+
+var and_read: uint8 = and(uint8, flags, FLAG_READ)
+var and_write: uint8 = and(uint8, flags, FLAG_WRITE)
+var has_read: bool = ne(uint8, and_read, 0u)
+var has_write: bool = ne(uint8, and_write, 0u)
+writeln(bool, has_read)
+writeln(bool, has_write)
+
+; ============================================================
+; 十九、静态布尔判断（三态判定）
+; ============================================================
+; 17 表示开始: 静态条件演示
+writeln(int32, 17)
+
+if and(bool, true, true) then
+    writeln(int32, 999)
+end
+
+var unknown: bool = ne(int32, ANSWER, 0)
+if unknown then
+    writeln(int32, ANSWER)
+end
+
+; 99 表示演示完毕
+writeln(int32, 99)

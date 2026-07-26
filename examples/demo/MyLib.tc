@@ -1,0 +1,100 @@
+#lib
+; MyLib — 综合演示库模块
+; 演示 static let、static var、struct 定义、多种函数形态
+
+; --- struct 结构体定义 (必须在 static 声明之前) ---
+public struct Vec2 then
+    var x: float64
+    var y: float64
+end
+
+; --- static let 编译期常量 ---
+public static let PI: float64 = 3.141592653589793
+public static let TAU: float64 = mul(float64, 2.0, 3.141592653589793)
+
+; --- static var 可写静态变量 (拓扑初始化) ---
+public static var counter: int32 = 0
+
+; --- 函数: 加法 ---
+public func add_two(a: int32, b: int32) int32 then
+    var result: int32 = add(int32, a, b)
+    return result
+end
+
+; --- 函数: 乘积累加 ---
+public func multiply_add(x: int32, y: int32, z: int32) int32 then
+    var product: int32 = mul(int32, x, y)
+    var result: int32 = add(int32, product, z)
+    return result
+end
+
+; --- 函数: 计算圆面积 ---
+public func circle_area(radius: float64) float64 then
+    var r2: float64 = mul(float64, radius, radius)
+    var pi: float64 = Self.PI
+    var area: float64 = mul(float64, pi, r2)
+    return area
+end
+
+; --- 函数: 判断是否为偶数 ---
+public func is_even(n: int32) bool then
+    var m: int32 = mod(int32, n, 2)
+    var result: bool = eq(int32, m, 0)
+    return result
+end
+
+; --- 函数: void 返回 (演示 static var 读取) ---
+public func get_counter() int32 then
+    var v: int32 = Self.counter
+    return v
+end
+
+; --- 函数: 返回 struct ---
+public func make_vec2(x: float64, y: float64) Vec2 then
+    var v: Vec2 = Vec2(x: x, y: y)
+    return v
+end
+
+; --- 函数: 操作 memblock ---
+public func memblock_sum(mb: memblock<int32, 5>) int32 then
+    var a: int32 = memblock_load(int32, mb, 0)
+    var b: int32 = memblock_load(int32, mb, 1)
+    var c: int32 = memblock_load(int32, mb, 2)
+    var d: int32 = memblock_load(int32, mb, 3)
+    var e: int32 = memblock_load(int32, mb, 4)
+    var s1: int32 = add(int32, a, b)
+    var s2: int32 = add(int32, s1, c)
+    var s3: int32 = add(int32, s2, d)
+    var s4: int32 = add(int32, s3, e)
+    return s4
+end
+
+; --- 函数: 计算阶乘 (使用 while 循环) ---
+public func factorial(n: int32) int32 then
+    var result: int32 = 1
+    var i: int32 = 1
+    while le(int32, i, n) then
+        result = mul(int32, result, i)
+        i = add(int32, i, 1)
+    end
+    return result
+end
+
+; --- 函数: 区间求和 (循环替代递归) ---
+public func range_sum(from: int32, to: int32) int32 then
+    var total: int32 = 0
+    var i: int32 = from
+    while le(int32, i, to) then
+        total = add(int32, total, i)
+        i = add(int32, i, 1)
+    end
+    return total
+end
+
+; --- 函数: 演示 ptr 操作 ---
+public func double_value(p: ptr<int32>) void then
+    var v: int32 = ptr_load(int32, p)
+    var doubled: int32 = mul(int32, v, 2)
+    ptr_store(int32, p, doubled)
+    return
+end
