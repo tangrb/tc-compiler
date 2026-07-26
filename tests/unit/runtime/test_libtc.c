@@ -152,9 +152,9 @@ static void test_repeated_aot_consumption(void) {
     tc_diagnostic_init(&diag);
     check(tc_compile_source("#program\nvar value: int32 = 11\n", "<test>", &program, &diag) == 0,
           "compile program for repeated AOT consumption");
-    check(tc_aot_emit_c(first, &program, "<first>") == 0,
+    check(tc_aot_emit_c(first, &program, "<first>", 0) == 0,
           "first AOT emission succeeds");
-    check(tc_aot_emit_c(second, &program, "<first>") == 0,
+    check(tc_aot_emit_c(second, &program, "<first>", 0) == 0,
           "second AOT emission succeeds");
     check(streams_equal(first, second), "repeated AOT emissions are byte-identical");
     check(tc_run_program(&program, &diag) == 0,

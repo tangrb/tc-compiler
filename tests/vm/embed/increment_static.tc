@@ -1,0 +1,8 @@
+; TC-Embed 测试：static var 读取（供重复调用验证）
+#lib
+public static var counter: int32 = 0
+
+public func get_counter() int32 then
+    var v: int32 = Self.counter
+    return v
+end

@@ -1,0 +1,11 @@
+; TC-Embed 测试：嵌套 funcall
+#lib
+private func inner(x: int32) int32 then
+    var r: int32 = add(int32, x, 1)
+    return r
+end
+
+public func outer(x: int32) int32 then
+    var r: int32 = funcall(Self.inner, x: x)
+    return r
+end

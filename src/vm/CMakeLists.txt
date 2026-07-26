@@ -8,6 +8,7 @@ set(TC_VM_INCLUDE_DIRS
     ${TC_VM_DIR}/parser
     ${TC_VM_DIR}/analyzer
     ${TC_VM_DIR}/executor
+    ${TC_VM_DIR}/embed
     ${TC_VM_DIR}/driver
 )
 

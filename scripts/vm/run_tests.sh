@@ -1893,6 +1893,14 @@ run_expect_check_fail "$ROOT/tests/modules/duplicate_import.tc" "duplicate impor
 run_expect_check_fail "$ROOT/tests/modules/import_not_lib.tc" "imported module is not #lib"
 run_expect_check_ok "$ROOT/tests/modules/import_ok.tc"
 
+# --- v0.0.36 TC-Embed: library function checking ---
+run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"
+run_expect_check_ok "$ROOT/tests/vm/embed/ptr_inplace.tc"
+run_expect_check_ok "$ROOT/tests/vm/embed/ptr_loop.tc"
+run_expect_check_ok "$ROOT/tests/vm/embed/nested_call.tc"
+run_expect_check_ok "$ROOT/tests/vm/embed/sum_while.tc"
+run_expect_check_ok "$ROOT/tests/vm/embed/increment_static.tc"
+
 # -I module search path
 run_include_search() {
     label="$1"
