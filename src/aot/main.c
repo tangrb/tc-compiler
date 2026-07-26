@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TC_AOT_VERSION "0.0.35"
+#define TC_AOT_VERSION "0.0.35-01"
 
 #define TC_AOT_MAX_INCLUDE_PATHS 64
 
