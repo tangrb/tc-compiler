@@ -4,9 +4,10 @@ TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 
 - **libtc**：编译、静态分析和执行的嵌入式静态库；
 - **TC-VM**：直接执行 TC 源文件的命令行工具；
-- **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器。
+- **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器；
+- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.36 新增）。
 
-当前版本：**v0.0.35**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.35.md) 为唯一权威来源。
+当前核心版本：**v0.0.35**，Embed 模块版本：**v0.0.36**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.35.md) 为唯一权威来源。
 
 ## 快速开始
 
@@ -36,8 +37,6 @@ make
 bash scripts/run_tests.sh
 ```
 
-当前发布基线为 **661 VM + 2042 unit + 313 AOT**，共 3016 个测试断言或场景，三组均为零失败。
-
 ## 已实现能力
 
 | 类别 | 当前能力 |
@@ -53,6 +52,7 @@ bash scripts/run_tests.sh
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
 | 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
 | 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；VM + AOT） |
+| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.36） |
 
 0.0.35 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 
@@ -95,18 +95,20 @@ cmake --build build --target libtc
 ### TC-AOT
 
 ```sh
-./build/aot/bin/tc-aot source.tc             # 生成 source.c
+./build/aot/bin/tc-aot source.tc             # 生成 source.c（标准模式，含 main()）
 ./build/aot/bin/tc-aot -o output.c source.tc # 指定 C 输出路径
 ./build/aot/bin/tc-aot --check source.tc      # 仅静态分析，不生成 C
 ./build/aot/bin/tc-aot --run source.tc        # 生成、用宿主 cc 编译并执行
+./build/aot/bin/tc-aot --embed source.tc      # 嵌入库模式：无 main()，公开符号 + 函数表
+./build/aot/bin/tc-aot --embed -H out.h source.tc  # 嵌入模式 + 生成宿主头文件
 ./build/aot/bin/tc-aot --help
 ```
 
-`--run` 依赖宿主 C99 工具链；纯代码生成和 `--check` 不要求把宿主编译器可用性视为 TC 语言合规条件。
+`--run` 依赖宿主 C99 工具链；纯代码生成和 `--check` 不要求把宿主编译器可用性视为 TC 语言合规条件。`--embed` 与 `--run` 互斥。
 
 ## 嵌入 libtc
 
-libtc 采用“成功才转移所有权”的契约：编译成功后，调用方必须释放 `TcTypedProgram`；编译失败时，调用方没有取得输出所有权，不得释放本次输出。
+libtc 采用"成功才转移所有权"的契约：编译成功后，调用方必须释放 `TcTypedProgram`；编译失败时，调用方没有取得输出所有权，不得释放本次输出。
 
 ```c
 #include <stdio.h>
@@ -144,6 +146,77 @@ int main(void) {
 
 公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_set_module_search_paths` 和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.35.md)。
 
+## 嵌入 TC-Embed（v0.0.36）
+
+TC-Embed 提供 C 宿主程序对 TC 编译产物的零拷贝调用能力。C 和 TC 共享同一个 `TcValue slots[]` 数组，`ptr<T>` 槽位编码 `(slot << 1) | 1` 作为 C↔TC 之间传递变量引用的统一句柄。
+
+核心头文件：`src/vm/embed/tc_embed.h` + `src/vm/embed/tc_value_bridge.h`。
+
+### VM 模式
+
+通过 libtc 编译 TC 源码后，用 `tc_embed_create` 创建嵌入上下文：
+
+```c
+#include "tc_embed.h"
+#include "tc_value_bridge.h"
+#include "tc_lib.h"
+
+int main(void) {
+    const char *src =
+        "#lib\n"
+        "func add(a: int32, b: int32) -> int32\n"
+        "    return(a + b)\n"
+        "end\n";
+    TcDiagnostic diag;
+    TcTypedProgram prog;
+
+    tc_diagnostic_init(&diag);
+    if (tc_compile_source(src, "add.tc", &prog, &diag) != 0) { /* handle */ }
+
+    TcEmbedCtx *ctx = tc_embed_create(&prog, &diag);
+
+    /* 查询函数信息 */
+    const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, NULL, "add");
+
+    /* 构造参数并调用 */
+    TcValue args[] = { tc_value_from_int32(3), tc_value_from_int32(4) };
+    TcValue result;
+    tc_embed_call(ctx, NULL, "add", 2, args, &result);
+
+    int32_t ret;
+    tc_value_to_int32(result, &ret);
+    printf("3 + 4 = %d\n", ret);  /* 输出: 3 + 4 = 7 */
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+    return 0;
+}
+```
+
+### AOT 模式
+
+将 TC 源码经 `tc-aot --embed` 转译为嵌入库 C 代码，用宿主 `cc` 编译为共享库，通过 `tc_embed_create_aot` 加载。同一套 `tc_embed_call` / `tc_embed_slot_*` / `tc_embed_ptr_*` API 在 VM 和 AOT 模式间 API 兼容。
+
+```sh
+# 生成嵌入库 C 代码和头文件
+./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
+# 编译为共享库，与宿主程序链接
+cc -shared -o libmylib.so mylib.c src/vm/runtime/tc_sem_*.c -I src/vm/runtime
+```
+
+### 值桥接
+
+`tc_value_bridge.h` 提供 `tc_value_from_*` / `tc_value_to_*` 纯 inline 辅助函数族，覆盖 `int8`–`int64`、`uint8`–`uint64`、`float32`、`float64` 和 `bool`，无需额外编译单元或运行时开销。
+
+```c
+TcValue v = tc_value_from_int64(42);
+int64_t x;
+tc_value_to_int64(v, &x);
+```
+
+完整 API 设计见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.36.md)。
+
 ## 测试与质量门禁
 
 ### 标准回归
@@ -162,16 +235,6 @@ make test-unit
 make test-aot
 make test
 ```
-
-当前标准回归规模：
-
-| 测试组 | 规模 | 覆盖重点 |
-| ------ | ---: | -------- |
-| VM conformance | 661 | 执行、`--check`、诊断、压力场景 |
-| C unit | 2042 | lexer、parser、semantics、cfg、analyzer、libtc、executor 等 18 个目标 |
-| AOT differential | 313 | VM/AOT stdout、静态接受集、运行时错误、I/O 和位模式差分 |
-
-这些数字是测试脚本报告的断言或场景数，不等于测试源文件数量。
 
 ### 静态结构检查
 
@@ -234,16 +297,25 @@ sh scripts/vm/bench.sh --check
 docs/               正式语言、实现、CLI 与 API 文档
 src/
 ├── libtc/          嵌入式编译/执行库
-├── vm/             lexer、parser、analyzer、executor、runtime、driver
-└── aot/            C99 codegen、runtime shim 与 CLI
+├── vm/
+│   ├── lexer/      词法分析
+│   ├── parser/     语法分析
+│   ├── analyzer/   静态分析（含 CFG、类型检查、函数/调用图）
+│   ├── executor/   执行器与调用帧
+│   ├── runtime/    运行时（类型、语义、I/O、符号表、诊断）
+│   ├── embed/      TC-Embed 嵌入运行时（v0.0.36）
+│   └── driver/     入口程序与版本
+└── aot/            C99 codegen、runtime shim、CLI、嵌入模式运行时
 tests/
 ├── valid/          合法程序与可观察输出
 ├── errors/         静态和运行时错误
-├── unit/           C 单元测试
+├── vm/embed/       TC-Embed 集成测试
+├── unit/           C 单元测试（27 个 target，含 check-embed / check-embed-aot）
+├── modules/        模块系统测试
 └── stress/         压力与性能场景
 scripts/
 ├── vm/             VM 回归与 benchmark
-├── aot/            AOT 差分测试
+├── aot/            AOT 差分与嵌入代码生成测试
 └── sync/           RHS 分发与源文件命名检查
 ```
 
@@ -258,6 +330,7 @@ scripts/
 | [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.35.md) | VM 流水线、IR、CFG、执行器设计 |
 | [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.35.md) | C99 生成、runtime shim 与差分验证 |
 | [libtc 设计说明书](docs/libtc设计说明书-0.0.35.md) | libtc 架构、事务、生命周期和错误契约 |
+| [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.36.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
 | [设计—实现合规审查报告](docs/设计实现合规审查报告-0.0.35.md) | 0.0.35 的 ~182 项合规矩阵与发布证据 |
 
 ## Git hooks
@@ -268,6 +341,10 @@ scripts/
 make hooks
 # 或 bash scripts/install-git-hooks.sh
 ```
+
+## 许可证
+
+本项目基于 Apache License 2.0 发布，详见 [LICENSE](LICENSE)。
 
 ## 作者
 
