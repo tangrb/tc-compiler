@@ -1881,7 +1881,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     }
     fputc('\n', out);
 
-    {
+    if (slot_count > 0 || embed_mode) {
         size_t count = slot_count > 0 ? slot_count : 1;
         const char *qual = embed_mode ? "" : "static ";
         fprintf(out, "%suint64_t slots[%zu];\n\n", qual, count);
