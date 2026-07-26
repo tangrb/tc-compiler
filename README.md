@@ -36,19 +36,19 @@ make
 bash scripts/run_tests.sh
 ```
 
-当前发布基线为 **459 VM + 1726 unit + 272 AOT**，共 2457 个测试断言或场景，三组均为零失败。
+当前发布基线为 **661 VM + 2042 unit + 313 AOT**，共 3016 个测试断言或场景，三组均为零失败。
 
 ## 已实现能力
 
 | 类别 | 当前能力 |
 | ---- | -------- |
-| 类型 | `int8` / `int16` / `int32` / `int64`、对应无符号整数、`bool`、`float32`、`float64` |
+| 类型 | `int8` / `int16` / `int32` / `int64`、对应无符号整数、`bool`、`float32`、`float64`、`isize` / `usize`（平台字长） |
 | 字面量 | 十进制、十六进制、八进制、二进制、数字分隔符、科学计数法、`f` 后缀、`inf` / `nan` |
 | 绑定 | 强制初始化的 `var`；编译期求值且无运行时槽的 `let` |
 | 运算 | 整数与浮点算术、比较、逻辑短路、单目运算、位运算和移位 |
 | 转换 | 严格数值 `cast`、整数窄化 `truncate`、非 `bool` 等宽 `bitcast` |
 | 控制流 | `if-then-else-end`、`while-then-end`、最内层 `break` / `continue`、受限 `goto` / `label` |
-| 静态分析 | 词法作用域、完整 CFG、可达性、静态布尔剪枝和固定点确定初始化 |
+| 静态分析 | 13 阶段确定性编译管线、词法作用域、完整 CFG、可达性、静态布尔剪枝和固定点确定初始化 |
 | I/O | `write` / `writeln` / `read`；13 种整数、布尔和浮点格式符 |
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
 | 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
@@ -167,9 +167,9 @@ make test
 
 | 测试组 | 规模 | 覆盖重点 |
 | ------ | ---: | -------- |
-| VM conformance | 459 | 执行、`--check`、诊断、REPL、压力场景 |
-| C unit | 1726 | lexer、parser、semantics、CFG、analyzer、libtc、executor 等 16 个目标 |
-| AOT differential | 272 | VM/AOT stdout、静态接受集、运行时错误、I/O 和位模式差分 |
+| VM conformance | 661 | 执行、`--check`、诊断、压力场景 |
+| C unit | 2042 | lexer、parser、semantics、cfg、analyzer、libtc、executor 等 18 个目标 |
+| AOT differential | 313 | VM/AOT stdout、静态接受集、运行时错误、I/O 和位模式差分 |
 
 这些数字是测试脚本报告的断言或场景数，不等于测试源文件数量。
 
@@ -251,13 +251,14 @@ scripts/
 
 | 文档 | 职责 |
 | ---- | ---- |
-| [TC 语言标准设计说明书](docs/TC语言标准设计说明书.md) | 0.0.31 语法、语义和诊断的唯一权威来源 |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考.md) | `tc-vm` 使用方式、输出和退出行为 |
-| [libtc 嵌入 API](docs/libtc-api.md) | 公共函数、所有权与诊断速查 |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书.md) | VM 流水线、IR、CFG、执行器和 REPL 设计 |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书.md) | C99 生成、runtime shim 与差分验证 |
-| [libtc 设计说明书](docs/libtc设计说明书.md) | libtc 架构、事务、生命周期和错误契约 |
-| [设计—实现合规审查报告](docs/设计实现合规审查报告.md) | 0.0.31 的 48 项合规矩阵与发布证据 |
+| [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.35.md) | 0.0.35 语法、语义和诊断的唯一权威来源 |
+| [TC 编译器标准设计说明书](docs/TC编译器标准设计说明书-0.0.35.md) | 13 阶段管线、诊断优先级、调用图等编译器规范 |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.35.md) | `tc-vm` 使用方式、输出和退出行为 |
+| [libtc 嵌入 API](docs/libtc-api-0.0.35.md) | 公共函数、所有权与诊断速查 |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.35.md) | VM 流水线、IR、CFG、执行器设计 |
+| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.35.md) | C99 生成、runtime shim 与差分验证 |
+| [libtc 设计说明书](docs/libtc设计说明书-0.0.35.md) | libtc 架构、事务、生命周期和错误契约 |
+| [设计—实现合规审查报告](docs/设计实现合规审查报告-0.0.35.md) | 0.0.35 的 ~182 项合规矩阵与发布证据 |
 
 ## Git hooks
 

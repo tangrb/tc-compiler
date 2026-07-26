@@ -263,7 +263,8 @@ bench execute: <seconds> s
 #include "tc_lib.h"
 
 int main(void) {
-    static const char source[] =
+    const char *source =
+        "#program\n"
         "var x: int32 = 7\n"
         "writeln(int32, %d, x)\n";
     TcDiagnostic diag;
@@ -301,13 +302,13 @@ int main(void) {
 
 | 能力 | 当前状态 |
 | ---- | -------- |
-| 多文件模块系统（`#program`/`#lib`、`import`、`public`/`private`、`Self`） | 架构已定 |
-| 函数定义（`func`/`funcall`/`return`、命名实参、按值形参、无环调用图） | 架构已定 |
-| `ptr<T>` 指针及全部 `ptr_*` 指令 | 架构已定 |
-| `memblock<T, N>` 及深拷贝语义 | 架构已定 |
-| `struct` 结构体及双层可变性 | 架构已定 |
-| `isize`/`usize` 平台字长类型 | 架构已定 |
-| `static var` / `static let` 模块静态成员 | 架构已定 |
+| 多文件模块系统（`#program`/`#lib`、`import`、`public`/`private`、`Self`） | 支持 |
+| 函数定义（`func`/`funcall`/`return`、命名实参、按值形参、无环调用图） | 支持 |
+| `ptr<T>` 指针及全部 `ptr_*` 指令 | 支持 |
+| `memblock<T, N>` 及深拷贝语义 | 支持 |
+| `struct` 结构体及双层可变性 | 支持 |
+| `isize`/`usize` 平台字长类型 | 支持 |
+| `static var` / `static let` 模块静态成员 | 支持 |
 | if/else、块作用域、缩进 | 支持 |
 | while/break/continue 与范式隔离 | 支持 |
 | 函数内受限 goto/label（`while` 内禁止） | 支持 |
@@ -317,7 +318,7 @@ int main(void) {
 | 完整 CFG 固定点（多域：顶层 + 各函数独立） | 支持 |
 | 13 阶段确定性编译管线 | 支持 |
 | success-only ownership 与诊断分域 | 支持 |
-| 70+ 语言错误码 + OutOfMemory 完整表 | 架构已定 |
+| 70+ 语言错误码 + OutOfMemory 完整表 | 支持 |
 
 ---
 

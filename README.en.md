@@ -36,25 +36,25 @@ Run the complete standard regression suite:
 bash scripts/run_tests.sh
 ```
 
-The current release baseline is **459 VM + 1726 unit + 272 AOT**, for 2,457 test assertions or scenarios, with zero failures in all three groups.
+The current release baseline is **661 VM + 2042 unit + 313 AOT**, for 3,016 test assertions or scenarios, with zero failures in all three groups.
 
 ## Implemented Capabilities
 
 | Category | Current capabilities |
 | -------- | -------------------- |
-| Types | `int8` / `int16` / `int32` / `int64`, corresponding unsigned integers, `bool`, `float32`, and `float64` |
+| Types | `int8` / `int16` / `int32` / `int64`, corresponding unsigned integers, `bool`, `float32`, `float64`, `isize` / `usize` (platform word size) |
 | Literals | Decimal, hexadecimal, octal, binary, digit separators, scientific notation, `f` suffix, and `inf` / `nan` |
 | Bindings | Mandatory-initialized `var`; compile-time `let` with no runtime slot |
 | Operations | Integer and floating-point arithmetic, comparisons, short-circuit logic, unary operations, bitwise operations, and shifts |
 | Conversions | Strict numeric `cast`, integer-narrowing `truncate`, and equal-width non-`bool` `bitcast` |
 | Control flow | `if-then-else-end`, `while-then-end`, innermost `break` / `continue`, and restricted `goto` / `label` |
-| Static analysis | Lexical scope, complete CFG, reachability, static boolean pruning, and fixed-point definite initialization |
+| Static analysis | 13-stage deterministic compilation pipeline, lexical scope, complete CFG, reachability, static boolean pruning, and fixed-point definite initialization |
 | I/O | `write` / `writeln` / `read` with 13 integer, boolean, and floating-point format specifiers |
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
 | Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; VM + AOT) |
 
-Version 0.0.31 does not include functions, arrays, structures, pointers, strings, a module system, JIT, or a bytecode file format. Structured `while` bodies cannot contain `goto` / `label`; this is a language specification boundary.
+Version 0.0.35 does not include strings, a bytecode file format, or JIT.
 
 ## Build
 
@@ -167,9 +167,9 @@ Current standard regression size:
 
 | Test group | Size | Primary coverage |
 | ---------- | ---: | ---------------- |
-| VM conformance | 459 | Execution, `--check`, diagnostics, REPL, and stress scenarios |
-| C unit | 1726 | 16 targets covering lexer, parser, semantics, CFG, analyzer, libtc, executor, and more |
-| AOT differential | 272 | VM/AOT stdout, static acceptance, runtime errors, I/O, and bit-pattern differentials |
+| VM conformance | 661 | Execution, `--check`, diagnostics, and stress scenarios |
+| C unit | 2042 | 18 targets covering lexer, parser, semantics, cfg, analyzer, libtc, executor, and more |
+| AOT differential | 313 | VM/AOT stdout, static acceptance, runtime errors, I/O, and bit-pattern differentials |
 
 These numbers are assertions or scenarios reported by the test scripts, not source-file counts.
 
@@ -251,13 +251,14 @@ scripts/
 
 | Document | Responsibility |
 | -------- | -------------- |
-| [TC Language Specification](docs/TC语言标准设计说明书-0.0.35.md) | Sole authority for 0.0.31 syntax, semantics, and diagnostics |
-| [TC-VM Command Reference](docs/TC-VM命令行参考.md) | `tc-vm` usage, output, and exit behavior |
-| [libtc Embedding API](docs/libtc-api.md) | Quick reference for public functions, ownership, and diagnostics |
-| [TC-VM Design Document](docs/TC-VM详细设计说明书.md) | VM pipeline, IR, CFG, executor, and REPL design |
-| [TC-AOT Design Document](docs/TC-AOT详细设计说明书.md) | C99 generation, runtime shim, and differential verification |
-| [libtc Design Document](docs/libtc设计说明书.md) | libtc architecture, transactions, lifecycle, and error contract |
-| [Design–Implementation Conformance Report](docs/设计实现合规审查报告.md) | The 48-item 0.0.31 conformance matrix and release evidence |
+| [TC Language Specification](docs/TC语言标准设计说明书-0.0.35.md) | Sole authority for 0.0.35 syntax, semantics, and diagnostics |
+| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.35.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
+| [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.35.md) | `tc-vm` usage, output, and exit behavior |
+| [libtc Embedding API](docs/libtc-api-0.0.35.md) | Quick reference for public functions, ownership, and diagnostics |
+| [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.35.md) | VM pipeline, IR, CFG, and executor design |
+| [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.35.md) | C99 generation, runtime shim, and differential verification |
+| [libtc Design Document](docs/libtc设计说明书-0.0.35.md) | libtc architecture, transactions, lifecycle, and error contract |
+| [Design–Implementation Conformance Report](docs/设计实现合规审查报告-0.0.35.md) | The ~182-item 0.0.35 conformance matrix and release evidence |
 
 ## Git Hooks
 

@@ -417,7 +417,7 @@ writeln(float64, %f, area)
 
 public static let pi: float64 = 3.141592653589793
 
-public func compute_area(r: float64) -> float64 then
+public func compute_area(r: float64) float64 then
     var rsq: float64 = mul(float64, r, r)
     var result: float64 = mul(float64, rsq, Self.pi)
     return result
@@ -448,15 +448,15 @@ writeln(int32, %d, val)
 
 | 0.0.35 项目 | 状态 |
 | ----------- | ---- |
-| 多文件模块系统 | 架构已定，待实现 |
-| 函数/`funcall`/`return` | 架构已定，待实现 |
-| `ptr<T>` 及全部 ptr_* 指令 | 架构已定，待实现 |
-| `memblock<T, N>` 及深拷贝 | 架构已定，待实现 |
-| `struct` 及字段双层可变性 | 架构已定，待实现 |
-| `isize`/`usize` | 架构已定，待实现 |
-| `static var` / `static let` | 架构已定，待实现 |
-| 13 阶段编译管线 | 架构已定，待实现 |
-| 完整诊断码表（70+ 码） | 架构已定，待实现 |
+| 多文件模块系统 | 已落地 |
+| 函数/`funcall`/`return` | 已落地 |
+| `ptr<T>` 及全部 ptr_* 指令 | 已落地 |
+| `memblock<T, N>` 及深拷贝 | 已落地 |
+| `struct` 及字段双层可变性 | 已落地 |
+| `isize`/`usize` | 已落地 |
+| `static var` / `static let` | 已落地 |
+| 13 阶段编译管线 | 已落地 |
+| 完整诊断码表（70+ 码） | 已落地 |
 
 ### 9.2 与 v0.0.31 的关键差异
 
