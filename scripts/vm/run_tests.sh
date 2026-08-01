@@ -877,6 +877,8 @@ run_expect_stdout "$ROOT/tests/valid/phase5_funcall_return.tc" "3
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_basic.tc" "2
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_scope_outer.tc" "2
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
 "
@@ -961,6 +963,7 @@ run_expect_stdout "$ROOT/tests/valid/usize_arith.tc" "7
 "
 run_expect_check_ok "$ROOT/tests/valid/phase5_funcall_return.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_basic.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_scope_outer.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_copy.tc"

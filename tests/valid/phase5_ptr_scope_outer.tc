@@ -1,0 +1,9 @@
+#program
+; 回归：块内使用外层 ptr 变量（tc_visible_copy_from 丢失 full_type）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+if true then
+    ptr_store(int32, p, 2)
+end
+var b: int32 = ptr_load(int32, p)
+writeln(int32, b)
