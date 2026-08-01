@@ -844,6 +844,277 @@ static void test_embed_ptr_store_multiple(void) {
     tc_diagnostic_clear(&diag);
 }
 
+/* ── 测试：临时槽位区分配/释放往返 ── */
+static void test_embed_tmp_begin_end(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    size_t slot_count;
+    int base = -1;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func calc(a: int32, b: int32, c: int32, d: int32) int32 then\n"
+        "    var e: int32 = add(int32, a, b)\n"
+        "    var f: int32 = add(int32, e, c)\n"
+        "    var g: int32 = add(int32, f, d)\n"
+        "    return g\n"
+        "end\n", "test", &prog, &diag) == 0,
+          "compile tmp lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    slot_count = tc_embed_slot_count(ctx);
+
+    check(tc_embed_tmp_begin(ctx, 3, &base) == 0, "tmp_begin 3 slots");
+    check(base >= 0 && (size_t)base + 3 <= slot_count, "tmp region within slots");
+    check((size_t)base == slot_count - 3, "tmp base at end of slots");
+
+    {
+        int base2 = -1;
+        check(tc_embed_tmp_begin(ctx, 2, &base2) == 0, "nested tmp_begin 2 slots");
+        check(base2 == base - 2, "nested base below previous");
+        tc_embed_tmp_end(ctx);
+    }
+    tc_embed_tmp_end(ctx);
+
+    check(tc_embed_tmp_begin(ctx, 4, &base) == 0, "tmp_begin after end");
+    check((size_t)base == slot_count - 4, "reuse freed region");
+    tc_embed_tmp_end(ctx);
+
+    check(tc_embed_tmp_begin(ctx, (size_t)slot_count + 1, &base) != 0,
+          "oversized tmp_begin rejected");
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：make_ptr 一键平铺 + TC ptr_load 遍历 ── */
+static void test_embed_make_ptr_sum(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    int32_t input[5] = {1, 2, 3, 4, 5};
+    TcValue data_ptr;
+    TcValue result;
+    int64_t total;
+    int slot;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func sum(data: ptr<int32>) int32 then\n"
+        "    var a: int32 = ptr_load(int32, data)\n"
+        "    var p1: ptr<int32> = ptr_add(int32, data, 1)\n"
+        "    var b: int32 = ptr_load(int32, p1)\n"
+        "    var p2: ptr<int32> = ptr_add(int32, data, 2)\n"
+        "    var c: int32 = ptr_load(int32, p2)\n"
+        "    var p3: ptr<int32> = ptr_add(int32, data, 3)\n"
+        "    var d: int32 = ptr_load(int32, p3)\n"
+        "    var p4: ptr<int32> = ptr_add(int32, data, 4)\n"
+        "    var e: int32 = ptr_load(int32, p4)\n"
+        "    var s1: int32 = add(int32, a, b)\n"
+        "    var s2: int32 = add(int32, s1, c)\n"
+        "    var s3: int32 = add(int32, s2, d)\n"
+        "    var total: int32 = add(int32, s3, e)\n"
+        "    return total\n"
+        "end\n", "stats", &prog, &diag) == 0,
+          "compile make_ptr sum lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    check(tc_embed_make_ptr(ctx, TC_INT32, input, 5, &data_ptr) == 0,
+          "make_ptr int32[5]");
+    check(tc_embed_ptr_is_null(data_ptr) == 0, "make_ptr returns non-null ptr");
+    check(tc_embed_ptr_decode_slot(data_ptr, &slot) == 0 && slot >= 0,
+          "make_ptr ptr decodes to slot");
+
+    check(tc_embed_call_typed(ctx, tc_embed_func_info(ctx, NULL, "sum"),
+                              TC_EMBED_ARGS(tc_embed_arg_value(data_ptr)),
+                              &result) == 0,
+          "call sum via typed");
+    tc_value_to_int64(result, &total);
+    check(total == 15, "sum(1..5) == 15");
+
+    tc_embed_tmp_end(ctx);
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：make_ptr count=0 返回 nullptr / 不支持类型拒绝 ── */
+static void test_embed_make_ptr_zero_count(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    TcValue p;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func noop() void then\n"
+        "end\n", "test", &prog, &diag) == 0,
+          "compile lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    check(tc_embed_make_ptr(ctx, TC_INT32, NULL, 0, &p) == 0,
+          "make_ptr zero count ok");
+    check(tc_embed_ptr_is_null(p) != 0, "zero count -> nullptr");
+
+    check(tc_embed_make_ptr(ctx, TC_STRUCT, NULL, 0, &p) != 0,
+          "make_ptr unsupported type rejected");
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：call_typed 标量参数 + 宏自动 nargs ── */
+static void test_embed_call_typed_args(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    const TcEmbedFuncInfo *info;
+    TcValue result;
+    int64_t val;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func plus(a: int32, b: int32) int32 then\n"
+        "    var sum: int32 = add(int32, a, b)\n"
+        "    return sum\n"
+        "end\n", "math", &prog, &diag) == 0,
+          "compile math lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    info = tc_embed_func_info(ctx, NULL, "plus");
+    check(info != NULL, "find plus");
+
+    check(tc_embed_call_typed(ctx, info,
+                              TC_EMBED_ARGS(tc_embed_arg_i32(3),
+                                            tc_embed_arg_i32(4)),
+                              &result) == 0,
+          "typed call plus(3,4)");
+    tc_value_to_int64(result, &val);
+    check(val == 7, "plus(3,4) == 7");
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：call_typed 类型不匹配拒绝 ── */
+static void test_embed_call_typed_type_mismatch(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    const TcEmbedFuncInfo *info;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func plus(a: int32, b: int32) int32 then\n"
+        "    var sum: int32 = add(int32, a, b)\n"
+        "    return sum\n"
+        "end\n", "math", &prog, &diag) == 0,
+          "compile math lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    info = tc_embed_func_info(ctx, NULL, "plus");
+    check(info != NULL, "find plus");
+
+    check(tc_embed_call_typed(ctx, info,
+                              TC_EMBED_ARGS(tc_embed_arg_f64(1.0),
+                                            tc_embed_arg_i32(4)),
+                              NULL) != 0,
+          "type mismatch rejected");
+    check(tc_embed_had_error(ctx) != 0, "error flag set on mismatch");
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：call_typed 参数个数不符拒绝 ── */
+static void test_embed_call_typed_wrong_count(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    const TcEmbedFuncInfo *info;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func plus(a: int32, b: int32) int32 then\n"
+        "    var sum: int32 = add(int32, a, b)\n"
+        "    return sum\n"
+        "end\n", "math", &prog, &diag) == 0,
+          "compile math lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    info = tc_embed_func_info(ctx, NULL, "plus");
+    check(info != NULL, "find plus");
+
+    check(tc_embed_call_typed(ctx, info,
+                              TC_EMBED_ARGS(tc_embed_arg_i32(1)),
+                              NULL) != 0,
+          "wrong count rejected");
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：make_ptr + ptr_store 原地修改 + C 读回 ── */
+static void test_embed_make_ptr_store_readback(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    int32_t data_src[3] = {99, 0, 0};
+    TcValue data_ptr;
+    TcValue result;
+    TcValue stored;
+    int base;
+    int64_t val;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public func store_at_one(data: ptr<int32>, val: int32) void then\n"
+        "    var p1: ptr<int32> = ptr_add(int32, data, 1)\n"
+        "    ptr_store(int32, p1, val)\n"
+        "end\n", "test", &prog, &diag) == 0,
+          "compile store lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    check(tc_embed_make_ptr(ctx, TC_INT32, data_src, 3, &data_ptr) == 0,
+          "make_ptr int32[3]");
+    check(tc_embed_ptr_decode_slot(data_ptr, &base) == 0, "decode data ptr");
+
+    check(tc_embed_call_typed(ctx, tc_embed_func_info(ctx, NULL, "store_at_one"),
+                              TC_EMBED_ARGS(tc_embed_arg_value(data_ptr),
+                                            tc_embed_arg_i32(42)),
+                              &result) == 0,
+          "call store_at_one via typed");
+
+    check(tc_embed_slot_read(ctx, base + 1, &stored) == 0, "read back slot[base+1]");
+    tc_value_to_int64(stored, &val);
+    check(val == 42, "store wrote 42 to slot[base+1]");
+
+    tc_embed_tmp_end(ctx);
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_embed_create_destroy();
     test_embed_null_program();
@@ -868,6 +1139,13 @@ int main(void) {
     test_embed_self_var_slot_readwrite();
     test_embed_slot_count_api();
     test_embed_ptr_store_multiple();
+    test_embed_tmp_begin_end();
+    test_embed_make_ptr_sum();
+    test_embed_make_ptr_zero_count();
+    test_embed_call_typed_args();
+    test_embed_call_typed_type_mismatch();
+    test_embed_call_typed_wrong_count();
+    test_embed_make_ptr_store_readback();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

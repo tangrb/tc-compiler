@@ -184,6 +184,7 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
     ctx->exec_ctx.struct_heap = NULL;
     ctx->exec_ctx.struct_heap_count = 0;
     ctx->exec_ctx.struct_heap_capacity = 0;
+    ctx->tmp_top = (int)slot_count;
     tc_stmt_index_reset(&ctx->exec_ctx.index);
 
     if (tc_exec_init_all_static_vars(program, &ctx->exec_ctx, &ctx->diag) != 0) {
@@ -352,6 +353,170 @@ int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out) {
     return 0;
 }
 
+/* ── 临时槽位区（运行时便捷层） ── */
+
+int tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out) {
+    if (!ctx || !base_slot_out) return -1;
+
+    if (ctx->tmp_depth >= TC_EMBED_TMP_MAX_DEPTH) {
+        tc_embed_set_error(ctx, "temporary slot region: max nesting depth exceeded");
+        return -1;
+    }
+    if ((size_t)ctx->tmp_top < n) {
+        tc_embed_set_error(ctx, "temporary slot region exhausted");
+        return -1;
+    }
+
+    ctx->tmp_marks[ctx->tmp_depth] = ctx->tmp_top;
+    ctx->tmp_top = (int)((size_t)ctx->tmp_top - n);
+    *base_slot_out = ctx->tmp_top;
+    ctx->tmp_depth++;
+    return 0;
+}
+
+void tc_embed_tmp_end(TcEmbedCtx *ctx) {
+    if (!ctx || ctx->tmp_depth <= 0) return;
+    ctx->tmp_depth--;
+    ctx->tmp_top = ctx->tmp_marks[ctx->tmp_depth];
+}
+
+/*
+ * 将 C 侧内存中的标量值按 TC 类型读入 TcValue。
+ * 使用 memcpy 读取，避免未对齐访问；位模式与 tc_value_from_* 一致。
+ */
+static int tc_embed_raw_to_value(TcTypeKind type, const void *src, TcValue *out) {
+    const char *p = (const char *)src;
+
+    if (!src || !out) return -1;
+
+    switch (type) {
+    case TC_INT8: {
+        int8_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_int8(t);
+        return 0;
+    }
+    case TC_UINT8: {
+        uint8_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_uint8(t);
+        return 0;
+    }
+    case TC_INT16: {
+        int16_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_int16(t);
+        return 0;
+    }
+    case TC_UINT16: {
+        uint16_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_uint16(t);
+        return 0;
+    }
+    case TC_INT32: {
+        int32_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_int32(t);
+        return 0;
+    }
+    case TC_UINT32: {
+        uint32_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_uint32(t);
+        return 0;
+    }
+    case TC_INT64: {
+        int64_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_int64(t);
+        return 0;
+    }
+    case TC_UINT64: {
+        uint64_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_uint64(t);
+        return 0;
+    }
+    case TC_BOOL: {
+        uint8_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_bool(t != 0);
+        return 0;
+    }
+    case TC_FLOAT32: {
+        float t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_float(t);
+        return 0;
+    }
+    case TC_FLOAT64: {
+        double t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_double(t);
+        return 0;
+    }
+    case TC_ISIZE: {
+        intptr_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_int64((int64_t)t);
+        out->type = TC_ISIZE;
+        return 0;
+    }
+    case TC_USIZE: {
+        uintptr_t t;
+        memcpy(&t, p, sizeof(t));
+        *out = tc_value_from_uint64((uint64_t)t);
+        out->type = TC_USIZE;
+        return 0;
+    }
+    default:
+        return -1;
+    }
+}
+
+int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeKind elem_type,
+                      const void *data, size_t count, TcValue *out) {
+    size_t elem_bytes = (size_t)(tc_type_bit_width(elem_type) / 8);
+    int base = 0;
+    size_t i = 0;
+
+    if (!ctx || !out) return -1;
+
+    if (elem_bytes == 0 ||
+        (!tc_type_is_integer(elem_type) && !tc_type_is_float(elem_type) &&
+         !tc_type_is_bool(elem_type))) {
+        tc_embed_set_error(ctx, "unsupported element type for tc_embed_make_ptr");
+        return -1;
+    }
+
+    if (!data || count == 0) {
+        out->type = TC_PTR;
+        out->bits = 0;   /* nullptr */
+        return 0;
+    }
+
+    if (tc_embed_tmp_begin(ctx, count, &base) != 0) {
+        return -1;
+    }
+
+    for (i = 0; i < count; i++) {
+        TcValue v;
+        const char *elem = (const char *)data + i * elem_bytes;
+
+        if (tc_embed_raw_to_value(elem_type, elem, &v) != 0) {
+            tc_embed_set_error(ctx, "unsupported element type for tc_embed_make_ptr");
+            return -1;
+        }
+        if (tc_embed_slot_write(ctx, base + (int)i, v) != 0) {
+            return -1;
+        }
+    }
+
+    *out = tc_embed_ptr_encode(base);
+    return 0;
+}
+
 /* ── 函数调用 ── */
 
 int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
@@ -432,6 +597,58 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
     }
 
     return 0;
+}
+
+int tc_embed_call_typed(TcEmbedCtx *ctx, const TcEmbedFuncInfo *info,
+                        const TcEmbedArg *args, size_t nargs,
+                        TcValue *result) {
+    TcValue stack_values[TC_EMBED_TYPED_MAX_ARGS];
+    TcValue *values = stack_values;
+    size_t i = 0;
+    int rc = 0;
+
+    if (!ctx || !info) {
+        if (ctx) tc_embed_set_error(ctx, "function not found");
+        return -1;
+    }
+    if (nargs != info->param_count) {
+        char msg[256];
+        (void)snprintf(msg, sizeof(msg),
+                       "wrong argument count for %s: expected %zu, got %zu",
+                       info->func_name, info->param_count, nargs);
+        tc_embed_set_error(ctx, msg);
+        return -1;
+    }
+    for (i = 0; i < nargs; i++) {
+        if (args[i].type != (TcTypeKind)info->param_types[i]) {
+            char msg[256];
+            (void)snprintf(msg, sizeof(msg),
+                           "argument %zu type mismatch for %s: expected %d, got %d",
+                           i, info->func_name, info->param_types[i],
+                           (int)args[i].type);
+            tc_embed_set_error(ctx, msg);
+            return -1;
+        }
+    }
+
+    if (nargs > TC_EMBED_TYPED_MAX_ARGS) {
+        values = (TcValue *)malloc(nargs * sizeof(TcValue));
+        if (!values) {
+            tc_embed_set_error(ctx, "memory allocation failed");
+            return -1;
+        }
+    }
+    for (i = 0; i < nargs; i++) {
+        values[i].type = args[i].type;
+        values[i].bits = args[i].bits;
+    }
+
+    rc = tc_embed_call(ctx, info->module_name, info->func_name,
+                       (int)nargs, values, result);
+    if (values != stack_values) {
+        free(values);
+    }
+    return rc;
 }
 
 /* ── 错误查询 ── */

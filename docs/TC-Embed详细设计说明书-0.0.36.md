@@ -4,7 +4,7 @@
 >
 > **当前实现基线**：TC-Embed v0.0.36（新模块）
 >
-> **状态**：v0.0.36 C 调用 TC 嵌入式运行时设计。VM 模式完整设计，AOT 模式扩展设计（**已落地 v0.0.36**）。以 `ptr<T>` 槽位编码为互操作原语。
+> **状态**：v0.0.36 C 调用 TC 嵌入式运行时设计。VM 模式完整设计，AOT 模式扩展设计（**已落地 v0.0.36**）。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
 >
 > **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书-0.0.35.md) 的执行器与槽位系统 · [libtc 设计说明书](./libtc设计说明书-0.0.35.md) 的编译管线 · [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书-0.0.35.md) 的代码生成模型
 
@@ -39,6 +39,15 @@
     - [15.10 验证策略](#1510-验证策略)
     - [15.11 实施步骤](#1511-实施步骤)
     - [15.12 与 VM 模式的 API 兼容性总表](#1512-与-vm-模式的-api-兼容性总表)
+16. [运行时便捷层（v0.0.36 扩展）](#16-运行时便捷层v0036-扩展)
+    - [16.1 设计动机](#161-设计动机)
+    - [16.2 新增 API 总览](#162-新增-api-总览)
+    - [16.3 类型化参数 TcEmbedArg](#163-类型化参数-tcembedarg)
+    - [16.4 临时槽位区](#164-临时槽位区)
+    - [16.5 C 数组一键映射为 ptr\<T\>](#165-c-数组一键映射为-ptrt)
+    - [16.6 签名感知的类型化调用](#166-签名感知的类型化调用)
+    - [16.7 使用示例](#167-使用示例)
+    - [16.8 与现有 API 的关系与限制](#168-与现有-api-的关系与限制)
 
 ---
 
@@ -1915,6 +1924,139 @@ void test_aot_vm_behavior(const char *tc_source) {
 | `tc_embed_get_error` | 读 `ctx->diag.message` | 完全相同 |
 | `tc_embed_had_error` | 读 `ctx->error_flag` | 完全相同 |
 | 额外清理 | 无 | `tc_aot_cleanup()`（释放 memblock/struct 堆） |
+
+---
+
+## 16. 运行时便捷层（v0.0.36 扩展）
+
+> **状态**：已落地 v0.0.36。在 §7–§9 的内核 API 之上新增一层运行时便捷 API，隐藏 `TcValue` 桥接样板与槽位布局细节。VM / AOT 两模式透明（全部经通用 `tc_embed_call` 路径）。
+
+### 16.1 设计动机
+
+C 调用 TC 的基本方案可行，但将以下细节暴露给 C 宿主程序，显得繁琐：
+
+| 繁琐点 | 现状示例 |
+| ------ | -------- |
+| 参数构造样板 | 每参 `tc_value_from_int32(...)`，返回再 `tc_value_to_int64(...)`，类型一一手工对应 |
+| 数组互操作泄漏槽位布局 | 查 `param_slots` → 手工算 `data_base` → 循环 `tc_embed_slot_write` 平铺 → `tc_embed_ptr_encode` |
+| 字符串函数名 + 手工 nargs | `tc_embed_call(ctx, "stats", "sum", 2, args, &result)`，参数个数/顺序无编译期检查 |
+| 错误检查重复 | 每个调用判断返回值并取 `tc_embed_get_error` |
+
+便捷层不改变内核 API，也不触碰编译器管线：全部由 `tc_embed` 模块在运行时完成。
+
+### 16.2 新增 API 总览
+
+| API | 职责 |
+| --- | ---- |
+| `TcEmbedArg` + `tc_embed_arg_*` | 携带类型标签的实参，位模式与 `TcValue.bits` 一致 |
+| `TC_EMBED_ARGS(...)` | 由参数列表自动推导 nargs 的宏 |
+| `tc_embed_tmp_begin` / `tc_embed_tmp_end` | 临时槽位区栈式分配/释放 |
+| `tc_embed_make_ptr` | C 数组一键平铺为 `ptr<T>` |
+| `tc_embed_call_typed` | 签名感知的类型化调用（校验参数个数与类型） |
+
+### 16.3 类型化参数 TcEmbedArg
+
+```c
+typedef struct {
+    TcTypeKind type;
+    uint64_t bits;      /* 与 TcValue.bits 一致（按位宽规范化） */
+} TcEmbedArg;
+
+static inline TcEmbedArg tc_embed_arg_i32(int32_t v) {
+    TcEmbedArg a = { TC_INT32, tc_value_from_int32(v).bits };
+    return a;
+}
+/* i8/u8/i16/u16/i32/u32/i64/u64/isize/usize/f32/f64/bool 同理；
+ * tc_embed_arg_ptr(slot) 直接构造 ptr；tc_embed_arg_value(TcValue) 包装既有值 */
+```
+
+`tc_embed_arg_*` 复用 `tc_value_bridge.h` 的位模式，保证与 `TcValue` 槽位值完全一致。
+
+### 16.4 临时槽位区
+
+```c
+int  tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out);
+void tc_embed_tmp_end(TcEmbedCtx *ctx);
+```
+
+- 从槽位数组末端向下分配（`base = tmp_top - n`），栈式嵌套，`end` 回退最近一层。
+- `TcEmbedCtx` 内部维护 `tmp_top` / `tmp_marks[]` / `tmp_depth`，初始 `tmp_top = slot_count`。
+- 最大嵌套深度 16（`TC_EMBED_TMP_MAX_DEPTH`）；不足时报错 `"temporary slot region exhausted"`。
+- **注意**：临时区与符号槽位共享同一 `slots[]` 数组。模块符号槽位通常稀疏（从低端分配），临时区从末端分配，二者一般不冲突；若符号槽位密集，调用方须自行确保数据区不与活跃符号重叠。
+
+### 16.5 C 数组一键映射为 ptr\<T\>
+
+```c
+int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeKind elem_type,
+                      const void *data, size_t count, TcValue *out);
+```
+
+- 内部在临时区平铺 `count` 个元素（按 `elem_type` 用 `memcpy` 读取，避免未对齐访问），再编码为 `ptr<T>`。
+- `count == 0` 或 `data == NULL` 时返回 `nullptr`（bits = 0）。
+- 支持元素类型：`TC_INT8..TC_UINT64`、`TC_BOOL`、`TC_FLOAT32/64`、`TC_ISIZE/USIZE`；其余拒绝。
+- 平铺后调用方应在 TC 函数返回后调用 `tc_embed_tmp_end` 释放临时区。
+
+### 16.6 签名感知的类型化调用
+
+```c
+int tc_embed_call_typed(TcEmbedCtx *ctx, const TcEmbedFuncInfo *info,
+                        const TcEmbedArg *args, size_t nargs,
+                        TcValue *result);
+```
+
+- `info == NULL` 报 `"function not found"`。
+- `nargs != info->param_count` 报参数个数错误。
+- 逐参校验 `args[i].type == param_types[i]`，不匹配报期望/实际类型。
+- 内部组装 `TcValue` 数组后复用 `tc_embed_call`，VM / AOT 双路径天然透明。
+
+nargs 自动推导宏：
+
+```c
+#define TC_EMBED_ARGS(...) \
+    ((TcEmbedArg[]){ __VA_ARGS__ }), \
+    (sizeof((TcEmbedArg[]){ __VA_ARGS__ }) / sizeof(TcEmbedArg))
+```
+
+实参须为无副作用的纯字面量构造（如 `tc_embed_arg_i32(3)`）。
+
+### 16.7 使用示例
+
+标量调用（此前约 10 行样板，现 4 行）：
+
+```c
+const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, "math", "add");
+TcValue result;
+if (tc_embed_call_typed(ctx, info,
+                        TC_EMBED_ARGS(tc_embed_arg_i32(3), tc_embed_arg_i32(4)),
+                        &result) == 0) {
+    int64_t sum;
+    tc_value_to_int64(result, &sum);
+}
+```
+
+数组互操作（此前 13 行手工平铺，现 3 行）：
+
+```c
+int32_t input[] = {1, 2, 3, 4, 5};
+TcValue data_ptr;
+tc_embed_make_ptr(ctx, TC_INT32, input, 5, &data_ptr);   /* 平铺 + ptr 编码 */
+
+TcValue result;
+tc_embed_call_typed(ctx, tc_embed_func_info(ctx, "stats", "sum"),
+                    TC_EMBED_ARGS(tc_embed_arg_value(data_ptr)),
+                    &result);
+tc_embed_tmp_end(ctx);                                    /* 释放临时区 */
+```
+
+### 16.8 与现有 API 的关系与限制
+
+- **兼容**：§7–§9 内核 API 不变；便捷层全部基于公共 API 实现，宿主程序可按需混用。
+- **透明**：`tc_embed_make_ptr` / `tc_embed_call_typed` 在 VM 与 AOT 两模式行为一致（内部统一走 `tc_embed_slot_write` + `tc_embed_call`）。
+- **限制**：
+  - 临时区深度 ≤ 16，且与符号槽位共享数组（见 §16.4）。
+  - `TC_EMBED_ARGS` 宏内实参不应含副作用表达式。
+  - 便捷层仍以标量与 `ptr<T>` 数组为主；memblock / struct 互操作留给后续版本。
+- **不触碰**：编译器管线、语言标准、AOT codegen 均无改动；新增测试见 `test_embed.c`（`test_embed_tmp_begin_end`、`test_embed_make_ptr_*`、`test_embed_call_typed_*`）。
 
 ---
 
