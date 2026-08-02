@@ -36,6 +36,7 @@ TcEmbedCtx *tc_embed_create_aot(uint64_t *slots, size_t slot_count,
     ctx->aot_slots = slots;
     ctx->aot_slot_count = slot_count;
     ctx->aot_func_table = func_table;
+    ctx->tmp_top = (int)slot_count;
     tc_diagnostic_init(&ctx->diag);
 
     /* 调用 AOT 初始化（初始化 slots + static var） */

@@ -829,17 +829,18 @@ static int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
         const TcSymbol *sym = &src->symbols[i];
         TcSymbol *mut = NULL;
 
-        if (tc_symbol_table_add(dst, sym->name, sym->type, sym->slot, sym->def_line,
-                                sym->def_stmt_index, sym->sym_kind, sym->initialized,
-                                diag) != 0) {
+        /* 完整类型深拷贝：块帧内引用外层 ptr/memblock/struct 时 full_type 必须保留 */
+        if (tc_symbol_table_add_ex(dst, sym->name, sym->type, &sym->full_type,
+                                   sym->memblock_count, sym->struct_id, sym->slot,
+                                   sym->slot_domain, sym->def_line, sym->def_stmt_index,
+                                   sym->sym_kind, sym->initialized, diag) != 0) {
             return -1;
         }
+        mut = &dst->symbols[dst->count - 1];
+        mut->scope_end_stmt_index = sym->scope_end_stmt_index;
         if (sym->has_const_value) {
-            mut = tc_symbol_table_find_mut(dst, sym->name);
-            if (mut) {
-                mut->has_const_value = 1;
-                mut->const_value = sym->const_value;
-            }
+            mut->has_const_value = 1;
+            mut->const_value = sym->const_value;
         }
     }
     return 0;

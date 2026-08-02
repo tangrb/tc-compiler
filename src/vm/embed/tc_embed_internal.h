@@ -20,6 +20,10 @@
 extern "C" {
 #endif
 
+/* ── 临时槽位区常量（运行时便捷层） ── */
+#define TC_EMBED_TMP_MAX_DEPTH     16   /* 临时区最大嵌套深度 */
+#define TC_EMBED_TYPED_MAX_ARGS    16   /* call_typed 栈数组实参上限 */
+
 /* ── 不透明上下文内部布局（对外仅 opaque 指针） ── */
 struct TcEmbedCtx {
     int is_aot;                      /* 0 = VM 模式, 1 = AOT 模式 */
@@ -31,6 +35,11 @@ struct TcEmbedCtx {
     uint64_t *aot_slots;
     size_t aot_slot_count;
     const tc_aot_func_entry *aot_func_table;
+
+    /* 临时槽位区（运行时便捷层，栈式分配） */
+    int tmp_top;                     /* 当前已分配区域下方边界（初始 = slot_count） */
+    int tmp_marks[TC_EMBED_TMP_MAX_DEPTH]; /* 各层 begin 前的 tmp_top，供 end 回退 */
+    int tmp_depth;                   /* 当前嵌套深度 */
 
     /* 通用字段 */
     const TcTypedProgram *program;
