@@ -260,7 +260,7 @@ run_aot_cli_golden() {
 
 # --- differential tests: valid programs (stdout VM vs AOT) ---
 
-run_aot_cli_golden "--version" 0 "tc-aot 0.0.35" "" "aot version golden"
+run_aot_cli_golden "--version" 0 "tc-aot 0.0.37" "" "aot version golden"
 
 run_aot_cli_golden "--help" 0 "" "Usage: $AOT_BIN [options] <file.tc>
 

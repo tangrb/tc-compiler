@@ -33,8 +33,8 @@ int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, const TcSymbolTable 
 void tc_try_eval_static_bool_operand(const TcOperand *operand, TcStaticBoolResult *result);
 
 /**
- * 按 TC 0.0.31 §4.2/§4.3 求值合法的单层静态布尔 RHS。
- * unknown 不设置诊断；常量语义错误返回 -1 并按 §4.3 映射诊断。
+ * 按 TC 0.0.37 §5.2.4 求值合法的单层静态布尔 RHS。
+ * unknown 不设置诊断；常量语义错误返回 -1 并按 §5.2.3 映射诊断。
  */
 int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *result,
                             TcDiagnostic *diag);

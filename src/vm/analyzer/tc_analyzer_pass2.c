@@ -338,7 +338,7 @@ static int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
     case TC_RHS_PTR_SIZE:
     case TC_RHS_FUNCALL_EXPR:
     case TC_RHS_SELF_MEMBER:
-        /* 0.0.35 Phase 2：可解析；深度类型/执行在后续阶段 */
+        /* 0.0.37 Phase 2：可解析；深度类型/执行在后续阶段 */
         return 0;
     }
     return 0;

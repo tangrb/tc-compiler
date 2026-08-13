@@ -1,5 +1,5 @@
 /*
- * tc_embed.c — TC 嵌入式运行时实现（v0.0.36）
+ * tc_embed.c — TC 嵌入式运行时实现（v0.0.37）
  *
  * 双模式：VM 路径（Executor）+ AOT 路径（直调生成代码）。
  * AOT 桥接函数见 tc_embed_aot.c。

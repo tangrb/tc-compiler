@@ -417,7 +417,7 @@ run_cli_golden() {
 
 # --- valid: execution succeeds ---
 
-run_cli_golden "--version" 0 "tc-vm 0.0.35" "" "cli version golden"
+run_cli_golden "--version" 0 "tc-vm 0.0.37" "" "cli version golden"
 
 run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN [options] <file.tc>
 
@@ -628,7 +628,7 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
 
-# --- v0.0.35 Phase 3: top-level goto/label rejected ---
+# --- v0.0.37 Phase 3: top-level goto/label rejected ---
 
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_outside_function.tc" \
     "goto is only allowed inside a function"
@@ -1910,7 +1910,7 @@ run_expect_check_fail "$ROOT/tests/modules/duplicate_import.tc" "duplicate impor
 run_expect_check_fail "$ROOT/tests/modules/import_not_lib.tc" "imported module is not #lib"
 run_expect_check_ok "$ROOT/tests/modules/import_ok.tc"
 
-# --- v0.0.36 TC-Embed: library function checking ---
+# --- v0.0.37 TC-Embed: library function checking ---
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_inplace.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_loop.tc"

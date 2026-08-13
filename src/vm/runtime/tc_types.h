@@ -24,7 +24,7 @@
 /* ------------------------------------------------------------------ */
 
 /**
- * TC 0.0.35 类型标签（TcTypeTag）。
+ * TC 0.0.37 类型标签（TcTypeTag）。
  *
  * 标量：定宽整数、bool、浮点、isize/usize。
  * 复合：ptr / memblock / struct；void 仅作函数返回类型。
@@ -205,7 +205,7 @@ static inline TcFormatFullSpec tc_format_spec_make(TcFormatSpec spec) {
     return fs;
 }
 
-/** 符号种类：变量、let、形参、static var/let（0.0.35） */
+/** 符号种类：变量、let、形参、static var/let（0.0.37） */
 typedef enum {
     TC_SYM_VARIABLE,
     TC_SYM_CONSTANT,
@@ -265,13 +265,13 @@ typedef enum {
     TC_CE_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
     TC_CE_CONTINUE_OUTSIDE_LOOP,   /* continue 必须出现在 while 内 */
 
-    /* ---- 0.0.35：控制流补充（编译器标准 §11.4.1） ---- */
+    /* ---- 0.0.37：控制流补充（编译器标准 §11.4.1） ---- */
     TC_CE_GOTO_OUTSIDE_FUNCTION,
     TC_CE_LABEL_OUTSIDE_FUNCTION,
     TC_CE_JUMP_INCOMPATIBLE_BLOCK,
     TC_CE_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
 
-    /* ---- 0.0.35：函数诊断（§11.4.2，20 个） ---- */
+    /* ---- 0.0.37：函数诊断（§11.4.2，20 个） ---- */
     TC_CE_DUPLICATE_FUNCTION,
     TC_CE_FUNCTION_NAME_CONFLICT,
     TC_CE_UNDEFINED_FUNCTION,
@@ -293,12 +293,12 @@ typedef enum {
     TC_CE_CROSS_CONTROL_FLOW_JUMP,
     TC_CE_RECURSION,
 
-    /* ---- 0.0.35：memblock（§11.4.3） ---- */
+    /* ---- 0.0.37：memblock（§11.4.3） ---- */
     TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE,       /* 静态越界 */
     TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH,
     TC_CE_MEMBLOCK_SIZE_MISMATCH,
 
-    /* ---- 0.0.35：struct（§11.4.4） ---- */
+    /* ---- 0.0.37：struct（§11.4.4） ---- */
     TC_CE_STRUCT_MISSING_FIELD,
     TC_CE_STRUCT_UNKNOWN_FIELD,
     TC_CE_STRUCT_DUPLICATE_FIELD,
@@ -307,7 +307,7 @@ typedef enum {
     TC_CE_DUPLICATE_STRUCT,
     TC_CE_UNDEFINED_STRUCT,
 
-    /* ---- 0.0.35：模块（§11.4.5，10 个） ---- */
+    /* ---- 0.0.37：模块（§11.4.5，10 个） ---- */
     TC_CE_MODULE_LAYER,           /* 顶层声明层序违反（import→struct→值→func/exec） */
     TC_CE_MISSING_VISIBILITY,     /* #lib 成员缺少 public/private */
     TC_CE_PROGRAM_MODE_MISUSE,    /* #program 中使用了库专用构造（func/static/Self/可见性等） */
@@ -319,7 +319,7 @@ typedef enum {
     TC_CE_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
     TC_CE_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
 
-    /* ---- 0.0.35：指针与 memcopy（§11.4.6） ---- */
+    /* ---- 0.0.37：指针与 memcopy（§11.4.6） ---- */
     TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
 
     /* ---- 运行时错误（TC_RE_*，§11.4.1 / §11.4.6） ---- */
@@ -418,7 +418,7 @@ typedef enum {
     TC_RHS_FLOAT_COMPARE, /* 浮点比较 */
     TC_RHS_BITCAST,       /* 等宽整数/浮点位重解释 */
 
-    /* ---- 0.0.35 新增 RHS（开发计划 A-6 / VM 详设 §3.3） ---- */
+    /* ---- 0.0.37 新增 RHS（开发计划 A-6 / VM 详设 §3.3） ---- */
     TC_RHS_MEMBLOCK_LOAD,
     TC_RHS_MEMBLOCK_CONSTRUCTOR,
     TC_RHS_MEMBLOCK_COUNT,
@@ -534,7 +534,7 @@ typedef struct {
             TcOperand rhs;
         } float_compare;         /* TC_RHS_FLOAT_COMPARE */
         TcBitcastRhs bitcast;    /* TC_RHS_BITCAST */
-        /* 0.0.35 Phase 2 RHS payload（前向：结构体在下方定义后即可用；
+        /* 0.0.37 Phase 2 RHS payload（前向：结构体在下方定义后即可用；
          * 此处用匿名结构镜像，完整 typedef 见语句区后的同名类型）。 */
         struct {
             TcType element_type;
@@ -624,7 +624,7 @@ typedef enum {
     TC_STMT_BREAK,       /* 退出最内层 while */
     TC_STMT_CONTINUE,    /* 继续最内层 while */
 
-    /* ---- 0.0.35 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
+    /* ---- 0.0.37 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
     TC_STMT_FIELD_ASSIGN,       /* a.b = rhs */
     TC_STMT_FUNC_DEF,           /* #lib 函数定义 */
     TC_STMT_FUNCALL,            /* funcall 语句（可 Self./限定名） */
@@ -726,7 +726,7 @@ typedef struct {
     int resolved;      /* 分析成功后为 1 */
 } TcGoto;
 
-/* ---- 0.0.35 新增语句 / RHS payload（Phase 2） ---- */
+/* ---- 0.0.37 新增语句 / RHS payload（Phase 2） ---- */
 
 typedef struct {
     int line;
@@ -901,7 +901,8 @@ typedef struct {
  *
  * type 指向标量单例或分析期 intern / AST 稳定 TcType 节点（禁止指向可 realloc 缓冲）。
  * 标量 / ptr：bits 存抽象位模式。
- * memblock：bits 存指向 memblock 堆存储区的指针（实现指针转 uint64_t）。
+ * memblock：bits 存指向 memblock 堆存储区的指针（实现指针转 uint64_t；假定指针可放入
+ *           uint64_t，当前无 32 位目标）。
  * struct：bits 存指向按布局排列的连续字节区的指针；小结构体亦可内联策略（后续 Executor）。
  */
 typedef struct {

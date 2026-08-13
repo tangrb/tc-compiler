@@ -1,5 +1,5 @@
 /*
- * tc_embed.h — TC 嵌入式运行时 API（v0.0.36）
+ * tc_embed.h — TC 嵌入式运行时 API（v0.0.37）
  *
  * C 宿主程序调用 TC 编译产物的最小化运行时 API。
  * 通过共享 slots[] 数组实现零拷贝互操作。
@@ -63,7 +63,7 @@ typedef struct {
     size_t param_count;
 } TcEmbedFuncInfo;
 
-/* ── 类型化参数（运行时便捷层，v0.0.36） ──
+/* ── 类型化参数（运行时便捷层，v0.0.37） ──
  *
  * 携带类型标签的实参，供 tc_embed_call_typed 使用。
  * bits 与 TcValue.bits 位模式一致（按位宽规范化），可经 tc_value_from_* 复用。
