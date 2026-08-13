@@ -501,7 +501,7 @@ static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable
                               "constant value is not available by source order");
             return -1;
         }
-        if (!tc_type_equals(&src->full_type, &sym->full_type)) {
+        if (!tc_type_equals(src->type, sym->type)) {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
                               "static let type mismatch in Self member reference");
             return -1;
@@ -731,7 +731,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         if (!sym) {
             return -1;
         }
-        if (!tc_type_equals(&sym->full_type, return_type)) {
+        if (!tc_type_equals(sym->type, return_type)) {
             tc_diagnostic_set(diag, TC_CE_RETURN_TYPE, ret->line, TC_COLUMN_UNKNOWN,
                               "return type does not match function return type");
             return -1;

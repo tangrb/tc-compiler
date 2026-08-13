@@ -277,13 +277,13 @@ static int tc_exec_load_struct_base(const char *base_name, TcExecuteCtx *ctx, Tc
                                     int *out_struct_id, TcDiagnostic *diag, int line) {
     const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, base_name);
 
-    if (!sym || tc_type_scalar_tag(&sym->full_type) != TC_STRUCT || sym->slot < 0 ||
+    if (!sym || tc_type_tag_of(sym->type) != TC_STRUCT || sym->slot < 0 ||
         !ctx->slots) {
         tc_exec_set_internal_error(diag, line, "internal error: unresolved struct base");
         return -1;
     }
     *out = ctx->slots[sym->slot];
-    *out_struct_id = sym->struct_id >= 0 ? sym->struct_id : sym->full_type.params.struct_type.struct_id;
+    *out_struct_id = tc_type_struct_id(sym->type);
     if (*out_struct_id < 0) {
         tc_exec_set_internal_error(diag, line, "internal error: missing struct id on base");
         return -1;

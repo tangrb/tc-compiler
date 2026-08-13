@@ -72,6 +72,7 @@ void tc_rhs_free(TcRhs *rhs) {
         tc_operand_free(&rhs->u.shift.value);
         tc_operand_free(&rhs->u.shift.count);
     } else if (rhs->kind == TC_RHS_CAST) {
+        tc_type_free(&rhs->u.cast.target);
         tc_operand_free(&rhs->u.cast.source);
     } else if (rhs->kind == TC_RHS_FLOAT_ARITH) {
         tc_operand_free(&rhs->u.float_arith.lhs);
@@ -82,6 +83,7 @@ void tc_rhs_free(TcRhs *rhs) {
         tc_operand_free(&rhs->u.float_compare.lhs);
         tc_operand_free(&rhs->u.float_compare.rhs);
     } else if (rhs->kind == TC_RHS_CONST_CAST) {
+        tc_type_free(&rhs->u.const_cast.target);
         tc_operand_free(&rhs->u.const_cast.source);
     } else if (rhs->kind == TC_RHS_CONST_REF) {
         if (rhs->u.const_ref.name) {
@@ -89,6 +91,7 @@ void tc_rhs_free(TcRhs *rhs) {
             rhs->u.const_ref.name = NULL;
         }
     } else if (rhs->kind == TC_RHS_BITCAST) {
+        tc_type_free(&rhs->u.bitcast.target);
         tc_operand_free(&rhs->u.bitcast.source);
     } else if (rhs->kind == TC_RHS_MEMBLOCK_LOAD) {
         tc_type_free(&rhs->u.memblock_load.element_type);

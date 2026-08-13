@@ -534,7 +534,7 @@ static void test_parse_bitcast_rhs(void) {
     if (program.count == 2) {
         check(program.items[0].u.var_def.rhs.kind == TC_RHS_BITCAST,
               "runtime bitcast rhs kind");
-        check(program.items[0].u.var_def.rhs.u.bitcast.target->tag == TC_UINT32,
+        check(program.items[0].u.var_def.rhs.u.bitcast.target.tag == TC_UINT32,
               "runtime bitcast target");
         check(program.items[0].u.var_def.rhs.u.bitcast.source.kind == TC_OPERAND_LIT,
               "runtime bitcast literal source");

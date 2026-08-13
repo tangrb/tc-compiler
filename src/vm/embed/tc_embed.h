@@ -69,7 +69,7 @@ typedef struct {
  * bits 与 TcValue.bits 位模式一致（按位宽规范化），可经 tc_value_from_* 复用。
  */
 typedef struct {
-    TcTypeTag type;
+    TcTypeTag type; /* 宿主投影：仅标量标签；完整类型事实在 TcValue.type */
     uint64_t bits;
 } TcEmbedArg;
 

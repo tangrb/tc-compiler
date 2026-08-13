@@ -386,7 +386,7 @@ typedef struct {
     int resolved;
     int slot;             /* var 的固定运行时槽；let 为 -1 */
     int is_const;         /* let 常量绑定时为 1 */
-    const TcType *type;   /* 指向单例或类型池 / 符号 full_type 的稳定节点 */
+    const TcType *type;   /* 指向单例或类型池 / 符号 type 的稳定节点 */
     uint64_t const_bits;  /* let 的规范化 TcValue.bits */
 } TcResolvedBinding;
 
@@ -440,14 +440,18 @@ typedef enum {
 } TcRhsKind;
 
 typedef struct {
-    const TcType *target;
+    TcType target; /* 解析期拥有；可为标量或 ptr<T> 等完整类型 */
+    const TcType *target_type; /* Pass2：单例或 type_table intern；执行期只读 */
+    int target_type_resolved;
     const TcType *source_type;
     int source_type_resolved;
     TcOperand source;
 } TcBitcastRhs;
 
 typedef struct {
-    const TcType *target;
+    TcType target; /* 解析期拥有；可为标量或 ptr<T> 等完整类型 */
+    const TcType *target_type; /* Pass2：单例或 type_table intern；执行期只读 */
+    int target_type_resolved;
     TcTruncateMode mode;
     const TcType *source_type;
     int source_type_resolved;
@@ -941,9 +945,7 @@ typedef struct {
     TcValue const_value; /* let 常量编译期求值结果 */
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
-    TcType full_type;    /* 完整类型（ptr/memblock/struct 参数）；标量时 tag 即类型本身 */
-    uint64_t memblock_count; /* type 为 memblock 时声明的 N；否则 0 */
-    int struct_id;       /* type 为 struct 时的结构体 id；否则 -1 */
+    const TcType *type;  /* 完整类型：单例或 TcTypeTable intern；随符号释放时不 free */
 } TcSymbol;
 
 /** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */
@@ -1108,6 +1110,22 @@ extern const TcType tc_type_singletons[TC_TYPE_TAG_COUNT];
 /** 从完整类型取标签；NULL 不安全，调用方须保证非空 */
 static inline TcTypeTag tc_type_tag_of(const TcType *type) {
     return type->tag;
+}
+
+/** memblock 声明 N；非 memblock 或 NULL 返回 0 */
+static inline uint64_t tc_type_memblock_count(const TcType *type) {
+    if (!type || type->tag != TC_MEMBLOCK) {
+        return 0;
+    }
+    return type->params.memblock_type.count;
+}
+
+/** struct_id；非 struct 或 NULL 返回 -1 */
+static inline int tc_type_struct_id(const TcType *type) {
+    if (!type || type->tag != TC_STRUCT) {
+        return -1;
+    }
+    return type->params.struct_type.struct_id;
 }
 
 void tc_type_table_init(TcTypeTable *table);

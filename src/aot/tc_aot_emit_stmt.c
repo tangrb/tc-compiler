@@ -309,11 +309,11 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         stmt_index = tc_stmt_index_take(&ctx->index);
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
         base_sym = tc_symbol_table_find_visible(symbols, assign->base, stmt_index, &ctx->sym_index);
-        if (!base_sym || base_sym->slot < 0 || base_sym->struct_id < 0) {
+        if (!base_sym || base_sym->slot < 0 || tc_type_struct_id(base_sym->type) < 0) {
             return -1;
         }
         tc_diagnostic_init(&local_diag);
-        if (tc_struct_path_offset_bytes(table, base_sym->struct_id, assign->fields,
+        if (tc_struct_path_offset_bytes(table, tc_type_struct_id(base_sym->type), assign->fields,
                                         assign->field_count, &offset, &field_type, &local_diag,
                                         assign->line) != 0) {
             return -1;
@@ -390,7 +390,7 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
                     return -1;
                 }
                 slot = symbol->slot;
-                assign_type = tc_type_scalar_tag(&symbol->full_type);
+                assign_type = tc_type_tag_of(symbol->type);
             }
             return tc_aot_emit_rhs_slot(out, &assign->rhs, assign_type, slot, indent, ctx, stmt_index,
                                         assign->line);

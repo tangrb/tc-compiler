@@ -839,12 +839,14 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
     return 0;
 }
 
-/* @brief 解析 cast RHS：cast(type [,truncate,] operand) */
+/* @brief 解析 cast RHS：cast(type [,truncate,] operand)；type 可为完整类型语法 */
 static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                              TcRhs *out, TcDiagnostic *diag) {
-    TcTypeTag target = TC_INT32;
+    TcType target;
+    char *struct_name = NULL;
     TcTruncateMode mode = TC_TRUNC_STRICT;
 
+    memset(&target, 0, sizeof(target));
     if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
         return -1;
     }
@@ -852,11 +854,19 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    if (tc_parse_type_token(tokens, index, line_no, &target, diag) != 0) {
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &target, &struct_name, diag) != 0) {
         return -1;
+    }
+    free(struct_name);
+    struct_name = NULL;
+    if (target.tag == TC_STRUCT || target.tag == TC_MEMBLOCK || target.tag == TC_VOID) {
+        tc_type_free(&target);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "cast target must be scalar or ptr type");
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&target);
         return -1;
     }
 
@@ -867,12 +877,15 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
             mode = TC_TRUNC_TRUNCATE;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                tc_type_free(&target);
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_WRAP) {
+            tc_type_free(&target);
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "wrap cannot be used with cast");
         } else if (maybe_mode->kind == TC_TOK_IEEE) {
+            tc_type_free(&target);
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "ieee cannot be used with cast");
         }
@@ -880,7 +893,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
 
     out->kind = TC_RHS_CAST;
     memset(&out->u.cast, 0, sizeof(out->u.cast));
-    out->u.cast.target = tc_type_tag_singleton(target);
+    out->u.cast.target = target;
     out->u.cast.mode = mode;
     if (tc_parse_operand(tokens, index, line_no, &out->u.cast.source, diag) != 0) {
         tc_rhs_free(out);
@@ -897,20 +910,33 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
 static int tc_parse_bitcast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                 TcRhs *out, TcDiagnostic *diag) {
     TcBitcastRhs bitcast;
-
-    TcTypeTag target_tag = TC_INT32;
+    char *struct_name = NULL;
 
     memset(&bitcast, 0, sizeof(bitcast));
     if (tc_expect_token(tokens, index, TC_TOK_BITCAST, line_no, diag) != 0 ||
-        tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0 ||
-        tc_parse_type_token(tokens, index, line_no, &target_tag, diag) != 0 ||
-        tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
+        tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &bitcast.target, &struct_name, diag) !=
+        0) {
+        return -1;
+    }
+    free(struct_name);
+    struct_name = NULL;
+    if (bitcast.target.tag == TC_STRUCT || bitcast.target.tag == TC_MEMBLOCK ||
+        bitcast.target.tag == TC_VOID) {
+        tc_type_free(&bitcast.target);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "bitcast target must be integer, float, bool, or ptr type");
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
         tc_parse_operand(tokens, index, line_no, &bitcast.source, diag) != 0) {
+        tc_type_free(&bitcast.target);
         tc_operand_free(&bitcast.source);
         return -1;
     }
-    bitcast.target = tc_type_tag_singleton(target_tag);
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_type_free(&bitcast.target);
         tc_operand_free(&bitcast.source);
         return -1;
     }
@@ -1319,8 +1345,10 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
  */
 static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                    TcRhs *out, TcDiagnostic *diag) {
-    TcTypeTag target = TC_INT32;
+    TcType target;
+    char *struct_name = NULL;
 
+    memset(&target, 0, sizeof(target));
     if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
         return -1;
     }
@@ -1328,22 +1356,26 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
         return -1;
     }
 
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (!tc_token_is_type(type_tok)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
-        }
-        target = type_tok->u.int_type;
-        (*index)++;
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &target, &struct_name, diag) != 0) {
+        return -1;
+    }
+    free(struct_name);
+    struct_name = NULL;
+    if (target.tag == TC_STRUCT || target.tag == TC_MEMBLOCK || target.tag == TC_VOID ||
+        target.tag == TC_PTR) {
+        tc_type_free(&target);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "constant cast target must be a scalar type");
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&target);
         return -1;
     }
 
     out->kind = TC_RHS_CONST_CAST;
     memset(&out->u.const_cast, 0, sizeof(out->u.const_cast));
-    out->u.const_cast.target = tc_type_tag_singleton(target);
+    out->u.const_cast.target = target;
     out->u.const_cast.mode = TC_TRUNC_STRICT;
 
     {
@@ -1352,9 +1384,11 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
             out->u.const_cast.mode = TC_TRUNC_TRUNCATE;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                tc_rhs_free(out);
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_WRAP || maybe_mode->kind == TC_TOK_IEEE) {
+            tc_rhs_free(out);
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "invalid mode for cast");
         }

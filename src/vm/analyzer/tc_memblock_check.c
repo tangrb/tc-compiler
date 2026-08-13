@@ -43,7 +43,7 @@ static int tc_memblock_check_index_literal(const TcOperand *index, uint64_t coun
 
 /**
  * 元素操作数须匹配 element 完整类型。
- * 复合元素走 full_type 比较；标量委托 tc_check_operand。
+ * 复合元素走 type 指针比较；标量委托 tc_check_operand。
  */
 static int tc_memblock_operand_matches_element(TcOperand *operand, const TcType *element,
                                                const TcSymbolTable *visible,
@@ -65,7 +65,7 @@ static int tc_memblock_operand_matches_element(TcOperand *operand, const TcType 
             if (!sym) {
                 return -1;
             }
-            if (!tc_type_equals(&sym->full_type, element)) {
+            if (!tc_type_equals(sym->type, element)) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "operand type does not match memblock element type");
                 return -1;
@@ -103,12 +103,12 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
         if (!mb) {
             return -1;
         }
-        if (tc_type_scalar_tag(&mb->full_type) != TC_MEMBLOCK) {
+        if (tc_type_tag_of(mb->type) != TC_MEMBLOCK) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock_load requires memblock variable");
             return -1;
         }
-        if (!tc_type_equals(mb->full_type.params.memblock_type.element,
+        if (!tc_type_equals(mb->type->params.memblock_type.element,
                             &rhs->u.memblock_load.element_type)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock_load element type does not match");
@@ -127,8 +127,8 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_memblock_check_index_literal(&rhs->u.memblock_load.index, mb->memblock_count, line,
-                                            diag) != 0) {
+        if (tc_memblock_check_index_literal(&rhs->u.memblock_load.index,
+                                            tc_type_memblock_count(mb->type), line, diag) != 0) {
             return -1;
         }
         if (!tc_type_equals(&rhs->u.memblock_load.element_type, expected)) {
@@ -199,7 +199,7 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
         if (!mb) {
             return -1;
         }
-        if (tc_type_scalar_tag(&mb->full_type) != TC_MEMBLOCK) {
+        if (tc_type_tag_of(mb->type) != TC_MEMBLOCK) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock count requires memblock variable");
             return -1;
@@ -232,12 +232,12 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                           "cannot store into constant memblock");
         return -1;
     }
-    if (tc_type_scalar_tag(&mb->full_type) != TC_MEMBLOCK) {
+    if (tc_type_tag_of(mb->type) != TC_MEMBLOCK) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memblock_store requires memblock variable");
         return -1;
     }
-    if (!tc_type_equals(mb->full_type.params.memblock_type.element, &stmt->element_type)) {
+    if (!tc_type_equals(mb->type->params.memblock_type.element, &stmt->element_type)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memblock_store element type does not match");
         return -1;
@@ -248,8 +248,8 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                          stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0) {
         return -1;
     }
-    if (tc_memblock_check_index_literal(&stmt->index, mb->memblock_count, stmt->line, diag) !=
-        0) {
+    if (tc_memblock_check_index_literal(&stmt->index, tc_type_memblock_count(mb->type),
+                                        stmt->line, diag) != 0) {
         return -1;
     }
     return tc_check_operand((TcOperand *)&stmt->value, stmt->element_type.tag, visible, global,
@@ -277,19 +277,17 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
                           "cannot copy into constant memblock");
         return -1;
     }
-    if (tc_type_scalar_tag(&dst->full_type) != TC_MEMBLOCK ||
-        tc_type_scalar_tag(&src->full_type) != TC_MEMBLOCK) {
+    if (tc_type_tag_of(dst->type) != TC_MEMBLOCK || tc_type_tag_of(src->type) != TC_MEMBLOCK) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memblock_copy requires memblock variables");
         return -1;
     }
-    if (dst->memblock_count != src->memblock_count) {
+    if (tc_type_memblock_count(dst->type) != tc_type_memblock_count(src->type)) {
         tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memblock copy size mismatch");
         return -1;
     }
-    if (!tc_type_equals(dst->full_type.params.memblock_type.element,
-                        &stmt->element_type)) {
+    if (!tc_type_equals(dst->type->params.memblock_type.element, &stmt->element_type)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memblock_copy element type does not match");
         return -1;

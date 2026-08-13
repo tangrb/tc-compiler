@@ -150,7 +150,7 @@ int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *resu
         status = tc_exec_logic_unary(rhs->u.logic_un.op, &lhs, &out, &tmp_diag, line);
         break;
     case TC_RHS_CAST:
-        if (rhs->u.cast.target->tag != TC_BOOL || rhs->u.cast.mode != TC_TRUNC_STRICT ||
+        if (rhs->u.cast.target.tag != TC_BOOL || rhs->u.cast.mode != TC_TRUNC_STRICT ||
             !rhs->u.cast.source_type_resolved ||
             !tc_try_eval_bound_operand(&rhs->u.cast.source, rhs->u.cast.source_type->tag, &lhs)) {
             return 0;
@@ -213,7 +213,7 @@ static int tc_eval_const_operand(const TcOperand *operand, TcTypeTag expected,
                               "constant value is not available by source order");
             return -1;
         }
-        if (tc_type_scalar_tag(&symbol->full_type) != expected) {
+        if (tc_type_tag_of(symbol->type) != expected) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "operand type does not match operation type");
             return -1;
@@ -272,7 +272,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                                   "constant value is not available by source order");
                 return -1;
             }
-            if (tc_type_scalar_tag(&symbol->full_type) != expected_type) {
+            if (tc_type_tag_of(symbol->type) != expected_type) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "constant type does not match expected type");
                 return -1;
@@ -591,9 +591,9 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         TcBitcastRhs *bitcast = (TcBitcastRhs *)&rhs->u.bitcast;
         TcValue source = {0};
         TcTypeTag source_type = TC_INT32;
-        int width = tc_type_bit_width(bitcast->target->tag);
+        int width = tc_type_bit_width(bitcast->target.tag);
 
-        if (bitcast->target->tag != expected_type) {
+        if (bitcast->target.tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant bitcast type mismatch");
             return -1;
@@ -615,7 +615,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                                   "constant expression cannot reference var variable");
                 return -1;
             }
-            source_type = tc_type_scalar_tag(&symbol->full_type);
+            source_type = tc_type_tag_of(symbol->type);
         } else if (bitcast->source.u.lit.is_bool) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
@@ -636,7 +636,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         } else {
             source_type = bitcast->source.u.lit.unsigned_suffix ? TC_UINT8 : TC_INT8;
         }
-        if (tc_type_is_bool(bitcast->target->tag) || tc_type_is_bool(source_type)) {
+        if (tc_type_is_bool(bitcast->target.tag) || tc_type_is_bool(source_type)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
@@ -653,7 +653,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                                   diag) != 0) {
             return -1;
         }
-        return tc_exec_bitcast(bitcast->target->tag, &source, out, diag, line);
+        return tc_exec_bitcast(bitcast->target.tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_CONST_CAST) {
@@ -661,7 +661,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         TcValue src_val = {0};
         TcTypeTag source_type = TC_INT64;
 
-        if (cast->target->tag != expected_type) {
+        if (cast->target.tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant cast target type mismatch");
             return -1;
@@ -709,7 +709,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                 return -1;
             }
             src_val = symbol->const_value;
-            source_type = tc_type_scalar_tag(&symbol->full_type);
+            source_type = tc_type_tag_of(symbol->type);
         } else {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid constant cast source");
@@ -719,8 +719,8 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         cast->source_type_resolved = 1;
         tc_diagnostic_init(&tmp_diag);
         if ((cast->mode == TC_TRUNC_TRUNCATE
-                 ? tc_exec_truncate(cast->target->tag, &src_val, out, &tmp_diag, line)
-                 : tc_exec_cast(cast->target->tag, &src_val, out, &tmp_diag, line)) != 0) {
+                 ? tc_exec_truncate(cast->target.tag, &src_val, out, &tmp_diag, line)
+                 : tc_exec_cast(cast->target.tag, &src_val, out, &tmp_diag, line)) != 0) {
             if (tmp_diag.kind == TC_CE_MODE_MISMATCH) {
                 tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "truncate requires an integer target narrower than the source");
@@ -759,7 +759,7 @@ int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, const TcSymbolTable 
                            const TcSymbolTable *global, int line, TcDiagnostic *diag) {
     TcValue value = {0};
 
-    if (tc_eval_const_rhs(rhs, tc_type_scalar_tag(&sym->full_type), visible, global, sym->name,
+    if (tc_eval_const_rhs(rhs, tc_type_tag_of(sym->type), visible, global, sym->name,
                           &value, line, diag) != 0) {
         return -1;
     }

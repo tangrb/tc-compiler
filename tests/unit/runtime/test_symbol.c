@@ -67,13 +67,13 @@ static void test_shadowing(void) {
     check(tc_symbol_table_add(&table, "x", TC_INT16, 1, 2, 1, TC_SYM_VARIABLE, 0, &diag) == 0,
           "add inner x");
     sym = tc_symbol_table_find_in_scope(&table, "x");
-    check(sym != NULL && sym->scope_level == 1 && sym->full_type.tag == TC_INT16,
+    check(sym != NULL && sym->scope_level == 1 && tc_type_tag_of(sym->type) == TC_INT16,
           "find_in_scope prefers inner shadow");
     check(tc_symbol_table_find_in_current_scope(&table, "x") != NULL,
           "find_in_current_scope finds inner x");
     tc_symbol_table_pop_scope(&table);
     sym = tc_symbol_table_find_in_scope(&table, "x");
-    check(sym != NULL && sym->scope_level == 0 && sym->full_type.tag == TC_INT32,
+    check(sym != NULL && sym->scope_level == 0 && tc_type_tag_of(sym->type) == TC_INT32,
           "after pop_scope find outer x again");
     check(table.count == 2, "pop_scope retains block symbols for slot lookup");
     tc_symbol_table_free(&table);

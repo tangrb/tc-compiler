@@ -76,7 +76,7 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
     if (!sym) {
         return -1;
     }
-    if (!tc_type_equals(&sym->full_type, expected_ptr)) {
+    if (!tc_type_equals(sym->type, expected_ptr)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "pointer operand type does not match");
         return -1;
@@ -158,7 +158,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
                               "cannot take address of constant binding");
             return -1;
         }
-        if (!tc_type_equals(&target->full_type, &rhs->u.ptr_address.pointee_type)) {
+        if (!tc_type_equals(target->type, &rhs->u.ptr_address.pointee_type)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "ptr_address pointee type does not match variable type");
             return -1;

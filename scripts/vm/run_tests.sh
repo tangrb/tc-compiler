@@ -714,6 +714,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
     "ptr_size result must be usize/isize"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
     "identifier type does not match destination type"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_cast_width.tc" \
+    "pointer cast requires equal-width pointee types"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_io_writeln.tc" \
     "expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/float_special_non_float.tc" \
@@ -784,6 +786,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
     "ptr_size result must be usize/isize"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
     "identifier type does not match destination type"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_cast_width.tc" \
+    "pointer cast requires equal-width pointee types"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_io_writeln.tc" \
     "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/float_special_non_float.tc" \
@@ -877,6 +881,13 @@ run_expect_stdout "$ROOT/tests/valid/phase5_funcall_return.tc" "3
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_basic.tc" "2
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cast.tc" "100
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cast_nullptr.tc" "true
+true
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_ptr_bitcast.tc" "7
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_scope_outer.tc" "2
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
@@ -963,6 +974,9 @@ run_expect_stdout "$ROOT/tests/valid/usize_arith.tc" "7
 "
 run_expect_check_ok "$ROOT/tests/valid/phase5_funcall_return.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_basic.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cast.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cast_nullptr.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_bitcast.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_scope_outer.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"

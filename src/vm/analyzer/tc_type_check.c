@@ -103,25 +103,25 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
         }
         if (expected->tag == TC_MEMBLOCK) {
             /* memblock：元素类型相等，且声明 N 在目标指定时必须一致 */
-            if (tc_type_scalar_tag(&source->full_type) != TC_MEMBLOCK ||
-                !tc_type_equals(&source->full_type, expected)) {
+            if (tc_type_tag_of(source->type) != TC_MEMBLOCK ||
+                !tc_type_equals(source->type, expected)) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "identifier type does not match destination type");
                 return -1;
             }
-            if (source->memblock_count != expected->params.memblock_type.count &&
+            if (tc_type_memblock_count(source->type) != expected->params.memblock_type.count &&
                 expected->params.memblock_type.count != 0) {
                 tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "memblock size mismatch");
                 return -1;
             }
         } else if (expected->tag == TC_PTR || expected->tag == TC_STRUCT) {
-            if (!tc_type_equals(&source->full_type, expected)) {
+            if (!tc_type_equals(source->type, expected)) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "identifier type does not match destination type");
                 return -1;
             }
-        } else if (tc_type_scalar_tag(&source->full_type) != expected->tag) {
+        } else if (tc_type_tag_of(source->type) != expected->tag) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "identifier type does not match destination type");
             return -1;
@@ -162,6 +162,11 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
     case TC_RHS_FIELD_READ:
         return tc_struct_check_field_read(rhs, expected, struct_table, visible, global, hist,
                                           stmt_index, line, diag, warnings, self_name);
+    case TC_RHS_CAST:
+    case TC_RHS_BITCAST:
+        /* cast/bitcast 目标可为 ptr；由 tc_check_rhs 做完整类型校验 */
+        return tc_check_rhs(rhs, expected, visible, global, hist, stmt_index, line, diag,
+                            warnings, self_name);
     case TC_RHS_SELF_MEMBER: {
         const char *member = rhs->u.self_member.member_name;
         const TcSymbol *source = NULL;
@@ -191,12 +196,12 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
         }
         if (expected->tag == TC_PTR || expected->tag == TC_MEMBLOCK ||
             expected->tag == TC_STRUCT) {
-            if (!tc_type_equals(&source->full_type, expected)) {
+            if (!tc_type_equals(source->type, expected)) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "identifier type does not match destination type");
                 return -1;
             }
-        } else if (tc_type_scalar_tag(&source->full_type) != expected->tag) {
+        } else if (tc_type_tag_of(source->type) != expected->tag) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "identifier type does not match destination type");
             return -1;
@@ -211,7 +216,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
                               "rhs kind does not match composite destination type");
             return -1;
         }
-        return tc_check_rhs(rhs, expected->tag, visible, global, hist, stmt_index, line, diag,
+        return tc_check_rhs(rhs, expected, visible, global, hist, stmt_index, line, diag,
                             warnings, self_name);
     }
 }

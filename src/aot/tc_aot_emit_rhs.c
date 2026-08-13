@@ -97,9 +97,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                         symbols, rhs->u.const_ref.name, stmt_index, &ctx->sym_index);
                     size_t bytes = 0;
 
-                    if (sym && sym->struct_id >= 0 && ctx->program->struct_table) {
+                    if (sym && tc_type_struct_id(sym->type) >= 0 && ctx->program->struct_table) {
                         const TcStructEntry *e =
-                            tc_struct_table_get(ctx->program->struct_table, sym->struct_id);
+                            tc_struct_table_get(ctx->program->struct_table,
+                                               tc_type_struct_id(sym->type));
                         if (e) {
                             bytes = (e->width_bits + 7U) / 8U;
                         }
@@ -135,9 +136,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                         symbol->const_value.bits);
             } else if (expected_type == TC_STRUCT) {
                 size_t bytes = 0;
-                if (symbol->struct_id >= 0 && ctx->program->struct_table) {
+                if (tc_type_struct_id(symbol->type) >= 0 && ctx->program->struct_table) {
                     const TcStructEntry *e =
-                        tc_struct_table_get(ctx->program->struct_table, symbol->struct_id);
+                        tc_struct_table_get(ctx->program->struct_table,
+                                           tc_type_struct_id(symbol->type));
                     if (e) {
                         bytes = (e->width_bits + 7U) / 8U;
                     }
@@ -316,8 +318,16 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_BITCAST) {
+        if (rhs->u.bitcast.target.tag == TC_PTR || rhs->u.bitcast.source_type->tag == TC_PTR) {
+            /* 等宽位重解释：ptr ↔ 整数 / ptr ↔ ptr，仅复制位模式 */
+            fprintf(out, "%s%s = ", indent, dst_expr);
+            tc_aot_emit_operand_expr(out, &rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag,
+                                     ctx, stmt_index);
+            fprintf(out, ";\n");
+            return 0;
+        }
         fprintf(out, "%sif (tc_aot_bitcast(%s, %s, &%s, ", indent,
-                tc_aot_type_enum(rhs->u.bitcast.target->tag),
+                tc_aot_type_enum(rhs->u.bitcast.target.tag),
                 tc_aot_type_enum(rhs->u.bitcast.source_type->tag), dst_expr);
         tc_aot_emit_operand_expr(out, &rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag, ctx,
                                  stmt_index);
@@ -567,16 +577,17 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             fprintf(out, "%s{\n", indent);
             fprintf(out, "%s    uint64_t _mb_cnt = tc_aot_memblock_get_count(slots[%d]);\n", indent,
                     sym->slot);
-            if (sym->memblock_count > 0) {
+            if (tc_type_memblock_count(sym->type) > 0) {
                 fprintf(out, "%s    if (_mb_cnt == 0) _mb_cnt = %" PRIu64 "ULL;\n", indent,
-                        sym->memblock_count);
+                        tc_type_memblock_count(sym->type));
             }
             fprintf(out, "%s    %s = _mb_cnt;\n", indent, dst_expr);
             fprintf(out, "%s}\n", indent);
             return 0;
         }
-        if (sym && sym->memblock_count > 0) {
-            fprintf(out, "%s%s = %" PRIu64 "ULL;\n", indent, dst_expr, sym->memblock_count);
+        if (sym && tc_type_memblock_count(sym->type) > 0) {
+            fprintf(out, "%s%s = %" PRIu64 "ULL;\n", indent, dst_expr,
+                    tc_type_memblock_count(sym->type));
             return 0;
         }
         return -1;
@@ -691,11 +702,12 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         size_t nbytes = 0;
         TcDiagnostic local_diag;
 
-        if (!base_sym || base_sym->slot < 0 || base_sym->struct_id < 0) {
+        if (!base_sym || base_sym->slot < 0 || tc_type_struct_id(base_sym->type) < 0) {
             return -1;
         }
         tc_diagnostic_init(&local_diag);
-        if (tc_struct_path_offset_bytes(table, base_sym->struct_id, rhs->u.field_read.fields,
+        if (tc_struct_path_offset_bytes(table, tc_type_struct_id(base_sym->type),
+                                        rhs->u.field_read.fields,
                                         rhs->u.field_read.field_count, &offset, &field_type,
                                         &local_diag, line) != 0) {
             return -1;
@@ -734,12 +746,21 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         return -1;
     }
 
+    if (rhs->u.cast.target.tag == TC_PTR) {
+        /* ptr<U>→ptr<T>：等宽所指类型，仅复制指针位模式 */
+        fprintf(out, "%s%s = ", indent, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.cast.source, rhs->u.cast.source_type->tag, ctx,
+                                 stmt_index);
+        fprintf(out, ";\n");
+        return 0;
+    }
+
     {
         const char *mode =
             rhs->u.cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
 
         fprintf(out, "%sif (tc_aot_cast(%s, %s, ", indent,
-                tc_aot_type_enum(rhs->u.cast.target->tag), mode);
+                tc_aot_type_enum(rhs->u.cast.target.tag), mode);
         tc_aot_emit_operand_expr(out, &rhs->u.cast.source, rhs->u.cast.source_type->tag, ctx, stmt_index);
         fprintf(out, ", %s, &%s, tc_aot_cur_diag, %d) != 0)\n",
                 tc_aot_type_enum(rhs->u.cast.source_type->tag), dst_expr, line);

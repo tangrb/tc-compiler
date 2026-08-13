@@ -757,11 +757,11 @@ AOT 的核心正确性证据是同一源文件经 VM 与 AOT 产生相同可观�
 | definite init | 条件、回边、continue、break、goto 会合、多域 CFG |
 | fixed slots | 每迭代 var 重初始化、后向 goto 重入 |
 | memblock | 分配、读写、区间拷贝、深拷贝传参、越界错误 |
-| ptr | 取地址、读写、算术、等值/序比较、空指针分类、等宽 cast |
+| ptr | 取地址、读写、算术、等值/序比较、空指针分类、等宽 `cast(ptr<T>, …)`（含 `cast(ptr<T>, nullptr)`）与 `bitcast` 的 `ptr`↔整数往返（位模式复制，不经数值 shim） |
 | struct | 构造器、字段读写、双层可变性、整块复制 |
 | memcopy_unsafe | 空指针、负长度、memmove 语义 |
-| bitcast | 等宽往返、NaN payload、-0.0、最高位 |
-| cast | 全严格可表示性、整数 truncate |
+| bitcast | 等宽往返、NaN payload、-0.0、最高位；含 `ptr` 路径 |
+| cast | 全严格可表示性、整数 truncate；指针目标仅复制位模式 |
 | float | strict/ieee、每步精度、异常优先级 |
 | let | 编译期与 runtime 位模式一致 |
 | static var/let | 拓扑初始化、跨模块共享 |

@@ -596,12 +596,12 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
     if (!base_sym) {
         return -1;
     }
-    if (tc_type_scalar_tag(&base_sym->full_type) != TC_STRUCT) {
+    if (tc_type_tag_of(base_sym->type) != TC_STRUCT) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "field read requires struct base");
         return -1;
     }
-    cursor_type = &base_sym->full_type;
+    cursor_type = base_sym->type;
     for (i = 0; i < rhs->u.field_read.field_count; i++) {
         const TcStructEntry *cur_def = NULL;
         const TcStructField *field = NULL;
@@ -665,12 +665,12 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
                           "cannot assign to function parameter");
         return -1;
     }
-    if (tc_type_scalar_tag(&base_sym->full_type) != TC_STRUCT) {
+    if (tc_type_tag_of(base_sym->type) != TC_STRUCT) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
                           "field assignment requires struct base");
         return -1;
     }
-    cursor_type = &base_sym->full_type;
+    cursor_type = base_sym->type;
     for (i = 0; i < assign->field_count; i++) {
         const TcStructEntry *cur_def = NULL;
 
@@ -704,7 +704,7 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
         }
         cursor_type = &field->type;
     }
-    return tc_type_check_rhs((TcRhs *)&assign->rhs, field ? &field->type : &base_sym->full_type,
+    return tc_type_check_rhs((TcRhs *)&assign->rhs, field ? &field->type : base_sym->type,
                              visible,
                              global, table, hist, stmt_index, assign->line, diag, warnings, NULL);
 }

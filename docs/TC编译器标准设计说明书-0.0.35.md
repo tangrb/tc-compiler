@@ -15,7 +15,7 @@
 | ---- | ------------ | -------------- |
 | §1 | [语言标准 §1] 概述与设计原则 | 确定编译管线（含 13 个子阶段顺序）、首个诊断通用规则（含阶段优先、源位置优先、规则优先三大原则）；版本能力边界（[语言标准 §1.1.1]）；落实 [语言标准 §1.3] 一致性判定 |
 | §2 | [语言标准 §2] 词法结构 | 最长匹配词法器（[语言标准 §2.3.7]）、缩进级别栈（[语言标准 §2.8]）、字面量 Token 自身上限检查（[语言标准 §2.3.5]、[语言标准 §2.4.1]）、前导零判定（[语言标准 §2.3.4]） |
-| §3 | [语言标准 §3] 类型系统 | 整数类型有符号/无符号编译器约束（[语言标准 §3.2]、[语言标准 §3.5]）；`bool` 抽象宽度与规范位模式验证（[语言标准 §3.4]）；字面量检查实现要点（[语言标准 §3.6]）；类型转换通用框架编译器验证（[语言标准 §3.7]）；`memblock<T, N>` 规划个数与类型等价分离、运行时布局计算（[语言标准 §3.8]）；结构体类型编译器约束、构造器验证、字段可变性双层检查、运行时布局与 @padding 验证（[语言标准 §3.9]）；`ptr<T>` 静态约束、指针来源、比较运算与算术验证（[语言标准 §3.10]） |
+| §3 | [语言标准 §3] 类型系统 | **§3.0 内部类型事实源（`const TcType*` / `TcTypeTag` 投影）**；整数类型有符号/无符号编译器约束（[语言标准 §3.2]、[语言标准 §3.5]）；`bool` 抽象宽度与规范位模式验证（[语言标准 §3.4]）；字面量检查实现要点（[语言标准 §3.6]）；类型转换通用框架编译器验证（含 ptr cast/bitcast，[语言标准 §3.7]）；`memblock<T, N>` 规划个数与类型等价分离、运行时布局计算（[语言标准 §3.8]）；结构体类型编译器约束、构造器验证、字段可变性双层检查、运行时布局与 @padding 验证（[语言标准 §3.9]）；`ptr<T>` 静态约束、指针来源、比较运算与算术验证（[语言标准 §3.10]） |
 | §4 | [语言标准 §4] 程序结构与模块系统 | 模块分层架构、导入错误优先级（子阶段 4a→4b→4c→4d）、模式对照约束、`Self` 成员限定（[语言标准 §4.3]）、成员可见性检查（[语言标准 §4.4]）、导入解析（[语言标准 §4.5]）；`static var` 初始化实现与依赖拓扑（[语言标准 §4.2]） |
 | §5 | [语言标准 §5] 声明 | `var` 声明形态与初始化器检查（[语言标准 §5.1]）；`let` 常量表达式形态验证与声明类型闭合（[语言标准 §5.2.1]）；静态布尔三态判定实现（[语言标准 §5.2.2]）；编译期求值与浮点精度规则（[语言标准 §5.2.3]） |
 | §6 | [语言标准 §6] 表达式与运算 | RHS 与操作数类型/模式检查（[语言标准 §6.1]）；赋值语句编译器验证（[语言标准 §6.2]）；算术模式验证矩阵与浮点执行环境（[语言标准 §6.3]）；位运算验证（[语言标准 §6.4]）；比较与逻辑运算检查及短路裁剪（[语言标准 §6.5]）；类型转换三种形式验证与字面量源类型规则（[语言标准 §6.6]）；memblock 操作验证与区间拷贝语义（[语言标准 §6.7]）；指针操作验证含 `ptr_load`/`ptr_store`/`ptr_address`/`ptr_add`/`ptr_sub`/`ptr_lt`…`ptr_ge`/`ptr_size`/`memcopy_unsafe`（[语言标准 §6.8]）；操作数数量权威表；构造器验证 |
@@ -220,13 +220,24 @@
 
 本章对应 [语言标准 §3]。类型分类、转换与布局语义以语言标准为准；本节固定 `memblock<T, N>` 与 `ptr<T>` 的编译器侧确定性约束，以及 `bool` 规范位模式验证。
 
+### 3.0 内部类型事实源（禁止双轨）
+
+编译器内部必须遵守单一事实源契约（实现见 `tc_types.h` / VM 详设 §8.1）：
+
+- **完整类型**以 `TcType`（`tag` + 参数）表示；符号、`TcResolvedBinding`、`TcValue` 与分析期期望类型持有 **interned / 单例** `const TcType*`。
+- **`TcTypeTag` 仅为投影**：用于判别、位宽与语义内核参数；禁止在绑定/值/符号字段上单独存裸标签充当完整类型。
+- Analyze 入口创建 `TcTypeTable`；Pass1 对声明类型 `tc_type_intern` 后写入符号；Pass2 对 `cast`/`bitcast` 目标 intern 并写入 RHS `target_type`。Analyze 完成后 `type_table` 对 Executor/AOT **只读**。复合类型不得经 `tc_type_scalar_tag` 降级写回绑定。
+- `memblock` 的 `N` 与 `struct_id` 只存在于 `TcType.params`（访问器 `tc_type_memblock_count` / `tc_type_struct_id`），不得在 `TcSymbol` 上冗余平行字段。
+- `cast` / `bitcast` 的目标类型解析必须接受完整类型语法（含 `ptr<T>`）；`cast(ptr<T>, nullptr)` 合法且跳过等宽检查，见 §3.7。
+- 防回潮：`scripts/sync/check_type_fact_source.py`（CI 阶段 5c）。
+
 ### 3.1 memblock 编译器约束
 
 `memblock<T, N>` 的类型仅由元素类型 `T` 决定；`N` 是编译期 `usize` 规划元素个数，不参与类型等价，但必须进入绑定的编译期元数据，供赋值、传参与下标检查使用（[语言标准 §3.8.1]、[语言标准 §3.8.4]）。运行时布局为 `usize` 长度头部紧随其后排列的元素数据（[语言标准 §3.8.2]）。
 
 编译器必须：
 
-- **记录规划个数 `N`**：符号表/类型属性持有每个 memblock 绑定声明的 `N` 数学值（及元素类型 `T`）。`N` 来源限于 [语言标准 §3.8.1] 的编译期 `usize` 常量；非常量 → `TC_CE_CONSTANT_EXPRESSION`。
+- **记录规划个数 `N`**：绑定的完整类型（`const TcType*`，`params.memblock_type.count`）持有声明 `N` 的数学值及元素类型 `T`。`N` 来源限于 [语言标准 §3.8.1] 的编译期 `usize` 常量；非常量 → `TC_CE_CONSTANT_EXPRESSION`。
 - **计算并记录类型级宽度**：`sizeof_bits(memblock<T, N>) = sizeof_bits(usize) + N × sizeof_bits(T)`，其中 `sizeof_bits(T)` 按 [语言标准 §3.8.2] 的宽度表计算，`sizeof_bits(usize)` 为目标平台指针宽度。该宽度在编译期完全确定，供 memblock 整体赋值和按值传参使用。
 - **比较规划个数**：赋值、`funcall` 初始化与按值传参在 `T` 相同之外，还须比较两侧声明的 `N` 数学值；不相等 → `TC_CE_MEMBLOCK_SIZE_MISMATCH`。不得把该检查推迟到运行时。
 - **按 `N` 做边界**：`memblock_load` / `memblock_store` 使用 `0 ≤ i < N`；`memblock_copy` 的上界取自两侧声明的 `N`（[语言标准 §6.7.2.3]–[语言标准 §6.7.2.4]）。编译期可确定的负下标/负 `length`/越界 → `TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE`；否则运行时 → `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`。
@@ -284,7 +295,7 @@
 - **逐值初始化数量检查**：`memblock(T, count: N, v0, …, vₙ)` 的位置实参数量 `n+1` 必须等于 `N` 的数学值 → `TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH`。每个值类型必须与 `T` 严格一致。
 - **填充形式**：`memblock(T, count: N, fill: v)` 中 `v` 类型须与 `T` 严格一致。
 - **常量化**：出现在 `let`/`static let` 的 `const_rhs` 中时，`count:` 和所有值操作数必须是编译期常量。
-- **`N` 记录**：构造成功后，符号表记录该 memblock 绑定的 `N` 数学值与元素类型 `T`，供后续赋值/传参的 `N` 比较及 `.count` 常量访问使用。
+- **`N` 记录**：构造成功后，绑定完整类型的 `params.memblock_type.count` 与元素类型 `T` 可供后续赋值/传参的 `N` 比较及 `.count` 常量访问使用。
 
 ### 3.5 整数类型编译器约束
 
@@ -339,9 +350,11 @@
 
 | 转换形式 | 静态验证 | 运行时检查 | 说明 |
 | -------- | -------- | ------------ | ---- |
-| `cast(T, operand)` | 源、目标可为整数/浮点/`bool`/`ptr<U>`→`ptr<T>`（等宽）；非等宽指针转换 → `TC_CE_TYPE_MISMATCH`；`ptr<T>` 不可 `cast` 到整数/浮点 | 严格模式：范围检查触发 `TC_RE_CAST_OVERFLOW`；浮点到整数 NaN/无穷 → `TC_RE_CAST_OVERFLOW` | 数值转换含范围检查与规定舍入 |
+| `cast(T, operand)` | 源、目标可为整数/浮点/`bool`/`ptr<U>`→`ptr<T>`（等宽）；源为 `nullptr` 时跳过等宽（无所指 `U`，由目标 `ptr<T>` 定型）；非等宽指针转换 → `TC_CE_TYPE_MISMATCH`；`ptr<T>` 不可 `cast` 到整数/浮点 | 严格模式：范围检查触发 `TC_RE_CAST_OVERFLOW`；浮点到整数 NaN/无穷 → `TC_RE_CAST_OVERFLOW` | 数值转换含范围检查与规定舍入 |
 | `cast(T, truncate, operand)` | 源与目标必须均为整数且目标更窄（`m < n`）；`m ≥ n` → `TC_CE_MODE_MISMATCH`；不接受非整数类型 | 无溢出检查；保留低 `m` 位 | 仅整数缩窄 |
-| `bitcast(T, operand)` | 源与目标必须等宽 → `TC_CE_BITCAST_WIDTH`；`bool` 不可参与 → `TC_CE_TYPE_MISMATCH`；memblock/结构体不可参与 → `TC_CE_TYPE_MISMATCH` | 无运行时检查；位模式不变 | 等宽位重解释 |
+| `bitcast(T, operand)` | 源与目标必须等宽 → `TC_CE_BITCAST_WIDTH`；`bool` 不可参与 → `TC_CE_TYPE_MISMATCH`；memblock/结构体不可参与 → `TC_CE_TYPE_MISMATCH`；允许 `ptr`↔等宽整数及 `ptr`↔`ptr` | 无运行时检查；位模式不变 | 等宽位重解释 |
+
+**实现要点**：`cast`/`bitcast` 目标 `T` 在 Parser 阶段经完整类型语法解析（`tc_parse_type_syntax`）；Pass2 将目标 intern 为稳定 `const TcType*`（写入 RHS 的 `target_type`），并以期望类型做 `tc_type_equals` / 所指等宽检查。Executor/AOT **只读**使用已解析指针，不得再调用 `tc_type_intern` 写入 `type_table`。不得因内部仍用 `TcTypeTag` 投影而拒绝合法 `ptr` 目标。
 
 **字面量操作数的源类型确定**：编译器在形成 `cast`/`bitcast` 调用节点时，必须按 [语言标准 §6.6.1.1] 的字面量源类型规则确定每个字面量操作数的内部表示类型，再执行上述检查。关键规则：
 - `cast` 中无后缀整数字面量的源类型为 `int64`，`u`/`U` 后缀为 `uint64`；

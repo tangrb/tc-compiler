@@ -158,6 +158,18 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         goto fail;
     }
 
+    /* 类型池：Pass1 起 intern；生命周期归属 TcTypedProgram */
+    {
+        TcTypeTable *types = (TcTypeTable *)malloc(sizeof(TcTypeTable));
+        if (!types) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            goto fail;
+        }
+        tc_type_table_init(types);
+        out->type_table = types;
+    }
+
     /* 4d + 5 */
     if (tc_module_collect_signatures(out, &sigs, diag) != 0) {
         goto fail;
@@ -169,13 +181,14 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
-            if (tc_pass1_collect_symbols(&out->deps[di], &out->symbols, diag) != 0) {
+            if (tc_pass1_collect_symbols(&out->deps[di], &out->symbols, out->type_table,
+                                         diag) != 0) {
                 goto fail;
             }
         }
     }
 
-    if (tc_pass1_collect_symbols(&out->program, &out->symbols, diag) != 0) {
+    if (tc_pass1_collect_symbols(&out->program, &out->symbols, out->type_table, diag) != 0) {
         goto fail;
     }
 
@@ -267,18 +280,13 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     {
         TcStructTable *owned = (TcStructTable *)malloc(sizeof(TcStructTable));
-        TcTypeTable *types = (TcTypeTable *)malloc(sizeof(TcTypeTable));
-        if (!owned || !types) {
-            free(owned);
-            free(types);
+        if (!owned) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
             goto fail;
         }
         *owned = struct_table;
         out->struct_table = owned;
-        tc_type_table_init(types);
-        out->type_table = types;
     }
 
     ret = 0;

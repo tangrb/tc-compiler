@@ -228,9 +228,9 @@ typedef struct {
     const char *func_name;
     int func_id;
     int has_return;
-    int return_type;          /* TcTypeTag；void 返回时无意义 */
+    int return_type;          /* TcTypeTag 投影；void 返回时无意义 */
     int *param_slots;         /* 各形参的 slot 号，长度 param_count */
-    int *param_types;         /* 各形参的 TcTypeTag */
+    int *param_types;         /* 各形参的 TcTypeTag 投影（标量） */
     size_t param_count;
 } TcEmbedFuncInfo;
 
@@ -253,7 +253,7 @@ int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out);
 /* ── ptr<T> 编码 ── */
 static inline TcValue tc_embed_ptr_encode(int slot) {
     TcValue v;
-    v.type = TC_PTR;
+    v.type = tc_type_tag_singleton(TC_PTR); /* 标签单例；完整 pointee 由调用上下文决定 */
     v.bits = ((uint64_t)(uint32_t)slot << 1) | 1ULL;
     return v;
 }
@@ -437,9 +437,9 @@ typedef struct {
     const char *func_name;     /* 函数名 */
     int func_id;               /* 全局唯一函数 ID */
     int has_return;            /* 是否有返回值（非 void） */
-    int return_type;           /* 返回类型 TcTypeTag */
+    int return_type;           /* 返回类型 TcTypeTag 投影 */
     int *param_slots;          /* 各形参 slot 索引，长度 param_count */
-    int *param_types;          /* 各形参 TcTypeTag */
+    int *param_types;          /* 各形参 TcTypeTag 投影（标量） */
     size_t param_count;        /* 形参数量 */
 } TcEmbedFuncInfo;
 ```
@@ -590,7 +590,7 @@ ptr.bits = 0;
 
 ```c
 static inline TcValue tc_value_from_int64(int64_t val) {
-    TcValue v = { .type = TC_INT64, .bits = (uint64_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_INT64), .bits = (uint64_t)val };
     return v;
 }
 
@@ -601,22 +601,25 @@ static inline int tc_value_to_int64(TcValue v, int64_t *out) {
 }
 
 static inline TcValue tc_value_from_uint64(uint64_t val) {
-    TcValue v = { .type = TC_UINT64, .bits = val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_UINT64), .bits = val };
     return v;
 }
 
 /* int32 / uint32 等类型同理，bits 按位宽掩码规范化 */
 static inline TcValue tc_value_from_int32(int32_t val) {
-    TcValue v = { .type = TC_INT32, .bits = (uint64_t)(uint32_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_INT32),
+                  .bits = (uint64_t)(uint32_t)val };
     return v;
 }
 ```
+
+`TcValue.type` 为 `const TcType*`（标量用进程内单例）。桥接层构造标量值时必须写单例指针，不得把裸 `TcTypeTag` 赋给 `type`。
 
 ### 9.3 浮点
 
 ```c
 static inline TcValue tc_value_from_double(double val) {
-    TcValue v = { .type = TC_FLOAT64 };
+    TcValue v = { .type = tc_type_tag_singleton(TC_FLOAT64) };
     memcpy(&v.bits, &val, sizeof(double));
     return v;
 }
@@ -627,7 +630,7 @@ static inline int tc_value_to_double(TcValue v, double *out) {
 }
 
 static inline TcValue tc_value_from_float(float val) {
-    TcValue v = { .type = TC_FLOAT32 };
+    TcValue v = { .type = tc_type_tag_singleton(TC_FLOAT32) };
     uint32_t bits;
     memcpy(&bits, &val, sizeof(float));
     v.bits = (uint64_t)bits;
@@ -641,7 +644,7 @@ static inline TcValue tc_value_from_float(float val) {
 
 ```c
 static inline TcValue tc_value_from_bool(int val) {
-    TcValue v = { .type = TC_BOOL, .bits = val ? 1ULL : 0ULL };
+    TcValue v = { .type = tc_type_tag_singleton(TC_BOOL), .bits = val ? 1ULL : 0ULL };
     return v;
 }
 
@@ -1494,7 +1497,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
         /* 读取返回值：通过 tc_aot_func_entry.ret_ptr 指向的 tc_aot_ret_N 全局变量 */
         if (info->has_return && result && entry->ret_ptr) {
             result->bits = *entry->ret_ptr;
-            result->type = (TcTypeTag)info->return_type;
+            result->type = tc_type_tag_singleton((TcTypeTag)info->return_type);
         }
     } else {
         /* ── VM 路径 ── */
@@ -1958,8 +1961,8 @@ C 调用 TC 的基本方案可行，但将以下细节暴露给 C 宿主程序�
 
 ```c
 typedef struct {
-    TcTypeTag type;
-    uint64_t bits;      /* 与 TcValue.bits 一致（按位宽规范化） */
+    TcTypeTag type; /* 宿主投影：仅标量/void 标签；完整类型事实在 TcValue.type */
+    uint64_t bits;  /* 与 TcValue.bits 一致（按位宽规范化） */
 } TcEmbedArg;
 
 static inline TcEmbedArg tc_embed_arg_i32(int32_t v) {
@@ -1969,6 +1972,8 @@ static inline TcEmbedArg tc_embed_arg_i32(int32_t v) {
 /* i8/u8/i16/u16/i32/u32/i64/u64/isize/usize/f32/f64/bool 同理；
  * tc_embed_arg_ptr(slot) 直接构造 ptr；tc_embed_arg_value(TcValue) 包装既有值 */
 ```
+
+`TcEmbedArg` / `TcEmbedFuncInfo` 的 `TcTypeTag`（或 `int` 存标签）是 **C 宿主 ABI 投影**，仅覆盖标量与「仅标签」场景；内部槽位与 `tc_embed_call` 路径仍使用 `TcValue`（`const TcType*`）。复合类型互操作走专用 API / reserved，不得假设 `TcEmbedArg.type` 能表达 `ptr`/`memblock`/`struct` 参数。
 
 `tc_embed_arg_*` 复用 `tc_value_bridge.h` 的位模式，保证与 `TcValue` 槽位值完全一致。
 

@@ -230,7 +230,7 @@ Executor 和 AOT 只读 typed program。一个成功对象可以：
 2. 生成 C 零次或多次；
 3. 在消费完成后释放一次。
 
-任何消费者不得修改共享 symbol、const value 或 CFG。
+任何消费者不得修改共享 symbol、const value、CFG 或 `type_table`（Analyze 完成后类型池只读）。
 
 ---
 

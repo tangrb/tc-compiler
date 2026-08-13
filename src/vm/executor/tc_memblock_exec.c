@@ -45,7 +45,7 @@ static uint64_t tc_memblock_declared_count(const TcSymbol *sym) {
     if (!sym) {
         return 0;
     }
-    return sym->memblock_count;
+    return tc_type_memblock_count(sym->type);
 }
 
 static size_t tc_memblock_element_bytes(const TcType *element, const TcExecuteCtx *ctx) {
@@ -187,7 +187,7 @@ int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue
     uint64_t count = 0;
 
     sym = tc_exec_find_symbol(ctx->symbols, memblock_name);
-    if (!sym || sym->slot < 0 || tc_type_scalar_tag(&sym->full_type) != TC_MEMBLOCK) {
+    if (!sym || sym->slot < 0 || tc_type_tag_of(sym->type) != TC_MEMBLOCK) {
         tc_exec_set_internal_error(diag, line, "internal error: unresolved memblock for count");
         return -1;
     }
@@ -244,7 +244,7 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
         value.type = tc_type_tag_singleton(TC_BOOL);
     }
     element_bytes =
-        tc_memblock_element_bytes(sym->full_type.params.memblock_type.element, ctx);
+        tc_memblock_element_bytes(sym->type->params.memblock_type.element, ctx);
     dst = tc_memblock_element_ptr(block, element_bytes, index);
     memcpy(dst, &value.bits, element_bytes);
     return 0;

@@ -528,11 +528,21 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
 
     if (rhs->kind == TC_RHS_BITCAST) {
         TcValue source;
-        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag, ctx, &source, diag,
-                            line) != 0) {
+        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag, ctx, &source,
+                            diag, line) != 0) {
             return -1;
         }
-        return tc_exec_bitcast(rhs->u.bitcast.target->tag, &source, out, diag, line);
+        if (rhs->u.bitcast.target.tag == TC_PTR || rhs->u.bitcast.source_type->tag == TC_PTR) {
+            if (!rhs->u.bitcast.target_type_resolved || !rhs->u.bitcast.target_type) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                                  "internal error: bitcast target type not resolved");
+                return -1;
+            }
+            out->type = rhs->u.bitcast.target_type;
+            out->bits = source.bits;
+            return 0;
+        }
+        return tc_exec_bitcast(rhs->u.bitcast.target.tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_CAST) {
@@ -541,9 +551,19 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
                             line) != 0) {
             return -1;
         }
+        if (rhs->u.cast.target.tag == TC_PTR) {
+            if (!rhs->u.cast.target_type_resolved || !rhs->u.cast.target_type) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                                  "internal error: cast target type not resolved");
+                return -1;
+            }
+            out->type = rhs->u.cast.target_type;
+            out->bits = source.bits;
+            return 0;
+        }
         return rhs->u.cast.mode == TC_TRUNC_TRUNCATE
-                   ? tc_exec_truncate(rhs->u.cast.target->tag, &source, out, diag, line)
-                   : tc_exec_cast(rhs->u.cast.target->tag, &source, out, diag, line);
+                   ? tc_exec_truncate(rhs->u.cast.target.tag, &source, out, diag, line)
+                   : tc_exec_cast(rhs->u.cast.target.tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_ARITH) {
@@ -712,7 +732,7 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
             *out = ctx->slots[sym->slot];
             out->type = expected_type != TC_VOID
                             ? tc_type_tag_singleton(expected_type)
-                            : tc_type_tag_singleton(tc_type_scalar_tag(&sym->full_type));
+                            : sym->type;
             return 0;
         }
         tc_exec_set_internal_error(diag, line, "internal error: unresolved Self member");
@@ -1081,7 +1101,7 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
             }
             if (assign->binding.type->tag == TC_STRUCT) {
                 const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, assign->name);
-                int sid = sym ? sym->struct_id : -1;
+                int sid = sym ? tc_type_struct_id(sym->type) : -1;
 
                 if (sid < 0) {
                     tc_exec_set_internal_error(diag, assign->line,

@@ -52,6 +52,7 @@ typedef struct {
     int loop_depth;              /* 词法祖先 while 数，用于范式隔离 */
     int func_depth;              /* 词法祖先 func 数；0 表示顶层 */
     TcFuncCheckEnv *func_env;    /* Phase 4；可为 NULL */
+    TcTypeTable *type_table;     /* 分析期类型池；Pass1 intern 用 */
 } TcAnalyzeCtx;
 
 /** 初始化历史 / 数据流上下文，供未初始化变量检查使用 */
@@ -62,6 +63,7 @@ typedef struct {
     int num_slots;
     int check_init;                         /* 0：短路或不可达路径，跳过未初始化错误 */
     int defer_to_cfg;                       /* 文件模式由完整 CFG 统一检查 */
+    TcTypeTable *type_table;                /* Pass2：cast/bitcast 目标 intern；执行期只读 */
 } TcInitHistory;
 
 /* ------------------------------------------------------------------ */
@@ -111,7 +113,7 @@ int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                      TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                      TcWarningList *warnings, const char *self_name, TcErrorKind type_err);
 int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line, TcDiagnostic *diag);
-int tc_check_rhs(TcRhs *rhs, TcTypeTag lhs_type, const TcSymbolTable *visible,
+int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
                  const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                  int line, TcDiagnostic *diag, TcWarningList *warnings, const char *self_name);
 

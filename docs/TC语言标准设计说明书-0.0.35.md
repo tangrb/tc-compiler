@@ -462,7 +462,7 @@ TC 0.0.35 将数值转换、整数截断、位重解释与指针转换分开：
 | `cast(T, operand)` | 数值转换 | 按目标类型做范围检查与规定舍入 |
 | `cast(T, truncate, operand)` | 整数缩窄 | 仅整数→更窄整数，保留低位 |
 | `bitcast(T, operand)` | 位重解释 | 源、目标等宽；不改变任何位；`bool` 不参与 |
-| `cast(T, ptr_val)` | 指针类型转换 | `ptr<U>` → `ptr<T>`；仅当 `T` 与 `U` 均为完整类型且等宽时允许 |
+| `cast(T, ptr_val)` | 指针类型转换 | `ptr<U>` → `ptr<T>`：仅当 `T`/`U` 均为完整类型且等宽时允许；`cast(ptr<T>, nullptr)` 合法（跳过等宽） |
 
 严格 `cast` 覆盖整数 ↔ 整数、整数 ↔ 浮点、浮点 ↔ 浮点，以及整数/浮点 ↔ `bool`。`truncate` 不再承担浮点位重解释；所有整数/浮点位模式互转统一使用 `bitcast`。指针类型转换通过 `cast` 进行（同为等宽值类型的重标记），不经 `truncate`；指针与整数/浮点位模式互转统一使用 `bitcast`。
 
@@ -701,7 +701,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 | `ptr_load`/`ptr_store` 操作数位置 | 操作数的声明类型 |
 | `funcall` 实参位置 | 对应形参的声明类型 |
 | `return` 表达式 | 函数返回类型 |
-| `cast` 目标 | `cast` 的 `T` 参数 |
+| `cast` 目标 / `cast(ptr<T>, nullptr)` | `cast` 的 `T` 参数；`nullptr` 源无所指类型，不做等宽检查 |
 
 **运行时语义**：
 
@@ -846,7 +846,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | 特性 | 规则 |
 | ---- | ---- |
 | I/O | `write`/`writeln`/`read` 不接受 `ptr<T>` 类型 |
-| `cast` | `cast(T, ptr_val)` 支持 `ptr<U>` → `ptr<T>` 的指针类型转换（仅当 `sizeof_bits(T) == sizeof_bits(U)` 且 `T` 与 `U` 均为 `void` 以外的完整类型时允许；非等宽转指针报 `TC_CE_TYPE_MISMATCH`）；`ptr<T>` 不可 `cast` 到整数/浮点类型 |
+| `cast` | `cast(T, ptr_val)` 支持 `ptr<U>` → `ptr<T>` 的指针类型转换（仅当 `sizeof_bits(T) == sizeof_bits(U)` 且 `T` 与 `U` 均为 `void` 以外的完整类型时允许；非等宽转指针报 `TC_CE_TYPE_MISMATCH`）。`cast(ptr<T>, nullptr)` 合法：`nullptr` 无所指类型 `U`，由目标 `ptr<T>` 定型，不做等宽检查。`ptr<T>` 不可 `cast` 到整数/浮点类型 |
 | `bitcast` | `bitcast(T, ptr_val)` 支持 `ptr<U>` ↔ `usize`/同宽整数的等宽位重解释，以及 `ptr<U>` ↔ `ptr<T>` 的等宽指针位重解释（等宽约束与 `bitcast` 通用规则一致，见 §6.6.6）；所得到的位模式再经目标类型解释后的行为见 §3.10.7（指针比较仅在同型 `ptr<T>` 上有定义） |
 | 算术 / 移位 / 逻辑 / 按位 | 不接受 `ptr<T>` 类型操作数；指针算术仅可通过专用的 `ptr_add` / `ptr_sub` 进行（§3.10.8） |
 | 指针算术 | `ptr_add(T, p, offset)` / `ptr_sub(T, p, offset)`（步长为 `sizeof_bits(T)` 位，偏移类型 `usize`）。不检查越界；越界指针解引用行为为实现定义 |

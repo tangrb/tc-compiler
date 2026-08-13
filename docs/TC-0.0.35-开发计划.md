@@ -369,6 +369,9 @@ src/
 | A-6 | 扩展 `TcRhsKind` 枚举 | 新增 18 种: MEMBLOCK_LOAD/CONSTRUCTOR/COUNT, STRUCT_CONSTRUCTOR, FIELD_READ, PTR_LOAD/ADDRESS/ADD/SUB/EQ~GE/SIZE, FUNCALL_EXPR, SELF_MEMBER | check_rhs_coverage.py 通过 |
 | A-7 | 扩展 `TcErrorKind` 枚举 | 新增 ~30 个错误码（函数20+memblock4+struct7+模块10+指针4） | tc_error_kind_name() 所有打印名唯一 |
 | A-8 | 扩展槽位模型 | 顶层var槽、static_slots[]全程序唯一槽、函数形参/局部槽；memblock/struct 值以堆块指针存于 `slots[]`/`static_slots[]`（实现未采用独立 `struct_storage[]` 字节数组，与 AOT 详设早期草稿不同） | Executor/AOT 消费一致 |
+| A-9 | 类型单一事实源收敛 | `TcValue`/`TcSymbol`/`TcResolvedBinding` 存 `const TcType*`；`TcTypeTable` intern；删除符号层 `full_type` 深拷贝与 `memblock_count`/`struct_id` 冗余；`cast`/`bitcast` 完整类型语法 | `check_type_fact_source.py`；`phase5_ptr_cast*`；unit `test_types`/`test_analyzer` |
+
+> **状态（类型内核）**：A-1～A-8 已完成；**A-9（双轨收敛）已落地**（符号/值/绑定统一 `const TcType*`，Parse 期 AST 按值拥有为过渡所有权层）。
 
 ### 模块 B：词法分析器 (Lexer)
 
