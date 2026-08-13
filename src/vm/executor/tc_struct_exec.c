@@ -41,7 +41,7 @@ static int tc_exec_struct_track(TcExecuteCtx *ctx, void *block, TcDiagnostic *di
 }
 
 static void *tc_struct_data(const TcValue *value) {
-    if (!value || value->type != TC_STRUCT || value->bits == 0) {
+    if (!value || !value->type || value->type->tag != TC_STRUCT || value->bits == 0) {
         return NULL;
     }
     return (void *)(uintptr_t)value->bits;
@@ -101,7 +101,7 @@ int tc_exec_struct_clone(const TcValue *src, size_t width_bits, TcExecuteCtx *ct
         return -1;
     }
     memcpy(block, src_data, bytes);
-    out->type = TC_STRUCT;
+    out->type = tc_type_tag_singleton(TC_STRUCT);
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }
@@ -141,7 +141,7 @@ static int tc_exec_write_field_bytes(uint8_t *base, size_t offset, const TcType 
     }
     if (field_type->tag == TC_MEMBLOCK) {
         void *src = NULL;
-        if (!value || value->type != TC_MEMBLOCK || value->bits == 0) {
+        if (!value || !value->type || value->type->tag != TC_MEMBLOCK || value->bits == 0) {
             tc_exec_set_internal_error(diag, line, "internal error: memblock field value");
             return -1;
         }
@@ -172,7 +172,7 @@ static int tc_exec_read_field_bytes(const uint8_t *base, size_t offset, const Tc
             return -1;
         }
         memcpy(block, src, nbytes);
-        out->type = TC_STRUCT;
+        out->type = tc_type_tag_singleton(TC_STRUCT);
         out->bits = (uint64_t)(uintptr_t)block;
         return 0;
     }
@@ -188,11 +188,11 @@ static int tc_exec_read_field_bytes(const uint8_t *base, size_t offset, const Tc
         if (tc_exec_struct_track(ctx, block, diag, line) != 0) {
             return -1;
         }
-        out->type = TC_MEMBLOCK;
+        out->type = tc_type_tag_singleton(TC_MEMBLOCK);
         out->bits = (uint64_t)(uintptr_t)block;
         return 0;
     }
-    out->type = field_type->tag;
+    out->type = field_type;
     out->bits = 0;
     memcpy(&out->bits, src, nbytes <= sizeof(out->bits) ? nbytes : sizeof(out->bits));
     if (field_type->tag == TC_BOOL) {
@@ -268,7 +268,7 @@ int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDia
         bit_off += field_bits + (size_t)field->padding * 8U;
     }
 
-    out->type = TC_STRUCT;
+    out->type = tc_type_tag_singleton(TC_STRUCT);
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }

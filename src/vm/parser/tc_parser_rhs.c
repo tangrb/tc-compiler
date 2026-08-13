@@ -671,7 +671,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
 
         out->kind = TC_RHS_FLOAT_ARITH;
         out->u.float_arith.op = op;
-        out->u.float_arith.type = type;
+        out->u.float_arith.type = tc_type_tag_singleton(type);
         out->u.float_arith.mode = fp_mode;
         memset(&out->u.float_arith.lhs, 0, sizeof(out->u.float_arith.lhs));
         memset(&out->u.float_arith.rhs, 0, sizeof(out->u.float_arith.rhs));
@@ -722,7 +722,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
 
     out->kind = TC_RHS_ARITH;
     out->u.arith.op = op;
-    out->u.arith.type = type;
+    out->u.arith.type = tc_type_tag_singleton(type);
     out->u.arith.mode = mode;
     memset(&out->u.arith.lhs, 0, sizeof(out->u.arith.lhs));
     memset(&out->u.arith.rhs, 0, sizeof(out->u.arith.rhs));
@@ -782,7 +782,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
 
         out->kind = TC_RHS_FLOAT_UNARY;
         out->u.float_unary.op = op;
-        out->u.float_unary.type = type;
+        out->u.float_unary.type = tc_type_tag_singleton(type);
         out->u.float_unary.mode = fp_mode;
         memset(&out->u.float_unary.operand, 0, sizeof(out->u.float_unary.operand));
 
@@ -824,7 +824,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
 
     out->kind = TC_RHS_UNARY;
     out->u.unary.op = op;
-    out->u.unary.type = type;
+    out->u.unary.type = tc_type_tag_singleton(type);
     out->u.unary.mode = mode;
     memset(&out->u.unary.operand, 0, sizeof(out->u.unary.operand));
 
@@ -880,7 +880,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
 
     out->kind = TC_RHS_CAST;
     memset(&out->u.cast, 0, sizeof(out->u.cast));
-    out->u.cast.target = target;
+    out->u.cast.target = tc_type_tag_singleton(target);
     out->u.cast.mode = mode;
     if (tc_parse_operand(tokens, index, line_no, &out->u.cast.source, diag) != 0) {
         tc_rhs_free(out);
@@ -898,15 +898,18 @@ static int tc_parse_bitcast_rhs(const TcTokenList *tokens, size_t *index, int li
                                 TcRhs *out, TcDiagnostic *diag) {
     TcBitcastRhs bitcast;
 
+    TcTypeTag target_tag = TC_INT32;
+
     memset(&bitcast, 0, sizeof(bitcast));
     if (tc_expect_token(tokens, index, TC_TOK_BITCAST, line_no, diag) != 0 ||
         tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0 ||
-        tc_parse_type_token(tokens, index, line_no, &bitcast.target, diag) != 0 ||
+        tc_parse_type_token(tokens, index, line_no, &target_tag, diag) != 0 ||
         tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
         tc_parse_operand(tokens, index, line_no, &bitcast.source, diag) != 0) {
         tc_operand_free(&bitcast.source);
         return -1;
     }
+    bitcast.target = tc_type_tag_singleton(target_tag);
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
         tc_operand_free(&bitcast.source);
         return -1;
@@ -963,7 +966,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
 
         out->kind = TC_RHS_FLOAT_COMPARE;
         out->u.float_compare.op = op;
-        out->u.float_compare.type = type;
+        out->u.float_compare.type = tc_type_tag_singleton(type);
         out->u.float_compare.mode = fp_mode;
         memset(&out->u.float_compare.lhs, 0, sizeof(out->u.float_compare.lhs));
         memset(&out->u.float_compare.rhs, 0, sizeof(out->u.float_compare.rhs));
@@ -994,7 +997,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
 
     out->kind = TC_RHS_COMPARE;
     out->u.compare.op = op;
-    out->u.compare.type = type;
+    out->u.compare.type = tc_type_tag_singleton(type);
     memset(&out->u.compare.lhs, 0, sizeof(out->u.compare.lhs));
     memset(&out->u.compare.rhs, 0, sizeof(out->u.compare.rhs));
 
@@ -1074,7 +1077,7 @@ static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, i
                                      TcDiagnostic *diag) {
     out->kind = TC_RHS_BITWISE_BIN;
     out->u.bitwise_bin.op = op;
-    out->u.bitwise_bin.type = type;
+    out->u.bitwise_bin.type = tc_type_tag_singleton(type);
     memset(&out->u.bitwise_bin.lhs, 0, sizeof(out->u.bitwise_bin.lhs));
     memset(&out->u.bitwise_bin.rhs, 0, sizeof(out->u.bitwise_bin.rhs));
 
@@ -1103,7 +1106,7 @@ static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, i
 static int tc_finish_bitwise_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                     TcTypeTag type, TcRhs *out, TcDiagnostic *diag) {
     out->kind = TC_RHS_BITWISE_UN;
-    out->u.bitwise_un.type = type;
+    out->u.bitwise_un.type = tc_type_tag_singleton(type);
     memset(&out->u.bitwise_un.operand, 0, sizeof(out->u.bitwise_un.operand));
 
     if (tc_parse_operand(tokens, index, line_no, &out->u.bitwise_un.operand, diag) != 0) {
@@ -1287,7 +1290,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
     out->kind = TC_RHS_SHIFT;
     (void)is_const;
     out->u.shift.op = op;
-    out->u.shift.type = type;
+    out->u.shift.type = tc_type_tag_singleton(type);
     out->u.shift.mode = mode;
     memset(&out->u.shift.value, 0, sizeof(out->u.shift.value));
     memset(&out->u.shift.count, 0, sizeof(out->u.shift.count));
@@ -1340,7 +1343,7 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
 
     out->kind = TC_RHS_CONST_CAST;
     memset(&out->u.const_cast, 0, sizeof(out->u.const_cast));
-    out->u.const_cast.target = target;
+    out->u.const_cast.target = tc_type_tag_singleton(target);
     out->u.const_cast.mode = TC_TRUNC_STRICT;
 
     {

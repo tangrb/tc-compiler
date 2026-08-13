@@ -382,7 +382,7 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
 
             if (assign->binding.resolved && assign->binding.slot >= 0) {
                 slot = assign->binding.slot;
-                assign_type = assign->binding.type;
+                assign_type = assign->binding.type->tag;
             } else {
                 symbol = tc_symbol_table_find_visible(symbols, assign->name, stmt_index,
                                                         &ctx->sym_index);
@@ -402,9 +402,9 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             char abort_indent[64];
 
             tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
-            fprintf(out, "%sif (tc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type),
+            fprintf(out, "%sif (tc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type->tag),
                     tc_aot_format_enum(io->fmt.spec));
-            tc_aot_emit_operand_expr(out, &io->operand, io->type, ctx, stmt_index);
+            tc_aot_emit_operand_expr(out, &io->operand, io->type->tag, ctx, stmt_index);
             fprintf(out, ", %d, tc_aot_cur_diag, %d) != 0)\n", newline, io->line);
             fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, io->line);
             return 0;
@@ -428,7 +428,7 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             }
             tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
             fprintf(out, "%sif (tc_aot_read(%s, &slots[%d], tc_aot_cur_diag, %d) != 0)\n", indent,
-                    tc_aot_type_enum(io_read->type), slot, io_read->line);
+                    tc_aot_type_enum(io_read->type->tag), slot, io_read->line);
             fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, io_read->line);
             return 0;
         }

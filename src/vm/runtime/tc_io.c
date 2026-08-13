@@ -147,7 +147,7 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatSpec fmt, const TcValue *value
     uint64_t mask = 0;
     uint64_t uval = 0;
 
-    if (!value || !out || value->type != type || !tc_io_format_accepts_type(type, fmt)) {
+    if (!value || !out || value->type->tag != type || !tc_io_format_accepts_type(type, fmt)) {
         return -1;
     }
     n = tc_type_bit_width(type);
@@ -224,24 +224,24 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatSpec fmt, const TcValue *value
 
 static int tc_io_render_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
     if (fmt != TC_FMT_NONE) {
-        if (tc_io_write_formatted(value->type, fmt, value, out) != 0) {
+        if (tc_io_write_formatted(value->type->tag, fmt, value, out) != 0) {
             return -1;
         }
-    } else if (tc_type_is_bool(value->type)) {
+    } else if (tc_type_is_bool(value->type->tag)) {
         if (fprintf(out, "%s", value->bits != 0 ? "true" : "false") < 0) {
             return -1;
         }
-    } else if (tc_type_is_float(value->type)) {
-        if (tc_io_write_float(value->type, TC_FMT_G, value, out) != 0) {
+    } else if (tc_type_is_float(value->type->tag)) {
+        if (tc_io_write_float(value->type->tag, TC_FMT_G, value, out) != 0) {
             return -1;
         }
-    } else if (tc_type_is_signed(value->type)) {
-        int64_t signed_value = tc_bits_to_signed(value->type, value->bits);
+    } else if (tc_type_is_signed(value->type->tag)) {
+        int64_t signed_value = tc_bits_to_signed(value->type->tag, value->bits);
         if (fprintf(out, "%" PRId64, signed_value) < 0) {
             return -1;
         }
     } else {
-        uint64_t unsigned_value = tc_value_to_unsigned(value->type, value->bits);
+        uint64_t unsigned_value = tc_value_to_unsigned(value->type->tag, value->bits);
         if (fprintf(out, "%" PRIu64, unsigned_value) < 0) {
             return -1;
         }

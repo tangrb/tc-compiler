@@ -607,9 +607,9 @@ static void test_runtime_slots(void) {
     vals = (TcValue *)calloc(2, sizeof(TcValue));
     check(vals != NULL, "allocate toplevel slot array");
     if (vals) {
-        vals[0].type = TC_INT32;
+        vals[0].type = tc_type_tag_singleton(TC_INT32);
         vals[0].bits = 7;
-        vals[1].type = TC_PTR;
+        vals[1].type = tc_type_tag_singleton(TC_PTR);
         vals[1].bits = 0;
         slots.toplevel_slots = vals;
         slots.toplevel_count = 2;
@@ -618,7 +618,7 @@ static void test_runtime_slots(void) {
     slots.static_slots = (TcValue *)calloc(1, sizeof(TcValue));
     check(slots.static_slots != NULL, "allocate static slot array");
     if (slots.static_slots) {
-        slots.static_slots[0].type = TC_USIZE;
+        slots.static_slots[0].type = tc_type_tag_singleton(TC_USIZE);
         slots.static_count = 1;
     }
 
@@ -697,6 +697,44 @@ static void test_warning_kind_name(void) {
           "unknown warning kind → UnknownWarning");
 }
 
+static void test_type_singleton_and_intern(void) {
+    TcTypeTable table;
+    TcType elem = tc_type_scalar(TC_INT32);
+    TcType mb_a = tc_type_make_memblock(&elem, 3);
+    TcType mb_b = tc_type_make_memblock(&elem, 3);
+    TcType mb_n = tc_type_make_memblock(&elem, 9);
+    const TcType *s1 = NULL;
+    const TcType *s2 = NULL;
+    const TcType *p1 = NULL;
+    const TcType *p2 = NULL;
+    const TcType *p3 = NULL;
+    TcValue v;
+
+    tc_type_table_init(&table);
+
+    s1 = tc_type_tag_singleton(TC_INT32);
+    s2 = tc_type_tag_singleton(TC_INT32);
+    check(s1 == s2 && s1->tag == TC_INT32, "scalar singleton identity");
+    check(tc_type_intern(&table, &elem, NULL) == s1, "intern scalar returns singleton");
+
+    p1 = tc_type_intern(&table, &mb_a, NULL);
+    p2 = tc_type_intern(&table, &mb_b, NULL);
+    p3 = tc_type_intern(&table, &mb_n, NULL);
+    check(p1 != NULL && p1 == p2, "intern same memblock T+N reuses node");
+    check(p3 != NULL && p3 != p1, "intern different N yields distinct node");
+    check(tc_type_equals(p1, p3) == 1, "equals ignores N across distinct nodes");
+    check(p1 == p2 && tc_type_equals(p1, p2) == 1, "pointer equality fast path");
+
+    memset(&v, 0, sizeof(v));
+    v.type = tc_type_tag_singleton(TC_UINT16);
+    v.bits = 7;
+    check(v.type == tc_type_tag_singleton(TC_UINT16) && v.bits == 7,
+          "TcValue stores singleton pointer");
+    check(sizeof(TcValue) == 16, "TcValue stays 16 bytes");
+
+    tc_type_table_free(&table);
+}
+
 /* ================================================================== */
 /*  tc_type_name                                                        */
 /* ================================================================== */
@@ -750,6 +788,7 @@ int main(void) {
     test_runtime_slots();
     test_loop_statement_contracts();
     test_warning_kind_name();
+    test_type_singleton_and_intern();
     test_int_type_name();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);

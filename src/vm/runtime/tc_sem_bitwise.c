@@ -33,7 +33,7 @@ static void tc_normalize_bool(TcTypeTag type, TcValue *out) {
  */
 static int tc_check_operand_types(TcTypeTag type, const TcValue *a, const TcValue *b,
                                   TcDiagnostic *diag, int line) {
-    if (a->type != type || (b != NULL && b->type != type)) {
+    if (a->type->tag != type || (b != NULL && b->type->tag != type)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;
@@ -253,7 +253,7 @@ int tc_exec_shift(TcShiftOp op, TcTypeTag type, TcWrapMode mode,
         return -1;
     }
 
-    if (value->type != type || count->type != type) {
+    if (value->type->tag != type || count->type->tag != type) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;

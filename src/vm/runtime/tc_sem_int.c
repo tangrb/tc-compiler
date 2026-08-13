@@ -348,7 +348,7 @@ int tc_exec_unary(TcUnaryOp op, TcTypeTag type, TcWrapMode mode,
         }
     }
 
-    out->type = type;
+    out->type = tc_type_tag_singleton(type);
     return 0;
 }
 

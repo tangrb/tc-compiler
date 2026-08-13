@@ -545,7 +545,7 @@ static void test_embed_ptr_encode_decode(void) {
 
     /* nullptr 检测 */
     v.bits = 0;
-    v.type = TC_PTR;
+    v.type = tc_type_tag_singleton(TC_PTR);
     check(tc_embed_ptr_is_null(v) != 0, "ptr_is_null(0) == true");
 
     /* 合法 ptr 检测 */
@@ -555,7 +555,7 @@ static void test_embed_ptr_encode_decode(void) {
     /* encode ↔ decode 往返 */
     for (i = 0; i < 100; i++) {
         v = tc_embed_ptr_encode(i);
-        check(v.type == TC_PTR, "ptr_encode sets type to TC_PTR");
+        check(v.type->tag == TC_PTR, "ptr_encode sets type to TC_PTR");
         check(v.bits == (((uint64_t)(uint32_t)i << 1) | 1ULL),
               "ptr_encode bit pattern correct");
         check(tc_embed_ptr_decode_slot(v, &slot) == 0,
@@ -565,7 +565,7 @@ static void test_embed_ptr_encode_decode(void) {
 
     /* 非法 ptr 拒绝 */
     v.bits = 2;  /* LSB=0, 非零 → 无效 */
-    v.type = TC_PTR;
+    v.type = tc_type_tag_singleton(TC_PTR);
     check(tc_embed_ptr_decode_slot(v, &slot) != 0,
           "ptr_decode rejects invalid ptr (bits=2)");
 

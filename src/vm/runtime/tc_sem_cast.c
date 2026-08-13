@@ -23,8 +23,8 @@ static int tc_cast_overflow(TcDiagnostic *diag, int line) {
 
 static int tc_cast_integer_to_integer(TcTypeTag target, const TcValue *source,
                                       TcValue *out, TcDiagnostic *diag, int line) {
-    if (tc_type_is_signed(source->type)) {
-        int64_t value = tc_bits_to_signed(source->type, source->bits);
+    if (tc_type_is_signed(source->type->tag)) {
+        int64_t value = tc_bits_to_signed(source->type->tag, source->bits);
         if (tc_type_is_signed(target)) {
             if (!tc_signed_in_range(value, target)) {
                 return tc_cast_overflow(diag, line);
@@ -40,7 +40,7 @@ static int tc_cast_integer_to_integer(TcTypeTag target, const TcValue *source,
     }
 
     {
-        uint64_t value = tc_value_to_unsigned(source->type, source->bits);
+        uint64_t value = tc_value_to_unsigned(source->type->tag, source->bits);
         if (tc_type_is_signed(target)) {
             if (value > (uint64_t)tc_type_max_signed(target)) {
                 return tc_cast_overflow(diag, line);
@@ -66,11 +66,11 @@ static double tc_cast_integer_to_double(const TcValue *source) {
         (void)fesetround(FE_TONEAREST);
     }
 #endif
-    if (tc_type_is_signed(source->type)) {
-        volatile int64_t value = tc_bits_to_signed(source->type, source->bits);
+    if (tc_type_is_signed(source->type->tag)) {
+        volatile int64_t value = tc_bits_to_signed(source->type->tag, source->bits);
         result = (double)value;
     } else {
-        volatile uint64_t value = tc_value_to_unsigned(source->type, source->bits);
+        volatile uint64_t value = tc_value_to_unsigned(source->type->tag, source->bits);
         result = (double)value;
     }
 #ifdef TC_HAVE_FENV
@@ -120,7 +120,7 @@ static uint64_t tc_canonical_nan_bits(TcTypeTag target) {
 
 int tc_exec_cast(TcTypeTag target, const TcValue *source, TcValue *out,
                  TcDiagnostic *diag, int line) {
-    TcTypeTag source_type = source->type;
+    TcTypeTag source_type = source->type->tag;
 
     if (source_type == target) {
         *out = *source;
@@ -188,8 +188,8 @@ int tc_exec_cast(TcTypeTag target, const TcValue *source, TcValue *out,
 
 int tc_exec_truncate(TcTypeTag target, const TcValue *source, TcValue *out,
                      TcDiagnostic *diag, int line) {
-    if (!tc_type_is_integer(source->type) || !tc_type_is_integer(target) ||
-        tc_type_bit_width(target) >= tc_type_bit_width(source->type)) {
+    if (!tc_type_is_integer(source->type->tag) || !tc_type_is_integer(target) ||
+        tc_type_bit_width(target) >= tc_type_bit_width(source->type->tag)) {
         tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "truncate requires an integer target narrower than the source");
         return -1;
@@ -201,11 +201,11 @@ int tc_exec_truncate(TcTypeTag target, const TcValue *source, TcValue *out,
 int tc_exec_bitcast(TcTypeTag target, const TcValue *source, TcValue *out,
                     TcDiagnostic *diag, int line) {
     int target_width = tc_type_bit_width(target);
-    int source_width = tc_type_bit_width(source->type);
+    int source_width = tc_type_bit_width(source->type->tag);
 
-    if (tc_type_is_bool(target) || tc_type_is_bool(source->type) ||
+    if (tc_type_is_bool(target) || tc_type_is_bool(source->type->tag) ||
         (!tc_type_is_integer(target) && !tc_type_is_float(target)) ||
-        (!tc_type_is_integer(source->type) && !tc_type_is_float(source->type))) {
+        (!tc_type_is_integer(source->type->tag) && !tc_type_is_float(source->type->tag))) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "bitcast requires non-bool integer or float types");
         return -1;

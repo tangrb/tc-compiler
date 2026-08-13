@@ -189,7 +189,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         var_def->binding.resolved = 1;
         var_def->binding.slot = *next_slot;
         var_def->binding.is_const = 0;
-        var_def->binding.type = tc_type_scalar_tag(&var_def->full_type);
+        var_def->binding.type = tc_type_tag_singleton(tc_type_scalar_tag(&var_def->full_type));
         var_def->binding.const_bits = 0;
         (*next_slot)++;
         return 0;

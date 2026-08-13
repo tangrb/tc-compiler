@@ -35,7 +35,7 @@ static int tc_exec_memblock_track(TcExecuteCtx *ctx, void *block, TcDiagnostic *
 }
 
 static void *tc_memblock_data(const TcValue *mb_value) {
-    if (!mb_value || mb_value->type != TC_MEMBLOCK || mb_value->bits == 0) {
+    if (!mb_value || mb_value->type->tag != TC_MEMBLOCK || mb_value->bits == 0) {
         return NULL;
     }
     return (void *)(uintptr_t)mb_value->bits;
@@ -66,7 +66,7 @@ static int tc_memblock_read_index(const TcOperand *index_op, TcExecuteCtx *ctx, 
         tc_eval_operand(index_op, TC_ISIZE, ctx, &index_value, diag, line) != 0) {
         return -1;
     }
-    if (index_value.type == TC_ISIZE && (int64_t)tc_bits_to_signed(TC_ISIZE, index_value.bits) < 0) {
+    if (index_value.type->tag == TC_ISIZE && (int64_t)tc_bits_to_signed(TC_ISIZE, index_value.bits) < 0) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
@@ -144,7 +144,7 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
     if (tc_exec_memblock_track(ctx, block, diag) != 0) {
         return -1;
     }
-    out->type = TC_MEMBLOCK;
+    out->type = tc_type_tag_singleton(TC_MEMBLOCK);
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }
@@ -175,7 +175,7 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
     }
     element_bytes = tc_memblock_element_bytes(element, ctx);
     src = tc_memblock_element_ptr(block, element_bytes, index);
-    out->type = element->tag;
+    out->type = element;
     memcpy(&out->bits, src, element_bytes);
     return 0;
 }
@@ -200,7 +200,7 @@ int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue
     if (count == 0) {
         count = tc_memblock_declared_count(sym);
     }
-    out->type = TC_USIZE;
+    out->type = tc_type_tag_singleton(TC_USIZE);
     out->bits = count;
     return 0;
 }
@@ -241,7 +241,7 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
     }
     if (stmt->element_type.tag == TC_BOOL) {
         value.bits = value.bits ? 1ULL : 0ULL;
-        value.type = TC_BOOL;
+        value.type = tc_type_tag_singleton(TC_BOOL);
     }
     element_bytes =
         tc_memblock_element_bytes(sym->full_type.params.memblock_type.element, ctx);
@@ -349,7 +349,7 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
             tc_eval_operand(&stmt->length, TC_ISIZE, ctx, &length_value, diag, stmt->line) != 0) {
             return -1;
         }
-        if (length_value.type == TC_ISIZE) {
+        if (length_value.type->tag == TC_ISIZE) {
             length_signed = tc_bits_to_signed(TC_ISIZE, length_value.bits);
         } else {
             length_signed = (int64_t)length_value.bits;

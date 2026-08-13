@@ -182,10 +182,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         }
 
         fprintf(out, "%sif (tc_aot_arith(%s, %s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.arith.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.arith.lhs, rhs->u.arith.type, ctx, stmt_index);
+                tc_aot_type_enum(rhs->u.arith.type->tag), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.arith.lhs, rhs->u.arith.type->tag, ctx, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.arith.rhs, rhs->u.arith.type, ctx, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.arith.rhs, rhs->u.arith.type->tag, ctx, stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         return 0;
@@ -197,8 +197,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         const char *op_name = rhs->u.unary.op == TC_UNARY_ABS ? "TC_UNARY_ABS" : "TC_UNARY_NEG";
 
         fprintf(out, "%sif (tc_aot_unary(%s, %s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.unary.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.unary.operand, rhs->u.unary.type, ctx, stmt_index);
+                tc_aot_type_enum(rhs->u.unary.type->tag), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.unary.operand, rhs->u.unary.type->tag, ctx, stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         return 0;
@@ -227,10 +227,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             break;
         }
         fprintf(out, "%sif (tc_aot_compare(%s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.compare.type), dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.compare.lhs, rhs->u.compare.type, ctx, stmt_index);
+                tc_aot_type_enum(rhs->u.compare.type->tag), dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.compare.lhs, rhs->u.compare.type->tag, ctx, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.compare.rhs, rhs->u.compare.type, ctx, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.compare.rhs, rhs->u.compare.type->tag, ctx, stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         return 0;
@@ -278,11 +278,11 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         }
 
         fprintf(out, "%sif (tc_aot_bitwise_binary(%s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.bitwise_bin.type), dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, ctx,
+                tc_aot_type_enum(rhs->u.bitwise_bin.type->tag), dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, ctx,
+        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -291,8 +291,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
         fprintf(out, "%sif (tc_aot_bitwise_unary(%s, &%s, ", indent,
-                tc_aot_type_enum(rhs->u.bitwise_un.type), dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, ctx,
+                tc_aot_type_enum(rhs->u.bitwise_un.type->tag), dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -306,10 +306,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             rhs->u.shift.mode == TC_ARITH_WRAP ? "TC_ARITH_WRAP" : "TC_ARITH_STRICT";
 
         fprintf(out, "%sif (tc_aot_shift(%s, %s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.shift.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.shift.value, rhs->u.shift.type, ctx, stmt_index);
+                tc_aot_type_enum(rhs->u.shift.type->tag), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.shift.value, rhs->u.shift.type->tag, ctx, stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.shift.count, rhs->u.shift.type, ctx, stmt_index);
+        tc_aot_emit_operand_expr(out, &rhs->u.shift.count, rhs->u.shift.type->tag, ctx, stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         return 0;
@@ -317,9 +317,9 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
 
     if (rhs->kind == TC_RHS_BITCAST) {
         fprintf(out, "%sif (tc_aot_bitcast(%s, %s, &%s, ", indent,
-                tc_aot_type_enum(rhs->u.bitcast.target),
-                tc_aot_type_enum(rhs->u.bitcast.source_type), dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.bitcast.source, rhs->u.bitcast.source_type, ctx,
+                tc_aot_type_enum(rhs->u.bitcast.target->tag),
+                tc_aot_type_enum(rhs->u.bitcast.source_type->tag), dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -353,11 +353,11 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             break;
         }
         fprintf(out, "%sif (tc_aot_fp_arith(%s, %s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.float_arith.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.float_arith.lhs, rhs->u.float_arith.type, ctx,
+                tc_aot_type_enum(rhs->u.float_arith.type->tag), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.float_arith.lhs, rhs->u.float_arith.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.float_arith.rhs, rhs->u.float_arith.type, ctx,
+        tc_aot_emit_operand_expr(out, &rhs->u.float_arith.rhs, rhs->u.float_arith.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -371,8 +371,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             rhs->u.float_unary.op == TC_UNARY_ABS ? "TC_UNARY_ABS" : "TC_UNARY_NEG";
 
         fprintf(out, "%sif (tc_aot_fp_unary(%s, %s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.float_unary.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.float_unary.operand, rhs->u.float_unary.type, ctx,
+                tc_aot_type_enum(rhs->u.float_unary.type->tag), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.float_unary.operand, rhs->u.float_unary.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -405,11 +405,11 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             break;
         }
         fprintf(out, "%sif (tc_aot_fp_compare(%s, %s, %s, &%s, ", indent, op_name,
-                tc_aot_type_enum(rhs->u.float_compare.type), mode, dst_expr);
-        tc_aot_emit_operand_expr(out, &rhs->u.float_compare.lhs, rhs->u.float_compare.type, ctx,
+                tc_aot_type_enum(rhs->u.float_compare.type->tag), mode, dst_expr);
+        tc_aot_emit_operand_expr(out, &rhs->u.float_compare.lhs, rhs->u.float_compare.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", ");
-        tc_aot_emit_operand_expr(out, &rhs->u.float_compare.rhs, rhs->u.float_compare.type, ctx,
+        tc_aot_emit_operand_expr(out, &rhs->u.float_compare.rhs, rhs->u.float_compare.type->tag, ctx,
                                  stmt_index);
         fprintf(out, ", tc_aot_cur_diag, %d) != 0)\n", line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -739,10 +739,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             rhs->u.cast.mode == TC_TRUNC_TRUNCATE ? "TC_TRUNC_TRUNCATE" : "TC_TRUNC_STRICT";
 
         fprintf(out, "%sif (tc_aot_cast(%s, %s, ", indent,
-                tc_aot_type_enum(rhs->u.cast.target), mode);
-        tc_aot_emit_operand_expr(out, &rhs->u.cast.source, rhs->u.cast.source_type, ctx, stmt_index);
+                tc_aot_type_enum(rhs->u.cast.target->tag), mode);
+        tc_aot_emit_operand_expr(out, &rhs->u.cast.source, rhs->u.cast.source_type->tag, ctx, stmt_index);
         fprintf(out, ", %s, &%s, tc_aot_cur_diag, %d) != 0)\n",
-                tc_aot_type_enum(rhs->u.cast.source_type), dst_expr, line);
+                tc_aot_type_enum(rhs->u.cast.source_type->tag), dst_expr, line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
     }
     return 0;

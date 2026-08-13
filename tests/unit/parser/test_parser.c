@@ -104,7 +104,7 @@ static void test_parse_write(void) {
     check(tc_tokenize_line("writeln(int32, x)", 1, &tokens, &diag) == 0, "tokenize writeln");
     check(tc_parse_statement(&ctx, &tokens, 1, &stmt, &diag) == 0, "parse writeln");
     check(stmt.kind == TC_STMT_WRITELN, "writeln kind");
-    check(stmt.u.io_write.type == TC_INT32, "writeln type");
+    check(stmt.u.io_write.type->tag == TC_INT32, "writeln type");
     tc_statement_free(&stmt);
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);
@@ -534,7 +534,7 @@ static void test_parse_bitcast_rhs(void) {
     if (program.count == 2) {
         check(program.items[0].u.var_def.rhs.kind == TC_RHS_BITCAST,
               "runtime bitcast rhs kind");
-        check(program.items[0].u.var_def.rhs.u.bitcast.target == TC_UINT32,
+        check(program.items[0].u.var_def.rhs.u.bitcast.target->tag == TC_UINT32,
               "runtime bitcast target");
         check(program.items[0].u.var_def.rhs.u.bitcast.source.kind == TC_OPERAND_LIT,
               "runtime bitcast literal source");

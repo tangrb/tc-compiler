@@ -61,7 +61,7 @@ int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeTag type, const
         tc_exec_set_internal_error(diag, line, "internal error: unresolved binding metadata");
         return -1;
     }
-    if (binding->type != type) {
+    if (binding->type->tag != type) {
         tc_exec_set_internal_error(diag, line, "internal error: binding type metadata mismatch");
         return -1;
     }
@@ -193,8 +193,8 @@ static int tc_exec_io_write(const TcIoWrite *io_write, TcExecuteCtx *ctx, int ne
     TcValue value;
 
     if (io_write->operand.kind == TC_OPERAND_LIT) {
-        value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type);
-    } else if (tc_exec_load_binding(&io_write->operand.binding, io_write->type, ctx->slots,
+        value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type->tag);
+    } else if (tc_exec_load_binding(&io_write->operand.binding, io_write->type->tag, ctx->slots,
                                     &value, diag, io_write->line) != 0) {
         return -1;
     }
@@ -215,10 +215,10 @@ static int tc_exec_io_read(const TcRead *io_read, TcExecuteCtx *ctx, TcDiagnosti
                                    "internal error: unresolved read target metadata");
         return -1;
     }
-    if (tc_io_read_value(io_read->type, &bits, diag, io_read->line) != 0) {
+    if (tc_io_read_value(io_read->type->tag, &bits, diag, io_read->line) != 0) {
         return -1;
     }
-    ctx->slots[io_read->binding.slot] = tc_value_make(io_read->type, bits);
+    ctx->slots[io_read->binding.slot] = tc_value_make(io_read->type->tag, bits);
     return 0;
 }
 
@@ -414,35 +414,35 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
     if (rhs->kind == TC_RHS_ARITH) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.arith.lhs, rhs->u.arith.type, ctx, &lhs, diag, line) != 0 ||
-            tc_eval_operand(&rhs->u.arith.rhs, rhs->u.arith.type, ctx, &rhs_value, diag,
+        if (tc_eval_operand(&rhs->u.arith.lhs, rhs->u.arith.type->tag, ctx, &lhs, diag, line) != 0 ||
+            tc_eval_operand(&rhs->u.arith.rhs, rhs->u.arith.type->tag, ctx, &rhs_value, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type, rhs->u.arith.mode, &lhs,
+        return tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type->tag, rhs->u.arith.mode, &lhs,
                              &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_UNARY) {
         TcValue operand;
-        if (tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type, ctx, &operand, diag,
+        if (tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type->tag, ctx, &operand, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type, rhs->u.unary.mode, &operand,
+        return tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type->tag, rhs->u.unary.mode, &operand,
                              out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_COMPARE) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type, ctx, &lhs, diag, line) !=
+        if (tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type->tag, ctx, &lhs, diag, line) !=
                 0 ||
-            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type, ctx, &rhs_value, diag,
+            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type->tag, ctx, &rhs_value, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_value, out, diag,
+        return tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type->tag, &lhs, &rhs_value, out, diag,
                                line);
     }
 
@@ -483,35 +483,35 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, ctx, &lhs, diag,
+        if (tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type->tag, ctx, &lhs, diag,
                             line) != 0 ||
-            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, ctx, &rhs_value,
+            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type->tag, ctx, &rhs_value,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type, &lhs,
+        return tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type->tag, &lhs,
                                       &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
         TcValue operand;
-        if (tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, ctx, &operand,
+        if (tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type->tag, ctx, &operand,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_bitwise_unary(rhs->u.bitwise_un.type, &operand, out, diag, line);
+        return tc_exec_bitwise_unary(rhs->u.bitwise_un.type->tag, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_SHIFT) {
         TcValue value;
         TcValue count;
-        if (tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type, ctx, &value, diag, line) !=
+        if (tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type->tag, ctx, &value, diag, line) !=
                 0 ||
-            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type, ctx, &count, diag, line) !=
+            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type->tag, ctx, &count, diag, line) !=
                 0) {
             return -1;
         }
-        return tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type, rhs->u.shift.mode, &value, &count,
+        return tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type->tag, rhs->u.shift.mode, &value, &count,
                              out, diag, line);
     }
 
@@ -528,57 +528,57 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
 
     if (rhs->kind == TC_RHS_BITCAST) {
         TcValue source;
-        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type, ctx, &source, diag,
+        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag, ctx, &source, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_bitcast(rhs->u.bitcast.target, &source, out, diag, line);
+        return tc_exec_bitcast(rhs->u.bitcast.target->tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_CAST) {
         TcValue source;
-        if (tc_eval_operand(&rhs->u.cast.source, rhs->u.cast.source_type, ctx, &source, diag,
+        if (tc_eval_operand(&rhs->u.cast.source, rhs->u.cast.source_type->tag, ctx, &source, diag,
                             line) != 0) {
             return -1;
         }
         return rhs->u.cast.mode == TC_TRUNC_TRUNCATE
-                   ? tc_exec_truncate(rhs->u.cast.target, &source, out, diag, line)
-                   : tc_exec_cast(rhs->u.cast.target, &source, out, diag, line);
+                   ? tc_exec_truncate(rhs->u.cast.target->tag, &source, out, diag, line)
+                   : tc_exec_cast(rhs->u.cast.target->tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_ARITH) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, ctx, &lhs, diag,
+        if (tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type->tag, ctx, &lhs, diag,
                             line) != 0 ||
-            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, ctx, &rhs_value,
+            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type->tag, ctx, &rhs_value,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type,
+        return tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type->tag,
                                 rhs->u.float_arith.mode, &lhs, &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_UNARY) {
         TcValue operand;
-        if (tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, ctx, &operand,
+        if (tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type->tag, ctx, &operand,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type,
+        return tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type->tag,
                                 rhs->u.float_unary.mode, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, ctx, &lhs,
+        if (tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type->tag, ctx, &lhs,
                             diag, line) != 0 ||
-            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, ctx,
+            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type->tag, ctx,
                             &rhs_value, diag, line) != 0) {
             return -1;
         }
-        return tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+        return tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type->tag,
                                   rhs->u.float_compare.mode, &lhs, &rhs_value, out, diag, line);
     }
 
@@ -710,8 +710,9 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
         }
         if (sym->slot >= 0 && ctx->slots) {
             *out = ctx->slots[sym->slot];
-            out->type = expected_type != TC_VOID ? expected_type
-                                                 : tc_type_scalar_tag(&sym->full_type);
+            out->type = expected_type != TC_VOID
+                            ? tc_type_tag_singleton(expected_type)
+                            : tc_type_tag_singleton(tc_type_scalar_tag(&sym->full_type));
             return 0;
         }
         tc_exec_set_internal_error(diag, line, "internal error: unresolved Self member");
@@ -958,7 +959,7 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
             }
             if (ret_type == TC_BOOL) {
                 value.bits = value.bits ? 1ULL : 0ULL;
-                value.type = TC_BOOL;
+                value.type = tc_type_tag_singleton(TC_BOOL);
             }
             if (ret_type == TC_STRUCT && func) {
                 TcValue cloned;
@@ -1074,11 +1075,11 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                                            "internal error: unresolved assignment metadata");
                 return tc_exec_error();
             }
-            if (tc_eval_rhs(&assign->rhs, assign->binding.type, ctx, &value, diag,
+            if (tc_eval_rhs(&assign->rhs, assign->binding.type->tag, ctx, &value, diag,
                             assign->line) != 0) {
                 return tc_exec_error();
             }
-            if (assign->binding.type == TC_STRUCT) {
+            if (assign->binding.type->tag == TC_STRUCT) {
                 const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, assign->name);
                 int sid = sym ? sym->struct_id : -1;
 

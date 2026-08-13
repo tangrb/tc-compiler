@@ -44,7 +44,7 @@ int tc_exec_ptr_address(const TcType *pointee, const char *name, TcExecuteCtx *c
         tc_exec_set_internal_error(diag, line, "internal error: unresolved ptr_address target");
         return -1;
     }
-    out->type = TC_PTR;
+    out->type = tc_type_tag_singleton(TC_PTR);
     out->bits = tc_ptr_encode_slot(sym->slot);
     return 0;
 }
@@ -95,7 +95,7 @@ int tc_exec_ptr_store(const TcType *pointee, const TcOperand *ptr_op, const TcOp
     }
     if (store_type == TC_BOOL) {
         value.bits = value.bits ? 1ULL : 0ULL;
-        value.type = TC_BOOL;
+        value.type = tc_type_tag_singleton(TC_BOOL);
     }
     ctx->slots[slot] = value;
     return 0;
@@ -109,7 +109,7 @@ static int tc_ptr_read_offset(const TcOperand *offset_op, TcExecuteCtx *ctx, int
         tc_eval_operand(offset_op, TC_ISIZE, ctx, &offset_value, diag, line) != 0) {
         return -1;
     }
-    if (offset_value.type == TC_ISIZE) {
+    if (offset_value.type->tag == TC_ISIZE) {
         *out = tc_bits_to_signed(TC_ISIZE, offset_value.bits);
     } else {
         *out = (int64_t)offset_value.bits;
@@ -142,7 +142,7 @@ int tc_exec_ptr_arith(int is_add, const TcType *pointee, const TcOperand *ptr_op
         return -1;
     }
     new_slot = is_add ? (int64_t)slot + offset : (int64_t)slot - offset;
-    out->type = TC_PTR;
+    out->type = tc_type_tag_singleton(TC_PTR);
     out->bits = tc_ptr_encode_slot((int)new_slot);
     return 0;
 }
@@ -164,7 +164,7 @@ int tc_exec_ptr_compare(TcCompareOp op, const TcType *pointee, const TcOperand *
         if (op == TC_CMP_NE) {
             result = result ? 0 : 1;
         }
-        out->type = TC_BOOL;
+        out->type = tc_type_tag_singleton(TC_BOOL);
         out->bits = result ? 1ULL : 0ULL;
         return 0;
     }
@@ -190,7 +190,7 @@ int tc_exec_ptr_compare(TcCompareOp op, const TcType *pointee, const TcOperand *
         tc_exec_set_internal_error(diag, line, "internal error: invalid pointer compare");
         return -1;
     }
-    out->type = TC_BOOL;
+    out->type = tc_type_tag_singleton(TC_BOOL);
     out->bits = result ? 1ULL : 0ULL;
     return 0;
 }
@@ -204,7 +204,7 @@ int tc_exec_ptr_size(const TcType *pointee, const TcOperand *ptr_op, TcExecuteCt
         return -1;
     }
     bits = tc_sizeof_bits_ex(pointee, tc_struct_table_width_bits, ctx->program->struct_table);
-    out->type = TC_USIZE;
+    out->type = tc_type_tag_singleton(TC_USIZE);
     out->bits = bits;
     (void)line;
     (void)diag;

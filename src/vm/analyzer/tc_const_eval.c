@@ -63,7 +63,7 @@ static int tc_try_eval_bound_operand(const TcOperand *operand, TcTypeTag expecte
         return 1;
     }
     if (!operand->binding.resolved || !operand->binding.is_const ||
-        operand->binding.type != expected) {
+        operand->binding.type->tag != expected) {
         return 0;
     }
     *out = tc_value_make(expected, operand->binding.const_bits);
@@ -73,7 +73,7 @@ static int tc_try_eval_bound_operand(const TcOperand *operand, TcTypeTag expecte
 static int tc_try_eval_bound_const_ref(const TcRhs *rhs, TcValue *out) {
     const TcResolvedBinding *binding = &rhs->u.const_ref.binding;
 
-    if (!binding->resolved || !binding->is_const || binding->type != TC_BOOL) {
+    if (!binding->resolved || !binding->is_const || binding->type->tag != TC_BOOL) {
         return 0;
     }
     *out = tc_value_make(TC_BOOL, binding->const_bits);
@@ -113,23 +113,23 @@ int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *resu
 
     switch (rhs->kind) {
     case TC_RHS_COMPARE:
-        if (!tc_try_eval_bound_operand(&rhs->u.compare.lhs, rhs->u.compare.type, &lhs) ||
-            !tc_try_eval_bound_operand(&rhs->u.compare.rhs, rhs->u.compare.type, &rhs_value)) {
+        if (!tc_try_eval_bound_operand(&rhs->u.compare.lhs, rhs->u.compare.type->tag, &lhs) ||
+            !tc_try_eval_bound_operand(&rhs->u.compare.rhs, rhs->u.compare.type->tag, &rhs_value)) {
             return 0;
         }
         tc_diagnostic_init(&tmp_diag);
-        status = tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_value, &out,
+        status = tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type->tag, &lhs, &rhs_value, &out,
                                  &tmp_diag, line);
         break;
     case TC_RHS_FLOAT_COMPARE:
         if (!tc_try_eval_bound_operand(&rhs->u.float_compare.lhs,
-                                       rhs->u.float_compare.type, &lhs) ||
+                                       rhs->u.float_compare.type->tag, &lhs) ||
             !tc_try_eval_bound_operand(&rhs->u.float_compare.rhs,
-                                       rhs->u.float_compare.type, &rhs_value)) {
+                                       rhs->u.float_compare.type->tag, &rhs_value)) {
             return 0;
         }
         tc_diagnostic_init(&tmp_diag);
-        status = tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+        status = tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type->tag,
                                     rhs->u.float_compare.mode, &lhs, &rhs_value, &out,
                                     &tmp_diag, line);
         break;
@@ -150,9 +150,9 @@ int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *resu
         status = tc_exec_logic_unary(rhs->u.logic_un.op, &lhs, &out, &tmp_diag, line);
         break;
     case TC_RHS_CAST:
-        if (rhs->u.cast.target != TC_BOOL || rhs->u.cast.mode != TC_TRUNC_STRICT ||
+        if (rhs->u.cast.target->tag != TC_BOOL || rhs->u.cast.mode != TC_TRUNC_STRICT ||
             !rhs->u.cast.source_type_resolved ||
-            !tc_try_eval_bound_operand(&rhs->u.cast.source, rhs->u.cast.source_type, &lhs)) {
+            !tc_try_eval_bound_operand(&rhs->u.cast.source, rhs->u.cast.source_type->tag, &lhs)) {
             return 0;
         }
         tc_diagnostic_init(&tmp_diag);
@@ -283,26 +283,26 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_ARITH) {
-        if (tc_validate_arith_mode(rhs->u.arith.op, rhs->u.arith.type,
+        if (tc_validate_arith_mode(rhs->u.arith.op, rhs->u.arith.type->tag,
                                    rhs->u.arith.mode, diag, line) != 0) {
             return -1;
         }
-        if (rhs->u.arith.type != expected_type) {
+        if (rhs->u.arith.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.arith.lhs, rhs->u.arith.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.arith.lhs, rhs->u.arith.type->tag, visible, global,
                                   const_name, &lhs, line, diag) != 0) {
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.arith.rhs, rhs->u.arith.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.arith.rhs, rhs->u.arith.type->tag, visible, global,
                                   const_name, &rhs_val, line, diag) !=
             0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type, rhs->u.arith.mode, &lhs, &rhs_val,
+        if (tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type->tag, rhs->u.arith.mode, &lhs, &rhs_val,
                           out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
@@ -313,21 +313,21 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_UNARY) {
-        if (tc_validate_unary_mode(rhs->u.unary.op, rhs->u.unary.type,
+        if (tc_validate_unary_mode(rhs->u.unary.op, rhs->u.unary.type->tag,
                                    rhs->u.unary.mode, diag, line) != 0) {
             return -1;
         }
-        if (rhs->u.unary.type != expected_type) {
+        if (rhs->u.unary.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.unary.operand, rhs->u.unary.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.unary.operand, rhs->u.unary.type->tag, visible, global,
                                   const_name, &lhs, line, diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type, rhs->u.unary.mode, &lhs, out,
+        if (tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type->tag, rhs->u.unary.mode, &lhs, out,
                           &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
@@ -343,17 +343,17 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.compare.lhs, rhs->u.compare.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.compare.lhs, rhs->u.compare.type->tag, visible, global,
                                   const_name, &lhs, line, diag) != 0) {
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.compare.rhs, rhs->u.compare.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.compare.rhs, rhs->u.compare.type->tag, visible, global,
                                   const_name, &rhs_val, line, diag) !=
             0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_val, out, &tmp_diag,
+        if (tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type->tag, &lhs, &rhs_val, out, &tmp_diag,
                             line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
@@ -419,23 +419,23 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
-        if (rhs->u.bitwise_bin.type != expected_type) {
+        if (rhs->u.bitwise_bin.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, visible,
+        if (tc_eval_const_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type->tag, visible,
                                   global, const_name, &lhs, line,
                                   diag) != 0) {
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, visible,
+        if (tc_eval_const_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type->tag, visible,
                                   global, const_name, &rhs_val, line,
                                   diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type, &lhs,
+        if (tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type->tag, &lhs,
                                    &rhs_val, out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
@@ -446,18 +446,18 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
-        if (rhs->u.bitwise_un.type != expected_type) {
+        if (rhs->u.bitwise_un.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, visible,
+        if (tc_eval_const_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type->tag, visible,
                                   global, const_name, &lhs, line,
                                   diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_bitwise_unary(rhs->u.bitwise_un.type, &lhs, out, &tmp_diag, line) != 0) {
+        if (tc_exec_bitwise_unary(rhs->u.bitwise_un.type->tag, &lhs, out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
             return -1;
@@ -467,26 +467,26 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_SHIFT) {
-        if (tc_validate_shift_mode(rhs->u.shift.op, rhs->u.shift.type,
+        if (tc_validate_shift_mode(rhs->u.shift.op, rhs->u.shift.type->tag,
                                    rhs->u.shift.mode, diag, line) != 0) {
             return -1;
         }
-        if (rhs->u.shift.type != expected_type) {
+        if (rhs->u.shift.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.shift.value, rhs->u.shift.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.shift.value, rhs->u.shift.type->tag, visible, global,
                                   const_name, &lhs, line, diag) != 0) {
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.shift.count, rhs->u.shift.type, visible, global,
+        if (tc_eval_const_operand(&rhs->u.shift.count, rhs->u.shift.type->tag, visible, global,
                                   const_name, &rhs_val, line,
                                   diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type, rhs->u.shift.mode, &lhs, &rhs_val,
+        if (tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type->tag, rhs->u.shift.mode, &lhs, &rhs_val,
                           out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
             tc_diagnostic_clear(&tmp_diag);
@@ -497,27 +497,27 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_FLOAT_ARITH) {
-        if (tc_validate_fp_arith_mode(rhs->u.float_arith.op, rhs->u.float_arith.type,
+        if (tc_validate_fp_arith_mode(rhs->u.float_arith.op, rhs->u.float_arith.type->tag,
                                       rhs->u.float_arith.mode, diag, line) != 0) {
             return -1;
         }
-        if (rhs->u.float_arith.type != expected_type) {
+        if (rhs->u.float_arith.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, visible,
+        if (tc_eval_const_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type->tag, visible,
                                   global, const_name, &lhs, line,
                                   diag) != 0) {
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, visible,
+        if (tc_eval_const_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type->tag, visible,
                                   global, const_name, &rhs_val, line,
                                   diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type,
+        if (tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type->tag,
                              rhs->u.float_arith.mode,
                              &lhs, &rhs_val, out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
@@ -529,22 +529,22 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_FLOAT_UNARY) {
-        if (tc_validate_fp_unary_mode(rhs->u.float_unary.op, rhs->u.float_unary.type,
+        if (tc_validate_fp_unary_mode(rhs->u.float_unary.op, rhs->u.float_unary.type->tag,
                                       rhs->u.float_unary.mode, diag, line) != 0) {
             return -1;
         }
-        if (rhs->u.float_unary.type != expected_type) {
+        if (rhs->u.float_unary.type->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, visible,
+        if (tc_eval_const_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type->tag, visible,
                                   global, const_name, &lhs, line,
                                   diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type,
+        if (tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type->tag,
                              rhs->u.float_unary.mode,
                              &lhs, out, &tmp_diag, line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
@@ -556,7 +556,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
-        if (tc_validate_fp_compare_mode(rhs->u.float_compare.type,
+        if (tc_validate_fp_compare_mode(rhs->u.float_compare.type->tag,
                                         rhs->u.float_compare.mode, diag, line) != 0) {
             return -1;
         }
@@ -565,18 +565,18 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "constant expression type mismatch");
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, visible,
+        if (tc_eval_const_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type->tag, visible,
                                   global, const_name, &lhs, line,
                                   diag) != 0) {
             return -1;
         }
-        if (tc_eval_const_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, visible,
+        if (tc_eval_const_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type->tag, visible,
                                   global, const_name, &rhs_val, line,
                                   diag) != 0) {
             return -1;
         }
         tc_diagnostic_init(&tmp_diag);
-        if (tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+        if (tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type->tag,
                                rhs->u.float_compare.mode, &lhs, &rhs_val, out, &tmp_diag,
                                line) != 0) {
             tc_const_map_runtime_error(tmp_diag.kind, diag, line);
@@ -591,9 +591,9 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         TcBitcastRhs *bitcast = (TcBitcastRhs *)&rhs->u.bitcast;
         TcValue source = {0};
         TcTypeTag source_type = TC_INT32;
-        int width = tc_type_bit_width(bitcast->target);
+        int width = tc_type_bit_width(bitcast->target->tag);
 
-        if (bitcast->target != expected_type) {
+        if (bitcast->target->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant bitcast type mismatch");
             return -1;
@@ -636,7 +636,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         } else {
             source_type = bitcast->source.u.lit.unsigned_suffix ? TC_UINT8 : TC_INT8;
         }
-        if (tc_type_is_bool(bitcast->target) || tc_type_is_bool(source_type)) {
+        if (tc_type_is_bool(bitcast->target->tag) || tc_type_is_bool(source_type)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
@@ -646,14 +646,14 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "bitcast source and target widths must match");
             return -1;
         }
-        bitcast->source_type = source_type;
+        bitcast->source_type = tc_type_tag_singleton(source_type);
         bitcast->source_type_resolved = 1;
         if (tc_eval_const_operand(&bitcast->source, source_type, visible,
                                   global, const_name, &source, line,
                                   diag) != 0) {
             return -1;
         }
-        return tc_exec_bitcast(bitcast->target, &source, out, diag, line);
+        return tc_exec_bitcast(bitcast->target->tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_CONST_CAST) {
@@ -661,7 +661,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         TcValue src_val = {0};
         TcTypeTag source_type = TC_INT64;
 
-        if (cast->target != expected_type) {
+        if (cast->target->tag != expected_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant cast target type mismatch");
             return -1;
@@ -715,12 +715,12 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "invalid constant cast source");
             return -1;
         }
-        cast->source_type = source_type;
+        cast->source_type = tc_type_tag_singleton(source_type);
         cast->source_type_resolved = 1;
         tc_diagnostic_init(&tmp_diag);
         if ((cast->mode == TC_TRUNC_TRUNCATE
-                 ? tc_exec_truncate(cast->target, &src_val, out, &tmp_diag, line)
-                 : tc_exec_cast(cast->target, &src_val, out, &tmp_diag, line)) != 0) {
+                 ? tc_exec_truncate(cast->target->tag, &src_val, out, &tmp_diag, line)
+                 : tc_exec_cast(cast->target->tag, &src_val, out, &tmp_diag, line)) != 0) {
             if (tmp_diag.kind == TC_CE_MODE_MISMATCH) {
                 tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "truncate requires an integer target narrower than the source");
@@ -741,7 +741,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
             return -1;
         }
         /* 字段合法性由类型检查保证；编译期 struct 值占位（bits=0），供 let 绑定注册 */
-        out->type = TC_STRUCT;
+        out->type = tc_type_tag_singleton(TC_STRUCT);
         out->bits = 0;
         return 0;
     }

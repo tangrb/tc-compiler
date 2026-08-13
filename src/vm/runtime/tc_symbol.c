@@ -460,7 +460,7 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeTag typ
     table->symbols[table->count].sym_kind = sym_kind;
     table->symbols[table->count].initialized = initialized;
     table->symbols[table->count].has_const_value = 0;
-    table->symbols[table->count].const_value.type = type;
+    table->symbols[table->count].const_value.type = tc_type_tag_singleton(type);
     table->symbols[table->count].const_value.bits = 0;
     table->symbols[table->count].scope_level = tc_symbol_table_current_scope(table);
     table->symbols[table->count].scope_end_stmt_index = -1;

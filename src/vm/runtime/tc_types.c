@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,6 +33,146 @@ TcType tc_type_scalar(TcTypeTag tag) {
 TcTypeTag tc_type_scalar_tag(const TcType *type) {
     assert(type != NULL);
     return type->tag;
+}
+
+const TcType tc_type_singletons[TC_TYPE_TAG_COUNT] = {
+    [TC_INT8] = {.tag = TC_INT8},
+    [TC_UINT8] = {.tag = TC_UINT8},
+    [TC_INT16] = {.tag = TC_INT16},
+    [TC_UINT16] = {.tag = TC_UINT16},
+    [TC_INT32] = {.tag = TC_INT32},
+    [TC_UINT32] = {.tag = TC_UINT32},
+    [TC_INT64] = {.tag = TC_INT64},
+    [TC_UINT64] = {.tag = TC_UINT64},
+    [TC_BOOL] = {.tag = TC_BOOL},
+    [TC_FLOAT32] = {.tag = TC_FLOAT32},
+    [TC_FLOAT64] = {.tag = TC_FLOAT64},
+    [TC_ISIZE] = {.tag = TC_ISIZE},
+    [TC_USIZE] = {.tag = TC_USIZE},
+    [TC_VOID] = {.tag = TC_VOID},
+    [TC_PTR] = {.tag = TC_PTR},
+    [TC_MEMBLOCK] = {.tag = TC_MEMBLOCK},
+    [TC_STRUCT] = {.tag = TC_STRUCT},
+};
+
+const TcType *tc_type_tag_singleton(TcTypeTag tag) {
+    assert((int)tag >= 0 && (int)tag < TC_TYPE_TAG_COUNT);
+    return &tc_type_singletons[tag];
+}
+
+void tc_type_table_init(TcTypeTable *table) {
+    if (!table) {
+        return;
+    }
+    memset(table, 0, sizeof(*table));
+}
+
+void tc_type_table_free(TcTypeTable *table) {
+    size_t i;
+
+    if (!table) {
+        return;
+    }
+    for (i = 0; i < table->count; i++) {
+        if (table->nodes[i]) {
+            /* 子指针指向池内其它节点或单例，不可 tc_type_free 递归 */
+            free(table->nodes[i]);
+            table->nodes[i] = NULL;
+        }
+    }
+    free(table->nodes);
+    memset(table, 0, sizeof(*table));
+}
+
+/** memblock 入池键：equals 忽略 N，但池内节点按 T+N 区分以便 sizeof */
+static int tc_type_pool_same(const TcType *a, const TcType *b) {
+    if (!a || !b) {
+        return a == b;
+    }
+    if (a->tag != b->tag) {
+        return 0;
+    }
+    switch (a->tag) {
+    case TC_PTR:
+        return tc_type_pool_same(a->params.ptr_type.pointee, b->params.ptr_type.pointee);
+    case TC_MEMBLOCK:
+        if (a->params.memblock_type.count != b->params.memblock_type.count) {
+            return 0;
+        }
+        return tc_type_pool_same(a->params.memblock_type.element,
+                                 b->params.memblock_type.element);
+    case TC_STRUCT:
+        return a->params.struct_type.struct_id == b->params.struct_type.struct_id;
+    default:
+        return 1;
+    }
+}
+
+const TcType *tc_type_intern(TcTypeTable *table, const TcType *type, TcDiagnostic *diag) {
+    TcType *node = NULL;
+    TcType built;
+    const TcType *child = NULL;
+    size_t i;
+
+    (void)diag;
+    if (!type) {
+        return NULL;
+    }
+    if (type->tag != TC_PTR && type->tag != TC_MEMBLOCK && type->tag != TC_STRUCT) {
+        return tc_type_tag_singleton(type->tag);
+    }
+    if (!table) {
+        return NULL;
+    }
+
+    memset(&built, 0, sizeof(built));
+    built.tag = type->tag;
+    if (type->tag == TC_PTR) {
+        if (type->params.ptr_type.pointee) {
+            child = tc_type_intern(table, type->params.ptr_type.pointee, diag);
+            if (!child) {
+                return NULL;
+            }
+            /* 池内节点持有「非拥有」子指针：子节点已在池/单例中，free 时不可递归释放 */
+            built.params.ptr_type.pointee = (TcType *)(uintptr_t)child;
+        }
+    } else if (type->tag == TC_MEMBLOCK) {
+        if (type->params.memblock_type.element) {
+            child = tc_type_intern(table, type->params.memblock_type.element, diag);
+            if (!child) {
+                return NULL;
+            }
+            built.params.memblock_type.element = (TcType *)(uintptr_t)child;
+        }
+        built.params.memblock_type.count = type->params.memblock_type.count;
+    } else {
+        built.params.struct_type.struct_id = type->params.struct_type.struct_id;
+    }
+
+    for (i = 0; i < table->count; i++) {
+        if (tc_type_pool_same(table->nodes[i], &built)) {
+            return table->nodes[i];
+        }
+    }
+
+    node = (TcType *)malloc(sizeof(TcType));
+    if (!node) {
+        return NULL;
+    }
+    *node = built;
+
+    if (table->count >= table->capacity) {
+        size_t new_cap = table->capacity == 0 ? 16 : table->capacity * 2;
+        TcType **grown = (TcType **)realloc(table->nodes, new_cap * sizeof(TcType *));
+        if (!grown) {
+            free(node);
+            return NULL;
+        }
+        table->nodes = grown;
+        table->capacity = new_cap;
+    }
+    table->nodes[table->count++] = node;
+    return node;
 }
 
 TcType tc_type_make_ptr(TcType *pointee) {
@@ -123,6 +264,9 @@ int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
 int tc_type_equals(const TcType *a, const TcType *b) {
     if (!a || !b) {
         return 0;
+    }
+    if (a == b) {
+        return 1;
     }
     assert(tc_type_scalar_tag(a) == a->tag);
     assert(tc_type_scalar_tag(b) == b->tag);

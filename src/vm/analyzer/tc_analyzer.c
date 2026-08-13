@@ -41,6 +41,7 @@ void tc_typed_program_init(TcTypedProgram *program) {
     program->toplevel_slot_count = 0;
     program->static_slot_count = 0;
     program->struct_table = NULL;
+    program->type_table = NULL;
 }
 
 void tc_typed_program_free(TcTypedProgram *program) {
@@ -69,6 +70,11 @@ void tc_typed_program_free(TcTypedProgram *program) {
         tc_struct_table_free(program->struct_table);
         free(program->struct_table);
         program->struct_table = NULL;
+    }
+    if (program->type_table) {
+        tc_type_table_free(program->type_table);
+        free(program->type_table);
+        program->type_table = NULL;
     }
 }
 
@@ -261,13 +267,18 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     {
         TcStructTable *owned = (TcStructTable *)malloc(sizeof(TcStructTable));
-        if (!owned) {
+        TcTypeTable *types = (TcTypeTable *)malloc(sizeof(TcTypeTable));
+        if (!owned || !types) {
+            free(owned);
+            free(types);
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
             goto fail;
         }
         *owned = struct_table;
         out->struct_table = owned;
+        tc_type_table_init(types);
+        out->type_table = types;
     }
 
     ret = 0;

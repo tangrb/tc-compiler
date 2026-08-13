@@ -346,7 +346,7 @@ int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out) {
 
     if (ctx->is_aot) {
         out->bits = ctx->aot_slots[slot];
-        out->type = TC_INT64;  /* AOT 模式下不追踪类型，调用方自行保证 */
+        out->type = tc_type_tag_singleton(TC_INT64);  /* AOT 模式下不追踪类型，调用方自行保证 */
     } else {
         *out = ctx->exec_ctx.slots[slot];
     }
@@ -460,14 +460,14 @@ static int tc_embed_raw_to_value(TcTypeTag type, const void *src, TcValue *out) 
         intptr_t t;
         memcpy(&t, p, sizeof(t));
         *out = tc_value_from_int64((int64_t)t);
-        out->type = TC_ISIZE;
+        out->type = tc_type_tag_singleton(TC_ISIZE);
         return 0;
     }
     case TC_USIZE: {
         uintptr_t t;
         memcpy(&t, p, sizeof(t));
         *out = tc_value_from_uint64((uint64_t)t);
-        out->type = TC_USIZE;
+        out->type = tc_type_tag_singleton(TC_USIZE);
         return 0;
     }
     default:
@@ -491,7 +491,7 @@ int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeTag elem_type,
     }
 
     if (!data || count == 0) {
-        out->type = TC_PTR;
+        out->type = tc_type_tag_singleton(TC_PTR);
         out->bits = 0;   /* nullptr */
         return 0;
     }
@@ -577,7 +577,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
 
         if (info->has_return && result && entry->ret_ptr) {
             result->bits = *entry->ret_ptr;
-            result->type = (TcTypeTag)info->return_type;
+            result->type = tc_type_tag_singleton((TcTypeTag)info->return_type);
         }
         return 0;
     }
@@ -639,7 +639,7 @@ int tc_embed_call_typed(TcEmbedCtx *ctx, const TcEmbedFuncInfo *info,
         }
     }
     for (i = 0; i < nargs; i++) {
-        values[i].type = args[i].type;
+        values[i].type = tc_type_tag_singleton(args[i].type);
         values[i].bits = args[i].bits;
     }
 

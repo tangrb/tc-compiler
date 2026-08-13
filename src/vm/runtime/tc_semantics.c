@@ -57,7 +57,7 @@ TcValue tc_value_make(TcTypeTag type, uint64_t bits) {
     TcValue value;
     /* 自动归一化 bits 到目标类型位宽：窄类型的高位被掩码清零，
      * 保证 TcValue 中 bits 的"脏高位"不会影响后续运算。 */
-    value.type = type;
+    value.type = tc_type_tag_singleton(type);
     value.bits = tc_value_to_unsigned(type, bits);
     return value;
 }

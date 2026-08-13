@@ -32,8 +32,9 @@
  * TC_BOOL 与整数共用枚举以便统一查询，但概念上属独立类别（语言标准 §3.1）。
  * tc_type_is_integer() 对 TC_INT8～TC_UINT64 与 TC_ISIZE/TC_USIZE 返回真，不含 TC_BOOL。
  *
- * 完整类型值见下方 TcType（tag + 参数）。现网 AST/API 仍以 TcTypeTag
- * 传递标量标签；复合类型经 TcType / tc_type_equals / tc_sizeof_bits。
+ * 完整类型值见下方 TcType（tag + 参数）。
+ * TcTypeTag 仅为判别标签与标量叶子谓词；类型事实源是 TcType /
+ * interned const TcType*（见 tc_type_tag_singleton / TcTypeTable）。
  */
 typedef enum {
     TC_INT8,
@@ -54,6 +55,9 @@ typedef enum {
     TC_MEMBLOCK,  /* memblock<T,N>，params.memblock_type；等价仅看 T */
     TC_STRUCT     /* 结构体，params.struct_type.struct_id */
 } TcTypeTag;
+
+/** 含 TC_STRUCT 在内的标签个数（单例表长度） */
+#define TC_TYPE_TAG_COUNT ((int)TC_STRUCT + 1)
 
 /**
  * 完整类型表示（开发计划 A-2 / VM 详设 §8.1）。
@@ -382,7 +386,7 @@ typedef struct {
     int resolved;
     int slot;             /* var 的固定运行时槽；let 为 -1 */
     int is_const;         /* let 常量绑定时为 1 */
-    TcTypeTag type;          /* Analyzer 解析的声明类型 */
+    const TcType *type;   /* 指向单例或类型池 / 符号 full_type 的稳定节点 */
     uint64_t const_bits;  /* let 的规范化 TcValue.bits */
 } TcResolvedBinding;
 
@@ -436,16 +440,16 @@ typedef enum {
 } TcRhsKind;
 
 typedef struct {
-    TcTypeTag target;
-    TcTypeTag source_type;
+    const TcType *target;
+    const TcType *source_type;
     int source_type_resolved;
     TcOperand source;
 } TcBitcastRhs;
 
 typedef struct {
-    TcTypeTag target;
+    const TcType *target;
     TcTruncateMode mode;
-    TcTypeTag source_type;
+    const TcType *source_type;
     int source_type_resolved;
     TcOperand source;
 } TcCastRhs;
@@ -456,20 +460,20 @@ typedef struct {
         TcLiteral lit;           /* TC_RHS_LIT */
         struct {
             TcArithOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcWrapMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } arith;                 /* TC_RHS_ARITH */
         struct {
             TcUnaryOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcWrapMode mode;
             TcOperand operand;
         } unary;                 /* TC_RHS_UNARY */
         struct {
             TcCompareOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcOperand lhs;
             TcOperand rhs;
         } compare;               /* TC_RHS_COMPARE */
@@ -484,17 +488,17 @@ typedef struct {
         } logic_un;              /* TC_RHS_LOGIC_UN */
         struct {
             TcBitwiseOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcOperand lhs;
             TcOperand rhs;
         } bitwise_bin;           /* TC_RHS_BITWISE_BIN */
         struct {
-            TcTypeTag type;
+            const TcType *type;
             TcOperand operand;
         } bitwise_un;              /* TC_RHS_BITWISE_UN（恒为 not） */
         struct {
             TcShiftOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcWrapMode mode;     /* 仅 shl 使用；shr 恒为 TC_ARITH_STRICT */
             TcOperand value;
             TcOperand count;
@@ -507,20 +511,20 @@ typedef struct {
         } const_ref;             /* TC_RHS_CONST_REF */
         struct {
             TcArithOp op;
-            TcTypeTag type;      /* TC_FLOAT32 或 TC_FLOAT64 */
+            const TcType *type;  /* TC_FLOAT32 或 TC_FLOAT64 */
             TcFloatMode mode;
             TcOperand lhs;
             TcOperand rhs;
         } float_arith;           /* TC_RHS_FLOAT_ARITH */
         struct {
             TcUnaryOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcFloatMode mode;
             TcOperand operand;
         } float_unary;           /* TC_RHS_FLOAT_UNARY */
         struct {
             TcCompareOp op;
-            TcTypeTag type;
+            const TcType *type;
             TcFloatMode mode;
             TcOperand lhs;
             TcOperand rhs;
@@ -670,14 +674,14 @@ typedef struct {
 
 typedef struct {
     int line;
-    TcTypeTag type;
+    const TcType *type;
     TcFormatFullSpec fmt;       /* TC_FMT_NONE 表示默认十进制输出 */
     TcOperand operand;
 } TcIoWrite;
 
 typedef struct {
     int line;
-    TcTypeTag type;
+    const TcType *type;
     char *name;      /* 读取目标变量名，堆分配 */
     TcResolvedBinding binding; /* Analyzer 解析的读取目标 */
 } TcRead;
@@ -889,16 +893,21 @@ typedef struct {
     size_t capacity;
 } TcProgram;
 
-/** 运行时值：类型标签 + 位模式载体（开发计划 A-8）
+/** 运行时值：完整类型指针 + 位模式载体（开发计划 A-8）
  *
+ * type 指向标量单例或分析期 intern / AST 稳定 TcType 节点（禁止指向可 realloc 缓冲）。
  * 标量 / ptr：bits 存抽象位模式。
  * memblock：bits 存指向 memblock 堆存储区的指针（实现指针转 uint64_t）。
  * struct：bits 存指向按布局排列的连续字节区的指针；小结构体亦可内联策略（后续 Executor）。
  */
 typedef struct {
-    TcTypeTag type;
+    const TcType *type;
     uint64_t bits;
 } TcValue;
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(TcValue) == 16, "TcValue must stay 16 bytes (ptr + bits)");
+#endif
 
 /**
  * 程序级运行时槽组（A-8）。
@@ -1008,6 +1017,13 @@ typedef struct TcCfgSet TcCfgSet;
 /** 结构体定义表（定义见 tc_struct_check.h；Analyzer 拥有并移交 TypedProgram） */
 struct TcStructTable;
 
+/** 类型池：分析期 intern 复合类型，返回稳定 const TcType* */
+typedef struct TcTypeTable {
+    TcType **nodes; /* 各节点独立 malloc；标量不入池（走单例） */
+    size_t count;
+    size_t capacity;
+} TcTypeTable;
+
 /** Analyzer 分析通过后的完整程序：语句 + 符号表 + CFG + 警告 */
 typedef struct {
     TcProgram program;       /* 入口模块 */
@@ -1022,6 +1038,7 @@ typedef struct {
     size_t toplevel_slot_count;
     size_t static_slot_count;
     struct TcStructTable *struct_table; /* 拥有；供 Executor/AOT 布局与字段偏移 */
+    TcTypeTable *type_table;            /* 拥有；复合类型 intern 池 */
 } TcTypedProgram;
 
 typedef enum {
@@ -1079,6 +1096,30 @@ TcType tc_type_scalar(TcTypeTag tag);
 TcType tc_type_from_tag(TcTypeTag tag);
 /** 完整类型 → 标量标签；标量/void 时即 tag 本身 */
 TcTypeTag tc_type_scalar_tag(const TcType *type);
+/**
+ * 返回标签对应的进程内规范单例（永不释放）。
+ * 标量/void/复合「仅标签」场景均可用；复合完整类型请走 TcTypeTable。
+ */
+const TcType *tc_type_tag_singleton(TcTypeTag tag);
+/** 单例表（供静态初始化器取地址；优先用 tc_type_tag_singleton） */
+extern const TcType tc_type_singletons[TC_TYPE_TAG_COUNT];
+/** 静态初始化用：&tc_type_singletons[TC_INT32] */
+#define TC_TYPE_PTR(tag) (&tc_type_singletons[(tag)])
+/** 从完整类型取标签；NULL 不安全，调用方须保证非空 */
+static inline TcTypeTag tc_type_tag_of(const TcType *type) {
+    return type->tag;
+}
+
+void tc_type_table_init(TcTypeTable *table);
+void tc_type_table_free(TcTypeTable *table);
+/**
+ * 将类型 intern 进池并返回稳定指针。
+ * 标量/void 返回单例（不入池）。复合类型深拷贝子树；memblock 按 T+N 区分节点
+ *（equals 仍忽略 N；指针相等是更强关系）。
+ * @return 非 NULL 成功；OOM 时返回 NULL 并写 diag
+ */
+const TcType *tc_type_intern(TcTypeTable *table, const TcType *type, TcDiagnostic *diag);
+
 TcType tc_type_make_ptr(TcType *pointee);
 TcType tc_type_make_memblock(TcType *element, uint64_t count);
 TcType tc_type_make_struct(int struct_id);
