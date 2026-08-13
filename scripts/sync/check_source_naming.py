@@ -31,6 +31,7 @@ HEADER_ONLY_H = frozenset({
     "tc_embed_internal.h",  # embed 内部结构，实现在 tc_embed.c + tc_embed_aot.c
     "tc_value_bridge.h",  # header-only 值桥接 inline 函数
     "tc_aot_embed_rt.h",  # header-only AOT 嵌入运行时 shim
+    "tc_aot_codegen_internal.h",  # AOT codegen 子模块共享声明
 })
 
 

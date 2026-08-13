@@ -74,13 +74,10 @@ const TcSymbol *tc_symbol_table_find_in_current_scope(const TcSymbolTable *table
 
 /**
  * 向符号表追加一个符号（完整类型版本）。
- * @param full_type       完整类型；NULL 则按 type 构造标量 full_type
- * @param memblock_count  memblock 声明 N；非 memblock 传 0
- * @param struct_id       struct id；非 struct 传 -1
- * @param slot_domain     槽域
+ * @param type  已 intern / 单例的稳定类型指针；禁止传临时栈上 TcType 地址
+ * @param slot_domain 槽域
  */
-int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind type,
-                           const TcType *full_type, uint64_t memblock_count, int struct_id,
+int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, const TcType *type,
                            int slot, TcSlotDomain slot_domain, int def_line, int def_stmt_index,
                            TcSymKind sym_kind, int initialized, TcDiagnostic *diag);
 
@@ -88,7 +85,7 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind ty
  * 向符号表追加一个符号（scope_level 取当前作用域层级；标量快捷入口）。
  * @param table           符号表
  * @param name            符号名（内部 strdup 复制）
- * @param type            整数类型
+ * @param type_tag        标量标签（内部转为单例指针）
  * @param slot            运行时槽位索引
  * @param def_line        定义行号
  * @param def_stmt_index  定义语句序号
@@ -97,7 +94,7 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind ty
  * @param diag            诊断对象（内存不足时设置）
  * @return 成功返回 0；内存不足返回 -1
  */
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeKind type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeTag type_tag, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag);
 

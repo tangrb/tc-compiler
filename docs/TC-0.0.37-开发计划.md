@@ -1,7 +1,7 @@
-# TC 0.0.35 编译器完整开发计划
+# TC 0.0.37 编译器完整开发计划
 
 > **计划日期**：2026-07-23
-> **目标**：构建完整的 TC 0.0.35 编译器（VM 解释器 + AOT C99 编译器 + libtc 嵌入库）
+> **目标**：构建完整的 TC 0.0.37 编译器（VM 解释器 + AOT C99 编译器 + libtc 嵌入库）
 > **现状**：v0.0.31 已有 Lexer/Parser/Analyzer/CFG/Executor/AOT 等核心基础
 > **新增**：模块系统、函数系统、ptr<T>/memblock<T,N>/struct 类型系统、13 阶段编译管线
 
@@ -9,13 +9,13 @@
 
 ## 第一部分：系统架构与全局视图
 
-### 1. TC 0.0.35 语言能力全景
+### 1. TC 0.0.37 语言能力全景
 
-TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.35 版本的完整语言能力范围（不是增量，是本版本作为独立产品的完整规格）。
+TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.37 版本的完整语言能力范围（不是增量，是本版本作为独立产品的完整规格）。
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    TC 0.0.35 语言边界                          │
+│                    TC 0.0.37 语言边界                          │
 ├──────────────┬───────────────────────────────────────────────┤
 │ 类型系统      │ int8~uint64, isize/usize, float32/64, bool   │
 │              │ ptr<T>, memblock<T,N>, struct, void(仅返回)     │
@@ -112,9 +112,8 @@ TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.35
 ```
 src/
 ├── vm/                           # TC-VM 解释器
-│   ├── driver/                   # CLI入口, version, REPL(移除)
+│   ├── driver/                   # CLI入口（REPL 已移除）
 │   │   ├── main.c                # tc-vm CLI
-│   │   ├── tc_version.h          # 版本号 v0.0.35
 │   │   └── tc_driver.c/h         # 文件执行协调
 │   ├── lexer/                    # 词法分析器
 │   │   ├── tc_lexer.c/h          # 最长匹配, 缩进栈, Token生成
@@ -142,7 +141,8 @@ src/
 │   │   ├── tc_ptr_exec.c         # 指针运行时 [新增]
 │   │   └── tc_struct_exec.c/h    # struct运行时 [新增]
 │   └── runtime/                  # 共享运行时
-│       ├── tc_types.c/h          # 类型系统(TcTypeKind, TcType, 等价, 宽度)
+│       ├── tc_version.h          # 版本号 v0.0.37（含 Embed）
+│       ├── tc_types.c/h          # 类型系统(TcTypeTag, TcType, 等价, 宽度)
 │       ├── tc_error.c/h          # 错误码(TcErrorKind, 打印名)
 │       ├── tc_symbol.c/h         # 符号表
 │       ├── tc_diagnostic.c/h     # 单槽诊断
@@ -357,11 +357,11 @@ src/
 
 ### 模块 A：类型系统内核 (types/IR)
 
-> **目标**：建立 TC 0.0.35 完整类型表示、等价判定与宽度计算
+> **目标**：建立 TC 0.0.37 完整类型表示、等价判定与宽度计算
 
 | ID | 任务 | 产出 | 验证标准 |
 | -- | ---- | ---- | -------- |
-| A-1 | 扩展 `TcTypeKind` 枚举 | `TC_ISIZE, TC_USIZE, TC_PTR, TC_MEMBLOCK, TC_STRUCT, TC_VOID` | 枚举覆盖所有设计类型 |
+| A-1 | 扩展 `TcTypeTag` 枚举 | `TC_ISIZE, TC_USIZE, TC_PTR, TC_MEMBLOCK, TC_STRUCT, TC_VOID` | 枚举覆盖所有设计类型 |
 | A-2 | 设计 `TcType` 联合体 | `ptr_type(pointee), memblock_type(element,count), struct_type(struct_id)` | 所有类型参数可编码 |
 | A-3 | 实现 `tc_type_equals()` | 类型等价判定函数，memblock 仅按 T 等价、ptr 按 T 等价、struct 按 id | 单元测试覆盖全部等价组合 |
 | A-4 | 实现 `sizeof_bits()` | 宽度计算表（标量固定、isize/usize=平台字长、ptr=平台字长、memblock=头部+数据、struct=Σ字段+padding） | 单元测试验证各宽度 |
@@ -369,10 +369,13 @@ src/
 | A-6 | 扩展 `TcRhsKind` 枚举 | 新增 18 种: MEMBLOCK_LOAD/CONSTRUCTOR/COUNT, STRUCT_CONSTRUCTOR, FIELD_READ, PTR_LOAD/ADDRESS/ADD/SUB/EQ~GE/SIZE, FUNCALL_EXPR, SELF_MEMBER | check_rhs_coverage.py 通过 |
 | A-7 | 扩展 `TcErrorKind` 枚举 | 新增 ~30 个错误码（函数20+memblock4+struct7+模块10+指针4） | tc_error_kind_name() 所有打印名唯一 |
 | A-8 | 扩展槽位模型 | 顶层var槽、static_slots[]全程序唯一槽、函数形参/局部槽；memblock/struct 值以堆块指针存于 `slots[]`/`static_slots[]`（实现未采用独立 `struct_storage[]` 字节数组，与 AOT 详设早期草稿不同） | Executor/AOT 消费一致 |
+| A-9 | 类型单一事实源收敛 | `TcValue`/`TcSymbol`/`TcResolvedBinding` 存 `const TcType*`；`TcTypeTable` intern；删除符号层 `full_type` 深拷贝与 `memblock_count`/`struct_id` 冗余；`cast`/`bitcast` 完整类型语法 | `check_type_fact_source.py`；`phase5_ptr_cast*`；unit `test_types`/`test_analyzer` |
+
+> **状态（类型内核）**：A-1～A-8 已完成；**A-9（双轨收敛）已落地**（符号/值/绑定统一 `const TcType*`，Parse 期 AST 按值拥有为过渡所有权层）。
 
 ### 模块 B：词法分析器 (Lexer)
 
-> **目标**：识别 TC 0.0.35 全部 Token 类型  
+> **目标**：识别 TC 0.0.37 全部 Token 类型  
 > **状态**：**Phase 2 已完成（2026-07-23）**
 
 | ID | 任务 | 产出 | 验证标准 |
@@ -386,7 +389,7 @@ src/
 
 ### 模块 C：语法解析器 (Parser)
 
-> **目标**：解析 TC 0.0.35 全部语法构造为 AST  
+> **目标**：解析 TC 0.0.37 全部语法构造为 AST  
 > **状态**：**Phase 2 已完成（2026-07-23）** — 函数签名为 `) return_type then`（无 `->`）
 
 | ID | 任务 | 产出 | 验证标准 |
@@ -739,7 +742,7 @@ src/
 ### 模块 K：CLI、API、测试与清理
 
 > **目标**：完成 CLI 更新、libtc API 更新、全量测试覆盖、REPL 移除、版本号更新  
-> **状态**：**Phase 6 已完成（2026-07-24）** — CLI `-I`/无 REPL、libtc `name`/`tc_run_program`、版本 v0.0.35；struct 运行时已补齐
+> **状态**：**Phase 6 已完成（2026-07-24）** — CLI `-I`/无 REPL、libtc `name`/`tc_run_program`、版本 v0.0.37；struct 运行时已补齐
 
 #### K.1 CLI 更新
 
@@ -788,9 +791,9 @@ src/
 | -- | ---- | ---- |
 | K4-1 | check_rhs_coverage.py | 所有新增 TcRhsKind 覆盖检查 |
 | K4-2 | check_source_naming.py | 所有新增模块命名检查 |
-| K4-3 | test-map.md | 0.0.35 测试映射更新 |
+| K4-3 | test-map.md | 0.0.37 测试映射更新 |
 | K4-4 | REPL 移除 | 删除 tc_repl.c/h; 移除 --repl 选项 |
-| K4-5 | 版本号 | src/vm/driver/tc_version.h → v0.0.35; src/aot/main.c → TC_AOT_VERSION |
+| K4-5 | 版本号 | src/vm/runtime/tc_version.h → v0.0.37; src/aot/main.c → TC_AOT_VERSION |
 | K4-6 | 文档同步 | 9份文档版本标记一致；合规审查证据回填（2026-07-24） |
 
 ---
@@ -874,49 +877,48 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 
 ---
 
-*本计划基于 TC 0.0.35 全套设计文档（语言标准、编译器标准、VM 设计、AOT 设计、libtc 设计、libtc API、VM 命令参考、合规审查报告）。所有规范要求以原设计文档为准。*
+*本计划基于 TC 0.0.37 全套设计文档（语言标准、编译器标准、VM 设计、AOT 设计、libtc 设计、libtc API、VM 命令参考、合规审查报告）。所有规范要求以原设计文档为准。*
 
 ---
 
 ## 第五部分：合规审查修复计划
 
 > **审查日期**：2026-07-25  
-> **审查范围**：对照 `TC语言标准设计说明书-0.0.35.md` 和 `TC编译器标准设计说明书-0.0.35.md` 两份文档的逐项检查  
-> **审查结论**：整体实现完整度约 99%，全部测试通过（VM + AOT + Unit），发现 1 个中等合规偏差和 1 个可选优化项
+> **落地提交**：`40a518b`（R-1 `TC_CE_IMPORT_NAME_CONFLICT` + R-2 关键字提权）  
+> **审查范围**：对照 `TC语言标准设计说明书-0.0.37.md` 和 `TC编译器标准设计说明书-0.0.37.md` 两份文档的逐项检查  
+> **审查结论**：整体实现完整度约 99%，全部测试通过（VM + AOT + Unit）；当时发现的 1 个中等合规偏差与 1 个可选优化项**均已修复完成**
 
 ### 审查结果总览
 
 | 审查维度 | 检查项数 | 通过 | 偏差 |
 |---------|---------|------|------|
-| 关键字与词法 (75+) | 88 | 87 | 1（可选优化） |
+| 关键字与词法 (75+) | 88 | 88 | 0（R-2 已完成） |
 | 错误码覆盖 | 90 | 90 | 0 |
 | RHS 分发覆盖 | 36 | 36 | 0 |
 | 13 阶段管线 | 13 | 13 | 0 |
-| 子阶段实现 | 23 | 22 | 1（合规偏差） |
+| 子阶段实现 | 23 | 23 | 0（R-1 已完成） |
 | 类型系统 | 18 | 18 | 0 |
-| 模块系统 | 14 | 13 | 1（合规偏差） |
+| 模块系统 | 14 | 14 | 0（R-1 已完成） |
 | 控制流与函数 | 22 | 22 | 0 |
 | I/O | 10 | 10 | 0 |
 | 诊断优先级 | 9 | 9 | 0 |
-| **合计** | **~320** | **~318** | **2** |
+| **合计** | **~320** | **~320** | **0** |
 
 ---
 
 ### 修复任务清单
 
-#### R-1 [中] 阶段 4b：补充 `TC_CE_IMPORT_NAME_CONFLICT` 独立检查
+#### R-1 [中] ✅ 已完成 — 阶段 4b：`TC_CE_IMPORT_NAME_CONFLICT` 独立检查
 
 | 项目 | 说明 |
 |------|------|
 | **规范依据** | 编译器标准 §1.2 子阶段 4b：*"导入名与本模块任何顶层名称冲突 → `TC_CE_IMPORT_NAME_CONFLICT`（完整范围见 §4.6）"* |
-| **当前行为** | `tc_module_resolve_imports()` 实现了 5 种导入错误（NOT_FOUND / NOT_LIB / AMBIGUOUS / DUPLICATE_IMPORT / CIRCULAR_IMPORT），但未在 4b 子阶段内独立检查 import 名是否与本模块顶层名称冲突 |
+| **落地状态** | **已完成**（`40a518b`）：`tc_module_check_import_name_conflict()`；用例 `import_name_conflict_{program,lib}.tc` |
 | **预期行为** | 在 4b 导入解析阶段，对每条 `import` 语句，检查导入名是否与本模块已收集的顶层名称冲突。对于 `#program`，检查 `var`/`let` 名；对于 `#lib`，检查 `func`/`struct`/`static let`/`static var` 名。若冲突则报告 `TC_CE_IMPORT_NAME_CONFLICT` |
-| **当前绕过路径** | 冲突可能在后续阶段通过符号表重复定义或函数名冲突检查捕获，但规范明确要求在 4b 子阶段产生专用错误码，不得降级为其他错误 |
-| **修复位置** | `src/vm/analyzer/tc_module.c` → `tc_module_resolve_imports()` 函数 |
-| **修复方案** | 在 4b 子阶段中，在重复导入检查之后、循环导入检查之前，新增函数 `tc_module_check_import_name_conflicts()`，遍历所有 import 并与本模块顶层名称集合对比 |
+| **修复位置** | `src/vm/analyzer/tc_module.c` → `tc_module_resolve_imports()` |
 
 <details>
-<summary>详细修复步骤</summary>
+<summary>历史修复步骤（已落地，仅作归档）</summary>
 
 **步骤 1**：在 `tc_module_resolve_imports()` 中，调用 4b 各子检查后，新增冲突检查调用：
 
@@ -987,36 +989,36 @@ tests/errors/module/import_name_conflict_lib.tc
 
 ---
 
-#### R-2 [低/可选] 词法分析器：`ptr_*` / `memblock_*` / `memcopy_unsafe` 关键字提权
+#### R-2 [低/可选] ✅ 已完成 — 词法分析器：`ptr_*` / `memblock_*` / `memcopy_unsafe` 关键字提权
 
 | 项目 | 说明 |
 |------|------|
 | **规范依据** | 语言标准 §2.7 关键字列表明确包含全部 `ptr_add`、`memblock_load`、`memcopy_unsafe` 等 16 个名称 |
-| **当前行为** | 这 16 个名称在词法层被标记为 `TC_TOK_IDENTIFIER`（普通标识符），由解析器通过 `tc_token_is_ident_named()` 按字符串匹配识别。功能正确，全量测试通过 |
+| **落地状态** | **已完成**（`40a518b`）：16 个独立 Token（`TC_TOK_PTR_*` / `TC_TOK_MEMBLOCK_*` / `TC_TOK_MEMCOPY_UNSAFE`）；词法 `tc_keyword_token()` 识别；解析器按 Token 类型分派 |
 | **建议行为** | 将这些名称提升为词法层关键字，分配独立的 Token 类型（如 `TC_TOK_PTR_ADD` 等），在 `tc_keyword_token()` 中统一识别，解析器直接检查 Token 类型而非字符串 |
 | **影响评估** | 不改变语义行为，不影响测试结果。属代码质量优化，非合规问题 |
 
 <details>
-<summary>涉及的关键字清单（16 个）</summary>
+<summary>涉及的关键字清单（16 个，已落地）</summary>
 
-| 关键字 | 当前识别方式 | 当前 Token 类型 | s建议 Token 类型 |
+| 关键字 | 当前识别方式 | 当前 Token 类型 | 建议 Token 类型 |
 |--------|------------|----------------|-----------------|
-| `ptr_add` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_ADD` |
-| `ptr_sub` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_SUB` |
-| `ptr_load` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_LOAD` |
-| `ptr_store` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_STORE` |
-| `ptr_address` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_ADDRESS` |
-| `ptr_size` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_SIZE` |
-| `ptr_eq` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_EQ` |
-| `ptr_ne` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_NE` |
-| `ptr_lt` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_LT` |
-| `ptr_le` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_LE` |
-| `ptr_gt` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_GT` |
-| `ptr_ge` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_PTR_GE` |
-| `memblock_load` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMBLOCK_LOAD` |
-| `memblock_store` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMBLOCK_STORE` |
-| `memblock_copy` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMBLOCK_COPY` |
-| `memcopy_unsafe` | `tc_token_is_ident_named()` | `TC_TOK_IDENTIFIER` | `TC_TOK_MEMCOPY_UNSAFE` |
+| `ptr_add` | Token 类型 | `TC_TOK_PTR_ADD` | `TC_TOK_PTR_ADD` |
+| `ptr_sub` | Token 类型 | `TC_TOK_PTR_SUB` | `TC_TOK_PTR_SUB` |
+| `ptr_load` | Token 类型 | `TC_TOK_PTR_LOAD` | `TC_TOK_PTR_LOAD` |
+| `ptr_store` | Token 类型 | `TC_TOK_PTR_STORE` | `TC_TOK_PTR_STORE` |
+| `ptr_address` | Token 类型 | `TC_TOK_PTR_ADDRESS` | `TC_TOK_PTR_ADDRESS` |
+| `ptr_size` | Token 类型 | `TC_TOK_PTR_SIZE` | `TC_TOK_PTR_SIZE` |
+| `ptr_eq` | Token 类型 | `TC_TOK_PTR_EQ` | `TC_TOK_PTR_EQ` |
+| `ptr_ne` | Token 类型 | `TC_TOK_PTR_NE` | `TC_TOK_PTR_NE` |
+| `ptr_lt` | Token 类型 | `TC_TOK_PTR_LT` | `TC_TOK_PTR_LT` |
+| `ptr_le` | Token 类型 | `TC_TOK_PTR_LE` | `TC_TOK_PTR_LE` |
+| `ptr_gt` | Token 类型 | `TC_TOK_PTR_GT` | `TC_TOK_PTR_GT` |
+| `ptr_ge` | Token 类型 | `TC_TOK_PTR_GE` | `TC_TOK_PTR_GE` |
+| `memblock_load` | Token 类型 | `TC_TOK_MEMBLOCK_LOAD` | `TC_TOK_MEMBLOCK_LOAD` |
+| `memblock_store` | Token 类型 | `TC_TOK_MEMBLOCK_STORE` | `TC_TOK_MEMBLOCK_STORE` |
+| `memblock_copy` | Token 类型 | `TC_TOK_MEMBLOCK_COPY` | `TC_TOK_MEMBLOCK_COPY` |
+| `memcopy_unsafe` | Token 类型 | `TC_TOK_MEMCOPY_UNSAFE` | `TC_TOK_MEMCOPY_UNSAFE` |
 
 </details>
 
@@ -1026,22 +1028,22 @@ tests/errors/module/import_name_conflict_lib.tc
 
 | 编号 | 任务 | 严重程度 | 预计工时 | 依赖 | 排期 |
 |------|------|---------|---------|------|------|
-| R-1 | 4b `TC_CE_IMPORT_NAME_CONFLICT` | **中**（合规偏差） | 2-3h | 无 | 立即 |
-| R-2 | `ptr_*`/`memblock_*` 关键字提权 | **低**（可选优化） | 3-4h | 无 | 可延后 |
+| R-1 | 4b `TC_CE_IMPORT_NAME_CONFLICT` | **中**（合规偏差） | 2-3h | 无 | ✅ 已完成（`40a518b`） |
+| R-2 | `ptr_*`/`memblock_*` 关键字提权 | **低**（可选优化） | 3-4h | 无 | ✅ 已完成（`40a518b`） |
 
 ---
 
 ### 验证标准
 
-| 编号 | 验证项 |
-|------|-------|
-| R-1-V1 | `#program` 模式：`import <名>` 与顶层 `var`/`let` 同名 → 产生 `TC_CE_IMPORT_NAME_CONFLICT`，且优先于后续阶段的通用错误 |
-| R-1-V2 | `#lib` 模式：`import <名>` 与 `func`/`struct`/`static let`/`static var` 同名 → 产生 `TC_CE_IMPORT_NAME_CONFLICT` |
-| R-1-V3 | 不冲突的合法 import 不受影响（回归测试全部通过） |
-| R-1-V4 | `TC_CE_IMPORT_NAME_CONFLICT` 与 `TC_CE_DUPLICATE_IMPORT` 在同一 import 上的优先级正确（后者优先） |
-| R-2-V1 | 所有 16 个名称在词法层被正确识别为新 Token 类型 |
-| R-2-V2 | 解析器中所有 `tc_token_is_ident_named("ptr_add", ...)` 调用替换为 Token 类型检查 |
-| R-2-V3 | 回归测试全部通过，无行为变化 |
+| 编号 | 验证项 | 状态 |
+|------|-------|------|
+| R-1-V1 | `#program` 模式：`import <名>` 与顶层 `var`/`let` 同名 → 产生 `TC_CE_IMPORT_NAME_CONFLICT`，且优先于后续阶段的通用错误 | ✅ |
+| R-1-V2 | `#lib` 模式：`import <名>` 与 `func`/`struct`/`static let`/`static var` 同名 → 产生 `TC_CE_IMPORT_NAME_CONFLICT` | ✅ |
+| R-1-V3 | 不冲突的合法 import 不受影响（回归测试全部通过） | ✅ |
+| R-1-V4 | `TC_CE_IMPORT_NAME_CONFLICT` 与 `TC_CE_DUPLICATE_IMPORT` 在同一 import 上的优先级正确（后者优先） | ✅ |
+| R-2-V1 | 所有 16 个名称在词法层被正确识别为新 Token 类型 | ✅ |
+| R-2-V2 | 解析器中所有 `tc_token_is_ident_named("ptr_add", ...)` 调用替换为 Token 类型检查 | ✅ |
+| R-2-V3 | 回归测试全部通过，无行为变化 | ✅ |
 
 ---
 
@@ -1057,4 +1059,4 @@ tests/errors/module/import_name_conflict_lib.tc
 
 ---
 
-*本修复计划基于 2026-07-25 合规审查结果。修复完成后应将其标记为已完成。*
+*本修复计划基于 2026-07-25 合规审查结果；R-1 / R-2 已于 `40a518b` 落地，本节标记为已完成。*

@@ -1,0 +1,7 @@
+#program
+; ptr cast：等宽所指类型 ptr<int32> → ptr<uint32>
+var a: int32 = 100
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<uint32> = cast(ptr<uint32>, p)
+var b: uint32 = ptr_load(uint32, q)
+writeln(uint32, b)

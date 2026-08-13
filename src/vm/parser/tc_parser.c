@@ -470,7 +470,7 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
 static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                   TcIoWrite *out, TcDiagnostic *diag) {
     out->line = line_no;
-    out->type = TC_INT32;
+    out->type = tc_type_tag_singleton(TC_INT32);
     memset(&out->fmt, 0, sizeof(out->fmt));
     out->fmt.spec = TC_FMT_NONE;
 
@@ -483,7 +483,7 @@ static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int 
         if (!tc_token_is_type(type_tok)) {
             return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
-        out->type = type_tok->u.int_type;
+        out->type = tc_type_tag_singleton(type_tok->u.int_type);
         (*index)++;
     }
 
@@ -535,7 +535,7 @@ static int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int 
 static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                               TcRead *out, TcDiagnostic *diag) {
     out->line = line_no;
-    out->type = TC_INT32;
+    out->type = tc_type_tag_singleton(TC_INT32);
     out->name = NULL;
 
     if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
@@ -547,7 +547,7 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
         if (!tc_token_is_type(type_tok)) {
             return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
         }
-        out->type = type_tok->u.int_type;
+        out->type = tc_type_tag_singleton(type_tok->u.int_type);
         (*index)++;
     }
 
@@ -686,7 +686,6 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         out->kind = TC_STMT_CONST_DEF;
         out->u.const_def.line = line_no;
         out->u.const_def.name = name;
-        out->u.const_def.type = full_type.kind;
         out->u.const_def.full_type = full_type;
         out->u.const_def.struct_type_name = struct_name;
         out->u.const_def.rhs = rhs;
@@ -694,7 +693,6 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         out->kind = TC_STMT_VAR_DEF;
         out->u.var_def.line = line_no;
         out->u.var_def.name = name;
-        out->u.var_def.type = full_type.kind;
         out->u.var_def.full_type = full_type;
         out->u.var_def.struct_type_name = struct_name;
         out->u.var_def.rhs = rhs;

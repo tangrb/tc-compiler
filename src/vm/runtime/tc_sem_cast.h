@@ -9,11 +9,11 @@
 
 #include "tc_types.h"
 
-int tc_exec_cast(TcTypeKind target, const TcValue *source, TcValue *out,
+int tc_exec_cast(TcTypeTag target, const TcValue *source, TcValue *out,
                  TcDiagnostic *diag, int line);
-int tc_exec_truncate(TcTypeKind target, const TcValue *source, TcValue *out,
+int tc_exec_truncate(TcTypeTag target, const TcValue *source, TcValue *out,
                      TcDiagnostic *diag, int line);
-int tc_exec_bitcast(TcTypeKind target, const TcValue *source, TcValue *out,
+int tc_exec_bitcast(TcTypeTag target, const TcValue *source, TcValue *out,
                     TcDiagnostic *diag, int line);
 
 #endif /* TC_SEM_CAST_H */

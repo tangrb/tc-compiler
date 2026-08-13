@@ -1,0 +1,8 @@
+#program
+; bitcast：ptr ↔ usize 往返后仍可 load
+var a: int32 = 7
+var p: ptr<int32> = ptr_address(int32, a)
+var u: usize = bitcast(usize, p)
+var p2: ptr<int32> = bitcast(ptr<int32>, u)
+var b: int32 = ptr_load(int32, p2)
+writeln(int32, b)

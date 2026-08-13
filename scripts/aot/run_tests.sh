@@ -260,7 +260,7 @@ run_aot_cli_golden() {
 
 # --- differential tests: valid programs (stdout VM vs AOT) ---
 
-run_aot_cli_golden "--version" 0 "tc-aot 0.0.35" "" "aot version golden"
+run_aot_cli_golden "--version" 0 "tc-aot 0.0.37" "" "aot version golden"
 
 run_aot_cli_golden "--help" 0 "" "Usage: $AOT_BIN [options] <file.tc>
 
@@ -447,6 +447,9 @@ run_diff_test "$ROOT/tests/stress/stress_many_ifs.tc"
 # --- Phase 5: Executor/AOT (funcall, ptr, memblock) ---
 run_diff_test "$ROOT/tests/valid/phase5_funcall_return.tc"
 run_diff_test "$ROOT/tests/valid/phase5_ptr_basic.tc"
+run_diff_test "$ROOT/tests/valid/phase5_ptr_cast.tc"
+run_diff_test "$ROOT/tests/valid/phase5_ptr_cast_nullptr.tc"
+run_diff_test "$ROOT/tests/valid/phase5_ptr_bitcast.tc"
 run_diff_test "$ROOT/tests/valid/phase5_ptr_scope_outer.tc"
 run_diff_test "$ROOT/tests/valid/phase5_memblock_basic.tc"
 run_diff_test "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"
@@ -527,6 +530,9 @@ run_check_ok "$ROOT/tests/valid/shift_edge_cases.tc"
 run_check_ok "$ROOT/tests/valid/uninitialized_bool.tc"
 run_check_ok "$ROOT/tests/valid/phase5_funcall_return.tc"
 run_check_ok "$ROOT/tests/valid/phase5_ptr_basic.tc"
+run_check_ok "$ROOT/tests/valid/phase5_ptr_cast.tc"
+run_check_ok "$ROOT/tests/valid/phase5_ptr_cast_nullptr.tc"
+run_check_ok "$ROOT/tests/valid/phase5_ptr_bitcast.tc"
 run_check_ok "$ROOT/tests/valid/phase5_ptr_scope_outer.tc"
 run_check_ok "$ROOT/tests/valid/phase5_memblock_basic.tc"
 run_check_ok "$ROOT/tests/valid/phase5_ptr_arith_cmp.tc"

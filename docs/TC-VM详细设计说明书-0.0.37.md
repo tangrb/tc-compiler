@@ -1,10 +1,10 @@
 # TC-VM 详细设计说明书
 
-> **规范基线（唯一权威）**：[TC 语言标准 0.0.35](./TC语言标准设计说明书-0.0.35.md) · [TC 编译器标准 0.0.35](./TC编译器标准设计说明书-0.0.35.md)
+> **规范基线（唯一权威）**：[TC 语言标准 0.0.37](./TC语言标准设计说明书-0.0.37.md) · [TC 编译器标准 0.0.37](./TC编译器标准设计说明书-0.0.37.md)
 >
-> **当前实现基线**：TC-VM v0.0.35（`TC_VM_VERSION`）
+> **当前实现基线**：TC-VM v0.0.37（`TC_VM_VERSION`）
 >
-> **状态**：0.0.35 架构设计，涵盖模块系统、函数、memblock、ptr、struct 与完整 13 阶段编译管线。
+> **状态**：0.0.37 架构设计，涵盖模块系统、函数、memblock、ptr、struct 与完整 13 阶段编译管线。
 >
 > **适用范围**：多文件编译单元的 Parse、模块解析、Analyze、Execute，以及 tc-vm 的实现边界。
 
@@ -39,9 +39,9 @@
 
 | 维度 | 版本 | 含义 |
 | ---- | ---- | ---- |
-| 语言规范 | 0.0.35 | 本文必须满足的合法程序集合、结果和诊断阶段 |
-| 编译器规范 | 0.0.35 | 确定的 13 阶段编译管线、错误码与检查顺序 |
-| 本文架构 | 0.0.35 设计 | 面向当前语言能力的实现设计 |
+| 语言规范 | 0.0.37 | 本文必须满足的合法程序集合、结果和诊断阶段 |
+| 编译器规范 | 0.0.37 | 确定的 13 阶段编译管线、错误码与检查顺序 |
+| 本文架构 | 0.0.37 设计 | 面向当前语言能力的实现设计 |
 
 ### 1.2 目标
 
@@ -58,8 +58,8 @@
 ### 1.3 非目标
 
 - 不在 VM 内引入 JIT、字节码文件格式或寄存器分配器。
-- 不为未纳入 0.0.35 的递归、异常、闭包等预先定义 ABI。
-- 不以更强的可选静态规则缩小 0.0.35 合法程序集。
+- 不为未纳入 0.0.37 的递归、异常、闭包等预先定义 ABI。
+- 不以更强的可选静态规则缩小 0.0.37 合法程序集。
 - 不为未纳入公开 API 的内部符号承诺 C ABI 稳定性。
 
 ### 1.4 规范到实现的约束
@@ -77,7 +77,7 @@
 
 ### 2.1 目标流水线（13 阶段）
 
-0.0.35 编译器标准 §1.2 定义 13 个确定性处理阶段，VM 后端遵循此流水线。各阶段按序执行，前一阶段有错时不进入下一阶段：
+0.0.37 编译器标准 §1.2 定义 13 个确定性处理阶段，VM 后端遵循此流水线。各阶段按序执行，前一阶段有错时不进入下一阶段：
 
 ```text
 source files (.tc)
@@ -128,7 +128,7 @@ source files (.tc)
 
 ### 2.3 多文件编译单元
 
-0.0.35 引入模块系统：一个 `#program` 文件通过 `import` 引用零个或多个 `#lib` 模块。编译器必须：
+0.0.37 引入模块系统：一个 `#program` 文件通过 `import` 引用零个或多个 `#lib` 模块。编译器必须：
 
 - 从入口 `#program` 文件出发，按 `import` 语句逐层加载所有可达模块；
 - 使用依赖拓扑序处理全部可达模块（DAG）；
@@ -151,7 +151,7 @@ source files (.tc)
 
 ### 3.2 目标 `TcStmtKind`
 
-0.0.35 的 statement 集合相较 0.0.31 增加函数、模块、memblock、ptr 与 struct 相关 statement：
+0.0.37 的 statement 集合相较 0.0.31 增加函数、模块、memblock、ptr 与 struct 相关 statement：
 
 ```c
 /* 既有 */
@@ -169,7 +169,7 @@ TC_STMT_CONTINUE,
 TC_STMT_LABEL_DEF,
 TC_STMT_GOTO,
 
-/* 0.0.35 新增 */
+/* 0.0.37 新增 */
 TC_STMT_FUNC_DEF,               /* func 定义 */
 TC_STMT_FUNCALL,                /* funcall 独立调用 */
 TC_STMT_RETURN,                 /* return [operand] */
@@ -185,7 +185,7 @@ TC_STMT_IMPORT,                 /* import 声明 */
 
 ### 3.3 目标 `TcRhsKind`
 
-0.0.35 新增大量 RHS kind：
+0.0.37 新增大量 RHS kind：
 
 ```c
 /* 既有 */
@@ -205,7 +205,7 @@ TC_RHS_SHIFT,
 TC_RHS_CAST,
 TC_RHS_BITCAST,
 
-/* 0.0.35 新增 */
+/* 0.0.37 新增 */
 TC_RHS_MEMBLOCK_LOAD,           /* memblock_load(T, mb, idx) */
 TC_RHS_MEMBLOCK_CONSTRUCTOR,    /* memblock(T, count: N, ...) */
 TC_RHS_MEMBLOCK_COUNT,          /* mb.count */
@@ -464,7 +464,7 @@ memblock<T, N>
 
 ### 7.1 多级作用域
 
-0.0.35 的作用域层次：
+0.0.37 的作用域层次：
 
 | 层级 | 可见范围 | 绑定类别 |
 | ---- | -------- | -------- |
@@ -514,6 +514,8 @@ Pass1 为每个运行时绑定分配唯一 slot：
 
 ### 8.1 类型表示
 
+类型概念统一为完整结构 `TcType`（`tag` + 参数）。`TcTypeTag` **仅为判别标签**（标量谓词、语义内核分派、位宽查询），不得单独充当「完整类型事实」。
+
 ```c
 typedef enum {
     TC_INT8, TC_UINT8, TC_INT16, TC_UINT16,
@@ -523,25 +525,37 @@ typedef enum {
     TC_VOID,                     /* 仅返回类型 */
     TC_ISIZE, TC_USIZE,          /* 平台字长 */
     TC_PTR,                      /* ptr<T>，参数化为所指类型 */
-    TC_MEMBLOCK,                 /* memblock<T>，参数化为元素类型 */
+    TC_MEMBLOCK,                 /* memblock<T,N>，参数化为元素类型与声明 N */
     TC_STRUCT                    /* 用户定义的结构体，由 struct_id 区分 */
-} TcTypeKind;
+} TcTypeTag;
 
-typedef struct {
-    TcTypeKind kind;
+typedef struct TcType {
+    TcTypeTag tag;
     union {
-        struct { TcType *pointee; } ptr_type;
-        struct { TcType *element; size_t count; } memblock_type;
+        struct { struct TcType *pointee; } ptr_type;
+        struct { struct TcType *element; uint64_t count; } memblock_type;
         struct { int struct_id; } struct_type;
     } params;
 } TcType;
 ```
 
+**事实源与投影（禁止双轨）：**
+
+| 角色 | 表示 | 说明 |
+| ---- | ---- | ---- |
+| 完整类型事实 | `const TcType*` | 符号、`TcResolvedBinding`、`TcValue`、分析期期望类型 |
+| 标量稳定节点 | `tc_type_tag_singleton(tag)` | 进程内单例，永不释放 |
+| 复合稳定节点 | `TcTypeTable` + `tc_type_intern` | 归属 `TcTypedProgram.type_table`；Pass1/Pass2（含 cast/bitcast 目标）写入后，Executor/AOT **只读** |
+| 投影 | `TcTypeTag` / `type->tag` | 仅用于 `switch`、位宽、有符号谓词、语义内核参数 |
+
+Parse 阶段 AST 声明字段（如 `VarDef.full_type`）可按值拥有临时 `TcType`（含堆嵌套）；Analyze Pass1 经 `tc_type_intern` 后，符号层只持有稳定指针，**不再**深拷贝，也**不再**把复合类型压成裸 `TcTypeTag`。
+
+`memblock` 的声明 `N` 与 `struct` 的 `struct_id` 仅存于 `TcType.params`；经 `tc_type_memblock_count` / `tc_type_struct_id` 解包，禁止在 `TcSymbol` 上冗余平行字段。
 ### 8.2 类型宽度计算
 
 ```c
 size_t sizeof_bits(const TcType *type) {
-    switch (type->kind) {
+    switch (type->tag) {
     case TC_INT8:   case TC_UINT8:   case TC_BOOL:   return 8;
     case TC_INT16:  case TC_UINT16:                   return 16;
     case TC_INT32:  case TC_UINT32:  case TC_FLOAT32: return 32;
@@ -560,8 +574,8 @@ size_t sizeof_bits(const TcType *type) {
 
 ### 8.3 memblock 类型实现
 
-- **类型等价**：仅由元素类型 `T` 决定；`memblock<int32, 10>` 与 `memblock<int32, 20>` 属于同一 TcType。
-- **`N` 记录**：符号表为每个 memblock 绑定记录 `N` 的数学值。
+- **类型等价**：仅由元素类型 `T` 决定；`memblock<int32, 10>` 与 `memblock<int32, 20>` 属于同一 TcType（`tc_type_equals` 忽略 `N`）。
+- **`N` 记录**：写入该绑定完整类型的 `params.memblock_type.count`（intern 后经 `tc_type_memblock_count(sym->type)` 读取）。类型池按 `T+N` 区分节点以便 `sizeof`，但指针相等是比 `equals` 更强的关系。
 - **类型级宽度**：`sizeof_bits(usize) + N × sizeof_bits(T)`。
 - **`N` 比较**：赋值、传参时比较两侧声明的 `N` → `TC_CE_MEMBLOCK_SIZE_MISMATCH`。
 - **`.count`**：编译期常量，结果等于声明 `N` 的数学值。
@@ -589,8 +603,8 @@ size_t sizeof_bits(const TcType *type) {
 
 ```c
 bool tc_type_equals(const TcType *a, const TcType *b) {
-    if (a->kind != b->kind) return false;
-    switch (a->kind) {
+    if (a->tag != b->tag) return false;
+    switch (a->tag) {
     case TC_PTR:   return tc_type_equals(a->params.ptr_type.pointee,
                                           b->params.ptr_type.pointee);
     case TC_MEMBLOCK: return tc_type_equals(a->params.memblock_type.element,
@@ -668,7 +682,7 @@ typedef struct {
 
 ### 10.1 多域 CFG
 
-0.0.35 的 CFG 分为多个封闭域：
+0.0.37 的 CFG 分为多个封闭域：
 
 | CFG 域 | 入口 | 边界 |
 | ------ | ---- | ---- |
@@ -740,7 +754,8 @@ Executor 只接收成功的 `TcTypedProgram`：
 - 确定初始化已证明；
 - 调用图无环；
 - `let` / `static let` 已求值并可内联；
-- `static var` 初始化器已验证。
+- `static var` 初始化器已验证；
+- `type_table` 已在 Analyze 完成写入，执行期只读（含 cast/bitcast 目标 `target_type`）。
 
 ### 11.2 目标执行控制
 
@@ -829,10 +844,12 @@ leave:
 
 ```c
 typedef struct {
-    TcTypeKind type;             /* 解释位模式所需的类型元数据 */
-    uint64_t bits;               /* 位模式（窄整数只使用低位） */
+    const TcType *type; /* 单例或 type_table intern；禁止指向可 realloc 缓冲 */
+    uint64_t bits;      /* 位模式（窄整数只使用低位） */
 } TcValue;
 ```
+
+`type` 必须能表达完整类型身份（含 `ptr` 所指、`memblock` 元素与 `N`、`struct_id`）。标量路径常用 `tc_type_tag_singleton`；复合路径在 Analyze/执行时经 `tc_type_intern` 取得稳定指针。语义内核函数可继续以 `TcTypeTag` 为参数，但须由调用方从 `value->type->tag`（或等价投影）导出，不得把裸标签写回为运行时事实源。
 
 对于 `memblock` 和 `struct` 值，`bits` 存储指向堆上存储的指针（或以扩展字段实现）。
 
@@ -859,16 +876,19 @@ typedef struct {
 
 严格 `cast` 是数值转换。目标值必须可由目标类型表示。运行时失败统一为 `TC_RE_CAST_OVERFLOW`；常量阶段为 `TC_CE_CONSTANT_CAST_OVERFLOW`。
 
+**指针转换**（语言标准 §3.10.6 / 编译器标准 §3.7）：`cast(ptr<T>, ptr_val)` 在所指类型等宽时复制指针位模式，并将结果类型定为目标 `ptr<T>`。目标类型在 **Pass2** 经 `type_table` intern，写入 RHS `target_type`；Executor **只读**该指针，不得再 intern。`cast(ptr<T>, nullptr)` 合法：`nullptr` 无所指类型，跳过等宽检查，由目标定型。非等宽 → `TC_CE_TYPE_MISMATCH`；`ptr` 不可 `cast` 到整数/浮点；`truncate` 不得用于指针 `cast`。Parser 目标类型走完整类型语法（`tc_parse_type_syntax`），不得仅接受标量 token。
+
 ### 12.5 `truncate`
 
 `cast(T, truncate, operand)`：仅整数→更窄整数，保留低位。其它组合在静态阶段报告 `TC_CE_MODE_MISMATCH`。
 
 ### 12.6 `bitcast`
 
-- 源、目标必须等位宽（Analyzer 已保证）。
-- `bool` 不参与（静态拒绝 `TC_CE_TYPE_MISMATCH`）。
-- 不做数值转换；位模式原样复制。
-- 执行器：`slots[DST] = slots[SRC] & tc_width_mask(TARGET_TYPE)`。
+- 源、目标必须等位宽（Analyzer 已保证）→ 否则 `TC_CE_BITCAST_WIDTH`。
+- `bool` / memblock / struct 不参与（静态拒绝 `TC_CE_TYPE_MISMATCH`）。
+- 允许整数↔浮点、以及 `ptr<T>` ↔ 等宽整数（含 `usize`）与 `ptr<U>` ↔ `ptr<T>` 的等宽位重解释。
+- 不做数值转换；位模式原样复制；结果 `TcValue.type` 指向目标完整类型（标量单例或 intern）。
+- 执行器：标量路径委托 `tc_exec_bitcast`；涉及 `ptr` 时复制 `bits` 并设置完整 `type` 指针。
 
 ### 12.7 指针操作
 
@@ -957,7 +977,7 @@ VM 与 AOT 共用 `tc_io`，特别是：符号、进制、浮点格式、NaN/Inf
 
 `TcDiagnostic` 保持 fail-fast 单槽，包含 kind、消息、文件名、行、列和源片段。所有路径必须保留原始源位置。
 
-### 15.2 0.0.35 错误码集合
+### 15.2 0.0.37 错误码集合
 
 编译器标准 §11.4 定义了完整错误码表，包括：
 
@@ -1042,7 +1062,7 @@ void tc_set_module_search_paths(const char **paths, int count);
 
 ### 17.1 测试分层
 
-| 层 | 0.0.35 必测内容 |
+| 层 | 0.0.37 必测内容 |
 | -- | -------------- |
 | Lexer | 所有新关键字、`nullptr`、特殊浮点 Token、`@padding` |
 | Parser | 模块头、`import`、函数定义、`funcall`、`return`、struct 定义、`memblock<T, N>`、`ptr<T>`、`static` 声明 |
@@ -1067,16 +1087,16 @@ void tc_set_module_search_paths(const char **paths, int count);
 - `ptr_address` 对 `let` 拒绝、`ptr_store` 对只读绑定拒绝；
 - `nullptr` 定型、空指针解引用/算术错误分类；
 - `static var` 按依赖拓扑序初始化、跨模块共享；
-- `cast(T, ptr<U>)` 等宽指针转换；
+- `cast(T, ptr<U>)` 等宽指针转换与 `bitcast` 的 `ptr`↔`usize` 往返（`phase5_ptr_cast` / `phase5_ptr_cast_nullptr` / `phase5_ptr_bitcast` / `ptr_cast_width`）；
 - float32/float64 每步舍入、strict/ieee 模式、`ieee` 模式 NaN 传播。
 
 ---
 
 ## 18. 实现基线与迁移
 
-### 18.1 v0.0.31 → v0.0.35 关键迁移
+### 18.1 v0.0.31 → v0.0.37 关键迁移
 
-| 类别 | v0.0.31 | v0.0.35 |
+| 类别 | v0.0.31 | v0.0.37 |
 | ---- | ------- | ------- |
 | 模块系统 | 单文件 | `#program`/`#lib`、`import`、`public`/`private`、`Self` |
 | 函数 | 无 | `func`/`funcall`/`return`、无环调用图 |
@@ -1103,4 +1123,4 @@ void tc_set_module_search_paths(const char **paths, int count);
 
 ---
 
-*本文的规范性语言规则均以 [TC 语言标准 0.0.35](./TC语言标准设计说明书-0.0.35.md) 与 [TC 编译器标准 0.0.35](./TC编译器标准设计说明书-0.0.35.md) 为准。*
+*本文的规范性语言规则均以 [TC 语言标准 0.0.37](./TC语言标准设计说明书-0.0.37.md) 与 [TC 编译器标准 0.0.37](./TC编译器标准设计说明书-0.0.37.md) 为准。*

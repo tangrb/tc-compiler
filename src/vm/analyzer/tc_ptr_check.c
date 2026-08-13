@@ -19,7 +19,7 @@ static TcType tc_ptr_make_from_pointee(const TcType *pointee, TcDiagnostic *diag
     TcType *heap_pointee = NULL;
     TcType ptr;
 
-    if (pointee->kind == TC_PTR) {
+    if (pointee->tag == TC_PTR) {
         return *pointee;
     }
     heap_pointee = (TcType *)malloc(sizeof(TcType));
@@ -27,7 +27,7 @@ static TcType tc_ptr_make_from_pointee(const TcType *pointee, TcDiagnostic *diag
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
                           "memory allocation failed");
         memset(&ptr, 0, sizeof(ptr));
-        ptr.kind = TC_VOID;
+        ptr.tag = TC_VOID;
         return ptr;
     }
     *heap_pointee = *pointee;
@@ -53,7 +53,7 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
 
     if (operand->kind == TC_OPERAND_LIT) {
         if (operand->u.lit.is_nullptr) {
-            if (!expected_ptr || expected_ptr->kind != TC_PTR) {
+            if (!expected_ptr || expected_ptr->tag != TC_PTR) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "nullptr requires pointer context");
                 return -1;
@@ -76,7 +76,7 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
     if (!sym) {
         return -1;
     }
-    if (!tc_type_equals(&sym->full_type, expected_ptr)) {
+    if (!tc_type_equals(sym->type, expected_ptr)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "pointer operand type does not match");
         return -1;
@@ -114,13 +114,13 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         /* ptr_load(T, p) → T；p 须为 ptr<T> */
         pointee = &rhs->u.ptr_load.pointee_type;
         ptr_ty = tc_ptr_make_from_pointee(pointee, diag, line);
-        if (ptr_ty.kind == TC_VOID) {
+        if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
         if (tc_ptr_check_operand(&rhs->u.ptr_load.ptr, &ptr_ty, visible, global, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
@@ -128,13 +128,13 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         if (expected && !tc_type_equals(pointee, expected)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "ptr_load result type does not match destination");
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->kind != TC_PTR) {
+        if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->tag != TC_PTR) {
             free(ptr_ty.params.ptr_type.pointee);
         }
         return 0;
@@ -143,7 +143,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         /* ptr_address(T, name) → ptr<T>；禁止对 let/static let 取址 */
         const TcSymbol *target = NULL;
 
-        if (rhs->u.ptr_address.pointee_type.kind == TC_VOID) {
+        if (rhs->u.ptr_address.pointee_type.tag == TC_VOID) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "ptr_address pointee type cannot be void");
             return -1;
@@ -158,24 +158,24 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
                               "cannot take address of constant binding");
             return -1;
         }
-        if (!tc_type_equals(&target->full_type, &rhs->u.ptr_address.pointee_type)) {
+        if (!tc_type_equals(target->type, &rhs->u.ptr_address.pointee_type)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "ptr_address pointee type does not match variable type");
             return -1;
         }
         ptr_ty = tc_ptr_make_from_pointee(&rhs->u.ptr_address.pointee_type, diag, line);
-        if (ptr_ty.kind == TC_VOID) {
+        if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
         if (expected && !tc_type_equals(&ptr_ty, expected)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "ptr_address result type does not match destination");
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee) {
+        if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
             free(ptr_ty.params.ptr_type.pointee);
         }
         return 0;
@@ -186,21 +186,21 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         /* ptr_add/sub(T, p, off) → ptr<T>；off 为 usize/isize */
         pointee = &rhs->u.ptr_arith.pointee_type;
         ptr_ty = tc_ptr_make_from_pointee(pointee, diag, line);
-        if (ptr_ty.kind == TC_VOID) {
+        if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
         if (tc_ptr_check_operand(&rhs->u.ptr_arith.ptr, &ptr_ty, visible, global, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
         if (tc_ptr_check_usize_operand(&rhs->u.ptr_arith.offset, visible, global, hist,
                                        stmt_index, line, diag, warnings, self_name) != 0) {
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
@@ -208,13 +208,13 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         if (expected && !tc_type_equals(&ptr_ty, expected)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "pointer arithmetic result type does not match destination");
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->kind != TC_PTR) {
+        if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->tag != TC_PTR) {
             free(ptr_ty.params.ptr_type.pointee);
         }
         return 0;
@@ -228,29 +228,29 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         /* 同 pointee 类型的两指针比较 → bool */
         pointee = &rhs->u.ptr_compare.pointee_type;
         ptr_ty = tc_ptr_make_from_pointee(pointee, diag, line);
-        if (ptr_ty.kind == TC_VOID) {
+        if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
         if (tc_ptr_check_operand(&rhs->u.ptr_compare.lhs, &ptr_ty, visible, global, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0 ||
             tc_ptr_check_operand(&rhs->u.ptr_compare.rhs, &ptr_ty, visible, global, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (expected && !tc_type_is_bool(expected->kind)) {
+        if (expected && !tc_type_is_bool(expected->tag)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "pointer comparison result must be bool");
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->kind != TC_PTR) {
+        if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->tag != TC_PTR) {
             free(ptr_ty.params.ptr_type.pointee);
         }
         return 0;
@@ -259,27 +259,27 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         /* ptr_size(T, p) → usize/isize */
         pointee = &rhs->u.ptr_size.pointee_type;
         ptr_ty = tc_ptr_make_from_pointee(pointee, diag, line);
-        if (ptr_ty.kind == TC_VOID) {
+        if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
         if (tc_ptr_check_operand(&rhs->u.ptr_size.ptr, &ptr_ty, visible, global, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (expected && expected->kind != TC_USIZE && expected->kind != TC_ISIZE) {
+        if (expected && expected->tag != TC_USIZE && expected->tag != TC_ISIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "ptr_size result must be usize/isize");
-            if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee &&
-                pointee->kind != TC_PTR) {
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
                 free(ptr_ty.params.ptr_type.pointee);
             }
             return -1;
         }
-        if (ptr_ty.kind == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->kind != TC_PTR) {
+        if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->tag != TC_PTR) {
             free(ptr_ty.params.ptr_type.pointee);
         }
         return 0;
@@ -297,13 +297,13 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
     TcType ptr_ty;
 
     /* ptr_store(T, p, v)：经只读绑定（let/形参）间接写入一律拒绝 */
-    if (stmt->pointee_type.kind == TC_VOID) {
+    if (stmt->pointee_type.tag == TC_VOID) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "ptr_store pointee type cannot be void");
         return -1;
     }
     ptr_ty = tc_ptr_make_from_pointee(&stmt->pointee_type, diag, stmt->line);
-    if (ptr_ty.kind == TC_VOID) {
+    if (ptr_ty.tag == TC_VOID) {
         return -1;
     }
     if (stmt->ptr.kind == TC_OPERAND_VAR) {
@@ -332,7 +332,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
         }
         return -1;
     }
-    if (tc_check_operand((TcOperand *)&stmt->value, stmt->pointee_type.kind, visible, global,
+    if (tc_check_operand((TcOperand *)&stmt->value, stmt->pointee_type.tag, visible, global,
                          hist, stmt_index, stmt->line, diag, warnings, NULL,
                          TC_CE_TYPE_MISMATCH) != 0) {
         if (ptr_ty.params.ptr_type.pointee) {

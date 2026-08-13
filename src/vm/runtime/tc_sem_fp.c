@@ -39,7 +39,7 @@ static int tc_fp_division_by_zero(TcArithOp op, double lhs, double rhs) {
     return op == TC_DIV && rhs == 0.0 && lhs != 0.0 && isfinite(lhs);
 }
 
-static uint64_t tc_fp_canonical_nan_bits(TcTypeKind type) {
+static uint64_t tc_fp_canonical_nan_bits(TcTypeTag type) {
     return type == TC_FLOAT32 ? UINT64_C(0x7FC00000)
                               : UINT64_C(0x7FF8000000000000);
 }
@@ -75,7 +75,7 @@ static int tc_fp_environment_end(const TcFpEnvironment *environment) {
 }
 #endif
 
-static int tc_fp_compute(TcArithOp op, TcTypeKind type, double lhs, double rhs,
+static int tc_fp_compute(TcArithOp op, TcTypeTag type, double lhs, double rhs,
                          double *result, int *exceptions) {
 #ifdef TC_HAVE_FENV
     TcFpEnvironment environment;
@@ -156,7 +156,7 @@ static long double tc_fp_compute_wide(TcArithOp op, double lhs, double rhs) {
     return 0.0L;
 }
 
-static int tc_fp_no_fenv_underflow(TcArithOp op, TcTypeKind type,
+static int tc_fp_no_fenv_underflow(TcArithOp op, TcTypeTag type,
                                    double lhs, double rhs, double result) {
     long double wide = tc_fp_compute_wide(op, lhs, rhs);
     long double min_normal = type == TC_FLOAT32 ? (long double)FLT_MIN
@@ -193,7 +193,7 @@ static int tc_fp_no_fenv_underflow(TcArithOp op, TcTypeKind type,
 }
 #endif
 
-static int tc_fp_check_strict_result(TcArithOp op, TcTypeKind type,
+static int tc_fp_check_strict_result(TcArithOp op, TcTypeTag type,
                                      double lhs, double rhs, double result,
                                      int exceptions, TcDiagnostic *diag, int line) {
 #ifdef TC_HAVE_FENV
@@ -231,7 +231,7 @@ static int tc_fp_check_strict_result(TcArithOp op, TcTypeKind type,
     return 0;
 }
 
-int tc_exec_fp_arith(TcArithOp op, TcTypeKind type, TcFloatMode mode,
+int tc_exec_fp_arith(TcArithOp op, TcTypeTag type, TcFloatMode mode,
                      const TcValue *lhs, const TcValue *rhs, TcValue *out,
                      TcDiagnostic *diag, int line) {
     double a = 0.0;
@@ -261,7 +261,7 @@ int tc_exec_fp_arith(TcArithOp op, TcTypeKind type, TcFloatMode mode,
     return 0;
 }
 
-int tc_exec_fp_unary(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
+int tc_exec_fp_unary(TcUnaryOp op, TcTypeTag type, TcFloatMode mode,
                      const TcValue *operand, TcValue *out,
                      TcDiagnostic *diag, int line) {
     uint64_t sign_bit = 0;
@@ -306,7 +306,7 @@ static int tc_fp_compare_result(TcCompareOp op, double lhs, double rhs) {
     return 0;
 }
 
-int tc_exec_fp_compare(TcCompareOp op, TcTypeKind type, TcFloatMode mode,
+int tc_exec_fp_compare(TcCompareOp op, TcTypeTag type, TcFloatMode mode,
                        const TcValue *lhs, const TcValue *rhs, TcValue *out,
                        TcDiagnostic *diag, int line) {
     double a = 0.0;

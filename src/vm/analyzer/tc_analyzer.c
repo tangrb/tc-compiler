@@ -41,6 +41,7 @@ void tc_typed_program_init(TcTypedProgram *program) {
     program->toplevel_slot_count = 0;
     program->static_slot_count = 0;
     program->struct_table = NULL;
+    program->type_table = NULL;
 }
 
 void tc_typed_program_free(TcTypedProgram *program) {
@@ -70,6 +71,11 @@ void tc_typed_program_free(TcTypedProgram *program) {
         free(program->struct_table);
         program->struct_table = NULL;
     }
+    if (program->type_table) {
+        tc_type_table_free(program->type_table);
+        free(program->type_table);
+        program->type_table = NULL;
+    }
 }
 
 
@@ -81,7 +87,7 @@ void tc_typed_program_free(TcTypedProgram *program) {
  * @brief 检查 TcLiteral 能否放入目标类型
  * @return 检查通过返回 0；失败返回 -1 并设置 diag
  */
-int tc_check_literal(const TcLiteral *lit, TcTypeKind expected, int line,
+int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
                             TcDiagnostic *diag, TcErrorKind literal_type_err) {
     TcErrorKind err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {
@@ -108,8 +114,10 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     TcFuncSignatureList sigs;
     TcMemberIndex members;
     TcFuncCheckEnv func_env;
+    int ret = -1;
 
     tc_typed_program_init(out);
+    tc_struct_table_init(&struct_table);
     tc_func_signature_list_init(&sigs);
     tc_member_index_init(&members);
 
@@ -124,128 +132,91 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     if (out->program.mode == TC_MODULE_UNSET) {
         tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, TC_COLUMN_UNKNOWN,
                           "expected #program or #lib");
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
 
     if (tc_module_check_structure(&out->program, diag) != 0) {
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
 
     /* 4b/4c：有路径时解析 import（须在签名收集之前） */
     if (entry_path) {
         if (tc_module_resolve_imports(out, entry_path, search, diag) != 0) {
-            tc_typed_program_free(out);
-            return -1;
+            goto fail;
         }
     }
 
-    tc_struct_table_init(&struct_table);
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
             if (tc_struct_table_register_program(&out->deps[di], &struct_table, diag) != 0) {
-                tc_struct_table_free(&struct_table);
-                tc_typed_program_free(out);
-                return -1;
+                goto fail;
             }
         }
     }
     if (tc_struct_table_register_program(&out->program, &struct_table, diag) != 0) {
-        tc_struct_table_free(&struct_table);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
-    tc_sizeof_bits_set_struct_width_fn(tc_struct_table_width_bits, &struct_table);
+
+    /* 类型池：Pass1 起 intern；生命周期归属 TcTypedProgram */
+    {
+        TcTypeTable *types = (TcTypeTable *)malloc(sizeof(TcTypeTable));
+        if (!types) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            goto fail;
+        }
+        tc_type_table_init(types);
+        out->type_table = types;
+    }
 
     /* 4d + 5 */
     if (tc_module_collect_signatures(out, &sigs, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
     if (tc_func_check_signatures(out, &sigs, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
 
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
-            if (tc_pass1_collect_symbols(&out->deps[di], &out->symbols, diag) != 0) {
-                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-                tc_struct_table_free(&struct_table);
-                tc_func_signature_list_free(&sigs);
-                tc_typed_program_free(out);
-                return -1;
+            if (tc_pass1_collect_symbols(&out->deps[di], &out->symbols, out->type_table,
+                                         diag) != 0) {
+                goto fail;
             }
         }
     }
 
-    if (tc_pass1_collect_symbols(&out->program, &out->symbols, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_typed_program_free(out);
-        return -1;
+    if (tc_pass1_collect_symbols(&out->program, &out->symbols, out->type_table, diag) != 0) {
+        goto fail;
     }
 
     if (tc_member_index_build(&out->program, &members, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
 
     /* H-5 / H-6：入口与依赖库的 static let/var 均需求值/检查，
      * 否则跨模块 Self.static_let 在运行期无 const_value。 */
     if (tc_func_eval_static_lets(&out->program, &out->symbols, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
             if (tc_func_eval_static_lets(&out->deps[di], &out->symbols, diag) != 0) {
-                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-                tc_struct_table_free(&struct_table);
-                tc_func_signature_list_free(&sigs);
-                tc_member_index_free(&members);
-                tc_typed_program_free(out);
-                return -1;
+                goto fail;
             }
         }
     }
     if (tc_func_check_static_vars(&out->program, &members, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
             if (tc_func_check_static_vars(&out->deps[di], &members, diag) != 0) {
-                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-                tc_struct_table_free(&struct_table);
-                tc_func_signature_list_free(&sigs);
-                tc_member_index_free(&members);
-                tc_typed_program_free(out);
-                return -1;
+                goto fail;
             }
         }
     }
@@ -275,24 +246,14 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     /* ==== 阶段 6 入口：类型与语义分析（6a→6b→6c→6d→6e） ==== */
     if (tc_pass2_type_check(&out->program, &out->symbols, &struct_table, &func_env, &out->warnings,
                             diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
             if (tc_pass2_type_check(&out->deps[di], &out->symbols, &struct_table, &func_env,
                                     &out->warnings, diag) != 0) {
-                tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-                tc_struct_table_free(&struct_table);
-                tc_func_signature_list_free(&sigs);
-                tc_member_index_free(&members);
-                tc_typed_program_free(out);
-                return -1;
+                goto fail;
             }
         }
     }
@@ -301,57 +262,43 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     if (!out->cfg_set) {
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                           "memory allocation failed");
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
     tc_cfg_set_init(out->cfg_set);
     if (tc_cfg_build_all(&out->program, &out->symbols, out->cfg_set, diag) != 0 ||
         tc_analyze_definite_init_all(out->cfg_set, &out->program,
                                      tc_symbol_table_runtime_slot_count(&out->symbols),
                                      diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
     out->cfg = &out->cfg_set->toplevel;
 
     /* 阶段 12：调用图 */
     if (tc_callgraph_check(&func_env, diag) != 0) {
-        tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-        tc_struct_table_free(&struct_table);
-        tc_func_signature_list_free(&sigs);
-        tc_member_index_free(&members);
-        tc_typed_program_free(out);
-        return -1;
+        goto fail;
     }
 
     {
         TcStructTable *owned = (TcStructTable *)malloc(sizeof(TcStructTable));
         if (!owned) {
-            tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
-            tc_struct_table_free(&struct_table);
-            tc_func_signature_list_free(&sigs);
-            tc_member_index_free(&members);
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
-            tc_typed_program_free(out);
-            return -1;
+            goto fail;
         }
         *owned = struct_table;
         out->struct_table = owned;
     }
 
-    tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+    ret = 0;
+
+fail:
+    if (ret != 0) {
+        tc_struct_table_free(&struct_table);
+        tc_typed_program_free(out);
+    }
     tc_func_signature_list_free(&sigs);
     tc_member_index_free(&members);
-    return 0;
+    return ret;
 }
 
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {

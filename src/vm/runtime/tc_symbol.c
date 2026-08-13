@@ -192,7 +192,8 @@ void tc_symbol_table_free(TcSymbolTable *table) {
 
     for (i = 0; i < table->count; i++) {
         free(table->symbols[i].name);
-        tc_type_free(&table->symbols[i].full_type);
+        /* type 指向单例或程序 type_table；不随符号释放 */
+        table->symbols[i].type = NULL;
     }
     free(table->symbols);
     free(table->scopes);
@@ -415,12 +416,14 @@ const TcSymbol *tc_symbol_table_find(const TcSymbolTable *table, const char *nam
     return tc_symbol_table_find_in_scope(table, name);
 }
 
-int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind type,
-                           const TcType *full_type, uint64_t memblock_count, int struct_id,
+int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, const TcType *type,
                            int slot, TcSlotDomain slot_domain, int def_line, int def_stmt_index,
                            TcSymKind sym_kind, int initialized, TcDiagnostic *diag) {
-    TcType copied;
-
+    if (!type) {
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, def_line, TC_COLUMN_UNKNOWN,
+                          "internal error: symbol type is null");
+        return -1;
+    }
     if (table->scope_count == 0) {
         tc_symbol_table_push_global_scope(table);
     }
@@ -436,25 +439,13 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind ty
         table->symbols = symbols;
         table->capacity = new_cap;
     }
-    memset(&copied, 0, sizeof(copied));
-    if (full_type) {
-        if (tc_type_copy(full_type, &copied, diag) != 0) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, def_line, TC_COLUMN_UNKNOWN,
-                              "memory allocation failed");
-            return -1;
-        }
-    } else {
-        copied = tc_type_scalar(type);
-    }
     table->symbols[table->count].name = strdup(name);
     if (!table->symbols[table->count].name) {
-        tc_type_free(&copied);
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, def_line, TC_COLUMN_UNKNOWN,
                           "memory allocation failed");
         return -1;
     }
     table->symbols[table->count].type = type;
-    table->symbols[table->count].full_type = copied;
     table->symbols[table->count].slot = slot;
     table->symbols[table->count].def_line = def_line;
     table->symbols[table->count].def_stmt_index = def_stmt_index;
@@ -466,17 +457,16 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind ty
     table->symbols[table->count].scope_level = tc_symbol_table_current_scope(table);
     table->symbols[table->count].scope_end_stmt_index = -1;
     table->symbols[table->count].slot_domain = slot_domain;
-    table->symbols[table->count].memblock_count = memblock_count;
-    table->symbols[table->count].struct_id = struct_id;
     table->count++;
     return 0;
 }
 
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeKind type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeTag type_tag, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag) {
-    return tc_symbol_table_add_ex(table, name, type, NULL, 0, -1, slot, TC_SLOT_TOPLEVEL,
-                                  def_line, def_stmt_index, sym_kind, initialized, diag);
+    return tc_symbol_table_add_ex(table, name, tc_type_tag_singleton(type_tag), slot,
+                                  TC_SLOT_TOPLEVEL, def_line, def_stmt_index, sym_kind,
+                                  initialized, diag);
 }
 
 void tc_symbol_table_pop_last(TcSymbolTable *table) {
@@ -486,7 +476,7 @@ void tc_symbol_table_pop_last(TcSymbolTable *table) {
     table->count--;
     free(table->symbols[table->count].name);
     table->symbols[table->count].name = NULL;
-    tc_type_free(&table->symbols[table->count].full_type);
+    table->symbols[table->count].type = NULL;
 }
 
 TcSymbol *tc_symbol_table_find_mut(TcSymbolTable *table, const char *name) {

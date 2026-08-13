@@ -42,7 +42,7 @@ TC_RHS_KINDS = [
     "TC_RHS_FLOAT_UNARY",
     "TC_RHS_FLOAT_COMPARE",
     "TC_RHS_BITCAST",
-    # 0.0.35 复合/调用 RHS（解析 + 运行时已落地）
+    # 0.0.37 复合/调用 RHS（解析 + 运行时已落地）
     "TC_RHS_MEMBLOCK_LOAD",
     "TC_RHS_MEMBLOCK_CONSTRUCTOR",
     "TC_RHS_MEMBLOCK_COUNT",
@@ -99,7 +99,8 @@ DISPATCH_POINTS = [
         "path": "src/vm/parser/tc_parser_rhs.c",
         "func": "tc_parse_rhs",
         "line_func": 0,
-        "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
+        "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值；"
+                "ptr 算术/比较经 tc_parse_ptr_{arith,compare}_rhs(..., kind, out, ...)",
         "output_kinds": ["TC_RHS_LIT"],  # 通过 out->kind = 赋值，非 rhs->kind == 比较
         "skip": {
             "TC_RHS_CONST_CAST": "只在 tc_parse_const_rhs 中创建",
@@ -110,7 +111,8 @@ DISPATCH_POINTS = [
         "path": "src/vm/parser/tc_parser_rhs.c",
         "func": "tc_parse_const_rhs",
         "line_func": 0,
-        "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值",
+        "note": "按 token kind 分派到子函数；LIT 通过 out->kind = TC_RHS_LIT 赋值；"
+                "ptr 算术/比较经共享 tc_parse_ptr_{arith,compare}_rhs",
         "output_kinds": ["TC_RHS_LIT"],
         "skip": {
             "TC_RHS_CAST": "常量表达式中用 TC_RHS_CONST_CAST 代替",
@@ -177,7 +179,7 @@ DISPATCH_POINTS = [
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
     {
-        "path": "src/aot/tc_aot_codegen.c",
+        "path": "src/aot/tc_aot_emit_rhs.c",
         "func": "tc_aot_emit_rhs",
         "line_func": 0,
         "skip": {
@@ -255,6 +257,12 @@ def get_rhs_kind_refs(path, output_kinds=None):
         r'out->kind\s*=\s*TC_RHS_(\w+)', content
     )
 
+    # 共享解析路径：kind 作为参数传入后赋值 out->kind = kind
+    # e.g. tc_parse_ptr_arith_rhs(..., TC_RHS_PTR_ADD, out, diag)
+    kind_arg_matches = re.findall(
+        r'\bTC_RHS_(\w+)\b\s*,\s*out\b', content
+    )
+
     kinds_handled = set()
     kinds_not_handled = {}
 
@@ -271,6 +279,9 @@ def get_rhs_kind_refs(path, output_kinds=None):
 
     # 输出赋值也计入已处理
     for kind in out_matches:
+        kinds_handled.add(f"TC_RHS_{kind}")
+
+    for kind in kind_arg_matches:
         kinds_handled.add(f"TC_RHS_{kind}")
 
     # 额外 output_kinds（非正则捕获的赋值模式）

@@ -5,9 +5,9 @@ TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 - **libtc**：编译、静态分析和执行的嵌入式静态库；
 - **TC-VM**：直接执行 TC 源文件的命令行工具；
 - **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器；
-- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.36 新增）。
+- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.37 新增）。
 
-当前核心版本：**v0.0.35**，Embed 模块版本：**v0.0.36**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.35.md) 为唯一权威来源。
+当前核心版本：**v0.0.37**，Embed 模块版本：**v0.0.37**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.37.md) 为唯一权威来源。
 
 ## 快速开始
 
@@ -52,9 +52,9 @@ bash scripts/run_tests.sh
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
 | 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
 | 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；VM + AOT） |
-| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.36） |
+| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.37） |
 
-0.0.35 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
+0.0.37 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 
 ## 构建
 
@@ -90,7 +90,7 @@ cmake --build build --target libtc
 ./build/vm/bin/tc-vm --version
 ```
 
-完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.35.md)。
+完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.37.md)。
 
 ### TC-AOT
 
@@ -144,9 +144,9 @@ int main(void) {
 }
 ```
 
-公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_set_module_search_paths` 和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.35.md)。
+公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_set_module_search_paths` 和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.37.md)。
 
-## 嵌入 TC-Embed（v0.0.36）
+## 嵌入 TC-Embed（v0.0.37）
 
 TC-Embed 提供 C 宿主程序对 TC 编译产物的零拷贝调用能力。C 和 TC 共享同一个 `TcValue slots[]` 数组，`ptr<T>` 槽位编码 `(slot << 1) | 1` 作为 C↔TC 之间传递变量引用的统一句柄。
 
@@ -215,7 +215,7 @@ int64_t x;
 tc_value_to_int64(v, &x);
 ```
 
-完整 API 设计见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.36.md)。
+完整 API 设计见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.37.md)。
 
 ## 测试与质量门禁
 
@@ -303,7 +303,7 @@ src/
 │   ├── analyzer/   静态分析（含 CFG、类型检查、函数/调用图）
 │   ├── executor/   执行器与调用帧
 │   ├── runtime/    运行时（类型、语义、I/O、符号表、诊断）
-│   ├── embed/      TC-Embed 嵌入运行时（v0.0.36）
+│   ├── embed/      TC-Embed 嵌入运行时（v0.0.37）
 │   └── driver/     入口程序与版本
 └── aot/            C99 codegen、runtime shim、CLI、嵌入模式运行时
 tests/
@@ -323,15 +323,15 @@ scripts/
 
 | 文档 | 职责 |
 | ---- | ---- |
-| [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.35.md) | 0.0.35 语法、语义和诊断的唯一权威来源 |
-| [TC 编译器标准设计说明书](docs/TC编译器标准设计说明书-0.0.35.md) | 13 阶段管线、诊断优先级、调用图等编译器规范 |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.35.md) | `tc-vm` 使用方式、输出和退出行为 |
-| [libtc 嵌入 API](docs/libtc-api-0.0.35.md) | 公共函数、所有权与诊断速查 |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.35.md) | VM 流水线、IR、CFG、执行器设计 |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.35.md) | C99 生成、runtime shim 与差分验证 |
-| [libtc 设计说明书](docs/libtc设计说明书-0.0.35.md) | libtc 架构、事务、生命周期和错误契约 |
-| [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.36.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
-| [设计—实现合规审查报告](docs/设计实现合规审查报告-0.0.35.md) | 0.0.35 的 ~182 项合规矩阵与发布证据 |
+| [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.37.md) | 0.0.37 语法、语义和诊断的唯一权威来源 |
+| [TC 编译器标准设计说明书](docs/TC编译器标准设计说明书-0.0.37.md) | 13 阶段管线、诊断优先级、调用图等编译器规范 |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.37.md) | `tc-vm` 使用方式、输出和退出行为 |
+| [libtc 嵌入 API](docs/libtc-api-0.0.37.md) | 公共函数、所有权与诊断速查 |
+| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.37.md) | VM 流水线、IR、CFG、执行器设计 |
+| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.37.md) | C99 生成、runtime shim 与差分验证 |
+| [libtc 设计说明书](docs/libtc设计说明书-0.0.37.md) | libtc 架构、事务、生命周期和错误契约 |
+| [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.37.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
+| [设计—实现合规审查报告](docs/设计实现合规审查报告-0.0.37.md) | 0.0.37 的 ~182 项合规矩阵与发布证据 |
 
 ## Git hooks
 

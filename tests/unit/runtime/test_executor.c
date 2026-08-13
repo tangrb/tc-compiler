@@ -103,13 +103,13 @@ static void test_var_reexecution_overwrites_fixed_slot(void) {
     slot = tc_value_make(TC_INT32, 99);
     check(tc_execute_statement(&typed.program.items[0], &slot, &typed.symbols, &diag) == 0,
           "first var execution succeeds");
-    check(slot.type == TC_INT32 && slot.bits == 7,
+    check(slot.type->tag == TC_INT32 && slot.bits == 7,
           "first var execution initializes resolved slot");
 
     slot = tc_value_make(TC_INT32, 123);
     check(tc_execute_statement(&typed.program.items[0], &slot, &typed.symbols, &diag) == 0,
           "second var execution succeeds");
-    check(slot.type == TC_INT32 && slot.bits == 7,
+    check(slot.type->tag == TC_INT32 && slot.bits == 7,
           "second var execution overwrites the same fixed slot");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);

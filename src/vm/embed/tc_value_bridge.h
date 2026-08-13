@@ -1,5 +1,5 @@
 /*
- * tc_value_bridge.h — 值桥接辅助函数族（v0.0.36）
+ * tc_value_bridge.h — 值桥接辅助函数族（v0.0.37）
  *
  * 纯数据构造/解构，不涉及 heap 分配或 I/O。全部 static inline。
  */
@@ -16,7 +16,7 @@ extern "C" {
 
 /* ── int64 ── */
 static inline TcValue tc_value_from_int64(int64_t val) {
-    TcValue v = { .type = TC_INT64, .bits = (uint64_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_INT64), .bits = (uint64_t)val };
     return v;
 }
 
@@ -27,7 +27,7 @@ static inline int tc_value_to_int64(TcValue v, int64_t *out) {
 
 /* ── uint64 ── */
 static inline TcValue tc_value_from_uint64(uint64_t val) {
-    TcValue v = { .type = TC_UINT64, .bits = val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_UINT64), .bits = val };
     return v;
 }
 
@@ -38,7 +38,7 @@ static inline int tc_value_to_uint64(TcValue v, uint64_t *out) {
 
 /* ── int32 ── */
 static inline TcValue tc_value_from_int32(int32_t val) {
-    TcValue v = { .type = TC_INT32, .bits = (uint64_t)(uint32_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_INT32), .bits = (uint64_t)(uint32_t)val };
     return v;
 }
 
@@ -49,7 +49,7 @@ static inline int tc_value_to_int32(TcValue v, int32_t *out) {
 
 /* ── uint32 ── */
 static inline TcValue tc_value_from_uint32(uint32_t val) {
-    TcValue v = { .type = TC_UINT32, .bits = (uint64_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_UINT32), .bits = (uint64_t)val };
     return v;
 }
 
@@ -60,7 +60,7 @@ static inline int tc_value_to_uint32(TcValue v, uint32_t *out) {
 
 /* ── int16 ── */
 static inline TcValue tc_value_from_int16(int16_t val) {
-    TcValue v = { .type = TC_INT16, .bits = (uint64_t)(uint16_t)(int16_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_INT16), .bits = (uint64_t)(uint16_t)(int16_t)val };
     return v;
 }
 
@@ -71,7 +71,7 @@ static inline int tc_value_to_int16(TcValue v, int16_t *out) {
 
 /* ── uint16 ── */
 static inline TcValue tc_value_from_uint16(uint16_t val) {
-    TcValue v = { .type = TC_UINT16, .bits = (uint64_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_UINT16), .bits = (uint64_t)val };
     return v;
 }
 
@@ -82,7 +82,7 @@ static inline int tc_value_to_uint16(TcValue v, uint16_t *out) {
 
 /* ── int8 ── */
 static inline TcValue tc_value_from_int8(int8_t val) {
-    TcValue v = { .type = TC_INT8, .bits = (uint64_t)(uint8_t)(int8_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_INT8), .bits = (uint64_t)(uint8_t)(int8_t)val };
     return v;
 }
 
@@ -93,7 +93,7 @@ static inline int tc_value_to_int8(TcValue v, int8_t *out) {
 
 /* ── uint8 ── */
 static inline TcValue tc_value_from_uint8(uint8_t val) {
-    TcValue v = { .type = TC_UINT8, .bits = (uint64_t)val };
+    TcValue v = { .type = tc_type_tag_singleton(TC_UINT8), .bits = (uint64_t)val };
     return v;
 }
 
@@ -104,7 +104,7 @@ static inline int tc_value_to_uint8(TcValue v, uint8_t *out) {
 
 /* ── float64 ── */
 static inline TcValue tc_value_from_double(double val) {
-    TcValue v = { .type = TC_FLOAT64 };
+    TcValue v = { .type = tc_type_tag_singleton(TC_FLOAT64) };
     memcpy(&v.bits, &val, sizeof(double));
     return v;
 }
@@ -116,7 +116,7 @@ static inline int tc_value_to_double(TcValue v, double *out) {
 
 /* ── float32 ── */
 static inline TcValue tc_value_from_float(float val) {
-    TcValue v = { .type = TC_FLOAT32 };
+    TcValue v = { .type = tc_type_tag_singleton(TC_FLOAT32) };
     uint32_t bits;
     memcpy(&bits, &val, sizeof(float));
     v.bits = (uint64_t)bits;
@@ -131,7 +131,7 @@ static inline int tc_value_to_float(TcValue v, float *out) {
 
 /* ── bool ── */
 static inline TcValue tc_value_from_bool(int val) {
-    TcValue v = { .type = TC_BOOL, .bits = val ? 1ULL : 0ULL };
+    TcValue v = { .type = tc_type_tag_singleton(TC_BOOL), .bits = val ? 1ULL : 0ULL };
     return v;
 }
 
@@ -139,9 +139,9 @@ static inline int tc_value_to_bool(TcValue v) {
     return v.bits != 0;
 }
 
-/* v0.0.36 reserved: memblock/struct 互操作 */
+/* v0.0.37 reserved: memblock/struct 互操作 */
 /* TcValue tc_value_wrap_external_memblock(void *data, size_t elem_size,
-                                           uint64_t count, TcTypeKind elem_type,
+                                           uint64_t count, TcTypeTag elem_type,
                                            TcEmbedCtx *ctx); */
 /* TcValue tc_value_from_struct_raw(const void *data, size_t byte_size); */
 

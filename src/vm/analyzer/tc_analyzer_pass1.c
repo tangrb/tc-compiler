@@ -2,7 +2,7 @@
  * tc_analyzer_pass1.c — Pass1 符号收集与 slot 分配
  *
  * DFS 遍历语句树，按 stmt_index 顺序登记符号。
- * Phase 3：写入 full_type / memblock_count / struct_id（经 tc_symbol_table_add_ex）。
+ * 类型经 TcTypeTable intern 后写入 TcSymbol.type。
  */
 #include "tc_analyzer_pass1.h"
 
@@ -33,18 +33,22 @@ static void tc_mark_block_scope_end(TcSymbolTable *symbols, int owner_stmt_index
     }
 }
 
-static uint64_t tc_memblock_n_from_type(const TcType *type) {
-    if (!type || type->kind != TC_MEMBLOCK) {
-        return 0;
-    }
-    return type->params.memblock_type.count;
-}
+static const TcType *tc_pass1_intern(TcTypeTable *types, const TcType *src, int line,
+                                     TcDiagnostic *diag) {
+    const TcType *interned = NULL;
 
-static int tc_struct_id_from_type(const TcType *type) {
-    if (!type || type->kind != TC_STRUCT) {
-        return -1;
+    if (!src) {
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                          "internal error: missing type in pass1");
+        return NULL;
     }
-    return type->params.struct_type.struct_id;
+    interned = tc_type_intern(types, src, diag);
+    if (!interned) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return NULL;
+    }
+    return interned;
 }
 
 static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int *next_slot,
@@ -139,6 +143,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         }
         for (i = 0; i < func->param_count; i++) {
             TcFuncParam *param = &func->params[i];
+            const TcType *itype = NULL;
             char msg[128];
 
             if (tc_symbol_table_find_in_current_scope(symbols, param->name)) {
@@ -148,12 +153,15 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                 tc_symbol_table_pop_scope(symbols);
                 return -1;
             }
+            itype = tc_pass1_intern(ctx->type_table, &param->type, func->line, diag);
+            if (!itype) {
+                tc_symbol_table_pop_scope(symbols);
+                return -1;
+            }
             /* 全局唯一 slot，避免多域 CFG 位集冲突；域由 slot_domain 区分 */
-            if (tc_symbol_table_add_ex(symbols, param->name, param->type.kind, &param->type,
-                                       tc_memblock_n_from_type(&param->type),
-                                       tc_struct_id_from_type(&param->type), *next_slot,
-                                       TC_SLOT_PARAM, func->line, ctx->index.next,
-                                       TC_SYM_VARIABLE, 1, diag) != 0) {
+            if (tc_symbol_table_add_ex(symbols, param->name, itype, *next_slot, TC_SLOT_PARAM,
+                                       func->line, ctx->index.next, TC_SYM_VARIABLE, 1,
+                                       diag) != 0) {
                 tc_symbol_table_pop_scope(symbols);
                 return -1;
             }
@@ -170,6 +178,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
     if (stmt->kind == TC_STMT_VAR_DEF) {
         TcVarDef *var_def = &stmt->u.var_def;
+        const TcType *itype = NULL;
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, var_def->name)) {
@@ -178,17 +187,19 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, var_def->name, var_def->type, &var_def->full_type,
-                                   tc_memblock_n_from_type(&var_def->full_type),
-                                   tc_struct_id_from_type(&var_def->full_type), *next_slot,
-                                   slot_domain, var_def->line, tc_stmt_index_take(&ctx->index),
+        itype = tc_pass1_intern(ctx->type_table, &var_def->full_type, var_def->line, diag);
+        if (!itype) {
+            return -1;
+        }
+        if (tc_symbol_table_add_ex(symbols, var_def->name, itype, *next_slot, slot_domain,
+                                   var_def->line, tc_stmt_index_take(&ctx->index),
                                    TC_SYM_VARIABLE, 1, diag) != 0) {
             return -1;
         }
         var_def->binding.resolved = 1;
         var_def->binding.slot = *next_slot;
         var_def->binding.is_const = 0;
-        var_def->binding.type = var_def->type;
+        var_def->binding.type = itype;
         var_def->binding.const_bits = 0;
         (*next_slot)++;
         return 0;
@@ -196,6 +207,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
     if (stmt->kind == TC_STMT_CONST_DEF) {
         const TcConstDef *const_def = &stmt->u.const_def;
+        const TcType *itype = NULL;
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, const_def->name)) {
@@ -204,11 +216,12 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, const_def->name, const_def->type,
-                                   &const_def->full_type,
-                                   tc_memblock_n_from_type(&const_def->full_type),
-                                   tc_struct_id_from_type(&const_def->full_type), -1,
-                                   slot_domain, const_def->line, tc_stmt_index_take(&ctx->index),
+        itype = tc_pass1_intern(ctx->type_table, &const_def->full_type, const_def->line, diag);
+        if (!itype) {
+            return -1;
+        }
+        if (tc_symbol_table_add_ex(symbols, const_def->name, itype, -1, slot_domain,
+                                   const_def->line, tc_stmt_index_take(&ctx->index),
                                    TC_SYM_CONSTANT, 1, diag) != 0) {
             return -1;
         }
@@ -217,6 +230,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
     if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
         TcStaticVarDef *sv = &stmt->u.static_var_def;
+        const TcType *itype = NULL;
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, sv->name)) {
@@ -225,10 +239,12 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, sv->name, sv->type.kind, &sv->type,
-                                   tc_memblock_n_from_type(&sv->type),
-                                   tc_struct_id_from_type(&sv->type), *next_slot, TC_SLOT_STATIC,
-                                   sv->line, tc_stmt_index_take(&ctx->index), TC_SYM_VARIABLE, 1,
+        itype = tc_pass1_intern(ctx->type_table, &sv->type, sv->line, diag);
+        if (!itype) {
+            return -1;
+        }
+        if (tc_symbol_table_add_ex(symbols, sv->name, itype, *next_slot, TC_SLOT_STATIC, sv->line,
+                                   tc_stmt_index_take(&ctx->index), TC_SYM_VARIABLE, 1,
                                    diag) != 0) {
             return -1;
         }
@@ -239,6 +255,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
 
     if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
         const TcStaticLetDef *sl = &stmt->u.static_let_def;
+        const TcType *itype = NULL;
         char msg[128];
 
         if (tc_symbol_table_find_in_current_scope(symbols, sl->name)) {
@@ -247,10 +264,12 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, sl->name, sl->type.kind, &sl->type,
-                                   tc_memblock_n_from_type(&sl->type),
-                                   tc_struct_id_from_type(&sl->type), -1, TC_SLOT_STATIC,
-                                   sl->line, tc_stmt_index_take(&ctx->index), TC_SYM_CONSTANT, 1,
+        itype = tc_pass1_intern(ctx->type_table, &sl->type, sl->line, diag);
+        if (!itype) {
+            return -1;
+        }
+        if (tc_symbol_table_add_ex(symbols, sl->name, itype, -1, TC_SLOT_STATIC, sl->line,
+                                   tc_stmt_index_take(&ctx->index), TC_SYM_CONSTANT, 1,
                                    diag) != 0) {
             return -1;
         }
@@ -274,15 +293,17 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
     return 0;
 }
 
-int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
-                                    TcDiagnostic *diag) {
+int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols, TcTypeTable *types,
+                             TcDiagnostic *diag) {
     TcAnalyzeCtx ctx;
     size_t i = 0;
     int next_slot = (int)tc_symbol_table_runtime_slot_count(symbols);
 
+    memset(&ctx, 0, sizeof(ctx));
     ctx.program = program;
     ctx.last_init = NULL;
     ctx.next_loop_id = 0;
+    ctx.type_table = types;
     tc_stmt_index_reset(&ctx.index);
 
     for (i = 0; i < program->count; i++) {

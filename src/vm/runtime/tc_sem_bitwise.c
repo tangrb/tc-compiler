@@ -17,7 +17,7 @@
  * TC_BOOL 的规范位模式为 0x00（假）或 0x01（真）。
  * 位运算直接操作底层比特时可能产生非规范值，归一化可消除这一隐患。
  */
-static void tc_normalize_bool(TcTypeKind type, TcValue *out) {
+static void tc_normalize_bool(TcTypeTag type, TcValue *out) {
     if (type == TC_BOOL) {
         out->bits = out->bits ? 1ULL : 0ULL;
     }
@@ -31,9 +31,9 @@ static void tc_normalize_bool(TcTypeKind type, TcValue *out) {
  * 校验操作数的运行时类型是否与声明的运算类型一致。
  * b 可为 NULL（单目运算时省略第二个操作数），此时只检查 a。
  */
-static int tc_check_operand_types(TcTypeKind type, const TcValue *a, const TcValue *b,
+static int tc_check_operand_types(TcTypeTag type, const TcValue *a, const TcValue *b,
                                   TcDiagnostic *diag, int line) {
-    if (a->type != type || (b != NULL && b->type != type)) {
+    if (a->type->tag != type || (b != NULL && b->type->tag != type)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;
@@ -41,7 +41,7 @@ static int tc_check_operand_types(TcTypeKind type, const TcValue *a, const TcVal
     return 0;
 }
 
-int tc_exec_bitwise_binary(TcBitwiseOp op, TcTypeKind type,
+int tc_exec_bitwise_binary(TcBitwiseOp op, TcTypeTag type,
                            const TcValue *lhs, const TcValue *rhs, TcValue *out,
                            TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
@@ -77,7 +77,7 @@ int tc_exec_bitwise_binary(TcBitwiseOp op, TcTypeKind type,
     return 0;
 }
 
-int tc_exec_bitwise_unary(TcTypeKind type, const TcValue *operand, TcValue *out,
+int tc_exec_bitwise_unary(TcTypeTag type, const TcValue *operand, TcValue *out,
                           TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -144,7 +144,7 @@ static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
 }
 
 /* 将移位计数字段的位模式解包为无符号整数 k */
-static int tc_shift_count(TcTypeKind type, const TcValue *count, uint64_t *k_out) {
+static int tc_shift_count(TcTypeTag type, const TcValue *count, uint64_t *k_out) {
     *k_out = tc_value_to_unsigned(type, count->bits);
     return 0;
 }
@@ -155,7 +155,7 @@ static int tc_shift_count(TcTypeKind type, const TcValue *count, uint64_t *k_out
  *   无符号检查 val > max >> k；wrap 模式：直接截断到 mask。
  * k >= 位宽时 wrap 返回 0，strict 报 overflow。
  */
-static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
+static int tc_exec_shl(TcTypeTag type, TcWrapMode mode, const TcValue *value,
                        uint64_t k, TcValue *out, TcDiagnostic *diag, int line) {
     int n = tc_type_bit_width(type);
     uint64_t mask = tc_mask_bits(n);
@@ -217,7 +217,7 @@ static int tc_exec_shl(TcTypeKind type, TcWrapMode mode, const TcValue *value,
  *   - 无符号：逻辑右移（高位补 0）
  * k >= n 时直接返回 0。
  */
-static int tc_exec_shr(TcTypeKind type, const TcValue *value, uint64_t k, TcValue *out) {
+static int tc_exec_shr(TcTypeTag type, const TcValue *value, uint64_t k, TcValue *out) {
     int n = tc_type_bit_width(type);
     uint64_t val_bits = tc_value_to_unsigned(type, value->bits);
 
@@ -244,7 +244,7 @@ static int tc_exec_shr(TcTypeKind type, const TcValue *value, uint64_t k, TcValu
  * 最后按 shl/shr 分派各自的执行函数。
  * Bool 移位结果归一化以防构造非规范位模式。
  */
-int tc_exec_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
+int tc_exec_shift(TcShiftOp op, TcTypeTag type, TcWrapMode mode,
                   const TcValue *value, const TcValue *count, TcValue *out,
                   TcDiagnostic *diag, int line) {
     uint64_t k = 0;
@@ -253,7 +253,7 @@ int tc_exec_shift(TcShiftOp op, TcTypeKind type, TcWrapMode mode,
         return -1;
     }
 
-    if (value->type != type || count->type != type) {
+    if (value->type->tag != type || count->type->tag != type) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "operand type does not match operation type");
         return -1;

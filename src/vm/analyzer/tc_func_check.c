@@ -501,7 +501,7 @@ static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable
                               "constant value is not available by source order");
             return -1;
         }
-        if (!tc_type_equals(&src->full_type, &sym->full_type)) {
+        if (!tc_type_equals(src->type, sym->type)) {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, sym->def_line, TC_COLUMN_UNKNOWN,
                               "static let type mismatch in Self member reference");
             return -1;
@@ -659,7 +659,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
         return -1;
     }
 
-    is_void = tc_type_is_void(sig->return_type.kind);
+    is_void = tc_type_is_void(sig->return_type.tag);
     if (position == 0 && !is_void) {
         tc_diagnostic_set(diag, TC_CE_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
                           "non-void function call must be used as initializer or assignment");
@@ -705,7 +705,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
     }
 
     return_type = &env->current_func->return_type;
-    is_void = tc_type_is_void(return_type->kind);
+    is_void = tc_type_is_void(return_type->tag);
 
     if (is_void && ret->has_value) {
         tc_diagnostic_set(diag, TC_CE_RETURN_FORM, ret->line, TC_COLUMN_UNKNOWN,
@@ -731,7 +731,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         if (!sym) {
             return -1;
         }
-        if (!tc_type_equals(&sym->full_type, return_type)) {
+        if (!tc_type_equals(sym->type, return_type)) {
             tc_diagnostic_set(diag, TC_CE_RETURN_TYPE, ret->line, TC_COLUMN_UNKNOWN,
                               "return type does not match function return type");
             return -1;
@@ -743,7 +743,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         return 0;
     }
 
-    return tc_check_operand(&ret->value, return_type->kind, visible, global, hist, stmt_index,
+    return tc_check_operand(&ret->value, return_type->tag, visible, global, hist, stmt_index,
                             ret->line, diag, warnings, NULL, TC_CE_RETURN_TYPE);
 }
 

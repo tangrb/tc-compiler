@@ -44,7 +44,7 @@ TcEmbedCtx *tc_embed_create_aot(uint64_t *slots, size_t slot_count,
         TcDiagnostic init_diag;
         tc_diagnostic_init(&init_diag);
         if (init_fn(&init_diag) != 0) {
-            tc_diagnostic_set(diag, init_diag.domain, init_diag.line, init_diag.column,
+            tc_diagnostic_set(diag, init_diag.kind, init_diag.line, init_diag.column,
                               init_diag.message);
             tc_diagnostic_clear(&init_diag);
             tc_embed_destroy(ctx);

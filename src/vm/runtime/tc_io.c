@@ -35,7 +35,7 @@
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
-static int tc_io_format_accepts_type(TcTypeKind type, TcFormatSpec fmt) {
+static int tc_io_format_accepts_type(TcTypeTag type, TcFormatSpec fmt) {
     switch (fmt) {
     case TC_FMT_D:
     case TC_FMT_I:
@@ -84,7 +84,7 @@ static int tc_io_normalize_decimal_point(char *buf) {
     return 0;
 }
 
-static int tc_io_write_float(TcTypeKind type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
+static int tc_io_write_float(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
     char buf[128];
     double number = tc_fp_bits_to_double(type, value->bits);
     const char *format = NULL;
@@ -142,12 +142,12 @@ static int tc_io_write_float(TcTypeKind type, TcFormatSpec fmt, const TcValue *v
     return fputs(buf, out) == EOF ? -1 : 0;
 }
 
-int tc_io_write_formatted(TcTypeKind type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
+int tc_io_write_formatted(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
     int n = 0;
     uint64_t mask = 0;
     uint64_t uval = 0;
 
-    if (!value || !out || value->type != type || !tc_io_format_accepts_type(type, fmt)) {
+    if (!value || !out || value->type->tag != type || !tc_io_format_accepts_type(type, fmt)) {
         return -1;
     }
     n = tc_type_bit_width(type);
@@ -224,24 +224,24 @@ int tc_io_write_formatted(TcTypeKind type, TcFormatSpec fmt, const TcValue *valu
 
 static int tc_io_render_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
     if (fmt != TC_FMT_NONE) {
-        if (tc_io_write_formatted(value->type, fmt, value, out) != 0) {
+        if (tc_io_write_formatted(value->type->tag, fmt, value, out) != 0) {
             return -1;
         }
-    } else if (tc_type_is_bool(value->type)) {
+    } else if (tc_type_is_bool(value->type->tag)) {
         if (fprintf(out, "%s", value->bits != 0 ? "true" : "false") < 0) {
             return -1;
         }
-    } else if (tc_type_is_float(value->type)) {
-        if (tc_io_write_float(value->type, TC_FMT_G, value, out) != 0) {
+    } else if (tc_type_is_float(value->type->tag)) {
+        if (tc_io_write_float(value->type->tag, TC_FMT_G, value, out) != 0) {
             return -1;
         }
-    } else if (tc_type_is_signed(value->type)) {
-        int64_t signed_value = tc_bits_to_signed(value->type, value->bits);
+    } else if (tc_type_is_signed(value->type->tag)) {
+        int64_t signed_value = tc_bits_to_signed(value->type->tag, value->bits);
         if (fprintf(out, "%" PRId64, signed_value) < 0) {
             return -1;
         }
     } else {
-        uint64_t unsigned_value = tc_value_to_unsigned(value->type, value->bits);
+        uint64_t unsigned_value = tc_value_to_unsigned(value->type->tag, value->bits);
         if (fprintf(out, "%" PRIu64, unsigned_value) < 0) {
             return -1;
         }
@@ -407,7 +407,7 @@ int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
     return 0;
 }
 
-static int tc_io_parse_integer(TcTypeKind type, const char *token, uint64_t *out_bits,
+static int tc_io_parse_integer(TcTypeTag type, const char *token, uint64_t *out_bits,
                                TcDiagnostic *diag, int line) {
     const char *digits = token;
     uint64_t abs_value = 0;
@@ -575,7 +575,7 @@ static double tc_io_strtod_nearest(const char *text, char **end) {
 #endif
 }
 
-static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_bits,
+static int tc_io_parse_float(TcTypeTag type, const char *token, uint64_t *out_bits,
                              TcDiagnostic *diag, int line) {
     char localized[512];
     char *end = NULL;
@@ -640,7 +640,7 @@ static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_b
     }
 }
 
-int tc_io_read_value(TcTypeKind type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
+int tc_io_read_value(TcTypeTag type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
     char token[256];
     uint64_t bits = 0;
 

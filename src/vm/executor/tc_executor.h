@@ -10,8 +10,8 @@
 
 #include "tc_types.h"
 
-/* 前向声明 — TcExecuteCtx 实际定义在 tc_executor_internal.h */
-typedef struct TcExecuteCtx TcExecuteCtx;
+/* 前向声明 — TcExecuteCtx typedef 与完整定义在 tc_executor_internal.h（C99 禁止重复 typedef） */
+struct TcExecuteCtx;
 
 typedef enum {
     TC_EXEC_NORMAL,
@@ -60,7 +60,7 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
  * @param line       错误报告行号
  * @return 成功返回 0；运行时错误返回 -1 并设置 diag
  */
-int tc_exec_call_function_public(int func_id, TcExecuteCtx *ctx,
+int tc_exec_call_function_public(int func_id, struct TcExecuteCtx *ctx,
                                   TcValue *ret_out, int want_return,
                                   TcDiagnostic *diag, int line);
 
@@ -72,7 +72,7 @@ int tc_exec_call_function_public(int func_id, TcExecuteCtx *ctx,
  * @param diag    诊断对象
  * @return 成功返回 0；失败返回 -1 并设置 diag
  */
-int tc_exec_init_all_static_vars(const TcTypedProgram *program, TcExecuteCtx *ctx,
+int tc_exec_init_all_static_vars(const TcTypedProgram *program, struct TcExecuteCtx *ctx,
                                  TcDiagnostic *diag);
 
 #endif

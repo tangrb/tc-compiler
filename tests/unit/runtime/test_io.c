@@ -98,7 +98,7 @@ static TcValue fp32_from_double(double value) {
 
 typedef struct {
     const char *name;
-    TcTypeKind type;
+    TcTypeTag type;
     TcFormatSpec fmt;
     uint64_t bits;
     const char *expected;
@@ -617,7 +617,7 @@ static int with_stdin(const char *input, int (*fn)(void)) {
     return rc;
 }
 
-static TcTypeKind g_read_type = TC_INT32;
+static TcTypeTag g_read_type = TC_INT32;
 static uint64_t g_read_expected_bits = 0;
 static const char *g_read_error = NULL;
 
@@ -643,7 +643,7 @@ static int read_table_case_fn(void) {
     return 0;
 }
 
-static void check_read_case(const char *name, const char *input, TcTypeKind type,
+static void check_read_case(const char *name, const char *input, TcTypeTag type,
                             uint64_t expected_bits, const char *error) {
     g_read_type = type;
     g_read_expected_bits = expected_bits;

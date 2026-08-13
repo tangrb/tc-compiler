@@ -10,7 +10,7 @@
 
 int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDiagnostic *diag,
                         int line);
-int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx,
+int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx,
                               TcValue *out, TcDiagnostic *diag, int line);
 int tc_exec_struct_field_assign(const TcFieldAssign *assign, TcExecuteCtx *ctx,
                                 TcDiagnostic *diag);

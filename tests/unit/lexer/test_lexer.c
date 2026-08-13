@@ -94,7 +94,7 @@ static void test_unsigned_suffix_literal(void) {
 static void test_all_int_types(void) {
     static const struct {
         const char *name;
-        TcTypeKind expected;
+        TcTypeTag expected;
     } cases[] = {
         {"int8", TC_INT8},     {"uint8", TC_UINT8},     {"int16", TC_INT16},
         {"uint16", TC_UINT16}, {"int32", TC_INT32},     {"uint32", TC_UINT32},

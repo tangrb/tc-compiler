@@ -41,7 +41,7 @@ static int tc_exec_struct_track(TcExecuteCtx *ctx, void *block, TcDiagnostic *di
 }
 
 static void *tc_struct_data(const TcValue *value) {
-    if (!value || value->type != TC_STRUCT || value->bits == 0) {
+    if (!value || !value->type || value->type->tag != TC_STRUCT || value->bits == 0) {
         return NULL;
     }
     return (void *)(uintptr_t)value->bits;
@@ -58,7 +58,7 @@ static size_t tc_type_payload_bytes(const TcType *type, const TcStructTable *tab
     if (!type) {
         return 0;
     }
-    if (type->kind == TC_STRUCT) {
+    if (type->tag == TC_STRUCT) {
         const TcStructEntry *e = tc_struct_table_get(table, type->params.struct_type.struct_id);
         return tc_struct_bytes_of(e);
     }
@@ -101,7 +101,7 @@ int tc_exec_struct_clone(const TcValue *src, size_t width_bits, TcExecuteCtx *ct
         return -1;
     }
     memcpy(block, src_data, bytes);
-    out->type = TC_STRUCT;
+    out->type = tc_type_tag_singleton(TC_STRUCT);
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }
@@ -130,7 +130,7 @@ static int tc_exec_write_field_bytes(uint8_t *base, size_t offset, const TcType 
     size_t nbytes = tc_type_payload_bytes(field_type, table);
     uint8_t *dst = base + offset;
 
-    if (field_type->kind == TC_STRUCT) {
+    if (field_type->tag == TC_STRUCT) {
         void *src = tc_struct_data(value);
         if (!src || nbytes == 0) {
             tc_exec_set_internal_error(diag, line, "internal error: nested struct field value");
@@ -139,9 +139,9 @@ static int tc_exec_write_field_bytes(uint8_t *base, size_t offset, const TcType 
         memcpy(dst, src, nbytes);
         return 0;
     }
-    if (field_type->kind == TC_MEMBLOCK) {
+    if (field_type->tag == TC_MEMBLOCK) {
         void *src = NULL;
-        if (!value || value->type != TC_MEMBLOCK || value->bits == 0) {
+        if (!value || !value->type || value->type->tag != TC_MEMBLOCK || value->bits == 0) {
             tc_exec_set_internal_error(diag, line, "internal error: memblock field value");
             return -1;
         }
@@ -151,7 +151,7 @@ static int tc_exec_write_field_bytes(uint8_t *base, size_t offset, const TcType 
     }
     {
         uint64_t bits = value->bits;
-        if (field_type->kind == TC_BOOL) {
+        if (field_type->tag == TC_BOOL) {
             bits = bits ? 1ULL : 0ULL;
         }
         memset(dst, 0, nbytes);
@@ -166,17 +166,17 @@ static int tc_exec_read_field_bytes(const uint8_t *base, size_t offset, const Tc
     size_t nbytes = tc_type_payload_bytes(field_type, table);
     const uint8_t *src = base + offset;
 
-    if (field_type->kind == TC_STRUCT) {
+    if (field_type->tag == TC_STRUCT) {
         void *block = NULL;
         if (tc_exec_struct_alloc(nbytes, ctx, &block, diag, line) != 0) {
             return -1;
         }
         memcpy(block, src, nbytes);
-        out->type = TC_STRUCT;
+        out->type = tc_type_tag_singleton(TC_STRUCT);
         out->bits = (uint64_t)(uintptr_t)block;
         return 0;
     }
-    if (field_type->kind == TC_MEMBLOCK) {
+    if (field_type->tag == TC_MEMBLOCK) {
         void *block = malloc(nbytes);
         if (!block) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
@@ -188,14 +188,14 @@ static int tc_exec_read_field_bytes(const uint8_t *base, size_t offset, const Tc
         if (tc_exec_struct_track(ctx, block, diag, line) != 0) {
             return -1;
         }
-        out->type = TC_MEMBLOCK;
+        out->type = tc_type_tag_singleton(TC_MEMBLOCK);
         out->bits = (uint64_t)(uintptr_t)block;
         return 0;
     }
-    out->type = field_type->kind;
+    out->type = field_type;
     out->bits = 0;
     memcpy(&out->bits, src, nbytes <= sizeof(out->bits) ? nbytes : sizeof(out->bits));
-    if (field_type->kind == TC_BOOL) {
+    if (field_type->tag == TC_BOOL) {
         out->bits = out->bits ? 1ULL : 0ULL;
     }
     return 0;
@@ -205,9 +205,9 @@ static int tc_exec_eval_ctor_field(const TcRhs *rhs_field_holder, int has_rhs,
                                    const TcOperand *value_op, const TcType *field_type,
                                    TcExecuteCtx *ctx, TcValue *out, TcDiagnostic *diag, int line) {
     if (has_rhs && rhs_field_holder) {
-        return tc_eval_rhs(rhs_field_holder, field_type->kind, ctx, out, diag, line);
+        return tc_eval_rhs(rhs_field_holder, field_type->tag, ctx, out, diag, line);
     }
-    return tc_eval_operand(value_op, field_type->kind, ctx, out, diag, line);
+    return tc_eval_operand(value_op, field_type->tag, ctx, out, diag, line);
 }
 
 int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDiagnostic *diag,
@@ -258,7 +258,7 @@ int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDia
                                       table, diag, line) != 0) {
             return -1;
         }
-        if (field->type.kind == TC_STRUCT) {
+        if (field->type.tag == TC_STRUCT) {
             const TcStructEntry *nested =
                 tc_struct_table_get(table, field->type.params.struct_type.struct_id);
             field_bits = nested ? nested->width_bits : 0;
@@ -268,7 +268,7 @@ int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDia
         bit_off += field_bits + (size_t)field->padding * 8U;
     }
 
-    out->type = TC_STRUCT;
+    out->type = tc_type_tag_singleton(TC_STRUCT);
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }
@@ -277,12 +277,13 @@ static int tc_exec_load_struct_base(const char *base_name, TcExecuteCtx *ctx, Tc
                                     int *out_struct_id, TcDiagnostic *diag, int line) {
     const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, base_name);
 
-    if (!sym || sym->type != TC_STRUCT || sym->slot < 0 || !ctx->slots) {
+    if (!sym || tc_type_tag_of(sym->type) != TC_STRUCT || sym->slot < 0 ||
+        !ctx->slots) {
         tc_exec_set_internal_error(diag, line, "internal error: unresolved struct base");
         return -1;
     }
     *out = ctx->slots[sym->slot];
-    *out_struct_id = sym->struct_id >= 0 ? sym->struct_id : sym->full_type.params.struct_type.struct_id;
+    *out_struct_id = tc_type_struct_id(sym->type);
     if (*out_struct_id < 0) {
         tc_exec_set_internal_error(diag, line, "internal error: missing struct id on base");
         return -1;
@@ -290,7 +291,7 @@ static int tc_exec_load_struct_base(const char *base_name, TcExecuteCtx *ctx, Tc
     return 0;
 }
 
-int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx,
+int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx,
                               TcValue *out, TcDiagnostic *diag, int line) {
     const TcStructTable *table = tc_exec_struct_table(ctx);
     TcValue base;
@@ -346,7 +347,7 @@ int tc_exec_struct_field_assign(const TcFieldAssign *assign, TcExecuteCtx *ctx,
         tc_exec_set_internal_error(diag, assign->line, "internal error: invalid field assign");
         return -1;
     }
-    if (tc_eval_rhs(&assign->rhs, field_type->kind, ctx, &rhs_value, diag, assign->line) != 0) {
+    if (tc_eval_rhs(&assign->rhs, field_type->tag, ctx, &rhs_value, diag, assign->line) != 0) {
         return -1;
     }
     return tc_exec_write_field_bytes((uint8_t *)data, offset, field_type, &rhs_value, table, diag,

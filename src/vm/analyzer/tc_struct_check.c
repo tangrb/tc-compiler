@@ -41,7 +41,7 @@ static size_t tc_struct_field_width_bits(const TcStructField *field,
                                          const TcStructTable *table) {
     size_t field_bits = 0;
 
-    if (field->type.kind == TC_STRUCT) {
+    if (field->type.tag == TC_STRUCT) {
         int sid = field->type.params.struct_type.struct_id;
         if (sid >= 0 && (size_t)sid < table->count) {
             field_bits = table->items[(size_t)sid].width_bits;
@@ -61,7 +61,7 @@ static int tc_struct_validate_field_type(const char *struct_name, const TcStruct
                                          TcDiagnostic *diag) {
     char msg[160];
 
-    if (field->type.kind == TC_VOID) {
+    if (field->type.tag == TC_VOID) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "struct field type cannot be void");
         return -1;
@@ -76,7 +76,7 @@ static int tc_struct_validate_field_type(const char *struct_name, const TcStruct
      * 解析期嵌套 struct 常为 make_struct(-1) + struct_type_name；
      * sid<0 时交给下方按名查找，勿在此误报 undefined。
      */
-    if (field->type.kind == TC_STRUCT) {
+    if (field->type.tag == TC_STRUCT) {
         int sid = field->type.params.struct_type.struct_id;
         if (sid >= 0 && sid >= self_id) {
             (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
@@ -146,7 +146,6 @@ static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
                                    diag) != 0) {
             return -1;
         }
-        def->type = def->full_type.kind;
         return 0;
     }
     if (stmt->kind == TC_STMT_CONST_DEF) {
@@ -155,7 +154,6 @@ static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
                                    diag) != 0) {
             return -1;
         }
-        def->type = def->full_type.kind;
         return 0;
     }
     if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
@@ -318,7 +316,7 @@ int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char 
         bit_off += before;
         final_type = &field->type;
         if (i + 1 < field_count) {
-            if (field->type.kind != TC_STRUCT) {
+            if (field->type.tag != TC_STRUCT) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                   "field path requires struct base");
                 return -1;
@@ -491,7 +489,7 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
 
     (void)warnings;
     /* 目标必须是 struct，且构造器名解析出的 id 与期望一致 */
-    if (!expected || expected->kind != TC_STRUCT) {
+    if (!expected || expected->tag != TC_STRUCT) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "struct constructor requires struct destination type");
         return -1;
@@ -567,7 +565,7 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
                 return -1;
             }
         } else if (tc_check_operand((TcOperand *)&rhs->u.struct_ctor.fields[i].value_op,
-                                    field_def->type.kind, visible, global, hist, stmt_index, line,
+                                    field_def->type.tag, visible, global, hist, stmt_index, line,
                                     diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -598,17 +596,17 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
     if (!base_sym) {
         return -1;
     }
-    if (base_sym->type != TC_STRUCT) {
+    if (tc_type_tag_of(base_sym->type) != TC_STRUCT) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "field read requires struct base");
         return -1;
     }
-    cursor_type = &base_sym->full_type;
+    cursor_type = base_sym->type;
     for (i = 0; i < rhs->u.field_read.field_count; i++) {
         const TcStructEntry *cur_def = NULL;
         const TcStructField *field = NULL;
 
-        if (cursor_type->kind != TC_STRUCT) {
+        if (cursor_type->tag != TC_STRUCT) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "field read requires struct base");
             return -1;
@@ -667,16 +665,16 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
                           "cannot assign to function parameter");
         return -1;
     }
-    if (base_sym->type != TC_STRUCT) {
+    if (tc_type_tag_of(base_sym->type) != TC_STRUCT) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
                           "field assignment requires struct base");
         return -1;
     }
-    cursor_type = &base_sym->full_type;
+    cursor_type = base_sym->type;
     for (i = 0; i < assign->field_count; i++) {
         const TcStructEntry *cur_def = NULL;
 
-        if (cursor_type->kind != TC_STRUCT) {
+        if (cursor_type->tag != TC_STRUCT) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, assign->line, TC_COLUMN_UNKNOWN,
                               "field assignment requires struct base");
             return -1;
@@ -706,7 +704,7 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
         }
         cursor_type = &field->type;
     }
-    return tc_type_check_rhs((TcRhs *)&assign->rhs, field ? &field->type : &base_sym->full_type,
+    return tc_type_check_rhs((TcRhs *)&assign->rhs, field ? &field->type : base_sym->type,
                              visible,
                              global, table, hist, stmt_index, assign->line, diag, warnings, NULL);
 }

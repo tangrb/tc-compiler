@@ -1068,13 +1068,13 @@ static void test_aot_embed_ptr_encode_decode(void) {
 
     /* nullptr */
     v.bits = 0;
-    v.type = TC_PTR;
+    v.type = tc_type_tag_singleton(TC_PTR);
     check(tc_embed_ptr_is_null(v) != 0, "aot ptr api: is_null(0)");
 
     /* encode/decode往返 */
     for (i = 0; i < 50; i++) {
         v = tc_embed_ptr_encode(i);
-        check(v.type == TC_PTR, "aot ptr api: encode type == TC_PTR");
+        check(v.type->tag == TC_PTR, "aot ptr api: encode type == TC_PTR");
         check(tc_embed_ptr_is_null(v) == 0, "aot ptr api: !is_null(encoded)");
         check(tc_embed_ptr_decode_slot(v, &slot) == 0,
               "aot ptr api: decode ok");
@@ -1083,7 +1083,7 @@ static void test_aot_embed_ptr_encode_decode(void) {
 
     /* 无效 ptr 拒绝 */
     v.bits = 6;
-    v.type = TC_PTR;
+    v.type = tc_type_tag_singleton(TC_PTR);
     check(tc_embed_ptr_decode_slot(v, &slot) != 0,
           "aot ptr api: decode rejects invalid ptr");
 

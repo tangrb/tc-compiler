@@ -270,7 +270,7 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
     case TC_RHS_PTR_SIZE:
     case TC_RHS_FUNCALL_EXPR:
     case TC_RHS_SELF_MEMBER:
-        /* 0.0.35 Phase 1：枚举已预留 */
+        /* 0.0.37 Phase 1：枚举已预留 */
         return 0;
     }
     return 0;
@@ -1023,7 +1023,7 @@ static int tc_cfg_diagnose_missing_return(const TcCfg *cfg, const TcFuncDef *fun
                                           TcDiagnostic *diag) {
     size_t e = 0;
 
-    if (!func || func->return_type.kind == TC_VOID) {
+        if (!func || func->return_type.tag == TC_VOID) {
         return 0;
     }
     if (cfg->exit_id < 0 || !cfg->nodes[cfg->exit_id].reachable) {

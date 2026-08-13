@@ -1170,13 +1170,13 @@ static void test_analyze_bitcast(void) {
         TcBitcastRhs *inf_lit = &typed.program.items[3].u.var_def.rhs.u.bitcast;
         TcBitcastRhs *nan_lit = &typed.program.items[4].u.var_def.rhs.u.bitcast;
 
-        check(from_var->source_type_resolved && from_var->source_type == TC_FLOAT32,
+        check(from_var->source_type_resolved && from_var->source_type->tag == TC_FLOAT32,
               "bitcast variable source type resolved");
-        check(from_lit->source_type_resolved && from_lit->source_type == TC_UINT32,
+        check(from_lit->source_type_resolved && from_lit->source_type->tag == TC_UINT32,
               "bitcast literal source type resolved from target width");
-        check(inf_lit->source_type_resolved && inf_lit->source_type == TC_FLOAT32,
+        check(inf_lit->source_type_resolved && inf_lit->source_type->tag == TC_FLOAT32,
               "bitcast inf source type follows 32-bit target width");
-        check(nan_lit->source_type_resolved && nan_lit->source_type == TC_FLOAT64,
+        check(nan_lit->source_type_resolved && nan_lit->source_type->tag == TC_FLOAT64,
               "bitcast nan source type follows 64-bit target width");
     }
     tc_typed_program_free(&typed);
@@ -1213,8 +1213,7 @@ static void test_analyze_bitcast_errors(void) {
 }
 
 static void test_analyze_cast_literal_source_types(void) {
-    static const TcTypeKind expected[] = {
-        TC_INT64, TC_UINT64, TC_FLOAT32, TC_FLOAT64,
+    static const TcTypeTag expected[] = {TC_INT64, TC_UINT64, TC_FLOAT32, TC_FLOAT64,
         TC_FLOAT64, TC_FLOAT64, TC_BOOL,
     };
     const char *source =
@@ -1239,7 +1238,7 @@ static void test_analyze_cast_literal_source_types(void) {
     if (typed.program.count == sizeof(expected) / sizeof(expected[0])) {
         for (i = 0; i < sizeof(expected) / sizeof(expected[0]); i++) {
             const TcCastRhs *cast = &typed.program.items[i].u.var_def.rhs.u.cast;
-            check(cast->source_type_resolved && cast->source_type == expected[i],
+            check(cast->source_type_resolved && cast->source_type->tag == expected[i],
                   "cast literal source type follows standard 8.1.1");
         }
     }

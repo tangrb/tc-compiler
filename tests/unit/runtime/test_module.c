@@ -188,7 +188,7 @@ static void test_import_success_and_signatures(void) {
         check(sigs.count == 1, "one function signature");
         if (sigs.count == 1) {
             check(strcmp(sigs.items[0].name, "add1") == 0, "signature name add1");
-            check(sigs.items[0].return_type.kind == TC_INT32, "signature return int32");
+            check(sigs.items[0].return_type.tag == TC_INT32, "signature return int32");
             check(sigs.items[0].param_count == 1, "signature one param");
             check(sigs.items[0].visibility == TC_VIS_PUBLIC, "signature public");
         }

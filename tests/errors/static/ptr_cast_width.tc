@@ -1,0 +1,5 @@
+#program
+; ptr cast 非等宽所指类型 → TYPE_MISMATCH
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int64> = cast(ptr<int64>, p)

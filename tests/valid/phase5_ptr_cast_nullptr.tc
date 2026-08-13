@@ -1,0 +1,8 @@
+#program
+; cast(ptr<T>, nullptr)：合法；nullptr 无所指类型，不做等宽检查
+var p: ptr<int32> = cast(ptr<int32>, nullptr)
+var q: ptr<uint64> = cast(ptr<uint64>, nullptr)
+var peq: bool = ptr_eq(int32, p, nullptr)
+var qeq: bool = ptr_eq(uint64, q, nullptr)
+writeln(bool, peq)
+writeln(bool, qeq)

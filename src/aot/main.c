@@ -22,14 +22,13 @@
 #include "tc_aot_codegen.h"
 #include "tc_diagnostic.h"
 #include "tc_lib.h"
+#include "tc_version.h"
 #include "tc_warning.h"
 
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define TC_AOT_VERSION "0.0.35"
 
 #define TC_AOT_MAX_INCLUDE_PATHS 64
 

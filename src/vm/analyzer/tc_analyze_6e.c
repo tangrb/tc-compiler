@@ -20,7 +20,7 @@
  * %d/%i 要求有符号类型；%u 要求无符号类型；%x/%X/%o/%b 无限制
  * 同时校验标志/宽度/精度与转换符的兼容性。
  */
-int tc_check_io_format(TcTypeKind type, const TcFormatFullSpec *spec, int line,
+int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line,
                        TcDiagnostic *diag)
 {
     TcFormatSpec fmt = spec->spec;

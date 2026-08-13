@@ -594,7 +594,7 @@ static int tc_find_nested_const_call(const TcTokenList *tokens, size_t start) {
 }
 
 static int tc_parse_type_token(const TcTokenList *tokens, size_t *index, int line_no,
-                               TcTypeKind *out, TcDiagnostic *diag) {
+                               TcTypeTag *out, TcDiagnostic *diag) {
     const TcToken *type_tok = tc_peek(tokens, *index);
 
     if (!tc_token_is_type(type_tok)) {
@@ -642,7 +642,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
                               TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcArithOp op = op_tok->u.arith_op;
-    TcTypeKind type = TC_INT32;
+    TcTypeTag type = TC_INT32;
     TcWrapMode mode = TC_ARITH_STRICT;
 
     if (op_tok->kind != TC_TOK_ARITH_OP) {
@@ -671,7 +671,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
 
         out->kind = TC_RHS_FLOAT_ARITH;
         out->u.float_arith.op = op;
-        out->u.float_arith.type = type;
+        out->u.float_arith.type = tc_type_tag_singleton(type);
         out->u.float_arith.mode = fp_mode;
         memset(&out->u.float_arith.lhs, 0, sizeof(out->u.float_arith.lhs));
         memset(&out->u.float_arith.rhs, 0, sizeof(out->u.float_arith.rhs));
@@ -722,7 +722,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
 
     out->kind = TC_RHS_ARITH;
     out->u.arith.op = op;
-    out->u.arith.type = type;
+    out->u.arith.type = tc_type_tag_singleton(type);
     out->u.arith.mode = mode;
     memset(&out->u.arith.lhs, 0, sizeof(out->u.arith.lhs));
     memset(&out->u.arith.rhs, 0, sizeof(out->u.arith.rhs));
@@ -753,7 +753,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
                               TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcUnaryOp op = op_tok->u.unary_op;
-    TcTypeKind type = TC_INT32;
+    TcTypeTag type = TC_INT32;
     TcWrapMode mode = TC_ARITH_STRICT;
 
     if (op_tok->kind != TC_TOK_UNARY_OP) {
@@ -782,7 +782,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
 
         out->kind = TC_RHS_FLOAT_UNARY;
         out->u.float_unary.op = op;
-        out->u.float_unary.type = type;
+        out->u.float_unary.type = tc_type_tag_singleton(type);
         out->u.float_unary.mode = fp_mode;
         memset(&out->u.float_unary.operand, 0, sizeof(out->u.float_unary.operand));
 
@@ -824,7 +824,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
 
     out->kind = TC_RHS_UNARY;
     out->u.unary.op = op;
-    out->u.unary.type = type;
+    out->u.unary.type = tc_type_tag_singleton(type);
     out->u.unary.mode = mode;
     memset(&out->u.unary.operand, 0, sizeof(out->u.unary.operand));
 
@@ -839,12 +839,14 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
     return 0;
 }
 
-/* @brief 解析 cast RHS：cast(type [,truncate,] operand) */
+/* @brief 解析 cast RHS：cast(type [,truncate,] operand)；type 可为完整类型语法 */
 static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                              TcRhs *out, TcDiagnostic *diag) {
-    TcTypeKind target = TC_INT32;
+    TcType target;
+    char *struct_name = NULL;
     TcTruncateMode mode = TC_TRUNC_STRICT;
 
+    memset(&target, 0, sizeof(target));
     if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
         return -1;
     }
@@ -852,11 +854,19 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    if (tc_parse_type_token(tokens, index, line_no, &target, diag) != 0) {
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &target, &struct_name, diag) != 0) {
         return -1;
+    }
+    free(struct_name);
+    struct_name = NULL;
+    if (target.tag == TC_STRUCT || target.tag == TC_MEMBLOCK || target.tag == TC_VOID) {
+        tc_type_free(&target);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "cast target must be scalar or ptr type");
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&target);
         return -1;
     }
 
@@ -867,12 +877,15 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
             mode = TC_TRUNC_TRUNCATE;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                tc_type_free(&target);
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_WRAP) {
+            tc_type_free(&target);
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "wrap cannot be used with cast");
         } else if (maybe_mode->kind == TC_TOK_IEEE) {
+            tc_type_free(&target);
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "ieee cannot be used with cast");
         }
@@ -897,17 +910,33 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
 static int tc_parse_bitcast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                 TcRhs *out, TcDiagnostic *diag) {
     TcBitcastRhs bitcast;
+    char *struct_name = NULL;
 
     memset(&bitcast, 0, sizeof(bitcast));
     if (tc_expect_token(tokens, index, TC_TOK_BITCAST, line_no, diag) != 0 ||
-        tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0 ||
-        tc_parse_type_token(tokens, index, line_no, &bitcast.target, diag) != 0 ||
-        tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
+        tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
+        return -1;
+    }
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &bitcast.target, &struct_name, diag) !=
+        0) {
+        return -1;
+    }
+    free(struct_name);
+    struct_name = NULL;
+    if (bitcast.target.tag == TC_STRUCT || bitcast.target.tag == TC_MEMBLOCK ||
+        bitcast.target.tag == TC_VOID) {
+        tc_type_free(&bitcast.target);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "bitcast target must be integer, float, bool, or ptr type");
+    }
+    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
         tc_parse_operand(tokens, index, line_no, &bitcast.source, diag) != 0) {
+        tc_type_free(&bitcast.target);
         tc_operand_free(&bitcast.source);
         return -1;
     }
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        tc_type_free(&bitcast.target);
         tc_operand_free(&bitcast.source);
         return -1;
     }
@@ -923,7 +952,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
                                 TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcCompareOp op = op_tok->u.compare_op;
-    TcTypeKind type = TC_INT32;
+    TcTypeTag type = TC_INT32;
 
     if (op_tok->kind != TC_TOK_COMPARE_OP) {
         return tc_syntax_error(diag, line_no, op_tok->column, "expected compare operation");
@@ -963,7 +992,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
 
         out->kind = TC_RHS_FLOAT_COMPARE;
         out->u.float_compare.op = op;
-        out->u.float_compare.type = type;
+        out->u.float_compare.type = tc_type_tag_singleton(type);
         out->u.float_compare.mode = fp_mode;
         memset(&out->u.float_compare.lhs, 0, sizeof(out->u.float_compare.lhs));
         memset(&out->u.float_compare.rhs, 0, sizeof(out->u.float_compare.rhs));
@@ -994,7 +1023,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
 
     out->kind = TC_RHS_COMPARE;
     out->u.compare.op = op;
-    out->u.compare.type = type;
+    out->u.compare.type = tc_type_tag_singleton(type);
     memset(&out->u.compare.lhs, 0, sizeof(out->u.compare.lhs));
     memset(&out->u.compare.rhs, 0, sizeof(out->u.compare.rhs));
 
@@ -1070,11 +1099,11 @@ static int tc_finish_logic_un_rhs(const TcTokenList *tokens, size_t *index, int 
  * @brief 完成双目按位 RHS 操作数解析（类型参数整数已读）
  */
 static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, int line_no,
-                                     TcBitwiseOp op, TcTypeKind type, TcRhs *out,
+                                     TcBitwiseOp op, TcTypeTag type, TcRhs *out,
                                      TcDiagnostic *diag) {
     out->kind = TC_RHS_BITWISE_BIN;
     out->u.bitwise_bin.op = op;
-    out->u.bitwise_bin.type = type;
+    out->u.bitwise_bin.type = tc_type_tag_singleton(type);
     memset(&out->u.bitwise_bin.lhs, 0, sizeof(out->u.bitwise_bin.lhs));
     memset(&out->u.bitwise_bin.rhs, 0, sizeof(out->u.bitwise_bin.rhs));
 
@@ -1101,9 +1130,9 @@ static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, i
  * @brief 完成单目按位 RHS 操作数解析（类型参数整数已读）
  */
 static int tc_finish_bitwise_un_rhs(const TcTokenList *tokens, size_t *index, int line_no,
-                                    TcTypeKind type, TcRhs *out, TcDiagnostic *diag) {
+                                    TcTypeTag type, TcRhs *out, TcDiagnostic *diag) {
     out->kind = TC_RHS_BITWISE_UN;
-    out->u.bitwise_un.type = type;
+    out->u.bitwise_un.type = tc_type_tag_singleton(type);
     memset(&out->u.bitwise_un.operand, 0, sizeof(out->u.bitwise_un.operand));
 
     if (tc_parse_operand(tokens, index, line_no, &out->u.bitwise_un.operand, diag) != 0) {
@@ -1140,7 +1169,7 @@ static int tc_parse_and_or_not_rhs(const TcTokenList *tokens, size_t *index, int
                                    TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcLogicOp logic_op = op_tok->u.logic_op;
-    TcTypeKind type = TC_INT32;
+    TcTypeTag type = TC_INT32;
     int is_not = (logic_op == TC_LOGIC_NOT);
 
     if (op_tok->kind != TC_TOK_LOGIC_OP) {
@@ -1206,7 +1235,7 @@ static int tc_parse_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, in
                                     TcRhs *out, TcDiagnostic *diag) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcBitwiseOp op = op_tok->u.bitwise_op;
-    TcTypeKind type = TC_INT32;
+    TcTypeTag type = TC_INT32;
 
     if (op_tok->kind != TC_TOK_BITWISE_OP) {
         return tc_syntax_error(diag, line_no, op_tok->column, "expected bitwise operation");
@@ -1241,7 +1270,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
                               TcRhs *out, TcDiagnostic *diag, int is_const) {
     const TcToken *op_tok = tc_peek(tokens, *index);
     TcShiftOp op = op_tok->u.shift_op;
-    TcTypeKind type = TC_INT32;
+    TcTypeTag type = TC_INT32;
     TcWrapMode mode = TC_ARITH_STRICT;
 
     if (op_tok->kind != TC_TOK_SHIFT_OP) {
@@ -1287,7 +1316,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
     out->kind = TC_RHS_SHIFT;
     (void)is_const;
     out->u.shift.op = op;
-    out->u.shift.type = type;
+    out->u.shift.type = tc_type_tag_singleton(type);
     out->u.shift.mode = mode;
     memset(&out->u.shift.value, 0, sizeof(out->u.shift.value));
     memset(&out->u.shift.count, 0, sizeof(out->u.shift.count));
@@ -1316,8 +1345,10 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
  */
 static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                    TcRhs *out, TcDiagnostic *diag) {
-    TcTypeKind target = TC_INT32;
+    TcType target;
+    char *struct_name = NULL;
 
+    memset(&target, 0, sizeof(target));
     if (tc_expect_token(tokens, index, TC_TOK_CAST, line_no, diag) != 0) {
         return -1;
     }
@@ -1325,16 +1356,20 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
         return -1;
     }
 
-    {
-        const TcToken *type_tok = tc_peek(tokens, *index);
-        if (!tc_token_is_type(type_tok)) {
-            return tc_syntax_error(diag, line_no, type_tok->column, "expected type");
-        }
-        target = type_tok->u.int_type;
-        (*index)++;
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &target, &struct_name, diag) != 0) {
+        return -1;
+    }
+    free(struct_name);
+    struct_name = NULL;
+    if (target.tag == TC_STRUCT || target.tag == TC_MEMBLOCK || target.tag == TC_VOID ||
+        target.tag == TC_PTR) {
+        tc_type_free(&target);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "constant cast target must be a scalar type");
     }
 
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        tc_type_free(&target);
         return -1;
     }
 
@@ -1349,9 +1384,11 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
             out->u.const_cast.mode = TC_TRUNC_TRUNCATE;
             (*index)++;
             if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+                tc_rhs_free(out);
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_WRAP || maybe_mode->kind == TC_TOK_IEEE) {
+            tc_rhs_free(out);
             return tc_keyword_error(diag, line_no, maybe_mode->column,
                                     "invalid mode for cast");
         }

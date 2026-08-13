@@ -6,6 +6,7 @@
 #include "tc_memblock_exec.h"
 
 #include "tc_semantics.h"
+#include "tc_struct_check.h"
 #include "tc_symbol.h"
 
 #include <stdlib.h>
@@ -34,7 +35,7 @@ static int tc_exec_memblock_track(TcExecuteCtx *ctx, void *block, TcDiagnostic *
 }
 
 static void *tc_memblock_data(const TcValue *mb_value) {
-    if (!mb_value || mb_value->type != TC_MEMBLOCK || mb_value->bits == 0) {
+    if (!mb_value || mb_value->type->tag != TC_MEMBLOCK || mb_value->bits == 0) {
         return NULL;
     }
     return (void *)(uintptr_t)mb_value->bits;
@@ -44,16 +45,16 @@ static uint64_t tc_memblock_declared_count(const TcSymbol *sym) {
     if (!sym) {
         return 0;
     }
-    return sym->memblock_count;
+    return tc_type_memblock_count(sym->type);
 }
 
-static size_t tc_memblock_element_bytes(const TcType *element) {
+static size_t tc_memblock_element_bytes(const TcType *element, const TcExecuteCtx *ctx) {
     size_t bits = 0;
 
     if (!element) {
         return 0;
     }
-    bits = tc_sizeof_bits(element);
+    bits = tc_sizeof_bits_ex(element, tc_struct_table_width_bits, ctx->program->struct_table);
     return (bits + 7U) / 8U;
 }
 
@@ -65,7 +66,7 @@ static int tc_memblock_read_index(const TcOperand *index_op, TcExecuteCtx *ctx, 
         tc_eval_operand(index_op, TC_ISIZE, ctx, &index_value, diag, line) != 0) {
         return -1;
     }
-    if (index_value.type == TC_ISIZE && (int64_t)tc_bits_to_signed(TC_ISIZE, index_value.bits) < 0) {
+    if (index_value.type->tag == TC_ISIZE && (int64_t)tc_bits_to_signed(TC_ISIZE, index_value.bits) < 0) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
@@ -101,7 +102,7 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
         return -1;
     }
     count = rhs->u.memblock_ctor.count;
-    element_bytes = tc_memblock_element_bytes(expected->params.memblock_type.element);
+    element_bytes = tc_memblock_element_bytes(expected->params.memblock_type.element, ctx);
     payload_bytes = (size_t)count * element_bytes;
     block = malloc(sizeof(uint64_t) + payload_bytes);
     if (!block) {
@@ -114,12 +115,12 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
     if (rhs->u.memblock_ctor.is_fill) {
         TcValue fill_value;
         if (tc_eval_operand(&rhs->u.memblock_ctor.fill_value,
-                            expected->params.memblock_type.element->kind, ctx, &fill_value, diag,
+                            expected->params.memblock_type.element->tag, ctx, &fill_value, diag,
                             line) != 0) {
             free(block);
             return -1;
         }
-        if (expected->params.memblock_type.element->kind == TC_BOOL) {
+        if (expected->params.memblock_type.element->tag == TC_BOOL) {
             fill_value.bits = fill_value.bits ? 1ULL : 0ULL;
         }
         for (i = 0; i < count; i++) {
@@ -129,12 +130,12 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
         for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
             TcValue elem;
             if (tc_eval_operand(&rhs->u.memblock_ctor.values[i],
-                                expected->params.memblock_type.element->kind, ctx, &elem, diag,
+                                expected->params.memblock_type.element->tag, ctx, &elem, diag,
                                 line) != 0) {
                 free(block);
                 return -1;
             }
-            if (expected->params.memblock_type.element->kind == TC_BOOL) {
+            if (expected->params.memblock_type.element->tag == TC_BOOL) {
                 elem.bits = elem.bits ? 1ULL : 0ULL;
             }
             memcpy(cursor + i * element_bytes, &elem.bits, element_bytes);
@@ -143,7 +144,7 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
     if (tc_exec_memblock_track(ctx, block, diag) != 0) {
         return -1;
     }
-    out->type = TC_MEMBLOCK;
+    out->type = tc_type_tag_singleton(TC_MEMBLOCK);
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }
@@ -172,9 +173,9 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
     if (tc_memblock_bounds_check(index, count, line, diag) != 0) {
         return -1;
     }
-    element_bytes = tc_memblock_element_bytes(element);
+    element_bytes = tc_memblock_element_bytes(element, ctx);
     src = tc_memblock_element_ptr(block, element_bytes, index);
-    out->type = element->kind;
+    out->type = element;
     memcpy(&out->bits, src, element_bytes);
     return 0;
 }
@@ -186,7 +187,7 @@ int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue
     uint64_t count = 0;
 
     sym = tc_exec_find_symbol(ctx->symbols, memblock_name);
-    if (!sym || sym->slot < 0 || sym->type != TC_MEMBLOCK) {
+    if (!sym || sym->slot < 0 || tc_type_tag_of(sym->type) != TC_MEMBLOCK) {
         tc_exec_set_internal_error(diag, line, "internal error: unresolved memblock for count");
         return -1;
     }
@@ -199,7 +200,7 @@ int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue
     if (count == 0) {
         count = tc_memblock_declared_count(sym);
     }
-    out->type = TC_USIZE;
+    out->type = tc_type_tag_singleton(TC_USIZE);
     out->bits = count;
     return 0;
 }
@@ -234,16 +235,16 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
     if (tc_memblock_bounds_check(index, count, stmt->line, diag) != 0) {
         return -1;
     }
-    if (tc_eval_operand(&stmt->value, stmt->element_type.kind, ctx, &value, diag, stmt->line) !=
+    if (tc_eval_operand(&stmt->value, stmt->element_type.tag, ctx, &value, diag, stmt->line) !=
         0) {
         return -1;
     }
-    if (stmt->element_type.kind == TC_BOOL) {
+    if (stmt->element_type.tag == TC_BOOL) {
         value.bits = value.bits ? 1ULL : 0ULL;
-        value.type = TC_BOOL;
+        value.type = tc_type_tag_singleton(TC_BOOL);
     }
     element_bytes =
-        tc_memblock_element_bytes(sym->full_type.params.memblock_type.element);
+        tc_memblock_element_bytes(sym->type->params.memblock_type.element, ctx);
     dst = tc_memblock_element_ptr(block, element_bytes, index);
     memcpy(dst, &value.bits, element_bytes);
     return 0;
@@ -279,8 +280,8 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
         tc_exec_set_internal_error(diag, stmt->line, "internal error: invalid memblock value");
         return -1;
     }
-    element_type = tc_type_scalar(stmt->element_type.kind);
-    element_bytes = tc_memblock_element_bytes(&element_type);
+    element_type = tc_type_scalar(stmt->element_type.tag);
+    element_bytes = tc_memblock_element_bytes(&element_type, ctx);
     memcpy(&dst_count, dst_block, sizeof(uint64_t));
     memcpy(&src_count, src_block, sizeof(uint64_t));
     if (tc_memblock_read_index(&stmt->dst_index, ctx, &dst_index, diag, stmt->line) != 0 ||
@@ -348,7 +349,7 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
             tc_eval_operand(&stmt->length, TC_ISIZE, ctx, &length_value, diag, stmt->line) != 0) {
             return -1;
         }
-        if (length_value.type == TC_ISIZE) {
+        if (length_value.type->tag == TC_ISIZE) {
             length_signed = tc_bits_to_signed(TC_ISIZE, length_value.bits);
         } else {
             length_signed = (int64_t)length_value.bits;
@@ -360,8 +361,8 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
         return -1;
     }
     length = (uint64_t)length_signed;
-    element_type = tc_type_scalar(stmt->element_type.kind);
-    element_bytes = tc_memblock_element_bytes(&element_type);
+    element_type = tc_type_scalar(stmt->element_type.tag);
+    element_bytes = tc_memblock_element_bytes(&element_type, ctx);
     if (length == 0) {
         return 0;
     }

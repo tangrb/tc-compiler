@@ -55,13 +55,13 @@ void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char *messag
     diag->domain = TC_DIAG_IMPLEMENTATION;
 }
 
-int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeKind type, const TcValue *slots,
+int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeTag type, const TcValue *slots,
                          TcValue *out, TcDiagnostic *diag, int line) {
     if (!binding->resolved) {
         tc_exec_set_internal_error(diag, line, "internal error: unresolved binding metadata");
         return -1;
     }
-    if (binding->type != type) {
+    if (binding->type->tag != type) {
         tc_exec_set_internal_error(diag, line, "internal error: binding type metadata mismatch");
         return -1;
     }
@@ -193,8 +193,8 @@ static int tc_exec_io_write(const TcIoWrite *io_write, TcExecuteCtx *ctx, int ne
     TcValue value;
 
     if (io_write->operand.kind == TC_OPERAND_LIT) {
-        value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type);
-    } else if (tc_exec_load_binding(&io_write->operand.binding, io_write->type, ctx->slots,
+        value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type->tag);
+    } else if (tc_exec_load_binding(&io_write->operand.binding, io_write->type->tag, ctx->slots,
                                     &value, diag, io_write->line) != 0) {
         return -1;
     }
@@ -215,14 +215,14 @@ static int tc_exec_io_read(const TcRead *io_read, TcExecuteCtx *ctx, TcDiagnosti
                                    "internal error: unresolved read target metadata");
         return -1;
     }
-    if (tc_io_read_value(io_read->type, &bits, diag, io_read->line) != 0) {
+    if (tc_io_read_value(io_read->type->tag, &bits, diag, io_read->line) != 0) {
         return -1;
     }
-    ctx->slots[io_read->binding.slot] = tc_value_make(io_read->type, bits);
+    ctx->slots[io_read->binding.slot] = tc_value_make(io_read->type->tag, bits);
     return 0;
 }
 
-int tc_eval_operand(const TcOperand *operand, TcTypeKind expected_type, TcExecuteCtx *ctx,
+int tc_eval_operand(const TcOperand *operand, TcTypeTag expected_type, TcExecuteCtx *ctx,
                     TcValue *out, TcDiagnostic *diag, int line) {
     if (operand->kind == TC_OPERAND_LIT) {
         *out = tc_literal_to_value(&operand->u.lit, expected_type);
@@ -260,7 +260,7 @@ static int tc_exec_eval_funcall_args(const TcFuncDef *func, TcNamedArg *args, st
 
         const char *param_name = func->params[i].name;
 
-        if (tc_eval_rhs(value_rhs, param->type.kind, ctx, &value, diag, line) != 0) {
+        if (tc_eval_rhs(value_rhs, param->type.tag, ctx, &value, diag, line) != 0) {
             return -1;
         }
         if (!param_name && args) {
@@ -270,7 +270,7 @@ static int tc_exec_eval_funcall_args(const TcFuncDef *func, TcNamedArg *args, st
             tc_exec_set_internal_error(diag, line, "internal error: unresolved parameter slot");
             return -1;
         }
-        if (param->type.kind == TC_STRUCT) {
+        if (param->type.tag == TC_STRUCT) {
             if (tc_exec_struct_store_value(&ctx->slots[slot], &value,
                                           param->type.params.struct_type.struct_id, ctx, diag,
                                           line) != 0) {
@@ -404,7 +404,7 @@ int tc_exec_call_function_public(int func_id, TcExecuteCtx *ctx,
     return 0;
 }
 
-int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, TcValue *out,
+int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, TcValue *out,
                 TcDiagnostic *diag, int line) {
     if (rhs->kind == TC_RHS_LIT) {
         *out = tc_literal_to_value(&rhs->u.lit, expected_type);
@@ -414,35 +414,35 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
     if (rhs->kind == TC_RHS_ARITH) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.arith.lhs, rhs->u.arith.type, ctx, &lhs, diag, line) != 0 ||
-            tc_eval_operand(&rhs->u.arith.rhs, rhs->u.arith.type, ctx, &rhs_value, diag,
+        if (tc_eval_operand(&rhs->u.arith.lhs, rhs->u.arith.type->tag, ctx, &lhs, diag, line) != 0 ||
+            tc_eval_operand(&rhs->u.arith.rhs, rhs->u.arith.type->tag, ctx, &rhs_value, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type, rhs->u.arith.mode, &lhs,
+        return tc_exec_arith(rhs->u.arith.op, rhs->u.arith.type->tag, rhs->u.arith.mode, &lhs,
                              &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_UNARY) {
         TcValue operand;
-        if (tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type, ctx, &operand, diag,
+        if (tc_eval_operand(&rhs->u.unary.operand, rhs->u.unary.type->tag, ctx, &operand, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type, rhs->u.unary.mode, &operand,
+        return tc_exec_unary(rhs->u.unary.op, rhs->u.unary.type->tag, rhs->u.unary.mode, &operand,
                              out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_COMPARE) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type, ctx, &lhs, diag, line) !=
+        if (tc_eval_operand(&rhs->u.compare.lhs, rhs->u.compare.type->tag, ctx, &lhs, diag, line) !=
                 0 ||
-            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type, ctx, &rhs_value, diag,
+            tc_eval_operand(&rhs->u.compare.rhs, rhs->u.compare.type->tag, ctx, &rhs_value, diag,
                             line) != 0) {
             return -1;
         }
-        return tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type, &lhs, &rhs_value, out, diag,
+        return tc_exec_compare(rhs->u.compare.op, rhs->u.compare.type->tag, &lhs, &rhs_value, out, diag,
                                line);
     }
 
@@ -483,35 +483,35 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
     if (rhs->kind == TC_RHS_BITWISE_BIN) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type, ctx, &lhs, diag,
+        if (tc_eval_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type->tag, ctx, &lhs, diag,
                             line) != 0 ||
-            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type, ctx, &rhs_value,
+            tc_eval_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type->tag, ctx, &rhs_value,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type, &lhs,
+        return tc_exec_bitwise_binary(rhs->u.bitwise_bin.op, rhs->u.bitwise_bin.type->tag, &lhs,
                                       &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_BITWISE_UN) {
         TcValue operand;
-        if (tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type, ctx, &operand,
+        if (tc_eval_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type->tag, ctx, &operand,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_bitwise_unary(rhs->u.bitwise_un.type, &operand, out, diag, line);
+        return tc_exec_bitwise_unary(rhs->u.bitwise_un.type->tag, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_SHIFT) {
         TcValue value;
         TcValue count;
-        if (tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type, ctx, &value, diag, line) !=
+        if (tc_eval_operand(&rhs->u.shift.value, rhs->u.shift.type->tag, ctx, &value, diag, line) !=
                 0 ||
-            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type, ctx, &count, diag, line) !=
+            tc_eval_operand(&rhs->u.shift.count, rhs->u.shift.type->tag, ctx, &count, diag, line) !=
                 0) {
             return -1;
         }
-        return tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type, rhs->u.shift.mode, &value, &count,
+        return tc_exec_shift(rhs->u.shift.op, rhs->u.shift.type->tag, rhs->u.shift.mode, &value, &count,
                              out, diag, line);
     }
 
@@ -528,62 +528,82 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
 
     if (rhs->kind == TC_RHS_BITCAST) {
         TcValue source;
-        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type, ctx, &source, diag,
-                            line) != 0) {
+        if (tc_eval_operand(&rhs->u.bitcast.source, rhs->u.bitcast.source_type->tag, ctx, &source,
+                            diag, line) != 0) {
             return -1;
         }
-        return tc_exec_bitcast(rhs->u.bitcast.target, &source, out, diag, line);
+        if (rhs->u.bitcast.target.tag == TC_PTR || rhs->u.bitcast.source_type->tag == TC_PTR) {
+            if (!rhs->u.bitcast.target_type_resolved || !rhs->u.bitcast.target_type) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                                  "internal error: bitcast target type not resolved");
+                return -1;
+            }
+            out->type = rhs->u.bitcast.target_type;
+            out->bits = source.bits;
+            return 0;
+        }
+        return tc_exec_bitcast(rhs->u.bitcast.target.tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_CAST) {
         TcValue source;
-        if (tc_eval_operand(&rhs->u.cast.source, rhs->u.cast.source_type, ctx, &source, diag,
+        if (tc_eval_operand(&rhs->u.cast.source, rhs->u.cast.source_type->tag, ctx, &source, diag,
                             line) != 0) {
             return -1;
         }
+        if (rhs->u.cast.target.tag == TC_PTR) {
+            if (!rhs->u.cast.target_type_resolved || !rhs->u.cast.target_type) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                                  "internal error: cast target type not resolved");
+                return -1;
+            }
+            out->type = rhs->u.cast.target_type;
+            out->bits = source.bits;
+            return 0;
+        }
         return rhs->u.cast.mode == TC_TRUNC_TRUNCATE
-                   ? tc_exec_truncate(rhs->u.cast.target, &source, out, diag, line)
-                   : tc_exec_cast(rhs->u.cast.target, &source, out, diag, line);
+                   ? tc_exec_truncate(rhs->u.cast.target.tag, &source, out, diag, line)
+                   : tc_exec_cast(rhs->u.cast.target.tag, &source, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_ARITH) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type, ctx, &lhs, diag,
+        if (tc_eval_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type->tag, ctx, &lhs, diag,
                             line) != 0 ||
-            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type, ctx, &rhs_value,
+            tc_eval_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type->tag, ctx, &rhs_value,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type,
+        return tc_exec_fp_arith(rhs->u.float_arith.op, rhs->u.float_arith.type->tag,
                                 rhs->u.float_arith.mode, &lhs, &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_UNARY) {
         TcValue operand;
-        if (tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type, ctx, &operand,
+        if (tc_eval_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type->tag, ctx, &operand,
                             diag, line) != 0) {
             return -1;
         }
-        return tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type,
+        return tc_exec_fp_unary(rhs->u.float_unary.op, rhs->u.float_unary.type->tag,
                                 rhs->u.float_unary.mode, &operand, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_FLOAT_COMPARE) {
         TcValue lhs;
         TcValue rhs_value;
-        if (tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type, ctx, &lhs,
+        if (tc_eval_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type->tag, ctx, &lhs,
                             diag, line) != 0 ||
-            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type, ctx,
+            tc_eval_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type->tag, ctx,
                             &rhs_value, diag, line) != 0) {
             return -1;
         }
-        return tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type,
+        return tc_exec_fp_compare(rhs->u.float_compare.op, rhs->u.float_compare.type->tag,
                                   rhs->u.float_compare.mode, &lhs, &rhs_value, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
-        TcType element = tc_type_scalar(rhs->u.memblock_ctor.element_type.kind);
+        TcType element = tc_type_scalar(rhs->u.memblock_ctor.element_type.tag);
         TcType expected = tc_type_make_memblock(&element, rhs->u.memblock_ctor.count);
 
         return tc_exec_memblock_ctor(rhs, &expected, ctx, out, diag, line);
@@ -710,7 +730,9 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, T
         }
         if (sym->slot >= 0 && ctx->slots) {
             *out = ctx->slots[sym->slot];
-            out->type = expected_type != TC_VOID ? expected_type : sym->type;
+            out->type = expected_type != TC_VOID
+                            ? tc_type_tag_singleton(expected_type)
+                            : sym->type;
             return 0;
         }
         tc_exec_set_internal_error(diag, line, "internal error: unresolved Self member");
@@ -948,7 +970,7 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
         }
         {
             const TcFuncDef *func = tc_find_func_def(ctx->program, ctx->current_func_id, NULL);
-            TcTypeKind ret_type = func ? func->return_type.kind : TC_INT32;
+            TcTypeTag ret_type = func ? func->return_type.tag : TC_INT32;
 
             if (ret->value.kind == TC_OPERAND_LIT) {
                 value = tc_literal_to_value(&ret->value.u.lit, ret_type);
@@ -957,7 +979,7 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
             }
             if (ret_type == TC_BOOL) {
                 value.bits = value.bits ? 1ULL : 0ULL;
-                value.type = TC_BOOL;
+                value.type = tc_type_tag_singleton(TC_BOOL);
             }
             if (ret_type == TC_STRUCT && func) {
                 TcValue cloned;
@@ -1036,7 +1058,7 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
         if (stmt->kind == TC_STMT_VAR_DEF) {
             const TcVarDef *var_def = &stmt->u.var_def;
             TcValue value;
-            TcTypeKind rhs_type = var_def->type;
+            TcTypeTag rhs_type = tc_type_scalar_tag(&var_def->full_type);
 
             if (!var_def->binding.resolved || var_def->binding.is_const ||
                 var_def->binding.slot < 0 || !ctx->slots) {
@@ -1044,15 +1066,15 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                                            "internal error: unresolved var slot metadata");
                 return tc_exec_error();
             }
-            if (var_def->full_type.kind == TC_MEMBLOCK) {
+            if (var_def->full_type.tag == TC_MEMBLOCK) {
                 rhs_type = TC_MEMBLOCK;
-            } else if (var_def->full_type.kind == TC_STRUCT) {
+            } else if (var_def->full_type.tag == TC_STRUCT) {
                 rhs_type = TC_STRUCT;
             }
             if (tc_eval_rhs(&var_def->rhs, rhs_type, ctx, &value, diag, var_def->line) != 0) {
                 return tc_exec_error();
             }
-            if (var_def->full_type.kind == TC_STRUCT) {
+            if (var_def->full_type.tag == TC_STRUCT) {
                 if (tc_exec_struct_store_value(&ctx->slots[var_def->binding.slot], &value,
                                               var_def->full_type.params.struct_type.struct_id, ctx,
                                               diag, var_def->line) != 0) {
@@ -1073,13 +1095,13 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                                            "internal error: unresolved assignment metadata");
                 return tc_exec_error();
             }
-            if (tc_eval_rhs(&assign->rhs, assign->binding.type, ctx, &value, diag,
+            if (tc_eval_rhs(&assign->rhs, assign->binding.type->tag, ctx, &value, diag,
                             assign->line) != 0) {
                 return tc_exec_error();
             }
-            if (assign->binding.type == TC_STRUCT) {
+            if (assign->binding.type->tag == TC_STRUCT) {
                 const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, assign->name);
-                int sid = sym ? sym->struct_id : -1;
+                int sid = sym ? tc_type_struct_id(sym->type) : -1;
 
                 if (sid < 0) {
                     tc_exec_set_internal_error(diag, assign->line,
@@ -1116,21 +1138,21 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
 static int tc_exec_init_static_var(const TcStaticVarDef *sv, TcExecuteCtx *ctx,
                                    TcDiagnostic *diag) {
     TcValue value;
-    TcTypeKind rhs_type = sv->type.kind;
+    TcTypeTag rhs_type = sv->type.tag;
 
     if (sv->static_slot < 0) {
         tc_exec_set_internal_error(diag, sv->line, "internal error: unresolved static slot");
         return -1;
     }
-    if (sv->type.kind == TC_MEMBLOCK) {
+    if (sv->type.tag == TC_MEMBLOCK) {
         rhs_type = TC_MEMBLOCK;
-    } else if (sv->type.kind == TC_STRUCT) {
+    } else if (sv->type.tag == TC_STRUCT) {
         rhs_type = TC_STRUCT;
     }
     if (tc_eval_rhs(&sv->rhs, rhs_type, ctx, &value, diag, sv->line) != 0) {
         return -1;
     }
-    if (sv->type.kind == TC_STRUCT) {
+    if (sv->type.tag == TC_STRUCT) {
         return tc_exec_struct_store_value(&ctx->slots[sv->static_slot], &value,
                                          sv->type.params.struct_type.struct_id, ctx, diag,
                                          sv->line);
