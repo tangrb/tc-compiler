@@ -40,7 +40,7 @@ static void test_parse_var_def(void) {
     check(stmt.kind == TC_STMT_VAR_DEF, "var def kind");
     check(stmt.u.var_def.rhs.kind == TC_RHS_LIT, "var def initializer rhs");
     check(strcmp(stmt.u.var_def.name, "x") == 0, "var def name");
-    check(stmt.u.var_def.type == TC_INT32, "var def type");
+    check(stmt.u.var_def.full_type.tag == TC_INT32, "var def type");
     tc_statement_free(&stmt);
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);
@@ -168,7 +168,7 @@ static void test_parse_program_struct(void) {
     check(strcmp(program.items[0].u.struct_def.name, "Point") == 0, "struct name");
     check(program.items[0].u.struct_def.field_count == 2, "struct field count");
     check(program.items[1].kind == TC_STMT_VAR_DEF, "var after struct");
-    check(program.items[1].u.var_def.type == TC_STRUCT, "struct typed var");
+    check(program.items[1].u.var_def.full_type.tag == TC_STRUCT, "struct typed var");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }
@@ -201,7 +201,7 @@ static void test_parse_lib_func_and_static(void) {
             check(program.items[1].kind == TC_STMT_STATIC_LET_DEF, "static let");
             check(program.items[2].kind == TC_STMT_FUNC_DEF, "func def");
             check(strcmp(program.items[2].u.func_def.name, "inc") == 0, "func name");
-            check(program.items[2].u.func_def.return_type.kind == TC_INT32, "func return type");
+            check(program.items[2].u.func_def.return_type.tag == TC_INT32, "func return type");
         }
     }
     tc_program_free(&program);
@@ -580,11 +580,11 @@ static void test_parse_type_ptr_memblock(void) {
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse ptr/memblock types");
     check(program.count == 2, "two typed vars");
     if (program.count >= 2) {
-        check(program.items[0].u.var_def.full_type.kind == TC_PTR, "ptr full_type");
+        check(program.items[0].u.var_def.full_type.tag == TC_PTR, "ptr full_type");
         check(program.items[0].u.var_def.full_type.params.ptr_type.pointee != NULL &&
-                  program.items[0].u.var_def.full_type.params.ptr_type.pointee->kind == TC_INT32,
+                  program.items[0].u.var_def.full_type.params.ptr_type.pointee->tag == TC_INT32,
               "ptr pointee int32");
-        check(program.items[1].u.var_def.full_type.kind == TC_MEMBLOCK, "memblock full_type");
+        check(program.items[1].u.var_def.full_type.tag == TC_MEMBLOCK, "memblock full_type");
         check(program.items[1].u.var_def.full_type.params.memblock_type.count == 4,
               "memblock count 4");
     }
@@ -619,7 +619,7 @@ static void test_parse_return_and_funcall(void) {
         check(bump->body_count == 1 && bump->body[0].kind == TC_STMT_RETURN,
               "bump has return stmt");
         check(bump->body[0].u.return_stmt.has_value, "return with value");
-        check(noop->return_type.kind == TC_VOID, "noop returns void");
+        check(noop->return_type.tag == TC_VOID, "noop returns void");
         check(noop->body_count == 1 && noop->body[0].kind == TC_STMT_RETURN,
               "noop has bare return");
         check(!noop->body[0].u.return_stmt.has_value, "bare return has no value");

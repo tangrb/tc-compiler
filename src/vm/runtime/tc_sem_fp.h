@@ -14,7 +14,7 @@
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */
-int tc_exec_fp_arith(TcArithOp op, TcTypeKind type, TcFloatMode mode,
+int tc_exec_fp_arith(TcArithOp op, TcTypeTag type, TcFloatMode mode,
                      const TcValue *lhs, const TcValue *rhs, TcValue *out,
                      TcDiagnostic *diag, int line);
 
@@ -23,7 +23,7 @@ int tc_exec_fp_arith(TcArithOp op, TcTypeKind type, TcFloatMode mode,
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */
-int tc_exec_fp_unary(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
+int tc_exec_fp_unary(TcUnaryOp op, TcTypeTag type, TcFloatMode mode,
                      const TcValue *operand, TcValue *out,
                      TcDiagnostic *diag, int line);
 
@@ -32,7 +32,7 @@ int tc_exec_fp_unary(TcUnaryOp op, TcTypeKind type, TcFloatMode mode,
  * @param type  TC_FLOAT32 或 TC_FLOAT64
  * @param mode  浮点运算模式
  */
-int tc_exec_fp_compare(TcCompareOp op, TcTypeKind type, TcFloatMode mode,
+int tc_exec_fp_compare(TcCompareOp op, TcTypeTag type, TcFloatMode mode,
                        const TcValue *lhs, const TcValue *rhs, TcValue *out,
                        TcDiagnostic *diag, int line);
 

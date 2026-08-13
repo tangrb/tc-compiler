@@ -415,7 +415,7 @@ const TcSymbol *tc_symbol_table_find(const TcSymbolTable *table, const char *nam
     return tc_symbol_table_find_in_scope(table, name);
 }
 
-int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind type,
+int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeTag type,
                            const TcType *full_type, uint64_t memblock_count, int struct_id,
                            int slot, TcSlotDomain slot_domain, int def_line, int def_stmt_index,
                            TcSymKind sym_kind, int initialized, TcDiagnostic *diag) {
@@ -453,7 +453,6 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind ty
                           "memory allocation failed");
         return -1;
     }
-    table->symbols[table->count].type = type;
     table->symbols[table->count].full_type = copied;
     table->symbols[table->count].slot = slot;
     table->symbols[table->count].def_line = def_line;
@@ -472,7 +471,7 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, TcTypeKind ty
     return 0;
 }
 
-int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeKind type, int slot,
+int tc_symbol_table_add(TcSymbolTable *table, const char *name, TcTypeTag type, int slot,
                         int def_line, int def_stmt_index, TcSymKind sym_kind, int initialized,
                         TcDiagnostic *diag) {
     return tc_symbol_table_add_ex(table, name, type, NULL, 0, -1, slot, TC_SLOT_TOPLEVEL,

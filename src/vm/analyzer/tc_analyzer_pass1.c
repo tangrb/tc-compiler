@@ -34,14 +34,14 @@ static void tc_mark_block_scope_end(TcSymbolTable *symbols, int owner_stmt_index
 }
 
 static uint64_t tc_memblock_n_from_type(const TcType *type) {
-    if (!type || type->kind != TC_MEMBLOCK) {
+    if (!type || type->tag != TC_MEMBLOCK) {
         return 0;
     }
     return type->params.memblock_type.count;
 }
 
 static int tc_struct_id_from_type(const TcType *type) {
-    if (!type || type->kind != TC_STRUCT) {
+    if (!type || type->tag != TC_STRUCT) {
         return -1;
     }
     return type->params.struct_type.struct_id;
@@ -149,7 +149,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                 return -1;
             }
             /* 全局唯一 slot，避免多域 CFG 位集冲突；域由 slot_domain 区分 */
-            if (tc_symbol_table_add_ex(symbols, param->name, param->type.kind, &param->type,
+            if (tc_symbol_table_add_ex(symbols, param->name, param->type.tag, &param->type,
                                        tc_memblock_n_from_type(&param->type),
                                        tc_struct_id_from_type(&param->type), *next_slot,
                                        TC_SLOT_PARAM, func->line, ctx->index.next,
@@ -178,7 +178,8 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, var_def->name, var_def->type, &var_def->full_type,
+        if (tc_symbol_table_add_ex(symbols, var_def->name, tc_type_scalar_tag(&var_def->full_type),
+                                   &var_def->full_type,
                                    tc_memblock_n_from_type(&var_def->full_type),
                                    tc_struct_id_from_type(&var_def->full_type), *next_slot,
                                    slot_domain, var_def->line, tc_stmt_index_take(&ctx->index),
@@ -188,7 +189,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         var_def->binding.resolved = 1;
         var_def->binding.slot = *next_slot;
         var_def->binding.is_const = 0;
-        var_def->binding.type = var_def->type;
+        var_def->binding.type = tc_type_scalar_tag(&var_def->full_type);
         var_def->binding.const_bits = 0;
         (*next_slot)++;
         return 0;
@@ -204,7 +205,8 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, const_def->name, const_def->type,
+        if (tc_symbol_table_add_ex(symbols, const_def->name,
+                                   tc_type_scalar_tag(&const_def->full_type),
                                    &const_def->full_type,
                                    tc_memblock_n_from_type(&const_def->full_type),
                                    tc_struct_id_from_type(&const_def->full_type), -1,
@@ -225,7 +227,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, sv->name, sv->type.kind, &sv->type,
+        if (tc_symbol_table_add_ex(symbols, sv->name, sv->type.tag, &sv->type,
                                    tc_memblock_n_from_type(&sv->type),
                                    tc_struct_id_from_type(&sv->type), *next_slot, TC_SLOT_STATIC,
                                    sv->line, tc_stmt_index_take(&ctx->index), TC_SYM_VARIABLE, 1,
@@ -247,7 +249,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                               msg);
             return -1;
         }
-        if (tc_symbol_table_add_ex(symbols, sl->name, sl->type.kind, &sl->type,
+        if (tc_symbol_table_add_ex(symbols, sl->name, sl->type.tag, &sl->type,
                                    tc_memblock_n_from_type(&sl->type),
                                    tc_struct_id_from_type(&sl->type), -1, TC_SLOT_STATIC,
                                    sl->line, tc_stmt_index_take(&ctx->index), TC_SYM_CONSTANT, 1,

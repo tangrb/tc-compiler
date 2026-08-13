@@ -142,7 +142,7 @@ src/
 │   │   ├── tc_ptr_exec.c         # 指针运行时 [新增]
 │   │   └── tc_struct_exec.c/h    # struct运行时 [新增]
 │   └── runtime/                  # 共享运行时
-│       ├── tc_types.c/h          # 类型系统(TcTypeKind, TcType, 等价, 宽度)
+│       ├── tc_types.c/h          # 类型系统(TcTypeTag, TcType, 等价, 宽度)
 │       ├── tc_error.c/h          # 错误码(TcErrorKind, 打印名)
 │       ├── tc_symbol.c/h         # 符号表
 │       ├── tc_diagnostic.c/h     # 单槽诊断
@@ -361,7 +361,7 @@ src/
 
 | ID | 任务 | 产出 | 验证标准 |
 | -- | ---- | ---- | -------- |
-| A-1 | 扩展 `TcTypeKind` 枚举 | `TC_ISIZE, TC_USIZE, TC_PTR, TC_MEMBLOCK, TC_STRUCT, TC_VOID` | 枚举覆盖所有设计类型 |
+| A-1 | 扩展 `TcTypeTag` 枚举 | `TC_ISIZE, TC_USIZE, TC_PTR, TC_MEMBLOCK, TC_STRUCT, TC_VOID` | 枚举覆盖所有设计类型 |
 | A-2 | 设计 `TcType` 联合体 | `ptr_type(pointee), memblock_type(element,count), struct_type(struct_id)` | 所有类型参数可编码 |
 | A-3 | 实现 `tc_type_equals()` | 类型等价判定函数，memblock 仅按 T 等价、ptr 按 T 等价、struct 按 id | 单元测试覆盖全部等价组合 |
 | A-4 | 实现 `sizeof_bits()` | 宽度计算表（标量固定、isize/usize=平台字长、ptr=平台字长、memblock=头部+数据、struct=Σ字段+padding） | 单元测试验证各宽度 |

@@ -13,7 +13,7 @@
  *
  * 返回 0 兼容，-1 不兼容（已通过 diag 设置错误）
  */
-int tc_check_io_format(TcTypeKind type, const TcFormatFullSpec *spec, int line,
+int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line,
                        TcDiagnostic *diag);
 
 #endif /* TC_ANALYZE_6E_H */

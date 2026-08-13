@@ -17,6 +17,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/aot/bin)
 add_executable(tc-aot
     main.c
     tc_aot_codegen.c
+    tc_aot_emit_rhs.c
+    tc_aot_emit_stmt.c
+    tc_aot_emit_func.c
 )
 
 target_link_libraries(tc-aot PRIVATE libtc)

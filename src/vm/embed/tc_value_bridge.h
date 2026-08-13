@@ -141,7 +141,7 @@ static inline int tc_value_to_bool(TcValue v) {
 
 /* v0.0.36 reserved: memblock/struct 互操作 */
 /* TcValue tc_value_wrap_external_memblock(void *data, size_t elem_size,
-                                           uint64_t count, TcTypeKind elem_type,
+                                           uint64_t count, TcTypeTag elem_type,
                                            TcEmbedCtx *ctx); */
 /* TcValue tc_value_from_struct_raw(const void *data, size_t byte_size); */
 

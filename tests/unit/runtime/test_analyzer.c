@@ -1213,7 +1213,7 @@ static void test_analyze_bitcast_errors(void) {
 }
 
 static void test_analyze_cast_literal_source_types(void) {
-    static const TcTypeKind expected[] = {
+    static const TcTypeTag expected[] = {
         TC_INT64, TC_UINT64, TC_FLOAT32, TC_FLOAT64,
         TC_FLOAT64, TC_FLOAT64, TC_BOOL,
     };

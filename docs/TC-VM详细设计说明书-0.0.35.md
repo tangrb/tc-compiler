@@ -525,10 +525,10 @@ typedef enum {
     TC_PTR,                      /* ptr<T>，参数化为所指类型 */
     TC_MEMBLOCK,                 /* memblock<T>，参数化为元素类型 */
     TC_STRUCT                    /* 用户定义的结构体，由 struct_id 区分 */
-} TcTypeKind;
+} TcTypeTag;
 
 typedef struct {
-    TcTypeKind kind;
+    TcTypeTag tag;
     union {
         struct { TcType *pointee; } ptr_type;
         struct { TcType *element; size_t count; } memblock_type;
@@ -541,7 +541,7 @@ typedef struct {
 
 ```c
 size_t sizeof_bits(const TcType *type) {
-    switch (type->kind) {
+    switch (type->tag) {
     case TC_INT8:   case TC_UINT8:   case TC_BOOL:   return 8;
     case TC_INT16:  case TC_UINT16:                   return 16;
     case TC_INT32:  case TC_UINT32:  case TC_FLOAT32: return 32;
@@ -589,8 +589,8 @@ size_t sizeof_bits(const TcType *type) {
 
 ```c
 bool tc_type_equals(const TcType *a, const TcType *b) {
-    if (a->kind != b->kind) return false;
-    switch (a->kind) {
+    if (a->tag != b->tag) return false;
+    switch (a->tag) {
     case TC_PTR:   return tc_type_equals(a->params.ptr_type.pointee,
                                           b->params.ptr_type.pointee);
     case TC_MEMBLOCK: return tc_type_equals(a->params.memblock_type.element,
@@ -829,7 +829,7 @@ leave:
 
 ```c
 typedef struct {
-    TcTypeKind type;             /* 解释位模式所需的类型元数据 */
+    TcTypeTag type;             /* 解释位模式所需的类型元数据 */
     uint64_t bits;               /* 位模式（窄整数只使用低位） */
 } TcValue;
 ```

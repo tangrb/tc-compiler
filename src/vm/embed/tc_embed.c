@@ -79,8 +79,8 @@ static int tc_embed_build_func_index_program(TcEmbedCtx *ctx,
         info->module_name = func->name;
         info->func_name = func->name;
         info->func_id = func->func_id;
-        info->has_return = (func->return_type.kind != TC_VOID);
-        info->return_type = (int)func->return_type.kind;
+        info->has_return = (func->return_type.tag != TC_VOID);
+        info->return_type = (int)func->return_type.tag;
         info->param_count = func->param_count;
 
         if (func->param_count > 0) {
@@ -102,7 +102,7 @@ static int tc_embed_build_func_index_program(TcEmbedCtx *ctx,
                     return -1;
                 }
                 info->param_slots[j] = slot;
-                info->param_types[j] = (int)func->params[j].type.kind;
+                info->param_types[j] = (int)func->params[j].type.tag;
             }
         } else {
             info->param_slots = NULL;
@@ -384,7 +384,7 @@ void tc_embed_tmp_end(TcEmbedCtx *ctx) {
  * 将 C 侧内存中的标量值按 TC 类型读入 TcValue。
  * 使用 memcpy 读取，避免未对齐访问；位模式与 tc_value_from_* 一致。
  */
-static int tc_embed_raw_to_value(TcTypeKind type, const void *src, TcValue *out) {
+static int tc_embed_raw_to_value(TcTypeTag type, const void *src, TcValue *out) {
     const char *p = (const char *)src;
 
     if (!src || !out) return -1;
@@ -475,7 +475,7 @@ static int tc_embed_raw_to_value(TcTypeKind type, const void *src, TcValue *out)
     }
 }
 
-int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeKind elem_type,
+int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeTag elem_type,
                       const void *data, size_t count, TcValue *out) {
     size_t elem_bytes = (size_t)(tc_type_bit_width(elem_type) / 8);
     int base = 0;
@@ -577,7 +577,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
 
         if (info->has_return && result && entry->ret_ptr) {
             result->bits = *entry->ret_ptr;
-            result->type = (TcTypeKind)info->return_type;
+            result->type = (TcTypeTag)info->return_type;
         }
         return 0;
     }
@@ -620,7 +620,7 @@ int tc_embed_call_typed(TcEmbedCtx *ctx, const TcEmbedFuncInfo *info,
         return -1;
     }
     for (i = 0; i < nargs; i++) {
-        if (args[i].type != (TcTypeKind)info->param_types[i]) {
+        if (args[i].type != (TcTypeTag)info->param_types[i]) {
             char msg[256];
             (void)snprintf(msg, sizeof(msg),
                            "argument %zu type mismatch for %s: expected %d, got %d",

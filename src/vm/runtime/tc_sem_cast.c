@@ -21,7 +21,7 @@ static int tc_cast_overflow(TcDiagnostic *diag, int line) {
     return -1;
 }
 
-static int tc_cast_integer_to_integer(TcTypeKind target, const TcValue *source,
+static int tc_cast_integer_to_integer(TcTypeTag target, const TcValue *source,
                                       TcValue *out, TcDiagnostic *diag, int line) {
     if (tc_type_is_signed(source->type)) {
         int64_t value = tc_bits_to_signed(source->type, source->bits);
@@ -81,7 +81,7 @@ static double tc_cast_integer_to_double(const TcValue *source) {
     return result;
 }
 
-static int tc_cast_float_to_integer(TcTypeKind target, double value, TcValue *out,
+static int tc_cast_float_to_integer(TcTypeTag target, double value, TcValue *out,
                                     TcDiagnostic *diag, int line) {
     double truncated = 0.0;
     int width = tc_type_bit_width(target);
@@ -113,14 +113,14 @@ static int tc_cast_float_to_integer(TcTypeKind target, double value, TcValue *ou
     }
 }
 
-static uint64_t tc_canonical_nan_bits(TcTypeKind target) {
+static uint64_t tc_canonical_nan_bits(TcTypeTag target) {
     return target == TC_FLOAT32 ? UINT64_C(0x7FC00000)
                                 : UINT64_C(0x7FF8000000000000);
 }
 
-int tc_exec_cast(TcTypeKind target, const TcValue *source, TcValue *out,
+int tc_exec_cast(TcTypeTag target, const TcValue *source, TcValue *out,
                  TcDiagnostic *diag, int line) {
-    TcTypeKind source_type = source->type;
+    TcTypeTag source_type = source->type;
 
     if (source_type == target) {
         *out = *source;
@@ -186,7 +186,7 @@ int tc_exec_cast(TcTypeKind target, const TcValue *source, TcValue *out,
     return -1;
 }
 
-int tc_exec_truncate(TcTypeKind target, const TcValue *source, TcValue *out,
+int tc_exec_truncate(TcTypeTag target, const TcValue *source, TcValue *out,
                      TcDiagnostic *diag, int line) {
     if (!tc_type_is_integer(source->type) || !tc_type_is_integer(target) ||
         tc_type_bit_width(target) >= tc_type_bit_width(source->type)) {
@@ -198,7 +198,7 @@ int tc_exec_truncate(TcTypeKind target, const TcValue *source, TcValue *out,
     return 0;
 }
 
-int tc_exec_bitcast(TcTypeKind target, const TcValue *source, TcValue *out,
+int tc_exec_bitcast(TcTypeTag target, const TcValue *source, TcValue *out,
                     TcDiagnostic *diag, int line) {
     int target_width = tc_type_bit_width(target);
     int source_width = tc_type_bit_width(source->type);

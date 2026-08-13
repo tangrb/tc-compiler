@@ -67,20 +67,20 @@ static void test_literal_e4_direct(void) {
     tc_diagnostic_init(&diag);
 
     lit.is_nullptr = 1;
-    expected.kind = TC_INT32;
+    expected.tag = TC_INT32;
     check(tc_type_check_literal(&lit, &expected, 1, &diag) != 0 &&
               diag.kind == TC_CE_LITERAL_TYPE,
           "nullptr rejected in int context");
     tc_diagnostic_clear(&diag);
 
-    expected.kind = TC_PTR;
+    expected.tag = TC_PTR;
     check(tc_type_check_literal(&lit, &expected, 1, &diag) == 0, "nullptr accepted in ptr context");
     tc_diagnostic_clear(&diag);
 
     lit.is_nullptr = 0;
     lit.unsigned_suffix = 1;
     lit.magnitude = 42;
-    expected.kind = TC_INT32;
+    expected.tag = TC_INT32;
     check(tc_type_check_literal(&lit, &expected, 1, &diag) != 0 &&
               diag.kind == TC_CE_LITERAL_TYPE,
           "unsigned suffix rejected in signed context");
@@ -88,7 +88,7 @@ static void test_literal_e4_direct(void) {
 
     lit.unsigned_suffix = 0;
     lit.is_float_special = 1;
-    expected.kind = TC_INT32;
+    expected.tag = TC_INT32;
     check(tc_type_check_literal(&lit, &expected, 1, &diag) != 0 &&
               diag.kind == TC_CE_LITERAL_TYPE,
           "float special rejected in int context");

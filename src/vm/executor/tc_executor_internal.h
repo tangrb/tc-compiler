@@ -30,11 +30,11 @@ int tc_func_body_index_range(const TcProgram *module, int func_id, int *out_body
 int tc_exec_param_slot(const TcSymbolTable *symbols, const TcFuncDef *func,
                        const char *param_name, int *out_slot);
 void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char *message);
-int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeKind type,
+int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeTag type,
                          const TcValue *slots, TcValue *out, TcDiagnostic *diag, int line);
-int tc_eval_operand(const TcOperand *operand, TcTypeKind expected_type, TcExecuteCtx *ctx,
+int tc_eval_operand(const TcOperand *operand, TcTypeTag expected_type, TcExecuteCtx *ctx,
                     TcValue *out, TcDiagnostic *diag, int line);
-int tc_eval_rhs(const TcRhs *rhs, TcTypeKind expected_type, TcExecuteCtx *ctx, TcValue *out,
+int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, TcValue *out,
                 TcDiagnostic *diag, int line);
 const TcSymbol *tc_exec_find_symbol(const TcSymbolTable *symbols, const char *name);
 

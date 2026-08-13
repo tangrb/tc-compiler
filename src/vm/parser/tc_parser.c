@@ -686,7 +686,6 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         out->kind = TC_STMT_CONST_DEF;
         out->u.const_def.line = line_no;
         out->u.const_def.name = name;
-        out->u.const_def.type = full_type.kind;
         out->u.const_def.full_type = full_type;
         out->u.const_def.struct_type_name = struct_name;
         out->u.const_def.rhs = rhs;
@@ -694,7 +693,6 @@ static int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens
         out->kind = TC_STMT_VAR_DEF;
         out->u.var_def.line = line_no;
         out->u.var_def.name = name;
-        out->u.var_def.type = full_type.kind;
         out->u.var_def.full_type = full_type;
         out->u.var_def.struct_type_name = struct_name;
         out->u.var_def.rhs = rhs;

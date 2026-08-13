@@ -111,7 +111,7 @@ void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol)
     binding->resolved = 1;
     binding->slot = symbol->sym_kind == TC_SYM_VARIABLE ? symbol->slot : -1;
     binding->is_const = symbol->sym_kind == TC_SYM_CONSTANT;
-    binding->type = symbol->type;
+    binding->type = tc_type_scalar_tag(&symbol->full_type);
     binding->const_bits = symbol->has_const_value ? symbol->const_value.bits : 0;
 }
 
@@ -319,7 +319,7 @@ static int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
  * @brief 检查操作数的类型兼容性与变量定义存在性
  * @param self_name 若非 NULL，表示当前定义中的变量名（用于自引用检测）
  */
-int tc_check_operand(TcOperand *operand, TcTypeKind expected,
+int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                             const TcSymbolTable *visible, const TcSymbolTable *global,
                             TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                             TcWarningList *warnings, const char *self_name, TcErrorKind type_err) {
@@ -344,7 +344,7 @@ int tc_check_operand(TcOperand *operand, TcTypeKind expected,
         if (!symbol) {
             return -1;
         }
-        if (symbol->type != expected) {
+        if (tc_type_scalar_tag(&symbol->full_type) != expected) {
             tc_diagnostic_set(diag, type_err, line, TC_COLUMN_UNKNOWN,
                               "operand type does not match operation type");
             return -1;
@@ -365,7 +365,7 @@ int tc_check_operand(TcOperand *operand, TcTypeKind expected,
  * @param lhs_type  赋值目标的类型
  * @param self_name 自引用检测（用于 var 初始化器）
  */
-int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
+int tc_check_rhs(TcRhs *rhs, TcTypeTag lhs_type, const TcSymbolTable *visible,
                         const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                         int line, TcDiagnostic *diag, TcWarningList *warnings,
                         const char *self_name) {
@@ -636,7 +636,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
 
     if (rhs->kind == TC_RHS_BITCAST) {
         TcBitcastRhs *bitcast = &rhs->u.bitcast;
-        TcTypeKind source_type = TC_INT32;
+        TcTypeTag source_type = TC_INT32;
         const TcSymbol *source = NULL;
         int width = tc_type_bit_width(bitcast->target);
 
@@ -657,7 +657,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             if (!source) {
                 return -1;
             }
-            source_type = source->type;
+            source_type = tc_type_scalar_tag(&source->full_type);
             if (tc_check_operand_init(hist, source, stmt_index, line, diag) != 0) {
                 return -1;
             }
@@ -720,7 +720,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
         if (!source) {
             return -1;
         }
-        if (source->type != lhs_type) {
+        if (tc_type_scalar_tag(&source->full_type) != lhs_type) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "identifier type does not match destination type");
             return -1;
@@ -747,7 +747,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
     {
         TcCastRhs *cast = &rhs->u.cast;
         const TcSymbol *source = NULL;
-        TcTypeKind source_type = TC_INT64;
+        TcTypeTag source_type = TC_INT64;
 
         if (cast->source.kind == TC_OPERAND_VAR) {
             if (self_name && strcmp(cast->source.u.name, self_name) == 0) {
@@ -764,7 +764,7 @@ int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
             if (tc_check_operand_init(hist, source, stmt_index, line, diag) != 0) {
                 return -1;
             }
-            source_type = source->type;
+            source_type = tc_type_scalar_tag(&source->full_type);
             tc_resolved_binding_set(&cast->source.binding, source);
         } else if (cast->source.u.lit.is_bool) {
             source_type = TC_BOOL;
@@ -830,7 +830,8 @@ static int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
         TcSymbol *mut = NULL;
 
         /* 完整类型深拷贝：块帧内引用外层 ptr/memblock/struct 时 full_type 必须保留 */
-        if (tc_symbol_table_add_ex(dst, sym->name, sym->type, &sym->full_type,
+        if (tc_symbol_table_add_ex(dst, sym->name, tc_type_scalar_tag(&sym->full_type),
+                                   &sym->full_type,
                                    sym->memblock_count, sym->struct_id, sym->slot,
                                    sym->slot_domain, sym->def_line, sym->def_stmt_index,
                                    sym->sym_kind, sym->initialized, diag) != 0) {
@@ -876,7 +877,8 @@ static int tc_visible_add_from_global(const TcSymbolTable *global, const char *n
         tc_diagnostic_set(diag, TC_CE_SYNTAX, 0, TC_COLUMN_UNKNOWN, "internal analyzer error");
         return -1;
     }
-    if (tc_symbol_table_add_ex(visible, sym->name, sym->type, &sym->full_type,
+    if (tc_symbol_table_add_ex(visible, sym->name, tc_type_scalar_tag(&sym->full_type),
+                               &sym->full_type,
                                sym->memblock_count, sym->struct_id, sym->slot, sym->slot_domain,
                                sym->def_line, sym->def_stmt_index, sym->sym_kind,
                                sym->initialized, diag) != 0) {
@@ -1382,7 +1384,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             if (tc_func_check_writable_target(target, io_read->line, diag) != 0) {
                 return -1;
             }
-            if (target->type != io_read->type) {
+            if (tc_type_scalar_tag(&target->full_type) != io_read->type) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, io_read->line, TC_COLUMN_UNKNOWN,
                                   "read type does not match variable type");
                 return -1;

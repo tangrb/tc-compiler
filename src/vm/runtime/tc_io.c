@@ -35,7 +35,7 @@
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
-static int tc_io_format_accepts_type(TcTypeKind type, TcFormatSpec fmt) {
+static int tc_io_format_accepts_type(TcTypeTag type, TcFormatSpec fmt) {
     switch (fmt) {
     case TC_FMT_D:
     case TC_FMT_I:
@@ -84,7 +84,7 @@ static int tc_io_normalize_decimal_point(char *buf) {
     return 0;
 }
 
-static int tc_io_write_float(TcTypeKind type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
+static int tc_io_write_float(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
     char buf[128];
     double number = tc_fp_bits_to_double(type, value->bits);
     const char *format = NULL;
@@ -142,7 +142,7 @@ static int tc_io_write_float(TcTypeKind type, TcFormatSpec fmt, const TcValue *v
     return fputs(buf, out) == EOF ? -1 : 0;
 }
 
-int tc_io_write_formatted(TcTypeKind type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
+int tc_io_write_formatted(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
     int n = 0;
     uint64_t mask = 0;
     uint64_t uval = 0;
@@ -407,7 +407,7 @@ int tc_io_read_digits(int c, int line, TcDiagnostic *diag,
     return 0;
 }
 
-static int tc_io_parse_integer(TcTypeKind type, const char *token, uint64_t *out_bits,
+static int tc_io_parse_integer(TcTypeTag type, const char *token, uint64_t *out_bits,
                                TcDiagnostic *diag, int line) {
     const char *digits = token;
     uint64_t abs_value = 0;
@@ -575,7 +575,7 @@ static double tc_io_strtod_nearest(const char *text, char **end) {
 #endif
 }
 
-static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_bits,
+static int tc_io_parse_float(TcTypeTag type, const char *token, uint64_t *out_bits,
                              TcDiagnostic *diag, int line) {
     char localized[512];
     char *end = NULL;
@@ -640,7 +640,7 @@ static int tc_io_parse_float(TcTypeKind type, const char *token, uint64_t *out_b
     }
 }
 
-int tc_io_read_value(TcTypeKind type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
+int tc_io_read_value(TcTypeTag type, uint64_t *out_bits, TcDiagnostic *diag, int line) {
     char token[256];
     uint64_t bits = 0;
 

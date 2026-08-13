@@ -16,15 +16,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "tc_types.h"           /* TcValue, TcTypeKind */
+#include "tc_types.h"           /* TcValue, TcTypeTag */
 #include "tc_value_bridge.h"    /* tc_value_from_* / tc_value_to_* */
 #include "tc_executor.h"        /* TcExecuteCtx, tc_exec_call_function_public */
 #include "tc_analyzer.h"        /* TcTypedProgram */
 #include "tc_diagnostic.h"      /* TcDiagnostic */
+#include "tc_version.h"         /* TC_VERSION_EMBED */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* ── 版本 ── */
+#define TC_EMBED_VERSION TC_VERSION_EMBED
 
 /* ── 不透明上下文 ── */
 typedef struct TcEmbedCtx TcEmbedCtx;
@@ -53,9 +57,9 @@ typedef struct {
     const char *func_name;
     int func_id;
     int has_return;
-    int return_type;            /* TcTypeKind；void 返回时无意义 */
+    int return_type;            /* TcTypeTag；void 返回时无意义 */
     int *param_slots;           /* 各形参的 slot 号，长度 param_count */
-    int *param_types;           /* 各形参的 TcTypeKind */
+    int *param_types;           /* 各形参的 TcTypeTag */
     size_t param_count;
 } TcEmbedFuncInfo;
 
@@ -65,7 +69,7 @@ typedef struct {
  * bits 与 TcValue.bits 位模式一致（按位宽规范化），可经 tc_value_from_* 复用。
  */
 typedef struct {
-    TcTypeKind type;
+    TcTypeTag type;
     uint64_t bits;
 } TcEmbedArg;
 
@@ -195,7 +199,7 @@ int tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out);
 void tc_embed_tmp_end(TcEmbedCtx *ctx);
 
 /* ── C 数组 → ptr<T>（一键平铺 + 编码） ── */
-int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeKind elem_type,
+int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeTag elem_type,
                       const void *data, size_t count, TcValue *out);
 
 /* ── 签名感知的类型化调用 ── */

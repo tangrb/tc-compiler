@@ -659,7 +659,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
         return -1;
     }
 
-    is_void = tc_type_is_void(sig->return_type.kind);
+    is_void = tc_type_is_void(sig->return_type.tag);
     if (position == 0 && !is_void) {
         tc_diagnostic_set(diag, TC_CE_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
                           "non-void function call must be used as initializer or assignment");
@@ -705,7 +705,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
     }
 
     return_type = &env->current_func->return_type;
-    is_void = tc_type_is_void(return_type->kind);
+    is_void = tc_type_is_void(return_type->tag);
 
     if (is_void && ret->has_value) {
         tc_diagnostic_set(diag, TC_CE_RETURN_FORM, ret->line, TC_COLUMN_UNKNOWN,
@@ -743,7 +743,7 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         return 0;
     }
 
-    return tc_check_operand(&ret->value, return_type->kind, visible, global, hist, stmt_index,
+    return tc_check_operand(&ret->value, return_type->tag, visible, global, hist, stmt_index,
                             ret->line, diag, warnings, NULL, TC_CE_RETURN_TYPE);
 }
 

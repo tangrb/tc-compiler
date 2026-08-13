@@ -1023,7 +1023,7 @@ static int tc_cfg_diagnose_missing_return(const TcCfg *cfg, const TcFuncDef *fun
                                           TcDiagnostic *diag) {
     size_t e = 0;
 
-    if (!func || func->return_type.kind == TC_VOID) {
+        if (!func || func->return_type.tag == TC_VOID) {
         return 0;
     }
     if (cfg->exit_id < 0 || !cfg->nodes[cfg->exit_id].reachable) {

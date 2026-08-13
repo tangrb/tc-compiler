@@ -2,7 +2,7 @@
  * test_types.c — 类型工具函数模块单元测试
  *
  * 覆盖 tc_types.c 公开函数，以及 0.0.35 Phase 1（模块 A）验收：
- *   - TcTypeKind / TcType 编码（A-1/A-2）
+ *   - TcTypeTag / TcType 编码（A-1/A-2）
  *   - tc_type_equals 全部等价组合（A-3）
  *   - tc_sizeof_bits 各宽度（A-4）
  *   - TcStmtKind / TcRhsKind 枚举计数（A-5/A-6）
@@ -88,7 +88,7 @@ static void test_type_is_signed(void) {
 /* ================================================================== */
 
 static void test_type_parse(void) {
-    TcTypeKind out = TC_INT8;
+    TcTypeTag out = TC_INT8;
 
     check(tc_type_parse("int8", &out) == 1 && out == TC_INT8, "parse 'int8' → TC_INT8");
     check(tc_type_parse("uint8", &out) == 1 && out == TC_UINT8, "parse 'uint8' → TC_UINT8");
@@ -368,7 +368,7 @@ static void test_error_kind_name(void) {
 }
 
 /* ================================================================== */
-/*  Phase 1 / A-1～A-4: TcTypeKind + TcType + equals + sizeof_bits      */
+/*  Phase 1 / A-1～A-4: TcTypeTag + TcType + equals + sizeof_bits      */
 /* ================================================================== */
 
 static size_t test_struct_width_cb(int struct_id, void *userdata) {
@@ -387,11 +387,11 @@ static size_t test_struct_width_cb(int struct_id, void *userdata) {
 }
 
 static void test_type_kind_inventory(void) {
-    check((int)TC_STRUCT - (int)TC_INT8 + 1 == 17, "TcTypeKind has 17 entries");
-    check(tc_type_is_ptr_kind(TC_PTR) == 1, "TC_PTR is ptr kind");
-    check(tc_type_is_memblock_kind(TC_MEMBLOCK) == 1, "TC_MEMBLOCK is memblock kind");
-    check(tc_type_is_struct_kind(TC_STRUCT) == 1, "TC_STRUCT is struct kind");
-    check(tc_type_is_ptr_kind(TC_INT32) == 0, "int32 is not ptr kind");
+    check((int)TC_STRUCT - (int)TC_INT8 + 1 == 17, "TcTypeTag has 17 entries");
+    check(tc_type_is_ptr_tag(TC_PTR) == 1, "TC_PTR is ptr kind");
+    check(tc_type_is_memblock_tag(TC_MEMBLOCK) == 1, "TC_MEMBLOCK is memblock kind");
+    check(tc_type_is_struct_tag(TC_STRUCT) == 1, "TC_STRUCT is struct kind");
+    check(tc_type_is_ptr_tag(TC_INT32) == 0, "int32 is not ptr kind");
     check(tc_type_bit_width(TC_VOID) == 0, "void bit_width = 0");
     check(tc_type_bit_width(TC_MEMBLOCK) == 0, "memblock bit_width via kind API = 0");
     check(tc_type_bit_width(TC_STRUCT) == 0, "struct bit_width via kind API = 0");
@@ -404,15 +404,35 @@ static void test_type_encoding(void) {
     TcType mb = tc_type_make_memblock(&elem, 7);
     TcType st = tc_type_make_struct(42);
 
-    check(i32.kind == TC_INT32 && i32.params.ptr_type.pointee == NULL,
+    check(i32.tag == TC_INT32 && i32.params.ptr_type.pointee == NULL,
           "scalar encodes kind only");
-    check(ptr_t.kind == TC_PTR && ptr_t.params.ptr_type.pointee == &elem,
+    check(ptr_t.tag == TC_PTR && ptr_t.params.ptr_type.pointee == &elem,
           "ptr encodes pointee pointer");
-    check(mb.kind == TC_MEMBLOCK && mb.params.memblock_type.element == &elem &&
+    check(mb.tag == TC_MEMBLOCK && mb.params.memblock_type.element == &elem &&
               mb.params.memblock_type.count == 7,
           "memblock encodes element and count");
-    check(st.kind == TC_STRUCT && st.params.struct_type.struct_id == 42,
+    check(st.tag == TC_STRUCT && st.params.struct_type.struct_id == 42,
           "struct encodes struct_id");
+}
+
+static void test_type_conversion(void) {
+    TcType i32 = tc_type_from_tag(TC_INT32);
+    TcType i32_scalar = tc_type_scalar(TC_INT32);
+    TcType u16 = tc_type_from_tag(TC_UINT16);
+    TcType elem = tc_type_from_tag(TC_FLOAT64);
+    TcType ptr_t = tc_type_make_ptr(&elem);
+    TcType mb = tc_type_make_memblock(&elem, 7);
+    TcType st = tc_type_make_struct(42);
+
+    check(i32.tag == TC_INT32 && i32.params.ptr_type.pointee == NULL,
+          "tc_type_from_tag encodes kind only");
+    check(tc_type_equals(&i32, &i32_scalar) == 1,
+          "tc_type_from_tag == tc_type_scalar for same kind");
+    check(tc_type_scalar_tag(&i32) == TC_INT32, "scalar_kind round-trip int32");
+    check(tc_type_scalar_tag(&ptr_t) == TC_PTR, "scalar_kind of ptr = TC_PTR");
+    check(tc_type_scalar_tag(&mb) == TC_MEMBLOCK, "scalar_kind of memblock = TC_MEMBLOCK");
+    check(tc_type_scalar_tag(&st) == TC_STRUCT, "scalar_kind of struct = TC_STRUCT");
+    check(tc_sizeof_bits(&u16) == 16, "tc_sizeof_bits over from_kind result");
 }
 
 static void test_type_equals_matrix(void) {
@@ -514,16 +534,17 @@ static void test_sizeof_bits_matrix(void) {
 
     widths[0] = 96;
     widths[1] = 128;
-    tc_sizeof_bits_set_struct_width_fn(test_struct_width_cb, widths);
-    check(tc_sizeof_bits(&st) == 96, "sizeof_bits struct id1 via callback");
-    check(tc_sizeof_bits(&st2) == 128, "sizeof_bits struct id2 via callback");
-    tc_sizeof_bits_set_struct_width_fn(NULL, NULL);
+    check(tc_sizeof_bits_ex(&st, test_struct_width_cb, widths) == 96,
+          "sizeof_bits_ex struct id1 via callback");
+    check(tc_sizeof_bits_ex(&st2, test_struct_width_cb, widths) == 128,
+          "sizeof_bits_ex struct id2 via callback");
+    check(tc_sizeof_bits_ex(&st, NULL, NULL) == 0, "sizeof_bits_ex struct without callback = 0");
     check(tc_sizeof_bits(&st) == 0, "sizeof_bits struct without callback = 0");
     check(tc_sizeof_bits(NULL) == 0, "sizeof_bits NULL = 0");
 }
 
 static void test_new_scalar_kinds(void) {
-    TcTypeKind out = TC_INT8;
+    TcTypeTag out = TC_INT8;
     size_t ptr_w = tc_target_ptr_width_bits();
 
     check(tc_type_bit_width(TC_ISIZE) == (int)ptr_w, "isize bit width = ptr width");
@@ -693,7 +714,7 @@ static void test_int_type_name(void) {
     check(strcmp(tc_type_name(TC_FLOAT32), "float32") == 0, "TC_FLOAT32 → 'float32'");
     check(strcmp(tc_type_name(TC_FLOAT64), "float64") == 0, "TC_FLOAT64 → 'float64'");
 
-    check(strcmp(tc_type_name((TcTypeKind)999), "unknown") == 0,
+    check(strcmp(tc_type_name((TcTypeTag)999), "unknown") == 0,
           "unknown type → 'unknown'");
 }
 
@@ -721,6 +742,7 @@ int main(void) {
     test_error_kind_name();
     test_type_kind_inventory();
     test_type_encoding();
+    test_type_conversion();
     test_type_equals_matrix();
     test_sizeof_bits_matrix();
     test_new_scalar_kinds();

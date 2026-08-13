@@ -177,7 +177,7 @@ DISPATCH_POINTS = [
         "extra_kinds": ["TC_RHS_CONST_REF, TC_RHS_CONST_CAST"],
     },
     {
-        "path": "src/aot/tc_aot_codegen.c",
+        "path": "src/aot/tc_aot_emit_rhs.c",
         "func": "tc_aot_emit_rhs",
         "line_func": 0,
         "skip": {

@@ -1,42 +1,43 @@
 /*
- * tc_types.c — TC 类型种类、完整类型与运算符工具函数
+ * tc_types.c — TC 类型标签、完整类型与运算符工具函数
  *
  * 提供：
  *   - 类型位宽查询（tc_type_bit_width / tc_sizeof_bits）、符号性判定
  *   - 完整类型构造 / 深拷贝 / 等价（tc_type_scalar / tc_type_copy / tc_type_equals）
- *   - struct 布局位宽回调（tc_sizeof_bits_set_struct_width_fn，Phase 3）
+ *   - struct 布局位宽显式回调（tc_sizeof_bits_ex）
  *   - 类型名解析与字符串化、运算符/格式说明符、错误种类名
  */
 #include "tc_types.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* Analyzer 注册的 struct 位宽查询；未注册时 sizeof(struct) 返回 0 */
-static TcStructWidthFn g_struct_width_fn = NULL;
-static void *g_struct_width_userdata = NULL;
-
-void tc_sizeof_bits_set_struct_width_fn(TcStructWidthFn fn, void *userdata) {
-    g_struct_width_fn = fn;
-    g_struct_width_userdata = userdata;
-}
 
 size_t tc_target_ptr_width_bits(void) {
     return (size_t)(sizeof(void *) * 8U);
 }
 
-TcType tc_type_scalar(TcTypeKind kind) {
+TcType tc_type_from_tag(TcTypeTag tag) {
     TcType t;
     memset(&t, 0, sizeof(t));
-    t.kind = kind;
+    t.tag = tag;
     return t;
+}
+
+TcType tc_type_scalar(TcTypeTag tag) {
+    return tc_type_from_tag(tag);
+}
+
+TcTypeTag tc_type_scalar_tag(const TcType *type) {
+    assert(type != NULL);
+    return type->tag;
 }
 
 TcType tc_type_make_ptr(TcType *pointee) {
     TcType t;
     memset(&t, 0, sizeof(t));
-    t.kind = TC_PTR;
+    t.tag = TC_PTR;
     t.params.ptr_type.pointee = pointee;
     return t;
 }
@@ -44,7 +45,7 @@ TcType tc_type_make_ptr(TcType *pointee) {
 TcType tc_type_make_memblock(TcType *element, uint64_t count) {
     TcType t;
     memset(&t, 0, sizeof(t));
-    t.kind = TC_MEMBLOCK;
+    t.tag = TC_MEMBLOCK;
     t.params.memblock_type.element = element;
     t.params.memblock_type.count = count;
     return t;
@@ -53,7 +54,7 @@ TcType tc_type_make_memblock(TcType *element, uint64_t count) {
 TcType tc_type_make_struct(int struct_id) {
     TcType t;
     memset(&t, 0, sizeof(t));
-    t.kind = TC_STRUCT;
+    t.tag = TC_STRUCT;
     t.params.struct_type.struct_id = struct_id;
     return t;
 }
@@ -62,11 +63,11 @@ void tc_type_free(TcType *type) {
     if (!type) {
         return;
     }
-    if (type->kind == TC_PTR && type->params.ptr_type.pointee) {
+    if (type->tag == TC_PTR && type->params.ptr_type.pointee) {
         tc_type_free(type->params.ptr_type.pointee);
         free(type->params.ptr_type.pointee);
         type->params.ptr_type.pointee = NULL;
-    } else if (type->kind == TC_MEMBLOCK && type->params.memblock_type.element) {
+    } else if (type->tag == TC_MEMBLOCK && type->params.memblock_type.element) {
         tc_type_free(type->params.memblock_type.element);
         free(type->params.memblock_type.element);
         type->params.memblock_type.element = NULL;
@@ -82,8 +83,8 @@ int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
         return -1;
     }
     memset(&copy, 0, sizeof(copy));
-    copy.kind = src->kind;
-    if (src->kind == TC_PTR) {
+    copy.tag = src->tag;
+    if (src->tag == TC_PTR) {
         TcType *pointee = NULL;
 
         if (src->params.ptr_type.pointee) {
@@ -97,7 +98,7 @@ int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
             }
         }
         copy.params.ptr_type.pointee = pointee;
-    } else if (src->kind == TC_MEMBLOCK) {
+    } else if (src->tag == TC_MEMBLOCK) {
         TcType *element = NULL;
 
         if (src->params.memblock_type.element) {
@@ -112,7 +113,7 @@ int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
         }
         copy.params.memblock_type.element = element;
         copy.params.memblock_type.count = src->params.memblock_type.count;
-    } else if (src->kind == TC_STRUCT) {
+    } else if (src->tag == TC_STRUCT) {
         copy.params.struct_type.struct_id = src->params.struct_type.struct_id;
     }
     *out = copy;
@@ -123,10 +124,12 @@ int tc_type_equals(const TcType *a, const TcType *b) {
     if (!a || !b) {
         return 0;
     }
-    if (a->kind != b->kind) {
+    assert(tc_type_scalar_tag(a) == a->tag);
+    assert(tc_type_scalar_tag(b) == b->tag);
+    if (a->tag != b->tag) {
         return 0;
     }
-    switch (a->kind) {
+    switch (a->tag) {
     case TC_PTR:
         if (!a->params.ptr_type.pointee || !b->params.ptr_type.pointee) {
             return a->params.ptr_type.pointee == b->params.ptr_type.pointee;
@@ -145,11 +148,12 @@ int tc_type_equals(const TcType *a, const TcType *b) {
     }
 }
 
-size_t tc_sizeof_bits(const TcType *type) {
+size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, void *userdata) {
     if (!type) {
         return 0;
     }
-    switch (type->kind) {
+    assert(tc_type_scalar_tag(type) == type->tag);
+    switch (type->tag) {
     case TC_INT8:
     case TC_UINT8:
     case TC_BOOL:
@@ -173,20 +177,24 @@ size_t tc_sizeof_bits(const TcType *type) {
         TcType usize_ty = tc_type_scalar(TC_USIZE);
         size_t elem_bits = 0;
         if (type->params.memblock_type.element) {
-            elem_bits = tc_sizeof_bits(type->params.memblock_type.element);
+            elem_bits = tc_sizeof_bits_ex(type->params.memblock_type.element, fn, userdata);
         }
-        return tc_sizeof_bits(&usize_ty)
+        return tc_sizeof_bits_ex(&usize_ty, fn, userdata)
              + (size_t)type->params.memblock_type.count * elem_bits;
     }
     case TC_STRUCT:
-        if (g_struct_width_fn) {
-            return g_struct_width_fn(type->params.struct_type.struct_id, g_struct_width_userdata);
+        if (fn) {
+            return fn(type->params.struct_type.struct_id, userdata);
         }
         return 0;
     case TC_VOID:
         return 0;
     }
     return 0;
+}
+
+size_t tc_sizeof_bits(const TcType *type) {
+    return tc_sizeof_bits_ex(type, NULL, NULL);
 }
 
 void tc_runtime_slots_init(TcRuntimeSlots *slots) {
@@ -218,7 +226,7 @@ void tc_runtime_slots_free(TcRuntimeSlots *slots) {
  * 返回 TC 整数/浮点/平台字长类型的位宽。
  * TC_BOOL 存储宽度为 8 位；ptr/memblock/struct 请用 tc_sizeof_bits。
  */
-int tc_type_bit_width(TcTypeKind type) {
+int tc_type_bit_width(TcTypeTag type) {
     switch (type) {
     case TC_INT8:
     case TC_UINT8:
@@ -251,31 +259,31 @@ int tc_type_bit_width(TcTypeKind type) {
     return 0;
 }
 
-int tc_type_is_bool(TcTypeKind type) {
+int tc_type_is_bool(TcTypeTag type) {
     return type == TC_BOOL;
 }
 
-int tc_type_is_integer(TcTypeKind type) {
+int tc_type_is_integer(TcTypeTag type) {
     return (type >= TC_INT8 && type <= TC_UINT64) || type == TC_ISIZE || type == TC_USIZE;
 }
 
-int tc_type_is_float(TcTypeKind type) {
+int tc_type_is_float(TcTypeTag type) {
     return type == TC_FLOAT32 || type == TC_FLOAT64;
 }
 
-int tc_type_is_void(TcTypeKind type) {
+int tc_type_is_void(TcTypeTag type) {
     return type == TC_VOID;
 }
 
-int tc_type_is_ptr_kind(TcTypeKind type) {
+int tc_type_is_ptr_tag(TcTypeTag type) {
     return type == TC_PTR;
 }
 
-int tc_type_is_memblock_kind(TcTypeKind type) {
+int tc_type_is_memblock_tag(TcTypeTag type) {
     return type == TC_MEMBLOCK;
 }
 
-int tc_type_is_struct_kind(TcTypeKind type) {
+int tc_type_is_struct_tag(TcTypeTag type) {
     return type == TC_STRUCT;
 }
 
@@ -283,7 +291,7 @@ int tc_type_is_struct_kind(TcTypeKind type) {
  * 有符号性判定。
  * TC_BOOL 被视为无符号；isize 为有符号平台字长整数。
  */
-int tc_type_is_signed(TcTypeKind type) {
+int tc_type_is_signed(TcTypeTag type) {
     if (tc_type_is_bool(type)) {
         return 0;
     }
@@ -299,7 +307,7 @@ int tc_type_is_signed(TcTypeKind type) {
     }
 }
 
-int tc_type_parse(const char *text, TcTypeKind *out) {
+int tc_type_parse(const char *text, TcTypeTag *out) {
     if (strcmp(text, "int8") == 0) {
         *out = TC_INT8;
     } else if (strcmp(text, "uint8") == 0) {
@@ -778,7 +786,7 @@ const char *tc_warning_kind_name(TcWarningKind kind) {
     return "UnknownWarning";
 }
 
-const char *tc_type_name(TcTypeKind type) {
+const char *tc_type_name(TcTypeTag type) {
     switch (type) {
     case TC_INT8:
         return "int8";

@@ -228,9 +228,9 @@ typedef struct {
     const char *func_name;
     int func_id;
     int has_return;
-    int return_type;          /* TcTypeKind；void 返回时无意义 */
+    int return_type;          /* TcTypeTag；void 返回时无意义 */
     int *param_slots;         /* 各形参的 slot 号，长度 param_count */
-    int *param_types;         /* 各形参的 TcTypeKind */
+    int *param_types;         /* 各形参的 TcTypeTag */
     size_t param_count;
 } TcEmbedFuncInfo;
 
@@ -437,9 +437,9 @@ typedef struct {
     const char *func_name;     /* 函数名 */
     int func_id;               /* 全局唯一函数 ID */
     int has_return;            /* 是否有返回值（非 void） */
-    int return_type;           /* 返回类型 TcTypeKind */
+    int return_type;           /* 返回类型 TcTypeTag */
     int *param_slots;          /* 各形参 slot 索引，长度 param_count */
-    int *param_types;          /* 各形参 TcTypeKind */
+    int *param_types;          /* 各形参 TcTypeTag */
     size_t param_count;        /* 形参数量 */
 } TcEmbedFuncInfo;
 ```
@@ -657,7 +657,7 @@ static inline int tc_value_to_bool(TcValue v) {
 ```c
 /* v0.0.36 reserved */
 /* TcValue tc_value_wrap_external_memblock(void *data, size_t elem_size,
-                                           uint64_t count, TcTypeKind elem_type,
+                                           uint64_t count, TcTypeTag elem_type,
                                            TcEmbedCtx *ctx); */
 /* TcValue tc_value_from_struct_raw(const void *data, size_t byte_size); */
 ```
@@ -1046,7 +1046,7 @@ static int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgra
     }
     fprintf(out, "static void tc_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n", func->func_id);
     ctx->current_func_id = func->func_id;
-    ctx->current_return_type = func->return_type.kind;
+    ctx->current_return_type = func->return_type.tag;
     ctx->block_path.depth = 0;
     ctx->loops.depth = 0;
     tc_stmt_index_reset(&ctx->index);
@@ -1112,7 +1112,7 @@ static int tc_aot_emit_funcall(FILE *out, int func_id, const TcNamedArg *stmt_ar
             param_slot < 0) {
             return -1;
         }
-        if (tc_aot_emit_rhs_slot(out, arg_rhs, param->type.kind, param_slot, indent, ctx,
+        if (tc_aot_emit_rhs_slot(out, arg_rhs, param->type.tag, param_slot, indent, ctx,
                                  stmt_index, line) != 0) {
             return -1;
         }
@@ -1494,7 +1494,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
         /* 读取返回值：通过 tc_aot_func_entry.ret_ptr 指向的 tc_aot_ret_N 全局变量 */
         if (info->has_return && result && entry->ret_ptr) {
             result->bits = *entry->ret_ptr;
-            result->type = (TcTypeKind)info->return_type;
+            result->type = (TcTypeTag)info->return_type;
         }
     } else {
         /* ── VM 路径 ── */
@@ -1958,7 +1958,7 @@ C 调用 TC 的基本方案可行，但将以下细节暴露给 C 宿主程序�
 
 ```c
 typedef struct {
-    TcTypeKind type;
+    TcTypeTag type;
     uint64_t bits;      /* 与 TcValue.bits 一致（按位宽规范化） */
 } TcEmbedArg;
 
@@ -1987,7 +1987,7 @@ void tc_embed_tmp_end(TcEmbedCtx *ctx);
 ### 16.5 C 数组一键映射为 ptr\<T\>
 
 ```c
-int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeKind elem_type,
+int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeTag elem_type,
                       const void *data, size_t count, TcValue *out);
 ```
 

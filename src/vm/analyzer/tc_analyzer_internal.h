@@ -68,7 +68,7 @@ typedef struct {
 /*  字面量（实现于 tc_analyzer.c）                                        */
 /* ------------------------------------------------------------------ */
 
-int tc_check_literal(const TcLiteral *lit, TcTypeKind expected, int line,
+int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
                      TcDiagnostic *diag, TcErrorKind literal_type_err);
 
 /* ------------------------------------------------------------------ */
@@ -106,12 +106,12 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                           const TcSymbolTable *global, const char *name,
                                           size_t stmt_index, int line, TcDiagnostic *diag);
 
-int tc_check_operand(TcOperand *operand, TcTypeKind expected,
+int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,
                      TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
                      TcWarningList *warnings, const char *self_name, TcErrorKind type_err);
-int tc_check_io_format(TcTypeKind type, const TcFormatFullSpec *spec, int line, TcDiagnostic *diag);
-int tc_check_rhs(TcRhs *rhs, TcTypeKind lhs_type, const TcSymbolTable *visible,
+int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line, TcDiagnostic *diag);
+int tc_check_rhs(TcRhs *rhs, TcTypeTag lhs_type, const TcSymbolTable *visible,
                  const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
                  int line, TcDiagnostic *diag, TcWarningList *warnings, const char *self_name);
 

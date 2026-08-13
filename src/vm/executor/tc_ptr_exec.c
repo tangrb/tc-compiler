@@ -4,6 +4,7 @@
 #include "tc_ptr_exec.h"
 
 #include "tc_semantics.h"
+#include "tc_struct_check.h"
 
 #include <stdint.h>
 
@@ -75,7 +76,7 @@ int tc_exec_ptr_store(const TcType *pointee, const TcOperand *ptr_op, const TcOp
     TcValue ptr_value;
     TcValue value;
     int slot = 0;
-    TcTypeKind store_type = pointee ? pointee->kind : TC_VOID;
+    TcTypeTag store_type = pointee ? pointee->tag : TC_VOID;
 
     if (tc_ptr_eval_operand(ptr_op, ctx, &ptr_value, diag, line) != 0) {
         return -1;
@@ -199,11 +200,10 @@ int tc_exec_ptr_size(const TcType *pointee, const TcOperand *ptr_op, TcExecuteCt
     size_t bits = 0;
 
     (void)ptr_op;
-    (void)ctx;
     if (!pointee || !out) {
         return -1;
     }
-    bits = tc_sizeof_bits(pointee);
+    bits = tc_sizeof_bits_ex(pointee, tc_struct_table_width_bits, ctx->program->struct_table);
     out->type = TC_USIZE;
     out->bits = bits;
     (void)line;

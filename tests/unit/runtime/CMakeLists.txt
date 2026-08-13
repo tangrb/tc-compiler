@@ -83,6 +83,9 @@ add_custom_target(check-diagnostic
 add_executable(test-libtc
     test_libtc.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_codegen.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_rhs.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_stmt.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_func.c
 )
 target_link_libraries(test-libtc PRIVATE libtc)
 target_include_directories(test-libtc PRIVATE
@@ -375,6 +378,9 @@ add_custom_target(check-embed
 
 add_executable(test-embed-aot test_embed_aot.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_codegen.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_rhs.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_stmt.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_func.c
 )
 target_link_libraries(test-embed-aot PRIVATE libtc)
 target_include_directories(test-embed-aot PRIVATE
