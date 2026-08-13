@@ -188,7 +188,7 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
     tc_stmt_index_reset(&ctx->exec_ctx.index);
 
     if (tc_exec_init_all_static_vars(program, &ctx->exec_ctx, &ctx->diag) != 0) {
-        tc_diagnostic_set(diag, ctx->diag.domain, ctx->diag.line, ctx->diag.column,
+        tc_diagnostic_set(diag, ctx->diag.kind, ctx->diag.line, ctx->diag.column,
                           ctx->diag.message);
         tc_embed_destroy(ctx);
         return NULL;

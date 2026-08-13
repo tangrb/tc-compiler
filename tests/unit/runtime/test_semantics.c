@@ -246,27 +246,27 @@ static void test_literal_to_value(void) {
 
     /* bool 字面量 */
     {
-    TcLiteral bool_true = {1, 0, 0, 1, 0, 0.0, 0};
+    TcLiteral bool_true = {1, 0, 0, 1, 0, 0.0, 0, 0, 0, 0};
     v = tc_literal_to_value(&bool_true, TC_BOOL);
     check(v.type->tag == TC_BOOL && v.bits == 1, "literal_to_value bool true → bits=1");
     }
 
     {
-    TcLiteral bool_false = {0, 0, 0, 1, 0, 0.0, 0};
+    TcLiteral bool_false = {0, 0, 0, 1, 0, 0.0, 0, 0, 0, 0};
     v = tc_literal_to_value(&bool_false, TC_BOOL);
     check(v.type->tag == TC_BOOL && v.bits == 0, "literal_to_value bool false → bits=0");
     }
 
     /* 无符号字面量 */
     {
-    TcLiteral u_lit = {255, 0, 1, 0, 0, 0.0, 0};
+    TcLiteral u_lit = {255, 0, 1, 0, 0, 0.0, 0, 0, 0, 0};
     v = tc_literal_to_value(&u_lit, TC_UINT8);
     check(v.type->tag == TC_UINT8 && v.bits == 255, "literal_to_value uint8 255");
     }
 
     /* 负数字面量 */
     {
-    TcLiteral neg_lit = {42, 1, 0, 0, 0, 0.0, 0};
+    TcLiteral neg_lit = {42, 1, 0, 0, 0, 0.0, 0, 0, 0, 0};
     v = tc_literal_to_value(&neg_lit, TC_INT8);
     check(v.type->tag == TC_INT8 && v.bits == 0xD6, "literal_to_value int8 -42 → 0xD6");
     check(tc_bits_to_signed(TC_INT8, v.bits) == -42, "int8 -42 value check");
@@ -274,7 +274,7 @@ static void test_literal_to_value(void) {
 
     /* INT64_MIN 绝对值 */
     {
-    TcLiteral min_lit = {TC_INT64_MIN_ABS_MAGNITUDE, 1, 0, 0, 0, 0.0, 0};
+    TcLiteral min_lit = {TC_INT64_MIN_ABS_MAGNITUDE, 1, 0, 0, 0, 0.0, 0, 0, 0, 0};
     v = tc_literal_to_value(&min_lit, TC_INT64);
     check(v.type->tag == TC_INT64 && v.bits == (uint64_t)INT64_MIN,
           "literal_to_value int64 INT64_MIN");
@@ -282,7 +282,7 @@ static void test_literal_to_value(void) {
 
     /* 正数字面量 */
     {
-    TcLiteral pos_lit = {123, 0, 0, 0, 0, 0.0, 0};
+    TcLiteral pos_lit = {123, 0, 0, 0, 0, 0.0, 0, 0, 0, 0};
     v = tc_literal_to_value(&pos_lit, TC_INT32);
     check(v.type->tag == TC_INT32 && v.bits == 123, "literal_to_value int32 123");
     }
