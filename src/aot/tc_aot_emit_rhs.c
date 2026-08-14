@@ -615,8 +615,20 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         const TcSymbol *sym = tc_symbol_table_find_visible(
             symbols, rhs->u.memblock_count.memblock_name, stmt_index, &ctx->sym_index);
 
-        if (!sym) {
-            sym = tc_aot_find_symbol_by_name(symbols, rhs->u.memblock_count.memblock_name);
+        if (rhs->u.memblock_count.binding.resolved && rhs->u.memblock_count.binding.slot >= 0) {
+            uint64_t decl_count =
+                tc_type_memblock_count(rhs->u.memblock_count.binding.type);
+
+            fprintf(out, "%s{\n", indent);
+            fprintf(out, "%s    uint64_t _mb_cnt = tc_aot_memblock_get_count(slots[%d]);\n",
+                    indent, rhs->u.memblock_count.binding.slot);
+            if (decl_count > 0) {
+                fprintf(out, "%s    if (_mb_cnt == 0) _mb_cnt = %" PRIu64 "ULL;\n", indent,
+                        decl_count);
+            }
+            fprintf(out, "%s    %s = _mb_cnt;\n", indent, dst_expr);
+            fprintf(out, "%s}\n", indent);
+            return 0;
         }
         if (sym && sym->slot >= 0) {
             fprintf(out, "%s{\n", indent);

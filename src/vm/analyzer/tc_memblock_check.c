@@ -204,6 +204,7 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
                               "memblock count requires memblock variable");
             return -1;
         }
+        tc_resolved_binding_set((TcResolvedBinding *)&rhs->u.memblock_count.binding, mb);
         if (expected && expected->tag != TC_USIZE && expected->tag != TC_ISIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock count result must be usize/isize");
@@ -227,6 +228,7 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
     if (!mb) {
         return -1;
     }
+    tc_resolved_binding_set((TcResolvedBinding *)&stmt->binding, mb);
     if (mb->sym_kind == TC_SYM_CONSTANT || mb->sym_kind == TC_SYM_STATIC_LET) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, stmt->line, TC_COLUMN_UNKNOWN,
                           "cannot store into constant memblock");
@@ -272,6 +274,8 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
     if (!src) {
         return -1;
     }
+    tc_resolved_binding_set((TcResolvedBinding *)&stmt->dst_binding, dst);
+    tc_resolved_binding_set((TcResolvedBinding *)&stmt->src_binding, src);
     if (dst->sym_kind == TC_SYM_CONSTANT || dst->sym_kind == TC_SYM_STATIC_LET) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, stmt->line, TC_COLUMN_UNKNOWN,
                           "cannot copy into constant memblock");

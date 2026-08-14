@@ -1,0 +1,11 @@
+#lib
+; f 与 g 的形参同名 mb；两函数体首条语句均对形参做 store，
+; 用于回归「按名解析跨函数绑错槽」缺陷
+public func f(mb: memblock<int32, 3>) int32 then
+    memblock_store(int32, mb, 0, 42)
+    return 0
+end
+public func g(mb: memblock<int32, 3>) int32 then
+    memblock_store(int32, mb, 1, 77)
+    return 0
+end

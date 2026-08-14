@@ -233,8 +233,10 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
                                                ctx->program->struct_table) + 7U) / 8U;
 
-        if (tc_aot_resolve_var_slot(symbols, &ctx->sym_index, store->memblock_name, stmt_index,
-                                    &mb_slot) != 0) {
+        if (store->binding.resolved && store->binding.slot >= 0) {
+            mb_slot = store->binding.slot;
+        } else if (tc_aot_resolve_var_slot(symbols, &ctx->sym_index, store->memblock_name,
+                                           stmt_index, &mb_slot) != 0) {
             return -1;
         }
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
@@ -264,10 +266,14 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
                                                ctx->program->struct_table) + 7U) / 8U;
 
-        if (tc_aot_resolve_var_slot(symbols, &ctx->sym_index, copy->dst_name, stmt_index,
-                                    &dst_slot) != 0 ||
-            tc_aot_resolve_var_slot(symbols, &ctx->sym_index, copy->src_name, stmt_index,
-                                    &src_slot) != 0) {
+        if (copy->dst_binding.resolved && copy->dst_binding.slot >= 0 &&
+            copy->src_binding.resolved && copy->src_binding.slot >= 0) {
+            dst_slot = copy->dst_binding.slot;
+            src_slot = copy->src_binding.slot;
+        } else if (tc_aot_resolve_var_slot(symbols, &ctx->sym_index, copy->dst_name, stmt_index,
+                                           &dst_slot) != 0 ||
+                   tc_aot_resolve_var_slot(symbols, &ctx->sym_index, copy->src_name, stmt_index,
+                                           &src_slot) != 0) {
             return -1;
         }
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);

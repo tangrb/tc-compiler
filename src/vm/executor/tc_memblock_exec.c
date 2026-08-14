@@ -226,25 +226,37 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
     return 0;
 }
 
-int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue *out,
-                           TcDiagnostic *diag, int line) {
+int tc_exec_memblock_count(int slot, TcExecuteCtx *ctx, TcValue *out, TcDiagnostic *diag,
+                           int line) {
     const TcSymbol *sym = NULL;
     void *block = NULL;
     uint64_t count = 0;
 
-    sym = tc_exec_find_symbol(ctx->symbols, memblock_name);
-    if (!sym || sym->slot < 0 || tc_type_tag_of(sym->type) != TC_MEMBLOCK) {
+    /* Pass2 已持久化 binding（slot 由调用方传入）；按名回退仅作防御 */
+    if (slot < 0 || slot >= (int)tc_symbol_table_runtime_slot_count(ctx->symbols)) {
         tc_exec_set_internal_error(diag, line, "internal error: unresolved memblock for count");
         return -1;
     }
-    if (ctx->slots[sym->slot].bits != 0) {
-        block = tc_memblock_data(&ctx->slots[sym->slot]);
+    if (ctx->slots[slot].bits != 0) {
+        block = tc_memblock_data(&ctx->slots[slot]);
         if (block) {
             memcpy(&count, block, sizeof(uint64_t));
         }
     }
     if (count == 0) {
-        count = tc_memblock_declared_count(sym);
+        sym = NULL;
+        {
+            size_t i = 0;
+            for (i = 0; i < ctx->symbols->count; i++) {
+                if (ctx->symbols->symbols[i].slot == slot) {
+                    sym = &ctx->symbols->symbols[i];
+                    break;
+                }
+            }
+        }
+        if (sym) {
+            count = tc_memblock_declared_count(sym);
+        }
     }
     out->type = tc_type_tag_singleton(TC_USIZE);
     out->bits = count;
@@ -254,6 +266,7 @@ int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue
 int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *ctx,
                                 TcDiagnostic *diag) {
     const TcSymbol *sym = NULL;
+    const TcType *mb_type = NULL;
     TcValue mb_value;
     void *block = NULL;
     uint64_t index = 0;
@@ -262,13 +275,22 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
     TcValue value;
     uint8_t *dst = NULL;
 
-    sym = tc_exec_find_symbol(ctx->symbols, stmt->memblock_name);
-    if (!sym || sym->slot < 0) {
-        tc_exec_set_internal_error(diag, stmt->line,
-                                   "internal error: unresolved memblock store target");
-        return -1;
+    /* Pass2 已持久化 binding；按名回退仅作防御（同名形参跨函数时
+     * 按名解析会绑错槽，故必须优先使用 binding）。mb_type 同时用于
+     * 元素字节宽计算，避免 sym 为 NULL 时解引用。 */
+    if (!stmt->binding.resolved || stmt->binding.slot < 0) {
+        sym = tc_exec_find_symbol(ctx->symbols, stmt->memblock_name);
+        if (!sym || sym->slot < 0) {
+            tc_exec_set_internal_error(diag, stmt->line,
+                                       "internal error: unresolved memblock store target");
+            return -1;
+        }
+        mb_value = ctx->slots[sym->slot];
+        mb_type = sym->type;
+    } else {
+        mb_value = ctx->slots[stmt->binding.slot];
+        mb_type = stmt->binding.type;
     }
-    mb_value = ctx->slots[sym->slot];
     block = tc_memblock_data(&mb_value);
     if (!block) {
         tc_exec_set_internal_error(diag, stmt->line, "internal error: invalid memblock value");
@@ -290,7 +312,7 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
         value.type = tc_type_tag_singleton(TC_BOOL);
     }
     element_bytes =
-        tc_memblock_element_bytes(sym->type->params.memblock_type.element, ctx);
+        tc_memblock_element_bytes(mb_type->params.memblock_type.element, ctx);
     dst = tc_memblock_element_ptr(block, element_bytes, index);
     memcpy(dst, &value.bits, element_bytes);
     return 0;
@@ -312,14 +334,21 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
     size_t element_bytes = 0;
     TcType element_type;
 
-    dst_sym = tc_exec_find_symbol(ctx->symbols, stmt->dst_name);
-    src_sym = tc_exec_find_symbol(ctx->symbols, stmt->src_name);
-    if (!dst_sym || !src_sym || dst_sym->slot < 0 || src_sym->slot < 0) {
-        tc_exec_set_internal_error(diag, stmt->line, "internal error: unresolved memblock copy");
-        return -1;
+    if (stmt->dst_binding.resolved && stmt->dst_binding.slot >= 0 &&
+        stmt->src_binding.resolved && stmt->src_binding.slot >= 0) {
+        dst_mb = ctx->slots[stmt->dst_binding.slot];
+        src_mb = ctx->slots[stmt->src_binding.slot];
+    } else {
+        /* 防御回退：Pass2 应已填 binding */
+        dst_sym = tc_exec_find_symbol(ctx->symbols, stmt->dst_name);
+        src_sym = tc_exec_find_symbol(ctx->symbols, stmt->src_name);
+        if (!dst_sym || !src_sym || dst_sym->slot < 0 || src_sym->slot < 0) {
+            tc_exec_set_internal_error(diag, stmt->line, "internal error: unresolved memblock copy");
+            return -1;
+        }
+        dst_mb = ctx->slots[dst_sym->slot];
+        src_mb = ctx->slots[src_sym->slot];
     }
-    dst_mb = ctx->slots[dst_sym->slot];
-    src_mb = ctx->slots[src_sym->slot];
     dst_block = tc_memblock_data(&dst_mb);
     src_block = tc_memblock_data(&src_mb);
     if (!dst_block || !src_block) {

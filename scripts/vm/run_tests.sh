@@ -1948,6 +1948,11 @@ run_expect_check_fail "$ROOT/tests/modules/import_badlib_uninit.tc" \
     "use of uninitialized variable"
 # --- memblock N 规划个数：funcall 返回值位置（P0-3） ---
 run_expect_check_fail "$ROOT/tests/modules/import_mbsize_mismatch.tc" "memblock size mismatch"
+# --- 同名形参跨函数 + 首条语句 store（P1：binding 持久化回归） ---
+run_expect_stdout "$ROOT/tests/modules/phase5_memblock_param_scope.tc" "0
+0
+0
+"
 
 # --- v0.0.37 TC-Embed: library function checking ---
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"

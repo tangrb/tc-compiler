@@ -257,12 +257,9 @@ int tc_aot_resolve_var_slot(const TcSymbolTable *symbols, const TcSymbolNameInde
                             const char *name, int stmt_index, int *out_slot) {
     const TcSymbol *sym = tc_symbol_table_find_visible(symbols, name, stmt_index, sym_index);
 
-    /* find_visible 按 stmt_index 判定可见性：形参 def_stmt_index 与函数体首条
-     * 语句相同，严格小于判定使首条语句上的 memblock_store/copy 目标形参不可见。
-     * 运行时名称唯一（遮蔽在分析期已消解），回退全局名查找是安全且必要的。 */
-    if (!sym) {
-        sym = tc_aot_find_symbol_by_name(symbols, name);
-    }
+    /* 禁止回退到全局按名扫表：共享符号表跨函数/模块存在同名符号时，
+     * 按 def_stmt_index 取最大会绑错槽（memblock store/copy 已改由
+     * Pass2 持久化的 binding 取槽，此函数仅作防御路径）。 */
     if (!sym || sym->slot < 0) {
         return -1;
     }

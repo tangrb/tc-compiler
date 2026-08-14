@@ -552,6 +552,7 @@ typedef struct {
         } memblock_ctor;
         struct {
             char *memblock_name;
+            TcResolvedBinding binding; /* Pass2 解析后的绑定（Executor/AOT 直接取槽） */
         } memblock_count;
         struct {
             char *struct_name;
@@ -825,6 +826,7 @@ typedef struct {
     int line;
     TcType element_type;
     char *memblock_name;     /* 目标 memblock 绑定名 */
+    TcResolvedBinding binding; /* Pass2 解析后的目标绑定（Executor/AOT 直接取槽） */
     TcOperand index;
     TcOperand value;
 } TcMemblockStoreStmt;
@@ -833,8 +835,10 @@ typedef struct {
     int line;
     TcType element_type;
     char *dst_name;
+    TcResolvedBinding dst_binding; /* Pass2 解析后的目标绑定 */
     TcOperand dst_index;
     char *src_name;
+    TcResolvedBinding src_binding; /* Pass2 解析后的源绑定 */
     TcOperand src_index;
     TcOperand length;
 } TcMemblockCopyStmt;

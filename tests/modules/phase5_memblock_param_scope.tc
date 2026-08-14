@@ -1,0 +1,13 @@
+#program
+; 同名形参跨函数 + 函数体首条语句对形参做 memblock_store：
+; Pass2 持久化 binding 保证不按名绑错槽（VM 与 AOT 均须正确）
+import ParamScopeLib
+var m: memblock<int32, 3> = memblock(int32, count: 3, fill: 0)
+var z: int32 = funcall(ParamScopeLib.f, mb: m)
+var v: int32 = memblock_load(int32, m, 0)
+writeln(int32, v)
+var w: int32 = memblock_load(int32, m, 1)
+writeln(int32, w)
+var n: memblock<int32, 3> = memblock(int32, count: 3, fill: 9)
+var z2: int32 = funcall(ParamScopeLib.g, mb: n)
+writeln(int32, z2)
