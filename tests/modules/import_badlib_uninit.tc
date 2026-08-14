@@ -1,0 +1,4 @@
+#program
+import BadLibUninit
+var r: int32 = funcall(BadLibUninit.bad)
+writeln(int32, r)

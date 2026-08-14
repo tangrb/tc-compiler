@@ -1,0 +1,5 @@
+#lib
+; 库函数体缺失 return——作为依赖导入时也必须被静态拒绝
+public func bad() int32 then
+    var x: int32 = 1
+end

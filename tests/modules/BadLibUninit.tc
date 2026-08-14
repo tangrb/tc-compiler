@@ -1,0 +1,9 @@
+#lib
+; 库函数体经 goto 跳过初始化——作为依赖导入时也必须被静态拒绝
+public func bad() int32 then
+    goto use_a
+    var a: int32 = 0
+    label use_a:
+    var b: int32 = add(int32, a, 0)
+    return b
+end

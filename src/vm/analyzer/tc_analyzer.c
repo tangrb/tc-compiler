@@ -273,6 +273,30 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     }
     out->cfg = &out->cfg_set->toplevel;
 
+    /* 阶段 11：依赖库函数体同样执行 CFG 数据流检查（确定初始化 / 不可达 /
+     * MISSING_RETURN）。此前仅对入口模块构建 CFG，导入库的函数体缺陷
+     * （如 goto 跳过初始化、缺少 return）会静默通过。 */
+    {
+        size_t di = 0;
+        for (di = 0; di < out->dep_count; di++) {
+            TcCfgSet dep_set;
+            int dep_rc = 0;
+
+            tc_cfg_set_init(&dep_set);
+            if (tc_cfg_build_all(&out->deps[di], &out->symbols, &dep_set, diag) != 0) {
+                dep_rc = -1;
+            } else if (tc_analyze_definite_init_all(
+                           &dep_set, &out->deps[di],
+                           tc_symbol_table_runtime_slot_count(&out->symbols), diag) != 0) {
+                dep_rc = -1;
+            }
+            tc_cfg_set_free(&dep_set);
+            if (dep_rc != 0) {
+                goto fail;
+            }
+        }
+    }
+
     /* 阶段 12：调用图 */
     if (tc_callgraph_check(&func_env, diag) != 0) {
         goto fail;
