@@ -81,8 +81,9 @@ static int tc_6a_collect_labels_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             return -1;
         }
 
-        return tc_symbol_table_add_label(symbols, label_def->name, stmt_index, label_def->line,
-                                         ctx->block_path.path, ctx->block_path.depth, diag);
+        return tc_symbol_table_add_label(symbols, label_def->name, ctx->current_func_id,
+                                         stmt_index, label_def->line, ctx->block_path.path,
+                                         ctx->block_path.depth, diag);
     }
 
     if (stmt->kind == TC_STMT_GOTO) {
@@ -103,16 +104,20 @@ static int tc_6a_collect_labels_stmt(TcStatement *stmt, TcSymbolTable *symbols,
     if (stmt->kind == TC_STMT_FUNC_DEF) {
         TcFuncDef *func = &stmt->u.func_def;
         size_t i = 0;
+        int saved_func_id = ctx->current_func_id;
 
         (void)tc_stmt_index_take(&ctx->index);
         ctx->func_depth++;
+        ctx->current_func_id = func->func_id;
         for (i = 0; i < func->body_count; i++) {
             if (tc_6a_collect_labels_stmt(&func->body[i], symbols, ctx, diag) != 0) {
                 ctx->func_depth--;
+                ctx->current_func_id = saved_func_id;
                 return -1;
             }
         }
         ctx->func_depth--;
+        ctx->current_func_id = saved_func_id;
         return 0;
     }
 
@@ -130,6 +135,7 @@ int tc_analyze_6a_collect_labels(TcProgram *program, TcSymbolTable *symbols,
     ctx->block_path.depth = 0;
     ctx->loop_depth = 0;
     ctx->func_depth = 0;
+    ctx->current_func_id = -1;
     for (i = 0; i < program->count; i++) {
         if (tc_6a_collect_labels_stmt(&program->items[i], symbols, ctx, diag) != 0) {
             return -1;

@@ -1,0 +1,13 @@
+#lib
+; §7.3：每个函数独立标签表。函数 a 与函数 b 各含 label x，
+; 跨函数同名标签互不相关，编译须通过（不得报 duplicate label）。
+public func a() void then
+    goto x
+    label x:
+    return
+end
+public func b() void then
+    goto x
+    label x:
+    return
+end

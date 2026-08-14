@@ -134,8 +134,10 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
     if (stmt->kind == TC_STMT_FUNC_DEF) {
         TcFuncDef *func = &stmt->u.func_def;
         size_t i = 0;
+        int saved_func_id = ctx->current_func_id;
 
         (void)tc_stmt_index_take(&ctx->index);
+        ctx->current_func_id = func->func_id;
         if (tc_symbol_table_push_scope(symbols) < 0) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, func->line, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
@@ -170,9 +172,11 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         if (tc_pass1_collect_block(func->body, func->body_count, symbols, next_slot,
                                    TC_SLOT_LOCAL, ctx, diag) != 0) {
             tc_symbol_table_pop_scope(symbols);
+            ctx->current_func_id = saved_func_id;
             return -1;
         }
         tc_symbol_table_pop_scope(symbols);
+        ctx->current_func_id = saved_func_id;
         return 0;
     }
 
@@ -280,8 +284,9 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         const TcLabelDef *label_def = &stmt->u.label_def;
         int stmt_index = tc_stmt_index_take(&ctx->index);
 
-        return tc_symbol_table_add_label(symbols, label_def->name, stmt_index, label_def->line,
-                                         NULL, tc_symbol_table_current_scope(symbols), diag);
+        return tc_symbol_table_add_label(symbols, label_def->name, ctx->current_func_id,
+                                         stmt_index, label_def->line, NULL,
+                                         tc_symbol_table_current_scope(symbols), diag);
     }
 
     if (stmt->kind == TC_STMT_GOTO) {
@@ -303,6 +308,7 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols, TcTypeT
     ctx.program = program;
     ctx.last_init = NULL;
     ctx.next_loop_id = 0;
+    ctx.current_func_id = -1;
     ctx.type_table = types;
     tc_stmt_index_reset(&ctx.index);
 

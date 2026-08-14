@@ -3,7 +3,8 @@
  *
  * 线性符号数组 + 作用域栈。符号按定义顺序追加；pop_scope 关闭当前层可见性（符号保留）。
  * find_in_scope 自尾部向前扫描，内层 shadowing 优先。
- * 标签表：同深度禁止重名；pop_scope 时删除当前深度标签（兄弟块可复用同名）。
+ * 标签表：同函数同深度禁止重名；pop_scope 时删除当前深度标签（兄弟块可复用同名）。
+ * 标签带 func_id 归属；跨函数同名互不相关。
  */
 #include "tc_symbol.h"
 
@@ -281,8 +282,9 @@ void tc_symbol_table_pop_scope(TcSymbolTable *table) {
     table->scope_count--;
 }
 
-int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index, int line,
-                              const TcBlockId *block_path, int block_depth, TcDiagnostic *diag) {
+int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int func_id,
+                              int stmt_index, int line, const TcBlockId *block_path,
+                              int block_depth, TcDiagnostic *diag) {
     size_t i = 0;
     char msg[128];
     TcBlockId *path_copy = NULL;
@@ -290,7 +292,8 @@ int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_i
     for (i = 0; i < table->label_count; i++) {
         const TcLabelEntry *entry = &table->labels[i];
 
-        if (strcmp(entry->name, name) != 0 || entry->block_depth != block_depth) {
+        if (strcmp(entry->name, name) != 0 || entry->func_id != func_id ||
+            entry->block_depth != block_depth) {
             continue;
         }
         if (block_path != NULL) {
@@ -335,6 +338,7 @@ int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_i
                           "memory allocation failed");
         return -1;
     }
+    table->labels[table->label_count].func_id = func_id;
     table->labels[table->label_count].stmt_index = stmt_index;
     table->labels[table->label_count].block_depth = block_depth;
     table->labels[table->label_count].block_path = path_copy;

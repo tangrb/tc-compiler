@@ -64,8 +64,12 @@ static int tc_pass2_resolve_target_type(TcInitHistory *hist, const TcType *owned
 /*  goto 解析与跳转合法性                                                */
 /* ------------------------------------------------------------------ */
 
+/*
+ * §7.3：每个函数独立标签表。仅解析当前函数（func_id）内的标签；
+ * 跨函数同名标签互不相关，函数内无同名标签 → 调用方报 TC_CE_LABEL_NOT_FOUND。
+ */
 static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, const char *name,
-                                                 const TcBlockPath *goto_path) {
+                                                 int func_id, const TcBlockPath *goto_path) {
     const TcLabelEntry *best_same = NULL;
     const TcLabelEntry *best_ancestor = NULL;
     const TcLabelEntry *any = NULL;
@@ -74,7 +78,7 @@ static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, con
     for (i = 0; i < table->label_count; i++) {
         const TcLabelEntry *entry = &table->labels[i];
 
-        if (strcmp(entry->name, name) != 0) {
+        if (strcmp(entry->name, name) != 0 || entry->func_id != func_id) {
             continue;
         }
         any = entry;
@@ -1270,7 +1274,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                               TC_COLUMN_UNKNOWN, "goto is only allowed inside a function");
             return -1;
         }
-        entry = tc_resolve_goto_label(symbols, goto_stmt->target, &ctx->block_path);
+        entry = tc_resolve_goto_label(symbols, goto_stmt->target, ctx->current_func_id,
+                                      &ctx->block_path);
         if (!entry) {
             (void)snprintf(msg, sizeof(msg), "label '%s' not found", goto_stmt->target);
             tc_diagnostic_set(diag, TC_CE_LABEL_NOT_FOUND, goto_stmt->line, TC_COLUMN_UNKNOWN,
@@ -1295,10 +1300,12 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         TcSymbolTable visible_body;
         size_t i = 0;
         const TcFuncSignature *saved_func = NULL;
+        int saved_func_id = ctx->current_func_id;
 
         (void)tc_stmt_index_take(&ctx->index);
         tc_symbol_table_init(&visible_body);
         ctx->func_depth++;
+        ctx->current_func_id = func->func_id;
         if (ctx->func_env) {
             saved_func = ctx->func_env->current_func;
             ctx->func_env->current_func = NULL;
@@ -1334,6 +1341,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                     ctx->func_env->current_func = saved_func;
                 }
                 ctx->func_depth--;
+                ctx->current_func_id = saved_func_id;
                 tc_symbol_table_free(&visible_body);
                 return -1;
             }
@@ -1349,6 +1357,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                     ctx->func_env->current_func = saved_func;
                 }
                 ctx->func_depth--;
+                ctx->current_func_id = saved_func_id;
                 tc_symbol_table_free(&visible_body);
                 return -1;
             }
@@ -1357,6 +1366,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             ctx->func_env->current_func = saved_func;
         }
         ctx->func_depth--;
+        ctx->current_func_id = saved_func_id;
         tc_symbol_table_free(&visible_body);
         return 0;
     }
@@ -1600,6 +1610,7 @@ int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcStructTabl
     ctx.current_loop_id = -1;
     ctx.loop_depth = 0;
     ctx.func_depth = 0;
+    ctx.current_func_id = -1;
     ctx.num_slots = (int)tc_symbol_table_runtime_slot_count(symbols);
 
     if (ctx.num_slots > 0) {

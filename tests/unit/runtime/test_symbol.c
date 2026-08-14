@@ -194,11 +194,12 @@ static void test_label_add_and_find(void) {
 
     tc_diagnostic_init(&diag);
     tc_symbol_table_init(&table);
-    check(tc_symbol_table_add_label(&table, "start", 0, 1, NULL, 0, &diag) == 0,
+    check(tc_symbol_table_add_label(&table, "start", 0, 0, 1, NULL, 0, &diag) == 0,
           "add global label");
     entry = tc_symbol_table_find_label(&table, "start");
     check(entry != NULL, "find global label");
-    check(entry != NULL && entry->stmt_index == 0 && entry->block_depth == 0,
+    check(entry != NULL && entry->stmt_index == 0 && entry->block_depth == 0 &&
+              entry->func_id == 0,
           "label fields");
     check(tc_symbol_table_find_label(&table, "missing") == NULL, "missing label → NULL");
     tc_symbol_table_free(&table);
@@ -211,8 +212,8 @@ static void test_label_duplicate_same_scope(void) {
 
     tc_diagnostic_init(&diag);
     tc_symbol_table_init(&table);
-    check(tc_symbol_table_add_label(&table, "dup", 0, 1, NULL, 0, &diag) == 0, "add first dup");
-    check(tc_symbol_table_add_label(&table, "dup", 1, 2, NULL, 0, &diag) != 0,
+    check(tc_symbol_table_add_label(&table, "dup", 0, 0, 1, NULL, 0, &diag) == 0, "add first dup");
+    check(tc_symbol_table_add_label(&table, "dup", 0, 1, 2, NULL, 0, &diag) != 0,
           "duplicate label fails");
     check(diag.kind == TC_CE_DUPLICATE_LABEL, "duplicate → TC_CE_DUPLICATE_LABEL");
     check(table.label_count == 1, "duplicate not inserted");
@@ -228,13 +229,13 @@ static void test_label_sibling_scopes_same_name(void) {
     tc_symbol_table_init(&table);
 
     check(tc_symbol_table_push_scope(&table) == 1, "then scope");
-    check(tc_symbol_table_add_label(&table, "L", 1, 2, NULL, 1, &diag) == 0, "then label L");
+    check(tc_symbol_table_add_label(&table, "L", 0, 1, 2, NULL, 1, &diag) == 0, "then label L");
     check(tc_symbol_table_find_label(&table, "L") != NULL, "then finds L");
     tc_symbol_table_pop_scope(&table);
     check(tc_symbol_table_find_label(&table, "L") == NULL, "after then pop L gone");
 
     check(tc_symbol_table_push_scope(&table) == 1, "else scope");
-    check(tc_symbol_table_add_label(&table, "L", 3, 4, NULL, 1, &diag) == 0,
+    check(tc_symbol_table_add_label(&table, "L", 0, 3, 4, NULL, 1, &diag) == 0,
           "else label L (sibling ok)");
     check(table.label_count == 1, "only else L remains");
     tc_symbol_table_pop_scope(&table);
@@ -251,9 +252,9 @@ static void test_label_find_prefers_inner(void) {
 
     tc_diagnostic_init(&diag);
     tc_symbol_table_init(&table);
-    check(tc_symbol_table_add_label(&table, "L", 0, 1, NULL, 0, &diag) == 0, "outer L");
+    check(tc_symbol_table_add_label(&table, "L", 0, 0, 1, NULL, 0, &diag) == 0, "outer L");
     check(tc_symbol_table_push_scope(&table) == 1, "inner scope");
-    check(tc_symbol_table_add_label(&table, "L", 2, 3, NULL, 1, &diag) == 0, "inner L shadows");
+    check(tc_symbol_table_add_label(&table, "L", 0, 2, 3, NULL, 1, &diag) == 0, "inner L shadows");
     entry = tc_symbol_table_find_label(&table, "L");
     check(entry != NULL && entry->block_depth == 1 && entry->stmt_index == 2,
           "find_label prefers inner");
@@ -276,7 +277,7 @@ static void test_label_block_path_copy(void) {
 
     tc_diagnostic_init(&diag);
     tc_symbol_table_init(&table);
-    check(tc_symbol_table_add_label(&table, "inner", 5, 1, path, 2, &diag) == 0,
+    check(tc_symbol_table_add_label(&table, "inner", 0, 5, 1, path, 2, &diag) == 0,
           "add label with path");
     entry = tc_symbol_table_find_label(&table, "inner");
     check(entry != NULL && entry->block_path != NULL, "path stored");
@@ -286,6 +287,31 @@ static void test_label_block_path_copy(void) {
               entry->block_path[1].kind == TC_BLOCK_WHILE,
           "path values copied");
     check(entry != NULL && entry->block_path != path, "path is deep copy");
+    tc_symbol_table_free(&table);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_label_duplicate_across_functions_ok(void) {
+    TcSymbolTable table;
+    TcDiagnostic diag;
+    TcBlockId path_a[] = {{1, TC_BLOCK_IF_THEN}};
+    TcBlockId path_b[] = {{5, TC_BLOCK_IF_THEN}};
+    const TcLabelEntry *entry = NULL;
+
+    tc_diagnostic_init(&diag);
+    tc_symbol_table_init(&table);
+    /* 同一函数（func_id 7）同块同名 → 仍报重复 */
+    check(tc_symbol_table_add_label(&table, "x", 7, 0, 1, path_a, 1, &diag) == 0, "func a label x");
+    check(tc_symbol_table_add_label(&table, "x", 7, 2, 3, path_a, 1, &diag) != 0,
+          "same function duplicate x fails");
+    check(diag.kind == TC_CE_DUPLICATE_LABEL, "same function duplicate → TC_CE_DUPLICATE_LABEL");
+    tc_diagnostic_clear(&diag);
+    /* 另一函数（func_id 9）同名标签 → 合法（各自独立标签表） */
+    check(tc_symbol_table_add_label(&table, "x", 9, 4, 5, path_b, 1, &diag) == 0,
+          "func b label x ok");
+    check(table.label_count == 2, "both functions retain label x");
+    entry = tc_symbol_table_find_label(&table, "x");
+    check(entry != NULL && entry->func_id == 9, "find_label returns most recent func's x");
     tc_symbol_table_free(&table);
     tc_diagnostic_clear(&diag);
 }
@@ -304,6 +330,7 @@ int main(void) {
     test_label_sibling_scopes_same_name();
     test_label_find_prefers_inner();
     test_label_block_path_copy();
+    test_label_duplicate_across_functions_ok();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

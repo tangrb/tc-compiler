@@ -55,7 +55,7 @@ void tc_aot_loop_stack_pop(TcAotLoopStack *loops);
 
 /* 符号解析辅助 */
 const TcLabelEntry *tc_aot_resolve_goto_label(const TcSymbolTable *table, const char *name,
-                                              const TcAotBlockPath *goto_path);
+                                              int func_id, const TcAotBlockPath *goto_path);
 const TcSymbol *tc_aot_find_def_symbol(const TcSymbolTable *symbols, const char *name,
                                        int def_line);
 const TcFuncDef *tc_aot_find_func_def(const TcTypedProgram *prog, int func_id,

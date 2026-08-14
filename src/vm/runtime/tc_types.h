@@ -976,6 +976,7 @@ typedef struct {
 /** 标签表条目（v0.0.26）；Pass1 按深度 pop；Pass2 保留全部并带块路径 */
 typedef struct {
     char *name;              /* 标签名，堆分配 */
+    int func_id;             /* 所属函数 func_id（4d 稳定分配，全局唯一）；顶层为 -1 */
     int stmt_index;          /* 标签语句的扁平序号 */
     int block_depth;         /* 标签所在的作用域深度 / 块路径长度 */
     TcBlockId *block_path;   /* 块路径（堆分配），长度 = block_depth；Pass1 可为 NULL */

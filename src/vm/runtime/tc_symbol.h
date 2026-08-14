@@ -115,14 +115,16 @@ TcSymbol *tc_symbol_table_find_mut(TcSymbolTable *table, const char *name);
 
 /**
  * 添加标签。
+ * @param func_id     所属函数 func_id（4d 稳定分配；顶层传 -1）
  * @param block_path  块路径（长度 block_depth）；NULL 表示仅按 depth 查重（Pass1）
  * @param block_depth 路径深度；Pass1 传当前作用域层级
- * 同作用域重名 → TC_CE_DUPLICATE_LABEL；不同块路径允许同名。
+ * 同函数同作用域重名 → TC_CE_DUPLICATE_LABEL；跨函数同名合法（各自独立标签表），
+ * 不同块路径允许同名。
  * @return 成功 0；重复标签或 OOM 返回 -1
  */
-int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int stmt_index,
-                              int line, const TcBlockId *block_path, int block_depth,
-                              TcDiagnostic *diag);
+int tc_symbol_table_add_label(TcSymbolTable *table, const char *name, int func_id,
+                              int stmt_index, int line, const TcBlockId *block_path,
+                              int block_depth, TcDiagnostic *diag);
 
 /**
  * 自表尾向前按名查找标签（不区分块；跳转解析见 Analyzer）。

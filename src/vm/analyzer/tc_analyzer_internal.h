@@ -51,6 +51,7 @@ typedef struct {
     int current_loop_id;         /* Pass2 当前最内层 while；-1 表示无 */
     int loop_depth;              /* 词法祖先 while 数，用于范式隔离 */
     int func_depth;              /* 词法祖先 func 数；0 表示顶层 */
+    int current_func_id;         /* 当前函数 func_id（4d 稳定分配）；顶层为 -1 */
     TcFuncCheckEnv *func_env;    /* Phase 4；可为 NULL */
     TcTypeTable *type_table;     /* 分析期类型池；Pass1 intern 用 */
 } TcAnalyzeCtx;

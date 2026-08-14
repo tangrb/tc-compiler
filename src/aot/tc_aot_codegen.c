@@ -65,8 +65,12 @@ void tc_aot_loop_stack_pop(TcAotLoopStack *loops) {
     }
 }
 
+/*
+ * §7.3：每个函数独立标签表。仅解析当前函数（func_id）内的标签；
+ * 跨函数同名标签互不相关（与 Analyzer pass2 tc_resolve_goto_label 对称）。
+ */
 const TcLabelEntry *tc_aot_resolve_goto_label(const TcSymbolTable *table, const char *name,
-                                              const TcAotBlockPath *goto_path) {
+                                              int func_id, const TcAotBlockPath *goto_path) {
     const TcLabelEntry *best_same = NULL;
     const TcLabelEntry *best_ancestor = NULL;
     const TcLabelEntry *any = NULL;
@@ -75,7 +79,7 @@ const TcLabelEntry *tc_aot_resolve_goto_label(const TcSymbolTable *table, const 
     for (i = 0; i < table->label_count; i++) {
         const TcLabelEntry *entry = &table->labels[i];
 
-        if (strcmp(entry->name, name) != 0) {
+        if (strcmp(entry->name, name) != 0 || entry->func_id != func_id) {
             continue;
         }
         any = entry;
