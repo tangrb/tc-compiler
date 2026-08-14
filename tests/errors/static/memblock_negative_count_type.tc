@@ -1,0 +1,3 @@
+#program
+; 期望：memblock count must be at least 1（§3.8.1：N 必须为正整数，负数静态拒绝）
+var mb: memblock<int32, -5> = memblock(int32, count: 5, fill: 0)

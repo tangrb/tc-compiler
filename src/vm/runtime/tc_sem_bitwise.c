@@ -102,6 +102,7 @@ int tc_exec_bitwise_unary(TcTypeTag type, const TcValue *operand, TcValue *out,
  * 使用无符号除法做边界检查以避免有符号溢出未定义行为。
  * k >= 64 时 val 非零即溢出（移位超越 int64 表示范围）。
  * 返回 1 表示溢出，0 表示结果存于 *result。
+ * 注：k 在进入本函数前已被校验为非负（负计数已在 tc_exec_shift 中报错）。
  */
 static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
     uint64_t pow2 = 0;
@@ -143,8 +144,26 @@ static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
     }
 }
 
-/* 将移位计数字段的位模式解包为无符号整数 k */
-static int tc_shift_count(TcTypeTag type, const TcValue *count, uint64_t *k_out) {
+/*
+ * 将移位计数字段的位模式按类型 T 的数值语义解码为数学值 k（规范 §6.4.2）：
+ *   - 有符号 T：按二进制补码解码为有符号值，k < 0 时触发 TC_RE_NEGATIVE_SHIFT_COUNT；
+ *   - 无符号 T：按非负整数解码，恒非负，不会触发本错误。
+ * 返回 0 表示成功（k 存于 *k_out），-1 表示负计数错误（diag 已设置）。
+ */
+static int tc_shift_count(TcTypeTag type, const TcValue *count, uint64_t *k_out,
+                          TcDiagnostic *diag, int line) {
+    if (tc_type_is_signed(type)) {
+        int64_t k = tc_bits_to_signed(type, count->bits);
+
+        if (k < 0) {
+            tc_diagnostic_set(diag, TC_RE_NEGATIVE_SHIFT_COUNT, line, TC_COLUMN_UNKNOWN,
+                              "negative shift count");
+            return -1;
+        }
+        *k_out = (uint64_t)k;
+        return 0;
+    }
+
     *k_out = tc_value_to_unsigned(type, count->bits);
     return 0;
 }
@@ -154,6 +173,8 @@ static int tc_shift_count(TcTypeTag type, const TcValue *count, uint64_t *k_out)
  * strict 模式：有符号检测乘法溢出（tc_smul_pow2_overflow + 窄类型范围），
  *   无符号检查 val > max >> k；wrap 模式：直接截断到 mask。
  * k >= 位宽时 wrap 返回 0，strict 报 overflow。
+ * 注：负移位计数已在 tc_exec_shift 中先行拦截（TC_RE_NEGATIVE_SHIFT_COUNT），
+ * 此处 k 恒为非负，k >= n 判定不受影响。
  */
 static int tc_exec_shl(TcTypeTag type, TcWrapMode mode, const TcValue *value,
                        uint64_t k, TcValue *out, TcDiagnostic *diag, int line) {
@@ -216,6 +237,7 @@ static int tc_exec_shl(TcTypeTag type, TcWrapMode mode, const TcValue *value,
  *   - 有符号：算术右移（高位复制符号位）
  *   - 无符号：逻辑右移（高位补 0）
  * k >= n 时直接返回 0。
+ * 注：负移位计数已在 tc_exec_shift 中先行拦截（TC_RE_NEGATIVE_SHIFT_COUNT）。
  */
 static int tc_exec_shr(TcTypeTag type, const TcValue *value, uint64_t k, TcValue *out) {
     int n = tc_type_bit_width(type);
@@ -259,7 +281,10 @@ int tc_exec_shift(TcShiftOp op, TcTypeTag type, TcWrapMode mode,
         return -1;
     }
 
-    tc_shift_count(type, count, &k);
+    /* 先解码移位计数：负计数（TC_RE_NEGATIVE_SHIFT_COUNT）优先于 k >= n 判定（规范 §6.4.2） */
+    if (tc_shift_count(type, count, &k, diag, line) != 0) {
+        return -1;
+    }
 
     if (op == TC_SHIFT_SHL) {
         if (tc_exec_shl(type, mode, value, k, out, diag, line) != 0) {

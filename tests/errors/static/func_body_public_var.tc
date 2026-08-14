@@ -1,0 +1,6 @@
+#lib
+; 期望：visibility modifier is not allowed inside a function body（附录 A：函数体 suite 不含可见性前缀）
+public func f() int32 then
+    public var x: int32 = 1
+    return x
+end

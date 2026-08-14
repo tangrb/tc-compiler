@@ -268,6 +268,14 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
         }
         tok = tc_peek(tokens, *index);
         if (tok->kind == TC_TOK_INTEGER) {
+            /* §3.8.1：N 必须是编译期 usize 常量、取值为正整数（≥1），负数静态拒绝。
+             * 词法器将 -5 产为 negative=1 的单个 INTEGER token，此处不得静默取 magnitude。 */
+            if (tok->u.literal.negative) {
+                tc_type_free(element);
+                free(element);
+                return tc_module_diag(diag, TC_CE_CONSTANT_EXPRESSION, line_no, tok->column,
+                                      "memblock count must be at least 1");
+            }
             count = tok->u.literal.magnitude;
             (*index)++;
         } else if (tok->kind == TC_TOK_IDENTIFIER) {
@@ -433,6 +441,12 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
             return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
                                   "public is not allowed in #program mode");
         }
+        /* 仅 #lib 模块顶层允许可见性；函数体等其它上下文一律拒绝（附录 A：suite
+         * 的 statement 不含可见性前缀）。 */
+        if (mode != TC_MODULE_LIB) {
+            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
+                                  "visibility modifier is not allowed inside a function body");
+        }
         *out_vis = TC_VIS_PUBLIC;
         (*index)++;
         return 0;
@@ -441,6 +455,10 @@ static int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
         if (mode == TC_MODULE_PROGRAM) {
             return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
                                   "private is not allowed in #program mode");
+        }
+        if (mode != TC_MODULE_LIB) {
+            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
+                                  "visibility modifier is not allowed inside a function body");
         }
         *out_vis = TC_VIS_PRIVATE;
         (*index)++;
@@ -1940,7 +1958,7 @@ static int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
 
     (*index)++;
     if (tc_parse_block_body_mode(ctx, lines, line_count, index, base_indent, file_indent,
-                                 TC_MODULE_LIB, &body, diag) != 0) {
+                                 TC_MODULE_FUNC_BODY, &body, diag) != 0) {
         tc_func_def_fail(&def);
         tc_stmt_block_free(&body);
         return -1;
@@ -2905,8 +2923,11 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
 
     tc_program_init(program);
 
-    /* 检查 UTF-8 BOM */
-    if ((unsigned char)source[0] == 0xEF &&
+    /* 检查 UTF-8 BOM（tc_lib.c 文件读取路径已做同检查；此处覆盖 tc_compile_source 等
+     * 字符串/嵌入路径，是 API 侧唯一的 BOM 防线，需保留）。
+     * 先判前 3 字节非 NUL（字符串至少 3 字节）再比较，避免短源越界读。 */
+    if (source[0] != '\0' && source[1] != '\0' && source[2] != '\0' &&
+        (unsigned char)source[0] == 0xEF &&
         (unsigned char)source[1] == 0xBB &&
         (unsigned char)source[2] == 0xBF) {
         tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, 1, "UTF-8 BOM not allowed in source file");

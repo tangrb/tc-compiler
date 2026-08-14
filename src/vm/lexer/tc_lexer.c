@@ -244,6 +244,15 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
         } else {
             lit->magnitude = 0;
             p++;
+            /* 前导零后紧跟 _+数字（如 0_5、0_0）：忽略分隔符后为前导零十进制，
+             * 属 §2.3.4 非法。此时 _ 不能作为合法分隔符单独拆出，否则 0_5 会被
+             * 拆成 `0` + 标识符 `_5` 两个 token，产生误导性语法错误；在此直接
+             * 报 TC_CE_SYNTAX，诊断定位到 _（column + (p - start)）。 */
+            if (*p == '_' && isdigit((unsigned char)p[1])) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column + (int)(p - start),
+                                  "invalid integer literal");
+                return -1;
+            }
         }
     } else if (isdigit((unsigned char)*p)) {
         if (tc_parse_radix_digits(&p, 10, 1, &lit->magnitude, diag, line, column) != 0) {

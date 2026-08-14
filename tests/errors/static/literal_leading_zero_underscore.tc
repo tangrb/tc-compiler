@@ -1,0 +1,3 @@
+#program
+; 期望：invalid integer literal（0_5 忽略分隔符后为前导零，§2.3.4 非法；错误定位到 _）
+var x: int32 = 0_5

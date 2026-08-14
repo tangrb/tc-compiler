@@ -1,0 +1,3 @@
+#program
+; 期望：constant expression 错误（negative shift count），编译期报出，不延迟到运行时
+let ERR: int32 = shr(int32, 8, -1)

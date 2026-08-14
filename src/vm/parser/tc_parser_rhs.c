@@ -353,6 +353,13 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
     {
         const TcToken *n_tok = tc_peek(tokens, *index);
         if (n_tok->kind == TC_TOK_INTEGER) {
+            /* §3.8.1：N 必须为正整数（≥1），负数静态拒绝，不得静默取 magnitude。 */
+            if (n_tok->u.literal.negative) {
+                tc_rhs_free(out);
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line_no, n_tok->column,
+                                  "memblock count must be at least 1");
+                return -1;
+            }
             out->u.memblock_ctor.count = n_tok->u.literal.magnitude;
             (*index)++;
         } else if (n_tok->kind == TC_TOK_IDENTIFIER) {

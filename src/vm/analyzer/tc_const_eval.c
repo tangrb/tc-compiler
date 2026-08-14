@@ -36,6 +36,11 @@ static int tc_const_map_runtime_error(TcErrorKind kind, TcDiagnostic *diag, int 
         tc_diagnostic_set(diag, TC_CE_CONSTANT_DIV_ZERO, line, TC_COLUMN_UNKNOWN,
                           "constant division by zero");
         return -1;
+    case TC_RE_NEGATIVE_SHIFT_COUNT:
+        /* 常量移位负计数报常量表达式错误，不映射为常量溢出（规范 §6.4.3） */
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "negative shift count");
+        return -1;
     case TC_RE_CAST_OVERFLOW:
         tc_diagnostic_set(diag, TC_CE_CONSTANT_CAST_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "constant cast overflow");

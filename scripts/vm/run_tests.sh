@@ -890,6 +890,9 @@ run_expect_stdout "$ROOT/tests/valid/phase5_ptr_bitcast.tc" "7
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_scope_outer.tc" "2
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_memblock_deepcopy.tc" "1
+1
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
 "
@@ -1006,6 +1009,7 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_expect_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
+run_expect_fail_msg "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_deref.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_arith.tc" "null pointer arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_store.tc" "null pointer dereference"
@@ -1478,6 +1482,21 @@ run_expect_fail_msg "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "floa
 
 # --check 模式下也应当捕获所有静态错误
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_simple.tc" "use of uninitialized variable"
+# --- 负移位计数（P0-6）：常量路径 ---
+run_expect_check_fail "$ROOT/tests/errors/static/negative_shift_count_const.tc" "negative shift count"
+# --- memblock N 规划个数：return / 字段读 / ptr_load 结果位置（P0-3） ---
+run_expect_check_fail "$ROOT/tests/errors/static/return_memblock_size_mismatch.tc" "memblock size mismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/field_memblock_size_mismatch.tc" "memblock size mismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_load_memblock_size_mismatch.tc" "memblock size mismatch"
+# --- 前端小项：负 count / 函数体内可见性 / 前导零分隔符 ---
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_negative_count_type.tc" \
+    "memblock count must be at least 1"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" \
+    "memblock count must be at least 1"
+run_expect_check_fail "$ROOT/tests/errors/static/func_body_public_var.tc" \
+    "visibility modifier is not allowed inside a function body"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore.tc" \
+    "invalid integer literal"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_chain.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_slot_value.tc" "use of uninitialized variable"
@@ -1909,6 +1928,13 @@ run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"
 run_expect_check_fail "$ROOT/tests/modules/duplicate_import.tc" "duplicate import"
 run_expect_check_fail "$ROOT/tests/modules/import_not_lib.tc" "imported module is not #lib"
 run_expect_check_ok "$ROOT/tests/modules/import_ok.tc"
+# --- 库函数体数据流检查（P0-1：导入库同样执行确定初始化 / MISSING_RETURN） ---
+run_expect_check_fail "$ROOT/tests/modules/import_badlib_missing_return.tc" \
+    "missing return on reachable path"
+run_expect_check_fail "$ROOT/tests/modules/import_badlib_uninit.tc" \
+    "use of uninitialized variable"
+# --- memblock N 规划个数：funcall 返回值位置（P0-3） ---
+run_expect_check_fail "$ROOT/tests/modules/import_mbsize_mismatch.tc" "memblock size mismatch"
 
 # --- v0.0.37 TC-Embed: library function checking ---
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"

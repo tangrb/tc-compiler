@@ -20,7 +20,9 @@ int tc_exec_bitwise_unary(TcTypeTag type, const TcValue *operand, TcValue *out,
 
 /**
  * 移位运算：shl（可选 wrap）/ shr（恒 strict，永不溢出）。
- * 计数 k 取无符号数学值，不掩码；被移位数与计数须与 type 一致。
+ * 移位计数按类型 T 的数值语义解码（规范 §6.4.2）：有符号 T 按二进制补码解码，
+ * 计数为负时触发 TC_RE_NEGATIVE_SHIFT_COUNT（先于 k >= n 判定）；无符号 T 恒非负。
+ * 计数不掩码；被移位数与计数须与 type 一致。
  */
 int tc_exec_shift(TcShiftOp op, TcTypeTag type, TcWrapMode mode,
                   const TcValue *value, const TcValue *count, TcValue *out,
