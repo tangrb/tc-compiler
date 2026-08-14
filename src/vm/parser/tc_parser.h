@@ -45,10 +45,9 @@ typedef struct {
     TcTokenList tokens;
 } TcSourceLine;
 
-/** 文件级缩进配置（由首段缩进行推断） */
+/** 文件级缩进配置：一级恒为 4 个 ASCII 空格（U+0020），行首不允许制表符 */
 typedef struct {
-    char indent_char; /* '\0' 表示尚未确定 */
-    int indent_width; /* 默认 4 */
+    int indent_width; /* 每级缩进宽度（恒为 4 空格） */
 } TcFileIndent;
 
 typedef TcBlockKind TcParserBlockKind;

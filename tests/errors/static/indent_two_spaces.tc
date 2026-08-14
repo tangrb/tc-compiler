@@ -1,0 +1,5 @@
+#program
+; 期望：2 空格块体（非 4 的倍数）报 insufficient indentation in block
+if true then
+  writeln(int32, %d, 1)
+end

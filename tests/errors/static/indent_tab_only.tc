@@ -1,0 +1,5 @@
+#program
+; 期望：纯 tab 缩进的 if 体报 mixed spaces and tabs in indentation
+if true then
+	writeln(int32, %d, 1)
+end

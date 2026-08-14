@@ -2359,50 +2359,28 @@ static int tc_indent_diag(TcDiagnostic *diag, TcErrorKind kind, int line_no, con
     return -1;
 }
 
-static int tc_measure_line_indent(const char *line, TcFileIndent *file_indent, int line_no,
-                                  TcDiagnostic *diag, int *out_indent) {
+/* 行首缩进测量：缩进只能由 ASCII 空格 U+0020 组成，每 4 个空格为一级，
+ * 行首空格总数必须能被 4 整除；行首出现水平制表符 U+0009 一律报
+ * TC_CE_INDENT_MIXED（无论是否与空格混用）。 */
+static int tc_measure_line_indent(const char *line, int line_no, TcDiagnostic *diag,
+                                  int *out_indent) {
     int spaces = 0;
-    int tabs = 0;
     const char *cursor = line;
 
     while (*cursor == ' ' || *cursor == '\t') {
-        if (*cursor == ' ') {
-            spaces++;
-        } else {
-            tabs++;
+        if (*cursor == '\t') {
+            return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
+                                  "mixed spaces and tabs in indentation");
         }
+        spaces++;
         cursor++;
     }
 
-    if (spaces > 0 && tabs > 0) {
-        return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
-                              "mixed spaces and tabs in indentation");
+    if (spaces % 4 != 0) {
+        return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
+                              "insufficient indentation in block");
     }
-
-    if (spaces > 0) {
-        if (file_indent->indent_char == '\0') {
-            file_indent->indent_char = ' ';
-        } else if (file_indent->indent_char != ' ') {
-            return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
-                                  "mixed spaces and tabs in indentation");
-        }
-        *out_indent = spaces;
-        return 0;
-    }
-
-    if (tabs > 0) {
-        if (file_indent->indent_char == '\0') {
-            file_indent->indent_char = '\t';
-            file_indent->indent_width = 1;
-        } else if (file_indent->indent_char != '\t') {
-            return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
-                                  "mixed spaces and tabs in indentation");
-        }
-        *out_indent = tabs;
-        return 0;
-    }
-
-    *out_indent = 0;
+    *out_indent = spaces;
     return 0;
 }
 
@@ -2420,56 +2398,20 @@ static void tc_source_lines_free(TcSourceLine *lines, size_t count) {
     free(lines);
 }
 
-static int tc_detect_indent_width(const TcSourceLine *lines, size_t count, char indent_char) {
-    size_t i = 0;
-
-    if (indent_char == '\t') {
-        return 1;
-    }
-
-    for (i = 0; i < count; i++) {
-        size_t j = 0;
-
-        if (lines[i].tokens.count == 0 ||
-            (lines[i].tokens.items[0].kind != TC_TOK_IF &&
-             lines[i].tokens.items[0].kind != TC_TOK_WHILE)) {
-            continue;
-        }
-        for (j = i + 1; j < count; j++) {
-            if (lines[j].indent <= lines[i].indent) {
-                break;
-            }
-            return lines[j].indent - lines[i].indent;
-        }
-    }
-    return 4;
-}
-
+/* 块内语句缩进校验：块内语句相对块头必须恰好增加一级（固定 4 空格）。
+ * 一次增加多级（如 8 空格）、或增加不足一级（如 2 空格）均报缩进错误；
+ * 回退到不属于本块的级别由调用方按 end/else 对齐检查判定。 */
 static int tc_block_indent_valid(const TcFileIndent *file_indent, int base_indent, int indent,
                                  TcDiagnostic *diag, int line_no) {
-    int delta = 0;
+    int delta = indent - base_indent;
 
-    if (indent <= base_indent) {
-        return 0;
+    if (delta <= 0) {
+        return 0; /* 块结束或不属于本块，由调用方判定 */
     }
-    delta = indent - base_indent;
-    if (file_indent->indent_char == '\t') {
-        if (delta < file_indent->indent_width) {
-            return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
-                                  "insufficient indentation in block");
-        }
-        return 0;
+    if (delta != file_indent->indent_width) {
+        return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
+                              "insufficient indentation in block");
     }
-
-    if (file_indent->indent_char == '\0' || file_indent->indent_char == ' ') {
-        if (delta < file_indent->indent_width ||
-            (delta % file_indent->indent_width) != 0) {
-            return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
-                                  "insufficient indentation in block");
-        }
-        return 0;
-    }
-
     return 0;
 }
 
@@ -2748,7 +2690,6 @@ static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines,
 
     *out_lines = NULL;
     *out_count = 0;
-    file_indent->indent_char = '\0';
     file_indent->indent_width = 4;
 
     while (*cursor != '\0') {
@@ -2773,7 +2714,7 @@ static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines,
         if (!tc_is_skippable_line(line_copy)) {
             TcSourceLine entry;
 
-            if (tc_measure_line_indent(line_copy, file_indent, line_no, diag, &indent) != 0) {
+            if (tc_measure_line_indent(line_copy, line_no, diag, &indent) != 0) {
                 free(line_copy);
                 tc_source_lines_free(lines, count);
                 return -1;
@@ -2828,10 +2769,6 @@ static int tc_collect_source_lines(const char *source, TcSourceLine **out_lines,
         }
         cursor = line_end;
         line_no++;
-    }
-
-    if (file_indent->indent_char == ' ') {
-        file_indent->indent_width = tc_detect_indent_width(lines, count, file_indent->indent_char);
     }
 
     *out_lines = lines;

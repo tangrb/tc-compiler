@@ -1,7 +1,7 @@
 #program
-; 期望：else 缩进与 if 不一致
+; 期望：else 缩进与 if 不一致（else 必须与对应 if 对齐）
     if true then
         writeln(int32, %d, 1)
-   else
+else
         writeln(int32, %d, 2)
     end
