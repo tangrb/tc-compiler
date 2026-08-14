@@ -31,6 +31,15 @@ void tc_diagnostic_clear(TcDiagnostic *diag);
 int tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source);
 
 /**
+ * 读取当前绑定的源文件路径与源文本。
+ * @param diag      诊断对象
+ * @param filename  输出：内部存储的路径指针（NULL 表示未绑定；不得释放）
+ * @param source    输出：内部存储的完整源文本指针（可为 NULL；不得释放）
+ */
+void tc_diagnostic_get_source(const TcDiagnostic *diag, const char **filename,
+                              const char **source);
+
+/**
  * 设置一条新的诊断信息。
  * @param diag    诊断对象
  * @param kind    错误种类

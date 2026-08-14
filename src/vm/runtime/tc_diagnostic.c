@@ -122,6 +122,16 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
     diag->column = TC_COLUMN_UNKNOWN;
 }
 
+void tc_diagnostic_get_source(const TcDiagnostic *diag, const char **filename,
+                              const char **source) {
+    if (filename) {
+        *filename = diag ? diag->filename : NULL;
+    }
+    if (source) {
+        *source = diag ? diag->source : NULL;
+    }
+}
+
 int tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source) {
     char *new_filename = NULL;
     char *new_source = NULL;

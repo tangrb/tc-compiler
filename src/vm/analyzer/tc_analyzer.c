@@ -275,13 +275,21 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     /* 阶段 11：依赖库函数体同样执行 CFG 数据流检查（确定初始化 / 不可达 /
      * MISSING_RETURN）。此前仅对入口模块构建 CFG，导入库的函数体缺陷
-     * （如 goto 跳过初始化、缺少 return）会静默通过。 */
+     * （如 goto 跳过初始化、缺少 return）会静默通过。依赖库诊断定位到
+     * 其自身文件（fail-fast：出错即返回，无需恢复入口 source）。 */
     {
+        const char *entry_file = NULL;
+        const char *entry_source = NULL;
         size_t di = 0;
+
+        tc_diagnostic_get_source(diag, &entry_file, &entry_source);
         for (di = 0; di < out->dep_count; di++) {
             TcCfgSet dep_set;
             int dep_rc = 0;
 
+            if (tc_diagnostic_set_source(diag, out->deps[di].source_path, NULL) != 0) {
+                goto fail;
+            }
             tc_cfg_set_init(&dep_set);
             if (tc_cfg_build_all(&out->deps[di], &out->symbols, &dep_set, diag) != 0) {
                 dep_rc = -1;
@@ -294,6 +302,10 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
             if (dep_rc != 0) {
                 goto fail;
             }
+        }
+        /* 恢复入口 source，供后续阶段（调用图等）诊断使用 */
+        if (tc_diagnostic_set_source(diag, entry_file, entry_source) != 0) {
+            goto fail;
         }
     }
 
