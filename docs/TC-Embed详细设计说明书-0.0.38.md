@@ -1,12 +1,12 @@
 # TC-Embed 详细设计说明书
 
-> **规范基线（唯一权威）**：[TC 语言标准 0.0.37](./TC语言标准设计说明书-0.0.37.md) · [TC 编译器标准 0.0.37](./TC编译器标准设计说明书-0.0.37.md)
+> **规范基线（唯一权威）**：[TC 语言标准 0.0.38](./TC语言标准设计说明书-0.0.38.md) · [TC 编译器标准 0.0.38](./TC编译器标准设计说明书-0.0.38.md)
 >
-> **当前实现基线**：TC-Embed v0.0.37（新模块）
+> **当前实现基线**：TC-Embed v0.0.38（新模块）
 >
-> **状态**：v0.0.37 C 调用 TC 嵌入式运行时设计。VM 模式完整设计，AOT 模式扩展设计（**已落地 v0.0.37**）。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
+> **状态**：v0.0.38 C 调用 TC 嵌入式运行时设计。VM 模式完整设计，AOT 模式扩展设计（**已落地 v0.0.38**）。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
 >
-> **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书-0.0.37.md) 的执行器与槽位系统 · [libtc 设计说明书](./libtc设计说明书-0.0.37.md) 的编译管线 · [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书-0.0.37.md) 的代码生成模型
+> **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书-0.0.38.md) 的执行器与槽位系统 · [libtc 设计说明书](./libtc设计说明书-0.0.38.md) 的编译管线 · [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书-0.0.38.md) 的代码生成模型
 
 ---
 
@@ -39,7 +39,7 @@
     - [15.10 验证策略](#1510-验证策略)
     - [15.11 实施步骤](#1511-实施步骤)
     - [15.12 与 VM 模式的 API 兼容性总表](#1512-与-vm-模式的-api-兼容性总表)
-16. [运行时便捷层（v0.0.37 扩展）](#16-运行时便捷层v0036-扩展)
+16. [运行时便捷层（v0.0.38 扩展）](#16-运行时便捷层v0036-扩展)
     - [16.1 设计动机](#161-设计动机)
     - [16.2 新增 API 总览](#162-新增-api-总览)
     - [16.3 类型化参数 TcEmbedArg](#163-类型化参数-tcembedarg)
@@ -57,9 +57,9 @@
 
 | 维度 | 版本 | 说明 |
 | ---- | ---- | ---- |
-| 目标语言规范 | 0.0.37 | TC 语言语法与语义 |
-| 编译器规范 | 0.0.37 | 13 阶段编译管线 |
-| 本文 | 0.0.37 设计 | TC-Embed 模块新增设计 |
+| 目标语言规范 | 0.0.38 | TC 语言语法与语义 |
+| 编译器规范 | 0.0.38 | 13 阶段编译管线 |
+| 本文 | 0.0.38 设计 | TC-Embed 模块新增设计 |
 
 ### 1.2 目标
 
@@ -75,7 +75,7 @@
 
 - 不实现 TC 调用外部 C 函数（TC → C FFI），此为独立问题。
 - 不修改 TC 语言标准或现有编译管线。
-- 0.0.37 不改变 VM、Executor 或 libtc 的任何现有行为。
+- 0.0.38 不改变 VM、Executor 或 libtc 的任何现有行为。
 - **AOT 模式 C→TC 互操作已全部落地**（设计见 §15）。
 - 不支持多线程并发调用同一 `TcEmbedCtx`（无锁、非线程安全）。
 - 不新增 TC 语言层面的关键字或类型。
@@ -195,12 +195,12 @@ AOT 模式通过统一的 `TcEmbedCtx` API 和全局 `slots[]` 模型，让 C �
 
 | 文件 | 版本 | 责任 |
 | ---- | ---- | ---- |
-| `src/vm/embed/tc_embed.h` | 0.0.37 | 公共头文件：类型定义与 API 声明 |
-| `src/vm/embed/tc_embed.c` | 0.0.37 | 实现：TcEmbedCtx 生命周期、符号索引、槽位访问、函数调用组装（VM 路径） |
-| `src/vm/embed/tc_value_bridge.h` | 0.0.37 | 值桥接辅助宏/内联函数（`tc_value_from_*` / `tc_value_to_*`） |
-| `src/aot/tc_aot_embed_rt.h` | 0.0.37 | 嵌入模式运行时 shim：非致命 abort、函数表类型声明、错误标记 |
-| `src/vm/embed/tc_embed_aot.h` | 0.0.37 | AOT 桥接头文件（含 tc_embed.h 即可） |
-| `src/vm/embed/tc_embed_aot.c` | 0.0.37 | AOT 桥接实现：`tc_embed_create_aot` |
+| `src/vm/embed/tc_embed.h` | 0.0.38 | 公共头文件：类型定义与 API 声明 |
+| `src/vm/embed/tc_embed.c` | 0.0.38 | 实现：TcEmbedCtx 生命周期、符号索引、槽位访问、函数调用组装（VM 路径） |
+| `src/vm/embed/tc_value_bridge.h` | 0.0.38 | 值桥接辅助宏/内联函数（`tc_value_from_*` / `tc_value_to_*`） |
+| `src/aot/tc_aot_embed_rt.h` | 0.0.38 | 嵌入模式运行时 shim：非致命 abort、函数表类型声明、错误标记 |
+| `src/vm/embed/tc_embed_aot.h` | 0.0.38 | AOT 桥接头文件（含 tc_embed.h 即可） |
+| `src/vm/embed/tc_embed_aot.c` | 0.0.38 | AOT 桥接实现：`tc_embed_create_aot` |
 
 ### 3.3 公共头文件骨架
 
@@ -576,7 +576,7 @@ ptr.bits = 0;
 
 ### 8.3 memblock / struct 的 ptr 使用
 
-`memcopy_unsafe` 语句将 `ptr<T>` 解码为 slot 索引，然后从该 slot 读取 memblock 堆指针进行原始内存复制。C 侧可以通过在 slot 中放置 memblock 值（指向外部内存块），再通过 `ptr` 传递给 TC 使用——但此场景在 0.0.37 作为未来扩展预留，初版以标量 `ptr<T>` 数组互操作优先。
+`memcopy_unsafe` 语句将 `ptr<T>` 解码为 slot 索引，然后从该 slot 读取 memblock 堆指针进行原始内存复制。C 侧可以通过在 slot 中放置 memblock 值（指向外部内存块），再通过 `ptr` 传递给 TC 使用——但此场景在 0.0.38 作为未来扩展预留，初版以标量 `ptr<T>` 数组互操作优先。
 
 ---
 
@@ -655,10 +655,10 @@ static inline int tc_value_to_bool(TcValue v) {
 
 ### 9.5 非标量类型（初版不实现，预留接口）
 
-以下函数签名预留在头文件中，标记为 "v0.0.37 reserved"，供后续版本实现 memblock/struct 互操作：
+以下函数签名预留在头文件中，标记为 "v0.0.38 reserved"，供后续版本实现 memblock/struct 互操作：
 
 ```c
-/* v0.0.37 reserved */
+/* v0.0.38 reserved */
 /* TcValue tc_value_wrap_external_memblock(void *data, size_t elem_size,
                                            uint64_t count, TcTypeTag elem_type,
                                            TcEmbedCtx *ctx); */
@@ -932,8 +932,8 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 - `src/vm/parser/`：全部不变。
 - `src/aot/`：全部不变。
 - `src/libtc/tc_lib.h` / `tc_lib.c`：全部不变。
-- `docs/TC语言标准设计说明书-0.0.37.md`：TC 语言无变化。
-- `docs/TC编译器标准设计说明书-0.0.37.md`：编译器管线不变。
+- `docs/TC语言标准设计说明书-0.0.38.md`：TC 语言无变化。
+- `docs/TC编译器标准设计说明书-0.0.38.md`：编译器管线不变。
 
 ---
 
@@ -974,7 +974,7 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 
 ## 15. AOT 模式扩展
 
-> **状态**：已落地 v0.0.37。基于当前 AOT 代码生成的真实实现，描述 AOT 模式下 C→TC 互操作的完整设计。
+> **状态**：已落地 v0.0.38。基于当前 AOT 代码生成的真实实现，描述 AOT 模式下 C→TC 互操作的完整设计。
 
 ### 15.1 当前 AOT 代码生成的真实输出
 
@@ -1176,7 +1176,7 @@ static int tc_aot_ptr_decode(uint64_t bits, int *slot) {
 | 静态初始化 | `tc_init_static_vars()` 在 main() 中调用 | 暴露为公共入口，宿主程序手动调用 |
 | 内存释放 | 在 main() 末尾释放 | 暴露 `tc_aot_cleanup()` 给宿主程序调用 |
 
-> **v0.0.37 已解决：以上所有问题均已落地。** 嵌入模式通过 `tc_aot_emit_c(..., /* embed_mode= */ 1)` 触发：函数和全局符号取消 `static`、`tc_aot_abort` 宏替换为非致命 `tc_aot_embed_abort`、不生成 `main()`、`tc_aot_init()` / `tc_aot_cleanup()` 暴露为公共接口、`tc_aot_func_table` 提供 func_id → 函数指针映射。
+> **v0.0.38 已解决：以上所有问题均已落地。** 嵌入模式通过 `tc_aot_emit_c(..., /* embed_mode= */ 1)` 触发：函数和全局符号取消 `static`、`tc_aot_abort` 宏替换为非致命 `tc_aot_embed_abort`、不生成 `main()`、`tc_aot_init()` / `tc_aot_cleanup()` 暴露为公共接口、`tc_aot_func_table` 提供 func_id → 函数指针映射。
 
 ---
 
@@ -1897,7 +1897,7 @@ void test_aot_vm_behavior(const char *tc_source) {
 
 | 步骤 | 内容 | 改动文件 | 预计工作量 |
 | ---- | ---- | -------- | ---------- |
-| 1 | VM Embed 稳定（0.0.37） | — | 前置 |
+| 1 | VM Embed 稳定（0.0.38） | — | 前置 |
 | 2 | `tc_aot_embed_rt.h`：非致命 abort shim | 新文件 `src/aot/tc_aot_embed_rt.h` | 小 (~30 行) |
 | 3 | `tc_aot_emit_c` 新增 `embed_mode` 参数 | `src/aot/tc_aot_codegen.c/h` | 中 (~80 行改动) |
 | 4 | 函数表生成 | `src/aot/tc_aot_codegen.c` 新增 `tc_aot_emit_func_table` | 中 (~60 行) |
@@ -1930,9 +1930,9 @@ void test_aot_vm_behavior(const char *tc_source) {
 
 ---
 
-## 16. 运行时便捷层（v0.0.37 扩展）
+## 16. 运行时便捷层（v0.0.38 扩展）
 
-> **状态**：已落地 v0.0.37。在 §7–§9 的内核 API 之上新增一层运行时便捷 API，隐藏 `TcValue` 桥接样板与槽位布局细节。VM / AOT 两模式透明（全部经通用 `tc_embed_call` 路径）。
+> **状态**：已落地 v0.0.38。在 §7–§9 的内核 API 之上新增一层运行时便捷 API，隐藏 `TcValue` 桥接样板与槽位布局细节。VM / AOT 两模式透明（全部经通用 `tc_embed_call` 路径）。
 
 ### 16.1 设计动机
 
@@ -2065,5 +2065,5 @@ tc_embed_tmp_end(ctx);                                    /* 释放临时区 */
 
 ---
 
-*语言合法性与可观察语义以 [TC 语言标准 0.0.37](./TC语言标准设计说明书-0.0.37.md) 与 [TC 编译器标准 0.0.37](./TC编译器标准设计说明书-0.0.37.md) 为准。*
+*语言合法性与可观察语义以 [TC 语言标准 0.0.38](./TC语言标准设计说明书-0.0.38.md) 与 [TC 编译器标准 0.0.38](./TC编译器标准设计说明书-0.0.38.md) 为准。*
 
