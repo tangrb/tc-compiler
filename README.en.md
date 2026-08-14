@@ -7,7 +7,7 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
 - **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (new in v0.0.37).
 
-Current core version: **v0.0.37**, Embed module version: **v0.0.37**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.37.md) is the sole authority for language syntax and observable semantics.
+Current core version: **v0.0.38**, Embed module version: **v0.0.38**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.37.md) is the sole authority for language syntax and observable semantics; see the [TC 0.0.38 release notes](docs/TC-0.0.38-变更说明.md) for this implementation increment.
 
 ## Quick Start
 
@@ -332,6 +332,7 @@ scripts/
 | [libtc Design Document](docs/libtc设计说明书-0.0.37.md) | libtc architecture, transactions, lifecycle, and error contract |
 | [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.37.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Design–Implementation Conformance Report](docs/设计实现合规审查报告-0.0.37.md) | The ~182-item 0.0.37 conformance matrix and release evidence |
+| [TC 0.0.38 Release Notes](docs/TC-0.0.38-变更说明.md) | Implementation fixes in 0.0.38 (spec baseline remains 0.0.37) |
 
 ## Git Hooks
 
