@@ -114,6 +114,8 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     TcFuncSignatureList sigs;
     TcMemberIndex members;
     TcFuncCheckEnv func_env;
+    char *saved_file = NULL;
+    char *saved_source = NULL;
     int ret = -1;
 
     tc_typed_program_init(out);
@@ -283,6 +285,24 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         size_t di = 0;
 
         tc_diagnostic_get_source(diag, &entry_file, &entry_source);
+        /* 入口 path/source 会在首次 set_source 时被 diag 释放，恢复前必须
+         * 持有独立副本（此前直接保存内部指针，恢复时 heap-use-after-free） */
+        if (entry_file) {
+            saved_file = strdup(entry_file);
+            if (!saved_file) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                goto fail;
+            }
+        }
+        if (entry_source) {
+            saved_source = strdup(entry_source);
+            if (!saved_source) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                goto fail;
+            }
+        }
         for (di = 0; di < out->dep_count; di++) {
             TcCfgSet dep_set;
             int dep_rc = 0;
@@ -304,7 +324,7 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
             }
         }
         /* 恢复入口 source，供后续阶段（调用图等）诊断使用 */
-        if (tc_diagnostic_set_source(diag, entry_file, entry_source) != 0) {
+        if (tc_diagnostic_set_source(diag, saved_file, saved_source) != 0) {
             goto fail;
         }
     }
@@ -332,6 +352,8 @@ fail:
         tc_struct_table_free(&struct_table);
         tc_typed_program_free(out);
     }
+    free(saved_file);
+    free(saved_source);
     tc_func_signature_list_free(&sigs);
     tc_member_index_free(&members);
     return ret;
