@@ -893,6 +893,8 @@ run_expect_stdout "$ROOT/tests/valid/phase5_ptr_scope_outer.tc" "2
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_deepcopy.tc" "1
 1
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_unsafe.tc" "1
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
 "
@@ -1497,6 +1499,17 @@ run_expect_check_fail "$ROOT/tests/errors/static/func_body_public_var.tc" \
     "visibility modifier is not allowed inside a function body"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore.tc" \
     "invalid integer literal"
+# --- goto/label 函数隔离（P0-4） ---
+run_expect_check_fail "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
+    "label 'y' not found"
+run_expect_check_ok "$ROOT/tests/valid/duplicate_label_across_functions_ok.tc"
+# --- 缩进规范（P0-5）：tab / 非 4 倍数 / 跨级跳 ---
+run_expect_check_fail "$ROOT/tests/errors/static/indent_tab_only.tc" \
+    "mixed spaces and tabs in indentation"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_two_spaces.tc" \
+    "insufficient indentation in block"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_multi_level_jump.tc" \
+    "insufficient indentation in block"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_chain.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_multi.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_slot_value.tc" "use of uninitialized variable"

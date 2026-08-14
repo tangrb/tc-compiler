@@ -78,6 +78,9 @@ int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
 int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                           uint64_t value_bits, TcTypeTag elem_type, TcDiagnostic *diag,
                           int line);
+int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
+                           uint64_t src_ptr, uint64_t src_index, int64_t length,
+                           size_t element_bytes, TcDiagnostic *diag, int line);
 int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
                          uint64_t src_index, uint64_t length, size_t element_bytes,
                          TcDiagnostic *diag, int line);

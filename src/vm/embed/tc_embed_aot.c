@@ -19,8 +19,8 @@ TcEmbedCtx *tc_embed_create_aot(uint64_t *slots, size_t slot_count,
     TcEmbedCtx *ctx = NULL;
 
     if (!program || !slots) {
-        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
-                          "invalid argument: program or slots is NULL");
+        tc_diagnostic_set_api(diag, TC_API_ERR_INVALID_ARGUMENT,
+                              "invalid argument: program or slots is NULL");
         return NULL;
     }
 

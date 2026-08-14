@@ -536,6 +536,59 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
     return 0;
 }
 
+int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
+                           uint64_t src_ptr, uint64_t src_index, int64_t length,
+                           size_t element_bytes, TcDiagnostic *diag, int line) {
+    int dst_slot = 0;
+    int src_slot = 0;
+    void *dst_block = NULL;
+    void *src_block = NULL;
+    void *temp = NULL;
+
+    /* 空指针 → TC_RE_NULL_POINTER_DEREFERENCE；负长度 →
+     * TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE（与 VM 语义一致，§6.8.9）。
+     * 不执行越界检查：越界拷贝为实现定义行为。 */
+    if (dst_ptr == 0 || src_ptr == 0) {
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    if (tc_aot_ptr_decode(dst_ptr, &dst_slot) != 0 ||
+        tc_aot_ptr_decode(src_ptr, &src_slot) != 0 || !slots || dst_slot < 0 || src_slot < 0) {
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    if (length < 0) {
+        tc_diagnostic_set(diag, TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE, line, TC_COLUMN_UNKNOWN,
+                          "memcopy_unsafe invalid range");
+        return -1;
+    }
+    if (length == 0) {
+        return 0;
+    }
+    dst_block = (void *)(uintptr_t)slots[dst_slot];
+    src_block = (void *)(uintptr_t)slots[src_slot];
+    if (!dst_block || !src_block) {
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
+    temp = malloc((size_t)length * element_bytes);
+    if (!temp) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    /* memmove 语义：先拷入临时缓冲再写入目标，重叠区间行为确定（§6.8.9） */
+    memcpy(temp, tc_aot_mb_elem_ptr(src_block, element_bytes, (uint64_t)src_index),
+           (size_t)length * element_bytes);
+    memcpy(tc_aot_mb_elem_ptr(dst_block, element_bytes, (uint64_t)dst_index), temp,
+           (size_t)length * element_bytes);
+    free(temp);
+    return 0;
+}
+
 int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
                          uint64_t src_index, uint64_t length, size_t element_bytes,
                          TcDiagnostic *diag, int line) {

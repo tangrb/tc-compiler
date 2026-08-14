@@ -131,7 +131,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         const TcLabelEntry *entry = NULL;
 
         tc_stmt_index_take(&ctx->index);
-        entry = tc_aot_resolve_goto_label(symbols, stmt->u.goto_stmt.target, &ctx->block_path);
+        entry = tc_aot_resolve_goto_label(symbols, stmt->u.goto_stmt.target,
+                                          ctx->current_func_id, &ctx->block_path);
         if (!entry) {
             return -1;
         }
@@ -290,8 +291,36 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
     }
 
     if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {
-        tc_stmt_index_take(&ctx->index);
-        return -1;
+        const TcMemcopyUnsafeStmt *mc = &stmt->u.memcopy_unsafe;
+        char abort_indent[64];
+        int stmt_index = tc_stmt_index_take(&ctx->index);
+        TcType element = tc_type_scalar(mc->element_type.tag);
+        size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
+                                               ctx->program->struct_table) + 7U) / 8U;
+
+        tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
+        fprintf(out, "%s{\n", indent);
+        fprintf(out, "%s    uint64_t _dptr, _sptr, _d_idx, _s_idx;\n", indent);
+        fprintf(out, "%s    int64_t _len;\n", indent);
+        if (tc_aot_emit_operand_assign(out, &mc->dst_ptr, TC_PTR, "_dptr", abort_indent, ctx,
+                                       stmt_index) != 0 ||
+            tc_aot_emit_operand_assign(out, &mc->src_ptr, TC_PTR, "_sptr", abort_indent, ctx,
+                                       stmt_index) != 0 ||
+            tc_aot_emit_operand_assign(out, &mc->dst_index, TC_USIZE, "_d_idx", abort_indent, ctx,
+                                       stmt_index) != 0 ||
+            tc_aot_emit_operand_assign(out, &mc->src_index, TC_USIZE, "_s_idx", abort_indent, ctx,
+                                       stmt_index) != 0 ||
+            tc_aot_emit_operand_assign(out, &mc->length, TC_ISIZE, "_len", abort_indent, ctx,
+                                       stmt_index) != 0) {
+            return -1;
+        }
+        fprintf(out,
+                "%s    if (tc_aot_memcopy_unsafe(slots, _dptr, _d_idx, _sptr, _s_idx, _len, "
+                "%zu, tc_aot_cur_diag, %d) != 0)\n",
+                abort_indent, elem_bytes, mc->line);
+        fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, mc->line);
+        fprintf(out, "%s}\n", indent);
+        return 0;
     }
 
     if (stmt->kind == TC_STMT_FIELD_ASSIGN) {

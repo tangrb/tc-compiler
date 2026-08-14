@@ -146,8 +146,8 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
     size_t slot_count = 0;
 
     if (!program) {
-        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
-                          "invalid argument: program is NULL");
+        tc_diagnostic_set_api(diag, TC_API_ERR_INVALID_ARGUMENT,
+                              "invalid argument: program is NULL");
         return NULL;
     }
 
