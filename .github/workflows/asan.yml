@@ -43,4 +43,7 @@ jobs:
         run: cmake --build "$BUILD_DIR" --target check-unit
 
       - name: Run AOT differential tests
+        env:
+          TC_VM_BIN: "${{ github.workspace }}/build-asan/vm/bin/tc-vm"
+          TC_AOT_BIN: "${{ github.workspace }}/build-asan/aot/bin/tc-aot"
         run: bash scripts/aot/run_tests.sh
