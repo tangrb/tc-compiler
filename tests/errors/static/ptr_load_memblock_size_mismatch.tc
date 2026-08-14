@@ -1,0 +1,6 @@
+#program
+; ptr_load 结果的 memblock N（8）与接收类型 N（4）不一致
+var mb: memblock<int32, 8> = memblock(int32, count: 8, fill: 1)
+var p: ptr<memblock<int32, 8>> = ptr_address(memblock<int32, 8>, mb)
+var x: memblock<int32, 4> = ptr_load(memblock<int32, 8>, p)
+writeln(int32, 1)

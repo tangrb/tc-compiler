@@ -1,0 +1,12 @@
+#program
+; memblock 值语义：赋值 / 传参 / 返回均为深拷贝，互不共享存储（§3.8.4 / §8.1.1）
+var mb1: memblock<int32, 3> = memblock(int32, count: 3, fill: 1)
+var mb2: memblock<int32, 3> = mb1
+memblock_store(int32, mb2, 0, 99)
+var v1: int32 = memblock_load(int32, mb1, 0)
+writeln(int32, v1)
+var mb3: memblock<int32, 3> = mb1
+var mb4: memblock<int32, 3> = mb1
+memblock_store(int32, mb3, 1, 77)
+var v2: int32 = memblock_load(int32, mb4, 1)
+writeln(int32, v2)

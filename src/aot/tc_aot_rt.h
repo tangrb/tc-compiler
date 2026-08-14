@@ -68,6 +68,8 @@ uint64_t tc_aot_ptr_size(size_t sizeof_bits);
 
 uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnostic *diag,
                                int line);
+uint64_t tc_aot_memblock_clone(uint64_t src, size_t element_bytes, uint64_t count,
+                               TcDiagnostic *diag, int line);
 void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                               uint64_t value_bits);
 uint64_t tc_aot_memblock_get_count(uint64_t mb_bits);

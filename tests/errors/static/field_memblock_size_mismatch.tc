@@ -1,0 +1,8 @@
+#program
+; 字段读的 memblock N（8）与接收类型 N（4）不一致
+struct S then
+    var mb: memblock<int32, 8>
+end
+var s: S = S(mb: memblock(int32, count: 8, fill: 1))
+var x: memblock<int32, 4> = s.mb
+writeln(int32, 1)

@@ -134,6 +134,17 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
             }
             return -1;
         }
+        /* 所指为 memblock 时：N 规划个数必须与接收类型一致，
+         * tc_type_equals 忽略 N，需在此补充检查 */
+        if (expected && tc_type_memblock_count_mismatch(pointee, expected)) {
+            tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "memblock size mismatch in ptr_load result");
+            if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee &&
+                pointee->tag != TC_PTR) {
+                free(ptr_ty.params.ptr_type.pointee);
+            }
+            return -1;
+        }
         if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee && pointee->tag != TC_PTR) {
             free(ptr_ty.params.ptr_type.pointee);
         }

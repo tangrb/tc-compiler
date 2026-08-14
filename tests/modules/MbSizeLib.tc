@@ -1,0 +1,6 @@
+#lib
+; 返回 memblock<int32, 8> 的库函数，供 N 不匹配回归测试使用
+public func ret8() memblock<int32, 8> then
+    var mb: memblock<int32, 8> = memblock(int32, count: 8, fill: 1)
+    return mb
+end

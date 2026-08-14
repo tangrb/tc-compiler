@@ -9,6 +9,7 @@
 #include "tc_struct_check.h"
 #include "tc_symbol.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -145,6 +146,51 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
         return -1;
     }
     out->type = tc_type_tag_singleton(TC_MEMBLOCK);
+    out->bits = (uint64_t)(uintptr_t)block;
+    return 0;
+}
+
+int tc_exec_memblock_clone(const TcType *type, const TcValue *src, TcExecuteCtx *ctx,
+                           TcValue *out, TcDiagnostic *diag, int line) {
+    uint64_t count = 0;
+    size_t element_bytes = 0;
+    size_t payload_bytes = 0;
+    void *src_block = NULL;
+    void *block = NULL;
+
+    if (!type || !src || !ctx || !out || !diag) {
+        return -1;
+    }
+    if (type->tag != TC_MEMBLOCK || src->type->tag != TC_MEMBLOCK) {
+        return -1;
+    }
+    count = tc_type_memblock_count(type);
+    element_bytes = tc_memblock_element_bytes(type->params.memblock_type.element, ctx);
+    if (count > (SIZE_MAX - sizeof(uint64_t)) / (element_bytes > 0 ? element_bytes : 1)) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    payload_bytes = (size_t)count * element_bytes;
+    src_block = tc_memblock_data(src);
+    if (!src_block) {
+        tc_exec_set_internal_error(diag, line, "internal error: memblock clone of null block");
+        return -1;
+    }
+    block = malloc(sizeof(uint64_t) + payload_bytes);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    /* 深拷贝：整块复制（含 usize 长度头部与全部元素位串），头部强制写回声明 N，
+     * 保证克隆结果始终处于规范状态（§3.8.2 头部值 == 类型参数 count）。 */
+    memcpy(block, src_block, sizeof(uint64_t) + payload_bytes);
+    memcpy(block, &count, sizeof(uint64_t));
+    if (tc_exec_memblock_track(ctx, block, diag) != 0) {
+        return -1;
+    }
+    out->type = src->type;
     out->bits = (uint64_t)(uintptr_t)block;
     return 0;
 }

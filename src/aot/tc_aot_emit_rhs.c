@@ -115,6 +115,31 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                             "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
                             "tc_aot_abort(tc_aot_cur_diag, %d);\n",
                             abort_indent, line);
+                } else if (expected_type == TC_MEMBLOCK) {
+                    /* 值语义：memblock 标识符 RHS 深拷贝（§3.8.4），与源不共享存储 */
+                    const TcType *type = rhs->u.const_ref.binding.type;
+
+                    if (!type || type->tag != TC_MEMBLOCK ||
+                        !type->params.memblock_type.element) {
+                        return -1;
+                    }
+                    {
+                        size_t elem_bits = tc_sizeof_bits_ex(
+                            type->params.memblock_type.element, tc_struct_table_width_bits,
+                            ctx->program->struct_table);
+                        size_t elem_bytes = (elem_bits + 7U) / 8U;
+                        uint64_t count = tc_type_memblock_count(type);
+
+                        fprintf(out,
+                                "%s%s = tc_aot_memblock_clone(slots[%d], %zu, %" PRIu64
+                                "ULL, tc_aot_cur_diag, %d);\n",
+                                indent, dst_expr, rhs->u.const_ref.binding.slot, elem_bytes, count,
+                                line);
+                        fprintf(out,
+                                "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                                "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                                abort_indent, line);
+                    }
                 } else {
                     fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr,
                             rhs->u.const_ref.binding.slot);
@@ -134,6 +159,23 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             if (symbol->sym_kind == TC_SYM_CONSTANT && symbol->has_const_value) {
                 fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
                         symbol->const_value.bits);
+            } else if (expected_type == TC_MEMBLOCK &&
+                       symbol->type->tag == TC_MEMBLOCK &&
+                       symbol->type->params.memblock_type.element) {
+                /* 值语义：memblock 标识符 RHS 深拷贝（§3.8.4），与源不共享存储 */
+                size_t elem_bits = tc_sizeof_bits_ex(
+                    symbol->type->params.memblock_type.element, tc_struct_table_width_bits,
+                    ctx->program->struct_table);
+                size_t elem_bytes = (elem_bits + 7U) / 8U;
+                uint64_t count = tc_type_memblock_count(symbol->type);
+
+                fprintf(out, "%s%s = tc_aot_memblock_clone(slots[%d], %zu, %" PRIu64
+                             "ULL, tc_aot_cur_diag, %d);\n",
+                        indent, dst_expr, symbol->slot, elem_bytes, count, line);
+                fprintf(out,
+                        "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                        "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, line);
             } else if (expected_type == TC_STRUCT) {
                 size_t bytes = 0;
                 if (tc_type_struct_id(symbol->type) >= 0 && ctx->program->struct_table) {
@@ -573,6 +615,9 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         const TcSymbol *sym = tc_symbol_table_find_visible(
             symbols, rhs->u.memblock_count.memblock_name, stmt_index, &ctx->sym_index);
 
+        if (!sym) {
+            sym = tc_aot_find_symbol_by_name(symbols, rhs->u.memblock_count.memblock_name);
+        }
         if (sym && sym->slot >= 0) {
             fprintf(out, "%s{\n", indent);
             fprintf(out, "%s    uint64_t _mb_cnt = tc_aot_memblock_get_count(slots[%d]);\n", indent,

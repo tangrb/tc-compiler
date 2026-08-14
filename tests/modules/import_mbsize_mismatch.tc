@@ -1,0 +1,5 @@
+#program
+import MbSizeLib
+; funcall 返回值 N（8）与接收类型 N（4）不一致 → TC_CE_MEMBLOCK_SIZE_MISMATCH
+var r: memblock<int32, 4> = funcall(MbSizeLib.ret8)
+writeln(int32, 1)

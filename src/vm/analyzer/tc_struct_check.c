@@ -635,6 +635,13 @@ int tc_struct_check_field_read(const TcRhs *rhs, const TcType *expected,
                           "field read result type does not match expected type");
         return -1;
     }
+    /* 字段为 memblock 时：N 规划个数必须与接收类型一致（§3.9.4 整块复制），
+     * tc_type_equals 忽略 N，需在此补充检查 */
+    if (expected && tc_type_memblock_count_mismatch(cursor_type, expected)) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock size mismatch in field read result");
+        return -1;
+    }
     return 0;
 }
 

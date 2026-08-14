@@ -1,0 +1,6 @@
+#lib
+; return 语句的 memblock N（8）与函数返回类型 N（4）不一致
+public func shrink() memblock<int32, 4> then
+    var mb8: memblock<int32, 8> = memblock(int32, count: 8, fill: 7)
+    return mb8
+end

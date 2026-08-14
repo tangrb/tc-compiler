@@ -253,6 +253,12 @@ int tc_aot_resolve_var_slot(const TcSymbolTable *symbols, const TcSymbolNameInde
                             const char *name, int stmt_index, int *out_slot) {
     const TcSymbol *sym = tc_symbol_table_find_visible(symbols, name, stmt_index, sym_index);
 
+    /* find_visible 按 stmt_index 判定可见性：形参 def_stmt_index 与函数体首条
+     * 语句相同，严格小于判定使首条语句上的 memblock_store/copy 目标形参不可见。
+     * 运行时名称唯一（遮蔽在分析期已消解），回退全局名查找是安全且必要的。 */
+    if (!sym) {
+        sym = tc_aot_find_symbol_by_name(symbols, name);
+    }
     if (!sym || sym->slot < 0) {
         return -1;
     }
@@ -472,6 +478,56 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
 int tc_aot_emit_operand_assign(FILE *out, const TcOperand *operand, TcTypeTag type,
                                const char *dst_expr, const char *indent,
                                const TcAotEmitCtx *ctx, int stmt_index) {
+    /* 值语义：memblock/struct 操作数赋值（含 return、结构体构造器复合字段）
+     * 必须深拷贝，不能复制堆指针（§3.8.4 / §3.9.4）。 */
+    if ((type == TC_MEMBLOCK || type == TC_STRUCT) && operand->kind != TC_OPERAND_LIT &&
+        operand->binding.resolved && !operand->binding.is_const &&
+        operand->binding.slot >= 0) {
+        const TcType *btype = operand->binding.type;
+
+        if (btype && btype->tag == type) {
+            if (type == TC_MEMBLOCK && btype->params.memblock_type.element) {
+                size_t elem_bits = tc_sizeof_bits_ex(
+                    btype->params.memblock_type.element, tc_struct_table_width_bits,
+                    ctx->program->struct_table);
+                size_t elem_bytes = (elem_bits + 7U) / 8U;
+                uint64_t count = tc_type_memblock_count(btype);
+                char abort_indent[64];
+
+                tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
+                fprintf(out, "%s%s = tc_aot_memblock_clone(slots[%d], %zu, %" PRIu64
+                             "ULL, tc_aot_cur_diag, %d);\n",
+                        indent, dst_expr, operand->binding.slot, elem_bytes, count, stmt_index);
+                fprintf(out,
+                        "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                        "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, stmt_index);
+                return 0;
+            }
+            if (type == TC_STRUCT && tc_type_struct_id(btype) >= 0 &&
+                ctx->program->struct_table) {
+                const TcStructEntry *e =
+                    tc_struct_table_get(ctx->program->struct_table, tc_type_struct_id(btype));
+                size_t bytes = 0;
+                char abort_indent[64];
+
+                if (e) {
+                    bytes = (e->width_bits + 7U) / 8U;
+                }
+                if (bytes == 0) {
+                    return -1;
+                }
+                tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
+                fprintf(out, "%s%s = tc_aot_struct_clone(slots[%d], %zu, tc_aot_cur_diag, %d);\n",
+                        indent, dst_expr, operand->binding.slot, bytes, stmt_index);
+                fprintf(out,
+                        "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                        "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, stmt_index);
+                return 0;
+            }
+        }
+    }
     fprintf(out, "%s%s = ", indent, dst_expr);
     tc_aot_emit_operand_expr(out, operand, type, ctx, stmt_index);
     fprintf(out, ";\n");

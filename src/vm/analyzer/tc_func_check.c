@@ -681,6 +681,13 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
                           "function call result type does not match");
         return -1;
     }
+    /* memblock 返回值：N 规划个数必须与接收类型一致（§6.7.1），
+     * tc_type_equals 忽略 N，需在此补充检查 */
+    if (expected && !is_void && tc_type_memblock_count_mismatch(&sig->return_type, expected)) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock size mismatch in function call result");
+        return -1;
+    }
     if (resolved_func_id) {
         *resolved_func_id = sig->func_id;
     }
@@ -734,6 +741,13 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         if (!tc_type_equals(sym->type, return_type)) {
             tc_diagnostic_set(diag, TC_CE_RETURN_TYPE, ret->line, TC_COLUMN_UNKNOWN,
                               "return type does not match function return type");
+            return -1;
+        }
+        /* memblock 返回值：N 规划个数必须与函数返回类型一致（§8.3.1），
+         * tc_type_equals 忽略 N，需在此补充检查 */
+        if (tc_type_memblock_count_mismatch(sym->type, return_type)) {
+            tc_diagnostic_set(diag, TC_CE_MEMBLOCK_SIZE_MISMATCH, ret->line, TC_COLUMN_UNKNOWN,
+                              "memblock size mismatch in return value");
             return -1;
         }
         tc_resolved_binding_set(&ret->value.binding, sym);

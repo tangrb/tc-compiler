@@ -276,6 +276,12 @@ static int tc_exec_eval_funcall_args(const TcFuncDef *func, TcNamedArg *args, st
                                           line) != 0) {
                 return -1;
             }
+        } else if (param->type.tag == TC_MEMBLOCK) {
+            /* 按值传参：memblock 形参深拷贝（§8.1.1），形参与实参不共享存储 */
+            if (tc_exec_memblock_clone(&param->type, &value, ctx, &ctx->slots[slot], diag,
+                                       line) != 0) {
+                return -1;
+            }
         } else {
             ctx->slots[slot] = value;
         }
@@ -989,6 +995,14 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                     return tc_exec_error();
                 }
                 value = cloned;
+            } else if (ret_type == TC_MEMBLOCK && func) {
+                /* 按值返回：memblock 返回深拷贝（§8.1.1），调用者获得独立副本 */
+                TcValue cloned;
+                if (tc_exec_memblock_clone(&func->return_type, &value, ctx, &cloned, diag,
+                                           ret->line) != 0) {
+                    return tc_exec_error();
+                }
+                value = cloned;
             }
         }
         return tc_exec_return_value(value, 1);
@@ -1080,6 +1094,13 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                                               diag, var_def->line) != 0) {
                     return tc_exec_error();
                 }
+            } else if (var_def->full_type.tag == TC_MEMBLOCK) {
+                /* 值语义：var 初始化深拷贝（§3.8.4），与源 memblock 不共享存储 */
+                if (tc_exec_memblock_clone(&var_def->full_type, &value, ctx,
+                                          &ctx->slots[var_def->binding.slot], diag,
+                                          var_def->line) != 0) {
+                    return tc_exec_error();
+                }
             } else {
                 ctx->slots[var_def->binding.slot] = value;
             }
@@ -1110,6 +1131,13 @@ static TcExecControl tc_execute_statement_at(const TcStatement *stmt, int stmt_s
                 }
                 if (tc_exec_struct_store_value(&ctx->slots[assign->binding.slot], &value, sid, ctx,
                                               diag, assign->line) != 0) {
+                    return tc_exec_error();
+                }
+            } else if (assign->binding.type->tag == TC_MEMBLOCK) {
+                /* 值语义：整块赋值深拷贝（§3.8.4），与源 memblock 不共享存储 */
+                if (tc_exec_memblock_clone(assign->binding.type, &value, ctx,
+                                          &ctx->slots[assign->binding.slot], diag,
+                                          assign->line) != 0) {
                     return tc_exec_error();
                 }
             } else {

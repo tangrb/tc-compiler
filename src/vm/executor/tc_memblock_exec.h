@@ -9,6 +9,8 @@
 
 int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx *ctx,
                           TcValue *out, TcDiagnostic *diag, int line);
+int tc_exec_memblock_clone(const TcType *type, const TcValue *src, TcExecuteCtx *ctx,
+                           TcValue *out, TcDiagnostic *diag, int line);
 int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const TcOperand *index_op,
                           TcExecuteCtx *ctx, TcValue *out, TcDiagnostic *diag, int line);
 int tc_exec_memblock_count(const char *memblock_name, TcExecuteCtx *ctx, TcValue *out,

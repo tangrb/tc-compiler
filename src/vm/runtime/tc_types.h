@@ -645,11 +645,14 @@ typedef enum {
     TC_VIS_PRIVATE   /* #lib 仅本库可见 */
 } TcVisibility;
 
-/** 源文件模块模式：由首行 #program / #lib 设定；UNSET 表示尚未解析头 */
+/** 源文件模块模式：由首行 #program / #lib 设定；UNSET 表示尚未解析头。
+ *  FUNC_BODY 仅供 parser 内部标识函数体语句上下文（非源文件模式），
+ *  用于禁止 public/private 等模块级修饰出现在函数体内。 */
 typedef enum {
     TC_MODULE_UNSET = 0,
     TC_MODULE_PROGRAM,
-    TC_MODULE_LIB
+    TC_MODULE_LIB,
+    TC_MODULE_FUNC_BODY
 } TcModuleMode;
 
 typedef struct {
@@ -1119,6 +1122,18 @@ static inline uint64_t tc_type_memblock_count(const TcType *type) {
         return 0;
     }
     return type->params.memblock_type.count;
+}
+
+/**
+ * memblock 规划个数 N 是否不一致。仅用于赋值、传参、返回、初始化等
+ * 「N 必须一致」的上下文（TC_CE_MEMBLOCK_SIZE_MISMATCH）；类型等价判定
+ * 本身仍由 tc_type_equals（忽略 N）决定。非 memblock 或 NULL 返回 0。
+ */
+static inline int tc_type_memblock_count_mismatch(const TcType *a, const TcType *b) {
+    if (!a || !b || a->tag != TC_MEMBLOCK || b->tag != TC_MEMBLOCK) {
+        return 0;
+    }
+    return a->params.memblock_type.count != b->params.memblock_type.count;
 }
 
 /** struct_id；非 struct 或 NULL 返回 -1 */

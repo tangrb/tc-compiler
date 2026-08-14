@@ -441,6 +441,33 @@ uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnosti
     return (uint64_t)(uintptr_t)block;
 }
 
+uint64_t tc_aot_memblock_clone(uint64_t src, size_t element_bytes, uint64_t count,
+                               TcDiagnostic *diag, int line) {
+    size_t payload = (size_t)count * element_bytes;
+    void *src_block = (void *)(uintptr_t)src;
+    void *block = NULL;
+
+    if (!src_block) {
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return 0;
+    }
+    block = malloc(sizeof(uint64_t) + payload);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    /* 深拷贝：整块复制（含 usize 长度头部与全部元素位串），头部强制写回 count，
+     * 保证克隆结果始终处于规范状态（§3.8.2 头部值 == 类型参数 count）。 */
+    memcpy(block, src_block, sizeof(uint64_t) + payload);
+    memcpy(block, &count, sizeof(uint64_t));
+    if (tc_aot_mb_track(block, diag, line) != 0) {
+        return 0;
+    }
+    return (uint64_t)(uintptr_t)block;
+}
+
 void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                               uint64_t value_bits) {
     void *block = (void *)(uintptr_t)mb_bits;
