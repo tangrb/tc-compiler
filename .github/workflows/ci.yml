@@ -1,16 +1,18 @@
 # CI — 标准构建、测试与覆盖率
 #
-# push / PR 到 main 时运行全量测试；与 scripts/ci.sh 五阶段对齐：
+# push / PR 到 master、tc-0.0.38 或手动触发；与 scripts/ci.sh 五阶段对齐：
 #   构建 → VM → unit → AOT → check_rhs_coverage + check_source_naming
-# 覆盖率报告作为 artifact 上传。
+# 另含 Windows（MSYS2/MinGW）、MinGW 交叉编译护栏、UBSan、no-fenv、benchmark、覆盖率 artifact。
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master, tc-0.0.38]
+    tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [master, tc-0.0.38]
+  workflow_dispatch:
 
 env:
   BUILD_DIR: build
@@ -38,8 +40,10 @@ jobs:
         run: |
           brew install cmake
 
+      # GCC 14 起隐式函数声明/指针不匹配是默认错误（ubuntu-latest 已升级）；
+      # 显式加 -Werror=... 让 macOS/旧 GCC 也按同样标准失败，杜绝"macOS 绿、别处红"。
       - name: Configure
-        run: cmake -S . -B "$BUILD_DIR"
+        run: cmake -S . -B "$BUILD_DIR" -DCMAKE_C_FLAGS="-Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion"
 
       - name: Build
         run: cmake --build "$BUILD_DIR" -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
@@ -61,6 +65,110 @@ jobs:
 
       - name: Check type fact source
         run: python3 scripts/sync/check_type_fact_source.py
+
+  test-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            python
+
+      # 测试脚本依赖 coreutils 的 cmp（stdout 精确比较）；setup-msys2 基础
+      # 镜像可能不含，显式安装。
+      - name: Install MSYS2 coreutils
+        shell: msys2 {0}
+        run: pacman -S --noconfirm --needed coreutils diffutils
+
+      - name: Configure and build
+        shell: msys2 {0}
+        run: |
+          export CC="$(cygpath -m "$(command -v gcc)")"
+          cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_C_COMPILER=gcc
+          cmake --build "$BUILD_DIR" -j "$(nproc)"
+
+      # 失败时汇总各套件退出码并 dump 失败套件日志尾部（单个注解，不刷屏）
+      - name: Run VM / unit / AOT / sync checks
+        shell: msys2 {0}
+        run: |
+          export CC="$(cygpath -m "$(command -v gcc)")"
+          mkdir -p "$BUILD_DIR/tmp"
+          export TMPDIR="$PWD/$BUILD_DIR/tmp"
+          bash scripts/vm/run_tests.sh
+          # check-unit 在 Windows 上含 check-embed-aot；其利用 msys2 gcc -shared
+          # 生成 DLL 供 LoadLibrary，平台语义差异大，Windows 单独豁免（embed 功能
+          # 主力在 Unix 验证）。其余单元目标全跑。
+          for t in check-lexer check-lexer-extended check-parser check-semantics check-types check-diagnostic check-libtc check-module check-io check-bitwise check-shift check-symbol check-warning check-analyzer check-cfg check-executor check-stmt-index check-type-check check-embed; do
+            cmake --build "$BUILD_DIR" --target "$t" || exit 1
+          done
+          bash scripts/aot/run_tests.sh
+          python scripts/sync/check_rhs_coverage.py
+          python scripts/sync/check_source_naming.py
+          python scripts/sync/check_type_fact_source.py
+
+  # 跨平台编译护栏：在 Linux runner 上用 MinGW-w64 交叉编译 Windows 目标
+  # （含单元测试），编译期即暴露 glibc/MinGW 隐藏 POSIX 声明、dlfcn.h 缺失、
+  # stdin 不可赋值等平台问题，无需 Windows runner 即可回归。
+  test-mingw-cross:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MinGW cross compiler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc-mingw-w64-x86-64
+
+      - name: Configure (MinGW cross)
+        run: cmake -S . -B build-mingw -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_C_FLAGS="-Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion"
+
+      - name: Build (MinGW cross)
+        run: cmake --build build-mingw -j "$(nproc)"
+
+  test-ubsan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake gcc
+
+      - name: Configure with UBSan
+        run: |
+          cmake -S . -B build-ubsan \
+            -DCMAKE_C_FLAGS="-fsanitize=undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=undefined"
+
+      - name: Build with UBSan
+        run: cmake --build build-ubsan -j "$(nproc)"
+
+      - name: Run VM conformance tests (UBSan)
+        run: bash scripts/vm/run_tests.sh --ubsan
+
+      - name: Run unit tests (UBSan)
+        run: cmake --build build-ubsan --target check-unit
+
+      - name: Run AOT differential tests (UBSan binaries)
+        env:
+          TC_VM_BIN: ${{ github.workspace }}/build-ubsan/vm/bin/tc-vm
+          TC_AOT_BIN: ${{ github.workspace }}/build-ubsan/aot/bin/tc-aot
+        run: bash scripts/aot/run_tests.sh
 
   test-no-fenv:
     runs-on: ubuntu-latest
@@ -150,7 +258,7 @@ jobs:
             --output-file build-coverage/coverage_raw.info \
             --rc lcov_branch_coverage=1
           lcov --remove build-coverage/coverage_raw.info \
-            '/usr/*' '*/tests/*' \
+            '*/tests/*' \
             --output-file build-coverage/coverage.info \
             --rc lcov_branch_coverage=1
           genhtml build-coverage/coverage.info \

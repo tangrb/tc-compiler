@@ -270,7 +270,7 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
     case TC_RHS_PTR_SIZE:
     case TC_RHS_FUNCALL_EXPR:
     case TC_RHS_SELF_MEMBER:
-        /* 0.0.37 Phase 1：枚举已预留 */
+        /* 0.0.38 Phase 1：枚举已预留 */
         return 0;
     }
     return 0;

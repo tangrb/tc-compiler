@@ -1580,7 +1580,7 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
             rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
         } else {
             out->kind = TC_RHS_CONST_REF;
-            out->u.const_ref.name = strndup(tok->start, tok->length);
+            out->u.const_ref.name = tc_strndup(tok->start, tok->length);
             if (!out->u.const_ref.name) {
                 tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
                                   "memory allocation failed");

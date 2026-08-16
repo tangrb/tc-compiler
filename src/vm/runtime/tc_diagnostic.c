@@ -30,6 +30,25 @@ static char *tc_diagnostic_strdup(const char *text) {
     return strdup(text);
 }
 
+char *tc_strndup(const char *s, size_t n) {
+    size_t len = 0;
+    char *copy;
+
+    if (s == NULL) {
+        return NULL;
+    }
+    while (len < n && s[len] != '\0') {
+        len++;
+    }
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL) {
+        return NULL;
+    }
+    memcpy(copy, s, len);
+    copy[len] = '\0';
+    return copy;
+}
+
 static char tc_diagnostic_oom_message[] = "memory allocation failed";
 
 static void tc_diagnostic_free_message(char *message) {

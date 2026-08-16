@@ -1,5 +1,5 @@
 /*
- * tc_embed.c — TC 嵌入式运行时实现（v0.0.37）
+ * tc_embed.c — TC 嵌入式运行时实现（v0.0.38）
  *
  * 双模式：VM 路径（Executor）+ AOT 路径（直调生成代码）。
  * AOT 桥接函数见 tc_embed_aot.c。
@@ -572,6 +572,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
             tc_embed_set_error(ctx, ctx->diag.message && ctx->diag.message[0]
                                      ? ctx->diag.message
                                      : "runtime error in AOT function");
+            tc_diagnostic_clear(&ctx->diag); /* 释放生成的诊断 strdup */
             return -1;
         }
 
@@ -579,6 +580,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
             result->bits = *entry->ret_ptr;
             result->type = tc_type_tag_singleton((TcTypeTag)info->return_type);
         }
+        tc_diagnostic_clear(&ctx->diag);
         return 0;
     }
 
@@ -589,6 +591,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
                                       &ctx->diag, 0);
     if (rc != 0) {
         tc_embed_set_error(ctx, ctx->diag.message);
+        tc_diagnostic_clear(&ctx->diag);
         return -1;
     }
 
@@ -596,6 +599,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
         *result = ret;
     }
 
+    tc_diagnostic_clear(&ctx->diag);
     return 0;
 }
 

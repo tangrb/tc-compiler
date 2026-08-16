@@ -69,11 +69,35 @@ else
     BUILD_HINT="make vm"
 fi
 
+if [ -x "${TC_VM_BIN}.exe" ] && [ ! -x "$TC_VM_BIN" ]; then
+    TC_VM_BIN="${TC_VM_BIN}.exe"
+fi
+
+# Windows（MSYS2/MinGW）下把 CLI 金标路径归一化为二进制实际打印的形式：
+# MSYS2 会把 argv[0]/程序路径转成反斜杠形式（cygpath -w），把命令行参数
+# 转成正斜杠形式（cygpath -m）；金标必须按各自形式比较。
+if command -v cygpath >/dev/null 2>&1; then
+    case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        native_path() { cygpath -w "$1"; }
+        mixed_path() { cygpath -m "$1"; }
+        ;;
+    *)
+        native_path() { printf '%s' "$1"; }
+        mixed_path() { printf '%s' "$1"; }
+        ;;
+    esac
+else
+    native_path() { printf '%s' "$1"; }
+    mixed_path() { printf '%s' "$1"; }
+fi
+
 if [ ! -x "$TC_VM_BIN" ]; then
     echo "error: binary not found at $TC_VM_BIN" >&2
     echo "  build first: ${BUILD_HINT}" >&2
     exit 1
 fi
+TC_VM_BIN_NATIVE="$(native_path "$TC_VM_BIN")"
 
 # Wrap with Valgrind / Leaks if requested
 if [ "$VALGRIND_MODE" -eq 1 ]; then
@@ -419,7 +443,7 @@ run_cli_golden() {
 
 run_cli_golden "--version" 0 "tc-vm 0.0.38" "" "cli version golden"
 
-run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN [options] <file.tc>
+run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN_NATIVE [options] <file.tc>
 
 TC language direct execution engine.
 
@@ -434,13 +458,14 @@ Notes:
   Module search order: entry directory, then -I paths.
 
 Examples:
-  $TC_VM_BIN tests/valid/example.tc
-  $TC_VM_BIN --check tests/valid/example.tc
-  $TC_VM_BIN -I ./lib tests/modules/import_ok.tc" "cli help golden"
+  $TC_VM_BIN_NATIVE tests/valid/example.tc
+  $TC_VM_BIN_NATIVE --check tests/valid/example.tc
+  $TC_VM_BIN_NATIVE -I ./lib tests/modules/import_ok.tc" "cli help golden"
 
 CLI_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-vm-missing.XXXXXX")"
 rm -f "$CLI_MISSING_PATH"
-run_cli_golden "$CLI_MISSING_PATH" 1 "" "$CLI_MISSING_PATH: api error: FileOpen: cannot open input file" "cli file-open golden"
+EXPECTED_MISSING="$(mixed_path "$CLI_MISSING_PATH")"
+run_cli_golden "$CLI_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "cli file-open golden"
 
 run_expect_ok "$ROOT/tests/valid/example.tc"
 run_expect_ok "$ROOT/tests/valid/signed_wrap.tc"
@@ -628,7 +653,7 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
 
-# --- v0.0.37 Phase 3: top-level goto/label rejected ---
+# --- v0.0.38 Phase 3: top-level goto/label rejected ---
 
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_outside_function.tc" \
     "goto is only allowed inside a function"
@@ -1954,7 +1979,7 @@ run_expect_stdout "$ROOT/tests/modules/phase5_memblock_param_scope.tc" "0
 0
 "
 
-# --- v0.0.37 TC-Embed: library function checking ---
+# --- v0.0.38 TC-Embed: library function checking ---
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_inplace.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_loop.tc"

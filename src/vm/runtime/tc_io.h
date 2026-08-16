@@ -14,6 +14,14 @@
 #include "tc_types.h"
 
 /**
+ * 平台初始化，应在各命令行入口（tc-vm / tc-aot main）起始处调用一次。
+ * Windows 下将 stdin/stdout/stderr 切换为二进制模式，避免文本模式的
+ * \r\n 转换污染 --version / --help / 诊断输出（破坏 CLI golden 对比）。
+ * 非 Windows 平台为空操作。
+ */
+void tc_io_init(void);
+
+/**
  * 按格式符号将 TcValue 写入指定输出流。
  * 输出遵循 0.0.31 的确定性文本规则：十进制点固定为 '.'，浮点特殊值与
  * 大小写固定，二进制正数省略前导零、负数保留完整类型位宽。

@@ -5,7 +5,7 @@ TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 - **libtc**：编译、静态分析和执行的嵌入式静态库；
 - **TC-VM**：直接执行 TC 源文件的命令行工具；
 - **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器；
-- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.37 新增）。
+- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.38）。
 
 当前核心版本：**v0.0.38**，Embed 模块版本：**v0.0.38**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.38.md) 为唯一权威来源。
 
@@ -52,9 +52,52 @@ bash scripts/run_tests.sh
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
 | 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
 | 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；VM + AOT） |
-| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.37） |
+| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.38） |
 
 0.0.38 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
+
+## 语言示例
+
+0.0.38 源文件必须以 `#program` 或 `#lib` 开头。算术、比较等运算使用显式类型的内建调用，而不是中缀运算符。
+
+```tc
+#program
+
+var a: int32 = 10
+var b: int32 = 20
+var sum: int32 = add(int32, a, b)
+writeln(int32, %d, sum)
+
+if eq(int32, sum, 30) then
+    writeln(int32, 1)
+else
+    writeln(int32, 0)
+end
+```
+
+`#lib` 中的函数必须带 `public` / `private`，返回类型写在参数列表之后，函数体由 `then` / `end` 包裹：
+
+```tc
+#lib
+
+public func plus(a: int32, b: int32) int32 then
+    var sum: int32 = add(int32, a, b)
+    return sum
+end
+```
+
+入口程序通过 `import` 与 `funcall` 调用库函数（命名实参）：
+
+```tc
+#program
+import math_lib
+
+var r: float64 = 3.14
+var area: float64 = funcall(math_lib.compute_area, r: r)
+writeln(float64, %f, area)
+```
+
+完整语法与语义见 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.38.md)。
 
 ## 构建
 
@@ -118,7 +161,7 @@ libtc 采用"成功才转移所有权"的契约：编译成功后，调用方必
 int main(void) {
     const char *source =
         "#program\n"
-        "var x: int32 = 1\n"
+        "var x: int32 = add(int32, 1, 6)\n"
         "writeln(int32, %d, x)\n";
     TcDiagnostic diag;
     TcTypedProgram program;
@@ -146,7 +189,7 @@ int main(void) {
 
 公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_set_module_search_paths` 和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.38.md)。
 
-## 嵌入 TC-Embed（v0.0.37）
+## 嵌入 TC-Embed（v0.0.38）
 
 TC-Embed 提供 C 宿主程序对 TC 编译产物的零拷贝调用能力。C 和 TC 共享同一个 `TcValue slots[]` 数组，`ptr<T>` 槽位编码 `(slot << 1) | 1` 作为 C↔TC 之间传递变量引用的统一句柄。
 
@@ -157,33 +200,54 @@ TC-Embed 提供 C 宿主程序对 TC 编译产物的零拷贝调用能力。C �
 通过 libtc 编译 TC 源码后，用 `tc_embed_create` 创建嵌入上下文：
 
 ```c
+#include <stdint.h>
+#include <stdio.h>
+
 #include "tc_embed.h"
-#include "tc_value_bridge.h"
 #include "tc_lib.h"
 
 int main(void) {
     const char *src =
         "#lib\n"
-        "func add(a: int32, b: int32) -> int32\n"
-        "    return(a + b)\n"
+        "public func plus(a: int32, b: int32) int32 then\n"
+        "    var sum: int32 = add(int32, a, b)\n"
+        "    return sum\n"
         "end\n";
     TcDiagnostic diag;
     TcTypedProgram prog;
+    TcEmbedCtx *ctx;
+    const TcEmbedFuncInfo *info;
+    TcValue result;
+    int32_t ret;
 
     tc_diagnostic_init(&diag);
-    if (tc_compile_source(src, "add.tc", &prog, &diag) != 0) { /* handle */ }
+    if (tc_compile_source(src, "plus.tc", &prog, &diag) != 0) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
 
-    TcEmbedCtx *ctx = tc_embed_create(&prog, &diag);
+    ctx = tc_embed_create(&prog, &diag);
+    if (ctx == NULL) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_typed_program_free(&prog);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
 
-    /* 查询函数信息 */
-    const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, NULL, "add");
+    info = tc_embed_func_info(ctx, NULL, "plus");
+    if (info == NULL ||
+        tc_embed_call_typed(ctx, info,
+                            TC_EMBED_ARGS(tc_embed_arg_i32(3),
+                                          tc_embed_arg_i32(4)),
+                            &result) != 0) {
+        fprintf(stderr, "%s\n", tc_embed_get_error(ctx));
+        tc_embed_destroy(ctx);
+        tc_typed_program_free(&prog);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
 
-    /* 构造参数并调用 */
-    TcValue args[] = { tc_value_from_int32(3), tc_value_from_int32(4) };
-    TcValue result;
-    tc_embed_call(ctx, NULL, "add", 2, args, &result);
-
-    int32_t ret;
     tc_value_to_int32(result, &ret);
     printf("3 + 4 = %d\n", ret);  /* 输出: 3 + 4 = 7 */
 
@@ -199,11 +263,11 @@ int main(void) {
 将 TC 源码经 `tc-aot --embed` 转译为嵌入库 C 代码，用宿主 `cc` 编译为共享库，通过 `tc_embed_create_aot` 加载。同一套 `tc_embed_call` / `tc_embed_slot_*` / `tc_embed_ptr_*` API 在 VM 和 AOT 模式间 API 兼容。
 
 ```sh
-# 生成嵌入库 C 代码和头文件
+# 生成嵌入库 C 代码和宿主头文件
 ./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
-# 编译为共享库，与宿主程序链接
-cc -shared -o libmylib.so mylib.c src/vm/runtime/tc_sem_*.c -I src/vm/runtime
 ```
+
+将生成的 `mylib.c` 与宿主程序、AOT runtime shim（`tc_aot_rt.c`）以及 Embed 桥接源一并按 C99 链接。完整文件清单与 `cc` 命令见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.38.md) §15.6。
 
 ### 值桥接
 
@@ -266,13 +330,15 @@ make ci-coverage         # 额外生成覆盖率报告
 
 本地入口由 `scripts/ci.sh` 实现，与 `.github/workflows/ci.yml` 的核心五阶段一致。GitHub Actions 还运行：
 
-- Ubuntu 与 macOS 标准矩阵；
+- Ubuntu、macOS 与 **Windows（MSYS2 UCRT64 / MinGW gcc）** 标准矩阵；
+- Ubuntu UBSan；
 - no-fenv 浮点后备路径；
 - benchmark 回归；
 - coverage artifact；
-- 独立 Ubuntu ASan 工作流。
+- 独立 Ubuntu ASan 工作流；
+- 打 `v*` tag 时构建 Linux / macOS / Windows 二进制并创建 GitHub Release。
 
-覆盖率 HTML 输出到 `build-coverage/coverage_html/index.html`。
+覆盖率 HTML 输出到 `build-coverage/coverage_html/index.html`。Windows 作业使用 MinGW 而非 MSVC：AOT `--run` 需要 gcc 风格的 host `cc`。
 
 ## 性能观测
 
@@ -303,7 +369,7 @@ src/
 │   ├── analyzer/   静态分析（含 CFG、类型检查、函数/调用图）
 │   ├── executor/   执行器与调用帧
 │   ├── runtime/    运行时（类型、语义、I/O、符号表、诊断）
-│   ├── embed/      TC-Embed 嵌入运行时（v0.0.37）
+│   ├── embed/      TC-Embed 嵌入运行时（v0.0.38）
 │   └── driver/     入口程序与版本
 └── aot/            C99 codegen、runtime shim、CLI、嵌入模式运行时
 tests/

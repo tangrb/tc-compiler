@@ -30,6 +30,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
+#ifdef _WIN32
+static FILE *tc_io_open_stage_file(char *path_buf, size_t path_cap) {
+    const char *dir;
+    int n;
+
+    dir = getenv("TEMP");
+    if (dir == NULL || dir[0] == '\0') {
+        dir = getenv("TMP");
+    }
+    if (dir == NULL || dir[0] == '\0') {
+        dir = ".";
+    }
+    n = snprintf(path_buf, path_cap, "%s\\tc-io-stage-%p.tmp", dir, (void *)path_buf);
+    if (n < 0 || (size_t)n >= path_cap) {
+        return NULL;
+    }
+    return fopen(path_buf, "w+b");
+}
+
+static void tc_io_ensure_binary_stdio(void) {
+    static int done = 0;
+
+    if (done) {
+        return;
+    }
+    (void)_setmode(_fileno(stdin), _O_BINARY);
+    (void)_setmode(_fileno(stdout), _O_BINARY);
+    (void)_setmode(_fileno(stderr), _O_BINARY);
+    done = 1;
+}
+#endif
+
+void tc_io_init(void) {
+#ifdef _WIN32
+    tc_io_ensure_binary_stdio();
+#endif
+}
 
 /* ------------------------------------------------------------------ */
 /*  格式化输出                                                          */
@@ -262,8 +304,63 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
     if (!value || !out) {
         return -1;
     }
+#ifdef _WIN32
+    tc_io_ensure_binary_stdio();
+#endif
 
     /* 先完整渲染到内存缓冲，再一次提交到 out（失败则目标流零字节）。 */
+#ifdef _WIN32
+    {
+        char stage_path[4096];
+
+        stage = tc_io_open_stage_file(stage_path, sizeof(stage_path));
+        if (!stage) {
+            return -1;
+        }
+        if (tc_io_render_value(value, fmt, newline, stage) != 0) {
+            fclose(stage);
+            (void)remove(stage_path);
+            return -1;
+        }
+        if (fflush(stage) != 0 || fseek(stage, 0L, SEEK_END) != 0) {
+            fclose(stage);
+            (void)remove(stage_path);
+            return -1;
+        }
+        {
+            long end_pos = ftell(stage);
+
+            if (end_pos < 0) {
+                fclose(stage);
+                (void)remove(stage_path);
+                return -1;
+            }
+            len = (size_t)end_pos;
+        }
+        if (fseek(stage, 0L, SEEK_SET) != 0) {
+            fclose(stage);
+            (void)remove(stage_path);
+            return -1;
+        }
+        if (len > 0U) {
+            buf = (char *)malloc(len);
+            if (!buf) {
+                fclose(stage);
+                (void)remove(stage_path);
+                return -1;
+            }
+            if (fread(buf, 1U, len, stage) != len) {
+                free(buf);
+                fclose(stage);
+                (void)remove(stage_path);
+                return -1;
+            }
+        }
+        fclose(stage);
+        (void)remove(stage_path);
+        stage = NULL;
+    }
+#else
     stage = open_memstream(&buf, &len);
     if (!stage) {
         return -1;
@@ -278,6 +375,7 @@ int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE 
         return -1;
     }
     stage = NULL;
+#endif
 
     if (len > 0U) {
         if (fwrite(buf, 1U, len, out) != len) {
@@ -644,6 +742,9 @@ int tc_io_read_value(TcTypeTag type, uint64_t *out_bits, TcDiagnostic *diag, int
     char token[256];
     uint64_t bits = 0;
 
+#ifdef _WIN32
+    tc_io_ensure_binary_stdio();
+#endif
     if (!out_bits || !diag ||
         (!tc_type_is_integer(type) && !tc_type_is_bool(type) && !tc_type_is_float(type))) {
         return -1;

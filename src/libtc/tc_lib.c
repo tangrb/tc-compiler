@@ -18,7 +18,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <time.h>
+#endif
 
 /* 进程级 -I 搜索路径；由 tc_set_module_search_paths 设置（非线程安全） */
 static TcModuleSearchPaths g_module_search_paths;
@@ -28,11 +32,17 @@ static TcModuleSearchPaths g_module_search_paths;
 /* ------------------------------------------------------------------ */
 
 static double tc_bench_now(void) {
+#ifdef _WIN32
+    /* MinGW-w64（Debian 打包，msvcrt 运行时）无 clock_gettime；GetTickCount64
+     * 需 _WIN32_WINNT>=0x0600 才声明，GetTickCount 始终可用（相对计时足够） */
+    return (double)GetTickCount() / 1000.0;
+#else
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
         return 0.0;
     }
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+#endif
 }
 
 static void tc_bench_report(const char *phase, double seconds) {

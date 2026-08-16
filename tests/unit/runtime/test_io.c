@@ -10,7 +10,8 @@
  *
  * 防止回归：格式符输出遗漏、范围检查错误、EOF/非法输入处理遗漏
  *
- * 注意：stdin 依赖的测试通过 tmpfile + freopen 重定向实现。
+ * 注意：stdin 依赖的测试通过 tmpfile + fd 级重定向实现（fd 0 换接临时文件，
+ *       再恢复；Windows 的 stdin 是右值宏，不能像 POSIX 那样直接赋值 FILE *）。
  *       写函数直接接受 FILE *out 参数，无需重定向。
  */
 #if defined(__linux__) && !defined(_GNU_SOURCE)
@@ -29,6 +30,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 #if defined(__linux__)
 #include <sys/types.h>
 #endif
@@ -521,7 +527,9 @@ static int tc_io_fail_write(void *cookie, const char *buf, int n) {
 
 static void test_write_atomic_commit_no_partial(void) {
     /* I-10：单次提交整串；若目标流拒绝该次写入，已接受字节必须为 0
-     * （相对「边写边失败留下前缀」的非原子路径）。 */
+     * （相对「边写边失败留下前缀」的非原子路径）。
+     * 仅 Apple/BSD 的 funopen 原子交付（单次回调收整串），可验证零字节提交；
+     * 其余平台见 #else 的只读流错误传播版本。 */
     TcValue value = tc_value_make(TC_INT32, 42);
     TcIoFailCookie cookie;
     FILE *out = NULL;
@@ -540,51 +548,10 @@ static void test_write_atomic_commit_no_partial(void) {
           "failed write contributes zero bytes to destination stream");
     fclose(out);
 }
-#elif defined(__linux__)
-typedef struct {
-    size_t accepted;
-    size_t fail_after;
-} TcIoFailCookie;
-
-static ssize_t tc_io_fail_write(void *cookie, const char *buf, size_t n) {
-    TcIoFailCookie *state = (TcIoFailCookie *)cookie;
-
-    (void)buf;
-    if (!state) {
-        errno = EIO;
-        return -1;
-    }
-    if (state->accepted + n > state->fail_after) {
-        errno = EIO;
-        return -1;
-    }
-    state->accepted += n;
-    return (ssize_t)n;
-}
-
-static void test_write_atomic_commit_no_partial(void) {
-    TcValue value = tc_value_make(TC_INT32, 42);
-    TcIoFailCookie cookie;
-    cookie_io_functions_t funcs;
-    FILE *out = NULL;
-
-    memset(&cookie, 0, sizeof(cookie));
-    cookie.fail_after = 1;
-    memset(&funcs, 0, sizeof(funcs));
-    funcs.write = tc_io_fail_write;
-    out = fopencookie(&cookie, "w", funcs);
-    check(out != NULL, "fopencookie stream for atomic commit");
-    if (!out) {
-        return;
-    }
-    (void)setvbuf(out, NULL, _IONBF, 0);
-    check(tc_io_write_value(&value, TC_FMT_NONE, 0, out) != 0,
-          "atomic write fails when destination rejects whole payload");
-    check(cookie.accepted == 0,
-          "failed write contributes zero bytes to destination stream");
-    fclose(out);
-}
 #else
+/* 其余平台（含 glibc）：fopencookie 会把一次 fwrite 拆成逐字节回调，
+ * "已接受字节必须为 0" 的原子性断言不可移植（glibc 下回调粒度不可控），
+ * 改用只读流验证错误传播：写入被拒时 tc_io_write_value 必须返回 -1。 */
 static void test_write_atomic_commit_no_partial(void) {
     /* 无 cookie 流宿主：至少验证失败路径仍返回 -1（read-only）。 */
     test_write_stream_failure();
@@ -596,9 +563,15 @@ static void test_write_atomic_commit_no_partial(void) {
 /* ================================================================== */
 
 static int with_stdin(const char *input, int (*fn)(void)) {
-    FILE *saved = stdin;
     FILE *tmp = tmpfile();
     int rc = 0;
+    int saved_fd = -1;
+    int stdin_fd;
+#ifdef _WIN32
+    stdin_fd = _fileno(stdin);
+#else
+    stdin_fd = fileno(stdin);
+#endif
 
     if (!tmp) {
         fprintf(stderr, "FAIL: tmpfile() failed\n");
@@ -609,10 +582,39 @@ static int with_stdin(const char *input, int (*fn)(void)) {
         return -1;
     }
     rewind(tmp);
-    stdin = tmp;
-    rc = fn();
+
+    /* 把 fd 0 换接到临时文件（Windows 的 stdin 为右值宏，不能赋值 FILE *） */
+#ifdef _WIN32
+    saved_fd = _dup(stdin_fd);
+    if (saved_fd < 0 || _dup2(_fileno(tmp), stdin_fd) != 0) {
+#else
+    saved_fd = dup(stdin_fd);
+    if (saved_fd < 0 || dup2(fileno(tmp), stdin_fd) != 0) {
+#endif
+        fprintf(stderr, "FAIL: cannot redirect stdin\n");
+        if (saved_fd >= 0) {
+#ifdef _WIN32
+            _close(saved_fd);
+#else
+            close(saved_fd);
+#endif
+        }
+        fclose(tmp);
+        return -1;
+    }
+
     clearerr(stdin);
-    stdin = saved;
+    rc = fn();
+    /* 丢弃 stdin 缓冲中可能预读的临时文件数据，再恢复原 fd */
+    (void)fflush(stdin);
+    clearerr(stdin);
+#ifdef _WIN32
+    _dup2(saved_fd, stdin_fd);
+    _close(saved_fd);
+#else
+    dup2(saved_fd, stdin_fd);
+    close(saved_fd);
+#endif
     fclose(tmp);
     return rc;
 }

@@ -121,6 +121,7 @@ static void test_goto_outside_function_rejected(void) {
         "var skipped: int32 = 1\n"
         "label done:\n";
     TcTypedProgram typed;
+    tc_typed_program_init(&typed);
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);

@@ -5,6 +5,7 @@
 
 #include "tc_aot_codegen.h"
 #include "tc_lib.h"
+#include "tc_test_port.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -102,7 +103,7 @@ static void test_source_lifetime_and_repeated_execution(void) {
 
 static void test_file_lifetime(void) {
     char path[] = "/tmp/tc-libtc-source-XXXXXX";
-    int fd = mkstemp(path);
+    int fd = tc_test_mkstemps(path, 0);
     FILE *file = NULL;
     TcTypedProgram program;
     TcDiagnostic diag;
@@ -192,9 +193,11 @@ static void test_typed_program_free_clears_all_roots(void) {
 static void test_file_errors_use_api_domain(void) {
     char missing_path[] = "/tmp/tc-libtc-missing-XXXXXX";
     char unreadable_path[] = "/tmp/tc-libtc-unreadable-XXXXXX";
-    int missing_fd = mkstemp(missing_path);
+    int missing_fd = tc_test_mkstemps(missing_path, 0);
     int unreadable_fd = -1;
+#ifndef _WIN32
     int fifo_keepalive = -1;
+#endif
     TcTypedProgram out;
     TcTypedProgram before;
     TcDiagnostic diag;
@@ -218,7 +221,7 @@ static void test_file_errors_use_api_domain(void) {
 
     tc_diagnostic_clear(&diag);
     tc_diagnostic_init(&diag);
-    unreadable_fd = mkstemp(unreadable_path);
+    unreadable_fd = tc_test_mkstemps(unreadable_path, 0);
     check(unreadable_fd >= 0, "create unique FileRead path");
     if (unreadable_fd < 0) {
         tc_diagnostic_clear(&diag);
@@ -226,6 +229,8 @@ static void test_file_errors_use_api_domain(void) {
     }
     close(unreadable_fd);
     unlink(unreadable_path);
+#ifndef _WIN32
+    /* Windows 无 FIFO（mkfifo）/O_NONBLOCK 语义，非 seekable 源场景仅 POSIX 可测 */
     check(mkfifo(unreadable_path, 0600) == 0, "create non-seekable source FIFO");
     fifo_keepalive = open(unreadable_path, O_RDWR | O_NONBLOCK);
     check(fifo_keepalive >= 0, "open source FIFO keepalive descriptor");
@@ -242,6 +247,7 @@ static void test_file_errors_use_api_domain(void) {
           "file read failure leaves caller output unchanged");
     close(fifo_keepalive);
     unlink(unreadable_path);
+#endif
     tc_diagnostic_clear(&diag);
 }
 
@@ -310,7 +316,7 @@ static void test_null_diagnostic_and_program_do_not_crash(void) {
 static void test_source_and_file_language_kinds_match(void) {
     static const char source[] = "#program\nvar value: int32 = missing\n";
     char path[] = "/tmp/tc-libtc-language-kind-XXXXXX";
-    int fd = mkstemp(path);
+    int fd = tc_test_mkstemps(path, 0);
     FILE *file = NULL;
     TcTypedProgram out;
     TcDiagnostic source_diag;
@@ -352,7 +358,7 @@ static void test_module_search_paths_resolve_import(void) {
         "var x: int32 = funcall(ExtraLib.extra_answer)\n"
         "writeln(int32, x)\n";
     char path[] = "/tmp/tc-libtc-search-XXXXXX";
-    int fd = mkstemp(path);
+    int fd = tc_test_mkstemps(path, 0);
     FILE *file = NULL;
     char *paths[1];
     char extra_dir[512];

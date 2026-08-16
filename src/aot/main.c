@@ -21,14 +21,21 @@
  */
 #include "tc_aot_codegen.h"
 #include "tc_diagnostic.h"
+#include "tc_io.h"
 #include "tc_lib.h"
 #include "tc_version.h"
 #include "tc_warning.h"
 
+#include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h>
+#endif
 
 #define TC_AOT_MAX_INCLUDE_PATHS 64
 
@@ -68,17 +75,118 @@ static char *tc_aot_default_output_path(const char *input_path) {
     return out;
 }
 
-/** 编译并运行生成的 C 代码（需 host C 编译器） */
+/** 编译并运行生成的 C 代码（需 host C 编译器）。
+ * 非 Windows（glibc / macOS）：拼一条 system() 命令编译 + 运行。
+ * Windows（MinGW / msys2）：改用 _spawnv 直接以 argv 数组启动宿主 cc
+ * 与生成的 exe，绕开 cmd.exe / bash 的命令行词法解析（实测 msys2 的
+ * system() 对含多路径 / 引号 / && 的长 gcc 命令解析不稳定）。 */
 static int tc_aot_run_generated(const char *c_path) {
     char cmd[8192];
+    const char *cc;
+    const char *exe_name;
+    int n;
 #ifdef TC_AOT_HAVE_FENV
     const char *fenv_flag = "-DTC_HAVE_FENV=1 ";
 #else
     const char *fenv_flag = "";
 #endif
+#if defined(__APPLE__)
+    /* Apple libSystem 内含 libm */
+    const char *libm_flag = "";
+#else
+    /* glibc/MinGW 需要显式 -lm（tc_sem_cast.c 使用 trunc 等） */
+    const char *libm_flag = "-lm ";  /* 尾随空格，避免与后续 -o 粘连 */
+#endif
 
-    snprintf(cmd, sizeof(cmd),
-             "cc -std=c99 -Wall -Wextra -Werror -pedantic "
+    cc = getenv("CC");
+    if (cc == NULL || cc[0] == '\0') {
+        cc = "cc";
+    }
+#ifdef _WIN32
+    exe_name = ".exe";
+#else
+    exe_name = "";
+#endif
+
+#ifdef _WIN32
+    {
+        /*
+         * Windows：直接拼 `cmd && cmd` 传给 msys2 的 system() 会在 cmd.exe
+         * 词法层失败（实测报"文件名、目录名或卷标语法不正确"）。改用最
+         * 经典的方案：把编译＋运行命令写入临时 .bat 文件，再让 system()
+         * 执行该 .bat。cmd.exe 对 .bat 文件内容的词法解析与参数模式一致、
+         * 引号完整保留，是 Windows 上执行含多路径/&& 命令的可靠出路。
+         */
+        char bat_path[MAX_PATH > 0 ? MAX_PATH : 4096];
+        char bat_cmd[8192];
+        char *bpath;
+        FILE *bf = NULL;
+        int rc;
+
+        (void)snprintf(bat_path, sizeof(bat_path),
+                       "%s.out.bat", c_path);
+        bf = fopen(bat_path, "wb");
+        if (!bf) {
+            return -1;
+        }
+        /* 两条命令分行：编译成功后执行生成的 exe。
+         * 注意：%errorlevel% 需写成 %%errorlevel%%（snprintf 把 %% → %，
+         * 且 %%e 不触发浮点格式符），使 .bat 最后一行真实返回子进程码。 */
+        (void)snprintf(bat_cmd, sizeof(bat_cmd),
+            "@echo off\r\n"
+            "\"%s\" -std=c99 -Wall -Wextra -Werror -pedantic "
+            "-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE "
+            "%s"
+            "-I\"%s\" -I\"%s/runtime\" "
+            "\"%s\" \"%s/tc_aot_rt.c\" "
+            "\"%s/runtime/tc_types.c\" "
+            "\"%s/runtime/tc_diagnostic.c\" "
+            "\"%s/runtime/tc_semantics.c\" "
+            "\"%s/runtime/tc_sem_int.c\" "
+            "\"%s/runtime/tc_sem_fp.c\" "
+            "\"%s/runtime/tc_sem_cast.c\" "
+            "\"%s/runtime/tc_sem_bitwise.c\" "
+            "\"%s/runtime/tc_io.c\" "
+            "%s"
+            "-o \"%s.out%s\"\r\n"
+            "if errorlevel 1 exit /b 1\r\n"
+            "\"%s.out%s\"\r\n"
+            "exit /b %%errorlevel%%\r\n",
+            cc, fenv_flag,
+            TC_AOT_RT_DIR, TC_VM_DIR,
+            c_path, TC_AOT_RT_DIR,
+            TC_VM_DIR, TC_VM_DIR, TC_VM_DIR, TC_VM_DIR,
+            TC_VM_DIR, TC_VM_DIR, TC_VM_DIR, TC_VM_DIR,
+            libm_flag,
+            c_path, exe_name,
+            c_path, exe_name);
+        if (fwrite(bat_cmd, 1, strlen(bat_cmd), bf) != strlen(bat_cmd)) {
+            fclose(bf);
+            (void)remove(bat_path);
+            return -1;
+        }
+        fclose(bf);
+
+        if (getenv("TC_AOT_DEBUG_CMD") != NULL) {
+            fprintf(stderr, "tc-aot .bat: %s\n%s\n", bat_path, bat_cmd);
+        }
+        bpath = (char *)malloc(strlen(bat_path) + 1);
+        if (!bpath) {
+            (void)remove(bat_path);
+            return -1;
+        }
+        strcpy(bpath, bat_path);
+        rc = system(bpath);
+        free(bpath);
+        (void)remove(bat_path);
+        return rc == 0 ? 0 : -1;
+    }
+#else
+    n = snprintf(cmd, sizeof(cmd),
+             "\"%s\" -std=c99 -Wall -Wextra -Werror -pedantic "
+             /* 特征宏：宿主 cc 编译 runtime 时，glibc/MinGW 严格 ANSI 下
+              * 会隐藏 strdup/strndup 等声明（与主构建同因），必须显式带上 */
+             "-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE "
              "%s"
              "-I\"" TC_AOT_RT_DIR "\" -I\"" TC_VM_DIR "/runtime\" "
              "\"%s\" \"" TC_AOT_RT_DIR "/tc_aot_rt.c\" "
@@ -90,12 +198,22 @@ static int tc_aot_run_generated(const char *c_path) {
              "\"" TC_VM_DIR "/runtime/tc_sem_cast.c\" "
              "\"" TC_VM_DIR "/runtime/tc_sem_bitwise.c\" "
              "\"" TC_VM_DIR "/runtime/tc_io.c\" "
-             "-o \"%s.out\" && \"%s.out\"",
-             fenv_flag, c_path, c_path, c_path);
+             /* -lm 必须位于对象文件之后（GNU ld 单遍扫描） */
+             "%s"
+             "-o \"%s.out%s\" && \"%s.out%s\"",
+             cc, fenv_flag, c_path, libm_flag, c_path, exe_name, c_path, exe_name);
+    if (n < 0 || (size_t)n >= sizeof(cmd)) {
+        return -1;
+    }
+    if (getenv("TC_AOT_DEBUG_CMD") != NULL) {
+        fprintf(stderr, "tc-aot host cc cmd: %s\n", cmd);
+    }
     return system(cmd);
+#endif
 }
 
 int main(int argc, char **argv) {
+    tc_io_init();
     static const struct option longopts[] = {
         {"output", required_argument, NULL, 'o'},
         {"header", required_argument, NULL, 'H'},

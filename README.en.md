@@ -5,7 +5,7 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **libtc**: an embeddable static library for compilation, static analysis, and execution;
 - **TC-VM**: a command-line tool that directly executes TC source files;
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
-- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (new in v0.0.37).
+- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.38).
 
 Current core version: **v0.0.38**, Embed module version: **v0.0.38**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.38.md) is the sole authority for language syntax and observable semantics.
 
@@ -52,9 +52,52 @@ bash scripts/run_tests.sh
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
 | Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; VM + AOT) |
-| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.37) |
+| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.38) |
 
-Version 0.0.38 does not include strings, a bytecode file format, or JIT.
+Version 0.0.38 does not include strings, a bytecode file format, or JIT. REPL has been removed; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
+
+## Language Example
+
+A 0.0.38 source file must start with `#program` or `#lib`. Arithmetic and comparisons use explicitly typed builtin calls, not infix operators.
+
+```tc
+#program
+
+var a: int32 = 10
+var b: int32 = 20
+var sum: int32 = add(int32, a, b)
+writeln(int32, %d, sum)
+
+if eq(int32, sum, 30) then
+    writeln(int32, 1)
+else
+    writeln(int32, 0)
+end
+```
+
+Functions in a `#lib` require `public` / `private`. The return type follows the parameter list, and the body is wrapped by `then` / `end`:
+
+```tc
+#lib
+
+public func plus(a: int32, b: int32) int32 then
+    var sum: int32 = add(int32, a, b)
+    return sum
+end
+```
+
+An entry program calls library functions with `import` and `funcall` (named arguments):
+
+```tc
+#program
+import math_lib
+
+var r: float64 = 3.14
+var area: float64 = funcall(math_lib.compute_area, r: r)
+writeln(float64, %f, area)
+```
+
+See the [TC Language Specification](docs/TC语言标准设计说明书-0.0.38.md) for complete syntax and semantics.
 
 ## Build
 
@@ -118,7 +161,7 @@ libtc uses a success-only ownership contract: after successful compilation, the 
 int main(void) {
     const char *source =
         "#program\n"
-        "var x: int32 = 1\n"
+        "var x: int32 = add(int32, 1, 6)\n"
         "writeln(int32, %d, x)\n";
     TcDiagnostic diag;
     TcTypedProgram program;
@@ -146,7 +189,7 @@ int main(void) {
 
 The public entry points are `tc_compile_source`, `tc_compile_file`, `tc_set_module_search_paths`, and `tc_run_program`. See the [libtc Embedding API](docs/libtc-api-0.0.38.md) for complete ownership, diagnostics, and build details.
 
-## Embedding TC-Embed (v0.0.37)
+## Embedding TC-Embed (v0.0.38)
 
 TC-Embed provides C host programs with zero-copy calling of TC compilation artifacts. C and TC share the same `TcValue slots[]` array, and the `ptr<T>` slot encoding `(slot << 1) | 1` serves as the unified handle for passing variable references between C and TC.
 
@@ -157,33 +200,54 @@ Core headers: `src/vm/embed/tc_embed.h` + `src/vm/embed/tc_value_bridge.h`.
 Compile TC source via libtc, then create an embed context with `tc_embed_create`:
 
 ```c
+#include <stdint.h>
+#include <stdio.h>
+
 #include "tc_embed.h"
-#include "tc_value_bridge.h"
 #include "tc_lib.h"
 
 int main(void) {
     const char *src =
         "#lib\n"
-        "func add(a: int32, b: int32) -> int32\n"
-        "    return(a + b)\n"
+        "public func plus(a: int32, b: int32) int32 then\n"
+        "    var sum: int32 = add(int32, a, b)\n"
+        "    return sum\n"
         "end\n";
     TcDiagnostic diag;
     TcTypedProgram prog;
+    TcEmbedCtx *ctx;
+    const TcEmbedFuncInfo *info;
+    TcValue result;
+    int32_t ret;
 
     tc_diagnostic_init(&diag);
-    if (tc_compile_source(src, "add.tc", &prog, &diag) != 0) { /* handle */ }
+    if (tc_compile_source(src, "plus.tc", &prog, &diag) != 0) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
 
-    TcEmbedCtx *ctx = tc_embed_create(&prog, &diag);
+    ctx = tc_embed_create(&prog, &diag);
+    if (ctx == NULL) {
+        tc_diagnostic_print(&diag, stderr);
+        tc_typed_program_free(&prog);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
 
-    /* Look up function info */
-    const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, NULL, "add");
+    info = tc_embed_func_info(ctx, NULL, "plus");
+    if (info == NULL ||
+        tc_embed_call_typed(ctx, info,
+                            TC_EMBED_ARGS(tc_embed_arg_i32(3),
+                                          tc_embed_arg_i32(4)),
+                            &result) != 0) {
+        fprintf(stderr, "%s\n", tc_embed_get_error(ctx));
+        tc_embed_destroy(ctx);
+        tc_typed_program_free(&prog);
+        tc_diagnostic_clear(&diag);
+        return 1;
+    }
 
-    /* Construct arguments and call */
-    TcValue args[] = { tc_value_from_int32(3), tc_value_from_int32(4) };
-    TcValue result;
-    tc_embed_call(ctx, NULL, "add", 2, args, &result);
-
-    int32_t ret;
     tc_value_to_int32(result, &ret);
     printf("3 + 4 = %d\n", ret);  /* Prints: 3 + 4 = 7 */
 
@@ -199,11 +263,11 @@ int main(void) {
 Transpile TC source via `tc-aot --embed` into embed-library C code, compile with host `cc` as a shared library, and load via `tc_embed_create_aot`. The same `tc_embed_call` / `tc_embed_slot_*` / `tc_embed_ptr_*` API is compatible across VM and AOT modes.
 
 ```sh
-# Generate embed library C code and header
+# Generate embed-library C code and a host header
 ./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
-# Compile as a shared library, link with host program
-cc -shared -o libmylib.so mylib.c src/vm/runtime/tc_sem_*.c -I src/vm/runtime
 ```
+
+Link the generated `mylib.c` with the host program, the AOT runtime shim (`tc_aot_rt.c`), and the Embed bridge sources as C99. See [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.38.md) §15.6 for the complete file list and `cc` command.
 
 ### Value Bridging
 
@@ -266,13 +330,15 @@ make ci-coverage         # Also generate a coverage report
 
 The local entry point is implemented by `scripts/ci.sh` and matches the core five stages in `.github/workflows/ci.yml`. GitHub Actions additionally runs:
 
-- the standard Ubuntu and macOS matrix;
+- the standard Ubuntu, macOS, and **Windows (MSYS2 UCRT64 / MinGW gcc)** matrix;
+- Ubuntu UBSan;
 - the no-fenv floating-point fallback;
 - benchmark regression;
 - a coverage artifact;
-- a separate Ubuntu ASan workflow.
+- a separate Ubuntu ASan workflow;
+- Linux / macOS / Windows binaries and a GitHub Release when a `v*` tag is pushed.
 
-Coverage HTML is written to `build-coverage/coverage_html/index.html`.
+Coverage HTML is written to `build-coverage/coverage_html/index.html`. The Windows job uses MinGW rather than MSVC because AOT `--run` needs a gcc-style host `cc`.
 
 ## Performance Observation
 
@@ -303,7 +369,7 @@ src/
 │   ├── analyzer/   Static analysis (CFG, type checking, function/call graph)
 │   ├── executor/   Executor and call frames
 │   ├── runtime/    Runtime (types, semantics, I/O, symbols, diagnostics)
-│   ├── embed/      TC-Embed embedded runtime (v0.0.37)
+│   ├── embed/      TC-Embed embedded runtime (v0.0.38)
 │   └── driver/     Entry point and version
 └── aot/            C99 codegen, runtime shim, CLI, embed-mode runtime
 tests/

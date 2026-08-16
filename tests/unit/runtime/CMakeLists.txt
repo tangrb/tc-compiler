@@ -82,6 +82,7 @@ add_custom_target(check-diagnostic
 
 add_executable(test-libtc
     test_libtc.c
+    tc_test_port.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_codegen.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_rhs.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_stmt.c
@@ -106,7 +107,7 @@ add_custom_target(check-libtc
 #  test-module — Phase 2 模块系统（导入/DAG/签名/Self）单元测试         #
 # ------------------------------------------------------------------ #
 
-add_executable(test-module test_module.c)
+add_executable(test-module test_module.c tc_test_port.c)
 target_link_libraries(test-module PRIVATE libtc)
 target_include_directories(test-module PRIVATE
     ${TC_VM_INCLUDE_DIRS}
@@ -377,6 +378,7 @@ add_custom_target(check-embed
 # ------------------------------------------------------------------ #
 
 add_executable(test-embed-aot test_embed_aot.c
+    tc_test_port.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_codegen.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_rhs.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_stmt.c

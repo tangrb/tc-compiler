@@ -12,6 +12,16 @@
 
 #include "tc_types.h"
 
+/**
+ * 可移植 strndup：复制字符串至多 n 字节并保证 NUL 结尾。
+ * glibc / MSYS2 提供 strndup，但上游 MinGW-w64 无此函数（隐式声明在
+ * GCC 14+ 下为硬错误），故统一走本实现，避免平台差异。
+ * @param s 源串（NULL 返回 NULL）
+ * @param n 最大复制字节数（遇 NUL 提前停止）
+ * @return 新分配副本；分配失败返回 NULL
+ */
+char *tc_strndup(const char *s, size_t n);
+
 /** 初始化诊断结构为默认空状态 */
 void tc_diagnostic_init(TcDiagnostic *diag);
 

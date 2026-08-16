@@ -9,6 +9,32 @@ PASSED=0
 FAILED=0
 FAILED_FILES=""
 
+if [ -x "${VM_BIN}.exe" ] && [ ! -x "$VM_BIN" ]; then
+    VM_BIN="${VM_BIN}.exe"
+fi
+if [ -x "${AOT_BIN}.exe" ] && [ ! -x "$AOT_BIN" ]; then
+    AOT_BIN="${AOT_BIN}.exe"
+fi
+
+# Windows（MSYS2/MinGW）下把 CLI 金标路径归一化为二进制实际打印的形式：
+# argv[0]/程序路径转反斜杠形式（cygpath -w），命令行参数转正斜杠形式
+# （cygpath -m）；见 scripts/vm/run_tests.sh 注释。
+if command -v cygpath >/dev/null 2>&1; then
+    case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        native_path() { cygpath -w "$1"; }
+        mixed_path() { cygpath -m "$1"; }
+        ;;
+    *)
+        native_path() { printf '%s' "$1"; }
+        mixed_path() { printf '%s' "$1"; }
+        ;;
+    esac
+else
+    native_path() { printf '%s' "$1"; }
+    mixed_path() { printf '%s' "$1"; }
+fi
+
 fail() {
     echo "$1" >&2
     FAIL=1
@@ -262,7 +288,7 @@ run_aot_cli_golden() {
 
 run_aot_cli_golden "--version" 0 "tc-aot 0.0.38" "" "aot version golden"
 
-run_aot_cli_golden "--help" 0 "" "Usage: $AOT_BIN [options] <file.tc>
+run_aot_cli_golden "--help" 0 "" "Usage: $(native_path "$AOT_BIN") [options] <file.tc>
 
 TC ahead-of-time compiler (TC → C99).
 
@@ -281,7 +307,8 @@ Notes:
 
 AOT_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-aot-missing.XXXXXX")"
 rm -f "$AOT_MISSING_PATH"
-run_aot_cli_golden "$AOT_MISSING_PATH" 1 "" "$AOT_MISSING_PATH: api error: FileOpen: cannot open input file" "aot file-open golden"
+EXPECTED_MISSING="$(mixed_path "$AOT_MISSING_PATH")"
+run_aot_cli_golden "$AOT_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "aot file-open golden"
 
 # D-15：AOT 公开 -I 上限不得报 OutOfMemory
 {

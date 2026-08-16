@@ -56,7 +56,7 @@ static inline int tc_stmt_block_index_span(const TcStatement *items, size_t coun
  * 语句子树占用的 index 总数（含 stmt 自身）。
  * if 节点：1 + then 块 span + else 块 span。
  * while：1 + body span。
- * func：1 + body span（0.0.37 多域；与 Pass1 一致）。
+ * func：1 + body span（0.0.38 多域；与 Pass1 一致）。
  */
 static inline int tc_stmt_subtree_index_count(const TcStatement *stmt) {
     if (stmt->kind == TC_STMT_IF) {

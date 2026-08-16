@@ -14,8 +14,8 @@
 #include "tc_value_bridge.h"
 #include "tc_lib.h"
 #include "tc_aot_codegen.h"
+#include "tc_test_port.h"
 
-#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,7 +55,7 @@ static char *build_aot_embed_lib(const TcTypedProgram *program,
     FILE *c_file = NULL;
     char cmd[8192];
 
-    c_fd = mkstemps(c_template, 2);  /* 2 = ".c" suffix length */
+    c_fd = tc_test_mkstemps(c_template, 2);  /* 2 = ".c" suffix length */
     if (c_fd < 0) return NULL;
     c_path = strdup(c_template);
     if (!c_path) { close(c_fd); return NULL; }
@@ -73,18 +73,17 @@ static char *build_aot_embed_lib(const TcTypedProgram *program,
     /* 生成 .so 路径 */
     {
         size_t len = strlen(c_path);
-        so_path = (char *)malloc(len + 1);
+        so_path = (char *)malloc(len + 2);  /* 去 .c 加 .so：len+1 字符 + NUL */
         if (!so_path) { unlink(c_path); free(c_path); return NULL; }
-        memcpy(so_path, c_path, len - 1);  /* 去掉 .c */
-        so_path[len - 1] = 's';
-        so_path[len] = 'o';
-        so_path[len + 1] = '\0';
+        memcpy(so_path, c_path, len - 2);       /* 去掉 ".c" */
+        memcpy(so_path + (len - 2), ".so", 4);  /* 追加 ".so" + NUL */
     }
 
     /* 编译为共享库 */
     {
         (void)snprintf(cmd, sizeof(cmd),
             "cc -std=c99 -Wall -Werror -fPIC -shared "
+            "-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE "
             "-I\"%s/src/aot\" -I\"%s/src/vm/runtime\" -I\"%s/src/vm/embed\" "
             "\"%s\" \"%s/src/aot/tc_aot_rt.c\" "
             "\"%s/src/vm/runtime/tc_types.c\" "
@@ -146,17 +145,17 @@ static TcEmbedCtx *create_aot_embed_ctx(const TcTypedProgram *program,
     TcDiagnostic diag;
     int (*init_fn)(TcDiagnostic *) = NULL;
 
-    dl_handle = dlopen(so_path, RTLD_NOW | RTLD_LOCAL);
+    dl_handle = tc_test_dlopen(so_path);
     if (!dl_handle) return NULL;
 
-    slots = (uint64_t *)dlsym(dl_handle, "slots");
-    if (!slots) { dlclose(dl_handle); return NULL; }
+    slots = (uint64_t *)tc_test_dlsym(dl_handle, "slots");
+    if (!slots) { tc_test_dlclose(dl_handle); return NULL; }
 
-    func_table = (const tc_aot_func_entry *)dlsym(dl_handle, "tc_aot_func_table");
-    if (!func_table) { dlclose(dl_handle); return NULL; }
+    func_table = (const tc_aot_func_entry *)tc_test_dlsym(dl_handle, "tc_aot_func_table");
+    if (!func_table) { tc_test_dlclose(dl_handle); return NULL; }
 
-    init_fn = (int (*)(TcDiagnostic *))dlsym(dl_handle, "tc_aot_init");
-    if (!init_fn) { dlclose(dl_handle); return NULL; }
+    init_fn = (int (*)(TcDiagnostic *))tc_test_dlsym(dl_handle, "tc_aot_init");
+    if (!init_fn) { tc_test_dlclose(dl_handle); return NULL; }
 
     tc_diagnostic_init(&diag);
     ctx = tc_embed_create_aot(slots, slot_count, func_table, init_fn, program, &diag);

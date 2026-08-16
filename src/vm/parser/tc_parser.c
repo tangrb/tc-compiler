@@ -86,7 +86,7 @@ int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
 
     if (tok->kind == TC_TOK_IDENTIFIER) {
         out->kind = TC_OPERAND_VAR;
-        out->u.name = strndup(tok->start, tok->length);
+        out->u.name = tc_strndup(tok->start, tok->length);
         if (!out->u.name) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
             return -1;
@@ -162,7 +162,7 @@ char *tc_token_strdup(const TcToken *tok, int line_no, TcDiagnostic *diag) {
     if (!tok) {
         return NULL;
     }
-    copy = (char *)strndup(tok->start, tok->length);
+    copy = (char *)tc_strndup(tok->start, tok->length);
     if (!copy) {
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
     }
@@ -578,7 +578,7 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
         if (name_tok->kind != TC_TOK_IDENTIFIER) {
             return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
         }
-        out->name = strndup(name_tok->start, name_tok->length);
+        out->name = tc_strndup(name_tok->start, name_tok->length);
         if (!out->name) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column, "memory allocation failed");
             return -1;
@@ -2217,7 +2217,7 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
             return tc_syntax_error(diag, line_no, name_tok->column,
                                    "expected identifier after 'goto'");
         }
-        goto_stmt.target = strndup(name_tok->start, name_tok->length);
+        goto_stmt.target = tc_strndup(name_tok->start, name_tok->length);
         if (!goto_stmt.target) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column,
                               "memory allocation failed");
@@ -2246,7 +2246,7 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
             return tc_syntax_error(diag, line_no, name_tok->column,
                                    "expected identifier after 'label'");
         }
-        label_def.name = strndup(name_tok->start, name_tok->length);
+        label_def.name = tc_strndup(name_tok->start, name_tok->length);
         if (!label_def.name) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, name_tok->column,
                               "memory allocation failed");
@@ -2288,7 +2288,7 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
         }
         TcAssign assign;
         assign.line = line_no;
-        assign.name = strndup(first->start, first->length);
+        assign.name = tc_strndup(first->start, first->length);
         if (!assign.name) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, first->column, "memory allocation failed");
             return -1;

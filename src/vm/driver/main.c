@@ -16,6 +16,7 @@
  */
 #include "tc_diagnostic.h"
 #include "tc_driver.h"
+#include "tc_io.h"
 #include "tc_lib.h"
 #include "tc_version.h"
 
@@ -54,6 +55,7 @@ static void tc_print_usage(const char *program) {
 }
 
 int main(int argc, char **argv) {
+    tc_io_init();
     static const struct option longopts[] = {
         {"check", no_argument, NULL, 'c'},
         {"include", required_argument, NULL, 'I'},

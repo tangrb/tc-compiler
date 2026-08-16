@@ -1,0 +1,14 @@
+# 统一行尾：脚本与源码在 Windows checkout 时强制 LF。
+# GitHub Actions 的 windows runner 默认 core.autocrlf=true，
+# 会把 .sh 检出为 CRLF 导致 bash 语法错误（MSYS2 同样受影响）。
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.tc text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.txt text eol=lf

@@ -71,7 +71,7 @@ typedef enum {
     TC_TOK_GT,          /* '>'（类型参数） */
     TC_TOK_DOT,         /* '.'（Self.x / a.b） */
     TC_TOK_PADDING,     /* 'padding'（@padding） */
-    /* 0.0.37 ptr/memblock 操作关键字 */
+    /* 0.0.38 ptr/memblock 操作关键字 */
     TC_TOK_PTR_ADD,
     TC_TOK_PTR_SUB,
     TC_TOK_PTR_LOAD,

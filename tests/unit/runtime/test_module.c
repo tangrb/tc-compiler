@@ -10,6 +10,7 @@
 #include "tc_parser.h"
 #include "tc_scope.h"
 #include "tc_types.h"
+#include "tc_test_port.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +30,7 @@ static void check(int condition, const char *message) {
 }
 
 static int write_temp_file(char *path_template, const char *contents) {
-    int fd = mkstemp(path_template);
+    int fd = tc_test_mkstemps(path_template, 0);
     FILE *fp = NULL;
 
     if (fd < 0) {
@@ -136,7 +137,7 @@ static void test_import_not_found_via_compile_file(void) {
 
 static void test_import_success_and_signatures(void) {
     char dir_template[] = "/tmp/tc-mod-ok-XXXXXX";
-    char *dir = mkdtemp(dir_template);
+    char *dir = tc_test_mkdtemp(dir_template);
     char lib_path[256];
     char entry_path[256];
     FILE *fp = NULL;
@@ -209,7 +210,7 @@ static void test_import_success_and_signatures(void) {
 
 static void test_circular_import_pair(void) {
     char dir_template[] = "/tmp/tc-mod-circ-XXXXXX";
-    char *dir = mkdtemp(dir_template);
+    char *dir = tc_test_mkdtemp(dir_template);
     char a_path[256];
     char b_path[256];
     char entry_path[256];
@@ -248,7 +249,7 @@ static void test_circular_import_pair(void) {
 
 static void test_import_not_lib(void) {
     char dir_template[] = "/tmp/tc-mod-notlib-XXXXXX";
-    char *dir = mkdtemp(dir_template);
+    char *dir = tc_test_mkdtemp(dir_template);
     char lib_path[256];
     char entry_path[256];
     FILE *fp = NULL;
@@ -280,7 +281,7 @@ static void test_import_not_lib(void) {
 
 static void test_duplicate_import(void) {
     char dir_template[] = "/tmp/tc-mod-dup-XXXXXX";
-    char *dir = mkdtemp(dir_template);
+    char *dir = tc_test_mkdtemp(dir_template);
     char lib_path[256];
     char entry_path[256];
     FILE *fp = NULL;
@@ -314,9 +315,9 @@ static void test_ambiguous_import_search_paths(void) {
     char dir_a_t[] = "/tmp/tc-mod-amb-a-XXXXXX";
     char dir_b_t[] = "/tmp/tc-mod-amb-b-XXXXXX";
     char entry_t[] = "/tmp/tc-mod-amb-e-XXXXXX";
-    char *dir_a = mkdtemp(dir_a_t);
-    char *dir_b = mkdtemp(dir_b_t);
-    char *entry_dir = mkdtemp(entry_t);
+    char *dir_a = tc_test_mkdtemp(dir_a_t);
+    char *dir_b = tc_test_mkdtemp(dir_b_t);
+    char *entry_dir = tc_test_mkdtemp(entry_t);
     char path_a[256];
     char path_b[256];
     char entry_path[256];
@@ -367,7 +368,7 @@ static void test_ambiguous_import_search_paths(void) {
 
 static void test_self_import_file(void) {
     char dir_template[] = "/tmp/tc-mod-self-XXXXXX";
-    char *dir = mkdtemp(dir_template);
+    char *dir = tc_test_mkdtemp(dir_template);
     char path[256];
     FILE *fp = NULL;
     TcTypedProgram out;

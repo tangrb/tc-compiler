@@ -249,7 +249,7 @@ if [ "$DO_COVERAGE" -eq 1 ]; then
         fi
 
         lcov --remove "$COVERAGE_BUILD_DIR/coverage_raw.info" \
-            '/usr/*' '*/tests/*' \
+            '*/tests/*' \
             --output-file "$COVERAGE_BUILD_DIR/coverage.info" \
             --rc lcov_branch_coverage=1 2>&1
         if [ $? -ne 0 ]; then
