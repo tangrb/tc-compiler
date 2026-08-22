@@ -1,5 +1,5 @@
 /*
- * tc_func_check.c — 函数签名 / funcall / return / static let/var（Phase 4 / 模块 F）
+ * tc_func_check.c — 函数签名 / funcall / return / static let/var
  *
  * 阶段 5：tc_func_check_signatures
  * 阶段 7/8：tc_func_check_funcall / tc_func_check_return

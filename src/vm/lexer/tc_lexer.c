@@ -5,8 +5,8 @@
  * 格式说明符（%d/%i/%u/%x/%X/%o/%b/%t/%f/%e/%E/%g/%G）及单字符标点（:=,() 等）。
  * 每行产出 TcTokenList（含 TC_TOK_EOF），由 Parser 消费。
  *
- * Phase 2：识别 #program/#lib 模块指令，以及 import/func/struct/
- * public/private/static/Self 等模块关键字。
+ * 识别模块指令 #program/#lib，以及 import/func/struct/public/private/static/Self
+ * 与 ptr_*/memblock_*/memcopy_unsafe 等关键字。
  */
 #include "tc_lexer.h"
 

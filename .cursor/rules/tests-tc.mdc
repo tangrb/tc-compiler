@@ -1,0 +1,109 @@
+---
+description: TC-Compiler .tc 测试编写 — 模板、注册、期望消息；编辑 tests/ 或 run_tests.sh 时加载
+globs: tests/**/*.tc,tests/**/*.txt,scripts/**/run_tests.sh
+alwaysApply: false
+---
+
+# TC 测试编写
+
+错误子串表：[errors.md](../tc-architecture/errors.md)。测试映射：[test-map.md](../tc-architecture/test-map.md)。
+
+## 分类与路径
+
+| 类型 | 路径 | 注册函数 |
+|------|------|---------|
+| valid | `tests/valid/` | `run_expect_stdout` / `run_with_stdin` / `run_expect_ok` |
+| static | `tests/errors/static/` | `run_expect_fail_msg` + `run_expect_check_fail` |
+| runtime | `tests/errors/runtime/` | `run_expect_fail_msg` / `run_expect_fail_stdin_msg` |
+| stress | `tests/stress/` | `run_expect_stdout` / `run_expect_ok` |
+
+> 0.0.39 无语言警告；勿新增 `run_expect_ok_warn` 用例。
+
+Stress 可用 `tests/stress/gen_stress_tests.sh` 重新生成。全量入口：`bash scripts/run_tests.sh`。
+
+**必做**：新文件追加到 `scripts/vm/run_tests.sh` 对应 `# ---` 区块；AOT 相关还需 `scripts/aot/run_tests.sh`。
+
+## 模板
+
+### valid（期望 stdout）
+
+```tc
+; 测试目的：简述
+var x: int32 = 42
+writeln(int32, x)
+```
+
+注册：`run_expect_stdout "$ROOT/tests/valid/foo.tc" "42\n"`
+
+### static（一文件一错误）
+
+```tc
+; 期望：undefined variable
+writeln(int32, missing)
+```
+
+注册：
+```sh
+run_expect_fail_msg "$ROOT/tests/errors/static/foo.tc" "undefined variable"
+run_expect_check_fail "$ROOT/tests/errors/static/foo.tc" "undefined variable"
+```
+
+### runtime（错误前应有输出）
+
+```tc
+; 期望：division by zero；此前 writeln 应已执行
+writeln(int32, 1)
+var x: int32 = div(int32, 1, 0)
+```
+
+### stdin 输入
+
+```sh
+run_with_stdin "$ROOT/tests/valid/read_foo.tc" "true\n" "true\n"
+```
+
+## 规则
+
+- static stderr：`<file>:<line>:<col>: error: <message>`
+- 每个 static 文件只触发**一种**错误
+- stdout 期望值与 `writeln` 输出**完全一致**（含换行 `\n`）
+- bool 输出 `true`/`false`；`read(bool)` 输入同
+
+## 常见 static 子串
+
+| 场景 | 子串 |
+|------|------|
+| bool→整数 | `literal type does not match variable type` |
+| 整数→bool | `literal type does not match context` |
+| 比较/逻辑/位运算类型 | `operand type does not match operation type` |
+| xor 用于 bool | `expected integer type` |
+| 位运算/shift + wrap | `wrap cannot be used with bitwise/shift operations` |
+| shl + truncate | `truncate cannot be used with shift operations` |
+| let shl wrap | `wrap cannot be used in constant expression` |
+| 运行时 shl 溢出 | `shift left overflow` |
+| let 自引用/前向引用 | `undefined variable`（0.0.31 按源序可见性统一） |
+| let 溢出/除零 | `constant overflow` / `constant division by zero` |
+| let 引用 var | `constant expression cannot reference var variable` |
+| 重复定义 | `duplicate definition` |
+| 未定义 | `undefined variable` |
+| if 条件非 bool | `if condition must be bool` |
+| while 条件非 bool | `while condition must be bool` |
+| 缩进混用 tab/空格 | `mixed spaces and tabs in indentation` |
+| 块内缩进不足 | `insufficient indentation in block` |
+| else/end 不对齐 | `else indentation does not match if` / `end indentation does not match if` |
+| 缺少 end | `missing end for if statement` / `missing end for while statement` |
+| var 缺初始化器 | `variable definition requires initializer` |
+| 未初始化变量 | `use of uninitialized variable` |
+| while 内 label/goto | `label is not allowed inside while` / `goto is not allowed inside while` |
+| 循环外 break/continue | `break used outside while` / `continue used outside while` |
+| 跳入子块/兄弟块 | `cannot jump into inner block` / `cannot jump into sibling block` |
+| bitcast 位宽 | `bitcast source and target widths must match` |
+
+## 调试
+
+```bash
+make test-vm
+bash scripts/vm/run_tests.sh --filter foo    # 只跑含 foo 的用例
+bash scripts/vm/run_tests.sh --verbose --filter foo
+build/vm/bin/tc-vm tests/valid/foo.tc        # 单文件
+```

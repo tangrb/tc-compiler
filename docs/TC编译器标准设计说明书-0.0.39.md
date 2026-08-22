@@ -185,7 +185,7 @@
 
 `let` 类型闭合检查在第 6 阶段完成：字面量按 [语言标准 §3.6] 报专用错误；标识符/单层调用的结果类型不同时报 `TC_CE_TYPE_MISMATCH`（定位 RHS 首 Token）。调用的内部类型检查先于与外层类型的比较。
 
-非法 UTF-8、文件起始 BOM、U+0000，以及注释外违反 [语言标准 §2.1] 的非法源字符均映射为 `TC_CE_SYNTAX`；缩进和语法阶段有专用错误码时优先专用码。此处的专用语法码只改变错误分类，不改变附录 A 接受的程序集合。`let` RHS 嵌套调用在语法阶段映射为 `TC_CE_CONSTANT_EXPRESSION`；自引用和前向引用在名称阶段映射为 `TC_CE_UNDEFINED_VARIABLE`；`let` 中引用 `var` 或函数参数在第 6 阶段子阶段 6d 立即映射为 `TC_CE_CONSTANT_EXPRESSION`，不再延迟到常量求值阶段。静态布尔判定仅在名称、类型及更早 `let` 求值成功后运行；合法常量形态的求值错误不得降级为 `unknown`。不可达代码仍完成词法、语法、名称和类型检查。
+非法 UTF-8、文件起始 BOM、U+0000，以及注释外违反 [语言标准 §2.1] 的非法源字符均映射为 `TC_CE_SYNTAX`；缩进和语法阶段有专用错误码时优先专用码。此处的专用语法码只改变错误分类，不改变附录 A 接受的程序集合。`let` RHS 嵌套调用在语法阶段映射为 `TC_CE_CONSTANT_EXPRESSION`；自引用和前向引用在名称阶段映射为 `TC_CE_UNDEFINED_VARIABLE`；`let` 中引用 `var` 或函数参数在第 6 阶段子阶段 6d 立即映射为 `TC_CE_CONSTANT_EXPRESSION`，不延迟到常量求值阶段。静态布尔判定仅在名称、类型及更早 `let` 求值成功后运行；合法常量形态的求值错误不得降级为 `unknown`。不可达代码仍完成词法、语法、名称和类型检查。
 
 ---
 
@@ -917,7 +917,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 编译器必须先收集全部函数中通过上述上下文检查的标签，再解析任何函数内 `goto`；跨函数诊断不得依赖函数定义顺序、标签表遍历顺序或当前正在分析的函数。
 
-本小节中的全部 `goto` / `label` 上下文、名称、控制流域和块关系错误均属于第 6 阶段（子阶段 6a 控制流上下文 + 6b 名称作用域预建 + 6c goto/label 名称解析）。只有完成标签绑定并通过全部上述检查的 `goto` 才能在第 11 阶段进入当前函数 CFG；CFG 阶段不再产生 `goto` / `label` 合法性诊断。
+本小节中的全部 `goto` / `label` 上下文、名称、控制流域和块关系错误均属于第 6 阶段（子阶段 6a 控制流上下文 + 6b 名称作用域预建 + 6c goto/label 名称解析）。只有完成标签绑定并通过全部上述检查的 `goto` 才能在第 11 阶段进入当前函数 CFG；CFG 阶段不产生 `goto` / `label` 合法性诊断。
 
 ### 7.6 CFG 错误优先级
 
@@ -971,8 +971,8 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 多个调用有错时选择 `funcall` 位置最早的调用。选定调用后依次检查：
 
-1. 目标函数是否存在或是否因作用域/可见性不可直接以当前书写形式调用：不存在时定位到函数名，报告 `TC_CE_UNDEFINED_FUNCTION`，不再检查实参；裸名命中本库 `func` 时报告 `TC_CE_FUNCTION_SCOPE_ACCESS`；经导入限定解析到存在但为 `private` 的函数时报告 `TC_CE_PRIVATE_MEMBER_ACCESS`。后两者与"不存在"同级，均抑制实参检查。
-2. 调用位置是否适合返回类型；非 `void` 独立调用、`void` 用于 `var` 初始化、`void` 用于已有变量赋值均定位到 `funcall`，不再检查实参。
+1. 目标函数是否存在或是否因作用域/可见性不可直接以当前书写形式调用：不存在时定位到函数名，报告 `TC_CE_UNDEFINED_FUNCTION`，不检查实参；裸名命中本库 `func` 时报告 `TC_CE_FUNCTION_SCOPE_ACCESS`；经导入限定解析到存在但为 `private` 的函数时报告 `TC_CE_PRIVATE_MEMBER_ACCESS`。后两者与"不存在"同级，均抑制实参检查。
+2. 调用位置是否适合返回类型；非 `void` 独立调用、`void` 用于 `var` 初始化、`void` 用于已有变量赋值均定位到 `funcall`，不检查实参。
 3. 实参重复、未知、缺失、顺序、类型，按此顺序检查。
 4. 非 `void` 调用接收变量的声明类型：`var` 声明为声明类型 Token，已有变量赋值为赋值目标标识符。在实参全部合法后检查，错误定位到声明类型 Token 或目标标识符。
 
@@ -992,7 +992,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 函数内普通裸名查找失败后，按以下规则分类诊断：
 
-1. 若该名存在于本库顶层成员名索引，报告 `TC_CE_FUNCTION_SCOPE_ACCESS`（须改为 `Self.<名>`）；
+1. 若该名存在于本库顶层成员名索引，报告 `TC_CE_FUNCTION_SCOPE_ACCESS`（须写作 `Self.<名>`）；
 2. 否则报告 `TC_CE_UNDEFINED_VARIABLE`（值位置）或按 `funcall` 规则报告 `TC_CE_UNDEFINED_FUNCTION`（调用目标位置）。
 
 此分类统一适用于普通 RHS、赋值目标、`read` 目标、`let` 依赖、`funcall` 第一项与实参、以及 `return` 操作数。
@@ -1126,7 +1126,7 @@ OUT[其他语句]    = IN[n]
 - `var x = rhs` 的 RHS 在加入 `x` 之前检查，因此初始化自引用仍非法。
 - 任何可达的运行时 `var` / 参数读取、赋值目标或 `read` 目标都要求对应运行时绑定属于当前 `IN`。`memblock_copy` 的目标、`ptr_store` 的目标指针所指绑定、`memcopy_unsafe` 的 `dst` 指针所指绑定同样要求 ∈ `IN`。`let` 只要求名称可见且已成功求值，不属于 `U` / `IN`；逻辑短路的右操作数是否可达按 [语言标准 §6.5.2.2] 判定。`let` 标识符操作数的读取永不触发 `TC_CE_UNINITIALIZED_VARIABLE`，即使该 `let` 对应的 CFG 身份节点在不可达路径上（[语言标准 §5.2]）。
 - 会合点取可达前驱集合的交集；只有所有可达路径均已初始化才成立。
-- 上述方程在可达子图上采用最大固定点（greatest fixed point）语义，不得任选任一固定点。一个等价的强制求解策略是：保持两个入口边界值不变；对每个非入口可达节点，以 `U[n]` 初始化 `IN[n]` 与 `OUT[n]`，再按活动作用域边规范化和传递函数单调向下迭代，直至所有集合不再变化。工作队列、节点遍历和回边发现顺序不得改变最终结果。
+- 上述方程在可达子图上采用最大固定点（greatest fixed point）语义，不得任选任一固定点。一个等价的强制求解策略是：保持两个入口边界值不变；对每个非入口可达节点，以 `U[n]` 初始化 `IN[n]` 与 `OUT[n]`，再按活动作用域边规范化和传递函数单调向下迭代，直至所有集合稳定。工作队列、节点遍历和回边发现顺序不得改变最终结果。
 - 最大固定点还等价于以下路径语义：绑定属于 `IN[n]`，当且仅当从当前控制流域唯一入口到 `n` 的每一条有限可达路径，在逐边应用作用域规范化和上述传递函数后，都已初始化该绑定。该路径定义用于判定任何求解实现是否一致。
 - 对没有可达前驱的非入口节点不定义 `IN`；它们已由可达性阶段排除。每个节点参与固定点迭代的数据流格上界恰为 `U[n]`，绝不把其他函数、未进入或已退出块、或编译期 `let` 混入数据流域。
 - CFG 可达性与静态条件边裁剪完全依据本小节前述规则；CFG 不另行维护运算符白名单，也不将优化器的值推测用于改变可达语句集合。
@@ -1195,14 +1195,14 @@ OUT[其他语句]    = IN[n]
 | `%t` | `bool` |
 | `%f`、`%e`、`%E`、`%g`、`%G` | `float32`、`float64` |
 
-两类检查按序进行：类型不一致时不再产生格式兼容性错误。
+两类检查按序进行：类型不一致时不产生格式兼容性错误。
 
 ### 10.3 `read` 输入实现要点
 
 `read` 目标变量检查按以下顺序（第 6 阶段子阶段 6d–6e）：
 
 1. **名称解析**：目标标识符的名称分类与 §6.2 赋值左侧相同（`TC_CE_FUNCTION_SCOPE_ACCESS` / `TC_CE_UNDEFINED_VARIABLE` / `TC_CE_CONSTANT_ASSIGNMENT` / `TC_CE_PARAMETER_ASSIGNMENT`）。仅可写 `var`/`static var` 继续检查。
-2. **类型一致性**：目标声明类型与 `read` 的显式 `scalar_type` 不一致 → `TC_CE_TYPE_MISMATCH`（在确定初始化检查之前完成；类型不一致时不再产生 `TC_CE_UNINITIALIZED_VARIABLE`）。
+2. **类型一致性**：目标声明类型与 `read` 的显式 `scalar_type` 不一致 → `TC_CE_TYPE_MISMATCH`（在确定初始化检查之前完成；类型不一致时不产生 `TC_CE_UNINITIALIZED_VARIABLE`）。
 3. **确定初始化**：目标 `var` 必须在当前 CFG 点已确定初始化（见 §9.2）。`read` 不是初始化器，不能代替 `var … = …`。
 4. **`static var` 作为目标**：可通过 `Self.<成员名>` 或 `<模块名>.<成员名>` 覆盖公开标量 `static var`。公开 `memblock` `static var` 不得作为 `read` 目标。
 
@@ -1422,7 +1422,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_MISSING_RETURN` | `MissingReturn` | 缺少返回 | CFG | 函数末尾节点可达 |
 | `TC_CE_UNREACHABLE_STATEMENT` | `UnreachableStatement` | 不可达语句 | CFG | 完成静态条件边裁剪后，该语句节点不能从当前顶层或函数控制流域的唯一入口到达（§9.2.1） |
 | `TC_CE_PARAMETER_ASSIGNMENT` | `ParameterAssignmentError` | 参数赋值错误 | 名称/类型 | 对参数赋值、将其作为 `read` 目标，或对形参做 `ptr_store` / 以形参为 `memcopy_unsafe` 目标（形参只读；[语言标准 §3.10.9]、[语言标准 §8.1.2]） |
-| `TC_CE_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccessError` | 函数越界名称错误 | 名称（第 6b/7/8 阶段） | `#lib` 函数内普通裸名查找失败，但该名存在于本库顶层成员名索引（`func` / `static let` / `static var`）；须改用 `Self.<名>`。不再用于"同文件顶层值作用域"场景（0.0.39 中 `#program` 不得定义函数，[语言标准 §8.4.1]） |
+| `TC_CE_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccessError` | 函数越界名称错误 | 名称（第 6b/7/8 阶段） | `#lib` 函数内普通裸名查找失败，但该名存在于本库顶层成员名索引（`func` / `static let` / `static var`）；须写作 `Self.<名>`。本码仅用于函数越界名称错误 |
 | `TC_CE_CROSS_CONTROL_FLOW_JUMP` | `CrossControlFlowJumpError` | 跨控制流域跳转错误 | 名称/控制流解析（第 6 阶段） | 当前函数无同名标签、但另一函数控制流域存在同名标签 |
 | `TC_CE_RECURSION` | `RecursionError` | 递归错误 | 调用图 | 全局函数调用图存在环 |
 

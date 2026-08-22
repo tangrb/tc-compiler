@@ -157,7 +157,7 @@ TC 源码中的 `ptr_load`/`ptr_store` 只关心语义——解码出 slot 索�
                  │
   ┌──────────────▼─────────────────────────┐
   │   libtc (tc_lib.c)                     │  ← 复用，不改
-  │   tc_compile_file / tc_compile_source   │
+  │   tc_compile_*_opts               │
   └──────────────┬─────────────────────────┘
                  │
   ┌──────────────▼─────────────────────────┐
@@ -346,7 +346,7 @@ void tc_embed_destroy(TcEmbedCtx *ctx);
 
 ```c
 TcTypedProgram prog;
-tc_compile_file("mylib.tc", &prog, &diag);
+tc_compile_file_opts("mylib.tc", &opts, &prog, &diag);
 
 TcEmbedCtx *ctx = tc_embed_create(&prog, &diag);
 /* ... 多次 tc_embed_call ... */
@@ -719,7 +719,7 @@ int tc_embed_had_error(const TcEmbedCtx *ctx);
 
 ### 11.1 对 libtc API 的影响
 
-**无影响**。`tc_lib.h` 中的 `tc_compile_source`、`tc_compile_file`、`tc_run_program`、`tc_typed_program_free`、`tc_set_module_search_paths` 保持不变。
+**无影响**。`tc_lib.h` 中的 `tc_compile_source`、`tc_compile_file_opts`、`tc_run_program`、`tc_typed_program_free` 保持不变（编译入口为会话式，无进程级全局搜索路径）。
 
 `tc_run_program` 和 `tc_embed_create` + `tc_embed_call` 是互补关系，而非替代关系：
 
@@ -767,7 +767,7 @@ int main(void) {
     TcTypedProgram prog;
     tc_diagnostic_init(&diag);
 
-    if (tc_compile_file("math.tc", &prog, &diag) != 0) {
+    if (tc_compile_file_opts("math.tc", NULL, &prog, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_diagnostic_clear(&diag);
         return 1;
@@ -1303,13 +1303,13 @@ static inline void tc_aot_embed_abort(TcDiagnostic *diag, int line) {
 }
 ```
 
-所有生成的错误 guard 从：
+所有生成的错误 guard，标准 AOT 形态为：
 
 ```c
 if (tc_aot_cur_diag->domain != TC_DIAG_NONE) tc_aot_abort(tc_aot_cur_diag, line);
 ```
 
-改为：
+Embed AOT 形态为：
 
 ```c
 if (tc_aot_cur_diag->domain != TC_DIAG_NONE) {
@@ -1743,7 +1743,7 @@ int main(void) {
 
     /* 1. 编译 TC 源码 */
     tc_diagnostic_init(&diag);
-    if (tc_compile_file("mylib.tc", &prog, &diag) != 0) {
+    if (tc_compile_file_opts("mylib.tc", NULL, &prog, &diag) != 0) {
         tc_diagnostic_print(&diag, stderr);
         return 1;
     }
@@ -1830,7 +1830,7 @@ int main(void) {
 | 错误传播 | `TcExecControl` 控制流 | 返回 + diag 检查 | ~2x |
 | 返回值 | `TcExecControl.return_value` | 读 `tc_ret_N` | ~1x |
 
-**关键**：AOT 最大的优势在于**消除了解释循环**——每个 `var`、赋值、`while` 条件、`if` 分支都不再需要 `switch(stmt->kind)` 和 AST 遍历，而是原生编译的 C 控制流。
+**关键**：AOT 最大的优势在于**消除了解释循环**——每个 `var`、赋值、`while` 条件、`if` 分支都不需要 `switch(stmt->kind)` 和 AST 遍历，而是原生编译的 C 控制流。
 
 #### 15.9.2 典型场景预估
 

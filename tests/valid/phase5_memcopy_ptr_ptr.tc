@@ -1,0 +1,11 @@
+#program
+; §6.8.9 memcopy_unsafe：ptr<ptr<int32>> 拷贝指针值（指针编码位模式）
+var a: int32 = 9
+var b: int32 = 0
+var p1: ptr<int32> = ptr_address(int32, a)
+var p2: ptr<int32> = ptr_address(int32, b)
+var pp1: ptr<ptr<int32>> = bitcast(ptr<ptr<int32>>, p1)
+var pp2: ptr<ptr<int32>> = bitcast(ptr<ptr<int32>>, p2)
+memcopy_unsafe(ptr<int32>, pp2, 0, pp1, 0, 1)
+var v: int32 = ptr_load(int32, p2)
+writeln(int32, v)

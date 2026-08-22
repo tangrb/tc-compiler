@@ -1,10 +1,10 @@
 /*
- * tc_analyzer.c — TC 静态分析器实现
+ * tc_analyzer.c — 静态分析编排（tc_analyze_ex）
  *
- * 流水线（Phase 4）：
- *   4a 结构 → 4b/4c import（可选）→ struct 表 → 4d 签名 → 5 签名检查 →
- *   Pass1 → 成员索引 → H-5/H-6 static → Pass2（含 F2/F3/F4）→
- *   多域 CFG + definite init → 12 调用图
+ * 诊断优先级按编译器标准 13 阶段模型；实现入口是本文件的一条 fail-fast 链：
+ *   4a 结构 → 4b/4c import（有路径时）→ struct 表 + 类型池 → 4d 签名 →
+ *   5 签名检查 → Pass1 → 成员索引 → static let/var → Pass2（含 6a–8）→
+ *   多域 CFG + definite init（含依赖库）→ 12 调用图
  */
 #include "tc_analyzer.h"
 #include "tc_analyzer_internal.h"
@@ -105,7 +105,7 @@ int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
 
 
 /* ------------------------------------------------------------------ */
-/*  tc_analyze_ex — Phase 4 管线入口                                     */
+/*  tc_analyze_ex — 文件模式分析入口                                      */
 /* ------------------------------------------------------------------ */
 
 int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_path,
@@ -323,7 +323,7 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
                 goto fail;
             }
         }
-        /* 恢复入口 source，供后续阶段（调用图等）诊断使用 */
+        /* 恢复入口 source，供调用图等后续诊断使用 */
         if (tc_diagnostic_set_source(diag, saved_file, saved_source) != 0) {
             goto fail;
         }

@@ -1,0 +1,65 @@
+---
+description: TC-Compiler 项目 C99 编码规范 — 命名、缩进、注释、内存管理、错误处理、头文件组织
+alwaysApply: true
+---
+
+# TC-Compiler C99 编码规范
+
+## 缩进与格式
+
+- **4 空格缩进**，不使用制表符；行尾无多余空白
+- `{` 放在行尾（K&R），`}` 单独一行
+- `if/while/for` 后总是使用花括号（即使单行）
+
+## 命名约定
+
+| 类别 | 规则 | 示例 |
+|------|------|------|
+| 公共/static 函数 | `tc_` + 小写下划线 | `tc_compile_source` |
+| 类型/枚举 | `Tc` + 帕斯卡 | `TcIntType` |
+| 枚举值 | `TC_` + 大写下划线 | `TC_INT32` |
+| 常量/宏 | 全大写下划线 | `TC_EARLY_EOF` |
+| 变量/成员 | 小写下划线 | `line_no`, `loop_id` |
+
+## 源文件命名
+
+实现与头文件**同名成对**：`tc_<module>.h` ↔ `tc_<module>.c`（同目录）。
+
+| 类别 | 规则 | 示例 |
+|------|------|------|
+| 模块 | `tc_` + 小写下划线 | `tc_parser.h` ↔ `tc_parser.c` |
+| CLI 入口 | 固定 `main.c`，可无配对头 | `src/vm/driver/main.c` |
+| 仅头文件 | 须在 `check_source_naming.py` 白名单 | `tc_version.h` |
+
+禁止 `.h`/`.c` 不同名。新模块同步 `CMakeLists.txt`；必要时 `locations.md` / `@knowledge-graph`。
+
+```bash
+python3 scripts/sync/check_source_naming.py
+```
+
+## 注释
+
+- `/* ... */` 风格，不混用 `//`；不写 obvious 注释
+
+## 头文件
+
+- `#ifndef` 守卫（非 `#pragma once`）；标准库 → 项目内部；头文件自包含
+
+## 内存与错误
+
+- **init/free 配对**；动态数组 `count/capacity/items`
+- **OOM**：`malloc` 失败 → `-1` + `TC_ERR_OUT_OF_MEMORY` + `"memory allocation failed"`；`tc_warning_list_add` 先 strdup 再 realloc
+- **fail-fast**；`TcDiagnostic` 单槽；返回 `0`/`-1`；`diag` 通常放最后
+
+```c
+if (!ptr) {
+    tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN, "memory allocation failed");
+    return -1;
+}
+```
+
+## 函数签名
+
+- 输出参数用指针放后；小结构体按值、大结构体指针；`static` 置文件顶部
+
+Git 提交约定见 Rule `git-commit`（禁止 Cursor Co-author trailer）。

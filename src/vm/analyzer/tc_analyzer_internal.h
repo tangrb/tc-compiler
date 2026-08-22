@@ -14,7 +14,7 @@
 
 #include <stddef.h>
 
-/* Phase 4：完整定义在 tc_func_check.h */
+/* 完整定义在 tc_func_check.h */
 typedef struct TcFuncCheckEnv TcFuncCheckEnv;
 
 /* ------------------------------------------------------------------ */
@@ -41,7 +41,7 @@ typedef enum {
 /** Pass2 与预扫描共享的全局语句序号上下文 */
 typedef struct {
     TcProgram *program;
-    int *last_init;              /* 预扫描缓存（REPL / 兼容）；Pass2 主路径用 init_states */
+    int *last_init;              /* 预扫描缓存；文件模式 uninit 走 CFG，本字段作回退 */
     TcStmtIndexCursor index;
     TcBlockPath block_path;
     TcInitState *init_states;    /* slot → 当前路径初始化状态 */
@@ -52,14 +52,14 @@ typedef struct {
     int loop_depth;              /* 词法祖先 while 数，用于范式隔离 */
     int func_depth;              /* 词法祖先 func 数；0 表示顶层 */
     int current_func_id;         /* 当前函数 func_id（4d 稳定分配）；顶层为 -1 */
-    TcFuncCheckEnv *func_env;    /* Phase 4；可为 NULL */
+    TcFuncCheckEnv *func_env;    /* 函数检查环境；可为 NULL（跳过 funcall/return 专用检查） */
     TcTypeTable *type_table;     /* 分析期类型池；Pass1 intern 用 */
 } TcAnalyzeCtx;
 
 /** 初始化历史 / 数据流上下文，供未初始化变量检查使用 */
 typedef struct {
-    const TcProgram *program;               /* 完整程序（文件模式）；REPL 模式下为 NULL */
-    const int *last_init_stmt_index;        /* REPL：slot → 最后初始化语句序号 */
+    const TcProgram *program;               /* 当前分析的程序；可为 NULL 则走 last_init 回退 */
+    const int *last_init_stmt_index;        /* slot → 最后初始化语句序号（无 init_states 时） */
     TcInitState *init_states;               /* Pass2 路径敏感状态；NULL 则回退 last_init */
     int num_slots;
     int check_init;                         /* 0：短路或不可达路径，跳过未初始化错误 */
@@ -100,7 +100,7 @@ const TcSymbol *tc_symbol_for_assign_target(const TcSymbolTable *symbols, const 
 void tc_prescan_init_history(TcProgram *program, TcSymbolTable *symbols, TcAnalyzeCtx *ctx);
 
 /* ------------------------------------------------------------------ */
-/*  Pass2 类型检查辅助（实现于 tc_analyzer_pass2.c；REPL 亦用）              */
+/*  Pass2 类型检查辅助（实现于 tc_analyzer_pass2.c / tc_analyzer_pass2_rhs.c） */
 /* ------------------------------------------------------------------ */
 
 void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol);

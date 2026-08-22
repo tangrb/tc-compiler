@@ -1,11 +1,9 @@
 /*
- * tc_scope.h — 本库成员索引与 Self / 限定名查找骨架
+ * tc_scope.h — 本库成员索引与 Self 使用检查
  *
- * Phase 2（D-6/D-8）落地：
- *   - 从 #lib AST 收集顶层成员名（func / static / struct）
- *   - 校验 Self 仅允许出现在 #lib（#program → PROGRAM_MODE_MISUSE）
- *
- * 完整限定名解析与 private 访问检查属后续阶段（函数语义 / 可见性）。
+ * 从 #lib AST 收集顶层成员名（func / static / struct），并拒绝
+ * #program 中的 Self（PROGRAM_MODE_MISUSE）。
+ * 限定名与 private 访问由 Pass2 / tc_func_check 在名称解析时执行。
  */
 #ifndef TC_SCOPE_H
 #define TC_SCOPE_H

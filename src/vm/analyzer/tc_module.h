@@ -1,14 +1,14 @@
 /*
  * tc_module.h — 模块加载、导入解析、DAG 与函数签名收集（编译阶段 4）
  *
- * 职责概览（对应开发计划 Phase 2 / 4a–4d）：
+ * 职责概览（编译器标准阶段 4a–4d）：
  *   4a  tc_module_check_structure   — 五层顺序、可见性、#program/#lib 误用
  *   4b  递归加载 import 目标 .tc     — 仅允许 #lib
  *   4c  依赖图成环检测               — 三色 DFS
  *   4d  tc_module_collect_signatures — 从入口 + deps 汇总函数签名
  *
  * 调用时机：Parser 产出 TcProgram 后，Analyzer（结构复核）与
- * tc_compile_file（完整导入解析）共同使用本模块。
+ * tc_compile_file_opts（完整导入解析）共同使用本模块。
  */
 #ifndef TC_MODULE_H
 #define TC_MODULE_H
@@ -18,7 +18,7 @@
 
 /**
  * 跨模块可见的函数签名摘要（阶段 4d）。
- * 供后续函数解析 / 类型检查消费；Phase 2 仅收集，不解析调用。
+ * 供阶段 5 签名检查与 Pass2 funcall 解析消费；本阶段只收集签名，不解析调用。
  */
 typedef struct {
     char *name;

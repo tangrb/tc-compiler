@@ -1032,6 +1032,12 @@ run_expect_stdout "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc" "10
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_fill.tc" "5
 5
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_ptr_int32.tc" "7
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_ptr_struct.tc" "5
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_ptr_ptr.tc" "9
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_nested_funcall.tc" "14
 "
 run_expect_stdout "$ROOT/tests/valid/isize_arith.tc" "7
@@ -1073,6 +1079,9 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock_deepcopy.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_nested_self_ref.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_memcopy_ptr_int32.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_memcopy_ptr_struct.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_memcopy_ptr_ptr.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_expect_check_ok "$ROOT/tests/valid/usize_arith.tc"

@@ -4,8 +4,8 @@
  * 6a 标签收集 → tc_analyze_6a；6e 格式检查 → tc_analyze_6e。
  * 本文件负责 6c（goto 解析+跳转）、6d（类型/mode/RHS）及 funcall/return。
  *
- * @param struct_table Phase 3 已注册的结构体表；不可为 NULL
- * @param func_env     Phase 4 函数检查环境；可为 NULL（则跳过 funcall/return 专用检查）
+ * @param struct_table 已注册的结构体表；不可为 NULL
+ * @param func_env     函数检查环境；可为 NULL（则跳过 funcall/return 专用检查）
  */
 #ifndef TC_ANALYZER_PASS2_H
 #define TC_ANALYZER_PASS2_H

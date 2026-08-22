@@ -1,11 +1,10 @@
 /*
- * tc_analyzer.h — 静态分析器接口
+ * tc_analyzer.h — 静态分析器公共入口
  *
- * Analyzer 在 Parser 产出 TcProgram 后执行两遍扫描：
- *   Pass 1 — 收集所有 var/let 定义，分配运行时槽位，检测重复定义
- *   Pass 2 — 按语句顺序做类型检查、字面量范围校验、overflow 合法性检查、常量编译期求值
+ * Parser 产出 TcProgram 后，tc_analyze_ex 编排模块/函数/Pass1/Pass2/CFG/调用图。
+ * 成功则写入 TcTypedProgram（AST、符号表、多域 CFG、类型池），供 VM / AOT / Embed 消费。
  *
- * 分析通过后产出 TcTypedProgram（语句、符号表、完整 CFG、空警告列表），供 VM/AOT 使用。
+ * tc_analyze 无路径：只做结构与本文件语义，不解析 import。
  */
 #ifndef TC_ANALYZER_H
 #define TC_ANALYZER_H

@@ -58,7 +58,7 @@ libtc 是 TC 编译器前端与执行器的嵌入入口：
 - libtc 不定义语言规范；合法性以 0.0.39 标准为准。
 - libtc 不累积多错误；目标采用 fail-fast 单诊断，首个诊断按编译器标准 §1.3 确定性规则选择。
 - libtc 不提供 AOT 输出文件或 host C 工具链管理。
-- libtc 不含 REPL 模式（0.0.39 已删除 REPL）。
+- libtc 不含 REPL 模式。
 
 ### 1.4 设计原则
 
@@ -79,7 +79,7 @@ int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out,
                       TcDiagnostic *diag);
 
-int tc_compile_file(const char *path,
+int tc_compile_file_opts(const char *path,
                     TcTypedProgram *out,
                     TcDiagnostic *diag);
 
@@ -88,15 +88,15 @@ int tc_run_program(const TcTypedProgram *program,
 
 void tc_typed_program_free(TcTypedProgram *program);
 
-int tc_set_module_search_paths(char *const *paths, size_t count,
+int TcCompileOptions(char *const *paths, size_t count,
                                TcDiagnostic *diag);
 ```
 
-0.0.39 新增 `tc_set_module_search_paths` 用于多文件模块搜索；`tc_compile_source` 新增 `name` 参数用于诊断和模块解析。`tc_run_typed` 重命名为 `tc_run_program` 以反映其涵盖模块静态初始化的语义。
+0.0.39 编译入口统一为会话式 `tc_compile_source` / `tc_compile_file_opts`（`TcCompileOptions` 携带 -I 搜索路径，无进程级全局）；`tc_run_program` 执行已类型化程序，涵盖模块静态初始化的语义。
 
 ### 2.2 源兼容与二进制兼容
 
-函数签名保持源兼容，但 `TcTypedProgram`、`TcDiagnostic` 和错误枚举是公开可见 C 结构；0.0.39 大幅扩展这些结构（函数签名、模块元数据、memblock/ptr/struct 类型参数）。嵌入方必须重新编译。本文不承诺跨版本的二进制 ABI 兼容。
+函数签名保持源兼容，但 `TcTypedProgram`、`TcDiagnostic` 和错误枚举是公开可见 C 结构，包含函数签名、模块元数据、memblock/ptr/struct 类型参数等扩展字段；嵌入方须按版本重新编译。本文不承诺跨版本的二进制 ABI 兼容。
 
 ### 2.3 `tc_compile_source`
 
@@ -104,9 +104,9 @@ int tc_set_module_search_paths(char *const *paths, size_t count,
 
 失败：返回 -1，设置 `diag`；调用方不取得 `out` 所有权。
 
-### 2.4 `tc_compile_file`
+### 2.4 `tc_compile_file_opts`
 
-从入口 `#program` 文件出发，自动加载所有可达 `#lib` 模块。模块搜索路径优先级：入口文件所在目录 → `tc_set_module_search_paths` 设置的路径 → 默认路径。成功/失败契约与 `tc_compile_source` 相同。
+从入口 `#program` 文件出发，自动加载所有可达 `#lib` 模块。模块搜索路径优先级：入口文件所在目录 → `TcCompileOptions` 设置的路径 → 默认路径。成功/失败契约与 `tc_compile_source` 相同。
 
 ### 2.5 `tc_run_program`
 
@@ -241,7 +241,7 @@ Executor 和 AOT 只读 typed program。一个成功对象可以：
 | 对象 | 创建者 | 成功后的所有者 | 释放者 |
 | ---- | ------ | -------------- | ------ |
 | 调用方 source | 调用方 | 调用方 | 调用方 |
-| 文件缓冲 | `tc_compile_file` | libtc | 函数返回前 |
+| 文件缓冲 | `tc_compile_file_opts` | libtc | 函数返回前 |
 | `TcProgram` / `TcModule` | Parser | Analyzer/typed program | 失败回滚或 `tc_typed_program_free` |
 | 符号/作用域/标签 | Analyzer | typed program | `tc_typed_program_free` |
 | 函数签名 | Analyzer | typed program | `tc_typed_program_free` |
@@ -333,7 +333,7 @@ OOM 不得降级为 `SyntaxError`。`realloc` 采用临时指针，失败时保�
 
 ### 8.1 批量解析
 
-`tc_compile_source` 和 `tc_compile_file` 始终解析完整程序。`if`/`while`/`func`/`struct` 的缩进和 `end` 必须在 Parser 返回前闭合。Parser 不执行全局类型或可达性判断。
+`tc_compile_source` 和 `tc_compile_file_opts` 始终解析完整程序。`if`/`while`/`func`/`struct` 的缩进和 `end` 必须在 Parser 返回前闭合。Parser 不执行全局类型或可达性判断。
 
 ### 8.2 0.0.39 新结构
 
@@ -378,7 +378,7 @@ on success: free runtime state, return 0
 
 ### 9.2 AOT
 
-AOT 通过同一 typed program 读取语句、slot、目标和常量。libtc 不提供 AOT 特化编译入口；`tc-aot` 先调用 `tc_compile_file`，再调用 codegen。
+AOT 通过同一 typed program 读取语句、slot、目标和常量。libtc 不提供 AOT 特化编译入口；`tc-aot` 先调用 `tc_compile_file_opts`，再调用 codegen。
 
 ### 9.3 一致性
 
@@ -455,7 +455,7 @@ TcDiagnostic diag;
 TcTypedProgram program;
 
 tc_diagnostic_init(&diag);
-if (tc_compile_file("input.tc", &program, &diag) != 0) {
+if (tc_compile_file_opts("input.tc", NULL, &program, &diag) != 0) {
     tc_diagnostic_print(&diag, stderr);
     tc_diagnostic_clear(&diag);
     return 1;
@@ -507,7 +507,7 @@ tc_diagnostic_clear(&diag);
 | 类型 | 标量 | 标量 + `ptr<T>` + `memblock<T,N>` + `struct` + `isize`/`usize` + `void` |
 | 编译管线 | 6 阶段 | 13 确定性阶段 |
 | 错误码 | 41+1 | 70+（含函数、模块、memblock、struct、ptr 专用诊断） |
-| REPL | 包含 | 已删除 |
+| REPL | 包含 | 无 |
 
 ### 14.2 预计迁移顺序
 

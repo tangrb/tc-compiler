@@ -1,8 +1,7 @@
 /*
  * tc_io.c — TC 统一 I/O 实现
  *
- * 合并 tc_executor.c 和 tc_aot_rt.c 中平行的 read/write 实现，
- * 统一入口供 VM 执行引擎和 AOT 运行时调用。
+ * 合并 VM 与 AOT 的 read/write 实现；二者只委托本模块。
  *
  * write 函数使用 FILE *out 参数支持灵活输出，并检查 I/O 错误；
  * read 函数从 stdin 解析十进制整数或 bool 文本，含范围检查。

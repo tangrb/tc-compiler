@@ -1,5 +1,5 @@
 /*
- * tc_func_check.h — 函数签名 / funcall / return / 形参只读（Phase 4 / 模块 F）
+ * tc_func_check.h — 函数签名 / funcall / return / 形参只读 / static
  *
  * 阶段 5：tc_func_check_signatures
  * 阶段 7/8：tc_func_check_funcall / tc_func_check_return（由 Pass2 调用）

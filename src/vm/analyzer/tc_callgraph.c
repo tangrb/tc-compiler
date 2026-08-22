@@ -1,5 +1,5 @@
 /*
- * tc_callgraph.c — 函数调用图构建与递归环确定性检查（Phase 4 / 阶段 12）
+ * tc_callgraph.c — 函数调用图构建与递归环确定性检查（阶段 12）
  *
  * 扫描入口模块函数体（及顶层 funcall 记录）建立 func_id 有向边，
  * 用 Tarjan 求 SCC；自环或 size>1 的 SCC 视为递归，按编译器标准 §8.9 选首边报错。
@@ -195,7 +195,8 @@ static int tc_callgraph_collect_edges(const TcFuncCheckEnv *env, TcCallEdgeList 
     const TcProgram *program = NULL;
     size_t i = 0;
 
-    /* 仅扫描入口模块 AST；依赖库内调用不单独建边（跨模块递归属后续） */
+    /* 扫描入口模块 AST 收集调用边（含顶层 funcall）。
+     * 依赖库函数体内的调用不单独建边。 */
     if (!env || !env->prog) {
         return 0;
     }

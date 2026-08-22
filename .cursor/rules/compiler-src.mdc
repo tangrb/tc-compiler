@@ -1,0 +1,61 @@
+---
+description: TC-Compiler C 源码路由 — 编辑 src/ 时按层选文件；新 RHS 见 knowledge-graph 分发点表
+globs: src/**/*.c,src/**/*.h
+alwaysApply: false
+---
+
+# 编译器源码编辑
+
+> **现网管线 v0.0.39**（Phase 1–6，含 struct）+ **Embed v0.0.39**。规格：`docs/*-0.0.39.md` · Embed 详设-0.0.39。
+
+调用链：`tc-architecture` → `pipeline.md`（单文件）。符号定位：`locations.md` 或下方 rg。
+
+## 按改动选文件
+
+| 改什么 | 文件 | 协作 |
+|--------|------|------|
+| 枚举/AST / `TcTypeTag`·`TcType` | `vm/runtime/tc_types.h` | `tc_types.c` |
+| 类型内核（equals / sizeof / 槽位 / make_*） | `vm/runtime/tc_types.c` | `test_types.c`；摘要 types.md |
+| 类型名/运算符 parse（标量） | `vm/runtime/tc_types.c` | — |
+| 运算语义 | `vm/runtime/tc_semantics.c` + `tc_sem_{int,fp,cast,bitwise}.c` | — |
+| I/O / format | `vm/runtime/tc_io.c` | `tc_analyze_6e.c` / pass2 |
+| Token/关键字 | `vm/lexer/tc_lexer.c` | — |
+| 语法/RHS | `vm/parser/tc_parser.c` + `tc_parser_rhs.c` | 释放：`tc_parser_free.c` |
+| if/while / 缩进 / 多行 parse | `vm/parser/tc_parser.c` | `libtc/tc_lib.c` 入口 |
+| 符号表/块作用域 | `vm/runtime/tc_symbol.c` | `tc_analyzer*.c` |
+| stmt_index / DFS 序号 | `vm/runtime/tc_stmt_index.h`（header-only） | analyzer / executor / aot |
+| 警告列表 | `vm/runtime/tc_warning.c`（空壳） | — |
+| 静态分析编排 | `vm/analyzer/tc_analyzer.c` + pass1/pass2 | `tc_const_eval.c` |
+| 模块 / Self / 搜索路径 | `tc_module.c` / `tc_scope.c` | [kg-module.md](../skills/tc-architecture/kg-module.md) |
+| 函数 / static / 调用图 | `tc_func_check.c` / `tc_callgraph.c` | [kg-func.md](../skills/tc-architecture/kg-func.md) |
+| 完整 CFG / 确定初始化 | `tc_cfg.c`（`tc_cfg_build_all` + `tc_analyze_definite_init_all`） | 多域 `TcCfgSet` |
+| 复合类型静态验证 | `tc_type_check.c` + `tc_{memblock,ptr,struct}_check.c` | pass2 经 `tc_type_check_rhs` |
+| InitState / 块路径辅助 | `vm/analyzer/tc_analyzer_dfa.c` | 文件模式 `defer_to_cfg` |
+| 静态布尔 / let | `vm/analyzer/tc_const_eval.c` | pass2 + cfg |
+| cast/truncate/bitcast | `vm/runtime/tc_sem_cast.c` | analyzer/const_eval/executor/aot 委托 |
+| VM 执行 | `vm/executor/tc_executor.c` + `tc_call_frame` / `tc_{ptr,memblock,struct}_exec` | `tc_io.c` 委托 |
+| AOT | `aot/tc_aot_codegen.c` + `tc_aot_rt.c` | semantics/io；Rule `aot-src` |
+| Embed | `vm/embed/*` | Rule `embed-src`；[kg-embed.md](../skills/tc-architecture/kg-embed.md) |
+| 编译 API | `libtc/tc_lib.c` | — |
+
+## 首步 rg（比读文档快）
+
+```bash
+rg "符号名" src/ --glob '*.c'
+rg "TC_RHS_" src/ --glob '*.c'
+rg "TC_CE_|TC_RE_|TC_ERR_" src/vm/runtime/tc_types.h
+rg "foo.tc" scripts/
+```
+
+新 `TcRhsKind`：8 分发点 → `@knowledge-graph` → [kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md) → `check_rhs_coverage.py`  
+新 `TcStmtKind`：分发点 + **`tc_cfg.c`** → [kg-cfg.md](../skills/tc-architecture/kg-cfg.md)
+
+## 实施顺序
+
+`types → lexer → parser → analyzer(+module/func/const_eval+cfg) → semantics/io → executor → aot → embed → tests`
+
+模块须 `tc_<m>.h` ↔ `tc_<m>.c` 成对；`check_source_naming.py`
+
+## 必守
+
+fail-fast · 单槽 diagnostic · init/free · OOM→`TC_ERR_OUT_OF_MEMORY` · AOT→semantics · I/O→tc_io · cast→tc_sem_cast · logic 短路三侧 · let 用 `tc_const_map_runtime_error` · 文件模式 uninit 走 CFG · `var` 缺初始化器→`VAR_MISSING_INIT` · 无 REPL

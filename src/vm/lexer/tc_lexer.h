@@ -1,10 +1,8 @@
 /*
  * tc_lexer.h — 词法分析器接口
  *
- * 将一行 TC 源码文本转换为 TcTokenList（Token 流），供 Parser 消费。
- * 支持关键字、标识符、整数字面量（含多进制）、格式说明符及标点符号。
- * Phase 2：增加模块相关 Token（#program/#lib、import、func、struct、
- * public/private/static、Self 等）。
+ * 将一行 TC 源码文本转换为 TcTokenList，供 Parser 消费。
+ * 关键字含模块/函数/指针/memblock 指令；字面量含多进制整数、浮点、nullptr、inf/nan。
  */
 #ifndef TC_LEXER_H
 #define TC_LEXER_H

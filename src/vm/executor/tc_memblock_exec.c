@@ -43,6 +43,30 @@ static void *tc_memblock_data(const TcValue *mb_value) {
     return (void *)(uintptr_t)mb_value->bits;
 }
 
+/**
+ * 返回 ptr 所指 T 对象的可读写字节区（§6.8.9 memcopy_unsafe）：
+ * - MEMBLOCK / STRUCT（堆对象）：TcValue.bits 即堆块指针，直接解引用；
+ * - 标量 / ptr（≤8 字节，值存于槽位位模式）：返回 &slot_value->bits。
+ * out_capacity 输出该区可用字节数（T 的抽象宽度，向上取整）。
+ */
+static uint8_t *tc_memcopy_region(TcValue *slot_value, const TcType *t,
+                                  const TcStructTable *table, size_t *out_capacity) {
+    size_t bits = 0;
+
+    if (!slot_value || !t || !out_capacity) {
+        return NULL;
+    }
+    bits = tc_sizeof_bits_ex(t, tc_struct_table_width_bits, (void *)table);
+    *out_capacity = (bits + 7U) / 8U;
+    if (slot_value->type->tag == TC_MEMBLOCK || slot_value->type->tag == TC_STRUCT) {
+        if (slot_value->bits == 0) {
+            return NULL;
+        }
+        return (uint8_t *)(uintptr_t)slot_value->bits;
+    }
+    return (uint8_t *)&slot_value->bits;
+}
+
 static uint64_t tc_memblock_declared_count(const TcSymbol *sym) {
     if (!sym) {
         return 0;
@@ -475,18 +499,29 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
         return -1;
     }
     {
-        void *dst_block = tc_memblock_data(&ctx->slots[dst_slot]);
-        void *src_block = tc_memblock_data(&ctx->slots[src_slot]);
+        size_t dst_cap = 0;
+        size_t src_cap = 0;
+        uint8_t *dst_block = tc_memcopy_region(&ctx->slots[dst_slot], &element_type,
+                                               tc_exec_struct_table(ctx), &dst_cap);
+        uint8_t *src_block = tc_memcopy_region(&ctx->slots[src_slot], &element_type,
+                                               tc_exec_struct_table(ctx), &src_cap);
         if (!dst_block || !src_block) {
             free(temp);
             tc_exec_set_internal_error(diag, stmt->line, "internal error: memcopy_unsafe target");
             return -1;
         }
+        /* 防御：声明 T 的抽象宽度不得超出所指对象容量（正常程序不可达） */
+        if (dst_cap < element_bytes || src_cap < element_bytes) {
+            free(temp);
+            tc_exec_set_internal_error(diag, stmt->line,
+                                       "internal error: memcopy_unsafe element width");
+            return -1;
+        }
         /* memcopy_unsafe 操作 ptr<T>，指针指向 T 对象（含 memblock 头部），
          * 元素步长为 T 的完整抽象宽度（§6.8.9）；不得叠加 memblock 头部偏移。 */
-        memcpy(temp, (const uint8_t *)src_block + (size_t)src_index * element_bytes,
+        memcpy(temp, src_block + (size_t)src_index * element_bytes,
                (size_t)length * element_bytes);
-        memcpy((uint8_t *)dst_block + (size_t)dst_index * element_bytes, temp,
+        memcpy(dst_block + (size_t)dst_index * element_bytes, temp,
                (size_t)length * element_bytes);
     }
     free(temp);

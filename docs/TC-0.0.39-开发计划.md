@@ -63,8 +63,8 @@ TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.39
                                  │
                     ┌────────────┴────────────┐
                     │     libtc (嵌入库)       │
-                    │  tc_compile_file /       │
-                    │  tc_compile_source       │
+                    │  tc_compile_file_opts /       │
+                    │  tc_compile_source  │
                     └────────────┬────────────┘
                                  │
               ┌──────────────────┼──────────────────┐
@@ -112,18 +112,24 @@ TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.39
 ```
 src/
 ├── vm/                           # TC-VM 解释器
-│   ├── driver/                   # CLI入口（REPL 已移除）
+│   ├── driver/                   # CLI入口（批量文件模式）
 │   │   ├── main.c                # tc-vm CLI
 │   │   └── tc_driver.c/h         # 文件执行协调
 │   ├── lexer/                    # 词法分析器
 │   │   ├── tc_lexer.c/h          # 最长匹配, 缩进栈, Token生成
 │   │   └── tc_token.h            # Token类型枚举
 │   ├── parser/                   # 语法解析器
-│   │   ├── tc_parser.c/h         # 主解析(语句, 块, 缩进)
+│   │   ├── tc_parser.c/h         # 主解析(入口, 模块, 语句分发, 块, 缩进)
+│   │   ├── tc_parser_struct.c/h  # struct 定义/字段/@padding
+│   │   ├── tc_parser_type.c/h    # 类型语法 tc_parse_type_syntax
+│   │   ├── tc_parser_func.c/h    # 函数定义
+│   │   ├── tc_parser_stmt.c/h    # var/static/import/return/funcall/字段/ptr/memblock 语句
 │   │   ├── tc_parser_rhs.c/h     # RHS表达式解析
 │   │   └── tc_parser_free.c/h    # AST递归释放
 │   ├── analyzer/                 # 静态分析器
 │   │   ├── tc_analyzer.c/h       # 分析协调(13阶段调度)
+│   │   ├── tc_analyzer_pass2.c/h # Pass2 语句遍历/goto/label
+│   │   ├── tc_analyzer_pass2_rhs.c/h # Pass2 RHS 类型检查（tc_check_rhs）
 │   │   ├── tc_scope.c/h          # 作用域与符号表 [新增]
 │   │   ├── tc_module.c/h         # 模块加载/DAG/导入 [新增]
 │   │   ├── tc_type_check.c/h     # 类型检查主逻辑
@@ -157,7 +163,7 @@ src/
 │   ├── tc_aot_codegen.c/h        # TcTypedProgram → C99
 │   └── tc_aot_rt.c/h             # 运行时shim(ptr/memblock/struct)
 └── libtc/                        # 嵌入库入口
-    └── tc_lib.c/h                # tc_compile_source/file/run
+    └── tc_lib.c/h                # tc_compile_*_opts/run
 ```
 
 ### 4. 13 阶段编译管线（完整系统视图）
@@ -751,17 +757,17 @@ src/
 | -- | ---- | ---- |
 | K1-1 | tc-vm CLI | -c/--check, -I/--include <path>, -h, -V; 移除 REPL 模式 |
 | K1-2 | tc-aot CLI | -o/--output, -c/--check, -r/--run, -h, -V |
-| K1-3 | 模块搜索路径 | tc_set_module_search_paths; 入口文件目录→-I路径→默认路径 |
+| K1-3 | 模块搜索路径 | TcCompileOptions 会话路径（-I）; 入口文件目录→会话路径→默认路径 |
 | K1-4 | 多文件入口 | tc-vm main.tc 自动加载所有 import 的 #lib 模块 |
 
 #### K.2 libtc API 更新
 
 | ID | API | 变更 |
 | -- | --- | ---- |
-| K2-1 | tc_compile_source | 新增 name 参数 (用于诊断和模块解析) |
-| K2-2 | tc_compile_file | 自动加载所有可达模块; 模块搜索路径 |
-| K2-3 | tc_set_module_search_paths | 新增 (多文件模块搜索) |
-| K2-4 | tc_run_typed → tc_run_program | 重命名; 含 static var 拓扑初始化 |
+| K2-1 | tc_compile_source | source + name（无路径源，无搜索路径参数） |
+| K2-2 | tc_compile_file_opts | 自动加载所有可达模块; 会话搜索路径 |
+| K2-3 | TcCompileOptions | 会话级 -I 路径（无进程级全局） |
+| K2-4 | tc_run_program | 含 static var 拓扑初始化 |
 
 #### K.3 测试覆盖 (全量)
 
@@ -895,7 +901,7 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 |---------|---------|------|------|
 | 关键字与词法 (75+) | 88 | 88 | 0（R-2 已完成） |
 | 错误码覆盖 | 91 | 91 | 0 |
-| RHS 分发覆盖 | 36 | 36 | 0 |
+| RHS 分发覆盖 | 35 | 35 | 0（8 个分发点全覆盖，`check_rhs_coverage.py`） |
 | 13 阶段管线 | 13 | 13 | 0 |
 | 子阶段实现 | 23 | 23 | 0（R-1 已完成） |
 | 类型系统 | 18 | 18 | 0 |

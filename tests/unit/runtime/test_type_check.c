@@ -1,5 +1,5 @@
 /*
- * test_type_check.c — Phase 3 完整类型检查（模块 E/G）单元验收
+ * test_type_check.c — 完整类型检查（ptr / memblock / struct）单元测试
  *
  * 覆盖 nullptr、struct/memblock/ptr 相关静态错误路径与基本通过用例。
  * 端到端见 tests/valid/phase3_*.tc 与 tests/errors/static/ 目录。

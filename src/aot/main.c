@@ -305,19 +305,21 @@ int main(int argc, char **argv) {
 
     tc_diagnostic_init(&diag);
 
-    if (include_count > 0) {
-        if (tc_set_module_search_paths(include_paths, include_count, &diag) != 0) {
+    {
+        TcCompileOptions opts;
+
+        memset(&opts, 0, sizeof(opts));
+        if (include_count > 0) {
+            opts.search_paths = (const char *const *)include_paths;
+            opts.search_path_count = include_count;
+        }
+
+        /* 编译 */
+        if (tc_compile_file_opts(input_path, &opts, &program, &diag) != 0) {
             tc_diagnostic_print(&diag, stderr);
             tc_diagnostic_clear(&diag);
             return 1;
         }
-    }
-
-    /* 编译 */
-    if (tc_compile_file(input_path, &program, &diag) != 0) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_diagnostic_clear(&diag);
-        return 1;
     }
 
     if (program.warnings.count > 0) {

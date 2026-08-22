@@ -3,7 +3,7 @@
  *
  * 与 tc_module.c 协作：
  *   tc_module_check_structure 末尾调用 tc_scope_check_self_usage；
- *   成员索引供后续限定名 / private 访问解析（Phase 2 仅建表与查找）。
+ *   成员索引供 Pass2 / 函数检查做限定名与 private 访问解析。
  */
 #include "tc_scope.h"
 

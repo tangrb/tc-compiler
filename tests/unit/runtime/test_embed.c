@@ -761,8 +761,7 @@ static void test_embed_slot_count_api(void) {
 
     tc_diagnostic_init(&diag);
     check(tc_compile_source(
-        "#program\nvar x: int32 = 0\nvar y: int32 = 0\n", "<test>",
-        &prog, &diag) == 0, "compile two-vars program");
+        "#program\nvar x: int32 = 0\nvar y: int32 = 0\n", "<test>", &prog, &diag) == 0, "compile two-vars program");
 
     ctx = tc_embed_create(&prog, &diag);
     check(ctx != NULL, "create ctx");

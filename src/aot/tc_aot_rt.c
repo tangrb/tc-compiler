@@ -277,7 +277,7 @@ void tc_aot_abort(const TcDiagnostic *diag, int line) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Phase 5: ptr / memblock                                             */
+/*  ptr / memblock / struct                                             */
 /* ------------------------------------------------------------------ */
 
 #define TC_AOT_PTR_TAG 1ULL
@@ -443,9 +443,18 @@ uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnosti
 
 uint64_t tc_aot_memblock_clone(uint64_t src, size_t element_bytes, uint64_t count,
                                TcDiagnostic *diag, int line) {
-    size_t payload = (size_t)count * element_bytes;
+    size_t payload = 0;
     void *src_block = (void *)(uintptr_t)src;
     void *block = NULL;
+
+    /* 与 VM tc_exec_memblock_clone 一致的饱和检查：count × element_bytes 不得
+     * 溢出（§3.8 布局），否则按 OOM 处理（§11.4.3）。 */
+    if (count > (SIZE_MAX - sizeof(uint64_t)) / (element_bytes > 0 ? element_bytes : 1)) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    payload = (size_t)count * element_bytes;
 
     if (!src_block) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
@@ -566,11 +575,12 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
 
 int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
                            uint64_t src_ptr, uint64_t src_index, int64_t length,
-                           size_t element_bytes, TcDiagnostic *diag, int line) {
+                           size_t element_bytes, TcTypeTag elem_tag, TcDiagnostic *diag,
+                           int line) {
     int dst_slot = 0;
     int src_slot = 0;
-    void *dst_block = NULL;
-    void *src_block = NULL;
+    uint8_t *dst_block = NULL;
+    uint8_t *src_block = NULL;
     void *temp = NULL;
 
     /* 空指针 → TC_RE_NULL_POINTER_DEREFERENCE；负长度 →
@@ -595,8 +605,15 @@ int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
     if (length == 0) {
         return 0;
     }
-    dst_block = (void *)(uintptr_t)slots[dst_slot];
-    src_block = (void *)(uintptr_t)slots[src_slot];
+    /* ptr<T> 所指内存视图（与 VM tc_memcopy_region 一致）：
+     * MEMBLOCK/STRUCT（堆对象）解引用槽值；标量/ptr 用槽位模式区。 */
+    if (elem_tag == TC_MEMBLOCK || elem_tag == TC_STRUCT) {
+        dst_block = (uint8_t *)(uintptr_t)slots[dst_slot];
+        src_block = (uint8_t *)(uintptr_t)slots[src_slot];
+    } else {
+        dst_block = (uint8_t *)&slots[dst_slot];
+        src_block = (uint8_t *)&slots[src_slot];
+    }
     if (!dst_block || !src_block) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");

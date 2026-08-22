@@ -1,0 +1,131 @@
+---
+description: TC-Compiler C 单元测试 — check 宏、CMake 注册、模块白盒测试；编辑 tests/unit/ 时加载
+globs: tests/unit/**/*.c,tests/unit/**/CMakeLists.txt
+alwaysApply: false
+---
+
+# C 单元测试
+
+白盒测试单个模块：lexer · parser · analyzer/CFG · executor · runtime（semantics/types/io/…）。端到端用 `tests/valid/*.tc` + `scripts/vm/run_tests.sh`。
+
+> **现网 target 表 ≈ v0.0.39 + Embed 0.0.39**。`test_types.c`：类型内核 + STMT 24 / RHS 34 / 错误 **90**（check-types）。含 module/func/cfg/embed unit。
+
+## 目录与 target
+
+```
+tests/unit/lexer/
+  test_lexer.c              check-lexer
+  test_lexer_extended.c     check-lexer-extended
+
+tools/lexer_debug/
+  lexer_debug.c             手工词法调试（非 check-unit）
+
+tests/unit/parser/
+  test_parser.c             check-parser
+
+tests/unit/runtime/
+  test_semantics.c          check-semantics
+  test_types.c              check-types
+  test_diagnostic.c         check-diagnostic
+  test_libtc.c              check-libtc
+  test_embed.c              check-embed
+  test_embed_aot.c          check-embed-aot
+  test_io.c                 check-io
+  test_bitwise.c            check-bitwise
+  test_shift.c              check-shift
+  test_symbol.c             check-symbol
+  test_warning.c            check-warning
+  test_analyzer.c           check-analyzer
+  test_module.c             check-module
+  test_cfg.c                check-cfg
+  test_executor.c           check-executor
+  test_stmt_index.c         check-stmt-index（header-only `tc_stmt_index.h`）
+```
+
+| 项 | 规则 |
+|----|------|
+| 测试函数 | `static void test_<功能>(void)` |
+| 可执行文件 | `test-<module>` / `test-<module>-<variant>` |
+| CMake target | `check-<module>` / `check-<module>-<variant>` |
+| 汇总 | `tests/CMakeLists.txt` → `check-unit`（约 **3025** `check()`；含 embed） |
+
+## 测试框架（无第三方）
+
+```c
+static int g_passed = 0;
+static int g_failed = 0;
+
+static void check(int condition, const char *message) {
+    if (condition) {
+        g_passed++;
+    } else {
+        g_failed++;
+        fprintf(stderr, "FAIL: %s\n", message);
+    }
+}
+
+int main(void) {
+    test_foo();
+    test_bar();
+    printf("%d passed, %d failed\n", g_passed, g_failed);
+    return g_failed == 0 ? 0 : 1;
+}
+```
+
+- 失败消息写清楚：**输入 + 期望**
+- 每个 `test_*` 内 init/free 配对，不泄漏
+
+## 典型 setup
+
+### 词法
+
+```c
+TcTokenList tokens;
+TcDiagnostic diag;
+tc_diagnostic_init(&diag);
+tc_token_list_init(&tokens);
+check(tc_tokenize_line("var a: int32 = 1", 1, &tokens, &diag) == 0, "tokenize ok");
+tc_token_list_free(&tokens);
+tc_diagnostic_clear(&diag);
+```
+
+### 语义 / I/O
+
+只链接被测模块 + 最小依赖（tc_types、tc_diagnostic、tc_semantics 等），**不要**链整个 libtc：
+
+```cmake
+add_executable(test-io
+    test_io.c
+    ${TC_VM_DIR}/runtime/tc_io.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+```
+
+改 `tc_semantics.c` / `tc_sem_cast.c` 优先补 `test_semantics.c`；改 `tc_cfg.c` 补 `test_cfg.c`；改 libtc 所有权补 `test_libtc.c`；改 Executor 控制传播补 `test_executor.c`。I/O/types/symbol/warning 分别对应同名测试。
+
+## CMake 注册
+
+新模块：在 `tests/unit/<module>/CMakeLists.txt` 建 target，并在 `tests/CMakeLists.txt` 的 `check-unit` 中追加对应 `check-*` 构建命令。
+
+## 何时写单元测试 vs .tc 测试
+
+| 场景 | 用 |
+|------|-----|
+| Token 序列、union 字段、词法边界 | C 单元测试 |
+| 运算/cast/溢出边界、format 解析 | `test_semantics.c` / `test_types.c` |
+| write/read 格式化细节 | `test_io.c` + 必要时 `.tc` 集成 |
+| 端到端语义、stdout、错误诊断 | `.tc` + `run_tests.sh` |
+| 新 lexer token/关键字 | **两者**：单元测 token + valid 测集成 |
+
+## 运行
+
+```bash
+make test-unit
+cmake --build build --target check-semantics
+cmake --build build --target check-io
+./build/tests/bin/test-io
+```
+
+全量入口：`bash scripts/run_tests.sh`（见 Skill `run-tests`）。

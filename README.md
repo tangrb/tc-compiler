@@ -54,7 +54,7 @@ bash scripts/run_tests.sh
 | 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；VM + AOT） |
 | 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.39） |
 
-0.0.39 已移除 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
+0.0.39 无 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 
 ## 语言示例
 
@@ -187,7 +187,7 @@ int main(void) {
 }
 ```
 
-公共入口为 `tc_compile_source`、`tc_compile_file`、`tc_set_module_search_paths` 和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.39.md)。
+公共入口为 `tc_compile_source`（无路径源）、`tc_compile_file_opts`（会话式 `TcCompileOptions` 携带 `-I` 等价搜索路径）和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 嵌入 API](docs/libtc-api-0.0.39.md)。
 
 ## 嵌入 TC-Embed（v0.0.39）
 

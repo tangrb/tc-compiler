@@ -5,7 +5,7 @@
  * 可选输出各阶段耗时（环境变量 TC_BENCH=1 启用）。
  * 执行入口 tc_run_program 委托 tc_execute。
  *
- * tc_compile_file 在 Analyze 后加载可达 #lib；
+ * tc_compile_file_opts 经 tc_analyze_ex 解析可达 #lib（会话 opts 携带 -I）；
  * tc_compile_source（无路径）仅做结构检查、不解析 import。
  */
 #include "tc_lib.h"
@@ -23,9 +23,6 @@
 #else
 #include <time.h>
 #endif
-
-/* 进程级 -I 搜索路径；由 tc_set_module_search_paths 设置（非线程安全） */
-static TcModuleSearchPaths g_module_search_paths;
 
 /* ------------------------------------------------------------------ */
 /*  性能计时辅助（环境变量 TC_BENCH=1 启用）                               */
@@ -175,12 +172,11 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
 /*  对外 API                                                            */
 /* ------------------------------------------------------------------ */
 
-int tc_compile_source(const char *source, const char *name, TcTypedProgram *out,
-                      TcDiagnostic *diag) {
+int tc_compile_source(const char *source, const char *name,
+                      TcTypedProgram *out, TcDiagnostic *diag) {
     TcProgram program;
     TcTypedProgram typed;
     double t0;
-
     if (!diag) {
         return -1;
     }
@@ -199,24 +195,21 @@ int tc_compile_source(const char *source, const char *name, TcTypedProgram *out,
     if (tc_analyze(&program, &typed, diag) != 0) {
         return -1;
     }
-    /* 无路径的内存源：仅做结构检查；导入解析在 tc_compile_file */
+    /* 无路径的内存源：仅做结构检查；导入解析在 tc_compile_file_opts */
     tc_bench_report("analyze", tc_bench_now() - t0);
     *out = typed;
     return 0;
 }
 
-int tc_set_module_search_paths(char *const *paths, size_t count, TcDiagnostic *diag) {
-    if (!diag) {
-        return -1;
-    }
-    return tc_module_search_paths_set(&g_module_search_paths, paths, count, diag);
-}
-
-int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag) {
+int tc_compile_file_opts(const char *path, const TcCompileOptions *opts,
+                         TcTypedProgram *out, TcDiagnostic *diag) {
     char *source = NULL;
     TcProgram program;
     TcTypedProgram typed;
+    TcModuleSearchPaths local;
+    const TcModuleSearchPaths *search = NULL;
     double t0;
+    TcCompileOptions empty_opts;
 
     if (!diag) {
         return -1;
@@ -243,7 +236,18 @@ int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag) {
     free(source);
 
     t0 = tc_bench_now();
-    if (tc_analyze_ex(&program, &typed, path, &g_module_search_paths, diag) != 0) {
+    /* 会话搜索路径：opts 提供则借用之（调用期间有效）；否则本次编译无额外路径。
+     * 无进程级全局状态（多编译单元 / 多线程嵌入场景各自携带）。 */
+    if (opts && opts->search_paths && opts->search_path_count > 0) {
+        memset(&local, 0, sizeof(local));
+        local.paths = (char **)(uintptr_t)opts->search_paths;
+        local.count = opts->search_path_count;
+        search = &local;
+    } else {
+        memset(&empty_opts, 0, sizeof(empty_opts));
+        search = NULL;
+    }
+    if (tc_analyze_ex(&program, &typed, path, search, diag) != 0) {
         return -1;
     }
     tc_bench_report("analyze+modules", tc_bench_now() - t0);

@@ -6,7 +6,7 @@
  *   - tc_symbol_table_push_scope / pop_scope — 作用域栈
  *   - tc_symbol_table_find_in_scope — shadowing 与 pop 后不可见
  *   - tc_symbol_table_find_in_current_scope — 同层重复定义检测
- *   - tc_symbol_table_pop_last — REPL 回滚
+ *   - tc_symbol_table_pop_last — 分析失败回滚最后一个符号
  *   - tc_symbol_table_add_label / find_label / pop_labels — 标签块级作用域
  */
 #include "tc_symbol.h"

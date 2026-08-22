@@ -1,5 +1,5 @@
 /*
- * tc_memblock_check.h — memblock RHS/语句验证（Phase 3）
+ * tc_memblock_check.h — memblock RHS/语句静态验证
  *
  * 覆盖：memblock_load / 构造器 / .count / store / copy / memcopy_unsafe。
  * 类型等价只比较元素类型 T；声明长度 N 用于构造器与静态下标越界检查。
@@ -29,8 +29,9 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
                            size_t stmt_index, TcDiagnostic *diag, TcWarningList *warnings);
 
 /**
- * memcopy_unsafe：Phase 3 仅拒绝 void 元素类型；
- * 运行时区间合法性属后续阶段（静态/运行时 MEMCOPY_UNSAFE_INVALID_RANGE）。
+ * memcopy_unsafe：拒绝 void 元素类型。
+ * 负 length 与越界不在此检查（越界为实现定义；负 length 由执行器报
+ * TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE）。
  */
 int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      const TcSymbolTable *visible,

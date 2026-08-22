@@ -1,5 +1,5 @@
 /*
- * tc_callgraph.h — 函数调用图与递归环检查（Phase 4 / 阶段 12）
+ * tc_callgraph.h — 函数调用图与递归环检查（阶段 12）
  *
  * 在 Pass2 + CFG 之后运行：基于已解析的签名表构建 func_id 有向图，
  * Tarjan 求强连通分量；若存在递归（自环或 size>1 的 SCC），

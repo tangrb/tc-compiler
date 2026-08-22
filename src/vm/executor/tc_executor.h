@@ -1,9 +1,9 @@
 /*
  * tc_executor.h — 执行引擎接口
  *
- * Executor 消费 Analyzer 产出的 TcTypedProgram，按语句顺序 dispatch：
- * 求值 RHS 并将结果写入对应变量的运行时槽位。
- * TC 源码即「高级字节码」，无需 lowering 为第二套 opcode。
+ * Executor 消费 TcTypedProgram，按语句顺序解释执行（含调用帧、
+ * ptr/memblock/struct 堆对象、static var 拓扑初始化）。
+ * I/O 委托 tc_io；算术/cast 委托 tc_sem_*。无第二套 opcode。
  */
 #ifndef TC_EXECUTOR_H
 #define TC_EXECUTOR_H

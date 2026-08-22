@@ -1,8 +1,8 @@
 /*
- * tc_type_check.h — 完整类型 RHS/字面量检查入口（Phase 3）
+ * tc_type_check.h — 完整类型 RHS/字面量检查入口
  *
- * 在既有标量路径（tc_check_rhs / tc_check_literal）之上，按期望 TcType
- * 分派到 ptr / memblock / struct 专用检查器；标量仍回退旧路径。
+ * 按期望 TcType 分派到 ptr / memblock / struct 专用检查器；
+ * 标量走 tc_check_rhs / tc_check_literal。
  *
  * 调用方：tc_analyzer_pass2（var/let/赋值等需要完整类型的位置）。
  */

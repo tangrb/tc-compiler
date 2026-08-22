@@ -1,9 +1,9 @@
 /*
  * tc_diagnostic.h — 错误诊断接口
  *
- * TC 全流水线（Lexer / Parser / Analyzer / Executor / AOT）通过 TcDiagnostic
- * 统一报告错误。TcDiagnostic 设计为单槽（fail-fast），仅保留第一条错误。
- * 诊断最终由 driver 层格式化输出到 stderr（类 GCC/clang 格式）。
+ * Lexer / Parser / Analyzer / Executor / AOT / Embed 通过 TcDiagnostic
+ * 统一报告错误。单槽 fail-fast，仅保留第一条。
+ * 诊断由 driver / Embed 宿主格式化输出（类 GCC 的 file:line:col）。
  */
 #ifndef TC_DIAGNOSTIC_H
 #define TC_DIAGNOSTIC_H

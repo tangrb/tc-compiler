@@ -124,7 +124,7 @@ static void test_file_lifetime(void) {
     check(fclose(file) == 0, "close temporary TC source");
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_file(path, &program, &diag) == 0,
+    check(tc_compile_file_opts(path, NULL, &program, &diag) == 0,
           "compile file into caller-owned typed program");
     unlink(path);
     check(tc_run_program(&program, &diag) == 0,
@@ -212,7 +212,7 @@ static void test_file_errors_use_api_domain(void) {
     memcpy(&before, &out, sizeof(before));
     tc_diagnostic_init(&diag);
 
-    check(tc_compile_file(missing_path, &out, &diag) == -1,
+    check(tc_compile_file_opts(missing_path, NULL, &out, &diag) == -1,
           "missing file compilation fails");
     check(diag.domain == TC_DIAG_API, "missing file uses API diagnostic domain");
     check(diag.api_code == TC_API_ERR_FILE_OPEN, "missing file uses FileOpen code");
@@ -239,7 +239,7 @@ static void test_file_errors_use_api_domain(void) {
         tc_diagnostic_clear(&diag);
         return;
     }
-    check(tc_compile_file(unreadable_path, &out, &diag) == -1,
+    check(tc_compile_file_opts(unreadable_path, NULL, &out, &diag) == -1,
           "non-seekable source fails with FileRead");
     check(diag.domain == TC_DIAG_API, "file read failure uses API diagnostic domain");
     check(diag.api_code == TC_API_ERR_FILE_READ, "file read failure uses FileRead code");
@@ -272,7 +272,7 @@ static void test_invalid_arguments_use_api_domain(void) {
 
     tc_diagnostic_clear(&diag);
     tc_diagnostic_init(&diag);
-    check(tc_compile_file("/tmp/tc-libtc-definitely-missing.tc", NULL, &diag) == -1,
+    check(tc_compile_file_opts("/tmp/tc-libtc-definitely-missing.tc", NULL, NULL, &diag) == -1,
           "null compile_file output is rejected before opening the file");
     check(diag.domain == TC_DIAG_API,
           "null compile_file output uses API diagnostic domain");
@@ -286,8 +286,7 @@ static void test_compile_source_name_appears_in_diagnostics(void) {
     TcDiagnostic diag;
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_source("#program\nvar value: int32 = missing\n", "mem://unit", &out,
-                            &diag) == -1,
+    check(tc_compile_source("#program\nvar value: int32 = missing\n", "mem://unit", &out, &diag) == -1,
           "compile_source reports undefined variable");
     check(diag.domain == TC_DIAG_LANGUAGE, "name test remains language domain");
     check(diag.filename != NULL && strcmp(diag.filename, "mem://unit") == 0,
@@ -340,7 +339,7 @@ static void test_source_and_file_language_kinds_match(void) {
     tc_diagnostic_init(&file_diag);
     check(tc_compile_source(source, "<test>", &out, &source_diag) == -1,
           "compile_source rejects comparison source");
-    check(tc_compile_file(path, &out, &file_diag) == -1,
+    check(tc_compile_file_opts(path, NULL, &out, &file_diag) == -1,
           "compile_file rejects comparison source");
     check(source_diag.domain == TC_DIAG_LANGUAGE && file_diag.domain == TC_DIAG_LANGUAGE,
           "source and file compilation report language domain after successful read");
@@ -386,17 +385,90 @@ static void test_module_search_paths_resolve_import(void) {
     snprintf(extra_dir, sizeof(extra_dir), "%s/tests/modules/extra_libs", root);
     paths[0] = extra_dir;
 
+    {
+        TcCompileOptions opts;
+
+        memset(&opts, 0, sizeof(opts));
+        opts.search_paths = (const char *const *)paths;
+        opts.search_path_count = 1;
+
+        tc_diagnostic_init(&diag);
+        check(tc_compile_file_opts(path, &opts, &program, &diag) == 0,
+              "compile_file_opts finds ExtraLib via session search path");
+        check(tc_run_program(&program, &diag) == 0, "run ExtraLib import program");
+        tc_typed_program_free(&program);
+
+        /* 无会话路径（NULL opts）= 无额外搜索路径 → ExtraLib 未解析 */
+        tc_diagnostic_clear(&diag);
+        tc_diagnostic_init(&diag);
+        check(tc_compile_file_opts(path, NULL, &program, &diag) == -1,
+              "no session search paths make ExtraLib unresolved");
+        check(diag.kind == TC_CE_IMPORT_NOT_FOUND, "no paths → IMPORT_NOT_FOUND");
+        unlink(path);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+/** 会话级搜索路径（tc_compile_file_opts）与进程级全局隔离：不触碰全局 */
+static void test_compile_opts_isolated_search(void) {
+    static const char *entry =
+        "#program\n"
+        "import ExtraLib\n"
+        "var x: int32 = funcall(ExtraLib.extra_answer)\n"
+        "writeln(int32, x)\n";
+    char path[] = "/tmp/tc-libtc-opts-XXXXXX";
+    int fd = tc_test_mkstemps(path, 0);
+    FILE *file = NULL;
+    char extra_dir[512];
+    char *opts_paths[1];
+    const char *root = getenv("TC_TEST_ROOT");
+    TcCompileOptions opts;
+    TcTypedProgram program;
+    TcDiagnostic diag;
+
+    check(fd >= 0, "create opts entry file");
+    if (fd < 0) {
+        return;
+    }
+    file = fdopen(fd, "w");
+    check(file != NULL, "open opts entry stream");
+    if (!file) {
+        close(fd);
+        unlink(path);
+        return;
+    }
+    check(fputs(entry, file) >= 0, "write opts entry source");
+    check(fclose(file) == 0, "close opts entry source");
+
+    if (!root || root[0] == '\0') {
+        root = ".";
+    }
+    snprintf(extra_dir, sizeof(extra_dir), "%s/tests/modules/extra_libs", root);
+    opts_paths[0] = extra_dir;
+
+    memset(&opts, 0, sizeof(opts));
+    opts.search_paths = (const char *const *)opts_paths;
+    opts.search_path_count = 1;
+
     tc_diagnostic_init(&diag);
-    check(tc_set_module_search_paths(paths, 1, &diag) == 0, "set ExtraLib search path");
-    check(tc_compile_file(path, &program, &diag) == 0,
-          "compile_file finds ExtraLib via search path");
-    check(tc_run_program(&program, &diag) == 0, "run ExtraLib import program");
+    check(tc_compile_file_opts(path, &opts, &program, &diag) == 0,
+          "opts session finds ExtraLib via session search path");
+    check(tc_run_program(&program, &diag) == 0, "run opts-session import program");
     tc_typed_program_free(&program);
 
-    check(tc_set_module_search_paths(NULL, 0, &diag) == 0, "clear module search paths");
-    check(tc_compile_file(path, &program, &diag) == -1,
-          "cleared search paths make ExtraLib unresolved");
-    check(diag.kind == TC_CE_IMPORT_NOT_FOUND, "cleared paths → IMPORT_NOT_FOUND");
+    /* 无会话路径（NULL opts）→ 无额外搜索路径 → 找不到 */
+    tc_diagnostic_clear(&diag);
+    tc_diagnostic_init(&diag);
+    check(tc_compile_file_opts(path, NULL, &program, &diag) == -1,
+          "global default stays empty; opts did not leak into process state");
+    check(diag.kind == TC_CE_IMPORT_NOT_FOUND,
+          "global empty paths → IMPORT_NOT_FOUND");
+
+    /* NULL opts 等价于无搜索路径 */
+    tc_diagnostic_clear(&diag);
+    tc_diagnostic_init(&diag);
+    check(tc_compile_file_opts(path, NULL, &program, &diag) == -1,
+          "NULL opts falls back to empty global default");
     unlink(path);
     tc_diagnostic_clear(&diag);
 }
@@ -411,6 +483,7 @@ int main(void) {
     test_invalid_arguments_use_api_domain();
     test_compile_source_name_appears_in_diagnostics();
     test_null_diagnostic_and_program_do_not_crash();
+    test_compile_opts_isolated_search();
     test_source_and_file_language_kinds_match();
     test_module_search_paths_resolve_import();
     printf("%d passed, %d failed\n", g_passed, g_failed);

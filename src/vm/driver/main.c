@@ -23,6 +23,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define TC_MAX_INCLUDE_PATHS 64
 
@@ -119,16 +120,17 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (include_count > 0) {
-        if (tc_set_module_search_paths(include_paths, include_count, &diag) != 0) {
-            tc_diagnostic_print(&diag, stderr);
-            tc_diagnostic_clear(&diag);
-            return 1;
-        }
-    }
+    {
+        TcCompileOptions opts;
 
-    path = argv[optind];
-    rc = tc_run_file(path, check_only, &diag);
+        memset(&opts, 0, sizeof(opts));
+        if (include_count > 0) {
+            opts.search_paths = (const char *const *)include_paths;
+            opts.search_path_count = include_count;
+        }
+        path = argv[optind];
+        rc = tc_run_file(path, &opts, check_only, &diag);
+    }
     if (rc != 0) {
         tc_diagnostic_print(&diag, stderr);
         tc_diagnostic_clear(&diag);

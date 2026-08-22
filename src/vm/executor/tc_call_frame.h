@@ -1,5 +1,5 @@
 /*
- * tc_call_frame.h — 函数调用帧栈（Phase 5 / 模块 I）
+ * tc_call_frame.h — 函数调用帧栈
  *
  * Analyzer 为形参/局部分配全局唯一槽，且递归为 CE；帧本身只跟踪调用链与返回值。
  */

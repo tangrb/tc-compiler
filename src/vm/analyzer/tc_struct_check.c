@@ -1,9 +1,9 @@
 /*
- * tc_struct_check.c — 结构体定义表与构造/字段访问验证（Phase 3）
+ * tc_struct_check.c — 结构体定义表与构造/字段访问验证
  *
- * 注册顺序：先入表并校验字段（禁止同类型自引用 / 前向嵌套）→
- * 第二遍把嵌套 struct 名解析为 struct_id 并累加 width_bits →
- * 最后把程序中其它声明上的 struct 名解析掉。
+ * 注册顺序：先入表并按位置规则校验字段（值自引用 / 前向嵌套拒绝；
+ * ptr<本结构体> 以 pending_name 暂存）→ 解析为 struct_id 并累加 width_bits →
+ * 再解析程序中其它声明上的结构体名。
  */
 #include "tc_struct_check.h"
 

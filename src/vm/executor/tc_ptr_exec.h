@@ -1,5 +1,5 @@
 /*
- * tc_ptr_exec.h — ptr 运行时运算（Phase 5 / 模块 I）
+ * tc_ptr_exec.h — ptr 运行时运算
  */
 #ifndef TC_PTR_EXEC_H
 #define TC_PTR_EXEC_H

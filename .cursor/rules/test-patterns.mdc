@@ -1,0 +1,15 @@
+---
+description: TC-Compiler 测试约定 — 模板见 tests-tc；命令见 run-tests；映射见 test-map.md
+alwaysApply: true
+---
+
+# 测试约定
+
+| 改… | 自动 Rule | 跑测 |
+|-----|----------|------|
+| `.tc` / `run_tests.sh` | `tests-tc` | Skill `run-tests` |
+| `tests/unit/**` | `unit-tests-c` | `make test-unit` |
+
+**硬要求**：static 一文件一错；新用例注册 `scripts/vm/run_tests.sh`；新 `TcRhsKind` → `check_rhs_coverage.py`；新 `TcErrorKind` → `tc_error_kind_name()` + `test_types.c` + 语言标准-0.0.39；类型内核改动 → `check-types`；新 `src/` 模块 → `check_source_naming.py`；控制流/uninit → `test_cfg` + `.tc`（test-map **Phase 1–7** 账本）；Embed → `check-embed` / `check-embed-aot`。
+
+**映射速查**：[test-map.md](.cursor/skills/tc-architecture/test-map.md) · **全量**：`bash scripts/run_tests.sh`

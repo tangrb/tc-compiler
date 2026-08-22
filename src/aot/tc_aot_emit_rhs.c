@@ -1,8 +1,8 @@
 /*
  * tc_aot_emit_rhs.c — AOT Codegen 右值表达式发射
  *
- * 将 TcRhs 转译为对 tc_aot_rt.h shim 函数的 C99 调用，
- * 语义委托 tc_semantics.c / tc_io.c，保证与 TC-VM 行为一致。
+ * 将 TcRhs 转译为对 tc_aot_rt.h shim 的 C99 调用（含 ptr/memblock/struct）。
+ * 标量语义委托 tc_sem_* / tc_io，与 TC-VM 一致。
  */
 #include "tc_aot_codegen.h"
 #include "tc_aot_codegen_internal.h"

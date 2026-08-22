@@ -467,16 +467,16 @@ writeln(int32, %d, val)
 | 模块 | 单文件 | 多文件 `#program`/`#lib` + `import` |
 | 函数 | 无 | `func`/`funcall`/`return` |
 | 类型 | 标量 | 标量 + `ptr<T>` + `memblock<T,N>` + `struct` + `isize`/`usize` |
-| REPL | 支持 | **已删除** |
+| REPL | 支持 | 无 |
 | 错误码 | 41+1 | 扩展至 ~70+ |
 | 入口 | 顶层语句 | `#program` 顶层语句 |
 
 ### 9.3 迁移提示
 
 - 无 REPL 模式；所有执行均通过批量文件模式完成。
-- 原有 REPL 能力限制（控制流拒绝）不再适用；批量文件支持完整控制流。
-- 依赖浮点 wrap 的源文件改用 ieee 数值语义，或 bitcast 到等宽整数后处理位模式。
-- 无 RHS 的 `var` 改为声明时初始化。
+- 批量文件支持完整控制流，无 REPL 控制流限制。
+- 依赖浮点 wrap 的源文件使用 ieee 数值语义，或 bitcast 到等宽整数后处理位模式。
+- 无 RHS 的 `var` 在声明时初始化。
 - `#program` 文件不可定义 `func`、使用 `static` 或 `Self`。
 
 ---

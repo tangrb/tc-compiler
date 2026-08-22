@@ -1,5 +1,5 @@
 /*
- * tc_memblock_check.c — memblock RHS/语句验证（Phase 3）
+ * tc_memblock_check.c — memblock RHS/语句静态验证
  *
  * 下标字面量在编译期做静态越界；变量下标留给运行时。
  * 构造器支持 fill 模式与显式元素列表两种形式。
@@ -307,7 +307,7 @@ int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      const TcSymbolTable *global, TcInitHistory *hist,
                                      size_t stmt_index, TcDiagnostic *diag,
                                      TcWarningList *warnings) {
-    /* Phase 3 最小校验：元素不可为 void；区间检查留给后续阶段 */
+    /* 静态只拒绝 void 元素；负 length 由 VM/AOT 报运行时区间错误 */
     (void)visible;
     (void)global;
     (void)hist;

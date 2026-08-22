@@ -1,5 +1,5 @@
 /*
- * tc_parser_rhs.c — RHS / const-RHS 语法解析
+ * tc_parser_rhs.c — 运行时 RHS 与 let 常量 RHS 的语法解析（34 种 TcRhsKind）
  */
 #include "tc_parser_rhs.h"
 

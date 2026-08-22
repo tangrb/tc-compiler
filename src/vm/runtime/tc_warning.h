@@ -1,9 +1,7 @@
 /*
  * tc_warning.h — 编译警告接口
  *
- * @deprecated — no active warning kinds (v0.0.26+: 未初始化读取已为错误)。
- * 基础设施保留：TC-VM 警告不阻止执行；Analyzer 通过后批量打印到 stderr。
- * 当前 TcWarningKind 为空壳，供未来新警告类型使用。
+ * 语言无编译警告。本模块保留空壳列表，供 TcTypedProgram.warnings 与打印入口使用。
  */
 #ifndef TC_WARNING_H
 #define TC_WARNING_H

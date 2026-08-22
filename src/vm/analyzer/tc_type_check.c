@@ -1,5 +1,5 @@
 /*
- * tc_type_check.c — 完整类型 RHS/字面量检查入口（Phase 3）
+ * tc_type_check.c — 完整类型 RHS/字面量检查入口
  *
  * 分派策略：
  *   LIT / CONST_REF → 本文件直接处理（含 nullptr、memblock 尺寸）

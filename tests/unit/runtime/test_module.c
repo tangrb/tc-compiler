@@ -1,5 +1,5 @@
 /*
- * test_module.c — Phase 2 模块系统（tc_module / tc_scope）单元测试
+ * test_module.c — 模块系统（tc_module / tc_scope）单元测试
  *
  * 覆盖：结构检查、Self 禁用、成员索引、import 定位/歧义/环、
  * #lib 可见性、签名收集。端到端行为另见 tests/modules/ 与 tests/errors/module/。
@@ -129,7 +129,7 @@ static void test_import_not_found_via_compile_file(void) {
     check(write_temp_file(path, "#program\nimport DoesNotExist\n") == 0,
           "write import-not-found fixture");
     tc_diagnostic_init(&diag);
-    check(tc_compile_file(path, &out, &diag) == -1, "compile missing import fails");
+    check(tc_compile_file_opts(path, NULL, &out, &diag) == -1, "compile missing import fails");
     check(diag.kind == TC_CE_IMPORT_NOT_FOUND, "import not found kind");
     unlink(path);
     tc_diagnostic_clear(&diag);
@@ -177,7 +177,7 @@ static void test_import_success_and_signatures(void) {
 
     tc_diagnostic_init(&diag);
     memset(&typed, 0, sizeof(typed));
-    if (tc_compile_file(entry_path, &typed, &diag) == 0) {
+    if (tc_compile_file_opts(entry_path, NULL, &typed, &diag) == 0) {
         check(1, "compile successful import");
         check(typed.dep_count == 1, "one dependency loaded");
         check(typed.deps != NULL && typed.deps[0].mode == TC_MODULE_LIB, "dep is #lib");
@@ -237,7 +237,7 @@ static void test_circular_import_pair(void) {
     fclose(fp);
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_file(entry_path, &out, &diag) == -1, "circular import fails");
+    check(tc_compile_file_opts(entry_path, NULL, &out, &diag) == -1, "circular import fails");
     check(diag.kind == TC_CE_CIRCULAR_IMPORT, "circular import kind");
     tc_diagnostic_clear(&diag);
 
@@ -270,7 +270,7 @@ static void test_import_not_lib(void) {
     fclose(fp);
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_file(entry_path, &out, &diag) == -1, "import #program fails");
+    check(tc_compile_file_opts(entry_path, NULL, &out, &diag) == -1, "import #program fails");
     check(diag.kind == TC_CE_IMPORT_NOT_LIB, "import not lib kind");
     tc_diagnostic_clear(&diag);
 
@@ -302,7 +302,7 @@ static void test_duplicate_import(void) {
     fclose(fp);
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_file(entry_path, &out, &diag) == -1, "duplicate import fails");
+    check(tc_compile_file_opts(entry_path, NULL, &out, &diag) == -1, "duplicate import fails");
     check(diag.kind == TC_CE_DUPLICATE_IMPORT, "duplicate import kind");
     tc_diagnostic_clear(&diag);
 
@@ -346,17 +346,19 @@ static void test_ambiguous_import_search_paths(void) {
 
     paths[0] = dir_a;
     paths[1] = dir_b;
-    tc_diagnostic_init(&diag);
-    check(tc_set_module_search_paths(paths, 2, &diag) == 0, "set ambiguous search paths");
-    check(tc_compile_file(entry_path, &out, &diag) == -1, "ambiguous import fails");
-    check(diag.kind == TC_CE_IMPORT_AMBIGUOUS, "ambiguous import kind");
     {
-        TcDiagnostic clear_diag;
-        tc_diagnostic_init(&clear_diag);
-        check(tc_set_module_search_paths(NULL, 0, &clear_diag) == 0, "clear search paths");
-        tc_diagnostic_clear(&clear_diag);
+        TcCompileOptions opts;
+
+        memset(&opts, 0, sizeof(opts));
+        opts.search_paths = (const char *const *)paths;
+        opts.search_path_count = 2;
+
+        tc_diagnostic_init(&diag);
+        check(tc_compile_file_opts(entry_path, &opts, &out, &diag) == -1,
+              "ambiguous import fails");
+        check(diag.kind == TC_CE_IMPORT_AMBIGUOUS, "ambiguous import kind");
+        tc_diagnostic_clear(&diag);
     }
-    tc_diagnostic_clear(&diag);
 
     unlink(path_a);
     unlink(path_b);
@@ -384,7 +386,7 @@ static void test_self_import_file(void) {
     fclose(fp);
 
     tc_diagnostic_init(&diag);
-    check(tc_compile_file(path, &out, &diag) == -1, "self-import fails");
+    check(tc_compile_file_opts(path, NULL, &out, &diag) == -1, "self-import fails");
     check(diag.kind == TC_CE_CIRCULAR_IMPORT, "self-import is circular");
     tc_diagnostic_clear(&diag);
 

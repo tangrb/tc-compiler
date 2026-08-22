@@ -1,16 +1,11 @@
 /*
  * tc_parser.h — 语法分析器接口
  *
- * 将 Token 流解析为 TcStatement（变量/常量定义、赋值、I/O、if 控制流等）。
- * AST 释放与 TcProgram 管理见 tc_parser_free.h；RHS 解析见 tc_parser_rhs.h。
+ * 将 Token 流解析为 TcProgram（模块头、import、struct、func、语句）。
+ * AST 释放见 tc_parser_free.h；RHS 见 tc_parser_rhs.h；
+ * 语句/类型/函数/struct 见对应 tc_parser_*.h。
  *
- * TC 语言语法概要（分号可选）：
- *   var id: type [= rhs]        变量定义
- *   let id: type = literal      常量定义
- *   id = rhs                    赋值
- *   write/writeln(type [,fmt,] operand)  输出
- *   read(type, id)              输入
- *   if cond then / 缩进块 / [else 块] / end
+ * 分号可选。#program 顶层按源序执行；#lib 仅含可见性修饰的成员。
  */
 #ifndef TC_PARSER_H
 #define TC_PARSER_H

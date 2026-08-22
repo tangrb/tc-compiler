@@ -8,9 +8,10 @@
 #define TC_DRIVER_H
 
 #include "tc_types.h"
+#include "tc_lib.h" /* TcCompileOptions */
 
 /**
- * 从内存中的源字符串运行 TC 程序。
+ * 从内存中的源字符串运行 TC 程序（无路径源不解析 import，故无搜索路径参数）。
  * @param source     源字符串
  * @param check_only 为真时仅做静态分析，不执行
  * @param diag       诊断对象
@@ -21,10 +22,12 @@ int tc_run_source(const char *source, int check_only, TcDiagnostic *diag);
 /**
  * 从文件路径读取源码并运行 TC 程序。
  * @param path       源文件路径
+ * @param opts       会话级搜索路径（可为 NULL = 无额外路径）
  * @param check_only 仅静态分析标志
  * @param diag       诊断对象
  * @return 成功返回 0；文件 I/O 或运行失败返回 -1 并设置 diag
  */
-int tc_run_file(const char *path, int check_only, TcDiagnostic *diag);
+int tc_run_file(const char *path, const TcCompileOptions *opts, int check_only,
+                TcDiagnostic *diag);
 
 #endif

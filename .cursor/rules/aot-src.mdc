@@ -1,0 +1,44 @@
+---
+description: TC-AOT 代码编辑 — codegen 与运行时 shim；编辑 src/aot/ 时加载；I/O 委托 tc_io.c
+globs: src/aot/**/*
+alwaysApply: false
+---
+
+# AOT 编辑
+
+> **现网 v0.0.39 + Phase 5 AOT**：`static`/`func`/`ptr`/`memblock`/`struct` shim 已落地；Embed 模式见 `tc_aot_embed_rt.h`。
+
+跨模块分发点见 `@knowledge-graph`；AOT 语义 [kg-eval.md](../skills/tc-architecture/kg-eval.md)；Embed [kg-embed.md](../skills/tc-architecture/kg-embed.md)。  
+规格：`docs/TC-AOT详细设计说明书-0.0.39.md` · Embed 详设-0.0.39。
+
+## 文件
+
+| 文件 | 职责 |
+|------|------|
+| `tc_aot_codegen.c` | `tc_aot_emit_c` → statement/rhs/func；`embed_mode` / 函数表 / embed header |
+| `tc_aot_rt.c` / `.h` | 运行时 shim → `tc_semantics` / `tc_sem_*`；`tc_aot_{ptr,memblock,struct}_*` |
+| `tc_aot_embed_rt.h` | 嵌入模式：非致命 abort、错误标记、`tc_aot_func_entry` |
+| `main.c` | CLI：`-o`/`-c`/`-r`/`--embed`/`-H`；`-I`；host cc 须链 `tc_sem_{int,fp,cast,bitwise}.c` |
+
+## 必守
+
+1. 新 RHS：`tc_aot_emit_rhs` + shim；新 STMT：`tc_aot_emit_statement_impl`
+2. 语义与 VM 一致：shim 调用 `tc_exec_*` / 专用复合 shim，不重复实现
+3. I/O（read/write）委托 `runtime/tc_io.c`
+4. let：codegen 折叠已求值的 const_ref/const_cast
+5. Embed：运行时错走 `tc_aot_embed_abort`（非致命）
+6. 新 RHS：`check_rhs_coverage.py`；新 STMT：同步 `@knowledge-graph` + [kg-cfg.md](../skills/tc-architecture/kg-cfg.md)
+7. 改完后跑 `make test-aot`；Embed 相关加 `check-embed-aot`
+
+**新 STMT**
+```
+tc_aot_emit_statement_impl 新增 TC_STMT_* case → 原生 C 控制流 / 函数调用
+scripts/aot/run_tests.sh 注册 valid 差分
+```
+
+**新 RHS**
+```
+tc_aot_emit_rhs 新增 case → 生成 tc_aot_xxx() 调用
+tc_aot_rt.c 新增 tc_aot_xxx → 包装 tc_exec_xxx（或复合专用 shim）
+tc_aot_rt.h 声明
+```

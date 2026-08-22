@@ -10,7 +10,8 @@
 #include "tc_diagnostic.h"
 
 /**
- * 解析运行时 RHS（16 种 TcRhsKind）。
+ * 解析运行时 RHS（34 种 TcRhsKind：标量 16 + 复合/调用 18）。
+ * FUNCALL_EXPR 的 kind 由语句解析赋值；其余多在本模块完成。
  * @return 成功 0；失败 -1 并设置 diag
  */
 int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int line_no,

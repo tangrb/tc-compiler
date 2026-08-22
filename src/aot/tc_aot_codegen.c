@@ -5,8 +5,8 @@
  * 生成的代码由统一全局 slots[]、tc_func_<id> 函数、tc_init_static_vars 与 main() 组成。
  *
  * 设计原则：
- *   - 算术、cast、比较、逻辑、位运算、I/O 均通过 tc_aot_rt.h 中的 shim 函数
- *     委托 tc_semantics.c / tc_io.c，保证与 TC-VM 行为完全一致。
+ *   - 算术、cast、比较、逻辑、位运算、I/O、ptr/memblock/struct
+ *     均通过 tc_aot_rt.h shim 委托共享语义核，与 TC-VM 一致。
  *   - let 常量编译器已求值，Codegen 直接将 const_value.bits 写为字面量。
  *   - CONST_REF / CONST_CAST 在 Analyzer 阶段应已被折叠，Codegen 发现则报错。
  *   - if → 原生 C if-else；label/goto → tc_label_<stmt_index>（无 shim）。

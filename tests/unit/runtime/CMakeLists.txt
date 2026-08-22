@@ -247,6 +247,7 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_analyzer.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass1.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass2.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer_pass2_rhs.c
     ${TC_VM_DIR}/analyzer/tc_analyze_6a.c
     ${TC_VM_DIR}/analyzer/tc_analyze_6e.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
@@ -261,6 +262,10 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_func_check.c
     ${TC_VM_DIR}/analyzer/tc_callgraph.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_struct.c
+    ${TC_VM_DIR}/parser/tc_parser_type.c
+    ${TC_VM_DIR}/parser/tc_parser_func.c
+    ${TC_VM_DIR}/parser/tc_parser_stmt.c
     ${TC_VM_DIR}/parser/tc_parser_rhs.c
     ${TC_VM_DIR}/parser/tc_parser_free.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
@@ -324,6 +329,10 @@ add_custom_target(check-executor
 add_executable(test-stmt-index
     test_stmt_index.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_struct.c
+    ${TC_VM_DIR}/parser/tc_parser_type.c
+    ${TC_VM_DIR}/parser/tc_parser_func.c
+    ${TC_VM_DIR}/parser/tc_parser_stmt.c
     ${TC_VM_DIR}/parser/tc_parser_rhs.c
     ${TC_VM_DIR}/parser/tc_parser_free.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
@@ -383,6 +392,7 @@ add_executable(test-embed-aot test_embed_aot.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_rhs.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_stmt.c
     ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_emit_func.c
+    ${CMAKE_SOURCE_DIR}/src/aot/tc_aot_rt.c
 )
 target_link_libraries(test-embed-aot PRIVATE libtc)
 target_include_directories(test-embed-aot PRIVATE

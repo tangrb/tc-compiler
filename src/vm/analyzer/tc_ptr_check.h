@@ -1,5 +1,5 @@
 /*
- * tc_ptr_check.h — 指针 RHS/语句验证（Phase 3）
+ * tc_ptr_check.h — 指针 RHS/语句静态验证
  *
  * 覆盖：ptr_load / ptr_address / 指针算术与比较 / ptr_size / ptr_store。
  * nullptr 仅允许作为指针操作数；不可对 let/static let 取址或经只读绑定 store。

@@ -120,7 +120,7 @@ DISPATCH_POINTS = [
         },
     },
     {
-        "path": "src/vm/analyzer/tc_analyzer_pass2.c",
+        "path": "src/vm/analyzer/tc_analyzer_pass2_rhs.c",
         "func": "tc_check_rhs",
         "line_func": 0,
         "skip": {

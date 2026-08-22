@@ -54,7 +54,7 @@ bash scripts/run_tests.sh
 | Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; VM + AOT) |
 | Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.39) |
 
-Version 0.0.39 does not include strings, a bytecode file format, or JIT. REPL has been removed; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
+Version 0.0.39 does not include strings, a bytecode file format, or JIT. There is no REPL; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
 
 ## Language Example
 
@@ -187,7 +187,7 @@ int main(void) {
 }
 ```
 
-The public entry points are `tc_compile_source`, `tc_compile_file`, `tc_set_module_search_paths`, and `tc_run_program`. See the [libtc Embedding API](docs/libtc-api-0.0.39.md) for complete ownership, diagnostics, and build details.
+The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Embedding API](docs/libtc-api-0.0.39.md) for complete ownership, diagnostics, and build details.
 
 ## Embedding TC-Embed (v0.0.39)
 

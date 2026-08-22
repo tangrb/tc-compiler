@@ -1,12 +1,12 @@
 /*
- * tc_struct_check.h — 结构体定义表与构造/字段访问验证（Phase 3）
+ * tc_struct_check.h — 结构体定义表与构造/字段访问验证
  *
  * 职责：
  *   1. 从程序 AST 注册 struct 定义 → TcStructTable（分配 struct_id、计算位宽）
  *   2. 将声明中的未解析 struct 名解析为 struct_id
- *   3. 校验结构体构造器、字段读、字段写（含 let 字段不可变）
+ *   3. 校验结构体构造器、字段读、字段写（含双层可变性）
  *
- * 嵌套 struct 字段必须引用「更早定义」的结构体（禁止自引用与前向引用）。
+ * 值位置禁止自引用与前向引用；ptr<本结构体> 合法（语言标准 §3.9.1）。
  */
 #ifndef TC_STRUCT_CHECK_H
 #define TC_STRUCT_CHECK_H

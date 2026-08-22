@@ -26,11 +26,16 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/runtime/tc_io.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_struct.c
+    ${TC_VM_DIR}/parser/tc_parser_type.c
+    ${TC_VM_DIR}/parser/tc_parser_func.c
+    ${TC_VM_DIR}/parser/tc_parser_stmt.c
     ${TC_VM_DIR}/parser/tc_parser_rhs.c
     ${TC_VM_DIR}/parser/tc_parser_free.c
     ${TC_VM_DIR}/analyzer/tc_analyzer.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass1.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_pass2.c
+    ${TC_VM_DIR}/analyzer/tc_analyzer_pass2_rhs.c
     ${TC_VM_DIR}/analyzer/tc_analyze_6a.c
     ${TC_VM_DIR}/analyzer/tc_analyze_6e.c
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c

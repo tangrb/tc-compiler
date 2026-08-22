@@ -322,8 +322,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         }
         fprintf(out,
                 "%s    if (tc_aot_memcopy_unsafe(slots, _dptr, _d_idx, _sptr, _s_idx, _len, "
-                "%zu, tc_aot_cur_diag, %d) != 0)\n",
-                abort_indent, elem_bytes, mc->line);
+                "%zu, %s, tc_aot_cur_diag, %d) != 0)\n",
+                abort_indent, elem_bytes, tc_aot_type_enum(element->tag), mc->line);
         fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, mc->line);
         fprintf(out, "%s}\n", indent);
         return 0;

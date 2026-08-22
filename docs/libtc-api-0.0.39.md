@@ -29,32 +29,31 @@ libtc 以 C99 编译。
 ## 2. API 一览
 
 ```c
-int tc_compile_source(const char *source, const char *name,
-                      TcTypedProgram *out,
-                      TcDiagnostic *diag);
+typedef struct {
+    const char *const *search_paths; /* 会话级 -I 目录；NULL/空 = 无额外路径 */
+    size_t search_path_count;
+} TcCompileOptions;
 
-int tc_compile_file(const char *path,
-                    TcTypedProgram *out,
-                    TcDiagnostic *diag);
+int tc_compile_source(const char *source, const char *name,
+                      TcTypedProgram *out, TcDiagnostic *diag);
+
+int tc_compile_file_opts(const char *path, const TcCompileOptions *opts,
+                         TcTypedProgram *out, TcDiagnostic *diag);
 
 int tc_run_program(const TcTypedProgram *program,
                    TcDiagnostic *diag);
 
 void tc_typed_program_free(TcTypedProgram *program);
-
-int tc_set_module_search_paths(char *const *paths, size_t count,
-                               TcDiagnostic *diag);
 ```
 
 | 函数 | 成功 | 失败 | 所有权 |
 | ---- | ---- | ---- | ------ |
 | `tc_compile_source` | 返回 0，写入 typed program | 返回 -1，设置 diag | 仅成功时调用方取得 `out` |
-| `tc_compile_file` | 返回 0，写入 typed program | 返回 -1，设置 diag | 仅成功时调用方取得 `out` |
+| `tc_compile_file_opts` | 返回 0，写入 typed program | 返回 -1，设置 diag | 仅成功时调用方取得 `out` |
 | `tc_run_program` | 返回 0 | 返回 -1，设置运行时 diag | 不取得 program |
 | `tc_typed_program_free` | 释放并清空 | — | 只对成功编译所得对象调用 |
-| `tc_set_module_search_paths` | 返回 0 | OOM 返回 -1 | 必须在编译前调用；复制路径 |
 
-0.0.39 新增 `tc_set_module_search_paths` 用于多文件模块系统；`tc_compile_source` 增加 `name` 参数以在诊断中区分源码名称。
+编译入口为 `tc_compile_source`（无路径源，无搜索路径参数）与 `tc_compile_file_opts`（会话式 `opts` 携带 `-I` 等价路径，可为 NULL = 无额外路径），**无进程级全局状态**——多编译单元 / 多线程嵌入场景各自携带路径，互不污染。
 
 ---
 
@@ -65,6 +64,8 @@ int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out,
                       TcDiagnostic *diag);
 ```
+
+无路径的内存源仅做结构检查、不解析 import，故无搜索路径参数；文件编译（含 import 解析）见第 4 章 `tc_compile_file_opts`。
 
 ### 当前行为
 
@@ -90,13 +91,16 @@ int tc_compile_source(const char *source, const char *name,
 
 ---
 
-## 4. `tc_compile_file`
+## 4. `tc_compile_file_opts`
 
 ```c
-int tc_compile_file(const char *path,
-                    TcTypedProgram *out,
-                    TcDiagnostic *diag);
+int tc_compile_file_opts(const char *path,
+                         const TcCompileOptions *opts,
+                         TcTypedProgram *out,
+                         TcDiagnostic *diag);
 ```
+
+`opts`（可为 NULL）携带本次编译的 `-I` 等价搜索路径（`TcCompileOptions`，内部借用不复制，仅调用期间须有效）。编译**无进程级全局状态**：同一进程内多个编译单元可各自携带不同的搜索路径，互不污染，亦无线程安全问题。
 
 ### 当前行为
 
@@ -108,7 +112,7 @@ int tc_compile_file(const char *path,
 
 文件打开/读取失败时 `out` 不被修改。文件不存在使用 `TC_DIAG_API / TC_API_ERR_FILE_OPEN`；seek/read/close 失败使用 `TC_DIAG_API / TC_API_ERR_FILE_READ`，不会伪装成语言 `SyntaxError`。
 
-模块搜索路径通过 `tc_set_module_search_paths` 或 CLI `-I` 选项设置。
+模块搜索路径通过 `opts` 会话选项或 CLI `-I` 选项设置；`opts` 为 NULL 或 `search_paths` 为空时本次编译无额外搜索路径（入口文件所在目录仍最先搜索）。
 
 ---
 
@@ -130,18 +134,7 @@ int tc_run_program(const TcTypedProgram *program,
 
 ---
 
-## 6. `tc_set_module_search_paths`
-
-```c
-int tc_set_module_search_paths(char *const *paths, size_t count,
-                               TcDiagnostic *diag);
-```
-
-设置导入模块的搜索路径（复制路径字符串；`count=0` 清空）。必须在编译前调用。路径按传入顺序搜索，入口文件所在目录总是最先搜索。成功返回 0；OOM 返回 -1。进程级全局，非线程安全。
-
----
-
-## 7. 诊断生命周期
+## 6. 诊断生命周期
 
 ### 初始化与释放
 
@@ -185,7 +178,7 @@ tc_diagnostic_print(&diag, stderr);
 
 ---
 
-## 8. Typed program 所有权
+## 7. Typed program 所有权
 
 ### 成功路径
 
@@ -206,7 +199,7 @@ tc_compile_* succeeds
 | program 内 AST/名称/if/while/func 子树 | typed program | 随 `tc_typed_program_free` 递归释放 |
 | 符号、标签、常量值、函数签名与 CFG | typed program | 随 `tc_typed_program_free` |
 | runtime slots | libtc Executor | 每次运行返回前 |
-| `tc_compile_file` 文件缓冲 | libtc | compile 返回前 |
+| `tc_compile_file_opts` 文件缓冲 | libtc | compile 返回前 |
 
 ### 禁止模式
 
@@ -218,7 +211,7 @@ tc_compile_* succeeds
 
 ---
 
-## 9. 当前错误码
+## 8. 当前错误码
 
 0.0.39 语言错误码覆盖编译器标准 §11.4 完整清单，包括：
 
@@ -234,7 +227,7 @@ TC 没有编译警告。
 
 ---
 
-## 10. 性能计时
+## 9. 性能计时
 
 设置环境变量 `TC_BENCH` 即可让 libtc 向 stderr 输出阶段耗时：
 
@@ -255,7 +248,7 @@ bench execute: <seconds> s
 
 ---
 
-## 11. 最小示例
+## 10. 最小示例
 
 ```c
 #include <stdio.h>
@@ -298,7 +291,7 @@ int main(void) {
 
 ---
 
-## 12. 当前能力边界
+## 11. 当前能力边界
 
 | 能力 | 当前状态 |
 | ---- | -------- |
@@ -322,19 +315,17 @@ int main(void) {
 
 ---
 
-## 13. 0.0.39 兼容性
+## 12. API 契约
 
-### 函数签名变更
+### 函数签名
 
-0.0.39 在 0.0.31 基础上：
+- `tc_compile_source(source, name, out, diag)`：编译无路径内存源，无搜索路径参数；
+- `tc_compile_file_opts(path, opts, out, diag)`：编译文件，`opts` 可为 NULL 携带 `TcCompileOptions` 搜索路径；
+- `tc_run_program(program, diag)`：执行已类型化程序，行为涵盖模块静态初始化。
 
-- `tc_compile_source` 新增 `name` 参数（源码名称，用于诊断和模块解析）；
-- 新增 `tc_set_module_search_paths` 用于多文件模块搜索；
-- `tc_run_typed` 重命名为 `tc_run_program`，行为涵盖模块静态初始化。
+### 数据结构
 
-### 数据变化
-
-0.0.31 的公共 compile/run/free 模式保持，但 `TcTypedProgram`、`TcDiagnostic`、`TcErrorKind` 和语句/RHS kind 枚举大幅扩展。嵌入方升级到 0.0.39 时需要重新编译，并审查直接访问结构字段或具体错误枚举的代码。
+`TcTypedProgram`、`TcDiagnostic`、`TcErrorKind` 和语句/RHS kind 枚举为公共类型；`TcTypedProgram`、`TcDiagnostic` 和枚举值均随版本演进，嵌入方不得直接依赖结构字段布局或具体错误枚举取值，应按公开函数访问。
 
 ---
 

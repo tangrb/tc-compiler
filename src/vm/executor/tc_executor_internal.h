@@ -1,5 +1,5 @@
 /*
- * tc_executor_internal.h — Executor 内部上下文（tc_executor / ptr / memblock 共享）
+ * tc_executor_internal.h — Executor 内部上下文（executor / ptr / memblock / struct 共享）
  */
 #ifndef TC_EXECUTOR_INTERNAL_H
 #define TC_EXECUTOR_INTERNAL_H

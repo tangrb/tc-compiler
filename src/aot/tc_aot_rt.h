@@ -1,9 +1,7 @@
 /*
  * tc_aot_rt.h — AOT 生成 C 代码的运行时辅助接口
  *
- * 提供全部 tc_aot_* shim 函数，覆盖：字面量构造、算术、单目、比较、
- * 逻辑（含短路）、按位运算、移位、类型转换、I/O（write/read）、
- * 诊断初始化和错误中止。
+ * 提供全部 tc_aot_* shim：标量语义、I/O、ptr/memblock/struct 堆对象。
  *
  * 所有 shim 函数内部委托 tc_semantics.c / tc_io.c 完成实际语义运算，
  * 保证 AOT 生成代码与 TC-VM 行为完全一致。
@@ -53,7 +51,7 @@ int tc_aot_write(TcTypeTag type, TcFormatSpec fmt, uint64_t bits, int newline,
 int tc_aot_read(TcTypeTag type, uint64_t *out, TcDiagnostic *diag, int line);
 void tc_aot_abort(const TcDiagnostic *diag, int line);
 
-/* ---- Phase 5: ptr / memblock（槽抽象地址编码与 VM 一致） ---- */
+/* ---- ptr / memblock / struct（槽编码与 VM 一致） ---- */
 
 uint64_t tc_aot_ptr_address(int slot);
 int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnostic *diag,
@@ -83,7 +81,8 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
                           int line);
 int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
                            uint64_t src_ptr, uint64_t src_index, int64_t length,
-                           size_t element_bytes, TcDiagnostic *diag, int line);
+                           size_t element_bytes, TcTypeTag elem_tag, TcDiagnostic *diag,
+                           int line);
 int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
                          uint64_t src_index, uint64_t length, size_t element_bytes,
                          TcDiagnostic *diag, int line);

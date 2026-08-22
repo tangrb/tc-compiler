@@ -1,7 +1,7 @@
 /* tc_cfg.c — 显式 CFG 构建与确定初始化不动点分析
  *
  * 线性扫描语句序列建图；支持 if/while/goto/短路边。
- * Phase 3 起：tc_cfg_build_all 为每个函数体单独建域；
+ * tc_cfg_build_all 为顶层与每个函数体单独建域；
  * definite init 在各域独立运行，并报告不可达与缺 return。
  */
 #include "tc_cfg.h"
@@ -270,7 +270,8 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
     case TC_RHS_PTR_SIZE:
     case TC_RHS_FUNCALL_EXPR:
     case TC_RHS_SELF_MEMBER:
-        /* 0.0.39 Phase 1：枚举已预留 */
+        /* 复合/调用 RHS：读集不在此展开；操作数名由 Pass2 检查。
+         * CFG 读边用于标量条件与简单赋值的短路剪枝。 */
         return 0;
     }
     return 0;

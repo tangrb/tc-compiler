@@ -1,0 +1,32 @@
+---
+description: Git 提交约定 — 禁止 Co-authored-by Cursor  trailer；执行 git commit 时自动加载
+alwaysApply: true
+---
+
+# Git 提交约定
+
+## 禁止 Cursor Co-author trailer
+
+提交信息**不得**包含以下行（含大小写变体）：
+
+```text
+Co-authored-by: Cursor <cursoragent@cursor.com>
+```
+
+- 使用 `git commit` 时**不要**添加 `Co-authored-by: Cursor …`
+- 若工具自动插入，提交前删除；仓库 `scripts/git-hooks/commit-msg` 会自动剥离
+- 首次克隆后运行 `make hooks` 或 `bash scripts/install-git-hooks.sh` 启用 hook
+- 仅禁止上述 Cursor agent trailer；其他合法的 `Co-authored-by` 不受影响
+
+## 提交信息风格
+
+与仓库历史一致：简洁英文前缀（`feat:` / `fix:` / `refactor:` / `docs:`）+ 一句说明「为什么」。
+
+```bash
+git commit -m "$(cat <<'EOF'
+refactor: unify tc_*.h ↔ tc_*.c source file naming
+
+Rename implementation files to match headers and add CI naming check.
+EOF
+)"
+```

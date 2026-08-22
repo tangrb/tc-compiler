@@ -1,0 +1,49 @@
+---
+description: TC-Compiler 文档编辑 — 与代码/测试同步；编辑 docs/ 时加载
+globs: docs/**/*
+alwaysApply: false
+---
+
+# 文档编辑
+
+## 版本状态
+
+- **设计目标**：TC **0.0.39**（下表权威）
+- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.39**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.39）
+- **路线图**：`docs/TC-0.0.39-开发计划.md`
+- **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.39.md`
+
+## 文档职责
+
+| 文件 | 内容 |
+|------|------|
+| `docs/TC语言标准设计说明书-0.0.39.md` | 0.0.39 语法/语义唯一权威来源；语言特性变更**必更** |
+| `docs/TC编译器标准设计说明书-0.0.39.md` | 13 阶段管线、诊断优先级、调用图等编译器规范 |
+| `docs/TC-VM详细设计说明书-0.0.39.md` | VM 架构、执行器、诊断（无 REPL） |
+| `docs/TC-AOT详细设计说明书-0.0.39.md` | AOT 代码生成、shim 层、差分测试 |
+| `docs/libtc设计说明书-0.0.39.md` | libtc 嵌入 API 设计、错误状态契约 |
+| `docs/TC-VM命令行参考-0.0.39.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
+| `docs/libtc-api-0.0.39.md` | libtc API 速查 |
+| `docs/TC-Embed详细设计说明书-0.0.39.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
+| `docs/设计实现合规审查报告-0.0.39.md` | 0.0.39 设计-实现合规检查与发布证据 |
+| `docs/TC-0.0.39-开发计划.md` | 分模块任务、阶段依赖、测试规模估算 |
+
+## 同步检查
+
+改语言特性时确认：
+
+- [ ] 语法摘要与 `tc-architecture/syntax.md` 一致（实现未到的特性以语言标准为准，syntax 可暂注「待落地」）
+- [ ] 新错误种类写入语言/编译器标准 + `errors.md` + VM 详设 + `tc_error_kind_name()`
+- [ ] OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`（非语法类错误码）
+- [ ] 特性实现写入 `tc-architecture/features.md` + Rule `knowledge-graph` / 对应 `kg-*.md`
+- [ ] 诊断阶段与编译器标准 / `errors.md` 一致（现网多阶段编排见 pipeline.md）
+- [ ] 版本号：`src/vm/runtime/tc_version.h`（及 AOT `TC_AOT_VERSION`）
+- [ ] 测试规模：Release Gate 见合规审查报告；当前注册见 `scripts/*/run_tests.sh` / `test-map.md`
+- [ ] 新模块同步 `locations.md` / `features.md` / `compiler-src.mdc` / `unit-tests-c.mdc`（Embed → `embed-src.mdc` / `kg-embed.md`）
+- [ ] 工程布局与 `tc_<module>.h` ↔ `tc_<module>.c` 命名一致；`check_source_naming.py`
+- [ ] 固定点入口写作 `tc_analyze_definite_init`（`tc_cfg.c`），勿写旧符号名
+- [ ] 无 REPL；skill/rule 中不得引入 `tc_repl` / `tc_analyze_statement`
+
+## 轻量索引
+
+Agent 上下文用 `AGENTS.md` + Skill `tc-architecture`；用户文档保持完整叙述，勿复制进 rule。

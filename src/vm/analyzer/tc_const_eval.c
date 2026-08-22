@@ -1,9 +1,8 @@
 /*
  * tc_const_eval.c — let 常量编译期求值实现
  *
- * 从 tc_analyzer.c 中拆分出的独立模块，仅负责 let 定义的编译期常量计算。
- * 依靠源序可见性阻止自引用/前向引用，并负责运行时错误映射、共享
- * cast 语义以及所有合法 RHS 种类的常量求值。
+ * 从 tc_analyzer.c 拆出：源序求值 let；映射运行时错误为编译期常量错误；
+ * 与 Executor 共用 tc_sem_*。复合/funcall RHS 在 let 中拒绝（defer）。
  */
 #include "tc_const_eval.h"
 

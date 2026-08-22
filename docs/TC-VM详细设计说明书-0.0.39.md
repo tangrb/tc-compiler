@@ -117,7 +117,7 @@ source files (.tc)
 
 首个诊断的通用规则见编译器标准 §1.3（阶段优先 → 源位置优先 → 规则优先）。
 
-`tc_compile_source` 或 `tc_compile_file` 只有在所有静态阶段（1–12）完成后才返回成功的 `TcTypedProgram`。Executor 不补做语法、名称或确定初始化检查；它只执行已验证程序并报告运行时错误。
+`tc_compile_source` 或 `tc_compile_file_opts` 只有在所有静态阶段（1–12）完成后才返回成功的 `TcTypedProgram`。Executor 不补做语法、名称或确定初始化检查；它只执行已验证程序并报告运行时错误。
 
 ### 2.2 失败模型
 
@@ -453,7 +453,7 @@ memblock<T, N>
 ### 6.3 `Self` 解析
 
 - `Self` 仅在 `#lib` 模块内有效，表示当前模块命名空间。
-- 函数体内裸名引用本库成员 → `TC_CE_FUNCTION_SCOPE_ACCESS`（须改为 `Self.<名>`）。
+- 函数体内裸名引用本库成员 → `TC_CE_FUNCTION_SCOPE_ACCESS`（须写作 `Self.<名>`）。
 
 ### 6.4 本库顶层成员名索引
 
@@ -549,7 +549,7 @@ typedef struct TcType {
 | 复合稳定节点 | `TcTypeTable` + `tc_type_intern` | 归属 `TcTypedProgram.type_table`；Pass1/Pass2（含 cast/bitcast 目标）写入后，Executor/AOT **只读** |
 | 投影 | `TcTypeTag` / `type->tag` | 仅用于 `switch`、位宽、有符号谓词、语义内核参数 |
 
-Parse 阶段 AST 声明字段（如 `VarDef.full_type`）可按值拥有临时 `TcType`（含堆嵌套）；Analyze Pass1 经 `tc_type_intern` 后，符号层只持有稳定指针，**不再**深拷贝，也**不再**把复合类型压成裸 `TcTypeTag`。
+Parse 阶段 AST 声明字段（如 `VarDef.full_type`）可按值拥有临时 `TcType`（含堆嵌套）；Analyze Pass1 经 `tc_type_intern` 后，符号层只持有稳定指针，不深拷贝，也不把复合类型压成裸 `TcTypeTag`。
 
 `memblock` 的声明 `N` 与 `struct` 的 `struct_id` 仅存于 `TcType.params`；经 `tc_type_memblock_count` / `tc_type_struct_id` 解包，禁止在 `TcSymbol` 上冗余平行字段。
 ### 8.2 类型宽度计算
@@ -595,7 +595,7 @@ size_t sizeof_bits(const TcType *type) {
 ### 8.5 结构体类型实现
 
 - **类型定义**：符号表为每个结构体维护字段列表（名称、类型、可变性、padding）、总宽度。
-- **未决结构体名（`TcType.pending_name`）**：Parser 在类型表达式中遇到结构体名（含嵌套在 `ptr<…>`/`memblock<…>` 内的）时暂存于 `TcType.pending_name`（`struct_id = -1`），不再丢弃；Analyzer 注册结构体表后统一解析为 `struct_id`。`tc_type_free`/`tc_type_copy` 负责其生命周期。
+- **未决结构体名（`TcType.pending_name`）**：Parser 在类型表达式中遇到结构体名（含嵌套在 `ptr<…>`/`memblock<…>` 内的）时暂存于 `TcType.pending_name`（`struct_id = -1`），不丢弃；Analyzer 注册结构体表后统一解析为 `struct_id`。`tc_type_free`/`tc_type_copy` 负责其生命周期。
 - **字段类型检查**（`tc_struct_check.c` `tc_struct_validate_type_node`）：按 [语言标准 §3.9.1] 位置规则递归校验类型树——值位置（字段类型本身或 `memblock` 元素类型）仅允许源序更早已定义完毕的结构体（禁止 `S` 自身与前向引用）；指针所指位置允许完整类型或正在定义的本结构体（`ptr<S>` 指针自引用，含 `ptr<ptr<S>>`、`memblock<ptr<S>, N>` 嵌套形态）。值自引用 → `TC_CE_STRUCT_VALUE_SELF_REF`；前向引用或未定义结构体 → `TC_CE_UNDEFINED_STRUCT`。注册第二遍以 `tc_struct_resolve_type_tree` 将未决名解析为 `struct_id` 并计算位宽。
 - **声明/RHS 类型解析**：`var`/`let`/`static`/函数参数与返回值、以及 RHS 内携带的类型（`ptr_*` 的 `pointee_type`、`memblock_*` 的 `element_type`、`cast`/`bitcast` 的 `target`、构造器实参内的嵌套 RHS）中的嵌套结构体名在注册后一并解析；未定义结构体 → `TC_CE_UNDEFINED_STRUCT`。
 - **值构造器验证**（第 6d 子阶段）：
@@ -871,7 +871,7 @@ typedef struct {
 | 模式 | 行为 |
 | ---- | ---- |
 | strict | 检测除零、上溢、下溢和无效操作并报告规定错误 |
-| `ieee` | 产生 IEEE 754 结果，不把标准 NaN/Infinity 结果改为语言错误 |
+| `ieee` | 产生 IEEE 754 结果，不将标准 NaN/Infinity 结果视为语言错误 |
 
 - 每个操作按声明的 `float32` 或 `float64` 精度舍入，不得先用宿主更高精度串联计算再只在末尾舍入。
 - 固定舍入模式 roundTiesToEven。
@@ -1050,16 +1050,19 @@ TC 没有编译警告。
 
 ```c
 /* 多文件编译 */
-int tc_compile_file(const char *path, TcTypedProgram *out, TcDiagnostic *diag);
+int tc_compile_file_opts(const char *path, const TcCompileOptions *opts,
+                           TcTypedProgram *out, TcDiagnostic *diag);
 int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out, TcDiagnostic *diag);
 
 /* 编译 + 执行 */
-int tc_run_file(const char *path, TcDiagnostic *diag);
+int tc_run_source(const char *source, int check_only, TcDiagnostic *diag);
+int tc_run_file(const char *path, const TcCompileOptions *opts, int check_only,
+                TcDiagnostic *diag);
 int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 
 /* 模块搜索路径 */
-void tc_set_module_search_paths(const char **paths, int count);
+/* 搜索路径经 TcCompileOptions 会话传递 */
 ```
 
 ---
@@ -1110,7 +1113,7 @@ void tc_set_module_search_paths(const char **paths, int count);
 | 运算 | 算术、位、比较、逻辑、cast/bitcast | 增加全部 `ptr_*`/`memblock_*`/`memcopy_unsafe` 指令 |
 | 编译管线 | 6 阶段 | 13 确定性阶段 |
 | 错误码 | 41+1 | 扩展至含函数、模块、memblock、struct、ptr 专用诊断 |
-| REPL | 包含 | **已删除** |
+| REPL | 包含 | 无 |
 
 ### 18.2 预计迁移顺序
 

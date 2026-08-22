@@ -1,10 +1,10 @@
 /*
  * tc_module.c — 模块结构检查、导入解析、DAG 与签名收集
  *
- * 流水线位置（Phase 2）：
+ * 流水线位置（阶段 4）：
  *   Parser → tc_module_check_structure（Analyzer 入口复核）
- *          → tc_module_resolve_imports（仅 tc_compile_file / 有路径入口）
- *          → tc_module_collect_signatures（签名表，供后续函数阶段）
+ *          → tc_module_resolve_imports（仅有路径入口 / tc_compile_file_opts）
+ *          → tc_module_collect_signatures（签名表，供阶段 5 与 Pass2）
  *
  * 错误均为 fail-fast：首条诊断写入 TcDiagnostic 后立即返回 -1。
  */

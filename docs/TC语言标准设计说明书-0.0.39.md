@@ -464,7 +464,7 @@ TC 0.0.39 将数值转换、整数截断、位重解释与指针转换分开：
 | `bitcast(T, operand)` | 位重解释 | 源、目标等宽；不改变任何位；`bool` 不参与 |
 | `cast(T, ptr_val)` | 指针类型转换 | `ptr<U>` → `ptr<T>`：仅当 `T`/`U` 均为完整类型且等宽时允许；`cast(ptr<T>, nullptr)` 合法（跳过等宽） |
 
-严格 `cast` 覆盖整数 ↔ 整数、整数 ↔ 浮点、浮点 ↔ 浮点，以及整数/浮点 ↔ `bool`。`truncate` 不再承担浮点位重解释；所有整数/浮点位模式互转统一使用 `bitcast`。指针类型转换通过 `cast` 进行（同为等宽值类型的重标记），不经 `truncate`；指针与整数/浮点位模式互转统一使用 `bitcast`。
+严格 `cast` 覆盖整数 ↔ 整数、整数 ↔ 浮点、浮点 ↔ 浮点，以及整数/浮点 ↔ `bool`。`truncate` 仅做数值截断，不承担位重解释；所有整数/浮点位模式互转使用 `bitcast`。指针类型转换通过 `cast` 进行（同为等宽值类型的重标记），不经 `truncate`；指针与整数/浮点位模式互转使用 `bitcast`。
 
 ### 3.8 内存块类型（`memblock`）
 
@@ -1000,7 +1000,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | 缺初始化器 | 静态错误 `TC_CE_VAR_MISSING_INIT` |
 | RHS | 字面量、已定义标识符、单个运算、`cast` 或 `bitcast`（见 §6.1.1）；须与声明类型一致 |
 | 函数返回初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: <类型> = funcall(...)` 初始化新变量（§8.2）；`funcall` 不属于普通 RHS |
-| 再赋值 | 首次引入之后，修改写作 `<identifier> = <rhs>` 或 `<identifier> = funcall(...)`，不再写 `var`（§6.2） |
+| 再赋值 | 首次引入之后，修改写作 `<identifier> = <rhs>` 或 `<identifier> = funcall(...)`，不写 `var`（§6.2） |
 
 TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化器：目标变量必须先以带初始化器的 `var` 定义，`read` 仅覆盖当前值（§10.3）。
 
@@ -1053,7 +1053,7 @@ TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化�
 
 1. 先完成 `const_rhs` 内部的名称、运算支持类型、模式、操作数类型和字面量检查。单个调用表达式的操作数期望类型仅由该调用的显式类型参数决定；外层 `let` 声明类型不向调用内部传播，也不改变 §6.6.1.1 的 `cast` / `bitcast` 字面量源类型规则。
 2. RHS 为直接字面量时，以 `let` 声明类型作为 §3.6 的期望类型：符号性、类别或浮点后缀不符时报 `TC_CE_LITERAL_TYPE`，值不可表示时报 `TC_CE_LITERAL_OUT_OF_RANGE`。
-3. RHS 为标识符时，名称解析后以该绑定的声明类型为结果类型。若绑定解析为 `var` 或函数参数，立即报 `TC_CE_CONSTANT_EXPRESSION`（"references runtime variable"），不再比较结果类型，也不进入编译期求值。RHS 为单个调用表达式时，按该调用的自身规则确定结果类型。若结果类型与外层 `let` 声明类型不完全一致，报 `TC_CE_TYPE_MISMATCH`，定位到 RHS 的首个 Token。禁止因数值可表示而执行隐式窄化、加宽、符号性变换或整数/浮点转换。
+3. RHS 为标识符时，名称解析后以该绑定的声明类型为结果类型。若绑定解析为 `var` 或函数参数，立即报 `TC_CE_CONSTANT_EXPRESSION`（"references runtime variable"），不比较结果类型，也不进入编译期求值。RHS 为单个调用表达式时，按该调用的自身规则确定结果类型。若结果类型与外层 `let` 声明类型不完全一致，报 `TC_CE_TYPE_MISMATCH`，定位到 RHS 的首个 Token。禁止因数值可表示而执行隐式窄化、加宽、符号性变换或整数/浮点转换。
 4. 只有上述名称和类型检查全部成功后才进入编译期求值。因此“RHS 结果类型不匹配”先于同一 RHS 的常量溢出、除零或无效浮点操作诊断。
 
 **约束**：
@@ -1555,7 +1555,7 @@ r = a - q * b
 
 #### 6.6.6 等宽位重解释（`bitcast`）与速查
 
-`bitcast(TargetType, operand)` 保持源位模式的全部位不变，仅改用目标类型解释：
+`bitcast(TargetType, operand)` 保持源位模式的全部位不变，仅按目标类型解释：
 
 - 源与目标必须为整数、浮点或指针类型，且位宽完全相同。
 - `bool` 不允许参与，否则报 `TC_CE_TYPE_MISMATCH`。尽管 `bool` 抽象宽度为 8 位（与 `int8`/`uint8` 相同），仍禁止 `bitcast`，以免把非 `0x00`/`0x01` 字节写入 `bool` 绑定；`bool` ↔ 整数/浮点只能经 §6.6.5 的数值 `cast`。
@@ -2201,7 +2201,7 @@ TC 采用全局函数签名表 + 顶层值作用域 + 函数作用域 + 块级�
 
 `read` 目标名称分类与 §6.2 赋值左侧相同（`TC_CE_FUNCTION_SCOPE_ACCESS` / `TC_CE_UNDEFINED_VARIABLE` / `TC_CE_CONSTANT_ASSIGNMENT` / `TC_CE_PARAMETER_ASSIGNMENT`），仅可写 `var`/`static var` 继续检查。`memblock` 目标在语法阶段被 `scalar_type` 拒绝。
 
-目标名称已解析为可写标量 `var` 后，若其声明类型与 `read` 的显式标量类型不一致，报 `TC_CE_TYPE_MISMATCH`。该类型检查在确定初始化检查之前完成；类型不一致时不再产生 `TC_CE_UNINITIALIZED_VARIABLE`。
+目标名称已解析为可写标量 `var` 后，若其声明类型与 `read` 的显式标量类型不一致，报 `TC_CE_TYPE_MISMATCH`。该类型检查在确定初始化检查之前完成；类型不一致时不产生 `TC_CE_UNINITIALIZED_VARIABLE`。
 
 **静态成员作为 `read` 目标**：可通过 `Self.<成员名>` 或 `<模块名>.<成员名>` 覆盖公开标量 `static var`。解析和可见性规则与赋值一致（§4.3/§4.4）。`static var` 在程序准备阶段已完成初始化。公开 `memblock` `static var` 不得作为 `read` 目标。
 

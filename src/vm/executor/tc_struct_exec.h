@@ -1,5 +1,5 @@
 /*
- * tc_struct_exec.h — struct 运行时：构造、字段读写、深拷贝（模块 I）
+ * tc_struct_exec.h — struct 运行时：构造、字段读写、深拷贝
  */
 #ifndef TC_STRUCT_EXEC_H
 #define TC_STRUCT_EXEC_H

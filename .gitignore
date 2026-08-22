@@ -10,6 +10,3 @@ tests/stress/bench_baseline.tc
 
 # macOS
 .DS_Store
-
-# Editor
-.cursor/

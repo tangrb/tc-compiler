@@ -1,13 +1,12 @@
 /*
- * tc_types.h — 贯穿 TC 全流水线的共享类型定义
+ * tc_types.h — 贯穿 TC 全流水线的共享数据契约
  *
- * 本头文件是 TC 虚拟机唯一的数据契约，涵盖：
- *   - 8 种定宽整数类型及运算符枚举
- *   - AST 节点：语句（TcStatement）、右值（TcRhs）、操作数（TcOperand）
- *   - 运行时值（TcValue）、符号表（TcSymbol）、诊断（TcDiagnostic）
- *   - 程序表示（TcProgram / TcTypedProgram）
+ *   - TcTypeTag / TcType（标量、ptr、memblock、struct、void）
+ *   - AST：TcStmtKind（24）、TcRhsKind（34）、操作数与语句 payload
+ *   - 运行时：TcValue、TcSymbol、槽域、诊断
+ *   - 程序：TcProgram / TcTypedProgram
  *
- * 各模块（Lexer / Parser / Analyzer / Executor / AOT）均依赖此处的统一表示，
+ * Lexer / Parser / Analyzer / Executor / AOT / Embed 均依赖此处；
  * 不得将模块私有类型放入本文件。
  */
 #ifndef TC_TYPES_H
@@ -60,7 +59,7 @@ typedef enum {
 #define TC_TYPE_TAG_COUNT ((int)TC_STRUCT + 1)
 
 /**
- * 完整类型表示（开发计划 A-2 / VM 详设 §8.1）。
+ * 完整类型表示（VM 详设 §8.1）。
  * 标量与 void：仅 tag 有意义，params 为零。
  * ptr：pointee 堆分配或指向持久类型节点。
  * memblock：element + 声明 count（N）；tc_type_equals 忽略 N。
@@ -223,7 +222,7 @@ typedef enum {
 } TcSymKind;
 
 /**
- * 运行时槽位域（开发计划 A-8）。
+ * 运行时槽位域。
  * let / static let 无槽；其余运行时绑定落入下列之一。
  */
 typedef enum {
@@ -273,13 +272,13 @@ typedef enum {
     TC_CE_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
     TC_CE_CONTINUE_OUTSIDE_LOOP,   /* continue 必须出现在 while 内 */
 
-    /* ---- 0.0.39：控制流补充（编译器标准 §11.4.1） ---- */
+    /* ---- 控制流补充 ---- */
     TC_CE_GOTO_OUTSIDE_FUNCTION,
     TC_CE_LABEL_OUTSIDE_FUNCTION,
     TC_CE_JUMP_INCOMPATIBLE_BLOCK,
     TC_CE_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
 
-    /* ---- 0.0.39：函数诊断（§11.4.2，20 个） ---- */
+    /* ---- 函数诊断（§11.4.2） ---- */
     TC_CE_DUPLICATE_FUNCTION,
     TC_CE_FUNCTION_NAME_CONFLICT,
     TC_CE_UNDEFINED_FUNCTION,
@@ -301,12 +300,12 @@ typedef enum {
     TC_CE_CROSS_CONTROL_FLOW_JUMP,
     TC_CE_RECURSION,
 
-    /* ---- 0.0.39：memblock（§11.4.3） ---- */
+    /* ---- memblock（§11.4.3） ---- */
     TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE,       /* 静态越界 */
     TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH,
     TC_CE_MEMBLOCK_SIZE_MISMATCH,
 
-    /* ---- 0.0.39：struct（§11.4.4） ---- */
+    /* ---- struct（§11.4.4） ---- */
     TC_CE_STRUCT_MISSING_FIELD,
     TC_CE_STRUCT_UNKNOWN_FIELD,
     TC_CE_STRUCT_DUPLICATE_FIELD,
@@ -316,7 +315,7 @@ typedef enum {
     TC_CE_DUPLICATE_STRUCT,
     TC_CE_UNDEFINED_STRUCT,
 
-    /* ---- 0.0.39：模块（§11.4.5，10 个） ---- */
+    /* ---- 模块（§11.4.5） ---- */
     TC_CE_MODULE_LAYER,           /* 顶层声明层序违反（import→struct→值→func/exec） */
     TC_CE_MISSING_VISIBILITY,     /* #lib 成员缺少 public/private */
     TC_CE_PROGRAM_MODE_MISUSE,    /* #program 中使用了库专用构造（func/static/Self/可见性等） */
@@ -326,9 +325,9 @@ typedef enum {
     TC_CE_DUPLICATE_IMPORT,       /* 同一文件重复 import 同名模块 */
     TC_CE_IMPORT_NAME_CONFLICT,   /* 4b 导入名与本地声明冲突 */
     TC_CE_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
-    TC_CE_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
+    TC_CE_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员 */
 
-    /* ---- 0.0.39：指针与 memcopy（§11.4.6） ---- */
+    /* ---- 指针与 memcopy（§11.4.6） ---- */
     TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
 
     /* ---- 运行时错误（TC_RE_*，§11.4.1 / §11.4.6） ---- */
@@ -350,9 +349,8 @@ typedef enum {
 } TcErrorKind;
 
 /*
- * 编译警告种类（不阻止执行，仅输出 warning 信息）。
- * v0.0.26：TC_WARN_UNINITIALIZED_VARIABLE 已升级为 TC_CE_UNINITIALIZED_VARIABLE。
- * TcWarningKind / TcWarningList 保留空壳供未来警告类型使用。
+ * 编译警告种类。语言无警告（未初始化读取为 TC_CE_UNINITIALIZED_VARIABLE）。
+ * TcWarningKind / TcWarningList 保留空壳，供 ABI 与未来扩展。
  */
 typedef enum {
     TC_WARN_NONE = 0  /* 占位；当前无活跃警告种类 */
@@ -428,7 +426,7 @@ typedef enum {
     TC_RHS_FLOAT_COMPARE, /* 浮点比较 */
     TC_RHS_BITCAST,       /* 等宽整数/浮点位重解释 */
 
-    /* ---- 0.0.39 新增 RHS（开发计划 A-6 / VM 详设 §3.3） ---- */
+    /* ---- 复合 / 调用 RHS ---- */
     TC_RHS_MEMBLOCK_LOAD,
     TC_RHS_MEMBLOCK_CONSTRUCTOR,
     TC_RHS_MEMBLOCK_COUNT,
@@ -544,8 +542,7 @@ typedef struct {
             TcOperand rhs;
         } float_compare;         /* TC_RHS_FLOAT_COMPARE */
         TcBitcastRhs bitcast;    /* TC_RHS_BITCAST */
-        /* 0.0.39 Phase 2 RHS payload（前向：结构体在下方定义后即可用；
-         * 此处用匿名结构镜像，完整 typedef 见语句区后的同名类型）。 */
+        /* 复合/调用 RHS payload（完整 typedef 见语句区后的同名类型） */
         struct {
             TcType element_type;
             TcOperand memblock;
@@ -635,7 +632,7 @@ typedef enum {
     TC_STMT_BREAK,       /* 退出最内层 while */
     TC_STMT_CONTINUE,    /* 继续最内层 while */
 
-    /* ---- 0.0.39 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
+    /* ---- 模块 / 函数 / 复合语句 ---- */
     TC_STMT_FIELD_ASSIGN,       /* a.b = rhs */
     TC_STMT_FUNC_DEF,           /* #lib 函数定义 */
     TC_STMT_FUNCALL,            /* funcall 语句（可 Self./限定名） */
@@ -740,7 +737,7 @@ typedef struct {
     int resolved;      /* 分析成功后为 1 */
 } TcGoto;
 
-/* ---- 0.0.39 新增语句 / RHS payload（Phase 2） ---- */
+/* ---- 模块 / 函数 / 复合语句与 RHS payload ---- */
 
 typedef struct {
     int line;
@@ -914,13 +911,11 @@ typedef struct {
     size_t capacity;
 } TcProgram;
 
-/** 运行时值：完整类型指针 + 位模式载体（开发计划 A-8）
+/** 运行时值：完整类型指针 + 位模式载体。
  *
  * type 指向标量单例或分析期 intern / AST 稳定 TcType 节点（禁止指向可 realloc 缓冲）。
  * 标量 / ptr：bits 存抽象位模式。
- * memblock：bits 存指向 memblock 堆存储区的指针（实现指针转 uint64_t；假定指针可放入
- *           uint64_t，当前无 32 位目标）。
- * struct：bits 存指向按布局排列的连续字节区的指针；小结构体亦可内联策略（后续 Executor）。
+ * memblock / struct：bits 存堆块指针（uintptr 转 uint64_t；假定 64 位宿主）。
  */
 typedef struct {
     const TcType *type;
@@ -932,9 +927,9 @@ _Static_assert(sizeof(TcValue) == 16, "TcValue must stay 16 bytes (ptr + bits)")
 #endif
 
 /**
- * 程序级运行时槽组（A-8）。
- * Executor / AOT 共享同一模型：顶层槽 + 全程序 static 槽；
- * 形参/局部槽在调用帧内分配（见 TcCallFrame，Phase 4/5）。
+ * 程序级运行时槽组。
+ * Executor / AOT 共享：顶层槽 + 全程序 static 槽；
+ * 形参/局部槽在调用帧内分配（见 TcCallFrame）。
  * memblock_storage / struct_storage 跟踪堆块以便释放。
  */
 typedef struct {
@@ -987,7 +982,7 @@ typedef struct {
     TcBlockKind kind;
 } TcBlockId;
 
-/** 标签表条目（v0.0.26）；Pass1 按深度 pop；Pass2 保留全部并带块路径 */
+/** 标签表条目；Pass1 按深度 pop；Pass2 保留全部并带块路径 */
 typedef struct {
     char *name;              /* 标签名，堆分配 */
     int func_id;             /* 所属函数 func_id（4d 稳定分配，全局唯一）；顶层为 -1 */
@@ -1006,7 +1001,7 @@ typedef struct {
     size_t scope_count;
     size_t scope_capacity;
 
-    /* v0.0.26：标签表（块退出时 pop 当前深度条目） */
+    /* 标签表（块退出时 pop 当前深度条目） */
     TcLabelEntry *labels;
     size_t label_count;
     size_t label_capacity;

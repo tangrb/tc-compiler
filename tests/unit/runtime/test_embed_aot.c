@@ -14,6 +14,7 @@
 #include "tc_value_bridge.h"
 #include "tc_lib.h"
 #include "tc_aot_codegen.h"
+#include "tc_aot_rt.h"
 #include "tc_test_port.h"
 
 #include <stdio.h>
@@ -1037,6 +1038,25 @@ cleanup:
 }
 
 /* ── 测试：AOT 模式下 ptr encode/decode/null API ── */
+/** §3.8 布局：AOT memblock_clone 对 count×elem 溢出须按 OOM 拒绝（与 VM 一致） */
+static void test_aot_memblock_clone_overflow(void) {
+    TcDiagnostic diag;
+    uint64_t r = 0;
+
+    tc_diagnostic_init(&diag);
+    r = tc_aot_memblock_clone(0x1000, 4, (uint64_t)SIZE_MAX, &diag, 1);
+    check(r == 0 && diag.kind == TC_ERR_OUT_OF_MEMORY,
+          "memblock clone overflow returns OOM");
+    tc_diagnostic_clear(&diag);
+
+    /* 合法小 count：饱和检查通过后，NULL 源走 null 指针路径 */
+    tc_diagnostic_init(&diag);
+    r = tc_aot_memblock_clone(0, 4, 3, &diag, 1);
+    check(r == 0 && diag.kind == TC_RE_NULL_POINTER_DEREFERENCE,
+          "valid count passes saturation, then null src is reported");
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_aot_embed_ptr_encode_decode(void) {
     TcTypedProgram prog;
     TcDiagnostic diag;
@@ -1225,6 +1245,7 @@ int main(void) {
     test_aot_embed_void_noarg();
     test_aot_embed_ptr_store_inplace();
     test_aot_embed_static_var_increment();
+    test_aot_memblock_clone_overflow();
     test_aot_embed_ptr_encode_decode();
     test_aot_embed_func_info_query();
     test_aot_embed_var_slot_query();

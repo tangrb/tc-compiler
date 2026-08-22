@@ -1,7 +1,7 @@
 /*
  * tc_symbol.h — 符号表运行时接口
  *
- * 符号表的创建、查找与释放，供 Analyzer、Executor、REPL 共享。
+ * 符号表的创建、查找与释放，供 Analyzer、Executor、AOT 共享。
  * TcSymbolTable 管理 TcSymbol 动态数组与作用域栈，支持块级作用域与 shadowing。
  */
 #ifndef TC_SYMBOL_H

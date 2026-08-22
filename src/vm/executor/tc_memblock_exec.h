@@ -1,5 +1,5 @@
 /*
- * tc_memblock_exec.h — memblock 运行时运算（Phase 5 / 模块 I）
+ * tc_memblock_exec.h — memblock 堆布局与运行时运算
  */
 #ifndef TC_MEMBLOCK_EXEC_H
 #define TC_MEMBLOCK_EXEC_H

@@ -1,5 +1,9 @@
 /*
- * tc_executor.c — TC 执行引擎实现（Phase 5：funcall/return、static、ptr、memblock）
+ * tc_executor.c — TC-VM 解释执行
+ *
+ * 消费 TcTypedProgram：顶层按源序执行；funcall 经调用帧；
+ * ptr/memblock/struct 委托 tc_*_exec；I/O 委托 tc_io。
+ */
  */
 #include "tc_executor.h"
 

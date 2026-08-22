@@ -1,13 +1,13 @@
 /*
  * test_types.c — 类型工具函数模块单元测试
  *
- * 覆盖 tc_types.c 公开函数，以及 0.0.39 Phase 1（模块 A）验收：
- *   - TcTypeTag / TcType 编码（A-1/A-2）
- *   - tc_type_equals 全部等价组合（A-3）
- *   - tc_sizeof_bits 各宽度（A-4）
- *   - TcStmtKind / TcRhsKind 枚举计数（A-5/A-6）
- *   - tc_error_kind_name 全表命名 + 白名单唯一性（A-7）
- *   - TcRuntimeSlots / TcSlotDomain 槽位骨架（A-8）
+ * 覆盖 tc_types.c 公开函数：
+ *   - TcTypeTag / TcType 编码
+ *   - tc_type_equals 等价组合
+ *   - tc_sizeof_bits 各宽度
+ *   - TcStmtKind / TcRhsKind 枚举计数
+ *   - tc_error_kind_name 全表命名 + 白名单唯一性
+ *   - TcRuntimeSlots / TcSlotDomain 槽位模型
  */
 
 #include "tc_types.h"
@@ -253,7 +253,7 @@ static void test_format_spec_name(void) {
 }
 
 /* ================================================================== */
-/*  Phase 1 / A-7: tc_error_kind_name                                   */
+/*  tc_error_kind_name */
 /* ================================================================== */
 
 /* CE/RE 越界对按设计共享打印名（编译器标准 §11.4.3 / §11.4.6） */
@@ -370,7 +370,7 @@ static void test_error_kind_name(void) {
 }
 
 /* ================================================================== */
-/*  Phase 1 / A-1～A-4: TcTypeTag + TcType + equals + sizeof_bits      */
+/*  TcTypeTag / TcType / equals / sizeof_bits */
 /* ================================================================== */
 
 static size_t test_struct_width_cb(int struct_id, void *userdata) {
@@ -572,7 +572,7 @@ static void test_new_scalar_kinds(void) {
 }
 
 /* ================================================================== */
-/*  Phase 1 / A-5～A-6: STMT / RHS 枚举库存                             */
+/*  STMT / RHS 枚举库存 */
 /* ================================================================== */
 
 static void test_stmt_rhs_kind_inventory(void) {
@@ -590,7 +590,7 @@ static void test_stmt_rhs_kind_inventory(void) {
 }
 
 /* ================================================================== */
-/*  Phase 1 / A-8: 槽位模型                                             */
+/*  槽位模型 */
 /* ================================================================== */
 
 static void test_runtime_slots(void) {

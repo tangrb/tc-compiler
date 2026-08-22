@@ -1,0 +1,8 @@
+#program
+; §6.8.9 memcopy_unsafe：ptr<int32> 元素拷贝（标量槽位模式区）
+var a: int32 = 7
+var b: int32 = 0
+var pa: ptr<int32> = ptr_address(int32, a)
+var pb: ptr<int32> = ptr_address(int32, b)
+memcopy_unsafe(int32, pb, 0, pa, 0, 1)
+writeln(int32, b)

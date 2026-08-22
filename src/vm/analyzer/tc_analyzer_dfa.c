@@ -103,7 +103,7 @@ int tc_paths_equal_prefix(const TcBlockId *a, const TcBlockId *b, int depth) {
 }
 
 /*
- * @brief 判断变量在 stmt_index 之前是否已被初始化（REPL / 无 init_states 回退）
+ * @brief 判断变量在 stmt_index 之前是否已被初始化（无 init_states 时的回退）
  */
 static int tc_variable_is_initialized_before(const TcInitHistory *hist, const TcSymbol *sym,
                                              size_t before_index) {
