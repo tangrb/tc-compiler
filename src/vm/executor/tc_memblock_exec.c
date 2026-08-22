@@ -482,9 +482,11 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
             tc_exec_set_internal_error(diag, stmt->line, "internal error: memcopy_unsafe target");
             return -1;
         }
-        memcpy(temp, tc_memblock_element_ptr(src_block, element_bytes, src_index),
+        /* memcopy_unsafe 操作 ptr<T>，指针指向 T 对象（含 memblock 头部），
+         * 元素步长为 T 的完整抽象宽度（§6.8.9）；不得叠加 memblock 头部偏移。 */
+        memcpy(temp, (const uint8_t *)src_block + (size_t)src_index * element_bytes,
                (size_t)length * element_bytes);
-        memcpy(tc_memblock_element_ptr(dst_block, element_bytes, dst_index), temp,
+        memcpy((uint8_t *)dst_block + (size_t)dst_index * element_bytes, temp,
                (size_t)length * element_bytes);
     }
     free(temp);

@@ -608,10 +608,12 @@ int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
                           "memory allocation failed");
         return -1;
     }
-    /* memmove 语义：先拷入临时缓冲再写入目标，重叠区间行为确定（§6.8.9） */
-    memcpy(temp, tc_aot_mb_elem_ptr(src_block, element_bytes, (uint64_t)src_index),
+    /* memmove 语义：先拷入临时缓冲再写入目标，重叠区间行为确定（§6.8.9）。
+     * memcopy_unsafe 操作 ptr<T>，指针指向 T 对象（含 memblock 头部），
+     * 元素步长为 T 的完整抽象宽度；不得叠加 memblock 头部偏移。 */
+    memcpy(temp, (const uint8_t *)src_block + (uint64_t)src_index * element_bytes,
            (size_t)length * element_bytes);
-    memcpy(tc_aot_mb_elem_ptr(dst_block, element_bytes, (uint64_t)dst_index), temp,
+    memcpy((uint8_t *)dst_block + (uint64_t)dst_index * element_bytes, temp,
            (size_t)length * element_bytes);
     free(temp);
     return 0;
