@@ -201,6 +201,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     lit->magnitude = 0;
     lit->negative = 0;
     lit->unsigned_suffix = 0;
+    lit->radix = 10;
     lit->is_bool = 0;
     lit->is_float = 0;
     lit->float_value = 0.0;
@@ -222,16 +223,19 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     if (*p == '0') {
         if (p[1] == 'x' || p[1] == 'X') {
             p += 2;
+            lit->radix = 16;
             if (tc_parse_radix_digits(&p, 16, 1, &lit->magnitude, diag, line, column) != 0) {
                 return -1;
             }
         } else if (p[1] == 'b' || p[1] == 'B') {
             p += 2;
+            lit->radix = 2;
             if (tc_parse_radix_digits(&p, 2, 1, &lit->magnitude, diag, line, column) != 0) {
                 return -1;
             }
         } else if (p[1] == 'o' || p[1] == 'O') {
             p += 2;
+            lit->radix = 8;
             if (tc_parse_radix_digits(&p, 8, 1, &lit->magnitude, diag, line, column) != 0) {
                 return -1;
             }

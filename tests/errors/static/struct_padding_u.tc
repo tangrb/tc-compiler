@@ -1,0 +1,6 @@
+#program
+; 期望（§3.9.3 / 附录 A）：@padding(N) 拒绝 u/U 后缀 → TC_CE_CONSTANT_EXPRESSION
+; @padding size must be a non-negative decimal integer literal without suffix
+struct Node then
+    var x: int32 @padding(4u)
+end

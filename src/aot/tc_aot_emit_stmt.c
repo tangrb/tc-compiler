@@ -229,8 +229,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         char abort_indent[64];
         int stmt_index = tc_stmt_index_take(&ctx->index);
         int mb_slot = -1;
-        TcType element = tc_type_scalar(store->element_type.tag);
-        size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
+        const TcType *element = &store->element_type;
+        size_t elem_bytes = (tc_sizeof_bits_ex(element, tc_struct_table_width_bits,
                                                ctx->program->struct_table) + 7U) / 8U;
 
         if (store->binding.resolved && store->binding.slot >= 0) {
@@ -244,13 +244,13 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         fprintf(out, "%s    uint64_t _idx, _val;\n", indent);
         if (tc_aot_emit_operand_assign(out, &store->index, TC_USIZE, "_idx", abort_indent, ctx,
                                        stmt_index) != 0 ||
-            tc_aot_emit_operand_assign(out, &store->value, element.tag, "_val", abort_indent, ctx,
+            tc_aot_emit_operand_assign(out, &store->value, element->tag, "_val", abort_indent, ctx,
                                        stmt_index) != 0) {
             return -1;
         }
         fprintf(out,
                 "%s    if (tc_aot_memblock_store(slots[%d], %zu, _idx, _val, %s, tc_aot_cur_diag, %d) != 0)\n",
-                abort_indent, mb_slot, elem_bytes, tc_aot_type_enum(element.tag), store->line);
+                abort_indent, mb_slot, elem_bytes, tc_aot_type_enum(element->tag), store->line);
         fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, store->line);
         fprintf(out, "%s}\n", indent);
         return 0;
@@ -262,8 +262,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         int stmt_index = tc_stmt_index_take(&ctx->index);
         int dst_slot = -1;
         int src_slot = -1;
-        TcType element = tc_type_scalar(copy->element_type.tag);
-        size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
+        const TcType *element = &copy->element_type;
+        size_t elem_bytes = (tc_sizeof_bits_ex(element, tc_struct_table_width_bits,
                                                ctx->program->struct_table) + 7U) / 8U;
 
         if (copy->dst_binding.resolved && copy->dst_binding.slot >= 0 &&
@@ -300,8 +300,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         const TcMemcopyUnsafeStmt *mc = &stmt->u.memcopy_unsafe;
         char abort_indent[64];
         int stmt_index = tc_stmt_index_take(&ctx->index);
-        TcType element = tc_type_scalar(mc->element_type.tag);
-        size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
+        const TcType *element = &mc->element_type;
+        size_t elem_bytes = (tc_sizeof_bits_ex(element, tc_struct_table_width_bits,
                                                ctx->program->struct_table) + 7U) / 8U;
 
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
@@ -360,10 +360,16 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
                             assign->line) != 0) {
             return -1;
         }
-        if (field_type->tag == TC_STRUCT) {
-            const TcStructEntry *nested =
-                tc_struct_table_get(table, field_type->params.struct_type.struct_id);
-            nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+        if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
+            if (field_type->tag == TC_STRUCT) {
+                const TcStructEntry *nested =
+                    tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+            } else {
+                nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                            ctx->program->struct_table) + 7U) / 8U;
+            }
+            /* struct/memblock 字段按值语义内联拷贝内容（§3.9.3） */
             fprintf(out, "%s    tc_aot_struct_memcpy_field(slots[%d], %zu, %zu, %s);\n", indent,
                     base_sym->slot, offset, nbytes, tmp);
         } else {

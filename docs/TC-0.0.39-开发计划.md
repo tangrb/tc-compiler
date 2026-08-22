@@ -1,7 +1,7 @@
-# TC 0.0.38 编译器完整开发计划
+# TC 0.0.39 编译器完整开发计划
 
 > **计划日期**：2026-07-23
-> **目标**：构建完整的 TC 0.0.38 编译器（VM 解释器 + AOT C99 编译器 + libtc 嵌入库）
+> **目标**：构建完整的 TC 0.0.39 编译器（VM 解释器 + AOT C99 编译器 + libtc 嵌入库）
 > **现状**：v0.0.31 已有 Lexer/Parser/Analyzer/CFG/Executor/AOT 等核心基础
 > **新增**：模块系统、函数系统、ptr<T>/memblock<T,N>/struct 类型系统、13 阶段编译管线
 
@@ -9,13 +9,13 @@
 
 ## 第一部分：系统架构与全局视图
 
-### 1. TC 0.0.38 语言能力全景
+### 1. TC 0.0.39 语言能力全景
 
-TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.38 版本的完整语言能力范围（不是增量，是本版本作为独立产品的完整规格）。
+TC 是面向教学与 AI 自动化编程的指令式语言。本节定义 0.0.39 版本的完整语言能力范围（不是增量，是本版本作为独立产品的完整规格）。
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    TC 0.0.38 语言边界                          │
+│                    TC 0.0.39 语言边界                          │
 ├──────────────┬───────────────────────────────────────────────┤
 │ 类型系统      │ int8~uint64, isize/usize, float32/64, bool   │
 │              │ ptr<T>, memblock<T,N>, struct, void(仅返回)     │
@@ -141,7 +141,7 @@ src/
 │   │   ├── tc_ptr_exec.c         # 指针运行时 [新增]
 │   │   └── tc_struct_exec.c/h    # struct运行时 [新增]
 │   └── runtime/                  # 共享运行时
-│       ├── tc_version.h          # 版本号 v0.0.38（含 Embed）
+│       ├── tc_version.h          # 版本号 v0.0.39（含 Embed）
 │       ├── tc_types.c/h          # 类型系统(TcTypeTag, TcType, 等价, 宽度)
 │       ├── tc_error.c/h          # 错误码(TcErrorKind, 打印名)
 │       ├── tc_symbol.c/h         # 符号表
@@ -319,7 +319,8 @@ src/
 │              │ 越界(静/动)       │ MEMBLOCK_INDEX_OUT_OF_RANGE ×2  │
 ├──────────────┼──────────────────┼────────────────────────────────┤
 │ 结构体        │ 定义              │ DUPLICATE_STRUCT               │
-│ 诊断(7个)    │                  │ UNDEFINED_STRUCT                │
+│ 诊断(8个)    │                  │ UNDEFINED_STRUCT                │
+│              │ 字段类型位置规则   │ STRUCT_VALUE_SELF_REF           │
 │              │ 构造器            │ STRUCT_MISSING_FIELD            │
 │              │                  │ STRUCT_UNKNOWN_FIELD            │
 │              │                  │ STRUCT_DUPLICATE_FIELD          │
@@ -357,14 +358,14 @@ src/
 
 ### 模块 A：类型系统内核 (types/IR)
 
-> **目标**：建立 TC 0.0.38 完整类型表示、等价判定与宽度计算
+> **目标**：建立 TC 0.0.39 完整类型表示、等价判定与宽度计算
 
 | ID | 任务 | 产出 | 验证标准 |
 | -- | ---- | ---- | -------- |
 | A-1 | 扩展 `TcTypeTag` 枚举 | `TC_ISIZE, TC_USIZE, TC_PTR, TC_MEMBLOCK, TC_STRUCT, TC_VOID` | 枚举覆盖所有设计类型 |
 | A-2 | 设计 `TcType` 联合体 | `ptr_type(pointee), memblock_type(element,count), struct_type(struct_id)` | 所有类型参数可编码 |
 | A-3 | 实现 `tc_type_equals()` | 类型等价判定函数，memblock 仅按 T 等价、ptr 按 T 等价、struct 按 id | 单元测试覆盖全部等价组合 |
-| A-4 | 实现 `sizeof_bits()` | 宽度计算表（标量固定、isize/usize=平台字长、ptr=平台字长、memblock=头部+数据、struct=Σ字段+padding） | 单元测试验证各宽度 |
+| A-4 | 实现 `sizeof_bits()` | 宽度计算与 [编译器标准 §3.0.1] 速查表一致（标量固定、isize/usize=平台字长、ptr=平台字长、memblock=头部+数据、struct=Σ字段+padding） | 单元测试验证各宽度 |
 | A-5 | 扩展 `TcStmtKind` 枚举 | 新增 14 种: FUNC_DEF, FUNCALL, RETURN, MEMBLOCK_STORE/COPY, PTR_STORE, MEMCOPY_UNSAFE, STRUCT_DEF, STATIC_VAR/LET_DEF, IMPORT 等 | check_rhs_coverage.py 通过 |
 | A-6 | 扩展 `TcRhsKind` 枚举 | 新增 18 种: MEMBLOCK_LOAD/CONSTRUCTOR/COUNT, STRUCT_CONSTRUCTOR, FIELD_READ, PTR_LOAD/ADDRESS/ADD/SUB/EQ~GE/SIZE, FUNCALL_EXPR, SELF_MEMBER | check_rhs_coverage.py 通过 |
 | A-7 | 扩展 `TcErrorKind` 枚举 | 新增 ~30 个错误码（函数20+memblock4+struct7+模块10+指针4） | tc_error_kind_name() 所有打印名唯一 |
@@ -375,7 +376,7 @@ src/
 
 ### 模块 B：词法分析器 (Lexer)
 
-> **目标**：识别 TC 0.0.38 全部 Token 类型  
+> **目标**：识别 TC 0.0.39 全部 Token 类型  
 > **状态**：**Phase 2 已完成（2026-07-23）**
 
 | ID | 任务 | 产出 | 验证标准 |
@@ -389,7 +390,7 @@ src/
 
 ### 模块 C：语法解析器 (Parser)
 
-> **目标**：解析 TC 0.0.38 全部语法构造为 AST  
+> **目标**：解析 TC 0.0.39 全部语法构造为 AST  
 > **状态**：**Phase 2 已完成（2026-07-23）** — 函数签名为 `) return_type then`（无 `->`）
 
 | ID | 任务 | 产出 | 验证标准 |
@@ -454,8 +455,8 @@ src/
 | ID | 任务 | 产出 | 验证标准 |
 | -- | ---- | ---- | -------- |
 | E3-1 | 定义唯一性 | 同名 → TC_CE_DUPLICATE_STRUCT; 未定义引用 → TC_CE_UNDEFINED_STRUCT | 错误测试 |
-| E3-2 | 字段类型检查 | 仅标量/memblock/ptr/已定义struct; 禁止自引用/前向引用/void | 类型测试 |
-| E3-3 | 字段声明约束 | 每行1字段; 至少1字段; @padding(N)可选 | 解析+类型测试 |
+| E3-2 | 字段类型检查 | 标量/memblock/ptr/已定义struct；值位置禁止自引用与前向引用；指针所指位置允许 `ptr<本结构体>`（§3.9.1）；禁止 void | 类型测试 |
+| E3-3 | 字段声明约束 | 每行1字段; 至少1字段; 字段名唯一→DUPLICATE_FIELD; @padding(N)可选且须为无后缀非负十进制字面量（负号/后缀/进制前缀→CONSTANT_EXPRESSION）；end 与 struct 对齐（INDENT_ELSE_END）且不得有尾随 token | 解析+类型测试（`struct_dup_field` / `struct_padding_*` / `struct_end_*`） |
 | E3-4 | 字段可变性 | let 字段(构造后不可修改) / var 字段 | 可变性测试 |
 | E3-5 | 值构造器验证 | 全字段必填→MISSING_FIELD; 未知→UNKNOWN_FIELD; 重复→DUPLICATE_FIELD; 顺序→FIELD_ORDER; 类型一致 | 全错误码测试 |
 | E3-6 | 双层可变性 | 外层绑定×字段let/var 矩阵(6种组合) | 所有组合测试 |
@@ -559,7 +560,7 @@ src/
 
 | ID | 任务 | 产出 |
 | -- | ---- | ---- |
-| G3-1 | 三态判定 | static true/false/unknown; 合法常量求值错误不降级为 unknown |
+| G3-1 | 三态判定 | static true/false/unknown；形态归类见 [语言标准 §5.2.2]；合法常量求值错误不降级为 unknown |
 | G3-2 | 边裁剪 | true→删 else 边; false→删 then 边; unknown→保留两边 |
 | G3-3 | 逻辑短路 | and(bool,false,x) 右操作数需合法但不执行; xor 不短路 |
 
@@ -742,7 +743,7 @@ src/
 ### 模块 K：CLI、API、测试与清理
 
 > **目标**：完成 CLI 更新、libtc API 更新、全量测试覆盖、REPL 移除、版本号更新  
-> **状态**：**Phase 6 已完成（2026-07-24）** — CLI `-I`/无 REPL、libtc `name`/`tc_run_program`、版本 v0.0.38；struct 运行时已补齐
+> **状态**：**Phase 6 已完成（2026-07-24）** — CLI `-I`/无 REPL、libtc `name`/`tc_run_program`、版本 v0.0.39；struct 运行时已补齐
 
 #### K.1 CLI 更新
 
@@ -791,9 +792,9 @@ src/
 | -- | ---- | ---- |
 | K4-1 | check_rhs_coverage.py | 所有新增 TcRhsKind 覆盖检查 |
 | K4-2 | check_source_naming.py | 所有新增模块命名检查 |
-| K4-3 | test-map.md | 0.0.38 测试映射更新 |
+| K4-3 | test-map.md | 0.0.39 测试映射更新 |
 | K4-4 | REPL 移除 | 删除 tc_repl.c/h; 移除 --repl 选项 |
-| K4-5 | 版本号 | src/vm/runtime/tc_version.h → v0.0.38; src/aot/main.c → TC_AOT_VERSION |
+| K4-5 | 版本号 | src/vm/runtime/tc_version.h → v0.0.39; src/aot/main.c → TC_AOT_VERSION |
 | K4-6 | 文档同步 | 9份文档版本标记一致；合规审查证据回填（2026-07-24） |
 
 ---
@@ -877,7 +878,7 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 
 ---
 
-*本计划基于 TC 0.0.38 全套设计文档（语言标准、编译器标准、VM 设计、AOT 设计、libtc 设计、libtc API、VM 命令参考、合规审查报告）。所有规范要求以原设计文档为准。*
+*本计划基于 TC 0.0.39 全套设计文档（语言标准、编译器标准、VM 设计、AOT 设计、libtc 设计、libtc API、VM 命令参考、合规审查报告）。所有规范要求以原设计文档为准。*
 
 ---
 
@@ -885,7 +886,7 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 
 > **审查日期**：2026-07-25  
 > **落地提交**：`40a518b`（R-1 `TC_CE_IMPORT_NAME_CONFLICT` + R-2 关键字提权）  
-> **审查范围**：对照 `TC语言标准设计说明书-0.0.38.md` 和 `TC编译器标准设计说明书-0.0.38.md` 两份文档的逐项检查  
+> **审查范围**：对照 `TC语言标准设计说明书-0.0.39.md` 和 `TC编译器标准设计说明书-0.0.39.md` 两份文档的逐项检查  
 > **审查结论**：整体实现完整度约 99%，全部测试通过（VM + AOT + Unit）；当时发现的 1 个中等合规偏差与 1 个可选优化项**均已修复完成**
 
 ### 审查结果总览
@@ -893,7 +894,7 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 | 审查维度 | 检查项数 | 通过 | 偏差 |
 |---------|---------|------|------|
 | 关键字与词法 (75+) | 88 | 88 | 0（R-2 已完成） |
-| 错误码覆盖 | 90 | 90 | 0 |
+| 错误码覆盖 | 91 | 91 | 0 |
 | RHS 分发覆盖 | 36 | 36 | 0 |
 | 13 阶段管线 | 13 | 13 | 0 |
 | 子阶段实现 | 23 | 23 | 0（R-1 已完成） |

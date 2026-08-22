@@ -1,0 +1,6 @@
+#program
+; 期望（§3.9.1 / 编译器标准 INDENT_ELSE_END）：end 必须与 struct 行对齐
+; end indentation does not match struct
+struct Node then
+    var x: int32
+    end

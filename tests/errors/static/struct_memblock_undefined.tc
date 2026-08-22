@@ -1,0 +1,6 @@
+#program
+; 期望（§3.9.1）：memblock 元素位置引用未定义/前向结构体 → TC_CE_UNDEFINED_STRUCT
+; undefined struct 'NoSuch' in field 'items'
+struct A then
+    var items: memblock<NoSuch, 2>
+end

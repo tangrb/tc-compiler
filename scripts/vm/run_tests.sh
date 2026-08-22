@@ -441,7 +441,7 @@ run_cli_golden() {
 
 # --- valid: execution succeeds ---
 
-run_cli_golden "--version" 0 "tc-vm 0.0.38" "" "cli version golden"
+run_cli_golden "--version" 0 "tc-vm 0.0.39" "" "cli version golden"
 
 run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN_NATIVE [options] <file.tc>
 
@@ -653,7 +653,7 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
 
-# --- v0.0.38 Phase 3: top-level goto/label rejected ---
+# --- v0.0.39 Phase 3: top-level goto/label rejected ---
 
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_outside_function.tc" \
     "goto is only allowed inside a function"
@@ -728,7 +728,29 @@ run_expect_fail_msg "$ROOT/tests/errors/static/struct_assign_let_outer_var_field
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_empty.tc" \
     "struct must have at least one field"
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_self_ref.tc" \
-    "struct field cannot have the same type as enclosing struct"
+    "struct field cannot reference the struct being defined in value position"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_memblock_self_ref.tc" \
+    "struct field cannot reference the struct being defined in value position"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_dup_field.tc" \
+    "duplicate struct field name"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_padding_neg.tc" \
+    "@padding size must be a non-negative decimal integer literal without suffix"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_padding_hex.tc" \
+    "@padding size must be a non-negative decimal integer literal without suffix"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_padding_u.tc" \
+    "@padding size must be a non-negative decimal integer literal without suffix"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_end_extra.tc" \
+    "unexpected trailing tokens after end"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_end_indent.tc" \
+    "end indentation does not match struct"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_ptr_fwd_ref.tc" \
+    "undefined struct 'B' in field 'p'"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_memblock_undefined.tc" \
+    "undefined struct 'NoSuch' in field 'items'"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_undefined_struct.tc" \
+    "undefined struct 'NoSuchStruct'"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_struct_type_distinct.tc" \
+    "field read result type does not match expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_address_const.tc" \
     "cannot take address of constant binding"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
@@ -800,7 +822,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_let_outer_var_fie
 run_expect_check_fail "$ROOT/tests/errors/static/struct_empty.tc" \
     "struct must have at least one field"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_self_ref.tc" \
-    "struct field cannot have the same type as enclosing struct"
+    "struct field cannot reference the struct being defined in value position"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_address_const.tc" \
     "cannot take address of constant binding"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
@@ -990,6 +1012,20 @@ run_expect_stdout "$ROOT/tests/valid/phase5_struct_multi_field.tc" "10
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_struct_ptr_field.tc" "7
 "
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_ptr_self_ref.tc" "1
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_ptr_roundtrip.tc" "42
+99
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_memblock_of_struct.tc" "7
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_memblock_deepcopy.tc" "7
+9
+7
+5
+"
+run_expect_stdout "$ROOT/tests/valid/phase5_struct_ptr_nested_self_ref.tc" "1
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc" "10
 30
 "
@@ -1030,6 +1066,11 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_struct_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_field.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_self_ref.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_roundtrip.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock_of_struct.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock_deepcopy.tc"
+run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_nested_self_ref.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_fill.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
@@ -1979,7 +2020,7 @@ run_expect_stdout "$ROOT/tests/modules/phase5_memblock_param_scope.tc" "0
 0
 "
 
-# --- v0.0.38 TC-Embed: library function checking ---
+# --- v0.0.39 TC-Embed: library function checking ---
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_inplace.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_loop.tc"

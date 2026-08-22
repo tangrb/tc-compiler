@@ -36,25 +36,102 @@ static int tc_struct_entry_push(TcStructTable *table, const TcStructEntry *entry
     return 0;
 }
 
-/** 单字段位宽 = sizeof(type) + 8×@padding(N 字节)；嵌套 struct 查表 width_bits。 */
+/** 单字段位宽 = sizeof(type) + 8×@padding(N 字节)。
+ * memblock 元素与 ptr 所指可能为结构体，必须经宽度表回调（§3.9.3）。 */
 static size_t tc_struct_field_width_bits(const TcStructField *field,
                                          const TcStructTable *table) {
-    size_t field_bits = 0;
-
-    if (field->type.tag == TC_STRUCT) {
-        int sid = field->type.params.struct_type.struct_id;
-        if (sid >= 0 && (size_t)sid < table->count) {
-            field_bits = table->items[(size_t)sid].width_bits;
-        }
-    } else {
-        field_bits = tc_sizeof_bits(&field->type);
-    }
+    size_t field_bits =
+        tc_sizeof_bits_ex(&field->type, tc_struct_table_width_bits, (void *)table);
     return field_bits + (size_t)field->padding * 8U;
 }
 
 /**
- * 字段类型合法性：禁 void；禁字段类型等于当前正在定义的 struct；
- * 嵌套 struct 必须已存在且 struct_id < self_id（仅允许「更早」定义）。
+ * 按语言标准 §3.9.1 位置规则递归校验字段类型树中的未决结构体名。
+ *
+ * @param allow_self 当前节点是否处于指针所指位置（ptr<…> 内）：
+ *                   值位置（字段类型本身 / memblock 元素）禁止正在定义的
+ *                   本结构体 S；指针所指位置允许 S（指针自引用）。
+ * @param struct_name 正在定义的结构体名；self_id 为其待分配 struct_id。
+ * 校验只读不改：解析（pending_name → struct_id）在注册第二遍进行。
+ */
+static int tc_struct_validate_type_node(const TcType *type, int allow_self,
+                                        const char *struct_name, int self_id,
+                                        const TcStructTable *table, const char *field_name,
+                                        int line, TcDiagnostic *diag) {
+    char msg[160];
+
+    if (!type) {
+        return 0;
+    }
+    switch (type->tag) {
+    case TC_PTR:
+        /* 指针所指位置：递归放开 self 例外 */
+        return tc_struct_validate_type_node(type->params.ptr_type.pointee, 1, struct_name,
+                                            self_id, table, field_name, line, diag);
+    case TC_MEMBLOCK:
+        /* memblock 元素是值位置：不放开 self 例外 */
+        return tc_struct_validate_type_node(type->params.memblock_type.element, 0, struct_name,
+                                            self_id, table, field_name, line, diag);
+    case TC_STRUCT: {
+        int sid = type->params.struct_type.struct_id;
+        if (sid >= 0) {
+            /* 已解析（防御）：值位置只允许源序更早的结构体 */
+            if (sid >= self_id) {
+                (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
+                               field_name ? field_name : "");
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+                return -1;
+            }
+            return 0;
+        }
+        if (type->pending_name) {
+            if (struct_name && strcmp(type->pending_name, struct_name) == 0) {
+                if (allow_self) {
+                    /* 指针自引用：合法，第二遍解析为 self_id */
+                    return 0;
+                }
+                /*
+                 * 值位置自引用：结构体自身是已定义的（正在定义中），
+                 * 语义是「值位置禁止引用正在定义的本结构体」而非
+                 * 「未定义结构体」，使用专用错误码 TC_CE_STRUCT_VALUE_SELF_REF
+                 * （[语言标准 §3.9.1]）。
+                 */
+                (void)snprintf(msg, sizeof(msg),
+                               "struct field cannot reference the struct being defined in "
+                               "value position (field '%s')",
+                               field_name ? field_name : "");
+                tc_diagnostic_set(diag, TC_CE_STRUCT_VALUE_SELF_REF, line, TC_COLUMN_UNKNOWN,
+                                  msg);
+                return -1;
+            }
+            {
+                const TcStructEntry *nested =
+                    tc_struct_table_find(table, type->pending_name);
+                if (!nested) {
+                    /* 前向引用 / 未定义结构体（含指针所指位置的其它结构体） */
+                    (void)snprintf(msg, sizeof(msg),
+                                   "undefined struct '%s' in field '%s' (forward or undefined "
+                                   "struct references are rejected)",
+                                   type->pending_name, field_name ? field_name : "");
+                    tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+                    return -1;
+                }
+                return 0;
+            }
+        }
+        (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
+                       field_name ? field_name : "");
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+        return -1;
+    }
+    default:
+        return 0;
+    }
+}
+
+/**
+ * 字段类型合法性：禁 void；按位置规则校验整棵类型树中的结构体名
+ * （值位置禁止自引用与前向引用；指针所指位置允许 ptr<正在定义的本结构体>）。
  */
 static int tc_struct_validate_field_type(const char *struct_name, const TcStructField *field,
                                          int self_id, const TcStructTable *table, int line,
@@ -66,31 +143,17 @@ static int tc_struct_validate_field_type(const char *struct_name, const TcStruct
                           "struct field type cannot be void");
         return -1;
     }
-    if (field->struct_type_name &&
-        strcmp(field->struct_type_name, struct_name) == 0) {
-        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                          "struct field cannot have the same type as enclosing struct");
-        return -1;
+    {
+        int rc = tc_struct_validate_type_node(&field->type, 0, struct_name, self_id, table,
+                                              field->name, line, diag);
+        if (rc != 0) {
+            return -1;
+        }
     }
     /*
      * 解析期嵌套 struct 常为 make_struct(-1) + struct_type_name；
-     * sid<0 时交给下方按名查找，勿在此误报 undefined。
+     * 顶层 struct_type_name 的合法性已由上面整树校验覆盖（值位置）。
      */
-    if (field->type.tag == TC_STRUCT) {
-        int sid = field->type.params.struct_type.struct_id;
-        if (sid >= 0 && sid >= self_id) {
-            (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
-                           field->name ? field->name : "");
-            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
-            return -1;
-        }
-        if (sid < 0 && !field->struct_type_name) {
-            (void)snprintf(msg, sizeof(msg), "undefined struct type in field '%s'",
-                           field->name ? field->name : "");
-            tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
-            return -1;
-        }
-    }
     if (field->struct_type_name) {
         const TcStructEntry *nested = tc_struct_table_find(table, field->struct_type_name);
         if (!nested) {
@@ -132,7 +195,110 @@ static int tc_struct_resolve_type(TcType *type, char **struct_type_name, const T
     return 0;
 }
 
-/** 解析单条语句（及嵌套块 / 函数体）上的 struct 类型名。 */
+/**
+ * 递归解析类型树中的未决结构体名（TcType.pending_name → struct_id）。
+ * 结构体表注册完成后调用：所有名字（含 ptr 所指 / memblock 元素的嵌套
+ * 名字）都必须能解析为已注册条目，否则 TC_CE_UNDEFINED_STRUCT。
+ * 字段内部的 self 例外已在第一遍校验放行，此处 find 即可（self 已入表）。
+ */
+static int tc_struct_resolve_type_tree(TcType *type, const TcStructTable *table, int line,
+                                       TcDiagnostic *diag) {
+    char msg[128];
+
+    if (!type) {
+        return 0;
+    }
+    switch (type->tag) {
+    case TC_PTR:
+        return tc_struct_resolve_type_tree(type->params.ptr_type.pointee, table, line, diag);
+    case TC_MEMBLOCK:
+        return tc_struct_resolve_type_tree(type->params.memblock_type.element, table, line, diag);
+    case TC_STRUCT:
+        if (type->params.struct_type.struct_id >= 0) {
+            return 0;
+        }
+        if (type->pending_name) {
+            const TcStructEntry *entry = tc_struct_table_find(table, type->pending_name);
+            if (!entry) {
+                (void)snprintf(msg, sizeof(msg), "undefined struct '%s'", type->pending_name);
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+                return -1;
+            }
+            type->params.struct_type.struct_id = entry->struct_id;
+            free(type->pending_name);
+            type->pending_name = NULL;
+            return 0;
+        }
+        (void)snprintf(msg, sizeof(msg), "undefined struct type");
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN, msg);
+        return -1;
+    default:
+        return 0;
+    }
+}
+
+/** 递归解析 RHS 内携带的类型（pointee_type / element_type / cast target）。 */
+static int tc_struct_resolve_rhs_types(TcRhs *rhs, const TcStructTable *table, int line,
+                                       TcDiagnostic *diag) {
+    size_t i = 0;
+
+    if (!rhs) {
+        return 0;
+    }
+    switch (rhs->kind) {
+    case TC_RHS_PTR_LOAD:
+        return tc_struct_resolve_type_tree(&rhs->u.ptr_load.pointee_type, table, line, diag);
+    case TC_RHS_PTR_ADDRESS:
+        return tc_struct_resolve_type_tree(&rhs->u.ptr_address.pointee_type, table, line, diag);
+    case TC_RHS_PTR_ADD:
+    case TC_RHS_PTR_SUB:
+        return tc_struct_resolve_type_tree(&rhs->u.ptr_arith.pointee_type, table, line, diag);
+    case TC_RHS_PTR_EQ:
+    case TC_RHS_PTR_NE:
+    case TC_RHS_PTR_LT:
+    case TC_RHS_PTR_LE:
+    case TC_RHS_PTR_GT:
+    case TC_RHS_PTR_GE:
+        return tc_struct_resolve_type_tree(&rhs->u.ptr_compare.pointee_type, table, line, diag);
+    case TC_RHS_PTR_SIZE:
+        return tc_struct_resolve_type_tree(&rhs->u.ptr_size.pointee_type, table, line, diag);
+    case TC_RHS_MEMBLOCK_LOAD:
+        return tc_struct_resolve_type_tree(&rhs->u.memblock_load.element_type, table, line,
+                                           diag);
+    case TC_RHS_MEMBLOCK_CONSTRUCTOR:
+        return tc_struct_resolve_type_tree(&rhs->u.memblock_ctor.element_type, table, line,
+                                           diag);
+    case TC_RHS_CAST:
+        return tc_struct_resolve_type_tree(&rhs->u.cast.target, table, line, diag);
+    case TC_RHS_CONST_CAST:
+        return tc_struct_resolve_type_tree(&rhs->u.const_cast.target, table, line, diag);
+    case TC_RHS_BITCAST:
+        return tc_struct_resolve_type_tree(&rhs->u.bitcast.target, table, line, diag);
+    case TC_RHS_STRUCT_CONSTRUCTOR:
+        /* 嵌套在结构体构造器实参里的 RHS（value_rhs）同样携带类型 */
+        for (i = 0; i < rhs->u.struct_ctor.field_count; i++) {
+            if (rhs->u.struct_ctor.fields[i].has_rhs) {
+                if (tc_struct_resolve_rhs_types((TcRhs *)rhs->u.struct_ctor.fields[i].value_rhs,
+                                                table, line, diag) != 0) {
+                    return -1;
+                }
+            }
+        }
+        return 0;
+    case TC_RHS_FUNCALL_EXPR:
+        for (i = 0; i < rhs->u.funcall_expr.arg_count; i++) {
+            if (tc_struct_resolve_rhs_types((TcRhs *)rhs->u.funcall_expr.args[i].value, table,
+                                            line, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    default:
+        return 0;
+    }
+}
+
+/** 解析单条语句（及嵌套块 / 函数体）上的 struct 类型名（含 RHS 内类型）。 */
 static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
                                         TcDiagnostic *diag) {
     size_t i = 0;
@@ -146,7 +312,10 @@ static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
                                    diag) != 0) {
             return -1;
         }
-        return 0;
+        if (tc_struct_resolve_type_tree(&def->full_type, table, def->line, diag) != 0) {
+            return -1;
+        }
+        return tc_struct_resolve_rhs_types(&def->rhs, table, def->line, diag);
     }
     if (stmt->kind == TC_STMT_CONST_DEF) {
         TcConstDef *def = &stmt->u.const_def;
@@ -154,28 +323,82 @@ static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
                                    diag) != 0) {
             return -1;
         }
-        return 0;
+        if (tc_struct_resolve_type_tree(&def->full_type, table, def->line, diag) != 0) {
+            return -1;
+        }
+        return tc_struct_resolve_rhs_types(&def->rhs, table, def->line, diag);
+    }
+    if (stmt->kind == TC_STMT_ASSIGN) {
+        return tc_struct_resolve_rhs_types(&stmt->u.assign.rhs, table, stmt->u.assign.line, diag);
+    }
+    if (stmt->kind == TC_STMT_FIELD_ASSIGN) {
+        return tc_struct_resolve_rhs_types(&stmt->u.field_assign.rhs, table, stmt->u.field_assign.line, diag);
     }
     if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
         TcStaticVarDef *def = &stmt->u.static_var_def;
-        return tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line, diag);
+        if (tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line, diag) !=
+            0) {
+            return -1;
+        }
+        if (tc_struct_resolve_type_tree(&def->type, table, def->line, diag) != 0) {
+            return -1;
+        }
+        return tc_struct_resolve_rhs_types(&def->rhs, table, def->line, diag);
     }
     if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
         TcStaticLetDef *def = &stmt->u.static_let_def;
-        return tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line, diag);
+        if (tc_struct_resolve_type(&def->type, &def->struct_type_name, table, def->line, diag) !=
+            0) {
+            return -1;
+        }
+        if (tc_struct_resolve_type_tree(&def->type, table, def->line, diag) != 0) {
+            return -1;
+        }
+        return tc_struct_resolve_rhs_types(&def->rhs, table, def->line, diag);
+    }
+    if (stmt->kind == TC_STMT_MEMBLOCK_STORE) {
+        return tc_struct_resolve_type_tree(&stmt->u.memblock_store.element_type, table,
+                                           stmt->u.memblock_store.line, diag);
+    }
+    if (stmt->kind == TC_STMT_MEMBLOCK_COPY) {
+        return tc_struct_resolve_type_tree(&stmt->u.memblock_copy.element_type, table,
+                                           stmt->u.memblock_copy.line, diag);
+    }
+    if (stmt->kind == TC_STMT_PTR_STORE) {
+        return tc_struct_resolve_type_tree(&stmt->u.ptr_store.pointee_type, table,
+                                           stmt->u.ptr_store.line, diag);
+    }
+    if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {
+        return tc_struct_resolve_type_tree(&stmt->u.memcopy_unsafe.element_type, table,
+                                           stmt->u.memcopy_unsafe.line, diag);
+    }
+    if (stmt->kind == TC_STMT_FUNCALL) {
+        for (i = 0; i < stmt->u.funcall_stmt.arg_count; i++) {
+            if (tc_struct_resolve_rhs_types(&stmt->u.funcall_stmt.args[i].value, table,
+                                       stmt->u.funcall_stmt.line, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
     }
     if (stmt->kind == TC_STMT_FUNC_DEF) {
         TcFuncDef *func = &stmt->u.func_def;
         size_t j = 0;
 
-        if (tc_struct_resolve_type(&func->return_type, &func->return_struct_name, table, func->line,
-                                   diag) != 0) {
+        if (tc_struct_resolve_type(&func->return_type, &func->return_struct_name, table,
+                                   func->line, diag) != 0) {
+            return -1;
+        }
+        if (tc_struct_resolve_type_tree(&func->return_type, table, func->line, diag) != 0) {
             return -1;
         }
         for (j = 0; j < func->param_count; j++) {
             TcFuncParam *param = &func->params[j];
             if (tc_struct_resolve_type(&param->type, &param->struct_type_name, table, func->line,
                                        diag) != 0) {
+                return -1;
+            }
+            if (tc_struct_resolve_type_tree(&param->type, table, func->line, diag) != 0) {
                 return -1;
             }
         }
@@ -187,6 +410,10 @@ static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
         return 0;
     }
     if (stmt->kind == TC_STMT_IF) {
+        if (tc_struct_resolve_rhs_types(&stmt->u.if_stmt.condition, table, stmt->u.if_stmt.line,
+                                   diag) != 0) {
+            return -1;
+        }
         for (i = 0; i < stmt->u.if_stmt.then_count; i++) {
             if (tc_struct_resolve_stmt_types(&stmt->u.if_stmt.then_body[i], table, diag) != 0) {
                 return -1;
@@ -200,6 +427,10 @@ static int tc_struct_resolve_stmt_types(TcStatement *stmt, TcStructTable *table,
         return 0;
     }
     if (stmt->kind == TC_STMT_WHILE) {
+        if (tc_struct_resolve_rhs_types(&stmt->u.while_stmt.condition, table,
+                                     stmt->u.while_stmt.line, diag) != 0) {
+            return -1;
+        }
         for (i = 0; i < stmt->u.while_stmt.body_count; i++) {
             if (tc_struct_resolve_stmt_types(&stmt->u.while_stmt.body[i], table, diag) != 0) {
                 return -1;
@@ -345,6 +576,7 @@ int tc_struct_table_register_program(TcProgram *program, TcStructTable *table,
     size_t i = 0;
     size_t j = 0;
     size_t k = 0;
+    size_t kk = 0;
 
     /* 第一遍：注册每个 STRUCT_DEF */
     for (i = 0; i < program->count; i++) {
@@ -397,6 +629,23 @@ int tc_struct_table_register_program(TcProgram *program, TcStructTable *table,
             }
             dst->is_var = src->is_var;
             dst->padding = src->padding;
+            /* §3.9.1 / 编译器标准 §3.3：同一结构体内字段名唯一
+             * → TC_CE_STRUCT_DUPLICATE_FIELD */
+            for (k = 0; k < j; k++) {
+                if (strcmp(entry.fields[k].name, dst->name) == 0) {
+                    tc_struct_table_free(table);
+                    tc_diagnostic_set(diag, TC_CE_STRUCT_DUPLICATE_FIELD, def->line,
+                                      TC_COLUMN_UNKNOWN, "duplicate struct field name");
+                    free(entry.name);
+                    for (kk = 0; kk < entry.field_count; kk++) {
+                        free(entry.fields[kk].name);
+                        free(entry.fields[kk].struct_type_name);
+                        tc_type_free(&entry.fields[kk].type);
+                    }
+                    free(entry.fields);
+                    return -1;
+                }
+            }
             if (tc_type_copy(&src->type, &dst->type, diag) != 0) {
                 tc_struct_table_free(table);
                 return -1;
@@ -436,22 +685,19 @@ int tc_struct_table_register_program(TcProgram *program, TcStructTable *table,
         }
     }
 
-    /* 第二遍：解析嵌套字段类型名并计算布局位宽 */
+    /* 第二遍：解析字段类型树（含 ptr 所指 / memblock 元素）中的未决
+     * 结构体名并计算布局位宽；self 已入表，find 即可解析为 self_id。 */
     for (i = 0; i < table->count; i++) {
         TcStructEntry *entry = &table->items[i];
         size_t w = 0;
 
         for (j = 0; j < entry->field_count; j++) {
-            if (entry->fields[j].struct_type_name) {
-                const TcStructEntry *nested =
-                    tc_struct_table_find(table, entry->fields[j].struct_type_name);
-                if (nested) {
-                    tc_type_free(&entry->fields[j].type);
-                    entry->fields[j].type = tc_type_make_struct(nested->struct_id);
-                    free(entry->fields[j].struct_type_name);
-                    entry->fields[j].struct_type_name = NULL;
-                }
+            if (tc_struct_resolve_type_tree(&entry->fields[j].type, table, 0, diag) != 0) {
+                return -1;
             }
+            /* 顶层 struct_type_name 的语义已由类型树解析覆盖 */
+            free(entry->fields[j].struct_type_name);
+            entry->fields[j].struct_type_name = NULL;
             w += tc_struct_field_width_bits(&entry->fields[j], table);
         }
         entry->width_bits = w;

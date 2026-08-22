@@ -24,7 +24,7 @@
 /* ------------------------------------------------------------------ */
 
 /**
- * TC 0.0.38 类型标签（TcTypeTag）。
+ * TC 0.0.39 类型标签（TcTypeTag）。
  *
  * 标量：定宽整数、bool、浮点、isize/usize。
  * 复合：ptr / memblock / struct；void 仅作函数返回类型。
@@ -65,9 +65,17 @@ typedef enum {
  * ptr：pointee 堆分配或指向持久类型节点。
  * memblock：element + 声明 count（N）；tc_type_equals 忽略 N。
  * struct：struct_id 索引模块内结构体定义表。
+ *
+ * pending_name：仅解析期使用。类型表达式中的结构体名（含嵌套在
+ * ptr<…>/memblock<…> 内的）在 Parser 阶段无法解析为 struct_id，先以
+ * struct_id = -1 + pending_name（堆）暂存；Analyzer 注册结构体表后按
+ * 位置规则（语言标准 §3.9.1）解析为真实 struct_id 并释放该名字。
+ * 解析成功后 pending_name 恒为 NULL。tc_type_free / tc_type_copy 负责
+ * 其生命周期。
  */
 typedef struct TcType {
     TcTypeTag tag;
+    char *pending_name; /* 解析期未决结构体名（堆）；仅 struct_id<0 时可能非 NULL */
     union {
         struct {
             struct TcType *pointee;
@@ -205,7 +213,7 @@ static inline TcFormatFullSpec tc_format_spec_make(TcFormatSpec spec) {
     return fs;
 }
 
-/** 符号种类：变量、let、形参、static var/let（0.0.38） */
+/** 符号种类：变量、let、形参、static var/let（0.0.39） */
 typedef enum {
     TC_SYM_VARIABLE,
     TC_SYM_CONSTANT,
@@ -265,13 +273,13 @@ typedef enum {
     TC_CE_BREAK_OUTSIDE_LOOP,      /* break 必须出现在 while 内 */
     TC_CE_CONTINUE_OUTSIDE_LOOP,   /* continue 必须出现在 while 内 */
 
-    /* ---- 0.0.38：控制流补充（编译器标准 §11.4.1） ---- */
+    /* ---- 0.0.39：控制流补充（编译器标准 §11.4.1） ---- */
     TC_CE_GOTO_OUTSIDE_FUNCTION,
     TC_CE_LABEL_OUTSIDE_FUNCTION,
     TC_CE_JUMP_INCOMPATIBLE_BLOCK,
     TC_CE_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
 
-    /* ---- 0.0.38：函数诊断（§11.4.2，20 个） ---- */
+    /* ---- 0.0.39：函数诊断（§11.4.2，20 个） ---- */
     TC_CE_DUPLICATE_FUNCTION,
     TC_CE_FUNCTION_NAME_CONFLICT,
     TC_CE_UNDEFINED_FUNCTION,
@@ -293,21 +301,22 @@ typedef enum {
     TC_CE_CROSS_CONTROL_FLOW_JUMP,
     TC_CE_RECURSION,
 
-    /* ---- 0.0.38：memblock（§11.4.3） ---- */
+    /* ---- 0.0.39：memblock（§11.4.3） ---- */
     TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE,       /* 静态越界 */
     TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH,
     TC_CE_MEMBLOCK_SIZE_MISMATCH,
 
-    /* ---- 0.0.38：struct（§11.4.4） ---- */
+    /* ---- 0.0.39：struct（§11.4.4） ---- */
     TC_CE_STRUCT_MISSING_FIELD,
     TC_CE_STRUCT_UNKNOWN_FIELD,
     TC_CE_STRUCT_DUPLICATE_FIELD,
     TC_CE_STRUCT_FIELD_ORDER,
     TC_CE_STRUCT_IMMUTABLE_FIELD,
+    TC_CE_STRUCT_VALUE_SELF_REF,   /* 值位置引用正在定义的本结构体（§3.9.1） */
     TC_CE_DUPLICATE_STRUCT,
     TC_CE_UNDEFINED_STRUCT,
 
-    /* ---- 0.0.38：模块（§11.4.5，10 个） ---- */
+    /* ---- 0.0.39：模块（§11.4.5，10 个） ---- */
     TC_CE_MODULE_LAYER,           /* 顶层声明层序违反（import→struct→值→func/exec） */
     TC_CE_MISSING_VISIBILITY,     /* #lib 成员缺少 public/private */
     TC_CE_PROGRAM_MODE_MISUSE,    /* #program 中使用了库专用构造（func/static/Self/可见性等） */
@@ -319,7 +328,7 @@ typedef enum {
     TC_CE_CIRCULAR_IMPORT,        /* 导入成环（含自引用） */
     TC_CE_PRIVATE_MEMBER_ACCESS,  /* 访问其它模块的 private 成员（后续阶段） */
 
-    /* ---- 0.0.38：指针与 memcopy（§11.4.6） ---- */
+    /* ---- 0.0.39：指针与 memcopy（§11.4.6） ---- */
     TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE,      /* 静态 */
 
     /* ---- 运行时错误（TC_RE_*，§11.4.1 / §11.4.6） ---- */
@@ -362,6 +371,7 @@ typedef struct {
     uint64_t magnitude;
     int negative;
     int unsigned_suffix;
+    int radix;            /* 词法进制：2 / 8 / 10 / 16（@padding(N) 形态校验等用） */
     int is_bool;          /* 1 表示 true/false 布尔字面量；magnitude 为 0/1 */
     int is_float;         /* 1 表示浮点字面量；float_value 有效 */
     double float_value;   /* 浮点字面量双精度暂存（词法阶段） */
@@ -418,7 +428,7 @@ typedef enum {
     TC_RHS_FLOAT_COMPARE, /* 浮点比较 */
     TC_RHS_BITCAST,       /* 等宽整数/浮点位重解释 */
 
-    /* ---- 0.0.38 新增 RHS（开发计划 A-6 / VM 详设 §3.3） ---- */
+    /* ---- 0.0.39 新增 RHS（开发计划 A-6 / VM 详设 §3.3） ---- */
     TC_RHS_MEMBLOCK_LOAD,
     TC_RHS_MEMBLOCK_CONSTRUCTOR,
     TC_RHS_MEMBLOCK_COUNT,
@@ -534,7 +544,7 @@ typedef struct {
             TcOperand rhs;
         } float_compare;         /* TC_RHS_FLOAT_COMPARE */
         TcBitcastRhs bitcast;    /* TC_RHS_BITCAST */
-        /* 0.0.38 Phase 2 RHS payload（前向：结构体在下方定义后即可用；
+        /* 0.0.39 Phase 2 RHS payload（前向：结构体在下方定义后即可用；
          * 此处用匿名结构镜像，完整 typedef 见语句区后的同名类型）。 */
         struct {
             TcType element_type;
@@ -625,7 +635,7 @@ typedef enum {
     TC_STMT_BREAK,       /* 退出最内层 while */
     TC_STMT_CONTINUE,    /* 继续最内层 while */
 
-    /* ---- 0.0.38 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
+    /* ---- 0.0.39 新增语句（开发计划 A-5 / VM 详设 §3.2） ---- */
     TC_STMT_FIELD_ASSIGN,       /* a.b = rhs */
     TC_STMT_FUNC_DEF,           /* #lib 函数定义 */
     TC_STMT_FUNCALL,            /* funcall 语句（可 Self./限定名） */
@@ -730,7 +740,7 @@ typedef struct {
     int resolved;      /* 分析成功后为 1 */
 } TcGoto;
 
-/* ---- 0.0.38 新增语句 / RHS payload（Phase 2） ---- */
+/* ---- 0.0.39 新增语句 / RHS payload（Phase 2） ---- */
 
 typedef struct {
     int line;
@@ -1162,6 +1172,8 @@ const TcType *tc_type_intern(TcTypeTable *table, const TcType *type, TcDiagnosti
 TcType tc_type_make_ptr(TcType *pointee);
 TcType tc_type_make_memblock(TcType *element, uint64_t count);
 TcType tc_type_make_struct(int struct_id);
+/** 构造未决结构体类型（struct_id=-1 + pending_name）；仅 Parser 阶段使用 */
+TcType tc_type_make_struct_pending(const char *name);
 void tc_type_free(TcType *type);
 /** 深拷贝完整类型；失败返回 -1（OOM 时 *out 未修改） */
 int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag);

@@ -552,6 +552,11 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
             }
             if (tc_parse_rhs(ctx, tokens, index, line_no,
                              (TcRhs *)out->u.struct_ctor.fields[field_idx].value_rhs, diag) != 0) {
+                /* tc_parse_rhs 失败时已释放 value_rhs 内部（tc_rhs_free 契约）；
+                 * 此处仅释放外壳并置空，避免随后的 tc_rhs_free(out) 二次释放。 */
+                free(out->u.struct_ctor.fields[field_idx].value_rhs);
+                out->u.struct_ctor.fields[field_idx].value_rhs = NULL;
+                out->u.struct_ctor.fields[field_idx].has_rhs = 0;
                 tc_rhs_free(out);
                 return -1;
             }
@@ -1529,6 +1534,11 @@ int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int
     }
 
     ctx->depth--;
+    if (rc != 0) {
+        /* 失败契约：子解析已释放 out 内部；清零使调用方随后的
+         * tc_rhs_free(out) 幂等，防止 var/const/赋值等失败路径二次释放。 */
+        memset(out, 0, sizeof(*out));
+    }
     return rc;
 }
 
@@ -1613,5 +1623,9 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
     }
 
     ctx->depth--;
+    if (rc != 0) {
+        /* 同 tc_parse_rhs：失败时清零，使调用方的 tc_rhs_free 幂等 */
+        memset(out, 0, sizeof(*out));
+    }
     return rc;
 }

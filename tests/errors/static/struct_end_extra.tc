@@ -1,0 +1,6 @@
+#program
+; 期望（附录 A struct_definition）：块以 `end` 收尾，end 行不得有尾随 token
+; unexpected trailing tokens after end
+struct Node then
+    var x: int32
+end foo

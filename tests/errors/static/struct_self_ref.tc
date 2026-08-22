@@ -1,5 +1,6 @@
 #program
-; 期望：struct field cannot have the same type as enclosing struct
+; 期望（§3.9.1）：值位置自引用 → TC_CE_STRUCT_VALUE_SELF_REF
+; struct field cannot reference the struct being defined in value position
 struct Node then
     var next: Node
 end

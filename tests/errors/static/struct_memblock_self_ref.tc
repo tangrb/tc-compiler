@@ -1,0 +1,7 @@
+#program
+; 期望（§3.9.1）：memblock 元素是值位置，禁止正在定义的本结构体 → TC_CE_STRUCT_VALUE_SELF_REF
+; struct field cannot reference the struct being defined in value position
+struct Node then
+    var value: int32
+    var block: memblock<Node, 4>
+end

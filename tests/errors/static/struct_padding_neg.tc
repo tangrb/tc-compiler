@@ -1,0 +1,6 @@
+#program
+; 期望（§3.9.3 / 附录 A）：@padding(N) 的 N 须为无后缀非负十进制字面量 → TC_CE_CONSTANT_EXPRESSION
+; @padding size must be a non-negative decimal integer literal without suffix
+struct Node then
+    var x: int32 @padding(-5)
+end

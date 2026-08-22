@@ -1,7 +1,7 @@
 /*
  * test_types.c — 类型工具函数模块单元测试
  *
- * 覆盖 tc_types.c 公开函数，以及 0.0.38 Phase 1（模块 A）验收：
+ * 覆盖 tc_types.c 公开函数，以及 0.0.39 Phase 1（模块 A）验收：
  *   - TcTypeTag / TcType 编码（A-1/A-2）
  *   - tc_type_equals 全部等价组合（A-3）
  *   - tc_sizeof_bits 各宽度（A-4）
@@ -319,6 +319,8 @@ static void test_error_kind_name(void) {
           "TC_CE_STRUCT_MISSING_FIELD → StructMissingField");
     check(strcmp(tc_error_kind_name(TC_CE_STRUCT_FIELD_ORDER), "StructFieldOrderError") == 0,
           "TC_CE_STRUCT_FIELD_ORDER → StructFieldOrderError");
+    check(strcmp(tc_error_kind_name(TC_CE_STRUCT_VALUE_SELF_REF), "StructValueSelfRefError") == 0,
+          "TC_CE_STRUCT_VALUE_SELF_REF → StructValueSelfRefError");
     check(strcmp(tc_error_kind_name(TC_CE_DUPLICATE_STRUCT), "DuplicateStruct") == 0,
           "TC_CE_DUPLICATE_STRUCT → DuplicateStruct");
     check(strcmp(tc_error_kind_name(TC_CE_UNDEFINED_STRUCT), "UndefinedStruct") == 0,
@@ -346,7 +348,7 @@ static void test_error_kind_name(void) {
                  tc_error_kind_name(TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE)) == 0,
           "memcopy unsafe CE/RE share print name");
 
-    check(error_kind_count == 90U, "0.0.38 error kind table has 90 entries");
+    check(error_kind_count == 91U, "0.0.39 error kind table has 91 entries");
     for (i = 0; i < error_kind_count; i++) {
         const char *name = tc_error_kind_name((TcErrorKind)i);
 

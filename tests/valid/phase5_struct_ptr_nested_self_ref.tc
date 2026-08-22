@@ -1,0 +1,10 @@
+#program
+; §3.9.1 嵌套指针自引用形态：ptr<ptr<Node>> 与 memblock<ptr<Node>, 2> 合法
+struct Node then
+    var value: int32
+    var pp: ptr<ptr<Node>>
+    var arr: memblock<ptr<Node>, 2>
+end
+var n: Node = Node(value: 1, pp: nullptr, arr: memblock(ptr<Node>, count: 2, nullptr, nullptr))
+var w: int32 = n.value
+writeln(int32, w)

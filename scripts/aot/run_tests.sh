@@ -286,7 +286,7 @@ run_aot_cli_golden() {
 
 # --- differential tests: valid programs (stdout VM vs AOT) ---
 
-run_aot_cli_golden "--version" 0 "tc-aot 0.0.38" "" "aot version golden"
+run_aot_cli_golden "--version" 0 "tc-aot 0.0.39" "" "aot version golden"
 
 run_aot_cli_golden "--help" 0 "" "Usage: $(native_path "$AOT_BIN") [options] <file.tc>
 
@@ -506,6 +506,11 @@ run_diff_test "$ROOT/tests/valid/phase5_struct_funcall.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_ptr_field.tc"
+run_diff_test "$ROOT/tests/valid/phase5_struct_ptr_self_ref.tc"
+run_diff_test "$ROOT/tests/valid/phase5_struct_ptr_roundtrip.tc"
+run_diff_test "$ROOT/tests/valid/phase5_struct_memblock_of_struct.tc"
+run_diff_test "$ROOT/tests/valid/phase5_struct_memblock_deepcopy.tc"
+run_diff_test "$ROOT/tests/valid/phase5_struct_ptr_nested_self_ref.tc"
 run_diff_test "$ROOT/tests/valid/phase5_struct_mut_matrix_ok.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
 run_diff_test "$ROOT/tests/valid/usize_arith.tc"

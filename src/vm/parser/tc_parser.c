@@ -28,6 +28,7 @@ typedef struct {
 } TcStmtBlock;
 
 static int tc_first_token_kind(const TcSourceLine *line);
+static int tc_end_line_check(const TcSourceLine *line, TcDiagnostic *diag);
 static int tc_indent_diag(TcDiagnostic *diag, TcErrorKind kind, int line_no, const char *message);
 static int tc_block_indent_valid(const TcFileIndent *file_indent, int base_indent, int indent,
                                  TcDiagnostic *diag, int line_no);
@@ -303,7 +304,20 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
         if (!*out_struct_name) {
             return -1;
         }
+        /*
+         * §3.9.1：结构体名（含嵌套在 ptr<…>/memblock<…> 内的）以未决名
+         * 暂存于 TcType.pending_name，由 Analyzer 在注册结构体表后按位置
+         * 规则解析；此处不得丢弃（此前实现将嵌套名 free，导致指针所指
+         * 位置与 memblock 元素位置的结构体身份永久丢失）。
+         */
         *out_type = tc_type_make_struct(-1);
+        out_type->pending_name = strdup(*out_struct_name);
+        if (!out_type->pending_name) {
+            free(*out_struct_name);
+            *out_struct_name = NULL;
+            return tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                                     "memory allocation failed");
+        }
         (*index)++;
         return 0;
     }
@@ -341,6 +355,15 @@ static int tc_parse_optional_padding(const TcTokenList *tokens, size_t *index, i
     }
     tok = tc_peek(tokens, *index);
     if (tok->kind == TC_TOK_INTEGER) {
+        /* §3.9.3 / 附录 A：@padding(N) 的 N 须为无后缀非负十进制整数字面量
+         * （允许 0）；负号、u/U 后缀或非十进制进制前缀由静态语义拒绝。 */
+        if (tok->u.literal.negative || tok->u.literal.unsigned_suffix ||
+            tok->u.literal.radix != 10) {
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line_no, tok->column,
+                              "@padding size must be a non-negative decimal integer literal "
+                              "without suffix");
+            return -1;
+        }
         *out_padding = tok->u.literal.magnitude;
         (*index)++;
     } else {
@@ -1779,6 +1802,12 @@ static int tc_parse_struct_def(TcParserCtx *ctx, TcSourceLine *lines, size_t lin
         TcStructField field;
         TcSourceLine *field_line = &lines[*index];
 
+        if (tc_first_token_kind(field_line) == TC_TOK_END) {
+            /* end 缩进比 struct 深：与 if/while 块体一致，按 §3.9.1 报对齐错误 */
+            tc_struct_def_fail(&def);
+            return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, field_line->line_no,
+                                  "end indentation does not match struct");
+        }
         if (tc_block_indent_valid(file_indent, base_indent, field_line->indent, diag,
                                   field_line->line_no) != 0) {
             tc_struct_def_fail(&def);
@@ -1809,6 +1838,10 @@ static int tc_parse_struct_def(TcParserCtx *ctx, TcSourceLine *lines, size_t lin
         tc_struct_def_fail(&def);
         return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                               "end indentation does not match struct");
+    }
+    if (tc_end_line_check(&lines[*index], diag) != 0) {
+        tc_struct_def_fail(&def);
+        return -1;
     }
     (*index)++;
 
@@ -1974,6 +2007,11 @@ static int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
         tc_stmt_block_free(&body);
         return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                               "end indentation does not match function");
+    }
+    if (tc_end_line_check(&lines[*index], diag) != 0) {
+        tc_func_def_fail(&def);
+        tc_stmt_block_free(&body);
+        return -1;
     }
     (*index)++;
 
@@ -2458,6 +2496,25 @@ static int tc_first_token_kind(const TcSourceLine *line) {
     return (int)line->tokens.items[0].kind;
 }
 
+/** end 行尾随 token 检查：`end`（可选分号）后必须行尾；
+ * 尾随 token 报 TC_CE_SYNTAX（附录 A：块以 `end` 收尾）。
+ * 行 token 列表末尾含 TC_TOK_EOF 哨兵，需跳过。 */
+static int tc_end_line_check(const TcSourceLine *line, TcDiagnostic *diag) {
+    size_t i = 1;
+
+    if (line->tokens.count > 1 && line->tokens.items[1].kind == TC_TOK_SEMICOLON) {
+        i = 2;
+    }
+    while (i < line->tokens.count && line->tokens.items[i].kind == TC_TOK_EOF) {
+        i++;
+    }
+    if (i < line->tokens.count) {
+        return tc_syntax_error(diag, line->line_no, line->tokens.items[i].column,
+                               "unexpected trailing tokens after end");
+    }
+    return 0;
+}
+
 static int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                                     size_t *index, int base_indent,
                                     const TcFileIndent *file_indent, TcModuleMode mode,
@@ -2594,6 +2651,9 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
                         "end indentation does not match if");
         goto fail;
     }
+    if (tc_end_line_check(&lines[*index], diag) != 0) {
+        goto fail;
+    }
     (*index)++;
 
     if_stmt.then_body = then_block.items;
@@ -2663,6 +2723,9 @@ int tc_parse_while_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count
     if (lines[*index].indent != base_indent) {
         tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                        "end indentation does not match while");
+        goto fail;
+    }
+    if (tc_end_line_check(&lines[*index], diag) != 0) {
         goto fail;
     }
     (*index)++;

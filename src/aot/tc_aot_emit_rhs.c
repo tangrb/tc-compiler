@@ -550,11 +550,13 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
-        TcType element = tc_type_scalar(rhs->u.memblock_ctor.element_type.tag);
+        const TcType *element = &rhs->u.memblock_ctor.element_type;
         size_t elem_bits =
-            tc_sizeof_bits_ex(&element, tc_struct_table_width_bits, ctx->program->struct_table);
+            tc_sizeof_bits_ex(element, tc_struct_table_width_bits, ctx->program->struct_table);
         size_t elem_bytes = (elem_bits + 7U) / 8U;
         size_t i = 0;
+        const char *set_shim = (element->tag == TC_STRUCT) ? "tc_aot_memblock_set_elem_struct"
+                                                           : "tc_aot_memblock_set_elem";
 
         fprintf(out, "%s%s = tc_aot_memblock_alloc(%" PRIu64 "ULL, %zu, tc_aot_cur_diag, %d);\n",
                 indent, dst_expr, rhs->u.memblock_ctor.count, elem_bytes, line);
@@ -565,13 +567,13 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             snprintf(fill_tmp, sizeof(fill_tmp), "_tc_fill_%d", stmt_index);
             fprintf(out, "%s{\n", indent);
             fprintf(out, "%s    uint64_t %s;\n", indent, fill_tmp);
-            if (tc_aot_emit_operand_assign(out, &rhs->u.memblock_ctor.fill_value, element.tag,
+            if (tc_aot_emit_operand_assign(out, &rhs->u.memblock_ctor.fill_value, element->tag,
                                            fill_tmp, abort_indent, ctx, stmt_index) != 0) {
                 return -1;
             }
             for (i = 0; i < rhs->u.memblock_ctor.count; i++) {
-                fprintf(out, "%s    tc_aot_memblock_set_elem(%s, %zu, %zu, %s);\n", abort_indent,
-                        dst_expr, elem_bytes, i, fill_tmp);
+                fprintf(out, "%s    %s(%s, %zu, %zu, %s);\n", abort_indent, set_shim, dst_expr,
+                        elem_bytes, i, fill_tmp);
             }
             fprintf(out, "%s}\n", indent);
         } else {
@@ -580,12 +582,12 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                 snprintf(elem_tmp, sizeof(elem_tmp), "_tc_mb_%d_%zu", stmt_index, i);
                 fprintf(out, "%s{\n", indent);
                 fprintf(out, "%s    uint64_t %s;\n", indent, elem_tmp);
-                if (tc_aot_emit_operand_assign(out, &rhs->u.memblock_ctor.values[i], element.tag,
+                if (tc_aot_emit_operand_assign(out, &rhs->u.memblock_ctor.values[i], element->tag,
                                                elem_tmp, abort_indent, ctx, stmt_index) != 0) {
                     return -1;
                 }
-                fprintf(out, "%s    tc_aot_memblock_set_elem(%s, %zu, %zu, %s);\n", abort_indent,
-                        dst_expr, elem_bytes, i, elem_tmp);
+                fprintf(out, "%s    %s(%s, %zu, %zu, %s);\n", abort_indent, set_shim, dst_expr,
+                        elem_bytes, i, elem_tmp);
                 fprintf(out, "%s}\n", indent);
             }
         }
@@ -593,8 +595,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_MEMBLOCK_LOAD) {
-        TcType element = tc_type_scalar(rhs->u.memblock_load.element_type.tag);
-        size_t elem_bytes = (tc_sizeof_bits_ex(&element, tc_struct_table_width_bits,
+        const TcType *element = &rhs->u.memblock_load.element_type;
+        size_t elem_bytes = (tc_sizeof_bits_ex(element, tc_struct_table_width_bits,
                                                ctx->program->struct_table) + 7U) / 8U;
 
         fprintf(out, "%s{\n", indent);
@@ -605,7 +607,7 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         fprintf(out, "%s    if (tc_aot_memblock_load(", indent);
         tc_aot_emit_operand_expr(out, &rhs->u.memblock_load.memblock, TC_MEMBLOCK, ctx, stmt_index);
         fprintf(out, ", %zu, _mb_idx, %s, &%s, tc_aot_cur_diag, %d) != 0)\n", elem_bytes,
-                tc_aot_type_enum(element.tag), dst_expr, line);
+                tc_aot_type_enum(element->tag), dst_expr, line);
         fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         fprintf(out, "%s}\n", indent);
         return 0;
@@ -723,7 +725,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                                                       stmt_index) != 0) {
                     return -1;
                 }
-                if (field->type.tag == TC_STRUCT) {
+                if (field->type.tag == TC_STRUCT || field->type.tag == TC_MEMBLOCK) {
+                    /* struct/memblock 字段按值语义内联拷贝内容（§3.9.3） */
                     fprintf(out, "%s    tc_aot_struct_memcpy_field(%s, %zu, %zu, %s);\n",
                             abort_indent, dst_expr, offset, nbytes, tmp);
                 } else {
@@ -769,10 +772,16 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                                         &local_diag, line) != 0) {
             return -1;
         }
-        if (field_type->tag == TC_STRUCT) {
-            const TcStructEntry *nested =
-                tc_struct_table_get(table, field_type->params.struct_type.struct_id);
-            nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+        if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
+            if (field_type->tag == TC_STRUCT) {
+                const TcStructEntry *nested =
+                    tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+            } else {
+                nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                            ctx->program->struct_table) + 7U) / 8U;
+            }
+            /* struct/memblock 字段抽出为独立堆块（值语义，§3.9.4） */
             fprintf(out,
                     "%s%s = tc_aot_struct_extract(slots[%d], %zu, %zu, tc_aot_cur_diag, %d);\n",
                     indent, dst_expr, base_sym->slot, offset, nbytes, line);

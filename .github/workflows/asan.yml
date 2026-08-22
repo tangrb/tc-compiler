@@ -1,16 +1,16 @@
 # ASan CI — AddressSanitizer 构建与测试
 #
-# 每次推送到 master / tc-0.0.38 或 PR 时，在 ubuntu-latest 上执行 ASan 构建并运行全部测试。
+# 每次推送到 master / tc-0.0.39 或 PR 时，在 ubuntu-latest 上执行 ASan 构建并运行全部测试。
 # 若发现内存错误（泄漏、越界、使用后释放等），CI 将失败。
 
 name: ASan
 
 on:
   push:
-    branches: [master, tc-0.0.38]
+    branches: [master, tc-0.0.39]
     tags: ["v*"]
   pull_request:
-    branches: [master, tc-0.0.38]
+    branches: [master, tc-0.0.39]
   workflow_dispatch:
 
 env:

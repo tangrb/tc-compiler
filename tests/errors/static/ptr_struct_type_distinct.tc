@@ -1,0 +1,14 @@
+#program
+; 期望（§3.10.1）：ptr<A> 与 ptr<B> 是不同类型 → TC_CE_TYPE_MISMATCH
+; field read result type does not match expected type
+struct A then
+    var x: int32
+end
+struct B then
+    var x: int32
+end
+struct Holder then
+    var pa: ptr<A>
+end
+var h: Holder = Holder(pa: nullptr)
+var pb: ptr<B> = h.pa

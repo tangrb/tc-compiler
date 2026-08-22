@@ -478,6 +478,18 @@ void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t i
     memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), &value_bits, element_bytes);
 }
 
+/** 结构体元素按值语义深拷贝内容（§3.8）：struct_ptr 指向源 struct 堆块 */
+void tc_aot_memblock_set_elem_struct(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                                     uint64_t struct_ptr) {
+    void *block = (void *)(uintptr_t)mb_bits;
+
+    if (!block || !struct_ptr) {
+        return;
+    }
+    memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), (void *)(uintptr_t)struct_ptr,
+           element_bytes);
+}
+
 uint64_t tc_aot_memblock_get_count(uint64_t mb_bits) {
     void *block = (void *)(uintptr_t)mb_bits;
     uint64_t count = 0;
@@ -508,6 +520,16 @@ int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
         return -1;
     }
     memcpy(&bits, tc_aot_mb_elem_ptr(block, element_bytes, index), element_bytes);
+    if (elem_type == TC_STRUCT) {
+        /* 值语义（§3.8）：结构体元素抽出为独立堆块，不与 memblock 共享存储 */
+        uint64_t blk = tc_aot_struct_alloc(element_bytes, diag, line);
+        if (blk == 0) {
+            return -1;
+        }
+        memcpy((void *)(uintptr_t)blk, &bits, element_bytes);
+        *out = blk;
+        return 0;
+    }
     *out = bits;
     return 0;
 }
@@ -531,6 +553,12 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
     }
     if (elem_type == TC_BOOL) {
         value_bits = value_bits ? 1ULL : 0ULL;
+    }
+    if (elem_type == TC_STRUCT) {
+        /* 值语义（§3.8）：结构体元素深拷贝内容（value_bits 为源 struct 堆指针） */
+        memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), (void *)(uintptr_t)value_bits,
+               element_bytes);
+        return 0;
     }
     memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), &value_bits, element_bytes);
     return 0;

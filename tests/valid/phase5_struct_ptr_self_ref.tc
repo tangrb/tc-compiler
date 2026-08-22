@@ -1,0 +1,12 @@
+#program
+; §3.9.1 指针自引用：ptr<Node> 字段合法；nullptr / 取址 / 拷贝 / ptr_load 往返
+struct Node then
+    var value: int32
+    var next: ptr<Node>
+end
+var n1: Node = Node(value: 1, next: nullptr)
+var n2: Node = Node(value: 2, next: ptr_address(Node, n1))
+var p: ptr<Node> = n2.next
+var v: Node = ptr_load(Node, p)
+var w: int32 = v.value
+writeln(int32, w)

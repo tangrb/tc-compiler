@@ -62,11 +62,12 @@ static size_t tc_type_payload_bytes(const TcType *type, const TcStructTable *tab
         const TcStructEntry *e = tc_struct_table_get(table, type->params.struct_type.struct_id);
         return tc_struct_bytes_of(e);
     }
-    return (tc_sizeof_bits(type) + 7U) / 8U;
+    /* memblock 元素 / ptr 所指可为结构体，须经宽度表回调（§3.9.3） */
+    return (tc_sizeof_bits_ex(type, tc_struct_table_width_bits, (void *)table) + 7U) / 8U;
 }
 
-static int tc_exec_struct_alloc(size_t bytes, TcExecuteCtx *ctx, void **out_block,
-                                TcDiagnostic *diag, int line) {
+int tc_exec_struct_alloc(size_t bytes, TcExecuteCtx *ctx, void **out_block,
+                         TcDiagnostic *diag, int line) {
     void *block = NULL;
 
     if (bytes == 0) {
@@ -258,13 +259,8 @@ int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDia
                                       table, diag, line) != 0) {
             return -1;
         }
-        if (field->type.tag == TC_STRUCT) {
-            const TcStructEntry *nested =
-                tc_struct_table_get(table, field->type.params.struct_type.struct_id);
-            field_bits = nested ? nested->width_bits : 0;
-        } else {
-            field_bits = tc_sizeof_bits(&field->type);
-        }
+        /* memblock 元素 / ptr 所指可为结构体，须经宽度表回调（§3.9.3） */
+        field_bits = tc_sizeof_bits_ex(&field->type, tc_struct_table_width_bits, (void *)table);
         bit_off += field_bits + (size_t)field->padding * 8U;
     }
 

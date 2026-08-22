@@ -1,5 +1,5 @@
 /*
- * tc_value_bridge.h — 值桥接辅助函数族（v0.0.38）
+ * tc_value_bridge.h — 值桥接辅助函数族（v0.0.39）
  *
  * 纯数据构造/解构，不涉及 heap 分配或 I/O。全部 static inline。
  */
@@ -139,7 +139,7 @@ static inline int tc_value_to_bool(TcValue v) {
     return v.bits != 0;
 }
 
-/* v0.0.38 reserved: memblock/struct 互操作 */
+/* v0.0.39 reserved: memblock/struct 互操作 */
 /* TcValue tc_value_wrap_external_memblock(void *data, size_t elem_size,
                                            uint64_t count, TcTypeTag elem_type,
                                            TcEmbedCtx *ctx); */

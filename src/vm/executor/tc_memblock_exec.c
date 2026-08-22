@@ -7,6 +7,7 @@
 
 #include "tc_semantics.h"
 #include "tc_struct_check.h"
+#include "tc_struct_exec.h"
 #include "tc_symbol.h"
 
 #include <stdint.h>
@@ -125,7 +126,13 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
             fill_value.bits = fill_value.bits ? 1ULL : 0ULL;
         }
         for (i = 0; i < count; i++) {
-            memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
+            /* 值语义（§3.8）：结构体元素深拷贝内容；标量拷贝位模式 */
+            if (expected->params.memblock_type.element->tag == TC_STRUCT) {
+                memcpy(cursor + i * element_bytes, (void *)(uintptr_t)fill_value.bits,
+                       element_bytes);
+            } else {
+                memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
+            }
         }
     } else {
         for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
@@ -139,7 +146,12 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
             if (expected->params.memblock_type.element->tag == TC_BOOL) {
                 elem.bits = elem.bits ? 1ULL : 0ULL;
             }
-            memcpy(cursor + i * element_bytes, &elem.bits, element_bytes);
+            /* 值语义（§3.8）：结构体元素深拷贝内容；标量拷贝位模式 */
+            if (expected->params.memblock_type.element->tag == TC_STRUCT) {
+                memcpy(cursor + i * element_bytes, (void *)(uintptr_t)elem.bits, element_bytes);
+            } else {
+                memcpy(cursor + i * element_bytes, &elem.bits, element_bytes);
+            }
         }
     }
     if (tc_exec_memblock_track(ctx, block, diag) != 0) {
@@ -222,6 +234,16 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
     element_bytes = tc_memblock_element_bytes(element, ctx);
     src = tc_memblock_element_ptr(block, element_bytes, index);
     out->type = element;
+    if (element->tag == TC_STRUCT) {
+        /* 值语义（§3.8）：结构体元素抽出为独立堆块，不与 memblock 共享存储 */
+        void *blk = NULL;
+        if (tc_exec_struct_alloc(element_bytes, ctx, &blk, diag, line) != 0) {
+            return -1;
+        }
+        memcpy(blk, src, element_bytes);
+        out->bits = (uint64_t)(uintptr_t)blk;
+        return 0;
+    }
     memcpy(&out->bits, src, element_bytes);
     return 0;
 }
@@ -314,7 +336,12 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
     element_bytes =
         tc_memblock_element_bytes(mb_type->params.memblock_type.element, ctx);
     dst = tc_memblock_element_ptr(block, element_bytes, index);
-    memcpy(dst, &value.bits, element_bytes);
+    /* 值语义（§3.8）：结构体元素深拷贝内容；标量拷贝位模式 */
+    if (mb_type->params.memblock_type.element->tag == TC_STRUCT) {
+        memcpy(dst, (void *)(uintptr_t)value.bits, element_bytes);
+    } else {
+        memcpy(dst, &value.bits, element_bytes);
+    }
     return 0;
 }
 
@@ -355,7 +382,7 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
         tc_exec_set_internal_error(diag, stmt->line, "internal error: invalid memblock value");
         return -1;
     }
-    element_type = tc_type_scalar(stmt->element_type.tag);
+    element_type = stmt->element_type;
     element_bytes = tc_memblock_element_bytes(&element_type, ctx);
     memcpy(&dst_count, dst_block, sizeof(uint64_t));
     memcpy(&src_count, src_block, sizeof(uint64_t));
@@ -436,7 +463,7 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
         return -1;
     }
     length = (uint64_t)length_signed;
-    element_type = tc_type_scalar(stmt->element_type.tag);
+    element_type = stmt->element_type;
     element_bytes = tc_memblock_element_bytes(&element_type, ctx);
     if (length == 0) {
         return 0;

@@ -1,0 +1,10 @@
+#program
+; 期望（§3.9.1）：指针位置前向引用其它未定义结构体 → TC_CE_UNDEFINED_STRUCT
+; undefined struct 'B' in field 'p'
+struct A then
+    var p: ptr<B>
+end
+struct B then
+    var x: int32
+end
+var a: A = A(p: nullptr)

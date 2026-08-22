@@ -228,6 +228,55 @@ static void test_phase4_func_extras(void) {
               "func-local goto ok");
 }
 
+static void test_struct_self_reference(void) {
+    /* §3.9.1：指针自引用合法 */
+    expect_ok("#program\nstruct Node then\n    var value: int32\n    var next: ptr<Node>\nend\n"
+              "var n: Node = Node(value: 1, next: nullptr)\n"
+              "var q: ptr<Node> = n.next\n",
+              "ptr self-reference ok");
+    /* §3.9.1：嵌套指针形态合法 */
+    expect_ok("#program\nstruct Node then\n    var value: int32\n"
+              "    var pp: ptr<ptr<Node>>\n"
+              "    var arr: memblock<ptr<Node>, 2>\nend\n"
+              "var n: Node = Node(value: 1, pp: nullptr, "
+              "arr: memblock(ptr<Node>, count: 2, nullptr, nullptr))\n",
+              "nested ptr self-reference ok");
+    /* 值自引用 → TC_CE_STRUCT_VALUE_SELF_REF（专用码，语义非「未定义结构体」） */
+    expect_err("#program\nstruct Node then\n    var next: Node\nend\n",
+               TC_CE_STRUCT_VALUE_SELF_REF, "value self-reference");
+    /* memblock 元素值自引用 → TC_CE_STRUCT_VALUE_SELF_REF */
+    expect_err("#program\nstruct Node then\n    var block: memblock<Node, 4>\nend\n",
+               TC_CE_STRUCT_VALUE_SELF_REF, "memblock element self-reference");
+    /* 指针位置前向引用 → TC_CE_UNDEFINED_STRUCT */
+    expect_err("#program\nstruct A then\n    var p: ptr<B>\nend\n"
+               "struct B then\n    var x: int32\nend\n",
+               TC_CE_UNDEFINED_STRUCT, "ptr forward reference");
+    /* ptr<未定义结构体> → TC_CE_UNDEFINED_STRUCT */
+    expect_err("#program\nvar p: ptr<NoSuchStruct> = nullptr\n",
+               TC_CE_UNDEFINED_STRUCT, "ptr undefined struct");
+    /* 更早结构体指针：ptr_address / ptr_load 往返可用 */
+    expect_ok("#program\nstruct B then\n    var x: int32\nend\n"
+              "struct A then\n    var p: ptr<B>\nend\n"
+              "var b: B = B(x: 42)\nvar a: A = A(p: ptr_address(B, b))\n"
+              "var q: ptr<B> = a.p\nvar v: B = ptr_load(B, q)\n",
+              "ptr to earlier struct roundtrip ok");
+    /* §3.10.1：ptr<A> 与 ptr<B> 不同型 */
+    expect_err("#program\nstruct A then\n    var x: int32\nend\n"
+               "struct B then\n    var x: int32\nend\n"
+               "struct Holder then\n    var pa: ptr<A>\nend\n"
+               "var h: Holder = Holder(pa: nullptr)\n"
+               "var pb: ptr<B> = h.pa\n",
+               TC_CE_TYPE_MISMATCH, "ptr<A> vs ptr<B> distinct");
+    /* memblock<B, 2>（B 更早）字段可用 */
+    expect_ok("#program\nstruct B then\n    var x: int32\nend\n"
+              "struct A then\n    var items: memblock<B, 2>\nend\n"
+              "var b0: B = B(x: 7)\n"
+              "var a: A = A(items: memblock(B, count: 2, fill: b0))\n"
+              "var mb: memblock<B, 2> = a.items\n"
+              "var e0: B = memblock_load(B, mb, 0)\n",
+              "memblock of earlier struct ok");
+}
+
 int main(void) {
     test_literal_e4_direct();
     test_goto_outside_function();
@@ -238,6 +287,7 @@ int main(void) {
     test_memblock_errors();
     test_ptr_errors();
     test_struct_nested_and_mutability();
+    test_struct_self_reference();
     test_phase3_ok_paths();
     test_self_member_rhs();
     test_phase4_func_extras();

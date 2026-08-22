@@ -1,0 +1,15 @@
+#program
+; §3.9.1 / §3.8：memblock<B, 2> 字段（B 更早定义）——构造、字段读、元素 load
+struct B then
+    var x: int32
+end
+struct A then
+    var tag: int32
+    var items: memblock<B, 2>
+end
+var b0: B = B(x: 7)
+var a: A = A(tag: 1, items: memblock(B, count: 2, fill: b0))
+var mb: memblock<B, 2> = a.items
+var e0: B = memblock_load(B, mb, 0)
+var w: int32 = e0.x
+writeln(int32, w)

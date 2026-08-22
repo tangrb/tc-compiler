@@ -200,10 +200,22 @@ TcType tc_type_make_struct(int struct_id) {
     return t;
 }
 
+/** 构造未决结构体类型：struct_id = -1，携带待解析的结构体名（内部 strdup）。
+ * 仅 Parser 阶段使用；Analyzer 解析后经 tc_type_free 释放 pending_name。 */
+TcType tc_type_make_struct_pending(const char *name) {
+    TcType t = tc_type_make_struct(-1);
+    if (name) {
+        t.pending_name = strdup(name);
+    }
+    return t;
+}
+
 void tc_type_free(TcType *type) {
     if (!type) {
         return;
     }
+    free(type->pending_name);
+    type->pending_name = NULL;
     if (type->tag == TC_PTR && type->params.ptr_type.pointee) {
         tc_type_free(type->params.ptr_type.pointee);
         free(type->params.ptr_type.pointee);
@@ -256,6 +268,12 @@ int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
         copy.params.memblock_type.count = src->params.memblock_type.count;
     } else if (src->tag == TC_STRUCT) {
         copy.params.struct_type.struct_id = src->params.struct_type.struct_id;
+        if (src->pending_name) {
+            copy.pending_name = strdup(src->pending_name);
+            if (!copy.pending_name) {
+                return -1;
+            }
+        }
     }
     *out = copy;
     return 0;
@@ -873,6 +891,8 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "StructFieldOrderError";
     case TC_CE_STRUCT_IMMUTABLE_FIELD:
         return "StructImmutableFieldError";
+    case TC_CE_STRUCT_VALUE_SELF_REF:
+        return "StructValueSelfRefError";
     case TC_CE_DUPLICATE_STRUCT:
         return "DuplicateStruct";
     case TC_CE_UNDEFINED_STRUCT:

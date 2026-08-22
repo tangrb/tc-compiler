@@ -72,6 +72,9 @@ uint64_t tc_aot_memblock_clone(uint64_t src, size_t element_bytes, uint64_t coun
                                TcDiagnostic *diag, int line);
 void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                               uint64_t value_bits);
+/** 结构体元素按值语义深拷贝内容（§3.8）：struct_ptr 指向源 struct 堆块 */
+void tc_aot_memblock_set_elem_struct(uint64_t mb_bits, size_t element_bytes, uint64_t index,
+                                     uint64_t struct_ptr);
 uint64_t tc_aot_memblock_get_count(uint64_t mb_bits);
 int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                          TcTypeTag elem_type, uint64_t *out, TcDiagnostic *diag, int line);

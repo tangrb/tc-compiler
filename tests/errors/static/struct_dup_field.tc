@@ -1,0 +1,7 @@
+#program
+; 期望（§3.9.1 / 编译器标准 §3.3）：同一结构体内字段名唯一 → TC_CE_STRUCT_DUPLICATE_FIELD
+; duplicate struct field name
+struct Node then
+    var x: int32
+    var x: float64
+end

@@ -1,0 +1,4 @@
+#program
+; 期望（§3.10.1）：ptr<T> 的 T 必须是完整类型，未定义结构体 → TC_CE_UNDEFINED_STRUCT
+; undefined struct 'NoSuchStruct'
+var p: ptr<NoSuchStruct> = nullptr
