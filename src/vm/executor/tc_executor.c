@@ -4,7 +4,6 @@
  * 消费 TcTypedProgram：顶层按源序执行；funcall 经调用帧；
  * ptr/memblock/struct 委托 tc_*_exec；I/O 委托 tc_io。
  */
- */
 #include "tc_executor.h"
 
 #include "tc_call_frame.h"

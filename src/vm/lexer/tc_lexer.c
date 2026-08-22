@@ -6,7 +6,7 @@
  * 每行产出 TcTokenList（含 TC_TOK_EOF），由 Parser 消费。
  *
  * 识别模块指令 #program/#lib，以及 import/func/struct/public/private/static/Self
- * 与 ptr_*/memblock_*/memcopy_unsafe 等关键字。
+ * 与 ptr_*、memblock_*、memcopy_unsafe 等关键字。
  */
 #include "tc_lexer.h"
 
