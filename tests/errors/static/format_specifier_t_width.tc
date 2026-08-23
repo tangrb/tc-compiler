@@ -1,0 +1,4 @@
+#program
+; 期望：%t does not support flags, width, or precision（TC_CE_FORMAT_SPECIFIER）
+var x: bool = true
+write(bool, %5t, x)

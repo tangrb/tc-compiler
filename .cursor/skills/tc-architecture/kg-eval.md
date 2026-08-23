@@ -1,6 +1,6 @@
 # 求值语义 — let · 短路 · 重载/shift · 复合运行时 · 内存 · AOT
 
-由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
+**只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
 > **v0.0.39**：标量 let + static let 拓扑、调用帧、ptr/memblock/struct 运行时与 AOT shim 已落地。规格：`docs/*-0.0.39.md`。
 

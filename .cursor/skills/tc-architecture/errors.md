@@ -1,5 +1,7 @@
 # 诊断系统
 
+**何时读**：错误码种类、stderr 格式、诊断阶段顺序、static 测试期望子串。
+
 ## API
 
 - 结构体：`TcDiagnostic`（`tc_types.h`）
@@ -68,6 +70,7 @@
 | `TC_CE_CONSTANT_CAST_OVERFLOW` | `ConstantCastOverflow` | Analyzer | let cast 溢出 |
 | `TC_CE_COMPARISON_TYPE_MISMATCH` | `ComparisonTypeMismatch` | Analyzer | 比较操作数类型不一致 |
 | `TC_CE_FORMAT_TYPE_MISMATCH` | `FormatTypeMismatch` | Analyzer | 格式符与类型不匹配 |
+| `TC_CE_FORMAT_SPECIFIER` | `FormatSpecifierError` | Analyzer | 格式标志/宽度/精度非法或与转换符不兼容 |
 | `TC_CE_OPERAND_COUNT` | `OperandCountError` | Parser | write 操作数数量 |
 | `TC_RE_DIVISION_BY_ZERO` | `DivisionByZero` | Executor | 运行时除零/模零 |
 | `TC_RE_INTEGER_OVERFLOW` | `IntegerOverflow` | Executor | strict 算术/一元溢出 |
@@ -125,6 +128,11 @@
 | strict 浮点无效 | `float invalid operation` |
 | 浮点 cast 超范围 | `cast result out of range for target type` |
 | 浮点 I/O 格式错 | `format specifier does not match operand type` |
+| format `+` 与无符号 | `'+' flag not supported for this format specifier` |
+| format `#` 与 bool | `'#' flag not supported for` |
+| format `0`/`-` 互斥 | `'0' and '-' flags are mutually exclusive` |
+| format `%t` 带宽/精度 | `does not support flags, width, or precision` |
+| 非法格式串 | `invalid format specifier` |
 | 未初始化变量 | `use of uninitialized variable` |
 | 标签未找到 | `label '…' not found` |
 | 标签重复 | `duplicate label` |

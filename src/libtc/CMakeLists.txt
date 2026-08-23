@@ -59,5 +59,6 @@ set(TC_LIBTC_SOURCES
 )
 
 add_library(libtc STATIC ${TC_LIBTC_SOURCES})
+set_target_properties(libtc PROPERTIES OUTPUT_NAME tc)
 target_include_directories(libtc PUBLIC ${TC_LIBTC_INCLUDE_DIRS})
 target_compile_options(libtc PRIVATE -std=c99 -Wall -Wextra -pedantic)

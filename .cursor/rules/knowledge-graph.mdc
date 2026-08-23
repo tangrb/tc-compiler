@@ -1,15 +1,17 @@
 ---
-description: TC-Compiler 跨模块索引 — 8 RHS/STMT 分发点+工作流；细节在 kg-*.md（读恰好一个）；单文件小改与查测试勿加载
+description: >-
+  TC-Compiler cross-module index — 8 TcRhsKind dispatch points, TcStmtKind switches,
+  and workflows for operators, CFG, let, modules, functions, and Embed.
+  Load when adding TcRhsKind/TcStmtKind, cross-layer changes, or user mentions
+  @knowledge-graph. Read exactly ONE kg-*.md; skip for single-file edits or test lookup.
 globs:
 alwaysApply: false
 ---
 
 # TC-Compiler 知识图谱（索引）
 
-> **实现 v0.0.39**（Phase 1–6）· **Embed v0.0.39**（Phase 7）  
-> 规格：`docs/*-0.0.39.md` / `docs/TC-Embed详细设计说明书-0.0.39.md`  
-> `@knowledge-graph` → 本索引 → **恰好一个** `kg-*.md` · 单文件改 → `compiler-src` + `rg`  
-> **无 REPL**；勿引用 `tc_repl` / `tc_analyze_statement`
+> **v0.0.39** · Embed v0.0.39 · 规格 `docs/*-0.0.39.md`  
+> **本 rule → 恰好一个 `kg-*.md`** · 单文件改 → `compiler-src` + `rg` · **无 REPL**
 
 ## 加载分级
 
@@ -33,7 +35,7 @@ alwaysApply: false
 | 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 语言标准-0.0.39 |
 | 改类型内核 / equals / sizeof_bits / 槽位 / ptr·memblock·struct 表示 | [types.md](../skills/tc-architecture/types.md) + `tc_types.h` |
 | 追踪调用链 | [pipeline.md](../skills/tc-architecture/pipeline.md) |
-| 特性分层 | [features.md](../skills/tc-architecture/features.md) 单 § |
+| 特性分层 | [features.md](../skills/tc-architecture/features.md) 路由 → 一个 `features/*.md` |
 | 测试/CI | Skill `run-tests` + [test-map.md](../skills/tc-architecture/test-map.md) |
 
 ## 工作流
@@ -93,11 +95,7 @@ Analyze 编排（非 STMT switch）：`tc_module_*` / `tc_func_check_*` / `tc_ca
 
 ## 维护约定
 
-1. 本索引分发点表；路径同步 `check_rhs_coverage.py --fix`
-2. 对应 [kg-*.md](../skills/tc-architecture/) + [features.md](../skills/tc-architecture/features.md) + [test-map.md](../skills/tc-architecture/test-map.md)
-3. 语言变更 → `errors.md` / `syntax.md` + `docs/TC语言标准设计说明书-0.0.39.md`
-4. `scripts/vm/run_tests.sh`（+ AOT）；新 RHS → `check_rhs_coverage.py`（per-point skip，勿复活全局 Phase1 reserved）
-5. 新任务类型 → Skill `tc-architecture` 路由表（非 AGENTS 长表）
-6. 新 `TcStmtKind` → 本表 + `tc_cfg.c` + VM/AOT 详设-0.0.39；goto/CFG → [kg-cfg.md](../skills/tc-architecture/kg-cfg.md)
-7. Embed 变更 → [kg-embed.md](../skills/tc-architecture/kg-embed.md) + Rule `embed-src` + `docs/TC-Embed详细设计说明书-0.0.39.md`
-8. 类型内核 → [types.md](../skills/tc-architecture/types.md)；改 `tc_type_equals`/`tc_sizeof_bits`/槽位 → `test_types.c`（check-types）
+1. 分发点表在本 rule；路径同步 `check_rhs_coverage.py --fix`
+2. 细节在对应 [kg-*.md](../skills/tc-architecture/) + [features.md](../skills/tc-architecture/features.md) / `features/*.md` + [test-map.md](../skills/tc-architecture/test-map.md)
+3. 路由表在 Skill `tc-architecture`；导航在 [.cursor/README.md](../README.md)
+4. 新 `TcStmtKind` → 本表 + `tc_cfg.c`；Embed → [kg-embed.md](../skills/tc-architecture/kg-embed.md)

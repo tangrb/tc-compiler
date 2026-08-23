@@ -24,24 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* 前向声明：struct/func 多行解析依赖缩进块工具 */
-int tc_first_token_kind(const TcSourceLine *line);
-int tc_end_line_check(const TcSourceLine *line, TcDiagnostic *diag);
-int tc_indent_diag(TcDiagnostic *diag, TcErrorKind kind, int line_no, const char *message);
-int tc_block_indent_valid(const TcFileIndent *file_indent, int base_indent, int indent,
-                                 TcDiagnostic *diag, int line_no);
-void tc_stmt_block_init(TcStmtBlock *block);
-void tc_stmt_block_free(TcStmtBlock *block);
+/* 缩进块工具声明见 tc_parser_internal.h；此处仅需本文件 static 前向声明 */
 static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
                                    TcModuleMode mode, TcStatement *out, TcDiagnostic *diag);
-int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
-                                    size_t *index, int base_indent,
-                                    const TcFileIndent *file_indent, TcModuleMode mode,
-                                    TcStmtBlock *block, TcDiagnostic *diag);
-int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
-                               size_t *index, int base_indent,
-                               const TcFileIndent *file_indent, TcStmtBlock *block,
-                               TcDiagnostic *diag);
 
 
 /* ------------------------------------------------------------------ */

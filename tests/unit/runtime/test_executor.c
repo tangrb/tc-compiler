@@ -132,12 +132,45 @@ static void test_goto_outside_function_rejected(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_runtime_division_by_zero(void) {
+    static const char *source = "#program\nvar x: int32 = div(int32, 1, 0)\n";
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source(source, "<test>", &typed, &diag) == 0,
+          "compile division-by-zero program");
+    check(tc_run_program(&typed, &diag) != 0, "runtime division by zero fails");
+    check(diag.kind == TC_RE_DIVISION_BY_ZERO, "→ DIVISION_BY_ZERO");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_while_break_completes(void) {
+    static const char *source =
+        "#program\nvar x: int32 = 0\n"
+        "while true then\n"
+        "    break\n"
+        "end\n";
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source(source, "<test>", &typed, &diag) == 0,
+          "compile while-break program");
+    check(tc_run_program(&typed, &diag) == 0, "while-break completes without error");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_nested_loop_control_and_repeat();
     test_zero_iteration();
     test_execution_uses_resolved_slots();
     test_var_reexecution_overwrites_fixed_slot();
     test_goto_outside_function_rejected();
+    test_runtime_division_by_zero();
+    test_while_break_completes();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

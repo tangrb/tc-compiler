@@ -1,0 +1,4 @@
+#program
+; 期望：'#' flag not supported for %t（TC_CE_FORMAT_SPECIFIER）
+var x: bool = true
+write(bool, %#t, x)

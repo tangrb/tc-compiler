@@ -1,6 +1,6 @@
 # 特性类型决策树
 
-先分类，再只走对应路径；完整 checklist 见 [SKILL.md](SKILL.md)。
+**只读一个 §** — 先分类，再只走对应路径；完整 checklist 见 [SKILL.md](SKILL.md)。
 
 ## 1. 判断特性类型
 
@@ -19,7 +19,7 @@
 └─ 仅新诊断/错误消息            → §9 仅诊断
 ```
 
-> 现网：`TcTypeTag`（含 PTR/MEMBLOCK/STRUCT）、`TcType`、24 STMT / 34 RHS / **90** 错误已入 `tc_types.h`；解析与运行时已落地。
+> 现网：`TcTypeTag`（含 PTR/MEMBLOCK/STRUCT）、`TcType`、24 STMT / 34 RHS / **91** 错误已入 `tc_types.h`；解析与运行时已落地。
 
 ## §2 新类型
 
@@ -68,7 +68,7 @@
 | aot | `tc_aot_emit_statement_impl` |
 | tests | valid + static + AOT 差分 |
 
-**参考**：`if` / `while` / `goto` — [features.md](../tc-architecture/features.md)；分发点 `@knowledge-graph` + [kg-cfg.md](../tc-architecture/kg-cfg.md)。
+**参考**：`if` / `while` / `goto` — [features/control.md](../tc-architecture/features/control.md)；分发点 `@knowledge-graph` + [kg-cfg.md](../tc-architecture/kg-cfg.md)。
 
 ## §5 新 RHS
 

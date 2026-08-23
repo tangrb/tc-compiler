@@ -1,14 +1,14 @@
 ---
-description: TC-Compiler C 单元测试 — check 宏、CMake 注册、模块白盒测试；编辑 tests/unit/ 时加载
+description: >-
+  TC-Compiler C unit tests — check() macro, CMake targets, and module white-box
+  tests. Loads when editing tests/unit/**/*.c. End-to-end tests use .tc + run_tests.sh.
 globs: tests/unit/**/*.c,tests/unit/**/CMakeLists.txt
 alwaysApply: false
 ---
 
 # C 单元测试
 
-白盒测试单个模块：lexer · parser · analyzer/CFG · executor · runtime（semantics/types/io/…）。端到端用 `tests/valid/*.tc` + `scripts/vm/run_tests.sh`。
-
-> **现网 target 表 ≈ v0.0.39 + Embed 0.0.39**。`test_types.c`：类型内核 + STMT 24 / RHS 34 / 错误 **90**（check-types）。含 module/func/cfg/embed unit。
+白盒测试单个模块。端到端用 `tests/valid/*.tc` + `scripts/vm/run_tests.sh`。命令：Skill `run-tests`。
 
 ## 目录与 target
 
@@ -40,6 +40,7 @@ tests/unit/runtime/
   test_cfg.c                check-cfg
   test_executor.c           check-executor
   test_stmt_index.c         check-stmt-index（header-only `tc_stmt_index.h`）
+  test_type_check.c         check-type-check（ptr/memblock/struct 完整类型检查）
 ```
 
 | 项 | 规则 |
@@ -47,7 +48,7 @@ tests/unit/runtime/
 | 测试函数 | `static void test_<功能>(void)` |
 | 可执行文件 | `test-<module>` / `test-<module>-<variant>` |
 | CMake target | `check-<module>` / `check-<module>-<variant>` |
-| 汇总 | `tests/CMakeLists.txt` → `check-unit`（约 **3025** `check()`；含 embed） |
+| 汇总 | `tests/CMakeLists.txt` → `check-unit`（约 **3036** `check()`；含 embed ~945） |
 
 ## 测试框架（无第三方）
 
@@ -103,7 +104,7 @@ add_executable(test-io
 )
 ```
 
-改 `tc_semantics.c` / `tc_sem_cast.c` 优先补 `test_semantics.c`；改 `tc_cfg.c` 补 `test_cfg.c`；改 libtc 所有权补 `test_libtc.c`；改 Executor 控制传播补 `test_executor.c`。I/O/types/symbol/warning 分别对应同名测试。
+改 `tc_semantics.c` / `tc_sem_cast.c` 优先补 `test_semantics.c`；改 `tc_cfg.c` 补 `test_cfg.c`；改 `tc_type_check.c` / `tc_*_check.c` 补 `test_type_check.c`；改 libtc 所有权补 `test_libtc.c`；改 Executor 控制传播补 `test_executor.c`。
 
 ## CMake 注册
 

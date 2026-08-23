@@ -1,14 +1,15 @@
 ---
-description: TC-Compiler C 源码路由 — 编辑 src/ 时按层选文件；新 RHS 见 knowledge-graph 分发点表
+description: >-
+  TC-Compiler C source routing — pick files by layer when editing src/.
+  New TcRhsKind/TcStmtKind dispatch points in @knowledge-graph rule.
+  Symbol lookup via locations.md or rg; call chains via pipeline.md.
 globs: src/**/*.c,src/**/*.h
 alwaysApply: false
 ---
 
 # 编译器源码编辑
 
-> **现网管线 v0.0.39**（Phase 1–6，含 struct）+ **Embed v0.0.39**。规格：`docs/*-0.0.39.md` · Embed 详设-0.0.39。
-
-调用链：`tc-architecture` → `pipeline.md`（单文件）。符号定位：`locations.md` 或下方 rg。
+> **v0.0.39** + Embed v0.0.39 · 导航 [.cursor/README.md](../README.md) · 符号表 [locations.md](../skills/tc-architecture/locations.md)
 
 ## 按改动选文件
 

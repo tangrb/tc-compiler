@@ -1,5 +1,7 @@
 ---
-description: TC-AOT 代码编辑 — codegen 与运行时 shim；编辑 src/aot/ 时加载；I/O 委托 tc_io.c
+description: >-
+  TC-AOT code editing — codegen and runtime shim in src/aot/. I/O delegates to
+  tc_io.c; semantics via tc_exec_* shims. Loads when editing src/aot/**.
 globs: src/aot/**/*
 alwaysApply: false
 ---

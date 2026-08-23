@@ -1,12 +1,14 @@
 ---
-description: TC-Compiler .tc 测试编写 — 模板、注册、期望消息；编辑 tests/ 或 run_tests.sh 时加载
+description: >-
+  TC-Compiler .tc test authoring — templates, registration in run_tests.sh,
+  and expected stderr messages. Loads when editing tests/**/*.tc or run_tests.sh.
 globs: tests/**/*.tc,tests/**/*.txt,scripts/**/run_tests.sh
 alwaysApply: false
 ---
 
 # TC 测试编写
 
-错误子串表：[errors.md](../tc-architecture/errors.md)。测试映射：[test-map.md](../tc-architecture/test-map.md)。
+错误子串：[errors.md](../skills/tc-architecture/errors.md) · 映射：[test-map.md](../skills/tc-architecture/test-map.md) · 命令：Skill `run-tests`
 
 ## 分类与路径
 
@@ -97,6 +99,11 @@ run_with_stdin "$ROOT/tests/valid/read_foo.tc" "true\n" "true\n"
 | while 内 label/goto | `label is not allowed inside while` / `goto is not allowed inside while` |
 | 循环外 break/continue | `break used outside while` / `continue used outside while` |
 | 跳入子块/兄弟块 | `cannot jump into inner block` / `cannot jump into sibling block` |
+| format 操作数数量 | `operand count error` |
+| format `+` 与无符号 | `'+' flag not supported for this format specifier` |
+| format `#` 与 bool | `'#' flag not supported for` |
+| format `0`/`-` 互斥 | `'0' and '-' flags are mutually exclusive` |
+| format `%t` 带宽/精度 | `does not support flags, width, or precision` |
 | bitcast 位宽 | `bitcast source and target widths must match` |
 
 ## 调试

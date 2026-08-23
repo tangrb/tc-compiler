@@ -1,5 +1,7 @@
 # TC-Compiler
 
+[中文](README.md)
+
 TC-Compiler is a TC language toolchain implemented in C99. It includes:
 
 - **libtc**: an embeddable static library for compilation, static analysis, and execution;
@@ -305,6 +307,8 @@ make test
 ```sh
 python3 scripts/sync/check_rhs_coverage.py
 python3 scripts/sync/check_source_naming.py
+python3 scripts/sync/check_type_fact_source.py
+python3 scripts/sync/check_doc_counts.py   # VM/AOT registration vs test-map.md
 ```
 
 ### Sanitizers and Memory Checks
@@ -324,7 +328,7 @@ make memcheck-macos                          # macOS; MallocScribble + leaks
 ### Local and Remote CI
 
 ```sh
-make ci                  # Build, three test groups, RHS coverage, and source naming
+make ci                  # Build, three test groups, and static checks (RHS, naming, type fact source, doc counts)
 make ci-coverage         # Also generate a coverage report
 ```
 
@@ -361,6 +365,8 @@ Regression limits are stored in `tests/stress/bench_limits.txt`.
 
 ```text
 docs/               Formal language, implementation, CLI, and API documents
+.cursor/            Cursor Agent rules and skills (see AGENTS.md)
+AGENTS.md           Agent entry point (kept minimal); full nav in .cursor/README.md
 src/
 ├── libtc/          Embeddable compile/execute library
 ├── vm/
@@ -376,13 +382,13 @@ tests/
 ├── valid/          Valid programs and observable output
 ├── errors/         Static and runtime errors
 ├── vm/embed/       TC-Embed integration tests
-├── unit/           C unit tests (27 targets, incl. check-embed / check-embed-aot)
+├── unit/           C unit tests (20 check-* targets, incl. check-embed / check-embed-aot)
 ├── modules/        Module system tests
 └── stress/         Stress and performance scenarios
 scripts/
 ├── vm/             VM regression and benchmarks
 ├── aot/            AOT differential and embed codegen tests
-└── sync/           RHS dispatch and source naming checks
+└── sync/           RHS dispatch, source naming, type fact source, and doc count checks
 ```
 
 ## Documentation
@@ -397,9 +403,20 @@ scripts/
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.39.md) | C99 generation, runtime shim, and differential verification |
 | [libtc Design Document](docs/libtc设计说明书-0.0.39.md) | libtc architecture, transactions, lifecycle, and error contract |
 | [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.39.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
-| [Design–Implementation Conformance Report](docs/设计实现合规审查报告-0.0.39.md) | The ~182-item 0.0.39 conformance matrix and release evidence |
+| [Design–Implementation Conformance Report](docs/设计实现合规审查报告-0.0.39.md) | The ~183-item 0.0.39 conformance matrix and release evidence |
 
-## Git Hooks
+## Contributing and Cursor Agent
+
+When developing with Cursor, agent context is driven by these documents (**do not mix with `docs/` design specs**):
+
+| Document | Purpose |
+| -------- | ------- |
+| [AGENTS.md](AGENTS.md) | Agent entry (always loaded, kept minimal) |
+| [.cursor/README.md](.cursor/README.md) | Loading tiers, doc map, intent quick reference |
+| `.cursor/skills/` | Task-specific skills (architecture routing, features, tests, review) |
+| `.cursor/rules/` | Glob-triggered coding and test conventions |
+
+## Git hooks
 
 Optionally install the repository hooks:
 

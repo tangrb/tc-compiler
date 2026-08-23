@@ -912,7 +912,7 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 | 5. 更新 CMakeLists.txt | 添加 `src/vm/embed/` 目录和 `tc_embed` 库目标 | `src/vm/CMakeLists.txt`、顶层 `CMakeLists.txt` |
 | 6. 编写单元测试 | 覆盖标量参数/返回值、ptr<T> 数组处理、static var 持久化、错误路径 | `tests/unit/runtime/test_embed.c` |
 | 7. 编写 .tc 用例 | 覆盖 ptr_load/store/add、函数嵌套调用、多模块 | `tests/vm/embed/` |
-| 8. 文档同步 | 更新 AGENTS.md 索引、test-map.md | 多文件 |
+| 8. 文档同步 | 更新 [AGENTS.md](../AGENTS.md)、[.cursor/README.md](../.cursor/README.md)、[features/embed.md](../.cursor/skills/tc-architecture/features/embed.md)、[test-map.md](../.cursor/skills/tc-architecture/test-map.md) Phase 7 | 多文件 |
 
 ### 13.2 文件清单
 

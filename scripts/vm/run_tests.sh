@@ -1489,6 +1489,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexi
 run_expect_fail_msg "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into incompatible block"
+run_expect_fail_msg "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
+    "cannot jump to label in another function"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" \
@@ -1529,6 +1531,14 @@ run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "b
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_plus_unsigned.tc" \
+    "'+' flag not supported for this format specifier"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
+    "'#' flag not supported for"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_flags_mutex.tc" \
+    "'0' and '-' flags are mutually exclusive"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_t_width.tc" \
+    "does not support flags, width, or precision"
 run_expect_fail_msg "$ROOT/tests/errors/static/invalid_format_spec_x.tc" "invalid format specifier"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch.tc" "%u requires unsigned type"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_operand_count.tc" "operand count error"
@@ -1576,7 +1586,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore
     "invalid integer literal"
 # --- goto/label 函数隔离（P0-4） ---
 run_expect_check_fail "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
-    "label 'y' not found"
+    "cannot jump to label in another function"
 run_expect_check_ok "$ROOT/tests/valid/duplicate_label_across_functions_ok.tc"
 # --- 缩进规范（P0-5）：tab / 非 4 倍数 / 跨级跳 ---
 run_expect_check_fail "$ROOT/tests/errors/static/indent_tab_only.tc" \
@@ -1659,6 +1669,14 @@ run_expect_check_fail "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" 
 run_expect_check_fail "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_check_fail "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
+run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_plus_unsigned.tc" \
+    "'+' flag not supported for this format specifier"
+run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
+    "'#' flag not supported for"
+run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_flags_mutex.tc" \
+    "'0' and '-' flags are mutually exclusive"
+run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_t_width.tc" \
+    "does not support flags, width, or precision"
 run_expect_check_fail "$ROOT/tests/errors/static/invalid_format_spec_x.tc" "invalid format specifier"
 run_expect_check_fail "$ROOT/tests/errors/static/format_operand_count.tc" "operand count error"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"

@@ -596,7 +596,8 @@ run_check_fail "$ROOT/tests/errors/static/memblock_negative_count_type.tc" "memb
 run_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" "memblock count must be at least 1"
 run_check_fail "$ROOT/tests/errors/static/func_body_public_var.tc" "visibility modifier is not allowed inside a function body"
 run_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore.tc" "invalid integer literal"
-run_check_fail "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" "label 'y' not found"
+run_check_fail "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
+    "cannot jump to label in another function"
 run_check_fail "$ROOT/tests/errors/static/indent_tab_only.tc" "mixed spaces and tabs in indentation"
 run_check_fail "$ROOT/tests/errors/static/indent_two_spaces.tc" "insufficient indentation in block"
 run_check_fail "$ROOT/tests/errors/static/indent_multi_level_jump.tc" "insufficient indentation in block"
@@ -624,6 +625,14 @@ run_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division 
 run_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"
 run_check_fail "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_check_fail "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
+run_check_fail "$ROOT/tests/errors/static/format_specifier_plus_unsigned.tc" \
+    "'+' flag not supported for this format specifier"
+run_check_fail "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
+    "'#' flag not supported for"
+run_check_fail "$ROOT/tests/errors/static/format_specifier_flags_mutex.tc" \
+    "'0' and '-' flags are mutually exclusive"
+run_check_fail "$ROOT/tests/errors/static/format_specifier_t_width.tc" \
+    "does not support flags, width, or precision"
 run_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_check_fail "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"

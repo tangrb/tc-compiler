@@ -71,7 +71,7 @@ fi
 # MallocCheckHeapStart / MallocCheckHeapEach: 每次 malloc/free 检查堆完整性
 #
 # 注意：MallocGuardEdges 会大幅降低性能，但能精确定位越界。
-# 这里只启用 MallocScribble（轻量），因为完整 guard edges 与 REPL 不兼容。
+# 这里只启用 MallocScribble（轻量），完整 guard edges 会显著降低性能。
 heading "2/3: MallocScribble（越界 / UAF 检测）"
 
 echo "  MallocScribble=1 + MallocPreScribble=1 + MallocCheckHeapStart=1024"

@@ -1,5 +1,7 @@
 ---
-description: TC-Embed 编辑 — C 宿主 API、VM/AOT 双模式、非致命 abort；编辑 src/vm/embed/ 时加载
+description: >-
+  TC-Embed editing — C host API, VM/AOT dual mode, non-fatal abort in src/vm/embed/.
+  Loads when editing embed code. Details in kg-embed.md and docs/TC-Embed详细设计说明书-0.0.39.md.
 globs: src/vm/embed/**/*
 alwaysApply: false
 ---
@@ -25,4 +27,4 @@ alwaysApply: false
 2. AOT 运行时错误走 `tc_aot_embed_abort`（非致命），经 `tc_embed_had_error` / `get_error` 可见
 3. 扩展值桥接时保持 header-only 标量路径；堆对象勿 silently memcpy
 4. 改完：`cmake --build build --target check-embed check-embed-aot`
-5. 文档：`features.md` § TC-Embed · [test-map.md](../skills/tc-architecture/test-map.md) Phase 7
+5. 文档：`features/embed.md` § · [test-map.md](../skills/tc-architecture/test-map.md) Phase 7

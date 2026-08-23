@@ -1,5 +1,8 @@
 ---
-description: TC-Compiler 项目 C99 编码规范 — 命名、缩进、注释、内存管理、错误处理、头文件组织
+description: >-
+  TC-Compiler C99 coding standards — naming, indentation, comments, memory
+  management, error handling, and header organization. Always applied when editing
+  C source. New modules sync locations.md and features/*.md via features.md router.
 alwaysApply: true
 ---
 
@@ -31,7 +34,7 @@ alwaysApply: true
 | CLI 入口 | 固定 `main.c`，可无配对头 | `src/vm/driver/main.c` |
 | 仅头文件 | 须在 `check_source_naming.py` 白名单 | `tc_version.h` |
 
-禁止 `.h`/`.c` 不同名。新模块同步 `CMakeLists.txt`；必要时 `locations.md` / `@knowledge-graph`。
+禁止 `.h`/`.c` 不同名。新模块同步 `CMakeLists.txt`；必要时 `locations.md` / `@knowledge-graph` / [.cursor/README.md](../README.md)。
 
 ```bash
 python3 scripts/sync/check_source_naming.py

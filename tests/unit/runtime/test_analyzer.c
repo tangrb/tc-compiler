@@ -1016,6 +1016,45 @@ static void test_analyze_goto_sibling(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_analyze_goto_cross_function(void) {
+    TcProgram program;
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+    const char *source =
+        "#lib\npublic func a() void then\n"
+        "    goto y\n"
+        "    return\n"
+        "end\n"
+        "public func b() void then\n"
+        "    label y:\n"
+        "    return\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse cross-function goto");
+    check(tc_analyze(&program, &typed, &diag) != 0, "cross-function goto fails");
+    check(diag.kind == TC_CE_CROSS_CONTROL_FLOW_JUMP, "→ CROSS_CONTROL_FLOW_JUMP");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_format_specifier_errors(void) {
+    TcProgram program;
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+    const char *source =
+        "#program\nvar x: int32 = 1\nwrite(int32, %-0d, x)\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse format specifier conflict");
+    check(tc_analyze(&program, &typed, &diag) != 0, "mutually exclusive format flags fail");
+    check(diag.kind == TC_CE_FORMAT_SPECIFIER, "→ FORMAT_SPECIFIER");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_analyze_goto_out_of_if(void) {
     TcProgram program;
     TcTypedProgram typed = {0};
@@ -1276,6 +1315,8 @@ int main(void) {
     test_analyze_goto_undefined();
     test_analyze_goto_into_block();
     test_analyze_goto_sibling();
+    test_analyze_goto_cross_function();
+    test_analyze_format_specifier_errors();
     test_analyze_goto_out_of_if();
     test_analyze_while_scope_and_slots();
     test_analyze_nested_loop_targets();

@@ -1,6 +1,6 @@
 # 函数系统 — 签名 · funcall · return · 调用图 · static · 调用帧
 
-由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
+**只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
 > **Phase 4（F+H）验证 + Phase 5（I）执行/AOT 已落地**。
 

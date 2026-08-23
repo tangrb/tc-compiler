@@ -1,7 +1,8 @@
 # 符号 → 文件定位
 
-用 `rg` 快速定位；改函数时优先读定义处上下文。**跨模块分发点**见 `@knowledge-graph` 索引。  
-**现网**：v0.0.39（Phase 1–6，含 struct 运行时）+ Embed v0.0.39。**无 REPL**。
+**何时读**：需要知道函数/类型定义在哪个 `.c` 文件。**更快**：`rg "符号名" src/ --glob '*.c'`（见底部命令）。
+
+用 `rg` 快速定位；**跨模块分发点**见 `@knowledge-graph`。**v0.0.39** + Embed · **无 REPL**。
 
 ## 流水线入口
 
@@ -157,4 +158,4 @@ rg "foo.tc" scripts/
 
 加新 STMT kind 需改：`tc_parse_source_to_program` / `tc_parse_*_stmt`、`tc_statement_free`、`tc_pass1_collect_stmt`、`tc_pass2_check_stmt`、`tc_cfg_build_stmt`、`tc_execute_statement_impl`、`tc_aot_emit_statement_impl`；若涉及作用域则同步 `tc_symbol.c`；控制流必动 `tc_cfg.c`。
 
-完整表：`@knowledge-graph` 分发点表；RHS 细节 [kg-dispatch.md](kg-dispatch.md)；测试映射：[test-map.md](test-map.md)；特性示例：[features.md](features.md) 单 §。
+完整表：`@knowledge-graph` 分发点表；RHS 细节 [kg-dispatch.md](kg-dispatch.md)；测试映射：[test-map.md](test-map.md)；特性：[features.md](features.md) 路由 → `features/*.md`。

@@ -901,7 +901,7 @@ Phase 1 (基础)     Phase 2 (模块)     Phase 3 (类型)     Phase 4 (函数)
 |---------|---------|------|------|
 | 关键字与词法 (75+) | 88 | 88 | 0（R-2 已完成） |
 | 错误码覆盖 | 91 | 91 | 0 |
-| RHS 分发覆盖 | 35 | 35 | 0（8 个分发点全覆盖，`check_rhs_coverage.py`） |
+| RHS 分发覆盖 | 34 | 34 | 0（8 个分发点全覆盖，`check_rhs_coverage.py`） |
 | 13 阶段管线 | 13 | 13 | 0 |
 | 子阶段实现 | 23 | 23 | 0（R-1 已完成） |
 | 类型系统 | 18 | 18 | 0 |
@@ -1067,3 +1067,19 @@ tests/errors/module/import_name_conflict_lib.tc
 ---
 
 *本修复计划基于 2026-07-25 合规审查结果；R-1 / R-2 已于 `40a518b` 落地，本节标记为已完成。*
+
+---
+
+## 附录：Agent 与实现文档索引（非语言标准）
+
+日常开发与 Cursor Agent 上下文由以下文档维护（**语言合法性与可观察语义仍以语言标准为准**）：
+
+| 文档 | 职责 |
+| ---- | ---- |
+| [AGENTS.md](../AGENTS.md) | Agent 入口（精简，始终加载） |
+| [.cursor/README.md](../.cursor/README.md) | 加载分级、文档地图、意图速查 |
+| `.cursor/skills/tc-architecture/` | 架构路由、`features/*.md` 特性地图、`test-map.md` 测试账本 |
+| `.cursor/rules/` | 编码/测试规范（Glob 或 `@knowledge-graph` 触发） |
+
+文档数字校验：`python3 scripts/sync/check_doc_counts.py`（VM/AOT 注册 vs `test-map.md`）。
+

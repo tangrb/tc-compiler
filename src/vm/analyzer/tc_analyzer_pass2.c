@@ -67,8 +67,22 @@ int tc_pass2_resolve_target_type(TcInitHistory *hist, const TcType *owned,
 
 /*
  * §7.3：每个函数独立标签表。仅解析当前函数（func_id）内的标签；
- * 跨函数同名标签互不相关，函数内无同名标签 → 调用方报 TC_CE_LABEL_NOT_FOUND。
+ * 跨函数同名标签互不相关；另一函数存在同名标签 → TC_CE_CROSS_CONTROL_FLOW_JUMP。
  */
+static int tc_label_exists_in_other_function(const TcSymbolTable *table, const char *name,
+                                             int func_id) {
+    size_t i = 0;
+
+    for (i = 0; i < table->label_count; i++) {
+        const TcLabelEntry *entry = &table->labels[i];
+
+        if (strcmp(entry->name, name) == 0 && entry->func_id != func_id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, const char *name,
                                                  int func_id, const TcBlockPath *goto_path) {
     const TcLabelEntry *best_same = NULL;
@@ -400,6 +414,13 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         entry = tc_resolve_goto_label(symbols, goto_stmt->target, ctx->current_func_id,
                                       &ctx->block_path);
         if (!entry) {
+            if (tc_label_exists_in_other_function(symbols, goto_stmt->target,
+                                                  ctx->current_func_id)) {
+                tc_diagnostic_set(diag, TC_CE_CROSS_CONTROL_FLOW_JUMP, goto_stmt->line,
+                                  TC_COLUMN_UNKNOWN,
+                                  "cannot jump to label in another function");
+                return -1;
+            }
             (void)snprintf(msg, sizeof(msg), "label '%s' not found", goto_stmt->target);
             tc_diagnostic_set(diag, TC_CE_LABEL_NOT_FOUND, goto_stmt->line, TC_COLUMN_UNKNOWN,
                               msg);

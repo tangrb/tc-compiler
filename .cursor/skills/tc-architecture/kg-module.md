@@ -1,6 +1,6 @@
 # 模块系统 — #program / #lib / import / Self / 搜索路径
 
-由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
+**只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
 > **Phase 2（B+C+D）已落地**。规格：语言标准-0.0.39 · 编译器标准阶段 4。
 

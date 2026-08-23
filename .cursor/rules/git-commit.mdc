@@ -1,5 +1,7 @@
 ---
-description: Git 提交约定 — 禁止 Co-authored-by Cursor  trailer；执行 git commit 时自动加载
+description: >-
+  Git commit conventions for TC-Compiler — no Cursor Co-authored-by trailer;
+  use feat/fix/refactor/docs prefixes. Loads when creating git commits.
 alwaysApply: true
 ---
 

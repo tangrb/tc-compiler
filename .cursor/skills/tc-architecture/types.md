@@ -1,13 +1,8 @@
 # 核心类型体系
 
-> **现网** `tc_types.h`：Phase 1–5 类型内核 + 静态验证 + **复合运行时/AOT 已落地**。  
-> **单事实源**：类型概念统一为 `TcType`；符号 / 绑定 / `TcValue` 存 interned `const TcType*`（标量走 `tc_type_tag_singleton`，复合走 `TcTypeTable` intern）。  
-> AST 声明节点（`VarDef.full_type` 等）在 **Parse 阶段按值拥有** `TcType`（深拷贝生命周期）；Pass1 `tc_type_intern` 后符号层只存稳定指针、不深拷贝——双阶段所有权由 `check_type_fact_source.py` 与源码注释共同约束。  
-> `TcTypeTag` 仅作判别标签与叶子谓词，不作为独立「类型值」出现在 `TcValue` / 绑定 / 符号字段。  
-> 错误种类：**91**（`test_types.c` 断言）。  
-> 防回潮：`scripts/sync/check_type_fact_source.py`。
+**何时读**：AST 枚举、`TcType`/`TcRhsKind`/`TcStmtKind` 规模、equals/sizeof/槽位 API。更快：`rg` in `tc_types.h`。
 
-共同契约：`src/vm/runtime/tc_types.h`
+错误种类：**91**（`test_types.c` 断言）。共同契约：`src/vm/runtime/tc_types.h`
 
 ## 基础枚举
 

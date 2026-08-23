@@ -1,6 +1,6 @@
 # 分发细节 — 浮点 / cast / bitcast / 复合 RHS
 
-由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。8 分发点表见索引 rule。
+**只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
 > **34 RHS 全可解析**（`tc_types.h`）。Executor/AOT 全覆盖；`tc_eval_const_rhs` 对 ptr/memblock/field/funcall/self **defer**（let 禁）。覆盖闸门：`check_rhs_coverage.py`（per-point skip，无全局 Phase1 reserved）。
 
@@ -37,4 +37,4 @@ let：`tc_eval_const_rhs` 每步按声明精度舍入，允许与 runtime 相同
 
 AOT shim：`tc_aot_fp_arith/unary/compare` + 共享 `tc_aot_cast/truncate/bitcast`；`tc_aot_lit` 浮点类型直接返回 IEEE bits；`tc_aot_format_enum` 映射 5 浮点格式符。
 
-分层改文件：[features.md](features.md) 对应 § · 测试：[test-map.md](test-map.md)
+分层改文件：[features.md](features.md) 路由 → `features/*.md` · 测试：[test-map.md](test-map.md)

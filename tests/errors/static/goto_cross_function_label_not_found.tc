@@ -1,7 +1,6 @@
 #lib
-; 期望：label 'y' not found
-; §7.3：标签不跨函数解析——函数 a 内无标签 y，即使函数 b 定义了 label y
-; 也不可跳转，须报 TC_CE_LABEL_NOT_FOUND（主位置为 goto 关键字所在行）。
+; 期望：cannot jump to label in another function（TC_CE_CROSS_CONTROL_FLOW_JUMP）
+; §7.3 / 编译器标准 §7.5：函数 a 内无标签 y，但函数 b 定义了 label y → 跨控制流域错误。
 public func a() void then
     goto y
     return

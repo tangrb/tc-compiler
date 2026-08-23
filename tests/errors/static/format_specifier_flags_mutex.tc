@@ -1,0 +1,4 @@
+#program
+; 期望：'0' and '-' flags are mutually exclusive（TC_CE_FORMAT_SPECIFIER）
+var x: int32 = 1
+write(int32, %-0d, x)

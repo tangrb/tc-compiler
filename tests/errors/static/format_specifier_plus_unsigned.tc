@@ -1,0 +1,4 @@
+#program
+; 期望：'+' flag not supported for this format specifier（TC_CE_FORMAT_SPECIFIER）
+var x: uint32 = 1
+write(uint32, %+u, x)

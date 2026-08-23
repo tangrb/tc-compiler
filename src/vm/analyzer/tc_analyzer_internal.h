@@ -109,13 +109,12 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                           const TcSymbolTable *global, const char *name,
                                           size_t stmt_index, int line, TcDiagnostic *diag);
 
-int tc_check_operand(TcOperand *operand, TcTypeTag expected,
-                     const TcSymbolTable *visible, const TcSymbolTable *global,
-                     TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
-                     TcWarningList *warnings, const char *self_name, TcErrorKind type_err);
-int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line, TcDiagnostic *diag);
-int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                 const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                 int line, TcDiagnostic *diag, TcWarningList *warnings, const char *self_name);
+/*
+ * tc_check_operand / tc_check_rhs / tc_check_io_format 的权威声明在模块头中：
+ *   tc_analyzer_pass2_rhs.h、tc_analyze_6e.h
+ * 此处再导出，避免 analyzer 子模块重复手写原型；include 守卫防止循环。
+ */
+#include "tc_analyze_6e.h"
+#include "tc_analyzer_pass2_rhs.h"
 
 #endif /* TC_ANALYZER_INTERNAL_H */

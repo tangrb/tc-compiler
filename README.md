@@ -1,5 +1,7 @@
 # TC-Compiler
 
+[English](README.en.md)
+
 TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 
 - **libtc**：编译、静态分析和执行的嵌入式静态库；
@@ -54,7 +56,7 @@ bash scripts/run_tests.sh
 | 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；VM + AOT） |
 | 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.39） |
 
-0.0.39 无 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
+0.0.39 不包含字符串类型、字节码文件格式或 JIT；无 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 
 ## 语言示例
 
@@ -305,6 +307,8 @@ make test
 ```sh
 python3 scripts/sync/check_rhs_coverage.py
 python3 scripts/sync/check_source_naming.py
+python3 scripts/sync/check_type_fact_source.py
+python3 scripts/sync/check_doc_counts.py   # VM/AOT 注册数 vs test-map.md
 ```
 
 ### Sanitizer 与内存检查
@@ -324,7 +328,7 @@ make memcheck-macos                          # macOS；MallocScribble + leaks
 ### 本地与远端 CI
 
 ```sh
-make ci                  # 构建、三组测试、RHS 覆盖和源文件命名检查
+make ci                  # 构建、三组测试、RHS/命名/类型事实源/文档数字等静态检查
 make ci-coverage         # 额外生成覆盖率报告
 ```
 
@@ -361,6 +365,8 @@ sh scripts/vm/bench.sh --check
 
 ```text
 docs/               正式语言、实现、CLI 与 API 文档
+.cursor/            Cursor Agent 规则与技能（见 AGENTS.md）
+AGENTS.md           Agent 入口（精简）；完整导航见 .cursor/README.md
 src/
 ├── libtc/          嵌入式编译/执行库
 ├── vm/
@@ -376,13 +382,13 @@ tests/
 ├── valid/          合法程序与可观察输出
 ├── errors/         静态和运行时错误
 ├── vm/embed/       TC-Embed 集成测试
-├── unit/           C 单元测试（27 个 target，含 check-embed / check-embed-aot）
+├── unit/           C 单元测试（20 个 check-* target，含 check-embed / check-embed-aot）
 ├── modules/        模块系统测试
 └── stress/         压力与性能场景
 scripts/
 ├── vm/             VM 回归与 benchmark
 ├── aot/            AOT 差分与嵌入代码生成测试
-└── sync/           RHS 分发与源文件命名检查
+└── sync/           RHS 分发、源文件命名、类型事实源与文档数字检查
 ```
 
 ## 文档
@@ -397,7 +403,18 @@ scripts/
 | [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.39.md) | C99 生成、runtime shim 与差分验证 |
 | [libtc 设计说明书](docs/libtc设计说明书-0.0.39.md) | libtc 架构、事务、生命周期和错误契约 |
 | [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.39.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
-| [设计—实现合规审查报告](docs/设计实现合规审查报告-0.0.39.md) | 0.0.39 的 ~182 项合规矩阵与发布证据 |
+| [设计—实现合规审查报告](docs/设计实现合规审查报告-0.0.39.md) | 0.0.39 的 ~183 项合规矩阵与发布证据 |
+
+## 贡献与 Cursor Agent
+
+使用 Cursor 开发时，Agent 上下文由以下文档驱动（**勿与 `docs/` 设计书混读**）：
+
+| 文档 | 用途 |
+| ---- | ---- |
+| [AGENTS.md](AGENTS.md) | Agent 入口（始终加载，保持精简） |
+| [.cursor/README.md](.cursor/README.md) | 加载分级、文档地图、意图速查 |
+| `.cursor/skills/` | 按任务加载的技能（架构路由、加特性、跑测试、Review） |
+| `.cursor/rules/` | 按 Glob 自动附加的编码/测试规范 |
 
 ## Git hooks
 
