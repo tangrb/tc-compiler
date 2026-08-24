@@ -1,6 +1,6 @@
 # TC-Compiler — Agent 指南
 
-TC 语言编译器（C99）：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.39**（Phase 1–7 已落地）。
+TC 语言编译器（C99）：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.40**（Phase 1–7 已落地）。
 
 **完整导航**：[.cursor/README.md](.cursor/README.md)（加载分级 · 文档地图 · 意图速查）
 

@@ -441,7 +441,7 @@ run_cli_golden() {
 
 # --- valid: execution succeeds ---
 
-run_cli_golden "--version" 0 "tc-vm 0.0.39" "" "cli version golden"
+run_cli_golden "--version" 0 "tc-vm 0.0.40" "" "cli version golden"
 
 run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN_NATIVE [options] <file.tc>
 

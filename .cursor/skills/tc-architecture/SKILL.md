@@ -9,7 +9,7 @@ description: >-
 
 # TC-Compiler Architecture
 
-**v0.0.39** · Embed v0.0.39 · 规格 `docs/*-0.0.39.md` · 导航 [.cursor/README.md](../../README.md)
+**v0.0.40** · Embed v0.0.40 · 语言规范 `docs/TC语言标准设计说明书-0.0.39.md` · 导航 [.cursor/README.md](../../README.md)
 
 ## 三步工作流
 

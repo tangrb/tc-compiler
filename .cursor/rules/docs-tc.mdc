@@ -13,7 +13,7 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 ## 版本状态
 
 - **设计目标**：TC **0.0.39**（下表权威）
-- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.39**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.39）
+- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.40**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.40）
 - **路线图**：`docs/TC-0.0.39-开发计划.md`
 - **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.39.md`
 
