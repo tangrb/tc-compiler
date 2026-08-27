@@ -383,10 +383,11 @@ typedef struct {
 /*  AST 节点：操作数 → 右值 → 语句                                      */
 /* ------------------------------------------------------------------ */
 
-/** 算术/一元运算的操作数：变量引用或整数字面量 */
+/** 算术/一元运算的操作数：变量引用、字面量或字段链读取 */
 typedef enum {
     TC_OPERAND_VAR,
-    TC_OPERAND_LIT
+    TC_OPERAND_LIT,
+    TC_OPERAND_FIELD_READ
 } TcOperandKind;
 
 /** Analyzer 持久化的绑定结果；Executor/AOT 不再按名称重新解析。 */
@@ -398,11 +399,30 @@ typedef struct {
     uint64_t const_bits;  /* let 的规范化 TcValue.bits */
 } TcResolvedBinding;
 
+/** Pass2 固化的字段访问；parse 期字符串释放后由 Executor/AOT 直接消费。 */
+typedef struct {
+    int resolved;
+    int base_slot;              /* 基址运行时槽；let 基址为 -1 */
+    uint64_t const_bits;        /* let / static let 基址的规范化位模式 */
+    const TcType *field_type;   /* 末字段声明类型 */
+    uint32_t *offsets;          /* 各级字段相对其结构体的位偏移 */
+    size_t field_count;
+    int is_memblock_count;      /* 1 = memblock .count 语义 */
+} TcResolvedFieldAccess;
+
+typedef struct {
+    char *base;
+    char **fields;
+    size_t field_count;
+    TcResolvedFieldAccess resolved;
+} TcFieldAccess;
+
 typedef struct {
     TcOperandKind kind;
     union {
-        char *name;     /* TC_OPERAND_VAR：变量名，堆分配 */
-        TcLiteral lit;  /* TC_OPERAND_LIT：字面量 */
+        char *name;              /* TC_OPERAND_VAR：变量名，堆分配 */
+        TcLiteral lit;           /* TC_OPERAND_LIT：字面量 */
+        TcFieldAccess field_read; /* TC_OPERAND_FIELD_READ */
     } u;
     TcResolvedBinding binding; /* TC_OPERAND_VAR 分析成功后有效 */
 } TcOperand;
@@ -576,6 +596,7 @@ typedef struct {
             char *base;
             char **fields;
             size_t field_count;
+            TcResolvedFieldAccess resolved;
         } field_read;
         struct {
             TcType pointee_type;

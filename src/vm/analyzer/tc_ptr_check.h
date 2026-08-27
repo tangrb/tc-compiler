@@ -13,17 +13,20 @@
 #include "tc_symbol.h"
 #include "tc_analyzer_internal.h"
 
+struct TcStructTable;
+
 /** 校验指针相关 RHS；结果类型写入期望检查（load→pointee，算术→ptr，比较→bool 等） */
 int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                     const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                     int line, TcDiagnostic *diag, TcWarningList *warnings,
-                     const char *self_name);
+                     const TcSymbolTable *global, const struct TcStructTable *struct_table,
+                     TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
+                     TcWarningList *warnings, const char *self_name);
 
 /**
  * 校验 ptr_store：指针绑定不可为常量/形参等只读；值类型匹配 pointee。
  */
 int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
-                       const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                       TcDiagnostic *diag, TcWarningList *warnings);
+                       const TcSymbolTable *global, const struct TcStructTable *struct_table,
+                       TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
+                       TcWarningList *warnings);
 
 #endif /* TC_PTR_CHECK_H */

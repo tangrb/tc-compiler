@@ -755,6 +755,69 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
 
     if (rhs->kind == TC_RHS_FIELD_READ) {
         const TcStructTable *table = ctx->program->struct_table;
+
+        if (rhs->u.field_read.resolved.resolved) {
+            const TcResolvedFieldAccess *access = &rhs->u.field_read.resolved;
+            size_t offset = 0;
+            const TcType *field_type = access->field_type;
+            size_t nbytes = 0;
+
+            if (!field_type || access->field_count == 0 || !access->offsets) {
+                return -1;
+            }
+            offset = access->offsets[access->field_count - 1];
+            {
+                char base_expr[64];
+
+                if (access->base_slot < 0 && field_type->tag != TC_STRUCT &&
+                    field_type->tag != TC_MEMBLOCK && field_type->tag != TC_PTR) {
+                    uint64_t bits = 0;
+                    const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+
+                    nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                                ctx->program->struct_table) + 7U) / 8U;
+                    if (data && nbytes > 0) {
+                        memcpy(&bits, data + offset,
+                               nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+                    }
+                    if (field_type->tag == TC_BOOL) {
+                        bits = bits ? 1ULL : 0ULL;
+                    }
+                    fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr, bits);
+                    return 0;
+                }
+
+                if (access->base_slot >= 0) {
+                    snprintf(base_expr, sizeof(base_expr), "slots[%d]", access->base_slot);
+                } else {
+                    snprintf(base_expr, sizeof(base_expr), "0x%016" PRIx64 "ULL",
+                             access->const_bits);
+                }
+                if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
+                    if (field_type->tag == TC_STRUCT) {
+                        const TcStructEntry *nested =
+                            tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                        nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+                    } else {
+                        nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                                    ctx->program->struct_table) + 7U) / 8U;
+                    }
+                    fprintf(out,
+                            "%s%s = tc_aot_struct_extract(%s, %zu, %zu, tc_aot_cur_diag, %d);\n",
+                            indent, dst_expr, base_expr, offset, nbytes, line);
+                    fprintf(out,
+                            "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                            "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                            abort_indent, line);
+                } else {
+                    nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                                ctx->program->struct_table) + 7U) / 8U;
+                    fprintf(out, "%stc_aot_struct_load_bits(%s, %zu, %zu, &%s);\n", indent,
+                            base_expr, offset, nbytes, dst_expr);
+                }
+            }
+            return 0;
+        }
         const TcSymbol *base_sym = tc_symbol_table_find_visible(
             symbols, rhs->u.field_read.base, stmt_index, &ctx->sym_index);
         size_t offset = 0;

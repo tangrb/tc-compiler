@@ -768,6 +768,13 @@ void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, ui
     memcpy(out, src + offset, nbytes <= sizeof(*out) ? nbytes : sizeof(*out));
 }
 
+uint64_t tc_aot_struct_load_bits_value(uint64_t src_bits, size_t offset, size_t nbytes) {
+    uint64_t out = 0;
+
+    tc_aot_struct_load_bits(src_bits, offset, nbytes, &out);
+    return out;
+}
+
 void tc_aot_struct_memcpy_field(uint64_t dst_bits, size_t offset, size_t nbytes,
                                 uint64_t src_bits) {
     uint8_t *dst = (uint8_t *)(uintptr_t)dst_bits;

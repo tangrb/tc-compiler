@@ -13,6 +13,8 @@
 #include "tc_warning.h"
 #include "tc_diagnostic.h"
 
+struct TcStructTable;
+
 const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *visible,
                                        const TcSymbolTable *global, const char *name,
                                        size_t stmt_index, int line, TcDiagnostic *diag,
@@ -26,16 +28,16 @@ int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
                           TcDiagnostic *diag, const char *self_name);
 int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,
-                     TcInitHistory *hist, size_t stmt_index, int line,
-                     TcDiagnostic *diag, TcWarningList *warnings,
+                     const struct TcStructTable *struct_table, TcInitHistory *hist, size_t stmt_index,
+                     int line, TcDiagnostic *diag, TcWarningList *warnings,
                      const char *self_name, TcErrorKind type_err);
 int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                 const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                 int line, TcDiagnostic *diag, TcWarningList *warnings,
-                 const char *self_name);
+                 const TcSymbolTable *global, const struct TcStructTable *struct_table,
+                 TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
+                 TcWarningList *warnings, const char *self_name);
 int tc_check_condition(TcRhs *rhs, const TcSymbolTable *visible,
-                       const TcSymbolTable *global, TcInitHistory *hist,
-                       size_t stmt_index, int line, const char *owner,
+                       const TcSymbolTable *global, const struct TcStructTable *struct_table,
+                       TcInitHistory *hist, size_t stmt_index, int line, const char *owner,
                        TcDiagnostic *diag, TcWarningList *warnings);
 int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
                          TcDiagnostic *diag);

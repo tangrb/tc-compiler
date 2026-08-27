@@ -52,6 +52,8 @@ int tc_operand_count_error(TcDiagnostic *diag, int line, int column,
 int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int line_no,
                          char **out_base, char ***out_fields, size_t *out_field_count,
                          TcDiagnostic *diag);
+int tc_parse_field_access_operand(const TcTokenList *tokens, size_t *index, int line_no,
+                                  TcOperand *out, TcDiagnostic *diag);
 
 /** 堆分配复制 Token 文本；失败设置 OOM 并返回 NULL */
 char *tc_token_strdup(const TcToken *tok, int line_no, TcDiagnostic *diag);

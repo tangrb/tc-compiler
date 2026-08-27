@@ -10,9 +10,39 @@
 
 #include <stdlib.h>
 
-/* ------------------------------------------------------------------ */
-/*  内存释放函数                                                        */
-/* ------------------------------------------------------------------ */
+static void tc_string_list_free(char **items, size_t count) {
+    size_t i = 0;
+    if (!items) {
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        free(items[i]);
+    }
+    free(items);
+}
+
+static void tc_resolved_field_access_free(TcResolvedFieldAccess *access) {
+    if (!access) {
+        return;
+    }
+    free(access->offsets);
+    access->offsets = NULL;
+    access->field_count = 0;
+    access->resolved = 0;
+}
+
+static void tc_field_access_free_strings(TcFieldAccess *access) {
+    if (!access) {
+        return;
+    }
+    if (!access->resolved.resolved) {
+        free(access->base);
+        access->base = NULL;
+        tc_string_list_free(access->fields, access->field_count);
+        access->fields = NULL;
+        access->field_count = 0;
+    }
+}
 
 void tc_operand_free(TcOperand *operand) {
     if (!operand) {
@@ -21,6 +51,9 @@ void tc_operand_free(TcOperand *operand) {
     if (operand->kind == TC_OPERAND_VAR) {
         free(operand->u.name);
         operand->u.name = NULL;
+    } else if (operand->kind == TC_OPERAND_FIELD_READ) {
+        tc_field_access_free_strings(&operand->u.field_read);
+        tc_resolved_field_access_free(&operand->u.field_read.resolved);
     }
 }
 
@@ -31,17 +64,6 @@ static void tc_named_arg_free(TcNamedArg *arg) {
     free(arg->param_name);
     arg->param_name = NULL;
     tc_rhs_free(&arg->value);
-}
-
-static void tc_string_list_free(char **items, size_t count) {
-    size_t i = 0;
-    if (!items) {
-        return;
-    }
-    for (i = 0; i < count; i++) {
-        free(items[i]);
-    }
-    free(items);
 }
 
 void tc_rhs_free(TcRhs *rhs) {
@@ -127,11 +149,14 @@ void tc_rhs_free(TcRhs *rhs) {
         free(rhs->u.struct_ctor.fields);
         rhs->u.struct_ctor.fields = NULL;
     } else if (rhs->kind == TC_RHS_FIELD_READ) {
-        free(rhs->u.field_read.base);
-        rhs->u.field_read.base = NULL;
-        tc_string_list_free(rhs->u.field_read.fields, rhs->u.field_read.field_count);
-        rhs->u.field_read.fields = NULL;
-        rhs->u.field_read.field_count = 0;
+        if (!rhs->u.field_read.resolved.resolved) {
+            free(rhs->u.field_read.base);
+            rhs->u.field_read.base = NULL;
+            tc_string_list_free(rhs->u.field_read.fields, rhs->u.field_read.field_count);
+            rhs->u.field_read.fields = NULL;
+            rhs->u.field_read.field_count = 0;
+        }
+        tc_resolved_field_access_free(&rhs->u.field_read.resolved);
     } else if (rhs->kind == TC_RHS_PTR_LOAD) {
         tc_type_free(&rhs->u.ptr_load.pointee_type);
         tc_operand_free(&rhs->u.ptr_load.ptr);

@@ -67,8 +67,11 @@ int tc_func_check_writable_target(const TcSymbol *target, int line, TcDiagnostic
 int tc_func_try_function_scope_access(const TcMemberIndex *members, const char *name, int line,
                                       TcDiagnostic *diag);
 
+struct TcStructTable;
+
 /** H-5：对本库 static let 按依赖拓扑求值并写入符号表 */
-int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols, TcDiagnostic *diag);
+int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
+                               const struct TcStructTable *struct_table, TcDiagnostic *diag);
 
 /** H-6：校验 static var 初始化器操作数来源（不执行运行时求值） */
 int tc_func_check_static_vars(TcProgram *program, const TcMemberIndex *members,

@@ -12,6 +12,8 @@ int tc_exec_struct_ctor(const TcRhs *rhs, TcExecuteCtx *ctx, TcValue *out, TcDia
                         int line);
 int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx,
                               TcValue *out, TcDiagnostic *diag, int line);
+int tc_exec_eval_field_access(const TcResolvedFieldAccess *access, TcExecuteCtx *ctx,
+                              TcValue *out, TcDiagnostic *diag, int line);
 int tc_exec_struct_field_assign(const TcFieldAssign *assign, TcExecuteCtx *ctx,
                                 TcDiagnostic *diag);
 int tc_exec_struct_clone(const TcValue *src, size_t width_bits, TcExecuteCtx *ctx, TcValue *out,

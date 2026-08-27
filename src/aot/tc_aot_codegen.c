@@ -450,6 +450,72 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
         tc_aot_emit_literal_expr(out, type, &operand->u.lit);
         return;
     }
+    if (operand->kind == TC_OPERAND_FIELD_READ &&
+        operand->u.field_read.resolved.resolved) {
+        const TcResolvedFieldAccess *access = &operand->u.field_read.resolved;
+        const TcStructTable *table = ctx->program->struct_table;
+
+        if (access->is_memblock_count) {
+            fprintf(out, "%" PRIu64 "ULL", (uint64_t)access->const_bits);
+            return;
+        }
+        if (access->field_count > 0 && access->offsets && access->field_type) {
+            const TcType *field_type = access->field_type;
+            size_t offset = access->offsets[access->field_count - 1];
+            size_t nbytes = 0;
+
+            /* let/static let 基址：codegen 期从 const_bits 折叠标量，禁止嵌入分析期堆指针 */
+            if (access->base_slot < 0 && field_type->tag != TC_STRUCT &&
+                field_type->tag != TC_MEMBLOCK && field_type->tag != TC_PTR) {
+                uint64_t bits = 0;
+                const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+
+                nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
+                         8U;
+                if (data && nbytes > 0) {
+                    memcpy(&bits, data + offset,
+                           nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+                }
+                if (field_type->tag == TC_BOOL) {
+                    bits = bits ? 1ULL : 0ULL;
+                }
+                fprintf(out, "0x%016" PRIx64 "ULL", bits);
+                return;
+            }
+
+            {
+                char base_expr[64];
+
+                if (access->base_slot >= 0) {
+                    snprintf(base_expr, sizeof(base_expr), "slots[%d]", access->base_slot);
+                } else {
+                    snprintf(base_expr, sizeof(base_expr), "0x%016" PRIx64 "ULL",
+                             access->const_bits);
+                }
+
+                if (field_type->tag == TC_STRUCT) {
+                    const TcStructEntry *nested =
+                        tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                    nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+                    fprintf(out, "tc_aot_struct_extract(%s, %zu, %zu, tc_aot_cur_diag, 0)",
+                            base_expr, offset, nbytes);
+                } else if (field_type->tag == TC_MEMBLOCK) {
+                    nbytes =
+                        (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
+                        8U;
+                    fprintf(out, "tc_aot_struct_extract(%s, %zu, %zu, tc_aot_cur_diag, 0)",
+                            base_expr, offset, nbytes);
+                } else {
+                    nbytes =
+                        (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
+                        8U;
+                    fprintf(out, "tc_aot_struct_load_bits_value(%s, %zu, %zu)", base_expr, offset,
+                            nbytes);
+                }
+            }
+            return;
+        }
+    }
     if (operand->binding.resolved) {
         if (operand->binding.is_const) {
             fprintf(out, "0x%016" PRIx64 "ULL", operand->binding.const_bits);

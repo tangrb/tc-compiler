@@ -14,14 +14,17 @@
 #include "tc_symbol.h"
 #include "tc_analyzer_internal.h"
 
+struct TcStructTable;
+
 int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                          const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                          int line, TcDiagnostic *diag, TcWarningList *warnings,
-                          const char *self_name);
+                          const TcSymbolTable *global, const struct TcStructTable *struct_table,
+                          TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
+                          TcWarningList *warnings, const char *self_name);
 
 int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable *visible,
-                            const TcSymbolTable *global, TcInitHistory *hist,
-                            size_t stmt_index, TcDiagnostic *diag, TcWarningList *warnings);
+                            const TcSymbolTable *global, const struct TcStructTable *struct_table,
+                            TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
+                            TcWarningList *warnings);
 
 /** 整块拷贝：两端须同为 memblock 且声明 N 相同；元素类型匹配语句注解 */
 int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *visible,

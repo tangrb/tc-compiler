@@ -178,10 +178,46 @@ static int tc_cfg_node_add_read(TcCfgBuildCtx *ctx, int node_id, const char *nam
     return 0;
 }
 
+static int tc_cfg_node_add_read_slot(TcCfgBuildCtx *ctx, int node_id, int slot) {
+    TcCfgNode *node = &ctx->cfg->nodes[node_id];
+    size_t i = 0;
+
+    if (slot < 0) {
+        return 0;
+    }
+    for (i = 0; i < node->read_count; i++) {
+        if (node->read_slots[i] == slot) {
+            return 0;
+        }
+    }
+    if (node->read_count == node->read_capacity) {
+        size_t capacity = node->read_capacity == 0 ? 2 : node->read_capacity * 2;
+        int *slots = (int *)realloc(node->read_slots, capacity * sizeof(int));
+
+        if (!slots) {
+            return tc_cfg_oom(ctx->diag, node->line);
+        }
+        node->read_slots = slots;
+        node->read_capacity = capacity;
+    }
+    node->read_slots[node->read_count++] = slot;
+    return 0;
+}
+
 static int tc_cfg_add_operand_read(TcCfgBuildCtx *ctx, int node_id, const TcOperand *operand,
                                    int stmt_index) {
     if (operand->kind == TC_OPERAND_VAR) {
         return tc_cfg_node_add_read(ctx, node_id, operand->u.name, stmt_index);
+    }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        if (operand->u.field_read.resolved.resolved &&
+            operand->u.field_read.resolved.base_slot >= 0) {
+            return tc_cfg_node_add_read_slot(ctx, node_id,
+                                             operand->u.field_read.resolved.base_slot);
+        }
+        if (operand->u.field_read.base) {
+            return tc_cfg_node_add_read(ctx, node_id, operand->u.field_read.base, stmt_index);
+        }
     }
     return 0;
 }
@@ -256,7 +292,6 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
     case TC_RHS_MEMBLOCK_CONSTRUCTOR:
     case TC_RHS_MEMBLOCK_COUNT:
     case TC_RHS_STRUCT_CONSTRUCTOR:
-    case TC_RHS_FIELD_READ:
     case TC_RHS_PTR_LOAD:
     case TC_RHS_PTR_ADDRESS:
     case TC_RHS_PTR_ADD:
@@ -272,6 +307,14 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
     case TC_RHS_SELF_MEMBER:
         /* 复合/调用 RHS：读集不在此展开；操作数名由 Pass2 检查。
          * CFG 读边用于标量条件与简单赋值的短路剪枝。 */
+        return 0;
+    case TC_RHS_FIELD_READ:
+        if (rhs->u.field_read.resolved.resolved && rhs->u.field_read.resolved.base_slot >= 0) {
+            return tc_cfg_node_add_read_slot(ctx, node_id, rhs->u.field_read.resolved.base_slot);
+        }
+        if (rhs->u.field_read.base) {
+            return tc_cfg_node_add_read(ctx, node_id, rhs->u.field_read.base, stmt_index);
+        }
         return 0;
     }
     return 0;

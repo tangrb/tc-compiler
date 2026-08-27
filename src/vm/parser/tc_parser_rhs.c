@@ -23,65 +23,39 @@ static void tc_string_list_free_rhs(char **items, size_t count) {
 
 static int tc_parse_field_read_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                    TcRhs *out, TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-    char *base = NULL;
-    char **fields = NULL;
-    size_t field_count = 0;
-    size_t field_cap = 0;
+    TcOperand operand;
+    size_t saved = *index;
 
-    if (tok->kind != TC_TOK_IDENTIFIER) {
-        return tc_syntax_error(diag, line_no, tok->column, "expected identifier");
-    }
-    base = tc_token_strdup(tok, line_no, diag);
-    if (!base) {
+    memset(&operand, 0, sizeof(operand));
+    if (tc_parse_field_access_operand(tokens, index, line_no, &operand, diag) != 0) {
         return -1;
     }
-    (*index)++;
-
-    while (tc_peek(tokens, *index)->kind == TC_TOK_DOT) {
-        char *field_name = NULL;
-        (*index)++;
-        tok = tc_peek(tokens, *index);
-        if (tok->kind != TC_TOK_IDENTIFIER) {
-            free(base);
-            tc_string_list_free_rhs(fields, field_count);
-            return tc_syntax_error(diag, line_no, tok->column, "expected field name");
-        }
-        field_name = tc_token_strdup(tok, line_no, diag);
-        if (!field_name) {
-            free(base);
-            tc_string_list_free_rhs(fields, field_count);
-            return -1;
-        }
-        if (field_count == field_cap) {
-            size_t new_cap = field_cap == 0 ? 4 : field_cap * 2;
-            char **new_fields = (char **)realloc(fields, new_cap * sizeof(char *));
-            if (!new_fields) {
-                free(field_name);
-                free(base);
-                tc_string_list_free_rhs(fields, field_count);
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
-                                  "memory allocation failed");
-                return -1;
-            }
-            fields = new_fields;
-            field_cap = new_cap;
-        }
-        fields[field_count++] = field_name;
-        (*index)++;
+    if (operand.kind != TC_OPERAND_FIELD_READ || operand.u.field_read.field_count == 0) {
+        *index = saved;
+        tc_operand_free(&operand);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN, "expected field access");
     }
 
-    if (field_count == 1 && strcmp(fields[0], "count") == 0) {
-        tc_string_list_free_rhs(fields, field_count);
+    if (operand.u.field_read.field_count == 1 &&
+        strcmp(operand.u.field_read.fields[0], "count") == 0) {
         out->kind = TC_RHS_MEMBLOCK_COUNT;
-        out->u.memblock_count.memblock_name = base;
+        memset(&out->u.memblock_count, 0, sizeof(out->u.memblock_count));
+        out->u.memblock_count.memblock_name = operand.u.field_read.base;
+        tc_string_list_free_rhs(operand.u.field_read.fields, operand.u.field_read.field_count);
+        operand.u.field_read.base = NULL;
+        operand.u.field_read.fields = NULL;
+        operand.u.field_read.field_count = 0;
         return 0;
     }
 
     out->kind = TC_RHS_FIELD_READ;
-    out->u.field_read.base = base;
-    out->u.field_read.fields = fields;
-    out->u.field_read.field_count = field_count;
+    memset(&out->u.field_read.resolved, 0, sizeof(out->u.field_read.resolved));
+    out->u.field_read.base = operand.u.field_read.base;
+    out->u.field_read.fields = operand.u.field_read.fields;
+    out->u.field_read.field_count = operand.u.field_read.field_count;
+    operand.u.field_read.base = NULL;
+    operand.u.field_read.fields = NULL;
+    operand.u.field_read.field_count = 0;
     return 0;
 }
 
@@ -1577,18 +1551,43 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
         out->u.lit.is_nullptr = 1;
         (*index)++;
         rc = 0;
-    } else if (tok->kind == TC_TOK_IDENTIFIER) {
-        if (*index + 1 < tokens->count &&
-            tc_peek(tokens, *index + 1)->kind == TC_TOK_LPAREN &&
-            !tc_is_rhs_builtin_ident(tok)) {
+    } else if (tok->kind == TC_TOK_IDENTIFIER || tok->kind == TC_TOK_SELF) {
+        if (tok->kind == TC_TOK_SELF && *index + 1 < tokens->count &&
+            tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
+            /* Self.member 或 Self.member.field…：后者走字段链 */
+            if (*index + 3 < tokens->count &&
+                tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
+                tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT) {
+                rc = tc_parse_field_read_rhs(tokens, index, line_no, out, diag);
+            } else {
+                rc = tc_parse_self_member_rhs(tokens, index, line_no, out, diag);
+            }
+        } else if ((*index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT)) {
+            if (*index + 2 < tokens->count &&
+                tc_peek(tokens, *index + 2)->kind == TC_TOK_LPAREN &&
+                tok->kind == TC_TOK_IDENTIFIER && !tc_is_rhs_builtin_ident(tok)) {
+                rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
+            } else if (*index + 4 < tokens->count && tok->kind == TC_TOK_IDENTIFIER &&
+                       tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
+                       tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
+                       tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT &&
+                       tc_peek(tokens, *index + 4)->kind == TC_TOK_LPAREN &&
+                       !tc_is_rhs_builtin_ident(tok)) {
+                rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
+            } else {
+                rc = tc_parse_field_read_rhs(tokens, index, line_no, out, diag);
+            }
+        } else if (*index + 1 < tokens->count &&
+                   tc_peek(tokens, *index + 1)->kind == TC_TOK_LPAREN &&
+                   tok->kind == TC_TOK_IDENTIFIER && !tc_is_rhs_builtin_ident(tok)) {
             rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
-        } else if (*index + 3 < tokens->count &&
+        } else if (*index + 3 < tokens->count && tok->kind == TC_TOK_IDENTIFIER &&
                    tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
                    tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
                    tc_peek(tokens, *index + 3)->kind == TC_TOK_LPAREN &&
                    !tc_is_rhs_builtin_ident(tok)) {
             rc = tc_parse_struct_ctor_rhs(ctx, tokens, index, line_no, out, diag);
-        } else {
+        } else if (tok->kind == TC_TOK_IDENTIFIER) {
             out->kind = TC_RHS_CONST_REF;
             out->u.const_ref.name = tc_strndup(tok->start, tok->length);
             if (!out->u.const_ref.name) {
@@ -1599,6 +1598,8 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
                 (*index)++;
                 rc = 0;
             }
+        } else {
+            rc = tc_syntax_error(diag, line_no, tok->column, "expected constant expression");
         }
     } else if (tok->kind == TC_TOK_ARITH_OP) {
         rc = tc_parse_arith_rhs(tokens, index, line_no, out, diag);
@@ -1616,8 +1617,6 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
         rc = tc_parse_const_cast_rhs(tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_BITCAST) {
         rc = tc_parse_bitcast_rhs(tokens, index, line_no, out, diag);
-    } else if (tok->kind == TC_TOK_SELF) {
-        rc = tc_parse_self_member_rhs(tokens, index, line_no, out, diag);
     } else {
         rc = tc_syntax_error(diag, line_no, tok->column, "expected constant expression");
     }

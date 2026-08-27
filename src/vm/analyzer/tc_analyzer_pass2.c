@@ -219,7 +219,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             }
             tc_init_states_copy(before_loop, ctx->init_states, ctx->num_slots);
         }
-        if (tc_check_condition(&while_stmt->condition, visible, symbols, hist,
+        if (tc_check_condition(&while_stmt->condition, visible, symbols, struct_table, hist,
                                (size_t)while_stmt_index, while_stmt->line, "while", diag,
                                warnings) != 0) {
             free(before_loop);
@@ -283,7 +283,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             tc_init_states_copy(before_then, ctx->init_states, ctx->num_slots);
         }
 
-        if (tc_check_condition(&if_stmt->condition, visible, symbols, hist, stmt_index,
+        if (tc_check_condition(&if_stmt->condition, visible, symbols, struct_table, hist,
+                               stmt_index,
                                if_stmt->line, "if", diag, warnings) != 0) {
             free(before_then);
             free(after_then);
@@ -607,7 +608,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                   "internal analyzer error");
                 return -1;
             }
-            if (const_def->rhs.kind == TC_RHS_STRUCT_CONSTRUCTOR) {
+            /* CONST_CAST 由 const_eval 专属路径处理；其余需 type_check
+             * 以固化字段 operand / struct ctor / memblock count。 */
+            if (const_def->rhs.kind != TC_RHS_CONST_CAST) {
                 if (tc_type_check_rhs((TcRhs *)&const_def->rhs, &const_def->full_type, visible,
                                       symbols, struct_table, hist, stmt_index, const_def->line,
                                       diag, warnings, NULL) != 0) {
@@ -615,7 +618,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 }
             }
             if (tc_resolve_const_value(global_sym, &const_def->rhs, visible, symbols,
-                                       const_def->line, diag) != 0) {
+                                       struct_table, const_def->line, diag) != 0) {
                 return -1;
             }
             if (tc_visible_add_from_global(symbols, const_def->name, (int)stmt_index, visible,
@@ -635,9 +638,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             if (tc_check_io_format(io_write->type->tag, &io_write->fmt, io_write->line, diag) != 0) {
                 return -1;
             }
-            return tc_check_operand(&io_write->operand, io_write->type->tag, visible, symbols, hist,
-                                    stmt_index, io_write->line, diag, warnings, NULL,
-                                    TC_CE_TYPE_MISMATCH);
+            return tc_check_operand(&io_write->operand, io_write->type->tag, visible, symbols,
+                                    struct_table, hist, stmt_index, io_write->line, diag, warnings,
+                                    NULL, TC_CE_TYPE_MISMATCH);
         }
 
         if (stmt->kind == TC_STMT_READ) {
@@ -712,13 +715,13 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         /* 指针 / memblock 语句侧检查 */
         if (stmt->kind == TC_STMT_PTR_STORE) {
-            return tc_ptr_check_store(&stmt->u.ptr_store, visible, symbols, hist, stmt_index, diag,
-                                      warnings);
+            return tc_ptr_check_store(&stmt->u.ptr_store, visible, symbols, struct_table, hist,
+                                      stmt_index, diag, warnings);
         }
 
         if (stmt->kind == TC_STMT_MEMBLOCK_STORE) {
-            return tc_memblock_check_store(&stmt->u.memblock_store, visible, symbols, hist,
-                                           stmt_index, diag, warnings);
+            return tc_memblock_check_store(&stmt->u.memblock_store, visible, symbols, struct_table,
+                                           hist, stmt_index, diag, warnings);
         }
 
         if (stmt->kind == TC_STMT_MEMBLOCK_COPY) {

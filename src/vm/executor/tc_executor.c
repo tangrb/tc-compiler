@@ -195,10 +195,8 @@ static int tc_exec_io_write(const TcIoWrite *io_write, TcExecuteCtx *ctx, int ne
                             TcDiagnostic *diag) {
     TcValue value;
 
-    if (io_write->operand.kind == TC_OPERAND_LIT) {
-        value = tc_literal_to_value(&io_write->operand.u.lit, io_write->type->tag);
-    } else if (tc_exec_load_binding(&io_write->operand.binding, io_write->type->tag, ctx->slots,
-                                    &value, diag, io_write->line) != 0) {
+    if (tc_eval_operand(&io_write->operand, io_write->type->tag, ctx, &value, diag,
+                        io_write->line) != 0) {
         return -1;
     }
 
@@ -230,6 +228,17 @@ int tc_eval_operand(const TcOperand *operand, TcTypeTag expected_type, TcExecute
     if (operand->kind == TC_OPERAND_LIT) {
         *out = tc_literal_to_value(&operand->u.lit, expected_type);
         return 0;
+    }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        if (!operand->u.field_read.resolved.resolved) {
+            tc_exec_set_internal_error(diag, line, "internal error: unresolved field operand");
+            return -1;
+        }
+        if (operand->u.field_read.resolved.is_memblock_count) {
+            return tc_exec_eval_field_access(&operand->u.field_read.resolved, ctx, out, diag,
+                                             line);
+        }
+        return tc_exec_eval_field_access(&operand->u.field_read.resolved, ctx, out, diag, line);
     }
     if (operand->binding.resolved) {
         return tc_exec_load_binding(&operand->binding, expected_type, ctx->slots, out, diag,

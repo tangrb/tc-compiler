@@ -6,6 +6,8 @@
  */
 #include "tc_ptr_check.h"
 
+#include "tc_struct_check.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,9 +52,9 @@ static const TcSymbol *tc_ptr_resolve_var(const char *name, const TcSymbolTable 
  */
 static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
                                 const TcSymbolTable *visible, const TcSymbolTable *global,
-                                TcInitHistory *hist, size_t stmt_index, int line,
-                                TcDiagnostic *diag, TcWarningList *warnings,
-                                const char *self_name) {
+                                const TcStructTable *struct_table, TcInitHistory *hist,
+                                size_t stmt_index, int line, TcDiagnostic *diag,
+                                TcWarningList *warnings, const char *self_name) {
     const TcSymbol *sym = NULL;
 
     if (operand->kind == TC_OPERAND_LIT) {
@@ -69,7 +71,18 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
         return -1;
     }
 
-    if (self_name && strcmp(operand->u.name, self_name) == 0) {
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        if (!expected_ptr || expected_ptr->tag != TC_PTR) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "pointer operand type does not match");
+            return -1;
+        }
+        return tc_struct_check_field_access(&operand->u.field_read, expected_ptr, struct_table,
+                                            visible, global, hist, stmt_index, line, diag,
+                                            warnings, self_name);
+    }
+
+    if (self_name && operand->u.name && strcmp(operand->u.name, self_name) == 0) {
         char msg[128];
         (void)snprintf(msg, sizeof(msg),
                        "variable '%s' cannot reference itself in its initializer", self_name);
@@ -95,21 +108,22 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
 
 /** 偏移量：优先 usize，失败再试 isize（指针算术索引约定）。 */
 static int tc_ptr_check_usize_operand(TcOperand *operand, const TcSymbolTable *visible,
-                                      const TcSymbolTable *global, TcInitHistory *hist,
+                                      const TcSymbolTable *global,
+                                      const TcStructTable *struct_table, TcInitHistory *hist,
                                       size_t stmt_index, int line, TcDiagnostic *diag,
                                       TcWarningList *warnings, const char *self_name) {
-    if (tc_check_operand(operand, TC_USIZE, visible, global, hist, stmt_index, line, diag,
-                         warnings, self_name, TC_CE_TYPE_MISMATCH) == 0) {
+    if (tc_check_operand(operand, TC_USIZE, visible, global, struct_table, hist, stmt_index, line,
+                         diag, warnings, self_name, TC_CE_TYPE_MISMATCH) == 0) {
         return 0;
     }
-    return tc_check_operand(operand, TC_ISIZE, visible, global, hist, stmt_index, line, diag,
-                            warnings, self_name, TC_CE_TYPE_MISMATCH);
+    return tc_check_operand(operand, TC_ISIZE, visible, global, struct_table, hist, stmt_index,
+                            line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH);
 }
 
 int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                     const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                     int line, TcDiagnostic *diag, TcWarningList *warnings,
-                     const char *self_name) {
+                     const TcSymbolTable *global, const TcStructTable *struct_table,
+                     TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
+                     TcWarningList *warnings, const char *self_name) {
     TcType ptr_ty;
     const TcType *pointee = NULL;
 
@@ -121,7 +135,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
-        if (tc_ptr_check_operand(&rhs->u.ptr_load.ptr, &ptr_ty, visible, global, hist,
+        if (tc_ptr_check_operand(&rhs->u.ptr_load.ptr, &ptr_ty, visible, global, struct_table, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
             if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);
@@ -210,7 +224,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
-        if (tc_ptr_check_operand(&rhs->u.ptr_arith.ptr, &ptr_ty, visible, global, hist,
+        if (tc_ptr_check_operand(&rhs->u.ptr_arith.ptr, &ptr_ty, visible, global, struct_table, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
             if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);
@@ -218,7 +232,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
             }
             return -1;
         }
-        if (tc_ptr_check_usize_operand(&rhs->u.ptr_arith.offset, visible, global, hist,
+        if (tc_ptr_check_usize_operand(&rhs->u.ptr_arith.offset, visible, global, struct_table, hist,
                                        stmt_index, line, diag, warnings, self_name) != 0) {
             if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);
@@ -253,9 +267,9 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
-        if (tc_ptr_check_operand(&rhs->u.ptr_compare.lhs, &ptr_ty, visible, global, hist,
+        if (tc_ptr_check_operand(&rhs->u.ptr_compare.lhs, &ptr_ty, visible, global, struct_table, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0 ||
-            tc_ptr_check_operand(&rhs->u.ptr_compare.rhs, &ptr_ty, visible, global, hist,
+            tc_ptr_check_operand(&rhs->u.ptr_compare.rhs, &ptr_ty, visible, global, struct_table, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
             if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);
@@ -285,7 +299,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
         if (ptr_ty.tag == TC_VOID) {
             return -1;
         }
-        if (tc_ptr_check_operand(&rhs->u.ptr_size.ptr, &ptr_ty, visible, global, hist,
+        if (tc_ptr_check_operand(&rhs->u.ptr_size.ptr, &ptr_ty, visible, global, struct_table, hist,
                                  stmt_index, line, diag, warnings, self_name) != 0) {
             if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);
@@ -316,8 +330,9 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
 }
 
 int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
-                       const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                       TcDiagnostic *diag, TcWarningList *warnings) {
+                       const TcSymbolTable *global, const TcStructTable *struct_table,
+                       TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
+                       TcWarningList *warnings) {
     TcType ptr_ty;
 
     /* ptr_store(T, p, v)：经只读绑定（let/形参）间接写入一律拒绝 */
@@ -351,7 +366,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
             return -1;
         }
     }
-    if (tc_ptr_check_operand((TcOperand *)&stmt->ptr, &ptr_ty, visible, global, hist,
+    if (tc_ptr_check_operand((TcOperand *)&stmt->ptr, &ptr_ty, visible, global, struct_table, hist,
                              stmt_index, stmt->line, diag, warnings, NULL) != 0) {
         if (ptr_ty.params.ptr_type.pointee) {
             tc_type_free(ptr_ty.params.ptr_type.pointee);
@@ -360,7 +375,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
         return -1;
     }
     if (tc_check_operand((TcOperand *)&stmt->value, stmt->pointee_type.tag, visible, global,
-                         hist, stmt_index, stmt->line, diag, warnings, NULL,
+                         struct_table, hist, stmt_index, stmt->line, diag, warnings, NULL,
                          TC_CE_TYPE_MISMATCH) != 0) {
         if (ptr_ty.params.ptr_type.pointee) {
             tc_type_free(ptr_ty.params.ptr_type.pointee);

@@ -349,6 +349,14 @@ static int tc_static_var_operand_valid(const TcOperand *operand, int current_stm
         (void)members;
         return -1;
     }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        if (!operand->u.field_read.resolved.resolved || operand->u.field_read.resolved.base_slot >= 0) {
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "constant expression cannot reference var variable");
+            return -1;
+        }
+        return 0;
+    }
     return 0;
 }
 
@@ -484,7 +492,7 @@ static int tc_static_let_index_by_name(const TcStaticLetEntry *entries, size_t c
 }
 
 static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable *symbols,
-                                  TcDiagnostic *diag) {
+                                  const TcStructTable *struct_table, TcDiagnostic *diag) {
     /* Self.member：直接拷贝已求值的常量；其它 RHS 走通用 const_eval */
     if (rhs->kind == TC_RHS_SELF_MEMBER) {
         const char *member = rhs->u.self_member.member_name;
@@ -510,7 +518,7 @@ static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable
         sym->has_const_value = 1;
         return 0;
     }
-    return tc_resolve_const_value(sym, rhs, symbols, symbols, sym->def_line, diag);
+    return tc_resolve_const_value(sym, rhs, symbols, symbols, struct_table, sym->def_line, diag);
 }
 
 /* ------------------------------------------------------------------ */
@@ -757,8 +765,8 @@ int tc_func_check_return(const TcFuncCheckEnv *env, TcReturnStmt *ret,
         return 0;
     }
 
-    return tc_check_operand(&ret->value, return_type->tag, visible, global, hist, stmt_index,
-                            ret->line, diag, warnings, NULL, TC_CE_RETURN_TYPE);
+    return tc_check_operand(&ret->value, return_type->tag, visible, global, env->struct_table, hist,
+                            stmt_index, ret->line, diag, warnings, NULL, TC_CE_RETURN_TYPE);
 }
 
 int tc_func_check_writable_target(const TcSymbol *target, int line, TcDiagnostic *diag) {
@@ -794,7 +802,8 @@ int tc_func_try_function_scope_access(const TcMemberIndex *members, const char *
     return 0;
 }
 
-int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols, TcDiagnostic *diag) {
+int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
+                               const TcStructTable *struct_table, TcDiagnostic *diag) {
     TcStaticLetEntry *entries = NULL;
     size_t entry_count = 0;
     size_t entry_cap = 0;
@@ -922,7 +931,8 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols, TcDiagn
             rc = -1;
             goto cleanup;
         }
-        if (tc_eval_one_static_let(sym, &entries[idx].def->rhs, symbols, diag) != 0) {
+        if (tc_eval_one_static_let(sym, &entries[idx].def->rhs, symbols, struct_table,
+                                   diag) != 0) {
             rc = -1;
             goto cleanup;
         }

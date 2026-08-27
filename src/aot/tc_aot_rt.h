@@ -93,6 +93,8 @@ uint64_t tc_aot_struct_alloc(size_t bytes, TcDiagnostic *diag, int line);
 uint64_t tc_aot_struct_clone(uint64_t src_bits, size_t bytes, TcDiagnostic *diag, int line);
 void tc_aot_struct_store_bits(uint64_t dst_bits, size_t offset, size_t nbytes, uint64_t value_bits);
 void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, uint64_t *out);
+/** 标量字段读的表达式友好包装：返回字段位模式。 */
+uint64_t tc_aot_struct_load_bits_value(uint64_t src_bits, size_t offset, size_t nbytes);
 void tc_aot_struct_memcpy_field(uint64_t dst_bits, size_t offset, size_t nbytes,
                                 uint64_t src_bits);
 uint64_t tc_aot_struct_extract(uint64_t src_bits, size_t offset, size_t nbytes,

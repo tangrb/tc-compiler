@@ -69,6 +69,9 @@ int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
     const TcToken *tok = tc_peek(tokens, *index);
 
     if (tok->kind == TC_TOK_IDENTIFIER) {
+        if (*index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
+            return tc_parse_field_access_operand(tokens, index, line_no, out, diag);
+        }
         out->kind = TC_OPERAND_VAR;
         out->u.name = tc_strndup(tok->start, tok->length);
         if (!out->u.name) {
@@ -77,6 +80,11 @@ int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
         }
         (*index)++;
         return 0;
+    }
+
+    if (tok->kind == TC_TOK_SELF &&
+        *index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
+        return tc_parse_field_access_operand(tokens, index, line_no, out, diag);
     }
 
     if (tok->kind == TC_TOK_INTEGER) {
@@ -199,39 +207,117 @@ void tc_string_list_free_local(char **items, size_t count) {
 int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int line_no,
                                 char **out_base, char ***out_fields, size_t *out_field_count,
                                 TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-    char **fields = NULL;
-    size_t field_count = 0;
-    size_t field_cap = 0;
+    TcOperand operand;
+    size_t saved = *index;
 
+    memset(&operand, 0, sizeof(operand));
     *out_base = NULL;
     *out_fields = NULL;
     *out_field_count = 0;
 
+    if (tc_parse_field_access_operand(tokens, index, line_no, &operand, diag) != 0) {
+        return -1;
+    }
+    if (operand.kind != TC_OPERAND_FIELD_READ) {
+        *index = saved;
+        tc_operand_free(&operand);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN, "expected field access");
+    }
+    *out_base = operand.u.field_read.base;
+    *out_fields = operand.u.field_read.fields;
+    *out_field_count = operand.u.field_read.field_count;
+    operand.u.field_read.base = NULL;
+    operand.u.field_read.fields = NULL;
+    operand.u.field_read.field_count = 0;
+    return 0;
+}
+
+static int tc_parse_field_access_base(const TcTokenList *tokens, size_t *index, int line_no,
+                                    char **out_base, TcDiagnostic *diag) {
+    const TcToken *tok = tc_peek(tokens, *index);
+
+    *out_base = NULL;
+    if (tok->kind == TC_TOK_SELF) {
+        const TcToken *member_tok = NULL;
+        size_t base_len = 0;
+
+        if (tc_peek(tokens, *index + 1)->kind != TC_TOK_DOT) {
+            return tc_syntax_error(diag, line_no, tok->column, "expected . after Self");
+        }
+        (*index) += 2;
+        member_tok = tc_peek(tokens, *index);
+        if (member_tok->kind != TC_TOK_IDENTIFIER) {
+            return tc_syntax_error(diag, line_no, member_tok->column, "expected member name");
+        }
+        base_len = 5 + member_tok->length + 1;
+        *out_base = (char *)malloc(base_len);
+        if (!*out_base) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, member_tok->column,
+                              "memory allocation failed");
+            return -1;
+        }
+        snprintf(*out_base, base_len, "Self.%.*s", (int)member_tok->length, member_tok->start);
+        (*index)++;
+        return 0;
+    }
+
     if (tok->kind != TC_TOK_IDENTIFIER) {
         return tc_syntax_error(diag, line_no, tok->column, "expected identifier");
     }
+
+    if (*index + 3 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
+        tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
+        tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT &&
+        tok->length > 0 && tok->start[0] >= 'A' && tok->start[0] <= 'Z') {
+        const TcToken *qual_tok = tok;
+        const TcToken *member_tok = tc_peek(tokens, *index + 2);
+        size_t base_len = qual_tok->length + 1 + member_tok->length + 1;
+
+        *out_base = (char *)malloc(base_len);
+        if (!*out_base) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                              "memory allocation failed");
+            return -1;
+        }
+        snprintf(*out_base, base_len, "%.*s.%.*s", (int)qual_tok->length, qual_tok->start,
+                 (int)member_tok->length, member_tok->start);
+        *index += 3;
+        return 0;
+    }
+
     *out_base = tc_token_strdup(tok, line_no, diag);
     if (!*out_base) {
         return -1;
     }
     (*index)++;
+    return 0;
+}
+
+int tc_parse_field_access_operand(const TcTokenList *tokens, size_t *index, int line_no,
+                                  TcOperand *out, TcDiagnostic *diag) {
+    char *base = NULL;
+    char **fields = NULL;
+    size_t field_count = 0;
+    size_t field_cap = 0;
+
+    if (tc_parse_field_access_base(tokens, index, line_no, &base, diag) != 0) {
+        return -1;
+    }
 
     while (tc_peek(tokens, *index)->kind == TC_TOK_DOT) {
         char *field_name = NULL;
+        const TcToken *tok = NULL;
 
         (*index)++;
         tok = tc_peek(tokens, *index);
         if (tok->kind != TC_TOK_IDENTIFIER) {
-            free(*out_base);
-            *out_base = NULL;
+            free(base);
             tc_string_list_free_local(fields, field_count);
             return tc_syntax_error(diag, line_no, tok->column, "expected field name");
         }
         field_name = tc_token_strdup(tok, line_no, diag);
         if (!field_name) {
-            free(*out_base);
-            *out_base = NULL;
+            free(base);
             tc_string_list_free_local(fields, field_count);
             return -1;
         }
@@ -241,10 +327,10 @@ int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int line_no,
 
             if (!new_fields) {
                 free(field_name);
-                free(*out_base);
-                *out_base = NULL;
+                free(base);
                 tc_string_list_free_local(fields, field_count);
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                                  "memory allocation failed");
                 return -1;
             }
             fields = new_fields;
@@ -254,8 +340,22 @@ int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int line_no,
         (*index)++;
     }
 
-    *out_fields = fields;
-    *out_field_count = field_count;
+    if (field_count == 0) {
+        free(base);
+        tc_string_list_free_local(fields, field_count);
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN, "expected field name");
+    }
+
+    if (out) {
+        memset(&out->u.field_read.resolved, 0, sizeof(out->u.field_read.resolved));
+        out->kind = TC_OPERAND_FIELD_READ;
+        out->u.field_read.base = base;
+        out->u.field_read.fields = fields;
+        out->u.field_read.field_count = field_count;
+    } else {
+        free(base);
+        tc_string_list_free_local(fields, field_count);
+    }
     return 0;
 }
 

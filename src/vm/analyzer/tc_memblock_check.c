@@ -6,6 +6,9 @@
  */
 #include "tc_memblock_check.h"
 
+#include "tc_struct_check.h"
+
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -47,11 +50,18 @@ static int tc_memblock_check_index_literal(const TcOperand *index, uint64_t coun
  */
 static int tc_memblock_operand_matches_element(TcOperand *operand, const TcType *element,
                                                const TcSymbolTable *visible,
-                                               const TcSymbolTable *global, TcInitHistory *hist,
-                                               size_t stmt_index, int line, TcDiagnostic *diag,
-                                               TcWarningList *warnings, const char *self_name) {
+                                               const TcSymbolTable *global,
+                                               const TcStructTable *struct_table,
+                                               TcInitHistory *hist, size_t stmt_index, int line,
+                                               TcDiagnostic *diag, TcWarningList *warnings,
+                                               const char *self_name) {
     if (operand->kind == TC_OPERAND_LIT) {
         return tc_type_check_literal(&operand->u.lit, element, line, diag);
+    }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        return tc_struct_check_field_access(&operand->u.field_read, element, struct_table, visible,
+                                            global, hist, stmt_index, line, diag, warnings,
+                                            self_name);
     }
     if (element->tag == TC_STRUCT || element->tag == TC_PTR || element->tag == TC_MEMBLOCK) {
         if (operand->kind != TC_OPERAND_VAR) {
@@ -77,58 +87,74 @@ static int tc_memblock_operand_matches_element(TcOperand *operand, const TcType 
             return 0;
         }
     }
-    return tc_check_operand(operand, element->tag, visible, global, hist, stmt_index, line, diag,
+    return tc_check_operand(operand, element->tag, visible, global, struct_table, hist, stmt_index, line, diag,
                             warnings, self_name, TC_CE_TYPE_MISMATCH);
 }
 
 int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                          const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
-                          int line, TcDiagnostic *diag, TcWarningList *warnings,
-                          const char *self_name) {
+                          const TcSymbolTable *global, const TcStructTable *struct_table,
+                          TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
+                          TcWarningList *warnings, const char *self_name) {
     switch (rhs->kind) {
     case TC_RHS_MEMBLOCK_LOAD: {
         /* memblock_load(T, mb, i) → T */
-        const TcSymbol *mb = NULL;
+        const TcType *mb_type = NULL;
+        uint64_t mb_count = 0;
 
         if (!expected) {
             return -1;
         }
-        if (rhs->u.memblock_load.memblock.kind != TC_OPERAND_VAR) {
+        if (rhs->u.memblock_load.memblock.kind != TC_OPERAND_VAR &&
+            rhs->u.memblock_load.memblock.kind != TC_OPERAND_FIELD_READ) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock_load requires memblock variable");
             return -1;
         }
-        mb = tc_memblock_resolve(rhs->u.memblock_load.memblock.u.name, visible, global,
-                                 stmt_index, line, diag);
-        if (!mb) {
+        if (rhs->u.memblock_load.memblock.kind == TC_OPERAND_FIELD_READ) {
+            if (tc_struct_check_field_access(&rhs->u.memblock_load.memblock.u.field_read, NULL,
+                                              struct_table, visible, global, hist, stmt_index,
+                                              line, diag, warnings, self_name) != 0) {
+                return -1;
+            }
+            mb_type = rhs->u.memblock_load.memblock.u.field_read.resolved.field_type;
+            if (!mb_type || mb_type->tag != TC_MEMBLOCK) {
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "memblock_load requires memblock variable");
+                return -1;
+            }
+        } else if (tc_check_operand(&rhs->u.memblock_load.memblock, TC_MEMBLOCK, visible, global,
+                                    struct_table, hist, stmt_index, line, diag, warnings,
+                                    self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_type_tag_of(mb->type) != TC_MEMBLOCK) {
-            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "memblock_load requires memblock variable");
-            return -1;
+        if (rhs->u.memblock_load.memblock.kind == TC_OPERAND_VAR) {
+            const TcSymbol *mb =
+                tc_memblock_resolve(rhs->u.memblock_load.memblock.u.name, visible, global,
+                                    stmt_index, line, diag);
+            if (!mb) {
+                return -1;
+            }
+            mb_type = mb->type;
+        } else if (!mb_type) {
+            mb_type = rhs->u.memblock_load.memblock.u.field_read.resolved.field_type;
         }
-        if (!tc_type_equals(mb->type->params.memblock_type.element,
+        if (!tc_type_equals(mb_type->params.memblock_type.element,
                             &rhs->u.memblock_load.element_type)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock_load element type does not match");
             return -1;
         }
-        if (tc_check_operand(&rhs->u.memblock_load.memblock, TC_MEMBLOCK, visible, global, hist,
-                             stmt_index, line, diag, warnings, self_name,
-                             TC_CE_TYPE_MISMATCH) != 0) {
-            return -1;
-        }
-        if (tc_check_operand(&rhs->u.memblock_load.index, TC_USIZE, visible, global, hist,
+        mb_count = tc_type_memblock_count(mb_type);
+        if (tc_check_operand(&rhs->u.memblock_load.index, TC_USIZE, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0 &&
-            tc_check_operand(&rhs->u.memblock_load.index, TC_ISIZE, visible, global, hist,
+            tc_check_operand(&rhs->u.memblock_load.index, TC_ISIZE, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_memblock_check_index_literal(&rhs->u.memblock_load.index,
-                                            tc_type_memblock_count(mb->type), line, diag) != 0) {
+        if (tc_memblock_check_index_literal(&rhs->u.memblock_load.index, mb_count, line, diag) !=
+            0) {
             return -1;
         }
         if (!tc_type_equals(&rhs->u.memblock_load.element_type, expected)) {
@@ -168,8 +194,8 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
         if (rhs->u.memblock_ctor.is_fill) {
             if (tc_memblock_operand_matches_element(&rhs->u.memblock_ctor.fill_value,
                                                     &rhs->u.memblock_ctor.element_type, visible,
-                                                    global, hist, stmt_index, line, diag, warnings,
-                                                    self_name) != 0) {
+                                                    global, struct_table, hist, stmt_index, line,
+                                                    diag, warnings, self_name) != 0) {
                 return -1;
             }
             return 0;
@@ -183,28 +209,53 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
         for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
             if (tc_memblock_operand_matches_element(&rhs->u.memblock_ctor.values[i],
                                                     &rhs->u.memblock_ctor.element_type, visible,
-                                                    global, hist, stmt_index, line, diag, warnings,
-                                                    self_name) != 0) {
+                                                    global, struct_table, hist, stmt_index, line,
+                                                    diag, warnings, self_name) != 0) {
                 return -1;
             }
         }
         return 0;
     }
     case TC_RHS_MEMBLOCK_COUNT: {
-        /* mb.count → usize/isize（编译期可知声明 N，此处只验类型） */
-        const TcSymbol *mb = NULL;
+        const TcSymbol *base_sym =
+            tc_memblock_resolve(rhs->u.memblock_count.memblock_name, visible, global, stmt_index,
+                                line, diag);
 
-        mb = tc_memblock_resolve(rhs->u.memblock_count.memblock_name, visible, global, stmt_index,
-                                 line, diag);
-        if (!mb) {
+        if (!base_sym) {
             return -1;
         }
-        if (tc_type_tag_of(mb->type) != TC_MEMBLOCK) {
+        if (tc_type_tag_of(base_sym->type) == TC_STRUCT) {
+            char *count_field = strdup("count");
+            char **fields = NULL;
+
+            if (!count_field) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                return -1;
+            }
+            fields = (char **)malloc(sizeof(char *));
+            if (!fields) {
+                free(count_field);
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                return -1;
+            }
+            fields[0] = count_field;
+            rhs->kind = TC_RHS_FIELD_READ;
+            rhs->u.field_read.base = rhs->u.memblock_count.memblock_name;
+            rhs->u.field_read.fields = fields;
+            rhs->u.field_read.field_count = 1;
+            memset(&rhs->u.field_read.resolved, 0, sizeof(rhs->u.field_read.resolved));
+            rhs->u.memblock_count.memblock_name = NULL;
+            return tc_struct_check_field_read(rhs, expected, struct_table, visible, global, hist,
+                                            stmt_index, line, diag, warnings, self_name);
+        }
+        if (tc_type_tag_of(base_sym->type) != TC_MEMBLOCK) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock count requires memblock variable");
             return -1;
         }
-        tc_resolved_binding_set((TcResolvedBinding *)&rhs->u.memblock_count.binding, mb);
+        tc_resolved_binding_set((TcResolvedBinding *)&rhs->u.memblock_count.binding, base_sym);
         if (expected && expected->tag != TC_USIZE && expected->tag != TC_ISIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock count result must be usize/isize");
@@ -220,8 +271,9 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
 }
 
 int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable *visible,
-                            const TcSymbolTable *global, TcInitHistory *hist,
-                            size_t stmt_index, TcDiagnostic *diag, TcWarningList *warnings) {
+                            const TcSymbolTable *global, const TcStructTable *struct_table,
+                            TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
+                            TcWarningList *warnings) {
     const TcSymbol *mb = NULL;
 
     mb = tc_memblock_resolve(stmt->memblock_name, visible, global, stmt_index, stmt->line, diag);
@@ -244,10 +296,10 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                           "memblock_store element type does not match");
         return -1;
     }
-    if (tc_check_operand((TcOperand *)&stmt->index, TC_USIZE, visible, global, hist, stmt_index,
-                         stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0 &&
-        tc_check_operand((TcOperand *)&stmt->index, TC_ISIZE, visible, global, hist, stmt_index,
-                         stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0) {
+    if (tc_check_operand((TcOperand *)&stmt->index, TC_USIZE, visible, global, struct_table, hist,
+                         stmt_index, stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0 &&
+        tc_check_operand((TcOperand *)&stmt->index, TC_ISIZE, visible, global, struct_table, hist,
+                         stmt_index, stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0) {
         return -1;
     }
     if (tc_memblock_check_index_literal(&stmt->index, tc_type_memblock_count(mb->type),
@@ -255,7 +307,7 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
         return -1;
     }
     return tc_check_operand((TcOperand *)&stmt->value, stmt->element_type.tag, visible, global,
-                            hist, stmt_index, stmt->line, diag, warnings, NULL,
+                            struct_table, hist, stmt_index, stmt->line, diag, warnings, NULL,
                             TC_CE_TYPE_MISMATCH);
 }
 
