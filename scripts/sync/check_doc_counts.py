@@ -92,17 +92,21 @@ def main():
     vm_sh = read("scripts/vm/run_tests.sh")
     vm_actual = count_vm_test_calls(vm_sh) if vm_sh else None
     test_map = read(".cursor/skills/tc-architecture/test-map.md")
-    m = re.search(r"约 (\d+) VM", test_map) if test_map else None
+    # 兼容 test-map.md 两种写法：「约 N VM」与「**N VM**」
+    m = (re.search(r"约 (\d+) VM", test_map) or
+         re.search(r"\*\*(\d+) VM\*\*", test_map)) if test_map else None
     vm_doc = int(m.group(1)) if m else None
     if vm_actual is not None and vm_doc is not None and vm_actual != vm_doc:
         failures.append(f"VM 用例规模：run_tests.sh 注册 {vm_actual}，test-map 写 {vm_doc}")
 
     # ---- 4. AOT 用例规模（注册行）--------------------------------------
+    # 与 VM_CALL_RE 一致：注册行是「函数名 + 空格 + 实参」的调用，
+    # helper 定义（`run_xxx() {`）不算注册项，故用 (?!\s*\() 排除。
     aot_sh = read("scripts/aot/run_tests.sh")
-    aot_actual = (len(re.findall(r"run_diff_test\b", aot_sh))
-                  + len(re.findall(r"run_check_ok\b", aot_sh))
-                  + len(re.findall(r"run_check_fail\b", aot_sh))
-                  + len(re.findall(r"run_aot_cli_golden\b", aot_sh)))
+    aot_actual = (len(re.findall(r"run_diff_test(?!\s*\()", aot_sh))
+                  + len(re.findall(r"run_check_ok(?!\s*\()", aot_sh))
+                  + len(re.findall(r"run_check_fail(?!\s*\()", aot_sh))
+                  + len(re.findall(r"run_aot_cli_golden(?!\s*\()", aot_sh)))
     m = re.search(r"~(\d+) AOT（注册）", test_map) if test_map else None
     aot_doc = int(m.group(1)) if m else None
     if aot_doc is not None and aot_actual != aot_doc:

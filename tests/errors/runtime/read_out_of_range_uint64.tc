@@ -1,0 +1,5 @@
+#program
+; 期望：input value out of range
+; uint64 read 超上限（现有用例只覆盖 int8/int64/float64）
+var a: uint64 = 0
+read(uint64, a)

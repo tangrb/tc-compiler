@@ -1,0 +1,5 @@
+#program
+; 期望：format specifier too long
+; 宽度超过词法上限的格式符
+var x: int32 = 1
+write(int32, %999999999999999999999999999999d, x)

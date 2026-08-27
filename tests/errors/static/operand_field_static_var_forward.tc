@@ -1,0 +1,8 @@
+#lib
+; 期望：constant expression cannot reference var variable
+; static var 初始化器只能引用源序更早的 Self.static_* 字段
+public struct Box then
+    var x: int32
+end
+public static var m: int32 = Self.s.x
+public static let s: Box = Box(x: 9)

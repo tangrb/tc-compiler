@@ -1,0 +1,6 @@
+#program
+; 期望：input value out of range
+; float32 read 上溢为 inf（float32 无任何 read 用例）
+writeln(float64, 1.0)
+var x: float32 = 0.0
+read(float32, x)

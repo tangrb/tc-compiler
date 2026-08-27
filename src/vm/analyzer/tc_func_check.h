@@ -73,8 +73,9 @@ struct TcStructTable;
 int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
                                const struct TcStructTable *struct_table, TcDiagnostic *diag);
 
-/** H-6：校验 static var 初始化器操作数来源（不执行运行时求值） */
+/** H-6：校验 static var 初始化器操作数来源并固化字段读（不执行运行时求值） */
 int tc_func_check_static_vars(TcProgram *program, const TcMemberIndex *members,
+                              TcSymbolTable *symbols, const struct TcStructTable *struct_table,
                               TcDiagnostic *diag);
 
 #endif /* TC_FUNC_CHECK_H */

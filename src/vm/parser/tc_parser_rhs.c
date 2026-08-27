@@ -1431,7 +1431,15 @@ int tc_parse_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index, int
         (*index)++;
         rc = 0;
     } else if (tok->kind == TC_TOK_SELF) {
-        rc = tc_parse_self_member_rhs(tokens, index, line_no, out, diag);
+        /* Self.member 或 Self.member.field…（与 tc_parse_const_rhs 对齐） */
+        if (*index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
+            *index + 3 < tokens->count &&
+            tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
+            tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT) {
+            rc = tc_parse_field_read_rhs(tokens, index, line_no, out, diag);
+        } else {
+            rc = tc_parse_self_member_rhs(tokens, index, line_no, out, diag);
+        }
     } else if (tok->kind == TC_TOK_MEMBLOCK) {
         rc = tc_parse_memblock_ctor_rhs(ctx, tokens, index, line_no, out, diag);
     } else if (tok->kind == TC_TOK_PTR_LOAD) {

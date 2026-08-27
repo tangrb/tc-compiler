@@ -317,6 +317,20 @@ static int tc_name_list_push(char ***names, size_t *count, size_t *capacity, con
     return 0;
 }
 
+static int tc_collect_self_from_operand(const TcOperand *operand, char ***names, size_t *count,
+                                        size_t *capacity, TcDiagnostic *diag) {
+    const char *base = NULL;
+
+    if (!operand || operand->kind != TC_OPERAND_FIELD_READ) {
+        return 0;
+    }
+    base = operand->u.field_read.base;
+    if (base && strncmp(base, "Self.", 5) == 0 && base[5] != '\0') {
+        return tc_name_list_push(names, count, capacity, base + 5, diag);
+    }
+    return 0;
+}
+
 static int tc_collect_self_member_names(const TcRhs *rhs, char ***names, size_t *count,
                                         size_t *capacity, TcDiagnostic *diag) {
     if (!rhs) {
@@ -328,8 +342,95 @@ static int tc_collect_self_member_names(const TcRhs *rhs, char ***names, size_t 
         }
         return tc_name_list_push(names, count, capacity, rhs->u.self_member.member_name, diag);
     }
-    /* 标量常量 RHS 的子节点为 Operands（LIT/VAR），不含 Self.member */
-    return 0;
+    if (rhs->kind == TC_RHS_FIELD_READ) {
+        const char *base = rhs->u.field_read.base;
+
+        if (base && strncmp(base, "Self.", 5) == 0 && base[5] != '\0') {
+            return tc_name_list_push(names, count, capacity, base + 5, diag);
+        }
+        return 0;
+    }
+    /* 常量运算操作数中的 Self.<名>.field（与 tc_static_var_rhs_valid 同类 RHS 对齐） */
+    switch (rhs->kind) {
+    case TC_RHS_ARITH:
+        if (tc_collect_self_from_operand(&rhs->u.arith.lhs, names, count, capacity, diag) != 0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.arith.rhs, names, count, capacity, diag);
+    case TC_RHS_UNARY:
+        return tc_collect_self_from_operand(&rhs->u.unary.operand, names, count, capacity, diag);
+    case TC_RHS_COMPARE:
+        if (tc_collect_self_from_operand(&rhs->u.compare.lhs, names, count, capacity, diag) != 0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.compare.rhs, names, count, capacity, diag);
+    case TC_RHS_LOGIC_BIN:
+        if (tc_collect_self_from_operand(&rhs->u.logic_bin.lhs, names, count, capacity, diag) !=
+            0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.logic_bin.rhs, names, count, capacity, diag);
+    case TC_RHS_LOGIC_UN:
+        return tc_collect_self_from_operand(&rhs->u.logic_un.operand, names, count, capacity,
+                                            diag);
+    case TC_RHS_BITWISE_BIN:
+        if (tc_collect_self_from_operand(&rhs->u.bitwise_bin.lhs, names, count, capacity, diag) !=
+            0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.bitwise_bin.rhs, names, count, capacity, diag);
+    case TC_RHS_BITWISE_UN:
+        return tc_collect_self_from_operand(&rhs->u.bitwise_un.operand, names, count, capacity,
+                                            diag);
+    case TC_RHS_SHIFT:
+        if (tc_collect_self_from_operand(&rhs->u.shift.value, names, count, capacity, diag) != 0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.shift.count, names, count, capacity, diag);
+    case TC_RHS_CAST:
+        return tc_collect_self_from_operand(&rhs->u.cast.source, names, count, capacity, diag);
+    case TC_RHS_CONST_CAST:
+        return tc_collect_self_from_operand(&rhs->u.const_cast.source, names, count, capacity,
+                                            diag);
+    case TC_RHS_FLOAT_ARITH:
+        if (tc_collect_self_from_operand(&rhs->u.float_arith.lhs, names, count, capacity, diag) !=
+            0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.float_arith.rhs, names, count, capacity, diag);
+    case TC_RHS_FLOAT_UNARY:
+        return tc_collect_self_from_operand(&rhs->u.float_unary.operand, names, count, capacity,
+                                            diag);
+    case TC_RHS_FLOAT_COMPARE:
+        if (tc_collect_self_from_operand(&rhs->u.float_compare.lhs, names, count, capacity,
+                                         diag) != 0) {
+            return -1;
+        }
+        return tc_collect_self_from_operand(&rhs->u.float_compare.rhs, names, count, capacity,
+                                            diag);
+    case TC_RHS_BITCAST:
+        return tc_collect_self_from_operand(&rhs->u.bitcast.source, names, count, capacity, diag);
+    case TC_RHS_STRUCT_CONSTRUCTOR: {
+        size_t fi = 0;
+
+        /* 构造器字段值可为字段读操作数或嵌套 RHS（如 Pair(a: Self.o.inner)） */
+        for (fi = 0; fi < rhs->u.struct_ctor.field_count; fi++) {
+            if (rhs->u.struct_ctor.fields[fi].has_rhs) {
+                if (tc_collect_self_member_names(
+                        (const TcRhs *)rhs->u.struct_ctor.fields[fi].value_rhs, names, count,
+                        capacity, diag) != 0) {
+                    return -1;
+                }
+            } else if (tc_collect_self_from_operand(&rhs->u.struct_ctor.fields[fi].value_op,
+                                                    names, count, capacity, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+    default:
+        return 0;
+    }
 }
 
 static int tc_static_var_operand_valid(const TcOperand *operand, int current_stmt_index,
@@ -350,12 +451,29 @@ static int tc_static_var_operand_valid(const TcOperand *operand, int current_stm
         return -1;
     }
     if (operand->kind == TC_OPERAND_FIELD_READ) {
-        if (!operand->u.field_read.resolved.resolved || operand->u.field_read.resolved.base_slot >= 0) {
-            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
-                              "constant expression cannot reference var variable");
-            return -1;
+        const char *base = operand->u.field_read.base;
+
+        if (operand->u.field_read.resolved.resolved) {
+            if (operand->u.field_read.resolved.base_slot >= 0) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                                  "constant expression cannot reference var variable");
+                return -1;
+            }
+            return 0;
         }
-        return 0;
+        /* Pass2 之前：允许 Self.<更早的 static let/var>.field */
+        if (base && strncmp(base, "Self.", 5) == 0 && base[5] != '\0') {
+            const TcMemberEntry *entry = tc_member_index_find(members, base + 5);
+
+            if (entry &&
+                (entry->kind == TC_MEMBER_STATIC_LET || entry->kind == TC_MEMBER_STATIC_VAR) &&
+                entry->stmt_index < current_stmt_index) {
+                return 0;
+            }
+        }
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "constant expression cannot reference var variable");
+        return -1;
     }
     return 0;
 }
@@ -400,6 +518,30 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
             return -1;
         }
         return 0;
+    }
+    if (rhs->kind == TC_RHS_FIELD_READ) {
+        const char *base = rhs->u.field_read.base;
+
+        if (rhs->u.field_read.resolved.resolved) {
+            if (rhs->u.field_read.resolved.base_slot >= 0) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                                  "constant expression cannot reference var variable");
+                return -1;
+            }
+            return 0;
+        }
+        if (base && strncmp(base, "Self.", 5) == 0 && base[5] != '\0') {
+            const TcMemberEntry *entry = tc_member_index_find(members, base + 5);
+
+            if (entry &&
+                (entry->kind == TC_MEMBER_STATIC_LET || entry->kind == TC_MEMBER_STATIC_VAR) &&
+                entry->stmt_index < current_stmt_index) {
+                return 0;
+            }
+        }
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "constant expression cannot reference var variable");
+        return -1;
     }
     switch (rhs->kind) {
     case TC_RHS_ARITH:
@@ -491,7 +633,158 @@ static int tc_static_let_index_by_name(const TcStaticLetEntry *entries, size_t c
     return -1;
 }
 
-static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable *symbols,
+/*
+ * static let 拓扑求值早于 Pass2：常量 RHS 内的字段读操作数（如
+ * add(int32, Self.s.x, 1)）此时尚未固化，须在 const_eval 前按正常检查
+ * 路径逐层解析（tc_struct_check_field_access），否则 const_eval 报
+ * 「invalid constant expression」。类型正确性仍由 const_eval 与 Pass2
+ * 复核，故 expected 允许为 NULL（延迟到求值时校验）。
+ */
+static int tc_static_let_resolve_field_operand(TcOperand *operand, const TcType *expected,
+                                               const TcStructTable *struct_table,
+                                               TcSymbolTable *symbols, size_t stmt_index,
+                                               int line, TcDiagnostic *diag) {
+    if (!operand || operand->kind != TC_OPERAND_FIELD_READ) {
+        return 0;
+    }
+    if (operand->u.field_read.resolved.resolved) {
+        return 0;
+    }
+    return tc_struct_check_field_access(&operand->u.field_read, expected, struct_table, symbols,
+                                        symbols, NULL, stmt_index, line, diag, NULL, NULL);
+}
+
+static int tc_static_let_resolve_field_operands(TcRhs *rhs, const TcType *expected,
+                                                const TcStructTable *struct_table,
+                                                TcSymbolTable *symbols, size_t stmt_index,
+                                                int line, TcDiagnostic *diag) {
+    if (!rhs) {
+        return 0;
+    }
+    switch (rhs->kind) {
+    case TC_RHS_FIELD_READ: {
+        if (!rhs->u.field_read.resolved.resolved) {
+            TcFieldAccess access;
+
+            memset(&access, 0, sizeof(access));
+            access.base = rhs->u.field_read.base;
+            access.fields = rhs->u.field_read.fields;
+            access.field_count = rhs->u.field_read.field_count;
+            if (tc_struct_check_field_access(&access, expected, struct_table, symbols, symbols,
+                                             NULL, stmt_index, line, diag, NULL, NULL) != 0) {
+                return -1;
+            }
+            rhs->u.field_read.resolved = access.resolved;
+            rhs->u.field_read.base = access.base;
+            rhs->u.field_read.fields = access.fields;
+            rhs->u.field_read.field_count = access.field_count;
+        }
+        return 0;
+    }
+    case TC_RHS_ARITH:
+        if (tc_static_let_resolve_field_operand(&rhs->u.arith.lhs, rhs->u.arith.type, struct_table,
+                                                symbols, stmt_index, line, diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.arith.rhs, rhs->u.arith.type,
+                                                   struct_table, symbols, stmt_index, line, diag);
+    case TC_RHS_UNARY:
+        return tc_static_let_resolve_field_operand(&rhs->u.unary.operand, rhs->u.unary.type,
+                                                   struct_table, symbols, stmt_index, line, diag);
+    case TC_RHS_COMPARE:
+        if (tc_static_let_resolve_field_operand(&rhs->u.compare.lhs, rhs->u.compare.type,
+                                                struct_table, symbols, stmt_index, line,
+                                                diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.compare.rhs, rhs->u.compare.type,
+                                                   struct_table, symbols, stmt_index, line, diag);
+    case TC_RHS_LOGIC_BIN:
+        if (tc_static_let_resolve_field_operand(&rhs->u.logic_bin.lhs,
+                                                tc_type_tag_singleton(TC_BOOL), struct_table,
+                                                symbols, stmt_index, line, diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.logic_bin.rhs,
+                                                   tc_type_tag_singleton(TC_BOOL), struct_table,
+                                                   symbols, stmt_index, line, diag);
+    case TC_RHS_LOGIC_UN:
+        return tc_static_let_resolve_field_operand(&rhs->u.logic_un.operand,
+                                                   tc_type_tag_singleton(TC_BOOL), struct_table,
+                                                   symbols, stmt_index, line, diag);
+    case TC_RHS_BITWISE_BIN:
+        if (tc_static_let_resolve_field_operand(&rhs->u.bitwise_bin.lhs,
+                                                rhs->u.bitwise_bin.type, struct_table, symbols,
+                                                stmt_index, line, diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.bitwise_bin.rhs,
+                                                   rhs->u.bitwise_bin.type, struct_table, symbols,
+                                                   stmt_index, line, diag);
+    case TC_RHS_BITWISE_UN:
+        return tc_static_let_resolve_field_operand(&rhs->u.bitwise_un.operand,
+                                                   rhs->u.bitwise_un.type, struct_table, symbols,
+                                                   stmt_index, line, diag);
+    case TC_RHS_SHIFT:
+        if (tc_static_let_resolve_field_operand(&rhs->u.shift.value, rhs->u.shift.type,
+                                                struct_table, symbols, stmt_index, line,
+                                                diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.shift.count, rhs->u.shift.type,
+                                                   struct_table, symbols, stmt_index, line, diag);
+    case TC_RHS_FLOAT_ARITH:
+        if (tc_static_let_resolve_field_operand(&rhs->u.float_arith.lhs,
+                                                rhs->u.float_arith.type, struct_table, symbols,
+                                                stmt_index, line, diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.float_arith.rhs,
+                                                   rhs->u.float_arith.type, struct_table, symbols,
+                                                   stmt_index, line, diag);
+    case TC_RHS_FLOAT_UNARY:
+        return tc_static_let_resolve_field_operand(&rhs->u.float_unary.operand,
+                                                   rhs->u.float_unary.type, struct_table, symbols,
+                                                   stmt_index, line, diag);
+    case TC_RHS_FLOAT_COMPARE:
+        if (tc_static_let_resolve_field_operand(&rhs->u.float_compare.lhs,
+                                                rhs->u.float_compare.type, struct_table, symbols,
+                                                stmt_index, line, diag) != 0) {
+            return -1;
+        }
+        return tc_static_let_resolve_field_operand(&rhs->u.float_compare.rhs,
+                                                   rhs->u.float_compare.type, struct_table,
+                                                   symbols, stmt_index, line, diag);
+    case TC_RHS_CONST_CAST:
+        return tc_static_let_resolve_field_operand(&rhs->u.const_cast.source, NULL, struct_table,
+                                                   symbols, stmt_index, line, diag);
+    case TC_RHS_BITCAST:
+        return tc_static_let_resolve_field_operand(&rhs->u.bitcast.source, NULL, struct_table,
+                                                   symbols, stmt_index, line, diag);
+    case TC_RHS_STRUCT_CONSTRUCTOR: {
+        size_t fi = 0;
+
+        for (fi = 0; fi < rhs->u.struct_ctor.field_count; fi++) {
+            if (rhs->u.struct_ctor.fields[fi].has_rhs) {
+                if (tc_static_let_resolve_field_operands(
+                        (TcRhs *)rhs->u.struct_ctor.fields[fi].value_rhs, NULL, struct_table,
+                        symbols, stmt_index, line, diag) != 0) {
+                    return -1;
+                }
+            } else if (tc_static_let_resolve_field_operand(
+                           &rhs->u.struct_ctor.fields[fi].value_op, NULL, struct_table, symbols,
+                           stmt_index, line, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+    default:
+        return 0;
+    }
+}
+
+static int tc_eval_one_static_let(TcSymbol *sym, TcRhs *rhs, TcSymbolTable *symbols,
                                   const TcStructTable *struct_table, TcDiagnostic *diag) {
     /* Self.member：直接拷贝已求值的常量；其它 RHS 走通用 const_eval */
     if (rhs->kind == TC_RHS_SELF_MEMBER) {
@@ -517,6 +810,16 @@ static int tc_eval_one_static_let(TcSymbol *sym, const TcRhs *rhs, TcSymbolTable
         sym->const_value = src->const_value;
         sym->has_const_value = 1;
         return 0;
+    }
+    /*
+     * Self.<名>.field / 字段读（含标量 RHS 内的字段操作数）：static let 求值
+     * 早于 Pass2，须在此提前固化字段访问，以便 const_eval 能从已拓扑求值的
+     * 基址 const_value 取字段。
+     */
+    if (tc_static_let_resolve_field_operands(rhs, sym->type, struct_table, symbols,
+                                             (size_t)sym->def_stmt_index, sym->def_line,
+                                             diag) != 0) {
+        return -1;
     }
     return tc_resolve_const_value(sym, rhs, symbols, symbols, struct_table, sym->def_line, diag);
 }
@@ -931,7 +1234,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
             rc = -1;
             goto cleanup;
         }
-        if (tc_eval_one_static_let(sym, &entries[idx].def->rhs, symbols, struct_table,
+        if (tc_eval_one_static_let(sym, (TcRhs *)&entries[idx].def->rhs, symbols, struct_table,
                                    diag) != 0) {
             rc = -1;
             goto cleanup;
@@ -976,21 +1279,29 @@ cleanup:
 }
 
 int tc_func_check_static_vars(TcProgram *program, const TcMemberIndex *members,
+                              TcSymbolTable *symbols, const TcStructTable *struct_table,
                               TcDiagnostic *diag) {
     size_t i = 0;
 
-    /* H-6：不执行运行时求值，只校验初始化器操作数合法性 */
-    if (!program || !members || !diag) {
+    /* H-6：不执行运行时求值；校验初始化器操作数合法性并固化字段读，
+     * 供 VM/AOT 运行期直接消费 resolved 元数据（base_slot / const_bits）。 */
+    if (!program || !members || !symbols || !struct_table || !diag) {
         return -1;
     }
     for (i = 0; i < program->count; i++) {
-        const TcStatement *stmt = &program->items[i];
+        TcStatement *stmt = &program->items[i];
 
         if (stmt->kind != TC_STMT_STATIC_VAR_DEF) {
             continue;
         }
         if (tc_static_var_rhs_valid(&stmt->u.static_var_def.rhs, (int)i, members,
                                     stmt->u.static_var_def.line, diag) != 0) {
+            return -1;
+        }
+        if (tc_static_let_resolve_field_operands((TcRhs *)&stmt->u.static_var_def.rhs,
+                                                 &stmt->u.static_var_def.type, struct_table,
+                                                 symbols, i, stmt->u.static_var_def.line,
+                                                 diag) != 0) {
             return -1;
         }
     }

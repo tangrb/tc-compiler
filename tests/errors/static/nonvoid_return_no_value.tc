@@ -1,0 +1,6 @@
+#lib
+; 期望：non-void function must return a value
+; 非 void 函数体内裸 return（现有 return_form 只覆盖 void 侧）
+public func f() int32 then
+    return
+end

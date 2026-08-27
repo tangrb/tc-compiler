@@ -1,0 +1,4 @@
+#bogus
+; 期望：invalid module directive
+; 未知的 # 指令（现有 no_header 只覆盖缺失头）
+var a: int32 = 1

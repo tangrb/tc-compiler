@@ -1,0 +1,5 @@
+#program
+; float32 read 正向用例（float32 此前无任何 read 测试）
+var x: float32 = 0.0
+read(float32, x)
+writeln(float32, x)

@@ -155,6 +155,58 @@ static void test_struct_field_access_const(void) {
                "var s: Box = Box(x: 4)\n"
                "let px: int32 = s.x\n",
                TC_CE_CONSTANT_EXPRESSION, "var base in const RHS");
+    /* static var 初始化器中的字段 operand（Self 基址） */
+    expect_ok("#lib\n"
+              "public struct Box then\n    var x: int32\nend\n"
+              "public static let s: Box = Box(x: 9)\n"
+              "public static var n: int32 = Self.s.x\n",
+              "static var init with Self.field ok");
+    /* static let 拓扑：FIELD_READ / 算术 / 比较写在基址之前 */
+    expect_ok("#lib\n"
+              "public struct Box then\n    var x: int32\nend\n"
+              "public static let n: int32 = Self.s.x\n"
+              "public static let k: int32 = add(int32, Self.s.x, 1)\n"
+              "public static let b: bool = gt(int32, Self.s.x, 0)\n"
+              "public static let s: Box = Box(x: 9)\n",
+              "static let field topo (read/arith/compare) ok");
+    /* static let 拓扑：unary/bitwise/shift/logic/float/cast/bitcast 操作数字段读 */
+    expect_ok("#lib\n"
+              "public struct Num then\n    var x: int32\nend\n"
+              "public struct Flag then\n    var b: bool\n    var f: float64\nend\n"
+              "public struct ScalarPair then\n    var a: int32\n    var b: int32\nend\n"
+              "public static let nn: int32 = neg(int32, Self.num.x)\n"
+              "public static let bw: int32 = or(int32, Self.num.x, 1)\n"
+              "public static let sh: int32 = shl(int32, Self.num.x, 1)\n"
+              "public static let lb: bool = and(bool, Self.flag.b, Self.flag.b)\n"
+              "public static let ln: bool = not(bool, Self.flag.b)\n"
+              "public static let fa: float64 = add(float64, Self.flag.f, 1.0)\n"
+              "public static let fc: bool = gt(float64, Self.flag.f, 0.0)\n"
+              "public static let cc: int8 = cast(int8, Self.num.x)\n"
+              "public static let bc: float32 = bitcast(float32, Self.num.x)\n"
+              "public static let sp_a: int32 = Self.sp.a\n"
+              "public static let num: Num = Num(x: 9)\n"
+              "public static let flag: Flag = Flag(b: true, f: 1.5)\n"
+              "public static let sp: ScalarPair = ScalarPair(a: Self.num.x, b: 1)\n",
+              "static let field topo (unary/bitwise/shift/logic/float/cast/bitcast) ok");
+    /* static var 运行期字段读初始化器（提前固化 + 基址为 static let） */
+    expect_ok("#lib\n"
+              "public struct Box then\n    var x: int32\nend\n"
+              "public static let s: Box = Box(x: 9)\n"
+              "public static var m: int32 = shl(int32, Self.s.x, 1)\n",
+              "static var field operand init ok");
+    /* 嵌套字段链作 static let RHS */
+    expect_ok("#lib\n"
+              "public struct Inner then\n    var x: int32\nend\n"
+              "public struct Outer then\n    var inner: Inner\nend\n"
+              "public static let o: Outer = Outer(inner: Inner(x: 3))\n"
+              "public static let n: int32 = Self.o.inner.x\n",
+              "nested static let field ok");
+    /* static var 源序之后的 Self.field 非法 */
+    expect_err("#lib\n"
+               "public struct Box then\n    var x: int32\nend\n"
+               "public static var m: int32 = Self.s.x\n"
+               "public static let s: Box = Box(x: 9)\n",
+               TC_CE_CONSTANT_EXPRESSION, "static var field forward");
 }
 
 static void test_struct_field_access_positions(void) {

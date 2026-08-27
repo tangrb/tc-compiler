@@ -460,6 +460,10 @@ run_diff_test "$ROOT/tests/valid/read_int8.tc" "42
 "
 run_diff_test "$ROOT/tests/valid/read_int8.tc" "-128
 "
+run_diff_test "$ROOT/tests/valid/read_uint64.tc" "18446744073709551615
+"
+run_diff_test "$ROOT/tests/valid/read_float32.tc" "3.25
+"
 run_diff_test "$ROOT/tests/valid/let_cast_const.tc"
 run_diff_test "$ROOT/tests/valid/compare_unsigned.tc"
 run_diff_test "$ROOT/tests/valid/shift_edge_cases.tc"
@@ -530,6 +534,12 @@ run_diff_test "$ROOT/tests/valid/struct_field_named_count.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_operand_composite.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_operand_cast.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_operand_self_base.tc"
+run_diff_test "$ROOT/tests/valid/struct_field_static_init_run.tc"
+run_check_ok "$ROOT/tests/valid/struct_field_static_init.tc"
+run_check_ok "$ROOT/tests/valid/struct_field_static_init_run.tc"
+run_diff_test "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
+run_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops.tc"
+run_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
 run_diff_test "$ROOT/tests/valid/usize_arith.tc"
 
@@ -603,6 +613,9 @@ run_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
 run_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
+run_check_fail "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"
+run_check_fail "$ROOT/tests/errors/static/null_char.tc" "null character (U+0000) not allowed in source"
+run_check_fail "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
 run_check_fail "$ROOT/tests/errors/static/negative_shift_count_const.tc" "negative shift count"
 run_check_fail "$ROOT/tests/errors/static/return_memblock_size_mismatch.tc" "memblock size mismatch"
 run_check_fail "$ROOT/tests/errors/static/field_memblock_size_mismatch.tc" "memblock size mismatch"
@@ -675,6 +688,28 @@ run_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
     "cannot assign to function parameter"
 run_check_fail "$ROOT/tests/errors/static/struct_assign_param_let.tc" \
     "cannot assign to function parameter"
+run_check_fail "$ROOT/tests/errors/static/read_into_let.tc" \
+    "cannot assign to constant"
+run_check_fail "$ROOT/tests/errors/static/read_type_mismatch.tc" \
+    "read type does not match variable type"
+run_check_fail "$ROOT/tests/errors/static/operand_field_var_in_const_op.tc" \
+    "constant expression cannot reference var variable"
+run_check_fail "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" \
+    "constant expression cannot reference var variable"
+run_check_fail "$ROOT/tests/errors/static/nonvoid_return_no_value.tc" \
+    "non-void function must return a value"
+run_check_fail "$ROOT/tests/errors/static/return_type_var_mismatch.tc" \
+    "return type does not match function return type"
+run_check_fail "$ROOT/tests/errors/static/void_funcall_as_value.tc" \
+    "void function call cannot be used as value"
+run_check_fail "$ROOT/tests/errors/static/format_specifier_too_long.tc" \
+    "format specifier too long"
+run_check_fail "$ROOT/tests/errors/static/invalid_float_literal.tc" \
+    "invalid float literal"
+run_check_fail "$ROOT/tests/errors/static/float32_literal_range.tc" \
+    "float literal out of float32 range"
+run_check_fail "$ROOT/tests/errors/static/module_directive_invalid.tc" \
+    "invalid module directive"
 run_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/self_member_undefined.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/self_member_type_mismatch.tc" \
@@ -735,6 +770,16 @@ run_runtime_fail "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_runtime_fail "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "invalid input" "abc
 "
+run_runtime_fail "$ROOT/tests/errors/runtime/read_fp_out_of_range.tc" "input value out of range" "1e400
+"
+run_runtime_fail "$ROOT/tests/errors/runtime/read_out_of_range_uint64.tc" "input value out of range" "99999999999999999999
+"
+run_runtime_fail "$ROOT/tests/errors/runtime/read_out_of_range_float32.tc" "input value out of range" "1e400
+"
+run_runtime_fail "$ROOT/tests/errors/runtime/signed_sub_overflow_int64.tc" "signed subtraction overflow"
+run_runtime_fail "$ROOT/tests/errors/runtime/negative_shift_count_shl.tc" "negative shift count"
+run_runtime_fail "$ROOT/tests/errors/runtime/cast_strict_overflow_int64_to_int32.tc" "out of range"
+run_runtime_fail "$ROOT/tests/errors/runtime/fp32_strict_overflow.tc" "float overflow"
 
 # --- embed mode (--embed) codegen ---
 

@@ -643,6 +643,12 @@ run_with_stdin "$ROOT/tests/valid/read_int8.tc" "42
 run_with_stdin "$ROOT/tests/valid/read_int8.tc" "-128
 " "-128
 "
+run_with_stdin "$ROOT/tests/valid/read_uint64.tc" "18446744073709551615
+" "18446744073709551615
+"
+run_with_stdin "$ROOT/tests/valid/read_float32.tc" "3.25
+" "3.25
+"
 run_expect_stdout "$ROOT/tests/valid/let_bool_constant.tc" "true
 false
 "
@@ -890,11 +896,31 @@ run_expect_check_fail "$ROOT/tests/errors/static/return_outside_function.tc" \
     "return outside function"
 run_expect_check_fail "$ROOT/tests/errors/static/return_form.tc" \
     "void function cannot return a value"
+run_expect_fail_msg "$ROOT/tests/errors/static/nonvoid_return_no_value.tc" \
+    "non-void function must return a value"
+run_expect_check_fail "$ROOT/tests/errors/static/nonvoid_return_no_value.tc" \
+    "non-void function must return a value"
+run_expect_fail_msg "$ROOT/tests/errors/static/return_type_var_mismatch.tc" \
+    "return type does not match function return type"
+run_expect_check_fail "$ROOT/tests/errors/static/return_type_var_mismatch.tc" \
+    "return type does not match function return type"
+run_expect_fail_msg "$ROOT/tests/errors/static/void_funcall_as_value.tc" \
+    "void function call cannot be used as value"
+run_expect_check_fail "$ROOT/tests/errors/static/void_funcall_as_value.tc" \
+    "void function call cannot be used as value"
 run_expect_check_fail "$ROOT/tests/errors/static/return_type.tc" "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/parameter_assignment.tc" \
     "cannot assign to function parameter"
 run_expect_check_fail "$ROOT/tests/errors/static/parameter_assignment_read.tc" \
     "cannot assign to function parameter"
+run_expect_fail_msg "$ROOT/tests/errors/static/read_into_let.tc" \
+    "cannot assign to constant"
+run_expect_check_fail "$ROOT/tests/errors/static/read_into_let.tc" \
+    "cannot assign to constant"
+run_expect_fail_msg "$ROOT/tests/errors/static/read_type_mismatch.tc" \
+    "read type does not match variable type"
+run_expect_check_fail "$ROOT/tests/errors/static/read_type_mismatch.tc" \
+    "read type does not match variable type"
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_direct.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_indirect.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
@@ -1098,6 +1124,7 @@ run_expect_stdout "$ROOT/tests/valid/struct_field_operand_return.tc" "17
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_nested.tc" "22
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_shortcircuit.tc" "false
+true
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_const.tc" "5
 "
@@ -1122,6 +1149,24 @@ run_expect_stdout "$ROOT/tests/valid/struct_field_operand_cast.tc" "65
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_self_base.tc" "2
 2
 "
+run_expect_stdout "$ROOT/tests/valid/struct_field_static_init_run.tc" "9
+10
+true
+10
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc" "-9
+9
+18
+true
+false
+2.5
+true
+9
+1.26117e-44
+18
+9
+9
+"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_arith.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_compare.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_io.tc"
@@ -1137,12 +1182,21 @@ run_expect_check_ok "$ROOT/tests/valid/struct_field_named_count.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_composite.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_cast.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_self_base.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_static_init.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_static_init_run.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_const_op.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
 run_expect_check_fail "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_field_var_in_const_op.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" "constant expression cannot reference var variable"
 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/negative_shift_count_shl.tc" "negative shift count"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_deref.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_arith.tc" "null pointer arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_store.tc" "null pointer dereference"
@@ -1487,6 +1541,7 @@ run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_bool_invalid_input.tc
 # --- errors/runtime: float ---
 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_overflow.tc" "float overflow"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp32_strict_overflow.tc" "float overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_underflow.tc" "float underflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid.tc" "float invalid operation"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid_before_divzero.tc" \
@@ -1495,6 +1550,12 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of ran
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "abc
 " "invalid input"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_out_of_range.tc" "1e400
+" "input value out of range"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range_uint64.tc" "99999999999999999999
+" "input value out of range"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range_float32.tc" "1e400
+" "input value out of range"
 
 # --- errors/runtime: extended tests (per-type coverage) ---
 
@@ -1502,6 +1563,7 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/div_zero_int16.tc" "division by 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/div_zero_uint32.tc" "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/mod_zero_int64.tc" "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_sub_overflow.tc" "out of range for"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_sub_overflow_int64.tc" "signed subtraction overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow_int8.tc" "out of range for"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/bitwise_shl_overflow_runtime.tc" "shift left overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_overflow_int16.tc" "out of range for"
@@ -1521,6 +1583,7 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int16_to_in
 run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int32_to_int16.tc" "cast result out of range for target type"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_uint16_to_int16.tc" "cast result out of range for target type"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_uint32_to_int32.tc" "cast result out of range for target type"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow_int64_to_int32.tc" "cast result out of range for target type"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_out_of_range_int64.tc" "99999999999999999999
 " "input value out of range"
 
@@ -1582,11 +1645,16 @@ run_expect_fail_msg "$ROOT/tests/errors/static/undefined_variable.tc" "undefined
 run_expect_fail_msg "$ROOT/tests/errors/static/type_mismatch.tc" "operand type does not match"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
+run_expect_fail_msg "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"
+run_expect_fail_msg "$ROOT/tests/errors/static/null_char.tc" "null character (U+0000) not allowed in source"
+run_expect_fail_msg "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_too_long.tc" "format specifier too long"
+run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_too_long.tc" "format specifier too long"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_plus_unsigned.tc" \
     "'+' flag not supported for this format specifier"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
@@ -1685,6 +1753,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "nested cal
 run_expect_check_fail "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
+run_expect_check_fail "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"
+run_expect_check_fail "$ROOT/tests/errors/static/null_char.tc" "null character (U+0000) not allowed in source"
+run_expect_check_fail "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_var_let.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range_int16.tc" "literal out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range_int64.tc" "literal out of range"
@@ -1754,6 +1825,10 @@ run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
+run_expect_fail_msg "$ROOT/tests/errors/static/float32_literal_range.tc" "float literal out of float32 range"
+run_expect_check_fail "$ROOT/tests/errors/static/float32_literal_range.tc" "float literal out of float32 range"
+run_expect_fail_msg "$ROOT/tests/errors/static/invalid_float_literal.tc" "invalid float literal"
+run_expect_check_fail "$ROOT/tests/errors/static/invalid_float_literal.tc" "invalid float literal"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
@@ -2069,6 +2144,8 @@ run_expect_check_ok "$ROOT/tests/valid/uninitialized_bool.tc"
 
 # Phase 2: module system errors (strict #program/#lib header)
 run_expect_check_fail "$ROOT/tests/errors/module/no_header.tc" "expected #program or #lib"
+run_expect_fail_msg "$ROOT/tests/errors/static/module_directive_invalid.tc" "invalid module directive"
+run_expect_check_fail "$ROOT/tests/errors/static/module_directive_invalid.tc" "invalid module directive"
 run_expect_check_fail "$ROOT/tests/errors/module/missing_visibility.tc" \
     "missing public or private visibility"
 run_expect_check_fail "$ROOT/tests/errors/module/program_mode_misuse.tc" \

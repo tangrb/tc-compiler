@@ -1,0 +1,5 @@
+#program
+; uint64 read 正向用例（uint 系列此前无任何 read 测试）
+var a: uint64 = 0
+read(uint64, a)
+writeln(uint64, a)

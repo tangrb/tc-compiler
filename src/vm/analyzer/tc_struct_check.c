@@ -780,7 +780,7 @@ void tc_resolved_field_access_free(TcResolvedFieldAccess *access) {
 }
 
 static void tc_field_access_free_parse_strings(TcFieldAccess *access) {
-    if (!access || access->resolved.resolved) {
+    if (!access) {
         return;
     }
     free(access->base);
@@ -799,15 +799,32 @@ static void tc_field_access_free_parse_strings(TcFieldAccess *access) {
 static int tc_struct_finalize_field_access(TcFieldAccess *access, const TcSymbol *base_sym,
                                            const TcType *final_type, uint32_t *offsets,
                                            size_t field_count, int is_memblock_count) {
+    int is_const_base = (base_sym->sym_kind == TC_SYM_CONSTANT ||
+                         base_sym->sym_kind == TC_SYM_STATIC_LET);
+
     access->resolved.resolved = 1;
-    access->resolved.base_slot = base_sym->slot;
+    /* let / static let 基址槽为 -1（与 tc_resolved_binding_set 一致）；运行时基址保留 slot */
+    access->resolved.base_slot = is_const_base ? -1 : base_sym->slot;
     access->resolved.const_bits =
         base_sym->has_const_value ? base_sym->const_value.bits : 0ULL;
     access->resolved.field_type = final_type;
     access->resolved.offsets = offsets;
     access->resolved.field_count = field_count;
     access->resolved.is_memblock_count = is_memblock_count;
-    tc_field_access_free_parse_strings(access);
+    if (is_const_base && !base_sym->has_const_value) {
+        /* static let 拓扑求值前保留 base 名，供 const_eval 延迟取 const_bits */
+        if (access->fields) {
+            size_t i = 0;
+            for (i = 0; i < access->field_count; i++) {
+                free(access->fields[i]);
+            }
+            free(access->fields);
+            access->fields = NULL;
+        }
+        access->field_count = 0;
+    } else {
+        tc_field_access_free_parse_strings(access);
+    }
     return 0;
 }
 
@@ -1096,7 +1113,22 @@ int tc_struct_check_field_read(TcRhs *rhs, const TcType *expected,
                                TcWarningList *warnings, const char *self_name) {
     TcFieldAccess access;
 
-    if (rhs->kind != TC_RHS_FIELD_READ || rhs->u.field_read.field_count == 0) {
+    if (rhs->kind != TC_RHS_FIELD_READ) {
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                          "invalid struct field read");
+        return -1;
+    }
+    /* static let 求值可能已提前固化（字段名已释放） */
+    if (rhs->u.field_read.resolved.resolved) {
+        if (expected && rhs->u.field_read.resolved.field_type &&
+            !tc_type_equals(rhs->u.field_read.resolved.field_type, expected)) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "field read result type does not match expected type");
+            return -1;
+        }
+        return 0;
+    }
+    if (rhs->u.field_read.field_count == 0) {
         tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
                           "invalid struct field read");
         return -1;

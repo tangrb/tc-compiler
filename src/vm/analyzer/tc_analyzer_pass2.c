@@ -654,6 +654,11 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             if (!target) {
                 return -1;
             }
+            if (target->sym_kind == TC_SYM_CONSTANT) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, io_read->line,
+                                  TC_COLUMN_UNKNOWN, "cannot assign to constant");
+                return -1;
+            }
             if (tc_func_check_writable_target(target, io_read->line, diag) != 0) {
                 return -1;
             }

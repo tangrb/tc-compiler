@@ -35,9 +35,10 @@ static void tc_field_access_free_strings(TcFieldAccess *access) {
     if (!access) {
         return;
     }
+    /* base 可能在 const 基址延迟求值路径上于 resolved 后仍保留 */
+    free(access->base);
+    access->base = NULL;
     if (!access->resolved.resolved) {
-        free(access->base);
-        access->base = NULL;
         tc_string_list_free(access->fields, access->field_count);
         access->fields = NULL;
         access->field_count = 0;
@@ -149,9 +150,9 @@ void tc_rhs_free(TcRhs *rhs) {
         free(rhs->u.struct_ctor.fields);
         rhs->u.struct_ctor.fields = NULL;
     } else if (rhs->kind == TC_RHS_FIELD_READ) {
+        free(rhs->u.field_read.base);
+        rhs->u.field_read.base = NULL;
         if (!rhs->u.field_read.resolved.resolved) {
-            free(rhs->u.field_read.base);
-            rhs->u.field_read.base = NULL;
             tc_string_list_free(rhs->u.field_read.fields, rhs->u.field_read.field_count);
             rhs->u.field_read.fields = NULL;
             rhs->u.field_read.field_count = 0;

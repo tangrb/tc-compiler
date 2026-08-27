@@ -1,0 +1,6 @@
+#program
+; 期望：input value out of range
+; 向 float64 变量输入上溢为 inf 的浮点字符串（1e400）
+writeln(float64, 1.0)
+var x: float64 = 0.0
+read(float64, x)

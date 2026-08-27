@@ -1,0 +1,5 @@
+#program
+; 期望：cast result out of range for target type
+; int64 → int32 strict cast 溢出（现有用例未覆盖 int64 源）
+var a: int64 = 9223372036854775807
+var b: int32 = cast(int32, a)

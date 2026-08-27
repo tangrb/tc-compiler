@@ -211,15 +211,26 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
             }
         }
     }
-    if (tc_func_check_static_vars(&out->program, &members, diag) != 0) {
+    if (tc_func_check_static_vars(&out->program, &members, &out->symbols, &struct_table,
+                                  diag) != 0) {
         goto fail;
     }
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
-            if (tc_func_check_static_vars(&out->deps[di], &members, diag) != 0) {
+            TcMemberIndex dep_members;
+
+            tc_member_index_init(&dep_members);
+            if (tc_member_index_build(&out->deps[di], &dep_members, diag) != 0) {
+                tc_member_index_free(&dep_members);
                 goto fail;
             }
+            if (tc_func_check_static_vars(&out->deps[di], &dep_members, &out->symbols,
+                                          &struct_table, diag) != 0) {
+                tc_member_index_free(&dep_members);
+                goto fail;
+            }
+            tc_member_index_free(&dep_members);
         }
     }
 

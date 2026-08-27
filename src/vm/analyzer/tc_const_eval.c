@@ -185,8 +185,8 @@ static int tc_const_read_resolved_field(const TcResolvedFieldAccess *access,
     size_t offset = 0;
     size_t nbytes = 0;
     const TcType *field_type = NULL;
+    uint64_t bits = 0;
 
-    (void)base_sym;
     if (!access || !access->resolved) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "invalid constant expression");
@@ -221,10 +221,16 @@ static int tc_const_read_resolved_field(const TcResolvedFieldAccess *access,
                           "invalid constant expression");
         return -1;
     }
-    data = (const uint8_t *)(uintptr_t)access->const_bits;
+    /* 优先用基址符号当前 const_value（static let 拓扑求值后才就绪） */
+    if (base_sym && base_sym->has_const_value) {
+        bits = base_sym->const_value.bits;
+    } else {
+        bits = access->const_bits;
+    }
+    data = (const uint8_t *)(uintptr_t)bits;
     if (!data) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
-                          "invalid constant expression");
+                          "constant value is not available by source order");
         return -1;
     }
     offset = access->offsets[access->field_count - 1];
@@ -236,6 +242,44 @@ static int tc_const_read_resolved_field(const TcResolvedFieldAccess *access,
         out->bits = out->bits ? 1ULL : 0ULL;
     }
     return 0;
+}
+
+static const TcSymbol *tc_const_lookup_field_base(const char *base, const TcSymbolTable *visible,
+                                                  const TcSymbolTable *global) {
+    const char *member = NULL;
+
+    if (!base) {
+        return NULL;
+    }
+    if (strncmp(base, "Self.", 5) == 0) {
+        member = base + 5;
+        if (global) {
+            return tc_symbol_table_find(global, member);
+        }
+        return NULL;
+    }
+    {
+        const char *dot = strchr(base, '.');
+
+        if (dot && dot != base && dot[1] != '\0') {
+            member = dot + 1;
+            if (global) {
+                return tc_symbol_table_find(global, member);
+            }
+            return NULL;
+        }
+    }
+    if (visible) {
+        const TcSymbol *sym = tc_symbol_table_find(visible, base);
+
+        if (sym) {
+            return sym;
+        }
+    }
+    if (global) {
+        return tc_symbol_table_find(global, base);
+    }
+    return NULL;
 }
 
 static int tc_eval_const_operand(const TcOperand *operand, TcTypeTag expected,
@@ -255,13 +299,16 @@ static int tc_eval_const_operand(const TcOperand *operand, TcTypeTag expected,
     }
 
     if (operand->kind == TC_OPERAND_FIELD_READ) {
+        const TcSymbol *base_sym = NULL;
+
         if (!operand->u.field_read.resolved.resolved) {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid constant expression");
             return -1;
         }
-        return tc_const_read_resolved_field(&operand->u.field_read.resolved, NULL, expected, out,
-                                            line, diag);
+        base_sym = tc_const_lookup_field_base(operand->u.field_read.base, visible, global);
+        return tc_const_read_resolved_field(&operand->u.field_read.resolved, base_sym, expected,
+                                            out, line, diag);
     }
 
     {
@@ -452,8 +499,11 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_FIELD_READ && rhs->u.field_read.resolved.resolved) {
-        return tc_const_read_resolved_field(&rhs->u.field_read.resolved, NULL, expected_type, out,
-                                            line, diag);
+        const TcSymbol *base_sym =
+            tc_const_lookup_field_base(rhs->u.field_read.base, visible, global);
+
+        return tc_const_read_resolved_field(&rhs->u.field_read.resolved, base_sym, expected_type,
+                                            out, line, diag);
     }
 
     if (rhs->kind == TC_RHS_CONST_REF) {
@@ -826,6 +876,14 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                 return -1;
             }
             source_type = tc_type_tag_of(symbol->type);
+        } else if (bitcast->source.kind == TC_OPERAND_FIELD_READ) {
+            if (!bitcast->source.u.field_read.resolved.resolved ||
+                !bitcast->source.u.field_read.resolved.field_type) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                                  "invalid constant bitcast source");
+                return -1;
+            }
+            source_type = tc_type_tag_of(bitcast->source.u.field_read.resolved.field_type);
         } else if (bitcast->source.u.lit.is_bool) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
@@ -920,6 +978,18 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
             }
             src_val = symbol->const_value;
             source_type = tc_type_tag_of(symbol->type);
+        } else if (cast->source.kind == TC_OPERAND_FIELD_READ) {
+            if (!cast->source.u.field_read.resolved.resolved ||
+                !cast->source.u.field_read.resolved.field_type) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                                  "invalid constant cast source");
+                return -1;
+            }
+            source_type = tc_type_tag_of(cast->source.u.field_read.resolved.field_type);
+            if (tc_eval_const_operand(&cast->source, source_type, visible, global, const_name,
+                                      &src_val, line, diag) != 0) {
+                return -1;
+            }
         } else {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid constant cast source");
