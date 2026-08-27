@@ -1086,6 +1086,55 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_expect_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
+# --- struct field operand (0.0.41 field_access as operand) ---
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_arith.tc" "42
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_compare.tc" "false
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_io.tc" "99
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_return.tc" "17
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_nested.tc" "22
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_shortcircuit.tc" "false
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_const.tc" "5
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_ptr.tc" "13
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_memblock.tc" "20
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_let_rhs.tc" "5
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_named_count.tc" "12
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_composite.tc" "5
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_cast.tc" "65
+1065353216
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_self_base.tc" "2
+"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_arith.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_compare.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_io.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_return.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_nested.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_shortcircuit.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_const.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_ptr.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_memblock.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_let_rhs.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_named_count.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_composite.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_cast.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_self_base.tc"
+run_expect_fail_msg "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
+run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
+
 run_expect_fail_msg "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_deref.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_arith.tc" "null pointer arithmetic"

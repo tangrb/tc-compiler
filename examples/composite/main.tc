@@ -1,0 +1,48 @@
+#program
+; struct + memblock + ptr + func 综合示例（三人积分榜）
+import ScoreLib
+
+; --- struct + func: 构造选手 ---
+var a: Player = funcall(ScoreLib.make_player, id: 1, score: 10)
+var b: Player = funcall(ScoreLib.make_player, id: 2, score: 25)
+var c: Player = funcall(ScoreLib.make_player, id: 3, score: 15)
+
+; --- memblock: 固定长度 roster 存 struct 元素 ---
+var roster: memblock<Player, 3> = memblock(Player, count: 3, a, b, c)
+var p0: Player = memblock_load(Player, roster, 0)
+var p1: Player = memblock_load(Player, roster, 1)
+var p2: Player = memblock_load(Player, roster, 2)
+
+; --- 从 memblock 读出的分数做聚合（字段 operand） ---
+var s01: int32 = add(int32, p0.score, p1.score)
+var total: int32 = add(int32, s01, p2.score)
+var peak: int32 = p1.score
+if gt(int32, p0.score, peak) then
+    peak = p0.score
+end
+if gt(int32, p2.score, peak) then
+    peak = p2.score
+end
+writeln(int32, total)
+writeln(int32, peak)
+
+; --- struct 按值传参/返回 + memblock_store 写回 ---
+var third: Player = memblock_load(Player, roster, 2)
+var boosted: Player = funcall(ScoreLib.add_bonus, p: third, bonus: 5)
+memblock_store(Player, roster, 2, boosted)
+var new_third: Player = memblock_load(Player, roster, 2)
+writeln(int32, new_third.score)
+
+; --- ptr: 指向 var 绑定, func 内 ptr_load/store 原地加倍 MVP ---
+var mvp: Player = memblock_load(Player, roster, 1)
+var mvp_ptr: ptr<Player> = ptr_address(Player, mvp)
+funcall(ScoreLib.double_score, target: mvp_ptr)
+writeln(int32, mvp.score)
+
+; --- struct 内嵌 memblock + ptr 字段 ---
+var team: Team = Team(tag: 42, roster: roster, mvp: mvp_ptr)
+var team_tag: int32 = team.tag
+var team_roster: memblock<Player, 3> = team.roster
+var tp2: Player = memblock_load(Player, team_roster, 2)
+writeln(int32, team_tag)
+writeln(int32, tp2.score)

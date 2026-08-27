@@ -1,0 +1,9 @@
+#lib
+public struct Box then
+    var v: int32
+end
+
+public func read_score() int32 then
+    var p: Box = Box(v: 17)
+    return p.v
+end

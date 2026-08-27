@@ -25,8 +25,11 @@ rhs = 字面量 | true | false | nullptr
     | 算术/一元/比较/逻辑/按位/移位/cast/bitcast/浮点 …
     | memblock/ptr/struct 构造与运算 | field_read | Self.member | funcall_expr
 
-const_rhs = 字面量 | const_ref | 单层标量运算 | struct ctor
-          /* 禁 FUNCALL_EXPR / 多数 ptr·memblock 路径 */
+operand = identifier | literal | field_access | memblock_count_access | …
+          /* field_access：cur.score / a.b.c / Self.x.y 作运算实参，非嵌套 RHS */
+
+const_rhs = 字面量 | const_ref | 单层标量运算 | struct ctor | field_read
+          /* 禁 FUNCALL_EXPR / 多数 ptr·memblock 路径；let px = p.x 合法 */
 
 类型 = int8|…|uint64|bool|float32|float64|isize|usize|void
      | ptr(T) | memblock(T, N) | 具名 struct

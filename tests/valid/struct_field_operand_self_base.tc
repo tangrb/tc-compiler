@@ -1,0 +1,4 @@
+#program
+import StructFieldSelfLib
+var r: int32 = funcall(StructFieldSelfLib.demo)
+writeln(int32, r)

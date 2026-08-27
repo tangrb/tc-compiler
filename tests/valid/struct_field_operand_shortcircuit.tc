@@ -1,0 +1,8 @@
+#program
+; 短路：右侧字段 operand 不可达
+struct Point then
+    var flag: bool
+end
+var p: Point = Point(flag: true)
+var ok: bool = and(bool, false, p.flag)
+writeln(bool, ok)

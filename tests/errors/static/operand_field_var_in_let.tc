@@ -1,0 +1,6 @@
+#program
+struct Box then
+    var x: int32
+end
+var v: Box = Box(x: 1)
+let px: int32 = v.x

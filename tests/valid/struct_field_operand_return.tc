@@ -1,0 +1,4 @@
+#program
+import StructFieldReturnLib
+var r: int32 = funcall(StructFieldReturnLib.read_score)
+writeln(int32, r)

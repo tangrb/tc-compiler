@@ -1,0 +1,33 @@
+#lib
+; ScoreLib: struct / memblock / ptr / func 协同
+
+public struct Player then
+    var id: int32
+    var score: int32
+end
+
+public struct Team then
+    var tag: int32
+    var roster: memblock<Player, 3>
+    var mvp: ptr<Player>
+end
+
+public func make_player(id: int32, score: int32) Player then
+    var p: Player = Player(id: id, score: score)
+    return p
+end
+
+public func add_bonus(p: Player, bonus: int32) Player then
+    var pid: int32 = p.id
+    var bumped: int32 = add(int32, p.score, bonus)
+    var out: Player = Player(id: pid, score: bumped)
+    return out
+end
+
+public func double_score(target: ptr<Player>) void then
+    var cur: Player = ptr_load(Player, target)
+    var doubled: int32 = mul(int32, cur.score, 2)
+    cur.score = doubled
+    ptr_store(Player, target, cur)
+    return
+end

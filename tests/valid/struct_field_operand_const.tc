@@ -1,0 +1,8 @@
+#program
+; let struct 字段作 const operand
+struct Box then
+    var x: int32
+end
+let s: Box = Box(x: 4)
+let y: int32 = add(int32, s.x, 1)
+writeln(int32, y)

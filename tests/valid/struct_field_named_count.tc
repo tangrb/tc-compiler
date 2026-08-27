@@ -1,0 +1,8 @@
+#program
+; struct 字段名为 count（非 memblock .count 语义）
+struct Stats then
+    var count: int32
+end
+var s: Stats = Stats(count: 6)
+var doubled: int32 = mul(int32, s.count, 2)
+writeln(int32, doubled)
