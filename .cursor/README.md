@@ -1,6 +1,6 @@
 # TC-Compiler — Cursor 文档索引
 
-> **实现版本**：v0.0.40（Phase 1–7 已落地）· 语言规范 `docs/TC语言标准设计说明书-0.0.39.md`  
+> **实现版本**：v0.0.41（Phase 1–7 已落地）· 语言规范 `docs/TC语言标准设计说明书-0.0.41.md`  
 > **Agent 入口**：根目录 [AGENTS.md](../AGENTS.md)（始终加载，保持精简）
 
 ## 加载分级（硬上限）
@@ -69,7 +69,7 @@
 | 写 C 单元测试 | Rule `unit-tests-c` |
 | 改 `docs/` | Rule `docs-tc` |
 | Review / PR | Skill `review-tc-code` |
-| 0.0.39 语言/编译器规范 | `docs/TC语言标准设计说明书-0.0.39.md` 等 |
+| 0.0.41 语言/编译器规范 | `docs/TC语言标准设计说明书-0.0.41.md` 等 |
 
 ## 常用命令
 

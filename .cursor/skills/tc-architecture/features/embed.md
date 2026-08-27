@@ -1,4 +1,4 @@
-# 特性 — TC-Embed（v0.0.39 / Phase 7）
+# 特性 — TC-Embed（v0.0.41 / Phase 7）
 
 **只读本文件** — 由 [features.md](../features.md) 路由指向。跨模块细节：[kg-embed.md](../kg-embed.md) · Rule `embed-src`。
 
@@ -12,7 +12,7 @@
 | AOT CLI | `src/aot/main.c` | `--embed`、`-H/--header` |
 | Executor 扩展 | `src/vm/executor/tc_executor.c/h` | `tc_exec_call_function_public`（原 static 提升为公共） |
 
-**设计文档**：`docs/TC-Embed详细设计说明书-0.0.39.md`
+**设计文档**：`docs/TC-Embed详细设计说明书-0.0.41.md`
 
 **测试**：
 - VM 单元：`test_embed.c` / check-embed（17 tests，含标量/float64/bool/ptr/static_var/错误路径）

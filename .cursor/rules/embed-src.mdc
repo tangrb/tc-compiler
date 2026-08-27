@@ -1,14 +1,14 @@
 ---
 description: >-
   TC-Embed editing — C host API, VM/AOT dual mode, non-fatal abort in src/vm/embed/.
-  Loads when editing embed code. Details in kg-embed.md and docs/TC-Embed详细设计说明书-0.0.39.md.
+  Loads when editing embed code. Details in kg-embed.md and docs/TC-Embed详细设计说明书-0.0.41.md.
 globs: src/vm/embed/**/*
 alwaysApply: false
 ---
 
 # Embed 编辑
 
-> **v0.0.39 / Phase 7**。跨模块细节：[kg-embed.md](../skills/tc-architecture/kg-embed.md)。规格：`docs/TC-Embed详细设计说明书-0.0.39.md`。
+> **v0.0.41 / Phase 7**。跨模块细节：[kg-embed.md](../skills/tc-architecture/kg-embed.md)。规格：`docs/TC-Embed详细设计说明书-0.0.41.md`。
 
 ## 文件
 

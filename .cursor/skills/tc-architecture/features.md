@@ -2,7 +2,7 @@
 
 **只读一个文件** — 从下表选一行，打开对应 `features/*.md`；勿批量加载。
 
-> **v0.0.39** Phase 1–6（含 struct 运行时）+ Embed v0.0.39  
+> **v0.0.41** Phase 1–6（含 struct 运行时）+ Embed v0.0.41  
 > 跨模块分发点：Rule `@knowledge-graph` · 细节 `kg-*.md`（每次只读一个）
 
 ## 路由表

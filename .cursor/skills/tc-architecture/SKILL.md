@@ -9,7 +9,7 @@ description: >-
 
 # TC-Compiler Architecture
 
-**v0.0.40** · Embed v0.0.40 · 语言规范 `docs/TC语言标准设计说明书-0.0.39.md` · 导航 [.cursor/README.md](../../README.md)
+**v0.0.41** · Embed v0.0.41 · 语言规范 `docs/TC语言标准设计说明书-0.0.41.md` · 导航 [.cursor/README.md](../../README.md)
 
 ## 三步工作流
 
@@ -23,11 +23,11 @@ description: >-
 |------|---------|------|
 | 符号在哪个文件？ | [locations.md](locations.md) | pipeline, types, features |
 | 调用链 / Analyze 顺序 / CFG？ | [pipeline.md](pipeline.md) | locations |
-| 0.0.39 十三阶段管线规格 | `docs/TC编译器标准设计说明书-0.0.39.md` | — |
+| 0.0.41 十三阶段管线规格 | `docs/TC编译器标准设计说明书-0.0.41.md` | — |
 | AST / 枚举 / 类型内核？ | [types.md](types.md) | syntax |
 | 错误种类 / stderr / 诊断阶段？ | [errors.md](errors.md) | — |
 | 语法 EBNF 摘要？ | [syntax.md](syntax.md) | — |
-| 0.0.39 完整语法/语义 | `docs/TC语言标准设计说明书-0.0.39.md` | 整份 skill 子文档 |
+| 0.0.41 完整语法/语义 | `docs/TC语言标准设计说明书-0.0.41.md` | 整份 skill 子文档 |
 | 某特性改哪些层？ | [features.md](features.md) → **一行** → `features/*.md` | 其它 features 文件 |
 | 测试 / 特性覆盖？ | [test-map.md](test-map.md) | kg-* |
 | 加新特性路径？ | [feature-kinds.md](../add-compiler-feature/feature-kinds.md) **单 §** | 全 skill |
@@ -38,7 +38,7 @@ description: >-
 | func / funcall / 调用图 / 调用帧？ | `@knowledge-graph` + [kg-func.md](kg-func.md) | 其它 kg-* |
 | TC-Embed / value_bridge / `--embed`？ | `@knowledge-graph` + [kg-embed.md](kg-embed.md) | 其它 kg-* |
 | 跑测试？ | Skill `run-tests` | — |
-| libtc API？ | `docs/libtc设计说明书-0.0.39.md` | pipeline |
+| libtc API？ | `docs/libtc设计说明书-0.0.41.md` | pipeline |
 
 ## 关键词路由（只选一行）
 
@@ -55,7 +55,7 @@ description: >-
 | 位运算 / shift | `tc_semantics.c` | [features/scalar.md](features/scalar.md) § 位运算 |
 | if / 块作用域 | `tc_parser.c` + `tc_symbol.c` | [features/control.md](features/control.md) § if |
 | while / break / continue | [features/control.md](features/control.md) § while | [kg-cfg.md](kg-cfg.md) |
-| goto / label / 未初始化 / CFG | [kg-cfg.md](kg-cfg.md) | VM/AOT 详设-0.0.39 |
+| goto / label / 未初始化 / CFG | [kg-cfg.md](kg-cfg.md) | VM/AOT 详设-0.0.41 |
 | 诊断阶段 / var 缺初始化 | [errors.md](errors.md) §诊断阶段 | [kg-cfg.md](kg-cfg.md) |
 | 静态布尔 / 短路读集 | [kg-eval.md](kg-eval.md) | `tc_const_eval.c` + `tc_cfg.c` |
 | stmt_index / DFS 序号 | `tc_stmt_index.h` | [kg-cfg.md](kg-cfg.md) |

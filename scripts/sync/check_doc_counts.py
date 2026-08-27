@@ -7,7 +7,7 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
   - 错误码种类：tests/unit/runtime/test_types.c 的 `error_kind_count == N` 断言
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**N**」
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
-                vs docs/TC-0.0.39-开发计划.md「RHS 分发覆盖 | N」
+                vs docs/TC-0.0.41-开发计划.md「RHS 分发覆盖 | N」
   - VM 用例规模：scripts/vm/run_tests.sh 的测试调用行数（不含 helper 定义）
                 vs .cursor/skills/tc-architecture/test-map.md「N VM」
   - AOT 用例规模：scripts/aot/run_tests.sh 的 run_diff_test/run_check_ok/
@@ -79,7 +79,7 @@ def main():
     tc_types_h = read("src/vm/runtime/tc_types.h")
     rhs_actual = count_tc_rhs_kinds(tc_types_h) if tc_types_h else None
 
-    dev_plan = read("docs/TC-0.0.39-开发计划.md")
+    dev_plan = read("docs/TC-0.0.41-开发计划.md")
     m = re.search(r"RHS 分发覆盖 \| (\d+)", dev_plan)
     rhs_doc = int(m.group(1)) if m else None
     if rhs_actual and rhs_doc and rhs_actual != rhs_doc:

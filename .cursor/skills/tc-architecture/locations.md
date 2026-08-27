@@ -2,7 +2,7 @@
 
 **何时读**：需要知道函数/类型定义在哪个 `.c` 文件。**更快**：`rg "符号名" src/ --glob '*.c'`（见底部命令）。
 
-用 `rg` 快速定位；**跨模块分发点**见 `@knowledge-graph`。**v0.0.39** + Embed · **无 REPL**。
+用 `rg` 快速定位；**跨模块分发点**见 `@knowledge-graph`。**v0.0.41** + Embed · **无 REPL**。
 
 ## 流水线入口
 
@@ -40,7 +40,7 @@
 | `tc_aot_emit_c` / `tc_aot_emit_rhs` / `tc_aot_emit_statement_impl` | `src/aot/tc_aot_codegen.c` |
 | `tc_aot_emit_func_table` / `tc_aot_emit_embed_header` | `src/aot/tc_aot_codegen.c` |
 
-## 嵌入运行时（v0.0.39）
+## 嵌入运行时（v0.0.41）
 
 | 符号 | 文件 |
 |------|------|

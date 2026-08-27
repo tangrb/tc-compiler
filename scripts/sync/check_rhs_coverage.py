@@ -42,7 +42,7 @@ TC_RHS_KINDS = [
     "TC_RHS_FLOAT_UNARY",
     "TC_RHS_FLOAT_COMPARE",
     "TC_RHS_BITCAST",
-    # 0.0.39 复合/调用 RHS（解析 + 运行时已落地）
+    # 0.0.41 复合/调用 RHS（解析 + 运行时已落地）
     "TC_RHS_MEMBLOCK_LOAD",
     "TC_RHS_MEMBLOCK_CONSTRUCTOR",
     "TC_RHS_MEMBLOCK_COUNT",

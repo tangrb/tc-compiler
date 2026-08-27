@@ -50,7 +50,7 @@
 
 ## 91 种错误（`TcErrorKind`）
 
-权威对照：`docs/TC编译器标准设计说明书-0.0.39.md` §11.4 · 实现枚举：`tc_types.h`（**91** 项，`test_types.c` 断言）· 打印名见 `tc_error_kind_name()`
+权威对照：`docs/TC编译器标准设计说明书-0.0.41.md` §11.4 · 实现枚举：`tc_types.h`（**91** 项，`test_types.c` 断言）· 打印名见 `tc_error_kind_name()`
 
 命名：编译期多为 `TC_CE_*`，运行时多为 `TC_RE_*`，实现专用 `TC_ERR_OUT_OF_MEMORY`。下表列出常见核心码（历史文档偶用 `TC_ERR_*` 别称时以 `tc_types.h` 为准）。
 
