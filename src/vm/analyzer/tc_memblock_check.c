@@ -241,12 +241,13 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
                 return -1;
             }
             fields[0] = count_field;
+            /* 注意：memblock_name 与 field_read.base 是同一 union 存储，
+             * 转移所有权后不得再对 memblock_name 置 NULL（会清掉 base）。 */
             rhs->kind = TC_RHS_FIELD_READ;
             rhs->u.field_read.base = rhs->u.memblock_count.memblock_name;
             rhs->u.field_read.fields = fields;
             rhs->u.field_read.field_count = 1;
             memset(&rhs->u.field_read.resolved, 0, sizeof(rhs->u.field_read.resolved));
-            rhs->u.memblock_count.memblock_name = NULL;
             return tc_struct_check_field_read(rhs, expected, struct_table, visible, global, hist,
                                             stmt_index, line, diag, warnings, self_name);
         }

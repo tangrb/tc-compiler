@@ -1,0 +1,8 @@
+#program
+; memblock .count 作 operand：算术 / I/O / 比较（§1.1 mul(usize, mb.count, 2)）
+var mb: memblock<int32, 2> = memblock(int32, count: 2, 3, 4)
+var doubled: usize = mul(usize, mb.count, 2)
+writeln(usize, doubled)      ; 2 * 2
+writeln(usize, mb.count)     ; 直接输出 count 值
+var b: bool = gt(usize, mb.count, 1)
+writeln(bool, b)

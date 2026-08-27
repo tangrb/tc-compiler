@@ -1,4 +1,8 @@
 #program
 import StructFieldSelfLib
+; Self.<member>.field 基址（lib 内：StructFieldSelfLib.demo 返回 Self.root.v）
 var r: int32 = funcall(StructFieldSelfLib.demo)
 writeln(int32, r)
+; <模块名>.<member>.field 基址（import 形态直接读 static let struct 字段）
+var r2: int32 = StructFieldSelfLib.root.v
+writeln(int32, r2)

@@ -1,8 +1,10 @@
 #program
-; struct 字段名为 count（非 memblock .count 语义）
+; struct 字段名为 count（非 memblock .count 语义）—— operand 与 RHS 两入口
 struct Stats then
     var count: int32
 end
 var s: Stats = Stats(count: 6)
-var doubled: int32 = mul(int32, s.count, 2)
+var doubled: int32 = mul(int32, s.count, 2)   ; operand 入口
+var n: int32 = s.count                        ; RHS 入口（.count 消歧重解释）
 writeln(int32, doubled)
+writeln(int32, n)

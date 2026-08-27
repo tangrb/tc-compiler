@@ -1,0 +1,276 @@
+/*
+ * test_struct_field_access.c — field_access 作 operand / const-RHS 分析期单元测试
+ *
+ * 覆盖计划 §5.1 unit 段（test_struct_field_access_*）：
+ *   - 类型链校验（a.b.c 嵌套字段读；未知字段；非 struct 中间层）
+ *   - .count 语义消歧（memblock 基址 → count；struct 同名字段 → 普通字段读）
+ *   - const 上下文（let struct 字段读 ok；var 基址在 let RHS → CONSTANT_EXPRESSION）
+ *   - operand 位置字段读（算术 / I/O / return / ptr / memblock 位置）
+ *   - hist 注入：直接调用 tc_struct_check_field_access，基址 slot 置
+ *     TC_INIT_UNINIT → TC_CE_UNINITIALIZED_VARIABLE（.tc 负例受可达性规则
+ *     限制不可构造，见计划 §5.2 备注，改由本测试注入 hist 覆盖）
+ */
+#include "tc_analyzer.h"
+#include "tc_analyzer_internal.h"
+#include "tc_diagnostic.h"
+#include "tc_parser.h"
+#include "tc_struct_check.h"
+#include "tc_types.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int g_passed = 0;
+static int g_failed = 0;
+
+static void check(int condition, const char *message) {
+    if (condition) {
+        g_passed++;
+    } else {
+        g_failed++;
+        fprintf(stderr, "FAIL: %s\n", message);
+    }
+}
+
+static int analyze_source(const char *source, TcTypedProgram *typed, TcDiagnostic *diag) {
+    TcProgram program;
+
+    tc_program_init(&program);
+    /* NOTE: tc_analyze (→ tc_analyze_ex) calls tc_typed_program_init internally.
+     * Do NOT call tc_typed_program_init here — it would double-init and leak. */
+    if (tc_parse_source_to_program(source, &program, diag) != 0) {
+        return -1;
+    }
+    return tc_analyze(&program, typed, diag);
+}
+
+static void expect_err(const char *source, TcErrorKind kind, const char *label) {
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(analyze_source(source, &typed, &diag) != 0 && diag.kind == kind, label);
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void expect_ok(const char *source, const char *label) {
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    check(analyze_source(source, &typed, &diag) == 0, label);
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ------------------------------------------------------------------ */
+/*  test_struct_field_access_* — 计划 §5.1 unit 段                       */
+/* ------------------------------------------------------------------ */
+
+static void test_struct_field_access_chain(void) {
+    /* 嵌套字段链 a.b.c 类型校验通过；最终类型匹配 */
+    expect_ok("#program\n"
+              "struct C then\n    var z: int32\nend\n"
+              "struct B then\n    var c: C\nend\n"
+              "struct A then\n    var b: B\nend\n"
+              "var a: A = A(b: B(c: C(z: 7)))\n"
+              "var v: int32 = a.b.c.z\n",
+              "nested chain a.b.c ok");
+    expect_ok("#program\n"
+              "struct C then\n    var z: int32\nend\n"
+              "struct B then\n    var c: C\nend\n"
+              "struct A then\n    var b: B\nend\n"
+              "var a: A = A(b: B(c: C(z: 7)))\n"
+              "var v: int32 = mul(int32, a.b.c.z, 2)\n",
+              "nested chain as operand ok");
+    /* 未知字段 */
+    expect_err("#program\n"
+               "struct Point then\n    var x: int32\nend\n"
+               "var p: Point = Point(x: 1)\n"
+               "var v: int32 = p.missing\n",
+               TC_CE_STRUCT_UNKNOWN_FIELD, "unknown field");
+    expect_err("#program\n"
+               "struct Point then\n    var x: int32\nend\n"
+               "var p: Point = Point(x: 1)\n"
+               "var v: int32 = mul(int32, p.missing, 2)\n",
+               TC_CE_STRUCT_UNKNOWN_FIELD, "unknown field in operand");
+    /* 非 struct 中间层 */
+    expect_err("#program\n"
+               "struct Point then\n    var x: int32\nend\n"
+               "var p: Point = Point(x: 1)\n"
+               "var v: int32 = p.x.y\n",
+               TC_CE_TYPE_MISMATCH, "field path through non-struct");
+}
+
+static void test_struct_field_access_count_disambiguation(void) {
+    /* memblock 基址 .count → count 语义（RHS 与 operand 两个入口） */
+    expect_ok("#program\n"
+              "var mb: memblock<int32, 2> = memblock(int32, count: 2, 3, 4)\n"
+              "var n: usize = mb.count\n",
+              "memblock .count RHS ok");
+    expect_ok("#program\n"
+              "var mb: memblock<int32, 2> = memblock(int32, count: 2, 3, 4)\n"
+              "var d: usize = mul(usize, mb.count, 2)\n",
+              "memblock .count operand ok");
+    /* struct 同名字段 count → 普通字段读（不误报 memblock count） */
+    expect_ok("#program\n"
+              "struct Stats then\n    var count: int32\nend\n"
+              "var s: Stats = Stats(count: 6)\n"
+              "var v: int32 = s.count\n",
+              "struct field named count read ok");
+    expect_ok("#program\n"
+              "struct Stats then\n    var count: int32\nend\n"
+              "var s: Stats = Stats(count: 6)\n"
+              "var d: int32 = mul(int32, s.count, 2)\n",
+              "struct field named count as operand ok");
+    /* 非 memblock 非 struct 基址 .count → 错误 */
+    expect_err("#program\n"
+               "var x: int32 = 1\n"
+               "var n: usize = x.count\n",
+               TC_CE_TYPE_MISMATCH, ".count on non-memblock/non-struct base");
+}
+
+static void test_struct_field_access_const(void) {
+    /* let struct 字段读在 const operand 与 const-RHS 均可用 */
+    expect_ok("#program\n"
+              "struct Box then\n    var x: int32\nend\n"
+              "let s: Box = Box(x: 4)\n"
+              "let y: int32 = add(int32, s.x, 1)\n",
+              "let struct field in const operand ok");
+    expect_ok("#program\n"
+              "struct Box then\n    var x: int32\nend\n"
+              "let s: Box = Box(x: 4)\n"
+              "let px: int32 = s.x\n",
+              "let struct field in const RHS ok");
+    /* var 基址在 let 上下文 → TC_CE_CONSTANT_EXPRESSION（两入口） */
+    expect_err("#program\n"
+               "struct Box then\n    var x: int32\nend\n"
+               "var s: Box = Box(x: 4)\n"
+               "let y: int32 = add(int32, s.x, 1)\n",
+               TC_CE_CONSTANT_EXPRESSION, "var base in const operand");
+    expect_err("#program\n"
+               "struct Box then\n    var x: int32\nend\n"
+               "var s: Box = Box(x: 4)\n"
+               "let px: int32 = s.x\n",
+               TC_CE_CONSTANT_EXPRESSION, "var base in const RHS");
+}
+
+static void test_struct_field_access_positions(void) {
+    /* operand 位置：算术 / I/O / return / ptr / memblock 基址 */
+    expect_ok("#program\n"
+              "struct Point then\n    var score: int32\nend\n"
+              "var p: Point = Point(score: 9)\n"
+              "writeln(int32, p.score)\n",
+              "field operand in io");
+    expect_ok("#lib\n"
+              "public struct Box then\n    var v: int32\nend\n"
+              "public func read_score() int32 then\n    var p: Box = Box(v: 17)\n"
+              "    return p.v\nend\n",
+              "field operand in return");
+    expect_ok("#program\n"
+              "struct Holder then\n    var mvp: ptr<int32>\nend\n"
+              "var x: int32 = 13\n"
+              "var h: Holder = Holder(mvp: ptr_address(int32, x))\n"
+              "var v: int32 = ptr_load(int32, h.mvp)\n",
+              "field operand in ptr_load");
+    expect_ok("#program\n"
+              "struct Bag then\n    var items: memblock<int32, 2>\nend\n"
+              "var items: memblock<int32, 2> = memblock(int32, count: 2, 10, 20)\n"
+              "var bag: Bag = Bag(items: items)\n"
+              "var v: int32 = memblock_load(int32, bag.items, 1)\n",
+              "field operand as memblock_load base");
+}
+
+/* ------------------------------------------------------------------ */
+/*  hist 注入：基址 slot 置 UNINIT → 未初始化错误（计划 §5.2 备注）       */
+/* ------------------------------------------------------------------ */
+
+static void test_struct_field_access_hist_uninit(void) {
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+    TcSymbol *sym = NULL;
+    TcInitState states[1];
+    TcInitHistory hist;
+    TcFieldAccess access;
+    const char *source =
+        "#program\n"
+        "struct Point then\n    var x: int32\nend\n"
+        "var p: Point = Point(x: 1)\n";
+
+    tc_diagnostic_init(&diag);
+    if (analyze_source(source, &typed, &diag) != 0) {
+        check(0, "hist test: analyze baseline failed");
+        tc_diagnostic_clear(&diag);
+        return;
+    }
+    sym = (TcSymbol *)tc_symbol_table_find(&typed.symbols, "p");
+    if (!sym || tc_type_tag_of(sym->type) != TC_STRUCT || sym->slot < 0) {
+        check(0, "hist test: base symbol not found");
+        tc_typed_program_free(&typed);
+        tc_diagnostic_clear(&diag);
+        return;
+    }
+
+    memset(&hist, 0, sizeof(hist));
+    hist.init_states = states;
+    hist.num_slots = sym->slot + 1;
+    hist.check_init = 1;
+    hist.defer_to_cfg = 0;
+    states[0] = TC_INIT_UNINIT;
+
+    /* 基址未初始化（symbol 标记亦清零，绕过 initialized 快路径） */
+    sym->initialized = 0;
+    memset(&access, 0, sizeof(access));
+    access.base = strdup("p");
+    access.fields = (char **)malloc(sizeof(char *));
+    access.fields[0] = strdup("x");
+    access.field_count = 1;
+    check(access.base && access.fields && access.fields[0], "hist test: alloc");
+    if (access.base && access.fields && access.fields[0]) {
+        memset(&diag, 0, sizeof(diag));
+        tc_diagnostic_init(&diag);
+        check(tc_struct_check_field_access(&access, NULL, typed.struct_table, &typed.symbols,
+                                            &typed.symbols, &hist, 0, 1, &diag, NULL, NULL) != 0 &&
+                  diag.kind == TC_CE_UNINITIALIZED_VARIABLE,
+              "uninit base field read → UNINITIALIZED_VARIABLE");
+        tc_diagnostic_clear(&diag);
+        /* 失败路径未固化：parse 期字符串仍归测试所有，须手动释放 */
+        free(access.base);
+        free(access.fields[0]);
+        free(access.fields);
+    }
+
+    /* 基址已初始化 → 通过并固化（finalize 内部释放 parse 字符串） */
+    states[0] = TC_INIT_INIT;
+    memset(&access, 0, sizeof(access));
+    access.base = strdup("p");
+    access.fields = (char **)malloc(sizeof(char *));
+    access.fields[0] = strdup("x");
+    access.field_count = 1;
+    if (access.base && access.fields && access.fields[0]) {
+        memset(&diag, 0, sizeof(diag));
+        tc_diagnostic_init(&diag);
+        check(tc_struct_check_field_access(&access, NULL, typed.struct_table, &typed.symbols,
+                                            &typed.symbols, &hist, 0, 1, &diag, NULL, NULL) == 0,
+              "init base field read ok");
+        tc_diagnostic_clear(&diag);
+        /* 成功路径已固化：仅需释放 offsets 链 */
+        tc_resolved_field_access_free(&access.resolved);
+    }
+
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+int main(void) {
+    test_struct_field_access_chain();
+    test_struct_field_access_count_disambiguation();
+    test_struct_field_access_const();
+    test_struct_field_access_positions();
+    test_struct_field_access_hist_uninit();
+
+    printf("%d passed, %d failed\n", g_passed, g_failed);
+    return g_failed != 0;
+}

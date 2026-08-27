@@ -367,6 +367,23 @@ add_custom_target(check-type-check
 )
 
 # ------------------------------------------------------------------ #
+#  test-struct-field-access — field_access operand 分析期单元测试      #
+#  （含 hist 注入覆盖未初始化基址；对应计划 §5.1 unit 段）              #
+# ------------------------------------------------------------------ #
+
+add_executable(test-struct-field-access test_struct_field_access.c)
+target_link_libraries(test-struct-field-access PRIVATE libtc)
+target_include_directories(test-struct-field-access PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-struct-field-access PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-struct-field-access
+    COMMAND test-struct-field-access
+    DEPENDS test-struct-field-access
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running struct-field-access unit tests"
+)
+
+# ------------------------------------------------------------------ #
 #  test-embed — TC-Embed 嵌入运行时单元测试                             #
 # ------------------------------------------------------------------ #
 

@@ -288,22 +288,23 @@ bash scripts/aot/run_tests.sh --filter struct_field_operand
 | `struct_field_operand_const.tc` | `let y = add(int32, S.x, 1)`（S 为 let struct） |
 | `struct_field_operand_ptr.tc` | `ptr_load(Player, a.mvp)`（ptr 字段作 operand） |
 | `struct_field_operand_memblock.tc` | `memblock_load(B, a.items, 0)`（memblock 字段作 operand 基址） |
-| `struct_field_operand_let_rhs.tc` | `let px: int32 = p.x`、`let n: usize = mb.count`（const-RHS 入口） |
-| `struct_field_named_count.tc` | struct 字段名为 `count` 的读取（`.count` 语义消歧） |
-| `struct_field_operand_self_base.tc` | `Self.<名>.field` / `<模块名>.<名>.field` 基址（#lib + import 双形态，对应 §6 勾选项） |
+| `struct_field_operand_count.tc` | `mul(usize, mb.count, 2)`、`writeln(usize, mb.count)`、`gt(usize, mb.count, 1)`（memblock count 作 operand，§1.1 示例；AOT 折叠声明 N，VM 读运行时头，差分一致） |
+| `struct_field_operand_let_rhs.tc` | `let px: int32 = p.x`（const-RHS 入口）；`let n: usize = mb.count` 正例**不可构造**（let memblock 不可表达，见 §6 备注） |
+| `struct_field_named_count.tc` | struct 字段名为 `count` 的读取（`.count` 语义消歧，operand 与 RHS 双入口） |
+| `struct_field_operand_self_base.tc` | `Self.<名>.field`（lib 内）与 `<模块名>.<名>.field`（import 形态）双基址 |
 | `struct_field_operand_composite.tc` | struct 字段值作 operand 的复合值语义：`ptr_store(Player, p, a.player)`、`return a.player`、`memblock(Player, count: 2, a.p, b.p)`（深拷贝，§3.9.4） |
 | `struct_field_operand_cast.tc` | `cast(int32, p.score)`、`bitcast(float32, p.bits)`（cast/bitcast source 经 `tc_check_operand` 的 smoke） |
 
 注册：`scripts/vm/run_tests.sh`、`scripts/aot/run_tests.sh` 对应 `# --- struct ---` 区块。
 
-**unit（`tests/unit/runtime/`）**：为抽出的 `tc_struct_check_field_access` 补 `test_struct_field_access_*`（类型链校验、未知字段、非 struct 中间层、`.count` 消歧、const 基址拒绝）；`tc_struct_check_field_read` 的 hist 检查以 unit 注入 `hist` 覆盖（§5.2 备注，.tc 负例不可构造）。
+**unit（`tests/unit/runtime/test_struct_field_access.c`，已落地）**：`test_struct_field_access_*` 覆盖类型链校验（`a.b.c`）、未知字段、非 struct 中间层、`.count` 消歧、const 基址拒绝、operand 各位置；`tc_struct_check_field_access` 的 hist 检查以注入 `TC_INIT_UNINIT` 状态覆盖「未初始化基址」负例（§5.2 备注，.tc 负例不可构造）。CMake 注册于 `tests/unit/runtime/CMakeLists.txt`（`check-struct-field-access`）并挂入 `check-unit`。
 
 #### 5.2 新增 static 负例（`tests/errors/static/`）
 
 | 用例文件 | 期望 stderr 子串 |
 |----------|------------------|
 | `operand_nested_arith.tc` | syntax / `unexpected token` |
-| `operand_field_var_in_let.tc` | `constant expression cannot reference var variable`（覆盖 const operand 与 const-RHS 两个入口） |
+| `operand_field_var_in_let.tc` | `constant expression cannot reference var variable`（.tc 覆盖 const-RHS 入口；const operand 入口由 unit `test_struct_field_access_const` 覆盖——单文件首个错误即中止，无法在 .tc 内同时覆盖两入口） |
 
 > **备注（`operand_field_uninit.tc` 暂不落地）**：期望 `use of uninitialized variable` 的字段基址 DFA 负例按当前可达性规则**无法构造为 .tc**——TC 声明强制带初始化器，goto 跳过带计算初始化器的声明会先报 `unreachable statement`，仅字面量初始化器可构造「可能未初始化」的标量，而 struct 无字面量初始化器（同 Phase 2b 说明）。改由 unit 注入 `hist` 覆盖（§5.1 unit 段）；待未来初始化器语法扩展后可补回 .tc 负例。
 
@@ -347,22 +348,37 @@ cmake --build build --target check-embed check-embed-aot   # TC-Embed 无 API �
 
 - [x] `mul(int32, cur.score, 2)`、`writeln(int32, p.x)`、`gt(int32, a.x, b.x)` 通过 `tc-vm --check` 与运行
 - [x] `ptr_load(Player, a.mvp)`、`memblock_load(B, a.items, 0)` 通过 `tc-vm --check` 与运行
-- [x] `let px: int32 = p.x`、`let n: usize = mb.count` 通过 `tc-vm --check` 与运行
-- [x] struct 字段名为 `count` 的读取不再误报 `memblock count requires memblock variable`
+- [x] `let px: int32 = p.x` 通过 `tc-vm --check` 与运行；`let n: usize = mb.count` 正例**不可构造**（`let mb: memblock = …` 的 const_eval 不支持 memblock 构造，let-memblock 绑定不存在），var 基址负例由 `operand_field_var_in_let.tc` 覆盖
+- [x] struct 字段名为 `count` 的读取不再误报 `memblock count requires memblock variable`（operand 与 RHS 双入口，`struct_field_named_count.tc`）
 - [x] `Self.<名>.field` / `<模块名>.<名>.field` 基址通过（#lib / import 用例）
 - [x] `and(bool, false, p.score)` 短路时不因 `p` 未初始化而误报（若 `p` 仅在短路右侧使用）
-- [ ] 未初始化基址读字段 → `use of uninitialized variable`（以 unit 注入 `hist` 验证；.tc 负例受可达性规则限制不可构造，见 §5.2 备注）
+- [x] 未初始化基址读字段 → `use of uninitialized variable`（unit 注入 `hist` 验证：`test_struct_field_access_hist_uninit`；.tc 负例受可达性规则限制不可构造，见 §5.2 备注）
 - [x] `let` 中 `var` 基址字段 → `constant expression cannot reference var variable`
 - [x] `mul(int32, add(int32, a, b), 2)` 仍为语法错误（嵌套 RHS 未放开）
 - [x] AOT 与 VM 对新用例 stdout 差分一致
-- [ ] unit `test_struct_field_access_*` 通过（§5.1 unit 段）
+- [x] unit `test_struct_field_access_*` 通过（§5.1 unit 段，21 断言）
 - [x] `cmake --build build --target check-embed check-embed-aot` 通过（§5.4 Phase 5 验收）
 - [x] `python3 scripts/sync/check_rhs_coverage.py` 通过（无新 `TcRhsKind`）
 - [x] `examples/composite/main.tc` 可运行且输出不变
 
 ---
 
-*文档版本：0.0.41-fix-plan · 状态：已落地（unit hist 注入待补）*
+*文档版本：0.0.41-fix-plan · 状态：已落地*
+
+> **实施补充记录（2026-08-27 测试全面更新）**：
+>
+> 1. **修复缺陷**：`tc_memblock_check.c` 的 `.count` 重解释路径中，
+>    `rhs->u.memblock_count.memblock_name = NULL;` 与 `field_read.base` 是同一 union
+>    存储，会把刚写入的基址清空，导致 `var n: int32 = s.count`（struct 字段名为
+>    `count` 的 RHS 入口）误报 `invalid struct field read`。原 `.tc` 用例仅走 operand
+>    入口（`mul(int32, s.count, 2)`）未暴露；已删除该置空语句并补 RHS 入口覆盖。
+> 2. **诊断消息变更**：let-RHS type_check 扩展为全部 RHS 种类后，
+>    `let a: int8 = 128` 由 const_eval 的 `invalid literal in constant expression`
+>    变为 type_check 的 `literal out of range for context type`（更精确）；
+>    `let_const_literal_range.tc` 三处脚本期望子串已同步。
+> 3. **新增覆盖**：`struct_field_operand_count.tc`（`.count` 作 operand）、
+>    `struct_field_operand_self_base.tc` 补 import 形态基址、`struct_field_named_count.tc`
+>    补 RHS 入口、unit `test_struct_field_access.c`（含 hist 注入）。
 
 以下与「字段 operand」同根、标准已允许的缺口**已并入本计划**：
 
@@ -419,4 +435,4 @@ Phase 0 前置设计（冻结 §3.4 分析期表示）
 
 ---
 
-*文档版本：0.0.41-fix-plan · 状态：待实施*
+*文档版本：0.0.41-fix-plan · 状态：已落地（含 unit 测试与测试全面更新，见 §6 实施补充记录）*

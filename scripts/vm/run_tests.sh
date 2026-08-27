@@ -1105,9 +1105,14 @@ run_expect_stdout "$ROOT/tests/valid/struct_field_operand_ptr.tc" "13
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_memblock.tc" "20
 "
+run_expect_stdout "$ROOT/tests/valid/struct_field_operand_count.tc" "4
+2
+true
+"
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_let_rhs.tc" "5
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_named_count.tc" "12
+6
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_composite.tc" "5
 "
@@ -1115,6 +1120,7 @@ run_expect_stdout "$ROOT/tests/valid/struct_field_operand_cast.tc" "65
 1065353216
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_self_base.tc" "2
+2
 "
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_arith.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_compare.tc"
@@ -1125,6 +1131,7 @@ run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_shortcircuit.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_const.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_ptr.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_memblock.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_count.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_let_rhs.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_named_count.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_operand_composite.tc"
@@ -1609,7 +1616,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap canno
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_missing_operand.tc" "unexpected token"
-run_expect_fail_msg "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
+run_expect_fail_msg "$ROOT/tests/errors/static/let_const_literal_range.tc" "literal out of range for context type"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large"
@@ -1690,7 +1697,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_arith_op.tc" "ope
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_unary.tc" "operand type does not match"
 run_expect_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
-run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "invalid literal in constant expression"
+run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "literal out of range for context type"
 run_expect_check_fail "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_int_with_t.tc" "%t requires bool type"
