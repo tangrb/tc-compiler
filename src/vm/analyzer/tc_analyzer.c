@@ -150,8 +150,12 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     {
         size_t di = 0;
-        for (di = 0; di < out->dep_count; di++) {
-            if (tc_struct_table_register_program(&out->deps[di], &struct_table, diag) != 0) {
+        /*
+         * deps 收集顺序为 importer 先于 importee（DFS 先入后递归）。
+         * 结构体名解析须 importee 先入表，故按逆序注册。
+         */
+        for (di = out->dep_count; di > 0; di--) {
+            if (tc_struct_table_register_program(&out->deps[di - 1], &struct_table, diag) != 0) {
                 goto fail;
             }
         }

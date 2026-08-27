@@ -206,7 +206,7 @@ typed program 必须直接保存或能够无歧义重建：
 - 完整多域 CFG（顶层 + 各函数，封闭独立）；
 - `let`/`static let` 的目标精度位模式；
 - memblock 绑定的 `N` 数学值与存储布局；
-- 结构体类型定义（字段列表、类型、可变性、padding、总宽度）；
+- 结构体类型定义（字段列表、类型、可变性、padding、总宽度；表按模块定界，导入须限定名）；
 - 源位置映射。
 
 ### 4.2 不变量
@@ -492,7 +492,7 @@ tc_diagnostic_clear(&diag);
 - memblock N 比较、深拷贝、越界；
 - struct 构造器、双层可变性、嵌套字段；
 - 13 阶段确定性顺序；
-- 70+ 错误码覆盖。
+- **91** 错误码覆盖。
 
 ---
 
@@ -506,7 +506,7 @@ tc_diagnostic_clear(&diag);
 | 函数 | 无 | `func`/`funcall`/`return`、无环调用图 |
 | 类型 | 标量 | 标量 + `ptr<T>` + `memblock<T,N>` + `struct` + `isize`/`usize` + `void` |
 | 编译管线 | 6 阶段 | 13 确定性阶段 |
-| 错误码 | 41+1 | 70+（含函数、模块、memblock、struct、ptr 专用诊断） |
+| 错误码 | 41+1 | **91**（含函数、模块、memblock、struct、ptr 专用诊断） |
 | REPL | 包含 | 无 |
 
 ### 14.2 预计迁移顺序

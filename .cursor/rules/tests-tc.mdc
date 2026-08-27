@@ -88,6 +88,8 @@ run_with_stdin "$ROOT/tests/valid/read_foo.tc" "true\n" "true\n"
 | let 引用 var | `constant expression cannot reference var variable` |
 | 重复定义 | `duplicate definition` |
 | 未定义 | `undefined variable` |
+| 导入结构体裸名 | `undefined struct` |
+| 导入 private struct | `private member access` |
 | if 条件非 bool | `if condition must be bool` |
 | while 条件非 bool | `while condition must be bool` |
 | 缩进混用 tab/空格 | `mixed spaces and tabs in indentation` |

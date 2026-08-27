@@ -310,7 +310,7 @@ bash scripts/aot/run_tests.sh --filter struct_field_operand
 
 #### 5.3 示例回写
 
-`examples/composite/main.tc`、`ScoreLib.tc`：去掉仅为规避 **operand** 缺口引入的中间变量（算术 / I/O 位置的字段 operand 写法）。`funcall` 命名实参路径已支持字段读（§1.1），无需改动。
+`examples/composite/main.tc`、`ScoreLib.tc`：去掉仅为规避 **operand** 缺口引入的中间变量（算术 / I/O 位置的字段 operand 写法）。`funcall` 命名实参路径已支持字段读（§1.1），无需改动。入口程序对库结构体须写 `ScoreLib.Player` / `ScoreLib.Team`（[语言标准 §3.9.1] / §4.4），不得用裸名。
 
 #### 5.4 文档同步（本修复落地后）
 

@@ -15,6 +15,7 @@
 ├─ 新关键字/修饰符（wrap 类）   → §7 关键字
 ├─ 扩展 let 编译期能力          → §8 编译期常量
 ├─ 模块 / 函数 / 复合类型扩展   → 对应 kg-module / kg-func / kg-eval
+   （导入 struct 类型名/构造器 → kg-module + tc_struct_check.c）
 ├─ Embed / 宿主 API             → kg-embed + embed-src
 └─ 仅新诊断/错误消息            → §9 仅诊断
 ```

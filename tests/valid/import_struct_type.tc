@@ -1,0 +1,10 @@
+#program
+; 导入的 public struct 须以 <模块名>.<结构体名> 作类型名与构造器名
+import ImportStructLib
+var b: ImportStructLib.Box = ImportStructLib.Box(x: 3)
+var a: ImportStructLib.Box = funcall(ImportStructLib.make_box, x: 7)
+var mb: memblock<ImportStructLib.Box, 2> = memblock(ImportStructLib.Box, count: 2, a, b)
+var loaded: ImportStructLib.Box = memblock_load(ImportStructLib.Box, mb, 0)
+writeln(int32, a.x)
+writeln(int32, b.x)
+writeln(int32, loaded.x)

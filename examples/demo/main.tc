@@ -368,7 +368,7 @@ writeln(int32, %d, fac)
 var rsum: int32 = funcall(MyLib.range_sum, from: 1, to: 10)
 writeln(int32, %d, rsum)
 
-var v: Vec2 = funcall(MyLib.make_vec2, x: 3.0, y: 4.0)
+var v: MyLib.Vec2 = funcall(MyLib.make_vec2, x: 3.0, y: 4.0)
 var vx: float64 = v.x
 var vy: float64 = v.y
 writeln(float64, %.1f, vx)

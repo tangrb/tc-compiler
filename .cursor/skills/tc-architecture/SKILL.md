@@ -63,6 +63,7 @@ description: >-
 | 新 TcRhsKind / 分发点 | `@knowledge-graph` 分发点表 | [kg-dispatch.md](kg-dispatch.md) |
 | AST / equals / sizeof | [types.md](types.md) | `tc_types.h` |
 | **#program / import / Self** | [kg-module.md](kg-module.md) | `tc_module.c` |
+| **导入 struct 限定名** | [kg-module.md](kg-module.md) | `tc_struct_check.c` / `tc_parser_type.c` |
 | **func / funcall / 调用图** | [kg-func.md](kg-func.md) | `tc_func_check.c` |
 | **ptr / memblock / struct** | [types.md](types.md) + [kg-eval.md](kg-eval.md) | — |
 | **TC-Embed / `--embed`** | [kg-embed.md](kg-embed.md) | Rule `embed-src` |

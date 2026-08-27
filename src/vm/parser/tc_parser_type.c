@@ -7,6 +7,7 @@
 
 #include "tc_parser_internal.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
@@ -119,12 +120,38 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
     }
 
     if (tok->kind == TC_TOK_IDENTIFIER) {
+        const TcToken *member_tok = NULL;
+
         if (!out_struct_name) {
             return tc_syntax_error(diag, line_no, tok->column, "expected type");
         }
-        *out_struct_name = tc_token_strdup(tok, line_no, diag);
-        if (!*out_struct_name) {
-            return -1;
+        /*
+         * struct_type = identifier | imported_member_name（语言标准附录 A）。
+         * 导入的公开结构体以 <模块名>.<结构体名> 作为类型名。
+         */
+        if (*index + 2 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
+            size_t total = 0;
+
+            member_tok = tc_peek(tokens, *index + 2);
+            if (member_tok->kind != TC_TOK_IDENTIFIER) {
+                return tc_syntax_error(diag, line_no, member_tok->column, "expected struct name");
+            }
+            total = tok->length + 1 + member_tok->length + 1;
+            *out_struct_name = (char *)malloc(total);
+            if (!*out_struct_name) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
+                                  "memory allocation failed");
+                return -1;
+            }
+            snprintf(*out_struct_name, total, "%.*s.%.*s", (int)tok->length, tok->start,
+                     (int)member_tok->length, member_tok->start);
+            (*index) += 3;
+        } else {
+            *out_struct_name = tc_token_strdup(tok, line_no, diag);
+            if (!*out_struct_name) {
+                return -1;
+            }
+            (*index)++;
         }
         /*
          * §3.9.1：结构体名（含嵌套在 ptr<…>/memblock<…> 内的）以未决名
@@ -140,7 +167,6 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
             return tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
                                      "memory allocation failed");
         }
-        (*index)++;
         return 0;
     }
 

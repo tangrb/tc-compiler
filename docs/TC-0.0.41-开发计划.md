@@ -460,7 +460,7 @@ src/
 
 | ID | 任务 | 产出 | 验证标准 |
 | -- | ---- | ---- | -------- |
-| E3-1 | 定义唯一性 | 同名 → TC_CE_DUPLICATE_STRUCT; 未定义引用 → TC_CE_UNDEFINED_STRUCT | 错误测试 |
+| E3-1 | 定义唯一性 | 同模块同名 → TC_CE_DUPLICATE_STRUCT；裸名仅本模块；导入须 `<模块>.<名>`，否则 UNDEFINED_STRUCT；private struct → PRIVATE_MEMBER_ACCESS | 错误测试（`struct_dup_*` / `imported_struct_bare_name` / `imported_struct_private`） |
 | E3-2 | 字段类型检查 | 标量/memblock/ptr/已定义struct；值位置禁止自引用与前向引用；指针所指位置允许 `ptr<本结构体>`（§3.9.1）；禁止 void | 类型测试 |
 | E3-3 | 字段声明约束 | 每行1字段; 至少1字段; 字段名唯一→DUPLICATE_FIELD; @padding(N)可选且须为无后缀非负十进制字面量（负号/后缀/进制前缀→CONSTANT_EXPRESSION）；end 与 struct 对齐（INDENT_ELSE_END）且不得有尾随 token | 解析+类型测试（`struct_dup_field` / `struct_padding_*` / `struct_end_*`） |
 | E3-4 | 字段可变性 | let 字段(构造后不可修改) / var 字段 | 可变性测试 |

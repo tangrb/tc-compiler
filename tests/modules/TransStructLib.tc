@@ -1,0 +1,5 @@
+#lib
+; 传递依赖用：仅由 MidStructLib import，入口不得直接写 TransStructLib.Box
+public struct Box then
+    var x: int32
+end

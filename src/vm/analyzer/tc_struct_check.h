@@ -17,9 +17,10 @@
 #include "tc_symbol.h"
 #include "tc_analyzer_internal.h"
 
-/** 一张已注册结构体条目（模块内唯一名 → struct_id） */
+/** 一张已注册结构体条目（定义模块 + 结构体名 → struct_id） */
 typedef struct {
     char *name;
+    char *module_name; /* 定义该结构体的模块名（堆）；内存源可为 NULL */
     TcVisibility visibility;
     TcStructField *fields; /* 深拷贝自 AST；嵌套类型解析后写入 struct_id */
     size_t field_count;

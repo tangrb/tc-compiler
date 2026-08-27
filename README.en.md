@@ -53,7 +53,7 @@ bash scripts/run_tests.sh
 | I/O | `write` / `writeln` / `read` with 13 integer, boolean, and floating-point format specifiers |
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
-| Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; VM + AOT) |
+| Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; imported structs require `<module>.<Name>`; VM + AOT) |
 | Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.41) |
 
 Version 0.0.41 does not include strings, a bytecode file format, or JIT. There is no REPL; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.

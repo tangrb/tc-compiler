@@ -311,7 +311,7 @@ int main(void) {
 | 完整 CFG 固定点（多域：顶层 + 各函数独立） | 支持 |
 | 13 阶段确定性编译管线 | 支持 |
 | success-only ownership 与诊断分域 | 支持 |
-| 70+ 语言错误码 + OutOfMemory 完整表 | 支持 |
+| 91 语言错误码 + OutOfMemory 完整表 | 支持 |
 
 ---
 

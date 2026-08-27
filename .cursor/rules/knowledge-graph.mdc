@@ -28,7 +28,7 @@ alwaysApply: false
 | 改浮点 / ieee / cast / bitcast | [kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md) |
 | 改 if / while / goto / 块作用域 / CFG / uninit / 诊断阶段 | [kg-cfg.md](../skills/tc-architecture/kg-cfg.md) |
 | 改 let / 短路 / 重载+shift / OOM / AOT 语义 | [kg-eval.md](../skills/tc-architecture/kg-eval.md) |
-| 改 `#program` / `#lib` / import / Self / 搜索路径 | [kg-module.md](../skills/tc-architecture/kg-module.md) |
+| 改 `#program` / `#lib` / import / Self / 搜索路径 / 导入 struct 限定名 | [kg-module.md](../skills/tc-architecture/kg-module.md) |
 | 改 func / funcall / return / 调用图 / static let·var / 调用帧 | [kg-func.md](../skills/tc-architecture/kg-func.md) |
 | 改 TC-Embed / value_bridge / `--embed` | [kg-embed.md](../skills/tc-architecture/kg-embed.md) |
 | 改 I/O / format | 工作流-I/O（下方）；细节 `tc_io.c` |
@@ -52,7 +52,7 @@ alwaysApply: false
 
 **let** — `tc_const_eval.c` → `tc_parse_const_rhs` → `tc_check_rhs` → 细节 [kg-eval.md](../skills/tc-architecture/kg-eval.md)
 
-**模块** — `tc_module_check_structure` → resolve_imports → signatures → [kg-module.md](../skills/tc-architecture/kg-module.md)
+**模块** — `tc_module_check_structure` → resolve_imports → `tc_struct_table_register_program` → signatures → [kg-module.md](../skills/tc-architecture/kg-module.md)
 
 **函数** — `tc_func_check_*` → `tc_callgraph_check` → 执行 `tc_call_frame` → [kg-func.md](../skills/tc-architecture/kg-func.md)
 

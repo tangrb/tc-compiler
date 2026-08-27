@@ -1,0 +1,8 @@
+#lib
+; 中间库：import TransStructLib 并暴露函数；不重新导出结构体类型名
+import TransStructLib
+
+public func make_x() int32 then
+    var b: TransStructLib.Box = TransStructLib.Box(x: 3)
+    return b.x
+end

@@ -934,6 +934,29 @@ run_expect_check_fail "$ROOT/tests/errors/static/self_member_type_mismatch.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/self_member_bare_name.tc" \
     "undefined variable"
 run_expect_check_fail "$ROOT/tests/modules/private_member_access.tc" "private member access"
+run_expect_fail_msg "$ROOT/tests/modules/imported_struct_bare_name.tc" \
+    "undefined struct 'Box'"
+run_expect_check_fail "$ROOT/tests/modules/imported_struct_bare_name.tc" \
+    "undefined struct 'Box'"
+run_expect_fail_msg "$ROOT/tests/modules/imported_struct_bare_ctor.tc" \
+    "undefined struct 'Box'"
+run_expect_check_fail "$ROOT/tests/modules/imported_struct_bare_ctor.tc" \
+    "undefined struct 'Box'"
+run_expect_fail_msg "$ROOT/tests/modules/imported_struct_not_imported.tc" \
+    "undefined struct 'BoxLib.Box'"
+run_expect_check_fail "$ROOT/tests/modules/imported_struct_not_imported.tc" \
+    "undefined struct 'BoxLib.Box'"
+run_expect_fail_msg "$ROOT/tests/modules/imported_struct_transitive.tc" \
+    "undefined struct 'TransStructLib.Box'"
+run_expect_check_fail "$ROOT/tests/modules/imported_struct_transitive.tc" \
+    "undefined struct 'TransStructLib.Box'"
+run_expect_fail_msg "$ROOT/tests/modules/imported_struct_private.tc" \
+    "private member access"
+run_expect_check_fail "$ROOT/tests/modules/imported_struct_private.tc" \
+    "private member access"
+run_expect_stdout "$ROOT/tests/modules/imported_struct_mid_ok.tc" "3
+"
+run_expect_check_ok "$ROOT/tests/modules/imported_struct_mid_ok.tc"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
     "cannot assign to function parameter"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_param_let.tc" \
@@ -1027,6 +1050,10 @@ run_expect_stdout "$ROOT/tests/valid/phase5_struct_extract_indep.tc" "5
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_struct_funcall.tc" "743
 "
+run_expect_stdout "$ROOT/tests/valid/import_struct_type.tc" "7
+3
+7
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_struct_memblock.tc" "10
 20
 10
@@ -1095,6 +1122,7 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_struct_whole_assign.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mixed_types.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_extract_indep.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_funcall.tc"
+run_expect_check_ok "$ROOT/tests/valid/import_struct_type.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_field.tc"

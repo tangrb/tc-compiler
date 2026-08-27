@@ -1,5 +1,5 @@
 #lib
-; struct 按值传参 / 返回 / 深拷贝（在库内跑通，避免 #program 导入类型名）
+; struct 按值传参 / 返回 / 深拷贝（库内用本模块裸名；导入方须写 <模块名>.<结构体名>）
 public struct Point then
     var x: int32
     var y: int32

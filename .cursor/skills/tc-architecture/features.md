@@ -10,7 +10,7 @@
 | 特性 / 问题 | 读这一份 |
 |-------------|---------|
 | 类型内核 / equals / sizeof / 槽位 | [features/platform.md](features/platform.md) § 类型内核 |
-| `#program` / import / Self / `-I` | [features/platform.md](features/platform.md) § 模块 · 或 [kg-module.md](kg-module.md) |
+| `#program` / import / Self / `-I` / 导入 struct 限定名 | [features/platform.md](features/platform.md) § 模块 · 或 [kg-module.md](kg-module.md) |
 | func / funcall / 调用图 / static | [features/platform.md](features/platform.md) § 函数 · 或 [kg-func.md](kg-func.md) |
 | ptr / memblock / struct | [features/platform.md](features/platform.md) § 复合类型 · 或 [kg-eval.md](kg-eval.md) |
 | bool | [features/scalar.md](features/scalar.md) § bool |

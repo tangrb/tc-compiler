@@ -24,7 +24,7 @@
 | 作用域 | `tc_scope.c` | `tc_member_index_*` / `tc_scope_check_self_usage` |
 | CLI/API | `tc_driver.c` / `tc_lib.c` | `-I`（`TcCompileOptions` 会话路径）/ `tc_compile_file_opts` |
 
-细节：[kg-module.md](../kg-module.md)。测试：check-module · `tests/errors/module/` · `include_search_ok`。
+细节：[kg-module.md](../kg-module.md)。测试：check-module · `tests/errors/module/` · `include_search_ok` · **import_struct_type** / **imported_struct_mid_ok** · **imported_struct_bare_name** / **imported_struct_bare_ctor** / **imported_struct_not_imported** / **imported_struct_transitive** / **imported_struct_private**。
 
 ## 函数 / 调用图 / static（Phase 4–5）
 
@@ -45,4 +45,4 @@
 | VM | `tc_{ptr,memblock,struct}_exec.c` | load/store/ctor/field/… |
 | AOT | `tc_aot_rt.c` | `tc_aot_{ptr,memblock,struct}_*` |
 
-细节：[kg-eval.md](../kg-eval.md) · 测试账本 Phase 3/5：[test-map.md](../test-map.md)。
+细节：[kg-eval.md](../kg-eval.md) · 导入 struct 限定名：[kg-module.md](../kg-module.md) · 测试账本 Phase 3/5：[test-map.md](../test-map.md)。

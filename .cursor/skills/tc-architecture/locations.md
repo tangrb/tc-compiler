@@ -14,7 +14,8 @@
 | `tc_tokenize_line` | `src/vm/lexer/tc_lexer.c` |
 | `tc_parse_statement` / `tc_parse_if_stmt` / `tc_parse_while_stmt` | `src/vm/parser/tc_parser.c` |
 | `tc_parse_struct_def` / 字段行 / `@padding` | `src/vm/parser/tc_parser_struct.c` |
-| `tc_parse_type_syntax` | `src/vm/parser/tc_parser_type.c` |
+| `tc_parse_type_syntax` | `src/vm/parser/tc_parser_type.c`（含 `Mod.Name`） |
+| `tc_struct_table_register_program` / `tc_struct_table_find` | `src/vm/analyzer/tc_struct_check.c` |
 | `tc_parse_func_def` | `src/vm/parser/tc_parser_func.c` |
 | var/let/static/import/return/funcall/field/ptr/memblock/memcopy 语句 | `src/vm/parser/tc_parser_stmt.c` |
 | `tc_parse_rhs` / `tc_parse_const_rhs` | `src/vm/parser/tc_parser_rhs.c` |

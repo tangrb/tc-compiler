@@ -1,0 +1,4 @@
+#lib
+private struct Hidden then
+    var x: int32
+end

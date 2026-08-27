@@ -1,0 +1,4 @@
+#program
+; 期望：undefined struct（类型已限定，构造器仍须 <模块名>.<结构体名>）
+import BoxLib
+var a: BoxLib.Box = Box(x: 1)

@@ -391,7 +391,7 @@ end
 - 每行恰好一个字段。
 - `@padding(N)` 可选，省略等同 `@padding(0)`。
 - 字段以 `let` / `var` 区分可变性。
-- 字段类型中结构体名按 [语言标准 §3.9.1] 位置规则分流：值位置禁止自引用与前向引用；指针所指位置允许 `ptr<正在定义的本结构体>`（指针自引用）。Analyzer 在 `tc_struct_check.c` 落实（见 §8.5）。
+- 字段类型中结构体名按 [语言标准 §3.9.1] 位置规则分流：值位置禁止本模块自引用与前向引用，允许已 import 的 `public struct`（须写 `<模块名>.<结构体名>`）；指针所指位置允许 `ptr<正在定义的本结构体>`（指针自引用）。裸名仅解析为本模块结构体。Analyzer 在 `tc_struct_check.c` 落实（见 §8.5）。
 
 **memblock 引用**：
 
@@ -441,14 +441,14 @@ memblock<T, N>
 
 3. **依赖图环检查（4c）**：以模块为顶点、`import` 为边检查 DAG。存在多个环时，选择包含源位置最早 `import` 边的环 → `TC_CE_CIRCULAR_IMPORT`。
 
-4. **收集函数签名（4d）**：仅在 4a–4c 全部成功后，收集全部可达 `#lib` 模块的函数签名，供后续阶段使用。
+4. **收集函数签名（4d）**：仅在 4a–4c 全部成功后，收集全部可达 `#lib` 模块的函数签名，供后续阶段使用。4c 与 4d 之间注册结构体表（`tc_struct_table_register_program`）：按 `(定义模块名, 结构体名)` 定界；类型名与构造器名在此解析（见 §8.5）。
 
 ### 6.2 模块命名空间
 
 - 每个 `#lib` 模块维护一个命名空间：`static let`、`static var`、`func`、`struct` 名。
 - 函数体内通过 `Self.<成员名>` 访问本库成员。
-- 导入者通过 `<模块名>.<成员名>` 访问公开成员。
-- `private` 成员的外部访问 → `TC_CE_PRIVATE_MEMBER_ACCESS`。
+- 导入者通过 `<模块名>.<成员名>` 访问公开成员（`func` / `static` / `struct` 类型名与值构造器）。导入结构体不得写裸名。
+- `private` 成员的外部访问 → `TC_CE_PRIVATE_MEMBER_ACCESS`（含 `private struct` 作类型名或构造器；不得改报 `TC_CE_UNDEFINED_STRUCT`）。
 
 ### 6.3 `Self` 解析
 
@@ -594,10 +594,10 @@ size_t sizeof_bits(const TcType *type) {
 
 ### 8.5 结构体类型实现
 
-- **类型定义**：符号表为每个结构体维护字段列表（名称、类型、可变性、padding）、总宽度。
-- **未决结构体名（`TcType.pending_name`）**：Parser 在类型表达式中遇到结构体名（含嵌套在 `ptr<…>`/`memblock<…>` 内的）时暂存于 `TcType.pending_name`（`struct_id = -1`），不丢弃；Analyzer 注册结构体表后统一解析为 `struct_id`。`tc_type_free`/`tc_type_copy` 负责其生命周期。
-- **字段类型检查**（`tc_struct_check.c` `tc_struct_validate_type_node`）：按 [语言标准 §3.9.1] 位置规则递归校验类型树——值位置（字段类型本身或 `memblock` 元素类型）仅允许源序更早已定义完毕的结构体（禁止 `S` 自身与前向引用）；指针所指位置允许完整类型或正在定义的本结构体（`ptr<S>` 指针自引用，含 `ptr<ptr<S>>`、`memblock<ptr<S>, N>` 嵌套形态）。值自引用 → `TC_CE_STRUCT_VALUE_SELF_REF`；前向引用或未定义结构体 → `TC_CE_UNDEFINED_STRUCT`。注册第二遍以 `tc_struct_resolve_type_tree` 将未决名解析为 `struct_id` 并计算位宽。
-- **声明/RHS 类型解析**：`var`/`let`/`static`/函数参数与返回值、以及 RHS 内携带的类型（`ptr_*` 的 `pointee_type`、`memblock_*` 的 `element_type`、`cast`/`bitcast` 的 `target`、构造器实参内的嵌套 RHS）中的嵌套结构体名在注册后一并解析；未定义结构体 → `TC_CE_UNDEFINED_STRUCT`。
+- **类型定义**：符号表为每个结构体维护字段列表（名称、类型、可变性、padding）、总宽度。`TcStructEntry` 携带 `module_name`（定义该结构体的模块）；查找键为 `(module_name, name)`，不同模块可同名。
+- **未决结构体名（`TcType.pending_name`）**：Parser 在类型表达式中遇到结构体名（裸标识符或 `Mod.Name`，含嵌套在 `ptr<…>`/`memblock<…>` 内的）时暂存于 `TcType.pending_name`（`struct_id = -1`），不丢弃；Analyzer 注册结构体表后按当前程序的 `import` 列表解析为 `struct_id`。裸名仅匹配当前模块条目；限定名须为本文件已 `import` 的库。`tc_type_free`/`tc_type_copy` 负责其生命周期。值构造器名解析成功后规范化为 `"<模块名>.<结构体名>"`，供 Pass2 / Executor / AOT 的 `tc_struct_table_find` 使用。
+- **字段类型检查**（`tc_struct_check.c` `tc_struct_validate_type_node`）：按 [语言标准 §3.9.1] 位置规则递归校验类型树——值位置（字段类型本身或 `memblock` 元素类型）允许本模块源序更早已定义完毕的结构体，以及已 import 的 `public struct`（禁止 `S` 自身与本模块前向引用）；指针所指位置允许完整类型或正在定义的本结构体（`ptr<S>` 指针自引用，含 `ptr<ptr<S>>`、`memblock<ptr<S>, N>` 嵌套形态）。值自引用 → `TC_CE_STRUCT_VALUE_SELF_REF`；前向引用、未 import 的限定名、或导入结构体裸名 → `TC_CE_UNDEFINED_STRUCT`；`private` 导入结构体 → `TC_CE_PRIVATE_MEMBER_ACCESS`。注册第二遍仅解析本次新登记条目（避免用错误的当前模块去解析依赖库字段），以 `tc_struct_resolve_type_tree` 将未决名解析为 `struct_id` 并计算位宽。
+- **声明/RHS 类型解析**：`var`/`let`/`static`/函数参数与返回值、以及 RHS 内携带的类型（`ptr_*` 的 `pointee_type`、`memblock_*` 的 `element_type`、`cast`/`bitcast` 的 `target`、构造器实参内的嵌套 RHS）中的嵌套结构体名在注册后一并解析；未定义或不可见结构体 → `TC_CE_UNDEFINED_STRUCT` 或 `TC_CE_PRIVATE_MEMBER_ACCESS`。
 - **值构造器验证**（第 6d 子阶段）：
   - 全字段必填，命名实参文本顺序与声明顺序一致；
   - 每个实参类型须与字段类型严格一致。

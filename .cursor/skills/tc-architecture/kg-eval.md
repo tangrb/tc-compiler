@@ -49,6 +49,8 @@ SHIFT: shl 可选 wrap（let 禁）；shr 禁 wrap；k>=n → shr=0；strict shl
 | AOT | `tc_aot_codegen.c` + `tc_aot_{ptr,memblock,struct}_*`（`tc_aot_rt.c`） |
 | 存储 | `TcRuntimeSlots`：`memblock_storage` / `struct_storage` |
 
+结构体名解析（Analyzer，注册结构体表时）：裸名仅本模块；导入须 `Mod.Name`；表按 `(module_name, name)`。见 [kg-module.md](kg-module.md)。
+
 ## 内存安全
 
 ```

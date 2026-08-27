@@ -238,7 +238,8 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `StructImmutableFieldError` | 对 let 字段赋值 |
 | `StructValueSelfRefError` | 字段在值位置引用正在定义的本结构体（§3.9.1） |
 | `DuplicateStruct` | 同模块重复 struct 定义 |
-| `UndefinedStruct` | 未定义的结构体类型名 |
+| `UndefinedStruct` | 未定义的结构体类型名（含导入结构体裸名、未 import 的 `Mod.Name`） |
+| `PrivateMemberAccessError` | 外部访问 private 成员（含 private struct 类型名/构造器） |
 | `MemblockIndexOutOfRange` (static) | 编译期可确定的 memblock 越界 |
 | `MemblockElementCountMismatch` | memblock 构造器逐值数量 != count |
 | `MemblockSizeMismatch` | memblock 赋值/传参 N 不匹配 |
@@ -331,7 +332,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `DuplicateImport` | 重复导入 |
 | `ImportNameConflict` | 导入名与顶层名称冲突 |
 | `CircularImport` | 循环导入 |
-| `PrivateMemberAccessError` | 外部访问 private 成员 |
+| `PrivateMemberAccessError` | 外部访问 private 成员（含 private struct 类型名/构造器） |
 
 ### 6.7 警告
 
@@ -455,10 +456,11 @@ writeln(int32, %d, val)
 | `memblock<T, N>` 及深拷贝 | 已落地 |
 | `struct` 及字段双层可变性 | 已落地 |
 | `struct` 指针自引用（`ptr<本结构体>`，[语言标准 §3.9.1]） | 已落地（`TcType.pending_name` 位置规则校验 + 解析；测试 `phase5_struct_ptr_self_ref` 等） |
+| 导入 `public struct`（`<模块名>.<结构体名>` 类型名/构造器） | 已落地（裸名 → `UndefinedStruct`；`private struct` → `PrivateMemberAccessError`；测试 `import_struct_type` 等） |
 | `isize`/`usize` | 已落地 |
 | `static var` / `static let` | 已落地 |
 | 13 阶段编译管线 | 已落地 |
-| 完整诊断码表（70+ 码） | 已落地 |
+| 完整诊断码表（**91** 码） | 已落地 |
 
 ### 9.2 与 v0.0.31 的关键差异
 
@@ -468,7 +470,7 @@ writeln(int32, %d, val)
 | 函数 | 无 | `func`/`funcall`/`return` |
 | 类型 | 标量 | 标量 + `ptr<T>` + `memblock<T,N>` + `struct` + `isize`/`usize` |
 | REPL | 支持 | 无 |
-| 错误码 | 41+1 | 扩展至 ~70+ |
+| 错误码 | 41+1 | **91** |
 | 入口 | 顶层语句 | `#program` 顶层语句 |
 
 ### 9.3 迁移提示

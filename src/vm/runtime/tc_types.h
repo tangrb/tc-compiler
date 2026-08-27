@@ -63,12 +63,13 @@ typedef enum {
  * 标量与 void：仅 tag 有意义，params 为零。
  * ptr：pointee 堆分配或指向持久类型节点。
  * memblock：element + 声明 count（N）；tc_type_equals 忽略 N。
- * struct：struct_id 索引模块内结构体定义表。
+ * struct：struct_id 索引结构体表（条目按定义模块 + 结构体名定界）。
  *
- * pending_name：仅解析期使用。类型表达式中的结构体名（含嵌套在
- * ptr<…>/memblock<…> 内的）在 Parser 阶段无法解析为 struct_id，先以
- * struct_id = -1 + pending_name（堆）暂存；Analyzer 注册结构体表后按
- * 位置规则（语言标准 §3.9.1）解析为真实 struct_id 并释放该名字。
+ * pending_name：仅解析期使用。类型表达式中的结构体名（裸标识符或
+ * Mod.Name，含嵌套在 ptr<…>/memblock<…> 内的）在 Parser 阶段无法解析
+ * 为 struct_id，先以 struct_id = -1 + pending_name（堆）暂存；Analyzer
+ * 注册结构体表后按当前文件的 import 列表与位置规则（语言标准 §3.9.1）
+ * 解析为真实 struct_id 并释放该名字。
  * 解析成功后 pending_name 恒为 NULL。tc_type_free / tc_type_copy 负责
  * 其生命周期。
  */

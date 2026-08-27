@@ -78,6 +78,8 @@ TcValue  { const TcType *type, uint64_t bits }
    * memblock/struct：bits 存堆指针（指针↔uint64_t，隐含 64 位平台；无 32 位目标） */
 TcResolvedBinding { ..., const TcType *type, ... }
 TcTypedProgram { ..., struct_table, type_table }
+  /* struct_table 条目：name + module_name；裸名仅当前模块；
+   * pending_name 可为 Player 或 ScoreLib.Player，注册后解析为 struct_id */
 ```
 
 `memblock` 的 N / `struct_id` 仅存于 `TcType.params`；经 `tc_type_memblock_count` / `tc_type_struct_id` 解包。

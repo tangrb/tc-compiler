@@ -2,7 +2,7 @@
 
 **何时读**：写/查 `.tc` 测试、确认错误是否已有用例。**勿**为改 C 源码加载全文——`rg 测试名 scripts/` 更快。
 
-**规模**（`check_doc_counts.py` 校验）：**810 VM** · **~355 AOT（注册）** / **~401 AOT（执行）** · unit **~3036** `check()`。跑法：Skill `run-tests`。
+**规模**（`check_doc_counts.py` 校验）：**824 VM** · **~357 AOT（注册）** / **~403 AOT（执行）** · unit **~3055** `check()`。跑法：Skill `run-tests`。
 
 ## Phase 6（模块 K）账本
 
@@ -41,7 +41,7 @@
 | Lexer 新关键字 / `#program` / `@` / `isize` | `test_lexer.c` / check-lexer | B-1～B-4 |
 | Parser 模块头 / 类型 / return / funcall | `test_parser.c` / check-parser | C-1～C-7 |
 | 模块 4a～4d / Self / 签名 / 歧义导入 | `test_module.c` / check-module | D-1～D-6、D-8 |
-| 模块错误 `.tc` | `tests/errors/module/`、`tests/modules/` | 无头、可见性、环、Self、成功 import（`--check`） |
+| 模块错误 `.tc` | `tests/errors/module/`、`tests/modules/` | 无头、可见性、环、Self、成功 import（`--check`）；导入 struct 负例见 Phase 3 `imported_struct_*` |
 
 ## 0.0.31 破坏性迁移账本
 
@@ -113,6 +113,8 @@
 | TC_ERR_CONSTANT_ASSIGNMENT | const_assign, assign_to_let, **struct_assign_let_outer_let_field**, **struct_assign_let_outer_var_field**, **read_into_let** |
 | TC_ERR_STRUCT_IMMUTABLE_FIELD | struct_immutable_field |
 | TC_ERR_PARAMETER_ASSIGNMENT | parameter_assignment, **parameter_assignment_read**, struct_assign_through_param, struct_assign_param_let |
+| TC_CE_UNDEFINED_STRUCT | undefined_struct*, **imported_struct_bare_name**, **imported_struct_bare_ctor**, **imported_struct_not_imported**, **imported_struct_transitive**, struct_memblock_undefined, ptr_undefined_struct |
+| TC_CE_PRIVATE_MEMBER_ACCESS | private_member_access, **imported_struct_private** |
 | TC_ERR_TYPE_MISMATCH（if 条件字面量） | if_cond_type_literal |
 | TC_ERR_UNDEFINED_VARIABLE（块外/跨块） | if_cross_block_ref_after_end, if_cross_block_ref_else_to_then, if_cross_block_ref_then_to_else |
 
@@ -138,7 +140,7 @@ stderr 子串详情：[errors.md](errors.md)。
 | goto / label | （顶层 goto 已禁；函数内执行 Phase 5） | goto_outside_function, label_outside_function, goto_toplevel_*, goto_undefined, **goto_cross_function_label_not_found**, label_duplicate, goto_into_block, goto_sibling |
 | while / break / continue | while_false, while_counted, while_nested, while_break_continue, while_var_reinitialize | goto_inside_loop, label_inside_loop, break_outside_loop, continue_outside_loop；unit：test_analyzer / test_executor / test_cfg |
 | 未初始化与静态布尔剪枝 | uninit_both_paths, uninit_shortcircuit, **uninit_shortcircuit_let_bool**, **uninit_const_condition_if**, **uninit_const_condition_while**, assign_uninit_var_valid, uninitialized_bool | var_missing_initializer, uninit_simple, uninit_chain, uninit_multi, uninit_slot_value, uninit_if_path, uninit_goto_skip_init, **uninit_shortcircuit_var_lhs**, **shortcircuit_let_invalid_rhs**, **shortcircuit_let_rhs_type**, **shortcircuit_let_forward_lhs**, **shortcircuit_let_out_of_scope_lhs**, **diag_priority_*** |
-| Phase 3 复合类型 / 多域 CFG | phase3_nullptr, phase3_struct_ctor, phase3_memblock, phase3_memblock_fill, phase3_memblock_store, phase3_ptr_ops, phase3_ptr_load, phase3_ptr_cmp, phase3_struct_nested, phase3_struct_mut_ok（`--check` only）；**struct_field_operand_*** / **struct_field_named_count** / **struct_field_static_init**（含跨模块 `struct_field_static_init_run`）/ **struct_field_static_topo_ops**（unary/bitwise/shift/logic/float/cast/bitcast 操作数字段读 + 跨模块 `_run`） | memblock_*, struct_*, ptr_*, float_special_non_float, float32_suffix_mismatch, unreachable_after_return, missing_return, goto/label outside, struct_nested_non_struct, struct_assign_through_param / param_let, **struct_assign_let_outer_***, **struct_self_ref**（值自引用 → STRUCT_VALUE_SELF_REF）、**struct_memblock_self_ref**、**struct_ptr_fwd_ref**、**struct_memblock_undefined**、**ptr_undefined_struct**、**ptr_struct_type_distinct**、**operand_field_var_in_***、**operand_field_static_var_forward**；unit：test_type_check / **test_struct_self_reference** / **test_struct_field_access** |
+| Phase 3 复合类型 / 多域 CFG | phase3_nullptr, phase3_struct_ctor, phase3_memblock, phase3_memblock_fill, phase3_memblock_store, phase3_ptr_ops, phase3_ptr_load, phase3_ptr_cmp, phase3_struct_nested, phase3_struct_mut_ok（`--check` only）；**struct_field_operand_*** / **struct_field_named_count** / **struct_field_static_init**（含跨模块 `struct_field_static_init_run`）/ **struct_field_static_topo_ops**（unary/bitwise/shift/logic/float/cast/bitcast 操作数字段读 + 跨模块 `_run`）；**import_struct_type**（`<模块名>.<结构体名>` 类型/构造器/memblock）；**imported_struct_mid_ok**（中间库内限定名） | memblock_*, struct_*, ptr_*, float_special_non_float, float32_suffix_mismatch, unreachable_after_return, missing_return, goto/label outside, struct_nested_non_struct, struct_assign_through_param / param_let, **struct_assign_let_outer_***, **struct_self_ref**（值自引用 → STRUCT_VALUE_SELF_REF）、**struct_memblock_self_ref**、**struct_ptr_fwd_ref**、**struct_memblock_undefined**、**ptr_undefined_struct**、**ptr_struct_type_distinct**、**operand_field_var_in_***、**operand_field_static_var_forward**、**imported_struct_bare_name**、**imported_struct_bare_ctor**、**imported_struct_not_imported**、**imported_struct_transitive**、**imported_struct_private**；unit：test_type_check / **test_struct_self_reference** / **test_struct_field_access** / **test_module**（导入 struct 白盒） |
 | Phase 4 函数 / static let | phase4_self_funcall, phase4_static_let, phase4_func_goto（`--check` only） | duplicate_function, function_name_conflict, parameter_name_conflict, param_shadow_local, duplicate_parameter, undefined_function, function_scope_access, funcall_*, argument_*, return_*, parameter_assignment, recursion_*, static_let_forward, static_var_bad_init, funcall_memblock_size, private_member_access |
 | Phase 5 Executor / AOT | phase5_funcall_return, phase5_ptr_*, phase5_memblock_*, **phase5_static_var**, **phase5_self_static_let**, **phase5_self_static_ops**, phase5_nested_funcall；**struct 运行时**：phase5_struct_* / **mut_matrix_ok**、**ptr_self_ref**、**ptr_nested_self_ref**、**ptr_roundtrip**、**memblock_of_struct**、**memblock_deepcopy**（VM+AOT 差分）；StructLib / SelfStaticLetLib / SelfStaticOpsLib / StaticVarLib | null_ptr_*, memblock_oob_*, memcopy_unsafe_*；**self_member_***；struct static 错误见上 |
 | Phase 6 CLI / API | cli version/help golden、`-I` include_search_ok；**cli -I path limit is not OutOfMemory**（D-15） | include_search_ok（无 `-I` → import not found）；`import_ambiguous`（双 `-I`） |
@@ -158,17 +160,17 @@ deep_recursion · let_chain · io_stress · many_vars_stress · type_combinatori
 | test_symbol.c (73) | tc_symbol.c | check-symbol |
 | test_io.c (127) | tc_io.c | check-io |
 | test_bitwise.c (16) / test_shift.c (16) | tc_semantics.c | check-bitwise / check-shift |
-| test_parser.c (139) | tc_parser.c | check-parser |
+| test_parser.c (146) | tc_parser.c | check-parser |
 | test_analyzer.c (290) | tc_analyzer*.c + tc_cfg.c + tc_const_eval.c；静态 bool 三态、DFA、诊断优先级 | check-analyzer |
 | test_diagnostic.c (33) / test_libtc.c (91) | diagnostic / libtc ownership | check-diagnostic / check-libtc |
 | test_cfg.c (91) / test_executor.c (20) | CFG 静态条件边与逻辑读集 / executor | check-cfg / check-executor |
 | test_stmt_index.c (18) | tc_stmt_index.h | check-stmt-index |
 | test_warning.c (59) | tc_warning.c | check-warning |
 | test_type_check.c (50) | tc_type_check.c + analyzer 管线 | check-type-check |
-| test_module.c (46) | tc_module.c | check-module |
+| test_module.c (58) | tc_module.c | check-module |
 | test_struct_field_access.c (27) | tc_struct_check.c + analyzer 管线（字段读 operand / static let 拓扑 / hist 注入） | check-struct-field-access |
 | test_embed.c (584) / test_embed_aot.c (361) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
 
-AOT（`scripts/aot/run_tests.sh`）：**355** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**401** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
+AOT（`scripts/aot/run_tests.sh`）：**357** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**~403** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
 
 新用例注册 `scripts/vm/run_tests.sh`（+ AOT 如适用）；同步本文件 + `@knowledge-graph` + 对应 `kg-*.md` + `features/*.md`。

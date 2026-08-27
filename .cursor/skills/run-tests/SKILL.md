@@ -17,7 +17,7 @@ description: >-
 make && bash scripts/run_tests.sh          # 推荐全量
 bash scripts/run_tests.sh --filter <名>    # 最小回归（仅 VM）
 bash scripts/run_tests.sh --asan           # AddressSanitizer
-make test                                  # Gate：810 VM + ~3036 unit + ~401 AOT 执行
+make test                                  # Gate：824 VM + ~3055 unit + ~403 AOT 执行
 ```
 
 `--filter`/`--asan`/`--ubsan`/`--valgrind`/`--leaks` **仅 VM**；AOT/unit 始终全量。
@@ -26,8 +26,8 @@ make test                                  # Gate：810 VM + ~3036 unit + ~401 A
 
 ```bash
 bash scripts/vm/run_tests.sh [--filter/--verbose/--asan]
-bash scripts/aot/run_tests.sh               # 注册 355 / 执行 ~401
-make test-unit                              # check-* 汇总（~3036 check()）
+bash scripts/aot/run_tests.sh               # 注册 357 / 执行 ~403
+make test-unit                              # check-* 汇总（~3055 check()）
 cmake --build build --target check-embed check-embed-aot
 build/vm/bin/tc-vm tests/valid/foo.tc
 build/vm/bin/tc-vm -c tests/errors/static/foo.tc

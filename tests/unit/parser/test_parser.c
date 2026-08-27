@@ -658,6 +658,40 @@ static void test_parse_program_rejects_func_static(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_parse_imported_struct_type(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source =
+        TC_PROGRAM_HDR
+        "import SomeLib\n"
+        "var p: SomeLib.Box = nullptr\n"
+        "var q: ptr<SomeLib.Box> = nullptr\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0,
+          "parse imported struct type name");
+    check(program.count == 3, "import + two vars");
+    if (program.count >= 3) {
+        check(program.items[1].kind == TC_STMT_VAR_DEF, "imported type var kind");
+        check(program.items[1].u.var_def.struct_type_name != NULL &&
+                  strcmp(program.items[1].u.var_def.struct_type_name, "SomeLib.Box") == 0,
+              "imported struct_type_name");
+        check(program.items[1].u.var_def.full_type.pending_name != NULL &&
+                  strcmp(program.items[1].u.var_def.full_type.pending_name, "SomeLib.Box") == 0,
+              "imported pending_name");
+        check(program.items[2].u.var_def.full_type.tag == TC_PTR, "ptr of imported struct");
+        check(program.items[2].u.var_def.full_type.params.ptr_type.pointee != NULL &&
+                  program.items[2].u.var_def.full_type.params.ptr_type.pointee->pending_name !=
+                      NULL &&
+                  strcmp(program.items[2].u.var_def.full_type.params.ptr_type.pointee->pending_name,
+                         "SomeLib.Box") == 0,
+              "ptr pointee imported pending_name");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_parse_field_assign_and_ptr_store(void) {
     TcProgram program;
     TcDiagnostic diag;
@@ -695,6 +729,7 @@ int main(void) {
     test_parse_type_ptr_memblock();
     test_parse_return_and_funcall();
     test_parse_program_rejects_func_static();
+    test_parse_imported_struct_type();
     test_parse_field_assign_and_ptr_store();
     test_parse_var_def();
     test_parse_var_requires_initializer();

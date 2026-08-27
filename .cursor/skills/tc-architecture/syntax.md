@@ -32,13 +32,14 @@ const_rhs = 字面量 | const_ref | 单层标量运算 | struct ctor | field_rea
           /* 禁 FUNCALL_EXPR / 多数 ptr·memblock 路径；let px = p.x 合法 */
 
 类型 = int8|…|uint64|bool|float32|float64|isize|usize|void
-     | ptr(T) | memblock(T, N) | 具名 struct
+     | ptr(T) | memblock(T, N) | 本模块 struct | Mod.Struct
+     /* 导入结构体须 <模块名>.<结构体名>；裸名不解析为已 import 的 struct */
 格式 = %d %i %u %x %X %o %b %t %f %e %E %g %G
 ```
 
 ## 关键语义
 
-- **模块**：`#program` 入口 / `#lib` 库；`import` 经 `-I` 搜索；`Self` 仅 `#lib`
+- **模块**：`#program` 入口 / `#lib` 库；`import` 经 `-I` 搜索；`Self` 仅 `#lib`；导入成员（含 struct 类型名/构造器）须 `<模块名>.<名>`
 - **函数**：`func` / `funcall` / `return`；递归环静态拒绝；goto/label 仅函数内
 - **var 强制初始化**：缺 `=` → `VarMissingInitializer`
 - **移位 / 按位重载 / 短路读集 / cast·truncate·bitcast**：同标量规则（见 features §）

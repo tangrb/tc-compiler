@@ -408,6 +408,135 @@ static void test_lib_missing_visibility_structure(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_imported_struct_name_rules(void) {
+    char dir_template[] = "/tmp/tc-mod-struct-XXXXXX";
+    char *dir = tc_test_mkdtemp(dir_template);
+    char lib_path[256];
+    char priv_path[256];
+    char ok_path[256];
+    char bare_path[256];
+    char priv_use_path[256];
+    FILE *fp = NULL;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+
+    check(dir != NULL, "create imported-struct module dir");
+    if (!dir) {
+        return;
+    }
+    snprintf(lib_path, sizeof(lib_path), "%s/BoxLib.tc", dir);
+    snprintf(priv_path, sizeof(priv_path), "%s/PrivLib.tc", dir);
+    snprintf(ok_path, sizeof(ok_path), "%s/ok.tc", dir);
+    snprintf(bare_path, sizeof(bare_path), "%s/bare.tc", dir);
+    snprintf(priv_use_path, sizeof(priv_use_path), "%s/priv_use.tc", dir);
+
+    fp = fopen(lib_path, "w");
+    check(fp != NULL, "open BoxLib.tc");
+    if (!fp) {
+        return;
+    }
+    fputs("#lib\n"
+          "public struct Box then\n"
+          "    var x: int32\n"
+          "end\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(priv_path, "w");
+    check(fp != NULL, "open PrivLib.tc");
+    if (!fp) {
+        unlink(lib_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#lib\n"
+          "private struct Hidden then\n"
+          "    var x: int32\n"
+          "end\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(ok_path, "w");
+    check(fp != NULL, "open ok.tc");
+    if (!fp) {
+        unlink(lib_path);
+        unlink(priv_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#program\n"
+          "import BoxLib\n"
+          "var a: BoxLib.Box = BoxLib.Box(x: 3)\n"
+          "writeln(int32, a.x)\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(bare_path, "w");
+    check(fp != NULL, "open bare.tc");
+    if (!fp) {
+        unlink(lib_path);
+        unlink(priv_path);
+        unlink(ok_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#program\n"
+          "import BoxLib\n"
+          "var a: Box = BoxLib.Box(x: 1)\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(priv_use_path, "w");
+    check(fp != NULL, "open priv_use.tc");
+    if (!fp) {
+        unlink(lib_path);
+        unlink(priv_path);
+        unlink(ok_path);
+        unlink(bare_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#program\n"
+          "import PrivLib\n"
+          "var a: PrivLib.Hidden = PrivLib.Hidden(x: 1)\n",
+          fp);
+    fclose(fp);
+
+    tc_diagnostic_init(&diag);
+    memset(&typed, 0, sizeof(typed));
+    if (tc_compile_file_opts(ok_path, NULL, &typed, &diag) == 0) {
+        check(1, "qualified imported struct type+ctor compiles");
+        check(tc_run_program(&typed, &diag) == 0, "run qualified imported struct");
+        tc_typed_program_free(&typed);
+    } else {
+        check(0, "qualified imported struct type+ctor compiles");
+        if (diag.message) {
+            fprintf(stderr, "  note: %s\n", diag.message);
+        }
+    }
+    tc_diagnostic_clear(&diag);
+
+    memset(&typed, 0, sizeof(typed));
+    check(tc_compile_file_opts(bare_path, NULL, &typed, &diag) == -1,
+          "bare imported struct type fails");
+    check(diag.kind == TC_CE_UNDEFINED_STRUCT, "bare name → UNDEFINED_STRUCT");
+    tc_diagnostic_clear(&diag);
+
+    memset(&typed, 0, sizeof(typed));
+    check(tc_compile_file_opts(priv_use_path, NULL, &typed, &diag) == -1,
+          "private imported struct fails");
+    check(diag.kind == TC_CE_PRIVATE_MEMBER_ACCESS,
+          "private struct → PRIVATE_MEMBER_ACCESS");
+    tc_diagnostic_clear(&diag);
+
+    unlink(lib_path);
+    unlink(priv_path);
+    unlink(ok_path);
+    unlink(bare_path);
+    unlink(priv_use_path);
+    rmdir(dir);
+}
+
 int main(void) {
     test_module_check_structure_program_ok();
     test_module_check_self_in_program();
@@ -420,6 +549,7 @@ int main(void) {
     test_duplicate_import();
     test_ambiguous_import_search_paths();
     test_self_import_file();
+    test_imported_struct_name_rules();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
