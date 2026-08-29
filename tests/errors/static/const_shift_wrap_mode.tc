@@ -1,0 +1,4 @@
+#program
+; 期望：wrap cannot be used with shift operations（const_shift 非法组合 → TC_CE_MODE_MISMATCH）
+let a: int8 = 1
+let r: int8 = shr(int8, wrap, a, 1)

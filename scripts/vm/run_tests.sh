@@ -607,6 +607,8 @@ run_expect_stdout "$ROOT/tests/valid/bitwise_shift_shl_shr_valid.tc" "64
 -64
 64
 "
+run_expect_stdout "$ROOT/tests/valid/shl_int64_neg_boundary.tc" "-9223372036854775808
+"
 run_expect_stdout "$ROOT/tests/valid/bitwise_shl_wrap_valid.tc" "0
 0
 "
@@ -781,6 +783,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/memblock_fill_type.tc" \
     "bool literal requires bool context"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_zero.tc" \
     "memblock count must be at least 1"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_type_count_zero.tc" \
+    "memblock count must be at least 1"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_store_oob.tc" \
     "memblock index out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_scalar_arith.tc" \
@@ -852,6 +856,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/unreachable_after_return.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_fill_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" \
+    "memblock count must be at least 1"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_type_count_zero.tc" \
     "memblock count must be at least 1"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_store_oob.tc" \
     "memblock index out of range"
@@ -1233,6 +1239,7 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_oob_rt.tc" "memblock in
 run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_oob_store_rt.tc" "memblock index out of range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_null.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg.tc" "memcopy_unsafe invalid range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_index.tc" "memcopy_unsafe invalid range"
 
 run_expect_stdout "$ROOT/tests/valid/uninit_both_paths.tc" "11
 "
@@ -1404,6 +1411,9 @@ run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip32.tc" "BF800000
 7F800000
 "
 run_expect_check_ok "$ROOT/tests/valid/bitcast_roundtrip32.tc"
+run_expect_stdout "$ROOT/tests/valid/nan_canonical_bits.tc" "7FC00000
+7FF8000000000000
+"
 run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip64.tc" "7FF8000000001234
 8000000000000000
 "
@@ -1470,6 +1480,74 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_fp.tc" "3.141593
 3.14159
 "
 run_expect_check_ok "$ROOT/tests/valid/format_spec_fp.tc"
+run_expect_stdout "$ROOT/tests/valid/format_spec_flags.tc" "+42
+00000042
+00000042
+0x2a
+0003.142
+3.14    
+3.141593e+00
+3.14159
+true    
+ true
+"
+run_expect_check_ok "$ROOT/tests/valid/format_spec_flags.tc"
+run_expect_stdout "$ROOT/tests/valid/format_spec_table.tc" "ff
+FF
+377
+11111111
+42
+42
+052
+0b101010
+0X2A
+3.141593    
+"
+run_expect_check_ok "$ROOT/tests/valid/format_spec_table.tc"
+run_expect_check_ok "$ROOT/tests/valid/format_width_max.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_mod.tc" "1.5
+-1.5
+1.5
+1.5
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_mod.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_mod_ieee_nan.tc" "7ff8000000000000
+7fc00000
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_mod_ieee_nan.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_mod_edges.tc" "3
+3
+8000000000000000
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_mod_edges.tc"
+run_expect_stdout "$ROOT/tests/valid/self_member_memblock_copy.tc" "1
+"
+run_expect_check_ok "$ROOT/tests/valid/self_member_memblock_copy.tc"
+run_expect_stdout "$ROOT/tests/valid/self_member_struct_copy.tc" "7
+"
+run_expect_check_ok "$ROOT/tests/valid/self_member_struct_copy.tc"
+run_expect_check_ok "$ROOT/tests/valid/ptr_address_param_load.tc"
+run_expect_stdout "$ROOT/tests/valid/identifier_named_padding.tc" "1
+"
+run_expect_check_ok "$ROOT/tests/valid/identifier_named_padding.tc"
+run_expect_stdout "$ROOT/tests/valid/let_ptr_size.tc" "32
+"
+run_expect_check_ok "$ROOT/tests/valid/let_ptr_size.tc"
+run_expect_stdout "$ROOT/tests/valid/let_memblock_const.tc" "10
+20
+"
+run_expect_check_ok "$ROOT/tests/valid/let_memblock_const.tc"
+run_expect_stdout "$ROOT/tests/valid/qualified_memblock_count.tc" "3
+9
+"
+run_expect_check_ok "$ROOT/tests/valid/qualified_memblock_count.tc"
+run_with_stdin "$ROOT/tests/valid/qualified_read_target.tc" "42
+" "42
+"
+run_expect_check_ok "$ROOT/tests/valid/qualified_read_target.tc"
+run_expect_stdout "$ROOT/tests/valid/let_ptr_cast_nullptr.tc" "true
+"
+run_expect_check_ok "$ROOT/tests/valid/let_ptr_cast_nullptr.tc"
 run_expect_stdout "$ROOT/tests/valid/fp_neg_abs.tc" "-3.5
 3.5
 2.5
@@ -1576,7 +1654,17 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_strict_invalid_before_divzero
     "float invalid operation"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_cast_overflow.tc" "out of range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_div_zero.tc" "division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_mod_invalid.tc" "float invalid operation"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_mod_divzero.tc" "division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_mod_invalid_inf.tc" "float invalid operation"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/fp_mod_invalid_before_divzero.tc" \
+    "float invalid operation"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_copy_overflow_guard.tc" "memblock index out of range"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_invalid.tc" "abc
+" "invalid input"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_float_invalid.tc" "1.
+" "invalid input"
+run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_float_invalid.tc" ".5
 " "invalid input"
 run_expect_fail_stdin_msg "$ROOT/tests/errors/runtime/read_fp_out_of_range.tc" "1e400
 " "input value out of range"
@@ -1632,12 +1720,14 @@ run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_syntax_before_name.
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_format_after_operand.tc" \
+    "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
 run_expect_fail_msg "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate label"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into incompatible block"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
-    "cannot jump to label in another function"
+    "label 'y' not found"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" \
@@ -1647,6 +1737,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does not 
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
+run_expect_fail_msg "$ROOT/tests/errors/static/const_shift_wrap_mode.tc" "wrap cannot be used with shift operations"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
 run_expect_fail_msg "$ROOT/tests/errors/static/keyword_error.tc" "wrap cannot be used with cast"
@@ -1675,6 +1766,19 @@ run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate 
 run_expect_fail_msg "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
 run_expect_fail_msg "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"
 run_expect_fail_msg "$ROOT/tests/errors/static/null_char.tc" "null character (U+0000) not allowed in source"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/float_trailing_dot.tc" "invalid float literal"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/compare_mode.tc" "compare operations do not accept mode keywords"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/memblock_count_only.tc" "expected fill: or memblock elements"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/invalid_utf8_comment.tc" "invalid UTF-8 in source"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/embedded_nul.tc" "null character (U+0000) not allowed in source"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/float_unsigned_suffix.tc" \
+    "float literal cannot use unsigned suffix"
+run_expect_fail_msg "$ROOT/tests/errors/lexical/negative_unsigned.tc" \
+    "negative value cannot use unsigned suffix"
+run_expect_fail_msg "$ROOT/tests/errors/static/funcall_arg_expr.tc" "expected operand, memblock constructor, or struct constructor"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_ctor_field_expr.tc" "expected operand, memblock constructor, or struct constructor"
+run_expect_fail_msg "$ROOT/tests/errors/static/module_layer_interleave.tc" "declaration out of module layer order"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_struct.tc" "bitcast target must be a non-bool integer, float, or ptr type"
 run_expect_fail_msg "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
@@ -1688,9 +1792,13 @@ run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_plus_unsigned.tc
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
     "'#' flag not supported for"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_flags_mutex.tc" \
-    "'0' and '-' flags are mutually exclusive"
+    "'#' flag not supported for this format specifier"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_t_width.tc" \
-    "does not support flags, width, or precision"
+    "%t does not support"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_width_overflow.tc" \
+    "format width or precision out of range"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_store_through_param.tc" \
+    "cannot store through read-only pointer binding"
 run_expect_fail_msg "$ROOT/tests/errors/static/invalid_format_spec_x.tc" "invalid format specifier"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch.tc" "%u requires unsigned type"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_operand_count.tc" "operand count error"
@@ -1738,7 +1846,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore
     "invalid integer literal"
 # --- goto/label 函数隔离（P0-4） ---
 run_expect_check_fail "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
-    "cannot jump to label in another function"
+    "label 'y' not found"
 run_expect_check_ok "$ROOT/tests/valid/duplicate_label_across_functions_ok.tc"
 # --- 缩进规范（P0-5）：tab / 非 4 倍数 / 跨级跳 ---
 run_expect_check_fail "$ROOT/tests/errors/static/indent_tab_only.tc" \
@@ -1761,6 +1869,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_nam
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_format_after_operand.tc" \
+    "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_inside_loop.tc" \
     "goto is not allowed inside while"
@@ -1783,6 +1893,19 @@ run_expect_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant ov
 run_expect_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
 run_expect_check_fail "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"
 run_expect_check_fail "$ROOT/tests/errors/static/null_char.tc" "null character (U+0000) not allowed in source"
+run_expect_check_fail "$ROOT/tests/errors/lexical/float_trailing_dot.tc" "invalid float literal"
+run_expect_check_fail "$ROOT/tests/errors/lexical/compare_mode.tc" "compare operations do not accept mode keywords"
+run_expect_check_fail "$ROOT/tests/errors/lexical/memblock_count_only.tc" "expected fill: or memblock elements"
+run_expect_check_fail "$ROOT/tests/errors/lexical/invalid_utf8_comment.tc" "invalid UTF-8 in source"
+run_expect_check_fail "$ROOT/tests/errors/lexical/embedded_nul.tc" "null character (U+0000) not allowed in source"
+run_expect_check_fail "$ROOT/tests/errors/lexical/float_unsigned_suffix.tc" \
+    "float literal cannot use unsigned suffix"
+run_expect_check_fail "$ROOT/tests/errors/lexical/negative_unsigned.tc" \
+    "negative value cannot use unsigned suffix"
+run_expect_check_fail "$ROOT/tests/errors/static/funcall_arg_expr.tc" "expected operand, memblock constructor, or struct constructor"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_field_expr.tc" "expected operand, memblock constructor, or struct constructor"
+run_expect_check_fail "$ROOT/tests/errors/static/module_layer_interleave.tc" "declaration out of module layer order"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_struct.tc" "bitcast target must be a non-bool integer, float, or ptr type"
 run_expect_check_fail "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_var_let.tc" "duplicate definition"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range_int16.tc" "literal out of range"
@@ -1829,9 +1952,13 @@ run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_plus_unsigned.
 run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
     "'#' flag not supported for"
 run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_flags_mutex.tc" \
-    "'0' and '-' flags are mutually exclusive"
+    "'#' flag not supported for this format specifier"
 run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_t_width.tc" \
-    "does not support flags, width, or precision"
+    "%t does not support"
+run_expect_check_fail "$ROOT/tests/errors/static/format_width_overflow.tc" \
+    "format width or precision out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_through_param.tc" \
+    "cannot store through read-only pointer binding"
 run_expect_check_fail "$ROOT/tests/errors/static/invalid_format_spec_x.tc" "invalid format specifier"
 run_expect_check_fail "$ROOT/tests/errors/static/format_operand_count.tc" "operand count error"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_let_var.tc" "duplicate definition"
@@ -1840,14 +1967,14 @@ run_expect_check_fail "$ROOT/tests/errors/static/abs_wrap_error.tc" "abs does no
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_shr_keyword_error.tc" "wrap cannot be used with shift operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_wrap_on_and_keyword_error.tc" "wrap cannot be used with bitwise operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_truncate_keyword_error.tc" "truncate cannot be used with shift operations"
+run_expect_check_fail "$ROOT/tests/errors/static/const_shift_wrap_mode.tc" "wrap cannot be used with shift operations"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shift_type_mismatch.tc" "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "constant overflow"
 
 # --- v0.0.25: float static errors ---
 
-run_expect_fail_msg "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
-run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "compare operations do not accept mode keywords"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
@@ -1857,9 +1984,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/float32_literal_range.tc" "float 
 run_expect_check_fail "$ROOT/tests/errors/static/float32_literal_range.tc" "float literal out of float32 range"
 run_expect_fail_msg "$ROOT/tests/errors/static/invalid_float_literal.tc" "invalid float literal"
 run_expect_check_fail "$ROOT/tests/errors/static/invalid_float_literal.tc" "invalid float literal"
-run_expect_check_fail "$ROOT/tests/errors/static/fp_mod_type_error.tc" "mod not supported for float types"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_ieee_on_int.tc" "ieee mode is only allowed for float operations"
-run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "wrap mode is not allowed for float comparison"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_on_compare.tc" "compare operations do not accept mode keywords"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"

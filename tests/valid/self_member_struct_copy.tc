@@ -1,0 +1,5 @@
+#program
+; AOT/VM：Self.<struct> 深拷贝（§3.9.4）
+import SelfStructCopyLib
+var v: int32 = funcall(SelfStructCopyLib.orig_after_copy_assign)
+writeln(int32, v)

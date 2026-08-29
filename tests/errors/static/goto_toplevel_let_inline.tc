@@ -1,8 +1,8 @@
 #program
-; goto 可跳过 let 声明行，但常量使用始终内联编译期值
-goto use
+; goto 可跳过 let 声明行，但常量使用始终内联编译期值；顶层仍拒绝 goto
 let X: int32 = 42
-label use:
 var copied: int32 = X
+goto use
+label use:
 writeln(int32, X)
 writeln(int32, copied)

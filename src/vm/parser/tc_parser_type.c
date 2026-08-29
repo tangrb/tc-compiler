@@ -68,6 +68,7 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
     if (tok->kind == TC_TOK_MEMBLOCK) {
         TcType *element = (TcType *)malloc(sizeof(TcType));
         uint64_t count = 0;
+        char *count_name = NULL;
 
         if (!element) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
@@ -92,9 +93,10 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
         }
         tok = tc_peek(tokens, *index);
         if (tok->kind == TC_TOK_INTEGER) {
-            /* §3.8.1：N 必须是编译期 usize 常量、取值为正整数（≥1），负数静态拒绝。
-             * 词法器将 -5 产为 negative=1 的单个 INTEGER token，此处不得静默取 magnitude。 */
-            if (tok->u.literal.negative) {
+            /* §3.8.1：N 必须是编译期 usize 常量、取值为正整数（≥1）。
+             * 词法器将 -5 产为 negative=1 的单个 INTEGER token，此处不得静默取 magnitude。
+             * 字面量 0 同样拒绝，避免 intern 出 count=0 的占位类型泄漏到 AOT 分配。 */
+            if (tok->u.literal.negative || tok->u.literal.magnitude < 1) {
                 tc_type_free(element);
                 free(element);
                 return tc_module_diag(diag, TC_CE_CONSTANT_EXPRESSION, line_no, tok->column,
@@ -102,20 +104,26 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
             }
             count = tok->u.literal.magnitude;
             (*index)++;
-        } else if (tok->kind == TC_TOK_IDENTIFIER) {
+        } else if (tok->kind == TC_TOK_IDENTIFIER || tok->kind == TC_TOK_SELF) {
+            if (tc_parse_binding_name(tokens, index, line_no, &count_name, diag) != 0) {
+                tc_type_free(element);
+                free(element);
+                return -1;
+            }
             count = 0;
-            (*index)++;
         } else {
             tc_type_free(element);
             free(element);
             return tc_syntax_error(diag, line_no, tok->column, "expected memblock size");
         }
         if (tc_expect_token(tokens, index, TC_TOK_GT, line_no, diag) != 0) {
+            free(count_name);
             tc_type_free(element);
             free(element);
             return -1;
         }
         *out_type = tc_type_make_memblock(element, count);
+        out_type->params.memblock_type.pending_count_name = count_name;
         return 0;
     }
 

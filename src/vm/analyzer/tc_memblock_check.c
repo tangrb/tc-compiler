@@ -6,10 +6,12 @@
  */
 #include "tc_memblock_check.h"
 
+#include "tc_ptr_check.h"
 #include "tc_struct_check.h"
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 /* 前向声明：避免与 tc_type_check.c 循环包含 */
@@ -20,6 +22,81 @@ static const TcSymbol *tc_memblock_resolve(const char *name, const TcSymbolTable
                                            const TcSymbolTable *global, size_t stmt_index,
                                            int line, TcDiagnostic *diag) {
     return tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag);
+}
+
+static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable *visible,
+                                          const TcSymbolTable *global, size_t stmt_index, int line,
+                                          TcDiagnostic *diag, uint64_t *out_count) {
+    const TcSymbol *sym = NULL;
+    TcTypeTag tag = TC_VOID;
+
+    if (!name || !out_count) {
+        return -1;
+    }
+    sym = tc_memblock_resolve(name, visible, global, stmt_index, line, diag);
+    if (!sym) {
+        return -1;
+    }
+    if (sym->sym_kind != TC_SYM_CONSTANT) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "memblock count must be a compile-time usize constant");
+        return -1;
+    }
+    if (!sym->has_const_value) {
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
+                          "constant value is not available by source order");
+        return -1;
+    }
+    tag = tc_type_tag_of(sym->type);
+    if (tag != TC_USIZE && tag != TC_ISIZE) {
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock count must be a usize constant");
+        return -1;
+    }
+    if (tag == TC_ISIZE && (int64_t)sym->const_value.bits < 1) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock count must be at least 1");
+        return -1;
+    }
+    if (tag == TC_USIZE && sym->const_value.bits < 1) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock count must be at least 1");
+        return -1;
+    }
+    *out_count = sym->const_value.bits;
+    return 0;
+}
+
+int tc_memblock_resolve_type_counts(TcType *type, const TcSymbolTable *visible,
+                                    const TcSymbolTable *global, size_t stmt_index, int line,
+                                    TcDiagnostic *diag) {
+    uint64_t count = 0;
+
+    if (!type) {
+        return 0;
+    }
+    if (type->tag == TC_PTR) {
+        return tc_memblock_resolve_type_counts(type->params.ptr_type.pointee, visible, global,
+                                               stmt_index, line, diag);
+    }
+    if (type->tag != TC_MEMBLOCK) {
+        return 0;
+    }
+    if (tc_memblock_resolve_type_counts(type->params.memblock_type.element, visible, global,
+                                        stmt_index, line, diag) != 0) {
+        return -1;
+    }
+    if (!type->params.memblock_type.pending_count_name) {
+        return 0;
+    }
+    if (tc_memblock_resolve_usize_name(type->params.memblock_type.pending_count_name, visible,
+                                       global, stmt_index, line, diag, &count) != 0) {
+        return -1;
+    }
+    type->params.memblock_type.count = count;
+    free(type->params.memblock_type.pending_count_name);
+    type->params.memblock_type.pending_count_name = NULL;
+    return 0;
 }
 
 /**
@@ -173,6 +250,15 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "memblock constructor requires memblock destination");
             return -1;
+        }
+        if (rhs->u.memblock_ctor.count_name) {
+            if (tc_memblock_resolve_usize_name(rhs->u.memblock_ctor.count_name, visible, global,
+                                               stmt_index, line, diag, &count) != 0) {
+                return -1;
+            }
+            rhs->u.memblock_ctor.count = count;
+            free(rhs->u.memblock_ctor.count_name);
+            rhs->u.memblock_ctor.count_name = NULL;
         }
         if (count < 1) {
             tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line,
@@ -360,15 +446,17 @@ int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      const TcSymbolTable *global, TcInitHistory *hist,
                                      size_t stmt_index, TcDiagnostic *diag,
                                      TcWarningList *warnings) {
-    /* 静态只拒绝 void 元素；负 length 由 VM/AOT 报运行时区间错误 */
-    (void)visible;
-    (void)global;
+    /* 静态拒绝 void 元素；所指为形参/let 时拒绝写入。负 length 由运行时检查。 */
     (void)hist;
-    (void)stmt_index;
     (void)warnings;
     if (stmt->element_type.tag == TC_VOID) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memcopy_unsafe element type cannot be void");
+        return -1;
+    }
+    if (tc_ptr_operand_target_readonly(&stmt->dst_ptr, visible, global, stmt_index)) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, stmt->line, TC_COLUMN_UNKNOWN,
+                          "cannot store through read-only pointer binding");
         return -1;
     }
     return 0;

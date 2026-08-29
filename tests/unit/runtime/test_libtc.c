@@ -76,6 +76,8 @@ static void test_compile_failures_are_transactional(void) {
                                 "end\n",
                                 TC_CE_UNINITIALIZED_VARIABLE,
                                 "CFG dataflow failure returns -1");
+    check_failure_preserves_out("#program\n; \xFF comment\nvar x: int32 = 1\n", TC_CE_SYNTAX,
+                                "invalid UTF-8 in memory source returns -1");
 }
 
 static void test_source_lifetime_and_repeated_execution(void) {

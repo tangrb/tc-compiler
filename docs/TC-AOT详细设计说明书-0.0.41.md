@@ -378,10 +378,16 @@ goto tc_label_42;
 ### 7.1 函数声明与定义
 
 ```c
-/* 前向声明 */
+/* 独立程序（embed_mode = 0）：void，abort 走 exit(1) */
 static void tc_func_<func_id>(TcDiagnostic *diag);
 
-/* 定义 */
+/* 嵌入模式（embed_mode = 1）：int，非致命 abort 后 return 1，正常返回 0 */
+int tc_aot_func_<func_id>(TcDiagnostic *diag);
+```
+
+独立程序形态：
+
+```c
 static void tc_func_<func_id>(TcDiagnostic *diag) {
     uint64_t params[PARAM_COUNT];       /* 形参槽位 */
     uint64_t locals[LOCAL_COUNT];       /* 局部 var 槽位 */
@@ -390,6 +396,8 @@ static void tc_func_<func_id>(TcDiagnostic *diag) {
     /* generated function body */
 }
 ```
+
+嵌入模式函数体末尾生成 `return 0;`；`tc_aot_abort` 被宏替换为 `tc_aot_embed_abort` + `return 1`（见 Embed 详设与 `tc_aot_embed_rt.h`）。TC 函数的语言级返回值仍走 `tc_aot_ret_N` 全局，不占用 C 返回值通道。
 
 ### 7.2 调用约定
 
@@ -558,8 +566,8 @@ static const size_t mb1_count = 10;
 /* 运行时分配 */
 memblock_storage[MB_SLOT_X] = tc_aot_memblock_alloc(mb1_total, &diag);
 if (diag.kind != TC_DIAG_OK) tc_aot_abort(&diag, line);
-/* 写入长度头部 */
-*(uint64_t*)memblock_storage[MB_SLOT_X] = mb1_count;
+/* 写入长度头部（memcpy，避免严格别名与对齐 UB；本实现 64-bit-only） */
+memcpy(memblock_storage[MB_SLOT_X], &mb1_count, sizeof(uint64_t));
 
 /* memblock_store 写入元素（index 为变量时） */
 if (tc_aot_memblock_store(memblock_storage[MB_SLOT_X], mb1_count,
@@ -819,10 +827,10 @@ AOT 的核心正确性证据是同一源文件经 VM 与 AOT 产生相同可观�
 int tc_aot_emit_c(FILE *out,
                   const TcTypedProgram *program,
                   const char *source_name,
-                  bool multi_module);
+                  int embed_mode);    /* 0 = 独立程序, 1 = 嵌入库 */
 ```
 
-新增 `multi_module` 标志指示是否将所有可达模块合并为单一 C 文件。
+`embed_mode = 1` 时生成非 `static` 符号、函数表、`int` 返回的 `tc_aot_func_*` / `tc_aot_init`，并以非致命 abort 宏替换 `tc_aot_abort`。
 
 ### 17.3 分发完整性
 
@@ -856,6 +864,21 @@ int tc_aot_emit_c(FILE *out,
 9. 扩展 runtime shim 与错误打印名；
 10. 差分测试扩展；
 11. 全量门禁通过后升版。
+
+---
+
+## 19. 已知可移植性债务（不在 0.0.41 强制范围）
+
+下列项记录为实现已知债务，随 32 位目标 / 跨平台立项处理，不改变当前 64-bit-only 接受集：
+
+- 无 FENV 时的下溢启发式（`tc_sem_fp.c`）；
+- `ptr_add`/`ptr_sub` 运行期回退曾接受 `isize` 偏移（规范要求 `usize`）；
+- `tc_aot_memblock_alloc` 缺饱和检查；
+- AOT `.count` 死代码回退路径；
+- 端序：memblock/struct 标量元素按宿主字节序存取（FP-4.5 M-9 降级，未完全符合语言标准 §3.5）；
+- 浮点十进制输出仍委托宿主 `snprintf`（FP-4.6 降级，未完全符合语言标准 §10.4）。
+
+AOT `slot_read` 已从 `TcTypedProgram` 恢复槽位类型（FP-4.8），不再恒为 `TC_INT64`。
 
 ---
 

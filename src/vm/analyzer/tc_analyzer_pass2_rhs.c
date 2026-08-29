@@ -28,8 +28,20 @@ const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *visible,
                                                         int line, TcDiagnostic *diag,
                                                         const TcMemberIndex *members,
                                                         int in_function) {
-    const TcSymbol *symbol = tc_symbol_table_find(visible, name);
+    const TcSymbol *symbol = NULL;
     char msg[128];
+
+    if (name && (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL)) {
+        symbol = tc_find_named_binding(visible, global, name);
+        if (symbol) {
+            return symbol;
+        }
+        (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        return NULL;
+    }
+
+    symbol = tc_symbol_table_find(visible, name);
 
     if (symbol) {
         return symbol;
@@ -670,6 +682,13 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
         TcTypeTag source_tag = TC_INT64;
         const TcType *source_full = NULL;
 
+        if (cast->target.tag == TC_STRUCT || cast->target.tag == TC_MEMBLOCK ||
+            cast->target.tag == TC_VOID) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "cast target must be scalar or ptr type");
+            return -1;
+        }
+
         if (cast->source.kind == TC_OPERAND_VAR) {
             if (self_name && strcmp(cast->source.u.name, self_name) == 0) {
                 (void)snprintf(msg, sizeof(msg),
@@ -824,6 +843,7 @@ int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
         }
         mut = &dst->symbols[dst->count - 1];
         mut->scope_end_stmt_index = sym->scope_end_stmt_index;
+        mut->ptr_target_readonly = sym->ptr_target_readonly;
         if (sym->has_const_value) {
             mut->has_const_value = 1;
             mut->const_value = sym->const_value;
@@ -865,6 +885,7 @@ int tc_visible_add_from_global(const TcSymbolTable *global, const char *name,
     added->has_const_value = sym->has_const_value;
     added->const_value = sym->const_value;
     added->scope_end_stmt_index = sym->scope_end_stmt_index;
+    added->ptr_target_readonly = sym->ptr_target_readonly;
     return 0;
 }
 

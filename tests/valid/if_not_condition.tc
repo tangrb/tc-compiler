@@ -3,6 +3,8 @@
 var x: int32 = 5
 
 ; not(bool, true_lit) → false → else
+var is_eq: bool = false
+var is_lt: bool = false
 if not(bool, true) then
     writeln(int32, -1)
 else
@@ -17,8 +19,8 @@ else
 end
 
 ; 使用 bool 变量作为 not 的操作数
-var is_eq: bool = eq(int32, x, 10)    ; false
-var is_lt: bool = lt(int32, x, 3)     ; false
+is_eq = eq(int32, x, 10)    ; false
+is_lt = lt(int32, x, 3)     ; false
 
 ; not(bool, false_var) → true → then
 if not(bool, is_eq) then

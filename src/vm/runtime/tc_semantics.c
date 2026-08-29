@@ -55,10 +55,18 @@ uint64_t tc_value_to_unsigned(TcTypeTag type, uint64_t bits) {
 
 TcValue tc_value_make(TcTypeTag type, uint64_t bits) {
     TcValue value;
+    int width = 0;
+
     /* 自动归一化 bits 到目标类型位宽：窄类型的高位被掩码清零，
-     * 保证 TcValue 中 bits 的"脏高位"不会影响后续运算。 */
+     * 保证 TcValue 中 bits 的"脏高位"不会影响后续运算。
+     * memblock/struct 位宽为 0（值是堆指针），不得按 0 宽掩码，否则指针被清零。 */
     value.type = tc_type_tag_singleton(type);
-    value.bits = tc_value_to_unsigned(type, bits);
+    width = tc_type_bit_width(type);
+    if (width <= 0) {
+        value.bits = bits;
+    } else {
+        value.bits = tc_value_to_unsigned(type, bits);
+    }
     return value;
 }
 
@@ -142,14 +150,10 @@ int tc_validate_shift_mode(TcShiftOp op, TcTypeTag type, TcWrapMode mode,
 
 int tc_validate_fp_arith_mode(TcArithOp op, TcTypeTag type, TcFloatMode mode,
                               TcDiagnostic *diag, int line) {
+    (void)op;
     if (!tc_type_is_float(type)) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "expected float type");
-        return -1;
-    }
-    if (op == TC_MOD) {
-        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                          "mod not supported for float types");
         return -1;
     }
     if (mode == TC_FLOAT_WRAP) {
@@ -365,6 +369,21 @@ int tc_literal_fits_context(const TcLiteral *lit, TcTypeTag type, TcErrorKind *e
 
 TcValue tc_literal_to_value(const TcLiteral *lit, TcTypeTag type) {
     if (lit->is_float) {
+        if (lit->is_float_special) {
+            uint64_t bits = 0;
+
+            if (lit->float_special == 0) {
+                bits = (type == TC_FLOAT32) ? TC_FLOAT32_CANONICAL_NAN_BITS
+                                            : TC_FLOAT64_CANONICAL_NAN_BITS;
+            } else if (type == TC_FLOAT32) {
+                bits = (lit->float_special < 0) ? TC_FLOAT32_NEG_INF_BITS
+                                                : TC_FLOAT32_POS_INF_BITS;
+            } else {
+                bits = (lit->float_special < 0) ? TC_FLOAT64_NEG_INF_BITS
+                                                : TC_FLOAT64_POS_INF_BITS;
+            }
+            return tc_value_make(type, bits);
+        }
         if (type == TC_FLOAT32) {
             float f = (float)lit->float_value;
             uint32_t bits = 0;

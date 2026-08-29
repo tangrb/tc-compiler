@@ -1,4 +1,5 @@
 #program
 var a: int32 = 0
+var b: int32 = 0
 a = 1
-var b: int32 = add(int32, a, 0)
+b = add(int32, a, 0)

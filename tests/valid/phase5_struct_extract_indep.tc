@@ -8,8 +8,10 @@ struct Outer then
 end
 var o: Outer = Outer(inner: Inner(x: 5))
 var i: Inner = o.inner
+var ox: int32 = 0
+var ix: int32 = 0
 i.x = 8
-var ox: int32 = o.inner.x
-var ix: int32 = i.x
+ox = o.inner.x
+ix = i.x
 writeln(int32, ox)
 writeln(int32, ix)

@@ -48,7 +48,7 @@ tests/unit/runtime/
 | 测试函数 | `static void test_<功能>(void)` |
 | 可执行文件 | `test-<module>` / `test-<module>-<variant>` |
 | CMake target | `check-<module>` / `check-<module>-<variant>` |
-| 汇总 | `tests/CMakeLists.txt` → `check-unit`（约 **3055** `check()`；含 embed ~945） |
+| 汇总 | `tests/CMakeLists.txt` → `check-unit`（约 **3191** `check()`；含 embed ~945） |
 
 ## 测试框架（无第三方）
 

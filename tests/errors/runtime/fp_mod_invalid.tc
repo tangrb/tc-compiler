@@ -1,0 +1,4 @@
+#program
+; 期望：float invalid operation（0 mod 0，strict）
+var a: float64 = 0.0
+var c: float64 = mod(float64, a, a)

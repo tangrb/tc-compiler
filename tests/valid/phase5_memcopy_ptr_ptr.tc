@@ -6,6 +6,7 @@ var p1: ptr<int32> = ptr_address(int32, a)
 var p2: ptr<int32> = ptr_address(int32, b)
 var pp1: ptr<ptr<int32>> = bitcast(ptr<ptr<int32>>, p1)
 var pp2: ptr<ptr<int32>> = bitcast(ptr<ptr<int32>>, p2)
+var v: int32 = 0
 memcopy_unsafe(ptr<int32>, pp2, 0, pp1, 0, 1)
-var v: int32 = ptr_load(int32, p2)
+v = ptr_load(int32, p2)
 writeln(int32, v)

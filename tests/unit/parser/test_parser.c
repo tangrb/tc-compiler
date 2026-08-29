@@ -701,8 +701,8 @@ static void test_parse_field_assign_and_ptr_store(void) {
         "    var x: int32\n"
         "end\n"
         "var p: Point = nullptr\n"
-        "p.x = 1\n"
         "var q: ptr<int32> = nullptr\n"
+        "p.x = 1\n"
         "ptr_store(int32, q, 2)\n";
 
     tc_diagnostic_init(&diag);
@@ -711,11 +711,63 @@ static void test_parse_field_assign_and_ptr_store(void) {
           "parse field assign and ptr_store");
     check(program.count == 5, "struct+vars+stmts");
     if (program.count >= 5) {
-        check(program.items[2].kind == TC_STMT_FIELD_ASSIGN, "field assign kind");
+        check(program.items[3].kind == TC_STMT_FIELD_ASSIGN, "field assign kind");
         check(program.items[4].kind == TC_STMT_PTR_STORE, "ptr_store kind");
     }
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
+}
+
+static void test_parse_mode_keyword_codes(void) {
+    static const struct {
+        const char *source;
+        TcErrorKind kind;
+        const char *message;
+    } cases[] = {
+        {
+            TC_PROGRAM_HDR "var a: int32 = 10\nvar b: int32 = cast(int32, wrap, a)\n",
+            TC_CE_SYNTAX,
+            "cast wrap is syntax",
+        },
+        {
+            TC_PROGRAM_HDR "var a: int8 = 1\nvar r: int8 = and(int8, wrap, a, a)\n",
+            TC_CE_SYNTAX,
+            "bitwise wrap is syntax",
+        },
+        {
+            TC_PROGRAM_HDR "var a: int8 = 1\nvar r: int8 = shr(int8, wrap, a, 1)\n",
+            TC_CE_SYNTAX,
+            "runtime shr wrap is syntax",
+        },
+        {
+            TC_PROGRAM_HDR "let a: int8 = 1\nlet r: int8 = shr(int8, wrap, a, 1)\n",
+            TC_CE_MODE_MISMATCH,
+            "const shr wrap is mode mismatch",
+        },
+        {
+            TC_PROGRAM_HDR
+            "if true then\n"
+            "    writeln(int32, %d, 1)\n"
+            "    else\n"
+            "        writeln(int32, %d, 2)\n"
+            "end\n",
+            TC_CE_INDENT_ELSE_END,
+            "else inside then is indent else/end",
+        },
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcProgram program;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        check(tc_parse_source_to_program(cases[i].source, &program, &diag) != 0, cases[i].message);
+        check(diag.kind == cases[i].kind, cases[i].message);
+        tc_program_free(&program);
+        tc_diagnostic_clear(&diag);
+    }
 }
 
 int main(void) {
@@ -731,6 +783,7 @@ int main(void) {
     test_parse_program_rejects_func_static();
     test_parse_imported_struct_type();
     test_parse_field_assign_and_ptr_store();
+    test_parse_mode_keyword_codes();
     test_parse_var_def();
     test_parse_var_requires_initializer();
     test_parse_let_const();

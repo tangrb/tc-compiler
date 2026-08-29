@@ -4,6 +4,7 @@ var a: memblock<int32, 4> = memblock(int32, count: 4, fill: 1)
 var b: memblock<int32, 4> = memblock(int32, count: 4, fill: 0)
 var pa: ptr<memblock<int32, 4>> = ptr_address(memblock<int32, 4>, a)
 var pb: ptr<memblock<int32, 4>> = ptr_address(memblock<int32, 4>, b)
+var v0: int32 = 0
 memcopy_unsafe(memblock<int32, 4>, pb, 0, pa, 0, 1)
-var v0: int32 = memblock_load(int32, b, 0)
+v0 = memblock_load(int32, b, 0)
 writeln(int32, v0)

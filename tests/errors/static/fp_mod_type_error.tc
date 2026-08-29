@@ -1,5 +1,0 @@
-#program
-; 期望：mod 不支持浮点
-var a: float64 = 10.0
-var b: float64 = 2.0
-var c: float64 = mod(float64, a, b)

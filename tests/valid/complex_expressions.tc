@@ -10,9 +10,6 @@ var r1: int32 = add(int32, a, b)
 var r2: int32 = sub(int32, r1, c)
 var r3: int32 = mul(int32, r2, d)
 var r4: int32 = div(int32, r3, 100)
-writeln(int32, r4)
-
-; uint32 复杂运算
 var ua: uint32 = 500
 var ub: uint32 = 300
 var uc: uint32 = 200
@@ -20,6 +17,22 @@ var ud: uint32 = 10
 var ur1: uint32 = add(uint32, ua, ub)
 var ur2: uint32 = sub(uint32, ur1, uc)
 var ur3: uint32 = mul(uint32, ur2, ud)
+var l1: int8 = add(int8, 100, 20)
+var l2: int8 = sub(int8, l1, 5)
+var src: int16 = 500
+var casted: int8 = cast(int8, truncate, src)
+var result: int8 = add(int8, casted, 10)
+var neg_val: int32 = -100
+var abs_val: int32 = abs(int32, neg_val)
+var final_val: int32 = add(int32, abs_val, 50)
+var wrap_v: uint8 = sub(uint8, 0, 1)
+var wrap_r: uint8 = add(uint8, wrap_v, 5)
+var x: int32 = 1
+var y: int32 = 2
+var z: int32 = add(int32, x, y)
+writeln(int32, r4)
+
+; uint32 复杂运算
 writeln(uint32, ur3)
 
 ; 混用 write 和 writeln
@@ -29,30 +42,17 @@ write(int32, %d, r4)
 write(uint32, %x, ua)
 
 ; 使用字面量作为操作数
-var l1: int8 = add(int8, 100, 20)
-var l2: int8 = sub(int8, l1, 5)
 writeln(int8, l2)
 
 ; cast + arith 组合
-var src: int16 = 500
-var casted: int8 = cast(int8, truncate, src)
-var result: int8 = add(int8, casted, 10)
 writeln(int8, result)
 
 ; unary + arith 组合
-var neg_val: int32 = -100
-var abs_val: int32 = abs(int32, neg_val)
-var final_val: int32 = add(int32, abs_val, 50)
 writeln(int32, final_val)
 
 ; wrap + arith 链
-var wrap_v: uint8 = sub(uint8, 0, 1)
-var wrap_r: uint8 = add(uint8, wrap_v, 5)
 writeln(uint8, wrap_r)
 
 ; 使用注释中的空行和分号
-var x: int32 = 1
 ; 这是注释
-var y: int32 = 2
-var z: int32 = add(int32, x, y)
 writeln(int32, z)

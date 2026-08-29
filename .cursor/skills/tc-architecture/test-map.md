@@ -2,7 +2,7 @@
 
 **何时读**：写/查 `.tc` 测试、确认错误是否已有用例。**勿**为改 C 源码加载全文——`rg 测试名 scripts/` 更快。
 
-**规模**（`check_doc_counts.py` 校验）：**824 VM** · **~357 AOT（注册）** / **~403 AOT（执行）** · unit **~3055** `check()`。跑法：Skill `run-tests`。
+**规模**（`check_doc_counts.py` 校验）：**892 VM** · **~403 AOT（注册）** / **456 AOT（执行）** · unit **~3191** `check()`。跑法：Skill `run-tests`。
 
 ## Phase 6（模块 K）账本
 
@@ -30,7 +30,7 @@
 |------|---------------|------|
 | `TcTypeTag` / `TcType` 编码 | `test_types.c` / check-types | scalar/make_ptr|memblock|struct |
 | `tc_type_equals` / `tc_sizeof_bits` | 同上 | memblock 等价忽略 N；ptr 宽依赖目标 |
-| STMT 24 / RHS 34 / 错误 91 | 同上 | inventory；`tc_error_kind_name` 白名单唯一性 |
+| STMT 24 / RHS 34 / 错误 86 | 同上 | inventory；`tc_error_kind_name` 白名单唯一性 |
 | `TcRuntimeSlots` / `TcSlotDomain` | 同上 | init/free；符号 `slot_domain` 等 |
 | RHS coverage | `check_rhs_coverage.py` | 8 分发点；const_eval 对复合 kind per-point skip |
 
@@ -61,22 +61,23 @@
 
 | TcErrorKind | 代表用例 |
 |-------------|---------|
-| TC_ERR_SYNTAX | syntax_error, invalid_hex_overflow, **utf8_bom**, **null_char**, **unexpected_char** |
+| TC_ERR_SYNTAX | syntax_error, invalid_hex_overflow, **utf8_bom**, **null_char**, **unexpected_char**, **float_trailing_dot**, **compare_mode**, **memblock_count_only**, **invalid_utf8_comment**, **embedded_nul**, **funcall_arg_expr**, **struct_ctor_field_expr**, **module_layer_interleave**, **fp_wrap_on_compare** |
 | TC_ERR_UNDEFINED_VARIABLE | undefined_variable, forward_reference, const_cyclic_dep, self_ref_let, let_short_circuit_invalid_rhs, **self_member_undefined**, **self_member_bare_name** |
 | TC_ERR_DUPLICATE_DEFINITION | duplicate_def, duplicate_let_var, duplicate_var_let |
-| TC_ERR_TYPE_MISMATCH | type_mismatch*, logic_type_error, bitwise_shift_type_mismatch, **self_member_type_mismatch**, **read_type_mismatch** |
+| TC_ERR_TYPE_MISMATCH | type_mismatch*, logic_type_error, bitwise_shift_type_mismatch, **self_member_type_mismatch**, **read_type_mismatch**, **bitcast_struct** |
 | TC_ERR_LITERAL_OUT_OF_RANGE | literal_range* |
 | TC_ERR_LITERAL_TYPE | literal_type_error, bool_literal_type_error |
-| TC_ERR_MODE_MISMATCH | wrap_mode_error*, abs_wrap_error, fp_ieee_on_int, fp_wrap_on_compare, fp_*wrap*_mode_mismatch |
-| TC_ERR_KEYWORD | keyword_error, cast_wrap_keyword, truncate_in_arith, bitwise_wrap_on_and_keyword_error, bitwise_shl_truncate_keyword_error |
-| TC_ERR_CONSTANT_* | const_assign, assign_to_let, **struct_assign_let_outer_let_field**, **struct_assign_let_outer_var_field**, const_expr, const_overflow, const_div_zero, **let_const_cast_overflow**, **let_const_cast_overflow_fp**, let_const_literal_range, let_non_literal, let_nested_call, let_short_circuit_invalid_rhs, **operand_field_var_in_let**, **operand_field_var_in_const_op**, **operand_field_static_var_forward** |
+| TC_ERR_SYNTAX（u 后缀） | **float_unsigned_suffix**、**negative_unsigned**、negative_unsigned_literal |
+| TC_ERR_MODE_MISMATCH | wrap_mode_error*, abs_wrap_error, fp_ieee_on_int, fp_*wrap*_mode_mismatch, **const_shift_wrap_mode** |
+| TC_ERR_SYNTAX（模式关键字） | keyword_error, cast_wrap_keyword, truncate_in_arith, bitwise_wrap_on_and_keyword_error, bitwise_shl_truncate_keyword_error, bitwise_wrap_on_shr_keyword_error |
+| TC_ERR_CONSTANT_* | const_assign, assign_to_let, **struct_assign_let_outer_let_field**, **struct_assign_let_outer_var_field**, const_expr, const_overflow, const_div_zero, **let_const_cast_overflow**, **let_const_cast_overflow_fp**, let_const_literal_range, let_non_literal, let_nested_call, let_short_circuit_invalid_rhs, **operand_field_var_in_let**, **operand_field_var_in_const_op**, **operand_field_static_var_forward**, **ptr_store_through_param**, **memblock_type_count_zero**, **memblock_negative_count_type** |
 | TC_ERR_COMPARISON_TYPE_MISMATCH | compare_type_mismatch, **compare_type_mismatch_var** |
-| TC_ERR_FORMAT_* | format_string_error, format_type_mismatch*, format_operand_count*, **format_specifier_plus_unsigned**, **format_specifier_hash_bool**, **format_specifier_flags_mutex**, **format_specifier_t_width** |
+| TC_ERR_FORMAT_* | format_string_error, format_type_mismatch*, format_operand_count*, **format_specifier_plus_unsigned**, **format_specifier_hash_bool**, **format_specifier_flags_mutex**, **format_specifier_t_width**, **format_width_overflow** |
 | TC_ERR_DIVISION_BY_ZERO | div_zero*, mod_zero* |
 | TC_ERR_INTEGER_OVERFLOW | signed_strict_overflow*, neg_int_min*, abs_int_min*, bitwise_shl_overflow_runtime |
 | TC_ERR_CAST_OVERFLOW | cast_strict_overflow*, fp_cast_overflow |
-| TC_ERR_IO | read_invalid*, read_out_of_range*, read_bool_invalid_input, read_fp_invalid, **read_fp_out_of_range** |
-| TC_ERR_MODULE_LAYER | module_layer |
+| TC_ERR_IO | read_invalid*, read_out_of_range*, read_bool_invalid_input, read_fp_invalid, **read_fp_out_of_range**, **read_float_invalid** |
+| TC_ERR_MODULE_LAYER | module_layer, **module_layer_interleave** |
 | TC_ERR_MISSING_VISIBILITY | missing_visibility |
 | TC_ERR_PROGRAM_MODE_MISUSE | program_mode_misuse, self_in_program, func_in_program, static_in_program |
 | TC_ERR_IMPORT_NOT_FOUND | import_not_found |
@@ -85,10 +86,9 @@
 | TC_ERR_CIRCULAR_IMPORT | circular_import, self_import |
 | TC_ERR_FLOAT_OVERFLOW | fp_strict_overflow |
 | TC_ERR_FLOAT_UNDERFLOW | fp_strict_underflow |
-| TC_ERR_FLOAT_INVALID | fp_strict_invalid |
+| TC_ERR_FLOAT_INVALID | fp_strict_invalid, **fp_mod_invalid**, **fp_mod_invalid_inf**, **fp_mod_invalid_before_divzero** |
 | TC_ERR_UNINITIALIZED_VARIABLE | uninit_simple, uninit_chain, uninit_multi, uninit_slot_value, uninit_if_path, uninit_goto_skip_init |
-| TC_ERR_LABEL_NOT_FOUND | goto_undefined |
-| TC_CE_CROSS_CONTROL_FLOW_JUMP | **goto_cross_function_label_not_found** |
+| TC_ERR_LABEL_NOT_FOUND | goto_undefined, **goto_cross_function_label_not_found** |
 | TC_ERR_DUPLICATE_LABEL | label_duplicate |
 | TC_ERR_JUMP_INTO_BLOCK | goto_into_block |
 | TC_ERR_JUMP_TO_SIBLING_BLOCK | goto_sibling |
@@ -101,13 +101,12 @@
 | TC_ERR_OUT_OF_MEMORY | 无 .tc 用例（单元：`test_types.c` OutOfMemory；`rg TC_ERR_OUT_OF_MEMORY src/`） |
 | TC_ERR_NULL_POINTER_DEREFERENCE | null_ptr_deref, null_ptr_store, null_ptr_cmp, memcopy_unsafe_null |
 | TC_ERR_NULL_POINTER_ARITHMETIC | null_ptr_arith |
-| TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT | memblock_oob_rt, memblock_oob_store_rt |
-| TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT | memcopy_unsafe_neg |
+| TC_ERR_MEMBLOCK_INDEX_OUT_OF_RANGE_RT | memblock_oob_rt, memblock_oob_store_rt, **memblock_copy_overflow_guard** |
+| TC_ERR_MEMCOPY_UNSAFE_INVALID_RANGE_RT | memcopy_unsafe_neg, **memcopy_unsafe_neg_index** |
 | TC_ERR_INDENT_MIXED | indent_mixed_tab_body, indent_mixed_space_if |
 | TC_ERR_INDENT_INSUFFICIENT | indent_insufficient_then, indent_insufficient_nested, indent_insufficient_block |
-| TC_ERR_INDENT_ELSE_END | indent_else_mismatch, indent_end_mismatch |
+| TC_ERR_INDENT_ELSE_END | indent_else_mismatch, indent_end_mismatch, **indent_else_position** |
 | TC_ERR_MISSING_END | if_missing_end_eof, if_missing_end_stmt, **while_missing_end** |
-| TC_ERR_ELSE_POSITION | indent_else_position |
 | TC_ERR_CONDITION_TYPE | if_cond_type_arith, **while_cond_type_arith** |
 | TC_ERR_IMPORT_AMBIGUOUS | **import_ambiguous**（CLI 双 `-I`） |
 | TC_ERR_CONSTANT_ASSIGNMENT | const_assign, assign_to_let, **struct_assign_let_outer_let_field**, **struct_assign_let_outer_var_field**, **read_into_let** |
@@ -127,24 +126,28 @@ stderr 子串详情：[errors.md](errors.md)。
 | bool | bool_var, bool_cast, format_bool, read_bool, let_bool_constant, compare_ops, logic_ops | bool_literal_type_error, compare_type_mismatch, logic_type_error, read_bool_invalid_input |
 | 比较 | compare_ops, const_expr, **compare_unsigned** | compare_type_mismatch, **compare_type_mismatch_var** |
 | 逻辑 | logic_ops, const_expr, let_logic_short_circuit | logic_type_error |
-| 位运算/移位 | bitwise_runtime, bitwise_and_or_xor_not_valid, bitwise_shift_shl_shr_valid, bitwise_shl_wrap_valid, bitwise_shift_k_ge_n_valid, bitwise_let_const_valid, bitwise_io_format_valid, let_wrap_allowed, **shift_edge_cases** | bitwise_xor_bool_type_error, bitwise_wrap_on_*_keyword_error, bitwise_shl_truncate_keyword_error, bitwise_shift_type_mismatch, bitwise_shl_const_overflow, bitwise_shl_overflow_runtime |
+| 位运算/移位 | bitwise_runtime, bitwise_and_or_xor_not_valid, bitwise_shift_shl_shr_valid, bitwise_shl_wrap_valid, bitwise_shift_k_ge_n_valid, bitwise_let_const_valid, bitwise_io_format_valid, let_wrap_allowed, **shift_edge_cases**, **shl_int64_neg_boundary** | bitwise_xor_bool_type_error, bitwise_wrap_on_*_keyword_error, bitwise_shl_truncate_keyword_error, bitwise_shift_type_mismatch, bitwise_shl_const_overflow, bitwise_shl_overflow_runtime |
 | let | let_constant*, const_expr, let_bool_constant, let_logic_short_circuit, let_runtime_equivalence, let_wrap_allowed, let_float_ieee, let_float32_step_rounding, let_bitcast_payload, let_goto_inline, let_block_local_chain, **let_cast_const**, **fp_const_let_arith** | const_assign, assign_to_let, const_expr, const_cyclic_dep, self_ref_let, forward_reference, let_nested_call, let_short_circuit_invalid_rhs, const_overflow, const_div_zero, **let_const_cast_overflow***, let_const_literal_range, let_non_literal |
 | cast | strict_cast_widen, truncate_cast, sign_extend_cast, cast_operations_all, bool_cast, cast_literal, **let_cast_const** | keyword_error, cast_wrap_keyword, truncate_in_arith, cast_bool_truncate_keyword_error, cast_truncate_bool_source_error, cast_strict_overflow* |
-| bitcast | fp_bitcast_roundtrip, bitcast_roundtrip32, bitcast_roundtrip64, let_bitcast_payload | bitcast_width_mismatch, bitcast_bool_type_mismatch |
+| bitcast | fp_bitcast_roundtrip, bitcast_roundtrip32, bitcast_roundtrip64, let_bitcast_payload, **nan_canonical_bits** | bitcast_width_mismatch, bitcast_bool_type_mismatch |
 | wrap | wrap_arithmetic_all, wrap_sub_mul, unary_wrap, unary_wrap_unsigned | wrap_mode_error*, abs_wrap_error |
-| format | format_output, format_hex_bin, format_bool, format_spec_all, io_extended | format_string_error, format_type_mismatch*, format_operand_count*, **format_specifier_*** |
+| format | format_output, format_hex_bin, format_bool, format_spec_all, format_spec_flags, **format_spec_table**, **format_width_max**, io_extended | format_string_error, format_type_mismatch*, format_operand_count*, **format_specifier_***, **format_width_overflow** |
 | 多进制字面量 | hex_literal, oct_literal, bin_literal, literal_separator, literal_edge_cases, bin_hex_oct_io | leading_zero, negative_unsigned_literal, invalid_hex_overflow |
-| I/O | read_write, read_bool, io_extended, fp_io, format_spec_fp；unit：`test_write_atomic_commit_no_partial`（I-10） | read_invalid*, read_out_of_range*, read_bool_invalid_input, read_fp_invalid, **read_fp_out_of_range**, **read_into_let**, **read_type_mismatch**, format_fp_type_mismatch |
-| 浮点 float32/float64 | fp_basic, fp_arith, fp_arith_ieee, fp_compare, fp_cast, fp_bitcast_roundtrip, bitcast_roundtrip32, bitcast_roundtrip64, fp_io, fp_const_expr, fp_if_block, format_spec_fp, let_float_ieee, let_float32_step_rounding, let_bitcast_payload, **fp_neg_abs**, **fp_const_let_arith**, **fp_ieee_ops**, **fp_exact_subnormal** | fp_mod_type_error, fp_ieee_on_int, fp_wrap_on_compare, fp_arith_wrap_mode_mismatch, fp_wrap_arith_mode_mismatch, fp_wrap_mode_mismatch, fp_bitwise_type_error, fp_literal_range, format_fp_type_mismatch, fp_strict_*, **fp_strict_invalid_before_divzero**, fp_cast_overflow, fp_div_zero |
+| I/O | read_write, read_bool, io_extended, fp_io, format_spec_fp, **format_spec_flags**；unit：`test_write_atomic_commit_no_partial`（I-10） | read_invalid*, read_out_of_range*, read_bool_invalid_input, read_fp_invalid, **read_fp_out_of_range**, **read_into_let**, **read_type_mismatch**, format_fp_type_mismatch |
+| 浮点 float32/float64 | fp_basic, fp_arith, fp_arith_ieee, fp_compare, fp_cast, fp_bitcast_roundtrip, bitcast_roundtrip32, bitcast_roundtrip64, **nan_canonical_bits**, fp_io, fp_const_expr, fp_if_block, format_spec_fp, let_float_ieee, let_float32_step_rounding, let_bitcast_payload, **fp_neg_abs**, **fp_const_let_arith**, **fp_ieee_ops**, **fp_exact_subnormal**, **fp_mod**, **fp_mod_ieee_nan**, **fp_mod_edges** | fp_ieee_on_int, fp_wrap_on_compare, fp_arith_wrap_mode_mismatch, fp_wrap_arith_mode_mismatch, fp_wrap_mode_mismatch, fp_bitwise_type_error, fp_literal_range, format_fp_type_mismatch, fp_strict_*, **fp_strict_invalid_before_divzero**, fp_cast_overflow, fp_div_zero, **fp_mod_invalid**, **fp_mod_divzero**, **fp_mod_invalid_inf**, **fp_mod_invalid_before_divzero** |
 | if 控制流 | if_basic, if_else, if_nested, if_chain, if_bool_literal, if_local_same_name, if_shadow_global, **if_false_skip_nested_then**, **if_and_or_condition**, **if_comparison_condition**, **if_not_condition**, **if_empty_body**, stress_if_nested | if_cross_block_ref_*, if_cond_type_*, indent_*, if_missing_end_* |
 | goto / label | （顶层 goto 已禁；函数内执行 Phase 5） | goto_outside_function, label_outside_function, goto_toplevel_*, goto_undefined, **goto_cross_function_label_not_found**, label_duplicate, goto_into_block, goto_sibling |
 | while / break / continue | while_false, while_counted, while_nested, while_break_continue, while_var_reinitialize | goto_inside_loop, label_inside_loop, break_outside_loop, continue_outside_loop；unit：test_analyzer / test_executor / test_cfg |
 | 未初始化与静态布尔剪枝 | uninit_both_paths, uninit_shortcircuit, **uninit_shortcircuit_let_bool**, **uninit_const_condition_if**, **uninit_const_condition_while**, assign_uninit_var_valid, uninitialized_bool | var_missing_initializer, uninit_simple, uninit_chain, uninit_multi, uninit_slot_value, uninit_if_path, uninit_goto_skip_init, **uninit_shortcircuit_var_lhs**, **shortcircuit_let_invalid_rhs**, **shortcircuit_let_rhs_type**, **shortcircuit_let_forward_lhs**, **shortcircuit_let_out_of_scope_lhs**, **diag_priority_*** |
 | Phase 3 复合类型 / 多域 CFG | phase3_nullptr, phase3_struct_ctor, phase3_memblock, phase3_memblock_fill, phase3_memblock_store, phase3_ptr_ops, phase3_ptr_load, phase3_ptr_cmp, phase3_struct_nested, phase3_struct_mut_ok（`--check` only）；**struct_field_operand_*** / **struct_field_named_count** / **struct_field_static_init**（含跨模块 `struct_field_static_init_run`）/ **struct_field_static_topo_ops**（unary/bitwise/shift/logic/float/cast/bitcast 操作数字段读 + 跨模块 `_run`）；**import_struct_type**（`<模块名>.<结构体名>` 类型/构造器/memblock）；**imported_struct_mid_ok**（中间库内限定名） | memblock_*, struct_*, ptr_*, float_special_non_float, float32_suffix_mismatch, unreachable_after_return, missing_return, goto/label outside, struct_nested_non_struct, struct_assign_through_param / param_let, **struct_assign_let_outer_***, **struct_self_ref**（值自引用 → STRUCT_VALUE_SELF_REF）、**struct_memblock_self_ref**、**struct_ptr_fwd_ref**、**struct_memblock_undefined**、**ptr_undefined_struct**、**ptr_struct_type_distinct**、**operand_field_var_in_***、**operand_field_static_var_forward**、**imported_struct_bare_name**、**imported_struct_bare_ctor**、**imported_struct_not_imported**、**imported_struct_transitive**、**imported_struct_private**；unit：test_type_check / **test_struct_self_reference** / **test_struct_field_access** / **test_module**（导入 struct 白盒） |
 | Phase 4 函数 / static let | phase4_self_funcall, phase4_static_let, phase4_func_goto（`--check` only） | duplicate_function, function_name_conflict, parameter_name_conflict, param_shadow_local, duplicate_parameter, undefined_function, function_scope_access, funcall_*, argument_*, return_*, parameter_assignment, recursion_*, static_let_forward, static_var_bad_init, funcall_memblock_size, private_member_access |
-| Phase 5 Executor / AOT | phase5_funcall_return, phase5_ptr_*, phase5_memblock_*, **phase5_static_var**, **phase5_self_static_let**, **phase5_self_static_ops**, phase5_nested_funcall；**struct 运行时**：phase5_struct_* / **mut_matrix_ok**、**ptr_self_ref**、**ptr_nested_self_ref**、**ptr_roundtrip**、**memblock_of_struct**、**memblock_deepcopy**（VM+AOT 差分）；StructLib / SelfStaticLetLib / SelfStaticOpsLib / StaticVarLib | null_ptr_*, memblock_oob_*, memcopy_unsafe_*；**self_member_***；struct static 错误见上 |
+| Phase 5 Executor / AOT | phase5_funcall_return, phase5_ptr_*, phase5_memblock_*, **phase5_static_var**, **phase5_self_static_let**, **phase5_self_static_ops**, phase5_nested_funcall；**struct 运行时**：phase5_struct_* / **mut_matrix_ok**、**ptr_self_ref**、**ptr_nested_self_ref**、**ptr_roundtrip**、**memblock_of_struct**、**memblock_deepcopy**（VM+AOT 差分）；StructLib / SelfStaticLetLib / SelfStaticOpsLib / StaticVarLib / **SelfMemblockCopyLib** / **SelfStructCopyLib**；**self_member_memblock_copy** / **self_member_struct_copy** | null_ptr_*, memblock_oob_*, memcopy_unsafe_*、**memcopy_unsafe_neg_index**；**self_member_***；struct static 错误见上 |
 | Phase 6 CLI / API | cli version/help golden、`-I` include_search_ok；**cli -I path limit is not OutOfMemory**（D-15） | include_search_ok（无 `-I` → import not found）；`import_ambiguous`（双 `-I`） |
 | K.3 补测（2026-07-24） | `isize_arith`/`usize_arith`；`let_const_cast_overflow*`；`while_cond_type_arith`/`while_missing_end`；`compare_type_mismatch_var`；`parameter_assignment_read` | unit：`test_libtc` search paths |
+| P2 接受集（2026-08-29） | **identifier_named_padding**、**let_ptr_size**、**let_memblock_const**、**qualified_memblock_count**（+ QualMemblockCountLib）、**qualified_read_target**（+ QualReadLib）、**let_ptr_cast_nullptr** | **float_trailing_dot**、**compare_mode**、**memblock_count_only**、**invalid_utf8_comment**、**embedded_nul**、**funcall_arg_expr**、**struct_ctor_field_expr**、**module_layer_interleave**、**bitcast_struct**、**read_float_invalid**、**fp_wrap_on_compare**（比较模式现为 SYNTAX） |
+| P3 错误码对齐（2026-08-29） | — | **float_unsigned_suffix**、**negative_unsigned**、**diag_priority_format_after_operand**、**const_shift_wrap_mode**；duplicate_function → `FUNCTION_NAME_CONFLICT`；goto_cross_function → `LABEL_NOT_FOUND`；keyword/cast wrap → `SYNTAX`；indent_else_position → `INDENT_ELSE_END` |
+| P4 边界/格式/可移植性（2026-08-30） | **shl_int64_neg_boundary**、**nan_canonical_bits** | **memcopy_unsafe_neg_index**；unit：`test_umul64` / 算术 shr / AOT `slot_read` 类型 |
+| P6 测试补齐与门禁（2026-08-30） | **format_spec_table**（§10.4 负值位模式 / isize / `#` 备用 / `%-12f`）、**format_width_max**（65535 `--check`）、**fp_mod_edges**（有限 mod ±inf、-0.0） | **fp_mod_invalid_inf**、**fp_mod_invalid_before_divzero**、**memblock_type_count_zero**；unit：`test_types` 86 码唯一 + `%0008d`/`%65535d` + intern count=0 哨兵；`test_type_check` §10.2 顺序 + 命名 N 折叠；`check_doc_counts.py` 附录 B 85 = 实现 86−1 |
 
 ## Stress（VM 10 个）
 
@@ -154,23 +157,23 @@ deep_recursion · let_chain · io_stress · many_vars_stress · type_combinatori
 
 | 文件（`N passed`） | 被测模块 | target |
 |------|---------|--------|
-| test_lexer.c (126) / test_lexer_extended.c (125) | tc_lexer.c | check-lexer / check-lexer-extended |
-| test_semantics.c (494) | tc_semantics.c / tc_sem_int.c / tc_sem_fp.c / tc_sem_cast.c | check-semantics |
-| test_types.c (277) | tc_types.c | check-types |
+| test_lexer.c (126) / test_lexer_extended.c (127) | tc_lexer.c | check-lexer / check-lexer-extended |
+| test_semantics.c (508) / test_fp_mod.c (13) | tc_semantics.c / tc_sem_int.c / tc_sem_fp.c / tc_sem_cast.c | check-semantics / check-fp-mod |
+| test_types.c (284) | tc_types.c | check-types |
 | test_symbol.c (73) | tc_symbol.c | check-symbol |
-| test_io.c (127) | tc_io.c | check-io |
-| test_bitwise.c (16) / test_shift.c (16) | tc_semantics.c | check-bitwise / check-shift |
-| test_parser.c (146) | tc_parser.c | check-parser |
-| test_analyzer.c (290) | tc_analyzer*.c + tc_cfg.c + tc_const_eval.c；静态 bool 三态、DFA、诊断优先级 | check-analyzer |
-| test_diagnostic.c (33) / test_libtc.c (91) | diagnostic / libtc ownership | check-diagnostic / check-libtc |
+| test_io.c (144) | tc_io.c | check-io |
+| test_bitwise.c (16) / test_shift.c (23) | tc_semantics.c | check-bitwise / check-shift |
+| test_parser.c (156) | tc_parser.c | check-parser |
+| test_analyzer.c (296) | tc_analyzer*.c + tc_cfg.c + tc_const_eval.c；静态 bool 三态、DFA、诊断优先级 | check-analyzer |
+| test_diagnostic.c (33) / test_libtc.c (95) | diagnostic / libtc ownership | check-diagnostic / check-libtc |
 | test_cfg.c (91) / test_executor.c (20) | CFG 静态条件边与逻辑读集 / executor | check-cfg / check-executor |
 | test_stmt_index.c (18) | tc_stmt_index.h | check-stmt-index |
 | test_warning.c (59) | tc_warning.c | check-warning |
-| test_type_check.c (50) | tc_type_check.c + analyzer 管线 | check-type-check |
+| test_type_check.c (54) | tc_type_check.c + analyzer 管线 | check-type-check |
 | test_module.c (58) | tc_module.c | check-module |
 | test_struct_field_access.c (27) | tc_struct_check.c + analyzer 管线（字段读 operand / static let 拓扑 / hist 注入） | check-struct-field-access |
-| test_embed.c (584) / test_embed_aot.c (361) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
+| test_embed.c (590) / test_embed_aot.c (380) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
 
-AOT（`scripts/aot/run_tests.sh`）：**357** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**~403** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
+AOT（`scripts/aot/run_tests.sh`）：**403** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**456** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
 
 新用例注册 `scripts/vm/run_tests.sh`（+ AOT 如适用）；同步本文件 + `@knowledge-graph` + 对应 `kg-*.md` + `features/*.md`。

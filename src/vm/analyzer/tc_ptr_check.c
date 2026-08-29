@@ -329,6 +329,82 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
     }
 }
 
+static int tc_ptr_sym_is_param(const TcSymbol *sym) {
+    return sym && (sym->sym_kind == TC_SYM_PARAMETER || sym->slot_domain == TC_SLOT_PARAM);
+}
+
+static const TcSymbol *tc_ptr_lookup_optional(const char *name, const TcSymbolTable *visible,
+                                               const TcSymbolTable *global) {
+    const TcSymbol *sym = NULL;
+
+    if (!name) {
+        return NULL;
+    }
+    if (visible) {
+        sym = tc_symbol_table_find(visible, name);
+        if (sym) {
+            return sym;
+        }
+    }
+    if (global) {
+        return tc_symbol_table_find(global, name);
+    }
+    return NULL;
+}
+
+int tc_ptr_operand_target_readonly(const TcOperand *operand, const TcSymbolTable *visible,
+                                   const TcSymbolTable *global, size_t stmt_index) {
+    const TcSymbol *sym = NULL;
+
+    (void)stmt_index;
+    if (!operand || operand->kind != TC_OPERAND_VAR || !operand->u.name) {
+        return 0;
+    }
+    sym = tc_ptr_lookup_optional(operand->u.name, visible, global);
+    if (!sym || !sym->type || sym->type->tag != TC_PTR) {
+        return 0;
+    }
+    if (sym->sym_kind == TC_SYM_CONSTANT || sym->sym_kind == TC_SYM_STATIC_LET) {
+        return 1;
+    }
+    return sym->ptr_target_readonly ? 1 : 0;
+}
+
+int tc_ptr_rhs_target_readonly(const TcRhs *rhs, const TcSymbolTable *visible,
+                               const TcSymbolTable *global, size_t stmt_index) {
+    const TcSymbol *target = NULL;
+
+    (void)stmt_index;
+    if (!rhs) {
+        return 0;
+    }
+    switch (rhs->kind) {
+    case TC_RHS_PTR_ADDRESS:
+        target = tc_ptr_lookup_optional(rhs->u.ptr_address.name, visible, global);
+        if (!target) {
+            return 0;
+        }
+        return (tc_ptr_sym_is_param(target) || target->sym_kind == TC_SYM_CONSTANT ||
+                target->sym_kind == TC_SYM_STATIC_LET)
+                   ? 1
+                   : 0;
+    case TC_RHS_CONST_REF:
+        target = tc_ptr_lookup_optional(rhs->u.const_ref.name, visible, global);
+        if (!target || !target->type || target->type->tag != TC_PTR) {
+            return 0;
+        }
+        if (target->sym_kind == TC_SYM_CONSTANT || target->sym_kind == TC_SYM_STATIC_LET) {
+            return 1;
+        }
+        return target->ptr_target_readonly ? 1 : 0;
+    case TC_RHS_PTR_ADD:
+    case TC_RHS_PTR_SUB:
+        return tc_ptr_operand_target_readonly(&rhs->u.ptr_arith.ptr, visible, global, stmt_index);
+    default:
+        return 0;
+    }
+}
+
 int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
                        const TcSymbolTable *global, const TcStructTable *struct_table,
                        TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
@@ -356,7 +432,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
             return -1;
         }
         if (holder->sym_kind == TC_SYM_CONSTANT || holder->sym_kind == TC_SYM_STATIC_LET ||
-            holder->sym_kind == TC_SYM_PARAMETER) {
+            holder->ptr_target_readonly) {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, stmt->line, TC_COLUMN_UNKNOWN,
                               "cannot store through read-only pointer binding");
             if (ptr_ty.params.ptr_type.pointee) {

@@ -37,4 +37,10 @@ int tc_exec_unary(TcUnaryOp op, TcTypeTag type, TcWrapMode mode,
                   const TcValue *operand, TcValue *out,
                   TcDiagnostic *diag, int line);
 
+/**
+ * 64×64 → 128 位无符号乘法（C99 分块，不依赖 __int128）。
+ * hi 为高 64 位，lo 为低 64 位。wrap 乘法消费 lo；hi 供溢出/测试使用。
+ */
+void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo);
+
 #endif /* TC_SEM_INT_H */

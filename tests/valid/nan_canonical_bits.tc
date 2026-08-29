@@ -1,0 +1,6 @@
+#program
+; nan 字面量必须是 canonical quiet NaN（§3.6.1 / §6.3.3）
+var n32: uint32 = bitcast(uint32, nan)
+var n64: uint64 = bitcast(uint64, nan)
+writeln(uint32, %X, n32)
+writeln(uint64, %X, n64)

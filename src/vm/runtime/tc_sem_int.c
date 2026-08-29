@@ -99,23 +99,26 @@ static int tc_smul_overflow(int64_t a, int64_t b, int64_t *result) {
  *   hi = p3 + mid_hi + p1_hi + p2_hi
  *
  * 用纯 C99 避免 __int128 编译器扩展，用于 int64/uint64 乘法位宽截断
- * 时只需 lo（wrap 模式）或 hi（移位溢出检测）。
+ * 时取 lo（wrap 模式）。hi 为完整 128 位积的高字。
  */
-static void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
+void tc_umul64(uint64_t a, uint64_t b, uint64_t *hi, uint64_t *lo) {
     const uint64_t mask32 = 0xFFFFFFFFULL;
-    uint64_t a_lo = a & mask32;
-    uint64_t a_hi = a >> 32;
-    uint64_t b_lo = b & mask32;
-    uint64_t b_hi = b >> 32;
+    uint64_t a0 = a & mask32;
+    uint64_t a1 = a >> 32;
+    uint64_t b0 = b & mask32;
+    uint64_t b1 = b >> 32;
 
-    uint64_t p0 = a_lo * b_lo;
-    uint64_t p1 = a_lo * b_hi;
-    uint64_t p2 = a_hi * b_lo;
-    uint64_t p3 = a_hi * b_hi;
+    uint64_t p0 = a0 * b0;
+    uint64_t p1 = a0 * b1;
+    uint64_t p2 = a1 * b0;
+    uint64_t p3 = a1 * b1;
 
-    uint64_t mid = p1 + p2 + (p0 >> 32);
-    *lo = (p0 & mask32) | ((mid & mask32) << 32);
-    *hi = p3 + (mid >> 32) + (p1 >> 32) + (p2 >> 32);
+    /* 只把 32 位块相加，避免 p1+p2 溢出 uint64 时丢失进位 */
+    uint64_t c0 = (p0 >> 32) + (p1 & mask32) + (p2 & mask32);
+    uint64_t c1 = (p1 >> 32) + (p2 >> 32) + (c0 >> 32);
+
+    *lo = (p0 & mask32) | (c0 << 32);
+    *hi = p3 + c1;
 }
 
 /* ------------------------------------------------------------------ */

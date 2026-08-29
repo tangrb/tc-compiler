@@ -5,6 +5,7 @@
 > **范围**：不新增语言能力；执行语义、接受集与诊断码向现行标准收敛（诊断码经 P0 标准修订后与实现一次性对齐），只做符合性修复与标准/文档同步。
 > **原则**：① 安全/正确性优先；② 每项修复必须有测试证据；③ 决策集中、逐码裁决；④ 保留所有"诊断更友好"的专用码（经标准补条目合法化），只删除与标准既有规定直接冲突的码（**即分析报告 §4.1 方案 A，而非方案 B**）。
 > **编排**：按阶段（P0–P6）组织任务与依赖；不排工期、不估人日。
+> **收口（2026-08-30）**：P0–P6 已落地。对外发布结论见 **§10**。
 
 ---
 
@@ -53,9 +54,11 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | FP-0.8 | STD-3 | **附录 B 补码（核心）**：见本节错误码裁决表，把 14 个"保留"码补为规范条目；**每个保留码须「正文条款 + 附录 A 诊断边界句 + 附录 B」三处同改**——尤其 `MISSING_END`/`OPERAND_COUNT` 须改 A.3 行 2553 的"统一报 SYNTAX"句、`DUPLICATE_PARAMETER` 须改 §8.1.2 的"语法拒绝"为静态语义拒绝，避免"附录有码、正文仍写 SYNTAX"。**并加白名单句式**：仅"缺 `end`""操作数个数错误"两个失配用专用码，其余形态失配仍 `TC_CE_SYNTAX`，防止专用码边界继续膨胀 |
 | FP-0.9 | STD-9 | 跨标准 §5.2.x 编号错位：在编译器标准 §5.2 前加"与语言标准 §5.2.x 编号不对齐"说明，或调整编号 |
 | FP-0.10 | 码表澄清 | 在标准加一条短注区分形参可变性两类码：**直接**赋值/`read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`（§5/§3.9/§8）；**经 `ptr_address` 取址后 `ptr_store`/`memcopy_unsafe`** → `TC_CE_CONSTANT_ASSIGNMENT`（§6.8.3/§6.8.9/§3.10.3）。防止编译器标准再写回 `PARAMETER_ASSIGNMENT` 给 ptr_store |
-| FP-0.11 | 版本治理 | 附录 B 属 §1.3 可观察行为，修订即改语言规范本身：在标准文档头部版本行加**修订标记**（如「0.0.41-r1：附录 B 补码至 85 码、§8.1.2 形参名唯一改静态语义拒绝、STD-1~9 勘误」），并在文末附**变更记录表**（条目号 → 条款 → 改动摘要）；编译器标准等引用「附录 B 85 码」处同步标注「自 0.0.41-r1 起」，避免「规范已变、仍称 0.0.41」的追溯混乱 |
+| FP-0.11 | 版本治理 | 版本号保持 **0.0.41**；附录 B 补码至 85 码写入现行文本与文末变更记录；编译器标准等引用处写「附录 B 85 码」，不另标修订号 |
 
 **验证**：`python3 scripts/sync/check_doc_counts.py` 仍通过；grep 附录 B 码数 = 71 + 14 = 85；标准文档头部含修订标记、文末变更记录与 FP-0.1～0.11 一一对应。
+
+**状态（2026-08-29）**：P0 已落地。语言标准版本为 **0.0.41**；附录 B = 85 码；编译器标准已标注语言基线 0.0.41 与 §5.2.x 编号不对齐说明。P3 已将实现枚举收敛为 86（= 85 语言码 + 1 `TC_ERR_OUT_OF_MEMORY`）。
 
 ### 2.1 错误码裁决表（19 个标准未定义码的处置；P3 依此改实现）
 
@@ -88,6 +91,8 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 - **改动**：`dst_index + length > dst_count` 改为无回绕判定 `length > dst_count || dst_index > dst_count - length`（对 src 同理）；同步校验 `tc_memblock_read_index` 对 usize 极值下标的处理。
 - **测试**：新增 `tests/errors/runtime/memblock_copy_overflow_guard.tc`（`sub(uint64, 0u, 1u)` 构造极值下标 + 长度 1）→ 期望 `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`；同用例进 AOT 差分。
 - **验证**：`bash scripts/run_tests.sh --filter memblock_copy`；VM/AOT 输出一致。
+
+**状态（2026-08-29）**：P1 已落地并经 `bash scripts/run_tests.sh` 全绿（VM/AOT/Unit）。FP-1.1～1.7 与并入的 FP-4.1 均已改实现并补测试。附带对齐 §4.2：`static var` 初始化器接受 `memblock`/结构体构造器（供 FP-1.2 的 `Self.<memblock/struct>` 用例）。FP-1.6 溯源仅标记 `ptr_address(形参/let)` 的结果为只读，**不**把 `ptr<T>` 形参本身当作只读所指（Embed 宿主指针写入仍合法）。格式浮点十进制核心仍委托宿主 `snprintf`（FP-4.6 自实现 printf 维持 P4 默认降级）。
 
 ### FP-1.2 AOT `Self.<memblock/struct>` 深拷贝（S-13）
 - **文件**：`src/aot/tc_aot_emit_rhs.c:655-668`。
@@ -141,13 +146,15 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | FP-2.3 | S-7 read 接受集 | `tc_io.c:559-597` 要求 `digits_before>=1` 且 `.` 后 `digits_after>=1` | `tests/errors/runtime/read_float_invalid.tc`（`1.`/`.5`） |
 | FP-2.4 | S-2 `ptr_size` in let | `tc_parser_rhs.c` const_rhs 分发（1527 起）补 `TC_TOK_PTR_SIZE`；`tc_const_eval.c` 补 `TC_RHS_PTR_SIZE` 求值（返回 `sizeof_bits(T)`） | `tests/valid/let_ptr_size.tc` |
 | FP-2.5 | S-3 memblock 常量构造 | const_rhs 分发补 `TC_TOK_MEMBLOCK` → const_memblock_constructor；`tc_const_eval.c` 实现 const memblock 构造（全常量操作数） | `tests/valid/let_memblock_const.tc` |
-| FP-2.6 | S-25/S-26/S-27 限定名 | `tc_parser_type.c:94-112`（usize_operand）、`tc_parser.c:446-457`（read 目标）、`tc_parser_stmt.c:841-845/914-915/941-942`（memblock 名）接受 `qualified_identifier`/`imported_member_name` | `tests/valid/qualified_memblock_count.tc`、`qualified_read_target.tc` |
+| FP-2.6 | S-25/S-26/S-27 限定名 | 解析侧接受 `Qual.ident`/`Self.ident`；Pass2 对 `static var` 在 intern 前折叠 memblock 命名 N（`tc_analyzer_pass2.c`） | `tests/valid/qualified_memblock_count.tc`、`qualified_read_target.tc` |
 | FP-2.7 | S-28/S-29 rhs 超收 | `tc_parser_stmt.c:497/625`、`tc_parser_rhs.c:506-527` 改为 `operand|memblock_ctor|struct_ctor` 三选一 | `tests/errors/static/funcall_arg_expr.tc`、`struct_ctor_field_expr.tc` |
 | FP-2.8 | S-19 比较模式 | `tc_parser_rhs.c:960-977` 比较一律拒绝 ieee/wrap/truncate（`TC_CE_SYNTAX`）；修正 `tests/unit/runtime/test_analyzer.c:311/315` | `tests/errors/lexical/compare_mode.tc` |
 | FP-2.9 | S-20 模块分层 | `tc_parser.c:542-571` 删除 EXEC↔VALUE 归一，恢复严格五层序；**并修正依赖顶层交错的示例/测试**（已确认 `examples/demo/main.tc` 第 36 行 writeln 后仍有第 38-45 行 var、`examples/composite/main.tc` 同——须把声明整体移到语句区之前） | `tests/errors/static/module_layer_interleave.tc`；扫 `examples/` 与 `tests/valid/` 顶层交错 |
 | FP-2.10 | S-30 cast/bitcast 目标 | `tc_parser_rhs.c:848-852/912-917` 语法期接受完整 type（struct/memblock/bool 交语义报 `TC_CE_TYPE_MISMATCH`）；`:1350-1355` const cast 恢复接受 ptr 目标 | `tests/errors/static/bitcast_struct.tc`（改为语义码）、`tests/valid/let_ptr_cast_nullptr.tc` |
 | FP-2.11 | M-25 memblock count-only | `tc_parser_rhs.c:352-355` 要求 count 后必须跟 `fill:` 或 ≥1 元素 | `tests/errors/lexical/memblock_count_only.tc` |
 | FP-2.12 | M-26/M-27 UTF-8/NUL | `tc_lib.c` 读取层加 UTF-8 合法性校验（含注释）；`tc_compile_source` 字符串路径补 NUL 扫描 | `tests/errors/lexical/invalid_utf8_comment.tc`、`embedded_nul.tc` |
+
+**状态（2026-08-29）**：P2 已落地，并经 `bash scripts/run_tests.sh` 全绿（VM 872 / AOT 执行 437 / Unit，含 check-embed*）及四个 `check_*.py`。词法/语法/const 求值接受集向 0.0.41 语言标准收敛；`padding` 不再是关键字；浮点 `1.`/`.5` 词法与 `read` 均拒绝；`let` 可 const 求值 `ptr_size` 与 memblock 构造；限定名可用于 memblock N/`count:`/`read` 目标（`static var` 的命名 N 在 Pass2 intern 前折叠，避免 AOT 按 count=0 分配）；funcall/struct 字段不再超收完整 rhs（字段值仅为 operand / memblock 构造 / struct 构造）；比较一律拒绝模式关键字；模块五层严格序（IMPORT→STRUCT→VALUE→FUNC→EXEC）；cast/bitcast 非法目标改语义码；count-only memblock 拒绝；源文件 UTF-8/NUL 在读取层拒绝。
 
 ---
 
@@ -165,6 +172,8 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | FP-3.6 | S-21/S-22/S-23 | 按裁决表执行：`ELSE_POSITION` **改报 `TC_CE_INDENT_ELSE_END`**（`tc_parser.c:1018`）并更新对应测试；`MISSING_END`/`OPERAND_COUNT` 标准补码后**保留**，仅同步阶段标注 | `indent_else_position.tc` 期望码更新 |
 | FP-3.7 | M-1 | `tc_analyzer_pass2.c:635-643` 调换顺序（先 `tc_check_operand` 后 `tc_check_io_format`） | `diag_priority_format_after_operand.tc` |
 | FP-3.8 | 收尾 | `python3 scripts/sync/check_doc_counts.py`、`check_rhs_coverage.py` 同步；`tc_error_kind_name` 与枚举 1:1 重新核对 | CI |
+
+**状态（2026-08-29）**：P3 已落地。实现枚举 **86** = 85 语言码 + 1 `TC_ERR_OUT_OF_MEMORY`；已删除 `DUPLICATE_FUNCTION` / `CROSS_CONTROL_FLOW_JUMP` / `KEYWORD` / `ARGUMENT_TYPE` / `ELSE_POSITION`。同名 func → `FUNCTION_NAME_CONFLICT`；跨函数 goto → `LABEL_NOT_FOUND`；无模式位置的 wrap/truncate/ieee → `SYNTAX`，const_shift 非法组合 → `MODE_MISMATCH`；`-42u`/`1.5u` → `SYNTAX`；错位 else → `INDENT_ELSE_END`；write 先操作数后格式符。
 
 ---
 
@@ -185,6 +194,8 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 
 **降级项（已定）**：FP-4.5 的 M-9（端序）与 FP-4.6（自实现 printf）**默认降级**，不计入本计划必须交付项。降级项在发布结论中按 §0「发布结论口径」显式标注未完全符合的条款，不再单独判定"是否清零"。
 
+**状态（2026-08-30）**：P4 必做项已落地。FP-4.2 负 `shl` 边界改为 `(1ULL<<63)/pow2`；FP-4.3 本实现声明 64-bit-only 并加 C99 编译期断言；FP-4.4 `nan`/`inf` 字面量使用硬编码 canonical 位模式；FP-4.5 M-8 有符号右移改为显式算术实现（M-9 端序按计划降级）；FP-4.6 自实现 printf 按计划降级；FP-4.7 `memcopy_unsafe` 负下标（含 VAR 操作数）改报 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（VM 按有符号类型解码；AOT emit 从符号表取下标类型），`tc_umul64` 高位已修正；FP-4.8 AOT `slot_read` 从 `TcTypedProgram` 恢复槽位类型。发布结论须显式标注未完全符合 §3.5 行 438（端序）与 §10.4（自实现 printf）。
+
 ---
 
 ## 7. P5：设计文档同步
@@ -195,7 +206,7 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | ---- | ------ |
 | `TC编译器标准设计说明书-0.0.41.md` | §11.4.2 按裁决表增删码；§3.2 形参 ptr_store 码统一为 `CONSTANT_ASSIGNMENT`；3 处章节引用（§9.2.1→§9.2、§7.4→删除、§7.3.3→§7.3.2）；§11.4 改为**镜像附录 B（85 码）**，删除"编译器专用语言码"表述（补码后即为语言码） |
 | `TC-VM详细设计说明书-0.0.41.md` | §15.2 错误码表同步；§12.4 引用改 §3.7/§3.10.9；补 bool 规范字节/浮点 mod/移位 k≥n/ptr 步长/I-O 原子提交 6 处 |
-| `TC-VM命令行参考-0.0.41.md` | 91 码口径注明；writeln LF 说明 |
+| `TC-VM命令行参考-0.0.41.md` | ~~91 码口径注明~~（**已随 P3 改为 86 码**）；writeln LF 说明 |
 | `TC-AOT详细设计说明书-0.0.41.md` | §12.3 优先级改"无效→除零"；§10.3 改 memcpy；§7 返回机制改专用返回标记；memblock 头 64-bit 标注；CLI 补 `-I` |
 | `libtc设计说明书-0.0.41.md` | ~~§2.1 API 声明修复~~（**已修复并并入 §15，2026-08-29**）；错误码分类计数（47/8/2/12）修正（§15.8）；"16 个 TC_RE"→12 |
 | `TC-Embed详细设计说明书-0.0.41.md` | bool 规范化三路径；static let 不占槽；ptr_add 位粒度步长；slot_read 类型；错误码映射 |
@@ -204,21 +215,23 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | ~~`TC-0.0.41-结构体字段operand修复计划.md`~~ | **已删除（2026-08-29）**——原 M-16 措辞修订随文档删除一并关闭 |
 | `.cursor/skills/tc-architecture/errors.md` | 补齐到 85 语言码（另记 1 个 `TC_ERR_OUT_OF_MEMORY`）+ 标准章节对应 |
 
+**状态（2026-08-30）**：P5 已落地。编译器标准 §11.4 镜像附录 B（85 码），形参直接赋值/`read` → `PARAMETER_ASSIGNMENT`、经 `ptr_address` 的 `ptr_store`/`memcopy_unsafe` → `CONSTANT_ASSIGNMENT`；语言标准章节引用已改为 §9.2 / §7.3.2，CFG 诊断锚定本节 §7.6。VM 详设 §15.2 去掉 `DUPLICATE_FUNCTION` 并补 `STRUCT_VALUE_SELF_REF`，§12.4 与 §15.5 六处语义重述已齐。CLI 为 86 码口径且写明 `writeln` 单 LF。AOT 详设浮点异常优先级、结构体/memblock 头 `memcpy`、专用返回标记、64-bit 头宽、`-I` 与 embed `int` 返回已对齐实现；§19 记录可移植性债务。libtc 分表计数改为 44/17/4/8/10/2（`TC_RE` 全集 12），阶段 4 补结构体表、阶段 13 标 VM/AOT。Embed 详设统一 abort 为「inline + `return 1` 宏」、补 I/O 语义与语言码映射、bool 三路径。`errors.md` 按附录 B 列出 85+OOM。N-9/N-11 随已删过程文档关闭；N-12/N-13 按计划记为债务（不强制本阶段改实现）。
+
 > **N 级逐条核对清单**（本阶段兜底，随各文档同步收敛；下表为「覆盖处 / 处置」而非新增任务，逐条勾销）：
 >
 > | N 项 | 处置 |
 > | ---- | ---- |
-> | N-1/N-2/N-3 编译器标准章节引用（§9.2.1→§9.2、§7.4→删除、§7.3.3→§7.3.2） | 「编译器标准」行 |
-> | N-4 VM 详设 §12.4 指针 cast 引用 | 「VM 详设」行 |
-> | N-5 VM 详设 6 处未重述 | 「VM 详设」行 |
-> | N-6 CLI writeln LF | 「CLI」行 |
-> | N-7 libtc 设计阶段图（阶段 4 漏结构体表注册、阶段 13 只标 VM） | 「libtc 设计」行补；AOT CLI 缺 `-I` → 「AOT 详设」行 |
-> | N-8 Embed 详设 abort 两形态矛盾（行 1297-1303 vs 1677-1681）、I/O 语义未讨论 | 「Embed 详设」行补 |
+> | N-1/N-2/N-3 编译器标准章节引用（§9.2.1→§9.2、§7.4→删除、§7.3.3→§7.3.2） | **已勾销**：语言标准引用改为 §9.2 / §7.3.2；CFG 诊断锚定编译器本节 §7.6 |
+> | N-4 VM 详设 §12.4 指针 cast 引用 | **已勾销**：§3.7 / §3.10.9 |
+> | N-5 VM 详设 6 处未重述 | **已勾销**：§15.5 |
+> | N-6 CLI writeln LF | **已勾销**：§3 / §5.4 |
+> | N-7 libtc 设计阶段图（阶段 4 漏结构体表注册、阶段 13 只标 VM） | **已勾销**：阶段图 4c→结构体表→4d；阶段 13 = VM 执行 / AOT 代码生成；AOT CLI `-I` 已有 |
+> | N-8 Embed 详设 abort 两形态矛盾、I/O 语义未讨论 | **已勾销**：§15.3.2 权威形态 + §5.6 I/O + §10.3 语言码映射 |
 > | N-9 开发计划「70+ 错误码」→71、`MEMBLOCK_INDEX_OUT_RANGE` 缺 `_OF_` | **已随开发计划删除关闭** |
-> | N-10 errors.md 仅 29 码 | 「errors.md」行 |
+> | N-10 errors.md 仅 29 码 | **已勾销**：按附录 B 列出 85 语言码 + OOM |
 > | N-11 旧合规报告口径 | **已随旧合规报告删除关闭** |
-> | N-12 实现可移植性：slot_read 类型 → FP-4.8；FENV 下溢启发式 / `ptr_add/sub` 运行期回退 / `tc_aot_memblock_alloc` 缺饱和 / AOT `.count` 死代码回退 | 记录为「已知可移植性债务」，不在本计划强制范围（随 32 位目标/跨平台立项） |
-> | N-13 funcall 多余实参落入 `ARGUMENT_ORDER`（细分不足） | 记录为诊断精度债务；`ARGUMENT_TYPE` 用例 → FP-3.4 |
+> | N-12 实现可移植性：slot_read 类型 → FP-4.8；FENV 下溢启发式 / `ptr_add/sub` 运行期回退 / `tc_aot_memblock_alloc` 缺饱和 / AOT `.count` 死代码回退 | **已记录**：AOT 详设 §19「已知可移植性债务」，不在本计划强制范围 |
+> | N-13 funcall 多余实参落入 `ARGUMENT_ORDER`（细分不足） | **已记录**：编译器标准 §8.2 注明不另设「多余实参」码；`ARGUMENT_TYPE` → FP-3.4 |
 
 ---
 
@@ -231,6 +244,8 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 3. **embed**：`check-embed`/`check-embed-aot` 增加 bool 规范化 + 可失败 static var 用例。
 4. **门禁固化**：把语言标准 §10.2 顺序、错误码唯一性（86 码白名单）、`%0008d` 合并、`memblock count:0` 等写入 `test_types` 白名单 + `check_doc_counts.py` 的数字源。
 5. **回归命令**：`bash scripts/run_tests.sh`（全量）、`make test-unit`、`cmake --build build --target check-embed check-embed-aot`、四个 `scripts/sync/check_*.py`。
+
+**状态（2026-08-30）**：P6 已落地。黄金集覆盖 §10.4/§10.5（`format_spec_*` + `format_width_max`）与 §6.3.7（`fp_mod_*` 有限余数 / ieee NaN / ±inf / −0 / invalid 优先于 div0）；`let_ptr_size` / `let_memblock_const` / `qualified_*` / `read_float_invalid` / `memblock_copy_overflow_guard` / `ptr_store_through_param` / `self_member_*_copy` 已入 VM+AOT。embed：`check-embed`/`check-embed-aot` 含 bool 规范化与可失败 static var。门禁：`test_types` 86 码唯一 + `%0008d` 合并 + `%65535d` 上限 + intern `count=0` 哨兵；`test_type_check` 锁定 §10.2 操作数优先与命名 N 折叠（intern 后 `count != 0`）；类型位置 `memblock<T, 0>` 语法拒绝；`check_doc_counts.py` 以语言标准附录 B 唯一码 = 85 且实现 86 = 85+OOM 为数字源。
 
 ---
 
@@ -246,4 +261,21 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 
 ---
 
-*本计划与检查分析报告配套；执行时以语言标准（及 P0 修订后的版本）为唯一行为权威。*
+## 10. 收口结论（2026-08-30）
+
+P0–P6 均已落地。分析报告 §1–§13 仍是 2026-08-27 审计原文；现行对外结论以本节与分析报告 §14 为准。
+
+**发布结论：S 级符合；M 级除标注的可降级项外收敛；可移植性例外见 P4。**
+
+不得再写旧合规报告式的笼统「通过」。
+
+| DoD | 结果 |
+| --- | ---- |
+| 硬目标 ① 30 项 S 级清零 | 达成 |
+| 硬目标 ② 附录 B = 85 且与实现 1:1（+1 OOM → 86） | 达成 |
+| 硬目标 ③ `run_tests.sh` / `make test-unit` / `check-embed*` / 四个 `check_*.py` | 达成（VM 892 / AOT 执行 456 / Unit 全绿，2026-08-30） |
+| 软目标：M 级除降级项外清零 | 达成 |
+| 降级（已定，须明示） | **FP-4.5 M-9**：memblock/struct 标量元素按宿主端序存取，未完全符合语言标准 §3.5；**FP-4.6**：浮点十进制输出仍委托宿主 `snprintf`，未完全符合 §10.4 |
+| 不在本轮强制范围 | N-12 可移植性债务（AOT 详设 §19）；N-13 funcall 多余实参并入 `ARGUMENT_ORDER`（编译器标准 §8.2） |
+
+*本计划与检查分析报告配套；行为权威为语言标准 0.0.41（含 P0 附录 B 85 码）。*

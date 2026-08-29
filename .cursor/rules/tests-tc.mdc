@@ -15,6 +15,7 @@ alwaysApply: false
 | 类型 | 路径 | 注册函数 |
 |------|------|---------|
 | valid | `tests/valid/` | `run_expect_stdout` / `run_with_stdin` / `run_expect_ok` |
+| lexical | `tests/errors/lexical/` | `run_expect_fail_msg` + `run_expect_check_fail` |
 | static | `tests/errors/static/` | `run_expect_fail_msg` + `run_expect_check_fail` |
 | runtime | `tests/errors/runtime/` | `run_expect_fail_msg` / `run_expect_fail_stdin_msg` |
 | stress | `tests/stress/` | `run_expect_stdout` / `run_expect_ok` |
@@ -54,8 +55,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/foo.tc" "undefined variable"
 
 ```tc
 ; 期望：division by zero；此前 writeln 应已执行
+; 顶层 VALUE 须在 EXEC 之前，故先声明再写再赋值出错表达式
+var x: int32 = 0
 writeln(int32, 1)
-var x: int32 = div(int32, 1, 0)
+x = div(int32, 1, 0)
 ```
 
 ### stdin 输入
@@ -79,7 +82,7 @@ run_with_stdin "$ROOT/tests/valid/read_foo.tc" "true\n" "true\n"
 | 整数→bool | `literal type does not match context` |
 | 比较/逻辑/位运算类型 | `operand type does not match operation type` |
 | xor 用于 bool | `expected integer type` |
-| 位运算/shift + wrap | `wrap cannot be used with bitwise/shift operations` |
+| 位运算/shift + wrap | `wrap cannot be used with bitwise/shift operations`（码 `SYNTAX`；const_shift 非法组合为 `MODE_MISMATCH`） |
 | shl + truncate | `truncate cannot be used with shift operations` |
 | let shl wrap | `wrap cannot be used in constant expression` |
 | 运行时 shl 溢出 | `shift left overflow` |
@@ -103,9 +106,9 @@ run_with_stdin "$ROOT/tests/valid/read_foo.tc" "true\n" "true\n"
 | 跳入子块/兄弟块 | `cannot jump into inner block` / `cannot jump into sibling block` |
 | format 操作数数量 | `operand count error` |
 | format `+` 与无符号 | `'+' flag not supported for this format specifier` |
-| format `#` 与 bool | `'#' flag not supported for` |
-| format `0`/`-` 互斥 | `'0' and '-' flags are mutually exclusive` |
-| format `%t` 带宽/精度 | `does not support flags, width, or precision` |
+| format `#` 与 bool / `%d` | `'#' flag not supported for` |
+| format `%t` 精度/`+`/`#`/`0` | `%t does not support` |
+| format 宽度/精度越界 | `format width or precision out of range` |
 | bitcast 位宽 | `bitcast source and target widths must match` |
 
 ## 调试

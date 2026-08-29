@@ -2,7 +2,7 @@
 
 **何时读**：AST 枚举、`TcType`/`TcRhsKind`/`TcStmtKind` 规模、equals/sizeof/槽位 API。更快：`rg` in `tc_types.h`。
 
-错误种类：**91**（`test_types.c` 断言）。共同契约：`src/vm/runtime/tc_types.h`
+错误种类：**86**（`test_types.c` 断言）。共同契约：`src/vm/runtime/tc_types.h`
 
 RHS 分发覆盖：**34**（`tc_types.h` 的 `TcRhsKind` 枚举；8 个分发点全覆盖，`check_rhs_coverage.py`）
 
@@ -24,7 +24,7 @@ RHS 分发覆盖：**34**（`tc_types.h` 的 `TcRhsKind` 枚举；8 个分发点
 | `TcBitwiseOp` | AND/OR/XOR/NOT（整数按位；与 logic 共享 and/or/not 关键字） |
 | `TcShiftOp` | SHL/SHR |
 | `TcStmtKind` | **24** 种全部可解析（控制流 + FIELD_ASSIGN/FUNC_*/RETURN/MEMBLOCK_*/PTR_STORE/MEMCOPY_UNSAFE/STRUCT_DEF/STATIC_*/IMPORT） |
-| `TcErrorKind` | **91** 种（`TC_CE_*` / `TC_RE_*` / `TC_ERR_OUT_OF_MEMORY`）；CE/RE 越界对打印名可相同 |
+| `TcErrorKind` | **86** 种（`TC_CE_*` / `TC_RE_*` / `TC_ERR_OUT_OF_MEMORY`）；CE/RE 越界对打印名可相同 |
 | `TcTokenKind` | 模块/函数/控制流关键字（`#program`/`#lib`/`import`/`Self`/`func`/`return` 等） |
 | `TcRhsKind` | **34** 种全部可解析；let 对部分复合/`FUNCALL_EXPR` const_eval defer |
 | `TcFormatSpec` | `%d/%i/%u/%x/%X/%o/%b/**%t**` + `%f/%e/%E/%g/%G` |
@@ -77,7 +77,7 @@ TcSymbol { name, type(const TcType*), slot, slot_domain, sym_kind, ... }
 TcSymbolTable { symbols[], scopes[], labels[] }
 TcValue  { const TcType *type, uint64_t bits }
   /* type→单例或 intern；bool bits 0/1；
-   * memblock/struct：bits 存堆指针（指针↔uint64_t，隐含 64 位平台；无 32 位目标） */
+   * memblock/struct：bits 存堆指针。本实现 64-bit-only（`tc_target_ptr_width_bits()==64`）；无 32 位目标。 */
 TcResolvedBinding { ..., const TcType *type, ... }
 TcTypedProgram { ..., struct_table, type_table }
   /* struct_table 条目：name + module_name；裸名仅当前模块；

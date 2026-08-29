@@ -18,9 +18,11 @@ static int tc_parse_optional_padding(const TcTokenList *tokens, size_t *index, i
         return 0;
     }
     (*index)++;
-    if (tc_expect_token(tokens, index, TC_TOK_PADDING, line_no, diag) != 0) {
-        return -1;
+    tok = tc_peek(tokens, *index);
+    if (tok->kind != TC_TOK_IDENTIFIER || !tc_token_is_ident_named(tok, "padding")) {
+        return tc_syntax_error(diag, line_no, tok->column, "expected padding");
     }
+    (*index)++;
     if (tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
         return -1;
     }

@@ -2,6 +2,7 @@
  * tc_memblock_exec.c — memblock 堆布局与运行时运算
  *
  * 布局：[uint64_t count][element bits...]
+ * 本实现固定 64-bit-only：长度头宽 = sizeof_bits(usize) = 64 位（见 tc_types.h 断言）。
  */
 #include "tc_memblock_exec.h"
 
@@ -84,21 +85,29 @@ static size_t tc_memblock_element_bytes(const TcType *element, const TcExecuteCt
     return (bits + 7U) / 8U;
 }
 
-static int tc_memblock_read_index(const TcOperand *index_op, TcExecuteCtx *ctx, uint64_t *out,
-                                  TcDiagnostic *diag, int line) {
+static int tc_memblock_read_index_kind(const TcOperand *index_op, TcExecuteCtx *ctx, uint64_t *out,
+                                       TcDiagnostic *diag, int line, TcErrorKind neg_kind,
+                                       const char *neg_msg) {
     TcValue index_value;
 
     if (tc_eval_operand(index_op, TC_USIZE, ctx, &index_value, diag, line) != 0 &&
         tc_eval_operand(index_op, TC_ISIZE, ctx, &index_value, diag, line) != 0) {
         return -1;
     }
-    if (index_value.type->tag == TC_ISIZE && (int64_t)tc_bits_to_signed(TC_ISIZE, index_value.bits) < 0) {
-        tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
-                          "memblock index out of range");
+    if (index_value.type && tc_type_is_signed(index_value.type->tag) &&
+        tc_bits_to_signed(index_value.type->tag, index_value.bits) < 0) {
+        tc_diagnostic_set(diag, neg_kind, line, TC_COLUMN_UNKNOWN, neg_msg);
         return -1;
     }
     *out = index_value.bits;
     return 0;
+}
+
+static int tc_memblock_read_index(const TcOperand *index_op, TcExecuteCtx *ctx, uint64_t *out,
+                                  TcDiagnostic *diag, int line) {
+    return tc_memblock_read_index_kind(index_op, ctx, out, diag, line,
+                                       TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE,
+                                       "memblock index out of range");
 }
 
 static int tc_memblock_bounds_check(uint64_t index, uint64_t count, int line,
@@ -415,7 +424,11 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
         tc_memblock_read_index(&stmt->length, ctx, &length, diag, stmt->line) != 0) {
         return -1;
     }
-    if (length > 0 && (dst_index + length > dst_count || src_index + length > src_count)) {
+    /* 无回绕判定：length > count 或 index > count-length，避免 usize 极值下标
+     * 使 dst_index+length 回绕成小值而漏检（§6.8.9 / 零 UB）。 */
+    if (length > 0 &&
+        (length > dst_count || dst_index > dst_count - length ||
+         length > src_count || src_index > src_count - length)) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, stmt->line,
                           TC_COLUMN_UNKNOWN, "memblock index out of range");
         return -1;
@@ -465,8 +478,12 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
     }
     dst_slot = (int)(dst_ptr.bits >> 1);
     src_slot = (int)(src_ptr.bits >> 1);
-    if (tc_memblock_read_index(&stmt->dst_index, ctx, &dst_index, diag, stmt->line) != 0 ||
-        tc_memblock_read_index(&stmt->src_index, ctx, &src_index, diag, stmt->line) != 0) {
+    if (tc_memblock_read_index_kind(&stmt->dst_index, ctx, &dst_index, diag, stmt->line,
+                                    TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE,
+                                    "memcopy_unsafe invalid range") != 0 ||
+        tc_memblock_read_index_kind(&stmt->src_index, ctx, &src_index, diag, stmt->line,
+                                    TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE,
+                                    "memcopy_unsafe invalid range") != 0) {
         return -1;
     }
     {
@@ -475,8 +492,8 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
             tc_eval_operand(&stmt->length, TC_ISIZE, ctx, &length_value, diag, stmt->line) != 0) {
             return -1;
         }
-        if (length_value.type->tag == TC_ISIZE) {
-            length_signed = tc_bits_to_signed(TC_ISIZE, length_value.bits);
+        if (length_value.type && tc_type_is_signed(length_value.type->tag)) {
+            length_signed = tc_bits_to_signed(length_value.type->tag, length_value.bits);
         } else {
             length_signed = (int64_t)length_value.bits;
         }

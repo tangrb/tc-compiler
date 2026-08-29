@@ -61,6 +61,13 @@ char *tc_token_strdup(const TcToken *tok, int line_no, TcDiagnostic *diag);
 /** 标识符 Token 是否与 name 完全匹配 */
 int tc_token_is_ident_named(const TcToken *tok, const char *name);
 
+/**
+ * 绑定名：identifier | Self.identifier | imported_member_name（Qual.Name）。
+ * 成功时 *out_name 为堆字符串（"x" / "Self.x" / "Mod.x"），调用方释放。
+ */
+int tc_parse_binding_name(const TcTokenList *tokens, size_t *index, int line_no,
+                          char **out_name, TcDiagnostic *diag);
+
 /* tc_parse_type_syntax 权威声明见 tc_parser_type.h */
 #include "tc_parser_type.h"
 

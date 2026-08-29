@@ -1,0 +1,8 @@
+#program
+; 导入限定名 Qual.N 作 usize_operand / count:
+import QualMemblockCountLib
+var local_mb: memblock<int32, QualMemblockCountLib.N> = memblock(int32, count: QualMemblockCountLib.N, fill: 9)
+var v: int32 = funcall(QualMemblockCountLib.first)
+var e: int32 = memblock_load(int32, local_mb, 0)
+writeln(int32, v)
+writeln(int32, e)

@@ -38,6 +38,31 @@ add_custom_target(check-semantics
 )
 
 # ------------------------------------------------------------------ #
+#  test-fp-mod — 浮点 mod（§6.3.7）单元测试                           #
+# ------------------------------------------------------------------ #
+
+add_executable(test-fp-mod
+    test_fp_mod.c
+    ${TC_VM_DIR}/runtime/tc_semantics.c
+    ${TC_VM_DIR}/runtime/tc_sem_int.c
+    ${TC_VM_DIR}/runtime/tc_sem_fp.c
+    ${TC_VM_DIR}/runtime/tc_sem_cast.c
+    ${TC_VM_DIR}/runtime/tc_sem_bitwise.c
+    ${TC_VM_DIR}/runtime/tc_types.c
+    ${TC_VM_DIR}/runtime/tc_diagnostic.c
+)
+
+target_include_directories(test-fp-mod PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-fp-mod PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-fp-mod
+    COMMAND test-fp-mod
+    DEPENDS test-fp-mod
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running float mod unit tests"
+)
+
+# ------------------------------------------------------------------ #
 #  test-types — 类型工具函数单元测试                                    #
 # ------------------------------------------------------------------ #
 

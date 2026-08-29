@@ -14,6 +14,35 @@
 #include <stdio.h>
 #include <string.h>
 
+static TcTypeTag tc_aot_memcopy_index_type(const TcOperand *op, const TcAotEmitCtx *ctx,
+                                           int stmt_index) {
+    const TcSymbol *sym = NULL;
+
+    if (op->kind == TC_OPERAND_FIELD_READ && op->u.field_read.resolved.resolved &&
+        op->u.field_read.resolved.field_type) {
+        return op->u.field_read.resolved.field_type->tag;
+    }
+    if (op->binding.resolved && op->binding.type) {
+        return op->binding.type->tag;
+    }
+    if (op->kind == TC_OPERAND_VAR && op->u.name && ctx && ctx->program) {
+        sym = tc_symbol_table_find_visible(&ctx->program->symbols, op->u.name, stmt_index,
+                                           &ctx->sym_index);
+        if (sym && sym->type) {
+            return sym->type->tag;
+        }
+    }
+    if (op->kind == TC_OPERAND_LIT) {
+        if (op->u.lit.unsigned_suffix) {
+            return TC_USIZE;
+        }
+        if (op->u.lit.negative) {
+            return TC_ISIZE;
+        }
+    }
+    return TC_USIZE;
+}
+
 int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx *ctx,
                                const char *indent) {
     const TcSymbolTable *symbols = &ctx->program->symbols;
@@ -170,7 +199,11 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             return -1;
         }
         if (!ret->has_value) {
-            fprintf(out, "%sreturn;\n", indent);
+            if (ctx->embed_mode) {
+                fprintf(out, "%sreturn 0;\n", indent);
+            } else {
+                fprintf(out, "%sreturn;\n", indent);
+            }
             return 0;
         }
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
@@ -187,7 +220,11 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
                 return -1;
             }
         }
-        fprintf(out, "%s    return;\n", indent);
+        if (ctx->embed_mode) {
+            fprintf(out, "%s    return 0;\n", indent);
+        } else {
+            fprintf(out, "%s    return;\n", indent);
+        }
         fprintf(out, "%s}\n", indent);
         return 0;
     }
@@ -321,9 +358,13 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             return -1;
         }
         fprintf(out,
-                "%s    if (tc_aot_memcopy_unsafe(slots, _dptr, _d_idx, _sptr, _s_idx, _len, "
-                "%zu, %s, tc_aot_cur_diag, %d) != 0)\n",
-                abort_indent, elem_bytes, tc_aot_type_enum(element->tag), mc->line);
+                "%s    if (tc_aot_memcopy_unsafe(slots, _dptr, _d_idx, %s, _sptr, _s_idx, %s, "
+                "_len, %zu, %s, tc_aot_cur_diag, %d) != 0)\n",
+                abort_indent, tc_aot_type_enum(tc_aot_memcopy_index_type(&mc->dst_index, ctx,
+                                                                        stmt_index)),
+                tc_aot_type_enum(tc_aot_memcopy_index_type(&mc->src_index, ctx, stmt_index)),
+                elem_bytes,
+                tc_aot_type_enum(element->tag), mc->line);
         fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, mc->line);
         fprintf(out, "%s}\n", indent);
         return 0;
@@ -443,7 +484,10 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             char abort_indent[64];
 
             tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
-            fprintf(out, "%sif (tc_aot_write(%s, %s, ", indent, tc_aot_type_enum(io->type->tag),
+            fprintf(out, "%sif (tc_aot_write(%s, (TcFormatFullSpec){%d, %d, %d, %d, %d, %d, %d, %s}, ",
+                    indent, tc_aot_type_enum(io->type->tag),
+                    io->fmt.flag_minus, io->fmt.flag_plus, io->fmt.flag_hash, io->fmt.flag_zero,
+                    io->fmt.width, io->fmt.precision_set, io->fmt.precision,
                     tc_aot_format_enum(io->fmt.spec));
             tc_aot_emit_operand_expr(out, &io->operand, io->type->tag, ctx, stmt_index);
             fprintf(out, ", %d, tc_aot_cur_diag, %d) != 0)\n", newline, io->line);

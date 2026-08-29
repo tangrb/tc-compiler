@@ -7,13 +7,17 @@ var b: Box = Box(data: memblock(int32, count: 2, 10, 20))
 var mb: memblock<int32, 2> = b.data
 var e0: int32 = memblock_load(int32, mb, 0)
 var e1: int32 = memblock_load(int32, mb, 1)
+var c: Box = b
+var mb_b: memblock<int32, 2> = memblock(int32, count: 2, fill: 0)
+var mb_c: memblock<int32, 2> = memblock(int32, count: 2, fill: 0)
+var be0: int32 = 0
+var ce0: int32 = 0
 writeln(int32, e0)
 writeln(int32, e1)
-var c: Box = b
 c.data = memblock(int32, count: 2, 99, 20)
-var mb_b: memblock<int32, 2> = b.data
-var mb_c: memblock<int32, 2> = c.data
-var be0: int32 = memblock_load(int32, mb_b, 0)
-var ce0: int32 = memblock_load(int32, mb_c, 0)
+mb_b = b.data
+mb_c = c.data
+be0 = memblock_load(int32, mb_b, 0)
+ce0 = memblock_load(int32, mb_c, 0)
 writeln(int32, be0)
 writeln(int32, ce0)

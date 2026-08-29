@@ -18,6 +18,21 @@
 /* INT64_MIN 的绝对值 2^63，用于字面量范围检查与 read 输入解析 */
 #define TC_INT64_MIN_ABS_MAGNITUDE 9223372036854775808ULL
 
+/*
+ * 本实现固定 64-bit-only 目标字长（§3.2.1）：isize/usize/ptr/memblock 长度头均为 64 位。
+ * 32 位目标另行立项。C99 编译期断言：非 64 位宿主拒绝构建。
+ */
+typedef char tc_target_is_64bit_only[(sizeof(void *) == 8) ? 1 : -1];
+typedef char tc_uint64_is_8_bytes[(sizeof(uint64_t) == 8) ? 1 : -1];
+
+/* IEEE 754 canonical quiet NaN / ±inf（§3.6.1 / §6.3.3）；与宿主 NAN 宏无关 */
+#define TC_FLOAT32_CANONICAL_NAN_BITS UINT64_C(0x7FC00000)
+#define TC_FLOAT64_CANONICAL_NAN_BITS UINT64_C(0x7FF8000000000000)
+#define TC_FLOAT32_POS_INF_BITS UINT64_C(0x7F800000)
+#define TC_FLOAT64_POS_INF_BITS UINT64_C(0x7FF0000000000000)
+#define TC_FLOAT32_NEG_INF_BITS UINT64_C(0xFF800000)
+#define TC_FLOAT64_NEG_INF_BITS UINT64_C(0xFFF0000000000000)
+
 /* ------------------------------------------------------------------ */
 /*  类型 & 运算符枚举                                                   */
 /* ------------------------------------------------------------------ */
@@ -83,6 +98,7 @@ typedef struct TcType {
         struct {
             struct TcType *element;
             uint64_t count;
+            char *pending_count_name; /* usize_operand 名（Self.N / Mod.N / 标识符）；解析后置 NULL */
         } memblock_type;
         struct {
             int struct_id;
@@ -246,7 +262,6 @@ typedef enum {
     TC_CE_TYPE_MISMATCH,
     TC_CE_LITERAL_OUT_OF_RANGE,
     TC_CE_LITERAL_TYPE,
-    TC_CE_KEYWORD,
     TC_CE_CONSTANT_ASSIGNMENT,
     TC_CE_CONSTANT_EXPRESSION,
     TC_CE_CONSTANT_OVERFLOW,
@@ -259,7 +274,6 @@ typedef enum {
     TC_CE_INDENT_INSUFFICIENT,   /* 块内缩进不足 */
     TC_CE_INDENT_ELSE_END,       /* else/end 缩进与 if 不一致 */
     TC_CE_MISSING_END,           /* if 语句缺少 end */
-    TC_CE_ELSE_POSITION,         /* else 位置错误 */
     TC_CE_CONDITION_TYPE,        /* if 条件结果不是 bool */
     TC_CE_MODE_MISMATCH,         /* ieee/wrap 用于非法上下文 */
     TC_CE_UNINITIALIZED_VARIABLE,  /* §4.2 读取未初始化变量 */
@@ -280,7 +294,6 @@ typedef enum {
     TC_CE_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
 
     /* ---- 函数诊断（§11.4.2） ---- */
-    TC_CE_DUPLICATE_FUNCTION,
     TC_CE_FUNCTION_NAME_CONFLICT,
     TC_CE_UNDEFINED_FUNCTION,
     TC_CE_DUPLICATE_PARAMETER,
@@ -288,7 +301,6 @@ typedef enum {
     TC_CE_DUPLICATE_ARGUMENT,
     TC_CE_UNKNOWN_ARGUMENT,
     TC_CE_ARGUMENT_ORDER,
-    TC_CE_ARGUMENT_TYPE,
     TC_CE_FUNCALL_POSITION,
     TC_CE_FUNCALL_RESULT_TYPE,
     TC_CE_RETURN_OUTSIDE_FUNCTION,
@@ -298,7 +310,6 @@ typedef enum {
     TC_CE_UNREACHABLE_STATEMENT,
     TC_CE_PARAMETER_ASSIGNMENT,
     TC_CE_FUNCTION_SCOPE_ACCESS,
-    TC_CE_CROSS_CONTROL_FLOW_JUMP,
     TC_CE_RECURSION,
 
     /* ---- memblock（§11.4.3） ---- */
@@ -937,7 +948,7 @@ typedef struct {
  *
  * type 指向标量单例或分析期 intern / AST 稳定 TcType 节点（禁止指向可 realloc 缓冲）。
  * 标量 / ptr：bits 存抽象位模式。
- * memblock / struct：bits 存堆块指针（uintptr 转 uint64_t；假定 64 位宿主）。
+ * memblock / struct：bits 存堆块指针（uintptr 转 uint64_t；本实现 64-bit-only）。
  */
 typedef struct {
     const TcType *type;
@@ -981,6 +992,7 @@ typedef struct {
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
     const TcType *type;  /* 完整类型：单例或 TcTypeTable intern；随符号释放时不 free */
+    int ptr_target_readonly; /* ptr 绑定：所指外层为 let/static let/形参时为 1 */
 } TcSymbol;
 
 /** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */

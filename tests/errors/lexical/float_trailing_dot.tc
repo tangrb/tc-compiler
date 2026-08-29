@@ -1,0 +1,3 @@
+#program
+; 期望：invalid float literal
+var x: float64 = 1.

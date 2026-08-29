@@ -1,5 +1,5 @@
 #program
-; 期望：else must appear at same indentation as if（else 出现在 then 块内部）
+; 期望：else must appear at same indentation as if（TC_CE_INDENT_ELSE_END）
 if true then
     writeln(int32, %d, 1)
     else

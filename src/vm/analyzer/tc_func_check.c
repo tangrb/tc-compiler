@@ -249,15 +249,6 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
 
         if (tc_type_check_rhs(value, &sig->params[i].type, visible, global, env->struct_table,
                               hist, stmt_index, line, diag, warnings, NULL) != 0) {
-            if (diag->kind == TC_CE_TYPE_MISMATCH || diag->kind == TC_CE_LITERAL_TYPE ||
-                diag->kind == TC_CE_LITERAL_OUT_OF_RANGE) {
-                /* 字面量专用诊断保留，不降级为 ARGUMENT_TYPE */
-                return -1;
-            }
-            if (diag->kind == TC_CE_TYPE_MISMATCH) {
-                tc_diagnostic_set(diag, TC_CE_ARGUMENT_TYPE, line, TC_COLUMN_UNKNOWN,
-                                  "argument type does not match parameter type");
-            }
             return -1;
         }
     }
@@ -542,6 +533,37 @@ static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
         tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "constant expression cannot reference var variable");
         return -1;
+    }
+    if (rhs->kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
+        size_t i = 0;
+
+        if (rhs->u.memblock_ctor.is_fill) {
+            return tc_static_var_operand_valid(&rhs->u.memblock_ctor.fill_value, current_stmt_index,
+                                               members, line, diag);
+        }
+        for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
+            if (tc_static_var_operand_valid(&rhs->u.memblock_ctor.values[i], current_stmt_index,
+                                            members, line, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+    if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
+        size_t fi = 0;
+
+        for (fi = 0; fi < rhs->u.struct_ctor.field_count; fi++) {
+            if (rhs->u.struct_ctor.fields[fi].has_rhs) {
+                if (tc_static_var_rhs_valid((const TcRhs *)rhs->u.struct_ctor.fields[fi].value_rhs,
+                                            current_stmt_index, members, line, diag) != 0) {
+                    return -1;
+                }
+            } else if (tc_static_var_operand_valid(&rhs->u.struct_ctor.fields[fi].value_op,
+                                                   current_stmt_index, members, line, diag) != 0) {
+                return -1;
+            }
+        }
+        return 0;
     }
     switch (rhs->kind) {
     case TC_RHS_ARITH:
@@ -855,7 +877,7 @@ int tc_func_check_signatures(TcTypedProgram *prog, const TcFuncSignatureList *si
                     prev->u.func_def.name && func->name &&
                     strcmp(prev->u.func_def.name, func->name) == 0) {
                     (void)snprintf(msg, sizeof(msg), "duplicate function '%s'", func->name);
-                    tc_diagnostic_set(diag, TC_CE_DUPLICATE_FUNCTION, func->line,
+                    tc_diagnostic_set(diag, TC_CE_FUNCTION_NAME_CONFLICT, func->line,
                                       TC_COLUMN_UNKNOWN, msg);
                     return -1;
                 }

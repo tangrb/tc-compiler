@@ -1,0 +1,4 @@
+#program
+; 期望：format width or precision out of range（宽度 65536）
+var x: int32 = 1
+write(int32, %65536d, x)

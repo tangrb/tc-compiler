@@ -1,8 +1,9 @@
 #program
 ; 期望：negative shift count 运行时错误
 ; shl 的负移位计数（现有用例只覆盖 shr）
-writeln(int32, 1)
 var x: int32 = 8
 var k: int32 = -1
-var r: int32 = shl(int32, x, k)
+var r: int32 = 0
+writeln(int32, 1)
+r = shl(int32, x, k)
 writeln(int32, r)

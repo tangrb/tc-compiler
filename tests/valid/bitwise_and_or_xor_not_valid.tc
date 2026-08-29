@@ -6,83 +6,83 @@ var i8_and: int8 = and(int8, i8a, i8b)
 var i8_or: int8 = or(int8, i8a, i8b)
 var i8_xor: int8 = xor(int8, i8a, i8b)
 var i8_not: int8 = not(int8, i8a)
-writeln(int8, i8_and)
-writeln(int8, i8_or)
-writeln(int8, i8_xor)
-writeln(int8, i8_not)
-
 var u8a: uint8 = 240
 var u8b: uint8 = 15
 var u8_and: uint8 = and(uint8, u8a, u8b)
 var u8_or: uint8 = or(uint8, u8a, u8b)
 var u8_xor: uint8 = xor(uint8, u8a, u8b)
 var u8_not: uint8 = not(uint8, u8a)
-writeln(uint8, u8_and)
-writeln(uint8, u8_or)
-writeln(uint8, u8_xor)
-writeln(uint8, u8_not)
-
 var i16a: int16 = 255
 var i16b: int16 = 15
 var i16_and: int16 = and(int16, i16a, i16b)
 var i16_or: int16 = or(int16, i16a, i16b)
 var i16_xor: int16 = xor(int16, i16a, i16b)
 var i16_not: int16 = not(int16, i16a)
-writeln(int16, i16_and)
-writeln(int16, i16_or)
-writeln(int16, i16_xor)
-writeln(int16, i16_not)
-
 var u16a: uint16 = 65280
 var u16b: uint16 = 255
 var u16_and: uint16 = and(uint16, u16a, u16b)
 var u16_or: uint16 = or(uint16, u16a, u16b)
 var u16_xor: uint16 = xor(uint16, u16a, u16b)
 var u16_not: uint16 = not(uint16, u16a)
-writeln(uint16, u16_and)
-writeln(uint16, u16_or)
-writeln(uint16, u16_xor)
-writeln(uint16, u16_not)
-
 var i32a: int32 = 255
 var i32b: int32 = 15
 var i32_and: int32 = and(int32, i32a, i32b)
 var i32_or: int32 = or(int32, i32a, i32b)
 var i32_xor: int32 = xor(int32, i32a, i32b)
 var i32_not: int32 = not(int32, i32a)
-writeln(int32, i32_and)
-writeln(int32, i32_or)
-writeln(int32, i32_xor)
-writeln(int32, i32_not)
-
 var u32a: uint32 = 4278190080
 var u32b: uint32 = 255
 var u32_and: uint32 = and(uint32, u32a, u32b)
 var u32_or: uint32 = or(uint32, u32a, u32b)
 var u32_xor: uint32 = xor(uint32, u32a, u32b)
 var u32_not: uint32 = not(uint32, u32a)
-writeln(uint32, u32_and)
-writeln(uint32, u32_or)
-writeln(uint32, u32_xor)
-writeln(uint32, u32_not)
-
 var i64a: int64 = 255
 var i64b: int64 = 15
 var i64_and: int64 = and(int64, i64a, i64b)
 var i64_or: int64 = or(int64, i64a, i64b)
 var i64_xor: int64 = xor(int64, i64a, i64b)
 var i64_not: int64 = not(int64, i64a)
-writeln(int64, i64_and)
-writeln(int64, i64_or)
-writeln(int64, i64_xor)
-writeln(int64, i64_not)
-
 var u64a: uint64 = 18446744073709551360
 var u64b: uint64 = 255
 var u64_and: uint64 = and(uint64, u64a, u64b)
 var u64_or: uint64 = or(uint64, u64a, u64b)
 var u64_xor: uint64 = xor(uint64, u64a, u64b)
 var u64_not: uint64 = not(uint64, u64a)
+writeln(int8, i8_and)
+writeln(int8, i8_or)
+writeln(int8, i8_xor)
+writeln(int8, i8_not)
+
+writeln(uint8, u8_and)
+writeln(uint8, u8_or)
+writeln(uint8, u8_xor)
+writeln(uint8, u8_not)
+
+writeln(int16, i16_and)
+writeln(int16, i16_or)
+writeln(int16, i16_xor)
+writeln(int16, i16_not)
+
+writeln(uint16, u16_and)
+writeln(uint16, u16_or)
+writeln(uint16, u16_xor)
+writeln(uint16, u16_not)
+
+writeln(int32, i32_and)
+writeln(int32, i32_or)
+writeln(int32, i32_xor)
+writeln(int32, i32_not)
+
+writeln(uint32, u32_and)
+writeln(uint32, u32_or)
+writeln(uint32, u32_xor)
+writeln(uint32, u32_not)
+
+writeln(int64, i64_and)
+writeln(int64, i64_or)
+writeln(int64, i64_xor)
+writeln(int64, i64_not)
+
 writeln(uint64, u64_and)
 writeln(uint64, u64_or)
 writeln(uint64, u64_xor)

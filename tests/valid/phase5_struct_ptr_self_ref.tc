@@ -5,7 +5,8 @@ struct Node then
     var next: ptr<Node>
 end
 var n1: Node = Node(value: 1, next: nullptr)
-var n2: Node = Node(value: 2, next: ptr_address(Node, n1))
+var p1: ptr<Node> = ptr_address(Node, n1)
+var n2: Node = Node(value: 2, next: p1)
 var p: ptr<Node> = n2.next
 var v: Node = ptr_load(Node, p)
 var w: int32 = v.value

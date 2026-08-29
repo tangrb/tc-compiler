@@ -38,7 +38,7 @@ Pass1 预分配全局 slot；执行器不 pop slot
 
 ```
 顶层：goto/label → TC_CE_GOTO/LABEL_OUTSIDE_FUNCTION（Pass2）
-函数内路径规则：while 内禁止；跨函数 → CROSS_CONTROL_FLOW_JUMP
+函数内路径规则：while 内禁止；跨函数 → LABEL_NOT_FOUND
 函数体内 goto 执行 / AOT：已落地（index.next / tc_label_<n>）
 
 TcLabelEntry { name, stmt_index, block_depth, block_path[], def_line }

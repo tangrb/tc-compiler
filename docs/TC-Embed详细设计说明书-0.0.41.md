@@ -386,7 +386,11 @@ tc_embed_slot_write(ctx, func_info->param_slots[0],
                      tc_embed_ptr_encode(data_slot));
 ```
 
-**bool 规范化义务**：`tc_embed_slot_write` 写入槽位前须按目标槽位的类型判断——槽位类型为 `bool` 时，必须对 `value.bits` 做 `!!` 归一（`value.bits = value.bits ? 1 : 0`）。宿主传入的非规范布尔字节（如 `0xFF`）必须先规范化为 `0x00`/`0x01` 再进入 TC 抽象机，不得让非规范字节影响比较、逻辑、I/O、函数传参或 memblock 元素内容（语言标准 §3.4）。
+**bool 规范化义务（三路径）**：宿主传入的非规范布尔字节（如 `0xFF`）必须先规范化为 `0x00`/`0x01` 再进入 TC 抽象机，不得让非规范字节影响比较、逻辑、I/O、函数传参或 memblock 元素内容（语言标准 §3.4）。三条写/读路径均须按**槽位类型**（或形参类型）判断，而不是只看 `value.type`：
+
+1. **`tc_embed_slot_write`**：槽位类型为 `bool` 时，`value.bits = value.bits ? 1 : 0` 后再写入。
+2. **`tc_embed_call` 实参**：形参类型为 `bool` 时，写入形参槽前同样 `!!` 归一。
+3. **`tc_embed_slot_read`**：VM 路径带出槽位上的规范位；AOT 路径从 `TcTypedProgram` 恢复槽位类型（不得恒标为 `TC_INT64`），以便宿主按 `bool` 解释 `0x00`/`0x01`。
 
 ### 5.4 C 侧准备数据数组
 
@@ -411,6 +415,16 @@ TC 函数内部可以用 `ptr_add(ptr, i)` 遍历整个数组，语义完全一�
 - `tc_embed_slot_write` 和 `tc_embed_slot_read` 在 `slot` 超出 `[0, slot_count)` 时返回错误。
 - TC 内部 `ptr_add` 产生越界槽索引时，行为为实现定义（与语言标准一致），不保证运行时报错。
 - C 调用方有责任保证写入的槽位在有效范围内。
+
+### 5.6 I/O 语义（嵌入模式）
+
+嵌入模式下，TC 源码中的 `write` / `writeln` / `read` 与独立 `tc-vm` **同一套语义**，委托共享 `tc_io.c`：
+
+- `writeln` 追加单个 LF（`\n`），不改写为 CRLF 或其他平台行结束序列；
+- 每条 `write`/`writeln` 先拼出本语句完整字节串再一次性原子提交；成功则整体追加到 TC 抽象标准输出，失败贡献零字节并报 `TC_RE_IO`；
+- `read` 从抽象标准输入取 Token，非法/超范围/非预期 EOF 同样 `TC_RE_IO`。
+
+宿主 C 的 `printf` / `scanf` **不**经过 TC 抽象标准 I/O，与 TC 语句的输出顺序、原子提交无关。运行时 I/O 失败不 `exit`：AOT 走非致命 abort，宿主经 `tc_embed_had_error` / `tc_embed_get_error` 可见。
 
 ---
 
@@ -701,15 +715,19 @@ int tc_embed_had_error(const TcEmbedCtx *ctx);
 - 每次成功的操作将 `error_flag` 重置为 0。
 - 消息格式与 `TcDiagnostic` 一致：`"<domain>: <kind>: <message>"`。
 
-### 10.3 错误种类
+### 10.3 错误种类与语言码映射
 
-| 错误场景 | 错误消息示例 |
+嵌入模式**不另造语言错误码**。静态错误在 `tc_embed_create` / AOT 编译期按编译器标准 §11.4（镜像语言标准附录 B 85 码）报告；运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
+
+| 错误场景 | 错误码 / 消息 |
 | -------- | ------------ |
-| 函数未找到 | `"function not found: <module>::<name>"` |
-| 参数数量错误 | `"wrong argument count for <func>: expected N, got M"` |
-| slot 越界 | `"slot index N out of range [0, M)"` |
-| 执行时除零 | TC 运行时错误（由 executor 设置 diag 传播） |
-| OOM | `"memory allocation failed"` |
+| 函数未找到 | API：`"function not found: <module>::<name>"`（非语言码） |
+| 参数数量错误 | API：`"wrong argument count for <func>: expected N, got M"` |
+| slot 越界 | API：`"slot index N out of range [0, M)"` |
+| 执行时除零 | `TC_RE_DIVISION_BY_ZERO`（由 executor / AOT shim 写入 diag） |
+| 严格浮点异常 | `TC_RE_FLOAT_INVALID` / `FLOAT_OVERFLOW` / `FLOAT_UNDERFLOW` |
+| I/O 失败 | `TC_RE_IO` |
+| OOM | `TC_ERR_OUT_OF_MEMORY`，消息 `"memory allocation failed"` |
 
 ### 10.4 与 TcDiagnostic 的关系
 
@@ -1180,7 +1198,7 @@ static int tc_aot_ptr_decode(uint64_t bits, int *slot) {
 | 静态初始化 | `tc_init_static_vars()` 在 main() 中调用 | 暴露为公共入口，宿主程序手动调用 |
 | 内存释放 | 在 main() 末尾释放 | 暴露 `tc_aot_cleanup()` 给宿主程序调用 |
 
-> **v0.0.41 已解决：以上所有问题均已落地。** 嵌入模式通过 `tc_aot_emit_c(..., /* embed_mode= */ 1)` 触发：函数和全局符号取消 `static`、`tc_aot_abort` 宏替换为非致命 `tc_aot_embed_abort`、不生成 `main()`、`tc_aot_init()` / `tc_aot_cleanup()` 暴露为公共接口、`tc_aot_func_table` 提供 func_id → 函数指针映射。
+> **v0.0.41 已解决：以上所有问题均已落地。** 嵌入模式通过 `tc_aot_emit_c(..., /* embed_mode= */ 1)` 触发：函数和全局符号取消 `static`、生成 `int tc_aot_func_N`（正常 `return 0`，abort 后 `return 1`）、`tc_aot_abort` 宏替换为非致命 `tc_aot_embed_abort` + `return 1`、不生成 `main()`、`tc_aot_init()` / `tc_aot_cleanup()` 暴露为公共接口、`tc_aot_func_table` 提供 func_id → 函数指针映射。
 
 ---
 
@@ -1200,8 +1218,8 @@ int tc_aot_emit_c(FILE *out,
 | -------- | ----------------------- | ------------------------ |
 | `slots[]` 声明 | `static uint64_t slots[N]` | 非 `static`：`uint64_t slots[N]` |
 | `tc_ret_N` 声明 | `static uint64_t tc_ret_N` | 非 `static` |
-| 函数声明 | `static void tc_func_N(...)` | 非 `static`：`void tc_func_N(...)` |
-| 错误处理 | `tc_aot_abort(&diag, line)` → `exit(1)` | `tc_aot_embed_abort(diag)` → 设置错误标记，`return` |
+| 函数声明 | `static void tc_func_N(...)` | 非 `static`：`int tc_aot_func_N(...)`（正常返回 0） |
+| 错误处理 | `tc_aot_abort(&diag, line)` → `exit(1)` | `#define tc_aot_abort` → `tc_aot_embed_abort` + `return 1`（见 §15.3.2） |
 | `main()` | 生成完整的 main() | **不生成** main() |
 | `tc_init_static_vars()` | 在 main() 中调用 | 暴露为公共函数 `tc_aot_init()` |
 | 内存清理 | `tc_aot_*_heap_free_all()` 在 main() 末尾 | 暴露为 `tc_aot_cleanup()` |
@@ -1238,9 +1256,9 @@ uint64_t tc_aot_ret_3;
 uint64_t tc_aot_ret_5;
 /* ... */
 
-/* ── 前向声明（非 static） ── */
-void tc_aot_func_3(TcDiagnostic *diag);
-void tc_aot_func_5(TcDiagnostic *diag);
+/* ── 前向声明（非 static，返回 int） ── */
+int tc_aot_func_3(TcDiagnostic *diag);
+int tc_aot_func_5(TcDiagnostic *diag);
 /* ... */
 
 /* ── 静态初始化 ── */
@@ -1253,8 +1271,8 @@ int tc_aot_init(TcDiagnostic *diag) {
     tc_aot_init_slots(slots, TC_AOT_SLOT_COUNT);
 
     /* static var 初始化（按依赖拓扑序） */
-    /* 如有 OOM / 运行时错误，设置 diag 并返回 -1 */
-    if (tc_aot_emit_static_init_rhs(diag) != 0) return -1;
+    /* 如有 OOM / 运行时错误，设置 diag 并返回 1 */
+    if (tc_aot_emit_static_init_rhs(diag) != 0) return 1;
 
     tc_aot_initialized = 1;
     return 0;
@@ -1267,9 +1285,10 @@ static int tc_aot_emit_static_init_rhs(TcDiagnostic *diag) {
 }
 
 /* ── 函数定义 ── */
-void tc_aot_func_3(TcDiagnostic *diag) {
+int tc_aot_func_3(TcDiagnostic *diag) {
     tc_aot_cur_diag = diag;
     /* ... 函数体，直接读写 slots[] ... */
+    return 0;
 }
 
 /* ── 函数表（见 §15.4） ── */
@@ -1286,50 +1305,34 @@ void tc_aot_cleanup(void) {
 
 #### 15.3.2 非致命错误处理
 
-现有 `tc_aot_abort` 调 `exit(1)`，嵌入模式不能终止宿主进程。替换为：
+独立程序的 `tc_aot_abort` 调用 `exit(1)`。嵌入模式不能终止宿主进程。权威形态以 `src/aot/tc_aot_embed_rt.h` 与 codegen 生成的宏为准（二者配合，不是两套互斥实现）：
 
 ```c
-/* src/aot/tc_aot_embed_rt.h — 新增文件 */
+/* src/aot/tc_aot_embed_rt.h — 权威定义 */
 
-/* 嵌入模式诊断上下文 */
 extern TcDiagnostic *tc_aot_cur_diag;
-extern int tc_aot_embed_error;
+extern int tc_aot_embed_error_flag;
 
-/* 替代 tc_aot_abort：设置错误标记，返回而不 exit */
+/* 设置 diag + 错误标记，不 exit(1) */
 static inline void tc_aot_embed_abort(TcDiagnostic *diag, int line) {
     (void)line;
     tc_aot_cur_diag = diag;
-    tc_aot_embed_error = 1;
-    /* 不调 exit(1) — 控制权返回给调用者 */
-    /* 所有可能失败的操作在 diag 设置后立即通过 guard 返回 */
+    tc_aot_embed_error_flag = 1;
 }
 ```
 
-所有生成的错误 guard，标准 AOT 形态为：
+codegen 在 `embed_mode = 1` 时于生成 C 顶部发出宏，把独立程序路径里的 `tc_aot_abort` 替换为「标记 + 带值返回」。生成的 `tc_aot_func_*` / `tc_aot_init` 均为 `int` 返回，裸 `return;` 违反 C99：
 
 ```c
-if (tc_aot_cur_diag->domain != TC_DIAG_NONE) tc_aot_abort(tc_aot_cur_diag, line);
+#define tc_aot_abort(diag, line) do { \
+    tc_aot_embed_abort(diag, line); \
+    return 1; \
+} while (0)
 ```
 
-Embed AOT 形态为：
+因此生成代码中仍可写 `if (diag.kind != TC_DIAG_OK) tc_aot_abort(&diag, line);`：独立程序 `exit(1)`，嵌入模式置 `tc_aot_embed_error_flag` 并 `return 1`。`tc_embed_call` 在函数返回后检查 `diag.kind` / `error_flag`。
 
-```c
-if (tc_aot_cur_diag->domain != TC_DIAG_NONE) {
-    tc_aot_embed_abort(tc_aot_cur_diag, line);
-    return;
-}
-```
-
-由于每个 shim 调用后已有 guard，错误会沿调用链逐层向上传播。`tc_embed_call` 在函数返回后检查 `diag.domain`：
-
-```c
-/* tc_embed_call 中（AOT 路径） */
-entry(diag);
-if (diag->domain != TC_DIAG_NONE) {
-    tc_embed_set_error(ctx, diag->message);
-    return -1;
-}
-```
+历史上文档曾并列「`static inline` 函数」与「无 `return 1` 的宏」两种草稿，以本节与头文件为准。
 
 ---
 
@@ -1341,7 +1344,7 @@ if (diag->domain != TC_DIAG_NONE) {
 
 ```c
 /* 由 AOT codegen 生成的函数表类型（定义见 tc_aot_embed_rt.h） */
-typedef void (*tc_aot_func_entry_t)(TcDiagnostic *diag);
+typedef int (*tc_aot_func_entry_t)(TcDiagnostic *diag);
 
 typedef struct {
     int func_id;
@@ -1384,7 +1387,7 @@ int tc_aot_init(TcDiagnostic *diag);
 void tc_aot_cleanup(void);
 
 /* ── 函数表（供 tc_embed 内部使用，类型定义见 tc_aot_embed_rt.h） ── */
-/* typedef void (*tc_aot_func_entry_t)(TcDiagnostic *diag); */
+/* typedef int (*tc_aot_func_entry_t)(TcDiagnostic *diag); */
 /* typedef struct { int func_id; tc_aot_func_entry_t entry; uint64_t *ret_ptr; } tc_aot_func_entry; */
 
 extern const tc_aot_func_entry tc_aot_func_table[];
@@ -1628,16 +1631,19 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program,
 
     /* 3. 函数声明 */
     for each function:
-        fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag);\n",
-                embed_mode ? "" : "static ", func_id);
+        if (embed_mode)
+            fprintf(out, "int tc_aot_func_%d(TcDiagnostic *diag);\n", func_id);
+        else
+            fprintf(out, "static void tc_aot_func_%d(TcDiagnostic *diag);\n", func_id);
 
     /* 4. 函数定义（abort 模式条件化） */
     for each function:
-        fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag) {\n",
-                embed_mode ? "" : "static ", func_id);
+        if (embed_mode)
+            fprintf(out, "int tc_aot_func_%d(TcDiagnostic *diag) {\n", func_id);
+        else
+            fprintf(out, "static void tc_aot_func_%d(TcDiagnostic *diag) {\n", func_id);
         fprintf(out, "    tc_aot_cur_diag = diag;\n");
-        /* 生成函数体，错误 guard 使用 embed_mode 条件：*/
-        /* if (embed_mode) → tc_aot_embed_abort; else → tc_aot_abort */
+        /* 错误 guard 仍写 tc_aot_abort：embed 下由宏展开为 embed_abort + return 1 */
 
     /* 5. static var 初始化 */
     if (embed_mode)
@@ -1669,36 +1675,17 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program,
 
 #### 15.7.3 运行时 shim 改动
 
-```c
-/* src/aot/tc_aot_rt.h 新增 */
+非致命 abort 的权威定义见 `src/aot/tc_aot_embed_rt.h` 与 §15.3.2（`static inline tc_aot_embed_abort` + codegen 发出的 `#define tc_aot_abort ... return 1`）。**不要**再单独在 `tc_aot_rt.h` 里维护另一套无返回值的宏。
 
-/* 嵌入模式全局错误标记 */
-extern int tc_aot_embed_error_flag;
-
-/* 嵌入模式非致命 abort：设置 diag + 标记，不 exit */
-#define tc_aot_embed_abort(diag, line) do { \
-    tc_aot_cur_diag = (diag); \
-    tc_aot_embed_error_flag = 1; \
-} while (0)
-```
+生成的错误 guard（嵌入模式）仍写 `tc_aot_abort`，由宏展开为标记 + `return 1`：
 
 ```c
-/* src/aot/tc_aot_rt.c 新增 */
-
-int tc_aot_embed_error_flag = 0;
-```
-
-生成的错误 guard 模式（嵌入模式）：
-
-```c
-/* embed_mode = 1 时生成的错误 guard */
-if (tc_aot_arith(..., &tc_aot_cur_diag, line) != 0) {
-    tc_aot_embed_abort(tc_aot_cur_diag, line);
-    return;
+if (tc_aot_arith(..., tc_aot_cur_diag, line) != 0) {
+    tc_aot_abort(tc_aot_cur_diag, line);  /* → embed_abort + return 1 */
 }
 ```
 
-在 void 函数中，`return` 即可；在有返回值的函数中，guard 后面需要额外处理（如 `return 0`），但函数签名是 `void` 返回类型（返回值通过 `tc_ret_N` 全局变量），所以直接 `return` 即可。
+嵌入模式函数签名是 `int`（语言返回值仍经 `tc_aot_ret_N`），因此 abort 路径 `return 1`、正常路径 `return 0`。
 
 ---
 

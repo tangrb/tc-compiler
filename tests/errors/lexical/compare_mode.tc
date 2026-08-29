@@ -1,0 +1,3 @@
+#program
+; 期望：compare operations do not accept mode keywords
+var b: bool = eq(float64, ieee, 1.0, 2.0)

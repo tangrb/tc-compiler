@@ -1,4 +1,4 @@
 #program
-; 期望：%t does not support flags, width, or precision（TC_CE_FORMAT_SPECIFIER）
+; 期望：%t does not support '+', '#', '0', or precision
 var x: bool = true
-write(bool, %5t, x)
+write(bool, %.1t, x)

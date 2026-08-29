@@ -218,7 +218,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 
 下表描述 0.0.41 的 `TcErrorKind` 完整映射。Language 诊断默认打印 message，不直接打印这些名称。完整错误码清单、阶段归属与触发条件见编译器标准 §11.4。
 
-**91 码口径**：91 = 71 个语言码（59 `TC_CE` + 12 `TC_RE`）+ 19 个编译器扩展码 + 1 `TC_ERR_OUT_OF_MEMORY`；经符合性修复（P0/P3）后收敛为 86 = 85 语言码 + 1 OOM。
+**86 码口径**：86 = 85 个语言码（附录 B：73 `TC_CE` + 12 `TC_RE`）+ 1 `TC_ERR_OUT_OF_MEMORY`。
 
 ### 6.2 词法、语法、名称与类型
 
@@ -230,7 +230,6 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `TypeMismatch` | 运算、赋值或 operand 类型不匹配（含 ptr 跨类型） |
 | `LiteralOutOfRange` | 字面量超范围 |
 | `LiteralTypeError` | 字面量类别/后缀与上下文冲突 |
-| `KeywordError` | 关键字位置错误 |
 | `ComparisonTypeMismatch` | 比较 operand 类型不一致 |
 | `ModeMismatch` | 浮点/模式组合不合法 |
 | `BitcastWidthError` | bitcast 源/目标位宽不相等 |
@@ -252,7 +251,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 
 | 打印名 | 典型条件 |
 | ------ | -------- |
-| `ConstantAssignmentError` | 对 let/static let 赋值、ptr_store 唯读目标 |
+| `ConstantAssignmentError` | 对 let/static let 赋值；经 ptr_address 取 let/static let/**形参**地址后再 ptr_store / memcopy_unsafe |
 | `ConstantExpressionError` | let RHS 非法形态 |
 | `ConstantOverflow` | 编译期溢出 |
 | `ConstantDivisionByZero` | 编译期除零 |
@@ -287,11 +286,10 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `IndentInsufficientError` | 块内缩进不足/层级非法 |
 | `IndentElseEndError` | else/end 未与对应块头对齐 |
 | `MissingEndError` | func/if/while/struct 缺 end |
-| `ElsePositionError` | else 位置非法 |
 | `ConditionTypeError` | if/while 条件非 bool |
 | `UninitializedVariable` | 路径敏感分析发现未初始化使用 |
 | `VarMissingInitializer` | var 声明缺少初始化器 |
-| `LabelNotFound` | goto 目标不存在 |
+| `LabelNotFound` | goto 目标不存在（含跨函数同名标签） |
 | `DuplicateLabel` | 同一作用域重复标签 |
 | `JumpIntoBlockError` | goto 跳入子块 |
 | `JumpIncompatibleBlockError` | goto 跳入不可比块 |
@@ -301,21 +299,18 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `LabelOutsideFunction` | 函数外 label |
 | `BreakOutsideLoop` | while 外出现 break |
 | `ContinueOutsideLoop` | while 外出现 continue |
-| `CrossControlFlowJumpError` | 跨函数 goto |
 
 ### 6.6 函数与模块
 
 | 打印名 | 典型条件 |
 | ------ | -------- |
-| `DuplicateFunction` | 同模块同名函数 |
-| `FunctionNameConflict` | 值绑定与全局函数同名 |
+| `FunctionNameConflict` | 同名函数重复，或值绑定与全局函数同名 |
 | `UndefinedFunction` | 调用目标不存在 |
 | `DuplicateParameter` | 同签名参数重名 |
 | `MissingArgument` | funcall 实参缺失 |
 | `DuplicateArgument` | funcall 实参重复 |
 | `UnknownArgument` | funcall 未知实参名 |
 | `ArgumentOrderError` | funcall 实参顺序错误 |
-| `ArgumentTypeError` | funcall 实参类型不匹配 |
 | `FunctionCallPositionError` | funcall 调用位置错误 |
 | `FunctionCallResultTypeError` | funcall 接收变量类型不匹配 |
 | `ReturnOutsideFunction` | 函数体外 return |
@@ -323,7 +318,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `ReturnTypeError` | return 操作数类型不匹配 |
 | `MissingReturn` | 函数末尾可达但无 return |
 | `UnreachableStatement` | 不可达语句 |
-| `ParameterAssignmentError` | 对形参赋值/read 目标 |
+| `ParameterAssignmentError` | 对形参绑定本身赋值或作为 read 目标（不含经指针写穿） |
 | `FunctionScopeAccessError` | 函数内裸名引用本库成员 |
 | `RecursionError` | 函数调用图存在环 |
 | `ModuleLayerError` | 模块层序错误 |
@@ -463,7 +458,7 @@ writeln(int32, %d, val)
 | `isize`/`usize` | 已落地 |
 | `static var` / `static let` | 已落地 |
 | 13 阶段编译管线 | 已落地 |
-| 完整诊断码表（**91** 码） | 已落地 |
+| 完整诊断码表（**86** 码 = 85 语言码 + OOM） | 已落地 |
 
 ### 9.2 与 v0.0.31 的关键差异
 
@@ -473,7 +468,7 @@ writeln(int32, %d, val)
 | 函数 | 无 | `func`/`funcall`/`return` |
 | 类型 | 标量 | 标量 + `ptr<T>` + `memblock<T,N>` + `struct` + `isize`/`usize` |
 | REPL | 支持 | 无 |
-| 错误码 | 41+1 | **91** |
+| 错误码 | 41+1 | **86** |
 | 入口 | 顶层语句 | `#program` 顶层语句 |
 
 ### 9.3 迁移提示

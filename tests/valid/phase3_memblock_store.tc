@@ -1,5 +1,6 @@
 #program
 ; analyze-only：memblock_store 合法路径
 var mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var x: int32 = 0
 memblock_store(int32, mb, 0, 9)
-var x: int32 = memblock_load(int32, mb, 0)
+x = memblock_load(int32, mb, 0)

@@ -42,8 +42,13 @@ int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgram *modu
     if (tc_aot_func_body_index_range(module, func->func_id, &body_start, &body_end) != 0) {
         return -1;
     }
-    fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
-            qual, func->func_id);
+    if (ctx->embed_mode) {
+        fprintf(out, "int tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
+                func->func_id);
+    } else {
+        fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
+                qual, func->func_id);
+    }
     ctx->current_func_id = func->func_id;
     ctx->current_return_type = func->return_type.tag;
     ctx->block_path.depth = 0;
@@ -57,6 +62,9 @@ int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgram *modu
         }
     }
     ctx->current_func_id = -1;
+    if (ctx->embed_mode) {
+        fprintf(out, "    return 0;\n");
+    }
     fprintf(out, "}\n\n");
     return 0;
 }
@@ -88,7 +96,8 @@ void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program, TcAotEmitC
                 if (func->return_type.tag != TC_VOID) {
                     fprintf(out, "%suint64_t tc_aot_ret_%d;\n", qual, func->func_id);
                 }
-                fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag);\n", qual, func->func_id);
+                fprintf(out, "%s%s tc_aot_func_%d(TcDiagnostic *diag);\n",
+                        qual, ctx->embed_mode ? "int" : "void", func->func_id);
                 wrote = 1;
             }
         }
@@ -100,7 +109,8 @@ void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program, TcAotEmitC
             if (func->return_type.tag != TC_VOID) {
                 fprintf(out, "%suint64_t tc_aot_ret_%d;\n", qual, func->func_id);
             }
-            fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag);\n", qual, func->func_id);
+            fprintf(out, "%s%s tc_aot_func_%d(TcDiagnostic *diag);\n",
+                    qual, ctx->embed_mode ? "int" : "void", func->func_id);
             wrote = 1;
         }
     }

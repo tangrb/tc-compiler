@@ -67,22 +67,8 @@ int tc_pass2_resolve_target_type(TcInitHistory *hist, const TcType *owned,
 
 /*
  * §7.3：每个函数独立标签表。仅解析当前函数（func_id）内的标签；
- * 跨函数同名标签互不相关；另一函数存在同名标签 → TC_CE_CROSS_CONTROL_FLOW_JUMP。
+ * 跨函数同名标签互不相关，当前函数无匹配 → TC_CE_LABEL_NOT_FOUND。
  */
-static int tc_label_exists_in_other_function(const TcSymbolTable *table, const char *name,
-                                             int func_id) {
-    size_t i = 0;
-
-    for (i = 0; i < table->label_count; i++) {
-        const TcLabelEntry *entry = &table->labels[i];
-
-        if (strcmp(entry->name, name) == 0 && entry->func_id != func_id) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, const char *name,
                                                  int func_id, const TcBlockPath *goto_path) {
     const TcLabelEntry *best_same = NULL;
@@ -167,13 +153,61 @@ void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol)
     binding->const_bits = symbol->has_const_value ? symbol->const_value.bits : 0;
 }
 
+const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
+                                      const char *name) {
+    const TcSymbol *symbol = NULL;
+    const char *dot = NULL;
+
+    if (!name) {
+        return NULL;
+    }
+    if (strncmp(name, "Self.", 5) == 0 && name[5] != '\0' && strchr(name + 5, '.') == NULL) {
+        return global ? tc_symbol_table_find(global, name + 5) : NULL;
+    }
+    dot = strchr(name, '.');
+    if (dot && dot != name && strchr(dot + 1, '.') == NULL) {
+        if (visible) {
+            symbol = tc_symbol_table_find(visible, name);
+            if (symbol) {
+                return symbol;
+            }
+        }
+        if (global) {
+            symbol = tc_symbol_table_find(global, name);
+            if (symbol) {
+                return symbol;
+            }
+            return tc_symbol_table_find(global, dot + 1);
+        }
+        return NULL;
+    }
+    if (visible) {
+        symbol = tc_symbol_table_find(visible, name);
+        if (symbol) {
+            return symbol;
+        }
+    }
+    return global ? tc_symbol_table_find(global, name) : NULL;
+}
+
 const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                                  const TcSymbolTable *global, const char *name,
                                                  size_t stmt_index, int line,
                                                  TcDiagnostic *diag) {
-    const TcSymbol *symbol = tc_symbol_table_find(visible, name);
+    const TcSymbol *symbol = NULL;
     char msg[128];
 
+    if (name && (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL)) {
+        symbol = tc_find_named_binding(visible, global, name);
+        if (symbol) {
+            return symbol;
+        }
+        (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        return NULL;
+    }
+
+    symbol = tc_symbol_table_find(visible, name);
     if (symbol) {
         return symbol;
     }
@@ -192,10 +226,59 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
     return NULL;
 }
 
+static void tc_pass2_bind_ptr_origin(TcSymbolTable *symbols, TcSymbolTable *visible,
+                                     const char *name, int def_stmt_index, const TcRhs *rhs,
+                                     size_t stmt_index) {
+    int readonly = 0;
+    TcSymbol *global_sym = NULL;
+    TcSymbol *visible_sym = NULL;
+
+    readonly = tc_ptr_rhs_target_readonly(rhs, visible, symbols, stmt_index);
+    global_sym = (TcSymbol *)tc_find_symbol_by_def_index(symbols, name, def_stmt_index);
+    if (global_sym && global_sym->type && global_sym->type->tag == TC_PTR) {
+        global_sym->ptr_target_readonly = readonly;
+    }
+    visible_sym = tc_symbol_table_find_mut(visible, name);
+    if (visible_sym && visible_sym->type && visible_sym->type->tag == TC_PTR) {
+        visible_sym->ptr_target_readonly = readonly;
+    }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Pass2 语句遍历（类型 / 模式 / goto）                                 */
 /* ------------------------------------------------------------------ */
 
+
+static int tc_pass2_resolve_decl_memblock_type(TcType *ast_type, const TcType **binding_type,
+                                                TcSymbol *sym, TcAnalyzeCtx *ctx,
+                                                const TcSymbolTable *visible,
+                                                const TcSymbolTable *symbols, size_t stmt_index,
+                                                int line, TcDiagnostic *diag) {
+    const TcType *interned = NULL;
+
+    if (!ast_type) {
+        return 0;
+    }
+    if (tc_memblock_resolve_type_counts(ast_type, visible, symbols, stmt_index, line, diag) != 0) {
+        return -1;
+    }
+    if (!ctx || !ctx->type_table) {
+        return 0;
+    }
+    interned = tc_type_intern(ctx->type_table, ast_type, diag);
+    if (!interned) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    if (binding_type) {
+        *binding_type = interned;
+    }
+    if (sym) {
+        sym->type = interned;
+    }
+    return 0;
+}
 
 static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                TcSymbolTable *visible, TcStructTable *struct_table,
@@ -415,13 +498,6 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         entry = tc_resolve_goto_label(symbols, goto_stmt->target, ctx->current_func_id,
                                       &ctx->block_path);
         if (!entry) {
-            if (tc_label_exists_in_other_function(symbols, goto_stmt->target,
-                                                  ctx->current_func_id)) {
-                tc_diagnostic_set(diag, TC_CE_CROSS_CONTROL_FLOW_JUMP, goto_stmt->line,
-                                  TC_COLUMN_UNKNOWN,
-                                  "cannot jump to label in another function");
-                return -1;
-            }
             (void)snprintf(msg, sizeof(msg), "label '%s' not found", goto_stmt->target);
             tc_diagnostic_set(diag, TC_CE_LABEL_NOT_FOUND, goto_stmt->line, TC_COLUMN_UNKNOWN,
                               msg);
@@ -567,8 +643,14 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_VAR_DEF) {
             TcVarDef *var_def = &stmt->u.var_def;
-            const TcSymbol *sym = NULL;
+            TcSymbol *sym =
+                (TcSymbol *)tc_find_symbol_by_def_index(symbols, var_def->name, (int)stmt_index);
 
+            if (tc_pass2_resolve_decl_memblock_type(&var_def->full_type, &var_def->binding.type, sym,
+                                                    ctx, visible, symbols, stmt_index,
+                                                    var_def->line, diag) != 0) {
+                return -1;
+            }
             if (var_def->rhs.kind == TC_RHS_FUNCALL_EXPR && ctx->func_env) {
                 if (tc_pass2_check_funcall_rhs(&var_def->rhs, &var_def->full_type, 1, ctx,
                                                visible, symbols, hist, stmt_index, var_def->line,
@@ -584,7 +666,10 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                            diag) != 0) {
                 return -1;
             }
-            sym = tc_find_symbol_by_def_index(symbols, var_def->name, (int)stmt_index);
+            if (var_def->full_type.tag == TC_PTR) {
+                tc_pass2_bind_ptr_origin(symbols, visible, var_def->name, (int)stmt_index,
+                                         &var_def->rhs, stmt_index);
+            }
             if (sym && ctx->init_states && ctx->path_reachable && sym->slot >= 0 &&
                 sym->slot < ctx->num_slots) {
                 ctx->init_states[sym->slot] = TC_INIT_INIT;
@@ -592,10 +677,36 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             return 0;
         }
 
+        if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
+            TcStaticVarDef *sv = &stmt->u.static_var_def;
+            TcSymbol *sym =
+                (TcSymbol *)tc_find_symbol_by_def_index(symbols, sv->name, (int)stmt_index);
+
+            /* Pass1 intern 时 usize 名尚未折叠（count=0）。只解析 memblock N
+             * 与构造器 count:；完整 type_check_rhs 会打掉已固化的 Self.s.x。 */
+            if (tc_pass2_resolve_decl_memblock_type(&sv->type, NULL, sym, ctx, visible, symbols,
+                                                    stmt_index, sv->line, diag) != 0) {
+                return -1;
+            }
+            if (sv->rhs.kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
+                if (tc_memblock_check_rhs(&sv->rhs, &sv->type, visible, symbols, struct_table, hist,
+                                          stmt_index, sv->line, diag, warnings, sv->name) != 0) {
+                    return -1;
+                }
+            }
+            return 0;
+        }
+
         if (stmt->kind == TC_STMT_CONST_DEF) {
-            const TcConstDef *const_def = &stmt->u.const_def;
+            TcConstDef *const_def = &stmt->u.const_def;
             TcSymbol *global_sym =
                 (TcSymbol *)tc_find_symbol_by_def_index(symbols, const_def->name, (int)stmt_index);
+
+            if (tc_pass2_resolve_decl_memblock_type(&const_def->full_type, NULL, global_sym, ctx,
+                                                    visible, symbols, stmt_index, const_def->line,
+                                                    diag) != 0) {
+                return -1;
+            }
 
             if (const_def->rhs.kind == TC_RHS_CAST) {
                 tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, const_def->line,
@@ -635,12 +746,13 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
             TcIoWrite *io_write = &stmt->u.io_write;
 
-            if (tc_check_io_format(io_write->type->tag, &io_write->fmt, io_write->line, diag) != 0) {
+            /* §10.2：先检查操作数与显式类型一致性，再检查格式转换符。 */
+            if (tc_check_operand(&io_write->operand, io_write->type->tag, visible, symbols,
+                                 struct_table, hist, stmt_index, io_write->line, diag, warnings,
+                                 NULL, TC_CE_TYPE_MISMATCH) != 0) {
                 return -1;
             }
-            return tc_check_operand(&io_write->operand, io_write->type->tag, visible, symbols,
-                                    struct_table, hist, stmt_index, io_write->line, diag, warnings,
-                                    NULL, TC_CE_TYPE_MISMATCH);
+            return tc_check_io_format(io_write->type->tag, &io_write->fmt, io_write->line, diag);
         }
 
         if (stmt->kind == TC_STMT_READ) {
@@ -705,6 +817,10 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                          struct_table, hist, stmt_index, assign->line, diag,
                                          warnings, NULL) != 0) {
                 return -1;
+            }
+            if (target->type && target->type->tag == TC_PTR) {
+                tc_pass2_bind_ptr_origin(symbols, visible, assign->name, target->def_stmt_index,
+                                         &assign->rhs, stmt_index);
             }
             if (ctx->init_states && ctx->path_reachable && target->slot >= 0 &&
                 target->slot < ctx->num_slots) {

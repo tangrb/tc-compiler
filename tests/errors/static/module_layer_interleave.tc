@@ -1,0 +1,4 @@
+#program
+; 期望：declaration out of module layer order
+writeln(int32, 1)
+var x: int32 = 2

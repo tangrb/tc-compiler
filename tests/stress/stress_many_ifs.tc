@@ -1,6 +1,7 @@
 #program
 ; 压力测试：大量独立 if 语句（20 个）
 var result: int32 = 0
+var count: int32 = 0
 
 if true then
     result = add(int32, result, 1)
@@ -76,7 +77,6 @@ end
 writeln(int32, result)         ; 20
 
 ; 混合 if-else
-var count: int32 = 0
 if true then
     count = add(int32, count, 1)
 else

@@ -200,7 +200,7 @@ static int tc_exec_io_write(const TcIoWrite *io_write, TcExecuteCtx *ctx, int ne
         return -1;
     }
 
-    if (tc_io_write_value(&value, io_write->fmt.spec, newline, stdout) != 0) {
+    if (tc_io_write_value(&value, io_write->fmt, newline, stdout) != 0) {
         tc_diagnostic_set(diag, TC_RE_IO, io_write->line, TC_COLUMN_UNKNOWN, "output failed");
         return -1;
     }

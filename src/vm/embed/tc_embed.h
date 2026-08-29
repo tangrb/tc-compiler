@@ -151,7 +151,7 @@ static inline TcEmbedArg tc_embed_arg_ptr(int slot) {
 /* ── AOT 函数表条目（与 AOT codegen 生成的表结构一致） ── */
 #ifndef TC_AOT_FUNC_ENTRY_T_DEFINED
 #define TC_AOT_FUNC_ENTRY_T_DEFINED
-typedef void (*tc_aot_func_entry_t)(TcDiagnostic *diag);
+typedef int (*tc_aot_func_entry_t)(TcDiagnostic *diag);
 #endif
 
 #ifndef TC_AOT_FUNC_ENTRY_DEFINED

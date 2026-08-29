@@ -1,0 +1,11 @@
+#lib
+; Self.struct 赋值须深拷贝：改副本不得改写 Self.p
+public struct Point then
+    var x: int32
+end
+public static var p: Point = Point(x: 7)
+public func orig_after_copy_assign() int32 then
+    var c: Point = Self.p
+    c.x = 99
+    return Self.p.x
+end

@@ -22,6 +22,7 @@
 #endif
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,6 +110,14 @@ static void test_value_make(void) {
 
     v = tc_value_make(TC_UINT64, 42);
     check(v.type->tag == TC_UINT64 && v.bits == 42, "value_make uint64 42");
+
+    v = tc_value_make(TC_MEMBLOCK, UINT64_C(0x00007FFF12345678));
+    check(v.type->tag == TC_MEMBLOCK && v.bits == UINT64_C(0x00007FFF12345678),
+          "value_make memblock preserves heap pointer bits");
+
+    v = tc_value_make(TC_STRUCT, UINT64_C(0x00007FFF12345678));
+    check(v.type->tag == TC_STRUCT && v.bits == UINT64_C(0x00007FFF12345678),
+          "value_make struct preserves heap pointer bits");
 }
 
 static void test_uninitialized_slot_sentinel(void) {
@@ -286,6 +295,33 @@ static void test_literal_to_value(void) {
     v = tc_literal_to_value(&pos_lit, TC_INT32);
     check(v.type->tag == TC_INT32 && v.bits == 123, "literal_to_value int32 123");
     }
+
+    /* nan / ±inf 特殊字面量：硬编码 canonical 位，不经宿主 NAN */
+    {
+    TcLiteral special;
+    memset(&special, 0, sizeof(special));
+    special.is_float = 1;
+    special.is_float_special = 1;
+    special.float_special = 0;
+    v = tc_literal_to_value(&special, TC_FLOAT32);
+    check(v.type->tag == TC_FLOAT32 && v.bits == TC_FLOAT32_CANONICAL_NAN_BITS,
+          "literal_to_value nan → float32 canonical quiet NaN");
+    v = tc_literal_to_value(&special, TC_FLOAT64);
+    check(v.type->tag == TC_FLOAT64 && v.bits == TC_FLOAT64_CANONICAL_NAN_BITS,
+          "literal_to_value nan → float64 canonical quiet NaN");
+
+    special.float_special = 1;
+    v = tc_literal_to_value(&special, TC_FLOAT32);
+    check(v.bits == TC_FLOAT32_POS_INF_BITS, "literal_to_value +inf → float32");
+    v = tc_literal_to_value(&special, TC_FLOAT64);
+    check(v.bits == TC_FLOAT64_POS_INF_BITS, "literal_to_value +inf → float64");
+
+    special.float_special = -1;
+    v = tc_literal_to_value(&special, TC_FLOAT32);
+    check(v.bits == TC_FLOAT32_NEG_INF_BITS, "literal_to_value -inf → float32");
+    v = tc_literal_to_value(&special, TC_FLOAT64);
+    check(v.bits == TC_FLOAT64_NEG_INF_BITS, "literal_to_value -inf → float64");
+    }
 }
 
 /* ================================================================== */
@@ -432,6 +468,28 @@ static void test_arith_signed_wrap(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_umul64(void) {
+    uint64_t hi = 0;
+    uint64_t lo = 0;
+
+    tc_umul64(0, 0, &hi, &lo);
+    check(hi == 0 && lo == 0, "umul64 0*0 = 0");
+
+    tc_umul64(1, UINT64_MAX, &hi, &lo);
+    check(hi == 0 && lo == UINT64_MAX, "umul64 1*max = max");
+
+    tc_umul64(UINT64_C(0x100000000), UINT64_C(0x100000000), &hi, &lo);
+    check(hi == 1 && lo == 0, "umul64 2^32*2^32 → hi=1 lo=0");
+
+    tc_umul64(UINT64_MAX, UINT64_MAX, &hi, &lo);
+    check(hi == UINT64_C(0xFFFFFFFFFFFFFFFE) && lo == 1ULL,
+          "umul64 max*max → hi=2^64-2 lo=1");
+
+    tc_umul64(UINT64_C(0xFFFFFFFF), UINT64_C(0xFFFFFFFF), &hi, &lo);
+    check(hi == 0 && lo == UINT64_C(0xFFFFFFFE00000001),
+          "umul64 (2^32-1)^2");
+}
+
 static void test_arith_unsigned(void) {
     TcValue out;
     TcDiagnostic diag;
@@ -460,6 +518,14 @@ static void test_arith_unsigned(void) {
     TcValue u64_b = tc_value_make(TC_UINT64, 0x100000000ULL);
     rc = tc_exec_arith(TC_MUL, TC_UINT64, TC_ARITH_STRICT, &u64_a, &u64_b, &out, &diag, 1);
     check(rc == 0 && out.bits == 0, "unsigned mul uint64 2^32*2^32 → low 64 bits = 0");
+
+    /* 无符号乘 uint64：max*max 低 64 位为 1（验证 umul64 lo） */
+    {
+        TcValue ua = tc_value_make(TC_UINT64, UINT64_MAX);
+        TcValue ub = tc_value_make(TC_UINT64, UINT64_MAX);
+        rc = tc_exec_arith(TC_MUL, TC_UINT64, TC_ARITH_STRICT, &ua, &ub, &out, &diag, 1);
+        check(rc == 0 && out.bits == 1ULL, "unsigned mul uint64 max*max → 1");
+    }
 
     /* 除零 */
     TcValue zero = tc_value_make(TC_UINT32, 0);
@@ -1673,6 +1739,7 @@ int main(void) {
     test_arith_signed_mul_strict();
     test_arith_signed_div_mod();
     test_arith_signed_wrap();
+    test_umul64();
     test_arith_unsigned();
 
     /* Unary */

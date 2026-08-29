@@ -17,6 +17,7 @@
 #include "tc_aot_rt.h"
 #include "tc_test_port.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,7 +84,7 @@ static char *build_aot_embed_lib(const TcTypedProgram *program,
     /* 编译为共享库 */
     {
         (void)snprintf(cmd, sizeof(cmd),
-            "cc -std=c99 -Wall -Werror -fPIC -shared "
+            "cc -std=c99 -Wall -Wextra -Werror -pedantic -fPIC -shared "
             "-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE "
             "-I\"%s/src/aot\" -I\"%s/src/vm/runtime\" -I\"%s/src/vm/embed\" "
             "\"%s\" \"%s/src/aot/tc_aot_rt.c\" "
@@ -1230,6 +1231,162 @@ cleanup:
     tc_diagnostic_clear(&diag);
 }
 
+static void test_aot_embed_bool_normalize(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *aot_ctx = NULL;
+    char *so_path = NULL;
+    size_t slot_count = 0;
+    TcValue dirty;
+    TcValue readback;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+            "public static var flag: bool = false\n"
+            "public func get_flag() bool then\n"
+            "    var v: bool = Self.flag\n"
+            "    return v\n"
+            "end\n", "test", &prog, &diag) == 0,
+          "aot bool normalize: compile lib");
+    if (diag.domain != TC_DIAG_NONE) {
+        fprintf(stderr, "  diag: %s\n", diag.message);
+        tc_diagnostic_clear(&diag);
+        return;
+    }
+
+    so_path = build_aot_embed_lib(&prog, &slot_count);
+    check(so_path != NULL, "aot bool normalize: build shared lib");
+    if (!so_path) {
+        goto cleanup;
+    }
+
+    aot_ctx = create_aot_embed_ctx(&prog, so_path, slot_count);
+    check(aot_ctx != NULL, "aot bool normalize: aot ctx create");
+    if (!aot_ctx) {
+        goto cleanup;
+    }
+
+    dirty.type = tc_type_tag_singleton(TC_BOOL);
+    dirty.bits = UINT64_C(0xFF);
+    check(tc_embed_slot_write(aot_ctx, 0, dirty) == 0, "aot bool normalize: write dirty bits");
+    check(tc_embed_slot_read(aot_ctx, 0, &readback) == 0, "aot bool normalize: read slot");
+    check(readback.bits == UINT64_C(1), "aot bool normalize: bits == 0x01");
+    check(readback.type && readback.type->tag == TC_BOOL,
+          "aot bool normalize: type tag is bool");
+
+cleanup:
+    tc_embed_destroy(aot_ctx);
+    if (so_path) {
+        unlink(so_path);
+        free(so_path);
+    }
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_aot_embed_slot_read_type(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *aot_ctx = NULL;
+    char *so_path = NULL;
+    size_t slot_count = 0;
+    int slot_n = -1;
+    int slot_f = -1;
+    TcValue rn;
+    TcValue rf;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+            "public static var n: int32 = 42\n"
+            "public static var f: float32 = 1.0f\n"
+            "public func get_n() int32 then\n"
+            "    var v: int32 = Self.n\n"
+            "    return v\n"
+            "end\n", "test", &prog, &diag) == 0,
+          "aot slot_read type: compile lib");
+    if (diag.domain != TC_DIAG_NONE) {
+        fprintf(stderr, "  diag: %s\n", diag.message);
+        tc_diagnostic_clear(&diag);
+        return;
+    }
+
+    so_path = build_aot_embed_lib(&prog, &slot_count);
+    check(so_path != NULL, "aot slot_read type: build shared lib");
+    if (!so_path) {
+        goto cleanup;
+    }
+
+    aot_ctx = create_aot_embed_ctx(&prog, so_path, slot_count);
+    check(aot_ctx != NULL, "aot slot_read type: aot ctx create");
+    if (!aot_ctx) {
+        goto cleanup;
+    }
+
+    slot_n = tc_embed_self_var_slot(aot_ctx, "n");
+    slot_f = tc_embed_self_var_slot(aot_ctx, "f");
+    check(slot_n >= 0 && slot_f >= 0 && slot_n != slot_f,
+          "aot slot_read type: find n and f slots");
+    if (slot_n < 0 || slot_f < 0) {
+        goto cleanup;
+    }
+
+    check(tc_embed_slot_read(aot_ctx, slot_n, &rn) == 0, "aot slot_read type: read n");
+    check(rn.type && rn.type->tag == TC_INT32, "aot slot_read type: n is int32 not default int64");
+    check(rn.bits == 42, "aot slot_read type: n bits == 42");
+
+    check(tc_embed_slot_read(aot_ctx, slot_f, &rf) == 0, "aot slot_read type: read f");
+    check(rf.type && rf.type->tag == TC_FLOAT32, "aot slot_read type: f is float32");
+
+cleanup:
+    tc_embed_destroy(aot_ctx);
+    if (so_path) {
+        unlink(so_path);
+        free(so_path);
+    }
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_aot_embed_static_init_overflow(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *aot_ctx = NULL;
+    char *so_path = NULL;
+    size_t slot_count = 0;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+            "public static var s: int8 = add(int8, 100, 100)\n"
+            "public func get_s() int8 then\n"
+            "    var v: int8 = Self.s\n"
+            "    return v\n"
+            "end\n", "test", &prog, &diag) == 0,
+          "aot static overflow: compile lib");
+    if (diag.domain != TC_DIAG_NONE) {
+        fprintf(stderr, "  diag: %s\n", diag.message);
+        tc_diagnostic_clear(&diag);
+        return;
+    }
+
+    so_path = build_aot_embed_lib(&prog, &slot_count);
+    check(so_path != NULL, "aot static overflow: generated C compiles");
+    if (!so_path) {
+        goto cleanup;
+    }
+
+    aot_ctx = create_aot_embed_ctx(&prog, so_path, slot_count);
+    check(aot_ctx == NULL, "aot static overflow: init abort does not kill process");
+
+cleanup:
+    tc_embed_destroy(aot_ctx);
+    if (so_path) {
+        unlink(so_path);
+        free(so_path);
+    }
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
 /* ================================================================ */
 
 int main(void) {
@@ -1249,6 +1406,9 @@ int main(void) {
     test_aot_embed_ptr_encode_decode();
     test_aot_embed_func_info_query();
     test_aot_embed_var_slot_query();
+    test_aot_embed_bool_normalize();
+    test_aot_embed_slot_read_type();
+    test_aot_embed_static_init_overflow();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed > 0 ? 1 : 0;

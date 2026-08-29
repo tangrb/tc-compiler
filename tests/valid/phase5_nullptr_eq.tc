@@ -3,6 +3,6 @@
 var p: ptr<int32> = nullptr
 var q: ptr<int32> = nullptr
 var same: bool = ptr_eq(int32, p, q)
-writeln(bool, same)
 var is_ne: bool = ptr_ne(int32, p, q)
+writeln(bool, same)
 writeln(bool, is_ne)

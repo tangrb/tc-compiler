@@ -1,5 +1,5 @@
 #program
 ; 期望：goto is only allowed inside a function
+var x: int32 = 1
 goto target
 label target:
-var x: int32 = 1

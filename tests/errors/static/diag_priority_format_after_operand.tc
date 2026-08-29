@@ -1,0 +1,5 @@
+#program
+; 期望：operand type does not match operation type（§10.2：先操作数类型，后格式符）
+; x 为 int64，显式类型为 bool；不得先报 FORMAT_TYPE_MISMATCH
+var x: int64 = 1
+writeln(bool, %d, x)

@@ -1,0 +1,7 @@
+#program
+; 期望：memblock index out of range（usize 极值下标无回绕）
+var dst: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var src: memblock<int32, 2> = memblock(int32, count: 2, 3, 4)
+var z: usize = 0
+var idx: usize = sub(usize, z, 1)
+memblock_copy(int32, dst, idx, src, 0, 1)

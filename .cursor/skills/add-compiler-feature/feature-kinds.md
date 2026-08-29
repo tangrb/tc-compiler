@@ -20,7 +20,7 @@
 └─ 仅新诊断/错误消息            → §9 仅诊断
 ```
 
-> 现网：`TcTypeTag`（含 PTR/MEMBLOCK/STRUCT）、`TcType`、24 STMT / 34 RHS / **91** 错误已入 `tc_types.h`；解析与运行时已落地。
+> 现网：`TcTypeTag`（含 PTR/MEMBLOCK/STRUCT）、`TcType`、24 STMT / 34 RHS / **86** 错误已入 `tc_types.h`；解析与运行时已落地。
 
 ## §2 新类型
 
@@ -86,7 +86,7 @@
 
 ## §7 关键字
 
-`tc_lexer.c` → parser → 诊断（`TC_CE_KEYWORD` / `MODE_MISMATCH` 等）。
+`tc_lexer.c` → parser → 诊断（`TC_CE_SYNTAX` / `MODE_MISMATCH` 等）。
 
 ## §8 编译期常量
 

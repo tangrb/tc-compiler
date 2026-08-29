@@ -12,21 +12,30 @@ var a: A = A(tag: 1, items: memblock(B, count: 2, fill: b0))
 var mb: memblock<B, 2> = a.items
 var e0: B = memblock_load(B, mb, 0)
 var w0: int32 = e0.x
-writeln(int32, w0)
 var b1: B = B(x: 9)
+var e1: B = B(x: 0)
+var w1: int32 = 0
+var c: A = A(tag: 0, items: memblock(B, count: 2, fill: b0))
+var mc: memblock<B, 2> = memblock(B, count: 2, fill: b0)
+var b2: B = B(x: 5)
+var ma: memblock<B, 2> = memblock(B, count: 2, fill: b0)
+var ea: B = B(x: 0)
+var wa: int32 = 0
+var ec: B = B(x: 0)
+var wc: int32 = 0
+writeln(int32, w0)
 memblock_store(B, mb, 1, b1)
-var e1: B = memblock_load(B, mb, 1)
-var w1: int32 = e1.x
+e1 = memblock_load(B, mb, 1)
+w1 = e1.x
 writeln(int32, w1)
 ; 整块赋值：memblock 字段深拷贝（§3.9.4），改 c 不影响 a
-var c: A = a
-var mc: memblock<B, 2> = c.items
-var b2: B = B(x: 5)
+c = a
+mc = c.items
 memblock_store(B, mc, 0, b2)
-var ma: memblock<B, 2> = a.items
-var ea: B = memblock_load(B, ma, 0)
-var wa: int32 = ea.x
+ma = a.items
+ea = memblock_load(B, ma, 0)
+wa = ea.x
 writeln(int32, wa)
-var ec: B = memblock_load(B, mc, 0)
-var wc: int32 = ec.x
+ec = memblock_load(B, mc, 0)
+wc = ec.x
 writeln(int32, wc)

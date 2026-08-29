@@ -1,6 +1,8 @@
 #program
 ; 期望：float invalid operation
 ; ieee 模式产生 inf，default(strict) inf - inf 引发 FE_INVALID
+var a: float64 = 0.0
+var b: float64 = 0.0
 writeln(float64, 1.0)
-var a: float64 = div(float64, ieee, 1.0, 0.0)
-var b: float64 = sub(float64, a, a)
+a = div(float64, ieee, 1.0, 0.0)
+b = sub(float64, a, a)

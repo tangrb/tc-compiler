@@ -89,8 +89,29 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     if (rhs->kind == TC_RHS_CONST_REF) {
         if (rhs->u.const_ref.binding.resolved) {
             if (rhs->u.const_ref.binding.is_const) {
-                fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
-                        rhs->u.const_ref.binding.const_bits);
+                if (expected_type == TC_MEMBLOCK && rhs->u.const_ref.binding.type &&
+                    rhs->u.const_ref.binding.type->tag == TC_MEMBLOCK &&
+                    rhs->u.const_ref.binding.type->params.memblock_type.element) {
+                    const TcType *type = rhs->u.const_ref.binding.type;
+                    size_t elem_bits = tc_sizeof_bits_ex(type->params.memblock_type.element,
+                                                         tc_struct_table_width_bits,
+                                                         ctx->program->struct_table);
+                    size_t elem_bytes = (elem_bits + 7U) / 8U;
+                    uint64_t count = tc_type_memblock_count(type);
+                    size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
+
+                    fprintf(out, "%s%s = ", indent, dst_expr);
+                    tc_aot_emit_const_memblock_expr(out, rhs->u.const_ref.binding.const_bits,
+                                                    nbytes, line);
+                    fprintf(out, ";\n");
+                    fprintf(out,
+                            "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                            "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                            abort_indent, line);
+                } else {
+                    fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
+                            rhs->u.const_ref.binding.const_bits);
+                }
             } else if (rhs->u.const_ref.binding.slot >= 0) {
                 if (expected_type == TC_STRUCT) {
                     const TcSymbol *sym = tc_symbol_table_find_visible(
@@ -663,11 +684,52 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                     sym->const_value.bits);
             return 0;
         }
-        if (sym->slot >= 0) {
-            fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr, sym->slot);
+        if (sym->slot < 0) {
+            return -1;
+        }
+        /* 值语义：与 TC_RHS_CONST_REF 对齐，memblock/struct 深拷贝（§3.8.4 / §3.9.4） */
+        if (expected_type == TC_MEMBLOCK &&
+            sym->type && sym->type->tag == TC_MEMBLOCK &&
+            sym->type->params.memblock_type.element) {
+            size_t elem_bits = tc_sizeof_bits_ex(
+                sym->type->params.memblock_type.element, tc_struct_table_width_bits,
+                ctx->program->struct_table);
+            size_t elem_bytes = (elem_bits + 7U) / 8U;
+            uint64_t count = tc_type_memblock_count(sym->type);
+
+            fprintf(out, "%s%s = tc_aot_memblock_clone(slots[%d], %zu, %" PRIu64
+                         "ULL, tc_aot_cur_diag, %d);\n",
+                    indent, dst_expr, sym->slot, elem_bytes, count, line);
+            fprintf(out,
+                    "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                    "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                    abort_indent, line);
             return 0;
         }
-        return -1;
+        if (expected_type == TC_STRUCT) {
+            size_t bytes = 0;
+
+            if (tc_type_struct_id(sym->type) >= 0 && ctx->program->struct_table) {
+                const TcStructEntry *e =
+                    tc_struct_table_get(ctx->program->struct_table,
+                                       tc_type_struct_id(sym->type));
+                if (e) {
+                    bytes = (e->width_bits + 7U) / 8U;
+                }
+            }
+            if (bytes == 0) {
+                return -1;
+            }
+            fprintf(out, "%s%s = tc_aot_struct_clone(slots[%d], %zu, tc_aot_cur_diag, %d);\n",
+                    indent, dst_expr, sym->slot, bytes, line);
+            fprintf(out,
+                    "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                    "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                    abort_indent, line);
+            return 0;
+        }
+        fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr, sym->slot);
+        return 0;
     }
 
     if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {

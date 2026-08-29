@@ -4,6 +4,7 @@ struct Point then
     var x: int32
 end
 var p: Point = Point(x: 1)
+var v: int32 = 0
 p.x = 42
-var v: int32 = p.x
+v = p.x
 writeln(int32, v)

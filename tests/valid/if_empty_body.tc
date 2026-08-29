@@ -3,19 +3,21 @@
 
 ; 空 then body
 var x: int32 = 0
+var y: int32 = 0
+var z: int32 = 0
 if true then
 end
 writeln(int32, x)             ; 0
 
 ; false 条件跳过 then 块，else 不存在
-var y: int32 = 1
+y = 1
 if false then
     y = 42
 end
 writeln(int32, y)             ; 1
 
 ; false 条件 → else body
-var z: int32 = 2
+z = 2
 if false then
     z = 99
 else

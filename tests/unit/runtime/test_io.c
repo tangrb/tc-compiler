@@ -119,8 +119,11 @@ static void test_all_format_specifiers_table(void) {
         {"%x", TC_INT8, TC_FMT_X, UINT64_C(0xFF), "ff"},
         {"%X", TC_INT8, TC_FMT_XU, UINT64_C(0xFF), "FF"},
         {"%o", TC_INT8, TC_FMT_O, UINT64_C(0xFF), "377"},
+        {"%b int8 -1", TC_INT8, TC_FMT_B, UINT64_C(0xFF), "11111111"},
         {"%b", TC_UINT8, TC_FMT_B, UINT64_C(5), "101"},
         {"%t", TC_BOOL, TC_FMT_T, UINT64_C(1), "true"},
+        {"%d isize", TC_ISIZE, TC_FMT_D, UINT64_C(42), "42"},
+        {"%u usize", TC_USIZE, TC_FMT_U, UINT64_C(42), "42"},
     };
     static const TcFormatSpec float_formats[] = {
         TC_FMT_F, TC_FMT_E, TC_FMT_EU, TC_FMT_G, TC_FMT_GU,
@@ -142,7 +145,7 @@ static void test_all_format_specifiers_table(void) {
         char message[96];
 
         snprintf(message, sizeof(message), "format table %s returns success", test->name);
-        check(tc_io_write_formatted(test->type, test->fmt, &value, out) == 0, message);
+        check(tc_io_write_formatted(test->type, tc_format_spec_make(test->fmt), &value, out) == 0, message);
         actual = close_capture(out);
         snprintf(message, sizeof(message), "format table %s exact bytes", test->name);
         check(strcmp(actual, test->expected) == 0, message);
@@ -157,9 +160,9 @@ static void test_all_format_specifiers_table(void) {
         char *actual32 = NULL;
         char message[96];
 
-        check(tc_io_write_formatted(TC_FLOAT64, float_formats[i], &pi64, out64) == 0,
+        check(tc_io_write_formatted(TC_FLOAT64, tc_format_spec_make(float_formats[i]), &pi64, out64) == 0,
               "float64 format table returns success");
-        check(tc_io_write_formatted(TC_FLOAT32, float_formats[i], &f32, out32) == 0,
+        check(tc_io_write_formatted(TC_FLOAT32, tc_format_spec_make(float_formats[i]), &f32, out32) == 0,
               "float32 format table returns success");
         actual64 = close_capture(out64);
         actual32 = close_capture(out32);
@@ -199,7 +202,7 @@ static void test_float_special_text_table(void) {
         FILE *out = open_capture();
         char *actual = NULL;
 
-        check(tc_io_write_formatted(test->type, test->fmt, &value, out) == 0, test->name);
+        check(tc_io_write_formatted(test->type, tc_format_spec_make(test->fmt), &value, out) == 0, test->name);
         actual = close_capture(out);
         check(strcmp(actual, test->expected) == 0, test->name);
         free(actual);
@@ -217,14 +220,14 @@ static void test_write_formatted_signed(void) {
 
     /* %d — 有符号十进制 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_INT32, TC_FMT_D, &val, out) == 0, "write_fmt %%d ok");
+    check(tc_io_write_formatted(TC_INT32, tc_format_spec_make(TC_FMT_D), &val, out) == 0, "write_fmt %%d ok");
     result = close_capture(out);
     check(strcmp(result, "-42") == 0, "write_fmt %%d => -42");
     free(result);
 
     /* %i — 同 %d */
     out = open_capture();
-    tc_io_write_formatted(TC_INT32, TC_FMT_I, &val, out);
+    tc_io_write_formatted(TC_INT32, tc_format_spec_make(TC_FMT_I), &val, out);
     result = close_capture(out);
     check(strcmp(result, "-42") == 0, "write_fmt %%i => -42");
     free(result);
@@ -237,19 +240,19 @@ static void test_write_formatted_unsigned(void) {
     TcValue val = tc_value_make(TC_UINT32, 0xDEADBEEFULL);
 
     out = open_capture();
-    tc_io_write_formatted(TC_UINT32, TC_FMT_X, &val, out);
+    tc_io_write_formatted(TC_UINT32, tc_format_spec_make(TC_FMT_X), &val, out);
     result = close_capture(out);
     check(strcmp(result, "deadbeef") == 0, "write_fmt %%x => deadbeef");
     free(result);
 
     out = open_capture();
-    tc_io_write_formatted(TC_UINT32, TC_FMT_XU, &val, out);
+    tc_io_write_formatted(TC_UINT32, tc_format_spec_make(TC_FMT_XU), &val, out);
     result = close_capture(out);
     check(strcmp(result, "DEADBEEF") == 0, "write_fmt %%X => DEADBEEF");
     free(result);
 
     out = open_capture();
-    tc_io_write_formatted(TC_UINT32, TC_FMT_O, &val, out);
+    tc_io_write_formatted(TC_UINT32, tc_format_spec_make(TC_FMT_O), &val, out);
     result = close_capture(out);
     check(strcmp(result, "33653337357") == 0, "write_fmt %%o => 33653337357");
     free(result);
@@ -261,7 +264,7 @@ static void test_write_formatted_binary(void) {
     TcValue val = tc_value_make(TC_UINT8, 0xB5);
 
     out = open_capture();
-    tc_io_write_formatted(TC_UINT8, TC_FMT_B, &val, out);
+    tc_io_write_formatted(TC_UINT8, tc_format_spec_make(TC_FMT_B), &val, out);
     result = close_capture(out);
     check(strcmp(result, "10110101") == 0, "write_fmt %%b => 10110101");
     free(result);
@@ -274,13 +277,13 @@ static void test_write_formatted_bool(void) {
     TcValue f = tc_value_make(TC_BOOL, 0);
 
     out = open_capture();
-    tc_io_write_formatted(TC_BOOL, TC_FMT_T, &t, out);
+    tc_io_write_formatted(TC_BOOL, tc_format_spec_make(TC_FMT_T), &t, out);
     result = close_capture(out);
     check(strcmp(result, "true") == 0, "write_fmt %%t true => true");
     free(result);
 
     out = open_capture();
-    tc_io_write_formatted(TC_BOOL, TC_FMT_T, &f, out);
+    tc_io_write_formatted(TC_BOOL, tc_format_spec_make(TC_FMT_T), &f, out);
     result = close_capture(out);
     check(strcmp(result, "false") == 0, "write_fmt %%t false => false");
     free(result);
@@ -298,28 +301,28 @@ static void test_write_formatted_int64_boundary(void) {
 
     /* INT64_MIN */
     out = open_capture();
-    tc_io_write_formatted(TC_INT64, TC_FMT_D, &min, out);
+    tc_io_write_formatted(TC_INT64, tc_format_spec_make(TC_FMT_D), &min, out);
     result = close_capture(out);
     check(strcmp(result, "-9223372036854775808") == 0, "write_fmt INT64_MIN");
     free(result);
 
     /* INT64_MAX */
     out = open_capture();
-    tc_io_write_formatted(TC_INT64, TC_FMT_D, &max, out);
+    tc_io_write_formatted(TC_INT64, tc_format_spec_make(TC_FMT_D), &max, out);
     result = close_capture(out);
     check(strcmp(result, "9223372036854775807") == 0, "write_fmt INT64_MAX");
     free(result);
 
     /* UINT64_MAX as %u */
     out = open_capture();
-    tc_io_write_formatted(TC_UINT64, TC_FMT_U, &uint64_max, out);
+    tc_io_write_formatted(TC_UINT64, tc_format_spec_make(TC_FMT_U), &uint64_max, out);
     result = close_capture(out);
     check(strcmp(result, "18446744073709551615") == 0, "write_fmt UINT64_MAX");
     free(result);
 
     /* UINT64_MAX as %x */
     out = open_capture();
-    tc_io_write_formatted(TC_UINT64, TC_FMT_X, &uint64_max, out);
+    tc_io_write_formatted(TC_UINT64, tc_format_spec_make(TC_FMT_X), &uint64_max, out);
     result = close_capture(out);
     check(strcmp(result, "ffffffffffffffff") == 0, "write_fmt UINT64_MAX hex");
     free(result);
@@ -336,14 +339,14 @@ static void test_write_formatted_float64(void) {
 
     /* %f — 固定小数点 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_F, &val, out) == 0, "write_fmt %%f float64 ok");
+    check(tc_io_write_formatted(TC_FLOAT64, tc_format_spec_make(TC_FMT_F), &val, out) == 0, "write_fmt %%f float64 ok");
     result = close_capture(out);
     check(strcmp(result, "3.140000") == 0, "write_fmt %%f => 3.140000");
     free(result);
 
     /* %e — 科学计数法小写 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_E, &val, out) == 0, "write_fmt %%e float64 ok");
+    check(tc_io_write_formatted(TC_FLOAT64, tc_format_spec_make(TC_FMT_E), &val, out) == 0, "write_fmt %%e float64 ok");
     result = close_capture(out);
     check(strstr(result, "3.140000e") != NULL || strstr(result, "3.14e") != NULL,
           "write_fmt %%e => 3.14e+00");
@@ -351,7 +354,7 @@ static void test_write_formatted_float64(void) {
 
     /* %E — 科学计数法大写 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_EU, &val, out) == 0, "write_fmt %%E float64 ok");
+    check(tc_io_write_formatted(TC_FLOAT64, tc_format_spec_make(TC_FMT_EU), &val, out) == 0, "write_fmt %%E float64 ok");
     result = close_capture(out);
     check(strstr(result, "3.140000E") != NULL || strstr(result, "3.14E") != NULL,
           "write_fmt %%E => 3.14E+00");
@@ -359,14 +362,14 @@ static void test_write_formatted_float64(void) {
 
     /* %g — 紧凑格式 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_G, &val, out) == 0, "write_fmt %%g float64 ok");
+    check(tc_io_write_formatted(TC_FLOAT64, tc_format_spec_make(TC_FMT_G), &val, out) == 0, "write_fmt %%g float64 ok");
     result = close_capture(out);
     check(strcmp(result, "3.14") == 0, "write_fmt %%g => 3.14");
     free(result);
 
     /* %G — 紧凑格式大写指数 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_FLOAT64, TC_FMT_GU, &val, out) == 0, "write_fmt %%G float64 ok");
+    check(tc_io_write_formatted(TC_FLOAT64, tc_format_spec_make(TC_FMT_GU), &val, out) == 0, "write_fmt %%G float64 ok");
     result = close_capture(out);
     check(strcmp(result, "3.14") == 0, "write_fmt %%G => 3.14");
     free(result);
@@ -378,7 +381,7 @@ static void test_write_formatted_float32(void) {
     TcValue val = fp32_from_double(1.5);
 
     out = open_capture();
-    check(tc_io_write_formatted(TC_FLOAT32, TC_FMT_F, &val, out) == 0, "write_fmt %%f float32 ok");
+    check(tc_io_write_formatted(TC_FLOAT32, tc_format_spec_make(TC_FMT_F), &val, out) == 0, "write_fmt %%f float32 ok");
     result = close_capture(out);
     check(strcmp(result, "1.500000") == 0, "write_fmt %%f float32 => 1.500000");
     free(result);
@@ -390,20 +393,103 @@ static void test_write_formatted_float_reject_int(void) {
 
     /* 对整数使用 %f 应拒绝 */
     out = open_capture();
-    check(tc_io_write_formatted(TC_INT32, TC_FMT_F, &val, out) != 0,
+    check(tc_io_write_formatted(TC_INT32, tc_format_spec_make(TC_FMT_F), &val, out) != 0,
           "write_fmt %%f on int32 → fail");
     fclose(out);
 
     out = open_capture();
-    check(tc_io_write_formatted(TC_INT32, TC_FMT_U, &val, out) != 0,
+    check(tc_io_write_formatted(TC_INT32, tc_format_spec_make(TC_FMT_U), &val, out) != 0,
           "write_fmt %%u on int32 -> fail");
     fclose(out);
 
     val = tc_value_make(TC_BOOL, 1);
     out = open_capture();
-    check(tc_io_write_formatted(TC_BOOL, TC_FMT_D, &val, out) != 0,
+    check(tc_io_write_formatted(TC_BOOL, tc_format_spec_make(TC_FMT_D), &val, out) != 0,
           "write_fmt %%d on bool -> fail");
     fclose(out);
+}
+
+static void test_write_formatted_flags_width(void) {
+    FILE *out = NULL;
+    char *result = NULL;
+    TcValue val = tc_value_make(TC_INT32, 42);
+    TcValue pi = tc_value_make(TC_FLOAT64, 0);
+    TcValue t = tc_value_make(TC_BOOL, 1);
+    TcFormatFullSpec fmt;
+    double pi_d = 3.14159265;
+    uint64_t pi_bits = 0;
+
+    memcpy(&pi_bits, &pi_d, sizeof(pi_bits));
+    pi = tc_value_make(TC_FLOAT64, pi_bits);
+
+    fmt = tc_format_spec_make(TC_FMT_D);
+    fmt.flag_plus = 1;
+    out = open_capture();
+    check(tc_io_write_formatted(TC_INT32, fmt, &val, out) == 0, "%%+d ok");
+    result = close_capture(out);
+    check(strcmp(result, "+42") == 0, "%%+d => +42");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_D);
+    fmt.flag_zero = 1;
+    fmt.width = 8;
+    out = open_capture();
+    tc_io_write_formatted(TC_INT32, fmt, &val, out);
+    result = close_capture(out);
+    check(strcmp(result, "00000042") == 0, "%%08d => 00000042");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_X);
+    fmt.flag_hash = 1;
+    out = open_capture();
+    tc_io_write_formatted(TC_INT32, fmt, &val, out);
+    result = close_capture(out);
+    check(strcmp(result, "0x2a") == 0, "%%#x => 0x2a");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_XU);
+    fmt.flag_hash = 1;
+    out = open_capture();
+    tc_io_write_formatted(TC_INT32, fmt, &val, out);
+    result = close_capture(out);
+    check(strcmp(result, "0X2A") == 0, "%%#X => 0X2A");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_O);
+    fmt.flag_hash = 1;
+    out = open_capture();
+    tc_io_write_formatted(TC_INT32, fmt, &val, out);
+    result = close_capture(out);
+    check(strcmp(result, "052") == 0, "%%#o => 052");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_B);
+    fmt.flag_hash = 1;
+    out = open_capture();
+    tc_io_write_formatted(TC_INT32, fmt, &val, out);
+    result = close_capture(out);
+    check(strcmp(result, "0b101010") == 0, "%%#b => 0b101010");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_F);
+    fmt.flag_zero = 1;
+    fmt.width = 8;
+    fmt.precision_set = 1;
+    fmt.precision = 3;
+    out = open_capture();
+    tc_io_write_formatted(TC_FLOAT64, fmt, &pi, out);
+    result = close_capture(out);
+    check(strcmp(result, "0003.142") == 0, "%%08.3f => 0003.142");
+    free(result);
+
+    fmt = tc_format_spec_make(TC_FMT_T);
+    fmt.flag_minus = 1;
+    fmt.width = 8;
+    out = open_capture();
+    tc_io_write_formatted(TC_BOOL, fmt, &t, out);
+    result = close_capture(out);
+    check(strcmp(result, "true    ") == 0, "%%-8t => 'true    '");
+    free(result);
 }
 
 /* ================================================================== */
@@ -416,7 +502,7 @@ static void test_write_value_default_signed(void) {
     TcValue val = tc_value_make(TC_INT16, tc_signed_to_bits(TC_INT16, -1234));
 
     out = open_capture();
-    tc_io_write_value(&val, TC_FMT_NONE, 0, out);
+    tc_io_write_value(&val, tc_format_spec_make(TC_FMT_NONE), 0, out);
     result = close_capture(out);
     check(strcmp(result, "-1234") == 0, "write_val default int16 => -1234");
     free(result);
@@ -428,7 +514,7 @@ static void test_write_value_default_unsigned(void) {
     TcValue val = tc_value_make(TC_UINT32, 3000000000ULL);
 
     out = open_capture();
-    tc_io_write_value(&val, TC_FMT_NONE, 0, out);
+    tc_io_write_value(&val, tc_format_spec_make(TC_FMT_NONE), 0, out);
     result = close_capture(out);
     check(strcmp(result, "3000000000") == 0, "write_val default uint32 => 3000000000");
     free(result);
@@ -441,13 +527,13 @@ static void test_write_value_bool(void) {
     TcValue f = tc_value_make(TC_BOOL, 0);
 
     out = open_capture();
-    tc_io_write_value(&t, TC_FMT_NONE, 0, out);
+    tc_io_write_value(&t, tc_format_spec_make(TC_FMT_NONE), 0, out);
     result = close_capture(out);
     check(strcmp(result, "true") == 0, "write_val bool true");
     free(result);
 
     out = open_capture();
-    tc_io_write_value(&f, TC_FMT_NONE, 0, out);
+    tc_io_write_value(&f, tc_format_spec_make(TC_FMT_NONE), 0, out);
     result = close_capture(out);
     check(strcmp(result, "false") == 0, "write_val bool false");
     free(result);
@@ -461,7 +547,7 @@ static void test_write_value_float(void) {
     {
         TcValue val = fp64_from_double(3.14);
         out = open_capture();
-        check(tc_io_write_value(&val, TC_FMT_NONE, 0, out) == 0, "write_val default float64 ok");
+        check(tc_io_write_value(&val, tc_format_spec_make(TC_FMT_NONE), 0, out) == 0, "write_val default float64 ok");
         result = close_capture(out);
         check(strcmp(result, "3.14") == 0, "write_val default float64 => 3.14");
         free(result);
@@ -471,7 +557,7 @@ static void test_write_value_float(void) {
     {
         TcValue val = fp32_from_double(1.5);
         out = open_capture();
-        check(tc_io_write_value(&val, TC_FMT_NONE, 0, out) == 0, "write_val default float32 ok");
+        check(tc_io_write_value(&val, tc_format_spec_make(TC_FMT_NONE), 0, out) == 0, "write_val default float32 ok");
         result = close_capture(out);
         check(strcmp(result, "1.5") == 0, "write_val default float32 => 1.5");
         free(result);
@@ -484,7 +570,7 @@ static void test_write_value_newline(void) {
     TcValue val = tc_value_make(TC_INT32, 99);
 
     out = open_capture();
-    tc_io_write_value(&val, TC_FMT_D, 1, out);
+    tc_io_write_value(&val, tc_format_spec_make(TC_FMT_D), 1, out);
     result = close_capture(out);
     check(strcmp(result, "99\n") == 0, "write_val with newline => 99\\n");
     free(result);
@@ -498,7 +584,7 @@ static void test_write_stream_failure(void) {
     if (!read_only) {
         return;
     }
-    check(tc_io_write_value(&value, TC_FMT_NONE, 0, read_only) != 0,
+    check(tc_io_write_value(&value, tc_format_spec_make(TC_FMT_NONE), 0, read_only) != 0,
           "write reports stream failure");
     fclose(read_only);
 }
@@ -542,7 +628,7 @@ static void test_write_atomic_commit_no_partial(void) {
         return;
     }
     (void)setvbuf(out, NULL, _IONBF, 0);
-    check(tc_io_write_value(&value, TC_FMT_NONE, 0, out) != 0,
+    check(tc_io_write_value(&value, tc_format_spec_make(TC_FMT_NONE), 0, out) != 0,
           "atomic write fails when destination rejects whole payload");
     check(cookie.accepted == 0,
           "failed write contributes zero bytes to destination stream");
@@ -681,6 +767,8 @@ static void test_read_contract_table(void) {
                     "invalid input");
     check_read_case("read rejects float suffix", "1.0x\n", TC_FLOAT64, 0,
                     "invalid input");
+    check_read_case("read rejects trailing dot", "1.\n", TC_FLOAT64, 0, "invalid input");
+    check_read_case("read rejects leading dot", ".5\n", TC_FLOAT64, 0, "invalid input");
     check_read_case("read rejects float64 underflow to zero", "1e-9999\n", TC_FLOAT64, 0,
                     "input value out of range");
     check_read_case("read rejects float32 underflow to zero", "1e-999\n", TC_FLOAT32, 0,
@@ -837,6 +925,7 @@ int main(void) {
     test_write_formatted_float64();
     test_write_formatted_float32();
     test_write_formatted_float_reject_int();
+    test_write_formatted_flags_width();
 
     /* 值输出 */
     test_write_value_default_signed();

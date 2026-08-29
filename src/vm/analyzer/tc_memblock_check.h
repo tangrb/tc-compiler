@@ -42,4 +42,9 @@ int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      size_t stmt_index, TcDiagnostic *diag,
                                      TcWarningList *warnings);
 
+/** 解析类型树中 memblock 的 usize_operand 名（Self.N / Qual.N / 标识符）为声明 N */
+int tc_memblock_resolve_type_counts(TcType *type, const TcSymbolTable *visible,
+                                    const TcSymbolTable *global, size_t stmt_index, int line,
+                                    TcDiagnostic *diag);
+
 #endif /* TC_MEMBLOCK_CHECK_H */

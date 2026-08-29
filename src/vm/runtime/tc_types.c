@@ -16,7 +16,8 @@
 #include <string.h>
 
 size_t tc_target_ptr_width_bits(void) {
-    return (size_t)(sizeof(void *) * 8U);
+    /* 本实现固定 64-bit-only；与 tc_target_is_64bit_only 断言一致 */
+    return 64;
 }
 
 TcType tc_type_from_tag(TcTypeTag tag) {
@@ -220,10 +221,14 @@ void tc_type_free(TcType *type) {
         tc_type_free(type->params.ptr_type.pointee);
         free(type->params.ptr_type.pointee);
         type->params.ptr_type.pointee = NULL;
-    } else if (type->tag == TC_MEMBLOCK && type->params.memblock_type.element) {
-        tc_type_free(type->params.memblock_type.element);
-        free(type->params.memblock_type.element);
-        type->params.memblock_type.element = NULL;
+    } else if (type->tag == TC_MEMBLOCK) {
+        free(type->params.memblock_type.pending_count_name);
+        type->params.memblock_type.pending_count_name = NULL;
+        if (type->params.memblock_type.element) {
+            tc_type_free(type->params.memblock_type.element);
+            free(type->params.memblock_type.element);
+            type->params.memblock_type.element = NULL;
+        }
     }
     memset(type, 0, sizeof(*type));
 }
@@ -266,6 +271,17 @@ int tc_type_copy(const TcType *src, TcType *out, TcDiagnostic *diag) {
         }
         copy.params.memblock_type.element = element;
         copy.params.memblock_type.count = src->params.memblock_type.count;
+        if (src->params.memblock_type.pending_count_name) {
+            copy.params.memblock_type.pending_count_name =
+                strdup(src->params.memblock_type.pending_count_name);
+            if (!copy.params.memblock_type.pending_count_name) {
+                if (element) {
+                    tc_type_free(element);
+                    free(element);
+                }
+                return -1;
+            }
+        }
     } else if (src->tag == TC_STRUCT) {
         copy.params.struct_type.struct_id = src->params.struct_type.struct_id;
         if (src->pending_name) {
@@ -625,6 +641,8 @@ const char *tc_shift_op_name(TcShiftOp op) {
 
 int tc_format_spec_parse(const char *text, TcFormatFullSpec *out) {
     const char *p;
+    unsigned long acc = 0;
+    int overflow = 0;
 
     if (!text || !out) {
         return 0;
@@ -637,50 +655,74 @@ int tc_format_spec_parse(const char *text, TcFormatFullSpec *out) {
     }
     p = text + 1;
 
-    /* 标志字符：- + # 0，逐个读取，重复 → 非法 */
+    /* 标志：每个非 0 标志至多一次；连续 0 合并为一个 0 标志（%0008d ≡ %08d） */
     for (;;) {
         char c = *p;
         if (c == '-') {
-            if (out->flag_minus) return 0;
+            if (out->flag_minus) {
+                return 0;
+            }
             out->flag_minus = 1;
+            p++;
         } else if (c == '+') {
-            if (out->flag_plus) return 0;
+            if (out->flag_plus) {
+                return 0;
+            }
             out->flag_plus = 1;
+            p++;
         } else if (c == '#') {
-            if (out->flag_hash) return 0;
+            if (out->flag_hash) {
+                return 0;
+            }
             out->flag_hash = 1;
+            p++;
         } else if (c == '0') {
-            if (out->flag_zero) return 0;
             out->flag_zero = 1;
+            while (*p == '0') {
+                p++;
+            }
         } else {
             break;
         }
-        p++;
     }
 
-    /* 宽度：1–65535，前导不可为 0 */
+    /* 宽度：首个 1–9 开始；超出 65535 记为哨兵 65536，形态仍合法 */
     if (isdigit((unsigned char)*p) && *p != '0') {
-        int w = 0;
+        acc = 0;
+        overflow = 0;
         while (isdigit((unsigned char)*p)) {
-            w = w * 10 + (*p - '0');
-            if (w > 65535) return 0;
+            unsigned int d = (unsigned int)(*p - '0');
+            if (overflow || acc > 65536UL / 10UL ||
+                (acc == 65536UL / 10UL && (unsigned long)d > 65536UL % 10UL)) {
+                overflow = 1;
+            } else {
+                acc = acc * 10UL + (unsigned long)d;
+            }
             p++;
         }
-        out->width = w;
+        out->width = overflow ? 65536 : (int)acc;
     }
 
-    /* 精度：.N */
+    /* 精度：.N；仅 '.' 等价 .0；超出 65535 记哨兵 */
     if (*p == '.') {
         p++;
-        {
-            int prec = 0;
+        out->precision_set = 1;
+        if (isdigit((unsigned char)*p)) {
+            acc = 0;
+            overflow = 0;
             while (isdigit((unsigned char)*p)) {
-                prec = prec * 10 + (*p - '0');
-                if (prec > 65535) return 0;
+                unsigned int d = (unsigned int)(*p - '0');
+                if (overflow || acc > 65536UL / 10UL ||
+                    (acc == 65536UL / 10UL && (unsigned long)d > 65536UL % 10UL)) {
+                    overflow = 1;
+                } else {
+                    acc = acc * 10UL + (unsigned long)d;
+                }
                 p++;
             }
-            out->precision_set = 1;
-            out->precision = prec;
+            out->precision = overflow ? 65536 : (int)acc;
+        } else {
+            out->precision = 0;
         }
     }
 
@@ -703,9 +745,9 @@ int tc_format_spec_parse(const char *text, TcFormatFullSpec *out) {
     }
     p++;
 
-    /* 不允许尾随字符 */
-    if (*p != '\0') return 0;
-
+    if (*p != '\0') {
+        return 0;
+    }
     return 1;
 }
 
@@ -756,8 +798,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "LiteralOutOfRange";
     case TC_CE_LITERAL_TYPE:
         return "LiteralTypeError";
-    case TC_CE_KEYWORD:
-        return "KeywordError";
     case TC_CE_CONSTANT_ASSIGNMENT:
         return "ConstantAssignmentError";
     case TC_CE_CONSTANT_EXPRESSION:
@@ -792,8 +832,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "IndentElseEndError";
     case TC_CE_MISSING_END:
         return "MissingEndError";
-    case TC_CE_ELSE_POSITION:
-        return "ElsePositionError";
     case TC_CE_CONDITION_TYPE:
         return "ConditionTypeError";
     case TC_RE_FLOAT_OVERFLOW:
@@ -834,8 +872,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "NegativeShiftCount";
     case TC_CE_FORMAT_SPECIFIER:
         return "FormatSpecifierError";
-    case TC_CE_DUPLICATE_FUNCTION:
-        return "DuplicateFunction";
     case TC_CE_FUNCTION_NAME_CONFLICT:
         return "FunctionNameConflict";
     case TC_CE_UNDEFINED_FUNCTION:
@@ -850,8 +886,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "UnknownArgument";
     case TC_CE_ARGUMENT_ORDER:
         return "ArgumentOrderError";
-    case TC_CE_ARGUMENT_TYPE:
-        return "ArgumentTypeError";
     case TC_CE_FUNCALL_POSITION:
         return "FunctionCallPositionError";
     case TC_CE_FUNCALL_RESULT_TYPE:
@@ -870,8 +904,6 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "ParameterAssignmentError";
     case TC_CE_FUNCTION_SCOPE_ACCESS:
         return "FunctionScopeAccessError";
-    case TC_CE_CROSS_CONTROL_FLOW_JUMP:
-        return "CrossControlFlowJumpError";
     case TC_CE_RECURSION:
         return "RecursionError";
     case TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE:

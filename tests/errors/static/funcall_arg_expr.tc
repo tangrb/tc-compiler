@@ -1,0 +1,4 @@
+#program
+; 期望：expected operand, memblock constructor, or struct constructor
+import FuncallArgLib
+funcall(FuncallArgLib.f, a: add(int32, 1, 2))

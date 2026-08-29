@@ -23,7 +23,7 @@ description: >-
 - [ ] 短路：and/or 三侧一致（Pass2 + CFG 读集剪枝 + Executor + let）
 - [ ] 位运算：`xor` 仅整数；`shl` wrap / `shr` 禁 wrap；let 禁 wrap
 - [ ] let：`tc_eval_const_rhs` 全覆盖；源序可见；禁嵌套调用
-- [ ] 格式符：`%t`↔bool；整数/浮点格式符与类型匹配；标志互斥（见 [features/scalar.md](../tc-architecture/features/scalar.md) § I/O）
+- [ ] 格式符：`%t`↔bool；整数/浮点格式符与类型匹配；`-`+`0` 不互斥、`%t` 允许 `-`/宽度（见 [features/scalar.md](../tc-architecture/features/scalar.md) § I/O）
 - [ ] I/O 逻辑集中在 `tc_io.c`；executor 与 `tc_aot_rt.c` 仅委托
 - [ ] `var` 缺 `=` → `TC_ERR_VAR_MISSING_INIT`（不得降为 SYNTAX）
 - [ ] if/while：条件须 `TC_BOOL`；各自 push/pop

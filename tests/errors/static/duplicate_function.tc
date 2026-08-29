@@ -1,5 +1,5 @@
 #lib
-; 期望：duplicate function
+; 期望：duplicate function（TC_CE_FUNCTION_NAME_CONFLICT，§8.1.2 / 附录 B.3）
 public func f() void then
     return
 end

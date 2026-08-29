@@ -224,7 +224,8 @@ static void test_struct_field_access_positions(void) {
     expect_ok("#program\n"
               "struct Holder then\n    var mvp: ptr<int32>\nend\n"
               "var x: int32 = 13\n"
-              "var h: Holder = Holder(mvp: ptr_address(int32, x))\n"
+              "var px: ptr<int32> = ptr_address(int32, x)\n"
+              "var h: Holder = Holder(mvp: px)\n"
               "var v: int32 = ptr_load(int32, h.mvp)\n",
               "field operand in ptr_load");
     expect_ok("#program\n"

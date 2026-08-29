@@ -340,6 +340,18 @@ static void test_float_literal_tokens(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_float_trailing_dot_rejected(void) {
+    TcTokenList tokens;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    tc_token_list_init(&tokens);
+    check(tc_tokenize_line("var x: float64 = 1.", 1, &tokens, &diag) != 0, "reject trailing-dot 1.");
+    check(diag.kind == TC_CE_SYNTAX, "1. is TC_CE_SYNTAX");
+    tc_token_list_free(&tokens);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_float_special_literals(void) {
     TcTokenList tokens;
     TcDiagnostic diag;
@@ -365,7 +377,9 @@ static void test_float_special_literals(void) {
     tc_token_list_free(&tokens);
     check(tokenize_line_ok("var c: float64 = nan", &tokens, &diag), "tokenize nan");
     tok = find_token(&tokens, TC_TOK_FLOAT_LIT, &idx);
-    check(tok != NULL && isnan(tok->u.literal.float_value), "nan → NAN FLOAT_LIT");
+    check(tok != NULL && isnan(tok->u.literal.float_value) &&
+              tok->u.literal.is_float_special && tok->u.literal.float_special == 0,
+          "nan → canonical NAN FLOAT_LIT");
 
     tc_token_list_free(&tokens);
     tc_diagnostic_clear(&diag);
@@ -404,7 +418,6 @@ static void test_phase2_keywords(void) {
         {"static", TC_TOK_STATIC},
         {"import", TC_TOK_IMPORT},
         {"nullptr", TC_TOK_NULLPTR},
-        {"padding", TC_TOK_PADDING},
     };
     size_t i = 0;
 
@@ -435,7 +448,7 @@ static void test_module_directives_and_type_punct(void) {
 
     check(tokenize_line_ok("@padding", &tokens, &diag), "tokenize @padding");
     check(token_at(&tokens, 0)->kind == TC_TOK_AT, "@ kind");
-    check(token_at(&tokens, 1)->kind == TC_TOK_PADDING, "padding kind");
+    check(token_at(&tokens, 1)->kind == TC_TOK_IDENTIFIER, "padding identifier");
     tc_token_list_free(&tokens);
 
     check(tokenize_line_ok("ptr<int32>", &tokens, &diag), "tokenize ptr<int32>");
@@ -485,6 +498,7 @@ int main(void) {
     test_statement_keywords();
     test_float_type_tokens();
     test_float_literal_tokens();
+    test_float_trailing_dot_rejected();
     test_float_special_literals();
     test_ieee_keyword();
     test_phase2_keywords();

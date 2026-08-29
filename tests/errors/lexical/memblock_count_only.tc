@@ -1,0 +1,3 @@
+#program
+; 期望：expected fill: or memblock elements
+var mb: memblock<int32, 2> = memblock(int32, count: 2)

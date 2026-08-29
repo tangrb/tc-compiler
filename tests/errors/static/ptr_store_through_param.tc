@@ -1,0 +1,6 @@
+#lib
+; 期望：cannot store through read-only pointer binding（形参取址后 ptr_store）
+public func store_param(x: int32) void then
+    var p: ptr<int32> = ptr_address(int32, x)
+    ptr_store(int32, p, 0)
+end

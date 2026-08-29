@@ -1,0 +1,7 @@
+#lib
+; Self.x 作操作数；read 目标在导入侧用 Qual.x
+public static var x: int32 = 0
+public func get_x() int32 then
+    var v: int32 = Self.x
+    return v
+end

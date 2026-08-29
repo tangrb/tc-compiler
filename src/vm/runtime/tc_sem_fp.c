@@ -30,13 +30,21 @@ static int tc_fp_invalid_operation(TcArithOp op, double lhs, double rhs) {
     case TC_DIV:
         return (lhs == 0.0 && rhs == 0.0) || (isinf(lhs) && isinf(rhs));
     case TC_MOD:
-        return 0;
+        /* 有限值路径不经硬件 fmod；异常在 tc_fp_mod 中分类 */
+        return isnan(lhs) || isnan(rhs) || isinf(lhs) ||
+               (lhs == 0.0 && rhs == 0.0);
     }
     return 0;
 }
 
 static int tc_fp_division_by_zero(TcArithOp op, double lhs, double rhs) {
-    return op == TC_DIV && rhs == 0.0 && lhs != 0.0 && isfinite(lhs);
+    if (op == TC_DIV) {
+        return rhs == 0.0 && lhs != 0.0 && isfinite(lhs);
+    }
+    if (op == TC_MOD) {
+        return isfinite(lhs) && lhs != 0.0 && rhs == 0.0;
+    }
+    return 0;
 }
 
 static uint64_t tc_fp_canonical_nan_bits(TcTypeTag type) {
@@ -231,6 +239,163 @@ static int tc_fp_check_strict_result(TcArithOp op, TcTypeTag type,
     return 0;
 }
 
+/*
+ * 有限值浮点 mod：对 significand 做整数减法归约，等价于数学域
+ * q = trunc(a/b)、r = a - q*b，不经目标类型除法回乘（§6.3.7）。
+ * 结果为零时保留 a 的符号。算法移植自 musl fmod/fmodf 的整数归约。
+ */
+static uint32_t tc_fp_mod_finite_f32(uint32_t ax, uint32_t ay) {
+    int ex = (int)((ax >> 23) & 0xff);
+    int ey = (int)((ay >> 23) & 0xff);
+    uint32_t sx = ax & 0x80000000u;
+    uint32_t uxi = ax;
+    uint32_t i;
+
+    if ((uxi << 1) <= (ay << 1)) {
+        if ((uxi << 1) == (ay << 1)) {
+            return sx;
+        }
+        return ax;
+    }
+    if (ex == 0) {
+        for (i = uxi << 9; (i >> 31) == 0; ex--, i <<= 1) {
+        }
+        uxi <<= (uint32_t)(-ex + 1);
+    } else {
+        uxi &= 0x007fffffu;
+        uxi |= 1u << 23;
+    }
+    if (ey == 0) {
+        for (i = ay << 9; (i >> 31) == 0; ey--, i <<= 1) {
+        }
+        ay <<= (uint32_t)(-ey + 1);
+    } else {
+        ay &= 0x007fffffu;
+        ay |= 1u << 23;
+    }
+    for (; ex > ey; ex--) {
+        i = uxi - ay;
+        if ((i >> 31) == 0) {
+            if (i == 0) {
+                return sx;
+            }
+            uxi = i;
+        }
+        uxi <<= 1;
+    }
+    i = uxi - ay;
+    if ((i >> 31) == 0) {
+        if (i == 0) {
+            return sx;
+        }
+        uxi = i;
+    }
+    for (; (uxi >> 23) == 0; uxi <<= 1, ex--) {
+    }
+    if (ex > 0) {
+        uxi -= 1u << 23;
+        uxi |= (uint32_t)ex << 23;
+    } else {
+        uxi >>= (uint32_t)(-ex + 1);
+    }
+    uxi |= sx;
+    return uxi;
+}
+
+static uint64_t tc_fp_mod_finite_f64(uint64_t ax, uint64_t ay) {
+    int ex = (int)((ax >> 52) & 0x7ff);
+    int ey = (int)((ay >> 52) & 0x7ff);
+    uint64_t sx = ax & UINT64_C(0x8000000000000000);
+    uint64_t uxi = ax;
+    uint64_t i;
+
+    if ((uxi << 1) <= (ay << 1)) {
+        if ((uxi << 1) == (ay << 1)) {
+            return sx;
+        }
+        return ax;
+    }
+    if (ex == 0) {
+        for (i = uxi << 12; (i >> 63) == 0; ex--, i <<= 1) {
+        }
+        uxi <<= (uint64_t)(-ex + 1);
+    } else {
+        uxi &= UINT64_C(0x000fffffffffffff);
+        uxi |= UINT64_C(1) << 52;
+    }
+    if (ey == 0) {
+        for (i = ay << 12; (i >> 63) == 0; ey--, i <<= 1) {
+        }
+        ay <<= (uint64_t)(-ey + 1);
+    } else {
+        ay &= UINT64_C(0x000fffffffffffff);
+        ay |= UINT64_C(1) << 52;
+    }
+    for (; ex > ey; ex--) {
+        i = uxi - ay;
+        if ((i >> 63) == 0) {
+            if (i == 0) {
+                return sx;
+            }
+            uxi = i;
+        }
+        uxi <<= 1;
+    }
+    i = uxi - ay;
+    if ((i >> 63) == 0) {
+        if (i == 0) {
+            return sx;
+        }
+        uxi = i;
+    }
+    for (; (uxi >> 52) == 0; uxi <<= 1, ex--) {
+    }
+    if (ex > 0) {
+        uxi -= UINT64_C(1) << 52;
+        uxi |= (uint64_t)ex << 52;
+    } else {
+        uxi >>= (uint64_t)(-ex + 1);
+    }
+    uxi |= sx;
+    return uxi;
+}
+
+static int tc_fp_mod(TcTypeTag type, TcFloatMode mode, const TcValue *lhs, const TcValue *rhs,
+                     TcValue *out, TcDiagnostic *diag, int line) {
+    double a = 0.0;
+    double b = 0.0;
+    int invalid = 0;
+    int div0 = 0;
+
+    a = tc_fp_bits_to_double(type, lhs->bits);
+    b = tc_fp_bits_to_double(type, rhs->bits);
+    invalid = isnan(a) || isnan(b) || isinf(a) || (a == 0.0 && b == 0.0);
+    div0 = isfinite(a) && a != 0.0 && b == 0.0;
+    if (invalid || div0) {
+        if (mode == TC_FLOAT_IEEE) {
+            *out = tc_value_make(type, tc_fp_canonical_nan_bits(type));
+            return 0;
+        }
+        if (invalid) {
+            return tc_fp_set_error(TC_RE_FLOAT_INVALID, "float invalid operation", diag, line);
+        }
+        return tc_fp_set_error(TC_RE_DIVISION_BY_ZERO, "division by zero", diag, line);
+    }
+    if (isinf(b)) {
+        /* 有限 a、±inf b：结果按位等于 a */
+        *out = tc_value_make(type, lhs->bits);
+        return 0;
+    }
+    if (type == TC_FLOAT32) {
+        uint32_t r = tc_fp_mod_finite_f32((uint32_t)(lhs->bits & 0xffffffffu),
+                                          (uint32_t)(rhs->bits & 0xffffffffu));
+        *out = tc_value_make(type, (uint64_t)r);
+        return 0;
+    }
+    *out = tc_value_make(type, tc_fp_mod_finite_f64(lhs->bits, rhs->bits));
+    return 0;
+}
+
 int tc_exec_fp_arith(TcArithOp op, TcTypeTag type, TcFloatMode mode,
                      const TcValue *lhs, const TcValue *rhs, TcValue *out,
                      TcDiagnostic *diag, int line) {
@@ -241,6 +406,9 @@ int tc_exec_fp_arith(TcArithOp op, TcTypeTag type, TcFloatMode mode,
 
     if (tc_validate_fp_arith_mode(op, type, mode, diag, line) != 0) {
         return -1;
+    }
+    if (op == TC_MOD) {
+        return tc_fp_mod(type, mode, lhs, rhs, out, diag, line);
     }
 
     a = tc_fp_bits_to_double(type, lhs->bits);

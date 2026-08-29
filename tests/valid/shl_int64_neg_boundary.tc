@@ -1,0 +1,4 @@
+#program
+; shl(int64, -2^62, 1) 数学结果 -2^63，须可表示（M-2）
+var x: int64 = shl(int64, -4611686018427387904, 1)
+writeln(int64, x)

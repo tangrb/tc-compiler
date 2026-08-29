@@ -1,0 +1,4 @@
+#lib
+public func f(a: int32) int32 then
+    return a
+end

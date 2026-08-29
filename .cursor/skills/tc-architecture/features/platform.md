@@ -7,10 +7,10 @@
 | 层 | 文件 | 关键符号 |
 |----|------|---------|
 | 种类/完整类型 | `tc_types.h` | `TcTypeTag`（判别标签）；`TcType{tag,params}`；运行时/绑定/标量 AST 存 `const TcType*`（单例/`TcTypeTable`） |
-| 工具 | `tc_types.c` | `tc_type_scalar` / `make_ptr|memblock|struct`；`tc_type_equals`（memblock 忽略 N）；`tc_sizeof_bits`；`tc_target_ptr_width_bits` |
+| 工具 | `tc_types.c` | `tc_type_scalar` / `make_ptr|memblock|struct`；`tc_type_equals`（memblock 忽略 N）；`tc_sizeof_bits`；`tc_target_ptr_width_bits`（本实现恒为 64，64-bit-only） |
 | 槽位 | `tc_types.h` / `.c` | `TcSlotDomain`；`TcRuntimeSlots`（含 memblock/struct 堆跟踪） |
 | 符号扩展 | `tc_symbol.c` | `slot_domain` / `memblock_count` / `struct_id`；`TC_SYM_PARAMETER|STATIC_*` |
-| 枚举规模 | `tc_types.h` | STMT **24** / RHS **34** / 错误 **91**（含 `TC_ERR_OUT_OF_MEMORY`） |
+| 枚举规模 | `tc_types.h` | STMT **24** / RHS **34** / 错误 **86**（85 语言码 + `TC_ERR_OUT_OF_MEMORY`） |
 | 覆盖闸门 | `check_rhs_coverage.py` | 8 分发点 + per-point skip（无全局 Phase1 reserved） |
 
 测试：`tests/unit/runtime/test_types.c`（check-types）。摘要：[types.md](../types.md)。
@@ -41,7 +41,7 @@
 
 | 层 | 文件 | 关键符号 |
 |----|------|---------|
-| 验证 | `tc_{type,ptr,memblock,struct}_check.c` | `tc_type_check_rhs` 调度 |
+| 验证 | `tc_{type,ptr,memblock,struct}_check.c` | `tc_type_check_rhs` 调度；memblock N≥1（类型字面量 `0` 与构造器 `count: 0` 均拒绝）；Pass2 折叠命名 N 后再 intern |
 | VM | `tc_{ptr,memblock,struct}_exec.c` | load/store/ctor/field/… |
 | AOT | `tc_aot_rt.c` | `tc_aot_{ptr,memblock,struct}_*` |
 

@@ -17,6 +17,15 @@ var p2: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 2)
 var s01: int32 = add(int32, p0.score, p1.score)
 var total: int32 = add(int32, s01, p2.score)
 var peak: int32 = p1.score
+var third: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 2)
+var boosted: ScoreLib.Player = funcall(ScoreLib.add_bonus, p: third, bonus: 5)
+var new_third: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 2)
+var mvp: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 1)
+var mvp_ptr: ptr<ScoreLib.Player> = nullptr
+var team: ScoreLib.Team = ScoreLib.Team(tag: 0, roster: roster, mvp: nullptr)
+var team_tag: int32 = 0
+var team_roster: memblock<ScoreLib.Player, 3> = memblock(ScoreLib.Player, count: 3, fill: a)
+var tp2: ScoreLib.Player = memblock_load(ScoreLib.Player, team_roster, 0)
 if gt(int32, p0.score, peak) then
     peak = p0.score
 end
@@ -27,22 +36,19 @@ writeln(int32, total)
 writeln(int32, peak)
 
 ; --- struct 按值传参/返回 + memblock_store 写回 ---
-var third: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 2)
-var boosted: ScoreLib.Player = funcall(ScoreLib.add_bonus, p: third, bonus: 5)
 memblock_store(ScoreLib.Player, roster, 2, boosted)
-var new_third: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 2)
+new_third = memblock_load(ScoreLib.Player, roster, 2)
 writeln(int32, new_third.score)
 
 ; --- ptr: 指向 var 绑定, func 内 ptr_load/store 原地加倍 MVP ---
-var mvp: ScoreLib.Player = memblock_load(ScoreLib.Player, roster, 1)
-var mvp_ptr: ptr<ScoreLib.Player> = ptr_address(ScoreLib.Player, mvp)
+mvp_ptr = ptr_address(ScoreLib.Player, mvp)
 funcall(ScoreLib.double_score, target: mvp_ptr)
 writeln(int32, mvp.score)
 
 ; --- struct 内嵌 memblock + ptr 字段 ---
-var team: ScoreLib.Team = ScoreLib.Team(tag: 42, roster: roster, mvp: mvp_ptr)
-var team_tag: int32 = team.tag
-var team_roster: memblock<ScoreLib.Player, 3> = team.roster
-var tp2: ScoreLib.Player = memblock_load(ScoreLib.Player, team_roster, 2)
+team = ScoreLib.Team(tag: 42, roster: roster, mvp: mvp_ptr)
+team_tag = team.tag
+team_roster = team.roster
+tp2 = memblock_load(ScoreLib.Player, team_roster, 2)
 writeln(int32, team_tag)
 writeln(int32, tp2.score)

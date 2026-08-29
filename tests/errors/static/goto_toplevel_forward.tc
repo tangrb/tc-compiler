@@ -1,7 +1,7 @@
 #program
-; 向前跳转跳过代码
-goto skip
+; 向前跳转；顶层仍拒绝 goto（VALUE 须在 EXEC 之前）
 var x: int32 = 42
-label skip:
 var y: int32 = 10
+goto skip
+label skip:
 writeln(int32, %d, y)

@@ -19,6 +19,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* 将硬编码 IEEE 位模式解释为 double（inf/nan 字面量不依赖宿主 NAN/INFINITY 宏） */
+static double tc_double_from_bits(uint64_t bits) {
+    double value = 0.0;
+
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Token 列表管理                                                      */
 /* ------------------------------------------------------------------ */
@@ -270,7 +278,7 @@ static int tc_parse_integer_literal(const char *start, const char **end, TcLiter
     /* 处理可选的 u/U 无符号后缀 */
     if (*p == 'u' || *p == 'U') {
         if (negative) {
-            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, column,
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column,
                               "negative value cannot use unsigned suffix");
             return -1;
         }
@@ -352,7 +360,8 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     }
 
     if (strncmp(p, "inf", 3) == 0 && !tc_is_identifier_part(p[3])) {
-        lit->float_value = lit->negative ? -INFINITY : INFINITY;
+        lit->float_value = tc_double_from_bits(lit->negative ? TC_FLOAT64_NEG_INF_BITS
+                                                            : TC_FLOAT64_POS_INF_BITS);
         lit->is_float_special = 1;
         lit->float_special = lit->negative ? -1 : 1;
         *end = p + 3;
@@ -375,7 +384,7 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
             break;
         }
         if (*p == 'u' || *p == 'U') {
-            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, column,
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column,
                               "float literal cannot use unsigned suffix");
             return -1;
         }
@@ -391,6 +400,37 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     if (len == 0) {
         tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "expected float literal");
         return -1;
+    }
+
+    /* §2.4 / 附录 A：小数点两侧均须有数字（拒绝 1. / 1.f / 1.e5） */
+    {
+        const char *q = buf;
+        int saw_dot = 0;
+        int digits_before = 0;
+        int digits_after = 0;
+
+        while (*q != '\0' && *q != 'e' && *q != 'E') {
+            if (*q == '.') {
+                if (saw_dot) {
+                    break;
+                }
+                saw_dot = 1;
+                q++;
+                continue;
+            }
+            if (*q >= '0' && *q <= '9') {
+                if (saw_dot) {
+                    digits_after++;
+                } else {
+                    digits_before++;
+                }
+            }
+            q++;
+        }
+        if (saw_dot && (digits_before < 1 || digits_after < 1)) {
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid float literal");
+            return -1;
+        }
     }
 
     errno = 0;
@@ -536,7 +576,7 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_FLOAT_LIT;
         memset(&token->u.literal, 0, sizeof(token->u.literal));
         token->u.literal.is_float = 1;
-        token->u.literal.float_value = INFINITY;
+        token->u.literal.float_value = tc_double_from_bits(TC_FLOAT64_POS_INF_BITS);
         token->u.literal.is_float_special = 1;
         token->u.literal.float_special = 1;
         return 1;
@@ -545,7 +585,7 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
         token->kind = TC_TOK_FLOAT_LIT;
         memset(&token->u.literal, 0, sizeof(token->u.literal));
         token->u.literal.is_float = 1;
-        token->u.literal.float_value = NAN;
+        token->u.literal.float_value = tc_double_from_bits(TC_FLOAT64_CANONICAL_NAN_BITS);
         token->u.literal.is_float_special = 1;
         token->u.literal.float_special = 0;
         return 1;
@@ -604,10 +644,6 @@ static int tc_keyword_token(const char *text, size_t len, TcToken *token) {
     }
     if (strcmp(buf, "nullptr") == 0) {
         token->kind = TC_TOK_NULLPTR;
-        return 1;
-    }
-    if (strcmp(buf, "padding") == 0) {
-        token->kind = TC_TOK_PADDING;
         return 1;
     }
     if (strcmp(buf, "ptr_add") == 0) {

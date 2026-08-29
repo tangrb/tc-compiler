@@ -15,8 +15,8 @@
 **设计文档**：`docs/TC-Embed详细设计说明书-0.0.41.md`
 
 **测试**：
-- VM 单元：`test_embed.c` / check-embed（17 tests，含标量/float64/bool/ptr/static_var/错误路径）
-- AOT 差分：`test_embed_aot.c` / check-embed-aot（7 tests，VM vs AOT 逐对对比）
+- VM 单元：`test_embed.c` / check-embed（标量/float64/bool/ptr/static_var/错误路径）
+- AOT 差分：`test_embed_aot.c` / check-embed-aot（VM vs AOT；AOT `slot_read` 从 `TcTypedProgram` 恢复槽位类型）
 - TC 用例：`tests/vm/embed/*.tc`（4 文件，ptr_sum/ptr_inplace/ptr_loop/nested_call）
 
 **运行**：`cmake --build build --target check-embed` / `check-embed-aot`

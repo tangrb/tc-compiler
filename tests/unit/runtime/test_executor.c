@@ -117,8 +117,9 @@ static void test_var_reexecution_overwrites_fixed_slot(void) {
 
 static void test_goto_outside_function_rejected(void) {
     static const char *source =
-        "#program\ngoto done\n"
+        "#program\n"
         "var skipped: int32 = 1\n"
+        "goto done\n"
         "label done:\n";
     TcTypedProgram typed;
     tc_typed_program_init(&typed);

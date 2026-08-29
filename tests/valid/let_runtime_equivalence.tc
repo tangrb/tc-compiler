@@ -2,18 +2,18 @@
 ; let 与 runtime 对相同共享语义逐项等价
 let LET_WRAP: int8 = add(int8, wrap, 120, 20)
 var runtime_wrap: int8 = add(int8, wrap, 120, 20)
-writeln(int8, LET_WRAP)
-writeln(int8, runtime_wrap)
-
 let LET_TRUNC: int8 = cast(int8, truncate, 1000)
 var runtime_source: int32 = 1000
 var runtime_trunc: int8 = cast(int8, truncate, runtime_source)
-writeln(int8, LET_TRUNC)
-writeln(int8, runtime_trunc)
-
 let LET_IEEE: float32 = div(float32, ieee, 1.0f, 0.0f)
 var runtime_ieee: float32 = div(float32, ieee, 1.0f, 0.0f)
 let LET_IEEE_BITS: uint32 = bitcast(uint32, LET_IEEE)
 var runtime_ieee_bits: uint32 = bitcast(uint32, runtime_ieee)
+writeln(int8, LET_WRAP)
+writeln(int8, runtime_wrap)
+
+writeln(int8, LET_TRUNC)
+writeln(int8, runtime_trunc)
+
 writeln(uint32, %X, LET_IEEE_BITS)
 writeln(uint32, %X, runtime_ieee_bits)

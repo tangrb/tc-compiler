@@ -149,17 +149,6 @@ var l9: int16 = cast(int16, l8)
 
 ; ======== Sequential assignments ========
 var m0: int32 = 0
-m0 = add(int32, m0, 1)
-m0 = add(int32, m0, 2)
-m0 = add(int32, m0, 3)
-m0 = add(int32, m0, 4)
-m0 = add(int32, m0, 5)
-m0 = add(int32, m0, 6)
-m0 = add(int32, m0, 7)
-m0 = add(int32, m0, 8)
-m0 = add(int32, m0, 9)
-m0 = add(int32, m0, 10)
-
 ; ======== Zero-init variables ========
 var q0: int8 = 0
 var q1: int16 = 0
@@ -171,6 +160,16 @@ var q6: uint32 = 0
 var q7: uint64 = 0
 var q8: int8 = 0
 var q9: int32 = 0
+m0 = add(int32, m0, 1)
+m0 = add(int32, m0, 2)
+m0 = add(int32, m0, 3)
+m0 = add(int32, m0, 4)
+m0 = add(int32, m0, 5)
+m0 = add(int32, m0, 6)
+m0 = add(int32, m0, 7)
+m0 = add(int32, m0, 8)
+m0 = add(int32, m0, 9)
+m0 = add(int32, m0, 10)
 
 ; ======== Final output ========
 writeln(int32, m0)

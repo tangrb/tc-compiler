@@ -2,8 +2,8 @@
 ; shl(T, wrap, ...) 回绕
 var overflow_val: int8 = 64
 var wrapped: int8 = shl(int8, wrap, overflow_val, 2)
-writeln(int8, wrapped)
-
 var uval: uint8 = 128
 var uwrapped: uint8 = shl(uint8, wrap, uval, 1)
+writeln(int8, wrapped)
+
 writeln(uint8, uwrapped)

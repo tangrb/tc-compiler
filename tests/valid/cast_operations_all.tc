@@ -5,63 +5,63 @@ var i8_val: int8 = -100
 var i16_widen: int16 = cast(int16, i8_val)
 var i32_widen: int32 = cast(int32, i8_val)
 var i64_widen: int64 = cast(int64, i8_val)
+var u8_val: uint8 = 200
+var i32_from_u8: int32 = cast(int32, u8_val)
+var big32: int32 = 1000
+var t_i8: int8 = cast(int8, truncate, big32)
+var t_u8: uint8 = cast(uint8, truncate, big32)
+var t_i16: int16 = cast(int16, truncate, big32)
+var big_u32: uint32 = 50000
+var t_u8_2: uint8 = cast(uint8, truncate, big_u32)
+var big_i64: int64 = 70000
+var t_i32: int32 = cast(int32, truncate, big_i64)
+var t_i16_2: int16 = cast(int16, truncate, big_i64)
+var big_u64: uint64 = 200000
+var t_u16: uint16 = cast(uint16, truncate, big_u64)
+var neg_i8: int8 = -1
+var t_i32_neg: int32 = cast(int32, neg_i8)
+var big_u8: uint8 = 255
+var t_i32_zero: int32 = cast(int32, big_u8)
+var u32_v: uint32 = 4000000000
+var u64_v: uint64 = cast(uint64, u32_v)
+var source: int64 = 123456789012345
+var to_i32: int32 = cast(int32, truncate, source)
+var to_i16: int16 = cast(int16, truncate, to_i32)
+var to_i8: int8 = cast(int8, truncate, to_i16)
 writeln(int16, i16_widen)
 writeln(int32, i32_widen)
 writeln(int64, i64_widen)
 
 ; strict cast: uint8 可以安全转为更大的 int32
-var u8_val: uint8 = 200
-var i32_from_u8: int32 = cast(int32, u8_val)
 writeln(int32, i32_from_u8)
 
 ; truncate cast: 窄化到更小的类型
-var big32: int32 = 1000
-var t_i8: int8 = cast(int8, truncate, big32)
-var t_u8: uint8 = cast(uint8, truncate, big32)
-var t_i16: int16 = cast(int16, truncate, big32)
 writeln(int8, t_i8)
 writeln(uint8, t_u8)
 writeln(int16, t_i16)
 
 ; truncate cast: big uint32 → uint8
-var big_u32: uint32 = 50000
-var t_u8_2: uint8 = cast(uint8, truncate, big_u32)
 writeln(uint8, t_u8_2)
 
 ; truncate cast: int64 → int32
-var big_i64: int64 = 70000
-var t_i32: int32 = cast(int32, truncate, big_i64)
 writeln(int32, t_i32)
 
 ; truncate cast: int64 → int16
-var t_i16_2: int16 = cast(int16, truncate, big_i64)
 writeln(int16, t_i16_2)
 
 ; truncate cast: uint64 → uint16
-var big_u64: uint64 = 200000
-var t_u16: uint16 = cast(uint16, truncate, big_u64)
 writeln(uint16, t_u16)
 
 ; strict cast: 符号扩展 (int8 -1 → int32)
-var neg_i8: int8 = -1
-var t_i32_neg: int32 = cast(int32, neg_i8)
 writeln(int32, t_i32_neg)
 
 ; strict cast: 零扩展 (uint8 255 → int32)
-var big_u8: uint8 = 255
-var t_i32_zero: int32 = cast(int32, big_u8)
 writeln(int32, t_i32_zero)
 
 ; strict cast: uint32 → uint64 (安全)
-var u32_v: uint32 = 4000000000
-var u64_v: uint64 = cast(uint64, u32_v)
 writeln(uint64, u64_v)
 
 ; truncate cast: 多个连续截断
-var source: int64 = 123456789012345
-var to_i32: int32 = cast(int32, truncate, source)
-var to_i16: int16 = cast(int16, truncate, to_i32)
-var to_i8: int8 = cast(int8, truncate, to_i16)
 writeln(int32, to_i32)
 writeln(int16, to_i16)
 writeln(int8, to_i8)

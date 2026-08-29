@@ -11,6 +11,8 @@
 #include "tc_struct_check.h"
 
 #include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -480,6 +482,90 @@ static int tc_eval_const_struct_ctor(const TcRhs *rhs, const TcStructTable *tabl
     return 0;
 }
 
+static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *struct_table,
+                                       const TcSymbolTable *visible, const TcSymbolTable *global,
+                                       const char *const_name, TcValue *out, int line,
+                                       TcDiagnostic *diag) {
+    uint64_t count = 0;
+    size_t element_bits = 0;
+    size_t element_bytes = 0;
+    size_t payload_bytes = 0;
+    void *block = NULL;
+    uint8_t *cursor = NULL;
+    const TcType *elem = NULL;
+    size_t i = 0;
+
+    if (!rhs || rhs->kind != TC_RHS_MEMBLOCK_CONSTRUCTOR || !out) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
+    elem = &rhs->u.memblock_ctor.element_type;
+    count = rhs->u.memblock_ctor.count;
+    if (count < 1) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock count must be at least 1");
+        return -1;
+    }
+    element_bits = tc_sizeof_bits_ex(elem, tc_struct_table_width_bits, (void *)struct_table);
+    element_bytes = (element_bits + 7U) / 8U;
+    if (element_bytes > 0 && count > (SIZE_MAX - sizeof(uint64_t)) / element_bytes) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    payload_bytes = (size_t)count * element_bytes;
+    block = malloc(sizeof(uint64_t) + payload_bytes);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    memcpy(block, &count, sizeof(uint64_t));
+    cursor = (uint8_t *)block + sizeof(uint64_t);
+    if (rhs->u.memblock_ctor.is_fill) {
+        TcValue fill_value = {0};
+
+        if (tc_eval_const_operand(&rhs->u.memblock_ctor.fill_value, elem->tag, visible, global,
+                                  const_name, &fill_value, line, diag) != 0) {
+            free(block);
+            return -1;
+        }
+        if (elem->tag == TC_BOOL) {
+            fill_value.bits = fill_value.bits ? 1ULL : 0ULL;
+        }
+        for (i = 0; i < count; i++) {
+            if (elem->tag == TC_STRUCT) {
+                memcpy(cursor + i * element_bytes, (void *)(uintptr_t)fill_value.bits,
+                       element_bytes);
+            } else {
+                memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
+            }
+        }
+    } else {
+        for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
+            TcValue elem_val = {0};
+
+            if (tc_eval_const_operand(&rhs->u.memblock_ctor.values[i], elem->tag, visible, global,
+                                      const_name, &elem_val, line, diag) != 0) {
+                free(block);
+                return -1;
+            }
+            if (elem->tag == TC_BOOL) {
+                elem_val.bits = elem_val.bits ? 1ULL : 0ULL;
+            }
+            if (elem->tag == TC_STRUCT) {
+                memcpy(cursor + i * element_bytes, (void *)(uintptr_t)elem_val.bits, element_bytes);
+            } else {
+                memcpy(cursor + i * element_bytes, &elem_val.bits, element_bytes);
+            }
+        }
+    }
+    out->type = tc_type_tag_singleton(TC_MEMBLOCK);
+    out->bits = (uint64_t)(uintptr_t)block;
+    return 0;
+}
+
 static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
                              const TcStructTable *struct_table, const char *const_name,
@@ -934,6 +1020,26 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "constant cast target type mismatch");
             return -1;
         }
+        if (cast->target.tag == TC_STRUCT || cast->target.tag == TC_MEMBLOCK ||
+            cast->target.tag == TC_VOID) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "cast target must be scalar or ptr type");
+            return -1;
+        }
+        if (cast->source.kind == TC_OPERAND_LIT && cast->source.u.lit.is_nullptr) {
+            if (cast->target.tag != TC_PTR) {
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "pointer cast requires a pointer source");
+                return -1;
+            }
+            *out = tc_value_make(TC_PTR, 0);
+            return 0;
+        }
+        if (cast->target.tag == TC_PTR) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "pointer cast requires a pointer source");
+            return -1;
+        }
         if (cast->source.kind == TC_OPERAND_LIT) {
             if (cast->source.u.lit.is_bool) {
                 source_type = TC_BOOL;
@@ -1039,6 +1145,30 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         }
         return tc_eval_const_struct_ctor(rhs, struct_table, visible, global, const_name, out, line,
                                          diag);
+    }
+
+    if (rhs->kind == TC_RHS_PTR_SIZE) {
+        size_t bits = 0;
+
+        if (expected_type != TC_USIZE && expected_type != TC_ISIZE) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        bits = tc_sizeof_bits_ex(&rhs->u.ptr_size.pointee_type, tc_struct_table_width_bits,
+                                 (void *)struct_table);
+        *out = tc_value_make(TC_USIZE, (uint64_t)bits);
+        return 0;
+    }
+
+    if (rhs->kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
+        if (expected_type != TC_MEMBLOCK) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "memblock constructor type mismatch in constant expression");
+            return -1;
+        }
+        return tc_eval_const_memblock_ctor(rhs, struct_table, visible, global, const_name, out, line,
+                                           diag);
     }
 
     tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,

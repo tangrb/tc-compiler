@@ -1,0 +1,14 @@
+#program
+; §6.3.7 有限值浮点 mod：5.5 mod 2.0 = 1.5，-5.5 mod 2.0 = -1.5
+var a: float64 = 5.5
+var b: float64 = 2.0
+var r: float64 = mod(float64, a, b)
+var c: float64 = -5.5
+var r2: float64 = mod(float64, c, b)
+var a32: float32 = 5.5
+var r32: float32 = mod(float32, a32, 2.0)
+let K: float64 = mod(float64, 5.5, 2.0)
+writeln(float64, r)
+writeln(float64, r2)
+writeln(float32, r32)
+writeln(float64, K)
