@@ -7,7 +7,7 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
   - 错误码种类：tests/unit/runtime/test_types.c 的 `error_kind_count == N` 断言
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**N**」
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
-                vs docs/TC-0.0.41-开发计划.md「RHS 分发覆盖 | N」
+                vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
   - VM 用例规模：scripts/vm/run_tests.sh 的测试调用行数（不含 helper 定义）
                 vs .cursor/skills/tc-architecture/test-map.md「N VM」
   - AOT 用例规模：scripts/aot/run_tests.sh 的 run_diff_test/run_check_ok/
@@ -79,14 +79,13 @@ def main():
     tc_types_h = read("src/vm/runtime/tc_types.h")
     rhs_actual = count_tc_rhs_kinds(tc_types_h) if tc_types_h else None
 
-    dev_plan = read("docs/TC-0.0.41-开发计划.md")
-    m = re.search(r"RHS 分发覆盖 \| (\d+)", dev_plan)
+    m = re.search(r"RHS 分发覆盖：\*\*(\d+)\*\*", types_md) if types_md else None
     rhs_doc = int(m.group(1)) if m else None
     if rhs_actual and rhs_doc and rhs_actual != rhs_doc:
         failures.append(
-            f"RHS 分发覆盖：TcRhsKind 枚举 {rhs_actual} 个，开发计划写 {rhs_doc}")
+            f"RHS 分发覆盖：TcRhsKind 枚举 {rhs_actual} 个，types.md 写 {rhs_doc}")
     elif not rhs_actual or not rhs_doc:
-        failures.append("RHS 分发覆盖：无法从 tc_types.h / 开发计划提取计数")
+        failures.append("RHS 分发覆盖：无法从 tc_types.h / types.md 提取计数")
 
     # ---- 3. VM 用例规模 -------------------------------------------------
     vm_sh = read("scripts/vm/run_tests.sh")

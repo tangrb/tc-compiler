@@ -386,6 +386,8 @@ tc_embed_slot_write(ctx, func_info->param_slots[0],
                      tc_embed_ptr_encode(data_slot));
 ```
 
+**bool 规范化义务**：`tc_embed_slot_write` 写入槽位前须按目标槽位的类型判断——槽位类型为 `bool` 时，必须对 `value.bits` 做 `!!` 归一（`value.bits = value.bits ? 1 : 0`）。宿主传入的非规范布尔字节（如 `0xFF`）必须先规范化为 `0x00`/`0x01` 再进入 TC 抽象机，不得让非规范字节影响比较、逻辑、I/O、函数传参或 memblock 元素内容（语言标准 §3.4）。
+
 ### 5.4 C 侧准备数据数组
 
 C 可以将任意大的数据平铺在连续的 slots 中，通过 `ptr<T>` + `ptr_add` 让 TC 函数遍历：
@@ -458,7 +460,7 @@ int tc_embed_top_var_slot(const TcEmbedCtx *ctx, const char *name);
 int tc_embed_self_var_slot(const TcEmbedCtx *ctx, const char *name);
 ```
 
-返回指定模块中 `static var` / `static let` 的 slot 索引。内部同时覆盖了 `TC_SYM_VARIABLE + TC_SLOT_STATIC`（当前编译器对 `static var` 的实际编码）、`TC_SYM_STATIC_VAR` 和 `TC_SYM_STATIC_LET` 三种情况进行兼容。`static let` 的常量值在编译期已确定，仍占据一个 slot（用于 `ptr_address` 取地址），但值为编译期位模式。
+返回指定模块中 `static var` / `static let` 的 slot 索引。内部同时覆盖了 `TC_SYM_VARIABLE + TC_SLOT_STATIC`（当前编译器对 `static var` 的实际编码）、`TC_SYM_STATIC_VAR` 和 `TC_SYM_STATIC_LET` 三种情况进行兼容。`static let` 的常量值在编译期已确定，**不占运行时 slot**（语言标准 §6.8.4 禁止对 `let`/`static let` 取地址，故不可对其 `ptr_address` 取址），其值为编译期位模式。
 
 ### 6.4 构建时机
 
@@ -492,7 +494,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
 
 1. 通过 `tc_embed_func_info` 查找目标函数，获取 `TcEmbedFuncInfo`。
 2. 验证 `nargs == info->param_count`，不匹配返回 -1。
-3. 将实参按顺序写入对应形参的 slot：
+3. 将实参按顺序写入对应形参的 slot（形参类型为 `bool` 时，写入前须按形参类型对 `value.bits` 做 `!!` 归一，`value.bits = value.bits ? 1 : 0`，禁止非规范布尔字节进入槽位）：
    ```c
    for (i = 0; i < nargs; i++) {
        ctx->exec_ctx.slots[info->param_slots[i]] = args[i];
@@ -572,7 +574,7 @@ ptr.bits = 0;
 | `tc_embed_ptr_encode(s)` | 等同于 `ptr_address(T, &var_at_slot_s)` |
 | `ptr_load(p)` 在 TC 内 | 解码→`slots[slot]`，与 C 侧 `slots[slot]` 完全一致 |
 | `ptr_store(p, v)` 在 TC 内 | 解码→写 `slots[slot]`，与 C 侧 `slots[slot] = v` 完全一致 |
-| `ptr_add(p, n)` 在 TC 内 | `slot + n` → 重新编码，无需 `sizeof(T)` 乘法 |
+| `ptr_add(p, n)` 在 TC 内 | `ptr_add`/`ptr_sub` 以所指类型 `T` 的位宽度 `sizeof_bits(T)` 为步长（语言标准 §3.10.8），需按元素字节数换算为 slot 步进（标量 `T` 为 `slot + n`）→ 重新编码 |
 
 ### 8.3 memblock / struct 的 ptr 使用
 
@@ -1923,8 +1925,8 @@ void test_aot_vm_behavior(const char *tc_source) {
 | `tc_embed_destroy` | 释放 slots + heap + 索引 | 释放索引 + ctx，不释放 slots（归 AOT 全局数据） |
 | `tc_embed_func_info` | 从 `TcSymbolTable` 查询 | 从 `tc_aot_func_table` 查询 |
 | `tc_embed_call` | `tc_exec_call_function_public` | 直调 `tc_aot_func_N(diag)` |
-| `tc_embed_slot_write` | `exec_ctx.slots[slot] = value` | `aot_slots[slot] = value.bits` |
-| `tc_embed_slot_read` | `*out = exec_ctx.slots[slot]` | `out->bits = aot_slots[slot]` |
+| `tc_embed_slot_write` | `exec_ctx.slots[slot] = value`（`bool` 槽位按槽位类型 `!!` 归一） | `aot_slots[slot] = value.bits`（`bool` 槽位按槽位类型 `!!` 归一） |
+| `tc_embed_slot_read` | `*out = exec_ctx.slots[slot]` | `out->bits = aot_slots[slot]`；从 `TcTypedProgram` 恢复槽位类型（支撑 bool 边界规范化），非恒 `TC_INT64` |
 | `tc_embed_ptr_encode` | `(slot << 1) \| 1` | 完全相同的编码 |
 | `tc_embed_get_error` | 读 `ctx->diag.message` | 完全相同 |
 | `tc_embed_had_error` | 读 `ctx->error_flag` | 完全相同 |
@@ -1998,7 +2000,7 @@ int tc_embed_make_ptr(TcEmbedCtx *ctx, TcTypeTag elem_type,
                       const void *data, size_t count, TcValue *out);
 ```
 
-- 内部在临时区平铺 `count` 个元素（按 `elem_type` 用 `memcpy` 读取，避免未对齐访问），再编码为 `ptr<T>`。
+- 内部在临时区平铺 `count` 个元素（按 `elem_type` 用 `memcpy` 读取，避免未对齐访问），再编码为 `ptr<T>`；`elem_type` 为 `TC_BOOL` 时，每个元素写入槽位前须做 `!!` 归一（`bits = bits ? 1 : 0`），禁止非规范布尔字节经 C 数组注入。
 - `count == 0` 或 `data == NULL` 时返回 `nullptr`（bits = 0）。
 - 支持元素类型：`TC_INT8..TC_UINT64`、`TC_BOOL`、`TC_FLOAT32/64`、`TC_ISIZE/USIZE`；其余拒绝。
 - 平铺后调用方应在 TC 函数返回后调用 `tc_embed_tmp_end` 释放临时区。

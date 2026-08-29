@@ -882,7 +882,7 @@ typedef struct {
 
 严格 `cast` 是数值转换。目标值必须可由目标类型表示。运行时失败统一为 `TC_RE_CAST_OVERFLOW`；常量阶段为 `TC_CE_CONSTANT_CAST_OVERFLOW`。
 
-**指针转换**（语言标准 §3.10.6 / 编译器标准 §3.7）：`cast(ptr<T>, ptr_val)` 在所指类型等宽时复制指针位模式，并将结果类型定为目标 `ptr<T>`。目标类型在 **Pass2** 经 `type_table` intern，写入 RHS `target_type`；Executor **只读**该指针，不得再 intern。`cast(ptr<T>, nullptr)` 合法：`nullptr` 无所指类型，跳过等宽检查，由目标定型。非等宽 → `TC_CE_TYPE_MISMATCH`；`ptr` 不可 `cast` 到整数/浮点；`truncate` 不得用于指针 `cast`。Parser 目标类型走完整类型语法（`tc_parse_type_syntax`），不得仅接受标量 token。
+**指针转换**（语言标准 §3.7 / §3.10.9；编译器标准 §3.7）：`cast(ptr<T>, ptr_val)` 在所指类型等宽时复制指针位模式，并将结果类型定为目标 `ptr<T>`。目标类型在 **Pass2** 经 `type_table` intern，写入 RHS `target_type`；Executor **只读**该指针，不得再 intern。`cast(ptr<T>, nullptr)` 合法：`nullptr` 无所指类型，跳过等宽检查，由目标定型。非等宽 → `TC_CE_TYPE_MISMATCH`；`ptr` 不可 `cast` 到整数/浮点；`truncate` 不得用于指针 `cast`。Parser 目标类型走完整类型语法（`tc_parse_type_syntax`），不得仅接受标量 token。
 
 ### 12.5 `truncate`
 
@@ -994,6 +994,8 @@ VM 与 AOT 共用 `tc_io`，特别是：符号、进制、浮点格式、NaN/Inf
 - **模块诊断**（§11.4.5）：`TC_CE_MODULE_LAYER`、`TC_CE_MISSING_VISIBILITY`、`TC_CE_PROGRAM_MODE_MISUSE`、`TC_CE_IMPORT_NOT_FOUND`、`TC_CE_IMPORT_NOT_LIB`、`TC_CE_IMPORT_AMBIGUOUS`、`TC_CE_DUPLICATE_IMPORT`、`TC_CE_IMPORT_NAME_CONFLICT`、`TC_CE_CIRCULAR_IMPORT`、`TC_CE_PRIVATE_MEMBER_ACCESS`。
 - **指针与 memcopy 诊断**（§11.4.6）：`TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` / `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`、`TC_RE_NULL_POINTER_DEREFERENCE`、`TC_RE_NULL_POINTER_ARITHMETIC`。
 
+> **口径澄清**：当前实现 91 码 = 71 语言码 + 19 扩展码 + 1 OOM；其中 `TC_CE_DUPLICATE_FUNCTION` 等扩展码经《语言标准符合性修复计划》P0/P3 收敛后删除，最终 86 码 = 85 语言码 + 1 OOM。
+
 ### 15.3 诊断域
 
 ```c
@@ -1020,6 +1022,17 @@ typedef enum {
 | 任意实现阶段 | OutOfMemory |
 
 TC 没有编译警告。
+
+### 15.5 标准语义复述要点
+
+以下语言标准规则在本文其余章节未逐条复述，特此集中重述（语言标准为唯一权威）：
+
+- **bool 规范字节**（§3.4）：`bool` 抽象宽度内仅 `false`=`0x00`、`true`=`0x01` 为规范位模式；所有写路径（`cast`、`read`、`memblock_store` 等产生 `bool` 的指令）提交前必须归一化，不得让非规范字节影响比较、逻辑、I/O、传参或 `memblock` 元素内容。
+- **浮点 tininess-after-rounding 与异常优先级**（§6.3.2）：下溢采用 tininess-after-rounding（舍入后微小且舍入不精确才触发）；strict 模式同指令多异常只报最高优先级：`TC_RE_FLOAT_INVALID` → `TC_RE_DIVISION_BY_ZERO` → 浮点溢出 → 浮点下溢。
+- **浮点 mod 语义**（§6.3.7）：商向零截断的精确余数；被除数为无穷或 `0 mod 0` → 无效操作，有限非零值对零取模 → 除零；`ieee` 模式对异常返回 canonical quiet NaN。
+- **移位 k≥n / k<0**（§6.4.2）：移位计数取数学值、不掩码；`k < 0` 报 `TC_RE_NEGATIVE_SHIFT_COUNT`，`k >= n` 时 strict `shl` 报溢出、`wrap shl`/`shr` 返 `0`；不得先执行宿主移位再修正结果。
+- **ptr 步长**（§3.10.8）：`ptr_add`/`ptr_sub` 以所指类型 `T` 的位宽度为步长，偏移单位是 `T` 元素个数，实际地址移动量为 `offset × sizeof_bits(T)` 位。
+- **I/O 原子提交**（§10）：每条 `write`/`writeln` 先拼出本语句完整字节串再一次性原子提交，成功则整体追加、失败贡献零字节；`writeln` 追加单个 LF（`\n`），不得改写为 CRLF 或其他平台行结束序列。
 
 ---
 

@@ -4,6 +4,8 @@
 
 错误种类：**91**（`test_types.c` 断言）。共同契约：`src/vm/runtime/tc_types.h`
 
+RHS 分发覆盖：**34**（`tc_types.h` 的 `TcRhsKind` 枚举；8 个分发点全覆盖，`check_rhs_coverage.py`）
+
 ## 基础枚举
 
 | 枚举 | 要点 |

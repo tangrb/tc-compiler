@@ -227,7 +227,7 @@ memblock 槽位存储指向堆上存储区的指针：
 
 ```c
 /* memblock<int32, 10> 的存储布局：
-   offset 0:  uint64_t count = 10   (长度头部，平台指针宽度)
+   offset 0:  uint64_t count = 10   (长度头部 = usize；本实现固定 64-bit-only，头宽 64 位)
    offset 8:  int32_t data[10]      (元素数据)
    total = 8 + 10*4 = 48 bytes
 */
@@ -395,6 +395,8 @@ static void tc_func_<func_id>(TcDiagnostic *diag) {
 
 **函数调用侧**：
 
+`diag.kind` 仅承载错误信号；被调函数的正常返回走独立返回通道（见 §7.3），绝不写入 `diag.kind`。因此调用侧按「非 `TC_DIAG_OK` 即 abort」处理，不会把正常返回误判为错误：
+
 ```c
 /* void 独立调用 */
 tc_func_<func_id>(&diag);
@@ -419,16 +421,20 @@ slots[X] = tc_ret_<func_id>;
 
 **`return` 生成**：
 
+正常返回复用独立返回通道（`TcDiagnostic` 的专用返回标记字段 `ret_kind`，取 `TC_AOT_RETURN_OK`），不复用错误信号通道 `diag->kind`；`diag->kind` 仅在出错时被设置，正常返回时保持 `TC_DIAG_OK`：
+
 ```c
 /* void return */
-diag->kind = TC_RETURN_SIGNAL;  /* 或生成专用返回标记 */
+diag->ret_kind = TC_AOT_RETURN_OK;  /* 专用返回标记，diag->kind 保持 TC_DIAG_OK */
 return;
 
 /* 有值 return */
 *retval_ptr = <operand_value>;
-diag->kind = TC_RETURN_SIGNAL;
+diag->ret_kind = TC_AOT_RETURN_OK;  /* 专用返回标记，diag->kind 保持 TC_DIAG_OK */
 return;
 ```
+
+`TC_AOT_RETURN_OK` 是独立于 `TC_DIAG_*` 的返回状态；调用侧只检查 `diag.kind != TC_DIAG_OK`，不读取 `ret_kind`，也不把返回标记误判为错误。
 
 函数末尾隐式 `return` 仅在静态分析已证明不可达时省略生成。
 
@@ -538,6 +544,8 @@ static const size_t tc_width_table[] = {
 
 `memblock<T, N>` 的类型等价仅由 `T` 决定；`N` 不参与 `tc_type_equals`，但赋值/传参须比较两侧声明的 `N`（[语言标准 §3.8.1]、[编译器标准 §3.1]）。布局宽度按 [编译器标准 §3.0.1]：`sizeof_bits(usize) + N × sizeof_bits(T)`。
 
+> **目标字长标注**：本实现固定 64-bit-only 目标字长；memblock 长度头宽 = sizeof_bits(usize) = 64 位（8 字节），32 位目标另行立项。
+
 对 `memblock<T, N>` 声明，生成：
 
 ```c
@@ -581,11 +589,11 @@ if (tc_aot_memblock_store(memblock_storage[MB_SLOT_X], mb1_count,
    struct_storage 槽位存储 Foo 值的 16 字节序列
 */
 
-/* 字段读取 a.y */
-/* slots[DST] = *(uint64_t*)(struct_storage + foo_offset + offsetof(y)) */
+/* 字段读取 a.y：用 memcpy 拷贝 sizeof(uint64_t) 字节，避免严格别名与对齐 UB */
+/* memcpy(&slots[DST], struct_storage + foo_offset + offsetof(y), sizeof(uint64_t)) */
 
-/* 字段赋值 a.y = rhs */
-/* *(uint64_t*)(struct_storage + foo_offset + offsetof(y)) = rhs_value */
+/* 字段赋值 a.y = rhs：用 memcpy 拷贝 sizeof(uint64_t) 字节，避免严格别名与对齐 UB */
+/* memcpy(struct_storage + foo_offset + offsetof(y), &rhs_value, sizeof(uint64_t)) */
 ```
 
 ---
@@ -666,7 +674,7 @@ memcpy(&value, &bits, sizeof(value));
 ### 12.3 浮点一致性
 
 - 每个 float32 操作在该步舍入到 float32；float64 同理。
-- strict 按标准优先级报告除零、无效、上溢、下溢。
+- strict 按标准优先级报告无效、除零、上溢、下溢（优先级：无效操作 → 除零 → 上溢 → 下溢，见语言标准 §6.3.2）。
 - ieee 产生标准结果。
 - 生成 C 不依赖宿主开启 fast-math；构建参数不得破坏 NaN、Infinity 或舍入契约。
 
@@ -719,6 +727,7 @@ AOT `--check` 和普通转译都经 libtc 完成全部静态阶段。覆盖编�
 tc-aot [options] <file.tc>
   -o, --output FILE   输出 C 文件路径
   -c, --check         仅静态检查，不生成 C
+  -I, --include DIR   添加模块搜索路径（可多次指定，与 tc-vm 一致）
   -r, --run           编译并运行生成 C
   -h, --help          显示帮助
   -V, --version       显示版本

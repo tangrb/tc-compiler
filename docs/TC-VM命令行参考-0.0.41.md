@@ -122,6 +122,7 @@ read entry file + import resolution
 ### 3.3 输出
 
 - TC `write`/`writeln` 输出到 stdout；
+- `writeln` 输出单个 LF（`\n`），不进行 CRLF 改写；输出以一次写入原子提交。
 - 编译或运行时错误输出到 stderr；
 - 成功且程序本身无输出时，命令保持安静；
 - 文件打开/读取失败也输出到 stderr。
@@ -216,6 +217,8 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 ### 6.1 说明
 
 下表描述 0.0.41 的 `TcErrorKind` 完整映射。Language 诊断默认打印 message，不直接打印这些名称。完整错误码清单、阶段归属与触发条件见编译器标准 §11.4。
+
+**91 码口径**：91 = 71 个语言码（59 `TC_CE` + 12 `TC_RE`）+ 19 个编译器扩展码 + 1 `TC_ERR_OUT_OF_MEMORY`；经符合性修复（P0/P3）后收敛为 86 = 85 语言码 + 1 OOM。
 
 ### 6.2 词法、语法、名称与类型
 
