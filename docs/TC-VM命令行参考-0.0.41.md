@@ -370,11 +370,12 @@ bench execute: 0.000078 s
 
 ## 8. 当前示例
 
-以下示例适用于 v0.0.41。
+以下示例适用于 v0.0.41。每个源文件须以 `#program` 或 `#lib` 开头（[语言标准 §4](./TC语言标准设计说明书-0.0.41.md)）；未写模式指令为语法错误。
 
 ### 8.1 基础执行
 
 ```text
+#program
 var a: int32 = 10
 var b: int32 = 20
 var sum: int32 = add(int32, a, b)
@@ -431,6 +432,7 @@ build/vm/bin/tc-vm main.tc
 ### 8.4 指针与 memblock
 
 ```text
+#program
 var arr: memblock<int32, 5> = memblock(int32, count: 5, 1, 2, 3, 4, 5)
 var idx: int32 = 2
 var p: ptr<int32> = ptr_address(int32, arr)

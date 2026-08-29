@@ -9,5 +9,8 @@ build-ubsan/
 # Generated stress baseline
 tests/stress/bench_baseline.tc
 
+# Local examples (not versioned)
+examples/
+
 # macOS
 .DS_Store

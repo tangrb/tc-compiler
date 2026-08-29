@@ -975,6 +975,8 @@ typedef struct {
 
 VM 与 AOT 共用 `tc_io`，特别是：符号、进制、浮点格式、NaN/Infinity 文本、换行和错误时机。
 
+本实现固定 64-bit-only。memblock/struct 标量元素按宿主端序存取（未完全符合语言标准 §3.5）；浮点十进制输出仍委托宿主 `snprintf`（未完全符合 §10.4）。降级项与其它可移植性债务见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.41.md)。
+
 ---
 
 ## 15. 诊断
@@ -1128,7 +1130,9 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 | 错误码 | 41+1 | 扩展至含函数、模块、memblock、struct、ptr 专用诊断 |
 | REPL | 包含 | 无 |
 
-### 18.2 预计迁移顺序
+### 18.2 已完成的迁移顺序（0.0.31 → 0.0.41）
+
+下列步骤均已落地，保留为历史对照，不是待办：
 
 1. types/IR 与错误枚举更新；
 2. Lexer 新关键字与 Token；

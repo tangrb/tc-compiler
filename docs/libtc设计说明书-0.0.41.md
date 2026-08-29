@@ -511,7 +511,9 @@ tc_diagnostic_clear(&diag);
 | 错误码 | 41+1 | **86**（85 语言码 + `TC_ERR_OUT_OF_MEMORY`） |
 | REPL | 包含 | 无 |
 
-### 14.2 预计迁移顺序
+### 14.2 已完成的迁移顺序（0.0.31 → 0.0.41）
+
+下列步骤均已落地，保留为历史对照，不是待办：
 
 1. types/IR 与错误枚举更新；
 2. Lexer 新关键字与 Token；
@@ -525,6 +527,8 @@ tc_diagnostic_clear(&diag);
 10. Executor（调用帧、memblock 堆存储、ptr 指令）；
 11. AOT codegen；
 12. CLI/API 与全量验证。
+
+本实现固定 64-bit-only。memblock/struct 标量元素按宿主端序存取（未完全符合语言标准 §3.5）；浮点十进制输出仍委托宿主 `snprintf`（未完全符合 §10.4）。详见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.41.md)。
 
 ---
 

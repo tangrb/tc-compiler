@@ -37,7 +37,7 @@
     - [15.8 完整使用示例（AOT 嵌入模式）](#158-完整使用示例aot-嵌入模式)
     - [15.9 性能分析](#159-性能分析)
     - [15.10 验证策略](#1510-验证策略)
-    - [15.11 实施步骤](#1511-实施步骤)
+    - [15.11 实施步骤（已完成）](#1511-实施步骤已完成)
     - [15.12 与 VM 模式的 API 兼容性总表](#1512-与-vm-模式的-api-兼容性总表)
 16. [运行时便捷层（v0.0.41 扩展）](#16-运行时便捷层v0041-扩展)
     - [16.1 设计动机](#161-设计动机)
@@ -921,9 +921,11 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 
 ## 13. 实施路径与改动清单
 
-### 13.1 实施步骤
+> **状态（v0.0.41）**：下表为 VM Embed 落地时的实施对照，步骤 1–8 **均已完成**。AOT Embed 见 §15（已落地）。本节不是待办。
 
-| 步骤 | 内容 | 预计改动 |
+### 13.1 实施步骤（已完成）
+
+| 步骤 | 内容 | 当时改动 |
 | ---- | ---- | -------- |
 | 1. 公开 `tc_exec_call_function` | 在 `tc_executor.h` 中声明 `tc_exec_call_function_public`，在 `tc_executor.c` 中添加薄的公共包装 | `tc_executor.c/h`（~10 行） |
 | 2. 创建 `tc_embed.h` | 类型定义 + 公共 API 声明 + 内联辅助函数 | 新文件 |
@@ -948,14 +950,16 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 | `tests/vm/embed/` | 新增目录 | VM 级测试用例 |
 | `scripts/vm/run_tests.sh` | 修改 | 注册新用例 |
 
-### 13.3 不修改的文件
+### 13.3 VM Embed 落地时未改动的文件
 
-- `src/vm/analyzer/`：全部不变。
-- `src/vm/parser/`：全部不变。
-- `src/aot/`：全部不变。
-- `src/libtc/tc_lib.h` / `tc_lib.c`：全部不变。
+当时为把 Embed 做成独立产品面、不扰动前端与语言规范：
+
+- `src/vm/analyzer/`、`src/vm/parser/`：不变。
+- `src/libtc/tc_lib.h` / `tc_lib.c`：当时不变（编译入口仍走既有 libtc）。
 - `docs/TC语言标准设计说明书-0.0.41.md`：TC 语言无变化。
 - `docs/TC编译器标准设计说明书-0.0.41.md`：编译器管线不变。
+
+`src/aot/` 在 VM Embed 落地时未改；**AOT 嵌入模式已在 §15 落地**（`tc_aot_embed_rt.h`、`--embed` / `-H`、`tc_embed_create_aot`）。勿把「当时不改 AOT」读成现状。
 
 ---
 
@@ -1884,9 +1888,11 @@ void test_aot_vm_behavior(const char *tc_source) {
 
 ---
 
-### 15.11 实施步骤
+### 15.11 实施步骤（已完成）
 
-| 步骤 | 内容 | 改动文件 | 预计工作量 |
+> **状态（v0.0.41）**：下列步骤 **均已完成**。本节保留为落地对照，不是待办。
+
+| 步骤 | 内容 | 改动文件 | 当时估计规模 |
 | ---- | ---- | -------- | ---------- |
 | 1 | VM Embed 稳定（0.0.41） | — | 前置 |
 | 2 | `tc_aot_embed_rt.h`：非致命 abort shim | 新文件 `src/aot/tc_aot_embed_rt.h` | 小 (~30 行) |

@@ -149,7 +149,7 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | FP-2.6 | S-25/S-26/S-27 限定名 | 解析侧接受 `Qual.ident`/`Self.ident`；Pass2 对 `static var` 在 intern 前折叠 memblock 命名 N（`tc_analyzer_pass2.c`） | `tests/valid/qualified_memblock_count.tc`、`qualified_read_target.tc` |
 | FP-2.7 | S-28/S-29 rhs 超收 | `tc_parser_stmt.c:497/625`、`tc_parser_rhs.c:506-527` 改为 `operand|memblock_ctor|struct_ctor` 三选一 | `tests/errors/static/funcall_arg_expr.tc`、`struct_ctor_field_expr.tc` |
 | FP-2.8 | S-19 比较模式 | `tc_parser_rhs.c:960-977` 比较一律拒绝 ieee/wrap/truncate（`TC_CE_SYNTAX`）；修正 `tests/unit/runtime/test_analyzer.c:311/315` | `tests/errors/lexical/compare_mode.tc` |
-| FP-2.9 | S-20 模块分层 | `tc_parser.c:542-571` 删除 EXEC↔VALUE 归一，恢复严格五层序；**并修正依赖顶层交错的示例/测试**（已确认 `examples/demo/main.tc` 第 36 行 writeln 后仍有第 38-45 行 var、`examples/composite/main.tc` 同——须把声明整体移到语句区之前） | `tests/errors/static/module_layer_interleave.tc`；扫 `examples/` 与 `tests/valid/` 顶层交错 |
+| FP-2.9 | S-20 模块分层 | `tc_parser.c:542-571` 删除 EXEC↔VALUE 归一，恢复严格五层序；**并修正依赖顶层交错的测试**（当时还扫过已移出版本库的 `examples/demo/main.tc`、`examples/composite/main.tc`：须把声明整体移到语句区之前） | `tests/errors/static/module_layer_interleave.tc`；扫 `tests/valid/` 顶层交错。**`examples/` 已移出版本库（`.gitignore`），不再作为门禁路径** |
 | FP-2.10 | S-30 cast/bitcast 目标 | `tc_parser_rhs.c:848-852/912-917` 语法期接受完整 type（struct/memblock/bool 交语义报 `TC_CE_TYPE_MISMATCH`）；`:1350-1355` const cast 恢复接受 ptr 目标 | `tests/errors/static/bitcast_struct.tc`（改为语义码）、`tests/valid/let_ptr_cast_nullptr.tc` |
 | FP-2.11 | M-25 memblock count-only | `tc_parser_rhs.c:352-355` 要求 count 后必须跟 `fill:` 或 ≥1 元素 | `tests/errors/lexical/memblock_count_only.tc` |
 | FP-2.12 | M-26/M-27 UTF-8/NUL | `tc_lib.c` 读取层加 UTF-8 合法性校验（含注释）；`tc_compile_source` 字符串路径补 NUL 扫描 | `tests/errors/lexical/invalid_utf8_comment.tc`、`embedded_nul.tc` |
