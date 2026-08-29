@@ -31,7 +31,7 @@ description: >-
 | Embed | `src/vm/embed/` → [kg-embed.md](../tc-architecture/kg-embed.md) |
 | 仅诊断 | `TcErrorKind` + `tc_error_kind_name` + `test_types` + static |
 
-参考：[features.md](../tc-architecture/features.md) 路由 → **一个** `features/*.md` · 分发：`@knowledge-graph` · 测试：[test-map.md](../tc-architecture/test-map.md)
+参考：[features.md](../tc-architecture/features.md) 路由 → **一个** `features/*.md` · 分发：`@knowledge-graph` · 测试：[test-map.md](../tc-architecture/test-map.md) · 易错点：[gotchas.md](../tc-architecture/gotchas.md)
 
 ## 实施顺序
 

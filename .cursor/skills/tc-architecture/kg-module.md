@@ -20,12 +20,14 @@
 ```
 tc_module_check_structure          /* 4a：五层顺序、可见性、#program 误用 */
 → tc_module_resolve_imports        /* 4b/4c：-I 搜索、去重、成环（需 entry_path） */
-→ tc_struct_table_register_program /* deps 逆序（importee 先）+ 入口；按模块定界解析结构体名（含导入限定名） */
+→ tc_module_topological_dep_order  /* importee 先；菱形依赖不可简单逆 DFS */
+→ tc_struct_table_register_program /* 按拓扑序注册 deps + 入口；含导入限定名 */
 → tc_module_collect_signatures     /* 4d：签名 + func_id */
 → … Pass1 / member_index / …
 ```
 
-`tc_analyze`（无 path）不做 import；`tc_analyze_ex` / `tc_compile_file_opts` 才解析依赖。
+`tc_analyze`（无 path）不做 import；`tc_analyze_ex` / `tc_compile_file_opts` 才解析依赖。  
+易错点：[gotchas.md](gotchas.md) § 模块。
 
 ## 导出 API（速查）
 
@@ -33,6 +35,7 @@ tc_module_check_structure          /* 4a：五层顺序、可见性、#program �
 tc_module_search_paths_init/free/set
 tc_module_check_structure
 tc_module_resolve_imports
+tc_module_topological_dep_order    /* 结构体注册序；analyzer 调用 */
 tc_module_collect_signatures
 tc_func_signature_list_init/free
 
@@ -56,5 +59,5 @@ tc_scope_check_self_usage
 ## 测试
 
 `test_module.c` / check-module · `tests/errors/module/` · `tests/modules/` · CLI `include_search_ok` / `import_ambiguous`  
-导入 struct：`import_struct_type` / `imported_struct_mid_ok` / `imported_struct_bare_name` / `imported_struct_bare_ctor` / `imported_struct_not_imported` / `imported_struct_transitive` / `imported_struct_private` · unit `test_parse_imported_struct_type` / `test_imported_struct_name_rules`  
+导入 struct：`import_struct_type` / `imported_struct_*` · 菱形：`diamond_import_*` · unit `test_diamond_import_structs` / `test_imported_struct_name_rules`  
 账本：[test-map.md](test-map.md) Phase 2 / Phase 3

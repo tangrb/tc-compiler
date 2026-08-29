@@ -1,8 +1,9 @@
 # 符号 → 文件定位
 
-**何时读**：需要知道函数/类型定义在哪个 `.c` 文件。**更快**：`rg "符号名" src/ --glob '*.c'`（见底部命令）。
+**何时读**：需要知道函数/类型定义在哪个 `.c`。**更快**：`rg "符号名" src/ --glob '*.c'`。  
+**Agent**：本文件是查表，勿通读；按节跳转。跨模块分发点见 `@knowledge-graph`。易错点 [gotchas.md](gotchas.md)。
 
-用 `rg` 快速定位；**跨模块分发点**见 `@knowledge-graph`。**v0.0.41** + Embed · **无 REPL**。
+**v0.0.41** + Embed · **无 REPL**。
 
 ## 流水线入口
 
@@ -20,7 +21,7 @@
 | var/let/static/import/return/funcall/field/ptr/memblock/memcopy 语句 | `src/vm/parser/tc_parser_stmt.c` |
 | `tc_parse_rhs` / `tc_parse_const_rhs` | `src/vm/parser/tc_parser_rhs.c` |
 | `tc_analyze` / `tc_analyze_ex` / `tc_pass1_collect_symbols` / `tc_pass2_type_check` | `src/vm/analyzer/tc_analyzer.c` |
-| `tc_module_check_structure` / `tc_module_resolve_imports` / `tc_module_collect_signatures` | `src/vm/analyzer/tc_module.c` |
+| `tc_module_check_structure` / `tc_module_resolve_imports` / `tc_module_topological_dep_order` / `tc_module_collect_signatures` | `src/vm/analyzer/tc_module.c` |
 | `tc_scope_*` / `tc_member_index_*` / Self 可见性 | `src/vm/analyzer/tc_scope.c` |
 | `tc_func_check_*` / `tc_func_eval_static_lets` | `src/vm/analyzer/tc_func_check.c` |
 | `tc_callgraph_check` | `src/vm/analyzer/tc_callgraph.c` |

@@ -931,6 +931,13 @@ run_expect_check_fail "$ROOT/tests/errors/static/recursion_direct.tc" "recursive
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_indirect.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
     "circular static let"
+# Critical 1 回归：static let/var 的 memblock 逐值构造计数不匹配（const 求值先于 pass2）
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_memblock_count_mismatch.tc" \
+    "memblock element count mismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_memblock_count_too_few.tc" \
+    "memblock element count mismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/static_var_memblock_count_mismatch.tc" \
+    "memblock constructor value count does not match count"
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_bad_init.tc" \
     "static var initializer"
 run_expect_check_fail "$ROOT/tests/errors/static/self_member_undefined.tc" \
@@ -963,6 +970,15 @@ run_expect_check_fail "$ROOT/tests/modules/imported_struct_private.tc" \
 run_expect_stdout "$ROOT/tests/modules/imported_struct_mid_ok.tc" "3
 "
 run_expect_check_ok "$ROOT/tests/modules/imported_struct_mid_ok.tc"
+# Major 4 回归：菱形 import（Left/Right 均 import Shared）结构体注册须真拓扑序
+run_expect_stdout "$ROOT/tests/modules/diamond_import_ok.tc" "3
+3
+"
+run_expect_stdout "$ROOT/tests/modules/diamond_import_swapped_ok.tc" "4
+4
+"
+run_expect_check_ok "$ROOT/tests/modules/diamond_import_ok.tc"
+run_expect_check_ok "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
     "cannot assign to function parameter"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_param_let.tc" \
@@ -996,6 +1012,16 @@ run_expect_stdout "$ROOT/tests/valid/phase5_memblock_deepcopy.tc" "1
 1
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_unsafe.tc" "1
+"
+# Major 3 回归：memcopy_unsafe 负下标（字面量 / 有符号变量）须拒绝，不得回绕越界
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_dst_index.tc" \
+    "memcopy_unsafe invalid range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_src_index.tc" \
+    "memcopy_unsafe invalid range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_var_index.tc" \
+    "memcopy_unsafe invalid range"
+run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_positive_ok.tc" "1
+4
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
@@ -1220,6 +1246,21 @@ run_expect_check_ok "$ROOT/tests/valid/struct_field_static_init.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_static_init_run.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
+# Critical 2 回归：let/static let 基址的 struct/memblock 字段整体读出（AOT 曾段错误）
+run_expect_stdout "$ROOT/tests/valid/struct_field_const_base_struct.tc" "11
+11
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_const_base_memblock.tc" "2
+1
+"
+run_expect_stdout "$ROOT/tests/valid/struct_field_const_base_nested.tc" "7
+7
+"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_const_base_struct.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_const_base_memblock.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_const_base_nested.tc"
+run_expect_check_ok "$ROOT/tests/valid/static_let_memblock_ctor_ok.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_field_static_let_base.tc"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_const_op.tc" "constant expression cannot reference var variable"

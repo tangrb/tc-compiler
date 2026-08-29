@@ -537,6 +537,69 @@ static void test_imported_struct_name_rules(void) {
     rmdir(dir);
 }
 
+static void test_diamond_import_structs(void) {
+    /* Major 4 回归：菱形依赖（Left/Right 均 import Shared，且 struct 字段引用
+     * Shared.<struct>）须按真拓扑序注册结构体；逆 DFS 前序曾误报 UNDEFINED_STRUCT。 */
+    char dir_template[] = "/tmp/tc-mod-diamond-XXXXXX";
+    char *dir = tc_test_mkdtemp(dir_template);
+    char shared_path[256];
+    char left_path[256];
+    char right_path[256];
+    char entry_path[256];
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    int rc = 0;
+
+    check(dir != NULL, "create diamond temp dir");
+    if (!dir) {
+        return;
+    }
+    snprintf(shared_path, sizeof(shared_path), "%s/SharedLib.tc", dir);
+    snprintf(left_path, sizeof(left_path), "%s/LeftLib.tc", dir);
+    snprintf(right_path, sizeof(right_path), "%s/RightLib.tc", dir);
+    snprintf(entry_path, sizeof(entry_path), "%s/main.tc", dir);
+
+    check(write_temp_file(shared_path,
+                          "#lib\n"
+                          "public struct S then\n    var x: int32\nend\n") == 0,
+          "write SharedLib.tc");
+    check(write_temp_file(left_path,
+                          "#lib\n"
+                          "import SharedLib\n"
+                          "public struct LeftBox then\n    var s: SharedLib.S\nend\n") == 0,
+          "write LeftLib.tc");
+    check(write_temp_file(right_path,
+                          "#lib\n"
+                          "import SharedLib\n"
+                          "public struct RightBox then\n    var s: SharedLib.S\nend\n") == 0,
+          "write RightLib.tc");
+    check(write_temp_file(entry_path,
+                          "#program\n"
+                          "import LeftLib\n"
+                          "import RightLib\n"
+                          "writeln(int32, 1)\n") == 0,
+          "write main.tc");
+
+    tc_diagnostic_init(&diag);
+    memset(&typed, 0, sizeof(typed));
+    rc = tc_compile_file_opts(entry_path, NULL, &typed, &diag);
+    check(rc == 0, "diamond import compiles");
+    if (rc != 0 && diag.message) {
+        fprintf(stderr, "  note: %s\n", diag.message);
+    }
+    if (rc == 0) {
+        check(typed.dep_count == 3, "three diamond deps loaded");
+        tc_typed_program_free(&typed);
+    }
+    tc_diagnostic_clear(&diag);
+
+    unlink(entry_path);
+    unlink(left_path);
+    unlink(right_path);
+    unlink(shared_path);
+    rmdir(dir);
+}
+
 int main(void) {
     test_module_check_structure_program_ok();
     test_module_check_self_in_program();
@@ -550,6 +613,7 @@ int main(void) {
     test_ambiguous_import_search_paths();
     test_self_import_file();
     test_imported_struct_name_rules();
+    test_diamond_import_structs();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

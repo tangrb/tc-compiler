@@ -88,4 +88,17 @@ int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
 int tc_module_collect_signatures(TcTypedProgram *prog, TcFuncSignatureList *out,
                                  TcDiagnostic *diag);
 
+/**
+ * 计算 deps 的真拓扑注册序（importee 先于 importer），写入 out_order（长度 dep_count）。
+ *
+ * deps 收集为 DFS 前序（importer 先入后递归），简单逆序在菱形依赖
+ * （entry→A→C 且 entry→B→C）下非法：逆序得 [B, C, A]，B 先于 C 注册结构体
+ * 会使 B 引用 C.<struct> 误报 TC_CE_UNDEFINED_STRUCT。本函数给出合法拓扑序，
+ * 供结构体表注册等「importee 必须先注册」的消费点使用。
+ *
+ * @return 0 成功；-1 内存失败或检测到环（DAG 检查应已先行拦截）。
+ */
+int tc_module_topological_dep_order(const TcTypedProgram *out, size_t *out_order,
+                                    TcDiagnostic *diag);
+
 #endif /* TC_MODULE_H */

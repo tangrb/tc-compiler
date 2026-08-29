@@ -19,6 +19,9 @@ tc_pass2 → tc_resolve_const_value → tc_eval_const_rhs
 禁：var 引用、调用嵌套、`FUNCALL_EXPR`、自引用、前向 let；ptr/memblock/field/self 在 const_eval **defer**。  
 操作×类型×模式由 `tc_validate_*_mode` 共用矩阵；逻辑短路仍先校验两个原子操作数。
 
+**memblock 逐值构造**：`tc_eval_const_memblock_ctor` 须 `value_count == count`（static let 早于 pass2；见 [gotchas.md](gotchas.md)）。  
+**AOT const 复合字段**：禁止嵌入分析期堆指针；字节内联 + `tc_aot_struct_extract`（同 gotchas）。
+
 **static let**：`tc_func_eval_static_lets` 拓扑求值（H-5）— 见 [kg-func.md](kg-func.md)。
 
 ## 逻辑短路（Analyzer + CFG + Executor + let）

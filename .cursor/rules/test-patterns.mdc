@@ -12,4 +12,4 @@ alwaysApply: true
 
 **硬要求**：static 一文件一错；新用例注册 `scripts/vm/run_tests.sh`；新 `TcRhsKind` → `check_rhs_coverage.py`；新 `TcErrorKind` → `tc_error_kind_name()` + `test_types.c` + 编译器标准 §11.4；类型内核 → `check-types`；新 `src/` 模块 → `check_source_naming.py`；控制流/uninit → `test_cfg` + `.tc`；Embed → `check-embed` / `check-embed-aot`。
 
-**映射**：[test-map.md](../skills/tc-architecture/test-map.md) · **全量**：`bash scripts/run_tests.sh` · **导航**：[.cursor/README.md](../README.md)
+**映射**：[test-map.md](../skills/tc-architecture/test-map.md) · **易错点**：[gotchas.md](../skills/tc-architecture/gotchas.md) · **全量**：`bash scripts/run_tests.sh` · **导航**：[.cursor/README.md](../README.md)

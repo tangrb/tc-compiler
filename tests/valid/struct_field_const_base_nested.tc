@@ -1,0 +1,19 @@
+#program
+; Critical 2 回归：let 基址的多级 struct 字段读出（Mid → Leaf 两层深拷贝）。
+struct Leaf then
+    var v: int32
+end
+struct Mid then
+    var leaf: Leaf
+end
+struct Root then
+    var mid: Mid
+end
+let r: Root = Root(mid: Mid(leaf: Leaf(v: 7)))
+var m: Mid = r.mid
+var l: Leaf = m.leaf
+var l2: Leaf = m.leaf
+writeln(int32, l.v)
+l.v = 8
+l2 = m.leaf
+writeln(int32, l2.v)

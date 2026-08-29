@@ -2,6 +2,13 @@
 
 **何时读**：错误码种类、stderr 格式、诊断阶段顺序、static 测试期望子串。
 
+## Agent 用法（勿通读全文）
+
+1. 先读下方 **诊断阶段** / **Fail-fast** / **初始化三分工**（约到「86 种错误」标题即够多数任务）。
+2. 查具体码：`rg TC_CE_<NAME> 本文件` 或按下表分组标题跳转；**不要**线性读完 86 行。
+3. static 期望子串：优先 Rule `tests-tc` 常见表，或本文件打印名列。
+4. 新 `TcErrorKind`：`tc_error_kind_name` + `test_types.c` + 编译器标准 §11.4 + 语言标准附录 B。
+
 ## API
 
 - 结构体：`TcDiagnostic`（`tc_types.h`）
@@ -173,7 +180,7 @@
 
 | 错误码 | 打印名 | 阶段 | 语言标准 |
 |--------|--------|------|---------|
-| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | Analyzer | §6.8.9 |
+| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | Analyzer | §6.8.9：`length` 或下标编译期数学值 `< 0` |
 
 ### 函数调用（B.12）
 
@@ -202,7 +209,7 @@
 | `TC_RE_IO` | `IOError` | Executor | §10 |
 | `TC_RE_NULL_POINTER_DEREFERENCE` | `NullPointerDereference` | Executor | §6.8 |
 | `TC_RE_NULL_POINTER_ARITHMETIC` | `NullPointerArithmetic` | Executor | §6.8 |
-| `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | Executor | §6.8.9 |
+| `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | Executor | §6.8.9：`length` 或下标运行时数学值 `< 0` |
 
 ### 实现专用（非附录 B）
 

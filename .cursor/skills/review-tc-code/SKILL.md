@@ -9,7 +9,8 @@ description: >-
 
 # TC-Compiler Code Review
 
-遵循 Rule `coding-standards`。错误种类 [errors.md](../tc-architecture/errors.md)。
+遵循 Rule `coding-standards`。错误种类 [errors.md](../tc-architecture/errors.md)。  
+合入前扫一眼 [gotchas.md](../tc-architecture/gotchas.md)（菱形注册 / const 堆 / AOT 字段 / memcopy 负下标）。
 
 **跨模块时只读一个**：CFG→[kg-cfg.md](../tc-architecture/kg-cfg.md) · let→[kg-eval.md](../tc-architecture/kg-eval.md) · 模块→[kg-module.md](../tc-architecture/kg-module.md) · 函数→[kg-func.md](../tc-architecture/kg-func.md) · Embed→[kg-embed.md](../tc-architecture/kg-embed.md)
 

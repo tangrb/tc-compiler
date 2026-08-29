@@ -1,0 +1,7 @@
+#lib
+; Critical 1 回归：static var 初始化器中的 memblock 逐值构造计数不匹配同样拒绝。
+; 期望：memblock element count mismatch
+public static var M: memblock<int32, 2> = memblock(int32, count: 2, 1, 2, 3)
+public func f() void then
+    return
+end

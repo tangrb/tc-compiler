@@ -588,6 +588,11 @@ if (tc_aot_memblock_store(memblock_storage[MB_SLOT_X], mb1_count,
 - `ptr<T>` 字段：存储指针位模式（宽度 = 平台指针宽）。
 - 嵌套 `struct` 字段：内联字节序列，读取时 `tc_aot_struct_extract` 抽出。
 
+**`let` / `static let` 基址的字段读（codegen 约束）**：
+
+- 标量 / `ptr` 字段：在 codegen 期从 Analyzer 已求值的字节载荷折叠为整型位模式字面量，**禁止**把分析期宿主堆指针写入生成 C。
+- `STRUCT` / `MEMBLOCK` 字段：把字段字节以 C99 复合字面量内联进生成代码，再经 `tc_aot_struct_extract`（offset=0）深拷贝为独立堆块，语义与 VM 值拷贝一致。
+
 对结构体类型定义，codegen 编译期计算字段字节偏移表：
 
 ```c
@@ -648,10 +653,13 @@ int tc_aot_memblock_copy(void *dst, size_t dst_count, void *src, size_t src_coun
 
 ### 11.3 memcopy_unsafe shim
 
+与 VM 一致：空指针 → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。codegen 须按下标操作数的有符号性（字面量负号 / 绑定或字段类型）传入对应 `TcTypeTag`，shim 按该类型判负；**不得**一律按 `usize` 求值后再检查（否则负字面量回绕导致漏检）。
+
 ```c
-int tc_aot_memcopy_unsafe(void *dst, void *src, size_t element_size,
-                          uint64_t d_idx, uint64_t s_idx, uint64_t len,
-                          TcDiagnostic *diag, int line);
+int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
+                          TcTypeTag dst_idx_type, uint64_t src_ptr, uint64_t src_index,
+                          TcTypeTag src_idx_type, int64_t length, size_t element_bytes,
+                          TcTypeTag elem_tag, TcDiagnostic *diag, int line);
 ```
 
 ---
@@ -701,6 +709,7 @@ Analyzer/const evaluator 已把合法 `let` 求为声明类型的精确 `TcValue
 - 引用处直接发射已求得的十六进制位模式。
 - float32/float64 也发射位模式，不用十进制文本让 host 编译器重新舍入。
 - `static let` 同理，在所有引用处内联。
+- 对 `let` / `static let` 结构体基址的复合字段整体读出，按 §10.3 codegen 约束内联字节并深拷贝，不得嵌入分析期堆地址。
 - `ptr_size` 和 `.count` 也是编译期常量，直接发射数学值。
 
 ---
@@ -789,7 +798,7 @@ AOT 的核心正确性证据是同一源文件经 VM 与 AOT 产生相同可观�
 | memblock | 分配、读写、区间拷贝、深拷贝传参、越界错误 |
 | ptr | 取地址、读写、算术、等值/序比较、空指针分类、等宽 `cast(ptr<T>, …)`（含 `cast(ptr<T>, nullptr)`）与 `bitcast` 的 `ptr`↔整数往返（位模式复制，不经数值 shim） |
 | struct | 构造器、字段读写、双层可变性、整块复制 |
-| memcopy_unsafe | 空指针、负长度、memmove 语义 |
+| memcopy_unsafe | 空指针、负长度/负下标（有符号求值）、memmove 语义 |
 | bitcast | 等宽往返、NaN payload、-0.0、最高位；含 `ptr` 路径 |
 | cast | 全严格可表示性、整数 truncate；指针目标仅复制位模式 |
 | float | strict/ieee、每步精度、异常优先级 |

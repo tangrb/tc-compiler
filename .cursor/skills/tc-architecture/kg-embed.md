@@ -50,4 +50,4 @@ tc_embed_call / tc_embed_get_error / tc_embed_had_error
 | `test_embed_aot.c` / check-embed-aot | VM vs AOT 差分；除零不终止 |
 | `tests/vm/embed/*.tc` | ptr_sum / ptr_inplace / ptr_loop / nested_call |
 
-账本：[test-map.md](test-map.md) Phase 7 · 特性表：[features/embed.md](features/embed.md)
+账本：[test-map.md](test-map.md) Phase 7 · Rule `embed-src` · 设计 `docs/TC-Embed详细设计说明书-0.0.41.md`

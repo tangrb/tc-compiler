@@ -19,4 +19,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
 int tc_aot_emit_embed_header(FILE *out, const TcTypedProgram *program,
                               const char *source_name);
 
+/** 发射 C99 复合字面量字节数组；(const uint8_t[]){b0, b1, ...} */
+void tc_aot_emit_byte_array_expr(FILE *out, const uint8_t *data, size_t nbytes);
+
 #endif

@@ -1,0 +1,17 @@
+#program
+; Critical 2 回归：let 基址的 struct 字段整体读出。
+; AOT 曾把编译期 const_bits（分析期堆指针）嵌入生成 C 并运行期解引用 → 段错误；
+; 现改为字节内联 + 深拷贝。改副本不得改写 const 基址字段（按值语义）。
+struct Inner then
+    var v: int32
+end
+struct Outer then
+    var inner: Inner
+end
+let o: Outer = Outer(inner: Inner(v: 11))
+var x: Inner = o.inner
+var back: Inner = o.inner
+writeln(int32, x.v)
+x.v = 99
+back = o.inner
+writeln(int32, back.v)

@@ -245,7 +245,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `MemblockIndexOutOfRange` (static) | 编译期可确定的 memblock 越界 |
 | `MemblockElementCountMismatch` | memblock 构造器逐值数量 != count |
 | `MemblockSizeMismatch` | memblock 赋值/传参 N 不匹配 |
-| `MemcopyUnsafeInvalidRange` (static) | memcopy_unsafe length 编译期为负 |
+| `MemcopyUnsafeInvalidRange` (static) | memcopy_unsafe 的 length 或下标编译期数学值 `< 0` |
 
 ### 6.3 常量、格式与 I/O
 
@@ -274,7 +274,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `FloatUnderflow` | 严格浮点下溢 |
 | `FloatInvalidOperation` | 严格浮点无效操作 |
 | `MemblockIndexOutOfRange` (runtime) | 运行时 memblock 下标/区间越界 |
-| `MemcopyUnsafeInvalidRange` (runtime) | 运行时 memcopy_unsafe length 为负 |
+| `MemcopyUnsafeInvalidRange` (runtime) | 运行时 memcopy_unsafe 的 length 或下标数学值 `< 0` |
 | `NullPointerDereference` | ptr_load/store/memcopy_unsafe/序比较操作数为 nullptr |
 | `NullPointerArithmetic` | ptr_add/sub 操作数为 nullptr |
 

@@ -27,4 +27,4 @@ alwaysApply: false
 2. AOT 运行时错误走 `tc_aot_embed_abort`（非致命），经 `tc_embed_had_error` / `get_error` 可见
 3. 扩展值桥接时保持 header-only 标量路径；堆对象勿 silently memcpy
 4. 改完：`cmake --build build --target check-embed check-embed-aot`
-5. 文档：`features/embed.md` § · [test-map.md](../skills/tc-architecture/test-map.md) Phase 7
+5. 文档：[kg-embed.md](../skills/tc-architecture/kg-embed.md) · [test-map.md](../skills/tc-architecture/test-map.md) Phase 7

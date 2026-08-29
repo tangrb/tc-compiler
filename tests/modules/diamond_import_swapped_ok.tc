@@ -1,0 +1,8 @@
+#program
+; 菱形变体：import 顺序交换（Right 先、Left 后），注册序仍需合法。
+import DiamondRightLib
+import DiamondLeftLib
+var rv: int32 = funcall(DiamondRightLib.get_r)
+var lv: int32 = funcall(DiamondLeftLib.get_l)
+writeln(int32, rv)
+writeln(int32, lv)

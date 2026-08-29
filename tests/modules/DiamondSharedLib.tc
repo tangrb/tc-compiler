@@ -1,0 +1,5 @@
+#lib
+; 菱形共享库：被 DiamondLeftLib / DiamondRightLib 共同 import。
+public struct S then
+    var x: int32
+end

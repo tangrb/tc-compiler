@@ -209,6 +209,64 @@ static void test_struct_field_access_const(void) {
                TC_CE_CONSTANT_EXPRESSION, "static var field forward");
 }
 
+static void test_struct_field_access_const_composite(void) {
+    /* Critical 2 回归（分析侧）：let/static let 基址的 struct/memblock 字段整体
+     * 读出（运行期 var 目标；AOT 曾把编译期堆指针嵌入生成 C 段错误）。 */
+    expect_ok("#program\n"
+              "struct Inner then\n    var v: int32\nend\n"
+              "struct Outer then\n    var inner: Inner\nend\n"
+              "let o: Outer = Outer(inner: Inner(v: 11))\n"
+              "var x: Inner = o.inner\n"
+              "var y: int32 = x.v\n",
+              "let base struct field whole-read ok");
+    expect_ok("#lib\n"
+              "public struct Inner then\n    var v: int32\nend\n"
+              "public struct Outer then\n    var inner: Inner\nend\n"
+              "public static let o: Outer = Outer(inner: Inner(v: 5))\n"
+              "public func get() int32 then\n    var x: Inner = Self.o.inner\n"
+              "    return x.v\nend\n",
+              "static let base struct field whole-read ok");
+    /* memblock 字段整体读出（运行期深拷贝路径） */
+    expect_ok("#program\n"
+              "struct Holder then\n    var data: memblock<int32, 3>\nend\n"
+              "let h: Holder = Holder(data: memblock(int32, count: 3, 1, 2, 3))\n"
+              "var m: memblock<int32, 3> = h.data\n"
+              "var v: int32 = memblock_load(int32, m, 1)\n",
+              "let base memblock field whole-read ok");
+    /* 嵌套两层复合字段链 */
+    expect_ok("#program\n"
+              "struct Leaf then\n    var v: int32\nend\n"
+              "struct Mid then\n    var leaf: Leaf\nend\n"
+              "struct Root then\n    var mid: Mid\nend\n"
+              "let r: Root = Root(mid: Mid(leaf: Leaf(v: 7)))\n"
+              "var m: Mid = r.mid\n"
+              "var l: Leaf = m.leaf\n"
+              "var v: int32 = l.v\n",
+              "nested const composite field chain ok");
+}
+
+static void test_static_let_memblock_count_mismatch(void) {
+    /* Critical 1 回归：static let 的 memblock 逐值构造计数不匹配。
+     * const 求值先于 pass2 类型检查，须在 tc_eval_const_memblock_ctor 拒绝
+     * （曾 value_count > count 堆越界写）。 */
+    expect_err("#lib\n"
+               "public static let M: memblock<int32, 2> = "
+               "memblock(int32, count: 2, 1, 2, 3)\n"
+               "public func f() void then\n    return\nend\n",
+               TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, "static let memblock count too many");
+    expect_err("#lib\n"
+               "public static let M: memblock<int32, 3> = "
+               "memblock(int32, count: 3, 1, 2)\n"
+               "public func f() void then\n    return\nend\n",
+               TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, "static let memblock count too few");
+    /* 对照：计数匹配 → 合法 */
+    expect_ok("#lib\n"
+              "public static let M: memblock<int32, 3> = "
+              "memblock(int32, count: 3, 1, 2, 3)\n"
+              "public func f() void then\n    return\nend\n",
+              "static let memblock count match ok");
+}
+
 static void test_struct_field_access_positions(void) {
     /* operand 位置：算术 / I/O / return / ptr / memblock 基址 */
     expect_ok("#program\n"
@@ -321,8 +379,10 @@ int main(void) {
     test_struct_field_access_chain();
     test_struct_field_access_count_disambiguation();
     test_struct_field_access_const();
+    test_struct_field_access_const_composite();
     test_struct_field_access_positions();
     test_struct_field_access_hist_uninit();
+    test_static_let_memblock_count_mismatch();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed != 0;

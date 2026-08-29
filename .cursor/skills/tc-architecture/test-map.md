@@ -1,8 +1,24 @@
 # 测试映射速查
 
-**何时读**：写/查 `.tc` 测试、确认错误是否已有用例。**勿**为改 C 源码加载全文——`rg 测试名 scripts/` 更快。
+**何时读**：写/查 `.tc` 测试、确认错误是否已有用例。
 
-**规模**（`check_doc_counts.py` 校验）：**892 VM** · **~403 AOT（注册）** / **456 AOT（执行）** · unit **~3191** `check()`。跑法：Skill `run-tests`。
+## Agent 用法
+
+1. **优先** `rg <名|子串> scripts/` — 比通读本文件快。
+2. 按下方目录只打开**一节**账本；改 C 源码不必加载本文件。
+3. 新增用例后：注册 `run_tests.sh` → 更新本文件规模/相关行 → `check_doc_counts.py`。
+
+**规模**（`check_doc_counts.py` 校验）：**911 VM** · **~411 AOT（注册）** / **464 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
+
+## 目录
+
+| 节 | 内容 |
+|----|------|
+| Phase 6 / 7 | 模块 K、Embed L |
+| Phase 1–2 | types / lexer / parser / module unit |
+| 0.0.31 迁移 | 破坏性用例迁移动账 |
+| Phase 3–5 | struct / CFG / 复合运行时等（下续各表） |
+| Stress / 单元 / AOT | 文末汇总 |
 
 ## Phase 6（模块 K）账本
 
@@ -40,7 +56,7 @@
 |------|---------------|------|
 | Lexer 新关键字 / `#program` / `@` / `isize` | `test_lexer.c` / check-lexer | B-1～B-4 |
 | Parser 模块头 / 类型 / return / funcall | `test_parser.c` / check-parser | C-1～C-7 |
-| 模块 4a～4d / Self / 签名 / 歧义导入 | `test_module.c` / check-module | D-1～D-6、D-8 |
+| 模块 4a～4d / Self / 签名 / 歧义导入 / 菱形拓扑 | `test_module.c` / check-module | D-1～D-6、D-8；`diamond_import_*` |
 | 模块错误 `.tc` | `tests/errors/module/`、`tests/modules/` | 无头、可见性、环、Self、成功 import（`--check`）；导入 struct 负例见 Phase 3 `imported_struct_*` |
 
 ## 0.0.31 破坏性迁移账本
@@ -170,10 +186,10 @@ deep_recursion · let_chain · io_stress · many_vars_stress · type_combinatori
 | test_stmt_index.c (18) | tc_stmt_index.h | check-stmt-index |
 | test_warning.c (59) | tc_warning.c | check-warning |
 | test_type_check.c (54) | tc_type_check.c + analyzer 管线 | check-type-check |
-| test_module.c (58) | tc_module.c | check-module |
-| test_struct_field_access.c (27) | tc_struct_check.c + analyzer 管线（字段读 operand / static let 拓扑 / hist 注入） | check-struct-field-access |
+| test_module.c (65) | tc_module.c（含菱形 import） | check-module |
+| test_struct_field_access.c (34) | tc_struct_check.c + analyzer（字段读 / const 复合 / static let memblock 计数） | check-struct-field-access |
 | test_embed.c (590) / test_embed_aot.c (380) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
 
-AOT（`scripts/aot/run_tests.sh`）：**403** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**456** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
+AOT（`scripts/aot/run_tests.sh`）：**411** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**464** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
 
 新用例注册 `scripts/vm/run_tests.sh`（+ AOT 如适用）；同步本文件 + `@knowledge-graph` + 对应 `kg-*.md` + `features/*.md`。

@@ -24,7 +24,8 @@ tc_run_program → tc_execute   /* 含 static var 拓扑初始化 */
 tc_typed_program_init
 → tc_module_check_structure          /* 4a */
 → tc_module_resolve_imports          /* 4b/4c，需 entry_path */
-→ tc_struct_table_register_program /* deps 逆序（importee 先）+ 入口；按模块定界解析结构体名 */
+→ tc_module_topological_dep_order   /* 真拓扑；菱形不可简单逆序，见 gotchas */
+→ tc_struct_table_register_program  /* 按序注册 deps + 入口 */
 → tc_module_collect_signatures       /* 4d */
 → tc_func_check_signatures           /* 5 */
 → tc_pass1_collect_symbols           /* deps + 入口 */

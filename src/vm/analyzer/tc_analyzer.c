@@ -150,14 +150,33 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     {
         size_t di = 0;
+        size_t *dep_order = NULL;
+
         /*
-         * deps 收集顺序为 importer 先于 importee（DFS 先入后递归）。
-         * 结构体名解析须 importee 先入表，故按逆序注册。
+         * deps 收集为 DFS 前序（importer 先入后递归），简单逆序在菱形依赖
+         * （entry→A→C 且 entry→B→C）下非法：逆序得 [B, C, A]，B 先于 C
+         * 注册会使 B 引用 C.<struct> 误报 TC_CE_UNDEFINED_STRUCT。
+         * 结构体名解析须 importee 先入表，故用真拓扑序注册。
          */
-        for (di = out->dep_count; di > 0; di--) {
-            if (tc_struct_table_register_program(&out->deps[di - 1], &struct_table, diag) != 0) {
+        if (out->dep_count > 0) {
+            dep_order = (size_t *)malloc(out->dep_count * sizeof(size_t));
+            if (!dep_order) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
                 goto fail;
             }
+            if (tc_module_topological_dep_order(out, dep_order, diag) != 0) {
+                free(dep_order);
+                goto fail;
+            }
+            for (di = 0; di < out->dep_count; di++) {
+                if (tc_struct_table_register_program(&out->deps[dep_order[di]], &struct_table,
+                                                     diag) != 0) {
+                    free(dep_order);
+                    goto fail;
+                }
+            }
+            free(dep_order);
         }
     }
     if (tc_struct_table_register_program(&out->program, &struct_table, diag) != 0) {

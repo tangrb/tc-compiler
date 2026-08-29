@@ -89,13 +89,31 @@ static int tc_memblock_read_index_kind(const TcOperand *index_op, TcExecuteCtx *
                                        TcDiagnostic *diag, int line, TcErrorKind neg_kind,
                                        const char *neg_msg) {
     TcValue index_value;
+    int signed_operand = 0;
 
-    if (tc_eval_operand(index_op, TC_USIZE, ctx, &index_value, diag, line) != 0 &&
-        tc_eval_operand(index_op, TC_ISIZE, ctx, &index_value, diag, line) != 0) {
+    /* 与 AOT tc_aot_memcopy_index_type 一致的静态符号判定：负字面量 / 有符号
+     * 绑定按有符号求值并在运行期拒负。否则 TC_USIZE 求值会把负字面量回绕成
+     * 巨大 usize（type 恒为 TC_USIZE），判负失效 → memcopy_unsafe 无界越界写。 */
+    if (index_op->kind == TC_OPERAND_LIT) {
+        signed_operand = index_op->u.lit.negative;
+    } else if (index_op->kind == TC_OPERAND_FIELD_READ &&
+               index_op->u.field_read.resolved.resolved &&
+               index_op->u.field_read.resolved.field_type) {
+        signed_operand = tc_type_is_signed(index_op->u.field_read.resolved.field_type->tag);
+    } else if (index_op->binding.resolved && index_op->binding.type) {
+        signed_operand = tc_type_is_signed(index_op->binding.type->tag);
+    } else if (index_op->kind == TC_OPERAND_VAR && index_op->u.name && ctx->symbols) {
+        const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, index_op->u.name);
+        signed_operand = sym && sym->type && tc_type_is_signed(sym->type->tag);
+    }
+
+    if (tc_eval_operand(index_op, signed_operand ? TC_ISIZE : TC_USIZE, ctx, &index_value, diag,
+                        line) != 0) {
         return -1;
     }
-    if (index_value.type && tc_type_is_signed(index_value.type->tag) &&
-        tc_bits_to_signed(index_value.type->tag, index_value.bits) < 0) {
+    if (signed_operand &&
+        tc_bits_to_signed(index_value.type ? index_value.type->tag : TC_ISIZE,
+                          index_value.bits) < 0) {
         tc_diagnostic_set(diag, neg_kind, line, TC_COLUMN_UNKNOWN, neg_msg);
         return -1;
     }

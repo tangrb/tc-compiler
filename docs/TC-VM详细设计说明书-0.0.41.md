@@ -916,7 +916,7 @@ typedef struct {
 | `memblock_load(T, mb, idx)` | 边界检查 `0 ≤ idx < N` → 读取元素 `T[idx]`；越界 → `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE` |
 | `memblock_store(T, mb, idx, value)` | 边界检查 → 写入元素；越界同上；不修改目标 |
 | `memblock_copy(T, dst, d_idx, src, s_idx, len)` | 区间检查 → 先拷入临时缓冲再写入目标（memmove 语义）；越界同上；不修改目标 |
-| `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`len < 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`；不检查越界；先拷入临时缓冲再写入目标 |
+| `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`len < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（按操作数有符号性求值，不得先无符号回绕）；不检查越界；先拷入临时缓冲再写入目标 |
 
 ### 12.9 结构体操作
 

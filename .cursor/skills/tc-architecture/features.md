@@ -1,6 +1,6 @@
 # 特性实现地图（索引）
 
-**只读一个文件** — 从下表选一行，打开对应 `features/*.md`；勿批量加载。
+**只读一个文件** — 从下表选一行打开目标；Embed 走 `kg-embed.md`。勿批量加载。
 
 > **v0.0.41** Phase 1–6（含 struct 运行时）+ Embed v0.0.41  
 > 跨模块分发点：Rule `@knowledge-graph` · 细节 `kg-*.md`（每次只读一个）
@@ -26,12 +26,12 @@
 | var 缺初始化器 | [features/control.md](features/control.md) § var |
 | CFG / 未初始化 / 静态布尔剪枝 | [features/control.md](features/control.md) § CFG · 或 [kg-cfg.md](kg-cfg.md) |
 | 诊断阶段 / 优先级 | [features/control.md](features/control.md) § 诊断 · [errors.md](errors.md) |
-| TC-Embed / `--embed` | [features/embed.md](features/embed.md) · 或 [kg-embed.md](kg-embed.md) |
+| TC-Embed / `--embed` | [kg-embed.md](kg-embed.md)（勿再开单独 features 文件） |
 
 ## 加新特性时同步更新
 
 1. 在对应 `features/*.md` 新增或扩展 §
-2. [test-map.md](test-map.md) + `@knowledge-graph` + 对应 `kg-*.md`
+2. [test-map.md](test-map.md) + `@knowledge-graph` + 对应 `kg-*.md`（必要时 [gotchas.md](gotchas.md)）
 3. `errors.md` / `syntax.md`（语言变更）
 4. `scripts/vm/run_tests.sh`（+ AOT）
 5. 新 `TcRhsKind` → `check_rhs_coverage.py [--fix]`

@@ -1,0 +1,17 @@
+#program
+; Critical 2 回归：let 基址的 memblock 字段整体读出。
+; AOT 曾嵌入编译期堆指针 → 段错误；现改为字节内联 + 深拷贝。
+; 深拷贝语义：改副本不得改写 const 基址字段。
+struct Holder then
+    var data: memblock<int32, 3>
+end
+let h: Holder = Holder(data: memblock(int32, count: 3, 1, 2, 3))
+var m: memblock<int32, 3> = h.data
+var m2: memblock<int32, 3> = h.data
+var e1: int32 = 0
+var e0: int32 = 0
+e1 = memblock_load(int32, m, 1)
+writeln(int32, e1)
+memblock_store(int32, m, 0, 77)
+e0 = memblock_load(int32, m2, 0)
+writeln(int32, e0)

@@ -37,8 +37,8 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 - [ ] 语法摘要与 `tc-architecture/syntax.md` 一致（实现未到的特性以语言标准为准，syntax 可暂注「待落地」）
 - [ ] 新错误种类写入编译器标准 §11.4 + `errors.md` + VM 详设 + `tc_error_kind_name()`（语言标准仅当变更可观察语义时）
 - [ ] OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`（非语法类错误码）
-- [ ] 特性实现写入 `features/*.md`（经 [features.md](../skills/tc-architecture/features.md) 路由）+ Rule `knowledge-graph` / 对应 `kg-*.md`
-- [ ] Agent 导航同步 [AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)（大改架构时）
+- [ ] 特性实现写入 `features/*.md` 或 Embed→`kg-embed.md`（经 [features.md](../skills/tc-architecture/features.md) 路由）+ Rule `knowledge-graph` / 对应 `kg-*.md`
+- [ ] Agent 导航同步 [AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)；易踩坑写入 [gotchas.md](../skills/tc-architecture/gotchas.md)（大改架构时）
 - [ ] 诊断阶段与编译器标准 / `errors.md` 一致（现网多阶段编排见 pipeline.md）
 - [ ] 版本号：`src/vm/runtime/tc_version.h`（及 AOT `TC_AOT_VERSION`）
 - [ ] 测试规模：Release Gate 见符合性检查分析报告 §14 / 修复计划 §10；当前注册见 `scripts/*/run_tests.sh` / `test-map.md`
@@ -47,4 +47,4 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 - [ ] 固定点入口写作 `tc_analyze_definite_init`（`tc_cfg.c`），勿写旧符号名
 - [ ] 无 REPL；skill/rule 中不得引入 `tc_repl` / `tc_analyze_statement`
 
-Agent 导航：[AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md) · Skill `tc-architecture`（路由表）。用户文档保持完整叙述，勿复制进 rule。
+Agent 导航：[AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md) · Skill `tc-architecture`（路由表）· [gotchas.md](../skills/tc-architecture/gotchas.md)。用户文档保持完整叙述，勿复制进 rule。

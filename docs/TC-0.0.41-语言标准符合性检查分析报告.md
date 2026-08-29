@@ -414,6 +414,6 @@ TC 0.0.41 的抽象机语义核心（数值、内存、控制流、模块）实�
 | 附录 B ↔ 实现 | **85** 语言码与实现枚举 1:1，另 +1 `TC_ERR_OUT_OF_MEMORY`（合计 86） |
 | 27 项 M 级 | 必做项清零；**降级** FP-4.5 M-9（memblock/struct 元素按宿主端序存取，未完全符合语言标准 §3.5）、FP-4.6（浮点十进制输出仍委托宿主 `snprintf`，未完全符合 §10.4） |
 | N/I | P5 已核对；N-12 / N-13 记为债务（见修复计划 P5 清单与 AOT 详设 §19），不计入本轮必须交付 |
-| 门禁（2026-08-30） | `bash scripts/run_tests.sh` 全绿：VM **892**、AOT 执行 **456**、Unit（含 `check-embed` / `check-embed-aot`）；四个 `scripts/sync/check_*.py` 通过 |
+| 门禁（2026-08-30） | `bash scripts/run_tests.sh` 全绿：VM **911**、AOT 执行 **464**、Unit（含 `check-embed` / `check-embed-aot`）；四个 `scripts/sync/check_*.py` 通过 |
 
 降级项的实现侧说明见 [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书-0.0.41.md) §19。任务对照与阶段状态见[修复计划](./TC-0.0.41-语言标准符合性修复计划.md) §10。`examples/` 已移出版本库，不作为发布门禁路径。

@@ -27,7 +27,7 @@ alwaysApply: false
 | stmt_index / DFS 序号 | `vm/runtime/tc_stmt_index.h`（header-only） | analyzer / executor / aot |
 | 警告列表 | `vm/runtime/tc_warning.c`（空壳） | — |
 | 静态分析编排 | `vm/analyzer/tc_analyzer.c` + pass1/pass2 | `tc_const_eval.c` |
-| 模块 / Self / 搜索路径 | `tc_module.c` / `tc_scope.c` | [kg-module.md](../skills/tc-architecture/kg-module.md) |
+| 模块 / Self / 搜索路径 / deps 拓扑注册 | `tc_module.c` / `tc_scope.c` | [kg-module.md](../skills/tc-architecture/kg-module.md) · [gotchas.md](../skills/tc-architecture/gotchas.md) |
 | 函数 / static / 调用图 | `tc_func_check.c` / `tc_callgraph.c` | [kg-func.md](../skills/tc-architecture/kg-func.md) |
 | 完整 CFG / 确定初始化 | `tc_cfg.c`（`tc_cfg_build_all` + `tc_analyze_definite_init_all`） | 多域 `TcCfgSet` |
 | 复合类型静态验证 | `tc_type_check.c` + `tc_{memblock,ptr,struct}_check.c` | pass2 经 `tc_type_check_rhs`；struct 表按模块定界 |

@@ -24,7 +24,12 @@ static int tc_const_heap_named(uint64_t bits, const TcSymbolTable *table) {
         return 0;
     }
     for (i = 0; i < table->count; i++) {
-        if (table->symbols[i].has_const_value && table->symbols[i].const_value.bits == bits) {
+        /* 仅复合类型（struct/memblock）的 const_value.bits 才是堆地址；
+         * 标量 const 的位模式可能恰巧等于某次分配地址，不得误判为别名。 */
+        if (table->symbols[i].has_const_value && table->symbols[i].const_value.type &&
+            (table->symbols[i].const_value.type->tag == TC_STRUCT ||
+             table->symbols[i].const_value.type->tag == TC_MEMBLOCK) &&
+            table->symbols[i].const_value.bits == bits) {
             return 1;
         }
     }
@@ -538,6 +543,13 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
                           "memblock count must be at least 1");
         return -1;
     }
+    /* 逐值构造必须恰好 count 个元素；static let 在 pass2 类型检查之前求值，
+     * 此处是计数校验的最后防线（与 tc_memblock_check_rhs 的 value_count != count 一致）。 */
+    if (!rhs->u.memblock_ctor.is_fill && rhs->u.memblock_ctor.value_count != count) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock element count mismatch");
+        return -1;
+    }
     element_bits = tc_sizeof_bits_ex(elem, tc_struct_table_width_bits, struct_table);
     element_bytes = (element_bits + 7U) / 8U;
     if (element_bytes > 0 && count > (SIZE_MAX - sizeof(uint64_t)) / element_bytes) {
@@ -546,7 +558,8 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
         return -1;
     }
     payload_bytes = (size_t)count * element_bytes;
-    block = malloc(sizeof(uint64_t) + payload_bytes);
+    /* calloc：即使未来出现 value_count < count 的漏网路径，尾部也保持零初始化 */
+    block = calloc(1, sizeof(uint64_t) + payload_bytes);
     if (!block) {
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
                           "memory allocation failed");

@@ -292,7 +292,7 @@
 - **`ptr_address` 可变性**：仅接受 `var` / `static var` / 形参（含合法 `Self.` / 导入限定的可写 `static var`）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ptr_address` 非编译期常量，出现在 `const_rhs` → `TC_CE_CONSTANT_EXPRESSION`。
 - **`ptr_store` / `memcopy_unsafe` 可变性**：所指外层绑定只读（`let` / `static let`）或为形参时 → `TC_CE_CONSTANT_ASSIGNMENT`（与 [语言标准 §6.8.3] / [语言标准 §3.10.3] 一致；对形参的直接赋值/`read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT`）。不得因持有指针而绕过。
 - **空指针运行时分类**：`ptr_load` / `ptr_store` / `memcopy_unsafe` / 序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`）遇 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`ptr_add` / `ptr_sub` 遇 `nullptr` → `TC_RE_NULL_POINTER_ARITHMETIC`。不得混用两码。`ptr_eq` / `ptr_ne` 允许两个 `nullptr` 比较，结果为 `true`/`false`，不触发运行时错误。
-- **`memcopy_unsafe` 负长度**：编译期可确定 `length < 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。越界拷贝本身不静态拒绝（实现定义，[语言标准 §1.3]）。
+- **`memcopy_unsafe` 区间合法性**（[语言标准 §6.8.9]：`length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`）：编译期可确定 `length < 0` 或下标数学值 `< 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时同条件 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。越界拷贝本身不静态拒绝（实现定义，[语言标准 §1.3]）。
 - **`ptr_size`**：返回 `sizeof_bits(T)`（编译期常量），操作数可为 `nullptr`（[语言标准 §6.8.8]）。编译器须在编译期计算并内联结果。`ptr_size` 是合法的 `const_operand`，可在 `let` / `static let` 中使用。
 - **I/O 排除**：`write` / `writeln` / `read` 以 `ptr<T>` 为显式类型属语法拒绝（`TC_CE_SYNTAX`）。
 - **序关系比较类型验证**：`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 的两个操作数必须同为 `ptr<T>`（由显式类型参数决定），跨类型比较报 `TC_CE_TYPE_MISMATCH`。
@@ -839,7 +839,7 @@
 | `ptr_eq(T, p1, p2)` / `ptr_ne(T, p1, p2)` | `T`（所指类型，非 `void`） | 同为 `ptr<T>` | `nullptr` 合法；两个 `nullptr` 比较 → `true`/`false`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否（但 `nullptr` 比较编译期可折叠） |
 | `ptr_lt/le/gt/ge(T, p1, p2)` | `T`（所指类型，非 `void`） | 同为 `ptr<T>`，均非 `nullptr` | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否 |
 | `ptr_size(T, ptr)` | `T`（所指类型，非 `void`） | `ptr`: `ptr<T>`（可为 `nullptr`） | 返回 `sizeof_bits(T)`，编译期常量 | 是 |
-| `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `T`（元素类型，非 `void`） | `dst`, `src`: `ptr<T>`；`d_idx`, `s_idx`, `len`: 整数 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（编译期）或 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（运行时）；不检查越界；执行语义为 memmove | 否（语句） |
+| `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `T`（元素类型，非 `void`） | `dst`, `src`: `ptr<T>`；`d_idx`, `s_idx`, `len`: 整数 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或下标数学值 `< 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（编译期）或 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（运行时）；不检查越界；执行语义为 memmove | 否（语句） |
 
 编译器必须验证所有指针指令的显式类型参数 `T` 与操作数声明类型的一致性。`ptr_load`、`ptr_address`、`ptr_add`、`ptr_sub`、`ptr_eq`/`ptr_ne`、`ptr_lt`…`ptr_ge`、`ptr_size` 均为 RHS（`operand`），`ptr_store` 与 `memcopy_unsafe` 为独立语句。
 
@@ -855,7 +855,7 @@
 - **操作数类型**：`dst` 与 `src` 须同为 `ptr<T>` 类型；`d_idx`、`s_idx`、`length` 须为整数类型操作数（彼此类型可不同）。`length` 的数学值 ≥ 0。
 - **可变性约束**：仅当 `dst` 所指外层绑定为可写（`var` / 可写 `static var`）时允许；所指为 `let`/`static let`/形参时报告 `TC_CE_CONSTANT_ASSIGNMENT`。
 - **空指针检查**：`dst` 或 `src` 为 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`。
-- **负长度**：编译期可确定 `length < 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。`length = 0` 合法。
+- **区间合法性**：须满足 [语言标准 §6.8.9] 的 `length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`。编译期可确定任一条件失败 → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。`length = 0` 合法。有符号下标/长度须按有符号数学值判负，不得先按无符号回绕再检查。
 - **不检查越界**：`memcopy_unsafe` 不检查拷贝区间是否超出实际分配的内存边界。越界拷贝行为为实现定义（[语言标准 §1.3]）。
 - **执行语义**：等价于 memmove——先把源区间元素按抽象位串拷入临时缓冲，再写入目标区间，重叠区间行为完全确定。
 - `memcopy_unsafe` 不是 `let` 常量表达式的一部分，不得出现在 `const_rhs` 中。
@@ -1320,7 +1320,7 @@ ASCII 空白仅指 U+0009～U+000D 与 U+0020，不受 locale 影响。输入必
 | 空指针算术错误 | `TC_RE_NULL_POINTER_ARITHMETIC` | `ptr_add` / `ptr_sub` 的操作数为 `nullptr` |
 | I/O 错误         | `TC_RE_IO` | `read` 输入非法/超范围/EOF，标准输入读取失败，或 `write`/`writeln` 写入失败 |
 | memblock 越界    | `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE` | `memblock_load` / `memblock_store` 的运行时下标不满足 `0 ≤ i < N`；或 `memblock_copy` 的运行时区间不满足 [语言标准 §6.7.2.3]（上界为声明规划个数 `N`，[语言标准 §3.8]） |
-| memcopy_unsafe 区间非法 | `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `memcopy_unsafe` 的 `length` 运行时为负 |
+| memcopy_unsafe 区间非法 | `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `memcopy_unsafe` 的 `length` 或下标运行时数学值 `< 0` |
 
 对 `shl` / `shr` 运行时指令，必须先按类型 `T` 解码移位计数的数学值并检查是否为负；只有该检查通过后，才检查 `k >= n` 或 `shl` 结果溢出。因此同一条指令不得以 `TC_RE_INTEGER_OVERFLOW` 代替 `TC_RE_NEGATIVE_SHIFT_COUNT`。
 
@@ -1480,8 +1480,8 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 | 错误码 | 打印名 | 诊断类别 | 阶段 | 触发条件 |
 | --- | --- | --- | --- | --- |
-| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（静态） | 静态 | `memcopy_unsafe` 的 `length` 在编译期可确定为负 |
-| `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（运行时） | 运行时 | `memcopy_unsafe` 的 `length` 运行时为负 |
+| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（静态） | 静态 | `memcopy_unsafe` 的 `length` 或 `dst_idx`/`src_idx` 在编译期可确定数学值 `< 0`（[语言标准 §6.8.9]） |
+| `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（运行时） | 运行时 | `memcopy_unsafe` 的 `length` 或下标运行时数学值 `< 0` |
 | `TC_RE_NULL_POINTER_DEREFERENCE` | `NullPointerDereference` | 空指针解引用 | 运行时 | 见 §11.4.1 / [语言标准 §11.1]；触发场景：`ptr_load`、`ptr_store`、`memcopy_unsafe`、指针序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`）的操作数为 `nullptr` |
 | `TC_RE_NULL_POINTER_ARITHMETIC` | `NullPointerArithmetic` | 空指针算术 | 运行时 | 见 §11.4.1 / [语言标准 §11.1]；触发场景：`ptr_add`、`ptr_sub` 的操作数为 `nullptr` |
 

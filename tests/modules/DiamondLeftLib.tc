@@ -1,0 +1,11 @@
+#lib
+; 菱形左臂：import Shared，struct 字段引用 DiamondSharedLib.S（须 Shared 先注册）。
+import DiamondSharedLib
+public struct LeftBox then
+    var s: DiamondSharedLib.S
+end
+public func get_l() int32 then
+    var s: DiamondSharedLib.S = DiamondSharedLib.S(x: 3)
+    var b: LeftBox = LeftBox(s: s)
+    return b.s.x
+end

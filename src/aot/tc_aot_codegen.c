@@ -461,20 +461,32 @@ void tc_aot_emit_literal_expr(FILE *out, TcTypeTag type, const TcLiteral *lit) {
 
 void tc_aot_emit_const_memblock_expr(FILE *out, uint64_t host_bits, size_t nbytes, int line) {
     const uint8_t *data = (const uint8_t *)(uintptr_t)host_bits;
-    size_t i = 0;
 
     if (!data || nbytes < sizeof(uint64_t)) {
         fprintf(out, "0");
         return;
     }
-    fprintf(out, "tc_aot_memblock_from_bytes((const uint8_t[]){");
+    fprintf(out, "tc_aot_memblock_from_bytes(");
+    tc_aot_emit_byte_array_expr(out, data, nbytes);
+    fprintf(out, ", %zu, tc_aot_cur_diag, %d)", nbytes, line);
+}
+
+/**
+ * 发射 C99 复合字面量字节数组（如 (const uint8_t[]){1, 2, 3}）。
+ * 供 const 基址的 struct/memblock 字段折叠使用：生成代码不得嵌入
+ * 分析期堆指针（const_bits），而是把字节内联进生成二进制再深拷贝。
+ */
+void tc_aot_emit_byte_array_expr(FILE *out, const uint8_t *data, size_t nbytes) {
+    size_t i = 0;
+
+    fprintf(out, "(const uint8_t[]){");
     for (i = 0; i < nbytes; i++) {
         if (i > 0) {
             fprintf(out, ", ");
         }
         fprintf(out, "%u", (unsigned)data[i]);
     }
-    fprintf(out, "}, %zu, tc_aot_cur_diag, %d)", nbytes, line);
+    fprintf(out, "}");
 }
 
 void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag type,
@@ -499,9 +511,10 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
             size_t offset = access->offsets[access->field_count - 1];
             size_t nbytes = 0;
 
-            /* let/static let 基址：codegen 期从 const_bits 折叠标量，禁止嵌入分析期堆指针 */
+            /* let/static let 基址：codegen 期从 const_bits 折叠，禁止嵌入分析期堆指针 */
             if (access->base_slot < 0 && field_type->tag != TC_STRUCT &&
-                field_type->tag != TC_MEMBLOCK && field_type->tag != TC_PTR) {
+                field_type->tag != TC_MEMBLOCK) {
+                /* 标量 / 指针字段：把位模式折叠成整型字面量 */
                 uint64_t bits = 0;
                 const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
 
@@ -518,35 +531,35 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
                 return;
             }
 
-            {
-                char base_expr[64];
-
-                if (access->base_slot >= 0) {
-                    snprintf(base_expr, sizeof(base_expr), "slots[%d]", access->base_slot);
-                } else {
-                    snprintf(base_expr, sizeof(base_expr), "0x%016" PRIx64 "ULL",
-                             access->const_bits);
-                }
-
+            if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
                 if (field_type->tag == TC_STRUCT) {
                     const TcStructEntry *nested =
                         tc_struct_table_get(table, field_type->params.struct_type.struct_id);
                     nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
-                    fprintf(out, "tc_aot_struct_extract(%s, %zu, %zu, tc_aot_cur_diag, 0)",
-                            base_expr, offset, nbytes);
-                } else if (field_type->tag == TC_MEMBLOCK) {
-                    nbytes =
-                        (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
-                        8U;
-                    fprintf(out, "tc_aot_struct_extract(%s, %zu, %zu, tc_aot_cur_diag, 0)",
-                            base_expr, offset, nbytes);
                 } else {
                     nbytes =
                         (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
                         8U;
-                    fprintf(out, "tc_aot_struct_load_bits_value(%s, %zu, %zu)", base_expr, offset,
-                            nbytes);
                 }
+                if (access->base_slot >= 0) {
+                    fprintf(out, "tc_aot_struct_extract(slots[%d], %zu, %zu, tc_aot_cur_diag, 0)",
+                            access->base_slot, offset, nbytes);
+                } else {
+                    /* const 基址：把字段字节内联为复合字面量，运行期再深拷贝 */
+                    const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+                    const uint8_t zero = 0;
+
+                    fprintf(out, "tc_aot_struct_extract((uint64_t)(uintptr_t)&");
+                    tc_aot_emit_byte_array_expr(out, (data && nbytes > 0) ? data + offset : &zero,
+                                                nbytes > 0 ? nbytes : 1);
+                    fprintf(out, ", 0, %zu, tc_aot_cur_diag, 0)", nbytes);
+                }
+            } else {
+                /* 标量 / 指针字段（槽位基址）：运行期读位 */
+                nbytes =
+                    (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) / 8U;
+                fprintf(out, "tc_aot_struct_load_bits_value(slots[%d], %zu, %zu)",
+                        access->base_slot, offset, nbytes);
             }
             return;
         }

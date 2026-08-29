@@ -715,6 +715,64 @@ done:
     return rc;
 }
 
+int tc_module_topological_dep_order(const TcTypedProgram *out, size_t *out_order,
+                                    TcDiagnostic *diag) {
+    size_t n = out ? out->dep_count : 0;
+    unsigned char *placed = NULL;
+    size_t placed_count = 0;
+    size_t i = 0;
+
+    if (n == 0) {
+        return 0;
+    }
+    placed = (unsigned char *)calloc(n, 1);
+    if (!placed) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    /* Kahn 式逐层剥离：任一尚未放置的 import 目标存在时，本模块不得先注册。
+     * 前置条件：DAG 检查已通过（无环），故每次循环必有进展。 */
+    while (placed_count < n) {
+        int progress = 0;
+
+        for (i = 0; i < n; i++) {
+            size_t j = 0;
+            int has_unplaced_import = 0;
+
+            if (placed[i]) {
+                continue;
+            }
+            for (j = 0; j < out->deps[i].count; j++) {
+                int dep_idx = -1;
+
+                if (out->deps[i].items[j].kind != TC_STMT_IMPORT) {
+                    continue;
+                }
+                dep_idx = tc_find_dep_index(out, out->deps[i].items[j].u.import_stmt.module_name);
+                if (dep_idx >= 0 && !placed[(size_t)dep_idx]) {
+                    has_unplaced_import = 1;
+                    break;
+                }
+            }
+            if (!has_unplaced_import) {
+                out_order[placed_count++] = i;
+                placed[i] = 1;
+                progress = 1;
+                break; /* 重新扫描，使后序模块可见最新放置 */
+            }
+        }
+        if (!progress) {
+            free(placed);
+            tc_diagnostic_set(diag, TC_CE_CIRCULAR_IMPORT, 0, TC_COLUMN_UNKNOWN,
+                              "circular import");
+            return -1;
+        }
+    }
+    free(placed);
+    return 0;
+}
+
 int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
                               const TcModuleSearchPaths *search, TcDiagnostic *diag) {
     char *entry_dir = NULL;

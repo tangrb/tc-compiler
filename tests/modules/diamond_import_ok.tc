@@ -1,0 +1,9 @@
+#program
+; 入口：import DiamondLeft 再 import DiamondRight（菱形：Left/Right 均 import Shared）。
+; Major 4 回归：结构体注册须 importee 先入表；逆 DFS 前序在菱形下误报 undefined struct。
+import DiamondLeftLib
+import DiamondRightLib
+var lv: int32 = funcall(DiamondLeftLib.get_l)
+var rv: int32 = funcall(DiamondRightLib.get_r)
+writeln(int32, lv)
+writeln(int32, rv)
