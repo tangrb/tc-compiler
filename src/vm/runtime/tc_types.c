@@ -326,7 +326,7 @@ int tc_type_equals(const TcType *a, const TcType *b) {
     }
 }
 
-size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, void *userdata) {
+size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, const void *userdata) {
     if (!type) {
         return 0;
     }

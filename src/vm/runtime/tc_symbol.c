@@ -192,9 +192,16 @@ void tc_symbol_table_free(TcSymbolTable *table) {
     size_t i = 0;
 
     for (i = 0; i < table->count; i++) {
-        free(table->symbols[i].name);
+        TcSymbol *sym = &table->symbols[i];
+
+        if (sym->owns_const_heap && sym->has_const_value && sym->const_value.bits != 0) {
+            free((void *)(uintptr_t)sym->const_value.bits);
+            sym->const_value.bits = 0;
+            sym->owns_const_heap = 0;
+        }
+        free(sym->name);
         /* type 指向单例或程序 type_table；不随符号释放 */
-        table->symbols[i].type = NULL;
+        sym->type = NULL;
     }
     free(table->symbols);
     free(table->scopes);
@@ -456,6 +463,7 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, const TcType 
     table->symbols[table->count].sym_kind = sym_kind;
     table->symbols[table->count].initialized = initialized;
     table->symbols[table->count].has_const_value = 0;
+    table->symbols[table->count].owns_const_heap = 0;
     table->symbols[table->count].const_value.type = type;
     table->symbols[table->count].const_value.bits = 0;
     table->symbols[table->count].scope_level = tc_symbol_table_current_scope(table);

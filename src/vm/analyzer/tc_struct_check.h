@@ -63,7 +63,7 @@ const TcStructEntry *tc_struct_table_find(const TcStructTable *table, const char
  * tc_sizeof_bits 回调：按 struct_id 查表返回 width_bits。
  * @param userdata 指向 TcStructTable
  */
-size_t tc_struct_table_width_bits(int struct_id, void *userdata);
+size_t tc_struct_table_width_bits(int struct_id, const void *userdata);
 
 /** 结构体构造器：字段齐全、无未知/重复、声明顺序、各字段类型匹配 */
 int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,

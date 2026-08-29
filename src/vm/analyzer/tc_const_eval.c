@@ -17,6 +17,35 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int tc_const_heap_named(uint64_t bits, const TcSymbolTable *table) {
+    size_t i = 0;
+
+    if (!table || bits == 0) {
+        return 0;
+    }
+    for (i = 0; i < table->count; i++) {
+        if (table->symbols[i].has_const_value && table->symbols[i].const_value.bits == bits) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void tc_const_drop_temp_heap(TcValue *value, const TcSymbolTable *visible,
+                                    const TcSymbolTable *global) {
+    if (!value || value->bits == 0 || !value->type) {
+        return;
+    }
+    if (value->type->tag != TC_STRUCT && value->type->tag != TC_MEMBLOCK) {
+        return;
+    }
+    if (tc_const_heap_named(value->bits, visible) || tc_const_heap_named(value->bits, global)) {
+        return;
+    }
+    free((void *)(uintptr_t)value->bits);
+    value->bits = 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  常量求值辅助                                                         */
 /* ------------------------------------------------------------------ */
@@ -360,7 +389,7 @@ static size_t tc_const_type_payload_bytes(const TcType *type, const TcStructTabl
         }
         return (entry->width_bits + 7U) / 8U;
     }
-    return (tc_sizeof_bits_ex(type, tc_struct_table_width_bits, (void *)table) + 7U) / 8U;
+    return (tc_sizeof_bits_ex(type, tc_struct_table_width_bits, table) + 7U) / 8U;
 }
 
 static int tc_const_write_field_bytes(uint8_t *base, size_t offset, const TcType *field_type,
@@ -468,12 +497,14 @@ static int tc_eval_const_struct_ctor(const TcRhs *rhs, const TcStructTable *tabl
         }
         if (tc_const_write_field_bytes((uint8_t *)block, offset_bytes, &field->type, &field_value,
                                        table) != 0) {
+            tc_const_drop_temp_heap(&field_value, visible, global);
             free(block);
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid constant struct field value");
             return -1;
         }
-        field_bits = tc_sizeof_bits_ex(&field->type, tc_struct_table_width_bits, (void *)table);
+        tc_const_drop_temp_heap(&field_value, visible, global);
+        field_bits = tc_sizeof_bits_ex(&field->type, tc_struct_table_width_bits, table);
         bit_off += field_bits + (size_t)field->padding * 8U;
     }
 
@@ -507,7 +538,7 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
                           "memblock count must be at least 1");
         return -1;
     }
-    element_bits = tc_sizeof_bits_ex(elem, tc_struct_table_width_bits, (void *)struct_table);
+    element_bits = tc_sizeof_bits_ex(elem, tc_struct_table_width_bits, struct_table);
     element_bytes = (element_bits + 7U) / 8U;
     if (element_bytes > 0 && count > (SIZE_MAX - sizeof(uint64_t)) / element_bytes) {
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
@@ -542,6 +573,7 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
                 memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
             }
         }
+        tc_const_drop_temp_heap(&fill_value, visible, global);
     } else {
         for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
             TcValue elem_val = {0};
@@ -559,6 +591,7 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
             } else {
                 memcpy(cursor + i * element_bytes, &elem_val.bits, element_bytes);
             }
+            tc_const_drop_temp_heap(&elem_val, visible, global);
         }
     }
     out->type = tc_type_tag_singleton(TC_MEMBLOCK);
@@ -1156,7 +1189,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
             return -1;
         }
         bits = tc_sizeof_bits_ex(&rhs->u.ptr_size.pointee_type, tc_struct_table_width_bits,
-                                 (void *)struct_table);
+                                 struct_table);
         *out = tc_value_make(TC_USIZE, (uint64_t)bits);
         return 0;
     }
@@ -1189,7 +1222,18 @@ int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, const TcSymbolTable 
                           &value, line, diag) != 0) {
         return -1;
     }
-    sym->const_value = value;
-    sym->has_const_value = 1;
+    {
+        int aliased = tc_const_heap_named(value.bits, visible) ||
+                      tc_const_heap_named(value.bits, global);
+
+        /* 先判断是否别名，再写入本符号，避免 named 扫到自己 */
+        sym->const_value = value;
+        sym->has_const_value = 1;
+        sym->owns_const_heap = 0;
+        if (value.type && (value.type->tag == TC_STRUCT || value.type->tag == TC_MEMBLOCK) &&
+            value.bits != 0 && !aliased) {
+            sym->owns_const_heap = 1;
+        }
+    }
     return 0;
 }

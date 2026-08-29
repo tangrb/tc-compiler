@@ -761,7 +761,7 @@ int tc_struct_path_offset_bytes(const TcStructTable *table, int struct_id, char 
     return 0;
 }
 
-size_t tc_struct_table_width_bits(int struct_id, void *userdata) {
+size_t tc_struct_table_width_bits(int struct_id, const void *userdata) {
     const TcStructTable *table = (const TcStructTable *)userdata;
 
     if (!table || struct_id < 0 || (size_t)struct_id >= table->count) {

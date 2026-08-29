@@ -390,8 +390,8 @@ static void test_error_kind_name(void) {
 /*  TcTypeTag / TcType / equals / sizeof_bits */
 /* ================================================================== */
 
-static size_t test_struct_width_cb(int struct_id, void *userdata) {
-    size_t *table = (size_t *)userdata;
+static size_t test_struct_width_cb(int struct_id, const void *userdata) {
+    const size_t *table = (const size_t *)userdata;
 
     if (!table) {
         return 0;

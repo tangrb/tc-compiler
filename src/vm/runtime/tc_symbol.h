@@ -50,7 +50,7 @@ size_t tc_symbol_table_runtime_slot_count(const TcSymbolTable *table);
 /** 初始化空符号表（含全局作用域 level 0） */
 void tc_symbol_table_init(TcSymbolTable *table);
 
-/** 释放符号表全部动态内存（包括每个 symbol->name 与作用域栈） */
+/** 释放符号表全部动态内存（包括每个 symbol->name、owns_const_heap 堆块与作用域栈） */
 void tc_symbol_table_free(TcSymbolTable *table);
 
 /**

@@ -989,6 +989,7 @@ typedef struct {
     int initialized;     /* 定义时是否有初始化值 */
     int has_const_value; /* let 常量编译期求值的结果是否有效 */
     TcValue const_value; /* let 常量编译期求值结果 */
+    int owns_const_heap; /* 1：const_value.bits 为 struct/memblock 堆块，随符号释放 */
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
     const TcType *type;  /* 完整类型：单例或 TcTypeTable intern；随符号释放时不 free */
@@ -1210,8 +1211,8 @@ int tc_type_equals(const TcType *a, const TcType *b);
 size_t tc_target_ptr_width_bits(void);
 size_t tc_sizeof_bits(const TcType *type);
 /* 结构体宽度表回调；tc_sizeof_bits_ex 显式传入，struct 未注册时宽度为 0 */
-typedef size_t (*TcStructWidthFn)(int struct_id, void *userdata);
-size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, void *userdata);
+typedef size_t (*TcStructWidthFn)(int struct_id, const void *userdata);
+size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, const void *userdata);
 
 int tc_float_mode_parse(const char *text, TcFloatMode *out);
 int tc_arith_op_parse(const char *text, TcArithOp *out);
