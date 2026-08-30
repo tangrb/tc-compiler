@@ -1548,6 +1548,30 @@ FF
 "
 run_expect_check_ok "$ROOT/tests/valid/format_spec_table.tc"
 run_expect_check_ok "$ROOT/tests/valid/format_width_max.tc"
+run_expect_stdout "$ROOT/tests/valid/format_fp_exact.tc" "3.141593
+0003.142
+3.141593e+00
+3.141593E+00
+3.14159
+1.50000
+0
+2
+2
+2.67
+0.0001
+1e-05
+123456
+1.23457e+06
+1e+08
+1.000000e+05
+-0.000000
+-0
+4.9406564584124654e-324
+1e+30
+0.1000000015
+0.1000000000
+"
+run_expect_check_ok "$ROOT/tests/valid/format_fp_exact.tc"
 run_expect_stdout "$ROOT/tests/valid/fp_mod.tc" "1.5
 -1.5
 1.5

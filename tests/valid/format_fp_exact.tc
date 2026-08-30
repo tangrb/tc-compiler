@@ -1,0 +1,27 @@
+#program
+; §10.4/§10.5 确定性浮点输出黄金（A2 自实现，roundTiesToEven，位模式精确）
+var pi: float64 = 3.14159265
+var tiny: float64 = bitcast(float64, 0x0000000000000001)
+var f32v: float32 = 0.1f
+writeln(float64, %f, pi)
+writeln(float64, %08.3f, pi)
+writeln(float64, %e, pi)
+writeln(float64, %E, pi)
+writeln(float64, %g, pi)
+writeln(float64, %#.6g, 1.5)
+writeln(float64, %.0f, 0.5)
+writeln(float64, %.0f, 1.5)
+writeln(float64, %.0f, 2.5)
+writeln(float64, %.2f, 2.675)
+writeln(float64, %g, 0.0001)
+writeln(float64, %g, 0.00001)
+writeln(float64, %g, 123456.0)
+writeln(float64, %g, 1234567.0)
+writeln(float64, %g, 100000000.0)
+writeln(float64, %e, 100000.0)
+writeln(float64, %f, -0.0)
+writeln(float64, %g, -0.0)
+writeln(float64, %.16e, tiny)
+writeln(float64, %g, 1e30)
+writeln(float32, %.10f, f32v)
+writeln(float64, %.10f, 0.1)

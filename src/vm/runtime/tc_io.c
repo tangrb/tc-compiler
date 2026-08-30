@@ -102,29 +102,6 @@ static int tc_io_format_accepts_type(TcTypeTag type, TcFormatSpec fmt) {
     return 0;
 }
 
-static int tc_io_normalize_decimal_point(char *buf) {
-    const struct lconv *locale = localeconv();
-    const char *decimal_point = locale ? locale->decimal_point : NULL;
-    char *position = NULL;
-    size_t point_len = 0;
-    size_t suffix_len = 0;
-
-    if (!decimal_point || decimal_point[0] == '\0' || strcmp(decimal_point, ".") == 0) {
-        return 0;
-    }
-    position = strstr(buf, decimal_point);
-    if (!position) {
-        return 0;
-    }
-    point_len = strlen(decimal_point);
-    suffix_len = strlen(position + point_len);
-    position[0] = '.';
-    if (point_len > 1U) {
-        memmove(position + 1, position + point_len, suffix_len + 1U);
-    }
-    return 0;
-}
-
 static int tc_io_write_repeat(FILE *out, char ch, int count) {
     int i = 0;
 
@@ -235,20 +212,293 @@ static int tc_io_full_digit_width(TcTypeTag type, TcFormatSpec spec) {
     return 1;
 }
 
-static void tc_io_fix_exp_width(char *buf) {
-    char *mark = strpbrk(buf, "eE");
-    char *p = NULL;
+/* ------------------------------------------------------------------ */
+/*  A2：自实现浮点十进制输出（§10.4，位模式精确，roundTiesToEven）        */
+/* ------------------------------------------------------------------ */
 
-    if (!mark) {
+/* 十进制大整数（limbs 基 1e9，limbs[0] 最低位）。96 limbs ≈ 864 十进制位，
+ * 覆盖 f64 最小次正规（2^-1074 ≈ 4.94e-324）的精确展开（约 751 位）。 */
+#define TC_FP_BIG_LIMBS 96
+
+static int tc_fp_big_from_u64(uint32_t *limbs, uint64_t v) {
+    int n = 0;
+
+    while (v > 0 && n < TC_FP_BIG_LIMBS) {
+        limbs[n++] = (uint32_t)(v % 1000000000u);
+        v /= 1000000000u;
+    }
+    if (n == 0) {
+        limbs[n++] = 0;
+    }
+    return n;
+}
+
+static void tc_fp_big_mul_small(uint32_t *limbs, int *nlimbs, uint32_t m) {
+    uint64_t carry = 0;
+    int i = 0;
+
+    for (i = 0; i < *nlimbs; i++) {
+        uint64_t prod = (uint64_t)limbs[i] * m + carry;
+        limbs[i] = (uint32_t)(prod % 1000000000u);
+        carry = prod / 1000000000u;
+    }
+    while (carry > 0 && *nlimbs < TC_FP_BIG_LIMBS) {
+        limbs[(*nlimbs)++] = (uint32_t)(carry % 1000000000u);
+        carry /= 1000000000u;
+    }
+}
+
+/* limbs → 十进制数字串（MSB first，无前导零） */
+static int tc_fp_big_to_digits(const uint32_t *limbs, int nlimbs, uint8_t *digits) {
+    int n = 0;
+    int i = 0;
+
+    for (i = nlimbs - 1; i >= 0; i--) {
+        char buf[12];
+        int len = 0;
+        int j = 0;
+
+        tc_io_u64_to_base(limbs[i], 10, 0, buf, sizeof(buf));
+        len = (int)strlen(buf);
+        if (i == nlimbs - 1) {
+            for (j = 0; j < len; j++) {
+                digits[n++] = (uint8_t)(buf[j] - '0');
+            }
+        } else {
+            for (j = 0; j < 9 - len; j++) {
+                digits[n++] = 0;
+            }
+            for (j = 0; j < len; j++) {
+                digits[n++] = (uint8_t)(buf[j] - '0');
+            }
+        }
+    }
+    return n;
+}
+
+/* 精确十进制：value = mantissa × 2^e2（IEEE 位模式展开） */
+typedef struct {
+    uint8_t digits[800];
+    int ndigits;
+    int exp10; /* value = digits[0].digits[1]… × 10^exp10；零值 digits={0}, exp10=0 */
+} TcFpExact;
+
+static void tc_fp_exact_from_binary(TcFpExact *d, uint64_t mantissa, int e2) {
+    uint32_t limbs[TC_FP_BIG_LIMBS];
+    int nlimbs = 0;
+    int i = 0;
+
+    if (mantissa == 0) {
+        d->digits[0] = 0;
+        d->ndigits = 1;
+        d->exp10 = 0;
         return;
     }
-    p = mark + 1;
-    if (*p == '+' || *p == '-') {
-        p++;
+    nlimbs = tc_fp_big_from_u64(limbs, mantissa);
+    if (e2 >= 0) {
+        for (i = 0; i < e2; i++) {
+            tc_fp_big_mul_small(limbs, &nlimbs, 2);
+        }
+        d->ndigits = tc_fp_big_to_digits(limbs, nlimbs, d->digits);
+        d->exp10 = d->ndigits - 1;
+    } else {
+        int k = -e2;
+
+        for (i = 0; i < k; i++) {
+            tc_fp_big_mul_small(limbs, &nlimbs, 5);
+        }
+        d->ndigits = tc_fp_big_to_digits(limbs, nlimbs, d->digits);
+        d->exp10 = d->ndigits - 1 - k;
     }
-    if (p[0] != '\0' && p[1] == '\0') {
-        memmove(p + 1, p, 2U);
-        *p = '0';
+}
+
+/* roundTiesToEven：保留前 keep 位有效数字；keep ≤ 0 时全部舍弃，进位落到
+ * 10^carry0_exp10（%f 的 keep≤0 情形，如 9e-7 舍到 6 位小数 → 1e-6）。 */
+static void tc_fp_round(TcFpExact *d, int keep, int carry0_exp10) {
+    int up = 0;
+    int j = 0;
+
+    if (keep >= d->ndigits) {
+        return;
+    }
+    if (keep <= 0) {
+        uint8_t r = d->digits[0];
+
+        if (r > 5) {
+            up = 1;
+        } else if (r == 5) {
+            int has = 0;
+            for (j = 1; j < d->ndigits; j++) {
+                if (d->digits[j] != 0) {
+                    has = 1;
+                    break;
+                }
+            }
+            if (has) {
+                up = 1;
+            }
+        }
+        if (up) {
+            d->digits[0] = 1;
+            d->ndigits = 1;
+            d->exp10 = carry0_exp10;
+        } else {
+            d->digits[0] = 0;
+            d->ndigits = 1;
+            d->exp10 = 0;
+        }
+        return;
+    }
+    {
+        uint8_t r = d->digits[keep];
+
+        if (r > 5) {
+            up = 1;
+        } else if (r == 5) {
+            int has = 0;
+            for (j = keep + 1; j < d->ndigits; j++) {
+                if (d->digits[j] != 0) {
+                    has = 1;
+                    break;
+                }
+            }
+            if (has) {
+                up = 1;
+            } else if ((d->digits[keep - 1] & 1)) {
+                up = 1;
+            }
+        }
+        d->ndigits = keep;
+        if (up) {
+            int p = keep - 1;
+
+            while (p >= 0 && d->digits[p] == 9) {
+                d->digits[p] = 0;
+                p--;
+            }
+            if (p < 0) {
+                memmove(d->digits + 1, d->digits, (size_t)keep);
+                d->digits[0] = 1;
+                d->ndigits = keep + 1;
+                d->exp10++;
+            } else {
+                d->digits[p]++;
+            }
+        }
+    }
+}
+
+static uint8_t tc_fp_digit_at(const TcFpExact *d, int idx) {
+    if (idx >= 0 && idx < d->ndigits) {
+        return d->digits[idx];
+    }
+    return 0;
+}
+
+static void tc_fp_strip_zeros(TcFpExact *d) {
+    while (d->ndigits > 1 && d->digits[d->ndigits - 1] == 0) {
+        d->ndigits--;
+    }
+}
+
+static void tc_fp_append_exp(char *out, size_t *n, int exp, int uppercase) {
+    char tmp[8];
+    int t = 0;
+    int a = exp < 0 ? -exp : exp;
+
+    out[(*n)++] = uppercase ? 'E' : 'e';
+    out[(*n)++] = exp < 0 ? '-' : '+';
+    do {
+        tmp[t++] = (char)('0' + (a % 10));
+        a /= 10;
+    } while (a > 0);
+    while (t < 2) {
+        tmp[t++] = '0';
+    }
+    while (t > 0) {
+        out[(*n)++] = tmp[--t];
+    }
+}
+
+/* %e/%E：digits[0].digits[1..p] e±exp（指数至少两位；§10.4；精度 0 且非 # 无小数点） */
+static void tc_fp_render_exp(const TcFpExact *d, int precision, int uppercase, int hash, char *out,
+                             size_t *n) {
+    int i = 0;
+
+    out[(*n)++] = (char)('0' + d->digits[0]);
+    if (precision > 0 || hash) {
+        out[(*n)++] = '.';
+        for (i = 1; i <= precision; i++) {
+            out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+        }
+    }
+    tc_fp_append_exp(out, n, d->exp10, uppercase);
+}
+
+/* %f：整数位 + precision 位小数（§10.4；精度 0 且非 # 无小数点） */
+static void tc_fp_render_fixed(const TcFpExact *d, int precision, int hash, char *out, size_t *n) {
+    int i = 0;
+
+    if (d->exp10 >= 0) {
+        for (i = 0; i <= d->exp10; i++) {
+            out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+        }
+    } else {
+        out[(*n)++] = '0';
+    }
+    if (precision > 0 || hash) {
+        out[(*n)++] = '.';
+        for (i = d->exp10 + 1; i <= d->exp10 + precision; i++) {
+            out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+        }
+    }
+}
+
+/* %g/%G：round/strip 已在调用前完成；按 e 阈值判形（§10.4） */
+static void tc_fp_render_general(const TcFpExact *d, int precision, int uppercase, int hash,
+                                 char *out, size_t *n) {
+    int i = 0;
+    int use_exp = (d->exp10 < -4 || d->exp10 >= precision);
+
+    if (use_exp) {
+        out[(*n)++] = (char)('0' + d->digits[0]);
+        if (hash) {
+            int f = precision - 1;
+
+            out[(*n)++] = '.';
+            for (i = 1; i <= f; i++) {
+                out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+            }
+        } else if (d->ndigits > 1) {
+            out[(*n)++] = '.';
+            for (i = 1; i < d->ndigits; i++) {
+                out[(*n)++] = (char)('0' + d->digits[i]);
+            }
+        }
+        tc_fp_append_exp(out, n, d->exp10, uppercase);
+        return;
+    }
+    if (d->exp10 >= 0) {
+        for (i = 0; i <= d->exp10; i++) {
+            out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+        }
+    } else {
+        out[(*n)++] = '0';
+    }
+    if (hash) {
+        int frac = precision - (d->exp10 + 1);
+
+        out[(*n)++] = '.';
+        if (frac > 0) {
+            for (i = d->exp10 + 1; i <= d->exp10 + frac; i++) {
+                out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+            }
+        }
+    } else if (d->exp10 + 1 < d->ndigits) {
+        out[(*n)++] = '.';
+        for (i = d->exp10 + 1; i < d->ndigits; i++) {
+            out[(*n)++] = (char)('0' + tc_fp_digit_at(d, i));
+        }
     }
 }
 
@@ -259,41 +509,93 @@ static int tc_io_write_float_core(TcTypeTag type, TcFormatSpec spec, const TcVal
     return tc_io_write_formatted(type, fmt, value, out);
 }
 
+/* IEEE 位模式分解：特殊值/符号/（mantissa, e2）——value = mantissa × 2^e2 */
+static void tc_io_fp_unpack(TcTypeTag type, uint64_t bits, uint64_t *mantissa, int *e2,
+                            int *is_nan, int *is_inf, int *negative) {
+    if (type == TC_FLOAT32) {
+        uint32_t exp = (uint32_t)((bits >> 23) & 0xffu);
+        uint32_t frac = (uint32_t)(bits & 0x7fffffu);
+
+        *negative = (int)((bits >> 31) & 1u);
+        if (exp == 0xffu) {
+            *is_nan = frac != 0;
+            *is_inf = frac == 0;
+            *mantissa = 0;
+            *e2 = 0;
+            return;
+        }
+        *is_nan = 0;
+        *is_inf = 0;
+        if (exp == 0) {
+            *mantissa = frac;
+            *e2 = -149; /* 次正规：frac × 2^-149 */
+        } else {
+            *mantissa = (1u << 23) | frac;
+            *e2 = (int)exp - 150; /* 正规：(1|frac) × 2^(exp-127-23) */
+        }
+    } else {
+        uint64_t exp = (bits >> 52) & 0x7ffu;
+        uint64_t frac = bits & ((1ull << 52) - 1u);
+
+        *negative = (int)((bits >> 63) & 1u);
+        if (exp == 0x7ffu) {
+            *is_nan = frac != 0;
+            *is_inf = frac == 0;
+            *mantissa = 0;
+            *e2 = 0;
+            return;
+        }
+        *is_nan = 0;
+        *is_inf = 0;
+        if (exp == 0) {
+            *mantissa = frac;
+            *e2 = -1074; /* 次正规：frac × 2^-1074 */
+        } else {
+            *mantissa = (1ull << 52) | frac;
+            *e2 = (int)exp - 1075; /* 正规：(1|frac) × 2^(exp-1023-52) */
+        }
+    }
+}
+
 static int tc_io_format_float(TcTypeTag type, const TcFormatFullSpec *fmt, const TcValue *value,
                               FILE *out) {
-    double number = tc_fp_bits_to_double(type, value->bits);
-    int uppercase = fmt->spec == TC_FMT_EU || fmt->spec == TC_FMT_GU;
-    int special = 0;
+    uint64_t mantissa = 0;
+    int e2 = 0;
+    int is_nan = 0;
+    int is_inf = 0;
+    int negative = 0;
+    int uppercase = (fmt->spec == TC_FMT_EU || fmt->spec == TC_FMT_GU);
     char prefix[3];
-    const char *digits = NULL;
     char *body = NULL;
     int precision = 6;
     int rc = 0;
-#ifdef TC_HAVE_FENV
-    int saved_round = fegetround();
-#endif
 
     prefix[0] = '\0';
-    if (isnan(number)) {
-        digits = uppercase ? "NAN" : "nan";
+    tc_io_fp_unpack(type, value->bits, &mantissa, &e2, &is_nan, &is_inf, &negative);
+    if (is_nan) {
+        /* §10.4：NaN 符号位不外露，仅 + 标志添加 + */
         if (fmt->flag_plus) {
             prefix[0] = '+';
             prefix[1] = '\0';
         }
-        special = 1;
-    } else if (isinf(number)) {
-        if (signbit(number)) {
+        return tc_io_write_aligned(out, prefix, uppercase ? "NAN" : "nan", fmt, 0);
+    }
+    if (is_inf) {
+        if (negative) {
             prefix[0] = '-';
             prefix[1] = '\0';
         } else if (fmt->flag_plus) {
             prefix[0] = '+';
             prefix[1] = '\0';
         }
-        digits = uppercase ? "INF" : "inf";
-        special = 1;
+        return tc_io_write_aligned(out, prefix, uppercase ? "INF" : "inf", fmt, 0);
     }
-    if (special) {
-        return tc_io_write_aligned(out, prefix, digits, fmt, 0);
+    if (negative) {
+        prefix[0] = '-';
+        prefix[1] = '\0';
+    } else if (fmt->flag_plus) {
+        prefix[0] = '+';
+        prefix[1] = '\0';
     }
 
     if (fmt->precision_set) {
@@ -304,85 +606,41 @@ static int tc_io_format_float(TcTypeTag type, const TcFormatFullSpec *fmt, const
     }
 
     {
-        char specfmt[16];
-        int need = 0;
-        const char *conv_ch = "f";
+        TcFpExact d;
+        size_t n = 0;
+        size_t body_cap = 0;
 
-        switch (fmt->spec) {
-        case TC_FMT_F:
-            conv_ch = "f";
-            break;
-        case TC_FMT_E:
-            conv_ch = "e";
-            break;
-        case TC_FMT_EU:
-            conv_ch = "E";
-            break;
-        case TC_FMT_G:
-            conv_ch = "g";
-            break;
-        case TC_FMT_GU:
-            conv_ch = "G";
-            break;
-        default:
-            return -1;
-        }
-        if (fmt->flag_hash) {
-            (void)snprintf(specfmt, sizeof(specfmt), "%%#.%d%s", precision, conv_ch);
-        } else {
-            (void)snprintf(specfmt, sizeof(specfmt), "%%.%d%s", precision, conv_ch);
-        }
-#ifdef TC_HAVE_FENV
-        if (saved_round != -1 && saved_round != FE_TONEAREST) {
-            (void)fesetround(FE_TONEAREST);
-        }
-#endif
-        need = snprintf(NULL, 0, specfmt, number);
-#ifdef TC_HAVE_FENV
-        if (saved_round != -1 && saved_round != FE_TONEAREST) {
-            (void)fesetround(saved_round);
-        }
-#endif
-        if (need < 0) {
-            return -1;
-        }
-        body = (char *)malloc((size_t)need + 2U);
+        tc_fp_exact_from_binary(&d, mantissa, e2);
+        /* 缓冲：整数位（f64 ≤ 310）+ 精度（≤ 65535）+ 符号/点/指数 */
+        body_cap = 340u + (size_t)precision + 16u;
+        body = (char *)malloc(body_cap);
         if (!body) {
             return -1;
         }
-#ifdef TC_HAVE_FENV
-        if (saved_round != -1 && saved_round != FE_TONEAREST) {
-            (void)fesetround(FE_TONEAREST);
-        }
-#endif
-        if (snprintf(body, (size_t)need + 2U, specfmt, number) < 0) {
-#ifdef TC_HAVE_FENV
-            if (saved_round != -1 && saved_round != FE_TONEAREST) {
-                (void)fesetround(saved_round);
+        switch (fmt->spec) {
+        case TC_FMT_E:
+        case TC_FMT_EU:
+            tc_fp_round(&d, precision + 1, 0);
+            tc_fp_render_exp(&d, precision, uppercase, fmt->flag_hash, body, &n);
+            break;
+        case TC_FMT_F:
+            tc_fp_round(&d, d.exp10 + precision + 1, -precision);
+            tc_fp_render_fixed(&d, precision, fmt->flag_hash, body, &n);
+            break;
+        case TC_FMT_G:
+        case TC_FMT_GU:
+            tc_fp_round(&d, precision, 0);
+            if (!fmt->flag_hash) {
+                tc_fp_strip_zeros(&d);
             }
-#endif
+            tc_fp_render_general(&d, precision, uppercase, fmt->flag_hash, body, &n);
+            break;
+        default:
             free(body);
             return -1;
         }
-#ifdef TC_HAVE_FENV
-        if (saved_round != -1 && saved_round != FE_TONEAREST) {
-            (void)fesetround(saved_round);
-        }
-#endif
-        tc_io_normalize_decimal_point(body);
-        tc_io_fix_exp_width(body);
-        prefix[0] = '\0';
-        digits = body;
-        if (body[0] == '-') {
-            prefix[0] = '-';
-            prefix[1] = '\0';
-            digits = body + 1;
-        } else if (fmt->flag_plus) {
-            prefix[0] = '+';
-            prefix[1] = '\0';
-        }
-        rc = tc_io_write_aligned(out, prefix, digits, fmt,
-                                 fmt->flag_zero && !fmt->flag_minus);
+        body[n] = '\0';
+        rc = tc_io_write_aligned(out, prefix, body, fmt, fmt->flag_zero && !fmt->flag_minus);
         free(body);
         return rc;
     }
