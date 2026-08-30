@@ -1,0 +1,17 @@
+#program
+; §10.4/§10.5 表余项：int8 -1 位模式、isize/usize、# 备用形式、左对齐 %f
+var n8: int8 = -1
+var n: int32 = 42
+var si: isize = 42
+var su: usize = 42
+var x: float64 = 3.14159265
+writeln(int8, %x, n8)
+writeln(int8, %X, n8)
+writeln(int8, %o, n8)
+writeln(int8, %b, n8)
+writeln(isize, %d, si)
+writeln(usize, %u, su)
+writeln(int32, %#o, n)
+writeln(int32, %#b, n)
+writeln(int32, %#X, n)
+writeln(float64, %-12f, x)

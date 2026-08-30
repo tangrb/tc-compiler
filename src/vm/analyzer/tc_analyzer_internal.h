@@ -109,6 +109,10 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                           const TcSymbolTable *global, const char *name,
                                           size_t stmt_index, int line, TcDiagnostic *diag);
 
+/** Self.N / Qual.N / 裸名查找（不报诊断） */
+const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
+                                      const char *name);
+
 /*
  * tc_check_operand / tc_check_rhs / tc_check_io_format 的权威声明在模块头中：
  *   tc_analyzer_pass2_rhs.h、tc_analyze_6e.h

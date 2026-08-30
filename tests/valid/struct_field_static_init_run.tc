@@ -1,0 +1,12 @@
+#program
+; 跨模块执行：依赖库 static let/var 字段初始化（含拓扑序与 dep member index）
+; 入口变量名避免与导入库成员（n/k/g/m）重名
+import struct_field_static_init
+var rn: int32 = funcall(struct_field_static_init.get_n)
+var rk: int32 = funcall(struct_field_static_init.get_k)
+var rg: bool = funcall(struct_field_static_init.get_gt)
+var rm: int32 = funcall(struct_field_static_init.get_m)
+writeln(int32, rn)
+writeln(int32, rk)
+writeln(bool, rg)
+writeln(int32, rm)

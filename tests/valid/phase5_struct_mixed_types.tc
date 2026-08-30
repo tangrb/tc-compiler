@@ -7,11 +7,13 @@ end
 var m: Mixed = Mixed(f: 1.5, b: true)
 var f: float64 = m.f
 var b: bool = m.b
+var f2: float64 = 0.0
+var b2: bool = false
 writeln(float64, f)
 writeln(bool, b)
 m.f = 2.25
 m.b = false
-var f2: float64 = m.f
-var b2: bool = m.b
+f2 = m.f
+b2 = m.b
 writeln(float64, f2)
 writeln(bool, b2)

@@ -10,7 +10,7 @@ description: >-
 
 # Add TC-Compiler Feature
 
-> **v0.0.39** + Embed v0.0.39 · 类型内核 [types.md](../tc-architecture/types.md)
+> **v0.0.41** + Embed v0.0.41 · 类型内核 [types.md](../tc-architecture/types.md)
 
 ## Step 0：分类（只读 feature-kinds 一个 §）
 
@@ -31,7 +31,7 @@ description: >-
 | Embed | `src/vm/embed/` → [kg-embed.md](../tc-architecture/kg-embed.md) |
 | 仅诊断 | `TcErrorKind` + `tc_error_kind_name` + `test_types` + static |
 
-参考：[features.md](../tc-architecture/features.md) 路由 → **一个** `features/*.md` · 分发：`@knowledge-graph` · 测试：[test-map.md](../tc-architecture/test-map.md)
+参考：[features.md](../tc-architecture/features.md) 路由 → **一个** `features/*.md` · 分发：`@knowledge-graph` · 测试：[test-map.md](../tc-architecture/test-map.md) · 易错点：[gotchas.md](../tc-architecture/gotchas.md)
 
 ## 实施顺序
 

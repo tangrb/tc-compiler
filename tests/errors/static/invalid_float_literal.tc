@@ -1,0 +1,4 @@
+#program
+; 期望：invalid float literal
+; 词法层非法的浮点字面量（多个小数点）
+var x: float64 = 1.2.3

@@ -1,0 +1,18 @@
+#program
+; 复合值语义：字段 operand 用于 ptr_store / memblock 构造
+struct Player then
+    var score: int32
+end
+struct Pair then
+    var a: Player
+    var b: Player
+end
+var p1: Player = Player(score: 5)
+var p2: Player = Player(score: 6)
+var pair: Pair = Pair(a: p1, b: p2)
+var block: memblock<Player, 2> = memblock(Player, count: 2, pair.a, pair.b)
+var q: Player = memblock_load(Player, block, 0)
+var target: ptr<Player> = ptr_address(Player, q)
+var loaded: Player = ptr_load(Player, target)
+ptr_store(Player, target, loaded)
+writeln(int32, q.score)

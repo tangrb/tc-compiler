@@ -15,11 +15,12 @@
 ├─ 新关键字/修饰符（wrap 类）   → §7 关键字
 ├─ 扩展 let 编译期能力          → §8 编译期常量
 ├─ 模块 / 函数 / 复合类型扩展   → 对应 kg-module / kg-func / kg-eval
+   （导入 struct 类型名/构造器 → kg-module + tc_struct_check.c）
 ├─ Embed / 宿主 API             → kg-embed + embed-src
 └─ 仅新诊断/错误消息            → §9 仅诊断
 ```
 
-> 现网：`TcTypeTag`（含 PTR/MEMBLOCK/STRUCT）、`TcType`、24 STMT / 34 RHS / **91** 错误已入 `tc_types.h`；解析与运行时已落地。
+> 现网：`TcTypeTag`（含 PTR/MEMBLOCK/STRUCT）、`TcType`、24 STMT / 34 RHS / **86** 错误已入 `tc_types.h`；解析与运行时已落地。
 
 ## §2 新类型
 
@@ -85,7 +86,7 @@
 
 ## §7 关键字
 
-`tc_lexer.c` → parser → 诊断（`TC_CE_KEYWORD` / `MODE_MISMATCH` 等）。
+`tc_lexer.c` → parser → 诊断（`TC_CE_SYNTAX` / `MODE_MISMATCH` 等）。
 
 ## §8 编译期常量
 

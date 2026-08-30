@@ -1,0 +1,5 @@
+#program
+; 期望：cannot assign to constant
+; read 目标是 let 常量：静态期必须拒绝（与赋值一致），不得进入运行时
+let c: int32 = 5
+read(int32, c)

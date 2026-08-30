@@ -5,12 +5,14 @@ let FIVE: int32 = 5
 let FLAG_A: bool = true
 let FLAG_B: bool = false
 var value: int32 = 0
+var pending: bool = false
+var result: int32 = 0
 if gt(int32, TEN, FIVE) then
     value = 10
 end
-var pending: bool = true
+pending = true
 if and(bool, FLAG_A, FLAG_B) then
     writeln(bool, %t, pending)
 end
-var result: int32 = add(int32, value, 1)
+result = add(int32, value, 1)
 writeln(int32, %d, result)

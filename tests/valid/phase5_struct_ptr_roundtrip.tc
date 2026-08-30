@@ -7,12 +7,14 @@ struct A then
     var p: ptr<B>
 end
 var b: B = B(x: 42)
-var a: A = A(p: ptr_address(B, b))
+var pb: ptr<B> = ptr_address(B, b)
+var a: A = A(p: pb)
 var p: ptr<B> = a.p
 var v: B = ptr_load(B, p)
 var w: int32 = v.x
-writeln(int32, w)
 var b2: B = B(x: 99)
+var w2: int32 = 0
+writeln(int32, w)
 ptr_store(B, p, b2)
-var w2: int32 = b.x
+w2 = b.x
 writeln(int32, w2)

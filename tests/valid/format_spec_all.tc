@@ -3,6 +3,17 @@
 ; int8
 var a: int8 = 65
 var b: int8 = -128
+var ua: uint8 = 255
+var c: int16 = -32768
+var uc: uint16 = 65535
+var d: int32 = -2147483648
+var ud: uint32 = 4294967295
+var e: int64 = -9223372036854775808
+var ue: uint64 = 18446744073709551615
+var truth: bool = true
+var falsehood: bool = false
+var f32: float32 = 1.5
+var f64: float64 = 3.14159265
 writeln(int8, %d, a)
 writeln(int8, %d, b)
 writeln(int8, %i, b)
@@ -12,7 +23,6 @@ writeln(int8, %o, a)
 writeln(int8, %b, a)
 
 ; uint8
-var ua: uint8 = 255
 writeln(uint8, %u, ua)
 writeln(uint8, %x, ua)
 writeln(uint8, %X, ua)
@@ -20,13 +30,11 @@ writeln(uint8, %o, ua)
 writeln(uint8, %b, ua)
 
 ; int16
-var c: int16 = -32768
 writeln(int16, %d, c)
 writeln(int16, %x, c)
 writeln(int16, %X, c)
 
 ; uint16
-var uc: uint16 = 65535
 writeln(uint16, %u, uc)
 writeln(uint16, %x, uc)
 writeln(uint16, %X, uc)
@@ -34,7 +42,6 @@ writeln(uint16, %o, uc)
 writeln(uint16, %b, uc)
 
 ; int32
-var d: int32 = -2147483648
 writeln(int32, %d, d)
 writeln(int32, %x, d)
 writeln(int32, %X, d)
@@ -42,7 +49,6 @@ writeln(int32, %o, d)
 writeln(int32, %b, d)
 
 ; uint32
-var ud: uint32 = 4294967295
 writeln(uint32, %u, ud)
 writeln(uint32, %x, ud)
 writeln(uint32, %X, ud)
@@ -50,13 +56,11 @@ writeln(uint32, %o, ud)
 writeln(uint32, %b, ud)
 
 ; int64
-var e: int64 = -9223372036854775808
 writeln(int64, %d, e)
 writeln(int64, %x, e)
 writeln(int64, %X, e)
 
 ; uint64
-var ue: uint64 = 18446744073709551615
 writeln(uint64, %u, ue)
 writeln(uint64, %x, ue)
 writeln(uint64, %X, ue)
@@ -64,20 +68,16 @@ writeln(uint64, %o, ue)
 writeln(uint64, %b, ue)
 
 ; bool
-var truth: bool = true
-var falsehood: bool = false
 writeln(bool, %t, truth)
 writeln(bool, %t, falsehood)
 
 ; float32/float64 的五种格式
-var f32: float32 = 1.5
 writeln(float32, %f, f32)
 writeln(float32, %e, f32)
 writeln(float32, %E, f32)
 writeln(float32, %g, f32)
 writeln(float32, %G, f32)
 
-var f64: float64 = 3.14159265
 writeln(float64, %f, f64)
 writeln(float64, %e, f64)
 writeln(float64, %E, f64)

@@ -1,0 +1,8 @@
+#lib
+; Critical 1 对照：static let 的 memblock 逐值构造计数匹配 → 合法。
+public static let M: memblock<int32, 3> = memblock(int32, count: 3, 1, 2, 3)
+public func get_e2() int32 then
+    var x: memblock<int32, 3> = Self.M
+    var r: int32 = memblock_load(int32, x, 2)
+    return r
+end

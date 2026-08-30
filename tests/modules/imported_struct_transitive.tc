@@ -1,0 +1,4 @@
+#program
+; 期望：undefined struct（传递依赖不计入本文件 import）
+import MidStructLib
+var a: TransStructLib.Box = TransStructLib.Box(x: 1)

@@ -2,6 +2,7 @@
 ; Phase 5：ptr_address / ptr_store / ptr_load
 var a: int32 = 1
 var p: ptr<int32> = ptr_address(int32, a)
+var b: int32 = 0
 ptr_store(int32, p, 2)
-var b: int32 = ptr_load(int32, p)
+b = ptr_load(int32, p)
 writeln(int32, b)

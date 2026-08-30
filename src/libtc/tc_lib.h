@@ -12,7 +12,7 @@
  *       tc_typed_program_free(&prog);
  *   }
  *
- * 内存所有权约定见 docs/libtc-api-0.0.39.md。
+ * 内存所有权约定见 docs/libtc-api-0.0.41.md。
  */
 #ifndef TC_LIB_H
 #define TC_LIB_H

@@ -1,0 +1,5 @@
+#program
+; 期望：read type does not match variable type
+; read 的输入类型与目标变量类型不一致
+var a: int32 = 0
+read(float64, a)

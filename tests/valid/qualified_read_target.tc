@@ -1,0 +1,7 @@
+#program
+; 导入限定名作 read 目标
+import QualReadLib
+var v: int32 = 0
+read(int32, QualReadLib.x)
+v = funcall(QualReadLib.get_x)
+writeln(int32, v)

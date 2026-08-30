@@ -1,0 +1,6 @@
+#program
+; 期望：expected operand, memblock constructor, or struct constructor
+struct P then
+    var x: int32
+end
+var p: P = P(x: add(int32, 1, 2))

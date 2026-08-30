@@ -1,0 +1,7 @@
+#lib
+; Critical 1 回归变体：value_count < count（曾静默留下未初始化尾部）。
+; 期望：memblock element count mismatch
+public static let M: memblock<int32, 3> = memblock(int32, count: 3, 1, 2)
+public func f() void then
+    return
+end

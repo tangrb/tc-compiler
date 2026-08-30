@@ -1,0 +1,4 @@
+#program
+; 期望：float literal out of float32 range
+; float32 字面量超过 float32 最大有限值（现有 fp_literal_range 只覆盖 float64）
+var x: float32 = 1e100f

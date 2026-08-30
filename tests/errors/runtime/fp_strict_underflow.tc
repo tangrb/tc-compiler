@@ -1,7 +1,8 @@
 #program
 ; 期望：strict 模式下微小且不精确的结果即使舍入为 0 也报 FloatUnderflow
-writeln(float64, 1.0)
 var a: float64 = 1e-200
 var b: float64 = 1e-200
-var c: float64 = mul(float64, a, b)
+var c: float64 = 0.0
+writeln(float64, 1.0)
+c = mul(float64, a, b)
 writeln(float64, c)

@@ -1,0 +1,9 @@
+#program
+; memblock 字段作 memblock_load 基址
+struct Bag then
+    var items: memblock<int32, 2>
+end
+var items: memblock<int32, 2> = memblock(int32, count: 2, 10, 20)
+var bag: Bag = Bag(items: items)
+var v: int32 = memblock_load(int32, bag.items, 1)
+writeln(int32, v)

@@ -23,6 +23,8 @@
 #include "tc_symbol.h"
 
 #include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -425,21 +427,66 @@ void tc_aot_emit_literal_expr(FILE *out, TcTypeTag type, const TcLiteral *lit) {
         return;
     }
     if (lit->is_float) {
-        double d = lit->float_value;
+        uint64_t bits = 0;
+
+        if (lit->is_float_special) {
+            if (lit->float_special == 0) {
+                bits = (type == TC_FLOAT32) ? TC_FLOAT32_CANONICAL_NAN_BITS
+                                            : TC_FLOAT64_CANONICAL_NAN_BITS;
+            } else if (type == TC_FLOAT32) {
+                bits = (lit->float_special < 0) ? TC_FLOAT32_NEG_INF_BITS
+                                                : TC_FLOAT32_POS_INF_BITS;
+            } else {
+                bits = (lit->float_special < 0) ? TC_FLOAT64_NEG_INF_BITS
+                                                : TC_FLOAT64_POS_INF_BITS;
+            }
+            fprintf(out, "tc_aot_lit(%s, 0x%" PRIx64 "ULL, 0, 0)", tc_aot_type_enum(type), bits);
+            return;
+        }
         if (type == TC_FLOAT32) {
-            float f = (float)d;
+            float f = (float)lit->float_value;
             uint32_t b32 = 0;
             memcpy(&b32, &f, sizeof(b32));
-            fprintf(out, "tc_aot_lit(%s, 0x%xULL, 0, 0)", tc_aot_type_enum(type), b32);
+            bits = (uint64_t)b32;
         } else {
-            uint64_t b64 = 0;
-            memcpy(&b64, &d, sizeof(b64));
-            fprintf(out, "tc_aot_lit(%s, 0x%" PRIx64 "ULL, 0, 0)", tc_aot_type_enum(type), b64);
+            double d = lit->float_value;
+            memcpy(&bits, &d, sizeof(d));
         }
+        fprintf(out, "tc_aot_lit(%s, 0x%" PRIx64 "ULL, 0, 0)", tc_aot_type_enum(type), bits);
         return;
     }
     fprintf(out, "tc_aot_lit(%s, %" PRIu64 "ULL, %d, %d)", tc_aot_type_enum(type), lit->magnitude,
             lit->negative, lit->unsigned_suffix);
+}
+
+void tc_aot_emit_const_memblock_expr(FILE *out, uint64_t host_bits, size_t nbytes, int line) {
+    const uint8_t *data = (const uint8_t *)(uintptr_t)host_bits;
+
+    if (!data || nbytes < sizeof(uint64_t)) {
+        fprintf(out, "0");
+        return;
+    }
+    fprintf(out, "tc_aot_memblock_from_bytes(");
+    tc_aot_emit_byte_array_expr(out, data, nbytes);
+    fprintf(out, ", %zu, tc_aot_cur_diag, %d)", nbytes, line);
+}
+
+/**
+ * 发射 C99 复合字面量字节数组（如 (const uint8_t[]){1, 2, 3}）。
+ * 供 const 基址的 struct/memblock 字段折叠使用：生成代码不得嵌入
+ * 分析期堆指针（const_bits），而是把字节内联进生成二进制再深拷贝。
+ */
+void tc_aot_emit_byte_array_expr(FILE *out, const uint8_t *data, size_t nbytes) {
+    size_t i = 0;
+
+    fprintf(out, "(const uint8_t[]){");
+    for (i = 0; i < nbytes; i++) {
+        if (i > 0) {
+            fprintf(out, ", ");
+        }
+        fprintf(out, "%u", (unsigned)data[i]);
+    }
+    fprintf(out, "}");
 }
 
 void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag type,
@@ -450,9 +497,89 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
         tc_aot_emit_literal_expr(out, type, &operand->u.lit);
         return;
     }
+    if (operand->kind == TC_OPERAND_FIELD_READ &&
+        operand->u.field_read.resolved.resolved) {
+        const TcResolvedFieldAccess *access = &operand->u.field_read.resolved;
+        const TcStructTable *table = ctx->program->struct_table;
+
+        if (access->is_memblock_count) {
+            fprintf(out, "%" PRIu64 "ULL", (uint64_t)access->const_bits);
+            return;
+        }
+        if (access->field_count > 0 && access->offsets && access->field_type) {
+            const TcType *field_type = access->field_type;
+            size_t offset = access->offsets[access->field_count - 1];
+            size_t nbytes = 0;
+
+            /* let/static let 基址：codegen 期从 const_bits 折叠，禁止嵌入分析期堆指针 */
+            if (access->base_slot < 0 && field_type->tag != TC_STRUCT &&
+                field_type->tag != TC_MEMBLOCK) {
+                /* 标量 / 指针字段：把位模式折叠成整型字面量 */
+                uint64_t bits = 0;
+                const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+
+                nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
+                         8U;
+                if (data && nbytes > 0) {
+                    memcpy(&bits, data + offset,
+                           nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+                }
+                if (field_type->tag == TC_BOOL) {
+                    bits = bits ? 1ULL : 0ULL;
+                }
+                fprintf(out, "0x%016" PRIx64 "ULL", bits);
+                return;
+            }
+
+            if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
+                if (field_type->tag == TC_STRUCT) {
+                    const TcStructEntry *nested =
+                        tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                    nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+                } else {
+                    nbytes =
+                        (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
+                        8U;
+                }
+                if (access->base_slot >= 0) {
+                    fprintf(out, "tc_aot_struct_extract(slots[%d], %zu, %zu, tc_aot_cur_diag, 0)",
+                            access->base_slot, offset, nbytes);
+                } else {
+                    /* const 基址：把字段字节内联为复合字面量，运行期再深拷贝 */
+                    const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+                    const uint8_t zero = 0;
+
+                    fprintf(out, "tc_aot_struct_extract((uint64_t)(uintptr_t)&");
+                    tc_aot_emit_byte_array_expr(out, (data && nbytes > 0) ? data + offset : &zero,
+                                                nbytes > 0 ? nbytes : 1);
+                    fprintf(out, ", 0, %zu, tc_aot_cur_diag, 0)", nbytes);
+                }
+            } else {
+                /* 标量 / 指针字段（槽位基址）：运行期读位 */
+                nbytes =
+                    (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) / 8U;
+                fprintf(out, "tc_aot_struct_load_bits_value(slots[%d], %zu, %zu)",
+                        access->base_slot, offset, nbytes);
+            }
+            return;
+        }
+    }
     if (operand->binding.resolved) {
         if (operand->binding.is_const) {
-            fprintf(out, "0x%016" PRIx64 "ULL", operand->binding.const_bits);
+            if (type == TC_MEMBLOCK && operand->binding.type &&
+                operand->binding.type->tag == TC_MEMBLOCK &&
+                operand->binding.type->params.memblock_type.element) {
+                size_t elem_bits = tc_sizeof_bits_ex(
+                    operand->binding.type->params.memblock_type.element,
+                    tc_struct_table_width_bits, ctx->program->struct_table);
+                size_t elem_bytes = (elem_bits + 7U) / 8U;
+                uint64_t count = tc_type_memblock_count(operand->binding.type);
+                size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
+
+                tc_aot_emit_const_memblock_expr(out, operand->binding.const_bits, nbytes, 0);
+            } else {
+                fprintf(out, "0x%016" PRIx64 "ULL", operand->binding.const_bits);
+            }
         } else if (operand->binding.slot >= 0) {
             fprintf(out, "slots[%d]", operand->binding.slot);
         }
@@ -563,7 +690,7 @@ int tc_aot_emit_embed_header(FILE *out, const TcTypedProgram *program,
     fprintf(out, "void tc_aot_cleanup(void);\n\n");
 
     /* 函数表类型 */
-    fprintf(out, "typedef void (*tc_aot_func_entry_t)(TcDiagnostic *diag);\n\n");
+    fprintf(out, "typedef int (*tc_aot_func_entry_t)(TcDiagnostic *diag);\n\n");
     fprintf(out, "typedef struct {\n");
     fprintf(out, "    int func_id;\n");
     fprintf(out, "    tc_aot_func_entry_t entry;\n");
@@ -606,10 +733,11 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     fprintf(out, "#include \"tc_aot_rt.h\"\n");
     if (embed_mode) {
         fprintf(out, "#include \"tc_aot_embed_rt.h\"\n");
-        /* 宏替换：将 tc_aot_abort 重定向为非致命 + return */
+        /* 宏替换：非致命 abort 后带值返回。embed 生成的函数均为 int
+         * （tc_aot_init / tc_aot_func_*），裸 return; 违反 C99 约束。 */
         fprintf(out, "#define tc_aot_abort(diag, line) do { \\\n");
         fprintf(out, "    tc_aot_embed_abort(diag, line); \\\n");
-        fprintf(out, "    return; \\\n");
+        fprintf(out, "    return 1; \\\n");
         fprintf(out, "} while (0)\n");
     }
     fputc('\n', out);

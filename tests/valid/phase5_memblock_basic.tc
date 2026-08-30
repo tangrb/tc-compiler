@@ -1,8 +1,10 @@
 #program
 ; Phase 5：memblock 构造 / store / load / count
 var mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var n: usize = 0u
+var x: int32 = 0
 memblock_store(int32, mb, 0, 9)
-var n: usize = mb.count
-var x: int32 = memblock_load(int32, mb, 0)
+n = mb.count
+x = memblock_load(int32, mb, 0)
 writeln(int32, x)
 writeln(usize, n)

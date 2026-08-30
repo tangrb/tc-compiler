@@ -1,5 +1,5 @@
 /*
- * tc_embed.c — TC 嵌入式运行时实现（v0.0.39）
+ * tc_embed.c — TC 嵌入式运行时实现（v0.0.41）
  *
  * 双模式：VM 路径（Executor）+ AOT 路径（直调生成代码）。
  * AOT 桥接函数见 tc_embed_aot.c。
@@ -311,6 +311,39 @@ int tc_embed_self_var_slot(const TcEmbedCtx *ctx, const char *name) {
 
 /* ── 槽位信息与读写 ── */
 
+static const TcType *tc_embed_slot_declared_type(const TcEmbedCtx *ctx, int slot) {
+    const TcSymbolTable *table = NULL;
+    size_t i = 0;
+
+    if (!ctx || !ctx->program || slot < 0) {
+        return NULL;
+    }
+    table = &ctx->program->symbols;
+    for (i = 0; i < table->count; i++) {
+        const TcSymbol *sym = &table->symbols[i];
+
+        if (sym->slot != slot || !sym->type) {
+            continue;
+        }
+        if (sym->sym_kind == TC_SYM_VARIABLE ||
+            sym->sym_kind == TC_SYM_STATIC_VAR ||
+            sym->sym_kind == TC_SYM_PARAMETER) {
+            return sym->type;
+        }
+    }
+    return NULL;
+}
+
+static int tc_embed_value_is_bool(const TcType *slot_type, const TcValue *value) {
+    if (value && value->type && value->type->tag == TC_BOOL) {
+        return 1;
+    }
+    if (slot_type && slot_type->tag == TC_BOOL) {
+        return 1;
+    }
+    return 0;
+}
+
 size_t tc_embed_slot_count(const TcEmbedCtx *ctx) {
     if (!ctx) return 0;
     if (ctx->is_aot) return ctx->aot_slot_count;
@@ -319,12 +352,19 @@ size_t tc_embed_slot_count(const TcEmbedCtx *ctx) {
 
 int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value) {
     size_t count = tc_embed_slot_count(ctx);
+    const TcType *slot_type = NULL;
 
     if (slot < 0 || (size_t)slot >= count) {
         char msg[128];
         (void)snprintf(msg, sizeof(msg), "slot index %d out of range [0, %zu)", slot, count);
         tc_embed_set_error(ctx, msg);
         return -1;
+    }
+
+    slot_type = tc_embed_slot_declared_type(ctx, slot);
+    if (tc_embed_value_is_bool(slot_type, &value)) {
+        value.bits = value.bits ? 1ULL : 0ULL;
+        value.type = tc_type_tag_singleton(TC_BOOL);
     }
 
     if (ctx->is_aot) {
@@ -338,17 +378,26 @@ int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value) {
 
 int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out) {
     size_t count = tc_embed_slot_count(ctx);
+    const TcType *slot_type = NULL;
 
     if (!out) return -1;
     if (slot < 0 || (size_t)slot >= count) {
         return -1;
     }
 
+    slot_type = tc_embed_slot_declared_type(ctx, slot);
     if (ctx->is_aot) {
         out->bits = ctx->aot_slots[slot];
-        out->type = tc_type_tag_singleton(TC_INT64);  /* AOT 模式下不追踪类型，调用方自行保证 */
+        out->type = slot_type ? slot_type : tc_type_tag_singleton(TC_INT64);
     } else {
         *out = ctx->exec_ctx.slots[slot];
+        if (slot_type && (!out->type || out->type->tag != slot_type->tag)) {
+            out->type = slot_type;
+        }
+    }
+    if (tc_embed_value_is_bool(slot_type, out)) {
+        out->bits = out->bits ? 1ULL : 0ULL;
+        out->type = tc_type_tag_singleton(TC_BOOL);
     }
     return 0;
 }

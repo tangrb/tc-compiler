@@ -4,52 +4,52 @@
 var a: int8 = -42
 var r1: int8 = abs(int8, a)
 var r2: int8 = neg(int8, a)
+var b: int16 = -1000
+var r3: int16 = abs(int16, b)
+var r4: int16 = neg(int16, b)
+var c: int32 = -50000
+var r5: int32 = abs(int32, c)
+var r6: int32 = neg(int32, c)
+var d: int64 = -300000000
+var r7: int64 = abs(int64, d)
+var r8: int64 = neg(int64, d)
+var wb: int8 = -128
+var r10: int8 = neg(int8, wrap, wb)
+var wc: int16 = -32768
+var r11: int16 = neg(int16, wrap, wc)
+var wd: int32 = -2147483648
+var r12: int32 = neg(int32, wrap, wd)
+var we: int64 = -9223372036854775808
+var r13: int64 = neg(int64, wrap, we)
+var ua: uint8 = 200
+var r14: uint8 = abs(uint8, ua)
 writeln(int8, r1)
 writeln(int8, r2)
 
 ; int16
-var b: int16 = -1000
-var r3: int16 = abs(int16, b)
-var r4: int16 = neg(int16, b)
 writeln(int16, r3)
 writeln(int16, r4)
 
 ; int32
-var c: int32 = -50000
-var r5: int32 = abs(int32, c)
-var r6: int32 = neg(int32, c)
 writeln(int32, r5)
 writeln(int32, r6)
 
 ; int64
-var d: int64 = -300000000
-var r7: int64 = abs(int64, d)
-var r8: int64 = neg(int64, d)
 writeln(int64, r7)
 writeln(int64, r8)
 
 ; wrap 模式 neg（abs 不支持 wrap，所以只用 neg）
 ; int8 wrap neg
-var wb: int8 = -128
-var r10: int8 = neg(int8, wrap, wb)
 writeln(int8, r10)
 
 ; int16 wrap neg
-var wc: int16 = -32768
-var r11: int16 = neg(int16, wrap, wc)
 writeln(int16, r11)
 
 ; int32 wrap neg
-var wd: int32 = -2147483648
-var r12: int32 = neg(int32, wrap, wd)
 writeln(int32, r12)
 
 ; int64 wrap neg
-var we: int64 = -9223372036854775808
-var r13: int64 = neg(int64, wrap, we)
 writeln(int64, r13)
 
 ; uint8 abs (无符号类型)
-var ua: uint8 = 200
-var r14: uint8 = abs(uint8, ua)
 writeln(uint8, r14)

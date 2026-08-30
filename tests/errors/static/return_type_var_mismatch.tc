@@ -1,0 +1,7 @@
+#lib
+; 期望：return type does not match function return type
+; 返回类型错误的变量（现有 return_type 只覆盖字面量路径）
+public func f() int32 then
+    var x: float64 = 1.0
+    return x
+end

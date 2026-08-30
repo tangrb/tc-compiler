@@ -125,146 +125,394 @@ static int tc_io_normalize_decimal_point(char *buf) {
     return 0;
 }
 
-static int tc_io_write_float(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
-    char buf[128];
-    double number = tc_fp_bits_to_double(type, value->bits);
-    const char *format = NULL;
-    int written = 0;
-#ifdef TC_HAVE_FENV
-    int saved_round = fegetround();
-#endif
+static int tc_io_write_repeat(FILE *out, char ch, int count) {
+    int i = 0;
 
-    if (isnan(number)) {
-        const char *text = (fmt == TC_FMT_EU || fmt == TC_FMT_GU) ? "NAN" : "nan";
-        return fputs(text, out) == EOF ? -1 : 0;
+    for (i = 0; i < count; i++) {
+        if (fputc(ch, out) == EOF) {
+            return -1;
+        }
     }
-    if (isinf(number)) {
-        const int uppercase = fmt == TC_FMT_EU || fmt == TC_FMT_GU;
-        const char *text = signbit(number) ? (uppercase ? "-INF" : "-inf")
-                                           : (uppercase ? "INF" : "inf");
-        return fputs(text, out) == EOF ? -1 : 0;
-    }
-
-    switch (fmt) {
-    case TC_FMT_F:
-        format = "%f";
-        break;
-    case TC_FMT_E:
-        format = "%e";
-        break;
-    case TC_FMT_EU:
-        format = "%E";
-        break;
-    case TC_FMT_G:
-        format = "%g";
-        break;
-    case TC_FMT_GU:
-        format = "%G";
-        break;
-    default:
-        return -1;
-    }
-
-#ifdef TC_HAVE_FENV
-    if (saved_round != -1 && saved_round != FE_TONEAREST) {
-        (void)fesetround(FE_TONEAREST);
-    }
-#endif
-    written = snprintf(buf, sizeof(buf), format, number);
-#ifdef TC_HAVE_FENV
-    if (saved_round != -1 && saved_round != FE_TONEAREST) {
-        (void)fesetround(saved_round);
-    }
-#endif
-    if (written < 0 || (size_t)written >= sizeof(buf)) {
-        return -1;
-    }
-    tc_io_normalize_decimal_point(buf);
-    return fputs(buf, out) == EOF ? -1 : 0;
+    return 0;
 }
 
-int tc_io_write_formatted(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out) {
-    int n = 0;
-    uint64_t mask = 0;
-    uint64_t uval = 0;
+static int tc_io_write_aligned(FILE *out, const char *prefix, const char *digits,
+                               const TcFormatFullSpec *fmt, int zero_pad) {
+    int prefix_len = (int)strlen(prefix);
+    int digits_len = (int)strlen(digits);
+    int content = prefix_len + digits_len;
+    int pad = (fmt->width > content) ? fmt->width - content : 0;
 
-    if (!value || !out || value->type->tag != type || !tc_io_format_accepts_type(type, fmt)) {
+    if (fmt->flag_minus) {
+        if (fputs(prefix, out) == EOF || fputs(digits, out) == EOF) {
+            return -1;
+        }
+        return tc_io_write_repeat(out, ' ', pad);
+    }
+    if (zero_pad && pad > 0) {
+        if (fputs(prefix, out) == EOF) {
+            return -1;
+        }
+        if (tc_io_write_repeat(out, '0', pad) != 0) {
+            return -1;
+        }
+        return fputs(digits, out) == EOF ? -1 : 0;
+    }
+    if (tc_io_write_repeat(out, ' ', pad) != 0) {
         return -1;
     }
-    n = tc_type_bit_width(type);
-    mask = tc_mask_bits(n);
-    uval = tc_value_to_unsigned(type, value->bits) & mask;
-
-    switch (fmt) {
-    case TC_FMT_D:
-    case TC_FMT_I:
-        if (!tc_type_is_signed(type)) {
-            if (fprintf(out, "%llu", (unsigned long long)uval) < 0) {
-                return -1;
-            }
-        } else {
-            int64_t sval = tc_bits_to_signed(type, value->bits);
-            if (fprintf(out, "%lld", (long long)sval) < 0) {
-                return -1;
-            }
-        }
-        break;
-    case TC_FMT_U:
-        if (fprintf(out, "%llu", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_X:
-        if (fprintf(out, "%llx", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_XU:
-        if (fprintf(out, "%llX", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_O:
-        if (fprintf(out, "%llo", (unsigned long long)uval) < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_B: {
-        int i = n - 1;
-        int keep_full_width = tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0;
-
-        while (!keep_full_width && i > 0 && ((uval >> i) & 1U) == 0U) {
-            i--;
-        }
-        for (; i >= 0; i--) {
-            if (fputc((uval >> i) & 1 ? '1' : '0', out) == EOF) {
-                return -1;
-            }
-        }
-        break;
-    }
-    case TC_FMT_T:
-        if (fprintf(out, "%s", value->bits != 0 ? "true" : "false") < 0) {
-            return -1;
-        }
-        break;
-    case TC_FMT_F:
-    case TC_FMT_E:
-    case TC_FMT_EU:
-    case TC_FMT_G:
-    case TC_FMT_GU:
-        return tc_io_write_float(type, fmt, value, out);
-    case TC_FMT_NONE:
-        /* 无格式输出由 tc_io_write_value 直接处理；此处防御误传 */
-        return -1;
-    default:
+    if (fputs(prefix, out) == EOF || fputs(digits, out) == EOF) {
         return -1;
     }
     return 0;
 }
 
-static int tc_io_render_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
-    if (fmt != TC_FMT_NONE) {
+static void tc_io_u64_to_base(uint64_t value, int base, int uppercase, char *out, size_t out_size) {
+    const char *alphabet = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
+    char tmp[80];
+    int n = 0;
+    int i = 0;
+
+    if (out_size == 0) {
+        return;
+    }
+    if (value == 0) {
+        out[0] = '0';
+        out[1] = '\0';
+        return;
+    }
+    while (value > 0 && n < (int)sizeof(tmp)) {
+        tmp[n++] = alphabet[value % (unsigned)base];
+        value /= (unsigned)base;
+    }
+    if ((size_t)n + 1U > out_size) {
+        n = (int)out_size - 1;
+    }
+    for (i = 0; i < n; i++) {
+        out[i] = tmp[n - 1 - i];
+    }
+    out[n] = '\0';
+}
+
+static void tc_io_strip_leading_zeros(char *digits) {
+    size_t i = 0;
+
+    while (digits[i] == '0' && digits[i + 1] != '\0') {
+        i++;
+    }
+    if (i > 0) {
+        memmove(digits, digits + i, strlen(digits + i) + 1U);
+    }
+}
+
+static int tc_io_prec_pad(char *digits, size_t cap, int min_digits) {
+    int len = (int)strlen(digits);
+    int need = min_digits - len;
+
+    if (need <= 0) {
+        return 0;
+    }
+    if ((size_t)min_digits + 1U > cap) {
+        return -1;
+    }
+    memmove(digits + need, digits, (size_t)len + 1U);
+    memset(digits, '0', (size_t)need);
+    return 0;
+}
+
+static int tc_io_full_digit_width(TcTypeTag type, TcFormatSpec spec) {
+    int bits = tc_type_bit_width(type);
+
+    if (spec == TC_FMT_X || spec == TC_FMT_XU) {
+        return (bits + 3) / 4;
+    }
+    if (spec == TC_FMT_O) {
+        return (bits + 2) / 3;
+    }
+    if (spec == TC_FMT_B) {
+        return bits;
+    }
+    return 1;
+}
+
+static void tc_io_fix_exp_width(char *buf) {
+    char *mark = strpbrk(buf, "eE");
+    char *p = NULL;
+
+    if (!mark) {
+        return;
+    }
+    p = mark + 1;
+    if (*p == '+' || *p == '-') {
+        p++;
+    }
+    if (p[0] != '\0' && p[1] == '\0') {
+        memmove(p + 1, p, 2U);
+        *p = '0';
+    }
+}
+
+static int tc_io_write_float_core(TcTypeTag type, TcFormatSpec spec, const TcValue *value,
+                                  FILE *out) {
+    TcFormatFullSpec fmt = tc_format_spec_make(spec);
+
+    return tc_io_write_formatted(type, fmt, value, out);
+}
+
+static int tc_io_format_float(TcTypeTag type, const TcFormatFullSpec *fmt, const TcValue *value,
+                              FILE *out) {
+    double number = tc_fp_bits_to_double(type, value->bits);
+    int uppercase = fmt->spec == TC_FMT_EU || fmt->spec == TC_FMT_GU;
+    int special = 0;
+    char prefix[3];
+    const char *digits = NULL;
+    char *body = NULL;
+    int precision = 6;
+    int rc = 0;
+#ifdef TC_HAVE_FENV
+    int saved_round = fegetround();
+#endif
+
+    prefix[0] = '\0';
+    if (isnan(number)) {
+        digits = uppercase ? "NAN" : "nan";
+        if (fmt->flag_plus) {
+            prefix[0] = '+';
+            prefix[1] = '\0';
+        }
+        special = 1;
+    } else if (isinf(number)) {
+        if (signbit(number)) {
+            prefix[0] = '-';
+            prefix[1] = '\0';
+        } else if (fmt->flag_plus) {
+            prefix[0] = '+';
+            prefix[1] = '\0';
+        }
+        digits = uppercase ? "INF" : "inf";
+        special = 1;
+    }
+    if (special) {
+        return tc_io_write_aligned(out, prefix, digits, fmt, 0);
+    }
+
+    if (fmt->precision_set) {
+        precision = fmt->precision;
+        if ((fmt->spec == TC_FMT_G || fmt->spec == TC_FMT_GU) && precision == 0) {
+            precision = 1;
+        }
+    }
+
+    {
+        char specfmt[16];
+        int need = 0;
+        const char *conv_ch = "f";
+
+        switch (fmt->spec) {
+        case TC_FMT_F:
+            conv_ch = "f";
+            break;
+        case TC_FMT_E:
+            conv_ch = "e";
+            break;
+        case TC_FMT_EU:
+            conv_ch = "E";
+            break;
+        case TC_FMT_G:
+            conv_ch = "g";
+            break;
+        case TC_FMT_GU:
+            conv_ch = "G";
+            break;
+        default:
+            return -1;
+        }
+        if (fmt->flag_hash) {
+            (void)snprintf(specfmt, sizeof(specfmt), "%%#.%d%s", precision, conv_ch);
+        } else {
+            (void)snprintf(specfmt, sizeof(specfmt), "%%.%d%s", precision, conv_ch);
+        }
+#ifdef TC_HAVE_FENV
+        if (saved_round != -1 && saved_round != FE_TONEAREST) {
+            (void)fesetround(FE_TONEAREST);
+        }
+#endif
+        need = snprintf(NULL, 0, specfmt, number);
+#ifdef TC_HAVE_FENV
+        if (saved_round != -1 && saved_round != FE_TONEAREST) {
+            (void)fesetround(saved_round);
+        }
+#endif
+        if (need < 0) {
+            return -1;
+        }
+        body = (char *)malloc((size_t)need + 2U);
+        if (!body) {
+            return -1;
+        }
+#ifdef TC_HAVE_FENV
+        if (saved_round != -1 && saved_round != FE_TONEAREST) {
+            (void)fesetround(FE_TONEAREST);
+        }
+#endif
+        if (snprintf(body, (size_t)need + 2U, specfmt, number) < 0) {
+#ifdef TC_HAVE_FENV
+            if (saved_round != -1 && saved_round != FE_TONEAREST) {
+                (void)fesetround(saved_round);
+            }
+#endif
+            free(body);
+            return -1;
+        }
+#ifdef TC_HAVE_FENV
+        if (saved_round != -1 && saved_round != FE_TONEAREST) {
+            (void)fesetround(saved_round);
+        }
+#endif
+        tc_io_normalize_decimal_point(body);
+        tc_io_fix_exp_width(body);
+        prefix[0] = '\0';
+        digits = body;
+        if (body[0] == '-') {
+            prefix[0] = '-';
+            prefix[1] = '\0';
+            digits = body + 1;
+        } else if (fmt->flag_plus) {
+            prefix[0] = '+';
+            prefix[1] = '\0';
+        }
+        rc = tc_io_write_aligned(out, prefix, digits, fmt,
+                                 fmt->flag_zero && !fmt->flag_minus);
+        free(body);
+        return rc;
+    }
+}
+
+int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *value, FILE *out) {
+    int n = 0;
+    uint64_t mask = 0;
+    uint64_t uval = 0;
+    int64_t sval = 0;
+    int negative = 0;
+    char digits[80];
+    char prefix[8];
+    int min_digits = 1;
+    int empty_ok = 0;
+    int int_zero_pad = 0;
+
+    if (!value || !out || !value->type || value->type->tag != type ||
+        !tc_io_format_accepts_type(type, fmt.spec)) {
+        return -1;
+    }
+    if (fmt.spec == TC_FMT_F || fmt.spec == TC_FMT_E || fmt.spec == TC_FMT_EU ||
+        fmt.spec == TC_FMT_G || fmt.spec == TC_FMT_GU) {
+        return tc_io_format_float(type, &fmt, value, out);
+    }
+
+    n = tc_type_bit_width(type);
+    mask = tc_mask_bits(n);
+    uval = tc_value_to_unsigned(type, value->bits) & mask;
+    prefix[0] = '\0';
+    digits[0] = '\0';
+
+    if (fmt.spec == TC_FMT_T) {
+        return tc_io_write_aligned(out, "", value->bits != 0 ? "true" : "false", &fmt, 0);
+    }
+
+    if (fmt.spec == TC_FMT_D || fmt.spec == TC_FMT_I) {
+        sval = tc_bits_to_signed(type, value->bits);
+        negative = sval < 0;
+        if (sval == INT64_MIN) {
+            (void)strcpy(digits, "9223372036854775808");
+        } else {
+            uint64_t mag = negative ? (uint64_t)(-sval) : (uint64_t)sval;
+            tc_io_u64_to_base(mag, 10, 0, digits, sizeof(digits));
+        }
+        if (negative) {
+            prefix[0] = '-';
+            prefix[1] = '\0';
+        } else if (fmt.flag_plus) {
+            prefix[0] = '+';
+            prefix[1] = '\0';
+        }
+    } else if (fmt.spec == TC_FMT_U) {
+        tc_io_u64_to_base(uval, 10, 0, digits, sizeof(digits));
+    } else if (fmt.spec == TC_FMT_X || fmt.spec == TC_FMT_XU) {
+        tc_io_u64_to_base(uval, 16, fmt.spec == TC_FMT_XU, digits, sizeof(digits));
+        if (!(tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0)) {
+            tc_io_strip_leading_zeros(digits);
+        } else if (tc_io_prec_pad(digits, sizeof(digits),
+                                  tc_io_full_digit_width(type, fmt.spec)) != 0) {
+            return -1;
+        }
+        if (fmt.flag_hash && uval != 0) {
+            prefix[0] = '0';
+            prefix[1] = (char)(fmt.spec == TC_FMT_XU ? 'X' : 'x');
+            prefix[2] = '\0';
+        }
+    } else if (fmt.spec == TC_FMT_O) {
+        tc_io_u64_to_base(uval, 8, 0, digits, sizeof(digits));
+        if (!(tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0)) {
+            tc_io_strip_leading_zeros(digits);
+        } else if (tc_io_prec_pad(digits, sizeof(digits),
+                                  tc_io_full_digit_width(type, fmt.spec)) != 0) {
+            return -1;
+        }
+    } else if (fmt.spec == TC_FMT_B) {
+        tc_io_u64_to_base(uval, 2, 0, digits, sizeof(digits));
+        if (!(tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0)) {
+            tc_io_strip_leading_zeros(digits);
+        } else if (tc_io_prec_pad(digits, sizeof(digits),
+                                  tc_io_full_digit_width(type, fmt.spec)) != 0) {
+            return -1;
+        }
+        if (fmt.flag_hash && uval != 0) {
+            prefix[0] = '0';
+            prefix[1] = 'b';
+            prefix[2] = '\0';
+        }
+    } else {
+        return -1;
+    }
+
+    empty_ok = fmt.precision_set && fmt.precision == 0 && uval == 0 &&
+               !(fmt.spec == TC_FMT_D || fmt.spec == TC_FMT_I);
+    if (fmt.spec == TC_FMT_D || fmt.spec == TC_FMT_I) {
+        empty_ok = fmt.precision_set && fmt.precision == 0 && sval == 0;
+    }
+    if (empty_ok) {
+        if (fmt.spec == TC_FMT_O && fmt.flag_hash) {
+            digits[0] = '0';
+            digits[1] = '\0';
+        } else {
+            digits[0] = '\0';
+        }
+    }
+
+    if (fmt.precision_set) {
+        min_digits = fmt.precision;
+        if (digits[0] != '\0' && tc_io_prec_pad(digits, sizeof(digits), min_digits) != 0) {
+            return -1;
+        }
+        if (digits[0] == '\0' && min_digits > 0 &&
+            tc_io_prec_pad(digits, sizeof(digits), min_digits) != 0) {
+            return -1;
+        }
+    }
+
+    if (fmt.spec == TC_FMT_O && fmt.flag_hash && digits[0] != '0') {
+        if (tc_io_prec_pad(digits, sizeof(digits), (int)strlen(digits) + 1) != 0) {
+            return -1;
+        }
+        digits[0] = '0';
+    }
+
+    int_zero_pad = fmt.flag_zero && !fmt.flag_minus && !fmt.precision_set;
+    return tc_io_write_aligned(out, prefix, digits, &fmt, int_zero_pad);
+}
+
+static int tc_io_render_value(const TcValue *value, TcFormatFullSpec fmt, int newline, FILE *out) {
+    if (fmt.spec != TC_FMT_NONE) {
         if (tc_io_write_formatted(value->type->tag, fmt, value, out) != 0) {
             return -1;
         }
@@ -273,7 +521,7 @@ static int tc_io_render_value(const TcValue *value, TcFormatSpec fmt, int newlin
             return -1;
         }
     } else if (tc_type_is_float(value->type->tag)) {
-        if (tc_io_write_float(value->type->tag, TC_FMT_G, value, out) != 0) {
+        if (tc_io_write_float_core(value->type->tag, TC_FMT_G, value, out) != 0) {
             return -1;
         }
     } else if (tc_type_is_signed(value->type->tag)) {
@@ -295,7 +543,7 @@ static int tc_io_render_value(const TcValue *value, TcFormatSpec fmt, int newlin
     return 0;
 }
 
-int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out) {
+int tc_io_write_value(const TcValue *value, TcFormatFullSpec fmt, int newline, FILE *out) {
     char *buf = NULL;
     size_t len = 0;
     FILE *stage = NULL;
@@ -574,8 +822,12 @@ static int tc_io_float_token_is_decimal(const char *token) {
             digits_after++;
             p++;
         }
+        /* §10.4：小数点前后均须有数字（拒绝 1. / .5） */
+        if (digits_before < 1 || digits_after < 1) {
+            return 0;
+        }
     }
-    if (digits_before == 0 && digits_after == 0) {
+    if (digits_before == 0) {
         return 0;
     }
     if (*p == 'e' || *p == 'E') {

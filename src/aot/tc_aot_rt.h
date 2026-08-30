@@ -46,7 +46,7 @@ int tc_aot_fp_compare(TcCompareOp op, TcTypeTag type, TcFloatMode mode, uint64_t
                         uint64_t lhs, uint64_t rhs, TcDiagnostic *diag, int line);
 int tc_aot_fp_cast(TcTypeTag target, TcTruncateMode mode, uint64_t src_bits, TcTypeTag src_type,
                    uint64_t *out, TcDiagnostic *diag, int line);
-int tc_aot_write(TcTypeTag type, TcFormatSpec fmt, uint64_t bits, int newline,
+int tc_aot_write(TcTypeTag type, TcFormatFullSpec fmt, uint64_t bits, int newline,
                  TcDiagnostic *diag, int line);
 int tc_aot_read(TcTypeTag type, uint64_t *out, TcDiagnostic *diag, int line);
 void tc_aot_abort(const TcDiagnostic *diag, int line);
@@ -68,6 +68,8 @@ uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnosti
                                int line);
 uint64_t tc_aot_memblock_clone(uint64_t src, size_t element_bytes, uint64_t count,
                                TcDiagnostic *diag, int line);
+uint64_t tc_aot_memblock_from_bytes(const uint8_t *bytes, size_t nbytes, TcDiagnostic *diag,
+                                    int line);
 void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                               uint64_t value_bits);
 /** 结构体元素按值语义深拷贝内容（§3.8）：struct_ptr 指向源 struct 堆块 */
@@ -80,9 +82,9 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
                           uint64_t value_bits, TcTypeTag elem_type, TcDiagnostic *diag,
                           int line);
 int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
-                           uint64_t src_ptr, uint64_t src_index, int64_t length,
-                           size_t element_bytes, TcTypeTag elem_tag, TcDiagnostic *diag,
-                           int line);
+                           TcTypeTag dst_idx_type, uint64_t src_ptr, uint64_t src_index,
+                           TcTypeTag src_idx_type, int64_t length, size_t element_bytes,
+                           TcTypeTag elem_tag, TcDiagnostic *diag, int line);
 int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
                          uint64_t src_index, uint64_t length, size_t element_bytes,
                          TcDiagnostic *diag, int line);
@@ -93,6 +95,8 @@ uint64_t tc_aot_struct_alloc(size_t bytes, TcDiagnostic *diag, int line);
 uint64_t tc_aot_struct_clone(uint64_t src_bits, size_t bytes, TcDiagnostic *diag, int line);
 void tc_aot_struct_store_bits(uint64_t dst_bits, size_t offset, size_t nbytes, uint64_t value_bits);
 void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, uint64_t *out);
+/** 标量字段读的表达式友好包装：返回字段位模式。 */
+uint64_t tc_aot_struct_load_bits_value(uint64_t src_bits, size_t offset, size_t nbytes);
 void tc_aot_struct_memcpy_field(uint64_t dst_bits, size_t offset, size_t nbytes,
                                 uint64_t src_bits);
 uint64_t tc_aot_struct_extract(uint64_t src_bits, size_t offset, size_t nbytes,

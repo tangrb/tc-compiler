@@ -1,8 +1,9 @@
-/* test_embed.c — TC-Embed 嵌入式运行时单元测试（v0.0.39） */
+/* test_embed.c — TC-Embed 嵌入式运行时单元测试（v0.0.41） */
 #include "tc_embed.h"
 #include "tc_value_bridge.h"
 #include "tc_lib.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -399,6 +400,33 @@ static void test_embed_slot_write_read(void) {
     check(tc_embed_slot_read(ctx, 0, &readback) == 0, "read slot 0");
     tc_value_to_int64(readback, &val);
     check(val == 42, "slot readback == 42");
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_embed_bool_normalize(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    TcValue dirty;
+    TcValue readback;
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source(
+        "#program\nvar flag: bool = false\n", "<test>", &prog, &diag) == 0,
+          "compile program with bool var");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create ctx");
+
+    dirty.type = tc_type_tag_singleton(TC_BOOL);
+    dirty.bits = UINT64_C(0xFF);
+    check(tc_embed_slot_write(ctx, 0, dirty) == 0, "write dirty bool bits");
+    check(tc_embed_slot_read(ctx, 0, &readback) == 0, "read bool slot");
+    check(readback.bits == UINT64_C(1), "dirty bool normalized to 0x01");
+    check(readback.type && readback.type->tag == TC_BOOL, "readback type is bool");
 
     tc_embed_destroy(ctx);
     tc_typed_program_free(&prog);
@@ -1127,6 +1155,7 @@ int main(void) {
     test_embed_ptr_store_offset();
     test_embed_static_var_persist();
     test_embed_slot_write_read();
+    test_embed_bool_normalize();
     test_embed_slot_out_of_range();
     test_embed_error_message();
     test_embed_func_info_query();

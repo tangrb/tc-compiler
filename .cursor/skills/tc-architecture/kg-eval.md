@@ -2,7 +2,7 @@
 
 **只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
-> **v0.0.39**：标量 let + static let 拓扑、调用帧、ptr/memblock/struct 运行时与 AOT shim 已落地。规格：`docs/*-0.0.39.md`。
+> **v0.0.41**：标量 let + static let 拓扑、调用帧、ptr/memblock/struct 运行时与 AOT shim 已落地。规格：`docs/*-0.0.41.md`。
 
 ## let 编译期求值
 
@@ -18,6 +18,9 @@ tc_pass2 → tc_resolve_const_value → tc_eval_const_rhs
 允许：整数 wrap、浮点 ieee、整数窄化 truncate、等宽 bitcast；每个 let RHS 最多一个调用层。  
 禁：var 引用、调用嵌套、`FUNCALL_EXPR`、自引用、前向 let；ptr/memblock/field/self 在 const_eval **defer**。  
 操作×类型×模式由 `tc_validate_*_mode` 共用矩阵；逻辑短路仍先校验两个原子操作数。
+
+**memblock 逐值构造**：`tc_eval_const_memblock_ctor` 须 `value_count == count`（static let 早于 pass2；见 [gotchas.md](gotchas.md)）。  
+**AOT const 复合字段**：禁止嵌入分析期堆指针；字节内联 + `tc_aot_struct_extract`（同 gotchas）。
 
 **static let**：`tc_func_eval_static_lets` 拓扑求值（H-5）— 见 [kg-func.md](kg-func.md)。
 
@@ -37,7 +40,8 @@ Executor/AOT：and 的 lhs bits==0、or 的 lhs bits!=0 → 不求 rhs
 tc_parse_and_or_not_rhs(type):
   TC_BOOL → LOGIC_*（短路）；整数 → BITWISE_*（无短路）
 xor → BITWISE_BIN（仅整数）
-SHIFT: shl 可选 wrap（let 禁）；shr 禁 wrap；k>=n → shr=0；strict shl 溢出报错
+SHIFT: shl 可选 wrap（let 禁）；shr 禁 wrap（显式算术右移，不依赖宿主 `>>`）；k>=n → shr=0；
+strict shl 溢出报错；有符号 `shl(int64, -2^62, 1)` = INT64_MIN（负边界用 `(1ULL<<63)/pow2`）
 ```
 
 ## 复合类型运行时
@@ -47,7 +51,9 @@ SHIFT: shl 可选 wrap（let 禁）；shr 禁 wrap；k>=n → shr=0；strict shl
 | 验证 | `tc_{type,ptr,memblock,struct}_check.c` |
 | VM | `tc_{ptr,memblock,struct}_exec.c` ← `tc_executor.c` |
 | AOT | `tc_aot_codegen.c` + `tc_aot_{ptr,memblock,struct}_*`（`tc_aot_rt.c`） |
-| 存储 | `TcRuntimeSlots`：`memblock_storage` / `struct_storage` |
+| 存储 | `TcRuntimeSlots`：`memblock_storage` / `struct_storage`（memblock 头 64-bit-only） |
+
+结构体名解析（Analyzer，注册结构体表时）：裸名仅本模块；导入须 `Mod.Name`；表按 `(module_name, name)`。见 [kg-module.md](kg-module.md)。
 
 ## 内存安全
 

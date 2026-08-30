@@ -7,6 +7,7 @@
 #include "tc_analyzer.h"
 #include "tc_diagnostic.h"
 #include "tc_parser.h"
+#include "tc_symbol.h"
 #include "tc_type_check.h"
 #include "tc_types.h"
 
@@ -139,6 +140,8 @@ static void test_memblock_errors(void) {
                TC_CE_MEMBLOCK_SIZE_MISMATCH, "memblock assign size mismatch");
     expect_err("#program\nvar mb: memblock<int32, 2> = memblock(int32, count: 0, fill: 0)\n",
                TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, "memblock count zero");
+    expect_err("#program\nvar mb: memblock<int32, 0> = memblock(int32, count: 1, fill: 0)\n",
+               TC_CE_CONSTANT_EXPRESSION, "type position N=0 rejected");
     expect_err("#program\nvar mb: memblock<int32, 2> = memblock(int32, count: 2, fill: true)\n",
                TC_CE_LITERAL_TYPE, "memblock fill type");
     expect_err("#program\nvar mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)\n"
@@ -190,7 +193,7 @@ static void test_phase3_ok_paths(void) {
               "var q: ptr<int32> = ptr_add(int32, p, 1)\n",
               "ptr_address/add ok");
     expect_ok("#program\nvar a: int32 = 1\nvar p: ptr<int32> = ptr_address(int32, a)\n"
-              "ptr_store(int32, p, 2)\nvar b: int32 = ptr_load(int32, p)\n",
+              "var b: int32 = ptr_load(int32, p)\nptr_store(int32, p, 2)\n",
               "ptr_load/store ok");
 }
 
@@ -216,6 +219,33 @@ static void test_self_member_rhs(void) {
     expect_err("#program\nstruct Point then\n    var x: int32\nend\n"
                "let p: Point = Point(x: 1)\np.x = 2\n",
                TC_CE_CONSTANT_ASSIGNMENT, "let×var field assign");
+}
+
+static void test_format_diag_priority(void) {
+    /* §10.1/§10.2：先操作数与显式类型一致性，再检查格式转换符 */
+    expect_err("#program\nvar x: int64 = 1\nwriteln(bool, %d, x)\n", TC_CE_TYPE_MISMATCH,
+               "format after operand type");
+}
+
+static void test_memblock_named_n_folded(void) {
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+    const TcSymbol *sym = NULL;
+
+    tc_diagnostic_init(&diag);
+    check(analyze_source("#program\nlet N: usize = 4\n"
+                         "var mb: memblock<int32, N> = memblock(int32, count: N, fill: 0)\n",
+                         &typed, &diag) == 0,
+          "named N memblock analyzes");
+    if (diag.domain != TC_DIAG_NONE) {
+        fprintf(stderr, "  diag: %s\n", diag.message);
+    }
+    sym = tc_symbol_table_find(&typed.symbols, "mb");
+    check(sym != NULL && sym->type != NULL && sym->type->tag == TC_MEMBLOCK &&
+              tc_type_memblock_count(sym->type) == 4,
+          "named N folded before intern, count != 0");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
 }
 
 static void test_phase4_func_extras(void) {
@@ -257,7 +287,8 @@ static void test_struct_self_reference(void) {
     /* 更早结构体指针：ptr_address / ptr_load 往返可用 */
     expect_ok("#program\nstruct B then\n    var x: int32\nend\n"
               "struct A then\n    var p: ptr<B>\nend\n"
-              "var b: B = B(x: 42)\nvar a: A = A(p: ptr_address(B, b))\n"
+              "var b: B = B(x: 42)\nvar pb: ptr<B> = ptr_address(B, b)\n"
+              "var a: A = A(p: pb)\n"
               "var q: ptr<B> = a.p\nvar v: B = ptr_load(B, q)\n",
               "ptr to earlier struct roundtrip ok");
     /* §3.10.1：ptr<A> 与 ptr<B> 不同型 */
@@ -285,6 +316,8 @@ int main(void) {
     test_duplicate_struct();
     test_struct_constructor_errors();
     test_memblock_errors();
+    test_format_diag_priority();
+    test_memblock_named_n_folded();
     test_ptr_errors();
     test_struct_nested_and_mutability();
     test_struct_self_reference();

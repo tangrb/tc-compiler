@@ -1,0 +1,5 @@
+#program
+; 期望：invalid input（read 拒绝 1. / .5）
+var x: float64 = 0.0
+writeln(float64, 1.0)
+read(float64, x)

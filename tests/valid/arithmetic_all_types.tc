@@ -8,13 +8,6 @@ var r2: int8 = sub(int8, b, a)
 var r3: int8 = mul(int8, a, b)
 var r4: int8 = div(int8, b, a)
 var r5: int8 = mod(int8, b, a)
-writeln(int8, r1)
-writeln(int8, r2)
-writeln(int8, r3)
-writeln(int8, r4)
-writeln(int8, r5)
-
-; uint8 算术
 var ua: uint8 = 10
 var ub: uint8 = 20
 var r6: uint8 = add(uint8, ua, ub)
@@ -22,6 +15,37 @@ var r7: uint8 = sub(uint8, ub, ua)
 var r8: uint8 = mul(uint8, ua, ub)
 var r9: uint8 = div(uint8, ub, ua)
 var r10: uint8 = mod(uint8, ub, ua)
+var ia: int16 = 100
+var ib: int16 = 200
+var r11: int16 = add(int16, ia, ib)
+var r12: int16 = sub(int16, ib, ia)
+var uia: uint16 = 1000
+var uib: uint16 = 2000
+var r13: uint16 = add(uint16, uia, uib)
+var i32a: int32 = 100000
+var i32b: int32 = 200000
+var r14: int32 = add(int32, i32a, i32b)
+var r15: int32 = sub(int32, i32a, i32b)
+var r16: int32 = mul(int32, i32a, 100)
+var ui32a: uint32 = 3000000
+var ui32b: uint32 = 4000000
+var r17: uint32 = add(uint32, ui32a, ui32b)
+var r18: uint32 = sub(uint32, ui32b, ui32a)
+var i64a: int64 = 500000000
+var i64b: int64 = 600000000
+var r19: int64 = add(int64, i64a, i64b)
+var r20: int64 = mul(int64, i64a, 1000)
+var ui64a: uint64 = 700000000
+var ui64b: uint64 = 800000000
+var r21: uint64 = add(uint64, ui64a, ui64b)
+var r22: uint64 = mul(uint64, ui64a, 1000)
+writeln(int8, r1)
+writeln(int8, r2)
+writeln(int8, r3)
+writeln(int8, r4)
+writeln(int8, r5)
+
+; uint8 算术
 writeln(uint8, r6)
 writeln(uint8, r7)
 writeln(uint8, r8)
@@ -29,49 +53,25 @@ writeln(uint8, r9)
 writeln(uint8, r10)
 
 ; int16 算术
-var ia: int16 = 100
-var ib: int16 = 200
-var r11: int16 = add(int16, ia, ib)
-var r12: int16 = sub(int16, ib, ia)
 writeln(int16, r11)
 writeln(int16, r12)
 
 ; uint16 算术
-var uia: uint16 = 1000
-var uib: uint16 = 2000
-var r13: uint16 = add(uint16, uia, uib)
 writeln(uint16, r13)
 
 ; int32 算术
-var i32a: int32 = 100000
-var i32b: int32 = 200000
-var r14: int32 = add(int32, i32a, i32b)
-var r15: int32 = sub(int32, i32a, i32b)
-var r16: int32 = mul(int32, i32a, 100)
 writeln(int32, r14)
 writeln(int32, r15)
 writeln(int32, r16)
 
 ; uint32 算术
-var ui32a: uint32 = 3000000
-var ui32b: uint32 = 4000000
-var r17: uint32 = add(uint32, ui32a, ui32b)
-var r18: uint32 = sub(uint32, ui32b, ui32a)
 writeln(uint32, r17)
 writeln(uint32, r18)
 
 ; int64 算术
-var i64a: int64 = 500000000
-var i64b: int64 = 600000000
-var r19: int64 = add(int64, i64a, i64b)
-var r20: int64 = mul(int64, i64a, 1000)
 writeln(int64, r19)
 writeln(int64, r20)
 
 ; uint64 算术
-var ui64a: uint64 = 700000000
-var ui64b: uint64 = 800000000
-var r21: uint64 = add(uint64, ui64a, ui64b)
-var r22: uint64 = mul(uint64, ui64a, 1000)
 writeln(uint64, r21)
 writeln(uint64, r22)

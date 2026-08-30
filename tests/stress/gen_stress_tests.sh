@@ -175,6 +175,8 @@ echo "    expected f49: 562949953421312"
 #    Tests all 8 integer types + bool across every TcRhsKind
 # ============================================================
 echo "  -> type_combinatorial.tc"
+TC_STRESS_WRITES="$(mktemp)"
+trap 'rm -f "$TC_STRESS_WRITES"' EXIT
 cat > "$ROOT/type_combinatorial.tc" << 'TC_HEADER5'
 ; Stress test: All types across all operators
 ; Covers every TcRhsKind for every type:
@@ -220,16 +222,16 @@ add_type_section() {
     echo "var t_${type}_eq: bool = eq(${type}, ${val_a}, ${val_b})" >> "$ROOT/type_combinatorial.tc"
     echo "var t_${type}_lt: bool = lt(${type}, ${val_a}, ${val_b})" >> "$ROOT/type_combinatorial.tc"
 
-    # I/O: write values
-    echo "writeln(${type}, t_${type}_add)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(${type}, t_${type}_sub)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(${type}, t_${type}_mul)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(${type}, t_${type}_div)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(${type}, t_${type}_mod)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(${type}, t_${type}_neg)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(${type}, t_${type}_abs)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(bool, t_${type}_eq)" >> "$ROOT/type_combinatorial.tc"
-    echo "writeln(bool, t_${type}_lt)" >> "$ROOT/type_combinatorial.tc"
+    # I/O 延后到 VALUE 层之后，避免模块分层交错
+    echo "writeln(${type}, t_${type}_add)" >> "$TC_STRESS_WRITES"
+    echo "writeln(${type}, t_${type}_sub)" >> "$TC_STRESS_WRITES"
+    echo "writeln(${type}, t_${type}_mul)" >> "$TC_STRESS_WRITES"
+    echo "writeln(${type}, t_${type}_div)" >> "$TC_STRESS_WRITES"
+    echo "writeln(${type}, t_${type}_mod)" >> "$TC_STRESS_WRITES"
+    echo "writeln(${type}, t_${type}_neg)" >> "$TC_STRESS_WRITES"
+    echo "writeln(${type}, t_${type}_abs)" >> "$TC_STRESS_WRITES"
+    echo "writeln(bool, t_${type}_eq)" >> "$TC_STRESS_WRITES"
+    echo "writeln(bool, t_${type}_lt)" >> "$TC_STRESS_WRITES"
 }
 
 # int8: signed 8-bit
@@ -263,10 +265,10 @@ echo "var t_bool_and: bool = and(bool, true, false)" >> "$ROOT/type_combinatoria
 echo "var t_bool_or: bool = or(bool, true, false)" >> "$ROOT/type_combinatorial.tc"
 echo "var t_bool_not: bool = not(bool, true)" >> "$ROOT/type_combinatorial.tc"
 echo "var t_bool_not2: bool = not(bool, false)" >> "$ROOT/type_combinatorial.tc"
-echo "writeln(bool, t_bool_and)" >> "$ROOT/type_combinatorial.tc"     # false
-echo "writeln(bool, t_bool_or)" >> "$ROOT/type_combinatorial.tc"      # true
-echo "writeln(bool, t_bool_not)" >> "$ROOT/type_combinatorial.tc"     # false
-echo "writeln(bool, t_bool_not2)" >> "$ROOT/type_combinatorial.tc"    # true
+echo "writeln(bool, t_bool_and)" >> "$TC_STRESS_WRITES"     # false
+echo "writeln(bool, t_bool_or)" >> "$TC_STRESS_WRITES"      # true
+echo "writeln(bool, t_bool_not)" >> "$TC_STRESS_WRITES"     # false
+echo "writeln(bool, t_bool_not2)" >> "$TC_STRESS_WRITES"    # true
 
 # Cast operations: each type to next wider type
 echo "; === cast operations across types ===" >> "$ROOT/type_combinatorial.tc"
@@ -283,28 +285,29 @@ echo "var cast_bool_from_i8: bool = cast(bool, cast_src8)" >> "$ROOT/type_combin
 echo "var cast_bool_src: bool = true" >> "$ROOT/type_combinatorial.tc"
 echo "var cast_i8_from_bool: int8 = cast(int8, cast_bool_src)" >> "$ROOT/type_combinatorial.tc"
 
-echo "writeln(int16, cast_to16)" >> "$ROOT/type_combinatorial.tc"     # -100
-echo "writeln(int32, cast_to32)" >> "$ROOT/type_combinatorial.tc"     # -100
-echo "writeln(int64, cast_to64)" >> "$ROOT/type_combinatorial.tc"     # -100
-echo "writeln(uint16, cast_to_u16)" >> "$ROOT/type_combinatorial.tc"  # 200
-echo "writeln(uint32, cast_to_u32)" >> "$ROOT/type_combinatorial.tc"  # 200
-echo "writeln(uint64, cast_to_u64)" >> "$ROOT/type_combinatorial.tc"  # 200
-echo "writeln(bool, cast_bool_from_i8)" >> "$ROOT/type_combinatorial.tc"  # true
-echo "writeln(int8, cast_i8_from_bool)" >> "$ROOT/type_combinatorial.tc"  # 1
+echo "writeln(int16, cast_to16)" >> "$TC_STRESS_WRITES"     # -100
+echo "writeln(int32, cast_to32)" >> "$TC_STRESS_WRITES"     # -100
+echo "writeln(int64, cast_to64)" >> "$TC_STRESS_WRITES"     # -100
+echo "writeln(uint16, cast_to_u16)" >> "$TC_STRESS_WRITES"  # 200
+echo "writeln(uint32, cast_to_u32)" >> "$TC_STRESS_WRITES"  # 200
+echo "writeln(uint64, cast_to_u64)" >> "$TC_STRESS_WRITES"  # 200
+echo "writeln(bool, cast_bool_from_i8)" >> "$TC_STRESS_WRITES"  # true
+echo "writeln(int8, cast_i8_from_bool)" >> "$TC_STRESS_WRITES"  # 1
 
 # Format specifiers: test %d, %u, %x, %o, %b on representative types
 echo "; === format specifier stress ===" >> "$ROOT/type_combinatorial.tc"
 echo "var fmt_src: int32 = 255" >> "$ROOT/type_combinatorial.tc"
-echo "write(int32, fmt_src)" >> "$ROOT/type_combinatorial.tc"                          # 255 (no specifier = %d)
-echo "write(int32, %d, fmt_src)" >> "$ROOT/type_combinatorial.tc"                      # 255
-echo "write(int32, %x, fmt_src)" >> "$ROOT/type_combinatorial.tc"                      # ff
-echo "write(int32, %X, fmt_src)" >> "$ROOT/type_combinatorial.tc"                      # FF
-echo "write(int32, %o, fmt_src)" >> "$ROOT/type_combinatorial.tc"                      # 377
-echo "write(int32, %b, fmt_src)" >> "$ROOT/type_combinatorial.tc"                      # 11111111
 echo "var fmt_src_u: uint32 = 255" >> "$ROOT/type_combinatorial.tc"
-echo "write(uint32, %u, fmt_src_u)" >> "$ROOT/type_combinatorial.tc"                   # 255
-echo "write(uint32, %x, fmt_src_u)" >> "$ROOT/type_combinatorial.tc"                   # ff
-echo "writeln(int32, 0)" >> "$ROOT/type_combinatorial.tc"                               # newline + terminator
+echo "write(int32, fmt_src)" >> "$TC_STRESS_WRITES"                          # 255 (no specifier = %d)
+echo "write(int32, %d, fmt_src)" >> "$TC_STRESS_WRITES"                      # 255
+echo "write(int32, %x, fmt_src)" >> "$TC_STRESS_WRITES"                      # ff
+echo "write(int32, %X, fmt_src)" >> "$TC_STRESS_WRITES"                      # FF
+echo "write(int32, %o, fmt_src)" >> "$TC_STRESS_WRITES"                      # 377
+echo "write(int32, %b, fmt_src)" >> "$TC_STRESS_WRITES"                      # 11111111
+echo "write(uint32, %u, fmt_src_u)" >> "$TC_STRESS_WRITES"                   # 255
+echo "write(uint32, %x, fmt_src_u)" >> "$TC_STRESS_WRITES"                   # ff
+echo "writeln(int32, 0)" >> "$TC_STRESS_WRITES"                               # newline + terminator
+cat "$TC_STRESS_WRITES" >> "$ROOT/type_combinatorial.tc"
 
 echo "    expected: many lines of output"
 echo ""

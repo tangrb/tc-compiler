@@ -242,7 +242,7 @@ int tc_aot_fp_cast(TcTypeTag target, TcTruncateMode mode, uint64_t src_bits, TcT
 /*  格式化输出                                                          */
 /* ------------------------------------------------------------------ */
 
-int tc_aot_write(TcTypeTag type, TcFormatSpec fmt, uint64_t bits, int newline,
+int tc_aot_write(TcTypeTag type, TcFormatFullSpec fmt, uint64_t bits, int newline,
                  TcDiagnostic *diag, int line) {
     TcValue value = tc_value_make(type, bits);
 
@@ -420,6 +420,7 @@ uint64_t tc_aot_ptr_size(size_t sizeof_bits) {
 }
 
 static uint8_t *tc_aot_mb_elem_ptr(void *block, size_t element_bytes, uint64_t index) {
+    /* 本实现 64-bit-only：长度头为 uint64_t（= sizeof_bits(usize)） */
     return (uint8_t *)block + sizeof(uint64_t) + index * element_bytes;
 }
 
@@ -435,6 +436,28 @@ uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnosti
     }
     memcpy(block, &count, sizeof(uint64_t));
     memset((uint8_t *)block + sizeof(uint64_t), 0, payload);
+    if (tc_aot_mb_track(block, diag, line) != 0) {
+        return 0;
+    }
+    return (uint64_t)(uintptr_t)block;
+}
+
+uint64_t tc_aot_memblock_from_bytes(const uint8_t *bytes, size_t nbytes, TcDiagnostic *diag,
+                                    int line) {
+    void *block = NULL;
+
+    if (!bytes || nbytes < sizeof(uint64_t)) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    block = malloc(nbytes);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    memcpy(block, bytes, nbytes);
     if (tc_aot_mb_track(block, diag, line) != 0) {
         return 0;
     }
@@ -574,16 +597,16 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
 }
 
 int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
-                           uint64_t src_ptr, uint64_t src_index, int64_t length,
-                           size_t element_bytes, TcTypeTag elem_tag, TcDiagnostic *diag,
-                           int line) {
+                           TcTypeTag dst_idx_type, uint64_t src_ptr, uint64_t src_index,
+                           TcTypeTag src_idx_type, int64_t length, size_t element_bytes,
+                           TcTypeTag elem_tag, TcDiagnostic *diag, int line) {
     int dst_slot = 0;
     int src_slot = 0;
     uint8_t *dst_block = NULL;
     uint8_t *src_block = NULL;
     void *temp = NULL;
 
-    /* 空指针 → TC_RE_NULL_POINTER_DEREFERENCE；负长度 →
+    /* 空指针 → TC_RE_NULL_POINTER_DEREFERENCE；负长度/负下标 →
      * TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE（与 VM 语义一致，§6.8.9）。
      * 不执行越界检查：越界拷贝为实现定义行为。 */
     if (dst_ptr == 0 || src_ptr == 0) {
@@ -597,7 +620,11 @@ int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
                           "null pointer dereference");
         return -1;
     }
-    if (length < 0) {
+    if (length < 0 ||
+        (tc_type_is_signed(dst_idx_type) &&
+         tc_bits_to_signed(dst_idx_type, dst_index) < 0) ||
+        (tc_type_is_signed(src_idx_type) &&
+         tc_bits_to_signed(src_idx_type, src_index) < 0)) {
         tc_diagnostic_set(diag, TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memcopy_unsafe invalid range");
         return -1;
@@ -653,7 +680,10 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
     }
     memcpy(&dst_count, dst, sizeof(uint64_t));
     memcpy(&src_count, src, sizeof(uint64_t));
-    if (length > 0 && (dst_index + length > dst_count || src_index + length > src_count)) {
+    /* 无回绕判定，与 VM tc_exec_memblock_copy_stmt 一致。 */
+    if (length > 0 &&
+        (length > dst_count || dst_index > dst_count - length ||
+         length > src_count || src_index > src_count - length)) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
@@ -766,6 +796,13 @@ void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, ui
     }
     *out = 0;
     memcpy(out, src + offset, nbytes <= sizeof(*out) ? nbytes : sizeof(*out));
+}
+
+uint64_t tc_aot_struct_load_bits_value(uint64_t src_bits, size_t offset, size_t nbytes) {
+    uint64_t out = 0;
+
+    tc_aot_struct_load_bits(src_bits, offset, nbytes, &out);
+    return out;
 }
 
 void tc_aot_struct_memcpy_field(uint64_t dst_bits, size_t offset, size_t nbytes,

@@ -1,7 +1,7 @@
 ---
 description: >-
   TC-Compiler documentation editing — sync with code, tests, and .cursor skills.
-  Loads when editing docs/**/*.md. Language spec is docs/TC语言标准设计说明书-0.0.39.md.
+  Loads when editing docs/**/*.md. Language spec is docs/TC语言标准设计说明书-0.0.41.md.
 globs: docs/**/*
 alwaysApply: false
 ---
@@ -12,25 +12,23 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 
 ## 版本状态
 
-- **设计目标**：TC **0.0.39**（下表权威）
-- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.40**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.40）
-- **路线图**：`docs/TC-0.0.39-开发计划.md`
-- **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.39.md`
+- **设计目标**：TC **0.0.41**（语言标准附录 B 85 码）
+- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.41**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.41）
+- **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.41.md`
 
 ## 文档职责
 
 | 文件 | 内容 |
 |------|------|
-| `docs/TC语言标准设计说明书-0.0.39.md` | 0.0.39 语法/语义唯一权威来源；语言特性变更**必更** |
-| `docs/TC编译器标准设计说明书-0.0.39.md` | 13 阶段管线、诊断优先级、调用图等编译器规范 |
-| `docs/TC-VM详细设计说明书-0.0.39.md` | VM 架构、执行器、诊断（无 REPL） |
-| `docs/TC-AOT详细设计说明书-0.0.39.md` | AOT 代码生成、shim 层、差分测试 |
-| `docs/libtc设计说明书-0.0.39.md` | libtc 嵌入 API 设计、错误状态契约 |
-| `docs/TC-VM命令行参考-0.0.39.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
-| `docs/libtc-api-0.0.39.md` | libtc API 速查 |
-| `docs/TC-Embed详细设计说明书-0.0.39.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
-| `docs/设计实现合规审查报告-0.0.39.md` | ~183 项设计—实现合规矩阵与发布证据 |
-| `docs/TC-0.0.39-开发计划.md` | 分模块任务、阶段依赖；附录含 Agent 文档索引 |
+| `docs/TC语言标准设计说明书-0.0.41.md` | 0.0.41 语法/语义唯一权威来源（附录 B 85 码）；语言特性变更**必更** |
+| `docs/TC编译器标准设计说明书-0.0.41.md` | 13 阶段管线、诊断优先级、调用图等编译器规范 |
+| `docs/TC-VM详细设计说明书-0.0.41.md` | VM 架构、执行器、诊断（无 REPL） |
+| `docs/TC-AOT详细设计说明书-0.0.41.md` | AOT 代码生成、shim 层、差分测试 |
+| `docs/libtc设计说明书-0.0.41.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
+| `docs/TC-VM命令行参考-0.0.41.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
+| `docs/TC-Embed详细设计说明书-0.0.41.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
+| `docs/TC-0.0.41-语言标准符合性检查分析报告.md` | 2026-08-27 审计原文（当时 30 S / 27 M）；现行结论见该文 **§14** |
+| `docs/TC-0.0.41-语言标准符合性修复计划.md` | 符合性修复计划（P0–P6 已收口）；发布结论见该文 **§10** |
 
 ## 同步检查
 
@@ -39,14 +37,14 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 - [ ] 语法摘要与 `tc-architecture/syntax.md` 一致（实现未到的特性以语言标准为准，syntax 可暂注「待落地」）
 - [ ] 新错误种类写入编译器标准 §11.4 + `errors.md` + VM 详设 + `tc_error_kind_name()`（语言标准仅当变更可观察语义时）
 - [ ] OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`（非语法类错误码）
-- [ ] 特性实现写入 `features/*.md`（经 [features.md](../skills/tc-architecture/features.md) 路由）+ Rule `knowledge-graph` / 对应 `kg-*.md`
-- [ ] Agent 导航同步 [AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)（大改架构时）
+- [ ] 特性实现写入 `features/*.md` 或 Embed→`kg-embed.md`（经 [features.md](../skills/tc-architecture/features.md) 路由）+ Rule `knowledge-graph` / 对应 `kg-*.md`
+- [ ] Agent 导航同步 [AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)；易踩坑写入 [gotchas.md](../skills/tc-architecture/gotchas.md)（大改架构时）
 - [ ] 诊断阶段与编译器标准 / `errors.md` 一致（现网多阶段编排见 pipeline.md）
 - [ ] 版本号：`src/vm/runtime/tc_version.h`（及 AOT `TC_AOT_VERSION`）
-- [ ] 测试规模：Release Gate 见合规审查报告；当前注册见 `scripts/*/run_tests.sh` / `test-map.md`
+- [ ] 测试规模：Release Gate 见符合性检查分析报告 §14 / 修复计划 §10；当前注册见 `scripts/*/run_tests.sh` / `test-map.md`
 - [ ] 新模块同步 `locations.md` / `features/*.md` / `compiler-src.mdc` / `unit-tests-c.mdc`（Embed → `embed-src.mdc` / `kg-embed.md`）
 - [ ] 工程布局与 `tc_<module>.h` ↔ `tc_<module>.c` 命名一致；`check_source_naming.py`
 - [ ] 固定点入口写作 `tc_analyze_definite_init`（`tc_cfg.c`），勿写旧符号名
 - [ ] 无 REPL；skill/rule 中不得引入 `tc_repl` / `tc_analyze_statement`
 
-Agent 导航：[AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md) · Skill `tc-architecture`（路由表）。用户文档保持完整叙述，勿复制进 rule。
+Agent 导航：[AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md) · Skill `tc-architecture`（路由表）· [gotchas.md](../skills/tc-architecture/gotchas.md)。用户文档保持完整叙述，勿复制进 rule。

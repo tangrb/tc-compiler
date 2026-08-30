@@ -1,0 +1,5 @@
+#program
+; 中间库内可使用其已 import 的 TransStructLib.Box；入口只调函数
+import MidStructLib
+var x: int32 = funcall(MidStructLib.make_x)
+writeln(int32, x)

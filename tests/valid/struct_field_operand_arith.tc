@@ -1,0 +1,8 @@
+#program
+; 字段作 operand：算术
+struct Point then
+    var score: int32
+end
+var p: Point = Point(score: 21)
+var doubled: int32 = mul(int32, p.score, 2)
+writeln(int32, doubled)

@@ -1,0 +1,10 @@
+#lib
+public struct Node then
+    var v: int32
+end
+
+public static let root: Node = Node(v: 2)
+
+public func demo() int32 then
+    return Self.root.v
+end

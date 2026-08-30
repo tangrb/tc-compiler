@@ -42,7 +42,7 @@ TC_RHS_KINDS = [
     "TC_RHS_FLOAT_UNARY",
     "TC_RHS_FLOAT_COMPARE",
     "TC_RHS_BITCAST",
-    # 0.0.39 复合/调用 RHS（解析 + 运行时已落地）
+    # 0.0.41 复合/调用 RHS（解析 + 运行时已落地）
     "TC_RHS_MEMBLOCK_LOAD",
     "TC_RHS_MEMBLOCK_CONSTRUCTOR",
     "TC_RHS_MEMBLOCK_COUNT",
@@ -154,9 +154,6 @@ DISPATCH_POINTS = [
             "TC_RHS_CAST": "CAST 用于运行时变量，不进入编译期常量求值",
             "TC_RHS_FUNCALL_EXPR": "let 禁函数调用；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_MEMBLOCK_LOAD": "let 禁；运行时由 tc_eval_rhs 覆盖",
-            "TC_RHS_MEMBLOCK_CONSTRUCTOR": "let 禁；运行时由 tc_eval_rhs 覆盖",
-            "TC_RHS_MEMBLOCK_COUNT": "let 禁；运行时由 tc_eval_rhs 覆盖",
-            "TC_RHS_FIELD_READ": "let 禁；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_PTR_LOAD": "let 禁；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_PTR_ADDRESS": "let 禁；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_PTR_ADD": "let 禁；运行时由 tc_eval_rhs 覆盖",
@@ -167,7 +164,6 @@ DISPATCH_POINTS = [
             "TC_RHS_PTR_LE": "let 禁；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_PTR_GT": "let 禁；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_PTR_GE": "let 禁；运行时由 tc_eval_rhs 覆盖",
-            "TC_RHS_PTR_SIZE": "let 禁；运行时由 tc_eval_rhs 覆盖",
             "TC_RHS_SELF_MEMBER": "let 禁；运行时由 tc_eval_rhs 覆盖",
         },
     },

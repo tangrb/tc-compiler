@@ -5,62 +5,62 @@ var a: int8 = 10
 var b: int8 = 3
 var v1: int8 = div(int8, a, b)
 var v2: int8 = mod(int8, a, b)
-writeln(int8, v1)
-writeln(int8, v2)
 var a2: int8 = -10
 var v3: int8 = div(int8, a2, b)
 var v4: int8 = mod(int8, a2, b)
-writeln(int8, v3)
-writeln(int8, v4)
 var a3: int8 = 10
 var b3: int8 = -3
 var v5: int8 = div(int8, a3, b3)
 var v6: int8 = mod(int8, a3, b3)
-writeln(int8, v5)
-writeln(int8, v6)
 var a4: int8 = -10
 var b4: int8 = -3
 var v7: int8 = div(int8, a4, b4)
 var v8: int8 = mod(int8, a4, b4)
-writeln(int8, v7)
-writeln(int8, v8)
-
-; int16 div/mod
 var c: int16 = 100
 var d: int16 = 7
 var v9: int16 = div(int16, c, d)
 var v10: int16 = mod(int16, c, d)
-writeln(int16, v9)
-writeln(int16, v10)
-
-; int64 div/mod
 var e: int64 = 1000
 var f: int64 = 3
 var v11: int64 = div(int64, e, f)
 var v12: int64 = mod(int64, e, f)
-writeln(int64, v11)
-writeln(int64, v12)
-
-; uint8 div/mod
 var ua: uint8 = 20
 var ub: uint8 = 6
 var v13: uint8 = div(uint8, ua, ub)
 var v14: uint8 = mod(uint8, ua, ub)
-writeln(uint8, v13)
-writeln(uint8, v14)
-
-; uint32 div/mod
 var uc: uint32 = 5000
 var ud: uint32 = 13
 var v15: uint32 = div(uint32, uc, ud)
 var v16: uint32 = mod(uint32, uc, ud)
-writeln(uint32, v15)
-writeln(uint32, v16)
-
-; uint64 div/mod
 var ue: uint64 = 100000
 var uf: uint64 = 99
 var v17: uint64 = div(uint64, ue, uf)
 var v18: uint64 = mod(uint64, ue, uf)
+writeln(int8, v1)
+writeln(int8, v2)
+writeln(int8, v3)
+writeln(int8, v4)
+writeln(int8, v5)
+writeln(int8, v6)
+writeln(int8, v7)
+writeln(int8, v8)
+
+; int16 div/mod
+writeln(int16, v9)
+writeln(int16, v10)
+
+; int64 div/mod
+writeln(int64, v11)
+writeln(int64, v12)
+
+; uint8 div/mod
+writeln(uint8, v13)
+writeln(uint8, v14)
+
+; uint32 div/mod
+writeln(uint32, v15)
+writeln(uint32, v16)
+
+; uint64 div/mod
 writeln(uint64, v17)
 writeln(uint64, v18)

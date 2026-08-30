@@ -1,0 +1,5 @@
+#program
+; 期望：float invalid operation（inf mod 有限，strict）
+var a: float64 = 1.0
+writeln(float64, a)
+a = mod(float64, inf, 2.0)

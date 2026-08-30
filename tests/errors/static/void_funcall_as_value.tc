@@ -1,0 +1,10 @@
+#lib
+; 期望：void function call cannot be used as value
+; 把 void 函数调用当作值使用（现有 funcall_position 只覆盖语句位置丢弃非 void 结果）
+public func g() void then
+    return
+end
+public func f() int32 then
+    var x: int32 = funcall(Self.g)
+    return x
+end

@@ -1,0 +1,11 @@
+#program
+; 链式字段作 operand
+struct Inner then
+    var v: int32
+end
+struct Outer then
+    var inner: Inner
+end
+var a: Outer = Outer(inner: Inner(v: 11))
+var doubled: int32 = mul(int32, a.inner.v, 2)
+writeln(int32, doubled)

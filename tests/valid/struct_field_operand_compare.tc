@@ -1,0 +1,10 @@
+#program
+; 字段作 operand：比较
+struct Pair then
+    var x: int32
+    var y: int32
+end
+var a: Pair = Pair(x: 3, y: 7)
+var b: Pair = Pair(x: 5, y: 2)
+var ok: bool = gt(int32, a.x, b.x)
+writeln(bool, ok)

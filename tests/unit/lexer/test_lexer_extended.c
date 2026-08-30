@@ -476,8 +476,15 @@ static void test_float_literal_lex_errors(void) {
     tc_diagnostic_init(&diag);
     tc_token_list_init(&tokens);
     check(tc_tokenize_line("var x: float64 = 3.14u", 1, &tokens, &diag) != 0,
-          "3.14u → literal type error");
-    check(diag.kind == TC_CE_LITERAL_TYPE, "3.14u error kind");
+          "3.14u → syntax error");
+    check(diag.kind == TC_CE_SYNTAX, "3.14u error kind");
+    tc_token_list_free(&tokens);
+
+    tc_token_list_init(&tokens);
+    tc_diagnostic_clear(&diag);
+    check(tc_tokenize_line("var x: int32 = -42u", 1, &tokens, &diag) != 0,
+          "-42u → syntax error");
+    check(diag.kind == TC_CE_SYNTAX, "-42u error kind");
     tc_token_list_free(&tokens);
 
     tc_token_list_init(&tokens);

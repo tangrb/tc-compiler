@@ -22,28 +22,28 @@
 void tc_io_init(void);
 
 /**
- * 按格式符号将 TcValue 写入指定输出流。
+ * 按完整格式说明符将 TcValue 写入指定输出流。
  * 输出遵循确定性文本规则（语言标准 §10）：十进制点固定为 '.'，浮点特殊值与
  * 大小写固定，二进制正数省略前导零、负数保留完整类型位宽。
  * @param type  值的声明类型
- * @param fmt   格式说明符
+ * @param fmt   完整格式说明符（flags/width/precision/转换符）
  * @param value 待输出的运行时值
  * @param out   输出流
  * @return 成功返回 0；I/O 错误返回 -1
  */
-int tc_io_write_formatted(TcTypeTag type, TcFormatSpec fmt, const TcValue *value, FILE *out);
+int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *value, FILE *out);
 
 /**
  * 将 TcValue 写入指定输出流，带可选格式和换行。
  * 先在内存中生成完整输出字节串，再一次提交到 out（编译器标准 §10.5）：
  * 成功则整串追加；失败则本语句对目标流贡献零字节。
  * @param value   待输出的运行时值
- * @param fmt     格式说明符（TC_FMT_NONE 时按类型默认输出）
+ * @param fmt     完整格式说明符（spec 为 TC_FMT_NONE 时按类型默认输出）
  * @param newline 是否追加换行符
  * @param out     输出流
  * @return 成功返回 0；I/O 错误返回 -1
  */
-int tc_io_write_value(const TcValue *value, TcFormatSpec fmt, int newline, FILE *out);
+int tc_io_write_value(const TcValue *value, TcFormatFullSpec fmt, int newline, FILE *out);
 
 /**
  * 跳过 stdin 前导空白字符。

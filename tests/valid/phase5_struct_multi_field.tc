@@ -6,12 +6,15 @@ struct Vec3 then
     var z: int32
 end
 var v: Vec3 = Vec3(x: 1, y: 2, z: 3)
+var x: int32 = 0
+var y: int32 = 0
+var z: int32 = 0
 v.x = 10
 v.y = 20
 v.z = 30
-var x: int32 = v.x
-var y: int32 = v.y
-var z: int32 = v.z
+x = v.x
+y = v.y
+z = v.z
 writeln(int32, x)
 writeln(int32, y)
 writeln(int32, z)

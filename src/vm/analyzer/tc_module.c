@@ -108,16 +108,16 @@ void tc_func_signature_list_free(TcFuncSignatureList *list) {
 
 /*
  * 模块顶层声明分层（数值越大越靠后，不可回退到更小层）。
- * #program 将 VALUE 与 FUNC_OR_EXEC 归一为同层（见 check_structure）。
  */
 typedef enum {
     TC_LAYER_IMPORT = 0,
     TC_LAYER_STRUCT,
     TC_LAYER_VALUE,
-    TC_LAYER_FUNC_OR_EXEC
+    TC_LAYER_FUNC,
+    TC_LAYER_EXEC
 } TcModuleLayer;
 
-/** 将语句映射到所属模块层；未识别的可执行语句落入 FUNC_OR_EXEC。 */
+/** 将语句映射到所属模块层；未识别的可执行语句落入 EXEC。 */
 static TcModuleLayer tc_stmt_layer(const TcStatement *stmt) {
     switch (stmt->kind) {
     case TC_STMT_IMPORT:
@@ -129,8 +129,10 @@ static TcModuleLayer tc_stmt_layer(const TcStatement *stmt) {
     case TC_STMT_STATIC_VAR_DEF:
     case TC_STMT_STATIC_LET_DEF:
         return TC_LAYER_VALUE;
+    case TC_STMT_FUNC_DEF:
+        return TC_LAYER_FUNC;
     default:
-        return TC_LAYER_FUNC_OR_EXEC;
+        return TC_LAYER_EXEC;
     }
 }
 
@@ -169,25 +171,9 @@ int tc_module_check_structure(const TcProgram *program, TcDiagnostic *diag) {
     for (i = 0; i < program->count; i++) {
         const TcStatement *stmt = &program->items[i];
         TcModuleLayer layer = tc_stmt_layer(stmt);
-        TcModuleLayer norm_layer = layer;
-        TcModuleLayer norm_max = max_layer;
         int line = tc_stmt_line(stmt);
 
-        /*
-         * #program：值声明与可执行语句同层，允许交错。
-         * 比较时用 norm_*；推进 max_layer 仍用原始 layer，
-         * 以便后续仍能区分「已进入可执行区」与「仅值声明」。
-         */
-        if (program->mode == TC_MODULE_PROGRAM) {
-            if (norm_layer == TC_LAYER_FUNC_OR_EXEC) {
-                norm_layer = TC_LAYER_VALUE;
-            }
-            if (norm_max == TC_LAYER_FUNC_OR_EXEC) {
-                norm_max = TC_LAYER_VALUE;
-            }
-        }
-
-        if (norm_layer < norm_max) {
+        if (layer < max_layer) {
             tc_diagnostic_set(diag, TC_CE_MODULE_LAYER, line, TC_COLUMN_UNKNOWN,
                               "module layer order violated");
             return -1;
@@ -727,6 +713,64 @@ done:
     }
     free(nodes);
     return rc;
+}
+
+int tc_module_topological_dep_order(const TcTypedProgram *out, size_t *out_order,
+                                    TcDiagnostic *diag) {
+    size_t n = out ? out->dep_count : 0;
+    unsigned char *placed = NULL;
+    size_t placed_count = 0;
+    size_t i = 0;
+
+    if (n == 0) {
+        return 0;
+    }
+    placed = (unsigned char *)calloc(n, 1);
+    if (!placed) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    /* Kahn 式逐层剥离：任一尚未放置的 import 目标存在时，本模块不得先注册。
+     * 前置条件：DAG 检查已通过（无环），故每次循环必有进展。 */
+    while (placed_count < n) {
+        int progress = 0;
+
+        for (i = 0; i < n; i++) {
+            size_t j = 0;
+            int has_unplaced_import = 0;
+
+            if (placed[i]) {
+                continue;
+            }
+            for (j = 0; j < out->deps[i].count; j++) {
+                int dep_idx = -1;
+
+                if (out->deps[i].items[j].kind != TC_STMT_IMPORT) {
+                    continue;
+                }
+                dep_idx = tc_find_dep_index(out, out->deps[i].items[j].u.import_stmt.module_name);
+                if (dep_idx >= 0 && !placed[(size_t)dep_idx]) {
+                    has_unplaced_import = 1;
+                    break;
+                }
+            }
+            if (!has_unplaced_import) {
+                out_order[placed_count++] = i;
+                placed[i] = 1;
+                progress = 1;
+                break; /* 重新扫描，使后序模块可见最新放置 */
+            }
+        }
+        if (!progress) {
+            free(placed);
+            tc_diagnostic_set(diag, TC_CE_CIRCULAR_IMPORT, 0, TC_COLUMN_UNKNOWN,
+                              "circular import");
+            return -1;
+        }
+    }
+    free(placed);
+    return 0;
 }
 
 int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,

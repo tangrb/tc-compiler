@@ -1,0 +1,5 @@
+#program
+; 期望：unexpected character
+; 词法层无法识别的字符（如 $）
+var a: int32 = 1
+$

@@ -3,11 +3,11 @@
 var one32: float32 = 1.0f
 var one32_bits: uint32 = bitcast(uint32, one32)
 var one32_back: float32 = bitcast(float32, one32_bits)
-writeln(uint32, %X, one32_bits)
-writeln(float32, one32_back)
-
 var one64: float64 = 1.0
 var one64_bits: uint64 = bitcast(uint64, one64)
 var one64_back: float64 = bitcast(float64, one64_bits)
+writeln(uint32, %X, one32_bits)
+writeln(float32, one32_back)
+
 writeln(uint64, %X, one64_bits)
 writeln(float64, one64_back)

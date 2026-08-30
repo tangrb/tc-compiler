@@ -89,8 +89,29 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     if (rhs->kind == TC_RHS_CONST_REF) {
         if (rhs->u.const_ref.binding.resolved) {
             if (rhs->u.const_ref.binding.is_const) {
-                fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
-                        rhs->u.const_ref.binding.const_bits);
+                if (expected_type == TC_MEMBLOCK && rhs->u.const_ref.binding.type &&
+                    rhs->u.const_ref.binding.type->tag == TC_MEMBLOCK &&
+                    rhs->u.const_ref.binding.type->params.memblock_type.element) {
+                    const TcType *type = rhs->u.const_ref.binding.type;
+                    size_t elem_bits = tc_sizeof_bits_ex(type->params.memblock_type.element,
+                                                         tc_struct_table_width_bits,
+                                                         ctx->program->struct_table);
+                    size_t elem_bytes = (elem_bits + 7U) / 8U;
+                    uint64_t count = tc_type_memblock_count(type);
+                    size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
+
+                    fprintf(out, "%s%s = ", indent, dst_expr);
+                    tc_aot_emit_const_memblock_expr(out, rhs->u.const_ref.binding.const_bits,
+                                                    nbytes, line);
+                    fprintf(out, ";\n");
+                    fprintf(out,
+                            "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                            "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                            abort_indent, line);
+                } else {
+                    fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
+                            rhs->u.const_ref.binding.const_bits);
+                }
             } else if (rhs->u.const_ref.binding.slot >= 0) {
                 if (expected_type == TC_STRUCT) {
                     const TcSymbol *sym = tc_symbol_table_find_visible(
@@ -663,11 +684,52 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                     sym->const_value.bits);
             return 0;
         }
-        if (sym->slot >= 0) {
-            fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr, sym->slot);
+        if (sym->slot < 0) {
+            return -1;
+        }
+        /* 值语义：与 TC_RHS_CONST_REF 对齐，memblock/struct 深拷贝（§3.8.4 / §3.9.4） */
+        if (expected_type == TC_MEMBLOCK &&
+            sym->type && sym->type->tag == TC_MEMBLOCK &&
+            sym->type->params.memblock_type.element) {
+            size_t elem_bits = tc_sizeof_bits_ex(
+                sym->type->params.memblock_type.element, tc_struct_table_width_bits,
+                ctx->program->struct_table);
+            size_t elem_bytes = (elem_bits + 7U) / 8U;
+            uint64_t count = tc_type_memblock_count(sym->type);
+
+            fprintf(out, "%s%s = tc_aot_memblock_clone(slots[%d], %zu, %" PRIu64
+                         "ULL, tc_aot_cur_diag, %d);\n",
+                    indent, dst_expr, sym->slot, elem_bytes, count, line);
+            fprintf(out,
+                    "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                    "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                    abort_indent, line);
             return 0;
         }
-        return -1;
+        if (expected_type == TC_STRUCT) {
+            size_t bytes = 0;
+
+            if (tc_type_struct_id(sym->type) >= 0 && ctx->program->struct_table) {
+                const TcStructEntry *e =
+                    tc_struct_table_get(ctx->program->struct_table,
+                                       tc_type_struct_id(sym->type));
+                if (e) {
+                    bytes = (e->width_bits + 7U) / 8U;
+                }
+            }
+            if (bytes == 0) {
+                return -1;
+            }
+            fprintf(out, "%s%s = tc_aot_struct_clone(slots[%d], %zu, tc_aot_cur_diag, %d);\n",
+                    indent, dst_expr, sym->slot, bytes, line);
+            fprintf(out,
+                    "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                    "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                    abort_indent, line);
+            return 0;
+        }
+        fprintf(out, "%s%s = slots[%d];\n", indent, dst_expr, sym->slot);
+        return 0;
     }
 
     if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
@@ -755,6 +817,73 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
 
     if (rhs->kind == TC_RHS_FIELD_READ) {
         const TcStructTable *table = ctx->program->struct_table;
+
+        if (rhs->u.field_read.resolved.resolved) {
+            const TcResolvedFieldAccess *access = &rhs->u.field_read.resolved;
+            size_t offset = 0;
+            const TcType *field_type = access->field_type;
+            size_t nbytes = 0;
+
+            if (!field_type || access->field_count == 0 || !access->offsets) {
+                return -1;
+            }
+            offset = access->offsets[access->field_count - 1];
+
+            /* let/static let 基址：codegen 期从 const_bits 折叠，禁止嵌入分析期堆指针 */
+            if (access->base_slot < 0 && field_type->tag != TC_STRUCT &&
+                field_type->tag != TC_MEMBLOCK) {
+                uint64_t bits = 0;
+                const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+
+                nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                            ctx->program->struct_table) + 7U) / 8U;
+                if (data && nbytes > 0) {
+                    memcpy(&bits, data + offset,
+                           nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+                }
+                if (field_type->tag == TC_BOOL) {
+                    bits = bits ? 1ULL : 0ULL;
+                }
+                fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr, bits);
+                return 0;
+            }
+
+            if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
+                if (field_type->tag == TC_STRUCT) {
+                    const TcStructEntry *nested =
+                        tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                    nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+                } else {
+                    nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                                ctx->program->struct_table) + 7U) / 8U;
+                }
+                if (access->base_slot >= 0) {
+                    fprintf(out, "%s%s = tc_aot_struct_extract(slots[%d], %zu, %zu, "
+                                 "tc_aot_cur_diag, %d);\n",
+                            indent, dst_expr, access->base_slot, offset, nbytes, line);
+                } else {
+                    /* const 基址：把字段字节内联为复合字面量，运行期再深拷贝 */
+                    const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+                    const uint8_t zero = 0;
+
+                    fprintf(out, "%s%s = tc_aot_struct_extract((uint64_t)(uintptr_t)&", indent,
+                            dst_expr);
+                    tc_aot_emit_byte_array_expr(out, (data && nbytes > 0) ? data + offset : &zero,
+                                                nbytes > 0 ? nbytes : 1);
+                    fprintf(out, ", 0, %zu, tc_aot_cur_diag, %d);\n", nbytes, line);
+                }
+                fprintf(out, "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                             "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, line);
+            } else {
+                /* 标量 / 指针字段（槽位基址）：运行期读位 */
+                nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                            ctx->program->struct_table) + 7U) / 8U;
+                fprintf(out, "%stc_aot_struct_load_bits(slots[%d], %zu, %zu, &%s);\n", indent,
+                        access->base_slot, offset, nbytes, dst_expr);
+            }
+            return 0;
+        }
         const TcSymbol *base_sym = tc_symbol_table_find_visible(
             symbols, rhs->u.field_read.base, stmt_index, &ctx->sym_index);
         size_t offset = 0;

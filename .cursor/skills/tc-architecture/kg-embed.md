@@ -1,8 +1,8 @@
-# TC-Embed — C 宿主零拷贝调用（v0.0.39）
+# TC-Embed — C 宿主零拷贝调用（v0.0.41）
 
 **只读本文件** — 由 `@knowledge-graph` 索引指向；编辑 `src/vm/embed/` 时另见 Rule `embed-src`。
 
-> **Phase 7（模块 L）已落地**。规格：`docs/TC-Embed详细设计说明书-0.0.39.md`
+> **Phase 7（模块 L）已落地**。规格：`docs/TC-Embed详细设计说明书-0.0.41.md`
 
 ## 双模式
 
@@ -50,4 +50,4 @@ tc_embed_call / tc_embed_get_error / tc_embed_had_error
 | `test_embed_aot.c` / check-embed-aot | VM vs AOT 差分；除零不终止 |
 | `tests/vm/embed/*.tc` | ptr_sum / ptr_inplace / ptr_loop / nested_call |
 
-账本：[test-map.md](test-map.md) Phase 7 · 特性表：[features/embed.md](features/embed.md)
+账本：[test-map.md](test-map.md) Phase 7 · Rule `embed-src` · 设计 `docs/TC-Embed详细设计说明书-0.0.41.md`

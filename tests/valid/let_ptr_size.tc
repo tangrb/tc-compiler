@@ -1,0 +1,4 @@
+#program
+; const 求值：ptr_size 返回目标类型位宽
+let w: usize = ptr_size(int32, nullptr)
+writeln(usize, w)

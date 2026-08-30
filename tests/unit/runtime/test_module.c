@@ -29,6 +29,9 @@ static void check(int condition, const char *message) {
     }
 }
 
+/* 基于 mkstemps 的模板写入：path_template 末尾必须是 XXXXXX（glibc/msvcrt
+ * 对非 XXXXXX 模板直接拒绝；macOS mkstemps 宽松但会改写路径末尾 6 字符）。
+ * 因此只用于模板路径，不得传已确定的文件名（见 test_diamond_import_structs）。 */
 static int write_temp_file(char *path_template, const char *contents) {
     int fd = tc_test_mkstemps(path_template, 0);
     FILE *fp = NULL;
@@ -52,6 +55,24 @@ static int write_temp_file(char *path_template, const char *contents) {
         return -1;
     }
     return 0;
+}
+
+/* 在已存在目录内写固定文件名（fopen 直写，不经过 mkstemps——固定名不含
+ * XXXXXX 模板，mkstemps 会在 glibc/msvcrt 上拒绝、在 macOS 上改写文件名）。 */
+static int write_fixed_file(const char *path, const char *contents) {
+    FILE *fp = fopen(path, "w");
+    int ok = 0;
+
+    if (!fp) {
+        return -1;
+    }
+    if (fputs(contents, fp) < 0) {
+        ok = -1;
+    }
+    if (fclose(fp) != 0) {
+        ok = -1;
+    }
+    return ok;
 }
 
 static void test_module_check_structure_program_ok(void) {
@@ -408,6 +429,198 @@ static void test_lib_missing_visibility_structure(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_imported_struct_name_rules(void) {
+    char dir_template[] = "/tmp/tc-mod-struct-XXXXXX";
+    char *dir = tc_test_mkdtemp(dir_template);
+    char lib_path[256];
+    char priv_path[256];
+    char ok_path[256];
+    char bare_path[256];
+    char priv_use_path[256];
+    FILE *fp = NULL;
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+
+    check(dir != NULL, "create imported-struct module dir");
+    if (!dir) {
+        return;
+    }
+    snprintf(lib_path, sizeof(lib_path), "%s/BoxLib.tc", dir);
+    snprintf(priv_path, sizeof(priv_path), "%s/PrivLib.tc", dir);
+    snprintf(ok_path, sizeof(ok_path), "%s/ok.tc", dir);
+    snprintf(bare_path, sizeof(bare_path), "%s/bare.tc", dir);
+    snprintf(priv_use_path, sizeof(priv_use_path), "%s/priv_use.tc", dir);
+
+    fp = fopen(lib_path, "w");
+    check(fp != NULL, "open BoxLib.tc");
+    if (!fp) {
+        return;
+    }
+    fputs("#lib\n"
+          "public struct Box then\n"
+          "    var x: int32\n"
+          "end\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(priv_path, "w");
+    check(fp != NULL, "open PrivLib.tc");
+    if (!fp) {
+        unlink(lib_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#lib\n"
+          "private struct Hidden then\n"
+          "    var x: int32\n"
+          "end\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(ok_path, "w");
+    check(fp != NULL, "open ok.tc");
+    if (!fp) {
+        unlink(lib_path);
+        unlink(priv_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#program\n"
+          "import BoxLib\n"
+          "var a: BoxLib.Box = BoxLib.Box(x: 3)\n"
+          "writeln(int32, a.x)\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(bare_path, "w");
+    check(fp != NULL, "open bare.tc");
+    if (!fp) {
+        unlink(lib_path);
+        unlink(priv_path);
+        unlink(ok_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#program\n"
+          "import BoxLib\n"
+          "var a: Box = BoxLib.Box(x: 1)\n",
+          fp);
+    fclose(fp);
+
+    fp = fopen(priv_use_path, "w");
+    check(fp != NULL, "open priv_use.tc");
+    if (!fp) {
+        unlink(lib_path);
+        unlink(priv_path);
+        unlink(ok_path);
+        unlink(bare_path);
+        rmdir(dir);
+        return;
+    }
+    fputs("#program\n"
+          "import PrivLib\n"
+          "var a: PrivLib.Hidden = PrivLib.Hidden(x: 1)\n",
+          fp);
+    fclose(fp);
+
+    tc_diagnostic_init(&diag);
+    memset(&typed, 0, sizeof(typed));
+    if (tc_compile_file_opts(ok_path, NULL, &typed, &diag) == 0) {
+        check(1, "qualified imported struct type+ctor compiles");
+        check(tc_run_program(&typed, &diag) == 0, "run qualified imported struct");
+        tc_typed_program_free(&typed);
+    } else {
+        check(0, "qualified imported struct type+ctor compiles");
+        if (diag.message) {
+            fprintf(stderr, "  note: %s\n", diag.message);
+        }
+    }
+    tc_diagnostic_clear(&diag);
+
+    memset(&typed, 0, sizeof(typed));
+    check(tc_compile_file_opts(bare_path, NULL, &typed, &diag) == -1,
+          "bare imported struct type fails");
+    check(diag.kind == TC_CE_UNDEFINED_STRUCT, "bare name → UNDEFINED_STRUCT");
+    tc_diagnostic_clear(&diag);
+
+    memset(&typed, 0, sizeof(typed));
+    check(tc_compile_file_opts(priv_use_path, NULL, &typed, &diag) == -1,
+          "private imported struct fails");
+    check(diag.kind == TC_CE_PRIVATE_MEMBER_ACCESS,
+          "private struct → PRIVATE_MEMBER_ACCESS");
+    tc_diagnostic_clear(&diag);
+
+    unlink(lib_path);
+    unlink(priv_path);
+    unlink(ok_path);
+    unlink(bare_path);
+    unlink(priv_use_path);
+    rmdir(dir);
+}
+
+static void test_diamond_import_structs(void) {
+    /* Major 4 回归：菱形依赖（Left/Right 均 import Shared，且 struct 字段引用
+     * Shared.<struct>）须按真拓扑序注册结构体；逆 DFS 前序曾误报 UNDEFINED_STRUCT。 */
+    char dir_template[] = "/tmp/tc-mod-diamond-XXXXXX";
+    char *dir = tc_test_mkdtemp(dir_template);
+    char shared_path[256];
+    char left_path[256];
+    char right_path[256];
+    char entry_path[256];
+    TcTypedProgram typed;
+    TcDiagnostic diag;
+    int rc = 0;
+
+    check(dir != NULL, "create diamond temp dir");
+    if (!dir) {
+        return;
+    }
+    snprintf(shared_path, sizeof(shared_path), "%s/SharedLib.tc", dir);
+    snprintf(left_path, sizeof(left_path), "%s/LeftLib.tc", dir);
+    snprintf(right_path, sizeof(right_path), "%s/RightLib.tc", dir);
+    snprintf(entry_path, sizeof(entry_path), "%s/main.tc", dir);
+
+    check(write_fixed_file(shared_path,
+                           "#lib\n"
+                           "public struct S then\n    var x: int32\nend\n") == 0,
+          "write SharedLib.tc");
+    check(write_fixed_file(left_path,
+                           "#lib\n"
+                           "import SharedLib\n"
+                           "public struct LeftBox then\n    var s: SharedLib.S\nend\n") == 0,
+          "write LeftLib.tc");
+    check(write_fixed_file(right_path,
+                           "#lib\n"
+                           "import SharedLib\n"
+                           "public struct RightBox then\n    var s: SharedLib.S\nend\n") == 0,
+          "write RightLib.tc");
+    check(write_fixed_file(entry_path,
+                           "#program\n"
+                           "import LeftLib\n"
+                           "import RightLib\n"
+                           "writeln(int32, 1)\n") == 0,
+          "write main.tc");
+
+    tc_diagnostic_init(&diag);
+    memset(&typed, 0, sizeof(typed));
+    rc = tc_compile_file_opts(entry_path, NULL, &typed, &diag);
+    check(rc == 0, "diamond import compiles");
+    if (rc != 0 && diag.message) {
+        fprintf(stderr, "  note: %s\n", diag.message);
+    }
+    if (rc == 0) {
+        check(typed.dep_count == 3, "three diamond deps loaded");
+        tc_typed_program_free(&typed);
+    }
+    tc_diagnostic_clear(&diag);
+
+    unlink(entry_path);
+    unlink(left_path);
+    unlink(right_path);
+    unlink(shared_path);
+    rmdir(dir);
+}
+
 int main(void) {
     test_module_check_structure_program_ok();
     test_module_check_self_in_program();
@@ -420,6 +633,8 @@ int main(void) {
     test_duplicate_import();
     test_ambiguous_import_search_paths();
     test_self_import_file();
+    test_imported_struct_name_rules();
+    test_diamond_import_structs();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;

@@ -8,10 +8,11 @@ alwaysApply: false
 
 # AOT 编辑
 
-> **现网 v0.0.39 + Phase 5 AOT**：`static`/`func`/`ptr`/`memblock`/`struct` shim 已落地；Embed 模式见 `tc_aot_embed_rt.h`。
+> **现网 v0.0.41 + Phase 5 AOT**：`static`/`func`/`ptr`/`memblock`/`struct` shim 已落地；Embed 模式见 `tc_aot_embed_rt.h`。
 
 跨模块分发点见 `@knowledge-graph`；AOT 语义 [kg-eval.md](../skills/tc-architecture/kg-eval.md)；Embed [kg-embed.md](../skills/tc-architecture/kg-embed.md)。  
-规格：`docs/TC-AOT详细设计说明书-0.0.39.md` · Embed 详设-0.0.39。
+const 复合字段 / 禁止嵌入分析期堆指针：[gotchas.md](../skills/tc-architecture/gotchas.md)。  
+规格：`docs/TC-AOT详细设计说明书-0.0.41.md` · Embed 详设-0.0.41。
 
 ## 文件
 

@@ -135,11 +135,17 @@ static int tc_smul_pow2_overflow(int64_t val, unsigned k, int64_t *result) {
         return 1;
     }
     {
-        int64_t abs_val = -val;
-        if ((uint64_t)abs_val > (uint64_t)INT64_MAX / pow2) {
+        /* 负边界：数学结果 -2^63 可表示。INT64_MAX/pow2 会把该点误判为溢出。 */
+        uint64_t abs_val = (uint64_t)(-val);
+        uint64_t limit = (1ULL << 63) / pow2;
+        uint64_t mag = 0;
+
+        if (abs_val > limit) {
             return 1;
         }
-        *result = val * (int64_t)pow2;
+        mag = abs_val * pow2;
+        /* mag ∈ [1, 2^63]；2^63 即 INT64_MIN，用无符号环绕避免有符号乘法 UB */
+        *result = (int64_t)(0ULL - mag);
         return 0;
     }
 }
@@ -249,8 +255,15 @@ static int tc_exec_shr(TcTypeTag type, const TcValue *value, uint64_t k, TcValue
     }
 
     if (tc_type_is_signed(type)) {
-        int64_t val = tc_bits_to_signed(type, val_bits);
-        *out = tc_value_make(type, tc_signed_to_bits(type, val >> (unsigned)k));
+        /* 显式算术右移：高位补符号位。不使用宿主有符号 `>>`（C99 实现定义）。 */
+        uint64_t mask = tc_mask_bits(n);
+        uint64_t bits = val_bits & mask;
+        uint64_t shifted = bits >> (unsigned)k;
+
+        if ((bits >> (unsigned)(n - 1)) & 1ULL) {
+            shifted |= mask ^ (mask >> (unsigned)k);
+        }
+        *out = tc_value_make(type, shifted);
         return 0;
     }
 

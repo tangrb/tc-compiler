@@ -28,8 +28,20 @@ const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *visible,
                                                         int line, TcDiagnostic *diag,
                                                         const TcMemberIndex *members,
                                                         int in_function) {
-    const TcSymbol *symbol = tc_symbol_table_find(visible, name);
+    const TcSymbol *symbol = NULL;
     char msg[128];
+
+    if (name && (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL)) {
+        symbol = tc_find_named_binding(visible, global, name);
+        if (symbol) {
+            return symbol;
+        }
+        (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        return NULL;
+    }
+
+    symbol = tc_symbol_table_find(visible, name);
 
     if (symbol) {
         return symbol;
@@ -82,6 +94,10 @@ static int tc_precheck_operand_name(TcOperand *operand, const TcSymbolTable *vis
                                     const TcSymbolTable *global, size_t stmt_index, int line,
                                     TcDiagnostic *diag, const char *self_name) {
     if (operand->kind == TC_OPERAND_LIT) {
+        return 0;
+    }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        /* 基址解析（含 Self / static let）在 tc_struct_check_field_access 完成 */
         return 0;
     }
     return tc_precheck_name_binding(operand->u.name, &operand->binding, visible, global,
@@ -193,7 +209,8 @@ int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
 
 int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                             const TcSymbolTable *visible, const TcSymbolTable *global,
-                            TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,
+                            const TcStructTable *struct_table, TcInitHistory *hist,
+                            size_t stmt_index, int line, TcDiagnostic *diag,
                             TcWarningList *warnings, const char *self_name, TcErrorKind type_err) {
     char msg[128];
 
@@ -202,10 +219,17 @@ int tc_check_operand(TcOperand *operand, TcTypeTag expected,
         return tc_check_literal(&operand->u.lit, expected, line, diag, type_err);
     }
 
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        return tc_struct_check_field_access(&operand->u.field_read,
+                                            tc_type_tag_singleton(expected), struct_table,
+                                            visible, global, hist, stmt_index, line, diag,
+                                            warnings, self_name);
+    }
+
     {
         const TcSymbol *symbol = NULL;
 
-        if (self_name && strcmp(operand->u.name, self_name) == 0) {
+        if (self_name && operand->u.name && strcmp(operand->u.name, self_name) == 0) {
             (void)snprintf(msg, sizeof(msg),
                      "variable '%s' cannot reference itself in its initializer", self_name);
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
@@ -230,7 +254,8 @@ int tc_check_operand(TcOperand *operand, TcTypeTag expected,
 }
 
 int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
-                        const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
+                        const TcSymbolTable *global, const TcStructTable *struct_table,
+                        TcInitHistory *hist, size_t stmt_index,
                         int line, TcDiagnostic *diag, TcWarningList *warnings,
                         const char *self_name) {
     char msg[128];
@@ -266,12 +291,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
                                    rhs->u.arith.mode, diag, line) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.arith.lhs, rhs->u.arith.type->tag, visible, global, hist,
+        if (tc_check_operand(&rhs->u.arith.lhs, rhs->u.arith.type->tag, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.arith.rhs, rhs->u.arith.type->tag, visible, global, hist,
+        if (tc_check_operand(&rhs->u.arith.rhs, rhs->u.arith.type->tag, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
@@ -289,7 +314,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
                                    rhs->u.unary.mode, diag, line) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.unary.operand, rhs->u.unary.type->tag, visible, global, hist, stmt_index,
+        if (tc_check_operand(&rhs->u.unary.operand, rhs->u.unary.type->tag, visible, global, struct_table, hist, stmt_index,
                              line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -302,12 +327,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
     }
 
     if (rhs->kind == TC_RHS_COMPARE) {
-        if (tc_check_operand(&rhs->u.compare.lhs, rhs->u.compare.type->tag, visible, global, hist, stmt_index,
+        if (tc_check_operand(&rhs->u.compare.lhs, rhs->u.compare.type->tag, visible, global, struct_table, hist, stmt_index,
                              line, diag, warnings, self_name,
                              TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.compare.rhs, rhs->u.compare.type->tag, visible, global, hist, stmt_index,
+        if (tc_check_operand(&rhs->u.compare.rhs, rhs->u.compare.type->tag, visible, global, struct_table, hist, stmt_index,
                              line, diag, warnings, self_name,
                              TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
@@ -324,7 +349,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
         int saved_check_init = hist ? hist->check_init : 1;
         TcStaticBoolResult lhs_value = TC_STATIC_BOOL_UNKNOWN;
 
-        if (tc_check_operand(&rhs->u.logic_bin.lhs, TC_BOOL, visible, global, hist, stmt_index, line, diag,
+        if (tc_check_operand(&rhs->u.logic_bin.lhs, TC_BOOL, visible, global, struct_table, hist, stmt_index, line, diag,
                              warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -339,7 +364,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             if (hist) {
                 hist->check_init = 0;
             }
-            if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
+            if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, struct_table, hist,
                                  stmt_index, line, diag, warnings, self_name,
                                  TC_CE_TYPE_MISMATCH) != 0) {
                 if (hist) {
@@ -350,7 +375,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             if (hist) {
                 hist->check_init = saved_check_init;
             }
-        } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, hist,
+        } else if (tc_check_operand(&rhs->u.logic_bin.rhs, TC_BOOL, visible, global, struct_table, hist,
                                     stmt_index, line, diag, warnings, self_name,
                                     TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
@@ -364,7 +389,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
     }
 
     if (rhs->kind == TC_RHS_LOGIC_UN) {
-        if (tc_check_operand(&rhs->u.logic_un.operand, TC_BOOL, visible, global, hist, stmt_index, line,
+        if (tc_check_operand(&rhs->u.logic_un.operand, TC_BOOL, visible, global, struct_table, hist, stmt_index, line,
                              diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -382,12 +407,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
                               "bitwise operation requires integer type");
             return -1;
         }
-        if (tc_check_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type->tag, visible, global, hist,
+        if (tc_check_operand(&rhs->u.bitwise_bin.lhs, rhs->u.bitwise_bin.type->tag, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type->tag, visible, global, hist,
+        if (tc_check_operand(&rhs->u.bitwise_bin.rhs, rhs->u.bitwise_bin.type->tag, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
@@ -406,7 +431,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
                               "bitwise operation requires integer type");
             return -1;
         }
-        if (tc_check_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type->tag, visible, global, hist,
+        if (tc_check_operand(&rhs->u.bitwise_un.operand, rhs->u.bitwise_un.type->tag, visible, global, struct_table, hist,
                              stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
@@ -424,11 +449,11 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
                                    rhs->u.shift.mode, diag, line) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.shift.value, rhs->u.shift.type->tag, visible, global, hist, stmt_index,
+        if (tc_check_operand(&rhs->u.shift.value, rhs->u.shift.type->tag, visible, global, struct_table, hist, stmt_index,
                              line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
-        if (tc_check_operand(&rhs->u.shift.count, rhs->u.shift.type->tag, visible, global, hist, stmt_index,
+        if (tc_check_operand(&rhs->u.shift.count, rhs->u.shift.type->tag, visible, global, struct_table, hist, stmt_index,
                              line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -446,12 +471,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_arith.lhs, rhs->u.float_arith.type->tag, visible, global,
-                             hist, stmt_index, line, diag, warnings, self_name,
+                             struct_table, hist, stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_arith.rhs, rhs->u.float_arith.type->tag, visible, global,
-                             hist, stmt_index, line, diag, warnings, self_name,
+                             struct_table, hist, stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -469,7 +494,7 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_unary.operand, rhs->u.float_unary.type->tag, visible,
-                             global, hist, stmt_index, line, diag, warnings, self_name,
+                             global, struct_table, hist, stmt_index, line, diag, warnings, self_name,
                              TC_CE_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -487,12 +512,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_compare.lhs, rhs->u.float_compare.type->tag, visible,
-                             global, hist, stmt_index, line, diag, warnings, self_name,
+                             global, struct_table, hist, stmt_index, line, diag, warnings, self_name,
                              TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
         if (tc_check_operand(&rhs->u.float_compare.rhs, rhs->u.float_compare.type->tag, visible,
-                             global, hist, stmt_index, line, diag, warnings, self_name,
+                             global, struct_table, hist, stmt_index, line, diag, warnings, self_name,
                              TC_CE_COMPARISON_TYPE_MISMATCH) != 0) {
             return -1;
         }
@@ -538,9 +563,23 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             }
             tc_resolved_binding_set(&bitcast->source.binding, source);
             source_width = tc_sizeof_bits(source_full);
-        } else if (bitcast->source.u.lit.is_bool) {
+        } else if (bitcast->source.kind == TC_OPERAND_FIELD_READ) {
+            if (tc_struct_check_field_access(&bitcast->source.u.field_read, NULL, struct_table,
+                                              visible, global, hist, stmt_index, line, diag,
+                                              warnings, self_name) != 0) {
+                return -1;
+            }
+            source_full = bitcast->source.u.field_read.resolved.field_type;
+            source_tag = tc_type_tag_of(source_full);
+            source_width = tc_sizeof_bits(source_full);
+        } else if (bitcast->source.kind == TC_OPERAND_LIT &&
+                   bitcast->source.u.lit.is_bool) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
+            return -1;
+        } else if (bitcast->source.kind != TC_OPERAND_LIT) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "bitcast source must be a variable, field, or literal");
             return -1;
         } else if (bitcast->source.u.lit.is_float) {
             if (!isfinite(bitcast->source.u.lit.float_value) &&
@@ -643,6 +682,13 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
         TcTypeTag source_tag = TC_INT64;
         const TcType *source_full = NULL;
 
+        if (cast->target.tag == TC_STRUCT || cast->target.tag == TC_MEMBLOCK ||
+            cast->target.tag == TC_VOID) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "cast target must be scalar or ptr type");
+            return -1;
+        }
+
         if (cast->source.kind == TC_OPERAND_VAR) {
             if (self_name && strcmp(cast->source.u.name, self_name) == 0) {
                 (void)snprintf(msg, sizeof(msg),
@@ -661,14 +707,29 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             source_full = source->type;
             source_tag = tc_type_tag_of(source_full);
             tc_resolved_binding_set(&cast->source.binding, source);
-        } else if (cast->source.u.lit.is_nullptr) {
+        } else if (cast->source.kind == TC_OPERAND_FIELD_READ) {
+            if (tc_struct_check_field_access(&cast->source.u.field_read, NULL, struct_table,
+                                              visible, global, hist, stmt_index, line, diag,
+                                              warnings, self_name) != 0) {
+                return -1;
+            }
+            source_full = cast->source.u.field_read.resolved.field_type;
+            source_tag = tc_type_tag_of(source_full);
+        } else if (cast->source.kind == TC_OPERAND_LIT &&
+                   cast->source.u.lit.is_nullptr) {
             source_tag = TC_PTR;
-        } else if (cast->source.u.lit.is_bool) {
+        } else if (cast->source.kind == TC_OPERAND_LIT &&
+                   cast->source.u.lit.is_bool) {
             source_tag = TC_BOOL;
-        } else if (cast->source.u.lit.is_float) {
+        } else if (cast->source.kind == TC_OPERAND_LIT &&
+                   cast->source.u.lit.is_float) {
             source_tag = cast->source.u.lit.float32_suffix ? TC_FLOAT32 : TC_FLOAT64;
-        } else {
+        } else if (cast->source.kind == TC_OPERAND_LIT) {
             source_tag = cast->source.u.lit.unsigned_suffix ? TC_UINT64 : TC_INT64;
+        } else {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "cast source must be a variable, field, or literal");
+            return -1;
         }
 
         /* ptr<U> → ptr<T>：等宽所指类型；不可 cast 到整数/浮点 */
@@ -748,11 +809,11 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
 }
 
 int tc_check_condition(TcRhs *rhs, const TcSymbolTable *visible,
-                              const TcSymbolTable *global, TcInitHistory *hist,
-                              size_t stmt_index, int line, const char *owner,
+                              const TcSymbolTable *global, const TcStructTable *struct_table,
+                              TcInitHistory *hist, size_t stmt_index, int line, const char *owner,
                               TcDiagnostic *diag, TcWarningList *warnings) {
-    if (tc_check_rhs(rhs, tc_type_tag_singleton(TC_BOOL), visible, global, hist, stmt_index, line,
-                     diag, warnings, NULL) != 0) {
+    if (tc_check_rhs(rhs, tc_type_tag_singleton(TC_BOOL), visible, global, struct_table, hist,
+                     stmt_index, line, diag, warnings, NULL) != 0) {
         if (diag->kind == TC_CE_TYPE_MISMATCH) {
             char msg[64];
 
@@ -782,6 +843,7 @@ int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
         }
         mut = &dst->symbols[dst->count - 1];
         mut->scope_end_stmt_index = sym->scope_end_stmt_index;
+        mut->ptr_target_readonly = sym->ptr_target_readonly;
         if (sym->has_const_value) {
             mut->has_const_value = 1;
             mut->const_value = sym->const_value;
@@ -823,6 +885,7 @@ int tc_visible_add_from_global(const TcSymbolTable *global, const char *name,
     added->has_const_value = sym->has_const_value;
     added->const_value = sym->const_value;
     added->scope_end_stmt_index = sym->scope_end_stmt_index;
+    added->ptr_target_readonly = sym->ptr_target_readonly;
     return 0;
 }
 

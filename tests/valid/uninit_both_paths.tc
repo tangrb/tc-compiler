@@ -1,10 +1,11 @@
 #program
 ; then/else 均初始化后读取合法
 var x: int32 = 0
+var y: int32 = 0
 if true then
     x = 10
 else
     x = 20
 end
-var y: int32 = add(int32, x, 1)
+y = add(int32, x, 1)
 writeln(int32, %d, y)

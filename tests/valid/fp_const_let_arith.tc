@@ -6,35 +6,35 @@ let b: float64 = 3.0
 
 ; 基本算术
 let c: float64 = add(float64, a, b)
-writeln(float64, c)            ; 5
-
 let d: float64 = mul(float64, a, b)
-writeln(float64, d)            ; 6
-
 let e: float64 = div(float64, d, a)
-writeln(float64, e)            ; 3
-
 let f: float64 = sub(float64, d, a)
-writeln(float64, f)            ; 4
-
-; 单目 neg
 let g: float64 = neg(float64, a)
-writeln(float64, g)            ; -2
-
-; 比较运算
 let h: bool = lt(float64, a, b)
-writeln(bool, %t, h)           ; true
-
 let i: bool = eq(float64, a, b)
-writeln(bool, %t, i)           ; false
-
-; 两步组合：先 let mul_cache，再 let add(mul_cache, sub_cache)
 let mul_cache: float64 = mul(float64, a, b)
 let sub_cache: float64 = sub(float64, b, a)
 let j: float64 = add(float64, mul_cache, sub_cache)
+let k: float32 = 1.5
+let l: float32 = add(float32, k, 2.5)
+writeln(float64, c)            ; 5
+
+writeln(float64, d)            ; 6
+
+writeln(float64, e)            ; 3
+
+writeln(float64, f)            ; 4
+
+; 单目 neg
+writeln(float64, g)            ; -2
+
+; 比较运算
+writeln(bool, %t, h)           ; true
+
+writeln(bool, %t, i)           ; false
+
+; 两步组合：先 let mul_cache，再 let add(mul_cache, sub_cache)
 writeln(float64, j)            ; 7
 
 ; float32 常量
-let k: float32 = 1.5
-let l: float32 = add(float32, k, 2.5)
 writeln(float32, l)            ; 4

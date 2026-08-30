@@ -55,7 +55,7 @@ tc_call_frame_push / tc_call_frame_pop
 ## 控制流约束
 
 - goto/label **仅函数内**（顶层 → `GOTO/LABEL_OUTSIDE_FUNCTION`）
-- 跨函数跳转 → `CROSS_CONTROL_FLOW_JUMP`
+- 跨函数跳转 → `LABEL_NOT_FOUND`（当前函数无同名标签）
 - 函数 CFG 独立域；return 边参与 `MISSING_RETURN` / `UNREACHABLE`
 
 ## 测试

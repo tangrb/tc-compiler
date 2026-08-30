@@ -8,10 +8,48 @@
 
 #include "tc_diagnostic.h"
 #include "tc_semantics.h"
+#include "tc_struct_check.h"
 
 #include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+static int tc_const_heap_named(uint64_t bits, const TcSymbolTable *table) {
+    size_t i = 0;
+
+    if (!table || bits == 0) {
+        return 0;
+    }
+    for (i = 0; i < table->count; i++) {
+        /* 仅复合类型（struct/memblock）的 const_value.bits 才是堆地址；
+         * 标量 const 的位模式可能恰巧等于某次分配地址，不得误判为别名。 */
+        if (table->symbols[i].has_const_value && table->symbols[i].const_value.type &&
+            (table->symbols[i].const_value.type->tag == TC_STRUCT ||
+             table->symbols[i].const_value.type->tag == TC_MEMBLOCK) &&
+            table->symbols[i].const_value.bits == bits) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void tc_const_drop_temp_heap(TcValue *value, const TcSymbolTable *visible,
+                                    const TcSymbolTable *global) {
+    if (!value || value->bits == 0 || !value->type) {
+        return;
+    }
+    if (value->type->tag != TC_STRUCT && value->type->tag != TC_MEMBLOCK) {
+        return;
+    }
+    if (tc_const_heap_named(value->bits, visible) || tc_const_heap_named(value->bits, global)) {
+        return;
+    }
+    free((void *)(uintptr_t)value->bits);
+    value->bits = 0;
+}
 
 /* ------------------------------------------------------------------ */
 /*  常量求值辅助                                                         */
@@ -176,6 +214,110 @@ int tc_try_eval_static_bool(const TcRhs *rhs, int line, TcStaticBoolResult *resu
     return 0;
 }
 
+static int tc_const_read_resolved_field(const TcResolvedFieldAccess *access,
+                                        const TcSymbol *base_sym, TcTypeTag expected,
+                                        TcValue *out, int line, TcDiagnostic *diag) {
+    const uint8_t *data = NULL;
+    size_t offset = 0;
+    size_t nbytes = 0;
+    const TcType *field_type = NULL;
+    uint64_t bits = 0;
+
+    if (!access || !access->resolved) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
+    if (access->base_slot >= 0) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "constant expression cannot reference var variable");
+        return -1;
+    }
+    if (access->is_memblock_count) {
+        if (base_sym && base_sym->type) {
+            *out = tc_value_make(TC_USIZE, tc_type_memblock_count(base_sym->type));
+        } else {
+            *out = tc_value_make(TC_USIZE, 0);
+        }
+        return 0;
+    }
+    if (!access->field_type || access->field_count == 0 || !access->offsets) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
+    field_type = access->field_type;
+    if (tc_type_tag_of(field_type) != expected) {
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "constant type does not match expected type");
+        return -1;
+    }
+    if (field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
+    /* 优先用基址符号当前 const_value（static let 拓扑求值后才就绪） */
+    if (base_sym && base_sym->has_const_value) {
+        bits = base_sym->const_value.bits;
+    } else {
+        bits = access->const_bits;
+    }
+    data = (const uint8_t *)(uintptr_t)bits;
+    if (!data) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "constant value is not available by source order");
+        return -1;
+    }
+    offset = access->offsets[access->field_count - 1];
+    nbytes = (tc_sizeof_bits(field_type) + 7U) / 8U;
+    out->type = field_type;
+    out->bits = 0;
+    memcpy(&out->bits, data + offset, nbytes <= sizeof(out->bits) ? nbytes : sizeof(out->bits));
+    if (field_type->tag == TC_BOOL) {
+        out->bits = out->bits ? 1ULL : 0ULL;
+    }
+    return 0;
+}
+
+static const TcSymbol *tc_const_lookup_field_base(const char *base, const TcSymbolTable *visible,
+                                                  const TcSymbolTable *global) {
+    const char *member = NULL;
+
+    if (!base) {
+        return NULL;
+    }
+    if (strncmp(base, "Self.", 5) == 0) {
+        member = base + 5;
+        if (global) {
+            return tc_symbol_table_find(global, member);
+        }
+        return NULL;
+    }
+    {
+        const char *dot = strchr(base, '.');
+
+        if (dot && dot != base && dot[1] != '\0') {
+            member = dot + 1;
+            if (global) {
+                return tc_symbol_table_find(global, member);
+            }
+            return NULL;
+        }
+    }
+    if (visible) {
+        const TcSymbol *sym = tc_symbol_table_find(visible, base);
+
+        if (sym) {
+            return sym;
+        }
+    }
+    if (global) {
+        return tc_symbol_table_find(global, base);
+    }
+    return NULL;
+}
+
 static int tc_eval_const_operand(const TcOperand *operand, TcTypeTag expected,
                                  const TcSymbolTable *visible, const TcSymbolTable *global,
                                  const char *const_name, TcValue *out, int line,
@@ -192,10 +334,23 @@ static int tc_eval_const_operand(const TcOperand *operand, TcTypeTag expected,
         return 0;
     }
 
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        const TcSymbol *base_sym = NULL;
+
+        if (!operand->u.field_read.resolved.resolved) {
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "invalid constant expression");
+            return -1;
+        }
+        base_sym = tc_const_lookup_field_base(operand->u.field_read.base, visible, global);
+        return tc_const_read_resolved_field(&operand->u.field_read.resolved, base_sym, expected,
+                                            out, line, diag);
+    }
+
     {
         const TcSymbol *symbol = NULL;
 
-        if (const_name && strcmp(operand->u.name, const_name) == 0) {
+        if (const_name && operand->u.name && strcmp(operand->u.name, const_name) == 0) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", operand->u.name);
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
@@ -227,15 +382,240 @@ static int tc_eval_const_operand(const TcOperand *operand, TcTypeTag expected,
     }
 }
 
-static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
-                             const TcSymbolTable *visible, const TcSymbolTable *global,
-                             const char *const_name, TcValue *out, int line,
-                             TcDiagnostic *diag);
+static size_t tc_const_type_payload_bytes(const TcType *type, const TcStructTable *table) {
+    if (!type) {
+        return 0;
+    }
+    if (type->tag == TC_STRUCT) {
+        const TcStructEntry *entry =
+            tc_struct_table_get(table, type->params.struct_type.struct_id);
+        if (!entry) {
+            return 0;
+        }
+        return (entry->width_bits + 7U) / 8U;
+    }
+    return (tc_sizeof_bits_ex(type, tc_struct_table_width_bits, table) + 7U) / 8U;
+}
+
+static int tc_const_write_field_bytes(uint8_t *base, size_t offset, const TcType *field_type,
+                                      const TcValue *value, const TcStructTable *table) {
+    size_t nbytes = tc_const_type_payload_bytes(field_type, table);
+    uint8_t *dst = base + offset;
+
+    if (field_type->tag == TC_STRUCT) {
+        if (!value || value->bits == 0 || nbytes == 0) {
+            return -1;
+        }
+        memcpy(dst, (const void *)(uintptr_t)value->bits, nbytes);
+        return 0;
+    }
+    if (field_type->tag == TC_MEMBLOCK) {
+        if (!value || value->bits == 0 || nbytes == 0) {
+            return -1;
+        }
+        memcpy(dst, (const void *)(uintptr_t)value->bits, nbytes);
+        return 0;
+    }
+    {
+        uint64_t bits = value->bits;
+        if (field_type->tag == TC_BOOL) {
+            bits = bits ? 1ULL : 0ULL;
+        }
+        memset(dst, 0, nbytes);
+        memcpy(dst, &bits, nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+    }
+    return 0;
+}
 
 static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                              const TcSymbolTable *visible, const TcSymbolTable *global,
-                             const char *const_name, TcValue *out, int line,
-                             TcDiagnostic *diag) {
+                             const TcStructTable *struct_table, const char *const_name,
+                             TcValue *out, int line, TcDiagnostic *diag);
+
+static int tc_eval_const_ctor_field(const TcRhs *rhs_field, int has_rhs, const TcOperand *value_op,
+                                    const TcType *field_type, const TcSymbolTable *visible,
+                                    const TcSymbolTable *global, const TcStructTable *struct_table,
+                                    const char *const_name, TcValue *out, int line,
+                                    TcDiagnostic *diag) {
+    if (has_rhs && rhs_field) {
+        return tc_eval_const_rhs(rhs_field, field_type->tag, visible, global, struct_table,
+                                 const_name, out, line, diag);
+    }
+    return tc_eval_const_operand(value_op, field_type->tag, visible, global, const_name, out, line,
+                                 diag);
+}
+
+static int tc_eval_const_struct_ctor(const TcRhs *rhs, const TcStructTable *table,
+                                     const TcSymbolTable *visible, const TcSymbolTable *global,
+                                     const char *const_name, TcValue *out, int line,
+                                     TcDiagnostic *diag) {
+    const TcStructEntry *entry = NULL;
+    void *block = NULL;
+    size_t bit_off = 0;
+    size_t i = 0;
+
+    if (!rhs || rhs->kind != TC_RHS_STRUCT_CONSTRUCTOR || !table) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
+    entry = tc_struct_table_find(table, rhs->u.struct_ctor.struct_name);
+    if (!entry) {
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_STRUCT, line, TC_COLUMN_UNKNOWN,
+                          "undefined struct type for constant constructor");
+        return -1;
+    }
+    block = calloc(1, (entry->width_bits + 7U) / 8U);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+
+    for (i = 0; i < entry->field_count; i++) {
+        const TcStructField *field = &entry->fields[i];
+        size_t field_bits = 0;
+        size_t offset_bytes = bit_off / 8U;
+        TcValue field_value = {0};
+        size_t fi = 0;
+        int found = 0;
+
+        for (fi = 0; fi < rhs->u.struct_ctor.field_count; fi++) {
+            if (strcmp(rhs->u.struct_ctor.fields[fi].param_name, field->name) == 0) {
+                if (tc_eval_const_ctor_field(
+                        (const TcRhs *)rhs->u.struct_ctor.fields[fi].value_rhs,
+                        rhs->u.struct_ctor.fields[fi].has_rhs,
+                        &rhs->u.struct_ctor.fields[fi].value_op, &field->type, visible, global,
+                        table, const_name, &field_value, line, diag) != 0) {
+                    free(block);
+                    return -1;
+                }
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            free(block);
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "missing field in constant struct constructor");
+            return -1;
+        }
+        if (tc_const_write_field_bytes((uint8_t *)block, offset_bytes, &field->type, &field_value,
+                                       table) != 0) {
+            tc_const_drop_temp_heap(&field_value, visible, global);
+            free(block);
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "invalid constant struct field value");
+            return -1;
+        }
+        tc_const_drop_temp_heap(&field_value, visible, global);
+        field_bits = tc_sizeof_bits_ex(&field->type, tc_struct_table_width_bits, table);
+        bit_off += field_bits + (size_t)field->padding * 8U;
+    }
+
+    out->type = tc_type_tag_singleton(TC_STRUCT);
+    out->bits = (uint64_t)(uintptr_t)block;
+    return 0;
+}
+
+static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *struct_table,
+                                       const TcSymbolTable *visible, const TcSymbolTable *global,
+                                       const char *const_name, TcValue *out, int line,
+                                       TcDiagnostic *diag) {
+    uint64_t count = 0;
+    size_t element_bits = 0;
+    size_t element_bytes = 0;
+    size_t payload_bytes = 0;
+    void *block = NULL;
+    uint8_t *cursor = NULL;
+    const TcType *elem = NULL;
+    size_t i = 0;
+
+    if (!rhs || rhs->kind != TC_RHS_MEMBLOCK_CONSTRUCTOR || !out) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
+    elem = &rhs->u.memblock_ctor.element_type;
+    count = rhs->u.memblock_ctor.count;
+    if (count < 1) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock count must be at least 1");
+        return -1;
+    }
+    /* 逐值构造必须恰好 count 个元素；static let 在 pass2 类型检查之前求值，
+     * 此处是计数校验的最后防线（与 tc_memblock_check_rhs 的 value_count != count 一致）。 */
+    if (!rhs->u.memblock_ctor.is_fill && rhs->u.memblock_ctor.value_count != count) {
+        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "memblock element count mismatch");
+        return -1;
+    }
+    element_bits = tc_sizeof_bits_ex(elem, tc_struct_table_width_bits, struct_table);
+    element_bytes = (element_bits + 7U) / 8U;
+    if (element_bytes > 0 && count > (SIZE_MAX - sizeof(uint64_t)) / element_bytes) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    payload_bytes = (size_t)count * element_bytes;
+    /* calloc：即使未来出现 value_count < count 的漏网路径，尾部也保持零初始化 */
+    block = calloc(1, sizeof(uint64_t) + payload_bytes);
+    if (!block) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    memcpy(block, &count, sizeof(uint64_t));
+    cursor = (uint8_t *)block + sizeof(uint64_t);
+    if (rhs->u.memblock_ctor.is_fill) {
+        TcValue fill_value = {0};
+
+        if (tc_eval_const_operand(&rhs->u.memblock_ctor.fill_value, elem->tag, visible, global,
+                                  const_name, &fill_value, line, diag) != 0) {
+            free(block);
+            return -1;
+        }
+        if (elem->tag == TC_BOOL) {
+            fill_value.bits = fill_value.bits ? 1ULL : 0ULL;
+        }
+        for (i = 0; i < count; i++) {
+            if (elem->tag == TC_STRUCT) {
+                memcpy(cursor + i * element_bytes, (void *)(uintptr_t)fill_value.bits,
+                       element_bytes);
+            } else {
+                memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
+            }
+        }
+        tc_const_drop_temp_heap(&fill_value, visible, global);
+    } else {
+        for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
+            TcValue elem_val = {0};
+
+            if (tc_eval_const_operand(&rhs->u.memblock_ctor.values[i], elem->tag, visible, global,
+                                      const_name, &elem_val, line, diag) != 0) {
+                free(block);
+                return -1;
+            }
+            if (elem->tag == TC_BOOL) {
+                elem_val.bits = elem_val.bits ? 1ULL : 0ULL;
+            }
+            if (elem->tag == TC_STRUCT) {
+                memcpy(cursor + i * element_bytes, (void *)(uintptr_t)elem_val.bits, element_bytes);
+            } else {
+                memcpy(cursor + i * element_bytes, &elem_val.bits, element_bytes);
+            }
+            tc_const_drop_temp_heap(&elem_val, visible, global);
+        }
+    }
+    out->type = tc_type_tag_singleton(TC_MEMBLOCK);
+    out->bits = (uint64_t)(uintptr_t)block;
+    return 0;
+}
+
+static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
+                             const TcSymbolTable *visible, const TcSymbolTable *global,
+                             const TcStructTable *struct_table, const char *const_name,
+                             TcValue *out, int line, TcDiagnostic *diag) {
     TcDiagnostic tmp_diag;
     TcValue lhs = {0};
     TcValue rhs_val = {0};
@@ -248,6 +628,14 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         }
         *out = tc_literal_to_value(&rhs->u.lit, expected_type);
         return 0;
+    }
+
+    if (rhs->kind == TC_RHS_FIELD_READ && rhs->u.field_read.resolved.resolved) {
+        const TcSymbol *base_sym =
+            tc_const_lookup_field_base(rhs->u.field_read.base, visible, global);
+
+        return tc_const_read_resolved_field(&rhs->u.field_read.resolved, base_sym, expected_type,
+                                            out, line, diag);
     }
 
     if (rhs->kind == TC_RHS_CONST_REF) {
@@ -620,6 +1008,14 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                 return -1;
             }
             source_type = tc_type_tag_of(symbol->type);
+        } else if (bitcast->source.kind == TC_OPERAND_FIELD_READ) {
+            if (!bitcast->source.u.field_read.resolved.resolved ||
+                !bitcast->source.u.field_read.resolved.field_type) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                                  "invalid constant bitcast source");
+                return -1;
+            }
+            source_type = tc_type_tag_of(bitcast->source.u.field_read.resolved.field_type);
         } else if (bitcast->source.u.lit.is_bool) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
@@ -670,6 +1066,26 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "constant cast target type mismatch");
             return -1;
         }
+        if (cast->target.tag == TC_STRUCT || cast->target.tag == TC_MEMBLOCK ||
+            cast->target.tag == TC_VOID) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "cast target must be scalar or ptr type");
+            return -1;
+        }
+        if (cast->source.kind == TC_OPERAND_LIT && cast->source.u.lit.is_nullptr) {
+            if (cast->target.tag != TC_PTR) {
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "pointer cast requires a pointer source");
+                return -1;
+            }
+            *out = tc_value_make(TC_PTR, 0);
+            return 0;
+        }
+        if (cast->target.tag == TC_PTR) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "pointer cast requires a pointer source");
+            return -1;
+        }
         if (cast->source.kind == TC_OPERAND_LIT) {
             if (cast->source.u.lit.is_bool) {
                 source_type = TC_BOOL;
@@ -714,6 +1130,18 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
             }
             src_val = symbol->const_value;
             source_type = tc_type_tag_of(symbol->type);
+        } else if (cast->source.kind == TC_OPERAND_FIELD_READ) {
+            if (!cast->source.u.field_read.resolved.resolved ||
+                !cast->source.u.field_read.resolved.field_type) {
+                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                                  "invalid constant cast source");
+                return -1;
+            }
+            source_type = tc_type_tag_of(cast->source.u.field_read.resolved.field_type);
+            if (tc_eval_const_operand(&cast->source, source_type, visible, global, const_name,
+                                      &src_val, line, diag) != 0) {
+                return -1;
+            }
         } else {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                               "invalid constant cast source");
@@ -738,16 +1166,55 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         return 0;
     }
 
+    if (rhs->kind == TC_RHS_MEMBLOCK_COUNT) {
+        const TcResolvedBinding *binding = &rhs->u.memblock_count.binding;
+
+        if (!binding->resolved || !binding->is_const) {
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "constant expression cannot reference var variable");
+            return -1;
+        }
+        if (expected_type != TC_USIZE && expected_type != TC_ISIZE) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant type does not match expected type");
+            return -1;
+        }
+        *out = tc_value_make(TC_USIZE, tc_type_memblock_count(binding->type));
+        return 0;
+    }
+
     if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {
         if (expected_type != TC_STRUCT) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "struct constructor type mismatch in constant expression");
             return -1;
         }
-        /* 字段合法性由类型检查保证；编译期 struct 值占位（bits=0），供 let 绑定注册 */
-        out->type = tc_type_tag_singleton(TC_STRUCT);
-        out->bits = 0;
+        return tc_eval_const_struct_ctor(rhs, struct_table, visible, global, const_name, out, line,
+                                         diag);
+    }
+
+    if (rhs->kind == TC_RHS_PTR_SIZE) {
+        size_t bits = 0;
+
+        if (expected_type != TC_USIZE && expected_type != TC_ISIZE) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant expression type mismatch");
+            return -1;
+        }
+        bits = tc_sizeof_bits_ex(&rhs->u.ptr_size.pointee_type, tc_struct_table_width_bits,
+                                 struct_table);
+        *out = tc_value_make(TC_USIZE, (uint64_t)bits);
         return 0;
+    }
+
+    if (rhs->kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
+        if (expected_type != TC_MEMBLOCK) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "memblock constructor type mismatch in constant expression");
+            return -1;
+        }
+        return tc_eval_const_memblock_ctor(rhs, struct_table, visible, global, const_name, out, line,
+                                           diag);
     }
 
     tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
@@ -760,14 +1227,26 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
 /* ------------------------------------------------------------------ */
 
 int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, const TcSymbolTable *visible,
-                           const TcSymbolTable *global, int line, TcDiagnostic *diag) {
+                           const TcSymbolTable *global, const TcStructTable *struct_table,
+                           int line, TcDiagnostic *diag) {
     TcValue value = {0};
 
-    if (tc_eval_const_rhs(rhs, tc_type_tag_of(sym->type), visible, global, sym->name,
+    if (tc_eval_const_rhs(rhs, tc_type_tag_of(sym->type), visible, global, struct_table, sym->name,
                           &value, line, diag) != 0) {
         return -1;
     }
-    sym->const_value = value;
-    sym->has_const_value = 1;
+    {
+        int aliased = tc_const_heap_named(value.bits, visible) ||
+                      tc_const_heap_named(value.bits, global);
+
+        /* 先判断是否别名，再写入本符号，避免 named 扫到自己 */
+        sym->const_value = value;
+        sym->has_const_value = 1;
+        sym->owns_const_heap = 0;
+        if (value.type && (value.type->tag == TC_STRUCT || value.type->tag == TC_MEMBLOCK) &&
+            value.bits != 0 && !aliased) {
+            sym->owns_const_heap = 1;
+        }
+    }
     return 0;
 }

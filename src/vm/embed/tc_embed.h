@@ -1,5 +1,5 @@
 /*
- * tc_embed.h — TC 嵌入式运行时 API（v0.0.39）
+ * tc_embed.h — TC 嵌入式运行时 API（v0.0.41）
  *
  * C 宿主程序调用 TC 编译产物的最小化运行时 API。
  * 通过共享 slots[] 数组实现零拷贝互操作。
@@ -63,7 +63,7 @@ typedef struct {
     size_t param_count;
 } TcEmbedFuncInfo;
 
-/* ── 类型化参数（运行时便捷层，v0.0.39） ──
+/* ── 类型化参数（运行时便捷层，v0.0.41） ──
  *
  * 携带类型标签的实参，供 tc_embed_call_typed 使用。
  * bits 与 TcValue.bits 位模式一致（按位宽规范化），可经 tc_value_from_* 复用。
@@ -151,7 +151,7 @@ static inline TcEmbedArg tc_embed_arg_ptr(int slot) {
 /* ── AOT 函数表条目（与 AOT codegen 生成的表结构一致） ── */
 #ifndef TC_AOT_FUNC_ENTRY_T_DEFINED
 #define TC_AOT_FUNC_ENTRY_T_DEFINED
-typedef void (*tc_aot_func_entry_t)(TcDiagnostic *diag);
+typedef int (*tc_aot_func_entry_t)(TcDiagnostic *diag);
 #endif
 
 #ifndef TC_AOT_FUNC_ENTRY_DEFINED

@@ -7,6 +7,7 @@ add_custom_target(check-unit
     COMMAND echo "=== Running Extended Lexer unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-lexer-extended
     COMMAND echo "=== Running Parser unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-parser
     COMMAND echo "=== Running Semantics unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-semantics
+    COMMAND echo "=== Running float mod unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-fp-mod
     COMMAND echo "=== Running Types unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-types
     COMMAND echo "=== Running Diagnostic unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-diagnostic
     COMMAND echo "=== Running libtc unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-libtc
@@ -21,6 +22,7 @@ add_custom_target(check-unit
     COMMAND echo "=== Running Executor unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-executor
     COMMAND echo "=== Running stmt_index unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-stmt-index
     COMMAND echo "=== Running Type-check unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-type-check
+    COMMAND echo "=== Running struct-field-access unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-struct-field-access
     COMMAND echo "=== Running Embed unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-embed
     COMMAND echo "=== Running Embed AOT unit tests ===" && ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target check-embed-aot
     COMMENT "Running all unit tests"

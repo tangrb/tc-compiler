@@ -1,0 +1,12 @@
+#program
+; §6.3.7：有限 mod ±inf 按位等于被除数；-0.0 符号保持
+var a: float64 = 3.0
+var ninf: float64 = -inf
+var r: float64 = mod(float64, a, inf)
+var rneg: float64 = mod(float64, a, ninf)
+var z: float64 = -0.0
+var rz: float64 = mod(float64, z, 2.0)
+var bits: uint64 = bitcast(uint64, rz)
+writeln(float64, r)
+writeln(float64, rneg)
+writeln(uint64, %x, bits)

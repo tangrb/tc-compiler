@@ -1,0 +1,77 @@
+#lib
+; static let 拓扑：unary/bitwise/shift/logic/float/cast/bitcast 操作数中的字段读
+; 全部成员声明在使用之前，验证拓扑收集与提前固化（const_eval 早于 Pass2）
+public struct Num then
+    var x: int32
+end
+public struct Flag then
+    var b: bool
+    var f: float64
+end
+public struct ScalarPair then
+    var a: int32
+    var b: int32
+end
+public static let nn: int32 = neg(int32, Self.num.x)
+public static let bw: int32 = or(int32, Self.num.x, 1)
+public static let sh: int32 = shl(int32, Self.num.x, 1)
+public static let lb: bool = and(bool, Self.flag.b, Self.flag.b)
+public static let ln: bool = not(bool, Self.flag.b)
+public static let fa: float64 = add(float64, Self.flag.f, 1.0)
+public static let fc: bool = gt(float64, Self.flag.f, 0.0)
+public static let cc: int8 = cast(int8, Self.num.x)
+public static let bc: float32 = bitcast(float32, Self.num.x)
+public static let sp_a: int32 = Self.sp.a
+public static let num: Num = Num(x: 9)
+public static let flag: Flag = Flag(b: true, f: 1.5)
+public static let sp: ScalarPair = ScalarPair(a: Self.num.x, b: 1)
+public static var sv: int32 = shl(int32, Self.num.x, 1)
+public static var sv2: int32 = Self.sp.a
+public func get_nn() int32 then
+    var v: int32 = Self.nn
+    return v
+end
+public func get_bw() int32 then
+    var v: int32 = Self.bw
+    return v
+end
+public func get_sh() int32 then
+    var v: int32 = Self.sh
+    return v
+end
+public func get_lb() bool then
+    var v: bool = Self.lb
+    return v
+end
+public func get_ln() bool then
+    var v: bool = Self.ln
+    return v
+end
+public func get_fa() float64 then
+    var v: float64 = Self.fa
+    return v
+end
+public func get_fc() bool then
+    var v: bool = Self.fc
+    return v
+end
+public func get_cc() int8 then
+    var v: int8 = Self.cc
+    return v
+end
+public func get_bc() float32 then
+    var v: float32 = Self.bc
+    return v
+end
+public func get_sv() int32 then
+    var v: int32 = Self.sv
+    return v
+end
+public func get_sp_a() int32 then
+    var v: int32 = Self.sp_a
+    return v
+end
+public func get_sv2() int32 then
+    var v: int32 = Self.sv2
+    return v
+end

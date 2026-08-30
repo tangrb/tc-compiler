@@ -1,0 +1,8 @@
+#program
+; 期望：memcopy_unsafe invalid range（负下标，非 memblock index）
+var a: int32 = 1
+var b: int32 = 2
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, b)
+var i: isize = -1
+memcopy_unsafe(int32, p, i, q, 0, 1)

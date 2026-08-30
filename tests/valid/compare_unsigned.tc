@@ -11,6 +11,14 @@ var r3: bool = eq(uint32, a, b)
 var r4: bool = ne(uint32, a, b)
 var r5: bool = le(uint32, a, b)
 var r6: bool = ge(uint32, b, a)
+var x: uint8 = 200
+var y: uint8 = 100
+var r7: bool = gt(uint8, x, y)
+var r8: bool = lt(uint8, x, y)
+var big_a: uint64 = 4294967296
+var big_b: uint64 = 4294967295
+var r9: bool = gt(uint64, big_a, big_b)
+var r10: bool = eq(uint64, big_a, big_a)
 writeln(bool, %t, r1)               ; true
 writeln(bool, %t, r2)               ; false
 writeln(bool, %t, r3)               ; false
@@ -19,17 +27,9 @@ writeln(bool, %t, r5)               ; true
 writeln(bool, %t, r6)               ; true
 
 ; uint8 比较（边界值）
-var x: uint8 = 200
-var y: uint8 = 100
-var r7: bool = gt(uint8, x, y)
-var r8: bool = lt(uint8, x, y)
 writeln(bool, %t, r7)               ; true
 writeln(bool, %t, r8)               ; false
 
 ; uint64 比较（大数）
-var big_a: uint64 = 4294967296
-var big_b: uint64 = 4294967295
-var r9: bool = gt(uint64, big_a, big_b)
-var r10: bool = eq(uint64, big_a, big_a)
 writeln(bool, %t, r9)               ; true
 writeln(bool, %t, r10)              ; true

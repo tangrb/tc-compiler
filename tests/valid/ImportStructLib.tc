@@ -1,0 +1,10 @@
+#lib
+; 跨模块结构体类型名 / 构造器名（<模块名>.<结构体名>）
+public struct Box then
+    var x: int32
+end
+
+public func make_box(x: int32) Box then
+    var b: Box = Box(x: x)
+    return b
+end

@@ -18,12 +18,27 @@
 /* INT64_MIN 的绝对值 2^63，用于字面量范围检查与 read 输入解析 */
 #define TC_INT64_MIN_ABS_MAGNITUDE 9223372036854775808ULL
 
+/*
+ * 本实现固定 64-bit-only 目标字长（§3.2.1）：isize/usize/ptr/memblock 长度头均为 64 位。
+ * 32 位目标另行立项。C99 编译期断言：非 64 位宿主拒绝构建。
+ */
+typedef char tc_target_is_64bit_only[(sizeof(void *) == 8) ? 1 : -1];
+typedef char tc_uint64_is_8_bytes[(sizeof(uint64_t) == 8) ? 1 : -1];
+
+/* IEEE 754 canonical quiet NaN / ±inf（§3.6.1 / §6.3.3）；与宿主 NAN 宏无关 */
+#define TC_FLOAT32_CANONICAL_NAN_BITS UINT64_C(0x7FC00000)
+#define TC_FLOAT64_CANONICAL_NAN_BITS UINT64_C(0x7FF8000000000000)
+#define TC_FLOAT32_POS_INF_BITS UINT64_C(0x7F800000)
+#define TC_FLOAT64_POS_INF_BITS UINT64_C(0x7FF0000000000000)
+#define TC_FLOAT32_NEG_INF_BITS UINT64_C(0xFF800000)
+#define TC_FLOAT64_NEG_INF_BITS UINT64_C(0xFFF0000000000000)
+
 /* ------------------------------------------------------------------ */
 /*  类型 & 运算符枚举                                                   */
 /* ------------------------------------------------------------------ */
 
 /**
- * TC 0.0.39 类型标签（TcTypeTag）。
+ * TC 0.0.41 类型标签（TcTypeTag）。
  *
  * 标量：定宽整数、bool、浮点、isize/usize。
  * 复合：ptr / memblock / struct；void 仅作函数返回类型。
@@ -63,12 +78,13 @@ typedef enum {
  * 标量与 void：仅 tag 有意义，params 为零。
  * ptr：pointee 堆分配或指向持久类型节点。
  * memblock：element + 声明 count（N）；tc_type_equals 忽略 N。
- * struct：struct_id 索引模块内结构体定义表。
+ * struct：struct_id 索引结构体表（条目按定义模块 + 结构体名定界）。
  *
- * pending_name：仅解析期使用。类型表达式中的结构体名（含嵌套在
- * ptr<…>/memblock<…> 内的）在 Parser 阶段无法解析为 struct_id，先以
- * struct_id = -1 + pending_name（堆）暂存；Analyzer 注册结构体表后按
- * 位置规则（语言标准 §3.9.1）解析为真实 struct_id 并释放该名字。
+ * pending_name：仅解析期使用。类型表达式中的结构体名（裸标识符或
+ * Mod.Name，含嵌套在 ptr<…>/memblock<…> 内的）在 Parser 阶段无法解析
+ * 为 struct_id，先以 struct_id = -1 + pending_name（堆）暂存；Analyzer
+ * 注册结构体表后按当前文件的 import 列表与位置规则（语言标准 §3.9.1）
+ * 解析为真实 struct_id 并释放该名字。
  * 解析成功后 pending_name 恒为 NULL。tc_type_free / tc_type_copy 负责
  * 其生命周期。
  */
@@ -82,6 +98,7 @@ typedef struct TcType {
         struct {
             struct TcType *element;
             uint64_t count;
+            char *pending_count_name; /* usize_operand 名（Self.N / Mod.N / 标识符）；解析后置 NULL */
         } memblock_type;
         struct {
             int struct_id;
@@ -212,7 +229,7 @@ static inline TcFormatFullSpec tc_format_spec_make(TcFormatSpec spec) {
     return fs;
 }
 
-/** 符号种类：变量、let、形参、static var/let（0.0.39） */
+/** 符号种类：变量、let、形参、static var/let（0.0.41） */
 typedef enum {
     TC_SYM_VARIABLE,
     TC_SYM_CONSTANT,
@@ -245,7 +262,6 @@ typedef enum {
     TC_CE_TYPE_MISMATCH,
     TC_CE_LITERAL_OUT_OF_RANGE,
     TC_CE_LITERAL_TYPE,
-    TC_CE_KEYWORD,
     TC_CE_CONSTANT_ASSIGNMENT,
     TC_CE_CONSTANT_EXPRESSION,
     TC_CE_CONSTANT_OVERFLOW,
@@ -258,7 +274,6 @@ typedef enum {
     TC_CE_INDENT_INSUFFICIENT,   /* 块内缩进不足 */
     TC_CE_INDENT_ELSE_END,       /* else/end 缩进与 if 不一致 */
     TC_CE_MISSING_END,           /* if 语句缺少 end */
-    TC_CE_ELSE_POSITION,         /* else 位置错误 */
     TC_CE_CONDITION_TYPE,        /* if 条件结果不是 bool */
     TC_CE_MODE_MISMATCH,         /* ieee/wrap 用于非法上下文 */
     TC_CE_UNINITIALIZED_VARIABLE,  /* §4.2 读取未初始化变量 */
@@ -279,7 +294,6 @@ typedef enum {
     TC_CE_FORMAT_SPECIFIER,        /* 格式控制项非法（异于 FORMAT_STRING） */
 
     /* ---- 函数诊断（§11.4.2） ---- */
-    TC_CE_DUPLICATE_FUNCTION,
     TC_CE_FUNCTION_NAME_CONFLICT,
     TC_CE_UNDEFINED_FUNCTION,
     TC_CE_DUPLICATE_PARAMETER,
@@ -287,7 +301,6 @@ typedef enum {
     TC_CE_DUPLICATE_ARGUMENT,
     TC_CE_UNKNOWN_ARGUMENT,
     TC_CE_ARGUMENT_ORDER,
-    TC_CE_ARGUMENT_TYPE,
     TC_CE_FUNCALL_POSITION,
     TC_CE_FUNCALL_RESULT_TYPE,
     TC_CE_RETURN_OUTSIDE_FUNCTION,
@@ -297,7 +310,6 @@ typedef enum {
     TC_CE_UNREACHABLE_STATEMENT,
     TC_CE_PARAMETER_ASSIGNMENT,
     TC_CE_FUNCTION_SCOPE_ACCESS,
-    TC_CE_CROSS_CONTROL_FLOW_JUMP,
     TC_CE_RECURSION,
 
     /* ---- memblock（§11.4.3） ---- */
@@ -383,10 +395,11 @@ typedef struct {
 /*  AST 节点：操作数 → 右值 → 语句                                      */
 /* ------------------------------------------------------------------ */
 
-/** 算术/一元运算的操作数：变量引用或整数字面量 */
+/** 算术/一元运算的操作数：变量引用、字面量或字段链读取 */
 typedef enum {
     TC_OPERAND_VAR,
-    TC_OPERAND_LIT
+    TC_OPERAND_LIT,
+    TC_OPERAND_FIELD_READ
 } TcOperandKind;
 
 /** Analyzer 持久化的绑定结果；Executor/AOT 不再按名称重新解析。 */
@@ -398,11 +411,30 @@ typedef struct {
     uint64_t const_bits;  /* let 的规范化 TcValue.bits */
 } TcResolvedBinding;
 
+/** Pass2 固化的字段访问；parse 期字符串释放后由 Executor/AOT 直接消费。 */
+typedef struct {
+    int resolved;
+    int base_slot;              /* 基址运行时槽；let 基址为 -1 */
+    uint64_t const_bits;        /* let / static let 基址的规范化位模式 */
+    const TcType *field_type;   /* 末字段声明类型 */
+    uint32_t *offsets;          /* 各级字段相对其结构体的位偏移 */
+    size_t field_count;
+    int is_memblock_count;      /* 1 = memblock .count 语义 */
+} TcResolvedFieldAccess;
+
+typedef struct {
+    char *base;
+    char **fields;
+    size_t field_count;
+    TcResolvedFieldAccess resolved;
+} TcFieldAccess;
+
 typedef struct {
     TcOperandKind kind;
     union {
-        char *name;     /* TC_OPERAND_VAR：变量名，堆分配 */
-        TcLiteral lit;  /* TC_OPERAND_LIT：字面量 */
+        char *name;              /* TC_OPERAND_VAR：变量名，堆分配 */
+        TcLiteral lit;           /* TC_OPERAND_LIT：字面量 */
+        TcFieldAccess field_read; /* TC_OPERAND_FIELD_READ */
     } u;
     TcResolvedBinding binding; /* TC_OPERAND_VAR 分析成功后有效 */
 } TcOperand;
@@ -576,6 +608,7 @@ typedef struct {
             char *base;
             char **fields;
             size_t field_count;
+            TcResolvedFieldAccess resolved;
         } field_read;
         struct {
             TcType pointee_type;
@@ -915,7 +948,7 @@ typedef struct {
  *
  * type 指向标量单例或分析期 intern / AST 稳定 TcType 节点（禁止指向可 realloc 缓冲）。
  * 标量 / ptr：bits 存抽象位模式。
- * memblock / struct：bits 存堆块指针（uintptr 转 uint64_t；假定 64 位宿主）。
+ * memblock / struct：bits 存堆块指针（uintptr 转 uint64_t；本实现 64-bit-only）。
  */
 typedef struct {
     const TcType *type;
@@ -956,9 +989,11 @@ typedef struct {
     int initialized;     /* 定义时是否有初始化值 */
     int has_const_value; /* let 常量编译期求值的结果是否有效 */
     TcValue const_value; /* let 常量编译期求值结果 */
+    int owns_const_heap; /* 1：const_value.bits 为 struct/memblock 堆块，随符号释放 */
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
     const TcType *type;  /* 完整类型：单例或 TcTypeTable intern；随符号释放时不 free */
+    int ptr_target_readonly; /* ptr 绑定：所指外层为 let/static let/形参时为 1 */
 } TcSymbol;
 
 /** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */
@@ -1176,8 +1211,8 @@ int tc_type_equals(const TcType *a, const TcType *b);
 size_t tc_target_ptr_width_bits(void);
 size_t tc_sizeof_bits(const TcType *type);
 /* 结构体宽度表回调；tc_sizeof_bits_ex 显式传入，struct 未注册时宽度为 0 */
-typedef size_t (*TcStructWidthFn)(int struct_id, void *userdata);
-size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, void *userdata);
+typedef size_t (*TcStructWidthFn)(int struct_id, const void *userdata);
+size_t tc_sizeof_bits_ex(const TcType *type, TcStructWidthFn fn, const void *userdata);
 
 int tc_float_mode_parse(const char *text, TcFloatMode *out);
 int tc_arith_op_parse(const char *text, TcArithOp *out);

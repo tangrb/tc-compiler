@@ -1,0 +1,7 @@
+#program
+; 字段作 operand：I/O
+struct Point then
+    var score: int32
+end
+var p: Point = Point(score: 99)
+writeln(int32, p.score)

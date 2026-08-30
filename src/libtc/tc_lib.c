@@ -24,10 +24,6 @@
 #include <time.h>
 #endif
 
-/* ------------------------------------------------------------------ */
-/*  性能计时辅助（环境变量 TC_BENCH=1 启用）                               */
-/* ------------------------------------------------------------------ */
-
 static double tc_bench_now(void) {
 #ifdef _WIN32
     /* MinGW-w64（Debian 打包，msvcrt 运行时）无 clock_gettime；GetTickCount64
@@ -80,6 +76,90 @@ static char *tc_file_read_error(FILE *file, char *buffer, TcDiagnostic *diag) {
     return NULL;
 }
 
+static int tc_source_scan_utf8(const char *source, size_t length, TcDiagnostic *diag) {
+    size_t i = 0;
+    int line = 1;
+    int col = 1;
+
+    if (!source) {
+        return -1;
+    }
+    while (i < length) {
+        unsigned char c = (unsigned char)source[i];
+        int cp = 0;
+        int n = 0;
+
+        if (c == 0) {
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col,
+                              "null character (U+0000) not allowed in source");
+            return -1;
+        }
+        if (c <= 0x7F) {
+            n = 1;
+            cp = c;
+        } else if (c <= 0xBF) {
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+            return -1;
+        } else if (c <= 0xDF) {
+            if (i + 1 >= length || ((unsigned char)source[i + 1] & 0xC0) != 0x80) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+                return -1;
+            }
+            cp = ((c & 0x1F) << 6) | ((unsigned char)source[i + 1] & 0x3F);
+            if (cp < 0x80) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+                return -1;
+            }
+            n = 2;
+        } else if (c <= 0xEF) {
+            if (i + 2 >= length || ((unsigned char)source[i + 1] & 0xC0) != 0x80 ||
+                ((unsigned char)source[i + 2] & 0xC0) != 0x80) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+                return -1;
+            }
+            cp = ((c & 0x0F) << 12) | (((unsigned char)source[i + 1] & 0x3F) << 6) |
+                 ((unsigned char)source[i + 2] & 0x3F);
+            if (cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF)) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+                return -1;
+            }
+            n = 3;
+        } else if (c <= 0xF4) {
+            if (i + 3 >= length || ((unsigned char)source[i + 1] & 0xC0) != 0x80 ||
+                ((unsigned char)source[i + 2] & 0xC0) != 0x80 ||
+                ((unsigned char)source[i + 3] & 0xC0) != 0x80) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+                return -1;
+            }
+            cp = ((c & 0x07) << 18) | (((unsigned char)source[i + 1] & 0x3F) << 12) |
+                 (((unsigned char)source[i + 2] & 0x3F) << 6) | ((unsigned char)source[i + 3] & 0x3F);
+            if (cp < 0x10000 || cp > 0x10FFFF) {
+                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+                return -1;
+            }
+            n = 4;
+        } else {
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col, "invalid UTF-8 in source");
+            return -1;
+        }
+        if (n == 1 && c == '\r' && i + 1 < length && source[i + 1] == '\n') {
+            line++;
+            col = 1;
+            i += 2;
+            continue;
+        }
+        if (n == 1 && c == '\n') {
+            line++;
+            col = 1;
+            i++;
+            continue;
+        }
+        i += (size_t)n;
+        col++;
+    }
+    return 0;
+}
+
 static char *tc_read_file(const char *path, TcDiagnostic *diag) {
     FILE *file = fopen(path, "rb");
     char *buffer = NULL;
@@ -127,31 +207,10 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
         return NULL;
     }
 
-    /* 检查源文件中是否含有非法 U+0000 空字符 */
-    {
-        size_t i;
-        int line = 1;
-        int col = 1;
-
-        for (i = 0; i < read_size; i++) {
-            if (buffer[i] == '\0') {
-                free(buffer);
-                fclose(file);
-                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, col,
-                                  "null character (U+0000) not allowed in source");
-                return NULL;
-            }
-            if (buffer[i] == '\r' && i + 1 < read_size && buffer[i + 1] == '\n') {
-                line++;
-                col = 1;
-                i++;
-            } else if (buffer[i] == '\n') {
-                line++;
-                col = 1;
-            } else {
-                col++;
-            }
-        }
+    if (tc_source_scan_utf8(buffer, read_size, diag) != 0) {
+        free(buffer);
+        fclose(file);
+        return NULL;
     }
     {
         int first = fgetc(file);
@@ -184,6 +243,9 @@ int tc_compile_source(const char *source, const char *name,
         return tc_invalid_argument(diag, "source, name, and output program must not be null");
     }
     if (tc_diagnostic_set_source(diag, name, source) != 0) {
+        return -1;
+    }
+    if (tc_source_scan_utf8(source, strlen(source), diag) != 0) {
         return -1;
     }
 

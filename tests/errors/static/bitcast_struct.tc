@@ -1,0 +1,7 @@
+#program
+; 期望：bitcast target must be a non-bool integer, float, or ptr type
+struct S then
+    var x: int32
+end
+var n: int32 = 1
+var s: S = bitcast(S, n)

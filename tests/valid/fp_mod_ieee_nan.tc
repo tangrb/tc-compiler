@@ -1,0 +1,10 @@
+#program
+; ieee 浮点 mod 异常返回 canonical quiet NaN（bitcast 校验位模式）
+var z: float64 = 0.0
+var n: float64 = mod(float64, ieee, z, z)
+var bits: uint64 = bitcast(uint64, n)
+var z32: float32 = 0.0
+var n32: float32 = mod(float32, ieee, z32, z32)
+var bits32: uint32 = bitcast(uint32, n32)
+writeln(uint64, %x, bits)
+writeln(uint32, %x, bits32)

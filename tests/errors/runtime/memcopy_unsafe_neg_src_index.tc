@@ -1,0 +1,9 @@
+#program
+; Major 3 回归变体：负字面量 src 下标。
+; 期望：memcopy_unsafe invalid range
+var a: memblock<int32, 4> = memblock(int32, count: 4, fill: 1)
+var b: memblock<int32, 4> = memblock(int32, count: 4, fill: 0)
+var pa: ptr<memblock<int32, 4>> = ptr_address(memblock<int32, 4>, a)
+var pb: ptr<memblock<int32, 4>> = ptr_address(memblock<int32, 4>, b)
+memcopy_unsafe(memblock<int32, 4>, pb, 0, pa, -1, 1)
+writeln(int32, 0)

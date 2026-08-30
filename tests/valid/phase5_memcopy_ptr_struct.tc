@@ -7,6 +7,7 @@ var s: B = B(x: 5)
 var t: B = B(x: 0)
 var ps: ptr<B> = ptr_address(B, s)
 var pt: ptr<B> = ptr_address(B, t)
+var w: int32 = 0
 memcopy_unsafe(B, pt, 0, ps, 0, 1)
-var w: int32 = t.x
+w = t.x
 writeln(int32, w)

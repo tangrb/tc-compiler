@@ -1,0 +1,9 @@
+#lib
+; Self.N 作 memblock 类型 N 与构造器 count:
+public static let N: usize = 2
+public static var mb: memblock<int32, Self.N> = memblock(int32, count: Self.N, 3, 4)
+public func first() int32 then
+    var y: memblock<int32, Self.N> = Self.mb
+    var orig: int32 = memblock_load(int32, y, 0)
+    return orig
+end

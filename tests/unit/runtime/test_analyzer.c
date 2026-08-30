@@ -308,11 +308,9 @@ static void test_analyze_let_mode_matrix(void) {
         "#program\nlet BAD: int32 = mod(int32, wrap, 4, 2)\n",
         "#program\nlet BAD: int32 = abs(int32, wrap, -1)\n",
         "#program\nlet BAD: float64 = neg(float64, ieee, 1.0)\n",
-        "#program\nlet BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
         "#program\nvar BAD: uint8 = add(uint8, wrap, 255u, 1u)\n",
         "#program\nvar BAD: uint8 = neg(uint8, wrap, 1u)\n",
         "#program\nvar BAD: float64 = neg(float64, ieee, 1.0)\n",
-        "#program\nvar BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
     };
     size_t i = 0;
 
@@ -330,6 +328,28 @@ static void test_analyze_let_mode_matrix(void) {
         check(diag.kind == TC_CE_MODE_MISMATCH,
               "forbidden combination uses mode mismatch");
         tc_typed_program_free(&typed);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+static void test_parse_compare_mode_rejected(void) {
+    static const char *cases[] = {
+        "#program\nvar BAD: bool = eq(float64, ieee, 1.0, 1.0)\n",
+        "#program\nvar BAD: bool = eq(float64, wrap, 1.0, 1.0)\n",
+        "#program\nvar BAD: bool = eq(int32, truncate, 1, 2)\n",
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcProgram program;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_program_init(&program);
+        check(tc_parse_source_to_program(cases[i], &program, &diag) != 0,
+              "parse rejects compare mode keyword");
+        check(diag.kind == TC_CE_SYNTAX, "compare mode is syntax error");
+        tc_program_free(&program);
         tc_diagnostic_clear(&diag);
     }
 }
@@ -432,6 +452,12 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             0,
             TC_CE_UNINITIALIZED_VARIABLE,
             "DFA reports uninitialized read after all earlier phases pass",
+        },
+        {
+            "#program\nvar x: int64 = 1\nwriteln(bool, %d, x)\n",
+            0,
+            TC_CE_TYPE_MISMATCH,
+            "operand type check precedes format specifier compatibility",
         },
     };
     size_t i = 0;
@@ -720,10 +746,9 @@ static void test_analyze_static_bool_operand_matrix(void) {
         },
     };
     static const char *invalid_cases[] = {
-        "#program\nif LATER then\n"
+        "#program\nif MISSING then\n"
         "    writeln(bool, true)\n"
-        "end\n"
-        "let LATER: bool = false\n",
+        "end\n",
         "#program\nif true then\n"
         "    let LOCAL: bool = false\n"
         "end\n"
@@ -1034,7 +1059,28 @@ static void test_analyze_goto_cross_function(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse cross-function goto");
     check(tc_analyze(&program, &typed, &diag) != 0, "cross-function goto fails");
-    check(diag.kind == TC_CE_CROSS_CONTROL_FLOW_JUMP, "→ CROSS_CONTROL_FLOW_JUMP");
+    check(diag.kind == TC_CE_LABEL_NOT_FOUND, "→ LABEL_NOT_FOUND");
+    tc_typed_program_free(&typed);
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_analyze_duplicate_function(void) {
+    TcProgram program;
+    TcTypedProgram typed = {0};
+    TcDiagnostic diag;
+    const char *source =
+        "#lib\npublic func f() void then\n"
+        "    return\n"
+        "end\n"
+        "public func f() void then\n"
+        "    return\n"
+        "end\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse duplicate function");
+    check(tc_analyze(&program, &typed, &diag) != 0, "duplicate function fails");
+    check(diag.kind == TC_CE_FUNCTION_NAME_CONFLICT, "→ FUNCTION_NAME_CONFLICT");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
 }
@@ -1044,12 +1090,12 @@ static void test_analyze_format_specifier_errors(void) {
     TcTypedProgram typed = {0};
     TcDiagnostic diag;
     const char *source =
-        "#program\nvar x: int32 = 1\nwrite(int32, %-0d, x)\n";
+        "#program\nvar x: int32 = 1\nwrite(int32, %#d, x)\n";
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse format specifier conflict");
-    check(tc_analyze(&program, &typed, &diag) != 0, "mutually exclusive format flags fail");
+    check(tc_analyze(&program, &typed, &diag) != 0, "hash flag on %d fails");
     check(diag.kind == TC_CE_FORMAT_SPECIFIER, "→ FORMAT_SPECIFIER");
     tc_typed_program_free(&typed);
     tc_diagnostic_clear(&diag);
@@ -1295,6 +1341,7 @@ int main(void) {
     test_analyze_block_local_let_chain();
     test_analyze_short_circuit_still_validates_rhs();
     test_analyze_let_mode_matrix();
+    test_parse_compare_mode_rejected();
     test_analyze_unreachable_let_branch_still_checks_names();
     test_analyze_diagnostic_priority_matrix();
     test_analyze_let_runtime_error_mapping();
@@ -1316,6 +1363,7 @@ int main(void) {
     test_analyze_goto_into_block();
     test_analyze_goto_sibling();
     test_analyze_goto_cross_function();
+    test_analyze_duplicate_function();
     test_analyze_format_specifier_errors();
     test_analyze_goto_out_of_if();
     test_analyze_while_scope_and_slots();

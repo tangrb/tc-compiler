@@ -6,6 +6,7 @@
  */
 #include "tc_struct_exec.h"
 
+#include "tc_memblock_exec.h"
 #include "tc_symbol.h"
 
 #include <stdlib.h>
@@ -287,35 +288,96 @@ static int tc_exec_load_struct_base(const char *base_name, TcExecuteCtx *ctx, Tc
     return 0;
 }
 
-int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx,
+static int tc_exec_load_struct_base_resolved(const TcResolvedFieldAccess *access, TcExecuteCtx *ctx,
+                                             TcValue *out, TcDiagnostic *diag, int line) {
+    if (!access || !access->resolved) {
+        tc_exec_set_internal_error(diag, line, "internal error: unresolved field access");
+        return -1;
+    }
+    if (access->base_slot >= 0) {
+        if (!ctx->slots) {
+            tc_exec_set_internal_error(diag, line, "internal error: missing runtime slots");
+            return -1;
+        }
+        *out = ctx->slots[access->base_slot];
+        return 0;
+    }
+    if (access->const_bits != 0 || access->field_type) {
+        out->type = tc_type_tag_singleton(TC_STRUCT);
+        out->bits = access->const_bits;
+        return 0;
+    }
+    tc_exec_set_internal_error(diag, line, "internal error: unresolved struct base");
+    return -1;
+}
+
+int tc_exec_eval_field_access(const TcResolvedFieldAccess *access, TcExecuteCtx *ctx,
                               TcValue *out, TcDiagnostic *diag, int line) {
     const TcStructTable *table = tc_exec_struct_table(ctx);
     TcValue base;
-    int struct_id = -1;
+    void *data = NULL;
     size_t offset = 0;
     const TcType *field_type = NULL;
-    void *data = NULL;
 
+    if (!access || !access->resolved || !access->field_type) {
+        tc_exec_set_internal_error(diag, line, "internal error: invalid field access");
+        return -1;
+    }
+    if (access->is_memblock_count) {
+        return tc_exec_memblock_count(access->base_slot, ctx, out, diag, line);
+    }
+    if (access->field_count == 0 || !access->offsets) {
+        tc_exec_set_internal_error(diag, line, "internal error: missing field offsets");
+        return -1;
+    }
+    if (tc_exec_load_struct_base_resolved(access, ctx, &base, diag, line) != 0) {
+        return -1;
+    }
+    data = tc_struct_data(&base);
+    if (!data) {
+        tc_exec_set_internal_error(diag, line, "internal error: invalid struct field read");
+        return -1;
+    }
+    offset = access->offsets[access->field_count - 1];
+    field_type = access->field_type;
+    return tc_exec_read_field_bytes((const uint8_t *)data, offset, field_type, table, ctx, out,
+                                    diag, line);
+}
+
+int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx,
+                              TcValue *out, TcDiagnostic *diag, int line) {
     (void)expected_type;
     if (!rhs || rhs->kind != TC_RHS_FIELD_READ) {
         return -1;
     }
-    if (tc_exec_load_struct_base(rhs->u.field_read.base, ctx, &base, &struct_id, diag, line) !=
-        0) {
-        return -1;
+    if (rhs->u.field_read.resolved.resolved) {
+        return tc_exec_eval_field_access(&rhs->u.field_read.resolved, ctx, out, diag, line);
     }
-    if (tc_struct_path_offset_bytes(table, struct_id, rhs->u.field_read.fields,
-                                    rhs->u.field_read.field_count, &offset, &field_type, diag,
-                                    line) != 0) {
-        return -1;
+    {
+        const TcStructTable *table = tc_exec_struct_table(ctx);
+        TcValue base;
+        int struct_id = -1;
+        size_t offset = 0;
+        const TcType *field_type = NULL;
+        void *data = NULL;
+
+        if (tc_exec_load_struct_base(rhs->u.field_read.base, ctx, &base, &struct_id, diag, line) !=
+            0) {
+            return -1;
+        }
+        if (tc_struct_path_offset_bytes(table, struct_id, rhs->u.field_read.fields,
+                                        rhs->u.field_read.field_count, &offset, &field_type, diag,
+                                        line) != 0) {
+            return -1;
+        }
+        data = tc_struct_data(&base);
+        if (!data || !field_type) {
+            tc_exec_set_internal_error(diag, line, "internal error: invalid struct field read");
+            return -1;
+        }
+        return tc_exec_read_field_bytes((const uint8_t *)data, offset, field_type, table, ctx, out,
+                                        diag, line);
     }
-    data = tc_struct_data(&base);
-    if (!data || !field_type) {
-        tc_exec_set_internal_error(diag, line, "internal error: invalid struct field read");
-        return -1;
-    }
-    return tc_exec_read_field_bytes((const uint8_t *)data, offset, field_type, table, ctx, out,
-                                    diag, line);
 }
 
 int tc_exec_struct_field_assign(const TcFieldAssign *assign, TcExecuteCtx *ctx,

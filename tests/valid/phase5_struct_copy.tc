@@ -5,8 +5,10 @@ struct Point then
 end
 var a: Point = Point(x: 10)
 var b: Point = a
+var ax: int32 = 0
+var bx: int32 = 0
 b.x = 20
-var ax: int32 = a.x
-var bx: int32 = b.x
+ax = a.x
+bx = b.x
 writeln(int32, ax)
 writeln(int32, bx)

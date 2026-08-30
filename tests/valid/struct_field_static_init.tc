@@ -1,0 +1,27 @@
+#lib
+; static let / static var 初始化器中的 Self.<名>.field
+; n/k/gt_ok 写在 s 之前，验证 static let 拓扑收集 FIELD_READ / 算术 / 比较依赖
+public struct Box then
+    var x: int32
+end
+public static let n: int32 = Self.s.x
+public static let k: int32 = add(int32, Self.s.x, 1)
+public static let gt_ok: bool = gt(int32, Self.s.x, 0)
+public static let s: Box = Box(x: 9)
+public static var m: int32 = add(int32, Self.s.x, 1)
+public func get_n() int32 then
+    var v: int32 = Self.n
+    return v
+end
+public func get_k() int32 then
+    var v: int32 = Self.k
+    return v
+end
+public func get_gt() bool then
+    var v: bool = Self.gt_ok
+    return v
+end
+public func get_m() int32 then
+    var v: int32 = Self.m
+    return v
+end

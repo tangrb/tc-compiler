@@ -6,7 +6,9 @@
  *   - tc_type_equals 等价组合
  *   - tc_sizeof_bits 各宽度
  *   - TcStmtKind / TcRhsKind 枚举计数
- *   - tc_error_kind_name 全表命名 + 白名单唯一性
+ *   - tc_error_kind_name 全表命名 + 86 码白名单唯一性
+ *   - 格式拆分：`%0008d` 合并、`%65535d` 宽度上限
+ *   - intern count=0 为未折叠命名 N 哨兵
  *   - TcRuntimeSlots / TcSlotDomain 槽位模型
  */
 
@@ -229,6 +231,21 @@ static void test_format_spec_parse(void) {
     check(tc_format_spec_parse("%g", &out) == 1 && out.spec == TC_FMT_G, "parse '%%g' → TC_FMT_G");
     check(tc_format_spec_parse("%G", &out) == 1 && out.spec == TC_FMT_GU, "parse '%%G' → TC_FMT_GU");
     check(tc_format_spec_parse("%s", &out) == 0, "parse '%%s' → 0 (not found)");
+    check(tc_format_spec_parse("%0008d", &out) == 1 && out.flag_zero && out.width == 8 &&
+              out.spec == TC_FMT_D,
+          "parse '%%0008d' merges zeros into flag+width");
+    check(tc_format_spec_parse("%08d", &out) == 1 && out.flag_zero && out.width == 8,
+          "parse '%%08d'");
+    check(tc_format_spec_parse("%-8t", &out) == 1 && out.flag_minus && out.width == 8 &&
+              out.spec == TC_FMT_T,
+          "parse '%%-8t'");
+    check(tc_format_spec_parse("%65535d", &out) == 1 && out.width == 65535 &&
+              out.spec == TC_FMT_D,
+          "parse '%%65535d' width upper bound");
+    check(tc_format_spec_parse("%65536d", &out) == 1 && out.width == 65536,
+          "parse '%%65536d' width sentinel");
+    check(tc_format_spec_parse("%-0d", &out) == 1 && out.flag_minus && out.flag_zero,
+          "parse '%%-0d' both flags");
 }
 
 /* ================================================================== */
@@ -294,8 +311,8 @@ static void test_error_kind_name(void) {
           "TC_RE_NEGATIVE_SHIFT_COUNT → NegativeShiftCount");
     check(strcmp(tc_error_kind_name(TC_CE_FORMAT_SPECIFIER), "FormatSpecifierError") == 0,
           "TC_CE_FORMAT_SPECIFIER → FormatSpecifierError");
-    check(strcmp(tc_error_kind_name(TC_CE_DUPLICATE_FUNCTION), "DuplicateFunction") == 0,
-          "TC_CE_DUPLICATE_FUNCTION → DuplicateFunction");
+    check(strcmp(tc_error_kind_name(TC_CE_FUNCTION_NAME_CONFLICT), "FunctionNameConflict") == 0,
+          "TC_CE_FUNCTION_NAME_CONFLICT → FunctionNameConflict");
     check(strcmp(tc_error_kind_name(TC_CE_UNDEFINED_FUNCTION), "UndefinedFunction") == 0,
           "TC_CE_UNDEFINED_FUNCTION → UndefinedFunction");
     check(strcmp(tc_error_kind_name(TC_CE_MISSING_ARGUMENT), "MissingArgument") == 0,
@@ -348,7 +365,7 @@ static void test_error_kind_name(void) {
                  tc_error_kind_name(TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE)) == 0,
           "memcopy unsafe CE/RE share print name");
 
-    check(error_kind_count == 91U, "0.0.39 error kind table has 91 entries");
+    check(error_kind_count == 86U, "0.0.41 error kind table has 86 entries");
     for (i = 0; i < error_kind_count; i++) {
         const char *name = tc_error_kind_name((TcErrorKind)i);
 
@@ -373,8 +390,8 @@ static void test_error_kind_name(void) {
 /*  TcTypeTag / TcType / equals / sizeof_bits */
 /* ================================================================== */
 
-static size_t test_struct_width_cb(int struct_id, void *userdata) {
-    size_t *table = (size_t *)userdata;
+static size_t test_struct_width_cb(int struct_id, const void *userdata) {
+    const size_t *table = (const size_t *)userdata;
 
     if (!table) {
         return 0;
@@ -514,7 +531,7 @@ static void test_sizeof_bits_matrix(void) {
     size_t ptr_w = tc_target_ptr_width_bits();
     size_t widths[2];
 
-    check(ptr_w == 32 || ptr_w == 64, "target ptr width is 32 or 64");
+    check(ptr_w == 64, "target ptr width is 64 (64-bit-only)");
     check(tc_sizeof_bits(&i8) == 8, "sizeof_bits int8");
     check(tc_sizeof_bits(&u8) == 8, "sizeof_bits uint8");
     check(tc_sizeof_bits(&i16) == 16, "sizeof_bits int16");
@@ -705,11 +722,13 @@ static void test_type_singleton_and_intern(void) {
     TcType mb_a = tc_type_make_memblock(&elem, 3);
     TcType mb_b = tc_type_make_memblock(&elem, 3);
     TcType mb_n = tc_type_make_memblock(&elem, 9);
+    TcType mb_z = tc_type_make_memblock(&elem, 0);
     const TcType *s1 = NULL;
     const TcType *s2 = NULL;
     const TcType *p1 = NULL;
     const TcType *p2 = NULL;
     const TcType *p3 = NULL;
+    const TcType *p0 = NULL;
     TcValue v;
 
     tc_type_table_init(&table);
@@ -722,10 +741,13 @@ static void test_type_singleton_and_intern(void) {
     p1 = tc_type_intern(&table, &mb_a, NULL);
     p2 = tc_type_intern(&table, &mb_b, NULL);
     p3 = tc_type_intern(&table, &mb_n, NULL);
+    p0 = tc_type_intern(&table, &mb_z, NULL);
     check(p1 != NULL && p1 == p2, "intern same memblock T+N reuses node");
     check(p3 != NULL && p3 != p1, "intern different N yields distinct node");
     check(tc_type_equals(p1, p3) == 1, "equals ignores N across distinct nodes");
     check(p1 == p2 && tc_type_equals(p1, p2) == 1, "pointer equality fast path");
+    check(p0 != NULL && p0 != p1 && tc_type_memblock_count(p0) == 0,
+          "count=0 interned as unresolved named-N sentinel, distinct from N>=1");
 
     memset(&v, 0, sizeof(v));
     v.type = tc_type_tag_singleton(TC_UINT16);

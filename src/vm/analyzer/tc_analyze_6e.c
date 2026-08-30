@@ -29,7 +29,11 @@ int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line,
         return 0;
     }
 
-    /* 格式控制项标志兼容性 */
+    if (spec->width > 65535 || (spec->precision_set && spec->precision > 65535)) {
+        tc_diagnostic_set(diag, TC_CE_FORMAT_SPECIFIER, line, TC_COLUMN_UNKNOWN,
+                          "format width or precision out of range");
+        return -1;
+    }
 
     /* '+': 强制符号，不适用于无符号专用格式符 */
     if (spec->flag_plus) {
@@ -41,28 +45,27 @@ int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line,
         }
     }
 
-    /* '#' 备用形式：整数/浮点格式符可用 */
+    /* '#'：%d/%i/%u/%t 拒绝；其余整数/浮点可用 */
     if (spec->flag_hash) {
-        if (fmt == TC_FMT_T) {
+        if (fmt == TC_FMT_D || fmt == TC_FMT_I || fmt == TC_FMT_U || fmt == TC_FMT_T) {
             tc_diagnostic_set(diag, TC_CE_FORMAT_SPECIFIER, line, TC_COLUMN_UNKNOWN,
-                              "'#' flag not supported for %%t");
+                              "'#' flag not supported for this format specifier");
             return -1;
         }
     }
 
-    /* '0' 零填充与 '-' 左对齐互斥 */
-    if (spec->flag_zero && spec->flag_minus) {
+    /* '0' 零填充：%t 不允许；与 '-' 同时出现时运行期忽略 0，静态仍合法 */
+    if (spec->flag_zero && fmt == TC_FMT_T) {
         tc_diagnostic_set(diag, TC_CE_FORMAT_SPECIFIER, line, TC_COLUMN_UNKNOWN,
-                          "'0' and '-' flags are mutually exclusive");
+                          "'0' flag not supported for %%t");
         return -1;
     }
 
-    /* %t 不支持宽度/精度/任何标志 */
+    /* %t 只允许 '-' 与字段宽度 */
     if (fmt == TC_FMT_T) {
-        if (spec->flag_minus || spec->flag_plus || spec->flag_hash || spec->flag_zero ||
-            spec->width || spec->precision_set) {
+        if (spec->flag_plus || spec->flag_hash || spec->flag_zero || spec->precision_set) {
             tc_diagnostic_set(diag, TC_CE_FORMAT_SPECIFIER, line, TC_COLUMN_UNKNOWN,
-                              "%%t does not support flags, width, or precision");
+                              "%%t does not support '+', '#', '0', or precision");
             return -1;
         }
     }

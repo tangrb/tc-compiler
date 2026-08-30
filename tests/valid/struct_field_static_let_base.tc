@@ -1,0 +1,22 @@
+#lib
+; Critical 2 回归：static let 基址的 struct/memblock 字段整体读出（AOT 差分）。
+public struct Inner then
+    var v: int32
+end
+public struct Outer then
+    var inner: Inner
+end
+public struct Holder then
+    var data: memblock<int32, 3>
+end
+public static let o: Outer = Outer(inner: Inner(v: 5))
+public static let h: Holder = Holder(data: memblock(int32, count: 3, 10, 20, 30))
+public func get_struct_v() int32 then
+    var x: Inner = Self.o.inner
+    return x.v
+end
+public func get_memblock_e1() int32 then
+    var m: memblock<int32, 3> = Self.h.data
+    var r: int32 = memblock_load(int32, m, 1)
+    return r
+end

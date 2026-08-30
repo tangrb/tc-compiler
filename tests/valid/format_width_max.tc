@@ -1,0 +1,4 @@
+#program
+; §10.5 宽度 65535 上限合法（仅 --check，避免超大黄金输出）
+var x: int32 = 1
+write(int32, %65535d, x)

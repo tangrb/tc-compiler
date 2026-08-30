@@ -1,0 +1,6 @@
+#program
+; 期望：signed subtraction overflow
+; int64 减法下溢（INT64_MIN - 1）
+var a: int64 = -9223372036854775808
+var b: int64 = 1
+var c: int64 = sub(int64, a, b)

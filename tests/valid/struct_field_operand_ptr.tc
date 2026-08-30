@@ -1,0 +1,10 @@
+#program
+; ptr 字段作 ptr_load 操作数
+struct Holder then
+    var mvp: ptr<int32>
+end
+var x: int32 = 13
+var px: ptr<int32> = ptr_address(int32, x)
+var h: Holder = Holder(mvp: px)
+var v: int32 = ptr_load(int32, h.mvp)
+writeln(int32, v)

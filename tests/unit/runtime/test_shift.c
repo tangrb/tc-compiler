@@ -13,6 +13,7 @@
 #include "tc_diagnostic.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 static int g_passed = 0;
@@ -117,6 +118,63 @@ static void test_shr_signed_unsigned(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_shl_int64_neg_boundary(void) {
+    TcDiagnostic diag;
+    TcValue val = make_int(TC_INT64, UINT64_C(0xC000000000000000)); /* -2^62 */
+    TcValue cnt = make_int(TC_INT64, 1);
+    TcValue out;
+    int rc = 0;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT64, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == 0 && out.bits == UINT64_C(0x8000000000000000),
+          "shl(int64, -2^62, 1) = INT64_MIN");
+
+    cnt = make_int(TC_INT64, 2);
+    rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT64, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == -1 && diag.kind == TC_RE_INTEGER_OVERFLOW,
+          "shl(int64, -2^62, 2) overflow");
+
+    tc_diagnostic_clear(&diag);
+    val = make_int(TC_INT64, UINT64_C(0xFFFFFFFFFFFFFFFF)); /* -1 */
+    cnt = make_int(TC_INT64, 63);
+    rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT64, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == 0 && out.bits == UINT64_C(0x8000000000000000),
+          "shl(int64, -1, 63) = INT64_MIN");
+
+    tc_diagnostic_clear(&diag);
+}
+
+static void test_shr_arithmetic_fill(void) {
+    TcDiagnostic diag;
+    TcValue val = make_int(TC_INT64, UINT64_C(0x8000000000000000));
+    TcValue cnt = make_int(TC_INT64, 1);
+    TcValue out;
+    int rc = 0;
+
+    tc_diagnostic_init(&diag);
+    rc = tc_exec_shift(TC_SHIFT_SHR, TC_INT64, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == 0 && out.bits == UINT64_C(0xC000000000000000),
+          "shr(int64, INT64_MIN, 1) = -2^62");
+
+    val = make_int(TC_INT8, 0xFF); /* -1 */
+    cnt = make_int(TC_INT8, 1);
+    rc = tc_exec_shift(TC_SHIFT_SHR, TC_INT8, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0xFF, "shr(int8, -1, 1) = -1");
+
+    cnt = make_int(TC_INT8, 7);
+    rc = tc_exec_shift(TC_SHIFT_SHR, TC_INT8, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == 0 && out.bits == 0xFF, "shr(int8, -1, 7) = -1");
+
+    val = make_int(TC_INT32, UINT64_C(0x80000000));
+    cnt = make_int(TC_INT32, 1);
+    rc = tc_exec_shift(TC_SHIFT_SHR, TC_INT32, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
+    check(rc == 0 && out.bits == UINT64_C(0xC0000000),
+          "shr(int32, INT32_MIN, 1) arithmetic");
+
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_shl_success_strict(void) {
     TcDiagnostic diag;
     TcValue val = make_int(TC_INT8, 16);
@@ -186,6 +244,8 @@ int main(void) {
     test_shl_wrap_examples();
     test_shl_zero_value();
     test_shr_signed_unsigned();
+    test_shl_int64_neg_boundary();
+    test_shr_arithmetic_fill();
     test_shl_success_strict();
     test_negative_shift_count();
     test_k_ge_n_strict_shl();

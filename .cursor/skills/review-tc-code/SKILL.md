@@ -9,7 +9,8 @@ description: >-
 
 # TC-Compiler Code Review
 
-遵循 Rule `coding-standards`。错误种类 [errors.md](../tc-architecture/errors.md)。
+遵循 Rule `coding-standards`。错误种类 [errors.md](../tc-architecture/errors.md)。  
+合入前扫一眼 [gotchas.md](../tc-architecture/gotchas.md)（菱形注册 / const 堆 / AOT 字段 / memcopy 负下标）。
 
 **跨模块时只读一个**：CFG→[kg-cfg.md](../tc-architecture/kg-cfg.md) · let→[kg-eval.md](../tc-architecture/kg-eval.md) · 模块→[kg-module.md](../tc-architecture/kg-module.md) · 函数→[kg-func.md](../tc-architecture/kg-func.md) · Embed→[kg-embed.md](../tc-architecture/kg-embed.md)
 
@@ -23,7 +24,7 @@ description: >-
 - [ ] 短路：and/or 三侧一致（Pass2 + CFG 读集剪枝 + Executor + let）
 - [ ] 位运算：`xor` 仅整数；`shl` wrap / `shr` 禁 wrap；let 禁 wrap
 - [ ] let：`tc_eval_const_rhs` 全覆盖；源序可见；禁嵌套调用
-- [ ] 格式符：`%t`↔bool；整数/浮点格式符与类型匹配；标志互斥（见 [features/scalar.md](../tc-architecture/features/scalar.md) § I/O）
+- [ ] 格式符：`%t`↔bool；整数/浮点格式符与类型匹配；`-`+`0` 不互斥、`%t` 允许 `-`/宽度（见 [features/scalar.md](../tc-architecture/features/scalar.md) § I/O）
 - [ ] I/O 逻辑集中在 `tc_io.c`；executor 与 `tc_aot_rt.c` 仅委托
 - [ ] `var` 缺 `=` → `TC_ERR_VAR_MISSING_INIT`（不得降为 SYNTAX）
 - [ ] if/while：条件须 `TC_BOOL`；各自 push/pop

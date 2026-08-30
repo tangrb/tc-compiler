@@ -1,0 +1,11 @@
+#lib
+; Self.memblock 赋值须深拷贝：改副本不得改写 Self.mb
+; memblock_load 操作数不能写 Self.mb（解析成字段基址且无后续字段），故二次拷贝后再 load
+public static var mb: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
+public func orig_after_copy_store() int32 then
+    var x: memblock<int32, 4> = Self.mb
+    memblock_store(int32, x, 0, 99)
+    var y: memblock<int32, 4> = Self.mb
+    var orig: int32 = memblock_load(int32, y, 0)
+    return orig
+end

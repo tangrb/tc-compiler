@@ -149,13 +149,13 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
     case TC_RHS_PTR_GT:
     case TC_RHS_PTR_GE:
     case TC_RHS_PTR_SIZE:
-        return tc_ptr_check_rhs(rhs, expected, visible, global, hist, stmt_index, line, diag,
-                                warnings, self_name);
+        return tc_ptr_check_rhs(rhs, expected, visible, global, struct_table, hist, stmt_index,
+                                line, diag, warnings, self_name);
     case TC_RHS_MEMBLOCK_LOAD:
     case TC_RHS_MEMBLOCK_CONSTRUCTOR:
     case TC_RHS_MEMBLOCK_COUNT:
-        return tc_memblock_check_rhs(rhs, expected, visible, global, hist, stmt_index, line, diag,
-                                     warnings, self_name);
+        return tc_memblock_check_rhs(rhs, expected, visible, global, struct_table, hist,
+                                     stmt_index, line, diag, warnings, self_name);
     case TC_RHS_STRUCT_CONSTRUCTOR:
         return tc_struct_check_constructor(rhs, expected, struct_table, visible, global, hist,
                                            stmt_index, line, diag, warnings, self_name);
@@ -165,7 +165,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
     case TC_RHS_CAST:
     case TC_RHS_BITCAST:
         /* cast/bitcast 目标可为 ptr；由 tc_check_rhs 做完整类型校验 */
-        return tc_check_rhs(rhs, expected, visible, global, hist, stmt_index, line, diag,
+        return tc_check_rhs(rhs, expected, visible, global, struct_table, hist, stmt_index, line, diag,
                             warnings, self_name);
     case TC_RHS_SELF_MEMBER: {
         const char *member = rhs->u.self_member.member_name;
@@ -216,7 +216,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
                               "rhs kind does not match composite destination type");
             return -1;
         }
-        return tc_check_rhs(rhs, expected, visible, global, hist, stmt_index, line, diag,
+        return tc_check_rhs(rhs, expected, visible, global, struct_table, hist, stmt_index, line, diag,
                             warnings, self_name);
     }
 }

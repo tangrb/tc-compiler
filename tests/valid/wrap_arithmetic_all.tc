@@ -4,62 +4,62 @@
 var a: int8 = 127
 var b: int8 = 1
 var r1: int8 = add(int8, wrap, a, b)
-writeln(int8, r1)
-
-; wrap: uint8 溢出回绕
 var ua: uint8 = 255
 var ub: uint8 = 1
 var r2: uint8 = add(uint8, ua, ub)
-writeln(uint8, r2)
-
-; wrap: uint8 减法下溢
 var r3: uint8 = sub(uint8, ub, ua)
-writeln(uint8, r3)
-
-; wrap: int16 溢出
 var ia: int16 = 32767
 var ib: int16 = 1
 var r4: int16 = add(int16, wrap, ia, ib)
-writeln(int16, r4)
-
-; wrap: uint16 溢出
 var uia: uint16 = 65535
 var uib: uint16 = 1
 var r5: uint16 = add(uint16, uia, uib)
-writeln(uint16, r5)
-
-; wrap: int32 溢出
 var i32a: int32 = 2147483647
 var i32b: int32 = 1
 var r6: int32 = add(int32, wrap, i32a, i32b)
 var r7: int32 = sub(int32, wrap, -2147483648, 1)
-writeln(int32, r6)
-writeln(int32, r7)
-
-; wrap: uint32 溢出
 var ui32a: uint32 = 4294967295
 var ui32b: uint32 = 1
 var r8: uint32 = add(uint32, ui32a, ui32b)
-writeln(uint32, r8)
-
-; wrap: int64 溢出
 var i64a: int64 = 9223372036854775807
 var i64b: int64 = 1
 var r9: int64 = add(int64, wrap, i64a, i64b)
-writeln(int64, r9)
-
-; wrap: uint64 溢出
 var ui64a: uint64 = 18446744073709551615
 var ui64b: uint64 = 1
 var r10: uint64 = add(uint64, ui64a, ui64b)
 var r11: uint64 = sub(uint64, 0, 1)
 var r12: uint64 = mul(uint64, ui64a, ui64b)
+var i8a: int8 = -128
+var i8b: int8 = 2
+var r13: int8 = mul(int8, wrap, i8a, i8b)
+writeln(int8, r1)
+
+; wrap: uint8 溢出回绕
+writeln(uint8, r2)
+
+; wrap: uint8 减法下溢
+writeln(uint8, r3)
+
+; wrap: int16 溢出
+writeln(int16, r4)
+
+; wrap: uint16 溢出
+writeln(uint16, r5)
+
+; wrap: int32 溢出
+writeln(int32, r6)
+writeln(int32, r7)
+
+; wrap: uint32 溢出
+writeln(uint32, r8)
+
+; wrap: int64 溢出
+writeln(int64, r9)
+
+; wrap: uint64 溢出
 writeln(uint64, r10)
 writeln(uint64, r11)
 writeln(uint64, r12)
 
 ; wrap: int8 乘法下溢
-var i8a: int8 = -128
-var i8b: int8 = 2
-var r13: int8 = mul(int8, wrap, i8a, i8b)
 writeln(int8, r13)

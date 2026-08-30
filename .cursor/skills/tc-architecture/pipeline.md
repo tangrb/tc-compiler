@@ -1,6 +1,6 @@
 # 编译流水线与关键函数
 
-**何时读**：需要调用链、Analyze 编排顺序、或 libtc/驱动入口关系。13 阶段规格：`docs/TC编译器标准设计说明书-0.0.39.md`。
+**何时读**：需要调用链、Analyze 编排顺序、或 libtc/驱动入口关系。13 阶段规格：`docs/TC编译器标准设计说明书-0.0.41.md`。
 
 Analyze：Pass1/2 + 模块/函数检查 + `tc_cfg_build_all` + `tc_analyze_definite_init_all` + 调用图。  
 **无 REPL**（无 `tc_repl` / `tc_analyze_statement`）。
@@ -24,7 +24,8 @@ tc_run_program → tc_execute   /* 含 static var 拓扑初始化 */
 tc_typed_program_init
 → tc_module_check_structure          /* 4a */
 → tc_module_resolve_imports          /* 4b/4c，需 entry_path */
-→ tc_struct_table_register_program
+→ tc_module_topological_dep_order   /* 真拓扑；菱形不可简单逆序，见 gotchas */
+→ tc_struct_table_register_program  /* 按序注册 deps + 入口 */
 → tc_module_collect_signatures       /* 4d */
 → tc_func_check_signatures           /* 5 */
 → tc_pass1_collect_symbols           /* deps + 入口 */

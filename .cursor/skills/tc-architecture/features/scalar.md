@@ -63,14 +63,14 @@ let：`tc_eval_const_rhs` 内同样短路。左为 **var** → 静态 UNKNOWN，
 | 词法 | `tc_lexer.c` | `xor` → `TC_TOK_BITWISE_OP`；`shl`/`shr` → `TC_TOK_SHIFT_OP`；`and`/`or`/`not` 仍 `TC_TOK_LOGIC_OP` |
 | 语法 | `tc_parser_rhs.c` | `tc_parse_and_or_not_rhs` 按类型分派 logic/bitwise；`tc_parse_bitwise_bin_rhs`；`tc_parse_shift_rhs` |
 | 分析 | `tc_analyzer_pass2.c` | `tc_check_rhs` 整数操作数同类型；移位 value/count 同类型 |
-| 语义 | `tc_semantics.c` | `tc_exec_bitwise_binary/unary`；`tc_exec_shift`（shl wrap、shr 算术/逻辑） |
+| 语义 | `tc_semantics.c` | `tc_exec_bitwise_binary/unary`；`tc_exec_shift`（shl wrap、shr 显式算术/逻辑右移，不依赖宿主有符号 `>>`） |
 | 执行 | `tc_executor.c` | 无短路；委托 `tc_exec_bitwise_*` / `tc_exec_shift` |
 | AOT | `tc_aot_codegen.c` | `tc_aot_bitwise_*` / `tc_aot_shift` |
 | AOT rt | `tc_aot_rt.c` | shim → `tc_exec_bitwise_*` / `tc_exec_shift` |
 
 let：`tc_eval_const_rhs` 委托 semantics；**禁止 wrap**；`shl` 严格溢出 → `constant overflow`。
 
-测试：`bitwise_*_valid` 系列；错误 `bitwise_*` static/runtime。
+测试：`bitwise_*_valid` 系列、**shl_int64_neg_boundary**；错误 `bitwise_*` static/runtime。
 
 ## let 编译期常量
 
@@ -105,7 +105,7 @@ AOT：`TC_RHS_CONST_REF` / `TC_RHS_CONST_CAST` 在 codegen 折叠为字面量。
 
 **勿**在 `executor.c` 与 `tc_aot_rt.c` 各写一套 I/O；改格式/读入逻辑只改 `tc_io.c`，必要时补 `tests/unit/runtime/test_io.c`。
 
-测试：`format_output`, `format_bool`, `read_write`, `io_extended`, `fp_io`, `format_spec_fp`；错误 `format_string_error`, `format_type_mismatch`, `read_invalid`, `read_out_of_range*`, `format_fp_type_mismatch`, `format_specifier_plus_unsigned`, `format_specifier_hash_bool`, `format_specifier_flags_mutex`, `format_specifier_t_width`。
+测试：`format_output`, `format_bool`, `read_write`, `io_extended`, `fp_io`, `format_spec_fp`, **format_spec_flags**, **format_spec_table**；错误 `format_string_error`, `format_type_mismatch`, `read_invalid`, `read_out_of_range*`, `format_fp_type_mismatch`, `format_specifier_plus_unsigned`, `format_specifier_hash_bool`, `format_specifier_flags_mutex`（`%#d`）、`format_specifier_t_width`（`%.1t`）、**format_width_overflow**；合法上限 **format_width_max**。
 
 ## 浮点类型 float32/float64（v0.0.25）
 
@@ -122,4 +122,4 @@ AOT：`TC_RHS_CONST_REF` / `TC_RHS_CONST_CAST` 在 codegen 折叠为字面量。
 | 执行 | `tc_executor.c` | `tc_eval_rhs` 3 浮点 case + cast/bitcast → 共享 semantics |
 | AOT | `tc_aot_codegen.c` / `tc_aot_rt.c` | 3 个 fp shim + 共享 cast/bitcast shim |
 
-测试：`fp_basic`, `fp_arith`, `fp_arith_ieee`, `fp_compare`, `fp_cast`, `fp_bitcast_roundtrip`, `bitcast_roundtrip32/64`, `cast_literal`, `fp_io`, `fp_const_expr`, `fp_if_block`, `format_spec_fp`；static `fp_mod_type_error`, `fp_ieee_on_int`, `fp_*wrap*_mode_mismatch`, `bitcast_*_mismatch`, `fp_bitwise_type_error`, `fp_literal_range`, `format_fp_type_mismatch`；runtime `fp_strict_*`, `fp_cast_overflow`, `fp_div_zero`。
+测试：`fp_basic`, `fp_arith`, `fp_arith_ieee`, `fp_compare`, `fp_cast`, `fp_bitcast_roundtrip`, `bitcast_roundtrip32/64`, **nan_canonical_bits**, `cast_literal`, `fp_io`, `fp_const_expr`, `fp_if_block`, `format_spec_fp`, **fp_mod**, **fp_mod_ieee_nan**, **fp_mod_edges**；static `fp_ieee_on_int`, `fp_*wrap*_mode_mismatch`, `bitcast_*_mismatch`, `fp_bitwise_type_error`, `fp_literal_range`, `format_fp_type_mismatch`；runtime `fp_strict_*`, `fp_cast_overflow`, `fp_div_zero`, **fp_mod_invalid**, **fp_mod_divzero**, **fp_mod_invalid_inf**, **fp_mod_invalid_before_divzero**。

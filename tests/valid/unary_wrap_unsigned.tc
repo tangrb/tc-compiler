@@ -3,19 +3,19 @@
 ; uint8 neg
 var a8: uint8 = 42
 var r8: uint8 = neg(uint8, a8)
+var a16: uint16 = 42
+var r16: uint16 = neg(uint16, a16)
+var a32: uint32 = 42
+var r32: uint32 = neg(uint32, a32)
+var a64: uint64 = 42
+var r64: uint64 = neg(uint64, a64)
 writeln(uint8, r8)
 
 ; uint16 neg
-var a16: uint16 = 42
-var r16: uint16 = neg(uint16, a16)
 writeln(uint16, r16)
 
 ; uint32 neg
-var a32: uint32 = 42
-var r32: uint32 = neg(uint32, a32)
 writeln(uint32, r32)
 
 ; uint64 neg
-var a64: uint64 = 42
-var r64: uint64 = neg(uint64, a64)
 writeln(uint64, r64)

@@ -12,6 +12,36 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+static int tc_rhs_kind_is_arg_value(TcRhsKind kind) {
+    switch (kind) {
+    case TC_RHS_LIT:
+    case TC_RHS_CONST_REF:
+    case TC_RHS_FIELD_READ:
+    case TC_RHS_SELF_MEMBER:
+    case TC_RHS_MEMBLOCK_CONSTRUCTOR:
+    case TC_RHS_MEMBLOCK_COUNT:
+    case TC_RHS_STRUCT_CONSTRUCTOR:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static int tc_parse_named_arg_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *index,
+                                  int line_no, TcRhs *out, TcDiagnostic *diag) {
+    if (tc_parse_rhs(ctx, tokens, index, line_no, out, diag) != 0) {
+        return -1;
+    }
+    if (!tc_rhs_kind_is_arg_value(out->kind)) {
+        tc_rhs_free(out);
+        memset(out, 0, sizeof(*out));
+        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN,
+                               "expected operand, memblock constructor, or struct constructor");
+    }
+    return 0;
+}
+
 int tc_parse_io_write_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                   TcIoWrite *out, TcDiagnostic *diag) {
     out->line = line_no;
@@ -494,7 +524,7 @@ int tc_parse_funcall_stmt(TcParserCtx *ctx, const TcTokenList *tokens, size_t *i
                 free(args);
                 return -1;
             }
-            if (tc_parse_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
+            if (tc_parse_named_arg_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
                 free(arg.param_name);
                 tc_funcall_stmt_free_partial(&call);
                 for (size_t j = 0; j < arg_count; j++) {
@@ -622,7 +652,7 @@ int tc_parse_funcall_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *in
                 free(args);
                 return -1;
             }
-            if (tc_parse_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
+            if (tc_parse_named_arg_rhs(ctx, tokens, index, line_no, &arg.value, diag) != 0) {
                 free(arg.param_name);
                 tc_funcall_stmt_free_partial(&call);
                 for (i = 0; i < arg_count; i++) {
@@ -820,7 +850,6 @@ int tc_parse_ptr_store_stmt(const TcTokenList *tokens, size_t *index, int line_n
 int tc_parse_memblock_store_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                         TcStatement *out, TcDiagnostic *diag) {
     TcMemblockStoreStmt stmt;
-    const TcToken *name_tok = NULL;
     char *struct_name = NULL;
 
     (*index)++; /* memblock_store */
@@ -838,17 +867,10 @@ int tc_parse_memblock_store_stmt(const TcTokenList *tokens, size_t *index, int l
         tc_type_free(&stmt.element_type);
         return -1;
     }
-    name_tok = tc_peek(tokens, *index);
-    if (name_tok->kind != TC_TOK_IDENTIFIER) {
-        tc_type_free(&stmt.element_type);
-        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
-    }
-    stmt.memblock_name = tc_token_strdup(name_tok, line_no, diag);
-    if (!stmt.memblock_name) {
+    if (tc_parse_binding_name(tokens, index, line_no, &stmt.memblock_name, diag) != 0) {
         tc_type_free(&stmt.element_type);
         return -1;
     }
-    (*index)++;
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         tc_type_free(&stmt.element_type);
         free(stmt.memblock_name);
@@ -893,7 +915,6 @@ int tc_parse_memblock_store_stmt(const TcTokenList *tokens, size_t *index, int l
 int tc_parse_memblock_copy_stmt(const TcTokenList *tokens, size_t *index, int line_no,
                                        TcStatement *out, TcDiagnostic *diag) {
     TcMemblockCopyStmt stmt;
-    const TcToken *name_tok = NULL;
     char *struct_name = NULL;
 
     (*index)++; /* memblock_copy */
@@ -911,17 +932,10 @@ int tc_parse_memblock_copy_stmt(const TcTokenList *tokens, size_t *index, int li
         tc_type_free(&stmt.element_type);
         return -1;
     }
-    name_tok = tc_peek(tokens, *index);
-    if (name_tok->kind != TC_TOK_IDENTIFIER) {
-        tc_type_free(&stmt.element_type);
-        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
-    }
-    stmt.dst_name = tc_token_strdup(name_tok, line_no, diag);
-    if (!stmt.dst_name) {
+    if (tc_parse_binding_name(tokens, index, line_no, &stmt.dst_name, diag) != 0) {
         tc_type_free(&stmt.element_type);
         return -1;
     }
-    (*index)++;
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         tc_type_free(&stmt.element_type);
         free(stmt.dst_name);
@@ -938,21 +952,12 @@ int tc_parse_memblock_copy_stmt(const TcTokenList *tokens, size_t *index, int li
         tc_operand_free(&stmt.dst_index);
         return -1;
     }
-    name_tok = tc_peek(tokens, *index);
-    if (name_tok->kind != TC_TOK_IDENTIFIER) {
-        tc_type_free(&stmt.element_type);
-        free(stmt.dst_name);
-        tc_operand_free(&stmt.dst_index);
-        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
-    }
-    stmt.src_name = tc_token_strdup(name_tok, line_no, diag);
-    if (!stmt.src_name) {
+    if (tc_parse_binding_name(tokens, index, line_no, &stmt.src_name, diag) != 0) {
         tc_type_free(&stmt.element_type);
         free(stmt.dst_name);
         tc_operand_free(&stmt.dst_index);
         return -1;
     }
-    (*index)++;
     if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
         tc_type_free(&stmt.element_type);
         free(stmt.dst_name);

@@ -1,0 +1,12 @@
+#lib
+; 菱形右臂：同样 import Shared 并在 struct 字段引用 DiamondSharedLib.S。
+; 逆序注册时 Right 先于 Shared 入表 → 误报 undefined struct（已修复）。
+import DiamondSharedLib
+public struct RightBox then
+    var s: DiamondSharedLib.S
+end
+public func get_r() int32 then
+    var s: DiamondSharedLib.S = DiamondSharedLib.S(x: 4)
+    var b: RightBox = RightBox(s: s)
+    return b.s.x
+end

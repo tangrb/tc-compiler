@@ -1,10 +1,11 @@
 #program
-; ptr 字段：存槽地址、再 load
+; ptr 字段：存槽地址、再 load（字段值仅为 operand，ptr_address 先入临时量）
 struct Holder then
     var p: ptr<int32>
 end
 var x: int32 = 7
-var h: Holder = Holder(p: ptr_address(int32, x))
+var px: ptr<int32> = ptr_address(int32, x)
+var h: Holder = Holder(p: px)
 var q: ptr<int32> = h.p
 var v: int32 = ptr_load(int32, q)
 writeln(int32, v)

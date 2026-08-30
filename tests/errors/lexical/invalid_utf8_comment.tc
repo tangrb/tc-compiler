@@ -1,0 +1,3 @@
+#program
+; bad utf8: ÿ
+var x: int32 = 1

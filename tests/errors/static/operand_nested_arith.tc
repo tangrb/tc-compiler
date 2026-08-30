@@ -1,0 +1,6 @@
+#program
+struct Point then
+    var x: int32
+end
+var p: Point = Point(x: 1)
+var bad: int32 = mul(int32, add(int32, p.x, 1), 2)

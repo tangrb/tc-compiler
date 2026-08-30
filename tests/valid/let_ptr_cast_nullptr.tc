@@ -1,0 +1,5 @@
+#program
+; const cast 接受 ptr 目标 + nullptr
+let p: ptr<int32> = cast(ptr<int32>, nullptr)
+var z: bool = ptr_eq(int32, p, nullptr)
+writeln(bool, z)

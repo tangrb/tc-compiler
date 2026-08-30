@@ -10,26 +10,9 @@ let i64_val: int64 = 5000000000
 let u64_val: uint64 = 10000000000
 
 ; 直接输出常量
-writeln(int8, i8_val)
-writeln(uint8, u8_val)
-writeln(int16, i16_val)
-writeln(uint16, u16_val)
-writeln(int32, i32_val)
-writeln(uint32, u32_val)
-writeln(int64, i64_val)
-writeln(uint64, u64_val)
-
-; 常量参与算术运算（使用常量名作为操作数）
 var sum: int32 = add(int32, i32_val, 50000)
-writeln(int32, sum)
 var diff: int32 = sub(int32, i32_val, 50000)
-writeln(int32, diff)
-
-; 常量通过 cast 复制给变量
 var y: int16 = cast(int16, i8_val)
-writeln(int16, y)
-
-; 边界常量
 let i8_min: int8 = -128
 let i8_max: int8 = 127
 let u8_max: uint8 = 255
@@ -42,6 +25,23 @@ let u32_max: uint32 = 4294967295
 let i64_min: int64 = -9223372036854775808
 let i64_max: int64 = 9223372036854775807
 let u64_max: uint64 = 18446744073709551615
+writeln(int8, i8_val)
+writeln(uint8, u8_val)
+writeln(int16, i16_val)
+writeln(uint16, u16_val)
+writeln(int32, i32_val)
+writeln(uint32, u32_val)
+writeln(int64, i64_val)
+writeln(uint64, u64_val)
+
+; 常量参与算术运算（使用常量名作为操作数）
+writeln(int32, sum)
+writeln(int32, diff)
+
+; 常量通过 cast 复制给变量
+writeln(int16, y)
+
+; 边界常量
 
 writeln(int8, i8_min)
 writeln(int8, i8_max)

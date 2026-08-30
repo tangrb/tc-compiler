@@ -6,8 +6,10 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
 从事实源提取计数并与文档声称值比对：
   - 错误码种类：tests/unit/runtime/test_types.c 的 `error_kind_count == N` 断言
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**N**」
+  - 附录 B：语言标准附录 B 唯一 TC_CE_*/TC_RE_* 码数（85）
+            vs 正文「共 N 码」vs 实现枚举 N+1（+ `TC_ERR_OUT_OF_MEMORY`）
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
-                vs docs/TC-0.0.39-开发计划.md「RHS 分发覆盖 | N」
+                vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
   - VM 用例规模：scripts/vm/run_tests.sh 的测试调用行数（不含 helper 定义）
                 vs .cursor/skills/tc-architecture/test-map.md「N VM」
   - AOT 用例规模：scripts/aot/run_tests.sh 的 run_diff_test/run_check_ok/
@@ -53,6 +55,14 @@ def count_tc_rhs_kinds(tc_types_h):
     return sum(1 for ln in m.group(1).split("\n") if re.match(r"\s*TC_RHS_", ln))
 
 
+def count_appendix_b_codes(lang_std):
+    """统计语言标准附录 B 表中唯一的 TC_CE_* / TC_RE_* 码。"""
+    m = re.search(r"## 附录 B：错误码速查表(.*?)## 变更记录", lang_std, re.S)
+    if not m:
+        return None
+    return len(set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", m.group(1))))
+
+
 def count_vm_test_calls(vm_sh):
     """统计会调用 pass() 的测试注册行（排除 run_expect_* 等 helper 定义）。"""
     return len(re.findall(VM_CALL_RE, vm_sh, re.M))
@@ -75,34 +85,56 @@ def main():
     elif not err_actual or not err_doc:
         failures.append("错误码种类：无法从 test_types.c / types.md 提取计数")
 
+    # ---- 1b. 语言标准附录 B 85 码 vs 实现 86（+OOM）-----------------
+    lang_std = read("docs/TC语言标准设计说明书-0.0.41.md")
+    appendix_actual = count_appendix_b_codes(lang_std) if lang_std else None
+    appendix_claimed = None
+    if lang_std:
+        m = re.search(r"本附录汇总正文及附录 A 中出现过的全部诊断码（\*\*共 (\d+) 码\*\*",
+                      lang_std)
+        appendix_claimed = int(m.group(1)) if m else None
+    if appendix_actual is None or appendix_claimed is None:
+        failures.append("附录 B：无法从语言标准提取码数")
+    else:
+        if appendix_actual != appendix_claimed:
+            failures.append(
+                f"附录 B：表内唯一码 {appendix_actual}，正文写共 {appendix_claimed} 码")
+        if err_actual is not None and appendix_actual + 1 != err_actual:
+            failures.append(
+                f"附录 B：语言码 {appendix_actual} + OOM 应为 {appendix_actual + 1}，"
+                f"test_types.c 断言 {err_actual}")
+
     # ---- 2. TcRhsKind 枚举数 -------------------------------------------
     tc_types_h = read("src/vm/runtime/tc_types.h")
     rhs_actual = count_tc_rhs_kinds(tc_types_h) if tc_types_h else None
 
-    dev_plan = read("docs/TC-0.0.39-开发计划.md")
-    m = re.search(r"RHS 分发覆盖 \| (\d+)", dev_plan)
+    m = re.search(r"RHS 分发覆盖：\*\*(\d+)\*\*", types_md) if types_md else None
     rhs_doc = int(m.group(1)) if m else None
     if rhs_actual and rhs_doc and rhs_actual != rhs_doc:
         failures.append(
-            f"RHS 分发覆盖：TcRhsKind 枚举 {rhs_actual} 个，开发计划写 {rhs_doc}")
+            f"RHS 分发覆盖：TcRhsKind 枚举 {rhs_actual} 个，types.md 写 {rhs_doc}")
     elif not rhs_actual or not rhs_doc:
-        failures.append("RHS 分发覆盖：无法从 tc_types.h / 开发计划提取计数")
+        failures.append("RHS 分发覆盖：无法从 tc_types.h / types.md 提取计数")
 
     # ---- 3. VM 用例规模 -------------------------------------------------
     vm_sh = read("scripts/vm/run_tests.sh")
     vm_actual = count_vm_test_calls(vm_sh) if vm_sh else None
     test_map = read(".cursor/skills/tc-architecture/test-map.md")
-    m = re.search(r"约 (\d+) VM", test_map) if test_map else None
+    # 兼容 test-map.md 两种写法：「约 N VM」与「**N VM**」
+    m = (re.search(r"约 (\d+) VM", test_map) or
+         re.search(r"\*\*(\d+) VM\*\*", test_map)) if test_map else None
     vm_doc = int(m.group(1)) if m else None
     if vm_actual is not None and vm_doc is not None and vm_actual != vm_doc:
         failures.append(f"VM 用例规模：run_tests.sh 注册 {vm_actual}，test-map 写 {vm_doc}")
 
     # ---- 4. AOT 用例规模（注册行）--------------------------------------
+    # 与 VM_CALL_RE 一致：注册行是「函数名 + 空格 + 实参」的调用，
+    # helper 定义（`run_xxx() {`）不算注册项，故用 (?!\s*\() 排除。
     aot_sh = read("scripts/aot/run_tests.sh")
-    aot_actual = (len(re.findall(r"run_diff_test\b", aot_sh))
-                  + len(re.findall(r"run_check_ok\b", aot_sh))
-                  + len(re.findall(r"run_check_fail\b", aot_sh))
-                  + len(re.findall(r"run_aot_cli_golden\b", aot_sh)))
+    aot_actual = (len(re.findall(r"run_diff_test(?!\s*\()", aot_sh))
+                  + len(re.findall(r"run_check_ok(?!\s*\()", aot_sh))
+                  + len(re.findall(r"run_check_fail(?!\s*\()", aot_sh))
+                  + len(re.findall(r"run_aot_cli_golden(?!\s*\()", aot_sh)))
     m = re.search(r"~(\d+) AOT（注册）", test_map) if test_map else None
     aot_doc = int(m.group(1)) if m else None
     if aot_doc is not None and aot_actual != aot_doc:
@@ -115,7 +147,7 @@ def main():
         for f in failures:
             print(f"  - {f}")
         sys.exit(1)
-    print("check_doc_counts: 错误码 / RHS / VM / AOT 文档数字均与事实源一致")
+    print("check_doc_counts: 错误码 / 附录 B / RHS / VM / AOT 文档数字均与事实源一致")
 
 
 if __name__ == "__main__":

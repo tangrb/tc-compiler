@@ -1,0 +1,8 @@
+#lib
+; Critical 1 回归：static let 的 memblock 逐值构造 value_count > count。
+; const 求值先于 pass2 类型检查，须在 tc_eval_const_memblock_ctor 拒绝（曾堆越界写）。
+; 期望：memblock element count mismatch
+public static let M: memblock<int32, 2> = memblock(int32, count: 2, 1, 2, 3)
+public func f() void then
+    return
+end

@@ -1,0 +1,11 @@
+#program
+; cast/bitcast source 为字段 operand
+struct Box then
+    var score: int32
+    var bits: float32
+end
+var b: Box = Box(score: 65, bits: 1.0f)
+var as_u: uint32 = cast(uint32, b.score)
+var as_i: int32 = bitcast(int32, b.bits)
+writeln(uint32, as_u)
+writeln(int32, as_i)

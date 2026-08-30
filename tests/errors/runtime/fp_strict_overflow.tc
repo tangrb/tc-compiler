@@ -1,7 +1,8 @@
 #program
 ; 期望：float overflow
 ; strict 模式（默认）下，float64 乘法溢出
-writeln(float64, 1.0)
 var a: float64 = 1e200
 var b: float64 = 1e200
-var c: float64 = mul(float64, a, b)
+var c: float64 = 0.0
+writeln(float64, 1.0)
+c = mul(float64, a, b)

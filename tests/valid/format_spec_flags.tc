@@ -1,0 +1,15 @@
+#program
+; §10.5 flags/width/precision 黄金输出
+var n: int32 = 42
+var pi: float64 = 3.14159265
+var t: bool = true
+writeln(int32, %+d, n)
+writeln(int32, %08d, n)
+writeln(int32, %0008d, n)
+writeln(int32, %#x, n)
+writeln(float64, %08.3f, pi)
+writeln(float64, %-8.2f, pi)
+writeln(float64, %e, pi)
+writeln(float64, %g, pi)
+writeln(bool, %-8t, t)
+writeln(bool, %5t, t)

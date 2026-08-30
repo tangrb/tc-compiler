@@ -1,5 +1,6 @@
 #program
 ; E-05：0/0 须报 float invalid（优先于 division by zero）
+var a: float64 = 0.0
 writeln(float64, 1.0)
-var a: float64 = div(float64, 0.0, 0.0)
+a = div(float64, 0.0, 0.0)
 writeln(float64, a)

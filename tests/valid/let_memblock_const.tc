@@ -1,0 +1,7 @@
+#program
+; const memblock 构造 + 运行期 load
+let mb: memblock<int32, 2> = memblock(int32, count: 2, 10, 20)
+var x: int32 = memblock_load(int32, mb, 0)
+var y: int32 = memblock_load(int32, mb, 1)
+writeln(int32, x)
+writeln(int32, y)

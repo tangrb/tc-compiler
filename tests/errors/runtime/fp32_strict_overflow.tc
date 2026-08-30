@@ -1,0 +1,6 @@
+#program
+; 期望：float overflow
+; float32 strict 乘法上溢（首个 float32 运行时错误用例；现有均为 float64）
+var a: float32 = 3.4e38f
+var b: float32 = 3.4e38f
+var c: float32 = mul(float32, a, b)

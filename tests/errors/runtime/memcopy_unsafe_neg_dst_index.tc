@@ -1,0 +1,9 @@
+#program
+; Major 3 回归：memcopy_unsafe 负字面量 dst 下标曾回绕成巨大 usize → 越界写。
+; 期望：memcopy_unsafe invalid range
+var a: memblock<int32, 4> = memblock(int32, count: 4, fill: 1)
+var b: memblock<int32, 4> = memblock(int32, count: 4, fill: 0)
+var pa: ptr<memblock<int32, 4>> = ptr_address(memblock<int32, 4>, a)
+var pb: ptr<memblock<int32, 4>> = ptr_address(memblock<int32, 4>, b)
+memcopy_unsafe(memblock<int32, 4>, pb, -1, pa, 0, 1)
+writeln(int32, 0)

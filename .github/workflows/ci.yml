@@ -1,6 +1,6 @@
 # CI — 标准构建、测试与覆盖率
 #
-# push / PR 到 master、tc-0.0.39、tc-0.0.40 或手动触发；与 scripts/ci.sh 五阶段对齐：
+# push / PR 到 master、tc-0.0.41 或手动触发；与 scripts/ci.sh 五阶段对齐：
 #   构建 → VM → unit → AOT → check_rhs_coverage + check_source_naming
 # 另含 Windows（MSYS2/MinGW）、MinGW 交叉编译护栏、UBSan、no-fenv、benchmark、覆盖率 artifact。
 
@@ -8,10 +8,10 @@ name: CI
 
 on:
   push:
-    branches: [master, tc-0.0.39, tc-0.0.40]
+    branches: [master, tc-0.0.41]
     tags: ["v*"]
   pull_request:
-    branches: [master, tc-0.0.39, tc-0.0.40]
+    branches: [master, tc-0.0.41]
   workflow_dispatch:
 
 env:

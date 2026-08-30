@@ -81,6 +81,7 @@ void tc_aot_emit_c_string(FILE *out, const char *value);
 
 /* 表达式发射 */
 void tc_aot_emit_literal_expr(FILE *out, TcTypeTag type, const TcLiteral *lit);
+void tc_aot_emit_const_memblock_expr(FILE *out, uint64_t host_bits, size_t nbytes, int line);
 void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag type,
                               const TcAotEmitCtx *ctx, int stmt_index);
 int tc_aot_emit_operand_assign(FILE *out, const TcOperand *operand, TcTypeTag type,
