@@ -29,6 +29,9 @@ static void check(int condition, const char *message) {
     }
 }
 
+/* 基于 mkstemps 的模板写入：path_template 末尾必须是 XXXXXX（glibc/msvcrt
+ * 对非 XXXXXX 模板直接拒绝；macOS mkstemps 宽松但会改写路径末尾 6 字符）。
+ * 因此只用于模板路径，不得传已确定的文件名（见 test_diamond_import_structs）。 */
 static int write_temp_file(char *path_template, const char *contents) {
     int fd = tc_test_mkstemps(path_template, 0);
     FILE *fp = NULL;
@@ -52,6 +55,24 @@ static int write_temp_file(char *path_template, const char *contents) {
         return -1;
     }
     return 0;
+}
+
+/* 在已存在目录内写固定文件名（fopen 直写，不经过 mkstemps——固定名不含
+ * XXXXXX 模板，mkstemps 会在 glibc/msvcrt 上拒绝、在 macOS 上改写文件名）。 */
+static int write_fixed_file(const char *path, const char *contents) {
+    FILE *fp = fopen(path, "w");
+    int ok = 0;
+
+    if (!fp) {
+        return -1;
+    }
+    if (fputs(contents, fp) < 0) {
+        ok = -1;
+    }
+    if (fclose(fp) != 0) {
+        ok = -1;
+    }
+    return ok;
 }
 
 static void test_module_check_structure_program_ok(void) {
@@ -559,25 +580,25 @@ static void test_diamond_import_structs(void) {
     snprintf(right_path, sizeof(right_path), "%s/RightLib.tc", dir);
     snprintf(entry_path, sizeof(entry_path), "%s/main.tc", dir);
 
-    check(write_temp_file(shared_path,
-                          "#lib\n"
-                          "public struct S then\n    var x: int32\nend\n") == 0,
+    check(write_fixed_file(shared_path,
+                           "#lib\n"
+                           "public struct S then\n    var x: int32\nend\n") == 0,
           "write SharedLib.tc");
-    check(write_temp_file(left_path,
-                          "#lib\n"
-                          "import SharedLib\n"
-                          "public struct LeftBox then\n    var s: SharedLib.S\nend\n") == 0,
+    check(write_fixed_file(left_path,
+                           "#lib\n"
+                           "import SharedLib\n"
+                           "public struct LeftBox then\n    var s: SharedLib.S\nend\n") == 0,
           "write LeftLib.tc");
-    check(write_temp_file(right_path,
-                          "#lib\n"
-                          "import SharedLib\n"
-                          "public struct RightBox then\n    var s: SharedLib.S\nend\n") == 0,
+    check(write_fixed_file(right_path,
+                           "#lib\n"
+                           "import SharedLib\n"
+                           "public struct RightBox then\n    var s: SharedLib.S\nend\n") == 0,
           "write RightLib.tc");
-    check(write_temp_file(entry_path,
-                          "#program\n"
-                          "import LeftLib\n"
-                          "import RightLib\n"
-                          "writeln(int32, 1)\n") == 0,
+    check(write_fixed_file(entry_path,
+                           "#program\n"
+                           "import LeftLib\n"
+                           "import RightLib\n"
+                           "writeln(int32, 1)\n") == 0,
           "write main.tc");
 
     tc_diagnostic_init(&diag);
