@@ -884,6 +884,8 @@ const char *tc_error_kind_name(TcErrorKind kind) {
         return "DuplicateArgument";
     case TC_CE_UNKNOWN_ARGUMENT:
         return "UnknownArgument";
+    case TC_CE_EXTRA_ARGUMENT:
+        return "ExtraArgument";
     case TC_CE_ARGUMENT_ORDER:
         return "ArgumentOrderError";
     case TC_CE_FUNCALL_POSITION:

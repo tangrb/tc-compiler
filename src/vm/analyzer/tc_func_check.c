@@ -183,6 +183,14 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
      * 1) 无重复实参名  2) 名须在形参表  3) 形参须齐全
      * 4) 实参顺序与形参声明顺序一致  5) 各实参类型匹配
      */
+    if (arg_count > sig->param_count) {
+        /* 实参个数多于形参 → 多余实参专用码（附录 B；N-13 细分）。
+         * 置于名称检查之前：个数超限是最外层的诊断。 */
+        tc_diagnostic_set(diag, TC_CE_EXTRA_ARGUMENT, line, TC_COLUMN_UNKNOWN,
+                          "too many arguments for function");
+        return -1;
+    }
+
     for (i = 0; i < arg_count; i++) {
         for (j = i + 1; j < arg_count; j++) {
             if (args[i].param_name && args[j].param_name &&
@@ -233,6 +241,13 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
             tc_diagnostic_set(diag, TC_CE_MISSING_ARGUMENT, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
+    }
+
+    if (arg_count > sig->param_count) {
+        /* 实参个数多于形参（全部名称已知）：多余实参专用码（附录 B；N-13 细分） */
+        tc_diagnostic_set(diag, TC_CE_EXTRA_ARGUMENT, line, TC_COLUMN_UNKNOWN,
+                          "too many arguments for function");
+        return -1;
     }
 
     for (i = 0; i < arg_count; i++) {

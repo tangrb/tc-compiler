@@ -189,6 +189,7 @@
 | `TC_CE_UNKNOWN_ARGUMENT` | `UnknownArgument` | Analyzer | §8.2.2 |
 | `TC_CE_DUPLICATE_ARGUMENT` | `DuplicateArgument` | Analyzer | §8.2.2 |
 | `TC_CE_MISSING_ARGUMENT` | `MissingArgument` | Analyzer | §8.2.2 |
+| `TC_CE_EXTRA_ARGUMENT` | `ExtraArgument` | Analyzer | §8.2.2 |
 | `TC_CE_ARGUMENT_ORDER` | `ArgumentOrderError` | Analyzer | §8.2.2 |
 | `TC_CE_FUNCALL_POSITION` | `FunctionCallPositionError` | Analyzer | §8.2.3 |
 | `TC_CE_FUNCALL_RESULT_TYPE` | `FunctionCallResultTypeError` | Analyzer | §8.2.3 |

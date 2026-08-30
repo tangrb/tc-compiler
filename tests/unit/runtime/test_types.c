@@ -354,6 +354,8 @@ static void test_error_kind_name(void) {
           "TC_CE_CIRCULAR_IMPORT → CircularImport");
     check(strcmp(tc_error_kind_name(TC_CE_PRIVATE_MEMBER_ACCESS), "PrivateMemberAccessError") == 0,
           "TC_CE_PRIVATE_MEMBER_ACCESS → PrivateMemberAccessError");
+    check(strcmp(tc_error_kind_name(TC_CE_EXTRA_ARGUMENT), "ExtraArgument") == 0,
+          "TC_CE_EXTRA_ARGUMENT → ExtraArgument");
     check(strcmp(tc_error_kind_name(TC_RE_NULL_POINTER_DEREFERENCE), "NullPointerDereference") == 0,
           "TC_RE_NULL_POINTER_DEREFERENCE → NullPointerDereference");
     check(strcmp(tc_error_kind_name(TC_RE_NULL_POINTER_ARITHMETIC), "NullPointerArithmetic") == 0,
@@ -365,7 +367,7 @@ static void test_error_kind_name(void) {
                  tc_error_kind_name(TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE)) == 0,
           "memcopy unsafe CE/RE share print name");
 
-    check(error_kind_count == 86U, "0.0.42 error kind table has 86 entries");
+    check(error_kind_count == 87U, "0.0.42 error kind table has 87 entries");
     for (i = 0; i < error_kind_count; i++) {
         const char *name = tc_error_kind_name((TcErrorKind)i);
 

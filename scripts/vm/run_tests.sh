@@ -896,6 +896,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/duplicate_argument.tc" "duplica
 run_expect_check_fail "$ROOT/tests/errors/static/unknown_argument.tc" "unknown argument"
 run_expect_check_fail "$ROOT/tests/errors/static/missing_argument.tc" "missing argument"
 run_expect_check_fail "$ROOT/tests/errors/static/argument_order.tc" "argument order"
+run_expect_check_fail "$ROOT/tests/errors/static/funcall_extra_arg.tc" "too many arguments"
 run_expect_check_fail "$ROOT/tests/errors/static/argument_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/funcall_result_type.tc" \

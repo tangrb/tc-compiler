@@ -986,7 +986,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 实参重复定位到第二个重复名称；未知实参定位到最早未知名称；缺失实参定位到右括号并指出声明顺序最靠前的缺失形参；顺序错误定位到第一个名称已知、集合完整但与对应位置形参不同的名称；类型错误定位到最早不匹配操作数。
 
-只有实参名称全部已知、唯一且集合完整时才检查顺序；只有顺序正确后才从左到右检查类型。单个实参先检查名称，再检查类型类别，最后按 [语言标准 §3.6] 检查字面量符号性、后缀和范围。合法字面量不能用于形参类型时沿用字面量专用诊断，不降级为笼统实参类型错误。附录 B 不另设「多余实参」专用码：名称未知 → `UNKNOWN_ARGUMENT`；名称集合完整但文本顺序不符 → `ARGUMENT_ORDER`。
+只有实参名称全部已知、唯一且集合完整时才检查顺序；只有顺序正确后才从左到右检查类型。单个实参先检查名称，再检查类型类别，最后按 [语言标准 §3.6] 检查字面量符号性、后缀和范围。合法字面量不能用于形参类型时沿用字面量专用诊断，不降级为笼统实参类型错误。实参个数多于形参且名称全部已知 → `EXTRA_ARGUMENT`（§8.2.2，0.0.42 补码）；名称未知 → `UNKNOWN_ARGUMENT`；名称集合完整但文本顺序不符 → `ARGUMENT_ORDER`。
 
 ### 8.3 `return` 错误优先级
 
@@ -1338,7 +1338,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 下列各表是 0.0.42 完整、权威的标准错误码对照。语言错误码使用 `TC_CE_*`（编译期/静态）与 `TC_RE_*`（运行时）前缀，另含实现资源失败码 `TC_ERR_OUT_OF_MEMORY`。语言错误码、打印名与诊断类别一一对应，不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。本表镜像语言标准附录 B（85 码），另记 `TC_ERR_OUT_OF_MEMORY`。
 
-**错误码口径**：语言标准 **0.0.42** 附录 B 为 **85** 码（73 `TC_CE_*` + 12 `TC_RE_*`）。实现枚举为 **86** = 85 语言码 + 1 `TC_ERR_OUT_OF_MEMORY`。已删除与附录 B 冲突的 5 个扩展码（`DUPLICATE_FUNCTION` / `CROSS_CONTROL_FLOW_JUMP` / `KEYWORD` / `ARGUMENT_TYPE` / `ELSE_POSITION`）。本说明书 §11.4 镜像附录 B，不另设编译器专用语言码。分表唯一码计数：§11.4.1 为 44 语言码（另列 OOM）；§11.4.2 为 17；§11.4.3 为 4；§11.4.4 为 8；§11.4.5 为 10；§11.4.6 专用 2（`MEMCOPY` 静/动各一；空指针两码与 §11.4.1 交叉列出、不另计）。`TC_RE_*` 全集 12。
+**错误码口径**：语言标准 **0.0.42** 附录 B 为 **86** 码（74 `TC_CE_*` + 12 `TC_RE_*`）。实现枚举为 **87** = 86 语言码 + 1 `TC_ERR_OUT_OF_MEMORY`。已删除与附录 B 冲突的 5 个扩展码（`DUPLICATE_FUNCTION` / `CROSS_CONTROL_FLOW_JUMP` / `KEYWORD` / `ARGUMENT_TYPE` / `ELSE_POSITION`）。本说明书 §11.4 镜像附录 B，不另设编译器专用语言码。分表唯一码计数：§11.4.1 为 44 语言码（另列 OOM）；§11.4.2 为 18；§11.4.3 为 4；§11.4.4 为 8；§11.4.5 为 10；§11.4.6 专用 2（`MEMCOPY` 静/动各一；空指针两码与 §11.4.1 交叉列出、不另计）。`TC_RE_*` 全集 12。
 
 **实现专用错误码说明**
 
@@ -1419,6 +1419,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_MISSING_ARGUMENT` | `MissingArgument` | 实参缺失 | `funcall` | 未为某形参提供实参 |
 | `TC_CE_DUPLICATE_ARGUMENT` | `DuplicateArgument` | 实参重复 | `funcall` | 同一实参名出现多次 |
 | `TC_CE_UNKNOWN_ARGUMENT` | `UnknownArgument` | 未知实参 | `funcall` | 实参名不属于被调签名 |
+| `TC_CE_EXTRA_ARGUMENT` | `ExtraArgument` | 多余实参 | `funcall` | 实参个数多于形参（名称全部已知） |
 | `TC_CE_ARGUMENT_ORDER` | `ArgumentOrderError` | 实参顺序错误 | `funcall` | 文本顺序与形参声明顺序不同 |
 | `TC_CE_FUNCALL_POSITION` | `FunctionCallPositionError` | 函数调用位置错误 | `funcall` | 非 `void` 结果被丢弃，或 `void` 调用用于 `var` 初始化或已有变量赋值 |
 | `TC_CE_FUNCALL_RESULT_TYPE` | `FunctionCallResultTypeError` | 调用结果类型错误 | `funcall` | `var` 声明类型或赋值目标类型与非 `void` 返回类型不同 |
