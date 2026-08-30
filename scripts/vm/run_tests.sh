@@ -441,7 +441,7 @@ run_cli_golden() {
 
 # --- valid: execution succeeds ---
 
-run_cli_golden "--version" 0 "tc-vm 0.0.41" "" "cli version golden"
+run_cli_golden "--version" 0 "tc-vm 0.0.42" "" "cli version golden"
 
 run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN_NATIVE [options] <file.tc>
 
@@ -450,6 +450,7 @@ TC language direct execution engine.
 Options:
   -c, --check            static analysis only, do not execute
   -I, --include <path>   add module search path (repeatable)
+  -e, --print-error-code  print error code name on diagnostic first line
   -h, --help             show this help and exit
   -V, --version          show version and exit
 
@@ -466,6 +467,16 @@ CLI_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-vm-missing.XXXXXX")"
 rm -f "$CLI_MISSING_PATH"
 EXPECTED_MISSING="$(mixed_path "$CLI_MISSING_PATH")"
 run_cli_golden "$CLI_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "cli file-open golden"
+
+# D2：--print-error-code 使诊断首行附错误码名
+CLI_ERR_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-cli-err.XXXXXX.tc")"
+printf '#program\nvar x: int32 = missing\n' > "$CLI_ERR_PATH"
+if "$TC_VM_BIN" -e "$CLI_ERR_PATH" 2>&1 | grep -q "error \[UndefinedVariable\]"; then
+    pass
+else
+    fail "cli print-error-code: expected 'error [UndefinedVariable]' in first line" "$CLI_ERR_PATH"
+fi
+rm -f "$CLI_ERR_PATH"
 
 run_expect_ok "$ROOT/tests/valid/example.tc"
 run_expect_ok "$ROOT/tests/valid/signed_wrap.tc"
@@ -661,7 +672,7 @@ run_expect_stdout "$ROOT/tests/valid/format_spec_i.tc" "42
 -128
 "
 
-# --- v0.0.41 Phase 3: top-level goto/label rejected ---
+# --- v0.0.42 Phase 3: top-level goto/label rejected ---
 
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_outside_function.tc" \
     "goto is only allowed inside a function"
@@ -791,6 +802,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_scalar_arith.tc" \
     "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_offset_type.tc" \
     "literal type does not match context"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_isize_offset.tc" \
+    "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_result_type.tc" \
     "pointer arithmetic result type does not match destination"
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_nested_non_struct.tc" \
@@ -894,6 +907,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/duplicate_argument.tc" "duplica
 run_expect_check_fail "$ROOT/tests/errors/static/unknown_argument.tc" "unknown argument"
 run_expect_check_fail "$ROOT/tests/errors/static/missing_argument.tc" "missing argument"
 run_expect_check_fail "$ROOT/tests/errors/static/argument_order.tc" "argument order"
+run_expect_check_fail "$ROOT/tests/errors/static/funcall_extra_arg.tc" "too many arguments"
 run_expect_check_fail "$ROOT/tests/errors/static/argument_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/funcall_result_type.tc" \
@@ -1172,7 +1186,7 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_nested_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_expect_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
-# --- struct field operand (0.0.41 field_access as operand) ---
+# --- struct field operand (0.0.42 field_access as operand) ---
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_arith.tc" "42
 "
 run_expect_stdout "$ROOT/tests/valid/struct_field_operand_compare.tc" "false
@@ -1546,6 +1560,30 @@ FF
 "
 run_expect_check_ok "$ROOT/tests/valid/format_spec_table.tc"
 run_expect_check_ok "$ROOT/tests/valid/format_width_max.tc"
+run_expect_stdout "$ROOT/tests/valid/format_fp_exact.tc" "3.141593
+0003.142
+3.141593e+00
+3.141593E+00
+3.14159
+1.50000
+0
+2
+2
+2.67
+0.0001
+1e-05
+123456
+1.23457e+06
+1e+08
+1.000000e+05
+-0.000000
+-0
+4.9406564584124654e-324
+1e+30
+0.1000000015
+0.1000000000
+"
+run_expect_check_ok "$ROOT/tests/valid/format_fp_exact.tc"
 run_expect_stdout "$ROOT/tests/valid/fp_mod.tc" "1.5
 -1.5
 1.5
@@ -1576,6 +1614,7 @@ run_expect_stdout "$ROOT/tests/valid/let_ptr_size.tc" "32
 run_expect_check_ok "$ROOT/tests/valid/let_ptr_size.tc"
 run_expect_stdout "$ROOT/tests/valid/let_memblock_const.tc" "10
 20
+2
 "
 run_expect_check_ok "$ROOT/tests/valid/let_memblock_const.tc"
 run_expect_stdout "$ROOT/tests/valid/qualified_memblock_count.tc" "3
@@ -2375,7 +2414,7 @@ run_expect_stdout "$ROOT/tests/modules/phase5_memblock_param_scope.tc" "0
 0
 "
 
-# --- v0.0.41 TC-Embed: library function checking ---
+# --- v0.0.42 TC-Embed: library function checking ---
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_sum.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_inplace.tc"
 run_expect_check_ok "$ROOT/tests/vm/embed/ptr_loop.tc"

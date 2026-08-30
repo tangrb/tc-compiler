@@ -521,8 +521,7 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
                 nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits, table) + 7U) /
                          8U;
                 if (data && nbytes > 0) {
-                    memcpy(&bits, data + offset,
-                           nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+                    bits = tc_aot_cg_load_bits(data + offset, nbytes);
                 }
                 if (field_type->tag == TC_BOOL) {
                     bits = bits ? 1ULL : 0ULL;

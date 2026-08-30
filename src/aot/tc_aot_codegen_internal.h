@@ -12,7 +12,21 @@
 #include "tc_stmt_index.h"
 #include "tc_symbol.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
+
+/* A1 端序契约（§3.5）：codegen 期从 const_bits 折叠标量字段时按固定 LE
+ * （低字节在前）读取，与 VM/const_eval/AOT 运行时一致，不依赖宿主字节序。 */
+static inline uint64_t tc_aot_cg_load_bits(const uint8_t *src, size_t nbytes) {
+    uint64_t bits = 0;
+    size_t i = 0;
+
+    for (i = 0; i < nbytes && i < sizeof(bits); i++) {
+        bits |= ((uint64_t)src[i]) << (8U * i);
+    }
+    return bits;
+}
 
 /* 块路径深度上限（与 Analyzer / Executor 同构：then=if*2，else=if*2+1） */
 #define TC_AOT_BLOCK_DEPTH_MAX 64

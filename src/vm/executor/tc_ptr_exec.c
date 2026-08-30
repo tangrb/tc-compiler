@@ -105,15 +105,11 @@ static int tc_ptr_read_offset(const TcOperand *offset_op, TcExecuteCtx *ctx, int
                               TcDiagnostic *diag, int line) {
     TcValue offset_value;
 
-    if (tc_eval_operand(offset_op, TC_USIZE, ctx, &offset_value, diag, line) != 0 &&
-        tc_eval_operand(offset_op, TC_ISIZE, ctx, &offset_value, diag, line) != 0) {
+    /* 偏移严格为 usize（§3.10.8）；分析器已静态拒绝 isize 偏移 */
+    if (tc_eval_operand(offset_op, TC_USIZE, ctx, &offset_value, diag, line) != 0) {
         return -1;
     }
-    if (offset_value.type->tag == TC_ISIZE) {
-        *out = tc_bits_to_signed(TC_ISIZE, offset_value.bits);
-    } else {
-        *out = (int64_t)offset_value.bits;
-    }
+    *out = (int64_t)offset_value.bits;
     return 0;
 }
 

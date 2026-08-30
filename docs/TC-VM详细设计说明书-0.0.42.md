@@ -1,10 +1,10 @@
 # TC-VM 详细设计说明书
 
-> **规范基线（唯一权威）**：[TC 语言标准 0.0.41](./TC语言标准设计说明书-0.0.41.md) · [TC 编译器标准 0.0.41](./TC编译器标准设计说明书-0.0.41.md)
+> **规范基线（唯一权威）**：[TC 语言标准 0.0.42](./TC语言标准设计说明书-0.0.42.md) · [TC 编译器标准 0.0.42](./TC编译器标准设计说明书-0.0.42.md)
 >
-> **当前实现基线**：TC-VM v0.0.41（`TC_VM_VERSION`）
+> **当前实现基线**：TC-VM v0.0.42（`TC_VM_VERSION`）
 >
-> **状态**：0.0.41 架构设计，涵盖模块系统、函数、memblock、ptr、struct 与完整 13 阶段编译管线。
+> **状态**：0.0.42 架构设计，涵盖模块系统、函数、memblock、ptr、struct 与完整 13 阶段编译管线。
 >
 > **适用范围**：多文件编译单元的 Parse、模块解析、Analyze、Execute，以及 tc-vm 的实现边界。
 
@@ -39,9 +39,9 @@
 
 | 维度 | 版本 | 含义 |
 | ---- | ---- | ---- |
-| 语言规范 | 0.0.41 | 本文必须满足的合法程序集合、结果和诊断阶段 |
-| 编译器规范 | 0.0.41 | 确定的 13 阶段编译管线、错误码与检查顺序 |
-| 本文架构 | 0.0.41 设计 | 面向当前语言能力的实现设计 |
+| 语言规范 | 0.0.42 | 本文必须满足的合法程序集合、结果和诊断阶段 |
+| 编译器规范 | 0.0.42 | 确定的 13 阶段编译管线、错误码与检查顺序 |
+| 本文架构 | 0.0.42 设计 | 面向当前语言能力的实现设计 |
 
 ### 1.2 目标
 
@@ -58,8 +58,8 @@
 ### 1.3 非目标
 
 - 不在 VM 内引入 JIT、字节码文件格式或寄存器分配器。
-- 不为未纳入 0.0.41 的递归、异常、闭包等预先定义 ABI。
-- 不以更强的可选静态规则缩小 0.0.41 合法程序集。
+- 不为未纳入 0.0.42 的递归、异常、闭包等预先定义 ABI。
+- 不以更强的可选静态规则缩小 0.0.42 合法程序集。
 - 不为未纳入公开 API 的内部符号承诺 C ABI 稳定性。
 
 ### 1.4 规范到实现的约束
@@ -77,7 +77,7 @@
 
 ### 2.1 目标流水线（13 阶段）
 
-0.0.41 编译器标准 §1.2 定义 13 个确定性处理阶段，VM 后端遵循此流水线。各阶段按序执行，前一阶段有错时不进入下一阶段：
+0.0.42 编译器标准 §1.2 定义 13 个确定性处理阶段，VM 后端遵循此流水线。各阶段按序执行，前一阶段有错时不进入下一阶段：
 
 ```text
 source files (.tc)
@@ -128,7 +128,7 @@ source files (.tc)
 
 ### 2.3 多文件编译单元
 
-0.0.41 引入模块系统：一个 `#program` 文件通过 `import` 引用零个或多个 `#lib` 模块。编译器必须：
+0.0.42 引入模块系统：一个 `#program` 文件通过 `import` 引用零个或多个 `#lib` 模块。编译器必须：
 
 - 从入口 `#program` 文件出发，按 `import` 语句逐层加载所有可达模块；
 - 使用依赖拓扑序处理全部可达模块（DAG）；
@@ -151,7 +151,7 @@ source files (.tc)
 
 ### 3.2 目标 `TcStmtKind`
 
-0.0.41 的 statement 集合相较 0.0.31 增加函数、模块、memblock、ptr 与 struct 相关 statement：
+0.0.42 的 statement 集合相较 0.0.31 增加函数、模块、memblock、ptr 与 struct 相关 statement：
 
 ```c
 /* 既有 */
@@ -169,7 +169,7 @@ TC_STMT_CONTINUE,
 TC_STMT_LABEL_DEF,
 TC_STMT_GOTO,
 
-/* 0.0.41 新增 */
+/* 0.0.42 新增 */
 TC_STMT_FUNC_DEF,               /* func 定义 */
 TC_STMT_FUNCALL,                /* funcall 独立调用 */
 TC_STMT_RETURN,                 /* return [operand] */
@@ -185,7 +185,7 @@ TC_STMT_IMPORT,                 /* import 声明 */
 
 ### 3.3 目标 `TcRhsKind`
 
-0.0.41 新增大量 RHS kind：
+0.0.42 新增大量 RHS kind：
 
 ```c
 /* 既有 */
@@ -205,7 +205,7 @@ TC_RHS_SHIFT,
 TC_RHS_CAST,
 TC_RHS_BITCAST,
 
-/* 0.0.41 新增 */
+/* 0.0.42 新增 */
 TC_RHS_MEMBLOCK_LOAD,           /* memblock_load(T, mb, idx) */
 TC_RHS_MEMBLOCK_CONSTRUCTOR,    /* memblock(T, count: N, ...) */
 TC_RHS_MEMBLOCK_COUNT,          /* mb.count */
@@ -465,7 +465,7 @@ memblock<T, N>
 
 ### 7.1 多级作用域
 
-0.0.41 的作用域层次：
+0.0.42 的作用域层次：
 
 | 层级 | 可见范围 | 绑定类别 |
 | ---- | -------- | -------- |
@@ -688,7 +688,7 @@ typedef struct {
 
 ### 10.1 多域 CFG
 
-0.0.41 的 CFG 分为多个封闭域：
+0.0.42 的 CFG 分为多个封闭域：
 
 | CFG 域 | 入口 | 边界 |
 | ------ | ---- | ---- |
@@ -975,7 +975,7 @@ typedef struct {
 
 VM 与 AOT 共用 `tc_io`，特别是：符号、进制、浮点格式、NaN/Infinity 文本、换行和错误时机。
 
-本实现固定 64-bit-only。memblock/struct 标量元素按宿主端序存取（未完全符合语言标准 §3.5）；浮点十进制输出仍委托宿主 `snprintf`（未完全符合 §10.4）。降级项与其它可移植性债务见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.41.md)。
+本实现固定 64-bit-only。0.0.42 起端序无关（固定 LE 位级存取，符合 §3.5）且浮点十进制输出为自实现（符合 §10.4）；已知可移植性债务已清零，见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.42.md)。
 
 ---
 
@@ -985,18 +985,18 @@ VM 与 AOT 共用 `tc_io`，特别是：符号、进制、浮点格式、NaN/Inf
 
 `TcDiagnostic` 保持 fail-fast 单槽，包含 kind、消息、文件名、行、列和源片段。所有路径必须保留原始源位置。
 
-### 15.2 0.0.41 错误码集合
+### 15.2 0.0.42 错误码集合
 
 编译器标准 §11.4 定义了完整错误码表，包括：
 
 - **通用与核心**（§11.4.1）：`TC_CE_SYNTAX`、`TC_CE_UNDEFINED_VARIABLE`、`TC_CE_DUPLICATE_DEFINITION`、`TC_CE_TYPE_MISMATCH`、`TC_CE_LITERAL_OUT_OF_RANGE`、`TC_CE_LITERAL_TYPE`、`TC_CE_CONSTANT_ASSIGNMENT`、`TC_CE_CONSTANT_EXPRESSION`、`TC_CE_CONSTANT_OVERFLOW`、`TC_CE_CONSTANT_DIV_ZERO`、`TC_CE_CONSTANT_CAST_OVERFLOW`、`TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_FORMAT_SPECIFIER`、`TC_CE_FORMAT_TYPE_MISMATCH`、`TC_CE_OPERAND_COUNT`，及对应的运行时错误码和缩进/控制流专用码。
-- **函数诊断**（§11.4.2）：`TC_CE_FUNCTION_NAME_CONFLICT`、`TC_CE_UNDEFINED_FUNCTION`、`TC_CE_DUPLICATE_PARAMETER`、`TC_CE_MISSING_ARGUMENT`、`TC_CE_DUPLICATE_ARGUMENT`、`TC_CE_UNKNOWN_ARGUMENT`、`TC_CE_ARGUMENT_ORDER`、`TC_CE_FUNCALL_POSITION`、`TC_CE_FUNCALL_RESULT_TYPE`、`TC_CE_RETURN_OUTSIDE_FUNCTION`、`TC_CE_RETURN_FORM`、`TC_CE_RETURN_TYPE`、`TC_CE_MISSING_RETURN`、`TC_CE_UNREACHABLE_STATEMENT`、`TC_CE_PARAMETER_ASSIGNMENT`、`TC_CE_FUNCTION_SCOPE_ACCESS`、`TC_CE_RECURSION`。
+- **函数诊断**（§11.4.2）：`TC_CE_FUNCTION_NAME_CONFLICT`、`TC_CE_UNDEFINED_FUNCTION`、`TC_CE_DUPLICATE_PARAMETER`、`TC_CE_MISSING_ARGUMENT`、`TC_CE_DUPLICATE_ARGUMENT`、`TC_CE_UNKNOWN_ARGUMENT`、`TC_CE_EXTRA_ARGUMENT`、`TC_CE_ARGUMENT_ORDER`、`TC_CE_FUNCALL_POSITION`、`TC_CE_FUNCALL_RESULT_TYPE`、`TC_CE_RETURN_OUTSIDE_FUNCTION`、`TC_CE_RETURN_FORM`、`TC_CE_RETURN_TYPE`、`TC_CE_MISSING_RETURN`、`TC_CE_UNREACHABLE_STATEMENT`、`TC_CE_PARAMETER_ASSIGNMENT`、`TC_CE_FUNCTION_SCOPE_ACCESS`、`TC_CE_RECURSION`。
 - **memblock 诊断**（§11.4.3）：`TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE` / `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`、`TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH`、`TC_CE_MEMBLOCK_SIZE_MISMATCH`。
 - **结构体诊断**（§11.4.4，8 码）：`TC_CE_STRUCT_MISSING_FIELD`、`TC_CE_STRUCT_UNKNOWN_FIELD`、`TC_CE_STRUCT_DUPLICATE_FIELD`、`TC_CE_STRUCT_FIELD_ORDER`、`TC_CE_STRUCT_IMMUTABLE_FIELD`、`TC_CE_STRUCT_VALUE_SELF_REF`、`TC_CE_DUPLICATE_STRUCT`、`TC_CE_UNDEFINED_STRUCT`。
 - **模块诊断**（§11.4.5）：`TC_CE_MODULE_LAYER`、`TC_CE_MISSING_VISIBILITY`、`TC_CE_PROGRAM_MODE_MISUSE`、`TC_CE_IMPORT_NOT_FOUND`、`TC_CE_IMPORT_NOT_LIB`、`TC_CE_IMPORT_AMBIGUOUS`、`TC_CE_DUPLICATE_IMPORT`、`TC_CE_IMPORT_NAME_CONFLICT`、`TC_CE_CIRCULAR_IMPORT`、`TC_CE_PRIVATE_MEMBER_ACCESS`。
 - **指针与 memcopy 诊断**（§11.4.6）：`TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` / `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`、`TC_RE_NULL_POINTER_DEREFERENCE`、`TC_RE_NULL_POINTER_ARITHMETIC`。
 
-> **口径**：实现 86 码 = 85 语言码（附录 B）+ 1 `TC_ERR_OUT_OF_MEMORY`。同名函数报 `FUNCTION_NAME_CONFLICT`（无 `DUPLICATE_FUNCTION`）。对形参绑定本身赋值/`read` → `PARAMETER_ASSIGNMENT`；经 `ptr_address` 后再 `ptr_store`/`memcopy_unsafe` → `CONSTANT_ASSIGNMENT`。
+> **口径**：实现 87 码 = 86 语言码（附录 B）+ 1 `TC_ERR_OUT_OF_MEMORY`。同名函数报 `FUNCTION_NAME_CONFLICT`（无 `DUPLICATE_FUNCTION`）。对形参绑定本身赋值/`read` → `PARAMETER_ASSIGNMENT`；经 `ptr_address` 后再 `ptr_store`/`memcopy_unsafe` → `CONSTANT_ASSIGNMENT`。
 
 ### 15.3 诊断域
 
@@ -1086,7 +1086,7 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 
 ### 17.1 测试分层
 
-| 层 | 0.0.41 必测内容 |
+| 层 | 0.0.42 必测内容 |
 | -- | -------------- |
 | Lexer | 所有新关键字、`nullptr`、特殊浮点 Token、`@padding` |
 | Parser | 模块头、`import`、函数定义、`funcall`、`return`、struct 定义、`memblock<T, N>`、`ptr<T>`、`static` 声明 |
@@ -1118,9 +1118,9 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 
 ## 18. 实现基线与迁移
 
-### 18.1 v0.0.31 → v0.0.41 关键迁移
+### 18.1 v0.0.31 → v0.0.42 关键迁移
 
-| 类别 | v0.0.31 | v0.0.41 |
+| 类别 | v0.0.31 | v0.0.42 |
 | ---- | ------- | ------- |
 | 模块系统 | 单文件 | `#program`/`#lib`、`import`、`public`/`private`、`Self` |
 | 函数 | 无 | `func`/`funcall`/`return`、无环调用图 |
@@ -1130,7 +1130,7 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 | 错误码 | 41+1 | 扩展至含函数、模块、memblock、struct、ptr 专用诊断 |
 | REPL | 包含 | 无 |
 
-### 18.2 已完成的迁移顺序（0.0.31 → 0.0.41）
+### 18.2 已完成的迁移顺序（0.0.31 → 0.0.42）
 
 下列步骤均已落地，保留为历史对照，不是待办：
 
@@ -1149,4 +1149,4 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 
 ---
 
-*本文的规范性语言规则均以 [TC 语言标准 0.0.41](./TC语言标准设计说明书-0.0.41.md) 与 [TC 编译器标准 0.0.41](./TC编译器标准设计说明书-0.0.41.md) 为准。*
+*本文的规范性语言规则均以 [TC 语言标准 0.0.42](./TC语言标准设计说明书-0.0.42.md) 与 [TC 编译器标准 0.0.42](./TC编译器标准设计说明书-0.0.42.md) 为准。*

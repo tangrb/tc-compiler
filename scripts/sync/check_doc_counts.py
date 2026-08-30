@@ -86,7 +86,7 @@ def main():
         failures.append("错误码种类：无法从 test_types.c / types.md 提取计数")
 
     # ---- 1b. 语言标准附录 B 85 码 vs 实现 86（+OOM）-----------------
-    lang_std = read("docs/TC语言标准设计说明书-0.0.41.md")
+    lang_std = read("docs/TC语言标准设计说明书-0.0.42.md")
     appendix_actual = count_appendix_b_codes(lang_std) if lang_std else None
     appendix_claimed = None
     if lang_std:

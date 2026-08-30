@@ -14,6 +14,26 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+
+/* A1 端序契约（§3.5）：const 复合值头部/标量字段/元素按固定 LE（低字节在前）
+ * 序列化，与 VM/AOT 运行时的 tc_mb_/tc_st_ 系列一致，不依赖宿主字节序。 */
+static void tc_ce_store_bits(uint8_t *dst, size_t nbytes, uint64_t bits) {
+    size_t i = 0;
+
+    for (i = 0; i < nbytes; i++) {
+        dst[i] = (uint8_t)(bits >> (8U * i));
+    }
+}
+
+static uint64_t tc_ce_load_bits(const uint8_t *src, size_t nbytes) {
+    uint64_t bits = 0;
+    size_t i = 0;
+
+    for (i = 0; i < nbytes && i < sizeof(bits); i++) {
+        bits |= ((uint64_t)src[i]) << (8U * i);
+    }
+    return bits;
+}
 #include <stdlib.h>
 #include <string.h>
 
@@ -272,8 +292,7 @@ static int tc_const_read_resolved_field(const TcResolvedFieldAccess *access,
     offset = access->offsets[access->field_count - 1];
     nbytes = (tc_sizeof_bits(field_type) + 7U) / 8U;
     out->type = field_type;
-    out->bits = 0;
-    memcpy(&out->bits, data + offset, nbytes <= sizeof(out->bits) ? nbytes : sizeof(out->bits));
+    out->bits = tc_ce_load_bits(data + offset, nbytes);
     if (field_type->tag == TC_BOOL) {
         out->bits = out->bits ? 1ULL : 0ULL;
     }
@@ -421,8 +440,7 @@ static int tc_const_write_field_bytes(uint8_t *base, size_t offset, const TcType
         if (field_type->tag == TC_BOOL) {
             bits = bits ? 1ULL : 0ULL;
         }
-        memset(dst, 0, nbytes);
-        memcpy(dst, &bits, nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+        tc_ce_store_bits(dst, nbytes, bits);
     }
     return 0;
 }
@@ -565,7 +583,7 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
                           "memory allocation failed");
         return -1;
     }
-    memcpy(block, &count, sizeof(uint64_t));
+    tc_ce_store_bits(block, sizeof(uint64_t), count);
     cursor = (uint8_t *)block + sizeof(uint64_t);
     if (rhs->u.memblock_ctor.is_fill) {
         TcValue fill_value = {0};
@@ -583,7 +601,7 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
                 memcpy(cursor + i * element_bytes, (void *)(uintptr_t)fill_value.bits,
                        element_bytes);
             } else {
-                memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
+                tc_ce_store_bits(cursor + i * element_bytes, element_bytes, fill_value.bits);
             }
         }
         tc_const_drop_temp_heap(&fill_value, visible, global);
@@ -602,7 +620,7 @@ static int tc_eval_const_memblock_ctor(const TcRhs *rhs, const TcStructTable *st
             if (elem->tag == TC_STRUCT) {
                 memcpy(cursor + i * element_bytes, (void *)(uintptr_t)elem_val.bits, element_bytes);
             } else {
-                memcpy(cursor + i * element_bytes, &elem_val.bits, element_bytes);
+                tc_ce_store_bits(cursor + i * element_bytes, element_bytes, elem_val.bits);
             }
             tc_const_drop_temp_heap(&elem_val, visible, global);
         }

@@ -1,7 +1,7 @@
 ---
 description: >-
   TC-Compiler documentation editing — sync with code, tests, and .cursor skills.
-  Loads when editing docs/**/*.md. Language spec is docs/TC语言标准设计说明书-0.0.41.md.
+  Loads when editing docs/**/*.md. Language spec is docs/TC语言标准设计说明书-0.0.42.md.
 globs: docs/**/*
 alwaysApply: false
 ---
@@ -12,21 +12,21 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 
 ## 版本状态
 
-- **设计目标**：TC **0.0.41**（语言标准附录 B 85 码）
-- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.41**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.41）
-- **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.41.md`
+- **设计目标**：TC **0.0.42**（语言标准附录 B 86 码）
+- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.42**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.42）
+- **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.42.md`
 
 ## 文档职责
 
 | 文件 | 内容 |
 |------|------|
-| `docs/TC语言标准设计说明书-0.0.41.md` | 0.0.41 语法/语义唯一权威来源（附录 B 85 码）；语言特性变更**必更** |
-| `docs/TC编译器标准设计说明书-0.0.41.md` | 13 阶段管线、诊断优先级、调用图等编译器规范 |
-| `docs/TC-VM详细设计说明书-0.0.41.md` | VM 架构、执行器、诊断（无 REPL） |
-| `docs/TC-AOT详细设计说明书-0.0.41.md` | AOT 代码生成、shim 层、差分测试 |
-| `docs/libtc设计说明书-0.0.41.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
-| `docs/TC-VM命令行参考-0.0.41.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
-| `docs/TC-Embed详细设计说明书-0.0.41.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
+| `docs/TC语言标准设计说明书-0.0.42.md` | 0.0.42 语法/语义唯一权威来源（附录 B 86 码）；语言特性变更**必更** |
+| `docs/TC编译器标准设计说明书-0.0.42.md` | 13 阶段管线、诊断优先级、调用图等编译器规范 |
+| `docs/TC-VM详细设计说明书-0.0.42.md` | VM 架构、执行器、诊断（无 REPL） |
+| `docs/TC-AOT详细设计说明书-0.0.42.md` | AOT 代码生成、shim 层、差分测试 |
+| `docs/libtc设计说明书-0.0.42.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
+| `docs/TC-VM命令行参考-0.0.42.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
+| `docs/TC-Embed详细设计说明书-0.0.42.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
 | `docs/TC-0.0.41-语言标准符合性检查分析报告.md` | 2026-08-27 审计原文（当时 30 S / 27 M）；现行结论见该文 **§14** |
 | `docs/TC-0.0.41-语言标准符合性修复计划.md` | 符合性修复计划（P0–P6 已收口）；发布结论见该文 **§10** |
 

@@ -1,6 +1,6 @@
 # TC-Compiler — Agent 指南
 
-C99 编译器：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.41**（Phase 1–7）。
+C99 编译器：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.42**（Phase 1–7）。
 
 **导航权威**：[.cursor/README.md](.cursor/README.md)（加载分级 · 意图表 · 目录地图）。本文件保持极简，**勿**复制长路由表。
 
@@ -22,7 +22,7 @@ C99 编译器：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.41**（Phase 1–7�
 写 .tc     → tests-tc（已附加）
 写 unit    → unit-tests-c（已附加）
 Review     → review-tc-code
-规范全文   → docs/*-0.0.41.md（按需）
+规范全文   → docs/*-0.0.42.md（按需）
 ```
 
 ## Skills（勿全读子文档）

@@ -425,6 +425,22 @@ add_custom_target(check-embed
 )
 
 # ------------------------------------------------------------------ #
+#  test-endianness — A1 端序无关布局单元测试（§3.5 固定 LE 约定）       #
+# ------------------------------------------------------------------ #
+
+add_executable(test-endianness test_endianness.c)
+target_link_libraries(test-endianness PRIVATE libtc)
+target_include_directories(test-endianness PRIVATE ${TC_VM_INCLUDE_DIRS})
+target_compile_options(test-endianness PRIVATE -std=c99 -Wall -Wextra -pedantic)
+
+add_custom_target(check-endianness
+    COMMAND test-endianness
+    DEPENDS test-endianness
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running Endianness layout unit tests"
+)
+
+# ------------------------------------------------------------------ #
 #  test-embed-aot — TC-Embed AOT 模式单元测试                          #
 # ------------------------------------------------------------------ #
 

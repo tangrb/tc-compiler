@@ -78,6 +78,9 @@ int tc_diagnostic_set_api(TcDiagnostic *diag, TcApiErrorCode code, const char *m
  */
 void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out);
 
+/* 同 tc_diagnostic_print，但普通诊断首行附错误码名（D2：CLI --print-error-code）。 */
+void tc_diagnostic_print_with_code(const TcDiagnostic *diag, FILE *out);
+
 #ifdef TC_DIAGNOSTIC_TESTING
 /** 单元测试专用：在指定成功分配次数后令诊断文本复制失败；负数关闭。 */
 void tc_diagnostic_test_fail_alloc_after(int successful_allocations);

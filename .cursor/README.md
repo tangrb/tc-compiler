@@ -1,6 +1,6 @@
 # TC-Compiler — Cursor 文档索引
 
-> **v0.0.41**（Phase 1–7）· 规范 `docs/*-0.0.41.md`  
+> **v0.0.42**（Phase 1–7）· 规范 `docs/*-0.0.42.md`  
 > **始终加载**：根目录 [AGENTS.md](../AGENTS.md)（极简）· 本文件为**导航权威**（勿把长表复制进 AGENTS）
 
 ## Agent 读文档协议
@@ -37,7 +37,7 @@
 | 写 `.tc` / C unit | Rule `tests-tc` / `unit-tests-c` |
 | 改 `docs/` | Rule `docs-tc` |
 | Review | Skill `review-tc-code` |
-| 语言/编译器规范全文 | `docs/TC语言标准设计说明书-0.0.41.md` 等（按需单文件） |
+| 语言/编译器规范全文 | `docs/TC语言标准设计说明书-0.0.42.md` 等（按需单文件） |
 
 ## 目录地图
 

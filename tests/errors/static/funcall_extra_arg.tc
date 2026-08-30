@@ -1,0 +1,9 @@
+#lib
+; 期望：实参个数多于形参（名称全部已知）→ TC_CE_EXTRA_ARGUMENT
+public func sum(a: int32, b: int32) int32 then
+    return a
+end
+public func caller() void then
+    var x: int32 = funcall(Self.sum, a: 1, b: 2, c: 3)
+    return
+end

@@ -1058,6 +1058,30 @@ static void test_aot_memblock_clone_overflow(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_aot_memblock_alloc_overflow(void) {
+    TcDiagnostic diag;
+
+    /* count × element_bytes 回绕到小值：无守卫时 malloc 会成功（隐藏越界）；
+     * 守卫须在乘法前拒绝（N-12 B3，与 VM 侧 tc_memblock_alloc 一致） */
+    tc_diagnostic_init(&diag);
+    check(tc_aot_memblock_alloc(UINT64_C(1) << 61, 8, &diag, 1) == 0 &&
+              diag.kind == TC_ERR_OUT_OF_MEMORY,
+          "memblock alloc 2^61×8 wrap rejected as OOM");
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    check(tc_aot_memblock_alloc(UINT64_MAX, 8, &diag, 1) == 0 &&
+              diag.kind == TC_ERR_OUT_OF_MEMORY,
+          "memblock alloc UINT64_MAX×8 rejected as OOM");
+    tc_diagnostic_clear(&diag);
+
+    /* 合法分配仍正常（count=2, elem=4 字节 → 头部 8 + 8 = 16 字节） */
+    tc_diagnostic_init(&diag);
+    check(tc_aot_memblock_alloc(2, 4, &diag, 1) != 0,
+          "memblock alloc valid count succeeds");
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_aot_embed_ptr_encode_decode(void) {
     TcTypedProgram prog;
     TcDiagnostic diag;
@@ -1403,6 +1427,7 @@ int main(void) {
     test_aot_embed_ptr_store_inplace();
     test_aot_embed_static_var_increment();
     test_aot_memblock_clone_overflow();
+    test_aot_memblock_alloc_overflow();
     test_aot_embed_ptr_encode_decode();
     test_aot_embed_func_info_query();
     test_aot_embed_var_slot_query();

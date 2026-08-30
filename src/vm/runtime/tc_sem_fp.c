@@ -145,68 +145,369 @@ static int tc_fp_compute(TcArithOp op, TcTypeTag type, double lhs, double rhs,
 }
 
 #ifndef TC_HAVE_FENV
-static long double tc_fp_compute_wide(TcArithOp op, double lhs, double rhs) {
-    long double a = (long double)lhs;
-    long double b = (long double)rhs;
+/* B1：无 FENV 位级下溢判定（§6.3.2「微小非精确非规格化」，tininess-after-
+ * rounding）。结果（RNE 舍入）指数域全 0（subnormal/zero）且精确值 ≠ 结果
+ * → 下溢。精确性用操作数位模式经 __int128 整数运算判定，不依赖宿主浮点
+ * 舍入或长双精度，与 fenv 构建在任意平台上结果一致。 */
 
-    switch (op) {
-    case TC_ADD:
-        return a + b;
-    case TC_SUB:
-        return a - b;
-    case TC_MUL:
-        return a * b;
-    case TC_DIV:
-        return a / b;
-    case TC_MOD:
-        return 0.0L;
-    }
-    return 0.0L;
+#if 1
+/* 128 位无符号运算（纯 C99，uint64 对；规避 -Wpedantic 对 __int128 的拒绝） */
+typedef struct {
+    uint64_t hi;
+    uint64_t lo;
+} TcFpU128;
+
+static void tc_fp_u128_mul64(uint64_t a, uint64_t b, TcFpU128 *out) {
+    uint64_t a0 = a & 0xffffffffu;
+    uint64_t a1 = a >> 32;
+    uint64_t b0 = b & 0xffffffffu;
+    uint64_t b1 = b >> 32;
+    uint64_t p00 = a0 * b0;
+    uint64_t p01 = a0 * b1;
+    uint64_t p10 = a1 * b0;
+    uint64_t p11 = a1 * b1;
+    uint64_t mid = (p00 >> 32) + (uint32_t)p01 + (uint32_t)p10;
+
+    out->lo = (mid << 32) | (uint32_t)p00;
+    out->hi = p11 + (p01 >> 32) + (p10 >> 32) + (mid >> 32);
 }
 
-static int tc_fp_no_fenv_underflow(TcArithOp op, TcTypeTag type,
-                                   double lhs, double rhs, double result) {
-    long double wide = tc_fp_compute_wide(op, lhs, rhs);
-    long double min_normal = type == TC_FLOAT32 ? (long double)FLT_MIN
-                                                : (long double)DBL_MIN;
-
-    if (result == 0.0 && isfinite(lhs) && isfinite(rhs)) {
-        if (op == TC_MUL) {
-            return lhs != 0.0 && rhs != 0.0;
-        }
-        if (op == TC_DIV) {
-            return lhs != 0.0 && rhs != 0.0;
-        }
+/* v << sh（sh ≤ 75；v ≤ 2^53 → 结果 ≤ 128 位，无溢出） */
+static void tc_fp_u128_shl64(uint64_t v, int sh, TcFpU128 *out) {
+    if (sh == 0) {
+        out->hi = 0;
+        out->lo = v;
+    } else if (sh < 64) {
+        out->hi = v >> (64 - sh);
+        out->lo = v << sh;
+    } else {
+        out->hi = v << (sh - 64);
+        out->lo = 0;
     }
-    if (wide == 0.0L || !isfinite(wide) || fabsl((long double)result) >= min_normal) {
+}
+
+static void tc_fp_u128_add64(TcFpU128 *x, uint64_t v) {
+    uint64_t lo = x->lo + v;
+
+    x->hi += (lo < x->lo) ? 1u : 0u;
+    x->lo = lo;
+}
+
+/* x -= v（调用方保证 x ≥ v） */
+static void tc_fp_u128_sub64(TcFpU128 *x, uint64_t v) {
+    uint64_t lo = x->lo;
+
+    if (v > lo) {
+        x->hi--;
+    }
+    x->lo = lo - v;
+}
+
+/* x 的低 k 位全零？（k ≤ 127） */
+static int tc_fp_u128_low_zero(const TcFpU128 *x, int k) {
+    if (k >= 64) {
+        if (x->lo != 0) {
+            return 0;
+        }
+        k -= 64;
+        if (k >= 64) {
+            return 0; /* k ≥ 128：仅 x==0 全零（调用方已排除） */
+        }
+        return k == 0 || ((x->hi << (64 - k)) == 0);
+    }
+    return ((x->lo << (64 - k)) == 0);
+}
+
+/* x >>= k（k ≤ 127） */
+static void tc_fp_u128_shr(TcFpU128 *x, int k) {
+    if (k == 0) {
+        return;
+    }
+    if (k >= 64) {
+        x->lo = x->hi >> (k - 64);
+        x->hi = 0;
+    } else {
+        uint64_t hi = x->hi >> k;
+
+        x->lo = (x->lo >> k) | (x->hi << (64 - k));
+        x->hi = hi;
+    }
+}
+
+/* x ≤ 2^bits - 1？（bits ≤ 53） */
+static int tc_fp_u128_le_mask(const TcFpU128 *x, int bits) {
+    if (x->hi != 0) {
         return 0;
     }
-    if (type == TC_FLOAT32) {
-        return (long double)result != wide;
-    }
-#if LDBL_MANT_DIG > DBL_MANT_DIG
-    return (long double)result != wide;
-#else
-    if (result == 0.0) {
+    if (bits >= 64) {
         return 1;
     }
-    if (op == TC_MUL) {
-        return lhs == 0.0 || result / lhs != rhs;
+    return x->lo <= ((UINT64_C(1) << bits) - 1u);
+}
+
+/* 128 位被除数（nhi:nlo）长除 64 位除数 d，返回商与余数 */
+static uint64_t tc_fp_u128_div(uint64_t nhi, uint64_t nlo, uint64_t d, uint64_t *rem) {
+    uint64_t q = 0;
+    uint64_t r = 0;
+    int i = 0;
+
+    for (i = 127; i >= 0; i--) {
+        int bit = (i >= 64) ? (int)((nhi >> (i - 64)) & 1u) : (int)((nlo >> i) & 1u);
+
+        r = (r << 1) | (uint64_t)bit;
+        q <<= 1;
+        if (r >= d) {
+            r -= d;
+            q |= 1u;
+        }
     }
-    if (op == TC_DIV) {
-        return result * rhs != lhs;
+    *rem = r;
+    return q;
+}
+
+/* 值 = mant × 2^e2（mant 含隐位；subnormal 无隐位，e2 为固定底） */
+static void tc_fp_unpack_val(TcTypeTag type, uint64_t bits, uint64_t *mant, int *e2) {
+    if (type == TC_FLOAT32) {
+        uint32_t exp = (uint32_t)((bits >> 23) & 0xffu);
+        uint32_t frac = (uint32_t)(bits & 0x7fffffu);
+
+        if (exp == 0) {
+            *mant = frac;
+            *e2 = -149;
+        } else {
+            *mant = (1u << 23) | frac;
+            *e2 = (int)exp - 150;
+        }
+    } else {
+        uint64_t exp = (bits >> 52) & 0x7ffu;
+        uint64_t frac = bits & ((1ull << 52) - 1u);
+
+        if (exp == 0) {
+            *mant = frac;
+            *e2 = -1074;
+        } else {
+            *mant = (1ull << 52) | frac;
+            *e2 = (int)exp - 1075;
+        }
+    }
+}
+
+static int tc_fp_clz64(uint64_t v) {
+    int n = 0;
+
+    if (v == 0) {
+        return 64;
+    }
+    while ((v & (UINT64_C(1) << 63)) == 0) {
+        v <<= 1;
+        n++;
+    }
+    return n;
+}
+
+/* v 的显著位数（去掉尾零后的位数；0 → 0） */
+static int tc_fp_sig64(uint64_t v) {
+    int tz = 0;
+
+    if (v == 0) {
+        return 0;
+    }
+    while ((v & 1u) == 0) {
+        v >>= 1;
+        tz++;
+    }
+    return 64 - tc_fp_clz64(v) - tz;
+}
+
+/* V = P × 2^e2p（P ≤ 128 位）在目标类型中精确可表示？
+ * 可表示 ⟺ 值是 2^min_sub 网格的整数倍且 M = V/2^min_sub ≤ 2^mant_bits - 1。 */
+static int tc_fp_value_exact_fits(TcTypeTag type, const TcFpU128 *P, int e2p) {
+    int mant_bits = (type == TC_FLOAT32) ? 24 : 53;
+    int min_sub = (type == TC_FLOAT32) ? -149 : -1074;
+    int k = 0;
+
+    if (P->hi == 0 && P->lo == 0) {
+        return 1;
+    }
+    k = min_sub - e2p;
+    if (k > 0) {
+        if (k >= 128) {
+            return 0;
+        }
+        if (!tc_fp_u128_low_zero(P, k)) {
+            return 0;
+        }
+        {
+            TcFpU128 Q = *P;
+
+            tc_fp_u128_shr(&Q, k);
+            return tc_fp_u128_le_mask(&Q, mant_bits);
+        }
+    }
+    {
+        int sh = e2p - min_sub;
+
+        if (sh >= mant_bits) {
+            return 0;
+        }
+        return tc_fp_u128_le_mask(P, mant_bits - sh);
+    }
+}
+
+/* 不相交位区间（|delta| > 75）的和/差精确性：两分量均须对齐 2^min_sub
+ * 网格，且总显著位数 ≤ mant_bits（区间不相交 → 无进位/无抵消）。 */
+static int tc_fp_exact_neq_disjoint(uint64_t m_hi, int e2_hi, uint64_t m_lo, int e2_lo,
+                                    int mant_bits, int min_sub) {
+    int k = 0;
+
+    if (m_lo != 0) {
+        k = min_sub - e2_lo;
+        if (k > 0) {
+            if (k >= 64) {
+                return 1;
+            }
+            if (((m_lo >> k) << k) != m_lo) {
+                return 1;
+            }
+        }
+    }
+    k = min_sub - e2_hi;
+    if (k > 0) {
+        if (k >= 64) {
+            return 1;
+        }
+        if (((m_hi >> k) << k) != m_hi) {
+            return 1;
+        }
+    }
+    if (tc_fp_sig64(m_hi) + tc_fp_sig64(m_lo) > mant_bits) {
+        return 1;
     }
     return 0;
-#endif
 }
+
+/* 精确值 |a op b| 不可表示（≠ RNE 舍入结果；result 必为 subnormal/zero）？ */
+static int tc_fp_exact_neq(TcArithOp op, TcTypeTag type, uint64_t abits, uint64_t bbits) {
+    uint64_t ma = 0;
+    uint64_t mb = 0;
+    int e2a = 0;
+    int e2b = 0;
+    int mant_bits = (type == TC_FLOAT32) ? 24 : 53;
+    int min_sub = (type == TC_FLOAT32) ? -149 : -1074;
+
+    tc_fp_unpack_val(type, abits, &ma, &e2a);
+    tc_fp_unpack_val(type, bbits, &mb, &e2b);
+
+    switch (op) {
+    case TC_MUL: {
+        TcFpU128 P;
+
+        tc_fp_u128_mul64(ma, mb, &P);
+        return !tc_fp_value_exact_fits(type, &P, e2a + e2b);
+    }
+    case TC_DIV: {
+        int extra = (type == TC_FLOAT32) ? 26 : 55;
+        uint64_t nhi = ma >> (64 - extra);
+        uint64_t nlo = ma << extra;
+        uint64_t q = 0;
+        uint64_t rem = 0;
+
+        if (mb == 0) {
+            return 0; /* div0 由 tc_fp_division_by_zero 先报 */
+        }
+        q = tc_fp_u128_div(nhi, nlo, mb, &rem);
+        if (rem != 0) {
+            return 1;
+        }
+        return tc_fp_sig64(q) > mant_bits;
+    }
+    case TC_ADD:
+    case TC_SUB: {
+        int delta = e2a - e2b;
+
+        if (delta >= 0) {
+            if (delta <= 75) {
+                TcFpU128 P;
+
+                tc_fp_u128_shl64(ma, delta, &P);
+                if (op == TC_ADD) {
+                    tc_fp_u128_add64(&P, mb);
+                } else {
+                    /* |ma×2^delta - mb|：符号无关，统一取幅值 */
+                    if (P.hi != 0 || P.lo >= mb) {
+                        tc_fp_u128_sub64(&P, mb);
+                    } else {
+                        P.lo = mb - P.lo; /* 无借位（hi==0 且 lo<mb） */
+                    }
+                }
+                return !tc_fp_value_exact_fits(type, &P, e2b);
+            }
+            return tc_fp_exact_neq_disjoint(ma, e2a, mb, e2b, mant_bits, min_sub);
+        }
+        /* b 指数 ≥ a：对称处理 */
+        {
+            int d2 = -delta;
+
+            if (d2 <= 75) {
+                TcFpU128 P;
+
+                tc_fp_u128_shl64(mb, d2, &P);
+                if (op == TC_ADD) {
+                    tc_fp_u128_add64(&P, ma);
+                } else {
+                    if (P.hi != 0 || P.lo >= ma) {
+                        tc_fp_u128_sub64(&P, ma);
+                    } else {
+                        P.lo = ma - P.lo;
+                    }
+                }
+                return !tc_fp_value_exact_fits(type, &P, e2a);
+            }
+            return tc_fp_exact_neq_disjoint(mb, e2b, ma, e2a, mant_bits, min_sub);
+        }
+    }
+    default:
+        return 0;
+    }
+}
+
+static int tc_fp_no_fenv_underflow(TcArithOp op, TcTypeTag type, uint64_t abits, uint64_t bbits,
+                                   uint64_t rbits) {
+    int rexp = 0;
+
+    rexp = (type == TC_FLOAT32) ? (int)((rbits >> 23) & 0xffu)
+                                : (int)((rbits >> 52) & 0x7ffu);
+    if (rexp != 0) {
+        return 0; /* 结果为 normal → 非微小 */
+    }
+    return tc_fp_exact_neq(op, type, abits, bbits);
+}
+#else
+static int tc_fp_no_fenv_underflow(TcArithOp op, TcTypeTag type, uint64_t abits, uint64_t bbits,
+                                   uint64_t rbits) {
+    /* 无 __int128 平台：保守回退——subnormal/zero 结果即判下溢 */
+    int rexp = 0;
+
+    (void)op;
+    (void)abits;
+    (void)bbits;
+    rexp = (type == TC_FLOAT32) ? (int)((rbits >> 23) & 0xffu)
+                                : (int)((rbits >> 52) & 0x7ffu);
+    return rexp == 0;
+}
+#endif
 #endif
 
 static int tc_fp_check_strict_result(TcArithOp op, TcTypeTag type,
                                      double lhs, double rhs, double result,
+                                     uint64_t lhs_bits, uint64_t rhs_bits, uint64_t result_bits,
                                      int exceptions, TcDiagnostic *diag, int line) {
 #ifdef TC_HAVE_FENV
     (void)type;
     (void)result;
+    (void)lhs_bits;
+    (void)rhs_bits;
+    (void)result_bits;
 #endif
     if (tc_fp_invalid_operation(op, lhs, rhs)) {
         return tc_fp_set_error(TC_RE_FLOAT_INVALID, "float invalid operation", diag, line);
@@ -232,7 +533,7 @@ static int tc_fp_check_strict_result(TcArithOp op, TcTypeTag type,
     if (isfinite(lhs) && isfinite(rhs) && isinf(result)) {
         return tc_fp_set_error(TC_RE_FLOAT_OVERFLOW, "float overflow", diag, line);
     }
-    if (tc_fp_no_fenv_underflow(op, type, lhs, rhs, result)) {
+    if (tc_fp_no_fenv_underflow(op, type, lhs_bits, rhs_bits, result_bits)) {
         return tc_fp_set_error(TC_RE_FLOAT_UNDERFLOW, "float underflow", diag, line);
     }
 #endif
@@ -418,7 +719,9 @@ int tc_exec_fp_arith(TcArithOp op, TcTypeTag type, TcFloatMode mode,
                                "unsupported float operation", diag, line);
     }
     if (mode == TC_FLOAT_STRICT &&
-        tc_fp_check_strict_result(op, type, a, b, result, exceptions, diag, line) != 0) {
+        tc_fp_check_strict_result(op, type, a, b, result, lhs->bits, rhs->bits,
+                                  tc_fp_double_to_bits(type, result), exceptions, diag,
+                                  line) != 0) {
         return -1;
     }
     if (isnan(result)) {

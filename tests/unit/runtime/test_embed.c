@@ -1,4 +1,4 @@
-/* test_embed.c — TC-Embed 嵌入式运行时单元测试（v0.0.41） */
+/* test_embed.c — TC-Embed 嵌入式运行时单元测试（v0.0.42） */
 #include "tc_embed.h"
 #include "tc_value_bridge.h"
 #include "tc_lib.h"

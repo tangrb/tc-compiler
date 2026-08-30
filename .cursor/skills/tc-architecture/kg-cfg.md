@@ -2,7 +2,7 @@
 
 **只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
-> **v0.0.41 多域 CFG（Phase 3+5）**：`TcCfgSet`（顶层 + 各函数独立域）、`MISSING_RETURN`、goto/label **仅函数内**；函数体内 goto **执行/AOT 已落地**。
+> **v0.0.42 多域 CFG（Phase 3+5）**：`TcCfgSet`（顶层 + 各函数独立域）、`MISSING_RETURN`、goto/label **仅函数内**；函数体内 goto **执行/AOT 已落地**。
 
 ## stmt_index 子系统
 
@@ -78,7 +78,7 @@ tc_analyzer_dfa.c（辅助，非固定点主路径）：
 while：condition false/break → after；body/continue → condition；后向 goto 参与同一固定点
 var 强制初始化：parser 缺 = → VAR_MISSING_INIT（形态，与 CFG 无关）
 var 值不做跨语句常量推测：左为 var → 静态布尔 UNKNOWN，RHS 读边保留
-警告：0.0.41 无语言警告种类，warnings 始终为空
+警告：0.0.42 无语言警告种类，warnings 始终为空
 ```
 
 辅助：`tc_analyze_6a.c`（label 收集）· `tc_analyze_6e.c`（I/O format）  
