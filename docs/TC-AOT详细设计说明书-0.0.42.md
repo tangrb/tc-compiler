@@ -196,6 +196,9 @@ static void tc_init_static_vars(TcDiagnostic *diag) {
 int main(void) {
     TcDiagnostic diag;
     tc_aot_diag_init(&diag);
+    /* D2 加注：slots 以未初始化哨兵值预填充（tc_slot_bits_init_uninitialized），
+     * 正确性依赖上游「确定初始化」静态保证（语言标准 §1.3）：任何读槽操作
+     * 之前变量必已赋值，哨兵只兜底「使用未初始化变量」的实现错误检测。 */
     tc_aot_init_slots(slots, SLOT_COUNT);
     tc_aot_init_slots(static_slots, STATIC_SLOT_COUNT);
     tc_init_static_vars(&diag);
@@ -879,18 +882,20 @@ int tc_aot_emit_c(FILE *out,
 
 ---
 
-## 19. 已知可移植性债务（不在 0.0.42 强制范围）
+## 19. 已知可移植性债务（0.0.42 已清零）
 
-下列项记录为实现已知债务，随 32 位目标 / 跨平台立项处理，不改变当前 64-bit-only 接受集：
+0.0.41 收口时记录的六项债务已在 0.0.42 全部清零（见 [TC-0.0.42-遗留问题清零计划](./TC-0.0.42-遗留问题清零计划.md)）：
 
-- 无 FENV 时的下溢启发式（`tc_sem_fp.c`）；
-- `ptr_add`/`ptr_sub` 运行期回退曾接受 `isize` 偏移（规范要求 `usize`）；
-- `tc_aot_memblock_alloc` 缺饱和检查；
-- AOT `.count` 死代码回退路径；
-- 端序：memblock/struct 标量元素按宿主字节序存取（FP-4.5 M-9 降级，未完全符合语言标准 §3.5）；
-- 浮点十进制输出仍委托宿主 `snprintf`（FP-4.6 降级，未完全符合语言标准 §10.4）。
+- ~~无 FENV 时的下溢启发式~~ → **B1（0.0.42）**：`tc_sem_fp.c` 无 FENV 路径改为位级精确判定（`tc_fp_exact_neq`，uint64 对 128 位整数运算），与 fenv 构建逐字节一致；
+- ~~`ptr_add`/`ptr_sub` 运行期回退接受 `isize` 偏移~~ → **B2**：偏移严格 `usize`（分析器 + 运行时同步）；
+- ~~`tc_aot_memblock_alloc` 缺饱和检查~~ → **B3**：`count × element_bytes` 溢出守卫（与 VM 侧一致）；
+- ~~AOT `.count` 死代码回退路径~~ → **B4**：移除头部零回退；VM `tc_exec_memblock_count` 补 const-let 基址（slot < 0）声明 count 回退；
+- ~~端序：宿主字节序存取（FP-4.5）~~ → **A1**：memblock/struct 头部/标量元素/字段固定 LE 显式位组装（`tc_aot_store/load_bits`），任意字节序主机数值一致（§3.5）；
+- ~~浮点十进制输出委托宿主 `snprintf`（FP-4.6）~~ → **A2**：`tc_io.c` 自实现位模式精确十进制（roundTiesToEven、`%e` 两位指数、`%g` 阈值），无宿主浮点委托（§10.4）。
 
 AOT `slot_read` 已从 `TcTypedProgram` 恢复槽位类型（FP-4.8），不再恒为 `TC_INT64`。
+
+**剩余实现说明**：本实现维持 64-bit-only（memblock 头部宽 = `sizeof_bits(usize)` = 64 位，含编译期断言）；32 位目标 / 大端主机支持不在 0.0.42 范围，但 A1/A2 的位级约定已保证任意字节序主机的数值一致性。
 
 ---
 

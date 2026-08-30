@@ -9,6 +9,7 @@
  * 选项：
  *   -c, --check            仅静态分析，不执行
  *   -I, --include <path>   添加模块搜索路径（可多次）
+ *   -e, --print-error-code  诊断首行附错误码名（如 [TC_CE_SYNTAX]）
  *   -h, --help             显示帮助
  *   -V, --version          显示版本号
  *
@@ -41,6 +42,7 @@ static void tc_print_usage(const char *program) {
             "Options:\n"
             "  -c, --check            static analysis only, do not execute\n"
             "  -I, --include <path>   add module search path (repeatable)\n"
+            "  -e, --print-error-code  print error code name on diagnostic first line\n"
             "  -h, --help             show this help and exit\n"
             "  -V, --version          show version and exit\n"
             "\n"
@@ -60,12 +62,14 @@ int main(int argc, char **argv) {
     static const struct option longopts[] = {
         {"check", no_argument, NULL, 'c'},
         {"include", required_argument, NULL, 'I'},
+        {"print-error-code", no_argument, NULL, 'e'},
         {"help", no_argument, NULL, 'h'},
         {"version", no_argument, NULL, 'V'},
         {NULL, 0, NULL, 0},
     };
 
     int check_only = 0;
+    int print_error_code = 0;
     char *include_paths[TC_MAX_INCLUDE_PATHS];
     size_t include_count = 0;
     const char *path = NULL;
@@ -75,10 +79,13 @@ int main(int argc, char **argv) {
 
     tc_diagnostic_init(&diag);
 
-    while ((opt = getopt_long(argc, argv, "cI:hV", longopts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "cI:ehV", longopts, NULL)) != -1) {
         switch (opt) {
         case 'c':
             check_only = 1;
+            break;
+        case 'e':
+            print_error_code = 1;
             break;
         case 'I':
             if (include_count >= TC_MAX_INCLUDE_PATHS) {
@@ -132,7 +139,11 @@ int main(int argc, char **argv) {
         rc = tc_run_file(path, &opts, check_only, &diag);
     }
     if (rc != 0) {
-        tc_diagnostic_print(&diag, stderr);
+        if (print_error_code) {
+            tc_diagnostic_print_with_code(&diag, stderr);
+        } else {
+            tc_diagnostic_print(&diag, stderr);
+        }
         tc_diagnostic_clear(&diag);
         return 1;
     }

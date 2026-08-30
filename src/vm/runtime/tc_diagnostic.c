@@ -272,7 +272,19 @@ static void tc_diagnostic_print_snippet(const TcDiagnostic *diag, FILE *out) {
     fputs("^\n", out);
 }
 
+static void tc_diagnostic_print_ex(const TcDiagnostic *diag, FILE *out, int with_code);
+
 void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out) {
+    tc_diagnostic_print_ex(diag, out, 0);
+}
+
+/* 同 tc_diagnostic_print，但普通诊断首行附错误码名（D2：CLI --print-error-code）。
+ * API/实现域本已打印码名，不受影响。 */
+void tc_diagnostic_print_with_code(const TcDiagnostic *diag, FILE *out) {
+    tc_diagnostic_print_ex(diag, out, 1);
+}
+
+static void tc_diagnostic_print_ex(const TcDiagnostic *diag, FILE *out, int with_code) {
     const char *location = diag->filename ? diag->filename : "<source>";
     const char *message = diag->message ? diag->message : "";
 
@@ -288,6 +300,9 @@ void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out) {
     } else if (diag->domain == TC_DIAG_IMPLEMENTATION) {
         fprintf(out, ": implementation error: %s: %s\n", tc_error_kind_name(diag->kind),
                 message);
+    } else if (with_code) {
+        fprintf(out, ": error [%s]: %s\n", tc_error_kind_name(diag->kind), message);
+        tc_diagnostic_print_snippet(diag, out);
     } else {
         fprintf(out, ": error: %s\n", message);
         tc_diagnostic_print_snippet(diag, out);

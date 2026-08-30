@@ -506,6 +506,8 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
 
 **语义**：
 
+> **宿主位置实参（D2 明示的合理扩展）**：`tc_embed_call` 按**位置**（`args[0..nargs)` → 形参 slot 顺序）传递实参，不经 TC 源语的命名实参语法，因此不受语言标准 §8.2.2 的命名/顺序静态检查约束。宿主负责保证 `nargs == param_count` 与类型一致；这是 TC-Embed 的受控扩展面，非 TC 语言内行为。
+
 1. 通过 `tc_embed_func_info` 查找目标函数，获取 `TcEmbedFuncInfo`。
 2. 验证 `nargs == info->param_count`，不匹配返回 -1。
 3. 将实参按顺序写入对应形参的 slot（形参类型为 `bool` 时，写入前须按形参类型对 `value.bits` 做 `!!` 归一，`value.bits = value.bits ? 1 : 0`，禁止非规范布尔字节进入槽位）：

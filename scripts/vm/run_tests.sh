@@ -450,6 +450,7 @@ TC language direct execution engine.
 Options:
   -c, --check            static analysis only, do not execute
   -I, --include <path>   add module search path (repeatable)
+  -e, --print-error-code  print error code name on diagnostic first line
   -h, --help             show this help and exit
   -V, --version          show version and exit
 
@@ -466,6 +467,16 @@ CLI_MISSING_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-vm-missing.XXXXXX")"
 rm -f "$CLI_MISSING_PATH"
 EXPECTED_MISSING="$(mixed_path "$CLI_MISSING_PATH")"
 run_cli_golden "$CLI_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "cli file-open golden"
+
+# D2：--print-error-code 使诊断首行附错误码名
+CLI_ERR_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-cli-err.XXXXXX.tc")"
+printf '#program\nvar x: int32 = missing\n' > "$CLI_ERR_PATH"
+if "$TC_VM_BIN" -e "$CLI_ERR_PATH" 2>&1 | grep -q "error \[UndefinedVariable\]"; then
+    pass
+else
+    fail "cli print-error-code: expected 'error [UndefinedVariable]' in first line" "$CLI_ERR_PATH"
+fi
+rm -f "$CLI_ERR_PATH"
 
 run_expect_ok "$ROOT/tests/valid/example.tc"
 run_expect_ok "$ROOT/tests/valid/signed_wrap.tc"

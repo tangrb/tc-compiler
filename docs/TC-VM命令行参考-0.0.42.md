@@ -83,6 +83,7 @@ tc-vm [options] [<file.tc>]
 | ------ | ------ | ---- | ---- | ---------- |
 | `-c` | `--check` | 只编译与静态分析（含模块解析），不执行 | 成功时默认无输出 | 0 |
 | `-I <path>` | `--include <path>` | 添加模块搜索路径（可多次指定） | — | — |
+| `-e` | `--print-error-code` | 编译/运行时诊断首行附错误码名（如 `error [TC_CE_SYNTAX]`）；默认首行不带码（码可经 libtc `TcDiagnostic.kind` 编程获取） | stderr | — |
 | `-h` | `--help` | 显示帮助并退出 | stderr | 0 |
 | `-V` | `--version` | 显示版本并退出 | stdout | 0 |
 
@@ -216,9 +217,9 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 
 ### 6.1 说明
 
-下表描述 0.0.42 的 `TcErrorKind` 完整映射。Language 诊断默认打印 message，不直接打印这些名称。完整错误码清单、阶段归属与触发条件见编译器标准 §11.4。
+下表描述 0.0.42 的 `TcErrorKind` 完整映射。Language 诊断默认打印 message，不直接打印这些名称；`-e/--print-error-code` 使首行附码名（§2.2）。完整错误码清单、阶段归属与触发条件见编译器标准 §11.4。
 
-**86 码口径**：86 = 85 个语言码（附录 B：73 `TC_CE` + 12 `TC_RE`）+ 1 `TC_ERR_OUT_OF_MEMORY`。
+**87 码口径**：87 = 86 个语言码（附录 B：74 `TC_CE` + 12 `TC_RE`）+ 1 `TC_ERR_OUT_OF_MEMORY`。
 
 ### 6.2 词法、语法、名称与类型
 
@@ -460,7 +461,7 @@ writeln(int32, %d, val)
 | `isize`/`usize` | 已落地 |
 | `static var` / `static let` | 已落地 |
 | 13 阶段编译管线 | 已落地 |
-| 完整诊断码表（**86** 码 = 85 语言码 + OOM） | 已落地 |
+| 完整诊断码表（**87** 码 = 86 语言码 + OOM） | 已落地 |
 
 ### 9.2 与 v0.0.31 的关键差异
 
