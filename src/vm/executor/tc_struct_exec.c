@@ -324,7 +324,9 @@ int tc_exec_eval_field_access(const TcResolvedFieldAccess *access, TcExecuteCtx 
         return -1;
     }
     if (access->is_memblock_count) {
-        return tc_exec_memblock_count(access->base_slot, ctx, out, diag, line);
+        /* 分析器已将声明 count 存入 const_bits（tc_struct_check.c） */
+        return tc_exec_memblock_count(access->base_slot, (uint64_t)access->const_bits, ctx, out,
+                                      diag, line);
     }
     if (access->field_count == 0 || !access->offsets) {
         tc_exec_set_internal_error(diag, line, "internal error: missing field offsets");

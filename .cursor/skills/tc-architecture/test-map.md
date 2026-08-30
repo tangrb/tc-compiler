@@ -8,7 +8,7 @@
 2. 按下方目录只打开**一节**账本；改 C 源码不必加载本文件。
 3. 新增用例后：注册 `run_tests.sh` → 更新本文件规模/相关行 → `check_doc_counts.py`。
 
-**规模**（`check_doc_counts.py` 校验）：**911 VM** · **~411 AOT（注册）** / **464 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
+**规模**（`check_doc_counts.py` 校验）：**912 VM** · **~411 AOT（注册）** / **464 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
 
 ## 目录
 

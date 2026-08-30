@@ -68,13 +68,6 @@ static uint8_t *tc_memcopy_region(TcValue *slot_value, const TcType *t,
     return (uint8_t *)&slot_value->bits;
 }
 
-static uint64_t tc_memblock_declared_count(const TcSymbol *sym) {
-    if (!sym) {
-        return 0;
-    }
-    return tc_type_memblock_count(sym->type);
-}
-
 static size_t tc_memblock_element_bytes(const TcType *element, const TcExecuteCtx *ctx) {
     size_t bits = 0;
 
@@ -299,37 +292,25 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
     return 0;
 }
 
-int tc_exec_memblock_count(int slot, TcExecuteCtx *ctx, TcValue *out, TcDiagnostic *diag,
-                           int line) {
-    const TcSymbol *sym = NULL;
+int tc_exec_memblock_count(int slot, uint64_t fallback_count, TcExecuteCtx *ctx, TcValue *out,
+                           TcDiagnostic *diag, int line) {
     void *block = NULL;
     uint64_t count = 0;
 
-    /* Pass2 已持久化 binding（slot 由调用方传入）；按名回退仅作防御 */
-    if (slot < 0 || slot >= (int)tc_symbol_table_runtime_slot_count(ctx->symbols)) {
-        tc_exec_set_internal_error(diag, line, "internal error: unresolved memblock for count");
-        return -1;
-    }
-    if (ctx->slots[slot].bits != 0) {
+    (void)diag;
+    (void)line;
+    /* Pass2 已持久化 binding。运行时槽读取头部；let 常量绑定（slot < 0）及
+     * 头部为空时回退声明 count（分析器已把声明 count 存于 fallback_count/
+     * const_bits；count 不可变，头部恒等于声明值，N-12 B4/B2 一致）。 */
+    if (slot >= 0 && slot < (int)tc_symbol_table_runtime_slot_count(ctx->symbols) &&
+        ctx->slots[slot].bits != 0) {
         block = tc_memblock_data(&ctx->slots[slot]);
         if (block) {
             memcpy(&count, block, sizeof(uint64_t));
         }
     }
     if (count == 0) {
-        sym = NULL;
-        {
-            size_t i = 0;
-            for (i = 0; i < ctx->symbols->count; i++) {
-                if (ctx->symbols->symbols[i].slot == slot) {
-                    sym = &ctx->symbols->symbols[i];
-                    break;
-                }
-            }
-        }
-        if (sym) {
-            count = tc_memblock_declared_count(sym);
-        }
+        count = fallback_count;
     }
     out->type = tc_type_tag_singleton(TC_USIZE);
     out->bits = count;

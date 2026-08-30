@@ -791,6 +791,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_scalar_arith.tc" \
     "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_offset_type.tc" \
     "literal type does not match context"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_isize_offset.tc" \
+    "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_add_result_type.tc" \
     "pointer arithmetic result type does not match destination"
 run_expect_fail_msg "$ROOT/tests/errors/static/struct_nested_non_struct.tc" \
@@ -1576,6 +1578,7 @@ run_expect_stdout "$ROOT/tests/valid/let_ptr_size.tc" "32
 run_expect_check_ok "$ROOT/tests/valid/let_ptr_size.tc"
 run_expect_stdout "$ROOT/tests/valid/let_memblock_const.tc" "10
 20
+2
 "
 run_expect_check_ok "$ROOT/tests/valid/let_memblock_const.tc"
 run_expect_stdout "$ROOT/tests/valid/qualified_memblock_count.tc" "3

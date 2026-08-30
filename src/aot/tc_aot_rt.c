@@ -426,8 +426,17 @@ static uint8_t *tc_aot_mb_elem_ptr(void *block, size_t element_bytes, uint64_t i
 
 uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnostic *diag,
                                int line) {
-    size_t payload = (size_t)count * element_bytes;
-    void *block = malloc(sizeof(uint64_t) + payload);
+    size_t payload = 0;
+    void *block = NULL;
+
+    /* 与 VM 侧 tc_memblock_alloc 一致的溢出守卫：count × element_bytes 不得回绕 */
+    if (count > (SIZE_MAX - sizeof(uint64_t)) / (element_bytes > 0 ? element_bytes : 1)) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return 0;
+    }
+    payload = (size_t)count * element_bytes;
+    block = malloc(sizeof(uint64_t) + payload);
 
     if (!block) {
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,

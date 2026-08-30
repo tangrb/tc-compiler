@@ -637,8 +637,12 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
         int mb_slot = rhs->u.memblock_count.binding.resolved
                           ? rhs->u.memblock_count.binding.slot
                           : -1;
+        uint64_t decl_count = (rhs->u.memblock_count.binding.resolved &&
+                               rhs->u.memblock_count.binding.type)
+                                  ? tc_type_memblock_count(rhs->u.memblock_count.binding.type)
+                                  : 0ULL;
 
-        return tc_exec_memblock_count(mb_slot, ctx, out, diag, line);
+        return tc_exec_memblock_count(mb_slot, decl_count, ctx, out, diag, line);
     }
 
     if (rhs->kind == TC_RHS_STRUCT_CONSTRUCTOR) {

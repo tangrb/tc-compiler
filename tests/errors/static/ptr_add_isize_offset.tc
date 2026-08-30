@@ -1,0 +1,6 @@
+#program
+; 期望：ptr_add 偏移严格为 usize（§3.10.8）；isize 绑定作偏移 → TC_CE_TYPE_MISMATCH
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+let off: isize = 1
+var q: ptr<int32> = ptr_add(int32, p, off)

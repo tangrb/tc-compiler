@@ -635,20 +635,18 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_MEMBLOCK_COUNT) {
+        /* .count 三条路径：① 已解析绑定的运行期槽 → 读头部；② 符号表槽位 →
+         * 读头部；③ 无槽位的 const 绑定（let/static let memblock）→ 折叠声明
+         * count（count 不可变，构造时已写入头部）。曾存在的「头部读 0 时回退
+         * 声明 count」为死代码：所有构造路径（alloc/from_bytes/clone）都在头部
+         * 写入 count ≥ 1，确定初始化保证读前必已构造（N-12 B4）。 */
         const TcSymbol *sym = tc_symbol_table_find_visible(
             symbols, rhs->u.memblock_count.memblock_name, stmt_index, &ctx->sym_index);
 
         if (rhs->u.memblock_count.binding.resolved && rhs->u.memblock_count.binding.slot >= 0) {
-            uint64_t decl_count =
-                tc_type_memblock_count(rhs->u.memblock_count.binding.type);
-
             fprintf(out, "%s{\n", indent);
             fprintf(out, "%s    uint64_t _mb_cnt = tc_aot_memblock_get_count(slots[%d]);\n",
                     indent, rhs->u.memblock_count.binding.slot);
-            if (decl_count > 0) {
-                fprintf(out, "%s    if (_mb_cnt == 0) _mb_cnt = %" PRIu64 "ULL;\n", indent,
-                        decl_count);
-            }
             fprintf(out, "%s    %s = _mb_cnt;\n", indent, dst_expr);
             fprintf(out, "%s}\n", indent);
             return 0;
@@ -657,10 +655,6 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             fprintf(out, "%s{\n", indent);
             fprintf(out, "%s    uint64_t _mb_cnt = tc_aot_memblock_get_count(slots[%d]);\n", indent,
                     sym->slot);
-            if (tc_type_memblock_count(sym->type) > 0) {
-                fprintf(out, "%s    if (_mb_cnt == 0) _mb_cnt = %" PRIu64 "ULL;\n", indent,
-                        tc_type_memblock_count(sym->type));
-            }
             fprintf(out, "%s    %s = _mb_cnt;\n", indent, dst_expr);
             fprintf(out, "%s}\n", indent);
             return 0;

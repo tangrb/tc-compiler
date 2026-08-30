@@ -106,17 +106,13 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
     return 0;
 }
 
-/** 偏移量：优先 usize，失败再试 isize（指针算术索引约定）。 */
+/** 偏移量：严格 usize（§3.10.8：ptr_add/ptr_sub 偏移须为 usize）。 */
 static int tc_ptr_check_usize_operand(TcOperand *operand, const TcSymbolTable *visible,
                                       const TcSymbolTable *global,
                                       const TcStructTable *struct_table, TcInitHistory *hist,
                                       size_t stmt_index, int line, TcDiagnostic *diag,
                                       TcWarningList *warnings, const char *self_name) {
-    if (tc_check_operand(operand, TC_USIZE, visible, global, struct_table, hist, stmt_index, line,
-                         diag, warnings, self_name, TC_CE_TYPE_MISMATCH) == 0) {
-        return 0;
-    }
-    return tc_check_operand(operand, TC_ISIZE, visible, global, struct_table, hist, stmt_index,
+    return tc_check_operand(operand, TC_USIZE, visible, global, struct_table, hist, stmt_index,
                             line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH);
 }
 
@@ -218,7 +214,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
 
     case TC_RHS_PTR_ADD:
     case TC_RHS_PTR_SUB:
-        /* ptr_add/sub(T, p, off) → ptr<T>；off 为 usize/isize */
+        /* ptr_add/sub(T, p, off) → ptr<T>；off 严格为 usize（§3.10.8） */
         pointee = &rhs->u.ptr_arith.pointee_type;
         ptr_ty = tc_ptr_make_from_pointee(pointee, diag, line);
         if (ptr_ty.tag == TC_VOID) {
