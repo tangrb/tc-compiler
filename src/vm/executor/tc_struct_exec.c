@@ -3,6 +3,10 @@
  *
  * 布局：按声明源序紧密排列字段字节，其后跟 @padding(N) 个 0x00 字节。
  * TcValue.bits 存堆块指针（与 memblock 一致）。
+ *
+ * 字节约定（A1 端序契约，§3.5）：标量字段字节区间内按固定 LE（低字节在前）
+ * 序列化，显式位组装读写，不依赖宿主字节序；结构体/memblock 字段为不透明
+ * 字节块，整块 memcpy。
  */
 #include "tc_struct_exec.h"
 
@@ -11,6 +15,26 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+/** 抽象位串 → LE 字节（dst 长 nbytes，低字节在前；nbytes ≤ 8）。 */
+static void tc_st_store_bits(uint8_t *dst, size_t nbytes, uint64_t bits) {
+    size_t i = 0;
+
+    for (i = 0; i < nbytes; i++) {
+        dst[i] = (uint8_t)(bits >> (8U * i));
+    }
+}
+
+/** LE 字节 → 抽象位串（src 长 nbytes；nbytes ≤ 8）。 */
+static uint64_t tc_st_load_bits(const uint8_t *src, size_t nbytes) {
+    uint64_t bits = 0;
+    size_t i = 0;
+
+    for (i = 0; i < nbytes && i < sizeof(bits); i++) {
+        bits |= ((uint64_t)src[i]) << (8U * i);
+    }
+    return bits;
+}
 
 const TcStructTable *tc_exec_struct_table(const TcExecuteCtx *ctx) {
     if (!ctx || !ctx->program) {
@@ -156,8 +180,7 @@ static int tc_exec_write_field_bytes(uint8_t *base, size_t offset, const TcType 
         if (field_type->tag == TC_BOOL) {
             bits = bits ? 1ULL : 0ULL;
         }
-        memset(dst, 0, nbytes);
-        memcpy(dst, &bits, nbytes <= sizeof(bits) ? nbytes : sizeof(bits));
+        tc_st_store_bits(dst, nbytes, bits);
     }
     return 0;
 }
@@ -195,8 +218,7 @@ static int tc_exec_read_field_bytes(const uint8_t *base, size_t offset, const Tc
         return 0;
     }
     out->type = field_type;
-    out->bits = 0;
-    memcpy(&out->bits, src, nbytes <= sizeof(out->bits) ? nbytes : sizeof(out->bits));
+    out->bits = tc_st_load_bits(src, nbytes);
     if (field_type->tag == TC_BOOL) {
         out->bits = out->bits ? 1ULL : 0ULL;
     }

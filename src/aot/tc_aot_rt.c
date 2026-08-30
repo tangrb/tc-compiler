@@ -20,6 +20,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* A1 端序契约（§3.5）：头部/标量元素/标量字段按固定 LE（低字节在前）序列化，
+ * 与 VM（tc_mb_/tc_st_）及 const_eval（tc_ce_）一致，不依赖宿主字节序。 */
+static void tc_aot_store_bits(uint8_t *dst, size_t nbytes, uint64_t bits) {
+    size_t i = 0;
+
+    for (i = 0; i < nbytes; i++) {
+        dst[i] = (uint8_t)(bits >> (8U * i));
+    }
+}
+
+static uint64_t tc_aot_load_bits(const uint8_t *src, size_t nbytes) {
+    uint64_t bits = 0;
+    size_t i = 0;
+
+    for (i = 0; i < nbytes && i < sizeof(bits); i++) {
+        bits |= ((uint64_t)src[i]) << (8U * i);
+    }
+    return bits;
+}
+
 void tc_aot_diag_init(TcDiagnostic *diag) {
     tc_diagnostic_init(diag);
 }
@@ -443,7 +463,7 @@ uint64_t tc_aot_memblock_alloc(uint64_t count, size_t element_bytes, TcDiagnosti
                           "memory allocation failed");
         return 0;
     }
-    memcpy(block, &count, sizeof(uint64_t));
+    tc_aot_store_bits(block, sizeof(uint64_t), count);
     memset((uint8_t *)block + sizeof(uint64_t), 0, payload);
     if (tc_aot_mb_track(block, diag, line) != 0) {
         return 0;
@@ -502,7 +522,7 @@ uint64_t tc_aot_memblock_clone(uint64_t src, size_t element_bytes, uint64_t coun
     /* 深拷贝：整块复制（含 usize 长度头部与全部元素位串），头部强制写回 count，
      * 保证克隆结果始终处于规范状态（§3.8.2 头部值 == 类型参数 count）。 */
     memcpy(block, src_block, sizeof(uint64_t) + payload);
-    memcpy(block, &count, sizeof(uint64_t));
+    tc_aot_store_bits(block, sizeof(uint64_t), count);
     if (tc_aot_mb_track(block, diag, line) != 0) {
         return 0;
     }
@@ -516,7 +536,8 @@ void tc_aot_memblock_set_elem(uint64_t mb_bits, size_t element_bytes, uint64_t i
     if (!block) {
         return;
     }
-    memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), &value_bits, element_bytes);
+    tc_aot_store_bits(tc_aot_mb_elem_ptr(block, element_bytes, index), element_bytes,
+                       value_bits);
 }
 
 /** 结构体元素按值语义深拷贝内容（§3.8）：struct_ptr 指向源 struct 堆块 */
@@ -538,7 +559,7 @@ uint64_t tc_aot_memblock_get_count(uint64_t mb_bits) {
     if (!block) {
         return 0;
     }
-    memcpy(&count, block, sizeof(uint64_t));
+    count = tc_aot_load_bits(block, sizeof(uint64_t));
     return count;
 }
 
@@ -546,7 +567,6 @@ int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                          TcTypeTag elem_type, uint64_t *out, TcDiagnostic *diag, int line) {
     void *block = (void *)(uintptr_t)mb_bits;
     uint64_t count = 0;
-    uint64_t bits = 0;
 
     (void)elem_type;
     if (!block) {
@@ -554,25 +574,28 @@ int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                           "memblock index out of range");
         return -1;
     }
-    memcpy(&count, block, sizeof(uint64_t));
+    count = tc_aot_load_bits(block, sizeof(uint64_t));
     if (index >= count) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;
     }
-    memcpy(&bits, tc_aot_mb_elem_ptr(block, element_bytes, index), element_bytes);
-    if (elem_type == TC_STRUCT) {
-        /* 值语义（§3.8）：结构体元素抽出为独立堆块，不与 memblock 共享存储 */
-        uint64_t blk = tc_aot_struct_alloc(element_bytes, diag, line);
-        if (blk == 0) {
-            return -1;
+    {
+        const uint8_t *src = tc_aot_mb_elem_ptr(block, element_bytes, index);
+
+        if (elem_type == TC_STRUCT) {
+            /* 值语义（§3.8）：结构体元素抽出为独立堆块，不与 memblock 共享存储 */
+            uint64_t blk = tc_aot_struct_alloc(element_bytes, diag, line);
+            if (blk == 0) {
+                return -1;
+            }
+            memcpy((void *)(uintptr_t)blk, src, element_bytes);
+            *out = blk;
+            return 0;
         }
-        memcpy((void *)(uintptr_t)blk, &bits, element_bytes);
-        *out = blk;
+        *out = tc_aot_load_bits(src, element_bytes);
         return 0;
     }
-    *out = bits;
-    return 0;
 }
 
 int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index,
@@ -586,7 +609,7 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
                           "memblock index out of range");
         return -1;
     }
-    memcpy(&count, block, sizeof(uint64_t));
+    count = tc_aot_load_bits(block, sizeof(uint64_t));
     if (index >= count) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
@@ -601,7 +624,8 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
                element_bytes);
         return 0;
     }
-    memcpy(tc_aot_mb_elem_ptr(block, element_bytes, index), &value_bits, element_bytes);
+    tc_aot_store_bits(tc_aot_mb_elem_ptr(block, element_bytes, index), element_bytes,
+                       value_bits);
     return 0;
 }
 
@@ -687,8 +711,8 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
                           "memblock index out of range");
         return -1;
     }
-    memcpy(&dst_count, dst, sizeof(uint64_t));
-    memcpy(&src_count, src, sizeof(uint64_t));
+    dst_count = tc_aot_load_bits(dst, sizeof(uint64_t));
+    src_count = tc_aot_load_bits(src, sizeof(uint64_t));
     /* 无回绕判定，与 VM tc_exec_memblock_copy_stmt 一致。 */
     if (length > 0 &&
         (length > dst_count || dst_index > dst_count - length ||
@@ -793,8 +817,7 @@ void tc_aot_struct_store_bits(uint64_t dst_bits, size_t offset, size_t nbytes, u
     if (!dst || nbytes == 0) {
         return;
     }
-    memset(dst + offset, 0, nbytes);
-    memcpy(dst + offset, &value_bits, nbytes <= sizeof(value_bits) ? nbytes : sizeof(value_bits));
+    tc_aot_store_bits(dst + offset, nbytes, value_bits);
 }
 
 void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, uint64_t *out) {
@@ -803,8 +826,7 @@ void tc_aot_struct_load_bits(uint64_t src_bits, size_t offset, size_t nbytes, ui
     if (!src || !out || nbytes == 0) {
         return;
     }
-    *out = 0;
-    memcpy(out, src + offset, nbytes <= sizeof(*out) ? nbytes : sizeof(*out));
+    *out = tc_aot_load_bits(src + offset, nbytes);
 }
 
 uint64_t tc_aot_struct_load_bits_value(uint64_t src_bits, size_t offset, size_t nbytes) {

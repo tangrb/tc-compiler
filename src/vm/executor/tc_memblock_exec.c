@@ -3,6 +3,10 @@
  *
  * 布局：[uint64_t count][element bits...]
  * 本实现固定 64-bit-only：长度头宽 = sizeof_bits(usize) = 64 位（见 tc_types.h 断言）。
+ *
+ * 字节约定（A1 端序契约，§3.5）：头部与标量元素的字节区间内一律按
+ * 固定 LE（低字节在前）序列化，用显式位组装读写，不依赖宿主字节序；
+ * 大端主机同样得到相同抽象值。结构体元素为不透明字节块，整块 memcpy。
  */
 #include "tc_memblock_exec.h"
 
@@ -14,6 +18,26 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/** 抽象位串 → LE 字节（dst 长 nbytes，低字节在前；nbytes ≤ 8）。 */
+static void tc_mb_store_bits(uint8_t *dst, size_t nbytes, uint64_t bits) {
+    size_t i = 0;
+
+    for (i = 0; i < nbytes; i++) {
+        dst[i] = (uint8_t)(bits >> (8U * i));
+    }
+}
+
+/** LE 字节 → 抽象位串（src 长 nbytes；nbytes ≤ 8）。 */
+static uint64_t tc_mb_load_bits(const uint8_t *src, size_t nbytes) {
+    uint64_t bits = 0;
+    size_t i = 0;
+
+    for (i = 0; i < nbytes && i < sizeof(bits); i++) {
+        bits |= ((uint64_t)src[i]) << (8U * i);
+    }
+    return bits;
+}
 
 static int tc_exec_memblock_track(TcExecuteCtx *ctx, void *block, TcDiagnostic *diag) {
     void **items = NULL;
@@ -156,7 +180,7 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
                           "memory allocation failed");
         return -1;
     }
-    memcpy(block, &count, sizeof(uint64_t));
+    tc_mb_store_bits(block, sizeof(uint64_t), count);
     cursor = (uint8_t *)block + sizeof(uint64_t);
     if (rhs->u.memblock_ctor.is_fill) {
         TcValue fill_value;
@@ -175,7 +199,7 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
                 memcpy(cursor + i * element_bytes, (void *)(uintptr_t)fill_value.bits,
                        element_bytes);
             } else {
-                memcpy(cursor + i * element_bytes, &fill_value.bits, element_bytes);
+                tc_mb_store_bits(cursor + i * element_bytes, element_bytes, fill_value.bits);
             }
         }
     } else {
@@ -194,7 +218,7 @@ int tc_exec_memblock_ctor(const TcRhs *rhs, const TcType *expected, TcExecuteCtx
             if (expected->params.memblock_type.element->tag == TC_STRUCT) {
                 memcpy(cursor + i * element_bytes, (void *)(uintptr_t)elem.bits, element_bytes);
             } else {
-                memcpy(cursor + i * element_bytes, &elem.bits, element_bytes);
+                tc_mb_store_bits(cursor + i * element_bytes, element_bytes, elem.bits);
             }
         }
     }
@@ -242,7 +266,7 @@ int tc_exec_memblock_clone(const TcType *type, const TcValue *src, TcExecuteCtx 
     /* 深拷贝：整块复制（含 usize 长度头部与全部元素位串），头部强制写回声明 N，
      * 保证克隆结果始终处于规范状态（§3.8.2 头部值 == 类型参数 count）。 */
     memcpy(block, src_block, sizeof(uint64_t) + payload_bytes);
-    memcpy(block, &count, sizeof(uint64_t));
+    tc_mb_store_bits(block, sizeof(uint64_t), count);
     if (tc_exec_memblock_track(ctx, block, diag) != 0) {
         return -1;
     }
@@ -268,7 +292,7 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
         tc_exec_set_internal_error(diag, line, "internal error: invalid memblock value");
         return -1;
     }
-    memcpy(&count, block, sizeof(uint64_t));
+    count = tc_mb_load_bits(block, sizeof(uint64_t));
     if (tc_memblock_read_index(index_op, ctx, &index, diag, line) != 0) {
         return -1;
     }
@@ -288,7 +312,7 @@ int tc_exec_memblock_load(const TcType *element, const TcOperand *mb_op, const T
         out->bits = (uint64_t)(uintptr_t)blk;
         return 0;
     }
-    memcpy(&out->bits, src, element_bytes);
+    out->bits = tc_mb_load_bits(src, element_bytes);
     return 0;
 }
 
@@ -306,7 +330,7 @@ int tc_exec_memblock_count(int slot, uint64_t fallback_count, TcExecuteCtx *ctx,
         ctx->slots[slot].bits != 0) {
         block = tc_memblock_data(&ctx->slots[slot]);
         if (block) {
-            memcpy(&count, block, sizeof(uint64_t));
+            count = tc_mb_load_bits(block, sizeof(uint64_t));
         }
     }
     if (count == 0) {
@@ -350,7 +374,7 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
         tc_exec_set_internal_error(diag, stmt->line, "internal error: invalid memblock value");
         return -1;
     }
-    memcpy(&count, block, sizeof(uint64_t));
+    count = tc_mb_load_bits(block, sizeof(uint64_t));
     if (tc_memblock_read_index(&stmt->index, ctx, &index, diag, stmt->line) != 0) {
         return -1;
     }
@@ -372,7 +396,7 @@ int tc_exec_memblock_store_stmt(const TcMemblockStoreStmt *stmt, TcExecuteCtx *c
     if (mb_type->params.memblock_type.element->tag == TC_STRUCT) {
         memcpy(dst, (void *)(uintptr_t)value.bits, element_bytes);
     } else {
-        memcpy(dst, &value.bits, element_bytes);
+        tc_mb_store_bits(dst, element_bytes, value.bits);
     }
     return 0;
 }
@@ -416,8 +440,8 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
     }
     element_type = stmt->element_type;
     element_bytes = tc_memblock_element_bytes(&element_type, ctx);
-    memcpy(&dst_count, dst_block, sizeof(uint64_t));
-    memcpy(&src_count, src_block, sizeof(uint64_t));
+    dst_count = tc_mb_load_bits(dst_block, sizeof(uint64_t));
+    src_count = tc_mb_load_bits(src_block, sizeof(uint64_t));
     if (tc_memblock_read_index(&stmt->dst_index, ctx, &dst_index, diag, stmt->line) != 0 ||
         tc_memblock_read_index(&stmt->src_index, ctx, &src_index, diag, stmt->line) != 0 ||
         tc_memblock_read_index(&stmt->length, ctx, &length, diag, stmt->line) != 0) {

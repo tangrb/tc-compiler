@@ -68,9 +68,9 @@
 
 **A1 端序契约（依据 §3.5 / §3.8.2）**
 - 抽象布局：`memblock = [usize 头部 | elem0 | … | elem_{count-1}]`，元素紧密排列；元素/字段的抽象位串按 §3.5「MSB→LSB 数值位权」定义，与宿主字节序无关。
-- 存储约定：**元素/字段字节区间内一律按 MSB-first 序列化**（区间首字节 = 该位串最高有效字节）；读/写两端同一约定 → 任意字节序主机得到相同数值结果。
-- 改动面：元素读写（`tc_memblock_exec.c`）、字段读写（`tc_struct_exec.c`）、头部 usize、AOT runtime shim（`tc_aot_rt.c`）、const 构造（`tc_const_eval.c`）共用一对 `put/get_abstract_bits(payload, bit_off, width, bits)` 例程；`bool` 规范化（0x00/0x01）保持。
-- 验收：位模式构造断言（LE 主机验证布局与字节序无关）+ VM/AOT 差分 + 既有值语义测试不回退。
+- 存储约定：**元素/字段字节区间内一律按固定 LE（低字节在前）序列化**（显式位组装，不依赖宿主字节序；LE 主机与既有 memcpy 行为逐字节一致，BE 主机得到相同抽象值）；读/写两端同一约定 → 任意字节序主机得到相同数值结果。
+- 改动面：元素读写（`tc_memblock_exec.c`）、字段读写（`tc_struct_exec.c`）、头部 usize、AOT runtime shim（`tc_aot_rt.c`）、const 构造/字段折叠（`tc_const_eval.c`、`tc_aot_codegen.c`、`tc_aot_emit_rhs.c`）共用同一 LE 约定；`bool` 规范化（0x00/0x01）保持；结构体/memblock 字段为不透明字节块整块复制。
+- 验收：`test_endianness.c` 原始字节断言（头部/元素/字段 LE 布局，与宿主无关）+ VM/AOT 差分 + 既有值语义测试不回退。
 
 **A2 输出契约（依据 §10.4 / §10.5）**
 - 特殊值：`inf`/`-inf`/`nan`（`%E`/`%G` 大写）；NaN 不因符号位输出 `-`，`+` 标志产生 `+inf`/`+nan`；NaN payload 不外泄。
