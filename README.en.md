@@ -404,6 +404,7 @@ scripts/
 | [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Language Standard Conformance Analysis Report](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | Design+implementation conformance check against the language standard (30 S / 27 M / ~25 N) |
 | [Language Standard Conformance Fix Plan](docs/TC-0.0.41-语言标准符合性修复计划.md) | Fix plan based on the analysis report (P0~P6, error-code adjudication table, tests & gates) |
+| [0.0.42 Debt-Cleanup Plan](docs/TC-0.0.42-遗留问题清零计划.md) | Clears FP-4.5 endianness / FP-4.6 self-implemented printf / N-12 / N-13; closeout: full conformance with the standard |
 
 ## Contributing and Cursor Agent
 

@@ -719,7 +719,7 @@ int tc_embed_had_error(const TcEmbedCtx *ctx);
 
 ### 10.3 错误种类与语言码映射
 
-嵌入模式**不另造语言错误码**。静态错误在 `tc_embed_create` / AOT 编译期按编译器标准 §11.4（镜像语言标准附录 B 85 码）报告；运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
+嵌入模式**不另造语言错误码**。静态错误在 `tc_embed_create` / AOT 编译期按编译器标准 §11.4（镜像语言标准附录 B 86 码）报告；运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
 
 | 错误场景 | 错误码 / 消息 |
 | -------- | ------------ |

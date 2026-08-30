@@ -420,4 +420,4 @@ TC 0.0.41 的抽象机语义核心（数值、内存、控制流、模块）实�
 
 ### 后记（2026-08-30，v0.0.41 发布后）
 
-v0.0.41 发布流程中，tag 前远程 CI（Linux/Windows）复验发现 `test_module` 的 diamond 用例在 glibc/msvcrt 上失败：`test_diamond_import_structs` 把固定文件名传入基于 `mkstemps` 的 `write_temp_file`，glibc/msvcrt 对非 `XXXXXX` 模板直接拒绝（Apple `mkstemps` 宽松而掩盖）。属**测试代码 bug，非符合性偏差**；已由 `eb4f24b`（改用 `fopen` 直写）修复，修复后 CI/ASan 全矩阵全绿。**本报告 §14 结论不受影响**（§14 的「门禁全绿」在修复后成立，此前仅在 macOS 本地成立）。遗留债务（FP-4.5 / FP-4.6 / N-12 / N-13）由 [TC-0.0.42-遗留问题清零计划](./TC-0.0.42-遗留问题清零计划.md) 承接。
+v0.0.41 发布流程中，tag 前远程 CI（Linux/Windows）复验发现 `test_module` 的 diamond 用例在 glibc/msvcrt 上失败：`test_diamond_import_structs` 把固定文件名传入基于 `mkstemps` 的 `write_temp_file`，glibc/msvcrt 对非 `XXXXXX` 模板直接拒绝（Apple `mkstemps` 宽松而掩盖）。属**测试代码 bug，非符合性偏差**；已由 `eb4f24b`（改用 `fopen` 直写）修复，修复后 CI/ASan 全矩阵全绿。**本报告 §14 结论不受影响**（§14 的「门禁全绿」在修复后成立，此前仅在 macOS 本地成立）。遗留债务（FP-4.5 / FP-4.6 / N-12 / N-13）由 [TC-0.0.42-遗留问题清零计划](./TC-0.0.42-遗留问题清零计划.md) 承接，**已于 0.0.42 全部清零**（见该计划收口结论，实现与语言标准 0.0.42 完全符合）。
