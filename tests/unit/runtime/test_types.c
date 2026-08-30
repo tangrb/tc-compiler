@@ -365,7 +365,7 @@ static void test_error_kind_name(void) {
                  tc_error_kind_name(TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE)) == 0,
           "memcopy unsafe CE/RE share print name");
 
-    check(error_kind_count == 86U, "0.0.41 error kind table has 86 entries");
+    check(error_kind_count == 86U, "0.0.42 error kind table has 86 entries");
     for (i = 0; i < error_kind_count; i++) {
         const char *name = tc_error_kind_name((TcErrorKind)i);
 

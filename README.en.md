@@ -7,9 +7,9 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **libtc**: an embeddable static library for compilation, static analysis, and execution;
 - **TC-VM**: a command-line tool that directly executes TC source files;
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
-- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.41).
+- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.42).
 
-Current core version: **v0.0.41**, Embed module version: **v0.0.41**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.41.md) is the sole authority for language syntax and observable semantics.
+Current core version: **v0.0.42**, Embed module version: **v0.0.42**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md) is the sole authority for language syntax and observable semantics.
 
 ## Quick Start
 
@@ -54,13 +54,13 @@ bash scripts/run_tests.sh
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
 | Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; imported structs require `<module>.<Name>`; VM + AOT) |
-| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.41) |
+| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.42) |
 
-Version 0.0.41 does not include strings, a bytecode file format, or JIT. There is no REPL; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
+Version 0.0.42 does not include strings, a bytecode file format, or JIT. There is no REPL; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
 
 ## Language Example
 
-A 0.0.41 source file must start with `#program` or `#lib`. Arithmetic and comparisons use explicitly typed builtin calls, not infix operators.
+A 0.0.42 source file must start with `#program` or `#lib`. Arithmetic and comparisons use explicitly typed builtin calls, not infix operators.
 
 ```tc
 #program
@@ -99,7 +99,7 @@ var area: float64 = funcall(math_lib.compute_area, r: r)
 writeln(float64, %f, area)
 ```
 
-See the [TC Language Specification](docs/TC语言标准设计说明书-0.0.41.md) for complete syntax and semantics.
+See the [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md) for complete syntax and semantics.
 
 ## Build
 
@@ -135,7 +135,7 @@ The project compiles with `-std=c99 -Wall -Wextra -pedantic`; AOT differential t
 ./build/vm/bin/tc-vm --version
 ```
 
-See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.41.md) for complete behavior.
+See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.42.md) for complete behavior.
 
 ### TC-AOT
 
@@ -189,9 +189,9 @@ int main(void) {
 }
 ```
 
-The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Design Document §15 (Embedding API quick reference)](docs/libtc设计说明书-0.0.41.md) for complete ownership, diagnostics, and build details.
+The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Design Document §15 (Embedding API quick reference)](docs/libtc设计说明书-0.0.42.md) for complete ownership, diagnostics, and build details.
 
-## Embedding TC-Embed (v0.0.41)
+## Embedding TC-Embed (v0.0.42)
 
 TC-Embed provides C host programs with zero-copy calling of TC compilation artifacts. C and TC share the same `TcValue slots[]` array, and the `ptr<T>` slot encoding `(slot << 1) | 1` serves as the unified handle for passing variable references between C and TC.
 
@@ -269,7 +269,7 @@ Transpile TC source via `tc-aot --embed` into embed-library C code, compile with
 ./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
 ```
 
-Link the generated `mylib.c` with the host program, the AOT runtime shim (`tc_aot_rt.c`), and the Embed bridge sources as C99. See [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.41.md) §15.6 for the complete file list and `cc` command.
+Link the generated `mylib.c` with the host program, the AOT runtime shim (`tc_aot_rt.c`), and the Embed bridge sources as C99. See [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) §15.6 for the complete file list and `cc` command.
 
 ### Value Bridging
 
@@ -281,7 +281,7 @@ int64_t x;
 tc_value_to_int64(v, &x);
 ```
 
-See the [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.41.md) for the complete API design.
+See the [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) for the complete API design.
 
 ## Tests and Quality Gates
 
@@ -375,7 +375,7 @@ src/
 │   ├── analyzer/   Static analysis (CFG, type checking, function/call graph)
 │   ├── executor/   Executor and call frames
 │   ├── runtime/    Runtime (types, semantics, I/O, symbols, diagnostics)
-│   ├── embed/      TC-Embed embedded runtime (v0.0.41)
+│   ├── embed/      TC-Embed embedded runtime (v0.0.42)
 │   └── driver/     Entry point and version
 └── aot/            C99 codegen, runtime shim, CLI, embed-mode runtime
 tests/
@@ -395,13 +395,13 @@ scripts/
 
 | Document | Responsibility |
 | -------- | -------------- |
-| [TC Language Specification](docs/TC语言标准设计说明书-0.0.41.md) | Sole authority for 0.0.41 syntax, semantics, and diagnostics |
-| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.41.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
-| [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.41.md) | `tc-vm` usage, output, and exit behavior |
-| [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.41.md) | VM pipeline, IR, CFG, and executor design |
-| [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.41.md) | C99 generation, runtime shim, and differential verification |
-| [libtc Design Document](docs/libtc设计说明书-0.0.41.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
-| [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.41.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
+| [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md) | Sole authority for 0.0.42 syntax, semantics, and diagnostics |
+| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.42.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
+| [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.42.md) | `tc-vm` usage, output, and exit behavior |
+| [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.42.md) | VM pipeline, IR, CFG, and executor design |
+| [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.42.md) | C99 generation, runtime shim, and differential verification |
+| [libtc Design Document](docs/libtc设计说明书-0.0.42.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
+| [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Language Standard Conformance Analysis Report](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | Design+implementation conformance check against the language standard (30 S / 27 M / ~25 N) |
 | [Language Standard Conformance Fix Plan](docs/TC-0.0.41-语言标准符合性修复计划.md) | Fix plan based on the analysis report (P0~P6, error-code adjudication table, tests & gates) |
 

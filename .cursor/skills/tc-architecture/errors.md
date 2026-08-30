@@ -57,7 +57,7 @@
 
 ## 86 种错误（`TcErrorKind`）
 
-权威对照：语言标准附录 B（**85** 语言码）· `docs/TC编译器标准设计说明书-0.0.41.md` §11.4（镜像）· 实现枚举：`tc_types.h`（**86** = 85 + `TC_ERR_OUT_OF_MEMORY`，`test_types.c` 断言）· 打印名见 `tc_error_kind_name()`
+权威对照：语言标准附录 B（**85** 语言码）· `docs/TC编译器标准设计说明书-0.0.42.md` §11.4（镜像）· 实现枚举：`tc_types.h`（**86** = 85 + `TC_ERR_OUT_OF_MEMORY`，`test_types.c` 断言）· 打印名见 `tc_error_kind_name()`
 
 命名：编译期 `TC_CE_*`，运行时 `TC_RE_*`，实现专用 `TC_ERR_OUT_OF_MEMORY`。下表按附录 B 分组列出全部语言码与标准章节；历史文档偶用 `TC_ERR_*` 别称时以 `tc_types.h` 为准。
 

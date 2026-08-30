@@ -10,7 +10,7 @@ description: >-
 
 # Add TC-Compiler Feature
 
-> **v0.0.41** + Embed v0.0.41 · 类型内核 [types.md](../tc-architecture/types.md)
+> **v0.0.42** + Embed v0.0.42 · 类型内核 [types.md](../tc-architecture/types.md)
 
 ## Step 0：分类（只读 feature-kinds 一个 §）
 

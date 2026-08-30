@@ -1,6 +1,6 @@
 # 编译流水线与关键函数
 
-**何时读**：需要调用链、Analyze 编排顺序、或 libtc/驱动入口关系。13 阶段规格：`docs/TC编译器标准设计说明书-0.0.41.md`。
+**何时读**：需要调用链、Analyze 编排顺序、或 libtc/驱动入口关系。13 阶段规格：`docs/TC编译器标准设计说明书-0.0.42.md`。
 
 Analyze：Pass1/2 + 模块/函数检查 + `tc_cfg_build_all` + `tc_analyze_definite_init_all` + 调用图。  
 **无 REPL**（无 `tc_repl` / `tc_analyze_statement`）。

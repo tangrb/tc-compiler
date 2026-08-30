@@ -9,7 +9,7 @@ alwaysApply: false
 
 # TC-Compiler 知识图谱（索引）
 
-> **v0.0.41** · 加载分级见 [.cursor/README.md](../README.md) · 易错点 [gotchas.md](../skills/tc-architecture/gotchas.md)  
+> **v0.0.42** · 加载分级见 [.cursor/README.md](../README.md) · 易错点 [gotchas.md](../skills/tc-architecture/gotchas.md)  
 > **本 rule → 恰好一个 `kg-*.md`** · 单文件改 → `compiler-src` + `rg` · **无 REPL**
 
 ## 任务 → 读哪一份（恰好一个）
@@ -23,7 +23,7 @@ alwaysApply: false
 | func / funcall / return / 调用图 / static / 调用帧 | [kg-func.md](../skills/tc-architecture/kg-func.md) |
 | TC-Embed / value_bridge / `--embed` | [kg-embed.md](../skills/tc-architecture/kg-embed.md) |
 | I/O / format | 工作流-I/O；细节只改 `tc_io.c` |
-| 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 语言标准-0.0.41 |
+| 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 语言标准-0.0.42 |
 | 类型内核 / ptr·memblock·struct 表示 | [types.md](../skills/tc-architecture/types.md) + `tc_types.h` |
 | 调用链 | [pipeline.md](../skills/tc-architecture/pipeline.md) |
 | 特性分层 | [features.md](../skills/tc-architecture/features.md) → 一个 `features/*.md` |

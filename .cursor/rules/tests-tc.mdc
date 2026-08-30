@@ -20,7 +20,7 @@ alwaysApply: false
 | runtime | `tests/errors/runtime/` | `run_expect_fail_msg` / `run_expect_fail_stdin_msg` |
 | stress | `tests/stress/` | `run_expect_stdout` / `run_expect_ok` |
 
-> 0.0.41 无语言警告；勿新增 `run_expect_ok_warn` 用例。
+> 0.0.42 无语言警告；勿新增 `run_expect_ok_warn` 用例。
 
 Stress 可用 `tests/stress/gen_stress_tests.sh` 重新生成。全量入口：`bash scripts/run_tests.sh`。
 

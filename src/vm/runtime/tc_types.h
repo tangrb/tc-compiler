@@ -38,7 +38,7 @@ typedef char tc_uint64_is_8_bytes[(sizeof(uint64_t) == 8) ? 1 : -1];
 /* ------------------------------------------------------------------ */
 
 /**
- * TC 0.0.41 类型标签（TcTypeTag）。
+ * TC 0.0.42 类型标签（TcTypeTag）。
  *
  * 标量：定宽整数、bool、浮点、isize/usize。
  * 复合：ptr / memblock / struct；void 仅作函数返回类型。
@@ -229,7 +229,7 @@ static inline TcFormatFullSpec tc_format_spec_make(TcFormatSpec spec) {
     return fs;
 }
 
-/** 符号种类：变量、let、形参、static var/let（0.0.41） */
+/** 符号种类：变量、let、形参、static var/let（0.0.42） */
 typedef enum {
     TC_SYM_VARIABLE,
     TC_SYM_CONSTANT,

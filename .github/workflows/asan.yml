@@ -7,10 +7,10 @@ name: ASan
 
 on:
   push:
-    branches: [master, tc-0.0.41]
+    branches: [master, tc-0.0.41, tc-0.0.42]
     tags: ["v*"]
   pull_request:
-    branches: [master, tc-0.0.41]
+    branches: [master, tc-0.0.41, tc-0.0.42]
   workflow_dispatch:
 
 env:

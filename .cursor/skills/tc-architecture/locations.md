@@ -3,7 +3,7 @@
 **何时读**：需要知道函数/类型定义在哪个 `.c`。**更快**：`rg "符号名" src/ --glob '*.c'`。  
 **Agent**：本文件是查表，勿通读；按节跳转。跨模块分发点见 `@knowledge-graph`。易错点 [gotchas.md](gotchas.md)。
 
-**v0.0.41** + Embed · **无 REPL**。
+**v0.0.42** + Embed · **无 REPL**。
 
 ## 流水线入口
 
@@ -42,7 +42,7 @@
 | `tc_aot_emit_c` / `tc_aot_emit_rhs` / `tc_aot_emit_statement_impl` | `src/aot/tc_aot_codegen.c` |
 | `tc_aot_emit_func_table` / `tc_aot_emit_embed_header` | `src/aot/tc_aot_codegen.c` |
 
-## 嵌入运行时（v0.0.41）
+## 嵌入运行时（v0.0.42）
 
 | 符号 | 文件 |
 |------|------|
