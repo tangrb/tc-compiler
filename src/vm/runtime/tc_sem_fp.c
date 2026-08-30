@@ -150,8 +150,120 @@ static int tc_fp_compute(TcArithOp op, TcTypeTag type, double lhs, double rhs,
  * → 下溢。精确性用操作数位模式经 __int128 整数运算判定，不依赖宿主浮点
  * 舍入或长双精度，与 fenv 构建在任意平台上结果一致。 */
 
-#if defined(__SIZEOF_INT128__)
-typedef unsigned __int128 tc_u128;
+#if 1
+/* 128 位无符号运算（纯 C99，uint64 对；规避 -Wpedantic 对 __int128 的拒绝） */
+typedef struct {
+    uint64_t hi;
+    uint64_t lo;
+} TcFpU128;
+
+static void tc_fp_u128_mul64(uint64_t a, uint64_t b, TcFpU128 *out) {
+    uint64_t a0 = a & 0xffffffffu;
+    uint64_t a1 = a >> 32;
+    uint64_t b0 = b & 0xffffffffu;
+    uint64_t b1 = b >> 32;
+    uint64_t p00 = a0 * b0;
+    uint64_t p01 = a0 * b1;
+    uint64_t p10 = a1 * b0;
+    uint64_t p11 = a1 * b1;
+    uint64_t mid = (p00 >> 32) + (uint32_t)p01 + (uint32_t)p10;
+
+    out->lo = (mid << 32) | (uint32_t)p00;
+    out->hi = p11 + (p01 >> 32) + (p10 >> 32) + (mid >> 32);
+}
+
+/* v << sh（sh ≤ 75；v ≤ 2^53 → 结果 ≤ 128 位，无溢出） */
+static void tc_fp_u128_shl64(uint64_t v, int sh, TcFpU128 *out) {
+    if (sh == 0) {
+        out->hi = 0;
+        out->lo = v;
+    } else if (sh < 64) {
+        out->hi = v >> (64 - sh);
+        out->lo = v << sh;
+    } else {
+        out->hi = v << (sh - 64);
+        out->lo = 0;
+    }
+}
+
+static void tc_fp_u128_add64(TcFpU128 *x, uint64_t v) {
+    uint64_t lo = x->lo + v;
+
+    x->hi += (lo < x->lo) ? 1u : 0u;
+    x->lo = lo;
+}
+
+/* x -= v（调用方保证 x ≥ v） */
+static void tc_fp_u128_sub64(TcFpU128 *x, uint64_t v) {
+    uint64_t lo = x->lo;
+
+    if (v > lo) {
+        x->hi--;
+    }
+    x->lo = lo - v;
+}
+
+/* x 的低 k 位全零？（k ≤ 127） */
+static int tc_fp_u128_low_zero(const TcFpU128 *x, int k) {
+    if (k >= 64) {
+        if (x->lo != 0) {
+            return 0;
+        }
+        k -= 64;
+        if (k >= 64) {
+            return 0; /* k ≥ 128：仅 x==0 全零（调用方已排除） */
+        }
+        return k == 0 || ((x->hi << (64 - k)) == 0);
+    }
+    return ((x->lo << (64 - k)) == 0);
+}
+
+/* x >>= k（k ≤ 127） */
+static void tc_fp_u128_shr(TcFpU128 *x, int k) {
+    if (k == 0) {
+        return;
+    }
+    if (k >= 64) {
+        x->lo = x->hi >> (k - 64);
+        x->hi = 0;
+    } else {
+        uint64_t hi = x->hi >> k;
+
+        x->lo = (x->lo >> k) | (x->hi << (64 - k));
+        x->hi = hi;
+    }
+}
+
+/* x ≤ 2^bits - 1？（bits ≤ 53） */
+static int tc_fp_u128_le_mask(const TcFpU128 *x, int bits) {
+    if (x->hi != 0) {
+        return 0;
+    }
+    if (bits >= 64) {
+        return 1;
+    }
+    return x->lo <= ((UINT64_C(1) << bits) - 1u);
+}
+
+/* 128 位被除数（nhi:nlo）长除 64 位除数 d，返回商与余数 */
+static uint64_t tc_fp_u128_div(uint64_t nhi, uint64_t nlo, uint64_t d, uint64_t *rem) {
+    uint64_t q = 0;
+    uint64_t r = 0;
+    int i = 0;
+
+    for (i = 127; i >= 0; i--) {
+        int bit = (i >= 64) ? (int)((nhi >> (i - 64)) & 1u) : (int)((nlo >> i) & 1u);
+
+        r = (r << 1) | (uint64_t)bit;
+        q <<= 1;
+        if (r >= d) {
+            r -= d;
+            q |= 1u;
+        }
+    }
+    *rem = r;
+    return q;
+}
 
 /* 值 = mant × 2^e2（mant 含隐位；subnormal 无隐位，e2 为固定底） */
 static void tc_fp_unpack_val(TcTypeTag type, uint64_t bits, uint64_t *mant, int *e2) {
@@ -207,62 +319,38 @@ static int tc_fp_sig64(uint64_t v) {
     return 64 - tc_fp_clz64(v) - tz;
 }
 
-/* P 的尾零位数 */
-static int tc_fp_tz128(tc_u128 P) {
-    int tz = 0;
-
-    while (((P >> tz) & 1u) == 0) {
-        tz++;
-    }
-    return tz;
-}
-
-/* P 的显著位数（去掉尾零后的位数） */
-static int tc_fp_sig128(tc_u128 P) {
-    uint64_t hi = (uint64_t)(P >> 64);
-    int top = 0;
-
-    if (hi != 0) {
-        top = 128 - tc_fp_clz64(hi);
-    } else {
-        top = 64 - tc_fp_clz64((uint64_t)P);
-    }
-    return top - tc_fp_tz128(P);
-}
-
-/* V = P × 2^e2p（P ≤ 128 位）在目标类型中精确可表示？ */
-static int tc_fp_value_exact_fits(TcTypeTag type, tc_u128 P, int e2p) {
+/* V = P × 2^e2p（P ≤ 128 位）在目标类型中精确可表示？
+ * 可表示 ⟺ 值是 2^min_sub 网格的整数倍且 M = V/2^min_sub ≤ 2^mant_bits - 1。 */
+static int tc_fp_value_exact_fits(TcTypeTag type, const TcFpU128 *P, int e2p) {
     int mant_bits = (type == TC_FLOAT32) ? 24 : 53;
     int min_sub = (type == TC_FLOAT32) ? -149 : -1074;
     int k = 0;
 
-    if (P == 0) {
+    if (P->hi == 0 && P->lo == 0) {
         return 1;
     }
-    /* 值 = P × 2^e2p。目标类型可表示 ⟺ 值是 2^min_sub 网格的整数倍（M ∈ [1, 2^mant_bits-1]）：
-     * 即 P × 2^(e2p - min_sub) 为整数且 ≤ 2^mant_bits - 1。 */
     k = min_sub - e2p;
     if (k > 0) {
-        /* e2p < min_sub：P 必须是 2^k 的倍数（否则值低于网格粒度，不可表示） */
         if (k >= 128) {
             return 0;
         }
-        if (((P >> k) << k) != P) {
+        if (!tc_fp_u128_low_zero(P, k)) {
             return 0;
         }
-        P >>= k;
-        return P <= (((tc_u128)1 << mant_bits) - 1u);
+        {
+            TcFpU128 Q = *P;
+
+            tc_fp_u128_shr(&Q, k);
+            return tc_fp_u128_le_mask(&Q, mant_bits);
+        }
     }
-    /* e2p ≥ min_sub：值 = P × 2^(e2p - min_sub) × 2^min_sub，P 整数；仅需
-     * P × 2^(e2p - min_sub) ≤ 2^mant_bits - 1。调用方保证精确值微小
-     * （结果必为 subnormal/zero），故 sh < mant_bits 恒成立，防御性守卫即可。 */
     {
         int sh = e2p - min_sub;
 
         if (sh >= mant_bits) {
-            return P == 0;
+            return 0;
         }
-        return P <= (((tc_u128)1 << (mant_bits - sh)) - 1u);
+        return tc_fp_u128_le_mask(P, mant_bits - sh);
     }
 }
 
@@ -312,25 +400,26 @@ static int tc_fp_exact_neq(TcArithOp op, TcTypeTag type, uint64_t abits, uint64_
 
     switch (op) {
     case TC_MUL: {
-        /* 精确积 = ma×mb × 2^(e2a+e2b)（≤106/48 位，__int128 精确） */
-        return !tc_fp_value_exact_fits(type, (tc_u128)ma * mb, e2a + e2b);
+        TcFpU128 P;
+
+        tc_fp_u128_mul64(ma, mb, &P);
+        return !tc_fp_value_exact_fits(type, &P, e2a + e2b);
     }
     case TC_DIV: {
-        /* 精确商：长除到 mant+2 位判余数；余数非零或不精确位数超限 → 不精确 */
         int extra = (type == TC_FLOAT32) ? 26 : 55;
-        tc_u128 num = (tc_u128)ma << extra;
-        tc_u128 q = 0;
-        tc_u128 rem = 0;
+        uint64_t nhi = ma >> (64 - extra);
+        uint64_t nlo = ma << extra;
+        uint64_t q = 0;
+        uint64_t rem = 0;
 
         if (mb == 0) {
             return 0; /* div0 由 tc_fp_division_by_zero 先报 */
         }
-        q = num / mb;
-        rem = num % mb;
+        q = tc_fp_u128_div(nhi, nlo, mb, &rem);
         if (rem != 0) {
             return 1;
         }
-        return tc_fp_sig128(q) > mant_bits;
+        return tc_fp_sig64(q) > mant_bits;
     }
     case TC_ADD:
     case TC_SUB: {
@@ -338,11 +427,20 @@ static int tc_fp_exact_neq(TcArithOp op, TcTypeTag type, uint64_t abits, uint64_
 
         if (delta >= 0) {
             if (delta <= 75) {
-                /* 和/差 = (ma×2^delta ± mb) × 2^e2b，≤128 位精确 */
-                tc_u128 P = (tc_u128)ma << delta;
+                TcFpU128 P;
 
-                P = (op == TC_ADD) ? (P + mb) : (P - mb);
-                return !tc_fp_value_exact_fits(type, P, e2b);
+                tc_fp_u128_shl64(ma, delta, &P);
+                if (op == TC_ADD) {
+                    tc_fp_u128_add64(&P, mb);
+                } else {
+                    /* |ma×2^delta - mb|：符号无关，统一取幅值 */
+                    if (P.hi != 0 || P.lo >= mb) {
+                        tc_fp_u128_sub64(&P, mb);
+                    } else {
+                        P.lo = mb - P.lo; /* 无借位（hi==0 且 lo<mb） */
+                    }
+                }
+                return !tc_fp_value_exact_fits(type, &P, e2b);
             }
             return tc_fp_exact_neq_disjoint(ma, e2a, mb, e2b, mant_bits, min_sub);
         }
@@ -351,10 +449,19 @@ static int tc_fp_exact_neq(TcArithOp op, TcTypeTag type, uint64_t abits, uint64_
             int d2 = -delta;
 
             if (d2 <= 75) {
-                tc_u128 P = (tc_u128)mb << d2;
+                TcFpU128 P;
 
-                P = (op == TC_ADD) ? (P + ma) : (P - ma);
-                return !tc_fp_value_exact_fits(type, P, e2a);
+                tc_fp_u128_shl64(mb, d2, &P);
+                if (op == TC_ADD) {
+                    tc_fp_u128_add64(&P, ma);
+                } else {
+                    if (P.hi != 0 || P.lo >= ma) {
+                        tc_fp_u128_sub64(&P, ma);
+                    } else {
+                        P.lo = ma - P.lo;
+                    }
+                }
+                return !tc_fp_value_exact_fits(type, &P, e2a);
             }
             return tc_fp_exact_neq_disjoint(mb, e2b, ma, e2a, mant_bits, min_sub);
         }
