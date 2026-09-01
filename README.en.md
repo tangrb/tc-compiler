@@ -403,7 +403,7 @@ scripts/
 
 ## Documentation
 
-For reading order and layers, see [docs/README.md](docs/README.md) ([English map](docs/README.en.md)). Changelog: [CHANGELOG.md](CHANGELOG.md).
+For reading order and layers, see [docs/README.md](docs/README.md) ([English map](docs/README.en.md)). Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md)).
 
 | Document | Responsibility |
 | -------- | -------------- |
@@ -422,23 +422,23 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 
 Please read the [Contributing Guide](CONTRIBUTING.en.md) ([中文](CONTRIBUTING.md)). Also see:
 
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-- [Release checklist](docs/release-checklist.md)
+- [Code of Conduct](CODE_OF_CONDUCT.en.md) ([中文](CODE_OF_CONDUCT.md))
+- [Security Policy](SECURITY.en.md) ([中文](SECURITY.md))
+- [Changelog](CHANGELOG.en.md) ([中文](CHANGELOG.md))
+- [Release checklist](docs/release-checklist.en.md) ([中文](docs/release-checklist.md))
 
 Teaching examples: [`examples/`](examples/).
 
 ### Cursor Agent (optional for maintainers)
 
-When developing with Cursor, agent context is driven by these documents (**do not mix with `docs/` design specs**; human contributors do not need them):
+When using Cursor, **start with** [.cursor/README.md](.cursor/README.md) (loading tiers, skill triggers, workflows) and [AGENTS.md](AGENTS.md). **Do not mix with `docs/` design specs**; human contributors do not need these.
 
 | Document | Purpose |
 | -------- | ------- |
-| [AGENTS.md](AGENTS.md) | Agent entry (always loaded, kept minimal) |
-| [.cursor/README.md](.cursor/README.md) | Loading tiers, doc map, intent quick reference |
-| `.cursor/skills/` | Task-specific skills (architecture routing, features, tests, review) |
-| `.cursor/rules/` | Glob-triggered coding and test conventions |
+| [AGENTS.md](AGENTS.md) | Always-loaded minimal hard limits |
+| [.cursor/README.md](.cursor/README.md) | Navigation authority, L0–L3 tiers, common workflows |
+| `.cursor/skills/` | Task skills: `tc-architecture`, `add-compiler-feature`, `run-tests`, `review-tc-code` |
+| `.cursor/rules/` | Glob-triggered coding, test, and source-routing rules |
 
 ## Git hooks
 

@@ -403,7 +403,7 @@ scripts/
 
 ## 文档
 
-文档分层与阅读顺序见 [docs/README.md](docs/README.md)。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+文档分层与阅读顺序见 [docs/README.md](docs/README.md)。变更记录见 [CHANGELOG.md](CHANGELOG.md)（[English](CHANGELOG.en.md)）。
 
 | 文档 | 职责 |
 | ---- | ---- |
@@ -422,23 +422,23 @@ scripts/
 
 请先阅读 [贡献指南](CONTRIBUTING.md)（[English](CONTRIBUTING.en.md)）。另见：
 
-- [行为准则](CODE_OF_CONDUCT.md)
-- [安全策略](SECURITY.md)
-- [变更日志](CHANGELOG.md)
-- [发版检查清单](docs/release-checklist.md)
+- [行为准则](CODE_OF_CONDUCT.md)（[English](CODE_OF_CONDUCT.en.md)）
+- [安全策略](SECURITY.md)（[English](SECURITY.en.md)）
+- [变更日志](CHANGELOG.md)（[English](CHANGELOG.en.md)）
+- [发版检查清单](docs/release-checklist.md)（[English](docs/release-checklist.en.md)）
 
 教学示例：[`examples/`](examples/)。
 
 ### Cursor Agent（维护者可选）
 
-使用 Cursor 开发时，Agent 上下文由以下文档驱动（**勿与 `docs/` 设计书混读**；人类贡献不依赖这些文件）：
+使用 Cursor 时，**先读** [.cursor/README.md](.cursor/README.md)（加载分级 · Skill 触发 · 工作流），入口 [AGENTS.md](AGENTS.md)。**勿与 `docs/` 设计书混读**；人类贡献不依赖这些文件。
 
 | 文档 | 用途 |
 | ---- | ---- |
-| [AGENTS.md](AGENTS.md) | Agent 入口（始终加载，保持精简） |
-| [.cursor/README.md](.cursor/README.md) | 加载分级、文档地图、意图速查 |
-| `.cursor/skills/` | 按任务加载的技能（架构路由、加特性、跑测试、Review） |
-| `.cursor/rules/` | 按 Glob 自动附加的编码/测试规范 |
+| [AGENTS.md](AGENTS.md) | 始终加载的极简硬上限 |
+| [.cursor/README.md](.cursor/README.md) | 导航权威、L0–L3 分级、常用工作流 |
+| `.cursor/skills/` | 按任务：`tc-architecture` / `add-compiler-feature` / `run-tests` / `review-tc-code` |
+| `.cursor/rules/` | Glob 自动附加的编码/测试/源码路由规范 |
 
 ## Git hooks
 

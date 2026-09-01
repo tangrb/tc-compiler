@@ -4,7 +4,7 @@
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
-参与本项目即表示你同意遵守 [行为准则](CODE_OF_CONDUCT.md)。安全漏洞请按 [SECURITY.md](SECURITY.md) **私下**报告，不要开公开 Issue。
+参与本项目即表示你同意遵守 [行为准则](CODE_OF_CONDUCT.md)（[English](CODE_OF_CONDUCT.en.md)）。安全漏洞请按 [SECURITY.md](SECURITY.md)（[English](SECURITY.en.md)）**私下**报告，不要开公开 Issue。
 
 ## 开发环境
 
@@ -54,7 +54,7 @@ make hooks
 1. Fork 并创建分支。
 2. 做最小必要改动；避免无关格式化。
 3. 按下方清单跑相关测试。
-4. 用户可见变更请更新 [CHANGELOG.md](CHANGELOG.md) 的 `[Unreleased]`。
+4. 用户可见变更请更新 [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md) 的 `[Unreleased]`。
 5. 使用仓库 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 填写说明并勾选清单。
 6. 提交信息风格：`feat:` / `fix:` / `refactor:` / `docs:` / `test:` / `chore:` + 一句说明「为什么」。
 7. **不要**在提交中加入 `Co-authored-by: Cursor <cursoragent@cursor.com>`（hook 会剥离；请勿 `--no-verify` 绕过）。
@@ -98,9 +98,9 @@ make ci                                  # 与远端核心门禁对齐的本地�
 
 ## 文档
 
-- 用户与贡献者导航：[docs/README.md](docs/README.md)
-- 变更记录：[CHANGELOG.md](CHANGELOG.md)
-- 发版步骤：[docs/release-checklist.md](docs/release-checklist.md)
+- 用户与贡献者导航：[docs/README.md](docs/README.md)（[English](docs/README.en.md)）
+- 变更记录：[CHANGELOG.md](CHANGELOG.md)（[English](CHANGELOG.en.md)）
+- 发版步骤：[docs/release-checklist.md](docs/release-checklist.md)（[English](docs/release-checklist.en.md)）
 
 改语言语义、错误码或公开 API 时，同步更新对应 `docs/*-0.0.42.md`（或当前版本设计书）。
 
@@ -111,5 +111,5 @@ make ci                                  # 与远端核心门禁对齐的本地�
 ## 获取帮助
 
 - 一般问题与功能讨论：GitHub Issues
-- 安全：见 [SECURITY.md](SECURITY.md)
+- 安全：见 [SECURITY.md](SECURITY.md)（[English](SECURITY.en.md)）
 - 维护者：唐荣兵 — yanhuang8923@qq.com

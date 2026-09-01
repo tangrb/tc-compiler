@@ -1,5 +1,5 @@
-name: Feature request
-description: Propose a language, toolchain, or documentation improvement
+name: Feature request / 功能建议
+description: Propose a language, toolchain, or documentation improvement / 提议语言、工具链或文档改进
 title: "[feat] "
 labels: ["enhancement"]
 body:
@@ -8,44 +8,46 @@ body:
       value: |
         Language and semantics changes must remain consistent with the
         [TC Language Specification](https://github.com/tangrb/tc-compiler/blob/master/docs/TC语言标准设计说明书-0.0.42.md).
+
+        语言与语义变更须与 [TC 语言标准设计说明书](https://github.com/tangrb/tc-compiler/blob/master/docs/TC语言标准设计说明书-0.0.42.md) 一致。
   - type: textarea
     id: problem
     attributes:
-      label: Problem / motivation
+      label: Problem / motivation / 问题与动机
       description: What problem does this solve? Who is affected?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed change
+      label: Proposed change / 建议方案
       description: Syntax/semantics sketch, API shape, or doc change. Link related design sections if known.
     validations:
       required: true
   - type: dropdown
     id: area
     attributes:
-      label: Primary area
+      label: Primary area / 主要领域
       options:
-        - Language / standard
+        - Language / standard / 语言与标准
         - TC-VM
         - TC-AOT
         - libtc
         - TC-Embed
         - Tests / CI
-        - Documentation
-        - Other
+        - Documentation / 文档
+        - Other / 其他
     validations:
       required: true
   - type: checkboxes
     id: docs
     attributes:
-      label: Spec impact
+      label: Spec impact / 规范影响
       options:
-        - label: Would require updates to the language or compiler design documents
-        - label: Docs-only / tooling-only (no language change)
+        - label: Would require updates to the language or compiler design documents / 需更新语言或编译器设计书
+        - label: Docs-only / tooling-only (no language change) / 仅文档或工具（无语言变更）
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
+      label: Alternatives considered / 已考虑的替代方案
       description: Optional — other approaches you evaluated.

@@ -35,10 +35,11 @@
 
 | 文档 | 用途 |
 | ---- | ---- |
-| [CHANGELOG.md](../CHANGELOG.md) | 用户可见变更记录 |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献流程与测试要求 |
-| [SECURITY.md](../SECURITY.md) | 漏洞报告 |
-| [docs/release-checklist.md](release-checklist.md) | 发版检查清单 |
+| [CHANGELOG.md](../CHANGELOG.md)（[English](../CHANGELOG.en.md)） | 用户可见变更记录 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md)（[English](../CONTRIBUTING.en.md)） | 贡献流程与测试要求 |
+| [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)（[English](../CODE_OF_CONDUCT.en.md)） | 社区行为准则 |
+| [SECURITY.md](../SECURITY.md)（[English](../SECURITY.en.md)） | 漏洞报告 |
+| [release-checklist.md](release-checklist.md)（[English](release-checklist.en.md)） | 发版检查清单 |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent 入口（维护者可选） |
 
 当前核心版本：**v0.0.42**。

@@ -15,29 +15,30 @@ alwaysApply: false
 
 | 改什么 | 文件 | 协作 |
 |--------|------|------|
-| 枚举/AST / `TcTypeTag`·`TcType` | `vm/runtime/tc_types.h` | `tc_types.c` |
-| 类型内核（equals / sizeof / 槽位 / make_*） | `vm/runtime/tc_types.c` | `test_types.c`；摘要 types.md |
-| 类型名/运算符 parse（标量） | `vm/runtime/tc_types.c` | — |
-| 运算语义 | `vm/runtime/tc_semantics.c` + `tc_sem_{int,fp,cast,bitwise}.c` | — |
-| I/O / format | `vm/runtime/tc_io.c` | `tc_analyze_6e.c` / pass2 |
-| Token/关键字 | `vm/lexer/tc_lexer.c` | — |
-| 语法/RHS | `vm/parser/tc_parser.c` + `tc_parser_rhs.c` | 释放：`tc_parser_free.c` |
-| if/while / 缩进 / 多行 parse | `vm/parser/tc_parser.c` | `libtc/tc_lib.c` 入口 |
-| 符号表/块作用域 | `vm/runtime/tc_symbol.c` | `tc_analyzer*.c` |
-| stmt_index / DFS 序号 | `vm/runtime/tc_stmt_index.h`（header-only） | analyzer / executor / aot |
-| 警告列表 | `vm/runtime/tc_warning.c`（空壳） | — |
-| 静态分析编排 | `vm/analyzer/tc_analyzer.c` + pass1/pass2 | `tc_const_eval.c` |
-| 模块 / Self / 搜索路径 / deps 拓扑注册 | `tc_module.c` / `tc_scope.c` | [kg-module.md](../skills/tc-architecture/kg-module.md) · [gotchas.md](../skills/tc-architecture/gotchas.md) |
-| 函数 / static / 调用图 | `tc_func_check.c` / `tc_callgraph.c` | [kg-func.md](../skills/tc-architecture/kg-func.md) |
-| 完整 CFG / 确定初始化 | `tc_cfg.c`（`tc_cfg_build_all` + `tc_analyze_definite_init_all`） | 多域 `TcCfgSet` |
-| 复合类型静态验证 | `tc_type_check.c` + `tc_{memblock,ptr,struct}_check.c` | pass2 经 `tc_type_check_rhs`；struct 表按模块定界 |
-| InitState / 块路径辅助 | `vm/analyzer/tc_analyzer_dfa.c` | 文件模式 `defer_to_cfg` |
-| 静态布尔 / let | `vm/analyzer/tc_const_eval.c` | pass2 + cfg |
-| cast/truncate/bitcast | `vm/runtime/tc_sem_cast.c` | analyzer/const_eval/executor/aot 委托 |
-| VM 执行 | `vm/executor/tc_executor.c` + `tc_call_frame` / `tc_{ptr,memblock,struct}_exec` | `tc_io.c` 委托 |
-| AOT | `aot/tc_aot_codegen.c` + `tc_aot_rt.c` | semantics/io；Rule `aot-src` |
-| Embed | `vm/embed/*` | Rule `embed-src`；[kg-embed.md](../skills/tc-architecture/kg-embed.md) |
-| 编译 API | `libtc/tc_lib.c` | — |
+| 枚举/AST / `TcTypeTag`·`TcType` | `src/vm/runtime/tc_types.h` | `tc_types.c` |
+| 类型内核（equals / sizeof / 槽位 / make_*） | `src/vm/runtime/tc_types.c` | `test_types.c`；摘要 types.md |
+| 类型名/运算符 parse（标量） | `src/vm/runtime/tc_types.c` | — |
+| 运算语义 | `src/vm/runtime/tc_semantics.c` + `tc_sem_{int,fp,cast,bitwise}.c` | — |
+| I/O / format | `src/vm/runtime/tc_io.c` | `tc_analyze_6e.c` / pass2 |
+| Token/关键字 | `src/vm/lexer/tc_lexer.c` | — |
+| 语法/RHS | `src/vm/parser/tc_parser.c` + `tc_parser_rhs.c` | 释放：`tc_parser_free.c` |
+| funcall RHS kind | `src/vm/parser/tc_parser_stmt.c` | — |
+| if/while / 缩进 / 多行 parse | `src/vm/parser/tc_parser.c` | `libtc/tc_lib.c` 入口 |
+| 符号表/块作用域 | `src/vm/runtime/tc_symbol.c` | `tc_analyzer*.c` |
+| stmt_index / DFS 序号 | `src/vm/runtime/tc_stmt_index.h`（header-only） | analyzer / executor / aot |
+| 警告列表 | `src/vm/runtime/tc_warning.c`（空壳） | — |
+| 静态分析编排 | `src/vm/analyzer/tc_analyzer.c` + pass1/pass2 | `tc_const_eval.c` |
+| 模块 / Self / 搜索路径 / deps 拓扑注册 | `src/vm/analyzer/tc_module.c` / `tc_scope.c` | [kg-module.md](../skills/tc-architecture/kg-module.md) · [gotchas.md](../skills/tc-architecture/gotchas.md) |
+| 函数 / static / 调用图 | `src/vm/analyzer/tc_func_check.c` / `tc_callgraph.c` | [kg-func.md](../skills/tc-architecture/kg-func.md) |
+| 完整 CFG / 确定初始化 | `src/vm/analyzer/tc_cfg.c` | 多域 `TcCfgSet` |
+| 复合类型静态验证 | `src/vm/analyzer/tc_type_check.c` + `tc_{memblock,ptr,struct}_check.c` | pass2 经 `tc_type_check_rhs` |
+| InitState / 块路径辅助 | `src/vm/analyzer/tc_analyzer_dfa.c` | 文件模式 `defer_to_cfg` |
+| 静态布尔 / let | `src/vm/analyzer/tc_const_eval.c` | pass2 + cfg |
+| cast/truncate/bitcast | `src/vm/runtime/tc_sem_cast.c` | analyzer/const_eval/executor/aot 委托 |
+| VM 执行 | `src/vm/executor/tc_executor.c` + `tc_call_frame` / `tc_{ptr,memblock,struct}_exec` | `tc_io.c` 委托 |
+| AOT | `src/aot/tc_aot_codegen.c` + `tc_aot_rt.c` | semantics/io；Rule `aot-src` |
+| Embed | `src/vm/embed/*` | Rule `embed-src`；[kg-embed.md](../skills/tc-architecture/kg-embed.md) |
+| 编译 API | `src/libtc/tc_lib.c` | — |
 
 ## 首步 rg（比读文档快）
 

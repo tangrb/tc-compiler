@@ -4,7 +4,7 @@ Thanks for your interest in TC-Compiler. This guide covers issue reports, pull r
 
 中文：[CONTRIBUTING.md](CONTRIBUTING.md)
 
-By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security vulnerabilities **privately** per [SECURITY.md](SECURITY.md)—do not open a public issue.
+By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.en.md) ([中文](CODE_OF_CONDUCT.md)). Report security vulnerabilities **privately** per [SECURITY.en.md](SECURITY.en.md) ([中文](SECURITY.md))—do not open a public issue.
 
 ## Development setup
 
@@ -54,7 +54,7 @@ Use the repository [issue templates](.github/ISSUE_TEMPLATE/).
 1. Fork and create a branch.
 2. Keep the diff minimal; avoid unrelated reformatting.
 3. Run the relevant tests below.
-4. For user-visible changes, update `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
+4. For user-visible changes, update `[Unreleased]` in [CHANGELOG.en.md](CHANGELOG.en.md) / [CHANGELOG.md](CHANGELOG.md).
 5. Fill out the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 6. Commit style: `feat:` / `fix:` / `refactor:` / `docs:` / `test:` / `chore:` plus a short “why”.
 7. **Do not** add `Co-authored-by: Cursor <cursoragent@cursor.com>` (hooks strip it; do not bypass with `--no-verify`).
@@ -96,9 +96,9 @@ Match existing `src/` style and `.cursor/rules/coding-standards.mdc`.
 
 ## Documentation
 
-- Doc map: [docs/README.md](docs/README.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Release steps: [docs/release-checklist.md](docs/release-checklist.md)
+- Doc map: [docs/README.en.md](docs/README.en.md) ([中文](docs/README.md))
+- Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md))
+- Release steps: [docs/release-checklist.en.md](docs/release-checklist.en.md) ([中文](docs/release-checklist.md))
 
 When changing language semantics, error codes, or public APIs, update the matching `docs/*-0.0.42.md` (or current-version specs).
 
@@ -109,5 +109,5 @@ Maintainer-oriented Cursor context: [AGENTS.md](AGENTS.md) and [`.cursor/README.
 ## Getting help
 
 - General questions and features: GitHub Issues
-- Security: [SECURITY.md](SECURITY.md)
+- Security: [SECURITY.en.md](SECURITY.en.md) ([中文](SECURITY.md))
 - Maintainer: 唐荣兵 — yanhuang8923@qq.com

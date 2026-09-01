@@ -1,52 +1,54 @@
-# Security Policy
+# 安全策略
 
-## Supported versions
+[English](SECURITY.en.md)
 
-| Version | Supported |
-| ------- | --------- |
-| `v0.0.42` (latest release) | Yes |
-| `master` | Yes (development tip) |
-| Older tags (`v0.0.41` and below) | No — please upgrade |
+## 受支持版本
 
-Security fixes are applied to `master` and included in the next patch or minor release as appropriate.
+| 版本 | 是否支持 |
+| ---- | -------- |
+| `v0.0.42`（当前最新发布） | 是 |
+| `master` | 是（开发分支顶端） |
+| 更早 tag（`v0.0.41` 及以前） | 否 — 请升级 |
 
-## Reporting a vulnerability
+安全修复会合入 `master`，并在合适的 patch / minor 发布中对外提供。
 
-**Do not open a public GitHub Issue for security vulnerabilities.**
+## 报告漏洞
 
-Please report privately by email to:
+**请勿在公开 GitHub Issue 中讨论安全漏洞。**
+
+请通过邮件私下报告：
 
 **yanhuang8923@qq.com**
 
-Include as much of the following as possible:
+报告请尽量包含：
 
-- Affected version (`tc-vm --version` / tag / commit)
-- OS and toolchain (compiler, CMake)
-- Minimal reproduction (preferably a short `.tc` and exact command line)
-- Impact assessment (crash, incorrect codegen, sandbox escape in embed hosts, etc.)
-- Whether the issue appears in TC-VM, TC-AOT, libtc, and/or TC-Embed
+- 受影响版本（`tc-vm --version` / tag / commit）
+- 操作系统与工具链（编译器、CMake）
+- 最小复现（最好附简短 `.tc` 与完整命令行）
+- 影响评估（崩溃、错误代码生成、Embed 宿主沙箱逃逸等）
+- 是否出现在 TC-VM、TC-AOT、libtc 和/或 TC-Embed
 
-### What to expect
+### 处理预期
 
-1. **Acknowledgement** within **7 days** of a clear report.
-2. An initial severity and scope assessment.
-3. A fix or mitigation plan; coordinated disclosure timing agreed with the reporter when practical.
-4. Credit in release notes / `CHANGELOG.md` if desired (opt-out available).
+1. 收到清晰报告后 **7 日内**确认。
+2. 初步评估严重性与影响范围。
+3. 修复或缓解方案；在可行时与报告者协调披露时间。
+4. 可在发布说明 / `CHANGELOG.md` 中致谢（可要求匿名）。
 
-## Scope
+## 范围
 
-In scope examples:
+**在范围内**示例：
 
-- Memory safety issues in the compiler, VM, AOT runtime, or embed API
-- Incorrect code generation that could cause undefined behavior when executed
-- Denial-of-service that is trivial to trigger from untrusted TC source (when that source is intended to be sandboxed by the host)
+- 编译器、VM、AOT 运行时或 Embed API 的内存安全问题
+- 可能导致未定义行为的错误代码生成
+- 从未受信任 TC 源码轻易触发的拒绝服务（当宿主意图对该源码做沙箱隔离时）
 
-Out of scope examples (please use a normal Issue or discussion instead):
+**不在范围内**示例（请使用普通 Issue 或讨论）：
 
-- Feature requests and language design proposals
-- Documented diagnostics / intentional fail-fast behavior
-- Issues that require an already-compromised host process
+- 功能请求与语言设计提案
+- 文档已说明的诊断 /  intentional fail-fast 行为
+- 需要宿主进程已被攻破才能利用的问题
 
-## Prefer private channels
+## 优先私下渠道
 
-Public Issues, PRs, and Discussions must not include exploit details for unfixed vulnerabilities. After a fix is released, a public advisory or changelog entry may summarize the issue at a high level.
+在漏洞修复发布前，公开 Issue、PR 与 Discussion **不得**包含可利用细节。修复发布后，可在 advisory 或 changelog 中做高层摘要。

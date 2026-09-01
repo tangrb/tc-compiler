@@ -1,16 +1,15 @@
 ---
 name: add-compiler-feature
 description: >-
-  Add TC language features — new types, operators, statements, TcRhsKind, or
-  TcStmtKind. Use when implementing new syntax, extending let/CFG/modules/functions,
-  or adding format specifiers. Step 1: read feature-kinds.md ONE section only;
-  reference features.md routing table then ONE features/*.md file; dispatch via
-  @knowledge-graph + one kg-*.md.
+  Implement new TC language features — syntax, operators, TcRhsKind, TcStmtKind,
+  format specifiers, let/CFG/module/function extensions. Step 1 read ONE section
+  of feature-kinds.md only; then ONE features/*.md or kg-*.md via knowledge-graph.
+  Use when user asks to add/add support/implement new language or compiler feature.
 ---
 
 # Add TC-Compiler Feature
 
-> **v0.0.42** + Embed v0.0.42 · 类型内核 [types.md](../tc-architecture/types.md)
+> **v0.0.42** + Embed v0.0.42 · 导航 [.cursor/README.md](../../README.md)
 
 ## Step 0：分类（只读 feature-kinds 一个 §）
 
@@ -31,11 +30,11 @@ description: >-
 | Embed | `src/vm/embed/` → [kg-embed.md](../tc-architecture/kg-embed.md) |
 | 仅诊断 | `TcErrorKind` + `tc_error_kind_name` + `test_types` + static |
 
-参考：[features.md](../tc-architecture/features.md) 路由 → **一个** `features/*.md` · 分发：`@knowledge-graph` · 测试：[test-map.md](../tc-architecture/test-map.md) · 易错点：[gotchas.md](../tc-architecture/gotchas.md)
+参考：[features.md](../tc-architecture/features.md) → **一个** `features/*.md` · 跨层：`@knowledge-graph` · 测试：`run-tests` · 易错点：[gotchas.md](../tc-architecture/gotchas.md)
 
 ## 实施顺序
 
-`types → lexer → parser → analyzer(+module/func/const_eval+cfg) → semantics/io → executor → aot → embed → tests`
+`types → lexer → parser → analyzer(+module/func+const_eval+cfg) → semantics/io → executor → aot → embed → tests`
 
 `tc_<m>.h`↔`.c` 成对 · `check_source_naming.py`
 
@@ -54,4 +53,4 @@ description: >-
 | tests | valid+static+run_tests.sh；AOT；unit；`check_rhs_coverage.py` |
 | docs | 语言标准；`features/*.md` + `test-map.md` + 对应 `kg-*.md` |
 
-错误消息：[errors.md](../tc-architecture/errors.md)
+错误消息：[errors.md](../tc-architecture/errors.md)（`rg` 查码，勿通读）

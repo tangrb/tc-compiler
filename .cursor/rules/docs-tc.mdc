@@ -47,4 +47,4 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 - [ ] 固定点入口写作 `tc_analyze_definite_init`（`tc_cfg.c`），勿写旧符号名
 - [ ] 无 REPL；skill/rule 中不得引入 `tc_repl` / `tc_analyze_statement`
 
-Agent 导航：[AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md) · Skill `tc-architecture`（路由表）· [gotchas.md](../skills/tc-architecture/gotchas.md)。用户文档保持完整叙述，勿复制进 rule。
+Agent 导航：[AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)（加载分级）· Skill `tc-architecture`（路由）· [gotchas.md](../skills/tc-architecture/gotchas.md)。用户文档保持完整叙述，勿复制进 rule。

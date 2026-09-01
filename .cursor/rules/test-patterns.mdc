@@ -1,15 +1,18 @@
 ---
-description: TC-Compiler 测试约定 — 模板见 tests-tc rule；命令见 run-tests skill；映射见 test-map.md
+description: >-
+  TC test hard requirements when editing .tc or tests — one error per static
+  file, register run_tests.sh, RHS/error-code/naming gates. Full templates in
+  tests-tc rule; commands in run-tests skill.
 alwaysApply: true
 ---
 
-# 测试约定
+# 测试硬要求
 
-| 改… | 自动 Rule | 跑测 |
-|-----|----------|------|
+| 改… | Rule | 跑测 |
+|-----|------|------|
 | `.tc` / `run_tests.sh` | `tests-tc` | Skill `run-tests` |
 | `tests/unit/**` | `unit-tests-c` | `make test-unit` |
 
-**硬要求**：static 一文件一错；新用例注册 `scripts/vm/run_tests.sh`；新 `TcRhsKind` → `check_rhs_coverage.py`；新 `TcErrorKind` → `tc_error_kind_name()` + `test_types.c` + 编译器标准 §11.4；类型内核 → `check-types`；新 `src/` 模块 → `check_source_naming.py`；控制流/uninit → `test_cfg` + `.tc`；Embed → `check-embed` / `check-embed-aot`。
+**必做**：static **一文件一错** · 新 `.tc` 注册 `scripts/vm/run_tests.sh` · 新 `TcRhsKind` → `check_rhs_coverage.py` · 新 `TcErrorKind` → `tc_error_kind_name` + `test_types.c` · 新 `src/` 模块 → `check_source_naming.py` · CFG/uninit → `test_cfg` · Embed → `check-embed` / `check-embed-aot`
 
-**映射**：[test-map.md](../skills/tc-architecture/test-map.md) · **易错点**：[gotchas.md](../skills/tc-architecture/gotchas.md) · **全量**：`bash scripts/run_tests.sh` · **导航**：[.cursor/README.md](../README.md)
+模板与注册：[tests-tc.mdc](tests-tc.mdc) · 命令：[run-tests/SKILL.md](../skills/run-tests/SKILL.md) · 映射：[test-map.md](../skills/tc-architecture/test-map.md)

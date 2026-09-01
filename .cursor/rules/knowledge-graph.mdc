@@ -1,92 +1,56 @@
 ---
 description: >-
-  TC-Compiler cross-module index — 8 TcRhsKind + TcStmtKind dispatch points and
-  short workflows. Load when adding RHS/STMT, cross-layer edits, or @knowledge-graph.
-  Read exactly ONE kg-*.md; skip for single-file edits or test lookup.
+  TC-Compiler cross-module index — load ONLY when adding/changing TcRhsKind or
+  TcStmtKind, or editing parser+analyzer+executor/aot together. Read exactly ONE
+  kg-*.md. Skip for single-file fixes, docs, or test lookup. Dispatch details
+  in kg-dispatch.md; verify with check_rhs_coverage.py.
 globs:
 alwaysApply: false
 ---
 
 # TC-Compiler 知识图谱（索引）
 
-> **v0.0.42** · 加载分级见 [.cursor/README.md](../README.md) · 易错点 [gotchas.md](../skills/tc-architecture/gotchas.md)  
-> **本 rule → 恰好一个 `kg-*.md`** · 单文件改 → `compiler-src` + `rg` · **无 REPL**
+> **v0.0.42** · 加载条件见 [.cursor/README.md](../README.md) § `@knowledge-graph`  
+> **本 rule → 恰好一个 `kg-*.md`** · 单文件 → `compiler-src` + `rg`
 
 ## 任务 → 读哪一份（恰好一个）
 
 | 任务 | 读 |
 |------|-----|
-| 加运算符 / 新 RHS / 浮点·cast·bitcast | 下方分发点表 + [kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md) |
-| if / while / goto / 块作用域 / CFG / uninit | [kg-cfg.md](../skills/tc-architecture/kg-cfg.md) |
-| let / 短路 / 重载+shift / OOM / AOT 语义 | [kg-eval.md](../skills/tc-architecture/kg-eval.md) |
-| `#program` / `#lib` / import / Self / 导入 struct | [kg-module.md](../skills/tc-architecture/kg-module.md) |
-| func / funcall / return / 调用图 / static / 调用帧 | [kg-func.md](../skills/tc-architecture/kg-func.md) |
+| 新运算符 / 新 RHS / 浮点·cast·bitcast / 复合 RHS | [kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md) |
+| if / while / goto / CFG / uninit / 块作用域 | [kg-cfg.md](../skills/tc-architecture/kg-cfg.md) |
+| let / 短路 / OOM / AOT 语义 / 复合运行时 | [kg-eval.md](../skills/tc-architecture/kg-eval.md) |
+| `#program` / import / Self / 导入 struct | [kg-module.md](../skills/tc-architecture/kg-module.md) |
+| func / funcall / 调用图 / static / 调用帧 | [kg-func.md](../skills/tc-architecture/kg-func.md) |
 | TC-Embed / value_bridge / `--embed` | [kg-embed.md](../skills/tc-architecture/kg-embed.md) |
-| I/O / format | 工作流-I/O；细节只改 `tc_io.c` |
-| 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 语言标准-0.0.42 |
-| 类型内核 / ptr·memblock·struct 表示 | [types.md](../skills/tc-architecture/types.md) + `tc_types.h` |
-| 调用链 | [pipeline.md](../skills/tc-architecture/pipeline.md) |
-| 特性分层 | [features.md](../skills/tc-architecture/features.md) → 一个 `features/*.md` |
-| 测试/CI | Skill `run-tests`；账本 [test-map.md](../skills/tc-architecture/test-map.md) |
+| I/O / format | 只改 `src/vm/runtime/tc_io.c`；路由 [features/scalar.md](../skills/tc-architecture/features/scalar.md) § I/O |
+| 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 语言标准附录 B |
+| 测试/CI | Skill `run-tests` — **勿**加载 kg |
 
-## 工作流（短）
+## 短工作流
 
-**新 RHS** — `rg "TC_RHS_" src/` → 改下方 8 函数 → `check_rhs_coverage.py` → test-map + features + `run_tests.sh --filter`
+**新 RHS** — `rg "TC_RHS_" src/` → 8 分发点（[kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md)）→ `check_rhs_coverage.py` → `.tc` + `run_tests.sh`
 
-**I/O** — 只改 `tc_io.c` + `tc_check_io_format`；executor/rt **委托**；`make test-aot`
+**新 STMT** — `rg "TC_STMT_" src/` → **`src/vm/analyzer/tc_cfg.c` 必改** → [kg-cfg.md](../skills/tc-architecture/kg-cfg.md) → `test_cfg` + uninit `.tc`
 
-**新 STMT** — `rg "TC_STMT_" src/` → 下方 STMT 表 → **`tc_cfg.c` 必改** → features + test-map + `test_cfg` / uninit
+**let** — `src/vm/analyzer/tc_const_eval.c` → [kg-eval.md](../skills/tc-architecture/kg-eval.md)
 
-**goto** — lexer→parser→symbol labels→Pass2 块路径→`tc_cfg`→executor `index.next`→aot `tc_label_<n>`（仅函数内）
+**模块** — `tc_module.c` / `tc_scope.c` → [kg-module.md](../skills/tc-architecture/kg-module.md)
 
-**while** — parser 块→pass1 loop id→pass2 bool+范式隔离→`tc_cfg` 回边→executor→aot 原生 while
+**OOM** — `TC_ERR_OUT_OF_MEMORY` + `"memory allocation failed"` → [kg-eval.md](../skills/tc-architecture/kg-eval.md)
 
-**let** — `tc_const_eval.c` → `tc_parse_const_rhs` → `tc_check_rhs` → [kg-eval.md](../skills/tc-architecture/kg-eval.md) / [gotchas.md](../skills/tc-architecture/gotchas.md)
+## 分发点入口（细节不在此重复）
 
-**模块** — `tc_module_check_structure` → `resolve_imports` → **`tc_module_topological_dep_order`** → `tc_struct_table_register_program` → signatures → [kg-module.md](../skills/tc-architecture/kg-module.md)
+| Kind | 8 函数入口 | 权威 |
+|------|------------|------|
+| `TcRhsKind` | parse_rhs · parse_const_rhs · rhs_free · check_rhs · eval_const_rhs · eval_rhs · aot_emit_rhs · aot_rt shim | [kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md) |
+| `TcStmtKind` | parser · pass1 · pass2 · **cfg** · executor · aot_emit_stmt | [kg-cfg.md](../skills/tc-architecture/kg-cfg.md) |
 
-**函数** — `tc_func_check_*` → `tc_callgraph_check` → `tc_call_frame` → [kg-func.md](../skills/tc-architecture/kg-func.md)
+`FUNCALL_EXPR` kind 在 `src/vm/parser/tc_parser_stmt.c` 赋值；其余 RHS 多在 `tc_parser_rhs.c`。
 
-**OOM** — `rg TC_ERR_OUT_OF_MEMORY src/` → [kg-eval.md](../skills/tc-architecture/kg-eval.md)
-
-## TcRhsKind 分发点（新 kind 必改）
-
-**34 kind 全可解析**（标量 16 + 复合/调用 18）。Parser/Free/Pass2/Executor/AOT = 全覆盖；`tc_eval_const_rhs` 仅标量+bitcast+struct ctor（let）；ptr/memblock/field/funcall/self 在 let 中 defer。细节 [kg-dispatch.md](../skills/tc-architecture/kg-dispatch.md)。
-
-| 函数 | 文件 | 说明 |
-|------|------|------|
-| `tc_parse_rhs` | parser/tc_parser_rhs.c | 运行时 RHS（`FUNCALL_EXPR` 在 `tc_parser.c` 赋值） |
-| `tc_parse_const_rhs` | parser/tc_parser_rhs.c | let（更严） |
-| `tc_rhs_free` | parser/tc_parser_free.c | 释放（cast/const_ref NULL 守卫） |
-| `tc_check_rhs` | analyzer/tc_analyzer_pass2.c | Pass2 标量；复合经 `tc_type_check_rhs` |
-| `tc_eval_const_rhs` | analyzer/tc_const_eval.c | let 求值 |
-| `tc_eval_rhs` | executor/tc_executor.c | 运行时（含 ptr/memblock/struct/funcall） |
-| `tc_aot_emit_rhs` | aot/tc_aot_emit_rhs.c | codegen |
-| `tc_aot_*` shim | aot/tc_aot_rt.c | → semantics；I/O → tc_io；复合 → `tc_aot_{ptr,memblock,struct}_*` |
-
-**CFG 额外 RHS 触达**：`tc_cfg_add_rhs_reads`（`tc_cfg.c`）、`tc_try_eval_static_bool*`（`tc_const_eval.c`）→ [kg-cfg.md](../skills/tc-architecture/kg-cfg.md) / [kg-eval.md](../skills/tc-architecture/kg-eval.md)
-
-## TcStmtKind 分发点
-
-**24 Kind**：基础 12（`VAR_DEF`…`CONTINUE`）+ 扩展 12（`FIELD_ASSIGN`/`FUNC_DEF`/`FUNCALL`/`RETURN`/`MEMBLOCK_*`/`PTR_STORE`/`MEMCOPY_UNSAFE`/`STRUCT_DEF`/`STATIC_*`/`IMPORT`）。
-
-| 函数 | 文件 |
-|------|------|
-| `tc_parse_source_to_program` / if·while / label·goto·break·continue / 模块与函数语句 | parser/tc_parser.c |
-| `tc_statement_free` | parser/tc_parser_free.c |
-| `tc_pass1_collect_stmt` | analyzer/tc_analyzer_pass1.c |
-| `tc_pass2_check_stmt` | analyzer/tc_analyzer_pass2.c |
-| `tc_cfg_build_stmt` | analyzer/tc_cfg.c |
-| `tc_execute_statement_impl` | executor/tc_executor.c |
-| `tc_aot_emit_statement_impl` | aot/tc_aot_emit_stmt.c |
-| `tc_symbol_table_find_in_scope` / `*_label` | runtime/tc_symbol.c |
-
-控制流不新增 `TcRhsKind`；条件复用 `tc_check_rhs` bool。细节：[kg-cfg.md](../skills/tc-architecture/kg-cfg.md)  
-Analyze 编排：`tc_module_*` / `tc_func_check_*` / `tc_callgraph_check` — [pipeline.md](../skills/tc-architecture/pipeline.md)
+验证：`python3 scripts/sync/check_rhs_coverage.py [--fix]`
 
 ## 维护
 
-1. 分发点表在本 rule；路径同步 `check_rhs_coverage.py --fix`
-2. 细节在对应 `kg-*.md` + `features.md` / `features/*.md` + `test-map.md` + 必要时 `gotchas.md`
-3. 路由表在 Skill `tc-architecture`；导航在 [.cursor/README.md](../README.md)
-4. 新 `TcStmtKind` → 本表 + `tc_cfg.c`；Embed → [kg-embed.md](../skills/tc-architecture/kg-embed.md)
+1. 分发点路径以 `check_rhs_coverage.py` 为准；细节在各 `kg-*.md`
+2. 路由表：`skills/tc-architecture/SKILL.md`；导航：`.cursor/README.md`

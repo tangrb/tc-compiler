@@ -4,10 +4,11 @@
 
 ## Agent 用法（勿通读全文）
 
-1. 先读下方 **诊断阶段** / **Fail-fast** / **初始化三分工**（约到「86 种错误」标题即够多数任务）。
-2. 查具体码：`rg TC_CE_<NAME> 本文件` 或按下表分组标题跳转；**不要**线性读完 86 行。
-3. static 期望子串：优先 Rule `tests-tc` 常见表，或本文件打印名列。
-4. 新 `TcErrorKind`：`tc_error_kind_name` + `test_types.c` + 编译器标准 §11.4 + 语言标准附录 B。
+1. 先读下方 **诊断阶段** / **Fail-fast**（到分组标题即够多数任务）。
+2. 查具体码：`rg TC_CE_<NAME> 本文件` — **不要**线性读完 86 行。
+3. **口径**：语言标准附录 B **86** 语言码 + 实现 `TC_ERR_OUT_OF_MEMORY` = **87**（`test_types.c`）。
+4. static 期望子串：Rule `tests-tc` 常见表，或本文件打印名列。
+5. 新 `TcErrorKind`：`tc_error_kind_name` + `test_types.c` + 编译器标准 §11.4 + 语言标准附录 B。
 
 ## API
 

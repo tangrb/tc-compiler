@@ -35,10 +35,11 @@ Conformance analysis and closeout plans — **not** day-to-day normative specs:
 
 | Document | Purpose |
 | -------- | ------- |
-| [CHANGELOG.md](../CHANGELOG.md) | User-visible changes |
-| [CONTRIBUTING.en.md](../CONTRIBUTING.en.md) | Contribution workflow and test gates |
-| [SECURITY.md](../SECURITY.md) | Vulnerability reporting |
-| [release-checklist.md](release-checklist.md) | Release checklist |
+| [CHANGELOG.en.md](../CHANGELOG.en.md) ([中文](../CHANGELOG.md)) | User-visible changes |
+| [CONTRIBUTING.en.md](../CONTRIBUTING.en.md) ([中文](../CONTRIBUTING.md)) | Contribution workflow and test gates |
+| [CODE_OF_CONDUCT.en.md](../CODE_OF_CONDUCT.en.md) ([中文](../CODE_OF_CONDUCT.md)) | Community code of conduct |
+| [SECURITY.en.md](../SECURITY.en.md) ([中文](../SECURITY.md)) | Vulnerability reporting |
+| [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
 Current core version: **v0.0.42**.
