@@ -1,6 +1,6 @@
 # TC-Compiler — Cursor 文档索引
 
-> **v0.0.42**（Phase 1–7）· 规范 `docs/*-0.0.42.md`  
+> **v0.0.43**（Phase 1–7；语言规范 `docs/*-0.0.42.md`）  
 > **始终加载**：[AGENTS.md](../AGENTS.md)（极简）· **本文件** = 导航权威（勿把长表复制进 AGENTS）
 
 ## 30 秒：Agent 该怎么读

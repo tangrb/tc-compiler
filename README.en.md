@@ -12,9 +12,9 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **libtc**: an embeddable static library for compilation, static analysis, and execution;
 - **TC-VM**: a command-line tool that directly executes TC source files;
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
-- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.42).
+- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.43).
 
-Current core version: **v0.0.42**, Embed module version: **v0.0.42**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md) is the sole authority for language syntax and observable semantics.
+Current core version: **v0.0.43**, Embed module version: **v0.0.43**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md) is the sole authority for language syntax and observable semantics (language spec remains 0.0.42).
 
 ## Quick Start
 
@@ -63,7 +63,7 @@ bash scripts/run_tests.sh
 | Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
 | Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
 | Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; imported structs require `<module>.<Name>`; VM + AOT) |
-| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.42) |
+| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.43) |
 
 Version 0.0.42 does not include strings, a bytecode file format, or JIT. There is no REPL; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
 
@@ -200,7 +200,7 @@ int main(void) {
 
 The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Design Document §15 (Embedding API quick reference)](docs/libtc设计说明书-0.0.42.md) for complete ownership, diagnostics, and build details.
 
-## Embedding TC-Embed (v0.0.42)
+## Embedding TC-Embed (v0.0.43)
 
 TC-Embed provides C host programs with zero-copy calling of TC compilation artifacts. C and TC share the same `TcValue slots[]` array, and the `ptr<T>` slot encoding `(slot << 1) | 1` serves as the unified handle for passing variable references between C and TC.
 
@@ -385,7 +385,7 @@ src/
 │   ├── analyzer/   Static analysis (CFG, type checking, function/call graph)
 │   ├── executor/   Executor and call frames
 │   ├── runtime/    Runtime (types, semantics, I/O, symbols, diagnostics)
-│   ├── embed/      TC-Embed embedded runtime (v0.0.42)
+│   ├── embed/      TC-Embed embedded runtime (v0.0.43)
 │   └── driver/     Entry point and version
 └── aot/            C99 codegen, runtime shim, CLI, embed-mode runtime
 tests/

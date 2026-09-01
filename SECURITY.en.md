@@ -6,9 +6,10 @@
 
 | Version | Supported |
 | ------- | --------- |
-| `v0.0.42` (latest release) | Yes |
+| `v0.0.43` (latest release) | Yes |
 | `master` | Yes (development tip) |
-| Older tags (`v0.0.41` and below) | No — please upgrade |
+| `v0.0.42` | Security fixes only — please upgrade to v0.0.43 |
+| Older tags (`v0.0.41` and below) | No |
 
 Security fixes are applied to `master` and included in the next patch or minor release as appropriate.
 

@@ -9,7 +9,7 @@ description: >-
 
 # TC-Compiler Architecture
 
-**v0.0.42** · 导航 [.cursor/README.md](../../README.md) · 易错点 [gotchas.md](gotchas.md)
+**v0.0.43** · 语言规范 0.0.42 · 导航 [.cursor/README.md](../../README.md) · 易错点 [gotchas.md](gotchas.md)
 
 ## 三步
 

@@ -2,7 +2,7 @@
 
 [中文](release-checklist.md)
 
-Use this list before cutting a `v*` tag. Core version and design-doc filenames must stay in sync (currently **0.0.42**).
+Use this list before cutting a `v*` tag. Core version must match `tc_version.h` (currently **0.0.43**); language/design doc filenames remain `*-0.0.42.md`.
 
 ## 1. Code and docs freeze
 

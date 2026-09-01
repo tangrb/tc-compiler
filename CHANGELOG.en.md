@@ -9,10 +9,17 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ## [Unreleased]
 
+## [0.0.43] - 2026-09-01
+
 ### Added
 
-- Open-source repository scaffolding: contributing guides, code of conduct, security policy, issue/PR templates, examples, and documentation index.
+- Open-source repository scaffolding: contributing guides, code of conduct, security policy, issue/PR templates, Dependabot, examples, and documentation index.
 - Bilingual surface docs (zh / en pairs with cross-links).
+- Cursor Agent doc optimization: loading tiers, skill triggers, workflows, and deduplicated routing.
+
+### Changed
+
+- Toolchain and Embed implementation bumped to v0.0.43; language specification design docs remain 0.0.42 (no language semantics change).
 
 ## [0.0.42] - 2026-08-30
 
@@ -74,7 +81,8 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 - Cross-platform CI/CD and test-port integration carried from the 0.0.38 line into the 0.0.39 release train.
 
-[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...HEAD
+[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...HEAD
+[0.0.43]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...v0.0.43
 [0.0.42]: https://github.com/tangrb/tc-compiler/compare/v0.0.41...v0.0.42
 [0.0.41]: https://github.com/tangrb/tc-compiler/compare/v0.0.40...v0.0.41
 [0.0.40]: https://github.com/tangrb/tc-compiler/compare/v0.0.39...v0.0.40

@@ -9,7 +9,7 @@ description: >-
 
 # Add TC-Compiler Feature
 
-> **v0.0.42** + Embed v0.0.42 · 导航 [.cursor/README.md](../../README.md)
+> **v0.0.43** + Embed v0.0.43 · 语言规范 0.0.42 · 导航 [.cursor/README.md](../../README.md)
 
 ## Step 0：分类（只读 feature-kinds 一个 §）
 

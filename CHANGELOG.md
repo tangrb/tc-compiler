@@ -9,10 +9,17 @@
 
 ## [Unreleased]
 
+## [0.0.43] - 2026-09-01
+
 ### Added
 
-- 开源仓库脚手架：贡献指南、行为准则、安全策略、Issue/PR 模板、示例与文档索引。
+- 开源仓库脚手架：贡献指南、行为准则、安全策略、Issue/PR 模板、Dependabot、示例与文档索引。
 - 表面文档中英双语配对（文首可切换语言）。
+- Cursor Agent 文档优化：加载分级、Skill 触发条件、工作流与路由去重。
+
+### Changed
+
+- 工具链与 Embed 实现版本升至 v0.0.43；语言规范设计书仍为 0.0.42（无语言语义变更）。
 
 ## [0.0.42] - 2026-08-30
 
@@ -74,7 +81,8 @@
 
 - 从 0.0.38 线带入跨平台 CI/CD 与测试移植，纳入 0.0.39 发布线。
 
-[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...HEAD
+[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...HEAD
+[0.0.43]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...v0.0.43
 [0.0.42]: https://github.com/tangrb/tc-compiler/compare/v0.0.41...v0.0.42
 [0.0.41]: https://github.com/tangrb/tc-compiler/compare/v0.0.40...v0.0.41
 [0.0.40]: https://github.com/tangrb/tc-compiler/compare/v0.0.39...v0.0.40

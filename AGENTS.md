@@ -1,6 +1,6 @@
 # TC-Compiler — Agent 指南
 
-C99 编译器：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.42**（Phase 1–7）。
+C99 编译器：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.43**（Phase 1–7；语言规范 0.0.42）。
 
 **导航权威**：[.cursor/README.md](.cursor/README.md)（加载分级 · Skill 触发 · 工作流）。本文件始终加载，**勿**复制长路由表。
 
