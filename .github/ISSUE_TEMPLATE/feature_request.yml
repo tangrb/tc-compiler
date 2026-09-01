@@ -1,0 +1,51 @@
+name: Feature request
+description: Propose a language, toolchain, or documentation improvement
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Language and semantics changes must remain consistent with the
+        [TC Language Specification](https://github.com/tangrb/tc-compiler/blob/master/docs/TC语言标准设计说明书-0.0.42.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve? Who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Syntax/semantics sketch, API shape, or doc change. Link related design sections if known.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Language / standard
+        - TC-VM
+        - TC-AOT
+        - libtc
+        - TC-Embed
+        - Tests / CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: docs
+    attributes:
+      label: Spec impact
+      options:
+        - label: Would require updates to the language or compiler design documents
+        - label: Docs-only / tooling-only (no language change)
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional — other approaches you evaluated.

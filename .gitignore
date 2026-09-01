@@ -9,8 +9,12 @@ build-ubsan/
 # Generated stress baseline
 tests/stress/bench_baseline.tc
 
-# Local examples (not versioned)
-examples/
+# Untracked local scratch (optional); curated examples/ is versioned
+examples/local/
+# AOT default output next to .tc (tc-aot writes <input>.c)
+examples/**/*.c
+# AOT --run linked executables (tc-aot writes <input>.c.out)
+examples/**/*.c.out
 
 # macOS
 .DS_Store

@@ -1,0 +1,72 @@
+name: Bug report
+description: Report incorrect behavior in TC-VM, TC-AOT, libtc, or TC-Embed
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please include a **minimal** `.tc` reproduction when possible.
+        Security issues: report privately via [SECURITY.md](https://github.com/tangrb/tc-compiler/blob/master/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `tc-vm --version`, or git tag / commit SHA.
+      placeholder: v0.0.42
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - TC-VM
+        - TC-AOT
+        - libtc
+        - TC-Embed
+        - Docs / build / CI
+        - Unsure
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and toolchain
+      description: e.g. macOS 15 / Ubuntu 24.04, clang or gcc version, CMake version.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest `.tc` (or C host snippet for Embed) and the exact command line.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include stdout and stderr (and exit code if relevant).
+    validations:
+      required: true
+  - type: checkboxes
+    id: backends
+    attributes:
+      label: Backend check
+      options:
+        - label: Reproduces with TC-VM
+        - label: Reproduces with TC-AOT (`tc-aot` / `--run`)
+        - label: VM and AOT disagree (describe both outputs above)
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Links to related issues, logs, or design-doc sections.

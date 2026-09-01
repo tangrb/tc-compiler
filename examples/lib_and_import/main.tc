@@ -1,0 +1,8 @@
+#program
+; Import a #lib and call a public function with named arguments
+import MathLib
+
+var x: int32 = 3
+var y: int32 = 4
+var r: int32 = funcall(MathLib.plus, a: x, b: y)
+writeln(int32, r)

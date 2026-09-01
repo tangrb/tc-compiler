@@ -2,6 +2,11 @@
 
 [English](README.en.md)
 
+[![CI](https://github.com/tangrb/tc-compiler/actions/workflows/ci.yml/badge.svg)](https://github.com/tangrb/tc-compiler/actions/workflows/ci.yml)
+[![ASan](https://github.com/tangrb/tc-compiler/actions/workflows/asan.yml/badge.svg)](https://github.com/tangrb/tc-compiler/actions/workflows/asan.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/tangrb/tc-compiler)](https://github.com/tangrb/tc-compiler/releases/latest)
+
 TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 
 - **libtc**：编译、静态分析和执行的嵌入式静态库；
@@ -17,8 +22,12 @@ TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 
 ```sh
 make
+./build/vm/bin/tc-vm examples/hello.tc
+# 或符合性样例：
 ./build/vm/bin/tc-vm tests/valid/example.tc
 ```
+
+更多教学示例见 [`examples/`](examples/)。
 
 检查源码但不执行：
 
@@ -364,7 +373,8 @@ sh scripts/vm/bench.sh --check
 ## 项目结构
 
 ```text
-docs/               正式语言、实现、CLI 与 API 文档
+docs/               正式语言、实现、CLI 与 API 文档（见 docs/README.md）
+examples/           教学向示例（非符合性测试套件）
 .cursor/            Cursor Agent 规则与技能（见 AGENTS.md）
 AGENTS.md           Agent 入口（精简）；完整导航见 .cursor/README.md
 src/
@@ -393,6 +403,8 @@ scripts/
 
 ## 文档
 
+文档分层与阅读顺序见 [docs/README.md](docs/README.md)。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 | 文档 | 职责 |
 | ---- | ---- |
 | [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.42.md) | 0.0.42 语法、语义和诊断的唯一权威来源 |
@@ -406,9 +418,20 @@ scripts/
 | [语言标准符合性修复计划](docs/TC-0.0.41-语言标准符合性修复计划.md) | 基于分析报告的修复计划（P0~P6、错误码裁决表、测试与门禁） |
 | [0.0.42 遗留问题清零计划](docs/TC-0.0.42-遗留问题清零计划.md) | 清零 FP-4.5 端序 / FP-4.6 自实现 printf / N-12 / N-13，收口结论「与标准完全符合」 |
 
-## 贡献与 Cursor Agent
+## 贡献
 
-使用 Cursor 开发时，Agent 上下文由以下文档驱动（**勿与 `docs/` 设计书混读**）：
+请先阅读 [贡献指南](CONTRIBUTING.md)（[English](CONTRIBUTING.en.md)）。另见：
+
+- [行为准则](CODE_OF_CONDUCT.md)
+- [安全策略](SECURITY.md)
+- [变更日志](CHANGELOG.md)
+- [发版检查清单](docs/release-checklist.md)
+
+教学示例：[`examples/`](examples/)。
+
+### Cursor Agent（维护者可选）
+
+使用 Cursor 开发时，Agent 上下文由以下文档驱动（**勿与 `docs/` 设计书混读**；人类贡献不依赖这些文件）：
 
 | 文档 | 用途 |
 | ---- | ---- |

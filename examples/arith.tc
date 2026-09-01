@@ -1,0 +1,12 @@
+#program
+; Explicitly typed arithmetic (no infix operators in TC 0.0.42)
+var a: int32 = 10
+var b: int32 = 20
+var sum: int32 = add(int32, a, b)
+writeln(int32, %d, sum)
+
+if eq(int32, sum, 30) then
+    writeln(int32, 1)
+else
+    writeln(int32, 0)
+end

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/tangrb/tc-compiler/blob/master/SECURITY.md
+    about: Report security issues privately — do not file a public issue.
+  - name: Contributing guide
+    url: https://github.com/tangrb/tc-compiler/blob/master/CONTRIBUTING.md
+    about: How to build, test, and open pull requests.

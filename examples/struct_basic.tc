@@ -1,0 +1,11 @@
+#program
+; Struct construction, field write, and field read
+struct Point then
+    var x: int32
+    var y: int32
+end
+
+var p: Point = Point(x: 1, y: 2)
+p.x = 10
+writeln(int32, p.x)
+writeln(int32, p.y)

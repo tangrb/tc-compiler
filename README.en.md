@@ -2,6 +2,11 @@
 
 [中文](README.md)
 
+[![CI](https://github.com/tangrb/tc-compiler/actions/workflows/ci.yml/badge.svg)](https://github.com/tangrb/tc-compiler/actions/workflows/ci.yml)
+[![ASan](https://github.com/tangrb/tc-compiler/actions/workflows/asan.yml/badge.svg)](https://github.com/tangrb/tc-compiler/actions/workflows/asan.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/tangrb/tc-compiler)](https://github.com/tangrb/tc-compiler/releases/latest)
+
 TC-Compiler is a TC language toolchain implemented in C99. It includes:
 
 - **libtc**: an embeddable static library for compilation, static analysis, and execution;
@@ -17,8 +22,12 @@ Requirements: a C99 compiler, CMake, and Make. TC-AOT `--run` mode also requires
 
 ```sh
 make
+./build/vm/bin/tc-vm examples/hello.tc
+# Or a conformance fixture:
 ./build/vm/bin/tc-vm tests/valid/example.tc
 ```
+
+More teaching examples: [`examples/`](examples/).
 
 Check source without executing it:
 
@@ -364,7 +373,8 @@ Regression limits are stored in `tests/stress/bench_limits.txt`.
 ## Project Structure
 
 ```text
-docs/               Formal language, implementation, CLI, and API documents
+docs/               Formal language, implementation, CLI, and API documents (see docs/README.md)
+examples/           Teaching examples (not the conformance suite)
 .cursor/            Cursor Agent rules and skills (see AGENTS.md)
 AGENTS.md           Agent entry point (kept minimal); full nav in .cursor/README.md
 src/
@@ -393,6 +403,8 @@ scripts/
 
 ## Documentation
 
+For reading order and layers, see [docs/README.md](docs/README.md) ([English map](docs/README.en.md)). Changelog: [CHANGELOG.md](CHANGELOG.md).
+
 | Document | Responsibility |
 | -------- | -------------- |
 | [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md) | Sole authority for 0.0.42 syntax, semantics, and diagnostics |
@@ -406,9 +418,20 @@ scripts/
 | [Language Standard Conformance Fix Plan](docs/TC-0.0.41-语言标准符合性修复计划.md) | Fix plan based on the analysis report (P0~P6, error-code adjudication table, tests & gates) |
 | [0.0.42 Debt-Cleanup Plan](docs/TC-0.0.42-遗留问题清零计划.md) | Clears FP-4.5 endianness / FP-4.6 self-implemented printf / N-12 / N-13; closeout: full conformance with the standard |
 
-## Contributing and Cursor Agent
+## Contributing
 
-When developing with Cursor, agent context is driven by these documents (**do not mix with `docs/` design specs**):
+Please read the [Contributing Guide](CONTRIBUTING.en.md) ([中文](CONTRIBUTING.md)). Also see:
+
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
+- [Release checklist](docs/release-checklist.md)
+
+Teaching examples: [`examples/`](examples/).
+
+### Cursor Agent (optional for maintainers)
+
+When developing with Cursor, agent context is driven by these documents (**do not mix with `docs/` design specs**; human contributors do not need them):
 
 | Document | Purpose |
 | -------- | ------- |

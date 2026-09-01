@@ -1,0 +1,6 @@
+#lib
+; Shared library: public functions are importable by name MathLib
+public func plus(a: int32, b: int32) int32 then
+    var sum: int32 = add(int32, a, b)
+    return sum
+end

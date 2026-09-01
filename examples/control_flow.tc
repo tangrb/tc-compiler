@@ -1,0 +1,13 @@
+#program
+; while with continue / break (innermost loop only)
+var value: int32 = 0
+while true then
+    value = add(int32, value, 1)
+    if eq(int32, value, 2) then
+        continue
+    end
+    writeln(int32, value)
+    if eq(int32, value, 4) then
+        break
+    end
+end

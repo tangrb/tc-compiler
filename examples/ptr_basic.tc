@@ -1,0 +1,9 @@
+#program
+; ptr_address / ptr_store / ptr_load round-trip
+; All var declarations must appear before executable statements.
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var b: int32 = 0
+ptr_store(int32, p, 2)
+b = ptr_load(int32, p)
+writeln(int32, b)
