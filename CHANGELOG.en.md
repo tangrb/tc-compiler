@@ -9,6 +9,18 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ## [Unreleased]
 
+### Changed
+
+- **Language specification upgraded to 0.0.44** (an errata/convergence release: no new language capabilities, no change to how programs are written; the diagnostic-code set stays at **86** = 74 `TC_CE_*` + 12 `TC_RE_*`). Added `docs/TC语言标准设计说明书-0.0.44.md`, the companion revision/compatibility note (change log D1–D34), and the consistency errata checklist (63 first-round items plus 27 second-round items, all resolved). IEEE 754-2019 remains the only external normative reference.
+- **All downstream design documents synced to 0.0.44**: compiler specification, VM design, VM command reference, AOT design, Embed design, and libtc design were renamed to `*-0.0.44.md`, with baseline lines, terminology ("restricted recovery" → "structural-class syntax-stage diagnostic"), and D1–D34 change points realigned; each document gained a "0.0.44 sync status" section (docs-first).
+- `scripts/sync/check_doc_counts.py` now reads the 0.0.44 specification as its fact source, with fixed extraction logic (appendix B boundary; error-kind count taken from the `TcErrorKind` enum); the previously failing gate is green again.
+- Version lines across metadata and navigation surfaces now point at 0.0.44: README (zh/en), `AGENTS.md`, `docs/README` (doc map), `CONTRIBUTING`, `examples/README`, `.cursor` rules and skills; the doc-filename check in `docs/release-checklist` was updated as well.
+- Fixed cross-document code-count drift: compiler spec "appendix B 85 → **86**", four libtc places "85 language codes / total 86" → "**86 language codes / 87 implementation enum**", `platform.md` enum size 86 → **87**, and `errors.md`.
+
+### Known issues
+
+- **Implementation follow-ups** (spec and docs are ahead; tracked in errata checklist §9): pointer `cast` must drop the equal-width requirement (W-6; the implementation still rejects non-equal-width pointees), nested calls in `const_rhs` must report `TC_CE_SYNTAX` (W-26), and CT-category diagnostics must be reported after all SEM diagnostics (W-27). The toolchain behaviour version remains **v0.0.43**; this release changes no implementation behaviour.
+
 ## [0.0.43] - 2026-09-01
 
 ### Added

@@ -42,4 +42,4 @@
 | [release-checklist.md](release-checklist.md)（[English](release-checklist.en.md)） | 发版检查清单 |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent 入口（维护者可选） |
 
-当前核心版本：**v0.0.43**（语言规范文档为 **0.0.44**；其余设计文档仍为 0.0.42 版内容，正逐份同步）。
+当前核心版本：**v0.0.43**（语言规范与**全部设计文档**均已同步为 **0.0.44**；0.0.42 仅保留为历史基线文档）。

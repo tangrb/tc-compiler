@@ -14,7 +14,7 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
 - **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.43).
 
-Current core version: **v0.0.43**, Embed module version: **v0.0.43**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) is the sole authority for language syntax and observable semantics (language spec **0.0.44**; the other design documents still carry 0.0.42 content and are being synced one by one).
+Current core version: **v0.0.43**, Embed module version: **v0.0.43**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) is the sole authority for language syntax and observable semantics (the language specification and all design documents are **0.0.44**; implementation version is v0.0.43).
 
 ## Quick Start
 

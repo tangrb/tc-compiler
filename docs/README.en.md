@@ -42,4 +42,4 @@ Conformance analysis and closeout plans — **not** day-to-day normative specs:
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.43** (language specification is **0.0.44**; the other design documents still carry 0.0.42 content and are being synced one by one).
+Current core version: **v0.0.43** (the language specification and **all design documents** are now synced to **0.0.44**; 0.0.42 remains only as the historical baseline).
