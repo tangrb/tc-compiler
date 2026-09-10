@@ -21,15 +21,14 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
 
-## Internal / historical
-
-Conformance analysis and closeout plans — **not** day-to-day normative specs:
+## Process records
 
 | Document | Purpose |
 | -------- | ------- |
-| [0.0.41 Conformance Analysis](TC-0.0.41-语言标准符合性检查分析报告.md) | 0.0.41 conformance analysis |
-| [0.0.41 Fix Plan](TC-0.0.41-语言标准符合性修复计划.md) | 0.0.41 fix plan |
-| [0.0.42 Debt-Cleanup Plan](TC-0.0.42-遗留问题清零计划.md) | 0.0.42 debt cleanup and closeout |
+| [TC Language Standard Consistency Errata](TC-语言标准一致性勘误清单.md) | 0.0.42→0.0.44 consistency errata and implementation-sync ledger (63 first-round + 27 second-round items, all with disposal traces; §9 tracks implementation follow-ups) |
+| [0.0.44 Revision & Compatibility Note](TC-0.0.44-修订记录与兼容性说明.md) | 0.0.44 cross-version differences and change log (D1–D34) |
+
+> The historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`.
 
 ## Repository-level docs (root)
 
