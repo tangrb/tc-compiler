@@ -79,7 +79,7 @@
 | CFG + 固定点 | `tc_cfg.c` | `tc_cfg_build` / `tc_analyze_definite_init`；边、剪枝、读集、bitset 固定点 |
 | 静态布尔 | `tc_const_eval.c` | `tc_try_eval_static_bool` / `_operand` |
 | 辅助 | `tc_analyzer_dfa.c` | `TcInitState` / `tc_check_operand_init`；文件模式 `defer_to_cfg=1` |
-| 警告 | `tc_warning.h` | 无（0.0.42 无语言警告） |
+| 警告 | `tc_warning.h` | 无（0.0.44 无语言警告） |
 
 规则：仅全部可达前驱皆 `INIT` 才合流为 `INIT`；while 回边、continue、break 与 goto 均由 CFG 边表达；`tc_try_eval_static_bool` 对完整合法单层 bool RHS 做 true/false/unknown，剪枝后再固定点。字面量或更早可见 `let bool` 裁剪逻辑 RHS 读槽；`var` 不做跨语句值推测。
 

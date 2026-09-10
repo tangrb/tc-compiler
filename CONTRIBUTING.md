@@ -45,7 +45,7 @@ make hooks
 - 期望输出 vs 实际 stdout/stderr
 - 是否仅 VM、仅 AOT，或两者不一致
 
-语言/语义变更需对照 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.42.md)；设计书权威高于实现。
+语言/语义变更需对照 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.44.md)；设计书权威高于实现。
 
 使用仓库提供的 [Issue 模板](.github/ISSUE_TEMPLATE/)。
 

@@ -9,7 +9,7 @@ description: >-
 
 # TC-Compiler Architecture
 
-**v0.0.43** · 语言规范 0.0.42 · 导航 [.cursor/README.md](../../README.md) · 易错点 [gotchas.md](gotchas.md)
+**v0.0.43** · 语言规范 0.0.44 · 导航 [.cursor/README.md](../../README.md) · 易错点 [gotchas.md](gotchas.md)
 
 ## 三步
 
@@ -48,7 +48,7 @@ description: >-
 | stmt_index / DFS | `tc_stmt_index.h` → [kg-cfg.md](kg-cfg.md) | — |
 | 跑测试 / CI | Skill `run-tests` | — |
 | Review / PR | Skill `review-tc-code` | — |
-| 语言/编译器规范全文 | `docs/TC语言标准设计说明书-0.0.42.md` 等 | 整份 skill |
+| 语言/编译器规范全文 | `docs/TC语言标准设计说明书-0.0.44.md` 等 | 整份 skill |
 | libtc API | `docs/libtc设计说明书-0.0.42.md` | pipeline |
 
 ## Pipeline（一行）

@@ -45,7 +45,7 @@ Search existing issues and docs first. Bug reports should include:
 - Expected vs actual stdout/stderr
 - Whether the bug is VM-only, AOT-only, or both differ
 
-Language/semantics changes must follow the [TC Language Specification](docs/TC语言标准设计说明书-0.0.42.md); the spec is authoritative over the implementation.
+Language/semantics changes must follow the [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md); the spec is authoritative over the implementation.
 
 Use the repository [issue templates](.github/ISSUE_TEMPLATE/).
 
