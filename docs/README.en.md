@@ -17,7 +17,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Compiler Specification 0.0.42](TC编译器标准设计说明书-0.0.42.md) | 13-stage pipeline, diagnostic priority, call graph |
+| [TC Compiler Specification 0.0.44](TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, call graph |
 | [TC-VM Design 0.0.42](TC-VM详细设计说明书-0.0.42.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.42](TC-AOT详细设计说明书-0.0.42.md) | C99 codegen, runtime shim, differential verification |
 

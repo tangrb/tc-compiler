@@ -408,7 +408,7 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 | Document | Responsibility |
 | -------- | -------------- |
 | [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) | Sole authority for 0.0.44 syntax, semantics, and diagnostics |
-| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.42.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
+| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
 | [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.42.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.42.md) | VM pipeline, IR, CFG, and executor design |
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.42.md) | C99 generation, runtime shim, and differential verification |
