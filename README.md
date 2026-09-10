@@ -144,7 +144,7 @@ cmake --build build --target libtc
 ./build/vm/bin/tc-vm --version
 ```
 
-完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.42.md)。
+完整命令行为见 [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.44.md)。
 
 ### TC-AOT
 
@@ -198,7 +198,7 @@ int main(void) {
 }
 ```
 
-公共入口为 `tc_compile_source`（无路径源）、`tc_compile_file_opts`（会话式 `TcCompileOptions` 携带 `-I` 等价搜索路径）和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 设计说明书 §15（调用者 API 速查）](docs/libtc设计说明书-0.0.42.md)。
+公共入口为 `tc_compile_source`（无路径源）、`tc_compile_file_opts`（会话式 `TcCompileOptions` 携带 `-I` 等价搜索路径）和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 设计说明书 §15（调用者 API 速查）](docs/libtc设计说明书-0.0.44.md)。
 
 ## 嵌入 TC-Embed（v0.0.43）
 
@@ -409,10 +409,10 @@ scripts/
 | ---- | ---- |
 | [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.44.md) | 0.0.44 语法、语义和诊断的唯一权威来源 |
 | [TC 编译器标准设计说明书](docs/TC编译器标准设计说明书-0.0.44.md) | 13 阶段管线、诊断优先级、调用图等编译器规范 |
-| [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.42.md) | `tc-vm` 使用方式、输出和退出行为 |
+| [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.44.md) | `tc-vm` 使用方式、输出和退出行为 |
 | [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.44.md) | VM 流水线、IR、CFG、执行器设计 |
 | [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 生成、runtime shim 与差分验证 |
-| [libtc 设计说明书](docs/libtc设计说明书-0.0.42.md) | libtc 架构、事务、生命周期、错误契约与 §15 调用者 API 速查 |
+| [libtc 设计说明书](docs/libtc设计说明书-0.0.44.md) | libtc 架构、事务、生命周期、错误契约与 §15 调用者 API 速查 |
 | [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
 | [语言标准符合性检查分析报告](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | 以语言标准为唯一基线的设计文档+实现符合性检查（30 S / 27 M / ~25 N） |
 | [语言标准符合性修复计划](docs/TC-0.0.41-语言标准符合性修复计划.md) | 基于分析报告的修复计划（P0~P6、错误码裁决表、测试与门禁） |

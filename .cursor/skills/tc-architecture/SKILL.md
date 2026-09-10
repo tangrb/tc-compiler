@@ -49,7 +49,7 @@ description: >-
 | 跑测试 / CI | Skill `run-tests` | — |
 | Review / PR | Skill `review-tc-code` | — |
 | 语言/编译器规范全文 | `docs/TC语言标准设计说明书-0.0.44.md` 等 | 整份 skill |
-| libtc API | `docs/libtc设计说明书-0.0.42.md` | pipeline |
+| libtc API | `docs/libtc设计说明书-0.0.44.md` | pipeline |
 
 ## Pipeline（一行）
 

@@ -144,7 +144,7 @@ The project compiles with `-std=c99 -Wall -Wextra -pedantic`; AOT differential t
 ./build/vm/bin/tc-vm --version
 ```
 
-See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.42.md) for complete behavior.
+See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.44.md) for complete behavior.
 
 ### TC-AOT
 
@@ -198,7 +198,7 @@ int main(void) {
 }
 ```
 
-The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Design Document §15 (Embedding API quick reference)](docs/libtc设计说明书-0.0.42.md) for complete ownership, diagnostics, and build details.
+The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Design Document §15 (Embedding API quick reference)](docs/libtc设计说明书-0.0.44.md) for complete ownership, diagnostics, and build details.
 
 ## Embedding TC-Embed (v0.0.43)
 
@@ -409,10 +409,10 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 | -------- | -------------- |
 | [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) | Sole authority for 0.0.44 syntax, semantics, and diagnostics |
 | [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
-| [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.42.md) | `tc-vm` usage, output, and exit behavior |
+| [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, and executor design |
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 generation, runtime shim, and differential verification |
-| [libtc Design Document](docs/libtc设计说明书-0.0.42.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
+| [libtc Design Document](docs/libtc设计说明书-0.0.44.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
 | [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Language Standard Conformance Analysis Report](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | Design+implementation conformance check against the language standard (30 S / 27 M / ~25 N) |
 | [Language Standard Conformance Fix Plan](docs/TC-0.0.41-语言标准符合性修复计划.md) | Fix plan based on the analysis report (P0~P6, error-code adjudication table, tests & gates) |
