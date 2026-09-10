@@ -10,7 +10,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | -------- | ------- |
 | [TC Language Specification 0.0.44](TC语言标准设计说明书-0.0.44.md) | **Sole authority** for syntax, semantics, and diagnostics |
 | [TC-VM Command Reference 0.0.42](TC-VM命令行参考-0.0.42.md) | `tc-vm` usage, output, and exit behavior |
-| [TC-Embed Design 0.0.42](TC-Embed详细设计说明书-0.0.42.md) | C↔TC embed API (includes caller-facing API) |
+| [TC-Embed Design 0.0.44](TC-Embed详细设计说明书-0.0.44.md) | C↔TC embed API (includes caller-facing API) |
 | [libtc Design 0.0.42](libtc设计说明书-0.0.42.md) | Embeddable library lifecycle and caller API quick reference (§15) |
 
 ## Contributor / implementer docs

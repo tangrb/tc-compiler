@@ -278,7 +278,7 @@ int main(void) {
 ./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
 ```
 
-将生成的 `mylib.c` 与宿主程序、AOT runtime shim（`tc_aot_rt.c`）以及 Embed 桥接源一并按 C99 链接。完整文件清单与 `cc` 命令见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.42.md) §15.6。
+将生成的 `mylib.c` 与宿主程序、AOT runtime shim（`tc_aot_rt.c`）以及 Embed 桥接源一并按 C99 链接。完整文件清单与 `cc` 命令见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md) §15.6。
 
 ### 值桥接
 
@@ -290,7 +290,7 @@ int64_t x;
 tc_value_to_int64(v, &x);
 ```
 
-完整 API 设计见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.42.md)。
+完整 API 设计见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md)。
 
 ## 测试与质量门禁
 
@@ -413,7 +413,7 @@ scripts/
 | [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.44.md) | VM 流水线、IR、CFG、执行器设计 |
 | [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 生成、runtime shim 与差分验证 |
 | [libtc 设计说明书](docs/libtc设计说明书-0.0.42.md) | libtc 架构、事务、生命周期、错误契约与 §15 调用者 API 速查 |
-| [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.42.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
+| [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
 | [语言标准符合性检查分析报告](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | 以语言标准为唯一基线的设计文档+实现符合性检查（30 S / 27 M / ~25 N） |
 | [语言标准符合性修复计划](docs/TC-0.0.41-语言标准符合性修复计划.md) | 基于分析报告的修复计划（P0~P6、错误码裁决表、测试与门禁） |
 | [0.0.42 遗留问题清零计划](docs/TC-0.0.42-遗留问题清零计划.md) | 清零 FP-4.5 端序 / FP-4.6 自实现 printf / N-12 / N-13，收口结论「与标准完全符合」 |

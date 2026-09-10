@@ -131,7 +131,7 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 - **测试**：`tests/errors/static/ptr_store_through_param.tc` → `TC_CE_CONSTANT_ASSIGNMENT`；反向门禁——对形参 `ptr_address`/`ptr_load` 读**仍合法**（不误报）。
 
 ### FP-1.7 embed bool 边界规范化（S-16）
-- **文件**：`src/vm/embed/tc_embed.c:320-337`（`tc_embed_slot_write`）、`:555-557`（`tc_embed_call`）；`docs/TC-Embed详细设计说明书-0.0.42.md` 行 250/497-499/1997-2004。
+- **文件**：`src/vm/embed/tc_embed.c:320-337`（`tc_embed_slot_write`）、`:555-557`（`tc_embed_call`）；`docs/TC-Embed详细设计说明书-0.0.44.md` 行 250/497-499/1997-2004。
 - **改动**：按槽位类型（或 `value.type->tag == TC_BOOL`）做 `value.bits = value.bits ? 1 : 0`；AOT 模式下从 `TcTypedProgram` 恢复槽位类型（与 P4 的 FP-4.8 `slot_read` 类型补齐联动）。
 - **测试**：`tests/unit/embed/test_embed_bool_normalize.c` 注入 `{TC_BOOL, 0xFF}` 后断言读回 `0x01`。
 
@@ -209,7 +209,7 @@ P0 只改语言标准、P1 只改代码，二者无相互依赖。P3 必须在 P
 | `TC-VM命令行参考-0.0.42.md` | ~~91 码口径注明~~（**已随 P3 改为 86 码**）；writeln LF 说明 |
 | `TC-AOT详细设计说明书-0.0.44.md` | §12.3 优先级改"无效→除零"；§10.3 改 memcpy；§7 返回机制改专用返回标记；memblock 头 64-bit 标注；CLI 补 `-I` |
 | `libtc设计说明书-0.0.42.md` | ~~§2.1 API 声明修复~~（**已修复并并入 §15，2026-08-29**）；错误码分类计数（47/8/2/12）修正（§15.8）；"16 个 TC_RE"→12 |
-| `TC-Embed详细设计说明书-0.0.42.md` | bool 规范化三路径；static let 不占槽；ptr_add 位粒度步长；slot_read 类型；错误码映射 |
+| `TC-Embed详细设计说明书-0.0.44.md` | bool 规范化三路径；static let 不占槽；ptr_add 位粒度步长；slot_read 类型；错误码映射 |
 | ~~`设计实现合规审查报告-0.0.42.md`~~ | **已删除（2026-08-29）**——原"91→71+19 口径 / 替换过时码 / 标注被取代"等修订随文档删除一并关闭 |
 | ~~`TC-0.0.41-开发计划.md`~~ | **已删除（2026-08-29，老版本开发计划）**——原"错误码名称对齐 / 补 TC-Embed 覆盖"随文档删除一并关闭；「RHS 分发覆盖」计数源已迁至 `.cursor/skills/tc-architecture/types.md` |
 | ~~`TC-0.0.41-结构体字段operand修复计划.md`~~ | **已删除（2026-08-29）**——原 M-16 措辞修订随文档删除一并关闭 |

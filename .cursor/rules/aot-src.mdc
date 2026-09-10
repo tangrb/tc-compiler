@@ -12,7 +12,7 @@ alwaysApply: false
 
 跨模块分发点见 `@knowledge-graph`；AOT 语义 [kg-eval.md](../skills/tc-architecture/kg-eval.md)；Embed [kg-embed.md](../skills/tc-architecture/kg-embed.md)。  
 const 复合字段 / 禁止嵌入分析期堆指针：[gotchas.md](../skills/tc-architecture/gotchas.md)。  
-规格：`docs/TC-AOT详细设计说明书-0.0.44.md` · Embed 详设-0.0.42。
+规格：`docs/TC-AOT详细设计说明书-0.0.44.md` · Embed 详设-0.0.44。
 
 ## 文件
 

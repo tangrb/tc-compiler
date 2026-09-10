@@ -278,7 +278,7 @@ Transpile TC source via `tc-aot --embed` into embed-library C code, compile with
 ./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
 ```
 
-Link the generated `mylib.c` with the host program, the AOT runtime shim (`tc_aot_rt.c`), and the Embed bridge sources as C99. See [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) §15.6 for the complete file list and `cc` command.
+Link the generated `mylib.c` with the host program, the AOT runtime shim (`tc_aot_rt.c`), and the Embed bridge sources as C99. See [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) §15.6 for the complete file list and `cc` command.
 
 ### Value Bridging
 
@@ -290,7 +290,7 @@ int64_t x;
 tc_value_to_int64(v, &x);
 ```
 
-See the [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) for the complete API design.
+See the [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) for the complete API design.
 
 ## Tests and Quality Gates
 
@@ -413,7 +413,7 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, and executor design |
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 generation, runtime shim, and differential verification |
 | [libtc Design Document](docs/libtc设计说明书-0.0.42.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
-| [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
+| [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Language Standard Conformance Analysis Report](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | Design+implementation conformance check against the language standard (30 S / 27 M / ~25 N) |
 | [Language Standard Conformance Fix Plan](docs/TC-0.0.41-语言标准符合性修复计划.md) | Fix plan based on the analysis report (P0~P6, error-code adjudication table, tests & gates) |
 | [0.0.42 Debt-Cleanup Plan](docs/TC-0.0.42-遗留问题清零计划.md) | Clears FP-4.5 endianness / FP-4.6 self-implemented printf / N-12 / N-13; closeout: full conformance with the standard |
