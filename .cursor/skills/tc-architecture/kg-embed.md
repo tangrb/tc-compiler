@@ -1,4 +1,4 @@
-# TC-Embed — C 宿主零拷贝调用（v0.0.42）
+# TC-Embed — C 宿主零拷贝调用（v0.0.43）
 
 **只读本文件** — 由 `@knowledge-graph` 索引指向；编辑 `src/vm/embed/` 时另见 Rule `embed-src`。
 

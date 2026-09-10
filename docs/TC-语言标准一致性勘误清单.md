@@ -683,20 +683,23 @@ EOF
 
 ### 9.1 行为/诊断需同步到 `src/`（对应配套文档《TC 0.0.44 语言标准 修订记录与兼容性说明》§1.1／§1.2）
 
-- ☐ **W-1** `var` 缺初始化器改为**语法阶段**报告 `TC_CE_VAR_MISSING_INIT`（D4）
-- ☐ **W-2** `const_rhs` 中出现指针指令改报 **`TC_CE_SYNTAX`**（D13，7 处口径）
-- ☐ **W-3** 结构体名三类冲突分别报 `TC_CE_DUPLICATE_STRUCT` / `TC_CE_FUNCTION_NAME_CONFLICT` / `TC_CE_IMPORT_NAME_CONFLICT`（D7）
-- ☐ **W-4** 同作用域重复声明（非形参）报 `TC_CE_DUPLICATE_DEFINITION`（D16）
-- ☐ **W-5** `bitcast(ptr ↔ 浮点)` 改为拒绝（`TC_CE_TYPE_MISMATCH`）（D10，唯一语义收紧项）
-- ☐ **W-6** `cast(ptr<int32>, p_uint8)` 等**所指类型不同但均完整**的重标记改为接受（D14）→ **已核实未落地**（Phase 2a）：`tests/errors/static/ptr_cast_width.tc` 仍断言 `cast(ptr<int64>, p_int32)` 报「pointer cast requires equal-width pointee types」（`scripts/vm/run_tests.sh:783`、`:859`），实现与规范冲突，属**接受集分歧**（规范接受、实现拒绝）
-- ☐ **W-7** 指针操作数接受字段读取 `a.p` 等任意 `operand`（D12）
-- ☐ **W-8** `memblock` 的 `N` / `count:` 接受 `u`/`U` 后缀字面量；`N < 1` 报 `TC_CE_CONSTANT_EXPRESSION`（D5）
-- ☐ **W-9** `ptr_load` 结果类型为 `bool` 时按 `0x00`/非零→`0x01` 规范化（D16）
-- ☐ **W-10** `static var` 初始化器允许引用更早 `static var`，失败报 `TC_RE_*`（D16）
-- ☐ **W-11** 首诊断顺序按 §11 四步规则可复现（阶段 → 位置 → 专用码优先 → 条款内既有顺序）（D19）
-- ☐ **W-12** 实参形态与形参类型不匹配报 `TC_CE_TYPE_MISMATCH`；前导零字面量报 `TC_CE_SYNTAX`（D17）
-- ☐ **W-13** `ptr_size` 不得作为其它调用的嵌套操作数（拒绝 `add(usize, ptr_size(...), 1u)`）（D18）
-- ☐ **W-14** §6.1.1／§6.1.2 总表新增行对应的形态（`memblock_load` 作 RHS、`.count` 作 operand、`Self.x`／`m.x` 作 RHS）必须被接受（D9／D11）
+**状态标记**：✅ 已核实与规范一致｜◐ 部分一致（实现已在但缺测试覆盖，或反之）｜☐ 未核对｜❌ **已核实与规范冲突**（接受集分歧或诊断码不符）。核对方式：读 `src/` 实现路径并比对 `tests/**` 语料与 `scripts/*/run_tests.sh` 断言（2026-09-10 执行，证据写在各项行尾）。 另于 2026-09-10 用构建产物 `build/vm/bin/tc-vm --version`（实测 `tc-vm 0.0.43`，与文档及黄金测试一致）与 `tc-vm -e <用例>` 逐项实测，实测结论以「**实测**」标注。
+
+
+- ✅ **W-1** `var` 缺初始化器改为**语法阶段**报告 `TC_CE_VAR_MISSING_INIT`（D4） → **已核实一致**：`tc_parser_stmt.c`（第 3 阶段）报告；测试 `var_missing_initializer.tc` + runner 双断言
+- ✅ **W-2** `const_rhs` 中出现指针指令改报 **`TC_CE_SYNTAX`**（D13，7 处口径） → **已核实一致**：`tc_parse_const_rhs` 对 `ptr_load`／`ptr_address`／`ptr_add`／`ptr_sub`／指针比较／`memcopy_unsafe`／`memblock_load`／`memblock_copy` 一律 `tc_syntax_error("expected constant expression")` → `TC_CE_SYNTAX`
+- ◐ **W-3** 结构体名三类冲突分别报 `TC_CE_DUPLICATE_STRUCT` / `TC_CE_FUNCTION_NAME_CONFLICT` / `TC_CE_IMPORT_NAME_CONFLICT`（D7） → **已落地、测试有缺口**：三码均在 `src/`（`DUPLICATE_STRUCT`／`FUNCTION_NAME_CONFLICT` 另有测试），`TC_CE_IMPORT_NAME_CONFLICT` 无测试覆盖
+- ✅ **W-4** 同作用域重复声明（非形参）报 `TC_CE_DUPLICATE_DEFINITION`（D16） → **已核实一致**：`tc_analyzer_pass1.c:190/219/242/267`（var／let／static var／static let）
+- ☐ **W-5** `bitcast(ptr ↔ 浮点)` 改为拒绝（`TC_CE_TYPE_MISMATCH`）（D10，唯一语义收紧项） → **实测未落地（接受集分歧 #2）**：`tc-vm` 实测 `var q: float64 = bitcast(float64, p)` **exit=0 被接受**（D10 要求拒绝 `TC_CE_TYPE_MISMATCH`）
+- ❌ **W-6** `cast(ptr<int32>, p_uint8)` 等**所指类型不同但均完整**的重标记改为接受（D14） → **实测未落地（接受集分歧 #1）**：`tc-vm` 实测 `cast(ptr<int64>, p_int32)` **exit=1** 报 `pointer cast requires equal-width pointee types`（D14 要求接受）；语料 `tests/errors/static/ptr_cast_width.tc` 与 `run_tests.sh:783/:859` 亦按旧口径断言
+- ☐ **W-7** 指针操作数接受字段读取 `a.p` 等任意 `operand`（D12） → **实测一致**：`tests/valid/struct_field_operand_ptr.tc`（`ptr_load(int32, h.mvp)`）直跑通过 → 字段读取作指针操作数已接受
+- ◐ **W-8** `memblock` 的 `N` / `count:` 接受 `u`/`U` 后缀字面量；`N < 1` 报 `TC_CE_CONSTANT_EXPRESSION`（D5） → **部分核实**：`memblock_count_zero.tc`／`memblock_type_count_zero.tc` 覆盖 `< 1` 码；`u`/`U` 后缀作 `N`/`count:` 的接受未核对
+- ☐ **W-9** `ptr_load` 结果类型为 `bool` 时按 `0x00`/非零→`0x01` 规范化（D16） → **待核对**：需按 D16 补 `ptr_load(bool)` 别名路径用例
+- ☐ **W-10** `static var` 初始化器允许引用更早 `static var`，失败报 `TC_RE_*`（D16） → **待核对**：需核对「更早 `static var` 可引用」与准备阶段失败→`TC_RE_*`
+- ☐ **W-11** 首诊断顺序按 §11 四步规则可复现（阶段 → 位置 → 专用码优先 → 条款内既有顺序）（D19） → **待核对**：与 W-27 同源（CT 类诊断须晚于 SEM 报告）
+- ✅ **W-12** 实参形态与形参类型不匹配报 `TC_CE_TYPE_MISMATCH`；前导零字面量报 `TC_CE_SYNTAX`（D17） → **已核实一致**：`leading_zero.tc`（语法错误）与 `argument_type.tc`（`TC_CE_LITERAL_TYPE` 路径）
+- ☐ **W-13** `ptr_size` 不得作为其它调用的嵌套操作数（拒绝 `add(usize, ptr_size(...), 1u)`）（D18） → **实测一致**：`add(usize, ptr_size(int32, nullptr), 1u)` 实测报 `SyntaxError: expected operand` → 嵌套按语法拒绝（D18 达标）
+- ☐ **W-14** §6.1.1／§6.1.2 总表新增行对应的形态（`memblock_load` 作 RHS、`.count` 作 operand、`Self.x`／`m.x` 作 RHS）必须被接受（D9／D11） → **实测一致**：`tests/valid/let_memblock_const.tc`（`memblock_load(int32, mb, 0)` 作 RHS）通过；`add(usize, n, mb.count)` 中 `.count` 作 operand 实测输出 `4` → 相关形态均被接受
 
 ### 9.2 仓库其它资产需指向 0.0.44
 
@@ -706,14 +709,14 @@ EOF
 - ✅ **W-18** `CHANGELOG.md`／`CHANGELOG.en.md` 已增补 `[Unreleased]` 条目：语言规范 0.0.44（口径收敛版）、6 份设计文档同步、门禁改指、元数据与导航层版本行、跨文档码数漂移修正，并在 `### Known issues` 中列明实现侧待同步项（W-6／W-26／W-27）→ **Phase 4 已完成**
 - ◐ **W-19** 测试语料回归 → **Phase 2／3 期间已做定向核对**：① 已一致项——前导零（`leading_zero.tc` 期望语法错误）、`@padding` 三例（`struct_padding_{u,hex,neg}.tc` 期望 `TC_CE_CONSTANT_EXPRESSION`）、`memblock_count_zero`／`memblock_type_count_zero`、`argument_type.tc`、`ptr_cast_width`（见下）；② **已确认与规范冲突、转为具体实现项**——`ptr_cast_width.tc` 仍断言等宽拒绝 → **W-6**；`let_nested_call.tc` 期望消息基于 `TC_CE_CONSTANT_EXPRESSION` → **W-26**；③ 未覆盖组合（`bitcast(ptr↔浮点)`、`ptr_size` 嵌套、静态布尔原子集合、`-nan`）→ **W-5／W-13／W-25／W-28**（需按 0.0.44 补用例）
 - ✅ **W-20** 其它设计文档条款同步 → **Phase 1～3 已完成（6/6）**：编译器标准（1524 行）、VM 详设（1175）、VM 命令行参考（514）、AOT 详设（918）、Embed 详设（2080）、libtc（877）均已改名 `-0.0.44`、更新基线行与实现基线（统一 v0.0.43）、对齐 D1～D34 变更点与术语、核对 `§` 锚点存活，并各新增「0.0.44 同步状态」表；全仓 62 处引用同步、无死链。逐份记录见 §9.4～§9.8
-- ☐ **W-21** 静态成员初始化器中引用**源序更晚或自身**的静态成员时改为报 `TC_CE_UNDEFINED_VARIABLE`（D28；此前无码归属）
+- ☐ **W-21** 静态成员初始化器中引用**源序更晚或自身**的静态成员时改为报 `TC_CE_UNDEFINED_VARIABLE`（D28；此前无码归属） → **待核对**：`static var` 初始化器前向／自引用 → `TC_CE_UNDEFINED_VARIABLE`
 - ✅ **W-22** `@padding(N)` 的 `N` 带 `u`/`U` 后缀、进制前缀或负号报 `TC_CE_CONSTANT_EXPRESSION` → **无需实现改动**：实现（`tc_parser_struct.c`）与测试语料已一致，D34 将规范口径纠正为与该实现同码
-- ☐ **W-23** 源文件中的 `-nan` 固定报 `TC_CE_SYNTAX`（D30；负号仅可与有限浮点字面量或 `inf` 组合）
-- ☐ **W-24** `read` 的**标准输入读取失败**映射为 `TC_RE_IO`（D31；此前仅 `write`/`writeln` 写入失败有明文）
-- ☐ **W-25** `if`/`while` 条件的静态布尔判定原子集合扩展为 §5.2.1 原子表达式（含 `Self.`／导入 `static let`、只读字段读取、`mb.count`）（D29）
-- ☐ **W-26** `const_rhs` 中的**嵌套调用**改报 `TC_CE_SYNTAX`（D34；当前实现由 parser 报 `TC_CE_CONSTANT_EXPRESSION` 并附「nested calls are not allowed in constant expression」，`tests/errors/static/let_nested_call.tc` 的期望消息随之调整）
-- ☐ **W-27** **诊断类阶段与处理阶段分离**：CT 类码（`TC_CE_CONSTANT_*`）的报告须晚于全部 SEM 类码（规范 §11 四步骤「阶段优先」）；现实现按 13 阶段管线顺序报告，需改为挂起 CT 诊断至 SEM 全部无触发后再报（见编译器标准 §1.3 的 0.0.44 阶段对应条款）
-- ☐ **W-28** **实现核对批**：逐条验证 D5（`N`/`count:` 来源与 `u` 后缀）、D10（`bitcast(ptr↔float)` 拒绝）、D12（指针操作数任意 `operand`）、D14（指针 `cast` 不附加等宽）、D29（静态布尔原子集合、`ptr_size` 不属 `const_operand`）、D30（`-nan` 语法拒绝）在 `src/` 的落地情况，并按结果更新 `TC编译器标准设计说明书-0.0.44.md` §1.4 的状态列
+- ☐ **W-23** 源文件中的 `-nan` 固定报 `TC_CE_SYNTAX`（D30；负号仅可与有限浮点字面量或 `inf` 组合） → **实测一致**：源文件 `var f: float64 = -nan` 实测报 `SyntaxError: expected integer literal` → 属语法拒绝
+- ✅ **W-24** `read` 的**标准输入读取失败**映射为 `TC_RE_IO`（D31；此前仅 `write`/`writeln` 写入失败有明文） → **已核实一致**：`tc_io.c` 读取失败路径写 `TC_RE_IO`（"input failed"）
+- ☐ **W-25** `if`/`while` 条件的静态布尔判定原子集合扩展为 §5.2.1 原子表达式（含 `Self.`／导入 `static let`、只读字段读取、`mb.count`）（D29） → **待核对**：静态布尔判定原子集合（`Self.`／导入 `static let`、只读字段读取、`.mb.count`）
+- ❌ **W-26** `const_rhs` 中的**嵌套调用**改报 `TC_CE_SYNTAX`（D34；当前实现由 parser 报 `TC_CE_CONSTANT_EXPRESSION` 并附「nested calls are not allowed in constant expression」，`tests/errors/static/let_nested_call.tc` 的期望消息随之调整） → **实测未落地（码不符）**：`mul(int32, add(int32, 1, 2), 3)` 实测报 **`ConstantExpressionError`**（规范要求 `SyntaxError`，见 D34）；`let_nested_call.tc` 的期望消息需随之调整
+- ❌ **W-27** **诊断类阶段与处理阶段分离**：CT 类码（`TC_CE_CONSTANT_*`）的报告须晚于全部 SEM 类码（规范 §11 四步骤「阶段优先」）；现实现按 13 阶段管线顺序报告，需改为挂起 CT 诊断至 SEM 全部无触发后再报（见编译器标准 §1.3 的 0.0.44 阶段对应条款） → **已核实未落地**：实现按 13 阶段处理顺序报告，未挂起 CT 类诊断至全部 SEM 之后
+- ◐ **W-28** **实现核对批**：逐条验证 D5（`N`/`count:` 来源与 `u` 后缀）、D10（`bitcast(ptr↔float)` 拒绝）、D12（指针操作数任意 `operand`）、D14（指针 `cast` 不附加等宽）、D29（静态布尔原子集合、`ptr_size` 不属 `const_operand`）、D30（`-nan` 语法拒绝）在 `src/` 的落地情况，并按结果更新 `TC编译器标准设计说明书-0.0.44.md` §1.4 的状态列 → **进行中**：本轮已核 W-1／W-2／W-3／W-4／W-12（见上）；其余（D5 后缀、D10、D12、D14、D29、D30）待在补齐语料后回填
 
 ### 9.3 Phase 0 前提批记录（2026-09-10 已完成）
 
@@ -860,5 +863,6 @@ EOF
 | 0.30 | 2026-09-10 | **Phase 2b 完成**（TC-AOT 详设 → 0.0.44，改名并同步 11 处引用）：基线改指 0.0.44、实现基线纠正为 v0.0.43、`ptr` cast 与 `bitcast(ptr↔浮点)` 口径对齐（D14／D10）、新增 §1.4 实现同步状态表；详见 §9.6。 |
 | 0.31 | 2026-09-10 | **Phase 2 完成**（VM／AOT／Embed 三份详设 → 0.0.44）：三文档改名并同步 29 处引用；基线改指 0.0.44、实现基线统一纠正为 v0.0.43；D4／D5／D7／D9／D10／D12／D14／D16／D17／D19／D28／D29／D31／D34 变更点按各文档影响面对齐；三份文档各新增「实现同步状态」表（文档先行）；**W-6 核实为未落地**（接受集分歧）。详见 §9.5～§9.7。 |
 | 0.32 | 2026-09-10 | **Phase 3 完成**（命令行参考 + libtc → 0.0.44）：两文档改名并同步 10 处引用；基线改指 0.0.44、实现基线统一为 v0.0.43；版本横幅示例改为 `tc-vm 0.0.43`、迁移表错误码行 86 → 87、TOC 锚点修正；术语与 §14.3／§9.2 同步状态表落地。**6 份下游设计文档全部完成 0.0.44 同步**；剩余 Phase 4 元数据收尾（CHANGELOG／release-checklist／文档地图复核）。详见 §9.8。 |
+| 0.35 | 2026-09-10 | **实现侧文档收口（Batch R）**：① `.cursor` 导航层 13 处版本标签由 v0.0.42 改为 v0.0.43（rules ×4、skills ×9，含 `kg-eval.md` 的旧文档 glob `docs/*-0.0.42.md` → `*-0.0.44.md`、`test-map.md` 的 CLI 版本与黄金测试口径一致）；② 源码/示例注释指向修正：`tc_version.h`（语言规范与 Embed 详设文件名）、`tc_lib.h`（已并入文档的陈旧指向）、`tc_lexer.h`／`tc_types.h`／`tc_stmt_index.h`／`tc_const_eval.h`／`tc_embed*.{c,h}`／`tc_value_bridge.h` 版本标签、`examples/README(.en)`、`tests/unit/runtime/{test_types,test_endianness,test_embed}.c`、`check_rhs_coverage.py` 历史分组标注；③ §9.1／§9.2 状态按证据回填并加状态标记图例（✅ 一致／◐ 部分／☐ 未核对／❌ 冲突）：**实测**确认 W-1／W-2／W-3／W-4／W-7／W-12／W-13／W-14／W-23／W-24 已一致，**W-5 与 W-6 为两处接受集分歧、W-26 为诊断码不符**（均由构建产物实测复现）。 |
 | 0.34 | 2026-09-10 | **历史过程文档清理**（用户决议：直接删除＋台账改名）：移除 `TC-0.0.41-语言标准符合性检查分析报告.md`、`TC-0.0.41-语言标准符合性修复计划.md`、`TC-0.0.42-遗留问题清零计划.md`、`TC语言标准设计说明书-0.0.42.md`（后者为本次审计基线，已改为**用发布标签恢复**：`git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`，§8 复现命令与基线行同步改写）；本文件改名为 `TC-语言标准一致性勘误清单.md`（同时承载 0.0.42 首轮与 0.0.44 第二轮）；文档地图「内部/历史」改为「过程记录」并保留台账与配套文档，根 README 与 `.cursor/rules/docs-tc.mdc` 的失效条目删除、AOT §19 死链改为标签恢复说明；**全仓 411 条相对链接复核 0 死链**。 |
 | 0.33 | 2026-09-10 | **Phase 4 完成 · 目标收口**：文档地图／surface README／release-checklist／CHANGELOG（中英）全部改指 0.0.44，W-18／W-20 关闭、W-19 细化为已核对项＋具体实现项；6 份设计文档与元数据层终局校验通过。**6 份下游设计文档 0.0.44 同步全部完成**，剩余为实现侧跟进项（勘误清单 §9 W-1～W-28，按文档先行约定另行推进）。 |

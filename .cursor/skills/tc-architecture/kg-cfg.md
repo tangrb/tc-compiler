@@ -2,7 +2,7 @@
 
 **只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
-> **v0.0.42 多域 CFG（Phase 3+5）**：`TcCfgSet`（顶层 + 各函数独立域）、`MISSING_RETURN`、goto/label **仅函数内**；函数体内 goto **执行/AOT 已落地**。
+> **v0.0.43 多域 CFG（Phase 3+5）**：`TcCfgSet`（顶层 + 各函数独立域）、`MISSING_RETURN`、goto/label **仅函数内**；函数体内 goto **执行/AOT 已落地**。
 
 ## stmt_index 子系统
 

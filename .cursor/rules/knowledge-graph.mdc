@@ -10,7 +10,7 @@ alwaysApply: false
 
 # TC-Compiler 知识图谱（索引）
 
-> **v0.0.42** · 加载条件见 [.cursor/README.md](../README.md) § `@knowledge-graph`  
+> **v0.0.43** · 加载条件见 [.cursor/README.md](../README.md) § `@knowledge-graph`  
 > **本 rule → 恰好一个 `kg-*.md`** · 单文件 → `compiler-src` + `rg`
 
 ## 任务 → 读哪一份（恰好一个）

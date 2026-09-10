@@ -1,6 +1,6 @@
 # Examples
 
-Short teaching programs for TC 0.0.42. These are **not** the conformance suite; regressions live under `tests/`.
+Short teaching programs for TC 0.0.44. These are **not** the conformance suite; regressions live under `tests/`.
 
 中文：[README.md](README.md)
 

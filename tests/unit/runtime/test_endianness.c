@@ -1,5 +1,5 @@
 /*
- * test_endianness.c — A1 端序无关布局单元测试（§3.5 / TC-0.0.42 契约）
+ * test_endianness.c — A1 端序无关布局单元测试（§3.5 / TC-0.0.44 契约）
  *
  * 验证固定 LE 字节约定：memblock 头部 usize 与标量元素、struct 标量字段的
  * 字节区间内一律低字节在前（显式位组装，不依赖宿主字节序）。通过 Embed

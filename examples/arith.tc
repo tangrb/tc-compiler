@@ -1,5 +1,5 @@
 #program
-; Explicitly typed arithmetic (no infix operators in TC 0.0.42)
+; Explicitly typed arithmetic (no infix operators in TC 0.0.44)
 var a: int32 = 10
 var b: int32 = 20
 var sum: int32 = add(int32, a, b)

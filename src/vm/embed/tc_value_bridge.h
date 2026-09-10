@@ -1,5 +1,5 @@
 /*
- * tc_value_bridge.h — 值桥接辅助函数族（v0.0.42）
+ * tc_value_bridge.h — 值桥接辅助函数族（v0.0.43）
  *
  * 纯数据构造/解构，不涉及 heap 分配或 I/O。全部 static inline。
  */
