@@ -657,7 +657,7 @@ end
 
 可选属性 `@padding(N)`：
 
-- `N` 必须是非负十进制整数字面量：无 `u`/`U` 后缀、无进制前缀、无负号；允许 `0`。带后缀、进制前缀或负号的形态由附录 A 的 `padding_attr`（`integer_literal`）在**语法上接受**，但在静态语义阶段拒绝，报告 `TC_CE_LITERAL_TYPE`（附录 B.4）。
+- `N` 必须是非负十进制整数字面量：无 `u`/`U` 后缀、无进制前缀、无负号；允许 `0`。带后缀、进制前缀或负号的形态由附录 A 的 `padding_attr`（`integer_literal`）在**语法上接受**，但在静态语义阶段拒绝，报告 `TC_CE_CONSTANT_EXPRESSION`（与 §3.8.1 的 `N` / `count:` 来源不合法**同码**，附录 B.6）。
 - 语义：在**该字段存储之后**插入恰好 `N` 个填充字节（每位填充字节为 `0x00`）。
 - 省略属性等价于 `@padding(0)`，即默认紧密布局。
 - `@padding` 只改变布局字节数，不改变字段类型、可变性或构造器实参列表。
@@ -1075,7 +1075,7 @@ TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化�
 - 常量表达式不可 引用任何 `var` 变量（**`static var` 初始化器例外**：按 §4.2 可引用当前源序中更早已成功初始化的 `Self` 成员，含 `static var`；该初始化器在程序准备阶段按运行时语义求值，失败报对应 `TC_RE_*` 码，§4.2、§11.1）
 - 常量表达式不可 包含 `funcall`；函数体内的 `let` 亦不得引用参数或局部 `var`
 - 常量表达式不可 引用自身或尚未定义的 `let`；此类引用在名称解析阶段被 `TC_CE_UNDEFINED_VARIABLE` 拦截
-- 操作调用不可嵌套；复合计算须拆分为多条按源序定义的 `let`
+- 操作调用不可嵌套；复合计算须拆分为多条按源序定义的 `let`。嵌套调用不符合附录 A 的 `const_rhs` / `const_operand` 产生式（调用形式不属于 `const_operand`），与指针指令、`memblock_load` 等非 `const_rhs` 形态同等对待，属**语法拒绝**（`TC_CE_SYNTAX`，§1.3）；`ptr_size` 的嵌套禁令同此口径（§6.8.8）
 - 除 `ptr_size` 外，指针指令（`ptr_load` / `ptr_address` / `ptr_add` / `ptr_sub` / `ptr_eq` / `ptr_ne` / `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` / `memcopy_unsafe`）没有可编译期求值的常量形式：附录 A 的 `const_rhs` 不含对应产生式，出现在 `const_rhs` 中属**语法拒绝**（`TC_CE_SYNTAX`，§1.3）。`ptr_size` 是编译期常量，但只能**整条**充当 `const_rhs`，不得作为其它调用的操作数（§6.8.8）
 - 由于只允许引用此前的 `let`，多常量循环依赖在语法可见性上不可形成，TC 不定义常量循环依赖错误；前向引用和自引用统一由 `TC_CE_UNDEFINED_VARIABLE` 处理
 - 有符号严格常量算术运算或 `shl` 的溢出，在编译期视为常量溢出错误（`TC_CE_CONSTANT_OVERFLOW`）并终止编译
@@ -2746,7 +2746,7 @@ struct_field
 padding_attr
            = "@" , "padding" , "(" , integer_literal , ")" ;
 /* integer_literal 须为无后缀非负十进制字面量；带 u/U、进制前缀或负号
-   的形态由静态语义拒绝，报告 TC_CE_LITERAL_TYPE（§3.9.3）。 */
+   的形态由静态语义拒绝，报告 TC_CE_CONSTANT_EXPRESSION（§3.9.3）。 */
 
 /* ── 函数定义 ── */
 
@@ -3346,7 +3346,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | 错误码 | 阶段 | 触发条件 |
 |--------|------|----------|
 | `TC_CE_TYPE_MISMATCH` | SEM | 赋值、传参、`return`、运算操作数等处的类型不一致 |
-| `TC_CE_LITERAL_TYPE` | SEM | 字面量类别、后缀或符号性与期望类型不符；`@padding(N)` 的 `N` 带 `u`/`U` 后缀、进制前缀或负号（§3.9.3） |
+| `TC_CE_LITERAL_TYPE` | SEM | 字面量类别、后缀或符号性与期望类型不符 |
 | `TC_CE_MODE_MISMATCH` | SEM | 运算与模式的组合不在 §6.3.1 合法矩阵内（含截断加宽或同位宽截断） |
 | `TC_CE_COMPARISON_TYPE_MISMATCH` | SEM | 比较运算中，标识符操作数的类型不等于显式类型参数（即使两操作数同类型） |
 | `TC_CE_FORMAT_TYPE_MISMATCH` | SEM | 格式化输出中，转换符与操作数类型不兼容 |
@@ -3366,7 +3366,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 
 | 错误码 | 阶段 | 触发条件 |
 |--------|------|----------|
-| `TC_CE_CONSTANT_EXPRESSION` | CT | `let` RHS 引用了运行时 `var` 或形参；常量移位计数为负；常量严格浮点无效操作；`memblock` 的 `N` / `count:` 来源不合法或数学值 < 1（§3.8.1、§3.8.3） |
+| `TC_CE_CONSTANT_EXPRESSION` | SEM / CT | `let` RHS 引用了运行时 `var` 或形参；常量移位计数为负；常量严格浮点无效操作；`memblock` 的 `N` / `count:` 来源不合法或数学值 < 1（§3.8.1、§3.8.3）；`@padding(N)` 的 `N` 带 `u`/`U` 后缀、进制前缀或负号（§3.9.3）。**阶段细分**：形态与来源类（前项中的 `var`/形参引用、`N`/`count:` 来源、`@padding` 形态）在**静态语义阶段**（SEM）即可判定；求值类（移位计数为负、严格浮点无效操作）在**编译期常量求值阶段**（CT）判定。两者同码，故本码同时属 SEM 与 CT（§5.2.1、§1.3） |
 | `TC_CE_CONSTANT_OVERFLOW` | CT | 常量严格整数算术或 `shl` 溢出；常量严格浮点上溢或下溢 |
 | `TC_CE_CONSTANT_DIV_ZERO` | CT | 常量整数 `div`/`mod` 除数为 0；常量严格浮点 `div`/`mod` 除数为零 |
 | `TC_CE_CONSTANT_CAST_OVERFLOW` | CT | 常量 `cast` 的源值无法在目标类型中表示 |
