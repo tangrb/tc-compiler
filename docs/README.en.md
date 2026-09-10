@@ -8,7 +8,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Language Specification 0.0.42](TC语言标准设计说明书-0.0.42.md) | **Sole authority** for syntax, semantics, and diagnostics |
+| [TC Language Specification 0.0.44](TC语言标准设计说明书-0.0.44.md) | **Sole authority** for syntax, semantics, and diagnostics |
 | [TC-VM Command Reference 0.0.42](TC-VM命令行参考-0.0.42.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-Embed Design 0.0.42](TC-Embed详细设计说明书-0.0.42.md) | C↔TC embed API (includes caller-facing API) |
 | [libtc Design 0.0.42](libtc设计说明书-0.0.42.md) | Embeddable library lifecycle and caller API quick reference (§15) |
@@ -42,4 +42,4 @@ Conformance analysis and closeout plans — **not** day-to-day normative specs:
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.43** (language spec documents remain 0.0.42).
+Current core version: **v0.0.43** (language specification is **0.0.44**; the other design documents still carry 0.0.42 content and are being synced one by one).

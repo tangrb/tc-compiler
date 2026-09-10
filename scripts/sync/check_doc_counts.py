@@ -4,9 +4,10 @@
 check_doc_counts.py — 文档统计数字与事实源一致性检查（防回潮）
 
 从事实源提取计数并与文档声称值比对：
-  - 错误码种类：tests/unit/runtime/test_types.c 的 `error_kind_count == N` 断言
-                vs .cursor/skills/tc-architecture/types.md「错误种类：**N**」
-  - 附录 B：语言标准附录 B 唯一 TC_CE_*/TC_RE_* 码数（85）
+  - 错误码种类：src/vm/runtime/tc_types.h 的 TcErrorKind 枚举成员数；
+                交叉核对 tests/unit/runtime/test_types.c 的 `error_kind_count` 断言
+                vs .cursor/skills/tc-architecture/types.md「错误种类：**语言标准附录 B 共 N 码** … 断言 M」
+  - 附录 B：语言标准（现行 0.0.44）附录 B 唯一 TC_CE_*/TC_RE_* 码数（86）
             vs 正文「共 N 码」vs 实现枚举 N+1（+ `TC_ERR_OUT_OF_MEMORY`）
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
                 vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
@@ -56,11 +57,24 @@ def count_tc_rhs_kinds(tc_types_h):
 
 
 def count_appendix_b_codes(lang_std):
-    """统计语言标准附录 B 表中唯一的 TC_CE_* / TC_RE_* 码。"""
-    m = re.search(r"## 附录 B：错误码速查表(.*?)## 变更记录", lang_std, re.S)
+    """统计语言标准附录 B 表中唯一的 TC_CE_* / TC_RE_* 码。
+
+    终止边界取「下一个二级标题」或文末：0.0.42 之后是 `## 变更记录`，
+    0.0.44 已把修订历史移出规范正文，附录 B 直接到文末。
+    """
+    m = re.search(r"## 附录 B：错误码速查表(.*?)(?=\n## |\Z)", lang_std, re.S)
     if not m:
         return None
     return len(set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", m.group(1))))
+
+
+def count_error_kinds(tc_types_h):
+    """仅统计 TcErrorKind 枚举体内的成员行（排除注释中的 TC_*_ 误匹配）。"""
+    m = re.search(r"typedef enum \{(.*?)\} TcErrorKind;", tc_types_h, re.S)
+    if not m:
+        return None
+    return sum(1 for ln in m.group(1).split("\n")
+               if re.match(r"\s*TC_(?:CE|RE|ERR)_", ln))
 
 
 def count_vm_test_calls(vm_sh):
@@ -72,21 +86,47 @@ def main():
     failures = []
 
     # ---- 1. 错误码种类 -------------------------------------------------
+    # 事实源：TcErrorKind 枚举成员数（= 语言码 + TC_ERR_OUT_OF_MEMORY）。
+    tc_types_h = read("src/vm/runtime/tc_types.h")
+    err_impl = count_error_kinds(tc_types_h) if tc_types_h else None
+
+    # 交叉核对 test_types.c：允许 `== NU` 显式断言或 `(size_t)TC_ERR_OUT_OF_MEMORY + 1U` 派生写法。
     test_types = read("tests/unit/runtime/test_types.c")
-    m = re.search(r"error_kind_count == (\d+)U", test_types)
-    err_actual = int(m.group(1)) if m else None
+    err_actual = None
+    if test_types:
+        m = re.search(r"error_kind_count\s*==\s*(\d+)U", test_types)
+        if m:
+            err_actual = int(m.group(1))
+        elif re.search(r"error_kind_count\s*=\s*\(size_t\)\s*TC_ERR_OUT_OF_MEMORY\s*\+\s*1U",
+                       test_types):
+            err_actual = err_impl  # 派生断言：等价于枚举成员数
 
     types_md = read(".cursor/skills/tc-architecture/types.md")
-    m = re.search(r"错误种类：\*\*(\d+)\*\*", types_md) if types_md else None
-    err_doc = int(m.group(1)) if m else None
-    if err_actual and err_doc and err_actual != err_doc:
+    err_doc = None       # 实现枚举/断言口径
+    err_doc_lang = None  # types.md 声称的语言码数
+    if types_md:
+        m = re.search(r"错误种类：\*\*语言标准附录 B 共 (\d+) 码\*\*[^\n]*?断言 (\d+)",
+                      types_md)
+        if m:
+            err_doc_lang, err_doc = int(m.group(1)), int(m.group(2))
+        else:
+            m = re.search(r"错误种类：\*\*(\d+)\*\*", types_md)
+            if m:
+                err_doc = int(m.group(1))
+
+    if err_actual is None:
+        failures.append("错误码种类：无法从 test_types.c 提取计数断言")
+    elif err_doc is None:
+        failures.append("错误码种类：无法从 types.md 提取计数")
+    elif err_actual != err_doc:
         failures.append(
             f"错误码种类：test_types.c 断言 {err_actual}，types.md 写 {err_doc}")
-    elif not err_actual or not err_doc:
-        failures.append("错误码种类：无法从 test_types.c / types.md 提取计数")
+    if err_impl is not None and err_actual is not None and err_impl != err_actual:
+        failures.append(
+            f"错误码种类：tc_types.h 枚举 {err_impl}，test_types.c 断言 {err_actual}")
 
-    # ---- 1b. 语言标准附录 B 85 码 vs 实现 86（+OOM）-----------------
-    lang_std = read("docs/TC语言标准设计说明书-0.0.42.md")
+    # ---- 1b. 语言标准附录 B 码数 vs 实现枚举（语言码 + OOM）-------------
+    lang_std = read("docs/TC语言标准设计说明书-0.0.44.md")
     appendix_actual = count_appendix_b_codes(lang_std) if lang_std else None
     appendix_claimed = None
     if lang_std:
@@ -99,13 +139,15 @@ def main():
         if appendix_actual != appendix_claimed:
             failures.append(
                 f"附录 B：表内唯一码 {appendix_actual}，正文写共 {appendix_claimed} 码")
-        if err_actual is not None and appendix_actual + 1 != err_actual:
+        if err_impl is not None and appendix_actual + 1 != err_impl:
             failures.append(
                 f"附录 B：语言码 {appendix_actual} + OOM 应为 {appendix_actual + 1}，"
-                f"test_types.c 断言 {err_actual}")
+                f"tc_types.h 枚举 {err_impl}")
+        if err_doc_lang is not None and appendix_actual != err_doc_lang:
+            failures.append(
+                f"附录 B：types.md 写语言码 {err_doc_lang}，附录 B 实际 {appendix_actual}")
 
     # ---- 2. TcRhsKind 枚举数 -------------------------------------------
-    tc_types_h = read("src/vm/runtime/tc_types.h")
     rhs_actual = count_tc_rhs_kinds(tc_types_h) if tc_types_h else None
 
     m = re.search(r"RHS 分发覆盖：\*\*(\d+)\*\*", types_md) if types_md else None
