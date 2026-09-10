@@ -411,7 +411,7 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 | [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
 | [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.42.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, and executor design |
-| [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.42.md) | C99 generation, runtime shim, and differential verification |
+| [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 generation, runtime shim, and differential verification |
 | [libtc Design Document](docs/libtc设计说明书-0.0.42.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
 | [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.42.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
 | [Language Standard Conformance Analysis Report](docs/TC-0.0.41-语言标准符合性检查分析报告.md) | Design+implementation conformance check against the language standard (30 S / 27 M / ~25 N) |

@@ -23,7 +23,7 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 | `docs/TC语言标准设计说明书-0.0.44.md` | 0.0.44 语法/语义唯一权威来源（附录 B 86 码）；语言特性变更**必更**；配套《TC-0.0.44-修订记录与兼容性说明》 |
 | `docs/TC编译器标准设计说明书-0.0.44.md` | 13 阶段管线、诊断优先级、调用图等编译器规范 |
 | `docs/TC-VM详细设计说明书-0.0.44.md` | VM 架构、执行器、诊断（无 REPL） |
-| `docs/TC-AOT详细设计说明书-0.0.42.md` | AOT 代码生成、shim 层、差分测试 |
+| `docs/TC-AOT详细设计说明书-0.0.44.md` | AOT 代码生成、shim 层、差分测试 |
 | `docs/libtc设计说明书-0.0.42.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
 | `docs/TC-VM命令行参考-0.0.42.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
 | `docs/TC-Embed详细设计说明书-0.0.42.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |

@@ -528,7 +528,7 @@ tc_diagnostic_clear(&diag);
 11. AOT codegen；
 12. CLI/API 与全量验证。
 
-本实现固定 64-bit-only（memblock 头部宽 = `sizeof_bits(usize)` = 64 位）。0.0.42 起：memblock/struct 头部/标量元素/字段按固定 LE 位级存取（端序无关，符合 §3.5）；浮点十进制输出为自实现位模式精确渲染（符合 §10.4，无宿主 `snprintf` 委托）。详见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.42.md)（债务已清零）。
+本实现固定 64-bit-only（memblock 头部宽 = `sizeof_bits(usize)` = 64 位）。0.0.42 起：memblock/struct 头部/标量元素/字段按固定 LE 位级存取（端序无关，符合 §3.5）；浮点十进制输出为自实现位模式精确渲染（符合 §10.4，无宿主 `snprintf` 委托）。详见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.44.md)（债务已清零）。
 
 ---
 
