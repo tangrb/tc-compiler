@@ -1,0 +1,5 @@
+#program
+; 跨模块执行 Self.<名> 作操作数（运算操作数与输出操作数）
+import SelfQualOperandLib
+var v: int32 = funcall(SelfQualOperandLib.read_m)
+writeln(int32, v)

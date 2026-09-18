@@ -27,6 +27,8 @@
 /* 缩进块工具声明见 tc_parser_internal.h；此处仅需本文件 static 前向声明 */
 static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
                                    TcModuleMode mode, TcStatement *out, TcDiagnostic *diag);
+static int tc_parse_field_access_base(const TcTokenList *tokens, size_t *index, int line_no,
+                                      char **out_base, TcDiagnostic *diag);
 
 
 /* ------------------------------------------------------------------ */
@@ -84,6 +86,25 @@ int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
 
     if (tok->kind == TC_TOK_SELF &&
         *index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
+        /*
+         * Self.<名> 后无 `.` → 限定标识符操作数（附录 A 的 operand 产生式
+         * 含 qualified_identifier；语言标准 §6.1.1、§6.1.2）。
+         * 有 `.` → 继续读字段链（Self.<名>.<字段…>）。
+         * 限定名的绑定解析（static let/var、可见性、读写规则）由分析器完成。
+         */
+        int has_field = *index + 3 < tokens->count &&
+                        tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT;
+
+        if (!has_field) {
+            char *qualified = NULL;
+
+            if (tc_parse_field_access_base(tokens, index, line_no, &qualified, diag) != 0) {
+                return -1;
+            }
+            out->kind = TC_OPERAND_VAR;
+            out->u.name = qualified;
+            return 0;
+        }
         return tc_parse_field_access_operand(tokens, index, line_no, out, diag);
     }
 
@@ -841,6 +862,54 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
     }
     if (first->kind == TC_TOK_MEMCOPY_UNSAFE) {
         return tc_parse_memcopy_unsafe_stmt(tokens, &index, line_no, out, diag);
+    }
+
+    if (first->kind == TC_TOK_SELF) {
+        /*
+         * 赋值左侧允许 `Self.<名>` 作为整绑定目标、`Self.<名>.<字段…>` 作为
+         * 字段目标（语言标准 §6.2）。`#lib` 函数体内访问模块 static 必须写
+         * `Self.`（§4.3），因此这里是可写 `static var` 的唯一入口。
+         */
+        if (index + 1 >= tokens->count || tc_peek(tokens, index + 1)->kind != TC_TOK_DOT) {
+            return tc_syntax_error(diag, line_no, first->column, "expected . after Self");
+        }
+        if (index + 3 < tokens->count && tc_peek(tokens, index + 3)->kind == TC_TOK_DOT) {
+            return tc_parse_field_assign_stmt(ctx, tokens, &index, line_no, out, diag);
+        }
+        {
+            TcAssign assign;
+            char *qualified = NULL;
+
+            if (tc_parse_field_access_base(tokens, &index, line_no, &qualified, diag) != 0) {
+                return -1;
+            }
+            assign.line = line_no;
+            assign.name = qualified;
+            if (tc_expect_token(tokens, &index, TC_TOK_EQUAL, line_no, diag) != 0) {
+                free(qualified);
+                return -1;
+            }
+            memset(&assign.rhs, 0, sizeof(assign.rhs));
+            if (tc_peek(tokens, index)->kind == TC_TOK_FUNCALL) {
+                if (tc_parse_funcall_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
+                    free(assign.name);
+                    tc_rhs_free(&assign.rhs);
+                    return -1;
+                }
+            } else if (tc_parse_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
+                free(assign.name);
+                tc_rhs_free(&assign.rhs);
+                return -1;
+            }
+            if (tc_expect_stmt_end(tokens, &index, line_no, diag) != 0) {
+                free(assign.name);
+                tc_rhs_free(&assign.rhs);
+                return -1;
+            }
+            out->kind = TC_STMT_ASSIGN;
+            out->u.assign = assign;
+            return 0;
+        }
     }
 
     if (first->kind == TC_TOK_IDENTIFIER) {

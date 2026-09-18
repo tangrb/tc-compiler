@@ -1,0 +1,7 @@
+#lib
+; `count:` 引用 `static var` → 来源不是编译期常量（§3.8.3）
+private static var V: usize = 4
+private static let mb: memblock<int32, 4> = memblock(int32, count: V, 1, 2, 3, 4)
+public func f() int32 then
+    return 1
+end

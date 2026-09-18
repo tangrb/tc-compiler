@@ -1,0 +1,4 @@
+#program
+; 浮点不得与指针互转（语言标准 §6.6.6、§3.10.9）
+var f: float64 = 1.0
+var bad: ptr<int32> = bitcast(ptr<int32>, f)

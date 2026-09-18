@@ -69,9 +69,15 @@ int tc_func_try_function_scope_access(const TcMemberIndex *members, const char *
 
 struct TcStructTable;
 
-/** H-5：对本库 static let 按依赖拓扑求值并写入符号表 */
+/**
+ * H-5：对本库 static let 按依赖拓扑求值并写入符号表。
+ *
+ * `type_table` 用于在求值前重新 intern 声明类型：`memblock<T, N>` 的**命名** N
+ * 须先折叠为元素个数，否则以 `.count` 为基础的常量会静默取到 0。
+ */
 int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
-                               const struct TcStructTable *struct_table, TcDiagnostic *diag);
+                               const struct TcStructTable *struct_table,
+                               struct TcTypeTable *type_table, TcDiagnostic *diag);
 
 /** H-6：校验 static var 初始化器操作数来源并固化字段读（不执行运行时求值） */
 int tc_func_check_static_vars(TcProgram *program, const TcMemberIndex *members,

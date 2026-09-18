@@ -1,0 +1,8 @@
+#lib
+; static var 初始化器的操作数只可为字面量、`Self` 成员与导入限定名（语言标准 §4.2）；
+; 裸名不是允许来源 → TC_CE_CONSTANT_EXPRESSION（编译器标准 §4.3）
+private static var B: int32 = 1
+private static var A: int32 = B
+public func f() void then
+    return
+end

@@ -1,0 +1,6 @@
+#program
+; 类型类别先于位宽：float32 目标位宽本就不符，仍须报 TYPE_MISMATCH
+; （编译器标准 §1.3 静态语义选择顺序）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var bad: float32 = bitcast(float32, p)

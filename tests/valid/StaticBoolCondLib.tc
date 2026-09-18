@@ -1,0 +1,26 @@
+#lib
+; 静态布尔条件（语言标准 §5.2.2）：原子操作数为 §5.2.1 原子表达式
+; 集合——经 `Self.` 解析到的 `static let bool`、只读结构体字段读取。三态判定为
+; 静态 true / false 时仅一侧分支可达，故 `always` / `via_field` 无 missing return。
+public struct Flags then
+    var on: bool
+end
+public static let flags: Flags = Flags(on: true)
+public static let ENV: bool = true
+public static let OFF: bool = false
+public func always() int32 then
+    if Self.ENV then
+        return 7
+    end
+end
+public func via_field() int32 then
+    if Self.flags.on then
+        return 9
+    end
+end
+public func via_while() int32 then
+    while Self.OFF then
+        writeln(int32, 999)
+    end
+    return 11
+end

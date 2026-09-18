@@ -1,0 +1,17 @@
+#program
+; §3.4 / §6.8.2：`ptr_load` 结果类型为 `bool` 时按
+; 「0x00 → false，其它字节 → true」规范化——经指针别名写入的非规范字节
+; （0x02）读回后必须落在 bool 的抽象值域 {0,1}。
+var flag: bool = false
+var pb: ptr<bool> = ptr_address(bool, flag)
+var pi8: ptr<int8> = cast(ptr<int8>, pb)
+var r: bool = false
+var bits: uint8 = 0
+ptr_store(int8, pi8, 2)
+r = ptr_load(bool, pb)
+bits = cast(uint8, r)
+writeln(uint8, bits)
+ptr_store(int8, pi8, 0)
+r = ptr_load(bool, pb)
+bits = cast(uint8, r)
+writeln(uint8, bits)

@@ -1,0 +1,7 @@
+#lib
+; 操作数位置引用 `static var`（裸名）
+private static var V: int32 = 5
+private static let A: int32 = add(int32, V, 1)
+public func f() int32 then
+    return 1
+end

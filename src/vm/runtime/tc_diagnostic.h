@@ -66,6 +66,47 @@ int tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column
 int tc_diagnostic_set_api(TcDiagnostic *diag, TcApiErrorCode code, const char *message);
 
 /**
+ * 是否已存在真实诊断（domain != TC_DIAG_NONE）。
+ * @return 已设置返回 1；空诊断返回 0
+ */
+int tc_diagnostic_is_set(const TcDiagnostic *diag);
+
+/**
+ * 挂起一条 CT 类诊断（语言标准 §11「阶段优先」）。
+ *
+ * 常量求值与静态三态判定属 CT 类阶段。§11 要求首个规范诊断按
+ * 「LT → SYN → SEM → CT」的阶段顺序选取，故 CT 类诊断必须先挂起，
+ * 待 SEM 类检查（可达性、确定初始化、调用图等）全部无触发后，
+ * 再由 tc_diagnostic_flush_deferred 发布。仅保留源序位置最靠前的一条
+ * （§11 第 2 条：行号升序，同行按 Token 次序）。
+ *
+ * @param diag    诊断对象
+ * @param kind    错误种类（CT 类码）
+ * @param line    出错行号
+ * @param column  出错列号
+ * @param message 错误描述（内部 strdup 复制）
+ * @return 始终返回 -1，便于调用方沿用既有「失败」控制流
+ */
+int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                        const char *message);
+
+/** 是否存在挂起的 CT 类诊断。 */
+int tc_diagnostic_has_deferred(const TcDiagnostic *diag);
+
+/**
+ * 发布挂起的 CT 类诊断（若存在）。
+ * 仅在全部 SEM 类检查均无触发、且当前无真实诊断时调用。
+ * @return 发布了诊断返回 1；无挂起诊断返回 0
+ */
+int tc_diagnostic_flush_deferred(TcDiagnostic *diag);
+
+/** 丢弃挂起的 CT 类诊断（已有更高优先级的 SEM 类诊断时）。 */
+void tc_diagnostic_drop_deferred(TcDiagnostic *diag);
+
+/** 释放挂起诊断占用的文本字段并复位（不改变其它状态）。 */
+void tc_diagnostic_clear_deferred(TcDiagnostic *diag);
+
+/**
  * 将诊断信息格式化输出到指定流。
  * @param diag 诊断对象
  * @param out  输出流（通常为 stderr）
@@ -78,7 +119,7 @@ int tc_diagnostic_set_api(TcDiagnostic *diag, TcApiErrorCode code, const char *m
  */
 void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out);
 
-/* 同 tc_diagnostic_print，但普通诊断首行附错误码名（D2：CLI --print-error-code）。 */
+/* 同 tc_diagnostic_print，但普通诊断首行附错误码名（CLI --print-error-code）。 */
 void tc_diagnostic_print_with_code(const TcDiagnostic *diag, FILE *out);
 
 #ifdef TC_DIAGNOSTIC_TESTING

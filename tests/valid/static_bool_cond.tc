@@ -1,0 +1,9 @@
+#program
+; §5.2.2 静态布尔条件的原子表达式集合（Self.static let / 只读字段读取）
+import StaticBoolCondLib
+var a: int32 = funcall(StaticBoolCondLib.always)
+var b: int32 = funcall(StaticBoolCondLib.via_field)
+var c: int32 = funcall(StaticBoolCondLib.via_while)
+writeln(int32, a)
+writeln(int32, b)
+writeln(int32, c)

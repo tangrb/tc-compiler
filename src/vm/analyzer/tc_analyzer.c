@@ -223,13 +223,15 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     /* H-5 / H-6：入口与依赖库的 static let/var 均需求值/检查，
      * 否则跨模块 Self.static_let 在运行期无 const_value。 */
-    if (tc_func_eval_static_lets(&out->program, &out->symbols, &struct_table, diag) != 0) {
+    if (tc_func_eval_static_lets(&out->program, &out->symbols, &struct_table,
+                                     out->type_table, diag) != 0) {
         goto fail;
     }
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
-            if (tc_func_eval_static_lets(&out->deps[di], &out->symbols, &struct_table, diag) != 0) {
+            if (tc_func_eval_static_lets(&out->deps[di], &out->symbols, &struct_table,
+                                                 out->type_table, diag) != 0) {
                 goto fail;
             }
         }
@@ -377,6 +379,16 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         }
         *owned = struct_table;
         out->struct_table = owned;
+    }
+
+    /*
+     * 语言标准 §11「阶段优先」：全部 SEM 类检查（第 6c～6e、
+     * 11、12 阶段）均无触发，此时才发布第 9/10 阶段挂起的 CT 类诊断
+     * （常量求值与静态三态判定）。若有挂起诊断，本次分析按失败返回，
+     * 调用方不得进入执行阶段。
+     */
+    if (tc_diagnostic_flush_deferred(diag) != 0) {
+        goto fail;
     }
 
     ret = 0;

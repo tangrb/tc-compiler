@@ -1,0 +1,7 @@
+#program
+; `#lib` 函数体内经 `Self.<名>` 访问模块 static（§4.3、§9.1）
+import SelfAccessLib
+var v: int32 = 0
+funcall(SelfAccessLib.touch)
+v = funcall(SelfAccessLib.get_c)
+writeln(int32, v)

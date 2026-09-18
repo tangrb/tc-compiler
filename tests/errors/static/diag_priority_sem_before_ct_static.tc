@@ -1,0 +1,11 @@
+#lib
+; static let 常量求值（第 6b 阶段，CT 类）须挂起；函数体内的 SEM 类
+; 「未初始化读取」（第 11 阶段）优先（语言标准 §11「阶段优先」）。
+private static let BAD: int32 = div(int32, 1, 0)
+public func f() void then
+    goto use
+    var pending: int32 = 1
+    label use:
+    writeln(int32, pending)
+    return
+end

@@ -1,0 +1,38 @@
+#lib
+; `static let` 初始化的**合法**来源（语言标准 §4.3、§5.2.1）：字面量，以及源序
+; 更早且已成功求值的 `static let`——含裸名与 `Self.` 限定两种书写、作为操作数、
+; 作为字段读基址、作为 `.count` 基址、以及 `memblock` 的命名 `N`（`Self.N` 与裸名）与 `count:`。
+public struct Box then
+    var v: int32
+end
+public static let BASE: int32 = 7
+public static let SUM: int32 = add(int32, BASE, 1)
+public static let SUM2: int32 = add(int32, Self.BASE, 10)
+public static let box: Box = Box(v: 5)
+public static let FIELD: int32 = box.v
+public static let N: usize = 4
+public static let mb_named: memblock<int32, Self.N> = memblock(int32, count: Self.N, 1, 2, 3, 4)
+public static let mb_bare: memblock<int32, 4> = memblock(int32, count: 4, 5, 6, 7, 8)
+public static let CNT: usize = mb_bare.count
+public static let NBARE: usize = 2
+public static let mb_bare_n: memblock<int32, NBARE> = memblock(int32, count: 2, 9, 10)
+public static let CNT2: usize = mb_bare_n.count
+public func report() void then
+    var v1: int32 = Self.SUM
+    var v2: int32 = Self.SUM2
+    var v3: int32 = Self.FIELD
+    var v4: usize = Self.CNT
+    var v5: int32 = memblock_load(int32, Self.mb_named, 2)
+    var v6: int32 = memblock_load(int32, Self.mb_bare, 0)
+    var v7: int32 = memblock_load(int32, Self.mb_bare_n, 1)
+    var v8: usize = Self.CNT2
+    writeln(int32, v1)
+    writeln(int32, v2)
+    writeln(int32, v3)
+    writeln(usize, v4)
+    writeln(int32, v5)
+    writeln(int32, v6)
+    writeln(int32, v7)
+    writeln(usize, v8)
+    return
+end

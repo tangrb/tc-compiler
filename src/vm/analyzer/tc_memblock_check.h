@@ -47,4 +47,18 @@ int tc_memblock_resolve_type_counts(TcType *type, const TcSymbolTable *visible,
                                     const TcSymbolTable *global, size_t stmt_index, int line,
                                     TcDiagnostic *diag);
 
+/**
+ * 解析 memblock 值构造器 `count:` 的 `usize_operand` 名称为元素个数。
+ *
+ * `#lib` 的 `static let` 在 Pass2 之前就完成编译期求值，此时构造器的
+ * `count_name` 尚未解析；静态初始化器解析路径须用它提前固化，否则
+ * `memblock(int32, count: Self.N, …)` 会被当成 `count == 0` 而误报。
+ * 合法来源与诊断同 `N`（语言标准 §3.8.3、§4.2；附录 A `usize_operand`）。
+ *
+ * @return 成功 0 并写入 *out_count；失败 -1 并设置 diag
+ */
+int tc_memblock_resolve_count_name(const char *name, const TcSymbolTable *visible,
+                                   const TcSymbolTable *global, size_t stmt_index, int line,
+                                   TcDiagnostic *diag, uint64_t *out_count);
+
 #endif /* TC_MEMBLOCK_CHECK_H */

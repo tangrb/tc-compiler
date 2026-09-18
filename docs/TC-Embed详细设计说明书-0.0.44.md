@@ -4,7 +4,7 @@
 >
 > **当前实现基线**：TC-Embed v0.0.43（`TC_VERSION_CORE`，见 `src/vm/runtime/tc_version.h`）
 >
-> **状态**：v0.0.44 C 调用 TC 嵌入式运行时设计（语言规范 0.0.44 同步版）。VM 模式完整设计，AOT 模式扩展设计（**已落地 v0.0.42**）。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
+> **状态**：v0.0.44 C 调用 TC 嵌入式运行时设计（语言规范 0.0.44 同步版）。VM 模式完整设计，AOT 模式扩展设计。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
 >
 > **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书-0.0.44.md) 的执行器与槽位系统 · [libtc 设计说明书](./libtc设计说明书-0.0.44.md) 的编译管线 · [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书-0.0.44.md) 的代码生成模型
 
@@ -24,7 +24,7 @@
 10. [错误模型与诊断](#10-错误模型与诊断)
 11. [与现有 API 的关系](#11-与现有-api-的关系)
 12. [使用示例](#12-使用示例)
-13. [实施路径与改动清单](#13-实施路径与改动清单)
+13. [文件清单](#13-文件清单)
 14. [验证策略](#14-验证策略)
 15. [AOT 模式扩展](#15-aot-模式扩展)
     - [15.1 当前 AOT 代码生成的真实输出](#151-当前-aot-代码生成的真实输出)
@@ -37,9 +37,8 @@
     - [15.8 完整使用示例（AOT 嵌入模式）](#158-完整使用示例aot-嵌入模式)
     - [15.9 性能分析](#159-性能分析)
     - [15.10 验证策略](#1510-验证策略)
-    - [15.11 实施步骤（已完成）](#1511-实施步骤已完成)
-    - [15.12 与 VM 模式的 API 兼容性总表](#1512-与-vm-模式的-api-兼容性总表)
-16. [运行时便捷层（v0.0.42 起引入）](#16-运行时便捷层v0042-起引入)
+    - [15.11 与 VM 模式的 API 兼容性总表](#1511-与-vm-模式的-api-兼容性总表)
+16. [运行时便捷层](#16-运行时便捷层)
     - [16.1 设计动机](#161-设计动机)
     - [16.2 新增 API 总览](#162-新增-api-总览)
     - [16.3 类型化参数 TcEmbedArg](#163-类型化参数-tcembedarg)
@@ -93,11 +92,11 @@
 
 | 条目 | 状态 |
 | ---- | ---- |
-| 嵌入模式**不另造语言错误码**：沿用 `TC_CE_*` / `TC_RE_*` 与 `TC_ERR_OUT_OF_MEMORY`（§13） | **已同步**（86 语言码 + 1 实现码） |
-| `read` 标准输入读取失败 → `TC_RE_IO`（D31） | **已同步**（共享 `tc_io`） |
+| 嵌入模式**不另造语言错误码**：沿用 `TC_CE_*` / `TC_RE_*` 与 `TC_ERR_OUT_OF_MEMORY`（§10） | **已同步**（86 语言码 + 1 实现码） |
+| `read` 标准输入读取失败 → `TC_RE_IO` | **已同步**（共享 `tc_io`） |
 | 浮点与 `bool` 规范化语义在桥接层不得放宽（语言标准 §3.4、§6.6.5） | **已同步**（桥接仅做值搬运，不做数值转换） |
-| 指针 `cast` 不附加等宽条件（D14）／`bitcast(ptr ↔ 浮点)` 拒绝（D10） | **待同步（W-6）／待核对（W-5）**：由共享 Analyzer 决定，与本模块的 `ptr<T>` 槽编码互操作原语相关（§2、§15） |
-| CT 类诊断须晚于全部 SEM 类诊断报告（D19） | **待同步（W-27）**：影响 `tc_embed_create` 返回的首个诊断码 |
+| 指针 `cast` 不附加等宽条件／`bitcast(ptr ↔ 浮点)` 拒绝 | **已同步**：均由共享 Analyzer 决定，语义同上游；与本模块 `ptr<T>` 槽编码互操作原语相关（§2、§15） |
+| CT 类诊断须晚于全部 SEM 类诊断报告 | **已同步**：影响 `tc_embed_create` 返回的首个诊断码，现由共享挂起槽 + flush 保证 |
 
 ---
 
@@ -205,14 +204,14 @@ AOT 模式通过统一的 `TcEmbedCtx` API 和全局 `slots[]` 模型，让 C �
 
 ### 3.2 模块文件
 
-| 文件 | 引入版本 | 责任 |
-| ---- | ---- | ---- |
-| `src/vm/embed/tc_embed.h` | v0.0.42 | 公共头文件：类型定义与 API 声明 |
-| `src/vm/embed/tc_embed.c` | v0.0.42 | 实现：TcEmbedCtx 生命周期、符号索引、槽位访问、函数调用组装（VM 路径） |
-| `src/vm/embed/tc_value_bridge.h` | v0.0.42 | 值桥接辅助宏/内联函数（`tc_value_from_*` / `tc_value_to_*`） |
-| `src/aot/tc_aot_embed_rt.h` | v0.0.42 | 嵌入模式运行时 shim：非致命 abort、函数表类型声明、错误标记 |
-| `src/vm/embed/tc_embed_aot.h` | v0.0.42 | AOT 桥接头文件（含 tc_embed.h 即可） |
-| `src/vm/embed/tc_embed_aot.c` | v0.0.42 | AOT 桥接实现：`tc_embed_create_aot` |
+| 文件 | 责任 |
+| ---- | ---- |
+| `src/vm/embed/tc_embed.h` | 公共头文件：类型定义与 API 声明 |
+| `src/vm/embed/tc_embed.c` | 实现：TcEmbedCtx 生命周期、符号索引、槽位访问、函数调用组装（VM 路径） |
+| `src/vm/embed/tc_value_bridge.h` | 值桥接辅助宏/内联函数（`tc_value_from_*` / `tc_value_to_*`） |
+| `src/aot/tc_aot_embed_rt.h` | 嵌入模式运行时 shim：非致命 abort、函数表类型声明、错误标记 |
+| `src/vm/embed/tc_embed_aot.h` | AOT 桥接头文件（含 tc_embed.h 即可） |
+| `src/vm/embed/tc_embed_aot.c` | AOT 桥接实现：`tc_embed_create_aot` |
 
 ### 3.3 公共头文件骨架
 
@@ -327,7 +326,7 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag);
 4. 分配 `slots[]` 并初始化为未初始化哨兵。
 5. 初始化 `memblock_heap` 与 `struct_heap`。
 6. 调用 `tc_exec_init_all_static_vars` 初始化所有 `static var`。
-7. 遍历符号表构建函数索引：收集每个 `TC_SYM_FUNCTION` 的 `func_id`、模块名、形参列表、返回类型、各形参的 `slot` 号。
+7. 遍历各模块 `TcProgram` 的函数定义（`TC_STMT_FUNC_DEF` / `TcFuncDef`）构建函数索引：收集 `func_id`、模块名、形参列表、返回类型、各形参的 `slot` 号。
 8. 初始化内部 `diag`。
 9. 返回 `ctx`。
 
@@ -490,13 +489,13 @@ int tc_embed_self_var_slot(const TcEmbedCtx *ctx, const char *name);
 
 ### 6.4 构建时机
 
-索引在 `tc_embed_create` 内构建，遍历 `TcTypedProgram` 的全部符号表条目：
+索引在 `tc_embed_create` 内构建，分两步：
+
+1. **函数索引**：遍历入口模块与各依赖模块的 `TcProgram`，对每个 `TC_STMT_FUNC_DEF`（`TcFuncDef`）记录 `func_id`、模块名、形参列表、返回类型，并通过 `tc_exec_param_slot` 解析各形参的 slot。
+2. **变量索引**：遍历 `program->symbols`，按 `sym_kind` 与 `slot_domain` 记录顶层 `var` 与模块级 `static var` / `static let` 的 name → slot 映射：
 
 ```
 for each TcSymbol in program->symbols:
-    if sym_kind == TC_SYM_FUNCTION:
-        记录 func_id, 模块成员关系, 形参列表, 返回类型
-        找到每个形参的 slot（通过 def_line + param_name 匹配）
     if sym_kind == TC_SYM_VARIABLE && slot_domain == TC_SLOT_TOPLEVEL:
         记录 name → slot 映射
     if (sym_kind == TC_SYM_VARIABLE && slot_domain == TC_SLOT_STATIC
@@ -518,7 +517,7 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
 
 **语义**：
 
-> **宿主位置实参（D2 明示的合理扩展）**：`tc_embed_call` 按**位置**（`args[0..nargs)` → 形参 slot 顺序）传递实参，不经 TC 源语的命名实参语法，因此不受语言标准 §8.2.2 的命名/顺序静态检查约束。宿主负责保证 `nargs == param_count` 与类型一致；这是 TC-Embed 的受控扩展面，非 TC 语言内行为。
+> **宿主位置实参**：`tc_embed_call` 按**位置**（`args[0..nargs)` → 形参 slot 顺序）传递实参，不经 TC 源语的命名实参语法，因此不受语言标准 §8.2.2 的命名/顺序静态检查约束。宿主负责保证 `nargs == param_count` 与类型一致；这是 TC-Embed 的受控扩展面，非 TC 语言内行为。
 
 1. 通过 `tc_embed_func_info` 查找目标函数，获取 `TcEmbedFuncInfo`。
 2. 验证 `nargs == info->param_count`，不匹配返回 -1。
@@ -606,7 +605,7 @@ ptr.bits = 0;
 
 ### 8.3 memblock / struct 的 ptr 使用
 
-`memcopy_unsafe` 语句将 `ptr<T>` 解码为 slot 索引，然后从该 slot 读取 memblock 堆指针进行原始内存复制。C 侧可以通过在 slot 中放置 memblock 值（指向外部内存块），再通过 `ptr` 传递给 TC 使用——但此场景在 0.0.42 作为未来扩展预留，初版以标量 `ptr<T>` 数组互操作优先。
+`memcopy_unsafe` 语句将 `ptr<T>` 解码为 slot 索引，然后从该 slot 读取 memblock 堆指针进行原始内存复制。C 侧可以通过在 slot 中放置 memblock 值（指向外部内存块），再通过 `ptr` 传递给 TC 使用——该场景预留为扩展点，当前以标量 `ptr<T>` 数组互操作优先。
 
 结构体字段中的 `ptr<S>`（`S` 为正在定义的本结构体，[语言标准 §3.9.1]）在 Embed 侧与 VM/AOT 相同：槽位存堆上 struct 字节序列，字段内的 `ptr` 值为普通指针位模式；`tc_embed_ptr_encode` / `ptr_load` / `ptr_store` 不区分该指针是否来自自引用字段。
 
@@ -685,12 +684,12 @@ static inline int tc_value_to_bool(TcValue v) {
 }
 ```
 
-### 9.5 非标量类型（初版不实现，预留接口）
+### 9.5 非标量类型（预留接口）
 
-以下函数签名预留在头文件中，标记为 "v0.0.42 reserved"，供后续版本实现 memblock/struct 互操作：
+以下函数签名预留在头文件中，供后续实现 memblock/struct 互操作：
 
 ```c
-/* v0.0.42 reserved */
+/* reserved */
 /* TcValue tc_value_wrap_external_memblock(void *data, size_t elem_size,
                                            uint64_t count, TcTypeTag elem_type,
                                            TcEmbedCtx *ctx); */
@@ -933,47 +932,19 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 
 ---
 
-## 13. 实施路径与改动清单
+## 13. 文件清单
 
-> **状态（v0.0.42）**：下表为 VM Embed 落地时的实施对照，步骤 1–8 **均已完成**。AOT Embed 见 §15（已落地）。本节不是待办。
-
-### 13.1 实施步骤（已完成）
-
-| 步骤 | 内容 | 当时改动 |
-| ---- | ---- | -------- |
-| 1. 公开 `tc_exec_call_function` | 在 `tc_executor.h` 中声明 `tc_exec_call_function_public`，在 `tc_executor.c` 中添加薄的公共包装 | `tc_executor.c/h`（~10 行） |
-| 2. 创建 `tc_embed.h` | 类型定义 + 公共 API 声明 + 内联辅助函数 | 新文件 |
-| 3. 创建 `tc_value_bridge.h` | 值桥接内联函数族 | 新文件 |
-| 4. 创建 `tc_embed.c` | 实现 TcEmbedCtx 生命周期、符号索引、槽位访问、函数调用组装 | 新文件（~250 行） |
-| 5. 更新 CMakeLists.txt | 添加 `src/vm/embed/` 目录和 `tc_embed` 库目标 | `src/vm/CMakeLists.txt`、顶层 `CMakeLists.txt` |
-| 6. 编写单元测试 | 覆盖标量参数/返回值、ptr<T> 数组处理、static var 持久化、错误路径 | `tests/unit/runtime/test_embed.c` |
-| 7. 编写 .tc 用例 | 覆盖 ptr_load/store/add、函数嵌套调用、多模块 | `tests/vm/embed/` |
-| 8. 文档同步 | 更新 [AGENTS.md](../AGENTS.md)、[.cursor/README.md](../.cursor/README.md)、[kg-embed.md](../.cursor/skills/tc-architecture/kg-embed.md)、[test-map.md](../.cursor/skills/tc-architecture/test-map.md) Phase 7 | 多文件 |
-
-### 13.2 文件清单
-
-| 文件 | 操作 | 说明 |
-| ---- | ---- | ---- |
-| `src/vm/embed/tc_embed.h` | 新增 | 公共头文件 |
-| `src/vm/embed/tc_embed.c` | 新增 | 实现 |
-| `src/vm/embed/tc_value_bridge.h` | 新增 | 值桥接内联函数 |
-| `src/vm/executor/tc_executor.h` | 修改 | 新增 `tc_exec_call_function_public` 声明 |
-| `src/vm/executor/tc_executor.c` | 修改 | 新增公共包装函数 |
-| `src/vm/CMakeLists.txt` | 修改 | 添加 embed 子目录 |
-| `tests/unit/runtime/test_embed.c` | 新增 | 单元测试 |
-| `tests/vm/embed/` | 新增目录 | VM 级测试用例 |
-| `scripts/vm/run_tests.sh` | 修改 | 注册新用例 |
-
-### 13.3 VM Embed 落地时未改动的文件
-
-当时为把 Embed 做成独立产品面、不扰动前端与语言规范：
-
-- `src/vm/analyzer/`、`src/vm/parser/`：不变。
-- `src/libtc/tc_lib.h` / `tc_lib.c`：当时不变（编译入口仍走既有 libtc）。
-- 语言标准文档（现行为 [TC 语言标准设计说明书-0.0.44.md](./TC语言标准设计说明书-0.0.44.md)）：TC 语言本身在 Embed 落地时无变化。
-- `docs/TC编译器标准设计说明书-0.0.44.md`：编译器管线不变。
-
-`src/aot/` 在 VM Embed 落地时未改；**AOT 嵌入模式已在 §15 落地**（`tc_aot_embed_rt.h`、`--embed` / `-H`、`tc_embed_create_aot`）。勿把「当时不改 AOT」读成现状。
+| 文件 | 说明 |
+| ---- | ---- |
+| `src/vm/embed/tc_embed.h` | 公共头文件 |
+| `src/vm/embed/tc_embed.c` | 实现 |
+| `src/vm/embed/tc_value_bridge.h` | 值桥接内联函数 |
+| `src/vm/executor/tc_executor.h` | `tc_exec_call_function_public` 声明 |
+| `src/vm/executor/tc_executor.c` | 公共包装函数 |
+| `src/vm/CMakeLists.txt` | 包含 embed 子目录 |
+| `tests/unit/runtime/test_embed.c` | 单元测试 |
+| `tests/vm/embed/` | VM 级测试用例 |
+| `scripts/vm/run_tests.sh` | 注册 embed 用例组 |
 
 ---
 
@@ -1014,15 +985,15 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 
 ## 15. AOT 模式扩展
 
-> **状态**：已落地 v0.0.42。基于当前 AOT 代码生成的真实实现，描述 AOT 模式下 C→TC 互操作的完整设计。
+> **状态**：基于当前 AOT 代码生成的真实实现，描述 AOT 模式下 C→TC 互操作的完整设计。
 
 ### 15.1 当前 AOT 代码生成的真实输出
 
 #### 15.1.1 全局槽位数组
 
-当前 AOT 已使用单一扁平 `slots[]` 数组覆盖所有域。Analyzer 在 Pass1 阶段用一个全局递增计数器 `next_slot` 顺序分配 TOPLEVEL、STATIC、PARAM、LOCAL 槽位：
+当前 AOT 已使用单一扁平 `slots[]` 数组覆盖所有域。Analyzer 在 Pass1 阶段用一个全局递增计数器 `next_slot` 顺序分配 TOPLEVEL、STATIC、PARAM、LOCAL 槽位（`src/vm/analyzer/tc_analyzer_pass1.c` 的 `tc_pass1_collect_symbols`）：
 
-```277:295:src/vm/analyzer/tc_analyzer_pass1.c
+```c
 int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
                                     TcDiagnostic *diag) {
     TcAnalyzeCtx ctx;
@@ -1044,9 +1015,9 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
 }
 ```
 
-`tc_symbol_table_runtime_slot_count` 遍历全部符号取 `max(slot+1)`，返回值覆盖所有域。
+`src/vm/runtime/tc_symbol.c` 的 `tc_symbol_table_runtime_slot_count` 遍历全部符号取 `max(slot+1)`，返回值覆盖所有域。
 
-```120:133:src/vm/runtime/tc_symbol.c
+```c
 size_t tc_symbol_table_runtime_slot_count(const TcSymbolTable *table) {
     size_t i = 0;
     size_t count = 0;
@@ -1074,9 +1045,9 @@ static uint64_t slots[SLOT_COUNT];   /* SLOT_COUNT = tc_symbol_table_runtime_slo
 
 #### 15.1.2 函数生成（无局部数组）
 
-当前 `tc_aot_emit_function` 生成的函数体**没有** `params[]` 或 `locals[]` 局部声明：
+当前 `src/aot/tc_aot_emit_func.c` 的 `tc_aot_emit_function` 生成的函数体**没有** `params[]` 或 `locals[]` 局部声明：
 
-```1685:1711:src/aot/tc_aot_codegen.c
+```c
 static int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgram *module,
                                 TcAotEmitCtx *ctx) {
     int body_start = 0;
@@ -1087,7 +1058,7 @@ static int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgra
     if (tc_aot_func_body_index_range(module, func->func_id, &body_start, &body_end) != 0) {
         return -1;
     }
-    fprintf(out, "static void tc_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n", func->func_id);
+    fprintf(out, "static void tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n", func->func_id);
     ctx->current_func_id = func->func_id;
     ctx->current_return_type = func->return_type.tag;
     ctx->block_path.depth = 0;
@@ -1109,7 +1080,7 @@ static int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgra
 生成的函数签名只有：
 
 ```c
-static void tc_func_N(TcDiagnostic *diag) {
+static void tc_aot_func_N(TcDiagnostic *diag) {
     tc_aot_cur_diag = diag;
     /* ... 函数体直接读写 slots[PARAM_M] / slots[LOCAL_K] ... */
 }
@@ -1119,9 +1090,9 @@ static void tc_func_N(TcDiagnostic *diag) {
 
 #### 15.1.3 函数调用（已经写槽位）
 
-内部 funcall 的代码生成已经在调用前将实参写入被调用者的形参 slot：
+内部 funcall 的代码生成已经在调用前将实参写入被调用者的形参 slot（`src/aot/tc_aot_emit_rhs.c` 的 `tc_aot_emit_funcall`）：
 
-```519:565:src/aot/tc_aot_codegen.c
+```c
 static int tc_aot_emit_funcall(FILE *out, int func_id, const TcNamedArg *stmt_args,
                                size_t stmt_arg_count, const TcAotFuncallExprArg *expr_args,
                                size_t expr_arg_count, int use_expr_args, const char *indent,
@@ -1161,39 +1132,41 @@ static int tc_aot_emit_funcall(FILE *out, int func_id, const TcNamedArg *stmt_ar
         }
     }
 
-    fprintf(out, "%stc_func_%d(tc_aot_cur_diag);\n", indent, func_id);
+    fprintf(out, "%stc_aot_func_%d(tc_aot_cur_diag);\n", indent, func_id);
     fprintf(out, "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) tc_aot_abort(tc_aot_cur_diag, %d);\n",
             abort_indent, line);
     if (want_result && dst_expr) {
-        fprintf(out, "%s%s = tc_ret_%d;\n", indent, dst_expr, func_id);
+        fprintf(out, "%s%s = tc_aot_ret_%d;\n", indent, dst_expr, func_id);
     }
     return 0;
 }
 ```
 
-**这已经是嵌入所需的调用模式**：`slots[param_slot] = arg; tc_func_N(diag); if (error) abort; result = tc_ret_N;`。
+**这已经是嵌入所需的调用模式**：`slots[param_slot] = arg; tc_aot_func_N(diag); if (error) abort; result = tc_aot_ret_N;`。
 
 #### 15.1.4 返回值
 
 每个非 void 函数有独立的全局变量：
 
 ```c
-static uint64_t tc_ret_0;    /* func_id=0 的返回值 */
-static uint64_t tc_ret_3;    /* func_id=3 的返回值 */
-static uint64_t tc_ret_5;    /* func_id=5 的返回值 */
+static uint64_t tc_aot_ret_0;    /* func_id=0 的返回值 */
+static uint64_t tc_aot_ret_3;    /* func_id=3 的返回值 */
+static uint64_t tc_aot_ret_5;    /* func_id=5 的返回值 */
 ```
 
-调用者通过 `tc_ret_N` 读取返回值。由于 TC 禁止递归且调用图是 DAG，同一时刻只有一个函数返回活跃。
+调用者通过 `tc_aot_ret_N` 读取返回值。由于 TC 禁止递归且调用图是 DAG，同一时刻只有一个函数返回活跃。
 
 #### 15.1.5 ptr<T> 编码
 
-```316:318:src/aot/tc_aot_rt.c
+编码与解码分别由 `src/aot/tc_aot_rt.c` 的 `tc_aot_ptr_address` 与 `tc_aot_ptr_decode` 完成：
+
+```c
 uint64_t tc_aot_ptr_address(int slot) {
     return ((uint64_t)slot << 1) | TC_AOT_PTR_TAG;
 }
 ```
 
-```308:314:src/aot/tc_aot_rt.c
+```c
 static int tc_aot_ptr_decode(uint64_t bits, int *slot) {
     if (bits == 0 || (bits & TC_AOT_PTR_TAG) == 0) {
         return -1;
@@ -1209,14 +1182,14 @@ static int tc_aot_ptr_decode(uint64_t bits, int *slot) {
 
 | 问题 | 当前行为 | 嵌入需要 |
 | ---- | -------- | -------- |
-| 函数可见性 | `static void tc_func_N(...)` | 需要暴露给外部 C 宿主程序 |
+| 函数可见性 | `static void tc_aot_func_N(...)` | 需要暴露给外部 C 宿主程序 |
 | 错误处理 | `tc_aot_abort()` 内部调 `exit(1)` | 返回错误码，不终止进程 |
 | 函数查找 | 无运行时查找表 | 需要 func_id → 函数指针映射 |
 | `main()` | 自动生成 | 嵌入模式跳过 main() |
 | 静态初始化 | `tc_init_static_vars()` 在 main() 中调用 | 暴露为公共入口，宿主程序手动调用 |
 | 内存释放 | 在 main() 末尾释放 | 暴露 `tc_aot_cleanup()` 给宿主程序调用 |
 
-> **v0.0.42 已解决：以上所有问题均已落地。** 嵌入模式通过 `tc_aot_emit_c(..., /* embed_mode= */ 1)` 触发：函数和全局符号取消 `static`、生成 `int tc_aot_func_N`（正常 `return 0`，abort 后 `return 1`）、`tc_aot_abort` 宏替换为非致命 `tc_aot_embed_abort` + `return 1`、不生成 `main()`、`tc_aot_init()` / `tc_aot_cleanup()` 暴露为公共接口、`tc_aot_func_table` 提供 func_id → 函数指针映射。
+> **以上问题均由嵌入模式解决。** 嵌入模式通过 `tc_aot_emit_c(..., /* embed_mode= */ 1)` 触发：函数和全局符号取消 `static`、生成 `int tc_aot_func_N`（正常 `return 0`，abort 后 `return 1`）、`tc_aot_abort` 宏替换为非致命 `tc_aot_embed_abort` + `return 1`、不生成 `main()`、`tc_aot_init()` / `tc_aot_cleanup()` 暴露为公共接口、`tc_aot_func_table` 提供 func_id → 函数指针映射。
 
 ---
 
@@ -1229,14 +1202,14 @@ static int tc_aot_ptr_decode(uint64_t bits, int *slot) {
 int tc_aot_emit_c(FILE *out,
                   const TcTypedProgram *program,
                   const char *source_name,
-                  int embed_mode);    /* 新增：0 = 独立程序, 1 = 嵌入库 */
+                  int embed_mode);    /* 0 = 独立程序, 1 = 嵌入库 */
 ```
 
 | 生成内容 | `embed_mode = 0`（现有） | `embed_mode = 1`（嵌入） |
 | -------- | ----------------------- | ------------------------ |
 | `slots[]` 声明 | `static uint64_t slots[N]` | 非 `static`：`uint64_t slots[N]` |
-| `tc_ret_N` 声明 | `static uint64_t tc_ret_N` | 非 `static` |
-| 函数声明 | `static void tc_func_N(...)` | 非 `static`：`int tc_aot_func_N(...)`（正常返回 0） |
+| `tc_aot_ret_N` 声明 | `static uint64_t tc_aot_ret_N` | 非 `static` |
+| 函数声明 | `static void tc_aot_func_N(...)` | 非 `static`：`int tc_aot_func_N(...)`（正常返回 0） |
 | 错误处理 | `tc_aot_abort(&diag, line)` → `exit(1)` | `#define tc_aot_abort` → `tc_aot_embed_abort` + `return 1`（见 §15.3.2） |
 | `main()` | 生成完整的 main() | **不生成** main() |
 | `tc_init_static_vars()` | 在 main() 中调用 | 暴露为公共函数 `tc_aot_init()` |
@@ -1256,18 +1229,12 @@ int tc_aot_emit_c(FILE *out,
 #include <stddef.h>
 #include <string.h>
 #include "tc_aot_rt.h"
-#include "tc_aot_embed_rt.h"   /* 新增：嵌入模式运行时 shim */
+#include "tc_aot_embed_rt.h"   /* 嵌入模式运行时 shim */
 
 /* ── 全局槽位（非 static，外部可见） ── */
 #define TC_AOT_SLOT_COUNT   42
-#define TC_AOT_MEMBLOCK_SLOT_COUNT  2
-#define TC_AOT_STRUCT_SLOT_COUNT    1
 
 uint64_t slots[TC_AOT_SLOT_COUNT];
-static void *tc_aot_memblock_storage[TC_AOT_MEMBLOCK_SLOT_COUNT];
-static uint8_t tc_aot_struct_storage[TC_AOT_STRUCT_TOTAL_BYTES];
-
-static int tc_aot_initialized = 0;
 
 /* ── 返回值全局变量 ── */
 uint64_t tc_aot_ret_3;
@@ -1281,24 +1248,10 @@ int tc_aot_func_5(TcDiagnostic *diag);
 
 /* ── 静态初始化 ── */
 int tc_aot_init(TcDiagnostic *diag) {
-    tc_diagnostic_init(diag);
     tc_aot_cur_diag = diag;
 
-    if (tc_aot_initialized) return 0;  /* 幂等 */
+    /* static var 初始化（按依赖拓扑序，RHS 由 codegen 直接发射） */
 
-    tc_aot_init_slots(slots, TC_AOT_SLOT_COUNT);
-
-    /* static var 初始化（按依赖拓扑序） */
-    /* 如有 OOM / 运行时错误，设置 diag 并返回 1 */
-    if (tc_aot_emit_static_init_rhs(diag) != 0) return 1;
-
-    tc_aot_initialized = 1;
-    return 0;
-}
-
-static int tc_aot_emit_static_init_rhs(TcDiagnostic *diag) {
-    /* 每个 static var 的初始化 RHS */
-    /* ... (与现有 tc_init_static_vars 相同) ... */
     return 0;
 }
 
@@ -1314,10 +1267,8 @@ int tc_aot_func_3(TcDiagnostic *diag) {
 
 /* ── 清理 ── */
 void tc_aot_cleanup(void) {
-    if (!tc_aot_initialized) return;
     tc_aot_memblock_heap_free_all();
     tc_aot_struct_heap_free_all();
-    tc_aot_initialized = 0;
 }
 ```
 
@@ -1348,9 +1299,7 @@ codegen 在 `embed_mode = 1` 时于生成 C 顶部发出宏，把独立程序路
 } while (0)
 ```
 
-因此生成代码中仍可写 `if (diag.kind != TC_DIAG_OK) tc_aot_abort(&diag, line);`：独立程序 `exit(1)`，嵌入模式置 `tc_aot_embed_error_flag` 并 `return 1`。`tc_embed_call` 在函数返回后检查 `diag.kind` / `error_flag`。
-
-历史上文档曾并列「`static inline` 函数」与「无 `return 1` 的宏」两种草稿，以本节与头文件为准。
+因此生成代码中仍可写 `if (diag.domain != TC_DIAG_NONE) tc_aot_abort(&diag, line);`：独立程序 `exit(1)`，嵌入模式置 `tc_aot_embed_error_flag` 并 `return 1`。`tc_embed_call` 在函数返回后检查 `diag.domain` / `error_flag`。
 
 ---
 
@@ -1576,15 +1525,16 @@ cc -std=c99 -Wall -Wextra -Werror -pedantic \
    tc_semantics.c tc_sem_int.c tc_sem_fp.c tc_sem_cast.c tc_sem_bitwise.c tc_io.c \
    -o mylib.out
 
-# 嵌入库模式（新增 --embed）
+# 嵌入库模式（--embed）
 tc-aot --embed mylib.tc -o mylib_tc.c -H mylib_tc.h
 
 # 宿主程序编译
 cc -std=c99 -Wall -Wextra -Werror -pedantic \
-   -I$EMBED_DIR -I$AOT_RT_DIR -I$VM_RUNTIME_DIR \
+   -I$EMBED_DIR -I$AOT_RT_DIR -I$VM_RUNTIME_DIR -I$LIBTC_DIR \
    host_program.c mylib_tc.c \
-   tc_aot_rt.c tc_aot_embed.c tc_embed.c tc_types.c tc_diagnostic.c \
+   tc_aot_rt.c tc_embed.c tc_types.c tc_diagnostic.c \
    tc_semantics.c tc_sem_int.c tc_sem_fp.c tc_sem_cast.c tc_sem_bitwise.c tc_io.c \
+   -L$LIBTC_BUILD_DIR -ltc \
    -o host_program
 ```
 
@@ -1635,7 +1585,6 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program,
     /* 1. slots 声明 */
     if (embed_mode) {
         fprintf(out, "uint64_t slots[%zu];\n", slot_count);
-        fprintf(out, "static int tc_aot_initialized = 0;\n");
     } else {
         fprintf(out, "static uint64_t slots[%zu];\n", slot_count);
     }
@@ -1645,7 +1594,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program,
         if (embed_mode)
             fprintf(out, "uint64_t tc_aot_ret_%d;\n", func_id);
         else
-            fprintf(out, "static uint64_t tc_ret_%d;\n", func_id);
+            fprintf(out, "static uint64_t tc_aot_ret_%d;\n", func_id);
 
     /* 3. 函数声明 */
     for each function:
@@ -1835,7 +1784,7 @@ int main(void) {
 | 语句执行 | 每语句 `switch(stmt->kind)` + 解释 | 原生 C 编译代码 | **10–100x** |
 | 表达式求值 | RHS 分发 + shim 调用 | 内联算术 + shim 调用 | 2–5x |
 | 错误传播 | `TcExecControl` 控制流 | 返回 + diag 检查 | ~2x |
-| 返回值 | `TcExecControl.return_value` | 读 `tc_ret_N` | ~1x |
+| 返回值 | `TcExecControl.return_value` | 读 `tc_aot_ret_N` | ~1x |
 
 **关键**：AOT 最大的优势在于**消除了解释循环**——每个 `var`、赋值、`while` 条件、`if` 分支都不需要 `switch(stmt->kind)` 和 AST 遍历，而是原生编译的 C 控制流。
 
@@ -1892,7 +1841,7 @@ void test_aot_vm_behavior(const char *tc_source) {
 
 | 测试 | 验证点 |
 | ---- | ------ |
-| `test_aot_embed_init_cleanup` | `tc_aot_init` 幂等性，`tc_aot_cleanup` 后可重新 init |
+| `test_aot_embed_init_cleanup` | `tc_aot_init` / `tc_aot_cleanup` 生命周期；销毁后重建会重新初始化 static var |
 | `test_aot_embed_call_scalar` | 各标量类型参数和返回值 |
 | `test_aot_embed_call_ptr_array` | C 侧平铺数据→ptr→TC ptr_load/ptr_store→C 读回 |
 | `test_aot_embed_call_nested` | AOT 内部 funcall 嵌套 |
@@ -1902,26 +1851,7 @@ void test_aot_vm_behavior(const char *tc_source) {
 
 ---
 
-### 15.11 实施步骤（已完成）
-
-> **状态（v0.0.42）**：下列步骤 **均已完成**。本节保留为落地对照，不是待办。
-
-| 步骤 | 内容 | 改动文件 | 当时估计规模 |
-| ---- | ---- | -------- | ---------- |
-| 1 | VM Embed 稳定（0.0.42） | — | 前置 |
-| 2 | `tc_aot_embed_rt.h`：非致命 abort shim | 新文件 `src/aot/tc_aot_embed_rt.h` | 小 (~30 行) |
-| 3 | `tc_aot_emit_c` 新增 `embed_mode` 参数 | `src/aot/tc_aot_codegen.c/h` | 中 (~80 行改动) |
-| 4 | 函数表生成 | `src/aot/tc_aot_codegen.c` 新增 `tc_aot_emit_func_table` | 中 (~60 行) |
-| 5 | 头文件生成 | `src/aot/tc_aot_codegen.c` 新增 `tc_aot_emit_embed_header` | 中 (~80 行) |
-| 6 | CLI 新增 `--embed` 和 `-H` 选项 | `src/aot/main.c` | 小 (~30 行) |
-| 7 | `tc_embed_create_aot` 实现 | `src/vm/embed/tc_embed_aot.c`（新文件） | 中 (~100 行) |
-| 8 | `tc_embed_call` AOT 路径 | `src/vm/embed/tc_embed.c` 分支 | 小 (~20 行) |
-| 9 | CMake 构建集成 | `CMakeLists.txt` | 小 |
-| 10 | 差分测试框架 | `tests/unit/runtime/test_embed_aot.c` | 大 (~200 行) |
-
----
-
-### 15.12 与 VM 模式的 API 兼容性总表
+### 15.11 与 VM 模式的 API 兼容性总表
 
 核心承诺：C 宿主程序调用 tc_embed 的代码**在 VM 和 AOT 之间可以无缝切换**。
 
@@ -1941,9 +1871,9 @@ void test_aot_vm_behavior(const char *tc_source) {
 
 ---
 
-## 16. 运行时便捷层（v0.0.42 起引入）
+## 16. 运行时便捷层
 
-> **状态**：已落地 v0.0.42。在 §7–§9 的内核 API 之上新增一层运行时便捷 API，隐藏 `TcValue` 桥接样板与槽位布局细节。VM / AOT 两模式透明（全部经通用 `tc_embed_call` 路径）。
+> **状态**：在 §7–§9 的内核 API 之上提供一层运行时便捷 API，隐藏 `TcValue` 桥接样板与槽位布局细节。VM / AOT 两模式透明（全部经通用 `tc_embed_call` 路径）。
 
 ### 16.1 设计动机
 

@@ -201,12 +201,13 @@ static void test_struct_field_access_const(void) {
               "public static let o: Outer = Outer(inner: Inner(x: 3))\n"
               "public static let n: int32 = Self.o.inner.x\n",
               "nested static let field ok");
-    /* static var 源序之后的 Self.field 非法 */
+    /* static var 源序之后的 Self.field：名称在源序可见性上尚未建立 →
+     * TC_CE_UNDEFINED_VARIABLE（语言标准 §4.2、编译器标准 §4.3）。 */
     expect_err("#lib\n"
                "public struct Box then\n    var x: int32\nend\n"
                "public static var m: int32 = Self.s.x\n"
                "public static let s: Box = Box(x: 9)\n",
-               TC_CE_CONSTANT_EXPRESSION, "static var field forward");
+               TC_CE_UNDEFINED_VARIABLE, "static var field forward");
 }
 
 static void test_struct_field_access_const_composite(void) {

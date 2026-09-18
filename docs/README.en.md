@@ -25,8 +25,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Language Standard Consistency Errata](TC-语言标准一致性勘误清单.md) | 0.0.42→0.0.44 consistency errata and implementation-sync ledger (63 first-round + 27 second-round items, all with disposal traces; §9 tracks implementation follow-ups) |
-| [0.0.44 Revision & Compatibility Note](TC-0.0.44-修订记录与兼容性说明.md) | 0.0.44 cross-version differences and change log (D1–D34) |
+| [TC 0.0.44 Conformance Audit Report](TC-0.0.44-语言标准符合性审计报告.md) | **Conformance audit**: all design docs and `src/` checked against the language specification as sole authority; includes re-verification of pre-existing open items and new findings with minimal reproductions |
 
 > The historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`.
 

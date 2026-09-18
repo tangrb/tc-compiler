@@ -1,0 +1,7 @@
+#program
+; nullptr 以 ptr 类别参与等宽 bitcast（ptr<T> 与同宽整数）合法（§3.10.9）
+let z: ptr<int32> = bitcast(ptr<int32>, nullptr)
+var u: usize = bitcast(usize, nullptr)
+var same: bool = ptr_eq(int32, z, nullptr)
+writeln(usize, u)
+writeln(bool, same)

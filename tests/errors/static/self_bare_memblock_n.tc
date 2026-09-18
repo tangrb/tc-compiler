@@ -1,0 +1,8 @@
+#lib
+; 函数体内以裸名作 memblock 的命名 N → TC_CE_FUNCTION_SCOPE_ACCESS（§4.3、§3.8.1）
+public static let N: usize = 3
+public func f() void then
+    var mb: memblock<int32, N> = memblock(int32, count: 3, 1, 2, 3)
+    writeln(usize, mb.count)
+    return
+end

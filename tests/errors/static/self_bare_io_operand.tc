@@ -1,0 +1,7 @@
+#lib
+; 函数体内以裸名访问模块 static 作输出操作数 → TC_CE_FUNCTION_SCOPE_ACCESS（§4.3）
+public static let C: int32 = 7
+public func f() void then
+    writeln(int32, C)
+    return
+end

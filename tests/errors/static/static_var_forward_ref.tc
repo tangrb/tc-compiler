@@ -1,0 +1,8 @@
+#lib
+; static var 初始化器引用本模块**源序更晚**的静态成员 → TC_CE_UNDEFINED_VARIABLE
+; （语言标准 §4.2，故静态成员之间不形成初始化环）
+private static var A: int32 = Self.B
+private static var B: int32 = 1
+public func f() void then
+    return
+end

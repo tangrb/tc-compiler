@@ -1,0 +1,14 @@
+#program
+; §7.1.1 / §7.2.1：条件须为**产生 bool 的 RHS**（§6.1.1 全集）；三态判定不可静态
+; 折叠时按 unknown 处理（两侧分支均可达），不降级为诊断。
+var mb: memblock<bool, 2> = memblock(bool, count: 2, true, false)
+if memblock_load(bool, mb, 0) then
+    writeln(int32, 1)
+else
+    writeln(int32, 2)
+end
+if memblock_load(bool, mb, 1) then
+    writeln(int32, 3)
+else
+    writeln(int32, 4)
+end

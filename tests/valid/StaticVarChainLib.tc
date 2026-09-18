@@ -1,0 +1,8 @@
+#lib
+; `static var` 初始化器可引用当前源序中更早已成功初始化的 `static var`
+; （语言标准 §4.2），在程序准备阶段按运行时指令语义求值。
+public static var A: int32 = 1
+public static var B: int32 = add(int32, Self.A, 1)
+public func get_b() int32 then
+    return Self.B
+end

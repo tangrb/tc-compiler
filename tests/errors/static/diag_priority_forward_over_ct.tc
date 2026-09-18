@@ -1,0 +1,9 @@
+#lib
+; B 引用源序**更晚**的 static let A（真前向引用）→ 独立 SEM 类诊断
+; TC_CE_UNDEFINED_VARIABLE，按 §11「阶段优先」必须胜出 A 挂起的 CT 类诊断
+; 。
+private static let B: int32 = add(int32, A, 1)
+private static let A: int32 = div(int32, 1, 0)
+public func f() void then
+    return
+end

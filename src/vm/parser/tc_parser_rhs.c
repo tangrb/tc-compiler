@@ -1539,10 +1539,12 @@ int tc_parse_const_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *inde
         int nested_column = tc_find_nested_const_call(tokens, *index);
 
         if (nested_column != TC_COLUMN_UNKNOWN) {
+            /* 语言标准 §5.2.1：嵌套调用不属于 const_rhs 产生式，
+             * 与指针指令、memblock_load 等非 const_rhs 形态同等对待——
+             * 语法拒绝 TC_CE_SYNTAX，不得降级/改报 TC_CE_CONSTANT_EXPRESSION。 */
             ctx->depth--;
-            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line_no, nested_column,
-                              "nested calls are not allowed in constant expression");
-            return -1;
+            return tc_syntax_error(diag, line_no, nested_column,
+                                   "expected constant expression");
         }
     }
 

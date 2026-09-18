@@ -1,0 +1,7 @@
+#lib
+; `cast` 源为 `static var`
+private static var V: int64 = 5
+private static let A: int32 = cast(int32, truncate, V)
+public func f() int32 then
+    return 1
+end

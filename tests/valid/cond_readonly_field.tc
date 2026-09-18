@@ -1,0 +1,11 @@
+#program
+; 只读结构体字段读取作条件（§5.2.2 原子表达式）
+struct Flags then
+    var on: bool
+end
+let flags: Flags = Flags(on: false)
+if flags.on then
+    writeln(int32, 1)
+else
+    writeln(int32, 2)
+end

@@ -374,6 +374,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
         const TcFieldAssign *assign = &stmt->u.field_assign;
         const TcStructTable *table = ctx->program->struct_table;
         const TcSymbol *base_sym = NULL;
+        int base_slot = -1;
+        int base_struct_id = -1;
         size_t offset = 0;
         const TcType *field_type = NULL;
         size_t nbytes = 0;
@@ -384,12 +386,27 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
 
         stmt_index = tc_stmt_index_take(&ctx->index);
         tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
-        base_sym = tc_symbol_table_find_visible(symbols, assign->base, stmt_index, &ctx->sym_index);
-        if (!base_sym || base_sym->slot < 0 || tc_type_struct_id(base_sym->type) < 0) {
-            return -1;
+        /*
+         * 优先用 Pass2 固化的基绑定（基址可为 `Self.<名>` / 导入限定名，符号表中
+         * 以裸成员名存放，按名直查会失败）；仅在缺元数据时回退到按名解析。
+         */
+        if (assign->base_binding.resolved && assign->base_binding.slot >= 0 &&
+            assign->base_binding.type &&
+            tc_type_struct_id(assign->base_binding.type) >= 0) {
+            base_sym = NULL;
+            base_slot = assign->base_binding.slot;
+            base_struct_id = tc_type_struct_id(assign->base_binding.type);
+        } else {
+            base_sym = tc_symbol_table_find_visible(symbols, assign->base, stmt_index,
+                                                    &ctx->sym_index);
+            if (!base_sym || base_sym->slot < 0 || tc_type_struct_id(base_sym->type) < 0) {
+                return -1;
+            }
+            base_slot = base_sym->slot;
+            base_struct_id = tc_type_struct_id(base_sym->type);
         }
         tc_diagnostic_init(&local_diag);
-        if (tc_struct_path_offset_bytes(table, tc_type_struct_id(base_sym->type), assign->fields,
+        if (tc_struct_path_offset_bytes(table, base_struct_id, assign->fields,
                                         assign->field_count, &offset, &field_type, &local_diag,
                                         assign->line) != 0) {
             return -1;
@@ -412,12 +429,12 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             }
             /* struct/memblock 字段按值语义内联拷贝内容（§3.9.3） */
             fprintf(out, "%s    tc_aot_struct_memcpy_field(slots[%d], %zu, %zu, %s);\n", indent,
-                    base_sym->slot, offset, nbytes, tmp);
+                    base_slot, offset, nbytes, tmp);
         } else {
             nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
                                         ctx->program->struct_table) + 7U) / 8U;
             fprintf(out, "%s    tc_aot_struct_store_bits(slots[%d], %zu, %zu, %s);\n", indent,
-                    base_sym->slot, offset, nbytes, tmp);
+                    base_slot, offset, nbytes, tmp);
         }
         fprintf(out, "%s}\n", indent);
         return 0;

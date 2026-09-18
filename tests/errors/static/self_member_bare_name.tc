@@ -1,5 +1,7 @@
 #lib
-; 期望：undefined variable（函数体内裸名访问 static，须用 Self.）
+; 期望：function scope access —— `#lib` 函数体内访问模块 static 必须写 `Self.<名>`
+; （语言标准 §4.3、§9.1）。以裸名访问时命中本模块顶层成员索引，报
+; TC_CE_FUNCTION_SCOPE_ACCESS 而非笼统的 undefined variable。
 public static var C: int32 = 1
 public func f() void then
     var x: int32 = C

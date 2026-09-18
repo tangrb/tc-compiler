@@ -489,7 +489,7 @@ TC 将数值转换、整数截断、位重解释与指针转换分开：
 | ---- | ---- |
 | **类型仅由 `T` 决定** | `memblock<T, N>` 的类型为 `memblock<T>`。`N` 是编译期规划（元素个数约束），不构建新类型。`memblock<int32, 10>` 与 `memblock<int32, 20>` 属于同一类型。 |
 | **`T` 为完整类型** | `T` 为 `void` 以外的任意完整类型：标量类型（`scalar_type`，含 `isize`/`usize`）、`memblock<U, N>`（嵌套）、结构体类型、`ptr<U>`。`memblock<ptr<int32>, 4>`、`memblock<MyStruct, 8>`、`memblock<memblock<int32, 3>, 5>` 等嵌套形态均合法。`void` 不是值类型，不能作为 `T`。 |
-| **`N` 为编译期 `usize` 常量** | `N` 必须是编译期可求值的 `usize` 表达式，取值为正整数（≥ 1）。合法的 `N` 来源：整数字面量（以 `usize` 为期望类型检查；`u`/`U` 后缀按 §2.3.1 在无符号上下文合法，负号仅可与无后缀字面量组合）、类型为 `usize` 的 `let` / `static let` 标识符、经 `Self.` / 导入限定解析到的只读 `usize` 绑定。来源不合法（运行时 `var`、形参或非常量表达式）或数学值 < 1 者，静态语义拒绝并报告 `TC_CE_CONSTANT_EXPRESSION`。 |
+| **`N` 为编译期 `usize` 常量** | `N` 必须是编译期可求值的 `usize` 表达式，取值为正整数（≥ 1）。合法的 `N` 来源：整数字面量（以 `usize` 为期望类型检查；`u`/`U` 后缀按 §2.3.1 在无符号上下文合法，负号仅可与无后缀字面量组合）、类型为 `usize` 的 `let` / `static let` 标识符、经 `Self.` / 导入限定解析到的只读 `usize` 绑定。来源不合法（`var` / `static var`、形参或非常量表达式）或数学值 < 1 者，静态语义拒绝并报告 `TC_CE_CONSTANT_EXPRESSION`。 |
 | **`N` 不参与类型等价** | 两个 `memblock<T, N>` 类型等价当且仅当 `T` 相同。`N` 相同的约束只在赋值、传参等上下文以编译期常量检查强制执行（§3.8.4），不属于类型系统。`N` 是绑定级容量约束（与运行时长度头部一致），不是元素种类的一部分；故意不进入类型等价，以免与「同元素类型」身份判定纠缠。同型但 `N` 不同时，赋值/传参报告 `TC_CE_MEMBLOCK_SIZE_MISMATCH` 而非 `TC_CE_TYPE_MISMATCH`。 |
 
 #### 3.8.2 运行时布局
@@ -940,7 +940,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 | 顶层构造 | 可见性 | 额外约束 |
 |---------|--------|---------|
 | `struct` | 必须 `public` / `private` | 位于 `static` 成员与 `func` 之前 |
-| `static let` | 必须 `public` / `private` | 编译期常量（§5.2.1） |
+| `static let` | 必须 `public` / `private` | 编译期常量（§5.2.1）。初始化器的来源仅限**字面量**与**当前源序中更早已成功初始化的 `static let`**（含本模块经 `Self.` 限定或裸名、以及经导入限定解析到的公开 `static let`）；**不得引用 `static var`**（可变绑定不是编译期常量来源，见 §5.2.1），也不得引用局部 `var` / 函数形参 |
 | `static var` | 必须 `public` / `private` | 初始化器可为任意 §5.2.1 定义的单层编译期常量表达式（算术、按位、移位、比较、逻辑、`cast`/`bitcast`、`memblock` 构造器与结构体构造器），不得含 `funcall`；操作数仅可为字面量、当前源序中更早已成功初始化的 `Self` 成员（`static let` 与 `static var`），以及经导入限定解析到的公开 `static let` / `static var`；不得引用局部 `var`、函数形参或尚未完成初始化的成员 |
 | `func` | 必须 `public` / `private` | 位于 `static` 成员之后；函数间顺序不限 |
 
@@ -1072,7 +1072,7 @@ TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化�
 4. 只有上述名称和类型检查全部成功后才进入编译期求值。因此“RHS 结果类型不匹配”先于同一 RHS 的常量溢出、除零或无效浮点操作诊断。
 
 **约束**：
-- 常量表达式不可 引用任何 `var` 变量（**`static var` 初始化器例外**：按 §4.2 可引用当前源序中更早已成功初始化的 `Self` 成员，含 `static var`；该初始化器在程序准备阶段按运行时语义求值，失败报对应 `TC_RE_*` 码，§4.2、§11.1）
+- 常量表达式不可引用任何 `var` 变量，**含 `static var`**：`let` / `static let` 的初始化器只可引用字面量与源序更早且已成功求值的 `let` / `static let`（含经 `Self.` / 导入限定解析到的 `static let`）。违反时在任一位置（整条 RHS、操作数、字段读基址、`.count` 基址、构造器字段值、`cast`/`bitcast` 源、`memblock` 的 `N` 与 `count:`）统一报 `TC_CE_CONSTANT_EXPRESSION`（`N` / `count:` 位置报同码，§3.8.1、§3.8.3）。**唯一例外**是 `static var` 初始化器：按 §4.2 可引用当前源序中更早已成功初始化的 `Self` 成员（含 `static var`），该初始化器在程序准备阶段按运行时语义求值，失败报对应 `TC_RE_*` 码（§4.2、§11.1）
 - 常量表达式不可 包含 `funcall`；函数体内的 `let` 亦不得引用参数或局部 `var`
 - 常量表达式不可 引用自身或尚未定义的 `let`；此类引用在名称解析阶段被 `TC_CE_UNDEFINED_VARIABLE` 拦截
 - 操作调用不可嵌套；复合计算须拆分为多条按源序定义的 `let`。嵌套调用不符合附录 A 的 `const_rhs` / `const_operand` 产生式（调用形式不属于 `const_operand`），与指针指令、`memblock_load` 等非 `const_rhs` 形态同等对待，属**语法拒绝**（`TC_CE_SYNTAX`，§1.3）；`ptr_size` 的嵌套禁令同此口径（§6.8.8）

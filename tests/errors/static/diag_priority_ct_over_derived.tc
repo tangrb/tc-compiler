@@ -1,0 +1,10 @@
+#lib
+; 语言标准 §11「阶段优先」的反向保障：依赖挂起 CT 诊断的常量
+; 求值失败是该诊断的**派生**结果，不得另报 SEM 类
+; 「constant value is not available by source order」。首诊断须仍为
+; CT 类的常量除零。B 依赖已失败的 A。
+private static let A: int32 = div(int32, 1, 0)
+private static let B: int32 = add(int32, A, 1)
+public func f() void then
+    return
+end

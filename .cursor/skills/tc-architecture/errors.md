@@ -272,6 +272,7 @@
 | 跳入兄弟块 | `cannot jump into sibling block` |
 | var 缺初始化器 | `variable definition requires initializer` |
 | bitcast 位宽不等 | `bitcast source and target widths must match` |
+| `bitcast(ptr ↔ 浮点)` | `pointer and float types cannot participate in bitcast`（类型类别先于位宽：语言标准 §6.6.6、§3.10.9） |
 | while 条件非 bool | `while condition must be bool` |
 | while 缺 end | `missing end for while statement` |
 | while 内 label | `label is not allowed inside while` |

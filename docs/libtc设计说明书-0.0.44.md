@@ -6,7 +6,7 @@
 >
 > **状态**：承载 TC 0.0.44 的 libtc 架构设计（语言规范 0.0.44 同步版），涵盖模块系统、函数、memblock、ptr、struct 与完整 13 阶段编译管线。
 >
-> **调用者速查**：见 §15「调用者 API 速查」（原 `libtc-api-0.0.42.md` 已并入本文）
+> **调用者速查**：见 §15「调用者 API 速查」
 
 ---
 
@@ -25,7 +25,7 @@
 11. [性能与并发](#11-性能与并发)
 12. [构建与嵌入](#12-构建与嵌入)
 13. [验证](#13-验证)
-14. [实现基线与迁移](#14-实现基线与迁移)
+14. [实现基线](#14-实现基线)
 
 ---
 
@@ -323,7 +323,7 @@ OOM 不得降级为 `SyntaxError`。`realloc` 采用临时指针，失败时保�
 - §11.4.5 模块诊断（**10** 码）
 - §11.4.6 指针与 memcopy 专用诊断（**2** 码：`MEMCOPY` 静/动各一；空指针两码不另计）
 - 运行时 `TC_RE_*` 全集 **12** 码
-- 实现码：`TC_ERR_OUT_OF_MEMORY`（合计实现枚举 **86**）
+- 实现码：`TC_ERR_OUT_OF_MEMORY`（合计实现枚举 **87**）
 
 ### 7.3 阶段确定性
 
@@ -498,37 +498,9 @@ tc_diagnostic_clear(&diag);
 
 ---
 
-## 14. 实现基线与迁移
+## 14. 实现基线
 
-### 14.1 v0.0.31 → v0.0.42 关键迁移
-
-| 类别 | v0.0.31 | v0.0.42 |
-| ---- | ------- | ------- |
-| 模块系统 | 单文件 | `#program`/`#lib`、`import`、`public`/`private`、`Self` |
-| 函数 | 无 | `func`/`funcall`/`return`、无环调用图 |
-| 类型 | 标量 | 标量 + `ptr<T>` + `memblock<T,N>` + `struct` + `isize`/`usize` + `void` |
-| 编译管线 | 6 阶段 | 13 确定性阶段 |
-| 错误码 | 41+1 | **87**（86 语言码 + `TC_ERR_OUT_OF_MEMORY`） |
-| REPL | 包含 | 无 |
-
-### 14.2 已完成的迁移顺序（0.0.31 → 0.0.42）
-
-下列步骤均已落地，保留为历史对照，不是待办：
-
-1. types/IR 与错误枚举更新；
-2. Lexer 新关键字与 Token；
-3. Parser 模块头、函数、类型定义；
-4. 模块系统（加载、导入、依赖图）；
-5. 作用域、函数级作用域、本库成员索引；
-6. 类型系统（memblock / ptr / struct 验证）；
-7. 函数签名收集与调用检查；
-8. CFG 多域与确定初始化；
-9. 常量求值与 `static var` 初始化；
-10. Executor（调用帧、memblock 堆存储、ptr 指令）；
-11. AOT codegen；
-12. CLI/API 与全量验证。
-
-本实现固定 64-bit-only（memblock 头部宽 = `sizeof_bits(usize)` = 64 位）。0.0.42 起：memblock/struct 头部/标量元素/字段按固定 LE 位级存取（端序无关，符合 §3.5）；浮点十进制输出为自实现位模式精确渲染（符合 §10.4，无宿主 `snprintf` 委托）。详见 [AOT 详设 §19](./TC-AOT详细设计说明书-0.0.44.md)（债务已清零）。
+本实现固定 64-bit-only（memblock 头部宽 = `sizeof_bits(usize)` = 64 位）。memblock/struct 头部/标量元素/字段按固定 LE 位级存取（端序无关，符合 §3.5）；浮点十进制输出为自实现位模式精确渲染（符合 §10.4，无宿主 `snprintf` 委托）。详见 [AOT 详设 §18](./TC-AOT详细设计说明书-0.0.44.md)（当前无可移植性债务）。
 
 ---
 
@@ -536,22 +508,22 @@ tc_diagnostic_clear(&diag);
 
 ---
 
-### 14.3 0.0.44 同步状态（实现侧标注）
+### 14.1 0.0.44 同步状态（实现侧标注）
 
 本文按 0.0.44 规范口径书写（**文档先行**）。libtc 不实现语言语义，只提供编译/执行入口，故同步状态**随 TC-VM / TC-AOT**（见 [TC-VM 详细设计说明书 §1.5](./TC-VM详细设计说明书-0.0.44.md)、[TC-AOT 详细设计说明书 §1.4](./TC-AOT详细设计说明书-0.0.44.md)）。与 libtc 调用契约直接相关者：
 
 | 条目 | 影响 | 状态 |
 | ---- | ---- | ---- |
-| 首个规范诊断的四步选取顺序（LT → SYN → SEM → CT） | `tc_compile_*` 写入单槽 `TcDiagnostic` 的 kind 与位置（§5、§15.3） | **待同步（W-11／W-27）**：CT 类诊断须挂起至全部 SEM 类诊断无触发后再报告 |
-| 指针 `cast` 不附加等宽条件（D14） | 调用者能得到「接受/拒绝」判定的程序集合 | **待同步（W-6）** |
-| `read` 标准输入读取失败 → `TC_RE_IO`（D31） | `tc_run_program` 的运行时错误路径 | **已同步**（共享 `tc_io`） |
+| 首个规范诊断的四步选取顺序（LT → SYN → SEM → CT） | `tc_compile_*` 写入单槽 `TcDiagnostic` 的 kind 与位置（§5、§15.3） | **已同步**：CT 类诊断挂起至全部 SEM 类诊断无触发后再报告；挂起槽随 `TcDiagnostic` 生命周期 |
+| 指针 `cast` 不附加等宽条件 | 调用者能得到「接受/拒绝」判定的程序集合 | **已同步** |
+| `read` 标准输入读取失败 → `TC_RE_IO` | `tc_run_program` 的运行时错误路径 | **已同步**（共享 `tc_io`） |
 | 完整诊断码表 **87** 码 = 86 语言码 + `TC_ERR_OUT_OF_MEMORY`（§8.1、§15.8） | API 错误契约 | **已同步** |
 
 ---
 
 ## 15. 调用者 API 速查（0.0.44）
 
-> 本节为调用者速查，原独立文件 `libtc-api-0.0.42.md` 已并入本文以消除 API 双源漂移（见《语言标准符合性检查分析报告》M-15）。函数签名以本节为准；内部架构见 §1–§14。错误码分类计数见 §15.8（P5 已与附录 B 对齐）。
+> 本节为调用者速查。函数签名以本节为准；内部架构见 §1–§14。错误码分类计数见 §15.8。
 
 ### 15.1. 头文件与链接
 
@@ -717,9 +689,10 @@ tc_diagnostic_print(&diag, stderr);
 - `TcApiErrorCode api_code`；
 - `TcErrorKind kind`；
 - message、filename、snippet、source；
-- 1-based line/column，未知列使用 `TC_COLUMN_UNKNOWN`。
+- 1-based line/column，未知列使用 `TC_COLUMN_UNKNOWN`；
+- 内部挂起槽 `TcDeferredDiagnostic deferred`（语言标准 §11「阶段优先」的实现载体）：CT 类诊断（编译期常量求值 / 静态三态判定）先挂起，全部 SEM 类检查无触发后由分析器统一发布；调用方无需访问，`tc_diagnostic_clear` 会一并释放。
 
-当前实现为单槽 fail-fast，只保留第一条错误。Language 使用 `kind`，API/Environment 使用 `api_code`，OOM 使用 Implementation 域和 `TC_ERR_OUT_OF_MEMORY`。
+当前实现为单槽 fail-fast，只保留第一条错误（另有上述 CT 挂起槽，不计入「已发布诊断」）。Language 使用 `kind`，API/Environment 使用 `api_code`，OOM 使用 Implementation 域和 `TC_ERR_OUT_OF_MEMORY`。
 
 ---
 
@@ -856,7 +829,7 @@ int main(void) {
 | 完整 CFG 固定点（多域：顶层 + 各函数独立） | 支持 |
 | 13 阶段确定性编译管线 | 支持 |
 | success-only ownership 与诊断分域 | 支持 |
-| 85 语言错误码 + OutOfMemory 完整表 | 支持 |
+| 86 语言错误码 + OutOfMemory 完整表 | 支持 |
 
 ---
 

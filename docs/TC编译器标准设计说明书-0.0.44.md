@@ -1,7 +1,7 @@
 # TC 编译器标准设计说明书
 
 > **版本**：0.0.44
-> **语言规范基线**：[TC语言标准 0.0.44](./TC语言标准设计说明书-0.0.44.md)（附录 B **86** 码；跨版本差异与迁移说明见配套《TC-0.0.44-修订记录与兼容性说明》）
+> **语言规范基线**：[TC语言标准 0.0.44](./TC语言标准设计说明书-0.0.44.md)（附录 B **86** 码）
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）
 
 本文档定义 TC 编译器为实现 [TC语言标准设计说明书-0.0.44.md](./TC语言标准设计说明书-0.0.44.md) 所必须遵循的确定性编译阶段、分析算法、诊断优先级与错误码体系。
@@ -192,22 +192,29 @@
 
 ### 1.4 0.0.44 同步状态（实现侧标注）
 
-本节标注本文规定与 `src/` 实现的落地差异：**本文按 0.0.44 规范口径书写（文档先行）**，实现尚未同步处以「待同步／待核对」列明，同步项同时登记于《TC 语言标准一致性勘误清单》§9。表随实现进度更新。
+本节标注本文规定与 `src/` 实现的落地差异：**本文按 0.0.44 规范口径书写**。下表实现状态列为对当前实现的核对结论；后续如有新增差异，按同口径就地登记于本表。
 
-| 条目 | 变更记录 | 本文口径 | 实现状态 |
-| ---- | -------- | -------- | -------- |
-| `var` 缺初始化器报 `TC_CE_VAR_MISSING_INIT`（第 3 阶段，结构类） | D4 | §1.2 阶段 3、§5.1 | **已同步**（`tc_parser_stmt.c`） |
-| 结构体名三类冲突分别报 `TC_CE_DUPLICATE_STRUCT` / `TC_CE_FUNCTION_NAME_CONFLICT` / `TC_CE_IMPORT_NAME_CONFLICT` | D7 | §3.3 | **已同步**（三码均在 `src/` 与测试语料中） |
-| `@padding(N)` 形态违规报 `TC_CE_CONSTANT_EXPRESSION` | D30 → **D34** | §3.3 | **已同步**（`tc_parser_struct.c`；测试 `struct_padding_{u,hex,neg}.tc`） |
-| `read` 标准输入读取失败报 `TC_RE_IO` | D31 | §10.3、§11.2 | **已同步**（`tc_io.c`） |
-| `memblock` 的 `N` / `count:` 接受 `u`/`U` 后缀；来源不合法或数学值 `< 1` 报 `TC_CE_CONSTANT_EXPRESSION` | D5 | §3.1、§3.4 | **已实现**（`tc_const_eval.c` 等；测试 `memblock_count_zero.tc`、`memblock_type_count_zero.tc`） |
-| `const_rhs` 中嵌套调用报 `TC_CE_SYNTAX` | D34 | §5.2.1、§6.1.1 | **待同步**：现由 parser 报 `TC_CE_CONSTANT_EXPRESSION`（勘误清单 **W-26**） |
-| CT 类诊断须晚于全部 SEM 类诊断报告 | 语言标准 §11（D19） | §1.3 | **待同步**：现按 13 阶段处理顺序报告（勘误清单 **W-27**） |
-| `bitcast(ptr ↔ float)` 拒绝；指针 `cast` 不附加等宽条件 | D10、D14 | §3.7 | **待核对**（勘误清单 **W-28**） |
-| `ptr_size` 不属于 `const_operand`，只可整条充当 `const_rhs` | D29 | §3.2、§6.1.1、§6.7 | **待核对**（勘误清单 **W-28**） |
-| 指针操作数接受任意 `operand`（含结构体字段读取与 `nullptr`） | D12 | §6.7 | **待核对**（勘误清单 **W-28**） |
-| 静态布尔判定原子集合含 `Self.` / 导入 `static let`、只读字段读取、`mb.count` | D29 | §5.2.4 | **待核对**（勘误清单 **W-28**） |
-| 源文件中 `-nan` 属语法拒绝 | D30 | §2.1 | **待核对**（勘误清单 **W-28**） |
+| 条目 | 本文口径 | 实现状态 |
+| ---- | -------- | -------- |
+| `var` 缺初始化器报 `TC_CE_VAR_MISSING_INIT`（第 3 阶段，结构类） | §1.2 阶段 3、§5.1 | **已同步**（`tc_parser_stmt.c`） |
+| 结构体名三类冲突分别报 `TC_CE_DUPLICATE_STRUCT` / `TC_CE_FUNCTION_NAME_CONFLICT` / `TC_CE_IMPORT_NAME_CONFLICT` | §3.3 | **已同步**（三码均在 `src/` 与测试语料中） |
+| `@padding(N)` 形态违规报 `TC_CE_CONSTANT_EXPRESSION` | §3.3 | **已同步**（`tc_parser_struct.c`；测试 `struct_padding_{u,hex,neg}.tc`） |
+| `read` 标准输入读取失败报 `TC_RE_IO` | §10.3、§11.2 | **已同步**（`tc_io.c`） |
+| `memblock` 的 `N` / `count:` 接受 `u`/`U` 后缀；来源不合法或数学值 `< 1` 报 `TC_CE_CONSTANT_EXPRESSION` | §3.1、§3.4 | **已实现**（`tc_const_eval.c` 等；测试 `memblock_count_zero.tc`、`memblock_type_count_zero.tc`） |
+| `const_rhs` 中嵌套调用报 `TC_CE_SYNTAX` | §5.2.1、§6.1.1 | **已同步**（`tc_parser_rhs.c`；语料 `let_nested_call.tc` 期望 `expected constant expression`） |
+| CT 类诊断须晚于全部 SEM 类诊断报告 | §1.3、[语言标准 §11] | **已同步**（挂起槽 `tc_diagnostic_defer` + `tc_analyze_ex` 末段 flush；`let`／`static let`／条件三态三处恢复） |
+| `bitcast(ptr ↔ float)` 拒绝；指针 `cast` 不附加等宽条件 | §3.7 | **已同步**（`tc_analyzer_pass2_rhs.c`／`tc_const_eval.c`；语料 `bitcast_ptr_float*`、`ptr_cast_remark.tc`） |
+| `ptr_size` 不属于 `const_operand`，只可整条充当 `const_rhs` | §3.2、§6.1.1、§6.7 | **已核实一致**（嵌套实测报 `SyntaxError`） |
+| 指针操作数接受任意 `operand`（含结构体字段读取与 `nullptr`） | §6.7 | **已核实一致**（语料 `struct_field_operand_ptr.tc`） |
+| 静态布尔判定原子集合含 `Self.` / 导入 `static let`、只读字段读取、`mb.count` | §5.2.4 | **已同步**（`tc_try_eval_static_bool` 扩原子集合；条件 RHS 兜底委托 `tc_type_check_rhs`；语料 `static_bool_cond.tc`、`cond_ptr_compare.tc`、`cond_readonly_field.tc`） |
+| `#lib` 函数体内裸名访问模块 static 一律 `TC_CE_FUNCTION_SCOPE_ACCESS`（全部读/写/条件/`return`/`N`/`count:` 位置） | §1.2 6d、§4.3、[语言标准 §4.3、§8.4.1] | **已同步**：`tc_analyzer_pass2.c` 名称作用域上下文 + `tc_memblock_check.c` 的 `usize_operand`；语料 `self_bare_*.tc`、正例 `self_access_ok.tc`／`self_read_target.tc` |
+| `static let` 不得引用 `static var`（任一位置统一 `TC_CE_CONSTANT_EXPRESSION`） | §4.3 | **已同步**：`tc_func_check.c`／`tc_const_eval.c`／`tc_memblock_check.c`；语料 `static_let_ref_var_{rhs,operand,field,count,ctor,cast}.tc`、`static_let_type_n_static_var.tc`、`static_let_count_name_static_var.tc`，正例 `static_let_rule_ok.tc`（+ `StaticLetRuleLib.tc`） |
+| 源文件中 `-nan` 属语法拒绝 | §2.1 | **已核实一致**（实测 `SyntaxError: expected integer literal`） |
+| 静态成员初始化器引用源序更晚／自身的静态成员 → `TC_CE_UNDEFINED_VARIABLE` | §4.3 | **已同步**（`tc_func_check.c` 源序可见性判定；语料 `static_var_forward_ref.tc`／`static_var_self_ref.tc`／`static_var_bare_member.tc`） |
+| `memblock` 的 `N`／`count:` 接受 `u`/`U` 后缀；来源不合法或 `< 1` → `TC_CE_CONSTANT_EXPRESSION` | §3.1、§3.4 | **已核实一致**（语料 `memblock_unsigned_suffix.tc`、`memblock_count_var_source.tc`） |
+| `ptr_load(bool)` 按 `0x00`／非零 → `0x01` 规范化 | §6.0、§15.5 | **已同步**（`tc_ptr_exec.c`，原 VM 未规范化、与 AOT 分歧；语料 `ptr_load_bool_normalize.tc`） |
+| `static var` 初始化器可引用更早 `static var`；准备阶段失败报 `TC_RE_*` | §4.3 | **已核实一致**（语料 `static_var_chain.tc`、`errors/runtime/static_var_init_div_zero.tc`） |
+| 限定标识符 `Self.<名>` / `<模块名>.<名>` 可作 `operand`（附录 A `operand` 产生式、§6.1.2） | §6.1.2 | **已同步**（`tc_parser.c` + `tc_func_check.c`；语料 `self_qual_operand.tc`） |
 
 ---
 
@@ -474,6 +481,8 @@
 `#lib` 的 `static let` 和 `static var` 均须在声明时带初始化器。
 
 **`static let`** 是编译期常量：其初始化器必须是 §5.2.1 描述的单层编译期常量表达式，在编译期求值后内联到所有使用点。编译器必须在收集函数签名后、分析函数体前完成全部可达 `#lib` 的 `static let` 求值。
+
+**`static let`** 在编译期求值（第 6 阶段子阶段 6b 起）：初始化器的来源仅限**字面量**与**源序更早且已成功求值的 `let` / `static let`**（含经 `Self.` / 导入限定解析到的 `static let`），**不得引用 `static var`**（[语言标准 §4.3]、[语言标准 §5.2.1]）。违反时在任一位置（整条 RHS、操作数、字段读基址、`.count` 基址、构造器字段值、`cast`/`bitcast` 源、`memblock` 的 `N` 与 `count:`）统一报 `TC_CE_CONSTANT_EXPRESSION`；实现上由 `tc_eval_one_static_let`（整条 `Self.<名>`）、`tc_const_eval.c` 的符号/字段/`.count` 查找与 `tc_memblock_check.c` 的 `usize_operand` 解析（`tc_memblock_resolve_usize_operand`）共同保证。
 
 **`static var`** 对应一个模块静态存储槽。初始化器可为 §5.2.1 定义的单层编译期常量表达式，但不得含 `funcall`；操作数仅可为字面量、当前源序中更早已成功初始化的 `Self` 成员（`static let` 与 `static var`），以及经导入限定解析到的公开 `static let` / `static var`。不得引用局部 `var` 或函数形参。**诊断归属**（[语言标准 §4.2]）：引用本模块中源序更晚（或自身）的静态成员时，该名称在源序可见性上尚未建立 → `TC_CE_UNDEFINED_VARIABLE`（与 [语言标准 §5.2.1] 的前向引用口径一致，故静态成员之间不形成初始化环）；操作数可见但不属于上述允许来源时 → `TC_CE_CONSTANT_EXPRESSION`。
 
@@ -1011,7 +1020,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 实参重复定位到第二个重复名称；未知实参定位到最早未知名称；缺失实参定位到右括号并指出声明顺序最靠前的缺失形参；顺序错误定位到第一个名称已知、集合完整但与对应位置形参不同的名称；类型错误定位到最早不匹配操作数。
 
-只有实参名称全部已知、唯一且集合完整时才检查顺序；只有顺序正确后才从左到右检查类型。单个实参先检查名称，再检查类型类别，最后按 [语言标准 §3.6] 检查字面量符号性、后缀和范围。合法字面量不能用于形参类型时沿用字面量专用诊断，不降级为笼统实参类型错误。实参个数多于形参且名称全部已知 → `EXTRA_ARGUMENT`（§8.2.2，0.0.42 补码）；名称未知 → `UNKNOWN_ARGUMENT`；名称集合完整但文本顺序不符 → `ARGUMENT_ORDER`。
+只有实参名称全部已知、唯一且集合完整时才检查顺序；只有顺序正确后才从左到右检查类型。单个实参先检查名称，再检查类型类别，最后按 [语言标准 §3.6] 检查字面量符号性、后缀和范围。合法字面量不能用于形参类型时沿用字面量专用诊断，不降级为笼统实参类型错误。实参个数多于形参且名称全部已知 → `EXTRA_ARGUMENT`（§8.2.2）；名称未知 → `UNKNOWN_ARGUMENT`；名称集合完整但文本顺序不符 → `ARGUMENT_ORDER`。
 
 ### 8.3 `return` 错误优先级
 
@@ -1021,7 +1030,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 ### 8.4 本库顶层成员名索引
 
-在 `#lib` 模块中，编译器的名称作用域预建阶段（见 §1.2 6b）为当前模块建立**本库顶层成员名索引**，用以落实 [语言标准 §8.4.1] 对 `TC_CE_FUNCTION_SCOPE_ACCESS` 的分类要求。该索引收集全部 `func` / `static let` / `static var` 的声明名（不分 `public` / `private`），**仅用于错误分类**，绝不把这些名字注入函数体的普通裸名查找。
+在 `#lib` 模块中，编译器的名称作用域预建阶段（见 §1.2 6b）为当前模块建立**本库顶层成员名索引**，用以落实 [语言标准 §8.4.1] 对 `TC_CE_FUNCTION_SCOPE_ACCESS` 的分类要求。该强制适用于**函数体内的一切裸名访问位置**——RHS/操作数（运算、比较、逻辑、位运算、移位、`cast`/`bitcast`、构造器字段）、`return` 操作数、`if`/`while` 条件、输出操作数、赋值目标、`read` 目标，以及 `memblock` 声明类型中的 `N` 与构造器 `count:` 的 `usize_operand`；这些位置均由本索引统一分类，**不得**降级为 `TC_CE_UNDEFINED_VARIABLE`。该索引收集全部 `func` / `static let` / `static var` 的声明名（不分 `public` / `private`），**仅用于错误分类**，绝不把这些名字注入函数体的普通裸名查找。
 
 函数内普通裸名查找失败后，按以下规则分类诊断：
 
@@ -1165,7 +1174,7 @@ OUT[其他语句]    = IN[n]
 - CFG 可达性与静态条件边裁剪完全依据本小节前述规则；CFG 不另行维护运算符白名单，也不将优化器的值推测用于改变可达语句集合。
 - `funcall` 在调用者 CFG 中是单个原子节点，不展开被调函数 CFG；被调函数发生运行时错误时程序终止，不形成返回调用者的 CFG 边。
 - `return` 节点只连接当前函数的正常返回终止节点；函数末尾节点若从入口可达，触发缺少返回错误。顶层文件末尾是合法程序正常结束，不执行缺少返回检查。
-- 分析结果是 0.0.42 的强制语义，不允许实现通过更弱或更强的默认规则改变合法程序集合。
+- 分析结果是 0.0.44 的强制语义，不允许实现通过更弱或更强的默认规则改变合法程序集合。
 
 声明时强制 RHS 与确定初始化分析是两个独立保证：前者约束源代码形态，后者证明每次可达使用之前相应初始化语句确已执行。
 
@@ -1370,7 +1379,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 **阶段列与语言标准诊断类阶段的对应（0.0.44）**：各表的「阶段」列使用实现步骤口径；与 [语言标准 §11] 四步规则的诊断类阶段对应如下——第 2 阶段 = **LT**，第 3 阶段 = **SYN**（含结构类语法阶段诊断），第 4–8、11、12 阶段 = **SEM**，第 9–10 阶段的常量求值与三态判定 = **CT**（其中形态与来源类子条件属 SEM）。报告顺序须遵守 [语言标准 §11] 的「阶段优先（LT → SYN → SEM → CT）」：CT 类诊断必须在全部 SEM 类诊断无触发后才报告（§1.3）。
 
-**错误码口径**：语言标准 **0.0.44** 附录 B 为 **86** 码（74 `TC_CE_*` + 12 `TC_RE_*`）。实现枚举为 **87** = 86 语言码 + 1 `TC_ERR_OUT_OF_MEMORY`。已删除与附录 B 冲突的 5 个扩展码（`DUPLICATE_FUNCTION` / `CROSS_CONTROL_FLOW_JUMP` / `KEYWORD` / `ARGUMENT_TYPE` / `ELSE_POSITION`）。本说明书 §11.4 镜像附录 B，不另设编译器专用语言码。分表唯一码计数：§11.4.1 为 44 语言码（另列 OOM）；§11.4.2 为 18；§11.4.3 为 4；§11.4.4 为 8；§11.4.5 为 10；§11.4.6 专用 2（`MEMCOPY` 静/动各一；空指针两码与 §11.4.1 交叉列出、不另计）。`TC_RE_*` 全集 12。
+**错误码口径**：语言标准 **0.0.44** 附录 B 为 **86** 码（74 `TC_CE_*` + 12 `TC_RE_*`）。实现枚举为 **87** = 86 语言码 + 1 `TC_ERR_OUT_OF_MEMORY`。本说明书 §11.4 镜像附录 B，不另设编译器专用语言码（除实现资源失败码 `TC_ERR_OUT_OF_MEMORY` 外，无附录 B 之外的扩展码）。分表唯一码计数：§11.4.1 为 44 语言码（另列 OOM）；§11.4.2 为 18；§11.4.3 为 4；§11.4.4 为 8；§11.4.5 为 10；§11.4.6 专用 2（`MEMCOPY` 静/动各一；空指针两码与 §11.4.1 交叉列出、不另计）。`TC_RE_*` 全集 12。
 
 **实现专用错误码说明**
 

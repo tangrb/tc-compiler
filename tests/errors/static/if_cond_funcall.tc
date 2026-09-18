@@ -1,0 +1,12 @@
+#lib
+; `funcall` 不是 `rhs` / `operand` 的合法形态，不可作条件（语言标准 §6.1.1、§6.2）
+; → 语法拒绝
+public func g() bool then
+    return true
+end
+public func f() void then
+    if funcall(g) then
+        writeln(int32, 1)
+    end
+    return
+end

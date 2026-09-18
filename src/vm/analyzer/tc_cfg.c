@@ -178,11 +178,39 @@ static int tc_cfg_node_add_read(TcCfgBuildCtx *ctx, int node_id, const char *nam
     return 0;
 }
 
+/*
+ * 该槽是否属于 `static var` 绑定。
+ *
+ * `static var` 在**程序准备阶段**一次性初始化（语言标准 §4.2、§11.1），
+ * 因此其读取不参与任何函数的确定初始化判定；函数体内读取模块静态状态
+ * 不可能「未初始化」。槽索引由 Pass1 在全部域间统一编号，故按槽反查符号
+ * 无歧义。
+ */
+static int tc_cfg_slot_is_static_binding(const TcCfgBuildCtx *ctx, int slot) {
+    size_t i = 0;
+
+    if (slot < 0 || !ctx->symbols) {
+        return 0;
+    }
+    for (i = 0; i < ctx->symbols->count; i++) {
+        const TcSymbol *sym = &ctx->symbols->symbols[i];
+
+        if (sym->slot == slot) {
+            return sym->slot_domain == TC_SLOT_STATIC;
+        }
+    }
+    return 0;
+}
+
 static int tc_cfg_node_add_read_slot(TcCfgBuildCtx *ctx, int node_id, int slot) {
     TcCfgNode *node = &ctx->cfg->nodes[node_id];
     size_t i = 0;
 
     if (slot < 0) {
+        return 0;
+    }
+    /* `static` 槽的读取不计入确定初始化（见 tc_cfg_slot_is_static_binding）。 */
+    if (tc_cfg_slot_is_static_binding(ctx, slot)) {
         return 0;
     }
     for (i = 0; i < node->read_count; i++) {
@@ -404,9 +432,17 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             tc_cfg_add_rhs_reads(ctx, node, &if_stmt->condition, stmt_index) != 0) {
             return -2;
         }
-        if (tc_try_eval_static_bool(&if_stmt->condition, if_stmt->line, &value,
-                                    ctx->diag) != 0) {
-            return -2;
+        if (tc_try_eval_static_bool(&if_stmt->condition, ctx->symbols, NULL, if_stmt->line,
+                                    &value, ctx->diag) != 0) {
+            /*
+             * CT 类（静态三态判定）诊断已挂起：按语言标准 §11「阶段优先」
+             * 不中止——条件按「未知」继续建图，使第 11 阶段的
+             * 可达性/确定初始化与第 12 阶段的调用图等 SEM 检查得以完成。
+             */
+            if (tc_diagnostic_is_set(ctx->diag) || !tc_diagnostic_has_deferred(ctx->diag)) {
+                return -2;
+            }
+            value = TC_STATIC_BOOL_UNKNOWN;
         }
         if (value != TC_STATIC_BOOL_UNKNOWN) {
             ctx->cfg->nodes[node].constant_condition = (int)value;
@@ -448,9 +484,13 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             tc_cfg_add_rhs_reads(ctx, node, &while_stmt->condition, stmt_index) != 0) {
             return -2;
         }
-        if (tc_try_eval_static_bool(&while_stmt->condition, while_stmt->line, &value,
-                                    ctx->diag) != 0) {
-            return -2;
+        if (tc_try_eval_static_bool(&while_stmt->condition, ctx->symbols, NULL,
+                                    while_stmt->line, &value, ctx->diag) != 0) {
+            /* 同 if：CT 类诊断已挂起时按「未知」继续。 */
+            if (tc_diagnostic_is_set(ctx->diag) || !tc_diagnostic_has_deferred(ctx->diag)) {
+                return -2;
+            }
+            value = TC_STATIC_BOOL_UNKNOWN;
         }
         if (value != TC_STATIC_BOOL_UNKNOWN) {
             ctx->cfg->nodes[node].constant_condition = (int)value;

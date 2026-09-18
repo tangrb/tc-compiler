@@ -1,0 +1,12 @@
+#lib
+; 语言标准 §11「阶段优先」：CT 类诊断（let 常量求值，编译器
+; 标准第 9/10 阶段）必须挂起，晚于 SEM 类诊断报告。本文件同时含 CT 类
+; 「常量除零」与 SEM 类「未初始化读取」，首诊断须为后者。
+public func f() void then
+    let BAD: int32 = div(int32, 1, 0)
+    goto use
+    var pending: int32 = 1
+    label use:
+    writeln(int32, pending)
+    return
+end

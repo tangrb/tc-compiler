@@ -1,0 +1,5 @@
+#program
+; 跨模块执行：static var 初始化器引用更早的 static var（§4.2）
+import StaticVarChainLib
+var v: int32 = funcall(StaticVarChainLib.get_b)
+writeln(int32, v)

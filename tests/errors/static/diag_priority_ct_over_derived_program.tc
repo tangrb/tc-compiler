@@ -1,0 +1,4 @@
+#program
+; 同 diag_priority_ct_over_derived，但走 #program 顶层 let 路径（Pass2 常量求值）。
+let A: int32 = div(int32, 1, 0)
+let B: int32 = add(int32, A, 1)

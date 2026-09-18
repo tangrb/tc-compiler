@@ -210,9 +210,11 @@ static void test_self_member_rhs(void) {
     expect_err("#lib\npublic static var C: int32 = 1\n"
                "public func f() void then\n    var x: bool = Self.C\n    return\nend\n",
                TC_CE_TYPE_MISMATCH, "Self.member type mismatch");
+    /* §4.3：`#lib` 函数体内访问模块 static 须写 `Self.<名>`；裸名命中本模块
+     * 顶层成员索引 → TC_CE_FUNCTION_SCOPE_ACCESS（非 UNDEFINED_VARIABLE）。 */
     expect_err("#lib\npublic static var C: int32 = 1\n"
                "public func f() void then\n    var x: int32 = C\n    return\nend\n",
-               TC_CE_UNDEFINED_VARIABLE, "bare static name in function");
+               TC_CE_FUNCTION_SCOPE_ACCESS, "bare static name in function");
     expect_err("#program\nstruct Point then\n    let x: int32\nend\n"
                "let p: Point = Point(x: 1)\np.x = 2\n",
                TC_CE_CONSTANT_ASSIGNMENT, "let×let field assign");

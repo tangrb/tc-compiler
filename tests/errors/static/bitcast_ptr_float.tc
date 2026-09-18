@@ -1,0 +1,5 @@
+#program
+; 指针不得与浮点互转（语言标准 §6.6.6、§3.10.9）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var bad: float64 = bitcast(float64, p)

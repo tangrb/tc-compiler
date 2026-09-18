@@ -1,0 +1,4 @@
+#program
+; 期望：指针 cast 需要指针源（§3.10.9）
+var n: int64 = 1
+var q: ptr<int32> = cast(ptr<int32>, n)

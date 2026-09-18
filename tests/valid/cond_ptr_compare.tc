@@ -1,0 +1,13 @@
+#program
+; `if` 条件接受指针等值比较（§6.1.1 RHS 全集 / §6.8.7）
+var a: int32 = 41
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, a)
+if ptr_eq(int32, p, q) then
+    writeln(int32, 1)
+else
+    writeln(int32, 0)
+end
+if ptr_ne(int32, p, nullptr) then
+    writeln(int32, 2)
+end

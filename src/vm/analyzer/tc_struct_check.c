@@ -1362,7 +1362,7 @@ int tc_struct_check_field_read(TcRhs *rhs, const TcType *expected,
     return 0;
 }
 
-int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTable *table,
+int tc_struct_check_field_assign(TcFieldAssign *assign, const TcStructTable *table,
                                  const TcSymbolTable *visible, const TcSymbolTable *global,
                                  TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
                                  TcWarningList *warnings) {
@@ -1394,6 +1394,8 @@ int tc_struct_check_field_assign(const TcFieldAssign *assign, const TcStructTabl
                           "field assignment requires struct base");
         return -1;
     }
+    /* 固化基绑定：执行期与 AOT 直接取槽（基址可为 `Self.<名>` / 导入限定名）。 */
+    tc_resolved_binding_set(&assign->base_binding, base_sym);
     cursor_type = base_sym->type;
     for (i = 0; i < assign->field_count; i++) {
         const TcStructEntry *cur_def = NULL;

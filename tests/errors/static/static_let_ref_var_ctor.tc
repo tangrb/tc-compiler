@@ -1,0 +1,10 @@
+#lib
+; 结构体构造器字段值为 `static var`
+public struct Box then
+    var x: int32
+end
+private static var V: int32 = 5
+private static let b: Box = Box(x: V)
+public func f() int32 then
+    return 1
+end

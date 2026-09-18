@@ -842,6 +842,8 @@ typedef struct {
     char **fields;           /* 字段链 a.b.c → ["b","c"] */
     size_t field_count;
     TcRhs rhs;
+    TcResolvedBinding base_binding; /* Pass2 解析后的基绑定：执行期 / AOT 直接取槽，
+                                       避免后端各自按名解析（含 Self. / 导入限定名） */
 } TcFieldAssign;
 
 typedef struct {
@@ -989,6 +991,9 @@ typedef struct {
     TcSymKind sym_kind;
     int initialized;     /* 定义时是否有初始化值 */
     int has_const_value; /* let 常量编译期求值的结果是否有效 */
+    int ct_eval_failed;  /* 1：编译期求值因挂起的 CT 类诊断而中止（语言标准 §11「阶段优先」）。
+                            它使依赖该符号的求值失败成为*派生*结果，不得据此另报
+                            SEM 类诊断（见 tc_const_value_withheld）。 */
     TcValue const_value; /* let 常量编译期求值结果 */
     int owns_const_heap; /* 1：const_value.bits 为 struct/memblock 堆块，随符号释放 */
     int scope_level;     /* 作用域层级：0=全局，1=if 块，2=内层 if…… */
@@ -1108,6 +1113,27 @@ typedef enum {
 } TcApiErrorCode;
 
 /**
+ * 挂起的诊断（语言标准 §11「阶段优先」规则的实现载体）。
+ *
+ * §11 要求首个规范诊断按「LT → SYN → SEM → CT」的阶段顺序选取
+ * 。实现的处理阶段管线（编译器标准 §1.2 的 13 阶段）
+ * 并非按诊断类阶段排列——常量求值与静态三态判定（9/10 阶段，CT 类）
+ * 早于可达性/确定初始化（11 阶段）与调用图（12 阶段，SEM 类）。因此
+ * CT 类诊断必须先挂起，待全部 SEM 检查无触发后再发布。
+ *
+ * 仅保留源序位置最靠前的一条（§11 第 2 条：行号升序，同行按 Token 次序）。
+ */
+typedef struct {
+    int active;           /* 1 = 有挂起诊断 */
+    TcErrorKind kind;
+    int line;
+    int column;
+    char *message;        /* 堆分配；本结构内自有 */
+    char *filename;       /* 挂起时的源文件绑定（堆分配） */
+    char *source;         /* 挂起时的完整源文本（堆分配） */
+} TcDeferredDiagnostic;
+
+/**
  * 单槽诊断对象（fail-fast 模式下仅保存第一条错误）。
  * 调用方通过 tc_diagnostic_set_source 绑定源文本；source 由诊断模块 strdup 管理。
  */
@@ -1121,6 +1147,7 @@ typedef struct {
     char *source;     /* 堆分配，完整源文本 */
     int line;
     int column;
+    TcDeferredDiagnostic deferred; /* 挂起的 CT 类诊断（见上） */
 } TcDiagnostic;
 
 /* 无列号时的占位值 */

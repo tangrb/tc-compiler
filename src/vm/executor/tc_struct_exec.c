@@ -417,7 +417,21 @@ int tc_exec_struct_field_assign(const TcFieldAssign *assign, TcExecuteCtx *ctx,
     if (!assign) {
         return -1;
     }
-    if (tc_exec_load_struct_base(assign->base, ctx, &base, &struct_id, diag, assign->line) != 0) {
+    /*
+     * 优先用 Pass2 固化的基绑定（基址可为 `Self.<名>` / 导入限定名，符号表中以
+     * 裸成员名存放）；仅在缺元数据时回退到按名解析。
+     */
+    if (assign->base_binding.resolved && assign->base_binding.slot >= 0 && ctx->slots &&
+        assign->base_binding.type) {
+        base = ctx->slots[assign->base_binding.slot];
+        struct_id = tc_type_struct_id(assign->base_binding.type);
+        if (struct_id < 0) {
+            tc_exec_set_internal_error(diag, assign->line,
+                                       "internal error: missing struct id on base");
+            return -1;
+        }
+    } else if (tc_exec_load_struct_base(assign->base, ctx, &base, &struct_id, diag,
+                                        assign->line) != 0) {
         return -1;
     }
     if (tc_struct_path_offset_bytes(table, struct_id, assign->fields, assign->field_count, &offset,

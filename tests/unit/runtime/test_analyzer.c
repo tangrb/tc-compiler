@@ -145,8 +145,8 @@ static void test_analyze_let_nested_call_error(void) {
     tc_program_init(&program);
     check(tc_parse_source_to_program(source, &program, &diag) != 0,
           "nested let call is rejected while parsing");
-    check(diag.kind == TC_CE_CONSTANT_EXPRESSION,
-          "nested let call uses constant-expression error");
+    check(diag.kind == TC_CE_SYNTAX,
+          "nested let call is a syntax-phase rejection (language spec 5.2.1)");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);
 }
@@ -418,8 +418,22 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "    return\n"
             "end\n",
             0,
+            TC_CE_UNINITIALIZED_VARIABLE,
+            "SEM definite-init failure precedes the deferred CT constant error (spec 11)",
+        },
+        {
+            /* 无 SEM 类诊断时，挂起的 CT 类诊断在全部 SEM 检查通过后发布。 */
+            "#program\nlet BAD: int32 = div(int32, 10, 0)\n",
+            0,
             TC_CE_CONSTANT_DIV_ZERO,
-            "constant evaluation precedes CFG definite-init failure",
+            "deferred CT diagnostic is published once every SEM check passes",
+        },
+        {
+            /* 依赖挂起 CT 诊断的求值失败是派生结果，不得改报 SEM 类诊断。 */
+            "#program\nlet A: int32 = div(int32, 1, 0)\nlet B: int32 = add(int32, A, 1)\n",
+            0,
+            TC_CE_CONSTANT_DIV_ZERO,
+            "derived constant failure keeps the original CT diagnostic",
         },
         {
             "#program\nlet NEVER: bool = false\n"

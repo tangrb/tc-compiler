@@ -1,0 +1,10 @@
+#lib
+; `Self.<名>` 作 read 目标（§4.3、§10.3）
+public static var r: int32 = 0
+public func load() void then
+    read(int32, Self.r)
+    return
+end
+public func get() int32 then
+    return Self.r
+end

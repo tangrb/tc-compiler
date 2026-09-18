@@ -780,8 +780,12 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
     "ptr_size result must be usize/isize"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
     "identifier type does not match destination type"
-run_expect_fail_msg "$ROOT/tests/errors/static/ptr_cast_width.tc" \
-    "pointer cast requires equal-width pointee types"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_cast_truncate.tc" \
+    "truncate cannot be used with pointer cast"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_cast_non_ptr.tc" \
+    "pointer cast requires a pointer source"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_cast_to_int.tc" \
+    "ptr cannot cast to integer or float type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_io_writeln.tc" \
     "expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/float_special_non_float.tc" \
@@ -794,6 +798,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/memblock_fill_type.tc" \
     "bool literal requires bool context"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_zero.tc" \
     "memblock count must be at least 1"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_var_source.tc" \
+    "memblock count must be a compile-time usize constant"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_type_count_zero.tc" \
     "memblock count must be at least 1"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_store_oob.tc" \
@@ -856,8 +862,12 @@ run_expect_check_fail "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
     "ptr_size result must be usize/isize"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
     "identifier type does not match destination type"
-run_expect_check_fail "$ROOT/tests/errors/static/ptr_cast_width.tc" \
-    "pointer cast requires equal-width pointee types"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_cast_truncate.tc" \
+    "truncate cannot be used with pointer cast"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_cast_non_ptr.tc" \
+    "pointer cast requires a pointer source"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_cast_to_int.tc" \
+    "ptr cannot cast to integer or float type"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_io_writeln.tc" \
     "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/float_special_non_float.tc" \
@@ -870,6 +880,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/memblock_fill_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" \
     "memblock count must be at least 1"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_var_source.tc" \
+    "memblock count must be a compile-time usize constant"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_type_count_zero.tc" \
     "memblock count must be at least 1"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_store_oob.tc" \
@@ -959,7 +971,14 @@ run_expect_check_fail "$ROOT/tests/errors/static/self_member_undefined.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/self_member_type_mismatch.tc" \
     "identifier type does not match destination type"
 run_expect_check_fail "$ROOT/tests/errors/static/self_member_bare_name.tc" \
-    "undefined variable"
+    "function scope access: use Self.C"
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_io_operand.tc" "function scope access: use Self."
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_arith_operand.tc" "function scope access: use Self."
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_return.tc" "function scope access: use Self."
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_condition.tc" "function scope access: use Self."
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_assign_target.tc" "function scope access: use Self."
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_memblock_n.tc" "function scope access: use Self."
+run_expect_check_fail "$ROOT/tests/errors/static/self_bare_memblock_count.tc" "function scope access: use Self."
 run_expect_check_fail "$ROOT/tests/modules/private_member_access.tc" "private member access"
 run_expect_fail_msg "$ROOT/tests/modules/imported_struct_bare_name.tc" \
     "undefined struct 'Box'"
@@ -1018,6 +1037,9 @@ run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cast.tc" "100
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cast_nullptr.tc" "true
 true
 "
+run_expect_stdout "$ROOT/tests/valid/ptr_cast_remark.tc" "258
+258
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_bitcast.tc" "7
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_scope_outer.tc" "2
@@ -1056,6 +1078,47 @@ run_expect_stdout "$ROOT/tests/valid/phase5_self_static_let.tc" "11
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_self_static_ops.tc" "7
 8
+"
+run_expect_stdout "$ROOT/tests/valid/self_qual_operand.tc" "8
+107
+"
+run_expect_stdout "$ROOT/tests/valid/static_let_rule_ok.tc" "8
+17
+5
+4
+3
+5
+10
+2
+"
+run_expect_stdout "$ROOT/tests/valid/self_access_ok.tc" "9
+20
+3
+4
+10
+3
+7
+"
+run_expect_stdout "$ROOT/tests/valid/static_bool_cond.tc" "7
+9
+11
+"
+run_expect_stdout "$ROOT/tests/valid/cond_ptr_compare.tc" "1
+2
+"
+run_expect_stdout "$ROOT/tests/valid/cond_readonly_field.tc" "2
+"
+run_expect_stdout "$ROOT/tests/valid/memblock_unsigned_suffix.tc" "4
+8
+4
+"
+run_expect_stdout "$ROOT/tests/valid/ptr_load_bool_normalize.tc" "1
+0
+"
+run_expect_stdout "$ROOT/tests/valid/static_var_chain.tc" "2
+"
+run_expect_stdout "$ROOT/tests/valid/cond_bool_rhs_forms.tc" "1
+4
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_ptr_cmp_more.tc" "true
 true
@@ -1147,6 +1210,7 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_funcall_return.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_basic.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cast.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cast_nullptr.tc"
+run_expect_check_ok "$ROOT/tests/valid/ptr_cast_remark.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_bitcast.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_scope_outer.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_memblock_basic.tc"
@@ -1156,6 +1220,17 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_void_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_static_var.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_self_static_let.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_self_static_ops.tc"
+run_expect_check_ok "$ROOT/tests/valid/self_qual_operand.tc"
+run_expect_check_ok "$ROOT/tests/valid/static_let_rule_ok.tc"
+run_expect_check_ok "$ROOT/tests/valid/self_access_ok.tc"
+run_expect_check_ok "$ROOT/tests/valid/self_read_target.tc"
+run_expect_check_ok "$ROOT/tests/valid/static_bool_cond.tc"
+run_expect_check_ok "$ROOT/tests/valid/cond_ptr_compare.tc"
+run_expect_check_ok "$ROOT/tests/valid/cond_readonly_field.tc"
+run_expect_check_ok "$ROOT/tests/valid/memblock_unsigned_suffix.tc"
+run_expect_check_ok "$ROOT/tests/valid/ptr_load_bool_normalize.tc"
+run_expect_check_ok "$ROOT/tests/valid/static_var_chain.tc"
+run_expect_check_ok "$ROOT/tests/valid/cond_bool_rhs_forms.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_nullptr_eq.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_basic.tc"
@@ -1278,11 +1353,11 @@ run_expect_check_ok "$ROOT/tests/valid/struct_field_static_let_base.tc"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_var_in_const_op.tc" "constant expression cannot reference var variable"
-run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" "undefined variable 's'"
 run_expect_check_fail "$ROOT/tests/errors/static/operand_nested_arith.tc" "expected operand"
 run_expect_check_fail "$ROOT/tests/errors/static/operand_field_var_in_let.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/operand_field_var_in_const_op.tc" "constant expression cannot reference var variable"
-run_expect_check_fail "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_field_static_var_forward.tc" "undefined variable 's'"
 
 run_expect_fail_msg "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/negative_shift_count_shl.tc" "negative shift count"
@@ -1473,6 +1548,10 @@ run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip64.tc" "7FF8000000001234
 8000000000000000
 "
 run_expect_check_ok "$ROOT/tests/valid/bitcast_roundtrip64.tc"
+run_expect_stdout "$ROOT/tests/valid/bitcast_ptr_nullptr.tc" "0
+true
+"
+run_expect_check_ok "$ROOT/tests/valid/bitcast_ptr_nullptr.tc"
 run_expect_stdout "$ROOT/tests/valid/let_runtime_equivalence.tc" "-116
 -116
 -24
@@ -1624,6 +1703,9 @@ run_expect_check_ok "$ROOT/tests/valid/qualified_memblock_count.tc"
 run_with_stdin "$ROOT/tests/valid/qualified_read_target.tc" "42
 " "42
 "
+run_with_stdin "$ROOT/tests/valid/self_read_target.tc" "42
+" "42
+"
 run_expect_check_ok "$ROOT/tests/valid/qualified_read_target.tc"
 run_expect_stdout "$ROOT/tests/valid/let_ptr_cast_nullptr.tc" "true
 "
@@ -1712,6 +1794,8 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/signed_strict_mul.tc" "out of ra
 run_expect_fail_msg "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/abs_int_min.tc" "abs(INT_MIN) overflow"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/div_zero.tc" "division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/static_var_init_div_zero.tc" \
+    "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/mod_zero.tc" "division by zero"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/cast_strict_overflow.tc" "out of range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/read_invalid.tc" "unexpected end of input"
@@ -1799,7 +1883,11 @@ run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_lhs
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
-run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_sem_before_ct.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_sem_before_ct_static.tc" "use of uninitialized variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_ct_over_derived.tc" "constant division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_ct_over_derived_program.tc" "constant division by zero"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_forward_over_ct.tc" "constant value is not available by source order"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_format_after_operand.tc" \
     "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
@@ -1809,6 +1897,24 @@ run_expect_fail_msg "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump int
 run_expect_fail_msg "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \
     "label 'y' not found"
 run_expect_fail_msg "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_var_forward_ref.tc" "undefined variable 'B'"
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_io_operand.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_arith_operand.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_return.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_condition.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_assign_target.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_memblock_n.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/self_bare_memblock_count.tc" "function scope access: use Self."
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_ref_var_rhs.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_ref_var_operand.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_ref_var_field.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_ref_var_count.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_ref_var_ctor.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_ref_var_cast.tc" "constant expression cannot reference var variable"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_type_n_static_var.tc" "memblock count must be a compile-time usize constant"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_let_count_name_static_var.tc" "memblock count must be a compile-time usize constant"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_var_self_ref.tc" "undefined variable 'A'"
+run_expect_fail_msg "$ROOT/tests/errors/static/static_var_bare_member.tc" "static var initializer has invalid operand"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/literal_type_error.tc" \
     "unsigned suffix literal cannot be used in signed context"
@@ -1829,7 +1935,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/compare_type_mismatch_var.tc" \
     "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/logic_type_error.tc" "operand type does not match operation type"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
-run_expect_fail_msg "$ROOT/tests/errors/static/let_nested_call.tc" "nested calls are not allowed in constant expression"
+run_expect_fail_msg "$ROOT/tests/errors/static/let_nested_call.tc" "expected constant expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_fail_msg "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
@@ -1862,6 +1968,10 @@ run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_struct.tc" "bitcast targe
 run_expect_fail_msg "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_ptr_float.tc" "pointer and float types cannot participate in bitcast"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_float_ptr.tc" "pointer and float types cannot participate in bitcast"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_ptr_float32_category.tc" "pointer and float types cannot participate in bitcast"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "pointer and float types cannot participate in bitcast"
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
@@ -1948,7 +2058,11 @@ run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_l
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
-run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_const_before_dfa.tc" "constant division by zero"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_sem_before_ct.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_sem_before_ct_static.tc" "use of uninitialized variable"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_ct_over_derived.tc" "constant division by zero"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_ct_over_derived_program.tc" "constant division by zero"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_forward_over_ct.tc" "constant value is not available by source order"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_format_after_operand.tc" \
     "operand type does not match operation type"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
@@ -1960,6 +2074,17 @@ run_expect_check_fail "$ROOT/tests/errors/static/label_duplicate.tc" "duplicate 
 run_expect_check_fail "$ROOT/tests/errors/static/goto_into_block.tc" "cannot jump into inner block"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_sibling.tc" "cannot jump into incompatible block"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_def.tc" "duplicate definition"
+run_expect_check_fail "$ROOT/tests/errors/static/static_var_forward_ref.tc" "undefined variable 'B'"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_ref_var_rhs.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_ref_var_operand.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_ref_var_field.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_ref_var_count.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_ref_var_ctor.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_ref_var_cast.tc" "constant expression cannot reference var variable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_type_n_static_var.tc" "memblock count must be a compile-time usize constant"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_count_name_static_var.tc" "memblock count must be a compile-time usize constant"
+run_expect_check_fail "$ROOT/tests/errors/static/static_var_self_ref.tc" "undefined variable 'A'"
+run_expect_check_fail "$ROOT/tests/errors/static/static_var_bare_member.tc" "static var initializer has invalid operand"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch.tc" "operand type does not match"
@@ -1967,7 +2092,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do
 run_expect_check_fail "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to constant"
 run_expect_check_fail "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
-run_expect_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "nested calls are not allowed in constant expression"
+run_expect_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "expected constant expression"
 run_expect_check_fail "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
@@ -2024,6 +2149,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/negative_unsigned_literal.tc" "
 run_expect_check_fail "$ROOT/tests/errors/static/leading_zero.tc" "invalid integer literal"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "bool does not participate in bitcast"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_ptr_float.tc" "pointer and float types cannot participate in bitcast"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_float_ptr.tc" "pointer and float types cannot participate in bitcast"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_ptr_float32_category.tc" "pointer and float types cannot participate in bitcast"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "pointer and float types cannot participate in bitcast"
 run_expect_check_fail "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_check_fail "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
@@ -2081,7 +2210,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_else_to_then
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
+run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
 run_expect_check_fail "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"

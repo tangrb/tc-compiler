@@ -1,6 +1,8 @@
 #lib
-; 期望：constant expression cannot reference var variable
-; static var 初始化器只能引用源序更早的 Self.static_* 字段
+; 期望：undefined variable 's'
+; static var 初始化器的字段读基址引用了源序**更晚**的 static let（`s` 在下一行定义）：
+; 该名称在源序可见性上尚未建立 → TC_CE_UNDEFINED_VARIABLE（语言标准 §4.2、
+; 编译器标准 §4.3），故静态成员之间不形成初始化环。
 public struct Box then
     var x: int32
 end

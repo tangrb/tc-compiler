@@ -1,0 +1,5 @@
+#program
+; 期望：ptr<T> 不可 cast 到整数/浮点（§3.10.9；位模式互转须用 bitcast）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var n: int64 = cast(int64, p)

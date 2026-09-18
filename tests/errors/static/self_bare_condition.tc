@@ -1,0 +1,9 @@
+#lib
+; 函数体内以裸名访问模块 static 作条件 → TC_CE_FUNCTION_SCOPE_ACCESS（§4.3）
+public static let C: bool = true
+public func f() void then
+    if C then
+        writeln(int32, 1)
+    end
+    return
+end

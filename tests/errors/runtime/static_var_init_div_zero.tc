@@ -1,0 +1,7 @@
+#lib
+; `static var` 初始化器在程序准备阶段按运行时指令语义求值，失败报 TC_RE_*
+; （语言标准 §4.2、§11.1）——此处为除零 → TC_RE_DIVISION_BY_ZERO。
+public static var C: int32 = div(int32, 1, 0)
+public func f() void then
+    return
+end

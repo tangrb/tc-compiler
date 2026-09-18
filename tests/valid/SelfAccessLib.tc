@@ -1,0 +1,36 @@
+#lib
+; `#lib` 函数体内访问模块 static 必须写 `Self.<名>`（语言标准 §4.3、§9.1）。
+; 本用例覆盖读/写/字段/`.count`/命名 N/`count:`/条件/return/输出各位置。
+public struct Box then
+    var x: int32
+end
+public static let C: int32 = 7
+public static let FLAG: bool = true
+public static let N: usize = 3
+public static var W: int32 = 1
+public static var b: Box = Box(x: 2)
+public static var mv: memblock<int32, 3> = memblock(int32, count: 3, 4, 5, 6)
+public func touch() void then
+    var local: Box = Box(x: 9)
+    Self.W = add(int32, Self.W, 1)
+    Self.b.x = 20
+    local.x = 10
+    var m: memblock<int32, Self.N> = memblock(int32, count: Self.N, 1, 2, 3)
+    var q: int32 = 0
+    if Self.FLAG then
+        q = add(int32, Self.C, Self.W)
+    end
+    var fv: int32 = Self.b.x
+    var cv: usize = Self.mv.count
+    var lv: int32 = memblock_load(int32, Self.mv, 0)
+    writeln(int32, q)
+    writeln(int32, fv)
+    writeln(usize, cv)
+    writeln(int32, lv)
+    writeln(int32, local.x)
+    writeln(usize, m.count)
+    return
+end
+public func get_c() int32 then
+    return Self.C
+end

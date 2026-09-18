@@ -1,0 +1,10 @@
+#lib
+; `Self.<名>` 限定标识符作操作数（附录 A 的 operand 产生式、语言标准 §6.1.2），
+; 以及 static var 初始化器引用源序更早的 static let / static var（语言标准 §4.2）。
+public static let N: int32 = 7
+public static var M: int32 = add(int32, Self.N, 1)
+public func read_m() int32 then
+    writeln(int32, Self.M)
+    var v: int32 = add(int32, Self.N, 100)
+    return v
+end

@@ -1,0 +1,7 @@
+#lib
+; `static let` 不得引用 `static var`（语言标准 §4.3、§5.2.1）：整条 RHS 形式。
+private static var V: int32 = 5
+private static let A: int32 = Self.V
+public func f() int32 then
+    return 1
+end

@@ -1,0 +1,5 @@
+#program
+; 期望：truncate 不适用于指针重标记（§3.7、§3.10.9）
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int64> = cast(ptr<int64>, truncate, p)

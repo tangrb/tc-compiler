@@ -1,0 +1,22 @@
+#program
+; 语言标准 §3.7、§3.10.5、§3.10.9：cast(ptr<U> → ptr<T>) 是指针值**重标记**——所有指针值恒等宽，
+; 不按所指类型宽度设限（所指类型不同、但均为 void 以外的完整类型即合法）。
+; 本用例只断言重标记后可解引用且取值不变（ptr<int32> → 更宽/更窄 → 回到 ptr<int32>）；
+; 经重标记指针按*其它*元素类型解释槽内容属实现定义（§1.3），故不作断言。
+struct S then
+    var x: int32
+end
+var a: int32 = 258
+var p: ptr<int32> = ptr_address(int32, a)
+var p_wide: ptr<int64> = cast(ptr<int64>, p)
+var p_narrow: ptr<uint8> = cast(ptr<uint8>, p)
+var back: ptr<int32> = cast(ptr<int32>, p_wide)
+var back_again: ptr<int32> = cast(ptr<int32>, p_narrow)
+var v: int32 = ptr_load(int32, back)
+var w: int32 = ptr_load(int32, back_again)
+; 结构体所指类型同样参与重标记（原先因宽度不可计算而被拒绝）
+var s: S = S(x: 7)
+var ps: ptr<S> = ptr_address(S, s)
+var pi: ptr<int32> = cast(ptr<int32>, ps)
+writeln(int32, v)
+writeln(int32, w)

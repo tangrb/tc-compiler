@@ -1,0 +1,8 @@
+#lib
+; 函数体内以裸名访问模块 static 作运算操作数 → TC_CE_FUNCTION_SCOPE_ACCESS（§4.3）
+public static let C: int32 = 7
+public func f() void then
+    var v: int32 = add(int32, C, 1)
+    writeln(int32, v)
+    return
+end

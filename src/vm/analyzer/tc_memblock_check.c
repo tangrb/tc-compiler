@@ -6,6 +6,8 @@
  */
 #include "tc_memblock_check.h"
 
+#include "tc_analyzer_internal.h"
+#include "tc_const_eval.h"
 #include "tc_ptr_check.h"
 #include "tc_struct_check.h"
 
@@ -24,6 +26,66 @@ static const TcSymbol *tc_memblock_resolve(const char *name, const TcSymbolTable
     return tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag);
 }
 
+/*
+ * `usize_operand` 的符号解析（附录 A：`memblock<T, N>` 的 `N` 与构造器
+ * `count:` 共用 `usize_operand`）：
+ *
+ *   usize_operand = integer_literal | identifier | qualified_identifier
+ *                 | imported_member_name ;
+ *
+ * 因此裸 `identifier` 与 `Self.<名>` / `<模块名>.<名>` 均合法，且须解析为
+ * 类型是 `usize` 的 `let` / `static let`。
+ *
+ * `#lib` 的顶层 `static let` 位于**全局**符号表而常不在 `visible` 中（后者
+ * 仅承载函数局部绑定），故此处须显式回退到全局表——与表达式操作数不同，
+ * 本位置没有「函数内须写 `Self.`」的约束，裸名是规范允许的书写形式。
+ * 回退时保留块级作用域上界检查：已退出的块内绑定不得再被引用。
+ */
+static const TcSymbol *tc_memblock_resolve_usize_operand(const char *name,
+                                                         const TcSymbolTable *visible,
+                                                         const TcSymbolTable *global,
+                                                         size_t stmt_index, int line,
+                                                         TcDiagnostic *diag) {
+    const TcSymbol *symbol = NULL;
+    char msg[128];
+
+    if (!name) {
+        return NULL;
+    }
+    if (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL) {
+        symbol = tc_find_named_binding(visible, global, name);
+        if (symbol) {
+            return symbol;
+        }
+        (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+        tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        return NULL;
+    }
+    if (visible) {
+        symbol = tc_symbol_table_find(visible, name);
+        if (symbol) {
+            return symbol;
+        }
+    }
+    if (global) {
+        const TcSymbol *global_sym = tc_symbol_for_assign_target(global, name, (int)stmt_index);
+
+        if (global_sym && global_sym->scope_end_stmt_index < 0) {
+            /*
+             * 命中模块顶层绑定：函数体内须经 `Self.<名>` 访问（语言标准 §4.3），
+             * 此处与表达式操作数同口径报 TC_CE_FUNCTION_SCOPE_ACCESS。
+             */
+            if (tc_name_scope_check_function_access(name, line, diag)) {
+                return NULL;
+            }
+            return global_sym;
+        }
+    }
+    (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+    tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+    return NULL;
+}
+
 static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable *visible,
                                           const TcSymbolTable *global, size_t stmt_index, int line,
                                           TcDiagnostic *diag, uint64_t *out_count) {
@@ -33,7 +95,7 @@ static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable 
     if (!name || !out_count) {
         return -1;
     }
-    sym = tc_memblock_resolve(name, visible, global, stmt_index, line, diag);
+    sym = tc_memblock_resolve_usize_operand(name, visible, global, stmt_index, line, diag);
     if (!sym) {
         return -1;
     }
@@ -43,6 +105,10 @@ static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable 
         return -1;
     }
     if (!sym->has_const_value) {
+        /* 派生失败：挂起的 CT 类诊断仍是首个规范诊断。 */
+        if (tc_const_value_withheld(sym, diag)) {
+            return -1;
+        }
         tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
                           "constant value is not available by source order");
         return -1;
@@ -65,6 +131,13 @@ static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable 
     }
     *out_count = sym->const_value.bits;
     return 0;
+}
+
+int tc_memblock_resolve_count_name(const char *name, const TcSymbolTable *visible,
+                                   const TcSymbolTable *global, size_t stmt_index, int line,
+                                   TcDiagnostic *diag, uint64_t *out_count) {
+    return tc_memblock_resolve_usize_name(name, visible, global, stmt_index, line, diag,
+                                          out_count);
 }
 
 int tc_memblock_resolve_type_counts(TcType *type, const TcSymbolTable *visible,

@@ -123,6 +123,7 @@ void tc_diagnostic_init(TcDiagnostic *diag) {
     diag->source = NULL;
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
+    memset(&diag->deferred, 0, sizeof(diag->deferred));
 }
 
 void tc_diagnostic_clear(TcDiagnostic *diag) {
@@ -139,6 +140,141 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
     diag->kind = TC_CE_SYNTAX;
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
+    tc_diagnostic_clear_deferred(diag);
+}
+
+int tc_diagnostic_is_set(const TcDiagnostic *diag) {
+    return diag && diag->domain != TC_DIAG_NONE;
+}
+
+/* ------------------------------------------------------------------ */
+/*  挂起的 CT 类诊断（语言标准 §11「阶段优先」）              */
+/* ------------------------------------------------------------------ */
+
+void tc_diagnostic_clear_deferred(TcDiagnostic *diag) {
+    TcDeferredDiagnostic *pending = NULL;
+
+    if (!diag) {
+        return;
+    }
+    pending = &diag->deferred;
+    free(pending->message);
+    free(pending->filename);
+    free(pending->source);
+    memset(pending, 0, sizeof(*pending));
+}
+
+/* §11 第 2 条：同阶段按源序位置（行号升序，同行按 Token 次序）。 */
+static int tc_diagnostic_defer_precedes(int new_line, int new_column, int old_line,
+                                        int old_column) {
+    if (new_line != old_line) {
+        return new_line < old_line;
+    }
+    if (new_column == old_column) {
+        return 0;
+    }
+    /* 无列号（TC_COLUMN_UNKNOWN）视为同行最靠前，保持「先到先得」。 */
+    if (new_column == TC_COLUMN_UNKNOWN) {
+        return 1;
+    }
+    if (old_column == TC_COLUMN_UNKNOWN) {
+        return 0;
+    }
+    return new_column < old_column;
+}
+
+int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                        const char *message) {
+    TcDeferredDiagnostic *pending = NULL;
+    char *new_message = NULL;
+    char *new_filename = NULL;
+    char *new_source = NULL;
+
+    if (!diag) {
+        return -1;
+    }
+    pending = &diag->deferred;
+    if (pending->active &&
+        !tc_diagnostic_defer_precedes(line, column, pending->line, pending->column)) {
+        /* 已有源序更靠前的挂起诊断：保留原诊断，仍然报告失败。 */
+        return -1;
+    }
+
+    if (message) {
+        new_message = tc_diagnostic_strdup(message);
+        if (!new_message) {
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
+    /* 源文件绑定随挂起诊断一并保存，供后续 flush 时恢复（多模块编译）。 */
+    if (diag->filename) {
+        new_filename = tc_diagnostic_strdup(diag->filename);
+        if (!new_filename) {
+            free(new_message);
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
+    if (diag->source) {
+        new_source = tc_diagnostic_strdup(diag->source);
+        if (!new_source) {
+            free(new_message);
+            free(new_filename);
+            tc_diagnostic_mark_oom(diag);
+            return -1;
+        }
+    }
+
+    tc_diagnostic_clear_deferred(diag);
+    pending->active = 1;
+    pending->kind = kind;
+    pending->line = line;
+    pending->column = column;
+    pending->message = new_message;
+    pending->filename = new_filename;
+    pending->source = new_source;
+    return -1;
+}
+
+int tc_diagnostic_has_deferred(const TcDiagnostic *diag) {
+    return diag && diag->deferred.active;
+}
+
+int tc_diagnostic_flush_deferred(TcDiagnostic *diag) {
+    TcDeferredDiagnostic pending;
+    int rc = 0;
+
+    if (!diag || !diag->deferred.active) {
+        return 0;
+    }
+    if (tc_diagnostic_is_set(diag)) {
+        /* 已有真实诊断：CT 类诊断优先级更低，直接丢弃。 */
+        tc_diagnostic_drop_deferred(diag);
+        return 0;
+    }
+    /* 取走所有权，避免 set_source / set 内部释放时与 pending 冲突。 */
+    pending = diag->deferred;
+    memset(&diag->deferred, 0, sizeof(diag->deferred));
+
+    if (pending.filename || pending.source) {
+        if (tc_diagnostic_set_source(diag, pending.filename, pending.source) != 0) {
+            free(pending.message);
+            free(pending.filename);
+            free(pending.source);
+            return 0; /* OOM 诊断已由 set_source 写入 */
+        }
+    }
+    (void)tc_diagnostic_set(diag, pending.kind, pending.line, pending.column, pending.message);
+    rc = 1;
+    free(pending.message);
+    free(pending.filename);
+    free(pending.source);
+    return rc;
+}
+
+void tc_diagnostic_drop_deferred(TcDiagnostic *diag) {
+    tc_diagnostic_clear_deferred(diag);
 }
 
 void tc_diagnostic_get_source(const TcDiagnostic *diag, const char **filename,
@@ -278,7 +414,7 @@ void tc_diagnostic_print(const TcDiagnostic *diag, FILE *out) {
     tc_diagnostic_print_ex(diag, out, 0);
 }
 
-/* 同 tc_diagnostic_print，但普通诊断首行附错误码名（D2：CLI --print-error-code）。
+/* 同 tc_diagnostic_print，但普通诊断首行附错误码名（CLI --print-error-code）。
  * API/实现域本已打印码名，不受影响。 */
 void tc_diagnostic_print_with_code(const TcDiagnostic *diag, FILE *out) {
     tc_diagnostic_print_ex(diag, out, 1);

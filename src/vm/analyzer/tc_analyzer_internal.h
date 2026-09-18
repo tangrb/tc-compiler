@@ -110,6 +110,13 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                           size_t stmt_index, int line, TcDiagnostic *diag);
 
 /** Self.N / Qual.N / 裸名查找（不报诊断） */
+/**
+ * 函数体内裸名访问本模块顶层 `static` 成员时的统一诊断入口
+ * （语言标准 §4.3：`#lib` 函数体内须经 `Self.<名>` 访问）。
+ * @return 命中成员索引并已报 `TC_CE_FUNCTION_SCOPE_ACCESS` 返回 1；否则 0
+ */
+int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic *diag);
+
 const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
                                       const char *name);
 

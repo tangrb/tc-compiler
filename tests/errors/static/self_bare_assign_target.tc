@@ -1,0 +1,7 @@
+#lib
+; 函数体内以裸名作赋值目标 → TC_CE_FUNCTION_SCOPE_ACCESS（§4.3、§6.2）
+public static var C: int32 = 7
+public func f() void then
+    C = 9
+    return
+end

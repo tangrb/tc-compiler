@@ -1,0 +1,7 @@
+#lib
+; `memblock` 的命名 N 引用 `static var` → 来源不是编译期常量（§3.8.1）
+private static var V: usize = 4
+private static let mb: memblock<int32, Self.V> = memblock(int32, count: 4, 1, 2, 3, 4)
+public func f() int32 then
+    return 1
+end

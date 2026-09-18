@@ -1,0 +1,7 @@
+#lib
+; `.count` 基址为 `static var`
+private static var mv: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
+private static let N: usize = Self.mv.count
+public func f() int32 then
+    return 1
+end

@@ -54,7 +54,6 @@ int tc_exec_ptr_load(const TcType *pointee, const TcOperand *ptr_op, TcExecuteCt
     TcValue ptr_value;
     int slot = 0;
 
-    (void)pointee;
     if (tc_ptr_eval_operand(ptr_op, ctx, &ptr_value, diag, line) != 0) {
         return -1;
     }
@@ -68,6 +67,16 @@ int tc_exec_ptr_load(const TcType *pointee, const TcOperand *ptr_op, TcExecuteCt
         return -1;
     }
     *out = ctx->slots[slot];
+    /*
+     * 语言标准 §3.4 / §6.8.2：`ptr_load` 的结果类型为 `bool` 时
+     * 按「`0x00` → `false`，其它字节 → `true`」规范化。经指针别名写入的非规范
+     * 字节（如先 `ptr_store(int8, …, 2)`）读回后仍须落在 bool 的抽象值域 {0,1}，
+     * 与 ptr_store 对 bool 的写入规范化对称。
+     */
+    if (pointee && pointee->tag == TC_BOOL) {
+        out->bits = out->bits != 0 ? 1ULL : 0ULL;
+        out->type = tc_type_tag_singleton(TC_BOOL);
+    }
     return 0;
 }
 

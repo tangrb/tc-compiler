@@ -1,0 +1,7 @@
+#program
+; `Self.<名>` 作 read 目标（函数体内经 Self. 访问模块 static）
+import SelfReadLib
+var v: int32 = 0
+funcall(SelfReadLib.load)
+v = funcall(SelfReadLib.get)
+writeln(int32, v)

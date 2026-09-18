@@ -577,6 +577,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
             return -1;
+        } else if (bitcast->source.kind == TC_OPERAND_LIT &&
+                   bitcast->source.u.lit.is_nullptr) {
+            /* nullptr 是 ptr 值（非整数位模式）：其类型类别为 TC_PTR，
+             * 供下方「指针不得与浮点互转」（§3.10.9）判定使用。 */
+            source_tag = TC_PTR;
+            source_width = tc_sizeof_bits(tc_type_tag_singleton(TC_PTR));
         } else if (bitcast->source.kind != TC_OPERAND_LIT) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitcast source must be a variable, field, or literal");
@@ -605,6 +611,17 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
         if (tc_type_is_bool(source_tag)) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bool does not participate in bitcast");
+            return -1;
+        }
+        /*
+         * 语言标准 §6.6.6 / §3.10.9：指针仅可与整数或指针等宽互转，
+         * 不得与浮点互转。类型类别判定先于位宽判定（编译器标准 §1.3），
+         * 故 bitcast(float32, ptr_val) 亦报本码而非 TC_CE_BITCAST_WIDTH。
+         */
+        if ((source_tag == TC_PTR && tc_type_is_float(bitcast->target.tag)) ||
+            (bitcast->target.tag == TC_PTR && tc_type_is_float(source_tag))) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "pointer and float types cannot participate in bitcast");
             return -1;
         }
         if (source_width != target_width) {
@@ -672,8 +689,16 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
     }
 
     if (rhs->kind != TC_RHS_CAST) {
-        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, "unsupported rhs kind");
-        return -1;
+        /*
+         * 其余合法 RHS 形态（只读结构体字段读取、`Self.<名>` / 导入限定名、
+         * `mb.count`、指针比较等）复用同一类型检查实现，使 `if` / `while`
+         * 条件接受语言标准 §5.2.2「静态布尔条件」的原子表达式集合与 §6.1.1
+         * 的 RHS 全集。形态本身不产生合法 RHS 的场合由
+         * tc_type_check_rhs 的类型检查报 TYPE_MISMATCH，经 tc_check_condition
+         * 映射为条件类型诊断。
+         */
+        return tc_type_check_rhs(rhs, expected, visible, global, struct_table, hist, stmt_index,
+                                 line, diag, warnings, self_name);
     }
 
     {
@@ -732,7 +757,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         }
 
-        /* ptr<U> → ptr<T>：等宽所指类型；不可 cast 到整数/浮点 */
+        /*
+         * ptr<U> → ptr<T>：指针值的**重标记**。语言标准 §3.7、§3.10.5、
+         * §3.10.9：所有指针值恒等宽，故不按所指类型宽度设限
+         * ——`cast(ptr<int32>, p_uint8)` 这类所指类型不同但均完整的重标记合法；
+         * 仅要求 T / U 均为 void 以外的完整类型。不可 cast 到整数/浮点。
+         */
         if (cast->target.tag == TC_PTR) {
             if (cast->mode != TC_TRUNC_STRICT) {
                 tc_diagnostic_set(diag, TC_CE_MODE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -744,16 +774,17 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
                                   "pointer cast requires a pointer source");
                 return -1;
             }
+            if (cast->target.params.ptr_type.pointee &&
+                tc_type_is_void(cast->target.params.ptr_type.pointee->tag)) {
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "pointer cast requires a complete non-void pointee type");
+                return -1;
+            }
             if (source_full && source_full->params.ptr_type.pointee &&
-                cast->target.params.ptr_type.pointee) {
-                size_t tw = tc_sizeof_bits(cast->target.params.ptr_type.pointee);
-                size_t sw = tc_sizeof_bits(source_full->params.ptr_type.pointee);
-
-                if (tw == 0 || sw == 0 || tw != sw) {
-                    tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                                      "pointer cast requires equal-width pointee types");
-                    return -1;
-                }
+                tc_type_is_void(source_full->params.ptr_type.pointee->tag)) {
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "pointer cast requires a complete non-void pointee type");
+                return -1;
             }
             if (!tc_type_equals(&cast->target, expected)) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
@@ -844,6 +875,7 @@ int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
         mut = &dst->symbols[dst->count - 1];
         mut->scope_end_stmt_index = sym->scope_end_stmt_index;
         mut->ptr_target_readonly = sym->ptr_target_readonly;
+        mut->ct_eval_failed = sym->ct_eval_failed;
         if (sym->has_const_value) {
             mut->has_const_value = 1;
             mut->const_value = sym->const_value;
@@ -884,6 +916,7 @@ int tc_visible_add_from_global(const TcSymbolTable *global, const char *name,
     added = &visible->symbols[visible->count - 1];
     added->has_const_value = sym->has_const_value;
     added->const_value = sym->const_value;
+    added->ct_eval_failed = sym->ct_eval_failed;
     added->scope_end_stmt_index = sym->scope_end_stmt_index;
     added->ptr_target_readonly = sym->ptr_target_readonly;
     return 0;

@@ -83,6 +83,7 @@ int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeTag type, const
 const TcSymbol *tc_exec_find_symbol(const TcSymbolTable *symbols, const char *name) {
     size_t i = 0;
     const TcSymbol *best = NULL;
+    const char *member = NULL;
 
     if (!symbols || !name) {
         return NULL;
@@ -91,6 +92,31 @@ const TcSymbol *tc_exec_find_symbol(const TcSymbolTable *symbols, const char *na
         const TcSymbol *sym = &symbols->symbols[i];
 
         if (!sym->name || strcmp(sym->name, name) != 0) {
+            continue;
+        }
+        if (!best || sym->def_stmt_index > best->def_stmt_index) {
+            best = sym;
+        }
+    }
+    if (best) {
+        return best;
+    }
+    /*
+     * 限定名（`Self.<名>` / `<模块名>.<名>`）的成员在符号表中以**裸成员名**
+     * 存放（语言标准 §4.3、§9.1：`#lib` 函数体内经 `Self.` 访问模块 static）。
+     * 此处按最后一个 `.` 之后的成员名再查一次，使执行期与 AOT 生成代码同样
+     * 支持限定名（此前 `Self.<static var>.<字段> = …` 报
+     * 「unresolved struct base」）。
+     */
+    member = strrchr(name, '.');
+    if (!member || member[1] == '\0') {
+        return NULL;
+    }
+    member++;
+    for (i = 0; i < symbols->count; i++) {
+        const TcSymbol *sym = &symbols->symbols[i];
+
+        if (!sym->name || strcmp(sym->name, member) != 0) {
             continue;
         }
         if (!best || sym->def_stmt_index > best->def_stmt_index) {

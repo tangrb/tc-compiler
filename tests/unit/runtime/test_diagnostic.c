@@ -149,10 +149,64 @@ static void test_oom_not_used_as_size_limit_proxy(void) {
     tc_diagnostic_clear(&diag);
 }
 
+/*
+ * 语言标准 §11「阶段优先」：CT 类诊断须挂起，待全部 SEM 类
+ * 诊断无触发后再发布。本组断言覆盖挂起槽的生命周期、首位置选取与发布规则。
+ */
+static void test_deferred_ct_diagnostic(void) {
+    TcDiagnostic diag;
+
+    /* 挂起不写入主槽，但可查询；位置更靠后的挂起不覆盖更靠前的 */
+    tc_diagnostic_init(&diag);
+    check(!tc_diagnostic_is_set(&diag), "init leaves no active diagnostic");
+    check(!tc_diagnostic_has_deferred(&diag), "init leaves no deferred diagnostic");
+    check(tc_diagnostic_defer(&diag, TC_CE_CONSTANT_DIV_ZERO, 8, TC_COLUMN_UNKNOWN,
+                              "constant division by zero") == -1,
+          "defer reports failure to the caller");
+    check(!tc_diagnostic_is_set(&diag), "deferred diagnostic does not set the main slot");
+    check(tc_diagnostic_has_deferred(&diag), "deferred diagnostic is queryable");
+    check(tc_diagnostic_defer(&diag, TC_CE_CONSTANT_OVERFLOW, 12, TC_COLUMN_UNKNOWN,
+                              "constant overflow") == -1,
+          "later deferral still reports failure");
+    check(tc_diagnostic_flush_deferred(&diag) == 1, "flush publishes the deferred diagnostic");
+    check(diag.kind == TC_CE_CONSTANT_DIV_ZERO, "flush keeps the earliest deferred kind");
+    check(diag.line == 8, "flush keeps the earliest deferred line");
+    check(print_contains(&diag, "constant division by zero"),
+          "flush publishes the earliest deferred message");
+    check(!tc_diagnostic_has_deferred(&diag), "flush clears the deferred slot");
+    tc_diagnostic_clear(&diag);
+
+    /* 同行按列序 */
+    tc_diagnostic_init(&diag);
+    (void)tc_diagnostic_defer(&diag, TC_CE_CONSTANT_OVERFLOW, 5, 30, "second column");
+    (void)tc_diagnostic_defer(&diag, TC_CE_CONSTANT_DIV_ZERO, 5, 10, "first column");
+    check(tc_diagnostic_flush_deferred(&diag) == 1, "same-line flush publishes");
+    check(print_contains(&diag, "first column"), "same-line ordering uses the column");
+    tc_diagnostic_clear(&diag);
+
+    /* 已有 SEM 类诊断时丢弃挂起的 CT 类诊断（阶段优先：SEM 胜出） */
+    tc_diagnostic_init(&diag);
+    (void)tc_diagnostic_defer(&diag, TC_CE_CONSTANT_DIV_ZERO, 3, TC_COLUMN_UNKNOWN,
+                              "constant division by zero");
+    tc_diagnostic_set(&diag, TC_CE_UNINITIALIZED_VARIABLE, 9, TC_COLUMN_UNKNOWN,
+                      "use of uninitialized variable");
+    check(tc_diagnostic_flush_deferred(&diag) == 0, "flush is a no-op when a real diagnostic exists");
+    check(diag.kind == TC_CE_UNINITIALIZED_VARIABLE, "SEM diagnostic is preserved");
+    check(!tc_diagnostic_has_deferred(&diag), "superseded deferred diagnostic is dropped");
+    tc_diagnostic_clear(&diag);
+
+    /* 无挂起诊断时 flush 为空操作 */
+    tc_diagnostic_init(&diag);
+    check(tc_diagnostic_flush_deferred(&diag) == 0, "flush without deferral is a no-op");
+    check(!tc_diagnostic_is_set(&diag), "empty flush leaves the main slot unset");
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_domain_lifecycle();
     test_allocation_failures_become_oom();
     test_oom_not_used_as_size_limit_proxy();
+    test_deferred_ct_diagnostic();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

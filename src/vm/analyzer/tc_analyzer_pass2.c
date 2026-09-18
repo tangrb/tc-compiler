@@ -190,6 +190,30 @@ const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymb
     return global ? tc_symbol_table_find(global, name) : NULL;
 }
 
+/*
+ * 名称解析的作用域上下文（仅在分析器内部使用，单线程编译）。
+ *
+ * 语言标准 §4.3、§9.1：`#lib` 没有非 `static` 的顶层值作用域——模块状态只能
+ * 是 `static let` / `static var`，且**函数体内必须经 `Self.<名>` 访问**。
+ * 这里保存当前语句所属模块的成员名索引与「是否位于函数体内」，供
+ * `tc_resolve_visible_symbol` 在实测不到可见绑定时给出
+ * `TC_CE_FUNCTION_SCOPE_ACCESS`（而不是笼统的 `TC_CE_UNDEFINED_VARIABLE`）。
+ */
+static const TcMemberIndex *g_name_scope_members = NULL;
+static int g_name_scope_in_function = 0;
+
+static void tc_name_scope_set(const TcMemberIndex *members, int in_function) {
+    g_name_scope_members = members;
+    g_name_scope_in_function = in_function;
+}
+
+int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic *diag) {
+    if (!g_name_scope_in_function || !g_name_scope_members || !name) {
+        return 0;
+    }
+    return tc_func_try_function_scope_access(g_name_scope_members, name, line, diag);
+}
+
 const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                                  const TcSymbolTable *global, const char *name,
                                                  size_t stmt_index, int line,
@@ -220,6 +244,14 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
             return NULL;
         }
+    }
+    /*
+     * 函数体内未解析到局部绑定：若该名命中本模块顶层成员索引，说明是「以裸名
+     * 访问模块 static」——按 §4.3 报 TC_CE_FUNCTION_SCOPE_ACCESS 并提示改用
+     * `Self.<名>`；模块顶层（声明区与 static 初始化器）不受此限。
+     */
+    if (tc_name_scope_check_function_access(name, line, diag)) {
+        return NULL;
     }
     (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
     tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
@@ -284,6 +316,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                TcSymbolTable *visible, TcStructTable *struct_table,
                                TcAnalyzeCtx *ctx, TcInitHistory *hist, TcWarningList *warnings,
                                TcDiagnostic *diag) {
+    /* 刷新名称解析作用域上下文：本语句是否位于函数体内（§4.3 Self. 强制）。 */
+    tc_name_scope_set(ctx->func_env ? ctx->func_env->members : NULL, ctx->func_depth > 0);
+
     if (stmt->kind == TC_STMT_WHILE) {
         TcWhileStmt *while_stmt = &stmt->u.while_stmt;
         TcSymbolTable visible_body;
@@ -697,6 +732,30 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             return 0;
         }
 
+        if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
+            TcStaticLetDef *sl = &stmt->u.static_let_def;
+            TcSymbol *sym =
+                (TcSymbol *)tc_find_symbol_by_def_index(symbols, sl->name, (int)stmt_index);
+
+            /*
+             * 与 `static var` 同口径：解析声明类型中**命名**的 `memblock` N
+             * （Pass1 intern 时 usize 名尚未折叠，count 仍为 0）。此前 static let
+             * 缺少本步骤，使 `memblock<int32, Self.N>` 的 `.count` 静默读成 0，
+             * 且 `memblock<int32, <static var>>` 未被拒绝。
+             */
+            if (tc_pass2_resolve_decl_memblock_type(&sl->type, NULL, sym, ctx, visible, symbols,
+                                                    stmt_index, sl->line, diag) != 0) {
+                return -1;
+            }
+            if (sl->rhs.kind == TC_RHS_MEMBLOCK_CONSTRUCTOR) {
+                if (tc_memblock_check_rhs(&sl->rhs, &sl->type, visible, symbols, struct_table, hist,
+                                          stmt_index, sl->line, diag, warnings, sl->name) != 0) {
+                    return -1;
+                }
+            }
+            return 0;
+        }
+
         if (stmt->kind == TC_STMT_CONST_DEF) {
             TcConstDef *const_def = &stmt->u.const_def;
             TcSymbol *global_sym =
@@ -730,7 +789,17 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             }
             if (tc_resolve_const_value(global_sym, &const_def->rhs, visible, symbols,
                                        struct_table, const_def->line, diag) != 0) {
-                return -1;
+                /*
+                 * CT 类（常量求值）诊断已挂起：按语言标准 §11「阶段优先」
+                 * 不得在此中止——第 11/12 阶段的 SEM 类检查
+                 * （可达性、确定初始化、调用图）优先于 CT 类诊断。该 let 以
+                 * 「无常量值」状态继续，供后续名称解析与类型检查使用。
+                 */
+                if (tc_diagnostic_is_set(diag) || !tc_diagnostic_has_deferred(diag)) {
+                    return -1;
+                }
+                global_sym->has_const_value = 0;
+                global_sym->ct_eval_failed = 1;
             }
             if (tc_visible_add_from_global(symbols, const_def->name, (int)stmt_index, visible,
                                            diag) != 0) {
