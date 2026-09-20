@@ -672,6 +672,8 @@ run_check_ok "$ROOT/tests/valid/fp_mod_edges.tc"
 run_check_ok "$ROOT/tests/valid/self_member_memblock_copy.tc"
 run_check_ok "$ROOT/tests/valid/self_member_struct_copy.tc"
 run_check_ok "$ROOT/tests/valid/ptr_address_param_load.tc"
+# B-51：ptr_address(T, <形参>) 须能完成 AOT 代码生成（-o/-r），而非仅 --check
+run_diff_test "$ROOT/tests/valid/ptr_address_param_load.tc"
 run_check_ok "$ROOT/tests/valid/identifier_named_padding.tc"
 run_check_ok "$ROOT/tests/valid/let_ptr_size.tc"
 run_check_ok "$ROOT/tests/valid/let_memblock_const.tc"

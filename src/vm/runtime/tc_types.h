@@ -621,6 +621,7 @@ typedef struct {
         struct {
             TcType pointee_type;
             char *name;
+            TcResolvedBinding binding; /* Pass2 固化的取址目标（B-51：AOT 不再按名重解析） */
         } ptr_address;
         struct {
             TcType pointee_type;

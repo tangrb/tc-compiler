@@ -492,13 +492,20 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     if (rhs->kind == TC_RHS_PTR_ADDRESS) {
         int slot = -1;
 
-        if (rhs->u.ptr_address.name &&
-            tc_aot_resolve_var_slot(symbols, &ctx->sym_index, rhs->u.ptr_address.name, stmt_index,
-                                    &slot) == 0) {
-            fprintf(out, "%s%s = tc_aot_ptr_address(%d);\n", indent, dst_expr, slot);
-            return 0;
+        /*
+         * B-51：优先用 Pass2 固化的目标绑定槽位——函数形参在代码生成期无法按名
+         * 解析（tc_aot_resolve_var_slot 只走可见性表），故
+         * `ptr_address(int32, <形参>)` 之前会令代码生成失败。按名解析保留为兜底。
+         */
+        if (rhs->u.ptr_address.binding.resolved && rhs->u.ptr_address.binding.slot >= 0) {
+            slot = rhs->u.ptr_address.binding.slot;
+        } else if (!rhs->u.ptr_address.name ||
+                   tc_aot_resolve_var_slot(symbols, &ctx->sym_index, rhs->u.ptr_address.name,
+                                           stmt_index, &slot) != 0) {
+            return -1;
         }
-        return -1;
+        fprintf(out, "%s%s = tc_aot_ptr_address(%d);\n", indent, dst_expr, slot);
+        return 0;
     }
 
     if (rhs->kind == TC_RHS_PTR_LOAD) {

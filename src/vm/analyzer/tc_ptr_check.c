@@ -190,6 +190,9 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
                               "ptr_address pointee type does not match variable type");
             return -1;
         }
+        /* B-51：固化取址目标的槽位，供 AOT 代码生成直接使用（形参在代码生成期
+         * 无法按名解析） */
+        tc_resolved_binding_set(&rhs->u.ptr_address.binding, target);
         ptr_ty = tc_ptr_make_from_pointee(&rhs->u.ptr_address.pointee_type, diag, line);
         if (ptr_ty.tag == TC_VOID) {
             return -1;
