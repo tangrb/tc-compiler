@@ -1074,6 +1074,23 @@ run_expect_stdout "$ROOT/tests/modules/import_addr_qual.tc" "9
 "
 run_expect_check_ok "$ROOT/tests/modules/import_addr_self.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_addr_qual.tc"
+# 既有-1：`<模块名>.<成员>` 作普通 RHS 操作数（scalar / struct 整体读取；限定名须确为该模块成员）
+run_expect_stdout "$ROOT/tests/modules/import_member_operand.tc" "46
+42
+"
+run_expect_stdout "$ROOT/tests/modules/import_member_struct.tc" "12
+46
+17
+46
+17
+7
+"
+run_expect_check_ok "$ROOT/tests/modules/import_member_operand.tc"
+run_expect_check_ok "$ROOT/tests/modules/import_member_struct.tc"
+run_expect_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
+    "undefined variable 'NoSuchLib'" "UndefinedVariable"
+run_expect_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \
+    "undefined variable 'BoxLib'" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/modules/self_call_neg/import_bare_call.tc" \
     "function scope access: use Self.inc" "FunctionScopeAccessError"
 # B-54：依赖模块（#lib 被 import）内裸名引用本库顶层成员，错码须与作入口时一致

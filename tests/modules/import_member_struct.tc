@@ -1,0 +1,20 @@
+#program
+; 既有-1：限定名整体读取 struct（static let / static var）与库内常量读取
+import MemberLib
+import MemberUserLib
+var p: MemberLib.Pair = MemberLib.spc
+var q: MemberLib.Pair = MemberLib.spv
+var a: int32 = p.x
+var b: int32 = q.y
+var s: int32 = add(int32, a, b)
+var s1: int32 = funcall(MemberLib.sum_self)
+var s2: int32 = funcall(MemberLib.pair_sum_self)
+var s3: int32 = funcall(MemberUserLib.const_sum)
+var s4: int32 = funcall(MemberUserLib.pair_sum_qual)
+var s5: int32 = funcall(MemberUserLib.pair_sum_var_qual)
+writeln(int32, s)
+writeln(int32, s1)
+writeln(int32, s2)
+writeln(int32, s3)
+writeln(int32, s4)
+writeln(int32, s5)

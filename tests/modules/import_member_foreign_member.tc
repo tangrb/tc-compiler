@@ -1,0 +1,6 @@
+#program
+; 既有-1 负例：限定名所指的是该模块的成员，不得命中其它模块的同名可见成员
+import MemberLib
+import BoxLib
+var v: int32 = BoxLib.K
+writeln(int32, v)

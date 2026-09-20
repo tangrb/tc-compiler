@@ -1,0 +1,19 @@
+#lib
+; 既有-1：被导入模块内以 `<模块名>.<成员>` 读取常量/静态成员（含 struct 整体读取）
+import MemberLib
+public func const_sum() int32 then
+    let c: int32 = MemberLib.K
+    var v: int32 = MemberLib.W
+    var r: int32 = add(int32, c, v)
+    return r
+end
+public func pair_sum_qual() int32 then
+    let p: MemberLib.Pair = MemberLib.spc
+    var s: int32 = add(int32, p.x, p.y)
+    return s
+end
+public func pair_sum_var_qual() int32 then
+    var q: MemberLib.Pair = MemberLib.spv
+    var s: int32 = add(int32, q.x, q.y)
+    return s
+end

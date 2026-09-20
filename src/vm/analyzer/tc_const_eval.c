@@ -375,12 +375,34 @@ static int tc_const_read_resolved_field(const TcResolvedFieldAccess *access,
         }
         return 0;
     }
-    if (!access->field_type || access->field_count == 0 || !access->offsets) {
+    if (!access->field_type) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "invalid constant expression");
         return -1;
     }
     field_type = access->field_type;
+    if (access->field_count == 0) {
+        /*
+         * 既有-1：单点限定名（`<模块>.<成员>`）整体读取——常量值就是该绑定自身，
+         * 无字段偏移（`offsets` 为 NULL）。类型不符仍按常量类型不匹配报错。
+         */
+        if (tc_type_tag_of(field_type) != expected) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant type does not match expected type");
+            return -1;
+        }
+        out->type = field_type;
+        out->bits = access->const_bits;
+        if (field_type->tag == TC_BOOL) {
+            out->bits = out->bits ? 1ULL : 0ULL;
+        }
+        return 0;
+    }
+    if (!access->offsets) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                          "invalid constant expression");
+        return -1;
+    }
     if (tc_type_tag_of(field_type) != expected) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "constant type does not match expected type");

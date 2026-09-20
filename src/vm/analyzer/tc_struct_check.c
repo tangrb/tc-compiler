@@ -1284,6 +1284,54 @@ int tc_struct_check_field_access(TcFieldAccess *access, const TcType *expected,
                           "memory allocation failed");
         return -1;
     }
+    /*
+     * 既有-1：`<模块名>.<成员>` 作普通 RHS 操作数的**整体读取**。
+     *
+     * 解析器只在 `X.y.`（两点）形态下把 `X.y` 归入基址，故单点限定名
+     * `ImpLib.K` 到达这里是「基址 `ImpLib` + 字段链 `["K"]`」。若基址不是可见
+     * 绑定、而 `"<基址>.<首个字段>"` 经名称解析命中限定成员（附录 A 的 `operand`
+     * 含 `imported_member_name`；[语言标准 §4.3、§6.1.2] 允许经导入限定解析到
+     * 公开 `static let` / `static var`），则该操作数就是该**绑定自身**：按无字段
+     * 的绑定读取定型（`resolved.field_count = 0`），执行器 / AOT / 常量求值按
+     * 绑定读取处理（与 `read(int32, <模块>.<名>)` 的既有表示一致）。
+     */
+    if (strchr(access->base, '.') == NULL &&
+        tc_find_named_binding(visible, global, access->base) == NULL) {
+        size_t need = strlen(access->base) + 1U + strlen(access->fields[0]) + 1U;
+        char *combined = (char *)malloc(need);
+        const TcSymbol *qualified = NULL;
+
+        if (!combined) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+        snprintf(combined, need, "%s.%s", access->base, access->fields[0]);
+        qualified = tc_find_named_binding(visible, global, combined);
+        free(combined);
+        /*
+         * 限定名必须真的是「该模块的成员」：解析到的符号的所属模块须与限定前缀一致
+         * （B-65 的符号模块标记）。否则 `NoSuchLib.K` 会因按裸成员名回退而静默命中
+         * 任一可见 `K`，把拼错的模块名伪装成合法限定读取。
+         */
+        if (qualified &&
+            (!qualified->module_name || strcmp(qualified->module_name, access->base) != 0)) {
+            qualified = NULL;
+        }
+        if (qualified) {
+            if (expected && !tc_type_equals(qualified->type, expected)) {
+                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                                  "field read result type does not match expected type");
+                return -1;
+            }
+            if (qualified->sym_kind != TC_SYM_CONSTANT &&
+                qualified->sym_kind != TC_SYM_STATIC_LET &&
+                tc_check_operand_init(hist, qualified, stmt_index, line, diag) != 0) {
+                return -1;
+            }
+            return tc_struct_finalize_field_access(access, qualified, qualified->type, NULL, 0, 0);
+        }
+    }
 
     base_sym = tc_struct_resolve_base(access->base, visible, global, stmt_index, line, diag);
     if (!base_sym) {

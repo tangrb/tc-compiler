@@ -623,6 +623,15 @@ run_diff_test "$ROOT/tests/modules/import_addr_self.tc"
 run_diff_test "$ROOT/tests/modules/import_addr_qual.tc"
 run_check_ok "$ROOT/tests/modules/import_addr_self.tc"
 run_check_ok "$ROOT/tests/modules/import_addr_qual.tc"
+# 既有-1：`<模块名>.<成员>` 作 RHS 操作数（const struct 须内联字节后深拷贝）
+run_diff_test "$ROOT/tests/modules/import_member_operand.tc"
+run_diff_test "$ROOT/tests/modules/import_member_struct.tc"
+run_check_ok "$ROOT/tests/modules/import_member_operand.tc"
+run_check_ok "$ROOT/tests/modules/import_member_struct.tc"
+run_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
+    "undefined variable 'NoSuchLib'"
+run_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \
+    "undefined variable 'BoxLib'"
 # B-65：跨模块同名符号不得串槽（VM/AOT 均须输出 funcall 返回值 false）
 run_diff_test "$ROOT/tests/modules/import_same_name_shadow.tc"
 run_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"

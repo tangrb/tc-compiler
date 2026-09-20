@@ -508,6 +508,48 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
             fprintf(out, "%" PRIu64 "ULL", (uint64_t)access->const_bits);
             return;
         }
+        if (access->field_count == 0 && access->field_type) {
+            /*
+             * 既有-1：单点限定名（`<模块名>.<成员>`）整体读取——操作数就是该绑定
+             * 自身。按同口径复用「绑定读取」发射：常量基址走 const 折叠（memblock
+             * 常量内联字节后深拷贝），运行时基址发槽位；常量 struct 与常量 struct
+             * 字段读同口径（内联字节后运行期深拷贝）。
+             */
+            const TcType *ftype = access->field_type;
+            TcOperand bound;
+
+            memset(&bound, 0, sizeof(bound));
+            bound.kind = TC_OPERAND_VAR;
+            bound.binding.resolved = 1;
+            bound.binding.slot = access->base_slot;
+            bound.binding.is_const = (access->base_slot < 0);
+            bound.binding.type = ftype;
+            bound.binding.const_bits = access->const_bits;
+            if ((ftype->tag == TC_STRUCT || ftype->tag == TC_MEMBLOCK) &&
+                access->base_slot < 0) {
+                size_t nbytes = 0;
+                const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+                const uint8_t zero = 0;
+
+                if (ftype->tag == TC_STRUCT) {
+                    const TcStructEntry *nested =
+                        tc_struct_table_get(table, ftype->params.struct_type.struct_id);
+                    nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+                } else {
+                    nbytes =
+                        (tc_sizeof_bits_ex(ftype, tc_struct_table_width_bits, table) + 7U) / 8U;
+                }
+                if (nbytes == 0) {
+                    return;
+                }
+                fprintf(out, "tc_aot_struct_extract((uint64_t)(uintptr_t)&");
+                tc_aot_emit_byte_array_expr(out, data ? data : &zero, nbytes);
+                fprintf(out, ", 0, %zu, tc_aot_cur_diag, 0)", nbytes);
+                return;
+            }
+            tc_aot_emit_operand_expr(out, &bound, type, ctx, stmt_index);
+            return;
+        }
         if (access->field_count > 0 && access->offsets && access->field_type) {
             const TcType *field_type = access->field_type;
             size_t offset = access->offsets[access->field_count - 1];

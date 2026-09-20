@@ -1,0 +1,8 @@
+#program
+; 既有-1：`<模块名>.<static let>` / `<模块名>.<static var>` 作运算与输出操作数
+import MemberLib
+var v: int32 = add(int32, MemberLib.K, MemberLib.W)
+let c: int32 = MemberLib.K
+var d: int32 = add(int32, c, 1)
+writeln(int32, v)
+writeln(int32, d)

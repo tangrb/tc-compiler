@@ -363,7 +363,25 @@ int tc_exec_eval_field_access(const TcResolvedFieldAccess *access, TcExecuteCtx 
         return tc_exec_memblock_count(access->base_slot, (uint64_t)access->const_bits, ctx, out,
                                       diag, line);
     }
-    if (access->field_count == 0 || !access->offsets) {
+    if (access->field_count == 0) {
+        /*
+         * 既有-1：单点限定名（`<模块名>.<成员>`）的整体读取——操作数就是该绑定
+         * 自身，没有字段偏移：常量基址取常量值，运行时基址取槽值（与 VAR 操作数
+         * 同口径）。
+         */
+        if (access->base_slot >= 0) {
+            if (!ctx->slots) {
+                tc_exec_set_internal_error(diag, line, "internal error: missing runtime slots");
+                return -1;
+            }
+            *out = ctx->slots[access->base_slot];
+            return 0;
+        }
+        out->type = access->field_type;
+        out->bits = access->const_bits;
+        return 0;
+    }
+    if (!access->offsets) {
         tc_exec_set_internal_error(diag, line, "internal error: missing field offsets");
         return -1;
     }

@@ -1,0 +1,19 @@
+#lib
+; 既有-1：`<模块名>.<成员>` 作普通 RHS 操作数（[语言标准 §4.3、§6.1.2、附录 A `operand`]）
+public struct Pair then
+    var x: int32
+    var y: int32
+end
+public static let K: int32 = 41
+public static var W: int32 = 5
+public static let spc: Pair = Pair(x: 8, y: 9)
+public static var spv: Pair = Pair(x: 3, y: 4)
+private static let Hidden: int32 = 99
+public func sum_self() int32 then
+    var r: int32 = add(int32, Self.K, Self.W)
+    return r
+end
+public func pair_sum_self() int32 then
+    var s: int32 = add(int32, Self.spc.x, Self.spc.y)
+    return s
+end

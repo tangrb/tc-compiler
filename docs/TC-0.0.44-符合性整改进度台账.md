@@ -299,8 +299,8 @@
 
 | 编号 | 现象 | 状态 | 闭合/续修提交 |
 | ---- | ---- | ---- | ------------- |
-| 既有-1 | `<模块>.<static let>` 作普通 RHS 操作数 | ◐ 续修中 | 本轮第 2 项 |
-| 既有-2 | `ptr_address(T, Self.<名>)` / `<模块>.<名>` 被拒 | ☑ | 本提交 |
+| 既有-1 | `<模块>.<static let>` 作普通 RHS 操作数 | ☑ | 本提交 |
+| 既有-2 | `ptr_address(T, Self.<名>)` / `<模块>.<名>` 被拒 | ☑ | 见下「本轮续修记录」（`0093b58`） |
 | 既有-3 | 重复命名实参错码 | ☑（B-6 闭合） | 见 B-6 |
 | 既有-4 | `let p = nullptr` + `ptr_store` 误判只读 | ◐ 续修中 | 本轮第 3 项 |
 | 既有-5 | `memcopy_unsafe` 字段指针操作数 VM 内部错误/AOT 空指针分歧 | ☑（B-8 闭合） | 见 B-8 |
@@ -308,6 +308,23 @@
 | 既有-7 | 顶层 `let` 作 `memblock_copy` 下标的分歧 | ☑（B-9 闭合） | 见 B-9 |
 | 既有-8 | `int32` 作 `memblock_load`/`store` 下标被拒 | ☑（B-20 闭合） | 见 B-20 |
 | 既有-9 | `memcopy_unsafe` 常量负区间无静态码 | ☑（A-3 闭合） | 见 A-3 |
+
+### 本轮续修记录（既有-2 / 既有-1 / 既有-4，按批准顺序串行）
+
+| 项 | 实现 | 语料与门禁 | 实测 |
+| --- | ---- | ---------- | ---- |
+| 既有-2（第 1 项，`0093b58`） | `tc_parser_rhs.c` 的 `tc_parse_ptr_address_rhs` 由「只接受裸标识符」改为复用 `tc_parse_binding_name`，从而接受 `Self.<名>` 与 `<模块名>.<名>`（附录 A 已把 `ptr_address` 的标识符限定为裸名或限定名，§3.10.3、§6.8.4） | 新增 `tests/modules/AddrLib.tc` 与入口 `import_addr_self.tc` / `import_addr_qual.tc`；VM `run_expect_stdout` ×2 ＋ `run_expect_check_ok` ×2、AOT `run_diff_test` ×2 ＋ `run_check_ok` ×2；test-map 回填 | `ptr_address(int32, Self.W)` 与 `ptr_address(int32, AddrLib.W)` 两后端均可取址并 `ptr_store` 写穿（`7` / `9`）；全量三层与 5 项门禁通过 |
+| 既有-1（第 2 项，本提交） | ① `tc_struct_check.c` `tc_struct_check_field_access` 增「单点限定名整体读取」分支：解析器只在 `X.y.`（两点）形态下把 `X.y` 归入基址，故单点 `ImpLib.K` 到达时是「基址 `ImpLib` ＋ 字段链 `["K"]`」——当基址不是可见绑定、而 `"<基址>.<首字段>"` 经名称解析命中限定成员**且该成员所属模块与限定前缀一致**（B-65 模块标记）时，按**无字段绑定**定型（`resolved.field_count = 0`）。② Executor / `tc_const_eval` / AOT 三端为 `field_count == 0` 增分支：槽位基址取槽值（与 `VAR` 同口径），常量基址取常量值；AOT 对常量 struct / memblock **内联字节**后经 `tc_aot_struct_extract` 运行期深拷贝（禁止嵌入分析期堆指针）。③ `tc_const_read_resolved_field` 把 `field_count == 0` 由「非法」改为整体绑定读取，使 `let c: int32 = <模块>.<static let>` 合法（§5.2.1、§11.1）；AOT 语句级 FIELD_READ 的 0 字段分支同样内联常量 struct 字节 | 新增 `tests/modules/MemberLib.tc`（`static let` / `static var` 的标量与 struct 成员 ＋ `private` 成员）、`MemberUserLib.tc`（库内以限定名读常量与 struct）、`import_member_operand.tc`、`import_member_struct.tc`，负例 `import_member_bad_qual.tc`（`NoSuchLib.K`）与 `import_member_foreign_member.tc`（`BoxLib.K`）；VM 2 `run_expect_stdout` ＋ 2 `run_expect_check_ok` ＋ 2 `run_expect_check_fail`、AOT 2 `run_diff_test` ＋ 2 `run_check_ok` ＋ 2 `run_check_fail`；test-map 回填 **1169 VM / 543 AOT** | 两后端逐行一致：`import_member_operand` → `46 / 42`；`import_member_struct` → `12 / 46 / 17 / 46 / 17 / 7`；`let c: int32 = MemberLib.K`（常量上下文）与 `var p: MemberLib.Pair = MemberLib.spc`（值语义深拷贝）均通过；误拼限定名与他模块同名成员由「静默命中任一可见同名成员」改为 `UndefinedVariable: undefined variable '<前缀>'`；全量三层（VM/AOT/Unit）与 5 项门禁通过 |
+| 既有-4（第 3 项） | 待修（下一提交） | — | — |
+
+**本轮新发现（均为既有缺陷，不属于已批准的 4 项范围，本次不动）**
+
+| 序号 | 现象 | 复现 | 备注 |
+| ---- | ---- | ---- | ---- |
+| 观察-③ | 限定名解析未校验成员可见性：`<模块>.<private static let>` 跨模块可读 | `MemberLib.Hidden`（`private static let Hidden: int32 = 99`）→ 正常输出 `99` | 两点基址路径同样漏检（`PrivLib.HPair.x` → `7`），属既有缺陷；修它需把 `program` / 模块成员可见性索引穿到 `tc_struct_check_field_access`（8 处调用点），或改在成员名解析层统一收口 |
+| 观察-④ | `Self.` 限定名整体读取 struct 常量：`let p: Pair = Self.spc` 两后端均报 `ConstantExpressionError: invalid constant expression`；`var p: Pair = Self.spc` 在 AOT 把分析期堆指针直接写入槽（VM `17` / AOT `0`） | 库内 `Pair` ＋ `static let spc: Pair` 最小例 | `TC_RHS_SELF_MEMBER` 常量路径未支持 struct 整体值，与既有-1 的字段读/RHS 管线不同源；本轮语料改用 `Self.spc.x` 字段读覆盖同语义 |
+| 观察-⑤ | AOT：常量 `memblock` 的 `.count` 作赋值 RHS 时 `code generation failed`（`tc_aot_emit_rhs.c` 的 FIELD_READ 分支无 `is_memblock_count` 处理，`offsets` 为 NULL 直接返回 -1）；VM 正常 | `var n: usize = Self.M.count` / `var n: usize = QLib2.M.count` → AOT 代码生成失败，VM `2` | AOT 仅在 operand 位置（`tc_aot_codegen.c`）支持 `is_memblock_count`，语句级赋值缺失 |
+| 观察-⑥ | 整绑定赋值目标未解析限定名：`MemberLib.W = 9`、`MemberLib.K = 9` 均报 `UndefinedVariable: undefined variable 'MemberLib'` | 入口 `import MemberLib` ＋ 顶层 `MemberLib.W = 9` | 赋值目标走 `tc_analyzer_pass2` 的另一解析路径（非 `tc_struct_check_field_access`）；标准 §11.1 赋值目标行已含「解析为 `let` / `static let`（含经 `Self.` / 导入限定解析到的只读绑定）时报告 `TC_CE_CONSTANT_ASSIGNMENT`」，故该路径是否应支持限定名需按 §4.3/§6.8/§11 复核后定；本轮既有-1 只覆盖 RHS 操作数 |
 
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
@@ -403,7 +420,11 @@
 | 80 | 阶段 4-② VM 详设同步七项裁决 | `7cb6277 docs(0.0.44): sync VM design spec with the A/B adjudications` |
 | 81 | 阶段 4-③ AOT 详设同步七项裁决 | `d9dfb2a docs(0.0.44): sync AOT design spec with the A/B adjudications` |
 | 82 | 阶段 4-④ CLI 参考同步七项裁决 | `8868631 docs(0.0.44): sync CLI reference with the A/B adjudications` |
-| 83 | 阶段 4 台账回填 | 本提交 `docs(0.0.44): record the design-doc sync of the adjudications` |
+| 83 | 阶段 4 台账回填 | `2030bec docs(0.0.44): record the design-doc sync of the adjudications` |
+| 84 | 观察-① 报文速查刷新 | `641a7d1 docs(0.0.44): refresh the diagnostics message reference` |
+| 85 | 观察-② `else`/`end` 对齐报文块名 | `9e2891e fix(0.0.44): report the block keyword in else/end alignment messages` |
+| 86 | 既有-2 限定标识符取址 | `0093b58 fix(0.0.44-既有2): accept qualified identifiers in ptr_address` |
+| 87 | 既有-1 限定名整体读取 | 本提交 `fix(0.0.44-既有1): accept imported members as RHS operands` |
 
 ---
 

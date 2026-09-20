@@ -1,0 +1,5 @@
+#program
+; 既有-1 负例：不存在的模块限定名不得静默回退到任一可见同名成员
+import MemberLib
+var v: int32 = NoSuchLib.K
+writeln(int32, v)

@@ -830,7 +830,52 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             const TcType *field_type = access->field_type;
             size_t nbytes = 0;
 
-            if (!field_type || access->field_count == 0 || !access->offsets) {
+            if (!field_type) {
+                return -1;
+            }
+            if (access->field_count == 0) {
+                /* 既有-1：限定名整体读取 → 与同名绑定赋值同口径（含 struct/memblock 深拷贝）。
+                 * const 基址的 struct/memblock 不能在生成式里嵌入分析期堆指针，须内联字节
+                 * 再由 tc_aot_struct_extract 在运行期重新分配（与字段读同口径）。 */
+                TcOperand bound;
+
+                if ((field_type->tag == TC_STRUCT || field_type->tag == TC_MEMBLOCK) &&
+                    access->base_slot < 0) {
+                    const uint8_t *data = (const uint8_t *)(uintptr_t)access->const_bits;
+                    const uint8_t zero = 0;
+
+                    if (field_type->tag == TC_STRUCT) {
+                        const TcStructEntry *nested =
+                            tc_struct_table_get(table, field_type->params.struct_type.struct_id);
+                        nbytes = nested ? (nested->width_bits + 7U) / 8U : 0;
+                    } else {
+                        nbytes = (tc_sizeof_bits_ex(field_type, tc_struct_table_width_bits,
+                                                    ctx->program->struct_table) + 7U) / 8U;
+                    }
+                    if (nbytes == 0) {
+                        return -1;
+                    }
+                    fprintf(out, "%s%s = tc_aot_struct_extract((uint64_t)(uintptr_t)&", indent,
+                            dst_expr);
+                    tc_aot_emit_byte_array_expr(out, data ? data : &zero, nbytes);
+                    fprintf(out, ", 0, %zu, tc_aot_cur_diag, %d);\n", nbytes, line);
+                    fprintf(out,
+                            "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                            "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                            abort_indent, line);
+                    return 0;
+                }
+                memset(&bound, 0, sizeof(bound));
+                bound.kind = TC_OPERAND_VAR;
+                bound.binding.resolved = 1;
+                bound.binding.slot = access->base_slot;
+                bound.binding.is_const = (access->base_slot < 0);
+                bound.binding.type = field_type;
+                bound.binding.const_bits = access->const_bits;
+                return tc_aot_emit_operand_assign(out, &bound, field_type->tag, dst_expr, indent,
+                                                  ctx, stmt_index);
+            }
+            if (!access->offsets) {
                 return -1;
             }
             offset = access->offsets[access->field_count - 1];
