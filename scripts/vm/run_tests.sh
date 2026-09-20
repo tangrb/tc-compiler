@@ -941,6 +941,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_index_operand.tc
     "index operand must be an integer" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_length_operand.tc" \
     "index operand must be an integer" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_constant_range.tc" \
+    "memblock index out of range" "MemblockIndexOutOfRange"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_negative_length.tc" \
+    "memblock index out of range" "MemblockIndexOutOfRange"
 run_expect_check_fail "$ROOT/tests/errors/static/argument_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/funcall_result_type.tc" \
@@ -1095,6 +1099,9 @@ run_expect_stdout "$ROOT/tests/valid/memblock_index_int32.tc" "5
 9
 "
 run_expect_check_ok "$ROOT/tests/valid/memblock_index_int32.tc"
+run_expect_stdout "$ROOT/tests/valid/memblock_copy_empty_at_end.tc" "1
+"
+run_expect_check_ok "$ROOT/tests/valid/memblock_copy_empty_at_end.tc"
 run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
 0
 0

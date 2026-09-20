@@ -470,11 +470,32 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                             TC_CE_TYPE_MISMATCH);
 }
 
+/**
+ * 常量整数操作数取值（§6.7.2.4）：返回 1 = 已确定为非负常量（写入 *out）；
+ * 0 = 非常量/非整数字面量；-1 = 已确定为负常量。
+ */
+static int tc_memblock_const_index_value(const TcOperand *operand, uint64_t *out) {
+    if (!operand || operand->kind != TC_OPERAND_LIT) {
+        return 0;
+    }
+    if (operand->u.lit.is_bool || operand->u.lit.is_float || operand->u.lit.is_nullptr) {
+        return 0;
+    }
+    if (operand->u.lit.negative) {
+        return -1;
+    }
+    *out = operand->u.lit.magnitude;
+    return 1;
+}
+
 int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *visible,
-                           const TcSymbolTable *global, TcInitHistory *hist,
+                           const TcSymbolTable *global,
+                           const TcStructTable *struct_table, TcInitHistory *hist,
                            size_t stmt_index, TcDiagnostic *diag, TcWarningList *warnings) {
     const TcSymbol *dst = NULL;
     const TcSymbol *src = NULL;
+    uint64_t dst_count = 0;
+    uint64_t src_count = 0;
 
     /* 整块拷贝要求两端声明长度 N 相同（元素类型由语句注解约束） */
     dst = tc_memblock_resolve(stmt->dst_name, visible, global, stmt_index, stmt->line, diag);
@@ -507,9 +528,58 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
                           "memblock_copy element type does not match");
         return -1;
     }
-    (void)hist;
-    (void)warnings;
-    (void)stmt_index;
+
+    /*
+     * §6.7.2.4：三个整数操作数须为整数类型 operand（宽度/符号性不限，也不必
+     * 等于 T）；解析结果写回 binding，供执行期使用。
+     */
+    if (tc_check_integer_operand((TcOperand *)&stmt->dst_index, visible, global, struct_table,
+                                 hist, stmt_index, stmt->line, diag, warnings, NULL) != 0 ||
+        tc_check_integer_operand((TcOperand *)&stmt->src_index, visible, global, struct_table,
+                                 hist, stmt_index, stmt->line, diag, warnings, NULL) != 0 ||
+        tc_check_integer_operand((TcOperand *)&stmt->length, visible, global, struct_table, hist,
+                                 stmt_index, stmt->line, diag, warnings, NULL) != 0) {
+        return -1;
+    }
+
+    /*
+     * B-21：count 为编译期常量，故常量下标/length 的区间在编译期完整判定——
+     * 负常量下标、常量 length < 0、以及越界区间（空拷贝允许下标等于 count）
+     * 一律报静态 TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE，不得留给运行时或静默回绕。
+     */
+    {
+        uint64_t dst_index_v = 0;
+        uint64_t src_index_v = 0;
+        uint64_t length_v = 0;
+        int dst_k = tc_memblock_const_index_value(&stmt->dst_index, &dst_index_v);
+        int src_k = tc_memblock_const_index_value(&stmt->src_index, &src_index_v);
+        int len_k = tc_memblock_const_index_value(&stmt->length, &length_v);
+
+        dst_count = tc_type_memblock_count(dst->type);
+        src_count = tc_type_memblock_count(src->type);
+
+        if (dst_k < 0 || src_k < 0 || len_k < 0) {
+            tc_diagnostic_set(diag, TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE, stmt->line,
+                              TC_COLUMN_UNKNOWN, "memblock index out of range");
+            return -1;
+        }
+        if (len_k == 1 && length_v > 0) {
+            if ((dst_k == 1 && (length_v > dst_count || dst_index_v > dst_count - length_v)) ||
+                (src_k == 1 && (length_v > src_count || src_index_v > src_count - length_v))) {
+                tc_diagnostic_set(diag, TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE, stmt->line,
+                                  TC_COLUMN_UNKNOWN, "memblock index out of range");
+                return -1;
+            }
+        } else {
+            /* length 为 0 或不可确定：下标大于 count 必然越界（等于 count 仅空拷贝可） */
+            if ((dst_k == 1 && dst_index_v > dst_count) ||
+                (src_k == 1 && src_index_v > src_count)) {
+                tc_diagnostic_set(diag, TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE, stmt->line,
+                                  TC_COLUMN_UNKNOWN, "memblock index out of range");
+                return -1;
+            }
+        }
+    }
     return 0;
 }
 

@@ -939,8 +939,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         }
 
         if (stmt->kind == TC_STMT_MEMBLOCK_COPY) {
-            return tc_memblock_check_copy(&stmt->u.memblock_copy, visible, symbols, hist,
-                                          stmt_index, diag, warnings);
+            return tc_memblock_check_copy(&stmt->u.memblock_copy, visible, symbols,
+                                          struct_table, hist, stmt_index, diag, warnings);
         }
 
         if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {

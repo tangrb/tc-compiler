@@ -28,7 +28,8 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
 
 /** 整块拷贝：两端须同为 memblock 且声明 N 相同；元素类型匹配语句注解 */
 int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *visible,
-                           const TcSymbolTable *global, TcInitHistory *hist,
+                           const TcSymbolTable *global,
+                           const struct TcStructTable *struct_table, TcInitHistory *hist,
                            size_t stmt_index, TcDiagnostic *diag, TcWarningList *warnings);
 
 /**

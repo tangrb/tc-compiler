@@ -1,0 +1,6 @@
+#program
+; §6.7.2.4：常量 length < 0 → 静态 TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE
+var a: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var b: memblock<int32, 2> = memblock(int32, count: 2, 3, 4)
+memblock_copy(int32, b, 0, a, 0, -1)
+writeln(int32, 1)
