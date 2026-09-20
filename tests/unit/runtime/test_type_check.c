@@ -152,8 +152,15 @@ static void test_memblock_errors(void) {
 static void test_ptr_errors(void) {
     expect_err("#program\nlet a: int32 = 1\nvar p: ptr<int32> = ptr_address(int32, a)\n",
                TC_CE_CONSTANT_ASSIGNMENT, "ptr_address of let");
-    expect_err("#program\nlet p: ptr<int32> = nullptr\nptr_store(int32, p, 2)\n",
-               TC_CE_CONSTANT_ASSIGNMENT, "ptr_store through let ptr");
+    /* 既有-4：`let` 指针绑定自身不可变 ≠ 所指只读；空指针写入归运行期，静态通过 */
+    expect_ok("#program\nlet p: ptr<int32> = nullptr\nptr_store(int32, p, 2)\n",
+              "ptr_store through const null ptr passes static checks");
+    expect_ok("#program\nlet p: ptr<int32> = nullptr\nlet q: ptr<int32> = p\nptr_store(int32, q, 5)\n",
+              "ptr_store through copied const null ptr passes static checks");
+    expect_err("#lib\npublic func f(x: int32) void then\n"
+               "    var p: ptr<int32> = ptr_address(int32, x)\n"
+               "    var q: ptr<int32> = p\n    ptr_store(int32, q, 0)\nend\n",
+               TC_CE_CONSTANT_ASSIGNMENT, "ptr_store through copied param-derived ptr");
     expect_err("#program\nvar a: int32 = 1\nvar p: ptr<int32> = ptr_address(int32, a)\n"
                "var x: int32 = add(int32, p, 1)\n",
                TC_CE_TYPE_MISMATCH, "ptr scalar arith rejected");

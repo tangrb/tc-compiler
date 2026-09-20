@@ -1,0 +1,6 @@
+#program
+; 既有-4：常量上下文复制的空指针（合法 const 源）写入同样归运行期
+; 期望：null pointer dereference
+let p: ptr<int32> = nullptr
+let q: ptr<int32> = p
+ptr_store(int32, q, 5)

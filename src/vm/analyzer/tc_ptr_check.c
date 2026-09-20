@@ -365,9 +365,13 @@ int tc_ptr_operand_target_readonly(const TcOperand *operand, const TcSymbolTable
     if (!sym || !sym->type || sym->type->tag != TC_PTR) {
         return 0;
     }
-    if (sym->sym_kind == TC_SYM_CONSTANT || sym->sym_kind == TC_SYM_STATIC_LET) {
-        return 1;
-    }
+    /*
+     * 既有-4：只读判据是**所指外层绑定**（语言标准 §6.8.3「可变性」、§6.8.9），
+     * 与指针绑定自身是 `var` 还是 `let` 无关——`let p: ptr<T> = ptr_address(T, v)`
+     * 指向可写 `v` 时 `ptr_store` 合法；`let p: ptr<T> = nullptr` 则归运行期
+     * `TC_RE_NULL_POINTER_DEREFERENCE`。故只取 `ptr_target_readonly`（由
+     * `tc_ptr_rhs_target_readonly` 在绑定点按来源求值）。
+     */
     return sym->ptr_target_readonly ? 1 : 0;
 }
 
@@ -394,9 +398,8 @@ int tc_ptr_rhs_target_readonly(const TcRhs *rhs, const TcSymbolTable *visible,
         if (!target || !target->type || target->type->tag != TC_PTR) {
             return 0;
         }
-        if (target->sym_kind == TC_SYM_CONSTANT || target->sym_kind == TC_SYM_STATIC_LET) {
-            return 1;
-        }
+        /* 既有-4：复制指针时只继承**来源指针**的「所指只读」标记；来源指针自身
+         * 是 `let` 不代表其所指只读（如 `let p: ptr<T> = nullptr`）。 */
         return target->ptr_target_readonly ? 1 : 0;
     case TC_RHS_PTR_ADD:
     case TC_RHS_PTR_SUB:
@@ -459,7 +462,9 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
                        TcWarningList *warnings) {
     TcType ptr_ty;
 
-    /* ptr_store(T, p, v)：经只读绑定（let/形参）间接写入一律拒绝 */
+    /* ptr_store(T, p, v)：所指外层绑定只读（let/static let/形参）时拒绝写入。
+     * 既有-4：只读判据取自 `ptr_target_readonly`（绑定点按 RHS 来源求值），不再
+     * 直接看指针绑定自身是否 `let`——见 tc_ptr_operand_target_readonly 注释。 */
     if (stmt->pointee_type.tag == TC_VOID) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "ptr_store pointee type cannot be void");
@@ -479,8 +484,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
             }
             return -1;
         }
-        if (holder->sym_kind == TC_SYM_CONSTANT || holder->sym_kind == TC_SYM_STATIC_LET ||
-            holder->ptr_target_readonly) {
+        if (holder->ptr_target_readonly) {
             tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, stmt->line, TC_COLUMN_UNKNOWN,
                               "cannot store through read-only pointer binding");
             if (ptr_ty.params.ptr_type.pointee) {

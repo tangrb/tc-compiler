@@ -93,6 +93,16 @@ const char *tc_aot_ptr_compare_op(TcCompareOp op);
 void tc_aot_sub_indent(char *out, size_t out_size, const char *base, int levels);
 void tc_aot_emit_c_string(FILE *out, const char *value);
 
+/*
+ * 既有-4：`slots[]` 只在存在运行时槽位（或嵌入模式）时声明——保持「纯常量程序
+ * 不发射槽位机器」的 codegen 不变式（AOT 用例 `run_codegen_not_contains
+ * let_constant.tc "slots["`）。但零槽位程序仍可能发 `ptr_load` / `ptr_store` /
+ * `memcopy_unsafe`（如 `let p: ptr<int32> = nullptr` 后写入），此时运行期签名
+ * 需要一个槽位数组实参：返回 `"NULL, 0"`，运行期按容量 0 校验，任何非空指针
+ * 编码都被判为空指针（与 VM 同口径；纯常量程序的指针值只能是 `nullptr`）。
+ */
+const char *tc_aot_slots_arg(const TcAotEmitCtx *ctx);
+
 /* 表达式发射 */
 void tc_aot_emit_literal_expr(FILE *out, TcTypeTag type, const TcLiteral *lit);
 void tc_aot_emit_const_memblock_expr(FILE *out, uint64_t host_bits, size_t nbytes, int line);

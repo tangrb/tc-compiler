@@ -787,7 +787,14 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_struct_type_distinct.tc" \
     "field read result type does not match expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_address_const.tc" \
     "cannot take address of constant binding"
-run_expect_fail_msg "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
+# 既有-4：只读判据看「所指外层绑定」；let 绑定的空指针写入归运行期
+run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_store_null_let.tc" \
+    "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_store_null_let_copy.tc" \
+    "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_null_let.tc" \
+    "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_store_readonly_copy.tc" \
     "cannot store through read-only pointer binding"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_compare_not_bool.tc" \
     "pointer comparison result must be bool"
@@ -875,8 +882,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/struct_self_ref.tc" \
     "struct field cannot reference the struct being defined in value position"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_address_const.tc" \
     "cannot take address of constant binding"
-run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
-    "cannot store through read-only pointer binding"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_readonly_copy.tc" \
+    "cannot store through read-only pointer binding" "ConstantAssignmentError"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_compare_not_bool.tc" \
     "pointer comparison result must be bool"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \

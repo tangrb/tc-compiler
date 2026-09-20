@@ -327,7 +327,7 @@
 - **`nullptr` 由期望类型定型**：字面量本身无所指类型；在声明、`funcall` 实参、`return`、`cast` 等位置由唯一期望 `ptr<T>` 定型。`nullptr` 赋值/传参/返回合法，不产生运行时错误。`nullptr` 是编译期常量，可作为 `const_operand`。
 - **禁止通用标量运算**：`ptr<T>` 不得进入 `add`/`sub`/…、按位、移位、通用比较（`eq`/`ne`/`lt`/`le`/`gt`/`ge`）或逻辑运算；指针算术与比较仅允许专用 `ptr_*` 指令（§1.3 操作数表）。不合规时报告 `TC_CE_TYPE_MISMATCH`。
 - **`ptr_address` 可变性**：仅接受 `var` / `static var` / 形参（含合法 `Self.` / 导入限定的可写 `static var`）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ptr_address` 非编译期常量，其产生式不在 `const_rhs` 中，出现在 `const_rhs` 属**语法拒绝**（`TC_CE_SYNTAX`，[语言标准 §5.2.1]、[语言标准 §6.8.4]）。
-- **`ptr_store` / `memcopy_unsafe` 可变性**：所指外层绑定只读（`let` / `static let`）或为形参时 → `TC_CE_CONSTANT_ASSIGNMENT`（与 [语言标准 §6.8.3] / [语言标准 §3.10.3] 一致；对形参的直接赋值/`read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT`）。不得因持有指针而绕过。
+- **`ptr_store` / `memcopy_unsafe` 可变性**：判据是**所指外层绑定**，与持有指针的绑定自身是 `var` 还是 `let` / `static let` **无关**（[语言标准 §6.8.3]「可变性」、[语言标准 §6.8.9]）。`ptr_address` 只接受可写目标（见上一条），故实际可达的只读来源是形参取址及由其复制的指针——命中 → `TC_CE_CONSTANT_ASSIGNMENT`（对形参的直接赋值/`read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT`）。不得因持有指针而绕过；反之，`let p: ptr<T> = nullptr` 一类**所指为空**的常量指针不因此报静态码，按「空指针运行时分类」在运行期报告 `TC_RE_NULL_POINTER_DEREFERENCE`。
 - **空指针运行时分类**：`ptr_load` / `ptr_store` / `memcopy_unsafe` / 序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`）遇 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`ptr_add` / `ptr_sub` 遇 `nullptr` → `TC_RE_NULL_POINTER_ARITHMETIC`。不得混用两码。`ptr_eq` / `ptr_ne` 允许两个 `nullptr` 比较，结果为 `true`/`false`，不触发运行时错误。
 - **`memcopy_unsafe` 区间合法性**（[语言标准 §6.8.9]：`length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`）：**编译期**对**可确定**为负的 `length` / `dst_idx` / `src_idx`（整数字面量或 `let` / `static let` 常量来源）判静态码 → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；编译期不可确定的负值在**运行时** → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（[语言标准 §6.8.9]、附录 B.11/B.13）。越界拷贝本身不静态拒绝（实现定义，[语言标准 §1.3]）。
 - **`ptr_size`**：返回 `sizeof_bits(T)`（编译期常量），操作数可为 `nullptr`（[语言标准 §6.8.8]）。编译器须在编译期计算并内联结果。`ptr_size` 是**调用型** RHS：可**整条**充当 `const_rhs`（`let` / `static let`），但**不属于** `const_operand`，不得作为其它调用的操作数（[语言标准 §5.2.1]、[语言标准 §6.1.2]）。
@@ -897,7 +897,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 **`memcopy_unsafe` 编译器验证**（[语言标准 §6.8.9]）：
 
 - **操作数类型**：`dst` 与 `src` 须同为 `ptr<T>` 类型；`d_idx`、`s_idx`、`length` 须为整数类型操作数（彼此类型可不同）。`length` 的数学值 ≥ 0。
-- **可变性约束**：仅当 `dst` 所指外层绑定为可写（`var` / 可写 `static var`）时允许；所指为 `let`/`static let`/形参时报告 `TC_CE_CONSTANT_ASSIGNMENT`。
+- **可变性约束**：仅当 `dst` 所指外层绑定为可写（`var` / 可写 `static var`）时允许；所指为形参时报告 `TC_CE_CONSTANT_ASSIGNMENT`。判据是**所指**绑定而非 `dst` 绑定自身（`dst` 为 `let` 常量指针但所指可写时合法）；`dst` 为常量 `nullptr` 时按下一条归运行期。
 - **空指针检查**：`dst` 或 `src` 为 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`。
 - **区间合法性**：须满足 [语言标准 §6.8.9] 的 `length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`。**编译期**对可确定为负的 `length` / `dst_idx` / `src_idx` 判静态码：→ `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；编译期不可确定的负值在**运行时** → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（附录 B.11/B.13）。`length = 0` 合法。有符号下标/长度须按有符号数学值判负，不得先按无符号回绕再检查。
 - **不检查越界**：`memcopy_unsafe` 不检查拷贝区间是否超出实际分配的内存边界。越界拷贝行为为实现定义（[语言标准 §1.3]）。
@@ -1409,7 +1409,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的非比较运算、变量或常量定义、赋值、转换、`ptr<T>` 同型约束失败发生类型不一致，以及 `write` / `writeln` 的标识符操作数或 `read` 目标 `var` 的声明类型与显式 `scalar_type` 不一致；比较标识符操作数与显式 `T` 不一致专用 `TC_CE_COMPARISON_TYPE_MISMATCH`；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合（含 I/O 使用 `memblock`/`ptr`）使用 `TC_CE_SYNTAX`；跨 `ptr<T>`/`ptr<U>` 比较亦用本错误（[语言标准 §3.10.7]） |
 | `TC_CE_LITERAL_OUT_OF_RANGE`      | `LiteralOutOfRange`          | 字面量范围错误                | 静态（第 2/6/7/8 阶段） | 第 2 阶段：整数绝对值超过 [语言标准 §2.3.5] 上限，或有限浮点字面量按后缀源类型舍入为零/无穷；第 6/7/8 阶段：已形成的字面量超出对应普通上下文、形参或返回类型范围 |
 | `TC_CE_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态（第 6/7/8 阶段） | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀源类型与普通上下文、形参或返回类型不一致；字面量 Token 自身的形成与范围检查属于第 2 阶段，不使用本错误码。负号整数字面量带 `u`/`U`、浮点字面量带 `u`/`U` 属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；附录 A `integer_literal` 不接受负号与 `u`/`U` 并用；[语言标准 §2.3.1]） |
-| `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 做 `ptr_address`；`ptr_store` / `memcopy_unsafe` 所指外层为只读绑定或**形参**（经 `ptr_address` 取址后写穿；[语言标准 §3.9.5]、[语言标准 §6.8.3]、[语言标准 §8.1.2]） |
+| `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 做 `ptr_address`；`ptr_store` / `memcopy_unsafe` 的**所指外层**为只读或**形参**（实际可达来源：形参取址及由其复制的指针；持有指针的绑定自身为 `let` 不构成只读，§3.2；[语言标准 §3.9.5]、[语言标准 §6.8.3]、[语言标准 §8.1.2]） |
 | `TC_CE_CONSTANT_EXPRESSION`       | `ConstantExpressionError`    | 常量表达式错误                | 静态        | 常量 RHS 含有运行时依赖或非法形态。具体子条件按下表判定，全部映射为同一错误码，但打印名附加具体原因文本 |
 
 **子条件判定表**

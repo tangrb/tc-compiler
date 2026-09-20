@@ -510,7 +510,7 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
 
     if (rhs->kind == TC_RHS_PTR_LOAD) {
         /* B-57：容量随调用传入，运行时据此拒绝越界的伪造槽编码 */
-        fprintf(out, "%sif (tc_aot_ptr_load(slots, TC_AOT_SLOT_CAPACITY, ", indent);
+        fprintf(out, "%sif (tc_aot_ptr_load(%s, ", indent, tc_aot_slots_arg(ctx));
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_load.ptr, TC_PTR, ctx, stmt_index);
         /* B-55：把 pointee 类型传给运行时，bool 结果在此规范化到 {0,1} */
         fprintf(out, ", %s, &%s, tc_aot_cur_diag, %d) != 0)\n",

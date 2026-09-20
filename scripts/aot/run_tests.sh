@@ -876,6 +876,9 @@ run_check_fail "$ROOT/tests/errors/static/format_width_overflow.tc" \
     "format width or precision out of range"
 run_check_fail "$ROOT/tests/errors/static/ptr_store_through_param.tc" \
     "cannot store through read-only pointer binding"
+# 既有-4：只读判据看「所指外层绑定」；let 绑定的空指针写入归运行期
+run_check_fail "$ROOT/tests/errors/static/ptr_store_readonly_copy.tc" \
+    "cannot store through read-only pointer binding"
 run_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_check_fail "$ROOT/tests/errors/static/bitcast_width_mismatch.tc" "bitcast source and target widths must match"
@@ -1025,6 +1028,10 @@ run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_src_oob.tc" "me
 run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_dst_oob.tc" "memblock index out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_index.tc" "memcopy_unsafe invalid range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_null.tc" "null pointer dereference"
+# 既有-4：let 绑定的空指针（含 const 复制的 `let q = p`）写入/拷贝归运行期
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_store_null_let.tc" "null pointer dereference"
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_store_null_let_copy.tc" "null pointer dereference"
+run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_null_let.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/div_zero.tc" "division by zero"
 run_runtime_fail "$ROOT/tests/errors/runtime/mod_zero.tc" "division by zero"
 run_runtime_fail "$ROOT/tests/errors/runtime/cast_strict_overflow.tc" "out of range"

@@ -939,7 +939,7 @@ typedef struct {
 | 指令 | Executor 实现 |
 | ---- | ------------ |
 | `ptr_load(T, ptr)` | 读取 ptr 所指槽位的值；`nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE` |
-| `ptr_store(T, ptr, value)` | 将 value 写入 ptr 所指槽位；`nullptr` 同上 |
+| `ptr_store(T, ptr, value)` | 将 value 写入 ptr 所指槽位；`nullptr` 同上。所指只读（形参取址及由其复制的指针）由共享 Analyzer 静态拒绝 `CONSTANT_ASSIGNMENT`——判据是**所指外层绑定**，`ptr` 绑定自身为 `let` / `static let` 不构成只读（既有-4） |
 | `ptr_address(T, ident)` | 返回绑定槽位的抽象地址 |
 | `ptr_add(T, ptr, offset)` | 返回 ptr + offset 的抽象地址；步长为所指类型 `T` 的宽度，实际位移为 `offset × sizeof_bits(T)` 位（[语言标准 §3.10.8]）；`nullptr` → `TC_RE_NULL_POINTER_ARITHMETIC` |
 | `ptr_sub(T, ptr, offset)` | 返回 ptr - offset 的抽象地址；步长同上（[语言标准 §3.10.8]）；`nullptr` 同上 |
@@ -1158,7 +1158,7 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 - return 形式匹配、`void` 返回；
 - memblock 深拷贝、`N` 不匹配拒绝、下标越界；
 - struct 值构造器全字段验证、嵌套字段访问、双层可变性检查；
-- `ptr_address` 对 `let` 拒绝、`ptr_store` 对只读绑定拒绝；
+- `ptr_address` 对 `let` 拒绝、`ptr_store` 对**所指**只读绑定（形参取址等）拒绝；常量 `nullptr` 指针的 `ptr_store` / `memcopy_unsafe` 归运行期空指针；
 - `nullptr` 定型、空指针解引用/算术错误分类；
 - `static var` 按依赖拓扑序初始化、跨模块共享；
 - `cast(T, ptr<U>)` 指针**重标记**（不附加等宽条件）与 `bitcast` 的 `ptr`↔`usize` / `ptr`↔`ptr` 往返（`phase5_ptr_cast` / `phase5_ptr_cast_nullptr` / `phase5_ptr_bitcast` / `ptr_cast_remark`）；`bitcast(T, nullptr)` 经 A-4 裁决为**非法**（静态拒绝 `TC_CE_TYPE_MISMATCH`，见 §12.6），`cast(ptr<T>, nullptr)` 仍合法；

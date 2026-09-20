@@ -302,7 +302,7 @@
 | 既有-1 | `<模块>.<static let>` 作普通 RHS 操作数 | ☑ | 本提交 |
 | 既有-2 | `ptr_address(T, Self.<名>)` / `<模块>.<名>` 被拒 | ☑ | 见下「本轮续修记录」（`0093b58`） |
 | 既有-3 | 重复命名实参错码 | ☑（B-6 闭合） | 见 B-6 |
-| 既有-4 | `let p = nullptr` + `ptr_store` 误判只读 | ◐ 续修中 | 本轮第 3 项 |
+| 既有-4 | `let p = nullptr` + `ptr_store` 误判只读 | ☑ | 见下「本轮续修记录」（本提交） |
 | 既有-5 | `memcopy_unsafe` 字段指针操作数 VM 内部错误/AOT 空指针分歧 | ☑（B-8 闭合） | 见 B-8 |
 | 既有-6 | `#lib` `static var` 缺初始化器错码 | ☑（B-17 闭合） | 见 B-17 |
 | 既有-7 | 顶层 `let` 作 `memblock_copy` 下标的分歧 | ☑（B-9 闭合） | 见 B-9 |
@@ -315,7 +315,9 @@
 | --- | ---- | ---------- | ---- |
 | 既有-2（第 1 项，`0093b58`） | `tc_parser_rhs.c` 的 `tc_parse_ptr_address_rhs` 由「只接受裸标识符」改为复用 `tc_parse_binding_name`，从而接受 `Self.<名>` 与 `<模块名>.<名>`（附录 A 已把 `ptr_address` 的标识符限定为裸名或限定名，§3.10.3、§6.8.4） | 新增 `tests/modules/AddrLib.tc` 与入口 `import_addr_self.tc` / `import_addr_qual.tc`；VM `run_expect_stdout` ×2 ＋ `run_expect_check_ok` ×2、AOT `run_diff_test` ×2 ＋ `run_check_ok` ×2；test-map 回填 | `ptr_address(int32, Self.W)` 与 `ptr_address(int32, AddrLib.W)` 两后端均可取址并 `ptr_store` 写穿（`7` / `9`）；全量三层与 5 项门禁通过 |
 | 既有-1（第 2 项，本提交） | ① `tc_struct_check.c` `tc_struct_check_field_access` 增「单点限定名整体读取」分支：解析器只在 `X.y.`（两点）形态下把 `X.y` 归入基址，故单点 `ImpLib.K` 到达时是「基址 `ImpLib` ＋ 字段链 `["K"]`」——当基址不是可见绑定、而 `"<基址>.<首字段>"` 经名称解析命中限定成员**且该成员所属模块与限定前缀一致**（B-65 模块标记）时，按**无字段绑定**定型（`resolved.field_count = 0`）。② Executor / `tc_const_eval` / AOT 三端为 `field_count == 0` 增分支：槽位基址取槽值（与 `VAR` 同口径），常量基址取常量值；AOT 对常量 struct / memblock **内联字节**后经 `tc_aot_struct_extract` 运行期深拷贝（禁止嵌入分析期堆指针）。③ `tc_const_read_resolved_field` 把 `field_count == 0` 由「非法」改为整体绑定读取，使 `let c: int32 = <模块>.<static let>` 合法（§5.2.1、§11.1）；AOT 语句级 FIELD_READ 的 0 字段分支同样内联常量 struct 字节 | 新增 `tests/modules/MemberLib.tc`（`static let` / `static var` 的标量与 struct 成员 ＋ `private` 成员）、`MemberUserLib.tc`（库内以限定名读常量与 struct）、`import_member_operand.tc`、`import_member_struct.tc`，负例 `import_member_bad_qual.tc`（`NoSuchLib.K`）与 `import_member_foreign_member.tc`（`BoxLib.K`）；VM 2 `run_expect_stdout` ＋ 2 `run_expect_check_ok` ＋ 2 `run_expect_check_fail`、AOT 2 `run_diff_test` ＋ 2 `run_check_ok` ＋ 2 `run_check_fail`；test-map 回填 **1169 VM / 543 AOT** | 两后端逐行一致：`import_member_operand` → `46 / 42`；`import_member_struct` → `12 / 46 / 17 / 46 / 17 / 7`；`let c: int32 = MemberLib.K`（常量上下文）与 `var p: MemberLib.Pair = MemberLib.spc`（值语义深拷贝）均通过；误拼限定名与他模块同名成员由「静默命中任一可见同名成员」改为 `UndefinedVariable: undefined variable '<前缀>'`；全量三层（VM/AOT/Unit）与 5 项门禁通过 |
-| 既有-4（第 3 项） | 待修（下一提交） | — | — |
+| 既有-4（第 3 项，本提交） | ① `tc_ptr_check.c`：`tc_ptr_check_store` 删除「指针绑定自身是 `let` / `static let` 即拒绝」的短路，只保留 `holder->ptr_target_readonly`；`tc_ptr_rhs_target_readonly` 的 `TC_RHS_CONST_REF` 分支同样改为只继承**来源指针**的只读标记；`tc_ptr_operand_target_readonly`（`memcopy_unsafe` 的 `dst`）同样只取 `ptr_target_readonly`。口径：只读判据是**所指外层绑定**（[语言标准 §6.8.3]「可变性」、§6.8.9），而 `ptr_address` 只接受可写目标（§6.8.4），故实际可达来源为形参取址及由其复制的指针；`let` 指针的值只可能来自 const 源（`nullptr` 或其它常量指针），其写入归运行期 `TC_RE_NULL_POINTER_DEREFERENCE`（[语言标准 §3.10.2 L754]、§6.8.3「运行时语义」）。② `tc_aot_codegen.c` 新增 `tc_aot_slots_arg`：`ptr_load` / `ptr_store` / `memcopy_unsafe` 的运行期实参在**零声明槽位**时发 `NULL, 0`（保持「纯常量程序不发射槽位机器」的既有 codegen 不变式与断言 `run_codegen_not_contains let_constant.tc "slots["`；纯常量程序的指针值只能是 `nullptr`，容量 0 使任何伪造编码都判空指针）。此前零槽位程序发 `slots, TC_AOT_SLOT_CAPACITY` 而数组未声明→生成 C 编译失败，属既有-4 暴露的 AOT 缺陷 | 迁移 `tests/errors/static/ptr_store_readonly.tc` → `tests/errors/runtime/ptr_store_null_let.tc`（审计例：静态 `ConstantAssignmentError` → 运行期空指针）；新增 `tests/errors/runtime/ptr_store_null_let_copy.tc`（`let q = p` 常量复制）、`tests/errors/runtime/memcopy_unsafe_null_let.tc`（`dst` 为 let 空指针）与静态负例 `tests/errors/static/ptr_store_readonly_copy.tc`（形参取址→复制→写入，只读须传播）；VM `run_expect_fail_msg` ×3 ＋ `run_expect_check_fail` ×1（并将迁移项的两条静态注册改为 1 条运行期注册）、AOT `run_runtime_fail` ×3 ＋ `run_check_fail` ×1；`tests/unit/runtime/test_type_check.c` 的 `ptr_store through let ptr` 断言（编码旧缺陷）改为 2 条静态通过 ＋ 1 条传播静态拒绝；test-map 回填 **1172 VM / 544 AOT** | 审计例两后端均由 rc=1 静态 `ConstantAssignmentError` 变为**通过静态检查**、运行期 `null pointer dereference`（rc=1，VM 与 AOT 同文案同阶段）；`let p = nullptr` 的常量复制与 `memcopy_unsafe` 变体同；形参取址传播例两后端仍静态 `ConstantAssignmentError`；`ptr_store_through_param.tc`、`ptr_address_const.tc`、`memcopy_unsafe_null.tc` 等既有语料行为不变（VM ptr 过滤 121 项全过）；全量三层（VM/AOT/Unit）与 5 项门禁通过 |
+
+> 文档同步（既有-1 / 既有-2 / 既有-4）：既有-2 未改文档（标准与文档早已把 `ptr_address` 的标识符范围写成「裸名或限定名」，属实现未跟上，无需回填）。既有-1 无需改设计文档（`operand` 含 `imported_member_name` 本就是标准与文档的既有口径）。既有-4 回填 `TC编译器标准设计说明书-0.0.44.md` §3.2「`ptr_store` / `memcopy_unsafe` 可变性」、§6.7「可变性约束」、§11.4.6 `CONSTANT_ASSIGNMENT` 行，以及 `TC-VM详细设计说明书-0.0.44.md` §12.7 `ptr_store` 行与 §17.2 关键路径行——统一为「判据是**所指外层绑定**，指针绑定自身为 `let` / `static let` 不构成只读；常量 `nullptr` 指针的写入归运行期空指针」。
 
 **本轮新发现（均为既有缺陷，不属于已批准的 4 项范围，本次不动）**
 
@@ -424,7 +426,8 @@
 | 84 | 观察-① 报文速查刷新 | `641a7d1 docs(0.0.44): refresh the diagnostics message reference` |
 | 85 | 观察-② `else`/`end` 对齐报文块名 | `9e2891e fix(0.0.44): report the block keyword in else/end alignment messages` |
 | 86 | 既有-2 限定标识符取址 | `0093b58 fix(0.0.44-既有2): accept qualified identifiers in ptr_address` |
-| 87 | 既有-1 限定名整体读取 | 本提交 `fix(0.0.44-既有1): accept imported members as RHS operands` |
+| 87 | 既有-1 限定名整体读取 | `87b988f fix(0.0.44-既有1): accept imported members as RHS operands` |
+| 88 | 既有-4 只读判据改为所指绑定 | 本提交 `fix(0.0.44-既有4): judge pointer store mutability by pointee` |
 
 ---
 

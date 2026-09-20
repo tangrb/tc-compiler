@@ -414,6 +414,20 @@ const char *tc_aot_ptr_compare_op(TcCompareOp op) {
     return "TC_CMP_EQ";
 }
 
+const char *tc_aot_slots_arg(const TcAotEmitCtx *ctx) {
+    size_t slot_count = 0;
+
+    if (!ctx || !ctx->program) {
+        return "NULL, 0";
+    }
+    slot_count = tc_symbol_table_runtime_slot_count(&ctx->program->symbols);
+    /* 嵌入模式头文件始终声明该数组；非嵌入模式仅在存在声明槽位时声明。 */
+    if (ctx->embed_mode || slot_count > 0) {
+        return "slots, TC_AOT_SLOT_CAPACITY";
+    }
+    return "NULL, 0";
+}
+
 /* ------------------------------------------------------------------ */
 /*  表达式发射                                                          */
 /* ------------------------------------------------------------------ */
@@ -789,7 +803,9 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     {
         /* B-19：嵌入模式须容纳临时槽位区（与生成头文件声明一致）；独立程序
          * （非 embed）不使用临时区，按声明槽位数定长即可。
-         * 无槽位的程序（如只用字面量构造指针）仍要为容量宏给出定值。 */
+         * 无槽位的程序（如只用字面量构造指针）仍要为容量宏给出定值。
+         * 既有-4：零声明槽位的程序不声明数组，但若发 ptr_load / ptr_store /
+         * memcopy_unsafe，其运行期实参由 `tc_aot_slots_arg` 给出 `NULL, 0`。 */
         size_t capacity = embed_mode ? tc_embed_slot_capacity_of(slot_count)
                                      : (slot_count > 0 ? slot_count : 1);
 

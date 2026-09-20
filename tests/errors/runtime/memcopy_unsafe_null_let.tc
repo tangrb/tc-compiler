@@ -1,0 +1,6 @@
+#program
+; 既有-4：`memcopy_unsafe` 的 `dst` 为 let 绑定的空指针 → 运行期空指针
+; 期望：null pointer dereference（[语言标准 §6.8.9]）
+let p: ptr<int32> = nullptr
+let q: ptr<int32> = nullptr
+memcopy_unsafe(int32, p, 0, q, 0, 1)
