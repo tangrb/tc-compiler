@@ -1,0 +1,10 @@
+#lib
+; 附录 A const_struct_constructor：实参必须以逗号分隔（函数内 let 常量路径）
+public struct S then
+    var a: int32
+    var b: int32
+end
+public func f() int32 then
+    let s: S = S(a: 1 b: 2)
+    return s.a
+end

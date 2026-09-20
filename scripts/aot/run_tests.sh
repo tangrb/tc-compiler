@@ -743,6 +743,12 @@ run_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
 run_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
+# B-62：const 变体（`static let` / `let`）的列表产生式同形拒绝尾随 / 缺失逗号
+run_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_ctor.tc" "comma"
+run_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_ctor.tc" "expected , or )"
+run_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_memblock.tc" "comma"
+run_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_memblock.tc" \
+    "expected , or )"
 run_check_fail "$ROOT/tests/errors/static/memblock_copy_constant_dst_index.tc" \
     "memblock index out of range"
 run_check_fail "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"

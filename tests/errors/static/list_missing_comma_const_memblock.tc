@@ -1,0 +1,6 @@
+#lib
+; 附录 A const_memblock_elems_ctor：元素必须以逗号分隔（函数内 let 常量路径）
+public func f() int32 then
+    let m: memblock<int32, 2> = memblock(int32, count: 2, 1 2)
+    return 1
+end

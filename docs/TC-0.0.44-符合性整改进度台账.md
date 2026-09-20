@@ -173,7 +173,7 @@
 | B-59 | 常量负 dst 下标无静态检查 | ☑（B-21 闭合） | |
 | B-60 | 格式越界且 Token >32 字节被降级 | ☑（B-27 闭合） | |
 | B-61 | 非 `bool` 条件错码不一致 | ⊘ 待标准裁决 | |
-| B-62 | `const` 列表产生式逗号 | ☐ | |
+| B-62 | `const` 列表产生式逗号 | ☑（B-30/B-31 闭合） | |
 | B-63 | 顶层行缩进不校验 | ⊘ 待标准裁决 | |
 | B-64 | 文件名含内部点致结构体解析失败 | ☑ | |
 | B-65 | 跨模块同名符号致 CFG 假阳性 | ☑（并修正串槽读值） | |
@@ -258,6 +258,7 @@
 | B-57 | AOT 运行时的指针槽编码容量上界（与 VM 的 `ctx.slot_capacity` 口径对齐）：`tc_aot_codegen.c` 在生成 C 中发 `TC_AOT_SLOT_CAPACITY`（嵌入模式与生成头文件同值，`#ifndef` 保护；无槽位程序也有定值）；`tc_aot_ptr_load`/`tc_aot_ptr_store`/`tc_aot_memcopy_unsafe` 增 `size_t slot_capacity` 形参，解码出的槽号 ≥ 容量即按空指针解引用报 `TC_RE_NULL_POINTER_DEREFERENCE`；`tc_aot_ptr_arith` 增容量形参并把偏移改为 `uint64_t`（不再缩窄 `int64_t`），用无符号运算复刻 `tc_exec_ptr_arith`——解码槽号越界或结果 ≥ 容量均报 `TC_RE_NULL_POINTER_ARITHMETIC`（一并覆盖 B-49 遗留的 AOT 同源有符号运算）。发射端（`tc_aot_emit_rhs.c` / `tc_aot_emit_stmt.c`）随调用传容量；unit 增 `test_aot_ptr_slot_capacity`（load/store/arith 越界同码拒绝 + 容量内成功 + 2^63 偏移不触发有符号溢出）；AOT `run_runtime_fail` 增 4 条既有语料注册（`ptr_forged_slot_oob_{load,store,memcopy}`、`ptr_arith_huge_offset`） | 审计复现（`var p: ptr<int32> = bitcast(ptr<int32>, 0x7FFFFFFD)` + `ptr_load`）：`tc-aot -r` 连续 5 次由「rc=0 且 5 个互不相同的垃圾值（63684056/1208226900/1852140901/1197434691/1634030188）」变为 5 次均 `null pointer dereference` + `run failed (exit 1)`，与 VM 的 `NullPointerDereference` 同码同行；`ptr_forged_slot_oob_{load,store,memcopy}` 与 `ptr_arith_huge_offset` 两后端 stderr 首个诊断逐字一致（`run_runtime_fail` 断言）；容量内 `ptr_add/ptr_load` 行为不变；全量三层与 5 项门禁通过 |
 | B-64 | `tc_struct_check.c` 新增 `tc_split_qualified_member`：限定名 `<?>.<成员名>` 按**最后一个点**切分（模块名允许含内部点），`tc_struct_lookup_written` 与 `tc_struct_table_find` 均改用它——此前两处都要求「恰好一个点」才走限定名分支，而 `a.b.c.tc` 的模块名就是 `a.b.c`，本地结构体被规范化成 `a.b.c.A` 后落回裸名分支，查不到 → `TC_CE_UNDEFINED_STRUCT`。新增 `tests/valid/struct_dotted.v1.tc`（模块名 `struct_dotted.v1`：本地 `struct A` 的构造器 / 字段读 / `ptr<A>` 取址与解引用；VM stdout+check_ok、AOT diff+check_ok）；test-map 回填 1127 VM / 498 AOT | 审计复现：同一源文本 `abc.tc` 输出 `7`、改名 `a.b.c.tc` 报 `undefined struct 'a.b.c.A'`；修复后 `a.b.c.tc` 两后端均输出 `7`（rc=0），`abc.tc` 行为不变；新语料两后端均输出 `7/9/16` 且 diff 一致；`import <模块>.<结构体>`（单点）路径与 private 判定不变（既有 `imported_struct_*` / `import_struct_type` 全通过）；全量三层与 5 项门禁通过 |
 | B-65 | 根因：符号表全模块共享（slot 全局唯一）而 `stmt_index` 每模块各自从 0 编号，「名字 + def_stmt_index」解析会命中另一模块的同名绑定。① `TcSymbol` 增 `module_name`（借用 `TcProgram.module_name`），由 `tc_pass1_collect_symbols` 按模块回填；② `tc_find_symbol_by_def_index` 增 `module_name` 形参并优先本模块匹配（`tc_visible_add_from_global` 同步带上模块，可见表沿用同一优先级）——修复入口变量被解析到库内同名局部导致**读值串槽**；③ CFG（`tc_cfg.c`）写槽改用 Pass1 固化的 `var_def.binding`（与读侧绑定同源），`read` 语句改用 `io_read.binding`，`tc_cfg_find_def`/`tc_cfg_find_visible` 增模块优先过滤（`TcCfgBuildCtx.module_name`，由 `tc_cfg_build`/`tc_cfg_build_items` 传入）；④ 新增 `tests/modules/SameNameLib.tc` + `import_same_name_shadow.tc`（库内嵌套块局部 `b` vs 入口 `b`；VM stdout+check_ok、AOT diff+check_ok）；⑤ 修正 `diamond_import_{ok,swapped_ok}.tc` 的 VM 期望：两条臂局部同名 `s` 串槽曾被写成 `3/3`、`4/4`，正确值为 `3/4`、`4/3`。test-map 回填 1129 VM / 500 AOT | 审计复现（库内 `funcall` 目标含同名局部 `var b`）：修复前三处证据——(a) `tc_cfg_find_def` 写槽取到库内槽位而绑定为入口槽位（假阳性 `UninitializedVariable`）；(b) 入口 `writeln(bool, b)` 实际读到库内同名局部（本库返回 `false` 却输出 `true`，属静默串槽）；(c) 菱形语料两条臂互相串槽。修复后：审计复现与新增语料均输出 `false` 且 rc=0（VM/AOT 一致），菱形输出恢复为各臂自己的值（`3/4`、`4/3`）；`self_member_undefined` / `self_access_ok` / `static_let_rule_ok` 等 `Self.` 与跨块用例全部保持既有诊断；全量三层与 5 项门禁通过 |
+| B-62 | 无需新增 src 改动：B-30/B-31（附录 A 列表产生式统一拒绝尾随逗号「trailing comma not allowed in list」并要求逗号分隔「expected , or )」）已覆盖 const 变体。本轮补足 const 侧回归覆盖：新增 4 条语料——模块级 `public static let` 的 `const_struct_constructor` 尾随逗号、函数内 `let` 的该产生式缺失逗号、模块级 `static let` 的 `const_memblock_elems_ctor` 尾随逗号、函数内 `let` 的该产生式缺失逗号；VM `run_expect_check_fail`（消息+`SyntaxError`）与 AOT `run_check_fail` 双端断言。test-map 回填 1133 VM / 504 AOT | 审计四例（`S(a: 1, b: 2,)`、`S(a: 1 b: 2)`、`memblock(int32, count: 2, 1, 2,)`、`…, 1 2)`）实测全部由 rc=0 变为 `SyntaxError`（rc=1），且 const 与非 const 路径错码一致；对照 `memblock(int32, count: 2, fill: 0,)` 两路径同样拒绝（既有行为）；全量三层与 5 项门禁通过 |
 
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
@@ -344,7 +345,8 @@
 | 64 | 阶段 2-B58 运行期 dst 侧分支覆盖补强 | `b88d249 test(0.0.44-B58): exercise the runtime dst-side empty-copy bound` |
 | 65 | 阶段 2-B57 AOT 伪造指针容量上界 | `056fff6 fix(0.0.44-B57): bound AOT pointer slot indices by capacity` |
 | 66 | 阶段 2-B64 含点文件名的本地结构体解析 | `cf0de99 fix(0.0.44-B64): split qualified struct names at the last dot` |
-| 67 | 阶段 2-B65 跨模块同名符号解析 | 本提交 `fix(0.0.44-B65): resolve same-named symbols per module` |
+| 67 | 阶段 2-B65 跨模块同名符号解析 | `9ab5cbc fix(0.0.44-B65): resolve same-named symbols per module` |
+| 68 | 阶段 2-B62 const 列表产生式回归覆盖 | 本提交 `test(0.0.44-B62): cover the const list productions` |
 
 ---
 

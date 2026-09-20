@@ -1,0 +1,3 @@
+#lib
+; 附录 A const_memblock_elems_ctor：不接受尾随逗号（模块级 static let 常量路径）
+public static let m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2,)

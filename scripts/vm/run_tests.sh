@@ -2794,6 +2794,15 @@ run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_ctor.tc" \
     "expected , or )" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_memblock.tc" \
     "expected , or )" "SyntaxError"
+# B-62：const 变体（`static let` / 函数内 `let` 初始化器）同形拒绝尾随 / 缺失逗号
+run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_ctor.tc" \
+    "comma" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_ctor.tc" \
+    "expected , or )" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_memblock.tc" \
+    "comma" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_memblock.tc" \
+    "expected , or )" "SyntaxError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

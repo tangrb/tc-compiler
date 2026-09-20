@@ -1,0 +1,7 @@
+#lib
+; 附录 A const_struct_constructor：不接受尾随逗号（模块级 static let 常量路径）
+public struct S then
+    var a: int32
+    var b: int32
+end
+public static let s: S = S(a: 1, b: 2,)
