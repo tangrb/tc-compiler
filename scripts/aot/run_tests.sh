@@ -635,6 +635,9 @@ run_diff_test "$ROOT/tests/valid/const_struct_copy.tc"
 run_check_ok "$ROOT/tests/valid/const_struct_copy.tc"
 run_diff_test "$ROOT/tests/valid/const_memblock_copy.tc"
 run_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
+# 观察-⑤：`.count` 作 RHS 的常量绑定路径（限定名 const memblock）
+run_diff_test "$ROOT/tests/valid/memblock_count_rhs.tc"
+run_check_ok "$ROOT/tests/valid/memblock_count_rhs.tc"
 run_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
     "undefined variable 'NoSuchLib'"
 run_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \

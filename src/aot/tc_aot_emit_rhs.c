@@ -652,13 +652,22 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_MEMBLOCK_COUNT) {
-        /* .count 三条路径：① 已解析绑定的运行期槽 → 读头部；② 符号表槽位 →
-         * 读头部；③ 无槽位的 const 绑定（let/static let memblock）→ 折叠声明
-         * count（count 不可变，构造时已写入头部）。曾存在的「头部读 0 时回退
-         * 声明 count」为死代码：所有构造路径（alloc/from_bytes/clone）都在头部
-         * 写入 count ≥ 1，确定初始化保证读前必已构造（N-12 B4）。 */
+        /* .count 四条路径：① 已解析绑定的运行期槽 → 读头部；② 已解析绑定的**常量**
+         * 绑定（槽位 < 0，即 let / static let memblock，含 `Self.<名>` / `<模块>.<名>`
+         * 限定名）→ 折叠绑定自带类型里的声明 count；③ 符号表槽位 → 读头部；④ 符号表
+         * 声明 count → 折叠。count 不可变，构造时已写入头部，故常量绑定可直接折叠。
+         * 路径 ② 不可省：符号表以**裸成员名**存放，限定名（`"Self.M"` / `"Mod.C"`）
+         * 在路径 ③/④ 按名查不到，而 `binding.type` 已带着 memblock 类型。
+         * 曾存在的「头部读 0 时回退声明 count」为死代码：所有构造路径
+         * （alloc/from_bytes/clone）都在头部写入 count ≥ 1，确定初始化保证读前必已
+         * 构造（N-12 B4）。 */
         const TcSymbol *sym = tc_symbol_table_find_visible(
             symbols, rhs->u.memblock_count.memblock_name, stmt_index, &ctx->sym_index);
+        const TcType *bound_type = rhs->u.memblock_count.binding.type;
+        uint64_t bound_decl =
+            (bound_type && tc_type_tag_of(bound_type) == TC_MEMBLOCK)
+                ? tc_type_memblock_count(bound_type)
+                : 0ULL;
 
         if (rhs->u.memblock_count.binding.resolved && rhs->u.memblock_count.binding.slot >= 0) {
             fprintf(out, "%s{\n", indent);
@@ -666,6 +675,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                     indent, rhs->u.memblock_count.binding.slot);
             fprintf(out, "%s    %s = _mb_cnt;\n", indent, dst_expr);
             fprintf(out, "%s}\n", indent);
+            return 0;
+        }
+        if (rhs->u.memblock_count.binding.resolved && bound_decl > 0) {
+            fprintf(out, "%s%s = %" PRIu64 "ULL;\n", indent, dst_expr, bound_decl);
             return 0;
         }
         if (sym && sym->slot >= 0) {

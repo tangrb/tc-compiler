@@ -1113,6 +1113,21 @@ run_expect_check_ok "$ROOT/tests/valid/const_struct_copy.tc"
 run_expect_stdout "$ROOT/tests/valid/const_memblock_copy.tc" "6
 "
 run_expect_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
+# 观察-⑤：`.count` 作 RHS（语句级 / 赋值 / operand / 常量上下文）——限定名 const 与 static var、
+# 导入限定名、顶层 let 裸名四种来源同口径（AOT 曾对限定名 const 报 code generation failed）
+run_expect_stdout "$ROOT/tests/valid/memblock_count_rhs.tc" "2
+2
+2
+3
+2
+2
+2
+2
+3
+2
+2
+"
+run_expect_check_ok "$ROOT/tests/valid/memblock_count_rhs.tc"
 # §4.4：`<模块名>.<private 成员>` 一律 `PRIVATE_MEMBER_ACCESS`，不得降级为 undefined variable
 run_expect_check_fail "$ROOT/tests/modules/member_private_read.tc" \
     "private member access" "PrivateMemberAccessError"

@@ -1,0 +1,36 @@
+#lib
+; 观察-⑤：`.count` 作 RHS 时，限定名（`Self.<名>`）的**常量** memblock 绑定亦须折叠声明
+; count——符号表以裸名存放，AOT 曾按限定名查符号失败而报 code generation failed
+public static let C: memblock<int32, 2> = memblock(int32, count: 2, 6, 1)
+public static var W: memblock<int32, 2> = memblock(int32, count: 2, 7, 2)
+public func stmt_const() usize then
+    var n: usize = Self.C.count
+    return n
+end
+public func assign_const() usize then
+    var n: usize = 0
+    n = Self.C.count
+    return n
+end
+public func stmt_var() usize then
+    var n: usize = Self.W.count
+    return n
+end
+public func operand_const() usize then
+    var n: usize = add(usize, Self.C.count, 1)
+    return n
+end
+public func let_const() usize then
+    let n: usize = Self.C.count
+    return n
+end
+public func local_var() usize then
+    var mb: memblock<int32, 2> = memblock(int32, count: 2, 8, 3)
+    var n: usize = mb.count
+    return n
+end
+; 附录 A `memblock_count_access`：基址可为函数形参
+public func param_count(mb: memblock<int32, 2>) usize then
+    var n: usize = mb.count
+    return n
+end

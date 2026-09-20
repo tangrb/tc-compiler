@@ -1,0 +1,27 @@
+#program
+; 观察-⑤：`.count` 作 RHS 的全部形态——库内限定名 const（语句级 var 初始化 / 赋值 RHS）、
+; static var、operand 位置、常量上下文、局部裸名，以及入口侧导入限定名与顶层 let 裸名
+import MbCountLib
+let L: memblock<int32, 2> = memblock(int32, count: 2, 9, 4)
+var a1: usize = funcall(MbCountLib.stmt_const)
+var a2: usize = funcall(MbCountLib.assign_const)
+var a3: usize = funcall(MbCountLib.stmt_var)
+var a4: usize = funcall(MbCountLib.operand_const)
+var a5: usize = funcall(MbCountLib.let_const)
+var a6: usize = funcall(MbCountLib.local_var)
+var a7: usize = MbCountLib.C.count
+var a8: usize = MbCountLib.W.count
+var a9: usize = add(usize, MbCountLib.C.count, 1)
+var a10: usize = L.count
+var a11: usize = funcall(MbCountLib.param_count, mb: L)
+writeln(usize, a1)
+writeln(usize, a2)
+writeln(usize, a3)
+writeln(usize, a4)
+writeln(usize, a5)
+writeln(usize, a6)
+writeln(usize, a7)
+writeln(usize, a8)
+writeln(usize, a9)
+writeln(usize, a10)
+writeln(usize, a11)
