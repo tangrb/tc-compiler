@@ -213,6 +213,7 @@
 | B-56 | `TcFuncCheckEnv` 增 `module_index`（当前被分析模块在 `sigs` 中的下标）与 `tc_func_env_module_index`；`tc_func_resolve_call_target` 的 `Self.<函数名>` 分支改用 `env->module_index`（原硬编码 -1）；`tc_analyzer.c` 的依赖 Pass2 循环为每个 dep 现场构建成员索引并在调用期间切换 `func_env.members` / `module_index`（调用后恢复入口上下文），使 `Self.` 名称作用域与函数解析都按**当前模块**判定。新增 `tests/modules/SelfCallLib.tc` + `import_self_call.tc`（VM stdout+check_ok、AOT diff）与 `tests/modules/self_call_neg/{BareCallLib.tc,import_bare_call.tc}`（VM check_fail，断言 FunctionScopeAccessError）；test-map 回填 1022 VM / 475 AOT | 审计复现：`M2.tc` 作依赖时 `funcall(Self.f, …)` 由 `UndefinedFunction` 变为编译通过，入口 `funcall(M2.g, a: 5)` VM 与 AOT 均输出 `5`；模块作入口仍通过；依赖内裸名 `f` 由 `UndefinedFunction` 变为 `FunctionScopeAccessError`（与入口口径一致）；`Self.zzz` 仍 `UndefinedFunction`、跨模块 `M4.p` 仍 `PrivateMemberAccessError`；全量三层与 5 项门禁通过 |
 | B-14 | `TcProgram` 增 `source_text`（源文本，模块阶段诊断片段用；`tc_program_init/free` 同步）；新增 `tc_diagnostic_use_source(diag, file, source)`（相同则跳过，避免整篇源码反复复制）；`tc_module.c` 在读取模块文件后把诊断定位切到模块自身，`tc_collect_imports_recursive` 每条 import 前切到写出该 import 的模块，`tc_module_resolve_imports_ex` 成功返回前恢复入口定位（`goto done` 统一释放）；`tc_analyzer.c` 在入口 move 后从诊断对象补记入口源文本，并新增 `tc_diag_use_module`，在结构体注册/Pass1/static let/static var/Pass2/CFG 六个依赖阶段逐 dep 切换、阶段结束后切回入口。新增 `tests/modules/BadLibDiag.tc` + `import_badlib_diag.tc`（VM check_fail，断言 `BadLibDiag.tc:5: error: undefined variable 'zzz'` + `UndefinedVariable`）；test-map 回填 1023 VM | 审计两例：`Bad3.tc` 的 `static let` 未定义变量报 `Bad3.tc:2: error [UndefinedVariable]` 且片段为模块第 2 行（原为入口文件 + 入口片段）；模块第 9 行的语法错误报 `Bad4.tc:9:5` + 正确片段（原为入口文件 + 模块行号 + 入口片段）；模块函数体内 Pass2 错误同样定位到模块；`import_badlib_uninit` 的 CFG 阶段诊断仍报模块文件且现附片段；全量三层与 5 项门禁通过 |
 | B-15 | `src/aot/main.c` 非 Windows 分支：执行生成的可执行文件时，无目录分量的路径统一加 `./` 前缀（`run_path`），`-o` 仍用原路径；Windows `.bat` 分支不变（cmd.exe 默认搜索当前目录）。`scripts/aot/run_tests.sh` 增 `run_aot_relative_run`（临时目录内以裸相对名 `rel.tc` 跑 `-r`，校验 rc=0 与 stdout `1`；自定义 helper 不进入 `check_doc_counts` 的 AOT 注册计数） | 复现（`cd /tmp && tc-aot -r w38b.tc`）由 `sh: w38b.c.out: command not found`（exit 32512）变为正常执行；`sub/w38b.tc` 带目录分量相对路径与绝对路径均正常；全量三层与 5 项门禁通过 |
+| B-16 | `tc_module.c`：`tc_read_file_text` 的 `fseek`/`ftell`/`fread` 失败改报 `TC_DIAG_API` / `TC_API_ERR_FILE_READ`（I/O 前先把定位切到该模块文件），并补 `nread != size` 短读检查；`tc_file_exists` 用 `stat` + `S_ISREG` 判定「模块文件」，目录等非普通文件不再被当作源码读入（原表现为入口文件上的 `expected #program or #lib`）。`tests/unit/runtime/test_libtc.c` 新增 `test_module_directory_is_not_a_module_file`（运行期构造 `DirMod.tc/` 目录 + 入口，断言语言域 `TC_CE_IMPORT_NOT_FOUND`） | 目录作导入目标：VM/AOT 均由 `error: expected #program or #lib`（定位入口、无行号）改为 `imp_dir.tc:1: error [ImportNotFound]: import module not found`；`test-libtc` 109/109；全量三层与 5 项门禁通过。注：`fseek`/`ftell`/短读分支无法用常规文件稳定触发，按 §1.3/§11.4 直接改为 API 域 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -254,7 +255,8 @@
 | 20 | 阶段 2-B13 libtc 内存入口解析 import | `5240385 fix(0.0.44-B13): resolve imports from the in-memory libtc entry` |
 | 21 | 阶段 2-B56 依赖模块内 `Self.<函数>` 调用 | `0e31475 fix(0.0.44-B56): resolve Self calls against the current module` |
 | 22 | 阶段 2-B14 依赖模块诊断定位 | `d066adb fix(0.0.44-B14): locate dependency diagnostics in the module file` |
-| 23 | 阶段 2-B15 `tc-aot -r` 相对路径 | 本提交 `fix(0.0.44-B15): run generated AOT binary via ./ for relative paths` |
+| 23 | 阶段 2-B15 `tc-aot -r` 相对路径 | `8a1cd5f fix(0.0.44-B15): run generated AOT binary via ./ for relative paths` |
+| 24 | 阶段 2-B16 模块文件 I/O 错误域 | 本提交 `fix(0.0.44-B16): map module file I/O failures to the API domain` |
 
 ---
 

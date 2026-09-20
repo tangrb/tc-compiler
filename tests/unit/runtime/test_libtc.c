@@ -535,6 +535,58 @@ static void test_source_entry_resolves_imports(void) {
     tc_diagnostic_clear(&diag);
 }
 
+#ifdef _WIN32
+#include <direct.h>
+#define TC_TEST_MKDIR(path) _mkdir(path)
+#else
+#define TC_TEST_MKDIR(path) mkdir(path, 0700)
+#endif
+
+/**
+ * B-16：目录不是模块文件。导入目标 `Foo.tc` 为目录时应报语言域的
+ * TC_CE_IMPORT_NOT_FOUND（定位到写出 import 的模块），而不是把目录内容当源码
+ * 读入后报语法错误；模块文件 I/O 失败本身属 API 域（TC_API_ERR_FILE_READ）。
+ */
+static void test_module_directory_is_not_a_module_file(void) {
+    static const char entry[] =
+        "#program\n"
+        "import DirMod\n"
+        "var x: int32 = 1\n"
+        "writeln(int32, x)\n";
+    char dir[] = "/tmp/tc-libtc-dirmod-XXXXXX";
+    char subdir[512];
+    char file[600];
+    char *made = tc_test_mkdtemp(dir);
+    TcTypedProgram program;
+    TcDiagnostic diag;
+    FILE *fp = NULL;
+
+    check(made != NULL, "create module-directory fixture dir");
+    if (!made) {
+        return;
+    }
+    (void)snprintf(subdir, sizeof(subdir), "%s/DirMod.tc", made);
+    check(TC_TEST_MKDIR(subdir) == 0, "create directory named like a module file");
+    (void)snprintf(file, sizeof(file), "%s/entry.tc", made);
+    fp = fopen(file, "w");
+    check(fp != NULL, "write module-directory entry source");
+    if (fp) {
+        check(fputs(entry, fp) >= 0, "fill module-directory entry source");
+        fclose(fp);
+    }
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_file_opts(file, NULL, &program, &diag) == -1,
+          "directory import target is rejected");
+    check(diag.domain == TC_DIAG_LANGUAGE && diag.kind == TC_CE_IMPORT_NOT_FOUND,
+          "directory import target reports IMPORT_NOT_FOUND (not a syntax error)");
+    tc_diagnostic_clear(&diag);
+
+    (void)remove(file);
+    (void)rmdir(subdir);
+    (void)rmdir(made);
+}
+
 int main(void) {
     test_compile_failures_are_transactional();
     test_source_lifetime_and_repeated_execution();
@@ -549,6 +601,7 @@ int main(void) {
     test_source_and_file_language_kinds_match();
     test_module_search_paths_resolve_import();
     test_source_entry_resolves_imports();
+    test_module_directory_is_not_a_module_file();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

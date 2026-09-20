@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 /* ------------------------------------------------------------------ */
 /*  搜索路径与签名表：init / free / set                                 */
@@ -303,9 +304,19 @@ static int tc_read_file_text(const char *path, char **out_text, TcDiagnostic *di
     if (!fp) {
         return 1;
     }
+    /*
+     * B-16：模块文件的 I/O 失败属 API/环境域，须报 TC_DIAG_API /
+     * TC_API_ERR_FILE_READ，不得伪装成语言诊断 TC_CE_SYNTAX（语言标准 §1.3
+     * 一致性判定、编译器标准 §11.4；libtc 设计说明书 §15.4 同）。I/O 之前先把
+     * 定位切到该模块文件，使环境错误指向真正读失败的文件。
+     */
+    if (tc_diagnostic_use_source(diag, path, NULL) != 0) {
+        fclose(fp);
+        return -1;
+    }
     if (fseek(fp, 0, SEEK_END) != 0 || (size = ftell(fp)) < 0 || fseek(fp, 0, SEEK_SET) != 0) {
         fclose(fp);
-        tc_diagnostic_set(diag, TC_CE_SYNTAX, 0, TC_COLUMN_UNKNOWN, "failed to read module file");
+        tc_diagnostic_set_api(diag, TC_API_ERR_FILE_READ, "cannot read module file");
         return -1;
     }
     buf = (char *)malloc((size_t)size + 1);
@@ -317,6 +328,12 @@ static int tc_read_file_text(const char *path, char **out_text, TcDiagnostic *di
     }
     nread = fread(buf, 1, (size_t)size, fp);
     fclose(fp);
+    if (nread != (size_t)size) {
+        /* 短读（含目标是目录等不可读对象）：同样是环境域 I/O 失败 */
+        free(buf);
+        tc_diagnostic_set_api(diag, TC_API_ERR_FILE_READ, "cannot read module file");
+        return -1;
+    }
     buf[nread] = '\0';
     *out_text = buf;
     return 0;
@@ -341,9 +358,19 @@ static int tc_join_module_path(const char *dir, const char *name, char **out,
     return 0;
 }
 
-/** 以尝试打开方式探测文件是否存在（不区分权限错误）。 */
+/**
+ * 以尝试打开方式探测模块文件是否存在。
+ * B-16：目录等非普通文件不算「定位到模块文件」，避免把目录当源码读入后
+ * 报出与导入无关的语法错误。
+ */
 static int tc_file_exists(const char *path) {
-    FILE *fp = fopen(path, "rb");
+    struct stat st;
+    FILE *fp;
+
+    if (stat(path, &st) == 0 && !S_ISREG(st.st_mode)) {
+        return 0;
+    }
+    fp = fopen(path, "rb");
     if (!fp) {
         return 0;
     }
