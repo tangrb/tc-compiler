@@ -54,6 +54,11 @@ static TcExecControl tc_exec_return_value(TcValue value, int has_value) {
 }
 
 void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char *message) {
+    /*
+     * 实现缺陷诊断：域标记为 TC_DIAG_IMPLEMENTATION，打印时**不**附语言错误码
+     * （B-18）。此处写入的 kind 仅是结构占位（TcErrorKind 无「无错误」成员），
+     * 打印器按实现域忽略它。
+     */
     tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, message);
     diag->domain = TC_DIAG_IMPLEMENTATION;
 }

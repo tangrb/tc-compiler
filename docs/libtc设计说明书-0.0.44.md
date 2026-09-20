@@ -700,8 +700,11 @@ tc_diagnostic_print(&diag, stderr);
   <source line>
   <spaces>^
 <file>: api error: <ApiCode>: <message>
-<file>: implementation error: <ErrorKind>: <message>
+<file>: implementation error: <message>
+<file>: implementation error: <实现专用码>: <message>   ; 仅实现专用码（当前为 OutOfMemory）
 ```
+
+实现缺陷（`internal error: …`）不附语言错误码；只有实现专用码（`OutOfMemory`）打印码名。
 
 #### 程序化访问
 

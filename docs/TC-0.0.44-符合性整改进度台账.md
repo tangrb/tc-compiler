@@ -124,7 +124,7 @@
 | B-15 | `tc-aot -r` 相对路径失败 | ☐ | |
 | B-16 | 模块文件 I/O 失败映射为语言码 | ☐ | |
 | B-17 | `#lib static var` 缺初始化器错码 | ☐ | |
-| B-18 | `implementation error` 泄漏 | ☐ | |
+| B-18 | `implementation error` 泄漏 | ☑ | 见文末提交记录 |
 | B-19 | embed 临时槽区与声明槽区重叠 | ☐ | |
 | B-20 | `memcopy_unsafe` 操作数类型不校验 | ☐ | |
 | B-21 | `memblock_copy` 常量区间/元素类型不校验 | ☐ | |
@@ -215,6 +215,7 @@
 | B-15 | `src/aot/main.c` 非 Windows 分支：执行生成的可执行文件时，无目录分量的路径统一加 `./` 前缀（`run_path`），`-o` 仍用原路径；Windows `.bat` 分支不变（cmd.exe 默认搜索当前目录）。`scripts/aot/run_tests.sh` 增 `run_aot_relative_run`（临时目录内以裸相对名 `rel.tc` 跑 `-r`，校验 rc=0 与 stdout `1`；自定义 helper 不进入 `check_doc_counts` 的 AOT 注册计数） | 复现（`cd /tmp && tc-aot -r w38b.tc`）由 `sh: w38b.c.out: command not found`（exit 32512）变为正常执行；`sub/w38b.tc` 带目录分量相对路径与绝对路径均正常；全量三层与 5 项门禁通过 |
 | B-16 | `tc_module.c`：`tc_read_file_text` 的 `fseek`/`ftell`/`fread` 失败改报 `TC_DIAG_API` / `TC_API_ERR_FILE_READ`（I/O 前先把定位切到该模块文件），并补 `nread != size` 短读检查；`tc_file_exists` 用 `stat` + `S_ISREG` 判定「模块文件」，目录等非普通文件不再被当作源码读入（原表现为入口文件上的 `expected #program or #lib`）。`tests/unit/runtime/test_libtc.c` 新增 `test_module_directory_is_not_a_module_file`（运行期构造 `DirMod.tc/` 目录 + 入口，断言语言域 `TC_CE_IMPORT_NOT_FOUND`） | 目录作导入目标：VM/AOT 均由 `error: expected #program or #lib`（定位入口、无行号）改为 `imp_dir.tc:1: error [ImportNotFound]: import module not found`；`test-libtc` 109/109；全量三层与 5 项门禁通过。注：`fseek`/`ftell`/短读分支无法用常规文件稳定触发，按 §1.3/§11.4 直接改为 API 域 |
 | B-17 | `tc_parser_stmt.c`：`tc_parse_static_def` 不再用 `tc_expect_token(TC_TOK_EQUAL)`，改为 peek 判定——缺 `=` 或 `=` 后无初始化器且为 `static var` → `TC_CE_VAR_MISSING_INIT`（`static let` 维持「常量定义必须初始化」语法错误，与 `#program` 的 `let` 一致）；同时按编译器标准 §1.4 位置表把 `TC_CE_VAR_MISSING_INIT` 的主位置从「应有的 `=`/后继 token」改为**该声明的标识符**（`var`/`let` 与 `static var` 三条路径一致）。新增 `tests/errors/static/static_var_missing_initializer.tc`（VM fail_msg + check_fail 带码断言），既有 `var_missing_initializer.tc` 补码断言；`tests/unit/parser/test_parser.c` 新增 `test_parse_static_var_requires_initializer`（含 `static let` 仍为语法错误一例）；test-map 回填 1025 VM | `#lib / public static var V: int32` 由 `:2:27: error [SyntaxError]: unexpected token` 变为 `:2:19: error [VarMissingInitializer]: variable definition requires initializer`（VM 与 AOT 一致，列号落在标识符 `V`）；`public static var V: int32 =` 同码；`#program` 的 `var x: int32` / `var x: int32 =` 码不变、列号由 8 改为标识符列 5；`static let` 缺初始化器仍为 SyntaxError；test-parser 167/167；全量三层与 5 项门禁通过 |
+| B-18 | `tc_diagnostic.c` 打印器：`TC_DIAG_IMPLEMENTATION` 域仅在 kind 为实现专用码（`kind >= TC_ERR_OUT_OF_MEMORY`，当前仅 `OutOfMemory`）时打印码名，实现缺陷（占位 kind 为 `TC_CE_SYNTAX`）只打印 `implementation error: <message>`，不再伪造语言码 `SyntaxError`；`tc_exec_set_internal_error` 补注释说明占位 kind 不被打印。文档同步：`TC-VM命令行参考` §2.2 与 `libtc设计说明书` §7.5 的输出格式、`TC-VM详细设计说明书` §1 的「既有未关闭差异」段落（删除已由 B-6/B-8/B-9/B-17 关闭的条目，改为中性表述并写明实现域不附语言码）。`tests/unit/runtime/test_diagnostic.c` 增两断言（实现缺陷打印不含语言码） | 62 处 `tc_exec_set_internal_error` 的输出由 `<file>:<line>: implementation error: SyntaxError: internal error: …` 变为 `<file>:<line>: implementation error: internal error: …`；`OutOfMemory` 仍打印 `implementation error: OutOfMemory: …`（test-diagnostic 53/53）；全量三层与 5 项门禁通过。注：本轮同时消除了 B-8/B-9/B-10/B-11 四类可由合法程序触发的内部错误，剩余内部错误点不再以语言码暴露 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -258,7 +259,8 @@
 | 22 | 阶段 2-B14 依赖模块诊断定位 | `d066adb fix(0.0.44-B14): locate dependency diagnostics in the module file` |
 | 23 | 阶段 2-B15 `tc-aot -r` 相对路径 | `8a1cd5f fix(0.0.44-B15): run generated AOT binary via ./ for relative paths` |
 | 24 | 阶段 2-B16 模块文件 I/O 错误域 | `9dc9c06 fix(0.0.44-B16): map module file I/O failures to the API domain` |
-| 25 | 阶段 2-B17 `static var` 缺初始化器错码/定位 | 本提交 `fix(0.0.44-B17): report VAR_MISSING_INIT for static var` |
+| 25 | 阶段 2-B17 `static var` 缺初始化器错码/定位 | `8199359 fix(0.0.44-B17): report VAR_MISSING_INIT for static var` |
+| 26 | 阶段 2-B18 实现域诊断不附语言码 | 本提交 `fix(0.0.44-B18): stop printing language codes for implementation errors` |
 
 ---
 

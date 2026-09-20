@@ -449,8 +449,18 @@ static void tc_diagnostic_print_ex(const TcDiagnostic *diag, FILE *out, int with
     if (diag->domain == TC_DIAG_API) {
         fprintf(out, ": api error: %s: %s\n", tc_api_error_code_name(diag->api_code), message);
     } else if (diag->domain == TC_DIAG_IMPLEMENTATION) {
-        fprintf(out, ": implementation error: %s: %s\n", tc_error_kind_name(diag->kind),
-                message);
+        /*
+         * B-18：实现域只打印**实现专用**码名（当前仅 TC_ERR_OUT_OF_MEMORY）。
+         * 实现缺陷（`internal error: …`）不携带语言错误码，不得把占位的
+         * TC_CE_SYNTAX 打印成 `SyntaxError` 伪装成语言诊断（语言标准 §1.3 只
+         * 承认实现资源失败一类实现侧失败）。
+         */
+        if (diag->kind >= TC_ERR_OUT_OF_MEMORY) {
+            fprintf(out, ": implementation error: %s: %s\n", tc_error_kind_name(diag->kind),
+                    message);
+        } else {
+            fprintf(out, ": implementation error: %s\n", message);
+        }
     } else if (with_code) {
         fprintf(out, ": error [%s]: %s\n", tc_error_kind_name(diag->kind), message);
         tc_diagnostic_print_snippet(diag, out);

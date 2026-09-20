@@ -193,10 +193,11 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
   <source line>
   <spaces>^
 <filename>: api error: <ApiCode>: <message>
-<filename>: implementation error: <ErrorKind>: <message>
+<filename>: implementation error: <message>
+<filename>: implementation error: <实现专用码>: <message>   ; 仅实现专用码（当前为 OutOfMemory）
 ```
 
-行或列未知时相应位置会省略。CLI 当前打印人类可读 message，不把 `SyntaxError`、`TypeMismatch` 等 kind 名直接写在诊断首行。
+行或列未知时相应位置会省略。CLI 当前打印人类可读 message，不把 `SyntaxError`、`TypeMismatch` 等 kind 名直接写在诊断首行。**实现缺陷**（`internal error: …`）同样不附任何语言错误码——[语言标准 §1.3] 只承认实现资源失败（`OutOfMemory`）一类实现侧失败。
 
 ### 5.3 单槽
 
