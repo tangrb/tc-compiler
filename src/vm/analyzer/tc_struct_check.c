@@ -1099,20 +1099,17 @@ static const TcSymbol *tc_struct_resolve_base(const char *base, const TcSymbolTa
         const char *dot = strchr(base, '.');
 
         if (dot && dot != base && dot[1] != '\0') {
-            char qual[128];
-            size_t qual_len = (size_t)(dot - base);
-
-            if (qual_len >= sizeof(qual)) {
-                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
-                                  "undefined variable");
+            /*
+             * `<模块名>.<成员>` 作字段链基址（解析器只把「首字母大写 + 两点」形态归入
+             * 基址，故此处只可能是模块限定或 `Self.` 成员）。统一走名称解析，以便
+             * 施加 §4.4 的两条约束：所属模块须等于限定前缀、成员不得为 private。
+             */
+            member = dot + 1;
+            if (tc_reject_private_member_access(base, global, line, diag)) {
                 return NULL;
             }
-            memcpy(qual, base, qual_len);
-            qual[qual_len] = '\0';
-            member = dot + 1;
-            (void)qual;
-            if (global) {
-                const TcSymbol *source = tc_symbol_table_find(global, member);
+            {
+                const TcSymbol *source = tc_find_named_binding(visible, global, base);
 
                 if (source) {
                     return source;
@@ -1307,17 +1304,21 @@ int tc_struct_check_field_access(TcFieldAccess *access, const TcType *expected,
             return -1;
         }
         snprintf(combined, need, "%s.%s", access->base, access->fields[0]);
+        /*
+         * [语言标准 §4.4]：`<模块名>.<private 成员>` 报专用码（须先于按名解析，否则
+         * 只会得到笼统的 undefined variable）。
+         */
+        if (tc_reject_private_member_access(combined, global, line, diag)) {
+            free(combined);
+            return -1;
+        }
         qualified = tc_find_named_binding(visible, global, combined);
         free(combined);
         /*
          * 限定名必须真的是「该模块的成员」：解析到的符号的所属模块须与限定前缀一致
-         * （B-65 的符号模块标记）。否则 `NoSuchLib.K` 会因按裸成员名回退而静默命中
-         * 任一可见 `K`，把拼错的模块名伪装成合法限定读取。
+         * （B-65 的符号模块标记，已由 tc_find_named_binding 统一过滤）。否则
+         * `NoSuchLib.K` 会因按裸成员名回退而静默命中任一可见 `K`。
          */
-        if (qualified &&
-            (!qualified->module_name || strcmp(qualified->module_name, access->base) != 0)) {
-            qualified = NULL;
-        }
         if (qualified) {
             if (expected && !tc_type_equals(qualified->type, expected)) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,

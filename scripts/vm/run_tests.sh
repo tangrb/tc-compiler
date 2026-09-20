@@ -1091,9 +1091,21 @@ run_expect_stdout "$ROOT/tests/modules/import_member_struct.tc" "12
 46
 17
 7
+106
 "
 run_expect_check_ok "$ROOT/tests/modules/import_member_operand.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_member_struct.tc"
+# §4.4：`<模块名>.<private 成员>` 一律 `PRIVATE_MEMBER_ACCESS`，不得降级为 undefined variable
+run_expect_check_fail "$ROOT/tests/modules/member_private_read.tc" \
+    "private member access" "PrivateMemberAccessError"
+run_expect_check_fail "$ROOT/tests/modules/member_private_field.tc" \
+    "private member access" "PrivateMemberAccessError"
+run_expect_check_fail "$ROOT/tests/modules/member_private_addr.tc" \
+    "private member access" "PrivateMemberAccessError"
+run_expect_check_fail "$ROOT/tests/modules/member_private_memblock.tc" \
+    "private member access" "PrivateMemberAccessError"
+run_expect_check_fail "$ROOT/tests/modules/member_private_read_target.tc" \
+    "private member access" "PrivateMemberAccessError"
 run_expect_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
     "undefined variable 'NoSuchLib'" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \

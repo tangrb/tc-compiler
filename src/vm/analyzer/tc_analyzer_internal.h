@@ -122,6 +122,21 @@ int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic
 const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
                                       const char *name);
 
+/**
+ * 限定名 `<模块名>.<名>` 的解析结果过滤（语言标准 §4.4）：所属模块须与限定前缀一致，
+ * 且成员不得为 `private`。`Self.<名>` 与裸名不走本判定。
+ * @return 可访问返回 1；否则 0
+ */
+int tc_qualified_member_allowed(const TcSymbol *symbol, const char *qualifier);
+
+/**
+ * 按名前判定「跨模块 private 成员访问」，以便在正式解析前给出专用码
+ * `TC_CE_PRIVATE_MEMBER_ACCESS`（§4.4）。仅处理 `<前缀>.<成员>`（单点、非 `Self.`）。
+ * @return 命中并已设诊断返回 1；否则 0
+ */
+int tc_reject_private_member_access(const char *name, const TcSymbolTable *global, int line,
+                                    TcDiagnostic *diag);
+
 /*
  * tc_check_operand / tc_check_rhs / tc_check_io_format 的权威声明在模块头中：
  *   tc_analyzer_pass2_rhs.h、tc_analyze_6e.h

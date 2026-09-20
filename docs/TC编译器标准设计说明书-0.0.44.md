@@ -225,6 +225,7 @@
 | `<模块名>.<成员>` 作普通 RHS 操作数的**整体读取**（标量与 struct；含 `let` 常量上下文）；限定前缀须确为该成员所属模块 | §3.2、§6.7、[语言标准 §4.3、§5.2.1、§6.1.2] | **已同步**（既有-1）：`tc_struct_check_field_access` 按无字段绑定定型，Executor／const-eval／AOT 三端按绑定读取；语料 `import_member_operand.tc`／`import_member_struct.tc`，负例 `import_member_{bad_qual,foreign_member}.tc` |
 | `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法（限可写 `static var`） | §3.2、§6.7、[语言标准 §6.8.4] | **已同步**（既有-2）：`tc_parse_ptr_address_rhs` 复用绑定名解析；语料 `import_addr_self.tc`／`import_addr_qual.tc` |
 | `ptr_store`／`memcopy_unsafe` 只读判据为**所指外层绑定**（指针绑定自身为 `let` 不构成只读）；常量 `nullptr` 指针的写入归运行期 `TC_RE_NULL_POINTER_DEREFERENCE` | §3.2、§6.7、§11.4.6、[语言标准 §6.8.3、§3.10.2] | **已同步**（既有-4）：`tc_ptr_check_store` 只查 `ptr_target_readonly`，`CONST_REF` 分支只继承来源指针标记；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（运行时）、`ptr_store_readonly_copy`（静态传播） |
+| 经导入限定解析到 `private` 的 `static let`／`static var` → `TC_CE_PRIVATE_MEMBER_ACCESS`，不得降级为 `TC_CE_UNDEFINED_VARIABLE`（`Self.<名>` 与本模块访问不受影响） | §3.1 第 6 阶段 6d、§3.2、§11.4.6、[语言标准 §4.4] | **已同步**：符号新增模块可见性（Pass1 回填、Pass2 可见表继承），限定名解析统一按「前缀==所属模块 ∧ 非 private」过滤，并在各解析入口先报专用码；语料 `tests/modules/member_private_{read,field,addr,memblock,read_target}.tc`，对照正例 `import_member_struct.tc` |
 
 ---
 

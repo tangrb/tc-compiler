@@ -32,6 +32,10 @@ const TcSymbol *tc_resolve_visible_symbol_scoped(const TcSymbolTable *visible,
     char msg[128];
 
     if (name && (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL)) {
+        /* [语言标准 §4.4]：跨模块 private 成员给专用码（须先于按名解析） */
+        if (tc_reject_private_member_access(name, global, line, diag)) {
+            return NULL;
+        }
         symbol = tc_find_named_binding(visible, global, name);
         if (symbol) {
             return symbol;
@@ -1090,6 +1094,7 @@ int tc_visible_add_from_global(const TcSymbolTable *global, const char *name,
     added->scope_end_stmt_index = sym->scope_end_stmt_index;
     added->ptr_target_readonly = sym->ptr_target_readonly;
     added->module_name = sym->module_name; /* B-65：可见表同样保留模块标记 */
+    added->visibility = sym->visibility;   /* §4.4：可见表同样保留成员可见性 */
     return 0;
 }
 

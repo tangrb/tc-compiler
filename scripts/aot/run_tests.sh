@@ -632,6 +632,12 @@ run_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
     "undefined variable 'NoSuchLib'"
 run_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \
     "undefined variable 'BoxLib'"
+# §4.4：`<模块名>.<private 成员>` 一律 `PRIVATE_MEMBER_ACCESS`（read/field/ptr_address/memblock/read 目标）
+run_check_fail "$ROOT/tests/modules/member_private_read.tc" "private member access"
+run_check_fail "$ROOT/tests/modules/member_private_field.tc" "private member access"
+run_check_fail "$ROOT/tests/modules/member_private_addr.tc" "private member access"
+run_check_fail "$ROOT/tests/modules/member_private_memblock.tc" "private member access"
+run_check_fail "$ROOT/tests/modules/member_private_read_target.tc" "private member access"
 # B-65：跨模块同名符号不得串槽（VM/AOT 均须输出 funcall 返回值 false）
 run_diff_test "$ROOT/tests/modules/import_same_name_shadow.tc"
 run_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"

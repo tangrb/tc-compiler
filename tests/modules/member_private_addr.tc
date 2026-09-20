@@ -1,0 +1,9 @@
+#program
+; [语言标准 §4.4]：`ptr_address(T, <模块名>.<private static var>)` 不可取址
+; 期望：private member access（先于「对常量取址」类判定）
+import MemberLib
+var p: ptr<int32> = ptr_address(int32, MemberLib.HiddenVar)
+var v: int32 = 0
+ptr_store(int32, p, 3)
+v = funcall(MemberLib.sum_self)
+writeln(int32, v)

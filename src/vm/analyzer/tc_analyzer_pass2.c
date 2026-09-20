@@ -169,10 +169,77 @@ void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol)
     binding->const_bits = symbol->has_const_value ? symbol->const_value.bits : 0;
 }
 
+/*
+ * 限定名解析的统一过滤（[语言标准 §4.4]）。
+ *
+ * `<模块名>.<名>` 的形式解析到符号后必须满足两条：① 符号的所属模块与限定前缀
+ * **一致**（否则 `NoSuchLib.K` 会因按裸成员名回退而静默命中任一可见 `K`）；
+ * ② 该成员不得是 `private`（跨模块 private 访问一律
+ * `TC_CE_PRIVATE_MEMBER_ACCESS`，见 `tc_reject_private_member_access`）。
+ * `Self.<名>` 与裸名不走本判定（前者限本模块、后者只在本模块内成立）。
+ */
+int tc_qualified_member_allowed(const TcSymbol *symbol, const char *qualifier) {
+    if (!symbol || !qualifier || qualifier[0] == '\0') {
+        return 0;
+    }
+    if (!symbol->module_name || strcmp(symbol->module_name, qualifier) != 0) {
+        return 0;
+    }
+    return symbol->visibility != TC_VIS_PRIVATE;
+}
+
+/*
+ * 在按名解析前判定「跨模块 private 成员」，以便给出专用码而非笼统的
+ * `TC_CE_UNDEFINED_VARIABLE`。命中返回 1（已设诊断），否则返回 0。
+ * 仅处理 `<前缀>.<成员>`（单点、非 `Self.`）形态。
+ */
+int tc_reject_private_member_access(const char *name, const TcSymbolTable *global, int line,
+                                    TcDiagnostic *diag) {
+    char qual[128];
+    const char *dot = NULL;
+    const TcSymbol *symbol = NULL;
+    size_t i = 0;
+    size_t qual_len = 0;
+
+    if (!name || !global || !diag) {
+        return 0;
+    }
+    if (strncmp(name, "Self.", 5) == 0) {
+        return 0;
+    }
+    dot = strchr(name, '.');
+    if (!dot || dot == name || dot[1] == '\0' || strchr(dot + 1, '.') != NULL) {
+        return 0;
+    }
+    qual_len = (size_t)(dot - name);
+    if (qual_len >= sizeof(qual)) {
+        return 0;
+    }
+    memcpy(qual, name, qual_len);
+    qual[qual_len] = '\0';
+    for (i = 0; i < global->count; i++) {
+        symbol = &global->symbols[i];
+        if (!symbol->name || strcmp(symbol->name, dot + 1) != 0) {
+            continue;
+        }
+        if (!symbol->module_name || strcmp(symbol->module_name, qual) != 0) {
+            continue;
+        }
+        if (symbol->visibility == TC_VIS_PRIVATE) {
+            tc_diagnostic_set(diag, TC_CE_PRIVATE_MEMBER_ACCESS, line, TC_COLUMN_UNKNOWN,
+                              "private member access");
+            return 1;
+        }
+    }
+    return 0;
+}
+
 const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
                                       const char *name) {
     const TcSymbol *symbol = NULL;
     const char *dot = NULL;
+    char qual[128];
+    size_t qual_len = 0;
 
     if (!name) {
         return NULL;
@@ -182,18 +249,25 @@ const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymb
     }
     dot = strchr(name, '.');
     if (dot && dot != name && strchr(dot + 1, '.') == NULL) {
+        qual_len = (size_t)(dot - name);
+        if (qual_len == 0 || qual_len >= sizeof(qual)) {
+            return NULL;
+        }
+        memcpy(qual, name, qual_len);
+        qual[qual_len] = '\0';
         if (visible) {
             symbol = tc_symbol_table_find(visible, name);
             if (symbol) {
-                return symbol;
+                return tc_qualified_member_allowed(symbol, qual) ? symbol : NULL;
             }
         }
         if (global) {
             symbol = tc_symbol_table_find(global, name);
             if (symbol) {
-                return symbol;
+                return tc_qualified_member_allowed(symbol, qual) ? symbol : NULL;
             }
-            return tc_symbol_table_find(global, dot + 1);
+            symbol = tc_symbol_table_find(global, dot + 1);
+            return tc_qualified_member_allowed(symbol, qual) ? symbol : NULL;
         }
         return NULL;
     }
@@ -238,6 +312,10 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
     char msg[128];
 
     if (name && (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL)) {
+        /* [语言标准 §4.4]：跨模块 private 成员给专用码（须先于按名解析） */
+        if (tc_reject_private_member_access(name, global, line, diag)) {
+            return NULL;
+        }
         symbol = tc_find_named_binding(visible, global, name);
         if (symbol) {
             return symbol;

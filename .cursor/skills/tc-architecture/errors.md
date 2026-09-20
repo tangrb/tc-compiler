@@ -261,6 +261,7 @@
 | 浮点 cast 超范围 | `cast result out of range for target type` |
 | 导入结构体裸名 | `undefined struct` |
 | 导入 private struct | `private member access` |
+| 导入 private `static let` / `static var`（`<模块>.<名>` 读取 / `ptr_address` / `read` 目标 / memblock 操作数） | `private member access` |
 | 浮点 I/O 格式错 | `format specifier does not match operand type` |
 | format `+` 与无符号 | `'+' flag not supported for this format specifier` |
 | format `#` 与 bool | `'#' flag not supported for` |

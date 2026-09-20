@@ -106,6 +106,7 @@
 | `<模块名>.<成员>` 作普通 RHS 操作数（标量与 struct 整体读取；含常量上下文） | §10、§12、[语言标准 §4.3、§6.1.2、§5.2.1] | **已同步**（既有-1）：`tc_struct_check_field_access` 按无字段绑定定型（`resolved.field_count = 0`，且限定前缀须等于符号的模块标记）；Executor／const-eval／AOT 三端按绑定读取；语料 `import_member_operand.tc`／`import_member_struct.tc`，负例 `import_member_{bad_qual,foreign_member}.tc` |
 | `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法（限可写 `static var`） | §12.7、[语言标准 §6.8.4] | **已同步**（既有-2）：`tc_parse_ptr_address_rhs` 复用绑定名解析；语料 `import_addr_self.tc`／`import_addr_qual.tc` |
 | `ptr_store`／`memcopy_unsafe` 只读判据取**所指外层绑定**；常量 `nullptr` 指针的写入归运行期空指针 | §12.7、§15.2、[语言标准 §6.8.3、§3.10.2] | **已同步**（既有-4）：`tc_ptr_check_store` 只查 `ptr_target_readonly`，`CONST_REF` 分支只继承来源指针标记；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（运行时）、`ptr_store_readonly_copy`（静态传播） |
+| 经导入限定解析到 `private` 的 `static let`／`static var` → `TC_CE_PRIVATE_MEMBER_ACCESS`（不得降级为 `TC_CE_UNDEFINED_VARIABLE`；`Self.<名>` 与本模块访问不受影响） | §12.7、§11.1、[语言标准 §4.4] | **已同步**：符号携带模块可见性（Pass1 回填），`tc_find_named_binding`／`tc_const_find_named` 按「前缀==所属模块 ∧ 非 private」统一过滤，各解析入口先报专用码；语料 `member_private_{read,field,addr,memblock,read_target}.tc`（VM＋AOT 同码），对照正例 `import_member_struct.tc`（`Self.<private>` 仍合法） |
 
 上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**：仍可能存在尚未同步的既有差异，逐条状态与最小复现以独立的过程性跟踪记录为准（本文不回填）。这些项**不改变本文的流水线口径**：VM 不得为迁就现状放宽任何静态规则或降级为 `implementation error`；实现缺陷一律以 `implementation error` 报告，且该域**不附语言错误码**（[语言标准 §1.3] 只承认实现资源失败一类实现侧失败，见 §11.6 输出格式）。
 

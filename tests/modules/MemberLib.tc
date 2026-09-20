@@ -9,6 +9,9 @@ public static var W: int32 = 5
 public static let spc: Pair = Pair(x: 8, y: 9)
 public static var spv: Pair = Pair(x: 3, y: 4)
 private static let Hidden: int32 = 99
+private static var HiddenVar: int32 = 7
+private static let HiddenPair: Pair = Pair(x: 1, y: 2)
+private static let HiddenMb: memblock<int32, 2> = memblock(int32, count: 2, 6, 1)
 public func sum_self() int32 then
     var r: int32 = add(int32, Self.K, Self.W)
     return r
@@ -16,4 +19,9 @@ end
 public func pair_sum_self() int32 then
     var s: int32 = add(int32, Self.spc.x, Self.spc.y)
     return s
+end
+; [语言标准 §4.4]：本模块 private 成员经 `Self.<名>` 访问合法（对照负例）
+public func hidden_self() int32 then
+    var r: int32 = add(int32, Self.Hidden, Self.HiddenVar)
+    return r
 end

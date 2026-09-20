@@ -1,0 +1,5 @@
+#program
+; [语言标准 §4.4、§10.3]：`<模块名>.<private static var>` 不可作 read 目标
+; 期望：private member access
+import MemberLib
+read(int32, MemberLib.HiddenVar)

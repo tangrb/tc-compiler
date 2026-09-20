@@ -1,0 +1,6 @@
+#program
+; [语言标准 §4.4]：`<模块名>.<private static let>` 跨模块不可读
+; 期望：private member access（不得降级为 undefined variable）
+import MemberLib
+var v: int32 = MemberLib.Hidden
+writeln(int32, v)

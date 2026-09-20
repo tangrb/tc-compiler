@@ -93,8 +93,9 @@
 | `<模块名>.<成员>` 可作 RHS `operand`（含 struct 整体读取） | 共享 Analyzer ＋ 表达式发射（既有-1） | **已同步**：常量基址的 struct／memblock 内联字节后经 `tc_aot_struct_extract` 深拷贝；语料 `import_member_operand.tc`／`import_member_struct.tc` |
 | `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法 | 共享 Analyzer（既有-2） | **已同步**：语料 `import_addr_self.tc`／`import_addr_qual.tc`（AOT 差分） |
 | `ptr_store`／`memcopy_unsafe` 只读判据取**所指外层绑定**；常量空指针归运行期 | 共享 Analyzer ＋ §11 运行时（既有-4） | **已同步**：零声明槽位程序的 `ptr_load`／`ptr_store`／`memcopy_unsafe` 实参由 `tc_aot_slots_arg` 发 `NULL, 0`（不发射 `slots[]`，运行期按容量 0 判空指针）；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（`run_runtime_fail`）、`ptr_store_readonly_copy`（`run_check_fail`） |
+| 经导入限定解析到 `private` 的 `static let`／`static var` → `TC_CE_PRIVATE_MEMBER_ACCESS` | 共享 Analyzer（[语言标准 §4.4]） | **已同步**：AOT `--check` 与 VM 同码；语料 `member_private_{read,field,addr,memblock,read_target}.tc`（AOT `run_check_fail`） |
 
-上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。审计报告 §5 复核的 9 项既有未关闭差异（`既有-1`～`既有-9`）**已全部闭合**：`既有-1` 导入限定名成员作 RHS 操作数（`87b988f`）、`既有-2` `Self.<名>`／导入限定名取址（`0093b58`）、`既有-4` 只读判据改为所指绑定、常量空指针归运行期（`0851a37`），其余 6 项分别由 B-6／B-8／B-9／B-17／B-20／A-3 闭合（映射与证据见符合性整改进度台账 §5）。本轮同时记录 4 项**新发现**的既有缺陷为观察项（限定名成员可见性未校验、`Self.` 限定名整体读取 struct 常量、AOT 常量 `memblock` 的 `.count` 作赋值 RHS、限定名整绑定赋值目标），尚未修复。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
+上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。审计报告 §5 复核的 9 项既有未关闭差异（`既有-1`～`既有-9`）**已全部闭合**：`既有-1` 导入限定名成员作 RHS 操作数（`87b988f`）、`既有-2` `Self.<名>`／导入限定名取址（`0093b58`）、`既有-4` 只读判据改为所指绑定、常量空指针归运行期（`0851a37`），其余 6 项分别由 B-6／B-8／B-9／B-17／B-20／A-3 闭合（映射与证据见符合性整改进度台账 §5）。§5 复核后新发现的既有缺陷中，**限定名成员可见性未校验**（`<模块>.<private static let/var>` 跨模块可读）已按 [语言标准 §4.4] 修复为 `TC_CE_PRIVATE_MEMBER_ACCESS`（共享 Analyzer，AOT `--check` 同码）；其余 3 项（`Self.` 限定名整体读取 struct 常量、AOT 常量 `memblock` 的 `.count` 作赋值 RHS、限定名整绑定赋值目标）仍为观察项、尚未修复。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
 
 ---
 

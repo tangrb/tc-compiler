@@ -768,6 +768,10 @@ static int tc_static_let_resolve_field_operand(TcOperand *operand, const TcType 
             strchr(operand->u.name, '.') == NULL) {
             return 0;
         }
+        /* [语言标准 §4.4]：跨模块 private 成员在常量求值前即给专用码 */
+        if (tc_reject_private_member_access(operand->u.name, symbols, line, diag)) {
+            return -1;
+        }
         symbol = tc_find_named_binding(symbols, symbols, operand->u.name);
         if (!symbol) {
             return 0; /* 未解析：由后续名称检查报告 */

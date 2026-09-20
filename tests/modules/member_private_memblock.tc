@@ -1,0 +1,6 @@
+#program
+; [语言标准 §4.4]：`<模块名>.<private static let memblock>` 不可作 memblock 操作数
+; 期望：private member access
+import MemberLib
+var v: int32 = memblock_load(int32, MemberLib.HiddenMb, 0)
+writeln(int32, v)

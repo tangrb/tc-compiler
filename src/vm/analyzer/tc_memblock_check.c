@@ -54,6 +54,10 @@ static const TcSymbol *tc_memblock_resolve_usize_operand(const char *name,
         return NULL;
     }
     if (strncmp(name, "Self.", 5) == 0 || strchr(name, '.') != NULL) {
+        /* [语言标准 §4.4]：跨模块 private 成员给专用码（须先于按名解析） */
+        if (tc_reject_private_member_access(name, global, line, diag)) {
+            return NULL;
+        }
         symbol = tc_find_named_binding(visible, global, name);
         if (symbol) {
             return symbol;

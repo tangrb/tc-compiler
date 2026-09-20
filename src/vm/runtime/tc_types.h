@@ -1013,6 +1013,13 @@ typedef struct {
      * 模块后，解析可优先取本模块的同名符号，避免读/写槽错位。
      */
     const char *module_name;
+    /*
+     * [语言标准 §4.4]：符号作为模块成员时的可见性（取自 `static var` / `static let`
+     * 定义的修饰符；局部 `var`/`let`、形参等非模块成员为 `TC_VIS_NONE`）。
+     * `<模块名>.<名>` 解析到 `TC_VIS_PRIVATE` 成员时须报
+     * `TC_CE_PRIVATE_MEMBER_ACCESS`（`Self.<名>` 与裸名不受影响——后者只在本模块内成立）。
+     */
+    TcVisibility visibility;
 } TcSymbol;
 
 /** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */

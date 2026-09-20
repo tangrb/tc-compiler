@@ -302,6 +302,8 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                                    diag) != 0) {
             return -1;
         }
+        /* [语言标准 §4.4]：记录模块成员可见性，供限定名解析拒绝跨模块 private 访问 */
+        symbols->symbols[symbols->count - 1].visibility = sv->visibility;
         sv->static_slot = *next_slot;
         (*next_slot)++;
         return 0;
@@ -327,6 +329,8 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                                    diag) != 0) {
             return -1;
         }
+        /* [语言标准 §4.4]：记录模块成员可见性，供限定名解析拒绝跨模块 private 访问 */
+        symbols->symbols[symbols->count - 1].visibility = sl->visibility;
         return 0;
     }
 

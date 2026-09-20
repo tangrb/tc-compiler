@@ -323,7 +323,7 @@
 
 | 序号 | 现象 | 复现 | 备注 |
 | ---- | ---- | ---- | ---- |
-| 观察-③ | 限定名解析未校验成员可见性：`<模块>.<private static let>` 跨模块可读 | `MemberLib.Hidden`（`private static let Hidden: int32 = 99`）→ 正常输出 `99` | 两点基址路径同样漏检（`PrivLib.HPair.x` → `7`），属既有缺陷；修它需把 `program` / 模块成员可见性索引穿到 `tc_struct_check_field_access`（8 处调用点），或改在成员名解析层统一收口 |
+| 观察-③ | 限定名解析未校验成员可见性：`<模块>.<private static let>` 跨模块可读 | `MemberLib.Hidden`（`private static let Hidden: int32 = 99`）→ 正常输出 `99` | **已闭合（本提交）**：两点基址路径（`MemberLib.HiddenPair.x`）、`ptr_address`、`read` 目标与 memblock 操作数同样漏检，一并修复为 `TC_CE_PRIVATE_MEMBER_ACCESS`；详见下「续修：限定名成员可见性」 |
 | 观察-④ | `Self.` 限定名整体读取 struct 常量：`let p: Pair = Self.spc` 两后端均报 `ConstantExpressionError: invalid constant expression`；`var p: Pair = Self.spc` 在 AOT 把分析期堆指针直接写入槽（VM `17` / AOT `0`） | 库内 `Pair` ＋ `static let spc: Pair` 最小例 | `TC_RHS_SELF_MEMBER` 常量路径未支持 struct 整体值，与既有-1 的字段读/RHS 管线不同源；本轮语料改用 `Self.spc.x` 字段读覆盖同语义 |
 | 观察-⑤ | AOT：常量 `memblock` 的 `.count` 作赋值 RHS 时 `code generation failed`（`tc_aot_emit_rhs.c` 的 FIELD_READ 分支无 `is_memblock_count` 处理，`offsets` 为 NULL 直接返回 -1）；VM 正常 | `var n: usize = Self.M.count` / `var n: usize = QLib2.M.count` → AOT 代码生成失败，VM `2` | AOT 仅在 operand 位置（`tc_aot_codegen.c`）支持 `is_memblock_count`，语句级赋值缺失 |
 | 观察-⑥ | 整绑定赋值目标未解析限定名：`MemberLib.W = 9`、`MemberLib.K = 9` 均报 `UndefinedVariable: undefined variable 'MemberLib'` | 入口 `import MemberLib` ＋ 顶层 `MemberLib.W = 9` | 赋值目标走 `tc_analyzer_pass2` 的另一解析路径（非 `tc_struct_check_field_access`）；标准 §11.1 赋值目标行已含「解析为 `let` / `static let`（含经 `Self.` / 导入限定解析到的只读绑定）时报告 `TC_CE_CONSTANT_ASSIGNMENT`」，故该路径是否应支持限定名需按 §4.3/§6.8/§11 复核后定；本轮既有-1 只覆盖 RHS 操作数 |
@@ -338,6 +338,14 @@
 | 4 | 本台账 | §5 复核表 3 项全部转 ☑；新增「本轮续修记录」（3 项实现与证据）、「本轮新发现」（观察-③～⑥）、更新提交记录表 |
 
 > 回填后 5 项同步门禁（`check_doc_counts`／`check_doc_layering`／`check_source_naming`／`check_type_fact_source`／`check_rhs_coverage`）全部 rc=0；本项为纯文档改动，规模仍为 **1172 VM / 544 AOT**。
+
+### 续修：限定名成员可见性（观察-③ 闭合）
+
+> 触发：用户明确「`<模块>.<private static let>` 跨模块不可读」。语言标准 §4.4 表格已规定「导入模块 `<模块>.<名>` 访问 `private` → ❌ `TC_CE_PRIVATE_MEMBER_ACCESS`」，编译器标准 §3.1 第 6 阶段 6d、§6.x、§11.4.6 亦已要求「不得降级为 `TC_CE_UNDEFINED_VARIABLE`」——故本条为**实现补齐既有规范口径**，无需改标准。
+
+| 项 | 实现 | 语料与门禁 | 实测 |
+| --- | ---- | ---------- | ---- |
+| 限定名私有成员访问（观察-③） | ① `TcSymbol` 新增 `visibility`（`tc_types.h`），`tc_symbol_table_add_ex` 置 `TC_VIS_NONE`，Pass1 在 `static var`／`static let` 符号登记后回填定义修饰符，Pass2 可见表继承（`tc_analyzer_pass2_rhs.c`）。② `tc_analyzer_pass2.c` 新增 `tc_qualified_member_allowed(symbol, qualifier)`（前缀须等于符号所属模块 ∧ 非 `private`）与 `tc_reject_private_member_access(name, global, line, diag)`（按名命中跨模块 private → 专用码）；`tc_find_named_binding` 与 const-eval 的 `tc_const_find_named` 的限定名分支统一按前者过滤（同时集中了此前只写在既有-1 分支里的「前缀==模块」校验），`tc_struct_resolve_base` 的两点基址分支改为复用同一解析。③ 在能报专用码的 6 个解析入口（`tc_struct_check_field_access` 限定读分支、`tc_struct_resolve_base`、`tc_resolve_visible_symbol`、`tc_resolve_visible_symbol_scoped`、`tc_memblock_resolve_usize_operand`、`tc_func_check` 常量操作数解析）解析前调用 `tc_reject_private_member_access`，保证 `PRIVATE_MEMBER_ACCESS` 而非 `UNDEFINED_VARIABLE` | `MemberLib.tc` 增 `private static var HiddenVar`、`private static let HiddenPair: Pair`、`private static let HiddenMb: memblock<int32,2>` 与对照函数 `hidden_self()`（`Self.<private>` 仍合法）；新增负例 `tests/modules/member_private_{read,field,addr,memblock,read_target}.tc`（读取／限定结构体字段／`ptr_address`／memblock 操作数／`read` 目标）；VM 5×`run_expect_check_fail`（消息＋`PrivateMemberAccessError`）、AOT 5×`run_check_fail`；`import_member_struct.tc` 追加 `hidden_self()` 期望 `106`；test-map 回填 **1177 VM / 549 AOT**；`.cursor/skills/tc-architecture/errors.md` 报文表补一行 | 5 条负例两后端均报 `private member access`（rc=1、同码同阶段）；对照例 `Self.Hidden`／`Self.HiddenVar` 正常输出 `99`／`7`，`import_member_struct.tc` → `12 46 17 46 17 7 106`（两后端一致）；既有 `private_member_access.tc`（private 函数）与 `imported_struct_private.tc`（private struct）行为不变；全量三层（VM/AOT/Unit）与 5 项门禁通过 |
 
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
@@ -439,7 +447,8 @@
 | 86 | 既有-2 限定标识符取址 | `0093b58 fix(0.0.44-既有2): accept qualified identifiers in ptr_address` |
 | 87 | 既有-1 限定名整体读取 | `87b988f fix(0.0.44-既有1): accept imported members as RHS operands` |
 | 88 | 既有-4 只读判据改为所指绑定 | `0851a37 fix(0.0.44-既有4): judge pointer store mutability by pointee` |
-| 89 | 本轮文档与台账回填 | 本提交 `docs(0.0.44): backfill the ledger and sync tables for the 既有 fixes` |
+| 89 | 本轮文档与台账回填 | `76d3750 docs(0.0.44): backfill the ledger and sync tables for the 既有 fixes` |
+| 90 | 观察-③ 限定名成员可见性（`<模块>.<private>`） | 本提交 `fix(0.0.44-§4.4): reject private members in qualified name resolution` |
 
 ---
 

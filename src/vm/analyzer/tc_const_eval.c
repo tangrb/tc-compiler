@@ -461,18 +461,29 @@ static const TcSymbol *tc_const_find_named(const TcSymbolTable *visible,
     }
     dot = strchr(name, '.');
     if (dot && dot != name && strchr(dot + 1, '.') == NULL) {
+        char qual[128];
+        size_t qual_len = (size_t)(dot - name);
+
+        if (qual_len == 0 || qual_len >= sizeof(qual)) {
+            return NULL;
+        }
+        memcpy(qual, name, qual_len);
+        qual[qual_len] = '\0';
+        /* [语言标准 §4.4]：与 tc_find_named_binding 同口径——所属模块须等于限定前缀，
+         * 且不得为跨模块 private 成员。 */
         if (visible) {
             symbol = tc_symbol_table_find(visible, name);
             if (symbol) {
-                return symbol;
+                return tc_qualified_member_allowed(symbol, qual) ? symbol : NULL;
             }
         }
         if (global) {
             symbol = tc_symbol_table_find(global, name);
             if (symbol) {
-                return symbol;
+                return tc_qualified_member_allowed(symbol, qual) ? symbol : NULL;
             }
-            return tc_symbol_table_find(global, dot + 1);
+            symbol = tc_symbol_table_find(global, dot + 1);
+            return tc_qualified_member_allowed(symbol, qual) ? symbol : NULL;
         }
         return NULL;
     }

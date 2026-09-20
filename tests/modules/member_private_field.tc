@@ -1,0 +1,6 @@
+#program
+; [语言标准 §4.4]：`<模块名>.<private static let 结构体>.<字段>` 跨模块不可读
+; 期望：private member access
+import MemberLib
+var v: int32 = MemberLib.HiddenPair.x
+writeln(int32, v)
