@@ -272,14 +272,14 @@
 | A-4 | 实现（两处，覆盖常量与普通路径）：`tc_analyzer_pass2_rhs.c` 的 `TC_RHS_BITCAST` 源类型判定把原「`nullptr` → `TC_PTR` 源类型」分支改为静态拒绝；`tc_const_eval.c` 的常量 `bitcast` 同形分支同样改为拒绝（均报 `TC_CE_TYPE_MISMATCH`，消息 "nullptr cannot participate in bitcast"）。口径回填：语言标准 §6.6.1.1「字面量操作数的源类型」表新增 `bitcast` × `nullptr` = **不合法** 行，§3.10.2 补「`nullptr` 参与 `bitcast` 不合法；仍可作判断 operand、赋值/声明 RHS、`funcall` 实参、`return`、`cast` 源」；VM 详设 §12.6 与 §1.5 同步表、AOT 详设 §1.4 同步表由「标准未明确的实现行为」改写为「A-4 裁决为非法，静态拒绝」。语料：删除 `tests/valid/bitcast_ptr_nullptr.tc`（其 `bitcast(ptr<int32>, nullptr)`/`bitcast(usize, nullptr)` 已非法），新增 `tests/errors/static/bitcast_nullptr_source.tc`（`let` 常量路径）与 `bitcast_nullptr_source_int.tc`（`var` 路径），`bitcast_nullptr_float.tc` 的期望消息改为新文案；注册数不变（VM 2 换 2、AOT 2 换 2）。test-map 把 `bitcast_ptr_nullptr` 从正例列移出，负例列补两条 | `bitcast(ptr<int32>, nullptr)`、`bitcast(usize, nullptr)`、`bitcast(float64, nullptr)` 两后端 `--check` 均报 `TypeMismatch: nullptr cannot participate in bitcast`（rc=1）；`var p: ptr<int32> = nullptr`（声明初始化）、`cast(ptr<int32>, nullptr)`、`ptr_eq(int32, nullptr, nullptr)` / `ptr_eq(int32, p, nullptr)`（判断 operand）保持 rc=0 且语义不变；`let_ptr_cast_nullptr.tc`、`phase3_nullptr.tc`、`phase5_nullptr_eq.tc` 等既有正例全部通过；全量三层与 5 项门禁通过 |
 | B-41 | `tc_parser.c` `tc_parse_block_body_mode`：把 `else` / `end` 的 token 判定**提前**到 `tc_block_indent_valid` 之前——此前「缩进增量必须恰为一级」的通用判定先命中，使比块头深一级以上的 `end`/`else` 报 `TC_CE_INDENT_INSUFFICIENT`。该函数为 `if` then/else 与 `while` 体共用（`func`/`struct` 各有独立路径，`struct` 已是 end 检查在先）。标准附录 A.2 末段补一句「无论过深或过浅一律 `INDENT_ELSE_END`；增量判定仅适用于非 `else`/`end` 的块内行」。新增 `tests/errors/static/indent_end_deeper.tc`（`end` 深一级）与 `indent_else_deeper.tc`（`else` 深一级），VM `run_expect_check_fail` 断言消息＋`IndentElseEndError`、AOT `run_check_fail`；test-map 回填 1150 VM / 524 AOT | 审计例（`if true then` / 4 空格体 / 8 空格 `end`）由 `IndentInsufficientError` 变为 `IndentElseEndError: end indentation does not match if`；`else` 深一级同理报 `else must appear at same indentation as if`；既有 `indent_end_mismatch`（`end` 在体级）、`indent_else_position`、`indent_else_mismatch`、`indent_insufficient_block`（体语句 2 空格）行为不变；全量三层与 5 项门禁通过。**观察（未在本条内改动）**：该函数的 ELSE_END 文案固定写 `if`，`while` 体命中时文案不精确（既有行为，本轮仅调整判定次序） |
 | B-61 | **实现零改动**（现状即裁决口径）：标准 §7.1.1 与 §7.2.1 的「条件」行补「次序」——RHS 自身的类型与字面量检查先于 `TC_CE_CONDITION_TYPE`：直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（`TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 类型成立但不是 `bool` 时才报 `CONDITION_TYPE`。§11 第 3 条例子补 `TC_CE_LITERAL_TYPE` 优先于 `TC_CE_CONDITION_TYPE`；附录 B.11 该码行补同口径括注。用例：新增 `if_cond_literal_direct.tc`（`if 1 then` → `LiteralTypeError`）与 `cond_var_not_bool.tc`（`var x: int32` 条件 → `ConditionTypeError`），并给既有 `if_cond_type_literal` / `if_cond_type_arith` / `while_cond_type_arith` 的 VM 注册补错误码断言；test-map 回填 1152 VM / 526 AOT | 实测四类同码一致：`if 1 then` / `if 1.5 then` / `if 1u then` → `LiteralTypeError`；`var x: int32` 或返回 `int32` 的运算调用（`if add(int32,1,2) then` / `while lt(...)`）→ `ConditionTypeError`；`if eq(int32, true, false) then` → `LiteralTypeError`（调用内字面量）；跨类型指针比较条件 → `TypeMismatch`（B-23 已裁）；与 B-23「条件 RHS 专用码不得被 CONDITION_TYPE 覆盖」的既有结论同一口径；全量三层与 5 项门禁通过 |
+| B-63 | 实现：`tc_parser.c` 的 `tc_parse_module_body` 逐行判 `line->indent != 0` → `TC_CE_INDENT_INSUFFICIENT`（"top-level lines must not be indented"），`tc_parse_module_header` 同判模块指令行本身；该循环覆盖 `#program` 的 import/类型/声明/顶层语句与 `#lib` 的 import/类型/static/func 全部顶层区域（`#program`/`#lib` 的块体行由各自块解析器消费，不经过本循环）。标准附录 A.2 缩进规则段补「顶层缩进」：指令行与顶层 `import`/类型/声明/`static`/`func`/顶层语句缩进级别必须为 0（顶层产生式不消费 `INDENT`，只有 `suite` 消费），空行与纯注释行的行首空白不参与本检查。语料：新增 `toplevel_indent_{program,lib,after_end,header}.tc`（VM 断言消息＋`IndentInsufficientError`、AOT `run_check_fail`）；既有 `indent_else_mismatch.tc` 因原先借助顶层缩进而重构为「内层 if 的 else 更浅」形态（保持原期望消息）；test-map 回填 1156 VM / 530 AOT | 审计三例（`#program` 后缩进语句、`#lib` 顶层缩进、`end` 后缩进语句）与新增的指令行缩进例，由 rc=0 且正常执行变为 `IndentInsufficientError: top-level lines must not be indented`（rc=1，两后端一致）；语料扫描显示既有 `.tc` 中仅 `indent_else_mismatch.tc` 受影响（已重构）；`indent_insufficient_*` / `indent_two_spaces` / `indent_mixed_*` / `indent_multi_level_jump` 等块内缩进负例行为不变；块内合法缩进与空行/注释行不受影响；全量三层与 5 项门禁通过 |
 
-## 标准 owner 裁决记录（A-1～A-4、B-41、B-61 已裁决并落地；B-63 已给出裁决待落地）
+## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
 > A-1～A-4 的裁决与落地见上「阶段 3 逐条记录」。下表保留 B 系列三项待裁决点。
 
 | 条目 | 待裁决点 |
 | ---- | -------- |
-| B-63 | 顶层行缩进是否合法 |
 
 ---
 
@@ -362,7 +362,10 @@
 | 72 | 阶段 3-A1 指针 RHS 不属于 operand | `529c49a docs(0.0.44-A1): RHS forms are not operands` |
 | 73 | 阶段 3-A2 字面量范围码阶段列 LT / SEM | `4d3ec42 docs(0.0.44-A2): record the LT/SEM phases of LITERAL_OUT_OF_RANGE` |
 | 74 | 阶段 3-A3 memcopy_unsafe 编译期可确定负下标静态拒绝 | `dbf4862 fix(0.0.44-A3): reject constant negative memcopy_unsafe ranges statically` |
-| 75 | 阶段 3-A4 nullptr 不参与 bitcast | 本提交 `fix(0.0.44-A4): reject nullptr as a bitcast source` |
+| 75 | 阶段 3-A4 nullptr 不参与 bitcast | `e28b13a fix(0.0.44-A4): reject nullptr as a bitcast source` |
+| 76 | 阶段 3-B41 else/end 不对齐一律 ELSE_END | `4af1108 fix(0.0.44-B41): report ELSE_END for any else/end misalignment` |
+| 77 | 阶段 3-B61 专用码优先于 CONDITION_TYPE | `b007a42 docs(0.0.44-B61): specific codes precede CONDITION_TYPE` |
+| 78 | 阶段 3-B63 顶层缩进判非法 | 本提交 `fix(0.0.44-B63): reject top-level indentation` |
 
 ---
 

@@ -679,6 +679,13 @@ static int tc_parse_module_header(TcSourceLine *lines, size_t line_count, TcProg
         return tc_syntax_error(diag, 0, TC_COLUMN_UNKNOWN, "expected #program or #lib");
     }
     hdr = &lines[0];
+    /*
+     * B-63（标准 owner 裁决）：`#program` / `#lib` 指令行本身属顶层行，缩进级别必须为 0。
+     */
+    if (hdr->indent != 0) {
+        return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, hdr->line_no,
+                              "top-level lines must not be indented");
+    }
     tok = tc_peek(&hdr->tokens, idx);
     if (tok->kind != TC_TOK_PROGRAM && tok->kind != TC_TOK_LIB) {
         return tc_syntax_error(diag, hdr->line_no, tok->column, "expected #program or #lib");
@@ -1497,6 +1504,18 @@ static int tc_parse_module_body(TcParserCtx *ctx, TcSourceLine *lines, size_t li
         const TcToken *first = tc_peek(&line->tokens, 0);
 
         memset(&stmt, 0, sizeof(stmt));
+
+        /*
+         * B-63（标准 owner 裁决）：顶层行（`#program` 的 import / 类型 / 声明 /
+         * 顶层语句与 `#lib` 的 import / 类型 / static / func）缩进级别必须为 0。
+         * 附录 A 的顶层产生式（import_region、program_module、program_exec_region、
+         * library_module）不消费 `INDENT`，只有 `suite` 消费（附录 A.2、A.3）；
+         * 此前顶层缩进被静默忽略，属接受集过宽。
+         */
+        if (line->indent != 0) {
+            return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line->line_no,
+                                  "top-level lines must not be indented");
+        }
 
         if (tc_classify_top_layer(line, program->mode, &stmt_layer, diag) != 0) {
             return -1;

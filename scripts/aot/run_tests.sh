@@ -895,6 +895,15 @@ run_check_fail "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indenta
 run_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" "end indentation does not match if"
 run_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
     "else must appear at same indentation as if"
+# B-63：顶层行不得缩进
+run_check_fail "$ROOT/tests/errors/static/toplevel_indent_program.tc" \
+    "top-level lines must not be indented"
+run_check_fail "$ROOT/tests/errors/static/toplevel_indent_lib.tc" \
+    "top-level lines must not be indented"
+run_check_fail "$ROOT/tests/errors/static/toplevel_indent_after_end.tc" \
+    "top-level lines must not be indented"
+run_check_fail "$ROOT/tests/errors/static/toplevel_indent_header.tc" \
+    "top-level lines must not be indented"
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assign to constant"

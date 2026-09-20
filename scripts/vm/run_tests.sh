@@ -2458,6 +2458,15 @@ run_expect_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" \
     "end indentation does not match if" "IndentElseEndError"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
     "else must appear at same indentation as if" "IndentElseEndError"
+# B-63：顶层行（含模块指令行）不得缩进
+run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_program.tc" \
+    "top-level lines must not be indented" "IndentInsufficientError"
+run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_lib.tc" \
+    "top-level lines must not be indented" "IndentInsufficientError"
+run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_after_end.tc" \
+    "top-level lines must not be indented" "IndentInsufficientError"
+run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_header.tc" \
+    "top-level lines must not be indented" "IndentInsufficientError"
 
 
 # --- valid: extended tests (all types, format specs, cast, wrap, complex) ---

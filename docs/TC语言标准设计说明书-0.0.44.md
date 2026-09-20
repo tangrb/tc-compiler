@@ -2596,6 +2596,8 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 空行和纯注释行不改变缩进层级，其行首空白也不参与缩进检查。`label` 不改变缩进层级。
 
+**顶层缩进**：`#program` / `#lib` 的指令行与其顶层的 `import`、类型、声明、`static` 成员、`func` 与顶层语句**缩进级别必须为 0**——附录 A 的顶层产生式（`import_region`、`program_module`、`program_exec_region`、`library_module`）都不消费 `INDENT`，只有 `suite` 消费（§A.3）。顶层行出现缩进报 `TC_CE_INDENT_INSUFFICIENT`；空行与纯注释行的行首空白不参与本检查（见上）。
+
 其他违反以上缩进规则的情形报 `TC_CE_INDENT_INSUFFICIENT`。`else`/`end` 与对应块头不对齐时报 `TC_CE_INDENT_ELSE_END`——无论其缩进比对应块头**过深**还是**过浅**（含恰在块内语句级别）一律按本码报告；`TC_CE_INDENT_INSUFFICIENT` 的增量判定仅适用于非 `else`/`end` 的块内行（附录 B.1）。
 
 **虚拟终结符**（由词法层按逻辑行生成，供 A.3 使用）：
