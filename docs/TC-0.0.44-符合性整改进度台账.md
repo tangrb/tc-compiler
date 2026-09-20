@@ -328,6 +328,17 @@
 | 观察-⑤ | AOT：常量 `memblock` 的 `.count` 作赋值 RHS 时 `code generation failed`（`tc_aot_emit_rhs.c` 的 FIELD_READ 分支无 `is_memblock_count` 处理，`offsets` 为 NULL 直接返回 -1）；VM 正常 | `var n: usize = Self.M.count` / `var n: usize = QLib2.M.count` → AOT 代码生成失败，VM `2` | AOT 仅在 operand 位置（`tc_aot_codegen.c`）支持 `is_memblock_count`，语句级赋值缺失 |
 | 观察-⑥ | 整绑定赋值目标未解析限定名：`MemberLib.W = 9`、`MemberLib.K = 9` 均报 `UndefinedVariable: undefined variable 'MemberLib'` | 入口 `import MemberLib` ＋ 顶层 `MemberLib.W = 9` | 赋值目标走 `tc_analyzer_pass2` 的另一解析路径（非 `tc_struct_check_field_access`）；标准 §11.1 赋值目标行已含「解析为 `let` / `static let`（含经 `Self.` / 导入限定解析到的只读绑定）时报告 `TC_CE_CONSTANT_ASSIGNMENT`」，故该路径是否应支持限定名需按 §4.3/§6.8/§11 复核后定；本轮既有-1 只覆盖 RHS 操作数 |
 
+### 本轮第 4 项：文档与台账回填
+
+| 顺序 | 文档 | 同步内容 |
+| ---- | ---- | -------- |
+| 1 | `TC-AOT详细设计说明书-0.0.44.md` | §1.4 同步表补 3 行（既有-1／既有-2／既有-4，含既有-4 的 `tc_aot_slots_arg` 零槽位口径）；表末「既有未关闭差异仍有 9 项」改写为「§5 复核的 9 项**已全部闭合**」并给出 `既有-1`／`既有-2`／`既有-4` 的提交号与其余 6 项的闭合映射，同时登记本轮 4 项新观察，保留「不改变 codegen 口径」的既有约束 |
+| 2 | `TC-VM详细设计说明书-0.0.44.md` | §1.5 同步表补 3 行（既有-1／既有-2／既有-4） |
+| 3 | `TC编译器标准设计说明书-0.0.44.md` | §1.4 同步表补 3 行（既有-1／既有-2／既有-4）；§3.2／§6.7／§11.4.6 的 `ptr_store` 可变性口径已在第 3 项提交中回填 |
+| 4 | 本台账 | §5 复核表 3 项全部转 ☑；新增「本轮续修记录」（3 项实现与证据）、「本轮新发现」（观察-③～⑥）、更新提交记录表 |
+
+> 回填后 5 项同步门禁（`check_doc_counts`／`check_doc_layering`／`check_source_naming`／`check_type_fact_source`／`check_rhs_coverage`）全部 rc=0；本项为纯文档改动，规模仍为 **1172 VM / 544 AOT**。
+
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
 > 七项裁决与落地明细见上「阶段 3 逐条记录」，**本轮无待裁决项**。
@@ -427,7 +438,8 @@
 | 85 | 观察-② `else`/`end` 对齐报文块名 | `9e2891e fix(0.0.44): report the block keyword in else/end alignment messages` |
 | 86 | 既有-2 限定标识符取址 | `0093b58 fix(0.0.44-既有2): accept qualified identifiers in ptr_address` |
 | 87 | 既有-1 限定名整体读取 | `87b988f fix(0.0.44-既有1): accept imported members as RHS operands` |
-| 88 | 既有-4 只读判据改为所指绑定 | 本提交 `fix(0.0.44-既有4): judge pointer store mutability by pointee` |
+| 88 | 既有-4 只读判据改为所指绑定 | `0851a37 fix(0.0.44-既有4): judge pointer store mutability by pointee` |
+| 89 | 本轮文档与台账回填 | 本提交 `docs(0.0.44): backfill the ledger and sync tables for the 既有 fixes` |
 
 ---
 

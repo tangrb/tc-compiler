@@ -103,6 +103,9 @@
 | 静态布尔判定原子集合与条件 RHS 形态（`Self.`／限定名、只读字段读取、指针比较） | §10.4、§15.4 | **已同步**：语料 `static_bool_cond.tc`／`cond_ptr_compare.tc`／`cond_readonly_field.tc` |
 | 限定标识符 `Self.<名>` 作 `operand` | §12.7 | **已同步**：语料 `self_qual_operand.tc` |
 | `memblock` 的 `N`／`count:` 接受 `u`/`U` 后缀 | §13.1 | **已核实一致**：语料 `memblock_unsigned_suffix.tc` |
+| `<模块名>.<成员>` 作普通 RHS 操作数（标量与 struct 整体读取；含常量上下文） | §10、§12、[语言标准 §4.3、§6.1.2、§5.2.1] | **已同步**（既有-1）：`tc_struct_check_field_access` 按无字段绑定定型（`resolved.field_count = 0`，且限定前缀须等于符号的模块标记）；Executor／const-eval／AOT 三端按绑定读取；语料 `import_member_operand.tc`／`import_member_struct.tc`，负例 `import_member_{bad_qual,foreign_member}.tc` |
+| `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法（限可写 `static var`） | §12.7、[语言标准 §6.8.4] | **已同步**（既有-2）：`tc_parse_ptr_address_rhs` 复用绑定名解析；语料 `import_addr_self.tc`／`import_addr_qual.tc` |
+| `ptr_store`／`memcopy_unsafe` 只读判据取**所指外层绑定**；常量 `nullptr` 指针的写入归运行期空指针 | §12.7、§15.2、[语言标准 §6.8.3、§3.10.2] | **已同步**（既有-4）：`tc_ptr_check_store` 只查 `ptr_target_readonly`，`CONST_REF` 分支只继承来源指针标记；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（运行时）、`ptr_store_readonly_copy`（静态传播） |
 
 上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**：仍可能存在尚未同步的既有差异，逐条状态与最小复现以独立的过程性跟踪记录为准（本文不回填）。这些项**不改变本文的流水线口径**：VM 不得为迁就现状放宽任何静态规则或降级为 `implementation error`；实现缺陷一律以 `implementation error` 报告，且该域**不附语言错误码**（[语言标准 §1.3] 只承认实现资源失败一类实现侧失败，见 §11.6 输出格式）。
 

@@ -90,8 +90,11 @@
 | `else`/`end` 不对齐（过深或过浅）一律 `TC_CE_INDENT_ELSE_END` | 共享 Analyzer（B-41） | **已同步**：语料 `indent_end_deeper`／`indent_else_deeper` |
 | 条件位置 RHS 专用码优先于 `TC_CE_CONDITION_TYPE` | 共享 Analyzer（B-61） | **已核实一致**：语料 `if_cond_literal_direct`／`cond_var_not_bool` |
 | 顶层行缩进必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | 共享 Analyzer（B-63） | **已同步**：语料 `toplevel_indent_*.tc`（AOT `--check` 同码） |
+| `<模块名>.<成员>` 可作 RHS `operand`（含 struct 整体读取） | 共享 Analyzer ＋ 表达式发射（既有-1） | **已同步**：常量基址的 struct／memblock 内联字节后经 `tc_aot_struct_extract` 深拷贝；语料 `import_member_operand.tc`／`import_member_struct.tc` |
+| `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法 | 共享 Analyzer（既有-2） | **已同步**：语料 `import_addr_self.tc`／`import_addr_qual.tc`（AOT 差分） |
+| `ptr_store`／`memcopy_unsafe` 只读判据取**所指外层绑定**；常量空指针归运行期 | 共享 Analyzer ＋ §11 运行时（既有-4） | **已同步**：零声明槽位程序的 `ptr_load`／`ptr_store`／`memcopy_unsafe` 实参由 `tc_aot_slots_arg` 发 `NULL, 0`（不发射 `slots[]`，运行期按容量 0 判空指针）；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（`run_runtime_fail`）、`ptr_store_readonly_copy`（`run_check_fail`） |
 
-上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。当前与本实现前端/共享 core 相关的既有未关闭差异仍有 9 项（导入限定名成员引用、`Self.<名>`／导入限定名取址、重复实参诊断码、`let` 指针写入拒绝、字段与 `memblock` 操作数绑定元数据、`#lib` `static var` 缺初始化器、`memcopy_unsafe` 常量负区间静态检查等），其中字段/memblock 操作数元数据与 `let` 下标两项在 VM 与 AOT 上的可观察行为不一致。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
+上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。审计报告 §5 复核的 9 项既有未关闭差异（`既有-1`～`既有-9`）**已全部闭合**：`既有-1` 导入限定名成员作 RHS 操作数（`87b988f`）、`既有-2` `Self.<名>`／导入限定名取址（`0093b58`）、`既有-4` 只读判据改为所指绑定、常量空指针归运行期（`0851a37`），其余 6 项分别由 B-6／B-8／B-9／B-17／B-20／A-3 闭合（映射与证据见符合性整改进度台账 §5）。本轮同时记录 4 项**新发现**的既有缺陷为观察项（限定名成员可见性未校验、`Self.` 限定名整体读取 struct 常量、AOT 常量 `memblock` 的 `.count` 作赋值 RHS、限定名整绑定赋值目标），尚未修复。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
 
 ---
 

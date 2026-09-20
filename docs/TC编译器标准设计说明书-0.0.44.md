@@ -222,6 +222,9 @@
 | 顶层行（`#program`/`#lib` 指令行与其顶层 import/类型/声明/`static`/`func`/顶层语句）缩进级别必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | §2.2、[语言标准 附录 A.2] | **已同步**（`tc_parse_module_body`／`tc_parse_module_header`；语料 `toplevel_indent_*.tc`） |
 | `static var` 初始化器可引用更早 `static var`；准备阶段失败报 `TC_RE_*` | §4.3 | **已核实一致**（语料 `static_var_chain.tc`、`errors/runtime/static_var_init_div_zero.tc`） |
 | 限定标识符 `Self.<名>` / `<模块名>.<名>` 可作 `operand`（附录 A `operand` 产生式、[语言标准 §6.1.2]） | §6.7、[语言标准 §6.1.2] | **已同步**（`tc_parser.c` + `tc_func_check.c`；语料 `self_qual_operand.tc`） |
+| `<模块名>.<成员>` 作普通 RHS 操作数的**整体读取**（标量与 struct；含 `let` 常量上下文）；限定前缀须确为该成员所属模块 | §3.2、§6.7、[语言标准 §4.3、§5.2.1、§6.1.2] | **已同步**（既有-1）：`tc_struct_check_field_access` 按无字段绑定定型，Executor／const-eval／AOT 三端按绑定读取；语料 `import_member_operand.tc`／`import_member_struct.tc`，负例 `import_member_{bad_qual,foreign_member}.tc` |
+| `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法（限可写 `static var`） | §3.2、§6.7、[语言标准 §6.8.4] | **已同步**（既有-2）：`tc_parse_ptr_address_rhs` 复用绑定名解析；语料 `import_addr_self.tc`／`import_addr_qual.tc` |
+| `ptr_store`／`memcopy_unsafe` 只读判据为**所指外层绑定**（指针绑定自身为 `let` 不构成只读）；常量 `nullptr` 指针的写入归运行期 `TC_RE_NULL_POINTER_DEREFERENCE` | §3.2、§6.7、§11.4.6、[语言标准 §6.8.3、§3.10.2] | **已同步**（既有-4）：`tc_ptr_check_store` 只查 `ptr_target_readonly`，`CONST_REF` 分支只继承来源指针标记；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（运行时）、`ptr_store_readonly_copy`（静态传播） |
 
 ---
 
