@@ -1,0 +1,9 @@
+#program
+; §3.9.2 / §3.10.1：字段 ptr<float32> 不得接受 ptr<int32>（所指类型须同型）
+struct P then
+    var p: ptr<float32>
+end
+var a: int32 = 1
+var pi: ptr<int32> = ptr_address(int32, a)
+var v: P = P(p: pi)
+writeln(int32, 1)

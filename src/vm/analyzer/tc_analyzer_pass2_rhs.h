@@ -41,6 +41,15 @@ int tc_check_integer_operand(TcOperand *operand, const TcSymbolTable *visible,
                              const struct TcStructTable *struct_table, TcInitHistory *hist,
                              size_t stmt_index, int line, TcDiagnostic *diag,
                              TcWarningList *warnings, const char *self_name);
+/**
+ * 严格同型的 operand 检查：见 tc_analyzer_pass2_rhs.c（期望 ptr/memblock/struct 时
+ * 要求完整同型，而非仅比较 tag）。
+ */
+int tc_check_operand_strict(TcOperand *operand, const TcType *expected,
+                            const TcSymbolTable *visible, const TcSymbolTable *global,
+                            const struct TcStructTable *struct_table, TcInitHistory *hist,
+                            size_t stmt_index, int line, TcDiagnostic *diag,
+                            TcWarningList *warnings, const char *self_name);
 int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
                  const TcSymbolTable *global, const struct TcStructTable *struct_table,
                  TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,

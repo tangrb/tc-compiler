@@ -2640,6 +2640,20 @@ run_expect_check_fail "$ROOT/tests/errors/static/uninit_struct_ctor_field.tc" \
     "use of uninitialized variable" "UninitializedVariable"
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_ptr_store_value.tc" \
     "use of uninitialized variable" "UninitializedVariable"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_struct_type_mismatch.tc" \
+    "operand type does not match operation type" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_pointee_type_mismatch.tc" \
+    "operand type does not match operation type" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_memblock_count_mismatch.tc" \
+    "operand type does not match operation type" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_store_element_type_mismatch.tc" \
+    "operand type does not match operation type" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_pointee_type_mismatch.tc" \
+    "operand type does not match operation type" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/cast_struct_value.tc" \
+    "memblock or struct value cannot be cast" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_struct_value.tc" \
+    "memblock or struct value cannot participate in bitcast" "TypeMismatch"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

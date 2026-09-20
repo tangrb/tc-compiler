@@ -1,0 +1,8 @@
+#program
+; §3.8.4：字段 memblock<int32, 4> 不得接受 memblock<int32, 2>（N 须一致）
+struct M then
+    var m: memblock<int32, 4>
+end
+var mb2: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var v: M = M(m: mb2)
+writeln(int32, 1)

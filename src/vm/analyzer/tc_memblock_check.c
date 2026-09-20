@@ -466,9 +466,10 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                                         stmt->line, diag) != 0) {
         return -1;
     }
-    return tc_check_operand((TcOperand *)&stmt->value, stmt->element_type.tag, visible, global,
-                            struct_table, hist, stmt_index, stmt->line, diag, warnings, NULL,
-                            TC_CE_TYPE_MISMATCH);
+    /* §6.7.2.2：value 类型须与 T 严格一致（ptr/memblock/struct 比完整类型，不只比 tag） */
+    return tc_check_operand_strict((TcOperand *)&stmt->value, &stmt->element_type, visible,
+                                   global, struct_table, hist, stmt_index, stmt->line, diag,
+                                   warnings, NULL);
 }
 
 /**

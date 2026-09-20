@@ -1,0 +1,8 @@
+#program
+; §6.6.6：memblock / struct 值不参与 bitcast → TYPE_MISMATCH（不得报 BitcastWidthError）
+struct S then
+    var x: int32
+end
+var s: S = S(x: 7)
+var v: int64 = bitcast(int64, s)
+writeln(int64, v)

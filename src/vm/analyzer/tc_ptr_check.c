@@ -495,9 +495,10 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
         }
         return -1;
     }
-    if (tc_check_operand((TcOperand *)&stmt->value, stmt->pointee_type.tag, visible, global,
-                         struct_table, hist, stmt_index, stmt->line, diag, warnings, NULL,
-                         TC_CE_TYPE_MISMATCH) != 0) {
+    /* §6.8.3：value 类型须与所指类型 T 严格一致（ptr/memblock/struct 比完整类型） */
+    if (tc_check_operand_strict((TcOperand *)&stmt->value, &stmt->pointee_type, visible, global,
+                                struct_table, hist, stmt_index, stmt->line, diag, warnings,
+                                NULL) != 0) {
         if (ptr_ty.params.ptr_type.pointee) {
             tc_type_free(ptr_ty.params.ptr_type.pointee);
                 free(ptr_ty.params.ptr_type.pointee);

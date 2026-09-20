@@ -5,6 +5,7 @@
  * ptr<本结构体> 以 pending_name 暂存）→ 解析为 struct_id 并累加 width_bits →
  * 再解析程序中其它声明上的结构体名。
  */
+#include "tc_analyzer_pass2_rhs.h"
 #include "tc_struct_check.h"
 
 #include <stdio.h>
@@ -1360,9 +1361,9 @@ int tc_struct_check_constructor(const TcRhs *rhs, const TcType *expected,
                                   self_name) != 0) {
                 return -1;
             }
-        } else if (tc_check_operand((TcOperand *)&rhs->u.struct_ctor.fields[i].value_op,
-                                    field_def->type.tag, visible, global, table, hist, stmt_index,
-                                    line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
+        } else if (tc_check_operand_strict((TcOperand *)&rhs->u.struct_ctor.fields[i].value_op,
+                                           &field_def->type, visible, global, table, hist,
+                                           stmt_index, line, diag, warnings, self_name) != 0) {
             return -1;
         }
     }

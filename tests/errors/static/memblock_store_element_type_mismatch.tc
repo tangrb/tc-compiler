@@ -1,0 +1,13 @@
+#program
+; §6.7.2.2：memblock_store 的 value 类型须与元素类型 T 严格一致
+struct A then
+    var x: int32
+end
+struct B then
+    var y: int32
+end
+var a0: A = A(x: 0)
+var m: memblock<A, 2> = memblock(A, count: 2, a0, a0)
+var b: B = B(y: 7)
+memblock_store(A, m, 0, b)
+writeln(int32, 1)

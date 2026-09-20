@@ -1,0 +1,8 @@
+#program
+; §6.6.6：memblock / struct 值不参与 cast → TC_CE_TYPE_MISMATCH
+struct S then
+    var x: int32
+end
+var s: S = S(x: 7)
+var v: int32 = cast(int32, s)
+writeln(int32, v)

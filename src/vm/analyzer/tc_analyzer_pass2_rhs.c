@@ -314,6 +314,50 @@ int tc_check_integer_operand(TcOperand *operand, const TcSymbolTable *visible,
     return 0;
 }
 
+/**
+ * 严格同型的 operand 检查（语言标准 §3.9.2 / §6.7.2.2 / §6.8.3）：
+ * 先按 expected->tag 做基础检查；当期望类型为 ptr / memblock / struct 时，再要求
+ * 操作数类型与 expected **完整同型**——ptr 递归比较所指类型、struct 比较 struct_id、
+ * memblock 元素同型且 `N` 相同。只比 tag 会把 `ptr<A>` 当 `ptr<B>`、
+ * `memblock<T,2>` 当 `memblock<T,4>`、`A` 当 `B`。
+ */
+int tc_check_operand_strict(TcOperand *operand, const TcType *expected,
+                            const TcSymbolTable *visible, const TcSymbolTable *global,
+                            const struct TcStructTable *struct_table, TcInitHistory *hist,
+                            size_t stmt_index, int line, TcDiagnostic *diag,
+                            TcWarningList *warnings, const char *self_name) {
+    const TcType *actual = NULL;
+
+    if (!expected) {
+        return -1;
+    }
+    if (tc_check_operand(operand, expected->tag, visible, global, struct_table, hist, stmt_index,
+                         line, diag, warnings, self_name, TC_CE_TYPE_MISMATCH) != 0) {
+        return -1;
+    }
+    if (expected->tag != TC_PTR && expected->tag != TC_MEMBLOCK && expected->tag != TC_STRUCT) {
+        return 0;
+    }
+    if (operand->kind == TC_OPERAND_LIT) {
+        /* 字面量：ptr 上下文只可能是 nullptr，已由 tc_check_operand 校验 */
+        return 0;
+    }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        actual = operand->u.field_read.resolved.field_type;
+    } else if (operand->binding.resolved) {
+        actual = operand->binding.type;
+    }
+    if (!actual) {
+        return 0;
+    }
+    if (!tc_type_equals(actual, expected) || tc_type_memblock_count_mismatch(actual, expected)) {
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                          "operand type does not match operation type");
+        return -1;
+    }
+    return 0;
+}
+
 int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
                         const TcSymbolTable *global, const TcStructTable *struct_table,
                         TcInitHistory *hist, size_t stmt_index,
@@ -675,6 +719,15 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         }
         /*
+         * §6.6.6：memblock / struct 值不参与 bitcast（类型类别判定先于位宽判定，
+         * 故不报 TC_CE_BITCAST_WIDTH）。
+         */
+        if (source_tag == TC_STRUCT || source_tag == TC_MEMBLOCK) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "memblock or struct value cannot participate in bitcast");
+            return -1;
+        }
+        /*
          * 语言标准 §6.6.6 / §3.10.9：指针仅可与整数或指针等宽互转，
          * 不得与浮点互转。类型类别判定先于位宽判定（编译器标准 §1.3），
          * 故 bitcast(float32, ptr_val) 亦报本码而非 TC_CE_BITCAST_WIDTH。
@@ -818,6 +871,12 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         }
 
+        /* §6.6.6：memblock / struct 值不参与 cast（须先经字段/元素读取取出标量） */
+        if (source_tag == TC_STRUCT || source_tag == TC_MEMBLOCK) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "memblock or struct value cannot be cast");
+            return -1;
+        }
         /*
          * ptr<U> → ptr<T>：指针值的**重标记**。语言标准 §3.7、§3.10.5、
          * §3.10.9：所有指针值恒等宽，故不按所指类型宽度设限

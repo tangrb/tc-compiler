@@ -1,0 +1,7 @@
+#program
+; §6.8.3：ptr_store 的 value 类型须与所指类型 T 严格一致
+var a: int32 = 1
+var pi: ptr<int32> = ptr_address(int32, a)
+var ppf: ptr<ptr<float32>> = cast(ptr<ptr<float32>>, pi)
+ptr_store(ptr<float32>, ppf, pi)
+writeln(int32, 1)

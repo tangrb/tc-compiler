@@ -1,0 +1,14 @@
+#program
+; §3.9.2：构造器实参操作数类型须与字段声明类型严格相同（结构体比 struct_id）
+struct A then
+    var x: int32
+end
+struct B then
+    var y: int32
+end
+struct C then
+    var a: A
+end
+var b: B = B(y: 7)
+var c: C = C(a: b)
+writeln(int32, 1)
