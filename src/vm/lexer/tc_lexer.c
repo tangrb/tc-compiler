@@ -158,12 +158,15 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
             (*p)++;
             continue;
         }
-        prev_underscore = 0;
         {
             int digit = tc_digit_value(**p, base);
+
             if (digit < 0 || (base == 8 && digit > 7) || (base == 2 && digit > 1)) {
                 break;
             }
+            /* B-29：只有真正消费了一个数字才清除「前一位是下划线」——
+             * 否则 `1_u` / `0x1F_U` 这类「下划线收尾」的字面量会漏检（§2.3.3）。 */
+            prev_underscore = 0;
             has_digit = 1;
             /* value = value * base + digit，带溢出检测 */
             {

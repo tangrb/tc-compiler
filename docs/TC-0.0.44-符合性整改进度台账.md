@@ -135,7 +135,7 @@
 | B-26 | 浮点非规格化被拒（过度拒绝） | ☐ | |
 | B-27 | 格式说明符缓冲过窄 | ☐ | |
 | B-28 | 类型嵌套解析崩溃 | ☑ | 见文末提交记录 |
-| B-29 | 数字分隔符规则被绕过 | ☐ | |
+| B-29 | 数字分隔符规则被绕过 | ☑ | 见文末提交记录 |
 | B-30 | 尾随逗号（4 处） | ☐ | |
 | B-31 | 缺失逗号（3 处） | ☐ | |
 | B-32 | 嵌套构造器 | ☐ | |
@@ -232,6 +232,7 @@
 | B-26 | `tc_lexer.c` 浮点字面量：①`strtod` 的 `ERANGE` 不再一律判失败，仅在「舍入为零（`value == 0.0`）」或「上溢为无穷（`isinf`）」时报 `TC_CE_LITERAL_OUT_OF_RANGE`（§2.4.1）；②`float32_suffix` 的舍入判据由 `< 2^-149` 改为「舍入到零的分界」`< 2^-150`。新增 `tests/valid/float_denormal_literals.tc`（float64 5e-324/1e-308、float32 1e-45f；VM stdout + check_ok、AOT diff）与 `tests/errors/static/float_rounds_to_zero.tc`（float32 1e-46f → LiteralOutOfRange）；test-map 回填 1074 VM / 480 AOT | 审计表五项全部符合：`float64 = 1e-308`、`5e-324`、`2.3e-308` 与 `float32 = 1e-45f` 由拒绝变为接受（VM/AOT 输出一致：`4.94066e-324` / `1e-308` / `1.4013e-45`）；`float32 = 1e-46f`（舍入为零）与 `float64 = 1e400`/`1e-400` 仍拒绝；全量三层与 5 项门禁通过 |
 | B-27 | `tc_lexer.c` 格式说明符词法缓冲由 32 改为 64 字节；标志扫描按 §10.5「连续 `0` 合并」规则折叠连续的 `0`（只保留一个），使 `%` + 大量 `0` + 宽度这一合法形态不再触发词法上限。原语料 `format_specifier_too_long.tc` 更名 `format_width_out_of_range.tc` 并改断言为 `format width or precision out of range` + `FormatSpecifierError`（宽度超出 §10.5 范围本属 SEM 专用码，位数不再被词法截断）；VM/AOT 注册串同步。新增 `tests/valid/format_flag_zero_merge.tc`（`%` + 40 个 `0` + `8d`，等价 `%08d`；VM stdout+check_ok、AOT diff）；test-map 回填 1076 VM / 481 AOT | 审计复现 `%` + 40 `0` + `8d` 由 `SyntaxError: format specifier too long` 变为接受并输出 `00000005`（两后端一致）；`%` + 40 `-` + `8d` 报 `FormatSpecifierError: duplicate format flag`（保留 B-3 的 SEM 码，不再被词法上限遮蔽）；30 位宽度报 `FormatSpecifierError: format width or precision out of range`；全量三层与 5 项门禁通过 |
 | B-28 | `tc_parser_type.c`：`tc_parse_type_syntax` 拆出带深度参数的 `tc_parse_type_depth`（公开入口以 depth=0 转发），`ptr<…>` 与 `memblock<…>` 两处递归前检查 `depth >= TC_PARSER_MAX_DEPTH`（256，与 RHS 解析同一上限），超限报 `TC_CE_SYNTAX: type nesting too deep`。新增 `tests/errors/static/type_nesting_too_deep.tc`（300 层 `ptr<…>`，VM check_fail + SyntaxError）；test-map 回填 1077 VM | 审计复现 `ptr<`×50000 与 `memblock<`×30000 由 SIGSEGV（rc=139）变为 `SyntaxError: type nesting too deep`；100 层 `ptr<…>` 仍正常接受；全量三层与 5 项门禁通过 |
+| B-29 | `tc_lexer.c` `tc_parse_radix_digits`：`prev_underscore = 0` 移到「确认当前字符是合法数字」之后——原实现在数字判定前就清除该标志，使下划线后跟非数字（`u`/`U` 后缀或行尾）不被识别为「字面量尾部下划线」。新增 `literal_trailing_underscore.tc`（`1_u`）与 `literal_trailing_underscore_hex.tc`（`0x1F_U`），VM check_fail + SyntaxError；test-map 回填 1079 VM | 审计五例：`1_u`、`1_`、`0x1F_U`、`0b1_u`、`0o7_u` 由 ACCEPT 变为 `SyntaxError: invalid integer literal`；合法分隔符 `1_000` 仍接受；连续下划线 `1__0` 仍拒绝；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -292,7 +293,8 @@
 | 39 | 阶段 2-B25 goto 标签判定次序 | `af362e4 fix(0.0.44-B25): prefer jumping into a child block over sibling mismatch` |
 | 40 | 阶段 2-B26 非规格化浮点字面量 | `39ab503 fix(0.0.44-B26): accept representable denormal float literals` |
 | 41 | 阶段 2-B27 格式说明符长度上限 | `febd46f fix(0.0.44-B27): stop rejecting long legal format specs` |
-| 42 | 阶段 2-B28 类型递归深度上限 | 本提交 `fix(0.0.44-B28): cap type-expression recursion depth` |
+| 42 | 阶段 2-B28 类型递归深度上限 | `6ab3088 fix(0.0.44-B28): cap type-expression recursion depth` |
+| 43 | 阶段 2-B29 数字分隔符规则 | 本提交 `fix(0.0.44-B29): enforce digit-separator placement rules` |
 
 ---
 
