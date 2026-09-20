@@ -749,6 +749,8 @@ run_check_fail "$ROOT/tests/errors/static/diag_priority_ct_over_derived_program.
 run_check_fail "$ROOT/tests/errors/static/diag_priority_forward_over_ct.tc" "constant value is not available by source order"
 run_check_fail "$ROOT/tests/errors/static/diag_priority_format_after_operand.tc" \
     "operand type does not match operation type"
+run_check_fail "$ROOT/tests/errors/static/diag_priority_recursion_before_name.tc" "recursive function call"
+run_check_fail "$ROOT/tests/errors/static/diag_priority_unreachable_before_name.tc" "unreachable statement"
 run_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_check_fail "$ROOT/tests/errors/static/const_div_zero.tc" "constant division by zero"
 run_check_fail "$ROOT/tests/errors/static/compare_type_mismatch.tc" "literal type does not match context"

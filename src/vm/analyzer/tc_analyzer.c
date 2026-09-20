@@ -105,6 +105,129 @@ int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
 
 
 /* ------------------------------------------------------------------ */
+/*  B-2：SEM 类诊断的源序选择                                           */
+/* ------------------------------------------------------------------ */
+
+/*
+ * [语言标准 §11] 第 1、2 条：先按诊断类阶段（LT → SYN → SEM → CT）取前者；
+ * 同一诊断类阶段内按源位置（行升序，同行列升序）取首个。编译器标准 §1.3 把
+ * 第 4–8、11、12 阶段同归 SEM，故这五个内部阶段之间必须按源序比较。
+ *
+ * 本实现的 SEM 检查按内部阶段 fail-fast：Pass1 → Pass2（6a–8）→ CFG（11）
+ * → 调用图（12）。为满足源序要求，较早阶段失败后仍尝试运行更晚的 SEM 阶段：
+ * 若其首个诊断的源位置更靠前，则改报它。
+ *
+ * 安全性依据：CFG 读集按符号槽位展开（tc_cfg.c 不依赖类型解析结果），调用图
+ * 只需函数签名（4d 已收集）与已记录的调用边；因此在 Pass2 失败后运行这两个
+ * 阶段不会解引用未解析类型。
+ *
+ * 作用域：仅对入口编译单元比较源序；依赖库文件的位置序不在标准定义范围内。
+ */
+
+/* 候选诊断是否比当前保留诊断更靠前（行升序；同行须双方列号已知才比较）。 */
+static int tc_sem_diag_earlier(int cand_line, int cand_column, int keep_line, int keep_column) {
+    if (cand_line <= 0) {
+        return 0;
+    }
+    if (cand_line != keep_line) {
+        return cand_line < keep_line;
+    }
+    if (cand_column < 0 || keep_column < 0) {
+        return 0;
+    }
+    return cand_column < keep_column;
+}
+
+/* 用 tmp 的（更早）诊断替换 diag；保留原 source 绑定以便片段与后续诊断。 */
+static void tc_sem_take_diag(TcDiagnostic *diag, const TcDiagnostic *cand, const char *file,
+                             const char *source) {
+    char *msg = cand->message ? strdup(cand->message) : NULL;
+
+    tc_diagnostic_clear(diag);
+    if (file || source) {
+        if (tc_diagnostic_set_source(diag, file, source) != 0) {
+            return;
+        }
+    }
+    if (msg) {
+        tc_diagnostic_set(diag, cand->kind, cand->line, cand->column, msg);
+        free(msg);
+    }
+}
+
+/*
+ * 在较早 SEM 阶段失败后尝试更晚的 SEM 阶段（try_cfg=1 时含阶段 11，否则只跑
+ * 阶段 12）。返回 1 表示已替换为更早的诊断，0 表示保持原诊断不变。
+ */
+static int tc_sem_salvage(TcTypedProgram *out, const TcSymbolTable *symbols,
+                          TcFuncCheckEnv *func_env, TcDiagnostic *diag, int try_cfg) {
+    TcDiagnostic tmp;
+    const char *file_ptr = NULL;
+    const char *source_ptr = NULL;
+    char *file = NULL;
+    char *source = NULL;
+    int replaced = 0;
+
+    if (!tc_diagnostic_is_set(diag)) {
+        return 0;
+    }
+    tc_diagnostic_get_source(diag, &file_ptr, &source_ptr);
+    if (file_ptr) {
+        file = strdup(file_ptr);
+    }
+    if (source_ptr) {
+        source = strdup(source_ptr);
+    }
+
+    tc_diagnostic_init(&tmp);
+    if (file || source) {
+        if (tc_diagnostic_set_source(&tmp, file, source) != 0) {
+            goto done;
+        }
+    }
+
+    /* 阶段 12：调用图（签名已在 4d 收集；调用边为 Pass2 已处理前缀） */
+    if (tc_callgraph_check(func_env, &tmp) != 0 && tc_diagnostic_is_set(&tmp)) {
+        if (tc_sem_diag_earlier(tmp.line, tmp.column, diag->line, diag->column)) {
+            tc_sem_take_diag(diag, &tmp, file, source);
+            replaced = 1;
+            goto done;
+        }
+    }
+
+    /* 阶段 11：CFG 构建 + 确定初始化（入口单元） */
+    if (try_cfg) {
+        TcCfgSet cfg_set;
+
+        tc_diagnostic_clear(&tmp);
+        if (file || source) {
+            if (tc_diagnostic_set_source(&tmp, file, source) != 0) {
+                goto done;
+            }
+        }
+        tc_cfg_set_init(&cfg_set);
+        if (tc_cfg_build_all(&out->program, symbols, &cfg_set, &tmp) != 0 ||
+            tc_analyze_definite_init_all(
+                &cfg_set, &out->program, tc_symbol_table_runtime_slot_count(symbols),
+                &tmp) != 0) {
+            if (tc_diagnostic_is_set(&tmp) &&
+                tc_sem_diag_earlier(tmp.line, tmp.column, diag->line, diag->column)) {
+                tc_sem_take_diag(diag, &tmp, file, source);
+                replaced = 1;
+            }
+        }
+        tc_cfg_set_free(&cfg_set);
+    }
+
+done:
+    tc_diagnostic_clear(&tmp);
+    free(file);
+    free(source);
+    return replaced;
+}
+
+
+/* ------------------------------------------------------------------ */
 /*  tc_analyze_ex — 文件模式分析入口                                      */
 /* ------------------------------------------------------------------ */
 
@@ -284,6 +407,8 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
     /* ==== 阶段 6 入口：类型与语义分析（6a→6b→6c→6d→6e） ==== */
     if (tc_pass2_type_check(&out->program, &out->symbols, &struct_table, &func_env, &out->warnings,
                             diag) != 0) {
+        /* B-2：Pass2（6a–8）与 CFG（11）、调用图（12）同属 SEM，按源序选首个 */
+        (void)tc_sem_salvage(out, &out->symbols, &func_env, diag, 1);
         goto fail;
     }
     {
@@ -307,6 +432,8 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
         tc_analyze_definite_init_all(out->cfg_set, &out->program,
                                      tc_symbol_table_runtime_slot_count(&out->symbols),
                                      diag) != 0) {
+        /* B-2：阶段 11 属 SEM；若阶段 12（调用图）的诊断源位置更靠前，改报它 */
+        (void)tc_sem_salvage(out, &out->symbols, &func_env, diag, 0);
         goto fail;
     }
     out->cfg = &out->cfg_set->toplevel;

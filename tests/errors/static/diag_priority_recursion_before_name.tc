@@ -1,0 +1,11 @@
+#lib
+; 期望：recursive function call（第 3 行）—— 调用图（阶段 12）与名称解析（阶段 6）
+; 同属 SEM（[语言标准 §11]），必须按源序取更早者，而非按内部阶段编号
+public func f() void then
+    funcall(Self.f)
+    return
+end
+public func g() void then
+    writeln(int32, nosuch)
+    return
+end

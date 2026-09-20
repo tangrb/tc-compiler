@@ -2078,6 +2078,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_ct_over_derived_p
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_forward_over_ct.tc" "constant value is not available by source order"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_format_after_operand.tc" \
     "operand type does not match operation type"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_recursion_before_name.tc" \
+    "recursive function call" "RecursionError"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_unreachable_before_name.tc" \
+    "unreachable statement" "UnreachableStatement"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_undefined.tc" "label 'nonexistent' not found"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_inside_loop.tc" \
     "goto is not allowed inside while"

@@ -1,0 +1,11 @@
+#lib
+; 期望：unreachable statement（第 5 行）—— CFG 可达性（阶段 11）与名称解析（阶段 6）
+; 同属 SEM（[语言标准 §11]），必须按源序取更早者，而非按内部阶段编号
+public func f() void then
+    return
+    writeln(int32, 1)
+end
+public func g() void then
+    writeln(int32, nosuch)
+    return
+end

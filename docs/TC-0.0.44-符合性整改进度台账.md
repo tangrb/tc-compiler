@@ -108,7 +108,7 @@
 | 条目 | 主题 | 状态 | 提交 |
 | ---- | ---- | ---- | ---- |
 | B-1 | `funcall` 位置码/结果码互换 | ☑ | 见文末提交记录 |
-| B-2 | SEM 首个诊断定序（源序） | ☐ | |
+| B-2 | SEM 首个诊断定序（源序） | ☑ | 见文末提交记录 |
 | B-3 | 重复格式标志错报 `SYNTAX` | ☐ | |
 | B-4 | `let` RHS 为 `var`/形参时错报 | ☐ | |
 | B-5 | `memblock` `N`/`count:` 来源校验过宽＋错码 | ☐ | |
@@ -194,7 +194,8 @@
 
 | 条目 | 改动 | 验证 |
 | ---- | ---- | ---- |
-| B-1 | `tc_func_check.c`：`position == 1 && is_void`（void 作值）由 `TC_CE_FUNCALL_POSITION` 改为 `TC_CE_FUNCALL_RESULT_TYPE`；非 void 返回类型与接收类型不符由 `TC_CE_FUNCALL_RESULT_TYPE` 改为 `TC_CE_TYPE_MISMATCH`（[语言标准 §8.2.3]、附录 B.4/B.12）。`funcall_result_type.tc` 注释更正；`scripts/vm/run_tests.sh` 新增 `run_expect_check_fail_code` 辅助并锁定三例打印名（Position/ResultType/TypeMismatch） | `tc-vm -e -c` 三例实测；`--filter funcall` 23/23；全量 VM+AOT+Unit 三层通过 |
+| B-1 | `tc_func_check.c`：`position == 1 && is_void`（void 作值）由 `TC_CE_FUNCALL_POSITION` 改为 `TC_CE_FUNCALL_RESULT_TYPE`；非 void 返回类型与接收类型不符由 `TC_CE_FUNCALL_RESULT_TYPE` 改为 `TC_CE_TYPE_MISMATCH`（[语言标准 §8.2.3]、附录 B.4/B.12）。`funcall_result_type.tc` 注释更正；`run_expect_check_fail` 增可选错误码名断言（不新增注册行） | `tc-vm -e -c` 三例实测；`--filter funcall` 20/20；全量三层通过 |
+| B-2 | `tc_analyzer.c` 新增 `tc_sem_salvage`/`tc_sem_diag_earlier`：Pass2（6a–8）失败后仍以**独立临时诊断**尝试阶段 12 调用图与阶段 11 CFG/确定初始化；阶段 11 失败后再补阶段 12。仅当后阶段诊断 (行,列) 更靠前时替换（[语言标准 §11] 第 2 条；依编译器标准 §1.3 第 4–8/11/12 阶段同属 SEM）。CFG 读集按槽位展开、调用图只需签名，故 salvage 安全。新增语料 `diag_priority_{recursion,unreachable}_before_name.tc`（VM 断言消息＋打印名，AOT 断言消息）；`test-map.md` 规模回填 1004 VM / 466 AOT | 两复现实测（Recursion 第 3 行、Unreachable 第 4 行胜出）；`--filter diag_priority` 21/21；全量三层通过 |
 
 ---
 
@@ -224,7 +225,8 @@
 | 5 | 阶段 1-⑤ libtc 设计说明书 C-19 ＋ P2 | `f2b7328 docs(0.0.44-libtc): scope the memory entry, fix contract contradictions (C-19 + P2)` |
 | 6 | 阶段 1-⑥ VM 命令行参考 C-15～C-18 ＋ P2 | `a570863 docs(0.0.44-cli): fix search-path/e/error-table and illegal examples (C-15..C-18 + P2)` |
 | 7 | 阶段 1-⑦ 跨文档一致性 C-22～C-24 | `be56a6a docs(0.0.44-cross): unify sync-status notes and cross-doc definitions (C-22..C-24)` |
-| 8 | 阶段 2-B1 `funcall` 位置码/结果码 | 本提交 `fix(0.0.44-B1): correct funcall position/result type diagnostics` |
+| 8 | 阶段 2-B1 `funcall` 位置码/结果码 | `096438b fix(0.0.44-B1): correct funcall position/result type diagnostics` |
+| 9 | 阶段 2-B2 SEM 首个诊断按源序 | 本提交 `fix(0.0.44-B2): order SEM diagnostics by source position` |
 
 ---
 
