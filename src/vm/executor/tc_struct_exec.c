@@ -11,6 +11,7 @@
 #include "tc_struct_exec.h"
 
 #include "tc_memblock_exec.h"
+#include "tc_semantics.h"
 #include "tc_symbol.h"
 
 #include <stdlib.h>
@@ -183,6 +184,18 @@ static int tc_exec_write_field_bytes(uint8_t *base, size_t offset, const TcType 
         tc_st_store_bits(dst, nbytes, bits);
     }
     return 0;
+}
+
+/*
+ * 结构体基存储为空句柄时的字段取值。
+ *
+ * 结构体绑定的运行期槽位存放堆块句柄；经指针别名写入（`ptr_store` /
+ * `memcopy_unsafe`，§3.10 允许）可以把该句柄清零。AOT 侧对空基址的读
+ * （tc_aot_struct_load_bits / tc_aot_struct_extract）一律给出 0 位，此处按字段类型
+ * 取 0 位模式与之对齐；不得把这条用户可触发的路径表现为实现内部错误。
+ */
+static void tc_exec_null_field_value(const TcType *field_type, TcValue *out) {
+    *out = tc_value_make(field_type->tag, 0);
 }
 
 static int tc_exec_read_field_bytes(const uint8_t *base, size_t offset, const TcType *field_type,
@@ -358,12 +371,12 @@ int tc_exec_eval_field_access(const TcResolvedFieldAccess *access, TcExecuteCtx 
         return -1;
     }
     data = tc_struct_data(&base);
-    if (!data) {
-        tc_exec_set_internal_error(diag, line, "internal error: invalid struct field read");
-        return -1;
-    }
     offset = access->offsets[access->field_count - 1];
     field_type = access->field_type;
+    if (!data) {
+        tc_exec_null_field_value(field_type, out);
+        return 0;
+    }
     return tc_exec_read_field_bytes((const uint8_t *)data, offset, field_type, table, ctx, out,
                                     diag, line);
 }
@@ -394,10 +407,14 @@ int tc_exec_struct_field_read(const TcRhs *rhs, TcTypeTag expected_type, TcExecu
                                         line) != 0) {
             return -1;
         }
-        data = tc_struct_data(&base);
-        if (!data || !field_type) {
+        if (!field_type) {
             tc_exec_set_internal_error(diag, line, "internal error: invalid struct field read");
             return -1;
+        }
+        data = tc_struct_data(&base);
+        if (!data) {
+            tc_exec_null_field_value(field_type, out);
+            return 0;
         }
         return tc_exec_read_field_bytes((const uint8_t *)data, offset, field_type, table, ctx, out,
                                         diag, line);
@@ -438,13 +455,17 @@ int tc_exec_struct_field_assign(const TcFieldAssign *assign, TcExecuteCtx *ctx,
                                     &field_type, diag, assign->line) != 0) {
         return -1;
     }
-    data = tc_struct_data(&base);
-    if (!data || !field_type) {
+    if (!field_type) {
         tc_exec_set_internal_error(diag, assign->line, "internal error: invalid field assign");
         return -1;
     }
     if (tc_eval_rhs(&assign->rhs, field_type->tag, ctx, &rhs_value, diag, assign->line) != 0) {
         return -1;
+    }
+    data = tc_struct_data(&base);
+    if (!data) {
+        /* 空基址：AOT tc_aot_struct_store_bits 为 no-op，保持一致 */
+        return 0;
     }
     return tc_exec_write_field_bytes((uint8_t *)data, offset, field_type, &rhs_value, table, diag,
                                      assign->line);

@@ -1,0 +1,18 @@
+#program
+; §3.10：指针别名读写同一存储合法。经 `cast(ptr<usize>, ptr_address(S, s))` 把结构体
+; 绑定的堆句柄清零后，字段读取必须给出当前存储值（全 0 位），而非实现内部错误
+; 「invalid struct field read」；AOT 侧对空基址的读同样给出 0 位。
+struct S then
+    var a: int32
+    var b: int32
+end
+var s: S = S(a: 1, b: 2)
+var ps: ptr<S> = ptr_address(S, s)
+var pz: ptr<usize> = cast(ptr<usize>, ps)
+var q: ptr<usize> = cast(ptr<usize>, ps)
+var w: usize = 0u
+ptr_store(usize, pz, 0u)
+w = ptr_load(usize, q)
+writeln(usize, w)
+writeln(int32, s.a)
+writeln(int32, s.b)

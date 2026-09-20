@@ -584,6 +584,7 @@ run_check_ok "$ROOT/tests/valid/static_let_memblock_ctor_ok.tc"
 run_diff_test "$ROOT/tests/valid/memcopy_unsafe_positive_ok.tc"
 run_diff_test "$ROOT/tests/valid/memcopy_unsafe_struct_field_ptr.tc"
 run_diff_test "$ROOT/tests/valid/memblock_copy_let_index.tc"
+run_diff_test "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
 run_diff_test "$ROOT/tests/valid/usize_arith.tc"
 

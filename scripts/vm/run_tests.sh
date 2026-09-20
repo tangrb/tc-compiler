@@ -1081,6 +1081,10 @@ run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_struct_field_ptr.tc" "7
 run_expect_stdout "$ROOT/tests/valid/memblock_copy_let_index.tc" "8
 1
 "
+run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
+0
+0
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
 "
@@ -1254,6 +1258,7 @@ run_expect_check_ok "$ROOT/tests/valid/cond_readonly_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/memblock_unsigned_suffix.tc"
 run_expect_check_ok "$ROOT/tests/valid/ptr_load_bool_normalize.tc"
 run_expect_check_ok "$ROOT/tests/valid/ptr_alias_write_render_type.tc"
+run_expect_check_ok "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc"
 run_expect_check_ok "$ROOT/tests/valid/static_var_chain.tc"
 run_expect_check_ok "$ROOT/tests/valid/cond_bool_rhs_forms.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"
