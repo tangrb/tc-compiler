@@ -111,7 +111,7 @@
 | B-2 | SEM 首个诊断定序（源序） | ☑ | 见文末提交记录 |
 | B-3 | 重复格式标志错报 `SYNTAX` | ☑ | 见文末提交记录 |
 | B-4 | `let` RHS 为 `var`/形参时错报 | ☑ | 见文末提交记录 |
-| B-5 | `memblock` `N`/`count:` 来源校验过宽＋错码 | ☐ | |
+| B-5 | `memblock` `N`/`count:` 来源校验过宽＋错码 | ☑ | 见文末提交记录 |
 | B-6 | 实参个数检查遮蔽重复/未知/顺序 | ☐ | |
 | B-7 | VM 按槽位标签渲染 `write` | ☐ | |
 | B-8 | 结构体字段指针操作数：VM 内部错误 / AOT 空指针 | ☐ | |
@@ -198,6 +198,7 @@
 | B-2 | `tc_analyzer.c` 新增 `tc_sem_salvage`/`tc_sem_diag_earlier`：Pass2（6a–8）失败后仍以**独立临时诊断**尝试阶段 12 调用图与阶段 11 CFG/确定初始化；阶段 11 失败后再补阶段 12。仅当后阶段诊断 (行,列) 更靠前时替换（[语言标准 §11] 第 2 条；依编译器标准 §1.3 第 4–8/11/12 阶段同属 SEM）。CFG 读集按槽位展开、调用图只需签名，故 salvage 安全。新增语料 `diag_priority_{recursion,unreachable}_before_name.tc`（VM 断言消息＋打印名，AOT 断言消息）；`test-map.md` 规模回填 1004 VM / 466 AOT | 两复现实测（Recursion 第 3 行、Unreachable 第 4 行胜出）；`--filter diag_priority` 21/21；全量三层通过 |
 | B-3 | 重复格式标志：`tc_types.h` 的 `TcFormatFullSpec` 增 `flag_repeat`；`tc_types.c` 的 `tc_format_spec_parse` 对重复 `-`/`+`/`#` 与非连续第二段 `0` **不再返回 0**（附录 A `{ format_flag }` 形态合法），只置 `flag_repeat`；`tc_analyze_6e.c` 在 SEM 阶段报 `TC_CE_FORMAT_SPECIFIER`（duplicate format flag）。附带修 AOT 代码生成：`(TcFormatFullSpec){...}` 改**指定初始化器**，避免新增字段触发 `-Wmissing-field-initializers`。新增语料 `format_duplicate_flag.tc`（VM 断言消息＋打印名，AOT 断言消息）与 4 条单元断言；test-map 回填 1005 VM / 467 AOT | `%--d`/`%++d`/`%##x`/`%0-0d` → FormatSpecifierError；`%-+d`/`%08d` 接受；`%8-d` 仍 SYNTAX；`--filter format` 47/47；全量三层通过 |
 | B-4 | `tc_analyzer_pass2.c` 的 `let`（ConstDef）路径在 `tc_type_check_rhs` **之前**增加 §5.2.1 第 3 步预检：RHS 为裸标识符且绑定是 `var`/形参/`static var` → 立即 `TC_CE_CONSTANT_EXPRESSION`，不比较结果类型（`Self.`/限定名仍走 6d 常量来源规则）。新增语料 `let_var_type_mismatch.tc`（声明类型与 var 不同，锁定次序）；test-map 回填 1006 VM / 468 AOT | `let a: int8 = v`（v: int32）→ ConstantExpressionError（原 TypeMismatch）；同类型 var、形参、`var` 初始化/赋值对照均正确；全量三层通过 |
+| B-5 | `tc_memblock_check.c`：`tc_memblock_resolve_usize_name` 只接受 `TC_USIZE`（不再放行 `isize`），类型不合法与数学值 < 1 统一报 `TC_CE_CONSTANT_EXPRESSION`（原分别错报 `TYPE_MISMATCH` / `MEMBLOCK_ELEMENT_COUNT_MISMATCH`）；构造器字面量 `count: 0` 同改为 `CONSTANT_EXPRESSION`（`ELEMENT_COUNT_MISMATCH` 仅保留给「逐值数量 ≠ count」）。新增语料 `memblock_count_source_isize.tc`；`test_type_check` 的 count-zero 期望更正；test-map 回填 1008 VM / 469 AOT | isize/int32/`usize=0` 的 `N` 与 `count:` 全部报 ConstantExpressionError；字面量 0（类型位与 count: 位）同；逐值数量不符仍报 MemblockElementCountMismatch；`--filter memblock` 73/73；全量三层通过 |
 
 ---
 
@@ -230,7 +231,8 @@
 | 8 | 阶段 2-B1 `funcall` 位置码/结果码 | `096438b fix(0.0.44-B1): correct funcall position/result type diagnostics` |
 | 9 | 阶段 2-B2 SEM 首个诊断按源序 | `42c3c0a fix(0.0.44-B2): order SEM diagnostics by source position` |
 | 10 | 阶段 2-B3 重复格式标志归 SEM | `5f1dd2a fix(0.0.44-B3): report duplicate format flags as FORMAT_SPECIFIER` |
-| 11 | 阶段 2-B4 `let` RHS 常量性先于类型 | 本提交 `fix(0.0.44-B4): check let RHS constness before type comparison` |
+| 11 | 阶段 2-B4 `let` RHS 常量性先于类型 | `1af9045 fix(0.0.44-B4): check let RHS constness before type comparison` |
+| 12 | 阶段 2-B5 memblock N/count: 来源与错码 | 本提交 `fix(0.0.44-B5): restrict memblock N/count sources to usize constants` |
 
 ---
 

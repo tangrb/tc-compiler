@@ -1,0 +1,8 @@
+#program
+; 期望：ConstantExpressionError（memblock count must be a usize constant）
+; [语言标准 §3.8.3]：`count:` 的来源必须是类型为 `usize` 的 `let` / `static let`
+; 或整数字面量；`isize`（乃至 `int32`）标识符一律报 TC_CE_CONSTANT_EXPRESSION，
+; 不得放行为「等价 usize」，也不得改报 TYPE_MISMATCH。
+let a: isize = 2
+var mb: memblock<int32, 2> = memblock(int32, count: a, fill: 0)
+writeln(int32, 1)

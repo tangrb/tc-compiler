@@ -114,18 +114,19 @@ static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable 
         return -1;
     }
     tag = tc_type_tag_of(sym->type);
-    if (tag != TC_USIZE && tag != TC_ISIZE) {
-        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+    /*
+     * B-5（[语言标准 §3.8.1]/§3.8.3）：`N` / `count:` 只接受**类型为 `usize`**
+     * 的 `let` / `static let`。类型不合法（`isize` / `int32` / …）与数学值 < 1
+     * 一样，统一报 TC_CE_CONSTANT_EXPRESSION；此前分别错报 TYPE_MISMATCH 与
+     * MEMBLOCK_ELEMENT_COUNT_MISMATCH，且额外放行 `isize`。
+     */
+    if (tag != TC_USIZE) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "memblock count must be a usize constant");
         return -1;
     }
-    if (tag == TC_ISIZE && (int64_t)sym->const_value.bits < 1) {
-        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                          "memblock count must be at least 1");
-        return -1;
-    }
-    if (tag == TC_USIZE && sym->const_value.bits < 1) {
-        tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line, TC_COLUMN_UNKNOWN,
+    if (sym->const_value.bits < 1) {
+        tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
                           "memblock count must be at least 1");
         return -1;
     }
@@ -334,7 +335,9 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
             rhs->u.memblock_ctor.count_name = NULL;
         }
         if (count < 1) {
-            tc_diagnostic_set(diag, TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, line,
+            /* B-5：`count:` 数学值 < 1 属来源不合法 → TC_CE_CONSTANT_EXPRESSION
+             * （ELEMENT_COUNT_MISMATCH 只用于「逐值数量 ≠ count」） */
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line,
                               TC_COLUMN_UNKNOWN, "memblock count must be at least 1");
             return -1;
         }

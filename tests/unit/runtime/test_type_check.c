@@ -139,7 +139,7 @@ static void test_memblock_errors(void) {
                "var b: memblock<int32, 3> = a\n",
                TC_CE_MEMBLOCK_SIZE_MISMATCH, "memblock assign size mismatch");
     expect_err("#program\nvar mb: memblock<int32, 2> = memblock(int32, count: 0, fill: 0)\n",
-               TC_CE_MEMBLOCK_ELEMENT_COUNT_MISMATCH, "memblock count zero");
+               TC_CE_CONSTANT_EXPRESSION, "memblock count zero");
     expect_err("#program\nvar mb: memblock<int32, 0> = memblock(int32, count: 1, fill: 0)\n",
                TC_CE_CONSTANT_EXPRESSION, "type position N=0 rejected");
     expect_err("#program\nvar mb: memblock<int32, 2> = memblock(int32, count: 2, fill: true)\n",

@@ -705,6 +705,8 @@ run_check_fail "$ROOT/tests/errors/static/ptr_load_memblock_size_mismatch.tc" "m
 run_check_fail "$ROOT/tests/errors/static/memblock_negative_count_type.tc" "memblock count must be at least 1"
 run_check_fail "$ROOT/tests/errors/static/memblock_type_count_zero.tc" "memblock count must be at least 1"
 run_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" "memblock count must be at least 1"
+run_check_fail "$ROOT/tests/errors/static/memblock_count_source_isize.tc" \
+    "memblock count must be a usize constant"
 run_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" "memblock count must be at least 1"
 run_check_fail "$ROOT/tests/errors/static/func_body_public_var.tc" "visibility modifier is not allowed inside a function body"
 run_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore.tc" "invalid integer literal"

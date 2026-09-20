@@ -813,6 +813,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_zero.tc" \
     "memblock count must be at least 1"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_var_source.tc" \
     "memblock count must be a compile-time usize constant"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_source_isize.tc" \
+    "memblock count must be a usize constant"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_type_count_zero.tc" \
     "memblock count must be at least 1"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_store_oob.tc" \
@@ -892,11 +894,13 @@ run_expect_check_fail "$ROOT/tests/errors/static/unreachable_after_return.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_fill_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" \
-    "memblock count must be at least 1"
+    "memblock count must be at least 1" "ConstantExpressionError"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_var_source.tc" \
     "memblock count must be a compile-time usize constant"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_source_isize.tc" \
+    "memblock count must be a usize constant" "ConstantExpressionError"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_type_count_zero.tc" \
-    "memblock count must be at least 1"
+    "memblock count must be at least 1" "ConstantExpressionError"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_store_oob.tc" \
     "memblock index out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_scalar_arith.tc" \
