@@ -2410,12 +2410,20 @@ run_expect_fail_msg "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.t
 run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
-run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" \
+    "if condition must be bool" "ConditionTypeError"  # B-61：RHS 类型成立但非 bool
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
-run_expect_check_fail "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
+run_expect_check_fail "$ROOT/tests/errors/static/while_cond_type_arith.tc" \
+    "while condition must be bool" "ConditionTypeError"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
-run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
+run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" \
+    "literal type does not match context" "LiteralTypeError"  # B-61：字面量专用码优先
+# B-61：直接字面量条件 → LITERAL_TYPE；已定型非 bool 变量条件 → CONDITION_TYPE
+run_expect_check_fail "$ROOT/tests/errors/static/if_cond_literal_direct.tc" \
+    "literal type does not match" "LiteralTypeError"
+run_expect_check_fail "$ROOT/tests/errors/static/cond_var_not_bool.tc" \
+    "if condition must be bool" "ConditionTypeError"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
 run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missing end for if statement"

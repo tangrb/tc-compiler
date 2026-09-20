@@ -1853,7 +1853,7 @@ length ≥ 0  ∧  dst_idx ≥ 0  ∧  src_idx ≥ 0
 
 | 约束 | 规则 |
 |------|------|
-| 条件 | 须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边 |
+| 条件 | 须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。**次序**：RHS 自身的类型与字面量检查先于本码（§3.6、§11 第 3 条）——直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（如 `TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 自身的类型检查成立但不是 `bool`（如已定型的 `var x: int32` 或返回 `int32` 的运算调用）时才报 `TC_CE_CONDITION_TYPE`。名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边 |
 | 语法形态 | `then` 位于 `if` 行末；`else` 与 `end` 独立成行、与对应 `if` 对齐；`end` 不得省略，缺失 → `TC_CE_MISSING_END` |
 | 多分支 | 不支持单行 `else if`，须通过嵌套 `if`/`else`/`end` 实现 |
 | 块内容 | 语句序列可为空；受附录 A 限制，不可嵌套 `func` |
@@ -1894,7 +1894,7 @@ length ≥ 0  ∧  dst_idx ≥ 0  ∧  src_idx ≥ 0
 
 | 约束 | 规则 |
 |------|------|
-| 条件 | 须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边 |
+| 条件 | 须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。**次序**：RHS 自身的类型与字面量检查先于本码（§3.6、§11 第 3 条）——直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（如 `TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 自身的类型检查成立但不是 `bool`（如已定型的 `var x: int32` 或返回 `int32` 的运算调用）时才报 `TC_CE_CONDITION_TYPE`。名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边 |
 | 语法形态 | `then` 位于 `while` 行末；`end` 独立成行、与 `while` 对齐，不得省略，缺失 → `TC_CE_MISSING_END` |
 | 循环体 | 可为空；受附录 A 限制，不可嵌套 `func`；`goto`/`label` 禁止出现（§7.2.3） |
 
@@ -2380,7 +2380,7 @@ input_digit  = "0" … "9" ;
 
 1. **阶段优先**：LT（词法检查，含缩进）→ SYN（语法拒绝与结构类语法阶段诊断，§1.3）→ SEM（静态语义拒绝）→ CT（编译期常量求值）。前序阶段出现诊断即终止，不进入后续阶段；运行时错误（RT）仅在对该程序的全部静态诊断均不触发时可达。
 2. **同阶段内按源序位置**：行号升序；同一行内按 Token 出现次序（列序）升序。
-3. **同一位置存在多个候选码时**：专用码优先于通用码——例如 `TC_CE_MISSING_END` 优先于 `TC_CE_SYNTAX`、`TC_CE_COMPARISON_TYPE_MISMATCH` 优先于 `TC_CE_TYPE_MISMATCH`、`TC_CE_MEMBLOCK_SIZE_MISMATCH` 优先于 `TC_CE_TYPE_MISMATCH`、`TC_CE_LITERAL_TYPE` 优先于 `TC_CE_TYPE_MISMATCH`。
+3. **同一位置存在多个候选码时**：专用码优先于通用码——例如 `TC_CE_MISSING_END` 优先于 `TC_CE_SYNTAX`、`TC_CE_COMPARISON_TYPE_MISMATCH` 优先于 `TC_CE_TYPE_MISMATCH`、`TC_CE_MEMBLOCK_SIZE_MISMATCH` 优先于 `TC_CE_TYPE_MISMATCH`、`TC_CE_LITERAL_TYPE` 优先于 `TC_CE_TYPE_MISMATCH`、`TC_CE_LITERAL_TYPE` 优先于 `TC_CE_CONDITION_TYPE`（条件位置的直接字面量）。
 4. **条款内既有的顺序规定优先**：本文在具体条款中已给出的顺序（§6.3.2 浮点异常优先级、§6.4.2 负移位计数先行、§6.8.9 空指针先于区间检查、§8.2.2 实参码、§10.1 格式化检查顺序、§10.3 `read` 类型先于确定初始化）优先于本款 1～3。
 
 该规则使「首个规范诊断及其错误码」（§1.3 可观察行为）在相同输入下**跨实现一致**。
@@ -3415,7 +3415,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | `TC_CE_BREAK_OUTSIDE_LOOP` | SEM | `break` 无 `while` 词法祖先 |
 | `TC_CE_CONTINUE_OUTSIDE_LOOP` | SEM | `continue` 无 `while` 词法祖先 |
 | `TC_CE_MISSING_RETURN` | SEM | 非 `void` 函数存在到函数末尾的可达路径但未经 `return` |
-| `TC_CE_CONDITION_TYPE` | SEM | `if` / `while` 条件的结果类型不是 `bool`（§7.1.1、§7.2.1） |
+| `TC_CE_CONDITION_TYPE` | SEM | `if` / `while` 条件的结果类型不是 `bool`（§7.1.1、§7.2.1）；RHS 自身的字面量/类型专用码先报（§11 第 3 条） |
 | `TC_CE_RETURN_OUTSIDE_FUNCTION` | SEM | `return` 出现在函数体以外（§8.3.1） |
 | `TC_CE_RETURN_FORM` | SEM | 非 `void` 函数未带操作数、或 `void` 函数带了操作数（§8.3.1） |
 | `TC_CE_RETURN_TYPE` | SEM | `return` 操作数类型与函数返回类型不一致（§8.3.1） |

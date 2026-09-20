@@ -1,0 +1,6 @@
+#program
+; B-61：条件 RHS 是**直接字面量**且与条件上下文不符时，报字面量专用码
+; TC_CE_LITERAL_TYPE（§11 第 3 条：专用码优先），而不是 TC_CE_CONDITION_TYPE
+if 1 then
+    writeln(int32, 1)
+end

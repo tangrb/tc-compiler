@@ -1,0 +1,6 @@
+#program
+; B-61：RHS 自身类型成立但不是 bool（已定型变量）→ TC_CE_CONDITION_TYPE
+var x: int32 = 1
+if x then
+    writeln(int32, 1)
+end

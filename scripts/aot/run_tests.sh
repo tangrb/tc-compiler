@@ -883,6 +883,10 @@ run_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "consta
 run_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
 run_check_fail "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
+# B-61：直接字面量条件 → LITERAL_TYPE；已定型非 bool 变量条件 → CONDITION_TYPE
+run_check_fail "$ROOT/tests/errors/static/if_cond_literal_direct.tc" \
+    "literal type does not match"
+run_check_fail "$ROOT/tests/errors/static/cond_var_not_bool.tc" "if condition must be bool"
 run_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end for if statement"
 run_check_fail "$ROOT/tests/errors/static/indent_mixed_tab_body.tc" "mixed spaces and tabs in indentation"
 run_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
