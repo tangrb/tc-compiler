@@ -51,13 +51,16 @@ tc_scope_check_self_usage
 | import 未找到 / 歧义 | 搜索路径 / 双 `-I` |
 | import 环 | 成环检测 |
 | `#program` 内 `Self` | `tc_scope_check_self_usage` |
-| private 成员跨模块 | PRIVATE / 可见性（含 `private struct` 类型名/构造器） |
+| private 成员跨模块 | PRIVATE / 可见性（含 `private struct` 类型名/构造器、`static let`/`static var`、限定赋值目标） |
 | 导入结构体裸名 | UNDEFINED_STRUCT（须 `ScoreLib.Player`） |
 | 导入 private struct | PRIVATE_MEMBER_ACCESS（不得改报 UNDEFINED_STRUCT） |
+| `Self.<名>` 指其它模块成员 | UNDEFINED_VARIABLE：`Self.` 只解析**本模块**成员（先用 `tc_resolve_self_member` 查本模块成员索引） |
+| `<模块>.<名> = rhs` 报 `undefined variable '<模块>'` | 该语句是单字段字段赋值，须先重分类为整绑定赋值（`tc_reclassify_qualified_binding_assign`） |
 | 未 import 的 `Mod.Name` | UNDEFINED_STRUCT（传递依赖不计入） |
 
 ## 测试
 
 `test_module.c` / check-module · `tests/errors/module/` · `tests/modules/` · CLI `include_search_ok` / `import_ambiguous`  
 导入 struct：`import_struct_type` / `imported_struct_*` · 菱形：`diamond_import_*` · unit `test_diamond_import_structs` / `test_imported_struct_name_rules`  
+限定成员 0.0.44 收口批：`member_private_{read,field,addr,memblock,read_target}`（`<模块>.<private>` → PRIVATE）、`SelfForeign{Priv,Pub,Field}Lib`（`Self.` 限本模块）、`import_member_{operand,struct,bad_qual,foreign_member}`（限定名整体读取）、`import_member_assign_{ok,dep}` + `member_assign_{readonly,private,type_mismatch,bad_qual}`（限定赋值目标）  
 账本：[test-map.md](test-map.md) Phase 2 / Phase 3

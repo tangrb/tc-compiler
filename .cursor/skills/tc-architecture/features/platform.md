@@ -24,7 +24,7 @@
 | 作用域 | `tc_scope.c` | `tc_member_index_*` / `tc_scope_check_self_usage` |
 | CLI/API | `tc_driver.c` / `tc_lib.c` | `-I`（`TcCompileOptions` 会话路径）/ `tc_compile_file_opts` |
 
-细节：[kg-module.md](../kg-module.md)。测试：check-module · `tests/errors/module/` · `include_search_ok` · **import_struct_type** / **imported_struct_mid_ok** · **imported_struct_bare_name** / **imported_struct_bare_ctor** / **imported_struct_not_imported** / **imported_struct_transitive** / **imported_struct_private**。
+细节：[kg-module.md](../kg-module.md)。测试：check-module · `tests/errors/module/` · `include_search_ok` · **import_struct_type** / **imported_struct_mid_ok** · **imported_struct_bare_name** / **imported_struct_bare_ctor** / **imported_struct_not_imported** / **imported_struct_transitive** / **imported_struct_private** · **member_private_\*** / **SelfForeign{Priv,Pub,Field}Lib** / **import_member_\***（限定名读取与 `Self.` 归属）/ **import_member_assign_{ok,dep}** / **member_assign_\***（限定赋值目标）。
 
 ## 函数 / 调用图 / static（Phase 4–5）
 

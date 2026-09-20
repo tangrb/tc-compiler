@@ -147,7 +147,7 @@
 | B-38 | `#lib` 裸 `var` 报 `MODULE_LAYER` | ☑ | |
 | B-39 | SYN 阶段错位（`Self` 检查） | ☑ | |
 | B-40 | SEM 码由解析器发出（`@padding`/`N` 来源） | ☑ | |
-| B-41 | 深一级 `end` 缩进码归属 | ⊘ 待标准裁决 | |
+| B-41 | 深一级 `end` 缩进码归属 | ☑（阶段 3 裁决并落地，见阶段 3 表） | `4af1108` |
 | B-42 | `bitcast` 伪造指针槽索引越界 | ☑ | |
 | B-43 | `memblock_copy` `length == 0` 跳过区间检查 | ☑ | |
 | B-44 | `memblock_copy` 常量区间从不静态检查 | ☑（B-21 闭合） | |
@@ -172,9 +172,9 @@
 | B-58 | `memblock_copy` 空拷贝 dst 侧漏检 | ☑（含运行期分支覆盖补强） | |
 | B-59 | 常量负 dst 下标无静态检查 | ☑（B-21 闭合） | |
 | B-60 | 格式越界且 Token >32 字节被降级 | ☑（B-27 闭合） | |
-| B-61 | 非 `bool` 条件错码不一致 | ⊘ 待标准裁决 | |
+| B-61 | 非 `bool` 条件错码不一致 | ☑（阶段 3 裁决：实现零改动＋语料/口径补强） | `b007a42` |
 | B-62 | `const` 列表产生式逗号 | ☑（B-30/B-31 闭合） | |
-| B-63 | 顶层行缩进不校验 | ⊘ 待标准裁决 | |
+| B-63 | 顶层行缩进不校验 | ☑（阶段 3 裁决并落地） | `4ac5615` |
 | B-64 | 文件名含内部点致结构体解析失败 | ☑ | |
 | B-65 | 跨模块同名符号致 CFG 假阳性 | ☑（并修正串槽读值） | |
 | B-66 | `static let` 经 `Self.` 引用规则不符 | ☑ | |
@@ -270,7 +270,7 @@
 | A-2 | 标准附录 B.1 的 `TC_CE_LITERAL_OUT_OF_RANGE` 阶段列由 `LT` 改为 **`LT / SEM`**，触发条件列补两条路径（LT：Token 自身超 `2^64−1`／浮点舍入为零或无穷；SEM：以上下文期望类型为准的范围检查，§5.2.1 第 2 步、§6.1.1、§6.1.2），并在 B.1 表末补「阶段细分」说明引用 §11 阶段优先。实现零改动（既有实现已双阶段）；为把该口径钉死在用例上，给 4 条既有语料的 VM `run_expect_check_fail` 补错误码名断言：`invalid_hex_overflow`（LT 整数）、`fp_literal_range`（LT 浮点）、`literal_range`（SEM 上下文）、`let_const_literal_range`（SEM `let` 声明类型）。注册行数不变（仅补第 3 个实参） | 实测两阶段同码：`var x: int32 = 99999999999999999999999999` → `LiteralOutOfRange: integer literal too large`（LT，Token 位置）；`var x: int8 = 300` / `let a: int8 = 128` → `LiteralOutOfRange: literal out of range for context type`（SEM）；`uint8 = 256` 与浮点 `fp_literal_range`/`float32_literal_range` 亦同码；全量三层与 5 项门禁通过 |
 | A-3 | 实现：`tc_memblock_check.c` 新增 `tc_memcopy_operand_const_negative`（整数字面量负号 → 负；`TC_OPERAND_VAR` 且绑定为 `TC_SYM_CONSTANT`（`let` / `static let`）且类型有符号、常量值为负 → 负），在 `tc_memblock_check_memcopy_unsafe` 的 operand 解析之后对 `length` / `dst_index` / `src_index` 判负，命中即报静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（「memcopy_unsafe invalid range」，与运行时同文案）；运行时绑定（`var` / 形参 / `static var`）仍归 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。口径回改：语言标准 §6.8.9 判据段＋执行语义第 2 步、§11.1 表、附录 A 注记、附录 B.11 与 B.13；编译器标准 §3.2 区间段＋§6.7 表＋§11.4.6 静态码行；VM 详设 §12 静态/运行时分工段；CLI 参考 §6.2 静态行。语料：`memcopy_unsafe_neg_{dst,src}_index.tc` 由 `tests/errors/runtime/` 迁到 `tests/errors/static/` 并改注册为 `check_fail`（断言消息＋`MemcopyUnsafeInvalidRange`），新增 `memcopy_unsafe_neg_length_literal.tc`（负字面量 length）与 `memcopy_unsafe_neg_let_index.tc`（`let` 常量负下标）；`var` 负值的三条运行时语料保持不变。test-map 回填 1148 VM / 522 AOT | 迁移前：负字面量 dst/src 下标 `-c` 通过（rc=0）、仅运行时拒绝；迁移后两后端 `--check` 均报 `MemcopyUnsafeInvalidRange`（rc=1）。负字面量 `length` 与 `let i: isize = -1` 下标同样静态拒绝；`var n: isize = -1`（length）/ `var i: isize = -1`（dst）/ `var idx: int32 = -1` 三条仍 `-c` 通过并在运行时报 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`；全量三层与 5 项门禁通过 |
 | A-4 | 实现（两处，覆盖常量与普通路径）：`tc_analyzer_pass2_rhs.c` 的 `TC_RHS_BITCAST` 源类型判定把原「`nullptr` → `TC_PTR` 源类型」分支改为静态拒绝；`tc_const_eval.c` 的常量 `bitcast` 同形分支同样改为拒绝（均报 `TC_CE_TYPE_MISMATCH`，消息 "nullptr cannot participate in bitcast"）。口径回填：语言标准 §6.6.1.1「字面量操作数的源类型」表新增 `bitcast` × `nullptr` = **不合法** 行，§3.10.2 补「`nullptr` 参与 `bitcast` 不合法；仍可作判断 operand、赋值/声明 RHS、`funcall` 实参、`return`、`cast` 源」；VM 详设 §12.6 与 §1.5 同步表、AOT 详设 §1.4 同步表由「标准未明确的实现行为」改写为「A-4 裁决为非法，静态拒绝」。语料：删除 `tests/valid/bitcast_ptr_nullptr.tc`（其 `bitcast(ptr<int32>, nullptr)`/`bitcast(usize, nullptr)` 已非法），新增 `tests/errors/static/bitcast_nullptr_source.tc`（`let` 常量路径）与 `bitcast_nullptr_source_int.tc`（`var` 路径），`bitcast_nullptr_float.tc` 的期望消息改为新文案；注册数不变（VM 2 换 2、AOT 2 换 2）。test-map 把 `bitcast_ptr_nullptr` 从正例列移出，负例列补两条 | `bitcast(ptr<int32>, nullptr)`、`bitcast(usize, nullptr)`、`bitcast(float64, nullptr)` 两后端 `--check` 均报 `TypeMismatch: nullptr cannot participate in bitcast`（rc=1）；`var p: ptr<int32> = nullptr`（声明初始化）、`cast(ptr<int32>, nullptr)`、`ptr_eq(int32, nullptr, nullptr)` / `ptr_eq(int32, p, nullptr)`（判断 operand）保持 rc=0 且语义不变；`let_ptr_cast_nullptr.tc`、`phase3_nullptr.tc`、`phase5_nullptr_eq.tc` 等既有正例全部通过；全量三层与 5 项门禁通过 |
-| B-41 | `tc_parser.c` `tc_parse_block_body_mode`：把 `else` / `end` 的 token 判定**提前**到 `tc_block_indent_valid` 之前——此前「缩进增量必须恰为一级」的通用判定先命中，使比块头深一级以上的 `end`/`else` 报 `TC_CE_INDENT_INSUFFICIENT`。该函数为 `if` then/else 与 `while` 体共用（`func`/`struct` 各有独立路径，`struct` 已是 end 检查在先）。标准附录 A.2 末段补一句「无论过深或过浅一律 `INDENT_ELSE_END`；增量判定仅适用于非 `else`/`end` 的块内行」。新增 `tests/errors/static/indent_end_deeper.tc`（`end` 深一级）与 `indent_else_deeper.tc`（`else` 深一级），VM `run_expect_check_fail` 断言消息＋`IndentElseEndError`、AOT `run_check_fail`；test-map 回填 1150 VM / 524 AOT | 审计例（`if true then` / 4 空格体 / 8 空格 `end`）由 `IndentInsufficientError` 变为 `IndentElseEndError: end indentation does not match if`；`else` 深一级同理报 `else must appear at same indentation as if`；既有 `indent_end_mismatch`（`end` 在体级）、`indent_else_position`、`indent_else_mismatch`、`indent_insufficient_block`（体语句 2 空格）行为不变；全量三层与 5 项门禁通过。**观察（未在本条内改动）**：该函数的 ELSE_END 文案固定写 `if`，`while` 体命中时文案不精确（既有行为，本轮仅调整判定次序） |
+| B-41 | `tc_parser.c` `tc_parse_block_body_mode`：把 `else` / `end` 的 token 判定**提前**到 `tc_block_indent_valid` 之前——此前「缩进增量必须恰为一级」的通用判定先命中，使比块头深一级以上的 `end`/`else` 报 `TC_CE_INDENT_INSUFFICIENT`。该函数为 `if` then/else 与 `while` 体共用（`func`/`struct` 各有独立路径，`struct` 已是 end 检查在先）。标准附录 A.2 末段补一句「无论过深或过浅一律 `INDENT_ELSE_END`；增量判定仅适用于非 `else`/`end` 的块内行」。新增 `tests/errors/static/indent_end_deeper.tc`（`end` 深一级）与 `indent_else_deeper.tc`（`else` 深一级），VM `run_expect_check_fail` 断言消息＋`IndentElseEndError`、AOT `run_check_fail`；test-map 回填 1150 VM / 524 AOT | 审计例（`if true then` / 4 空格体 / 8 空格 `end`）由 `IndentInsufficientError` 变为 `IndentElseEndError: end indentation does not match if`；`else` 深一级同理报 `else must appear at same indentation as if`；既有 `indent_end_mismatch`（`end` 在体级）、`indent_else_position`、`indent_else_mismatch`、`indent_insufficient_block`（体语句 2 空格）行为不变；全量三层与 5 项门禁通过。**后续**：该函数的 ELSE_END 文案固定写 `if` 的问题已由后续「观察-②」（`9e2891e`：块头关键字作为形参传入，`while`/`function` 文案各自正确）闭合 |
 | B-61 | **实现零改动**（现状即裁决口径）：标准 §7.1.1 与 §7.2.1 的「条件」行补「次序」——RHS 自身的类型与字面量检查先于 `TC_CE_CONDITION_TYPE`：直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（`TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 类型成立但不是 `bool` 时才报 `CONDITION_TYPE`。§11 第 3 条例子补 `TC_CE_LITERAL_TYPE` 优先于 `TC_CE_CONDITION_TYPE`；附录 B.11 该码行补同口径括注。用例：新增 `if_cond_literal_direct.tc`（`if 1 then` → `LiteralTypeError`）与 `cond_var_not_bool.tc`（`var x: int32` 条件 → `ConditionTypeError`），并给既有 `if_cond_type_literal` / `if_cond_type_arith` / `while_cond_type_arith` 的 VM 注册补错误码断言；test-map 回填 1152 VM / 526 AOT | 实测四类同码一致：`if 1 then` / `if 1.5 then` / `if 1u then` → `LiteralTypeError`；`var x: int32` 或返回 `int32` 的运算调用（`if add(int32,1,2) then` / `while lt(...)`）→ `ConditionTypeError`；`if eq(int32, true, false) then` → `LiteralTypeError`（调用内字面量）；跨类型指针比较条件 → `TypeMismatch`（B-23 已裁）；与 B-23「条件 RHS 专用码不得被 CONDITION_TYPE 覆盖」的既有结论同一口径；全量三层与 5 项门禁通过 |
 | B-63 | 实现：`tc_parser.c` 的 `tc_parse_module_body` 逐行判 `line->indent != 0` → `TC_CE_INDENT_INSUFFICIENT`（"top-level lines must not be indented"），`tc_parse_module_header` 同判模块指令行本身；该循环覆盖 `#program` 的 import/类型/声明/顶层语句与 `#lib` 的 import/类型/static/func 全部顶层区域（`#program`/`#lib` 的块体行由各自块解析器消费，不经过本循环）。标准附录 A.2 缩进规则段补「顶层缩进」：指令行与顶层 `import`/类型/声明/`static`/`func`/顶层语句缩进级别必须为 0（顶层产生式不消费 `INDENT`，只有 `suite` 消费），空行与纯注释行的行首空白不参与本检查。语料：新增 `toplevel_indent_{program,lib,after_end,header}.tc`（VM 断言消息＋`IndentInsufficientError`、AOT `run_check_fail`）；既有 `indent_else_mismatch.tc` 因原先借助顶层缩进而重构为「内层 if 的 else 更浅」形态（保持原期望消息）；test-map 回填 1156 VM / 530 AOT | 审计三例（`#program` 后缩进语句、`#lib` 顶层缩进、`end` 后缩进语句）与新增的指令行缩进例，由 rc=0 且正常执行变为 `IndentInsufficientError: top-level lines must not be indented`（rc=1，两后端一致）；语料扫描显示既有 `.tc` 中仅 `indent_else_mismatch.tc` 受影响（已重构）；`indent_insufficient_*` / `indent_two_spaces` / `indent_mixed_*` / `indent_multi_level_jump` 等块内缩进负例行为不变；块内合法缩进与空行/注释行不受影响；全量三层与 5 项门禁通过 |
 
@@ -295,7 +295,7 @@
 
 ### 审计报告 §5「九项既有未关闭项」复核（本轮续修）
 
-> 这 9 项是审计时对上一批遗留问题的独立复核（编号「既有-N」，不在 §2 的 B 编号清单内）。其中 6 项已在阶段 2/3 中被顺带闭合，3 项仍开放并按下列顺序续修。
+> 这 9 项是审计时对上一批遗留问题的独立复核（编号「既有-N」，不在 §2 的 B 编号清单内）。6 项在阶段 2/3 被顺带闭合；`既有-2`／`既有-1`／`既有-4` 三项已按批准顺序串行续修完毕——**9 项全部闭合**。
 
 | 编号 | 现象 | 状态 | 闭合/续修提交 |
 | ---- | ---- | ---- | ------------- |
@@ -319,7 +319,7 @@
 
 > 文档同步（既有-1 / 既有-2 / 既有-4）：既有-2 未改文档（标准与文档早已把 `ptr_address` 的标识符范围写成「裸名或限定名」，属实现未跟上，无需回填）。既有-1 无需改设计文档（`operand` 含 `imported_member_name` 本就是标准与文档的既有口径）。既有-4 回填 `TC编译器标准设计说明书-0.0.44.md` §3.2「`ptr_store` / `memcopy_unsafe` 可变性」、§6.7「可变性约束」、§11.4.6 `CONSTANT_ASSIGNMENT` 行，以及 `TC-VM详细设计说明书-0.0.44.md` §12.7 `ptr_store` 行与 §17.2 关键路径行——统一为「判据是**所指外层绑定**，指针绑定自身为 `let` / `static let` 不构成只读；常量 `nullptr` 指针的写入归运行期空指针」。
 
-**本轮新发现（均为既有缺陷，不属于已批准的 4 项范围，本次不动）**
+**本轮新发现（观察-③～⑥；均为既有缺陷，原不在已批准的 4 项范围内，后续已按同一串行流程逐条闭合）**
 
 | 序号 | 现象 | 复现 | 备注 |
 | ---- | ---- | ---- | ---- |
@@ -372,6 +372,25 @@
 | 项 | 实现 | 语料与门禁 | 实测 |
 | --- | ---- | ---------- | ---- |
 | 观察-⑥：限定名整绑定赋值目标 | `tc_analyzer_pass2.c` 新增 `tc_reclassify_qualified_binding_assign`，在 `tc_pass2_check_stmt` 开头（`TC_STMT_ASSIGN` 分支之前）调用：当语句是 `TC_STMT_FIELD_ASSIGN`、`field_count == 1`、基址不含 `.`（排除 `Self.S.x` 这类两点字段目标）、且**基址不是可见绑定**（排除 `s.x = 5` 与 B-37 大写局部）时，组合 `"<基址>.<字段>"`；先 `tc_reject_private_member_access`（§4.4 专用码，须先于按名解析），命中模块成员则把 RHS 搬迁、释放字段链、`memset` union、置 `kind = TC_STMT_ASSIGN` 与 `name`。随后由既有整绑定赋值分支复用全部规则：`static let` → `CONSTANT_ASSIGNMENT`、跨模块 `private` → `PRIVATE_MEMBER_ACCESS`、类型检查、`ptr` 来源固化、确定初始化位（`tc_analyzer_pass2.c:1045-1082`）；CFG（`tc_cfg.c:695` 用 `binding.slot`）、执行器（`binding.slot` + `tc_exec_find_symbol` 剥前缀取 struct_id + memblock clone）、AOT（`binding` + `tc_aot_emit_rhs_slot`）无需改动。诊断归属与读侧一致：未解析前缀/成员仍回退快路径报 `undefined variable '<前缀>'` | 新增 `tests/modules/import_member_assign_ok.tc`（标量 `W`、struct `spv`、memblock `MB` 三种成员的限定赋值 + `<模块>.<static var struct>.<字段>` 字段写对照）、`MemberAssignDepLib.tc` ＋ `import_member_assign_dep.tc`（依赖模块内经限定名写 `static var` 并读回）；负例 `member_assign_readonly.tc`／`member_assign_private.tc`／`member_assign_type_mismatch.tc`／`member_assign_bad_qual.tc`；VM 2×`run_expect_stdout` ＋ 2×`run_expect_check_ok` ＋ 4×`run_expect_check_fail`（均带错误码）、AOT 2×`run_diff_test` ＋ 2×`run_check_ok` ＋ 4×`run_check_fail`；test-map 回填 **1196 VM / 568 AOT** | 修复前：`MemberLib.W = 9` / `MemberLib.K = 9` / `MemberLib.HiddenVar = 3` / `MemberLib.W = true` 一律 `UndefinedVariable: undefined variable 'MemberLib'`。修复后：`import_member_assign_ok` → `9 11 3 7`（两后端一致）、`import_member_assign_dep` → `3`；负例分别为 `ConstantAssignmentError: cannot assign to constant`、`PrivateMemberAccessError: private member access`、`LiteralTypeError: bool literal requires bool context`、`UndefinedVariable: undefined variable 'NoSuchLib'`（VM＋AOT 同码同阶段）。回归：`Self.W = 3` / `Self.S = Pair(...)`（本模块整绑定写）、`MemberLib.spv.x = 7`（限定基址字段写）、`read(int32, MemberLib.W)`、`memblock_store`/`memblock_copy` 限定目标均不变；全量三层与 5 项门禁通过 |
+
+## 收尾总结（本轮全部条目闭合）
+
+> 本轮从「审计报告 §5 复核 + 用户追问」出发，共完成 **10 个提交**，闭合审计 §5 的 3 项既有问题与 4 项新发现观察（观察-③～⑥），并回填文档与台账。
+
+| 条目 | 问题 | 闭合提交 |
+| ---- | ---- | -------- |
+| 既有-2 | `ptr_address(T, Self.<名>／<模块>.<名>)` 被拒 | `0093b58` |
+| 既有-1 | `<模块>.<成员>` 作普通 RHS 操作数不可解析 | `87b988f` |
+| 既有-4 | `let p = nullptr` + `ptr_store` 误判只读 | `0851a37` |
+| 文档回填 | 三份同步表 + 台账（含 AOT §1.4 9 项→全闭合） | `76d3750` |
+| 观察-③ | 限定名成员可见性未校验（`<模块>.<private>` 跨模块可读） | `9a0ca86` |
+| （同源） | `Self.<名>` 可命中其它模块同名成员 | `ac61702` |
+| 观察-④ | 常量求值缺 `TC_RHS_SELF_MEMBER`；AOT 常量聚合值嵌入分析期堆指针 | `7399407` |
+| 观察-⑤ | AOT `.count` 常量绑定路径缺失（限定名 → code generation failed） | `d2727c0` |
+| 观察-⑥ | `<模块>.<名> = rhs` 未进入整绑定赋值机制 | `c70187a` |
+| 收尾清理 | 知识库/测试账本去陈旧化、纯生成物清理 | 本提交 |
+
+当前状态：**无待办条目**（`§5` 九项 ☑、观察-③～⑥ ☑）；规模 **1196 VM / 568 AOT**；全量三层与 5 项同步门禁通过；全部提交**未推送**。
 
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
@@ -478,7 +497,8 @@
 | 91 | `Self.<名>` 只解析本模块成员（同一要求第二面） | `ac61702 fix(0.0.44-§4.3): restrict Self member resolution to the current module` |
 | 92 | 观察-④ `Self.` 常量来源与常量聚合值深拷贝 | `7399407 fix(0.0.44-§5.2.1): evaluate Self const sources and inline const aggregates in AOT` |
 | 93 | 观察-⑤ `.count` 作 RHS 的常量绑定路径 | `d2727c0 fix(0.0.44-§3.8.5): fold constant memblock count bindings in AOT` |
-| 94 | 观察-⑥ `<模块>.<名> = rhs` 整绑定赋值目标 | 本提交 `fix(0.0.44-§6.2): accept qualified whole-binding assignment targets` |
+| 94 | 观察-⑥ `<模块>.<名> = rhs` 整绑定赋值目标 | `c70187a fix(0.0.44-§6.2): accept qualified whole-binding assignment targets` |
+| 95 | 收尾清理（陈旧状态/引用、知识库、产物忽略） | 本提交 `chore(0.0.44): clean up stale status, references and generated artifacts` |
 
 ---
 

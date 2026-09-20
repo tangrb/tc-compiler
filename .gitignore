@@ -18,3 +18,14 @@ examples/**/*.c.out
 
 # macOS
 .DS_Store
+
+# AOT 输出（tc-aot 默认把 <input>.c / <input>.c.out 写在 .tc 旁边）
+# 仅忽略用例目录下的产物；tests/unit/**/*.c 是受版本控制的单测源码，不受影响
+tests/valid/*.c
+tests/valid/*.c.out
+tests/errors/**/*.c
+tests/errors/**/*.c.out
+tests/modules/*.c
+tests/modules/*.c.out
+tests/stress/*.c
+tests/stress/*.c.out
