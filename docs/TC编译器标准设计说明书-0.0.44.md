@@ -116,7 +116,7 @@
 
 1. **阶段优先**：先报告**诊断类阶段**（LT → SYN → SEM → CT，对应表见下款）编号较小者的错误。
 2. **同一诊断类阶段内按源位置优先**：一个 TC 编译单元恰好对应一个源文件；同一诊断类阶段内按行、列选择起始位置最早者，**不得按内部处理阶段编号抢先**——例如第 4–8、11、12 阶段同属 SEM，其间一律按源序选首个诊断。批量编译多个文件属于驱动层行为，各文件分别产生语言诊断，文件间次序不属于 TC 语言语义。
-3. **规则优先**：同一位置按本节专用优先级；未专门规定时依次为语法形态/数量、语句上下文、名称存在性、重复、名称空间/作用域/控制流域、使用位置、实参顺序、类型、模式/结构、字面量、CFG、调用图。
+3. **规则优先**：同一位置按本节专用优先级；未专门规定时依次为语法形态/数量、语句上下文、名称存在性、重复、名称空间/作用域/控制流域、使用位置、实参顺序、类型、模式/结构、字面量、CFG、调用图。同一位置存在多个候选码时**专用码优先于通用码**：`TC_CE_LITERAL_TYPE` 优先于 `TC_CE_TYPE_MISMATCH`，且优先于 `TC_CE_CONDITION_TYPE`（条件位置的直接字面量）；`TC_CE_INDENT_ELSE_END` 优先于 `TC_CE_INDENT_INSUFFICIENT`（`else`/`end` 行）。
 4. **关联位置**：重复定义、跨域跳转和递归环使用下文指定的主位置比较；其他位置只作附注。
 5. **遍历无关**：函数表、哈希表、CFG、调用图和实参集合的内部遍历顺序不得改变结果。
 
@@ -213,6 +213,13 @@
 | 静态成员初始化器引用源序更晚／自身的静态成员 → `TC_CE_UNDEFINED_VARIABLE` | §4.3 | **已同步**（`tc_func_check.c` 源序可见性判定；语料 `static_var_forward_ref.tc`／`static_var_self_ref.tc`／`static_var_bare_member.tc`） |
 | `memblock` 的 `N`／`count:` 接受 `u`/`U` 后缀；来源不合法或 `< 1` → `TC_CE_CONSTANT_EXPRESSION` | §3.1、§3.4 | **已核实一致**（语料 `memblock_unsigned_suffix.tc`、`memblock_count_var_source.tc`） |
 | `ptr_load(bool)` 按 `0x00`／非零 → `0x01` 规范化 | §6.7、[语言标准 §6.8.2] | **已同步**（`tc_ptr_exec.c`，原 VM 未规范化、与 AOT 分歧；语料 `ptr_load_bool_normalize.tc`） |
+| `ptr_load`/`ptr_address`/`ptr_add`/`ptr_sub`/`ptr_eq`·`ptr_ne`/`ptr_lt`…`ptr_ge`/`ptr_size` 均为**调用型 RHS、不属于 `operand`**，不得嵌套为其它调用的操作数（嵌套 → `TC_CE_SYNTAX`） | §4.3、[语言标准 §1.1、§6.1.2、§6.8、附录 A] | **已同步**（解析器对全部形态报 `expected operand`；语料 `ptr_{address,add,sub,lt}_nested_operand.tc`） |
+| `TC_CE_LITERAL_OUT_OF_RANGE` 覆盖 **LT / SEM** 两阶段：Token 自身词法上限（第 2 阶段）与依上下文期望类型的范围检查（第 6/7/8 阶段） | §1.3、§2.1、§3.6 | **已核实一致**（两阶段同码；语料 `invalid_hex_overflow`（LT）、`literal_range`/`let_const_literal_range`（SEM）） |
+| `memcopy_unsafe` 的 `length`/`dst_idx`/`src_idx` **编译期可确定**为负 → 静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；编译期不可确定的负值 → 运行时 `TC_RE_*` | §3.2、§6.7、§11.4.6 | **已同步**（`tc_memblock_check.c`；语料 `memcopy_unsafe_neg_{dst,src}_index`、`_neg_length_literal`、`_neg_let_index` 静态；`_neg`/`_neg_index`/`_neg_var_index` 运行时） |
+| `nullptr` **不参与 `bitcast`**（`bitcast(T, nullptr)` → `TC_CE_TYPE_MISMATCH`）；仍可作判断 `operand`、赋值/声明 RHS、`funcall` 实参、`return`、`cast` 源 | §3.7、[语言标准 §6.6.1.1、§3.10.2] | **已同步**（`tc_analyzer_pass2_rhs.c`／`tc_const_eval.c`；语料 `bitcast_nullptr_source{,_int}.tc`） |
+| `else`/`end` 与对应块头不对齐（过深或过浅）一律 `TC_CE_INDENT_ELSE_END`；通用增量判定仅适用于非 `else`/`end` 块内行 | §2.2、[语言标准 附录 A.2] | **已同步**（`tc_parse_block_body_mode` 先判对齐；语料 `indent_end_deeper`／`indent_else_deeper`） |
+| 条件位置的 RHS 自身字面量/类型专用码优先于 `TC_CE_CONDITION_TYPE`（仅 RHS 类型成立但非 `bool` 时报后者） | §1.3、[语言标准 §7.1.1、§7.2.1、§11 第 3 条] | **已核实一致**（语料 `if_cond_literal_direct`／`cond_var_not_bool`／`if_cond_type_arith`） |
+| 顶层行（`#program`/`#lib` 指令行与其顶层 import/类型/声明/`static`/`func`/顶层语句）缩进级别必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | §2.2、[语言标准 附录 A.2] | **已同步**（`tc_parse_module_body`／`tc_parse_module_header`；语料 `toplevel_indent_*.tc`） |
 | `static var` 初始化器可引用更早 `static var`；准备阶段失败报 `TC_RE_*` | §4.3 | **已核实一致**（语料 `static_var_chain.tc`、`errors/runtime/static_var_init_div_zero.tc`） |
 | 限定标识符 `Self.<名>` / `<模块名>.<名>` 可作 `operand`（附录 A `operand` 产生式、[语言标准 §6.1.2]） | §6.7、[语言标准 §6.1.2] | **已同步**（`tc_parser.c` + `tc_func_check.c`；语料 `self_qual_operand.tc`） |
 
@@ -606,7 +613,7 @@
 - 引用自身或尚未定义的 `let` → `TC_CE_UNDEFINED_VARIABLE`（在名称解析阶段拦截）；
 - 非法常量形态 → `TC_CE_CONSTANT_EXPRESSION`（"invalid constant expression form"）。
 
-允许的形态包括：原子表达式（各类字面量、`nullptr`、此前已定义 `let` 引用、只读结构体字段读取、`mb.count`），以及单层运算调用（算术/按位/移位/比较/逻辑/`cast`/`bitcast`）、memblock 构造器、结构体值构造器，以及**只能整条充当 `const_rhs`** 的 `ptr_size` 查询。详细清单见 [语言标准 §5.2.1]；`ptr_size` 不得作为其它调用的操作数（[语言标准 §6.8.8]）。
+允许的形态包括：原子表达式（各类字面量、`nullptr`、此前已定义 `let` 引用、只读结构体字段读取、`mb.count`），以及单层运算调用（算术/按位/移位/比较/逻辑/`cast`/`bitcast`）、memblock 构造器、结构体值构造器，以及**只能整条充当 `const_rhs`** 的 `ptr_size` 查询。详细清单见 [语言标准 §5.2.1]；`ptr_size` 不得作为其它调用的操作数（[语言标准 §6.8.8]）。注意：`nullptr` 可作原子操作数（如 `let p: ptr<int32> = nullptr`、`cast(ptr<T>, nullptr)`），但**不参与 `bitcast`**——`bitcast(T, nullptr)` 报 `TC_CE_TYPE_MISMATCH`（[语言标准 §6.6.1.1、§3.10.2]）。
 
 **5.2.2 声明类型闭合检查顺序**（第 6 阶段子阶段 6d）：
 
@@ -1435,10 +1442,10 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_RE_NULL_POINTER_ARITHMETIC`   | `NullPointerArithmetic`      | 空指针算术错误                | 运行时      | `ptr_add` / `ptr_sub` 操作数为 `nullptr` |
 | `TC_ERR_OUT_OF_MEMORY`             | `OutOfMemory`                | —（实现资源失败）             | 实现        | 实现专用：实际内部分配失败；诊断消息为 `memory allocation failed` |
 | `TC_CE_INDENT_MIXED`              | `IndentMixedError`           | 缩进字符错误                  | 静态        | 非空、非纯注释行的行首缩进出现水平制表符 U+0009（单独使用或与空格混用） |
-| `TC_CE_INDENT_INSUFFICIENT`       | `IndentInsufficientError`    | 块内缩进层级错误              | 静态        | 直接块内语句未恰好多一级，一次意外增加多个空格组层级，或回退后的空格组数量不在缩进栈中 |
-| `TC_CE_INDENT_ELSE_END`           | `IndentElseEndError`         | `else`/`end` 缩进错           | 静态        | `else` 或 `end` 与对应 `func`/`if`/`while`/`struct` 缩进不一致        |
+| `TC_CE_INDENT_INSUFFICIENT`       | `IndentInsufficientError`    | 块内缩进层级错误              | 静态        | **非** `else`/`end` 的直接块内语句未恰好多一级、一次意外增加多个空格组层级、回退后的空格组数量不在缩进栈中，或**顶层行**（含 `#program`/`#lib` 指令行与其顶层 `import`/类型/声明/`static`/`func`/顶层语句）出现缩进（[语言标准 附录 A.2]；`else`/`end` 的不对齐一律 `TC_CE_INDENT_ELSE_END`） |
+| `TC_CE_INDENT_ELSE_END`           | `IndentElseEndError`         | `else`/`end` 缩进错           | 静态        | `else` 或 `end` 与对应 `func`/`if`/`while`/`struct` 缩进不一致——**过深或过浅**（含恰在块内语句级别）一律按本码（[语言标准 附录 A.2]、附录 B.1） |
 | `TC_CE_MISSING_END`               | `MissingEndError`            | 缺少 `end`                    | 静态        | `func`/`if`/`while`/`struct` 未以 `end` 结束                          |
-| `TC_CE_CONDITION_TYPE`            | `ConditionTypeError`         | 条件类型错误                  | 静态        | `if`/`while` 条件 RHS 结果非 `bool`                          |
+| `TC_CE_CONDITION_TYPE`            | `ConditionTypeError`         | 条件类型错误                  | 静态        | `if`/`while` 条件 RHS 结果非 `bool`；RHS 自身的字面量/类型专用码**先报**（`TC_CE_LITERAL_TYPE`、`TC_CE_LITERAL_OUT_OF_RANGE`、`TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`，[语言标准 §11 第 3 条]） |
 | `TC_CE_MODE_MISMATCH`             | `ModeMismatch`               | 模式不匹配错误                | 静态        | EBNF 已接受候选模式参数，但操作、类型与 `wrap`/`ieee`/`truncate` 不符合 [语言标准 §6.3.1] / [语言标准 §6.6]；无模式参数产生式的形态使用 `TC_CE_SYNTAX` |
 | `TC_CE_BITCAST_WIDTH`         | `BitcastWidthError`      | 位重解释宽度错误          | 静态    | `bitcast` 源、目标位宽不一致，或源为字面量时其源类型（由后缀/目标位宽规则确定）与目标位宽不匹配（[语言标准 §6.6.6]、附录 B.4）                     |
 | `TC_CE_LABEL_NOT_FOUND`           | `LabelNotFound`              | 标签未找到错误                | 静态        | 当前函数控制流域内不存在 `goto` 引用的同名标签（含标签仅存在于另一函数；[语言标准 §7.3.2]）                   |
