@@ -253,6 +253,67 @@ int tc_check_operand(TcOperand *operand, TcTypeTag expected,
     return 0;
 }
 
+int tc_check_integer_operand(TcOperand *operand, const TcSymbolTable *visible,
+                             const TcSymbolTable *global,
+                             const struct TcStructTable *struct_table, TcInitHistory *hist,
+                             size_t stmt_index, int line, TcDiagnostic *diag,
+                             TcWarningList *warnings, const char *self_name) {
+    if (!operand) {
+        return -1;
+    }
+    if (operand->kind == TC_OPERAND_LIT) {
+        if (operand->u.lit.is_bool || operand->u.lit.is_float || operand->u.lit.is_nullptr) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "index operand must be an integer");
+            return -1;
+        }
+        return 0;
+    }
+    if (operand->kind == TC_OPERAND_FIELD_READ) {
+        const TcType *field_type = NULL;
+
+        if (tc_struct_check_field_access(&operand->u.field_read, NULL, struct_table, visible,
+                                         global, hist, stmt_index, line, diag, warnings,
+                                         self_name) != 0) {
+            return -1;
+        }
+        field_type = operand->u.field_read.resolved.field_type;
+        if (!field_type || !tc_type_is_integer(field_type->tag)) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "index operand must be an integer");
+            return -1;
+        }
+        return 0;
+    }
+    {
+        const TcSymbol *symbol = NULL;
+
+        if (self_name && operand->u.name && strcmp(operand->u.name, self_name) == 0) {
+            char msg[128];
+
+            (void)snprintf(msg, sizeof(msg),
+                           "variable '%s' cannot reference itself in its initializer", self_name);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        symbol = tc_resolve_visible_symbol(visible, global, operand->u.name, stmt_index, line,
+                                           diag);
+        if (!symbol) {
+            return -1;
+        }
+        if (!tc_type_is_integer(tc_type_tag_of(symbol->type))) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "index operand must be an integer");
+            return -1;
+        }
+        if (tc_check_operand_init(hist, symbol, stmt_index, line, diag) != 0) {
+            return -1;
+        }
+        tc_resolved_binding_set(&operand->binding, symbol);
+    }
+    return 0;
+}
+
 int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
                         const TcSymbolTable *global, const TcStructTable *struct_table,
                         TcInitHistory *hist, size_t stmt_index,

@@ -31,6 +31,16 @@ int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                      const struct TcStructTable *struct_table, TcInitHistory *hist, size_t stmt_index,
                      int line, TcDiagnostic *diag, TcWarningList *warnings,
                      const char *self_name, TcErrorKind type_err);
+/**
+ * 校验「整数类型 operand」（语言标准 §6.7.2.4、§6.8.9）：字面量须为整数字面量；
+ * 标识符 / 限定名 / 结构体字段读取须解析为整数类型（宽度与符号性不限，也不必等于
+ * 元素类型 `T`）。成功时写入 operand->binding（字段读取写入 resolved）。
+ */
+int tc_check_integer_operand(TcOperand *operand, const TcSymbolTable *visible,
+                             const TcSymbolTable *global,
+                             const struct TcStructTable *struct_table, TcInitHistory *hist,
+                             size_t stmt_index, int line, TcDiagnostic *diag,
+                             TcWarningList *warnings, const char *self_name);
 int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visible,
                  const TcSymbolTable *global, const struct TcStructTable *struct_table,
                  TcInitHistory *hist, size_t stmt_index, int line, TcDiagnostic *diag,

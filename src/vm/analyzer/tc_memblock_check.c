@@ -296,12 +296,9 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
             return -1;
         }
         mb_count = tc_type_memblock_count(mb_type);
-        if (tc_check_operand(&rhs->u.memblock_load.index, TC_USIZE, visible, global, struct_table, hist,
-                             stmt_index, line, diag, warnings, self_name,
-                             TC_CE_TYPE_MISMATCH) != 0 &&
-            tc_check_operand(&rhs->u.memblock_load.index, TC_ISIZE, visible, global, struct_table, hist,
-                             stmt_index, line, diag, warnings, self_name,
-                             TC_CE_TYPE_MISMATCH) != 0) {
+        /* §6.7.2.4：index 须为整数类型 operand，宽度/符号性不限（不必等于 T） */
+        if (tc_check_integer_operand(&rhs->u.memblock_load.index, visible, global, struct_table,
+                                     hist, stmt_index, line, diag, warnings, self_name) != 0) {
             return -1;
         }
         if (tc_memblock_check_index_literal(&rhs->u.memblock_load.index, mb_count, line, diag) !=
@@ -459,10 +456,9 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                           "memblock_store element type does not match");
         return -1;
     }
-    if (tc_check_operand((TcOperand *)&stmt->index, TC_USIZE, visible, global, struct_table, hist,
-                         stmt_index, stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0 &&
-        tc_check_operand((TcOperand *)&stmt->index, TC_ISIZE, visible, global, struct_table, hist,
-                         stmt_index, stmt->line, diag, warnings, NULL, TC_CE_TYPE_MISMATCH) != 0) {
+    /* §6.7.2.4：index 须为整数类型 operand，宽度/符号性不限（不必等于 T） */
+    if (tc_check_integer_operand((TcOperand *)&stmt->index, visible, global, struct_table, hist,
+                                 stmt_index, stmt->line, diag, warnings, NULL) != 0) {
         return -1;
     }
     if (tc_memblock_check_index_literal(&stmt->index, tc_type_memblock_count(mb->type),

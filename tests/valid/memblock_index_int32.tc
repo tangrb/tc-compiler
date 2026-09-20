@@ -1,0 +1,10 @@
+#program
+; §6.7.2.4：load/store 的 index 只要求整数类型（宽度/符号性不限，不必等于 T）。
+; int32 变量作 memblock_load / memblock_store 下标必须被接受。
+var m: memblock<int32, 3> = memblock(int32, count: 3, 4, 5, 6)
+var i: int32 = 1
+var v: int32 = memblock_load(int32, m, i)
+writeln(int32, v)
+memblock_store(int32, m, i, 9)
+v = memblock_load(int32, m, i)
+writeln(int32, v)

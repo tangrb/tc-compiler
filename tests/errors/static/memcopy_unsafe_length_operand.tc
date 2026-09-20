@@ -1,0 +1,8 @@
+#program
+; §6.8.9 操作数表：length 须为整数类型 operand；浮点字面量 → TC_CE_TYPE_MISMATCH
+var a: int32 = 1
+var b: int32 = 2
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, b)
+memcopy_unsafe(int32, p, 0, q, 0, 1.5)
+writeln(int32, a)

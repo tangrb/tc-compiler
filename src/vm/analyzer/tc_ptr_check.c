@@ -6,6 +6,7 @@
  */
 #include "tc_ptr_check.h"
 
+#include "tc_analyzer_pass2_rhs.h"
 #include "tc_struct_check.h"
 
 #include <stdlib.h>
@@ -428,8 +429,20 @@ int tc_ptr_check_memcopy_unsafe_operands(const TcMemcopyUnsafeStmt *stmt,
                                     struct_table, hist, stmt_index, stmt->line, diag, warnings,
                                     NULL) != 0) {
         rc = -1;
+    } else if (tc_check_integer_operand((TcOperand *)&stmt->dst_index, visible, global,
+                                        struct_table, hist, stmt_index, stmt->line, diag,
+                                        warnings, NULL) != 0) {
+        /* §6.8.9 操作数表：dst_idx / src_idx / length 须为整数类型（宽度不限） */
+        rc = -1;
+    } else if (tc_check_integer_operand((TcOperand *)&stmt->src_index, visible, global,
+                                        struct_table, hist, stmt_index, stmt->line, diag,
+                                        warnings, NULL) != 0) {
+        rc = -1;
+    } else if (tc_check_integer_operand((TcOperand *)&stmt->length, visible, global, struct_table,
+                                        hist, stmt_index, stmt->line, diag, warnings, NULL) != 0) {
+        rc = -1;
     }
-    if (ptr_ty.params.ptr_type.pointee) {
+    if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
         tc_type_free(ptr_ty.params.ptr_type.pointee);
         free(ptr_ty.params.ptr_type.pointee);
     }

@@ -124,9 +124,22 @@ static int tc_memblock_read_index_kind(const TcOperand *index_op, TcExecuteCtx *
         signed_operand = sym && sym->type && tc_type_is_signed(sym->type->tag);
     }
 
-    if (tc_eval_operand(index_op, signed_operand ? TC_ISIZE : TC_USIZE, ctx, &index_value, diag,
-                        line) != 0) {
-        return -1;
+    /*
+     * 求值类型：整数下标按**声明类型**取值（§6.7.2.4 / §6.8.9 只要求整数类型，
+     * 不要求它是 usize/isize；绑定的 declared 类型与请求类型不一致时
+     * tc_exec_load_binding 会按元数据不匹配报内部错误）。仅当绑定缺失或非整数
+     * 时才退回按符号性请求 isize/usize。
+     */
+    {
+        TcTypeTag eval_type = signed_operand ? TC_ISIZE : TC_USIZE;
+
+        if (index_op->binding.resolved && index_op->binding.type &&
+            tc_type_is_integer(index_op->binding.type->tag)) {
+            eval_type = index_op->binding.type->tag;
+        }
+        if (tc_eval_operand(index_op, eval_type, ctx, &index_value, diag, line) != 0) {
+            return -1;
+        }
     }
     if (signed_operand &&
         tc_bits_to_signed(index_value.type ? index_value.type->tag : TC_ISIZE,
