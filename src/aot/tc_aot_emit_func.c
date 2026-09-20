@@ -36,7 +36,6 @@ int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgram *modu
     int body_start = 0;
     int body_end = 0;
     size_t i = 0;
-    const char *qual = ctx->embed_mode ? "" : "static ";
 
     (void)body_end;
     if (tc_aot_func_body_index_range(module, func->func_id, &body_start, &body_end) != 0) {
@@ -46,8 +45,13 @@ int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgram *modu
         fprintf(out, "int tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
                 func->func_id);
     } else {
-        fprintf(out, "%svoid tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
-                qual, func->func_id);
+        /*
+         * B-50：非嵌入模式下 TC 函数可能不被任何调用点引用（如 #lib-only 程序），
+         * 生成 C 用 `-Werror` 编译时 `static` 会触发 -Wunused-function。函数改为
+         * 外部链接（同一程序只编译单个生成文件，无需靠 static 隔离符号）。
+         */
+        fprintf(out, "void tc_aot_func_%d(TcDiagnostic *diag) {\n    tc_aot_cur_diag = diag;\n",
+                func->func_id);
     }
     ctx->current_func_id = func->func_id;
     ctx->current_return_type = func->return_type.tag;
@@ -86,7 +90,7 @@ void tc_aot_emit_func_decls(FILE *out, const TcTypedProgram *program, TcAotEmitC
     size_t di = 0;
     size_t i = 0;
     int wrote = 0;
-    const char *qual = ctx->embed_mode ? "" : "static ";
+    const char *qual = "";
 
     for (di = 0; di < program->dep_count; di++) {
         for (i = 0; i < program->deps[di].count; i++) {

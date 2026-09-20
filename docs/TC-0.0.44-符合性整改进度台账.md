@@ -156,7 +156,7 @@
 | B-47 | float32 字面量经 double 二次舍入 | ☑ | |
 | B-48 | 浮点边界字面量被拒 | ☑ | |
 | B-49 | `ptr_sub` `usize` 偏移有符号溢出 | ☑ | |
-| B-50 | AOT `-r` 拒 `#lib`-only | ☐ | |
+| B-50 | AOT `-r` 拒 `#lib`-only | ☑ | |
 | B-51 | `ptr_address(T, 形参)` AOT 代码生成失败 | ☐ | |
 | B-52 | strict 下溢按宿主 `FE_UNDERFLOW` | ☐ | |
 | B-53 | `%.80d` 起报 `TC_RE_IO` | ☐ | |
@@ -248,6 +248,7 @@
 | B-46 | `tc_io.c` `tc_fp_round`：把 `keep <= 0` 拆开——`keep < 0`（需保留的有效位完全落在首位有效数字之前）恒舍入为零，仅 `keep == 0`（舍入位恰为首位）才按该位与后续位做 roundTiesToEven 判定。新增 `tests/valid/format_float_small_rounding.tc`（0.00009/2^-40/6e-8/9e-7 四例；VM stdout+check_ok、AOT diff）；test-map 回填 1111 VM / 483 AOT | 审计三例：`%.3f` of 0.00009 由 `0.001` 变为 `0.000`；`%.0f` of 2^-40 由 `1` 变为 `0`；`%.6f` of 6e-8 由 `0.000001` 变为 `0.000000`；边界对照 `%.6f` of 9e-7 仍正确进位为 `0.000001`（keep == 0 路径不变）；VM/AOT 输出一致；全量三层与 5 项门禁通过 |
 | B-47 / B-48 | `tc_lexer.c` 浮点字面量：①float32 后缀改用 `strtof` **直接**按 roundTiesToEven 舍入到 binary32（原为 strtod 的 double 再截断，二次舍入，§2.4.1）；②范围判据改为「**舍入后**为 ±∞ 或非零有限值舍入为零」——删除过严的 `fabs(value) > FLT_MAX` 与 2^-150 阈值，`3.4028235e38f`（舍入到 FLT_MAX）与可表示非规格化数均合法。新增 `tests/valid/float32_literal_direct_rounding.tc`（1.0000001788139343f → 0x3F800001；3.4028235e38f → 0x7F7FFFFF；VM stdout+check_ok、AOT diff）；test-map 回填 1113 VM / 484 AOT | B-47 审计例：`var x: float32 = 1.0000001788139343f` 的 `bitcast(uint32, x)` 由 `3f800002` 变为 `3f800001`，与 `read(float32)` 的 strtof 口径一致；B-48：`3.4028235e38f` 由拒绝变为接受（输出 `2139095039` = `0x7F7FFFFF`）；`1e-46f`（舍入为零）仍拒绝、`1e-45f` 仍接受；VM/AOT 输出一致；全量三层与 5 项门禁通过 |
 | B-49 | `tc_ptr_exec.c`：`tc_ptr_read_offset` 改以 `uint64_t`（usize 位模式）返回偏移，`tc_exec_ptr_arith` 用无符号运算计算新槽索引（消除 ≥ 2^63 偏移转 int64_t 的有符号溢出 UB），并在结果 `>= slot_capacity` 时报 `TC_RE_NULL_POINTER_ARITHMETIC`（与 B-10/B-42 的非法指针值口径一致，避免回绕/截断成可能指向合法槽位的编码）。新增 `tests/errors/runtime/ptr_arith_huge_offset.tc`（VM fail_msg）；test-map 回填 1114 VM | 审计复现（`ptr_sub(int32, p, 9223372036854775808u)`）由 UBSan `signed integer overflow` / 垃圾指针变为确定的 `NullPointerArithmetic`；容量内的 `ptr_add(int32, p, 1u)` 仍正常（输出 2）；全量三层与 5 项门禁通过。注：AOT 运行时的同源有符号运算归 B-57 一并处理 |
+| B-50 | `tc_aot_emit_func.c`：非嵌入模式的 TC 函数与前置声明去掉 `static`（改外部链接）——`#lib`-only 程序的函数可能无调用点，`static` + `-Werror` 会触发 `-Wunused-function` 使 `-r` 失败；生成代码总是单文件编译（无需 static 隔离符号）。`scripts/aot/run_tests.sh` 增 `run_diff_test MathLib.tc`（#lib-only 的 `-r` 覆盖，此前 220 个 diff 测试无一是 #lib-only）；test-map 回填 485 AOT | 审计复现：`tc-aot -r tests/valid/MathLib.tc` 由 `error: unused function 'tc_aot_func_0' [-Werror,-Wunused-function]`（rc=1）变为 rc=0；抽测多个 `#lib`-only 语料均通过；嵌入模式仍由函数表引用、行为不变；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -323,7 +324,8 @@
 | 54 | 阶段 2-B45 strict shl 零被移位数溢出 | `c60ea01 fix(0.0.44-B45): detect strict shl overflow regardless of value` |
 | 55 | 阶段 2-B46 `%f` 极小量舍入 | `7601a4e fix(0.0.44-B46): round tiny values to zero when no significant digit is kept` |
 | 56 | 阶段 2-B47/B48 float32 字面量直接舍入与边界判据 | `faea694 fix(0.0.44-B47/B48): round float32 literals directly and accept rounded boundary values` |
-| 57 | 阶段 2-B49 ptr 算术 usize 偏移无符号语义 | 本提交 `fix(0.0.44-B49): use unsigned semantics for pointer arithmetic offsets` |
+| 57 | 阶段 2-B49 ptr 算术 usize 偏移无符号语义 | `90ede78 fix(0.0.44-B49): use unsigned semantics for pointer arithmetic offsets` |
+| 58 | 阶段 2-B50 AOT `-r` 支持 #lib-only | 本提交 `fix(0.0.44-B50): link AOT functions externally for non-embed builds` |
 
 ---
 
