@@ -1,0 +1,5 @@
+#program
+; §6.6.1.1 / §5.2.1 第 2 步 / 附录 B.6：无后缀整数字面量源类型为 int64，
+; 常量 cast 中的越界字面量报字面量码（不得降级为 ConstantExpressionError）
+let a: uint64 = cast(uint64, 18446744073709551615)
+writeln(uint64, a)

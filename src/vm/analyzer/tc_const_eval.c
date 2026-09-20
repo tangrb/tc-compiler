@@ -1316,9 +1316,14 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
             } else {
                 source_type = cast->source.u.lit.unsigned_suffix ? TC_UINT64 : TC_INT64;
             }
-            if (!tc_literal_fits_context(&cast->source.u.lit, source_type, NULL)) {
-                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
-                                  "invalid literal in constant cast");
+            /*
+             * B-24：§6.6.1.1 规定无后缀整数字面量的源类型是 int64，数值须先落在
+             * 该类型范围内；不满足时属**字面量**诊断（TC_CE_LITERAL_OUT_OF_RANGE /
+             * TC_CE_LITERAL_TYPE，附录 B.6），不得降级为 TC_CE_CONSTANT_EXPRESSION
+             *（var 形式的同一表达式即报字面量码，§5.2.1 第 2 步）。
+             */
+            if (tc_check_literal(&cast->source.u.lit, source_type, line, diag,
+                                 TC_CE_LITERAL_TYPE) != 0) {
                 return -1;
             }
             src_val = tc_literal_to_value(&cast->source.u.lit, source_type);

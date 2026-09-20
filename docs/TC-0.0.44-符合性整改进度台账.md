@@ -227,6 +227,7 @@
 | 2.6.2 | 新增 `tc_check_operand_strict`（`tc_analyzer_pass2_rhs.c`）：先按 `expected->tag` 做基础检查，期望类型为 `ptr`/`memblock`/`struct` 时再要求**完整同型**（`tc_type_equals` 递归比较所指/元素/struct_id + `tc_type_memblock_count_mismatch` 比较 `N`），操作数实际类型取自 `binding.type` 或字段解析结果。在三处 tag-only 比较点改用：结构体构造器字段值（`tc_struct_check.c`）、`memblock_store` 的 `value`（§6.7.2.2）、`ptr_store` 的 `value`（§6.8.3）。另在 `cast`/`bitcast` 源类型解析后、位宽判定前拒绝 `struct`/`memblock` 源（§6.6.6，`TC_CE_TYPE_MISMATCH`）。新增 7 份语料（构造器结构体/指针所指/N、memblock_store、ptr_store、cast、bitcast），VM check_fail + 码断言；test-map 回填 1063 VM | 审计 6 类：`C(a: b)`（A 字段给 B）、`P(p: pi)`（`ptr<float32>` 给 `ptr<int32>`）、`M(m: mb2)`（`memblock<int32,4>` 给 `memblock<int32,2>`）、`memblock_store(A, m, 0, b)`、`ptr_store(ptr<float32>, ppf, pi)`、`cast(int32, struct)`／`bitcast(int64, struct)` 全部由 ACCEPT（或错报 `BitcastWidthError`）变为 `TypeMismatch`；同型的构造器/存储用例仍通过（全量三层绿）；全量三层与 5 项门禁通过 |
 | B-22 | `tc_analyzer.c` `tc_check_literal`：字面量**类型**不匹配一律报 `TC_CE_LITERAL_TYPE`（忽略调用点传入的比较/条件类通用码；形参保留但标注未用），越界仍报 `TC_CE_LITERAL_OUT_OF_RANGE`。因 `tc_check_operand` / `tc_check_operand_strict` 是各操作数位置的公共入口，一处修改即覆盖内建运算、比较、I/O、构造器字段、memblock_store 等全部位置。新增 5 份语料（`literal_type_writeln/arith/compare/ctor/memblock_store`），VM check_fail + `LiteralTypeError` 断言；test-map 回填 1068 VM | 审计表：`writeln(int32, 1u)`、`add(int32, 1u, 1)`、`eq(int32, x, 1.5)`、`S(a: true)`、`memblock_store(int32, m, 0, 1.5)` 由 `TypeMismatch`/`ComparisonTypeMismatch` 全部变为 `LiteralTypeError`；`var a: int32 = 1u` 仍为 `LiteralTypeError`（对照正确）；全量三层与 5 项门禁通过 |
 | B-23 | `tc_analyzer_pass2_rhs.c` 新增 `tc_rhs_kind_yields_bool`（比较/逻辑类 RHS 的静态结果类型为 bool）；`tc_check_condition` 仅在「结果类型非 bool」的形态（字面量/操作数/算术/调用等）上把 `TYPE_MISMATCH` 改写为 `TC_CE_CONDITION_TYPE`，结果类型本就是 bool 的比较类内部失败（如跨类型指针比较）保留其专用码。新增 `tests/errors/static/condition_ptr_type_mismatch.tc`，VM check_fail + TypeMismatch；test-map 回填 1069 VM | `if ptr_lt(int32, p, q)`（`ptr<int32>` vs `ptr<uint8>`）由 `ConditionTypeError` 变为 `TypeMismatch`，与 `var b: bool = ptr_lt(…)` 位置一致（§7.1.1 + 附录 B.11）；`if x then`（x: int32）仍报 `ConditionTypeError`（`if condition must be bool`）；全量三层与 5 项门禁通过 |
+| B-24 | `tc_const_eval.c` 常量 `cast` 的字面量源检查改用 `tc_check_literal(..., TC_CE_LITERAL_TYPE)`（原为 `tc_literal_fits_context` + `TC_CE_CONSTANT_EXPRESSION`），使越界字面量报 `TC_CE_LITERAL_OUT_OF_RANGE`（§6.6.1.1 / §5.2.1 第 2 步 / 附录 B.6）。新增 `tests/errors/static/const_cast_literal_out_of_range.tc`，VM check_fail + LiteralOutOfRange；test-map 回填 1070 VM | `let a: uint64 = cast(uint64, 18446744073709551615)` 由 `ConstantExpressionError` 变为 `LiteralOutOfRange`，与 `var` 形式的同一表达式一致；不带 `cast` 的 `var a: uint64 = 18446744073709551615` 仍按上下文定型接受；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -282,7 +283,8 @@
 | 34 | 阶段 2-§2.6.1 确定初始化读集补全 | `c04e53e fix(0.0.44-2.6.1): complete the definite-initialization read sets` |
 | 35 | 阶段 2-§2.6.2 严格同型比较 | `f1ecca3 fix(0.0.44-2.6.2): compare full operand types, not just tags` |
 | 36 | 阶段 2-B22 字面量类型专用码优先 | `3807ee2 fix(0.0.44-B22): report LITERAL_TYPE in every literal position` |
-| 37 | 阶段 2-B23 条件位置保留具体码 | 本提交 `fix(0.0.44-B23): keep specific codes inside conditions` |
+| 37 | 阶段 2-B23 条件位置保留具体码 | `f073c9d fix(0.0.44-B23): keep specific codes inside conditions` |
+| 38 | 阶段 2-B24 常量 cast 字面量错码 | 本提交 `fix(0.0.44-B24): report literal codes for constant cast literals` |
 
 ---
 
