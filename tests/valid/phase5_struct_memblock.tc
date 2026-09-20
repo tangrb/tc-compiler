@@ -3,7 +3,8 @@
 struct Box then
     var data: memblock<int32, 2>
 end
-var b: Box = Box(data: memblock(int32, count: 2, 10, 20))
+var d0: memblock<int32, 2> = memblock(int32, count: 2, 10, 20)
+var b: Box = Box(data: d0)
 var mb: memblock<int32, 2> = b.data
 var e0: int32 = memblock_load(int32, mb, 0)
 var e1: int32 = memblock_load(int32, mb, 1)

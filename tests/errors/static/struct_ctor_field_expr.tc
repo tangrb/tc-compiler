@@ -1,5 +1,5 @@
 #program
-; 期望：expected operand, memblock constructor, or struct constructor
+; 期望：结构体构造器字段值只能是 operand（附录 A struct_constructor）
 struct P then
     var x: int32
 end

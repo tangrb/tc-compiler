@@ -75,14 +75,18 @@ static void test_struct_field_access_chain(void) {
               "struct C then\n    var z: int32\nend\n"
               "struct B then\n    var c: C\nend\n"
               "struct A then\n    var b: B\nend\n"
-              "var a: A = A(b: B(c: C(z: 7)))\n"
+              "var c0: C = C(z: 7)\n"
+              "var b0: B = B(c: c0)\n"
+              "var a: A = A(b: b0)\n"
               "var v: int32 = a.b.c.z\n",
               "nested chain a.b.c ok");
     expect_ok("#program\n"
               "struct C then\n    var z: int32\nend\n"
               "struct B then\n    var c: C\nend\n"
               "struct A then\n    var b: B\nend\n"
-              "var a: A = A(b: B(c: C(z: 7)))\n"
+              "var c0: C = C(z: 7)\n"
+              "var b0: B = B(c: c0)\n"
+              "var a: A = A(b: b0)\n"
               "var v: int32 = mul(int32, a.b.c.z, 2)\n",
               "nested chain as operand ok");
     /* 未知字段 */
@@ -198,7 +202,8 @@ static void test_struct_field_access_const(void) {
     expect_ok("#lib\n"
               "public struct Inner then\n    var x: int32\nend\n"
               "public struct Outer then\n    var inner: Inner\nend\n"
-              "public static let o: Outer = Outer(inner: Inner(x: 3))\n"
+              "public static let i0: Inner = Inner(x: 3)\n"
+              "public static let o: Outer = Outer(inner: i0)\n"
               "public static let n: int32 = Self.o.inner.x\n",
               "nested static let field ok");
     /* static var 源序之后的 Self.field：名称在源序可见性上尚未建立 →
@@ -216,21 +221,24 @@ static void test_struct_field_access_const_composite(void) {
     expect_ok("#program\n"
               "struct Inner then\n    var v: int32\nend\n"
               "struct Outer then\n    var inner: Inner\nend\n"
-              "let o: Outer = Outer(inner: Inner(v: 11))\n"
+              "let i0: Inner = Inner(v: 11)\n"
+              "let o: Outer = Outer(inner: i0)\n"
               "var x: Inner = o.inner\n"
               "var y: int32 = x.v\n",
               "let base struct field whole-read ok");
     expect_ok("#lib\n"
               "public struct Inner then\n    var v: int32\nend\n"
               "public struct Outer then\n    var inner: Inner\nend\n"
-              "public static let o: Outer = Outer(inner: Inner(v: 5))\n"
+              "public static let i0: Inner = Inner(v: 5)\n"
+              "public static let o: Outer = Outer(inner: i0)\n"
               "public func get() int32 then\n    var x: Inner = Self.o.inner\n"
               "    return x.v\nend\n",
               "static let base struct field whole-read ok");
     /* memblock 字段整体读出（运行期深拷贝路径） */
     expect_ok("#program\n"
               "struct Holder then\n    var data: memblock<int32, 3>\nend\n"
-              "let h: Holder = Holder(data: memblock(int32, count: 3, 1, 2, 3))\n"
+              "let d0: memblock<int32, 3> = memblock(int32, count: 3, 1, 2, 3)\n"
+              "let h: Holder = Holder(data: d0)\n"
               "var m: memblock<int32, 3> = h.data\n"
               "var v: int32 = memblock_load(int32, m, 1)\n",
               "let base memblock field whole-read ok");
@@ -239,7 +247,9 @@ static void test_struct_field_access_const_composite(void) {
               "struct Leaf then\n    var v: int32\nend\n"
               "struct Mid then\n    var leaf: Leaf\nend\n"
               "struct Root then\n    var mid: Mid\nend\n"
-              "let r: Root = Root(mid: Mid(leaf: Leaf(v: 7)))\n"
+              "let l0: Leaf = Leaf(v: 7)\n"
+              "let m0: Mid = Mid(leaf: l0)\n"
+              "let r: Root = Root(mid: m0)\n"
               "var m: Mid = r.mid\n"
               "var l: Leaf = m.leaf\n"
               "var v: int32 = l.v\n",

@@ -234,6 +234,7 @@
 | B-28 | `tc_parser_type.c`：`tc_parse_type_syntax` 拆出带深度参数的 `tc_parse_type_depth`（公开入口以 depth=0 转发），`ptr<…>` 与 `memblock<…>` 两处递归前检查 `depth >= TC_PARSER_MAX_DEPTH`（256，与 RHS 解析同一上限），超限报 `TC_CE_SYNTAX: type nesting too deep`。新增 `tests/errors/static/type_nesting_too_deep.tc`（300 层 `ptr<…>`，VM check_fail + SyntaxError）；test-map 回填 1077 VM | 审计复现 `ptr<`×50000 与 `memblock<`×30000 由 SIGSEGV（rc=139）变为 `SyntaxError: type nesting too deep`；100 层 `ptr<…>` 仍正常接受；全量三层与 5 项门禁通过 |
 | B-29 | `tc_lexer.c` `tc_parse_radix_digits`：`prev_underscore = 0` 移到「确认当前字符是合法数字」之后——原实现在数字判定前就清除该标志，使下划线后跟非数字（`u`/`U` 后缀或行尾）不被识别为「字面量尾部下划线」。新增 `literal_trailing_underscore.tc`（`1_u`）与 `literal_trailing_underscore_hex.tc`（`0x1F_U`），VM check_fail + SyntaxError；test-map 回填 1079 VM | 审计五例：`1_u`、`1_`、`0x1F_U`、`0b1_u`、`0o7_u` 由 ACCEPT 变为 `SyntaxError: invalid integer literal`；合法分隔符 `1_000` 仍接受；连续下划线 `1__0` 仍拒绝；全量三层与 5 项门禁通过 |
 | B-30 / B-31 | 四处列表产生式统一为「项之间必须有逗号、末项后不得有逗号」：`tc_parser_func.c` 形参表、`tc_parser_stmt.c` 两处命名实参表（funcall 语句 / RHS 表达式位置）、`tc_parser_rhs.c` 的 memblock 逐值构造器与结构体构造器。实现方式：消费逗号后若紧随 `)` 则报尾随逗号；无逗号且下一 Token 非 `)` 则报「expected , or )」。新增 8 份语料 `list_trailing_comma_{param,args,ctor,memblock}.tc` 与 `list_missing_comma_{param,args,ctor,memblock}.tc`（VM check_fail + SyntaxError）；test-map 回填 1087 VM | 审计 4 处尾随逗号（`f(a: int32,)`、`funcall(Self.g,)`、`S(a: 1, b: 2,)`、`memblock(int32, count: 2, 1, 2,)`）与 3 处缺失逗号（形参表 / 结构体构造器 / memblock 构造器）全部由 ACCEPT 变为 SyntaxError；合法带逗号形态不受影响；全量三层与 5 项门禁通过 |
+| B-32 | `tc_parser_rhs.c` `tc_parse_struct_ctor_rhs`：删除「解析任意 RHS 后仅允许 memblock/struct 构造器」的分支，字段值不再接受任何调用型 RHS（嵌套构造器、funcall、cast、ptr_* 等）——附录 A `struct_constructor` 的字段值与 `const_struct_constructor` 的 `const_operand` 都只允许 operand（§6.1.2 调用型 RHS 不属于 operand）。既有 9 份依赖嵌套构造器的测试改写为合法等价形态（先 `let`/`var` 中间绑定再构造）：`struct_field_const_base_{nested,struct,memblock}`、`struct_field_static_let_base`、`phase5_struct_{nested,nested_assign,extract_indep,memblock,memblock_of_struct,memblock_deepcopy,ptr_nested_self_ref}`、`phase3_struct_nested`、`struct_field_operand_nested` 及 `test_type_check`/`test_struct_field_access` 内嵌源码；`struct_ctor_field_expr.tc` 断言改为新消息。新增 `struct_ctor_nested_constructor.tc` 与 `struct_ctor_memblock_constructor.tc`（VM check_fail + SyntaxError）；test-map 回填 1089 VM | 审计复现 `S(t: T(v: 1))` 与 `S(m: memblock(int32, count: 2, fill: 0))` 由接受且可运行变为 `SyntaxError`；`funcall` 的命名实参仍接受构造器（附录 A `named_argument`，未受影响）；改写后的等价合法程序输出与改写前一致；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -296,7 +297,8 @@
 | 41 | 阶段 2-B27 格式说明符长度上限 | `febd46f fix(0.0.44-B27): stop rejecting long legal format specs` |
 | 42 | 阶段 2-B28 类型递归深度上限 | `6ab3088 fix(0.0.44-B28): cap type-expression recursion depth` |
 | 43 | 阶段 2-B29 数字分隔符规则 | `c6039cb fix(0.0.44-B29): enforce digit-separator placement rules` |
-| 44 | 阶段 2-B30/B31 列表产生式逗号规则 | 本提交 `fix(0.0.44-B30/B31): enforce comma rules in list productions` |
+| 44 | 阶段 2-B30/B31 列表产生式逗号规则 | `2b93ace fix(0.0.44-B30/B31): enforce comma rules in list productions` |
+| 45 | 阶段 2-B32 结构体构造器字段值限 operand | 本提交 `fix(0.0.44-B32): restrict struct-constructor field values to operands` |
 
 ---
 

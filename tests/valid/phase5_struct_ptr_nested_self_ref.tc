@@ -5,6 +5,7 @@ struct Node then
     var pp: ptr<ptr<Node>>
     var arr: memblock<ptr<Node>, 2>
 end
-var n: Node = Node(value: 1, pp: nullptr, arr: memblock(ptr<Node>, count: 2, nullptr, nullptr))
+var arr0: memblock<ptr<Node>, 2> = memblock(ptr<Node>, count: 2, nullptr, nullptr)
+var n: Node = Node(value: 1, pp: nullptr, arr: arr0)
 var w: int32 = n.value
 writeln(int32, w)

@@ -9,7 +9,9 @@ end
 struct Root then
     var mid: Mid
 end
-let r: Root = Root(mid: Mid(leaf: Leaf(v: 7)))
+let leaf0: Leaf = Leaf(v: 7)
+let mid0: Mid = Mid(leaf: leaf0)
+let r: Root = Root(mid: mid0)
 var m: Mid = r.mid
 var l: Leaf = m.leaf
 var l2: Leaf = m.leaf

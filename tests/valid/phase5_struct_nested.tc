@@ -6,6 +6,7 @@ end
 struct Outer then
     var inner: Inner
 end
-var o: Outer = Outer(inner: Inner(x: 7))
+var i0: Inner = Inner(x: 7)
+var o: Outer = Outer(inner: i0)
 var v: int32 = o.inner.x
 writeln(int32, v)

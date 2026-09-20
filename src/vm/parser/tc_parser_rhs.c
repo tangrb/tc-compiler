@@ -454,6 +454,8 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
     const TcToken *name_tok = tc_peek(tokens, *index);
     char *struct_name = NULL;
 
+    /* 字段值只允许 operand（B-32），故本函数不再需要解析上下文 */
+    (void)ctx;
     if (*index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
         const TcToken *member_tok = tc_peek(tokens, *index + 2);
         size_t total = name_tok->length + 1 + member_tok->length + 1;
@@ -532,37 +534,14 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
                 return -1;
             }
         } else {
-            out->u.struct_ctor.fields[field_idx].has_rhs = 1;
-            out->u.struct_ctor.fields[field_idx].value_rhs =
-                (struct TcRhs *)calloc(1, sizeof(TcRhs));
-            if (!out->u.struct_ctor.fields[field_idx].value_rhs) {
-                tc_rhs_free(out);
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN,
-                                  "memory allocation failed");
-                return -1;
-            }
-            if (tc_parse_rhs(ctx, tokens, index, line_no,
-                             (TcRhs *)out->u.struct_ctor.fields[field_idx].value_rhs, diag) != 0) {
-                /* tc_parse_rhs 失败时已释放 value_rhs 内部（tc_rhs_free 契约）；
-                 * 此处仅释放外壳并置空，避免随后的 tc_rhs_free(out) 二次释放。 */
-                free(out->u.struct_ctor.fields[field_idx].value_rhs);
-                out->u.struct_ctor.fields[field_idx].value_rhs = NULL;
-                out->u.struct_ctor.fields[field_idx].has_rhs = 0;
-                tc_rhs_free(out);
-                return -1;
-            }
-            {
-                TcRhs *field_rhs =
-                    (TcRhs *)out->u.struct_ctor.fields[field_idx].value_rhs;
-
-                if (field_rhs->kind != TC_RHS_MEMBLOCK_CONSTRUCTOR &&
-                    field_rhs->kind != TC_RHS_STRUCT_CONSTRUCTOR) {
-                    tc_rhs_free(out);
-                    return tc_syntax_error(
-                        diag, line_no, TC_COLUMN_UNKNOWN,
-                        "expected operand, memblock constructor, or struct constructor");
-                }
-            }
+            /*
+             * B-32：附录 A 的结构体构造器字段值产生式是 `operand`；调用型 RHS
+             *（结构体/memblock 构造器、funcall、cast、ptr_* 等，§6.1.2）不属于
+             * operand，必须在语法阶段拒绝。
+             */
+            tc_rhs_free(out);
+            return tc_syntax_error(diag, line_no, val_tok->column,
+                                   "struct constructor field value must be an operand");
         }
         if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
             (*index)++;

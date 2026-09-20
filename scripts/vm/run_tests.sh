@@ -2037,7 +2037,7 @@ run_expect_fail_msg "$ROOT/tests/errors/lexical/float_unsigned_suffix.tc" \
 run_expect_fail_msg "$ROOT/tests/errors/lexical/negative_unsigned.tc" \
     "negative value cannot use unsigned suffix"
 run_expect_fail_msg "$ROOT/tests/errors/static/funcall_arg_expr.tc" "expected operand, memblock constructor, or struct constructor"
-run_expect_fail_msg "$ROOT/tests/errors/static/struct_ctor_field_expr.tc" "expected operand, memblock constructor, or struct constructor"
+run_expect_fail_msg "$ROOT/tests/errors/static/struct_ctor_field_expr.tc" "struct constructor field value must be an operand"
 run_expect_fail_msg "$ROOT/tests/errors/static/module_layer_interleave.tc" "declaration out of module layer order"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_struct.tc" "bitcast target must be a non-bool integer, float, or ptr type"
 run_expect_fail_msg "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"
@@ -2190,7 +2190,11 @@ run_expect_check_fail "$ROOT/tests/errors/lexical/float_unsigned_suffix.tc" \
 run_expect_check_fail "$ROOT/tests/errors/lexical/negative_unsigned.tc" \
     "negative value cannot use unsigned suffix"
 run_expect_check_fail "$ROOT/tests/errors/static/funcall_arg_expr.tc" "expected operand, memblock constructor, or struct constructor"
-run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_field_expr.tc" "expected operand, memblock constructor, or struct constructor"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_field_expr.tc" "struct constructor field value must be an operand" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_nested_constructor.tc" \
+    "struct constructor field value must be an operand" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/struct_ctor_memblock_constructor.tc" \
+    "struct constructor field value must be an operand" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/module_layer_interleave.tc" "declaration out of module layer order"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_struct.tc" "bitcast target must be a non-bool integer, float, or ptr type"
 run_expect_check_fail "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"

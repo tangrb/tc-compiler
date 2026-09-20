@@ -8,7 +8,8 @@ end
 struct Outer then
     var inner: Inner
 end
-let o: Outer = Outer(inner: Inner(v: 11))
+let inner0: Inner = Inner(v: 11)
+let o: Outer = Outer(inner: inner0)
 var x: Inner = o.inner
 var back: Inner = o.inner
 writeln(int32, x.v)

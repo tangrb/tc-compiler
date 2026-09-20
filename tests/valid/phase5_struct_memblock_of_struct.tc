@@ -8,7 +8,8 @@ struct A then
     var items: memblock<B, 2>
 end
 var b0: B = B(x: 7)
-var a: A = A(tag: 1, items: memblock(B, count: 2, fill: b0))
+var m0: memblock<B, 2> = memblock(B, count: 2, fill: b0)
+var a: A = A(tag: 1, items: m0)
 var mb: memblock<B, 2> = a.items
 var e0: B = memblock_load(B, mb, 0)
 var w: int32 = e0.x

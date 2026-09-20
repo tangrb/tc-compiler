@@ -6,7 +6,8 @@ end
 struct Outer then
     var inner: Inner
 end
-var o: Outer = Outer(inner: Inner(x: 1))
+var i0: Inner = Inner(x: 1)
+var o: Outer = Outer(inner: i0)
 var v: int32 = 0
 o.inner.x = 99
 v = o.inner.x

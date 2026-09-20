@@ -5,7 +5,8 @@
 struct Holder then
     var data: memblock<int32, 3>
 end
-let h: Holder = Holder(data: memblock(int32, count: 3, 1, 2, 3))
+let data0: memblock<int32, 3> = memblock(int32, count: 3, 1, 2, 3)
+let h: Holder = Holder(data: data0)
 var m: memblock<int32, 3> = h.data
 var m2: memblock<int32, 3> = h.data
 var e1: int32 = 0

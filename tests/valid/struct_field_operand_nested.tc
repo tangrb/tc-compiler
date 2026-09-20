@@ -6,6 +6,7 @@ end
 struct Outer then
     var inner: Inner
 end
-var a: Outer = Outer(inner: Inner(v: 11))
+var i0: Inner = Inner(v: 11)
+var a: Outer = Outer(inner: i0)
 var doubled: int32 = mul(int32, a.inner.v, 2)
 writeln(int32, doubled)

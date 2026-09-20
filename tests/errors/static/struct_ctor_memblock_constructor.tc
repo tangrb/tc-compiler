@@ -1,0 +1,7 @@
+#program
+; 附录 A struct_constructor：字段值是 operand；memblock 构造器属调用型 RHS → 语法拒绝
+struct S then
+    var m: memblock<int32, 2>
+end
+var s: S = S(m: memblock(int32, count: 2, fill: 0))
+writeln(int32, 1)

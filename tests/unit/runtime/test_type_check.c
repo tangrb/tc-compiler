@@ -165,7 +165,8 @@ static void test_ptr_errors(void) {
 static void test_struct_nested_and_mutability(void) {
     expect_ok("#program\nstruct Inner then\n    var x: int32\nend\n"
               "struct Outer then\n    var inner: Inner\nend\n"
-              "var o: Outer = Outer(inner: Inner(x: 7))\n"
+              "var i0: Inner = Inner(x: 7)\n"
+              "var o: Outer = Outer(inner: i0)\n"
               "var v: int32 = o.inner.x\n",
               "nested struct field read ok");
     expect_err("#program\nstruct Point then\n    var x: int32\nend\n"
@@ -270,8 +271,9 @@ static void test_struct_self_reference(void) {
     expect_ok("#program\nstruct Node then\n    var value: int32\n"
               "    var pp: ptr<ptr<Node>>\n"
               "    var arr: memblock<ptr<Node>, 2>\nend\n"
-              "var n: Node = Node(value: 1, pp: nullptr, "
-              "arr: memblock(ptr<Node>, count: 2, nullptr, nullptr))\n",
+              "var arr0: memblock<ptr<Node>, 2> = "
+              "memblock(ptr<Node>, count: 2, nullptr, nullptr)\n"
+              "var n: Node = Node(value: 1, pp: nullptr, arr: arr0)\n",
               "nested ptr self-reference ok");
     /* 值自引用 → TC_CE_STRUCT_VALUE_SELF_REF（专用码，语义非「未定义结构体」） */
     expect_err("#program\nstruct Node then\n    var next: Node\nend\n",
@@ -304,7 +306,8 @@ static void test_struct_self_reference(void) {
     expect_ok("#program\nstruct B then\n    var x: int32\nend\n"
               "struct A then\n    var items: memblock<B, 2>\nend\n"
               "var b0: B = B(x: 7)\n"
-              "var a: A = A(items: memblock(B, count: 2, fill: b0))\n"
+              "var m0: memblock<B, 2> = memblock(B, count: 2, fill: b0)\n"
+              "var a: A = A(items: m0)\n"
               "var mb: memblock<B, 2> = a.items\n"
               "var e0: B = memblock_load(B, mb, 0)\n",
               "memblock of earlier struct ok");

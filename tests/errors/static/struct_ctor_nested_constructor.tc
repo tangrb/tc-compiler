@@ -1,0 +1,10 @@
+#program
+; 附录 A struct_constructor：字段值是 operand；嵌套结构体构造器属调用型 RHS → 语法拒绝
+struct T then
+    var v: int32
+end
+struct S then
+    var t: T
+end
+var s: S = S(t: T(v: 1))
+writeln(int32, s.t.v)
