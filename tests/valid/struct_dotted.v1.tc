@@ -1,0 +1,16 @@
+#program
+; B-64 / §3.9.1 / §6.1.2：§4.1 只规定「一个 .tc 文件 = 一个模块」，未禁止文件名
+; 含内部点。本文件名为 `struct_dotted.v1.tc`（模块名 `struct_dotted.v1`），
+; 其中本地声明的结构体必须照常解析：构造器、字段读、`ptr<A>` 取址与解引用
+; 都不得因模块名含点而报 `undefined struct 'struct_dotted.v1.A'`。
+struct A then
+    var x: int32
+    var y: int32
+end
+var v: A = A(x: 7, y: 9)
+var p: ptr<A> = ptr_address(A, v)
+var r: A = ptr_load(A, p)
+var w: int32 = add(int32, r.x, r.y)
+writeln(int32, r.x)
+writeln(int32, r.y)
+writeln(int32, w)

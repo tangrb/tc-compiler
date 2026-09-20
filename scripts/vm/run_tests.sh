@@ -1350,6 +1350,12 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mixed_types.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_extract_indep.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/import_struct_type.tc"
+# B-64：文件名含内部点（模块名含点）时本地结构体名仍须解析
+run_expect_stdout "$ROOT/tests/valid/struct_dotted.v1.tc" "7
+9
+16
+"
+run_expect_check_ok "$ROOT/tests/valid/struct_dotted.v1.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_field.tc"

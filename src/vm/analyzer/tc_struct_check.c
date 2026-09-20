@@ -88,13 +88,43 @@ typedef enum {
 } TcStructNameStatus;
 
 /*
+ * 限定名 `<?>.<成员名>` 的切分。
+ *
+ * 语言标准 §4.1 只规定「一个 .tc 文件 = 一个模块」，**未禁止**文件名含内部点，
+ * 因此模块名本身可能含点（`a.b.c.tc` → 模块 `a.b.c`）。切分必须按**最后一个
+ * 点**进行：否则本地结构体被规范化为 `a.b.c.A` 后再按「恰好一个点」判定，会被
+ * 当成裸名而解析失败（审计 B-64）。成员名（结构体名）是标识符，不含点。
+ *
+ * @return 1 表示可按限定名切分（`*qlen` = 限定部分长度，`*member` = 成员名起点）
+ */
+static int tc_split_qualified_member(const char *written, size_t *qlen, const char **member) {
+    const char *dot = NULL;
+
+    if (!written || written[0] == '\0') {
+        return 0;
+    }
+    dot = strrchr(written, '.');
+    if (!dot || dot == written || dot[1] == '\0') {
+        return 0;
+    }
+    if (qlen) {
+        *qlen = (size_t)(dot - written);
+    }
+    if (member) {
+        *member = dot + 1;
+    }
+    return 1;
+}
+
+/*
  * 裸名仅解析为当前模块已注册结构体；`<模块名>.<结构体名>` 须为本文件已
  * import 的 public struct（语言标准 §3.9.1 / §4.5）。
  */
 static TcStructNameStatus tc_struct_lookup_written(const TcStructTable *table, const char *written,
                                                    const TcProgram *program,
                                                    const TcStructEntry **out_entry) {
-    const char *dot = NULL;
+    size_t qlen = 0;
+    const char *member_name = NULL;
 
     if (out_entry) {
         *out_entry = NULL;
@@ -102,9 +132,7 @@ static TcStructNameStatus tc_struct_lookup_written(const TcStructTable *table, c
     if (!written || written[0] == '\0') {
         return TC_STRUCT_NAME_UNDEF;
     }
-    dot = strchr(written, '.');
-    if (dot && dot != written && dot[1] != '\0' && strchr(dot + 1, '.') == NULL) {
-        size_t qlen = (size_t)(dot - written);
+    if (tc_split_qualified_member(written, &qlen, &member_name)) {
         size_t i = 0;
         const TcStructEntry *found = NULL;
 
@@ -117,7 +145,7 @@ static TcStructNameStatus tc_struct_lookup_written(const TcStructTable *table, c
 
                 if (!entry->module_name || strlen(entry->module_name) != qlen ||
                     memcmp(entry->module_name, written, qlen) != 0 ||
-                    strcmp(entry->name, dot + 1) != 0) {
+                    strcmp(entry->name, member_name) != 0) {
                     continue;
                 }
                 found = entry;
@@ -669,21 +697,20 @@ void tc_struct_table_free(TcStructTable *table) {
 
 const TcStructEntry *tc_struct_table_find(const TcStructTable *table, const char *name) {
     size_t i = 0;
-    const char *dot = NULL;
+    size_t qlen = 0;
+    const char *member_name = NULL;
 
     if (!table || !name) {
         return NULL;
     }
-    dot = strchr(name, '.');
-    if (dot && dot != name && dot[1] != '\0' && strchr(dot + 1, '.') == NULL) {
-        size_t qlen = (size_t)(dot - name);
-
+    /* B-64：按最后一个点切分，模块名可含内部点（`a.b.c` → 本文件的模块名） */
+    if (tc_split_qualified_member(name, &qlen, &member_name)) {
         for (i = 0; i < table->count; i++) {
             const TcStructEntry *entry = &table->items[i];
 
             if (entry->module_name && strlen(entry->module_name) == qlen &&
                 memcmp(entry->module_name, name, qlen) == 0 &&
-                strcmp(entry->name, dot + 1) == 0) {
+                strcmp(entry->name, member_name) == 0) {
                 return entry;
             }
         }
