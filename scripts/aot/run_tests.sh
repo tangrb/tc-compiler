@@ -863,6 +863,8 @@ run_check_fail "$ROOT/tests/errors/static/continue_outside_loop.tc" "continue us
 # --- runtime errors (VM vs AOT --run) ---
 
 run_runtime_fail "$ROOT/tests/errors/runtime/signed_strict_overflow.tc" "out of range"
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_bitcast_forged_load.tc" "null pointer dereference"
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_bitcast_forged_arith.tc" "null pointer arithmetic"
 run_runtime_fail "$ROOT/tests/errors/runtime/signed_strict_mul.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/abs_int_min.tc" "abs(INT_MIN) overflow"

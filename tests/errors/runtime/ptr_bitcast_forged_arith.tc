@@ -1,0 +1,7 @@
+#program
+; 同 ptr_bitcast_forged_load：非法槽编码的指针算术按空指针算术处理
+; （对齐 AOT tc_aot_ptr_arith 既有行为）。
+var u: usize = 2u
+var p: ptr<int32> = bitcast(ptr<int32>, u)
+var q: ptr<int32> = ptr_add(int32, p, 1u)
+writeln(int32, 1)

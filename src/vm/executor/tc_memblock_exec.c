@@ -496,7 +496,9 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
         return -1;
     }
     if ((dst_ptr.bits & 1ULL) == 0 || (src_ptr.bits & 1ULL) == 0) {
-        tc_exec_set_internal_error(diag, stmt->line, "internal error: invalid pointer value");
+        /* 与 AOT tc_aot_memcopy_unsafe 一致：非法槽编码按空指针解引用处理。 */
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, stmt->line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
         return -1;
     }
     dst_slot = (int)(dst_ptr.bits >> 1);

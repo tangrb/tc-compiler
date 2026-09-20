@@ -116,7 +116,7 @@
 | B-7 | VM 按槽位标签渲染 `write` | ☑ | 见文末提交记录 |
 | B-8 | 结构体字段指针操作数：VM 内部错误 / AOT 空指针 | ☑ | 见文末提交记录 |
 | B-9 | 顶层 `let` 作 `memblock_copy` 下标：仅 VM 失败 | ☑ | 见文末提交记录 |
-| B-10 | `bitcast(ptr<T>, usize)` 解引用两后端分歧 | ☐ | |
+| B-10 | `bitcast(ptr<T>, usize)` 解引用两后端分歧 | ☑ | 见文末提交记录 |
 | B-11 | 指针别名清零后读字段：VM 内部错误 | ☐ | |
 | B-12 | `#program` 结构体名 vs `import` 名冲突被放过 | ☐ | |
 | B-13 | libtc 内存入口不解析 `import` | ☐ | |
@@ -206,6 +206,7 @@
 | B-7 | `tc_executor.c` `tc_exec_load_binding`：取槽位后按**使用点静态类型**重建值（`tc_value_make`），仅在「静态类型标签 ≠ 槽位内标签」且两者皆为非聚合（`tc_type_bit_width > 0`）时执行；`tc_eval_operand` 的 `TC_OPERAND_VAR` 兜底路径保持原样（该路径无 `binding->type` 一致性校验，按 `expected_type` 强行重建曾使 `memcopy_unsafe` 的 `int32 -1` 下标被当成 64 位无符号值而越界触发 SIGBUS）。新增 `tests/valid/ptr_alias_write_render_type.tc`（审计复现）并注册 VM stdout/check + AOT diff/check；test-map 回填 1010 VM / 471 AOT | 审计复现（`ptr_store(int64, cast(ptr<int64>, ptr_address(float64, f)), 7)` 后 `writeln(float64, f)`）VM 与 AOT 均输出 `3.45846e-323`（原 VM 输出 `7`）；`--filter memcopy_unsafe`、`--filter ptr_` 与全量三层通过；`tests/errors/runtime/memcopy_unsafe_neg_var_index.tc` 仍报 invalid range |
 | B-8 | `tc_ptr_check.c` 新增 `tc_ptr_check_memcopy_unsafe_operands`（`tc_memblock_check.c` 在 void/只读检查后调用，`tc_memblock_check_memcopy_unsafe` 增传 `struct_table`）：`dst`/`src` 统一走指针操作数校验，既校验 `ptr<T>` 形式与所指类型是否等于显式 `T`，也解析结构体字段读取（`s.p`）并写入 operand。新增 `tests/valid/memcopy_unsafe_struct_field_ptr.tc`（审计复现）并注册 VM stdout + AOT diff；test-map 回填 1011 VM / 472 AOT。顺带闭合 B-20 的两个实测例：非指针操作数与 `T` 不符均静态报 `TC_CE_TYPE_MISMATCH`（B-20 余下的 `dst_idx`/`src_idx`/`length` 整数类型校验另做） | 审计复现 VM 与 AOT 均输出 `7`（原 VM 报 `unresolved field operand` 内部错误、AOT 报 null pointer dereference）；`memcopy_unsafe(int32, x, 0, y, 0, 1)` 与 `memcopy_unsafe(float32, p, 0, q, 0, 1)` 静态 TypeMismatch；`nullptr` 仍静态通过、运行时 NullPointerDereference；`--filter memcopy_unsafe` VM/AOT 全通过；全量三层与 5 项门禁通过 |
 | B-9 | `tc_executor.c` `tc_eval_operand` 无名解析兜底：判据由 `sym->slot >= 0` 放宽为 `sym->slot >= 0 \|\| sym->has_const_value`（`let`/`static let` 的 slot 为 -1，原判据恒落 `tc_exec_load_binding` 的「unresolved binding metadata」内部错误）；新增 `tests/valid/memblock_copy_let_index.tc`（审计复现 + `memcopy_unsafe` 同形用例），注册 VM stdout + AOT diff；test-map 回填 1012 VM / 473 AOT | 审计复现 `memblock_copy(int32, d, I, s, I, 1)`（`let I: int32 = 0`）VM 与 AOT 均输出 `1`（原 VM 报内部错误）；同文件 `memcopy_unsafe(int32, p, I, q, I, 1)` 亦正常；全量三层与 5 项门禁通过 |
+| B-10 | 执行期非法槽编码（§1.3 实现定义清单第 4 项）统一按 AOT 既有口径报用户可见运行期码，删除实现内部错误：`tc_ptr_exec.c` `tc_exec_ptr_load`/`tc_exec_ptr_store` → `TC_RE_NULL_POINTER_DEREFERENCE`，`tc_exec_ptr_arith` → `TC_RE_NULL_POINTER_ARITHMETIC`，`tc_memblock_exec.c` `memcopy_unsafe` → `TC_RE_NULL_POINTER_DEREFERENCE`。新增 `tests/errors/runtime/ptr_bitcast_forged_load.tc`（审计复现）与 `ptr_bitcast_forged_arith.tc`，注册 VM fail+check_ok、AOT runtime_fail；test-map 回填 1016 VM（AOT 注册计数只统计 diff/check_ok/check_fail/CLI golden，`run_runtime_fail` 不计入，保持 473） | 审计复现 `ptr_load` 的 VM 由「internal error: invalid pointer value」改为 `NullPointerDereference: null pointer dereference`，与 AOT 一致；`ptr_store`、`ptr_add` 两个同源路径同样一致（VM NullPointerArithmetic / AOT null pointer arithmetic）；`--filter ptr_bitcast_forged` 通过；全量三层与 5 项门禁通过。注：「解引用任意 usize 伪造的编码」在标准中属空白（审计列为 A 类），本轮按 §1.3 一致性要求对齐 AOT，不改标准 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -240,7 +241,8 @@
 | 13 | 阶段 2-B6 funcall 实参诊断次序 | `04e969e fix(0.0.44-B6): order funcall argument diagnostics per standard` |
 | 14 | 阶段 2-B7 VM write/writeln 渲染类型 | `5ca2958 fix(0.0.44-B7): render write value by static operand type` |
 | 15 | 阶段 2-B8 memcopy_unsafe 字段指针操作数 | `0e40d2b fix(0.0.44-B8): resolve struct field ptr operands in memcopy_unsafe` |
-| 16 | 阶段 2-B9 顶层 let 作下标操作数 | 本提交 `fix(0.0.44-B9): evaluate const bindings in operand fallback` |
+| 16 | 阶段 2-B9 顶层 let 作下标操作数 | `83c76fb fix(0.0.44-B9): evaluate const bindings in operand fallback` |
+| 17 | 阶段 2-B10 非法指针编码两后端分歧 | 本提交 `fix(0.0.44-B10): report user-visible codes for invalid ptr encodings` |
 
 ---
 

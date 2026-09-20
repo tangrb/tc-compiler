@@ -1,0 +1,8 @@
+#program
+; §3.10.9 / §1.3（实现定义清单第 4 项）：`bitcast(ptr<T>, <usize>)` 合法，抽象槽
+; 编码可实现定义；但把一个**非槽编码**的位模式解引用不得表现为实现内部错误。
+; 两后端统一按空指针解引用处理（AOT tc_aot_ptr_load 既有行为）。
+var u: usize = 2u
+var p: ptr<int32> = bitcast(ptr<int32>, u)
+var v: int32 = ptr_load(int32, p)
+writeln(int32, v)
