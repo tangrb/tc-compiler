@@ -30,6 +30,11 @@ static int tc_entry_module_index(const TcProgram *program) {
     return -2;
 }
 
+/** 供 Pass2 编排按模块切换 `Self.<函数名>` 解析上下文（入口 / 各 dep）。 */
+int tc_func_env_module_index(const TcProgram *program) {
+    return tc_entry_module_index(program);
+}
+
 static const TcFuncSignature *tc_sig_find_in_module(const TcFuncSignatureList *sigs,
                                                     int module_index, const char *name) {
     size_t i = 0;
@@ -1068,7 +1073,7 @@ int tc_func_resolve_call_target(const TcFuncCheckEnv *env, int is_self, const ch
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
-        *out_sig = tc_sig_find_in_module(env->sigs, -1, func_name);
+        *out_sig = tc_sig_find_in_module(env->sigs, env->module_index, func_name);
         if (!*out_sig) {
             (void)snprintf(msg, sizeof(msg), "undefined function '%s'", func_name);
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_FUNCTION, line, TC_COLUMN_UNKNOWN, msg);

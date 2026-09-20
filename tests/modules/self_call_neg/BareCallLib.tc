@@ -1,0 +1,10 @@
+#lib
+; §4.3：`#lib` 函数体内裸名调用本库函数非法 → TC_CE_FUNCTION_SCOPE_ACCESS
+; （无论该模块作入口还是作依赖，错码一致）
+public func inc(a: int32) int32 then
+    return a
+end
+public func bad(a: int32) int32 then
+    var v: int32 = funcall(inc, a: a)
+    return v
+end

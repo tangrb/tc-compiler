@@ -389,6 +389,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     func_env.members = &members;
     func_env.current_func = NULL;
     func_env.struct_table = &struct_table;
+    func_env.module_index = tc_func_env_module_index(&out->program);
 
     /*
      * 阶段 6 — 语义分析
@@ -415,11 +416,30 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
-            if (tc_pass2_type_check(&out->deps[di], &out->symbols, &struct_table, &func_env,
-                                    &out->warnings, diag) != 0) {
+            /*
+             * B-56：依赖模块的 `Self.<函数名>` 必须按**该模块**的成员索引与签名
+             * module_index 解析。此前一律沿用入口的 members / 硬编码 -1，导致
+             * `#lib` 内 `funcall(Self.f, …)` 一旦被 import 就报 UNDEFINED_FUNCTION。
+             */
+            TcMemberIndex dep_members;
+            int rc = 0;
+
+            tc_member_index_init(&dep_members);
+            if (tc_member_index_build(&out->deps[di], &dep_members, diag) != 0) {
+                tc_member_index_free(&dep_members);
+                goto fail;
+            }
+            func_env.members = &dep_members;
+            func_env.module_index = (int)di;
+            rc = tc_pass2_type_check(&out->deps[di], &out->symbols, &struct_table, &func_env,
+                                     &out->warnings, diag);
+            tc_member_index_free(&dep_members);
+            if (rc != 0) {
                 goto fail;
             }
         }
+        func_env.members = &members;
+        func_env.module_index = tc_func_env_module_index(&out->program);
     }
 
     out->cfg_set = (TcCfgSet *)malloc(sizeof(TcCfgSet));

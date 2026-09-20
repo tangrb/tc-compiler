@@ -210,6 +210,7 @@
 | B-11 | `tc_struct_exec.c`：结构体基堆句柄为空（经指针别名写入清零）时，字段读取改为按字段类型取 0 位模式（新增 `tc_exec_null_field_value`，覆盖 `tc_exec_eval_field_access` 与未解析回退路径），字段赋值改为 no-op（RHS 仍求值），与 AOT `tc_aot_struct_load_bits`/`tc_aot_struct_store_bits`/`tc_aot_struct_extract` 对空基址的行为一致；补 `tc_semantics.h` 引用。新增 `tests/valid/struct_alias_zeroed_field_read.tc`（审计复现），注册 VM stdout+check_ok、AOT diff；test-map 回填 1018 VM / 474 AOT | 审计复现 VM 与 AOT 均输出 `0`/`0`/`0`（原 VM 第二行起报「internal error: invalid struct field read」）；补测字段赋值（no-op）与嵌套结构体字段读取两后端一致（`0`/`0`/`1`）；`--filter struct_alias_zeroed` 通过；全量三层与 5 项门禁通过 |
 | B-12 | `tc_module.c` `tc_module_check_import_name_conflict`：`TC_STMT_STRUCT_DEF` 移出 `#lib` 专属分支，两种模式都参与冲突检查（编译器标准 §4.6 名称冲突检查范围本轮已含 `#program` 的 `struct` 名，语言标准 §3.9.1/附录 B.2 本就无模式限定）；新增 `tests/errors/module/import_name_conflict_program_struct.tc`，并为 program/lib 两条既有用例补错误码断言；test-map 回填 1019 VM | 审计复现 `#program` + `import Foo` + `struct Foo` 现报 `ImportNameConflict`（VM 与 AOT 一致，原为接受）；`#lib` 三种形态仍正确拒绝；`--filter import_name_conflict` 4/4；全量三层与 5 项门禁通过 |
 | B-13 | 新增 `tc_compile_source_opts`（`tc_compile_source` = opts 为 NULL 的等价形式）；分析器新增 `tc_analyze_memory(program, out, display_name, entry_module_name, search, diag)` 与 `tc_module_resolve_imports_ex`（入口模块名可显式给出，空串 = 无模块名），内存入口与文件入口同跑 4b–4d；`name` 所在目录为导入搜索第一候选，`.tc` 结尾的 `name` 由主干推导入口模块名（自导入可判），其它显示名保持入口无模块名以兼容 `tc_embed_call(ctx, NULL, …)`。同步改写 `docs/libtc设计说明书-0.0.44.md` §1/§2.1/§3.1/§7.3/§15.2/§15.3/§15.11/§15.12（阶段覆盖差异 → 两入口同阶段范围，C-19 的旧表述被本提交取代）；`tests/unit/runtime/test_libtc.c` 新增 `test_source_entry_resolves_imports`（缺失模块 / 自导入 / 无搜索路径 / 经 opts 解析四态） | 审计四项探针（链接 libtc.a）：`import NoSuchModule`（裸用/带成员引用）→ `ImportNotFound`；`#lib + import SelfLib` → `CircularImport`；带 `-I tests/modules/extra_libs` 的 `import ExtraLib` → 编译并运行成功（原全部 rc=0 接受）；`test-libtc` 103/103、`test-embed` 590/590（入口模块名语义未变）；全量三层与 5 项门禁通过 |
+| B-56 | `TcFuncCheckEnv` 增 `module_index`（当前被分析模块在 `sigs` 中的下标）与 `tc_func_env_module_index`；`tc_func_resolve_call_target` 的 `Self.<函数名>` 分支改用 `env->module_index`（原硬编码 -1）；`tc_analyzer.c` 的依赖 Pass2 循环为每个 dep 现场构建成员索引并在调用期间切换 `func_env.members` / `module_index`（调用后恢复入口上下文），使 `Self.` 名称作用域与函数解析都按**当前模块**判定。新增 `tests/modules/SelfCallLib.tc` + `import_self_call.tc`（VM stdout+check_ok、AOT diff）与 `tests/modules/self_call_neg/{BareCallLib.tc,import_bare_call.tc}`（VM check_fail，断言 FunctionScopeAccessError）；test-map 回填 1022 VM / 475 AOT | 审计复现：`M2.tc` 作依赖时 `funcall(Self.f, …)` 由 `UndefinedFunction` 变为编译通过，入口 `funcall(M2.g, a: 5)` VM 与 AOT 均输出 `5`；模块作入口仍通过；依赖内裸名 `f` 由 `UndefinedFunction` 变为 `FunctionScopeAccessError`（与入口口径一致）；`Self.zzz` 仍 `UndefinedFunction`、跨模块 `M4.p` 仍 `PrivateMemberAccessError`；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -248,7 +249,8 @@
 | 17 | 阶段 2-B10 非法指针编码两后端分歧 | `5ad9b34 fix(0.0.44-B10): report user-visible codes for invalid ptr encodings` |
 | 18 | 阶段 2-B11 空结构体句柄字段读写 | `e467116 fix(0.0.44-B11): read fields from a null struct base as zeros` |
 | 19 | 阶段 2-B12 `#program` 结构体名与导入名冲突 | `d7769d7 fix(0.0.44-B12): check struct names against import names in #program` |
-| 20 | 阶段 2-B13 libtc 内存入口解析 import | 本提交 `fix(0.0.44-B13): resolve imports from the in-memory libtc entry` |
+| 20 | 阶段 2-B13 libtc 内存入口解析 import | `5240385 fix(0.0.44-B13): resolve imports from the in-memory libtc entry` |
+| 21 | 阶段 2-B56 依赖模块内 `Self.<函数>` 调用 | 本提交 `fix(0.0.44-B56): resolve Self calls against the current module` |
 
 ---
 

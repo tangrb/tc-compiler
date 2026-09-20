@@ -20,10 +20,19 @@
 struct TcFuncCheckEnv {
     TcTypedProgram *prog;
     TcFuncSignatureList *sigs;
-    TcMemberIndex *members;
+    TcMemberIndex *members;              /* 当前被分析模块的成员索引（入口或某个 dep） */
     const TcFuncSignature *current_func; /* 当前函数体；顶层为 NULL */
     TcStructTable *struct_table;
+    /*
+     * 当前被分析模块在 sigs 中的 module_index：入口为 #lib 时 -1、#program 时 -2
+     * （无本库函数），依赖模块为其 deps 下标。`Self.<函数名>` 解析按此定位签名，
+     * 故分析依赖模块时必须随 members 一起切换。
+     */
+    int module_index;
 };
+
+/** 模块在 sigs 中的 module_index（入口 #lib → -1；入口 #program → -2）。 */
+int tc_func_env_module_index(const TcProgram *program);
 
 /**
  * 阶段 5：函数重名、与顶层值绑定冲突、形参重名、形参名撞函数名。

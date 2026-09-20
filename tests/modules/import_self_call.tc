@@ -1,0 +1,5 @@
+#program
+; 被导入的 #lib 内 `funcall(Self.inc, …)` 须正常解析并执行；入口再经 M.<名> 调用。
+import SelfCallLib
+var r: int32 = funcall(SelfCallLib.twice, a: 5)
+writeln(int32, r)
