@@ -89,6 +89,13 @@
 | CT 类诊断须晚于全部 SEM 类诊断报告（阶段优先） | §2.1、§15.4 | **已同步**：挂起槽 + `tc_analyze_ex` 末段 flush；语料 `diag_priority_sem_before_ct*.tc` |
 | 指针操作数接受任意 `operand`（含结构体字段读取与 `nullptr`） | §12.7 | **已核实一致** |
 | `ptr_load` 结果类型为 `bool` 时按 `0x00` / 非零 → `0x01` 规范化 | §15.5 | **已同步**：原 `tc_exec_ptr_load` 未规范化（AOT 已规范化 → 跨后端分歧），现按所指类型 `bool` 归一；语料 `ptr_load_bool_normalize.tc` |
+| 全部 `ptr_*` 调用型 RHS 不属于 `operand`、不得嵌套为其它调用的操作数（嵌套 → `TC_CE_SYNTAX`） | §12.7、§4.1 | **已同步**：语料 `ptr_{address,add,sub,lt}_nested_operand.tc` |
+| `TC_CE_LITERAL_OUT_OF_RANGE` 覆盖 LT（Token 自身上限）与 SEM（上下文期望类型）两阶段 | §4.1、§15.4 | **已核实一致**：语料 `invalid_hex_overflow`／`fp_literal_range`（LT）、`literal_range`／`let_const_literal_range`（SEM） |
+| `memcopy_unsafe` 编译期可确定的负 `length`／负下标 → 静态码；运行时绑定仍归 `TC_RE_*` | §12、§15.2 | **已同步**：`tc_memblock_check.c`；语料 `memcopy_unsafe_neg_{dst,src}_index`、`_neg_length_literal`、`_neg_let_index` 静态，`_neg`／`_neg_index`／`_neg_var_index` 运行时 |
+| `nullptr` 不参与 `bitcast`（静态拒绝）；仍可作判断 `operand`／赋值 RHS／实参／`return`／`cast` 源 | §12.6、§13 | **已同步**：`tc_analyzer_pass2_rhs.c`／`tc_const_eval.c`；语料 `bitcast_nullptr_source{,_int}.tc` |
+| `else`/`end` 与块头不对齐（过深或过浅）一律 `TC_CE_INDENT_ELSE_END` | §4.2 | **已同步**：`tc_parse_block_body_mode` 先判对齐；语料 `indent_end_deeper`／`indent_else_deeper` |
+| 条件位置 RHS 自身字面量/类型专用码优先于 `TC_CE_CONDITION_TYPE` | §10.4、§15.4 | **已核实一致**：语料 `if_cond_literal_direct`／`cond_var_not_bool`／`if_cond_type_arith` |
+| 顶层行缩进级别必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | §4.2 | **已同步**：`tc_parse_module_body`／`tc_parse_module_header`；语料 `toplevel_indent_*.tc` |
 | `static let` 不得引用 `static var`（任一位置统一 `TC_CE_CONSTANT_EXPRESSION`）；`memblock` 命名 N / `count:` 在 `static let` 中前置解析 | §13.4 | **已同步**：语料 `static_let_ref_var_*.tc`、`static_let_{type_n,count_name}_static_var.tc`、正例 `static_let_rule_ok.tc` |
 | `#lib` 函数体内裸名访问模块 static → `TC_CE_FUNCTION_SCOPE_ACCESS`（含 `N`/`count:`）；`Self.<名>` 可作赋值目标 | §12.7、§13.4、[语言标准 §4.3] | **已同步**：语料 `self_bare_*.tc`、`self_access_ok.tc`、`self_read_target.tc`；`TcFieldAssign.base_binding` 供执行器直接取槽 |
 | `static var` 初始化器可引用更早 `static var`；准备阶段失败报 `TC_RE_*` | §13.4 | **已核实一致**：语料 `static_var_chain.tc`、`errors/runtime/static_var_init_div_zero.tc` |
@@ -326,6 +333,8 @@ TC_RHS_SELF_MEMBER,             /* Self.成员 */
 4. 一级缩进恒为 4 个连续 ASCII 空格 U+0020。
 5. 空行和纯注释行只生成 `NEWLINE`，不改变缩进栈。
 6. `INDENT`/`DEDENT` 反映 `func`/`if`/`else`/`while`/`struct` 语句体的实际缩进。
+7. **顶层行**（`#program`/`#lib` 指令行与其顶层 `import`/类型/声明/`static`/`func`/顶层语句）缩进级别必须为 `0`；出现缩进报 `TC_CE_INDENT_INSUFFICIENT`（B-63；顶层产生式不消费 `INDENT`，只有 `suite` 消费）。
+8. `else`/`end` 与对应块头不对齐时，**无论过深还是过浅**（含恰在块内语句级别）一律报 `TC_CE_INDENT_ELSE_END`；`TC_CE_INDENT_INSUFFICIENT` 的增量判定只针对非 `else`/`end` 的块内行（B-41）。
 
 ### 4.3 行模型
 
@@ -938,6 +947,8 @@ typedef struct {
 | `ptr_lt/le/gt/ge(T, p1, p2)` | 比较抽象地址序；`nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE` |
 | `ptr_size(T, ptr)` | 返回 `sizeof_bits(T)`，编译期常量，直接内联；**只可整条充当 `const_rhs`**，不属于 `const_operand`、不得作为其它调用的操作数（语言标准 §5.2.1、§6.8.8） |
 
+**RHS 分类（A-1 裁决）**：上表全部 `ptr_*` 形式以及 `ptr_load` / `ptr_address` / `ptr_eq`·`ptr_ne` 都是**调用型 RHS，不属于 `operand`**——只能整条充当 RHS，不得嵌套为其它调用的操作数；嵌套时解析器报 `SyntaxError: expected operand`（[语言标准 §1.1、§6.1.2、§6.8]、附录 A 的 `operand` 产生式；语料 `ptr_{address,add,sub,lt}_nested_operand.tc`）。
+
 ### 12.8 memblock 操作
 
 | 指令 | Executor 实现 |
@@ -1052,7 +1063,7 @@ typedef enum {
 | 3 Parser | SYN | Syntax、MissingEnd、VarMissingInitializer、ModuleLayer、MissingVisibility、ProgramModeMisuse、OperandCount |
 | 4 模块解析 | SEM | ImportNotFound、ImportNotLib、ImportAmbiguous、DuplicateImport、ImportNameConflict、CircularImport、PrivateMemberAccess |
 | 5 函数签名 | SEM | FunctionNameConflict、DuplicateParameter |
-| 6 Binder/Type | SEM | UndefinedVariable、TypeMismatch、ModeMismatch、FormatSpecifier、FormatTypeMismatch、memblock/struct/ptr 专用诊断 |
+| 6 Binder/Type | SEM | UndefinedVariable、TypeMismatch、ModeMismatch、FormatSpecifier、FormatTypeMismatch、`LiteralType`／`LiteralOutOfRange`（上下文期望类型路径）、`ConditionType`、`MemcopyUnsafeInvalidRange`（编译期可确定负值）、memblock/struct/ptr 专用诊断 |
 | 7–8 funcall / return | SEM | UndefinedFunction、Missing/Duplicate/Unknown/Extra/ArgumentOrder、FuncallPosition、FuncallResultType、Return* |
 | 9–10 常量求值与静态三态 | CT | ConstantExpression/Overflow/DivisionByZero/CastOverflow（**须挂起至全部 SEM 类诊断无触发后再报告**，见 [编译器标准 §1.3]） |
 | 11 Control/CFG | SEM | label/goto/loop context、UnreachableStatement、UninitializedVariable、MissingReturn |
@@ -1150,7 +1161,7 @@ int tc_run_program(const TcTypedProgram *program, TcDiagnostic *diag);
 - `ptr_address` 对 `let` 拒绝、`ptr_store` 对只读绑定拒绝；
 - `nullptr` 定型、空指针解引用/算术错误分类；
 - `static var` 按依赖拓扑序初始化、跨模块共享；
-- `cast(T, ptr<U>)` 指针**重标记**（不附加等宽条件）与 `bitcast` 的 `ptr`↔`usize` / `ptr`↔`ptr` 往返（`phase5_ptr_cast` / `phase5_ptr_cast_nullptr` / `phase5_ptr_bitcast` / `ptr_cast_remark`）；`bitcast(<ptr 类别>, nullptr)` 属**标准未明确的实现行为**（§12.6），不作为语言标准正例；
+- `cast(T, ptr<U>)` 指针**重标记**（不附加等宽条件）与 `bitcast` 的 `ptr`↔`usize` / `ptr`↔`ptr` 往返（`phase5_ptr_cast` / `phase5_ptr_cast_nullptr` / `phase5_ptr_bitcast` / `ptr_cast_remark`）；`bitcast(T, nullptr)` 经 A-4 裁决为**非法**（静态拒绝 `TC_CE_TYPE_MISMATCH`，见 §12.6），`cast(ptr<T>, nullptr)` 仍合法；
 - float32/float64 每步舍入、strict/ieee 模式、`ieee` 模式 NaN 传播。
 
 ---
