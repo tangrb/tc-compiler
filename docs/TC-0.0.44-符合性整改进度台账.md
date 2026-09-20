@@ -21,7 +21,7 @@
 | ---- | ---- | ---- | ---- | ---- |
 | 1 | `TC编译器标准设计说明书-0.0.44.md` | C-1～C-9 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 2 | `TC-VM详细设计说明书-0.0.44.md` | C-12～C-14 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
-| 3 | `TC-AOT详细设计说明书-0.0.44.md` | C-10～C-11 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
+| 3 | `TC-AOT详细设计说明书-0.0.44.md` | C-10～C-11 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录（无需改动） |
 | 4 | `TC-Embed详细设计说明书-0.0.44.md` | C-20～C-21 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
 | 5 | `libtc设计说明书-0.0.44.md` | C-19 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
 | 6 | `TC-VM命令行参考-0.0.44.md` | C-15～C-18 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
@@ -57,6 +57,12 @@
 | 本轮新增发现 | §2.3 原文「`static var` 和 `static let` 在函数签名收集后、函数体分析前完成初始化器求值」与 §2.1 阶段 9 / §13.4 冲突 | 改为「`static let` 形态/来源在 6d（SEM）、求值在第 9 阶段（CT）；`static var` 形态验证在第 9 阶段、运行期求值在程序准备阶段」 |
 
 **③ AOT 详设**：C-10（§11.1 指针 shim 为宿主地址模型）、C-11（§16.1 差分等价判据多 claim 且漏项）。
+
+| 条目 | 核对结论 | 处置 |
+| ---- | -------- | ---- |
+| C-10 | §11.1 已给出槽号原型 —— `uint64_t tc_aot_ptr_address(int slot)`、`tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, …)`，并明文禁止 `&slots[X]` 等宿主地址（L668-701） | 无需改动（已对齐） |
+| C-11 | §16.1 已列「四项、不多不少」可观察行为，并明确 stderr 文本/进程退出状态/宿主位模式**不是**可观察行为（L49、L859-866） | 无需改动（已对齐） |
+| P2 | §4.3/§11.2 已区分区间拷贝 `tc_aot_memblock_copy`（9 参）与整块深拷贝 `tc_aot_memblock_clone`；§1.4 表格结构完好且已反映 9 项既有未关闭；死锚/`0.0.41`/`0.0.42` 残留不存在；§16.3 存在（无跳号）；§18 已重写为现役可移植性约定；`STRUCT_TOTAL_BYTES`/`NUM_MEMBLOCK_ALLOCS` 不存在；§15.1 已列 `--embed`；`确定初始化` 引用已改指 [语言标准 §9.2] | 无需改动（已对齐） |
 
 **④ TC-Embed 详设**：C-20（§12/§15.8 的 4 个 TC 示例实为 C 语法）、C-21（§12.2/§15.8.3 把数据写进指针形参自身槽位）。
 
@@ -181,7 +187,8 @@
 | ---- | -- | ---- |
 | 0 | 建立本台账 | `ca2db38 docs(0.0.44): add conformance remediation ledger and list it in the doc map` |
 | 1 | 阶段 1-① 编译器标准 C-1～C-9 ＋ P2 | `47c6967 docs(0.0.44-compiler): align compiler specification with language spec (C-1..C-9 + P2)` |
-| 2 | 阶段 1-② VM 详设 C-12～C-14 ＋ P2 | 本提交 `docs(0.0.44-vm): align VM design spec (C-12..C-14 residual + static-init stage)` |
+| 2 | 阶段 1-② VM 详设 C-12～C-14 ＋ P2 | `9863b3a docs(0.0.44-vm): align VM design spec (C-12..C-14 residual + static-init stage)` |
+| 3 | 阶段 1-③ AOT 详设 C-10～C-11 ＋ P2 | 本提交 `chore(0.0.44-ledger): record AOT design-spec verification (no changes needed)` |
 
 ---
 
