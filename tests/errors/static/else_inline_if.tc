@@ -1,0 +1,8 @@
+#program
+; 2.6.4 / 附录 A `if_stmt`：else 后必须换行 + 缩进 + suite；不支持单行 `else if`
+var c: bool = false
+if c then
+    writeln(int32, 1)
+else if c then
+    writeln(int32, 2)
+end

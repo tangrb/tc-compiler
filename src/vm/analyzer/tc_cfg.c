@@ -1068,7 +1068,13 @@ static int tc_cfg_diagnose_unreachable(const TcCfg *cfg, TcDiagnostic *diag) {
         free(structural);
         return tc_cfg_oom(diag, 0);
     }
-    /* 结构可达：忽略常量边剪枝，仅捕捉 return/goto 后无标签汇合的死码 */
+    /*
+     * 结构可达：忽略常量边剪枝，仅捕捉 return/goto 后无标签汇合的死码。
+     * 例外（2.6.4）：恒真循环条件（§5.2.2 静态三态 true）的 FALSE 出边不可行——
+     * 只有 `break`（TC_CFG_BREAK 边，直接指向 LOOP_EXIT）能离开循环，故
+     * `while true` 之后的语句结构上不可达。`while false` 的 TRUE 出边仍按结构
+     * 可达处理（本轮只收敛恒真循环）。
+     */
     structural[cfg->entry_id] = 1;
     queue[tail++] = cfg->entry_id;
     while (head < tail) {
@@ -1078,6 +1084,10 @@ static int tc_cfg_diagnose_unreachable(const TcCfg *cfg, TcDiagnostic *diag) {
             const TcCfgEdge *edge = &cfg->edges[i];
 
             if (edge->from != from || structural[edge->to]) {
+                continue;
+            }
+            if (!edge->enabled && edge->kind == TC_CFG_FALSE &&
+                cfg->nodes[from].kind == TC_CFG_LOOP_CONDITION) {
                 continue;
             }
             structural[edge->to] = 1;

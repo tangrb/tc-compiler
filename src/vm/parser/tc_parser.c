@@ -1217,9 +1217,23 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
     }
 
     if (tc_first_token_kind(&lines[*index]) == TC_TOK_ELSE) {
+        size_t else_tok_index = 0;
+
         if (lines[*index].indent != base_indent) {
             tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, lines[*index].line_no,
                            "else indentation does not match if");
+            goto fail;
+        }
+        /*
+         * 2.6.4：`else` 行只允许 `else` 本身（可选 `;`）。附录 A 的 `if_stmt` 要求
+         * `else` 后换行 + 缩进 + `suite`，语言标准 §7.1.1 不支持单行 `else if`；
+         * 此前 else 后的剩余 token 被静默丢弃，else 体退化为紧随其后的行并无条件执行。
+         */
+        if (tc_peek(&lines[*index].tokens, else_tok_index)->kind == TC_TOK_ELSE) {
+            else_tok_index++;
+        }
+        if (tc_expect_stmt_end(&lines[*index].tokens, &else_tok_index, lines[*index].line_no,
+                               diag) != 0) {
             goto fail;
         }
         (*index)++;

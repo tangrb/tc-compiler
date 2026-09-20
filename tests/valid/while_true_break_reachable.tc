@@ -1,0 +1,10 @@
+#program
+; 恒真 while 经 break 终止时，循环之后的语句可达
+var i: int32 = 1
+while true then
+    if eq(int32, i, 3) then
+        break
+    end
+    i = add(int32, i, 1)
+end
+writeln(int32, i)

@@ -1110,6 +1110,9 @@ run_expect_check_ok "$ROOT/tests/valid/memblock_index_int32.tc"
 run_expect_stdout "$ROOT/tests/valid/memblock_copy_empty_at_end.tc" "1
 "
 run_expect_check_ok "$ROOT/tests/valid/memblock_copy_empty_at_end.tc"
+run_expect_stdout "$ROOT/tests/valid/while_true_break_reachable.tc" "3
+"
+run_expect_check_ok "$ROOT/tests/valid/while_true_break_reachable.tc"
 run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
 0
 0
@@ -2616,6 +2619,10 @@ run_expect_check_fail "$ROOT/tests/errors/static/struct_value_name_conflict.tc" 
     "struct name conflicts with value binding or function 'S'" "FunctionNameConflict"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_function_name_conflict.tc" \
     "struct name conflicts with value binding or function 'F'" "FunctionNameConflict"
+run_expect_check_fail "$ROOT/tests/errors/static/unreachable_after_while_true.tc" \
+    "unreachable statement" "UnreachableStatement"
+run_expect_check_fail "$ROOT/tests/errors/static/else_inline_if.tc" \
+    "unexpected trailing tokens" "SyntaxError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

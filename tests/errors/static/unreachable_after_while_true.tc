@@ -1,0 +1,6 @@
+#program
+; 2.6.4 / §7.2.2、§9.2：恒真 while 只能经 break 终止；其后语句不可达
+while true then
+    writeln(int32, 1)
+end
+writeln(int32, 2)
