@@ -106,6 +106,18 @@ const char *tc_aot_slots_arg(const TcAotEmitCtx *ctx);
 /* 表达式发射 */
 void tc_aot_emit_literal_expr(FILE *out, TcTypeTag type, const TcLiteral *lit);
 void tc_aot_emit_const_memblock_expr(FILE *out, uint64_t host_bits, size_t nbytes, int line);
+/**
+ * const struct 整值拷贝的赋值发射：内联常量字节 + 运行期 `tc_aot_struct_extract`
+ * 深拷贝（生成 C 不得嵌入分析期堆指针，值语义 §3.9.4）。
+ * @return 1 已发射（含失败检查）；0 类型不适用（调用方按标量处理）
+ */
+int tc_aot_emit_const_struct_assign(FILE *out, const TcType *type, uint64_t const_bits,
+                                    const TcAotEmitCtx *ctx, const char *dst_expr,
+                                    const char *indent, const char *abort_indent, int line);
+
+/** 同上，但只发射**表达式**（不赋值、不附失败检查）；类型不适用时发射 `0` */
+void tc_aot_emit_const_struct_expr(FILE *out, const TcType *type, uint64_t const_bits,
+                                   const TcAotEmitCtx *ctx);
 void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag type,
                               const TcAotEmitCtx *ctx, int stmt_index);
 int tc_aot_emit_operand_assign(FILE *out, const TcOperand *operand, TcTypeTag type,

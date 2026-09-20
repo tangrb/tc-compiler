@@ -1,0 +1,49 @@
+#lib
+; 观察-④ 修复：经 `Self.` 解析到的 `static let` 是合法常量来源（§5.2.1，标量 / struct /
+; memblock 同口径）；struct / memblock 整值拷贝须深拷贝（§3.9.4 / §3.8.4），
+; AOT 不得把分析期堆指针写进生成 C
+public struct Pair then
+    var x: int32
+    var y: int32
+end
+public static let K: int32 = 41
+public static let spc: Pair = Pair(x: 8, y: 9)
+public static let M: memblock<int32, 2> = memblock(int32, count: 2, 6, 1)
+public func const_scalar() int32 then
+    let x: int32 = Self.K
+    return x
+end
+public func const_struct() int32 then
+    let p: Pair = Self.spc
+    var s: int32 = add(int32, p.x, p.y)
+    return s
+end
+public func var_struct() int32 then
+    var p: Pair = Self.spc
+    var s: int32 = add(int32, p.x, p.y)
+    return s
+end
+public func ret_struct() Pair then
+    return Self.spc
+end
+public func field_struct() int32 then
+    var s: int32 = add(int32, Self.spc.x, Self.spc.y)
+    return s
+end
+public func const_memblock() int32 then
+    let mb: memblock<int32, 2> = Self.M
+    var v: int32 = memblock_load(int32, mb, 0)
+    return v
+end
+public func var_memblock() int32 then
+    var mb: memblock<int32, 2> = Self.M
+    var v: int32 = memblock_load(int32, mb, 1)
+    return v
+end
+; 值语义对照：写入运行时副本不得写穿常量（VM 侧可观察；AOT 侧常量字段为编译期折叠）
+public func alias_check() int32 then
+    var p: Pair = Self.spc
+    p.x = 100
+    var s: int32 = Self.spc.x
+    return s
+end

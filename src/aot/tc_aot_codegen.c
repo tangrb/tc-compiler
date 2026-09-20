@@ -505,6 +505,67 @@ void tc_aot_emit_byte_array_expr(FILE *out, const uint8_t *data, size_t nbytes) 
     fprintf(out, "}");
 }
 
+/**
+ * const struct 的字节宽度；类型不适用（非 struct / 未注册 / 宽度 0）返回 0。
+ */
+static size_t tc_aot_struct_const_nbytes(const TcType *type, const TcAotEmitCtx *ctx) {
+    const TcStructEntry *entry = NULL;
+
+    if (!type || type->tag != TC_STRUCT || !ctx || !ctx->program || !ctx->program->struct_table ||
+        tc_type_struct_id(type) < 0) {
+        return 0;
+    }
+    entry = tc_struct_table_get(ctx->program->struct_table, tc_type_struct_id(type));
+    if (!entry) {
+        return 0;
+    }
+    return (entry->width_bits + 7U) / 8U;
+}
+
+void tc_aot_emit_const_struct_expr(FILE *out, const TcType *type, uint64_t const_bits,
+                                   const TcAotEmitCtx *ctx) {
+    const uint8_t *data = (const uint8_t *)(uintptr_t)const_bits;
+    size_t nbytes = tc_aot_struct_const_nbytes(type, ctx);
+    size_t i = 0;
+
+    /*
+     * const struct 整值：生成代码不得嵌入分析期堆指针（const_bits），而是把常量字节
+     * 内联为复合字面量，运行期由 tc_aot_struct_extract 重新分配并拷贝（值语义 §3.9.4；
+     * 与既有的 const memblock 发射、const 基址字段读同口径）。
+     */
+    if (nbytes == 0) {
+        fprintf(out, "0");
+        return;
+    }
+    fprintf(out, "tc_aot_struct_extract((uint64_t)(uintptr_t)&");
+    if (data) {
+        tc_aot_emit_byte_array_expr(out, data, nbytes);
+    } else {
+        fprintf(out, "(const uint8_t[]){");
+        for (i = 0; i < nbytes; i++) {
+            fprintf(out, "%s0", i > 0 ? ", " : "");
+        }
+        fprintf(out, "}");
+    }
+    fprintf(out, ", 0, %zu, tc_aot_cur_diag, 0)", nbytes);
+}
+
+int tc_aot_emit_const_struct_assign(FILE *out, const TcType *type, uint64_t const_bits,
+                                    const TcAotEmitCtx *ctx, const char *dst_expr,
+                                    const char *indent, const char *abort_indent, int line) {
+    if (tc_aot_struct_const_nbytes(type, ctx) == 0) {
+        return 0;
+    }
+    fprintf(out, "%s%s = ", indent, dst_expr);
+    tc_aot_emit_const_struct_expr(out, type, const_bits, ctx);
+    fprintf(out, ";\n");
+    fprintf(out,
+            "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+            "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+            abort_indent, line);
+    return 1;
+}
+
 void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag type,
                               const TcAotEmitCtx *ctx, int stmt_index) {
     const TcSymbolTable *symbols = &ctx->program->symbols;
@@ -634,6 +695,11 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
                 size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
 
                 tc_aot_emit_const_memblock_expr(out, operand->binding.const_bits, nbytes, 0);
+            } else if (type == TC_STRUCT && operand->binding.type &&
+                       operand->binding.type->tag == TC_STRUCT) {
+                /* const struct 操作数：内联字节 + 运行期深拷贝（禁止嵌入分析期堆指针） */
+                tc_aot_emit_const_struct_expr(out, operand->binding.type,
+                                              operand->binding.const_bits, ctx);
             } else {
                 fprintf(out, "0x%016" PRIx64 "ULL", operand->binding.const_bits);
             }
@@ -653,7 +719,21 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
             return;
         }
         if (symbol->sym_kind == TC_SYM_CONSTANT && symbol->has_const_value) {
-            fprintf(out, "0x%016" PRIx64 "ULL", symbol->const_value.bits);
+            if (symbol->type && symbol->type->tag == TC_MEMBLOCK &&
+                symbol->type->params.memblock_type.element) {
+                size_t elem_bits = tc_sizeof_bits_ex(symbol->type->params.memblock_type.element,
+                                                     tc_struct_table_width_bits,
+                                                     ctx->program->struct_table);
+                size_t elem_bytes = (elem_bits + 7U) / 8U;
+                uint64_t count = tc_type_memblock_count(symbol->type);
+                size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
+
+                tc_aot_emit_const_memblock_expr(out, symbol->const_value.bits, nbytes, 0);
+            } else if (symbol->type && symbol->type->tag == TC_STRUCT) {
+                tc_aot_emit_const_struct_expr(out, symbol->type, symbol->const_value.bits, ctx);
+            } else {
+                fprintf(out, "0x%016" PRIx64 "ULL", symbol->const_value.bits);
+            }
         } else {
             fprintf(out, "slots[%d]", symbol->slot);
         }
@@ -666,20 +746,48 @@ int tc_aot_emit_operand_assign(FILE *out, const TcOperand *operand, TcTypeTag ty
     /* 值语义：memblock/struct 操作数赋值（含 return、结构体构造器复合字段）
      * 必须深拷贝，不能复制堆指针（§3.8.4 / §3.9.4）。 */
     if ((type == TC_MEMBLOCK || type == TC_STRUCT) && operand->kind != TC_OPERAND_LIT &&
-        operand->binding.resolved && !operand->binding.is_const &&
-        operand->binding.slot >= 0) {
-        const TcType *btype = operand->binding.type;
+        operand->binding.resolved && operand->binding.type &&
+        operand->binding.type->tag == type) {
+        char abort_indent[64];
 
-        if (btype && btype->tag == type) {
+        tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
+        if (operand->binding.is_const) {
+            /* 常量 struct：内联常量字节 + 运行期深拷贝（禁止嵌入分析期堆指针）。 */
+            if (type == TC_STRUCT &&
+                tc_aot_emit_const_struct_assign(out, operand->binding.type,
+                                                operand->binding.const_bits, ctx, dst_expr, indent,
+                                                abort_indent, stmt_index)) {
+                return 0;
+            }
+            /* 常量 memblock：运行期由 tc_aot_memblock_from_bytes 重建 */
+            if (type == TC_MEMBLOCK && operand->binding.type->params.memblock_type.element) {
+                size_t elem_bits =
+                    tc_sizeof_bits_ex(operand->binding.type->params.memblock_type.element,
+                                      tc_struct_table_width_bits, ctx->program->struct_table);
+                size_t elem_bytes = (elem_bits + 7U) / 8U;
+                uint64_t count = tc_type_memblock_count(operand->binding.type);
+                size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
+
+                fprintf(out, "%s%s = ", indent, dst_expr);
+                tc_aot_emit_const_memblock_expr(out, operand->binding.const_bits, nbytes,
+                                                stmt_index);
+                fprintf(out, ";\n");
+                fprintf(out,
+                        "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                        "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, stmt_index);
+                return 0;
+            }
+        } else if (operand->binding.slot >= 0) {
+            const TcType *btype = operand->binding.type;
+
             if (type == TC_MEMBLOCK && btype->params.memblock_type.element) {
                 size_t elem_bits = tc_sizeof_bits_ex(
                     btype->params.memblock_type.element, tc_struct_table_width_bits,
                     ctx->program->struct_table);
                 size_t elem_bytes = (elem_bits + 7U) / 8U;
                 uint64_t count = tc_type_memblock_count(btype);
-                char abort_indent[64];
 
-                tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
                 fprintf(out, "%s%s = tc_aot_memblock_clone(slots[%d], %zu, %" PRIu64
                              "ULL, tc_aot_cur_diag, %d);\n",
                         indent, dst_expr, operand->binding.slot, elem_bytes, count, stmt_index);
@@ -694,7 +802,6 @@ int tc_aot_emit_operand_assign(FILE *out, const TcOperand *operand, TcTypeTag ty
                 const TcStructEntry *e =
                     tc_struct_table_get(ctx->program->struct_table, tc_type_struct_id(btype));
                 size_t bytes = 0;
-                char abort_indent[64];
 
                 if (e) {
                     bytes = (e->width_bits + 7U) / 8U;
@@ -702,7 +809,6 @@ int tc_aot_emit_operand_assign(FILE *out, const TcOperand *operand, TcTypeTag ty
                 if (bytes == 0) {
                     return -1;
                 }
-                tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
                 fprintf(out, "%s%s = tc_aot_struct_clone(slots[%d], %zu, tc_aot_cur_diag, %d);\n",
                         indent, dst_expr, operand->binding.slot, bytes, stmt_index);
                 fprintf(out,

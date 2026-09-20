@@ -896,6 +896,56 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
         }
     }
 
+    /*
+     * `Self.<名>`（§5.2.1 原子表达式：经 `Self.` 解析到的 `static let`）。
+     *
+     * 与 `TC_RHS_CONST_REF` 同口径：取模块 static let 的编译期常量值。此前本分发
+     * 缺该 RHS kind，函数内 `let x = Self.K` 会落到末尾「invalid constant expression」；
+     * 而 `static let M = Self.K` 走 `tc_eval_one_static_let` 的专用分支，故两个常量
+     * 上下文行为不一致。
+     */
+    if (rhs->kind == TC_RHS_SELF_MEMBER) {
+        const char *member = rhs->u.self_member.member_name;
+        const TcSymbol *symbol = NULL;
+        char msg[128];
+
+        if (!member) {
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
+                              "missing Self member name");
+            return -1;
+        }
+        /* §4.3、§4.4：`Self.<名>` 只解析**本模块**顶层成员 */
+        symbol = tc_resolve_self_member(member, global);
+        if (!symbol) {
+            (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", member);
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        if (symbol->sym_kind != TC_SYM_CONSTANT) {
+            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
+                              "constant expression cannot reference var variable");
+            return -1;
+        }
+        if (!symbol->has_const_value) {
+            /* 派生失败：挂起的 CT 类诊断仍是首个规范诊断。 */
+            if (tc_const_value_withheld(symbol, diag)) {
+                return -1;
+            }
+            tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN,
+                              "constant value is not available by source order");
+            return -1;
+        }
+        if (tc_type_tag_of(symbol->type) != expected_type) {
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "constant type does not match expected type");
+            return -1;
+        }
+        /* struct / memblock 常量：按值共享（调用方 tc_resolve_const_value 依别名判定
+         * 是否取得堆块所有权），与 `TC_RHS_CONST_REF` 分支完全同口径。 */
+        *out = symbol->const_value;
+        return 0;
+    }
+
     if (rhs->kind == TC_RHS_ARITH) {
         if (tc_validate_arith_mode(rhs->u.arith.op, rhs->u.arith.type->tag,
                                    rhs->u.arith.mode, diag, line) != 0) {

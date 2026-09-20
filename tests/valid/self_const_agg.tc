@@ -1,0 +1,21 @@
+#program
+; 观察-④：`Self.<名>` 作常量/整值来源（标量常量、struct 常量上下文、struct 运行时拷贝、
+; struct 返回值、const memblock 拷贝）——VM 与 AOT 须逐行一致
+import SelfConstAggLib
+var a1: int32 = funcall(SelfConstAggLib.const_scalar)
+var a2: int32 = funcall(SelfConstAggLib.const_struct)
+var a3: int32 = funcall(SelfConstAggLib.var_struct)
+var p: SelfConstAggLib.Pair = funcall(SelfConstAggLib.ret_struct)
+var a4: int32 = add(int32, p.x, p.y)
+var a5: int32 = funcall(SelfConstAggLib.field_struct)
+var a6: int32 = funcall(SelfConstAggLib.const_memblock)
+var a7: int32 = funcall(SelfConstAggLib.var_memblock)
+var a8: int32 = funcall(SelfConstAggLib.alias_check)
+writeln(int32, a1)
+writeln(int32, a2)
+writeln(int32, a3)
+writeln(int32, a4)
+writeln(int32, a5)
+writeln(int32, a6)
+writeln(int32, a7)
+writeln(int32, a8)

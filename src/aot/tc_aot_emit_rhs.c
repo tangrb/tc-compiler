@@ -108,6 +108,11 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                             "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
                             "tc_aot_abort(tc_aot_cur_diag, %d);\n",
                             abort_indent, line);
+                } else if (expected_type == TC_STRUCT &&
+                           tc_aot_emit_const_struct_assign(out, rhs->u.const_ref.binding.type,
+                                                           rhs->u.const_ref.binding.const_bits, ctx,
+                                                           dst_expr, indent, abort_indent, line)) {
+                    /* const struct 整值：内联字节 + 运行期深拷贝（禁止嵌入分析期堆指针） */
                 } else {
                     fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
                             rhs->u.const_ref.binding.const_bits);
@@ -686,6 +691,35 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
             return -1;
         }
         if (sym->sym_kind == TC_SYM_CONSTANT && sym->has_const_value) {
+            /*
+             * 值语义：const struct / memblock 整值不得把分析期堆指针写进生成 C
+             * （此前对 `var p: Pair = Self.spc` / `return Self.spc` 会嵌入宿主地址，
+             * 生成程序读到 0 或段错误）。struct 走内联字节 + tc_aot_struct_extract；
+             * memblock 走既有的常量块内联。
+             */
+            if (expected_type == TC_MEMBLOCK && sym->type && sym->type->tag == TC_MEMBLOCK &&
+                sym->type->params.memblock_type.element) {
+                size_t elem_bits = tc_sizeof_bits_ex(sym->type->params.memblock_type.element,
+                                                     tc_struct_table_width_bits,
+                                                     ctx->program->struct_table);
+                size_t elem_bytes = (elem_bits + 7U) / 8U;
+                uint64_t count = tc_type_memblock_count(sym->type);
+                size_t nbytes = sizeof(uint64_t) + (size_t)count * elem_bytes;
+
+                fprintf(out, "%s%s = ", indent, dst_expr);
+                tc_aot_emit_const_memblock_expr(out, sym->const_value.bits, nbytes, line);
+                fprintf(out, ";\n");
+                fprintf(out,
+                        "%sif (tc_aot_cur_diag->domain != TC_DIAG_NONE) "
+                        "tc_aot_abort(tc_aot_cur_diag, %d);\n",
+                        abort_indent, line);
+                return 0;
+            }
+            if (expected_type == TC_STRUCT &&
+                tc_aot_emit_const_struct_assign(out, sym->type, sym->const_value.bits, ctx,
+                                                dst_expr, indent, abort_indent, line)) {
+                return 0;
+            }
             fprintf(out, "%s%s = 0x%016" PRIx64 "ULL;\n", indent, dst_expr,
                     sym->const_value.bits);
             return 0;

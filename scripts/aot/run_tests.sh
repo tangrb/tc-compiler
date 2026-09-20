@@ -628,6 +628,13 @@ run_diff_test "$ROOT/tests/modules/import_member_operand.tc"
 run_diff_test "$ROOT/tests/modules/import_member_struct.tc"
 run_check_ok "$ROOT/tests/modules/import_member_operand.tc"
 run_check_ok "$ROOT/tests/modules/import_member_struct.tc"
+# 观察-④：`Self.<名>` 作常量/整值来源；const struct/memblock 整值不得嵌入分析期堆指针
+run_diff_test "$ROOT/tests/valid/self_const_agg.tc"
+run_check_ok "$ROOT/tests/valid/self_const_agg.tc"
+run_diff_test "$ROOT/tests/valid/const_struct_copy.tc"
+run_check_ok "$ROOT/tests/valid/const_struct_copy.tc"
+run_diff_test "$ROOT/tests/valid/const_memblock_copy.tc"
+run_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
 run_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
     "undefined variable 'NoSuchLib'"
 run_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \

@@ -1,0 +1,12 @@
+#program
+; 观察-④：常量 struct 整值经 `let` 复制后再写入运行时 `var`（值语义深拷贝）。
+; AOT 此前对该形态把分析期堆指针写进生成 C，运行期段错误
+struct Pair then
+    var x: int32
+    var y: int32
+end
+let a: Pair = Pair(x: 3, y: 4)
+let b: Pair = a
+var p: Pair = b
+var s: int32 = add(int32, p.x, p.y)
+writeln(int32, s)

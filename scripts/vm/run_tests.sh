@@ -1095,6 +1095,24 @@ run_expect_stdout "$ROOT/tests/modules/import_member_struct.tc" "12
 "
 run_expect_check_ok "$ROOT/tests/modules/import_member_operand.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_member_struct.tc"
+# 观察-④：`Self.<名>` 作常量/整值来源（标量常量上下文、struct 常量上下文、struct 返回值
+# 与运行时整值拷贝、const memblock 拷贝）——VM 与 AOT 逐行一致
+run_expect_stdout "$ROOT/tests/valid/self_const_agg.tc" "41
+17
+17
+17
+17
+6
+1
+8
+"
+run_expect_check_ok "$ROOT/tests/valid/self_const_agg.tc"
+run_expect_stdout "$ROOT/tests/valid/const_struct_copy.tc" "7
+"
+run_expect_check_ok "$ROOT/tests/valid/const_struct_copy.tc"
+run_expect_stdout "$ROOT/tests/valid/const_memblock_copy.tc" "6
+"
+run_expect_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
 # §4.4：`<模块名>.<private 成员>` 一律 `PRIVATE_MEMBER_ACCESS`，不得降级为 undefined variable
 run_expect_check_fail "$ROOT/tests/modules/member_private_read.tc" \
     "private member access" "PrivateMemberAccessError"

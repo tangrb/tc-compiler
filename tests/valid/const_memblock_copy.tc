@@ -1,0 +1,6 @@
+#program
+; 观察-④：常量 memblock 整值经 `let` 复制后再写入运行时 `var`（§3.8.4 深拷贝）
+let m: memblock<int32, 2> = memblock(int32, count: 2, 6, 1)
+var q: memblock<int32, 2> = m
+var v: int32 = memblock_load(int32, q, 0)
+writeln(int32, v)
