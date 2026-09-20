@@ -1814,12 +1814,12 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 length ≥ 0  ∧  dst_idx ≥ 0  ∧  src_idx ≥ 0
 ```
 
-`length = 0` 合法（不修改任何元素）。`length < 0` 时，若编译期可确定则报 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`，运行时则报 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。
+`length = 0` 合法（不修改任何元素）。`length`、`dst_idx`、`src_idx` 中任一为**负**时：若该负值**编译期可确定**（整数字面量，或解析到 `let` / `static let` 常量来源），报告 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；否则在**运行时**报告 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。
 
 **抽象执行语义**：
 
 1. 先读取所有操作数；随后按**固定优先级**检查：先判空指针——`dst` 或 `src` 为 `nullptr` 时报告 `TC_RE_NULL_POINTER_DEREFERENCE`；
-2. 空指针检查通过后，再判区间：若 `length` 的数学值 < 0 或 `dst_idx` / `src_idx` < 0，发生运行时错误（`TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`），不修改 `dst` 所指内存的任何元素。两步均不修改目标内存，故同时满足两个条件时以第 1 步为准。
+2. 空指针检查通过后，再判区间：若 `length` 的数学值 < 0 或 `dst_idx` / `src_idx` < 0，发生运行时错误（`TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`），不修改 `dst` 所指内存的任何元素。（编译期已确定为负并静态拒绝的部分不进入本步。）两步均不修改目标内存，故同时满足两个条件时以第 1 步为准。
 3. 正常执行时，语义等价于：先把源区间 `[src_idx, src_idx + length)` 的 `length` 个元素按抽象位串拷入临时缓冲，再按相同顺序写入目标区间 `[dst_idx, dst_idx + length)`。因此重叠区间（同一指针用作 `src` 和 `dst` 且区间有重叠）行为完全确定，等价于「先经临时缓冲再写回」的整段拷贝。
 4. 不重新规范化元素位模式，保持位串不变。
 
@@ -2400,7 +2400,7 @@ input_digit  = "0" … "9" ;
 | 空指针算术错误   | `TC_RE_NULL_POINTER_ARITHMETIC`    | `ptr_add`/`ptr_sub` 的操作数为 `nullptr` |
 | I/O 错误         | `TC_RE_IO`                           | `read` 输入非法/超范围/非预期 EOF 或标准输入读取失败；`write`/`writeln` 向标准输出写入失败 |
 | memblock 越界    | `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`  | `memblock_load`/`store` 下标越界，或 `memblock_copy` 区间不合法 |
-| memcopy_unsafe 区间非法 | `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `memcopy_unsafe` 的 `length` 运行时为负                     |
+| memcopy_unsafe 区间非法 | `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `memcopy_unsafe` 的 `length` 或下标运行时数学值为负                     |
 
 **静态成员初始化阶段**：`static var` 初始化器在程序准备阶段按本表所列运行时语义求值（§4.2），失败时报对应 `TC_RE_*` 码并使整个程序准备失败；该阶段不引入新的错误码，也不属于「程序执行」的可观察输出。
 
@@ -3277,7 +3277,7 @@ memcopy_unsafe_stmt
    length（整数，≥0）。
    dst 或 src 为 nullptr 时报告 TC_RE_NULL_POINTER_DEREFERENCE。
    不执行越界检查；重叠区间行为等价于「先经临时缓冲再写回」的整段拷贝。
-   length < 0 时报 TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE（编译期可确定时）或 TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE（运行时）。
+   length / dst_idx / src_idx 为负时报 TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE（编译期可确定时）或 TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE（运行时）。
    下标操作数须为整数类型（彼此类型可不同，也不必等于 T）；
    dst 和 src 可以是任意 operand（非仅裸名）。 */
 
@@ -3431,7 +3431,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 
 | 错误码 | 阶段 | 触发条件 |
 |--------|------|----------|
-| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | SEM | `memcopy_unsafe` 的 `length` 在编译期为负 |
+| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | SEM | `memcopy_unsafe` 的 `length` / `dst_idx` / `src_idx` 在编译期可确定为负（整数字面量或 `let` / `static let` 常量来源） |
 
 ### B.12 函数调用
 
@@ -3461,7 +3461,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | `TC_RE_IO` | RT | `read` 输入非法/超范围/非预期 EOF 或标准输入读取失败；`write`/`writeln` 向标准输出写入失败（§10.1～§10.3） |
 | `TC_RE_NULL_POINTER_DEREFERENCE` | RT | `ptr_load` 或 `ptr_store` 的操作数为 `nullptr`；`memcopy_unsafe` 或指针序关系比较的操作数包含 `nullptr` |
 | `TC_RE_NULL_POINTER_ARITHMETIC` | RT | `ptr_add` 或 `ptr_sub` 的操作数为 `nullptr` |
-| `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | RT | `memcopy_unsafe` 的 `length` 运行时为负 |
+| `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | RT | `memcopy_unsafe` 的 `length` 或下标运行时数学值为负 |
 
 > **说明**：编译期错误（LT / SYN / SEM / CT）使用 `TC_CE_*` 前缀，运行时错误（RT）使用 `TC_RE_*` 前缀。其余详细规则以正文交叉引用的条款为准。语法阶段专用码共 6 个：语法拒绝 2（`TC_CE_MISSING_END`、`TC_CE_OPERAND_COUNT`）＋ 结构类语法阶段诊断 4（`TC_CE_MODULE_LAYER`、`TC_CE_MISSING_VISIBILITY`、`TC_CE_PROGRAM_MODE_MISUSE`、`TC_CE_VAR_MISSING_INIT`），口径见 §1.3。
 

@@ -248,7 +248,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `MemblockIndexOutOfRange` (static) | 编译期可确定的 memblock 越界 |
 | `MemblockElementCountMismatch` | memblock 构造器逐值数量 != count |
 | `MemblockSizeMismatch` | memblock 赋值/传参 N 不匹配 |
-| `MemcopyUnsafeInvalidRange` (static) | memcopy_unsafe 的 `length` 编译期数学值 `< 0`（**负下标不在编译期报告**，见 §6.5 运行时行） |
+| `MemcopyUnsafeInvalidRange` (static) | memcopy_unsafe 的 `length` / 下标编译期可确定数学值 `< 0`（字面量或 `let` / `static let` 常量来源；不可确定的负值见 §6.5 运行时行） |
 
 ### 6.3 常量、格式与 I/O
 

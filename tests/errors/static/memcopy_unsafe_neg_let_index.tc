@@ -1,0 +1,9 @@
+#program
+; A-3：`let` 常量来源的负下标同样属编译期可确定 → 静态拒绝
+; （对照：`var idx: isize = -1` 属运行时绑定，仍由 TC_RE_* 负责）
+var a: int32 = 1
+var b: int32 = 2
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, b)
+let i: isize = -1
+memcopy_unsafe(int32, p, i, q, 0, 1)

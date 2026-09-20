@@ -268,6 +268,7 @@
 | ---- | ---- | ---- |
 | A-1 | 标准 §3.10.3 `ptr_load` 表、§3.10.3/§6.8.4 `ptr_address`、§3.10.8/§6.8.5 `ptr_add`、§3.10.8/§6.8.6 `ptr_sub`、§6.8.7 `ptr_lt`…`ptr_ge` 共 9 处「类别：RHS（`operand`）」改为「RHS（**非** `operand`）」（`nullptr` 两处保持，因 `nullptr_literal` 确在附录 A 的 `operand` 产生式内）；§6.8 章首补总则：本章各 `ptr_*` 形式均为调用型 RHS，只能整条充当 RHS、不属于 `operand`、不得嵌套为其它调用的操作数，被嵌套按语法拒绝报 `TC_CE_SYNTAX`；编译器标准 §4.3 同步该口径（原写「均为 RHS（`operand`）」）。新增 4 条负例 `tests/errors/static/ptr_{address,add,sub,lt}_nested_operand.tc`（VM `run_expect_check_fail` 断言 `expected operand`＋`SyntaxError`，AOT `run_check_fail`）；test-map 回填 1146 VM / 518 AOT | 实测四例均报 `SyntaxError: expected operand`（rc=1，两后端一致），与附录 A 的 `operand` 产生式一致；`nullptr` 作为操作数（`ptr_eq(int32, p, nullptr)`、`ptr_eq(int32, nullptr, nullptr)`）行为不变；全量三层与 5 项门禁通过 |
 | A-2 | 标准附录 B.1 的 `TC_CE_LITERAL_OUT_OF_RANGE` 阶段列由 `LT` 改为 **`LT / SEM`**，触发条件列补两条路径（LT：Token 自身超 `2^64−1`／浮点舍入为零或无穷；SEM：以上下文期望类型为准的范围检查，§5.2.1 第 2 步、§6.1.1、§6.1.2），并在 B.1 表末补「阶段细分」说明引用 §11 阶段优先。实现零改动（既有实现已双阶段）；为把该口径钉死在用例上，给 4 条既有语料的 VM `run_expect_check_fail` 补错误码名断言：`invalid_hex_overflow`（LT 整数）、`fp_literal_range`（LT 浮点）、`literal_range`（SEM 上下文）、`let_const_literal_range`（SEM `let` 声明类型）。注册行数不变（仅补第 3 个实参） | 实测两阶段同码：`var x: int32 = 99999999999999999999999999` → `LiteralOutOfRange: integer literal too large`（LT，Token 位置）；`var x: int8 = 300` / `let a: int8 = 128` → `LiteralOutOfRange: literal out of range for context type`（SEM）；`uint8 = 256` 与浮点 `fp_literal_range`/`float32_literal_range` 亦同码；全量三层与 5 项门禁通过 |
+| A-3 | 实现：`tc_memblock_check.c` 新增 `tc_memcopy_operand_const_negative`（整数字面量负号 → 负；`TC_OPERAND_VAR` 且绑定为 `TC_SYM_CONSTANT`（`let` / `static let`）且类型有符号、常量值为负 → 负），在 `tc_memblock_check_memcopy_unsafe` 的 operand 解析之后对 `length` / `dst_index` / `src_index` 判负，命中即报静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（「memcopy_unsafe invalid range」，与运行时同文案）；运行时绑定（`var` / 形参 / `static var`）仍归 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。口径回改：语言标准 §6.8.9 判据段＋执行语义第 2 步、§11.1 表、附录 A 注记、附录 B.11 与 B.13；编译器标准 §3.2 区间段＋§6.7 表＋§11.4.6 静态码行；VM 详设 §12 静态/运行时分工段；CLI 参考 §6.2 静态行。语料：`memcopy_unsafe_neg_{dst,src}_index.tc` 由 `tests/errors/runtime/` 迁到 `tests/errors/static/` 并改注册为 `check_fail`（断言消息＋`MemcopyUnsafeInvalidRange`），新增 `memcopy_unsafe_neg_length_literal.tc`（负字面量 length）与 `memcopy_unsafe_neg_let_index.tc`（`let` 常量负下标）；`var` 负值的三条运行时语料保持不变。test-map 回填 1148 VM / 522 AOT | 迁移前：负字面量 dst/src 下标 `-c` 通过（rc=0）、仅运行时拒绝；迁移后两后端 `--check` 均报 `MemcopyUnsafeInvalidRange`（rc=1）。负字面量 `length` 与 `let i: isize = -1` 下标同样静态拒绝；`var n: isize = -1`（length）/ `var i: isize = -1`（dst）/ `var idx: int32 = -1` 三条仍 `-c` 通过并在运行时报 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`；全量三层与 5 项门禁通过 |
 
 ## 标准 owner 裁决记录（A-1～A-4 已裁决并落地；B-41/B-61/B-63 仍待裁决）
 
@@ -358,7 +359,8 @@
 | 70 | 阶段 2-B40 解析期 SEM 诊断挂起 | `379dddb fix(0.0.44-B40): defer parser-side SEM diagnostics to the static phase` |
 | 71 | 阶段 2-B66 static let 的 Self. 源序引用规则 | `b7a2e91 fix(0.0.44-B66): enforce source order for Self references in static let` |
 | 72 | 阶段 3-A1 指针 RHS 不属于 operand | `529c49a docs(0.0.44-A1): RHS forms are not operands` |
-| 73 | 阶段 3-A2 字面量范围码阶段列 LT / SEM | 本提交 `docs(0.0.44-A2): record the LT/SEM phases of LITERAL_OUT_OF_RANGE` |
+| 73 | 阶段 3-A2 字面量范围码阶段列 LT / SEM | `4d3ec42 docs(0.0.44-A2): record the LT/SEM phases of LITERAL_OUT_OF_RANGE` |
+| 74 | 阶段 3-A3 memcopy_unsafe 编译期可确定负下标静态拒绝 | 本提交 `fix(0.0.44-A3): reject constant negative memcopy_unsafe ranges statically` |
 
 ---
 

@@ -1119,11 +1119,15 @@ run_expect_stdout "$ROOT/tests/valid/phase5_memblock_deepcopy.tc" "1
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_unsafe.tc" "1
 "
-# Major 3 回归：memcopy_unsafe 负下标（字面量 / 有符号变量）须拒绝，不得回绕越界
-run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_dst_index.tc" \
-    "memcopy_unsafe invalid range"
-run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_src_index.tc" \
-    "memcopy_unsafe invalid range"
+# Major 3 回归 + A-3：编译期可确定的负 length / 负下标 → 静态码；运行时绑定仍归 TC_RE_*
+run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_dst_index.tc" \
+    "memcopy_unsafe invalid range" "MemcopyUnsafeInvalidRange"
+run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_src_index.tc" \
+    "memcopy_unsafe invalid range" "MemcopyUnsafeInvalidRange"
+run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_length_literal.tc" \
+    "memcopy_unsafe invalid range" "MemcopyUnsafeInvalidRange"
+run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_let_index.tc" \
+    "memcopy_unsafe invalid range" "MemcopyUnsafeInvalidRange"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_var_index.tc" \
     "memcopy_unsafe invalid range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_copy_empty_src_oob.tc" \

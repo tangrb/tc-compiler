@@ -971,6 +971,15 @@ run_runtime_fail "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overf
 run_runtime_fail "$ROOT/tests/errors/runtime/abs_int_min.tc" "abs(INT_MIN) overflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg.tc" "memcopy_unsafe invalid range"
+# A-3：编译期可确定的负 length / 负下标 → 静态码（两后端 --check 均拒绝）
+run_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_dst_index.tc" \
+    "memcopy_unsafe invalid range"
+run_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_src_index.tc" \
+    "memcopy_unsafe invalid range"
+run_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_length_literal.tc" \
+    "memcopy_unsafe invalid range"
+run_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_let_index.tc" \
+    "memcopy_unsafe invalid range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_src_oob.tc" "memblock index out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_dst_oob.tc" "memblock index out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_index.tc" "memcopy_unsafe invalid range"

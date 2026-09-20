@@ -947,7 +947,7 @@ typedef struct {
 | `memblock_copy(T, dst, d_idx, src, s_idx, len)` | 区间检查 → 先拷入临时缓冲再写入目标（memmove 语义）；越界同上；不修改目标 |
 | `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`len < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（按操作数有符号性求值，不得先无符号回绕）；不检查越界；先拷入临时缓冲再写入目标 |
 
-静态/运行时分工（[语言标准 §6.8.9]、[语言标准 附录 B.11]）：编译期静态码 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（**SEM**）**只**覆盖编译期可确定的 `len < 0`；负的 `d_idx` / `s_idx` **一律**落在运行时 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（**RT**），编译期不报静态码。两步均不修改目标内存，故同时满足时以空指针检查（第 1 步）为准。
+静态/运行时分工（[语言标准 §6.8.9]、[语言标准 附录 B.11]）：编译期静态码 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（**SEM**）覆盖**编译期可确定**为负的 `len` / `d_idx` / `s_idx`（整数字面量或 `let` / `static let` 常量来源）；编译期不可确定的负值（如 `var` 有符号下标/长度、形参、`static var`）落在运行时 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（**RT**）。两步均不修改目标内存，故同时满足时以空指针检查（第 1 步）为准。
 
 ### 12.9 结构体操作
 

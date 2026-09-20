@@ -9,6 +9,7 @@
 #include "tc_analyzer_internal.h"
 #include "tc_const_eval.h"
 #include "tc_ptr_check.h"
+#include "tc_semantics.h"   /* tc_bits_to_signed：A-3 编译期负值判定 */
 #include "tc_struct_check.h"
 
 #include <stdlib.h>
@@ -585,6 +586,34 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
     return 0;
 }
 
+/*
+ * A-3（标准 owner 裁决）：`memcopy_unsafe` 的 `length` / `dst_idx` / `src_idx` 是否在
+ * **编译期可确定**为负。
+ *
+ * 可确定来源：① 带负号的整数字面量（`tc_memblock_const_index_value` 返回 -1）；
+ * ② 解析到 `let` / `static let` 常量绑定且其常量的有符号数学值为负。运行时绑定
+ *（`var` / 形参 / `static var`）不在此判定，仍由运行时 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`
+ * 负责（[语言标准 §6.8.9] 的区间合法性 `length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`）。
+ */
+static int tc_memcopy_operand_const_negative(const TcOperand *operand) {
+    uint64_t value = 0;
+    int kind = 0;
+
+    if (!operand) {
+        return 0;
+    }
+    kind = tc_memblock_const_index_value(operand, &value);
+    if (kind != 0) {
+        return kind < 0;
+    }
+    if (operand->kind == TC_OPERAND_VAR && operand->binding.resolved &&
+        operand->binding.is_const && operand->binding.type &&
+        tc_type_is_signed(operand->binding.type->tag)) {
+        return tc_bits_to_signed(operand->binding.type->tag, operand->binding.const_bits) < 0;
+    }
+    return 0;
+}
+
 int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      const TcSymbolTable *visible,
                                      const TcSymbolTable *global,
@@ -605,6 +634,17 @@ int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
     /* `dst` / `src` 须为 `ptr<T>` 类型的 operand（§6.8.9、§6.8.10）；字段读取在此解析。 */
     if (tc_ptr_check_memcopy_unsafe_operands(stmt, visible, global, struct_table, hist,
                                              stmt_index, diag, warnings) != 0) {
+        return -1;
+    }
+    /*
+     * A-3：编译期可确定的负 `length` / 负下标按静态语义拒绝（SEM）。此前只在运行时
+     * 报告，负字面量下标会被当作巨大 usize 处理（Major 3 回归的根因面）。
+     */
+    if (tc_memcopy_operand_const_negative(&stmt->length) ||
+        tc_memcopy_operand_const_negative(&stmt->dst_index) ||
+        tc_memcopy_operand_const_negative(&stmt->src_index)) {
+        tc_diagnostic_set(diag, TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE, stmt->line,
+                          TC_COLUMN_UNKNOWN, "memcopy_unsafe invalid range");
         return -1;
     }
     return 0;
