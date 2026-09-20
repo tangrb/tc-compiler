@@ -714,9 +714,15 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
     dst_count = tc_aot_load_bits(dst, sizeof(uint64_t));
     src_count = tc_aot_load_bits(src, sizeof(uint64_t));
     /* 无回绕判定，与 VM tc_exec_memblock_copy_stmt 一致。 */
-    if (length > 0 &&
-        (length > dst_count || dst_index > dst_count - length ||
-         length > src_count || src_index > src_count - length)) {
+    /*
+     * B-43 / B-58：区间合取在 `length == 0` 时同样成立——§6.7.2.4 只放宽「下标
+     * **等于** count」，下标**大于** count 恒非法。原判据以 `length > 0` 短路，
+     * 使空拷贝的 dst/src 越界下标漏检。
+     */
+    if ((length > 0 &&
+         (length > dst_count || dst_index > dst_count - length ||
+          length > src_count || src_index > src_count - length)) ||
+        (length == 0 && (dst_index > dst_count || src_index > src_count))) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
                           "memblock index out of range");
         return -1;

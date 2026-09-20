@@ -1098,6 +1098,10 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_src_index.tc"
     "memcopy_unsafe invalid range"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_var_index.tc" \
     "memcopy_unsafe invalid range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_copy_empty_src_oob.tc" \
+    "memblock index out of range"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/memblock_copy_empty_dst_oob.tc" \
+    "memblock index out of range"
 run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_positive_ok.tc" "1
 4
 "

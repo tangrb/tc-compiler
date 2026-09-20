@@ -118,39 +118,39 @@
 | B-9 | 顶层 `let` 作 `memblock_copy` 下标：仅 VM 失败 | ☑ | 见文末提交记录 |
 | B-10 | `bitcast(ptr<T>, usize)` 解引用两后端分歧 | ☑ | 见文末提交记录 |
 | B-11 | 指针别名清零后读字段：VM 内部错误 | ☑ | 见文末提交记录 |
-| B-12 | `#program` 结构体名 vs `import` 名冲突被放过 | ☐ | |
-| B-13 | libtc 内存入口不解析 `import` | ☐ | |
-| B-14 | 依赖模块诊断定位到入口文件 | ☐ | |
-| B-15 | `tc-aot -r` 相对路径失败 | ☐ | |
-| B-16 | 模块文件 I/O 失败映射为语言码 | ☐ | |
-| B-17 | `#lib static var` 缺初始化器错码 | ☐ | |
+| B-12 | `#program` 结构体名 vs `import` 名冲突被放过 | ☑ | |
+| B-13 | libtc 内存入口不解析 `import` | ☑ | |
+| B-14 | 依赖模块诊断定位到入口文件 | ☑ | |
+| B-15 | `tc-aot -r` 相对路径失败 | ☑ | |
+| B-16 | 模块文件 I/O 失败映射为语言码 | ☑ | |
+| B-17 | `#lib static var` 缺初始化器错码 | ☑ | |
 | B-18 | `implementation error` 泄漏 | ☑ | 见文末提交记录 |
-| B-19 | embed 临时槽区与声明槽区重叠 | ☐ | |
-| B-20 | `memcopy_unsafe` 操作数类型不校验 | ☐ | |
-| B-21 | `memblock_copy` 常量区间/元素类型不校验 | ☐ | |
-| B-22 | 字面量专用码退化 | ☐ | |
-| B-23 | 条件 RHS 码被 `CONDITION_TYPE` 覆盖 | ☐ | |
-| B-24 | 常量 `cast` 字面量错误码 | ☐ | |
-| B-25 | 子块/兄弟块标签优先级 | ☐ | |
-| B-26 | 浮点非规格化被拒（过度拒绝） | ☐ | |
-| B-27 | 格式说明符缓冲过窄 | ☐ | |
+| B-19 | embed 临时槽区与声明槽区重叠 | ☑ | |
+| B-20 | `memcopy_unsafe` 操作数类型不校验 | ☑ | |
+| B-21 | `memblock_copy` 常量区间/元素类型不校验 | ☑ | |
+| B-22 | 字面量专用码退化 | ☑ | |
+| B-23 | 条件 RHS 码被 `CONDITION_TYPE` 覆盖 | ☑ | |
+| B-24 | 常量 `cast` 字面量错误码 | ☑ | |
+| B-25 | 子块/兄弟块标签优先级 | ☑ | |
+| B-26 | 浮点非规格化被拒（过度拒绝） | ☑ | |
+| B-27 | 格式说明符缓冲过窄 | ☑ | |
 | B-28 | 类型嵌套解析崩溃 | ☑ | 见文末提交记录 |
 | B-29 | 数字分隔符规则被绕过 | ☑ | 见文末提交记录 |
 | B-30 | 尾随逗号（4 处） | ☑ | 见文末提交记录 |
 | B-31 | 缺失逗号（3 处） | ☑ | 见文末提交记录 |
-| B-32 | 嵌套构造器 | ☐ | |
-| B-33 | 字段赋值 RHS 不接受 `funcall`（过度拒绝） | ☐ | |
-| B-34 | `cast(void,…)`/`bitcast(void,…)` 未语法拒绝 | ☐ | |
-| B-35 | `OPERAND_COUNT` 缺失 | ☐ | |
-| B-36 | 格式标志重复与长度上限 | ☐ | |
+| B-32 | 嵌套构造器 | ☑ | |
+| B-33 | 字段赋值 RHS 不接受 `funcall`（过度拒绝） | ☑ | |
+| B-34 | `cast(void,…)`/`bitcast(void,…)` 未语法拒绝 | ☑ | |
+| B-35 | `OPERAND_COUNT` 缺失 | ☑ | |
+| B-36 | 格式标志重复与长度上限 | ☑ | |
 | B-37 | 大写变量嵌套字段误解析（过度拒绝） | ☐ | |
-| B-38 | `#lib` 裸 `var` 报 `MODULE_LAYER` | ☐ | |
-| B-39 | SYN 阶段错位（`Self` 检查） | ☐ | |
+| B-38 | `#lib` 裸 `var` 报 `MODULE_LAYER` | ☑ | |
+| B-39 | SYN 阶段错位（`Self` 检查） | ☑ | |
 | B-40 | SEM 码由解析器发出（`@padding`/`N` 来源） | ☐ | |
 | B-41 | 深一级 `end` 缩进码归属 | ⊘ 待标准裁决 | |
 | B-42 | `bitcast` 伪造指针槽索引越界 | ☐ | |
-| B-43 | `memblock_copy` `length == 0` 跳过区间检查 | ☐ | |
-| B-44 | `memblock_copy` 常量区间从不静态检查 | ☐ | |
+| B-43 | `memblock_copy` `length == 0` 跳过区间检查 | ☑ | |
+| B-44 | `memblock_copy` 常量区间从不静态检查 | ☑（B-21 闭合） | |
 | B-45 | strict `shl` 零被移位数不报溢出 | ☐ | |
 | B-46 | `%f` 极小量错误进位 | ☐ | |
 | B-47 | float32 字面量经 double 二次舍入 | ☐ | |
@@ -162,16 +162,16 @@
 | B-53 | `%.80d` 起报 `TC_RE_IO` | ☐ | |
 | B-54 | 依赖模块裸名引用错码不一致 | ☐ | |
 | B-55 | embed/工具链细节 | ☐ | |
-| B-56 | `#lib` 内 `Self.f` 被 import 即失败 | ☐ | |
+| B-56 | `#lib` 内 `Self.f` 被 import 即失败 | ☑ | |
 
 ### B-57～B-66（审计报告 §2.12）
 
 | 条目 | 主题 | 状态 | 提交 |
 | ---- | ---- | ---- | ---- |
 | B-57 | AOT 侧伪造指针非确定读 | ☐ | |
-| B-58 | `memblock_copy` 空拷贝 dst 侧漏检 | ☐ | |
-| B-59 | 常量负 dst 下标无静态检查 | ☐ | |
-| B-60 | 格式越界且 Token >32 字节被降级 | ☐ | |
+| B-58 | `memblock_copy` 空拷贝 dst 侧漏检 | ☑ | |
+| B-59 | 常量负 dst 下标无静态检查 | ☑（B-21 闭合） | |
+| B-60 | 格式越界且 Token >32 字节被降级 | ☑（B-27 闭合） | |
 | B-61 | 非 `bool` 条件错码不一致 | ⊘ 待标准裁决 | |
 | B-62 | `const` 列表产生式逗号 | ☐ | |
 | B-63 | 顶层行缩进不校验 | ⊘ 待标准裁决 | |
@@ -241,6 +241,8 @@
 | B-36 | 无需新代码：`%--d` 的重复标志由 B-3 已在分析器报 `TC_CE_FORMAT_SPECIFIER`（`format_duplicate_flag.tc` 语料）；32 字符宽度上限由 B-27 的 64 字节缓冲 + 宽度范围检查消除（30/31 位宽度现均报 `FormatSpecifierError: format width or precision out of range`，与附录 A「`format_width` 无长度上限」一致）。本条为审计对 B-3/B-27 的补充维度，记入台账以备追溯 | 复核：`write(int32, %--d, 1)` → `FormatSpecifierError: duplicate format flag`；`%`+30 个数字+`d` 与 `%`+31 个数字+`d` → 同为 `FormatSpecifierError: format width or precision out of range`（不再是 `SyntaxError: format specifier too long`）；全量三层与 5 项门禁通过 |
 | B-38 | `tc_parser.c` `tc_parse_module_body`：`#lib` 模式下顶层 VAR/LET 行在语法阶段直接报 `TC_CE_SYNTAX: non-static value declaration is not allowed in #lib`（附录 A `library_module` 只接受带可见性的 static 成员），不再放行到分析器的 `MODULE_LAYER`（SEM，阶段错位）。分析器中的旧检查保留为防御。新增 `tests/errors/static/lib_toplevel_var_syntax.tc`（VM check_fail + SyntaxError 与 fail_msg）；test-map 回填 1102 VM | 审计复现 `#lib` + `var x: int32 = 1` 由 `ModuleLayerError`（SEM）变为 `SyntaxError`（第 3 阶段）；`#lib` + `let` 同；合法 `public static var` 不受影响；全量三层与 5 项门禁通过 |
 | B-39 | `tc_parser.c` `tc_parse_source_to_program`：#program 模式在解析主体前按**源序**扫描全部 Token 行，出现 `Self` 即报 `TC_CE_PROGRAM_MODE_MISUSE`（SYN，第 3 阶段）——原实现只抓行首 `Self`，其余由分析器在 SEM 检查，导致同文件后面更晚的语法错误抢先（§11 第 1 条）。`test_module` 的 Self 用例改为断言解析阶段即拒绝。新增 `tests/errors/static/self_before_later_syntax.tc`（VM check_fail + ProgramModeMisuseError）；test-map 回填 1103 VM | 审计复现（第 2 行 `Self.x` + 第 3 行 `add(int32, 1)` 缺参）现报第 2 行 `ProgramModeMisuseError: Self is not allowed in #program`（原报第 3 行 SyntaxError）；嵌套块内的 `Self` 同样在源序位置报出；`#lib` 的 `Self` 用法不受影响；全量三层与 5 项门禁通过 |
+| B-43 / B-58 | `tc_memblock_exec.c` 与 `tc_aot_rt.c` 的 `memblock_copy` 区间判定：`length == 0` 时不再短路——§6.7.2.4 只放宽「下标**等于** count」，下标**大于** count 恒非法，故空拷贝的 dst/src 越界下标同样报 `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`。新增 `tests/errors/runtime/memblock_copy_empty_{src,dst}_oob.tc`（VM fail_msg、AOT runtime_fail）；test-map 回填 1105 VM | 审计两例（`memblock_copy(int32, b, 0, a, s, n)` 与 `memblock_copy(int32, b, 9, a, 0, n)`，`s=9`、`n=0`、`count: 4`）由正常结束变为 `MemblockIndexOutOfRange`（VM/AOT 一致）；合法空拷贝（下标 == count）仍接受；全量三层与 5 项门禁通过 |
+| B-44 / B-59 / B-60 | 无需新代码：常量负 `length`（B-44）与常量负 `dst` 下标（B-59）已由 B-21 的 `tc_memblock_check_copy` 常量区间判定覆盖；35 位宽度的越界诊断（B-60）已由 B-27 的 64 字节缓冲 + 宽度范围检查覆盖。三例复核结果见「验证」列 | `memblock_copy(int32, b, 0, a, 0, -1)` 与 `memblock_copy(int32, b, -1, a, 0, 1)` 均为静态 `MemblockIndexOutOfRange`（原为运行期才报）；`%`+35 个 `9`+`d` 报 `FormatSpecifierError: format width or precision out of range`（原为 `SyntaxError: format specifier too long`） |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -310,7 +312,8 @@
 | 48 | 阶段 2-B35 操作数个数专用码 | `cfb2596 fix(0.0.44-B35): report OPERAND_COUNT for arity mismatches` |
 | 49 | 阶段 2-B36 格式说明符重复标志/长度 | 台账记录（由 `5f1dd2a` B-3 与 `febd46f` B-27 闭合，无新代码） |
 | 50 | 阶段 2-B38 `#lib` 顶层裸 var/let 语法拒绝 | `d434245 fix(0.0.44-B38): reject bare top-level var/let in #lib at parse time` |
-| 51 | 阶段 2-B39 `#program` Self 按源序在 SYN 报出 | 本提交 `fix(0.0.44-B39): report Self in #program at parse time in source order` |
+| 51 | 阶段 2-B39 `#program` Self 按源序在 SYN 报出 | `a47d076 fix(0.0.44-B39): report Self in #program at parse time in source order` |
+| 52 | 阶段 2-B43/B58 空拷贝区间检查；B44/B59/B60 复核闭合 | 本提交 `fix(0.0.44-B43/B58): check empty memblock_copy ranges at runtime` |
 
 ---
 

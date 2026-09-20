@@ -1,0 +1,8 @@
+#program
+; §6.7.2.4：空拷贝（n = 0）只放宽「下标 == count」；下标 > count 仍非法（src 侧）
+var a: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
+var b: memblock<int32, 4> = memblock(int32, count: 4, 5, 6, 7, 8)
+var s: usize = 9u
+var n: usize = 0u
+memblock_copy(int32, b, 0, a, s, n)
+writeln(int32, 1)

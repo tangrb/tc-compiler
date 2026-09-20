@@ -462,9 +462,15 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
     }
     /* 无回绕判定：length > count 或 index > count-length，避免 usize 极值下标
      * 使 dst_index+length 回绕成小值而漏检（§6.8.9 / 零 UB）。 */
-    if (length > 0 &&
-        (length > dst_count || dst_index > dst_count - length ||
-         length > src_count || src_index > src_count - length)) {
+    /*
+     * B-43 / B-58：区间合取在 `length == 0` 时同样成立——§6.7.2.4 只放宽「下标
+     * **等于** count」，下标**大于** count 恒非法。原判据以 `length > 0` 短路，
+     * 使空拷贝的 dst/src 越界下标漏检。
+     */
+    if ((length > 0 &&
+         (length > dst_count || dst_index > dst_count - length ||
+          length > src_count || src_index > src_count - length)) ||
+        (length == 0 && (dst_index > dst_count || src_index > src_count))) {
         tc_diagnostic_set(diag, TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE, stmt->line,
                           TC_COLUMN_UNKNOWN, "memblock index out of range");
         return -1;

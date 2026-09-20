@@ -903,6 +903,8 @@ run_runtime_fail "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overf
 run_runtime_fail "$ROOT/tests/errors/runtime/abs_int_min.tc" "abs(INT_MIN) overflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg.tc" "memcopy_unsafe invalid range"
+run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_src_oob.tc" "memblock index out of range"
+run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_dst_oob.tc" "memblock index out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_index.tc" "memcopy_unsafe invalid range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_null.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/div_zero.tc" "division by zero"
