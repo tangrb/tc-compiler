@@ -1,0 +1,3 @@
+#program
+; §6.8.8 / §5.2.1：`ptr_size` 的结果类型是 usize；isize 不是其等价类型 → TypeMismatch
+let w: isize = ptr_size(int32, nullptr)

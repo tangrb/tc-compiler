@@ -150,7 +150,7 @@ static int tc_try_eval_bound_operand(const TcOperand *operand, TcTypeTag expecte
             return 0;
         }
         if (access->is_memblock_count) {
-            if (expected != TC_USIZE && expected != TC_ISIZE) {
+            if (expected != TC_USIZE) {
                 return 0;
             }
             base_sym = tc_const_lookup_field_base(operand->u.field_read.base, visible, global);
@@ -1407,7 +1407,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
 
             if (base_sym && base_sym->sym_kind == TC_SYM_CONSTANT && base_sym->type &&
                 base_sym->type->tag == TC_MEMBLOCK) {
-                if (expected_type != TC_USIZE && expected_type != TC_ISIZE) {
+                if (expected_type != TC_USIZE) {
                     tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                                       "constant type does not match expected type");
                     return -1;
@@ -1421,7 +1421,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
                               "constant expression cannot reference var variable");
             return -1;
         }
-        if (expected_type != TC_USIZE && expected_type != TC_ISIZE) {
+        if (expected_type != TC_USIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant type does not match expected type");
             return -1;
@@ -1443,7 +1443,7 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
     if (rhs->kind == TC_RHS_PTR_SIZE) {
         size_t bits = 0;
 
-        if (expected_type != TC_USIZE && expected_type != TC_ISIZE) {
+        if (expected_type != TC_USIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "constant expression type mismatch");
             return -1;

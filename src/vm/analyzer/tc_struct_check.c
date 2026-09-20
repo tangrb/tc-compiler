@@ -1141,9 +1141,10 @@ int tc_struct_check_field_access(TcFieldAccess *access, const TcType *expected,
         if (tc_type_tag_of(base_sym->type) == TC_MEMBLOCK) {
             is_memblock_count = 1;
             final_type = tc_type_tag_singleton(TC_USIZE);
-            if (expected && expected->tag != TC_USIZE && expected->tag != TC_ISIZE) {
+            /* §3.8.5：`.count` 的结果类型是 usize；isize 不是其等价类型 */
+            if (expected && expected->tag != TC_USIZE) {
                 tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                                  "memblock count result must be usize/isize");
+                                  "memblock count result must be usize");
                 return -1;
             }
             if (base_sym->sym_kind != TC_SYM_CONSTANT && base_sym->sym_kind != TC_SYM_STATIC_LET) {

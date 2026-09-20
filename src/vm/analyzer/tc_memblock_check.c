@@ -416,9 +416,10 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
             return -1;
         }
         tc_resolved_binding_set((TcResolvedBinding *)&rhs->u.memblock_count.binding, base_sym);
-        if (expected && expected->tag != TC_USIZE && expected->tag != TC_ISIZE) {
+        /* §3.8.5：`.count` 的结果类型是 usize；isize 不是其等价类型（§5.2.1 严格一致） */
+        if (expected && expected->tag != TC_USIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "memblock count result must be usize/isize");
+                              "memblock count result must be usize");
             return -1;
         }
         return 0;

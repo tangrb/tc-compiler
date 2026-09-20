@@ -1,0 +1,4 @@
+#program
+; §3.8.5 / §5.2.1：`.count` 的结果类型是 usize；isize 不是其等价类型 → TypeMismatch
+var mb: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var c: isize = mb.count

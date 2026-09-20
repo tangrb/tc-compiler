@@ -304,9 +304,10 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
             }
             return -1;
         }
-        if (expected && expected->tag != TC_USIZE && expected->tag != TC_ISIZE) {
+        /* §6.8.8：`ptr_size` 的结果类型是 usize；isize 不是其等价类型 */
+        if (expected && expected->tag != TC_USIZE) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                              "ptr_size result must be usize/isize");
+                              "ptr_size result must be usize");
             if (ptr_ty.tag == TC_PTR && ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);
                 free(ptr_ty.params.ptr_type.pointee);

@@ -738,7 +738,9 @@ run_expect_fail_msg "$ROOT/tests/errors/static/memblock_assign_size.tc" \
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_index_oob.tc" \
     "memblock index out of range"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_type.tc" \
-    "memblock count result must be usize/isize"
+    "memblock count result must be usize"
+run_expect_fail_msg "$ROOT/tests/errors/static/memblock_count_isize.tc" \
+    "memblock count result must be usize"
 run_expect_fail_msg "$ROOT/tests/errors/static/memblock_copy_size.tc" \
     "memblock copy size mismatch"
 run_expect_fail_msg "$ROOT/tests/errors/static/undefined_struct.tc" \
@@ -790,7 +792,9 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_compare_not_bool.tc" \
     "pointer comparison result must be bool"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
-    "ptr_size result must be usize/isize"
+    "ptr_size result must be usize"
+run_expect_fail_msg "$ROOT/tests/errors/static/ptr_size_isize.tc" \
+    "ptr_size result must be usize"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
     "identifier type does not match destination type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_cast_truncate.tc" \
@@ -844,7 +848,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/memblock_assign_size.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_index_oob.tc" \
     "memblock index out of range"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_type.tc" \
-    "memblock count result must be usize/isize"
+    "memblock count result must be usize"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_count_isize.tc" \
+    "memblock count result must be usize" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_size.tc" \
     "memblock copy size mismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/undefined_struct.tc" \
@@ -874,7 +880,9 @@ run_expect_check_fail "$ROOT/tests/errors/static/ptr_store_readonly.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_compare_not_bool.tc" \
     "pointer comparison result must be bool"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_size_not_usize.tc" \
-    "ptr_size result must be usize/isize"
+    "ptr_size result must be usize"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_size_isize.tc" \
+    "ptr_size result must be usize" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_type_mismatch.tc" \
     "identifier type does not match destination type"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_cast_truncate.tc" \
