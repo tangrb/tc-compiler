@@ -475,6 +475,66 @@ static void test_compile_opts_isolated_search(void) {
     tc_diagnostic_clear(&diag);
 }
 
+/**
+ * 内存入口与文件入口覆盖同一阶段范围（语言标准 §4.5 / §1.3）：`name` 兼作入口路径，
+ * 4b–4d 导入解析照常执行，模块搜索路径优先级为 name 所在目录 → 会话 opts。
+ */
+static void test_source_entry_resolves_imports(void) {
+    static const char missing[] = "#program\nimport NoSuchModule\nvar x: int32 = 1\n";
+    static const char self_lib[] =
+        "#lib\nimport MemSelfLib\npublic func f() void then\n    return\nend\n";
+    static const char import_entry[] =
+        "#program\n"
+        "import ExtraLib\n"
+        "var x: int32 = funcall(ExtraLib.extra_answer)\n"
+        "writeln(int32, x)\n";
+    TcTypedProgram program;
+    TcDiagnostic diag;
+    char extra_dir[512];
+    const char *paths[1];
+    TcCompileOptions opts;
+    const char *root = getenv("TC_TEST_ROOT");
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source(missing, "mem.tc", &program, &diag) == -1,
+          "in-memory entry rejects unresolved import");
+    check(diag.kind == TC_CE_IMPORT_NOT_FOUND,
+          "in-memory entry reports IMPORT_NOT_FOUND");
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source(self_lib, "MemSelfLib.tc", &program, &diag) == -1,
+          "in-memory entry rejects self import");
+    check(diag.kind == TC_CE_CIRCULAR_IMPORT,
+          "in-memory entry reports CIRCULAR_IMPORT");
+    tc_diagnostic_clear(&diag);
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source(import_entry, "mem-entry.tc", &program, &diag) == -1,
+          "in-memory entry without search path cannot locate ExtraLib");
+    check(diag.kind == TC_CE_IMPORT_NOT_FOUND,
+          "in-memory entry without search path → IMPORT_NOT_FOUND");
+    tc_diagnostic_clear(&diag);
+
+    if (!root || root[0] == '\0') {
+        root = ".";
+    }
+    snprintf(extra_dir, sizeof(extra_dir), "%s/tests/modules/extra_libs", root);
+    paths[0] = extra_dir;
+    memset(&opts, 0, sizeof(opts));
+    opts.search_paths = (const char *const *)paths;
+    opts.search_path_count = 1;
+
+    tc_diagnostic_init(&diag);
+    check(tc_compile_source_opts(import_entry, "mem-entry.tc", &opts, &program, &diag) == 0,
+          "in-memory entry resolves import via session search path");
+    if (diag.domain == TC_DIAG_NONE) {
+        check(tc_run_program(&program, &diag) == 0, "run in-memory import program");
+        tc_typed_program_free(&program);
+    }
+    tc_diagnostic_clear(&diag);
+}
+
 int main(void) {
     test_compile_failures_are_transactional();
     test_source_lifetime_and_repeated_execution();
@@ -488,6 +548,7 @@ int main(void) {
     test_compile_opts_isolated_search();
     test_source_and_file_language_kinds_match();
     test_module_search_paths_resolve_import();
+    test_source_entry_resolves_imports();
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

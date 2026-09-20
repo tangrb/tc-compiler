@@ -34,6 +34,18 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
                   const TcModuleSearchPaths *search, TcDiagnostic *diag);
 
 /**
+ * 内存源入口：入口目录与模块名不由文件路径推导。
+ * @param display_name      入口显示名（诊断与源码片段），用作 source_path
+ * @param entry_module_name 入口模块名（"" = 无模块名，内存源默认形态）
+ * @param search            模块搜索路径；可为 NULL
+ * @note 与文件入口覆盖同一阶段范围：display_name 所在目录为导入搜索第一候选，
+ *       `import` 照常解析（语言标准 §4.5、§1.3）。
+ */
+int tc_analyze_memory(TcProgram *program, TcTypedProgram *out, const char *display_name,
+                      const char *entry_module_name, const TcModuleSearchPaths *search,
+                      TcDiagnostic *diag);
+
+/**
  * 等价于 tc_analyze_ex(..., NULL, NULL, diag)（不解析 import）。
  */
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag);

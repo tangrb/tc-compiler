@@ -4,7 +4,7 @@
 >
 > **当前实现基线**：libtc / TC-VM v0.0.43（`TC_VERSION_CORE`）
 >
-> **状态**：承载 TC 0.0.44 的 libtc 架构设计（语言规范 0.0.44 同步版），涵盖模块系统、函数、memblock、ptr、struct 与 13 阶段编译管线（文件入口全阶段；内存入口按 §15.3 跳过 4b–4d）。
+> **状态**：承载 TC 0.0.44 的 libtc 架构设计（语言规范 0.0.44 同步版），涵盖模块系统、函数、memblock、ptr、struct 与 13 阶段编译管线（文件入口与内存入口均覆盖阶段 1–12，含 4b–4d 导入解析）。
 >
 > **调用者速查**：见 §15「调用者 API 速查」
 
@@ -80,6 +80,10 @@ typedef struct {
     size_t search_path_count;
 } TcCompileOptions;
 
+int tc_compile_source_opts(const char *source, const char *name,
+                           const TcCompileOptions *opts,
+                           TcTypedProgram *out, TcDiagnostic *diag);
+
 int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out, TcDiagnostic *diag);
 
@@ -92,7 +96,7 @@ int tc_run_program(const TcTypedProgram *program,
 void tc_typed_program_free(TcTypedProgram *program);
 ```
 
-0.0.44 编译入口统一为会话式 `tc_compile_source` / `tc_compile_file_opts`（`TcCompileOptions` 携带 -I 搜索路径，无进程级全局）；`tc_run_program` 执行已类型化程序，涵盖模块静态初始化的语义。
+0.0.44 编译入口统一为会话式 `tc_compile_source_opts` / `tc_compile_file_opts`（`TcCompileOptions` 携带 -I 搜索路径，无进程级全局）；`tc_compile_source` 是 `opts = NULL` 的等价形式。内存入口与文件入口覆盖同一阶段范围：入口目录取自 `name`，其余搜索路径取自会话 opts，`import` 照常解析（§15.3）。`tc_run_program` 执行已类型化程序，涵盖模块静态初始化的语义。
 
 ### 2.2 源兼容与二进制兼容
 
@@ -146,7 +150,7 @@ source files (.tc)
   └─ 阶段 13: VM / AOT 代码生成（**执行不属于 13 阶段**；`tc_run_program` 在全部静态阶段成功后另行运行）
 ```
 
-> **入口覆盖差异**：`tc_compile_file_opts`（文件入口）覆盖阶段 1–12 全部子阶段；`tc_compile_source`（无路径内存入口）**跳过 4b–4d**（无模块搜索上下文，不解析 `import`），其余阶段一致。详见 §15.3。
+> **入口阶段覆盖**：`tc_compile_file_opts`（文件入口）与 `tc_compile_source_opts` / `tc_compile_source`（内存入口）均覆盖阶段 1–12 全部子阶段，包含 4b–4d 导入解析；两者只是入口路径来源不同（真实文件路径 / `name`）。详见 §15.3。
 
 ### 3.2 编译事务
 
@@ -329,7 +333,7 @@ OOM 不得降级为 `SyntaxError`。`realloc` 采用临时指针，失败时保�
 
 ### 7.3 阶段确定性
 
-首个诊断的选择遵循编译器标准 §1.3 的完整规则：**阶段优先（LT → SYN → SEM → CT）→ 同一诊断类阶段内按源位置优先 → 规则优先（同位置专用码优先）→ 关联位置 → 遍历无关**。各阶段有其专用优先级（如 §4.1 模块错误优先级、§8.2 funcall 错误优先级、§7.6 CFG 错误优先级）。各入口在其**所覆盖的阶段范围内**应产生相同诊断：`tc_compile_file_opts` 覆盖 1–12 全部静态阶段；`tc_compile_source`（无路径内存源）只覆盖到 4a（单文件结构），不做 4b–4d 导入解析，故含 `import` 的源不在其接受集内（见 §15.3）。
+首个诊断的选择遵循编译器标准 §1.3 的完整规则：**阶段优先（LT → SYN → SEM → CT）→ 同一诊断类阶段内按源位置优先 → 规则优先（同位置专用码优先）→ 关联位置 → 遍历无关**。各阶段有其专用优先级（如 §4.1 模块错误优先级、§8.2 funcall 错误优先级、§7.6 CFG 错误优先级）。各入口在**同一阶段范围内**应产生相同诊断：`tc_compile_file_opts` 与 `tc_compile_source_opts` / `tc_compile_source` 均覆盖 1–12 全部静态阶段，导入解析（4b–4d）照常执行，故同一源在两入口下诊断一致（见 §15.3）。
 
 ---
 
@@ -525,7 +529,7 @@ tc_diagnostic_clear(&diag);
 | `read` 标准输入读取失败 → `TC_RE_IO` | `tc_run_program` 的运行时错误路径 | **已同步**（共享 `tc_io`） |
 | 完整诊断码表 **87** 码 = 86 语言码 + `TC_ERR_OUT_OF_MEMORY`（§7、§15.8） | API 错误契约 | **已同步** |
 
-> **不代表实现侧零未决**：与 libtc 调用契约相关仍开放的既有差异包括导入限定名成员引用、`Self.<名>`/限定名取址、重复实参诊断码、`#lib` `static var` 缺初始化器、`memcopy_unsafe` 常量负区间静态检查等；逐条状态以独立的过程性跟踪记录为准（本文不回填）。**内存入口 `tc_compile_source` 不做 4b–4d 导入解析**（见 §15.3）——这是入口的阶段覆盖差异，不是语言语义放宽。
+> **不代表实现侧零未决**：与 libtc 调用契约相关仍开放的既有差异包括导入限定名成员引用、`Self.<名>`/限定名取址、重复实参诊断码、`#lib` `static var` 缺初始化器、`memcopy_unsafe` 常量负区间静态检查等；逐条状态以独立的过程性跟踪记录为准（本文不回填）。两个内存入口（`tc_compile_source_opts` / `tc_compile_source`）均执行 4b–4d 导入解析（见 §15.3）。
 
 ---
 
@@ -559,6 +563,10 @@ typedef struct {
     size_t search_path_count;
 } TcCompileOptions;
 
+int tc_compile_source_opts(const char *source, const char *name,
+                           const TcCompileOptions *opts,
+                           TcTypedProgram *out, TcDiagnostic *diag);
+
 int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out, TcDiagnostic *diag);
 
@@ -582,20 +590,25 @@ void tc_typed_program_free(TcTypedProgram *program);
 
 ---
 
-### 15.3. `tc_compile_source`
+### 15.3. `tc_compile_source_opts` / `tc_compile_source`
 
 ```c
+int tc_compile_source_opts(const char *source, const char *name,
+                           const TcCompileOptions *opts,
+                           TcTypedProgram *out,
+                           TcDiagnostic *diag);
+
 int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out,
                       TcDiagnostic *diag);
 ```
 
-无路径的内存源**不执行 4b–4d 导入解析**（没有模块搜索上下文），故无搜索路径参数；含 `import` 的源**不在本入口的接受集内**，需要多文件/导入解析时请使用 `tc_compile_file_opts`（见 §15.4）。
+内存源与文件入口覆盖**同一阶段范围**（[语言标准 §4.5]、§1.3）：`import` 照常解析，不因为入口是内存字符串而放宽接受集。`name` 既用于诊断显示，也兼作入口定位——其所在目录是模块搜索的第一候选目录，其文件名主干用于自导入（`TC_CE_CIRCULAR_IMPORT`）判定；其余搜索路径来自会话 opts（`tc_compile_source` 等价于 `opts = NULL`）。
 
 #### 当前行为
 
-- 对完整 NUL 结尾 source 执行第 1–12 阶段，但**跳过 4b–4d**：词法（含缩进栈）→ 语法解析（含结构类语法阶段诊断与操作数数量检查）→ 4a 单文件模块结构（五层排序、可见性、`#program` 模式误用）→ 结构体表注册（仅本模块）→ 函数签名收集 → 函数重名/签名冲突 → 名称/作用域/类型语义（6a→6b→6c→6d→6e）→ funcall 检查 → return 检查 → `let`/`static let` 求值 + `static var` 初始化器验证 → 静态布尔三态判定（[语言标准 §5.2.2]）→ CFG 可达性与确定初始化固定点 → 调用图环检查；
-- **不执行 4b–4d**：不定位/加载/解析任何 `import` 目标，也不做导入名冲突、重复导入与依赖环检查；因此**多模块程序不属于本入口的覆盖范围**，本入口只声明其所覆盖的阶段（[语言标准 §1.3]）；
+- 对完整 NUL 结尾 source 执行第 1–12 阶段：词法（含缩进栈）→ 语法解析（含结构类语法阶段诊断与操作数数量检查）→ 4a 单文件模块结构（五层排序、可见性、`#program` 模式误用）→ **4b–4d 导入解析**（定位/加载可达 `#lib`、导入名冲突、重复导入、依赖 DAG 环检查、拓扑序注册）→ 函数签名收集 → 函数重名/签名冲突 → 名称/作用域/类型语义（6a→6b→6c→6d→6e）→ funcall 检查 → return 检查 → `let`/`static let` 求值 + `static var` 初始化器验证 → 静态布尔三态判定（[语言标准 §5.2.2]）→ CFG 可达性与确定初始化固定点 → 调用图环检查；
+- **导入诊断**：目标唯一定位不到 `模块名.tc` → `TC_CE_IMPORT_NOT_FOUND`；多候选 → `TC_CE_IMPORT_AMBIGUOUS`；目标非 `#lib` → `TC_CE_IMPORT_NOT_LIB`；重复导入 → `TC_CE_DUPLICATE_IMPORT`；导入名与本模块顶层名冲突 → `TC_CE_IMPORT_NAME_CONFLICT`；依赖图有环（含自导入）→ `TC_CE_CIRCULAR_IMPORT`；
 - 支持单文件内的 `#program` / `#lib`、`public`/`private`、`Self`；
 - 支持函数定义、`funcall` 调用、命名实参、按值只读形参、`return`、无环调用图；
 - 支持 `ptr<T>`、`memblock<T, N>`、`struct`、`isize`/`usize`、`void` 返回等类型；
@@ -822,7 +835,7 @@ int main(void) {
 
 | 能力 | 当前状态 |
 | ---- | -------- |
-| 多文件模块系统（`#program`/`#lib`、`import`、`public`/`private`、`Self`） | 支持（**仅 `tc_compile_file_opts`**；`tc_compile_source` 不做 4b–4d，含 `import` 的源不属其接受集） |
+| 多文件模块系统（`#program`/`#lib`、`import`、`public`/`private`、`Self`） | 支持（文件入口与内存入口一致，均解析 `import`） |
 | 函数定义（`func`/`funcall`/`return`、命名实参、按值形参、无环调用图） | 支持 |
 | `ptr<T>` 指针及全部 `ptr_*` 指令 | 支持 |
 | `memblock<T, N>` 及深拷贝语义 | 支持 |
@@ -836,7 +849,7 @@ int main(void) {
 | `var` 强制初始化器 | 支持 |
 | bitcast | 支持 |
 | 完整 CFG 固定点（多域：顶层 + 各函数独立） | 支持 |
-| 完整静态管线（阶段 1–12） | 支持（`tc_compile_file_opts` 全阶段；`tc_compile_source` 跳过 4b–4d） |
+| 完整静态管线（阶段 1–12） | 支持（`tc_compile_file_opts` 与 `tc_compile_source_opts` / `tc_compile_source` 均为全阶段） |
 | success-only ownership 与诊断分域 | 支持 |
 | 86 语言错误码 + OutOfMemory 完整表 | 支持 |
 
@@ -848,7 +861,8 @@ int main(void) {
 
 #### 函数签名
 
-- `tc_compile_source(source, name, out, diag)`：编译无路径内存源，无搜索路径参数；**不执行 4b–4d 导入解析**，含 `import` 的源不属其接受集（§15.3）；
+- `tc_compile_source_opts(source, name, opts, out, diag)`：编译内存源；`name` 兼作入口路径（其所在目录为导入搜索第一候选，文件名主干用于自导入判定），`opts` 携带会话搜索路径；执行阶段 1–12（含 4b–4d，§15.3）；
+- `tc_compile_source(source, name, out, diag)`：等价于 `tc_compile_source_opts(..., NULL, ...)`；
 - `tc_compile_file_opts(path, opts, out, diag)`：编译文件，`opts` 可为 NULL 携带 `TcCompileOptions` 搜索路径；
 - `tc_run_program(program, diag)`：执行已类型化程序，行为涵盖模块静态初始化。
 

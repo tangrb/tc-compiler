@@ -5,8 +5,8 @@
  * 可选输出各阶段耗时（环境变量 TC_BENCH=1 启用）。
  * 执行入口 tc_run_program 委托 tc_execute。
  *
- * tc_compile_file_opts 经 tc_analyze_ex 解析可达 #lib（会话 opts 携带 -I）；
- * tc_compile_source（无路径）仅做结构检查、不解析 import。
+ * 两个内存入口（tc_compile_source / tc_compile_source_opts）与文件入口一样经
+ * tc_analyze_ex 解析可达 #lib：入口目录取自 name，额外搜索路径取自会话 opts。
  */
 #include "tc_lib.h"
 
@@ -231,10 +231,44 @@ static char *tc_read_file(const char *path, TcDiagnostic *diag) {
 /*  对外 API                                                            */
 /* ------------------------------------------------------------------ */
 
-int tc_compile_source(const char *source, const char *name,
-                      TcTypedProgram *out, TcDiagnostic *diag) {
+/**
+ * 内存源的入口模块名：`name` 以 `.tc` 结尾时取基名主干（`Foo.tc` → `Foo`）写入
+ * 调用方缓冲（无进程级/静态状态），否则返回空串表示入口无模块名。
+ */
+static const char *tc_entry_module_name(const char *name, char *buf, size_t buflen) {
+    const char *base = NULL;
+    const char *dot = NULL;
+    size_t len = 0;
+
+    if (!name) {
+        return "";
+    }
+    len = strlen(name);
+    if (len < 3 || strcmp(name + len - 3, ".tc") != 0) {
+        return "";
+    }
+    base = strrchr(name, '/');
+    base = base ? base + 1 : name;
+    dot = strrchr(base, '.');
+    if (!dot || dot == base) {
+        return "";
+    }
+    len = (size_t)(dot - base);
+    if (len >= buflen) {
+        len = buflen - 1;
+    }
+    memcpy(buf, base, len);
+    buf[len] = '\0';
+    return buf;
+}
+
+int tc_compile_source_opts(const char *source, const char *name, const TcCompileOptions *opts,
+                           TcTypedProgram *out, TcDiagnostic *diag) {
     TcProgram program;
     TcTypedProgram typed;
+    TcModuleSearchPaths local;
+    const TcModuleSearchPaths *search = NULL;
+    char entry_stem[256];
     double t0;
     if (!diag) {
         return -1;
@@ -254,13 +288,33 @@ int tc_compile_source(const char *source, const char *name,
     }
 
     t0 = tc_bench_now();
-    if (tc_analyze(&program, &typed, diag) != 0) {
+    /* 会话搜索路径：opts 提供则借用之（调用期间有效）；入口目录由 name 决定。
+     * 无进程级全局状态（多编译单元 / 多线程嵌入场景各自携带）。 */
+    if (opts && opts->search_paths && opts->search_path_count > 0) {
+        memset(&local, 0, sizeof(local));
+        local.paths = (char **)(uintptr_t)opts->search_paths;
+        local.count = opts->search_path_count;
+        search = &local;
+    }
+    /*
+     * name 兼作入口路径：其所在目录是导入搜索第一候选（语言标准 §4.5：内存入口与
+     * 文件入口覆盖同一阶段范围）。模块名只在 name 形如源文件名（以 `.tc` 结尾）时
+     * 由主干推导；其它显示名（`<test>` 等）保持入口无模块名，与嵌入 API
+     *（tc_embed_call 以 NULL 模块名调用入口函数）一致。
+     */
+    if (tc_analyze_memory(&program, &typed, name, tc_entry_module_name(name, entry_stem,
+                                                                      sizeof(entry_stem)),
+                          search, diag) != 0) {
         return -1;
     }
-    /* 无路径的内存源：仅做结构检查；导入解析在 tc_compile_file_opts */
-    tc_bench_report("analyze", tc_bench_now() - t0);
+    tc_bench_report("analyze+modules", tc_bench_now() - t0);
     *out = typed;
     return 0;
+}
+
+int tc_compile_source(const char *source, const char *name,
+                      TcTypedProgram *out, TcDiagnostic *diag) {
+    return tc_compile_source_opts(source, name, NULL, out, diag);
 }
 
 int tc_compile_file_opts(const char *path, const TcCompileOptions *opts,

@@ -82,6 +82,15 @@ int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
                               const TcModuleSearchPaths *search, TcDiagnostic *diag);
 
 /**
+ * 同上，但入口模块名显式给出：
+ * @param entry_module_name NULL = 由 entry_path 主干推导（文件入口）；
+ *                          空串 = 入口无模块名（内存源入口，保持模块名称为空）。
+ */
+int tc_module_resolve_imports_ex(TcTypedProgram *out, const char *entry_path,
+                                 const char *entry_module_name,
+                                 const TcModuleSearchPaths *search, TcDiagnostic *diag);
+
+/**
  * 阶段 4d：从入口 + deps 收集函数签名，并分配稳定 func_id 写回 AST。
  * 仅 #lib 贡献签名（#program 不允许 func）。
  */

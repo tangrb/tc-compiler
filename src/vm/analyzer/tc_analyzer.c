@@ -231,8 +231,9 @@ done:
 /*  tc_analyze_ex — 文件模式分析入口                                      */
 /* ------------------------------------------------------------------ */
 
-int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_path,
-                  const TcModuleSearchPaths *search, TcDiagnostic *diag) {
+static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *entry_path,
+                           const char *entry_module_name, const TcModuleSearchPaths *search,
+                           TcDiagnostic *diag) {
     TcStructTable struct_table;
     TcFuncSignatureList sigs;
     TcMemberIndex members;
@@ -266,7 +267,7 @@ int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_pat
 
     /* 4b/4c：有路径时解析 import（须在签名收集之前） */
     if (entry_path) {
-        if (tc_module_resolve_imports(out, entry_path, search, diag) != 0) {
+        if (tc_module_resolve_imports_ex(out, entry_path, entry_module_name, search, diag) != 0) {
             goto fail;
         }
     }
@@ -530,6 +531,17 @@ fail:
     tc_func_signature_list_free(&sigs);
     tc_member_index_free(&members);
     return ret;
+}
+
+int tc_analyze_ex(TcProgram *program, TcTypedProgram *out, const char *entry_path,
+                  const TcModuleSearchPaths *search, TcDiagnostic *diag) {
+    return tc_analyze_impl(program, out, entry_path, NULL, search, diag);
+}
+
+int tc_analyze_memory(TcProgram *program, TcTypedProgram *out, const char *display_name,
+                      const char *entry_module_name, const TcModuleSearchPaths *search,
+                      TcDiagnostic *diag) {
+    return tc_analyze_impl(program, out, display_name, entry_module_name, search, diag);
 }
 
 int tc_analyze(TcProgram *program, TcTypedProgram *out, TcDiagnostic *diag) {

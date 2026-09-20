@@ -34,16 +34,31 @@ typedef struct {
 } TcCompileOptions;
 
 /**
- * 将源字符串编译为已类型化程序（Parse + Analyze）。
+ * 将源字符串编译为已类型化程序（Parse + Analyze），并解析 `import`。
  * @param source 源字符串（仅调用期间须有效；返回后可立即释放）
- * @param name   源码名称（用于诊断显示；不可为 NULL）
+ * @param name   源码名称；既用于诊断显示，也作为入口定位：其所在目录是导入搜索的
+ *               第一个候选目录，其文件名主干用于自导入（`TC_CE_CIRCULAR_IMPORT`）
+ *               判定。不可为 NULL
+ * @param opts   会话级 `-I` 搜索路径（可为 NULL = 无额外路径）
  * @param out    输出参数，成功时写入 TcTypedProgram（调用方须 tc_typed_program_free）
  * @param diag   诊断对象
  * @return 成功返回 0；失败返回 -1 并设置 diag
  * @note 仅成功时写入 out 并转移所有权。任一失败阶段都不修改 out，
  *       调用方无需也不得释放本次调用的输出。
- * @note 无路径的内存源仅做结构检查、不解析 import，故无搜索路径参数；
- *       文件编译（含 import 解析）见 tc_compile_file_opts。
+ * @note 内存源与文件入口覆盖同一阶段范围（含 4b–4d 导入解析，语言标准 §4.5、
+ *       §1.3）：导入目标定位不到报 TC_CE_IMPORT_NOT_FOUND，依赖图有环报
+ *       TC_CE_CIRCULAR_IMPORT。模块搜索路径优先级：name 所在目录 → opts 路径。
+ */
+int tc_compile_source_opts(const char *source, const char *name, const TcCompileOptions *opts,
+                           TcTypedProgram *out, TcDiagnostic *diag);
+
+/**
+ * 将源字符串编译为已类型化程序（`tc_compile_source_opts` 的 opts = NULL 形式）。
+ * @param source 源字符串（仅调用期间须有效；返回后可立即释放）
+ * @param name   源码名称（诊断显示 + 入口定位，见 tc_compile_source_opts）
+ * @param out    输出参数
+ * @param diag   诊断对象
+ * @return 成功返回 0；失败返回 -1 并设置 diag
  */
 int tc_compile_source(const char *source, const char *name,
                       TcTypedProgram *out, TcDiagnostic *diag);

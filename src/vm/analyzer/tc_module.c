@@ -778,6 +778,12 @@ int tc_module_topological_dep_order(const TcTypedProgram *out, size_t *out_order
 
 int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
                               const TcModuleSearchPaths *search, TcDiagnostic *diag) {
+    return tc_module_resolve_imports_ex(out, entry_path, NULL, search, diag);
+}
+
+int tc_module_resolve_imports_ex(TcTypedProgram *out, const char *entry_path,
+                                 const char *entry_module_name,
+                                 const TcModuleSearchPaths *search, TcDiagnostic *diag) {
     char *entry_dir = NULL;
     int rc;
 
@@ -800,9 +806,21 @@ int tc_module_resolve_imports(TcTypedProgram *out, const char *entry_path,
         free(out->program.source_path);
         out->program.source_path = strdup(entry_path);
         if (!out->program.module_name) {
-            out->program.module_name = tc_module_stem(entry_path);
+            if (entry_module_name) {
+                /* 空串 = 显式声明入口无模块名（内存源入口的默认形态） */
+                out->program.module_name = entry_module_name[0] ? strdup(entry_module_name) : NULL;
+                if (entry_module_name[0] && !out->program.module_name) {
+                    free(entry_dir);
+                    tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                      "memory allocation failed");
+                    return -1;
+                }
+            } else {
+                out->program.module_name = tc_module_stem(entry_path);
+            }
         }
-        if (!out->program.source_path || !out->program.module_name) {
+        if (!out->program.source_path ||
+            (!out->program.module_name && !entry_module_name)) {
             free(entry_dir);
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
