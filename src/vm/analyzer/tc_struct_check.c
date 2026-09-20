@@ -1007,6 +1007,74 @@ static const TcStructField *tc_struct_find_field(const TcStructEntry *entry, con
     return NULL;
 }
 
+/*
+ * B-37：把解析器归入基址的 `X.y` 按**名称解析**重新分类。
+ *
+ * 解析器（`tc_parse_field_access_base`）为表达 `<模块名>.<成员>.<字段>` 会把
+ * `X.y` 整体当作基址（原判据是 X 首字母大写）。但语言标准附录 A 的 `field_access`
+ * **没有任何大小写规则**：首字母大写的**变量**同样合法（`A.i.v`）。
+ *
+ * 此处做一次保守纠正：若基址第一个点之前的部分能按常规名称解析命中**可见绑定**，
+ * 说明这是变量基址，点后部分应回到字段链首位；否则保持解析器的限定名分类
+ *（`StructFieldSelfLib.root.v` 这类 `<模块>.<成员>.<字段>` 不受影响）。
+ *
+ * @return 1 已重分类；0 无需改动；-1 内存不足
+ */
+static int tc_field_split_variable_base(char **base, char ***fields, size_t *field_count,
+                                        const TcSymbolTable *visible,
+                                        const TcSymbolTable *global) {
+    const char *dot = NULL;
+    const TcSymbol *sym = NULL;
+    char *prefix = NULL;
+    char *rest = NULL;
+    char **grown = NULL;
+    char *old_base = NULL;
+    size_t i = 0;
+
+    if (!base || !*base || !fields || !field_count) {
+        return 0;
+    }
+    if (strncmp(*base, "Self.", 5) == 0) {
+        return 0;
+    }
+    dot = strchr(*base, '.');
+    if (!dot || dot == *base || dot[1] == '\0' || strchr(dot + 1, '.') != NULL) {
+        return 0;
+    }
+    prefix = (char *)malloc((size_t)(dot - *base) + 1U);
+    if (!prefix) {
+        return -1;
+    }
+    memcpy(prefix, *base, (size_t)(dot - *base));
+    prefix[dot - *base] = '\0';
+    sym = tc_find_named_binding(visible, global, prefix);
+    if (!sym) {
+        free(prefix);
+        return 0;
+    }
+    rest = strdup(dot + 1);
+    if (!rest) {
+        free(prefix);
+        return -1;
+    }
+    grown = (char **)realloc(*fields, (*field_count + 1U) * sizeof(char *));
+    if (!grown) {
+        free(prefix);
+        free(rest);
+        return -1;
+    }
+    for (i = *field_count; i > 0; i--) {
+        grown[i] = grown[i - 1];
+    }
+    grown[0] = rest;
+    *fields = grown;
+    *field_count += 1U;
+    old_base = *base;
+    *base = prefix;
+    free(old_base);
+    return 1;
+}
+
 static const TcSymbol *tc_struct_resolve_base(const char *base, const TcSymbolTable *visible,
                                               const TcSymbolTable *global, size_t stmt_index,
                                               int line, TcDiagnostic *diag) {
@@ -1206,6 +1274,14 @@ int tc_struct_check_field_access(TcFieldAccess *access, const TcType *expected,
         (void)snprintf(msg, sizeof(msg),
                        "variable '%s' cannot reference itself in its initializer", self_name);
         tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
+        return -1;
+    }
+
+    /* B-37：先按名称解析纠正基址分类（首字母大写的变量同样是合法基址） */
+    if (tc_field_split_variable_base(&access->base, &access->fields, &access->field_count,
+                                     visible, global) < 0) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
         return -1;
     }
 
@@ -1450,6 +1526,14 @@ int tc_struct_check_field_assign(TcFieldAssign *assign, TcAnalyzeCtx *ctx,
     const TcStructField *field = NULL;
     size_t i = 0;
     char msg[128];
+
+    /* B-37：与字段读同口径，先按名称解析纠正基址分类 */
+    if (tc_field_split_variable_base(&assign->base, &assign->fields, &assign->field_count,
+                                     visible, global) < 0) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, assign->line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
 
     /* 基对象不可为 let；路径上每个字段须为 var（is_var）；RHS 匹配末字段类型 */
     base_sym = tc_struct_resolve_base(assign->base, visible, global, stmt_index, assign->line,

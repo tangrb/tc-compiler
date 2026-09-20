@@ -1,0 +1,12 @@
+#program
+; B-37：首字母大写的变量作嵌套字段**赋值**目标同样合法（`A.i.v = 5`）
+struct Inner then
+    var v: int32
+end
+struct Outer then
+    var i: Inner
+end
+var inner: Inner = Inner(v: 1)
+var A: Outer = Outer(i: inner)
+A.i.v = 5
+writeln(int32, A.i.v)

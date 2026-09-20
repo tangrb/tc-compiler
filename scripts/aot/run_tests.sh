@@ -605,6 +605,11 @@ run_check_ok "$ROOT/tests/valid/struct_field_static_init_run.tc"
 # B-64：文件名含内部点（模块名含点）时本地结构体名仍须解析
 run_diff_test "$ROOT/tests/valid/struct_dotted.v1.tc"
 run_check_ok "$ROOT/tests/valid/struct_dotted.v1.tc"
+# B-37：首字母大写的变量作字段访问基址 / 赋值目标
+run_diff_test "$ROOT/tests/valid/uppercase_var_field_read.tc"
+run_diff_test "$ROOT/tests/valid/uppercase_var_field_assign.tc"
+run_check_ok "$ROOT/tests/valid/uppercase_var_field_read.tc"
+run_check_ok "$ROOT/tests/valid/uppercase_var_field_assign.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"

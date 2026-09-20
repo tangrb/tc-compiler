@@ -1362,6 +1362,14 @@ run_expect_stdout "$ROOT/tests/valid/struct_dotted.v1.tc" "7
 16
 "
 run_expect_check_ok "$ROOT/tests/valid/struct_dotted.v1.tc"
+# B-37：首字母大写的变量作字段访问基址 / 赋值目标（分类由名称解析决定）
+run_expect_stdout "$ROOT/tests/valid/uppercase_var_field_read.tc" "1
+1
+"
+run_expect_stdout "$ROOT/tests/valid/uppercase_var_field_assign.tc" "5
+"
+run_expect_check_ok "$ROOT/tests/valid/uppercase_var_field_read.tc"
+run_expect_check_ok "$ROOT/tests/valid/uppercase_var_field_assign.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_memblock.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_multi_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_ptr_field.tc"

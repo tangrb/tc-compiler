@@ -143,7 +143,7 @@
 | B-34 | `cast(void,…)`/`bitcast(void,…)` 未语法拒绝 | ☑ | |
 | B-35 | `OPERAND_COUNT` 缺失 | ☑ | |
 | B-36 | 格式标志重复与长度上限 | ☑ | |
-| B-37 | 大写变量嵌套字段误解析（过度拒绝） | ☐ | |
+| B-37 | 大写变量嵌套字段误解析（过度拒绝） | ☑ | |
 | B-38 | `#lib` 裸 `var` 报 `MODULE_LAYER` | ☑ | |
 | B-39 | SYN 阶段错位（`Self` 检查） | ☑ | |
 | B-40 | SEM 码由解析器发出（`@padding`/`N` 来源） | ☐ | |
@@ -259,6 +259,7 @@
 | B-64 | `tc_struct_check.c` 新增 `tc_split_qualified_member`：限定名 `<?>.<成员名>` 按**最后一个点**切分（模块名允许含内部点），`tc_struct_lookup_written` 与 `tc_struct_table_find` 均改用它——此前两处都要求「恰好一个点」才走限定名分支，而 `a.b.c.tc` 的模块名就是 `a.b.c`，本地结构体被规范化成 `a.b.c.A` 后落回裸名分支，查不到 → `TC_CE_UNDEFINED_STRUCT`。新增 `tests/valid/struct_dotted.v1.tc`（模块名 `struct_dotted.v1`：本地 `struct A` 的构造器 / 字段读 / `ptr<A>` 取址与解引用；VM stdout+check_ok、AOT diff+check_ok）；test-map 回填 1127 VM / 498 AOT | 审计复现：同一源文本 `abc.tc` 输出 `7`、改名 `a.b.c.tc` 报 `undefined struct 'a.b.c.A'`；修复后 `a.b.c.tc` 两后端均输出 `7`（rc=0），`abc.tc` 行为不变；新语料两后端均输出 `7/9/16` 且 diff 一致；`import <模块>.<结构体>`（单点）路径与 private 判定不变（既有 `imported_struct_*` / `import_struct_type` 全通过）；全量三层与 5 项门禁通过 |
 | B-65 | 根因：符号表全模块共享（slot 全局唯一）而 `stmt_index` 每模块各自从 0 编号，「名字 + def_stmt_index」解析会命中另一模块的同名绑定。① `TcSymbol` 增 `module_name`（借用 `TcProgram.module_name`），由 `tc_pass1_collect_symbols` 按模块回填；② `tc_find_symbol_by_def_index` 增 `module_name` 形参并优先本模块匹配（`tc_visible_add_from_global` 同步带上模块，可见表沿用同一优先级）——修复入口变量被解析到库内同名局部导致**读值串槽**；③ CFG（`tc_cfg.c`）写槽改用 Pass1 固化的 `var_def.binding`（与读侧绑定同源），`read` 语句改用 `io_read.binding`，`tc_cfg_find_def`/`tc_cfg_find_visible` 增模块优先过滤（`TcCfgBuildCtx.module_name`，由 `tc_cfg_build`/`tc_cfg_build_items` 传入）；④ 新增 `tests/modules/SameNameLib.tc` + `import_same_name_shadow.tc`（库内嵌套块局部 `b` vs 入口 `b`；VM stdout+check_ok、AOT diff+check_ok）；⑤ 修正 `diamond_import_{ok,swapped_ok}.tc` 的 VM 期望：两条臂局部同名 `s` 串槽曾被写成 `3/3`、`4/4`，正确值为 `3/4`、`4/3`。test-map 回填 1129 VM / 500 AOT | 审计复现（库内 `funcall` 目标含同名局部 `var b`）：修复前三处证据——(a) `tc_cfg_find_def` 写槽取到库内槽位而绑定为入口槽位（假阳性 `UninitializedVariable`）；(b) 入口 `writeln(bool, b)` 实际读到库内同名局部（本库返回 `false` 却输出 `true`，属静默串槽）；(c) 菱形语料两条臂互相串槽。修复后：审计复现与新增语料均输出 `false` 且 rc=0（VM/AOT 一致），菱形输出恢复为各臂自己的值（`3/4`、`4/3`）；`self_member_undefined` / `self_access_ok` / `static_let_rule_ok` 等 `Self.` 与跨块用例全部保持既有诊断；全量三层与 5 项门禁通过 |
 | B-62 | 无需新增 src 改动：B-30/B-31（附录 A 列表产生式统一拒绝尾随逗号「trailing comma not allowed in list」并要求逗号分隔「expected , or )」）已覆盖 const 变体。本轮补足 const 侧回归覆盖：新增 4 条语料——模块级 `public static let` 的 `const_struct_constructor` 尾随逗号、函数内 `let` 的该产生式缺失逗号、模块级 `static let` 的 `const_memblock_elems_ctor` 尾随逗号、函数内 `let` 的该产生式缺失逗号；VM `run_expect_check_fail`（消息+`SyntaxError`）与 AOT `run_check_fail` 双端断言。test-map 回填 1133 VM / 504 AOT | 审计四例（`S(a: 1, b: 2,)`、`S(a: 1 b: 2)`、`memblock(int32, count: 2, 1, 2,)`、`…, 1 2)`）实测全部由 rc=0 变为 `SyntaxError`（rc=1），且 const 与非 const 路径错码一致；对照 `memblock(int32, count: 2, fill: 0,)` 两路径同样拒绝（既有行为）；全量三层与 5 项门禁通过 |
+| B-37 | `tc_struct_check.c` 新增 `tc_field_split_variable_base`：字段读（`tc_struct_check_field_access`）与字段赋值（`tc_struct_check_field_assign`）在解析基址前按**名称解析**纠正解析器的分类——若基址第一个点之前的部分能按 `tc_find_named_binding` 命中可见绑定，则说明这是变量基址（`A.i.v`），把点后部分并回字段链首位；否则保持 `<模块名>.<成员>.<字段>` 的限定名分类（如 `StructFieldSelfLib.root.v` 不受影响）。新增 `tests/valid/uppercase_var_field_read.tc`（`A.i.v` 与大写/小写对照）与 `uppercase_var_field_assign.tc`（`A.i.v = 5`），VM stdout+check_ok、AOT diff+check_ok；test-map 回填 1137 VM / 508 AOT | 审计复现：`var A: Outer = Outer(i: inner)` 后 `writeln(int32, A.i.v)` 由 `UndefinedVariable: undefined variable 'i'` 变为输出 `1`（与换成小写 `a` 的行为一致）；`A.i.v = 5` 同样由失败变为输出 `5`；限定名基址用例（`struct_field_operand_self_base`、`struct_field_operand_*`、`imported_struct_*`、`qualified_*`）全部保持既有结果；全量三层与 5 项门禁通过 |
 
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
@@ -346,7 +347,8 @@
 | 65 | 阶段 2-B57 AOT 伪造指针容量上界 | `056fff6 fix(0.0.44-B57): bound AOT pointer slot indices by capacity` |
 | 66 | 阶段 2-B64 含点文件名的本地结构体解析 | `cf0de99 fix(0.0.44-B64): split qualified struct names at the last dot` |
 | 67 | 阶段 2-B65 跨模块同名符号解析 | `9ab5cbc fix(0.0.44-B65): resolve same-named symbols per module` |
-| 68 | 阶段 2-B62 const 列表产生式回归覆盖 | 本提交 `test(0.0.44-B62): cover the const list productions` |
+| 68 | 阶段 2-B62 const 列表产生式回归覆盖 | `9569331 test(0.0.44-B62): cover the const list productions` |
+| 69 | 阶段 2-B37 大写变量嵌套字段解析 | 本提交 `fix(0.0.44-B37): classify field-access bases by name resolution` |
 
 ---
 
