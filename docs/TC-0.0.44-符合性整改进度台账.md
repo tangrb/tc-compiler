@@ -169,7 +169,7 @@
 | 条目 | 主题 | 状态 | 提交 |
 | ---- | ---- | ---- | ---- |
 | B-57 | AOT 侧伪造指针非确定读 | ☐ | |
-| B-58 | `memblock_copy` 空拷贝 dst 侧漏检 | ☑ | |
+| B-58 | `memblock_copy` 空拷贝 dst 侧漏检 | ☑（含运行期分支覆盖补强） | |
 | B-59 | 常量负 dst 下标无静态检查 | ☑（B-21 闭合） | |
 | B-60 | 格式越界且 Token >32 字节被降级 | ☑（B-27 闭合） | |
 | B-61 | 非 `bool` 条件错码不一致 | ⊘ 待标准裁决 | |
@@ -242,6 +242,7 @@
 | B-38 | `tc_parser.c` `tc_parse_module_body`：`#lib` 模式下顶层 VAR/LET 行在语法阶段直接报 `TC_CE_SYNTAX: non-static value declaration is not allowed in #lib`（附录 A `library_module` 只接受带可见性的 static 成员），不再放行到分析器的 `MODULE_LAYER`（SEM，阶段错位）。分析器中的旧检查保留为防御。新增 `tests/errors/static/lib_toplevel_var_syntax.tc`（VM check_fail + SyntaxError 与 fail_msg）；test-map 回填 1102 VM | 审计复现 `#lib` + `var x: int32 = 1` 由 `ModuleLayerError`（SEM）变为 `SyntaxError`（第 3 阶段）；`#lib` + `let` 同；合法 `public static var` 不受影响；全量三层与 5 项门禁通过 |
 | B-39 | `tc_parser.c` `tc_parse_source_to_program`：#program 模式在解析主体前按**源序**扫描全部 Token 行，出现 `Self` 即报 `TC_CE_PROGRAM_MODE_MISUSE`（SYN，第 3 阶段）——原实现只抓行首 `Self`，其余由分析器在 SEM 检查，导致同文件后面更晚的语法错误抢先（§11 第 1 条）。`test_module` 的 Self 用例改为断言解析阶段即拒绝。新增 `tests/errors/static/self_before_later_syntax.tc`（VM check_fail + ProgramModeMisuseError）；test-map 回填 1103 VM | 审计复现（第 2 行 `Self.x` + 第 3 行 `add(int32, 1)` 缺参）现报第 2 行 `ProgramModeMisuseError: Self is not allowed in #program`（原报第 3 行 SyntaxError）；嵌套块内的 `Self` 同样在源序位置报出；`#lib` 的 `Self` 用法不受影响；全量三层与 5 项门禁通过 |
 | B-43 / B-58 | `tc_memblock_exec.c` 与 `tc_aot_rt.c` 的 `memblock_copy` 区间判定：`length == 0` 时不再短路——§6.7.2.4 只放宽「下标**等于** count」，下标**大于** count 恒非法，故空拷贝的 dst/src 越界下标同样报 `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`。新增 `tests/errors/runtime/memblock_copy_empty_{src,dst}_oob.tc`（VM fail_msg、AOT runtime_fail）；test-map 回填 1105 VM | 审计两例（`memblock_copy(int32, b, 0, a, s, n)` 与 `memblock_copy(int32, b, 9, a, 0, n)`，`s=9`、`n=0`、`count: 4`）由正常结束变为 `MemblockIndexOutOfRange`（VM/AOT 一致）；合法空拷贝（下标 == count）仍接受；全量三层与 5 项门禁通过 |
+| B-58 覆盖补强 | 澄清测试分层：常量 dst 下标（`9`）在 §6.7.2.4 下属**静态**拒绝，原 `tests/errors/runtime/memblock_copy_empty_dst_oob.tc` 用字面量 9 注册为 `run_runtime_fail`，因此 B-58 的**运行期** dst 侧区间合取分支实际无覆盖（AOT 侧因静态失败从未生成/运行宿主可执行文件）。改为：该语料 dst 下标换成变量（`var d: usize = 9u`）以真正走运行期分支；常量路径另立 `tests/errors/static/memblock_copy_constant_dst_index.tc`（`memblock_copy(int32, b, 9, a, 0, 0)`）并在 VM/AOT 两侧以 `check_fail` 断言 `MemblockIndexOutOfRange`；`scripts/aot/run_tests.sh` 的 `run_runtime_fail` 新增「确已运行则报告的退出码须与实际一致」断言即在该语料上生效。test-map 回填 1125 VM / 496 AOT | 变量 dst 下标语料：`tc-vm -c`/`tc-aot -c` 均 rc=0（静态通过）→ 运行期两后端均报 `memblock index out of range`；AOT `run failed (exit 1)` 被新断言校验；常量语料：VM/AOT `--check` 均报 `MemblockIndexOutOfRange`；全量三层与 5 项门禁通过 |
 | B-44 / B-59 / B-60 | 无需新代码：常量负 `length`（B-44）与常量负 `dst` 下标（B-59）已由 B-21 的 `tc_memblock_check_copy` 常量区间判定覆盖；35 位宽度的越界诊断（B-60）已由 B-27 的 64 字节缓冲 + 宽度范围检查覆盖。三例复核结果见「验证」列 | `memblock_copy(int32, b, 0, a, 0, -1)` 与 `memblock_copy(int32, b, -1, a, 0, 1)` 均为静态 `MemblockIndexOutOfRange`（原为运行期才报）；`%`+35 个 `9`+`d` 报 `FormatSpecifierError: format width or precision out of range`（原为 `SyntaxError: format specifier too long`） |
 | B-42 | `TcExecuteCtx` 增 `slot_capacity`（独立 VM 取声明槽位数、嵌入 VM 取含临时区的容量），`tc_ptr_exec.c` 的 load/store/arith 与 `tc_memblock_exec.c` 的 memcopy_unsafe 在解码槽索引后追加 `slot >= slot_capacity` 判定，越界按 `TC_RE_NULL_POINTER_DEREFERENCE` 报（与 B-10 的非法编码口径一致，§1.3 零 UB）。新增 `ptr_forged_slot_oob_{load,store,memcopy}.tc`（VM fail_msg；AOT 侧运行时尚无上界校验，其确定性归 B-57）；test-map 回填 1108 VM | 审计复现 `bitcast(ptr<int32>, 0x7FFFFFFD)` 后 `ptr_load` 由 SIGSEGV（ASan heap-buffer-overflow）变为 `NullPointerDereference`；`ptr_store` 与 `memcopy_unsafe` 同样不再越界读写；合法指针（含嵌入临时槽位）不受影响；全量三层与 5 项门禁通过。注：AOT 运行时仍无槽位上界（属 B-57 范围） |
 | B-45 | `tc_sem_bitwise.c` `tc_exec_shl`：把 `val_bits == 0` 的早退移到 `k >= n` 溢出判定**之后**——§6.4.2/§6.4.2.1 规定 strict `shl` 的溢出判定与被移位数的值无关。`tests/unit/runtime/test_shift.c` 原「val=0 恒为 0」断言改为「k ≥ n 报 TC_RE_INTEGER_OVERFLOW，k < n 仍为 0」。新增 `tests/errors/runtime/shl_zero_shift_overflow.tc`（VM fail_msg、AOT runtime_fail）；test-map 回填 1109 VM | 审计两例：`shl(int32, z, k)`（z=0、k=32）由静默 `0` 变为 `IntegerOverflow: shift left overflow`；`let r: int32 = shl(int32, 0, 32)` 报 `ConstantOverflow`；wrap 模式仍为 0；k < n 的零值移位仍为 0；全量三层与 5 项门禁通过 |
@@ -336,7 +337,8 @@
 | 60 | 阶段 2-B52 strict 下溢判据与宿主无关 | `50d3bae fix(0.0.44-B52): judge float underflow by rounded bits, not host FE_UNDERFLOW` |
 | 61 | 阶段 2-B53 整数格式化精度上限 | `69d81da fix(0.0.44-B53): size the integer format buffer by precision` |
 | 62 | 阶段 2-B54 依赖模块裸名引用错码一致性 | `ac8d01d test(0.0.44-B54): cover bare member access inside imported libraries` |
-| 63 | 阶段 2-B55 embed/工具链四项细节 | 本提交 `fix(0.0.44-B55): embed error state, run exit status, dead code, AOT bool load` |
+| 63 | 阶段 2-B55 embed/工具链四项细节 | `f694d25 fix(0.0.44-B55): embed error state, run exit status, dead code, AOT bool load` |
+| 64 | 阶段 2-B58 运行期 dst 侧分支覆盖补强 | 本提交 `test(0.0.44-B58): exercise the runtime dst-side empty-copy bound` |
 
 ---
 

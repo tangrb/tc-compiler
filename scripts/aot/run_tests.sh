@@ -737,6 +737,8 @@ run_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
 run_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
+run_check_fail "$ROOT/tests/errors/static/memblock_copy_constant_dst_index.tc" \
+    "memblock index out of range"
 run_check_fail "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"
 run_check_fail "$ROOT/tests/errors/static/null_char.tc" "null character (U+0000) not allowed in source"
 run_check_fail "$ROOT/tests/errors/lexical/float_trailing_dot.tc" "invalid float literal"

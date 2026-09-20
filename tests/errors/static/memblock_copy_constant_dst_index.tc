@@ -1,0 +1,7 @@
+#program
+; §6.7.2.4：dst 下标为编译期常量且 > count（空拷贝 n = 0）→ 静态
+; TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE（空拷贝只放宽「下标 == count」）
+var a: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
+var b: memblock<int32, 4> = memblock(int32, count: 4, 5, 6, 7, 8)
+memblock_copy(int32, b, 9, a, 0, 0)
+writeln(int32, 1)

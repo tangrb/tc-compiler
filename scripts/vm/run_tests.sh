@@ -951,6 +951,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_length_operand.t
     "index operand must be an integer" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_constant_range.tc" \
     "memblock index out of range" "MemblockIndexOutOfRange"
+run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_constant_dst_index.tc" \
+    "memblock index out of range" "MemblockIndexOutOfRange"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_copy_negative_length.tc" \
     "memblock index out of range" "MemblockIndexOutOfRange"
 run_expect_check_fail "$ROOT/tests/errors/static/argument_type.tc" \
