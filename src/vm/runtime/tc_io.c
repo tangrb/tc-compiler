@@ -664,11 +664,14 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
     uint64_t uval = 0;
     int64_t sval = 0;
     int negative = 0;
-    char digits[80];
+    char small[80];
+    char *digits = small;
+    size_t digits_cap = sizeof(small);
     char prefix[8];
     int min_digits = 1;
     int empty_ok = 0;
     int int_zero_pad = 0;
+    int rc = 0;
 
     if (!value || !out || !value->type || value->type->tag != type ||
         !tc_io_format_accepts_type(type, fmt.spec)) {
@@ -682,12 +685,23 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
     n = tc_type_bit_width(type);
     mask = tc_mask_bits(n);
     uval = tc_value_to_unsigned(type, value->bits) & mask;
-    prefix[0] = '\0';
-    digits[0] = '\0';
 
     if (fmt.spec == TC_FMT_T) {
         return tc_io_write_aligned(out, "", value->bits != 0 ? "true" : "false", &fmt, 0);
     }
+
+    /* §10.4 允许精度 0～65535；超出内建缓冲时改用堆缓冲，
+       不得把合法精度降级为 TC_RE_IO。 */
+    if (fmt.precision_set && fmt.precision > 0 && (size_t)fmt.precision + 1U > digits_cap) {
+        digits_cap = (size_t)fmt.precision + 1U;
+        digits = (char *)malloc(digits_cap);
+        if (!digits) {
+            return -1;
+        }
+    }
+
+    prefix[0] = '\0';
+    digits[0] = '\0';
 
     if (fmt.spec == TC_FMT_D || fmt.spec == TC_FMT_I) {
         sval = tc_bits_to_signed(type, value->bits);
@@ -696,7 +710,7 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
             (void)strcpy(digits, "9223372036854775808");
         } else {
             uint64_t mag = negative ? (uint64_t)(-sval) : (uint64_t)sval;
-            tc_io_u64_to_base(mag, 10, 0, digits, sizeof(digits));
+            tc_io_u64_to_base(mag, 10, 0, digits, digits_cap);
         }
         if (negative) {
             prefix[0] = '-';
@@ -706,14 +720,15 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
             prefix[1] = '\0';
         }
     } else if (fmt.spec == TC_FMT_U) {
-        tc_io_u64_to_base(uval, 10, 0, digits, sizeof(digits));
+        tc_io_u64_to_base(uval, 10, 0, digits, digits_cap);
     } else if (fmt.spec == TC_FMT_X || fmt.spec == TC_FMT_XU) {
-        tc_io_u64_to_base(uval, 16, fmt.spec == TC_FMT_XU, digits, sizeof(digits));
+        tc_io_u64_to_base(uval, 16, fmt.spec == TC_FMT_XU, digits, digits_cap);
         if (!(tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0)) {
             tc_io_strip_leading_zeros(digits);
-        } else if (tc_io_prec_pad(digits, sizeof(digits),
+        } else if (tc_io_prec_pad(digits, digits_cap,
                                   tc_io_full_digit_width(type, fmt.spec)) != 0) {
-            return -1;
+            rc = -1;
+            goto done;
         }
         if (fmt.flag_hash && uval != 0) {
             prefix[0] = '0';
@@ -721,20 +736,22 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
             prefix[2] = '\0';
         }
     } else if (fmt.spec == TC_FMT_O) {
-        tc_io_u64_to_base(uval, 8, 0, digits, sizeof(digits));
+        tc_io_u64_to_base(uval, 8, 0, digits, digits_cap);
         if (!(tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0)) {
             tc_io_strip_leading_zeros(digits);
-        } else if (tc_io_prec_pad(digits, sizeof(digits),
+        } else if (tc_io_prec_pad(digits, digits_cap,
                                   tc_io_full_digit_width(type, fmt.spec)) != 0) {
-            return -1;
+            rc = -1;
+            goto done;
         }
     } else if (fmt.spec == TC_FMT_B) {
-        tc_io_u64_to_base(uval, 2, 0, digits, sizeof(digits));
+        tc_io_u64_to_base(uval, 2, 0, digits, digits_cap);
         if (!(tc_type_is_signed(type) && tc_bits_to_signed(type, value->bits) < 0)) {
             tc_io_strip_leading_zeros(digits);
-        } else if (tc_io_prec_pad(digits, sizeof(digits),
+        } else if (tc_io_prec_pad(digits, digits_cap,
                                   tc_io_full_digit_width(type, fmt.spec)) != 0) {
-            return -1;
+            rc = -1;
+            goto done;
         }
         if (fmt.flag_hash && uval != 0) {
             prefix[0] = '0';
@@ -742,7 +759,8 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
             prefix[2] = '\0';
         }
     } else {
-        return -1;
+        rc = -1;
+        goto done;
     }
 
     empty_ok = fmt.precision_set && fmt.precision == 0 && uval == 0 &&
@@ -761,24 +779,33 @@ int tc_io_write_formatted(TcTypeTag type, TcFormatFullSpec fmt, const TcValue *v
 
     if (fmt.precision_set) {
         min_digits = fmt.precision;
-        if (digits[0] != '\0' && tc_io_prec_pad(digits, sizeof(digits), min_digits) != 0) {
-            return -1;
+        if (digits[0] != '\0' && tc_io_prec_pad(digits, digits_cap, min_digits) != 0) {
+            rc = -1;
+            goto done;
         }
         if (digits[0] == '\0' && min_digits > 0 &&
-            tc_io_prec_pad(digits, sizeof(digits), min_digits) != 0) {
-            return -1;
+            tc_io_prec_pad(digits, digits_cap, min_digits) != 0) {
+            rc = -1;
+            goto done;
         }
     }
 
     if (fmt.spec == TC_FMT_O && fmt.flag_hash && digits[0] != '0') {
-        if (tc_io_prec_pad(digits, sizeof(digits), (int)strlen(digits) + 1) != 0) {
-            return -1;
+        if (tc_io_prec_pad(digits, digits_cap, (int)strlen(digits) + 1) != 0) {
+            rc = -1;
+            goto done;
         }
         digits[0] = '0';
     }
 
     int_zero_pad = fmt.flag_zero && !fmt.flag_minus && !fmt.precision_set;
-    return tc_io_write_aligned(out, prefix, digits, &fmt, int_zero_pad);
+    rc = tc_io_write_aligned(out, prefix, digits, &fmt, int_zero_pad);
+
+done:
+    if (digits != small) {
+        free(digits);
+    }
+    return rc;
 }
 
 static int tc_io_render_value(const TcValue *value, TcFormatFullSpec fmt, int newline, FILE *out) {

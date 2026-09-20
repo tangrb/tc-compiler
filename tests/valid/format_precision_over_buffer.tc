@@ -1,0 +1,8 @@
+#program
+; §10.4 精度可达 65535；此前内建缓冲仅 80 字节，%.80d 起在运行期报 IOError
+var x: int32 = 7
+var nv: int32 = -7
+writeln(int32, %.80d, x)
+writeln(int32, %.200d, x)
+writeln(int32, %.1000d, nv)
+writeln(int32, %.79d, x)

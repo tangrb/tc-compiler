@@ -159,7 +159,7 @@
 | B-50 | AOT `-r` 拒 `#lib`-only | ☑ | |
 | B-51 | `ptr_address(T, 形参)` AOT 代码生成失败 | ☑ | |
 | B-52 | strict 下溢按宿主 `FE_UNDERFLOW` | ☑ | |
-| B-53 | `%.80d` 起报 `TC_RE_IO` | ☐ | |
+| B-53 | `%.80d` 起报 `TC_RE_IO` | ☑ | |
 | B-54 | 依赖模块裸名引用错码不一致 | ☐ | |
 | B-55 | embed/工具链细节 | ☐ | |
 | B-56 | `#lib` 内 `Self.f` 被 import 即失败 | ☑ | |
@@ -251,6 +251,8 @@
 | B-50 | `tc_aot_emit_func.c`：非嵌入模式的 TC 函数与前置声明去掉 `static`（改外部链接）——`#lib`-only 程序的函数可能无调用点，`static` + `-Werror` 会触发 `-Wunused-function` 使 `-r` 失败；生成代码总是单文件编译（无需 static 隔离符号）。`scripts/aot/run_tests.sh` 增 `run_diff_test MathLib.tc`（#lib-only 的 `-r` 覆盖，此前 220 个 diff 测试无一是 #lib-only）；test-map 回填 485 AOT | 审计复现：`tc-aot -r tests/valid/MathLib.tc` 由 `error: unused function 'tc_aot_func_0' [-Werror,-Wunused-function]`（rc=1）变为 rc=0；抽测多个 `#lib`-only 语料均通过；嵌入模式仍由函数表引用、行为不变；全量三层与 5 项门禁通过 |
 | B-51 | `TcRhs.u.ptr_address` 增 `TcResolvedBinding binding`；`tc_ptr_check.c` 的 `TC_RHS_PTR_ADDRESS` 分支在解析成功后固化目标绑定；`tc_aot_emit_rhs.c` 优先用该绑定槽位（按名解析保留为兜底）——形参在代码生成期无法按名解析，此前 `ptr_address(int32, <形参>)` 令 `tc-aot -o` 报 `code generation failed`。`scripts/aot/run_tests.sh` 为既有 `ptr_address_param_load.tc` 增加 `run_diff_test`（该语料此前仅 `--check` 覆盖，故未暴露）；test-map 回填 486 AOT | 审计复现：`tc-aot -o x.c` 对 `public func f(x: int32) ptr<int32> then var p: ptr<int32> = ptr_address(int32, x) ...` 由 code generation failed 变为 rc=0；`tc-vm --check` / `tc-aot --check` 仍 rc=0；`ptr_address_param_load.tc` 的 diff 测试通过（VM/AOT 一致）；全量三层与 5 项门禁通过 |
 | B-52 | `tc_sem_fp.c`：strict 浮点结果判定不再使用宿主 `FE_UNDERFLOW`（部分平台为 tininess-before-rounding），统一改用位级 `tc_fp_no_fenv_underflow`（结果指数域全 0 且精确数学值 ≠ 舍入结果）；该 helper 及其 64 位整数对运算的实现 guard 由 `#ifndef TC_HAVE_FENV` 改为 `#if 1`，fenv 与非 fenv 构建共用同一判据（§6.3.2 要求不随宿主浮点环境变化）。新增 `tests/valid/fp_tininess_after_rounding.tc`（VM stdout+check_ok、AOT diff）；test-map 回填 1116 VM / 487 AOT | 审计例：`mul(float32, 2^-126, 1-2^-24)`（精确积 = 2^-126 − 2^-150，舍入到最小正规数）由 VM/AOT 均报 `FloatUnderflow` 变为两后端均输出 `8388608`（0x00800000）且 rc=0，与不带 `TC_HAVE_FENV` 的构建一致；真实下溢（`1e-30f * 1e-20f`）仍报 `FloatUnderflow`；全量三层与 5 项门禁通过 |
+| B-53 | `tc_io.c` `tc_io_write_formatted`：整数/布尔格式化的 `digits` 由固定 `char digits[80]` 改为「内建 80 字节 + 精度超出时按 `precision + 1` 堆分配」的缓冲，容量随精度增长；所有 `tc_io_prec_pad`/`tc_io_u64_to_base` 调用改用实际容量，新增 `done:` 统一释放路径（含各早退分支），使 §10.4 允许的精度 0～65535 不再被内建缓冲上限降级为 `TC_RE_IO`。新增 `tests/valid/format_precision_over_buffer.tc`（`%.80d`/`%.200d`/`%.1000d`/`%.79d`，VM stdout + AOT diff）与 `tests/valid/format_precision_max.tc`（`%.65535d` 仅 `--check`，对齐既有 `format_width_max`，避免 6 万余字符黄金输出）；test-map 回填 1118 VM / 489 AOT | 审计复现：`writeln(int32, %.80d, a)` 由 `error [IOError]: output failed`（rc=1）变为正常输出 79 个 `0` 后跟 `7`（rc=0）；`.200d`/`.1000d`（含负号）同样正常且 VM 与 AOT 输出逐字节一致；边界对照 `%.79d`（内建缓冲内）输出不变；`%.65535d` 两后端 `--check` 均 rc=0，超过 65535 仍由词法/静态阶段拒绝（B-27/B-36 口径不变）；全量三层与 5 项门禁通过 |
+
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -329,7 +331,8 @@
 | 57 | 阶段 2-B49 ptr 算术 usize 偏移无符号语义 | `90ede78 fix(0.0.44-B49): use unsigned semantics for pointer arithmetic offsets` |
 | 58 | 阶段 2-B50 AOT `-r` 支持 #lib-only | `f0447fb fix(0.0.44-B50): link AOT functions externally for non-embed builds` |
 | 59 | 阶段 2-B51 形参取址的 AOT 代码生成 | `7a6a94a fix(0.0.44-B51): use the resolved binding for ptr_address in AOT` |
-| 60 | 阶段 2-B52 strict 下溢判据与宿主无关 | 本提交 `fix(0.0.44-B52): judge float underflow by rounded bits, not host FE_UNDERFLOW` |
+| 60 | 阶段 2-B52 strict 下溢判据与宿主无关 | `50d3bae fix(0.0.44-B52): judge float underflow by rounded bits, not host FE_UNDERFLOW` |
+| 61 | 阶段 2-B53 整数格式化精度上限 | 本提交 `fix(0.0.44-B53): size the integer format buffer by precision` |
 
 ---
 
