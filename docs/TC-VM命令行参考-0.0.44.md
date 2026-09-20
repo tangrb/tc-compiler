@@ -231,7 +231,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `UndefinedVariable` | 名称未定义或前向引用 |
 | `DuplicateDefinition` | 同一作用域重复 var/let/形参 |
 | `TypeMismatch` | 运算、赋值或 operand 类型不匹配（含 ptr 跨类型） |
-| `LiteralOutOfRange` | 字面量超范围 |
+| `LiteralOutOfRange` | 字面量超范围（Token 自身词法上限，或依上下文期望类型的范围检查；两者同码） |
 | `LiteralTypeError` | 字面量类别/后缀与上下文冲突 |
 | `ComparisonTypeMismatch` | 比较 operand 类型不一致 |
 | `ModeMismatch` | 浮点/模式组合不合法 |
@@ -286,10 +286,10 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | 打印名 | 典型条件 |
 | ------ | -------- |
 | `IndentMixedError` | 空格/制表符混用 |
-| `IndentInsufficientError` | 块内缩进不足/层级非法 |
-| `IndentElseEndError` | else/end 未与对应块头对齐 |
+| `IndentInsufficientError` | 块内缩进不足/层级非法；**含顶层行缩进**（`#program`/`#lib` 指令行与其顶层语句必须为 0 级） |
+| `IndentElseEndError` | else/end 未与对应块头对齐（**过深或过浅**均按本码） |
 | `MissingEndError` | func/if/while/struct 缺 end |
-| `ConditionTypeError` | if/while 条件非 bool |
+| `ConditionTypeError` | if/while 条件非 bool（RHS 自身的字面量/类型专用码先报：`LiteralTypeError`、`LiteralOutOfRange`、`ComparisonTypeMismatch`、`TypeMismatch`） |
 | `UninitializedVariable` | 路径敏感分析发现未初始化使用 |
 | `VarMissingInitializer` | var 声明缺少初始化器 |
 | `LabelNotFound` | goto 目标不存在（含跨函数同名标签） |
@@ -497,6 +497,13 @@ writeln(usize, %u, arr.count)  ; → 3
 | 指针 `cast` **不附加等宽条件** | 合法程序集合（影响 `tc-vm` 是否接受该文件） | **已同步**：该报错路径已删除 |
 | `read` 标准输入读取失败 → `TC_RE_IO` | 退出码与错误行 | **已同步**（共享 `tc_io`） |
 | 完整诊断码表 87 码 = 86 语言码 + `TC_ERR_OUT_OF_MEMORY` | §6.1 码名映射表 | **已同步** |
+| `ptr_*` 调用型 RHS 不属于 `operand`、不得嵌套（嵌套 → `SyntaxError`） | 合法程序集合（`tc-vm` 是否接受该文件） | **已同步**：语料 `ptr_{address,add,sub,lt}_nested_operand.tc` |
+| `LiteralOutOfRange` 覆盖 LT（Token 上限）与 SEM（上下文期望类型）两阶段 | §6 码表条件列 | **已同步**：条件列已注明两类路径 |
+| `memcopy_unsafe` 编译期可确定负 `length`／负下标 → 静态码；不可确定者 → 运行时 | 退出码与错误行 | **已同步**：静态四条语料 `memcopy_unsafe_neg_*`（`--check` rc=1），运行时三条语料 |
+| `nullptr` 不参与 `bitcast`（静态拒绝） | 合法程序集合 | **已同步**：语料 `bitcast_nullptr_source{,_int}.tc` |
+| `IndentElseEndError` 覆盖 else/end 过深或过浅 | §6 码表条件列 | **已同步**：条件列已注明 |
+| `ConditionTypeError` 之前先报 RHS 自身专用码（含 `LiteralTypeError`） | `-e` 打印的首行码名 | **已同步**：语料 `if_cond_literal_direct`／`cond_var_not_bool` |
+| 顶层行缩进必须为 0 → `IndentInsufficientError` | 合法程序集合 | **已同步**：语料 `toplevel_indent_*.tc` |
 
 ### 9.3 迁移提示
 
