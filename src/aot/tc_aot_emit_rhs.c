@@ -511,7 +511,9 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     if (rhs->kind == TC_RHS_PTR_LOAD) {
         fprintf(out, "%sif (tc_aot_ptr_load(slots, ", indent);
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_load.ptr, TC_PTR, ctx, stmt_index);
-        fprintf(out, ", &%s, tc_aot_cur_diag, %d) != 0)\n", dst_expr, line);
+        /* B-55：把 pointee 类型传给运行时，bool 结果在此规范化到 {0,1} */
+        fprintf(out, ", %s, &%s, tc_aot_cur_diag, %d) != 0)\n",
+                tc_aot_type_enum(rhs->u.ptr_load.pointee_type.tag), dst_expr, line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         return 0;
     }

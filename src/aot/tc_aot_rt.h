@@ -54,8 +54,9 @@ void tc_aot_abort(const TcDiagnostic *diag, int line);
 /* ---- ptr / memblock / struct（槽编码与 VM 一致） ---- */
 
 uint64_t tc_aot_ptr_address(int slot);
-int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnostic *diag,
-                    int line);
+/* load_type 为 pointee 类型：为 TC_BOOL 时按 §3.4 / §6.8.2 把结果规范到 {0,1} */
+int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, TcTypeTag load_type, uint64_t *out,
+                    TcDiagnostic *diag, int line);
 int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
                      TcTypeTag store_type, TcDiagnostic *diag, int line);
 int tc_aot_ptr_arith(int is_add, uint64_t ptr_bits, int64_t offset, uint64_t *out,

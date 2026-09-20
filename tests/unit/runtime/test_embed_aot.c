@@ -1413,6 +1413,44 @@ cleanup:
 
 /* ================================================================ */
 
+/*
+ * B-55：AOT 运行时 tc_aot_ptr_load 的 bool 规范化。
+ *
+ * §3.4 / §6.8.2：pointee 为 bool 时「0x00 → false，其它字节 → true」。经
+ * ptr<int8> 别名写入的非规范字节（2）读回后必须落在 bool 抽象值域 {0,1}，
+ * 与 VM 侧 tc_exec_ptr_load 对称；非 bool pointee 不得改动位模式。
+ */
+static void test_aot_ptr_load_bool_type(void) {
+    uint64_t slots[2];
+    uint64_t out = 0;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+
+    slots[0] = 0;
+    slots[1] = UINT64_C(2);
+
+    check(tc_aot_ptr_load(slots, tc_aot_ptr_address(1), TC_BOOL, &out, &diag, 1) == 0,
+          "aot ptr_load bool: rc");
+    check(out == UINT64_C(1), "aot ptr_load bool: 0x02 normalized to 1");
+
+    slots[1] = 0;
+    out = 9;
+    check(tc_aot_ptr_load(slots, tc_aot_ptr_address(1), TC_BOOL, &out, &diag, 2) == 0,
+          "aot ptr_load bool zero: rc");
+    check(out == 0, "aot ptr_load bool: 0x00 stays 0");
+
+    slots[1] = UINT64_C(2);
+    out = 0;
+    check(tc_aot_ptr_load(slots, tc_aot_ptr_address(1), TC_INT32, &out, &diag, 3) == 0,
+          "aot ptr_load int32: rc");
+    check(out == UINT64_C(2), "aot ptr_load int32: bits unchanged");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/* ================================================================ */
+
 int main(void) {
     test_aot_embed_scalar_call();
     test_aot_embed_static_var();
@@ -1434,6 +1472,7 @@ int main(void) {
     test_aot_embed_bool_normalize();
     test_aot_embed_slot_read_type();
     test_aot_embed_static_init_overflow();
+    test_aot_ptr_load_bool_type();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed > 0 ? 1 : 0;

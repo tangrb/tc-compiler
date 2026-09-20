@@ -734,7 +734,7 @@ int tc_embed_had_error(const TcEmbedCtx *ctx);
 
 - `tc_embed_get_error` 返回最近一次错误的描述字符串。若 ctx 为 NULL，返回 `"context is null"`。
 - `tc_embed_had_error` 返回最近操作是否失败。
-- 每次成功的操作将 `error_flag` 重置为 0。
+- 每次成功的操作将 `error_flag` 重置为 0，**并清空 `error_message`**：成功之后 `tc_embed_get_error` 返回空串，而不是上一次失败的旧消息。会重置错误状态的成功操作是 `tc_embed_call` 与 `tc_embed_slot_write`；`tc_embed_slot_read` 为只读接口（`const TcEmbedCtx *`），不改动错误状态。
 - 消息格式：`tc_embed_get_error` 返回的是**宿主 API 层的纯文本消息**（如 `"function not found: <module>::<name>"`、`"slot index N out of range [0, M)"`），不带语言诊断前缀；语言/运行时诊断经 `TcDiagnostic` 输出时为 `"<file>:<line>:<col>: error [<Kind>]: <message>"`（[编译器标准 §11.4]）。
 
 ### 10.3 错误种类与语言码映射

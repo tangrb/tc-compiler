@@ -32,6 +32,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #include <process.h>
@@ -221,7 +225,25 @@ static int tc_aot_run_generated(const char *c_path) {
         if (getenv("TC_AOT_DEBUG_CMD") != NULL) {
             fprintf(stderr, "tc-aot host cc cmd: %s\n", cmd);
         }
-        return system(cmd);
+        /*
+         * B-55：`system()` 返回的是 wait status（子进程 exit 1 → 256），直接转给
+         * 调用方会打印 “run failed (exit 256)”。此处按 POSIX 语义拆出真实退出码；
+         * 被信号终止时用约定的 128 + 信号号。
+         */
+        {
+            int status = system(cmd);
+
+            if (status == -1) {
+                return -1;
+            }
+            if (WIFEXITED(status)) {
+                return WEXITSTATUS(status);
+            }
+            if (WIFSIGNALED(status)) {
+                return 128 + WTERMSIG(status);
+            }
+            return -1;
+        }
     }
 #endif
 }

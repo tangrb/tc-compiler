@@ -383,7 +383,10 @@ int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value) {
     } else {
         ctx->exec_ctx.slots[slot] = value;
     }
+    /* B-55：成功路径必须同时清除错误标志与消息——只清 flag 会让
+     * tc_embed_get_error() 返回上一次失败的旧消息。 */
     ctx->error_flag = 0;
+    ctx->error_message[0] = '\0';
     return 0;
 }
 

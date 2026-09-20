@@ -229,6 +229,13 @@ int tc_embed_call(TcEmbedCtx *ctx, const char *module, const char *func,
                   int nargs, const TcValue *args, TcValue *result);
 
 /* ── 错误查询 ── */
+/**
+ * 最近一次失败的诊断消息。
+ *
+ * `tc_embed_call` 与 `tc_embed_slot_write` 在**成功**时会一并清除错误标志与
+ * 消息，因此这两类调用成功后本函数返回空串，而不是上一次失败的旧消息
+ *（`tc_embed_slot_read` 为只读接口，不改变错误状态）。
+ */
 const char *tc_embed_get_error(const TcEmbedCtx *ctx);
 int tc_embed_had_error(const TcEmbedCtx *ctx);
 

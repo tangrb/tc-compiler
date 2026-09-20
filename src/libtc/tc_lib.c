@@ -325,7 +325,6 @@ int tc_compile_file_opts(const char *path, const TcCompileOptions *opts,
     TcModuleSearchPaths local;
     const TcModuleSearchPaths *search = NULL;
     double t0;
-    TcCompileOptions empty_opts;
 
     if (!diag) {
         return -1;
@@ -359,9 +358,6 @@ int tc_compile_file_opts(const char *path, const TcCompileOptions *opts,
         local.paths = (char **)(uintptr_t)opts->search_paths;
         local.count = opts->search_path_count;
         search = &local;
-    } else {
-        memset(&empty_opts, 0, sizeof(empty_opts));
-        search = NULL;
     }
     if (tc_analyze_ex(&program, &typed, path, search, diag) != 0) {
         return -1;

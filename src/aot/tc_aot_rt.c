@@ -337,8 +337,8 @@ uint64_t tc_aot_ptr_address(int slot) {
     return ((uint64_t)slot << 1) | TC_AOT_PTR_TAG;
 }
 
-int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnostic *diag,
-                    int line) {
+int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, TcTypeTag load_type, uint64_t *out,
+                    TcDiagnostic *diag, int line) {
     int slot = 0;
 
     if (ptr_bits == 0) {
@@ -352,6 +352,14 @@ int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, uint64_t *out, TcDiagnos
         return -1;
     }
     *out = slots[slot];
+    /*
+     * B-55：pointee 为 bool 时按 §3.4 / §6.8.2 规范化（0x00 → false，其它 → true），
+     * 与 VM 侧 tc_exec_ptr_load 对称——经 ptr<int8> 别名写入的非规范字节（如 2）
+     * 读回后仍须落在 bool 的抽象值域 {0,1}，不能把原始位模式留在槽位里。
+     */
+    if (load_type == TC_BOOL) {
+        *out = *out ? 1ULL : 0ULL;
+    }
     return 0;
 }
 

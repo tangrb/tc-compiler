@@ -450,6 +450,17 @@ static void test_embed_slot_out_of_range(void) {
 
     check(tc_embed_slot_write(ctx, -1, v) != 0, "negative slot rejected");
     check(tc_embed_slot_write(ctx, 9999, v) != 0, "large slot rejected");
+    /* B-55：失败后错误消息可读 */
+    check(tc_embed_had_error(ctx) != 0, "slot write failure sets error flag");
+    check(tc_embed_get_error(ctx) != NULL && tc_embed_get_error(ctx)[0] != '\0',
+          "slot write failure sets error message");
+
+    /* B-55：成功路径必须同时清除标志与消息（此前只清 flag，消息仍是旧值） */
+    check(tc_embed_slot_write(ctx, 0, tc_value_from_int32(1)) == 0,
+          "valid slot write succeeds");
+    check(!tc_embed_had_error(ctx), "error flag cleared after successful slot write");
+    check(tc_embed_get_error(ctx) != NULL && tc_embed_get_error(ctx)[0] == '\0',
+          "error message cleared after successful slot write");
 
     tc_embed_destroy(ctx);
     tc_typed_program_free(&prog);
