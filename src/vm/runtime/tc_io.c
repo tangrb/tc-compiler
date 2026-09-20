@@ -321,7 +321,19 @@ static void tc_fp_round(TcFpExact *d, int keep, int carry0_exp10) {
     if (keep >= d->ndigits) {
         return;
     }
-    if (keep <= 0) {
+    /*
+     * B-46：`keep < 0` 表示需要保留的有效位完全落在首位有效数字之前（如
+     * `%.3f` 输出 0.00009）——此时**恒舍入为零**，不得再用首位数字做进位判定
+     *（§10.4：以精确数学值为输入按 roundTiesToEven 舍入）。仅 `keep == 0`
+     *（舍入位恰为首位有效数字）才按该位与后续位判定。
+     */
+    if (keep < 0) {
+        d->digits[0] = 0;
+        d->ndigits = 1;
+        d->exp10 = 0;
+        return;
+    }
+    if (keep == 0) {
         uint8_t r = d->digits[0];
 
         if (r > 5) {

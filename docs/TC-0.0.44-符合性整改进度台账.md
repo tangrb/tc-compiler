@@ -152,7 +152,7 @@
 | B-43 | `memblock_copy` `length == 0` 跳过区间检查 | ☑ | |
 | B-44 | `memblock_copy` 常量区间从不静态检查 | ☑（B-21 闭合） | |
 | B-45 | strict `shl` 零被移位数不报溢出 | ☑ | |
-| B-46 | `%f` 极小量错误进位 | ☐ | |
+| B-46 | `%f` 极小量错误进位 | ☑ | |
 | B-47 | float32 字面量经 double 二次舍入 | ☐ | |
 | B-48 | 浮点边界字面量被拒 | ☐ | |
 | B-49 | `ptr_sub` `usize` 偏移有符号溢出 | ☐ | |
@@ -245,6 +245,7 @@
 | B-44 / B-59 / B-60 | 无需新代码：常量负 `length`（B-44）与常量负 `dst` 下标（B-59）已由 B-21 的 `tc_memblock_check_copy` 常量区间判定覆盖；35 位宽度的越界诊断（B-60）已由 B-27 的 64 字节缓冲 + 宽度范围检查覆盖。三例复核结果见「验证」列 | `memblock_copy(int32, b, 0, a, 0, -1)` 与 `memblock_copy(int32, b, -1, a, 0, 1)` 均为静态 `MemblockIndexOutOfRange`（原为运行期才报）；`%`+35 个 `9`+`d` 报 `FormatSpecifierError: format width or precision out of range`（原为 `SyntaxError: format specifier too long`） |
 | B-42 | `TcExecuteCtx` 增 `slot_capacity`（独立 VM 取声明槽位数、嵌入 VM 取含临时区的容量），`tc_ptr_exec.c` 的 load/store/arith 与 `tc_memblock_exec.c` 的 memcopy_unsafe 在解码槽索引后追加 `slot >= slot_capacity` 判定，越界按 `TC_RE_NULL_POINTER_DEREFERENCE` 报（与 B-10 的非法编码口径一致，§1.3 零 UB）。新增 `ptr_forged_slot_oob_{load,store,memcopy}.tc`（VM fail_msg；AOT 侧运行时尚无上界校验，其确定性归 B-57）；test-map 回填 1108 VM | 审计复现 `bitcast(ptr<int32>, 0x7FFFFFFD)` 后 `ptr_load` 由 SIGSEGV（ASan heap-buffer-overflow）变为 `NullPointerDereference`；`ptr_store` 与 `memcopy_unsafe` 同样不再越界读写；合法指针（含嵌入临时槽位）不受影响；全量三层与 5 项门禁通过。注：AOT 运行时仍无槽位上界（属 B-57 范围） |
 | B-45 | `tc_sem_bitwise.c` `tc_exec_shl`：把 `val_bits == 0` 的早退移到 `k >= n` 溢出判定**之后**——§6.4.2/§6.4.2.1 规定 strict `shl` 的溢出判定与被移位数的值无关。`tests/unit/runtime/test_shift.c` 原「val=0 恒为 0」断言改为「k ≥ n 报 TC_RE_INTEGER_OVERFLOW，k < n 仍为 0」。新增 `tests/errors/runtime/shl_zero_shift_overflow.tc`（VM fail_msg、AOT runtime_fail）；test-map 回填 1109 VM | 审计两例：`shl(int32, z, k)`（z=0、k=32）由静默 `0` 变为 `IntegerOverflow: shift left overflow`；`let r: int32 = shl(int32, 0, 32)` 报 `ConstantOverflow`；wrap 模式仍为 0；k < n 的零值移位仍为 0；全量三层与 5 项门禁通过 |
+| B-46 | `tc_io.c` `tc_fp_round`：把 `keep <= 0` 拆开——`keep < 0`（需保留的有效位完全落在首位有效数字之前）恒舍入为零，仅 `keep == 0`（舍入位恰为首位）才按该位与后续位做 roundTiesToEven 判定。新增 `tests/valid/format_float_small_rounding.tc`（0.00009/2^-40/6e-8/9e-7 四例；VM stdout+check_ok、AOT diff）；test-map 回填 1111 VM / 483 AOT | 审计三例：`%.3f` of 0.00009 由 `0.001` 变为 `0.000`；`%.0f` of 2^-40 由 `1` 变为 `0`；`%.6f` of 6e-8 由 `0.000001` 变为 `0.000000`；边界对照 `%.6f` of 9e-7 仍正确进位为 `0.000001`（keep == 0 路径不变）；VM/AOT 输出一致；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -317,7 +318,8 @@
 | 51 | 阶段 2-B39 `#program` Self 按源序在 SYN 报出 | `a47d076 fix(0.0.44-B39): report Self in #program at parse time in source order` |
 | 52 | 阶段 2-B43/B58 空拷贝区间检查；B44/B59/B60 复核闭合 | `61098f5 fix(0.0.44-B43/B58): check empty memblock_copy ranges at runtime` |
 | 53 | 阶段 2-B42 伪造槽索引上界校验 | `5288e41 fix(0.0.44-B42): bound-check decoded pointer slot indices` |
-| 54 | 阶段 2-B45 strict shl 零被移位数溢出 | 本提交 `fix(0.0.44-B45): detect strict shl overflow regardless of value` |
+| 54 | 阶段 2-B45 strict shl 零被移位数溢出 | `c60ea01 fix(0.0.44-B45): detect strict shl overflow regardless of value` |
+| 55 | 阶段 2-B46 `%f` 极小量舍入 | 本提交 `fix(0.0.44-B46): round tiny values to zero when no significant digit is kept` |
 
 ---
 
