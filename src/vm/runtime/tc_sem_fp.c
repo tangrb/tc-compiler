@@ -144,11 +144,11 @@ static int tc_fp_compute(TcArithOp op, TcTypeTag type, double lhs, double rhs,
     return 0;
 }
 
-#ifndef TC_HAVE_FENV
-/* B1：无 FENV 位级下溢判定（§6.3.2「微小非精确非规格化」，tininess-after-
- * rounding）。结果（RNE 舍入）指数域全 0（subnormal/zero）且精确值 ≠ 结果
- * → 下溢。精确性用操作数位模式经 __int128 整数运算判定，不依赖宿主浮点
- * 舍入或长双精度，与 fenv 构建在任意平台上结果一致。 */
+#if 1
+/* B1/B-52：位级下溢判定（§6.3.2「微小非精确非规格化」，tininess-after-rounding）。
+ * 结果（RNE 舍入）指数域全 0（subnormal/zero）且精确值 ≠ 结果 → 下溢。精确性用
+ * 操作数位模式经 64 位整数对运算判定，不依赖宿主浮点舍入、长双精度或宿主
+ * FE_UNDERFLOW 标志，故 fenv 与非 fenv 构建在任意平台上结果一致（B-52）。 */
 
 #if 1
 /* 128 位无符号运算（纯 C99，uint64 对；规避 -Wpedantic 对 __int128 的拒绝） */
@@ -502,12 +502,8 @@ static int tc_fp_check_strict_result(TcArithOp op, TcTypeTag type,
                                      double lhs, double rhs, double result,
                                      uint64_t lhs_bits, uint64_t rhs_bits, uint64_t result_bits,
                                      int exceptions, TcDiagnostic *diag, int line) {
-#ifdef TC_HAVE_FENV
-    (void)type;
-    (void)result;
-    (void)lhs_bits;
-    (void)rhs_bits;
-    (void)result_bits;
+#ifndef TC_HAVE_FENV
+    (void)exceptions;
 #endif
     if (tc_fp_invalid_operation(op, lhs, rhs)) {
         return tc_fp_set_error(TC_RE_FLOAT_INVALID, "float invalid operation", diag, line);
@@ -525,18 +521,21 @@ static int tc_fp_check_strict_result(TcArithOp op, TcTypeTag type,
     if ((exceptions & FE_OVERFLOW) != 0) {
         return tc_fp_set_error(TC_RE_FLOAT_OVERFLOW, "float overflow", diag, line);
     }
-    if ((exceptions & FE_UNDERFLOW) != 0) {
-        return tc_fp_set_error(TC_RE_FLOAT_UNDERFLOW, "float underflow", diag, line);
-    }
 #else
-    (void)exceptions;
     if (isfinite(lhs) && isfinite(rhs) && isinf(result)) {
         return tc_fp_set_error(TC_RE_FLOAT_OVERFLOW, "float overflow", diag, line);
     }
+#endif
+    /*
+     * B-52：下溢判据必须是 **tininess-after-rounding**（§6.3.2），且不得随宿主
+     * 浮点环境变化。宿主 `FE_UNDERFLOW` 在部分平台（如 arm64）是
+     * tininess-before-rounding，故不再使用，统一用位级判据：舍入后的结果为
+     * subnormal/零且精确数学值非零才算微小。
+     */
     if (tc_fp_no_fenv_underflow(op, type, lhs_bits, rhs_bits, result_bits)) {
         return tc_fp_set_error(TC_RE_FLOAT_UNDERFLOW, "float underflow", diag, line);
     }
-#endif
+    (void)result;
     return 0;
 }
 

@@ -1,0 +1,9 @@
+#program
+; B-52 / §6.3.2：下溢判据是 tininess-after-rounding——精确积恰为
+; (2^-126) − (2^-150) 时按 roundTiesToEven 舍入到最小正规数 2^-126，
+; 不是 tiny，不得报下溢（结果 0x00800000 = 8388608）
+var tiny: float32 = 1.1754943508222875e-38f
+var m: float32 = 0.99999994039535522f
+var r: float32 = mul(float32, tiny, m)
+var b: uint32 = bitcast(uint32, r)
+writeln(uint32, b)

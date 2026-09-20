@@ -618,6 +618,7 @@ run_diff_test "$ROOT/tests/valid/float_denormal_literals.tc"
 run_diff_test "$ROOT/tests/valid/format_flag_zero_merge.tc"
 run_diff_test "$ROOT/tests/valid/format_float_small_rounding.tc"
 run_diff_test "$ROOT/tests/valid/float32_literal_direct_rounding.tc"
+run_diff_test "$ROOT/tests/valid/fp_tininess_after_rounding.tc"
 
 # B-50：#lib-only 程序（函数可能无人调用）须能以 -r 编译运行
 run_diff_test "$ROOT/tests/valid/MathLib.tc"

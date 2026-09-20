@@ -1139,6 +1139,9 @@ run_expect_stdout "$ROOT/tests/valid/float32_literal_direct_rounding.tc" "106535
 2139095039
 "
 run_expect_check_ok "$ROOT/tests/valid/float32_literal_direct_rounding.tc"
+run_expect_stdout "$ROOT/tests/valid/fp_tininess_after_rounding.tc" "8388608
+"
+run_expect_check_ok "$ROOT/tests/valid/fp_tininess_after_rounding.tc"
 run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
 0
 0
