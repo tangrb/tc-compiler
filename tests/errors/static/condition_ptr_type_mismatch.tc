@@ -1,0 +1,10 @@
+#program
+; §7.1.1 / 附录 B.11：条件位置的具体码不得被 CONDITION_TYPE 覆盖——
+; 跨类型指针比较 → TC_CE_TYPE_MISMATCH
+var a: int32 = 1
+var c: uint8 = 2
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<uint8> = ptr_address(uint8, c)
+if ptr_lt(int32, p, q) then
+    writeln(int32, 1)
+end

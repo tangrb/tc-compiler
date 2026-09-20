@@ -959,13 +959,37 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
     return 0;
 }
 
+/** 该 RHS 形态的静态结果类型是否为 bool（比较/逻辑类）。 */
+static int tc_rhs_kind_yields_bool(TcRhsKind kind) {
+    switch (kind) {
+    case TC_RHS_COMPARE:
+    case TC_RHS_FLOAT_COMPARE:
+    case TC_RHS_PTR_EQ:
+    case TC_RHS_PTR_NE:
+    case TC_RHS_PTR_LT:
+    case TC_RHS_PTR_LE:
+    case TC_RHS_PTR_GT:
+    case TC_RHS_PTR_GE:
+    case TC_RHS_LOGIC_BIN:
+    case TC_RHS_LOGIC_UN:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 int tc_check_condition(TcRhs *rhs, const TcSymbolTable *visible,
                               const TcSymbolTable *global, const TcStructTable *struct_table,
                               TcInitHistory *hist, size_t stmt_index, int line, const char *owner,
                               TcDiagnostic *diag, TcWarningList *warnings) {
     if (tc_check_rhs(rhs, tc_type_tag_singleton(TC_BOOL), visible, global, struct_table, hist,
                      stmt_index, line, diag, warnings, NULL) != 0) {
-        if (diag->kind == TC_CE_TYPE_MISMATCH) {
+        /*
+         * B-23：TC_CE_CONDITION_TYPE 只适用于「条件的结果类型不是 bool」（§7.1.1）。
+         * 结果类型本就是 bool 的表达式（比较类）内部失败时（如跨类型指针比较，
+         * 附录 B.11 → TYPE_MISMATCH）必须保留其专用码，不得被本码覆盖。
+         */
+        if (diag->kind == TC_CE_TYPE_MISMATCH && !tc_rhs_kind_yields_bool(rhs->kind)) {
             char msg[64];
 
             (void)snprintf(msg, sizeof(msg), "%s condition must be bool", owner);
