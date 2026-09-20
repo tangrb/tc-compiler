@@ -286,6 +286,12 @@
 
 > 每份文档改完均跑 5 项同步门禁（全部 rc=0）；这批为纯文档改动，不改动 `src/` 与用例，故未新增注册行（规模仍为 1156 VM / 530 AOT）。
 
+### 观察项与知识库清理（非符合性，不占审计条目编号）
+
+| 序号 | 观察项 | 处置 | 提交 |
+| ---- | ------ | ---- | ---- |
+| 观察-① | `.cursor/skills/tc-architecture/errors.md`（报文速查）未随 A-1～A-4、B-41、B-61、B-63 刷新：缺 `nullptr cannot participate in bitcast`、`top-level lines must not be indented`、静态 `memcopy_unsafe invalid range`，且未体现 A-2 双阶段、B-41 深浅口径、B-61 专用码优先 | 刷新该知识库文件（1 处优先级注记 + 6 处码表行 + 4 行报文表，含 `while`/`function` 变体）；该文件不被 5 项门禁校验，属可维护速查资产 | 本提交 |
+
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
 > 七项裁决与落地明细见上「阶段 3 逐条记录」，**本轮无待裁决项**。

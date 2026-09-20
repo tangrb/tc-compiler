@@ -34,6 +34,7 @@
 11. 调用图（递归环）
 
 同 Token 多规则优先级：操作数数量 → 类型类别 → 模式 → bitcast 位宽 → 字面量范围/类型 → 格式符/其他。  
+同位置多个候选码时**专用码优先于通用码**：`TC_CE_LITERAL_TYPE` 优先于 `TC_CE_TYPE_MISMATCH`，且优先于 `TC_CE_CONDITION_TYPE`（条件位置的直接字面量）；`TC_CE_INDENT_ELSE_END` 优先于 `TC_CE_INDENT_INSUFFICIENT`（`else`/`end` 行）。  
 用例：`diag_priority_*`（见 [test-map.md](test-map.md)）。
 
 初始化三分工：
@@ -69,10 +70,10 @@
 | `TC_CE_SYNTAX` | `SyntaxError` | Lex/Parse | §2、附录 A；**不含**文件/API/OOM |
 | `TC_CE_MISSING_END` | `MissingEndError` | Parse | §1.3 白名单、§7 |
 | `TC_CE_OPERAND_COUNT` | `OperandCountError` | Parse | §1.3 白名单、§10 |
-| `TC_CE_LITERAL_OUT_OF_RANGE` | `LiteralOutOfRange` | Lex/Analyzer | §2.3.5、§3.6 |
+| `TC_CE_LITERAL_OUT_OF_RANGE` | `LiteralOutOfRange` | Lex（LT Token 上限）/ Analyzer（SEM 上下文） | §2.3.5、§2.4.1、§3.6、§5.2.1 |
 | `TC_CE_INDENT_MIXED` | `IndentMixedError` | Lex | §2.8、§7.1.2 |
-| `TC_CE_INDENT_INSUFFICIENT` | `IndentInsufficientError` | Lex | §7.1.2 |
-| `TC_CE_INDENT_ELSE_END` | `IndentElseEndError` | Lex | 附录 A.2；`else`/`end` 不对齐 |
+| `TC_CE_INDENT_INSUFFICIENT` | `IndentInsufficientError` | Lex | §7.1.2、附录 A.2（含**顶层行缩进必须为 0**，B-63） |
+| `TC_CE_INDENT_ELSE_END` | `IndentElseEndError` | Lex | 附录 A.2；`else`/`end` 不对齐（**过深或过浅均按本码**，B-41） |
 
 ### 模块系统（B.2）
 
@@ -165,7 +166,7 @@
 | `TC_CE_BREAK_OUTSIDE_LOOP` | `BreakOutsideLoop` | Analyzer | §7.4 |
 | `TC_CE_CONTINUE_OUTSIDE_LOOP` | `ContinueOutsideLoop` | Analyzer | §7.4 |
 | `TC_CE_MISSING_RETURN` | `MissingReturn` | CFG | §8.3 |
-| `TC_CE_CONDITION_TYPE` | `ConditionTypeError` | Analyzer | §7.1.1、§7.2.1 |
+| `TC_CE_CONDITION_TYPE` | `ConditionTypeError` | Analyzer | §7.1.1、§7.2.1；仅 RHS 类型成立但非 `bool`；字面量/类型专用码先报（B-61） |
 | `TC_CE_RETURN_OUTSIDE_FUNCTION` | `ReturnOutsideFunction` | Analyzer | §8.3.1 |
 | `TC_CE_RETURN_FORM` | `ReturnFormError` | Analyzer | §8.3.1 |
 | `TC_CE_RETURN_TYPE` | `ReturnTypeError` | Analyzer | §8.3.1 |
@@ -181,7 +182,7 @@
 
 | 错误码 | 打印名 | 阶段 | 语言标准 |
 |--------|--------|------|---------|
-| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | Analyzer | §6.8.9：`length` 或下标编译期数学值 `< 0` |
+| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | Analyzer | §6.8.9：`length`/`dst_idx`/`src_idx` **编译期可确定**为负（字面量或 `let`/`static let` 常量来源，A-3）；运行时同文案对应 `TC_RE_*` |
 
 ### 函数调用（B.12）
 
@@ -243,10 +244,11 @@
 | let 溢出 | `constant overflow` |
 | let 除零 | `constant division by zero` |
 | let 引用 var | `constant expression cannot reference var variable` |
-| if 条件非 bool | `if condition must be bool` |
+| if 条件非 bool（已定型 RHS） | `if condition must be bool` |
+| 条件为直接字面量 | `literal type does not match variable type`（专用码优先，先于 `if/while condition must be bool`，B-61） |
 | 混用空格/tab 缩进 | `mixed spaces and tabs in indentation` |
 | 块内缩进不足 | `insufficient indentation in block` |
-| else/end 缩进不对齐 | `else indentation does not match if` / `end indentation does not match if` |
+| else/end 缩进不对齐（过深过浅同码） | `else indentation does not match if` / `else must appear at same indentation as if` / `end indentation does not match if` / `end indentation does not match while` / `end indentation does not match function`（各块使用对应块名） |
 | 缺少 end | `missing end for if statement` |
 | 跨块引用局部变量 | `undefined variable` |
 | 浮点 `mod` 无效（NaN/无穷/`0 mod 0`） | `float invalid operation` |
@@ -279,3 +281,6 @@
 | while 内 goto | `goto is not allowed inside while` |
 | 循环外 break | `break used outside while` |
 | 循环外 continue | `continue used outside while` |
+| 顶层行缩进 | `top-level lines must not be indented`（B-63） |
+| `nullptr` 作 `bitcast` 源 | `nullptr cannot participate in bitcast`（`cast(ptr<T>, nullptr)` 仍合法，A-4） |
+| `memcopy_unsafe` 编译期可确定负 `length`/下标 | `memcopy_unsafe invalid range`（静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时同文案，A-3） |
