@@ -1119,6 +1119,9 @@ run_expect_stdout "$ROOT/tests/valid/float_denormal_literals.tc" "4.94066e-324
 1.4013e-45
 "
 run_expect_check_ok "$ROOT/tests/valid/float_denormal_literals.tc"
+run_expect_stdout "$ROOT/tests/valid/format_flag_zero_merge.tc" "00000005
+"
+run_expect_check_ok "$ROOT/tests/valid/format_flag_zero_merge.tc"
 run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
 0
 0
@@ -2047,8 +2050,9 @@ run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "pointe
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
-run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_too_long.tc" "format specifier too long"
-run_expect_check_fail "$ROOT/tests/errors/static/format_specifier_too_long.tc" "format specifier too long"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_width_out_of_range.tc" "format width or precision out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/format_width_out_of_range.tc" \
+    "format width or precision out of range" "FormatSpecifierError"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_plus_unsigned.tc" \
     "'+' flag not supported for this format specifier"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \

@@ -230,6 +230,7 @@
 | B-24 | `tc_const_eval.c` 常量 `cast` 的字面量源检查改用 `tc_check_literal(..., TC_CE_LITERAL_TYPE)`（原为 `tc_literal_fits_context` + `TC_CE_CONSTANT_EXPRESSION`），使越界字面量报 `TC_CE_LITERAL_OUT_OF_RANGE`（§6.6.1.1 / §5.2.1 第 2 步 / 附录 B.6）。新增 `tests/errors/static/const_cast_literal_out_of_range.tc`，VM check_fail + LiteralOutOfRange；test-map 回填 1070 VM | `let a: uint64 = cast(uint64, 18446744073709551615)` 由 `ConstantExpressionError` 变为 `LiteralOutOfRange`，与 `var` 形式的同一表达式一致；不带 `cast` 的 `var a: uint64 = 18446744073709551615` 仍按上下文定型接受；全量三层与 5 项门禁通过 |
 | B-25 | `tc_analyzer_pass2.c` `tc_resolve_goto_label` 增 `best_child` 候选：label 深度大于 goto 且 goto 路径是其前缀（跳入子块）时单列，返回次序改为 同级 → 祖先 → **子块** → 兜底 `any`。构造等价复现（§7.3.2 步骤 4 先于步骤 5）：同一函数内经兄弟块重名标签，子块标签先注册、兄弟块标签后注册，原实现因表序取 `any` 报 `JumpIncompatibleBlockError`。新增 `tests/errors/static/goto_label_child_vs_sibling.tc`（VM check_fail + JumpIntoBlockError）；test-map 回填 1071 VM | 复现构造由 `JumpIncompatibleBlockError` 变为 `JumpIntoBlockError`；兄弟块标签独存时仍报 `JumpIncompatibleBlockError`；同级/祖先标签与既有 goto 语料全部不受影响；全量三层与 5 项门禁通过。注：审计标注本条为分代理结论、未逐字复现，本轮已构造等价复现并修正 |
 | B-26 | `tc_lexer.c` 浮点字面量：①`strtod` 的 `ERANGE` 不再一律判失败，仅在「舍入为零（`value == 0.0`）」或「上溢为无穷（`isinf`）」时报 `TC_CE_LITERAL_OUT_OF_RANGE`（§2.4.1）；②`float32_suffix` 的舍入判据由 `< 2^-149` 改为「舍入到零的分界」`< 2^-150`。新增 `tests/valid/float_denormal_literals.tc`（float64 5e-324/1e-308、float32 1e-45f；VM stdout + check_ok、AOT diff）与 `tests/errors/static/float_rounds_to_zero.tc`（float32 1e-46f → LiteralOutOfRange）；test-map 回填 1074 VM / 480 AOT | 审计表五项全部符合：`float64 = 1e-308`、`5e-324`、`2.3e-308` 与 `float32 = 1e-45f` 由拒绝变为接受（VM/AOT 输出一致：`4.94066e-324` / `1e-308` / `1.4013e-45`）；`float32 = 1e-46f`（舍入为零）与 `float64 = 1e400`/`1e-400` 仍拒绝；全量三层与 5 项门禁通过 |
+| B-27 | `tc_lexer.c` 格式说明符词法缓冲由 32 改为 64 字节；标志扫描按 §10.5「连续 `0` 合并」规则折叠连续的 `0`（只保留一个），使 `%` + 大量 `0` + 宽度这一合法形态不再触发词法上限。原语料 `format_specifier_too_long.tc` 更名 `format_width_out_of_range.tc` 并改断言为 `format width or precision out of range` + `FormatSpecifierError`（宽度超出 §10.5 范围本属 SEM 专用码，位数不再被词法截断）；VM/AOT 注册串同步。新增 `tests/valid/format_flag_zero_merge.tc`（`%` + 40 个 `0` + `8d`，等价 `%08d`；VM stdout+check_ok、AOT diff）；test-map 回填 1076 VM / 481 AOT | 审计复现 `%` + 40 `0` + `8d` 由 `SyntaxError: format specifier too long` 变为接受并输出 `00000005`（两后端一致）；`%` + 40 `-` + `8d` 报 `FormatSpecifierError: duplicate format flag`（保留 B-3 的 SEM 码，不再被词法上限遮蔽）；30 位宽度报 `FormatSpecifierError: format width or precision out of range`；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -288,7 +289,8 @@
 | 37 | 阶段 2-B23 条件位置保留具体码 | `f073c9d fix(0.0.44-B23): keep specific codes inside conditions` |
 | 38 | 阶段 2-B24 常量 cast 字面量错码 | `c05f4b1 fix(0.0.44-B24): report literal codes for constant cast literals` |
 | 39 | 阶段 2-B25 goto 标签判定次序 | `af362e4 fix(0.0.44-B25): prefer jumping into a child block over sibling mismatch` |
-| 40 | 阶段 2-B26 非规格化浮点字面量 | 本提交 `fix(0.0.44-B26): accept representable denormal float literals` |
+| 40 | 阶段 2-B26 非规格化浮点字面量 | `39ab503 fix(0.0.44-B26): accept representable denormal float literals` |
+| 41 | 阶段 2-B27 格式说明符长度上限 | 本提交 `fix(0.0.44-B27): stop rejecting long legal format specs` |
 
 ---
 

@@ -1,0 +1,4 @@
+#program
+; 期望：宽度超出 §10.5 范围 → TC_CE_FORMAT_SPECIFIER（宽度位数本身不是词法错误）
+var x: int32 = 1
+write(int32, %999999999999999999999999999999d, x)

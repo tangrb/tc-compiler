@@ -948,7 +948,11 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
 
         /* 格式说明符：%[flags][width][.precision]spec */
         if (*p == '%') {
-            char spec_buf[32];
+            /*
+             * B-27：缓冲区留出足够余量；连续 `0` 按 §10.5「连续 0 合并」规则折叠为
+             * 一个，避免 `%` + 大量 `0` + 宽度这种合法形态被误报 too long。
+             */
+            char spec_buf[64];
             int spec_len = 0;
             TcFormatFullSpec full_fmt;
             spec_buf[spec_len++] = *p; /* % */
@@ -961,14 +965,18 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
                 return -1;
             }
 
-            /* 标志字符 */
+            /* 标志字符（连续 `0` 合并为一个；其它标志保留，重复由分析器报码） */
             while (*p == '-' || *p == '+' || *p == '#' || *p == '0') {
-                if (spec_len >= (int)sizeof(spec_buf) - 1) {
-                    tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
-                                      "format specifier too long");
-                    return -1;
+                int duplicate_zero = (*p == '0' && spec_len > 0 && spec_buf[spec_len - 1] == '0');
+
+                if (!duplicate_zero) {
+                    if (spec_len >= (int)sizeof(spec_buf) - 1) {
+                        tc_diagnostic_set(diag, TC_CE_SYNTAX, line_no, tok_column,
+                                          "format specifier too long");
+                        return -1;
+                    }
+                    spec_buf[spec_len++] = *p;
                 }
-                spec_buf[spec_len++] = *p;
                 ++p;
                 ++column;
             }

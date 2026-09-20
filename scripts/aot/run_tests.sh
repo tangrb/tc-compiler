@@ -614,6 +614,7 @@ run_diff_test "$ROOT/tests/valid/memblock_copy_empty_at_end.tc"
 run_diff_test "$ROOT/tests/valid/while_true_break_reachable.tc"
 run_check_ok "$ROOT/tests/valid/dup_param_names_ok.tc"
 run_diff_test "$ROOT/tests/valid/float_denormal_literals.tc"
+run_diff_test "$ROOT/tests/valid/format_flag_zero_merge.tc"
 run_diff_test "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
 run_diff_test "$ROOT/tests/valid/usize_arith.tc"
@@ -855,8 +856,8 @@ run_check_fail "$ROOT/tests/errors/static/return_type_var_mismatch.tc" \
     "return type does not match function return type"
 run_check_fail "$ROOT/tests/errors/static/void_funcall_as_value.tc" \
     "void function call cannot be used as value"
-run_check_fail "$ROOT/tests/errors/static/format_specifier_too_long.tc" \
-    "format specifier too long"
+run_check_fail "$ROOT/tests/errors/static/format_width_out_of_range.tc" \
+    "format width or precision out of range"
 run_check_fail "$ROOT/tests/errors/static/invalid_float_literal.tc" \
     "invalid float literal"
 run_check_fail "$ROOT/tests/errors/static/float32_literal_range.tc" \
