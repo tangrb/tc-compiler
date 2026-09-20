@@ -1,0 +1,5 @@
+#program
+; B-39 / §11 第 1 条：`#program` 的 Self 属 SYN（PROGRAM_MODE_MISUSE），
+; 须按源序先于更靠后的语法错误报出
+var b: int32 = Self.x
+var a: int32 = add(int32, 1)

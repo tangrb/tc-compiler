@@ -95,8 +95,9 @@ static void test_module_check_self_in_program(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    check(tc_parse_source_to_program(source, &program, &diag) == 0, "parse Self in #program");
-    check(tc_module_check_structure(&program, &diag) != 0, "Self in #program fails structure");
+    /* B-39：`#program` 中的 Self 现在由解析器在语法阶段按源序拒绝
+     *（不再等到 tc_module_check_structure 的 SEM 阶段）。 */
+    check(tc_parse_source_to_program(source, &program, &diag) != 0, "parse rejects Self in #program");
     check(diag.kind == TC_CE_PROGRAM_MODE_MISUSE, "Self misuse kind");
     tc_program_free(&program);
     tc_diagnostic_clear(&diag);

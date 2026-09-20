@@ -1614,6 +1614,31 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
         return -1;
     }
 
+    /*
+     * B-39：`#program` 中的 `Self` 属结构类语法阶段诊断（TC_CE_PROGRAM_MODE_MISUSE，
+     * §4.2/§1.3）。分析器虽也检查，但那属 SEM——若同一文件后面还有语法错误，会
+     * 因「阶段优先」而抢先报出（§11 第 1 条）。此处按**源序**在语法阶段一次性扫描
+     * 全部 Token 行，保证最早的 `Self` 先报。
+     */
+    if (program->mode == TC_MODULE_PROGRAM) {
+        size_t li = 0;
+
+        for (li = start_index; li < line_count; li++) {
+            size_t ti = 0;
+
+            for (ti = 0; ti < lines[li].tokens.count; ti++) {
+                if (lines[li].tokens.items[ti].kind == TC_TOK_SELF) {
+                    (void)tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, lines[li].line_no,
+                                         lines[li].tokens.items[ti].column,
+                                         "Self is not allowed in #program");
+                    tc_source_lines_free(lines, line_count);
+                    tc_program_free(program);
+                    return -1;
+                }
+            }
+        }
+    }
+
     ctx.depth = 0;
     rc = tc_parse_module_body(&ctx, lines, line_count, start_index, &file_indent, program, diag);
     tc_source_lines_free(lines, line_count);

@@ -2651,6 +2651,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/lib_toplevel_var_syntax.tc" \
     "non-static value declaration is not allowed in #lib" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/self_before_later_syntax.tc" \
+    "Self is not allowed in #program" "ProgramModeMisuseError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_var_syntax.tc" \
     "non-static value declaration is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/errors/static/param_shadow_nested.tc" \
