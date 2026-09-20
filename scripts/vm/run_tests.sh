@@ -2668,6 +2668,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/condition_ptr_type_mismatch.tc"
     "pointer operand type does not match" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/const_cast_literal_out_of_range.tc" \
     "literal out of range for context type" "LiteralOutOfRange"
+run_expect_check_fail "$ROOT/tests/errors/static/goto_label_child_vs_sibling.tc" \
+    "cannot jump into inner block" "JumpIntoBlockError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

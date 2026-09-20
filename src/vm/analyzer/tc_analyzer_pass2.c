@@ -73,6 +73,7 @@ static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, con
                                                  int func_id, const TcBlockPath *goto_path) {
     const TcLabelEntry *best_same = NULL;
     const TcLabelEntry *best_ancestor = NULL;
+    const TcLabelEntry *best_child = NULL;
     const TcLabelEntry *any = NULL;
     size_t i = 0;
 
@@ -92,6 +93,18 @@ static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, con
             if (!best_ancestor || entry->block_depth > best_ancestor->block_depth) {
                 best_ancestor = entry;
             }
+        } else if (entry->block_depth > goto_path->depth &&
+                   tc_paths_equal_prefix(goto_path->path, entry->block_path,
+                                         goto_path->depth)) {
+            /*
+             * B-25：label 在 goto 的子路径上 → 跳入子块。§7.3.2 的判定次序要求
+             * 「跳入子作用域」（步骤 4）优先于「互斥分支」（步骤 5）：当同一函数内
+             * 不同块出现同名标签（兄弟块允许同名）时，不能因标签表顺序先遇到兄弟块
+             * 标签就报 JUMP_INCOMPATIBLE_BLOCK。
+             */
+            if (!best_child) {
+                best_child = entry;
+            }
         }
     }
     if (best_same) {
@@ -99,6 +112,9 @@ static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, con
     }
     if (best_ancestor) {
         return best_ancestor;
+    }
+    if (best_child) {
+        return best_child;
     }
     return any;
 }

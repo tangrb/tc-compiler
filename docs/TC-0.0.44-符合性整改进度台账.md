@@ -228,6 +228,7 @@
 | B-22 | `tc_analyzer.c` `tc_check_literal`：字面量**类型**不匹配一律报 `TC_CE_LITERAL_TYPE`（忽略调用点传入的比较/条件类通用码；形参保留但标注未用），越界仍报 `TC_CE_LITERAL_OUT_OF_RANGE`。因 `tc_check_operand` / `tc_check_operand_strict` 是各操作数位置的公共入口，一处修改即覆盖内建运算、比较、I/O、构造器字段、memblock_store 等全部位置。新增 5 份语料（`literal_type_writeln/arith/compare/ctor/memblock_store`），VM check_fail + `LiteralTypeError` 断言；test-map 回填 1068 VM | 审计表：`writeln(int32, 1u)`、`add(int32, 1u, 1)`、`eq(int32, x, 1.5)`、`S(a: true)`、`memblock_store(int32, m, 0, 1.5)` 由 `TypeMismatch`/`ComparisonTypeMismatch` 全部变为 `LiteralTypeError`；`var a: int32 = 1u` 仍为 `LiteralTypeError`（对照正确）；全量三层与 5 项门禁通过 |
 | B-23 | `tc_analyzer_pass2_rhs.c` 新增 `tc_rhs_kind_yields_bool`（比较/逻辑类 RHS 的静态结果类型为 bool）；`tc_check_condition` 仅在「结果类型非 bool」的形态（字面量/操作数/算术/调用等）上把 `TYPE_MISMATCH` 改写为 `TC_CE_CONDITION_TYPE`，结果类型本就是 bool 的比较类内部失败（如跨类型指针比较）保留其专用码。新增 `tests/errors/static/condition_ptr_type_mismatch.tc`，VM check_fail + TypeMismatch；test-map 回填 1069 VM | `if ptr_lt(int32, p, q)`（`ptr<int32>` vs `ptr<uint8>`）由 `ConditionTypeError` 变为 `TypeMismatch`，与 `var b: bool = ptr_lt(…)` 位置一致（§7.1.1 + 附录 B.11）；`if x then`（x: int32）仍报 `ConditionTypeError`（`if condition must be bool`）；全量三层与 5 项门禁通过 |
 | B-24 | `tc_const_eval.c` 常量 `cast` 的字面量源检查改用 `tc_check_literal(..., TC_CE_LITERAL_TYPE)`（原为 `tc_literal_fits_context` + `TC_CE_CONSTANT_EXPRESSION`），使越界字面量报 `TC_CE_LITERAL_OUT_OF_RANGE`（§6.6.1.1 / §5.2.1 第 2 步 / 附录 B.6）。新增 `tests/errors/static/const_cast_literal_out_of_range.tc`，VM check_fail + LiteralOutOfRange；test-map 回填 1070 VM | `let a: uint64 = cast(uint64, 18446744073709551615)` 由 `ConstantExpressionError` 变为 `LiteralOutOfRange`，与 `var` 形式的同一表达式一致；不带 `cast` 的 `var a: uint64 = 18446744073709551615` 仍按上下文定型接受；全量三层与 5 项门禁通过 |
+| B-25 | `tc_analyzer_pass2.c` `tc_resolve_goto_label` 增 `best_child` 候选：label 深度大于 goto 且 goto 路径是其前缀（跳入子块）时单列，返回次序改为 同级 → 祖先 → **子块** → 兜底 `any`。构造等价复现（§7.3.2 步骤 4 先于步骤 5）：同一函数内经兄弟块重名标签，子块标签先注册、兄弟块标签后注册，原实现因表序取 `any` 报 `JumpIncompatibleBlockError`。新增 `tests/errors/static/goto_label_child_vs_sibling.tc`（VM check_fail + JumpIntoBlockError）；test-map 回填 1071 VM | 复现构造由 `JumpIncompatibleBlockError` 变为 `JumpIntoBlockError`；兄弟块标签独存时仍报 `JumpIncompatibleBlockError`；同级/祖先标签与既有 goto 语料全部不受影响；全量三层与 5 项门禁通过。注：审计标注本条为分代理结论、未逐字复现，本轮已构造等价复现并修正 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -284,7 +285,8 @@
 | 35 | 阶段 2-§2.6.2 严格同型比较 | `f1ecca3 fix(0.0.44-2.6.2): compare full operand types, not just tags` |
 | 36 | 阶段 2-B22 字面量类型专用码优先 | `3807ee2 fix(0.0.44-B22): report LITERAL_TYPE in every literal position` |
 | 37 | 阶段 2-B23 条件位置保留具体码 | `f073c9d fix(0.0.44-B23): keep specific codes inside conditions` |
-| 38 | 阶段 2-B24 常量 cast 字面量错码 | 本提交 `fix(0.0.44-B24): report literal codes for constant cast literals` |
+| 38 | 阶段 2-B24 常量 cast 字面量错码 | `c05f4b1 fix(0.0.44-B24): report literal codes for constant cast literals` |
+| 39 | 阶段 2-B25 goto 标签判定次序 | 本提交 `fix(0.0.44-B25): prefer jumping into a child block over sibling mismatch` |
 
 ---
 

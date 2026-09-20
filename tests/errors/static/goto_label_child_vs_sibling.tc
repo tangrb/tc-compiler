@@ -1,0 +1,15 @@
+#lib
+; §7.3.2 步骤 4（跳入子作用域）优先于步骤 5（互斥分支）：
+; 同名标签分别位于子块与兄弟块时，必须报 JumpIntoBlockError
+public func f(c: bool) void then
+    if c then
+        goto L
+        if c then
+            label L:
+        end
+    end
+    if c then
+        label L:
+    end
+    return
+end
