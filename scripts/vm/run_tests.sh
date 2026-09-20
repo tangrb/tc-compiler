@@ -2272,7 +2272,12 @@ run_expect_check_fail "$ROOT/tests/errors/static/if_missing_end_stmt.tc" "missin
 run_expect_fail_msg "$ROOT/tests/errors/static/while_missing_end.tc" "missing end for while statement"
 run_expect_check_fail "$ROOT/tests/errors/static/while_missing_end.tc" "missing end for while statement"
 run_expect_fail_msg "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
-run_expect_check_fail "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
+run_expect_check_fail "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer" "VarMissingInitializer"
+# B-17：`#lib` 的 static var 缺初始化器同码同定位（不得降级为 SyntaxError）
+run_expect_fail_msg "$ROOT/tests/errors/static/static_var_missing_initializer.tc" \
+    "variable definition requires initializer"
+run_expect_check_fail "$ROOT/tests/errors/static/static_var_missing_initializer.tc" \
+    "variable definition requires initializer" "VarMissingInitializer"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_insufficient_nested.tc" "insufficient indentation in block"

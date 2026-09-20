@@ -10,6 +10,7 @@
 
 #include "tc_diagnostic.h"
 #include "tc_lexer.h"
+#include "tc_parser_stmt.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -68,6 +69,74 @@ static void test_parse_var_requires_initializer(void) {
               "var missing initializer uses dedicated error kind");
         check(strcmp(tc_error_kind_name(diag.kind), "VarMissingInitializer") == 0,
               "var missing initializer print name");
+        tc_statement_free(&stmt);
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
+}
+
+/**
+ * B-17：`#lib` 的 `static var` 缺 `=`/初始化器同样须报
+ * TC_CE_VAR_MISSING_INIT（结构类语法阶段诊断），不得降级为 TC_CE_SYNTAX；
+ * `static let` 缺初始化器仍是常量定义的语法错误。
+ */
+static void test_parse_static_var_requires_initializer(void) {
+    static const char *cases[] = {
+        "public static var V: int32",
+        "private static var V: int32 =",
+    };
+    size_t i = 0;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TcTokenList tokens;
+        TcStatement stmt;
+        TcParserCtx ctx;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_token_list_init(&tokens);
+        memset(&ctx, 0, sizeof(ctx));
+        memset(&stmt, 0, sizeof(stmt));
+        check(tc_tokenize_line(cases[i], (int)i + 1, &tokens, &diag) == 0,
+              "tokenize static var missing initializer");
+        {
+            size_t index = 1; /* 跳过 public / private 修饰符 */
+
+            check(tc_parse_static_def(&ctx, &tokens, &index, (int)i + 1, TC_MODULE_LIB,
+                                      i == 0 ? TC_VIS_PUBLIC : TC_VIS_PRIVATE, &stmt,
+                                      &diag) != 0,
+                  "static var missing initializer fails in parser");
+        }
+        check(diag.kind == TC_CE_VAR_MISSING_INIT,
+              "static var missing initializer uses dedicated error kind");
+        check(strcmp(tc_error_kind_name(diag.kind), "VarMissingInitializer") == 0,
+              "static var missing initializer print name");
+        tc_statement_free(&stmt);
+        tc_token_list_free(&tokens);
+        tc_diagnostic_clear(&diag);
+    }
+
+    {
+        TcTokenList tokens;
+        TcStatement stmt;
+        TcParserCtx ctx;
+        TcDiagnostic diag;
+
+        tc_diagnostic_init(&diag);
+        tc_token_list_init(&tokens);
+        memset(&ctx, 0, sizeof(ctx));
+        memset(&stmt, 0, sizeof(stmt));
+        check(tc_tokenize_line("public static let K: int32", 1, &tokens, &diag) == 0,
+              "tokenize static let missing initializer");
+        {
+            size_t index = 1; /* 跳过 public */
+
+            check(tc_parse_static_def(&ctx, &tokens, &index, 1, TC_MODULE_LIB, TC_VIS_PUBLIC,
+                                      &stmt, &diag) != 0,
+                  "static let missing initializer fails in parser");
+        }
+        check(diag.kind == TC_CE_SYNTAX,
+              "static let missing initializer stays a syntax error");
         tc_statement_free(&stmt);
         tc_token_list_free(&tokens);
         tc_diagnostic_clear(&diag);
@@ -786,6 +855,7 @@ int main(void) {
     test_parse_mode_keyword_codes();
     test_parse_var_def();
     test_parse_var_requires_initializer();
+    test_parse_static_var_requires_initializer();
     test_parse_let_const();
     test_parse_write();
     test_parse_goto();

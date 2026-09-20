@@ -113,6 +113,7 @@ int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens, size_
     char *struct_name = NULL;
     TcType full_type;
     TcRhs rhs;
+    int name_column = 0;
 
     (*index)++;
 
@@ -125,6 +126,7 @@ int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens, size_
         if (!name) {
             return -1;
         }
+        name_column = name_tok->column;
         (*index)++;
     }
 
@@ -148,7 +150,8 @@ int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens, size_
                 free(struct_name);
                 tc_type_free(&full_type);
                 if (!is_const) {
-                    tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, maybe_eq->column,
+                    /* 编译器标准 §1.4 位置表：TC_CE_VAR_MISSING_INIT 定位到该 var 的标识符 */
+                    tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, name_column,
                                       "variable definition requires initializer");
                     return -1;
                 }
@@ -187,7 +190,7 @@ int tc_parse_var_or_const_def(TcParserCtx *ctx, const TcTokenList *tokens, size_
                 return tc_syntax_error(diag, line_no, maybe_eq->column,
                                        "constant definition requires initializer");
             }
-            tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, maybe_eq->column,
+            tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, name_column,
                               "variable definition requires initializer");
             return -1;
         }
@@ -223,6 +226,7 @@ int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *ind
                                int line_no, TcModuleMode mode, TcVisibility vis,
                                TcStatement *out, TcDiagnostic *diag) {
     int is_const = 0;
+    int name_column = 0;
     char *name = NULL;
     char *struct_name = NULL;
     TcType full_type;
@@ -261,6 +265,7 @@ int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *ind
         if (!name) {
             return -1;
         }
+        name_column = name_tok->column;
         (*index)++;
     }
 
@@ -272,11 +277,46 @@ int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *ind
         free(name);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_EQUAL, line_no, diag) != 0) {
-        free(name);
-        free(struct_name);
-        tc_type_free(&full_type);
-        return -1;
+    {
+        /*
+         * B-17：`#lib` 的 `public static var V: int32`（缺 `=` 与初始化器）属
+         * 结构类语法阶段诊断，须报 TC_CE_VAR_MISSING_INIT，不得降级为笼统
+         * TC_CE_SYNTAX（语言标准 §1.3、编译器标准 §4.6/§5.1）。`static let`
+         * 与 `#program` 的 `let` 一致，保持「常量定义必须初始化」的语法错误。
+         * 位置按编译器标准 §1.4 位置表取该声明的标识符。
+         */
+        const TcToken *maybe_eq = tc_peek(tokens, *index);
+
+        if (maybe_eq->kind != TC_TOK_EQUAL) {
+            free(name);
+            free(struct_name);
+            tc_type_free(&full_type);
+            if (is_const) {
+                return tc_syntax_error(diag, line_no, maybe_eq->column,
+                                       "constant definition requires initializer");
+            }
+            tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, name_column,
+                              "variable definition requires initializer");
+            return -1;
+        }
+        (*index)++;
+        /* `= ` 后没有初始化器：与缺 `=` 同属结构类语法阶段诊断 */
+        {
+            const TcToken *rhs_tok = tc_peek(tokens, *index);
+
+            if (rhs_tok->kind == TC_TOK_EOF || rhs_tok->kind == TC_TOK_SEMICOLON) {
+                free(name);
+                free(struct_name);
+                tc_type_free(&full_type);
+                if (is_const) {
+                    return tc_syntax_error(diag, line_no, maybe_eq->column,
+                                           "constant definition requires initializer");
+                }
+                tc_diagnostic_set(diag, TC_CE_VAR_MISSING_INIT, line_no, name_column,
+                                  "variable definition requires initializer");
+                return -1;
+            }
+        }
     }
     memset(&rhs, 0, sizeof(rhs));
     if (is_const) {
