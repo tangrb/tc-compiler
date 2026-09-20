@@ -274,6 +274,18 @@
 | B-61 | **实现零改动**（现状即裁决口径）：标准 §7.1.1 与 §7.2.1 的「条件」行补「次序」——RHS 自身的类型与字面量检查先于 `TC_CE_CONDITION_TYPE`：直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（`TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 类型成立但不是 `bool` 时才报 `CONDITION_TYPE`。§11 第 3 条例子补 `TC_CE_LITERAL_TYPE` 优先于 `TC_CE_CONDITION_TYPE`；附录 B.11 该码行补同口径括注。用例：新增 `if_cond_literal_direct.tc`（`if 1 then` → `LiteralTypeError`）与 `cond_var_not_bool.tc`（`var x: int32` 条件 → `ConditionTypeError`），并给既有 `if_cond_type_literal` / `if_cond_type_arith` / `while_cond_type_arith` 的 VM 注册补错误码断言；test-map 回填 1152 VM / 526 AOT | 实测四类同码一致：`if 1 then` / `if 1.5 then` / `if 1u then` → `LiteralTypeError`；`var x: int32` 或返回 `int32` 的运算调用（`if add(int32,1,2) then` / `while lt(...)`）→ `ConditionTypeError`；`if eq(int32, true, false) then` → `LiteralTypeError`（调用内字面量）；跨类型指针比较条件 → `TypeMismatch`（B-23 已裁）；与 B-23「条件 RHS 专用码不得被 CONDITION_TYPE 覆盖」的既有结论同一口径；全量三层与 5 项门禁通过 |
 | B-63 | 实现：`tc_parser.c` 的 `tc_parse_module_body` 逐行判 `line->indent != 0` → `TC_CE_INDENT_INSUFFICIENT`（"top-level lines must not be indented"），`tc_parse_module_header` 同判模块指令行本身；该循环覆盖 `#program` 的 import/类型/声明/顶层语句与 `#lib` 的 import/类型/static/func 全部顶层区域（`#program`/`#lib` 的块体行由各自块解析器消费，不经过本循环）。标准附录 A.2 缩进规则段补「顶层缩进」：指令行与顶层 `import`/类型/声明/`static`/`func`/顶层语句缩进级别必须为 0（顶层产生式不消费 `INDENT`，只有 `suite` 消费），空行与纯注释行的行首空白不参与本检查。语料：新增 `toplevel_indent_{program,lib,after_end,header}.tc`（VM 断言消息＋`IndentInsufficientError`、AOT `run_check_fail`）；既有 `indent_else_mismatch.tc` 因原先借助顶层缩进而重构为「内层 if 的 else 更浅」形态（保持原期望消息）；test-map 回填 1156 VM / 530 AOT | 审计三例（`#program` 后缩进语句、`#lib` 顶层缩进、`end` 后缩进语句）与新增的指令行缩进例，由 rc=0 且正常执行变为 `IndentInsufficientError: top-level lines must not be indented`（rc=1，两后端一致）；语料扫描显示既有 `.tc` 中仅 `indent_else_mismatch.tc` 受影响（已重构）；`indent_insufficient_*` / `indent_two_spaces` / `indent_mixed_*` / `indent_multi_level_jump` 等块内缩进负例行为不变；块内合法缩进与空行/注释行不受影响；全量三层与 5 项门禁通过 |
 
+### 阶段 4 文档同步记录（A-1～A-4 与 B-41/B-61/B-63 回填其它文档）
+
+| 顺序 | 文档 | 同步内容 | 提交 |
+| ---- | ---- | -------- | ---- |
+| 1 | `TC编译器标准设计说明书-0.0.44.md` | §11.4 码表：`INDENT_INSUFFICIENT` 补顶层行缩进并排除 `else`/`end` 对不齐、`INDENT_ELSE_END` 补「过深或过浅」、`CONDITION_TYPE` 补「RHS 专用码先报」；§1.3「规则优先」补两个专用码优先例子；§5.2.1 前文补 `nullptr` 不参与 `bitcast` 注记；§1.5 同步状态表补 7 行 | `529105d` |
+| 2 | `TC-VM详细设计说明书-0.0.44.md` | §13 bitcast 能力行删除过期「标准未明确的实现行为」改为 A-4 裁决；§12.7 补 `ptr_*` 非 `operand` 总则；§4.2 补顶层行 0 级与 `else`/`end` 深浅两条；§15.4 阶段 6 行补 `LiteralType`/`LiteralOutOfRange`（上下文）/`ConditionType`/`MemcopyUnsafeInvalidRange`；§1.5 同步表补 7 行 | `7cb6277` |
+| 3 | `TC-AOT详细设计说明书-0.0.44.md` | §11.3 memcopy shim 补「编译期可确定负值已由共享 Analyzer 静态拒绝，不到达 shim」；§1.4 同步表补 7 行（标注共享 Analyzer） | `d9dfb2a` |
+| 4 | `TC-VM命令行参考-0.0.44.md` | §6 码表四行口径（`LiteralOutOfRange` 两路径、`IndentInsufficientError` 含顶层缩进、`IndentElseEndError` 深浅、`ConditionTypeError` 专用码优先）；§9.2 同步表补 7 行 | `8868631` |
+| — | `libtc设计说明书` / `TC-Embed详细设计说明书` | 复核后**无需改动**：七项裁决涉及的 `memcopy_unsafe`、`bitcast`×`nullptr`、`CONDITION_TYPE`、`INDENT_*` 与 `ptr_*`(`operand`) 在两份文档中均无规范性声明 | — |
+
+> 每份文档改完均跑 5 项同步门禁（全部 rc=0）；这批为纯文档改动，不改动 `src/` 与用例，故未新增注册行（规模仍为 1156 VM / 530 AOT）。
+
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 
 > 七项裁决与落地明细见上「阶段 3 逐条记录」，**本轮无待裁决项**。
@@ -363,7 +375,12 @@
 | 75 | 阶段 3-A4 nullptr 不参与 bitcast | `e28b13a fix(0.0.44-A4): reject nullptr as a bitcast source` |
 | 76 | 阶段 3-B41 else/end 不对齐一律 ELSE_END | `4af1108 fix(0.0.44-B41): report ELSE_END for any else/end misalignment` |
 | 77 | 阶段 3-B61 专用码优先于 CONDITION_TYPE | `b007a42 docs(0.0.44-B61): specific codes precede CONDITION_TYPE` |
-| 78 | 阶段 3-B63 顶层缩进判非法 | 本提交 `fix(0.0.44-B63): reject top-level indentation` |
+| 78 | 阶段 3-B63 顶层缩进判非法 | `4ac5615 fix(0.0.44-B63): reject top-level indentation` |
+| 79 | 阶段 4-① 编译器标准同步七项裁决 | `529105d docs(0.0.44): sync compiler spec with the A/B adjudications` |
+| 80 | 阶段 4-② VM 详设同步七项裁决 | `7cb6277 docs(0.0.44): sync VM design spec with the A/B adjudications` |
+| 81 | 阶段 4-③ AOT 详设同步七项裁决 | `d9dfb2a docs(0.0.44): sync AOT design spec with the A/B adjudications` |
+| 82 | 阶段 4-④ CLI 参考同步七项裁决 | `8868631 docs(0.0.44): sync CLI reference with the A/B adjudications` |
+| 83 | 阶段 4 台账回填 | 本提交 `docs(0.0.44): record the design-doc sync of the adjudications` |
 
 ---
 
