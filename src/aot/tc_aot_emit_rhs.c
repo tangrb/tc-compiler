@@ -509,7 +509,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_PTR_LOAD) {
-        fprintf(out, "%sif (tc_aot_ptr_load(slots, ", indent);
+        /* B-57：容量随调用传入，运行时据此拒绝越界的伪造槽编码 */
+        fprintf(out, "%sif (tc_aot_ptr_load(slots, TC_AOT_SLOT_CAPACITY, ", indent);
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_load.ptr, TC_PTR, ctx, stmt_index);
         /* B-55：把 pointee 类型传给运行时，bool 结果在此规范化到 {0,1} */
         fprintf(out, ", %s, &%s, tc_aot_cur_diag, %d) != 0)\n",
@@ -526,9 +527,11 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         fprintf(out, "%s    _off = ", indent);
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_arith.offset, TC_USIZE, ctx, stmt_index);
         fprintf(out, ";\n");
-        fprintf(out, "%s    if (tc_aot_ptr_arith(%d, ", indent, is_add);
+        /* B-57：偏移按 usize（uint64_t）传入，运行时用无符号运算 + 容量上界判定，
+         * 与 VM tc_exec_ptr_arith 完全一致（不再缩窄到 int64_t）。 */
+        fprintf(out, "%s    if (tc_aot_ptr_arith(TC_AOT_SLOT_CAPACITY, %d, ", indent, is_add);
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_arith.ptr, TC_PTR, ctx, stmt_index);
-        fprintf(out, ", (int64_t)_off, &%s, tc_aot_cur_diag, %d) != 0)\n", dst_expr, line);
+        fprintf(out, ", _off, &%s, tc_aot_cur_diag, %d) != 0)\n", dst_expr, line);
         fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
         fprintf(out, "%s}\n", indent);
         return 0;

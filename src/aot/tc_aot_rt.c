@@ -337,8 +337,17 @@ uint64_t tc_aot_ptr_address(int slot) {
     return ((uint64_t)slot << 1) | TC_AOT_PTR_TAG;
 }
 
-int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, TcTypeTag load_type, uint64_t *out,
-                    TcDiagnostic *diag, int line) {
+/*
+ * B-57：槽位索引上界。
+ *
+ * 语言标准 §1.3 要求「零未定义行为」且单个实现每次运行确定。指针的槽位编码是
+ * 实现定义行为，宿主可用 `bitcast(ptr<T>, <usize>)` 伪造任意编码；解码结果必须
+ * 落在 `slots[]` 数组内，否则就是越界读写（此前 AOT 侧静默读任意内存且逐次
+ * 结果不同）。这里的容量由调用方（生成的 C）以 TC_AOT_SLOT_CAPACITY 传入，
+ * 与 VM 侧 ctx->slot_capacity 的口径一致。
+ */
+int tc_aot_ptr_load(uint64_t *slots, size_t slot_capacity, uint64_t ptr_bits,
+                    TcTypeTag load_type, uint64_t *out, TcDiagnostic *diag, int line) {
     int slot = 0;
 
     if (ptr_bits == 0) {
@@ -346,7 +355,8 @@ int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, TcTypeTag load_type, uin
                           "null pointer dereference");
         return -1;
     }
-    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0) {
+    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0 ||
+        (size_t)slot >= slot_capacity) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
@@ -363,8 +373,8 @@ int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, TcTypeTag load_type, uin
     return 0;
 }
 
-int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
-                     TcTypeTag store_type, TcDiagnostic *diag, int line) {
+int tc_aot_ptr_store(uint64_t *slots, size_t slot_capacity, uint64_t ptr_bits,
+                     uint64_t value_bits, TcTypeTag store_type, TcDiagnostic *diag, int line) {
     int slot = 0;
 
     if (ptr_bits == 0) {
@@ -372,7 +382,8 @@ int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
                           "null pointer dereference");
         return -1;
     }
-    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0) {
+    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || !slots || slot < 0 ||
+        (size_t)slot >= slot_capacity) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;
@@ -384,22 +395,33 @@ int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
     return 0;
 }
 
-int tc_aot_ptr_arith(int is_add, uint64_t ptr_bits, int64_t offset, uint64_t *out,
-                     TcDiagnostic *diag, int line) {
+int tc_aot_ptr_arith(size_t slot_capacity, int is_add, uint64_t ptr_bits, uint64_t offset,
+                     uint64_t *out, TcDiagnostic *diag, int line) {
     int slot = 0;
-    int64_t new_slot = 0;
+    uint64_t new_slot = 0;
 
     if (ptr_bits == 0) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
                           "null pointer arithmetic");
         return -1;
     }
-    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0) {
+    if (tc_aot_ptr_decode(ptr_bits, &slot) != 0 || (size_t)slot >= slot_capacity) {
+        /* 与 VM tc_exec_ptr_arith 一致：非法编码（含越界槽位）按空指针算术处理 */
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
                           "null pointer arithmetic");
         return -1;
     }
-    new_slot = is_add ? (int64_t)slot + offset : (int64_t)slot - offset;
+    /*
+     * B-49 / B-57：按 §6.8.5 的 usize 语义用**无符号**运算完成（偏移可达 2^64-1，
+     * 转 int64_t 会有符号溢出 UB），结果越过槽位容量时按「非法指针值」报错，
+     * 而不是回绕/截断成可能指向合法槽位的编码。
+     */
+    new_slot = is_add ? (uint64_t)slot + offset : (uint64_t)slot - offset;
+    if (new_slot >= slot_capacity) {
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
+                          "null pointer arithmetic");
+        return -1;
+    }
     *out = tc_aot_ptr_address((int)new_slot);
     return 0;
 }
@@ -637,10 +659,11 @@ int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index
     return 0;
 }
 
-int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
-                           TcTypeTag dst_idx_type, uint64_t src_ptr, uint64_t src_index,
-                           TcTypeTag src_idx_type, int64_t length, size_t element_bytes,
-                           TcTypeTag elem_tag, TcDiagnostic *diag, int line) {
+int tc_aot_memcopy_unsafe(uint64_t *slots, size_t slot_capacity, uint64_t dst_ptr,
+                           uint64_t dst_index, TcTypeTag dst_idx_type, uint64_t src_ptr,
+                           uint64_t src_index, TcTypeTag src_idx_type, int64_t length,
+                           size_t element_bytes, TcTypeTag elem_tag, TcDiagnostic *diag,
+                           int line) {
     int dst_slot = 0;
     int src_slot = 0;
     uint8_t *dst_block = NULL;
@@ -655,8 +678,10 @@ int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
                           "null pointer dereference");
         return -1;
     }
+    /* B-57：伪造编码的槽索引须校验上界，避免越界读写（§1.3 零 UB） */
     if (tc_aot_ptr_decode(dst_ptr, &dst_slot) != 0 ||
-        tc_aot_ptr_decode(src_ptr, &src_slot) != 0 || !slots || dst_slot < 0 || src_slot < 0) {
+        tc_aot_ptr_decode(src_ptr, &src_slot) != 0 || !slots || dst_slot < 0 || src_slot < 0 ||
+        (size_t)dst_slot >= slot_capacity || (size_t)src_slot >= slot_capacity) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
         return -1;

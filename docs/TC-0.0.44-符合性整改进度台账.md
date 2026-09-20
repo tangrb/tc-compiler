@@ -168,7 +168,7 @@
 
 | 条目 | 主题 | 状态 | 提交 |
 | ---- | ---- | ---- | ---- |
-| B-57 | AOT 侧伪造指针非确定读 | ☐ | |
+| B-57 | AOT 侧伪造指针非确定读 | ☑ | |
 | B-58 | `memblock_copy` 空拷贝 dst 侧漏检 | ☑（含运行期分支覆盖补强） | |
 | B-59 | 常量负 dst 下标无静态检查 | ☑（B-21 闭合） | |
 | B-60 | 格式越界且 Token >32 字节被降级 | ☑（B-27 闭合） | |
@@ -255,6 +255,7 @@
 | B-53 | `tc_io.c` `tc_io_write_formatted`：整数/布尔格式化的 `digits` 由固定 `char digits[80]` 改为「内建 80 字节 + 精度超出时按 `precision + 1` 堆分配」的缓冲，容量随精度增长；所有 `tc_io_prec_pad`/`tc_io_u64_to_base` 调用改用实际容量，新增 `done:` 统一释放路径（含各早退分支），使 §10.4 允许的精度 0～65535 不再被内建缓冲上限降级为 `TC_RE_IO`。新增 `tests/valid/format_precision_over_buffer.tc`（`%.80d`/`%.200d`/`%.1000d`/`%.79d`，VM stdout + AOT diff）与 `tests/valid/format_precision_max.tc`（`%.65535d` 仅 `--check`，对齐既有 `format_width_max`，避免 6 万余字符黄金输出）；test-map 回填 1118 VM / 489 AOT | 审计复现：`writeln(int32, %.80d, a)` 由 `error [IOError]: output failed`（rc=1）变为正常输出 79 个 `0` 后跟 `7`（rc=0）；`.200d`/`.1000d`（含负号）同样正常且 VM 与 AOT 输出逐字节一致；边界对照 `%.79d`（内建缓冲内）输出不变；`%.65535d` 两后端 `--check` 均 rc=0，超过 65535 仍由词法/静态阶段拒绝（B-27/B-36 口径不变）；全量三层与 5 项门禁通过 |
 | B-54 | 无需新增 src 改动：B-56（`tc_analyzer.c` 依赖 Pass2 循环为每个 dep 现场构建成员索引并切换 `func_env.members`/`module_index`）已同时修复「裸名撞本库成员 → `TC_CE_FUNCTION_SCOPE_ACCESS` 按**当前被分析模块**判定」。本轮补足依赖侧回归覆盖：新增 `tests/modules/bare_scope_neg/` 六组「`#lib` ＋ `#program` import」对照语料，覆盖 §8.4.1 列举的全部裸名形态（RHS 读 / 赋值目标 / 输出操作数 / `return` / 条件 / `let` 初始化器），VM 用 `run_expect_check_fail` 断言行文本与错误码名，AOT 用 `run_check_fail` 断言同一诊断（库内诊断定位仍指向库自身文件）；test-map 回填 1124 VM / 495 AOT | 审计复现（同一 `#lib` 源文本作入口 vs 被 `#program` 导入）六形态实测：两路径均报 `FunctionScopeAccessError` 且消息一致（`function scope access: use Self.C`），此前依赖路径报 `UndefinedFunction`/`UndefinedVariable`；入口侧既有 `tests/errors/static/self_bare_*.tc` 断言不变；全量三层与 5 项门禁通过 |
 | B-55 | ①`tc_embed.c` `tc_embed_slot_write` 成功路径同时清 `error_flag` 与 `error_message`（此前只清 flag，`tc_embed_get_error` 返回上次失败的旧消息）；`tc_embed.h` 与 `TC-Embed详细设计说明书-0.0.44.md` §10.2 同步该契约（`tc_embed_slot_read` 为只读接口不改错误状态）。②`src/aot/main.c` `tc_aot_run_generated` 的 POSIX 分支用 `WIFEXITED`/`WEXITSTATUS`（信号 → 128+`WTERMSIG`）拆出真实退出码，不再把 `system()` 的 wait status 当作退出码打印；`scripts/aot/run_tests.sh` 的 `run_runtime_fail` 增加断言：只要生成的宿主可执行文件确已运行，stderr 的 “run failed (exit N)” 必须等于实际子进程退出码（覆盖全部运行时失败语料，防止回到 256）。③`src/libtc/tc_lib.c` `tc_compile_file_opts` 删除死代码 `TcCompileOptions empty_opts`（`memset` 后从未使用，`search` 初值已是 NULL）。④`src/aot/tc_aot_rt.{c,h}` 的 `tc_aot_ptr_load` 增 `TcTypeTag load_type` 形参，pointee 为 `bool` 时按 §3.4/§6.8.2 规范化到 {0,1}（与 `tc_ptr_exec.c` 对称）；`tc_aot_emit_rhs.c` 发射调用时传入 `pointee_type.tag`。新增 unit：`test_embed_slot_out_of_range` 增“成功写清消息”断言、`test_embed_aot.c` 增 `test_aot_ptr_load_bool_type`（直接调用运行时的 6 条断言） | ①unit `test-embed`：越界写后消息非空 → 成功写后 `had_error()==0` 且消息为空；②`tc-aot -r` 对 `div_zero.tc`/`memblock_oob_rt.tc` 的 stderr 由 `run failed (exit 256)` 变为 `run failed (exit 1)`；AOT 全量 554 项通过（含新断言）；③构建无 `-Wunused` 类告警、`--filter` 与全量行为不变；④unit `test-embed-aot`：槽位 2 → bool 读回 1、槽位 0 → 0、`TC_INT32` 读回保持 2，生成 C 中出现 `tc_aot_ptr_load(slots, …, TC_BOOL, …)`；全量三层与 5 项门禁通过 |
+| B-57 | AOT 运行时的指针槽编码容量上界（与 VM 的 `ctx.slot_capacity` 口径对齐）：`tc_aot_codegen.c` 在生成 C 中发 `TC_AOT_SLOT_CAPACITY`（嵌入模式与生成头文件同值，`#ifndef` 保护；无槽位程序也有定值）；`tc_aot_ptr_load`/`tc_aot_ptr_store`/`tc_aot_memcopy_unsafe` 增 `size_t slot_capacity` 形参，解码出的槽号 ≥ 容量即按空指针解引用报 `TC_RE_NULL_POINTER_DEREFERENCE`；`tc_aot_ptr_arith` 增容量形参并把偏移改为 `uint64_t`（不再缩窄 `int64_t`），用无符号运算复刻 `tc_exec_ptr_arith`——解码槽号越界或结果 ≥ 容量均报 `TC_RE_NULL_POINTER_ARITHMETIC`（一并覆盖 B-49 遗留的 AOT 同源有符号运算）。发射端（`tc_aot_emit_rhs.c` / `tc_aot_emit_stmt.c`）随调用传容量；unit 增 `test_aot_ptr_slot_capacity`（load/store/arith 越界同码拒绝 + 容量内成功 + 2^63 偏移不触发有符号溢出）；AOT `run_runtime_fail` 增 4 条既有语料注册（`ptr_forged_slot_oob_{load,store,memcopy}`、`ptr_arith_huge_offset`） | 审计复现（`var p: ptr<int32> = bitcast(ptr<int32>, 0x7FFFFFFD)` + `ptr_load`）：`tc-aot -r` 连续 5 次由「rc=0 且 5 个互不相同的垃圾值（63684056/1208226900/1852140901/1197434691/1634030188）」变为 5 次均 `null pointer dereference` + `run failed (exit 1)`，与 VM 的 `NullPointerDereference` 同码同行；`ptr_forged_slot_oob_{load,store,memcopy}` 与 `ptr_arith_huge_offset` 两后端 stderr 首个诊断逐字一致（`run_runtime_fail` 断言）；容量内 `ptr_add/ptr_load` 行为不变；全量三层与 5 项门禁通过 |
 
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
@@ -338,7 +339,8 @@
 | 61 | 阶段 2-B53 整数格式化精度上限 | `69d81da fix(0.0.44-B53): size the integer format buffer by precision` |
 | 62 | 阶段 2-B54 依赖模块裸名引用错码一致性 | `ac8d01d test(0.0.44-B54): cover bare member access inside imported libraries` |
 | 63 | 阶段 2-B55 embed/工具链四项细节 | `f694d25 fix(0.0.44-B55): embed error state, run exit status, dead code, AOT bool load` |
-| 64 | 阶段 2-B58 运行期 dst 侧分支覆盖补强 | 本提交 `test(0.0.44-B58): exercise the runtime dst-side empty-copy bound` |
+| 64 | 阶段 2-B58 运行期 dst 侧分支覆盖补强 | `b88d249 test(0.0.44-B58): exercise the runtime dst-side empty-copy bound` |
+| 65 | 阶段 2-B57 AOT 伪造指针容量上界 | 本提交 `fix(0.0.44-B57): bound AOT pointer slot indices by capacity` |
 
 ---
 

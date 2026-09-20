@@ -744,13 +744,26 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     }
     fputc('\n', out);
 
-    if (slot_count > 0 || embed_mode) {
+    {
         /* B-19：嵌入模式须容纳临时槽位区（与生成头文件声明一致）；独立程序
-         * （非 embed）不使用临时区，按声明槽位数定长即可。 */
-        size_t count = embed_mode ? tc_embed_slot_capacity_of(slot_count)
-                                  : (slot_count > 0 ? slot_count : 1);
-        const char *qual = embed_mode ? "" : "static ";
-        fprintf(out, "%suint64_t slots[%zu];\n\n", qual, count);
+         * （非 embed）不使用临时区，按声明槽位数定长即可。
+         * 无槽位的程序（如只用字面量构造指针）仍要为容量宏给出定值。 */
+        size_t capacity = embed_mode ? tc_embed_slot_capacity_of(slot_count)
+                                     : (slot_count > 0 ? slot_count : 1);
+
+        if (slot_count > 0 || embed_mode) {
+            const char *qual = embed_mode ? "" : "static ";
+            fprintf(out, "%suint64_t slots[%zu];\n\n", qual, capacity);
+        }
+        /*
+         * B-57：指针的槽位编码属实现定义行为（宿主可 `bitcast(ptr<T>, <usize>)`
+         * 伪造）。运行时函数按本容量校验解码出的槽索引，越界即按空指针（算术）
+         * 处理，避免越界读写 slots[]（§1.3 零 UB 与单实现确定性）。
+         * 嵌入模式头文件已定义同名宏，故加 #ifndef 保护。
+         */
+        fprintf(out,
+                "#ifndef TC_AOT_SLOT_CAPACITY\n#define TC_AOT_SLOT_CAPACITY %zu\n#endif\n\n",
+                capacity);
     }
 
     if (embed_mode) {

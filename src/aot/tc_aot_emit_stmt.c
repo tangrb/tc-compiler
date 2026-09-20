@@ -254,7 +254,9 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
                                        abort_indent, ctx, stmt_index) != 0) {
             return -1;
         }
-        fprintf(out, "%s    if (tc_aot_ptr_store(slots, _ptr, _val, %s, tc_aot_cur_diag, %d) != 0)\n",
+        fprintf(out,
+                "%s    if (tc_aot_ptr_store(slots, TC_AOT_SLOT_CAPACITY, _ptr, _val, %s, "
+                "tc_aot_cur_diag, %d) != 0)\n",
                 abort_indent, tc_aot_type_enum(store->pointee_type.tag), store->line);
         fprintf(out, "%s        tc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, store->line);
         fprintf(out, "%s}\n", indent);
@@ -358,8 +360,8 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             return -1;
         }
         fprintf(out,
-                "%s    if (tc_aot_memcopy_unsafe(slots, _dptr, _d_idx, %s, _sptr, _s_idx, %s, "
-                "_len, %zu, %s, tc_aot_cur_diag, %d) != 0)\n",
+                "%s    if (tc_aot_memcopy_unsafe(slots, TC_AOT_SLOT_CAPACITY, _dptr, _d_idx, %s, "
+                "_sptr, _s_idx, %s, _len, %zu, %s, tc_aot_cur_diag, %d) != 0)\n",
                 abort_indent, tc_aot_type_enum(tc_aot_memcopy_index_type(&mc->dst_index, ctx,
                                                                         stmt_index)),
                 tc_aot_type_enum(tc_aot_memcopy_index_type(&mc->src_index, ctx, stmt_index)),

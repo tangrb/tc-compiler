@@ -1430,21 +1430,77 @@ static void test_aot_ptr_load_bool_type(void) {
     slots[0] = 0;
     slots[1] = UINT64_C(2);
 
-    check(tc_aot_ptr_load(slots, tc_aot_ptr_address(1), TC_BOOL, &out, &diag, 1) == 0,
+    check(tc_aot_ptr_load(slots, 2, tc_aot_ptr_address(1), TC_BOOL, &out, &diag, 1) == 0,
           "aot ptr_load bool: rc");
     check(out == UINT64_C(1), "aot ptr_load bool: 0x02 normalized to 1");
 
     slots[1] = 0;
     out = 9;
-    check(tc_aot_ptr_load(slots, tc_aot_ptr_address(1), TC_BOOL, &out, &diag, 2) == 0,
+    check(tc_aot_ptr_load(slots, 2, tc_aot_ptr_address(1), TC_BOOL, &out, &diag, 2) == 0,
           "aot ptr_load bool zero: rc");
     check(out == 0, "aot ptr_load bool: 0x00 stays 0");
 
     slots[1] = UINT64_C(2);
     out = 0;
-    check(tc_aot_ptr_load(slots, tc_aot_ptr_address(1), TC_INT32, &out, &diag, 3) == 0,
+    check(tc_aot_ptr_load(slots, 2, tc_aot_ptr_address(1), TC_INT32, &out, &diag, 3) == 0,
           "aot ptr_load int32: rc");
     check(out == UINT64_C(2), "aot ptr_load int32: bits unchanged");
+
+    tc_diagnostic_clear(&diag);
+}
+
+/*
+ * B-57：AOT 运行时对伪造槽编码的容量上界校验。
+ *
+ * §1.3 要求零 UB 与单实现确定性——宿主可用 `bitcast(ptr<T>, <usize>)` 伪造任意
+ * 槽编码，解码结果越过 slots[] 容量时必须按空指针（算术）拒绝，而不是越界读写
+ * 任意内存（此前 AOT 侧静默读到逐次不同的垃圾值）。此处直接调用运行时函数，
+ * 断言 load / store / arith 三条路径同码拒绝，且容量内的合法槽位不受影响。
+ */
+static void test_aot_ptr_slot_capacity(void) {
+    uint64_t slots[4];
+    uint64_t out = 0;
+    TcDiagnostic diag;
+
+    tc_diagnostic_init(&diag);
+    slots[0] = 0;
+    slots[1] = UINT64_C(11);
+    slots[2] = 0;
+    slots[3] = 0;
+
+    /* 容量内：load 正常 */
+    check(tc_aot_ptr_load(slots, 4, tc_aot_ptr_address(1), TC_INT64, &out, &diag, 1) == 0,
+          "aot slot capacity: in-range load ok");
+    check(out == UINT64_C(11), "aot slot capacity: in-range load value");
+
+    /* 越界 load（槽号 ≥ 容量）→ 空指针解引用 */
+    out = 0;
+    check(tc_aot_ptr_load(slots, 4, tc_aot_ptr_address(4), TC_INT64, &out, &diag, 2) != 0,
+          "aot slot capacity: out-of-range load rejected");
+    check(diag.kind == TC_RE_NULL_POINTER_DEREFERENCE,
+          "aot slot capacity: load error kind");
+
+    /* 越界 store 同样拒绝（且不得改动槽位内容） */
+    check(tc_aot_ptr_store(slots, 4, tc_aot_ptr_address(9), UINT64_C(7), TC_INT64, &diag, 3) != 0,
+          "aot slot capacity: out-of-range store rejected");
+    check(diag.kind == TC_RE_NULL_POINTER_DEREFERENCE,
+          "aot slot capacity: store error kind");
+
+    /* 指针算术：容量内成功、越界（含 usize 巨值）拒绝 */
+    check(tc_aot_ptr_arith(4, 1, tc_aot_ptr_address(1), UINT64_C(1), &out, &diag, 4) == 0,
+          "aot slot capacity: in-range arith ok");
+    check(out == tc_aot_ptr_address(2), "aot slot capacity: in-range arith slot");
+
+    check(tc_aot_ptr_arith(4, 1, tc_aot_ptr_address(1), UINT64_C(3), &out, &diag, 5) != 0,
+          "aot slot capacity: out-of-range arith rejected");
+    check(diag.kind == TC_RE_NULL_POINTER_ARITHMETIC,
+          "aot slot capacity: arith error kind");
+
+    check(tc_aot_ptr_arith(4, 0, tc_aot_ptr_address(1), UINT64_C(0x8000000000000000),
+                           &out, &diag, 6) != 0,
+          "aot slot capacity: huge usize offset rejected (no signed overflow)");
+    check(diag.kind == TC_RE_NULL_POINTER_ARITHMETIC,
+          "aot slot capacity: huge offset error kind");
 
     tc_diagnostic_clear(&diag);
 }
@@ -1473,6 +1529,7 @@ int main(void) {
     test_aot_embed_slot_read_type();
     test_aot_embed_static_init_overflow();
     test_aot_ptr_load_bool_type();
+    test_aot_ptr_slot_capacity();
 
     printf("%d passed, %d failed\n", g_passed, g_failed);
     return g_failed > 0 ? 1 : 0;

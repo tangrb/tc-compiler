@@ -925,6 +925,12 @@ run_check_fail "$ROOT/tests/errors/static/continue_outside_loop.tc" "continue us
 run_runtime_fail "$ROOT/tests/errors/runtime/signed_strict_overflow.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_bitcast_forged_load.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_bitcast_forged_arith.tc" "null pointer arithmetic"
+# B-57：伪造的**槽索引越界**编码（bit0=1 但槽号 ≥ 容量）此前在 AOT 侧静默读
+# 任意内存且逐次非确定；现按容量上界拒绝，与 VM 同码同行。
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_load.tc" "null pointer dereference"
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_store.tc" "null pointer dereference"
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_memcopy.tc" "null pointer dereference"
+run_runtime_fail "$ROOT/tests/errors/runtime/ptr_arith_huge_offset.tc" "null pointer arithmetic"
 run_runtime_fail "$ROOT/tests/errors/runtime/shl_zero_shift_overflow.tc" "shift left overflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/signed_strict_mul.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overflow"

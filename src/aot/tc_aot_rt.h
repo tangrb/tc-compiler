@@ -54,13 +54,17 @@ void tc_aot_abort(const TcDiagnostic *diag, int line);
 /* ---- ptr / memblock / struct（槽编码与 VM 一致） ---- */
 
 uint64_t tc_aot_ptr_address(int slot);
-/* load_type 为 pointee 类型：为 TC_BOOL 时按 §3.4 / §6.8.2 把结果规范到 {0,1} */
-int tc_aot_ptr_load(uint64_t *slots, uint64_t ptr_bits, TcTypeTag load_type, uint64_t *out,
-                    TcDiagnostic *diag, int line);
-int tc_aot_ptr_store(uint64_t *slots, uint64_t ptr_bits, uint64_t value_bits,
-                     TcTypeTag store_type, TcDiagnostic *diag, int line);
-int tc_aot_ptr_arith(int is_add, uint64_t ptr_bits, int64_t offset, uint64_t *out,
-                     TcDiagnostic *diag, int line);
+/*
+ * B-57：slot_capacity 由生成的 C 传入（TC_AOT_SLOT_CAPACITY），解码出的槽索引
+ * 越界时按空指针（算术）处理，保证伪造的指针编码不会越界读写 slots[]。
+ * load_type 为 pointee 类型：为 TC_BOOL 时按 §3.4 / §6.8.2 把结果规范到 {0,1}。
+ */
+int tc_aot_ptr_load(uint64_t *slots, size_t slot_capacity, uint64_t ptr_bits,
+                    TcTypeTag load_type, uint64_t *out, TcDiagnostic *diag, int line);
+int tc_aot_ptr_store(uint64_t *slots, size_t slot_capacity, uint64_t ptr_bits,
+                     uint64_t value_bits, TcTypeTag store_type, TcDiagnostic *diag, int line);
+int tc_aot_ptr_arith(size_t slot_capacity, int is_add, uint64_t ptr_bits, uint64_t offset,
+                     uint64_t *out, TcDiagnostic *diag, int line);
 int tc_aot_ptr_compare(TcCompareOp op, uint64_t lhs, uint64_t rhs, uint64_t *out,
                        TcDiagnostic *diag, int line);
 uint64_t tc_aot_ptr_size(size_t sizeof_bits);
@@ -82,10 +86,11 @@ int tc_aot_memblock_load(uint64_t mb_bits, size_t element_bytes, uint64_t index,
 int tc_aot_memblock_store(uint64_t mb_bits, size_t element_bytes, uint64_t index,
                           uint64_t value_bits, TcTypeTag elem_type, TcDiagnostic *diag,
                           int line);
-int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
-                           TcTypeTag dst_idx_type, uint64_t src_ptr, uint64_t src_index,
-                           TcTypeTag src_idx_type, int64_t length, size_t element_bytes,
-                           TcTypeTag elem_tag, TcDiagnostic *diag, int line);
+int tc_aot_memcopy_unsafe(uint64_t *slots, size_t slot_capacity, uint64_t dst_ptr,
+                           uint64_t dst_index, TcTypeTag dst_idx_type, uint64_t src_ptr,
+                           uint64_t src_index, TcTypeTag src_idx_type, int64_t length,
+                           size_t element_bytes, TcTypeTag elem_tag, TcDiagnostic *diag,
+                           int line);
 int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bits,
                          uint64_t src_index, uint64_t length, size_t element_bytes,
                          TcDiagnostic *diag, int line);
