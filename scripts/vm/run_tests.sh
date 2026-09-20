@@ -1446,6 +1446,8 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_bitcast_forged_arith.tc" "nu
 run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_load.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_store.tc" "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_memcopy.tc" "null pointer dereference"
+run_expect_fail_msg "$ROOT/tests/errors/runtime/shl_zero_shift_overflow.tc" \
+    "shift left overflow"
 run_expect_check_ok "$ROOT/tests/errors/runtime/ptr_bitcast_forged_load.tc"
 run_expect_check_ok "$ROOT/tests/errors/runtime/ptr_bitcast_forged_arith.tc"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/null_ptr_store.tc" "null pointer dereference"

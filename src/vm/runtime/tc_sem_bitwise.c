@@ -188,11 +188,11 @@ static int tc_exec_shl(TcTypeTag type, TcWrapMode mode, const TcValue *value,
     uint64_t mask = tc_mask_bits(n);
     uint64_t val_bits = tc_value_to_unsigned(type, value->bits);
 
-    if (val_bits == 0) {
-        *out = tc_value_make(type, 0);
-        return 0;
-    }
-
+    /*
+     * B-45：§6.4.2.1 —— strict 模式 `shl` 的溢出判定与**被移位数的值无关**，
+     * `k >= n` 即溢出。原实现在此之前对 val_bits == 0 早退，使 `shl(int32, 0, 32)`
+     * 静默得 0（应为 TC_RE_INTEGER_OVERFLOW）。
+     */
     if (k >= (uint64_t)n) {
         if (mode == TC_ARITH_WRAP) {
             *out = tc_value_make(type, 0);
@@ -201,6 +201,11 @@ static int tc_exec_shl(TcTypeTag type, TcWrapMode mode, const TcValue *value,
         tc_diagnostic_set(diag, TC_RE_INTEGER_OVERFLOW, line, TC_COLUMN_UNKNOWN,
                           "shift left overflow");
         return -1;
+    }
+
+    if (val_bits == 0) {
+        *out = tc_value_make(type, 0);
+        return 0;
     }
 
     if (mode == TC_ARITH_WRAP) {
