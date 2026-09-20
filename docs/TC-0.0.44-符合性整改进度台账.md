@@ -23,7 +23,7 @@
 | 2 | `TC-VM详细设计说明书-0.0.44.md` | C-12～C-14 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 3 | `TC-AOT详细设计说明书-0.0.44.md` | C-10～C-11 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录（无需改动） |
 | 4 | `TC-Embed详细设计说明书-0.0.44.md` | C-20～C-21 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
-| 5 | `libtc设计说明书-0.0.44.md` | C-19 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
+| 5 | `libtc设计说明书-0.0.44.md` | C-19 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 6 | `TC-VM命令行参考-0.0.44.md` | C-15～C-18 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
 | 7 | 跨文档一致性 | C-22、C-23、C-24 | ☐ | |
 
@@ -73,6 +73,11 @@
 | P2 | §2.1/§1.4 槽位编码补「实现定义的抽象槽编码」定性；§3.2 文件表补 `tc_embed_internal.h`；§3.3 头骨架补 `tc_embed_slot_count`；§5.2 修正「只有一个调用帧活跃」表述；§10.2 消息格式改为宿主纯文本＋语言诊断格式；§10.3 静态错误归编译阶段（`tc_embed_create*` 不做静态检查）；§14.1 测试名改为实际 `test_embed_ptr_load_sum`/`test_embed_ptr_store_offset`；§15.1 `tc_pass1_collect_symbols` 片段与 `src` 对齐；§15.3.1 函数表改为内联数组（含哨兵），删除不存在的 `.inc`；§15.7.1 CMake 改为编入 `libtc`（无独立 target）；§15.11 `tc_embed_create_aot` 改为「仍需 `TcTypedProgram` 提取元数据」；§16.7 `sum` 示例补第二实参 |
 
 **⑤ libtc 设计说明书**：C-19（§15.3 自相矛盾、§7.3 跨入口承诺与实现不符）。
+
+| 条目 | 处置 |
+| ---- | ---- |
+| C-19 | §15.3 改写：明确内存入口**不执行 4b–4d**、含 `import` 的源不在其接受集内、只声明所覆盖阶段（[语言标准 §1.3] 部分阶段工具条款）；删除「执行 13 阶段（含 4a→4b→4c→4d）」的自相矛盾表述；§7.3（诊断契约）把「不同入口产生相同诊断」限定为「各自覆盖阶段范围内」；§3.1 图下与 §15.12 签名同步补覆盖差异 |
+| P2 | §3.1 阶段 13 改为「VM / AOT 代码生成（执行不属 13 阶段）」；§7.3 诊断规则补全为五条（阶段优先/源位置/规则优先/关联位置/遍历无关）；§11.1 与 §15.9 bench 标签改为实测 `parse`/`analyze`/`analyze+modules`/`execute`；§11.3 明确分析器两个可变全局（`g_name_scope_members`/`g_name_scope_in_function`）→ **并发编译不受支持**；§15.4 删除「默认搜索路径」、同步并发限制；§14.1 自引改为 §7/§15.8 并补「非零未决」说明；§15.11 能力表标注内存入口覆盖差异；`合计实现枚举 87` 与 `86 语言码 + OutOfMemory` 经核对已正确 |
 
 **⑥ VM 命令行参考**：C-15（§3.5 不存在的默认搜索路径）、C-16（§8.4 示例是非法 TC 程序）、C-17（§2.2 `-e` 示例与实际输出不符）、C-18（§6 完整映射表缺 `ExtraArgument`）。
 
@@ -195,7 +200,8 @@
 | 1 | 阶段 1-① 编译器标准 C-1～C-9 ＋ P2 | `47c6967 docs(0.0.44-compiler): align compiler specification with language spec (C-1..C-9 + P2)` |
 | 2 | 阶段 1-② VM 详设 C-12～C-14 ＋ P2 | `9863b3a docs(0.0.44-vm): align VM design spec (C-12..C-14 residual + static-init stage)` |
 | 3 | 阶段 1-③ AOT 详设 C-10～C-11 ＋ P2 | `01174dc chore(0.0.44-ledger): record AOT design-spec verification (no changes needed)` |
-| 4 | 阶段 1-④ TC-Embed 详设 C-20～C-21 ＋ P2 | 本提交 `docs(0.0.44-embed): fix C-syntax TC examples and slot-overlap host code (C-20/C-21 + P2)` |
+| 4 | 阶段 1-④ TC-Embed 详设 C-20～C-21 ＋ P2 | `8edb1db docs(0.0.44-embed): fix C-syntax TC examples and slot-overlap host code (C-20/C-21 + P2)` |
+| 5 | 阶段 1-⑤ libtc 设计说明书 C-19 ＋ P2 | 本提交 `docs(0.0.44-libtc): scope the memory entry, fix contract contradictions (C-19 + P2)` |
 
 ---
 
