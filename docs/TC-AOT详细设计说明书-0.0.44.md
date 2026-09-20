@@ -83,6 +83,13 @@
 | `static let` 不得引用 `static var`／命名 N 与 `count:` 前置解析 | 共享 Analyzer | **已同步**：语料 `static_let_ref_var_*.tc` 与正例 `static_let_rule_ok.tc` 均入 AOT 差分 |
 | 函数体 `Self.` 强制访问与 `Self.<名>` 赋值目标 | 共享 Analyzer + §4 槽表示（[语言标准 §4.3]） | **已同步**：字段赋值经 `TcFieldAssign.base_binding` 取槽（原按名解析限定名失败报 `unresolved struct base`）；语料 `self_bare_*.tc`、`self_access_ok.tc` |
 | 静态布尔原子集合 / 条件 RHS 形态 / 限定标识符作 `operand` | 共享 Analyzer | **已同步**：语料 `static_bool_cond.tc`／`cond_ptr_compare.tc`／`cond_readonly_field.tc`／`self_qual_operand.tc` 均入 AOT 差分 |
+| `ptr_*` 调用型 RHS 不属于 `operand`、不得嵌套（嵌套 → `TC_CE_SYNTAX`） | 共享 Analyzer（A-1） | **已同步**：AOT `--check` 与 VM 同码；语料 `ptr_{address,add,sub,lt}_nested_operand.tc` |
+| `TC_CE_LITERAL_OUT_OF_RANGE` 覆盖 LT 与 SEM 两阶段 | 共享 Analyzer（A-2） | **已核实一致**：LT/SEM 两路径同码（`invalid_hex_overflow`／`literal_range` 等） |
+| `memcopy_unsafe` 编译期可确定负 `length`／负下标 → 静态拒绝；不可确定者 → 运行时 `TC_RE_*` | 共享 Analyzer ＋ §11.3 shim（A-3） | **已同步**：shim 只处理不可确定的负值；语料 `memcopy_unsafe_neg_*`（静态四条 / 运行时三条） |
+| `nullptr` 不参与 `bitcast`（静态拒绝） | 共享 Analyzer（A-4） | **已同步**：语料 `bitcast_nullptr_source{,_int}.tc`、`bitcast_nullptr_float.tc` |
+| `else`/`end` 不对齐（过深或过浅）一律 `TC_CE_INDENT_ELSE_END` | 共享 Analyzer（B-41） | **已同步**：语料 `indent_end_deeper`／`indent_else_deeper` |
+| 条件位置 RHS 专用码优先于 `TC_CE_CONDITION_TYPE` | 共享 Analyzer（B-61） | **已核实一致**：语料 `if_cond_literal_direct`／`cond_var_not_bool` |
+| 顶层行缩进必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | 共享 Analyzer（B-63） | **已同步**：语料 `toplevel_indent_*.tc`（AOT `--check` 同码） |
 
 上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。当前与本实现前端/共享 core 相关的既有未关闭差异仍有 9 项（导入限定名成员引用、`Self.<名>`／导入限定名取址、重复实参诊断码、`let` 指针写入拒绝、字段与 `memblock` 操作数绑定元数据、`#lib` `static var` 缺初始化器、`memcopy_unsafe` 常量负区间静态检查等），其中字段/memblock 操作数元数据与 `let` 下标两项在 VM 与 AOT 上的可观察行为不一致。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
 
@@ -725,7 +732,7 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
 
 ### 11.3 memcopy_unsafe shim
 
-与 VM 一致：空指针 → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。codegen 须按下标操作数的有符号性（字面量负号 / 绑定或字段类型）传入对应 `TcTypeTag`，shim 按该类型判负；**不得**一律按 `usize` 求值后再检查（否则负字面量回绕导致漏检）。
+与 VM 一致：空指针 → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。**注意**：编译期**可确定**为负的 `length` / `dst_idx` / `src_idx`（整数字面量或 `let` / `static let` 常量来源）已由共享 Analyzer 以静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` 拒绝（A-3 裁决，[语言标准 §6.8.9]、[编译器标准 §11.4.6]），不会到达本 shim；shim 只处理编译期不可确定的负值。codegen 须按下标操作数的有符号性（字面量负号 / 绑定或字段类型）传入对应 `TcTypeTag`，shim 按该类型判负；**不得**一律按 `usize` 求值后再检查（否则负字面量回绕导致漏检）。
 
 ```c
 int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,
