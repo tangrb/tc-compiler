@@ -1,0 +1,11 @@
+#program
+; §6.8.3 / §10.1：经指针别名的异类型写入（ptr_store(int64, …)）之后，
+; `writeln(float64, f)` 必须按**显式标量类型** float64 解释 f 的存储位，
+; 而不是按最近一次写入携带的类型标签；AOT 无槽位标签，按静态类型解释位。
+; int64 位模式 7 作为 float64 的精确值为 3.458459520888726e-323。
+var f: float64 = 0.0
+var i: int64 = 7
+var pf: ptr<float64> = ptr_address(float64, f)
+var pi: ptr<int64> = cast(ptr<int64>, pf)
+ptr_store(int64, pi, i)
+writeln(float64, f)

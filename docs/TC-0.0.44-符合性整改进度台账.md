@@ -113,7 +113,7 @@
 | B-4 | `let` RHS 为 `var`/形参时错报 | ☑ | 见文末提交记录 |
 | B-5 | `memblock` `N`/`count:` 来源校验过宽＋错码 | ☑ | 见文末提交记录 |
 | B-6 | 实参个数检查遮蔽重复/未知/顺序 | ☑ | 见文末提交记录 |
-| B-7 | VM 按槽位标签渲染 `write` | ☐ | |
+| B-7 | VM 按槽位标签渲染 `write` | ☑ | 见文末提交记录 |
 | B-8 | 结构体字段指针操作数：VM 内部错误 / AOT 空指针 | ☐ | |
 | B-9 | 顶层 `let` 作 `memblock_copy` 下标：仅 VM 失败 | ☐ | |
 | B-10 | `bitcast(ptr<T>, usize)` 解引用两后端分歧 | ☐ | |
@@ -203,6 +203,7 @@
 ---
 
 | B-6 | `tc_func_check.c`：删除 `tc_check_funcall_args` 中置于名称检查之前的 `arg_count > sig->param_count` 早退分支，改由「全部名称已知」处的检查承担（编译器标准 §8.2 第 3 条的 重复 → 未知 → 缺失 → 数量超限 → 顺序 → 类型）；语料 `funcall_extra_arg.tc` 更名 `funcall_count_exceeds.tc`（重复 `a` + 未知 `z` + 个数超限 → 报 DuplicateArgument），`unknown_argument.tc` 改为「个数超限但含未知名」（→ UnknownArgument），二者注册补错误码断言（不新增注册行，计数不变） | `funcall(Self.sum, a: 1, a: 2, z: 3)` → `DuplicateArgument: duplicate argument 'a'`（原 ExtraArgument）；`funcall(Self.sum, z: 1, y: 2)` → `UnknownArgument: unknown argument 'z'`；重复/未知/缺失/顺序四个既有语料码不变；注：按此次序 `EXTRA_ARGUMENT` 在「全名已知且无重复」下结构上不可达，实现保留该分支；全量三层与 5 项门禁通过 |
+| B-7 | `tc_executor.c` `tc_exec_load_binding`：取槽位后按**使用点静态类型**重建值（`tc_value_make`），仅在「静态类型标签 ≠ 槽位内标签」且两者皆为非聚合（`tc_type_bit_width > 0`）时执行；`tc_eval_operand` 的 `TC_OPERAND_VAR` 兜底路径保持原样（该路径无 `binding->type` 一致性校验，按 `expected_type` 强行重建曾使 `memcopy_unsafe` 的 `int32 -1` 下标被当成 64 位无符号值而越界触发 SIGBUS）。新增 `tests/valid/ptr_alias_write_render_type.tc`（审计复现）并注册 VM stdout/check + AOT diff/check；test-map 回填 1010 VM / 471 AOT | 审计复现（`ptr_store(int64, cast(ptr<int64>, ptr_address(float64, f)), 7)` 后 `writeln(float64, f)`）VM 与 AOT 均输出 `3.45846e-323`（原 VM 输出 `7`）；`--filter memcopy_unsafe`、`--filter ptr_` 与全量三层通过；`tests/errors/runtime/memcopy_unsafe_neg_var_index.tc` 仍报 invalid range |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -234,7 +235,8 @@
 | 10 | 阶段 2-B3 重复格式标志归 SEM | `5f1dd2a fix(0.0.44-B3): report duplicate format flags as FORMAT_SPECIFIER` |
 | 11 | 阶段 2-B4 `let` RHS 常量性先于类型 | `1af9045 fix(0.0.44-B4): check let RHS constness before type comparison` |
 | 12 | 阶段 2-B5 memblock N/count: 来源与错码 | `34bd06f fix(0.0.44-B5): restrict memblock N/count sources to usize constants` |
-| 13 | 阶段 2-B6 funcall 实参诊断次序 | 本提交 `fix(0.0.44-B6): order funcall argument diagnostics per standard` |
+| 13 | 阶段 2-B6 funcall 实参诊断次序 | `04e969e fix(0.0.44-B6): order funcall argument diagnostics per standard` |
+| 14 | 阶段 2-B7 VM write/writeln 渲染类型 | 本提交 `fix(0.0.44-B7): render write value by static operand type` |
 
 ---
 

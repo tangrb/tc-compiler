@@ -1132,6 +1132,8 @@ run_expect_stdout "$ROOT/tests/valid/memblock_unsigned_suffix.tc" "4
 run_expect_stdout "$ROOT/tests/valid/ptr_load_bool_normalize.tc" "1
 0
 "
+run_expect_stdout "$ROOT/tests/valid/ptr_alias_write_render_type.tc" "3.45846e-323
+"
 run_expect_stdout "$ROOT/tests/valid/static_var_chain.tc" "2
 "
 run_expect_stdout "$ROOT/tests/valid/cond_bool_rhs_forms.tc" "1
@@ -1246,6 +1248,7 @@ run_expect_check_ok "$ROOT/tests/valid/cond_ptr_compare.tc"
 run_expect_check_ok "$ROOT/tests/valid/cond_readonly_field.tc"
 run_expect_check_ok "$ROOT/tests/valid/memblock_unsigned_suffix.tc"
 run_expect_check_ok "$ROOT/tests/valid/ptr_load_bool_normalize.tc"
+run_expect_check_ok "$ROOT/tests/valid/ptr_alias_write_render_type.tc"
 run_expect_check_ok "$ROOT/tests/valid/static_var_chain.tc"
 run_expect_check_ok "$ROOT/tests/valid/cond_bool_rhs_forms.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_ptr_cmp_more.tc"

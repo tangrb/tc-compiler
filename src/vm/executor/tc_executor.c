@@ -77,6 +77,16 @@ int tc_exec_load_binding(const TcResolvedBinding *binding, TcTypeTag type, const
         return -1;
     }
     *out = slots[binding->slot];
+    /*
+     * 语言标准 §6.8.3 / §10.1：槽位存储的**解释类型**由使用点的静态类型（操作数/
+     * 语句的显式类型）决定，而非最近一次写入携带的标签——经指针别名写入
+     * （`ptr_store(T, …)` / `memcopy_unsafe`）会留下与静态类型不同的标签。AOT 无
+     * 槽位标签，仅按静态类型解释原始位，故此处以静态类型重建值，保证两后端一致。
+     */
+    if (out->type && out->type->tag != type && tc_type_bit_width(out->type->tag) > 0 &&
+        tc_type_bit_width(type) > 0) {
+        *out = tc_value_make(type, out->bits);
+    }
     return 0;
 }
 
