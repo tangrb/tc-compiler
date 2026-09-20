@@ -1,0 +1,10 @@
+#lib
+; 2.6.1(b) / §9.2：return 操作数计入读集
+public func f(c: bool) int32 then
+    if c then
+        goto skip
+    end
+    var x: int32 = 1
+    label skip:
+    return x
+end

@@ -1,0 +1,9 @@
+#lib
+; 两个函数使用同名形参：按名解析不得跨函数串槽（首个语句读取形参须可见）
+private func inner(x: int32) int32 then
+    return x
+end
+public func outer(x: int32) int32 then
+    var r: int32 = funcall(Self.inner, x: x)
+    return r
+end

@@ -1,0 +1,14 @@
+#lib
+; 2.6.1(b)：结构体构造器字段值计入读集
+public struct S then
+    var a: int32
+end
+public func f(c: bool) void then
+    if c then
+        goto skip
+    end
+    var x: int32 = 1
+    label skip:
+    var s: S = S(a: x)
+    return
+end

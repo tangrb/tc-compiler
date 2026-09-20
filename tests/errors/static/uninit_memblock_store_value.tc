@@ -1,0 +1,12 @@
+#lib
+; 2.6.1(b)：memblock_store 的 value/index 计入读集
+public func f(c: bool) void then
+    if c then
+        goto skip
+    end
+    var m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+    var x: int32 = 1
+    label skip:
+    memblock_store(int32, m, 0, x)
+    return
+end

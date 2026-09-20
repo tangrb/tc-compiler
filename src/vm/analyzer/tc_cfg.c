@@ -159,6 +159,11 @@ static int tc_cfg_node_add_read(TcCfgBuildCtx *ctx, int node_id, const char *nam
     if (!sym || sym->sym_kind != TC_SYM_VARIABLE) {
         return 0;
     }
+    /* `static var` 在程序准备阶段一次性初始化，不参与函数的确定初始化判定
+     *（与 tc_cfg_node_add_read_slot 同一规则；`Self.<静态成员>` 走本按名入口）。 */
+    if (sym->slot_domain == TC_SLOT_STATIC) {
+        return 0;
+    }
     for (i = 0; i < node->read_count; i++) {
         if (node->read_slots[i] == sym->slot) {
             return 0;
@@ -234,6 +239,15 @@ static int tc_cfg_node_add_read_slot(TcCfgBuildCtx *ctx, int node_id, int slot) 
 
 static int tc_cfg_add_operand_read(TcCfgBuildCtx *ctx, int node_id, const TcOperand *operand,
                                    int stmt_index) {
+    /*
+     * 优先使用 Pass2 已解析的绑定槽位：按名查找在多模块/多函数共享同一符号表、
+     * 且各模块 stmt_index 各自从 0 编号的情况下，可能命中另一模块的同名绑定
+     *（其 def_stmt_index 更大且作用域未闭合），造成读集错位。绑定缺失时（如
+     * B-2 的 Pass2 失败后挽救路径）仍按名回退。
+     */
+    if (operand->binding.resolved && operand->binding.slot >= 0) {
+        return tc_cfg_node_add_read_slot(ctx, node_id, operand->binding.slot);
+    }
     if (operand->kind == TC_OPERAND_VAR) {
         return tc_cfg_node_add_read(ctx, node_id, operand->u.name, stmt_index);
     }
@@ -252,6 +266,8 @@ static int tc_cfg_add_operand_read(TcCfgBuildCtx *ctx, int node_id, const TcOper
 
 static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rhs,
                                 int stmt_index) {
+    size_t i = 0;
+
     switch (rhs->kind) {
     case TC_RHS_ARITH:
         return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.arith.lhs, stmt_index) != 0 ||
@@ -316,26 +332,86 @@ static int tc_cfg_add_rhs_reads(TcCfgBuildCtx *ctx, int node_id, const TcRhs *rh
         return tc_cfg_node_add_read(ctx, node_id, rhs->u.const_ref.name, stmt_index);
     case TC_RHS_LIT:
         return 0;
+    /*
+     * 2.6.1(b)：复合/调用 RHS 的读集同样必须展开——否则「读取未确定初始化的
+     * 绑定」（语言标准 §9.2）在 memblock_load / ptr_* / 构造器 / funcall 实参等
+     * 形态下漏检。
+     */
     case TC_RHS_MEMBLOCK_LOAD:
+        return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.memblock_load.memblock,
+                                       stmt_index) != 0 ||
+                       tc_cfg_add_operand_read(ctx, node_id, &rhs->u.memblock_load.index,
+                                               stmt_index) != 0
+                   ? -1
+                   : 0;
     case TC_RHS_MEMBLOCK_CONSTRUCTOR:
+        if (rhs->u.memblock_ctor.is_fill) {
+            return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.memblock_ctor.fill_value,
+                                           stmt_index);
+        }
+        for (i = 0; i < rhs->u.memblock_ctor.value_count; i++) {
+            if (tc_cfg_add_operand_read(ctx, node_id, &rhs->u.memblock_ctor.values[i],
+                                        stmt_index) != 0) {
+                return -1;
+            }
+        }
+        return 0;
     case TC_RHS_MEMBLOCK_COUNT:
+        return tc_cfg_node_add_read(ctx, node_id, rhs->u.memblock_count.memblock_name,
+                                    stmt_index);
     case TC_RHS_STRUCT_CONSTRUCTOR:
+        for (i = 0; i < rhs->u.struct_ctor.field_count; i++) {
+            if (rhs->u.struct_ctor.fields[i].has_rhs &&
+                rhs->u.struct_ctor.fields[i].value_rhs) {
+                if (tc_cfg_add_rhs_reads(ctx, node_id,
+                                         (const TcRhs *)rhs->u.struct_ctor.fields[i].value_rhs,
+                                         stmt_index) != 0) {
+                    return -1;
+                }
+            } else if (tc_cfg_add_operand_read(ctx, node_id,
+                                               &rhs->u.struct_ctor.fields[i].value_op,
+                                               stmt_index) != 0) {
+                return -1;
+            }
+        }
+        return 0;
     case TC_RHS_PTR_LOAD:
+        return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.ptr_load.ptr, stmt_index);
     case TC_RHS_PTR_ADDRESS:
+        /* 取址只计算地址，不读取目标值 */
+        return 0;
     case TC_RHS_PTR_ADD:
     case TC_RHS_PTR_SUB:
+        return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.ptr_arith.ptr, stmt_index) != 0 ||
+                       tc_cfg_add_operand_read(ctx, node_id, &rhs->u.ptr_arith.offset,
+                                               stmt_index) != 0
+                   ? -1
+                   : 0;
     case TC_RHS_PTR_EQ:
     case TC_RHS_PTR_NE:
     case TC_RHS_PTR_LT:
     case TC_RHS_PTR_LE:
     case TC_RHS_PTR_GT:
     case TC_RHS_PTR_GE:
+        return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.ptr_compare.lhs, stmt_index) != 0 ||
+                       tc_cfg_add_operand_read(ctx, node_id, &rhs->u.ptr_compare.rhs,
+                                               stmt_index) != 0
+                   ? -1
+                   : 0;
     case TC_RHS_PTR_SIZE:
+        return tc_cfg_add_operand_read(ctx, node_id, &rhs->u.ptr_size.ptr, stmt_index);
     case TC_RHS_FUNCALL_EXPR:
-    case TC_RHS_SELF_MEMBER:
-        /* 复合/调用 RHS：读集不在此展开；操作数名由 Pass2 检查。
-         * CFG 读边用于标量条件与简单赋值的短路剪枝。 */
+        for (i = 0; i < rhs->u.funcall_expr.arg_count; i++) {
+            if (rhs->u.funcall_expr.args[i].value &&
+                tc_cfg_add_rhs_reads(ctx, node_id,
+                                     (const TcRhs *)rhs->u.funcall_expr.args[i].value,
+                                     stmt_index) != 0) {
+                return -1;
+            }
+        }
         return 0;
+    case TC_RHS_SELF_MEMBER:
+        return tc_cfg_node_add_read(ctx, node_id, rhs->u.self_member.member_name, stmt_index);
     case TC_RHS_FIELD_READ:
         if (rhs->u.field_read.resolved.resolved && rhs->u.field_read.resolved.base_slot >= 0) {
             return tc_cfg_node_add_read_slot(ctx, node_id, rhs->u.field_read.resolved.base_slot);
@@ -528,6 +604,15 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
                            : stmt->kind == TC_STMT_FUNC_DEF   ? stmt->u.func_def.line
                            : stmt->kind == TC_STMT_STATIC_VAR_DEF ? stmt->u.static_var_def.line
                            : stmt->kind == TC_STMT_STATIC_LET_DEF ? stmt->u.static_let_def.line
+                           : stmt->kind == TC_STMT_RETURN       ? stmt->u.return_stmt.line
+                           : stmt->kind == TC_STMT_FUNCALL      ? stmt->u.funcall_stmt.line
+                           : stmt->kind == TC_STMT_FIELD_ASSIGN ? stmt->u.field_assign.line
+                           : stmt->kind == TC_STMT_MEMBLOCK_STORE
+                               ? stmt->u.memblock_store.line
+                           : stmt->kind == TC_STMT_MEMBLOCK_COPY ? stmt->u.memblock_copy.line
+                           : stmt->kind == TC_STMT_PTR_STORE    ? stmt->u.ptr_store.line
+                           : stmt->kind == TC_STMT_MEMCOPY_UNSAFE
+                               ? stmt->u.memcopy_unsafe.line
                                                               : 0,
                            stmt->kind);
     if (node < 0 || tc_cfg_add_edge(ctx, predecessor, node, incoming) != 0) {
@@ -550,12 +635,22 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
     } else if (stmt->kind == TC_STMT_ASSIGN) {
         const TcSymbol *sym =
             tc_cfg_find_visible(ctx->symbols, stmt->u.assign.name, stmt_index);
+        int target_slot = stmt->u.assign.binding.resolved ? stmt->u.assign.binding.slot : -1;
 
-        if (tc_cfg_add_rhs_reads(ctx, node, &stmt->u.assign.rhs, stmt_index) != 0) {
+        if (target_slot < 0 && sym) {
+            target_slot = sym->slot;
+        }
+        /*
+         * 2.6.1(a)：赋值目标本身也须「已确定初始化」（语言标准 §6.2、§7.3.3），
+         * 故记录一次读；否则 goto 绕过 `var` 初始化后的 `x = 2` 会漏检。
+         * 槽位优先取 Pass2 的赋值目标绑定（按名查找可能命中同名符号）。
+         */
+        if (tc_cfg_node_add_read_slot(ctx, node, target_slot) != 0 ||
+            tc_cfg_add_rhs_reads(ctx, node, &stmt->u.assign.rhs, stmt_index) != 0) {
             return -2;
         }
-        if (sym) {
-            ctx->cfg->nodes[node].write_slot = sym->slot;
+        if (target_slot >= 0) {
+            ctx->cfg->nodes[node].write_slot = target_slot;
         }
     } else if (stmt->kind == TC_STMT_READ) {
         const TcSymbol *sym =
@@ -591,10 +686,89 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
         }
         return -1;
     } else if (stmt->kind == TC_STMT_RETURN) {
+        /* 2.6.1(b)：`return x` 读取 x，须计入读集 */
+        if (stmt->u.return_stmt.has_value &&
+            tc_cfg_add_operand_read(ctx, node, &stmt->u.return_stmt.value, stmt_index) != 0) {
+            return -2;
+        }
         if (tc_cfg_add_pending_return(ctx, node) != 0) {
             return -2;
         }
         return -1;
+    } else if (stmt->kind == TC_STMT_FUNCALL) {
+        size_t ai = 0;
+
+        /* 2.6.1(b)：`funcall(Self.g, v: x)` 的实参读集 */
+        for (ai = 0; ai < stmt->u.funcall_stmt.arg_count; ai++) {
+            if (tc_cfg_add_rhs_reads(ctx, node, &stmt->u.funcall_stmt.args[ai].value,
+                                     stmt_index) != 0) {
+                return -2;
+            }
+        }
+    } else if (stmt->kind == TC_STMT_MEMBLOCK_STORE) {
+        const TcMemblockStoreStmt *store = &stmt->u.memblock_store;
+        int base_slot = store->binding.resolved ? store->binding.slot : -1;
+
+        if (base_slot >= 0) {
+            if (tc_cfg_node_add_read_slot(ctx, node, base_slot) != 0) {
+                return -2;
+            }
+        } else if (tc_cfg_node_add_read(ctx, node, store->memblock_name, stmt_index) != 0) {
+            return -2;
+        }
+        if (tc_cfg_add_operand_read(ctx, node, &store->index, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &store->value, stmt_index) != 0) {
+            return -2;
+        }
+    } else if (stmt->kind == TC_STMT_MEMBLOCK_COPY) {
+        const TcMemblockCopyStmt *copy = &stmt->u.memblock_copy;
+        int dst_slot = copy->dst_binding.resolved ? copy->dst_binding.slot : -1;
+        int src_slot = copy->src_binding.resolved ? copy->src_binding.slot : -1;
+
+        if (dst_slot >= 0) {
+            if (tc_cfg_node_add_read_slot(ctx, node, dst_slot) != 0) {
+                return -2;
+            }
+        } else if (tc_cfg_node_add_read(ctx, node, copy->dst_name, stmt_index) != 0) {
+            return -2;
+        }
+        if (src_slot >= 0) {
+            if (tc_cfg_node_add_read_slot(ctx, node, src_slot) != 0) {
+                return -2;
+            }
+        } else if (tc_cfg_node_add_read(ctx, node, copy->src_name, stmt_index) != 0) {
+            return -2;
+        }
+        if (tc_cfg_add_operand_read(ctx, node, &copy->dst_index, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &copy->src_index, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &copy->length, stmt_index) != 0) {
+            return -2;
+        }
+    } else if (stmt->kind == TC_STMT_PTR_STORE) {
+        if (tc_cfg_add_operand_read(ctx, node, &stmt->u.ptr_store.ptr, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &stmt->u.ptr_store.value, stmt_index) != 0) {
+            return -2;
+        }
+    } else if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {
+        const TcMemcopyUnsafeStmt *mc = &stmt->u.memcopy_unsafe;
+
+        if (tc_cfg_add_operand_read(ctx, node, &mc->dst_ptr, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &mc->dst_index, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &mc->src_ptr, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &mc->src_index, stmt_index) != 0 ||
+            tc_cfg_add_operand_read(ctx, node, &mc->length, stmt_index) != 0) {
+            return -2;
+        }
+    } else if (stmt->kind == TC_STMT_FIELD_ASSIGN) {
+        const TcFieldAssign *assign = &stmt->u.field_assign;
+
+        /* 基址须已初始化；RHS 读集同样展开 */
+        if (assign->base && tc_cfg_node_add_read(ctx, node, assign->base, stmt_index) != 0) {
+            return -2;
+        }
+        if (tc_cfg_add_rhs_reads(ctx, node, &assign->rhs, stmt_index) != 0) {
+            return -2;
+        }
     } else if (stmt->kind == TC_STMT_FUNC_DEF) {
         /* 顶层域：不展开函数体；推进 stmt_index 与 Pass1 对齐 */
         int body_span =
@@ -958,7 +1132,7 @@ fail:
     return -1;
 }
 
-static int tc_cfg_collect_param_slots(const TcSymbolTable *symbols, int body_start,
+static int tc_cfg_collect_param_slots(const TcSymbolTable *symbols, int func_index,
                                       int **out_slots, size_t *out_count,
                                       TcDiagnostic *diag) {
     size_t i = 0;
@@ -972,7 +1146,8 @@ static int tc_cfg_collect_param_slots(const TcSymbolTable *symbols, int body_sta
         if (sym->slot_domain != TC_SLOT_PARAM || sym->slot < 0) {
             continue;
         }
-        if (sym->def_stmt_index != body_start) {
+        /* 形参的 def_stmt_index 是函数定义自身的序号（见 Pass1） */
+        if (sym->def_stmt_index != func_index) {
             continue;
         }
         if (count == cap) {
@@ -1039,7 +1214,7 @@ int tc_cfg_build_all(const TcProgram *program, const TcSymbolTable *symbols, TcC
             }
             fcfg->is_function_domain = 1;
             fcfg->func_id = func->func_id >= 0 ? func->func_id : (int)out->func_count;
-            if (tc_cfg_collect_param_slots(symbols, body_start, &fcfg->entry_init_slots,
+            if (tc_cfg_collect_param_slots(symbols, func_index, &fcfg->entry_init_slots,
                                            &fcfg->entry_init_count, diag) != 0) {
                 tc_cfg_set_free(out);
                 return -1;

@@ -1,0 +1,11 @@
+#lib
+; 2.6.1(b)：memblock_load 的 memblock 操作数计入读集
+public func f(c: bool) int32 then
+    if c then
+        goto skip
+    end
+    var m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+    label skip:
+    var v: int32 = memblock_load(int32, m, 0)
+    return v
+end

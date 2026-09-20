@@ -1,0 +1,14 @@
+#lib
+; 2.6.1(b)：funcall 实参计入读集
+public func g(v: int32) void then
+    return
+end
+public func f(c: bool) void then
+    if c then
+        goto skip
+    end
+    var x: int32 = 1
+    label skip:
+    funcall(Self.g, v: x)
+    return
+end

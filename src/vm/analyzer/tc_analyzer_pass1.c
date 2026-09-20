@@ -161,8 +161,16 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         int saved_func_id = ctx->current_func_id;
         const TcFuncParam *saved_params = ctx->current_params;
         size_t saved_param_count = ctx->current_param_count;
+        int func_index = 0;
 
-        (void)tc_stmt_index_take(&ctx->index);
+        /*
+         * 形参的 def_stmt_index 取**函数定义自身**的序号（body_start - 1）：
+         * 形参在进入函数体前即已确定初始化，首个函数体语句里的读取必须能看到它
+         *（可见性判据是 def_stmt_index < stmt_index）。若取 body_start，函数体
+         * 首语句中的形参读取会被判为「尚未定义」，进而按名回退到同名符号
+         *（另一函数的同名形参）导致误报。
+         */
+        func_index = tc_stmt_index_take(&ctx->index);
         ctx->current_func_id = func->func_id;
         ctx->current_params = func->params;
         ctx->current_param_count = func->param_count;
@@ -190,7 +198,7 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
             }
             /* 全局唯一 slot，避免多域 CFG 位集冲突；域由 slot_domain 区分 */
             if (tc_symbol_table_add_ex(symbols, param->name, itype, *next_slot, TC_SLOT_PARAM,
-                                       func->line, ctx->index.next, TC_SYM_VARIABLE, 1,
+                                       func->line, func_index, TC_SYM_VARIABLE, 1,
                                        diag) != 0) {
                 tc_symbol_table_pop_scope(symbols);
                 return -1;

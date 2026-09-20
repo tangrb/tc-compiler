@@ -1,0 +1,13 @@
+#lib
+; 2.6.1(b)：ptr_store 的 value 操作数计入读集
+public func f(c: bool) void then
+    var a: int32 = 0
+    var p: ptr<int32> = ptr_address(int32, a)
+    if c then
+        goto skip
+    end
+    var x: int32 = 1
+    label skip:
+    ptr_store(int32, p, x)
+    return
+end

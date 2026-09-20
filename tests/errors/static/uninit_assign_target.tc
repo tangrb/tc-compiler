@@ -1,0 +1,11 @@
+#lib
+; 2.6.1(a) / §6.2、§7.3.3：赋值目标本身也须已确定初始化
+public func f(c: bool) void then
+    if c then
+        goto skip
+    end
+    var x: int32 = 1
+    label skip:
+    x = 2
+    return
+end

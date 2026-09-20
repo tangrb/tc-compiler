@@ -183,7 +183,7 @@
 
 | 子项 | 主题 | 状态 |
 | ---- | ---- | ---- |
-| 2.6.1 | 确定初始化 DFA 读集不完整（7 个场景） | ☐ |
+| 2.6.1 | 确定初始化 DFA 读集不完整（7 个场景） | ☑ |
 | 2.6.2 | 操作数/字段类型只比较 `tag`（6 类） | ☐ |
 | 2.6.3 | 名称冲突与作用域漏检（5 类） | ☑ |
 | 2.6.4 | 控制流/可达性漏检（`while true` 后不可达；`else if`） | ☑ |
@@ -223,6 +223,7 @@
 | 2.6.5 | `tc_parser.c` `tc_parse_module_body`：`#lib` 模式下把 EXEC 层行按语法拒绝（`TC_CE_SYNTAX`，主位置为该行首 Token），例外放行 `goto`/`label`/`break`/`continue`/`return` —— 附录 A 明示其顶层出现由后续静态语义报专用码（保住既有 `GotoOutsideFunction` 等诊断）。新增 `tests/errors/static/lib_toplevel_statement.tc`（`public static var W` + 顶层 `writeln`），注册 VM check_fail（SyntaxError）与 fail_msg；test-map 回填 1039 VM | 审计复现：`#lib` + 顶层 `writeln(int32, 42)` 由 ACCEPT（被 import 时静默丢弃）变为 `SyntaxError: executable statement is not allowed in #lib`（VM/AOT 一致）；`#lib` + 顶层 `if` 同样拒绝；顶层 `goto`/`return`/`break`/`continue` 仍报各自专用码；`#lib` 顶层 `var`/`let` 仍报 `ModuleLayerError`；合法 `#lib`（仅 static/func）不受影响；全量三层与 5 项门禁通过 |
 | 2.6.3 | 三处补齐：①`tc_analyzer_pass1.c` 新增 `tc_pass1_param_name_conflict`，`TcAnalyzeCtx` 增 `current_params`/`current_param_count`（在 FUNC_DEF 分支设置并恢复），`var`/`let` 在**任意层级**与形参同名 → `DUPLICATE_DEFINITION`（不能扫全符号表：符号表跨函数/模块共享，已弹栈的形参仍在）；②`tc_analyzer_pass2.c` 新增 `tc_pass2_check_nested_func_name_conflict`（按当前模块成员索引判定），函数体任意层级/顶层嵌套块的 `var`/`let` 与全局函数同名 → `FUNCTION_NAME_CONFLICT`；③`tc_struct_check.c` 结构体注册时扫描同模块 `func`/`var`/`let`/`static var`/`static let` 名，冲突 → `FUNCTION_NAME_CONFLICT`（主位置取两者中源序更晚者）。新增四份语料：`param_shadow_nested.tc`、`nested_var_function_conflict.tc`、`struct_value_name_conflict.tc`、`struct_function_name_conflict.tc`（VM check_fail + 码断言）；test-map 回填 1043 VM（结构体名与导入名冲突已由 B-12 闭合） | 审计五个复现：`if true then var a`（与形参 `a` 同名）、函数体内 `var g`（与 `func g` 同名）、`struct S` + `var S`、`public struct F` + `public func F` 全部由 ACCEPT 变为对应专用码（VM/AOT 一致）；`#program` + `import pub` + `struct pub` 已由 B-12 拒绝；合法程序（如 `Util.tc` 的 `add1(x)` 被 import、`#program` 顶层 `var x` 与依赖形参同名）不受影响（test-module 65/65）；全量三层与 5 项门禁通过 |
 | 2.6.4 | ①`tc_cfg.c` `tc_cfg_diagnose_unreachable` 的结构可达 BFS 跳过「恒真 LOOP_CONDITION 的 FALSE 出边」（`!edge->enabled && TC_CFG_FALSE && from->kind == TC_CFG_LOOP_CONDITION`）——`break` 走 TC_CFG_BREAK 边直达 LOOP_EXIT，故 `while true` 经 break 终止时其后语句仍可达；`while false` 的 TRUE 出边仍按结构可达处理（本轮只收敛恒真循环）。②`tc_parser.c` `if` 解析在匹配 `else` 后调用 `tc_expect_stmt_end`，`else` 行只允许 `else` 本身（+ 可选 `;`），单行 `else if` 报 `SyntaxError: unexpected trailing tokens`（附录 A `if_stmt` 要求 else 后换行 + 缩进 + suite；§7.1.1 不支持单行 `else if`）。新增 `unreachable_after_while_true.tc`、`else_inline_if.tc`（VM check_fail + 码断言）与 `while_true_break_reachable.tc`（VM stdout+check_ok、AOT diff）；test-map 回填 1047 VM / 478 AOT | `while true` 后语句由 ACCEPT 变为 `UnreachableStatement`（VM/AOT 一致）；`while true` + 可达 `break` 后语句仍接受且两后端输出 3；单行 `else if` 由「接受且 else 体无条件执行（打印 2）」变为 `SyntaxError`；合法多行 if/else 不受影响（输出 2）；全量三层与 5 项门禁通过 |
+| 2.6.1 | ①`tc_cfg.c` `tc_cfg_add_rhs_reads` 展开全部复合/调用 RHS 读集（memblock_load/构造器/`.count`/结构体构造器/`ptr_*`/`funcall` 实参/`Self.<成员>`）；②语句层补读集：赋值（含**目标自身**，§6.2）、`return` 操作数、`funcall` 实参、`memblock_store`/`memblock_copy`/`ptr_store`/`memcopy_unsafe` 操作数、字段赋值基址与 RHS；③补全这些语句节点的诊断行号；④读集解析优先取 Pass2 已解析的 `binding.slot`（按名查找在多模块共享符号表 + 各模块 stmt_index 各自从 0 编号时会命中另一模块的同名绑定），按名入口跳过 `static` 域（静态成员不参与函数确定初始化）；⑤修 Pass1 形参 `def_stmt_index` 取**函数定义自身**序号（原取 body_start，使函数体首语句中的形参读取不可见并回退到同名符号——两个函数同名形参时误报）；`tc_cfg_collect_param_slots` 同步改按函数序号匹配。新增 8 份 `uninit_*` 语料（VM check_fail + UninitializedVariable）与 `tests/valid/dup_param_names_ok.tc`（VM check_ok、AOT check_ok）；test-map 回填 1056 VM / 479 AOT | 审计 7 个场景全部由 ACCEPT 变为 `UninitializedVariable`：赋值目标、`return x`、`funcall(Self.g, v: x)`、`memblock_load(int32, m, 0)`（m 被跳过）、`m.count`、`S(a: x)`、`memblock_store(int32, m, 0, x)`（另补 `ptr_store` 一例），行号均正确；同名形参的两个函数（`dup_param_names_ok.tc`）与既有 `nested_call`/`qualified_*`/`self_member_*`/`increment_static` 等不再误报；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -274,7 +275,8 @@
 | 30 | 阶段 2-§2.6.6 isize 不得当作 usize | `cfc6601 fix(0.0.44-2.6.6): require usize for count/ptr_size results` |
 | 31 | 阶段 2-§2.6.5 `#lib` 顶层可执行语句 | `5468e50 fix(0.0.44-2.6.5): reject top-level executable statements in #lib` |
 | 32 | 阶段 2-§2.6.3 名称冲突与作用域漏检 | `3937432 fix(0.0.44-2.6.3): close name-conflict and scope gaps` |
-| 33 | 阶段 2-§2.6.4 控制流/可达性漏检 | 本提交 `fix(0.0.44-2.6.4): close reachability gaps (while true / else if)` |
+| 33 | 阶段 2-§2.6.4 控制流/可达性漏检 | `1b49d12 fix(0.0.44-2.6.4): close reachability gaps (while true / else if)` |
+| 34 | 阶段 2-§2.6.1 确定初始化读集补全 | 本提交 `fix(0.0.44-2.6.1): complete the definite-initialization read sets` |
 
 ---
 

@@ -1,0 +1,11 @@
+#lib
+; 2.6.1(b)：`.count` 的 memblock 基址计入读集
+public func f(c: bool) usize then
+    if c then
+        goto skip
+    end
+    var m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+    label skip:
+    var n: usize = m.count
+    return n
+end
