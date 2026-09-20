@@ -1,0 +1,3 @@
+#program
+import BareCondLib
+writeln(int32, 1)

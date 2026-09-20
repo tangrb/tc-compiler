@@ -1,0 +1,3 @@
+#program
+import BareReturnLib
+writeln(int32, 1)

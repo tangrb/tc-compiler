@@ -1,0 +1,3 @@
+#program
+import BareReadLib
+writeln(int32, 1)

@@ -8,7 +8,7 @@
 2. 按下方目录只打开**一节**账本；改 C 源码不必加载本文件。
 3. 新增用例后：注册 `run_tests.sh` → 更新本文件规模/相关行 → `check_doc_counts.py`。
 
-**规模**（`check_doc_counts.py` 校验）：**1118 VM** · **~489 AOT（注册）** / **489 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
+**规模**（`check_doc_counts.py` 校验）：**1124 VM** · **~495 AOT（注册）** / **495 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
 
 ## 目录
 
@@ -57,7 +57,7 @@
 | Lexer 新关键字 / `#program` / `@` / `isize` | `test_lexer.c` / check-lexer | B-1～B-4 |
 | Parser 模块头 / 类型 / return / funcall | `test_parser.c` / check-parser | C-1～C-7 |
 | 模块 4a～4d / Self / 签名 / 歧义导入 / 菱形拓扑 | `test_module.c` / check-module | 语言标准 §4.1～§4.5、§9.1；`diamond_import_*` |
-| 模块错误 `.tc` | `tests/errors/module/`、`tests/modules/` | 无头、可见性、环、Self、成功 import（`--check`）；导入 struct 负例见 Phase 3 `imported_struct_*` |
+| 模块错误 `.tc` | `tests/errors/module/`、`tests/modules/` | 无头、可见性、环、Self、成功 import（`--check`）；导入 struct 负例见 Phase 3 `imported_struct_*`；**`self_call_neg/`**（依赖模块内裸名 `funcall` → FUNCTION_SCOPE_ACCESS）、**`bare_scope_neg/`**（依赖模块内裸名成员读/赋值/输出/return/条件/`let` 六形态，错码须与作入口时一致） |
 
 ## 0.0.31 破坏性迁移账本
 
@@ -193,6 +193,6 @@ deep_recursion · let_chain · io_stress · many_vars_stress · type_combinatori
 | test_struct_field_access.c (34) | tc_struct_check.c + analyzer（字段读 / const 复合 / static let memblock 计数） | check-struct-field-access |
 | test_embed.c (590) / test_embed_aot.c (380) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
 
-AOT（`scripts/aot/run_tests.sh`）：**489** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**489** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
+AOT（`scripts/aot/run_tests.sh`）：**495** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**495** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
 
 新用例注册 `scripts/vm/run_tests.sh`（+ AOT 如适用）；同步本文件 + `@knowledge-graph` + 对应 `kg-*.md` + `features/*.md`。

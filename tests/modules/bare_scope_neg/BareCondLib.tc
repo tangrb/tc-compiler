@@ -1,0 +1,10 @@
+#lib
+; §4.3 / §8.4.1：函数体内裸名引用本库顶层成员（条件）→
+; TC_CE_FUNCTION_SCOPE_ACCESS。该模块被 #program 导入时错码须与作入口时一致（审计 B-54）。
+public static let C: bool = true
+public func f() void then
+    if C then
+        writeln(int32, 1)
+    end
+    return
+end

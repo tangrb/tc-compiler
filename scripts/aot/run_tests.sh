@@ -887,6 +887,13 @@ run_check_fail "$ROOT/tests/errors/static/self_bare_condition.tc" "function scop
 run_check_fail "$ROOT/tests/errors/static/self_bare_assign_target.tc" "function scope access: use Self."
 run_check_fail "$ROOT/tests/errors/static/self_bare_memblock_n.tc" "function scope access: use Self."
 run_check_fail "$ROOT/tests/errors/static/self_bare_memblock_count.tc" "function scope access: use Self."
+# B-54：依赖模块（#lib 被 import）内的裸名成员引用同样报 FUNCTION_SCOPE_ACCESS
+run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_read.tc" "function scope access: use Self.C"
+run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_assign.tc" "function scope access: use Self.C"
+run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_io.tc" "function scope access: use Self.C"
+run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_return.tc" "function scope access: use Self.C"
+run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_cond.tc" "function scope access: use Self.C"
+run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_let.tc" "function scope access: use Self.C"
 run_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "literal out of range for context type"
 run_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
 run_check_fail "$ROOT/tests/errors/static/truncate_in_arith.tc" "truncate cannot be used with arithmetic"

@@ -1,0 +1,3 @@
+#program
+import BareAssignLib
+writeln(int32, 1)

@@ -1054,6 +1054,19 @@ run_expect_check_ok "$ROOT/tests/modules/import_self_call.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_field_funcall.tc"
 run_expect_check_fail "$ROOT/tests/modules/self_call_neg/import_bare_call.tc" \
     "function scope access: use Self.inc" "FunctionScopeAccessError"
+# B-54：依赖模块（#lib 被 import）内裸名引用本库顶层成员，错码须与作入口时一致
+run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_read.tc" \
+    "function scope access: use Self.C" "FunctionScopeAccessError"
+run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_assign.tc" \
+    "function scope access: use Self.C" "FunctionScopeAccessError"
+run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_io.tc" \
+    "function scope access: use Self.C" "FunctionScopeAccessError"
+run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_return.tc" \
+    "function scope access: use Self.C" "FunctionScopeAccessError"
+run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_cond.tc" \
+    "function scope access: use Self.C" "FunctionScopeAccessError"
+run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_let.tc" \
+    "function scope access: use Self.C" "FunctionScopeAccessError"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \
     "cannot assign to function parameter"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_param_let.tc" \
