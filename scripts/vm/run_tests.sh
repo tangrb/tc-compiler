@@ -2562,9 +2562,11 @@ run_expect_check_fail "$ROOT/tests/errors/module/module_layer.tc" \
 run_expect_check_fail "$ROOT/tests/errors/module/import_not_found.tc" "import module not found"
 run_expect_check_fail "$ROOT/tests/errors/module/self_import.tc" "circular import"
 run_expect_check_fail "$ROOT/tests/errors/module/import_name_conflict_program.tc" \
-    "import name conflicts with a top-level declaration"
+    "import name conflicts with a top-level declaration" "ImportNameConflict"
 run_expect_check_fail "$ROOT/tests/errors/module/import_name_conflict_lib.tc" \
-    "import name conflicts with a top-level declaration"
+    "import name conflicts with a top-level declaration" "ImportNameConflict"
+run_expect_check_fail "$ROOT/tests/errors/module/import_name_conflict_program_struct.tc" \
+    "import name conflicts with a top-level declaration" "ImportNameConflict"
 run_expect_check_fail "$ROOT/tests/errors/module/self_in_program.tc" "Self is not allowed in #program"
 run_expect_check_fail "$ROOT/tests/errors/module/func_in_program.tc" \
     "func is not allowed in #program mode"

@@ -1,0 +1,8 @@
+#program
+; 语言标准 §3.9.1 / 附录 B.2：「结构体名与导入名冲突」无模式限定 → #program 同样报
+; TC_CE_IMPORT_NAME_CONFLICT（此前只检查顶层 var / let 名）
+import math
+struct math then
+    var x: int32
+end
+var v: int32 = 1

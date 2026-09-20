@@ -555,8 +555,11 @@ static int tc_find_dep_index(const TcTypedProgram *out, const char *name) {
 /**
  * 4b 子阶段：检查 import 名是否与本模块顶层声明冲突。
  *
- * #program 模式：检查顶层 var / let 名
+ * #program 模式：检查顶层 var / let / struct 名
  * #lib 模式：检查 func / struct / static let / static var 名
+ *
+ * 语言标准 §3.9.1 与附录 B.2 对「结构体名与导入名冲突」无模式限定，故 `struct`
+ * 名在两种模式下都参与检查（编译器标准 §4.6 名称冲突检查范围）。
  *
  * @return 1 表示冲突，0 表示无冲突
  */
@@ -570,11 +573,11 @@ static int tc_module_check_import_name_conflict(const TcProgram *prog, const cha
             decl_name = stmt->u.var_def.name;
         } else if (stmt->kind == TC_STMT_CONST_DEF) {
             decl_name = stmt->u.const_def.name;
+        } else if (stmt->kind == TC_STMT_STRUCT_DEF) {
+            decl_name = stmt->u.struct_def.name;
         } else if (prog->mode == TC_MODULE_LIB) {
             if (stmt->kind == TC_STMT_FUNC_DEF) {
                 decl_name = stmt->u.func_def.name;
-            } else if (stmt->kind == TC_STMT_STRUCT_DEF) {
-                decl_name = stmt->u.struct_def.name;
             } else if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
                 decl_name = stmt->u.static_var_def.name;
             } else if (stmt->kind == TC_STMT_STATIC_LET_DEF) {

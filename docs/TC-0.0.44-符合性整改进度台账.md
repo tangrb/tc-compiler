@@ -208,6 +208,7 @@
 | B-9 | `tc_executor.c` `tc_eval_operand` 无名解析兜底：判据由 `sym->slot >= 0` 放宽为 `sym->slot >= 0 \|\| sym->has_const_value`（`let`/`static let` 的 slot 为 -1，原判据恒落 `tc_exec_load_binding` 的「unresolved binding metadata」内部错误）；新增 `tests/valid/memblock_copy_let_index.tc`（审计复现 + `memcopy_unsafe` 同形用例），注册 VM stdout + AOT diff；test-map 回填 1012 VM / 473 AOT | 审计复现 `memblock_copy(int32, d, I, s, I, 1)`（`let I: int32 = 0`）VM 与 AOT 均输出 `1`（原 VM 报内部错误）；同文件 `memcopy_unsafe(int32, p, I, q, I, 1)` 亦正常；全量三层与 5 项门禁通过 |
 | B-10 | 执行期非法槽编码（§1.3 实现定义清单第 4 项）统一按 AOT 既有口径报用户可见运行期码，删除实现内部错误：`tc_ptr_exec.c` `tc_exec_ptr_load`/`tc_exec_ptr_store` → `TC_RE_NULL_POINTER_DEREFERENCE`，`tc_exec_ptr_arith` → `TC_RE_NULL_POINTER_ARITHMETIC`，`tc_memblock_exec.c` `memcopy_unsafe` → `TC_RE_NULL_POINTER_DEREFERENCE`。新增 `tests/errors/runtime/ptr_bitcast_forged_load.tc`（审计复现）与 `ptr_bitcast_forged_arith.tc`，注册 VM fail+check_ok、AOT runtime_fail；test-map 回填 1016 VM（AOT 注册计数只统计 diff/check_ok/check_fail/CLI golden，`run_runtime_fail` 不计入，保持 473） | 审计复现 `ptr_load` 的 VM 由「internal error: invalid pointer value」改为 `NullPointerDereference: null pointer dereference`，与 AOT 一致；`ptr_store`、`ptr_add` 两个同源路径同样一致（VM NullPointerArithmetic / AOT null pointer arithmetic）；`--filter ptr_bitcast_forged` 通过；全量三层与 5 项门禁通过。注：「解引用任意 usize 伪造的编码」在标准中属空白（审计列为 A 类），本轮按 §1.3 一致性要求对齐 AOT，不改标准 |
 | B-11 | `tc_struct_exec.c`：结构体基堆句柄为空（经指针别名写入清零）时，字段读取改为按字段类型取 0 位模式（新增 `tc_exec_null_field_value`，覆盖 `tc_exec_eval_field_access` 与未解析回退路径），字段赋值改为 no-op（RHS 仍求值），与 AOT `tc_aot_struct_load_bits`/`tc_aot_struct_store_bits`/`tc_aot_struct_extract` 对空基址的行为一致；补 `tc_semantics.h` 引用。新增 `tests/valid/struct_alias_zeroed_field_read.tc`（审计复现），注册 VM stdout+check_ok、AOT diff；test-map 回填 1018 VM / 474 AOT | 审计复现 VM 与 AOT 均输出 `0`/`0`/`0`（原 VM 第二行起报「internal error: invalid struct field read」）；补测字段赋值（no-op）与嵌套结构体字段读取两后端一致（`0`/`0`/`1`）；`--filter struct_alias_zeroed` 通过；全量三层与 5 项门禁通过 |
+| B-12 | `tc_module.c` `tc_module_check_import_name_conflict`：`TC_STMT_STRUCT_DEF` 移出 `#lib` 专属分支，两种模式都参与冲突检查（编译器标准 §4.6 名称冲突检查范围本轮已含 `#program` 的 `struct` 名，语言标准 §3.9.1/附录 B.2 本就无模式限定）；新增 `tests/errors/module/import_name_conflict_program_struct.tc`，并为 program/lib 两条既有用例补错误码断言；test-map 回填 1019 VM | 审计复现 `#program` + `import Foo` + `struct Foo` 现报 `ImportNameConflict`（VM 与 AOT 一致，原为接受）；`#lib` 三种形态仍正确拒绝；`--filter import_name_conflict` 4/4；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -244,7 +245,8 @@
 | 15 | 阶段 2-B8 memcopy_unsafe 字段指针操作数 | `0e40d2b fix(0.0.44-B8): resolve struct field ptr operands in memcopy_unsafe` |
 | 16 | 阶段 2-B9 顶层 let 作下标操作数 | `83c76fb fix(0.0.44-B9): evaluate const bindings in operand fallback` |
 | 17 | 阶段 2-B10 非法指针编码两后端分歧 | `5ad9b34 fix(0.0.44-B10): report user-visible codes for invalid ptr encodings` |
-| 18 | 阶段 2-B11 空结构体句柄字段读写 | 本提交 `fix(0.0.44-B11): read fields from a null struct base as zeros` |
+| 18 | 阶段 2-B11 空结构体句柄字段读写 | `e467116 fix(0.0.44-B11): read fields from a null struct base as zeros` |
+| 19 | 阶段 2-B12 `#program` 结构体名与导入名冲突 | 本提交 `fix(0.0.44-B12): check struct names against import names in #program` |
 
 ---
 
