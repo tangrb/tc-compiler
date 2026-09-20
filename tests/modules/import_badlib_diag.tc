@@ -1,0 +1,3 @@
+#program
+import BadLibDiag
+writeln(int32, 1)

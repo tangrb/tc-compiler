@@ -1,0 +1,7 @@
+#lib
+; B-14：依赖模块内的诊断必须定位到**模块自身**文件与源码片段，
+; 不得报入口文件名 + 模块行号（第 5 行的未定义变量）
+public func f() int32 then
+    var y: int32 = zzz
+    return y
+end

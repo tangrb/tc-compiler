@@ -945,6 +945,7 @@ typedef struct {
     TcModuleMode mode;
     char *module_name; /* #lib 由文件名推导；#program 可为 NULL */
     char *source_path; /* 源路径（导入解析用）；可为 NULL */
+    char *source_text; /* 源文本（依赖模块诊断片段用）；可为 NULL */
     TcStatement *items;
     size_t count;
     size_t capacity;

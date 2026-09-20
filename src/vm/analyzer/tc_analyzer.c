@@ -231,6 +231,12 @@ done:
 /*  tc_analyze_ex — 文件模式分析入口                                      */
 /* ------------------------------------------------------------------ */
 
+/** 把诊断定位切到某个模块自身（B-14：依赖模块诊断不得定位到入口文件）。 */
+static int tc_diag_use_module(TcDiagnostic *diag, const TcProgram *prog) {
+    return tc_diagnostic_use_source(diag, prog ? prog->source_path : NULL,
+                                    prog ? prog->source_text : NULL);
+}
+
 static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *entry_path,
                            const char *entry_module_name, const TcModuleSearchPaths *search,
                            TcDiagnostic *diag) {
@@ -254,6 +260,53 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     program->mode = TC_MODULE_UNSET;
     program->module_name = NULL;
     program->source_path = NULL;
+    program->source_text = NULL;
+    /*
+     * B-14：保留入口源文本，供「入口 ↔ 依赖模块」之间的诊断定位切换。调用方
+     *（libtc / 驱动）不一定设置它，故退回到诊断对象里已绑定的入口源文本。
+     */
+    if (!out->program.source_text) {
+        const char *entry_file = NULL;
+        const char *entry_text = NULL;
+
+        tc_diagnostic_get_source(diag, &entry_file, &entry_text);
+        (void)entry_file;
+        if (entry_text) {
+            out->program.source_text = strdup(entry_text);
+            if (!out->program.source_text) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                goto fail;
+            }
+        }
+    }
+
+    /*
+     * 入口诊断定位副本：依赖模块阶段会临时把诊断 source 切到模块自身（B-14），
+     * 每个依赖阶段结束后都要切回入口。set_source 会释放旧文本，故此处 strdup。
+     */
+    {
+        const char *entry_file = NULL;
+        const char *entry_text = NULL;
+
+        tc_diagnostic_get_source(diag, &entry_file, &entry_text);
+        if (entry_file) {
+            saved_file = strdup(entry_file);
+            if (!saved_file) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                goto fail;
+            }
+        }
+        if (entry_text) {
+            saved_source = strdup(entry_text);
+            if (!saved_source) {
+                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                                  "memory allocation failed");
+                goto fail;
+            }
+        }
+    }
 
     if (out->program.mode == TC_MODULE_UNSET) {
         tc_diagnostic_set(diag, TC_CE_SYNTAX, 1, TC_COLUMN_UNKNOWN,
@@ -294,6 +347,10 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
                 goto fail;
             }
             for (di = 0; di < out->dep_count; di++) {
+                if (tc_diag_use_module(diag, &out->deps[dep_order[di]]) != 0) {
+                    free(dep_order);
+                    goto fail;
+                }
                 if (tc_struct_table_register_program(&out->deps[dep_order[di]], &struct_table,
                                                      diag) != 0) {
                     free(dep_order);
@@ -301,6 +358,9 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
                 }
             }
             free(dep_order);
+            if (tc_diagnostic_use_source(diag, saved_file, saved_source) != 0) {
+                goto fail;
+            }
         }
     }
     if (tc_struct_table_register_program(&out->program, &struct_table, diag) != 0) {
@@ -330,10 +390,16 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
+            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
+                goto fail;
+            }
             if (tc_pass1_collect_symbols(&out->deps[di], &out->symbols, out->type_table,
                                          diag) != 0) {
                 goto fail;
             }
+        }
+        if (tc_diagnostic_use_source(diag, saved_file, saved_source) != 0) {
+            goto fail;
         }
     }
 
@@ -354,10 +420,16 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
+            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
+                goto fail;
+            }
             if (tc_func_eval_static_lets(&out->deps[di], &out->symbols, &struct_table,
                                                  out->type_table, diag) != 0) {
                 goto fail;
             }
+        }
+        if (tc_diagnostic_use_source(diag, saved_file, saved_source) != 0) {
+            goto fail;
         }
     }
     if (tc_func_check_static_vars(&out->program, &members, &out->symbols, &struct_table,
@@ -374,12 +446,19 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
                 tc_member_index_free(&dep_members);
                 goto fail;
             }
+            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
+                tc_member_index_free(&dep_members);
+                goto fail;
+            }
             if (tc_func_check_static_vars(&out->deps[di], &dep_members, &out->symbols,
                                           &struct_table, diag) != 0) {
                 tc_member_index_free(&dep_members);
                 goto fail;
             }
             tc_member_index_free(&dep_members);
+        }
+        if (tc_diagnostic_use_source(diag, saved_file, saved_source) != 0) {
+            goto fail;
         }
     }
 
@@ -431,6 +510,11 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
             }
             func_env.members = &dep_members;
             func_env.module_index = (int)di;
+            /* B-14：依赖模块体内的诊断定位到模块自身文件与源文本。 */
+            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
+                tc_member_index_free(&dep_members);
+                goto fail;
+            }
             rc = tc_pass2_type_check(&out->deps[di], &out->symbols, &struct_table, &func_env,
                                      &out->warnings, diag);
             tc_member_index_free(&dep_members);
@@ -440,6 +524,9 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
         }
         func_env.members = &members;
         func_env.module_index = tc_func_env_module_index(&out->program);
+        if (tc_diagnostic_use_source(diag, saved_file, saved_source) != 0) {
+            goto fail;
+        }
     }
 
     out->cfg_set = (TcCfgSet *)malloc(sizeof(TcCfgSet));
@@ -464,34 +551,13 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
      * （如 goto 跳过初始化、缺少 return）会静默通过。依赖库诊断定位到
      * 其自身文件（fail-fast：出错即返回，无需恢复入口 source）。 */
     {
-        const char *entry_file = NULL;
-        const char *entry_source = NULL;
         size_t di = 0;
 
-        tc_diagnostic_get_source(diag, &entry_file, &entry_source);
-        /* 入口 path/source 会在首次 set_source 时被 diag 释放，恢复前必须
-         * 持有独立副本（此前直接保存内部指针，恢复时 heap-use-after-free） */
-        if (entry_file) {
-            saved_file = strdup(entry_file);
-            if (!saved_file) {
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
-                                  "memory allocation failed");
-                goto fail;
-            }
-        }
-        if (entry_source) {
-            saved_source = strdup(entry_source);
-            if (!saved_source) {
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
-                                  "memory allocation failed");
-                goto fail;
-            }
-        }
         for (di = 0; di < out->dep_count; di++) {
             TcCfgSet dep_set;
             int dep_rc = 0;
 
-            if (tc_diagnostic_set_source(diag, out->deps[di].source_path, NULL) != 0) {
+            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
                 goto fail;
             }
             tc_cfg_set_init(&dep_set);
@@ -508,7 +574,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
             }
         }
         /* 恢复入口 source，供调用图等后续诊断使用 */
-        if (tc_diagnostic_set_source(diag, saved_file, saved_source) != 0) {
+        if (tc_diagnostic_use_source(diag, saved_file, saved_source) != 0) {
             goto fail;
         }
     }

@@ -314,6 +314,21 @@ int tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const cha
     return 0;
 }
 
+int tc_diagnostic_use_source(TcDiagnostic *diag, const char *filename, const char *source) {
+    const char *cur_file = NULL;
+    const char *cur_source = NULL;
+
+    if (!diag) {
+        return -1;
+    }
+    tc_diagnostic_get_source(diag, &cur_file, &cur_source);
+    if (((cur_file == filename) || (cur_file && filename && strcmp(cur_file, filename) == 0)) &&
+        ((cur_source == source) || (cur_source && source && strcmp(cur_source, source) == 0))) {
+        return 0;
+    }
+    return tc_diagnostic_set_source(diag, filename, source);
+}
+
 int tc_diagnostic_set(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
                       const char *message) {
     char line_buf[512];

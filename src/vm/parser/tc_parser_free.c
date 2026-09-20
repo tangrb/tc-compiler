@@ -366,6 +366,7 @@ void tc_program_init(TcProgram *program) {
     program->mode = TC_MODULE_UNSET;
     program->module_name = NULL;
     program->source_path = NULL;
+    program->source_text = NULL;
     program->items = NULL;
     program->count = 0;
     program->capacity = 0;
@@ -379,9 +380,11 @@ void tc_program_free(TcProgram *program) {
     free(program->items);
     free(program->module_name);
     free(program->source_path);
+    free(program->source_text);
     program->items = NULL;
     program->module_name = NULL;
     program->source_path = NULL;
+    program->source_text = NULL;
     program->mode = TC_MODULE_UNSET;
     program->count = 0;
     program->capacity = 0;

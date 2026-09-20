@@ -41,6 +41,13 @@ void tc_diagnostic_clear(TcDiagnostic *diag);
 int tc_diagnostic_set_source(TcDiagnostic *diag, const char *filename, const char *source);
 
 /**
+ * 仅当目标 (filename, source) 与当前绑定不同时切换（避免整篇源码被反复复制）。
+ * 供多文件编译在「入口 ↔ 依赖模块」之间切换诊断定位使用。
+ * @return 成功返回 0；文本分配失败返回 -1
+ */
+int tc_diagnostic_use_source(TcDiagnostic *diag, const char *filename, const char *source);
+
+/**
  * 读取当前绑定的源文件路径与源文本。
  * @param diag      诊断对象
  * @param filename  输出：内部存储的路径指针（NULL 表示未绑定；不得释放）

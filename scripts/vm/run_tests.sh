@@ -2587,6 +2587,9 @@ run_expect_check_fail "$ROOT/tests/modules/import_badlib_missing_return.tc" \
     "missing return on reachable path"
 run_expect_check_fail "$ROOT/tests/modules/import_badlib_uninit.tc" \
     "use of uninitialized variable"
+# B-14：依赖模块诊断定位到模块自身（文件 + 行号 + 片段），而非入口文件
+run_expect_check_fail "$ROOT/tests/modules/import_badlib_diag.tc" \
+    "BadLibDiag.tc:5: error: undefined variable 'zzz'" "UndefinedVariable"
 # --- memblock N 规划个数：funcall 返回值位置（P0-3） ---
 run_expect_check_fail "$ROOT/tests/modules/import_mbsize_mismatch.tc" "memblock size mismatch"
 # --- 同名形参跨函数 + 首条语句 store（P1：binding 持久化回归） ---

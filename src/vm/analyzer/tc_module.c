@@ -434,7 +434,22 @@ static int tc_load_lib_file(const char *path, const char *expected_name, TcProgr
         }
         return -1;
     }
+    /* 模块内的诊断（语法/结构）须定位到模块自身文件而非入口（B-14）。 */
+    if (tc_diagnostic_use_source(diag, path, text) != 0) {
+        free(text);
+        return -1;
+    }
     rc = tc_parse_source_to_program(text, out, diag);
+    if (rc == 0) {
+        out->source_text = strdup(text);
+        if (!out->source_text) {
+            free(text);
+            tc_program_free(out);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+    }
     free(text);
     if (rc != 0) {
         return -1;
@@ -609,6 +624,10 @@ static int tc_collect_imports_recursive(TcTypedProgram *out, TcProgram *current,
 
         if (stmt->kind != TC_STMT_IMPORT) {
             continue;
+        }
+        /* import 相关诊断（重复/冲突/自导入/环）定位到写出该 import 的模块。 */
+        if (tc_diagnostic_use_source(diag, current->source_path, current->source_text) != 0) {
+            return -1;
         }
         mod_name = stmt->u.import_stmt.module_name;
 
@@ -785,21 +804,44 @@ int tc_module_resolve_imports_ex(TcTypedProgram *out, const char *entry_path,
                                  const char *entry_module_name,
                                  const TcModuleSearchPaths *search, TcDiagnostic *diag) {
     char *entry_dir = NULL;
-    int rc;
+    char *saved_entry_file = NULL;
+    char *saved_entry_source = NULL;
+    const char *cur_file = NULL;
+    const char *cur_source = NULL;
+    int rc = -1;
 
     if (!out) {
         return -1;
     }
+    /* 入口定位副本（set_source 会释放旧文本，故须 strdup 后再切换）。 */
+    tc_diagnostic_get_source(diag, &cur_file, &cur_source);
+    if (cur_file) {
+        saved_entry_file = strdup(cur_file);
+        if (!saved_entry_file) {
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+    }
+    if (cur_source) {
+        saved_entry_source = strdup(cur_source);
+        if (!saved_entry_source) {
+            free(saved_entry_file);
+            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                              "memory allocation failed");
+            return -1;
+        }
+    }
     /* 入口自身先过 4a，再展开依赖 */
     if (tc_module_check_structure(&out->program, diag) != 0) {
-        return -1;
+        goto done;
     }
 
     entry_dir = tc_dirname_dup(entry_path);
     if (!entry_dir) {
         tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                           "memory allocation failed");
-        return -1;
+        goto done;
     }
 
     if (entry_path) {
@@ -810,10 +852,9 @@ int tc_module_resolve_imports_ex(TcTypedProgram *out, const char *entry_path,
                 /* 空串 = 显式声明入口无模块名（内存源入口的默认形态） */
                 out->program.module_name = entry_module_name[0] ? strdup(entry_module_name) : NULL;
                 if (entry_module_name[0] && !out->program.module_name) {
-                    free(entry_dir);
                     tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                                       "memory allocation failed");
-                    return -1;
+                    goto done;
                 }
             } else {
                 out->program.module_name = tc_module_stem(entry_path);
@@ -821,19 +862,32 @@ int tc_module_resolve_imports_ex(TcTypedProgram *out, const char *entry_path,
         }
         if (!out->program.source_path ||
             (!out->program.module_name && !entry_module_name)) {
-            free(entry_dir);
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
-            return -1;
+            goto done;
         }
     }
 
-    rc = tc_collect_imports_recursive(out, &out->program, entry_dir, search, diag);
-    free(entry_dir);
-    if (rc != 0) {
-        return -1;
+    if (tc_collect_imports_recursive(out, &out->program, entry_dir, search, diag) != 0) {
+        goto done;
     }
-    return tc_build_and_check_dag(out, diag);
+    if (tc_build_and_check_dag(out, diag) != 0) {
+        goto done;
+    }
+    /*
+     * B-14：加载/解析模块期间诊断定位被切到各模块自身；成功返回前恢复入口定位，
+     * 使后续阶段（Pass1/Pass2/CFG）中入口自身的诊断仍指向入口文件与源文本。
+     */
+    if (tc_diagnostic_use_source(diag, saved_entry_file, saved_entry_source) != 0) {
+        goto done;
+    }
+    rc = 0;
+
+done:
+    free(entry_dir);
+    free(saved_entry_file);
+    free(saved_entry_source);
+    return rc;
 }
 
 /* ------------------------------------------------------------------ */
