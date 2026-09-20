@@ -1005,6 +1005,14 @@ typedef struct {
     int scope_end_stmt_index; /* 块内符号可见上界（不含）；-1 表示全局/始终可见 */
     const TcType *type;  /* 完整类型：单例或 TcTypeTable intern；随符号释放时不 free */
     int ptr_target_readonly; /* ptr 绑定：所指外层为 let/static let/形参时为 1 */
+    /*
+     * B-65：符号所属模块名（借用 `TcProgram.module_name`，不拥有；NULL = 未标记）。
+     *
+     * 符号表是全模块共享的一张表（slot 全局唯一），而各模块的 stmt_index 各自从 0
+     * 编号，故「按名 + def_stmt_index」的查找可能命中另一模块的同名绑定。标记来源
+     * 模块后，解析可优先取本模块的同名符号，避免读/写槽错位。
+     */
+    const char *module_name;
 } TcSymbol;
 
 /** 作用域栈帧：记录某层级符号在 symbols[] 中的索引区间 [start_index, end_index) */

@@ -1,0 +1,13 @@
+#lib
+; B-65 / §9.2、§11：入口模块与库内局部**同名**绑定不得互相干扰。
+; 符号表是全模块共享的一张表、而 stmt_index 各模块独立从 0 编号，按名 +
+; def_stmt_index 回溯会同时命中两边（依赖模块先入表）。本库的 fb() 返回 false，
+; 但库内同时在嵌套块里声明了 `var b: bool = true`，用于验证入口的 `b` 读到的
+; 是 funcall 的返回值而不是库内同名局部（后者会输出 true）。
+public func fb() bool then
+    var p0: bool = true
+    if true then
+        var b: bool = true
+    end
+    return false
+end

@@ -29,6 +29,7 @@ typedef struct {
     TcCfg *cfg;
     const TcSymbolTable *symbols;
     TcDiagnostic *diag;
+    const char *module_name; /* B-65：当前被分析模块，用于按名回溯时排除跨模块同名符号 */
     TcStmtIndexCursor index;
     int scope_depth;
     int *stmt_nodes;
@@ -131,28 +132,78 @@ static int tc_cfg_add_edge(TcCfgBuildCtx *ctx, int from, int to, TcCfgEdgeKind k
     return 0;
 }
 
+/*
+ * B-65：符号表全模块共享，而 stmt_index 每模块各自从 0 编号，故「名字 + 序号」
+ * 可能同时命中本模块与另一模块的同名绑定（依赖模块先入表）。优先取 module_name
+ * 匹配的符号；无带标记的匹配时才退回「首个匹配」（合成 / 未标记符号的兼容路径）。
+ */
+static int tc_cfg_sym_in_module(const TcSymbol *sym, const char *module_name) {
+    if (!sym) {
+        return 0;
+    }
+    return !module_name || module_name[0] == '\0' || sym->module_name == NULL ||
+           strcmp(sym->module_name, module_name) == 0;
+}
+
 static const TcSymbol *tc_cfg_find_def(const TcSymbolTable *symbols, const char *name,
-                                       int stmt_index) {
+                                       int stmt_index, const char *module_name) {
     size_t i = 0;
+    const TcSymbol *fallback = NULL;
 
     for (i = 0; i < symbols->count; i++) {
         const TcSymbol *sym = &symbols->symbols[i];
 
-        if (sym->def_stmt_index == stmt_index && strcmp(sym->name, name) == 0) {
+        if (sym->def_stmt_index != stmt_index || strcmp(sym->name, name) != 0) {
+            continue;
+        }
+        if (tc_cfg_sym_in_module(sym, module_name)) {
             return sym;
         }
+        if (!fallback) {
+            fallback = sym;
+        }
     }
-    return NULL;
+    return fallback;
 }
 
 static const TcSymbol *tc_cfg_find_visible(const TcSymbolTable *symbols, const char *name,
-                                           int stmt_index) {
-    return tc_symbol_table_find_visible(symbols, name, stmt_index, NULL);
+                                           int stmt_index, const char *module_name) {
+    const TcSymbol *sym = tc_symbol_table_find_visible(symbols, name, stmt_index, NULL);
+
+    if (tc_cfg_sym_in_module(sym, module_name)) {
+        return sym;
+    }
+    /*
+     * 命中了另一模块的同名绑定：在本模块内按同样的可见性规则重挑（B-65）。
+     * 找不到时保留原结果，避免把「本模块确实没有」变成静默漏检。
+     */
+    {
+        size_t i = 0;
+        const TcSymbol *best = NULL;
+
+        for (i = 0; i < symbols->count; i++) {
+            const TcSymbol *cand = &symbols->symbols[i];
+
+            if (strcmp(cand->name, name) != 0 || !tc_cfg_sym_in_module(cand, module_name)) {
+                continue;
+            }
+            if (cand->def_stmt_index >= stmt_index) {
+                continue;
+            }
+            if (cand->scope_end_stmt_index >= 0 && stmt_index >= cand->scope_end_stmt_index) {
+                continue;
+            }
+            if (!best || cand->def_stmt_index >= best->def_stmt_index) {
+                best = cand;
+            }
+        }
+        return best ? best : sym;
+    }
 }
 
 static int tc_cfg_node_add_read(TcCfgBuildCtx *ctx, int node_id, const char *name,
                                 int stmt_index) {
-    const TcSymbol *sym = tc_cfg_find_visible(ctx->symbols, name, stmt_index);
+    const TcSymbol *sym = tc_cfg_find_visible(ctx->symbols, name, stmt_index, ctx->module_name);
     TcCfgNode *node = &ctx->cfg->nodes[node_id];
     size_t i = 0;
 
@@ -620,21 +671,30 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
     }
 
     if (stmt->kind == TC_STMT_VAR_DEF) {
-        const TcSymbol *sym = tc_cfg_find_def(ctx->symbols, stmt->u.var_def.name, stmt_index);
-
         if (tc_cfg_add_rhs_reads(ctx, node, &stmt->u.var_def.rhs, stmt_index) != 0) {
             return -2;
         }
-        if (sym) {
-            ctx->cfg->nodes[node].write_slot = sym->slot;
+        /*
+         * B-65：写槽优先取 Pass1 固化的定义绑定（全局唯一 slot，与读写两侧的绑定
+         * 同源）；按名回溯在多模块共享符号表 + 各模块独立 stmt_index 时可能命中
+         * 另一模块的同名绑定，造成写槽与读槽错位（假阳性未初始化）。
+         */
+        if (stmt->u.var_def.binding.resolved && stmt->u.var_def.binding.slot >= 0) {
+            ctx->cfg->nodes[node].write_slot = stmt->u.var_def.binding.slot;
+        } else {
+            const TcSymbol *sym = tc_cfg_find_def(ctx->symbols, stmt->u.var_def.name, stmt_index,
+                                                  ctx->module_name);
+            if (sym) {
+                ctx->cfg->nodes[node].write_slot = sym->slot;
+            }
         }
     } else if (stmt->kind == TC_STMT_CONST_DEF) {
         if (tc_cfg_add_rhs_reads(ctx, node, &stmt->u.const_def.rhs, stmt_index) != 0) {
             return -2;
         }
     } else if (stmt->kind == TC_STMT_ASSIGN) {
-        const TcSymbol *sym =
-            tc_cfg_find_visible(ctx->symbols, stmt->u.assign.name, stmt_index);
+        const TcSymbol *sym = tc_cfg_find_visible(ctx->symbols, stmt->u.assign.name, stmt_index,
+                                                 ctx->module_name);
         int target_slot = stmt->u.assign.binding.resolved ? stmt->u.assign.binding.slot : -1;
 
         if (target_slot < 0 && sym) {
@@ -653,11 +713,18 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             ctx->cfg->nodes[node].write_slot = target_slot;
         }
     } else if (stmt->kind == TC_STMT_READ) {
-        const TcSymbol *sym =
-            tc_cfg_find_visible(ctx->symbols, stmt->u.io_read.name, stmt_index);
+        /* B-65：读入目标同样优先用 Pass2 的绑定槽位（按名回溯可能跨模块同名） */
+        int target_slot = stmt->u.io_read.binding.resolved ? stmt->u.io_read.binding.slot : -1;
 
-        if (sym) {
-            ctx->cfg->nodes[node].write_slot = sym->slot;
+        if (target_slot < 0) {
+            const TcSymbol *sym = tc_cfg_find_visible(ctx->symbols, stmt->u.io_read.name,
+                                                     stmt_index, ctx->module_name);
+            if (sym) {
+                target_slot = sym->slot;
+            }
+        }
+        if (target_slot >= 0) {
+            ctx->cfg->nodes[node].write_slot = target_slot;
         }
     } else if (stmt->kind == TC_STMT_WRITE || stmt->kind == TC_STMT_WRITELN) {
         if (tc_cfg_add_operand_read(ctx, node, &stmt->u.io_write.operand, stmt_index) != 0) {
@@ -856,6 +923,7 @@ int tc_cfg_build(const TcProgram *program, const TcSymbolTable *symbols, TcCfg *
     ctx.cfg = out;
     ctx.symbols = symbols;
     ctx.diag = diag;
+    ctx.module_name = program->module_name;
     ctx.stmt_node_count = stmt_count > 0 ? (size_t)stmt_count : 1;
     ctx.stmt_nodes = (int *)malloc(ctx.stmt_node_count * sizeof(int));
     if (!ctx.stmt_nodes) {
@@ -1062,7 +1130,8 @@ void tc_cfg_set_free(TcCfgSet *set) {
 }
 
 static int tc_cfg_build_items(const TcStatement *items, size_t count, int start_index,
-                              const TcSymbolTable *symbols, TcCfg *out, TcDiagnostic *diag) {
+                              const TcSymbolTable *symbols, const char *module_name, TcCfg *out,
+                              TcDiagnostic *diag) {
     TcCfgBuildCtx ctx;
     int last = -1;
     int stmt_count = start_index + tc_stmt_block_index_span(items, count);
@@ -1073,6 +1142,7 @@ static int tc_cfg_build_items(const TcStatement *items, size_t count, int start_
     ctx.cfg = out;
     ctx.symbols = symbols;
     ctx.diag = diag;
+    ctx.module_name = module_name;
     ctx.stmt_node_count = stmt_count > 0 ? (size_t)stmt_count : 1;
     ctx.stmt_nodes = (int *)malloc(ctx.stmt_node_count * sizeof(int));
     if (!ctx.stmt_nodes) {
@@ -1207,8 +1277,8 @@ int tc_cfg_build_all(const TcProgram *program, const TcSymbolTable *symbols, TcC
             }
             fcfg = &out->funcs[out->func_count];
             tc_cfg_init(fcfg);
-            if (tc_cfg_build_items(func->body, func->body_count, body_start, symbols, fcfg,
-                                   diag) != 0) {
+            if (tc_cfg_build_items(func->body, func->body_count, body_start, symbols,
+                                   program->module_name, fcfg, diag) != 0) {
                 tc_cfg_set_free(out);
                 return -1;
             }

@@ -352,6 +352,7 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols, TcTypeT
                              TcDiagnostic *diag) {
     TcAnalyzeCtx ctx;
     size_t i = 0;
+    size_t first_new = symbols->count;
     int next_slot = (int)tc_symbol_table_runtime_slot_count(symbols);
 
     memset(&ctx, 0, sizeof(ctx));
@@ -367,6 +368,14 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols, TcTypeT
                                    &ctx, diag) != 0) {
             return -1;
         }
+    }
+    /*
+     * B-65：给本模块新收集的符号标记来源模块。符号表全模块共享，而 stmt_index
+     * 每模块独立编号，解析（Pass2 的可见表构建 / CFG 的按名回溯）必须能区分
+     * 「本模块的同名绑定」与「另一模块的同名绑定」。
+     */
+    for (i = first_new; i < symbols->count; i++) {
+        symbols->symbols[i].module_name = program->module_name;
     }
     return 0;
 }

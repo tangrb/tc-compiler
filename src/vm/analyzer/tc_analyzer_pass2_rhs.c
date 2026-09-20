@@ -1028,24 +1028,44 @@ int tc_visible_copy_from(const TcSymbolTable *src, TcSymbolTable *dst,
     return 0;
 }
 
+/*
+ * 按「名字 + def_stmt_index」在共享符号表中定位定义处符号。
+ *
+ * B-65：符号表全模块共享，而 stmt_index 每模块各自从 0 编号，因此同名 + 同
+ * def_stmt_index 可能同时命中本模块与另一模块的绑定（依赖模块先入表）。传入
+ * module_name（当前被分析模块）时优先取该模块的匹配；没有带标记的匹配时才退回
+ * 原有的「首个匹配」行为（兼容调用方合成 / 未标记的符号）。
+ */
 const TcSymbol *tc_find_symbol_by_def_index(const TcSymbolTable *global, const char *name,
-                                                  int def_stmt_index) {
+                                                  int def_stmt_index,
+                                                  const char *module_name) {
     size_t i = 0;
+    const TcSymbol *fallback = NULL;
+    int want_module = module_name != NULL && module_name[0] != '\0';
 
     for (i = 0; i < global->count; i++) {
         const TcSymbol *sym = &global->symbols[i];
 
-        if (sym->def_stmt_index == def_stmt_index && strcmp(sym->name, name) == 0) {
+        if (sym->def_stmt_index != def_stmt_index || strcmp(sym->name, name) != 0) {
+            continue;
+        }
+        if (!want_module) {
             return sym;
         }
+        if (sym->module_name && strcmp(sym->module_name, module_name) == 0) {
+            return sym;
+        }
+        if (!fallback) {
+            fallback = sym;
+        }
     }
-    return NULL;
+    return fallback;
 }
 
 int tc_visible_add_from_global(const TcSymbolTable *global, const char *name,
-                                      int def_stmt_index, TcSymbolTable *visible,
-                                      TcDiagnostic *diag) {
-    const TcSymbol *sym = tc_find_symbol_by_def_index(global, name, def_stmt_index);
+                                      int def_stmt_index, const char *module_name,
+                                      TcSymbolTable *visible, TcDiagnostic *diag) {
+    const TcSymbol *sym = tc_find_symbol_by_def_index(global, name, def_stmt_index, module_name);
     TcSymbol *added = NULL;
 
     if (!sym) {
@@ -1063,6 +1083,7 @@ int tc_visible_add_from_global(const TcSymbolTable *global, const char *name,
     added->ct_eval_failed = sym->ct_eval_failed;
     added->scope_end_stmt_index = sym->scope_end_stmt_index;
     added->ptr_target_readonly = sym->ptr_target_readonly;
+    added->module_name = sym->module_name; /* B-65：可见表同样保留模块标记 */
     return 0;
 }
 

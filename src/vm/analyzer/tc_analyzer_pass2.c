@@ -276,13 +276,14 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
 
 static void tc_pass2_bind_ptr_origin(TcSymbolTable *symbols, TcSymbolTable *visible,
                                      const char *name, int def_stmt_index, const TcRhs *rhs,
-                                     size_t stmt_index) {
+                                     size_t stmt_index, const char *module_name) {
     int readonly = 0;
     TcSymbol *global_sym = NULL;
     TcSymbol *visible_sym = NULL;
 
     readonly = tc_ptr_rhs_target_readonly(rhs, visible, symbols, stmt_index);
-    global_sym = (TcSymbol *)tc_find_symbol_by_def_index(symbols, name, def_stmt_index);
+    global_sym = (TcSymbol *)tc_find_symbol_by_def_index(symbols, name, def_stmt_index,
+                                                         module_name);
     if (global_sym && global_sym->type && global_sym->type->tag == TC_PTR) {
         global_sym->ptr_target_readonly = readonly;
     }
@@ -631,6 +632,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             }
 
             if (sym && tc_visible_add_from_global(symbols, param->name, sym->def_stmt_index,
+                                                    ctx->program ? ctx->program->module_name : NULL,
                                                     &visible_body, diag) != 0) {
                 if (ctx->func_env) {
                     ctx->func_env->current_func = saved_func;
@@ -723,7 +725,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                                          diag) != 0) {
                 return -1;
             }
-            sym = (TcSymbol *)tc_find_symbol_by_def_index(symbols, var_def->name, (int)stmt_index);
+            sym = (TcSymbol *)tc_find_symbol_by_def_index(
+                symbols, var_def->name, (int)stmt_index,
+                ctx->program ? ctx->program->module_name : NULL);
             if (tc_pass2_resolve_decl_memblock_type(&var_def->full_type, &var_def->binding.type, sym,
                                                     ctx, visible, symbols, stmt_index,
                                                     var_def->line, diag) != 0) {
@@ -740,13 +744,15 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                          warnings, var_def->name) != 0) {
                 return -1;
             }
-            if (tc_visible_add_from_global(symbols, var_def->name, (int)stmt_index, visible,
-                                           diag) != 0) {
+            if (tc_visible_add_from_global(symbols, var_def->name, (int)stmt_index,
+                                           ctx->program ? ctx->program->module_name : NULL,
+                                           visible, diag) != 0) {
                 return -1;
             }
             if (var_def->full_type.tag == TC_PTR) {
                 tc_pass2_bind_ptr_origin(symbols, visible, var_def->name, (int)stmt_index,
-                                         &var_def->rhs, stmt_index);
+                                         &var_def->rhs, stmt_index,
+                                         ctx->program ? ctx->program->module_name : NULL);
             }
             if (sym && ctx->init_states && ctx->path_reachable && sym->slot >= 0 &&
                 sym->slot < ctx->num_slots) {
@@ -757,8 +763,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_STATIC_VAR_DEF) {
             TcStaticVarDef *sv = &stmt->u.static_var_def;
-            TcSymbol *sym =
-                (TcSymbol *)tc_find_symbol_by_def_index(symbols, sv->name, (int)stmt_index);
+            TcSymbol *sym = (TcSymbol *)tc_find_symbol_by_def_index(
+                symbols, sv->name, (int)stmt_index,
+                ctx->program ? ctx->program->module_name : NULL);
 
             /* Pass1 intern 时 usize 名尚未折叠（count=0）。只解析 memblock N
              * 与构造器 count:；完整 type_check_rhs 会打掉已固化的 Self.s.x。 */
@@ -777,8 +784,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_STATIC_LET_DEF) {
             TcStaticLetDef *sl = &stmt->u.static_let_def;
-            TcSymbol *sym =
-                (TcSymbol *)tc_find_symbol_by_def_index(symbols, sl->name, (int)stmt_index);
+            TcSymbol *sym = (TcSymbol *)tc_find_symbol_by_def_index(
+                symbols, sl->name, (int)stmt_index,
+                ctx->program ? ctx->program->module_name : NULL);
 
             /*
              * 与 `static var` 同口径：解析声明类型中**命名**的 `memblock` N
@@ -807,8 +815,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                                          diag) != 0) {
                 return -1;
             }
-            global_sym =
-                (TcSymbol *)tc_find_symbol_by_def_index(symbols, const_def->name, (int)stmt_index);
+            global_sym = (TcSymbol *)tc_find_symbol_by_def_index(
+                symbols, const_def->name, (int)stmt_index,
+                ctx->program ? ctx->program->module_name : NULL);
             if (tc_pass2_resolve_decl_memblock_type(&const_def->full_type, NULL, global_sym, ctx,
                                                     visible, symbols, stmt_index, const_def->line,
                                                     diag) != 0) {
@@ -873,8 +882,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 global_sym->has_const_value = 0;
                 global_sym->ct_eval_failed = 1;
             }
-            if (tc_visible_add_from_global(symbols, const_def->name, (int)stmt_index, visible,
-                                           diag) != 0) {
+            if (tc_visible_add_from_global(symbols, const_def->name, (int)stmt_index,
+                                           ctx->program ? ctx->program->module_name : NULL,
+                                           visible, diag) != 0) {
                 return -1;
             }
             if (global_sym && ctx->init_states && global_sym->slot >= 0 &&
@@ -961,7 +971,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
             }
             if (target->type && target->type->tag == TC_PTR) {
                 tc_pass2_bind_ptr_origin(symbols, visible, assign->name, target->def_stmt_index,
-                                         &assign->rhs, stmt_index);
+                                         &assign->rhs, stmt_index,
+                                         ctx->program ? ctx->program->module_name : NULL);
             }
             if (ctx->init_states && ctx->path_reachable && target->slot >= 0 &&
                 target->slot < ctx->num_slots) {

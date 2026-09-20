@@ -1038,15 +1038,21 @@ run_expect_check_fail "$ROOT/tests/modules/imported_struct_private.tc" \
 run_expect_stdout "$ROOT/tests/modules/imported_struct_mid_ok.tc" "3
 "
 run_expect_check_ok "$ROOT/tests/modules/imported_struct_mid_ok.tc"
-# Major 4 回归：菱形 import（Left/Right 均 import Shared）结构体注册须真拓扑序
+# Major 4 回归：菱形 import（Left/Right 均 import Shared）结构体注册须真拓扑序。
+# B-65：两条臂的局部同名 `s` 不得互相串槽 —— 输出须为各自的 x（3 / 4），
+# 而非同一槽位读出的同一个值。
 run_expect_stdout "$ROOT/tests/modules/diamond_import_ok.tc" "3
-3
+4
 "
 run_expect_stdout "$ROOT/tests/modules/diamond_import_swapped_ok.tc" "4
-4
+3
 "
 run_expect_check_ok "$ROOT/tests/modules/diamond_import_ok.tc"
 run_expect_check_ok "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
+# B-65：跨模块同名符号不得串槽（库内嵌套块局部 b vs 入口 b）
+run_expect_stdout "$ROOT/tests/modules/import_same_name_shadow.tc" "false
+"
+run_expect_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"
 # B-56：被导入的 #lib 内 `funcall(Self.<本库函数>, …)` 须正常解析（此前 UndefinedFunction）
 run_expect_stdout "$ROOT/tests/modules/import_self_call.tc" "5
 "
