@@ -1,0 +1,5 @@
+#lib
+; 2.6.5：`#lib` 没有可执行语句区（附录 A: library_module = type_region,
+; static_region, function_region），顶层可执行语句属语法拒绝
+public static var W: int32 = 1
+writeln(int32, 42)

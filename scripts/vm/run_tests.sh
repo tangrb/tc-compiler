@@ -2606,6 +2606,10 @@ run_expect_check_fail "$ROOT/tests/errors/module/func_in_program.tc" \
     "func is not allowed in #program mode"
 run_expect_check_fail "$ROOT/tests/errors/module/static_in_program.tc" \
     "static is not allowed in #program mode"
+run_expect_check_fail "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
+    "executable statement is not allowed in #lib" "SyntaxError"
+run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
+    "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"
 run_expect_check_fail "$ROOT/tests/modules/duplicate_import.tc" "duplicate import"
 run_expect_check_fail "$ROOT/tests/modules/import_not_lib.tc" "imported module is not #lib"

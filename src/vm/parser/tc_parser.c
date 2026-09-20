@@ -1454,6 +1454,21 @@ static int tc_parse_module_body(TcParserCtx *ctx, TcSourceLine *lines, size_t li
             return -1;
         }
 
+        /*
+         * 2.6.5：`#lib` 没有可执行语句区（附录 A：library_module =
+         * type_region, static_region, function_region），顶层可执行语句属语法
+         * 拒绝。`goto` / `label` / `break` / `continue` / `return` 例外：附录 A
+         * 明示其顶层出现由后续静态语义报专用码（GOTO_/LABEL_OUTSIDE_FUNCTION、
+         * BREAK_/CONTINUE_OUTSIDE_LOOP、RETURN_OUTSIDE_FUNCTION），故放行。
+         */
+        if (program->mode == TC_MODULE_LIB && stmt_layer == TC_PARSE_LAYER_EXEC &&
+            first->kind != TC_TOK_GOTO && first->kind != TC_TOK_LABEL &&
+            first->kind != TC_TOK_BREAK && first->kind != TC_TOK_CONTINUE &&
+            first->kind != TC_TOK_RETURN) {
+            return tc_syntax_error(diag, line->line_no, first->column,
+                                   "executable statement is not allowed in #lib");
+        }
+
         if (stmt_layer == TC_PARSE_LAYER_STRUCT) {
             if (tc_parse_struct_def(ctx, lines, line_count, &index, program->mode, file_indent,
                                     &stmt, diag) != 0) {
