@@ -1,0 +1,9 @@
+#program
+; B-49 / §6.8.5：usize 偏移按无符号语义计算；≥ 2^63 的偏移不得触发有符号溢出 UB，
+; 结果越过槽位容量时按非法指针值报 TC_RE_NULL_POINTER_ARITHMETIC
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var big: usize = 9223372036854775808u
+var q: ptr<int32> = ptr_sub(int32, p, big)
+var v: int32 = ptr_load(int32, q)
+writeln(int32, v)
