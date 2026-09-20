@@ -1,0 +1,6 @@
+#program
+; 比较的字面量操作数：类型不匹配 → LiteralTypeError（不得报 ComparisonTypeMismatch）
+var x: int32 = 1
+if eq(int32, x, 1.5) then
+    writeln(int32, 1)
+end

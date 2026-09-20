@@ -1,0 +1,3 @@
+#program
+; §11 第 3 条 / §10.1：字面量类型不匹配 → TC_CE_LITERAL_TYPE（优先于通用码）
+writeln(int32, 1u)

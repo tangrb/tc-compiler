@@ -1,0 +1,5 @@
+#program
+; memblock_store 的 value 字面量：类型不匹配 → LiteralTypeError
+var m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+memblock_store(int32, m, 0, 1.5)
+writeln(int32, 1)

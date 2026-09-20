@@ -1,0 +1,7 @@
+#program
+; 结构体构造器字段值：字面量类型不匹配 → LiteralTypeError
+struct S then
+    var a: int32
+end
+var s: S = S(a: true)
+writeln(int32, 1)

@@ -2654,6 +2654,16 @@ run_expect_check_fail "$ROOT/tests/errors/static/cast_struct_value.tc" \
     "memblock or struct value cannot be cast" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_struct_value.tc" \
     "memblock or struct value cannot participate in bitcast" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_type_writeln.tc" \
+    "literal type does not match context" "LiteralTypeError"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_type_arith.tc" \
+    "literal type does not match context" "LiteralTypeError"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_type_compare.tc" \
+    "literal type does not match context" "LiteralTypeError"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_type_ctor.tc" \
+    "literal type does not match context" "LiteralTypeError"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_type_memblock_store.tc" \
+    "literal type does not match context" "LiteralTypeError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

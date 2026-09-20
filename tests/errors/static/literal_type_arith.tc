@@ -1,0 +1,4 @@
+#program
+; 内建运算的字面量操作数：类型不匹配 → LiteralTypeError
+var x: int32 = add(int32, 1u, 1)
+writeln(int32, x)

@@ -90,9 +90,16 @@ void tc_typed_program_free(TcTypedProgram *program) {
 int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
                             TcDiagnostic *diag, TcErrorKind literal_type_err) {
     TcErrorKind err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
+
+    /*
+     * B-22：语言标准 §11 第 3 条「专用码优先于通用码」——字面量类型不匹配在任何
+     * 位置都报 TC_CE_LITERAL_TYPE，不得被调用点传入的比较/条件类通用码覆盖
+     *（形参保留以维持既有调用签名）。
+     */
+    (void)literal_type_err;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {
         if (err_kind == TC_CE_LITERAL_TYPE) {
-            tc_diagnostic_set(diag, literal_type_err, line, TC_COLUMN_UNKNOWN,
+            tc_diagnostic_set(diag, TC_CE_LITERAL_TYPE, line, TC_COLUMN_UNKNOWN,
                               "literal type does not match context");
         } else {
             tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, TC_COLUMN_UNKNOWN,
