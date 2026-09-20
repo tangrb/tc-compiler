@@ -1,0 +1,6 @@
+#program
+; A-1：`ptr_add` 属调用型 RHS，不得嵌套为操作数
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var v: int32 = ptr_load(int32, ptr_add(int32, p, 1u))
+writeln(int32, v)

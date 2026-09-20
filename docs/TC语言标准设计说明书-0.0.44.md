@@ -762,7 +762,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 
 | 项目 | 规则 |
 | ---- | ---- |
-| 类别 | RHS（`operand`） |
+| 类别 | RHS（非 `operand`） |
 | 类型参数 | `T` 须为完整类型（排除 `void`），即指针的所指类型 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型 |
 | 结果类型 | `T`（与类型参数一致，也与 `ptr` 的所指类型一致） |
@@ -782,11 +782,11 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 
 **`ptr_address`**
 
-`ptr_address` 从变量的标识符取地址，产生指向该绑定的 `ptr<T>` 值。语法：`ptr_address(T, identifier)`，其中 `T` 是所指类型。类别：RHS（`operand`）。
+`ptr_address` 从变量的标识符取地址，产生指向该绑定的 `ptr<T>` 值。语法：`ptr_address(T, identifier)`，其中 `T` 是所指类型。类别：RHS（非 `operand`）。
 
 | 项目 | 规则 |
 | ---- | ---- |
-| 类别 | RHS（`operand`） |
+| 类别 | RHS（非 `operand`） |
 | 类型参数 | `T` 须为完整类型（排除 `void`）；`T` 必须与 `identifier` 的声明类型严格一致 |
 | 操作数 | `identifier` 须为运行时绑定的裸名：局部 `var`、顶层 `var`、`static var`、函数形参，或（在 `#lib` 内）`Self.<名>`、已导入的 `<模块名>.<名>`（解析为 `static var`）。`let` / `static let` 绑定的标识符禁止 |
 | 结果类型 | `ptr<T>` |
@@ -869,7 +869,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 | 项目 | 规则 |
 | ---- | ---- |
-| 类别 | RHS（`operand`） |
+| 类别 | RHS（非 `operand`） |
 | 类型参数 | `T` 须为 `void` 以外的完整类型，决定指针所指类型与偏移步长 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型；`offset` 须为 `usize` 类型（非负偏移，向高位地址方向移动） |
 | 结果类型 | `ptr<T>` |
@@ -880,7 +880,7 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （目标平台指针宽度：32 或 6
 
 | 项目 | 规则 |
 | ---- | ---- |
-| 类别 | RHS（`operand`） |
+| 类别 | RHS（非 `operand`） |
 | 类型参数 | `T` 须为 `void` 以外的完整类型，决定指针所指类型与偏移步长 |
 | 操作数 | `ptr` 须为 `ptr<T>` 类型；`offset` 须为 `usize` 类型（非负偏移，向低位地址方向移动） |
 | 结果类型 | `ptr<T>` |
@@ -1695,6 +1695,8 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 所有指针操作遵循 TC 的 `op(操作数…)` 约定。所有指针指令的第一个参数均为显式类型参数 `T`（所指类型，须为 `void` 以外的完整类型），该参数统一决定指令的所指类型、步长或返回类型，并从操作数自身的声明类型交叉验证一致性（与 `memblock_load`/`memblock_store` 不同，后者的显式类型参数是元素类型而非 memblock 类型）。
 
+本章各 `ptr_*` 形式（`ptr_load`、`ptr_address`、`ptr_add`、`ptr_sub`、`ptr_eq`/`ptr_ne`、`ptr_lt`…`ptr_ge`、`ptr_size`）均为**调用型 RHS**：只能整条充当 RHS，**不属于 `operand`**，因此**不得**作为其它调用的操作数（§1.1、§6.1.2；`operand` 的完整产生式见附录 A）。被嵌套时按语法拒绝报 `TC_CE_SYNTAX`。
+
 #### 6.8.1 空指针字面量 — `nullptr`
 
 `nullptr` 是空指针字面量，类别为 RHS（`operand`）。语法见附录 A。
@@ -1730,7 +1732,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.4 取地址 — `ptr_address`
 
-语法：`ptr_address(T, identifier)`。从变量标识符取地址，返回指向该绑定的 `ptr<T>`。类别：RHS（`operand`）。
+语法：`ptr_address(T, identifier)`。从变量标识符取地址，返回指向该绑定的 `ptr<T>`。类别：RHS（非 `operand`）。
 
 | 规则 | 说明 |
 | ---- | ---- |
@@ -1743,7 +1745,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.5 指针加法 — `ptr_add`
 
-语法：`ptr_add(T, ptr, offset)`。指针按元素单位偏移。类别：RHS（`operand`）。
+语法：`ptr_add(T, ptr, offset)`。指针按元素单位偏移。类别：RHS（非 `operand`）。
 
 | 规则 | 说明 |
 | ---- | ---- |
@@ -1756,7 +1758,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.6 指针减法 — `ptr_sub`
 
-语法：`ptr_sub(T, ptr, offset)`。指针按元素单位向低位地址方向偏移。类别：RHS（`operand`）。
+语法：`ptr_sub(T, ptr, offset)`。指针按元素单位向低位地址方向偏移。类别：RHS（非 `operand`）。
 
 | 规则 | 说明 |
 | ---- | ---- |
@@ -1769,7 +1771,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.7 指针序关系比较 — `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge`
 
-语法：`ptr_lt(T, ptr1, ptr2)` 等。比较 `ptr<T>` 指针的抽象地址序。类别：RHS（`operand`，结果类型为 `bool`）。
+语法：`ptr_lt(T, ptr1, ptr2)` 等。比较 `ptr<T>` 指针的抽象地址序。类别：RHS（非 `operand`，结果类型为 `bool`）。
 
 | 规则 | 说明 |
 | ---- | ---- |

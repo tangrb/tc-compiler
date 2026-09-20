@@ -754,6 +754,11 @@ run_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_ctor.tc" "exp
 run_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_memblock.tc" "comma"
 run_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_memblock.tc" \
     "expected , or )"
+# A-1：调用型指针 RHS 不得嵌套为 operand
+run_check_fail "$ROOT/tests/errors/static/ptr_address_nested_operand.tc" "expected operand"
+run_check_fail "$ROOT/tests/errors/static/ptr_add_nested_operand.tc" "expected operand"
+run_check_fail "$ROOT/tests/errors/static/ptr_sub_nested_operand.tc" "expected operand"
+run_check_fail "$ROOT/tests/errors/static/ptr_lt_nested_operand.tc" "expected operand"
 run_check_fail "$ROOT/tests/errors/static/memblock_copy_constant_dst_index.tc" \
     "memblock index out of range"
 run_check_fail "$ROOT/tests/errors/static/utf8_bom.tc" "UTF-8 BOM not allowed in source file"

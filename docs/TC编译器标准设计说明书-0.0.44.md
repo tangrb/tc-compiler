@@ -876,7 +876,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `ptr_size(T, ptr)` | `T`（所指类型，非 `void`） | `ptr`: `ptr<T>`（可为 `nullptr`） | 返回 `sizeof_bits(T)`，编译期常量 | 是 |
 | `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `T`（元素类型，非 `void`） | `dst`, `src`: `ptr<T>`；`d_idx`, `s_idx`, `len`: 整数 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`len` 编译期可确定 `< 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；`len < 0` 或下标数学值 `< 0` 在运行时 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`；不检查越界；执行语义为 memmove | 否（语句） |
 
-编译器必须验证所有指针指令的显式类型参数 `T` 与操作数声明类型的一致性。`ptr_load`、`ptr_address`、`ptr_add`、`ptr_sub`、`ptr_eq`/`ptr_ne`、`ptr_lt`…`ptr_ge`、`ptr_size` 均为 RHS（`operand`），`ptr_store` 与 `memcopy_unsafe` 为独立语句。
+编译器必须验证所有指针指令的显式类型参数 `T` 与操作数声明类型的一致性。`ptr_load`、`ptr_address`、`ptr_add`、`ptr_sub`、`ptr_eq`/`ptr_ne`、`ptr_lt`…`ptr_ge`、`ptr_size` 均为**调用型 RHS**（**非** `operand`）：只能整条充当 RHS，不得作为其它调用的操作数（[语言标准 §1.1、§6.1.2、§6.8]；被嵌套时语法拒绝 `TC_CE_SYNTAX`）；`ptr_store` 与 `memcopy_unsafe` 为独立语句。
 
 **指针操作数的形式**（[语言标准 §6.1.2]、[语言标准 §6.8.10]）：上述指令的 `ptr<T>` 操作数可为任意 `operand`——裸标识符、`Self.<名>`、`<模块名>.<名>`、结构体字段读取（如 `a.p`，字段类型为 `ptr<T>`），以及 `nullptr`；**仅 `ptr_address` 例外**，其标识符限于裸名或限定名（附录 A 已限定）。
 

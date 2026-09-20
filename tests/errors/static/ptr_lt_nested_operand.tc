@@ -1,0 +1,7 @@
+#program
+; A-1：`ptr_lt` 等指针比较属调用型 RHS，不得嵌套为操作数
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var q: ptr<int32> = ptr_address(int32, a)
+var v: bool = not(bool, ptr_lt(int32, p, q))
+writeln(bool, v)

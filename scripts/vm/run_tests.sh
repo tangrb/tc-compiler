@@ -2823,6 +2823,15 @@ run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_membl
     "comma" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_memblock.tc" \
     "expected , or )" "SyntaxError"
+# A-1：调用型指针 RHS 不属于 operand，不得嵌套为其它调用的操作数
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_address_nested_operand.tc" \
+    "expected operand" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_add_nested_operand.tc" \
+    "expected operand" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_sub_nested_operand.tc" \
+    "expected operand" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/ptr_lt_nested_operand.tc" \
+    "expected operand" "SyntaxError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

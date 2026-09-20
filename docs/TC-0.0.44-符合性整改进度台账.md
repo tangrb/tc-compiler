@@ -262,15 +262,18 @@
 | B-37 | `tc_struct_check.c` 新增 `tc_field_split_variable_base`：字段读（`tc_struct_check_field_access`）与字段赋值（`tc_struct_check_field_assign`）在解析基址前按**名称解析**纠正解析器的分类——若基址第一个点之前的部分能按 `tc_find_named_binding` 命中可见绑定，则说明这是变量基址（`A.i.v`），把点后部分并回字段链首位；否则保持 `<模块名>.<成员>.<字段>` 的限定名分类（如 `StructFieldSelfLib.root.v` 不受影响）。新增 `tests/valid/uppercase_var_field_read.tc`（`A.i.v` 与大写/小写对照）与 `uppercase_var_field_assign.tc`（`A.i.v = 5`），VM stdout+check_ok、AOT diff+check_ok；test-map 回填 1137 VM / 508 AOT | 审计复现：`var A: Outer = Outer(i: inner)` 后 `writeln(int32, A.i.v)` 由 `UndefinedVariable: undefined variable 'i'` 变为输出 `1`（与换成小写 `a` 的行为一致）；`A.i.v = 5` 同样由失败变为输出 `5`；限定名基址用例（`struct_field_operand_self_base`、`struct_field_operand_*`、`imported_struct_*`、`qualified_*`）全部保持既有结果；全量三层与 5 项门禁通过 |
 | B-40 | `TcDiagnostic` 增挂起槽 `deferred_sem` 与 API（`tc_diagnostic_defer_sem` / `has_deferred_sem` / `publish_deferred_sem` / `clear_deferred_sem`，内部与 CT 槽共用 `tc_diagnostic_defer_into`）；解析器的三处形态检查改为**挂起 SEM 诊断并继续解析**（占位值取合法且不放大分配）：`tc_parser_struct.c` 的 `@padding(N)`、`tc_parser_type.c` 的 `memblock<T, N>`、`tc_parser_rhs.c` 的 `count:` 字面量（负数/非十进制/带后缀/0）。`tc_analyzer.c` 在 CT 挂起项发布**之前**以及 `fail:` 路径发布 SEM 挂起项（同文件按源序竞争、跨文件沿用先到先得；同行时带列号的挂起项优先于无列号的行级诊断）；`tc_sem_take_diag` 先摘出再恢复该挂起槽，避免 `tc_diagnostic_clear` 释放尚未参与竞争的候选。附带修一处所有权缺陷：结构体表移交 `out->struct_table` 后复位局部表，避免挂起诊断失败时 `fail:` 路径对同一 items/fields 双重释放（此前 CT 挂起项失败也会踩到）。新增 `tests/errors/static/padding_then_later_syntax.tc`（SEM 之后有 SYN → SYN 胜）与 `padding_then_later_sem.tc`（同属 SEM → 源序更早者胜）；test-map 回填 1139 VM / 510 AOT | 审计复现：`@padding(4u)` 与更晚的 `add(int32, 1)`（`TC_CE_OPERAND_COUNT`，标准 §1.3 定义为 SYN）同时存在时，由报更早的 `ConstantExpressionError` 变为报更晚的 `SyntaxError`（第 8 行）；仅有 `@padding(4u)`/`memblock<int32, -5>`/`count: -5` 时仍在原 Token 位置报 `ConstantExpressionError` 且消息不变（既有 `memblock_negative_count_{type,ctor}` 语料继续通过）；`@padding` 与更晚的 `MemblockSizeMismatch`（同属 SEM）并存时报更早的 padding 诊断；全量三层与 5 项门禁通过 |
 | B-66 | `tc_func_check.c` `tc_func_eval_static_lets` 的依赖边构建：`Self.<名>` 命中的 static let 若**源序不早于**当前定义（自身或更晚，按 `program_index` 判定），不再作为拓扑依赖边，而是直接报 `TC_CE_UNDEFINED_VARIABLE`（自身 → `undefined variable '<名>'`，更晚 → `constant value is not available by source order`）——标准 §5.2.1 明确「不定义常量循环依赖错误，前向引用与自引用统一由 `TC_CE_UNDEFINED_VARIABLE` 处理」，故 Kahn 拓扑的「circular static let dependency」分支对 static let 不再可达（保留为防御性兜底）。新增 3 条错误语料（`static_let_self_reference` / `static_let_later_self_member` / `static_let_later_self_field`，VM `run_expect_check_fail` 断言消息+码、AOT `run_check_fail`），并把既有的 `static_let_forward.tc` 期望由「circular static let」更正为 `UndefinedVariable`；连带修正两处按标准应当非法的合法语料（`struct_field_static_init.tc` / `struct_field_static_topo_ops.tc` 把基址声明移到使用者之前）与 unit `test_struct_field_access` 的两条正向断言（改为源序合法的形态，并新增两条前向/自引用负例）；test-map 回填 1142 VM / 514 AOT | 审计三例：`k: int32 = Self.j`（j 在下一行）由「被接受、运行输出 41」变为 `UndefinedVariable`；`Self.k` 自引用由 `ConstantExpressionError: circular static let dependency` 变为 `UndefinedVariable: undefined variable 'k'`；裸名形式行为不变；`Self.s.x` 前向字段读同样被拒（新语料）；`static var` 路径与既有 `struct_field_static_*`、`static_let_rule_ok`、`phase5_self_static_let` 等正例（改为源序合法形态后）全部通过；全量三层与 5 项门禁通过 |
+### 阶段 3 逐条记录（标准侧裁决 A-1～A-4）
 
-## 需标准 owner 裁决（本轮跳过，不动语言标准）
+| 条目 | 改动 | 验证 |
+| ---- | ---- | ---- |
+| A-1 | 标准 §3.10.3 `ptr_load` 表、§3.10.3/§6.8.4 `ptr_address`、§3.10.8/§6.8.5 `ptr_add`、§3.10.8/§6.8.6 `ptr_sub`、§6.8.7 `ptr_lt`…`ptr_ge` 共 9 处「类别：RHS（`operand`）」改为「RHS（**非** `operand`）」（`nullptr` 两处保持，因 `nullptr_literal` 确在附录 A 的 `operand` 产生式内）；§6.8 章首补总则：本章各 `ptr_*` 形式均为调用型 RHS，只能整条充当 RHS、不属于 `operand`、不得嵌套为其它调用的操作数，被嵌套按语法拒绝报 `TC_CE_SYNTAX`；编译器标准 §4.3 同步该口径（原写「均为 RHS（`operand`）」）。新增 4 条负例 `tests/errors/static/ptr_{address,add,sub,lt}_nested_operand.tc`（VM `run_expect_check_fail` 断言 `expected operand`＋`SyntaxError`，AOT `run_check_fail`）；test-map 回填 1146 VM / 518 AOT | 实测四例均报 `SyntaxError: expected operand`（rc=1，两后端一致），与附录 A 的 `operand` 产生式一致；`nullptr` 作为操作数（`ptr_eq(int32, p, nullptr)`、`ptr_eq(int32, nullptr, nullptr)`）行为不变；全量三层与 5 项门禁通过 |
+
+## 标准 owner 裁决记录（A-1～A-4 已裁决并落地；B-41/B-61/B-63 仍待裁决）
+
+> A-1～A-4 的裁决与落地见上「阶段 3 逐条记录」。下表保留 B 系列三项待裁决点。
 
 | 条目 | 待裁决点 |
 | ---- | -------- |
-| A-1 | `ptr_address`/`ptr_add`/`ptr_sub` 同时被标为 RHS 与 `operand` |
-| A-2 | `LITERAL_OUT_OF_RANGE` 阶段列不完整（LT / SEM） |
-| A-3 | `memcopy_unsafe` 负下标属静态还是运行时 |
-| A-4 | `bitcast(T, nullptr)` 源类型未定义 |
 | B-41 | 深一级 `end` 的缩进码归属 |
 | B-61 | `LITERAL_TYPE` 与 `CONDITION_TYPE` 优先级 |
 | B-63 | 顶层行缩进是否合法 |
@@ -352,7 +355,8 @@
 | 68 | 阶段 2-B62 const 列表产生式回归覆盖 | `9569331 test(0.0.44-B62): cover the const list productions` |
 | 69 | 阶段 2-B37 大写变量嵌套字段解析 | `17114fb fix(0.0.44-B37): classify field-access bases by name resolution` |
 | 70 | 阶段 2-B40 解析期 SEM 诊断挂起 | `379dddb fix(0.0.44-B40): defer parser-side SEM diagnostics to the static phase` |
-| 71 | 阶段 2-B66 static let 的 Self. 源序引用规则 | 本提交 `fix(0.0.44-B66): enforce source order for Self references in static let` |
+| 71 | 阶段 2-B66 static let 的 Self. 源序引用规则 | `b7a2e91 fix(0.0.44-B66): enforce source order for Self references in static let` |
+| 72 | 阶段 3-A1 指针 RHS 不属于 operand | 本提交 `docs(0.0.44-A1): RHS forms are not operands` |
 
 ---
 

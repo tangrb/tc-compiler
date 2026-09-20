@@ -1,0 +1,6 @@
+#program
+; A-1：`ptr_address` 属调用型 RHS，**不属于** `operand`，不得作为其它调用的操作数
+var a: int32 = 1
+var p: ptr<int32> = ptr_address(int32, a)
+var v: int32 = ptr_load(int32, ptr_address(int32, a))
+writeln(int32, v)
