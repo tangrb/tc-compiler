@@ -128,6 +128,19 @@ int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
         }
         if (tc_peek(&func_line->tokens, tok_index)->kind == TC_TOK_COMMA) {
             tok_index++;
+            /* B-30：形参表不接受尾随逗号（附录 A parameter_list） */
+            if (tc_peek(&func_line->tokens, tok_index)->kind == TC_TOK_RPAREN) {
+                tc_func_def_fail(&def);
+                return tc_syntax_error(diag, func_line->line_no,
+                                       tc_peek(&func_line->tokens, tok_index)->column,
+                                       "trailing comma not allowed in parameter list");
+            }
+        } else if (tc_peek(&func_line->tokens, tok_index)->kind != TC_TOK_RPAREN) {
+            /* B-31：形参之间必须有逗号 */
+            tc_func_def_fail(&def);
+            return tc_syntax_error(diag, func_line->line_no,
+                                   tc_peek(&func_line->tokens, tok_index)->column,
+                                   "expected , or )");
         }
     }
     if (tc_expect_token(&func_line->tokens, &tok_index, TC_TOK_RPAREN, func_line->line_no, diag) != 0) {

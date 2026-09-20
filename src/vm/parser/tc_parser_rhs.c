@@ -402,6 +402,17 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
         out->u.memblock_ctor.values[out->u.memblock_ctor.value_count++] = value;
         if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
             (*index)++;
+            /* B-30：列表不接受尾随逗号（附录 A 的列表产生式） */
+            if (tc_peek(tokens, *index)->kind == TC_TOK_RPAREN) {
+                tc_rhs_free(out);
+                return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                       "trailing comma not allowed in list");
+            }
+        } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+            /* B-31：列表项之间必须有逗号 */
+            tc_rhs_free(out);
+            return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                   "expected , or )");
         }
     }
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
@@ -555,6 +566,17 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
         }
         if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
             (*index)++;
+            /* B-30：列表不接受尾随逗号（附录 A 的列表产生式） */
+            if (tc_peek(tokens, *index)->kind == TC_TOK_RPAREN) {
+                tc_rhs_free(out);
+                return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                       "trailing comma not allowed in list");
+            }
+        } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+            /* B-31：列表项之间必须有逗号 */
+            tc_rhs_free(out);
+            return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                   "expected , or )");
         }
     }
     if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {

@@ -1,0 +1,8 @@
+#program
+; 附录 A struct_constructor：字段之间必须有逗号
+struct S then
+    var a: int32
+    var b: int32
+end
+var s: S = S(a: 1 b: 2)
+writeln(int32, s.a)

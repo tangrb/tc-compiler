@@ -1,0 +1,5 @@
+#lib
+; 附录 A parameter_list：形参表不接受尾随逗号
+public func f(a: int32,) int32 then
+    return a
+end

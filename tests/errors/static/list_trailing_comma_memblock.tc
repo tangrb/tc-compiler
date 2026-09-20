@@ -1,0 +1,4 @@
+#program
+; 附录 A memblock_elems_ctor：不接受尾随逗号
+var m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2,)
+writeln(int32, 1)

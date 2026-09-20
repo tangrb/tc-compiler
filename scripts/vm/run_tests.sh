@@ -2687,6 +2687,22 @@ run_expect_check_fail "$ROOT/tests/errors/static/literal_trailing_underscore.tc"
     "invalid integer literal" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_trailing_underscore_hex.tc" \
     "invalid integer literal" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_param.tc" \
+    "comma" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_args.tc" \
+    "comma" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_ctor.tc" \
+    "comma" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_memblock.tc" \
+    "comma" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_param.tc" \
+    "expected , or )" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_args.tc" \
+    "expected , or )" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_ctor.tc" \
+    "expected , or )" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_memblock.tc" \
+    "expected , or )" "SyntaxError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

@@ -1,0 +1,4 @@
+#program
+; 附录 A memblock_elems_ctor：元素之间必须有逗号
+var m: memblock<int32, 3> = memblock(int32, count: 3, 1 2 3)
+writeln(int32, 1)

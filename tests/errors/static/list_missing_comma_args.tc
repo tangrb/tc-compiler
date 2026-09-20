@@ -1,0 +1,9 @@
+#lib
+; 附录 A 命名实参表：实参之间必须有逗号
+public func g(a: int32, b: int32) int32 then
+    return a
+end
+public func f() int32 then
+    var v: int32 = funcall(Self.g, a: 1 b: 2)
+    return v
+end

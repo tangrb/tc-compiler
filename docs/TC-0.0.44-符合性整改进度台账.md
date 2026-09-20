@@ -136,8 +136,8 @@
 | B-27 | 格式说明符缓冲过窄 | ☐ | |
 | B-28 | 类型嵌套解析崩溃 | ☑ | 见文末提交记录 |
 | B-29 | 数字分隔符规则被绕过 | ☑ | 见文末提交记录 |
-| B-30 | 尾随逗号（4 处） | ☐ | |
-| B-31 | 缺失逗号（3 处） | ☐ | |
+| B-30 | 尾随逗号（4 处） | ☑ | 见文末提交记录 |
+| B-31 | 缺失逗号（3 处） | ☑ | 见文末提交记录 |
 | B-32 | 嵌套构造器 | ☐ | |
 | B-33 | 字段赋值 RHS 不接受 `funcall`（过度拒绝） | ☐ | |
 | B-34 | `cast(void,…)`/`bitcast(void,…)` 未语法拒绝 | ☐ | |
@@ -233,6 +233,7 @@
 | B-27 | `tc_lexer.c` 格式说明符词法缓冲由 32 改为 64 字节；标志扫描按 §10.5「连续 `0` 合并」规则折叠连续的 `0`（只保留一个），使 `%` + 大量 `0` + 宽度这一合法形态不再触发词法上限。原语料 `format_specifier_too_long.tc` 更名 `format_width_out_of_range.tc` 并改断言为 `format width or precision out of range` + `FormatSpecifierError`（宽度超出 §10.5 范围本属 SEM 专用码，位数不再被词法截断）；VM/AOT 注册串同步。新增 `tests/valid/format_flag_zero_merge.tc`（`%` + 40 个 `0` + `8d`，等价 `%08d`；VM stdout+check_ok、AOT diff）；test-map 回填 1076 VM / 481 AOT | 审计复现 `%` + 40 `0` + `8d` 由 `SyntaxError: format specifier too long` 变为接受并输出 `00000005`（两后端一致）；`%` + 40 `-` + `8d` 报 `FormatSpecifierError: duplicate format flag`（保留 B-3 的 SEM 码，不再被词法上限遮蔽）；30 位宽度报 `FormatSpecifierError: format width or precision out of range`；全量三层与 5 项门禁通过 |
 | B-28 | `tc_parser_type.c`：`tc_parse_type_syntax` 拆出带深度参数的 `tc_parse_type_depth`（公开入口以 depth=0 转发），`ptr<…>` 与 `memblock<…>` 两处递归前检查 `depth >= TC_PARSER_MAX_DEPTH`（256，与 RHS 解析同一上限），超限报 `TC_CE_SYNTAX: type nesting too deep`。新增 `tests/errors/static/type_nesting_too_deep.tc`（300 层 `ptr<…>`，VM check_fail + SyntaxError）；test-map 回填 1077 VM | 审计复现 `ptr<`×50000 与 `memblock<`×30000 由 SIGSEGV（rc=139）变为 `SyntaxError: type nesting too deep`；100 层 `ptr<…>` 仍正常接受；全量三层与 5 项门禁通过 |
 | B-29 | `tc_lexer.c` `tc_parse_radix_digits`：`prev_underscore = 0` 移到「确认当前字符是合法数字」之后——原实现在数字判定前就清除该标志，使下划线后跟非数字（`u`/`U` 后缀或行尾）不被识别为「字面量尾部下划线」。新增 `literal_trailing_underscore.tc`（`1_u`）与 `literal_trailing_underscore_hex.tc`（`0x1F_U`），VM check_fail + SyntaxError；test-map 回填 1079 VM | 审计五例：`1_u`、`1_`、`0x1F_U`、`0b1_u`、`0o7_u` 由 ACCEPT 变为 `SyntaxError: invalid integer literal`；合法分隔符 `1_000` 仍接受；连续下划线 `1__0` 仍拒绝；全量三层与 5 项门禁通过 |
+| B-30 / B-31 | 四处列表产生式统一为「项之间必须有逗号、末项后不得有逗号」：`tc_parser_func.c` 形参表、`tc_parser_stmt.c` 两处命名实参表（funcall 语句 / RHS 表达式位置）、`tc_parser_rhs.c` 的 memblock 逐值构造器与结构体构造器。实现方式：消费逗号后若紧随 `)` 则报尾随逗号；无逗号且下一 Token 非 `)` 则报「expected , or )」。新增 8 份语料 `list_trailing_comma_{param,args,ctor,memblock}.tc` 与 `list_missing_comma_{param,args,ctor,memblock}.tc`（VM check_fail + SyntaxError）；test-map 回填 1087 VM | 审计 4 处尾随逗号（`f(a: int32,)`、`funcall(Self.g,)`、`S(a: 1, b: 2,)`、`memblock(int32, count: 2, 1, 2,)`）与 3 处缺失逗号（形参表 / 结构体构造器 / memblock 构造器）全部由 ACCEPT 变为 SyntaxError；合法带逗号形态不受影响；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -294,7 +295,8 @@
 | 40 | 阶段 2-B26 非规格化浮点字面量 | `39ab503 fix(0.0.44-B26): accept representable denormal float literals` |
 | 41 | 阶段 2-B27 格式说明符长度上限 | `febd46f fix(0.0.44-B27): stop rejecting long legal format specs` |
 | 42 | 阶段 2-B28 类型递归深度上限 | `6ab3088 fix(0.0.44-B28): cap type-expression recursion depth` |
-| 43 | 阶段 2-B29 数字分隔符规则 | 本提交 `fix(0.0.44-B29): enforce digit-separator placement rules` |
+| 43 | 阶段 2-B29 数字分隔符规则 | `c6039cb fix(0.0.44-B29): enforce digit-separator placement rules` |
+| 44 | 阶段 2-B30/B31 列表产生式逗号规则 | 本提交 `fix(0.0.44-B30/B31): enforce comma rules in list productions` |
 
 ---
 

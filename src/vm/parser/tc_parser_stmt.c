@@ -595,17 +595,27 @@ int tc_parse_funcall_stmt(TcParserCtx *ctx, const TcTokenList *tokens, size_t *i
             }
             args[arg_count++] = arg;
 
-            if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
-                (*index)++;
-            } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-                tc_funcall_stmt_free_partial(&call);
-                for (size_t j = 0; j < arg_count; j++) {
-                    free(args[j].param_name);
-                    tc_rhs_free(&args[j].value);
+            {
+                int bad_arg_list = 0;
+
+                if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
+                    (*index)++;
+                    /* B-30：实参列表不接受尾随逗号 */
+                    bad_arg_list = tc_peek(tokens, *index)->kind == TC_TOK_RPAREN;
+                } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+                    /* B-31：实参之间必须有逗号 */
+                    bad_arg_list = 1;
                 }
-                free(args);
-                return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
-                                       "expected , or )");
+                if (bad_arg_list) {
+                    tc_funcall_stmt_free_partial(&call);
+                    for (size_t j = 0; j < arg_count; j++) {
+                        free(args[j].param_name);
+                        tc_rhs_free(&args[j].value);
+                    }
+                    free(args);
+                    return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                           "expected , or )");
+                }
             }
         }
     }
@@ -722,17 +732,27 @@ int tc_parse_funcall_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *in
                 arg_cap = new_cap;
             }
             args[arg_count++] = arg;
-            if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
-                (*index)++;
-            } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-                tc_funcall_stmt_free_partial(&call);
-                for (i = 0; i < arg_count; i++) {
-                    free(args[i].param_name);
-                    tc_rhs_free(&args[i].value);
+            {
+                int bad_arg_list = 0;
+
+                if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
+                    (*index)++;
+                    /* B-30：实参列表不接受尾随逗号 */
+                    bad_arg_list = tc_peek(tokens, *index)->kind == TC_TOK_RPAREN;
+                } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
+                    /* B-31：实参之间必须有逗号 */
+                    bad_arg_list = 1;
                 }
-                free(args);
-                return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
-                                       "expected , or )");
+                if (bad_arg_list) {
+                    tc_funcall_stmt_free_partial(&call);
+                    for (i = 0; i < arg_count; i++) {
+                        free(args[i].param_name);
+                        tc_rhs_free(&args[i].value);
+                    }
+                    free(args);
+                    return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                           "expected , or )");
+                }
             }
         }
     }
