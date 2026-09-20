@@ -283,7 +283,14 @@ int tc_eval_operand(const TcOperand *operand, TcTypeTag expected_type, TcExecute
     if (operand->kind == TC_OPERAND_VAR && operand->u.name && ctx->symbols) {
         const TcSymbol *sym = tc_exec_find_symbol(ctx->symbols, operand->u.name);
 
-        if (sym && sym->slot >= 0) {
+        /*
+         * 无运行期槽位但有编译期常量值的绑定（`let` / `static let`）同样在此求值：
+         * 其 `slot` 为 -1，旧判据 `sym->slot >= 0` 会把常量绑定一律落到
+         * `tc_exec_load_binding` 的「unresolved binding metadata」内部错误
+         * （如 `memblock_copy(int32, d, I, s, I, 1)`，`I` 为顶层 `let`；
+         * §6.1.2/§6.7.2.3 允许 `let` 标识符作下标操作数）。
+         */
+        if (sym && (sym->slot >= 0 || sym->has_const_value)) {
             if (sym->has_const_value) {
                 *out = sym->const_value;
             } else {

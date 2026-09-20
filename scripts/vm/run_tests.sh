@@ -1078,6 +1078,9 @@ run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_positive_ok.tc" "1
 "
 run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_struct_field_ptr.tc" "7
 "
+run_expect_stdout "$ROOT/tests/valid/memblock_copy_let_index.tc" "8
+1
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
 "

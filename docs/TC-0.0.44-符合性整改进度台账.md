@@ -115,7 +115,7 @@
 | B-6 | 实参个数检查遮蔽重复/未知/顺序 | ☑ | 见文末提交记录 |
 | B-7 | VM 按槽位标签渲染 `write` | ☑ | 见文末提交记录 |
 | B-8 | 结构体字段指针操作数：VM 内部错误 / AOT 空指针 | ☑ | 见文末提交记录 |
-| B-9 | 顶层 `let` 作 `memblock_copy` 下标：仅 VM 失败 | ☐ | |
+| B-9 | 顶层 `let` 作 `memblock_copy` 下标：仅 VM 失败 | ☑ | 见文末提交记录 |
 | B-10 | `bitcast(ptr<T>, usize)` 解引用两后端分歧 | ☐ | |
 | B-11 | 指针别名清零后读字段：VM 内部错误 | ☐ | |
 | B-12 | `#program` 结构体名 vs `import` 名冲突被放过 | ☐ | |
@@ -205,6 +205,7 @@
 | B-6 | `tc_func_check.c`：删除 `tc_check_funcall_args` 中置于名称检查之前的 `arg_count > sig->param_count` 早退分支，改由「全部名称已知」处的检查承担（编译器标准 §8.2 第 3 条的 重复 → 未知 → 缺失 → 数量超限 → 顺序 → 类型）；语料 `funcall_extra_arg.tc` 更名 `funcall_count_exceeds.tc`（重复 `a` + 未知 `z` + 个数超限 → 报 DuplicateArgument），`unknown_argument.tc` 改为「个数超限但含未知名」（→ UnknownArgument），二者注册补错误码断言（不新增注册行，计数不变） | `funcall(Self.sum, a: 1, a: 2, z: 3)` → `DuplicateArgument: duplicate argument 'a'`（原 ExtraArgument）；`funcall(Self.sum, z: 1, y: 2)` → `UnknownArgument: unknown argument 'z'`；重复/未知/缺失/顺序四个既有语料码不变；注：按此次序 `EXTRA_ARGUMENT` 在「全名已知且无重复」下结构上不可达，实现保留该分支；全量三层与 5 项门禁通过 |
 | B-7 | `tc_executor.c` `tc_exec_load_binding`：取槽位后按**使用点静态类型**重建值（`tc_value_make`），仅在「静态类型标签 ≠ 槽位内标签」且两者皆为非聚合（`tc_type_bit_width > 0`）时执行；`tc_eval_operand` 的 `TC_OPERAND_VAR` 兜底路径保持原样（该路径无 `binding->type` 一致性校验，按 `expected_type` 强行重建曾使 `memcopy_unsafe` 的 `int32 -1` 下标被当成 64 位无符号值而越界触发 SIGBUS）。新增 `tests/valid/ptr_alias_write_render_type.tc`（审计复现）并注册 VM stdout/check + AOT diff/check；test-map 回填 1010 VM / 471 AOT | 审计复现（`ptr_store(int64, cast(ptr<int64>, ptr_address(float64, f)), 7)` 后 `writeln(float64, f)`）VM 与 AOT 均输出 `3.45846e-323`（原 VM 输出 `7`）；`--filter memcopy_unsafe`、`--filter ptr_` 与全量三层通过；`tests/errors/runtime/memcopy_unsafe_neg_var_index.tc` 仍报 invalid range |
 | B-8 | `tc_ptr_check.c` 新增 `tc_ptr_check_memcopy_unsafe_operands`（`tc_memblock_check.c` 在 void/只读检查后调用，`tc_memblock_check_memcopy_unsafe` 增传 `struct_table`）：`dst`/`src` 统一走指针操作数校验，既校验 `ptr<T>` 形式与所指类型是否等于显式 `T`，也解析结构体字段读取（`s.p`）并写入 operand。新增 `tests/valid/memcopy_unsafe_struct_field_ptr.tc`（审计复现）并注册 VM stdout + AOT diff；test-map 回填 1011 VM / 472 AOT。顺带闭合 B-20 的两个实测例：非指针操作数与 `T` 不符均静态报 `TC_CE_TYPE_MISMATCH`（B-20 余下的 `dst_idx`/`src_idx`/`length` 整数类型校验另做） | 审计复现 VM 与 AOT 均输出 `7`（原 VM 报 `unresolved field operand` 内部错误、AOT 报 null pointer dereference）；`memcopy_unsafe(int32, x, 0, y, 0, 1)` 与 `memcopy_unsafe(float32, p, 0, q, 0, 1)` 静态 TypeMismatch；`nullptr` 仍静态通过、运行时 NullPointerDereference；`--filter memcopy_unsafe` VM/AOT 全通过；全量三层与 5 项门禁通过 |
+| B-9 | `tc_executor.c` `tc_eval_operand` 无名解析兜底：判据由 `sym->slot >= 0` 放宽为 `sym->slot >= 0 \|\| sym->has_const_value`（`let`/`static let` 的 slot 为 -1，原判据恒落 `tc_exec_load_binding` 的「unresolved binding metadata」内部错误）；新增 `tests/valid/memblock_copy_let_index.tc`（审计复现 + `memcopy_unsafe` 同形用例），注册 VM stdout + AOT diff；test-map 回填 1012 VM / 473 AOT | 审计复现 `memblock_copy(int32, d, I, s, I, 1)`（`let I: int32 = 0`）VM 与 AOT 均输出 `1`（原 VM 报内部错误）；同文件 `memcopy_unsafe(int32, p, I, q, I, 1)` 亦正常；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -238,7 +239,8 @@
 | 12 | 阶段 2-B5 memblock N/count: 来源与错码 | `34bd06f fix(0.0.44-B5): restrict memblock N/count sources to usize constants` |
 | 13 | 阶段 2-B6 funcall 实参诊断次序 | `04e969e fix(0.0.44-B6): order funcall argument diagnostics per standard` |
 | 14 | 阶段 2-B7 VM write/writeln 渲染类型 | `5ca2958 fix(0.0.44-B7): render write value by static operand type` |
-| 15 | 阶段 2-B8 memcopy_unsafe 字段指针操作数 | 本提交 `fix(0.0.44-B8): resolve struct field ptr operands in memcopy_unsafe` |
+| 15 | 阶段 2-B8 memcopy_unsafe 字段指针操作数 | `0e40d2b fix(0.0.44-B8): resolve struct field ptr operands in memcopy_unsafe` |
+| 16 | 阶段 2-B9 顶层 let 作下标操作数 | 本提交 `fix(0.0.44-B9): evaluate const bindings in operand fallback` |
 
 ---
 
