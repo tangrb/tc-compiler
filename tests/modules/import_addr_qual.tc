@@ -1,0 +1,8 @@
+#program
+; 既有-2：入口内以 `<模块名>.<static var>` 取址并写穿（此前 SyntaxError: unexpected token）
+import AddrLib
+var p: ptr<int32> = ptr_address(int32, AddrLib.W)
+var r: int32 = 0
+ptr_store(int32, p, 9)
+r = funcall(AddrLib.read_w)
+writeln(int32, r)

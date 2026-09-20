@@ -113,7 +113,6 @@ static int tc_parse_ptr_load_rhs(const TcTokenList *tokens, size_t *index, int l
 
 static int tc_parse_ptr_address_rhs(const TcTokenList *tokens, size_t *index, int line_no,
                                     TcRhs *out, TcDiagnostic *diag) {
-    const TcToken *name_tok = NULL;
     char *struct_name = NULL;
 
     (*index)++; /* ptr_address */
@@ -131,17 +130,16 @@ static int tc_parse_ptr_address_rhs(const TcTokenList *tokens, size_t *index, in
         tc_rhs_free(out);
         return -1;
     }
-    name_tok = tc_peek(tokens, *index);
-    if (name_tok->kind != TC_TOK_IDENTIFIER) {
-        tc_rhs_free(out);
-        return tc_syntax_error(diag, line_no, name_tok->column, "expected identifier");
-    }
-    out->u.ptr_address.name = tc_token_strdup(name_tok, line_no, diag);
-    if (!out->u.ptr_address.name) {
+    /*
+     * 既有-2：标识符位置按 [语言标准 §6.8.4] 接受裸名与限定名——
+     * 局部/顶层 `var`、`static var`、形参的裸名，或（`#lib` 内）`Self.<名>`、
+     * 已导入的 `<模块名>.<名>`。复用通用绑定名解析（同样支持该三形态），
+     * 不再只接受单个 `TC_TOK_IDENTIFIER`。
+     */
+    if (tc_parse_binding_name(tokens, index, line_no, &out->u.ptr_address.name, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
-    (*index)++;
     if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;

@@ -1067,6 +1067,13 @@ run_expect_stdout "$ROOT/tests/modules/import_field_funcall.tc" "7
 "
 run_expect_check_ok "$ROOT/tests/modules/import_self_call.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_field_funcall.tc"
+# 既有-2：`ptr_address(T, Self.<名>)` 与 `<模块名>.<static var>` 取址合法
+run_expect_stdout "$ROOT/tests/modules/import_addr_self.tc" "7
+"
+run_expect_stdout "$ROOT/tests/modules/import_addr_qual.tc" "9
+"
+run_expect_check_ok "$ROOT/tests/modules/import_addr_self.tc"
+run_expect_check_ok "$ROOT/tests/modules/import_addr_qual.tc"
 run_expect_check_fail "$ROOT/tests/modules/self_call_neg/import_bare_call.tc" \
     "function scope access: use Self.inc" "FunctionScopeAccessError"
 # B-54：依赖模块（#lib 被 import）内裸名引用本库顶层成员，错码须与作入口时一致

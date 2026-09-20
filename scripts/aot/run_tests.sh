@@ -618,6 +618,11 @@ run_diff_test "$ROOT/tests/valid/struct_field_const_base_memblock.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_const_base_nested.tc"
 run_diff_test "$ROOT/tests/modules/diamond_import_ok.tc"
 run_diff_test "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
+# 既有-2：ptr_address 接受 Self.<名> / <模块>.<static var>
+run_diff_test "$ROOT/tests/modules/import_addr_self.tc"
+run_diff_test "$ROOT/tests/modules/import_addr_qual.tc"
+run_check_ok "$ROOT/tests/modules/import_addr_self.tc"
+run_check_ok "$ROOT/tests/modules/import_addr_qual.tc"
 # B-65：跨模块同名符号不得串槽（VM/AOT 均须输出 funcall 返回值 false）
 run_diff_test "$ROOT/tests/modules/import_same_name_shadow.tc"
 run_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"

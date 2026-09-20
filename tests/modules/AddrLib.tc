@@ -1,0 +1,12 @@
+#lib
+; 既有-2：`ptr_address(T, Self.<名>)` 对 `static var` 取址合法（[语言标准 §6.8.4]）
+public static var W: int32 = 1
+public func bump_self(v: int32) void then
+    var p: ptr<int32> = ptr_address(int32, Self.W)
+    ptr_store(int32, p, v)
+    return
+end
+public func read_w() int32 then
+    var r: int32 = Self.W
+    return r
+end
