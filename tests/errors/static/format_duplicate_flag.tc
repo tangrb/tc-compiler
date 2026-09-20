@@ -1,0 +1,7 @@
+#program
+; 期望：FormatSpecifierError（duplicate format flag）
+; 附录 A 的 `format_flag = "-" | "+" | "#" | "0"` ＋ `{ … }` 允许重复，
+; 故 %--d 形态合法；「每个标志至多出现一次」是 §10.5 的静态语义约束，
+; 必须在 SEM 报 TC_CE_FORMAT_SPECIFIER，不得在词法/语法阶段报 TC_CE_SYNTAX。
+var x: int32 = 1
+write(int32, %--d, x)

@@ -109,7 +109,7 @@
 | ---- | ---- | ---- | ---- |
 | B-1 | `funcall` 位置码/结果码互换 | ☑ | 见文末提交记录 |
 | B-2 | SEM 首个诊断定序（源序） | ☑ | 见文末提交记录 |
-| B-3 | 重复格式标志错报 `SYNTAX` | ☐ | |
+| B-3 | 重复格式标志错报 `SYNTAX` | ☑ | 见文末提交记录 |
 | B-4 | `let` RHS 为 `var`/形参时错报 | ☐ | |
 | B-5 | `memblock` `N`/`count:` 来源校验过宽＋错码 | ☐ | |
 | B-6 | 实参个数检查遮蔽重复/未知/顺序 | ☐ | |
@@ -196,6 +196,7 @@
 | ---- | ---- | ---- |
 | B-1 | `tc_func_check.c`：`position == 1 && is_void`（void 作值）由 `TC_CE_FUNCALL_POSITION` 改为 `TC_CE_FUNCALL_RESULT_TYPE`；非 void 返回类型与接收类型不符由 `TC_CE_FUNCALL_RESULT_TYPE` 改为 `TC_CE_TYPE_MISMATCH`（[语言标准 §8.2.3]、附录 B.4/B.12）。`funcall_result_type.tc` 注释更正；`run_expect_check_fail` 增可选错误码名断言（不新增注册行） | `tc-vm -e -c` 三例实测；`--filter funcall` 20/20；全量三层通过 |
 | B-2 | `tc_analyzer.c` 新增 `tc_sem_salvage`/`tc_sem_diag_earlier`：Pass2（6a–8）失败后仍以**独立临时诊断**尝试阶段 12 调用图与阶段 11 CFG/确定初始化；阶段 11 失败后再补阶段 12。仅当后阶段诊断 (行,列) 更靠前时替换（[语言标准 §11] 第 2 条；依编译器标准 §1.3 第 4–8/11/12 阶段同属 SEM）。CFG 读集按槽位展开、调用图只需签名，故 salvage 安全。新增语料 `diag_priority_{recursion,unreachable}_before_name.tc`（VM 断言消息＋打印名，AOT 断言消息）；`test-map.md` 规模回填 1004 VM / 466 AOT | 两复现实测（Recursion 第 3 行、Unreachable 第 4 行胜出）；`--filter diag_priority` 21/21；全量三层通过 |
+| B-3 | 重复格式标志：`tc_types.h` 的 `TcFormatFullSpec` 增 `flag_repeat`；`tc_types.c` 的 `tc_format_spec_parse` 对重复 `-`/`+`/`#` 与非连续第二段 `0` **不再返回 0**（附录 A `{ format_flag }` 形态合法），只置 `flag_repeat`；`tc_analyze_6e.c` 在 SEM 阶段报 `TC_CE_FORMAT_SPECIFIER`（duplicate format flag）。附带修 AOT 代码生成：`(TcFormatFullSpec){...}` 改**指定初始化器**，避免新增字段触发 `-Wmissing-field-initializers`。新增语料 `format_duplicate_flag.tc`（VM 断言消息＋打印名，AOT 断言消息）与 4 条单元断言；test-map 回填 1005 VM / 467 AOT | `%--d`/`%++d`/`%##x`/`%0-0d` → FormatSpecifierError；`%-+d`/`%08d` 接受；`%8-d` 仍 SYNTAX；`--filter format` 47/47；全量三层通过 |
 
 ---
 
@@ -226,7 +227,8 @@
 | 6 | 阶段 1-⑥ VM 命令行参考 C-15～C-18 ＋ P2 | `a570863 docs(0.0.44-cli): fix search-path/e/error-table and illegal examples (C-15..C-18 + P2)` |
 | 7 | 阶段 1-⑦ 跨文档一致性 C-22～C-24 | `be56a6a docs(0.0.44-cross): unify sync-status notes and cross-doc definitions (C-22..C-24)` |
 | 8 | 阶段 2-B1 `funcall` 位置码/结果码 | `096438b fix(0.0.44-B1): correct funcall position/result type diagnostics` |
-| 9 | 阶段 2-B2 SEM 首个诊断按源序 | 本提交 `fix(0.0.44-B2): order SEM diagnostics by source position` |
+| 9 | 阶段 2-B2 SEM 首个诊断按源序 | `42c3c0a fix(0.0.44-B2): order SEM diagnostics by source position` |
+| 10 | 阶段 2-B3 重复格式标志归 SEM | 本提交 `fix(0.0.44-B3): report duplicate format flags as FORMAT_SPECIFIER` |
 
 ---
 

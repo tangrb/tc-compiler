@@ -29,6 +29,17 @@ int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line,
         return 0;
     }
 
+    /*
+     * B-3：重复标志（如 %--d、%++d、%##x）。附录 A 的 `{ format_flag }`
+     * 使该形态通过语法阶段，重复本身是 §10.5 的静态语义违规，报专用码
+     * TC_CE_FORMAT_SPECIFIER，不得在词法/语法阶段改报 TC_CE_SYNTAX。
+     */
+    if (spec->flag_repeat) {
+        tc_diagnostic_set(diag, TC_CE_FORMAT_SPECIFIER, line, TC_COLUMN_UNKNOWN,
+                          "duplicate format flag");
+        return -1;
+    }
+
     if (spec->width > 65535 || (spec->precision_set && spec->precision > 65535)) {
         tc_diagnostic_set(diag, TC_CE_FORMAT_SPECIFIER, line, TC_COLUMN_UNKNOWN,
                           "format width or precision out of range");

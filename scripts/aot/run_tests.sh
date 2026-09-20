@@ -762,6 +762,7 @@ run_check_fail "$ROOT/tests/errors/static/format_specifier_hash_bool.tc" \
     "'#' flag not supported for"
 run_check_fail "$ROOT/tests/errors/static/format_specifier_flags_mutex.tc" \
     "'#' flag not supported for this format specifier"
+run_check_fail "$ROOT/tests/errors/static/format_duplicate_flag.tc" "duplicate format flag"
 run_check_fail "$ROOT/tests/errors/static/format_specifier_t_width.tc" \
     "%t does not support"
 run_check_fail "$ROOT/tests/errors/static/format_width_overflow.tc" \

@@ -218,6 +218,9 @@ typedef struct {
     int width;            /* 字段宽度 1~65535，0 表示未指定 */
     int precision_set;    /* 是否指定精度 */
     int precision;        /* 精度值 0~65535 */
+    int flag_repeat;      /* B-3：同一非 0 标志（或非连续的第二段 '0'）重复出现；
+                           * 附录 A 的 `{ format_flag }` 形态合法，重复属 SEM 违规，
+                           * 由 Analyzer 报 TC_CE_FORMAT_SPECIFIER（[语言标准 §10.5]） */
     TcFormatSpec spec;    /* 基础转换符 */
 } TcFormatFullSpec;
 

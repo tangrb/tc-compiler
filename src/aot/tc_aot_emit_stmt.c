@@ -501,11 +501,18 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             char abort_indent[64];
 
             tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
-            fprintf(out, "%sif (tc_aot_write(%s, (TcFormatFullSpec){%d, %d, %d, %d, %d, %d, %d, %s}, ",
+            /*
+             * 用指定初始化器而非位置式：TcFormatFullSpec 可能新增字段，
+             * 位置式聚合初始化会在 -Wmissing-field-initializers 下失败（B-3）。
+             */
+            fprintf(out,
+                    "%sif (tc_aot_write(%s, (TcFormatFullSpec){.flag_minus=%d, .flag_plus=%d, "
+                    ".flag_hash=%d, .flag_zero=%d, .width=%d, .precision_set=%d, .precision=%d, "
+                    ".flag_repeat=%d, .spec=%s}, ",
                     indent, tc_aot_type_enum(io->type->tag),
                     io->fmt.flag_minus, io->fmt.flag_plus, io->fmt.flag_hash, io->fmt.flag_zero,
                     io->fmt.width, io->fmt.precision_set, io->fmt.precision,
-                    tc_aot_format_enum(io->fmt.spec));
+                    io->fmt.flag_repeat, tc_aot_format_enum(io->fmt.spec));
             tc_aot_emit_operand_expr(out, &io->operand, io->type->tag, ctx, stmt_index);
             fprintf(out, ", %d, tc_aot_cur_diag, %d) != 0)\n", newline, io->line);
             fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, io->line);

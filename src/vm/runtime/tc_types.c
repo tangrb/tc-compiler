@@ -655,28 +655,36 @@ int tc_format_spec_parse(const char *text, TcFormatFullSpec *out) {
     }
     p = text + 1;
 
-    /* 标志：每个非 0 标志至多一次；连续 0 合并为一个 0 标志（%0008d ≡ %08d） */
+    /*
+     * 标志：附录 A 的 `format_flag = "-" | "+" | "#" | "0"`，`{ format_flag }`
+     * 允许重复，故重复标志**形态合法**——只记录 flag_repeat 供 Analyzer 在
+     * 静态语义阶段报 TC_CE_FORMAT_SPECIFIER（[语言标准 §10.5]），不在此拒绝。
+     * 连续 0 合并为一个 0 标志（%0008d ≡ %08d）；非连续的第二段 0 计为重复。
+     */
     for (;;) {
         char c = *p;
         if (c == '-') {
             if (out->flag_minus) {
-                return 0;
+                out->flag_repeat = 1;
             }
             out->flag_minus = 1;
             p++;
         } else if (c == '+') {
             if (out->flag_plus) {
-                return 0;
+                out->flag_repeat = 1;
             }
             out->flag_plus = 1;
             p++;
         } else if (c == '#') {
             if (out->flag_hash) {
-                return 0;
+                out->flag_repeat = 1;
             }
             out->flag_hash = 1;
             p++;
         } else if (c == '0') {
+            if (out->flag_zero) {
+                out->flag_repeat = 1;
+            }
             out->flag_zero = 1;
             while (*p == '0') {
                 p++;
