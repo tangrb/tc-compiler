@@ -1,0 +1,8 @@
+#program
+; 期望：ConstantExpressionError（constant expression cannot reference var variable）
+; [语言标准 §5.2.1] 第 3 步：`let` RHS 为标识符时，名称解析后若绑定是 `var` /
+; 形参 / `static var`，**立即**报 TC_CE_CONSTANT_EXPRESSION，且不比较结果类型。
+; 本用例的声明类型与 var 不同，用于锁定「先判常量性、后比类型」的次序。
+var v: int32 = 1
+let a: int8 = v
+writeln(int8, %d, a)

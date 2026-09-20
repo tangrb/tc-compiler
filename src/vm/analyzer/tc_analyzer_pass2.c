@@ -778,6 +778,30 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                   "internal analyzer error");
                 return -1;
             }
+            /*
+             * B-4（[语言标准 §5.2.1] 第 3 步）：`let` RHS 为标识符时，名称解析后
+             * 若绑定是 `var` / 形参 / `static var`，**立即**报
+             * TC_CE_CONSTANT_EXPRESSION，且**不比较结果类型**。此前先做类型比较，
+             * 导致 `let a: int8 = v`（v: int32）错报 TC_CE_TYPE_MISMATCH。
+             * 仅处理裸标识符；`Self.` / 限定名由 6d 的常量来源规则处理。
+             */
+            if (const_def->rhs.kind == TC_RHS_CONST_REF &&
+                const_def->rhs.u.const_ref.name &&
+                strchr(const_def->rhs.u.const_ref.name, '.') == NULL) {
+                const TcSymbol *ref =
+                    tc_resolve_visible_symbol(visible, symbols, const_def->rhs.u.const_ref.name,
+                                              stmt_index, const_def->line, diag);
+                if (!ref) {
+                    return -1;
+                }
+                if (ref->sym_kind == TC_SYM_VARIABLE || ref->sym_kind == TC_SYM_PARAMETER ||
+                    ref->sym_kind == TC_SYM_STATIC_VAR) {
+                    tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, const_def->line,
+                                      TC_COLUMN_UNKNOWN,
+                                      "constant expression cannot reference var variable");
+                    return -1;
+                }
+            }
             /* CONST_CAST 由 const_eval 专属路径处理；其余需 type_check
              * 以固化字段 operand / struct ctor / memblock count。 */
             if (const_def->rhs.kind != TC_RHS_CONST_CAST) {

@@ -733,6 +733,8 @@ run_check_fail "$ROOT/tests/errors/static/const_assign.tc" "cannot assign to con
 run_check_fail "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "expected constant expression"
+run_check_fail "$ROOT/tests/errors/static/let_var_type_mismatch.tc" \
+    "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/shortcircuit_let_invalid_rhs.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/shortcircuit_let_rhs_type.tc" "operand type does not match operation type"

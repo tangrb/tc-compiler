@@ -2110,6 +2110,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/const_assign.tc" "cannot assign
 run_expect_check_fail "$ROOT/tests/errors/static/const_expr.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/const_cyclic_dep.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/let_nested_call.tc" "expected constant expression"
+run_expect_check_fail "$ROOT/tests/errors/static/let_var_type_mismatch.tc" \
+    "constant expression cannot reference var variable" "ConstantExpressionError"
 run_expect_check_fail "$ROOT/tests/errors/static/let_short_circuit_invalid_rhs.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/const_overflow.tc" "constant overflow"
 run_expect_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
