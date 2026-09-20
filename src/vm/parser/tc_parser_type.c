@@ -10,9 +10,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+static int tc_parse_type_depth(const TcTokenList *tokens, size_t *index, int line_no,
+                               int allow_void, TcType *out_type, char **out_struct_name,
+                               int depth, TcDiagnostic *diag);
+
 int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
                          int allow_void, TcType *out_type, char **out_struct_name,
                          TcDiagnostic *diag) {
+    return tc_parse_type_depth(tokens, index, line_no, allow_void, out_type, out_struct_name, 0,
+                               diag);
+}
+
+static int tc_parse_type_depth(const TcTokenList *tokens, size_t *index, int line_no,
+                               int allow_void, TcType *out_type, char **out_struct_name,
+                               int depth, TcDiagnostic *diag) {
     const TcToken *tok = NULL;
     char *nested_struct = NULL;
 
@@ -38,8 +49,17 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
     }
 
     if (tok->kind == TC_TOK_PTR) {
-        TcType *pointee = (TcType *)malloc(sizeof(TcType));
+        TcType *pointee = NULL;
 
+        /*
+         * B-28：类型表达式的递归下降必须有深度上限——无上限时
+         * `ptr<ptr<…int32…>>` 这类输入会耗尽栈并 SIGSEGV（附录 A 决定语法
+         * 接受集，此类 Token 序列应给出 TC_CE_SYNTAX 而非崩溃）。
+         */
+        if (depth >= TC_PARSER_MAX_DEPTH) {
+            return tc_syntax_error(diag, line_no, tok->column, "type nesting too deep");
+        }
+        pointee = (TcType *)malloc(sizeof(TcType));
         if (!pointee) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
             return -1;
@@ -49,7 +69,8 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
             free(pointee);
             return -1;
         }
-        if (tc_parse_type_syntax(tokens, index, line_no, 0, pointee, &nested_struct, diag) != 0) {
+        if (tc_parse_type_depth(tokens, index, line_no, 0, pointee, &nested_struct, depth + 1,
+                                diag) != 0) {
             free(nested_struct);
             tc_type_free(pointee);
             free(pointee);
@@ -66,10 +87,14 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
     }
 
     if (tok->kind == TC_TOK_MEMBLOCK) {
-        TcType *element = (TcType *)malloc(sizeof(TcType));
+        TcType *element = NULL;
         uint64_t count = 0;
         char *count_name = NULL;
 
+        if (depth >= TC_PARSER_MAX_DEPTH) {
+            return tc_syntax_error(diag, line_no, tok->column, "type nesting too deep");
+        }
+        element = (TcType *)malloc(sizeof(TcType));
         if (!element) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
             return -1;
@@ -79,7 +104,8 @@ int tc_parse_type_syntax(const TcTokenList *tokens, size_t *index, int line_no,
             free(element);
             return -1;
         }
-        if (tc_parse_type_syntax(tokens, index, line_no, 0, element, &nested_struct, diag) != 0) {
+        if (tc_parse_type_depth(tokens, index, line_no, 0, element, &nested_struct, depth + 1,
+                                diag) != 0) {
             free(nested_struct);
             tc_type_free(element);
             free(element);

@@ -2681,6 +2681,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/goto_label_child_vs_sibling.tc"
     "cannot jump into inner block" "JumpIntoBlockError"
 run_expect_check_fail "$ROOT/tests/errors/static/float_rounds_to_zero.tc" \
     "float literal out of float32 range" "LiteralOutOfRange"
+run_expect_check_fail "$ROOT/tests/errors/static/type_nesting_too_deep.tc" \
+    "type nesting too deep" "SyntaxError"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"
