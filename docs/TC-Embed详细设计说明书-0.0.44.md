@@ -1957,10 +1957,12 @@ int  tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out);
 void tc_embed_tmp_end(TcEmbedCtx *ctx);
 ```
 
-- 从槽位数组末端向下分配（`base = tmp_top - n`），栈式嵌套，`end` 回退最近一层。
-- `TcEmbedCtx` 内部维护 `tmp_top` / `tmp_marks[]` / `tmp_depth`，初始 `tmp_top = slot_count`。
-- 最大嵌套深度 16（`TC_EMBED_TMP_MAX_DEPTH`）；不足时报错 `"temporary slot region exhausted"`。
-- **注意**：临时区与符号槽位共享同一 `slots[]` 数组。模块符号槽位通常稀疏（从低端分配），临时区从末端分配，二者一般不冲突；若符号槽位密集，调用方须自行确保数据区不与活跃符号重叠。
+- 槽位数组由「声明槽位 + 临时槽位区」两段组成：声明槽位是程序自身的运行期槽位（索引 `[0, slot_count)`），临时槽位区位于其**之上**（索引 `[slot_count, capacity)`），与声明槽位**互不重叠**。容量口径由 `tc_embed_slots.h` 的 `tc_embed_slot_capacity_of` 给出：`capacity = slot_count + max(slot_count, TC_EMBED_TMP_MIN)`，`TC_EMBED_TMP_MIN = 16`。
+- 从容量顶端向下分配（`base = tmp_top - n`），栈式嵌套，`end` 回退最近一层；`TcEmbedCtx` 内部维护 `slot_capacity` / `tmp_top` / `tmp_marks[]` / `tmp_depth`，初始 `tmp_top = slot_capacity`。
+- 分配不得越过声明槽位边界（`tmp_top - n >= slot_count`），越界报 `"temporary slot region exhausted"`。
+- 最大嵌套深度 16（`TC_EMBED_TMP_MAX_DEPTH`）。
+- **AOT 模式**：`slots[]` 是 AOT 生成的全局数组，按 `capacity` 定长（生成头文件同时给出 `TC_AOT_SLOT_COUNT`（声明槽位数）与 `TC_AOT_SLOT_CAPACITY`）；宿主用 `tc_embed_create_aot` 传入的 `slot_count` 仍是声明槽位数。
+- **不变量**：`tc_embed_slot_write` / `tc_embed_slot_read` 的合法索引区间是 `[0, capacity)`；写入临时槽位（索引 ≥ `slot_count`）不得改变任何声明槽位，`tc_embed_make_ptr` 等便捷层因此不会破坏程序变量。
 
 ### 16.5 C 数组一键映射为 ptr\<T\>
 

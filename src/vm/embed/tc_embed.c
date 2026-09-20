@@ -163,16 +163,19 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
     tc_diagnostic_init(&ctx->diag);
 
     slot_count = tc_symbol_table_runtime_slot_count(&program->symbols);
-    if (slot_count > 0) {
-        ctx->exec_ctx.slots = (TcValue *)malloc(slot_count * sizeof(TcValue));
-        if (!ctx->exec_ctx.slots) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
-                              "memory allocation failed");
-            tc_embed_destroy(ctx);
-            return NULL;
-        }
-        tc_slots_init_uninitialized(ctx->exec_ctx.slots, slot_count);
+    /*
+     * B-19：槽位数组按「声明槽位 + 临时槽位区」分配，临时区位于声明槽位之上，
+     * 避免旧实现从 slot_count 向下分配时覆盖已声明槽位。
+     */
+    ctx->slot_capacity = tc_embed_slot_capacity(slot_count);
+    ctx->exec_ctx.slots = (TcValue *)malloc(ctx->slot_capacity * sizeof(TcValue));
+    if (!ctx->exec_ctx.slots) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        tc_embed_destroy(ctx);
+        return NULL;
     }
+    tc_slots_init_uninitialized(ctx->exec_ctx.slots, ctx->slot_capacity);
 
     ctx->exec_ctx.symbols = &program->symbols;
     ctx->exec_ctx.program = program;
@@ -184,7 +187,7 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
     ctx->exec_ctx.struct_heap = NULL;
     ctx->exec_ctx.struct_heap_count = 0;
     ctx->exec_ctx.struct_heap_capacity = 0;
-    ctx->tmp_top = (int)slot_count;
+    ctx->tmp_top = (int)ctx->slot_capacity;
     tc_stmt_index_reset(&ctx->exec_ctx.index);
 
     if (tc_exec_init_all_static_vars(program, &ctx->exec_ctx, &ctx->diag) != 0) {
@@ -344,6 +347,10 @@ static int tc_embed_value_is_bool(const TcType *slot_type, const TcValue *value)
     return 0;
 }
 
+size_t tc_embed_slot_capacity(size_t declared_slots) {
+    return tc_embed_slot_capacity_of(declared_slots);
+}
+
 size_t tc_embed_slot_count(const TcEmbedCtx *ctx) {
     if (!ctx) return 0;
     if (ctx->is_aot) return ctx->aot_slot_count;
@@ -354,12 +361,15 @@ int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value) {
     size_t count = tc_embed_slot_count(ctx);
     const TcType *slot_type = NULL;
 
-    if (slot < 0 || (size_t)slot >= count) {
+    /* 上界用总容量（含临时区），下界仍是 0；声明槽位与临时槽位都可写 */
+    if (slot < 0 || (size_t)slot >= ctx->slot_capacity) {
         char msg[128];
-        (void)snprintf(msg, sizeof(msg), "slot index %d out of range [0, %zu)", slot, count);
+        (void)snprintf(msg, sizeof(msg), "slot index %d out of range [0, %zu)", slot,
+                       ctx->slot_capacity);
         tc_embed_set_error(ctx, msg);
         return -1;
     }
+    (void)count;
 
     slot_type = tc_embed_slot_declared_type(ctx, slot);
     if (tc_embed_value_is_bool(slot_type, &value)) {
@@ -380,8 +390,9 @@ int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out) {
     size_t count = tc_embed_slot_count(ctx);
     const TcType *slot_type = NULL;
 
+    (void)count;
     if (!out) return -1;
-    if (slot < 0 || (size_t)slot >= count) {
+    if (slot < 0 || (size_t)slot >= ctx->slot_capacity) {
         return -1;
     }
 
@@ -411,9 +422,18 @@ int tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out) {
         tc_embed_set_error(ctx, "temporary slot region: max nesting depth exceeded");
         return -1;
     }
-    if ((size_t)ctx->tmp_top < n) {
-        tc_embed_set_error(ctx, "temporary slot region exhausted");
-        return -1;
+    /*
+     * B-19：临时区为 [声明槽位数, slot_capacity)，从顶端向下分配；分配不得
+     * 越过声明槽位边界（旧实现只在 tmp_top < n 时报错，等于把临时槽位叠在
+     * 已声明槽位上）。
+     */
+    {
+        size_t declared = tc_embed_slot_count(ctx);
+
+        if ((size_t)ctx->tmp_top < n || (size_t)ctx->tmp_top - n < declared) {
+            tc_embed_set_error(ctx, "temporary slot region exhausted");
+            return -1;
+        }
     }
 
     ctx->tmp_marks[ctx->tmp_depth] = ctx->tmp_top;

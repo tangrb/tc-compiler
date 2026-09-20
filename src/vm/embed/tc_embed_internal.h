@@ -37,7 +37,8 @@ struct TcEmbedCtx {
     const tc_aot_func_entry *aot_func_table;
 
     /* 临时槽位区（运行时便捷层，栈式分配） */
-    int tmp_top;                     /* 当前已分配区域下方边界（初始 = slot_count） */
+    size_t slot_capacity;            /* 槽位数组总容量（声明 + 临时区，B-19） */
+    int tmp_top;                     /* 当前已分配区域下方边界（初始 = slot_capacity） */
     int tmp_marks[TC_EMBED_TMP_MAX_DEPTH]; /* 各层 begin 前的 tmp_top，供 end 回退 */
     int tmp_depth;                   /* 当前嵌套深度 */
 

@@ -893,26 +893,100 @@ static void test_embed_tmp_begin_end(void) {
     check(ctx != NULL, "create ctx");
 
     slot_count = tc_embed_slot_count(ctx);
-
-    check(tc_embed_tmp_begin(ctx, 3, &base) == 0, "tmp_begin 3 slots");
-    check(base >= 0 && (size_t)base + 3 <= slot_count, "tmp region within slots");
-    check((size_t)base == slot_count - 3, "tmp base at end of slots");
-
     {
-        int base2 = -1;
-        check(tc_embed_tmp_begin(ctx, 2, &base2) == 0, "nested tmp_begin 2 slots");
-        check(base2 == base - 2, "nested base below previous");
+        /*
+         * B-19：临时槽位区必须位于声明槽位**之上**，不得与声明槽位重叠
+         *（旧实现从 slot_count 向下分配，首个临时槽位即覆盖末尾声明槽位）。
+         */
+        size_t capacity = tc_embed_slot_capacity(slot_count);
+        size_t reserve = capacity - slot_count;
+
+        check(capacity > slot_count, "capacity reserves a temp region");
+        check(tc_embed_tmp_begin(ctx, 3, &base) == 0, "tmp_begin 3 slots");
+        check((size_t)base >= slot_count, "tmp region starts above declared slots");
+        check((size_t)base + 3 <= capacity, "tmp region within capacity");
+        check((size_t)base == capacity - 3, "tmp base at end of capacity");
+
+        {
+            int base2 = -1;
+            check(tc_embed_tmp_begin(ctx, 2, &base2) == 0, "nested tmp_begin 2 slots");
+            check(base2 == base - 2, "nested base below previous");
+            tc_embed_tmp_end(ctx);
+        }
         tc_embed_tmp_end(ctx);
+
+        check(tc_embed_tmp_begin(ctx, 4, &base) == 0, "tmp_begin after end");
+        check((size_t)base == capacity - 4, "reuse freed region");
+        tc_embed_tmp_end(ctx);
+
+        check(tc_embed_tmp_begin(ctx, reserve, &base) == 0,
+              "tmp_begin consumes the whole temp region");
+        check((size_t)base == slot_count, "full allocation stops at the declared boundary");
+        tc_embed_tmp_end(ctx);
+
+        check(tc_embed_tmp_begin(ctx, reserve + 1, &base) != 0,
+              "oversized tmp_begin rejected");
     }
+
+    tc_embed_destroy(ctx);
+    tc_typed_program_free(&prog);
+    tc_diagnostic_clear(&diag);
+}
+
+/* ── 测试：B-19 临时槽位区不得覆盖已声明槽位 ── */
+static void test_embed_tmp_region_does_not_clobber_declared_slots(void) {
+    TcTypedProgram prog;
+    TcDiagnostic diag;
+    TcEmbedCtx *ctx;
+    size_t count = 0;
+    size_t i = 0;
+    int32_t data[4] = {1, 2, 3, 4};
+    TcValue ptr;
+    int ok = 1;
+
+    tc_diagnostic_init(&diag);
+    check(compile_lib(
+        "public static var counter: int32 = 7\n"
+        "public func bump(a: int32) int32 then\n"
+        "    var local: int32 = add(int32, a, 1)\n"
+        "    return local\n"
+        "end\n", "test", &prog, &diag) == 0,
+          "compile tmp-clobber lib");
+
+    ctx = tc_embed_create(&prog, &diag);
+    check(ctx != NULL, "create tmp-clobber ctx");
+    if (!ctx) {
+        tc_typed_program_free(&prog);
+        tc_diagnostic_clear(&diag);
+        return;
+    }
+
+    count = tc_embed_slot_count(ctx);
+    for (i = 0; i < count; i++) {
+        check(tc_embed_slot_write(ctx, (int)i, tc_value_from_int32((int32_t)(100 + i))) == 0,
+              "seed declared slot");
+    }
+
+    /* 平铺 4 个 int32 到临时区（旧实现会覆盖声明槽位尾部） */
+    check(tc_embed_make_ptr(ctx, TC_INT32, data, 4, &ptr) == 0, "make_ptr into temp region");
+
+    for (i = 0; i < count; i++) {
+        TcValue v;
+        int64_t got = -1;
+
+        if (tc_embed_slot_read(ctx, (int)i, &v) != 0) {
+            ok = 0;
+            break;
+        }
+        tc_value_to_int64(v, &got);
+        if (got != (int64_t)(100 + i)) {
+            ok = 0;
+            break;
+        }
+    }
+    check(ok, "make_ptr leaves declared slots untouched");
+
     tc_embed_tmp_end(ctx);
-
-    check(tc_embed_tmp_begin(ctx, 4, &base) == 0, "tmp_begin after end");
-    check((size_t)base == slot_count - 4, "reuse freed region");
-    tc_embed_tmp_end(ctx);
-
-    check(tc_embed_tmp_begin(ctx, (size_t)slot_count + 1, &base) != 0,
-          "oversized tmp_begin rejected");
-
     tc_embed_destroy(ctx);
     tc_typed_program_free(&prog);
     tc_diagnostic_clear(&diag);
@@ -1168,6 +1242,7 @@ int main(void) {
     test_embed_slot_count_api();
     test_embed_ptr_store_multiple();
     test_embed_tmp_begin_end();
+    test_embed_tmp_region_does_not_clobber_declared_slots();
     test_embed_make_ptr_sum();
     test_embed_make_ptr_zero_count();
     test_embed_call_typed_args();

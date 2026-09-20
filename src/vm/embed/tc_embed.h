@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "tc_embed_slots.h"
 #include "tc_types.h"           /* TcValue, TcTypeTag */
 #include "tc_value_bridge.h"    /* tc_value_from_* / tc_value_to_* */
 #include "tc_executor.h"        /* TcExecuteCtx, tc_exec_call_function_public */
@@ -187,12 +188,23 @@ int tc_embed_self_var_slot(const TcEmbedCtx *ctx, const char *name);
 
 /* ── 槽位信息与直接读写 ── */
 size_t tc_embed_slot_count(const TcEmbedCtx *ctx);
+
+/**
+ * 槽位数组总容量（声明槽位 + 临时槽位区，B-19）。
+ *
+ * 临时槽位区**不占用**声明槽位：其索引区间为 [声明槽位数, 容量)，从容量顶端
+ * 向下做栈式分配。AOT 生成的全局 `slots[]` 数组按本函数返回值定长；宿主用
+ * `tc_embed_create_aot` 传入的 slot_count 仍是**声明槽位数**。
+ * 容量口径见 tc_embed_slots.h（VM / AOT / 宿主编译期共享同一公式）。
+ */
+size_t tc_embed_slot_capacity(size_t declared_slots);
 int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value);
 int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out);
 
 /* ── 临时槽位区（运行时便捷层） ──
  *
- * C 侧数据平铺区：从槽位数组末端向下分配，栈式嵌套。
+ * C 侧数据平铺区：位于声明槽位**之上**（索引 ≥ tc_embed_slot_count），从
+ * 容量顶端向下分配，栈式嵌套；与声明槽位互不重叠（B-19）。
  * 用于 tc_embed_make_ptr 与需要 C 数据区持久跨调用的场景。
  */
 int tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out);

@@ -36,7 +36,10 @@ TcEmbedCtx *tc_embed_create_aot(uint64_t *slots, size_t slot_count,
     ctx->aot_slots = slots;
     ctx->aot_slot_count = slot_count;
     ctx->aot_func_table = func_table;
-    ctx->tmp_top = (int)slot_count;
+    /* B-19：临时槽位区位于声明槽位之上；调用方数组须按 tc_embed_slot_capacity
+     * 定长（AOT 生成的 slots[] 即按该值声明）。 */
+    ctx->slot_capacity = tc_embed_slot_capacity(slot_count);
+    ctx->tmp_top = (int)ctx->slot_capacity;
     tc_diagnostic_init(&ctx->diag);
 
     /* 调用 AOT 初始化（初始化 slots + static var） */

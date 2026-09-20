@@ -18,6 +18,8 @@
 #include "tc_aot_codegen.h"
 #include "tc_aot_codegen_internal.h"
 
+#include "tc_embed_slots.h"
+
 #include "tc_stmt_index.h"
 #include "tc_struct_check.h"
 #include "tc_symbol.h"
@@ -678,12 +680,13 @@ int tc_aot_emit_embed_header(FILE *out, const TcTypedProgram *program,
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include \"tc_diagnostic.h\"\n");
     fprintf(out, "#include \"tc_aot_embed_rt.h\"\n\n");
-    if (slot_count > 0) {
-        fprintf(out, "#define TC_AOT_SLOT_COUNT %zu\n\n", slot_count);
-        fprintf(out, "extern uint64_t slots[%zu];\n\n", slot_count);
-    } else {
-        fprintf(out, "#define TC_AOT_SLOT_COUNT 1\n\n");
-        fprintf(out, "extern uint64_t slots[1];\n\n");
+    {
+        /* B-19：数组须容纳声明槽位 + 临时槽位区（tc_embed_slot_capacity） */
+        size_t capacity = tc_embed_slot_capacity_of(slot_count);
+
+        fprintf(out, "#define TC_AOT_SLOT_COUNT %zu\n", slot_count);
+        fprintf(out, "#define TC_AOT_SLOT_CAPACITY %zu\n\n", capacity);
+        fprintf(out, "extern uint64_t slots[%zu];\n\n", capacity);
     }
     fprintf(out, "int tc_aot_init(TcDiagnostic *diag);\n");
     fprintf(out, "void tc_aot_cleanup(void);\n\n");
@@ -742,7 +745,10 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     fputc('\n', out);
 
     if (slot_count > 0 || embed_mode) {
-        size_t count = slot_count > 0 ? slot_count : 1;
+        /* B-19：嵌入模式须容纳临时槽位区（与生成头文件声明一致）；独立程序
+         * （非 embed）不使用临时区，按声明槽位数定长即可。 */
+        size_t count = embed_mode ? tc_embed_slot_capacity_of(slot_count)
+                                  : (slot_count > 0 ? slot_count : 1);
         const char *qual = embed_mode ? "" : "static ";
         fprintf(out, "%suint64_t slots[%zu];\n\n", qual, count);
     }
