@@ -582,6 +582,7 @@ run_diff_test "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_let_base.tc"
 run_check_ok "$ROOT/tests/valid/static_let_memblock_ctor_ok.tc"
 run_diff_test "$ROOT/tests/valid/memcopy_unsafe_positive_ok.tc"
+run_diff_test "$ROOT/tests/valid/memcopy_unsafe_struct_field_ptr.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
 run_diff_test "$ROOT/tests/valid/usize_arith.tc"
 

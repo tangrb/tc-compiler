@@ -401,6 +401,41 @@ int tc_ptr_rhs_target_readonly(const TcRhs *rhs, const TcSymbolTable *visible,
     }
 }
 
+int tc_ptr_check_memcopy_unsafe_operands(const TcMemcopyUnsafeStmt *stmt,
+                                         const TcSymbolTable *visible,
+                                         const TcSymbolTable *global,
+                                         const TcStructTable *struct_table, TcInitHistory *hist,
+                                         size_t stmt_index, TcDiagnostic *diag,
+                                         TcWarningList *warnings) {
+    TcType ptr_ty;
+    int rc = 0;
+
+    /*
+     * 语言标准 §6.8.9 操作数表 / §6.8.10：`dst`、`src` 须为 `ptr<T>` 类型的
+     * `operand`；后者明列结构体字段读取（如 `a.p`，字段类型为 `ptr<T>`）合法。
+     * 统一走指针操作数校验：既校验形式与所指类型是否等于显式类型参数 `T`，
+     * 也把字段读取的解析结果写入 operand（此前未校验，字段读取留作未解析，
+     * 导致执行期「internal error: unresolved field operand」而 AOT 报空指针）。
+     */
+    ptr_ty = tc_ptr_make_from_pointee(&stmt->element_type, diag, stmt->line);
+    if (ptr_ty.tag == TC_VOID) {
+        return -1;
+    }
+    if (tc_ptr_check_operand((TcOperand *)&stmt->dst_ptr, &ptr_ty, visible, global, struct_table,
+                             hist, stmt_index, stmt->line, diag, warnings, NULL) != 0) {
+        rc = -1;
+    } else if (tc_ptr_check_operand((TcOperand *)&stmt->src_ptr, &ptr_ty, visible, global,
+                                    struct_table, hist, stmt_index, stmt->line, diag, warnings,
+                                    NULL) != 0) {
+        rc = -1;
+    }
+    if (ptr_ty.params.ptr_type.pointee) {
+        tc_type_free(ptr_ty.params.ptr_type.pointee);
+        free(ptr_ty.params.ptr_type.pointee);
+    }
+    return rc;
+}
+
 int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
                        const TcSymbolTable *global, const TcStructTable *struct_table,
                        TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,

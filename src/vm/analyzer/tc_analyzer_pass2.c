@@ -945,7 +945,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_MEMCOPY_UNSAFE) {
             return tc_memblock_check_memcopy_unsafe(&stmt->u.memcopy_unsafe, visible, symbols,
-                                                    hist, stmt_index, diag, warnings);
+                                                    struct_table, hist, stmt_index, diag,
+                                                    warnings);
         }
     }
 

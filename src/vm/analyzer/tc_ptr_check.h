@@ -40,4 +40,16 @@ int tc_ptr_rhs_target_readonly(const TcRhs *rhs, const TcSymbolTable *visible,
 int tc_ptr_operand_target_readonly(const TcOperand *operand, const TcSymbolTable *visible,
                                    const TcSymbolTable *global, size_t stmt_index);
 
+/**
+ * 校验 memcopy_unsafe 的 `dst` / `src` 操作数（§6.8.9 操作数表、§6.8.10）：
+ * 须为 `ptr<T>` 类型的 `operand`（裸名 / 限定名 / 结构体字段读取 / `nullptr`），
+ * 并解析其中的字段读取，供执行期与 AOT 使用。
+ */
+int tc_ptr_check_memcopy_unsafe_operands(const TcMemcopyUnsafeStmt *stmt,
+                                         const TcSymbolTable *visible,
+                                         const TcSymbolTable *global,
+                                         const struct TcStructTable *struct_table,
+                                         TcInitHistory *hist, size_t stmt_index,
+                                         TcDiagnostic *diag, TcWarningList *warnings);
+
 #endif /* TC_PTR_CHECK_H */

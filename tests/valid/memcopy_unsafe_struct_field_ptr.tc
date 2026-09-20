@@ -1,0 +1,12 @@
+#program
+; §6.8.9 操作数表 / §6.8.10：`memcopy_unsafe` 的 `dst` / `src` 须为 `ptr<T>` 类型的
+; `operand`，结构体字段读取（`s.p`，字段类型 `ptr<T>`）合法。字段读取必须被解析，
+; 否则执行期报「unresolved field operand」而 AOT 报空指针；两侧均应正常输出 7。
+struct S then
+    var p: ptr<int32>
+end
+var a: int32 = 7
+var pa: ptr<int32> = ptr_address(int32, a)
+var s: S = S(p: pa)
+memcopy_unsafe(int32, s.p, 0, s.p, 0, 1)
+writeln(int32, a)

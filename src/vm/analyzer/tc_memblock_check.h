@@ -38,8 +38,9 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
  */
 int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      const TcSymbolTable *visible,
-                                     const TcSymbolTable *global, TcInitHistory *hist,
-                                     size_t stmt_index, TcDiagnostic *diag,
+                                     const TcSymbolTable *global,
+                                     const struct TcStructTable *struct_table,
+                                     TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
                                      TcWarningList *warnings);
 
 /** 解析类型树中 memblock 的 usize_operand 名（Self.N / Qual.N / 标识符）为声明 N */

@@ -1076,6 +1076,8 @@ run_expect_fail_msg "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_var_index.tc"
 run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_positive_ok.tc" "1
 4
 "
+run_expect_stdout "$ROOT/tests/valid/memcopy_unsafe_struct_field_ptr.tc" "7
+"
 run_expect_stdout "$ROOT/tests/valid/phase5_memblock_basic.tc" "9
 2
 "

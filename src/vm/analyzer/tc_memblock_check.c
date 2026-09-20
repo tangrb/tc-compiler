@@ -519,12 +519,11 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
 
 int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                      const TcSymbolTable *visible,
-                                     const TcSymbolTable *global, TcInitHistory *hist,
-                                     size_t stmt_index, TcDiagnostic *diag,
+                                     const TcSymbolTable *global,
+                                     const struct TcStructTable *struct_table,
+                                     TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
                                      TcWarningList *warnings) {
     /* 静态拒绝 void 元素；所指为形参/let 时拒绝写入。负 length 由运行时检查。 */
-    (void)hist;
-    (void)warnings;
     if (stmt->element_type.tag == TC_VOID) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
                           "memcopy_unsafe element type cannot be void");
@@ -533,6 +532,11 @@ int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
     if (tc_ptr_operand_target_readonly(&stmt->dst_ptr, visible, global, stmt_index)) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_ASSIGNMENT, stmt->line, TC_COLUMN_UNKNOWN,
                           "cannot store through read-only pointer binding");
+        return -1;
+    }
+    /* `dst` / `src` 须为 `ptr<T>` 类型的 operand（§6.8.9、§6.8.10）；字段读取在此解析。 */
+    if (tc_ptr_check_memcopy_unsafe_operands(stmt, visible, global, struct_table, hist,
+                                             stmt_index, diag, warnings) != 0) {
         return -1;
     }
     return 0;
