@@ -854,7 +854,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    if (tc_parse_type_syntax(tokens, index, line_no, 1, &target, &struct_name, diag) != 0) {
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &target, &struct_name, diag) != 0) {
         return -1;
     }
     free(struct_name);
@@ -912,7 +912,7 @@ static int tc_parse_bitcast_rhs(const TcTokenList *tokens, size_t *index, int li
         tc_expect_token(tokens, index, TC_TOK_LPAREN, line_no, diag) != 0) {
         return -1;
     }
-    if (tc_parse_type_syntax(tokens, index, line_no, 1, &bitcast.target, &struct_name, diag) !=
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &bitcast.target, &struct_name, diag) !=
         0) {
         return -1;
     }
@@ -1347,7 +1347,7 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
         return -1;
     }
 
-    if (tc_parse_type_syntax(tokens, index, line_no, 1, &target, &struct_name, diag) != 0) {
+    if (tc_parse_type_syntax(tokens, index, line_no, 0, &target, &struct_name, diag) != 0) {
         return -1;
     }
     free(struct_name);

@@ -1,0 +1,4 @@
+#program
+; 同上：bitcast 目标为 void 属语法拒绝
+var x: int64 = bitcast(void, 1)
+writeln(int64, x)

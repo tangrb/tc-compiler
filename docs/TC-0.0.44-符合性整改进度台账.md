@@ -236,6 +236,7 @@
 | B-30 / B-31 | 四处列表产生式统一为「项之间必须有逗号、末项后不得有逗号」：`tc_parser_func.c` 形参表、`tc_parser_stmt.c` 两处命名实参表（funcall 语句 / RHS 表达式位置）、`tc_parser_rhs.c` 的 memblock 逐值构造器与结构体构造器。实现方式：消费逗号后若紧随 `)` 则报尾随逗号；无逗号且下一 Token 非 `)` 则报「expected , or )」。新增 8 份语料 `list_trailing_comma_{param,args,ctor,memblock}.tc` 与 `list_missing_comma_{param,args,ctor,memblock}.tc`（VM check_fail + SyntaxError）；test-map 回填 1087 VM | 审计 4 处尾随逗号（`f(a: int32,)`、`funcall(Self.g,)`、`S(a: 1, b: 2,)`、`memblock(int32, count: 2, 1, 2,)`）与 3 处缺失逗号（形参表 / 结构体构造器 / memblock 构造器）全部由 ACCEPT 变为 SyntaxError；合法带逗号形态不受影响；全量三层与 5 项门禁通过 |
 | B-32 | `tc_parser_rhs.c` `tc_parse_struct_ctor_rhs`：删除「解析任意 RHS 后仅允许 memblock/struct 构造器」的分支，字段值不再接受任何调用型 RHS（嵌套构造器、funcall、cast、ptr_* 等）——附录 A `struct_constructor` 的字段值与 `const_struct_constructor` 的 `const_operand` 都只允许 operand（§6.1.2 调用型 RHS 不属于 operand）。既有 9 份依赖嵌套构造器的测试改写为合法等价形态（先 `let`/`var` 中间绑定再构造）：`struct_field_const_base_{nested,struct,memblock}`、`struct_field_static_let_base`、`phase5_struct_{nested,nested_assign,extract_indep,memblock,memblock_of_struct,memblock_deepcopy,ptr_nested_self_ref}`、`phase3_struct_nested`、`struct_field_operand_nested` 及 `test_type_check`/`test_struct_field_access` 内嵌源码；`struct_ctor_field_expr.tc` 断言改为新消息。新增 `struct_ctor_nested_constructor.tc` 与 `struct_ctor_memblock_constructor.tc`（VM check_fail + SyntaxError）；test-map 回填 1089 VM | 审计复现 `S(t: T(v: 1))` 与 `S(m: memblock(int32, count: 2, fill: 0))` 由接受且可运行变为 `SyntaxError`；`funcall` 的命名实参仍接受构造器（附录 A `named_argument`，未受影响）；改写后的等价合法程序输出与改写前一致；全量三层与 5 项门禁通过 |
 | B-33 | `tc_parser_stmt.c` `tc_parse_field_assign_stmt`：RHS 为 `TC_TOK_FUNCALL` 时改走 `tc_parse_funcall_rhs`（与整绑定赋值一致）；`tc_struct_check_field_assign` 增 `TcAnalyzeCtx *ctx` 参数，RHS 为 `TC_RHS_FUNCALL_EXPR` 且 `ctx->func_env` 存在时改走 `tc_pass2_check_funcall_rhs`（否则 `tc_type_check_rhs` 不识别该 RHS 形态），pass2 调用点同步。新增 `tests/modules/FieldFuncallLib.tc` + `import_field_funcall.tc`（VM stdout+check_ok、AOT diff）；test-map 回填 1091 VM / 482 AOT | 审计复现 `s.v = funcall(Self.f)` 由 `SyntaxError: expected rhs expression` 变为接受（VM/AOT 均输出 7）；`s.v = 1` 与 `Self.x = funcall(...)` 行为不变；全量三层与 5 项门禁通过 |
+| B-34 | `tc_parser_rhs.c` 三处 cast/bitcast 目标类型解析的 `allow_void` 由 1 改为 0（`tc_parse_cast_rhs`、`tc_parse_bitcast_rhs`、常量 cast 路径）：附录 A 的 `type` 产生式不含 `void`，`void` 只允许出现在函数返回类型，故 `cast(void, …)` / `bitcast(void, …)` 属语法拒绝（§1.3、附录 A.3 引言），不得降级为 SEM 的 TYPE_MISMATCH。新增 `cast_void_target.tc` / `bitcast_void_target.tc`（VM check_fail + SyntaxError）；test-map 回填 1093 VM | 审计两例由 `TypeMismatch: cast target must be scalar or ptr type` 变为 `SyntaxError: void type not allowed here`；`cast(int32, 1)` 等合法转换不受影响；`ptr<void>` 目标仍语法拒绝（与既有口径一致）；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -300,7 +301,8 @@
 | 43 | 阶段 2-B29 数字分隔符规则 | `c6039cb fix(0.0.44-B29): enforce digit-separator placement rules` |
 | 44 | 阶段 2-B30/B31 列表产生式逗号规则 | `2b93ace fix(0.0.44-B30/B31): enforce comma rules in list productions` |
 | 45 | 阶段 2-B32 结构体构造器字段值限 operand | `3ac1492 fix(0.0.44-B32): restrict struct-constructor field values to operands` |
-| 46 | 阶段 2-B33 字段赋值 RHS 支持 funcall | 本提交 `fix(0.0.44-B33): accept funcall on the right of a field assignment` |
+| 46 | 阶段 2-B33 字段赋值 RHS 支持 funcall | `656cc42 fix(0.0.44-B33): accept funcall on the right of a field assignment` |
+| 47 | 阶段 2-B34 cast/bitcast 目标不得为 void | 本提交 `fix(0.0.44-B34): reject void as a cast/bitcast target in the parser` |
 
 ---
 

@@ -1,0 +1,5 @@
+#program
+; 附录 A `type` 产生式不含 void；`void` 只允许出现在函数返回类型
+; → cast 目标为 void 属语法拒绝（不得降级为 SEM 的 TYPE_MISMATCH）
+var x: int32 = cast(void, 1)
+writeln(int32, x)
