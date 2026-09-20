@@ -1550,6 +1550,16 @@ static int tc_parse_module_body(TcParserCtx *ctx, TcSourceLine *lines, size_t li
                 0) {
                 return -1;
             }
+        } else if (program->mode == TC_MODULE_LIB &&
+                   (first->kind == TC_TOK_VAR || first->kind == TC_TOK_LET)) {
+            /*
+             * B-38：附录 A 的 library_module 只接受带可见性的 static 成员，
+             * `#lib` 顶层裸 var/let 属语法拒绝（第 3 阶段 TC_CE_SYNTAX）；
+             * 原实现沿用 value 层放行、由分析器在 SEM 报 MODULE_LAYER，
+             * 阶段错位（会晚于更靠后的语法错误）。
+             */
+            return tc_syntax_error(diag, line->line_no, first->column,
+                                   "non-static value declaration is not allowed in #lib");
         } else {
             if (tc_parse_statement_mode(ctx, &line->tokens, line->line_no, program->mode, &stmt,
                                         diag) != 0) {
