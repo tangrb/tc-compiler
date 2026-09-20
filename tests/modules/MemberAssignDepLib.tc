@@ -1,0 +1,11 @@
+#lib
+; 观察-⑥：依赖模块内经限定名写入另一模块的 `static var`（整绑定赋值目标）
+import MemberLib
+public func bump() void then
+    MemberLib.W = 3
+    return
+end
+public func read_w() int32 then
+    var r: int32 = MemberLib.W
+    return r
+end

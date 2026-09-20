@@ -1,0 +1,18 @@
+#program
+; 观察-⑥：`<模块名>.<名> = rhs` 作整绑定赋值目标（附录 A `assignment`、§4.4「static var 可读写」）；
+; 标量 / struct / memblock 三种成员与限定基址字段赋值对照
+import MemberLib
+var v: int32 = 0
+MemberLib.W = 9
+v = MemberLib.W
+writeln(int32, v)
+MemberLib.spv = MemberLib.Pair(x: 11, y: 12)
+v = MemberLib.spv.x
+writeln(int32, v)
+MemberLib.MB = memblock(int32, count: 2, 3, 4)
+v = memblock_load(int32, MemberLib.MB, 0)
+writeln(int32, v)
+; 对照：限定基址的字段赋值（`<模块>.<static var struct>.<字段>`）仍走字段路径
+MemberLib.spv.y = 7
+v = MemberLib.spv.y
+writeln(int32, v)

@@ -12,6 +12,7 @@ private static let Hidden: int32 = 99
 private static var HiddenVar: int32 = 7
 private static let HiddenPair: Pair = Pair(x: 1, y: 2)
 private static let HiddenMb: memblock<int32, 2> = memblock(int32, count: 2, 6, 1)
+public static var MB: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
 public func sum_self() int32 then
     var r: int32 = add(int32, Self.K, Self.W)
     return r

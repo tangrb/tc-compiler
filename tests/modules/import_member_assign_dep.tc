@@ -1,0 +1,7 @@
+#program
+; 观察-⑥：依赖模块（#lib）内的 `<模块名>.<static var> = rhs` 与写入后读回
+import MemberAssignDepLib
+var v: int32 = 0
+funcall(MemberAssignDepLib.bump)
+v = funcall(MemberAssignDepLib.read_w)
+writeln(int32, v)

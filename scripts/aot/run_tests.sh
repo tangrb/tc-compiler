@@ -638,6 +638,16 @@ run_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
 # 观察-⑤：`.count` 作 RHS 的常量绑定路径（限定名 const memblock）
 run_diff_test "$ROOT/tests/valid/memblock_count_rhs.tc"
 run_check_ok "$ROOT/tests/valid/memblock_count_rhs.tc"
+# 观察-⑥：`<模块名>.<名> = rhs` 整绑定赋值目标（标量 / struct / memblock；含依赖模块内）
+run_diff_test "$ROOT/tests/modules/import_member_assign_ok.tc"
+run_check_ok "$ROOT/tests/modules/import_member_assign_ok.tc"
+run_diff_test "$ROOT/tests/modules/import_member_assign_dep.tc"
+run_check_ok "$ROOT/tests/modules/import_member_assign_dep.tc"
+run_check_fail "$ROOT/tests/modules/member_assign_readonly.tc" "cannot assign to constant"
+run_check_fail "$ROOT/tests/modules/member_assign_private.tc" "private member access"
+run_check_fail "$ROOT/tests/modules/member_assign_type_mismatch.tc" \
+    "bool literal requires bool context"
+run_check_fail "$ROOT/tests/modules/member_assign_bad_qual.tc" "undefined variable 'NoSuchLib'"
 run_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
     "undefined variable 'NoSuchLib'"
 run_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \

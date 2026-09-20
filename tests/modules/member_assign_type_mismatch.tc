@@ -1,0 +1,7 @@
+#program
+; 观察-⑥ 负例：限定赋值目标的 RHS 上下文类型不符（不得降级为 undefined variable）
+; 期望：bool literal requires bool context（LiteralTypeError）
+import MemberLib
+var v: int32 = 0
+MemberLib.W = true
+writeln(int32, v)

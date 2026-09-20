@@ -456,12 +456,102 @@ static int tc_pass2_check_nested_func_name_conflict(const TcAnalyzeCtx *ctx, con
     return -1;
 }
 
+/**
+ * 观察-⑥：`<模块名>.<名> = rhs` 的重分类（语言标准 附录 A
+ * `assignment = (identifier | qualified_identifier | imported_member_name) "=" rhs`）。
+ *
+ * 解析器只在 `X.y.`（两点）形态下把 `X.y` 并入基址，故单点限定目标
+ * `MemberLib.W = 9` 到达分析器时是「字段赋值：基址 `MemberLib` + 字段链 `["W"]`」，
+ * 而字段赋值会把 `MemberLib` 当**基对象**解析 → 报 `undefined variable 'MemberLib'`。
+ * `Self.<名> = rhs` 反例不受影响：解析器对 `Self.` 有专用分支，直接产出
+ * `TC_STMT_ASSIGN{name="Self.W"}`。
+ *
+ * 判定与既有-1 读侧同构：基址不是可见绑定、且 `"<基址>.<首字段>"` 经名称解析命中
+ * 模块成员（附录 A 的 `imported_member_name`）时，把语句**重写**为整绑定赋值
+ * `TC_STMT_ASSIGN{name="<基址>.<首字段>"}`，随后由既有整绑定赋值分支处理——
+ * 可写性（§11：`static let` → `CONSTANT_ASSIGNMENT`）、跨模块 `private`
+ * （§4.4 → `PRIVATE_MEMBER_ACCESS`）、类型检查、`ptr` 来源固化与确定初始化均复用。
+ *
+ * @return 1 已重写；0 不需改动（含基址为绑定、非模块成员等）；-1 已报错
+ */
+static int tc_reclassify_qualified_binding_assign(TcStatement *stmt, const TcSymbolTable *visible,
+                                                  const TcSymbolTable *global,
+                                                  TcDiagnostic *diag) {
+    TcFieldAssign *fa = NULL;
+    const TcSymbol *base_sym = NULL;
+    const TcSymbol *member_sym = NULL;
+    char *combined = NULL;
+    TcRhs rhs;
+    size_t need = 0;
+    size_t i = 0;
+    int line = 0;
+
+    if (!stmt || stmt->kind != TC_STMT_FIELD_ASSIGN) {
+        return 0;
+    }
+    fa = &stmt->u.field_assign;
+    if (fa->field_count != 1 || !fa->base || !fa->fields || !fa->fields[0]) {
+        return 0;
+    }
+    line = fa->line;
+    /* 只处理单点限定目标：`Self.S.x` 这类两点基址保持字段赋值（属 §3.9.5 字段目标） */
+    if (strchr(fa->base, '.') != NULL) {
+        return 0;
+    }
+    /* 基址能解析为绑定 → 真字段赋值（`s.x = 5`；含 B-37 的大写局部变量） */
+    base_sym = tc_find_named_binding(visible, global, fa->base);
+    if (base_sym) {
+        return 0;
+    }
+    need = strlen(fa->base) + 1U + strlen(fa->fields[0]) + 1U;
+    combined = (char *)malloc(need);
+    if (!combined) {
+        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line, TC_COLUMN_UNKNOWN,
+                          "memory allocation failed");
+        return -1;
+    }
+    (void)snprintf(combined, need, "%s.%s", fa->base, fa->fields[0]);
+    /* §4.4：跨模块 private 成员给专用码（须先于按名解析，后者会将其过滤为未定义） */
+    if (tc_reject_private_member_access(combined, global, line, diag)) {
+        free(combined);
+        return -1;
+    }
+    member_sym = tc_find_named_binding(visible, global, combined);
+    if (!member_sym) {
+        /* 非模块成员（未解析/拼错前缀）：交由字段赋值路径按原口径报告 */
+        free(combined);
+        return 0;
+    }
+    /*
+     * 重写为整绑定赋值：RHS 两个 union 成员同为 TcRhs，整体搬迁后释放字段链并按新
+     * kind 走 tc_statement_free（ASSIGN 分支释放 name + rhs）。
+     */
+    rhs = fa->rhs;
+    free(fa->base);
+    for (i = 0; i < fa->field_count; i++) {
+        free(fa->fields[i]);
+    }
+    free(fa->fields);
+    memset(&stmt->u, 0, sizeof(stmt->u));
+    stmt->kind = TC_STMT_ASSIGN;
+    stmt->u.assign.line = line;
+    stmt->u.assign.name = combined;
+    stmt->u.assign.rhs = rhs;
+    return 1;
+}
+
 static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                TcSymbolTable *visible, TcStructTable *struct_table,
                                TcAnalyzeCtx *ctx, TcInitHistory *hist, TcWarningList *warnings,
                                TcDiagnostic *diag) {
     /* 刷新名称解析作用域上下文：本语句是否位于函数体内（§4.3 Self. 强制）。 */
     tc_name_scope_set(ctx->func_env ? ctx->func_env->members : NULL, ctx->func_depth > 0);
+
+    /* 观察-⑥：`<模块名>.<名> = rhs` 先重分类为整绑定赋值（见该助手注释）；
+     * 返回 1 = 已重写（随后由本函数下面的 ASSIGN 分支处理），0 = 不变，-1 = 已报错 */
+    if (tc_reclassify_qualified_binding_assign(stmt, visible, symbols, diag) < 0) {
+        return -1;
+    }
 
     if (stmt->kind == TC_STMT_WHILE) {
         TcWhileStmt *while_stmt = &stmt->u.while_stmt;

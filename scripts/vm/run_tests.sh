@@ -1128,6 +1128,24 @@ run_expect_stdout "$ROOT/tests/valid/memblock_count_rhs.tc" "2
 2
 "
 run_expect_check_ok "$ROOT/tests/valid/memblock_count_rhs.tc"
+# 观察-⑥：`<模块名>.<名> = rhs` 整绑定赋值目标（附录 A assignment、§4.4 static var 可读写）
+run_expect_stdout "$ROOT/tests/modules/import_member_assign_ok.tc" "9
+11
+3
+7
+"
+run_expect_check_ok "$ROOT/tests/modules/import_member_assign_ok.tc"
+run_expect_stdout "$ROOT/tests/modules/import_member_assign_dep.tc" "3
+"
+run_expect_check_ok "$ROOT/tests/modules/import_member_assign_dep.tc"
+run_expect_check_fail "$ROOT/tests/modules/member_assign_readonly.tc" \
+    "cannot assign to constant" "ConstantAssignmentError"
+run_expect_check_fail "$ROOT/tests/modules/member_assign_private.tc" \
+    "private member access" "PrivateMemberAccessError"
+run_expect_check_fail "$ROOT/tests/modules/member_assign_type_mismatch.tc" \
+    "bool literal requires bool context" "LiteralTypeError"
+run_expect_check_fail "$ROOT/tests/modules/member_assign_bad_qual.tc" \
+    "undefined variable 'NoSuchLib'" "UndefinedVariable"
 # §4.4：`<模块名>.<private 成员>` 一律 `PRIVATE_MEMBER_ACCESS`，不得降级为 undefined variable
 run_expect_check_fail "$ROOT/tests/modules/member_private_read.tc" \
     "private member access" "PrivateMemberAccessError"
