@@ -149,8 +149,16 @@ static int tc_sem_diag_earlier(int cand_line, int cand_column, int keep_line, in
 static void tc_sem_take_diag(TcDiagnostic *diag, const TcDiagnostic *cand, const char *file,
                              const char *source) {
     char *msg = cand->message ? strdup(cand->message) : NULL;
+    /*
+     * B-40：`tc_diagnostic_clear` 会释放挂起的 SEM 类诊断，但那是解析期记录、
+     * 尚未与其它 SEM 诊断按源序竞争的候选，此处必须先摘出再恢复（先置零以避免
+     * clear 释放其字符串）。
+     */
+    TcDeferredDiagnostic keep_sem = diag->deferred_sem;
 
+    memset(&diag->deferred_sem, 0, sizeof(diag->deferred_sem));
     tc_diagnostic_clear(diag);
+    diag->deferred_sem = keep_sem;
     if (file || source) {
         if (tc_diagnostic_set_source(diag, file, source) != 0) {
             return;
@@ -600,6 +608,12 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
         }
         *owned = struct_table;
         out->struct_table = owned;
+        /*
+         * 所有权已转移：此后若因挂起诊断（B-40 的 SEM 项 / 第 9、10 阶段 CT 项）
+         * 失败，`fail:` 会同时释放局部表与 `out->struct_table`。将局部表复位为零，
+         * 避免对同一 items/fields 双重释放。
+         */
+        tc_struct_table_init(&struct_table);
     }
 
     /*
@@ -608,6 +622,13 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
      * （常量求值与静态三态判定）。若有挂起诊断，本次分析按失败返回，
      * 调用方不得进入执行阶段。
      */
+    /*
+     * B-40：解析期挂起的 **SEM 类**诊断须先于 CT 类发布（§11 阶段优先）。
+     * 此处仅在有真实 SEM 诊断时失败；否则继续走 CT 挂起项的发布。
+     */
+    if (tc_diagnostic_publish_deferred_sem(diag) != 0) {
+        goto fail;
+    }
     if (tc_diagnostic_flush_deferred(diag) != 0) {
         goto fail;
     }
@@ -615,6 +636,13 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     ret = 0;
 
 fail:
+    /*
+     * B-40：失败路径同样要让解析期挂起的 SEM 诊断参与竞争——若它与已报告的
+     * 诊断同属一个源文件且源序更靠前，则替换（§11 第 2 条）。
+     */
+    if (ret != 0 && tc_diagnostic_publish_deferred_sem(diag) != 0) {
+        ret = -1;
+    }
     if (ret != 0) {
         tc_struct_table_free(&struct_table);
         tc_typed_program_free(out);

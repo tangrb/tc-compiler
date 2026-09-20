@@ -146,7 +146,7 @@
 | B-37 | 大写变量嵌套字段误解析（过度拒绝） | ☑ | |
 | B-38 | `#lib` 裸 `var` 报 `MODULE_LAYER` | ☑ | |
 | B-39 | SYN 阶段错位（`Self` 检查） | ☑ | |
-| B-40 | SEM 码由解析器发出（`@padding`/`N` 来源） | ☐ | |
+| B-40 | SEM 码由解析器发出（`@padding`/`N` 来源） | ☑ | |
 | B-41 | 深一级 `end` 缩进码归属 | ⊘ 待标准裁决 | |
 | B-42 | `bitcast` 伪造指针槽索引越界 | ☑ | |
 | B-43 | `memblock_copy` `length == 0` 跳过区间检查 | ☑ | |
@@ -260,6 +260,7 @@
 | B-65 | 根因：符号表全模块共享（slot 全局唯一）而 `stmt_index` 每模块各自从 0 编号，「名字 + def_stmt_index」解析会命中另一模块的同名绑定。① `TcSymbol` 增 `module_name`（借用 `TcProgram.module_name`），由 `tc_pass1_collect_symbols` 按模块回填；② `tc_find_symbol_by_def_index` 增 `module_name` 形参并优先本模块匹配（`tc_visible_add_from_global` 同步带上模块，可见表沿用同一优先级）——修复入口变量被解析到库内同名局部导致**读值串槽**；③ CFG（`tc_cfg.c`）写槽改用 Pass1 固化的 `var_def.binding`（与读侧绑定同源），`read` 语句改用 `io_read.binding`，`tc_cfg_find_def`/`tc_cfg_find_visible` 增模块优先过滤（`TcCfgBuildCtx.module_name`，由 `tc_cfg_build`/`tc_cfg_build_items` 传入）；④ 新增 `tests/modules/SameNameLib.tc` + `import_same_name_shadow.tc`（库内嵌套块局部 `b` vs 入口 `b`；VM stdout+check_ok、AOT diff+check_ok）；⑤ 修正 `diamond_import_{ok,swapped_ok}.tc` 的 VM 期望：两条臂局部同名 `s` 串槽曾被写成 `3/3`、`4/4`，正确值为 `3/4`、`4/3`。test-map 回填 1129 VM / 500 AOT | 审计复现（库内 `funcall` 目标含同名局部 `var b`）：修复前三处证据——(a) `tc_cfg_find_def` 写槽取到库内槽位而绑定为入口槽位（假阳性 `UninitializedVariable`）；(b) 入口 `writeln(bool, b)` 实际读到库内同名局部（本库返回 `false` 却输出 `true`，属静默串槽）；(c) 菱形语料两条臂互相串槽。修复后：审计复现与新增语料均输出 `false` 且 rc=0（VM/AOT 一致），菱形输出恢复为各臂自己的值（`3/4`、`4/3`）；`self_member_undefined` / `self_access_ok` / `static_let_rule_ok` 等 `Self.` 与跨块用例全部保持既有诊断；全量三层与 5 项门禁通过 |
 | B-62 | 无需新增 src 改动：B-30/B-31（附录 A 列表产生式统一拒绝尾随逗号「trailing comma not allowed in list」并要求逗号分隔「expected , or )」）已覆盖 const 变体。本轮补足 const 侧回归覆盖：新增 4 条语料——模块级 `public static let` 的 `const_struct_constructor` 尾随逗号、函数内 `let` 的该产生式缺失逗号、模块级 `static let` 的 `const_memblock_elems_ctor` 尾随逗号、函数内 `let` 的该产生式缺失逗号；VM `run_expect_check_fail`（消息+`SyntaxError`）与 AOT `run_check_fail` 双端断言。test-map 回填 1133 VM / 504 AOT | 审计四例（`S(a: 1, b: 2,)`、`S(a: 1 b: 2)`、`memblock(int32, count: 2, 1, 2,)`、`…, 1 2)`）实测全部由 rc=0 变为 `SyntaxError`（rc=1），且 const 与非 const 路径错码一致；对照 `memblock(int32, count: 2, fill: 0,)` 两路径同样拒绝（既有行为）；全量三层与 5 项门禁通过 |
 | B-37 | `tc_struct_check.c` 新增 `tc_field_split_variable_base`：字段读（`tc_struct_check_field_access`）与字段赋值（`tc_struct_check_field_assign`）在解析基址前按**名称解析**纠正解析器的分类——若基址第一个点之前的部分能按 `tc_find_named_binding` 命中可见绑定，则说明这是变量基址（`A.i.v`），把点后部分并回字段链首位；否则保持 `<模块名>.<成员>.<字段>` 的限定名分类（如 `StructFieldSelfLib.root.v` 不受影响）。新增 `tests/valid/uppercase_var_field_read.tc`（`A.i.v` 与大写/小写对照）与 `uppercase_var_field_assign.tc`（`A.i.v = 5`），VM stdout+check_ok、AOT diff+check_ok；test-map 回填 1137 VM / 508 AOT | 审计复现：`var A: Outer = Outer(i: inner)` 后 `writeln(int32, A.i.v)` 由 `UndefinedVariable: undefined variable 'i'` 变为输出 `1`（与换成小写 `a` 的行为一致）；`A.i.v = 5` 同样由失败变为输出 `5`；限定名基址用例（`struct_field_operand_self_base`、`struct_field_operand_*`、`imported_struct_*`、`qualified_*`）全部保持既有结果；全量三层与 5 项门禁通过 |
+| B-40 | `TcDiagnostic` 增挂起槽 `deferred_sem` 与 API（`tc_diagnostic_defer_sem` / `has_deferred_sem` / `publish_deferred_sem` / `clear_deferred_sem`，内部与 CT 槽共用 `tc_diagnostic_defer_into`）；解析器的三处形态检查改为**挂起 SEM 诊断并继续解析**（占位值取合法且不放大分配）：`tc_parser_struct.c` 的 `@padding(N)`、`tc_parser_type.c` 的 `memblock<T, N>`、`tc_parser_rhs.c` 的 `count:` 字面量（负数/非十进制/带后缀/0）。`tc_analyzer.c` 在 CT 挂起项发布**之前**以及 `fail:` 路径发布 SEM 挂起项（同文件按源序竞争、跨文件沿用先到先得；同行时带列号的挂起项优先于无列号的行级诊断）；`tc_sem_take_diag` 先摘出再恢复该挂起槽，避免 `tc_diagnostic_clear` 释放尚未参与竞争的候选。附带修一处所有权缺陷：结构体表移交 `out->struct_table` 后复位局部表，避免挂起诊断失败时 `fail:` 路径对同一 items/fields 双重释放（此前 CT 挂起项失败也会踩到）。新增 `tests/errors/static/padding_then_later_syntax.tc`（SEM 之后有 SYN → SYN 胜）与 `padding_then_later_sem.tc`（同属 SEM → 源序更早者胜）；test-map 回填 1139 VM / 510 AOT | 审计复现：`@padding(4u)` 与更晚的 `add(int32, 1)`（`TC_CE_OPERAND_COUNT`，标准 §1.3 定义为 SYN）同时存在时，由报更早的 `ConstantExpressionError` 变为报更晚的 `SyntaxError`（第 8 行）；仅有 `@padding(4u)`/`memblock<int32, -5>`/`count: -5` 时仍在原 Token 位置报 `ConstantExpressionError` 且消息不变（既有 `memblock_negative_count_{type,ctor}` 语料继续通过）；`@padding` 与更晚的 `MemblockSizeMismatch`（同属 SEM）并存时报更早的 padding 诊断；全量三层与 5 项门禁通过 |
 
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
@@ -348,7 +349,8 @@
 | 66 | 阶段 2-B64 含点文件名的本地结构体解析 | `cf0de99 fix(0.0.44-B64): split qualified struct names at the last dot` |
 | 67 | 阶段 2-B65 跨模块同名符号解析 | `9ab5cbc fix(0.0.44-B65): resolve same-named symbols per module` |
 | 68 | 阶段 2-B62 const 列表产生式回归覆盖 | `9569331 test(0.0.44-B62): cover the const list productions` |
-| 69 | 阶段 2-B37 大写变量嵌套字段解析 | 本提交 `fix(0.0.44-B37): classify field-access bases by name resolution` |
+| 69 | 阶段 2-B37 大写变量嵌套字段解析 | `17114fb fix(0.0.44-B37): classify field-access bases by name resolution` |
+| 70 | 阶段 2-B40 解析期 SEM 诊断挂起 | 本提交 `fix(0.0.44-B40): defer parser-side SEM diagnostics to the static phase` |
 
 ---
 

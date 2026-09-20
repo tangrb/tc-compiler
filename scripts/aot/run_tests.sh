@@ -782,6 +782,10 @@ run_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" "memblock coun
 run_check_fail "$ROOT/tests/errors/static/memblock_count_source_isize.tc" \
     "memblock count must be a usize constant"
 run_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" "memblock count must be at least 1"
+# B-40：SEM 类形态检查的挂起发布与阶段/源序优先
+run_check_fail "$ROOT/tests/errors/static/padding_then_later_syntax.tc" "unexpected character"
+run_check_fail "$ROOT/tests/errors/static/padding_then_later_sem.tc" \
+    "@padding size must be a non-negative"
 run_check_fail "$ROOT/tests/errors/static/func_body_public_var.tc" "visibility modifier is not allowed inside a function body"
 run_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore.tc" "invalid integer literal"
 run_check_fail "$ROOT/tests/errors/static/goto_cross_function_label_not_found.tc" \

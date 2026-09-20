@@ -124,6 +124,7 @@ void tc_diagnostic_init(TcDiagnostic *diag) {
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
     memset(&diag->deferred, 0, sizeof(diag->deferred));
+    memset(&diag->deferred_sem, 0, sizeof(diag->deferred_sem));
 }
 
 void tc_diagnostic_clear(TcDiagnostic *diag) {
@@ -141,6 +142,7 @@ void tc_diagnostic_clear(TcDiagnostic *diag) {
     diag->line = 0;
     diag->column = TC_COLUMN_UNKNOWN;
     tc_diagnostic_clear_deferred(diag);
+    tc_diagnostic_clear_deferred_sem(diag);
 }
 
 int tc_diagnostic_is_set(const TcDiagnostic *diag) {
@@ -183,17 +185,16 @@ static int tc_diagnostic_defer_precedes(int new_line, int new_column, int old_li
     return new_column < old_column;
 }
 
-int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
-                        const char *message) {
-    TcDeferredDiagnostic *pending = NULL;
+static int tc_diagnostic_defer_into(TcDiagnostic *diag, TcDeferredDiagnostic *pending,
+                                    TcErrorKind kind, int line, int column,
+                                    const char *message) {
     char *new_message = NULL;
     char *new_filename = NULL;
     char *new_source = NULL;
 
-    if (!diag) {
+    if (!diag || !pending) {
         return -1;
     }
-    pending = &diag->deferred;
     if (pending->active &&
         !tc_diagnostic_defer_precedes(line, column, pending->line, pending->column)) {
         /* 已有源序更靠前的挂起诊断：保留原诊断，仍然报告失败。 */
@@ -226,7 +227,9 @@ int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int colu
         }
     }
 
-    tc_diagnostic_clear_deferred(diag);
+    free(pending->message);
+    free(pending->filename);
+    free(pending->source);
     pending->active = 1;
     pending->kind = kind;
     pending->line = line;
@@ -234,6 +237,13 @@ int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int colu
     pending->message = new_message;
     pending->filename = new_filename;
     pending->source = new_source;
+    return 0;
+}
+
+int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                        const char *message) {
+    (void)tc_diagnostic_defer_into(diag, diag ? &diag->deferred : NULL, kind, line, column,
+                                   message);
     return -1;
 }
 
@@ -275,6 +285,92 @@ int tc_diagnostic_flush_deferred(TcDiagnostic *diag) {
 
 void tc_diagnostic_drop_deferred(TcDiagnostic *diag) {
     tc_diagnostic_clear_deferred(diag);
+}
+
+/* ── 挂起的 SEM 类诊断（B-40） ── */
+
+void tc_diagnostic_clear_deferred_sem(TcDiagnostic *diag) {
+    TcDeferredDiagnostic *pending = NULL;
+
+    if (!diag) {
+        return;
+    }
+    pending = &diag->deferred_sem;
+    free(pending->message);
+    free(pending->filename);
+    free(pending->source);
+    memset(pending, 0, sizeof(*pending));
+}
+
+int tc_diagnostic_defer_sem(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                            const char *message) {
+    return tc_diagnostic_defer_into(diag, diag ? &diag->deferred_sem : NULL, kind, line, column,
+                                    message);
+}
+
+int tc_diagnostic_has_deferred_sem(const TcDiagnostic *diag) {
+    return diag && diag->deferred_sem.active;
+}
+
+static int tc_diagnostic_same_file(const TcDiagnostic *diag, const TcDeferredDiagnostic *pending) {
+    if (!diag->filename || !pending->filename) {
+        return diag->filename == pending->filename;
+    }
+    return strcmp(diag->filename, pending->filename) == 0;
+}
+
+int tc_diagnostic_publish_deferred_sem(TcDiagnostic *diag) {
+    TcDeferredDiagnostic pending;
+    int replace = 0;
+
+    if (!diag || !diag->deferred_sem.active) {
+        return 0;
+    }
+    if (tc_diagnostic_is_set(diag)) {
+        /*
+         * 已有真实诊断：仅当它与挂起项同属一个源文件、且挂起项源序更靠前时替换
+         *（§11 第 2 条）。跨文件（依赖模块）无从比较源序位置，沿用「先到先得」。
+         *
+         * 同行比较有个例外：挂起项带列号、真实诊断无列号（行级诊断，如
+         * MemblockSizeMismatch）时，挂起项定位到具体 Token，按 §11「同行按 Token
+         * 次序」应先于行级诊断，故视为更靠前。
+         */
+        if (tc_diagnostic_same_file(diag, &diag->deferred_sem)) {
+            int pend_same_line = diag->deferred_sem.line == diag->line;
+
+            if (diag->deferred_sem.line < diag->line ||
+                (pend_same_line && diag->deferred_sem.column != TC_COLUMN_UNKNOWN &&
+                 diag->column == TC_COLUMN_UNKNOWN) ||
+                tc_diagnostic_defer_precedes(diag->deferred_sem.line, diag->deferred_sem.column,
+                                             diag->line, diag->column)) {
+                replace = 1;
+            }
+        }
+        if (!replace) {
+            tc_diagnostic_clear_deferred_sem(diag);
+            return 0;
+        }
+    }
+    /* 取走所有权，避免 set_source / set 内部释放时与 pending 冲突。 */
+    pending = diag->deferred_sem;
+    memset(&diag->deferred_sem, 0, sizeof(diag->deferred_sem));
+
+    if (replace) {
+        tc_diagnostic_clear(diag);
+    }
+    if (pending.filename || pending.source) {
+        if (tc_diagnostic_set_source(diag, pending.filename, pending.source) != 0) {
+            free(pending.message);
+            free(pending.filename);
+            free(pending.source);
+            return 0; /* OOM 诊断已由 set_source 写入 */
+        }
+    }
+    (void)tc_diagnostic_set(diag, pending.kind, pending.line, pending.column, pending.message);
+    free(pending.message);
+    free(pending.filename);
+    free(pending.source);
+    return 1;
 }
 
 void tc_diagnostic_get_source(const TcDiagnostic *diag, const char **filename,

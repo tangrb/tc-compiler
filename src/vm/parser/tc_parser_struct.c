@@ -28,16 +28,25 @@ static int tc_parse_optional_padding(const TcTokenList *tokens, size_t *index, i
     }
     tok = tc_peek(tokens, *index);
     if (tok->kind == TC_TOK_INTEGER) {
-        /* §3.9.3 / 附录 A：@padding(N) 的 N 须为无后缀非负十进制整数字面量
-         * （允许 0）；负号、u/U 后缀或非十进制进制前缀由静态语义拒绝。 */
+        /*
+         * §3.9.3 / 附录 A：@padding(N) 的 N 须为无后缀非负十进制整数字面量
+         * （允许 0）；负号、u/U 后缀或非十进制进制前缀由**静态语义**拒绝。
+         *
+         * B-40（§11「阶段优先」）：该拒绝属 SEM 类，不能在语法阶段直接失败——
+         * 否则更晚的语法错误会被更早的 SEM 诊断掩盖。此处挂起 SEM 诊断，继续
+         * 解析（占位 padding = 0），由 SEM 阶段按源序位置发布。
+         */
         if (tok->u.literal.negative || tok->u.literal.unsigned_suffix ||
             tok->u.literal.radix != 10) {
-            tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line_no, tok->column,
-                              "@padding size must be a non-negative decimal integer literal "
-                              "without suffix");
-            return -1;
+            if (tc_diagnostic_defer_sem(diag, TC_CE_CONSTANT_EXPRESSION, line_no, tok->column,
+                                        "@padding size must be a non-negative decimal integer "
+                                        "literal without suffix") != 0) {
+                return -1;
+            }
+            *out_padding = 0;
+        } else {
+            *out_padding = tok->u.literal.magnitude;
         }
-        *out_padding = tok->u.literal.magnitude;
         (*index)++;
     } else {
         return tc_syntax_error(diag, line_no, tok->column, "expected padding size");

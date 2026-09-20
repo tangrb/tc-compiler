@@ -2176,6 +2176,11 @@ run_expect_check_fail "$ROOT/tests/errors/static/memblock_negative_count_type.tc
     "memblock count must be at least 1"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" \
     "memblock count must be at least 1"
+# B-40：@padding / memblock count 的形态检查属 SEM 类，须挂起后再按阶段与源序竞争
+run_expect_check_fail "$ROOT/tests/errors/static/padding_then_later_syntax.tc" \
+    "unexpected character" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/padding_then_later_sem.tc" \
+    "@padding size must be a non-negative" "ConstantExpressionError"
 run_expect_check_fail "$ROOT/tests/errors/static/func_body_public_var.tc" \
     "visibility modifier is not allowed inside a function body"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_leading_zero_underscore.tc" \

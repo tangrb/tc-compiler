@@ -119,16 +119,27 @@ static int tc_parse_type_depth(const TcTokenList *tokens, size_t *index, int lin
         }
         tok = tc_peek(tokens, *index);
         if (tok->kind == TC_TOK_INTEGER) {
-            /* §3.8.1：N 必须是编译期 usize 常量、取值为正整数（≥1）。
-             * 词法器将 -5 产为 negative=1 的单个 INTEGER token，此处不得静默取 magnitude。
-             * 字面量 0 同样拒绝，避免 intern 出 count=0 的占位类型泄漏到 AOT 分配。 */
+            /*
+             * §3.8.1：N 必须是编译期 usize 常量、取值为正整数（≥1）。词法器将 -5
+             * 产为 negative=1 的单个 INTEGER token，不得静默取 magnitude；字面量 0
+             * 同样拒绝（避免 intern 出 count=0 的占位类型泄漏到 AOT 分配）。
+             *
+             * B-40（§11「阶段优先」）：拒绝属 SEM 类，不能在语法阶段直接失败，否则
+             * 更晚的语法错误会被更早的 SEM 诊断掩盖。此处挂起 SEM 诊断并继续解析，
+             * 占位 count 取 1（合法且不会放大分配），由 SEM 阶段按源序位置发布。
+             */
             if (tok->u.literal.negative || tok->u.literal.magnitude < 1) {
-                tc_type_free(element);
-                free(element);
-                return tc_module_diag(diag, TC_CE_CONSTANT_EXPRESSION, line_no, tok->column,
-                                      "memblock count must be at least 1");
+                if (tc_diagnostic_defer_sem(diag, TC_CE_CONSTANT_EXPRESSION, line_no,
+                                            tok->column,
+                                            "memblock count must be at least 1") != 0) {
+                    tc_type_free(element);
+                    free(element);
+                    return -1;
+                }
+                count = 1;
+            } else {
+                count = tok->u.literal.magnitude;
             }
-            count = tok->u.literal.magnitude;
             (*index)++;
         } else if (tok->kind == TC_TOK_IDENTIFIER || tok->kind == TC_TOK_SELF) {
             if (tc_parse_binding_name(tokens, index, line_no, &count_name, diag) != 0) {

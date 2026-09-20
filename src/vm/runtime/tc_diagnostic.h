@@ -113,6 +113,35 @@ void tc_diagnostic_drop_deferred(TcDiagnostic *diag);
 /** 释放挂起诊断占用的文本字段并复位（不改变其它状态）。 */
 void tc_diagnostic_clear_deferred(TcDiagnostic *diag);
 
+/* ── 挂起的 SEM 类诊断（B-40，语言标准 §11「阶段优先」） ── */
+
+/**
+ * 挂起一条 SEM 类诊断，供解析器在「形态合法但静态语义拒绝」时沿用失败控制流
+ * 而不打断解析（否则更晚的语法错误会被更早的 SEM 诊断掩盖）。
+ *
+ * 仅保留源序位置最靠前的一条（§11 第 2 条）。调用方**不得**因此中止解析：
+ * 语法层须继续走完整个文件，SYN 类诊断仍按既有 fail-fast 立即报告。
+ *
+ * @return 成功（无论是否替换已有挂起项）返回 0；内存不足返回 -1
+ */
+int tc_diagnostic_defer_sem(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
+                            const char *message);
+
+/** 是否存在挂起的 SEM 类诊断。 */
+int tc_diagnostic_has_deferred_sem(const TcDiagnostic *diag);
+
+/**
+ * 在 SEM 阶段发布挂起的 SEM 类诊断。
+ *
+ * - 当前无真实诊断：发布挂起项并返回 1；
+ * - 已有同一源文件的真实诊断且挂起项位置更靠前：替换并返回 1；
+ * - 否则（已有更早/其它阶段/其它文件的诊断）丢弃挂起项并返回 0。
+ */
+int tc_diagnostic_publish_deferred_sem(TcDiagnostic *diag);
+
+/** 释放挂起的 SEM 类诊断（不改变其它状态）。 */
+void tc_diagnostic_clear_deferred_sem(TcDiagnostic *diag);
+
 /**
  * 将诊断信息格式化输出到指定流。
  * @param diag 诊断对象

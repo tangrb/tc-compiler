@@ -327,14 +327,24 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
     {
         const TcToken *n_tok = tc_peek(tokens, *index);
         if (n_tok->kind == TC_TOK_INTEGER) {
-            /* §3.8.1：N 必须为正整数（≥1），负数静态拒绝，不得静默取 magnitude。 */
+            /*
+             * §3.8.1：N 必须为正整数（≥1），负数不得静默取 magnitude。
+             *
+             * B-40（§11「阶段优先」）：拒绝属 SEM 类，不能在语法阶段直接失败，否则
+             * 更晚的语法错误会被更早的 SEM 诊断掩盖。此处挂起 SEM 诊断并继续解析，
+             * 占位 count 取 1，由 SEM 阶段按源序位置发布。
+             */
             if (n_tok->u.literal.negative) {
-                tc_rhs_free(out);
-                tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line_no, n_tok->column,
-                                  "memblock count must be at least 1");
-                return -1;
+                if (tc_diagnostic_defer_sem(diag, TC_CE_CONSTANT_EXPRESSION, line_no,
+                                            n_tok->column,
+                                            "memblock count must be at least 1") != 0) {
+                    tc_rhs_free(out);
+                    return -1;
+                }
+                out->u.memblock_ctor.count = 1;
+            } else {
+                out->u.memblock_ctor.count = n_tok->u.literal.magnitude;
             }
-            out->u.memblock_ctor.count = n_tok->u.literal.magnitude;
             (*index)++;
         } else if (n_tok->kind == TC_TOK_IDENTIFIER || n_tok->kind == TC_TOK_SELF) {
             if (tc_parse_binding_name(tokens, index, line_no, &out->u.memblock_ctor.count_name,

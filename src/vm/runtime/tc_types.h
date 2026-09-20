@@ -1161,6 +1161,15 @@ typedef struct {
     int line;
     int column;
     TcDeferredDiagnostic deferred; /* 挂起的 CT 类诊断（见上） */
+    /*
+     * B-40：挂起的 **SEM 类**诊断。
+     *
+     * 解析器在语法层遇到形态合法、但按 §3.8.1 / §3.9.3 属静态语义拒绝的形态
+     *（`memblock<T, N>` 的 N、`count:` 来源、`@padding(N)` 的 N）时不得直接失败，
+     * 否则更晚的语法错误会被更早的 SEM 诊断掩盖（§11「阶段优先」：LT → SYN →
+     * SEM → CT）。此处先挂起，待解析成功后由 SEM 阶段按源序位置发布/竞争。
+     */
+    TcDeferredDiagnostic deferred_sem;
 } TcDiagnostic;
 
 /* 无列号时的占位值 */
