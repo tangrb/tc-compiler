@@ -3312,10 +3312,15 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 | `TC_CE_SYNTAX` | LT / SYN | Token 序列不符合附录 A 产生式且不属于 §1.3 所列语法阶段专用码；非法 UTF-8、BOM、U+0000；注释外非 ASCII 或未列出的 ASCII 字符；非法空白 |
 | `TC_CE_MISSING_END` | SYN | `if` / `while` / `func` / `struct` 产生式要求的 `end` 缺失（§1.3 语法拒绝专用码） |
 | `TC_CE_OPERAND_COUNT` | SYN | `write` / `writeln` / `read` 或运算、转换等调用的操作数个数与对应产生式不符（§1.3 语法拒绝专用码） |
-| `TC_CE_LITERAL_OUT_OF_RANGE` | LT | 字面量数值超过 `2^64−1`（整数）；非零有限浮点舍入为零或有限舍入为无穷 |
+| `TC_CE_LITERAL_OUT_OF_RANGE` | LT / SEM | **LT**：字面量数值超过 `2^64−1`（整数）；非零有限浮点舍入为零或有限舍入为无穷。**SEM**：以上下文期望类型为准的范围检查（§5.2.1 第 2 步；如 `var x: int8 = 300`、`let x: int8 = 300`），及字面量操作数与运算/转换显式类型不符时的范围判定（§6.1.2、§6.6） |
 | `TC_CE_INDENT_MIXED` | LT | 行首出现 U+0009 水平制表符 |
 | `TC_CE_INDENT_INSUFFICIENT` | LT | 缩进违反附录 A.2 的缩进规则（非 `else`/`end` 对不齐；`if` 块另见 §7.1.2） |
 | `TC_CE_INDENT_ELSE_END` | LT | `else` 或 `end` 与对应 `func`/`if`/`while`/`struct` 不对齐 |
+
+> **阶段细分（`TC_CE_LITERAL_OUT_OF_RANGE`）**：同一码覆盖两个阶段，按 §11「阶段优先」选取首个规范诊断——
+> **LT**：只依赖 Token 自身的词法值检查（整数超 `2^64−1`；非零有限浮点舍入为零或有限值舍入为无穷），见 §2.3.5、§2.4.1；
+> **SEM**：依赖上下文期望类型（`let`/`var`/形参/返回类型的声明类型，或运算/转换的显式类型参数）的范围检查，见 §5.2.1 第 2 步、§6.1.1、§6.1.2。
+> 两阶段的触发条件与诊断码相同，仅时机不同；LT 失败先于任何 SYN/SEM 诊断报告。
 
 ### B.2 模块系统与导入
 

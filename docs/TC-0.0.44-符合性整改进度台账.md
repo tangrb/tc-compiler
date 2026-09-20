@@ -267,6 +267,7 @@
 | 条目 | 改动 | 验证 |
 | ---- | ---- | ---- |
 | A-1 | 标准 §3.10.3 `ptr_load` 表、§3.10.3/§6.8.4 `ptr_address`、§3.10.8/§6.8.5 `ptr_add`、§3.10.8/§6.8.6 `ptr_sub`、§6.8.7 `ptr_lt`…`ptr_ge` 共 9 处「类别：RHS（`operand`）」改为「RHS（**非** `operand`）」（`nullptr` 两处保持，因 `nullptr_literal` 确在附录 A 的 `operand` 产生式内）；§6.8 章首补总则：本章各 `ptr_*` 形式均为调用型 RHS，只能整条充当 RHS、不属于 `operand`、不得嵌套为其它调用的操作数，被嵌套按语法拒绝报 `TC_CE_SYNTAX`；编译器标准 §4.3 同步该口径（原写「均为 RHS（`operand`）」）。新增 4 条负例 `tests/errors/static/ptr_{address,add,sub,lt}_nested_operand.tc`（VM `run_expect_check_fail` 断言 `expected operand`＋`SyntaxError`，AOT `run_check_fail`）；test-map 回填 1146 VM / 518 AOT | 实测四例均报 `SyntaxError: expected operand`（rc=1，两后端一致），与附录 A 的 `operand` 产生式一致；`nullptr` 作为操作数（`ptr_eq(int32, p, nullptr)`、`ptr_eq(int32, nullptr, nullptr)`）行为不变；全量三层与 5 项门禁通过 |
+| A-2 | 标准附录 B.1 的 `TC_CE_LITERAL_OUT_OF_RANGE` 阶段列由 `LT` 改为 **`LT / SEM`**，触发条件列补两条路径（LT：Token 自身超 `2^64−1`／浮点舍入为零或无穷；SEM：以上下文期望类型为准的范围检查，§5.2.1 第 2 步、§6.1.1、§6.1.2），并在 B.1 表末补「阶段细分」说明引用 §11 阶段优先。实现零改动（既有实现已双阶段）；为把该口径钉死在用例上，给 4 条既有语料的 VM `run_expect_check_fail` 补错误码名断言：`invalid_hex_overflow`（LT 整数）、`fp_literal_range`（LT 浮点）、`literal_range`（SEM 上下文）、`let_const_literal_range`（SEM `let` 声明类型）。注册行数不变（仅补第 3 个实参） | 实测两阶段同码：`var x: int32 = 99999999999999999999999999` → `LiteralOutOfRange: integer literal too large`（LT，Token 位置）；`var x: int8 = 300` / `let a: int8 = 128` → `LiteralOutOfRange: literal out of range for context type`（SEM）；`uint8 = 256` 与浮点 `fp_literal_range`/`float32_literal_range` 亦同码；全量三层与 5 项门禁通过 |
 
 ## 标准 owner 裁决记录（A-1～A-4 已裁决并落地；B-41/B-61/B-63 仍待裁决）
 
@@ -356,7 +357,8 @@
 | 69 | 阶段 2-B37 大写变量嵌套字段解析 | `17114fb fix(0.0.44-B37): classify field-access bases by name resolution` |
 | 70 | 阶段 2-B40 解析期 SEM 诊断挂起 | `379dddb fix(0.0.44-B40): defer parser-side SEM diagnostics to the static phase` |
 | 71 | 阶段 2-B66 static let 的 Self. 源序引用规则 | `b7a2e91 fix(0.0.44-B66): enforce source order for Self references in static let` |
-| 72 | 阶段 3-A1 指针 RHS 不属于 operand | 本提交 `docs(0.0.44-A1): RHS forms are not operands` |
+| 72 | 阶段 3-A1 指针 RHS 不属于 operand | `529c49a docs(0.0.44-A1): RHS forms are not operands` |
+| 73 | 阶段 3-A2 字面量范围码阶段列 LT / SEM | 本提交 `docs(0.0.44-A2): record the LT/SEM phases of LITERAL_OUT_OF_RANGE` |
 
 ---
 

@@ -2248,7 +2248,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/static_let_type_n_static_var.tc
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_count_name_static_var.tc" "memblock count must be a compile-time usize constant"
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_self_ref.tc" "undefined variable 'A'"
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_bare_member.tc" "static var initializer has invalid operand"
-run_expect_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of range" \
+    "LiteralOutOfRange"  # A-2：SEM 阶段（上下文期望类型）
 run_expect_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch.tc" "operand type does not match"
 run_expect_check_fail "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
@@ -2311,14 +2312,16 @@ run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_arith_op.tc" "ope
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_unary.tc" "operand type does not match"
 run_expect_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
-run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" "literal out of range for context type"
+run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" \
+    "literal out of range for context type" "LiteralOutOfRange"  # A-2：SEM 阶段（let 声明类型）
 run_expect_check_fail "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_int_with_t.tc" "%t requires bool type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "float type requires float format specifier"
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
-run_expect_check_fail "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large"
+run_expect_check_fail "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large" \
+    "LiteralOutOfRange"  # A-2：LT 阶段（Token 自身超 2^64−1）
 run_expect_check_fail "$ROOT/tests/errors/static/literal_type_error.tc" \
     "unsigned suffix literal cannot be used in signed context"
 run_expect_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
@@ -2388,7 +2391,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/fp_arith_wrap_mode_mismatch.tc"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "expected type"
-run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range"
+run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range" \
+    "LiteralOutOfRange"  # A-2：LT 阶段（浮点舍入为零/无穷）
 
 # --- v0.0.24: if / indent static errors ---
 
