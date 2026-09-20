@@ -310,6 +310,30 @@ rm -f "$AOT_MISSING_PATH"
 EXPECTED_MISSING="$(mixed_path "$AOT_MISSING_PATH")"
 run_aot_cli_golden "$AOT_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "aot file-open golden"
 
+# B-15：`-r` 须接受相对路径输入（生成的可执行文件以 ./ 前缀执行，POSIX sh 不搜索 .）
+run_aot_relative_run() {
+    tmpdir="$(mktemp -d)"
+    stdout_file="$(mktemp)"
+    stderr_file="$(mktemp)"
+    status=0
+
+    echo "CLI aot -r relative path"
+    cp "$ROOT/tests/valid/phase5_memcopy_unsafe.tc" "$tmpdir/rel.tc" || {
+        fail "aot -r relative path: cannot stage source"
+        rm -rf "$tmpdir" "$stdout_file" "$stderr_file"
+        return
+    }
+    (cd "$tmpdir" && "$AOT_BIN" -r rel.tc >"$stdout_file" 2>"$stderr_file") || status=$?
+    if [ "$status" -ne 0 ] || [ "$(cat "$stdout_file")" != "1" ]; then
+        fail "aot -r relative path failed (status=$status)"
+        cat "$stderr_file" >&2 || true
+    else
+        pass
+    fi
+    rm -rf "$tmpdir" "$stdout_file" "$stderr_file"
+}
+run_aot_relative_run
+
 # D-15：AOT 公开 -I 上限不得报 OutOfMemory
 {
     echo "CLI aot -I path limit is not OutOfMemory"

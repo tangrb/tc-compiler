@@ -182,7 +182,20 @@ static int tc_aot_run_generated(const char *c_path) {
         return rc == 0 ? 0 : -1;
     }
 #else
-    n = snprintf(cmd, sizeof(cmd),
+    /*
+     * B-15：生成的宿主可执行文件用**裸相对名**执行（`w38b.c.out`）时 POSIX sh
+     * 不搜索当前目录，`tc-aot -r w38b.tc` 报 `command not found`。无目录分量的
+     * 路径统一加 `./` 前缀。
+     */
+    {
+        char run_path[4096];
+
+        if (strchr(c_path, '/') == NULL) {
+            (void)snprintf(run_path, sizeof(run_path), "./%s.out%s", c_path, exe_name);
+        } else {
+            (void)snprintf(run_path, sizeof(run_path), "%s.out%s", c_path, exe_name);
+        }
+        n = snprintf(cmd, sizeof(cmd),
              "\"%s\" -std=c99 -Wall -Wextra -Werror -pedantic "
              /* 特征宏：宿主 cc 编译 runtime 时，glibc/MinGW 严格 ANSI 下
               * 会隐藏 strdup/strndup 等声明（与主构建同因），必须显式带上 */
@@ -200,15 +213,16 @@ static int tc_aot_run_generated(const char *c_path) {
              "\"" TC_VM_DIR "/runtime/tc_io.c\" "
              /* -lm 必须位于对象文件之后（GNU ld 单遍扫描） */
              "%s"
-             "-o \"%s.out%s\" && \"%s.out%s\"",
-             cc, fenv_flag, c_path, libm_flag, c_path, exe_name, c_path, exe_name);
-    if (n < 0 || (size_t)n >= sizeof(cmd)) {
-        return -1;
+             "-o \"%s.out%s\" && \"%s\"",
+             cc, fenv_flag, c_path, libm_flag, c_path, exe_name, run_path);
+        if (n < 0 || (size_t)n >= sizeof(cmd)) {
+            return -1;
+        }
+        if (getenv("TC_AOT_DEBUG_CMD") != NULL) {
+            fprintf(stderr, "tc-aot host cc cmd: %s\n", cmd);
+        }
+        return system(cmd);
     }
-    if (getenv("TC_AOT_DEBUG_CMD") != NULL) {
-        fprintf(stderr, "tc-aot host cc cmd: %s\n", cmd);
-    }
-    return system(cmd);
 #endif
 }
 
