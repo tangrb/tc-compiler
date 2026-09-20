@@ -181,18 +181,11 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
     char msg[128];
 
     /*
-     * 命名实参规则（顺序敏感）：
-     * 1) 无重复实参名  2) 名须在形参表  3) 形参须齐全
-     * 4) 实参顺序与形参声明顺序一致  5) 各实参类型匹配
+     * 命名实参规则（顺序敏感，编译器标准 §8.2 第 3 条）：
+     * 1) 无重复实参名  2) 名须在形参表  3) 形参须齐全  4) 数量超限
+     * 5) 实参顺序与形参声明顺序一致  6) 各实参类型匹配
+     * 第 4 步仅在全部实参名称已知时判定（§8.2.2），不得抢先于 1)~3)。
      */
-    if (arg_count > sig->param_count) {
-        /* 实参个数多于形参 → 多余实参专用码（附录 B；N-13 细分）。
-         * 置于名称检查之前：个数超限是最外层的诊断。 */
-        tc_diagnostic_set(diag, TC_CE_EXTRA_ARGUMENT, line, TC_COLUMN_UNKNOWN,
-                          "too many arguments for function");
-        return -1;
-    }
-
     for (i = 0; i < arg_count; i++) {
         for (j = i + 1; j < arg_count; j++) {
             if (args[i].param_name && args[j].param_name &&
@@ -246,7 +239,8 @@ static int tc_check_funcall_args(const TcFuncCheckEnv *env, const TcFuncSignatur
     }
 
     if (arg_count > sig->param_count) {
-        /* 实参个数多于形参（全部名称已知）：多余实参专用码（附录 B；N-13 细分） */
+        /* 实参个数多于形参，且到此已通过重复/未知/缺失检查（即全部名称已知）：
+         * 多余实参专用码（语言标准 §8.2.2 表、附录 B.12）。 */
         tc_diagnostic_set(diag, TC_CE_EXTRA_ARGUMENT, line, TC_COLUMN_UNKNOWN,
                           "too many arguments for function");
         return -1;

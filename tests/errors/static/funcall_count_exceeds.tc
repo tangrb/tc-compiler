@@ -1,0 +1,10 @@
+#lib
+; 期望：实参个数多于形参，但「重复」检查在前 → DuplicateArgument（而非 ExtraArgument）
+; 编译器标准 §8.2 第 3 条：重复 → 未知 → 缺失 → 数量超限 → 顺序 → 类型
+public func sum(a: int32, b: int32) int32 then
+    return a
+end
+public func caller() void then
+    var x: int32 = funcall(Self.sum, a: 1, a: 2, z: 3)
+    return
+end
