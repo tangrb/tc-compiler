@@ -1,3 +1,3 @@
 #program
-; const_rhs 中 nullptr 亦为 ptr 类别，不得与浮点互转
+; A-4：`nullptr` 不参与 `bitcast`（含浮点目标）→ TC_CE_TYPE_MISMATCH
 let bad: float64 = bitcast(float64, nullptr)

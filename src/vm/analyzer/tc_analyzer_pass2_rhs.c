@@ -684,10 +684,16 @@ int tc_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *visibl
             return -1;
         } else if (bitcast->source.kind == TC_OPERAND_LIT &&
                    bitcast->source.u.lit.is_nullptr) {
-            /* nullptr 是 ptr 值（非整数位模式）：其类型类别为 TC_PTR，
-             * 供下方「指针不得与浮点互转」（§3.10.9）判定使用。 */
-            source_tag = TC_PTR;
-            source_width = tc_sizeof_bits(tc_type_tag_singleton(TC_PTR));
+            /*
+             * A-4（标准 owner 裁决）：`nullptr` 不参与 `bitcast`——它不携带所指
+             * 类型，[语言标准 §6.6.1.1] 的「字面量操作数的源类型」表未列入该组合，
+             * §3.10.2 的定型位置（判断 `operand` / 赋值 RHS / 声明初始化 / 实参 /
+             * `return` / `cast`）也不含 `bitcast`；按 §1.3「规范未给出的形态不合法」
+             * 静态拒绝（与其它不参与 bitcast 的类别同码同阶段）。
+             */
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "nullptr cannot participate in bitcast");
+            return -1;
         } else if (bitcast->source.kind != TC_OPERAND_LIT) {
             tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                               "bitcast source must be a variable, field, or literal");

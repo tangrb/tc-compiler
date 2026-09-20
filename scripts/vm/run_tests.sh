@@ -1696,10 +1696,11 @@ run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip64.tc" "7FF8000000001234
 8000000000000000
 "
 run_expect_check_ok "$ROOT/tests/valid/bitcast_roundtrip64.tc"
-run_expect_stdout "$ROOT/tests/valid/bitcast_ptr_nullptr.tc" "0
-true
-"
-run_expect_check_ok "$ROOT/tests/valid/bitcast_ptr_nullptr.tc"
+# A-4：`nullptr` 不参与 `bitcast`（常量路径与 var 路径均静态拒绝）
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_source.tc" \
+    "nullptr cannot participate in bitcast" "TypeMismatch"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_source_int.tc" \
+    "nullptr cannot participate in bitcast" "TypeMismatch"
 run_expect_stdout "$ROOT/tests/valid/let_runtime_equivalence.tc" "-116
 -116
 -24
@@ -2126,7 +2127,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" "b
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_ptr_float.tc" "pointer and float types cannot participate in bitcast"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_float_ptr.tc" "pointer and float types cannot participate in bitcast"
 run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_ptr_float32_category.tc" "pointer and float types cannot participate in bitcast"
-run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "pointer and float types cannot participate in bitcast"
+run_expect_fail_msg "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "nullptr cannot participate in bitcast"
 run_expect_fail_msg "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"
@@ -2346,7 +2347,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/bitcast_bool_type_mismatch.tc" 
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_ptr_float.tc" "pointer and float types cannot participate in bitcast"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_float_ptr.tc" "pointer and float types cannot participate in bitcast"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_ptr_float32_category.tc" "pointer and float types cannot participate in bitcast"
-run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "pointer and float types cannot participate in bitcast"
+run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" \
+    "nullptr cannot participate in bitcast" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/forward_reference.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/self_reference.tc" "cannot reference itself"
 run_expect_check_fail "$ROOT/tests/errors/static/format_string_error.tc" "invalid format specifier"

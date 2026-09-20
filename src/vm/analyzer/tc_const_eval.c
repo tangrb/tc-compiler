@@ -1211,28 +1211,13 @@ static int tc_eval_const_rhs(const TcRhs *rhs, TcTypeTag expected_type,
             return -1;
         } else if (bitcast->source.u.lit.is_nullptr) {
             /*
-             * nullptr 的类型类别是 ptr（语言标准 §3.10.9、§6.1.2），
-             * 按 ptr<U> ↔ 同宽整数 / ptr<T> 的等宽规则处理，不当作整数位模式。
-             * 与下方 TC_RHS_CONST_CAST 的 nullptr 分支同构。
+             * A-4（标准 owner 裁决）：`nullptr` 不参与 `bitcast`（含常量路径）。
+             * 语言标准 §6.6.1.1 的源类型表未列入该组合，§3.10.2 的定型位置也不含
+             * `bitcast`；按 §1.3 静态拒绝。`cast(ptr<T>, nullptr)` 仍合法（§6.6.6）。
              */
-            if (tc_type_is_float(bitcast->target.tag)) {
-                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                                  "pointer and float types cannot participate in bitcast");
-                return -1;
-            }
-            if (tc_type_bit_width(bitcast->target.tag) != (int)tc_target_ptr_width_bits()) {
-                tc_diagnostic_set(diag, TC_CE_BITCAST_WIDTH, line, TC_COLUMN_UNKNOWN,
-                                  "bitcast source and target widths must match");
-                return -1;
-            }
-            if (tc_type_is_bool(bitcast->target.tag) || bitcast->target.tag == TC_VOID ||
-                bitcast->target.tag == TC_STRUCT || bitcast->target.tag == TC_MEMBLOCK) {
-                tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
-                                  "bitcast target must be a non-bool integer or ptr type");
-                return -1;
-            }
-            bitcast->source_type = tc_type_tag_singleton(TC_PTR);
-            bitcast->source_type_resolved = 1;
+            tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
+                              "nullptr cannot participate in bitcast");
+            return -1;
             *out = tc_value_make(bitcast->target.tag, 0);
             return 0;
         } else if (bitcast->source.u.lit.is_float) {

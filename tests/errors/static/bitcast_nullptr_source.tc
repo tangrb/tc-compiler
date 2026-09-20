@@ -1,0 +1,4 @@
+#program
+; A-4（标准 owner 裁决）：`nullptr` 不参与 `bitcast`——常量路径（`let` 初始化）
+; 静态拒绝 TC_CE_TYPE_MISMATCH。`cast(ptr<T>, nullptr)` 仍合法（§6.6.6）。
+let z: ptr<int32> = bitcast(ptr<int32>, nullptr)

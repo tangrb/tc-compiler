@@ -75,7 +75,7 @@
 | `read` 标准输入读取失败报 `TC_RE_IO` | 共享 `tc_io`（§14.1） | **已同步** |
 | 浮点语义：IEEE 754-2019、roundTiesToEven、禁止 FMA／FTZ／DAZ、`mod` 商向零截断 | 共享纯语义 core（§12.3） | **已同步**（VM/AOT 共用 core） |
 | 指针 `cast` **不附加等宽条件** | 共享 Analyzer | **已同步**：语料 `ptr_cast_remark.tc`（VM+AOT 差分），旧等宽语料删除 |
-| `bitcast(ptr ↔ 浮点)` 改为拒绝 | 共享 Analyzer（§12 生成路径不受影响） | **已同步**：语料 `bitcast_ptr_float*`／`bitcast_nullptr_float.tc`（`--check` 三路） |
+| `bitcast(ptr ↔ 浮点)` 改为拒绝 | 共享 Analyzer（§12 生成路径不受影响） | **已同步**：语料 `bitcast_ptr_float*`（`--check` 三路）；`bitcast(T, nullptr)` 另经 A-4 裁决静态拒绝，见 `bitcast_nullptr_source*` |
 | `ptr_size` 只可整条充当 `const_rhs` | 共享 Analyzer（§9.2 内联、§13.2 发射） | **已核实一致** |
 | `const_rhs` 中嵌套调用报 `TC_CE_SYNTAX` | 共享 Analyzer | **已同步** |
 | CT 类诊断须晚于全部 SEM 类诊断报告 | 共享 Analyzer 阶段顺序 | **已同步** |

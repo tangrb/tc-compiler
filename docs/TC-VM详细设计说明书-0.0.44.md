@@ -83,7 +83,7 @@
 | `read` 标准输入读取失败报 `TC_RE_IO` | §14.2 | **已同步**（`tc_io.c`） |
 | `memblock` 的 `N` / `count:` 接受 `u`/`U` 后缀；来源不合法或数学值 `< 1` 报 `TC_CE_CONSTANT_EXPRESSION` | §8.3、§5.7 | **已实现** |
 | 指针 `cast` **不附加等宽条件**（接受所指类型不同但均完整的重标记） | §12.4 | **已同步**：旧语料 `ptr_cast_width.tc` 已删除，改正例 `ptr_cast_remark.tc`；余下拒绝路径补 `ptr_cast_{truncate,non_ptr,to_int}.tc` |
-| `bitcast(ptr ↔ 浮点)` 改为拒绝 | §12.6 | **已同步**：类型类别先于位宽拒绝；语料 `bitcast_ptr_float*`／`bitcast_nullptr_float.tc`、`bitcast_float_ptr.tc`。**另注**：`bitcast(<ptr 类别>, nullptr)`（如 `bitcast(ptr<int32>, nullptr)`）的标准未明确定型，属「标准未明确的实现行为」，见 §12.6 |
+| `bitcast(ptr ↔ 浮点)` 改为拒绝 | §12.6 | **已同步**：类型类别先于位宽拒绝；语料 `bitcast_ptr_float*`、`bitcast_float_ptr.tc`。**另注**：`bitcast(T, nullptr)` 经 A-4 裁决为不合法（静态拒绝），见 §12.6 与语料 `bitcast_nullptr_source*` |
 | `ptr_size` 不属于 `const_operand`、只可整条充当 `const_rhs` | §12.7、§13.1 | **已核实一致**：嵌套实测报 `SyntaxError` |
 | `const_rhs` 中嵌套调用报 `TC_CE_SYNTAX` | §13.1 | **已同步**：`tc_parse_const_rhs` 改报 `expected constant expression` |
 | CT 类诊断须晚于全部 SEM 类诊断报告（阶段优先） | §2.1、§15.4 | **已同步**：挂起槽 + `tc_analyze_ex` 末段 flush；语料 `diag_priority_sem_before_ct*.tc` |
@@ -921,7 +921,7 @@ typedef struct {
 - `bool` / memblock / struct 不参与（静态拒绝 `TC_CE_TYPE_MISMATCH`）。
 - 允许整数↔浮点、以及 `ptr<T>` ↔ 等宽整数（含 `usize`）与 `ptr<U>` ↔ `ptr<T>` 的等宽位重解释。
 - **禁止 `ptr` ↔ 浮点**（`TC_CE_TYPE_MISMATCH`，[语言标准 §6.6.6]、[语言标准 §3.10.9]）：浮点与指针之间不提供位重解释。
-- `nullptr` 作为 `bitcast` 源的形态**标准未明确**：[语言标准 §6.6.1.1] 的「字面量操作数的源类型确定」表未列入 `bitcast` × `nullptr`，[语言标准 §3.10.2] 给出的 `nullptr` 定型位置（声明、`funcall` 实参、`return`、`cast` 目标）也不含 `bitcast`；按 [语言标准 §1.3]「规范未给出的形态不合法」，该形态**不是**合法程序的一部分。本实现的现状是接受 `bitcast(<ptr 类别>, nullptr)` 并按目标位宽确定源类型（语料 `bitcast_ptr_nullptr.tc`），此为**标准未明确的实现行为**，不得作为语言标准正例引用。
+- `nullptr` **不参与 `bitcast`**（A-4 裁决，已回填 [语言标准 §6.6.1.1、§3.10.2]）：`bitcast(T, nullptr)` 静态拒绝 `TC_CE_TYPE_MISMATCH`（"nullptr cannot participate in bitcast"），常量路径（`let`）与普通路径一并拒绝；`nullptr` 仍可作判断 `operand`、赋值/声明 RHS、`funcall` 实参、`return` 值与 `cast` 源（语料 `bitcast_nullptr_source{,_int}.tc`、`bitcast_nullptr_float.tc`）。
 - 不做数值转换；位模式原样复制；结果 `TcValue.type` 指向目标完整类型（标量单例或 intern）。
 - 执行器：标量路径委托 `tc_exec_bitcast`；涉及 `ptr` 时复制 `bits` 并设置完整 `type` 指针。
 

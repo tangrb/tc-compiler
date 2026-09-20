@@ -753,6 +753,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 - `ptr_load(nullptr)` → 运行时错误 `TC_RE_NULL_POINTER_DEREFERENCE`。
 - `ptr_store(nullptr, val)` → 运行时错误 `TC_RE_NULL_POINTER_DEREFERENCE`。
 - 将 `nullptr` 赋值给 `ptr<T>` 绑定、作为实参传递或作为 `return` 返回值均合法，不触发运行时错误。
+- `nullptr` **参与 `bitcast` 不合法**：它只能作为判断（`ptr_eq`/`ptr_ne` 等）的 `operand`、赋值/声明初始化的 RHS、`funcall` 实参、`return` 值或 `cast` 源；`bitcast(T, nullptr)` 报 `TC_CE_TYPE_MISMATCH`（§6.6.1.1、§6.6.6）。
 
 #### 3.10.3 指针读写与取地址（`ptr_load` / `ptr_store` / `ptr_address`）
 
@@ -1532,6 +1533,7 @@ r = a - q * b
 | `bitcast` | 整数 | 源位宽取目标位宽，后缀决定有/无符号；字面量必须能由该同宽整数类型表示 |
 | `bitcast` | 普通浮点 | `f`/`F` 后缀为 `float32`，无后缀为 `float64` |
 | `bitcast` | `inf`/`-inf`/`nan` | 目标为 32 位时源为 `float32`，目标为 64 位时源为 `float64` |
+| `bitcast` | `nullptr` | **不合法**：`nullptr` 不携带所指类型，本表不为它定义源类型，`bitcast(T, nullptr)` 报 `TC_CE_TYPE_MISMATCH`（§3.10.2 的 `nullptr` 定型位置不含 `bitcast`） |
 
 因此 `cast(float32, 1.0)` 是从 `float64` 到 `float32` 的数值转换；`bitcast(float32, 1.0)` 因源类型 `float64` 而报 `TC_CE_BITCAST_WIDTH`（须写 `1.0f`）。非 `let` 中严格 `cast` 的字面量按运行时指令处理溢出；`let` 中映射为 `TC_CE_CONSTANT_CAST_OVERFLOW`。`inf`/`-inf`/`nan` 作为 `cast` 操作数时以目标类型为源类型，直接构造目标类型的 canonical NaN。
 

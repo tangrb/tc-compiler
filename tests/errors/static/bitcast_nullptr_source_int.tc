@@ -1,0 +1,4 @@
+#program
+; A-4：`nullptr` 不参与 `bitcast`——非 `let` 路径（`var` 初始化）同样静态拒绝
+var u: usize = bitcast(usize, nullptr)
+writeln(usize, u)
