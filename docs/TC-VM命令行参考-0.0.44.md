@@ -68,12 +68,12 @@ tc-vm 0.0.43
 ### 2.1 用法
 
 ```text
-tc-vm [options] [<file.tc>]
+tc-vm [options] <file.tc>
 ```
 
 实际程序要求：
 
-- 文件模式至少给出一个输入文件（`#program` 入口）；
+- **必须**给出恰好一个输入文件（`#program` 入口）——文件参数是必需的，不是可选的；
 - 可选通过 `-I` 指定模块搜索路径；
 - `--check` 不与 `-I` 冲突。
 
@@ -82,8 +82,8 @@ tc-vm [options] [<file.tc>]
 | 短选项 | 长选项 | 行为 | 输出 | 成功退出码 |
 | ------ | ------ | ---- | ---- | ---------- |
 | `-c` | `--check` | 只编译与静态分析（含模块解析），不执行 | 成功时默认无输出 | 0 |
-| `-I <path>` | `--include <path>` | 添加模块搜索路径（可多次指定） | — | — |
-| `-e` | `--print-error-code` | 编译/运行时诊断首行附错误码名（如 `error [TC_CE_SYNTAX]`）；默认首行不带码（码可经 libtc `TcDiagnostic.kind` 编程获取） | stderr | — |
+| `-I <path>` | `--include <path>` | 添加模块搜索路径（可多次指定，**最多 64 条**；超出报错） | — | — |
+| `-e` | `--print-error-code` | 编译/运行时诊断首行附**错误码打印名**（`TcErrorKind` 名，如 `error [SyntaxError]`、`[VarMissingInitializer]`），**不是** `TC_CE_*` 形式；默认首行不带码（码可经 libtc `TcDiagnostic.kind` 编程获取） | stderr | — |
 | `-h` | `--help` | 显示帮助并退出 | stderr | 0 |
 | `-V` | `--version` | 显示版本并退出 | stdout | 0 |
 
@@ -134,11 +134,12 @@ read entry file + import resolution
 
 ### 3.5 多文件模块
 
-`#program` 入口文件通过 `import` 引用 `#lib` 模块。编译器在阶段 4 自动加载并解析所有可达模块。模块搜索路径优先级：
+`#program` 入口文件通过 `import` 引用 `#lib` 模块。编译器在阶段 4 自动加载并解析所有可达模块。模块搜索路径优先级（**穷尽**）：
 
 1. 入口文件所在目录；
-2. `-I` 指定的路径（按参数顺序）；
-3. 默认搜索路径。
+2. `-I` 指定的路径（按参数顺序）。
+
+**不存在「默认搜索路径」**：既无内置目录，也无环境变量；未命中上述两处即 `TC_CE_IMPORT_NOT_FOUND`（`tc-vm --help` 的 `Module search order: entry directory, then -I paths` 与此一致）。
 
 ---
 
@@ -217,7 +218,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 
 ### 6.1 说明
 
-下表描述 0.0.44 的 `TcErrorKind` 完整映射。Language 诊断默认打印 message，不直接打印这些名称；`-e/--print-error-code` 使首行附码名（§2.2）。完整错误码清单、阶段归属与触发条件见编译器标准 §11.4。
+下表描述 0.0.44 的 `TcErrorKind` **打印名**完整映射（87 个名称，含实现专用 `OutOfMemory`）。语言诊断默认只打印 message；`-e/--print-error-code` 使首行附这些**打印名**（如 `error [SyntaxError]`、`[ExtraArgument]`），**不是** `TC_CE_*` 形式（§2.2）。完整错误码清单、阶段归属与触发条件见编译器标准 §11.4。
 
 **87 码口径**：87 = 86 个语言码（附录 B：74 `TC_CE` + 12 `TC_RE`）+ 1 `TC_ERR_OUT_OF_MEMORY`。
 
@@ -246,7 +247,7 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `MemblockIndexOutOfRange` (static) | 编译期可确定的 memblock 越界 |
 | `MemblockElementCountMismatch` | memblock 构造器逐值数量 != count |
 | `MemblockSizeMismatch` | memblock 赋值/传参 N 不匹配 |
-| `MemcopyUnsafeInvalidRange` (static) | memcopy_unsafe 的 length 或下标编译期数学值 `< 0` |
+| `MemcopyUnsafeInvalidRange` (static) | memcopy_unsafe 的 `length` 编译期数学值 `< 0`（**负下标不在编译期报告**，见 §6.5 运行时行） |
 
 ### 6.3 常量、格式与 I/O
 
@@ -311,9 +312,10 @@ build/vm/bin/tc-vm -c -I ./lib path/to/program.tc
 | `MissingArgument` | funcall 实参缺失 |
 | `DuplicateArgument` | funcall 实参重复 |
 | `UnknownArgument` | funcall 未知实参名 |
+| `ExtraArgument` | funcall 实参个数多于形参（名称全部已知） |
 | `ArgumentOrderError` | funcall 实参顺序错误 |
-| `FunctionCallPositionError` | funcall 调用位置错误 |
-| `FunctionCallResultTypeError` | funcall 接收变量类型不匹配 |
+| `FunctionCallPositionError` | **非 `void`** 结果被丢弃（独立 `funcall(...)` 语句） |
+| `FunctionCallResultTypeError` | **`void`** 函数调用用于 `var` 初始化或已有变量赋值（非 `void` 返回类型与接收变量不符使用 `TypeMismatch`） |
 | `ReturnOutsideFunction` | 函数体外 return |
 | `ReturnFormError` | return 有值/无值形式不匹配 |
 | `ReturnTypeError` | return 操作数类型不匹配 |
@@ -356,12 +358,11 @@ TC_BENCH=1 build/vm/bin/tc-vm --check program.tc
 
 ```text
 bench parse: 0.000123 s
-bench module resolve: 0.000045 s
-bench analyze: 0.000456 s
+bench analyze+modules: 0.000456 s
 bench execute: 0.000078 s
 ```
 
-`--check` 不含 execute。环境变量存在即启用，值不要求为 `1`；文档示例使用 `1` 以表达意图。
+`tc-vm` 走文件入口，故分析阶段标签为 `analyze+modules`（内存入口 `tc_compile_source` 才是 `analyze`）。`--check` 不含 execute。环境变量存在即启用，值不要求为 `1`；文档示例使用 `1` 以表达意图。
 
 ### 7.3 注意
 
@@ -432,16 +433,38 @@ build/vm/bin/tc-vm main.tc
 
 ### 8.4 指针与 memblock
 
+`#program` 顶层要求**先声明后执行**：全部 `var` 声明必须在可执行语句之前。
+
+指针（`ptr_address` 取址、`ptr_load`/`ptr_store` 读写、`ptr_size` 与指针重标记）：
+
 ```text
 #program
-var arr: memblock<int32, 5> = memblock(int32, count: 5, 1, 2, 3, 4, 5)
-var idx: int32 = 2
-var p: ptr<int32> = ptr_address(int32, arr)
-var offset: usize = cast(usize, idx)
-var p2: ptr<int32> = ptr_add(int32, p, offset)
-var val: int32 = ptr_load(int32, p2)
-writeln(int32, %d, val)
+var value: int32 = 42
+var p: ptr<int32> = ptr_address(int32, value)
+var v: int32 = ptr_load(int32, p)
+var next: int32 = add(int32, v, 1)
+var w: usize = ptr_size(int32, p)
+var pu: ptr<uint32> = cast(ptr<uint32>, p)
+var same: bool = ptr_eq(uint32, pu, pu)
+ptr_store(int32, p, next)
+writeln(int32, %d, value)      ; → 43
+writeln(usize, %u, w)          ; → 32
+writeln(bool, %t, same)        ; → true
 ```
+
+memblock（逐值构造、`memblock_load`/`store`、`.count`）：
+
+```text
+#program
+var arr: memblock<int32, 3> = memblock(int32, count: 3, 1, 2, 3)
+var idx: usize = 1u
+var e: int32 = memblock_load(int32, arr, idx)
+memblock_store(int32, arr, idx, 9)
+writeln(int32, %d, e)          ; → 2
+writeln(usize, %u, arr.count)  ; → 3
+```
+
+注意（否则示例会被静态拒绝）：`ptr_store` 的值操作数、`writeln` 的操作数都必须是 `operand`，不能直接内嵌 `add(...)`/`ptr_size(...)` 等调用型 RHS——须先赋给 `var`；**不可对 `memblock` 或其元素取址**（[语言标准 §6.7.2.6]），故数组遍历请用 `memblock_load`/`memblock_store`（或经 C/嵌入侧传入的 `ptr<T>`）。
 
 ---
 
@@ -469,7 +492,7 @@ writeln(int32, %d, val)
 
 | 条目 | 影响 | 状态 |
 | ---- | ---- | ---- |
-| 首个规范诊断的**四步选取顺序**（LT → SYN → SEM → CT；同阶段按源序位置；同位置专用码优先；条款内既有顺序优先） | `-e/--print-error-code` 打印的首行码名 | **已同步**：CT 类诊断挂起至全部 SEM 类诊断无触发后再报告 |
+| 首个规范诊断的选取规则（阶段优先 LT→SYN→SEM→CT；**同一诊断类阶段内按源位置优先**；规则优先即同位置专用码优先；关联位置；遍历无关） | `-e/--print-error-code` 打印的首行码名 | **已同步**：CT 类诊断挂起至全部 SEM 类诊断无触发后再报告 |
 | 指针 `cast` **不附加等宽条件** | 合法程序集合（影响 `tc-vm` 是否接受该文件） | **已同步**：该报错路径已删除 |
 | `read` 标准输入读取失败 → `TC_RE_IO` | 退出码与错误行 | **已同步**（共享 `tc_io`） |
 | 完整诊断码表 87 码 = 86 语言码 + `TC_ERR_OUT_OF_MEMORY` | §6.1 码名映射表 | **已同步** |
