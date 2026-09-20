@@ -25,7 +25,7 @@
 | 4 | `TC-Embed详细设计说明书-0.0.44.md` | C-20～C-21 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 5 | `libtc设计说明书-0.0.44.md` | C-19 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 6 | `TC-VM命令行参考-0.0.44.md` | C-15～C-18 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
-| 7 | 跨文档一致性 | C-22、C-23、C-24 | ☐ | |
+| 7 | 跨文档一致性 | C-22、C-23、C-24 | ☑ | 见文末提交记录 |
 
 ### 阶段 1 逐条明细
 
@@ -90,6 +90,12 @@
 | P2 | §2.1 用法改为 `tc-vm [options] <file.tc>`（文件必需）；`-I` 注明**最多 64 条**（`TC_MAX_INCLUDE_PATHS`）；§6.2 静态 `MemcopyUnsafeInvalidRange` 去掉「或下标」；`FunctionCallPositionError`/`FunctionCallResultTypeError` 条件按标准 §8.2.3 改写；§7.2 bench 标签改为 `parse`/`analyze+modules`/`execute`；§9.2 诊断规则补全为五条；§9.3 重复编号与「41+1→87」历史列经核对已不存在 |
 
 **⑦ 跨文档**：C-22（三份文档同步状态表未反映未关闭项）、C-23（`FUNCALL_*` 定义重复出现在编译器标准与 CLI 参考）、C-24（`MEMCOPY_UNSAFE_INVALID_RANGE` 分工四种写法）。
+
+| 条目 | 处置 |
+| ---- | ---- |
+| C-22 | AOT §1.4 原有「不代表实现侧零未决」段保留；本轮为 **VM §1.5** 补同口径段落（列出 9 项、点明字段/`memblock` 操作数元数据与顶层 `let` 下标两项 VM/AOT 分歧）；libtc §14.1/§15.11 已在上一步补注。三份同步状态表现口径一致：**「已同步」只表示该文档口径落地，不表示全仓零未决** |
+| C-23 | `FUNCALL_POSITION`/`FUNCALL_RESULT_TYPE` 的触发条件已由 C-1 统一到标准 §8.2.3：编译器标准 §8.5/§11.4.2、CLI 参考 §6.5 三处一致（非 void 结果被丢弃 → POSITION；void 用作值 → RESULT_TYPE；非 void 接收类型不符 → `TypeMismatch`） |
+| C-24 | `MEMCOPY_UNSAFE_INVALID_RANGE` 的分工已统一为附录 B/§11.1 读法：**静态只覆盖 `length < 0`，负下标归运行时 `TC_RE_*`**（编译器标准 §3.2/§6.7/§11.4.6；VM 详设 §12/§15.2；CLI 参考 §6.2/§6.5 全部一致）。标准自身 §6.8.9 的分裂记为标准待澄清项（不由实现侧文档裁决） |
 
 ---
 
@@ -210,7 +216,8 @@
 | 3 | 阶段 1-③ AOT 详设 C-10～C-11 ＋ P2 | `01174dc chore(0.0.44-ledger): record AOT design-spec verification (no changes needed)` |
 | 4 | 阶段 1-④ TC-Embed 详设 C-20～C-21 ＋ P2 | `8edb1db docs(0.0.44-embed): fix C-syntax TC examples and slot-overlap host code (C-20/C-21 + P2)` |
 | 5 | 阶段 1-⑤ libtc 设计说明书 C-19 ＋ P2 | `f2b7328 docs(0.0.44-libtc): scope the memory entry, fix contract contradictions (C-19 + P2)` |
-| 6 | 阶段 1-⑥ VM 命令行参考 C-15～C-18 ＋ P2 | 本提交 `docs(0.0.44-cli): fix search-path/e/error-table and illegal examples (C-15..C-18 + P2)` |
+| 6 | 阶段 1-⑥ VM 命令行参考 C-15～C-18 ＋ P2 | `a570863 docs(0.0.44-cli): fix search-path/e/error-table and illegal examples (C-15..C-18 + P2)` |
+| 7 | 阶段 1-⑦ 跨文档一致性 C-22～C-24 | 本提交 `docs(0.0.44-cross): unify sync-status notes and cross-doc definitions (C-22..C-24)` |
 
 ---
 

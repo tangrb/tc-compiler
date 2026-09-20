@@ -97,6 +97,8 @@
 | 限定标识符 `Self.<名>` 作 `operand` | §12.7 | **已同步**：语料 `self_qual_operand.tc` |
 | `memblock` 的 `N`／`count:` 接受 `u`/`U` 后缀 | §13.1 | **已核实一致**：语料 `memblock_unsigned_suffix.tc` |
 
+上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。审计登记在案的既有未关闭差异仍有 9 项（导入限定名成员引用、`Self.<名>`／导入限定名取址、重复实参诊断码、`let` 指针写入拒绝、字段与 `memblock` 操作数绑定元数据、`#lib` `static var` 缺初始化器、`memcopy_unsafe` 常量负区间静态检查等），其中**字段/memblock 操作数元数据**与**顶层 `let` 下标**两项在 VM 与 AOT 上的可观察行为不一致（VM 报 `implementation error`、AOT 正常）。逐条状态与最小复现以独立的过程性跟踪记录为准（本文不回填）。这些项**不改变本文的流水线口径**：VM 不得为迁就现状放宽任何静态规则或降级为 `implementation error`。
+
 ---
 
 ## 2. 总体架构
