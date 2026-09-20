@@ -238,6 +238,7 @@
 | B-33 | `tc_parser_stmt.c` `tc_parse_field_assign_stmt`：RHS 为 `TC_TOK_FUNCALL` 时改走 `tc_parse_funcall_rhs`（与整绑定赋值一致）；`tc_struct_check_field_assign` 增 `TcAnalyzeCtx *ctx` 参数，RHS 为 `TC_RHS_FUNCALL_EXPR` 且 `ctx->func_env` 存在时改走 `tc_pass2_check_funcall_rhs`（否则 `tc_type_check_rhs` 不识别该 RHS 形态），pass2 调用点同步。新增 `tests/modules/FieldFuncallLib.tc` + `import_field_funcall.tc`（VM stdout+check_ok、AOT diff）；test-map 回填 1091 VM / 482 AOT | 审计复现 `s.v = funcall(Self.f)` 由 `SyntaxError: expected rhs expression` 变为接受（VM/AOT 均输出 7）；`s.v = 1` 与 `Self.x = funcall(...)` 行为不变；全量三层与 5 项门禁通过 |
 | B-34 | `tc_parser_rhs.c` 三处 cast/bitcast 目标类型解析的 `allow_void` 由 1 改为 0（`tc_parse_cast_rhs`、`tc_parse_bitcast_rhs`、常量 cast 路径）：附录 A 的 `type` 产生式不含 `void`，`void` 只允许出现在函数返回类型，故 `cast(void, …)` / `bitcast(void, …)` 属语法拒绝（§1.3、附录 A.3 引言），不得降级为 SEM 的 TYPE_MISMATCH。新增 `cast_void_target.tc` / `bitcast_void_target.tc`（VM check_fail + SyntaxError）；test-map 回填 1093 VM | 审计两例由 `TypeMismatch: cast target must be scalar or ptr type` 变为 `SyntaxError: void type not allowed here`；`cast(int32, 1)` 等合法转换不受影响；`ptr<void>` 目标仍语法拒绝（与既有口径一致）；全量三层与 5 项门禁通过 |
 | B-35 | `tc_parser.c` 新增 `tc_expect_comma_or_operand_count`（分隔处遇到 `)` → 个数不足）与 `tc_expect_rparen_or_operand_count`（收尾处遇到 `,` → 个数超出），均为 `TC_CE_OPERAND_COUNT`；缺逗号等形态错误仍为 `TC_CE_SYNTAX`。`tc_parser_rhs.c`（34 处逗号 + 23 处右括号）与 `tc_parser_stmt.c`（17 + 7 处）固定元数调用外壳统一改用新 helper，`tc_parse_read_stmt` 单独补两处。受影响期望更新：`diag_priority_syntax_before_name.tc`（VM/AOT）、`format_missing_operand.tc`、`test_parser` 的 bitcast 无效语法用例、`test_analyzer` 诊断优先级矩阵第 2 例。新增 7 份 `operand_count_*` 语料（add 缺参、writeln 缺参、read 多参、cast 缺参、ptr_load 缺参、memblock_load 缺参、neg 缺参；VM check_fail + OperandCountError）；test-map 回填 1100 VM | 审计 12 例：`add(int32, 1)`、`add(int32)`、`add(int32,1,2,3)`、`write(int32)`、`writeln(int32)`、`read(int32)`、`read(int32,a,b)`、`cast(int32)`、`ptr_load(int32)`、`ptr_size(int32)`、`memblock_load(int32, m)`、`neg(int32)` 由 `SyntaxError: unexpected token` 全部变为 `OperandCountError`；`writeln(int32, a, a)` 的多余操作数行为不变；合法调用与全量三层、5 项门禁通过 |
+| B-36 | 无需新代码：`%--d` 的重复标志由 B-3 已在分析器报 `TC_CE_FORMAT_SPECIFIER`（`format_duplicate_flag.tc` 语料）；32 字符宽度上限由 B-27 的 64 字节缓冲 + 宽度范围检查消除（30/31 位宽度现均报 `FormatSpecifierError: format width or precision out of range`，与附录 A「`format_width` 无长度上限」一致）。本条为审计对 B-3/B-27 的补充维度，记入台账以备追溯 | 复核：`write(int32, %--d, 1)` → `FormatSpecifierError: duplicate format flag`；`%`+30 个数字+`d` 与 `%`+31 个数字+`d` → 同为 `FormatSpecifierError: format width or precision out of range`（不再是 `SyntaxError: format specifier too long`）；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -304,7 +305,8 @@
 | 45 | 阶段 2-B32 结构体构造器字段值限 operand | `3ac1492 fix(0.0.44-B32): restrict struct-constructor field values to operands` |
 | 46 | 阶段 2-B33 字段赋值 RHS 支持 funcall | `656cc42 fix(0.0.44-B33): accept funcall on the right of a field assignment` |
 | 47 | 阶段 2-B34 cast/bitcast 目标不得为 void | `41c7cd8 fix(0.0.44-B34): reject void as a cast/bitcast target in the parser` |
-| 48 | 阶段 2-B35 操作数个数专用码 | 本提交 `fix(0.0.44-B35): report OPERAND_COUNT for arity mismatches` |
+| 48 | 阶段 2-B35 操作数个数专用码 | `cfb2596 fix(0.0.44-B35): report OPERAND_COUNT for arity mismatches` |
+| 49 | 阶段 2-B36 格式说明符重复标志/长度 | 台账记录（由 `5f1dd2a` B-3 与 `febd46f` B-27 闭合，无新代码） |
 
 ---
 
