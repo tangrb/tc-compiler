@@ -1,0 +1,5 @@
+#program
+; memblock_load 缺少下标操作数 → TC_CE_OPERAND_COUNT
+var m: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
+var v: int32 = memblock_load(int32, m)
+writeln(int32, v)

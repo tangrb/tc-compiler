@@ -1958,7 +1958,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_rhs_type.tc" "op
 run_expect_fail_msg "$ROOT/tests/errors/static/uninit_shortcircuit_var_lhs.tc" "use of uninitialized variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_forward_lhs.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_lhs.tc" "undefined variable"
-run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
+run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" \
+    "operand count error"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_fail_msg "$ROOT/tests/errors/static/diag_priority_sem_before_ct.tc" "use of uninitialized variable"
@@ -2088,7 +2089,8 @@ run_expect_fail_msg "$ROOT/tests/errors/static/self_ref_let.tc" "undefined varia
 run_expect_fail_msg "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_fail_msg "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
-run_expect_fail_msg "$ROOT/tests/errors/static/format_missing_operand.tc" "unexpected token"
+run_expect_fail_msg "$ROOT/tests/errors/static/format_missing_operand.tc" \
+    "operand count error"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_const_literal_range.tc" "literal out of range for context type"
 run_expect_fail_msg "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
 run_expect_fail_msg "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
@@ -2134,7 +2136,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_rhs_type.tc" "
 run_expect_check_fail "$ROOT/tests/errors/static/uninit_shortcircuit_var_lhs.tc" "use of uninitialized variable"
 run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_forward_lhs.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_lhs.tc" "undefined variable"
-run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
+run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" \
+    "operand count error" "OperandCountError"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
 run_expect_check_fail "$ROOT/tests/errors/static/diag_priority_sem_before_ct.tc" "use of uninitialized variable"
@@ -2202,6 +2205,20 @@ run_expect_check_fail "$ROOT/tests/errors/static/cast_void_target.tc" \
     "void type not allowed here" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_void_target.tc" \
     "void type not allowed here" "SyntaxError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_add_missing.tc" \
+    "operand count error" "OperandCountError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_writeln_missing.tc" \
+    "operand count error" "OperandCountError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_read_extra.tc" \
+    "operand count error" "OperandCountError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_cast_missing.tc" \
+    "operand count error" "OperandCountError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_ptr_load_missing.tc" \
+    "operand count error" "OperandCountError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_memblock_load_missing.tc" \
+    "operand count error" "OperandCountError"
+run_expect_check_fail "$ROOT/tests/errors/static/operand_count_neg_missing.tc" \
+    "operand count error" "OperandCountError"
 run_expect_check_fail "$ROOT/tests/errors/static/module_layer_interleave.tc" "declaration out of module layer order"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_struct.tc" "bitcast target must be a non-bool integer, float, or ptr type"
 run_expect_check_fail "$ROOT/tests/errors/static/unexpected_char.tc" "unexpected character"

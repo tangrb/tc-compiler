@@ -619,6 +619,8 @@ static void test_parse_bitcast_invalid_syntax(void) {
         TC_PROGRAM_HDR "var bits: uint32 = bitcast(uint32)\n",
         TC_PROGRAM_HDR "var bits: uint32 = bitcast(uint32, truncate, 1u)\n",
     };
+    /* B-35：缺少操作数属 TC_CE_OPERAND_COUNT（不得降级为 SYNTAX）；形态错误才是 SYNTAX */
+    static const TcErrorKind expected[] = {TC_CE_OPERAND_COUNT, TC_CE_SYNTAX};
     size_t i = 0;
 
     for (i = 0; i < sizeof(sources) / sizeof(sources[0]); i++) {
@@ -629,8 +631,8 @@ static void test_parse_bitcast_invalid_syntax(void) {
         tc_program_init(&program);
         check(tc_parse_source_to_program(sources[i], &program, &diag) != 0,
               "invalid bitcast syntax is rejected by parser");
-        check(diag.kind == TC_CE_SYNTAX,
-              "invalid bitcast syntax reports SyntaxError");
+        check(diag.kind == expected[i],
+              "invalid bitcast syntax reports the expected code");
         tc_program_free(&program);
         tc_diagnostic_clear(&diag);
     }

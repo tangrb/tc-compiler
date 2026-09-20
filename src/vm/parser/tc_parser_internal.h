@@ -21,6 +21,15 @@ int tc_syntax_error(TcDiagnostic *diag, int line, int column, const char *messag
 const TcToken *tc_peek(const TcTokenList *tokens, size_t index);
 int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
                      TcOperand *out, TcDiagnostic *diag);
+/**
+ * B-35：固定元数调用的操作数分隔/收尾检查。
+ * 二者在「操作数个数与产生式不符」时报 TC_CE_OPERAND_COUNT（§1.3、§10.1、附录 B.1），
+ * 不得降级为笼统 TC_CE_SYNTAX；缺失逗号等形态错误仍报 TC_CE_SYNTAX。
+ */
+int tc_expect_comma_or_operand_count(const TcTokenList *tokens, size_t *index, int line_no,
+                                     TcDiagnostic *diag);
+int tc_expect_rparen_or_operand_count(const TcTokenList *tokens, size_t *index, int line_no,
+                                      TcDiagnostic *diag);
 int tc_expect_token(const TcTokenList *tokens, size_t *index, TcTokenKind kind,
                     int line_no, TcDiagnostic *diag);
 int tc_expect_stmt_end(const TcTokenList *tokens, size_t *index, int line_no,

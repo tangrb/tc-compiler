@@ -96,7 +96,7 @@ static int tc_parse_ptr_load_rhs(const TcTokenList *tokens, size_t *index, int l
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -104,7 +104,7 @@ static int tc_parse_ptr_load_rhs(const TcTokenList *tokens, size_t *index, int l
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -127,7 +127,7 @@ static int tc_parse_ptr_address_rhs(const TcTokenList *tokens, size_t *index, in
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -142,7 +142,7 @@ static int tc_parse_ptr_address_rhs(const TcTokenList *tokens, size_t *index, in
         return -1;
     }
     (*index)++;
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -164,7 +164,7 @@ static int tc_parse_memblock_load_rhs(const TcTokenList *tokens, size_t *index, 
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -172,7 +172,7 @@ static int tc_parse_memblock_load_rhs(const TcTokenList *tokens, size_t *index, 
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -180,7 +180,7 @@ static int tc_parse_memblock_load_rhs(const TcTokenList *tokens, size_t *index, 
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -202,7 +202,7 @@ static int tc_parse_ptr_arith_rhs(const TcTokenList *tokens, size_t *index, int 
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -210,7 +210,7 @@ static int tc_parse_ptr_arith_rhs(const TcTokenList *tokens, size_t *index, int 
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -218,7 +218,7 @@ static int tc_parse_ptr_arith_rhs(const TcTokenList *tokens, size_t *index, int 
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -240,7 +240,7 @@ static int tc_parse_ptr_compare_rhs(const TcTokenList *tokens, size_t *index, in
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -248,7 +248,7 @@ static int tc_parse_ptr_compare_rhs(const TcTokenList *tokens, size_t *index, in
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -256,7 +256,7 @@ static int tc_parse_ptr_compare_rhs(const TcTokenList *tokens, size_t *index, in
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -278,7 +278,7 @@ static int tc_parse_ptr_size_rhs(const TcTokenList *tokens, size_t *index, int l
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -286,7 +286,7 @@ static int tc_parse_ptr_size_rhs(const TcTokenList *tokens, size_t *index, int l
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -309,7 +309,7 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
         return -1;
     }
     free(struct_name);
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -353,7 +353,7 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
         return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
                                "expected fill: or memblock elements");
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -371,7 +371,7 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
                 tc_rhs_free(out);
                 return -1;
             }
-            if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+            if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
                 tc_rhs_free(out);
                 return -1;
             }
@@ -415,7 +415,7 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
                                    "expected , or )");
         }
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -558,7 +558,7 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
                                    "expected , or )");
         }
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -613,13 +613,13 @@ static int tc_parse_optional_float_mode(const TcTokenList *tokens, size_t *index
     if (maybe_mode->kind == TC_TOK_IEEE) {
         *mode = TC_FLOAT_IEEE;
         (*index)++;
-        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
             return -1;
         }
     } else if (maybe_mode->kind == TC_TOK_WRAP) {
         *mode = TC_FLOAT_WRAP;
         (*index)++;
-        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
             return -1;
         }
     } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
@@ -658,7 +658,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
         return -1;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -680,7 +680,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
             tc_rhs_free(out);
             return -1;
         }
-        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
             tc_rhs_free(out);
             return -1;
         }
@@ -688,7 +688,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
             tc_rhs_free(out);
             return -1;
         }
-        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
             tc_rhs_free(out);
             return -1;
         }
@@ -711,7 +711,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
         if (maybe_mode->kind == TC_TOK_WRAP) {
             mode = TC_ARITH_WRAP;
             (*index)++;
-            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
@@ -731,7 +731,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -739,7 +739,7 @@ static int tc_parse_arith_rhs(const TcTokenList *tokens, size_t *index, int line
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -769,7 +769,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
         return -1;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -790,7 +790,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
             tc_rhs_free(out);
             return -1;
         }
-        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
             tc_rhs_free(out);
             return -1;
         }
@@ -813,7 +813,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
         if (maybe_mode->kind == TC_TOK_WRAP) {
             mode = TC_ARITH_WRAP;
             (*index)++;
-            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
@@ -832,7 +832,7 @@ static int tc_parse_unary_rhs(const TcTokenList *tokens, size_t *index, int line
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -860,7 +860,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
     free(struct_name);
     struct_name = NULL;
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_type_free(&target);
         return -1;
     }
@@ -871,7 +871,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         if (maybe_mode->kind == TC_TOK_TRUNCATE) {
             mode = TC_TRUNC_TRUNCATE;
             (*index)++;
-            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
                 tc_type_free(&target);
                 return -1;
             }
@@ -895,7 +895,7 @@ static int tc_parse_cast_rhs(const TcTokenList *tokens, size_t *index, int line_
         return -1;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -918,13 +918,13 @@ static int tc_parse_bitcast_rhs(const TcTokenList *tokens, size_t *index, int li
     }
     free(struct_name);
     struct_name = NULL;
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0 ||
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0 ||
         tc_parse_operand(tokens, index, line_no, &bitcast.source, diag) != 0) {
         tc_type_free(&bitcast.target);
         tc_operand_free(&bitcast.source);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_type_free(&bitcast.target);
         tc_operand_free(&bitcast.source);
         return -1;
@@ -956,7 +956,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
         return -1;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -982,7 +982,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
             tc_rhs_free(out);
             return -1;
         }
-        if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+        if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
             tc_rhs_free(out);
             return -1;
         }
@@ -990,7 +990,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
             tc_rhs_free(out);
             return -1;
         }
-        if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+        if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
             tc_rhs_free(out);
             return -1;
         }
@@ -1012,7 +1012,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1020,7 +1020,7 @@ static int tc_parse_compare_rhs(const TcTokenList *tokens, size_t *index, int li
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1041,7 +1041,7 @@ static int tc_finish_logic_bin_rhs(const TcTokenList *tokens, size_t *index, int
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1049,7 +1049,7 @@ static int tc_finish_logic_bin_rhs(const TcTokenList *tokens, size_t *index, int
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1069,7 +1069,7 @@ static int tc_finish_logic_un_rhs(const TcTokenList *tokens, size_t *index, int 
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1092,7 +1092,7 @@ static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, i
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1100,7 +1100,7 @@ static int tc_finish_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, i
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1120,7 +1120,7 @@ static int tc_finish_bitwise_un_rhs(const TcTokenList *tokens, size_t *index, in
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1171,7 +1171,7 @@ static int tc_parse_and_or_not_rhs(const TcTokenList *tokens, size_t *index, int
         (*index)++;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -1233,7 +1233,7 @@ static int tc_parse_bitwise_bin_rhs(const TcTokenList *tokens, size_t *index, in
         }
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -1272,7 +1272,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
         (*index)++;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -1292,7 +1292,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
             }
             mode = TC_ARITH_WRAP;
             (*index)++;
-            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
                 return -1;
             }
         } else if (maybe_mode->kind == TC_TOK_TRUNCATE) {
@@ -1316,7 +1316,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1324,7 +1324,7 @@ static int tc_parse_shift_rhs(const TcTokenList *tokens, size_t *index, int line
         tc_rhs_free(out);
         return -1;
     }
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }
@@ -1353,7 +1353,7 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
     free(struct_name);
     struct_name = NULL;
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_type_free(&target);
         return -1;
     }
@@ -1368,7 +1368,7 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
         if (maybe_mode->kind == TC_TOK_TRUNCATE) {
             out->u.const_cast.mode = TC_TRUNC_TRUNCATE;
             (*index)++;
-            if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+            if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
                 tc_rhs_free(out);
                 return -1;
             }
@@ -1384,7 +1384,7 @@ static int tc_parse_const_cast_rhs(const TcTokenList *tokens, size_t *index, int
         return -1;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         tc_rhs_free(out);
         return -1;
     }

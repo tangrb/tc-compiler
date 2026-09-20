@@ -780,7 +780,7 @@ run_check_fail "$ROOT/tests/errors/static/shortcircuit_let_rhs_type.tc" "operand
 run_check_fail "$ROOT/tests/errors/static/uninit_shortcircuit_var_lhs.tc" "use of uninitialized variable"
 run_check_fail "$ROOT/tests/errors/static/shortcircuit_let_forward_lhs.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/shortcircuit_let_out_of_scope_lhs.tc" "undefined variable"
-run_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "unexpected token"
+run_check_fail "$ROOT/tests/errors/static/diag_priority_syntax_before_name.tc" "operand count error"
 run_check_fail "$ROOT/tests/errors/static/diag_priority_name_before_type.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/diag_priority_mode_before_literal.tc" "wrap mode is not allowed for float arithmetic"
 run_check_fail "$ROOT/tests/errors/static/diag_priority_sem_before_ct.tc" "use of uninitialized variable"

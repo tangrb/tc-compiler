@@ -1,0 +1,5 @@
+#program
+; read 操作数个数超出 → TC_CE_OPERAND_COUNT
+var a: int32 = 0
+var b: int32 = 0
+read(int32, a, b)

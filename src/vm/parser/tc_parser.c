@@ -46,6 +46,36 @@ int tc_operand_count_error(TcDiagnostic *diag, int line, int column, const char 
     return -1;
 }
 
+int tc_expect_comma_or_operand_count(const TcTokenList *tokens, size_t *index, int line_no,
+                                     TcDiagnostic *diag) {
+    const TcToken *tok = tc_peek(tokens, *index);
+
+    if (tok->kind == TC_TOK_RPAREN) {
+        /* 还应有操作数却已到 `)`：个数不足 */
+        return tc_operand_count_error(diag, line_no, tok->column, "operand count error");
+    }
+    if (tok->kind != TC_TOK_COMMA) {
+        return tc_syntax_error(diag, line_no, tok->column, "expected ,");
+    }
+    (*index)++;
+    if (tc_peek(tokens, *index)->kind == TC_TOK_RPAREN) {
+        return tc_operand_count_error(diag, line_no, tc_peek(tokens, *index)->column,
+                                      "operand count error");
+    }
+    return 0;
+}
+
+int tc_expect_rparen_or_operand_count(const TcTokenList *tokens, size_t *index, int line_no,
+                                      TcDiagnostic *diag) {
+    const TcToken *tok = tc_peek(tokens, *index);
+
+    if (tok->kind == TC_TOK_COMMA) {
+        /* 操作数已齐全却仍有 `,`：个数超出 */
+        return tc_operand_count_error(diag, line_no, tok->column, "operand count error");
+    }
+    return tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag);
+}
+
 /* ------------------------------------------------------------------ */
 /*  底层解析工具函数                                                     */
 /* ------------------------------------------------------------------ */
@@ -523,7 +553,8 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
         (*index)++;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_COMMA, line_no, diag) != 0) {
+    /* B-35：`read(int32)` 缺目标操作数 → OPERAND_COUNT（而非笼统 SYNTAX） */
+    if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
 
@@ -531,7 +562,8 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
         return -1;
     }
 
-    if (tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag) != 0) {
+    /* 多余的 `,` → 操作数个数超出 */
+    if (tc_expect_rparen_or_operand_count(tokens, index, line_no, diag) != 0) {
         free(out->name);
         out->name = NULL;
         return -1;
