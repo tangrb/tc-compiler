@@ -1114,6 +1114,11 @@ run_expect_stdout "$ROOT/tests/valid/while_true_break_reachable.tc" "3
 "
 run_expect_check_ok "$ROOT/tests/valid/while_true_break_reachable.tc"
 run_expect_check_ok "$ROOT/tests/valid/dup_param_names_ok.tc"
+run_expect_stdout "$ROOT/tests/valid/float_denormal_literals.tc" "4.94066e-324
+1e-308
+1.4013e-45
+"
+run_expect_check_ok "$ROOT/tests/valid/float_denormal_literals.tc"
 run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
 0
 0
@@ -2670,6 +2675,8 @@ run_expect_check_fail "$ROOT/tests/errors/static/const_cast_literal_out_of_range
     "literal out of range for context type" "LiteralOutOfRange"
 run_expect_check_fail "$ROOT/tests/errors/static/goto_label_child_vs_sibling.tc" \
     "cannot jump into inner block" "JumpIntoBlockError"
+run_expect_check_fail "$ROOT/tests/errors/static/float_rounds_to_zero.tc" \
+    "float literal out of float32 range" "LiteralOutOfRange"
 run_expect_fail_msg "$ROOT/tests/errors/static/lib_toplevel_statement.tc" \
     "executable statement is not allowed in #lib"
 run_expect_check_fail "$ROOT/tests/modules/circular_import.tc" "circular import"

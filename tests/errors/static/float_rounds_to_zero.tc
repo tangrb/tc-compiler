@@ -1,0 +1,4 @@
+#program
+; §2.4.1：float32 下 1e-46 按 roundTiesToEven 舍入为零 → 字面量范围错误
+var x: float32 = 1e-46f
+writeln(float32, x)

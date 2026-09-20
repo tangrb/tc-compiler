@@ -435,14 +435,23 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
 
     errno = 0;
     value = strtod(buf, &endptr);
-    if (endptr == buf || errno == ERANGE) {
-        tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
-                          "float literal out of range");
+    if (endptr == buf) {
+        tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid float literal");
         return -1;
     }
     if (*endptr != '\0') {
         tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column,
                           "invalid float literal");
+        return -1;
+    }
+    /*
+     * B-26：语言标准 §2.4.1 —— 只有「非零有限值舍入为零」或「有限值舍入为无穷」
+     * 才是字面量范围错误；**可表示的非规格化数合法**。strtod 对下溢到非规格化数
+     * 同样置 ERANGE，故不能一见 ERANGE 即判失败。
+     */
+    if (errno == ERANGE && (value == 0.0 || isinf(value))) {
+        tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
+                          "float literal out of range");
         return -1;
     }
 
@@ -452,10 +461,14 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     lit->float_value = value;
 
     if (lit->float32_suffix) {
-        double min_subnormal = ldexp(1.0, -149);
+        /*
+         * 判据是「按 roundTiesToEven 舍入后是否为零」：最小正非规格化数
+         * 2^-149 的一半（2^-150）是舍入到零与舍入到 2^-149 的分界（B-26）。
+         */
+        double min_subnormal_half = ldexp(1.0, -150);
         if (isfinite(value) &&
             (fabs(value) > (double)FLT_MAX ||
-             (value != 0.0 && fabs(value) < min_subnormal))) {
+             (value != 0.0 && fabs(value) < min_subnormal_half))) {
             tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
                               "float literal out of float32 range");
             return -1;

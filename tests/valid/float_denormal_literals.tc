@@ -1,0 +1,8 @@
+#program
+; §2.4.1 / §3.6.1：非零有限值舍入为零才是范围错误；可表示的非规格化数合法
+var a: float64 = 5e-324
+var b: float64 = 1e-308
+var c: float32 = 1e-45f
+writeln(float64, a)
+writeln(float64, b)
+writeln(float32, c)
