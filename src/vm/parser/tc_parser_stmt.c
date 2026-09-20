@@ -838,7 +838,17 @@ int tc_parse_field_assign_stmt(TcParserCtx *ctx, const TcTokenList *tokens, size
         tc_string_list_free_local(fields, field_count);
         return -1;
     }
-    if (tc_parse_rhs(ctx, tokens, index, line_no, &fa.rhs, diag) != 0) {
+    /*
+     * B-33：§6.1.1 与附录 A `field_funcall_assign_stmt` —— 字段赋值的 RHS 同样可为
+     * `funcall(...)`（整绑定赋值路径已支持，此前字段路径缺失导致合法程序被拒）。
+     */
+    if (tc_peek(tokens, *index)->kind == TC_TOK_FUNCALL) {
+        if (tc_parse_funcall_rhs(ctx, tokens, index, line_no, &fa.rhs, diag) != 0) {
+            free(base);
+            tc_string_list_free_local(fields, field_count);
+            return -1;
+        }
+    } else if (tc_parse_rhs(ctx, tokens, index, line_no, &fa.rhs, diag) != 0) {
         free(base);
         tc_string_list_free_local(fields, field_count);
         return -1;

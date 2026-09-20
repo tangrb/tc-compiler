@@ -971,7 +971,7 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
         }
 
         if (stmt->kind == TC_STMT_FIELD_ASSIGN) {
-            return tc_struct_check_field_assign(&stmt->u.field_assign, struct_table, visible,
+            return tc_struct_check_field_assign(&stmt->u.field_assign, ctx, struct_table, visible,
                                                 symbols, hist, stmt_index, diag, warnings);
         }
 

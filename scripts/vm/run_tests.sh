@@ -1048,7 +1048,10 @@ run_expect_check_ok "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
 # B-56：被导入的 #lib 内 `funcall(Self.<本库函数>, …)` 须正常解析（此前 UndefinedFunction）
 run_expect_stdout "$ROOT/tests/modules/import_self_call.tc" "5
 "
+run_expect_stdout "$ROOT/tests/modules/import_field_funcall.tc" "7
+"
 run_expect_check_ok "$ROOT/tests/modules/import_self_call.tc"
+run_expect_check_ok "$ROOT/tests/modules/import_field_funcall.tc"
 run_expect_check_fail "$ROOT/tests/modules/self_call_neg/import_bare_call.tc" \
     "function scope access: use Self.inc" "FunctionScopeAccessError"
 run_expect_check_fail "$ROOT/tests/errors/static/struct_assign_through_param.tc" \

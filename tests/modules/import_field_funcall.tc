@@ -1,0 +1,4 @@
+#program
+import FieldFuncallLib
+var r: int32 = funcall(FieldFuncallLib.make)
+writeln(int32, r)

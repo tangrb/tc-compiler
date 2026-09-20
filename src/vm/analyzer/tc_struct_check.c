@@ -1413,7 +1413,8 @@ int tc_struct_check_field_read(TcRhs *rhs, const TcType *expected,
     return 0;
 }
 
-int tc_struct_check_field_assign(TcFieldAssign *assign, const TcStructTable *table,
+int tc_struct_check_field_assign(TcFieldAssign *assign, TcAnalyzeCtx *ctx,
+                                 const TcStructTable *table,
                                  const TcSymbolTable *visible, const TcSymbolTable *global,
                                  TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
                                  TcWarningList *warnings) {
@@ -1480,6 +1481,15 @@ int tc_struct_check_field_assign(TcFieldAssign *assign, const TcStructTable *tab
             return -1;
         }
         cursor_type = &field->type;
+    }
+    /*
+     * B-33：字段赋值的 RHS 为 funcall 时走专用检查（与整绑定赋值一致），
+     * 否则 tc_type_check_rhs 不认 TC_RHS_FUNCALL_EXPR。
+     */
+    if (assign->rhs.kind == TC_RHS_FUNCALL_EXPR && ctx && ctx->func_env) {
+        return tc_pass2_check_funcall_rhs(&assign->rhs, field ? &field->type : base_sym->type, 1,
+                                          ctx, visible, global, hist, stmt_index, assign->line,
+                                          warnings, diag);
     }
     return tc_type_check_rhs((TcRhs *)&assign->rhs, field ? &field->type : base_sym->type,
                              visible,

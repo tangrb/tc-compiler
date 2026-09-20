@@ -1,0 +1,13 @@
+#lib
+; §6.1.1 / 附录 A `field_funcall_assign_stmt`：字段赋值的 RHS 可为 funcall(...)
+public struct S then
+    var v: int32
+end
+public func seven() int32 then
+    return 7
+end
+public func make() int32 then
+    var s: S = S(v: 0)
+    s.v = funcall(Self.seven)
+    return s.v
+end

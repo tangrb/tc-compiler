@@ -90,7 +90,8 @@ int tc_struct_check_field_access(TcFieldAccess *access, const TcType *expected,
 void tc_resolved_field_access_free(TcResolvedFieldAccess *access);
 
 /** 字段赋值：基对象非常量；路径上每个字段须为 var；RHS 类型匹配最末字段 */
-int tc_struct_check_field_assign(TcFieldAssign *assign, const TcStructTable *table,
+int tc_struct_check_field_assign(TcFieldAssign *assign, TcAnalyzeCtx *ctx,
+                                 const TcStructTable *table,
                                  const TcSymbolTable *visible, const TcSymbolTable *global,
                                  TcInitHistory *hist, size_t stmt_index, TcDiagnostic *diag,
                                  TcWarningList *warnings);
