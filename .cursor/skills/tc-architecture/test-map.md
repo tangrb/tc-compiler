@@ -8,7 +8,7 @@
 2. 按下方目录只打开**一节**账本；改 C 源码不必加载本文件。
 3. 新增用例后：注册 `run_tests.sh` → 更新本文件规模/相关行 → `check_doc_counts.py`。
 
-**规模**（`check_doc_counts.py` 校验）：**1111 VM** · **~483 AOT（注册）** / **483 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
+**规模**（`check_doc_counts.py` 校验）：**1113 VM** · **~484 AOT（注册）** / **484 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
 
 ## 目录
 
@@ -193,6 +193,6 @@ deep_recursion · let_chain · io_stress · many_vars_stress · type_combinatori
 | test_struct_field_access.c (34) | tc_struct_check.c + analyzer（字段读 / const 复合 / static let memblock 计数） | check-struct-field-access |
 | test_embed.c (590) / test_embed_aot.c (380) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
 
-AOT（`scripts/aot/run_tests.sh`）：**483** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**483** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
+AOT（`scripts/aot/run_tests.sh`）：**484** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**484** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
 
 新用例注册 `scripts/vm/run_tests.sh`（+ AOT 如适用）；同步本文件 + `@knowledge-graph` + 对应 `kg-*.md` + `features/*.md`。

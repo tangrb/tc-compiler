@@ -464,18 +464,34 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
     lit->float_value = value;
 
     if (lit->float32_suffix) {
+        float rounded = 0.0f;
+        char *fend = NULL;
+
         /*
-         * 判据是「按 roundTiesToEven 舍入后是否为零」：最小正非规格化数
-         * 2^-149 的一半（2^-150）是舍入到零与舍入到 2^-149 的分界（B-26）。
+         * B-47：语言标准 §2.4.1 —— 有限十进制字面量须**直接**按 roundTiesToEven
+         * 舍入到后缀决定的 binary32，不得经 double 中转（二次舍入）。故此处用
+         * strtof 直接得到 float32 结果，而不是把 strtod 的 double 再截断。
          */
-        double min_subnormal_half = ldexp(1.0, -150);
-        if (isfinite(value) &&
-            (fabs(value) > (double)FLT_MAX ||
-             (value != 0.0 && fabs(value) < min_subnormal_half))) {
+        errno = 0;
+        rounded = strtof(buf, &fend);
+        if (fend == buf || (fend && *fend != '\0')) {
+            tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, "invalid float literal");
+            return -1;
+        }
+        if (lit->negative) {
+            rounded = -rounded;
+        }
+        /*
+         * B-48：判据是**舍入后**的结果——为 ±∞，或非零有限值舍入为零时才越界；
+         * `3.4028235e38f` 这类舍入到 FLT_MAX 的边界值合法（B-26 已保证可表示的
+         * 非规格化数合法）。
+         */
+        if (isfinite(value) && (isinf(rounded) || (rounded == 0.0f && value != 0.0))) {
             tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
                               "float literal out of float32 range");
             return -1;
         }
+        lit->float_value = (double)rounded;
     }
 
     *end = p;

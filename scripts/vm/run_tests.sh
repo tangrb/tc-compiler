@@ -1135,6 +1135,10 @@ run_expect_stdout "$ROOT/tests/valid/format_float_small_rounding.tc" "0.000
 0.000001
 "
 run_expect_check_ok "$ROOT/tests/valid/format_float_small_rounding.tc"
+run_expect_stdout "$ROOT/tests/valid/float32_literal_direct_rounding.tc" "1065353217
+2139095039
+"
+run_expect_check_ok "$ROOT/tests/valid/float32_literal_direct_rounding.tc"
 run_expect_stdout "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc" "0
 0
 0

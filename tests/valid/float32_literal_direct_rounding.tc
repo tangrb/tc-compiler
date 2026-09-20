@@ -1,0 +1,10 @@
+#program
+; B-47 / §2.4.1：float32 后缀的字面量须直接按 roundTiesToEven 舍入到 binary32，
+; 不得经 double 中转（1.0000001788139343f 精确值小于中点 → 0x3F800001）；
+; B-48：舍入到 FLT_MAX 的边界字面量合法（3.4028235e38f → 0x7F7FFFFF）
+var x: float32 = 1.0000001788139343f
+var y: float32 = 3.4028235e38f
+var b: uint32 = bitcast(uint32, x)
+var c: uint32 = bitcast(uint32, y)
+writeln(uint32, b)
+writeln(uint32, c)
