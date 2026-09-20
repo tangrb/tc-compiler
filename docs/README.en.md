@@ -26,6 +26,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | Document | Purpose |
 | -------- | ------- |
 | [TC 0.0.44 Conformance Audit Report](TC-0.0.44-语言标准符合性审计报告.md) | **Conformance audit**: all design docs and `src/` checked against the language specification as sole authority; includes re-verification of pre-existing open items and new findings with minimal reproductions |
+| [TC 0.0.44 Remediation Ledger](TC-0.0.44-符合性整改进度台账.md) | **Remediation ledger**: per-item status, commits and adjudication-pending items for phase 1 (design-doc alignment) and phase 2 (implementation fixes); the audit report itself stays a pure findings list |
 
 > The historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`.
 
