@@ -1150,7 +1150,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
         return -1;
     }
     if (position == 1 && is_void) {
-        tc_diagnostic_set(diag, TC_CE_FUNCALL_POSITION, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_FUNCALL_RESULT_TYPE, line, TC_COLUMN_UNKNOWN,
                           "void function call cannot be used as value");
         return -1;
     }
@@ -1161,7 +1161,7 @@ int tc_func_check_funcall(const TcFuncCheckEnv *env, int is_self, const char *qu
     }
 
     if (expected && !is_void && !tc_type_equals(&sig->return_type, expected)) {
-        tc_diagnostic_set(diag, TC_CE_FUNCALL_RESULT_TYPE, line, TC_COLUMN_UNKNOWN,
+        tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, line, TC_COLUMN_UNKNOWN,
                           "function call result type does not match");
         return -1;
     }

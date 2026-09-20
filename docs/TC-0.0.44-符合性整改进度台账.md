@@ -107,7 +107,7 @@
 
 | 条目 | 主题 | 状态 | 提交 |
 | ---- | ---- | ---- | ---- |
-| B-1 | `funcall` 位置码/结果码互换 | ☐ | |
+| B-1 | `funcall` 位置码/结果码互换 | ☑ | 见文末提交记录 |
 | B-2 | SEM 首个诊断定序（源序） | ☐ | |
 | B-3 | 重复格式标志错报 `SYNTAX` | ☐ | |
 | B-4 | `let` RHS 为 `var`/形参时错报 | ☐ | |
@@ -190,6 +190,12 @@
 | 2.6.5 | `#lib` 顶层可执行语句未拒绝 | ☐ |
 | 2.6.6 | `isize` 被当作 `usize` | ☐ |
 
+### 阶段 2 逐条记录
+
+| 条目 | 改动 | 验证 |
+| ---- | ---- | ---- |
+| B-1 | `tc_func_check.c`：`position == 1 && is_void`（void 作值）由 `TC_CE_FUNCALL_POSITION` 改为 `TC_CE_FUNCALL_RESULT_TYPE`；非 void 返回类型与接收类型不符由 `TC_CE_FUNCALL_RESULT_TYPE` 改为 `TC_CE_TYPE_MISMATCH`（[语言标准 §8.2.3]、附录 B.4/B.12）。`funcall_result_type.tc` 注释更正；`scripts/vm/run_tests.sh` 新增 `run_expect_check_fail_code` 辅助并锁定三例打印名（Position/ResultType/TypeMismatch） | `tc-vm -e -c` 三例实测；`--filter funcall` 23/23；全量 VM+AOT+Unit 三层通过 |
+
 ---
 
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
@@ -217,7 +223,8 @@
 | 4 | 阶段 1-④ TC-Embed 详设 C-20～C-21 ＋ P2 | `8edb1db docs(0.0.44-embed): fix C-syntax TC examples and slot-overlap host code (C-20/C-21 + P2)` |
 | 5 | 阶段 1-⑤ libtc 设计说明书 C-19 ＋ P2 | `f2b7328 docs(0.0.44-libtc): scope the memory entry, fix contract contradictions (C-19 + P2)` |
 | 6 | 阶段 1-⑥ VM 命令行参考 C-15～C-18 ＋ P2 | `a570863 docs(0.0.44-cli): fix search-path/e/error-table and illegal examples (C-15..C-18 + P2)` |
-| 7 | 阶段 1-⑦ 跨文档一致性 C-22～C-24 | 本提交 `docs(0.0.44-cross): unify sync-status notes and cross-doc definitions (C-22..C-24)` |
+| 7 | 阶段 1-⑦ 跨文档一致性 C-22～C-24 | `be56a6a docs(0.0.44-cross): unify sync-status notes and cross-doc definitions (C-22..C-24)` |
+| 8 | 阶段 2-B1 `funcall` 位置码/结果码 | 本提交 `fix(0.0.44-B1): correct funcall position/result type diagnostics` |
 
 ---
 

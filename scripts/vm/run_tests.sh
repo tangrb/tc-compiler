@@ -382,12 +382,15 @@ run_expect_check_ok() {
     pass
 }
 
+# run_expect_check_fail <file> <pattern> [error-code-name]
+# 给出第三个参数时，额外断言 -e 打印的 TcErrorKind 打印名（防止错误码回归）。
 run_expect_check_fail() {
     file="$1"
     pattern="$2"
+    code="${3:-}"
 
     should_run "$file" || return 0
-    log_test "CFL $file ($pattern)"
+    log_test "CFL $file ($pattern${code:+ / [$code]})"
 
     output="$($BIN --check "$file" </dev/null 2>&1)" && {
         fail "expected --check failure: $file" "$file"
@@ -400,6 +403,16 @@ run_expect_check_fail() {
             printf '%s\n' "$output" >&2
         fi
         return
+    fi
+    if [ -n "$code" ]; then
+        coded="$($BIN -e --check "$file" </dev/null 2>&1)" || true
+        if ! printf '%s' "$coded" | grep -Fq "error [$code]"; then
+            fail "expected error code [$code] in: $file" "$file"
+            if [ "$VERBOSE" -eq 1 ]; then
+                printf '%s\n' "$coded" >&2
+            fi
+            return
+        fi
     fi
     pass
 }
@@ -914,7 +927,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/undefined_function.tc" "undefin
 run_expect_check_fail "$ROOT/tests/errors/static/function_scope_access.tc" \
     "function scope access"
 run_expect_check_fail "$ROOT/tests/errors/static/funcall_position.tc" \
-    "non-void function call must be used"
+    "non-void function call must be used" "FunctionCallPositionError"
 run_expect_check_fail "$ROOT/tests/errors/static/duplicate_argument.tc" "duplicate argument"
 run_expect_check_fail "$ROOT/tests/errors/static/unknown_argument.tc" "unknown argument"
 run_expect_check_fail "$ROOT/tests/errors/static/missing_argument.tc" "missing argument"
@@ -923,7 +936,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/funcall_extra_arg.tc" "too many
 run_expect_check_fail "$ROOT/tests/errors/static/argument_type.tc" \
     "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/funcall_result_type.tc" \
-    "function call result type"
+    "function call result type" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/return_outside_function.tc" \
     "return outside function"
 run_expect_check_fail "$ROOT/tests/errors/static/return_form.tc" \
@@ -939,7 +952,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/return_type_var_mismatch.tc" \
 run_expect_fail_msg "$ROOT/tests/errors/static/void_funcall_as_value.tc" \
     "void function call cannot be used as value"
 run_expect_check_fail "$ROOT/tests/errors/static/void_funcall_as_value.tc" \
-    "void function call cannot be used as value"
+    "void function call cannot be used as value" "FunctionCallResultTypeError"
 run_expect_check_fail "$ROOT/tests/errors/static/return_type.tc" "bool literal requires bool context"
 run_expect_check_fail "$ROOT/tests/errors/static/parameter_assignment.tc" \
     "cannot assign to function parameter"

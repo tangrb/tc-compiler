@@ -1,5 +1,7 @@
 #lib
-; 期望：function call result type
+; 期望：function call result type / TypeMismatch
+; 非 void 返回类型与接收变量不符 → TC_CE_TYPE_MISMATCH（[语言标准 §8.2.3]、附录 B.4）；
+; TC_CE_FUNCALL_RESULT_TYPE 只用于「void 函数调用被当作值」（见 void_funcall_as_value.tc）
 public func get() int32 then
     return 1
 end
