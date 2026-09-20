@@ -40,7 +40,7 @@
 | 类别 | 范围 | 详见 |
 | ---- | ---- | ---- |
 | 类型 | 固定宽度整数 `int8`～`uint64`；平台字长整数 `isize` / `usize`；`float32` / `float64`；`bool`；`ptr<T>`（指针类型）；`memblock<T, N>`（带长度头部，`N` 为元素个数规划）；`struct`；`void` 仅作函数返回类型 | §3 |
-| 运算 | 算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与 `.count` 长度访问；`ptr_load` / `ptr_store` 指针读写；`ptr_address` 取地址；`ptr_add` / `ptr_sub` 指针算术；`ptr_size` 所指类型宽度查询；`ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 指针序关系比较；`memcopy_unsafe` 原始内存块拷贝 | §6 |
+| 运算 | 算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与 `.count` 长度访问；`ptr_load` / `ptr_store` 指针读写；`ptr_address` 取地址；`ptr_add` / `ptr_sub` 指针算术；`ptr_size` 所指类型宽度查询；`ptr_eq` / `ptr_ne` 指针等值比较；`ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 指针序关系比较；`memcopy_unsafe` 原始内存块拷贝 | §6 |
 | 模式 | 默认 strict；有符号整数算术与 `shl` 可按规则使用 `wrap`；浮点算术可按规则使用 `ieee` | §6.0、§6.3 |
 | 控制流 | 缩进敏感的 `if` / `while`（以 `end` 结束）；`break` / `continue`；函数内受限 `goto` / `label`（`while` 内禁止） | §7 |
 | 函数 | `#lib` 中 `func`；命名且有序的 `funcall`；显式 `return`；按值只读形参；调用图无环 | §8 |
@@ -114,8 +114,8 @@
 
 一个程序同时存在多个错误时，唯一首个诊断按以下顺序确定（核心规则与 [语言标准 §1.3] 的一致性判定对齐）：
 
-1. **阶段优先**：先报告编号较小阶段的错误。
-2. **源位置优先**：一个 TC 编译单元恰好对应一个源文件；同一阶段按行、列选择起始位置最早者。批量编译多个文件属于驱动层行为，各文件分别产生语言诊断，文件间次序不属于 TC 语言语义。
+1. **阶段优先**：先报告**诊断类阶段**（LT → SYN → SEM → CT，对应表见下款）编号较小者的错误。
+2. **同一诊断类阶段内按源位置优先**：一个 TC 编译单元恰好对应一个源文件；同一诊断类阶段内按行、列选择起始位置最早者，**不得按内部处理阶段编号抢先**——例如第 4–8、11、12 阶段同属 SEM，其间一律按源序选首个诊断。批量编译多个文件属于驱动层行为，各文件分别产生语言诊断，文件间次序不属于 TC 语言语义。
 3. **规则优先**：同一位置按本节专用优先级；未专门规定时依次为语法形态/数量、语句上下文、名称存在性、重复、名称空间/作用域/控制流域、使用位置、实参顺序、类型、模式/结构、字面量、CFG、调用图。
 4. **关联位置**：重复定义、跨域跳转和递归环使用下文指定的主位置比较；其他位置只作附注。
 5. **遍历无关**：函数表、哈希表、CFG、调用图和实参集合的内部遍历顺序不得改变结果。
@@ -186,7 +186,7 @@
 
 只有完整 Token 序列符合附录 A 某一产生式时，才进入普通类型/模式诊断。语法已接受的同一位置同时违反多项静态语义时，固定按"运算支持的类型类别 → 模式合法性 → `bitcast` 位宽 → 字面量范围/类型 → 格式符与其他操作数类型"选择。`wrap` / `ieee` / `truncate` 仅在对应产生式明确提供的位置才是候选模式；若相关操作或上下文的产生式没有该参数位置，或类型参数已被专用非终结符排除，且没有上述语法专用诊断，统一在第 3 阶段报告 `TC_CE_SYNTAX`。例如普通 RHS 的 `shr(int32, wrap, x, k)` 是语法错误，而 `const_shift_expr` 已接受的同形 `let` RHS 随后报告 `TC_CE_MODE_MISMATCH`。
 
-`let` 类型闭合检查在第 6 阶段完成：字面量按 [语言标准 §3.6] 报专用错误；标识符/单层调用的结果类型不同时报 `TC_CE_TYPE_MISMATCH`（定位 RHS 首 Token）。调用的内部类型检查先于与外层类型的比较。
+`let` 类型闭合检查在第 6 阶段完成：RHS 为标识符且解析为 `var` 或函数参数时，**先**报 `TC_CE_CONSTANT_EXPRESSION` 且**不比较结果类型**（[语言标准 §5.2.1] 第 3 步）；否则字面量按 [语言标准 §3.6] 报专用错误，标识符/单层调用的结果类型不同时报 `TC_CE_TYPE_MISMATCH`（定位 RHS 首 Token）。调用的内部类型检查先于与外层类型的比较。
 
 非法 UTF-8、文件起始 BOM、U+0000，以及注释外违反 [语言标准 §2.1] 的非法源字符均映射为 `TC_CE_SYNTAX`；缩进和语法阶段有专用错误码时优先专用码。此处的专用语法码只改变错误分类，不改变附录 A 接受的程序集合。`let` RHS 中的嵌套调用不符合 `const_rhs` 产生式，在语法阶段映射为 `TC_CE_SYNTAX`（与指针指令、`memblock_load` 等非 `const_rhs` 形态同口径，[语言标准 §5.2.1]）；自引用和前向引用在名称阶段映射为 `TC_CE_UNDEFINED_VARIABLE`；`let` 中引用 `var` 或函数参数在第 6 阶段子阶段 6d 立即映射为 `TC_CE_CONSTANT_EXPRESSION`，不延迟到常量求值阶段。静态布尔判定仅在名称、类型及更早 `let` 求值成功后运行；合法常量形态的求值错误不得降级为 `unknown`。不可达代码仍完成词法、语法、名称和类型检查。
 
@@ -212,9 +212,9 @@
 | 源文件中 `-nan` 属语法拒绝 | §2.1 | **已核实一致**（实测 `SyntaxError: expected integer literal`） |
 | 静态成员初始化器引用源序更晚／自身的静态成员 → `TC_CE_UNDEFINED_VARIABLE` | §4.3 | **已同步**（`tc_func_check.c` 源序可见性判定；语料 `static_var_forward_ref.tc`／`static_var_self_ref.tc`／`static_var_bare_member.tc`） |
 | `memblock` 的 `N`／`count:` 接受 `u`/`U` 后缀；来源不合法或 `< 1` → `TC_CE_CONSTANT_EXPRESSION` | §3.1、§3.4 | **已核实一致**（语料 `memblock_unsigned_suffix.tc`、`memblock_count_var_source.tc`） |
-| `ptr_load(bool)` 按 `0x00`／非零 → `0x01` 规范化 | §6.0、§15.5 | **已同步**（`tc_ptr_exec.c`，原 VM 未规范化、与 AOT 分歧；语料 `ptr_load_bool_normalize.tc`） |
+| `ptr_load(bool)` 按 `0x00`／非零 → `0x01` 规范化 | §6.7、[语言标准 §6.8.2] | **已同步**（`tc_ptr_exec.c`，原 VM 未规范化、与 AOT 分歧；语料 `ptr_load_bool_normalize.tc`） |
 | `static var` 初始化器可引用更早 `static var`；准备阶段失败报 `TC_RE_*` | §4.3 | **已核实一致**（语料 `static_var_chain.tc`、`errors/runtime/static_var_init_div_zero.tc`） |
-| 限定标识符 `Self.<名>` / `<模块名>.<名>` 可作 `operand`（附录 A `operand` 产生式、§6.1.2） | §6.1.2 | **已同步**（`tc_parser.c` + `tc_func_check.c`；语料 `self_qual_operand.tc`） |
+| 限定标识符 `Self.<名>` / `<模块名>.<名>` 可作 `operand`（附录 A `operand` 产生式、[语言标准 §6.1.2]） | §6.7、[语言标准 §6.1.2] | **已同步**（`tc_parser.c` + `tc_func_check.c`；语料 `self_qual_operand.tc`） |
 
 ---
 
@@ -322,7 +322,7 @@
 - **`ptr_address` 可变性**：仅接受 `var` / `static var` / 形参（含合法 `Self.` / 导入限定的可写 `static var`）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ptr_address` 非编译期常量，其产生式不在 `const_rhs` 中，出现在 `const_rhs` 属**语法拒绝**（`TC_CE_SYNTAX`，[语言标准 §5.2.1]、[语言标准 §6.8.4]）。
 - **`ptr_store` / `memcopy_unsafe` 可变性**：所指外层绑定只读（`let` / `static let`）或为形参时 → `TC_CE_CONSTANT_ASSIGNMENT`（与 [语言标准 §6.8.3] / [语言标准 §3.10.3] 一致；对形参的直接赋值/`read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT`）。不得因持有指针而绕过。
 - **空指针运行时分类**：`ptr_load` / `ptr_store` / `memcopy_unsafe` / 序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`）遇 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`ptr_add` / `ptr_sub` 遇 `nullptr` → `TC_RE_NULL_POINTER_ARITHMETIC`。不得混用两码。`ptr_eq` / `ptr_ne` 允许两个 `nullptr` 比较，结果为 `true`/`false`，不触发运行时错误。
-- **`memcopy_unsafe` 区间合法性**（[语言标准 §6.8.9]：`length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`）：编译期可确定 `length < 0` 或下标数学值 `< 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时同条件 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。越界拷贝本身不静态拒绝（实现定义，[语言标准 §1.3]）。
+- **`memcopy_unsafe` 区间合法性**（[语言标准 §6.8.9]：`length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`）：**编译期**只对 `length` 判静态码——可确定 `length < 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；`length < 0` 或下标数学值 `< 0` 在**运行时** → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（负下标只在运行时报告，[语言标准 §6.8.9]、附录 B.11/B.13）。越界拷贝本身不静态拒绝（实现定义，[语言标准 §1.3]）。
 - **`ptr_size`**：返回 `sizeof_bits(T)`（编译期常量），操作数可为 `nullptr`（[语言标准 §6.8.8]）。编译器须在编译期计算并内联结果。`ptr_size` 是**调用型** RHS：可**整条**充当 `const_rhs`（`let` / `static let`），但**不属于** `const_operand`，不得作为其它调用的操作数（[语言标准 §5.2.1]、[语言标准 §6.1.2]）。
 - **I/O 排除**：`write` / `writeln` / `read` 以 `ptr<T>` 为显式类型属语法拒绝（`TC_CE_SYNTAX`）。
 - **序关系比较类型验证**：`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge` 的两个操作数必须同为 `ptr<T>`（由显式类型参数决定），跨类型比较报 `TC_CE_TYPE_MISMATCH`。
@@ -371,14 +371,14 @@
 
 - **表示**：二进制补码。编译器在类型系统内按位宽和符号性区分各整数类型；类型等价要求位宽与符号性均相同。
 - **算术默认模式**：`add`/`sub`/`mul`/`neg` 默认 strict；`div` 的数学商不可表示（即 `INT_MIN / -1`）与 `abs(INT_MIN)` → `TC_RE_INTEGER_OVERFLOW`（运行时）或 `TC_CE_CONSTANT_OVERFLOW`（编译期）。
-- **`wrap` 模式**：编译器必须在 `add`/`sub`/`mul`/`neg`/`shl` 上接受 `wrap` 关键字，此时按模 `2^n` 回绕，不报溢出。`div`/`mod`/`abs`/`shr` 不接受 `wrap`（→ `TC_CE_MODE_MISMATCH`）。
+- **`wrap` 模式**：编译器必须在 `add`/`sub`/`mul`/`neg`/`shl` 上接受 `wrap` 关键字，此时按模 `2^n` 回绕，不报溢出。`div`/`mod`/`abs` 不接受 `wrap`（→ `TC_CE_MODE_MISMATCH`）；`shr` 在普通 RHS 中无模式参数位置，写了 `wrap` 属**语法拒绝** `TC_CE_SYNTAX`（附录 A `wrap_shift_expr` 只接受 `shl`），仅在 `let` RHS 的 `const_shift_expr` 形态下报 `TC_CE_MODE_MISMATCH`（§6.0）。
 - **`shl` 默认 strict**：左移结果超出目标类型范围时报溢出；`wrap` 模式下截断高位。
 
 **无符号整数类型（`uint8`～`uint64`、`usize`）**：
 
 - **表示**：非负整数的 `n` 位二进制模式。
 - **算术**：`add`/`sub`/`mul`/`neg` 固定模 `2^n` 回绕。无符号 `shl` 默认 strict（可检测值溢出），`wrap` 模式截断高位。
-- **不接受模式关键字**：写了 `wrap` → `TC_CE_MODE_MISMATCH`（语法阶段也可拒绝）。
+- **不接受模式关键字**：写了 `wrap` → `TC_CE_MODE_MISMATCH`（附录 A 的 `mode_binary_arith_expr` 对无符号类型同样提供模式槽，Token 序列被 EBNF 接受，故只能在静态语义阶段报告，不得改报 `TC_CE_SYNTAX`；[语言标准 §6.3.1]）。
 
 **`isize` / `usize` 平台字长约束**：
 
@@ -398,7 +398,7 @@
 | 字面量类别 | 编译器检查规则 | 错误码 |
 | ---------- | ------------ | ------ |
 | 无后缀整数字面量 | 解析绝对值 `N`（`0 ≤ N ≤ 2^64−1`，词法阶段）；可带 `-`。有符号上下文要求数学值位于 [语言标准 §3.2] 对应范围；无符号上下文要求值非负且在范围内 | `TC_CE_LITERAL_OUT_OF_RANGE`（词法阶段上限）或在上下文中超范围时同样使用本错误码；`u` 后缀用于有符号上下文 → `TC_CE_LITERAL_TYPE` |
-| `u`/`U` 整数字面量 | 不得带 `-`（语法拒绝）；仅用于无符号整数上下文；值须在对应范围内 | `TC_CE_LITERAL_TYPE`（误用于有符号上下文或带 `-`） |
+| `u`/`U` 整数字面量 | 不得带 `-`（语法拒绝，[语言标准 §2.3.1]）；仅用于无符号整数上下文；值须在对应范围内 | `TC_CE_LITERAL_TYPE`（仅「误用于有符号上下文」）；带 `-` 属语法拒绝 `TC_CE_SYNTAX`（第 3 阶段，附录 A `integer_literal` 不接受负号与 `u`/`U` 并用） |
 | 普通浮点字面量 | 无后缀源类型为 `float64`，`f`/`F` 后缀源类型为 `float32`。有限十进制值直接按 roundTiesToEven 舍入到源类型（[语言标准 §2.4.1]）。词法阶段：非零有限值舍入为零或有限值舍入为无穷 → `TC_CE_LITERAL_OUT_OF_RANGE`。上下文阶段：源类型与期望类型不一致 → `TC_CE_LITERAL_TYPE` | `TC_CE_LITERAL_OUT_OF_RANGE` / `TC_CE_LITERAL_TYPE` |
 | `inf`/`-inf`/`nan` | 词法层归约为 `float_special` Token，不携带类型。上下文阶段以期望类型定型（[语言标准 §2.4.1] 期望类型表）。仅用于浮点上下文；误用于非浮点上下文 → `TC_CE_LITERAL_TYPE` | `TC_CE_LITERAL_TYPE` |
 | `true`/`false` | 结果类型为 `bool`，规范字节 `0x01`/`0x00`。仅用于 `bool` 上下文；误用于非 `bool` 上下文 → `TC_CE_LITERAL_TYPE` | `TC_CE_LITERAL_TYPE` |
@@ -427,7 +427,9 @@
 - `cast` 中无后缀整数字面量的源类型为 `int64`，`u`/`U` 后缀为 `uint64`；
 - `cast` 中无后缀浮点字面量源类型为 `float64`，`f`/`F` 后缀为 `float32`；
 - `cast` 中 `inf`/`-inf`/`nan` 以目标类型为源类型，直接构造 canonical 位模式；
+- `cast` 中 `true`/`false` 的源类型为 `bool`，按 [语言标准 §6.6.5] 生成规范字节，不报 `TC_CE_LITERAL_TYPE`；
 - `bitcast` 中整数字面量的源位宽取目标类型的位宽，后缀决定有符号/无符号解释；
+- `bitcast` 中 `inf`/`-inf`/`nan` 的源类型由目标位宽决定（与目标同宽的浮点），直接构造 canonical 位模式，**不得**报 `TC_CE_BITCAST_WIDTH`；
 - `bitcast` 中浮点字面量的源精度由其 `f`/`F` 后缀唯一决定；与目标位宽失配 → `TC_CE_BITCAST_WIDTH`。
 
 **`bool` ↔ 整数/浮点转换**（[语言标准 §6.6.5]）：编译器必须生成规范字节：`true`(0x01)→整数1/浮点1.0，`false`(0x00)→整数0/浮点0.0。整数/浮点→`bool` 时，零(0/0.0)→`false`(0x00)，非零(含NaN)→`true`(0x01)。编译器必须验证写入 `bool` 目标的所有字节均已规范化为 `0x00`/`0x01`。
@@ -480,9 +482,9 @@
 
 `#lib` 的 `static let` 和 `static var` 均须在声明时带初始化器。
 
-**`static let`** 是编译期常量：其初始化器必须是 §5.2.1 描述的单层编译期常量表达式，在编译期求值后内联到所有使用点。编译器必须在收集函数签名后、分析函数体前完成全部可达 `#lib` 的 `static let` 求值。
+**`static let`** 是编译期常量：其初始化器必须是 §5.2.1 描述的单层编译期常量表达式。**求值**属 CT，在第 9 阶段（见 §1.2）完成全部可达 `#lib` 的 `static let` 求值并内联到所有使用点；求值类诊断按 §1.3 挂起至全部 SEM 类诊断无触发后再报告。
 
-**`static let`** 在编译期求值（第 6 阶段子阶段 6b 起）：初始化器的来源仅限**字面量**与**源序更早且已成功求值的 `let` / `static let`**（含经 `Self.` / 导入限定解析到的 `static let`），**不得引用 `static var`**（[语言标准 §4.3]、[语言标准 §5.2.1]）。违反时在任一位置（整条 RHS、操作数、字段读基址、`.count` 基址、构造器字段值、`cast`/`bitcast` 源、`memblock` 的 `N` 与 `count:`）统一报 `TC_CE_CONSTANT_EXPRESSION`；实现上由 `tc_eval_one_static_let`（整条 `Self.<名>`）、`tc_const_eval.c` 的符号/字段/`.count` 查找与 `tc_memblock_check.c` 的 `usize_operand` 解析（`tc_memblock_resolve_usize_operand`）共同保证。
+**`static let`** 的**来源与形态**检查在第 6 阶段子阶段 6d 完成（属 SEM）：初始化器的来源仅限**字面量**与**源序更早且已成功求值的 `let` / `static let`**（含经 `Self.` / 导入限定解析到的 `static let`），**不得引用 `static var`**（[语言标准 §4.3]、[语言标准 §5.2.1]）。违反时在任一位置（整条 RHS、操作数、字段读基址、`.count` 基址、构造器字段值、`cast`/`bitcast` 源、`memblock` 的 `N` 与 `count:`）统一报 `TC_CE_CONSTANT_EXPRESSION`；实现上由 `tc_eval_one_static_let`（整条 `Self.<名>`）、`tc_const_eval.c` 的符号/字段/`.count` 查找与 `tc_memblock_check.c` 的 `usize_operand` 解析（`tc_memblock_resolve_usize_operand`）共同保证。
 
 **`static var`** 对应一个模块静态存储槽。初始化器可为 §5.2.1 定义的单层编译期常量表达式，但不得含 `funcall`；操作数仅可为字面量、当前源序中更早已成功初始化的 `Self` 成员（`static let` 与 `static var`），以及经导入限定解析到的公开 `static let` / `static var`。不得引用局部 `var` 或函数形参。**诊断归属**（[语言标准 §4.2]）：引用本模块中源序更晚（或自身）的静态成员时，该名称在源序可见性上尚未建立 → `TC_CE_UNDEFINED_VARIABLE`（与 [语言标准 §5.2.1] 的前向引用口径一致，故静态成员之间不形成初始化环）；操作数可见但不属于上述允许来源时 → `TC_CE_CONSTANT_EXPRESSION`。
 
@@ -559,12 +561,12 @@
 
 | 模式 | 受检查的顶层名称 |
 |------|----------------|
-| `#program` | 顶层 `var` 名、顶层 `let` 名。不含 `import` 引入的其他模块名（同名模块可被不同名称多次导入，只要不同 `import` 的命名自身不冲突）。不含关键字与保留标识符（它们在更早的语法阶段已被拒绝）。 |
+| `#program` | 顶层 `var` 名、顶层 `let` 名、`struct` 名。不含 `import` 引入的其他模块名（导入名之间的互斥由重复导入检查负责，见下）。不含关键字与保留标识符（它们在更早的语法阶段已被拒绝）。 |
 | `#lib` | `func` 名、`struct` 名、`static let` 名、`static var` 名 |
 
 因此，"导入名与本模块成员冲突"具体指：
 
-- 在 `#program` 中，若 `import foo` 且该模块顶层存在 `var foo: int32 = ...` 或 `let foo: int32 = ...`，报告本错误；
+- 在 `#program` 中，若 `import foo` 且该模块顶层存在 `var foo: int32 = ...`、`let foo: int32 = ...` 或 `struct foo`，报告本错误；
 - 在 `#lib` 中，若 `import foo` 且该模块存在名为 `foo` 的 `func`、`struct`、`static let` 或 `static var`，报告本错误。
 
 下列情形**不属于**本错误码：
@@ -587,7 +589,7 @@
 
 - **语法形态检查**（第 3 阶段）：`var` 声明必须带 `= <rhs>` 或 `= funcall(...)`。缺初始化器 → `TC_CE_VAR_MISSING_INIT`（专属诊断，不得降级为 `TC_CE_SYNTAX`）。
 - **初始化器形态**：普通 RHS（字面量、已定义标识符、单个运算、`cast`/`bitcast`，见 §6.1.1）；或接收非 `void` 返回值的专用 `funcall` 形式。`read` 不能代替初始化器。
-- **阶段顺序**：声明与顶层分区检查在第 3 阶段；函数签名收集在第 5 阶段；`var` 名称/类型/初始化器语义在第 6 阶段；确定初始化分析在第 11 阶段（见 §1.2）。
+- **阶段顺序**：声明与顶层分区检查在第 3 阶段；函数签名收集在第 4 阶段子阶段 4d；`var` 名称/类型/初始化器语义在第 6 阶段；确定初始化分析在第 11 阶段（见 §1.2）。
 - **槽位管理**：编译器在进入作用域时为该作用域内全部 `var` 建立固定槽位，初始状态为未初始化。`var` 语句执行成功后写入对应槽位并标记已初始化。
 - **块内 `var`**：离开块实例时槽位销毁（物理槽可复用）；反向跳转/下一迭代再次执行 `var` 时重新初始化同一词法槽。
 
@@ -672,9 +674,10 @@
 | 运算 | 类型 | 合法模式 | 非法模式 → 诊断 |
 | ---- | ---- | -------- | --------------- |
 | `add`/`sub`/`mul`/`neg` | 有符号整数 | strict（无关键字）、`wrap` | 其他关键字 → `TC_CE_MODE_MISMATCH` |
-| `add`/`sub`/`mul`/`neg` | 无符号整数 | 固定模 `2ⁿ`；不接受模式关键字 | 写了 `wrap` → `TC_CE_MODE_MISMATCH`（语法阶段也可拒绝） |
+| `add`/`sub`/`mul`/`neg` | 无符号整数 | 固定模 `2ⁿ`；不接受模式关键字 | 写了 `wrap` → `TC_CE_MODE_MISMATCH`（附录 A 对无符号类型同样提供模式槽，不得改报 `TC_CE_SYNTAX`） |
 | `shl` | 全部整数 | strict（无关键字）、`wrap` | |
-| `div`/`mod`/`abs`/`shr` | 全部整数 | 无模式关键字 | 写了模式关键字 → `TC_CE_MODE_MISMATCH` |
+| `div`/`mod`/`abs` | 全部整数 | 无模式关键字 | 写了模式关键字 → `TC_CE_MODE_MISMATCH` |
+| `shr` | 全部整数 | 无模式关键字 | 普通 RHS：无模式参数位置，写了 `wrap`/`ieee`/`truncate` 属**语法拒绝** `TC_CE_SYNTAX`（附录 A `wrap_shift_expr` 只接受 `shl`）；`const_shift_expr`（`let` RHS）：写了模式关键字 → `TC_CE_MODE_MISMATCH` |
 | `add`/`sub`/`mul`/`div`/`mod` | 浮点 | strict（无关键字）、`ieee` | |
 | `abs`/`neg` | 浮点 | 无模式关键字；纯符号位操作 | |
 | 比较、逻辑、位运算 | 对应合法类型 | 无模式关键字 | |
@@ -871,7 +874,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `ptr_eq(T, p1, p2)` / `ptr_ne(T, p1, p2)` | `T`（所指类型，非 `void`） | 同为 `ptr<T>` | `nullptr` 合法；两个 `nullptr` 比较 → `true`/`false`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否（但 `nullptr` 比较编译期可折叠） |
 | `ptr_lt/le/gt/ge(T, p1, p2)` | `T`（所指类型，非 `void`） | 同为 `ptr<T>`，均非 `nullptr` | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否 |
 | `ptr_size(T, ptr)` | `T`（所指类型，非 `void`） | `ptr`: `ptr<T>`（可为 `nullptr`） | 返回 `sizeof_bits(T)`，编译期常量 | 是 |
-| `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `T`（元素类型，非 `void`） | `dst`, `src`: `ptr<T>`；`d_idx`, `s_idx`, `len`: 整数 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或下标数学值 `< 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`（编译期）或 `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（运行时）；不检查越界；执行语义为 memmove | 否（语句） |
+| `memcopy_unsafe(T, dst, d_idx, src, s_idx, len)` | `T`（元素类型，非 `void`） | `dst`, `src`: `ptr<T>`；`d_idx`, `s_idx`, `len`: 整数 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；`len` 编译期可确定 `< 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；`len < 0` 或下标数学值 `< 0` 在运行时 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`；不检查越界；执行语义为 memmove | 否（语句） |
 
 编译器必须验证所有指针指令的显式类型参数 `T` 与操作数声明类型的一致性。`ptr_load`、`ptr_address`、`ptr_add`、`ptr_sub`、`ptr_eq`/`ptr_ne`、`ptr_lt`…`ptr_ge`、`ptr_size` 均为 RHS（`operand`），`ptr_store` 与 `memcopy_unsafe` 为独立语句。
 
@@ -889,7 +892,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 - **操作数类型**：`dst` 与 `src` 须同为 `ptr<T>` 类型；`d_idx`、`s_idx`、`length` 须为整数类型操作数（彼此类型可不同）。`length` 的数学值 ≥ 0。
 - **可变性约束**：仅当 `dst` 所指外层绑定为可写（`var` / 可写 `static var`）时允许；所指为 `let`/`static let`/形参时报告 `TC_CE_CONSTANT_ASSIGNMENT`。
 - **空指针检查**：`dst` 或 `src` 为 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`。
-- **区间合法性**：须满足 [语言标准 §6.8.9] 的 `length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`。编译期可确定任一条件失败 → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；运行时 → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。`length = 0` 合法。有符号下标/长度须按有符号数学值判负，不得先按无符号回绕再检查。
+- **区间合法性**：须满足 [语言标准 §6.8.9] 的 `length ≥ 0 ∧ dst_idx ≥ 0 ∧ src_idx ≥ 0`。**编译期**只对 `length` 判静态码：可确定 `length < 0` → `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE`；`length < 0` 或下标数学值 `< 0` 在**运行时** → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`（负下标不在编译期报告，附录 B.11/B.13）。`length = 0` 合法。有符号下标/长度须按有符号数学值判负，不得先按无符号回绕再检查。
 - **不检查越界**：`memcopy_unsafe` 不检查拷贝区间是否超出实际分配的内存边界。越界拷贝行为为实现定义（[语言标准 §1.3]）。
 - **执行语义**：等价于 memmove——先把源区间元素按抽象位串拷入临时缓冲，再写入目标区间，重叠区间行为完全确定。
 - `memcopy_unsafe` 不是 `let` 常量表达式的一部分；出现在 `const_rhs` 中属**语法拒绝**（`TC_CE_SYNTAX`，[语言标准 §5.2.1]）。
@@ -992,7 +995,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 |---------|------------|---------|
 | 标量（`scalar_type`，含 `isize`/`usize`） | `operand`（标识符/限定名/字段读取/字面量）；运算、转换、构造器、`funcall` 不可 | 复制标量值 |
 | `memblock<T, N>` | 标识符（已声明带长度 memblock 绑定），或 `memblock_constructor`（填充/逐值） | 深拷贝全部存储区（含长度头部与元素数据） |
-| `ptr<T>` | 同型 `ptr<T>` 标识符或 `nullptr` | 复制指针值（地址），不复制所指对象；传参后源与形参指向同一对象 |
+| `ptr<T>` | 同型 `ptr<T>` 的任意 `operand`——裸标识符、`Self.<名>`、`<模块名>.<名>`、结构体字段读取（字段类型为 `ptr<T>`），或 `nullptr`（[语言标准 §6.1.2]、[语言标准 §6.8.10]） | 复制指针值（地址），不复制所指对象；传参后源与形参指向同一对象 |
 | 结构体类型 | 同类型标识符（含限定名、字段读取），或同类型 `struct_constructor` | 整块深拷贝（含各带长度 memblock 字段的完整存储区） |
 
 - 每个形参类型是实参的唯一期望类型，不执行隐式转换。字面量按 [语言标准 §3.6] 以形参类型为上下文检查。
@@ -1014,9 +1017,9 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 多个调用有错时选择 `funcall` 位置最早的调用。选定调用后依次检查：
 
 1. 目标函数是否存在或是否因作用域/可见性不可直接以当前书写形式调用：不存在时定位到函数名，报告 `TC_CE_UNDEFINED_FUNCTION`，不检查实参；裸名命中本库 `func` 时报告 `TC_CE_FUNCTION_SCOPE_ACCESS`；经导入限定解析到存在但为 `private` 的函数时报告 `TC_CE_PRIVATE_MEMBER_ACCESS`。后两者与"不存在"同级，均抑制实参检查。
-2. 调用位置是否适合返回类型；非 `void` 独立调用、`void` 用于 `var` 初始化、`void` 用于已有变量赋值均定位到 `funcall`，不检查实参。
-3. 实参重复、未知、缺失、顺序、类型，按此顺序检查。
-4. 非 `void` 调用接收变量的声明类型：`var` 声明为声明类型 Token，已有变量赋值为赋值目标标识符。在实参全部合法后检查，错误定位到声明类型 Token 或目标标识符。
+2. 调用位置是否适合返回类型；非 `void` 独立调用 → `TC_CE_FUNCALL_POSITION`，`void` 用于 `var` 初始化或已有变量赋值 → `TC_CE_FUNCALL_RESULT_TYPE`（三者均定位到 `funcall`，不检查实参；[语言标准 §8.2.3]、附录 B.12）。
+3. 实参重复、未知、缺失、数量超限、顺序、类型，按此顺序检查；数量超限（`TC_CE_EXTRA_ARGUMENT`）**仅在全部实参名称已知时**判定（§8.2.2），不得抢先于重复/未知/缺失。
+4. 非 `void` 调用接收变量的声明类型：`var` 声明为声明类型 Token，已有变量赋值为赋值目标标识符。在实参全部合法后检查；返回类型与接收声明类型不一致时报 `TC_CE_TYPE_MISMATCH`（附录 B.4），错误定位到声明类型 Token 或目标标识符。
 
 实参重复定位到第二个重复名称；未知实参定位到最早未知名称；缺失实参定位到右括号并指出声明顺序最靠前的缺失形参；顺序错误定位到第一个名称已知、集合完整但与对应位置形参不同的名称；类型错误定位到最早不匹配操作数。
 
@@ -1054,10 +1057,12 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 | 调用写入位置 | 非 `void` 函数 | `void` 函数 |
 | ------------ | ------------- | ----------- |
-| `var x: T = funcall(...)` | 合法 | `TC_CE_FUNCALL_POSITION` |
-| `x = funcall(...)` | 合法（`x` 须已确定初始化） | `TC_CE_FUNCALL_POSITION` |
+| `var x: T = funcall(...)` | 合法 | `TC_CE_FUNCALL_RESULT_TYPE` |
+| `x = funcall(...)` | 合法（`x` 须已确定初始化） | `TC_CE_FUNCALL_RESULT_TYPE` |
 | 独立 `funcall(...)` | `TC_CE_FUNCALL_POSITION` | 合法 |
 | `let` / `return` / 嵌套实参 | 语法拒绝（`TC_CE_SYNTAX`） | 语法拒绝 |
+
+非 `void` 函数的返回类型与接收 `var` / 赋值目标的声明类型不一致时报 `TC_CE_TYPE_MISMATCH`（[语言标准 §8.2.3]、附录 B.4），不使用 `TC_CE_FUNCALL_RESULT_TYPE`——后者只用于「`void` 调用出现在需要值的位置」。
 
 ### 8.6 调用帧
 
@@ -1396,7 +1401,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_UNINITIALIZED_VARIABLE` | `UninitializedVariable` | 未初始化变量错误          | 静态    | 声明存在，但当前 CFG 点不满足确定初始化（[语言标准 §9.2]）          |
 | `TC_CE_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的非比较运算、变量或常量定义、赋值、转换、`ptr<T>` 同型约束失败发生类型不一致，以及 `write` / `writeln` 的标识符操作数或 `read` 目标 `var` 的声明类型与显式 `scalar_type` 不一致；比较标识符操作数与显式 `T` 不一致专用 `TC_CE_COMPARISON_TYPE_MISMATCH`；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合（含 I/O 使用 `memblock`/`ptr`）使用 `TC_CE_SYNTAX`；跨 `ptr<T>`/`ptr<U>` 比较亦用本错误（[语言标准 §3.10.7]） |
 | `TC_CE_LITERAL_OUT_OF_RANGE`      | `LiteralOutOfRange`          | 字面量范围错误                | 静态（第 2/6/7/8 阶段） | 第 2 阶段：整数绝对值超过 [语言标准 §2.3.5] 上限，或有限浮点字面量按后缀源类型舍入为零/无穷；第 6/7/8 阶段：已形成的字面量超出对应普通上下文、形参或返回类型范围 |
-| `TC_CE_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态（第 6/7/8 阶段） | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀源类型与普通上下文、形参或返回类型不一致；字面量 Token 自身的形成与范围检查属于第 2 阶段，不使用本错误码。负号整数字面量带 `u`/`U`、浮点字面量带 `u`/`U` 属第 2 阶段 `TC_CE_SYNTAX` |
+| `TC_CE_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态（第 6/7/8 阶段） | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀源类型与普通上下文、形参或返回类型不一致；字面量 Token 自身的形成与范围检查属于第 2 阶段，不使用本错误码。负号整数字面量带 `u`/`U`、浮点字面量带 `u`/`U` 属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；附录 A `integer_literal` 不接受负号与 `u`/`U` 并用；[语言标准 §2.3.1]） |
 | `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 做 `ptr_address`；`ptr_store` / `memcopy_unsafe` 所指外层为只读绑定或**形参**（经 `ptr_address` 取址后写穿；[语言标准 §3.9.5]、[语言标准 §6.8.3]、[语言标准 §8.1.2]） |
 | `TC_CE_CONSTANT_EXPRESSION`       | `ConstantExpressionError`    | 常量表达式错误                | 静态        | 常量 RHS 含有运行时依赖或非法形态。具体子条件按下表判定，全部映射为同一错误码，但打印名附加具体原因文本 |
 
@@ -1435,9 +1440,9 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_MISSING_END`               | `MissingEndError`            | 缺少 `end`                    | 静态        | `func`/`if`/`while`/`struct` 未以 `end` 结束                          |
 | `TC_CE_CONDITION_TYPE`            | `ConditionTypeError`         | 条件类型错误                  | 静态        | `if`/`while` 条件 RHS 结果非 `bool`                          |
 | `TC_CE_MODE_MISMATCH`             | `ModeMismatch`               | 模式不匹配错误                | 静态        | EBNF 已接受候选模式参数，但操作、类型与 `wrap`/`ieee`/`truncate` 不符合 [语言标准 §6.3.1] / [语言标准 §6.6]；无模式参数产生式的形态使用 `TC_CE_SYNTAX` |
-| `TC_CE_BITCAST_WIDTH`         | `BitcastWidthError`      | 位重解释宽度错误          | 静态    | `bitcast` 源、目标位宽不一致（[语言标准 §6.6.6]）                     |
+| `TC_CE_BITCAST_WIDTH`         | `BitcastWidthError`      | 位重解释宽度错误          | 静态    | `bitcast` 源、目标位宽不一致，或源为字面量时其源类型（由后缀/目标位宽规则确定）与目标位宽不匹配（[语言标准 §6.6.6]、附录 B.4）                     |
 | `TC_CE_LABEL_NOT_FOUND`           | `LabelNotFound`              | 标签未找到错误                | 静态        | 当前函数控制流域内不存在 `goto` 引用的同名标签（含标签仅存在于另一函数；[语言标准 §7.3.2]）                   |
-| `TC_CE_DUPLICATE_LABEL`           | `DuplicateLabel`             | 标签重复定义错误              | 静态        | 同一作用域内定义了同名标签                                   |
+| `TC_CE_DUPLICATE_LABEL`           | `DuplicateLabel`             | 标签重复定义错误              | 静态        | 同一**代码块**内定义了同名标签；跨块（含兄弟块）同名合法（[语言标准 §7.3.2]、附录 B.9） |
 | `TC_CE_GOTO_OUTSIDE_FUNCTION` | `GotoOutsideFunction`    | 函数外 goto 错误          | 静态    | `goto` 不具有 `func` 词法祖先（[语言标准 §7.3]）                    |
 | `TC_CE_LABEL_OUTSIDE_FUNCTION` | `LabelOutsideFunction`  | 函数外标签错误            | 静态    | `label` 不具有 `func` 词法祖先（[语言标准 §7.3]）                   |
 | `TC_CE_LABEL_INSIDE_LOOP`         | `LabelInsideLoop`            | 标签定义在循环内错误          | 静态        | `label` 定义在 `while` 块作用域内                            |
@@ -1461,8 +1466,8 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_UNKNOWN_ARGUMENT` | `UnknownArgument` | 未知实参 | `funcall` | 实参名不属于被调签名 |
 | `TC_CE_EXTRA_ARGUMENT` | `ExtraArgument` | 多余实参 | `funcall` | 实参个数多于形参（名称全部已知） |
 | `TC_CE_ARGUMENT_ORDER` | `ArgumentOrderError` | 实参顺序错误 | `funcall` | 文本顺序与形参声明顺序不同 |
-| `TC_CE_FUNCALL_POSITION` | `FunctionCallPositionError` | 函数调用位置错误 | `funcall` | 非 `void` 结果被丢弃，或 `void` 调用用于 `var` 初始化或已有变量赋值 |
-| `TC_CE_FUNCALL_RESULT_TYPE` | `FunctionCallResultTypeError` | 调用结果类型错误 | `funcall` | `var` 声明类型或赋值目标类型与非 `void` 返回类型不同 |
+| `TC_CE_FUNCALL_POSITION` | `FunctionCallPositionError` | 函数调用位置错误 | `funcall` | 非 `void` 结果被丢弃（独立 `funcall(...)` 语句） |
+| `TC_CE_FUNCALL_RESULT_TYPE` | `FunctionCallResultTypeError` | 调用结果类型错误 | `funcall` | `void` 函数调用用于 `var` 初始化或已有变量赋值 |
 | `TC_CE_RETURN_OUTSIDE_FUNCTION` | `ReturnOutsideFunction` | 顶层返回错误 | `return` | `return` 位于函数体外 |
 | `TC_CE_RETURN_FORM` | `ReturnFormError` | 返回形式错误 | `return` | 有值/无值形式与返回类型不匹配 |
 | `TC_CE_RETURN_TYPE` | `ReturnTypeError` | 返回类型错误 | `return` | 返回操作数类型与声明返回类型不同 |
@@ -1521,7 +1526,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 | 错误码 | 打印名 | 诊断类别 | 阶段 | 触发条件 |
 | --- | --- | --- | --- | --- |
-| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（静态） | 静态 | `memcopy_unsafe` 的 `length` 或 `dst_idx`/`src_idx` 在编译期可确定数学值 `< 0`（[语言标准 §6.8.9]） |
+| `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（静态） | 静态 | `memcopy_unsafe` 的 `length` 在编译期可确定数学值 `< 0`（负下标不在编译期报告；[语言标准 §6.8.9]、附录 B.11） |
 | `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE` | `MemcopyUnsafeInvalidRange` | memcopy 区间非法（运行时） | 运行时 | `memcopy_unsafe` 的 `length` 或下标运行时数学值 `< 0` |
 | `TC_RE_NULL_POINTER_DEREFERENCE` | `NullPointerDereference` | 空指针解引用 | 运行时 | 见 §11.4.1 / [语言标准 §11.1]；触发场景：`ptr_load`、`ptr_store`、`memcopy_unsafe`、指针序关系比较（`ptr_lt`/`ptr_le`/`ptr_gt`/`ptr_ge`）的操作数为 `nullptr` |
 | `TC_RE_NULL_POINTER_ARITHMETIC` | `NullPointerArithmetic` | 空指针算术 | 运行时 | 见 §11.4.1 / [语言标准 §11.1]；触发场景：`ptr_add`、`ptr_sub` 的操作数为 `nullptr` |
