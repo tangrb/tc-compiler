@@ -1,0 +1,6 @@
+#program
+; B-42 / §1.3：bitcast 伪造的槽索引越过槽位数组上界时不得越界读写，
+; 按空指针解引用报 TC_RE_NULL_POINTER_DEREFERENCE（与 B-10 的非法编码口径一致）
+var p: ptr<int32> = bitcast(ptr<int32>, 0x7FFFFFFD)
+var v: int32 = ptr_load(int32, p)
+writeln(int32, v)

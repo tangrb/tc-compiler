@@ -11,6 +11,8 @@
 typedef struct TcExecuteCtx {
     TcStmtIndexCursor index;
     TcValue *slots;
+    size_t slot_capacity; /* slots 数组容量（B-42：指针解引用须校验槽索引上界；
+                           * 嵌入模式含临时槽位区容量，见 tc_embed_slots.h） */
     const TcSymbolTable *symbols;
     const TcTypedProgram *program;
     TcCallFrame *call_frame;

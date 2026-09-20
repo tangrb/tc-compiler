@@ -177,6 +177,7 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
     }
     tc_slots_init_uninitialized(ctx->exec_ctx.slots, ctx->slot_capacity);
 
+    ctx->exec_ctx.slot_capacity = ctx->slot_capacity;
     ctx->exec_ctx.symbols = &program->symbols;
     ctx->exec_ctx.program = program;
     ctx->exec_ctx.current_func_id = -1;

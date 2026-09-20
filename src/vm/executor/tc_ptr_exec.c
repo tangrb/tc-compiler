@@ -62,7 +62,8 @@ int tc_exec_ptr_load(const TcType *pointee, const TcOperand *ptr_op, TcExecuteCt
                           "null pointer dereference");
         return -1;
     }
-    if (tc_ptr_decode_slot(ptr_value.bits, &slot) != 0 || !ctx->slots || slot < 0) {
+    if (tc_ptr_decode_slot(ptr_value.bits, &slot) != 0 || !ctx->slots || slot < 0 ||
+        (size_t)slot >= ctx->slot_capacity) {
         /*
          * 抽象槽编码（§3.10.9、§1.3 实现定义清单第 4 项）之外的位模式一律按空指针
          * 处理：AOT 侧 tc_aot_ptr_load 对无法解码的编码同样报
@@ -102,7 +103,8 @@ int tc_exec_ptr_store(const TcType *pointee, const TcOperand *ptr_op, const TcOp
                           "null pointer dereference");
         return -1;
     }
-    if (tc_ptr_decode_slot(ptr_value.bits, &slot) != 0 || !ctx->slots || slot < 0) {
+    if (tc_ptr_decode_slot(ptr_value.bits, &slot) != 0 || !ctx->slots || slot < 0 ||
+        (size_t)slot >= ctx->slot_capacity) {
         /* 同上：与 AOT tc_aot_ptr_store 一致的非法编码处理。 */
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");
@@ -151,7 +153,7 @@ int tc_exec_ptr_arith(int is_add, const TcType *pointee, const TcOperand *ptr_op
     if (tc_ptr_read_offset(offset_op, ctx, &offset, diag, line) != 0) {
         return -1;
     }
-    if (tc_ptr_decode_slot(ptr_value.bits, &slot) != 0) {
+    if (tc_ptr_decode_slot(ptr_value.bits, &slot) != 0 || (size_t)slot >= ctx->slot_capacity) {
         /* 与 AOT tc_aot_ptr_arith 一致：非法编码按空指针算术处理。 */
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_ARITHMETIC, line, TC_COLUMN_UNKNOWN,
                           "null pointer arithmetic");

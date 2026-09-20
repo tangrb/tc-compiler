@@ -1291,6 +1291,7 @@ int tc_execute_statement(const TcStatement *stmt, TcValue *slots, const TcSymbol
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.slots = slots;
+    ctx.slot_capacity = tc_symbol_table_runtime_slot_count(symbols);
     ctx.symbols = symbols;
     ctx.current_func_id = -1;
     tc_stmt_index_reset(&ctx.index);
@@ -1325,6 +1326,7 @@ int tc_execute(const TcTypedProgram *program, TcDiagnostic *diag) {
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.slots = slots;
+    ctx.slot_capacity = slot_count;
     ctx.symbols = &program->symbols;
     ctx.program = program;
     ctx.current_func_id = -1;

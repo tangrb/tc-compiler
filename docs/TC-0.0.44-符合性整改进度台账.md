@@ -148,7 +148,7 @@
 | B-39 | SYN 阶段错位（`Self` 检查） | ☑ | |
 | B-40 | SEM 码由解析器发出（`@padding`/`N` 来源） | ☐ | |
 | B-41 | 深一级 `end` 缩进码归属 | ⊘ 待标准裁决 | |
-| B-42 | `bitcast` 伪造指针槽索引越界 | ☐ | |
+| B-42 | `bitcast` 伪造指针槽索引越界 | ☑ | |
 | B-43 | `memblock_copy` `length == 0` 跳过区间检查 | ☑ | |
 | B-44 | `memblock_copy` 常量区间从不静态检查 | ☑（B-21 闭合） | |
 | B-45 | strict `shl` 零被移位数不报溢出 | ☐ | |
@@ -243,6 +243,7 @@
 | B-39 | `tc_parser.c` `tc_parse_source_to_program`：#program 模式在解析主体前按**源序**扫描全部 Token 行，出现 `Self` 即报 `TC_CE_PROGRAM_MODE_MISUSE`（SYN，第 3 阶段）——原实现只抓行首 `Self`，其余由分析器在 SEM 检查，导致同文件后面更晚的语法错误抢先（§11 第 1 条）。`test_module` 的 Self 用例改为断言解析阶段即拒绝。新增 `tests/errors/static/self_before_later_syntax.tc`（VM check_fail + ProgramModeMisuseError）；test-map 回填 1103 VM | 审计复现（第 2 行 `Self.x` + 第 3 行 `add(int32, 1)` 缺参）现报第 2 行 `ProgramModeMisuseError: Self is not allowed in #program`（原报第 3 行 SyntaxError）；嵌套块内的 `Self` 同样在源序位置报出；`#lib` 的 `Self` 用法不受影响；全量三层与 5 项门禁通过 |
 | B-43 / B-58 | `tc_memblock_exec.c` 与 `tc_aot_rt.c` 的 `memblock_copy` 区间判定：`length == 0` 时不再短路——§6.7.2.4 只放宽「下标**等于** count」，下标**大于** count 恒非法，故空拷贝的 dst/src 越界下标同样报 `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`。新增 `tests/errors/runtime/memblock_copy_empty_{src,dst}_oob.tc`（VM fail_msg、AOT runtime_fail）；test-map 回填 1105 VM | 审计两例（`memblock_copy(int32, b, 0, a, s, n)` 与 `memblock_copy(int32, b, 9, a, 0, n)`，`s=9`、`n=0`、`count: 4`）由正常结束变为 `MemblockIndexOutOfRange`（VM/AOT 一致）；合法空拷贝（下标 == count）仍接受；全量三层与 5 项门禁通过 |
 | B-44 / B-59 / B-60 | 无需新代码：常量负 `length`（B-44）与常量负 `dst` 下标（B-59）已由 B-21 的 `tc_memblock_check_copy` 常量区间判定覆盖；35 位宽度的越界诊断（B-60）已由 B-27 的 64 字节缓冲 + 宽度范围检查覆盖。三例复核结果见「验证」列 | `memblock_copy(int32, b, 0, a, 0, -1)` 与 `memblock_copy(int32, b, -1, a, 0, 1)` 均为静态 `MemblockIndexOutOfRange`（原为运行期才报）；`%`+35 个 `9`+`d` 报 `FormatSpecifierError: format width or precision out of range`（原为 `SyntaxError: format specifier too long`） |
+| B-42 | `TcExecuteCtx` 增 `slot_capacity`（独立 VM 取声明槽位数、嵌入 VM 取含临时区的容量），`tc_ptr_exec.c` 的 load/store/arith 与 `tc_memblock_exec.c` 的 memcopy_unsafe 在解码槽索引后追加 `slot >= slot_capacity` 判定，越界按 `TC_RE_NULL_POINTER_DEREFERENCE` 报（与 B-10 的非法编码口径一致，§1.3 零 UB）。新增 `ptr_forged_slot_oob_{load,store,memcopy}.tc`（VM fail_msg；AOT 侧运行时尚无上界校验，其确定性归 B-57）；test-map 回填 1108 VM | 审计复现 `bitcast(ptr<int32>, 0x7FFFFFFD)` 后 `ptr_load` 由 SIGSEGV（ASan heap-buffer-overflow）变为 `NullPointerDereference`；`ptr_store` 与 `memcopy_unsafe` 同样不再越界读写；合法指针（含嵌入临时槽位）不受影响；全量三层与 5 项门禁通过。注：AOT 运行时仍无槽位上界（属 B-57 范围） |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -313,7 +314,8 @@
 | 49 | 阶段 2-B36 格式说明符重复标志/长度 | 台账记录（由 `5f1dd2a` B-3 与 `febd46f` B-27 闭合，无新代码） |
 | 50 | 阶段 2-B38 `#lib` 顶层裸 var/let 语法拒绝 | `d434245 fix(0.0.44-B38): reject bare top-level var/let in #lib at parse time` |
 | 51 | 阶段 2-B39 `#program` Self 按源序在 SYN 报出 | `a47d076 fix(0.0.44-B39): report Self in #program at parse time in source order` |
-| 52 | 阶段 2-B43/B58 空拷贝区间检查；B44/B59/B60 复核闭合 | 本提交 `fix(0.0.44-B43/B58): check empty memblock_copy ranges at runtime` |
+| 52 | 阶段 2-B43/B58 空拷贝区间检查；B44/B59/B60 复核闭合 | `61098f5 fix(0.0.44-B43/B58): check empty memblock_copy ranges at runtime` |
+| 53 | 阶段 2-B42 伪造槽索引上界校验 | 本提交 `fix(0.0.44-B42): bound-check decoded pointer slot indices` |
 
 ---
 

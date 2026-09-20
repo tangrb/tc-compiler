@@ -522,6 +522,12 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
     }
     dst_slot = (int)(dst_ptr.bits >> 1);
     src_slot = (int)(src_ptr.bits >> 1);
+    /* B-42：伪造编码的槽索引须校验上界，避免越界读写（§1.3 零 UB） */
+    if ((size_t)dst_slot >= ctx->slot_capacity || (size_t)src_slot >= ctx->slot_capacity) {
+        tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, stmt->line, TC_COLUMN_UNKNOWN,
+                          "null pointer dereference");
+        return -1;
+    }
     if (tc_memblock_read_index_kind(&stmt->dst_index, ctx, &dst_index, diag, stmt->line,
                                     TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE,
                                     "memcopy_unsafe invalid range") != 0 ||

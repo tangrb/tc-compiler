@@ -1,0 +1,6 @@
+#program
+; B-42：memcopy_unsafe 的伪造槽索引同样拒绝
+var a: int32 = 1
+var p: ptr<int32> = bitcast(ptr<int32>, 0x7FFFFFFD)
+memcopy_unsafe(int32, p, 0, p, 0, 1)
+writeln(int32, a)
