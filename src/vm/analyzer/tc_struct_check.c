@@ -1083,8 +1083,12 @@ static const TcSymbol *tc_struct_resolve_base(const char *base, const TcSymbolTa
 
     if (strncmp(base, "Self.", 5) == 0) {
         member = base + 5;
-        if (global) {
-            const TcSymbol *source = tc_symbol_table_find(global, member);
+        /*
+         * `Self.<名>` 只解析本模块顶层成员（§4.3、§4.4）。统一走名称解析，由其按
+         * 当前模块的成员索引判定归属，避免命中其它模块（含 private）的同名成员。
+         */
+        {
+            const TcSymbol *source = tc_resolve_self_member(member, global);
 
             if (source && source->slot_domain == TC_SLOT_STATIC) {
                 return source;

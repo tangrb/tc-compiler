@@ -638,6 +638,10 @@ run_check_fail "$ROOT/tests/modules/member_private_field.tc" "private member acc
 run_check_fail "$ROOT/tests/modules/member_private_addr.tc" "private member access"
 run_check_fail "$ROOT/tests/modules/member_private_memblock.tc" "private member access"
 run_check_fail "$ROOT/tests/modules/member_private_read_target.tc" "private member access"
+# §4.3/§4.4：`Self.<名>` 只解析本模块成员（含 static let 提前求值路径）
+run_check_fail "$ROOT/tests/modules/SelfForeignPrivLib.tc" "undefined variable 'Hidden'"
+run_check_fail "$ROOT/tests/modules/SelfForeignPubLib.tc" "undefined variable 'K'"
+run_check_fail "$ROOT/tests/modules/SelfForeignFieldLib.tc" "undefined variable 'spc'"
 # B-65：跨模块同名符号不得串槽（VM/AOT 均须输出 funcall 返回值 false）
 run_diff_test "$ROOT/tests/modules/import_same_name_shadow.tc"
 run_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"

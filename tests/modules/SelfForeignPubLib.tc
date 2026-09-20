@@ -1,0 +1,6 @@
+#lib
+; [语言标准 §4.3、§4.4]：`Self.<名>` 不得命中其它模块的**公开**成员（本模块无 K）；
+; 该形态同时覆盖 `static let` 提前求值路径
+; 期望：undefined variable 'K'
+import MemberLib
+public static let X: int32 = Self.K

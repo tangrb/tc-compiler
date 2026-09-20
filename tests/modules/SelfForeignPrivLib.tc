@@ -1,0 +1,9 @@
+#lib
+; [语言标准 §4.3、§4.4]：`Self.<名>` 只解析**本模块**顶层成员——不得读到其它模块的
+; private 成员（本模块无 Hidden，故不得命中 MemberLib.Hidden）
+; 期望：undefined variable 'Hidden'
+import MemberLib
+public func read_foreign_private() int32 then
+    var r: int32 = Self.Hidden
+    return r
+end

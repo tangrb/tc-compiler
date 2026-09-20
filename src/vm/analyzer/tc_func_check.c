@@ -940,7 +940,8 @@ static int tc_static_let_resolve_field_operands(TcRhs *rhs, const TcType *expect
 }
 
 static int tc_eval_one_static_let(TcSymbol *sym, TcRhs *rhs, TcSymbolTable *symbols,
-                                  const TcStructTable *struct_table, TcDiagnostic *diag) {
+                                  const TcStructTable *struct_table, const char *module_name,
+                                  TcDiagnostic *diag) {
     /* Self.member：直接拷贝已求值的常量；其它 RHS 走通用 const_eval */
     if (rhs->kind == TC_RHS_SELF_MEMBER) {
         const char *member = rhs->u.self_member.member_name;
@@ -953,6 +954,15 @@ static int tc_eval_one_static_let(TcSymbol *sym, TcRhs *rhs, TcSymbolTable *symb
             return -1;
         }
         src = tc_symbol_table_find(symbols, member);
+        /*
+         * [语言标准 §4.3、§4.4]：`Self.<名>` 只解析本模块成员。符号表全模块共享，
+         * 故须按模块标记排除其它模块的同名成员（含 private）——否则跨模块
+         * `Self.X` 会取到别的模块的常量值。
+         */
+        if (src && (!src->module_name || !module_name ||
+                    strcmp(src->module_name, module_name) != 0)) {
+            src = NULL;
+        }
         if (!src) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", member);
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, sym->def_line, TC_COLUMN_UNKNOWN,
@@ -1283,7 +1293,7 @@ int tc_func_try_function_scope_access(const TcMemberIndex *members, const char *
 
 int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
                                const TcStructTable *struct_table, TcTypeTable *type_table,
-                               TcDiagnostic *diag) {
+                               const TcMemberIndex *members, TcDiagnostic *diag) {
     TcStaticLetEntry *entries = NULL;
     size_t entry_count = 0;
     size_t entry_cap = 0;
@@ -1306,6 +1316,13 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
     if (!program || !symbols || !diag) {
         return -1;
     }
+
+    /*
+     * static let 求值早于 Pass2 语句检查：此处显式把名称解析作用域上下文指向**本模块**
+     * 的成员索引，使初始化器里的 `Self.<名>` 只能解析本模块成员（§4.3、§4.4）；
+     * 退出时在 `cleanup:` 清除（`tc_name_scope_reset`）。
+     */
+    tc_name_scope_enter_module(members);
 
     for (i = 0; i < program->count; i++) {
         if (program->items[i].kind != TC_STMT_STATIC_LET_DEF) {
@@ -1330,7 +1347,8 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
     }
 
     if (entry_count == 0) {
-        return 0;
+        /* 无 static let：仍须经 cleanup 清除作用域上下文（否则索引悬垂到调用方栈帧） */
+        goto cleanup;
     }
 
     in_degree = (int *)calloc(entry_count, sizeof(int));
@@ -1458,7 +1476,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
             }
         }
         if (tc_eval_one_static_let(sym, (TcRhs *)&entries[idx].def->rhs, symbols, struct_table,
-                                   diag) != 0) {
+                                   program->module_name, diag) != 0) {
             /*
              * CT 类（常量求值）诊断已挂起：按语言标准 §11「阶段优先」
              * 继续求值其余 static let——更晚处理阶段的 SEM 类
@@ -1508,6 +1526,11 @@ cleanup:
     free(adj_cap);
     free(adj_count);
     free(queue);
+    /*
+     * 名称解析作用域上下文只在本次求值窗口内有效：函数返回后立即清除，避免
+     * 悬垂的成员索引被后续分析（`Self.<名>` 解析）解引用。
+     */
+    tc_name_scope_reset();
     return rc;
 }
 
@@ -1515,12 +1538,18 @@ int tc_func_check_static_vars(TcProgram *program, const TcMemberIndex *members,
                               TcSymbolTable *symbols, const TcStructTable *struct_table,
                               TcDiagnostic *diag) {
     size_t i = 0;
+    int rc = 0;
 
     /* H-6：不执行运行时求值；校验初始化器操作数合法性并固化字段读，
      * 供 VM/AOT 运行期直接消费 resolved 元数据（base_slot / const_bits）。 */
     if (!program || !members || !symbols || !struct_table || !diag) {
         return -1;
     }
+    /*
+     * 初始化器里的 `Self.<名>` 须按**本模块**成员索引解析（§4.3、§4.4）：本阶段
+     * 同样早于 Pass2 语句检查，故显式进入本模块的作用域窗口，退出时清除。
+     */
+    tc_name_scope_enter_module(members);
     for (i = 0; i < program->count; i++) {
         TcStatement *stmt = &program->items[i];
 
@@ -1529,14 +1558,17 @@ int tc_func_check_static_vars(TcProgram *program, const TcMemberIndex *members,
         }
         if (tc_static_var_rhs_valid(&stmt->u.static_var_def.rhs, (int)i, members,
                                     stmt->u.static_var_def.line, diag) != 0) {
-            return -1;
+            rc = -1;
+            break;
         }
         if (tc_static_let_resolve_field_operands((TcRhs *)&stmt->u.static_var_def.rhs,
                                                  &stmt->u.static_var_def.type, struct_table,
                                                  symbols, i, stmt->u.static_var_def.line,
                                                  diag) != 0) {
-            return -1;
+            rc = -1;
+            break;
         }
     }
-    return 0;
+    tc_name_scope_reset();
+    return rc;
 }

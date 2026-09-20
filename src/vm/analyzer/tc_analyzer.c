@@ -429,17 +429,29 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     /* H-5 / H-6：入口与依赖库的 static let/var 均需求值/检查，
      * 否则跨模块 Self.static_let 在运行期无 const_value。 */
     if (tc_func_eval_static_lets(&out->program, &out->symbols, &struct_table,
-                                     out->type_table, diag) != 0) {
+                                     out->type_table, &members, diag) != 0) {
         goto fail;
     }
     {
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
-            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
+            TcMemberIndex dep_members;
+            int rc = 0;
+
+            /* 依赖模块的 static let 同样按**该模块**成员索引解析 `Self.<名>`（§4.3、§4.4） */
+            tc_member_index_init(&dep_members);
+            if (tc_member_index_build(&out->deps[di], &dep_members, diag) != 0) {
+                tc_member_index_free(&dep_members);
                 goto fail;
             }
-            if (tc_func_eval_static_lets(&out->deps[di], &out->symbols, &struct_table,
-                                                 out->type_table, diag) != 0) {
+            if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
+                tc_member_index_free(&dep_members);
+                goto fail;
+            }
+            rc = tc_func_eval_static_lets(&out->deps[di], &out->symbols, &struct_table,
+                                          out->type_table, &dep_members, diag);
+            tc_member_index_free(&dep_members);
+            if (rc != 0) {
                 goto fail;
             }
         }

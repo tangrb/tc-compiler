@@ -11,6 +11,7 @@
 #include "tc_stmt_index.h"
 #include "tc_warning.h"
 #include "tc_diagnostic.h"
+#include "tc_scope.h" /* TcMemberIndex：名称解析作用域上下文 */
 
 #include <stddef.h>
 
@@ -113,6 +114,13 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
 
 /** Self.N / Qual.N / 裸名查找（不报诊断） */
 /**
+ * 名称解析作用域上下文：进入某模块分析窗口（成员索引用于 `Self.<名>` 归属判定与
+ * 函数内裸名 FUNCTION_SCOPE_ACCESS），以及窗口结束后的清除（必须成对，避免悬垂索引）。
+ */
+void tc_name_scope_enter_module(const TcMemberIndex *members);
+void tc_name_scope_reset(void);
+
+/**
  * 函数体内裸名访问本模块顶层 `static` 成员时的统一诊断入口
  * （语言标准 §4.3：`#lib` 函数体内须经 `Self.<名>` 访问）。
  * @return 命中成员索引并已报 `TC_CE_FUNCTION_SCOPE_ACCESS` 返回 1；否则 0
@@ -121,6 +129,14 @@ int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic
 
 const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
                                       const char *name);
+
+/**
+ * 解析 `Self.<名>`（语言标准 §4.3、§4.4）：必须是**本模块**的顶层成员。符号表全模块
+ * 共享，故先用当前模块的成员索引确认归属，再按裸名取符号；`Self.X` 不得命中其它模块
+ * 的同名成员（含 private）。作用域上下文不可用时退回按名查找（由 Pass2 语句检查终判）。
+ * @return 命中返回符号；否则 NULL
+ */
+const TcSymbol *tc_resolve_self_member(const char *member, const TcSymbolTable *global);
 
 /**
  * 限定名 `<模块名>.<名>` 的解析结果过滤（语言标准 §4.4）：所属模块须与限定前缀一致，

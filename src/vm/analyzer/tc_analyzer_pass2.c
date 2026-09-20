@@ -170,6 +170,19 @@ void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol)
 }
 
 /*
+ * 名称解析的作用域上下文（仅在分析器内部使用，单线程编译）。
+ *
+ * 语言标准 §4.3、§9.1：`#lib` 没有非 `static` 的顶层值作用域——模块状态只能
+ * 是 `static let` / `static var`，且**函数体内必须经 `Self.<名>` 访问**。
+ * 这里保存当前语句所属模块的成员名索引与「是否位于函数体内」：前者供
+ * `Self.<名>` 判定「确属本模块」（§4.4，不得命中其它模块同名成员，含 private），
+ * 后者供 `tc_resolve_visible_symbol` 在实测不到可见绑定时给出
+ * `TC_CE_FUNCTION_SCOPE_ACCESS`（而不是笼统的 `TC_CE_UNDEFINED_VARIABLE`）。
+ */
+static const TcMemberIndex *g_name_scope_members = NULL;
+static int g_name_scope_in_function = 0;
+
+/*
  * 限定名解析的统一过滤（[语言标准 §4.4]）。
  *
  * `<模块名>.<名>` 的形式解析到符号后必须满足两条：① 符号的所属模块与限定前缀
@@ -234,6 +247,23 @@ int tc_reject_private_member_access(const char *name, const TcSymbolTable *globa
     return 0;
 }
 
+const TcSymbol *tc_resolve_self_member(const char *member, const TcSymbolTable *global) {
+    if (!member || member[0] == '\0' || !global) {
+        return NULL;
+    }
+    /*
+     * [语言标准 §4.3、§4.4]：`Self.<名>` 只解析**本模块**的顶层成员。符号表是全模块
+     * 共享的一张表，故须先用当前模块的成员索引确认该名确属本模块——否则 `Self.X`
+     * 会命中另一模块的同名成员（含 `private`），使 private 成员可被跨模块访问。
+     * 作用域上下文不可用（如 static let 提前求值阶段）时不作此判定，由 Pass2 的
+     * 语句检查按同一索引给出终判。
+     */
+    if (g_name_scope_members && !tc_member_index_find(g_name_scope_members, member)) {
+        return NULL;
+    }
+    return tc_symbol_table_find(global, member);
+}
+
 const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
                                       const char *name) {
     const TcSymbol *symbol = NULL;
@@ -245,7 +275,7 @@ const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymb
         return NULL;
     }
     if (strncmp(name, "Self.", 5) == 0 && name[5] != '\0' && strchr(name + 5, '.') == NULL) {
-        return global ? tc_symbol_table_find(global, name + 5) : NULL;
+        return tc_resolve_self_member(name + 5, global);
     }
     dot = strchr(name, '.');
     if (dot && dot != name && strchr(dot + 1, '.') == NULL) {
@@ -280,21 +310,17 @@ const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymb
     return global ? tc_symbol_table_find(global, name) : NULL;
 }
 
-/*
- * 名称解析的作用域上下文（仅在分析器内部使用，单线程编译）。
- *
- * 语言标准 §4.3、§9.1：`#lib` 没有非 `static` 的顶层值作用域——模块状态只能
- * 是 `static let` / `static var`，且**函数体内必须经 `Self.<名>` 访问**。
- * 这里保存当前语句所属模块的成员名索引与「是否位于函数体内」，供
- * `tc_resolve_visible_symbol` 在实测不到可见绑定时给出
- * `TC_CE_FUNCTION_SCOPE_ACCESS`（而不是笼统的 `TC_CE_UNDEFINED_VARIABLE`）。
- */
-static const TcMemberIndex *g_name_scope_members = NULL;
-static int g_name_scope_in_function = 0;
-
 static void tc_name_scope_set(const TcMemberIndex *members, int in_function) {
     g_name_scope_members = members;
     g_name_scope_in_function = in_function;
+}
+
+void tc_name_scope_enter_module(const TcMemberIndex *members) {
+    tc_name_scope_set(members, 0);
+}
+
+void tc_name_scope_reset(void) {
+    tc_name_scope_set(NULL, 0);
 }
 
 int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic *diag) {

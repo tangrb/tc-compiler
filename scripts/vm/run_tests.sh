@@ -1106,6 +1106,13 @@ run_expect_check_fail "$ROOT/tests/modules/member_private_memblock.tc" \
     "private member access" "PrivateMemberAccessError"
 run_expect_check_fail "$ROOT/tests/modules/member_private_read_target.tc" \
     "private member access" "PrivateMemberAccessError"
+# §4.3/§4.4：`Self.<名>` 只解析本模块成员——不得命中其它模块的同名成员（含 private）
+run_expect_check_fail "$ROOT/tests/modules/SelfForeignPrivLib.tc" \
+    "undefined variable 'Hidden'" "UndefinedVariable"
+run_expect_check_fail "$ROOT/tests/modules/SelfForeignPubLib.tc" \
+    "undefined variable 'K'" "UndefinedVariable"
+run_expect_check_fail "$ROOT/tests/modules/SelfForeignFieldLib.tc" \
+    "undefined variable 'spc'" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/modules/import_member_bad_qual.tc" \
     "undefined variable 'NoSuchLib'" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \

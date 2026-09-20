@@ -10,6 +10,7 @@
  */
 #include "tc_type_check.h"
 
+#include "tc_analyzer_internal.h"
 #include "tc_memblock_check.h"
 #include "tc_ptr_check.h"
 #include "tc_semantics.h"
@@ -182,8 +183,9 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
                               "missing Self member name");
             return -1;
         }
-        /* Self.member 显式访问本库顶层成员，不经函数体 visible 表 */
-        source = global ? tc_symbol_table_find(global, member) : NULL;
+        /* Self.<名> 显式访问**本模块**顶层成员（§4.3、§4.4）：不经函数体 visible 表，
+         * 也不得命中其它模块的同名成员（含 private）。 */
+        source = tc_resolve_self_member(member, global);
         if (!source) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", member);
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);

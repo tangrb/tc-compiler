@@ -1,0 +1,9 @@
+#lib
+; [语言标准 §4.3、§4.4]：`Self.<名>.<字段>` 的基址同样只能是本模块成员——
+; 不得以 `Self.spc.x` 读到其它模块的 struct 型 static 成员
+; 期望：undefined variable 'spc'
+import MemberLib
+public func read_foreign_field() int32 then
+    var s: int32 = Self.spc.x
+    return s
+end
