@@ -1151,12 +1151,13 @@ int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
         if (line->indent <= base_indent) {
             break;
         }
-        if (tc_block_indent_valid(file_indent, base_indent, line->indent, diag,
-                                  line->line_no) != 0) {
-            return -1;
-        }
-
         first_kind = tc_first_token_kind(line);
+        /*
+         * B-41（标准 owner 裁决）：`else` / `end` 只要与对应块头不对齐（过深或
+         * 过浅）一律报 TC_CE_INDENT_ELSE_END —— 附录 A.2 末段与附录 B.1 已把
+         * 「else/end 对不齐」从 INDENT_INSUFFICIENT 中排除单列，故本轮次序调整
+         * 使对齐判定先于通用缩进增量判定（§11 第 3 条：专用码优先）。
+         */
         if (first_kind == TC_TOK_ELSE) {
             return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no,
                                   "else must appear at same indentation as if");
@@ -1164,6 +1165,10 @@ int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
         if (first_kind == TC_TOK_END) {
             return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no,
                                   "end indentation does not match if");
+        }
+        if (tc_block_indent_valid(file_indent, base_indent, line->indent, diag,
+                                  line->line_no) != 0) {
+            return -1;
         }
 
         memset(&stmt, 0, sizeof(stmt));

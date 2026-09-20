@@ -2445,6 +2445,11 @@ run_expect_fail_msg "$ROOT/tests/errors/static/indent_else_position.tc" "else mu
 run_expect_check_fail "$ROOT/tests/errors/static/indent_else_position.tc" "else must appear at same indentation as if"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
+# B-41：else/end 无论过深过浅，只要与块头不对齐即 ELSE_END
+run_expect_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" \
+    "end indentation does not match if" "IndentElseEndError"
+run_expect_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
+    "else must appear at same indentation as if" "IndentElseEndError"
 
 
 # --- valid: extended tests (all types, format specs, cast, wrap, complex) ---

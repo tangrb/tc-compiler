@@ -2596,7 +2596,7 @@ line_comment = ";" , { ? any decoded Unicode scalar value except U+0000, U+000A 
 
 空行和纯注释行不改变缩进层级，其行首空白也不参与缩进检查。`label` 不改变缩进层级。
 
-其他违反以上缩进规则的情形报 `TC_CE_INDENT_INSUFFICIENT`。`else`/`end` 与对应块头不对齐时报 `TC_CE_INDENT_ELSE_END`。
+其他违反以上缩进规则的情形报 `TC_CE_INDENT_INSUFFICIENT`。`else`/`end` 与对应块头不对齐时报 `TC_CE_INDENT_ELSE_END`——无论其缩进比对应块头**过深**还是**过浅**（含恰在块内语句级别）一律按本码报告；`TC_CE_INDENT_INSUFFICIENT` 的增量判定仅适用于非 `else`/`end` 的块内行（附录 B.1）。
 
 **虚拟终结符**（由词法层按逻辑行生成，供 A.3 使用）：
 

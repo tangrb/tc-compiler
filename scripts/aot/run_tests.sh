@@ -887,6 +887,10 @@ run_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end fo
 run_check_fail "$ROOT/tests/errors/static/indent_mixed_tab_body.tc" "mixed spaces and tabs in indentation"
 run_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_check_fail "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indentation does not match if"
+# B-41：else/end 与块头不对齐（过深）同样报 ELSE_END
+run_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" "end indentation does not match if"
+run_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
+    "else must appear at same indentation as if"
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_after_end.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else.tc" "undefined variable"
 run_check_fail "$ROOT/tests/errors/static/assign_to_let.tc" "cannot assign to constant"

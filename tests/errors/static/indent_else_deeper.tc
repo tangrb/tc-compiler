@@ -1,0 +1,7 @@
+#program
+; B-41：`else` 比对应 `if` 深一级，同样按对齐规则报 TC_CE_INDENT_ELSE_END
+if true then
+    writeln(int32, %d, 1)
+        else
+    writeln(int32, %d, 2)
+end

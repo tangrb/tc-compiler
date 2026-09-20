@@ -1,0 +1,8 @@
+#program
+; B-41：`end` 比对应 `if` 深一级（多于块内语句一级）仍按对齐规则报
+; TC_CE_INDENT_ELSE_END，而不是通用缩进增量码
+var v: int32 = 0
+if true then
+    v = 1
+        end
+writeln(int32, v)
