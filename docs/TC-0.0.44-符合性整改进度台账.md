@@ -22,7 +22,7 @@
 | 1 | `TC编译器标准设计说明书-0.0.44.md` | C-1～C-9 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 2 | `TC-VM详细设计说明书-0.0.44.md` | C-12～C-14 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 3 | `TC-AOT详细设计说明书-0.0.44.md` | C-10～C-11 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录（无需改动） |
-| 4 | `TC-Embed详细设计说明书-0.0.44.md` | C-20～C-21 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
+| 4 | `TC-Embed详细设计说明书-0.0.44.md` | C-20～C-21 ＋ §3.2 中属本文档的 P2 项 | ☑ | 见文末提交记录 |
 | 5 | `libtc设计说明书-0.0.44.md` | C-19 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
 | 6 | `TC-VM命令行参考-0.0.44.md` | C-15～C-18 ＋ §3.2 中属本文档的 P2 项 | ☐ | |
 | 7 | 跨文档一致性 | C-22、C-23、C-24 | ☐ | |
@@ -65,6 +65,12 @@
 | P2 | §4.3/§11.2 已区分区间拷贝 `tc_aot_memblock_copy`（9 参）与整块深拷贝 `tc_aot_memblock_clone`；§1.4 表格结构完好且已反映 9 项既有未关闭；死锚/`0.0.41`/`0.0.42` 残留不存在；§16.3 存在（无跳号）；§18 已重写为现役可移植性约定；`STRUCT_TOTAL_BYTES`/`NUM_MEMBLOCK_ALLOCS` 不存在；§15.1 已列 `--embed`；`确定初始化` 引用已改指 [语言标准 §9.2] | 无需改动（已对齐） |
 
 **④ TC-Embed 详设**：C-20（§12/§15.8 的 4 个 TC 示例实为 C 语法）、C-21（§12.2/§15.8.3 把数据写进指针形参自身槽位）。
+
+| 条目 | 处置 |
+| ---- | ---- |
+| C-20 | 4 段 `tc` 示例改写为合法 TC：`plus`（不占用保留字 `add`；`return` 只接 `operand`，先 `var r` 再返回）、`sum`（`while lt(...) then … end`、拆出 `ptr_add`/`ptr_load` 两步避免调用嵌套、索引与 `len` 用 `usize`）、`counter`（补 `public static var`、函数内用 `Self.count`）、`mylib`（`plus` + `scale`，`void` 显式 `return`）。**4 段均以 `tc-vm -c` 与 `tc-aot -c` 实测接受** |
+| C-21 | §12.2/§15.8.3 改为 `tc_embed_tmp_begin` 分配**临时槽位区**平铺数据、`tc_embed_ptr_encode(base)` 传参、用毕 `tc_embed_tmp_end`，不再写 `param_slots[0]` 自身槽位；§5.4 同改为临时区；`len`/`n` 改 `usize`（`tc_value_from_uint64`） |
+| P2 | §2.1/§1.4 槽位编码补「实现定义的抽象槽编码」定性；§3.2 文件表补 `tc_embed_internal.h`；§3.3 头骨架补 `tc_embed_slot_count`；§5.2 修正「只有一个调用帧活跃」表述；§10.2 消息格式改为宿主纯文本＋语言诊断格式；§10.3 静态错误归编译阶段（`tc_embed_create*` 不做静态检查）；§14.1 测试名改为实际 `test_embed_ptr_load_sum`/`test_embed_ptr_store_offset`；§15.1 `tc_pass1_collect_symbols` 片段与 `src` 对齐；§15.3.1 函数表改为内联数组（含哨兵），删除不存在的 `.inc`；§15.7.1 CMake 改为编入 `libtc`（无独立 target）；§15.11 `tc_embed_create_aot` 改为「仍需 `TcTypedProgram` 提取元数据」；§16.7 `sum` 示例补第二实参 |
 
 **⑤ libtc 设计说明书**：C-19（§15.3 自相矛盾、§7.3 跨入口承诺与实现不符）。
 
@@ -188,7 +194,8 @@
 | 0 | 建立本台账 | `ca2db38 docs(0.0.44): add conformance remediation ledger and list it in the doc map` |
 | 1 | 阶段 1-① 编译器标准 C-1～C-9 ＋ P2 | `47c6967 docs(0.0.44-compiler): align compiler specification with language spec (C-1..C-9 + P2)` |
 | 2 | 阶段 1-② VM 详设 C-12～C-14 ＋ P2 | `9863b3a docs(0.0.44-vm): align VM design spec (C-12..C-14 residual + static-init stage)` |
-| 3 | 阶段 1-③ AOT 详设 C-10～C-11 ＋ P2 | 本提交 `chore(0.0.44-ledger): record AOT design-spec verification (no changes needed)` |
+| 3 | 阶段 1-③ AOT 详设 C-10～C-11 ＋ P2 | `01174dc chore(0.0.44-ledger): record AOT design-spec verification (no changes needed)` |
+| 4 | 阶段 1-④ TC-Embed 详设 C-20～C-21 ＋ P2 | 本提交 `docs(0.0.44-embed): fix C-syntax TC examples and slot-overlap host code (C-20/C-21 + P2)` |
 
 ---
 

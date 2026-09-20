@@ -64,7 +64,7 @@
 
 - 提供 C 宿主程序调用 TC 编译产物的最小化运行时 API。
 - 实现 **C 和 TC 共享同一 `TcValue slots[]` 数组**，零拷贝互操作。
-- 以 `ptr<T>` 槽位编码 `(slot << 1) | 1` 作为 C↔TC 之间传递变量引用的统一句柄。
+- 以 `ptr<T>` 槽位编码 `(slot << 1) | 1` 作为 C↔TC 之间传递变量引用的统一句柄（该编码是**本实现定义的抽象槽编码**，不是 `ptr<T>` 的语言语义，也不得作为宿主对象地址；[语言标准 §3.5]、[语言标准 §1.3]）。
 - 支持多次重复调用同一 TC 函数，`static var` 状态在调用间持久化。
 - 支持按名称查询函数签名与变量槽位索引。
 - 支持 C 侧直接读写 slots，通过 `ptr<T>` 将数据传递给 TC 函数。
@@ -81,7 +81,7 @@
 
 ### 1.4 设计原则
 
-1. **ptr<T> 即句柄**：`(slot << 1) | 1` 是唯一跨边界形式，C 和 TC 使用完全相同的编码/解码逻辑。
+1. **ptr<T> 即句柄**：`(slot << 1) | 1` 是唯一跨边界形式，C 和 TC 使用完全相同的编码/解码逻辑；该编码属本实现的**实现定义**选择（抽象槽编码），不构成 `ptr<T>` 的语言语义（[语言标准 §3.5]、[语言标准 §1.3]）。
 2. **共享内存**：`slots[]` 是 C 和 TC 的共享数据平面，无序列化、无类型转换、无中间表示。
 3. **最小 API 表面积**：只暴露 slot 读写 + 符号查询 + 函数调用三个核心能力。
 4. **复用现有执行器**：函数调用走 `tc_exec_call_function` 现有路径，不发明新的调度器。
@@ -212,6 +212,7 @@ AOT 模式通过统一的 `TcEmbedCtx` API 和全局 `slots[]` 模型，让 C �
 | `src/aot/tc_aot_embed_rt.h` | 嵌入模式运行时 shim：非致命 abort、函数表类型声明、错误标记 |
 | `src/vm/embed/tc_embed_aot.h` | AOT 桥接头文件（含 tc_embed.h 即可） |
 | `src/vm/embed/tc_embed_aot.c` | AOT 桥接实现：`tc_embed_create_aot` |
+| `src/vm/embed/tc_embed_internal.h` | 模块内部头：`TcEmbedCtx` 结构与内部辅助函数声明（不对宿主公开） |
 
 ### 3.3 公共头文件骨架
 
@@ -256,6 +257,9 @@ const TcEmbedFuncInfo *tc_embed_func_info(const TcEmbedCtx *ctx,
 
 int tc_embed_top_var_slot(const TcEmbedCtx *ctx, const char *name);
 int tc_embed_self_var_slot(const TcEmbedCtx *ctx, const char *name);
+
+/* 上下文槽位总数（slots[] 合法下标上界） */
+size_t tc_embed_slot_count(const TcEmbedCtx *ctx);
 
 /* ── 槽位直接读写 ── */
 int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value);
@@ -378,7 +382,7 @@ tc_typed_program_free(&prog); /* 再释放 program */
 
 所有域（`TC_SLOT_TOPLEVEL`、`TC_SLOT_STATIC`、`TC_SLOT_PARAM`、`TC_SLOT_LOCAL`）的变量共用同一个 `slots[]` 数组。形参和局部变量的 slot 在编译期已由 Analyzer 分配为固定索引。
 
-**重要**：TC 无运行时栈帧——参数/局部变量的 slot 是固定的。由于 TC 禁止递归（编译期调用图 DAG 检查保证），同一时刻只有一个函数调用帧活跃，参数/局部槽位不会被并发使用。这意味着 C 对 `slots[]` 的写入在执行 TC 函数调用时不会与嵌套调用冲突。
+**重要**：TC 无运行时栈帧——参数/局部变量的 slot 是固定的。由于 TC 禁止递归（编译期调用图 DAG 检查保证），任一时刻活跃的 TC 函数帧数不超过调用深度，且同一函数的槽位不会因递归而出现多份实例；但**调用链上仍可同时存在多个活跃函数帧**（调用者 + 被调者），各自的槽位互不重叠。这意味着 C 对 `slots[]` 的写入在进入 TC 调用前是稳定的，不会被递归嵌套调用覆盖。
 
 ### 5.3 C 侧填充形参槽位
 
@@ -408,8 +412,12 @@ tc_embed_slot_write(ctx, func_info->param_slots[0],
 C 可以将任意大的数据平铺在连续的 slots 中，通过 `ptr<T>` + `ptr_add` 让 TC 函数遍历：
 
 ```c
-/* C 侧：在 slots[base..base+N-1] 写入 N 个 int32 */
-int base_slot = find_free_slot_block(ctx, N);
+/* C 侧：在临时槽位区 [base..base+N-1] 写入 N 个 int32（不与符号槽位重叠，见 §16.4） */
+int base_slot = 0;
+if (tc_embed_tmp_begin(ctx, N, &base_slot) != 0) {
+    /* 临时区不足（TC_EMBED_TMP_MAX_DEPTH / 槽位上界）→ 报错返回 */
+    return 1;
+}
 for (int i = 0; i < N; i++) {
     tc_embed_slot_write(ctx, base_slot + i, tc_value_from_int32(c_data[i]));
 }
@@ -417,6 +425,7 @@ for (int i = 0; i < N; i++) {
 /* 传 ptr<int32> 给 TC 函数 */
 TcValue args = tc_embed_ptr_encode(base_slot);
 tc_embed_call(ctx, "mylib", "process_array", 1, &args, NULL);
+tc_embed_tmp_end(ctx);   /* 用毕释放临时区 */
 ```
 
 TC 函数内部可以用 `ptr_add(ptr, i)` 遍历整个数组，语义完全一致。
@@ -566,7 +575,7 @@ TC 调用图是 DAG（编译期保证），不存在递归。`tc_embed_call` 内
 
 ```c
 TcValue result;
-if (tc_embed_call(ctx, "math", "add", 2, args, &result) != 0) {
+if (tc_embed_call(ctx, "math", "plus", 2, args, &result) != 0) {
     /* 错误处理 */
 }
 int64_t sum;
@@ -726,11 +735,11 @@ int tc_embed_had_error(const TcEmbedCtx *ctx);
 - `tc_embed_get_error` 返回最近一次错误的描述字符串。若 ctx 为 NULL，返回 `"context is null"`。
 - `tc_embed_had_error` 返回最近操作是否失败。
 - 每次成功的操作将 `error_flag` 重置为 0。
-- 消息格式与 `TcDiagnostic` 一致：`"<domain>: <kind>: <message>"`。
+- 消息格式：`tc_embed_get_error` 返回的是**宿主 API 层的纯文本消息**（如 `"function not found: <module>::<name>"`、`"slot index N out of range [0, M)"`），不带语言诊断前缀；语言/运行时诊断经 `TcDiagnostic` 输出时为 `"<file>:<line>:<col>: error [<Kind>]: <message>"`（[编译器标准 §11.4]）。
 
 ### 10.3 错误种类与语言码映射
 
-嵌入模式**不另造语言错误码**。静态错误在 `tc_embed_create` / AOT 编译期按编译器标准 §11.4（镜像语言标准附录 B 86 码）报告；运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
+嵌入模式**不另造语言错误码**。静态错误在**编译阶段**由 `tc_compile_file_opts` / `tc_compile_source`（AOT 模式为 `tc-aot` 编译期）按编译器标准 §11.4（镜像语言标准附录 B 86 码）报告；`tc_embed_create` / `tc_embed_create_aot` 只接受已通过全部静态阶段的 `TcTypedProgram`，**不在其中做静态检查**。运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
 
 | 错误场景 | 错误码 / 消息 |
 | -------- | ------------ |
@@ -783,9 +792,10 @@ TC 代码（`math.tc`）：
 
 ```tc
 #lib
-public func add(a: int32, b: int32) -> int32 {
-    return a + b
-}
+public func plus(a: int32, b: int32) int32 then
+    var r: int32 = add(int32, a, b)
+    return r
+end
 ```
 
 C 代码：
@@ -819,7 +829,7 @@ int main(void) {
     args[1] = tc_value_from_int32(4);
     TcValue result;
 
-    if (tc_embed_call(ctx, "math", "add", 2, args, &result) != 0) {
+    if (tc_embed_call(ctx, "math", "plus", 2, args, &result) != 0) {
         fprintf(stderr, "error: %s\n", tc_embed_get_error(ctx));
     } else {
         int64_t sum;
@@ -846,15 +856,17 @@ TC 代码（`stats.tc`）：
 
 ```tc
 #lib
-public func sum(data: ptr<int32>, len: int32) -> int32 {
+public func sum(data: ptr<int32>, len: usize) int32 then
     var total: int32 = 0
-    var i: int32 = 0
-    while (i < len) {
-        total = total + ptr_load(data + i)
-        i = i + 1
-    }
+    var i: usize = 0u
+    while lt(usize, i, len) then
+        var p: ptr<int32> = ptr_add(int32, data, i)
+        var v: int32 = ptr_load(int32, p)
+        total = add(int32, total, v)
+        i = add(usize, i, 1u)
+    end
     return total
-}
+end
 ```
 
 C 代码：
@@ -867,28 +879,31 @@ C 代码：
 int main(void) {
     /* 编译和创建 ctx 略，同上 */
 
-    /* 1. 查函数信息，确定形参的 slot */
-    const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, "stats", "sum");
-
-    /* 2. 在连续的 slots 中写入输入数据 */
-    int data_slot = info->param_slots[0];   /* ptr<int32> data 的 slot */
     int32_t input[] = {1, 2, 3, 4, 5};
+
+    /* 1. 在临时槽位区平铺输入数据（不与符号槽位重叠，见 §16.4） */
+    int data_base = 0;
+    if (tc_embed_tmp_begin(ctx, 5, &data_base) != 0) {
+        fprintf(stderr, "tmp_begin failed: %s\n", tc_embed_get_error(ctx));
+        return 1;
+    }
     for (int i = 0; i < 5; i++) {
-        tc_embed_slot_write(ctx, data_slot + i,
+        tc_embed_slot_write(ctx, data_base + i,
                             tc_value_from_int32(input[i]));
     }
 
-    /* 3. 构造 ptr<int32> 指向 data[0] */
+    /* 2. 构造 ptr<int32> 指向临时区首槽；len 为 usize */
     TcValue args[2];
-    args[0] = tc_embed_ptr_encode(data_slot);   /* ptr<int32> = (slot<<1)|1 */
-    args[1] = tc_value_from_int32(5);            /* len = 5 */
+    args[0] = tc_embed_ptr_encode(data_base);   /* ptr<int32> = (slot<<1)|1 */
+    args[1] = tc_value_from_uint64(5u);         /* len = 5 */
 
-    /* 4. 调用 TC 函数 */
+    /* 3. 调用 TC 函数 */
     TcValue result;
     if (tc_embed_call(ctx, "stats", "sum", 2, args, &result) != 0) {
         fprintf(stderr, "error: %s\n", tc_embed_get_error(ctx));
         return 1;
     }
+    tc_embed_tmp_end(ctx);   /* 用毕释放临时区 */
 
     int64_t total;
     tc_value_to_int64(result, &total);
@@ -906,12 +921,12 @@ TC 代码（`counter.tc`）：
 
 ```tc
 #lib
-static var count: int32 = 0
+public static var count: int32 = 0
 
-public func increment_and_get() -> int32 {
-    count = count + 1
-    return count
-}
+public func increment_and_get() int32 then
+    Self.count = add(int32, Self.count, 1)
+    return Self.count
+end
 ```
 
 C 代码：
@@ -959,8 +974,8 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 | `test_embed_call_no_args_void_return` | 无参 void 函数调用 |
 | `test_embed_call_wrong_arg_count` | 参数数量不匹配时返回错误 |
 | `test_embed_call_func_not_found` | 函数不存在时返回错误 |
-| `test_embed_ptr_array_sum` | C 侧平铺数据→ptr 编码→TC ptr_load 遍历 |
-| `test_embed_ptr_store_readback` | C 写 slot→TC ptr_store→C 读回（双向验证） |
+| `test_embed_ptr_load_sum` | C 侧平铺数据→ptr 编码→TC ptr_load 遍历 |
+| `test_embed_ptr_store_offset` | C 写 slot→TC ptr_store 偏移写入→C 读回（双向验证） |
 | `test_embed_static_var_persist` | 重复调用保持 static var 值 |
 | `test_embed_slot_write_read` | 槽位读写往返 |
 | `test_embed_slot_out_of_range` | 越界槽位拒绝 |
@@ -972,9 +987,9 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 
 | 用例 | TC 函数逻辑 |
 | ---- | ----------- |
-| `ptr_sum.tc` | `sum(data: ptr<int32>, n: int32) → int32`：遍历 ptr_add 累加 |
-| `ptr_inplace.tc` | `increment_all(data: ptr<int32>, n: int32)`：ptr_store 原地修改 |
-| `ptr_loop.tc` | `count_positive(data: ptr<int32>, n: int32) → int32`：条件统计 |
+| `ptr_sum.tc` | `sum(data: ptr<int32>, n: usize) int32`：遍历 `ptr_add` 累加 |
+| `ptr_inplace.tc` | `increment_all(data: ptr<int32>, n: usize) void`：`ptr_store` 原地修改 |
+| `ptr_loop.tc` | `count_positive(data: ptr<int32>, n: usize) int32`：条件统计 |
 | `nested_call.tc` | `outer` 调 `inner`：验证嵌套 funcall 在 embed 下正常 |
 
 ### 14.3 集成测试
@@ -994,15 +1009,18 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 当前 AOT 已使用单一扁平 `slots[]` 数组覆盖所有域。Analyzer 在 Pass1 阶段用一个全局递增计数器 `next_slot` 顺序分配 TOPLEVEL、STATIC、PARAM、LOCAL 槽位（`src/vm/analyzer/tc_analyzer_pass1.c` 的 `tc_pass1_collect_symbols`）：
 
 ```c
-int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols,
-                                    TcDiagnostic *diag) {
+int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols, TcTypeTable *types,
+                             TcDiagnostic *diag) {
     TcAnalyzeCtx ctx;
     size_t i = 0;
     int next_slot = (int)tc_symbol_table_runtime_slot_count(symbols);
 
+    memset(&ctx, 0, sizeof(ctx));
     ctx.program = program;
     ctx.last_init = NULL;
     ctx.next_loop_id = 0;
+    ctx.current_func_id = -1;
+    ctx.type_table = types;
     tc_stmt_index_reset(&ctx.index);
 
     for (i = 0; i < program->count; i++) {
@@ -1263,7 +1281,13 @@ int tc_aot_func_3(TcDiagnostic *diag) {
 }
 
 /* ── 函数表（见 §15.4） ── */
-#include "tc_aot_func_table.inc"   /* 或内联生成 */
+/* codegen 在 tc_aot_emit_func.c 的 tc_aot_emit_func_table 中内联发射，
+   不生成 `tc_aot_func_table.inc` 之类的独立文件 */
+const tc_aot_func_entry tc_aot_func_table[] = {
+    { 3, tc_aot_func_3, &tc_aot_ret_3 },
+    { 5, tc_aot_func_5, NULL },          /* void 返回用 NULL */
+    { -1, NULL, NULL }                   /* 哨兵：与 §15.4.1 一致 */
+};
 
 /* ── 清理 ── */
 void tc_aot_cleanup(void) {
@@ -1571,7 +1595,7 @@ cc -std=c99 -Wall -Wextra -Werror -pedantic \
 | `src/vm/embed/tc_embed.h` | 修改 | 声明 `tc_embed_create_aot`；`TcEmbedCtx` 内部扩展 AOT 字段 |
 | `src/vm/embed/tc_embed.c` | 修改 | `tc_embed_call` 新增 AOT 路径；`tc_embed_create_aot` 实现 |
 | `src/vm/embed/tc_embed_aot.c` | 新增 | AOT 专用函数：`tc_embed_create_aot` + 函数表查询 |
-| `CMakeLists.txt` | 修改 | 新增 `tc_embed_aot` target |
+| `src/vm/embed/CMakeLists.txt` | 修改 | `tc_embed_aot.c` 编入 `libtc`（**不新增独立 CMake target**） |
 
 #### 15.7.2 codegen 改动详细伪码
 
@@ -1665,17 +1689,22 @@ if (tc_aot_arith(..., tc_aot_cur_diag, line) != 0) {
 ```tc
 #lib
 
-public func add(a: int32, b: int32) -> int32 {
-    return a + b
-}
+public func plus(a: int32, b: int32) int32 then
+    var r: int32 = add(int32, a, b)
+    return r
+end
 
-public func scale(data: ptr<int32>, n: int32, factor: int32) {
-    var i: int32 = 0
-    while (i < n) {
-        ptr_store(data + i, ptr_load(data + i) * factor)
-        i = i + 1
-    }
-}
+public func scale(data: ptr<int32>, n: usize, factor: int32) void then
+    var i: usize = 0u
+    while lt(usize, i, n) then
+        var p: ptr<int32> = ptr_add(int32, data, i)
+        var v: int32 = ptr_load(int32, p)
+        var w: int32 = mul(int32, v, factor)
+        ptr_store(int32, p, w)
+        i = add(usize, i, 1u)
+    end
+    return
+end
 ```
 
 #### 15.8.2 编译 TC 为 AOT 嵌入库
@@ -1717,14 +1746,14 @@ int main(void) {
         return 1;
     }
 
-    /* ── 调用 add（标量参数） ── */
+    /* ── 调用 plus（标量参数） ── */
     TcValue args[2];
     args[0] = tc_value_from_int32(3);
     args[1] = tc_value_from_int32(4);
     TcValue result;
 
-    if (tc_embed_call(ctx, "mylib", "add", 2, args, &result) != 0) {
-        fprintf(stderr, "add failed: %s\n", tc_embed_get_error(ctx));
+    if (tc_embed_call(ctx, "mylib", "plus", 2, args, &result) != 0) {
+        fprintf(stderr, "plus failed: %s\n", tc_embed_get_error(ctx));
     } else {
         int64_t sum;
         tc_value_to_int64(result, &sum);
@@ -1732,33 +1761,36 @@ int main(void) {
     }
 
     /* ── 调用 scale（ptr 参数） ── */
-    const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, "mylib", "scale");
-
-    /* 在 slots 中平铺数据 */
-    int data_slot = info->param_slots[0];  /* data: ptr<int32> */
+    /* 在临时槽位区平铺数据（不与符号槽位重叠，见 §16.4） */
+    int data_base = 0;
+    if (tc_embed_tmp_begin(ctx, 5, &data_base) != 0) {
+        fprintf(stderr, "tmp_begin failed: %s\n", tc_embed_get_error(ctx));
+        return 1;
+    }
     int32_t data[] = {1, 2, 3, 4, 5};
     for (int i = 0; i < 5; i++) {
-        tc_embed_slot_write(ctx, data_slot + i,
+        tc_embed_slot_write(ctx, data_base + i,
                             tc_value_from_int32(data[i]));
     }
 
     TcValue scale_args[3];
-    scale_args[0] = tc_embed_ptr_encode(data_slot);  /* ptr<int32> */
-    scale_args[1] = tc_value_from_int32(5);           /* n = 5 */
-    scale_args[2] = tc_value_from_int32(2);           /* factor = 2 */
+    scale_args[0] = tc_embed_ptr_encode(data_base);  /* ptr<int32> → 临时区首槽 */
+    scale_args[1] = tc_value_from_uint64(5u);        /* n: usize = 5 */
+    scale_args[2] = tc_value_from_int32(2);          /* factor = 2 */
 
     if (tc_embed_call(ctx, "mylib", "scale", 3, scale_args, NULL) != 0) {
         fprintf(stderr, "scale failed: %s\n", tc_embed_get_error(ctx));
     } else {
-        /* 直接从 slots 读取结果 — ptr_store 后数据已在槽中 */
+        /* 直接从临时区读回结果 — ptr_store 后数据已在槽中 */
         printf("scaled: ");
         for (int i = 0; i < 5; i++) {
             TcValue v;
-            tc_embed_slot_read(ctx, data_slot + i, &v);
+            tc_embed_slot_read(ctx, data_base + i, &v);
             printf("%lld ", (long long)v.bits);
         }
         printf("\n");  /* 输出: scaled: 2 4 6 8 10 */
     }
+    tc_embed_tmp_end(ctx);   /* 用毕释放临时区 */
 
     /* 清理（先销毁 ctx，再释放 program，最后调 AOT 清理） */
     tc_embed_destroy(ctx);
@@ -1858,7 +1890,7 @@ void test_aot_vm_behavior(const char *tc_source) {
 | API | VM 模式 | AOT 模式 |
 | --- | ------- | -------- |
 | `tc_embed_create` | 从 `TcTypedProgram` 分配 slots + Executor | N/A（使用 `tc_embed_create_aot`） |
-| `tc_embed_create_aot` | N/A | 从 AOT 全局数据创建，不依赖 `TcTypedProgram` |
+| `tc_embed_create_aot` | N/A | 从 AOT 全局数据创建；**仍需传入 `TcTypedProgram` 以提取函数/槽位元数据**（签名见 §15.4.1） |
 | `tc_embed_destroy` | 释放 slots + heap + 索引 | 释放索引 + ctx，不释放 slots（归 AOT 全局数据） |
 | `tc_embed_func_info` | 从 `TcSymbolTable` 查询 | 从 `tc_aot_func_table` 查询 |
 | `tc_embed_call` | `tc_exec_call_function_public` | 直调 `tc_aot_func_N(diag)` |
@@ -1970,7 +2002,7 @@ nargs 自动推导宏：
 标量调用（此前约 10 行样板，现 4 行）：
 
 ```c
-const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, "math", "add");
+const TcEmbedFuncInfo *info = tc_embed_func_info(ctx, "math", "plus");
 TcValue result;
 if (tc_embed_call_typed(ctx, info,
                         TC_EMBED_ARGS(tc_embed_arg_i32(3), tc_embed_arg_i32(4)),
@@ -1988,8 +2020,10 @@ TcValue data_ptr;
 tc_embed_make_ptr(ctx, TC_INT32, input, 5, &data_ptr);   /* 平铺 + ptr 编码 */
 
 TcValue result;
+/* sum(data: ptr<int32>, len: usize)：两个形参都要给全 */
 tc_embed_call_typed(ctx, tc_embed_func_info(ctx, "stats", "sum"),
-                    TC_EMBED_ARGS(tc_embed_arg_value(data_ptr)),
+                    TC_EMBED_ARGS(tc_embed_arg_value(data_ptr),
+                                  tc_embed_arg_u64(5u)),
                     &result);
 tc_embed_tmp_end(ctx);                                    /* 释放临时区 */
 ```
