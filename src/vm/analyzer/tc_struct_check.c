@@ -794,6 +794,55 @@ int tc_struct_table_register_program(TcProgram *program, TcStructTable *table,
             tc_diagnostic_set(diag, TC_CE_DUPLICATE_STRUCT, def->line, TC_COLUMN_UNKNOWN, msg);
             return -1;
         }
+        /*
+         * §3.9.1：同一模块内结构体名与函数名或值绑定名冲突 →
+         * TC_CE_FUNCTION_NAME_CONFLICT（无模式限定）。主位置按编译器标准 §1.2
+         * 「后声明的函数名或值绑定名」取两者中源序更晚者。
+         */
+        {
+            size_t n = 0;
+
+            for (n = 0; n < program->count; n++) {
+                const TcStatement *other = &program->items[n];
+                const char *other_name = NULL;
+                int other_line = 0;
+
+                switch (other->kind) {
+                case TC_STMT_FUNC_DEF:
+                    other_name = other->u.func_def.name;
+                    other_line = other->u.func_def.line;
+                    break;
+                case TC_STMT_VAR_DEF:
+                    other_name = other->u.var_def.name;
+                    other_line = other->u.var_def.line;
+                    break;
+                case TC_STMT_CONST_DEF:
+                    other_name = other->u.const_def.name;
+                    other_line = other->u.const_def.line;
+                    break;
+                case TC_STMT_STATIC_VAR_DEF:
+                    other_name = other->u.static_var_def.name;
+                    other_line = other->u.static_var_def.line;
+                    break;
+                case TC_STMT_STATIC_LET_DEF:
+                    other_name = other->u.static_let_def.name;
+                    other_line = other->u.static_let_def.line;
+                    break;
+                default:
+                    break;
+                }
+                if (other_name && strcmp(other_name, def->name) == 0) {
+                    int pos = other_line > def->line ? other_line : def->line;
+
+                    (void)snprintf(msg, sizeof(msg),
+                                   "struct name conflicts with value binding or function '%s'",
+                                   def->name);
+                    tc_diagnostic_set(diag, TC_CE_FUNCTION_NAME_CONFLICT, pos, TC_COLUMN_UNKNOWN,
+                                      msg);
+                    return -1;
+                }
+            }
+        }
         if (def->field_count == 0) {
             tc_diagnostic_set(diag, TC_CE_SYNTAX, def->line, TC_COLUMN_UNKNOWN,
                               "struct must have at least one field");

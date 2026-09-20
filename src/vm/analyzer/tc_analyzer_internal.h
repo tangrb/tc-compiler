@@ -53,6 +53,8 @@ typedef struct {
     int func_depth;              /* 词法祖先 func 数；0 表示顶层 */
     int current_func_id;         /* 当前函数 func_id（4d 稳定分配）；顶层为 -1 */
     TcFuncCheckEnv *func_env;    /* 函数检查环境；可为 NULL（跳过 funcall/return 专用检查） */
+    const TcFuncParam *current_params; /* Pass1：当前函数形参表（任意层级 var/let 重名检查） */
+    size_t current_param_count;        /* Pass1：current_params 长度 */
     TcTypeTable *type_table;     /* 分析期类型池；Pass1 intern 用 */
 } TcAnalyzeCtx;
 

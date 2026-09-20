@@ -185,7 +185,7 @@
 | ---- | ---- | ---- |
 | 2.6.1 | 确定初始化 DFA 读集不完整（7 个场景） | ☐ |
 | 2.6.2 | 操作数/字段类型只比较 `tag`（6 类） | ☐ |
-| 2.6.3 | 名称冲突与作用域漏检（5 类） | ☐ |
+| 2.6.3 | 名称冲突与作用域漏检（5 类） | ☑ |
 | 2.6.4 | 控制流/可达性漏检（`while true` 后不可达；`else if`） | ☐ |
 | 2.6.5 | `#lib` 顶层可执行语句未拒绝 | ☑ |
 | 2.6.6 | `isize` 被当作 `usize` | ☑ |
@@ -221,6 +221,7 @@
 | B-21 | `tc_memblock_check_copy` 增 `struct_table` 参数；新增 `tc_memblock_const_index_value`（区分非常量 / 非负常量 / 负常量），对 `dst_index`/`src_index`/`length` 先做整数 operand 校验（`tc_check_integer_operand`，解析写回 binding）再做常量区间判定：负常量下标、常量 `length < 0`、常量区间越界（`length > 0` 时要求 `index + length ≤ count`；`length` 为 0 或不可确定时只拒绝 `index > count`，空拷贝允许 `index == count`）→ 静态 `TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE`；元素类型检查既有。新增 `tests/errors/static/memblock_copy_constant_range.tc`（length 3 > count 2）与 `memblock_copy_negative_length.tc`（length -1）（VM check_fail + MemblockIndexOutOfRange），`tests/valid/memblock_copy_empty_at_end.tc`（空拷贝 index == count，VM stdout+check_ok、AOT diff）；test-map 回填 1033 VM / 477 AOT | 审计表三例：常量越界 `memblock_copy(int32, b, 0, a, 0, 3)`（N=2）与 `length = -1` 由 `-c` 通过变为静态 `MemblockIndexOutOfRange`；`memblock_copy(float32, …)` 仍为静态 `TypeMismatch`；空拷贝 `index == count` 仍接受；变量 length 越界仍留运行时（两后端一致）；全量三层与 5 项门禁通过 |
 | 2.6.6 | 六处「usize 结果类型」接受 `isize` 的检查统一收紧为 `!= TC_USIZE`：`tc_memblock_check.c`（`.count` RHS）、`tc_struct_check.c`（字段 `.count`）、`tc_ptr_check.c`（`ptr_size`）、`tc_const_eval.c`（静态布尔取值的 `.count` 原子、常量 `.count`、常量 `ptr_size`），错误消息同步为 `must be usize`。新增 `tests/errors/static/memblock_count_isize.tc` 与 `ptr_size_isize.tc`（VM fail_msg + check_fail/TypeMismatch），并更新 `memblock_count_type.tc` / `ptr_size_not_usize.tc` 的注释与注册串；test-map 回填 1037 VM | `var c: isize = m.count` 与 `let w: isize = ptr_size(int32, nullptr)` 由 ACCEPT 变为 `TypeMismatch`（VM/AOT 一致）；`var c: usize = m.count` 仍正常（输出 3）；`var n: int32 = mb.count` / `var n: int32 = ptr_size(…)` 仍报同码；全量三层与 5 项门禁通过 |
 | 2.6.5 | `tc_parser.c` `tc_parse_module_body`：`#lib` 模式下把 EXEC 层行按语法拒绝（`TC_CE_SYNTAX`，主位置为该行首 Token），例外放行 `goto`/`label`/`break`/`continue`/`return` —— 附录 A 明示其顶层出现由后续静态语义报专用码（保住既有 `GotoOutsideFunction` 等诊断）。新增 `tests/errors/static/lib_toplevel_statement.tc`（`public static var W` + 顶层 `writeln`），注册 VM check_fail（SyntaxError）与 fail_msg；test-map 回填 1039 VM | 审计复现：`#lib` + 顶层 `writeln(int32, 42)` 由 ACCEPT（被 import 时静默丢弃）变为 `SyntaxError: executable statement is not allowed in #lib`（VM/AOT 一致）；`#lib` + 顶层 `if` 同样拒绝；顶层 `goto`/`return`/`break`/`continue` 仍报各自专用码；`#lib` 顶层 `var`/`let` 仍报 `ModuleLayerError`；合法 `#lib`（仅 static/func）不受影响；全量三层与 5 项门禁通过 |
+| 2.6.3 | 三处补齐：①`tc_analyzer_pass1.c` 新增 `tc_pass1_param_name_conflict`，`TcAnalyzeCtx` 增 `current_params`/`current_param_count`（在 FUNC_DEF 分支设置并恢复），`var`/`let` 在**任意层级**与形参同名 → `DUPLICATE_DEFINITION`（不能扫全符号表：符号表跨函数/模块共享，已弹栈的形参仍在）；②`tc_analyzer_pass2.c` 新增 `tc_pass2_check_nested_func_name_conflict`（按当前模块成员索引判定），函数体任意层级/顶层嵌套块的 `var`/`let` 与全局函数同名 → `FUNCTION_NAME_CONFLICT`；③`tc_struct_check.c` 结构体注册时扫描同模块 `func`/`var`/`let`/`static var`/`static let` 名，冲突 → `FUNCTION_NAME_CONFLICT`（主位置取两者中源序更晚者）。新增四份语料：`param_shadow_nested.tc`、`nested_var_function_conflict.tc`、`struct_value_name_conflict.tc`、`struct_function_name_conflict.tc`（VM check_fail + 码断言）；test-map 回填 1043 VM（结构体名与导入名冲突已由 B-12 闭合） | 审计五个复现：`if true then var a`（与形参 `a` 同名）、函数体内 `var g`（与 `func g` 同名）、`struct S` + `var S`、`public struct F` + `public func F` 全部由 ACCEPT 变为对应专用码（VM/AOT 一致）；`#program` + `import pub` + `struct pub` 已由 B-12 拒绝；合法程序（如 `Util.tc` 的 `add1(x)` 被 import、`#program` 顶层 `var x` 与依赖形参同名）不受影响（test-module 65/65）；全量三层与 5 项门禁通过 |
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
 | 条目 | 待裁决点 |
@@ -270,7 +271,8 @@
 | 28 | 阶段 2-B20 整数下标操作数校验（含既有-8） | `718e66a fix(0.0.44-B20): check integer index operands` |
 | 29 | 阶段 2-B21 `memblock_copy` 常量区间校验 | `c0bf20d fix(0.0.44-B21): check constant memblock_copy ranges statically` |
 | 30 | 阶段 2-§2.6.6 isize 不得当作 usize | `cfc6601 fix(0.0.44-2.6.6): require usize for count/ptr_size results` |
-| 31 | 阶段 2-§2.6.5 `#lib` 顶层可执行语句 | 本提交 `fix(0.0.44-2.6.5): reject top-level executable statements in #lib` |
+| 31 | 阶段 2-§2.6.5 `#lib` 顶层可执行语句 | `5468e50 fix(0.0.44-2.6.5): reject top-level executable statements in #lib` |
+| 32 | 阶段 2-§2.6.3 名称冲突与作用域漏检 | 本提交 `fix(0.0.44-2.6.3): close name-conflict and scope gaps` |
 
 ---
 

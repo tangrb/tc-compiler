@@ -55,6 +55,30 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                                  TcSlotDomain slot_domain, TcAnalyzeCtx *ctx,
                                  TcDiagnostic *diag);
 
+/**
+ * 语言标准 §8.1.2「名称冲突保护」：**任意层级** `var` / `let` 与形参同名报
+ * TC_CE_DUPLICATE_DEFINITION（主位置为该内层标识符）。形参表取自当前正在收集
+ * 的函数（`ctx->current_params`），不能扫描整张符号表——符号表跨函数/跨模块共享，
+ * 已弹出作用域的形参符号仍然存在。
+ */
+static int tc_pass1_param_name_conflict(const TcFuncParam *params, size_t param_count,
+                                        const char *name, int line, TcDiagnostic *diag) {
+    size_t i = 0;
+    char msg[128];
+
+    if (!name) {
+        return 0;
+    }
+    for (i = 0; i < param_count; i++) {
+        if (params[i].name && strcmp(params[i].name, name) == 0) {
+            (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", name);
+            tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, line, TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int tc_pass1_collect_block(TcStatement *items, size_t count, TcSymbolTable *symbols,
                                   int *next_slot, TcSlotDomain slot_domain, TcAnalyzeCtx *ctx,
                                   TcDiagnostic *diag) {
@@ -135,9 +159,13 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
         TcFuncDef *func = &stmt->u.func_def;
         size_t i = 0;
         int saved_func_id = ctx->current_func_id;
+        const TcFuncParam *saved_params = ctx->current_params;
+        size_t saved_param_count = ctx->current_param_count;
 
         (void)tc_stmt_index_take(&ctx->index);
         ctx->current_func_id = func->func_id;
+        ctx->current_params = func->params;
+        ctx->current_param_count = func->param_count;
         if (tc_symbol_table_push_scope(symbols) < 0) {
             tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, func->line, TC_COLUMN_UNKNOWN,
                               "memory allocation failed");
@@ -173,10 +201,14 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
                                    TC_SLOT_LOCAL, ctx, diag) != 0) {
             tc_symbol_table_pop_scope(symbols);
             ctx->current_func_id = saved_func_id;
+            ctx->current_params = saved_params;
+            ctx->current_param_count = saved_param_count;
             return -1;
         }
         tc_symbol_table_pop_scope(symbols);
         ctx->current_func_id = saved_func_id;
+        ctx->current_params = saved_params;
+        ctx->current_param_count = saved_param_count;
         return 0;
     }
 
@@ -189,6 +221,11 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
             (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", var_def->name);
             tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, var_def->line,
                               TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        /* §8.1.2：**任意层级** var/let 与形参同名 → DUPLICATE_DEFINITION（主位置：内层标识符） */
+        if (tc_pass1_param_name_conflict(ctx->current_params, ctx->current_param_count,
+                                         var_def->name, var_def->line, diag) != 0) {
             return -1;
         }
         itype = tc_pass1_intern(ctx->type_table, &var_def->full_type, var_def->line, diag);
@@ -218,6 +255,11 @@ static int tc_pass1_collect_stmt(TcStatement *stmt, TcSymbolTable *symbols, int 
             (void)snprintf(msg, sizeof(msg), "duplicate definition of '%s'", const_def->name);
             tc_diagnostic_set(diag, TC_CE_DUPLICATE_DEFINITION, const_def->line,
                               TC_COLUMN_UNKNOWN, msg);
+            return -1;
+        }
+        /* §8.1.2：**任意层级** let 与形参同名 → DUPLICATE_DEFINITION */
+        if (tc_pass1_param_name_conflict(ctx->current_params, ctx->current_param_count,
+                                         const_def->name, const_def->line, diag) != 0) {
             return -1;
         }
         itype = tc_pass1_intern(ctx->type_table, &const_def->full_type, const_def->line, diag);

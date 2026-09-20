@@ -1,0 +1,8 @@
+#lib
+; §8.1.2：任意层级 var/let 与形参同名 → TC_CE_DUPLICATE_DEFINITION
+public func f(a: int32) void then
+    if true then
+        var a: int32 = 1
+    end
+    return
+end

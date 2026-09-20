@@ -1,0 +1,8 @@
+#lib
+; §3.9.1：结构体名与同模块函数名冲突 → TC_CE_FUNCTION_NAME_CONFLICT
+public struct F then
+    var x: int32
+end
+public func F() void then
+    return
+end

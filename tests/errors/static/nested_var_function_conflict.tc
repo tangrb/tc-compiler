@@ -1,0 +1,9 @@
+#lib
+; §8.1.2：函数体任意层级 var/let 与全局函数同名 → TC_CE_FUNCTION_NAME_CONFLICT
+public func g() void then
+    return
+end
+public func h() void then
+    var g: int32 = 1
+    return
+end

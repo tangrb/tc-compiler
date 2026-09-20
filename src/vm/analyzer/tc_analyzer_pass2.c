@@ -312,6 +312,29 @@ static int tc_pass2_resolve_decl_memblock_type(TcType *ast_type, const TcType **
     return 0;
 }
 
+/**
+ * 6b 补充（语言标准 §8.1.2、编译器标准 §1.2 第 6b 步）：函数体**任意层级**以及
+ * 顶层嵌套块的 `var` / `let` 不得与全局函数同名 → TC_CE_FUNCTION_NAME_CONFLICT
+ *（主位置为该值绑定名，关联先前定义）。顶层直接绑定由阶段 5 命中；依赖模块的
+ * 顶层静态成员在此命中。
+ */
+static int tc_pass2_check_nested_func_name_conflict(const TcAnalyzeCtx *ctx, const char *name,
+                                                    int line, TcDiagnostic *diag) {
+    const TcMemberEntry *entry = NULL;
+    char msg[128];
+
+    if (!ctx || !ctx->func_env || !ctx->func_env->members || !name) {
+        return 0;
+    }
+    entry = tc_member_index_find(ctx->func_env->members, name);
+    if (!entry || entry->kind != TC_MEMBER_FUNC) {
+        return 0;
+    }
+    (void)snprintf(msg, sizeof(msg), "function name conflicts with value binding '%s'", name);
+    tc_diagnostic_set(diag, TC_CE_FUNCTION_NAME_CONFLICT, line, TC_COLUMN_UNKNOWN, msg);
+    return -1;
+}
+
 static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                TcSymbolTable *visible, TcStructTable *struct_table,
                                TcAnalyzeCtx *ctx, TcInitHistory *hist, TcWarningList *warnings,
@@ -678,9 +701,13 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_VAR_DEF) {
             TcVarDef *var_def = &stmt->u.var_def;
-            TcSymbol *sym =
-                (TcSymbol *)tc_find_symbol_by_def_index(symbols, var_def->name, (int)stmt_index);
+            TcSymbol *sym = NULL;
 
+            if (tc_pass2_check_nested_func_name_conflict(ctx, var_def->name, var_def->line,
+                                                         diag) != 0) {
+                return -1;
+            }
+            sym = (TcSymbol *)tc_find_symbol_by_def_index(symbols, var_def->name, (int)stmt_index);
             if (tc_pass2_resolve_decl_memblock_type(&var_def->full_type, &var_def->binding.type, sym,
                                                     ctx, visible, symbols, stmt_index,
                                                     var_def->line, diag) != 0) {
@@ -758,9 +785,14 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
 
         if (stmt->kind == TC_STMT_CONST_DEF) {
             TcConstDef *const_def = &stmt->u.const_def;
-            TcSymbol *global_sym =
-                (TcSymbol *)tc_find_symbol_by_def_index(symbols, const_def->name, (int)stmt_index);
+            TcSymbol *global_sym = NULL;
 
+            if (tc_pass2_check_nested_func_name_conflict(ctx, const_def->name, const_def->line,
+                                                         diag) != 0) {
+                return -1;
+            }
+            global_sym =
+                (TcSymbol *)tc_find_symbol_by_def_index(symbols, const_def->name, (int)stmt_index);
             if (tc_pass2_resolve_decl_memblock_type(&const_def->full_type, NULL, global_sym, ctx,
                                                     visible, symbols, stmt_index, const_def->line,
                                                     diag) != 0) {

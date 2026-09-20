@@ -1,0 +1,6 @@
+#program
+; §3.9.1：结构体名与同模块值绑定名冲突 → TC_CE_FUNCTION_NAME_CONFLICT
+struct S then
+    var x: int32
+end
+var S: int32 = 7
