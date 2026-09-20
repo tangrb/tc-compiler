@@ -177,7 +177,7 @@
 | B-63 | 顶层行缩进不校验 | ⊘ 待标准裁决 | |
 | B-64 | 文件名含内部点致结构体解析失败 | ☑ | |
 | B-65 | 跨模块同名符号致 CFG 假阳性 | ☑（并修正串槽读值） | |
-| B-66 | `static let` 经 `Self.` 引用规则不符 | ☐ | |
+| B-66 | `static let` 经 `Self.` 引用规则不符 | ☑ | |
 
 ### §2.6 子项
 
@@ -261,6 +261,7 @@
 | B-62 | 无需新增 src 改动：B-30/B-31（附录 A 列表产生式统一拒绝尾随逗号「trailing comma not allowed in list」并要求逗号分隔「expected , or )」）已覆盖 const 变体。本轮补足 const 侧回归覆盖：新增 4 条语料——模块级 `public static let` 的 `const_struct_constructor` 尾随逗号、函数内 `let` 的该产生式缺失逗号、模块级 `static let` 的 `const_memblock_elems_ctor` 尾随逗号、函数内 `let` 的该产生式缺失逗号；VM `run_expect_check_fail`（消息+`SyntaxError`）与 AOT `run_check_fail` 双端断言。test-map 回填 1133 VM / 504 AOT | 审计四例（`S(a: 1, b: 2,)`、`S(a: 1 b: 2)`、`memblock(int32, count: 2, 1, 2,)`、`…, 1 2)`）实测全部由 rc=0 变为 `SyntaxError`（rc=1），且 const 与非 const 路径错码一致；对照 `memblock(int32, count: 2, fill: 0,)` 两路径同样拒绝（既有行为）；全量三层与 5 项门禁通过 |
 | B-37 | `tc_struct_check.c` 新增 `tc_field_split_variable_base`：字段读（`tc_struct_check_field_access`）与字段赋值（`tc_struct_check_field_assign`）在解析基址前按**名称解析**纠正解析器的分类——若基址第一个点之前的部分能按 `tc_find_named_binding` 命中可见绑定，则说明这是变量基址（`A.i.v`），把点后部分并回字段链首位；否则保持 `<模块名>.<成员>.<字段>` 的限定名分类（如 `StructFieldSelfLib.root.v` 不受影响）。新增 `tests/valid/uppercase_var_field_read.tc`（`A.i.v` 与大写/小写对照）与 `uppercase_var_field_assign.tc`（`A.i.v = 5`），VM stdout+check_ok、AOT diff+check_ok；test-map 回填 1137 VM / 508 AOT | 审计复现：`var A: Outer = Outer(i: inner)` 后 `writeln(int32, A.i.v)` 由 `UndefinedVariable: undefined variable 'i'` 变为输出 `1`（与换成小写 `a` 的行为一致）；`A.i.v = 5` 同样由失败变为输出 `5`；限定名基址用例（`struct_field_operand_self_base`、`struct_field_operand_*`、`imported_struct_*`、`qualified_*`）全部保持既有结果；全量三层与 5 项门禁通过 |
 | B-40 | `TcDiagnostic` 增挂起槽 `deferred_sem` 与 API（`tc_diagnostic_defer_sem` / `has_deferred_sem` / `publish_deferred_sem` / `clear_deferred_sem`，内部与 CT 槽共用 `tc_diagnostic_defer_into`）；解析器的三处形态检查改为**挂起 SEM 诊断并继续解析**（占位值取合法且不放大分配）：`tc_parser_struct.c` 的 `@padding(N)`、`tc_parser_type.c` 的 `memblock<T, N>`、`tc_parser_rhs.c` 的 `count:` 字面量（负数/非十进制/带后缀/0）。`tc_analyzer.c` 在 CT 挂起项发布**之前**以及 `fail:` 路径发布 SEM 挂起项（同文件按源序竞争、跨文件沿用先到先得；同行时带列号的挂起项优先于无列号的行级诊断）；`tc_sem_take_diag` 先摘出再恢复该挂起槽，避免 `tc_diagnostic_clear` 释放尚未参与竞争的候选。附带修一处所有权缺陷：结构体表移交 `out->struct_table` 后复位局部表，避免挂起诊断失败时 `fail:` 路径对同一 items/fields 双重释放（此前 CT 挂起项失败也会踩到）。新增 `tests/errors/static/padding_then_later_syntax.tc`（SEM 之后有 SYN → SYN 胜）与 `padding_then_later_sem.tc`（同属 SEM → 源序更早者胜）；test-map 回填 1139 VM / 510 AOT | 审计复现：`@padding(4u)` 与更晚的 `add(int32, 1)`（`TC_CE_OPERAND_COUNT`，标准 §1.3 定义为 SYN）同时存在时，由报更早的 `ConstantExpressionError` 变为报更晚的 `SyntaxError`（第 8 行）；仅有 `@padding(4u)`/`memblock<int32, -5>`/`count: -5` 时仍在原 Token 位置报 `ConstantExpressionError` 且消息不变（既有 `memblock_negative_count_{type,ctor}` 语料继续通过）；`@padding` 与更晚的 `MemblockSizeMismatch`（同属 SEM）并存时报更早的 padding 诊断；全量三层与 5 项门禁通过 |
+| B-66 | `tc_func_check.c` `tc_func_eval_static_lets` 的依赖边构建：`Self.<名>` 命中的 static let 若**源序不早于**当前定义（自身或更晚，按 `program_index` 判定），不再作为拓扑依赖边，而是直接报 `TC_CE_UNDEFINED_VARIABLE`（自身 → `undefined variable '<名>'`，更晚 → `constant value is not available by source order`）——标准 §5.2.1 明确「不定义常量循环依赖错误，前向引用与自引用统一由 `TC_CE_UNDEFINED_VARIABLE` 处理」，故 Kahn 拓扑的「circular static let dependency」分支对 static let 不再可达（保留为防御性兜底）。新增 3 条错误语料（`static_let_self_reference` / `static_let_later_self_member` / `static_let_later_self_field`，VM `run_expect_check_fail` 断言消息+码、AOT `run_check_fail`），并把既有的 `static_let_forward.tc` 期望由「circular static let」更正为 `UndefinedVariable`；连带修正两处按标准应当非法的合法语料（`struct_field_static_init.tc` / `struct_field_static_topo_ops.tc` 把基址声明移到使用者之前）与 unit `test_struct_field_access` 的两条正向断言（改为源序合法的形态，并新增两条前向/自引用负例）；test-map 回填 1142 VM / 514 AOT | 审计三例：`k: int32 = Self.j`（j 在下一行）由「被接受、运行输出 41」变为 `UndefinedVariable`；`Self.k` 自引用由 `ConstantExpressionError: circular static let dependency` 变为 `UndefinedVariable: undefined variable 'k'`；裸名形式行为不变；`Self.s.x` 前向字段读同样被拒（新语料）；`static var` 路径与既有 `struct_field_static_*`、`static_let_rule_ok`、`phase5_self_static_let` 等正例（改为源序合法形态后）全部通过；全量三层与 5 项门禁通过 |
 
 ## 需标准 owner 裁决（本轮跳过，不动语言标准）
 
@@ -350,7 +351,8 @@
 | 67 | 阶段 2-B65 跨模块同名符号解析 | `9ab5cbc fix(0.0.44-B65): resolve same-named symbols per module` |
 | 68 | 阶段 2-B62 const 列表产生式回归覆盖 | `9569331 test(0.0.44-B62): cover the const list productions` |
 | 69 | 阶段 2-B37 大写变量嵌套字段解析 | `17114fb fix(0.0.44-B37): classify field-access bases by name resolution` |
-| 70 | 阶段 2-B40 解析期 SEM 诊断挂起 | 本提交 `fix(0.0.44-B40): defer parser-side SEM diagnostics to the static phase` |
+| 70 | 阶段 2-B40 解析期 SEM 诊断挂起 | `379dddb fix(0.0.44-B40): defer parser-side SEM diagnostics to the static phase` |
+| 71 | 阶段 2-B66 static let 的 Self. 源序引用规则 | 本提交 `fix(0.0.44-B66): enforce source order for Self references in static let` |
 
 ---
 

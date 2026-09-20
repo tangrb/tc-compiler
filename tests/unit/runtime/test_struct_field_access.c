@@ -165,19 +165,22 @@ static void test_struct_field_access_const(void) {
               "public static let s: Box = Box(x: 9)\n"
               "public static var n: int32 = Self.s.x\n",
               "static var init with Self.field ok");
-    /* static let 拓扑：FIELD_READ / 算术 / 比较写在基址之前 */
+    /* static let：FIELD_READ / 算术 / 比较读**源序更早**成员（§4.2） */
     expect_ok("#lib\n"
               "public struct Box then\n    var x: int32\nend\n"
+              "public static let s: Box = Box(x: 9)\n"
               "public static let n: int32 = Self.s.x\n"
               "public static let k: int32 = add(int32, Self.s.x, 1)\n"
-              "public static let b: bool = gt(int32, Self.s.x, 0)\n"
-              "public static let s: Box = Box(x: 9)\n",
-              "static let field topo (read/arith/compare) ok");
-    /* static let 拓扑：unary/bitwise/shift/logic/float/cast/bitcast 操作数字段读 */
+              "public static let b: bool = gt(int32, Self.s.x, 0)\n",
+              "static let field read/arith/compare ok");
+    /* static let：unary/bitwise/shift/logic/float/cast/bitcast 操作数字段读 */
     expect_ok("#lib\n"
               "public struct Num then\n    var x: int32\nend\n"
               "public struct Flag then\n    var b: bool\n    var f: float64\nend\n"
               "public struct ScalarPair then\n    var a: int32\n    var b: int32\nend\n"
+              "public static let num: Num = Num(x: 9)\n"
+              "public static let flag: Flag = Flag(b: true, f: 1.5)\n"
+              "public static let sp: ScalarPair = ScalarPair(a: Self.num.x, b: 1)\n"
               "public static let nn: int32 = neg(int32, Self.num.x)\n"
               "public static let bw: int32 = or(int32, Self.num.x, 1)\n"
               "public static let sh: int32 = shl(int32, Self.num.x, 1)\n"
@@ -187,11 +190,17 @@ static void test_struct_field_access_const(void) {
               "public static let fc: bool = gt(float64, Self.flag.f, 0.0)\n"
               "public static let cc: int8 = cast(int8, Self.num.x)\n"
               "public static let bc: float32 = bitcast(float32, Self.num.x)\n"
-              "public static let sp_a: int32 = Self.sp.a\n"
-              "public static let num: Num = Num(x: 9)\n"
-              "public static let flag: Flag = Flag(b: true, f: 1.5)\n"
-              "public static let sp: ScalarPair = ScalarPair(a: Self.num.x, b: 1)\n",
-              "static let field topo (unary/bitwise/shift/logic/float/cast/bitcast) ok");
+              "public static let sp_a: int32 = Self.sp.a\n",
+              "static let field operators (unary/bitwise/shift/logic/float/cast/bitcast) ok");
+    /* B-66/§4.2：static let 初始化器引用**源序更晚**或**自身**的成员 → UNDEFINED_VARIABLE */
+    expect_err("#lib\n"
+               "public struct Box then\n    var x: int32\nend\n"
+               "public static let n: int32 = Self.s.x\n"
+               "public static let s: Box = Box(x: 9)\n",
+               TC_CE_UNDEFINED_VARIABLE, "static let field forward reference rejected");
+    expect_err("#lib\n"
+               "public static let k: int32 = Self.k\n",
+               TC_CE_UNDEFINED_VARIABLE, "static let self reference rejected");
     /* static var 运行期字段读初始化器（提前固化 + 基址为 static let） */
     expect_ok("#lib\n"
               "public struct Box then\n    var x: int32\nend\n"

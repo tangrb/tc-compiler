@@ -1365,6 +1365,28 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
                 free(deps[d]);
                 continue;
             }
+            /*
+             * B-66 / §4.2、§5.2.1：`static let` 初始化器只能引用**源序更早**且已成功
+             * 初始化的成员。引用自身或源序更晚的成员时，该名称在源序可见性上尚未
+             * 建立 → TC_CE_UNDEFINED_VARIABLE；标准 §5.2.1 明确「不定义常量循环依赖
+             * 错误，前向引用与自引用统一由 TC_CE_UNDEFINED_VARIABLE 处理」，故此处
+             * 不再把这类引用当作依赖边去报「循环依赖」。
+             */
+            if (entries[from].program_index >= entries[to].program_index) {
+                char msg[160];
+
+                if (entries[from].program_index == entries[to].program_index) {
+                    (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", deps[d]);
+                } else {
+                    (void)snprintf(msg, sizeof(msg),
+                                   "constant value is not available by source order");
+                }
+                tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, entries[to].def->line,
+                                  TC_COLUMN_UNKNOWN, msg);
+                free(deps[d]);
+                rc = -1;
+                goto cleanup;
+            }
             if (adj_count[from] == adj_cap[from]) {
                 size_t new_cap = adj_cap[from] == 0 ? 4 : adj_cap[from] * 2;
                 edge_items = (int *)realloc(adj[from], new_cap * sizeof(int));

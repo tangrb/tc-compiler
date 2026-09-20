@@ -800,6 +800,14 @@ run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_rhs.tc" "constant e
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_operand.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_field.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_count.tc" "constant expression cannot reference var variable"
+# B-66：static let 经 Self. 的自引用 / 前向引用 → UNDEFINED_VARIABLE
+run_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
+    "constant value is not available by source order"
+run_check_fail "$ROOT/tests/errors/static/static_let_self_reference.tc" "undefined variable 'k'"
+run_check_fail "$ROOT/tests/errors/static/static_let_later_self_member.tc" \
+    "constant value is not available by source order"
+run_check_fail "$ROOT/tests/errors/static/static_let_later_self_field.tc" \
+    "constant value is not available by source order"
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_ctor.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_cast.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/static_let_type_n_static_var.tc" "memblock count must be a compile-time usize constant"

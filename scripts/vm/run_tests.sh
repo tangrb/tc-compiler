@@ -991,7 +991,14 @@ run_expect_check_fail "$ROOT/tests/errors/static/read_type_mismatch.tc" \
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_direct.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_indirect.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
-    "circular static let"
+    "constant value is not available by source order" "UndefinedVariable"
+# B-66：static let 经 Self. 的自引用 / 前向引用统一按 §5.2.1 报 UNDEFINED_VARIABLE
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_self_reference.tc" \
+    "undefined variable 'k'" "UndefinedVariable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_later_self_member.tc" \
+    "constant value is not available by source order" "UndefinedVariable"
+run_expect_check_fail "$ROOT/tests/errors/static/static_let_later_self_field.tc" \
+    "constant value is not available by source order" "UndefinedVariable"
 # Critical 1 回归：static let/var 的 memblock 逐值构造计数不匹配（const 求值先于 pass2）
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_memblock_count_mismatch.tc" \
     "memblock element count mismatch"
