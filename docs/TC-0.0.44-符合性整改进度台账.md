@@ -291,6 +291,7 @@
 | 序号 | 观察项 | 处置 | 提交 |
 | ---- | ------ | ---- | ---- |
 | 观察-① | `.cursor/skills/tc-architecture/errors.md`（报文速查）未随 A-1～A-4、B-41、B-61、B-63 刷新：缺 `nullptr cannot participate in bitcast`、`top-level lines must not be indented`、静态 `memcopy_unsafe invalid range`，且未体现 A-2 双阶段、B-41 深浅口径、B-61 专用码优先 | 刷新该知识库文件（1 处优先级注记 + 6 处码表行 + 4 行报文表，含 `while`/`function` 变体）；该文件不被 5 项门禁校验，属可维护速查资产 | 本提交 |
+| 观察-② | `tc_parse_block_body_mode` 的 `end` 对齐文案写死 `if`，`while` / `func` 体命中时块名错误（`func` 路径此前完全无语料覆盖） | 把块头关键字作为 `header_keyword` 形参传入 `tc_parse_block_body_mode` / `tc_parse_block_body`（`if` then/else → `"if"`、`while` 体 → `"while"`、`func` 体 → `"function"`），`end` 文案改为按块名拼接；`else` 文案保持「…as if」（`else` 只与 `if` 配对）。既有断言**零改动**（`if` 路径文案不变）；新增 `while_end_indent_{mismatch,deeper}.tc` 与 `func_end_indent_mismatch.tc`，VM 断言消息＋`IndentElseEndError`、AOT `run_check_fail`；test-map 回填 1159 VM / 533 AOT。性质：**报文文本不属可观察行为**（[TC-AOT 详设 §16.1]、语言标准不规定报文），故此项为诊断自洽性清理，不占审计条目编号 | 本提交 |
 
 ## 标准 owner 裁决记录（A-1～A-4 与 B-41/B-61/B-63 全部裁决并落地）
 

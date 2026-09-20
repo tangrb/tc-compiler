@@ -163,7 +163,7 @@ int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
 
     (*index)++;
     if (tc_parse_block_body_mode(ctx, lines, line_count, index, base_indent, file_indent,
-                                 TC_MODULE_FUNC_BODY, &body, diag) != 0) {
+                                 TC_MODULE_FUNC_BODY, "function", &body, diag) != 0) {
         tc_func_def_fail(&def);
         tc_stmt_block_free(&body);
         return -1;

@@ -44,14 +44,17 @@ int tc_module_diag(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
                    const char *message);
 void tc_stmt_block_init(TcStmtBlock *block);
 void tc_stmt_block_free(TcStmtBlock *block);
+/* header_keyword：当前块的块头关键字（"if" / "while" / "function"），
+ * 供 else/end 对齐诊断按块报告（诊断文案不属可观察行为，但需自洽）。 */
 int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                              size_t *index, int base_indent,
                              const TcFileIndent *file_indent, TcModuleMode mode,
-                             TcStmtBlock *block, TcDiagnostic *diag);
+                             const char *header_keyword, TcStmtBlock *block,
+                             TcDiagnostic *diag);
 int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                         size_t *index, int base_indent,
-                        const TcFileIndent *file_indent, TcStmtBlock *block,
-                        TcDiagnostic *diag);
+                        const TcFileIndent *file_indent, const char *header_keyword,
+                        TcStmtBlock *block, TcDiagnostic *diag);
 int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
                                TcModuleMode mode, TcVisibility *out_vis,
                                int require_vis, TcDiagnostic *diag, int line_no);

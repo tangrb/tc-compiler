@@ -2458,6 +2458,13 @@ run_expect_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" \
     "end indentation does not match if" "IndentElseEndError"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
     "else must appear at same indentation as if" "IndentElseEndError"
+# 观察项-②：else/end 对齐文案按块类型（while / function）
+run_expect_check_fail "$ROOT/tests/errors/static/while_end_indent_mismatch.tc" \
+    "end indentation does not match while" "IndentElseEndError"
+run_expect_check_fail "$ROOT/tests/errors/static/while_end_indent_deeper.tc" \
+    "end indentation does not match while" "IndentElseEndError"
+run_expect_check_fail "$ROOT/tests/errors/static/func_end_indent_mismatch.tc" \
+    "end indentation does not match function" "IndentElseEndError"
 # B-63：顶层行（含模块指令行）不得缩进
 run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_program.tc" \
     "top-level lines must not be indented" "IndentInsufficientError"

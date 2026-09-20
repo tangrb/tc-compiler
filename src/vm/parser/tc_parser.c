@@ -1149,7 +1149,8 @@ int tc_end_line_check(const TcSourceLine *line, TcDiagnostic *diag) {
 int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                                     size_t *index, int base_indent,
                                     const TcFileIndent *file_indent, TcModuleMode mode,
-                                    TcStmtBlock *block, TcDiagnostic *diag) {
+                                    const char *header_keyword, TcStmtBlock *block,
+                                    TcDiagnostic *diag) {
     while (*index < line_count) {
         TcSourceLine *line = &lines[*index];
         TcStatement stmt;
@@ -1170,8 +1171,11 @@ int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
                                   "else must appear at same indentation as if");
         }
         if (first_kind == TC_TOK_END) {
-            return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no,
-                                  "end indentation does not match if");
+            char msg[96];
+
+            (void)snprintf(msg, sizeof(msg), "end indentation does not match %s",
+                           header_keyword ? header_keyword : "block header");
+            return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no, msg);
         }
         if (tc_block_indent_valid(file_indent, base_indent, line->indent, diag,
                                   line->line_no) != 0) {
@@ -1204,10 +1208,10 @@ int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_
 
 int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                                size_t *index, int base_indent,
-                               const TcFileIndent *file_indent, TcStmtBlock *block,
-                               TcDiagnostic *diag) {
+                               const TcFileIndent *file_indent, const char *header_keyword,
+                               TcStmtBlock *block, TcDiagnostic *diag) {
     return tc_parse_block_body_mode(ctx, lines, line_count, index, base_indent, file_indent,
-                                    TC_MODULE_PROGRAM, block, diag);
+                                    TC_MODULE_PROGRAM, header_keyword, block, diag);
 }
 
 int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
@@ -1250,8 +1254,8 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
     }
 
     (*index)++;
-    if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, &then_block,
-                            diag) != 0) {
+    if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, "if",
+                            &then_block, diag) != 0) {
         goto fail;
     }
 
@@ -1281,7 +1285,7 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
             goto fail;
         }
         (*index)++;
-        if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent,
+        if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, "if",
                                 &else_block, diag) != 0) {
             goto fail;
         }
@@ -1361,8 +1365,8 @@ int tc_parse_while_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count
     }
 
     (*index)++;
-    if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, &body,
-                            diag) != 0) {
+    if (tc_parse_block_body(ctx, lines, line_count, index, base_indent, file_indent, "while",
+                            &body, diag) != 0) {
         goto fail;
     }
     if (*index >= line_count || tc_first_token_kind(&lines[*index]) != TC_TOK_END) {
