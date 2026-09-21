@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [0.0.44] - 2026-09-21
+
 ### Changed
 
 - GitHub Actions `ci.yml` / `asan.yml` 对 **`tc-0.0.44`** 的 push/PR 触发；覆盖率收集经 `scripts/lcov_compat.sh` 兼容 lcov 1.x、Ubuntu apt 2.0 与 Homebrew 2.5（`lcov` 与 `genhtml` 分开探测 `--ignore-errors`）。根 README、CONTRIBUTING、`docs/README` 已同步 CI 分支、lcov 依赖与 `build-coverage/` 产物路径。
@@ -96,7 +98,8 @@
 
 - 从 0.0.38 线带入跨平台 CI/CD 与测试移植，纳入 0.0.39 发布线。
 
-[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...HEAD
+[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.44...HEAD
+[0.0.44]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...v0.0.44
 [0.0.43]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...v0.0.43
 [0.0.42]: https://github.com/tangrb/tc-compiler/compare/v0.0.41...v0.0.42
 [0.0.41]: https://github.com/tangrb/tc-compiler/compare/v0.0.40...v0.0.41

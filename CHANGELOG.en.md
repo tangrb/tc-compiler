@@ -9,6 +9,8 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ## [Unreleased]
 
+## [0.0.44] - 2026-09-21
+
 ### Changed
 
 - GitHub Actions `ci.yml` / `asan.yml` now trigger on **`tc-0.0.44`** push/PR. Coverage collection goes through `scripts/lcov_compat.sh` for lcov 1.x, Ubuntu apt 2.0, and Homebrew 2.5 (`lcov` and `genhtml` probe `--ignore-errors` kinds separately). Root README, CONTRIBUTING, and `docs/README` document the CI branches, the lcov dependency, and the gitignored `build-coverage/` output.
@@ -97,7 +99,8 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 - Cross-platform CI/CD and test-port integration carried from the 0.0.38 line into the 0.0.39 release train.
 
-[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...HEAD
+[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.44...HEAD
+[0.0.44]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...v0.0.44
 [0.0.43]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...v0.0.43
 [0.0.42]: https://github.com/tangrb/tc-compiler/compare/v0.0.41...v0.0.42
 [0.0.41]: https://github.com/tangrb/tc-compiler/compare/v0.0.40...v0.0.41
