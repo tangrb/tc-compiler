@@ -1,5 +1,5 @@
 #program
-; 观察-⑥ 负例：`<模块名>.<static let> = rhs` → 常量赋值（不得降级为 undefined variable）
+; `<模块名>.<static let> = rhs` → 常量赋值（不得降级为 undefined variable）
 ; 期望：cannot assign to constant（ConstantAssignmentError）
 import MemberLib
 var v: int32 = 0

@@ -1,5 +1,5 @@
 #program
-; Major 3 回归变体 + A-3：**负字面量** src 下标。
+; **负字面量** src 下标。
 ; 期望：**静态**拒绝 memcopy_unsafe invalid range
 var a: memblock<int32, 4> = memblock(int32, count: 4, fill: 1)
 var b: memblock<int32, 4> = memblock(int32, count: 4, fill: 0)

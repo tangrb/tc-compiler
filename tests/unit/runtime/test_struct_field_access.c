@@ -1,14 +1,14 @@
 /*
  * test_struct_field_access.c — field_access 作 operand / const-RHS 分析期单元测试
  *
- * 覆盖计划 §5.1 unit 段（test_struct_field_access_*）：
+ * 覆盖：
  *   - 类型链校验（a.b.c 嵌套字段读；未知字段；非 struct 中间层）
  *   - .count 语义消歧（memblock 基址 → count；struct 同名字段 → 普通字段读）
  *   - const 上下文（let struct 字段读 ok；var 基址在 let RHS → CONSTANT_EXPRESSION）
  *   - operand 位置字段读（算术 / I/O / return / ptr / memblock 位置）
  *   - hist 注入：直接调用 tc_struct_check_field_access，基址 slot 置
  *     TC_INIT_UNINIT → TC_CE_UNINITIALIZED_VARIABLE（.tc 负例受可达性规则
- *     限制不可构造，见计划 §5.2 备注，改由本测试注入 hist 覆盖）
+ *     限制不可构造，改由本测试注入 hist 覆盖）
  */
 #include "tc_analyzer.h"
 #include "tc_analyzer_internal.h"
@@ -66,7 +66,7 @@ static void expect_ok(const char *source, const char *label) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  test_struct_field_access_* — 计划 §5.1 unit 段                       */
+/*  test_struct_field_access_* — 字段读类型链 / const / operand          */
 /* ------------------------------------------------------------------ */
 
 static void test_struct_field_access_chain(void) {
@@ -192,7 +192,7 @@ static void test_struct_field_access_const(void) {
               "public static let bc: float32 = bitcast(float32, Self.num.x)\n"
               "public static let sp_a: int32 = Self.sp.a\n",
               "static let field operators (unary/bitwise/shift/logic/float/cast/bitcast) ok");
-    /* B-66/§4.2：static let 初始化器引用**源序更晚**或**自身**的成员 → UNDEFINED_VARIABLE */
+    /* §4.2：static let 初始化器引用**源序更晚**或**自身**的成员 → UNDEFINED_VARIABLE */
     expect_err("#lib\n"
                "public struct Box then\n    var x: int32\nend\n"
                "public static let n: int32 = Self.s.x\n"
@@ -225,8 +225,7 @@ static void test_struct_field_access_const(void) {
 }
 
 static void test_struct_field_access_const_composite(void) {
-    /* Critical 2 回归（分析侧）：let/static let 基址的 struct/memblock 字段整体
-     * 读出（运行期 var 目标；AOT 曾把编译期堆指针嵌入生成 C 段错误）。 */
+    /* let/static let 基址的 struct/memblock 字段整体读出（运行期 var 目标）。 */
     expect_ok("#program\n"
               "struct Inner then\n    var v: int32\nend\n"
               "struct Outer then\n    var inner: Inner\nend\n"
@@ -266,9 +265,8 @@ static void test_struct_field_access_const_composite(void) {
 }
 
 static void test_static_let_memblock_count_mismatch(void) {
-    /* Critical 1 回归：static let 的 memblock 逐值构造计数不匹配。
-     * const 求值先于 pass2 类型检查，须在 tc_eval_const_memblock_ctor 拒绝
-     * （曾 value_count > count 堆越界写）。 */
+    /* static let 的 memblock 逐值构造计数不匹配。
+     * const 求值先于 pass2 类型检查，须在 tc_eval_const_memblock_ctor 拒绝。 */
     expect_err("#lib\n"
                "public static let M: memblock<int32, 2> = "
                "memblock(int32, count: 2, 1, 2, 3)\n"
@@ -315,7 +313,7 @@ static void test_struct_field_access_positions(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  hist 注入：基址 slot 置 UNINIT → 未初始化错误（计划 §5.2 备注）       */
+/*  hist 注入：基址 slot 置 UNINIT → 未初始化错误                       */
 /* ------------------------------------------------------------------ */
 
 static void test_struct_field_access_hist_uninit(void) {

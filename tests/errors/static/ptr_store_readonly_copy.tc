@@ -1,5 +1,5 @@
 #lib
-; 既有-4：只读判据随指针**来源**传播——形参取址得到的指针再复制，仍不可写
+; 只读判据随指针**来源**传播——形参取址得到的指针再复制，仍不可写
 ; 期望：cannot store through read-only pointer binding
 public func store_param_copy(x: int32) void then
     var p: ptr<int32> = ptr_address(int32, x)

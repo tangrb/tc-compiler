@@ -9,7 +9,7 @@
 #include "tc_analyzer_internal.h"
 #include "tc_const_eval.h"
 #include "tc_ptr_check.h"
-#include "tc_semantics.h"   /* tc_bits_to_signed：A-3 编译期负值判定 */
+#include "tc_semantics.h"   /* tc_bits_to_signed：编译期负值判定 */
 #include "tc_struct_check.h"
 
 #include <stdlib.h>
@@ -23,8 +23,10 @@ int tc_type_check_literal(const TcLiteral *lit, const TcType *expected, int line
 
 static const TcSymbol *tc_memblock_resolve(const char *name, const TcSymbolTable *visible,
                                            const TcSymbolTable *global, size_t stmt_index,
-                                           int line, TcDiagnostic *diag) {
-    return tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag);
+                                           int line, TcDiagnostic *diag, TcInitHistory *hist) {
+    return tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag,
+                                     tc_hist_name_members(hist),
+                                     tc_hist_name_in_function(hist));
 }
 
 /*
@@ -46,7 +48,9 @@ static const TcSymbol *tc_memblock_resolve_usize_operand(const char *name,
                                                          const TcSymbolTable *visible,
                                                          const TcSymbolTable *global,
                                                          size_t stmt_index, int line,
-                                                         TcDiagnostic *diag) {
+                                                         TcDiagnostic *diag,
+                                                         const TcMemberIndex *members,
+                                                         int in_function) {
     const TcSymbol *symbol = NULL;
     char msg[128];
 
@@ -58,7 +62,7 @@ static const TcSymbol *tc_memblock_resolve_usize_operand(const char *name,
         if (tc_reject_private_member_access(name, global, line, diag)) {
             return NULL;
         }
-        symbol = tc_find_named_binding(visible, global, name);
+        symbol = tc_find_named_binding(visible, global, name, members);
         if (symbol) {
             return symbol;
         }
@@ -80,7 +84,7 @@ static const TcSymbol *tc_memblock_resolve_usize_operand(const char *name,
              * 命中模块顶层绑定：函数体内须经 `Self.<名>` 访问（语言标准 §4.3），
              * 此处与表达式操作数同口径报 TC_CE_FUNCTION_SCOPE_ACCESS。
              */
-            if (tc_name_scope_check_function_access(name, line, diag)) {
+            if (tc_name_scope_check_function_access(name, line, diag, members, in_function)) {
                 return NULL;
             }
             return global_sym;
@@ -93,14 +97,16 @@ static const TcSymbol *tc_memblock_resolve_usize_operand(const char *name,
 
 static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable *visible,
                                           const TcSymbolTable *global, size_t stmt_index, int line,
-                                          TcDiagnostic *diag, uint64_t *out_count) {
+                                          TcDiagnostic *diag, uint64_t *out_count,
+                                          const TcMemberIndex *members, int in_function) {
     const TcSymbol *sym = NULL;
     TcTypeTag tag = TC_VOID;
 
     if (!name || !out_count) {
         return -1;
     }
-    sym = tc_memblock_resolve_usize_operand(name, visible, global, stmt_index, line, diag);
+    sym = tc_memblock_resolve_usize_operand(name, visible, global, stmt_index, line, diag,
+                                            members, in_function);
     if (!sym) {
         return -1;
     }
@@ -120,10 +126,9 @@ static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable 
     }
     tag = tc_type_tag_of(sym->type);
     /*
-     * B-5（[语言标准 §3.8.1]/§3.8.3）：`N` / `count:` 只接受**类型为 `usize`**
+     * [语言标准 §3.8.1]/§3.8.3：`N` / `count:` 只接受**类型为 `usize`**
      * 的 `let` / `static let`。类型不合法（`isize` / `int32` / …）与数学值 < 1
-     * 一样，统一报 TC_CE_CONSTANT_EXPRESSION；此前分别错报 TYPE_MISMATCH 与
-     * MEMBLOCK_ELEMENT_COUNT_MISMATCH，且额外放行 `isize`。
+     * 一样，统一报 TC_CE_CONSTANT_EXPRESSION。
      */
     if (tag != TC_USIZE) {
         tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line, TC_COLUMN_UNKNOWN,
@@ -141,14 +146,16 @@ static int tc_memblock_resolve_usize_name(const char *name, const TcSymbolTable 
 
 int tc_memblock_resolve_count_name(const char *name, const TcSymbolTable *visible,
                                    const TcSymbolTable *global, size_t stmt_index, int line,
-                                   TcDiagnostic *diag, uint64_t *out_count) {
+                                   TcDiagnostic *diag, uint64_t *out_count,
+                                   const TcMemberIndex *members, int in_function) {
     return tc_memblock_resolve_usize_name(name, visible, global, stmt_index, line, diag,
-                                          out_count);
+                                          out_count, members, in_function);
 }
 
 int tc_memblock_resolve_type_counts(TcType *type, const TcSymbolTable *visible,
                                     const TcSymbolTable *global, size_t stmt_index, int line,
-                                    TcDiagnostic *diag) {
+                                    TcDiagnostic *diag, const TcMemberIndex *members,
+                                    int in_function) {
     uint64_t count = 0;
 
     if (!type) {
@@ -156,20 +163,21 @@ int tc_memblock_resolve_type_counts(TcType *type, const TcSymbolTable *visible,
     }
     if (type->tag == TC_PTR) {
         return tc_memblock_resolve_type_counts(type->params.ptr_type.pointee, visible, global,
-                                               stmt_index, line, diag);
+                                               stmt_index, line, diag, members, in_function);
     }
     if (type->tag != TC_MEMBLOCK) {
         return 0;
     }
     if (tc_memblock_resolve_type_counts(type->params.memblock_type.element, visible, global,
-                                        stmt_index, line, diag) != 0) {
+                                        stmt_index, line, diag, members, in_function) != 0) {
         return -1;
     }
     if (!type->params.memblock_type.pending_count_name) {
         return 0;
     }
     if (tc_memblock_resolve_usize_name(type->params.memblock_type.pending_count_name, visible,
-                                       global, stmt_index, line, diag, &count) != 0) {
+                                       global, stmt_index, line, diag, &count, members,
+                                       in_function) != 0) {
         return -1;
     }
     type->params.memblock_type.count = count;
@@ -227,7 +235,8 @@ static int tc_memblock_operand_matches_element(TcOperand *operand, const TcType 
         }
         {
             const TcSymbol *sym =
-                tc_memblock_resolve(operand->u.name, visible, global, stmt_index, line, diag);
+                tc_memblock_resolve(operand->u.name, visible, global, stmt_index, line, diag,
+                                    hist);
             if (!sym) {
                 return -1;
             }
@@ -286,7 +295,7 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
         if (rhs->u.memblock_load.memblock.kind == TC_OPERAND_VAR) {
             const TcSymbol *mb =
                 tc_memblock_resolve(rhs->u.memblock_load.memblock.u.name, visible, global,
-                                    stmt_index, line, diag);
+                                    stmt_index, line, diag, hist);
             if (!mb) {
                 return -1;
             }
@@ -329,7 +338,9 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
         }
         if (rhs->u.memblock_ctor.count_name) {
             if (tc_memblock_resolve_usize_name(rhs->u.memblock_ctor.count_name, visible, global,
-                                               stmt_index, line, diag, &count) != 0) {
+                                               stmt_index, line, diag, &count,
+                                               tc_hist_name_members(hist),
+                                               tc_hist_name_in_function(hist)) != 0) {
                 return -1;
             }
             rhs->u.memblock_ctor.count = count;
@@ -337,7 +348,7 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
             rhs->u.memblock_ctor.count_name = NULL;
         }
         if (count < 1) {
-            /* B-5：`count:` 数学值 < 1 属来源不合法 → TC_CE_CONSTANT_EXPRESSION
+            /* `count:` 数学值 < 1 属来源不合法 → TC_CE_CONSTANT_EXPRESSION
              * （ELEMENT_COUNT_MISMATCH 只用于「逐值数量 ≠ count」） */
             tc_diagnostic_set(diag, TC_CE_CONSTANT_EXPRESSION, line,
                               TC_COLUMN_UNKNOWN, "memblock count must be at least 1");
@@ -383,7 +394,7 @@ int tc_memblock_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTabl
     case TC_RHS_MEMBLOCK_COUNT: {
         const TcSymbol *base_sym =
             tc_memblock_resolve(rhs->u.memblock_count.memblock_name, visible, global, stmt_index,
-                                line, diag);
+                                line, diag, hist);
 
         if (!base_sym) {
             return -1;
@@ -442,7 +453,8 @@ int tc_memblock_check_store(const TcMemblockStoreStmt *stmt, const TcSymbolTable
                             TcWarningList *warnings) {
     const TcSymbol *mb = NULL;
 
-    mb = tc_memblock_resolve(stmt->memblock_name, visible, global, stmt_index, stmt->line, diag);
+    mb = tc_memblock_resolve(stmt->memblock_name, visible, global, stmt_index, stmt->line, diag,
+                             hist);
     if (!mb) {
         return -1;
     }
@@ -505,11 +517,11 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
     uint64_t src_count = 0;
 
     /* 整块拷贝要求两端声明长度 N 相同（元素类型由语句注解约束） */
-    dst = tc_memblock_resolve(stmt->dst_name, visible, global, stmt_index, stmt->line, diag);
+    dst = tc_memblock_resolve(stmt->dst_name, visible, global, stmt_index, stmt->line, diag, hist);
     if (!dst) {
         return -1;
     }
-    src = tc_memblock_resolve(stmt->src_name, visible, global, stmt_index, stmt->line, diag);
+    src = tc_memblock_resolve(stmt->src_name, visible, global, stmt_index, stmt->line, diag, hist);
     if (!src) {
         return -1;
     }
@@ -550,7 +562,7 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
     }
 
     /*
-     * B-21：count 为编译期常量，故常量下标/length 的区间在编译期完整判定——
+     * count 为编译期常量，故常量下标/length 的区间在编译期完整判定——
      * 负常量下标、常量 length < 0、以及越界区间（空拷贝允许下标等于 count）
      * 一律报静态 TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE，不得留给运行时或静默回绕。
      */
@@ -591,7 +603,7 @@ int tc_memblock_check_copy(const TcMemblockCopyStmt *stmt, const TcSymbolTable *
 }
 
 /*
- * A-3（标准 owner 裁决）：`memcopy_unsafe` 的 `length` / `dst_idx` / `src_idx` 是否在
+ * `memcopy_unsafe` 的 `length` / `dst_idx` / `src_idx` 是否在
  * **编译期可确定**为负。
  *
  * 可确定来源：① 带负号的整数字面量（`tc_memblock_const_index_value` 返回 -1）；
@@ -640,10 +652,7 @@ int tc_memblock_check_memcopy_unsafe(const TcMemcopyUnsafeStmt *stmt,
                                              stmt_index, diag, warnings) != 0) {
         return -1;
     }
-    /*
-     * A-3：编译期可确定的负 `length` / 负下标按静态语义拒绝（SEM）。此前只在运行时
-     * 报告，负字面量下标会被当作巨大 usize 处理（Major 3 回归的根因面）。
-     */
+    /* 编译期可确定的负 `length` / 负下标按静态语义拒绝（SEM），不得回绕成 usize。 */
     if (tc_memcopy_operand_const_negative(&stmt->length) ||
         tc_memcopy_operand_const_negative(&stmt->dst_index) ||
         tc_memcopy_operand_const_negative(&stmt->src_index)) {

@@ -1,5 +1,5 @@
 #program
-; B-42：伪造槽索引的写路径同样拒绝
+; 伪造槽索引的写路径同样拒绝
 var p: ptr<int32> = bitcast(ptr<int32>, 0x7FFFFFFD)
 ptr_store(int32, p, 5)
 writeln(int32, 1)

@@ -1,5 +1,5 @@
 #lib
-; 既有-1：`<模块名>.<成员>` 作普通 RHS 操作数（[语言标准 §4.3、§6.1.2、附录 A `operand`]）
+; `<模块名>.<成员>` 作普通 RHS 操作数（[语言标准 §4.3、§6.1.2、附录 A `operand`]）
 public struct Pair then
     var x: int32
     var y: int32

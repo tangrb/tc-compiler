@@ -1,5 +1,5 @@
 #program
-; B-45 / §6.4.2.1：strict shl 的溢出判定与被移位数无关，k >= n 即溢出
+; §6.4.2.1：strict shl 的溢出判定与被移位数无关，k >= n 即溢出
 var z: int32 = 0
 var k: int32 = 32
 var r: int32 = shl(int32, z, k)

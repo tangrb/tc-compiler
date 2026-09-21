@@ -1,5 +1,5 @@
 #program
-; A-3：**负字面量** length 属编译期可确定，按静态语义拒绝
+; **负字面量** length 属编译期可确定，按静态语义拒绝
 ; （附录 B.11：TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE 覆盖 length 为负）
 var a: int32 = 1
 var b: int32 = 2

@@ -76,7 +76,7 @@ static void test_parse_var_requires_initializer(void) {
 }
 
 /**
- * B-17：`#lib` 的 `static var` 缺 `=`/初始化器同样须报
+ * `#lib` 的 `static var` 缺 `=`/初始化器同样须报
  * TC_CE_VAR_MISSING_INIT（结构类语法阶段诊断），不得降级为 TC_CE_SYNTAX；
  * `static let` 缺初始化器仍是常量定义的语法错误。
  */
@@ -619,7 +619,7 @@ static void test_parse_bitcast_invalid_syntax(void) {
         TC_PROGRAM_HDR "var bits: uint32 = bitcast(uint32)\n",
         TC_PROGRAM_HDR "var bits: uint32 = bitcast(uint32, truncate, 1u)\n",
     };
-    /* B-35：缺少操作数属 TC_CE_OPERAND_COUNT（不得降级为 SYNTAX）；形态错误才是 SYNTAX */
+    /* 缺少操作数属 TC_CE_OPERAND_COUNT（不得降级为 SYNTAX）；形态错误才是 SYNTAX */
     static const TcErrorKind expected[] = {TC_CE_OPERAND_COUNT, TC_CE_SYNTAX};
     size_t i = 0;
 
@@ -789,6 +789,27 @@ static void test_parse_field_assign_and_ptr_store(void) {
     tc_diagnostic_clear(&diag);
 }
 
+static void test_parse_imported_member_assign(void) {
+    TcProgram program;
+    TcDiagnostic diag;
+    const char *source = TC_PROGRAM_HDR "import MemberLib\nMemberLib.W = 9\n";
+
+    tc_diagnostic_init(&diag);
+    tc_program_init(&program);
+    check(tc_parse_source_to_program(source, &program, &diag) == 0,
+          "parse imported member assign");
+    check(program.count == 2, "import + assign count");
+    if (program.count >= 2) {
+        check(program.items[0].kind == TC_STMT_IMPORT, "import precedes assign");
+        check(program.items[1].kind == TC_STMT_ASSIGN, "imported member assign kind");
+        check(program.items[1].u.assign.name != NULL &&
+                  strcmp(program.items[1].u.assign.name, "MemberLib.W") == 0,
+              "imported member assign name");
+    }
+    tc_program_free(&program);
+    tc_diagnostic_clear(&diag);
+}
+
 static void test_parse_mode_keyword_codes(void) {
     static const struct {
         const char *source;
@@ -854,6 +875,7 @@ int main(void) {
     test_parse_program_rejects_func_static();
     test_parse_imported_struct_type();
     test_parse_field_assign_and_ptr_store();
+    test_parse_imported_member_assign();
     test_parse_mode_keyword_codes();
     test_parse_var_def();
     test_parse_var_requires_initializer();

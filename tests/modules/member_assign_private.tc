@@ -1,5 +1,5 @@
 #program
-; 观察-⑥ 负例：`<模块名>.<private static var> = rhs` → §4.4 私有成员访问
+; `<模块名>.<private static var> = rhs` → §4.4 私有成员访问
 ; 期望：private member access（PrivateMemberAccessError）
 import MemberLib
 var v: int32 = 0

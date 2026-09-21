@@ -1,5 +1,5 @@
 #program
-; B-37 / 附录 A field_access：标识符的分类由**名称解析**决定，没有大小写规则。
+; 附录 A field_access：标识符的分类由**名称解析**决定，没有大小写规则。
 ; 首字母大写的变量 `A` 作为字段访问基址（`A.i.v`）必须正常解析。
 struct Inner then
     var v: int32

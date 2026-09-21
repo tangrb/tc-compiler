@@ -1,5 +1,5 @@
 #program
-; 观察-⑥ 负例：不存在的模块前缀保持未解析口径（与读侧一致）
+; 不存在的模块前缀保持未解析口径（与读侧一致）
 ; 期望：undefined variable 'NoSuchLib'（UndefinedVariable）
 import MemberLib
 var v: int32 = 0

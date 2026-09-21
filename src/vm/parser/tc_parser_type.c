@@ -1,7 +1,7 @@
 /*
  * tc_parser_type.c — 类型语法解析（tc_parse_type_syntax）
  *
- * 从 tc_parser.c 拆出：完整类型语法（标量 / void / ptr / memblock / struct 名）。
+ * 完整类型语法（标量 / void / ptr / memblock / struct 名）。
  */
 #include "tc_parser_type.h"
 
@@ -52,7 +52,7 @@ static int tc_parse_type_depth(const TcTokenList *tokens, size_t *index, int lin
         TcType *pointee = NULL;
 
         /*
-         * B-28：类型表达式的递归下降必须有深度上限——无上限时
+         * 类型表达式的递归下降必须有深度上限——无上限时
          * `ptr<ptr<…int32…>>` 这类输入会耗尽栈并 SIGSEGV（附录 A 决定语法
          * 接受集，此类 Token 序列应给出 TC_CE_SYNTAX 而非崩溃）。
          */
@@ -124,7 +124,7 @@ static int tc_parse_type_depth(const TcTokenList *tokens, size_t *index, int lin
              * 产为 negative=1 的单个 INTEGER token，不得静默取 magnitude；字面量 0
              * 同样拒绝（避免 intern 出 count=0 的占位类型泄漏到 AOT 分配）。
              *
-             * B-40（§11「阶段优先」）：拒绝属 SEM 类，不能在语法阶段直接失败，否则
+             * §11「阶段优先」：拒绝属 SEM 类，不能在语法阶段直接失败，否则
              * 更晚的语法错误会被更早的 SEM 诊断掩盖。此处挂起 SEM 诊断并继续解析，
              * 占位 count 取 1（合法且不会放大分配），由 SEM 阶段按源序位置发布。
              */
@@ -201,8 +201,7 @@ static int tc_parse_type_depth(const TcTokenList *tokens, size_t *index, int lin
         /*
          * §3.9.1：结构体名（含嵌套在 ptr<…>/memblock<…> 内的）以未决名
          * 暂存于 TcType.pending_name，由 Analyzer 在注册结构体表后按位置
-         * 规则解析；此处不得丢弃（此前实现将嵌套名 free，导致指针所指
-         * 位置与 memblock 元素位置的结构体身份永久丢失）。
+         * 规则解析；嵌套名不得丢弃，否则指针所指与 memblock 元素的结构体身份会丢失。
          */
         *out_type = tc_type_make_struct(-1);
         out_type->pending_name = strdup(*out_struct_name);

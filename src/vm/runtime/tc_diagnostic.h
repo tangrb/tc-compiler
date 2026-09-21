@@ -92,7 +92,7 @@ int tc_diagnostic_is_set(const TcDiagnostic *diag);
  * @param line    出错行号
  * @param column  出错列号
  * @param message 错误描述（内部 strdup 复制）
- * @return 始终返回 -1，便于调用方沿用既有「失败」控制流
+ * @return 始终返回 -1，便于调用方写成 `return tc_diagnostic_defer(...)`
  */
 int tc_diagnostic_defer(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
                         const char *message);
@@ -113,14 +113,14 @@ void tc_diagnostic_drop_deferred(TcDiagnostic *diag);
 /** 释放挂起诊断占用的文本字段并复位（不改变其它状态）。 */
 void tc_diagnostic_clear_deferred(TcDiagnostic *diag);
 
-/* ── 挂起的 SEM 类诊断（B-40，语言标准 §11「阶段优先」） ── */
+/* ── 挂起的 SEM 类诊断（语言标准 §11「阶段优先」） ── */
 
 /**
  * 挂起一条 SEM 类诊断，供解析器在「形态合法但静态语义拒绝」时沿用失败控制流
  * 而不打断解析（否则更晚的语法错误会被更早的 SEM 诊断掩盖）。
  *
  * 仅保留源序位置最靠前的一条（§11 第 2 条）。调用方**不得**因此中止解析：
- * 语法层须继续走完整个文件，SYN 类诊断仍按既有 fail-fast 立即报告。
+ * 语法层须继续走完整个文件，SYN 类诊断仍 fail-fast 立即报告。
  *
  * @return 成功（无论是否替换已有挂起项）返回 0；内存不足返回 -1
  */

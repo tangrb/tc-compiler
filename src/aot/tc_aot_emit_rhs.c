@@ -498,7 +498,7 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         int slot = -1;
 
         /*
-         * B-51：优先用 Pass2 固化的目标绑定槽位——函数形参在代码生成期无法按名
+         * 优先用 Pass2 固化的目标绑定槽位——函数形参在代码生成期无法按名
          * 解析（tc_aot_resolve_var_slot 只走可见性表），故
          * `ptr_address(int32, <形参>)` 之前会令代码生成失败。按名解析保留为兜底。
          */
@@ -514,10 +514,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
     }
 
     if (rhs->kind == TC_RHS_PTR_LOAD) {
-        /* B-57：容量随调用传入，运行时据此拒绝越界的伪造槽编码 */
+        /* 容量随调用传入，运行时据此拒绝越界的伪造槽编码 */
         fprintf(out, "%sif (tc_aot_ptr_load(%s, ", indent, tc_aot_slots_arg(ctx));
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_load.ptr, TC_PTR, ctx, stmt_index);
-        /* B-55：把 pointee 类型传给运行时，bool 结果在此规范化到 {0,1} */
+        /* 把 pointee 类型传给运行时，bool 结果在此规范化到 {0,1} */
         fprintf(out, ", %s, &%s, tc_aot_cur_diag, %d) != 0)\n",
                 tc_aot_type_enum(rhs->u.ptr_load.pointee_type.tag), dst_expr, line);
         fprintf(out, "%stc_aot_abort(tc_aot_cur_diag, %d);\n", abort_indent, line);
@@ -532,7 +532,7 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         fprintf(out, "%s    _off = ", indent);
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_arith.offset, TC_USIZE, ctx, stmt_index);
         fprintf(out, ";\n");
-        /* B-57：偏移按 usize（uint64_t）传入，运行时用无符号运算 + 容量上界判定，
+        /* 偏移按 usize（uint64_t）传入，运行时用无符号运算 + 容量上界判定，
          * 与 VM tc_exec_ptr_arith 完全一致（不再缩窄到 int64_t）。 */
         fprintf(out, "%s    if (tc_aot_ptr_arith(TC_AOT_SLOT_CAPACITY, %d, ", indent, is_add);
         tc_aot_emit_operand_expr(out, &rhs->u.ptr_arith.ptr, TC_PTR, ctx, stmt_index);
@@ -656,11 +656,10 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
          * 绑定（槽位 < 0，即 let / static let memblock，含 `Self.<名>` / `<模块>.<名>`
          * 限定名）→ 折叠绑定自带类型里的声明 count；③ 符号表槽位 → 读头部；④ 符号表
          * 声明 count → 折叠。count 不可变，构造时已写入头部，故常量绑定可直接折叠。
-         * 路径 ② 不可省：符号表以**裸成员名**存放，限定名（`"Self.M"` / `"Mod.C"`）
+         * 路径 ② 不可省：符号表以裸成员名存放，限定名（`"Self.M"` / `"Mod.C"`）
          * 在路径 ③/④ 按名查不到，而 `binding.type` 已带着 memblock 类型。
-         * 曾存在的「头部读 0 时回退声明 count」为死代码：所有构造路径
-         * （alloc/from_bytes/clone）都在头部写入 count ≥ 1，确定初始化保证读前必已
-         * 构造（N-12 B4）。 */
+         * 构造路径（alloc/from_bytes/clone）都在头部写入 count ≥ 1，
+         * 确定初始化保证读前必已构造。 */
         const TcSymbol *sym = tc_symbol_table_find_visible(
             symbols, rhs->u.memblock_count.memblock_name, stmt_index, &ctx->sym_index);
         const TcType *bound_type = rhs->u.memblock_count.binding.type;
@@ -705,10 +704,8 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
         }
         if (sym->sym_kind == TC_SYM_CONSTANT && sym->has_const_value) {
             /*
-             * 值语义：const struct / memblock 整值不得把分析期堆指针写进生成 C
-             * （此前对 `var p: Pair = Self.spc` / `return Self.spc` 会嵌入宿主地址，
-             * 生成程序读到 0 或段错误）。struct 走内联字节 + tc_aot_struct_extract；
-             * memblock 走既有的常量块内联。
+             * 值语义：const struct / memblock 整值不得把分析期堆指针写进生成 C。
+             * struct 走内联字节 + tc_aot_struct_extract；memblock 走常量块内联。
              */
             if (expected_type == TC_MEMBLOCK && sym->type && sym->type->tag == TC_MEMBLOCK &&
                 sym->type->params.memblock_type.element) {
@@ -881,7 +878,7 @@ int tc_aot_emit_rhs(FILE *out, const TcRhs *rhs, TcTypeTag expected_type,
                 return -1;
             }
             if (access->field_count == 0) {
-                /* 既有-1：限定名整体读取 → 与同名绑定赋值同口径（含 struct/memblock 深拷贝）。
+                /* 限定名整体读取 → 与同名绑定赋值同口径（含 struct/memblock 深拷贝）。
                  * const 基址的 struct/memblock 不能在生成式里嵌入分析期堆指针，须内联字节
                  * 再由 tc_aot_struct_extract 在运行期重新分配（与字段读同口径）。 */
                 TcOperand bound;

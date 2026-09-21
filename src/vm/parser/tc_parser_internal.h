@@ -9,6 +9,7 @@
 #include "tc_types.h"
 #include "tc_lexer.h"
 #include "tc_diagnostic.h"
+#include "tc_parser.h"
 
 /** 缩进块语句容器（parser 子模块共享） */
 typedef struct {
@@ -22,7 +23,7 @@ const TcToken *tc_peek(const TcTokenList *tokens, size_t index);
 int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
                      TcOperand *out, TcDiagnostic *diag);
 /**
- * B-35：固定元数调用的操作数分隔/收尾检查。
+ * 固定元数调用的操作数分隔/收尾检查。
  * 二者在「操作数个数与产生式不符」时报 TC_CE_OPERAND_COUNT（§1.3、§10.1、附录 B.1），
  * 不得降级为笼统 TC_CE_SYNTAX；缺失逗号等形态错误仍报 TC_CE_SYNTAX。
  */
@@ -45,7 +46,7 @@ int tc_module_diag(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
 void tc_stmt_block_init(TcStmtBlock *block);
 void tc_stmt_block_free(TcStmtBlock *block);
 /* header_keyword：当前块的块头关键字（"if" / "while" / "function"），
- * 供 else/end 对齐诊断按块报告（诊断文案不属可观察行为，但需自洽）。 */
+ * 供 else/end 对齐诊断按块报告。 */
 int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                              size_t *index, int base_indent,
                              const TcFileIndent *file_indent, TcModuleMode mode,
@@ -58,6 +59,10 @@ int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count
 int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
                                TcModuleMode mode, TcVisibility *out_vis,
                                int require_vis, TcDiagnostic *diag, int line_no);
+
+/** 按模块模式解析一条语句（#program / #lib / 函数体） */
+int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
+                            TcModuleMode mode, TcStatement *out, TcDiagnostic *diag);
 void tc_string_list_free_local(char **items, size_t count);
 int tc_operand_count_error(TcDiagnostic *diag, int line, int column,
                          const char *message);
@@ -66,6 +71,8 @@ int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int line_no,
                          TcDiagnostic *diag);
 int tc_parse_field_access_operand(const TcTokenList *tokens, size_t *index, int line_no,
                                   TcOperand *out, TcDiagnostic *diag);
+int tc_parse_field_access_base(const TcTokenList *tokens, size_t *index, int line_no,
+                               char **out_base, TcDiagnostic *diag);
 
 /** 堆分配复制 Token 文本；失败设置 OOM 并返回 NULL */
 char *tc_token_strdup(const TcToken *tok, int line_no, TcDiagnostic *diag);

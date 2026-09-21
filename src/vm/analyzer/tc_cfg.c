@@ -29,7 +29,7 @@ typedef struct {
     TcCfg *cfg;
     const TcSymbolTable *symbols;
     TcDiagnostic *diag;
-    const char *module_name; /* B-65：当前被分析模块，用于按名回溯时排除跨模块同名符号 */
+    const char *module_name; /* 当前被分析模块，用于按名回溯时排除跨模块同名符号 */
     TcStmtIndexCursor index;
     int scope_depth;
     int *stmt_nodes;
@@ -133,7 +133,7 @@ static int tc_cfg_add_edge(TcCfgBuildCtx *ctx, int from, int to, TcCfgEdgeKind k
 }
 
 /*
- * B-65：符号表全模块共享，而 stmt_index 每模块各自从 0 编号，故「名字 + 序号」
+ * 符号表全模块共享，而 stmt_index 每模块各自从 0 编号，故「名字 + 序号」
  * 可能同时命中本模块与另一模块的同名绑定（依赖模块先入表）。优先取 module_name
  * 匹配的符号；无带标记的匹配时才退回「首个匹配」（合成 / 未标记符号的兼容路径）。
  */
@@ -174,7 +174,7 @@ static const TcSymbol *tc_cfg_find_visible(const TcSymbolTable *symbols, const c
         return sym;
     }
     /*
-     * 命中了另一模块的同名绑定：在本模块内按同样的可见性规则重挑（B-65）。
+     * 命中了另一模块的同名绑定：在本模块内按同样的可见性规则重挑。
      * 找不到时保留原结果，避免把「本模块确实没有」变成静默漏检。
      */
     {
@@ -294,7 +294,7 @@ static int tc_cfg_add_operand_read(TcCfgBuildCtx *ctx, int node_id, const TcOper
      * 优先使用 Pass2 已解析的绑定槽位：按名查找在多模块/多函数共享同一符号表、
      * 且各模块 stmt_index 各自从 0 编号的情况下，可能命中另一模块的同名绑定
      *（其 def_stmt_index 更大且作用域未闭合），造成读集错位。绑定缺失时（如
-     * B-2 的 Pass2 失败后挽救路径）仍按名回退。
+     *  Pass2 失败后挽救路径）仍按名回退。
      */
     if (operand->binding.resolved && operand->binding.slot >= 0) {
         return tc_cfg_node_add_read_slot(ctx, node_id, operand->binding.slot);
@@ -675,7 +675,7 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             return -2;
         }
         /*
-         * B-65：写槽优先取 Pass1 固化的定义绑定（全局唯一 slot，与读写两侧的绑定
+         * 写槽优先取 Pass1 固化的定义绑定（全局唯一 slot，与读写两侧的绑定
          * 同源）；按名回溯在多模块共享符号表 + 各模块独立 stmt_index 时可能命中
          * 另一模块的同名绑定，造成写槽与读槽错位（假阳性未初始化）。
          */
@@ -713,7 +713,7 @@ static int tc_cfg_build_stmt(TcCfgBuildCtx *ctx, const TcStatement *stmt, int pr
             ctx->cfg->nodes[node].write_slot = target_slot;
         }
     } else if (stmt->kind == TC_STMT_READ) {
-        /* B-65：读入目标同样优先用 Pass2 的绑定槽位（按名回溯可能跨模块同名） */
+        /* 读入目标同样优先用 Pass2 的绑定槽位（按名回溯可能跨模块同名） */
         int target_slot = stmt->u.io_read.binding.resolved ? stmt->u.io_read.binding.slot : -1;
 
         if (target_slot < 0) {
@@ -1318,7 +1318,7 @@ static int tc_cfg_diagnose_unreachable(const TcCfg *cfg, TcDiagnostic *diag) {
      * 例外（2.6.4）：恒真循环条件（§5.2.2 静态三态 true）的 FALSE 出边不可行——
      * 只有 `break`（TC_CFG_BREAK 边，直接指向 LOOP_EXIT）能离开循环，故
      * `while true` 之后的语句结构上不可达。`while false` 的 TRUE 出边仍按结构
-     * 可达处理（本轮只收敛恒真循环）。
+     * 可达处理。
      */
     structural[cfg->entry_id] = 1;
     queue[tail++] = cfg->entry_id;

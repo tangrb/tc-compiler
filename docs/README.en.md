@@ -28,6 +28,8 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [TC 0.0.44 Conformance Audit Report](TC-0.0.44-语言标准符合性审计报告.md) | **Conformance audit**: all design docs and `src/` checked against the language specification as sole authority; includes re-verification of pre-existing open items and new findings with minimal reproductions |
 | [TC 0.0.44 Remediation Ledger](TC-0.0.44-符合性整改进度台账.md) | **Remediation ledger**: per-item status, commits and adjudication-pending items for phase 1 (design-doc alignment) and phase 2 (implementation fixes); the audit report itself stays a pure findings list |
 
+> The table above is process history, **not** a specification or design document. The seven design/spec documents listed earlier must not cite this section (enforced by `scripts/sync/check_doc_layering.py`).
+>
 > The historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`.
 
 ## Repository-level docs (root)
@@ -41,4 +43,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.43** (the language specification and **all design documents** are now synced to **0.0.44**; 0.0.42 remains only as the historical baseline).
+Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**).

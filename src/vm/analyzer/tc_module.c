@@ -305,7 +305,7 @@ static int tc_read_file_text(const char *path, char **out_text, TcDiagnostic *di
         return 1;
     }
     /*
-     * B-16：模块文件的 I/O 失败属 API/环境域，须报 TC_DIAG_API /
+     * 模块文件的 I/O 失败属 API/环境域，须报 TC_DIAG_API /
      * TC_API_ERR_FILE_READ，不得伪装成语言诊断 TC_CE_SYNTAX（语言标准 §1.3
      * 一致性判定、编译器标准 §11.4；libtc 设计说明书 §15.4 同）。I/O 之前先把
      * 定位切到该模块文件，使环境错误指向真正读失败的文件。
@@ -360,7 +360,7 @@ static int tc_join_module_path(const char *dir, const char *name, char **out,
 
 /**
  * 以尝试打开方式探测模块文件是否存在。
- * B-16：目录等非普通文件不算「定位到模块文件」，避免把目录当源码读入后
+ * 目录等非普通文件不算「定位到模块文件」，避免把目录当源码读入后
  * 报出与导入无关的语法错误。
  */
 static int tc_file_exists(const char *path) {
@@ -461,7 +461,7 @@ static int tc_load_lib_file(const char *path, const char *expected_name, TcProgr
         }
         return -1;
     }
-    /* 模块内的诊断（语法/结构）须定位到模块自身文件而非入口（B-14）。 */
+    /* 模块内的诊断（语法/结构）须定位到模块自身文件而非入口。 */
     if (tc_diagnostic_use_source(diag, path, text) != 0) {
         free(text);
         return -1;
@@ -902,7 +902,7 @@ int tc_module_resolve_imports_ex(TcTypedProgram *out, const char *entry_path,
         goto done;
     }
     /*
-     * B-14：加载/解析模块期间诊断定位被切到各模块自身；成功返回前恢复入口定位，
+     * 加载/解析模块期间诊断定位被切到各模块自身；成功返回前恢复入口定位，
      * 使后续阶段（Pass1/Pass2/CFG）中入口自身的诊断仍指向入口文件与源文本。
      */
     if (tc_diagnostic_use_source(diag, saved_entry_file, saved_entry_source) != 0) {

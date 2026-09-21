@@ -152,7 +152,7 @@ static void test_memblock_errors(void) {
 static void test_ptr_errors(void) {
     expect_err("#program\nlet a: int32 = 1\nvar p: ptr<int32> = ptr_address(int32, a)\n",
                TC_CE_CONSTANT_ASSIGNMENT, "ptr_address of let");
-    /* 既有-4：`let` 指针绑定自身不可变 ≠ 所指只读；空指针写入归运行期，静态通过 */
+    /* `let` 指针绑定自身不可变 ≠ 所指只读；空指针写入归运行期，静态通过 */
     expect_ok("#program\nlet p: ptr<int32> = nullptr\nptr_store(int32, p, 2)\n",
               "ptr_store through const null ptr passes static checks");
     expect_ok("#program\nlet p: ptr<int32> = nullptr\nlet q: ptr<int32> = p\nptr_store(int32, q, 5)\n",

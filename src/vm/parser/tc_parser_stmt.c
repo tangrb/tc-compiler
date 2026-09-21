@@ -1,7 +1,7 @@
 /*
  * tc_parser_stmt.c — 语句级语法解析（statement）
  *
- * 从 tc_parser.c 拆出：var/let、static、import、return、funcall、
+ * var/let、static、import、return、funcall、
  * field assign、ptr/memblock/memcopy 语句与 I/O 语句。
  */
 #include "tc_parser_stmt.h"
@@ -279,7 +279,7 @@ int tc_parse_static_def(TcParserCtx *ctx, const TcTokenList *tokens, size_t *ind
     }
     {
         /*
-         * B-17：`#lib` 的 `public static var V: int32`（缺 `=` 与初始化器）属
+         * `#lib` 的 `public static var V: int32`（缺 `=` 与初始化器）属
          * 结构类语法阶段诊断，须报 TC_CE_VAR_MISSING_INIT，不得降级为笼统
          * TC_CE_SYNTAX（语言标准 §1.3、编译器标准 §4.6/§5.1）。`static let`
          * 与 `#program` 的 `let` 一致，保持「常量定义必须初始化」的语法错误。
@@ -600,10 +600,10 @@ int tc_parse_funcall_stmt(TcParserCtx *ctx, const TcTokenList *tokens, size_t *i
 
                 if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
                     (*index)++;
-                    /* B-30：实参列表不接受尾随逗号 */
+                    /* 实参列表不接受尾随逗号 */
                     bad_arg_list = tc_peek(tokens, *index)->kind == TC_TOK_RPAREN;
                 } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-                    /* B-31：实参之间必须有逗号 */
+                    /* 实参之间必须有逗号 */
                     bad_arg_list = 1;
                 }
                 if (bad_arg_list) {
@@ -737,10 +737,10 @@ int tc_parse_funcall_rhs(TcParserCtx *ctx, const TcTokenList *tokens, size_t *in
 
                 if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
                     (*index)++;
-                    /* B-30：实参列表不接受尾随逗号 */
+                    /* 实参列表不接受尾随逗号 */
                     bad_arg_list = tc_peek(tokens, *index)->kind == TC_TOK_RPAREN;
                 } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-                    /* B-31：实参之间必须有逗号 */
+                    /* 实参之间必须有逗号 */
                     bad_arg_list = 1;
                 }
                 if (bad_arg_list) {
@@ -839,8 +839,8 @@ int tc_parse_field_assign_stmt(TcParserCtx *ctx, const TcTokenList *tokens, size
         return -1;
     }
     /*
-     * B-33：§6.1.1 与附录 A `field_funcall_assign_stmt` —— 字段赋值的 RHS 同样可为
-     * `funcall(...)`（整绑定赋值路径已支持，此前字段路径缺失导致合法程序被拒）。
+     * §6.1.1 与附录 A `field_funcall_assign_stmt` —— 字段赋值的 RHS 同样可为
+     * `funcall(...)`。
      */
     if (tc_peek(tokens, *index)->kind == TC_TOK_FUNCALL) {
         if (tc_parse_funcall_rhs(ctx, tokens, index, line_no, &fa.rhs, diag) != 0) {

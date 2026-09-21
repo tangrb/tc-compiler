@@ -1,4 +1,4 @@
 #program
-; B-63：`#program` 顶层语句不得缩进（顶层产生式不消费 INDENT）
+; `#program` 顶层语句不得缩进（顶层产生式不消费 INDENT）
     var v: int32 = 7
     writeln(int32, v)

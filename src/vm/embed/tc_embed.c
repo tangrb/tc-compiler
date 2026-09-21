@@ -1,5 +1,5 @@
 /*
- * tc_embed.c — TC 嵌入式运行时实现（v0.0.43）
+ * tc_embed.c — TC 嵌入式运行时实现
  *
  * 双模式：VM 路径（Executor）+ AOT 路径（直调生成代码）。
  * AOT 桥接函数见 tc_embed_aot.c。
@@ -164,7 +164,7 @@ TcEmbedCtx *tc_embed_create(const TcTypedProgram *program, TcDiagnostic *diag) {
 
     slot_count = tc_symbol_table_runtime_slot_count(&program->symbols);
     /*
-     * B-19：槽位数组按「声明槽位 + 临时槽位区」分配，临时区位于声明槽位之上，
+     * 槽位数组按「声明槽位 + 临时槽位区」分配，临时区位于声明槽位之上，
      * 避免旧实现从 slot_count 向下分配时覆盖已声明槽位。
      */
     ctx->slot_capacity = tc_embed_slot_capacity(slot_count);
@@ -383,7 +383,7 @@ int tc_embed_slot_write(TcEmbedCtx *ctx, int slot, TcValue value) {
     } else {
         ctx->exec_ctx.slots[slot] = value;
     }
-    /* B-55：成功路径必须同时清除错误标志与消息——只清 flag 会让
+    /* 成功路径必须同时清除错误标志与消息——只清 flag 会让
      * tc_embed_get_error() 返回上一次失败的旧消息。 */
     ctx->error_flag = 0;
     ctx->error_message[0] = '\0';
@@ -427,7 +427,7 @@ int tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out) {
         return -1;
     }
     /*
-     * B-19：临时区为 [声明槽位数, slot_capacity)，从顶端向下分配；分配不得
+     * 临时区为 [声明槽位数, slot_capacity)，从顶端向下分配；分配不得
      * 越过声明槽位边界（旧实现只在 tmp_top < n 时报错，等于把临时槽位叠在
      * 已声明槽位上）。
      */

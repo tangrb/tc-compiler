@@ -187,7 +187,7 @@ static int tc_aot_run_generated(const char *c_path) {
     }
 #else
     /*
-     * B-15：生成的宿主可执行文件用**裸相对名**执行（`w38b.c.out`）时 POSIX sh
+     * 生成的宿主可执行文件用**裸相对名**执行（`w38b.c.out`）时 POSIX sh
      * 不搜索当前目录，`tc-aot -r w38b.tc` 报 `command not found`。无目录分量的
      * 路径统一加 `./` 前缀。
      */
@@ -226,7 +226,7 @@ static int tc_aot_run_generated(const char *c_path) {
             fprintf(stderr, "tc-aot host cc cmd: %s\n", cmd);
         }
         /*
-         * B-55：`system()` 返回的是 wait status（子进程 exit 1 → 256），直接转给
+         * `system()` 返回的是 wait status（子进程 exit 1 → 256），直接转给
          * 调用方会打印 “run failed (exit 256)”。此处按 POSIX 语义拆出真实退出码；
          * 被信号终止时用约定的 128 + 信号号。
          */

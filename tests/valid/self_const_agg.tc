@@ -1,5 +1,5 @@
 #program
-; 观察-④：`Self.<名>` 作常量/整值来源（标量常量、struct 常量上下文、struct 运行时拷贝、
+; `Self.<名>` 作常量/整值来源（标量常量、struct 常量上下文、struct 运行时拷贝、
 ; struct 返回值、const memblock 拷贝）——VM 与 AOT 须逐行一致
 import SelfConstAggLib
 var a1: int32 = funcall(SelfConstAggLib.const_scalar)

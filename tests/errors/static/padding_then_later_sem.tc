@@ -1,5 +1,5 @@
 #program
-; B-40 / §11 第 2 条：同属 SEM 时按源序位置取更早者——第 6 行的 @padding 形态错
+; §11 第 2 条：同属 SEM 时按源序位置取更早者——第 6 行的 @padding 形态错
 ; 应先于第 8 行的 memblock 尺寸不匹配。
 struct S then
     var a: int32

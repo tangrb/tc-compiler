@@ -131,7 +131,7 @@ static int tc_parse_ptr_address_rhs(const TcTokenList *tokens, size_t *index, in
         return -1;
     }
     /*
-     * 既有-2：标识符位置按 [语言标准 §6.8.4] 接受裸名与限定名——
+     * 标识符位置按 [语言标准 §6.8.4] 接受裸名与限定名——
      * 局部/顶层 `var`、`static var`、形参的裸名，或（`#lib` 内）`Self.<名>`、
      * 已导入的 `<模块名>.<名>`。复用通用绑定名解析（同样支持该三形态），
      * 不再只接受单个 `TC_TOK_IDENTIFIER`。
@@ -328,7 +328,7 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
             /*
              * §3.8.1：N 必须为正整数（≥1），负数不得静默取 magnitude。
              *
-             * B-40（§11「阶段优先」）：拒绝属 SEM 类，不能在语法阶段直接失败，否则
+             * §11「阶段优先」：拒绝属 SEM 类，不能在语法阶段直接失败，否则
              * 更晚的语法错误会被更早的 SEM 诊断掩盖。此处挂起 SEM 诊断并继续解析，
              * 占位 count 取 1，由 SEM 阶段按源序位置发布。
              */
@@ -410,14 +410,14 @@ static int tc_parse_memblock_ctor_rhs(TcParserCtx *ctx, const TcTokenList *token
         out->u.memblock_ctor.values[out->u.memblock_ctor.value_count++] = value;
         if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
             (*index)++;
-            /* B-30：列表不接受尾随逗号（附录 A 的列表产生式） */
+            /* 列表不接受尾随逗号（附录 A 的列表产生式） */
             if (tc_peek(tokens, *index)->kind == TC_TOK_RPAREN) {
                 tc_rhs_free(out);
                 return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
                                        "trailing comma not allowed in list");
             }
         } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-            /* B-31：列表项之间必须有逗号 */
+            /* 列表项之间必须有逗号 */
             tc_rhs_free(out);
             return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
                                    "expected , or )");
@@ -462,7 +462,7 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
     const TcToken *name_tok = tc_peek(tokens, *index);
     char *struct_name = NULL;
 
-    /* 字段值只允许 operand（B-32），故本函数不再需要解析上下文 */
+    /* 字段值只允许 operand */
     (void)ctx;
     if (*index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
         const TcToken *member_tok = tc_peek(tokens, *index + 2);
@@ -543,7 +543,7 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
             }
         } else {
             /*
-             * B-32：附录 A 的结构体构造器字段值产生式是 `operand`；调用型 RHS
+             * 附录 A 的结构体构造器字段值产生式是 `operand`；调用型 RHS
              *（结构体/memblock 构造器、funcall、cast、ptr_* 等，§6.1.2）不属于
              * operand，必须在语法阶段拒绝。
              */
@@ -553,14 +553,14 @@ static int tc_parse_struct_ctor_rhs(TcParserCtx *ctx, const TcTokenList *tokens,
         }
         if (tc_peek(tokens, *index)->kind == TC_TOK_COMMA) {
             (*index)++;
-            /* B-30：列表不接受尾随逗号（附录 A 的列表产生式） */
+            /* 列表不接受尾随逗号（附录 A 的列表产生式） */
             if (tc_peek(tokens, *index)->kind == TC_TOK_RPAREN) {
                 tc_rhs_free(out);
                 return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
                                        "trailing comma not allowed in list");
             }
         } else if (tc_peek(tokens, *index)->kind != TC_TOK_RPAREN) {
-            /* B-31：列表项之间必须有逗号 */
+            /* 列表项之间必须有逗号 */
             tc_rhs_free(out);
             return tc_syntax_error(diag, line_no, tc_peek(tokens, *index)->column,
                                    "expected , or )");

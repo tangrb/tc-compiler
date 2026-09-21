@@ -506,7 +506,7 @@ int tc_aot_emit_statement_impl(FILE *out, const TcStatement *stmt, TcAotEmitCtx 
             tc_aot_sub_indent(abort_indent, sizeof(abort_indent), indent, 1);
             /*
              * 用指定初始化器而非位置式：TcFormatFullSpec 可能新增字段，
-             * 位置式聚合初始化会在 -Wmissing-field-initializers 下失败（B-3）。
+             * 位置式聚合初始化会在 -Wmissing-field-initializers 下失败。
              */
             fprintf(out,
                     "%sif (tc_aot_write(%s, (TcFormatFullSpec){.flag_minus=%d, .flag_plus=%d, "

@@ -391,7 +391,7 @@ static void test_analyze_diagnostic_priority_matrix(void) {
             "lexical error precedes later name error",
         },
         {
-            /* B-35：操作数个数不符在语法阶段报 OPERAND_COUNT（先于名称解析） */
+            /* 操作数个数不符在语法阶段报 OPERAND_COUNT（先于名称解析） */
             "#program\nvar result: bool = and(bool, missing)\n",
             1,
             TC_CE_OPERAND_COUNT,

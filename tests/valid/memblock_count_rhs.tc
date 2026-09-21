@@ -1,5 +1,5 @@
 #program
-; 观察-⑤：`.count` 作 RHS 的全部形态——库内限定名 const（语句级 var 初始化 / 赋值 RHS）、
+; `.count` 作 RHS 的全部形态——库内限定名 const（语句级 var 初始化 / 赋值 RHS）、
 ; static var、operand 位置、常量上下文、局部裸名，以及入口侧导入限定名与顶层 let 裸名
 import MbCountLib
 let L: memblock<int32, 2> = memblock(int32, count: 2, 9, 4)

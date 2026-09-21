@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* A1 端序契约（§3.5）：头部/标量元素/标量字段按固定 LE（低字节在前）序列化，
+/* 端序契约（§3.5）：头部/标量元素/标量字段按固定 LE（低字节在前）序列化，
  * 与 VM（tc_mb_/tc_st_）及 const_eval（tc_ce_）一致，不依赖宿主字节序。 */
 static void tc_aot_store_bits(uint8_t *dst, size_t nbytes, uint64_t bits) {
     size_t i = 0;
@@ -338,12 +338,12 @@ uint64_t tc_aot_ptr_address(int slot) {
 }
 
 /*
- * B-57：槽位索引上界。
+ * 槽位索引上界。
  *
  * 语言标准 §1.3 要求「零未定义行为」且单个实现每次运行确定。指针的槽位编码是
  * 实现定义行为，宿主可用 `bitcast(ptr<T>, <usize>)` 伪造任意编码；解码结果必须
- * 落在 `slots[]` 数组内，否则就是越界读写（此前 AOT 侧静默读任意内存且逐次
- * 结果不同）。这里的容量由调用方（生成的 C）以 TC_AOT_SLOT_CAPACITY 传入，
+ * 落在 `slots[]` 数组内，否则按空指针拒绝。容量由调用方（生成的 C）以
+ * TC_AOT_SLOT_CAPACITY 传入，
  * 与 VM 侧 ctx->slot_capacity 的口径一致。
  */
 int tc_aot_ptr_load(uint64_t *slots, size_t slot_capacity, uint64_t ptr_bits,
@@ -363,7 +363,7 @@ int tc_aot_ptr_load(uint64_t *slots, size_t slot_capacity, uint64_t ptr_bits,
     }
     *out = slots[slot];
     /*
-     * B-55：pointee 为 bool 时按 §3.4 / §6.8.2 规范化（0x00 → false，其它 → true），
+     * pointee 为 bool 时按 §3.4 / §6.8.2 规范化（0x00 → false，其它 → true），
      * 与 VM 侧 tc_exec_ptr_load 对称——经 ptr<int8> 别名写入的非规范字节（如 2）
      * 读回后仍须落在 bool 的抽象值域 {0,1}，不能把原始位模式留在槽位里。
      */
@@ -412,7 +412,7 @@ int tc_aot_ptr_arith(size_t slot_capacity, int is_add, uint64_t ptr_bits, uint64
         return -1;
     }
     /*
-     * B-49 / B-57：按 §6.8.5 的 usize 语义用**无符号**运算完成（偏移可达 2^64-1，
+     * 按 §6.8.5 的 usize 语义用**无符号**运算完成（偏移可达 2^64-1，
      * 转 int64_t 会有符号溢出 UB），结果越过槽位容量时按「非法指针值」报错，
      * 而不是回绕/截断成可能指向合法槽位的编码。
      */
@@ -678,7 +678,7 @@ int tc_aot_memcopy_unsafe(uint64_t *slots, size_t slot_capacity, uint64_t dst_pt
                           "null pointer dereference");
         return -1;
     }
-    /* B-57：伪造编码的槽索引须校验上界，避免越界读写（§1.3 零 UB） */
+    /* 伪造编码的槽索引须校验上界，避免越界读写（§1.3 零 UB） */
     if (tc_aot_ptr_decode(dst_ptr, &dst_slot) != 0 ||
         tc_aot_ptr_decode(src_ptr, &src_slot) != 0 || !slots || dst_slot < 0 || src_slot < 0 ||
         (size_t)dst_slot >= slot_capacity || (size_t)src_slot >= slot_capacity) {
@@ -746,12 +746,9 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
     }
     dst_count = tc_aot_load_bits(dst, sizeof(uint64_t));
     src_count = tc_aot_load_bits(src, sizeof(uint64_t));
-    /* 无回绕判定，与 VM tc_exec_memblock_copy_stmt 一致。 */
-    /*
-     * B-43 / B-58：区间合取在 `length == 0` 时同样成立——§6.7.2.4 只放宽「下标
-     * **等于** count」，下标**大于** count 恒非法。原判据以 `length > 0` 短路，
-     * 使空拷贝的 dst/src 越界下标漏检。
-     */
+    /* 无回绕判定，与 VM tc_exec_memblock_copy_stmt 一致。
+     * `length == 0` 时仍检查下标：§6.7.2.4 只放宽「下标等于 count」，
+     * 下标大于 count 恒非法。 */
     if ((length > 0 &&
          (length > dst_count || dst_index > dst_count - length ||
           length > src_count || src_index > src_count - length)) ||

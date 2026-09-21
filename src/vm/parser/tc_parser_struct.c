@@ -1,7 +1,7 @@
 /*
  * tc_parser_struct.c — struct 类型定义语法解析（附录 A struct_definition）
  *
- * 从 tc_parser.c 拆出：struct 定义 / 字段行 / @padding 属性。
+ * struct 定义 / 字段行 / @padding 属性。
  */
 #include "tc_parser_struct.h"
 
@@ -32,7 +32,7 @@ static int tc_parse_optional_padding(const TcTokenList *tokens, size_t *index, i
          * §3.9.3 / 附录 A：@padding(N) 的 N 须为无后缀非负十进制整数字面量
          * （允许 0）；负号、u/U 后缀或非十进制进制前缀由**静态语义**拒绝。
          *
-         * B-40（§11「阶段优先」）：该拒绝属 SEM 类，不能在语法阶段直接失败——
+         * §11「阶段优先」：该拒绝属 SEM 类，不能在语法阶段直接失败——
          * 否则更晚的语法错误会被更早的 SEM 诊断掩盖。此处挂起 SEM 诊断，继续
          * 解析（占位 padding = 0），由 SEM 阶段按源序位置发布。
          */

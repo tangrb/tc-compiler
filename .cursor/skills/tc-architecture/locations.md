@@ -3,7 +3,7 @@
 **何时读**：需要知道函数/类型定义在哪个 `.c`。**更快**：`rg "符号名" src/ --glob '*.c'`。  
 **Agent**：本文件是查表，勿通读；按节跳转。跨模块分发点见 `@knowledge-graph`。易错点 [gotchas.md](gotchas.md)。
 
-**v0.0.43** + Embed · **无 REPL**。
+**v0.0.44** + Embed · **无 REPL**。
 
 ## 流水线入口
 
@@ -14,6 +14,8 @@
 | `tc_run_file` / `tc_run_source` | `src/vm/driver/tc_driver.c` |
 | `tc_tokenize_line` | `src/vm/lexer/tc_lexer.c` |
 | `tc_parse_statement` / `tc_parse_if_stmt` / `tc_parse_while_stmt` | `src/vm/parser/tc_parser.c` |
+| `tc_syntax_error` / `tc_expect_*` / `tc_parse_operand` / `tc_parse_binding_name` | `src/vm/parser/tc_parser_util.c` |
+| `tc_parse_block_body` / `tc_measure_line_indent` | `src/vm/parser/tc_parser_indent.c` |
 | `tc_parse_struct_def` / 字段行 / `@padding` | `src/vm/parser/tc_parser_struct.c` |
 | `tc_parse_type_syntax` | `src/vm/parser/tc_parser_type.c`（含 `Mod.Name`） |
 | `tc_struct_table_register_program` / `tc_struct_table_find` | `src/vm/analyzer/tc_struct_check.c` |
@@ -23,7 +25,8 @@
 | `tc_analyze` / `tc_analyze_ex` / `tc_pass1_collect_symbols` / `tc_pass2_type_check` | `src/vm/analyzer/tc_analyzer.c` |
 | `tc_module_check_structure` / `tc_module_resolve_imports` / `tc_module_topological_dep_order` / `tc_module_collect_signatures` | `src/vm/analyzer/tc_module.c` |
 | `tc_scope_*` / `tc_member_index_*` / Self 可见性 | `src/vm/analyzer/tc_scope.c` |
-| `tc_func_check_*` / `tc_func_eval_static_lets` | `src/vm/analyzer/tc_func_check.c` |
+| `tc_func_check_*` | `src/vm/analyzer/tc_func_check.c` |
+| `tc_func_eval_static_lets` / `tc_func_check_static_vars` | `src/vm/analyzer/tc_static_init.c` |
 | `tc_callgraph_check` | `src/vm/analyzer/tc_callgraph.c` |
 | `tc_pass1_collect_stmt` / `tc_mark_block_scope_end` | `src/vm/analyzer/tc_analyzer_pass1.c` |
 | `tc_pass2_check_stmt` / `tc_pass2_collect_labels` | `src/vm/analyzer/tc_analyzer_pass2.c` |
@@ -35,6 +38,7 @@
 | `tc_check_operand_init` / `tc_prescan_init_history` / `tc_block_path_*` | `src/vm/analyzer/tc_analyzer_dfa.c` |
 | `tc_eval_const_rhs` / `tc_try_eval_static_bool` / `tc_try_eval_static_bool_operand` | `src/vm/analyzer/tc_const_eval.c` |
 | `tc_type_check_rhs` / `tc_*_check_*` | `src/vm/analyzer/tc_{type,ptr,memblock,struct}_check.c` |
+| `tc_struct_check_field_access` / `tc_struct_check_field_assign` | `src/vm/analyzer/tc_struct_field.c` |
 | `tc_execute` / `tc_eval_rhs` / `tc_execute_statement_impl` | `src/vm/executor/tc_executor.c` |
 | `tc_exec_call_function_public` / `tc_exec_init_all_static_vars` | `src/vm/executor/tc_executor.c` |
 | `tc_call_frame_push` / `tc_call_frame_pop` | `src/vm/executor/tc_call_frame.c` |
@@ -42,7 +46,7 @@
 | `tc_aot_emit_c` / `tc_aot_emit_rhs` / `tc_aot_emit_statement_impl` | `src/aot/tc_aot_codegen.c` |
 | `tc_aot_emit_func_table` / `tc_aot_emit_embed_header` | `src/aot/tc_aot_codegen.c` |
 
-## 嵌入运行时（v0.0.43）
+## 嵌入运行时（v0.0.44）
 
 | 符号 | 文件 |
 |------|------|
@@ -88,6 +92,7 @@
 | 符号 | 文件 |
 |------|------|
 | `tc_eval_const_rhs` / `tc_eval_const_operand` | `src/vm/analyzer/tc_const_eval.c` |
+| `tc_eval_const_struct_ctor` / `tc_eval_const_memblock_ctor` / `tc_const_heap_named` | `src/vm/analyzer/tc_const_aggregate.c` |
 | `tc_resolve_const_value` | `src/vm/analyzer/tc_const_eval.c` |
 | `tc_const_cast_allowed` / `tc_const_map_runtime_error` | `src/vm/analyzer/tc_const_eval.c` |
 | `tc_const_visit_contains` | `src/vm/analyzer/tc_const_eval.c` |

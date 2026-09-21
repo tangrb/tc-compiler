@@ -1,5 +1,5 @@
 #program
-; B-65：跨模块同名符号（库内嵌套块局部 `b`）不得让入口的 `b` 读到别的槽位。
+; 跨模块同名符号（库内嵌套块局部 `b`）不得让入口的 `b` 读到别的槽位。
 ; 期望输出 `false`（即 funcall(SameNameLib.fb) 的返回值）；
 ; 修复前入口 `b` 被解析到库内同名局部（true），或报假的
 ; TC_CE_UNINITIALIZED_VARIABLE。

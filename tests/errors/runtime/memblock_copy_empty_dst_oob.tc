@@ -1,6 +1,6 @@
 #program
 ; §6.7.2.4：空拷贝（n = 0）只放宽「下标 == count」；下标 > count 仍非法（dst 侧）。
-; dst 下标为**变量**，静态阶段通过，由运行期区间合取拒绝——覆盖 B-58 的 dst 侧分支
+; dst 下标为**变量**，静态阶段通过，由运行期区间合取拒绝——dst 侧分支
 ;（常量 9 的静态路径见 tests/errors/static/memblock_copy_constant_dst_index.tc）。
 var a: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
 var b: memblock<int32, 4> = memblock(int32, count: 4, 5, 6, 7, 8)

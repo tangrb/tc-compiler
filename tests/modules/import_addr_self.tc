@@ -1,5 +1,5 @@
 #program
-; 既有-2：库内以 `Self.<名>` 取址并写穿 static var（此前 SyntaxError: expected identifier）
+; 库内以 `Self.<名>` 取址并写穿 static var
 import AddrLib
 var r: int32 = 0
 funcall(AddrLib.bump_self, v: 7)

@@ -97,7 +97,7 @@ static const TcLabelEntry *tc_resolve_goto_label(const TcSymbolTable *table, con
                    tc_paths_equal_prefix(goto_path->path, entry->block_path,
                                          goto_path->depth)) {
             /*
-             * B-25：label 在 goto 的子路径上 → 跳入子块。§7.3.2 的判定次序要求
+             * label 在 goto 的子路径上 → 跳入子块。§7.3.2 的判定次序要求
              * 「跳入子作用域」（步骤 4）优先于「互斥分支」（步骤 5）：当同一函数内
              * 不同块出现同名标签（兄弟块允许同名）时，不能因标签表顺序先遇到兄弟块
              * 标签就报 JUMP_INCOMPATIBLE_BLOCK。
@@ -174,13 +174,11 @@ void tc_resolved_binding_set(TcResolvedBinding *binding, const TcSymbol *symbol)
  *
  * 语言标准 §4.3、§9.1：`#lib` 没有非 `static` 的顶层值作用域——模块状态只能
  * 是 `static let` / `static var`，且**函数体内必须经 `Self.<名>` 访问**。
- * 这里保存当前语句所属模块的成员名索引与「是否位于函数体内」：前者供
- * `Self.<名>` 判定「确属本模块」（§4.4，不得命中其它模块同名成员，含 private），
- * 后者供 `tc_resolve_visible_symbol` 在实测不到可见绑定时给出
- * `TC_CE_FUNCTION_SCOPE_ACCESS`（而不是笼统的 `TC_CE_UNDEFINED_VARIABLE`）。
+ * 当前模块成员索引与「是否位于函数体内」沿 `TcInitHistory` / `TcFuncCheckEnv`
+ * 显式下传：前者供 `Self.<名>` 判定「确属本模块」（§4.4，不得命中其它模块同名
+ * 成员，含 private），后者供 `tc_resolve_visible_symbol` 在实测不到可见绑定时
+ * 给出 `TC_CE_FUNCTION_SCOPE_ACCESS`（而不是笼统的 `TC_CE_UNDEFINED_VARIABLE`）。
  */
-static const TcMemberIndex *g_name_scope_members = NULL;
-static int g_name_scope_in_function = 0;
 
 /*
  * 限定名解析的统一过滤（[语言标准 §4.4]）。
@@ -247,7 +245,8 @@ int tc_reject_private_member_access(const char *name, const TcSymbolTable *globa
     return 0;
 }
 
-const TcSymbol *tc_resolve_self_member(const char *member, const TcSymbolTable *global) {
+const TcSymbol *tc_resolve_self_member(const char *member, const TcSymbolTable *global,
+                                       const TcMemberIndex *members) {
     if (!member || member[0] == '\0' || !global) {
         return NULL;
     }
@@ -255,17 +254,17 @@ const TcSymbol *tc_resolve_self_member(const char *member, const TcSymbolTable *
      * [语言标准 §4.3、§4.4]：`Self.<名>` 只解析**本模块**的顶层成员。符号表是全模块
      * 共享的一张表，故须先用当前模块的成员索引确认该名确属本模块——否则 `Self.X`
      * 会命中另一模块的同名成员（含 `private`），使 private 成员可被跨模块访问。
-     * 作用域上下文不可用（如 static let 提前求值阶段）时不作此判定，由 Pass2 的
-     * 语句检查按同一索引给出终判。
+     * `members` 为空（如部分常量折叠路径）时不作此判定，由 Pass2 的语句检查按
+     * 同一索引给出终判。
      */
-    if (g_name_scope_members && !tc_member_index_find(g_name_scope_members, member)) {
+    if (members && !tc_member_index_find(members, member)) {
         return NULL;
     }
     return tc_symbol_table_find(global, member);
 }
 
 const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymbolTable *global,
-                                      const char *name) {
+                                      const char *name, const TcMemberIndex *members) {
     const TcSymbol *symbol = NULL;
     const char *dot = NULL;
     char qual[128];
@@ -275,7 +274,7 @@ const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymb
         return NULL;
     }
     if (strncmp(name, "Self.", 5) == 0 && name[5] != '\0' && strchr(name + 5, '.') == NULL) {
-        return tc_resolve_self_member(name + 5, global);
+        return tc_resolve_self_member(name + 5, global, members);
     }
     dot = strchr(name, '.');
     if (dot && dot != name && strchr(dot + 1, '.') == NULL) {
@@ -310,30 +309,19 @@ const TcSymbol *tc_find_named_binding(const TcSymbolTable *visible, const TcSymb
     return global ? tc_symbol_table_find(global, name) : NULL;
 }
 
-static void tc_name_scope_set(const TcMemberIndex *members, int in_function) {
-    g_name_scope_members = members;
-    g_name_scope_in_function = in_function;
-}
-
-void tc_name_scope_enter_module(const TcMemberIndex *members) {
-    tc_name_scope_set(members, 0);
-}
-
-void tc_name_scope_reset(void) {
-    tc_name_scope_set(NULL, 0);
-}
-
-int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic *diag) {
-    if (!g_name_scope_in_function || !g_name_scope_members || !name) {
+int tc_name_scope_check_function_access(const char *name, int line, TcDiagnostic *diag,
+                                        const TcMemberIndex *members, int in_function) {
+    if (!in_function || !members || !name) {
         return 0;
     }
-    return tc_func_try_function_scope_access(g_name_scope_members, name, line, diag);
+    return tc_func_try_function_scope_access(members, name, line, diag);
 }
 
 const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
                                                  const TcSymbolTable *global, const char *name,
                                                  size_t stmt_index, int line,
-                                                 TcDiagnostic *diag) {
+                                                 TcDiagnostic *diag,
+                                                 const TcMemberIndex *members, int in_function) {
     const TcSymbol *symbol = NULL;
     char msg[128];
 
@@ -342,7 +330,7 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
         if (tc_reject_private_member_access(name, global, line, diag)) {
             return NULL;
         }
-        symbol = tc_find_named_binding(visible, global, name);
+        symbol = tc_find_named_binding(visible, global, name, members);
         if (symbol) {
             return symbol;
         }
@@ -370,7 +358,7 @@ const TcSymbol *tc_resolve_visible_symbol(const TcSymbolTable *visible,
      * 访问模块 static」——按 §4.3 报 TC_CE_FUNCTION_SCOPE_ACCESS 并提示改用
      * `Self.<名>`；模块顶层（声明区与 static 初始化器）不受此限。
      */
-    if (tc_name_scope_check_function_access(name, line, diag)) {
+    if (tc_name_scope_check_function_access(name, line, diag, members, in_function)) {
         return NULL;
     }
     (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
@@ -412,7 +400,9 @@ static int tc_pass2_resolve_decl_memblock_type(TcType *ast_type, const TcType **
     if (!ast_type) {
         return 0;
     }
-    if (tc_memblock_resolve_type_counts(ast_type, visible, symbols, stmt_index, line, diag) != 0) {
+    if (tc_memblock_resolve_type_counts(ast_type, visible, symbols, stmt_index, line, diag,
+                                        ctx && ctx->func_env ? ctx->func_env->members : NULL,
+                                        ctx ? (ctx->func_depth > 0) : 0) != 0) {
         return -1;
     }
     if (!ctx || !ctx->type_table) {
@@ -457,22 +447,14 @@ static int tc_pass2_check_nested_func_name_conflict(const TcAnalyzeCtx *ctx, con
 }
 
 /**
- * 观察-⑥：`<模块名>.<名> = rhs` 的重分类（语言标准 附录 A
- * `assignment = (identifier | qualified_identifier | imported_member_name) "=" rhs`）。
+ * 将仍为单点 FIELD_ASSIGN 的 `<前缀>.<名> = rhs` 重写为整绑定赋值。
  *
- * 解析器只在 `X.y.`（两点）形态下把 `X.y` 并入基址，故单点限定目标
- * `MemberLib.W = 9` 到达分析器时是「字段赋值：基址 `MemberLib` + 字段链 `["W"]`」，
- * 而字段赋值会把 `MemberLib` 当**基对象**解析 → 报 `undefined variable 'MemberLib'`。
- * `Self.<名> = rhs` 反例不受影响：解析器对 `Self.` 有专用分支，直接产出
- * `TC_STMT_ASSIGN{name="Self.W"}`。
+ * 解析器在 Qual 已出现于本文件 import 时直接产出 ASSIGN。未导入前缀、
+ * 以及无 program 的单句 parse，仍可能是 FIELD_ASSIGN。
+ * 若基址不是可见绑定、且 `"<基址>.<首字段>"` 命中模块成员，则重写为
+ * `TC_STMT_ASSIGN`，复用整绑定赋值的可写性 / private / 类型检查。
  *
- * 判定与既有-1 读侧同构：基址不是可见绑定、且 `"<基址>.<首字段>"` 经名称解析命中
- * 模块成员（附录 A 的 `imported_member_name`）时，把语句**重写**为整绑定赋值
- * `TC_STMT_ASSIGN{name="<基址>.<首字段>"}`，随后由既有整绑定赋值分支处理——
- * 可写性（§11：`static let` → `CONSTANT_ASSIGNMENT`）、跨模块 `private`
- * （§4.4 → `PRIVATE_MEMBER_ACCESS`）、类型检查、`ptr` 来源固化与确定初始化均复用。
- *
- * @return 1 已重写；0 不需改动（含基址为绑定、非模块成员等）；-1 已报错
+ * @return 1 已重写；0 不需改动；-1 已报错
  */
 static int tc_reclassify_qualified_binding_assign(TcStatement *stmt, const TcSymbolTable *visible,
                                                   const TcSymbolTable *global,
@@ -498,8 +480,8 @@ static int tc_reclassify_qualified_binding_assign(TcStatement *stmt, const TcSym
     if (strchr(fa->base, '.') != NULL) {
         return 0;
     }
-    /* 基址能解析为绑定 → 真字段赋值（`s.x = 5`；含 B-37 的大写局部变量） */
-    base_sym = tc_find_named_binding(visible, global, fa->base);
+    /* 基址能解析为绑定 → 真字段赋值（`s.x = 5`；含 大写局部变量） */
+    base_sym = tc_find_named_binding(visible, global, fa->base, NULL);
     if (base_sym) {
         return 0;
     }
@@ -516,7 +498,7 @@ static int tc_reclassify_qualified_binding_assign(TcStatement *stmt, const TcSym
         free(combined);
         return -1;
     }
-    member_sym = tc_find_named_binding(visible, global, combined);
+    member_sym = tc_find_named_binding(visible, global, combined, NULL);
     if (!member_sym) {
         /* 非模块成员（未解析/拼错前缀）：交由字段赋值路径按原口径报告 */
         free(combined);
@@ -544,10 +526,17 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                                TcSymbolTable *visible, TcStructTable *struct_table,
                                TcAnalyzeCtx *ctx, TcInitHistory *hist, TcWarningList *warnings,
                                TcDiagnostic *diag) {
-    /* 刷新名称解析作用域上下文：本语句是否位于函数体内（§4.3 Self. 强制）。 */
-    tc_name_scope_set(ctx->func_env ? ctx->func_env->members : NULL, ctx->func_depth > 0);
+    /* 刷新名称解析作用域：本语句是否位于函数体内（§4.3 Self. 强制）。 */
+    if (ctx->func_env) {
+        ctx->func_env->in_function = ctx->func_depth > 0;
+    }
+    if (hist) {
+        hist->name_members = ctx->func_env ? ctx->func_env->members : NULL;
+        hist->name_in_function = ctx->func_depth > 0;
+    }
 
-    /* 观察-⑥：`<模块名>.<名> = rhs` 先重分类为整绑定赋值（见该助手注释）；
+    /* 解析器已对「本文件已 import 的 Qual.Name =」产出 ASSIGN；
+     * 其余单点 FIELD_ASSIGN 仍在此重分类（未导入前缀 / 单句 parse 无 program）。
      * 返回 1 = 已重写（随后由本函数下面的 ASSIGN 分支处理），0 = 不变，-1 = 已报错 */
     if (tc_reclassify_qualified_binding_assign(stmt, visible, symbols, diag) < 0) {
         return -1;
@@ -983,10 +972,10 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 ctx->program ? ctx->program->module_name : NULL);
 
             /*
-             * 与 `static var` 同口径：解析声明类型中**命名**的 `memblock` N
-             * （Pass1 intern 时 usize 名尚未折叠，count 仍为 0）。此前 static let
-             * 缺少本步骤，使 `memblock<int32, Self.N>` 的 `.count` 静默读成 0，
-             * 且 `memblock<int32, <static var>>` 未被拒绝。
+             * 与 `static var` 同口径：解析声明类型中命名的 `memblock` N
+             * （Pass1 intern 时 usize 名尚未折叠，count 仍为 0）。
+             * 否则 `memblock<int32, Self.N>` 的 `.count` 会读成 0，
+             * 且 `memblock<int32, <static var>>` 不会被拒绝。
              */
             if (tc_pass2_resolve_decl_memblock_type(&sl->type, NULL, sym, ctx, visible, symbols,
                                                     stmt_index, sl->line, diag) != 0) {
@@ -1030,10 +1019,10 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 return -1;
             }
             /*
-             * B-4（[语言标准 §5.2.1] 第 3 步）：`let` RHS 为标识符时，名称解析后
-             * 若绑定是 `var` / 形参 / `static var`，**立即**报
-             * TC_CE_CONSTANT_EXPRESSION，且**不比较结果类型**。此前先做类型比较，
-             * 导致 `let a: int8 = v`（v: int32）错报 TC_CE_TYPE_MISMATCH。
+             * [语言标准 §5.2.1] 第 3 步：`let` RHS 为标识符时，名称解析后
+             * 若绑定是 `var` / 形参 / `static var`，立即报
+             * TC_CE_CONSTANT_EXPRESSION，且不比较结果类型
+             * （`let a: int8 = v`（v: int32）不得报 TC_CE_TYPE_MISMATCH）。
              * 仅处理裸标识符；`Self.` / 限定名由 6d 的常量来源规则处理。
              */
             if (const_def->rhs.kind == TC_RHS_CONST_REF &&
@@ -1041,7 +1030,9 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 strchr(const_def->rhs.u.const_ref.name, '.') == NULL) {
                 const TcSymbol *ref =
                     tc_resolve_visible_symbol(visible, symbols, const_def->rhs.u.const_ref.name,
-                                              stmt_index, const_def->line, diag);
+                                              stmt_index, const_def->line, diag,
+                                              tc_hist_name_members(hist),
+                                              tc_hist_name_in_function(hist));
                 if (!ref) {
                     return -1;
                 }
@@ -1063,7 +1054,8 @@ static int tc_pass2_check_stmt(TcStatement *stmt, TcSymbolTable *symbols,
                 }
             }
             if (tc_resolve_const_value(global_sym, &const_def->rhs, visible, symbols,
-                                       struct_table, const_def->line, diag) != 0) {
+                                       struct_table, tc_hist_name_members(hist),
+                                       const_def->line, diag) != 0) {
                 /*
                  * CT 类（常量求值）诊断已挂起：按语言标准 §11「阶段优先」
                  * 不得在此中止——第 11/12 阶段的 SEM 类检查
@@ -1284,6 +1276,8 @@ int tc_pass2_type_check(TcProgram *program, TcSymbolTable *symbols, TcStructTabl
     hist.check_init = 1;
     hist.defer_to_cfg = 1;
     hist.type_table = (func_env && func_env->prog) ? func_env->prog->type_table : NULL;
+    hist.name_members = func_env ? func_env->members : NULL;
+    hist.name_in_function = 0;
     ctx.type_table = hist.type_table;
 
     for (i = 0; i < program->count; i++) {

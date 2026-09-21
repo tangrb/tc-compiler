@@ -1,4 +1,4 @@
 #lib
-; B-66 / §5.2.1：static let 初始化器引用**自身** → TC_CE_UNDEFINED_VARIABLE
+; §5.2.1：static let 初始化器引用**自身** → TC_CE_UNDEFINED_VARIABLE
 ; （标准不定义「常量循环依赖」错误：前向引用与自引用统一走 UNDEFINED_VARIABLE）
 public static let k: int32 = Self.k

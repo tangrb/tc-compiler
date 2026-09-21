@@ -85,7 +85,7 @@
 
 测试：valid `uninit_both_paths`, `uninit_shortcircuit`, `uninit_shortcircuit_let_bool`, `uninit_const_condition_if`, `uninit_const_condition_while`；static `uninit_simple`, `uninit_chain`, `uninit_multi`, `uninit_slot_value`, `uninit_if_path`, `uninit_goto_skip_init`, `uninit_shortcircuit_var_lhs`, `shortcircuit_let_*`, `diag_priority_*`；白盒 `test_analyzer` / `test_cfg`。
 
-## 诊断阶段（v0.0.43）
+## 诊断阶段（v0.0.44）
 
 权威：标准 §11.0 · Agent 摘要：[errors.md](../errors.md) §诊断阶段 · 图谱：[kg-cfg.md](../kg-cfg.md) / [pipeline.md](../pipeline.md)。
 

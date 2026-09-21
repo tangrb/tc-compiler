@@ -1,5 +1,5 @@
 /*
- * tc_embed.h — TC 嵌入式运行时 API（v0.0.43）
+ * tc_embed.h — TC 嵌入式运行时 API
  *
  * C 宿主程序调用 TC 编译产物的最小化运行时 API。
  * 通过共享 slots[] 数组实现零拷贝互操作。
@@ -64,7 +64,7 @@ typedef struct {
     size_t param_count;
 } TcEmbedFuncInfo;
 
-/* ── 类型化参数（运行时便捷层，v0.0.43） ──
+/* ── 类型化参数（运行时便捷层） ──
  *
  * 携带类型标签的实参，供 tc_embed_call_typed 使用。
  * bits 与 TcValue.bits 位模式一致（按位宽规范化），可经 tc_value_from_* 复用。
@@ -190,7 +190,7 @@ int tc_embed_self_var_slot(const TcEmbedCtx *ctx, const char *name);
 size_t tc_embed_slot_count(const TcEmbedCtx *ctx);
 
 /**
- * 槽位数组总容量（声明槽位 + 临时槽位区，B-19）。
+ * 槽位数组总容量（声明槽位 + 临时槽位区）。
  *
  * 临时槽位区**不占用**声明槽位：其索引区间为 [声明槽位数, 容量)，从容量顶端
  * 向下做栈式分配。AOT 生成的全局 `slots[]` 数组按本函数返回值定长；宿主用
@@ -204,7 +204,7 @@ int tc_embed_slot_read(const TcEmbedCtx *ctx, int slot, TcValue *out);
 /* ── 临时槽位区（运行时便捷层） ──
  *
  * C 侧数据平铺区：位于声明槽位**之上**（索引 ≥ tc_embed_slot_count），从
- * 容量顶端向下分配，栈式嵌套；与声明槽位互不重叠（B-19）。
+ * 容量顶端向下分配，栈式嵌套；与声明槽位互不重叠。
  * 用于 tc_embed_make_ptr 与需要 C 数据区持久跨调用的场景。
  */
 int tc_embed_tmp_begin(TcEmbedCtx *ctx, size_t n, int *base_slot_out);

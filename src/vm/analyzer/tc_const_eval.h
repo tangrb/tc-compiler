@@ -7,6 +7,7 @@
 #ifndef TC_CONST_EVAL_H
 #define TC_CONST_EVAL_H
 
+#include "tc_scope.h"
 #include "tc_symbol.h"
 #include "tc_types.h"
 
@@ -26,13 +27,14 @@ typedef enum {
  * @param rhs     let 初始化表达式
  * @param visible 当前可见符号表（包含之前定义的符号）
  * @param global  全局符号表（用于前向引用解析）
+ * @param members 当前模块成员索引（`Self.<名>` 归属判定；可为 NULL）
  * @param line    当前行号
  * @param diag    诊断对象
  * @return 成功 0；失败 -1 并设置 diag
  */
 int tc_resolve_const_value(TcSymbol *sym, const TcRhs *rhs, const TcSymbolTable *visible,
                            const TcSymbolTable *global, const struct TcStructTable *struct_table,
-                           int line, TcDiagnostic *diag);
+                           const TcMemberIndex *members, int line, TcDiagnostic *diag);
 
 /** 使用 Pass2 已解析绑定判断一个 bool 操作数是否为静态常量。 */
 void tc_try_eval_static_bool_operand(const TcOperand *operand, TcStaticBoolResult *result);

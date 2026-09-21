@@ -1,6 +1,6 @@
 #lib
 ; §4.3 / §8.4.1：函数体内裸名引用本库顶层成员（return 操作数）→
-; TC_CE_FUNCTION_SCOPE_ACCESS。该模块被 #program 导入时错码须与作入口时一致（审计 B-54）。
+; TC_CE_FUNCTION_SCOPE_ACCESS。该模块被 #program 导入时错码须与作入口时一致。
 public static let C: int32 = 7
 public func f() int32 then
     return C

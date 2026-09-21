@@ -246,7 +246,7 @@ static void test_format_spec_parse(void) {
           "parse '%%65536d' width sentinel");
     check(tc_format_spec_parse("%-0d", &out) == 1 && out.flag_minus && out.flag_zero,
           "parse '%%-0d' both flags");
-    /* B-3：重复标志形态合法（附录 A { format_flag }），只置 flag_repeat 供 SEM 报码 */
+    /* 重复标志形态合法（附录 A { format_flag }），只置 flag_repeat 供 SEM 报码 */
     check(tc_format_spec_parse("%--d", &out) == 1 && out.flag_minus && out.flag_repeat,
           "parse '%%--d' shape ok + flag_repeat");
     check(tc_format_spec_parse("%-+d", &out) == 1 && !out.flag_repeat,

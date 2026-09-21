@@ -287,7 +287,7 @@ void tc_diagnostic_drop_deferred(TcDiagnostic *diag) {
     tc_diagnostic_clear_deferred(diag);
 }
 
-/* ── 挂起的 SEM 类诊断（B-40） ── */
+/* ── 挂起的 SEM 类诊断 ── */
 
 void tc_diagnostic_clear_deferred_sem(TcDiagnostic *diag) {
     TcDeferredDiagnostic *pending = NULL;
@@ -546,7 +546,7 @@ static void tc_diagnostic_print_ex(const TcDiagnostic *diag, FILE *out, int with
         fprintf(out, ": api error: %s: %s\n", tc_api_error_code_name(diag->api_code), message);
     } else if (diag->domain == TC_DIAG_IMPLEMENTATION) {
         /*
-         * B-18：实现域只打印**实现专用**码名（当前仅 TC_ERR_OUT_OF_MEMORY）。
+         * 实现域只打印**实现专用**码名（当前仅 TC_ERR_OUT_OF_MEMORY）。
          * 实现缺陷（`internal error: …`）不携带语言错误码，不得把占位的
          * TC_CE_SYNTAX 打印成 `SyntaxError` 伪装成语言诊断（语言标准 §1.3 只
          * 承认实现资源失败一类实现侧失败）。

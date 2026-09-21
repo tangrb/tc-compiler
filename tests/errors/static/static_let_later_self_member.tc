@@ -1,5 +1,5 @@
 #lib
-; B-66 / §4.2、§5.2.1：static let 初始化器引用**源序更晚**的成员 →
+; §4.2、§5.2.1：static let 初始化器引用**源序更晚**的成员 →
 ; TC_CE_UNDEFINED_VARIABLE（该名称在源序可见性上尚未建立）
 public static let k: int32 = Self.j
 public static let j: int32 = 41

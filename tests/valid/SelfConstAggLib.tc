@@ -1,5 +1,5 @@
 #lib
-; 观察-④ 修复：经 `Self.` 解析到的 `static let` 是合法常量来源（§5.2.1，标量 / struct /
+; 经 `Self.` 解析到的 `static let` 是合法常量来源（§5.2.1，标量 / struct /
 ; memblock 同口径）；struct / memblock 整值拷贝须深拷贝（§3.9.4 / §3.8.4），
 ; AOT 不得把分析期堆指针写进生成 C
 public struct Pair then

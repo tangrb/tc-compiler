@@ -69,7 +69,7 @@ static void test_domain_lifecycle(void) {
     check(print_contains(&diag, ": implementation error: OutOfMemory: memory allocation failed"),
           "implementation print includes domain and code");
 
-    /* B-18：实现缺陷（internal error）不得把占位 kind 打印成语言错误码 */
+    /* 实现缺陷（internal error）不得把占位 kind 打印成语言错误码 */
     tc_diagnostic_set(&diag, TC_CE_SYNTAX, 3, TC_COLUMN_UNKNOWN,
                       "internal error: unresolved field operand");
     diag.domain = TC_DIAG_IMPLEMENTATION;

@@ -1,6 +1,6 @@
 #program
 ; 期望：negative shift count 运行时错误（TC_RE_NEGATIVE_SHIFT_COUNT）；
-; 此前 writeln 应已执行
+; 溢出前的 writeln 已提交
 var x: int32 = 8
 var k: int32 = -1
 var r: int32 = 0

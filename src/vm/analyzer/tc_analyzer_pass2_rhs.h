@@ -24,8 +24,8 @@ const TcSymbol *tc_find_symbol_by_def_index(const TcSymbolTable *global, const c
 int tc_pass2_resolve_target_type(TcInitHistory *hist, const TcType *owned,
                                 const TcType **out, int line, TcDiagnostic *diag);
 int tc_precheck_rhs_names(TcRhs *rhs, const TcSymbolTable *visible,
-                          const TcSymbolTable *global, size_t stmt_index, int line,
-                          TcDiagnostic *diag, const char *self_name);
+                          const TcSymbolTable *global, TcInitHistory *hist, size_t stmt_index,
+                          int line, TcDiagnostic *diag, const char *self_name);
 int tc_check_operand(TcOperand *operand, TcTypeTag expected,
                      const TcSymbolTable *visible, const TcSymbolTable *global,
                      const struct TcStructTable *struct_table, TcInitHistory *hist, size_t stmt_index,

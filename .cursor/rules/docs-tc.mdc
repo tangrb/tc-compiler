@@ -13,7 +13,7 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 ## 版本状态
 
 - **设计目标**：TC **0.0.44**（语言标准附录 B 86 码）
-- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.43**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.43）
+- **实现代码**：`src/vm/runtime/tc_version.h`（**v0.0.44**）；Phase 1–7 已落地（含 struct 运行时与 Embed v0.0.44）
 - **Embed 规格**：`docs/TC-Embed详细设计说明书-0.0.44.md`
 
 ## 文档职责
@@ -27,7 +27,8 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 | `docs/libtc设计说明书-0.0.44.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
 | `docs/TC-VM命令行参考-0.0.44.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
 | `docs/TC-Embed详细设计说明书-0.0.44.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
-| `docs/TC-0.0.44-语言标准符合性审计报告.md` | **符合性审计**：设计文档与 `src/` 对语言标准的偏差清单（含优先级、最小复现）；查「某条规范实现了吗」看这里 |
+
+上表 7 份为**设计/规范文档**。它们只引用同类设计文档与 `src/` / `tests/`，**不得**引用过程性文档（符合性审计报告、整改进度台账、CHANGELOG、release-checklist、`docs/README` 地图、AGENTS / `.cursor/**`）。分层检查：`python3 scripts/sync/check_doc_layering.py`。查某条规范是否落地：对 `src/` 与测试，勿回写过程记录。
 
 ## 同步检查
 
@@ -40,9 +41,10 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 - [ ] Agent 导航同步 [AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)；易踩坑写入 [gotchas.md](../skills/tc-architecture/gotchas.md)（大改架构时）
 - [ ] 诊断阶段与编译器标准 / `errors.md` 一致（现网多阶段编排见 pipeline.md）
 - [ ] 版本号：`src/vm/runtime/tc_version.h`（及 AOT `TC_AOT_VERSION`）
-- [ ] 测试规模：Release Gate 见符合性检查分析报告 §14 / 修复计划 §10；当前注册见 `scripts/*/run_tests.sh` / `test-map.md`
+- [ ] 测试规模：当前注册见 `scripts/*/run_tests.sh` / `test-map.md`
 - [ ] 新模块同步 `locations.md` / `features/*.md` / `compiler-src.mdc` / `unit-tests-c.mdc`（Embed → `embed-src.mdc` / `kg-embed.md`）
 - [ ] 工程布局与 `tc_<module>.h` ↔ `tc_<module>.c` 命名一致；`check_source_naming.py`
+- [ ] 设计文档未引用过程性文档；`check_doc_layering.py`
 - [ ] 固定点入口写作 `tc_analyze_definite_init`（`tc_cfg.c`），勿写旧符号名
 - [ ] 无 REPL；skill/rule 中不得引入 `tc_repl` / `tc_analyze_statement`
 

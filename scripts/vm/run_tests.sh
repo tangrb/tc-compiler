@@ -454,7 +454,7 @@ run_cli_golden() {
 
 # --- valid: execution succeeds ---
 
-run_cli_golden "--version" 0 "tc-vm 0.0.43" "" "cli version golden"
+run_cli_golden "--version" 0 "tc-vm 0.0.44" "" "cli version golden"
 
 run_cli_golden "--help" 0 "" "Usage: $TC_VM_BIN_NATIVE [options] <file.tc>
 
@@ -787,7 +787,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/ptr_struct_type_distinct.tc" \
     "field read result type does not match expected type"
 run_expect_fail_msg "$ROOT/tests/errors/static/ptr_address_const.tc" \
     "cannot take address of constant binding"
-# 既有-4：只读判据看「所指外层绑定」；let 绑定的空指针写入归运行期
+# 只读判据看「所指外层绑定」；let 绑定的空指针写入归运行期
 run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_store_null_let.tc" \
     "null pointer dereference"
 run_expect_fail_msg "$ROOT/tests/errors/runtime/ptr_store_null_let_copy.tc" \
@@ -999,14 +999,14 @@ run_expect_check_fail "$ROOT/tests/errors/static/recursion_direct.tc" "recursive
 run_expect_check_fail "$ROOT/tests/errors/static/recursion_indirect.tc" "recursive function call"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
     "constant value is not available by source order" "UndefinedVariable"
-# B-66：static let 经 Self. 的自引用 / 前向引用统一按 §5.2.1 报 UNDEFINED_VARIABLE
+# static let 经 Self. 的自引用 / 前向引用统一按 §5.2.1 报 UNDEFINED_VARIABLE
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_self_reference.tc" \
     "undefined variable 'k'" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_later_self_member.tc" \
     "constant value is not available by source order" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_later_self_field.tc" \
     "constant value is not available by source order" "UndefinedVariable"
-# Critical 1 回归：static let/var 的 memblock 逐值构造计数不匹配（const 求值先于 pass2）
+# static let/var 的 memblock 逐值构造计数不匹配（const 求值先于 pass2）
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_memblock_count_mismatch.tc" \
     "memblock element count mismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/static_let_memblock_count_too_few.tc" \
@@ -1052,8 +1052,8 @@ run_expect_check_fail "$ROOT/tests/modules/imported_struct_private.tc" \
 run_expect_stdout "$ROOT/tests/modules/imported_struct_mid_ok.tc" "3
 "
 run_expect_check_ok "$ROOT/tests/modules/imported_struct_mid_ok.tc"
-# Major 4 回归：菱形 import（Left/Right 均 import Shared）结构体注册须真拓扑序。
-# B-65：两条臂的局部同名 `s` 不得互相串槽 —— 输出须为各自的 x（3 / 4），
+# 菱形 import（Left/Right 均 import Shared）结构体注册须按拓扑序。
+# 两条臂的局部同名 `s` 不得互相串槽 —— 输出须为各自的 x（3 / 4），
 # 而非同一槽位读出的同一个值。
 run_expect_stdout "$ROOT/tests/modules/diamond_import_ok.tc" "3
 4
@@ -1063,25 +1063,25 @@ run_expect_stdout "$ROOT/tests/modules/diamond_import_swapped_ok.tc" "4
 "
 run_expect_check_ok "$ROOT/tests/modules/diamond_import_ok.tc"
 run_expect_check_ok "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
-# B-65：跨模块同名符号不得串槽（库内嵌套块局部 b vs 入口 b）
+# 跨模块同名符号不得串槽（库内嵌套块局部 b vs 入口 b）
 run_expect_stdout "$ROOT/tests/modules/import_same_name_shadow.tc" "false
 "
 run_expect_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"
-# B-56：被导入的 #lib 内 `funcall(Self.<本库函数>, …)` 须正常解析（此前 UndefinedFunction）
+# 被导入的 #lib 内 `funcall(Self.<本库函数>, …)` 须正常解析
 run_expect_stdout "$ROOT/tests/modules/import_self_call.tc" "5
 "
 run_expect_stdout "$ROOT/tests/modules/import_field_funcall.tc" "7
 "
 run_expect_check_ok "$ROOT/tests/modules/import_self_call.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_field_funcall.tc"
-# 既有-2：`ptr_address(T, Self.<名>)` 与 `<模块名>.<static var>` 取址合法
+# `ptr_address(T, Self.<名>)` 与 `<模块名>.<static var>` 取址合法
 run_expect_stdout "$ROOT/tests/modules/import_addr_self.tc" "7
 "
 run_expect_stdout "$ROOT/tests/modules/import_addr_qual.tc" "9
 "
 run_expect_check_ok "$ROOT/tests/modules/import_addr_self.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_addr_qual.tc"
-# 既有-1：`<模块名>.<成员>` 作普通 RHS 操作数（scalar / struct 整体读取；限定名须确为该模块成员）
+# `<模块名>.<成员>` 作普通 RHS 操作数（scalar / struct 整体读取；限定名须确为该模块成员）
 run_expect_stdout "$ROOT/tests/modules/import_member_operand.tc" "46
 42
 "
@@ -1095,7 +1095,7 @@ run_expect_stdout "$ROOT/tests/modules/import_member_struct.tc" "12
 "
 run_expect_check_ok "$ROOT/tests/modules/import_member_operand.tc"
 run_expect_check_ok "$ROOT/tests/modules/import_member_struct.tc"
-# 观察-④：`Self.<名>` 作常量/整值来源（标量常量上下文、struct 常量上下文、struct 返回值
+# `Self.<名>` 作常量/整值来源（标量常量上下文、struct 常量上下文、struct 返回值
 # 与运行时整值拷贝、const memblock 拷贝）——VM 与 AOT 逐行一致
 run_expect_stdout "$ROOT/tests/valid/self_const_agg.tc" "41
 17
@@ -1113,8 +1113,8 @@ run_expect_check_ok "$ROOT/tests/valid/const_struct_copy.tc"
 run_expect_stdout "$ROOT/tests/valid/const_memblock_copy.tc" "6
 "
 run_expect_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
-# 观察-⑤：`.count` 作 RHS（语句级 / 赋值 / operand / 常量上下文）——限定名 const 与 static var、
-# 导入限定名、顶层 let 裸名四种来源同口径（AOT 曾对限定名 const 报 code generation failed）
+# `.count` 作 RHS（语句级 / 赋值 / operand / 常量上下文）——限定名 const 与 static var、
+# 导入限定名、顶层 let 裸名四种来源同口径
 run_expect_stdout "$ROOT/tests/valid/memblock_count_rhs.tc" "2
 2
 2
@@ -1128,7 +1128,7 @@ run_expect_stdout "$ROOT/tests/valid/memblock_count_rhs.tc" "2
 2
 "
 run_expect_check_ok "$ROOT/tests/valid/memblock_count_rhs.tc"
-# 观察-⑥：`<模块名>.<名> = rhs` 整绑定赋值目标（附录 A assignment、§4.4 static var 可读写）
+# `<模块名>.<名> = rhs` 整绑定赋值目标（附录 A assignment、§4.4 static var 可读写）
 run_expect_stdout "$ROOT/tests/modules/import_member_assign_ok.tc" "9
 11
 3
@@ -1170,7 +1170,7 @@ run_expect_check_fail "$ROOT/tests/modules/import_member_foreign_member.tc" \
     "undefined variable 'BoxLib'" "UndefinedVariable"
 run_expect_check_fail "$ROOT/tests/modules/self_call_neg/import_bare_call.tc" \
     "function scope access: use Self.inc" "FunctionScopeAccessError"
-# B-54：依赖模块（#lib 被 import）内裸名引用本库顶层成员，错码须与作入口时一致
+# 依赖模块（#lib 被 import）内裸名引用本库顶层成员，错码须与作入口时一致
 run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_read.tc" \
     "function scope access: use Self.C" "FunctionScopeAccessError"
 run_expect_check_fail "$ROOT/tests/modules/bare_scope_neg/import_assign.tc" \
@@ -1220,7 +1220,7 @@ run_expect_stdout "$ROOT/tests/valid/phase5_memblock_deepcopy.tc" "1
 "
 run_expect_stdout "$ROOT/tests/valid/phase5_memcopy_unsafe.tc" "1
 "
-# Major 3 回归 + A-3：编译期可确定的负 length / 负下标 → 静态码；运行时绑定仍归 TC_RE_*
+# 编译期可确定的负 length / 负下标 → 静态码；运行时绑定仍归 TC_RE_*
 run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_dst_index.tc" \
     "memcopy_unsafe invalid range" "MemcopyUnsafeInvalidRange"
 run_expect_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_src_index.tc" \
@@ -1468,13 +1468,13 @@ run_expect_check_ok "$ROOT/tests/valid/phase5_struct_mixed_types.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_extract_indep.tc"
 run_expect_check_ok "$ROOT/tests/valid/phase5_struct_funcall.tc"
 run_expect_check_ok "$ROOT/tests/valid/import_struct_type.tc"
-# B-64：文件名含内部点（模块名含点）时本地结构体名仍须解析
+# 文件名含内部点（模块名含点）时本地结构体名仍须解析
 run_expect_stdout "$ROOT/tests/valid/struct_dotted.v1.tc" "7
 9
 16
 "
 run_expect_check_ok "$ROOT/tests/valid/struct_dotted.v1.tc"
-# B-37：首字母大写的变量作字段访问基址 / 赋值目标（分类由名称解析决定）
+# 首字母大写的变量作字段访问基址 / 赋值目标（分类由名称解析决定）
 run_expect_stdout "$ROOT/tests/valid/uppercase_var_field_read.tc" "1
 1
 "
@@ -1573,7 +1573,7 @@ run_expect_check_ok "$ROOT/tests/valid/struct_field_static_init.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_static_init_run.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops.tc"
 run_expect_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
-# Critical 2 回归：let/static let 基址的 struct/memblock 字段整体读出（AOT 曾段错误）
+# let/static let 基址的 struct/memblock 字段整体读出
 run_expect_stdout "$ROOT/tests/valid/struct_field_const_base_struct.tc" "11
 11
 "
@@ -1797,7 +1797,7 @@ run_expect_stdout "$ROOT/tests/valid/bitcast_roundtrip64.tc" "7FF8000000001234
 8000000000000000
 "
 run_expect_check_ok "$ROOT/tests/valid/bitcast_roundtrip64.tc"
-# A-4：`nullptr` 不参与 `bitcast`（常量路径与 var 路径均静态拒绝）
+# `nullptr` 不参与 `bitcast`（常量路径与 var 路径均静态拒绝）
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_source.tc" \
     "nullptr cannot participate in bitcast" "TypeMismatch"
 run_expect_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_source_int.tc" \
@@ -2289,7 +2289,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/memblock_negative_count_type.tc
     "memblock count must be at least 1"
 run_expect_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" \
     "memblock count must be at least 1"
-# B-40：@padding / memblock count 的形态检查属 SEM 类，须挂起后再按阶段与源序竞争
+# @padding / memblock count 的形态检查属 SEM 类，须挂起后再按阶段与源序竞争
 run_expect_check_fail "$ROOT/tests/errors/static/padding_then_later_syntax.tc" \
     "unexpected character" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/padding_then_later_sem.tc" \
@@ -2355,7 +2355,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/static_let_count_name_static_va
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_self_ref.tc" "undefined variable 'A'"
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_bare_member.tc" "static var initializer has invalid operand"
 run_expect_check_fail "$ROOT/tests/errors/static/literal_range.tc" "literal out of range" \
-    "LiteralOutOfRange"  # A-2：SEM 阶段（上下文期望类型）
+    "LiteralOutOfRange"  # SEM 阶段（上下文期望类型）
 run_expect_check_fail "$ROOT/tests/errors/static/undefined_variable.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch.tc" "operand type does not match"
 run_expect_check_fail "$ROOT/tests/errors/static/wrap_mode_error.tc" "div/mod do not support wrap"
@@ -2419,7 +2419,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/type_mismatch_unary.tc" "operan
 run_expect_check_fail "$ROOT/tests/errors/static/self_ref_let.tc" "undefined variable"
 run_expect_check_fail "$ROOT/tests/errors/static/cast_wrap_keyword.tc" "wrap cannot be used with cast"
 run_expect_check_fail "$ROOT/tests/errors/static/let_const_literal_range.tc" \
-    "literal out of range for context type" "LiteralOutOfRange"  # A-2：SEM 阶段（let 声明类型）
+    "literal out of range for context type" "LiteralOutOfRange"  # SEM 阶段（let 声明类型）
 run_expect_check_fail "$ROOT/tests/errors/static/let_non_literal.tc" "constant expression cannot reference var variable"
 run_expect_check_fail "$ROOT/tests/errors/static/missing_type_in_arith.tc" "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_int_with_t.tc" "%t requires bool type"
@@ -2427,7 +2427,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/format_fp_type_mismatch.tc" "fl
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_uint.tc" "%d requires signed type"
 run_expect_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
 run_expect_check_fail "$ROOT/tests/errors/static/invalid_hex_overflow.tc" "integer literal too large" \
-    "LiteralOutOfRange"  # A-2：LT 阶段（Token 自身超 2^64−1）
+    "LiteralOutOfRange"  # LT 阶段（Token 自身超 2^64−1）
 run_expect_check_fail "$ROOT/tests/errors/static/literal_type_error.tc" \
     "unsigned suffix literal cannot be used in signed context"
 run_expect_check_fail "$ROOT/tests/errors/static/bool_literal_type_error.tc" "bool literal requires bool context"
@@ -2499,7 +2499,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_arith_mode_mismatch.tc"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_wrap_mode_mismatch.tc" "float unary operations do not accept mode keywords"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_bitwise_type_error.tc" "expected type"
 run_expect_check_fail "$ROOT/tests/errors/static/fp_literal_range.tc" "literal out of range" \
-    "LiteralOutOfRange"  # A-2：LT 阶段（浮点舍入为零/无穷）
+    "LiteralOutOfRange"  # LT 阶段（浮点舍入为零/无穷）
 
 # --- v0.0.24: if / indent static errors ---
 
@@ -2512,15 +2512,15 @@ run_expect_check_fail "$ROOT/tests/errors/static/if_cross_block_ref_then_to_else
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" \
-    "if condition must be bool" "ConditionTypeError"  # B-61：RHS 类型成立但非 bool
+    "if condition must be bool" "ConditionTypeError"  # RHS 类型成立但非 bool
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_expect_fail_msg "$ROOT/tests/errors/static/while_cond_type_arith.tc" "while condition must be bool"
 run_expect_check_fail "$ROOT/tests/errors/static/while_cond_type_arith.tc" \
     "while condition must be bool" "ConditionTypeError"
 run_expect_fail_msg "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" \
-    "literal type does not match context" "LiteralTypeError"  # B-61：字面量专用码优先
-# B-61：直接字面量条件 → LITERAL_TYPE；已定型非 bool 变量条件 → CONDITION_TYPE
+    "literal type does not match context" "LiteralTypeError"  # 字面量专用码优先
+# 直接字面量条件 → LITERAL_TYPE；已定型非 bool 变量条件 → CONDITION_TYPE
 run_expect_check_fail "$ROOT/tests/errors/static/if_cond_literal_direct.tc" \
     "literal type does not match" "LiteralTypeError"
 run_expect_check_fail "$ROOT/tests/errors/static/cond_var_not_bool.tc" \
@@ -2533,7 +2533,7 @@ run_expect_fail_msg "$ROOT/tests/errors/static/while_missing_end.tc" "missing en
 run_expect_check_fail "$ROOT/tests/errors/static/while_missing_end.tc" "missing end for while statement"
 run_expect_fail_msg "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer"
 run_expect_check_fail "$ROOT/tests/errors/static/var_missing_initializer.tc" "variable definition requires initializer" "VarMissingInitializer"
-# B-17：`#lib` 的 static var 缺初始化器同码同定位（不得降级为 SyntaxError）
+# `#lib` 的 static var 缺初始化器同码同定位（不得降级为 SyntaxError）
 run_expect_fail_msg "$ROOT/tests/errors/static/static_var_missing_initializer.tc" \
     "variable definition requires initializer"
 run_expect_check_fail "$ROOT/tests/errors/static/static_var_missing_initializer.tc" \
@@ -2554,19 +2554,19 @@ run_expect_fail_msg "$ROOT/tests/errors/static/indent_else_position.tc" "else mu
 run_expect_check_fail "$ROOT/tests/errors/static/indent_else_position.tc" "else must appear at same indentation as if"
 run_expect_fail_msg "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_end_mismatch.tc" "end indentation does not match if"
-# B-41：else/end 无论过深过浅，只要与块头不对齐即 ELSE_END
+# else/end 无论过深过浅，只要与块头不对齐即 ELSE_END
 run_expect_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" \
     "end indentation does not match if" "IndentElseEndError"
 run_expect_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
     "else must appear at same indentation as if" "IndentElseEndError"
-# 观察项-②：else/end 对齐文案按块类型（while / function）
+# else/end 对齐文案按块类型（while / function）
 run_expect_check_fail "$ROOT/tests/errors/static/while_end_indent_mismatch.tc" \
     "end indentation does not match while" "IndentElseEndError"
 run_expect_check_fail "$ROOT/tests/errors/static/while_end_indent_deeper.tc" \
     "end indentation does not match while" "IndentElseEndError"
 run_expect_check_fail "$ROOT/tests/errors/static/func_end_indent_mismatch.tc" \
     "end indentation does not match function" "IndentElseEndError"
-# B-63：顶层行（含模块指令行）不得缩进
+# 顶层行（含模块指令行）不得缩进
 run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_program.tc" \
     "top-level lines must not be indented" "IndentInsufficientError"
 run_expect_check_fail "$ROOT/tests/errors/static/toplevel_indent_lib.tc" \
@@ -2954,7 +2954,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_ctor.tc" \
     "expected , or )" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_memblock.tc" \
     "expected , or )" "SyntaxError"
-# B-62：const 变体（`static let` / 函数内 `let` 初始化器）同形拒绝尾随 / 缺失逗号
+# const 变体（`static let` / 函数内 `let` 初始化器）同形拒绝尾随 / 缺失逗号
 run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_ctor.tc" \
     "comma" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_ctor.tc" \
@@ -2963,7 +2963,7 @@ run_expect_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_membl
     "comma" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_memblock.tc" \
     "expected , or )" "SyntaxError"
-# A-1：调用型指针 RHS 不属于 operand，不得嵌套为其它调用的操作数
+# 调用型指针 RHS 不属于 operand，不得嵌套为其它调用的操作数
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_address_nested_operand.tc" \
     "expected operand" "SyntaxError"
 run_expect_check_fail "$ROOT/tests/errors/static/ptr_add_nested_operand.tc" \
@@ -2983,7 +2983,7 @@ run_expect_check_fail "$ROOT/tests/modules/import_badlib_missing_return.tc" \
     "missing return on reachable path"
 run_expect_check_fail "$ROOT/tests/modules/import_badlib_uninit.tc" \
     "use of uninitialized variable"
-# B-14：依赖模块诊断定位到模块自身（文件 + 行号 + 片段），而非入口文件
+# 依赖模块诊断定位到模块自身（文件 + 行号 + 片段），而非入口文件
 run_expect_check_fail "$ROOT/tests/modules/import_badlib_diag.tc" \
     "BadLibDiag.tc:5: error: undefined variable 'zzz'" "UndefinedVariable"
 # --- memblock N 规划个数：funcall 返回值位置（P0-3） ---

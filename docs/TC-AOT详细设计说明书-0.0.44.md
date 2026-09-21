@@ -2,7 +2,7 @@
 
 > **规范基线（唯一权威）**：[TC 语言标准 0.0.44](./TC语言标准设计说明书-0.0.44.md) · [TC 编译器标准 0.0.44](./TC编译器标准设计说明书-0.0.44.md)
 >
-> **当前实现基线**：TC-AOT v0.0.43（`TC_AOT_VERSION` ⇐ `TC_VERSION_CORE`，见 `src/vm/runtime/tc_version.h`）
+> **当前实现基线**：TC-AOT v0.0.44（`TC_AOT_VERSION` ⇐ `TC_VERSION_CORE`，见 `src/vm/runtime/tc_version.h`）
 >
 > **状态**：0.0.44 代码生成架构设计（语言规范 0.0.44 同步版），涵盖模块系统、函数、memblock、ptr、struct 与完整 C99 代码生成。
 >
@@ -75,7 +75,7 @@
 | `read` 标准输入读取失败报 `TC_RE_IO` | 共享 `tc_io`（§14.1） | **已同步** |
 | 浮点语义：IEEE 754-2019、roundTiesToEven、禁止 FMA／FTZ／DAZ、`mod` 商向零截断 | 共享纯语义 core（§12.3） | **已同步**（VM/AOT 共用 core） |
 | 指针 `cast` **不附加等宽条件** | 共享 Analyzer | **已同步**：语料 `ptr_cast_remark.tc`（VM+AOT 差分），旧等宽语料删除 |
-| `bitcast(ptr ↔ 浮点)` 改为拒绝 | 共享 Analyzer（§12 生成路径不受影响） | **已同步**：语料 `bitcast_ptr_float*`（`--check` 三路）；`bitcast(T, nullptr)` 另经 A-4 裁决静态拒绝，见 `bitcast_nullptr_source*` |
+| `bitcast(ptr ↔ 浮点)` 改为拒绝 | 共享 Analyzer（§12 生成路径不受影响） | **已同步**：语料 `bitcast_ptr_float*`（`--check` 三路）；`bitcast(T, nullptr)` 静态拒绝，见 `bitcast_nullptr_source*` |
 | `ptr_size` 只可整条充当 `const_rhs` | 共享 Analyzer（§9.2 内联、§13.2 发射） | **已核实一致** |
 | `const_rhs` 中嵌套调用报 `TC_CE_SYNTAX` | 共享 Analyzer | **已同步** |
 | CT 类诊断须晚于全部 SEM 类诊断报告 | 共享 Analyzer 阶段顺序 | **已同步** |
@@ -83,23 +83,23 @@
 | `static let` 不得引用 `static var`／命名 N 与 `count:` 前置解析 | 共享 Analyzer | **已同步**：语料 `static_let_ref_var_*.tc` 与正例 `static_let_rule_ok.tc` 均入 AOT 差分 |
 | 函数体 `Self.` 强制访问与 `Self.<名>` 赋值目标 | 共享 Analyzer + §4 槽表示（[语言标准 §4.3]） | **已同步**：字段赋值经 `TcFieldAssign.base_binding` 取槽（原按名解析限定名失败报 `unresolved struct base`）；语料 `self_bare_*.tc`、`self_access_ok.tc` |
 | 静态布尔原子集合 / 条件 RHS 形态 / 限定标识符作 `operand` | 共享 Analyzer | **已同步**：语料 `static_bool_cond.tc`／`cond_ptr_compare.tc`／`cond_readonly_field.tc`／`self_qual_operand.tc` 均入 AOT 差分 |
-| `ptr_*` 调用型 RHS 不属于 `operand`、不得嵌套（嵌套 → `TC_CE_SYNTAX`） | 共享 Analyzer（A-1） | **已同步**：AOT `--check` 与 VM 同码；语料 `ptr_{address,add,sub,lt}_nested_operand.tc` |
-| `TC_CE_LITERAL_OUT_OF_RANGE` 覆盖 LT 与 SEM 两阶段 | 共享 Analyzer（A-2） | **已核实一致**：LT/SEM 两路径同码（`invalid_hex_overflow`／`literal_range` 等） |
-| `memcopy_unsafe` 编译期可确定负 `length`／负下标 → 静态拒绝；不可确定者 → 运行时 `TC_RE_*` | 共享 Analyzer ＋ §11.3 shim（A-3） | **已同步**：shim 只处理不可确定的负值；语料 `memcopy_unsafe_neg_*`（静态四条 / 运行时三条） |
-| `nullptr` 不参与 `bitcast`（静态拒绝） | 共享 Analyzer（A-4） | **已同步**：语料 `bitcast_nullptr_source{,_int}.tc`、`bitcast_nullptr_float.tc` |
-| `else`/`end` 不对齐（过深或过浅）一律 `TC_CE_INDENT_ELSE_END` | 共享 Analyzer（B-41） | **已同步**：语料 `indent_end_deeper`／`indent_else_deeper` |
-| 条件位置 RHS 专用码优先于 `TC_CE_CONDITION_TYPE` | 共享 Analyzer（B-61） | **已核实一致**：语料 `if_cond_literal_direct`／`cond_var_not_bool` |
-| 顶层行缩进必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | 共享 Analyzer（B-63） | **已同步**：语料 `toplevel_indent_*.tc`（AOT `--check` 同码） |
-| `<模块名>.<成员>` 可作 RHS `operand`（含 struct 整体读取） | 共享 Analyzer ＋ 表达式发射（既有-1） | **已同步**：常量基址的 struct／memblock 内联字节后经 `tc_aot_struct_extract` 深拷贝；语料 `import_member_operand.tc`／`import_member_struct.tc` |
-| `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法 | 共享 Analyzer（既有-2） | **已同步**：语料 `import_addr_self.tc`／`import_addr_qual.tc`（AOT 差分） |
-| `ptr_store`／`memcopy_unsafe` 只读判据取**所指外层绑定**；常量空指针归运行期 | 共享 Analyzer ＋ §11 运行时（既有-4） | **已同步**：零声明槽位程序的 `ptr_load`／`ptr_store`／`memcopy_unsafe` 实参由 `tc_aot_slots_arg` 发 `NULL, 0`（不发射 `slots[]`，运行期按容量 0 判空指针）；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（`run_runtime_fail`）、`ptr_store_readonly_copy`（`run_check_fail`） |
+| `ptr_*` 调用型 RHS 不属于 `operand`、不得嵌套（嵌套 → `TC_CE_SYNTAX`） | 共享 Analyzer | **已同步**：AOT `--check` 与 VM 同码；语料 `ptr_{address,add,sub,lt}_nested_operand.tc` |
+| `TC_CE_LITERAL_OUT_OF_RANGE` 覆盖 LT 与 SEM 两阶段 | 共享 Analyzer | **已核实一致**：LT/SEM 两路径同码（`invalid_hex_overflow`／`literal_range` 等） |
+| `memcopy_unsafe` 编译期可确定负 `length`／负下标 → 静态拒绝；不可确定者 → 运行时 `TC_RE_*` | 共享 Analyzer ＋ §11.3 shim | **已同步**：shim 只处理不可确定的负值；语料 `memcopy_unsafe_neg_*`（静态四条 / 运行时三条） |
+| `nullptr` 不参与 `bitcast`（静态拒绝） | 共享 Analyzer | **已同步**：语料 `bitcast_nullptr_source{,_int}.tc`、`bitcast_nullptr_float.tc` |
+| `else`/`end` 不对齐（过深或过浅）一律 `TC_CE_INDENT_ELSE_END` | 共享 Analyzer | **已同步**：语料 `indent_end_deeper`／`indent_else_deeper` |
+| 条件位置 RHS 专用码优先于 `TC_CE_CONDITION_TYPE` | 共享 Analyzer | **已核实一致**：语料 `if_cond_literal_direct`／`cond_var_not_bool` |
+| 顶层行缩进必须为 0，否则 `TC_CE_INDENT_INSUFFICIENT` | 共享 Analyzer | **已同步**：语料 `toplevel_indent_*.tc`（AOT `--check` 同码） |
+| `<模块名>.<成员>` 可作 RHS `operand`（含 struct 整体读取） | 共享 Analyzer ＋ 表达式发射 | **已同步**：常量基址的 struct／memblock 内联字节后经 `tc_aot_struct_extract` 深拷贝；语料 `import_member_operand.tc`／`import_member_struct.tc` |
+| `ptr_address(T, Self.<名>／<模块名>.<名>)` 合法 | 共享 Analyzer | **已同步**：语料 `import_addr_self.tc`／`import_addr_qual.tc`（AOT 差分） |
+| `ptr_store`／`memcopy_unsafe` 只读判据取**所指外层绑定**；常量空指针归运行期 | 共享 Analyzer ＋ §11 运行时 | **已同步**：零声明槽位程序的 `ptr_load`／`ptr_store`／`memcopy_unsafe` 实参由 `tc_aot_slots_arg` 发 `NULL, 0`（不发射 `slots[]`，运行期按容量 0 判空指针）；语料 `ptr_store_null_let{,_copy}`／`memcopy_unsafe_null_let`（`run_runtime_fail`）、`ptr_store_readonly_copy`（`run_check_fail`） |
 | 经导入限定解析到 `private` 的 `static let`／`static var` → `TC_CE_PRIVATE_MEMBER_ACCESS` | 共享 Analyzer（[语言标准 §4.4]） | **已同步**：AOT `--check` 与 VM 同码；语料 `member_private_{read,field,addr,memblock,read_target}.tc`（AOT `run_check_fail`） |
 | `Self.<名>` 只解析本模块顶层成员（不得命中其它模块同名成员，含 `private`） | 共享 Analyzer（[语言标准 §4.3、§4.4]） | **已同步**：AOT `--check` 与 VM 同码；语料 `SelfForeign{Priv,Pub,Field}Lib.tc`（AOT `run_check_fail`） |
-| 经 `Self.` 解析到的 `static let` 可作常量来源；常量 struct／memblock 整值拷贝须内联字节后运行期深拷贝（生成 C 不得嵌入分析期堆指针） | 共享 Analyzer（常量求值）＋ §6/§7 发射（[语言标准 §5.2.1、§3.9.4、§3.8.4]） | **已同步**（观察-④）：新增 `tc_aot_emit_const_struct_expr`／`_assign`（`tc_aot_struct_extract` 内联字节），接上 `CONST_REF`（binding 已解析与按名回退两路径）、`SELF_MEMBER` 常量分支与 `tc_aot_emit_operand_assign`（`return Self.spc` 等）的常量 struct／memblock 分支；语料 `self_const_agg.tc`／`const_struct_copy.tc`／`const_memblock_copy.tc`（`run_diff_test` ＋ `run_check_ok`） |
-| `.count` 作 RHS（`TC_RHS_MEMBLOCK_COUNT`）：常量绑定（`let`／`static let`，含 `Self.<名>`／`<模块>.<名>`）折叠声明 `N`；运行期槽位读头部 | §6/§7 发射、[语言标准 §3.8.5、附录 A] | **已同步**（观察-⑤）：常量绑定路径改按 `binding.type` 折叠——符号表以裸成员名存放，限定名按名查不到，此前直接 `code generation failed`；语料 `tests/valid/memblock_count_rhs.tc`（`run_diff_test` ＋ `run_check_ok`，含 `Self.`／导入限定名／裸名／形参四类基址与 operand／常量上下文对照） |
-| `<模块>.<名> = rhs` 整绑定赋值目标 | 共享 Analyzer（重分类，[语言标准 附录 A]） | **已同步**（观察-⑥）：AOT 侧无需改动（`binding` + `tc_aot_emit_rhs_slot`）；语料 `import_member_assign_{ok,dep}.tc`（`run_diff_test` ＋ `run_check_ok`）与 4 条 `run_check_fail` 负例 |
+| 经 `Self.` 解析到的 `static let` 可作常量来源；常量 struct／memblock 整值拷贝须内联字节后运行期深拷贝（生成 C 不得嵌入分析期堆指针） | 共享 Analyzer（常量求值）＋ §6/§7 发射（[语言标准 §5.2.1、§3.9.4、§3.8.4]） | **已同步**：`tc_aot_emit_const_struct_expr`／`_assign`（`tc_aot_struct_extract` 内联字节），接上 `CONST_REF`、`SELF_MEMBER` 常量分支与 `tc_aot_emit_operand_assign`（`return Self.spc` 等）；语料 `self_const_agg.tc`／`const_struct_copy.tc`／`const_memblock_copy.tc`（`run_diff_test` ＋ `run_check_ok`） |
+| `.count` 作 RHS（`TC_RHS_MEMBLOCK_COUNT`）：常量绑定（`let`／`static let`，含 `Self.<名>`／`<模块>.<名>`）折叠声明 `N`；运行期槽位读头部 | §6/§7 发射、[语言标准 §3.8.5、附录 A] | **已同步**：常量绑定按 `binding.type` 折叠声明 `N`（符号表以裸成员名存放，限定名按名查不到）；语料 `tests/valid/memblock_count_rhs.tc`（`run_diff_test` ＋ `run_check_ok`，含 `Self.`／导入限定名／裸名／形参四类基址与 operand／常量上下文对照） |
+| `<模块>.<名> = rhs` 整绑定赋值目标 | 共享 Analyzer（解析期 ASSIGN 或分析器兜底重分类，[语言标准 附录 A]） | **已同步**：AOT 沿用 `binding` + `tc_aot_emit_rhs_slot`；语料 `import_member_assign_{ok,dep}.tc`（`run_diff_test` ＋ `run_check_ok`）与 4 条 `run_check_fail` 负例 |
 
-上表只登记 0.0.44 规范口径的同步差异，**不代表实现侧零未决**。审计报告 §5 复核的 9 项既有未关闭差异（`既有-1`～`既有-9`）**已全部闭合**：`既有-1` 导入限定名成员作 RHS 操作数（`87b988f`）、`既有-2` `Self.<名>`／导入限定名取址（`0093b58`）、`既有-4` 只读判据改为所指绑定、常量空指针归运行期（`0851a37`），其余 6 项分别由 B-6／B-8／B-9／B-17／B-20／A-3 闭合（映射与证据见符合性整改进度台账 §5）。§5 复核后新发现的既有缺陷中，**限定名成员可见性未校验**（`<模块>.<private static let/var>` 跨模块可读，且 `Self.<名>` 可命中其它模块同名成员）已按 [语言标准 §4.3、§4.4] 修复：跨模块限定名报 `TC_CE_PRIVATE_MEMBER_ACCESS`，`Self.<名>` 仅解析本模块成员（共享 Analyzer，AOT `--check` 同码）；**`Self.` 常量来源与常量聚合值深拷贝**（观察-④）亦已修复（常量求值补 `TC_RHS_SELF_MEMBER`；AOT 常量 struct／memblock 一律内联字节并在运行期重新分配）；**`.count` 作 RHS 的常量绑定路径**（观察-⑤）已修复：常量绑定改按 `binding.type` 折叠声明 count，不再依赖「按限定名查符号」（符号表以裸名存放，故此前直接 `code generation failed`）；**`<模块>.<名> = rhs` 整绑定赋值目标**（观察-⑥）已修复：分析器把单点限定目标由字段赋值重分类为整绑定赋值（附录 A `assignment` 含 `imported_member_name`），AOT 只需沿用 `binding` 元数据。至此审计报告 §5 复核项与本轮全部观察项（观察-③～⑥）均已闭合，**无待修观察项**。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
+上表只登记 0.0.44 规范口径与 `src/aot/` 的核对结论。这些项**不改变本文的 codegen 口径**：AOT 不得为迁就现状放宽任何生成规则，凡本文要求静态拒绝或运行时报 `TC_RE_*` 的形态，一律按本文发射，不得以「当前实现接受」为由生成等价路径。
 
 ---
 
@@ -740,7 +740,7 @@ int tc_aot_memblock_copy(uint64_t dst_bits, uint64_t dst_index, uint64_t src_bit
 
 ### 11.3 memcopy_unsafe shim
 
-与 VM 一致：空指针 → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。**注意**：编译期**可确定**为负的 `length` / `dst_idx` / `src_idx`（整数字面量或 `let` / `static let` 常量来源）已由共享 Analyzer 以静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` 拒绝（A-3 裁决，[语言标准 §6.8.9]、[编译器标准 §11.4.6]），不会到达本 shim；shim 只处理编译期不可确定的负值。codegen 须按下标操作数的有符号性（字面量负号 / 绑定或字段类型）传入对应 `TcTypeTag`，shim 按该类型判负；**不得**一律按 `usize` 求值后再检查（否则负字面量回绕导致漏检）。
+与 VM 一致：空指针 → `TC_RE_NULL_POINTER_DEREFERENCE`；`length < 0` 或有符号下标数学值 `< 0` → `TC_RE_MEMCOPY_UNSAFE_INVALID_RANGE`。**注意**：编译期**可确定**为负的 `length` / `dst_idx` / `src_idx`（整数字面量或 `let` / `static let` 常量来源）已由共享 Analyzer 以静态 `TC_CE_MEMCOPY_UNSAFE_INVALID_RANGE` 拒绝（[语言标准 §6.8.9]、[编译器标准 §11.4.6]），不会到达本 shim；shim 只处理编译期不可确定的负值。codegen 须按下标操作数的有符号性（字面量负号 / 绑定或字段类型）传入对应 `TcTypeTag`，shim 按该类型判负；**不得**一律按 `usize` 求值后再检查（否则负字面量回绕导致漏检）。
 
 ```c
 int tc_aot_memcopy_unsafe(uint64_t *slots, uint64_t dst_ptr, uint64_t dst_index,

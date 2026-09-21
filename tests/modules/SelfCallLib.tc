@@ -1,6 +1,6 @@
 #lib
 ; §4.3 / §8.2.1：`#lib` 函数体内调用本库函数必须写 `Self.<函数名>`；
-; 本模块被 import 时同样必须解析成功（B-56：此前报 UndefinedFunction）。
+; 本模块被 import 时同样必须解析成功。
 public func inc(a: int32) int32 then
     return a
 end

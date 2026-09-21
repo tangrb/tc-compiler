@@ -531,7 +531,7 @@ void tc_aot_emit_const_struct_expr(FILE *out, const TcType *type, uint64_t const
     /*
      * const struct 整值：生成代码不得嵌入分析期堆指针（const_bits），而是把常量字节
      * 内联为复合字面量，运行期由 tc_aot_struct_extract 重新分配并拷贝（值语义 §3.9.4；
-     * 与既有的 const memblock 发射、const 基址字段读同口径）。
+     * 与 const memblock 发射、const 基址字段读同口径）。
      */
     if (nbytes == 0) {
         fprintf(out, "0");
@@ -585,7 +585,7 @@ void tc_aot_emit_operand_expr(FILE *out, const TcOperand *operand, TcTypeTag typ
         }
         if (access->field_count == 0 && access->field_type) {
             /*
-             * 既有-1：单点限定名（`<模块名>.<成员>`）整体读取——操作数就是该绑定
+             * 单点限定名（`<模块名>.<成员>`）整体读取——操作数就是该绑定
              * 自身。按同口径复用「绑定读取」发射：常量基址走 const 折叠（memblock
              * 常量内联字节后深拷贝），运行时基址发槽位；常量 struct 与常量 struct
              * 字段读同口径（内联字节后运行期深拷贝）。
@@ -843,7 +843,7 @@ int tc_aot_emit_embed_header(FILE *out, const TcTypedProgram *program,
     fprintf(out, "#include \"tc_diagnostic.h\"\n");
     fprintf(out, "#include \"tc_aot_embed_rt.h\"\n\n");
     {
-        /* B-19：数组须容纳声明槽位 + 临时槽位区（tc_embed_slot_capacity） */
+        /* 数组须容纳声明槽位 + 临时槽位区（tc_embed_slot_capacity） */
         size_t capacity = tc_embed_slot_capacity_of(slot_count);
 
         fprintf(out, "#define TC_AOT_SLOT_COUNT %zu\n", slot_count);
@@ -907,10 +907,10 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
     fputc('\n', out);
 
     {
-        /* B-19：嵌入模式须容纳临时槽位区（与生成头文件声明一致）；独立程序
+        /* 嵌入模式须容纳临时槽位区（与生成头文件声明一致）；独立程序
          * （非 embed）不使用临时区，按声明槽位数定长即可。
          * 无槽位的程序（如只用字面量构造指针）仍要为容量宏给出定值。
-         * 既有-4：零声明槽位的程序不声明数组，但若发 ptr_load / ptr_store /
+         * 零声明槽位的程序不声明数组，但若发 ptr_load / ptr_store /
          * memcopy_unsafe，其运行期实参由 `tc_aot_slots_arg` 给出 `NULL, 0`。 */
         size_t capacity = embed_mode ? tc_embed_slot_capacity_of(slot_count)
                                      : (slot_count > 0 ? slot_count : 1);
@@ -920,7 +920,7 @@ int tc_aot_emit_c(FILE *out, const TcTypedProgram *program, const char *source_n
             fprintf(out, "%suint64_t slots[%zu];\n\n", qual, capacity);
         }
         /*
-         * B-57：指针的槽位编码属实现定义行为（宿主可 `bitcast(ptr<T>, <usize>)`
+         * 指针的槽位编码属实现定义行为（宿主可 `bitcast(ptr<T>, <usize>)`
          * 伪造）。运行时函数按本容量校验解码出的槽索引，越界即按空指针（算术）
          * 处理，避免越界读写 slots[]（§1.3 零 UB 与单实现确定性）。
          * 嵌入模式头文件已定义同名宏，故加 #ifndef 保护。

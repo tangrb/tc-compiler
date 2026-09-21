@@ -92,9 +92,9 @@ int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
     TcErrorKind err_kind = TC_CE_LITERAL_OUT_OF_RANGE;
 
     /*
-     * B-22：语言标准 §11 第 3 条「专用码优先于通用码」——字面量类型不匹配在任何
-     * 位置都报 TC_CE_LITERAL_TYPE，不得被调用点传入的比较/条件类通用码覆盖
-     *（形参保留以维持既有调用签名）。
+     * 语言标准 §11 第 3 条「专用码优先于通用码」——字面量类型不匹配在任何
+     * 位置都报 TC_CE_LITERAL_TYPE，不得被调用点传入的比较/条件类通用码覆盖。
+     * 形参保留以兼容现有调用签名。
      */
     (void)literal_type_err;
     if (!tc_literal_fits_context(lit, expected, &err_kind)) {
@@ -112,7 +112,7 @@ int tc_check_literal(const TcLiteral *lit, TcTypeTag expected, int line,
 
 
 /* ------------------------------------------------------------------ */
-/*  B-2：SEM 类诊断的源序选择                                           */
+/*  SEM 类诊断的源序选择                                           */
 /* ------------------------------------------------------------------ */
 
 /*
@@ -150,7 +150,7 @@ static void tc_sem_take_diag(TcDiagnostic *diag, const TcDiagnostic *cand, const
                              const char *source) {
     char *msg = cand->message ? strdup(cand->message) : NULL;
     /*
-     * B-40：`tc_diagnostic_clear` 会释放挂起的 SEM 类诊断，但那是解析期记录、
+     * `tc_diagnostic_clear` 会释放挂起的 SEM 类诊断，但那是解析期记录、
      * 尚未与其它 SEM 诊断按源序竞争的候选，此处必须先摘出再恢复（先置零以避免
      * clear 释放其字符串）。
      */
@@ -246,7 +246,7 @@ done:
 /*  tc_analyze_ex — 文件模式分析入口                                      */
 /* ------------------------------------------------------------------ */
 
-/** 把诊断定位切到某个模块自身（B-14：依赖模块诊断不得定位到入口文件）。 */
+/** 把诊断定位切到某个模块自身（依赖模块诊断不得定位到入口文件）。 */
 static int tc_diag_use_module(TcDiagnostic *diag, const TcProgram *prog) {
     return tc_diagnostic_use_source(diag, prog ? prog->source_path : NULL,
                                     prog ? prog->source_text : NULL);
@@ -277,7 +277,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     program->source_path = NULL;
     program->source_text = NULL;
     /*
-     * B-14：保留入口源文本，供「入口 ↔ 依赖模块」之间的诊断定位切换。调用方
+     * 保留入口源文本，供「入口 ↔ 依赖模块」之间的诊断定位切换。调用方
      *（libtc / 驱动）不一定设置它，故退回到诊断对象里已绑定的入口源文本。
      */
     if (!out->program.source_text) {
@@ -297,7 +297,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     }
 
     /*
-     * 入口诊断定位副本：依赖模块阶段会临时把诊断 source 切到模块自身（B-14），
+     * 入口诊断定位副本：依赖模块阶段会临时把诊断 source 切到模块自身，
      * 每个依赖阶段结束后都要切回入口。set_source 会释放旧文本，故此处 strdup。
      */
     {
@@ -426,7 +426,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
         goto fail;
     }
 
-    /* H-5 / H-6：入口与依赖库的 static let/var 均需求值/检查，
+    /* 入口与依赖库的 static let/var 均需求值/检查，
      * 否则跨模块 Self.static_let 在运行期无 const_value。 */
     if (tc_func_eval_static_lets(&out->program, &out->symbols, &struct_table,
                                      out->type_table, &members, diag) != 0) {
@@ -515,7 +515,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
     /* ==== 阶段 6 入口：类型与语义分析（6a→6b→6c→6d→6e） ==== */
     if (tc_pass2_type_check(&out->program, &out->symbols, &struct_table, &func_env, &out->warnings,
                             diag) != 0) {
-        /* B-2：Pass2（6a–8）与 CFG（11）、调用图（12）同属 SEM，按源序选首个 */
+        /* Pass2（6a–8）与 CFG（11）、调用图（12）同属 SEM，按源序选首个 */
         (void)tc_sem_salvage(out, &out->symbols, &func_env, diag, 1);
         goto fail;
     }
@@ -523,9 +523,8 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
         size_t di = 0;
         for (di = 0; di < out->dep_count; di++) {
             /*
-             * B-56：依赖模块的 `Self.<函数名>` 必须按**该模块**的成员索引与签名
-             * module_index 解析。此前一律沿用入口的 members / 硬编码 -1，导致
-             * `#lib` 内 `funcall(Self.f, …)` 一旦被 import 就报 UNDEFINED_FUNCTION。
+             * 依赖模块的 `Self.<函数名>` 必须按该模块的成员索引与签名
+             * module_index 解析。
              */
             TcMemberIndex dep_members;
             int rc = 0;
@@ -537,7 +536,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
             }
             func_env.members = &dep_members;
             func_env.module_index = (int)di;
-            /* B-14：依赖模块体内的诊断定位到模块自身文件与源文本。 */
+            /* 依赖模块体内的诊断定位到模块自身文件与源文本。 */
             if (tc_diag_use_module(diag, &out->deps[di]) != 0) {
                 tc_member_index_free(&dep_members);
                 goto fail;
@@ -567,16 +566,15 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
         tc_analyze_definite_init_all(out->cfg_set, &out->program,
                                      tc_symbol_table_runtime_slot_count(&out->symbols),
                                      diag) != 0) {
-        /* B-2：阶段 11 属 SEM；若阶段 12（调用图）的诊断源位置更靠前，改报它 */
+        /* 阶段 11 属 SEM；若阶段 12（调用图）的诊断源位置更靠前，改报它 */
         (void)tc_sem_salvage(out, &out->symbols, &func_env, diag, 0);
         goto fail;
     }
     out->cfg = &out->cfg_set->toplevel;
 
     /* 阶段 11：依赖库函数体同样执行 CFG 数据流检查（确定初始化 / 不可达 /
-     * MISSING_RETURN）。此前仅对入口模块构建 CFG，导入库的函数体缺陷
-     * （如 goto 跳过初始化、缺少 return）会静默通过。依赖库诊断定位到
-     * 其自身文件（fail-fast：出错即返回，无需恢复入口 source）。 */
+     * MISSING_RETURN）。依赖库诊断定位到其自身文件（fail-fast：出错即返回，
+     * 无需恢复入口 source）。 */
     {
         size_t di = 0;
 
@@ -621,7 +619,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
         *owned = struct_table;
         out->struct_table = owned;
         /*
-         * 所有权已转移：此后若因挂起诊断（B-40 的 SEM 项 / 第 9、10 阶段 CT 项）
+         * 所有权已转移：此后若因挂起诊断（ SEM 项 / 第 9、10 阶段 CT 项）
          * 失败，`fail:` 会同时释放局部表与 `out->struct_table`。将局部表复位为零，
          * 避免对同一 items/fields 双重释放。
          */
@@ -635,7 +633,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
      * 调用方不得进入执行阶段。
      */
     /*
-     * B-40：解析期挂起的 **SEM 类**诊断须先于 CT 类发布（§11 阶段优先）。
+     * 解析期挂起的 **SEM 类**诊断须先于 CT 类发布（§11 阶段优先）。
      * 此处仅在有真实 SEM 诊断时失败；否则继续走 CT 挂起项的发布。
      */
     if (tc_diagnostic_publish_deferred_sem(diag) != 0) {
@@ -649,7 +647,7 @@ static int tc_analyze_impl(TcProgram *program, TcTypedProgram *out, const char *
 
 fail:
     /*
-     * B-40：失败路径同样要让解析期挂起的 SEM 诊断参与竞争——若它与已报告的
+     * 失败路径同样要让解析期挂起的 SEM 诊断参与竞争——若它与已报告的
      * 诊断同属一个源文件且源序更靠前，则替换（§11 第 2 条）。
      */
     if (ret != 0 && tc_diagnostic_publish_deferred_sem(diag) != 0) {

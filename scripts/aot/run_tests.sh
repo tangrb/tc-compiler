@@ -203,8 +203,8 @@ run_runtime_fail() {
         rm -f "$vm_err" "$aot_err" "$aot_c" "$aot_c.out"
         return
     fi
-    # B-55：`tc-aot --run` 的 “run failed (exit N)” 必须打印**真实**子进程退出码，
-    # 而不是 system() 的原始 wait status（此前 exit 1 会显示 256）。只有生成了宿主
+    # `tc-aot --run` 的 “run failed (exit N)” 必须打印**真实**子进程退出码，
+    # 而不是 system() 的原始 wait status（exit 1 不得显示为 256）。只有生成了宿主
     # 可执行文件（即程序真的运行过）时才要求该行——部分语料其实在静态阶段就被拒。
     if [ -x "$aot_c.out" ] && ! grep -Fq "run failed (exit $aot_status)" "$aot_err"; then
         fail "aot run-failed line missing real exit status ($aot_status): $file" "$file"
@@ -294,7 +294,7 @@ run_aot_cli_golden() {
 
 # --- differential tests: valid programs (stdout VM vs AOT) ---
 
-run_aot_cli_golden "--version" 0 "tc-aot 0.0.43" "" "aot version golden"
+run_aot_cli_golden "--version" 0 "tc-aot 0.0.44" "" "aot version golden"
 
 run_aot_cli_golden "--help" 0 "" "Usage: $(native_path "$AOT_BIN") [options] <file.tc>
 
@@ -318,7 +318,7 @@ rm -f "$AOT_MISSING_PATH"
 EXPECTED_MISSING="$(mixed_path "$AOT_MISSING_PATH")"
 run_aot_cli_golden "$AOT_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "aot file-open golden"
 
-# B-15：`-r` 须接受相对路径输入（生成的可执行文件以 ./ 前缀执行，POSIX sh 不搜索 .）
+# `-r` 须接受相对路径输入（生成的可执行文件以 ./ 前缀执行，POSIX sh 不搜索 .）
 run_aot_relative_run() {
     tmpdir="$(mktemp -d)"
     stdout_file="$(mktemp)"
@@ -601,10 +601,10 @@ run_diff_test "$ROOT/tests/valid/struct_field_operand_self_base.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_static_init_run.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_init.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_init_run.tc"
-# B-64：文件名含内部点（模块名含点）时本地结构体名仍须解析
+# 文件名含内部点（模块名含点）时本地结构体名仍须解析
 run_diff_test "$ROOT/tests/valid/struct_dotted.v1.tc"
 run_check_ok "$ROOT/tests/valid/struct_dotted.v1.tc"
-# B-37：首字母大写的变量作字段访问基址 / 赋值目标
+# 首字母大写的变量作字段访问基址 / 赋值目标
 run_diff_test "$ROOT/tests/valid/uppercase_var_field_read.tc"
 run_diff_test "$ROOT/tests/valid/uppercase_var_field_assign.tc"
 run_check_ok "$ROOT/tests/valid/uppercase_var_field_read.tc"
@@ -612,33 +612,33 @@ run_check_ok "$ROOT/tests/valid/uppercase_var_field_assign.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops.tc"
 run_check_ok "$ROOT/tests/valid/struct_field_static_topo_ops_run.tc"
-# Critical 2 回归：let/static let 基址的 struct/memblock 字段读出（AOT 曾嵌入堆指针段错误）
+# let/static let 基址的 struct/memblock 字段读出（AOT 按字节内联并深拷贝）
 run_diff_test "$ROOT/tests/valid/struct_field_const_base_struct.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_const_base_memblock.tc"
 run_diff_test "$ROOT/tests/valid/struct_field_const_base_nested.tc"
 run_diff_test "$ROOT/tests/modules/diamond_import_ok.tc"
 run_diff_test "$ROOT/tests/modules/diamond_import_swapped_ok.tc"
-# 既有-2：ptr_address 接受 Self.<名> / <模块>.<static var>
+# ptr_address 接受 Self.<名> / <模块>.<static var>
 run_diff_test "$ROOT/tests/modules/import_addr_self.tc"
 run_diff_test "$ROOT/tests/modules/import_addr_qual.tc"
 run_check_ok "$ROOT/tests/modules/import_addr_self.tc"
 run_check_ok "$ROOT/tests/modules/import_addr_qual.tc"
-# 既有-1：`<模块名>.<成员>` 作 RHS 操作数（const struct 须内联字节后深拷贝）
+# `<模块名>.<成员>` 作 RHS 操作数（const struct 须内联字节后深拷贝）
 run_diff_test "$ROOT/tests/modules/import_member_operand.tc"
 run_diff_test "$ROOT/tests/modules/import_member_struct.tc"
 run_check_ok "$ROOT/tests/modules/import_member_operand.tc"
 run_check_ok "$ROOT/tests/modules/import_member_struct.tc"
-# 观察-④：`Self.<名>` 作常量/整值来源；const struct/memblock 整值不得嵌入分析期堆指针
+# `Self.<名>` 作常量/整值来源；const struct/memblock 整值不得嵌入分析期堆指针
 run_diff_test "$ROOT/tests/valid/self_const_agg.tc"
 run_check_ok "$ROOT/tests/valid/self_const_agg.tc"
 run_diff_test "$ROOT/tests/valid/const_struct_copy.tc"
 run_check_ok "$ROOT/tests/valid/const_struct_copy.tc"
 run_diff_test "$ROOT/tests/valid/const_memblock_copy.tc"
 run_check_ok "$ROOT/tests/valid/const_memblock_copy.tc"
-# 观察-⑤：`.count` 作 RHS 的常量绑定路径（限定名 const memblock）
+# `.count` 作 RHS 的常量绑定路径（限定名 const memblock）
 run_diff_test "$ROOT/tests/valid/memblock_count_rhs.tc"
 run_check_ok "$ROOT/tests/valid/memblock_count_rhs.tc"
-# 观察-⑥：`<模块名>.<名> = rhs` 整绑定赋值目标（标量 / struct / memblock；含依赖模块内）
+# `<模块名>.<名> = rhs` 整绑定赋值目标（标量 / struct / memblock；含依赖模块内）
 run_diff_test "$ROOT/tests/modules/import_member_assign_ok.tc"
 run_check_ok "$ROOT/tests/modules/import_member_assign_ok.tc"
 run_diff_test "$ROOT/tests/modules/import_member_assign_dep.tc"
@@ -662,7 +662,7 @@ run_check_fail "$ROOT/tests/modules/member_private_read_target.tc" "private memb
 run_check_fail "$ROOT/tests/modules/SelfForeignPrivLib.tc" "undefined variable 'Hidden'"
 run_check_fail "$ROOT/tests/modules/SelfForeignPubLib.tc" "undefined variable 'K'"
 run_check_fail "$ROOT/tests/modules/SelfForeignFieldLib.tc" "undefined variable 'spc'"
-# B-65：跨模块同名符号不得串槽（VM/AOT 均须输出 funcall 返回值 false）
+# 跨模块同名符号不得串槽（VM/AOT 均须输出 funcall 返回值 false）
 run_diff_test "$ROOT/tests/modules/import_same_name_shadow.tc"
 run_check_ok "$ROOT/tests/modules/import_same_name_shadow.tc"
 run_diff_test "$ROOT/tests/modules/import_self_call.tc"
@@ -682,7 +682,7 @@ run_diff_test "$ROOT/tests/valid/format_float_small_rounding.tc"
 run_diff_test "$ROOT/tests/valid/float32_literal_direct_rounding.tc"
 run_diff_test "$ROOT/tests/valid/fp_tininess_after_rounding.tc"
 
-# B-50：#lib-only 程序（函数可能无人调用）须能以 -r 编译运行
+# #lib-only 程序（函数可能无人调用）须能以 -r 编译运行
 run_diff_test "$ROOT/tests/valid/MathLib.tc"
 run_diff_test "$ROOT/tests/valid/struct_alias_zeroed_field_read.tc"
 run_diff_test "$ROOT/tests/valid/isize_arith.tc"
@@ -736,7 +736,7 @@ run_check_ok "$ROOT/tests/valid/fp_mod_edges.tc"
 run_check_ok "$ROOT/tests/valid/self_member_memblock_copy.tc"
 run_check_ok "$ROOT/tests/valid/self_member_struct_copy.tc"
 run_check_ok "$ROOT/tests/valid/ptr_address_param_load.tc"
-# B-51：ptr_address(T, <形参>) 须能完成 AOT 代码生成（-o/-r），而非仅 --check
+# ptr_address(T, <形参>) 须能完成 AOT 代码生成（-o/-r），而非仅 --check
 run_diff_test "$ROOT/tests/valid/ptr_address_param_load.tc"
 run_check_ok "$ROOT/tests/valid/identifier_named_padding.tc"
 run_check_ok "$ROOT/tests/valid/let_ptr_size.tc"
@@ -790,13 +790,13 @@ run_check_ok "$ROOT/tests/valid/isize_arith.tc"
 run_check_ok "$ROOT/tests/valid/usize_arith.tc"
 
 run_check_fail "$ROOT/tests/errors/static/syntax_error.tc" "unexpected token"
-# B-62：const 变体（`static let` / `let`）的列表产生式同形拒绝尾随 / 缺失逗号
+# const 变体（`static let` / `let`）的列表产生式同形拒绝尾随 / 缺失逗号
 run_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_ctor.tc" "comma"
 run_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_ctor.tc" "expected , or )"
 run_check_fail "$ROOT/tests/errors/static/list_trailing_comma_const_memblock.tc" "comma"
 run_check_fail "$ROOT/tests/errors/static/list_missing_comma_const_memblock.tc" \
     "expected , or )"
-# A-1：调用型指针 RHS 不得嵌套为 operand
+# 调用型指针 RHS 不得嵌套为 operand
 run_check_fail "$ROOT/tests/errors/static/ptr_address_nested_operand.tc" "expected operand"
 run_check_fail "$ROOT/tests/errors/static/ptr_add_nested_operand.tc" "expected operand"
 run_check_fail "$ROOT/tests/errors/static/ptr_sub_nested_operand.tc" "expected operand"
@@ -829,7 +829,7 @@ run_check_fail "$ROOT/tests/errors/static/memblock_count_zero.tc" "memblock coun
 run_check_fail "$ROOT/tests/errors/static/memblock_count_source_isize.tc" \
     "memblock count must be a usize constant"
 run_check_fail "$ROOT/tests/errors/static/memblock_negative_count_ctor.tc" "memblock count must be at least 1"
-# B-40：SEM 类形态检查的挂起发布与阶段/源序优先
+# SEM 类形态检查的挂起发布与阶段/源序优先
 run_check_fail "$ROOT/tests/errors/static/padding_then_later_syntax.tc" "unexpected character"
 run_check_fail "$ROOT/tests/errors/static/padding_then_later_sem.tc" \
     "@padding size must be a non-negative"
@@ -847,7 +847,7 @@ run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_rhs.tc" "constant e
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_operand.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_field.tc" "constant expression cannot reference var variable"
 run_check_fail "$ROOT/tests/errors/static/static_let_ref_var_count.tc" "constant expression cannot reference var variable"
-# B-66：static let 经 Self. 的自引用 / 前向引用 → UNDEFINED_VARIABLE
+# static let 经 Self. 的自引用 / 前向引用 → UNDEFINED_VARIABLE
 run_check_fail "$ROOT/tests/errors/static/static_let_forward.tc" \
     "constant value is not available by source order"
 run_check_fail "$ROOT/tests/errors/static/static_let_self_reference.tc" "undefined variable 'k'"
@@ -906,7 +906,7 @@ run_check_fail "$ROOT/tests/errors/static/format_width_overflow.tc" \
     "format width or precision out of range"
 run_check_fail "$ROOT/tests/errors/static/ptr_store_through_param.tc" \
     "cannot store through read-only pointer binding"
-# 既有-4：只读判据看「所指外层绑定」；let 绑定的空指针写入归运行期
+# 只读判据看「所指外层绑定」；let 绑定的空指针写入归运行期
 run_check_fail "$ROOT/tests/errors/static/ptr_store_readonly_copy.tc" \
     "cannot store through read-only pointer binding"
 run_check_fail "$ROOT/tests/errors/static/format_type_mismatch_signed.tc" "%u requires unsigned type"
@@ -917,7 +917,7 @@ run_check_fail "$ROOT/tests/errors/static/bitcast_ptr_float.tc" "pointer and flo
 run_check_fail "$ROOT/tests/errors/static/bitcast_float_ptr.tc" "pointer and float types cannot participate in bitcast"
 run_check_fail "$ROOT/tests/errors/static/bitcast_ptr_float32_category.tc" "pointer and float types cannot participate in bitcast"
 run_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_float.tc" "nullptr cannot participate in bitcast"
-# A-4：`nullptr` 不参与 `bitcast`
+# `nullptr` 不参与 `bitcast`
 run_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_source.tc" \
     "nullptr cannot participate in bitcast"
 run_check_fail "$ROOT/tests/errors/static/bitcast_nullptr_source_int.tc" \
@@ -930,7 +930,7 @@ run_check_fail "$ROOT/tests/errors/static/bitwise_shl_const_overflow.tc" "consta
 run_check_fail "$ROOT/tests/errors/static/if_cond_type_arith.tc" "if condition must be bool"
 run_check_fail "$ROOT/tests/errors/static/if_cond_funcall.tc" "expected rhs expression"
 run_check_fail "$ROOT/tests/errors/static/if_cond_type_literal.tc" "literal type does not match context"
-# B-61：直接字面量条件 → LITERAL_TYPE；已定型非 bool 变量条件 → CONDITION_TYPE
+# 直接字面量条件 → LITERAL_TYPE；已定型非 bool 变量条件 → CONDITION_TYPE
 run_check_fail "$ROOT/tests/errors/static/if_cond_literal_direct.tc" \
     "literal type does not match"
 run_check_fail "$ROOT/tests/errors/static/cond_var_not_bool.tc" "if condition must be bool"
@@ -938,18 +938,18 @@ run_check_fail "$ROOT/tests/errors/static/if_missing_end_eof.tc" "missing end fo
 run_check_fail "$ROOT/tests/errors/static/indent_mixed_tab_body.tc" "mixed spaces and tabs in indentation"
 run_check_fail "$ROOT/tests/errors/static/indent_insufficient_then.tc" "insufficient indentation in block"
 run_check_fail "$ROOT/tests/errors/static/indent_else_mismatch.tc" "else indentation does not match if"
-# B-41：else/end 与块头不对齐（过深）同样报 ELSE_END
+# else/end 与块头不对齐（过深）同样报 ELSE_END
 run_check_fail "$ROOT/tests/errors/static/indent_end_deeper.tc" "end indentation does not match if"
 run_check_fail "$ROOT/tests/errors/static/indent_else_deeper.tc" \
     "else must appear at same indentation as if"
-# 观察项-②：else/end 对齐文案按块类型（while / function）
+# else/end 对齐文案按块类型（while / function）
 run_check_fail "$ROOT/tests/errors/static/while_end_indent_mismatch.tc" \
     "end indentation does not match while"
 run_check_fail "$ROOT/tests/errors/static/while_end_indent_deeper.tc" \
     "end indentation does not match while"
 run_check_fail "$ROOT/tests/errors/static/func_end_indent_mismatch.tc" \
     "end indentation does not match function"
-# B-63：顶层行不得缩进
+# 顶层行不得缩进
 run_check_fail "$ROOT/tests/errors/static/toplevel_indent_program.tc" \
     "top-level lines must not be indented"
 run_check_fail "$ROOT/tests/errors/static/toplevel_indent_lib.tc" \
@@ -1005,7 +1005,7 @@ run_check_fail "$ROOT/tests/errors/static/self_bare_condition.tc" "function scop
 run_check_fail "$ROOT/tests/errors/static/self_bare_assign_target.tc" "function scope access: use Self."
 run_check_fail "$ROOT/tests/errors/static/self_bare_memblock_n.tc" "function scope access: use Self."
 run_check_fail "$ROOT/tests/errors/static/self_bare_memblock_count.tc" "function scope access: use Self."
-# B-54：依赖模块（#lib 被 import）内的裸名成员引用同样报 FUNCTION_SCOPE_ACCESS
+# 依赖模块（#lib 被 import）内的裸名成员引用同样报 FUNCTION_SCOPE_ACCESS
 run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_read.tc" "function scope access: use Self.C"
 run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_assign.tc" "function scope access: use Self.C"
 run_check_fail "$ROOT/tests/modules/bare_scope_neg/import_io.tc" "function scope access: use Self.C"
@@ -1033,8 +1033,7 @@ run_check_fail "$ROOT/tests/errors/static/continue_outside_loop.tc" "continue us
 run_runtime_fail "$ROOT/tests/errors/runtime/signed_strict_overflow.tc" "out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_bitcast_forged_load.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_bitcast_forged_arith.tc" "null pointer arithmetic"
-# B-57：伪造的**槽索引越界**编码（bit0=1 但槽号 ≥ 容量）此前在 AOT 侧静默读
-# 任意内存且逐次非确定；现按容量上界拒绝，与 VM 同码同行。
+# 伪造的**槽索引越界**编码（bit0=1 但槽号 ≥ 容量）须按容量上界拒绝，与 VM 同码同行。
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_load.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_store.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_forged_slot_oob_memcopy.tc" "null pointer dereference"
@@ -1045,7 +1044,7 @@ run_runtime_fail "$ROOT/tests/errors/runtime/neg_int_min.tc" "neg(INT_MIN) overf
 run_runtime_fail "$ROOT/tests/errors/runtime/abs_int_min.tc" "abs(INT_MIN) overflow"
 run_runtime_fail "$ROOT/tests/errors/runtime/negative_shift_count.tc" "negative shift count"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg.tc" "memcopy_unsafe invalid range"
-# A-3：编译期可确定的负 length / 负下标 → 静态码（两后端 --check 均拒绝）
+# 编译期可确定的负 length / 负下标 → 静态码（两后端 --check 均拒绝）
 run_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_dst_index.tc" \
     "memcopy_unsafe invalid range"
 run_check_fail "$ROOT/tests/errors/static/memcopy_unsafe_neg_src_index.tc" \
@@ -1058,7 +1057,7 @@ run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_src_oob.tc" "me
 run_runtime_fail "$ROOT/tests/errors/runtime/memblock_copy_empty_dst_oob.tc" "memblock index out of range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_neg_index.tc" "memcopy_unsafe invalid range"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_null.tc" "null pointer dereference"
-# 既有-4：let 绑定的空指针（含 const 复制的 `let q = p`）写入/拷贝归运行期
+# let 绑定的空指针（含 const 复制的 `let q = p`）写入/拷贝归运行期
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_store_null_let.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/ptr_store_null_let_copy.tc" "null pointer dereference"
 run_runtime_fail "$ROOT/tests/errors/runtime/memcopy_unsafe_null_let.tc" "null pointer dereference"

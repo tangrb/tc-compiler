@@ -470,7 +470,7 @@ int tc_symbol_table_add_ex(TcSymbolTable *table, const char *name, const TcType 
     table->symbols[table->count].scope_end_stmt_index = -1;
     table->symbols[table->count].slot_domain = slot_domain;
     table->symbols[table->count].ptr_target_readonly = 0;
-    table->symbols[table->count].module_name = NULL; /* 由 Pass1 按模块回填（B-65） */
+    table->symbols[table->count].module_name = NULL; /* 由 Pass1 按模块回填 */
     /* 模块成员可见性同样由 Pass1 回填（`static var` / `static let`）；其余为 NONE */
     table->symbols[table->count].visibility = TC_VIS_NONE;
     table->count++;

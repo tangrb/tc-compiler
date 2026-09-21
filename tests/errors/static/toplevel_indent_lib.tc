@@ -1,5 +1,5 @@
 #lib
-; B-63：`#lib` 顶层成员不得缩进
+; `#lib` 顶层成员不得缩进
     public func f() int32 then
         return 1
     end

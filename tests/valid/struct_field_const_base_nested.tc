@@ -1,5 +1,5 @@
 #program
-; Critical 2 回归：let 基址的多级 struct 字段读出（Mid → Leaf 两层深拷贝）。
+; let 基址的多级 struct 字段读出（Mid → Leaf 两层深拷贝）。
 struct Leaf then
     var v: int32
 end

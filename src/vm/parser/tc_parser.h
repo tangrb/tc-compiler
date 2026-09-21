@@ -22,7 +22,8 @@
  * 调用方在每次 tc_parse_statement 调用前初始化 { .depth = 0 }。
  */
 typedef struct {
-    int depth; /* 当前 RHS 递归深度 */
+    int depth;                 /* 当前 RHS 递归深度 */
+    const TcProgram *program;  /* 已解析语句（识别 import 限定赋值）；可为 NULL */
 } TcParserCtx;
 
 /** 缩进上下文：文件级或当前 if 块的基准缩进 */

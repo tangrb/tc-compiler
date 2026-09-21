@@ -85,7 +85,7 @@ static void test_shl_zero_value(void) {
     int rc = 0;
 
     tc_diagnostic_init(&diag);
-    /* B-45：strict 的溢出判定与 val 无关，`k >= n` 即溢出（val=0、k=100 亦然） */
+    /* strict 的溢出判定与 val 无关，`k >= n` 即溢出（val=0、k=100 亦然） */
     rc = tc_exec_shift(TC_SHIFT_SHL, TC_INT8, TC_ARITH_STRICT, &val, &cnt, &out, &diag, 1);
     check(rc != 0 && diag.kind == TC_RE_INTEGER_OVERFLOW,
           "shl strict with val=0 and k>=n reports overflow");

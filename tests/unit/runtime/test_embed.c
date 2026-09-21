@@ -1,4 +1,4 @@
-/* test_embed.c — TC-Embed 嵌入式运行时单元测试（v0.0.43） */
+/* test_embed.c — TC-Embed 嵌入式运行时单元测试 */
 #include "tc_embed.h"
 #include "tc_value_bridge.h"
 #include "tc_lib.h"
@@ -450,12 +450,12 @@ static void test_embed_slot_out_of_range(void) {
 
     check(tc_embed_slot_write(ctx, -1, v) != 0, "negative slot rejected");
     check(tc_embed_slot_write(ctx, 9999, v) != 0, "large slot rejected");
-    /* B-55：失败后错误消息可读 */
+    /* 失败后错误消息可读 */
     check(tc_embed_had_error(ctx) != 0, "slot write failure sets error flag");
     check(tc_embed_get_error(ctx) != NULL && tc_embed_get_error(ctx)[0] != '\0',
           "slot write failure sets error message");
 
-    /* B-55：成功路径必须同时清除标志与消息（此前只清 flag，消息仍是旧值） */
+    /* 成功路径必须同时清除标志与消息 */
     check(tc_embed_slot_write(ctx, 0, tc_value_from_int32(1)) == 0,
           "valid slot write succeeds");
     check(!tc_embed_had_error(ctx), "error flag cleared after successful slot write");
@@ -906,7 +906,7 @@ static void test_embed_tmp_begin_end(void) {
     slot_count = tc_embed_slot_count(ctx);
     {
         /*
-         * B-19：临时槽位区必须位于声明槽位**之上**，不得与声明槽位重叠
+         * 临时槽位区必须位于声明槽位**之上**，不得与声明槽位重叠
          *（旧实现从 slot_count 向下分配，首个临时槽位即覆盖末尾声明槽位）。
          */
         size_t capacity = tc_embed_slot_capacity(slot_count);
@@ -944,7 +944,7 @@ static void test_embed_tmp_begin_end(void) {
     tc_diagnostic_clear(&diag);
 }
 
-/* ── 测试：B-19 临时槽位区不得覆盖已声明槽位 ── */
+/* ── 测试：临时槽位区不得覆盖已声明槽位 ── */
 static void test_embed_tmp_region_does_not_clobber_declared_slots(void) {
     TcTypedProgram prog;
     TcDiagnostic diag;

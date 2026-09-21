@@ -12,7 +12,7 @@
 | 导入 private struct → undefined | 须 `PRIVATE_MEMBER_ACCESS`，不得降为 undefined |
 | 导入 private `static let`/`static var` → undefined | 同样须 `PRIVATE_MEMBER_ACCESS`（`<模块>.<名>` 读/写/取址/read 目标/memblock 操作数一律；`tc_qualified_member_allowed` / `tc_reject_private_member_access`）。符号表以**裸成员名**存放且带模块标记，按限定名直接查表查不到 |
 | `Self.<名>` 是裸名查全局表 | 必须先用**当前模块成员索引**判定归属（`tc_resolve_self_member`）；否则 `Self.K` 会命中另一模块同名成员（含 private） |
-| `<模块>.<名> = rhs` 会走整绑定赋值 | 解析器把它塑造成**单字段字段赋值**（`Self.<名>` 才有专用 ASSIGN 分支）；分析器须先重分类（`tc_reclassify_qualified_binding_assign`），否则报 `undefined variable '<模块名>'` |
+| `<模块>.<名> = rhs` 会走整绑定赋值 | 本文件已 `import Qual` 时解析期产出 `ASSIGN`；其余单点仍可能是 `FIELD_ASSIGN`，分析器 `tc_reclassify_qualified_binding_assign` 兜底。`Self.<名> =` 一直是 ASSIGN |
 
 测试：`diamond_import_*` · `imported_struct_*` · `test_module.c` · `member_private_*` · `SelfForeign{Priv,Pub,Field}Lib` · `import_member_assign_*`
 

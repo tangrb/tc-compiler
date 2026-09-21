@@ -11,8 +11,6 @@
  *       tc_run_program(&prog, &diag);
  *       tc_typed_program_free(&prog);
  *   }
- *
- * 内存所有权约定见 docs/libtc设计说明书-0.0.44.md §15（原 libtc-api 已并入）。
  */
 #ifndef TC_LIB_H
 #define TC_LIB_H

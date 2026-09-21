@@ -1,6 +1,6 @@
 #lib
-; 观察-⑤：`.count` 作 RHS 时，限定名（`Self.<名>`）的**常量** memblock 绑定亦须折叠声明
-; count——符号表以裸名存放，AOT 曾按限定名查符号失败而报 code generation failed
+; `.count` 作 RHS 时，限定名（`Self.<名>`）的**常量** memblock 绑定亦须折叠声明
+; count——符号表以裸名存放，限定名 const memblock 须按绑定类型折叠声明 count
 public static let C: memblock<int32, 2> = memblock(int32, count: 2, 6, 1)
 public static var W: memblock<int32, 2> = memblock(int32, count: 2, 7, 2)
 public func stmt_const() usize then

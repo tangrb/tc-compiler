@@ -1,5 +1,5 @@
 #program
-; 观察项-②：while 体的 end 落在体级 → 对齐码按**块类型**报 while
+; while 体的 end 落在体级 → 对齐码按**块类型**报 while
 var i: int32 = 0
 while lt(int32, i, 1) then
     i = 1

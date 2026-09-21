@@ -1,5 +1,9 @@
 /*
  * tc_executor_internal.h — Executor 内部上下文（executor / ptr / memblock / struct 共享）
+ *
+ * internal error 假定入口已通过 --check（Pass2 + CFG）：未解析元数据、
+ * 缺失 return、未知 stmt/RHS kind 为防御路径；损坏的复合值 / 非法指针比较
+ * 为形状检查。
  */
 #ifndef TC_EXECUTOR_INTERNAL_H
 #define TC_EXECUTOR_INTERNAL_H
@@ -11,7 +15,7 @@
 typedef struct TcExecuteCtx {
     TcStmtIndexCursor index;
     TcValue *slots;
-    size_t slot_capacity; /* slots 数组容量（B-42：指针解引用须校验槽索引上界；
+    size_t slot_capacity; /* slots 数组容量（指针解引用须校验槽索引上界；
                            * 嵌入模式含临时槽位区容量，见 tc_embed_slots.h） */
     const TcSymbolTable *symbols;
     const TcTypedProgram *program;

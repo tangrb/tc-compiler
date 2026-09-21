@@ -1,4 +1,4 @@
 #lib
-; B-17：`static var` 缺 `=`/初始化器属结构类语法阶段诊断 → TC_CE_VAR_MISSING_INIT，
+; `static var` 缺 `=`/初始化器属结构类语法阶段诊断 → TC_CE_VAR_MISSING_INIT，
 ; 不得降级为笼统 TC_CE_SYNTAX（语言标准 §1.3、§5.1.2；编译器标准 §4.6）
 public static var V: int32

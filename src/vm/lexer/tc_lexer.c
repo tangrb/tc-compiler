@@ -164,7 +164,7 @@ static int tc_parse_radix_digits(const char **p, int base, int allow_underscore,
             if (digit < 0 || (base == 8 && digit > 7) || (base == 2 && digit > 1)) {
                 break;
             }
-            /* B-29：只有真正消费了一个数字才清除「前一位是下划线」——
+            /* 只有真正消费了一个数字才清除「前一位是下划线」——
              * 否则 `1_u` / `0x1F_U` 这类「下划线收尾」的字面量会漏检（§2.3.3）。 */
             prev_underscore = 0;
             has_digit = 1;
@@ -448,7 +448,7 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
         return -1;
     }
     /*
-     * B-26：语言标准 §2.4.1 —— 只有「非零有限值舍入为零」或「有限值舍入为无穷」
+     * 语言标准 §2.4.1 —— 只有「非零有限值舍入为零」或「有限值舍入为无穷」
      * 才是字面量范围错误；**可表示的非规格化数合法**。strtod 对下溢到非规格化数
      * 同样置 ERANGE，故不能一见 ERANGE 即判失败。
      */
@@ -468,7 +468,7 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
         char *fend = NULL;
 
         /*
-         * B-47：语言标准 §2.4.1 —— 有限十进制字面量须**直接**按 roundTiesToEven
+         * 语言标准 §2.4.1 —— 有限十进制字面量须**直接**按 roundTiesToEven
          * 舍入到后缀决定的 binary32，不得经 double 中转（二次舍入）。故此处用
          * strtof 直接得到 float32 结果，而不是把 strtod 的 double 再截断。
          */
@@ -482,9 +482,9 @@ static int tc_parse_float_literal(const char *start, const char **end, TcLiteral
             rounded = -rounded;
         }
         /*
-         * B-48：判据是**舍入后**的结果——为 ±∞，或非零有限值舍入为零时才越界；
-         * `3.4028235e38f` 这类舍入到 FLT_MAX 的边界值合法（B-26 已保证可表示的
-         * 非规格化数合法）。
+         * 判据是**舍入后**的结果——为 ±∞，或非零有限值舍入为零时才越界；
+         * `3.4028235e38f` 这类舍入到 FLT_MAX 的边界值合法（可表示的
+         * 非规格化数同样合法）。
          */
         if (isfinite(value) && (isinf(rounded) || (rounded == 0.0f && value != 0.0))) {
             tc_diagnostic_set(diag, TC_CE_LITERAL_OUT_OF_RANGE, line, column,
@@ -968,7 +968,7 @@ int tc_tokenize_line(const char *line, int line_no, TcTokenList *out, TcDiagnost
         /* 格式说明符：%[flags][width][.precision]spec */
         if (*p == '%') {
             /*
-             * B-27：缓冲区留出足够余量；连续 `0` 按 §10.5「连续 0 合并」规则折叠为
+             * 缓冲区留出足够余量；连续 `0` 按 §10.5「连续 0 合并」规则折叠为
              * 一个，避免 `%` + 大量 `0` + 宽度这种合法形态被误报 too long。
              */
             char spec_buf[64];

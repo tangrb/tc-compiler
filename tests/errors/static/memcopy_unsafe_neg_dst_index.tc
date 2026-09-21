@@ -1,5 +1,5 @@
 #program
-; Major 3 回归 + A-3：memcopy_unsafe **负字面量** dst 下标曾回绕成巨大 usize → 越界写。
+; memcopy_unsafe **负字面量** dst 下标属编译期可确定，按静态语义拒绝。
 ; 期望：**静态**拒绝（编译期可确定负下标）memcopy_unsafe invalid range
 var a: memblock<int32, 4> = memblock(int32, count: 4, fill: 1)
 var b: memblock<int32, 4> = memblock(int32, count: 4, fill: 0)

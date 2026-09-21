@@ -1,5 +1,5 @@
 #program
-; B-46 / §10.4：十进制输出以精确数学值为输入按 roundTiesToEven 舍入——
+; §10.4：十进制输出以精确数学值为输入按 roundTiesToEven 舍入——
 ; 需要保留的有效位落在首位有效数字之前（keep < 0）时恒舍入为零
 var a: float64 = 0.00009
 var b: float64 = 9.094947017729282e-13

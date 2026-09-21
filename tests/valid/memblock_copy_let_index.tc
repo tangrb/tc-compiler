@@ -1,7 +1,6 @@
 #program
 ; §6.1.2 / §6.7.2.3：`dst_index` / `src_index` / `length` 是 `operand`，`let` 标识符
-; 合法。顶层 `let` 无运行期槽位（slot = -1），执行期须由编译期常量值求值；
-; 此前 VM 报「internal error: unresolved binding metadata」（AOT 正常）。
+; 合法。顶层 `let` 无运行期槽位（slot = -1），执行期须由编译期常量值求值。
 let I: int32 = 0
 var d: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
 var s: memblock<int32, 4> = memblock(int32, count: 4, 5, 6, 7, 8)

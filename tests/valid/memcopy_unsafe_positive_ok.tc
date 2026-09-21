@@ -1,5 +1,5 @@
 #program
-; Major 3 对照：memcopy_unsafe 合法用法（index 0 / length 1）与 usize 变量下标
+; memcopy_unsafe 合法用法（index 0 / length 1）与 usize 变量下标
 ; 不得被负下标拦截误伤（整块 memblock 对象拷贝，§6.8.9）。
 var a: memblock<int32, 4> = memblock(int32, count: 4, 1, 2, 3, 4)
 var b: memblock<int32, 4> = memblock(int32, count: 4, fill: 0)

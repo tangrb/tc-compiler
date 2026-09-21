@@ -374,7 +374,7 @@ int tc_pass1_collect_symbols(TcProgram *program, TcSymbolTable *symbols, TcTypeT
         }
     }
     /*
-     * B-65：给本模块新收集的符号标记来源模块。符号表全模块共享，而 stmt_index
+     * 给本模块新收集的符号标记来源模块。符号表全模块共享，而 stmt_index
      * 每模块独立编号，解析（Pass2 的可见表构建 / CFG 的按名回溯）必须能区分
      * 「本模块的同名绑定」与「另一模块的同名绑定」。
      */

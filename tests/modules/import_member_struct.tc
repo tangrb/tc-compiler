@@ -1,5 +1,5 @@
 #program
-; 既有-1：限定名整体读取 struct（static let / static var）与库内常量读取
+; 限定名整体读取 struct（static let / static var）与库内常量读取
 import MemberLib
 import MemberUserLib
 var p: MemberLib.Pair = MemberLib.spc

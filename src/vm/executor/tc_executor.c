@@ -55,8 +55,8 @@ static TcExecControl tc_exec_return_value(TcValue value, int has_value) {
 
 void tc_exec_set_internal_error(TcDiagnostic *diag, int line, const char *message) {
     /*
-     * 实现缺陷诊断：域标记为 TC_DIAG_IMPLEMENTATION，打印时**不**附语言错误码
-     * （B-18）。此处写入的 kind 仅是结构占位（TcErrorKind 无「无错误」成员），
+     * 实现缺陷诊断：域标记为 TC_DIAG_IMPLEMENTATION，打印时**不**附语言错误码。
+     * 此处写入的 kind 仅是结构占位（TcErrorKind 无「无错误」成员），
      * 打印器按实现域忽略它。
      */
     tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN, message);
@@ -120,8 +120,7 @@ const TcSymbol *tc_exec_find_symbol(const TcSymbolTable *symbols, const char *na
      * 限定名（`Self.<名>` / `<模块名>.<名>`）的成员在符号表中以**裸成员名**
      * 存放（语言标准 §4.3、§9.1：`#lib` 函数体内经 `Self.` 访问模块 static）。
      * 此处按最后一个 `.` 之后的成员名再查一次，使执行期与 AOT 生成代码同样
-     * 支持限定名（此前 `Self.<static var>.<字段> = …` 报
-     * 「unresolved struct base」）。
+     * 支持限定名（`Self.<static var>.<字段>`）。
      */
     member = strrchr(name, '.');
     if (!member || member[1] == '\0') {
@@ -600,8 +599,9 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
         }
         if (rhs->u.bitcast.target.tag == TC_PTR || rhs->u.bitcast.source_type->tag == TC_PTR) {
             if (!rhs->u.bitcast.target_type_resolved || !rhs->u.bitcast.target_type) {
-                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
-                                  "internal error: bitcast target type not resolved");
+                /* 不可达：Pass2 已 intern 指针 bitcast 目标类型 */
+                tc_exec_set_internal_error(diag, line,
+                                           "internal error: bitcast target type not resolved");
                 return -1;
             }
             out->type = rhs->u.bitcast.target_type;
@@ -619,8 +619,9 @@ int tc_eval_rhs(const TcRhs *rhs, TcTypeTag expected_type, TcExecuteCtx *ctx, Tc
         }
         if (rhs->u.cast.target.tag == TC_PTR) {
             if (!rhs->u.cast.target_type_resolved || !rhs->u.cast.target_type) {
-                tc_diagnostic_set(diag, TC_CE_SYNTAX, line, TC_COLUMN_UNKNOWN,
-                                  "internal error: cast target type not resolved");
+                /* 不可达：Pass2 已 intern 指针 cast 目标类型 */
+                tc_exec_set_internal_error(diag, line,
+                                           "internal error: cast target type not resolved");
                 return -1;
             }
             out->type = rhs->u.cast.target_type;

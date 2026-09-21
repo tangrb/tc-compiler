@@ -1,6 +1,5 @@
 #program
-; 观察-④：常量 struct 整值经 `let` 复制后再写入运行时 `var`（值语义深拷贝）。
-; AOT 此前对该形态把分析期堆指针写进生成 C，运行期段错误
+; 常量 struct 整值经 `let` 复制后再写入运行时 `var`（值语义深拷贝）。
 struct Pair then
     var x: int32
     var y: int32

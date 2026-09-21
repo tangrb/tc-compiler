@@ -26,6 +26,8 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/runtime/tc_io.c
     ${TC_VM_DIR}/lexer/tc_lexer.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_util.c
+    ${TC_VM_DIR}/parser/tc_parser_indent.c
     ${TC_VM_DIR}/parser/tc_parser_struct.c
     ${TC_VM_DIR}/parser/tc_parser_type.c
     ${TC_VM_DIR}/parser/tc_parser_func.c
@@ -41,13 +43,16 @@ set(TC_LIBTC_SOURCES
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
     ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
+    ${TC_VM_DIR}/analyzer/tc_const_aggregate.c
     ${TC_VM_DIR}/analyzer/tc_module.c
     ${TC_VM_DIR}/analyzer/tc_scope.c
     ${TC_VM_DIR}/analyzer/tc_struct_check.c
+    ${TC_VM_DIR}/analyzer/tc_struct_field.c
     ${TC_VM_DIR}/analyzer/tc_ptr_check.c
     ${TC_VM_DIR}/analyzer/tc_memblock_check.c
     ${TC_VM_DIR}/analyzer/tc_type_check.c
     ${TC_VM_DIR}/analyzer/tc_func_check.c
+    ${TC_VM_DIR}/analyzer/tc_static_init.c
     ${TC_VM_DIR}/analyzer/tc_callgraph.c
     ${TC_VM_DIR}/executor/tc_call_frame.c
     ${TC_VM_DIR}/executor/tc_ptr_exec.c

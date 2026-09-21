@@ -30,7 +30,7 @@ int tc_check_io_format(TcTypeTag type, const TcFormatFullSpec *spec, int line,
     }
 
     /*
-     * B-3：重复标志（如 %--d、%++d、%##x）。附录 A 的 `{ format_flag }`
+     * 重复标志（如 %--d、%++d、%##x）。附录 A 的 `{ format_flag }`
      * 使该形态通过语法阶段，重复本身是 §10.5 的静态语义违规，报专用码
      * TC_CE_FORMAT_SPECIFIER，不得在词法/语法阶段改报 TC_CE_SYNTAX。
      */

@@ -1062,7 +1062,7 @@ static void test_aot_memblock_alloc_overflow(void) {
     TcDiagnostic diag;
 
     /* count × element_bytes 回绕到小值：无守卫时 malloc 会成功（隐藏越界）；
-     * 守卫须在乘法前拒绝（N-12 B3，与 VM 侧 tc_memblock_alloc 一致） */
+     * 守卫须在乘法前拒绝（与 VM 侧 tc_memblock_alloc 一致） */
     tc_diagnostic_init(&diag);
     check(tc_aot_memblock_alloc(UINT64_C(1) << 61, 8, &diag, 1) == 0 &&
               diag.kind == TC_ERR_OUT_OF_MEMORY,
@@ -1414,7 +1414,7 @@ cleanup:
 /* ================================================================ */
 
 /*
- * B-55：AOT 运行时 tc_aot_ptr_load 的 bool 规范化。
+ * AOT 运行时 tc_aot_ptr_load 的 bool 规范化。
  *
  * §3.4 / §6.8.2：pointee 为 bool 时「0x00 → false，其它字节 → true」。经
  * ptr<int8> 别名写入的非规范字节（2）读回后必须落在 bool 抽象值域 {0,1}，
@@ -1450,11 +1450,11 @@ static void test_aot_ptr_load_bool_type(void) {
 }
 
 /*
- * B-57：AOT 运行时对伪造槽编码的容量上界校验。
+ * AOT 运行时对伪造槽编码的容量上界校验。
  *
  * §1.3 要求零 UB 与单实现确定性——宿主可用 `bitcast(ptr<T>, <usize>)` 伪造任意
- * 槽编码，解码结果越过 slots[] 容量时必须按空指针（算术）拒绝，而不是越界读写
- * 任意内存（此前 AOT 侧静默读到逐次不同的垃圾值）。此处直接调用运行时函数，
+ * 槽编码，解码结果越过 slots[] 容量时必须按空指针（算术）拒绝，而不是越界读写。
+ * 此处直接调用运行时函数，
  * 断言 load / store / arith 三条路径同码拒绝，且容量内的合法槽位不受影响。
  */
 static void test_aot_ptr_slot_capacity(void) {

@@ -6,7 +6,7 @@
  *   指针族 RHS     → tc_ptr_check_rhs
  *   memblock 族    → tc_memblock_check_rhs
  *   struct 构造/读 → tc_struct_check_*
- *   其它标量 RHS   → 既有 tc_check_rhs（期望 kind）
+ *   其它标量 RHS   → tc_check_rhs（期望 kind）
  */
 #include "tc_type_check.h"
 
@@ -98,7 +98,8 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
             return -1;
         }
         source = tc_resolve_visible_symbol(visible, global, rhs->u.const_ref.name, stmt_index,
-                                           line, diag);
+                                           line, diag, tc_hist_name_members(hist),
+                                           tc_hist_name_in_function(hist));
         if (!source) {
             return -1;
         }
@@ -185,7 +186,7 @@ int tc_type_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *v
         }
         /* Self.<名> 显式访问**本模块**顶层成员（§4.3、§4.4）：不经函数体 visible 表，
          * 也不得命中其它模块的同名成员（含 private）。 */
-        source = tc_resolve_self_member(member, global);
+        source = tc_resolve_self_member(member, global, tc_hist_name_members(hist));
         if (!source) {
             (void)snprintf(msg, sizeof(msg), "undefined variable '%s'", member);
             tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);

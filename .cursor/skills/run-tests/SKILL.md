@@ -39,6 +39,7 @@ python3 scripts/sync/check_rhs_coverage.py [--fix]
 python3 scripts/sync/check_source_naming.py
 python3 scripts/sync/check_type_fact_source.py
 python3 scripts/sync/check_doc_counts.py
+python3 scripts/sync/check_doc_layering.py
 ```
 
 ## 失败排查

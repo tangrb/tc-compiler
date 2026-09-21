@@ -55,7 +55,7 @@ void tc_aot_abort(const TcDiagnostic *diag, int line);
 
 uint64_t tc_aot_ptr_address(int slot);
 /*
- * B-57：slot_capacity 由生成的 C 传入（TC_AOT_SLOT_CAPACITY），解码出的槽索引
+ * slot_capacity 由生成的 C 传入（TC_AOT_SLOT_CAPACITY），解码出的槽索引
  * 越界时按空指针（算术）处理，保证伪造的指针编码不会越界读写 slots[]。
  * load_type 为 pointee 类型：为 TC_BOOL 时按 §3.4 / §6.8.2 把结果规范到 {0,1}。
  */

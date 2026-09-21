@@ -39,6 +39,12 @@ typedef struct TcStructTable TcStructTable;
 /** 按 struct_id 取条目；越界返回 NULL */
 const TcStructEntry *tc_struct_table_get(const TcStructTable *table, int struct_id);
 
+/** 按字段名查找；未找到返回 NULL */
+const TcStructField *tc_struct_find_field(const TcStructEntry *entry, const char *name);
+
+/** 单字段布局位宽（含 @padding） */
+size_t tc_struct_field_width_bits(const TcStructField *field, const TcStructTable *table);
+
 /**
  * 计算字段链相对基结构体起始处的字节偏移与末字段类型。
  * @return 0 成功；-1 失败（已写 diag）

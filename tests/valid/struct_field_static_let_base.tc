@@ -1,5 +1,5 @@
 #lib
-; Critical 2 回归：static let 基址的 struct/memblock 字段整体读出（AOT 差分）。
+; static let 基址的 struct/memblock 字段整体读出（AOT 差分）。
 public struct Inner then
     var v: int32
 end

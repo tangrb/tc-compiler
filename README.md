@@ -12,9 +12,9 @@ TC-Compiler 是一个使用 C99 实现的 TC 语言工具链，包含：
 - **libtc**：编译、静态分析和执行的嵌入式静态库；
 - **TC-VM**：直接执行 TC 源文件的命令行工具；
 - **TC-AOT**：将 TC 源码转译为严格 C99 的 ahead-of-time 编译器；
-- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.43）。
+- **TC-Embed**：C 宿主程序调用 TC 编译产物的零拷贝嵌入式运行时（v0.0.44）。
 
-当前核心版本：**v0.0.43**，Embed 模块版本：**v0.0.43**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.44.md) 为唯一权威来源（语言规范与全部设计文档均为 **0.0.44**；实现版本为 v0.0.43）。
+当前核心版本：**v0.0.44**，Embed 模块版本：**v0.0.44**。语言语法与可观察语义以 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.44.md) 为唯一权威来源（语言规范与全部设计文档均为 **0.0.44**；实现版本为 v0.0.44）。
 
 ## 快速开始
 
@@ -63,7 +63,7 @@ bash scripts/run_tests.sh
 | 后端一致性 | VM、AOT 和 `let` 复用共享数值与 I/O 语义；AOT 运行差分锁定可观察结果 |
 | 模块/函数 | `#program`/`#lib`、`import`、`func`/`funcall`/`return`、无环调用图、`static var`/`let` |
 | 复合类型 | `ptr<T>`、`memblock<T,N>`、`struct`（构造器 / 字段读写 / 深拷贝；导入 struct 须 `<模块名>.<结构体名>`；VM + AOT） |
-| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.43） |
+| 嵌入互操作 | C→TC 零拷贝函数调用、共享 `slots[]` 数据平面、`ptr<T>` 句柄编码、符号查询；VM 与 AOT 双模式 API 兼容（v0.0.44） |
 
 0.0.44 不包含字符串类型、字节码文件格式或 JIT；无 REPL；批量文件模式支持完整控制流。`goto`/`label` 仅函数内且 `while` 外。
 
@@ -200,7 +200,7 @@ int main(void) {
 
 公共入口为 `tc_compile_source`（无路径源）、`tc_compile_file_opts`（会话式 `TcCompileOptions` 携带 `-I` 等价搜索路径）和 `tc_run_program`；完整所有权、诊断和构建说明见 [libtc 设计说明书 §15（调用者 API 速查）](docs/libtc设计说明书-0.0.44.md)。
 
-## 嵌入 TC-Embed（v0.0.43）
+## 嵌入 TC-Embed（v0.0.44）
 
 TC-Embed 提供 C 宿主程序对 TC 编译产物的零拷贝调用能力。C 和 TC 共享同一个 `TcValue slots[]` 数组，`ptr<T>` 槽位编码 `(slot << 1) | 1` 作为 C↔TC 之间传递变量引用的统一句柄。
 
@@ -318,6 +318,7 @@ python3 scripts/sync/check_rhs_coverage.py
 python3 scripts/sync/check_source_naming.py
 python3 scripts/sync/check_type_fact_source.py
 python3 scripts/sync/check_doc_counts.py   # VM/AOT 注册数 vs test-map.md
+python3 scripts/sync/check_doc_layering.py # 设计文档不得引用过程性文档
 ```
 
 ### Sanitizer 与内存检查
@@ -385,7 +386,7 @@ src/
 │   ├── analyzer/   静态分析（含 CFG、类型检查、函数/调用图）
 │   ├── executor/   执行器与调用帧
 │   ├── runtime/    运行时（类型、语义、I/O、符号表、诊断）
-│   ├── embed/      TC-Embed 嵌入运行时（v0.0.43）
+│   ├── embed/      TC-Embed 嵌入运行时（v0.0.44）
 │   └── driver/     入口程序与版本
 └── aot/            C99 codegen、runtime shim、CLI、嵌入模式运行时
 tests/

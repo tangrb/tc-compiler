@@ -1,5 +1,5 @@
 #program
-; B-40 / §11「阶段优先」：@padding 的非法形态属 SEM 类，须挂起而不打断解析；
+; §11「阶段优先」：@padding 的非法形态属 SEM 类，须挂起而不打断解析；
 ; 更晚的语法错误（SYN）优先于更早的 SEM 诊断。
 struct S then
     var a: int32

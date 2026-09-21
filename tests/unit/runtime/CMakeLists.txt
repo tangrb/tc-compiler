@@ -278,15 +278,20 @@ add_executable(test-analyzer
     ${TC_VM_DIR}/analyzer/tc_analyzer_dfa.c
     ${TC_VM_DIR}/analyzer/tc_cfg.c
     ${TC_VM_DIR}/analyzer/tc_const_eval.c
+    ${TC_VM_DIR}/analyzer/tc_const_aggregate.c
     ${TC_VM_DIR}/analyzer/tc_module.c
     ${TC_VM_DIR}/analyzer/tc_scope.c
     ${TC_VM_DIR}/analyzer/tc_struct_check.c
+    ${TC_VM_DIR}/analyzer/tc_struct_field.c
     ${TC_VM_DIR}/analyzer/tc_ptr_check.c
     ${TC_VM_DIR}/analyzer/tc_memblock_check.c
     ${TC_VM_DIR}/analyzer/tc_type_check.c
     ${TC_VM_DIR}/analyzer/tc_func_check.c
+    ${TC_VM_DIR}/analyzer/tc_static_init.c
     ${TC_VM_DIR}/analyzer/tc_callgraph.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_util.c
+    ${TC_VM_DIR}/parser/tc_parser_indent.c
     ${TC_VM_DIR}/parser/tc_parser_struct.c
     ${TC_VM_DIR}/parser/tc_parser_type.c
     ${TC_VM_DIR}/parser/tc_parser_func.c
@@ -354,6 +359,8 @@ add_custom_target(check-executor
 add_executable(test-stmt-index
     test_stmt_index.c
     ${TC_VM_DIR}/parser/tc_parser.c
+    ${TC_VM_DIR}/parser/tc_parser_util.c
+    ${TC_VM_DIR}/parser/tc_parser_indent.c
     ${TC_VM_DIR}/parser/tc_parser_struct.c
     ${TC_VM_DIR}/parser/tc_parser_type.c
     ${TC_VM_DIR}/parser/tc_parser_func.c
@@ -393,7 +400,7 @@ add_custom_target(check-type-check
 
 # ------------------------------------------------------------------ #
 #  test-struct-field-access — field_access operand 分析期单元测试      #
-#  （含 hist 注入覆盖未初始化基址；对应计划 §5.1 unit 段）              #
+#  （含 hist 注入覆盖未初始化基址）                                    #
 # ------------------------------------------------------------------ #
 
 add_executable(test-struct-field-access test_struct_field_access.c)
@@ -425,7 +432,7 @@ add_custom_target(check-embed
 )
 
 # ------------------------------------------------------------------ #
-#  test-endianness — A1 端序无关布局单元测试（§3.5 固定 LE 约定）       #
+#  test-endianness — 端序无关布局单元测试（§3.5 固定 LE 约定）         #
 # ------------------------------------------------------------------ #
 
 add_executable(test-endianness test_endianness.c)

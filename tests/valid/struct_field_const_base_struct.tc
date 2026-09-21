@@ -1,7 +1,6 @@
 #program
-; Critical 2 回归：let 基址的 struct 字段整体读出。
-; AOT 曾把编译期 const_bits（分析期堆指针）嵌入生成 C 并运行期解引用 → 段错误；
-; 现改为字节内联 + 深拷贝。改副本不得改写 const 基址字段（按值语义）。
+; let 基址的 struct 字段整体读出。
+; AOT 将 const 复合值按字节内联并深拷贝。改副本不得改写 const 基址字段（值语义）。
 struct Inner then
     var v: int32
 end

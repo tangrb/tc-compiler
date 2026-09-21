@@ -1,5 +1,5 @@
 #lib
-; B-66：字段读基址引用源序更晚的 static let 同样 → TC_CE_UNDEFINED_VARIABLE
+; 字段读基址引用源序更晚的 static let 同样 → TC_CE_UNDEFINED_VARIABLE
 public struct P then
     var x: int32
 end

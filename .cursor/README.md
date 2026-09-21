@@ -1,6 +1,6 @@
 # TC-Compiler — Cursor 文档索引
 
-> **v0.0.43**（Phase 1–7；语言规范 `docs/TC语言标准设计说明书-0.0.44.md`）  
+> **v0.0.44**（Phase 1–7；语言规范 `docs/TC语言标准设计说明书-0.0.44.md`）  
 > **始终加载**：[AGENTS.md](../AGENTS.md)（极简）· **本文件** = 导航权威（勿把长表复制进 AGENTS）
 
 ## 30 秒：Agent 该怎么读
@@ -133,6 +133,7 @@ make test-unit
 python3 scripts/sync/check_rhs_coverage.py [--fix]
 python3 scripts/sync/check_source_naming.py
 python3 scripts/sync/check_doc_counts.py
+python3 scripts/sync/check_doc_layering.py
 make hooks
 cmake --build build --target check-embed check-embed-aot
 ```

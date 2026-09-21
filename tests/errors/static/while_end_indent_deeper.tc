@@ -1,5 +1,5 @@
 #program
-; 观察项-②：while 体的 end 比块头深超过一级 → 同样报 while（B-41 后落入对齐路径）
+; while 体的 end 比块头深超过一级 → 同样报 while
 var i: int32 = 0
 while lt(int32, i, 1) then
     i = 1

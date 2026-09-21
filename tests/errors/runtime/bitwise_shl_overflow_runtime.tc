@@ -1,5 +1,5 @@
 #program
-; 期望：shift left overflow；此前 writeln 应已执行
+; 期望：shift left overflow；溢出前的 writeln 已提交
 var a: int8 = 127
 var r: int8 = 0
 writeln(int8, 1)

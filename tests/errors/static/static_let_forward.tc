@@ -1,4 +1,4 @@
 #lib
-; 期望：源序更晚的 Self 引用 → UndefinedVariable（B-66：标准不定义常量循环依赖错误）
+; 期望：源序更晚的 Self 引用 → UndefinedVariable（标准不定义常量循环依赖错误）
 public static let A: int32 = Self.B
 public static let B: int32 = Self.A

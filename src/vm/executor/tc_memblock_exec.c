@@ -4,9 +4,9 @@
  * 布局：[uint64_t count][element bits...]
  * 本实现固定 64-bit-only：长度头宽 = sizeof_bits(usize) = 64 位（见 tc_types.h 断言）。
  *
- * 字节约定（A1 端序契约，§3.5）：头部与标量元素的字节区间内一律按
- * 固定 LE（低字节在前）序列化，用显式位组装读写，不依赖宿主字节序；
- * 大端主机同样得到相同抽象值。结构体元素为不透明字节块，整块 memcpy。
+ * 字节约定（§3.5）：头部与标量元素的字节区间内一律按固定 LE（低字节在前）
+ * 序列化，用显式位组装读写，不依赖宿主字节序；大端主机同样得到相同抽象值。
+ * 结构体元素为不透明字节块，整块 memcpy。
  */
 #include "tc_memblock_exec.h"
 
@@ -337,8 +337,8 @@ int tc_exec_memblock_count(int slot, uint64_t fallback_count, TcExecuteCtx *ctx,
     (void)diag;
     (void)line;
     /* Pass2 已持久化 binding。运行时槽读取头部；let 常量绑定（slot < 0）及
-     * 头部为空时回退声明 count（分析器已把声明 count 存于 fallback_count/
-     * const_bits；count 不可变，头部恒等于声明值，N-12 B4/B2 一致）。 */
+     * 头部为空时回退声明 count（分析器已把声明 count 存于 fallback_count /
+     * const_bits；count 不可变，头部恒等于声明值）。 */
     if (slot >= 0 && slot < (int)tc_symbol_table_runtime_slot_count(ctx->symbols) &&
         ctx->slots[slot].bits != 0) {
         block = tc_memblock_data(&ctx->slots[slot]);
@@ -461,12 +461,9 @@ int tc_exec_memblock_copy_stmt(const TcMemblockCopyStmt *stmt, TcExecuteCtx *ctx
         return -1;
     }
     /* 无回绕判定：length > count 或 index > count-length，避免 usize 极值下标
-     * 使 dst_index+length 回绕成小值而漏检（§6.8.9 / 零 UB）。 */
-    /*
-     * B-43 / B-58：区间合取在 `length == 0` 时同样成立——§6.7.2.4 只放宽「下标
-     * **等于** count」，下标**大于** count 恒非法。原判据以 `length > 0` 短路，
-     * 使空拷贝的 dst/src 越界下标漏检。
-     */
+     * 使 dst_index+length 回绕成小值而漏检（§6.8.9 / 零 UB）。
+     * `length == 0` 时仍检查下标：§6.7.2.4 只放宽「下标等于 count」，
+     * 下标大于 count 恒非法。 */
     if ((length > 0 &&
          (length > dst_count || dst_index > dst_count - length ||
           length > src_count || src_index > src_count - length)) ||
@@ -522,7 +519,7 @@ int tc_exec_memcopy_unsafe_stmt(const TcMemcopyUnsafeStmt *stmt, TcExecuteCtx *c
     }
     dst_slot = (int)(dst_ptr.bits >> 1);
     src_slot = (int)(src_ptr.bits >> 1);
-    /* B-42：伪造编码的槽索引须校验上界，避免越界读写（§1.3 零 UB） */
+    /* 伪造编码的槽索引须校验上界，避免越界读写（§1.3 零 UB） */
     if ((size_t)dst_slot >= ctx->slot_capacity || (size_t)src_slot >= ctx->slot_capacity) {
         tc_diagnostic_set(diag, TC_RE_NULL_POINTER_DEREFERENCE, stmt->line, TC_COLUMN_UNKNOWN,
                           "null pointer dereference");

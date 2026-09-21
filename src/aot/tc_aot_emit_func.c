@@ -46,7 +46,7 @@ int tc_aot_emit_function(FILE *out, const TcFuncDef *func, const TcProgram *modu
                 func->func_id);
     } else {
         /*
-         * B-50：非嵌入模式下 TC 函数可能不被任何调用点引用（如 #lib-only 程序），
+         * 非嵌入模式下 TC 函数可能不被任何调用点引用（如 #lib-only 程序），
          * 生成 C 用 `-Werror` 编译时 `static` 会触发 -Wunused-function。函数改为
          * 外部链接（同一程序只编译单个生成文件，无需靠 static 隔离符号）。
          */

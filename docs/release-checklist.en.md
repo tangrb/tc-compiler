@@ -2,7 +2,7 @@
 
 [中文](release-checklist.md)
 
-Use this list before cutting a `v*` tag. Core version must match `tc_version.h` (currently **0.0.43**); the language specification and all design doc filenames are now `*-0.0.44.md` (`*-0.0.42.md` is kept only as the historical baseline).
+Use this list before cutting a `v*` tag. Core version must match `tc_version.h` (currently **0.0.44**); the language specification and all design doc filenames are now `*-0.0.44.md` (`*-0.0.42.md` is kept only as the historical baseline).
 
 ## 1. Code and docs freeze
 

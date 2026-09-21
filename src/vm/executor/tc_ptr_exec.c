@@ -127,7 +127,7 @@ static int tc_ptr_read_offset(const TcOperand *offset_op, TcExecuteCtx *ctx, uin
 
     /*
      * 偏移严格为 usize（§3.10.8）；分析器已静态拒绝 isize 偏移。
-     * B-49：以**无符号**位模式返回，避免 ≥ 2^63 的偏移转 int64_t 触发有符号溢出
+     * 以**无符号**位模式返回，避免 ≥ 2^63 的偏移转 int64_t 触发有符号溢出
      *（UB）；指针算术按 §6.8.5 的无符号语义完成。
      */
     if (tc_eval_operand(offset_op, TC_USIZE, ctx, &offset_value, diag, line) != 0) {
@@ -164,9 +164,9 @@ int tc_exec_ptr_arith(int is_add, const TcType *pointee, const TcOperand *ptr_op
         return -1;
     }
     /*
-     * B-49：按 §6.8.5 的 usize 语义用**无符号**运算完成，避免 ≥ 2^63 的偏移转
+     * 按 §6.8.5 的 usize 语义用**无符号**运算完成，避免 ≥ 2^63 的偏移转
      * int64_t 触发有符号溢出 UB；结果越过槽位容量时按「非法指针值」报
-     * TC_RE_NULL_POINTER_ARITHMETIC（与 B-10/B-42 的非法编码口径一致），
+     * TC_RE_NULL_POINTER_ARITHMETIC（与非法编码口径一致），
      * 而不是回绕/截断成可能指向合法槽位的编码。
      */
     new_slot = is_add ? (uint64_t)slot + offset : (uint64_t)slot - offset;

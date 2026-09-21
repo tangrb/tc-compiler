@@ -2,7 +2,7 @@
 
 > **规范基线（唯一权威）**：[TC 语言标准 0.0.44](./TC语言标准设计说明书-0.0.44.md) · [TC 编译器标准 0.0.44](./TC编译器标准设计说明书-0.0.44.md)
 >
-> **当前实现基线**：TC-Embed v0.0.43（`TC_VERSION_CORE`，见 `src/vm/runtime/tc_version.h`）
+> **当前实现基线**：TC-Embed v0.0.44（`TC_VERSION_CORE`，见 `src/vm/runtime/tc_version.h`）
 >
 > **状态**：v0.0.44 C 调用 TC 嵌入式运行时设计（语言规范 0.0.44 同步版）。VM 模式完整设计，AOT 模式扩展设计。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
 >
@@ -952,12 +952,16 @@ tc_embed_call(ctx, "counter", "increment_and_get", 0, NULL, &result);
 | 文件 | 说明 |
 | ---- | ---- |
 | `src/vm/embed/tc_embed.h` | 公共头文件 |
-| `src/vm/embed/tc_embed.c` | 实现 |
+| `src/vm/embed/tc_embed.c` | VM 模式实现 |
+| `src/vm/embed/tc_embed_internal.h` | VM/AOT 共享内部上下文 |
+| `src/vm/embed/tc_embed_aot.h` / `tc_embed_aot.c` | AOT 模式桥接 |
 | `src/vm/embed/tc_value_bridge.h` | 值桥接内联函数 |
+| `src/vm/runtime/tc_embed_slots.h` | 槽位容量与临时区 |
 | `src/vm/executor/tc_executor.h` | `tc_exec_call_function_public` 声明 |
 | `src/vm/executor/tc_executor.c` | 公共包装函数 |
-| `src/vm/CMakeLists.txt` | 包含 embed 子目录 |
-| `tests/unit/runtime/test_embed.c` | 单元测试 |
+| `src/libtc/CMakeLists.txt` | embed 源编入 libtc |
+| `tests/unit/runtime/test_embed.c` | VM 模式单元测试 |
+| `tests/unit/runtime/test_embed_aot.c` | AOT 模式单元测试 |
 | `tests/vm/embed/` | VM 级测试用例 |
 | `scripts/vm/run_tests.sh` | 注册 embed 用例组 |
 

@@ -7,6 +7,7 @@
  * 强制模块头：首行须为 #program 或 #lib。
  * 支持 import / struct / func / static / 可见性 / Self；顶层按五层顺序校验（TcParseLayer）。
  * 语句/类型/函数/struct/RHS 解析见 tc_parser_{stmt,type,func,struct,rhs}.c。
+ * expect/operand/binding 见 tc_parser_util.c；缩进/块体见 tc_parser_indent.c。
  */
 #include "tc_parser.h"
 #include "tc_parser_struct.h"
@@ -16,6 +17,7 @@
 #include "tc_parser_free.h"
 #include "tc_parser_rhs.h"
 #include "tc_parser_internal.h"
+#include "tc_parser_indent.h"
 
 #include "tc_diagnostic.h"
 
@@ -23,276 +25,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* 缩进块工具声明见 tc_parser_internal.h；此处仅需本文件 static 前向声明 */
-static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
-                                   TcModuleMode mode, TcStatement *out, TcDiagnostic *diag);
-static int tc_parse_field_access_base(const TcTokenList *tokens, size_t *index, int line_no,
-                                      char **out_base, TcDiagnostic *diag);
-
-
-/* ------------------------------------------------------------------ */
-/*  便捷错误报告辅助函数                                                 */
-/* ------------------------------------------------------------------ */
-
-int tc_syntax_error(TcDiagnostic *diag, int line, int column, const char *message) {
-    tc_diagnostic_set(diag, TC_CE_SYNTAX, line, column, message);
-    return -1;
-}
-
-
-int tc_operand_count_error(TcDiagnostic *diag, int line, int column, const char *message) {
-    tc_diagnostic_set(diag, TC_CE_OPERAND_COUNT, line, column, message);
-    return -1;
-}
-
-int tc_expect_comma_or_operand_count(const TcTokenList *tokens, size_t *index, int line_no,
-                                     TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-
-    if (tok->kind == TC_TOK_RPAREN) {
-        /* 还应有操作数却已到 `)`：个数不足 */
-        return tc_operand_count_error(diag, line_no, tok->column, "operand count error");
-    }
-    if (tok->kind != TC_TOK_COMMA) {
-        return tc_syntax_error(diag, line_no, tok->column, "expected ,");
-    }
-    (*index)++;
-    if (tc_peek(tokens, *index)->kind == TC_TOK_RPAREN) {
-        return tc_operand_count_error(diag, line_no, tc_peek(tokens, *index)->column,
-                                      "operand count error");
-    }
-    return 0;
-}
-
-int tc_expect_rparen_or_operand_count(const TcTokenList *tokens, size_t *index, int line_no,
-                                      TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-
-    if (tok->kind == TC_TOK_COMMA) {
-        /* 操作数已齐全却仍有 `,`：个数超出 */
-        return tc_operand_count_error(diag, line_no, tok->column, "operand count error");
-    }
-    return tc_expect_token(tokens, index, TC_TOK_RPAREN, line_no, diag);
-}
-
-/* ------------------------------------------------------------------ */
-/*  底层解析工具函数                                                     */
-/* ------------------------------------------------------------------ */
-
-/** 读取 Token 列表中的第 index 个 Token（不做越界检查） */
-const TcToken *tc_peek(const TcTokenList *tokens, size_t index) {
-    assert(tokens->count > 0);
-    assert(index < tokens->count);
-    return &tokens->items[index];
-}
-
-/*
- * @brief 解析一个操作数：变量引用或字面量
- * @param tokens  Token 列表
- * @param index   当前读取位置（解析成功后被推进）
- * @param line_no 当前行号
- * @param out     输出：解析结果 TcOperand
- * @param diag    诊断对象
- * @return 成功返回 0；失败返回 -1
- */
-int tc_parse_operand(const TcTokenList *tokens, size_t *index, int line_no,
-                            TcOperand *out, TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-
-    if (tok->kind == TC_TOK_IDENTIFIER) {
-        if (*index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
-            return tc_parse_field_access_operand(tokens, index, line_no, out, diag);
-        }
-        out->kind = TC_OPERAND_VAR;
-        out->u.name = tc_strndup(tok->start, tok->length);
-        if (!out->u.name) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
-            return -1;
-        }
-        (*index)++;
-        return 0;
-    }
-
-    if (tok->kind == TC_TOK_SELF &&
-        *index + 1 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT) {
-        /*
-         * Self.<名> 后无 `.` → 限定标识符操作数（附录 A 的 operand 产生式
-         * 含 qualified_identifier；语言标准 §6.1.1、§6.1.2）。
-         * 有 `.` → 继续读字段链（Self.<名>.<字段…>）。
-         * 限定名的绑定解析（static let/var、可见性、读写规则）由分析器完成。
-         */
-        int has_field = *index + 3 < tokens->count &&
-                        tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT;
-
-        if (!has_field) {
-            char *qualified = NULL;
-
-            if (tc_parse_field_access_base(tokens, index, line_no, &qualified, diag) != 0) {
-                return -1;
-            }
-            out->kind = TC_OPERAND_VAR;
-            out->u.name = qualified;
-            return 0;
-        }
-        return tc_parse_field_access_operand(tokens, index, line_no, out, diag);
-    }
-
-    if (tok->kind == TC_TOK_INTEGER) {
-        out->kind = TC_OPERAND_LIT;
-        out->u.lit = tok->u.literal;
-        (*index)++;
-        return 0;
-    }
-
-    if (tok->kind == TC_TOK_BOOL_LIT) {
-        out->kind = TC_OPERAND_LIT;
-        out->u.lit = tok->u.literal;
-        (*index)++;
-        return 0;
-    }
-
-    if (tok->kind == TC_TOK_FLOAT_LIT) {
-        out->kind = TC_OPERAND_LIT;
-        out->u.lit = tok->u.literal;
-        (*index)++;
-        return 0;
-    }
-
-    if (tok->kind == TC_TOK_NULLPTR) {
-        out->kind = TC_OPERAND_LIT;
-        memset(&out->u.lit, 0, sizeof(out->u.lit));
-        out->u.lit.is_nullptr = 1;
-        (*index)++;
-        return 0;
-    }
-
-    return tc_syntax_error(diag, line_no, tok->column, "expected operand");
-}
-
-/** 断言当前位置的 Token 种类与期望的一致，然后推进 index */
-int tc_expect_token(const TcTokenList *tokens, size_t *index, TcTokenKind kind,
-                           int line_no, TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-    if (tok->kind != kind) {
-        return tc_syntax_error(diag, line_no, tok->column, "unexpected token");
-    }
-    (*index)++;
-    return 0;
-}
-
-/** 检查语句结尾：允许可选的分号后紧跟 EOF */
-int tc_expect_stmt_end(const TcTokenList *tokens, size_t *index, int line_no,
-                              TcDiagnostic *diag) {
-    const TcToken *tail = tc_peek(tokens, *index);
-    if (tail->kind == TC_TOK_SEMICOLON) {
-        (*index)++;
-        tail = tc_peek(tokens, *index);
-    }
-    if (tail->kind != TC_TOK_EOF) {
-        return tc_syntax_error(diag, line_no, tail->column, "unexpected trailing tokens");
-    }
-    return 0;
-}
-
-int tc_token_is_type(const TcToken *tok) {
-    return tok->kind == TC_TOK_INT_TYPE || tok->kind == TC_TOK_FLOAT_TYPE;
-}
-
-char *tc_token_strdup(const TcToken *tok, int line_no, TcDiagnostic *diag) {
-    char *copy = NULL;
-
-    if (!tok) {
-        return NULL;
-    }
-    copy = (char *)tc_strndup(tok->start, tok->length);
-    if (!copy) {
-        tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column, "memory allocation failed");
-    }
-    return copy;
-}
-
-int tc_token_is_ident_named(const TcToken *tok, const char *name) {
-    size_t name_len = 0;
-
-    if (!tok || !name || tok->kind != TC_TOK_IDENTIFIER) {
-        return 0;
-    }
-    name_len = strlen(name);
-    return tok->length == name_len && strncmp(tok->start, name, name_len) == 0;
-}
-
-int tc_parse_binding_name(const TcTokenList *tokens, size_t *index, int line_no,
-                          char **out_name, TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-    const TcToken *member = NULL;
-    size_t total = 0;
-    char *name = NULL;
-
-    if (!out_name) {
-        return -1;
-    }
-    *out_name = NULL;
-
-    if (tok->kind == TC_TOK_SELF) {
-        if (*index + 2 >= tokens->count) {
-            return tc_syntax_error(diag, line_no, tok->column, "expected Self.member");
-        }
-        if (tc_peek(tokens, *index + 1)->kind != TC_TOK_DOT) {
-            return tc_syntax_error(diag, line_no, tok->column, "expected . after Self");
-        }
-        member = tc_peek(tokens, *index + 2);
-        if (member->kind != TC_TOK_IDENTIFIER) {
-            return tc_syntax_error(diag, line_no, member->column, "expected member name");
-        }
-        total = 5 + 1 + member->length + 1;
-        name = (char *)malloc(total);
-        if (!name) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
-                              "memory allocation failed");
-            return -1;
-        }
-        snprintf(name, total, "Self.%.*s", (int)member->length, member->start);
-        *out_name = name;
-        *index += 3;
-        return 0;
-    }
-
-    if (tok->kind != TC_TOK_IDENTIFIER) {
-        return tc_syntax_error(diag, line_no, tok->column, "expected identifier");
-    }
-    if (*index + 2 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
-        tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER) {
-        member = tc_peek(tokens, *index + 2);
-        total = tok->length + 1 + member->length + 1;
-        name = (char *)malloc(total);
-        if (!name) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
-                              "memory allocation failed");
-            return -1;
-        }
-        snprintf(name, total, "%.*s.%.*s", (int)tok->length, tok->start, (int)member->length,
-                 member->start);
-        *out_name = name;
-        *index += 3;
-        return 0;
-    }
-    name = tc_token_strdup(tok, line_no, diag);
-    if (!name) {
-        return -1;
-    }
-    *out_name = name;
-    (*index)++;
-    return 0;
-}
-
-int tc_module_diag(TcDiagnostic *diag, TcErrorKind kind, int line, int column,
-                          const char *message) {
-    /* 模块语义错误：写入指定 TcErrorKind（非一律 SYNTAX） */
-    tc_diagnostic_set(diag, kind, line, column, message);
-    return -1;
-}
-
 
 /*
  * 模块顶层声明分层（Parser 侧，与 tc_module 五层语义对齐）。
@@ -305,219 +37,6 @@ typedef enum {
     TC_PARSE_LAYER_FUNC = 4,
     TC_PARSE_LAYER_EXEC = 5
 } TcParseLayer;
-
-
-void tc_string_list_free_local(char **items, size_t count) {
-    size_t i = 0;
-    if (!items) {
-        return;
-    }
-    for (i = 0; i < count; i++) {
-        free(items[i]);
-    }
-    free(items);
-}
-
-int tc_parse_field_chain(const TcTokenList *tokens, size_t *index, int line_no,
-                                char **out_base, char ***out_fields, size_t *out_field_count,
-                                TcDiagnostic *diag) {
-    TcOperand operand;
-    size_t saved = *index;
-
-    memset(&operand, 0, sizeof(operand));
-    *out_base = NULL;
-    *out_fields = NULL;
-    *out_field_count = 0;
-
-    if (tc_parse_field_access_operand(tokens, index, line_no, &operand, diag) != 0) {
-        return -1;
-    }
-    if (operand.kind != TC_OPERAND_FIELD_READ) {
-        *index = saved;
-        tc_operand_free(&operand);
-        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN, "expected field access");
-    }
-    *out_base = operand.u.field_read.base;
-    *out_fields = operand.u.field_read.fields;
-    *out_field_count = operand.u.field_read.field_count;
-    operand.u.field_read.base = NULL;
-    operand.u.field_read.fields = NULL;
-    operand.u.field_read.field_count = 0;
-    return 0;
-}
-
-static int tc_parse_field_access_base(const TcTokenList *tokens, size_t *index, int line_no,
-                                    char **out_base, TcDiagnostic *diag) {
-    const TcToken *tok = tc_peek(tokens, *index);
-
-    *out_base = NULL;
-    if (tok->kind == TC_TOK_SELF) {
-        const TcToken *member_tok = NULL;
-        size_t base_len = 0;
-
-        if (tc_peek(tokens, *index + 1)->kind != TC_TOK_DOT) {
-            return tc_syntax_error(diag, line_no, tok->column, "expected . after Self");
-        }
-        (*index) += 2;
-        member_tok = tc_peek(tokens, *index);
-        if (member_tok->kind != TC_TOK_IDENTIFIER) {
-            return tc_syntax_error(diag, line_no, member_tok->column, "expected member name");
-        }
-        base_len = 5 + member_tok->length + 1;
-        *out_base = (char *)malloc(base_len);
-        if (!*out_base) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, member_tok->column,
-                              "memory allocation failed");
-            return -1;
-        }
-        snprintf(*out_base, base_len, "Self.%.*s", (int)member_tok->length, member_tok->start);
-        (*index)++;
-        return 0;
-    }
-
-    if (tok->kind != TC_TOK_IDENTIFIER) {
-        return tc_syntax_error(diag, line_no, tok->column, "expected identifier");
-    }
-
-    if (*index + 3 < tokens->count && tc_peek(tokens, *index + 1)->kind == TC_TOK_DOT &&
-        tc_peek(tokens, *index + 2)->kind == TC_TOK_IDENTIFIER &&
-        tc_peek(tokens, *index + 3)->kind == TC_TOK_DOT &&
-        tok->length > 0 && tok->start[0] >= 'A' && tok->start[0] <= 'Z') {
-        const TcToken *qual_tok = tok;
-        const TcToken *member_tok = tc_peek(tokens, *index + 2);
-        size_t base_len = qual_tok->length + 1 + member_tok->length + 1;
-
-        *out_base = (char *)malloc(base_len);
-        if (!*out_base) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
-                              "memory allocation failed");
-            return -1;
-        }
-        snprintf(*out_base, base_len, "%.*s.%.*s", (int)qual_tok->length, qual_tok->start,
-                 (int)member_tok->length, member_tok->start);
-        *index += 3;
-        return 0;
-    }
-
-    *out_base = tc_token_strdup(tok, line_no, diag);
-    if (!*out_base) {
-        return -1;
-    }
-    (*index)++;
-    return 0;
-}
-
-int tc_parse_field_access_operand(const TcTokenList *tokens, size_t *index, int line_no,
-                                  TcOperand *out, TcDiagnostic *diag) {
-    char *base = NULL;
-    char **fields = NULL;
-    size_t field_count = 0;
-    size_t field_cap = 0;
-
-    if (tc_parse_field_access_base(tokens, index, line_no, &base, diag) != 0) {
-        return -1;
-    }
-
-    while (tc_peek(tokens, *index)->kind == TC_TOK_DOT) {
-        char *field_name = NULL;
-        const TcToken *tok = NULL;
-
-        (*index)++;
-        tok = tc_peek(tokens, *index);
-        if (tok->kind != TC_TOK_IDENTIFIER) {
-            free(base);
-            tc_string_list_free_local(fields, field_count);
-            return tc_syntax_error(diag, line_no, tok->column, "expected field name");
-        }
-        field_name = tc_token_strdup(tok, line_no, diag);
-        if (!field_name) {
-            free(base);
-            tc_string_list_free_local(fields, field_count);
-            return -1;
-        }
-        if (field_count == field_cap) {
-            size_t new_cap = field_cap == 0 ? 4 : field_cap * 2;
-            char **new_fields = (char **)realloc(fields, new_cap * sizeof(char *));
-
-            if (!new_fields) {
-                free(field_name);
-                free(base);
-                tc_string_list_free_local(fields, field_count);
-                tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, tok->column,
-                                  "memory allocation failed");
-                return -1;
-            }
-            fields = new_fields;
-            field_cap = new_cap;
-        }
-        fields[field_count++] = field_name;
-        (*index)++;
-    }
-
-    if (field_count == 0) {
-        free(base);
-        tc_string_list_free_local(fields, field_count);
-        return tc_syntax_error(diag, line_no, TC_COLUMN_UNKNOWN, "expected field name");
-    }
-
-    if (out) {
-        memset(&out->u.field_read.resolved, 0, sizeof(out->u.field_read.resolved));
-        out->kind = TC_OPERAND_FIELD_READ;
-        out->u.field_read.base = base;
-        out->u.field_read.fields = fields;
-        out->u.field_read.field_count = field_count;
-    } else {
-        free(base);
-        tc_string_list_free_local(fields, field_count);
-    }
-    return 0;
-}
-
-/**
- * 解析可选的 public/private 前缀。
- * #program 禁止可见性；#lib 在 require_vis=1 时缺失则报 MISSING_VISIBILITY。
- */
-int tc_parse_visibility_prefix(const TcTokenList *tokens, size_t *index,
-                                      TcModuleMode mode, TcVisibility *out_vis,
-                                      int require_vis, TcDiagnostic *diag, int line_no) {
-    const TcToken *tok = tc_peek(tokens, *index);
-
-    *out_vis = TC_VIS_NONE;
-    if (tok->kind == TC_TOK_PUBLIC) {
-        if (mode == TC_MODULE_PROGRAM) {
-            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
-                                  "public is not allowed in #program mode");
-        }
-        /* 仅 #lib 模块顶层允许可见性；函数体等其它上下文一律拒绝（附录 A：suite
-         * 的 statement 不含可见性前缀）。 */
-        if (mode != TC_MODULE_LIB) {
-            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
-                                  "visibility modifier is not allowed inside a function body");
-        }
-        *out_vis = TC_VIS_PUBLIC;
-        (*index)++;
-        return 0;
-    }
-    if (tok->kind == TC_TOK_PRIVATE) {
-        if (mode == TC_MODULE_PROGRAM) {
-            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
-                                  "private is not allowed in #program mode");
-        }
-        if (mode != TC_MODULE_LIB) {
-            return tc_module_diag(diag, TC_CE_PROGRAM_MODE_MISUSE, line_no, tok->column,
-                                  "visibility modifier is not allowed inside a function body");
-        }
-        *out_vis = TC_VIS_PRIVATE;
-        (*index)++;
-        return 0;
-    }
-    if (require_vis && mode == TC_MODULE_LIB) {
-        return tc_module_diag(diag, TC_CE_MISSING_VISIBILITY, line_no, tok->column,
-                              "missing public or private visibility");
-    }
-    return 0;
-}
-
 
 /* ------------------------------------------------------------------ */
 /*  语句解析：write / writeln / read / var / let / 赋值                  */
@@ -553,7 +72,7 @@ static int tc_parse_read_stmt(const TcTokenList *tokens, size_t *index, int line
         (*index)++;
     }
 
-    /* B-35：`read(int32)` 缺目标操作数 → OPERAND_COUNT（而非笼统 SYNTAX） */
+    /* `read(int32)` 缺目标操作数 → OPERAND_COUNT（而非笼统 SYNTAX） */
     if (tc_expect_comma_or_operand_count(tokens, index, line_no, diag) != 0) {
         return -1;
     }
@@ -680,7 +199,7 @@ static int tc_parse_module_header(TcSourceLine *lines, size_t line_count, TcProg
     }
     hdr = &lines[0];
     /*
-     * B-63（标准 owner 裁决）：`#program` / `#lib` 指令行本身属顶层行，缩进级别必须为 0。
+     * `#program` / `#lib` 指令行本身属顶层行，缩进级别必须为 0。
      */
     if (hdr->indent != 0) {
         return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, hdr->line_no,
@@ -721,6 +240,28 @@ static int tc_parse_module_header(TcSourceLine *lines, size_t line_count, TcProg
  *
  * tc_parse_statement 默认按 #program 模式；整文件解析走 tc_parse_statement_mode。
  */
+
+static int tc_parser_token_is_import_qual(const TcParserCtx *ctx, const TcToken *tok) {
+    size_t i = 0;
+
+    if (!ctx || !ctx->program || !tok || tok->kind != TC_TOK_IDENTIFIER || !tok->start) {
+        return 0;
+    }
+    for (i = 0; i < ctx->program->count; i++) {
+        const char *name = NULL;
+
+        if (ctx->program->items[i].kind != TC_STMT_IMPORT) {
+            continue;
+        }
+        name = ctx->program->items[i].u.import_stmt.module_name;
+        if (name && strlen(name) == tok->length &&
+            strncmp(name, tok->start, tok->length) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  tc_parse_statement — 语法分析入口                                   */
 /* ------------------------------------------------------------------ */
@@ -730,8 +271,8 @@ int tc_parse_statement(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
     return tc_parse_statement_mode(ctx, tokens, line_no, TC_MODULE_PROGRAM, out, diag);
 }
 
-static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
-                                   TcModuleMode mode, TcStatement *out, TcDiagnostic *diag) {
+int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, int line_no,
+                              TcModuleMode mode, TcStatement *out, TcDiagnostic *diag) {
     size_t index = 0;
     const TcToken *first = NULL;
     TcVisibility vis = TC_VIS_NONE;
@@ -953,6 +494,47 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
 
     if (first->kind == TC_TOK_IDENTIFIER) {
         if (index + 1 < tokens->count && tc_peek(tokens, index + 1)->kind == TC_TOK_DOT) {
+            /*
+             * 附录 A assignment 含 imported_member_name。单点 `Qual.Name =` 且 Qual
+             * 已出现在本文件 import 列表 → 解析期整绑定赋值（与 `Self.<名> =` 同形）。
+             * 多点字段写或未导入前缀仍走字段赋值；分析器保留重分类作兜底。
+             */
+            if (index + 3 < tokens->count && tc_peek(tokens, index + 3)->kind != TC_TOK_DOT &&
+                tc_parser_token_is_import_qual(ctx, first)) {
+                TcAssign assign;
+                char *qualified = NULL;
+
+                if (tc_parse_binding_name(tokens, &index, line_no, &qualified, diag) != 0) {
+                    return -1;
+                }
+                assign.line = line_no;
+                assign.name = qualified;
+                if (tc_expect_token(tokens, &index, TC_TOK_EQUAL, line_no, diag) != 0) {
+                    free(qualified);
+                    return -1;
+                }
+                memset(&assign.rhs, 0, sizeof(assign.rhs));
+                if (tc_peek(tokens, index)->kind == TC_TOK_FUNCALL) {
+                    if (tc_parse_funcall_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) !=
+                        0) {
+                        free(assign.name);
+                        tc_rhs_free(&assign.rhs);
+                        return -1;
+                    }
+                } else if (tc_parse_rhs(ctx, tokens, &index, line_no, &assign.rhs, diag) != 0) {
+                    free(assign.name);
+                    tc_rhs_free(&assign.rhs);
+                    return -1;
+                }
+                if (tc_expect_stmt_end(tokens, &index, line_no, diag) != 0) {
+                    free(assign.name);
+                    tc_rhs_free(&assign.rhs);
+                    return -1;
+                }
+                out->kind = TC_STMT_ASSIGN;
+                out->u.assign = assign;
+                return 0;
+            }
             return tc_parse_field_assign_stmt(ctx, tokens, &index, line_no, out, diag);
         }
         TcAssign assign;
@@ -996,223 +578,6 @@ static int tc_parse_statement_mode(TcParserCtx *ctx, const TcTokenList *tokens, 
 /*  缩进引擎与 if 语句（多行 parse）                                      */
 /* ------------------------------------------------------------------ */
 
-static int tc_is_only_whitespace(const char *line) {
-    while (*line != '\0' && *line != '\r' && *line != '\n') {
-        if (*line != ' ' && *line != '\t') {
-            return 0;
-        }
-        line++;
-    }
-    return 1;
-}
-
-static int tc_is_comment_only_line(const char *line) {
-    while (*line == ' ' || *line == '\t') {
-        line++;
-    }
-    return *line == ';' || *line == '\0' || *line == '\r' || *line == '\n';
-}
-
-static int tc_is_skippable_line(const char *line) {
-    if (line == NULL) {
-        return 1;
-    }
-    if (tc_is_only_whitespace(line)) {
-        return 1;
-    }
-    return tc_is_comment_only_line(line);
-}
-
-int tc_indent_diag(TcDiagnostic *diag, TcErrorKind kind, int line_no, const char *message) {
-    tc_diagnostic_set(diag, kind, line_no, TC_COLUMN_UNKNOWN, message);
-    return -1;
-}
-
-/* 行首缩进测量：缩进只能由 ASCII 空格 U+0020 组成，每 4 个空格为一级，
- * 行首空格总数必须能被 4 整除；行首出现水平制表符 U+0009 一律报
- * TC_CE_INDENT_MIXED（无论是否与空格混用）。 */
-static int tc_measure_line_indent(const char *line, int line_no, TcDiagnostic *diag,
-                                  int *out_indent) {
-    int spaces = 0;
-    const char *cursor = line;
-
-    while (*cursor == ' ' || *cursor == '\t') {
-        if (*cursor == '\t') {
-            return tc_indent_diag(diag, TC_CE_INDENT_MIXED, line_no,
-                                  "mixed spaces and tabs in indentation");
-        }
-        spaces++;
-        cursor++;
-    }
-
-    if (spaces % 4 != 0) {
-        return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
-                              "insufficient indentation in block");
-    }
-    *out_indent = spaces;
-    return 0;
-}
-
-static void tc_source_lines_free(TcSourceLine *lines, size_t count) {
-    size_t i = 0;
-
-    if (!lines) {
-        return;
-    }
-    for (i = 0; i < count; i++) {
-        free(lines[i].text);
-        lines[i].text = NULL;
-        tc_token_list_free(&lines[i].tokens);
-    }
-    free(lines);
-}
-
-/* 块内语句缩进校验：块内语句相对块头必须恰好增加一级（固定 4 空格）。
- * 一次增加多级（如 8 空格）、或增加不足一级（如 2 空格）均报缩进错误；
- * 回退到不属于本块的级别由调用方按 end/else 对齐检查判定。 */
-int tc_block_indent_valid(const TcFileIndent *file_indent, int base_indent, int indent,
-                                 TcDiagnostic *diag, int line_no) {
-    int delta = indent - base_indent;
-
-    if (delta <= 0) {
-        return 0; /* 块结束或不属于本块，由调用方判定 */
-    }
-    if (delta != file_indent->indent_width) {
-        return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line_no,
-                              "insufficient indentation in block");
-    }
-    return 0;
-}
-
-void tc_stmt_block_init(TcStmtBlock *block) {
-    block->items = NULL;
-    block->count = 0;
-    block->capacity = 0;
-}
-
-void tc_stmt_block_free(TcStmtBlock *block) {
-    size_t i = 0;
-
-    for (i = 0; i < block->count; i++) {
-        tc_statement_free(&block->items[i]);
-    }
-    free(block->items);
-    block->items = NULL;
-    block->count = 0;
-    block->capacity = 0;
-}
-
-static int tc_stmt_block_push(TcStmtBlock *block, const TcStatement *stmt, TcDiagnostic *diag,
-                              int line_no) {
-    if (block->count == block->capacity) {
-        size_t new_cap = block->capacity == 0 ? 4 : block->capacity * 2;
-        TcStatement *items =
-            (TcStatement *)realloc(block->items, new_cap * sizeof(TcStatement));
-
-        if (!items) {
-            tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, line_no, TC_COLUMN_UNKNOWN, "memory allocation failed");
-            return -1;
-        }
-        block->items = items;
-        block->capacity = new_cap;
-    }
-    block->items[block->count++] = *stmt;
-    return 0;
-}
-
-int tc_first_token_kind(const TcSourceLine *line) {
-    if (line->tokens.count == 0) {
-        return TC_TOK_EOF;
-    }
-    return (int)line->tokens.items[0].kind;
-}
-
-/** end 行尾随 token 检查：`end`（可选分号）后必须行尾；
- * 尾随 token 报 TC_CE_SYNTAX（附录 A：块以 `end` 收尾）。
- * 行 token 列表末尾含 TC_TOK_EOF 哨兵，需跳过。 */
-int tc_end_line_check(const TcSourceLine *line, TcDiagnostic *diag) {
-    size_t i = 1;
-
-    if (line->tokens.count > 1 && line->tokens.items[1].kind == TC_TOK_SEMICOLON) {
-        i = 2;
-    }
-    while (i < line->tokens.count && line->tokens.items[i].kind == TC_TOK_EOF) {
-        i++;
-    }
-    if (i < line->tokens.count) {
-        return tc_syntax_error(diag, line->line_no, line->tokens.items[i].column,
-                               "unexpected trailing tokens after end");
-    }
-    return 0;
-}
-
-int tc_parse_block_body_mode(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
-                                    size_t *index, int base_indent,
-                                    const TcFileIndent *file_indent, TcModuleMode mode,
-                                    const char *header_keyword, TcStmtBlock *block,
-                                    TcDiagnostic *diag) {
-    while (*index < line_count) {
-        TcSourceLine *line = &lines[*index];
-        TcStatement stmt;
-        int first_kind = 0;
-
-        if (line->indent <= base_indent) {
-            break;
-        }
-        first_kind = tc_first_token_kind(line);
-        /*
-         * B-41（标准 owner 裁决）：`else` / `end` 只要与对应块头不对齐（过深或
-         * 过浅）一律报 TC_CE_INDENT_ELSE_END —— 附录 A.2 末段与附录 B.1 已把
-         * 「else/end 对不齐」从 INDENT_INSUFFICIENT 中排除单列，故本轮次序调整
-         * 使对齐判定先于通用缩进增量判定（§11 第 3 条：专用码优先）。
-         */
-        if (first_kind == TC_TOK_ELSE) {
-            return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no,
-                                  "else must appear at same indentation as if");
-        }
-        if (first_kind == TC_TOK_END) {
-            char msg[96];
-
-            (void)snprintf(msg, sizeof(msg), "end indentation does not match %s",
-                           header_keyword ? header_keyword : "block header");
-            return tc_indent_diag(diag, TC_CE_INDENT_ELSE_END, line->line_no, msg);
-        }
-        if (tc_block_indent_valid(file_indent, base_indent, line->indent, diag,
-                                  line->line_no) != 0) {
-            return -1;
-        }
-
-        memset(&stmt, 0, sizeof(stmt));
-        if (first_kind == TC_TOK_IF) {
-            if (tc_parse_if_stmt(ctx, lines, line_count, index, file_indent, &stmt, diag) != 0) {
-                return -1;
-            }
-        } else if (first_kind == TC_TOK_WHILE) {
-            if (tc_parse_while_stmt(ctx, lines, line_count, index, file_indent, &stmt, diag) != 0) {
-                return -1;
-            }
-        } else {
-            if (tc_parse_statement_mode(ctx, &line->tokens, line->line_no, mode, &stmt, diag) != 0) {
-                return -1;
-            }
-            (*index)++;
-        }
-
-        if (tc_stmt_block_push(block, &stmt, diag, line->line_no) != 0) {
-            tc_statement_free(&stmt);
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int tc_parse_block_body(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
-                               size_t *index, int base_indent,
-                               const TcFileIndent *file_indent, const char *header_keyword,
-                               TcStmtBlock *block, TcDiagnostic *diag) {
-    return tc_parse_block_body_mode(ctx, lines, line_count, index, base_indent, file_indent,
-                                    TC_MODULE_PROGRAM, header_keyword, block, diag);
-}
 
 int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, size_t *index,
                      const TcFileIndent *file_indent, TcStatement *out, TcDiagnostic *diag) {
@@ -1274,8 +639,7 @@ int tc_parse_if_stmt(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count, s
         }
         /*
          * 2.6.4：`else` 行只允许 `else` 本身（可选 `;`）。附录 A 的 `if_stmt` 要求
-         * `else` 后换行 + 缩进 + `suite`，语言标准 §7.1.1 不支持单行 `else if`；
-         * 此前 else 后的剩余 token 被静默丢弃，else 体退化为紧随其后的行并无条件执行。
+         * `else` 后换行 + 缩进 + `suite`，语言标准 §7.1.1 不支持单行 `else if`。
          */
         if (tc_peek(&lines[*index].tokens, else_tok_index)->kind == TC_TOK_ELSE) {
             else_tok_index++;
@@ -1510,11 +874,10 @@ static int tc_parse_module_body(TcParserCtx *ctx, TcSourceLine *lines, size_t li
         memset(&stmt, 0, sizeof(stmt));
 
         /*
-         * B-63（标准 owner 裁决）：顶层行（`#program` 的 import / 类型 / 声明 /
+         * 顶层行（`#program` 的 import / 类型 / 声明 /
          * 顶层语句与 `#lib` 的 import / 类型 / static / func）缩进级别必须为 0。
          * 附录 A 的顶层产生式（import_region、program_module、program_exec_region、
-         * library_module）不消费 `INDENT`，只有 `suite` 消费（附录 A.2、A.3）；
-         * 此前顶层缩进被静默忽略，属接受集过宽。
+         * library_module）不消费 `INDENT`，只有 `suite` 消费（附录 A.2、A.3）。
          */
         if (line->indent != 0) {
             return tc_indent_diag(diag, TC_CE_INDENT_INSUFFICIENT, line->line_no,
@@ -1581,10 +944,8 @@ static int tc_parse_module_body(TcParserCtx *ctx, TcSourceLine *lines, size_t li
         } else if (program->mode == TC_MODULE_LIB &&
                    (first->kind == TC_TOK_VAR || first->kind == TC_TOK_LET)) {
             /*
-             * B-38：附录 A 的 library_module 只接受带可见性的 static 成员，
-             * `#lib` 顶层裸 var/let 属语法拒绝（第 3 阶段 TC_CE_SYNTAX）；
-             * 原实现沿用 value 层放行、由分析器在 SEM 报 MODULE_LAYER，
-             * 阶段错位（会晚于更靠后的语法错误）。
+             * 附录 A 的 library_module 只接受带可见性的 static 成员，
+             * `#lib` 顶层裸 var/let 在第 3 阶段报 TC_CE_SYNTAX。
              */
             return tc_syntax_error(diag, line->line_no, first->column,
                                    "non-static value declaration is not allowed in #lib");
@@ -1643,7 +1004,7 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
     }
 
     /*
-     * B-39：`#program` 中的 `Self` 属结构类语法阶段诊断（TC_CE_PROGRAM_MODE_MISUSE，
+     * `#program` 中的 `Self` 属结构类语法阶段诊断（TC_CE_PROGRAM_MODE_MISUSE，
      * §4.2/§1.3）。分析器虽也检查，但那属 SEM——若同一文件后面还有语法错误，会
      * 因「阶段优先」而抢先报出（§11 第 1 条）。此处按**源序**在语法阶段一次性扫描
      * 全部 Token 行，保证最早的 `Self` 先报。
@@ -1667,7 +1028,8 @@ int tc_parse_source_to_program(const char *source, TcProgram *program, TcDiagnos
         }
     }
 
-    ctx.depth = 0;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.program = program;
     rc = tc_parse_module_body(&ctx, lines, line_count, start_index, &file_indent, program, diag);
     tc_source_lines_free(lines, line_count);
     if (rc != 0) {

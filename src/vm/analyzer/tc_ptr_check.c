@@ -43,8 +43,10 @@ static TcType tc_ptr_make_from_pointee(const TcType *pointee, TcDiagnostic *diag
 
 static const TcSymbol *tc_ptr_resolve_var(const char *name, const TcSymbolTable *visible,
                                             const TcSymbolTable *global, size_t stmt_index,
-                                            int line, TcDiagnostic *diag) {
-    return tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag);
+                                            int line, TcDiagnostic *diag, TcInitHistory *hist) {
+    return tc_resolve_visible_symbol(visible, global, name, stmt_index, line, diag,
+                                     tc_hist_name_members(hist),
+                                     tc_hist_name_in_function(hist));
 }
 
 /**
@@ -90,7 +92,7 @@ static int tc_ptr_check_operand(TcOperand *operand, const TcType *expected_ptr,
         tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, line, TC_COLUMN_UNKNOWN, msg);
         return -1;
     }
-    sym = tc_ptr_resolve_var(operand->u.name, visible, global, stmt_index, line, diag);
+    sym = tc_ptr_resolve_var(operand->u.name, visible, global, stmt_index, line, diag, hist);
     if (!sym) {
         return -1;
     }
@@ -176,7 +178,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
             return -1;
         }
         target = tc_ptr_resolve_var(rhs->u.ptr_address.name, visible, global, stmt_index, line,
-                                    diag);
+                                    diag, hist);
         if (!target) {
             return -1;
         }
@@ -190,7 +192,7 @@ int tc_ptr_check_rhs(TcRhs *rhs, const TcType *expected, const TcSymbolTable *vi
                               "ptr_address pointee type does not match variable type");
             return -1;
         }
-        /* B-51：固化取址目标的槽位，供 AOT 代码生成直接使用（形参在代码生成期
+        /* 固化取址目标的槽位，供 AOT 代码生成直接使用（形参在代码生成期
          * 无法按名解析） */
         tc_resolved_binding_set(&rhs->u.ptr_address.binding, target);
         ptr_ty = tc_ptr_make_from_pointee(&rhs->u.ptr_address.pointee_type, diag, line);
@@ -366,7 +368,7 @@ int tc_ptr_operand_target_readonly(const TcOperand *operand, const TcSymbolTable
         return 0;
     }
     /*
-     * 既有-4：只读判据是**所指外层绑定**（语言标准 §6.8.3「可变性」、§6.8.9），
+     * 只读判据是**所指外层绑定**（语言标准 §6.8.3「可变性」、§6.8.9），
      * 与指针绑定自身是 `var` 还是 `let` 无关——`let p: ptr<T> = ptr_address(T, v)`
      * 指向可写 `v` 时 `ptr_store` 合法；`let p: ptr<T> = nullptr` 则归运行期
      * `TC_RE_NULL_POINTER_DEREFERENCE`。故只取 `ptr_target_readonly`（由
@@ -398,7 +400,7 @@ int tc_ptr_rhs_target_readonly(const TcRhs *rhs, const TcSymbolTable *visible,
         if (!target || !target->type || target->type->tag != TC_PTR) {
             return 0;
         }
-        /* 既有-4：复制指针时只继承**来源指针**的「所指只读」标记；来源指针自身
+        /* 复制指针时只继承**来源指针**的「所指只读」标记；来源指针自身
          * 是 `let` 不代表其所指只读（如 `let p: ptr<T> = nullptr`）。 */
         return target->ptr_target_readonly ? 1 : 0;
     case TC_RHS_PTR_ADD:
@@ -422,8 +424,7 @@ int tc_ptr_check_memcopy_unsafe_operands(const TcMemcopyUnsafeStmt *stmt,
      * 语言标准 §6.8.9 操作数表 / §6.8.10：`dst`、`src` 须为 `ptr<T>` 类型的
      * `operand`；后者明列结构体字段读取（如 `a.p`，字段类型为 `ptr<T>`）合法。
      * 统一走指针操作数校验：既校验形式与所指类型是否等于显式类型参数 `T`，
-     * 也把字段读取的解析结果写入 operand（此前未校验，字段读取留作未解析，
-     * 导致执行期「internal error: unresolved field operand」而 AOT 报空指针）。
+     * 也把字段读取的解析结果写入 operand。
      */
     ptr_ty = tc_ptr_make_from_pointee(&stmt->element_type, diag, stmt->line);
     if (ptr_ty.tag == TC_VOID) {
@@ -463,7 +464,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
     TcType ptr_ty;
 
     /* ptr_store(T, p, v)：所指外层绑定只读（let/static let/形参）时拒绝写入。
-     * 既有-4：只读判据取自 `ptr_target_readonly`（绑定点按 RHS 来源求值），不再
+     * 只读判据取自 `ptr_target_readonly`（绑定点按 RHS 来源求值），不再
      * 直接看指针绑定自身是否 `let`——见 tc_ptr_operand_target_readonly 注释。 */
     if (stmt->pointee_type.tag == TC_VOID) {
         tc_diagnostic_set(diag, TC_CE_TYPE_MISMATCH, stmt->line, TC_COLUMN_UNKNOWN,
@@ -476,7 +477,7 @@ int tc_ptr_check_store(const TcPtrStoreStmt *stmt, const TcSymbolTable *visible,
     }
     if (stmt->ptr.kind == TC_OPERAND_VAR) {
         const TcSymbol *holder = tc_ptr_resolve_var(stmt->ptr.u.name, visible, global,
-                                                     stmt_index, stmt->line, diag);
+                                                     stmt_index, stmt->line, diag, hist);
         if (!holder) {
             if (ptr_ty.params.ptr_type.pointee) {
                 tc_type_free(ptr_ty.params.ptr_type.pointee);

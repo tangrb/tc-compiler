@@ -1,5 +1,5 @@
 #program
-; 观察-⑥：`<模块名>.<名> = rhs` 作整绑定赋值目标（附录 A `assignment`、§4.4「static var 可读写」）；
+; `<模块名>.<名> = rhs` 作整绑定赋值目标（附录 A `assignment`、§4.4「static var 可读写」）；
 ; 标量 / struct / memblock 三种成员与限定基址字段赋值对照
 import MemberLib
 var v: int32 = 0

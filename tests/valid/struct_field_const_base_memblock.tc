@@ -1,6 +1,6 @@
 #program
-; Critical 2 回归：let 基址的 memblock 字段整体读出。
-; AOT 曾嵌入编译期堆指针 → 段错误；现改为字节内联 + 深拷贝。
+; let 基址的 memblock 字段整体读出。
+; AOT 将 const 复合值按字节内联并深拷贝。
 ; 深拷贝语义：改副本不得改写 const 基址字段。
 struct Holder then
     var data: memblock<int32, 3>

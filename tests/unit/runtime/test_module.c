@@ -95,7 +95,7 @@ static void test_module_check_self_in_program(void) {
 
     tc_diagnostic_init(&diag);
     tc_program_init(&program);
-    /* B-39：`#program` 中的 Self 现在由解析器在语法阶段按源序拒绝
+    /* `#program` 中的 Self 现在由解析器在语法阶段按源序拒绝
      *（不再等到 tc_module_check_structure 的 SEM 阶段）。 */
     check(tc_parse_source_to_program(source, &program, &diag) != 0, "parse rejects Self in #program");
     check(diag.kind == TC_CE_PROGRAM_MODE_MISUSE, "Self misuse kind");
@@ -560,8 +560,8 @@ static void test_imported_struct_name_rules(void) {
 }
 
 static void test_diamond_import_structs(void) {
-    /* Major 4 回归：菱形依赖（Left/Right 均 import Shared，且 struct 字段引用
-     * Shared.<struct>）须按真拓扑序注册结构体；逆 DFS 前序曾误报 UNDEFINED_STRUCT。 */
+    /* 菱形依赖（Left/Right 均 import Shared，且 struct 字段引用
+     * Shared.<struct>）须按拓扑序注册结构体。 */
     char dir_template[] = "/tmp/tc-mod-diamond-XXXXXX";
     char *dir = tc_test_mkdtemp(dir_template);
     char shared_path[256];

@@ -1,5 +1,5 @@
 #program
-; 既有-2：入口内以 `<模块名>.<static var>` 取址并写穿（此前 SyntaxError: unexpected token）
+; 入口内以 `<模块名>.<static var>` 取址并写穿
 import AddrLib
 var p: ptr<int32> = ptr_address(int32, AddrLib.W)
 var r: int32 = 0

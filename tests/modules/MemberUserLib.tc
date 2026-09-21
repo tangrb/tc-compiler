@@ -1,5 +1,5 @@
 #lib
-; 既有-1：被导入模块内以 `<模块名>.<成员>` 读取常量/静态成员（含 struct 整体读取）
+; 被导入模块内以 `<模块名>.<成员>` 读取常量/静态成员（含 struct 整体读取）
 import MemberLib
 public func const_sum() int32 then
     let c: int32 = MemberLib.K

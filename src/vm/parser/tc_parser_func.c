@@ -1,7 +1,7 @@
 /*
  * tc_parser_func.c — 函数定义语法解析（function_definition）
  *
- * 从 tc_parser.c 拆出：形参列表 / 函数定义。
+ * 形参列表 / 函数定义。
  */
 #include "tc_parser_func.h"
 
@@ -128,7 +128,7 @@ int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
         }
         if (tc_peek(&func_line->tokens, tok_index)->kind == TC_TOK_COMMA) {
             tok_index++;
-            /* B-30：形参表不接受尾随逗号（附录 A parameter_list） */
+            /* 形参表不接受尾随逗号（附录 A parameter_list） */
             if (tc_peek(&func_line->tokens, tok_index)->kind == TC_TOK_RPAREN) {
                 tc_func_def_fail(&def);
                 return tc_syntax_error(diag, func_line->line_no,
@@ -136,7 +136,7 @@ int tc_parse_func_def(TcParserCtx *ctx, TcSourceLine *lines, size_t line_count,
                                        "trailing comma not allowed in parameter list");
             }
         } else if (tc_peek(&func_line->tokens, tok_index)->kind != TC_TOK_RPAREN) {
-            /* B-31：形参之间必须有逗号 */
+            /* 形参之间必须有逗号 */
             tc_func_def_fail(&def);
             return tc_syntax_error(diag, func_line->line_no,
                                    tc_peek(&func_line->tokens, tok_index)->column,

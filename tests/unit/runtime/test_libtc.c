@@ -543,7 +543,7 @@ static void test_source_entry_resolves_imports(void) {
 #endif
 
 /**
- * B-16：目录不是模块文件。导入目标 `Foo.tc` 为目录时应报语言域的
+ * 目录不是模块文件。导入目标 `Foo.tc` 为目录时应报语言域的
  * TC_CE_IMPORT_NOT_FOUND（定位到写出 import 的模块），而不是把目录内容当源码
  * 读入后报语法错误；模块文件 I/O 失败本身属 API 域（TC_API_ERR_FILE_READ）。
  */

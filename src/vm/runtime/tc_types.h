@@ -218,7 +218,7 @@ typedef struct {
     int width;            /* 字段宽度 1~65535，0 表示未指定 */
     int precision_set;    /* 是否指定精度 */
     int precision;        /* 精度值 0~65535 */
-    int flag_repeat;      /* B-3：同一非 0 标志（或非连续的第二段 '0'）重复出现；
+    int flag_repeat;      /* 同一非 0 标志（或非连续的第二段 '0'）重复出现；
                            * 附录 A 的 `{ format_flag }` 形态合法，重复属 SEM 违规，
                            * 由 Analyzer 报 TC_CE_FORMAT_SPECIFIER（[语言标准 §10.5]） */
     TcFormatSpec spec;    /* 基础转换符 */
@@ -621,7 +621,7 @@ typedef struct {
         struct {
             TcType pointee_type;
             char *name;
-            TcResolvedBinding binding; /* Pass2 固化的取址目标（B-51：AOT 不再按名重解析） */
+            TcResolvedBinding binding; /* Pass2 固化的取址目标（AOT 不再按名重解析） */
         } ptr_address;
         struct {
             TcType pointee_type;
@@ -1006,7 +1006,7 @@ typedef struct {
     const TcType *type;  /* 完整类型：单例或 TcTypeTable intern；随符号释放时不 free */
     int ptr_target_readonly; /* ptr 绑定：所指外层为 let/static let/形参时为 1 */
     /*
-     * B-65：符号所属模块名（借用 `TcProgram.module_name`，不拥有；NULL = 未标记）。
+     * 符号所属模块名（借用 `TcProgram.module_name`，不拥有；NULL = 未标记）。
      *
      * 符号表是全模块共享的一张表（slot 全局唯一），而各模块的 stmt_index 各自从 0
      * 编号，故「按名 + def_stmt_index」的查找可能命中另一模块的同名绑定。标记来源
@@ -1108,10 +1108,10 @@ typedef struct {
     size_t dep_count;
     size_t dep_capacity;
     TcSymbolTable symbols;
-    TcCfg *cfg;              /* 顶层域（兼容既有测试） */
+    TcCfg *cfg;              /* 顶层 CFG 域 */
     TcCfgSet *cfg_set;       /* 多域集合；非 NULL 时 cfg == &cfg_set->toplevel */
     TcWarningList warnings;
-    /* A-8：程序级槽元数据（Executor/AOT 消费；帧内槽由调用帧管理） */
+    /* 程序级槽元数据（Executor/AOT 消费；帧内槽由调用帧管理） */
     size_t toplevel_slot_count;
     size_t static_slot_count;
     struct TcStructTable *struct_table; /* 拥有；供 Executor/AOT 布局与字段偏移 */
@@ -1169,7 +1169,7 @@ typedef struct {
     int column;
     TcDeferredDiagnostic deferred; /* 挂起的 CT 类诊断（见上） */
     /*
-     * B-40：挂起的 **SEM 类**诊断。
+     * 挂起的 **SEM 类**诊断。
      *
      * 解析器在语法层遇到形态合法、但按 §3.8.1 / §3.9.3 属静态语义拒绝的形态
      *（`memblock<T, N>` 的 N、`count:` 来源、`@padding(N)` 的 N）时不得直接失败，
@@ -1186,7 +1186,7 @@ typedef struct {
 /*  公共工具函数声明                                                    */
 /* ------------------------------------------------------------------ */
 
-/* 标量标签查询（现网路径） */
+/* 标量标签查询 */
 int tc_type_bit_width(TcTypeTag type);
 int tc_type_is_signed(TcTypeTag type);
 int tc_type_is_bool(TcTypeTag type);
@@ -1198,7 +1198,7 @@ int tc_type_is_memblock_tag(TcTypeTag type);
 int tc_type_is_struct_tag(TcTypeTag type);
 int tc_type_parse(const char *text, TcTypeTag *out);
 
-/* 完整类型（A-2～A-4） */
+/* 完整类型 */
 TcType tc_type_scalar(TcTypeTag tag);
 /** 标量标签 → 完整类型（tc_type_scalar 的规范命名） */
 TcType tc_type_from_tag(TcTypeTag tag);
@@ -1287,7 +1287,7 @@ const char *tc_api_error_code_name(TcApiErrorCode code);
 const char *tc_warning_kind_name(TcWarningKind kind);
 const char *tc_type_name(TcTypeTag type);
 
-/* A-8 运行时槽组 */
+/* 运行时槽组 */
 void tc_runtime_slots_init(TcRuntimeSlots *slots);
 void tc_runtime_slots_free(TcRuntimeSlots *slots);
 

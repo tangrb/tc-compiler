@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/* A1 端序契约（§3.5）：codegen 期从 const_bits 折叠标量字段时按固定 LE
+/* 端序契约（§3.5）：codegen 期从 const_bits 折叠标量字段时按固定 LE
  * （低字节在前）读取，与 VM/const_eval/AOT 运行时一致，不依赖宿主字节序。 */
 static inline uint64_t tc_aot_cg_load_bits(const uint8_t *src, size_t nbytes) {
     uint64_t bits = 0;
@@ -94,7 +94,7 @@ void tc_aot_sub_indent(char *out, size_t out_size, const char *base, int levels)
 void tc_aot_emit_c_string(FILE *out, const char *value);
 
 /*
- * 既有-4：`slots[]` 只在存在运行时槽位（或嵌入模式）时声明——保持「纯常量程序
+ * `slots[]` 只在存在运行时槽位（或嵌入模式）时声明——保持「纯常量程序
  * 不发射槽位机器」的 codegen 不变式（AOT 用例 `run_codegen_not_contains
  * let_constant.tc "slots["`）。但零槽位程序仍可能发 `ptr_load` / `ptr_store` /
  * `memcopy_unsafe`（如 `let p: ptr<int32> = nullptr` 后写入），此时运行期签名
