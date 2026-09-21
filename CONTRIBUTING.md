@@ -11,6 +11,7 @@ English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 - C99 编译器、CMake、Make
 - Python 3（静态结构检查脚本）
 - TC-AOT `--run` 需要可用的宿主 `cc`（gcc/clang 风格；Windows 请用 MinGW，勿用 MSVC）
+- 覆盖率报告（可选）：`lcov`（见根目录 [README.md](README.md)「测试与质量门禁」）
 
 ```sh
 make
@@ -31,7 +32,9 @@ make hooks
 | 分支 | 用途 |
 | ---- | ---- |
 | `master` | 主开发线 |
-| `tc-0.0.xx` | 版本收口 / 发布相关分支（与 CI 触发分支对齐） |
+| `tc-0.0.41` … `tc-0.0.44` | 版本收口 / 发布相关分支 |
+
+`.github/workflows/ci.yml` 与 `asan.yml` 对 **`master` 以及上表版本分支** 的 `push` / `pull_request` 触发（另支持 `workflow_dispatch`）。向未列入 `branches` 的分支直接 push **不会**跑 GitHub CI。
 
 功能与修复请基于最新 `master`（或维护者指定的版本分支）开短生命周期分支，例如 `fix/…`、`feat/…`、`docs/…`。
 
@@ -70,6 +73,7 @@ bash scripts/run_tests.sh                # VM + AOT + unit
 bash scripts/run_tests.sh --filter <名>  # 缩小 VM 范围时仍建议在 PR 前跑全量或 CI 等价检查
 make test-unit                           # 仅改 tests/unit 时
 make ci                                  # 与远端核心门禁对齐的本地入口
+make ci-coverage                         # 另收集覆盖率（需 lcov）
 ```
 
 | 改动类型 | 额外要求 |
@@ -102,7 +106,7 @@ make ci                                  # 与远端核心门禁对齐的本地�
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)（[English](CHANGELOG.en.md)）
 - 发版步骤：[docs/release-checklist.md](docs/release-checklist.md)（[English](docs/release-checklist.en.md)）
 
-改语言语义、错误码或公开 API 时，同步更新对应 `docs/*-0.0.42.md`（或当前版本设计书）。
+改语言语义、错误码或公开 API 时，同步更新对应 `docs/*-0.0.44.md`（或当前版本设计书）。CI、覆盖率与 sanitizer 命令见根目录 [README.md](README.md)「测试与质量门禁」。
 
 ## Cursor Agent（可选）
 

@@ -31,6 +31,7 @@ test-unit: configure
 test-aot: configure
 	$(CMAKE) --build $(BUILD_DIR) --target check-aot
 
+# 与 ci-coverage 相同；需 lcov
 test-coverage:
 	sh scripts/ci.sh --coverage
 
@@ -46,6 +47,7 @@ memcheck-macos: vm
 ci:
 	sh scripts/ci.sh
 
+# 需 lcov；产物在 gitignored 的 build-coverage/
 ci-coverage:
 	sh scripts/ci.sh --coverage
 

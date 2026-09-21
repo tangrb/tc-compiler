@@ -339,20 +339,28 @@ make memcheck-macos                          # macOS; MallocScribble + leaks
 
 ```sh
 make ci                  # Build, three test groups, and static checks (RHS, naming, type fact source, doc counts)
-make ci-coverage         # Also generate a coverage report
+make ci-coverage         # Same, then collect coverage and generate HTML
 ```
 
-The local entry point is implemented by `scripts/ci.sh` and matches the core five stages in `.github/workflows/ci.yml`. GitHub Actions additionally runs:
+The local entry point is `scripts/ci.sh`, matching the five core stages in `.github/workflows/ci.yml` (build → VM → unit → AOT → structure checks). `--coverage` / `--full` also produces a `--coverage` build and sources `scripts/lcov_compat.sh`.
+
+GitHub Actions runs on **push / pull_request** to `master`, `tc-0.0.41`, `tc-0.0.42`, `tc-0.0.43`, and `tc-0.0.44` (plus `workflow_dispatch`). The CI workflow additionally includes:
 
 - the standard Ubuntu, macOS, and **Windows (MSYS2 UCRT64 / MinGW gcc)** matrix;
 - Ubuntu UBSan;
 - the no-fenv floating-point fallback;
 - benchmark regression;
-- a coverage artifact;
-- a separate Ubuntu ASan workflow;
-- Linux / macOS / Windows binaries and a GitHub Release when a `v*` tag is pushed.
+- a coverage job (uploads the HTML artifact);
+- a separate Ubuntu ASan workflow (`.github/workflows/asan.yml`, same trigger branches as CI);
+- Linux / macOS / Windows binaries and a GitHub Release from `release.yml` when a `v*` tag is pushed.
 
-Coverage HTML is written to `build-coverage/coverage_html/index.html`. The Windows job uses MinGW rather than MSVC because AOT `--run` needs a gcc-style host `cc`.
+The Windows job uses MinGW rather than MSVC because AOT `--run` needs a gcc-style host `cc`.
+
+#### Coverage
+
+Requires **lcov** (macOS: `brew install lcov`; Debian/Ubuntu: `apt install lcov`). Homebrew currently ships lcov **2.5**; Ubuntu 24.04 apt ships **2.0**; 1.x still appears on some distros. `scripts/lcov_compat.sh` picks the RC name (1.x: `lcov_branch_coverage`; 2.x/3.x: `branch_coverage`) and **probes** `--ignore-errors` kinds separately for `lcov` and `genhtml`, so 2.0 does not hard-fail on kinds such as `unmapped` / `gcov` that only exist (or only apply) on later releases.
+
+The `build-coverage/` tree is gitignored. HTML report: `build-coverage/coverage_html/index.html`.
 
 ## Performance Observation
 

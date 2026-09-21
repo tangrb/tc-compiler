@@ -6,7 +6,7 @@
 #   2. 全部测试（VM conformance + Unit + AOT differential）
 #   3. TcRhsKind 分发覆盖检查
 #   4. 源文件命名检查（tc_*.h ↔ tc_*.c）
-#   5. （可选）覆盖率收集与报告
+#   5. （可选）覆盖率收集与报告（需 lcov；经 scripts/lcov_compat.sh）
 #
 # 用法：
 #   bash scripts/ci.sh             # 标准 CI（构建 + 测试 + 静态检查）
@@ -260,7 +260,7 @@ if [ "$DO_COVERAGE" -eq 1 ]; then
         warn "  macOS: brew install lcov"
         warn "  Linux: apt install lcov / yum install lcov"
     else
-        # lcov 1.x vs 2.5+: RC 名与 LLVM gcov 一致性错误
+        # lcov 1.x / Ubuntu 2.0 / Homebrew 2.5：RC 名与 ignore kind 由封装探测
         # shellcheck source=scripts/lcov_compat.sh
         . "$ROOT/scripts/lcov_compat.sh"
         set +e

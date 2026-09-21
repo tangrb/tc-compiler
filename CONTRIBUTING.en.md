@@ -11,6 +11,7 @@ By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.en.m
 - C99 compiler, CMake, Make
 - Python 3 (structure-check scripts)
 - TC-AOT `--run` needs a host `cc` (gcc/clang style; on Windows use MinGW, not MSVC)
+- Coverage reports (optional): `lcov` (see [README.en.md](README.en.md) “Tests and Quality Gates”)
 
 ```sh
 make
@@ -31,7 +32,9 @@ Teaching examples live under [`examples/`](examples/). Full conformance suites a
 | Branch | Purpose |
 | ------ | ------- |
 | `master` | Main development line |
-| `tc-0.0.xx` | Version closeout / release branches (aligned with CI triggers) |
+| `tc-0.0.41` … `tc-0.0.44` | Version closeout / release branches |
+
+`.github/workflows/ci.yml` and `asan.yml` run on **push / pull_request** to **`master` and the version branches above** (`workflow_dispatch` is also enabled). Pushing a branch that is not in `branches` **does not** start GitHub CI.
 
 Open short-lived branches from current `master` (or a maintainer-designated version branch), e.g. `fix/…`, `feat/…`, `docs/…`.
 
@@ -68,6 +71,7 @@ bash scripts/run_tests.sh                # VM + AOT + unit
 bash scripts/run_tests.sh --filter <name>
 make test-unit                           # when changing tests/unit
 make ci                                  # local entry aligned with core remote gates
+make ci-coverage                         # also collect coverage (requires lcov)
 ```
 
 | Change | Extra requirement |
@@ -100,7 +104,7 @@ Match existing `src/` style and `.cursor/rules/coding-standards.mdc`.
 - Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md))
 - Release steps: [docs/release-checklist.en.md](docs/release-checklist.en.md) ([中文](docs/release-checklist.md))
 
-When changing language semantics, error codes, or public APIs, update the matching `docs/*-0.0.42.md` (or current-version specs).
+When changing language semantics, error codes, or public APIs, update the matching `docs/*-0.0.44.md` (or current-version specs). CI, coverage, and sanitizer commands are in the root [README.en.md](README.en.md) “Tests and Quality Gates” section.
 
 ## Cursor Agent (optional)
 

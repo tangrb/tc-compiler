@@ -3,6 +3,7 @@
 build/
 build-asan/
 build-ci-test/
+build-coverage/
 build-debug/
 build-ubsan/
 

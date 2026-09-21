@@ -1,7 +1,7 @@
 # ASan CI — AddressSanitizer 构建与测试
 #
-# 每次推送到 master / tc-0.0.41 或 PR 时，在 ubuntu-latest 上执行 ASan 构建并运行全部测试。
-# 若发现内存错误（泄漏、越界、使用后释放等），CI 将失败。
+# 每次推送到 master / tc-0.0.41–tc-0.0.44 或 PR 时，在 ubuntu-latest 上
+# 执行 ASan 构建并运行全部测试。若发现内存错误（泄漏、越界、使用后释放等），CI 将失败。
 
 name: ASan
 

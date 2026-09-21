@@ -11,6 +11,8 @@
 
 ### Changed
 
+- GitHub Actions `ci.yml` / `asan.yml` 对 **`tc-0.0.44`** 的 push/PR 触发；覆盖率收集经 `scripts/lcov_compat.sh` 兼容 lcov 1.x、Ubuntu apt 2.0 与 Homebrew 2.5（`lcov` 与 `genhtml` 分开探测 `--ignore-errors`）。根 README、CONTRIBUTING、`docs/README` 已同步 CI 分支、lcov 依赖与 `build-coverage/` 产物路径。
+
 - **语言规范升级至 0.0.44**（口径收敛版，不新增语言能力、不改变程序书写方式；诊断码仍 **86** 码 = 74 `TC_CE_*` + 12 `TC_RE_*`）。新增规范文本 `docs/TC语言标准设计说明书-0.0.44.md`。IEEE 754-2019 保留为唯一外部规范性引用。
 - **全部下游设计文档同步至 0.0.44**：编译器标准、VM 详设、VM 命令行参考、AOT 详设、Embed 详设、libtc 设计说明书统一改名为 `*-0.0.44.md`，更新规范基线行、术语（「语法阶段受限恢复」→「结构类语法阶段诊断」）与 D1～D35 变更点（接受集、诊断归属、语义澄清），并为每份文档新增「0.0.44 同步状态」标注（文档先行）。
 - 门禁 `scripts/sync/check_doc_counts.py` 的语言标准事实源改指 0.0.44，并修正提取逻辑（附录 B 终止边界、错误码种类以 `tc_types.h` 的 `TcErrorKind` 为事实源）；**门禁由预先存在失败转为全绿**。

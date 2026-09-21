@@ -36,6 +36,7 @@
 
 | 文档 | 用途 |
 | ---- | ---- |
+| [README.md](../README.md)（[English](../README.en.md)） | 入门、测试与质量门禁、**GitHub CI / 覆盖率** |
 | [CHANGELOG.md](../CHANGELOG.md)（[English](../CHANGELOG.en.md)） | 用户可见变更记录 |
 | [CONTRIBUTING.md](../CONTRIBUTING.md)（[English](../CONTRIBUTING.en.md)） | 贡献流程与测试要求 |
 | [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)（[English](../CODE_OF_CONDUCT.en.md)） | 社区行为准则 |

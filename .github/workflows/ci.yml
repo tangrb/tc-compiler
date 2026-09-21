@@ -1,8 +1,9 @@
 # CI — 标准构建、测试与覆盖率
 #
-# push / PR 到 master、tc-0.0.41 或手动触发；与 scripts/ci.sh 五阶段对齐：
+# push / PR 到 master、tc-0.0.41–tc-0.0.44 或手动触发；与 scripts/ci.sh 五阶段对齐：
 #   构建 → VM → unit → AOT → check_rhs_coverage + check_source_naming
-# 另含 Windows（MSYS2/MinGW）、MinGW 交叉编译护栏、UBSan、no-fenv、benchmark、覆盖率 artifact。
+# 另含 Windows（MSYS2/MinGW）、MinGW 交叉编译护栏、UBSan、no-fenv、benchmark、
+# 覆盖率 artifact（Collect coverage 经 scripts/lcov_compat.sh，兼容 lcov 2.0/2.5）。
 
 name: CI
 
@@ -253,6 +254,7 @@ jobs:
           cmake --build build-coverage --target check-unit
 
       - name: Collect coverage
+        # Ubuntu apt lcov 2.0 ≠ Homebrew 2.5；封装会探测 lcov/genhtml 各自的 ignore kind
         run: |
           . scripts/lcov_compat.sh
           lcov_with_compat --capture --directory build-coverage \

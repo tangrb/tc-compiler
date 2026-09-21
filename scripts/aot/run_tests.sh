@@ -204,7 +204,8 @@ run_runtime_fail() {
         return
     fi
     # `tc-aot --run` 的 “run failed (exit N)” 必须打印**真实**子进程退出码，
-    # 而不是 system() 的原始 wait status（exit 1 不得显示为 256）。只有生成了宿主
+    # 而不是 system() 的原始 wait status（exit 1 不得显示为 256）或 Windows
+    # 上把非零压成 -1（不得显示为 exit -1，而 $? 仍是 1）。只有生成了宿主
     # 可执行文件（即程序真的运行过）时才要求该行——部分语料其实在静态阶段就被拒。
     if [ -x "$aot_c.out" ] && ! grep -Fq "run failed (exit $aot_status)" "$aot_err"; then
         fail "aot run-failed line missing real exit status ($aot_status): $file" "$file"

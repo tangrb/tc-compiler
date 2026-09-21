@@ -16,6 +16,7 @@ description: >-
 |------|------|
 | 最小回归（改 `.tc` 后） | `bash scripts/run_tests.sh --filter <名>` |
 | 全量 Gate / 合并前 | `make ci` 或 `bash scripts/run_tests.sh` |
+| 覆盖率 | `make ci-coverage`（需 lcov；1.x / 2.0 / 2.5 走 `scripts/lcov_compat.sh`） |
 | 仅单元 | `make test-unit` |
 | ASan | `bash scripts/run_asan_all.sh` |
 | 单文件调试 | `./build/vm/bin/tc-vm tests/valid/foo.tc` |

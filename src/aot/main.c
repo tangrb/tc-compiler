@@ -80,10 +80,11 @@ static char *tc_aot_default_output_path(const char *input_path) {
 }
 
 /** 编译并运行生成的 C 代码（需 host C 编译器）。
- * 非 Windows（glibc / macOS）：拼一条 system() 命令编译 + 运行。
- * Windows（MinGW / msys2）：改用 _spawnv 直接以 argv 数组启动宿主 cc
- * 与生成的 exe，绕开 cmd.exe / bash 的命令行词法解析（实测 msys2 的
- * system() 对含多路径 / 引号 / && 的长 gcc 命令解析不稳定）。 */
+ * 非 Windows（glibc / macOS）：拼一条 system() 命令编译 + 运行，并按
+ * POSIX wait status 拆出真实退出码（exit 1 → 1，而非 256）。
+ * Windows（MinGW / MSYS2）：把编译＋运行写入临时 .bat 再 system()
+ * （直接拼 `cmd && cmd` 会在 cmd.exe 词法层失败）。返回值须是子进程
+ * 退出码，不得把所有非零压成 -1，否则 “run failed (exit N)” 与 $? 对不上。 */
 static int tc_aot_run_generated(const char *c_path) {
     char cmd[8192];
     const char *cc;
@@ -445,7 +446,9 @@ int main(int argc, char **argv) {
 
     tc_typed_program_free(&program);
 
-    /* 可选：编译并运行 */
+    /* 可选：编译并运行。stderr 打印 tc_aot_run_generated 的子进程码；
+     * 本进程仍映射为 0/1。runtime_fail harness 用 $? 去 grep
+     * “run failed (exit N)”，因此 N 必须与进程退出码一致（失败为 1）。 */
     if (run_mode) {
         rc = tc_aot_run_generated(output_path);
         if (rc != 0) {
@@ -455,5 +458,6 @@ int main(int argc, char **argv) {
 
     free(owned_output_path);
     tc_diagnostic_clear(&diag);
+    /* CLI 约定退出 0/1；真实子进程码只出现在上面的 run failed 行 */
     return rc == 0 ? 0 : 1;
 }

@@ -33,6 +33,7 @@ static int tc_static_var_operand_valid(const TcOperand *operand, int current_stm
 static int tc_static_var_rhs_valid(const TcRhs *rhs, int current_stmt_index,
                                    const TcMemberIndex *members, int line, TcDiagnostic *diag);
 
+/* 去重追加 Self 成员名（strdup）。失败时 diag 已填 OOM。 */
 static int tc_name_list_push(char ***names, size_t *count, size_t *capacity, const char *name,
                              TcDiagnostic *diag) {
     char *copy = NULL;
@@ -67,6 +68,11 @@ static int tc_name_list_push(char ***names, size_t *count, size_t *capacity, con
     return 0;
 }
 
+/*
+ * 释放 names[0..count) 与数组本身。逐项 free 后须把槽位置 NULL，
+ * 以便本函数在 error / 循环结束时收回剩余项且不 double-free。
+ * cleanup: 不负责 deps —— 任何 goto cleanup 前必须先调用本函数。
+ */
 static void tc_name_list_free(char **names, size_t count) {
     size_t i = 0;
 
@@ -867,6 +873,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
             int *edge_items = NULL;
 
             if (from < 0) {
+                /* 非 static let 名：丢掉本槽，其余仍由 tc_name_list_free 收回 */
                 free(deps[d]);
                 deps[d] = NULL;
                 continue;

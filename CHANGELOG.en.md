@@ -11,6 +11,8 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ### Changed
 
+- GitHub Actions `ci.yml` / `asan.yml` now trigger on **`tc-0.0.44`** push/PR. Coverage collection goes through `scripts/lcov_compat.sh` for lcov 1.x, Ubuntu apt 2.0, and Homebrew 2.5 (`lcov` and `genhtml` probe `--ignore-errors` kinds separately). Root README, CONTRIBUTING, and `docs/README` document the CI branches, the lcov dependency, and the gitignored `build-coverage/` output.
+
 - **Language specification upgraded to 0.0.44** (an errata/convergence release: no new language capabilities, no change to how programs are written; the diagnostic-code set stays at **86** = 74 `TC_CE_*` + 12 `TC_RE_*`). Added `docs/TC语言标准设计说明书-0.0.44.md`. IEEE 754-2019 remains the only external normative reference.
 - **All downstream design documents synced to 0.0.44**: compiler specification, VM design, VM command reference, AOT design, Embed design, and libtc design were renamed to `*-0.0.44.md`, with baseline lines, terminology ("restricted recovery" → "structural-class syntax-stage diagnostic"), and D1–D35 change points realigned; each document gained a "0.0.44 sync status" section (docs-first).
 - `scripts/sync/check_doc_counts.py` now reads the 0.0.44 specification as its fact source, with fixed extraction logic (appendix B boundary; error-kind count taken from the `TcErrorKind` enum); the previously failing gate is green again.

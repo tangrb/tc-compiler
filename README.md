@@ -339,20 +339,28 @@ make memcheck-macos                          # macOS；MallocScribble + leaks
 
 ```sh
 make ci                  # 构建、三组测试、RHS/命名/类型事实源/文档数字等静态检查
-make ci-coverage         # 额外生成覆盖率报告
+make ci-coverage         # 同上，并收集覆盖率、生成 HTML
 ```
 
-本地入口由 `scripts/ci.sh` 实现，与 `.github/workflows/ci.yml` 的核心五阶段一致。GitHub Actions 还运行：
+本地入口是 `scripts/ci.sh`，与 `.github/workflows/ci.yml` 的核心五阶段一致（构建 → VM → unit → AOT → 静态结构检查）。`--coverage` / `--full` 会再编一份 `--coverage` 构建并调用 `scripts/lcov_compat.sh`。
+
+GitHub Actions 在 **push / pull_request** 到 `master`、`tc-0.0.41`、`tc-0.0.42`、`tc-0.0.43`、`tc-0.0.44` 时运行（也可 `workflow_dispatch`）。CI 工作流额外包含：
 
 - Ubuntu、macOS 与 **Windows（MSYS2 UCRT64 / MinGW gcc）** 标准矩阵；
 - Ubuntu UBSan；
 - no-fenv 浮点后备路径；
 - benchmark 回归；
-- coverage artifact；
-- 独立 Ubuntu ASan 工作流；
-- 打 `v*` tag 时构建 Linux / macOS / Windows 二进制并创建 GitHub Release。
+- coverage 作业（上传 HTML artifact）；
+- 独立 Ubuntu ASan 工作流（`.github/workflows/asan.yml`，触发分支与 CI 相同）；
+- 打 `v*` tag 时由 `release.yml` 构建 Linux / macOS / Windows 二进制并创建 GitHub Release。
 
-覆盖率 HTML 输出到 `build-coverage/coverage_html/index.html`。Windows 作业使用 MinGW 而非 MSVC：AOT `--run` 需要 gcc 风格的 host `cc`。
+Windows 作业使用 MinGW 而非 MSVC：AOT `--run` 需要 gcc 风格的 host `cc`。
+
+#### 覆盖率
+
+需要已安装 **lcov**（macOS：`brew install lcov`；Debian/Ubuntu：`apt install lcov`）。Homebrew 当前为 lcov **2.5**，Ubuntu 24.04 apt 为 **2.0**；1.x 仍见于部分发行版。`scripts/lcov_compat.sh` 按版本选择 RC 名（1.x：`lcov_branch_coverage`；2.x/3.x：`branch_coverage`），并**分别**探测 `lcov` 与 `genhtml` 可接受的 `--ignore-errors` kind，避免 2.0 因 `unmapped` / `gcov` 等差异硬失败。
+
+产物目录 `build-coverage/` 已列入 `.gitignore`。HTML 报告：`build-coverage/coverage_html/index.html`。
 
 ## 性能观测
 
