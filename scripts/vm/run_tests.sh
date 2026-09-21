@@ -418,6 +418,24 @@ run_expect_check_fail() {
 }
 
 
+run_cli_error_code() {
+    label="$1"
+    should_run "$label" || return 0
+    log_test "CLI $label"
+    path="$(mktemp "${TMPDIR:-/tmp}/tc-cli-err.XXXXXX.tc")"
+    printf '#program\nvar x: int32 = missing\n' > "$path"
+    output="$("$TC_VM_BIN" -e "$path" 2>&1)" || true
+    rm -f "$path"
+    if ! printf '%s' "$output" | grep -q "error \[UndefinedVariable\]"; then
+        fail "cli print-error-code: expected 'error [UndefinedVariable]' in first line" "$label"
+        if [ "$VERBOSE" -eq 1 ]; then
+            printf '%s\n' "$output" >&2
+        fi
+        return
+    fi
+    pass
+}
+
 run_cli_golden() {
     argument="$1"
     expected_status="$2"
@@ -482,14 +500,7 @@ EXPECTED_MISSING="$(mixed_path "$CLI_MISSING_PATH")"
 run_cli_golden "$CLI_MISSING_PATH" 1 "" "$EXPECTED_MISSING: api error: FileOpen: cannot open input file" "cli file-open golden"
 
 # D2：--print-error-code 使诊断首行附错误码名
-CLI_ERR_PATH="$(mktemp "${TMPDIR:-/tmp}/tc-cli-err.XXXXXX.tc")"
-printf '#program\nvar x: int32 = missing\n' > "$CLI_ERR_PATH"
-if "$TC_VM_BIN" -e "$CLI_ERR_PATH" 2>&1 | grep -q "error \[UndefinedVariable\]"; then
-    pass
-else
-    fail "cli print-error-code: expected 'error [UndefinedVariable]' in first line" "$CLI_ERR_PATH"
-fi
-rm -f "$CLI_ERR_PATH"
+run_cli_error_code "cli print-error-code"
 
 run_expect_ok "$ROOT/tests/valid/example.tc"
 run_expect_ok "$ROOT/tests/valid/signed_wrap.tc"

@@ -8,7 +8,7 @@
 2. 按下方目录只打开**一节**账本；改 C 源码不必加载本文件。
 3. 新增用例后：注册 `run_tests.sh` → 更新本文件规模/相关行 → `check_doc_counts.py`。
 
-**规模**（`check_doc_counts.py` 校验）：**1196 VM** · **~568 AOT（注册）** / **568 AOT（执行）** · unit **~3205** `check()`。跑法：Skill `run-tests`。
+**规模**（`check_doc_counts.py` 校验）：**1197 VM** · **~568 AOT（注册）** / **634 AOT（执行）** · unit **~3323** `check()`。跑法：Skill `run-tests`。
 
 ## 目录
 
@@ -179,21 +179,22 @@ deep_recursion · let_chain · io_stress · many_vars_stress · type_combinatori
 |------|---------|--------|
 | test_lexer.c (126) / test_lexer_extended.c (127) | tc_lexer.c | check-lexer / check-lexer-extended |
 | test_semantics.c (508) / test_fp_mod.c (13) | tc_semantics.c / tc_sem_int.c / tc_sem_fp.c / tc_sem_cast.c | check-semantics / check-fp-mod |
-| test_types.c (284) | tc_types.c | check-types |
+| test_types.c (289) | tc_types.c | check-types |
 | test_symbol.c (73) | tc_symbol.c | check-symbol |
 | test_io.c (144) | tc_io.c | check-io |
-| test_bitwise.c (16) / test_shift.c (23) | tc_semantics.c | check-bitwise / check-shift |
-| test_parser.c (156) | tc_parser.c | check-parser |
-| test_analyzer.c (296) | tc_analyzer*.c + tc_cfg.c + tc_const_eval.c；静态 bool 三态、DFA、诊断优先级 | check-analyzer |
-| test_diagnostic.c (33) / test_libtc.c (95) | diagnostic / libtc ownership | check-diagnostic / check-libtc |
+| test_bitwise.c (16) / test_shift.c (24) | tc_semantics.c | check-bitwise / check-shift |
+| test_parser.c (172) | tc_parser.c | check-parser |
+| test_analyzer.c (302) | tc_analyzer*.c + tc_cfg.c + tc_const_eval.c；静态 bool 三态、DFA、诊断优先级 | check-analyzer |
+| test_diagnostic.c (53) / test_libtc.c (109) | diagnostic / libtc ownership | check-diagnostic / check-libtc |
 | test_cfg.c (91) / test_executor.c (20) | CFG 静态条件边与逻辑读集 / executor | check-cfg / check-executor |
 | test_stmt_index.c (18) | tc_stmt_index.h | check-stmt-index |
 | test_warning.c (59) | tc_warning.c | check-warning |
-| test_type_check.c (54) | tc_type_check.c + analyzer 管线 | check-type-check |
-| test_module.c (65) | tc_module.c（含菱形 import） | check-module |
-| test_struct_field_access.c (34) | tc_struct_check.c + analyzer（字段读 / const 复合 / static let memblock 计数） | check-struct-field-access |
-| test_embed.c (590) / test_embed_aot.c (380) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
+| test_type_check.c (56) | tc_type_check.c + analyzer 管线 | check-type-check |
+| test_module.c (64) | tc_module.c（含菱形 import） | check-module |
+| test_struct_field_access.c (36) | tc_struct_check.c + analyzer（字段读 / const 复合 / static let memblock 计数） | check-struct-field-access |
+| test_endianness.c (16) | memblock / struct 固定 LE 布局 | check-endianness |
+| test_embed.c (606) / test_embed_aot.c (401) | tc_embed.c / tc_aot_codegen.c | check-embed / check-embed-aot |
 
-AOT（`scripts/aot/run_tests.sh`）：**568** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**568** 执行通过项（另含 `run_runtime_fail`、embed codegen 等）。历史 Release Gate **272** 仅作基线参考。
+AOT（`scripts/aot/run_tests.sh`）：**568** 注册项（`run_diff_test` + `run_check_ok/fail` + CLI golden）；**634** 执行通过项（另含 `run_runtime_fail`、embed codegen、相对路径 `-r`、`-I` 上限等）。历史 Release Gate **272** 仅作基线参考。
 
 新用例注册 `scripts/vm/run_tests.sh`（+ AOT 如适用）；同步本文件 + `@knowledge-graph` + 对应 `kg-*.md` + `features/*.md`。

@@ -15,7 +15,9 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
                 vs .cursor/skills/tc-architecture/test-map.md「N VM」
   - AOT 用例规模：scripts/aot/run_tests.sh 的 run_diff_test/run_check_ok/
                 run_check_fail/run_aot_cli_golden 注册数
-                vs test-map.md「~N AOT（注册）」
+                vs test-map.md「~N AOT（注册）」；执行项另含 runtime_fail /
+                codegen / embed codegen / CLI 相对路径与 -I 上限
+                vs 「N AOT（执行）」
 
 unit「约 N check()」为约值（跨多个 cmake target 动态编译），不在此校验。
 
@@ -30,8 +32,23 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 VM_CALL_RE = (
-    r"^\s*(?:run_expect_\w+|run_cli_golden|run_with_stdin|"
+    r"^\s*(?:run_expect_\w+|run_cli_\w+|run_with_stdin|"
     r"run_include_search|run_include_path_limit|run_ambiguous_import)\s+"
+)
+
+AOT_REGISTER_HELPERS = (
+    "run_diff_test",
+    "run_check_ok",
+    "run_check_fail",
+    "run_aot_cli_golden",
+)
+AOT_EXEC_HELPERS = AOT_REGISTER_HELPERS + (
+    "run_runtime_fail",
+    "run_codegen_contains",
+    "run_codegen_not_contains",
+    "run_codegen_embed_contains",
+    "run_codegen_embed_not_contains",
+    "run_aot_relative_run",
 )
 
 
@@ -80,6 +97,15 @@ def count_error_kinds(tc_types_h):
 def count_vm_test_calls(vm_sh):
     """统计会调用 pass() 的测试注册行（排除 run_expect_* 等 helper 定义）。"""
     return len(re.findall(VM_CALL_RE, vm_sh, re.M))
+
+
+def count_aot_helper_calls(aot_sh, names):
+    """统计 AOT helper 调用行（排除 `name() {` 定义）。"""
+    total = 0
+    for name in names:
+        total += len(re.findall(
+            r"^\s*" + re.escape(name) + r"(?:\s+|$)", aot_sh, re.M))
+    return total
 
 
 def main():
@@ -169,19 +195,27 @@ def main():
     if vm_actual is not None and vm_doc is not None and vm_actual != vm_doc:
         failures.append(f"VM 用例规模：run_tests.sh 注册 {vm_actual}，test-map 写 {vm_doc}")
 
-    # ---- 4. AOT 用例规模（注册行）--------------------------------------
-    # 与 VM_CALL_RE 一致：注册行是「函数名 + 空格 + 实参」的调用，
-    # helper 定义（`run_xxx() {`）不算注册项，故用 (?!\s*\() 排除。
+    # ---- 4. AOT 用例规模（注册行 + 执行项）------------------------------
     aot_sh = read("scripts/aot/run_tests.sh")
-    aot_actual = (len(re.findall(r"run_diff_test(?!\s*\()", aot_sh))
-                  + len(re.findall(r"run_check_ok(?!\s*\()", aot_sh))
-                  + len(re.findall(r"run_check_fail(?!\s*\()", aot_sh))
-                  + len(re.findall(r"run_aot_cli_golden(?!\s*\()", aot_sh)))
+    aot_actual = count_aot_helper_calls(aot_sh, AOT_REGISTER_HELPERS) if aot_sh else None
     m = re.search(r"~(\d+) AOT（注册）", test_map) if test_map else None
     aot_doc = int(m.group(1)) if m else None
-    if aot_doc is not None and aot_actual != aot_doc:
+    if aot_actual is not None and aot_doc is not None and aot_actual != aot_doc:
         failures.append(
             f"AOT 用例规模（注册）：run_tests.sh 注册 {aot_actual}，test-map 写 {aot_doc}")
+
+    aot_exec_actual = None
+    if aot_sh:
+        aot_exec_actual = count_aot_helper_calls(aot_sh, AOT_EXEC_HELPERS)
+        if "CLI aot -I path limit" in aot_sh:
+            aot_exec_actual += 1
+    m = re.search(r"(\d+) AOT（执行）", test_map) if test_map else None
+    aot_exec_doc = int(m.group(1)) if m else None
+    if (aot_exec_actual is not None and aot_exec_doc is not None
+            and aot_exec_actual != aot_exec_doc):
+        failures.append(
+            f"AOT 用例规模（执行）：run_tests.sh 执行 {aot_exec_actual}，"
+            f"test-map 写 {aot_exec_doc}")
 
     # ---- 汇总 ------------------------------------------------------------
     if failures:
