@@ -8,11 +8,12 @@
 # lcov 2.5 treats --rc lcov_branch_coverage=1 as a hard error; the
 # replacement is branch_coverage. LLVM gcov also emits inconsistent
 # branch records that 2.x rejects unless ignored. Ignore-kind names
-# differ across 2.0 (Ubuntu apt) and 2.5 (Homebrew), so each kind is
-# probed instead of hard-coded.
+# differ across 2.0 (Ubuntu apt) and 2.5 (Homebrew), and lcov vs
+# genhtml do not accept the same set, so each tool/kind is probed.
 
 LCOV_BRANCH_RC="lcov_branch_coverage=1"
 LCOV_IGNORE_KINDS=""
+GENHTML_IGNORE_KINDS=""
 
 _lcov_try_ignore() {
     _kind="$1"
@@ -32,18 +33,36 @@ _lcov_try_ignore() {
     unset _kind _out
 }
 
+_genhtml_try_ignore() {
+    _kind="$1"
+    _dir="${TMPDIR:-/tmp}/genhtml_probe_$$"
+    mkdir -p "$_dir" || return 0
+    _out=$(genhtml --ignore-errors "$_kind" /dev/null \
+        --output-directory "$_dir" --rc "$LCOV_BRANCH_RC" 2>&1) || true
+    rm -rf "$_dir"
+    case "$_out" in
+    *"unknown argument for --ignore-errors"*)
+        ;;
+    *)
+        if [ -n "$GENHTML_IGNORE_KINDS" ]; then
+            GENHTML_IGNORE_KINDS="$GENHTML_IGNORE_KINDS,$_kind"
+        else
+            GENHTML_IGNORE_KINDS="$_kind"
+        fi
+        ;;
+    esac
+    unset _kind _out _dir
+}
+
 _lcov_ver="$(lcov --version 2>/dev/null || true)"
 case "$_lcov_ver" in
 *"version 2."*|*"version 3."*)
     LCOV_BRANCH_RC="branch_coverage=1"
-    _lcov_try_ignore deprecated
-    _lcov_try_ignore mismatch
-    _lcov_try_ignore gcov
-    _lcov_try_ignore source
-    _lcov_try_ignore unmapped
-    _lcov_try_ignore unused
-    _lcov_try_ignore unsupported
-    _lcov_try_ignore inconsistent
+    for _k in deprecated mismatch gcov source unmapped unused unsupported inconsistent; do
+        _lcov_try_ignore "$_k"
+        _genhtml_try_ignore "$_k"
+    done
+    unset _k
     ;;
 esac
 unset _lcov_ver
@@ -57,8 +76,8 @@ lcov_with_compat() {
 }
 
 genhtml_with_compat() {
-    if [ -n "$LCOV_IGNORE_KINDS" ]; then
-        command genhtml "$@" --rc "$LCOV_BRANCH_RC" --ignore-errors "$LCOV_IGNORE_KINDS"
+    if [ -n "$GENHTML_IGNORE_KINDS" ]; then
+        command genhtml "$@" --rc "$LCOV_BRANCH_RC" --ignore-errors "$GENHTML_IGNORE_KINDS"
     else
         command genhtml "$@" --rc "$LCOV_BRANCH_RC"
     fi
