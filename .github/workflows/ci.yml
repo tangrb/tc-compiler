@@ -254,18 +254,16 @@ jobs:
 
       - name: Collect coverage
         run: |
-          lcov --capture --directory build-coverage \
-            --output-file build-coverage/coverage_raw.info \
-            --rc lcov_branch_coverage=1
-          lcov --remove build-coverage/coverage_raw.info \
+          . scripts/lcov_compat.sh
+          lcov_with_compat --capture --directory build-coverage \
+            --output-file build-coverage/coverage_raw.info
+          lcov_with_compat --remove build-coverage/coverage_raw.info \
             '*/tests/*' \
-            --output-file build-coverage/coverage.info \
-            --rc lcov_branch_coverage=1
-          genhtml build-coverage/coverage.info \
+            --output-file build-coverage/coverage.info
+          genhtml_with_compat build-coverage/coverage.info \
             --output-directory build-coverage/coverage_html \
-            --rc lcov_branch_coverage=1 \
             --title "TC-Compiler Coverage"
-          lcov --summary build-coverage/coverage.info --rc lcov_branch_coverage=1
+          lcov_with_compat --summary build-coverage/coverage.info
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

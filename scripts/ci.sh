@@ -260,20 +260,21 @@ if [ "$DO_COVERAGE" -eq 1 ]; then
         warn "  macOS: brew install lcov"
         warn "  Linux: apt install lcov / yum install lcov"
     else
+        # lcov 1.x vs 2.5+: RC 名与 LLVM gcov 一致性错误
+        # shellcheck source=scripts/lcov_compat.sh
+        . "$ROOT/scripts/lcov_compat.sh"
         set +e
-        lcov --capture --directory "$COVERAGE_BUILD_DIR" \
-            --output-file "$COVERAGE_BUILD_DIR/coverage_raw.info" \
-            --rc lcov_branch_coverage=1 2>&1
+        lcov_with_compat --capture --directory "$COVERAGE_BUILD_DIR" \
+            --output-file "$COVERAGE_BUILD_DIR/coverage_raw.info" 2>&1
         if [ $? -ne 0 ]; then
             fail "lcov capture 失败"
         else
             pass "覆盖率原始数据收集成功"
         fi
 
-        lcov --remove "$COVERAGE_BUILD_DIR/coverage_raw.info" \
+        lcov_with_compat --remove "$COVERAGE_BUILD_DIR/coverage_raw.info" \
             '*/tests/*' \
-            --output-file "$COVERAGE_BUILD_DIR/coverage.info" \
-            --rc lcov_branch_coverage=1 2>&1
+            --output-file "$COVERAGE_BUILD_DIR/coverage.info" 2>&1
         if [ $? -ne 0 ]; then
             fail "覆盖率数据过滤失败"
         else
@@ -281,9 +282,8 @@ if [ "$DO_COVERAGE" -eq 1 ]; then
         fi
 
         info "生成 HTML 报告..."
-        genhtml "$COVERAGE_BUILD_DIR/coverage.info" \
+        genhtml_with_compat "$COVERAGE_BUILD_DIR/coverage.info" \
             --output-directory "$COVERAGE_BUILD_DIR/coverage_html" \
-            --rc lcov_branch_coverage=1 \
             --title "TC-Compiler Coverage" 2>&1
         if [ $? -ne 0 ]; then
             fail "覆盖率报告生成失败"
@@ -291,9 +291,8 @@ if [ "$DO_COVERAGE" -eq 1 ]; then
             pass "覆盖率报告已生成：${COVERAGE_BUILD_DIR}/coverage_html/index.html"
         fi
 
-        # 打印摘要
         echo ""
-        lcov --summary "$COVERAGE_BUILD_DIR/coverage.info" --rc lcov_branch_coverage=1 2>&1
+        lcov_with_compat --summary "$COVERAGE_BUILD_DIR/coverage.info" 2>&1
         echo ""
     fi
 fi
