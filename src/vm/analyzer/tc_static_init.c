@@ -67,6 +67,18 @@ static int tc_name_list_push(char ***names, size_t *count, size_t *capacity, con
     return 0;
 }
 
+static void tc_name_list_free(char **names, size_t count) {
+    size_t i = 0;
+
+    if (!names) {
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        free(names[i]);
+    }
+    free(names);
+}
+
 static int tc_collect_self_from_operand(const TcOperand *operand, char ***names, size_t *count,
                                         size_t *capacity, TcDiagnostic *diag) {
     const char *base = NULL;
@@ -845,10 +857,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
 
         if (tc_collect_self_member_names(&entries[i].def->rhs, &deps, &dep_count, &dep_cap,
                                          diag) != 0) {
-            for (d = 0; d < dep_count; d++) {
-                free(deps[d]);
-            }
-            free(deps);
+            tc_name_list_free(deps, dep_count);
             rc = -1;
             goto cleanup;
         }
@@ -859,6 +868,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
 
             if (from < 0) {
                 free(deps[d]);
+                deps[d] = NULL;
                 continue;
             }
             /*
@@ -879,7 +889,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
                 }
                 tc_diagnostic_set(diag, TC_CE_UNDEFINED_VARIABLE, entries[to].def->line,
                                   TC_COLUMN_UNKNOWN, msg);
-                free(deps[d]);
+                tc_name_list_free(deps, dep_count);
                 rc = -1;
                 goto cleanup;
             }
@@ -887,11 +897,7 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
                 size_t new_cap = adj_cap[from] == 0 ? 4 : adj_cap[from] * 2;
                 edge_items = (int *)realloc(adj[from], new_cap * sizeof(int));
                 if (!edge_items) {
-                    size_t k = 0;
-                    for (k = d; k < dep_count; k++) {
-                        free(deps[k]);
-                    }
-                    free(deps);
+                    tc_name_list_free(deps, dep_count);
                     tc_diagnostic_set(diag, TC_ERR_OUT_OF_MEMORY, 0, TC_COLUMN_UNKNOWN,
                                       "memory allocation failed");
                     rc = -1;
@@ -903,8 +909,9 @@ int tc_func_eval_static_lets(TcProgram *program, TcSymbolTable *symbols,
             adj[from][adj_count[from]++] = to;
             in_degree[to]++;
             free(deps[d]);
+            deps[d] = NULL;
         }
-        free(deps);
+        tc_name_list_free(deps, dep_count);
     }
 
     for (i = 0; i < entry_count; i++) {

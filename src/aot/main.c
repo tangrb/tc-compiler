@@ -183,7 +183,28 @@ static int tc_aot_run_generated(const char *c_path) {
         rc = system(bpath);
         free(bpath);
         (void)remove(bat_path);
-        return rc == 0 ? 0 : -1;
+        if (rc == 0) {
+            return 0;
+        }
+        if (rc == -1) {
+            return -1;
+        }
+        /*
+         * MinGW/MSVC 的 system() 通常直接返回 cmd 退出码（1–255）。
+         * MSYS 有时仍给 POSIX wait status（exit 1 → 256）。不要把所有
+         * 非零压成 -1，否则 stderr 打出 “run failed (exit -1)” 而进程
+         * 退出码仍是 1，runtime_fail harness 对不上。
+         */
+        if (rc > 255) {
+            if ((rc & 0x7f) == 0) {
+                return (rc >> 8) & 0xff;
+            }
+            if ((rc & 0x7f) != 0x7f) {
+                return 128 + (rc & 0x7f);
+            }
+            return -1;
+        }
+        return rc;
     }
 #else
     /*
