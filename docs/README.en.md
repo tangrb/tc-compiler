@@ -21,14 +21,16 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
 
-## 0.0.45 drafts (not yet in the language specification)
+## 0.0.45 (frozen; not yet in the 0.0.44 implementation)
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC language specification 0.0.45](TC语言标准设计说明书-0.0.45.md) | **0.0.45 language standard draft**: `ref<T>` (managed reference) and `addr<T>` (linear address) spaces, public-IR text-form positioning |
-| [TC compiler standard 0.0.45](TC编译器标准设计说明书-0.0.45.md) | **0.0.45 compiler standard draft**: checks aligned with the language spec, typed intermediate form and lowering contract (§1.4), local checkability (§1.5), call-depth bound (§8.10) |
+| [TC language specification 0.0.45](TC语言标准设计说明书-0.0.45.md) | **0.0.45 frozen language standard**: `ref<T>` (managed reference) and `addr<T>` (linear address) spaces, public-IR text-form positioning |
+| [TC compiler standard 0.0.45](TC编译器标准设计说明书-0.0.45.md) | **0.0.45 frozen compiler standard**: checks aligned with the language spec, typed intermediate form and lowering contract (§1.4), local checkability (§1.5), call-depth bound (§8.10) |
 
 > The table above is the design source for a 0.0.45 language increment, **not** part of the shipping 0.0.44 language specification. Until it is implemented and merged into the language spec, the set of legal programs remains 0.0.44.
+>
+> **Frozen (2026-09-26)**: both 0.0.45 design documents moved from draft to frozen text (status line, scope of effect, change policy, and the compiler standard's lockstep-versioning clause); the anchor is the `spec-0.0.45` tag. After the freeze only errata are accepted and any semantic change requires a version bump; errata and cross-version deltas are recorded in `CHANGELOG.md`, never in the design documents themselves.
 
 ## Process records
 
@@ -50,4 +52,4 @@ This directory **no longer keeps** process documents (conformance audit reports,
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.44** (the language specification and shipping design documents are **0.0.44**). The 0.0.45 draft is listed above and is not yet part of the language specification.
+Current core version: **v0.0.44** (the language specification and shipping design documents are **0.0.44**). The frozen 0.0.45 text is listed above and is not yet part of the shipping implementation.

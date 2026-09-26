@@ -150,6 +150,6 @@ cmake --build build --target check-embed check-embed-aot
 | 易错点 | `gotchas.md` |
 | 加载分级 / 工作流 | **本 README** |
 | 错误码表（查码用） | `errors.md`（rg，勿通读）· 语言标准附录 B **86** 码 + OOM = 实现 **87** |
-| 0.0.45 草案码表一致性 | 语言标准附录 B ↔ 编译器 §11.4（`check_error_codes.py`） |
+| 0.0.45 冻结文本码表一致性 | 语言标准附录 B ↔ 编译器 §11.4（`check_error_codes.py`） |
 
 新模块：`locations.md` · `features.md` · `compiler-src.mdc` · 必要时 `gotchas.md` / `unit-tests-c.mdc`。
