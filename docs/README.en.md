@@ -21,7 +21,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
 
-## 0.0.45 (frozen; not yet in the 0.0.44 implementation)
+## 0.0.45 (freeze candidate; not yet in the 0.0.44 implementation)
 
 | Document | Purpose |
 | -------- | ------- |
@@ -30,7 +30,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 > The table above is the design source for a 0.0.45 language increment, **not** part of the shipping 0.0.44 language specification. Until it is implemented and merged into the language spec, the set of legal programs remains 0.0.44.
 >
-> **Frozen (2026-09-26)**: both 0.0.45 design documents moved from draft to frozen text (status line, scope of effect, change policy, and the compiler standard's lockstep-versioning clause); the anchor is the `spec-0.0.45` tag. After the freeze only errata are accepted and any semantic change requires a version bump; errata and cross-version deltas are recorded in `CHANGELOG.md`, never in the design documents themselves.
+> **Freeze review failed (2026-09-26)**: both 0.0.45 design documents remain **freeze candidates** and do not constitute a frozen specification (the `spec-0.0.45` tag has been withdrawn). Three gaps must be closed first: managed-reference lifetime and dangling references, address-arithmetic value semantics and target word size, and the diagnosis stage of grammar-restricted type positions. Errata-only discipline still applies to any later freeze, and any semantic change requires a version bump; errata and cross-version deltas are recorded in `CHANGELOG.md`, never in the design documents themselves.
 
 ## Process records
 
