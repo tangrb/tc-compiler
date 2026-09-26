@@ -114,10 +114,10 @@ def main():
     if len(ls_set) != len(ls_codes):
         dup = sorted({c for c in ls_codes if ls_codes.count(c) > 1})
         failures.append(f"附录 B：同一码在表内重复出现 {dup}")
-    if (len(ls_set), len(ls_ce), len(ls_re)) != (86, 73, 13):
+    if (len(ls_set), len(ls_ce), len(ls_re)) != (87, 73, 14):
         failures.append(
             f"附录 B：实际 {len(ls_set)} 码（{len(ls_ce)} TC_CE_* + {len(ls_re)} TC_RE_*），"
-            "应为 86（73 + 13）")
+            "应为 87（73 + 14）")
     m = re.search(r"共 (\d+) 码\*\* = (\d+) `TC_CE_\*` \+ (\d+) `TC_RE_\*`", lang)
     if not m:
         failures.append("附录 B：未找到「共 N 码 = N TC_CE_* + N TC_RE_*」声称值")

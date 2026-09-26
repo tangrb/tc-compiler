@@ -1,9 +1,9 @@
 # TC 编译器标准设计说明书
 
-> **版本**：0.0.45（冻结候选，缺口未闭合）
+> **版本**：0.0.45（冻结候选，缺口已闭合，待复评）
 > **规范基线**：[TC 语言标准 0.0.45](./TC语言标准设计说明书-0.0.45.md)（冻结候选）；正文 `[语言标准 §x]` 均指该版本。
 > **成对升版**：本说明书与语言标准成对升版——语言标准冻结文本的任何勘误或变更都必须同步修订本说明书并升级版本号，两者版本号不得脱钩。
-> **状态**：冻结评估未通过，本文本**不构成冻结标准**；缺口闭合并复评通过前，仓库内实现仍以 0.0.44 编译器标准为准。
+> **状态**：冻结评估未通过，本文本**不构成冻结标准**；三处缺口已于 2026-09-26 闭合（悬垂引用检查 §3.2／§6.7、地址算术与字长 §3.5／§3.8、受限类型位置的诊断阶段 §6.4／§6.5／§6.8.2），**待复评**；复评通过前，仓库内实现仍以 0.0.44 编译器标准为准。
 > **变更策略**：冻结后仅接受勘误，任何语义变更必须升级版本号；修订历史与跨版本差异不属于本说明书正文。
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）
 
@@ -462,6 +462,7 @@
 - **`ref_of` 可变性**：仅接受 `var` / `static var` / 形参，且绑定声明类型须 ∈ `ref_pointee_type`——**`addr<T>` 类型的绑定不可取引用**（`ref<addr<T>>` 不是合法类型，[语言标准 §3.10.1]）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ref_of` 非编译期常量，出现在 `const_rhs` 中属**语法拒绝**（`TC_CE_SYNTAX`）。
 - **`ref_store` 可变性**：判据是**所指外层绑定**，与持有引用的绑定自身是否为 `let` 无关。`ref_of` 只接受可写目标，故实际可达的只读来源是形参取引用及由其复制的引用——命中 → `TC_CE_CONSTANT_ASSIGNMENT`（形参直接赋值/`read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT`）。`let p: ref<T> = none` 一类常量空引用不报静态码，按空引用运行时分类处理。
 - **空引用运行时分类**：`ref_load` / `ref_store` 遇 `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`ref_eq` / `ref_ne` 允许 `none` 比较，不触发运行时错误。引用没有算术指令，因此不存在「空引用算术」码；地址侧空值码见 §3.8。
+- **悬垂引用检查**：引用值的有效性以其所指**绑定实例**的生命周期为界（[语言标准 §3.10.10]）；`ref_load` / `ref_store` 必须先判定有效性，失效 → `TC_RE_DANGLING_REFERENCE`。引用值必须携带足以判定实例失效的信息，**不得**仅以物理槽地址表示引用，也**不得**因槽复用把已失效引用当作新的有效引用；`ref_eq` / `ref_ne` 不检查有效性，复制失效引用值本身合法。
 - **`bits_of`**：`bits_of(T)`，**无操作数**，返回 `sizeof_bits(T)` 并在编译期内联。它是调用型 RHS：可整条充当 `const_rhs`，不属于 `const_operand`。
 - **I/O 排除**：`write` / `writeln` / `read` 以 `ref<T>` / `addr<T>` 为显式类型属语法拒绝（`TC_CE_SYNTAX`）。
 - **来源跟踪**：编译器应记录引用值来源（`ref_of`、`none`、现有绑定、函数返回值），供可变性交叉验证；这**不改变**静态接受集。
@@ -523,7 +524,7 @@
 **`isize` / `usize` 平台字长约束**：
 
 - **目标字长**：宽度等于目标平台的地址宽度（32 或 64 位）。同一 TC 实现的所有编译单元共享同一目标字长。
-- **本版固定 64 位目标字长**：`isize` / `usize` / 地址宽度与 memblock 长度头均为 64 位。
+- **本版编译器标准固定 64 位目标字长**：`isize` / `usize` / 地址宽度与 memblock 长度头均为 64 位。语言标准允许 32 位或 64 位目标（[语言标准 §3.2.1]；选择属 [语言标准 §1.3] 实现定义清单第 4 项），本文档其余条款按 64 位给出具体位宽。
 - **符号表位宽记录**：编译器必须在符号表中为 `isize`/`usize` 记录目标字长决定的具体位宽（运行时与 `int32`/`int64` 或 `uint32`/`uint64` 等价）。
 
 - **`isize` 算术默认模式**：`isize` 的有符号算术默认 strict 模式，可选 `wrap` 模式，行为与同位宽 `int*` 一致。
@@ -559,7 +560,7 @@
 | 转换形式 | 静态验证 | 运行时检查 | 说明 |
 | -------- | -------- | ------------ | ---- |
 | `cast(T, operand)` | 源、目标可为整数/浮点/`bool`/`ref<U>`→`ref<T>`/`addr<U>`→`addr<T>`。**引用与地址的类型转换均不附加等宽条件**：`ref<U>`→`ref<T>` 仅要求 `U`、`T` 均为合法的引用所指类型（[语言标准 附录 A] 的 `ref_pointee_type`：标量 / `memblock` / 结构体 / `ref`；不含 `void` 与 `addr`；引用值恒等宽，§3.2）；`addr<U>`→`addr<T>` 为**重标记**，`T`、`U` 为标量/`addr<V>`/`void`（含 `void`），不改地址位、不访存（§3.8、[语言标准 §3.11.3]）；不满足 → `TC_CE_TYPE_MISMATCH`。源为 `none`（→ `ref<T>`）或 `nil`（→ `addr<T>`）时无源所指类型，由目标类型定型。`ref<T>` 不可 `cast` 到整数/浮点/`addr<U>`；`addr<T>` 不可 `cast` 到整数/浮点/`ref<U>`（地址与等宽整数的互转须用 `bitcast`，§3.8） | 严格模式：范围检查触发 `TC_RE_CAST_OVERFLOW`；浮点到整数 NaN/无穷 → `TC_RE_CAST_OVERFLOW` | 数值转换含范围检查与规定舍入 |
-| `cast(T, truncate, operand)` | 源与目标必须均为整数且目标更窄（`m < n`）；`m ≥ n` → `TC_CE_MODE_MISMATCH`；不接受非整数类型 | 无溢出检查；保留低 `m` 位 | 仅整数缩窄 |
+| `cast(T, truncate, operand)` | 源与目标必须均为整数且目标更窄（`m < n`）；`m ≥ n` → `TC_CE_MODE_MISMATCH`；目标类型参数非整数属**语法拒绝** `TC_CE_SYNTAX`，源操作数非整数 → `TC_CE_TYPE_MISMATCH` | 无溢出检查；保留低 `m` 位 | 仅整数缩窄 |
 | `bitcast(T, operand)` | 源与目标必须等宽 → `TC_CE_BITCAST_WIDTH`；`bool` 不可参与 → `TC_CE_TYPE_MISMATCH`；memblock/结构体不可参与 → `TC_CE_TYPE_MISMATCH`；**`ref<T>`、`none` 与 `nil` 完全不参与 `bitcast`**（与整数、浮点、其它 `ref<U>`、`addr<U>` 组合均 → `TC_CE_TYPE_MISMATCH`，§3.2；`bitcast(T, none)` 与 `bitcast(T, nil)` 同为非法，[语言标准 §6.6.1.1]、[语言标准 §6.6.6]）；`addr<T>` 与等宽整数/其它 `addr<U>` 可互转（地址往返语义，[语言标准 §6.9.1]）；整数与等宽浮点、等宽整数之间亦可互转 | 无运行时检查；位模式不变 | 等宽位重解释 |
 
 | 项 | 规则 |
@@ -588,11 +589,11 @@
 
 `addr<T>` 以 [语言标准 §3.11] / [语言标准 §6.9] 为准。编译器侧必须：
 
-- **类型参数取值**：`addr<T>` 的 `T` ∈ 标量 \| `addr<U>` \| `void`；`addr<ref<U>>` / `addr<struct>` / `addr<memblock>` → `TC_CE_TYPE_MISMATCH`。
+- **类型参数取值**：`addr<T>` 的 `T` ∈ 标量 \| `addr<U>` \| `void`（附录 A 的 `addr_pointee_type`）；`addr<ref<U>>` / `addr<struct>` / `addr<memblock>` 不在该产生式中，属**语法拒绝** `TC_CE_SYNTAX`（[语言标准 §3.11.1]、[语言标准 §6.9.1]）。
 - **宽度**：`sizeof_bits(addr<T>) = sizeof_bits(usize)`（§3.0.1）。
 
 - **跨空间互不转换**：`ref<T>` 与 `addr<U>` 之间禁止 `cast` / `bitcast` / 隐式转换。
-- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
+- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；结果在目标地址宽度上按模 `2^n` 唯一确定（`n` = `sizeof_bits(usize)`，[语言标准 §6.9.5]），越界只影响后续访问（[语言标准 §1.3] 第 1 项）；**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
 - **空值分类**：`addr_load` / `addr_store` 遇 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_add` / `addr_sub` 遇 `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；`addr_io_load` / `addr_io_store` **不检查空地址**（地址 `0` 合法，不产生空值码）。空值与不可用码共四个，彼此不得混用。
 - **易失档案**：`addr_io_*` 不得删除、合并、转发或重排；`addr_load` / `addr_store` 为普通内存访问，可按 §1.5 与 [语言标准 §1.3] 的变换合法性优化。
 - **常量性**：只有常量 `addr(T, <常量 usize>)` 可整条充当 `const_rhs`（`const_addr_expr`）；`addr_load` / `addr_store` / `addr_io_*` / `addr_add` / `addr_sub` / `addr_eq` / `addr_ne` 不在 `const_rhs` 中（语法拒绝 `TC_CE_SYNTAX`）。
@@ -999,12 +1000,12 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 
 | 运算 | 类型约束 | 操作数约束 | 模式约束 |
 | ---- | -------- | ---------- | -------- |
-| `and` / `or` / `xor` | 仅整数类型（有/无符号均可）或 `bool` | 两个操作数与显式 `T` 一致 | 无模式关键字；按位与布尔逻辑共享同一关键字 |
-| `not` | 仅整数类型或 `bool` | 单操作数与显式 `T` 一致 | 同上 |
+| `and` / `or` / `xor` | 仅整数类型（有/无符号均可）；`bool` 由 §6.5 的逻辑运算处理 | 两个操作数与显式 `T` 一致 | 无模式关键字；按位与布尔逻辑共享同一关键字 |
+| `not` | 仅整数类型；`bool` 由 §6.5 的逻辑 `not` 处理 | 单操作数与显式 `T` 一致 | 同上 |
 | `shl` / `shr` | 仅整数类型 | 移位操作数与显式 `T` 一致；移位计数操作数须为整数类型 | `shl` 有符号默认 strict，可选 `wrap` |
 
-- **规则 1**：浮点类型不得参与位运算 → `TC_CE_TYPE_MISMATCH`。
-- **规则 2**：`ref<T>` / `addr<T>` 不得参与位运算 → `TC_CE_TYPE_MISMATCH`。
+- **规则 1**：位运算与移位的显式类型参数只接受整数类型（附录 A 的 `int_type`）；写入浮点类型属**语法拒绝** `TC_CE_SYNTAX`（[语言标准 §6.4.1.2]）。
+- **规则 2**：`ref<T>` / `addr<T>` / 结构体 / `memblock` 同样不在 `int_type` 中，属**语法拒绝** `TC_CE_SYNTAX`。
 - **规则 3**：`shl`/`shr` 的移位计数按类型 `T` 的数值语义解码：数学值小于 0 → `TC_RE_NEGATIVE_SHIFT_COUNT`（运行时）或 `TC_CE_CONSTANT_EXPRESSION`（编译期，子条件 "negative shift count"）。
 
 ### 6.5 比较与逻辑运算编译器验证
@@ -1015,7 +1016,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 
 | 运算 | 类型约束 | 特殊规则 |
 | ---- | -------- | -------- |
-| `eq` / `ne` / `lt` / `le` / `gt` / `ge` | 显式类型 `T` 可为整数或浮点；不接受 `ref<T>` / `addr<T>` | 操作数类型须与 `T` 一致；标识符操作数声明类型 ≠ `T` → `TC_CE_COMPARISON_TYPE_MISMATCH` |
+| `eq` / `ne` / `lt` / `le` / `gt` / `ge` | 显式类型 `T` 可为整数或浮点（附录 A 的 `compare_expr` 只接受 `int_type` / `float_type`；其余类型参数与 `bool` 属**语法拒绝** `TC_CE_SYNTAX`，[语言标准 §6.5]）；不接受 `ref<T>` / `addr<T>` | 操作数类型须与 `T` 一致；标识符操作数声明类型 ≠ `T` → `TC_CE_COMPARISON_TYPE_MISMATCH` |
 | `ref_eq` / `ref_ne` | 显式类型 `T` 为所指类型；两个操作数同为 `ref<T>` | 同型 `ref<T>` 或 `none`；跨 `ref<T>`/`ref<U>` → `TC_CE_TYPE_MISMATCH` |
 | `addr_eq` / `addr_ne` | 显式类型 `T` 为所指类型（含 `void`）；两个操作数同为 `addr<T>` | `nil` = 地址 0，合法；跨类型 → `TC_CE_TYPE_MISMATCH` |
 
@@ -1030,6 +1031,8 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `xor(bool, ...)` | `bool` | 两个操作数类型为 `bool` | 不短路：两侧均求值 |
 | `not(bool, ...)` | `bool` | 单操作数类型为 `bool` | 不适用 |
 
+逻辑产生式只接受 `bool` 类型参数（附录 A 的 `bool_type`）；写入整数、浮点、`ref<T>` / `addr<T>` 类型属**语法拒绝** `TC_CE_SYNTAX`（[语言标准 §6.5]）。
+
 短路裁剪只免除不可达右操作数的**确定初始化读取检查**（[语言标准 §6.5.2.2]），不免除其词法、语法、名称和类型检查。
 
 ### 6.6 memblock 操作编译器验证
@@ -1040,7 +1043,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 
 | 检查项 | 规则 |
 | ------ | ---- |
-| 显式类型 `T` | 元素类型，须为 `void` 以外的完整类型 |
+| 显式类型 `T` | 元素类型，须为 `void` 以外的完整类型（附录 A 的 `memblock_element_type`）；写入 `void` 属**语法拒绝** `TC_CE_SYNTAX` |
 | 操作数 | `mb` 须为 `memblock<T>` 类型绑定；`index` 须为整数类型操作数 |
 | 结果类型 | `T` |
 | 确定初始化 | `mb` 为运行时 `var` 时须已确定初始化 |
@@ -1051,7 +1054,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 
 | 检查项 | 规则 |
 | ------ | ---- |
-| 显式类型 `T` | 元素类型，须为 `void` 以外的完整类型 |
+| 显式类型 `T` | 元素类型，须为 `void` 以外的完整类型（附录 A 的 `memblock_element_type`）；写入 `void` 属**语法拒绝** `TC_CE_SYNTAX` |
 | 操作数 | `mb` 须为可写 `memblock<T>` 绑定（`let` → `TC_CE_CONSTANT_ASSIGNMENT`）；函数形参 memblock 只可修改其**副本**元素（[语言标准 §8.1.1]），对形参绑定本身赋值 → `TC_CE_PARAMETER_ASSIGNMENT`；`index` 须为整数；`value` 须为 `T` 类型 |
 | 边界检查 | 同 `memblock_load` |
 | 确定初始化 | `mb` 须已确定初始化 |
@@ -1078,17 +1081,21 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 
 | 指令 | 显式类型 | 操作数 | 关键约束 | 编译期常量？ |
 | ---- | -------- | ------ | -------- | ------------ |
-| `ref_load(T, r)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>` | `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`T = bool` 时结果规范化（§6.7.1） | 否 |
-| `ref_store(T, r, value)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>`；`value`: `T` | 所指外层可写；`none` 同上 | 否（语句） |
+| `ref_load(T, r)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>` | `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；失效（悬垂）→ `TC_RE_DANGLING_REFERENCE`；`T = bool` 时结果规范化（§6.7.1） | 否 |
+| `ref_store(T, r, value)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>`；`value`: `T` | 所指外层可写；`none` / 失效同上 | 否（语句） |
 | `ref_of(T, ident)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `ident`: `var` / `static var` / 形参，且其声明类型不得为 `addr<T>`（`ref<addr<T>>` 不是合法类型） | `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`；`T` 须与 `ident` 声明类型严格一致 | 否 |
 | `ref_eq(T, r1, r2)` / `ref_ne(T, r1, r2)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | 同为 `ref<T>` | `none` 合法；两个 `none` 比较 → `true` / `false`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否（`none` 比较可折叠） |
 | `bits_of(T)` | `T`（完整类型，不含 `void`；**含** `ref<U>` / `addr<U>`） | **无操作数** | 返回 `sizeof_bits(T)` 并在编译期内联；可整条充当 `const_rhs`，不属于 `const_operand` | 是 |
+
+**类型参数的语法边界**：`ref_load` / `ref_store` / `ref_of` / `ref_eq` / `ref_ne` 的显式类型参数由附录 A 的 `ref_pointee_type` 限定；写入 `void` 或 `addr<U>` 属**语法拒绝** `TC_CE_SYNTAX`（[语言标准 §3.10.1]、[语言标准 §6.8.7]）。
 
 **禁止的形态**（[语言标准 §3.10.8]）：托管引用**没有**算术与序关系比较指令——`ref_add` / `ref_sub` / `ref_diff` / `ref_lt` 一类形态不在附录 A 中，出现即语法拒绝；`addr_add` / `addr_sub` 属线性地址空间（§6.8），**不得接受 `ref<T>` 操作数**。
 
 **引用操作数的形式**：`ref<T>` 操作数可为任意 `operand`——裸标识符、`Self.<名>`、`<模块名>.<名>`、结构体字段读取、以及 `none`；**仅 `ref_of` 例外**，其标识符限于裸名或限定名（附录 A 已限定）。限定名与字段访问链（`a.b.c`）整条按**一个** `operand` 计，不属于嵌套表达式（[语言标准 §6.1.2]）。
 
 **调用型 RHS**：`ref_load`、`ref_of`、`ref_eq` / `ref_ne`、`bits_of` 均**不属于 `operand`**，只能整条充当 RHS，被嵌套时语法拒绝（`TC_CE_SYNTAX`）；`ref_store` 为独立语句。
+
+**悬垂引用**：有效性判定按 [语言标准 §3.10.10]——引用在其所指绑定实例的生命周期内有效，实例结束时（作用域离开、函数返回）立即失效；`ref_load` / `ref_store` 对失效引用报 `TC_RE_DANGLING_REFERENCE`，`ref_eq` / `ref_ne` 只比较引用值身份、不检查有效性，复制失效引用值本身合法。后端**不得**以裸槽地址表示引用，且槽复用不得使已失效引用重新有效（[语言标准 §3.10.10]「身份不复用」）。
 
 #### 6.7.1 `ref_load` / `ref_store` 的 `bool` 规范化
 
@@ -1107,13 +1114,13 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `addr_store(T, a, v)` | 同上 | `a`: `addr<T>`；`v`: `T` | 同上；写入不适用 `TC_CE_CONSTANT_ASSIGNMENT` | 否（语句） |
 | `addr_io_load(T, a)` | 同上 | `a`: `addr<T>` | **不检查空地址**；易失：次数与顺序可观察 | 否 |
 | `addr_io_store(T, a, v)` | 同上 | 同上 | 同上 | 否（语句） |
-| `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 非 `void` | `a`: `addr<T>`；`n`: `usize` | `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；步长 `sizeof_bytes(T)`；不检查越界 | 否（常量可折叠） |
+| `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 非 `void` | `a`: `addr<T>`；`n`: `usize` | `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；步长 `sizeof_bytes(T)`；结果按模 `2^n` 确定；不检查越界（仅访问实现定义） | 否（常量可折叠） |
 | `addr_eq(T, a, b)` / `addr_ne(T, a, b)` | `T` 任意（含 `void`） | 同为 `addr<T>` | `nil` 合法（即地址 0）；不触发运行时错误 | 否 |
 
 #### 6.8.2 编译器必须执行的检查
 
 1. **类型参数一致性**：`T` 与操作数声明类型严格一致；`addr<void>` 不得用于访问与算术（`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` / `addr_add` / `addr_sub`）；本版不存在地址差、序关系比较与区间拷贝指令，`addr_eq` / `addr_ne` 允许 `addr<void>`。
-2. **非法所指类型**：`addr<ref<U>>` / `addr<struct>` / `addr<memblock>` → `TC_CE_TYPE_MISMATCH`。
+2. **非法所指类型**：`addr<ref<U>>` / `addr<struct>` / `addr<memblock>` 不在附录 A 的 `addr_pointee_type` 中，属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；[语言标准 §3.11.1]）。
 3. **跨空间禁止**：`ref<T>` 不得作为任何 `addr_*` 操作数；`addr<T>` 不得作为任何 `ref_*` 操作数 → `TC_CE_TYPE_MISMATCH`。
 4. **数学值判定**：所有下标 / 长度 / 偏移的负值与边界判定按**数学值**（有符号解码后）进行，不得先按无符号回绕再比较。
 5. **常量折叠**：常量 `addr`、常量 `addr_add` / `addr_sub` 可折叠；结果须与同一指令在抽象机中的运行时结果一致，并与 [语言标准 §6.9.5] 的算术语义、[语言标准 §3.11.3] 的往返语义及 [语言标准 §1.3] 的 as-if 规则保持一致，且不得改变空值与错误分类；折叠不改变 `const_rhs` 接受集，也不得消除 `nil` 操作数的 `TC_RE_NULL_ADDRESS_ARITHMETIC`。
@@ -1121,6 +1128,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 7. **调用型 RHS**：`addr`、`addr_load`、`addr_io_load`、`addr_add`、`addr_sub`、`addr_eq` / `addr_ne` 均**不属于 `operand`**（嵌套 → `TC_CE_SYNTAX`）；`addr_store`、`addr_io_store` 为独立语句。
 8. **不可完成访问**：宿主映射类实现对不可用地址报 `TC_RE_ADDR_UNAVAILABLE`；不得降级为内部错误，也不得回退为槽访问。
 9. **字节序与对齐**：`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` 的字节序按执行访存的目标地址空间确定，不依赖宿主（[语言标准 §3.11.4]）；后端不得把未对齐访问实现为宿主未对齐访存——按字节访问时未对齐不构成错误，不按字节访问时按 [语言标准 §1.3] 第 3 项报 `TC_RE_ADDR_UNAVAILABLE`。
+10. **结果位模式**：`addr_add` / `addr_sub` 的结果必须按模目标地址宽度 `2^n` 确定（`n` = `sizeof_bits(usize)`，[语言标准 §6.9.5]）；不得以宿主指针算术或宿主整数溢出行为（其溢出结果未定义）替代该语义，也不得因折叠而改变。
 
 ---
 
@@ -1675,7 +1683,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 语言错误码与诊断类别一一对应，码不得合并、别名化或以其他错误码代替；布尔 `xor` 与浮点 `mod` 复用既有错误码。打印名在**同一条件的编译期码与运行时码**之间可共用（如 `TC_CE_MEMBLOCK_INDEX_OUT_OF_RANGE` 与对应的 `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE`），由诊断类别与阶段区分；其余情形打印名必须唯一。
 
-本表镜像语言标准附录 B（**86 码 = 73 `TC_CE_*` + 13 `TC_RE_*`**），另记实现资源失败码 `TC_ERR_OUT_OF_MEMORY`（实现枚举共 87）。
+本表镜像语言标准附录 B（**87 码 = 73 `TC_CE_*` + 14 `TC_RE_*`**），另记实现资源失败码 `TC_ERR_OUT_OF_MEMORY`（实现枚举共 88）。
 
 各表的「阶段」列使用实现步骤口径；与 [语言标准 §11] 四步规则的诊断类阶段对应如下：
 
@@ -1692,16 +1700,16 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 
 | 项 | 数值 |
 | ---- | ---- |
-| 语言标准附录 B | **86** 码（73 `TC_CE_*` + 13 `TC_RE_*`） |
-| 实现枚举 | **87** = 86 语言码 + 1 `TC_ERR_OUT_OF_MEMORY` |
+| 语言标准附录 B | **87** 码（73 `TC_CE_*` + 14 `TC_RE_*`） |
+| 实现枚举 | **88** = 87 语言码 + 1 `TC_ERR_OUT_OF_MEMORY` |
 | 本说明书 §11.4 | 镜像附录 B，不另设编译器专用语言码（除实现资源失败码 `TC_ERR_OUT_OF_MEMORY` 外，无附录 B 之外的扩展码） |
-| §11.4.1 | 45 语言码（另列 OOM） |
+| §11.4.1 | 46 语言码（另列 OOM） |
 | §11.4.2 | 18 |
 | §11.4.3 | 4 |
 | §11.4.4 | 8 |
 | §11.4.5 | 10 |
-| §11.4.6 专用 | 1（`TC_RE_ADDR_UNAVAILABLE`；空值三码与 §11.4.1 交叉列出、不另计） |
-| `TC_RE_*` 全集 | 13 |
+| §11.4.6 专用 | 1（`TC_RE_ADDR_UNAVAILABLE`；空值三码与悬垂码与 §11.4.1 交叉列出、不另计） |
+| `TC_RE_*` 全集 | 14 |
 
 **实现专用错误码说明**
 
@@ -1751,6 +1759,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_RE_CAST_OVERFLOW`             | `CastOverflow`               | 转换溢出错误                  | 运行时      | 严格模式 `cast` 无法在目标类型表示                           |
 | `TC_RE_IO`                        | `IOError`                    | I/O 错误                      | 运行时      | `read` 输入非法、EOF、超范围，或标准输入/输出读写失败                 |
 | `TC_RE_NULL_REFERENCE_DEREFERENCE` | `NullReferenceDereference`  | 空引用解引用错误              | 运行时      | `ref_load` / `ref_store` 的操作数为 `none` |
+| `TC_RE_DANGLING_REFERENCE`        | `DanglingReference`         | 悬垂引用解引用错误            | 运行时      | `ref_load` / `ref_store` 的引用所指绑定实例的生命周期已结束（[语言标准 §3.10.10]） |
 | `TC_RE_NULL_ADDRESS_DEREFERENCE`   | `NullAddressDereference`    | 空地址解引用错误              | 运行时      | `addr_load` / `addr_store` 的操作数为 `nil` |
 | `TC_RE_NULL_ADDRESS_ARITHMETIC`    | `NullAddressArithmetic`     | 空地址算术错误                | 运行时      | `addr_add` / `addr_sub` 的地址操作数为 `nil` |
 | `TC_ERR_OUT_OF_MEMORY`             | `OutOfMemory`                | —（实现资源失败）             | 实现        | 实现专用：实际内部分配失败；诊断消息为 `memory allocation failed` |
@@ -1848,6 +1857,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | --- | --- | --- | --- | --- |
 | `TC_RE_ADDR_UNAVAILABLE` | `AddrUnavailable` | 地址不可用 | 运行时 | `addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` 的目标地址在本次执行中不可用（宿主映射类实现未提供该地址空间、地址不在可用区间、未对齐且未按字节访问、或目标硬件拒绝；[语言标准 §1.3] 第 3 项） |
 | `TC_RE_NULL_REFERENCE_DEREFERENCE` | `NullReferenceDereference` | 空引用解引用错误 | 运行时 | `ref_load` / `ref_store` 的操作数为 `none` |
+| `TC_RE_DANGLING_REFERENCE` | `DanglingReference` | 悬垂引用解引用错误 | 运行时 | `ref_load` / `ref_store` 的引用所指绑定实例的生命周期已结束（[语言标准 §3.10.10]） |
 | `TC_RE_NULL_ADDRESS_DEREFERENCE` | `NullAddressDereference` | 空地址解引用错误 | 运行时 | `addr_load` / `addr_store` 的操作数为 `nil` |
 | `TC_RE_NULL_ADDRESS_ARITHMETIC` | `NullAddressArithmetic` | 空地址算术错误 | 运行时 | `addr_add`、`addr_sub` 的地址操作数为 `nil` |
 
@@ -1856,7 +1866,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 - 空值运行时错误按**字面量与操作**分类：`ref_load` / `ref_store` 的 `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`addr_load` / `addr_store` 的 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_add` / `addr_sub` 的 `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；不得互相顶替。`ref_eq` / `ref_ne` 允许 `none`、`addr_eq` / `addr_ne` 允许 `nil` 作操作数，不触发运行时错误。
 - **易失档案不检查空地址**：`addr_io_load` / `addr_io_store` **不检查空地址**（地址 `0` 合法）；它们只可能报 `TC_RE_ADDR_UNAVAILABLE`。
 - 托管引用**没有**算术指令：因此不存在「空引用算术」码；地址空间的两个空值码互不代用。
-- **码总数与镜像**：语言码总数 **86 = 73 `TC_CE_*` + 13 `TC_RE_*`**；本表含 `TC_RE_ADDR_UNAVAILABLE`，空值三码与 §11.4.1 交叉列出、不另计。
+- **码总数与镜像**：语言码总数 **87 = 73 `TC_CE_*` + 14 `TC_RE_*`**；本表含 `TC_RE_ADDR_UNAVAILABLE`，空值三码与悬垂码与 §11.4.1 交叉列出、不另计。
 
 ---
 
