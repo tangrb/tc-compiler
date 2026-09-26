@@ -881,8 +881,8 @@
 | `add`/`sub`/`mul`/`div`/`mod` | 浮点 | strict（无关键字）、`ieee` | |
 | `abs`/`neg` | 浮点 | 无模式关键字；纯符号位操作 | |
 | 比较、逻辑、位运算 | 对应合法类型 | 无模式关键字 | |
-| 所有运算 | `ref<T>` | 全程排除（[语言标准 §3.10.8]） | `TC_CE_TYPE_MISMATCH` |
-| 所有运算 | `addr<T>` | 全程排除：地址算术仅 `addr_add` / `addr_sub`，地址等值比较仅 `addr_eq` / `addr_ne`（§6.8） | `TC_CE_TYPE_MISMATCH` |
+| 所有运算 | `ref<T>` | 全程排除（[语言标准 §3.10.8]） | `TC_CE_TYPE_MISMATCH`；其中作为**类型参数**出现在位运算/移位/比较/逻辑位置时属**语法拒绝** `TC_CE_SYNTAX`（附录 A） |
+| 所有运算 | `addr<T>` | 全程排除：地址算术仅 `addr_add` / `addr_sub`，地址等值比较仅 `addr_eq` / `addr_ne`（§6.8） | `TC_CE_TYPE_MISMATCH`；其中作为**类型参数**出现在位运算/移位/比较/逻辑位置时属**语法拒绝** `TC_CE_SYNTAX`（附录 A） |
 
 ### 6.0.2 浮点执行环境约束（编译器/后端必须遵循）
 
