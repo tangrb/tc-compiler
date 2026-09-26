@@ -229,6 +229,17 @@ else
     pass "文档统计数字检查通过"
 fi
 
+# 5d-2. 0.0.45 草案错误码表一致性（语言标准附录 B ↔ 编译器 §11.4）
+set +e
+python3 "$ROOT/scripts/sync/check_error_codes.py" 2>&1
+ERR_CODE_EXIT=$?
+set -e
+if [ "$ERR_CODE_EXIT" -ne 0 ]; then
+    fail "0.0.45 错误码表一致性检查未通过"
+else
+    pass "0.0.45 错误码表一致性检查通过"
+fi
+
 # 5e. 设计文档不得引用过程性文档
 set +e
 python3 "$ROOT/scripts/sync/check_doc_layering.py" 2>&1
