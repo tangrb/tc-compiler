@@ -74,6 +74,12 @@ COVERAGE = (
     ("属**语法拒绝** `TC_CE_SYNTAX`（[语言标准 §3.10.1]", "引用指令类型参数（编译器标准）", "编译器标准"),
 )
 
+# 不变量清单：(锚点, 说明, 适用文档)——只要求存在，不要求语法拒绝标记
+INVARIANTS = (
+    ("非 `none` 的 `ref<T>` 值恒指向一个**可写绑定实例**", "引用可写性不变量", "语言标准"),
+    ("**不需要可变性分析**", "ref_store 无需来源分析", "编译器标准"),
+)
+
 # 回潮清单：修复前的错误配对措辞（原文），不得再次出现
 REGRESSIONS = (
     "浮点类型不得参与位运算 → `TC_CE_TYPE_MISMATCH`",
@@ -82,6 +88,9 @@ REGRESSIONS = (
     "由 §3.11.1 静态语义拒绝",
     "`ref<U>` / `struct` / `memblock` 报 `TC_CE_TYPE_MISMATCH`",
     "不接受非整数类型",
+    "对形参取引用得到的是只读别名",
+    "经 `ref_of` 取形参引用后再 `ref_store`",
+    "实际可达的只读来源是形参取引用",
 )
 
 
@@ -162,6 +171,11 @@ def main():
                    if anchor in ln and any(m in ln for m in SYNTAX_MARKERS)]
             if not hit:
                 failures.append(f"{doc_name}：{desc} 缺少「{anchor}」+ 语法拒绝声明")
+    for anchor, desc, scope in INVARIANTS:
+        targets = list(docs) if scope == "两份" else [scope]
+        for doc_name in targets:
+            if anchor not in docs[doc_name]:
+                failures.append(f"{doc_name}：{desc} 缺少「{anchor}」")
     for bad in REGRESSIONS:
         for doc_name, doc in (("语言标准", lang), ("编译器标准", comp)):
             if bad in doc:
@@ -173,7 +187,7 @@ def main():
             print(f"  - {f}")
         sys.exit(1)
     print(f"check_grammar_stage: 附录 A 受限类型槽 {len(positions)} 处；"
-          f"覆盖锚点 {len(COVERAGE)} 项、回潮模式 {len(REGRESSIONS)} 项全部通过")
+          f"覆盖锚点 {len(COVERAGE)} + {len(INVARIANTS)} 项、回潮模式 {len(REGRESSIONS)} 项全部通过")
 
 
 if __name__ == "__main__":

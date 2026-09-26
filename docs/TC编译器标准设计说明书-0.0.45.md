@@ -459,13 +459,13 @@
 - **`none` 由期望类型定型**：字面量本身无所指类型；在声明、`funcall` 实参、`return`、`cast` 等位置由唯一期望 `ref<T>` 定型。`none` 是编译期常量，可作为 `const_operand`。**空地址字面量是 `nil`（期望 `addr<T>`），见 §3.8**；把 `none` 用于地址位置（或 `nil` 用于引用位置）→ `TC_CE_TYPE_MISMATCH`。
 - **禁止引用算术与序关系比较**：`ref<T>` 不得进入 `add`/`sub`/…、按位、移位、通用比较或逻辑运算；**托管引用不存在专用算术/序关系指令**（[语言标准 §3.10.8]）。`addr_add` / `addr_sub` 只接受 `addr<T>`（§6.8）。不合规 → `TC_CE_TYPE_MISMATCH`。
 - **禁止位重解释与跨空间转换**：`bitcast` 不接受 `ref<T>` 操作数或目标；`ref<T>` 与 `addr<U>` 之间不存在 `cast` / `bitcast` / 隐式转换 → `TC_CE_TYPE_MISMATCH`。**编译器不得把引用值暴露为整数**，也不得让任何可观察行为依赖槽号或句柄数值。
-- **`ref_of` 可变性**：仅接受 `var` / `static var` / 形参，且绑定声明类型须 ∈ `ref_pointee_type`——**`addr<T>` 类型的绑定不可取引用**（`ref<addr<T>>` 不是合法类型，[语言标准 §3.10.1]）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ref_of` 非编译期常量，出现在 `const_rhs` 中属**语法拒绝**（`TC_CE_SYNTAX`）。
-- **`ref_store` 可变性**：判据是**所指外层绑定**，与持有引用的绑定自身是否为 `let` 无关。`ref_of` 只接受可写目标，故实际可达的只读来源是形参取引用及由其复制的引用——命中 → `TC_CE_CONSTANT_ASSIGNMENT`（形参直接赋值/`read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT`）。`let p: ref<T> = none` 一类常量空引用不报静态码，按空引用运行时分类处理。
+- **`ref_of` 可变性**：仅接受 `var` / `static var`，且绑定声明类型须 ∈ `ref_pointee_type`——**`addr<T>` 类型的绑定不可取引用**（`ref<addr<T>>` 不是合法类型，[语言标准 §3.10.1]）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ref_of` 非编译期常量，出现在 `const_rhs` 中属**语法拒绝**（`TC_CE_SYNTAX`）。
+- **`ref_store` 可变性**：**不需要可变性分析**。由 [语言标准 §3.10.10] 的可写性不变量，非 `none` 的 `ref<T>` 恒指向可写绑定实例（`ref_of` 只接受 `var` / `static var`），故 `ref_store` 只检查静态类型为 `ref<T>` 与运行时非 `none` / 未失效。形参直接赋值或作为 `read` 目标仍报 `TC_CE_PARAMETER_ASSIGNMENT`；`let p: ref<T> = none` 一类常量空引用不报静态码，按空引用运行时分类处理。
 - **空引用运行时分类**：`ref_load` / `ref_store` 遇 `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`ref_eq` / `ref_ne` 允许 `none` 比较，不触发运行时错误。引用没有算术指令，因此不存在「空引用算术」码；地址侧空值码见 §3.8。
 - **悬垂引用检查**：引用值的有效性以其所指**绑定实例**的生命周期为界（[语言标准 §3.10.10]）；`ref_load` / `ref_store` 必须先判定有效性，失效 → `TC_RE_DANGLING_REFERENCE`。引用值必须携带足以判定实例失效的信息，**不得**仅以物理槽地址表示引用，也**不得**因槽复用把已失效引用当作新的有效引用；`ref_eq` / `ref_ne` 不检查有效性，复制失效引用值本身合法。
 - **`bits_of`**：`bits_of(T)`，**无操作数**，返回 `sizeof_bits(T)` 并在编译期内联。它是调用型 RHS：可整条充当 `const_rhs`，不属于 `const_operand`。
 - **I/O 排除**：`write` / `writeln` / `read` 以 `ref<T>` / `addr<T>` 为显式类型属语法拒绝（`TC_CE_SYNTAX`）。
-- **来源跟踪**：编译器应记录引用值来源（`ref_of`、`none`、现有绑定、函数返回值），供可变性交叉验证；这**不改变**静态接受集。
+- **来源跟踪**：编译器可以记录引用值来源用于诊断质量或优化，但**不得**据此改变静态接受集——引用可变性由 [语言标准 §3.10.10] 的可写性不变量保证，与来源无关。
 - **别名**：多个 `ref<T>` 可能指向同一对象；同一对象的连续 `ref_load` 与 `ref_store` 按源序执行，实现不得重排序跨 `ref_store` 的 `ref_load`。
 
 ### 3.3 结构体类型编译器约束
@@ -936,7 +936,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `memblock_constructor` | `memblock<T, N>` | 按 §3.4 验证 |
 | `struct_constructor` | 结构体类型 | 按 §3.3 验证 |
 | `ref_load` | 显式类型参数 `T` | 按 §3.2、§6.7 验证；`none` → `TC_RE_NULL_REFERENCE_DEREFERENCE` |
-| `ref_of` | `ref<T>` | 按 §3.2、§6.7 验证；仅可作用于 `var`/`static var`/形参，且绑定声明类型 ∈ `ref_pointee_type`（`addr<T>` 绑定不可取引用） |
+| `ref_of` | `ref<T>` | 按 §3.2、§6.7 验证；仅可作用于 `var`/`static var`（`let`/`static let` 与形参禁止），且绑定声明类型 ∈ `ref_pointee_type`（`addr<T>` 绑定不可取引用） |
 | `addr` | `addr<T>` | 按 §3.8、§6.8 验证；`u` 为 `usize`；常量时属 `const_rhs` |
 | `addr_load` / `addr_io_load` | 显式类型参数 `T` | 按 §3.8、§6.8 验证；`addr_load` 的 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_io_load` 不检查空地址 |
 | `addr_add` / `addr_sub` | `addr<T>` | 按 §3.8、§6.8 验证；`nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC` |
@@ -1083,7 +1083,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | ---- | -------- | ------ | -------- | ------------ |
 | `ref_load(T, r)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>` | `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；失效（悬垂）→ `TC_RE_DANGLING_REFERENCE`；`T = bool` 时结果规范化（§6.7.1） | 否 |
 | `ref_store(T, r, value)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>`；`value`: `T` | 所指外层可写；`none` / 失效同上 | 否（语句） |
-| `ref_of(T, ident)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `ident`: `var` / `static var` / 形参，且其声明类型不得为 `addr<T>`（`ref<addr<T>>` 不是合法类型） | `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`；`T` 须与 `ident` 声明类型严格一致 | 否 |
+| `ref_of(T, ident)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `ident`: `var` / `static var`，且其声明类型不得为 `addr<T>`（`ref<addr<T>>` 不是合法类型） | `let` / `static let` / 形参 → `TC_CE_CONSTANT_ASSIGNMENT`；`T` 须与 `ident` 声明类型严格一致 | 否 |
 | `ref_eq(T, r1, r2)` / `ref_ne(T, r1, r2)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | 同为 `ref<T>` | `none` 合法；两个 `none` 比较 → `true` / `false`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否（`none` 比较可折叠） |
 | `bits_of(T)` | `T`（附录 A 的 `type`，完整类型不含 `void`；**含** `ref<U>` / `addr<U>`；`bits_of(void)` 属语法拒绝 `TC_CE_SYNTAX`） | **无操作数** | 返回 `sizeof_bits(T)` 并在编译期内联；可整条充当 `const_rhs`，不属于 `const_operand` | 是 |
 
@@ -1242,7 +1242,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 | 结构体类型 | 同类型标识符（含限定名、字段读取），或同类型 `struct_constructor` | 整块深拷贝（含各带长度 memblock 字段的完整存储区） |
 
 - 每个形参类型是实参的唯一期望类型，不执行隐式转换。字面量按 [语言标准 §3.6] 以形参类型为上下文检查。
-- **形参只读绑定**：入口已初始化。对形参**绑定本身**赋值、字段赋值或作为 `read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`。对形参做 `ref_of` 本身合法（**`addr<T>` 类型的形参除外**——`ref<addr<T>>` 不是合法类型，[语言标准 §3.10.1]）；经该引用再 `ref_store` → `TC_CE_CONSTANT_ASSIGNMENT`（[语言标准 §6.8.3]、[语言标准 §8.1.2]），不得改报 `PARAMETER_ASSIGNMENT`。
+- **形参只读绑定**：入口已初始化。对形参**绑定本身**赋值、字段赋值或作为 `read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`。形参**不可作为 `ref_of` 目标**（与 `let` 同为只读绑定，报 `TC_CE_CONSTANT_ASSIGNMENT`）；形参类型为 `ref<T>` 时，对该引用值做 `ref_store` 写入的是所指对象（恒为可写绑定实例），不改报 `PARAMETER_ASSIGNMENT`。
 - **非法形参类型**：`void` 不得用作形参类型（语法拒绝）；`ref<void>` 不合法（静态语义拒绝）；**`ref<addr<U>>` 亦不合法且属语法拒绝**（`ref_pointee_type` 不含 `addr_type`，[语言标准 §3.10.1]），故地址型绑定与形参不能被 `ref_of` 取引用。
 - **memblock 形参 `N` 比较**：`memblock<T, N>` 形参在传参时须比较两侧声明的 `N` 数学值，不相等 → `TC_CE_MEMBLOCK_SIZE_MISMATCH`（见 §3.1）。
 - **`ref<T>` 形参按值传递**：复制引用值（地址），调用者与函数体共享所指对象。函数体内对形参做 `ref_load` 合法。对该引用值做 `ref_store` 写入的是所指对象，合法性按所指外层绑定判定，不因引用本身是形参而改报 `PARAMETER_ASSIGNMENT`。多参数均为 `ref<T>` 值时可能互为别名。
