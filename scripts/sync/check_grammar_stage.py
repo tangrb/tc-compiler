@@ -36,18 +36,18 @@ COMPILER_STD = "docs/TC编译器标准设计说明书-0.0.45.md"
 TYPE_TOKENS = {
     "int_type", "float_type", "bool_type", "scalar_type",
     "ref_pointee_type", "addr_pointee_type", "memblock_element_type",
-    "type", "value_type", "field_type", "return_type",
+    "type", "value_type", "field_type", "return_type", "addr_access_type",
 }
 RESTRICTED = {
     "int_type", "float_type", "bool_type", "scalar_type",
     "ref_pointee_type", "addr_pointee_type", "memblock_element_type",
-    "int_type|float_type",
+    "int_type|float_type", "addr_access_type",
 }
 # 类型清单本身的定义式不是「指令形态」，不参与位置清单
 TYPE_DEFS = {
     "type", "value_type", "field_type", "return_type", "ref_type", "addr_type",
     "ref_pointee_type", "addr_pointee_type", "memblock_element_type",
-    "sized_memblock_type", "scalar_type",
+    "sized_memblock_type", "scalar_type", "addr_access_type",
 }
 SYNTAX_MARKERS = ("TC_CE_SYNTAX", "语法拒绝")
 
@@ -57,6 +57,10 @@ COVERAGE = (
     ("addr<ref<U>> / addr<struct> / addr<memblock> 不在本产生式中", "addr 所指类型（语言标准 附录 A）", "语言标准"),
     ("不在 `addr_pointee_type` 中 → **语法拒绝**", "addr 所指类型（语言标准 §3.11.1）", "语言标准"),
     ("`T` 为浮点时报 `TC_CE_SYNTAX`", "位运算/移位（语言标准）", "语言标准"),
+    ("由附录 A 的 `addr_access_type`", "addr 访问/算术的类型参数", "语言标准"),
+    ("`T` 由 `addr_access_type` 限定", "addr 访问/算术的类型参数（编译器标准）", "编译器标准"),
+    ("`bits_of(void)` 属**语法拒绝**", "`bits_of` 的 `void` 类型参数", "语言标准"),
+    ("或作为 `addr<T>` 的所指类型", "§2.7 的 `void` 总则豁免 `addr<void>`", "语言标准"),
     ("位运算与移位的显式类型参数只接受整数类型", "位运算/移位（编译器标准）", "编译器标准"),
     ("`eq(bool, ...)` 或带 `ieee` 的形态属语法拒绝", "比较运算（语言标准）", "语言标准"),
     ("其余类型参数与 `bool` 属**语法拒绝**", "比较运算（编译器标准）", "编译器标准"),

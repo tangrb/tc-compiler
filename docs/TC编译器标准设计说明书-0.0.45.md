@@ -411,7 +411,7 @@
 | `int16` / `uint16` | 16 | [语言标准 §3.8.2] |
 | `int32` / `uint32` / `float32` | 32 | [语言标准 §3.8.2] |
 | `int64` / `uint64` / `float64` | 64 | [语言标准 §3.8.2] |
-| `isize` / `usize` | 目标平台地址宽度（32 或 64） | [语言标准 §3.2.1]、[语言标准 §3.8.2] |
+| `isize` / `usize` | 目标平台地址宽度（32 或 64；本版固定 64，§3.5） | [语言标准 §3.2.1]、[语言标准 §3.8.2] |
 | `ref<T>`（`T` 为任意 `ref_pointee_type`：标量 / `memblock` / 结构体 / `ref<U>`） | `sizeof_bits(usize)` | [语言标准 §3.10.5] |
 | `addr<T>`（任意合法 `T`，含 `void`） | `sizeof_bits(usize)` | [语言标准 §3.11.1] |
 
@@ -425,7 +425,7 @@
 说明：
 
 - **`void` 无宽度**：`void` 无 `sizeof_bits`；不得作为值槽、`memblock` 元素或（除结构体字段引用自引用例外外的）`ref` 所指；`addr<void>` 合法但宽度同 `addr<T>`。
-- **`ref<T>` 的所指类型集比「`void` 以外的完整类型」更窄**：取 [语言标准 附录 A] 的 `ref_pointee_type`——标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**。`addr<U>` 虽是完整类型（可作值槽、`memblock` 元素与结构体字段），但 `ref<addr<U>>` 属**语法拒绝**（[语言标准 §3.10.1]）；同理，四条引用指令（`ref_load` / `ref_store` / `ref_of` / `ref_eq` / `ref_ne`）的显式类型参数也只接受该集合。
+- **`ref<T>` 的所指类型集比「`void` 以外的完整类型」更窄**：取 [语言标准 附录 A] 的 `ref_pointee_type`——标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**。`addr<U>` 虽是完整类型（可作值槽、`memblock` 元素与结构体字段），但 `ref<addr<U>>` 属**语法拒绝**（[语言标准 §3.10.1]）；同理，五条引用指令（`ref_load` / `ref_store` / `ref_of` / `ref_eq` / `ref_ne`）的显式类型参数也只接受该集合。
 - **复合类型递归展开**：嵌套 `memblock` / 嵌套结构体按上表递归展开；布局与宿主 ABI 对齐无关。
 - **`bits_of` 取值**：`bits_of(T)` 的编译期内联结果即为上表对类型 `T` 的取值（[语言标准 §6.8.5]）；该指令**无操作数**。
 - **自引用结构体字段宽度**：结构体字段中的 `ref<S>`（`S` 为正在定义的本结构体）宽度仍为 `sizeof_bits(usize)`，不依赖 `S` 最终布局（[语言标准 §3.9.1]）。
@@ -593,7 +593,7 @@
 - **宽度**：`sizeof_bits(addr<T>) = sizeof_bits(usize)`（§3.0.1）。
 
 - **跨空间互不转换**：`ref<T>` 与 `addr<U>` 之间禁止 `cast` / `bitcast` / 隐式转换。
-- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；结果在目标地址宽度上按模 `2^n` 唯一确定（`n` = `sizeof_bits(usize)`，[语言标准 §6.9.5]），越界只影响后续访问（[语言标准 §1.3] 第 1 项）；**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
+- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；结果在目标地址宽度上按模 `2^n` 唯一确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]），越界只影响后续访问（[语言标准 §1.3] 第 1 项）；**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
 - **空值分类**：`addr_load` / `addr_store` 遇 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_add` / `addr_sub` 遇 `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；`addr_io_load` / `addr_io_store` **不检查空地址**（地址 `0` 合法，不产生空值码）。空值与不可用码共四个，彼此不得混用。
 - **易失档案**：`addr_io_*` 不得删除、合并、转发或重排；`addr_load` / `addr_store` 为普通内存访问，可按 §1.5 与 [语言标准 §1.3] 的变换合法性优化。
 - **常量性**：只有常量 `addr(T, <常量 usize>)` 可整条充当 `const_rhs`（`const_addr_expr`）；`addr_load` / `addr_store` / `addr_io_*` / `addr_add` / `addr_sub` / `addr_eq` / `addr_ne` 不在 `const_rhs` 中（语法拒绝 `TC_CE_SYNTAX`）。
@@ -1085,7 +1085,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `ref_store(T, r, value)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>`；`value`: `T` | 所指外层可写；`none` / 失效同上 | 否（语句） |
 | `ref_of(T, ident)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `ident`: `var` / `static var` / 形参，且其声明类型不得为 `addr<T>`（`ref<addr<T>>` 不是合法类型） | `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`；`T` 须与 `ident` 声明类型严格一致 | 否 |
 | `ref_eq(T, r1, r2)` / `ref_ne(T, r1, r2)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | 同为 `ref<T>` | `none` 合法；两个 `none` 比较 → `true` / `false`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否（`none` 比较可折叠） |
-| `bits_of(T)` | `T`（完整类型，不含 `void`；**含** `ref<U>` / `addr<U>`） | **无操作数** | 返回 `sizeof_bits(T)` 并在编译期内联；可整条充当 `const_rhs`，不属于 `const_operand` | 是 |
+| `bits_of(T)` | `T`（附录 A 的 `type`，完整类型不含 `void`；**含** `ref<U>` / `addr<U>`；`bits_of(void)` 属语法拒绝 `TC_CE_SYNTAX`） | **无操作数** | 返回 `sizeof_bits(T)` 并在编译期内联；可整条充当 `const_rhs`，不属于 `const_operand` | 是 |
 
 **类型参数的语法边界**：`ref_load` / `ref_store` / `ref_of` / `ref_eq` / `ref_ne` 的显式类型参数由附录 A 的 `ref_pointee_type` 限定；写入 `void` 或 `addr<U>` 属**语法拒绝** `TC_CE_SYNTAX`（[语言标准 §3.10.1]、[语言标准 §6.8.7]）。
 
@@ -1112,16 +1112,16 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | 指令 | 显式类型 | 操作数 | 关键约束 | 编译期常量？ |
 | ---- | -------- | ------ | -------- | ------------ |
 | `addr(T, u)` | `T` ∈ 标量 / `addr<U>` / `void` | `u`: `usize` | 不访问内存；`u` 为编译期常量时整条可充当 `const_rhs`（`const_addr_expr`） | 是（常量 `u`） |
-| `addr_load(T, a)` | `T` 标量 / `addr<U>`（非 `void`） | `a`: `addr<T>` | `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；不可完成访问 → `TC_RE_ADDR_UNAVAILABLE`；非易失 | 否 |
+| `addr_load(T, a)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；其它类型参数属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>` | `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；不可完成访问 → `TC_RE_ADDR_UNAVAILABLE`；非易失 | 否 |
 | `addr_store(T, a, v)` | 同上 | `a`: `addr<T>`；`v`: `T` | 同上；写入不适用 `TC_CE_CONSTANT_ASSIGNMENT` | 否（语句） |
 | `addr_io_load(T, a)` | 同上 | `a`: `addr<T>` | **不检查空地址**；易失：次数与顺序可观察 | 否 |
 | `addr_io_store(T, a, v)` | 同上 | 同上 | 同上 | 否（语句） |
-| `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 非 `void` | `a`: `addr<T>`；`n`: `usize` | `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；步长 `sizeof_bytes(T)`；结果按模 `2^n` 确定；不检查越界（仅访问实现定义） | 否（常量可折叠） |
+| `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；`void` 等属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>`；`n`: `usize` | `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；步长 `sizeof_bytes(T)`；结果按模 `2^w` 确定（`w` = `sizeof_bits(usize)`）；不检查越界（仅访问实现定义） | 否（常量可折叠） |
 | `addr_eq(T, a, b)` / `addr_ne(T, a, b)` | `T` 任意（含 `void`） | 同为 `addr<T>` | `nil` 合法（即地址 0）；不触发运行时错误 | 否 |
 
 #### 6.8.2 编译器必须执行的检查
 
-1. **类型参数一致性**：`T` 与操作数声明类型严格一致；`addr<void>` 不得用于访问与算术（`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` / `addr_add` / `addr_sub`）；本版不存在地址差、序关系比较与区间拷贝指令，`addr_eq` / `addr_ne` 允许 `addr<void>`。
+1. **类型参数一致性**：`T` 与操作数声明类型严格一致；访问与算术的类型参数由附录 A 的 `addr_access_type`（标量 / `addr<U>`）限定，`addr<void>` 及其它类型参数在那些位置属**语法拒绝** `TC_CE_SYNTAX`（`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` / `addr_add` / `addr_sub`）；本版不存在地址差、序关系比较与区间拷贝指令，`addr_eq` / `addr_ne` 允许 `addr<void>`。
 2. **非法所指类型**：`addr<ref<U>>` / `addr<struct>` / `addr<memblock>` 不在附录 A 的 `addr_pointee_type` 中，属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；[语言标准 §3.11.1]）。
 3. **跨空间禁止**：`ref<T>` 不得作为任何 `addr_*` 操作数；`addr<T>` 不得作为任何 `ref_*` 操作数 → `TC_CE_TYPE_MISMATCH`。
 4. **数学值判定**：所有下标 / 长度 / 偏移的负值与边界判定按**数学值**（有符号解码后）进行，不得先按无符号回绕再比较。
@@ -1130,7 +1130,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 7. **调用型 RHS**：`addr`、`addr_load`、`addr_io_load`、`addr_add`、`addr_sub`、`addr_eq` / `addr_ne` 均**不属于 `operand`**（嵌套 → `TC_CE_SYNTAX`）；`addr_store`、`addr_io_store` 为独立语句。
 8. **不可完成访问**：宿主映射类实现对不可用地址报 `TC_RE_ADDR_UNAVAILABLE`；不得降级为内部错误，也不得回退为槽访问。
 9. **字节序与对齐**：`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` 的字节序按执行访存的目标地址空间确定，不依赖宿主（[语言标准 §3.11.4]）；后端不得把未对齐访问实现为宿主未对齐访存——按字节访问时未对齐不构成错误，不按字节访问时按 [语言标准 §1.3] 第 3 项报 `TC_RE_ADDR_UNAVAILABLE`。
-10. **结果位模式**：`addr_add` / `addr_sub` 的结果必须按模目标地址宽度 `2^n` 确定（`n` = `sizeof_bits(usize)`，[语言标准 §6.9.5]）；不得以宿主指针算术或宿主整数溢出行为（其溢出结果未定义）替代该语义，也不得因折叠而改变。
+10. **结果位模式**：`addr_add` / `addr_sub` 的结果必须按模目标地址宽度 `2^w` 确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]）；不得以宿主指针算术或宿主整数溢出行为（其溢出结果未定义）替代该语义，也不得因折叠而改变。
 
 ---
 
@@ -1393,7 +1393,7 @@ TC 采用全局函数签名表 + 顶层值作用域 + 函数作用域 + 块级�
 | ---- | ---- |
 | 作用域进入 | 建立本作用域全部 `var` 的固定槽位，初始状态为"未初始化" |
 | `var` 执行 | 先检查并计算普通 RHS 或执行非 `void` `funcall` 初始化器，再写入对应槽位；成功后状态变为"已初始化" |
-| 赋值 / `read` / `memblock_store` / `memblock_copy` / `ref_store` | 目标变量（及 `copy`/`store` 的目标块、引用所指的可写外层绑定）必须已确定初始化；成功后更新同一槽位内容，不改变其生命周期；`memblock_copy` 另须读取源块（`let` 源不进入 `IN` 检查）；`ref_load` / `addr_add` / `addr_sub` 读取绑定本身（非所指对象）时同样要求绑定 ∈ `IN` |
+| 赋值 / `read` / `memblock_store` / `memblock_copy` / `ref_store` | 目标变量（及 `copy`/`store` 的目标块）必须已确定初始化；`ref_store` 只要求**引用绑定本身** ∈ `IN`——所指对象的初始化状态属其所指上下文，不参与本函数的确定初始化判定（避免跨过程判定）；成功后更新同一槽位内容，不改变其生命周期；`memblock_copy` 另须读取源块（`let` 源不进入 `IN` 检查）；`ref_load` / `addr_add` / `addr_sub` 读取绑定本身（非所指对象）时同样要求绑定 ∈ `IN` |
 | 运行时绑定读取 | `var` 或参数绑定必须在当前 CFG 点上确定初始化，否则静态错误 `TC_CE_UNINITIALIZED_VARIABLE`；`let` 已在编译期内联，不属于本行 |
 | 反向跳转 / 下一迭代 | 再次执行 `var` 时重新初始化同一槽位，不创建新绑定或新槽位 |
 | 作用域离开 | 因正常 `end` / 循环回边、`break`、`continue`、`return` 或向外 `goto` 离开当前块实例时，结束局部生命周期并清除其确定初始化状态；物理槽可复用 |
@@ -1451,7 +1451,7 @@ OUT[其他语句]    = IN[n]
 ```
 
 - `var x = rhs` 的 RHS 在加入 `x` 之前检查，因此初始化自引用仍非法。
-- 任何可达的运行时 `var` / 参数读取、赋值目标或 `read` 目标都要求对应运行时绑定属于当前 `IN`。`memblock_copy` 的目标、`ref_store` 的目标引用所指绑定同样要求 ∈ `IN`。`let` 只要求名称可见且已成功求值，不属于 `U` / `IN`；逻辑短路的右操作数是否可达按 [语言标准 §6.5.2.2] 判定。`let` 标识符操作数的读取永不触发 `TC_CE_UNINITIALIZED_VARIABLE`，即使该 `let` 对应的 CFG 身份节点在不可达路径上（[语言标准 §5.2]）。
+- 任何可达的运行时 `var` / 参数读取、赋值目标或 `read` 目标都要求对应运行时绑定属于当前 `IN`。`memblock_copy` 的目标同样要求 ∈ `IN`；`ref_store` 只要求引用绑定本身 ∈ `IN`（所指对象的初始化状态不由本函数数据流判定）。`let` 只要求名称可见且已成功求值，不属于 `U` / `IN`；逻辑短路的右操作数是否可达按 [语言标准 §6.5.2.2] 判定。`let` 标识符操作数的读取永不触发 `TC_CE_UNINITIALIZED_VARIABLE`，即使该 `let` 对应的 CFG 身份节点在不可达路径上（[语言标准 §5.2]）。
 - 只有所有可达路径均已初始化才成立。
 - 上述方程在可达子图上采用最大固定点（greatest fixed point）语义，不得任选任一固定点。一个等价的强制求解策略是：保持两个入口边界值不变；对每个非入口可达节点，以 `U[n]` 初始化 `IN[n]` 与 `OUT[n]`，再按活动作用域边规范化和传递函数单调向下迭代，直至所有集合稳定。工作队列、节点遍历和回边发现顺序不得改变最终结果。
 - 绑定属于 `IN[n]`，当且仅当从当前控制流域唯一入口到 `n` 的每一条有限可达路径，在逐边应用作用域规范化和上述传递函数后，都已初始化该绑定。该路径定义用于判定任何求解实现是否一致。
@@ -1651,6 +1651,7 @@ ASCII 空白仅指 U+0009～U+000D 与 U+0020，不受 locale 影响。输入必
 | 浮点无效操作错误 | `TC_RE_FLOAT_INVALID` | 严格 `add/sub/mul/div/mod` 的输入含 NaN 或产生无效结果（如 0/0、∞−∞、0×∞、∞ mod x）；`abs/neg` 除外 |
 | 转换溢出错误     | `TC_RE_CAST_OVERFLOW` | 严格 `cast` 的数学结果无法在目标类型中表示，或浮点源为 NaN/无穷且目标为整数 |
 | 空引用解引用错误 | `TC_RE_NULL_REFERENCE_DEREFERENCE` | `ref_load` / `ref_store` 的操作数为 `none`（[语言标准 §11.1]） |
+| 悬垂引用解引用错误 | `TC_RE_DANGLING_REFERENCE` | `ref_load` / `ref_store` 的引用所指绑定实例的生命周期已结束（[语言标准 §3.10.10]） |
 | 空地址解引用错误 | `TC_RE_NULL_ADDRESS_DEREFERENCE` | `addr_load` / `addr_store` 的操作数为 `nil` |
 | 空地址算术错误 | `TC_RE_NULL_ADDRESS_ARITHMETIC` | `addr_add` / `addr_sub` 的地址操作数为 `nil` |
 | I/O 错误         | `TC_RE_IO` | `read` 输入非法/超范围/EOF，标准输入读取失败，或 `write`/`writeln` 写入失败 |
@@ -1665,7 +1666,7 @@ ASCII 空白仅指 U+0009～U+000D 与 U+0020，不受 locale 影响。输入必
 - `addr_load`/`addr_store` 的 `nil` 只报 `TC_RE_NULL_ADDRESS_DEREFERENCE`；
 - `addr_add`/`addr_sub` 的 `nil` 只报 `TC_RE_NULL_ADDRESS_ARITHMETIC`。
 
-四个空值/不可用码之间不得混用。
+四个空值/不可用码之间不得混用；悬垂引用码 `TC_RE_DANGLING_REFERENCE` 与它们同样互不代用（`none` 与失效互斥，§3.10.10）。
 
 **运行时错误提交规则**：每条 TC 指令在抽象机器中先读取全部实际需要读取的操作数并完成检查，再提交目标值。
 
