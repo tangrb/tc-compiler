@@ -154,7 +154,6 @@
 | 栈帧（alloca） | 线性地址空间中的局部存储与局部变量取址不定义 |
 | 递归 | 直接与间接递归不合法（§8.6） |
 | 函数指针、回调、可变参数 | 语言没有函数值（§8.1.4） |
-| `ref_mut<T>` 可变性入类型 | 可写性判据是「所指外层绑定」（§6.8.3）；把可写性搬进引用类型与「零隐式转换」原则冲突 |
 | `volatile` 关键字 | 易失语义由 `addr_io_load` / `addr_io_store` 承担（§6.9.4） |
 | TC 对象物化 | 没有把 TC 绑定 / `memblock` / 结构体的地址交给线性地址空间的指令 |
 | 带边界区间 / 区域地址 | `span<T>`、`addr<T, region>` 与地址权限位均不定义；线性地址只有裸地址 `addr<T>`，越界属实现定义（§1.3 第 1 项） |
@@ -836,7 +835,7 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 | `cast` / `bitcast` | 不以结构体为源或目标 |
 | 比较 / 算术 / 位 / 逻辑 | 不接受结构体类型参数或操作数 |
 | `memblock` | 结构体字段类型可为 `memblock<T, N>`（带长度头部，§3.8）；`memblock` 元素类型 `T` 须为 `void` 以外的完整类型，故不得为正在定义的本结构体；`memblock<ref<S>, N>`（`S` 为正在定义的本结构体）合法 |
-| `ref` | 字段类型可为 `ref<T>`；`T` 可为完整类型，或正在定义的本结构体（§3.9.1）；含 `ref` 字段的整块赋值复制引用值，产生所指对象别名（§3.10.6） |
+| `ref` | 字段类型可为 `ref<T>`；`T` 取 `ref_pointee_type`（标量 / `memblock` / 结构体 / `ref<U>`；不含 `void` 与 `addr<U>`），或正在定义的本结构体（§3.9.1）（§3.9.1）；含 `ref` 字段的整块赋值复制引用值，产生所指对象别名（§3.10.6） |
 | 模块 | 类型定义区位于 `import` 之后、值声明/`func` 之前（§4）；结构体名参与模块命名空间冲突检查 |
 
 ### 3.10 托管引用类型（`ref<T>`）
@@ -1978,7 +1977,7 @@ memblock 变量遵循 TC 现有的 `var` / `let` 规则，声明时必须初始�
 
 | 位置 | 约束 |
 | ---- | ---- |
-| `T` | 显式元素标量类型；必须与 `dst`、`src` 的元素类型同时严格一致 |
+| `T` | 显式元素类型 `memblock_element_type`（`void` 除外）；必须与 `dst`、`src` 的元素类型同时严格一致 |
 | `dst` | `memblock_name`；必须是可写运行时绑定——局部/顶层 `var`、可写 `static var` **直接修改该绑定的元素**；函数形参 memblock 只修改其**副本**元素（§8.1.1）；`let` / `static let` 作目标 → `TC_CE_CONSTANT_ASSIGNMENT` |
 | `dst_index` / `src_index` / `length` | §6.1.2 `operand`，且均为整数类型（彼此类型可不同，也不必等于 `T`） |
 | `src` | `memblock_name`；可为 `var` / `let` / `static` / 形参 / 导入公开成员；运行时 `var` 须确定初始化 |
@@ -2097,7 +2096,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 | 结果类型 | `ref<T>` |
 | `let` 上下文 | 不适用于 `const_rhs`（§5.2.1） |
 | 运行时语义 | 计算绑定的抽象存储位置并返回对应的 `ref<T>`。得到的引用与绑定共享存储 |
-| 可变性 | `ref_of` 本身为只读操作（只取引用）。但取引用后通过该引用做 `ref_store` 须满足目标绑定的可写性约束（见 §6.8.3） |
+| 可变性 | `ref_of` 本身为只读操作（只取引用）。取引用后 `ref_store` 无需任何可变性/来源检查（§6.8.3、§3.10.10） |
 | 边界 | `ref_of` **不是**取机器地址：它只接受绑定标识符，不产生 `addr<T>`，也不与线性地址空间互转（§3.10.4、§3.11.2） |
 
 #### 6.8.5 类型宽度查询 — `bits_of`
@@ -2212,7 +2211,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 | 规则 | 说明 |
 | ---- | ---- |
-| 类型参数 `T` | 任意 `T`（含 `void`） |
+| 类型参数 `T` | `T` ∈ `addr_pointee_type`（标量 / `addr<U>` / `void`） |
 | 操作数 | 两个操作数须同为 `addr<T>`；`nil` 可作任一操作数（即地址 `0`） |
 | 结果类型 | `bool` |
 | 语义 | 比较地址整数是否相等；`addr_eq(T, nil, nil)` 为 `true`；不触发运行时错误 |
@@ -2360,7 +2359,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 | 跳转 | `goto` 无条件转移至目标 `label`；`label` 无运行时动作，沿落入边继续 |
 | 作用域退出 | 跳出作用域时局部变量立即销毁 |
 | 确定初始化 | 目标点未初始化的绑定上读取/赋值/`read` → `TC_CE_UNINITIALIZED_VARIABLE` |
-| 越过 `var` | 不自动出错；反向跳转重新初始化同一槽 |
+| 越过 `var` | 不自动出错；反向跳转进入新的块实例并重新初始化（§3.10.10） |
 | 跳出 `if` | 允许不经 `end` 跳出；`goto` 不改变存活变量值 |
 
 ### 7.4 `break` 与 `continue` 语句
@@ -3774,7 +3773,7 @@ addr_store_stmt
            = "addr_store" , "(" , addr_access_type , "," , operand , "," , operand , ")" ;
 /* 写入线性地址（§6.9.3）。独立语句，非 RHS。
    T 为标量或 addr<U>（不含 void）；第一个 operand 须为 addr<T>，
-   第二个须为 T 类型。none（地址 0）时报运行时错误。非易失访问。 */
+   第二个须为 T 类型。nil（地址 0）时报运行时错误。非易失访问。 */
 
 addr_io_store_stmt
            = "addr_io_store" , "(" , addr_access_type , "," , operand , "," , operand , ")" ;
@@ -3787,7 +3786,7 @@ ref_of_expr
 /* 从变量标识符取引用，返回 ref<T>（§6.8.4）。
    显式类型参数 T 取 ref_pointee_type（标量 / memblock / 结构体 / ref；不含 void 与 addr），
    且必须与标识符的声明类型严格一致。
-   仅可用于 var / static var / 形参；
+   仅可用于 `var` / `static var`；`let` / `static let` 与函数形参禁止；
    qualified_identifier / imported_member_name 须解析为可写 static var；
    let 绑定的标识符禁止。 */
 
@@ -3812,7 +3811,7 @@ addr_add_expr
            = "addr_add" , "(" , addr_access_type , "," , operand , "," , operand , ")" ;
 /* 地址加法（§6.9.5）。T 为所指类型（非 void）。
    第一个 operand 为 addr<T>，第二个 operand 为 usize（非负偏移）。
-   偏移步长为 sizeof_bytes(T)。none 时报运行时错误。 */
+   偏移步长为 sizeof_bytes(T)。nil 时报运行时错误。 */
 
 addr_sub_expr
            = "addr_sub" , "(" , addr_access_type , "," , operand , "," , operand , ")" ;
@@ -3947,7 +3946,7 @@ read_stmt  = "read" , "(" , scalar_type , "," ,
 
 | 错误码 | 阶段 | 触发条件 |
 |--------|------|----------|
-| `TC_CE_CONSTANT_ASSIGNMENT` | SEM | 对 `let` / `static let` 绑定赋值（含整绑定和字段赋值），或 `let` memblock 作为 `store`/`copy` 目标；`let` / `static let` 标识符或**函数形参**用作 `ref_of` 目标（§6.8.3、§6.8.4） |
+| `TC_CE_CONSTANT_ASSIGNMENT` | SEM | 对 `let` / `static let` 绑定赋值（含整绑定和字段赋值），或 `let` memblock 作为 `store`/`copy` 目标；`let` / `static let` 标识符或**函数形参**用作 `ref_of` 目标（§6.8.4） |
 | `TC_CE_PARAMETER_ASSIGNMENT` | SEM | 对函数形参**绑定本身**赋值（含整绑定和字段赋值），或形参作为 `read` 目标。不含经引用写穿所指对象 |
 
 ### B.9 控制流

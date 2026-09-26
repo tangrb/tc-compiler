@@ -272,7 +272,7 @@
 | `addr_io_load` | 1 | 同 `addr_load`（易失） |
 | `addr_io_store` | 2 | 同 `addr_store`（易失） |
 | `bits_of` | 0 | **无操作数**：`bits_of(T)` 的唯一参数是类型（§3.0.1、§6.7） |
-| `write` / `writeln` | 1 | 有格式和无格式形式均恰好输出一个值；不接受 `ref<T>` / `memblock` |
+| `write` / `writeln` | 1 | 有格式和无格式形式均恰好输出一个值；不接受 `ref<T>` / `addr<T>` / `memblock` / 结构体 |
 | `read` | 1 | 唯一的目标标识符按一个操作数计 |
 
 | 形态 | 诊断 |
@@ -459,7 +459,7 @@
 - **`ref_of` 可变性**：仅接受 `var` / `static var`，且绑定声明类型须 ∈ `ref_pointee_type`——**`addr<T>` 类型的绑定不可取引用**（`ref<addr<T>>` 不是合法类型，[语言标准 §3.10.1]）；对 `let` / `static let` → `TC_CE_CONSTANT_ASSIGNMENT`。`ref_of` 非编译期常量，出现在 `const_rhs` 中属**语法拒绝**（`TC_CE_SYNTAX`）。
 - **`ref_store` 可变性**：**不需要可变性分析**。由 [语言标准 §3.10.10] 的可写性不变量，非 `none` 的 `ref<T>` 恒指向可写绑定实例（`ref_of` 只接受 `var` / `static var`），故 `ref_store` 只检查静态类型为 `ref<T>` 与运行时非 `none` / 未失效。形参直接赋值或作为 `read` 目标仍报 `TC_CE_PARAMETER_ASSIGNMENT`；`let p: ref<T> = none` 一类常量空引用不报静态码，按空引用运行时分类处理。
 - **空引用运行时分类**：`ref_load` / `ref_store` 遇 `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`ref_eq` / `ref_ne` 允许 `none` 比较，不触发运行时错误。引用没有算术指令，因此不存在「空引用算术」码；地址侧空值码见 §3.8。
-- **悬垂引用检查**：引用值的有效性以其所指**绑定实例**的生命周期为界（[语言标准 §3.10.10]）；`ref_load` / `ref_store` 必须先判定有效性，失效 → `TC_RE_DANGLING_REFERENCE`。引用值必须携带足以判定实例失效的信息，**不得**仅以物理槽地址表示引用，也**不得**因槽复用把已失效引用当作新的有效引用；`ref_eq` / `ref_ne` 不检查有效性，复制失效引用值本身合法。
+- **悬垂引用检查**：引用值的有效性以其所指**绑定实例**的生命周期为界（[语言标准 §3.10.10]）；`ref_load` / `ref_store` 必须先判空值、再判有效性，失效 → `TC_RE_DANGLING_REFERENCE`。引用值必须携带足以判定实例失效的信息，**不得**仅以物理槽地址表示引用，也**不得**因槽复用把已失效引用当作新的有效引用；`ref_eq` / `ref_ne` 不检查有效性，复制失效引用值本身合法。
 - **`bits_of`**：`bits_of(T)`，**无操作数**，返回 `sizeof_bits(T)` 并在编译期内联。它是调用型 RHS：可整条充当 `const_rhs`，不属于 `const_operand`。
 - **I/O 排除**：`write` / `writeln` / `read` 以 `ref<T>` / `addr<T>` 为显式类型属语法拒绝（`TC_CE_SYNTAX`）。
 - **来源跟踪**：编译器可以记录引用值来源用于诊断质量或优化，但**不得**据此改变静态接受集——引用可变性由 [语言标准 §3.10.10] 的可写性不变量保证，与来源无关。
@@ -487,7 +487,7 @@
 - **字段赋值双层可变性检查**：同时检查外层绑定种类与目标字段种类（[语言标准 §3.9.5] 完整矩阵）。外层为不可变绑定时任何字段赋值均非法 → `TC_CE_CONSTANT_ASSIGNMENT`；外层可写但字段为 `let` → `TC_CE_STRUCT_IMMUTABLE_FIELD`；形参的字段赋值 → `TC_CE_PARAMETER_ASSIGNMENT`。
 - **字段访问链**：`a.b.c` 整条是**一个** `operand`，不属于嵌套表达式；中间结果 `a.b` 须为结构体类型才能继续 `.c` 访问；任何层级类型为非结构体时报告 `TC_CE_TYPE_MISMATCH`。
 - **`@padding(N)` 布局记录**：符号表为每个字段记录填充字节数 `N`（无后缀非负**十进制**整数字面量，允许 `0`）；省略时记录 `0`。`N` 带 `u`/`U` 后缀、进制前缀或负号（附录 A 的 `padding_attr` 经 `integer_literal` 在语法上接受）→ 静态语义阶段报告 `TC_CE_CONSTANT_EXPRESSION`（与 `N` / `count:` 来源不合法同码，[语言标准 §3.9.3]）。`@padding` 只改变布局字节数，不改变字段类型、可变性或构造器实参列表。编译器必须按 `sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )` 计算结构体的类型级宽度并记录在符号表中，供整体赋值与按值传参使用。所有填充字节在构造与整块复制时均为 `0x00`。
-- **禁止的操作**：结构体不得参与算术、位运算、比较（复用 `TC_CE_TYPE_MISMATCH`）、`bitcast`（`TC_CE_SYNTAX`）或标量 I/O（`TC_CE_SYNTAX`）。`cast` 不以结构体为源或目标。
+- **禁止的操作**：结构体不得参与算术、位运算、比较（复用 `TC_CE_TYPE_MISMATCH`）、`bitcast`（`TC_CE_TYPE_MISMATCH`）或标量 I/O（`TC_CE_SYNTAX`）。`cast` 不以结构体为源或目标。
 
 ### 3.4 memblock 构造器编译期验证
 
@@ -552,7 +552,7 @@
 
 ### 3.7 类型转换框架编译器约束
 
-编译器必须对 [语言标准 §3.7] 的三种转换形式分别执行不同的静态验证与运行时检查策略：
+编译器必须对 [语言标准 §3.7] 的三种语法外壳（`cast` / `cast(…, truncate, …)` / `bitcast`）分别执行不同的静态验证与运行时检查策略：
 
 | 转换形式 | 静态验证 | 运行时检查 | 说明 |
 | -------- | -------- | ------------ | ---- |
@@ -590,7 +590,7 @@
 - **宽度**：`sizeof_bits(addr<T>) = sizeof_bits(usize)`（§3.0.1）。
 
 - **跨空间互不转换**：`ref<T>` 与 `addr<U>` 之间禁止 `cast` / `bitcast` / 隐式转换。
-- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；结果在目标地址宽度上按模 `2^n` 唯一确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]），越界只影响后续访问（[语言标准 §1.3] 第 1 项）；**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
+- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；结果在目标地址宽度上按模 `2^w` 唯一确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]），越界只影响后续访问（[语言标准 §1.3] 第 1 项）；**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
 - **空值分类**：`addr_load` / `addr_store` 遇 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_add` / `addr_sub` 遇 `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；`addr_io_load` / `addr_io_store` **不检查空地址**（地址 `0` 合法，不产生空值码）。空值与不可用码共四个，彼此不得混用。
 - **易失档案**：`addr_io_*` 不得删除、合并、转发或重排；`addr_load` / `addr_store` 为普通内存访问，可按 §1.5 与 [语言标准 §1.3] 的变换合法性优化。
 - **常量性**：只有常量 `addr(T, <常量 usize>)` 可整条充当 `const_rhs`（`const_addr_expr`）；`addr_load` / `addr_store` / `addr_io_*` / `addr_add` / `addr_sub` / `addr_eq` / `addr_ne` 不在 `const_rhs` 中（语法拒绝 `TC_CE_SYNTAX`）。
@@ -786,7 +786,7 @@
 | 初始化器形态 | 普通 RHS（字面量、已定义标识符、单个运算、`cast`/`bitcast`，见 §6.1.1）；或接收非 `void` 返回值的专用 `funcall` 形式。`read` 不能代替初始化器。 |
 | 阶段顺序 | 声明与顶层分区检查在第 3 阶段；函数签名收集在第 4 阶段子阶段 4d；`var` 名称/类型/初始化器语义在第 6 阶段；确定初始化分析在第 11 阶段（见 §1.2）。 |
 | 槽位管理 | 编译器在进入作用域时为该作用域内全部 `var` 建立固定槽位，初始状态为未初始化。`var` 语句执行成功后写入对应槽位并标记已初始化。 |
-| 块内 `var` | 离开块实例时槽位销毁（物理槽可复用）；反向跳转/下一迭代再次执行 `var` 时重新初始化同一词法槽。 |
+| 块内 `var` | 离开块实例时槽位销毁（物理槽可复用）；反向跳转/下一迭代再次执行 `var` 时在新的绑定实例上重新初始化。 |
 
 ### 5.2 常量定义（`let`）实现要点
 
@@ -1079,7 +1079,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | 指令 | 显式类型 | 操作数 | 关键约束 | 编译期常量？ |
 | ---- | -------- | ------ | -------- | ------------ |
 | `ref_load(T, r)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>` | `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；失效（悬垂）→ `TC_RE_DANGLING_REFERENCE`；`T = bool` 时结果规范化（§6.7.1） | 否 |
-| `ref_store(T, r, value)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>`；`value`: `T` | 所指外层可写；`none` / 失效同上 | 否（语句） |
+| `ref_store(T, r, value)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `r`: `ref<T>`；`value`: `T` | 无需可变性分析（[语言标准 §3.10.10]）；`none` / 失效同上 | 否（语句） |
 | `ref_of(T, ident)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | `ident`: `var` / `static var`，且其声明类型不得为 `addr<T>`（`ref<addr<T>>` 不是合法类型） | `let` / `static let` / 形参 → `TC_CE_CONSTANT_ASSIGNMENT`；`T` 须与 `ident` 声明类型严格一致 | 否 |
 | `ref_eq(T, r1, r2)` / `ref_ne(T, r1, r2)` | `ref_pointee_type`（标量 / `memblock` / 已定义结构体 / `ref<U>`；**不含 `void` 与 `addr<U>`**，[语言标准 §3.10.1]） | 同为 `ref<T>` | `none` 合法；两个 `none` 比较 → `true` / `false`；跨类型 → `TC_CE_TYPE_MISMATCH` | 否（`none` 比较可折叠） |
 | `bits_of(T)` | `T`（附录 A 的 `type`，完整类型不含 `void`；**含** `ref<U>` / `addr<U>`；`bits_of(void)` 属语法拒绝 `TC_CE_SYNTAX`） | **无操作数** | 返回 `sizeof_bits(T)` 并在编译期内联；可整条充当 `const_rhs`，不属于 `const_operand` | 是 |
@@ -1114,7 +1114,7 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `addr_io_load(T, a)` | 同上 | `a`: `addr<T>` | **不检查空地址**；易失：次数与顺序可观察 | 否 |
 | `addr_io_store(T, a, v)` | 同上 | 同上 | 同上 | 否（语句） |
 | `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；`void` 等属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>`；`n`: `usize` | `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；步长 `sizeof_bytes(T)`；结果按模 `2^w` 确定（`w` = `sizeof_bits(usize)`）；不检查越界（仅访问实现定义） | 否（常量可折叠） |
-| `addr_eq(T, a, b)` / `addr_ne(T, a, b)` | `T` 任意（含 `void`） | 同为 `addr<T>` | `nil` 合法（即地址 0）；不触发运行时错误 | 否 |
+| `addr_eq(T, a, b)` / `addr_ne(T, a, b)` | `T` ∈ `addr_pointee_type`（标量 / `addr<U>` / `void`） | 同为 `addr<T>` | `nil` 合法（即地址 0）；不触发运行时错误 | 否 |
 
 #### 6.8.2 编译器必须执行的检查
 
@@ -1242,7 +1242,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 - **形参只读绑定**：入口已初始化。对形参**绑定本身**赋值、字段赋值或作为 `read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`。形参**不可作为 `ref_of` 目标**（与 `let` 同为只读绑定，报 `TC_CE_CONSTANT_ASSIGNMENT`）；形参类型为 `ref<T>` 时，对该引用值做 `ref_store` 写入的是所指对象（恒为可写绑定实例），不改报 `PARAMETER_ASSIGNMENT`。
 - **非法形参类型**：`void` 不得用作形参类型（语法拒绝）；`ref<void>` 不合法（**语法拒绝** `TC_CE_SYNTAX`）；**`ref<addr<U>>` 亦不合法且属语法拒绝**（`ref_pointee_type` 不含 `addr_type`，[语言标准 §3.10.1]），故地址型绑定与形参不能被 `ref_of` 取引用。
 - **memblock 形参 `N` 比较**：`memblock<T, N>` 形参在传参时须比较两侧声明的 `N` 数学值，不相等 → `TC_CE_MEMBLOCK_SIZE_MISMATCH`（见 §3.1）。
-- **`ref<T>` 形参按值传递**：复制引用值（地址），调用者与函数体共享所指对象。函数体内对形参做 `ref_load` 合法。对该引用值做 `ref_store` 写入的是所指对象，合法性按所指外层绑定判定，不因引用本身是形参而改报 `PARAMETER_ASSIGNMENT`。多参数均为 `ref<T>` 值时可能互为别名。
+- **`ref<T>` 形参按值传递**：复制引用值（地址），调用者与函数体共享所指对象。函数体内对形参做 `ref_load` 合法。对该引用值做 `ref_store` 写入的是所指对象，由 [语言标准 §3.10.10] 可写性不变量判定为可写绑定实例，不因引用本身是形参而改报 `PARAMETER_ASSIGNMENT`。多参数均为 `ref<T>` 值时可能互为别名。
 
 **返回类型检查实现要点**：
 
@@ -1392,10 +1392,10 @@ TC 采用全局函数签名表 + 顶层值作用域 + 函数作用域 + 块级�
 | `var` 执行 | 先检查并计算普通 RHS 或执行非 `void` `funcall` 初始化器，再写入对应槽位；成功后状态变为"已初始化" |
 | 赋值 / `read` / `memblock_store` / `memblock_copy` / `ref_store` | 目标变量（及 `copy`/`store` 的目标块）必须已确定初始化；`ref_store` 只要求**引用绑定本身** ∈ `IN`——所指对象的初始化状态属其所指上下文，不参与本函数的确定初始化判定（避免跨过程判定）；成功后更新同一槽位内容，不改变其生命周期；`memblock_copy` 另须读取源块（`let` 源不进入 `IN` 检查）；`ref_load` / `addr_add` / `addr_sub` 读取绑定本身（非所指对象）时同样要求绑定 ∈ `IN` |
 | 运行时绑定读取 | `var` 或参数绑定必须在当前 CFG 点上确定初始化，否则静态错误 `TC_CE_UNINITIALIZED_VARIABLE`；`let` 已在编译期内联，不属于本行 |
-| 反向跳转 / 下一迭代 | 再次执行 `var` 时重新初始化同一槽位，不创建新绑定或新槽位 |
+| 反向跳转 / 下一迭代 | 再次执行 `var` 时在同一物理槽上建立**新的绑定实例**并重新初始化（数据流元素仍按声明处计） |
 | 作用域离开 | 因正常 `end` / 循环回边、`break`、`continue`、`return` 或向外 `goto` 离开当前块实例时，结束局部生命周期并清除其确定初始化状态；物理槽可复用 |
 | `let` | 编译期求值并内联，不生成运行时槽；在 CFG 中保留无运行时效果的身份节点，仅参与源级可达性诊断，数据流传递函数为恒等 |
-| 参数 | 函数入口时已初始化，只读；不得对绑定本身赋值或作为 `read` 目标（`TC_CE_PARAMETER_ASSIGNMENT`）。经 `ref_of` 后再 `ref_store` → `TC_CE_CONSTANT_ASSIGNMENT` |
+| 参数 | 函数入口时已初始化，只读；不得对绑定本身赋值或作为 `read` 目标（`TC_CE_PARAMETER_ASSIGNMENT`） |
 | `return` | 终止当前函数 CFG 路径，销毁当前函数帧及活动块局部槽 |
 
 ### 9.2.1 CFG 可达性与确定初始化数据流
@@ -1729,7 +1729,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的非比较运算、变量或常量定义、赋值、转换、`ref<T>` 同型约束失败发生类型不一致，以及 `write` / `writeln` 的标识符操作数或 `read` 目标 `var` 的声明类型与显式 `scalar_type` 不一致；比较标识符操作数与显式 `T` 不一致专用 `TC_CE_COMPARISON_TYPE_MISMATCH`；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合（含 I/O 使用 `memblock`/结构体/`ref`/`addr`）使用 `TC_CE_SYNTAX`；跨 `ref<T>`/`ref<U>` 比较亦用本错误（[语言标准 §3.10.7]） |
 | `TC_CE_LITERAL_OUT_OF_RANGE`      | `LiteralOutOfRange`          | 字面量范围错误                | 静态（第 2/6/7/8 阶段） | 第 2 阶段：整数绝对值超过 [语言标准 §2.3.5] 上限，或有限浮点字面量按后缀源类型舍入为零/无穷；第 6/7/8 阶段：已形成的字面量超出对应普通上下文、形参或返回类型范围 |
 | `TC_CE_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态（第 6/7/8 阶段） | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀源类型与普通上下文、形参或返回类型不一致；字面量 Token 自身的形成与范围检查属于第 2 阶段，不使用本错误码。负号整数字面量带 `u`/`U`、浮点字面量带 `u`/`U` 属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；附录 A `integer_literal` 不接受负号与 `u`/`U` 并用；[语言标准 §2.3.1]） |
-| `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 做 `ref_of`；`ref_store` 的**所指外层**为只读或**形参**（实际可达来源：形参取址及由其复制的引用；持有引用的绑定自身为 `let` 不构成只读，§3.2；[语言标准 §3.9.5]、[语言标准 §6.8.3]、[语言标准 §8.1.2]） |
+| `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 做 `ref_of` |
 | `TC_CE_CONSTANT_EXPRESSION`       | `ConstantExpressionError`    | 常量表达式错误                | SEM / CT   | 常量 RHS 含有运行时依赖或非法形态。具体子条件按下表判定，全部映射为同一错误码，但打印名附加具体原因文本 |
 
 **子条件判定表**
@@ -1802,7 +1802,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_RETURN_TYPE` | `ReturnTypeError` | 返回类型错误 | `return` | 返回操作数类型与声明返回类型不同 |
 | `TC_CE_MISSING_RETURN` | `MissingReturn` | 缺少返回 | CFG | 函数末尾节点可达 |
 | `TC_CE_UNREACHABLE_STATEMENT` | `UnreachableStatement` | 不可达语句 | CFG | 完成静态条件边裁剪后，该语句节点不能从当前顶层或函数控制流域的唯一入口到达（§9.2.1；[语言标准 §9.2]） |
-| `TC_CE_PARAMETER_ASSIGNMENT` | `ParameterAssignmentError` | 参数赋值错误 | 名称/类型 | 对形参**绑定本身**赋值（含整绑定和字段赋值），或将其作为 `read` 目标。不含经 `ref_of` 取址后的 `ref_store`（后者用 `TC_CE_CONSTANT_ASSIGNMENT`；[语言标准 §3.10.9]、[语言标准 §8.1.2]） |
+| `TC_CE_PARAMETER_ASSIGNMENT` | `ParameterAssignmentError` | 参数赋值错误 | 名称/类型 | 对形参**绑定本身**赋值（含整绑定和字段赋值），或将其作为 `read` 目标。不含经引用写穿所指对象（[语言标准 §3.10.10] 可写性不变量；此类写入无静态码） |
 | `TC_CE_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccessError` | 函数越界名称错误 | 名称（第 6b/7/8 阶段） | `#lib` 函数内普通裸名查找失败，但该名存在于本库顶层成员名索引（`func` / `static let` / `static var`）；须写作 `Self.<名>`。本码仅用于函数越界名称错误 |
 | `TC_CE_RECURSION` | `RecursionError` | 递归错误 | 调用图 | 全局函数调用图存在环 |
 
