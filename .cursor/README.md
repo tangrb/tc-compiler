@@ -135,6 +135,7 @@ python3 scripts/sync/check_source_naming.py
 python3 scripts/sync/check_doc_counts.py
 python3 scripts/sync/check_doc_layering.py
 python3 scripts/sync/check_error_codes.py
+python3 scripts/sync/check_grammar_stage.py
 make hooks
 cmake --build build --target check-embed check-embed-aot
 ```
@@ -151,5 +152,6 @@ cmake --build build --target check-embed check-embed-aot
 | 加载分级 / 工作流 | **本 README** |
 | 错误码表（查码用） | `errors.md`（rg，勿通读）· 语言标准附录 B **86** 码 + OOM = 实现 **87** |
 | 0.0.45 冻结候选码表一致性 | 语言标准附录 B ↔ 编译器 §11.4（`check_error_codes.py`） |
+| 0.0.45 受限类型位置的诊断阶段 | 附录 A 产生式 ↔ 两份草案声明（`check_grammar_stage.py`） |
 
 新模块：`locations.md` · `features.md` · `compiler-src.mdc` · 必要时 `gotchas.md` / `unit-tests-c.mdc`。

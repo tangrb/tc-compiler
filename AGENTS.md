@@ -45,5 +45,6 @@ python3 scripts/sync/check_source_naming.py
 python3 scripts/sync/check_doc_counts.py
 python3 scripts/sync/check_doc_layering.py
 python3 scripts/sync/check_error_codes.py
+python3 scripts/sync/check_grammar_stage.py
 make hooks
 ```

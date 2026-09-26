@@ -240,6 +240,17 @@ else
     pass "0.0.45 错误码表一致性检查通过"
 fi
 
+# 5d-3. 0.0.45 语法受限类型位置的诊断阶段一致性
+set +e
+python3 "$ROOT/scripts/sync/check_grammar_stage.py" 2>&1
+GRAMMAR_STAGE_EXIT=$?
+set -e
+if [ "$GRAMMAR_STAGE_EXIT" -ne 0 ]; then
+    fail "0.0.45 语法受限类型位置检查未通过"
+else
+    pass "0.0.45 语法受限类型位置检查通过"
+fi
+
 # 5e. 设计文档不得引用过程性文档
 set +e
 python3 "$ROOT/scripts/sync/check_doc_layering.py" 2>&1
