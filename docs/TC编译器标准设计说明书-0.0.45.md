@@ -487,7 +487,7 @@
 - **字段赋值双层可变性检查**：同时检查外层绑定种类与目标字段种类（[语言标准 §3.9.5] 完整矩阵）。外层为不可变绑定时任何字段赋值均非法 → `TC_CE_CONSTANT_ASSIGNMENT`；外层可写但字段为 `let` → `TC_CE_STRUCT_IMMUTABLE_FIELD`；形参的字段赋值 → `TC_CE_PARAMETER_ASSIGNMENT`。
 - **字段访问链**：`a.b.c` 整条是**一个** `operand`，不属于嵌套表达式；中间结果 `a.b` 须为结构体类型才能继续 `.c` 访问；任何层级类型为非结构体时报告 `TC_CE_TYPE_MISMATCH`。
 - **`@padding(N)` 布局记录**：符号表为每个字段记录填充字节数 `N`（无后缀非负**十进制**整数字面量，允许 `0`）；省略时记录 `0`。`N` 带 `u`/`U` 后缀、进制前缀或负号（附录 A 的 `padding_attr` 经 `integer_literal` 在语法上接受）→ 静态语义阶段报告 `TC_CE_CONSTANT_EXPRESSION`（与 `N` / `count:` 来源不合法同码，[语言标准 §3.9.3]）。`@padding` 只改变布局字节数，不改变字段类型、可变性或构造器实参列表。编译器必须按 `sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )` 计算结构体的类型级宽度并记录在符号表中，供整体赋值与按值传参使用。所有填充字节在构造与整块复制时均为 `0x00`。
-- **禁止的操作**：结构体不得参与算术、位运算、比较（复用 `TC_CE_TYPE_MISMATCH`）、`bitcast`（`TC_CE_TYPE_MISMATCH`）或标量 I/O（`TC_CE_SYNTAX`）。`cast` 不以结构体为源或目标。
+- **禁止的操作**：结构体不得作为算术、比较或逻辑运算的**操作数**（→ `TC_CE_TYPE_MISMATCH`），也不得出现在位运算/移位的**类型参数**位置（→ **语法拒绝** `TC_CE_SYNTAX`）、`bitcast`（`TC_CE_TYPE_MISMATCH`）或标量 I/O（`TC_CE_SYNTAX`）。`cast` 不以结构体为源或目标。
 
 ### 3.4 memblock 构造器编译期验证
 
