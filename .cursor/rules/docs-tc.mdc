@@ -27,8 +27,10 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 | `docs/libtc设计说明书-0.0.44.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
 | `docs/TC-VM命令行参考-0.0.44.md` | tc-vm / tc-aot CLI（含 `-I`、无 REPL） |
 | `docs/TC-Embed详细设计说明书-0.0.44.md` | TC-Embed API、VM/AOT 双模式、非致命 abort |
+| `docs/TC语言标准设计说明书-0.0.45.md` | **0.0.45 草案语言标准**：`ref<T>`（托管引用）/ `addr<T>`（线性地址）双空间、公共 IR 文本形态；尚未落地实现 |
+| `docs/TC编译器标准设计说明书-0.0.45.md` | **0.0.45 草案编译器标准**：检查规则与语言标准 0.0.45 对齐；含降级契约（§1.4）、局部可判定（§1.5）、调用深度上界（§8.10）；尚未落地实现 |
 
-上表 7 份为**设计/规范文档**。它们只引用同类设计文档与 `src/` / `tests/`，**不得**引用过程性文档（符合性审计报告、整改进度台账、CHANGELOG、release-checklist、`docs/README` 地图、AGENTS / `.cursor/**`）。分层检查：`python3 scripts/sync/check_doc_layering.py`。查某条规范是否落地：对 `src/` 与测试，勿回写过程记录。
+上表为**设计/规范文档**（7 份 0.0.44 现行 + 2 份 0.0.45 草案）。它们只引用同类设计文档与 `src/` / `tests/`，**不得**引用过程性文档（符合性审计报告、整改进度台账、CHANGELOG、release-checklist、`docs/README` 地图、AGENTS / `.cursor/**`）。分层检查：`python3 scripts/sync/check_doc_layering.py`。查某条规范是否落地：对 `src/` 与测试，勿回写过程记录。
 
 ## 同步检查
 

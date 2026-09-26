@@ -21,16 +21,22 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
 
-## Process records
+## 0.0.45 drafts (not yet in the language specification)
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC 0.0.44 Conformance Audit Report](TC-0.0.44-语言标准符合性审计报告.md) | **Conformance audit**: all design docs and `src/` checked against the language specification as sole authority; includes re-verification of pre-existing open items and new findings with minimal reproductions |
-| [TC 0.0.44 Remediation Ledger](TC-0.0.44-符合性整改进度台账.md) | **Remediation ledger**: per-item status, commits and adjudication-pending items for phase 1 (design-doc alignment) and phase 2 (implementation fixes); the audit report itself stays a pure findings list |
+| [TC language specification 0.0.45](TC语言标准设计说明书-0.0.45.md) | **0.0.45 language standard draft**: `ref<T>` (managed reference) and `addr<T>` (linear address) spaces, public-IR text-form positioning |
+| [TC compiler standard 0.0.45](TC编译器标准设计说明书-0.0.45.md) | **0.0.45 compiler standard draft**: checks aligned with the language spec, typed intermediate form and lowering contract (§1.4), local checkability (§1.5), call-depth bound (§8.10) |
 
-> The table above is process history, **not** a specification or design document. The seven design/spec documents listed earlier must not cite this section (enforced by `scripts/sync/check_doc_layering.py`).
+> The table above is the design source for a 0.0.45 language increment, **not** part of the shipping 0.0.44 language specification. Until it is implemented and merged into the language spec, the set of legal programs remains 0.0.44.
+
+## Process records
+
+This directory **no longer keeps** process documents (conformance audit reports, remediation ledgers, analysis reports, fix plans), so that the design/spec documents remain the single source of truth.
+
+> The historical process documents (0.0.44 conformance audit report, 0.0.44 remediation ledger, 0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.44:docs/TC-0.0.44-语言标准符合性审计报告.md`.
 >
-> The historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`.
+> Design/spec documents **must not** cite process records (enforced by `scripts/sync/check_doc_layering.py`, whose process-document name markers remain in effect).
 
 ## Repository-level docs (root)
 
@@ -44,4 +50,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**).
+Current core version: **v0.0.44** (the language specification and shipping design documents are **0.0.44**). The 0.0.45 draft is listed above and is not yet part of the language specification.
