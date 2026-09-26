@@ -934,7 +934,7 @@ TC 有两个空值字面量，分属两个地址空间，**互不通用**：
 | 语法 | `ref_of(T, identifier)`，其中 `T` 是所指类型；从变量的标识符取引用，产生指向该绑定的 `ref<T>` 值。`ref_of` 的类别为 RHS（非 `operand`） |
 | 类别 | RHS（非 `operand`） |
 | 类型参数 | `T` 取 `ref_pointee_type`（标量 / `memblock` / 结构体 / `ref<U>`；不含 `void` 与 `addr<U>`）；`T` 必须与 `identifier` 的声明类型严格一致 |
-| 操作数 | `identifier` 须为运行时绑定的裸名：局部 `var`、顶层 `var`、`static var`、函数形参…（完整规则见下） |
+| 操作数 | `identifier` 须为运行时绑定的裸名：局部 `var`、顶层 `var`、`static var`、…（完整规则见下） |
 | 结果类型 | `ref<T>` |
 | 编译期上下文 | 不适用于 `const_rhs`（§5.2.1、§6.8.4） |
 | 执行语义 | 计算该绑定的抽象存储位置并返回对应的 `ref<T>`。取引用后，引用与绑定共享同一存储；通过 `ref_store` 写入会同步反映到绑定的 `ref_load` 与直接读取 |
@@ -959,7 +959,7 @@ TC 有两个空值字面量，分属两个地址空间，**互不通用**：
 | 来源 | 说明 |
 | ---- | ---- |
 | `none` | 空引用字面量，与任意 `ref<T>` 兼容（§3.10.2） |
-| `ref_of(T, ident)` | 从运行时绑定取引用，产生指向该绑定的 `ref<T>`（§3.10.3）。仅可作用于 `var` / `static var` 绑定或函数形参；`let` 禁止 |
+| `ref_of(T, ident)` | 从运行时绑定取引用，产生指向该绑定的 `ref<T>`（§3.10.3）。仅可作用于 `var` / `static var` 绑定；`let` 禁止 |
 | 现有绑定（变量/常量/形参/`static`） | 将声明类型为 `ref<T>` 的现有绑定用作操作数，即得到 `ref<T>` 值（复制引用值本身，而非复制所指对象） |
 | 函数返回值 | 函数返回类型为 `ref<T>` 时，`funcall` 调用结果亦为 `ref<T>` |
 | 整块赋值 | 赋值 `dst = src`（双方同类型 `ref<T>`）复制引用值 |
@@ -3000,7 +3000,7 @@ field_type = scalar_type | sized_memblock_type | struct_type | ref_type | addr_t
    - 引用所指位置（某一层 ref<…> 的 pointee）
      可为完整类型，或当前正在定义的本结构体（引用的自引用）；
      仍不得前向引用其它尚未完成定义的结构体。
-   ref<void> 由 §3.10.1 静态语义拒绝。 */
+   ref<void> 不在本产生式中，属语法拒绝 TC_CE_SYNTAX（§3.10.1）。 */
 
 /* ── 运算与模式关键字 ── */
 

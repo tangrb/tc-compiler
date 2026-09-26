@@ -1240,7 +1240,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 
 - 每个形参类型是实参的唯一期望类型，不执行隐式转换。字面量按 [语言标准 §3.6] 以形参类型为上下文检查。
 - **形参只读绑定**：入口已初始化。对形参**绑定本身**赋值、字段赋值或作为 `read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`。形参**不可作为 `ref_of` 目标**（与 `let` 同为只读绑定，报 `TC_CE_CONSTANT_ASSIGNMENT`）；形参类型为 `ref<T>` 时，对该引用值做 `ref_store` 写入的是所指对象（恒为可写绑定实例），不改报 `PARAMETER_ASSIGNMENT`。
-- **非法形参类型**：`void` 不得用作形参类型（语法拒绝）；`ref<void>` 不合法（静态语义拒绝）；**`ref<addr<U>>` 亦不合法且属语法拒绝**（`ref_pointee_type` 不含 `addr_type`，[语言标准 §3.10.1]），故地址型绑定与形参不能被 `ref_of` 取引用。
+- **非法形参类型**：`void` 不得用作形参类型（语法拒绝）；`ref<void>` 不合法（**语法拒绝** `TC_CE_SYNTAX`）；**`ref<addr<U>>` 亦不合法且属语法拒绝**（`ref_pointee_type` 不含 `addr_type`，[语言标准 §3.10.1]），故地址型绑定与形参不能被 `ref_of` 取引用。
 - **memblock 形参 `N` 比较**：`memblock<T, N>` 形参在传参时须比较两侧声明的 `N` 数学值，不相等 → `TC_CE_MEMBLOCK_SIZE_MISMATCH`（见 §3.1）。
 - **`ref<T>` 形参按值传递**：复制引用值（地址），调用者与函数体共享所指对象。函数体内对形参做 `ref_load` 合法。对该引用值做 `ref_store` 写入的是所指对象，合法性按所指外层绑定判定，不因引用本身是形参而改报 `PARAMETER_ASSIGNMENT`。多参数均为 `ref<T>` 值时可能互为别名。
 
