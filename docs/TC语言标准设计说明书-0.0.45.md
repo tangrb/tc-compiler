@@ -2074,7 +2074,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 | 操作数 | `r` 须为 `ref<T>` 类型 |
 | 结果类型 | `T`（与类型参数一致） |
 | `let` 上下文 | 不适用于 `const_rhs`（§5.2.1） |
-| 运行时语义 | `r` 为 `none` 时 → `TC_RE_NULL_REFERENCE_DEREFERENCE`；否则返回所指对象的当前值（按值复制）。`T` 为 `bool` 时，读出的字节须按 §3.4 规范化后再作为结果提交（`0x00` → `false`，其它字节 → `true`） |
+| 运行时语义 | 先判空值、再判有效性、最后才读写：`r` 为 `none` 时 → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`r` 已失效（所指绑定实例的生命周期已结束，§3.10.10）时 → `TC_RE_DANGLING_REFERENCE`；否则返回所指对象的当前值（按值复制）。`T` 为 `bool` 时，读出的字节须按 §3.4 规范化后再作为结果提交（`0x00` → `false`，其它字节 → `true`） |
 
 #### 6.8.3 写入 — `ref_store`
 
@@ -2085,7 +2085,7 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 | 类型参数 `T` | 取 `ref_pointee_type`（标量 / `memblock` / 结构体 / `ref<U>`；不含 `void` 与 `addr<U>`）；决定引用所指类型，且必须与 `r` 的声明类型一致 |
 | 操作数 | `r` 须为 `ref<T>` 类型；`value` 须为 `T` 类型操作数（字面量以 `T` 为期望类型检查） |
 | 可变性 | 仅当 `r` 所指外层绑定为可写（`var` / 可写 `static var`）时允许；所指为 `let`/`static let`/形参时报 `TC_CE_CONSTANT_ASSIGNMENT` |
-| 运行时语义 | `r` 为 `none` 时 → `TC_RE_NULL_REFERENCE_DEREFERENCE`；否则覆盖写入所指对象的存储 |
+| 运行时语义 | 先判空值、再判有效性、最后才读写：`r` 为 `none` 时 → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`r` 已失效（§3.10.10）时 → `TC_RE_DANGLING_REFERENCE`；否则覆盖写入所指对象的存储 |
 
 #### 6.8.4 取引用 — `ref_of`
 

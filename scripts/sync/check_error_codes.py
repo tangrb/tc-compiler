@@ -203,6 +203,24 @@ def main():
     if len(acc) != len(ls_set):
         failures.append(f"编译器 §11.4：去重后共 {len(acc)} 码，附录 B 为 {len(ls_set)}")
 
+    # ---- 5. 引用解引用检查顺序（none → 失效 → 读写）------------------------
+    def slice_between(doc, start, end):
+        i = doc.find(start)
+        j = doc.find(end, i + 1) if i >= 0 else -1
+        return doc[i:j] if i >= 0 and j > i else ""
+
+    for doc_name, doc, start, end in (
+        ("语言标准 §6.8.2–§6.8.6", lang, "#### 6.8.2", "#### 6.8.7"),
+        ("编译器标准 §6.7", comp, "### 6.7 ", "### 6.8 "),
+    ):
+        seg = slice_between(doc, start, end)
+        if not seg:
+            failures.append(f"{doc_name}：找不到引用指令小节")
+        else:
+            for code in ("TC_RE_NULL_REFERENCE_DEREFERENCE", "TC_RE_DANGLING_REFERENCE"):
+                if code not in seg:
+                    failures.append(f"{doc_name}：引用指令小节缺少 {code}（顺序：none → 失效 → 读写）")
+
     # ---- 5. 实现资源码 ----------------------------------------------------
     oom = [r for r in comp_rows if r[0] == OOM_CODE]
     if len(oom) != 1:
