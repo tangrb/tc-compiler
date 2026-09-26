@@ -209,17 +209,26 @@ def main():
         j = doc.find(end, i + 1) if i >= 0 else -1
         return doc[i:j] if i >= 0 and j > i else ""
 
-    for doc_name, doc, start, end in (
-        ("语言标准 §6.8.2–§6.8.6", lang, "#### 6.8.2", "#### 6.8.7"),
-        ("编译器标准 §6.7", comp, "### 6.7 ", "### 6.8 "),
+    dangling = "TC_RE_DANGLING_REFERENCE"
+    for label, start, end in (
+        ("语言标准 §6.8.2（ref_load）", "#### 6.8.2", "#### 6.8.3"),
+        ("语言标准 §6.8.3（ref_store）", "#### 6.8.3", "#### 6.8.4"),
     ):
-        seg = slice_between(doc, start, end)
+        seg = slice_between(lang, start, end)
         if not seg:
-            failures.append(f"{doc_name}：找不到引用指令小节")
-        else:
-            for code in ("TC_RE_NULL_REFERENCE_DEREFERENCE", "TC_RE_DANGLING_REFERENCE"):
-                if code not in seg:
-                    failures.append(f"{doc_name}：引用指令小节缺少 {code}（顺序：none → 失效 → 读写）")
+            failures.append(f"{label}：找不到该小节")
+        elif dangling not in seg:
+            failures.append(f"{label}：运行时语义缺少 {dangling}（顺序：none → 失效 → 读写）")
+
+    seg = slice_between(comp, "### 6.7 ", "### 6.8 ")
+    if not seg:
+        failures.append("编译器标准 §6.7：找不到引用指令小节")
+    else:
+        for sig in ("`ref_load(T, r)`", "`ref_store(T, r, value)`"):
+            hit = [ln for ln in seg.split("\n")
+                   if sig in ln and (dangling in ln or "失效" in ln)]
+            if not hit:
+                failures.append(f"编译器标准 §6.7：{sig} 行未声明失效（悬垂）分支")
 
     # ---- 5. 实现资源码 ----------------------------------------------------
     oom = [r for r in comp_rows if r[0] == OOM_CODE]
