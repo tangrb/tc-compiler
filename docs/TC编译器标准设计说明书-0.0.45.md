@@ -19,7 +19,7 @@
 | §3 | [语言标准 §3] 类型系统 | **§3.0 内部类型事实源（禁止双轨）**；**§3.0.1 `sizeof_bits` 宽度速查**；整数类型有符号/无符号编译器约束（[语言标准 §3.2]、[语言标准 §3.5]）；`bool` 抽象宽度与规范位模式验证（[语言标准 §3.4]）；字面量检查实现要点（[语言标准 §3.6]）；类型转换通用框架编译器验证（含 `ref` cast 与地址位重解释，[语言标准 §3.7]）；`memblock<T, N>` 规划个数与类型等价分离、运行时布局计算（[语言标准 §3.8]）；结构体类型编译器约束、构造器验证、字段可变性双层检查、运行时布局与 @padding 验证（[语言标准 §3.9]）；`ref<T>` 静态约束与来源（[语言标准 §3.10]）；`addr<T>` 约束（[语言标准 §3.11]） |
 | §4 | [语言标准 §4] 程序结构与模块系统 | 模块分层架构、导入错误优先级（子阶段 4a→4b→4c→4d；4c 与 4d 之间注册结构体表）、模式对照约束、`Self` 成员限定（[语言标准 §4.3]）、成员可见性检查（[语言标准 §4.4]）、导入解析（[语言标准 §4.5]）；`static var` 初始化实现与依赖拓扑（[语言标准 §4.2]） |
 | §5 | [语言标准 §5] 声明 | `var` 声明形态与初始化器检查（[语言标准 §5.1]）；`let` 常量表达式形态验证与声明类型闭合（[语言标准 §5.2.1]）；静态布尔三态判定实现（[语言标准 §5.2.2]）；编译期求值与浮点精度规则（[语言标准 §5.2.3]） |
-| §6 | [语言标准 §6] 表达式与运算 | RHS 与操作数类型/模式检查（[语言标准 §6.1]）；赋值语句编译器验证（[语言标准 §6.2]）；算术模式验证矩阵与浮点执行环境（[语言标准 §6.3]）；位运算验证（[语言标准 §6.4]）；比较与逻辑运算检查及短路裁剪（[语言标准 §6.5]）；类型转换三种形式验证与字面量源类型规则（[语言标准 §6.6]）；memblock 操作验证与区间拷贝语义（[语言标准 §6.7]）；引用操作验证（`ref_load`/`ref_store`/`ref_of`/`ref_eq`/`ref_ne`/`bits_of`，[语言标准 §6.8]）；线性地址操作验证（`addr` / `addr_load` / `addr_store` / `addr_io_*` / `addr_add` / `addr_sub` / `addr_eq` / `addr_ne`，[语言标准 §6.9]）；操作数数量权威表；构造器验证 |
+| §6 | [语言标准 §6] 表达式与运算 | RHS 与操作数类型/模式检查（[语言标准 §6.1]）；赋值语句编译器验证（[语言标准 §6.2]）；算术模式验证矩阵与浮点执行环境（[语言标准 §6.3]）；位运算验证（[语言标准 §6.4]）；比较与逻辑运算检查及短路裁剪（[语言标准 §6.5]）；五种转换形式的验证与字面量源类型规则（[语言标准 §3.7]、[语言标准 §6.6.1]；语法外壳为 `cast` / `truncate` / `bitcast`）；memblock 操作验证与区间拷贝语义（[语言标准 §6.7]）；引用操作验证（`ref_load`/`ref_store`/`ref_of`/`ref_eq`/`ref_ne`/`bits_of`，[语言标准 §6.8]）；线性地址操作验证（`addr` / `addr_load` / `addr_store` / `addr_io_*` / `addr_add` / `addr_sub` / `addr_eq` / `addr_ne`，[语言标准 §6.9]）；操作数数量权威表；构造器验证 |
 | §7 | [语言标准 §7] 控制流 | CFG 构建、`goto`/`label` 上下文优先级（含 `while` 循环内禁止，[语言标准 §7.2.3]）、作用域跳转诊断表（[语言标准 §7.3.2]）、CFG 诊断优先级（本节 §7.6；[语言标准 §7.4] 为 `break`/`continue`，不用于锚定 CFG 诊断） |
 | §8 | [语言标准 §8] 函数与调用模型 | 签名/`funcall`/`return` 优先级、形参类型检查表（[语言标准 §8.1.1]）、本库顶层成员名索引（[语言标准 §8.4.1]）、调用帧实现、调用图与递归环确定性算法（[语言标准 §8.5]–[语言标准 §8.6]） |
 | §9 | [语言标准 §9] 作用域、生命周期与确定初始化 | CFG 数据流固定点求解（路径语义见 [语言标准 §9.2]）、初始化错误分层；`let` 标识符节点的 IN/OUT 传递函数（[语言标准 §5.2]、[语言标准 §9.2]）；活动作用域与边规范化 |
@@ -39,7 +39,7 @@
 
 | 类别 | 范围 | 详见 |
 | ---- | ---- | ---- |
-| 类型 | 固定宽度整数 `int8`～`uint64`；平台字长整数 `isize` / `usize`；`float32` / `float64`；`bool`；`ref<T>`（托管引用）；`addr<T>`（线性地址，含 `addr<void>`）；`memblock<T, N>`（带长度头部，`N` 为元素个数规划）；`struct`；`void` 仅作函数返回类型 | §3 |
+| 类型 | 固定宽度整数 `int8`～`uint64`；平台字长整数 `isize` / `usize`；`float32` / `float64`；`bool`；`ref<T>`（托管引用）；`addr<T>`（线性地址，含 `addr<void>`）；`memblock<T, N>`（带长度头部，`N` 为元素个数规划）；`struct`；`void` 不是值类型，只作函数返回类型或 `addr<void>` 的所指类型（[语言标准 §2.7]、[语言标准 §3.11.1]） | §3 |
 | 运算 | 算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与 `.count` 长度访问；**托管引用**：`ref_load` / `ref_store` / `ref_of` / `ref_eq` / `ref_ne`；**线性地址**：`addr` 构造、`addr_load` / `addr_store`、`addr_io_load` / `addr_io_store`（易失）、`addr_add` / `addr_sub`、`addr_eq` / `addr_ne`；`bits_of` 类型宽度查询 | §6 |
 | 模式 | 默认 strict；有符号整数算术与 `shl` 可按规则使用 `wrap`；浮点算术可按规则使用 `ieee` | §6.0.1、§6.3 |
 | 控制流 | 缩进敏感的 `if` / `while`（以 `end` 结束）；`break` / `continue`；函数内受限 `goto` / `label`（`while` 内禁止） | §7 |
@@ -62,7 +62,7 @@
 | 6 | 名称、作用域与类型语义（子阶段 6a→6b→6c→6d→6e） | [语言标准 §5]、[语言标准 §6]、[语言标准 §7.3]、[语言标准 §8.4.1] |
 | 7 | 函数调用（`funcall`）检查：目标、位置、实参与字面量约束 | [语言标准 §8.2] |
 | 8 | 返回（`return`）检查：位置、形式、操作数名称与类型 | [语言标准 §8.3] |
-| 9 | `let` / `static let` 编译期求值；`static var` 初始化器约束验证 | [语言标准 §5.2]–[语言标准 §5.2.3]、[语言标准 §4.2] |
+| 9 | `let` / `static let` 编译期求值；`static var` 只做初始化器的形态与来源约束检查，不在本阶段按运行时语义求值，也不把其溢出/除零报成 `TC_CE_CONSTANT_*` | [语言标准 §5.2]–[语言标准 §5.2.3]、[语言标准 §4.2] |
 | 10 | `if`/`while` 静态布尔三态判定；逻辑 RHS 读边判定 | [语言标准 §5.2.2]、[语言标准 §6.5.2.2] |
 | 11 | CFG 构建、可达性、确定初始化固定点；函数末尾检查 | [语言标准 §9.2] |
 | 12 | 函数调用图递归环检查 | [语言标准 §8.6] |
@@ -134,13 +134,15 @@
 
    | 项 | 规则 |
    | ---- | ---- |
-   | `static let` 与 `static var` | 亦按源序求值各可达库的 `static let`，并检查 `static var` 初始化器的编译期约束（[语言标准 §4.2]） |
+   | `static let` 与 `static var` | 按源序求值各可达库的 `static let`。`static var` 在本阶段只检查 [语言标准 §4.2] 的形态与来源约束（`TC_CE_UNDEFINED_VARIABLE` / `TC_CE_CONSTANT_EXPRESSION`）。其初始化器的算术、除零与转换失败不在本阶段求值，也不挂起为 `TC_CE_CONSTANT_*` |
    | 移位计数 | 常量算术中 `shl`/`shr` 的移位计数取其整数类型的数学值（[语言标准 §5.2.1]） |
    | 浮点精度 | 浮点常量算术需按类型参数独立执行 binary32/binary64 精度、采用 roundTiesToEven 舍入，不得使用 FMA、扩展精度、FTZ 或 DAZ（[语言标准 §5.2.3]） |
 10. 按 [语言标准 §5.2.2] 执行 `if`/`while` 静态布尔三态判定，并按 [语言标准 §6.5.2.2] 判定逻辑 RHS 读边；
 11. 构建唯一顶层 CFG，再分别构建各函数 CFG；按 [语言标准 §9.2] 从每个域的唯一入口计算可达节点，报告不可达语句，然后仅在可达子图上执行确定初始化固定点；仅函数 CFG 执行函数末尾检查；
 12. 检查函数调用图中的递归环；
 13. 生成后端代码。
+
+**程序准备**（不是第 14 个诊断阶段，不进入上表的 LT / SYN / SEM / CT）：仅当第 1–12 阶段的全部静态诊断均未触发之后、开始执行 `#program` 顶层语句之前，按依赖拓扑与源序、以运行时指令语义初始化各可达库的 `static var`（[语言标准 §4.2]、[语言标准 §11.1]）。失败报对应的 `TC_RE_*`，并使整个程序准备失败。该失败不挂起、不改报为 `TC_CE_CONSTANT_OVERFLOW` / `TC_CE_CONSTANT_DIV_ZERO` / `TC_CE_CONSTANT_CAST_OVERFLOW` / `TC_CE_CONSTANT_EXPRESSION`。第 13 阶段的代码生成不得提前执行这段求值，也不得把其中的 `TC_RE_*` 消掉。
 
 第 6 阶段（名称、作用域与类型语义）建立后续检查所需的作用域和名称环境。其内部子阶段 6a–6e 按序执行，前一子阶段有错时不进入后一子阶段。
 
@@ -180,8 +182,9 @@
 | 第 4–8、11、12 阶段 | **SEM** |
 | 第 9–10 阶段（常量求值与三态判定） | **CT**（其形态与来源类子条件仍属 SEM，见 [语言标准 §5.2.1]） |
 | 第 13 阶段（代码生成） | 不产生语言诊断，不属于任何诊断类阶段 |
+| 程序准备（静态诊断全部未触发之后） | **RT**。只产生 `static var` 初始化的 `TC_RE_*`（[语言标准 §11.1]），不产生、也不改报 `TC_CE_*` |
 
-- **CT 类诊断必须挂起**：[语言标准 §11] 的「阶段优先（LT → SYN → SEM → CT）」要求 CT 类诊断晚于全部 SEM 类诊断；实现必须在第 9、10 阶段挂起 `TC_CE_CONSTANT_OVERFLOW` / `TC_CE_CONSTANT_DIV_ZERO` / `TC_CE_CONSTANT_CAST_OVERFLOW`，以及求值类 `TC_CE_CONSTANT_EXPRESSION`。
+- **CT 类诊断必须挂起**：[语言标准 §11] 的「阶段优先（LT → SYN → SEM → CT）」要求 CT 类诊断晚于全部 SEM 类诊断；实现必须在第 9、10 阶段挂起 `TC_CE_CONSTANT_OVERFLOW` / `TC_CE_CONSTANT_DIV_ZERO` / `TC_CE_CONSTANT_CAST_OVERFLOW`，以及求值类 `TC_CE_CONSTANT_EXPRESSION`。这些挂起码只覆盖 `let` / `static let`。`static var` 初始化器的运行时失败留到程序准备，报 `TC_RE_*`。
 - **挂起期间只使用数值结果**：供第 10 阶段三态判定与第 11 阶段可达性分析。
 - **SEM 优先**：若第 11 阶段（可达性、确定初始化、函数末尾）或第 12 阶段（调用图环）产生 SEM 诊断，则报告该 SEM 诊断并终止，挂起的 CT 诊断不再报告；仅当全部 SEM 检查均无触发时，才按第 2 条源位置顺序报告挂起的 CT 诊断。
 - **顺序的理由**：未按此顺序实现将违反 [语言标准 §11] 的规范性顺序，并使「首个规范诊断及其错误码」跨实现不一致。
@@ -552,7 +555,7 @@
 
 ### 3.7 类型转换框架编译器约束
 
-编译器必须对 [语言标准 §3.7] 的三种语法外壳（`cast` / `cast(…, truncate, …)` / `bitcast`）分别执行不同的静态验证与运行时检查策略：
+编译器必须对 [语言标准 §3.7] 的三种语法外壳（`cast` / `cast(…, truncate, …)` / `bitcast`）分别执行不同的静态验证与运行时检查策略。这三种外壳覆盖该节的五种转换形式：数值 `cast`、整数 `truncate`、`bitcast`、引用重标记 `cast(ref<T>, …)`、地址重标记 `cast(addr<T>, …)`。`addr(T, u)` 是构造指令，不是转换形式。
 
 | 转换形式 | 静态验证 | 运行时检查 | 说明 |
 | -------- | -------- | ------------ | ---- |
@@ -590,8 +593,8 @@
 - **宽度**：`sizeof_bits(addr<T>) = sizeof_bits(usize)`（§3.0.1）。
 
 - **跨空间互不转换**：`ref<T>` 与 `addr<U>` 之间禁止 `cast` / `bitcast` / 隐式转换。
-- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`；结果在目标地址宽度上按模 `2^w` 唯一确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]）。算术不检查目的区域。其后的访问可以完成时，读出或写入的位串等于该地址处的存储位串（[语言标准 §1.3] 第 1 项）；不能完成时按第 3 项。**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
-- **空值分类**：`addr_load` / `addr_store` 先判 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`，再判能否完成；`addr_add` / `addr_sub` 遇 `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；`addr_io_load` / `addr_io_store` **不检查空地址**（地址 `0` 合法，不产生空值码），但仍先判能否完成。可以完成的访问必须得到该地址处的存储位串（[语言标准 §1.3] 第 1 项）。空值与不可用码共四个，彼此不得混用。
+- **算术步长**：`addr_add` / `addr_sub` 步长为 `sizeof_bytes(T) = sizeof_bits(T) / 8`，偏移类型 `usize`。位模式为 0 时按 [语言标准 §3.11.1] 第 2 步报 `TC_RE_NULL_ADDRESS_ARITHMETIC`，不计算模结果；位模式非 0 时，结果在目标地址宽度上按模 `2^w` 唯一确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]）。算术不检查目的区域。其后的访问可以完成时，读出或写入的位串等于该地址处的存储位串（[语言标准 §1.3] 第 1 项）；不能完成时按第 3 项。**本版不提供** `addr_diff` / 地址序关系比较 / 区间拷贝（[语言标准 §1.4]）。
+- **空值分类**：按 [语言标准 §3.11.1]，位模式为 0（含字面量 `nil`、`addr(T, 0)` 与 `bitcast` 得到的 0）时：`addr_load` / `addr_store` → `TC_RE_NULL_ADDRESS_DEREFERENCE`，再判能否完成；`addr_add` / `addr_sub` → `TC_RE_NULL_ADDRESS_ARITHMETIC`，不计算模 `2^w`；`addr_io_load` / `addr_io_store` **不因位模式为 0 报错**，但仍先判能否完成。可以完成的访问必须得到该地址处的存储位串（[语言标准 §1.3] 第 1 项）。地址侧这三个码——`TC_RE_NULL_ADDRESS_DEREFERENCE`、`TC_RE_NULL_ADDRESS_ARITHMETIC`、`TC_RE_ADDR_UNAVAILABLE`——彼此不得混用，也不得改报为 `TC_RE_NULL_REFERENCE_DEREFERENCE` 或 `TC_RE_DANGLING_REFERENCE`。
 - **易失档案**：`addr_io_*` 不得删除、合并、转发或重排；`addr_load` / `addr_store` 为普通内存访问，可按 §1.5 与 [语言标准 §1.3] 的变换合法性优化。
 - **常量性**：只有常量 `addr(T, <常量 usize>)` 可整条充当 `const_rhs`（`const_addr_expr`）；`addr_load` / `addr_store` / `addr_io_*` / `addr_add` / `addr_sub` / `addr_eq` / `addr_ne` 不在 `const_rhs` 中（语法拒绝 `TC_CE_SYNTAX`）。
 - **不可完成访问**：宿主映射类实现对不可用地址报 `TC_RE_ADDR_UNAVAILABLE`；裸机真地址实现按 [语言标准 §1.3] 第 3 项给出实现定义结果。不得降级为内部错误，也不得回退为槽访问。
@@ -655,7 +658,7 @@
 
 **`static let`** 是编译期常量：其初始化器必须是 §5.2.1 描述的单层编译期常量表达式。**求值**属 CT，在第 9 阶段（见 §1.2）完成全部可达 `#lib` 的 `static let` 求值并内联到所有使用点；求值类诊断按 §1.3 挂起至全部 SEM 类诊断无触发后再报告。
 
-**`static let`** 的来源与形态（[语言标准 §4.3]、[语言标准 §5.2.1]）
+**`static let`** 的来源与形态（[语言标准 §4.2]、[语言标准 §5.2.1]）
 
 | 项 | 规则 |
 | ---- | ---- |
@@ -675,7 +678,7 @@
 
 编译器必须：
 
-- 在完成模块依赖图检查后，按依赖拓扑序初始化所有可达模块的 `static var`。初始化器按**运行时指令语义**执行；形态检查通过后若求值失败（溢出、除零、无效浮点操作、严格转换失败等），报告对应的 `TC_RE_*` 码（[语言标准 §11.1]）并使整个程序准备失败；该阶段不引入新的错误码。
+- 全部静态诊断均未触发后，在 §1.2 的程序准备步骤按依赖拓扑序初始化所有可达模块的 `static var`。初始化器按**运行时指令语义**执行；形态检查通过后若求值失败（溢出、除零、无效浮点操作、严格转换失败等），报告对应的 `TC_RE_*` 码（[语言标准 §11.1]）并使整个程序准备失败；不改报为 `TC_CE_CONSTANT_*`，也不引入新的错误码。
 - 全程序共享同一 `static var` 槽：同一模块的所有导入者共享其 `static var`，导入不复制状态。
 - 初始化表达式中的操作数引用执行以下验证：
   - 引用当前编译单元的 `Self.` 成员时，验证该成员已成功初始化（源序更早）；
@@ -935,8 +938,8 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | `ref_load` | 显式类型参数 `T` | 按 §3.2、§6.7 验证；`none` → `TC_RE_NULL_REFERENCE_DEREFERENCE` |
 | `ref_of` | `ref<T>` | 按 §3.2、§6.7 验证；仅可作用于已确定初始化的 `var`/`static var`（`let`/`static let` 与形参禁止；未初始化 → `TC_CE_UNINITIALIZED_VARIABLE`），且绑定声明类型 ∈ `ref_pointee_type`（`addr<T>` 绑定不可取引用） |
 | `addr` | `addr<T>` | 按 §3.8、§6.8 验证；`u` 为 `usize`；常量时属 `const_rhs` |
-| `addr_load` / `addr_io_load` | 显式类型参数 `T` | 按 §3.8、§6.8 验证；`addr_load` 的 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_io_load` 不检查空地址 |
-| `addr_add` / `addr_sub` | `addr<T>` | 按 §3.8、§6.8 验证；`nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC` |
+| `addr_load` / `addr_io_load` | 显式类型参数 `T` | 按 §3.8、§6.8 验证；`addr_load` 的地址位模式为 0 → `TC_RE_NULL_ADDRESS_DEREFERENCE`（[语言标准 §3.11.1]）；`addr_io_load` 不因位模式为 0 报错 |
+| `addr_add` / `addr_sub` | `addr<T>` | 按 §3.8、§6.8 验证；地址位模式为 0 → `TC_RE_NULL_ADDRESS_ARITHMETIC`（[语言标准 §3.11.1]） |
 | `addr_eq` / `addr_ne` | `bool` | 同为 `addr<T>`（`T` 含 `void`）；`nil` = 地址 0，合法；跨类型 → `TC_CE_TYPE_MISMATCH` |
 | `ref_eq` / `ref_ne` | `bool` | 同为 `ref<T>` 或含 `none`；跨 `ref<T>`/`ref<U>` → `TC_CE_TYPE_MISMATCH` |
 | `bits_of` | `usize`（编译期常量） | 按 §3.2 验证；**无操作数**（`bits_of(T)`） |
@@ -1109,11 +1112,11 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 | 指令 | 显式类型 | 操作数 | 关键约束 | 编译期常量？ |
 | ---- | -------- | ------ | -------- | ------------ |
 | `addr(T, u)` | `T` ∈ 标量 / `addr<U>` / `void` | `u`: `usize` | 不访问内存；`u` 为编译期常量时整条可充当 `const_rhs`（`const_addr_expr`） | 是（常量 `u`） |
-| `addr_load(T, a)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；其它类型参数属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>` | 先 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；再不能完成 → `TC_RE_ADDR_UNAVAILABLE`；可以完成时结果等于该地址处的存储位串（[语言标准 §1.3] 第 1 项）；非易失 | 否 |
+| `addr_load(T, a)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；其它类型参数属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>` | 先按 [语言标准 §3.11.1] 判位模式 0 → `TC_RE_NULL_ADDRESS_DEREFERENCE`；再不能完成 → `TC_RE_ADDR_UNAVAILABLE`；可以完成时结果等于该地址处的存储位串（[语言标准 §1.3] 第 1 项）；非易失 | 否 |
 | `addr_store(T, a, v)` | 同上 | `a`: `addr<T>`；`v`: `T` | 同上；写入不适用 `TC_CE_CONSTANT_ASSIGNMENT` | 否（语句） |
 | `addr_io_load(T, a)` | 同上 | `a`: `addr<T>` | **不检查空地址**；不能完成 → `TC_RE_ADDR_UNAVAILABLE`；可以完成时结果等于该地址处的存储位串；易失：次数与顺序可观察 | 否 |
 | `addr_io_store(T, a, v)` | 同上 | 同上 | 同上 | 否（语句） |
-| `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；`void` 等属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>`；`n`: `usize` | `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；步长 `sizeof_bytes(T)`；结果按模 `2^w` 确定（`w` = `sizeof_bits(usize)`）；不检查目的区域（其后访问见 [语言标准 §1.3] 第 1 项与第 3 项） | 否（常量可折叠） |
+| `addr_add(T, a, n)` / `addr_sub(T, a, n)` | `T` 由 `addr_access_type` 限定（标量 / `addr<U>`；`void` 等属语法拒绝 `TC_CE_SYNTAX`） | `a`: `addr<T>`；`n`: `usize` | 位模式为 0 → `TC_RE_NULL_ADDRESS_ARITHMETIC`（[语言标准 §3.11.1]）；非 0 时步长 `sizeof_bytes(T)`，结果按模 `2^w` 确定（`w` = `sizeof_bits(usize)`）；不检查目的区域（其后访问见 [语言标准 §1.3] 第 1 项与第 3 项） | 否（常量可折叠） |
 | `addr_eq(T, a, b)` / `addr_ne(T, a, b)` | `T` ∈ `addr_pointee_type`（标量 / `addr<U>` / `void`） | 同为 `addr<T>` | `nil` 合法（即地址 0）；不触发运行时错误 | 否 |
 
 #### 6.8.2 编译器必须执行的检查
@@ -1121,11 +1124,11 @@ TC 浮点 `mod` 的取模核心是「商向零截断」，**以 [语言标准 §
 1. **类型参数一致性**：`T` 与操作数声明类型严格一致；访问与算术的类型参数由附录 A 的 `addr_access_type`（标量 / `addr<U>`）限定，`addr<void>` 及其它类型参数在那些位置属**语法拒绝** `TC_CE_SYNTAX`（`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` / `addr_add` / `addr_sub`）；本版不存在地址差、序关系比较与区间拷贝指令，`addr_eq` / `addr_ne` 允许 `addr<void>`。
 2. **非法所指类型**：`addr<ref<U>>` / `addr<struct>` / `addr<memblock>` 不在附录 A 的 `addr_pointee_type` 中，属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；[语言标准 §3.11.1]）。
 3. **跨空间禁止**：`ref<T>` 不得作为任何 `addr_*` 操作数；`addr<T>` 不得作为任何 `ref_*` 操作数 → `TC_CE_TYPE_MISMATCH`。
-4. **数学值判定**：所有下标 / 长度 / 偏移的负值与边界判定按**数学值**（有符号解码后）进行，不得先按无符号回绕再比较。
-5. **常量折叠**：常量 `addr`、常量 `addr_add` / `addr_sub` 可折叠；结果须与同一指令在抽象机中的运行时结果一致，并与 [语言标准 §6.9.5] 的算术语义、[语言标准 §3.11.3] 的往返语义及 [语言标准 §1.3] 的 as-if 规则保持一致，且不得改变空值与错误分类；折叠不改变 `const_rhs` 接受集，也不得消除 `nil` 操作数的 `TC_RE_NULL_ADDRESS_ARITHMETIC`。
+4. **偏移类型**：`addr_add` / `addr_sub` 的偏移是 `usize`，不存在有符号负下标检查。地址是否为空只按位模式是否为 0 判定（[语言标准 §3.11.1]），不得先把地址按无符号整数回绕后再决定是否报空地址错。
+5. **常量折叠**：常量 `addr`、常量 `addr_add` / `addr_sub` 可折叠；结果须与同一指令在抽象机中的运行时结果一致，并与 [语言标准 §6.9.5] 的算术语义、[语言标准 §3.11.3] 的往返语义及 [语言标准 §1.3] 的 as-if 规则保持一致，且不得改变空值与错误分类；折叠不改变 `const_rhs` 接受集，也不得消除位模式为 0 的 `TC_RE_NULL_ADDRESS_ARITHMETIC`（[语言标准 §3.11.1]）。
 6. **易失保序**：优化不得删除、合并、转发或重排 `addr_io_load` / `addr_io_store`。
 7. **调用型 RHS**：`addr`、`addr_load`、`addr_io_load`、`addr_add`、`addr_sub`、`addr_eq` / `addr_ne` 均**不属于 `operand`**（嵌套 → `TC_CE_SYNTAX`）；`addr_store`、`addr_io_store` 为独立语句。
-8. **访问结果**：`addr_load` / `addr_store` 先判空地址，再判能否完成；`addr_io_*` 不判空地址，但仍判能否完成。可以完成时，读出或写入的位串必须等于该地址处的 `sizeof_bits(T)` 位存储（[语言标准 §1.3] 第 1 项），不得另给确定值。不能完成时，宿主映射类实现报 `TC_RE_ADDR_UNAVAILABLE`；不得降级为内部错误，也不得回退为槽访问。裸机真地址实现按 [语言标准 §1.3] 第 3 项。
+8. **访问结果**：`addr_load` / `addr_store` 先按 [语言标准 §3.11.1] 第 1 步判位模式 0，再判能否完成；`addr_io_*` 不因位模式为 0 报错，但仍判能否完成。可以完成时，读出或写入的位串必须等于该地址处的 `sizeof_bits(T)` 位存储（[语言标准 §1.3] 第 1 项），不得另给确定值。不能完成时，宿主映射类实现报 `TC_RE_ADDR_UNAVAILABLE`；不得降级为内部错误，也不得回退为槽访问。裸机真地址实现按 [语言标准 §1.3] 第 3 项。
 9. **字节序与对齐**：`addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` 的字节序按执行访存的目标地址空间确定，不依赖宿主（[语言标准 §3.11.4]）；后端不得把未对齐访问实现为宿主未对齐访存——按字节访问时未对齐不构成错误，不按字节访问时按 [语言标准 §1.3] 第 3 项报 `TC_RE_ADDR_UNAVAILABLE`。
 10. **结果位模式**：`addr_add` / `addr_sub` 的结果必须按模目标地址宽度 `2^w` 确定（`w` = `sizeof_bits(usize)`，[语言标准 §6.9.5]）；不得以宿主指针算术或宿主整数溢出行为（其溢出结果未定义）替代该语义，也不得因折叠而改变。
 
@@ -1650,8 +1653,8 @@ ASCII 空白仅指 U+0009～U+000D 与 U+0020，不受 locale 影响。输入必
 | 转换溢出错误     | `TC_RE_CAST_OVERFLOW` | 严格 `cast` 的数学结果无法在目标类型中表示，或浮点源为 NaN/无穷且目标为整数 |
 | 空引用解引用错误 | `TC_RE_NULL_REFERENCE_DEREFERENCE` | `ref_load` / `ref_store` 的操作数为 `none`（[语言标准 §11.1]） |
 | 悬垂引用解引用错误 | `TC_RE_DANGLING_REFERENCE` | `ref_load` / `ref_store` 的引用所指绑定实例的生命周期已结束（[语言标准 §3.10.10]） |
-| 空地址解引用错误 | `TC_RE_NULL_ADDRESS_DEREFERENCE` | `addr_load` / `addr_store` 的操作数为 `nil` |
-| 空地址算术错误 | `TC_RE_NULL_ADDRESS_ARITHMETIC` | `addr_add` / `addr_sub` 的地址操作数为 `nil` |
+| 空地址解引用错误 | `TC_RE_NULL_ADDRESS_DEREFERENCE` | `addr_load` / `addr_store` 的地址位模式为 0（[语言标准 §3.11.1]） |
+| 空地址算术错误 | `TC_RE_NULL_ADDRESS_ARITHMETIC` | `addr_add` / `addr_sub` 的地址位模式为 0（[语言标准 §3.11.1]） |
 | I/O 错误         | `TC_RE_IO` | `read` 输入非法/超范围/EOF，标准输入读取失败，或 `write`/`writeln` 写入失败 |
 | memblock 越界    | `TC_RE_MEMBLOCK_INDEX_OUT_OF_RANGE` | `memblock_load` / `memblock_store` 的运行时下标不满足 `0 ≤ i < N`；或 `memblock_copy` 的运行时区间不满足 [语言标准 §6.7.2.3]（上界为声明规划个数 `N`，[语言标准 §3.8]） |
 | 地址访问不可完成 | `TC_RE_ADDR_UNAVAILABLE` | `addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` 的目标地址在本次执行中不可用（宿主映射类实现；[语言标准 §1.3] 第 3 项） |
@@ -1661,8 +1664,8 @@ ASCII 空白仅指 U+0009～U+000D 与 U+0020，不受 locale 影响。输入必
 指令须先完成操作数读取与空值分类，再提交结果：
 
 - `ref_load`/`ref_store` 的 `none` 只报 `TC_RE_NULL_REFERENCE_DEREFERENCE`；
-- `addr_load`/`addr_store` 的 `nil` 只报 `TC_RE_NULL_ADDRESS_DEREFERENCE`；
-- `addr_add`/`addr_sub` 的 `nil` 只报 `TC_RE_NULL_ADDRESS_ARITHMETIC`。
+- `addr_load`/`addr_store` 的地址位模式为 0 时只报 `TC_RE_NULL_ADDRESS_DEREFERENCE`（[语言标准 §3.11.1]）；
+- `addr_add`/`addr_sub` 的地址位模式为 0 时只报 `TC_RE_NULL_ADDRESS_ARITHMETIC`。
 
 四个空值/不可用码之间不得混用；悬垂引用码 `TC_RE_DANGLING_REFERENCE` 与它们同样互不代用（`none` 与失效互斥，§3.10.10）。
 
@@ -1730,7 +1733,7 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_CE_TYPE_MISMATCH`             | `TypeMismatch`               | 类型错误                      | 静态        | 符合 EBNF 的非比较运算、变量或常量定义、赋值、转换、`ref<T>` 同型约束失败发生类型不一致，以及 `write` / `writeln` 的标识符操作数或 `read` 目标 `var` 的声明类型与显式 `scalar_type` 不一致；比较标识符操作数与显式 `T` 不一致专用 `TC_CE_COMPARISON_TYPE_MISMATCH`；`let` 的非字面量 RHS 结果类型与声明类型不同时使用本错误，直接字面量不匹配仍使用字面量专用错误；EBNF 已排除的操作类型参数组合（含 I/O 使用 `memblock`/结构体/`ref`/`addr`）使用 `TC_CE_SYNTAX`；跨 `ref<T>`/`ref<U>` 比较亦用本错误（[语言标准 §3.10.7]） |
 | `TC_CE_LITERAL_OUT_OF_RANGE`      | `LiteralOutOfRange`          | 字面量范围错误                | 静态（第 2/6/7/8 阶段） | 第 2 阶段：整数绝对值超过 [语言标准 §2.3.5] 上限，或有限浮点字面量按后缀源类型舍入为零/无穷；第 6/7/8 阶段：已形成的字面量超出对应普通上下文、形参或返回类型范围 |
 | `TC_CE_LITERAL_TYPE`              | `LiteralTypeError`           | 字面量类型错误                | 静态（第 6/7/8 阶段） | `u` 后缀误用、浮点/整数/布尔类别误用，或浮点后缀源类型与普通上下文、形参或返回类型不一致；字面量 Token 自身的形成与范围检查属于第 2 阶段，不使用本错误码。负号整数字面量带 `u`/`U`、浮点字面量带 `u`/`U` 属**语法拒绝** `TC_CE_SYNTAX`（第 3 阶段；附录 A `integer_literal` 不接受负号与 `u`/`U` 并用；[语言标准 §2.3.1]） |
-| `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 做 `ref_of` |
+| `TC_CE_CONSTANT_ASSIGNMENT`       | `ConstantAssignmentError`    | 常量赋值错误                  | 静态        | 对 `let` / `static let` 赋值（含整绑定与字段赋值）；`let` memblock 作为 `store`/`copy` 目标；对 `let` / `static let` 或**函数形参**做 `ref_of`（[语言标准 §6.8.4]、[语言标准 §8.1.2]）。形参绑定本身的赋值与 `read` 仍用 `TC_CE_PARAMETER_ASSIGNMENT` |
 | `TC_CE_CONSTANT_EXPRESSION`       | `ConstantExpressionError`    | 常量表达式错误                | SEM / CT   | 常量 RHS 含有运行时依赖或非法形态。具体子条件按下表判定，全部映射为同一错误码，但打印名附加具体原因文本 |
 
 **子条件判定表**
@@ -1761,8 +1764,8 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_RE_IO`                        | `IOError`                    | I/O 错误                      | 运行时      | `read` 输入非法、EOF、超范围，或标准输入/输出读写失败                 |
 | `TC_RE_NULL_REFERENCE_DEREFERENCE` | `NullReferenceDereference`  | 空引用解引用错误              | 运行时      | `ref_load` / `ref_store` 的操作数为 `none` |
 | `TC_RE_DANGLING_REFERENCE`        | `DanglingReference`         | 悬垂引用解引用错误            | 运行时      | `ref_load` / `ref_store` 的引用所指绑定实例的生命周期已结束（[语言标准 §3.10.10]） |
-| `TC_RE_NULL_ADDRESS_DEREFERENCE`   | `NullAddressDereference`    | 空地址解引用错误              | 运行时      | `addr_load` / `addr_store` 的操作数为 `nil` |
-| `TC_RE_NULL_ADDRESS_ARITHMETIC`    | `NullAddressArithmetic`     | 空地址算术错误                | 运行时      | `addr_add` / `addr_sub` 的地址操作数为 `nil` |
+| `TC_RE_NULL_ADDRESS_DEREFERENCE`   | `NullAddressDereference`    | 空地址解引用错误              | 运行时      | `addr_load` / `addr_store` 的地址位模式为 0（[语言标准 §3.11.1]） |
+| `TC_RE_NULL_ADDRESS_ARITHMETIC`    | `NullAddressArithmetic`     | 空地址算术错误                | 运行时      | `addr_add` / `addr_sub` 的地址位模式为 0（[语言标准 §3.11.1]） |
 | `TC_ERR_OUT_OF_MEMORY`             | `OutOfMemory`                | —（实现资源失败）             | 实现        | 实现专用：实际内部分配失败；诊断消息为 `memory allocation failed` |
 | `TC_CE_INDENT_MIXED`              | `IndentMixedError`           | 缩进字符错误                  | LT         | 非空、非纯注释行的行首缩进出现水平制表符 U+0009（单独使用或与空格混用） |
 | `TC_CE_INDENT_INSUFFICIENT`       | `IndentInsufficientError`    | 块内缩进层级错误              | LT         | **非** `else`/`end` 的直接块内语句未恰好多一级、一次意外增加多个空格组层级、回退后的空格组数量不在缩进栈中，或**顶层行**（含 `#program`/`#lib` 指令行与其顶层 `import`/类型/声明/`static`/`func`/顶层语句）出现缩进（[语言标准 附录 A.2]；`else`/`end` 的不对齐一律 `TC_CE_INDENT_ELSE_END`） |
@@ -1859,13 +1862,13 @@ TC 无编译警告，也不以警告方式放行初始化、溢出、类型或�
 | `TC_RE_ADDR_UNAVAILABLE` | `AddrUnavailable` | 地址不可用 | 运行时 | `addr_load` / `addr_store` / `addr_io_load` / `addr_io_store` 的目标地址在本次执行中不可用（宿主映射类实现未提供该地址空间、地址不在可用区间、未对齐且未按字节访问、或目标硬件拒绝；[语言标准 §1.3] 第 3 项） |
 | `TC_RE_NULL_REFERENCE_DEREFERENCE` | `NullReferenceDereference` | 空引用解引用错误 | 运行时 | `ref_load` / `ref_store` 的操作数为 `none` |
 | `TC_RE_DANGLING_REFERENCE` | `DanglingReference` | 悬垂引用解引用错误 | 运行时 | `ref_load` / `ref_store` 的引用所指绑定实例的生命周期已结束（[语言标准 §3.10.10]） |
-| `TC_RE_NULL_ADDRESS_DEREFERENCE` | `NullAddressDereference` | 空地址解引用错误 | 运行时 | `addr_load` / `addr_store` 的操作数为 `nil` |
-| `TC_RE_NULL_ADDRESS_ARITHMETIC` | `NullAddressArithmetic` | 空地址算术错误 | 运行时 | `addr_add`、`addr_sub` 的地址操作数为 `nil` |
+| `TC_RE_NULL_ADDRESS_DEREFERENCE` | `NullAddressDereference` | 空地址解引用错误 | 运行时 | `addr_load` / `addr_store` 的地址位模式为 0（[语言标准 §3.11.1]） |
+| `TC_RE_NULL_ADDRESS_ARITHMETIC` | `NullAddressArithmetic` | 空地址算术错误 | 运行时 | `addr_add` / `addr_sub` 的地址位模式为 0（[语言标准 §3.11.1]） |
 
 注：
 
-- 空值运行时错误按**字面量与操作**分类：`ref_load` / `ref_store` 的 `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`addr_load` / `addr_store` 的 `nil` → `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_add` / `addr_sub` 的 `nil` → `TC_RE_NULL_ADDRESS_ARITHMETIC`；不得互相顶替。`ref_eq` / `ref_ne` 允许 `none`、`addr_eq` / `addr_ne` 允许 `nil` 作操作数，不触发运行时错误。
-- **易失档案不检查空地址**：`addr_io_load` / `addr_io_store` **不检查空地址**（地址 `0` 合法）；它们只可能报 `TC_RE_ADDR_UNAVAILABLE`。
+- 空值运行时错误按**位模式与操作**分类：`ref_load` / `ref_store` 的 `none` → `TC_RE_NULL_REFERENCE_DEREFERENCE`；`addr_load` / `addr_store` 的地址位模式为 0（含字面量 `nil`，[语言标准 §3.11.1]）→ `TC_RE_NULL_ADDRESS_DEREFERENCE`；`addr_add` / `addr_sub` 的地址位模式为 0 → `TC_RE_NULL_ADDRESS_ARITHMETIC`；不得互相顶替。`ref_eq` / `ref_ne` 允许 `none`，`addr_eq` / `addr_ne` 允许位模式 0，不触发运行时错误。
+- **易失档案不检查空地址**：`addr_io_load` / `addr_io_store` 不因位模式为 0 报错（[语言标准 §3.11.1] 第 3 步）；它们只可能报 `TC_RE_ADDR_UNAVAILABLE`。
 - 托管引用**没有**算术指令：因此不存在「空引用算术」码；地址空间的两个空值码互不代用。
 - **码总数与镜像**：语言码总数 **87 = 73 `TC_CE_*` + 14 `TC_RE_*`**；本表含 `TC_RE_ADDR_UNAVAILABLE`，空值三码与悬垂码与 §11.4.1 交叉列出、不另计。
 
