@@ -47,7 +47,7 @@ RESTRICTED = {
 TYPE_DEFS = {
     "type", "value_type", "field_type", "return_type", "ref_type", "addr_type",
     "ref_pointee_type", "addr_pointee_type", "memblock_element_type",
-    "sized_memblock_type", "scalar_type", "addr_access_type",
+    "sized_memblock_type", "memblock_type", "param_type", "scalar_type", "addr_access_type",
 }
 SYNTAX_MARKERS = ("TC_CE_SYNTAX", "语法拒绝")
 

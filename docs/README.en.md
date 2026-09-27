@@ -25,12 +25,12 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC language specification 0.0.45](TC语言标准设计说明书-0.0.45.md) | **0.0.45 frozen language standard**: `ref<T>` (managed reference) and `addr<T>` (linear address) spaces, public-IR text-form positioning |
-| [TC compiler standard 0.0.45](TC编译器标准设计说明书-0.0.45.md) | **0.0.45 frozen compiler standard**: checks aligned with the language spec, typed intermediate form and lowering contract (§1.4), local checkability (§1.5), call-depth bound (§8.10) |
+| [TC language specification 0.0.45](TC语言标准设计说明书-0.0.45.md) | **0.0.45 freeze-candidate language standard**: `ref<T>` (managed reference) and `addr<T>` (linear address) spaces, public-IR text form; `memblock` length is written only where storage is created |
+| [TC compiler standard 0.0.45](TC编译器标准设计说明书-0.0.45.md) | **0.0.45 freeze-candidate compiler standard**: checks aligned with the language spec, typed intermediate form and lowering contract (§1.4), local checkability (§1.5), call-depth bound (§8.10); memblock possible lengths close after the call graph is acyclic |
 
 > The table above is the design source for a 0.0.45 language increment, **not** part of the shipping 0.0.44 language specification. Until it is implemented and merged into the language spec, the set of legal programs remains 0.0.44.
 >
-> **Freeze review failed (2026-09-26)**: both 0.0.45 design documents remain **freeze candidates** and do not constitute a frozen specification (the `spec-0.0.45` tag has been withdrawn). Three gaps were closed the same day (managed-reference lifetime and dangling references, address-arithmetic value semantics and target word size, and the diagnosis stage of grammar-restricted type positions); a re-review is pending. Errata-only discipline still applies to any later freeze, and any semantic change requires a version bump; errata and cross-version deltas are recorded in `CHANGELOG.md`, never in the design documents themselves.
+> **Freeze review failed (2026-09-26); memblock was then converged (2026-09-27)**: both 0.0.45 design documents remain **freeze candidates** and do not constitute a frozen specification (the `spec-0.0.45` tag has been withdrawn). The three gaps from 2026-09-26 (managed-reference lifetime and dangling references, address-arithmetic value semantics and target word size, and the diagnosis stage of grammar-restricted type positions) are in the text. As of 2026-09-27, a `memblock` length is written only where storage is created; parameters, returns, and reference pointees use `memblock<T>`, and `memblock_copy` is removed. The diagnostic set stays at 87 codes. **Re-review is pending.** Errata-only discipline still applies to any later freeze, and any semantic change requires a version bump; errata and cross-version deltas are recorded in `CHANGELOG.md`, never in the design documents themselves.
 
 ## Process records
 
@@ -52,4 +52,4 @@ This directory **no longer keeps** process documents (conformance audit reports,
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.44** (the language specification and shipping design documents are **0.0.44**). The frozen 0.0.45 text is listed above and is not yet part of the shipping implementation.
+Current core version: **v0.0.44** (the language specification and shipping design documents are **0.0.44**). The 0.0.45 freeze candidates are listed above and are not yet part of the shipping implementation.
