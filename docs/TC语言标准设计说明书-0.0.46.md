@@ -669,14 +669,12 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 
 `mb.count` 以字段访问的形式从 memblock 的长度头部读取 `usize` 值并返回。语法见附录 A。类别：RHS（结果类型为 `usize`）。
 
-| 约束 | 规则 |
-| ---- | ---- |
-| 基址类型 | `memblock<T, N>` 类型的绑定，或 `ptr<memblock<T>>` 块引用（§3.10.13） |
-| 返回类型 | `usize`；绑定形式为声明中 `N` 的数学值，块引用形式为**运行期读取长度头**的结果 |
-| 读操作 | 不改变 memblock 内容或已初始化状态 |
-| 确定初始化 | 绑定为运行时 `var` 时须已确定初始化；块引用须非 `nullptr` |
-| 空引用 | 块引用为 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE` |
-| 编译期常量 | 仅绑定形式是编译期常量，可作为 `const_operand` 在 `const_rhs` 中使用；块引用形式不是 |
+- **基址类型**：`memblock<T, N>` 类型的绑定，或 `ptr<memblock<T>>` 块引用（§3.10.13）。
+- **返回类型**：`usize`；绑定形式为声明中 `N` 的数学值，块引用形式为运行期读取长度头的结果。
+- **读操作**：不改变 memblock 内容或已初始化状态。
+- **确定初始化**：绑定为运行时 `var` 时须已确定初始化；块引用须非 `nullptr`。
+- **空引用**：块引用为 `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`。
+- **编译期常量**：仅绑定形式是编译期常量，可作为 `const_operand` 在 `const_rhs` 中使用；块引用形式不是。
 
 ### 3.9 结构体类型（`struct`）
 
@@ -825,13 +823,11 @@ sizeof_bits(S) = Σ_i ( sizeof_bits(field_i) + 8 × padding_i )
 
 **结构体字段中的指针自引用例外**：在定义结构体 `S` 的字段类型表达式中，某一层 `ptr<…>` 的所指类型可为正在定义的本结构体 `S`（§3.9.1）。该例外仅适用于 `S` 自身字段类型表达式内部；不得据此在其它结构体、其它声明或前向位置书写尚未定义完毕的结构体名。
 
-| 规则 | 说明 |
-| ---- | ---- |
-| **类型含 `T`** | 类型构造器携带所指类型 `T`。`ptr<int32>` 与 `ptr<float64>` 是不同的类型。 |
-| **`T` 参与类型等价** | 两个 `ptr<T>` 类型等价当且仅当 `T` 相同。对指针自引用字段，定义完成后 `T` 即为完整的 `S`，与其它位置的 `ptr<S>` 同型。 |
-| **无隐式转换** | 不同所指类型的指针之间禁止隐式转换；赋值、传参两侧的 `ptr<T>` 必须严格同型，否则报 `TC_CE_TYPE_MISMATCH`。显式转换见 §3.10.14。 |
-| **无通用算术** | 不允许对 `ptr<T>` 值做加、减等通用算术运算或位运算；`ptr<T>` 不是整数类型。指针算术仅可通过专用的 `ptr_add` / `ptr_sub` 指令进行（§3.10.12）。 |
-| **地址是真实地址** | `ptr<T>` 的位模式就是目标地址；`bitcast` 可观察该值（§3.10.10、§6.6.7）。宿主到目标的翻译方式属实现定义且不可观察。 |
+- **类型含 `T`**：类型构造器携带所指类型 `T`；`ptr<int32>` 与 `ptr<float64>` 是不同的类型。
+- **`T` 参与类型等价**：两个 `ptr<T>` 类型等价当且仅当 `T` 相同；对指针自引用字段，定义完成后 `T` 即为完整的 `S`，与其它位置的 `ptr<S>` 同型。
+- **无隐式转换**：不同所指类型的指针之间禁止隐式转换；赋值、传参两侧的 `ptr<T>` 必须严格同型，否则报 `TC_CE_TYPE_MISMATCH`。显式转换见 §3.10.14。
+- **无通用算术**：不允许对 `ptr<T>` 值做加、减等通用算术运算或位运算；`ptr<T>` 不是整数类型。指针算术仅可通过专用的 `ptr_add` / `ptr_sub` 指令进行（§3.10.12）。
+- **地址是真实地址**：`ptr<T>` 的位模式就是目标地址；`bitcast` 可观察该值（§3.10.10、§6.6.7）。宿主到目标的翻译方式属实现定义且不可观察。
 
 #### 3.10.2 `nullptr` 空指针
 
@@ -1133,13 +1129,11 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （32 或 64，由环境决定）
 
 `var` 声明的语法形态由附录 A 规定。**声明时必须初始化**：初始化器为普通 `rhs`，或用于接收非 `void` 返回值的专用 `funcall`。
 
-| 项目 | 规则 |
-| ---- | ---- |
-| 初始化器 | 强制；`=` 与初始化器不可省略 |
-| 缺初始化器 | 结构类语法阶段诊断错误 `TC_CE_VAR_MISSING_INIT`（§1.3、§5.1.2） |
-| RHS | 字面量、已定义标识符、单个运算、`cast` 或 `bitcast`（见 §6.1.1）；须与声明类型一致 |
-| 函数返回初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: <类型> = funcall(...)` 初始化新变量（§8.2）；`funcall` 不属于普通 RHS |
-| 再赋值 | 首次引入之后，修改写作 `<identifier> = <rhs>` 或 `<identifier> = funcall(...)`，不写 `var`（§6.2） |
+- **初始化器**：强制；`=` 与初始化器不可省略。
+- **缺初始化器**：结构类语法阶段诊断 `TC_CE_VAR_MISSING_INIT`（§1.3、§5.1.2）。
+- **RHS**：字面量、已定义标识符、单个运算、`cast` 或 `bitcast`（§6.1.1）；须与声明类型一致。
+- **函数返回初始化**：非 `void` `funcall` 可通过专用形态 `var <名>: <类型> = funcall(...)` 初始化新变量（§8.2）；`funcall` 不属于普通 RHS。
+- **再赋值**：首次引入之后，修改写作 `<identifier> = <rhs>` 或 `<identifier> = funcall(...)`，不写 `var`（§6.2）。
 
 TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化器：目标变量必须先以带初始化器的 `var` 定义，`read` 仅覆盖当前值（§10.3）。
 
@@ -1225,12 +1219,10 @@ TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化�
 
 静态布尔判定只复用本节的表达式定义和 §6.3～§6.6 的共享语义，不建立第二套运算符白名单。形态归类如下（非穷尽列举运算符，仅固定判定出口）：
 
-| 归类 | 典型形态 | 三态出口 |
-| ---- | -------- | -------- |
-| 可静态求值 | 布尔字面量；可见且更早的 `let bool`，或经 `Self.` / 导入限定解析到的 `static let bool`；只读结构体字段读取与 `mb.count`（§5.2.1 原子表达式）；结果为 `bool` 的整数/浮点比较；布尔逻辑运算；目标为 `bool` 的合法严格 `cast` | 求值为 `true` / `false` |
-| 不可静态折叠 | 含 `var` / 形参等运行时操作数；其它非单层常量表达式形态 | `unknown`（两边均可达） |
-| 非法或求值失败 | 前向 `let`、不可见 `let`、嵌套调用等（由更早阶段报错）；或形态合法但溢出/除零/无效浮点/`cast` 失败 | **不得**降级为 `unknown`；按既有映射终止编译 |
-| 明确排除 | `bitcast`（不允许 `bool`）；整数 `truncate`（不能产生合法布尔条件） | 不构成合法静态布尔条件 |
+- **可静态求值**：布尔字面量；可见且更早的 `let bool`，或经 `Self.` / 导入限定解析到的 `static let bool`；只读结构体字段读取与 `mb.count`（§5.2.1 原子表达式）；结果为 `bool` 的整数/浮点比较；布尔逻辑运算；目标为 `bool` 的合法严格 `cast`。出口：`true` / `false`。
+- **不可静态折叠**：含 `var` / 形参等运行时操作数；其它非单层常量表达式形态。出口：`unknown`（两边均可达）。
+- **非法或求值失败**：前向 `let`、不可见 `let`、嵌套调用等（由更早阶段报错）；或形态合法但溢出/除零/无效浮点/`cast` 失败。**不得**降级为 `unknown`；按既有映射终止编译。
+- **明确排除**：`bitcast`（不允许 `bool`）；整数 `truncate`（不能产生合法布尔条件）；不构成合法静态布尔条件。
 
 三态判定与短路读边是两个独立分析：含 `var` 的条件始终为 `unknown`，即使短路语义可裁剪读取边。
 
@@ -1290,18 +1282,12 @@ TC 不允许“先声明、后首次赋值”。`read` 也不能代替初始化�
 
 #### 6.1.2 操作数（Operand）
 
-| 形式              | 约束                                                         |
-| ----------------- | ------------------------------------------------------------ |
-| *identifier*      | 先按词法作用域解析绑定并检查类型：解析为运行时 `var` 或参数时，必须在当前程序点已确定初始化（参数在函数入口已初始化，§9.2）；解析为 `let` 时，必须在使用点可见且已成功完成编译期求值，随后直接内联，不参与确定初始化检查 |
-| *qualified_identifier* | `Self.<名>`（仅 `#lib`）：按 §4.3 / §8.4.1 解析为本库 `static let` / `static var`；只读或可写规则与绑定种类一致；`static var` 在程序准备成功后已确定初始化 |
-| *imported_member_name* | `<模块名>.<名>`：按 §4.4 / §4.5 解析为已导入库的公开 `static let` / `static var`；可见性与读写规则同上 |
-| *field_access*    | `<基址>.<字段名>`：基址为上述标识符形式之一，且其类型为结构体类型；字段名必须属于该结构体；结果类型为字段声明类型；对运行时 `var` 基址须确定初始化（§3.9.5） |
-| *memblock_count_access* | `<memblock 基址>.count`：基址可为 `memblock<T, N>` 类型的绑定（局部/顶层 `var`/`let`、`Self.<名>`、`<模块名>.<名>` 或函数形参）或 `ptr<memblock<T>>` 块引用（§3.10.13）；结果类型 `usize`；绑定形式为 `N` 的编译期常量，块引用形式为运行期读取长度头且 `nullptr` 报空指针码（§3.8.5、§6.7.7） |
-| *integer_literal* | 须满足字面量约束                                             |
-| *float_literal*   | 须满足字面量约束                                             |
-| *float_special*   | `inf`/`-inf`/`nan`，仅用于浮点类型上下文                     |
-| *bool_literal*    | 仅用于 `bool` 类型上下文                                     |
-| *nullptr_literal* | `nullptr` 空指针字面量，与任意 `ptr<T>` / `fnptr<…>` 兼容；不参与确定初始化检查（自身恒为已定义字面量） |
+- **`identifier`**：先按词法作用域解析绑定并检查类型。解析为运行时 `var` 或参数时，必须在当前程序点已确定初始化（参数在函数入口已初始化，§9.2）；解析为 `let` 时，必须在使用点可见且已成功完成编译期求值，随后直接内联，不参与确定初始化检查。
+- **`qualified_identifier`**：`Self.<名>`（仅 `#lib`）按 §4.3 / §8.4.1 解析为本库 `static let` / `static var`；只读或可写规则与绑定种类一致；`static var` 在程序准备成功后已确定初始化。
+- **`imported_member_name`**：`<模块名>.<名>` 按 §4.4 / §4.5 解析为已导入库的公开 `static let` / `static var`；可见性与读写规则同上。
+- **`field_access`**：`<基址>.<字段名>`，基址为上述标识符形式之一且类型为结构体；字段名必须属于该结构体；结果类型为字段声明类型；对运行时 `var` 基址须确定初始化（§3.9.5）。
+- **`memblock_count_access`**：`<memblock 基址>.count`，基址可为 `memblock<T, N>` 绑定（局部/顶层 `var`/`let`、`Self.<名>`、`<模块名>.<名>` 或函数形参）或 `ptr<memblock<T>>` 块引用（§3.10.13）；结果类型 `usize`；绑定形式为 `N` 的编译期常量，块引用形式为运行期读取长度头且 `nullptr` 报空指针码（§3.8.5、§6.7.7）。
+- **字面量**：`integer_literal` / `float_literal` 须满足各自字面量约束；`float_special`（`inf` / `-inf` / `nan`）仅用于浮点类型上下文；`bool_literal` 仅用于 `bool` 上下文；`nullptr` 是空指针字面量，与任意 `ptr<T>` / `fnptr<…>` 兼容，不参与确定初始化检查。
 
 因此，凡规范引用 `operand` 的位置——包括运算、转换、`funcall` 命名实参、`return` 和输出——均可使用符合本行规则的 `let` 标识符（含经 `Self.` / 导入限定解析到的 `static let`），以及结构体字段读取。只有运行时绑定读取才执行 `TC_CE_UNINITIALIZED_VARIABLE` 检查；编译期 `let` / `static let` 永不因不属于 `IN` 集合而触发该错误。
 
@@ -1730,13 +1716,11 @@ r = a - q * b
 
 memblock 变量遵循 TC 现有的 `var` / `let` 规则，声明时必须初始化。声明类型写完整的 `memblock<T, N>`，`N` 为编译期 `usize` 常量：
 
-| 规则 | 说明 |
-|------|------|
-| 类型 | `memblock<T, N>`；元素类型、`N` 的来源与类型等价规则见 §3.8.1，赋值与传参的 `N` 一致性见 §3.8.4 |
-| 强制初始化 | 不可省略初始化器，`var mb: memblock<int32, 10>` 须带 `=` 或 `funcall` 初始化；缺失时结构类语法阶段诊断报告 `TC_CE_VAR_MISSING_INIT`（§1.3、§5.1.2） |
-| `let` 只读 | `let` memblock 编译期求值，不可作为 `memblock_store` / `memblock_copy` 的目标块 |
-| `let` 常量 | `N` 及全部填充/逐值操作数必须全是编译期常量；`count:` 标签必须提供 |
-| `funcall` 初始化 | 非 `void` `funcall` 可通过专用形态 `var <名>: memblock<T, N> = funcall(...)` 初始化新变量（§8.2）；`T` 必须相同，且 `N` 的数学值必须与声明相等（编译期检查，不匹配时报 `TC_CE_MEMBLOCK_SIZE_MISMATCH`） |
+- **类型**：`memblock<T, N>`；元素类型、`N` 的来源与类型等价规则见 §3.8.1，赋值与传参的 `N` 一致性见 §3.8.4。
+- **强制初始化**：不可省略初始化器，`var mb: memblock<int32, 10>` 须带 `=` 或 `funcall` 初始化；缺失时报 `TC_CE_VAR_MISSING_INIT`（§1.3、§5.1.2）。
+- **`let` 只读**：`let` memblock 编译期求值，不可作为 `memblock_store` / `memblock_copy` 的目标块。
+- **`let` 常量**：`N` 及全部填充/逐值操作数必须全是编译期常量；`count:` 标签必须提供。
+- **`funcall` 初始化**：非 `void` `funcall` 可通过专用形态 `var <名>: memblock<T, N> = funcall(...)` 初始化新变量（§8.2）；`T` 必须相同，且 `N` 的数学值必须与声明相等（不匹配时报 `TC_CE_MEMBLOCK_SIZE_MISMATCH`）。
 
 同一作用域内不可重复定义同名 memblock 变量，也不可与标量变量或常量冲突。
 
@@ -1855,15 +1839,12 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.5 指针加法 — `ptr_add`
 
-语法：`ptr_add(T, ptr, offset)`。类别：RHS（非 `operand`）。
+`ptr_add(T, ptr, offset)` — RHS（非 `operand`），结果类型 `ptr<T>`。
 
-| 规则 | 说明 |
-| ---- | ---- |
-| 类型参数 `T` | `void` 以外的完整类型；决定步长 `sizeof_bits(T)` |
-| 操作数 | `ptr` 须为 `ptr<T>`；`offset` 须为 `usize`（非负，向高位地址方向移动） |
-| 结果类型 | `ptr<T>` |
-| 执行语义 | `nullptr` → `TC_RE_NULL_POINTER_ARITHMETIC`；否则计算 `ptr + offset × sizeof_bits(T)` 位，模 `2^w` 回绕 |
-| 越界 | 不检查；越界解引用按 §3.10.8 / §9.3.2 处理 |
+- **类型参数**：`T` 须为 `void` 以外的完整类型，决定步长 `sizeof_bits(T)`。
+- **操作数**：`ptr` 须为 `ptr<T>`；`offset` 须为 `usize`（非负，向高位地址方向移动）。
+- **执行**：`nullptr` → `TC_RE_NULL_POINTER_ARITHMETIC`；否则计算 `ptr + offset × sizeof_bits(T)` 位，模 `2^w` 回绕。
+- **越界**：不检查；越界解引用按 §3.10.8 / §9.3.2 处理。
 
 #### 6.8.6 指针减法 — `ptr_sub`
 
@@ -1873,13 +1854,11 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.7 等值比较 — `ptr_eq` / `ptr_ne`
 
-语法：`ptr_eq(T, ptr1, ptr2)` / `ptr_ne(T, ptr1, ptr2)`。类别：RHS（非 `operand`，结果 `bool`）。
+`ptr_eq(T, ptr1, ptr2)` / `ptr_ne(T, ptr1, ptr2)` — RHS（非 `operand`），结果 `bool`。
 
-| 规则 | 说明 |
-| ---- | ---- |
-| 类型参数 `T` | `void` 以外的完整类型；块引用时取 `memblock<T>` 形态 |
-| 操作数 | 同为 `ptr<T>`，或其中一个为 `nullptr` |
-| 语义 | 地址相等 / 不等；`ptr_eq(T, nullptr, nullptr)` 为 `true` |
+- **类型参数**：`T` 须为 `void` 以外的完整类型；块引用时取 `memblock<T>` 形态。
+- **操作数**：同为 `ptr<T>`，或其中一个为 `nullptr`。
+- **语义**：地址相等 / 不等；`ptr_eq(T, nullptr, nullptr)` 为 `true`。
 
 #### 6.8.8 序关系比较 — `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge`
 
@@ -1926,17 +1905,15 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.9.2 间接调用 — `funcall_at`
 
-语法：`funcall_at(f, a, b, …)`。`f` 的类型须为 `fnptr<返回类型, 参数类型…>`。
+`funcall_at(f, a, b, …)` — 调用位置形态；`f` 须为 `fnptr<返回类型, 参数类型…>`。
 
-| 规则 | 说明 |
-| ---- | ---- |
-| 实参 | 按 `f` 的签名逐项严格检查；按位置传递，**不接受命名实参**（签名不含参数名） |
-| 结果 | 类型即签名中的返回类型 |
-| 语法位置 | 见 §8.2.3 的三种位置与 §8.2.4；不得作 `operand`，不得出现在其它指令的操作数位置 |
-| 类型检查 | 赋值目标声明类型须与返回类型严格相同，否则 `TC_CE_FUNCALL_RESULT_TYPE`；位置不合法 → `TC_CE_FUNCALL_POSITION` |
-| `f` 的类型 | 只接受 `fnptr<…>`；不接受整数地址或 `ptr<T>`。要调用整数地址须先 `bitcast(fnptr<sig>, u)`；类型不符 → `TC_CE_TYPE_MISMATCH` |
-| `nullptr` | → `TC_RE_NULL_FUNCTION_POINTER` |
-| 伪造 / 签名不符 | UB（§9.3.2） |
+- **实参**：按 `f` 的签名逐项严格检查；按位置传递，不接受命名实参（签名不含参数名）。
+- **结果**：类型即签名中的返回类型。
+- **语法位置**：见 §8.2.3 的三种位置与 §8.2.4；不得作 `operand`，不得出现在其它指令的操作数位置。
+- **类型检查**：赋值目标声明类型须与返回类型严格相同，否则 `TC_CE_FUNCALL_RESULT_TYPE`；位置不合法 → `TC_CE_FUNCALL_POSITION`。
+- **`f` 的类型**：只接受 `fnptr<…>`；不接受整数地址或 `ptr<T>`。要调用整数地址须先 `bitcast(fnptr<sig>, u)`；类型不符 → `TC_CE_TYPE_MISMATCH`。
+- **`nullptr`**：→ `TC_RE_NULL_FUNCTION_POINTER`。
+- **伪造 / 签名不符**：UB（§9.3.2）。
 
 #### 6.9.3 函数指针等值比较 — `func_eq`
 
