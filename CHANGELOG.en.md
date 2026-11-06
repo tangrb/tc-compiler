@@ -9,6 +9,10 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ## [Unreleased]
 
+### Deprecated
+
+- **0.0.45 was never released and is deprecated**: the split between `ref<T>` (managed reference) and `addr<T>` (linear address) in its language draft is abandoned. 0.0.46 uses a single pointer type `ptr<T>` with a real-address model ([draft](docs/TC-0.0.46-地址模型与函数地址草案.md)).
+
 ## [0.0.44] - 2026-09-21
 
 ### Changed

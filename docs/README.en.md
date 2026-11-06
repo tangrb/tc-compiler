@@ -44,4 +44,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**).
+Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**). **0.0.45 was never released and is deprecated**; the 0.0.46 address-model draft is [TC-0.0.46-地址模型与函数地址草案.md](TC-0.0.46-地址模型与函数地址草案.md).
