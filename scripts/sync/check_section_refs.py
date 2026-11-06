@@ -28,6 +28,20 @@ BOLD_RE = re.compile(r"^\*\*(\d+(?:\.\d+)+)\s")
 APPENDIX_RE = re.compile(r"^##\s+附录\s+([AB])")
 APPENDIX_SUB_RE = re.compile(r"^###\s+([AB]\.\d+)\s")
 REF_RE = re.compile(r"§\s?([0-9]+(?:\.[0-9]+)*|[AB]\.\d+)")
+LANG_REF_RE = re.compile(r"\[语言标准 §\s?([0-9]+(?:\.[0-9]+)*)\]")
+
+
+def collect_anchors(lines):
+    anchors = set()
+    for line in lines:
+        for regex in (HEADING_RE, BOLD_RE, APPENDIX_SUB_RE):
+            m = regex.match(line.strip())
+            if m:
+                anchors.add(m.group(1))
+        m = APPENDIX_RE.match(line.strip())
+        if m:
+            anchors.add(m.group(1))
+    return anchors
 
 
 def main():
@@ -40,23 +54,30 @@ def main():
     with open(path, encoding="utf-8") as f:
         lines = f.read().split("\n")
 
-    anchors = set()
-    for line in lines:
-        for regex in (HEADING_RE, BOLD_RE, APPENDIX_SUB_RE):
-            m = regex.match(line.strip())
-            if m:
-                anchors.add(m.group(1))
-        m = APPENDIX_RE.match(line.strip())
-        if m:
-            anchors.add(m.group(1))
+    anchors = collect_anchors(lines)
+
+    # 跨文档：[语言标准 §x] 引用按语言标准锚点校验
+    lang_anchors = None
+    if os.path.abspath(path) != os.path.abspath(os.path.join(ROOT, DEFAULT_DOC)):
+        lang_path = os.path.join(ROOT, DEFAULT_DOC)
+        if os.path.exists(lang_path):
+            with open(lang_path, encoding="utf-8") as f:
+                lang_anchors = collect_anchors(f.read().split("\n"))
 
     failures = []
     refs = 0
     for i, line in enumerate(lines, 1):
         for m in REF_RE.finditer(line):
             refs += 1
-            if m.group(1) not in anchors:
+            if m.group(1) not in anchors and not (
+                lang_anchors is not None and m.group(1) in lang_anchors
+            ):
                 failures.append((i, m.group(1), line.strip()[:120]))
+        if lang_anchors is not None:
+            for m in LANG_REF_RE.finditer(line):
+                refs += 1
+                if m.group(1) not in lang_anchors:
+                    failures.append((i, "语言标准 §"+m.group(1), line.strip()[:120]))
 
     if failures:
         print(f"check_section_refs: {len(failures)} 处 § 引用无对应锚点：")
