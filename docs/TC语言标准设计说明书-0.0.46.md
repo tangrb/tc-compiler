@@ -1836,27 +1836,22 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 6.8.2 读取 — `ptr_load`
 
-语法：`ptr_load(T, ptr)`。类别：RHS（非 `operand`）。
+`ptr_load(T, ptr)` — RHS（非 `operand`），结果类型 `T`。
 
-| 规则 | 说明 |
-| ---- | ---- |
-| 类型参数 `T` | `void` 以外的完整类型；`memblock` 仅作块引用，故 `T` 不含 `memblock` |
-| 操作数 | `ptr` 须为 `ptr<T>` 类型 |
-| 结果类型 | `T` |
-| 执行语义 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；地址分类与 trap 见 §3.10.8；否则按 `T` 宽度逐字节读出，字节序按 §3.10.7 |
-| 只读与悬垂 | 只读区可读；悬垂 → UB（§9.3.2） |
+- **类型参数**：`T` 须为 `void` 以外的完整类型；`memblock` 仅作块引用，故 `T` 不含 `memblock`。
+- **操作数**：`ptr` 须为 `ptr<T>` 类型。
+- **执行**：`nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；地址分类与 trap 见 §3.10.8；否则按 `T` 宽度逐字节读出，字节序按 §3.10.7。
+- **只读与悬垂**：只读区可读；悬垂 → UB（§9.3.2）。
 
 #### 6.8.3 写入 — `ptr_store`
 
-语法：`ptr_store(T, ptr, value)`。类别：独立语句（非 RHS）。
+`ptr_store(T, ptr, value)` — 独立语句（非 RHS）。
 
-| 规则 | 说明 |
-| ---- | ---- |
-| 类型参数 `T` | 同 `ptr_load` |
-| 操作数 | `ptr` 须为 `ptr<T>`；`value` 须为 `T` 类型操作数（字面量以 `T` 为期望类型检查） |
-| 执行语义 | `nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；地址分类与 trap 见 §3.10.8；否则按 `T` 宽度逐字节写入 |
-| 静态约束 | 不设“所指绑定必须可写”的静态规则；可写性由存储区在运行期判定（§3.10.8） |
-| 悬垂 | UB（§9.3.2） |
+- **类型参数**：同 `ptr_load`。
+- **操作数**：`ptr` 须为 `ptr<T>`；`value` 须为 `T` 类型操作数（字面量以 `T` 为期望类型检查）。
+- **执行**：`nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE`；地址分类与 trap 见 §3.10.8；否则按 `T` 宽度逐字节写入。
+- **静态约束**：不设“所指绑定必须可写”的静态规则；可写性由存储区在运行期判定。
+- **悬垂**：UB（§9.3.2）。
 
 #### 6.8.4 取地址 — `ptr_address`
 
@@ -1982,12 +1977,12 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 7.1.1 语义约束
 
-| 约束 | 规则 |
-|------|------|
-| 条件 | 须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。**次序**：RHS 自身的类型与字面量检查先于本码（§3.6、§11 第 3 条）——直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（如 `TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 自身的类型检查成立但不是 `bool`（如已定型的 `var x: int32` 或返回 `int32` 的运算调用）时才报 `TC_CE_CONDITION_TYPE`。名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边 |
-| 语法形态 | `then` 位于 `if` 行末；`else` 与 `end` 独立成行、与对应 `if` 对齐；`end` 不得省略，缺失 → `TC_CE_MISSING_END` |
-| 多分支 | 不支持单行 `else if`，须通过嵌套 `if`/`else`/`end` 实现 |
-| 块内容 | 语句序列可为空；受附录 A 限制，不可嵌套 `func` |
+- **条件**：须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。
+- **诊断次序**：RHS 自身的类型与字面量检查先于本码（§3.6、§11 第 3 条）。直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（如 `TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 自身的类型检查成立但不是 `bool`（如已定型的 `var x: int32` 或返回 `int32` 的运算调用）时才报 `TC_CE_CONDITION_TYPE`。
+- **静态裁剪**：名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边。
+- **语法形态**：`then` 位于 `if` 行末；`else` 与 `end` 独立成行、与对应 `if` 对齐；`end` 不得省略，缺失 → `TC_CE_MISSING_END`。
+- **多分支**：不支持单行 `else if`，须通过嵌套 `if`/`else`/`end` 实现。
+- **块内容**：语句序列可为空；受附录 A 限制，不可嵌套 `func`。
 
 #### 7.1.2 缩进规则
 
@@ -2023,11 +2018,9 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 #### 7.2.1 语义约束
 
-| 约束 | 规则 |
-|------|------|
-| 条件 | 须为产生 `bool` 的 RHS（§6.1.1）；结果类型不是 `bool` → `TC_CE_CONDITION_TYPE`。**次序**：RHS 自身的类型与字面量检查先于本码（§3.6、§11 第 3 条）——直接字面量与条件上下文不符报 `TC_CE_LITERAL_TYPE`（值不可表示报 `TC_CE_LITERAL_OUT_OF_RANGE`），RHS 内部操作的专用码（如 `TC_CE_COMPARISON_TYPE_MISMATCH`、`TC_CE_TYPE_MISMATCH`）同样先报；仅当 RHS 自身的类型检查成立但不是 `bool`（如已定型的 `var x: int32` 或返回 `int32` 的运算调用）时才报 `TC_CE_CONDITION_TYPE`。名称与类型检查通过后按 §5.2.2 做静态布尔三态判定，以裁剪 CFG 可达边 |
-| 语法形态 | `then` 位于 `while` 行末；`end` 独立成行、与 `while` 对齐，不得省略，缺失 → `TC_CE_MISSING_END` |
-| 循环体 | 可为空；受附录 A 限制，不可嵌套 `func`；`goto`/`label` 禁止出现（§7.2.3） |
+- **条件、诊断次序与静态裁剪**：同 §7.1.1。
+- **语法形态**：`then` 位于 `while` 行末；`end` 独立成行、与 `while` 对齐，不得省略，缺失 → `TC_CE_MISSING_END`。
+- **循环体**：可为空；受附录 A 限制，不可嵌套 `func`；`goto`/`label` 禁止出现（§7.2.3）。
 
 #### 7.2.2 执行语义
 
