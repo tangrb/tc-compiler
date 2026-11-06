@@ -1022,7 +1022,7 @@ TC 将源语言的**代码块**与控制流图中的 CFG 基本块严格区分�
 - 形参只读绑定：入口已初始化。对形参**绑定本身**赋值、字段赋值或作为 `read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`。对形参做 `ptr_address` 本身合法；经该指针再 `ptr_store` / `memcopy_unsafe` 时由运行期只读参数栈判定 → `TC_RE_WRITE_PROTECTED`（[语言标准 §3.10.8]），不得改报 `PARAMETER_ASSIGNMENT`。
 - `void` 不得用作形参类型（语法拒绝）；`ptr<void>` 不合法（静态语义拒绝）。
 - `memblock<T, N>` 形参在传参时须比较两侧声明的 `N` 数学值，不相等 → `TC_CE_MEMBLOCK_SIZE_MISMATCH`（见 §3.1）。
-- `ptr<T>` 形参按值传递：复制指针值（地址），调用者与函数体共享所指对象。函数体内对形参做 `ptr_load` 合法。对该指针值做 `ptr_store` 写入的是所指对象，合法性按所指外层绑定判定，不因指针本身是形参而改报 `PARAMETER_ASSIGNMENT`。多参数均为 `ptr<T>` 值时可能互为别名。
+- `ptr<T>` 形参按值传递：复制指针值（地址），调用者与函数体共享所指对象。函数体内对形参做 `ptr_load` 合法。对该指针值做 `ptr_store` 写入的是所指对象，可写性由目标存储区在运行期判定（`TC_RE_WRITE_PROTECTED`），不因指针本身是形参而改报 `PARAMETER_ASSIGNMENT`。多参数均为 `ptr<T>` 值时可能互为别名。
 
 **返回类型检查实现要点**：
 
@@ -1146,7 +1146,8 @@ TC 采用全局函数签名表 + 顶层值作用域 + 函数作用域 + 块级�
 | ---- | ---- |
 | 作用域进入 | 建立本作用域全部 `var` 的固定槽位，初始状态为"未初始化" |
 | `var` 执行 | 先检查并计算普通 RHS 或执行非 `void` `funcall` 初始化器，再写入对应槽位；成功后状态变为"已初始化" |
-| 赋值 / `read` / `memblock_store` / `memblock_copy` / `ptr_store` / `memcopy_unsafe` | 目标变量（及 `copy`/`store` 的目标块、指针所指的可写外层绑定）必须已确定初始化；成功后更新同一槽位内容，不改变其生命周期；`memblock_copy` 另须读取源块（`let` 源不进入 `IN` 检查）；`ptr_load` / 序关系比较 / `ptr_add` / `ptr_sub` 读取指针绑定本身（非所指对象）时同样要求指针绑定 ∈ `IN` |
+| 赋值 / `read` / `memblock_store` / `memblock_copy` | 目标变量（及 `copy`/`store` 的目标块）必须已确定初始化；成功后更新同一存储位置内容，不改变其生命周期；`memblock_copy` 另须读取源块（`let` 源不进入 `IN` 检查） |
+| `ptr_store` / `memcopy_unsafe` / `ptr_load` / 序关系比较 / `ptr_add` / `ptr_sub` | 只要求**指针绑定本身**已确定初始化；所指对象是否已初始化不在静态判定范围（`ptr_address` 的目标按 [语言标准 §3.10.6] 必带初始化器）。可写性与区外访问在运行期判定 |
 | 运行时绑定读取 | `var` 或参数绑定必须在当前 CFG 点上确定初始化，否则静态错误 `TC_CE_UNINITIALIZED_VARIABLE`；`let` 已在编译期内联，不属于本行 |
 | 反向跳转 / 下一迭代 | 再次执行 `var` 时重新初始化同一槽位，不创建新绑定或新槽位 |
 | 作用域离开 | 因正常 `end` / 循环回边、`break`、`continue`、`return` 或向外 `goto` 离开当前块实例时，结束局部生命周期并清除其确定初始化状态；物理槽可复用 |
