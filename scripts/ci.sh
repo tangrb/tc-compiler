@@ -229,6 +229,17 @@ else
     pass "文档统计数字检查通过"
 fi
 
+# 5d-2. 标准内部 § 交叉引用（0.0.46 标准存在时）
+set +e
+python3 "$ROOT/scripts/sync/check_section_refs.py" 2>&1
+SECTION_REF_EXIT=$?
+set -e
+if [ "$SECTION_REF_EXIT" -ne 0 ]; then
+    fail "标准内部 § 引用检查未通过"
+else
+    pass "标准内部 § 引用检查通过"
+fi
+
 # 5e. 设计文档不得引用过程性文档
 set +e
 python3 "$ROOT/scripts/sync/check_doc_layering.py" 2>&1
