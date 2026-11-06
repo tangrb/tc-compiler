@@ -44,4 +44,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**). **0.0.45 was never released and is deprecated**; the 0.0.46 language-standard change set is frozen: [TC-0.0.46-语言标准变更集.md](TC-0.0.46-语言标准变更集.md).
+Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**). **0.0.45 was never released and is deprecated**; the 0.0.46 language-standard change set is frozen ([change set](TC-0.0.46-语言标准变更集.md)) and the standard text has been written from it: [TC语言标准设计说明书-0.0.46.md](TC语言标准设计说明书-0.0.46.md) (implementation not yet updated).
