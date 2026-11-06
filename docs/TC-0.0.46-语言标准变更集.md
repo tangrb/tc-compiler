@@ -1,5 +1,7 @@
-# TC 0.0.46 地址模型与函数地址（草案）
+# TC 0.0.46 语言标准变更集
 
+> **状态**：冻结（2026-11-06）。本文是 0.0.44 → 0.0.46 的语言标准变更集；冻结后只接受勘误，设计变更进入下一版本。
+>
 > 本文中的 § 编号（如 §3.9.3）指现行语言标准的条款。
 
 ---
@@ -11,6 +13,8 @@
 1. **地址模型**：`ptr` 是真实地址；存储区、布局算法、只读语义与确定性口径。
 2. **取址**：`ptr_address` 覆盖 `let`、`memblock` 元素与结构体字段。
 3. **函数地址**：`fnptr<…>` 类型、`func_address` 与 `funcall_at`，不使用函数表。
+
+指令不是函数调用：TC 的每条语句至多包含一条指令，指令由**类型参数 + 操作数**构成，不可嵌套，也不产生调用帧。只有 `funcall` 与 `funcall_at` 是调用。
 
 ---
 
@@ -37,7 +41,7 @@
 
 - TC 机器拥有**一个**地址空间，宽度等于 `usize`（32 或 64，由平台档案声明）。
 - 地址是**目标地址**：裸机上即物理地址；宿主实现上是该实现为目标机器模拟的地址。
-- `nil` 的位模式为 0。
+- `nullptr` 的位模式为 0。**地址 0 保留给 `nullptr`**：任何 TC 可访问对象都不得位于地址 0；访问地址 0 一律按空指针处理。因此 `ptr_address` 与 `func_address` 的结果恒不为 0。
 - 宿主实现可以恒等映射，也可以维护翻译偏置；翻译方式属实现定义，**不可观察**。
 
 ---
@@ -60,12 +64,12 @@
 
 - **区内偏移**：由本规范确定（§3）。
 - **区基址与区间距离**：由平台档案与装载决定，属 **环境定义**。
-- 因此真实地址在跨装载、跨环境时可以不同；`ptr_sub` 的语义按 §4.3 分档。
+- 因此真实地址在跨装载、跨环境时可以不同。两个地址的字节差分三档：**同一区内的两个静态元素 → 规范确定；不同区的静态元素 → 环境定义；至少一个是帧内地址 → 实现定义**（帧布局不由本文确定）。
 
 ### 2.3 映像性质
 
 - 静态映像中**不存在绝对地址常量**：`ptr_address` 与 `func_address` 均不是编译期常量，`let` / `static let` 初始化器不得引用它们（§5、§8）。
-- 由此：**映像可重定位 = 整块拷贝，不需要重定位处理**。代码入口由装载器或启动代码提供。
+- 由此：**TC 数据映像可重定位**——常量区与静态区不含绝对地址常量，装载等于整块拷贝，不需要重定位处理。代码段的重定位由工具链负责；代码入口由装载器或启动代码提供。
 
 ---
 
@@ -74,13 +78,14 @@
 ### 3.1 排序
 
 1. 模块按**导入拓扑序**排列；同一模块内按**声明源序**排列。
-2. 同一区内按上述顺序紧凑排列，区首对齐到 8 字节（或地址宽度，取较大者）。
+2. 同一区内按上述顺序紧凑排列，区首按平台地址宽度对齐。
 
 ### 3.2 对齐与填充
 
-- 每个静态元素按其 `sizeof_bytes` 对齐（最大 8 字节）。
+- 记 `sizeof_bytes(T) = sizeof_bits(T) / 8`；TC 所有类型的宽度都是 8 的整数倍。
+- 每个静态元素按**平台地址宽度**对齐（32 位目标 4 字节，64 位目标 8 字节），区首同。
 - 填充字节一律为 `0x00`。
-- 程序不能单独寻址填充区。
+- 按字节指针可以读到填充区，但其内容不构成任何对象的语义值。
 
 ### 3.3 不做去重
 
@@ -118,19 +123,21 @@
 |-----|------|------|
 | 标量、`struct`、`ptr<U>`、`fnptr<sig>` | ✅ | |
 | `void` | ❌ | 不是值类型 |
-| `memblock<T, N>` | ❌ | `N` 不参与类型等价，`sizeof_bits` 不是类型的函数 |
+| `memblock<T, N>` | ⚠️ 仅作**块引用** | `ptr<memblock<T>>` 合法，但只支持块级操作（§4.5）；`ptr_load` / `ptr_store` / `ptr_add` / `ptr_sub` / `ptr_size` / `memcopy_unsafe` 禁止 |
 
 ### 4.2 宽度与值语义
 
-- `sizeof_bits(ptr<T>) = sizeof_bits(usize)`，与 `T` 无关。
+- `sizeof_bits(ptr<T>) = sizeof_bits(usize)`，与 `T` 无关；**块引用 `ptr<memblock<T>>` 同样是平台地址宽度，不因所指是 memblock 而变宽**。
 - `ptr<T>` 是值类型：整块赋值、按值传参/返回复制的是地址。
-- `nil` 与任意 `ptr<T>` 兼容。
+- `nullptr` 与任意 `ptr<T>` 兼容。
+- `nullptr` 是 RHS（`operand`），不可参与 `bitcast`（与现行标准一致）。指针判空用 `ptr_eq` / `ptr_ne`，函数指针判空用 `func_eq` / `func_ne`。
 
 ### 4.3 指针算术
 
 - `ptr_add(T, p, n)` / `ptr_sub(T, p, n)`：`p ± n × sizeof_bits(T)` 位，按地址宽度模 `2^w` 回绕。
 - 不检查越界；越界指针的解引用按 §6.3 / §10 处理。
-- `nil` 参与算术 → `TC_RE_NULL_POINTER_ARITHMETIC`。
+- `nullptr` 参与算术 → `TC_RE_NULL_POINTER_ARITHMETIC`。
+- `ptr_sub` 是「指针 − 偏移」，不产生两个指针之间的差；需要地址差时，先 `bitcast(usize, ·)` 再相减，分档见 §2.2。
 
 ### 4.4 转换
 
@@ -140,6 +147,28 @@
 | `bitcast(ptr<T> ↔ usize)`（等宽整数） | ✅ | 位模式不变；往返后地址相等 |
 | `ptr ↔ fnptr` | ❌ | 数据地址与代码入口不互通 |
 | `ptr ↔ 浮点` | ❌ | |
+
+### 4.5 块引用 `ptr<memblock<T>>`
+
+`memblock<T, N>` 的 `N` 不参与类型等价，`sizeof_bits(memblock<T>)` 不是类型的函数。因此 `memblock` 不能作普通所指类型，但可作**块引用**的所指类型：一个覆盖所有 `N` 的句柄，长度在运行期从头读取。
+
+- 产生：`ptr_address(memblock<T>, m)`，值 = 块基址（含长度头）。
+- 宽度：`sizeof_bits(ptr<memblock<T>>) = sizeof_bits(usize)`，与 `ptr<T>` 一致。
+
+| 操作 | 允许 | 说明 |
+|------|------|------|
+| 传参 / 返回 / 赋值复制 | ✅ | 复制的是地址，零拷贝 |
+| `ptr_eq` / `ptr_ne` | ✅ | 同型比较 |
+| `cast` / `bitcast` | ✅ | 重标记或转整数 |
+| `.count` | ✅ | **运行期**读取长度头，返回 `usize`；`nullptr` → `TC_RE_NULL_POINTER_DEREFERENCE` |
+| `memblock_load` / `memblock_store` / `memblock_copy` | ✅ | 块引用直接作 block 操作数；索引与越界规则不变 |
+| `ptr_load` / `ptr_store`（整块） | ❌ | 产生/接受完整 `memblock` 值需要 `N` |
+| `ptr_add` / `ptr_sub` / `ptr_size` | ❌ | 需要 `sizeof_bits(memblock<T>)` |
+| `memcopy_unsafe` | ❌ | 同上 |
+
+**字节逃逸口**：`cast(ptr<uint8>, ref)` 后可按字节寻址，此时访问不再受 `.count` 与索引检查约束，后果由程序承担。
+
+**寿命**：块引用与目标块的存储同寿命；对局部块取引用并使其逃逸，按 §7 的规则处理。
 
 ---
 
@@ -151,19 +180,22 @@
 |------|------|----------|
 | `var` / 形参 | `ptr_address(T, x)` | 存储起始地址 |
 | `let` / `static let` | `ptr_address(T, x)` | 常量区地址（只读） |
-| `memblock` 元素 | `ptr_address(T, m)` | **元素 0** = 存储起始 + 长度头 |
+| `memblock` 元素 | `ptr_address(T, m)`（`T` = 元素类型） | **元素 0** = 存储起始 + 长度头 |
+| `memblock` 块引用 | `ptr_address(memblock<T>, m)` | 块基址（含长度头），类型 `ptr<memblock<T>>` |
 | 结构体字段 | `ptr_address(T, s.f)`，支持 `s.a.b` | 基址 + §3.9.3 布局偏移 |
 
 - `T` 必须与目标的声明类型严格一致；`T` 须满足 §4.1。
+- `var` 声明必须带初始化器（`TC_CE_VAR_MISSING_INIT`），因此 `ptr_address` 的目标总是已初始化。
 - 取址是只读操作，不改变目标的可写性。
-- `ptr_address` 是 RHS（非 `operand`），不可用于 `const_rhs`。
+- `ptr_address` 是 RHS（非 `operand`），不可用于 `const_rhs`（`TC_CE_SYNTAX`）。
 
 ### 5.2 memblock 元素
 
 - `ptr_address(T, m)` 中 `T` 是 `m` 的元素类型；结果是元素 0 的地址。
 - 索引：`ptr_add(T, p, i)`；越界解引用按 §10。
-- `ptr_size(T, p)` 返回元素宽度。
+- `ptr_size(T, p)` 返回 `sizeof_bits(T)`（位）。
 - 嵌套 `memblock` 的批量拷贝用 `memblock_load` / `memblock_store` 逐元素完成；`memcopy_unsafe` 的 `T` 不含 `memblock`（§4.1）。
+- 持有 `ptr<memblock<T>>` 时，用 `memblock_load` / `memblock_store` / `memblock_copy` 按下标访问，长度用 `.count` 读取（§4.5）。
 
 ### 5.3 结构体字段
 
@@ -172,8 +204,9 @@
 
 ### 5.4 长度头
 
-- `memblock` 的 `usize` 长度头是真实内存：`ptr_sub(T, p, 1)` 可到达，可读。
-- 对长度头的写属**越界写**，行为见 §10；`.count` 不保证仍等于 `N`。
+- 元素 0 地址 = 块基址 + `sizeof_bytes(usize)`。
+- `memblock` 的 `usize` 长度头是块存储的一部分，可读。
+- 写入长度头破坏块的不变式，属 **UB**；此后 `.count` 不保证仍等于 `N`。
 
 ---
 
@@ -193,6 +226,7 @@
 - 每次调用把**取过址**的形参复制进本次调用的只读参数区。
 - 只读参数栈是一条独立连续区；各活跃调用的只读参数区按调用嵌套顺序紧凑排列，因此全部活跃范围恰为 `[ro_param_base, ro_param_top)`。
 - 未取址的形参留在帧变量区，不受影响。
+- 取过址的 `memblock` 形参把整块（长度头 + 元素）复制进只读参数区，开销为块大小；避免复制时传块引用（§4.5）。
 - 取址形参的地址只在本次调用期间位于活跃区间内；调用返回后落到区间之外，属于悬垂（§7）。
 - 裸机实现用一条静态数组 + 一个 top 指针；宿主实现同理。判定是一次比较，无表、无哈希。
 
@@ -202,8 +236,14 @@
 |------|------|
 | `ptr_store` / `memcopy_unsafe` 目标落在只读区 | 运行期 `TC_RE_WRITE_PROTECTED` |
 | `ptr_load` 目标落在只读区 | 合法（读） |
-| 目标为 `nil` | 运行期 `TC_RE_NULL_POINTER_DEREFERENCE` |
-| 目标落在设备区 / 区外 | 见 §10 |
+| 目标为 `nullptr` | 运行期 `TC_RE_NULL_POINTER_DEREFERENCE` |
+| 目标落在代码区 | 运行期 `TC_RE_ADDR_UNAVAILABLE` |
+| 目标落在设备区 | 按档案定义；设备拒绝时为 `TC_RE_ADDR_UNAVAILABLE` |
+| 目标在区外（不属于任何区） | 运行期 `TC_RE_ADDR_UNAVAILABLE` |
+| 目标在区内但越出所属对象边界 | UB（§10.2） |
+| 悬垂指针 | UB（§7） |
+
+**端序与对齐**：`ptr_load` / `ptr_store` 的多字节访问按目标区的端序在字节与 TC 位串之间转换；端序由平台档案声明（§11）。实现应逐字节访问，不依赖宿主对齐，因此**未对齐访问不是错误**。代码区不可通过 `ptr_load` / `ptr_store` 访问。
 
 ### 6.4 与静态诊断的分工
 
@@ -216,21 +256,71 @@
 
 ## 7. 寿命与悬垂
 
-### 7.1 寿命规则
+### 7.1 存储期与失效事件
 
-- 指针在其目标**存储**的存活期内有效。
-- 常量区存储 = 程序生命期；静态区存储 = 程序生命期；只读参数栈与帧变量区存储 = 本次调用。
-- `memblock` 存储随其绑定所在的区。
+| 绑定 | 存储期 | 失效事件 |
+|------|--------|----------|
+| 顶层 `var`、`static var` | 程序 | 无 |
+| `let` / `static let`（含局部） | 程序（常量区） | 无 |
+| 形参 | 本次调用 | 函数返回 |
+| 块内 / 函数体局部 `var` | 所在块实例 | 离开块实例：`end`、循环回边、`break`、`continue`、`return`、向外 `goto` |
+| `memblock` 存储 | 随其绑定 | 随其绑定 |
 
-### 7.2 失效事件
+- 存储期结束即存储失效；指向它的指针成为悬垂指针。
+- 局部 `let` 进常量区，是程序生命期，可寻址且不会悬垂。
+- 存储全部静态放置，`memblock` 整块赋值、按值返回、结构体拷贝都不使指针失效（原地覆盖）。
 
-- 存储全部静态放置，因此 `memblock` 整块赋值、按值返回、结构体拷贝都不使指针失效（原地覆盖，指针仍有效）。
-- **唯一失效事件是帧退出**（含只读参数栈的退出）。
+### 7.2 悬垂语义
 
-### 7.3 悬垂
+- 存储期结束后，指向该存储的指针值变为不确定；对它的任何使用——解引用、指针算术、比较、作为 `memcopy_unsafe` 操作数——都是**未定义行为**。这与 C11 6.2.4 的口径一致。
+- 指向程序生命期存储的指针永不悬垂；`nullptr` 不受影响。
+- 无语言级堆，因此不存在“释放”事件。用户级 arena 的 `free` 不结束存储（存储仍是程序生命期），其误用是库合同问题，不是语言悬垂（§3.4）。
 
-- 解引用悬垂指针为**未定义行为**。
-- 本文不规定悬垂的检出机制；实现可以自行诊断，或在诊断构建中检出。
+### 7.3 检出
+
+语言只承诺定义，不承诺检出。检出分三层，前两层是实现的义务，第三层不属于语言承诺。
+
+**第一层：编译期强制诊断**
+
+同函数内的“帧地址”污点：`ptr_address` 作用于局部绑定或形参产生帧地址，同型赋值在局部变量间传播。若帧地址
+
+- 出现在 `return` 的操作数，或
+- 被写入生存期更长的存储（顶层 / `static var`、外层块绑定、其字段或元素），
+
+报 `TC_CE_DANGLING_POINTER`。
+
+不纳入强制诊断的形态：把帧地址 `bitcast` 成整数（打印地址等合法用法会被误伤，且 TC 没有警告机制可降级）；传参给被调函数后由被调方保存（缺跨过程信息）。
+
+**第二层：检查档案的运行时 trap**
+
+- 函数返回造成的悬垂：地址落在 `[stack_base, 当前帧基址)` → `TC_RE_ADDR_UNAVAILABLE`。
+- 块退出造成的悬垂：本文不要求检出；诊断构建可用槽位毒化（ASan `use-after-scope` 式）实现。
+
+**第三层：静态分析与外部工具**——不属于语言承诺。
+
+### 7.4 与 C 的对照
+
+| C 的机制 | TC 的处理 |
+|----------|----------|
+| 存储期：静态 / 自动 / 动态 | 程序 / 块实例；无动态 |
+| 块退出结束自动存储 | 同 |
+| 返回局部地址是 UB | 同，且编译期强制拒绝 |
+| `-Wreturn-local-addr` 警告 | 强制诊断（错误） |
+| ASan `stack-use-after-return` | 检查档案的地址 trap |
+| ASan `use-after-scope` | 检查档案的槽位毒化（可选） |
+| 写 `const` 是 UB | 只读区写是 trap（§6，更严） |
+| 堆 UAF | 无语言级堆 |
+| 复合字面量 / 临时对象 | 无表达式临时对象 |
+| VLA / `alloca` | 无 |
+| 嵌套函数 / 闭包 / trampoline | 无 |
+| `longjmp` / 异常 | 无 |
+
+### 7.5 边界
+
+- 经被调函数转手保存的帧地址：不可检出，属 UB。
+- 块退出后的悬垂：仅毒化档案可检出。
+- 用户级 arena 的 `free`：库合同，不是语言悬垂。
+- 若未来引入语言级堆，本节需重新评估。
 
 ---
 
@@ -246,7 +336,7 @@ fnptr<返回类型, 参数类型...>
 |------|------|
 | 等价 | 返回类型与参数表逐项相等才等价，顺序敏感 |
 | 宽度 | `sizeof_bits(fnptr<…>) = sizeof_bits(usize)` |
-| 值语义 | 值类型；`nil` 为 0；同型可等值比较 |
+| 值语义 | 值类型；`nullptr` 为 0；同型可等值比较 |
 | 布局 | 对齐 = 宽度；可作 `struct` 字段、`memblock` 元素、`ptr` 的所指类型 |
 | I/O | 禁止直接 `read` / `write` |
 | 调用 | 仅通过 `funcall_at` 调用；无运行时签名检查 |
@@ -256,7 +346,7 @@ fnptr<返回类型, 参数类型...>
 - 形式：`func_address(f)`，结果类型 `fnptr<sig>`，值 = 该函数的**真实入口地址**。
 - `sig` 必须与 `f` 的声明签名严格一致，否则 `TC_CE_TYPE_MISMATCH`。
 - 同模块 `private` 函数可取址；跨模块须 `public`，否则沿用私有访问诊断。
-- 不是编译期常量：不得出现在 `const_rhs`、`let` / `static let` 初始化器（`TC_CE_CONSTANT_EXPRESSION`）。
+- 不是编译期常量：不得出现在 `const_rhs`、`let` / `static let` 初始化器；`const_rhs` 产生式不含该形态，属**语法拒绝**（`TC_CE_SYNTAX`）。
 
 ### 8.3 `funcall_at`
 
@@ -266,7 +356,7 @@ fnptr<返回类型, 参数类型...>
 - `f` 只接受 `fnptr<…>`：不接受整数地址，也不接受 `ptr<T>`。要调用整数地址，须先 `bitcast(fnptr<sig>, u)`；类型不符报 `TC_CE_TYPE_MISMATCH`。
 - 语法位置与 `funcall` 相同：`var <名>: <类型> = funcall_at(…)`、`<标识符> = funcall_at(…)`、或返回 `void` 时的独立语句。不得作 `operand`，不得出现在其它运算的实参位置。
 - 赋值目标的声明类型必须与返回类型严格相同，否则 `TC_CE_FUNCALL_RESULT_TYPE`；位置不合法报 `TC_CE_FUNCALL_POSITION`。
-- `f` 为 `nil` → `TC_RE_NULL_FUNCTION_POINTER`。
+- `f` 为 `nullptr` → `TC_RE_NULL_FUNCTION_POINTER`。
 - `f` 经 `bitcast` 伪造、或实际目标签名与 `f` 的声明签名不符 → **UB**。
 
 ### 8.4 转换与比较
@@ -276,12 +366,18 @@ fnptr<返回类型, 参数类型...>
 | `bitcast(fnptr ↔ usize)` | 允许，得到/接受入口地址 |
 | 跨签名的 `cast` / `bitcast` | 禁止 |
 | `ptr ↔ fnptr` | 禁止 |
-| 相等 | `bitcast(usize, f)` + `eq`；不设专用比较指令 |
+| 相等 | `func_eq(T, f1, f2)` / `func_ne(T, f1, f2)`，`T` 为 `fnptr<…>`；两个操作数同型或为 `nullptr`；结果 `bool`；`func_eq(T, nullptr, nullptr)` 为 `true` |
 
 ### 8.5 存储
 
 - `fnptr` 可作 `struct` 字段、`memblock` 元素、`ptr<fnptr<sig>>` 的所指。向量表的类型写作 `memblock<fnptr<sig>, N>`。
-- 写硬件向量表：`ptr_store(fnptr<sig>, vec, func_address(h))`。
+- 静态向量表由 BSP（启动代码 / 链接脚本）负责；TC 侧的 `func_address` 面向运行期注册。指令不可嵌套使表项写入需要多条语句，这是伪汇编模型的既定代价。
+- 写硬件向量表分两条语句完成（指令不可嵌套）：
+
+```tc
+var h: fnptr<sig> = func_address(handler)
+ptr_store(fnptr<sig>, vec, h)
+```
 
 ### 8.6 确定性与工具链
 
@@ -300,25 +396,28 @@ fnptr<返回类型, 参数类型...>
 |----|------|
 | `TC_RE_WRITE_PROTECTED` | 写入只读区 |
 | `TC_RE_ADDR_UNAVAILABLE` | 目标地址不可访问（区外、未映射、设备拒绝） |
-| `TC_RE_NULL_FUNCTION_POINTER` | 经 `nil` 函数指针调用 |
+| `TC_RE_NULL_FUNCTION_POINTER` | 经 `nullptr` 函数指针调用 |
 
-语言码数为 89（74 `TC_CE_*` + 15 `TC_RE_*`）。
+语言码数为 90（75 `TC_CE_*` + 15 `TC_RE_*`）。
 
 ### 9.2 静态诊断
 
 | 码 | 触发 |
 |----|------|
 | `TC_CE_CONSTANT_ASSIGNMENT` | 直接写 `let` / `static let`（赋值目标或 `read` 目标） |
-| `TC_CE_CONSTANT_EXPRESSION` | `func_address` 出现在 `const_rhs` 或 `let` / `static let` 初始化器 |
-| `TC_CE_TYPE_MISMATCH` | `fnptr` 签名不符；`ptr` 所指类型不满足 §4.1 |
+| `TC_CE_SYNTAX` | `func_address` 出现在 `const_rhs` 或 `let` / `static let` 初始化器（产生式不含该形态） |
+| `TC_CE_TYPE_MISMATCH` | `fnptr` 签名不符；`ptr` 所指类型不满足 §4.1；对块引用使用禁止的指针操作 |
+| `TC_CE_DANGLING_POINTER` | 帧地址离开其存储期（§7.3） |
 | 私有访问码 | 跨模块取 `private` 函数地址 |
 | `TC_CE_FUNCALL_POSITION` / `TC_CE_FUNCALL_RESULT_TYPE` | `funcall_at` 的位置或结果类型不合法 |
 
 ### 9.3 语言标准附录 A 的产生式
 
-- `ptr_address` 第二实参为**字段路径**：`s`、`s.f`、`s.a.b`。
+- `ptr_address` 的第二项（操作数）为**字段路径**：`s`、`s.f`、`s.a.b`。
 - 类型构造：`fnptr<返回类型, 参数类型...>`。
-- `func_address` 为 RHS；`funcall_at` 为 RHS 或语句。
+- `func_address` 为 RHS；`funcall_at` 使用与 `funcall` 相同的专用位置，不属普通 RHS。
+- `func_eq` / `func_ne` 为 RHS，结果 `bool`，带显式类型参数 `T`（`fnptr<…>`）。
+- `memblock_load` / `memblock_store` / `memblock_copy` 的 block 操作数可为 `memblock` 绑定或 `ptr<memblock<T>>` 块引用；`.count` 的基址同理。
 - 受限类型位置清单包含 `fnptr` 的类型参数位置。
 
 ---
@@ -329,17 +428,17 @@ fnptr<返回类型, 参数类型...>
 
 | 档 | 内容 |
 |----|------|
-| 规范确定 | 区内偏移、`ptr_sub`（同区）、布局、诊断码、trap 条件 |
-| 环境定义 | 区基址、区间距离、代码入口、设备内存内容、地址 0 是否可用 |
+| 规范确定 | 静态元素的区内偏移与同区地址差、布局、诊断码、trap 条件 |
+| 环境定义 | 区基址、区间距离、代码入口、设备内存内容 |
 | 实现定义 | 宿主→目标翻译方式（不可观察）、帧内具体地址 |
 
 ### 10.2 确定性承诺
 
 - 已定义程序在同一映像、同一环境实例下逐位可重现。
-- 同一程序的区内偏移在**所有实现**下相同（VM 与 AOT 可按 `ptr_sub` 逐项对拍）。
+- **静态元素**的区内偏移与同区地址差在所有实现下相同；帧内偏移不由本文确定。
 - 通过 `bitcast` 观察绝对地址的程序，退出「跨装载 / 跨环境」的确定性保证。
-- 访问不可访问地址：宿主档案必须报告 `TC_RE_ADDR_UNAVAILABLE`；裸机档案可声明由硬件异常映射为该码。
-- 越界指针解引用与悬垂解引用：UB（§7.3）。
+- 地址分类：区外 → `TC_RE_ADDR_UNAVAILABLE`；代码区读写 → `TC_RE_ADDR_UNAVAILABLE`；设备区 → 按档案；区内越出对象边界 → UB。
+- 悬垂解引用：UB（§7.3）。
 
 ---
 
@@ -353,7 +452,7 @@ fnptr<返回类型, 参数类型...>
 | 端序 | 设备与内存的字节序 |
 | 区表 | 常量区、只读参数栈、静态区、栈、设备区各自的基址与范围 |
 | 栈大小 | 帧变量区 + 只读参数栈 |
-| 地址 0 | 是否映射；若映射，`nil` 的语义 |
+| 地址 0 | 保留给 `nullptr`；不得放置 TC 可访问对象；需要 0 地址设备的板子由启动代码在 TC 之外处理 |
 | 代码入口 | 复位入口，或由装载器提供 |
 | 工具链 | ICF 关闭；严格档案可禁函数指针 |
 | stdout 汇 | UART / 信号量 / 无 |
@@ -374,11 +473,30 @@ fnptr<返回类型, 参数类型...>
 
 | 项 | 规定 |
 |----|------|
-| 悬垂解引用 | UB；不规定检出机制（§7.3） |
+| 地址 0 | 恒为 `nullptr`；TC 可访问对象不得位于 0（§1.3） |
+| 悬垂解引用 | UB；两类直接形态强制诊断，其余不检出（§7.3） |
 | 帧内偏移 | 不由本文确定；确定性只覆盖静态元素的区内偏移 |
 | 显式绝对放置 | 不提供 `@at` / `@section` |
 | 深拷贝 | 不可表达（§3.5） |
 | 嵌套 memblock 的指针级批量拷贝 | 不提供；用 `memblock_load` / `memblock_store` 逐元素（§5.2） |
+
+---
+
+## 14. 对 0.0.44 条款的处置
+
+| 0.0.44 条款 | 处置 |
+|-------------|------|
+| §1.3 可观察行为 | 新增“环境定义”类别；确定性按区内偏移 / 区基址 / 代码入口分层 |
+| §3.8 `memblock` | 元素可寻址、块引用、长度头可读、浅拷贝定义 |
+| §3.10 指针类型 | 重写：真实地址、`nullptr = 0`、宽度统一、转换规则 |
+| §6.8 指针指令 | 重写读写、取址、算术、比较；只读区与区外的 trap |
+| §6.10（新增） | `fnptr<…>`、`func_address`、`funcall_at`、`func_eq` / `func_ne` |
+| §9.1 生命周期 | 局部 `let` 进常量区，程序生命期 |
+| §11 诊断 | 新增 3 个运行期码、1 个静态码；码数 86 → 90 |
+| 附录 A | `fnptr` 类型构造、字段路径、四个新产生式 |
+| 附录 B | 码表更新至 90 |
+
+本变更集不含：freestanding 启动代码与 trap 向量、`@at` / `@section`、`borrow<T>` 类借用体系、帧内偏移确定、标准库。
 
 ---
 
@@ -388,14 +506,18 @@ fnptr<返回类型, 参数类型...>
 |------|------|
 | `ptr` 能指向什么 | 标量、结构体、`ptr`、`fnptr`；**不能**是 `memblock` 或 `void` |
 | 怎么索引 memblock | `ptr_address(元素类型, m)` 取元素 0，再 `ptr_add` |
+| 怎么零拷贝传大块 | `ptr_address(memblock<T>, m)` 取块引用，用 `.count` + `memblock_load/store` |
 | memblock 拷贝 | 浅拷贝：逐字节复制自身表示，不跟随指针；指针元素只复制地址 |
 | 怎么取字段地址 | `ptr_address(字段类型, s.f)` |
 | 写 `let` 指针 | 运行期 `TC_RE_WRITE_PROTECTED` |
 | 写形参指针 | 运行期 `TC_RE_WRITE_PROTECTED`（只读参数栈） |
 | 函数地址 | `func_address(f)`，真实入口，无表 |
-| 间接调用 | `funcall_at(f, …)`；`f` 必须是 `fnptr`；`nil` 报 `TC_RE_NULL_FUNCTION_POINTER` |
+| 间接调用 | `funcall_at(f, …)`；`f` 必须是 `fnptr`；`nullptr` 报 `TC_RE_NULL_FUNCTION_POINTER` |
+| 地址 0 | 恒为 `nullptr`，不可放置 TC 对象 |
+| 函数指针比较 | `func_eq` / `func_ne`；两操作数同型或其一为 `nullptr` |
 | 调用整数地址 | 先 `bitcast(fnptr<sig>, u)`，再 `funcall_at` |
 | 伪造函数指针 | UB |
 | 布局谁定 | 区内偏移：规范；区基址：档案 |
 | 映像能否直接拷贝装载 | 能，无需重定位 |
+| 悬垂怎么处理 | UB；`return` 帧地址与写入长寿命存储报 `TC_CE_DANGLING_POINTER` |
 | 跨实现地址是否相同 | 区内偏移相同；绝对地址可不同 |

@@ -9,9 +9,13 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ## [Unreleased]
 
+### Added
+
+- **0.0.46 language standard change set frozen (2026-11-06)**: the address model, block references, function addresses, and dangling-pointer design are final; only errata are accepted after the freeze ([change set](docs/TC-0.0.46-语言标准变更集.md)).
+
 ### Deprecated
 
-- **0.0.45 was never released and is deprecated**: the split between `ref<T>` (managed reference) and `addr<T>` (linear address) in its language draft is abandoned. 0.0.46 uses a single pointer type `ptr<T>` with a real-address model ([draft](docs/TC-0.0.46-地址模型与函数地址草案.md)).
+- **0.0.45 was never released and is deprecated**: the split between `ref<T>` (managed reference) and `addr<T>` (linear address) in its language draft is abandoned. 0.0.46 uses a single pointer type `ptr<T>` with a real-address model ([change set](docs/TC-0.0.46-语言标准变更集.md)).
 
 ## [0.0.44] - 2026-09-21
 
