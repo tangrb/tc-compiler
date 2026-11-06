@@ -119,16 +119,14 @@ TC 是面向教学、AI 自动化编程与人类阅读的指令式编程语言�
 
 下表给出本规范的语言能力范围，细节以对应章节为准。语法接受集以附录 A 为准。
 
-| 类别 | 范围 | 详见 |
-| ---- | ---- | ---- |
-| 类型 | 固定宽度整数 `int8`～`uint64`；平台字长整数 `isize` / `usize`；`float32` / `float64`；`bool`；`ptr<T>`（指针类型）；`memblock<T, N>`（带长度头部，`N` 为元素个数规划）；`struct`；`void` 仅作函数返回类型 | §3 |
-| 运算 | 算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与 `.count` 长度访问；`ptr_load` / `ptr_store` 指针读写；`ptr_address` 取地址；`ptr_add` / `ptr_sub` 指针算术；`ptr_size` 所指类型宽度查询；`ptr_eq` / `ptr_ne` 指针等值比较；`ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` 指针序关系比较；`memcopy_unsafe` 原始内存块拷贝 | §6 |
-| 模式 | 默认 strict；有符号整数算术与 `shl` 可按规则使用 `wrap`；浮点算术可按规则使用 `ieee` | §6.3 |
-| 控制流 | 缩进敏感的 `if` / `while`（以 `end` 结束）；`break` / `continue`；函数内受限 `goto` / `label`（`while` 内禁止） | §7 |
-| 函数 | `#lib` 中 `func`；命名且有序的 `funcall`；显式 `return`；按值只读形参；调用图无环 | §8 |
-| 模块 | 每文件一模块；`#program` / `#lib`；`import` 与限定名访问公开成员 | §4 |
-| I/O | `write` / `writeln` / `read`；仅标量类型；格式化输出 | §10 |
-| 入口 | `#program` 顶层语句按源序执行；无特殊 `main` | §4.1 |
+- **类型**：固定宽度整数 `int8`～`uint64`；平台字长整数 `isize` / `usize`；`float32` / `float64`；`bool`；`ptr<T>`（指针）；`fnptr<…>`（函数指针）；`memblock<T, N>`（带长度头部，`N` 为元素个数规划）；`struct`；`void` 仅作函数返回类型（§3）。
+- **运算**：算术、按位、移位、布尔逻辑、比较；`cast` / `truncate` cast / `bitcast`；`memblock` 读写、区间拷贝与 `.count`；`ptr_load` / `ptr_store` / `ptr_address` / `ptr_add` / `ptr_sub` / `ptr_size` / `ptr_eq` / `ptr_ne` / `ptr_lt` / `ptr_le` / `ptr_gt` / `ptr_ge` / `memcopy_unsafe`；`func_address` / `funcall_at` / `func_eq` / `func_ne`（§6）。
+- **模式**：默认 strict；有符号整数算术与 `shl` 可按规则使用 `wrap`；浮点算术可按规则使用 `ieee`（§6.3）。
+- **控制流**：缩进敏感的 `if` / `while`（以 `end` 结束）；`break` / `continue`；函数内受限 `goto` / `label`（`while` 内禁止）（§7）。
+- **函数**：`#lib` 中 `func`；命名且有序的 `funcall`；经 `fnptr` 的 `funcall_at`；显式 `return`；按值只读形参；调用图无环（§8）。
+- **模块**：每文件一模块；`#program` / `#lib`；`import` 与限定名访问公开成员（§4）。
+- **I/O**：`write` / `writeln` / `read`；仅标量类型；格式化输出（§10）。
+- **入口**：`#program` 顶层语句按源序执行；无特殊 `main`（§4.1）。
 
 ### 1.2 设计原则
 
@@ -583,12 +581,10 @@ TC 将数值转换、整数截断、位重解释与指针转换分开：
 
 #### 3.8.1 类型语义
 
-| 规则 | 说明 |
-| ---- | ---- |
-| **类型仅由 `T` 决定** | `memblock<T, N>` 的类型为 `memblock<T>`。`N` 是编译期规划（元素个数约束），不构建新类型。`memblock<int32, 10>` 与 `memblock<int32, 20>` 属于同一类型。 |
-| **`T` 为完整类型** | `T` 为 `void` 以外的任意完整类型：标量类型（`scalar_type`，含 `isize`/`usize`）、`memblock<U, N>`（嵌套）、结构体类型、`ptr<U>`。`memblock<ptr<int32>, 4>`、`memblock<MyStruct, 8>`、`memblock<memblock<int32, 3>, 5>` 等嵌套形态均合法。`void` 不是值类型，不能作为 `T`。 |
-| **`N` 为编译期 `usize` 常量** | `N` 必须是编译期可求值的 `usize` 表达式，取值为正整数（≥ 1）。合法的 `N` 来源：整数字面量（以 `usize` 为期望类型检查；`u`/`U` 后缀按 §2.3.1 在无符号上下文合法，负号仅可与无后缀字面量组合）、类型为 `usize` 的 `let` / `static let` 标识符、经 `Self.` / 导入限定解析到的只读 `usize` 绑定。来源不合法（`var` / `static var`、形参或非常量表达式）或数学值 < 1 者，静态语义拒绝并报告 `TC_CE_CONSTANT_EXPRESSION`。 |
-| **`N` 不参与类型等价** | 两个 `memblock<T, N>` 类型等价当且仅当 `T` 相同。`N` 相同的约束只在赋值、传参等上下文以编译期常量检查强制执行（§3.8.4），不属于类型系统。`N` 是绑定级容量约束（与运行时长度头部一致），不是元素种类的一部分；故意不进入类型等价，以免与「同元素类型」身份判定纠缠。同型但 `N` 不同时，赋值/传参报告 `TC_CE_MEMBLOCK_SIZE_MISMATCH` 而非 `TC_CE_TYPE_MISMATCH`。 |
+- **类型仅由 `T` 决定**：`memblock<T, N>` 的类型为 `memblock<T>`；`N` 是编译期规划（元素个数约束），不构建新类型，故 `memblock<int32, 10>` 与 `memblock<int32, 20>` 属于同一类型。
+- **`T` 为完整类型**：`T` 为 `void` 以外的任意完整类型——标量（含 `isize`/`usize`）、嵌套 `memblock<U, N>`、结构体、`ptr<U>`；嵌套形态如 `memblock<ptr<int32>, 4>`、`memblock<MyStruct, 8>`、`memblock<memblock<int32, 3>, 5>` 均合法。`void` 不是值类型，不能作为 `T`。
+- **`N` 为编译期 `usize` 常量**：`N` 必须是编译期可求值的 `usize` 表达式，取值 ≥ 1。合法来源：整数字面量（以 `usize` 为期望类型检查；`u`/`U` 后缀按 §2.3.1 在无符号上下文合法，负号仅可与无后缀字面量组合）、类型为 `usize` 的 `let` / `static let` 标识符、经 `Self.` / 导入限定解析到的只读 `usize` 绑定。来源不合法（`var` / `static var`、形参或非常量表达式）或数学值 < 1 → `TC_CE_CONSTANT_EXPRESSION`。
+- **`N` 不参与类型等价**：两个 `memblock<T, N>` 等价当且仅当 `T` 相同；`N` 相同的约束只在赋值、传参等上下文以编译期常量检查（§3.8.4），不属于类型系统。`N` 是绑定级容量约束（与运行时长度头部一致），不是元素种类的一部分，以免与「同元素类型」身份判定纠缠；同型但 `N` 不同时报告 `TC_CE_MEMBLOCK_SIZE_MISMATCH` 而非 `TC_CE_TYPE_MISMATCH`。
 
 #### 3.8.2 运行时布局
 
@@ -690,16 +686,14 @@ sizeof_bits(memblock<T, count>) = sizeof_bits(usize) + count × sizeof_bits(T)
 
 结构体定义的语法形态由附录 A 规定。结构体只能出现在模块顶层的**类型定义区**（§4），不得出现在函数体或控制流块内。`#lib` 中结构体定义必须带显式可见性；`#program` 不得使用可见性修饰符。字段声明每行恰好一个字段。
 
-| 项目 | 规则 |
-| ---- | ---- |
-| 结构体名 | 模块内唯一的类型名。结构体名是普通 `identifier`，使用保留字（标量类型名、`memblock`、`void`、其它关键字）属语法拒绝（`TC_CE_SYNTAX`）。同一模块重复定义同名结构体 → `TC_CE_DUPLICATE_STRUCT`；与同模块的函数名或值绑定名冲突 → `TC_CE_FUNCTION_NAME_CONFLICT`；与导入名冲突 → `TC_CE_IMPORT_NAME_CONFLICT`（§4.5） |
-| 字段数量 | 至少 1 个；空结构体不合法 |
-| 字段名 | 同一结构体内唯一；区分大小写 |
-| 字段种类 | `let` 字段：构造后不可通过字段赋值修改；`var` 字段：仅当外层绑定为可写 `var` / `static var` 时可通过字段赋值修改（§3.9.5） |
-| 字段类型 | 见下款「字段类型位置规则」；禁止 `void` |
-| 字段初始化器 | 定义处**不得**写 `=`；字段值只在值构造器中提供（§3.9.2） |
-| 语法形态 | `then` 位于 `struct` 行末，即 `struct <结构体名> then`（产生式见附录 A） |
-| 缩进 | 字段行比 `struct` 行恰好多一级；`end` 与 `struct` 行对齐（与 `func`/`if`/`while` 相同）；`end` 缺失 → `TC_CE_MISSING_END` |
+- **结构体名**：模块内唯一的类型名。结构体名是普通 `identifier`，使用保留字（标量类型名、`memblock`、`void`、其它关键字）属语法拒绝（`TC_CE_SYNTAX`）。同一模块重复定义同名结构体 → `TC_CE_DUPLICATE_STRUCT`；与同模块的函数名或值绑定名冲突 → `TC_CE_FUNCTION_NAME_CONFLICT`；与导入名冲突 → `TC_CE_IMPORT_NAME_CONFLICT`（§4.5）。
+- **字段数量**：至少 1 个；空结构体不合法。
+- **字段名**：同一结构体内唯一；区分大小写。
+- **字段种类**：`let` 字段构造后不可通过字段赋值修改；`var` 字段仅当外层绑定为可写 `var` / `static var` 时可通过字段赋值修改（§3.9.5）。
+- **字段类型**：见下款「字段类型位置规则」；禁止 `void`。
+- **字段初始化器**：定义处不得写 `=`；字段值只在值构造器中提供（§3.9.2）。
+- **语法形态**：`then` 位于 `struct` 行末，即 `struct <结构体名> then`（产生式见附录 A）。
+- **缩进**：字段行比 `struct` 行恰好多一级；`end` 与 `struct` 行对齐；`end` 缺失 → `TC_CE_MISSING_END`。
 
 **字段类型位置规则**（设当前正在定义的结构体名为 `S`）：
 
@@ -998,18 +992,16 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （32 或 64，由环境决定）
 
 #### 3.10.14 与其他特性的边界
 
-| 特性 | 规则 |
-| ---- | ---- |
-| I/O | `write`/`writeln`/`read` 不接受 `ptr<T>` / `fnptr<…>` 类型 |
-| `cast` | `cast(ptr<T>, ptr<U>)` 支持指针重标记；`cast(ptr<T>, nullptr)` 合法；`ptr<T>` 不可 `cast` 到整数/浮点 |
-| `bitcast` | `ptr<T>` ↔ `usize`（或同宽整数）等宽重解释；`ptr<U>` ↔ `ptr<T>` 等宽重解释；`ptr` ↔ `fnptr` 禁止；`ptr` ↔ 浮点禁止；`bitcast(T, nullptr)` 非法 |
-| 通用算术 | 不接受 `ptr<T>` / `fnptr<…>` 操作数 |
-| `memcopy_unsafe` | 两个指针须同为 `ptr<T>`；`T` 不含 `memblock`；目标只读区 → `TC_RE_WRITE_PROTECTED`；越界拷贝属 UB |
-| 结构体字段 | 字段类型可为 `ptr<T>` / `fnptr<…>`；整块赋值复制地址，产生别名 |
-| 函数参数 | 形参可为 `ptr<T>` / `fnptr<…>`；形参绑定本身只读（`TC_CE_PARAMETER_ASSIGNMENT`）；取形参地址得到只读参数栈中的副本（§9.3.1） |
-| `memblock` 元素 | 元素类型可为 `ptr<T>` / `fnptr<…>`；`memblock<T>` 本身仅作块引用（§3.10.13） |
-| 模块 | 类型可直接使用，无需模块级定义；`ptr` / `fnptr` 是关键字 |
-| `ptr_address` | 目标见 §3.10.6；不是编译期常量，不可用于 `const_rhs` |
+- **I/O**：`write` / `writeln` / `read` 不接受 `ptr<T>` / `fnptr<…>` 类型。
+- **`cast`**：`cast(ptr<T>, ptr<U>)` 支持指针重标记；`cast(ptr<T>, nullptr)` 合法；`ptr<T>` 不可 `cast` 到整数/浮点。
+- **`bitcast`**：`ptr<T>` ↔ `usize`（或同宽整数）等宽重解释；`ptr<U>` ↔ `ptr<T>` 等宽重解释；`ptr` ↔ `fnptr` 禁止；`ptr` ↔ 浮点禁止；`bitcast(T, nullptr)` 非法。
+- **通用算术**：不接受 `ptr<T>` / `fnptr<…>` 操作数。
+- **`memcopy_unsafe`**：两个指针须同为 `ptr<T>`；`T` 不含 `memblock`；目标只读区 → `TC_RE_WRITE_PROTECTED`；越界拷贝属 UB。
+- **结构体字段**：字段类型可为 `ptr<T>` / `fnptr<…>`；整块赋值复制地址，产生别名。
+- **函数参数**：形参可为 `ptr<T>` / `fnptr<…>`；形参绑定本身只读（`TC_CE_PARAMETER_ASSIGNMENT`）；取形参地址得到只读参数栈中的副本（§9.3.1）。
+- **`memblock` 元素**：元素类型可为 `ptr<T>` / `fnptr<…>`；`memblock<T>` 本身仅作块引用（§3.10.13）。
+- **模块**：类型可直接使用，无需模块级定义；`ptr` / `fnptr` 是关键字。
+- **`ptr_address`**：目标见 §3.10.6；不是编译期常量，不可用于 `const_rhs`。
 
 ---
 ### 3.11 函数指针类型（`fnptr<…>`）
@@ -1018,17 +1010,15 @@ sizeof_bits(ptr<T>) = sizeof_bits(usize)  （32 或 64，由环境决定）
 
 #### 3.11.1 类型语义
 
-| 规则 | 说明 |
-| ---- | ---- |
-| 类型含签名 | 返回类型与参数表逐项相等才等价，参数顺序敏感；参数名不参与等价 |
-| 参数与返回 | 参数类型须为值类型（`void` 不可作参数）；返回类型可为 `void`，零参写作 `fnptr<返回类型>`，零参零返回写作 `fnptr<void>` |
-| 宽度 | `sizeof_bits(fnptr<…>) = sizeof_bits(usize)`，与签名无关 |
-| 值语义 | 值类型；`nullptr` 与之兼容（位模式 0）；整块赋值、按值传参/返回复制地址 |
-| 存储 | 对齐 = 宽度；可作 `struct` 字段、`memblock` 元素、`ptr<fnptr<…>>` 的所指 |
-| I/O | 禁止直接 `read` / `write` |
-| 比较 | 仅 `func_eq` / `func_ne`（§6.9.3、§6.9.4） |
-| 转换 | `bitcast(fnptr ↔ usize)` 允许；跨签名的 `cast` / `bitcast` 禁止；`ptr ↔ fnptr` 禁止 |
-| 常量 | 不是编译期常量；不得出现在 `const_rhs`、`let` / `static let` 初始化器；产生式不含该形态，属语法拒绝（`TC_CE_SYNTAX`） |
+- **类型含签名**：返回类型与参数表逐项相等才等价，参数顺序敏感；参数名不参与等价。
+- **参数与返回**：参数类型须为值类型（`void` 不可作参数）；返回类型可为 `void`；零参写作 `fnptr<返回类型>`，零参零返回写作 `fnptr<void>`。
+- **宽度**：`sizeof_bits(fnptr<…>) = sizeof_bits(usize)`，与签名无关。
+- **值语义**：值类型；`nullptr` 与之兼容（位模式 0）；整块赋值、按值传参/返回复制地址。
+- **存储**：对齐 = 宽度；可作 `struct` 字段、`memblock` 元素、`ptr<fnptr<…>>` 的所指。
+- **I/O**：禁止直接 `read` / `write`。
+- **比较**：仅 `func_eq` / `func_ne`（§6.9.3、§6.9.4）。
+- **转换**：`bitcast(fnptr ↔ usize)` 允许；跨签名的 `cast` / `bitcast` 禁止；`ptr ↔ fnptr` 禁止。
+- **常量**：不是编译期常量；不得出现在 `const_rhs`、`let` / `static let` 初始化器；产生式不含该形态，属语法拒绝（`TC_CE_SYNTAX`）。
 
 #### 3.11.2 取值与确定性
 
@@ -2122,13 +2112,11 @@ n ≥ 0  ∧  0 ≤ d  ∧  0 ≤ s  ∧  d + n ≤ count_dst  ∧  s + n ≤ co
 
 语法形态由附录 A 规定。
 
-| 项目 | 规则 |
-|------|------|
-| 语法形态 | `then` 位于返回类型之后的行末，即 `func <函数名>(<形参表>) <返回类型> then`（产生式见附录 A） |
-| 形参类型 | 标量（含 `isize`/`usize`）、`ptr<T>`（§3.10）、`fnptr<…>`（§3.11）、`memblock<T, N>`（带长度头部，§3.8）或已定义结构体（§3.9）。`ptr<T>` / `fnptr<…>` 形参按值传递（复制地址）。`memblock` 与结构体形参按值传递（**浅拷贝**，§3.8.4）。形参是只读**绑定**：不可对其做整体赋值或字段赋值 → `TC_CE_PARAMETER_ASSIGNMENT`；但可对 memblock 形参的**副本**做 `memblock_store` / `memblock_copy`（只改副本元素）。经 `ptr_address` 取形参地址得到只读参数栈中的副本；写穿它 → 运行期 `TC_RE_WRITE_PROTECTED`（§3.10.8） |
-| 返回类型 | 值类型或 `void`；`memblock<T, N>` 与结构体返回时整块复制 |
-| 缩进 | 函数体比 `func` 行恰好多一级；`end` 与 `func` 对齐；`end` 缺失 → `TC_CE_MISSING_END` |
-| 空函数体 | 合法，但须满足返回路径规则，否则报 `TC_CE_MISSING_RETURN` |
+- **语法形态**：`then` 位于返回类型之后的行末，即 `func <函数名>(<形参表>) <返回类型> then`（产生式见附录 A）。
+- **形参类型**：标量（含 `isize`/`usize`）、`ptr<T>`（§3.10）、`fnptr<…>`（§3.11）、`memblock<T, N>`（§3.8）或已定义结构体（§3.9）。`ptr<T>` / `fnptr<…>` 形参按值传递（复制地址）；`memblock` 与结构体形参按值传递（浅拷贝，§3.8.4）。形参是只读绑定：整体赋值或字段赋值 → `TC_CE_PARAMETER_ASSIGNMENT`；但可对 memblock 形参的副本做 `memblock_store` / `memblock_copy`（只改副本元素）。经 `ptr_address` 取形参地址得到只读参数栈中的副本；写穿它 → 运行期 `TC_RE_WRITE_PROTECTED`（§3.10.8）。
+- **返回类型**：值类型或 `void`；`memblock<T, N>` 与结构体返回时整块复制。
+- **缩进**：函数体比 `func` 行恰好多一级；`end` 与 `func` 对齐；`end` 缺失 → `TC_CE_MISSING_END`。
+- **空函数体**：合法，但须满足返回路径规则，否则报 `TC_CE_MISSING_RETURN`。
 
 #### 8.1.2 签名约束
 
@@ -2180,11 +2168,9 @@ TC 不支持：函数重载、默认参数、可变参数、函数值、函数�
 
 实参严格按照调用点从左到右读取并绑定。
 
-| 形参类型 | 合法实参形式 |
-|---------|------------|
-| 标量 | 仅 `operand`（标识符/限定名/字段读取/字面量）；运算、转换、构造器、`funcall` 不可 |
-| `memblock<T, count>` | 标识符（已声明带长度 memblock 绑定），或 `memblock_constructor`（填充/逐值） |
-| 结构体 | 同类型标识符（含限定名、字段读取），或同类型 `struct_constructor` |
+- **标量形参**：仅接受 `operand`（标识符/限定名/字段读取/字面量）；运算、转换、构造器、`funcall` 不可。
+- **`memblock<T, count>` 形参**：已声明带长度的 memblock 标识符，或 `memblock_constructor`（填充/逐值）。
+- **结构体形参**：同类型标识符（含限定名、字段读取），或同类型 `struct_constructor`。
 
 每个形参类型是实参的唯一期望类型，不做隐式转换。字面量按 §3.6 以形参类型为上下文检查。实参形态与形参类型不匹配时报 `TC_CE_TYPE_MISMATCH`——例如向标量形参传 `memblock_constructor` / `struct_constructor`、向 `memblock<T, count>` 形参传结构体构造器、或向结构体形参传 `memblock_constructor`（附录 A.3 的 `named_argument` 在语法上接受这三类构造器，由本款在静态语义阶段按形参类型拒绝）。
 
