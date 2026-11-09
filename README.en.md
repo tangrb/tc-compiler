@@ -14,7 +14,7 @@ TC-Compiler is a TC language toolchain implemented in C99. It includes:
 - **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
 - **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.44).
 
-Current core version: **v0.0.44**, Embed module version: **v0.0.44**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) is the sole authority for language syntax and observable semantics (the language specification and all design documents are **0.0.44**; implementation version is v0.0.44).
+Current core version: **v0.0.44**, Embed module version: **v0.0.44**. The [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md) is the sole authority for language syntax and observable semantics (0.0.46 is final; the implementation has not caught up yet). The implementation baseline remains v0.0.44, with its `*-0.0.44.md` design documents.
 
 ## Quick Start
 
@@ -108,7 +108,7 @@ var area: float64 = funcall(math_lib.compute_area, r: r)
 writeln(float64, %f, area)
 ```
 
-See the [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) for complete syntax and semantics.
+See the [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md) for complete syntax and semantics.
 
 ## Build
 
@@ -416,8 +416,10 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 
 | Document | Responsibility |
 | -------- | -------------- |
-| [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) | Sole authority for 0.0.44 syntax, semantics, and diagnostics |
-| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
+| [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md) | Sole authority for 0.0.46 syntax, semantics, and diagnostics (implementation not yet updated) |
+| [TC Compiler Specification 0.0.46](docs/TC编译器标准设计说明书-0.0.46.md) | 0.0.46 compiler target specification (chapter-by-chapter sync in progress) |
+| [TC Language Specification 0.0.44](docs/TC语言标准设计说明书-0.0.44.md) | 0.0.44 implementation-baseline language specification |
+| [TC Compiler Specification 0.0.44](docs/TC编译器标准设计说明书-0.0.44.md) | 0.0.44 implementation baseline: 13-stage pipeline, diagnostic priority, call graph |
 | [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, and executor design |
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 generation, runtime shim, and differential verification |

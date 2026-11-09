@@ -17,7 +17,9 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Compiler Specification 0.0.44](TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, call graph |
+| [TC Compiler Specification 0.0.46](TC编译器标准设计说明书-0.0.46.md) | 0.0.46 compiler target specification (chapter-by-chapter sync in progress): 13-stage pipeline, diagnostic priority, platform profile, checked build |
+| [TC Language Specification 0.0.44](TC语言标准设计说明书-0.0.44.md) | 0.0.44 implementation-baseline language specification (historical baseline; the factual reference until 0.0.46 is implemented) |
+| [TC Compiler Specification 0.0.44](TC编译器标准设计说明书-0.0.44.md) | 0.0.44 implementation baseline: 13-stage pipeline, diagnostic priority, call graph |
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
 
@@ -28,7 +30,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [TC 0.0.44 Conformance Audit Report](TC-0.0.44-语言标准符合性审计报告.md) | **Conformance audit**: all design docs and `src/` checked against the language specification as sole authority; includes re-verification of pre-existing open items and new findings with minimal reproductions |
 | [TC 0.0.44 Remediation Ledger](TC-0.0.44-符合性整改进度台账.md) | **Remediation ledger**: per-item status, commits and adjudication-pending items for phase 1 (design-doc alignment) and phase 2 (implementation fixes); the audit report itself stays a pure findings list |
 
-> The table above is process history, **not** a specification or design document. The seven design/spec documents listed earlier must not cite this section (enforced by `scripts/sync/check_doc_layering.py`).
+> The table above is process history, **not** a specification or design document. The nine design/spec documents listed earlier must not cite this section (enforced by `scripts/sync/check_doc_layering.py`).
 >
 > The historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan, and the 0.0.42 specification text) have been removed from the repository; retrieve them from release tags when needed, e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`.
 

@@ -6,8 +6,9 @@ check_doc_layering.py — 设计文档 ↔ 过程文档分层引用检查（防�
 规则（规范性）：
   **设计性质文档不得引用过程性文档。**
 
-  - 设计性质文档（本脚本检查的对象，共 7 份）：
-      语言标准、编译器标准、VM 详设、VM 命令行参考、AOT 详设、Embed 详设、libtc 设计说明书
+  - 设计性质文档（本脚本检查的对象，共 9 份）：
+      0.0.46 语言标准、0.0.46 编译器标准、0.0.44 语言标准、0.0.44 编译器标准、
+      VM 详设、VM 命令行参考、AOT 详设、Embed 详设、libtc 设计说明书
     它们只允许引用同为设计/规范的文档，以及仓库内的源码与测试文件。
   - 过程性文档（设计文档中禁止出现）：
       符合性审计报告、实现同步台账、修订记录与兼容性说明、CHANGELOG、release-checklist、
@@ -31,6 +32,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # ---- 被检查的设计性质文档 -------------------------------------------------
 DESIGN_DOCS = [
+    "docs/TC语言标准-0.0.46.md",
+    "docs/TC编译器标准设计说明书-0.0.46.md",
     "docs/TC语言标准设计说明书-0.0.44.md",
     "docs/TC编译器标准设计说明书-0.0.44.md",
     "docs/TC-VM详细设计说明书-0.0.44.md",
@@ -42,7 +45,7 @@ DESIGN_DOCS = [
 
 # ---- 允许被设计文档引用的目标（同为设计/规范的文档，按 basename 前缀） ----
 ALLOWED_DOC_PREFIXES = (
-    "TC语言标准设计说明书",
+    "TC语言标准",
     "TC编译器标准设计说明书",
     "TC-VM详细设计说明书",
     "TC-VM命令行参考",
@@ -83,13 +86,23 @@ PROCESS_MARKERS = (
 )
 
 # ---- 已废弃的带版本号文档名（正文指名即违规） ----------------------------
-# 现行设计文档名统一带 `-0.0.44` 后缀，属正常；此处只拦截**旧版本**的档名
-# （如 `libtc-api-0.0.42.md`），即版本号不等于现行 0.0.44 者。
+# 现行设计文档名带 `-0.0.44` 或 `-0.0.46` 后缀，属正常；此处只拦截**其它版本**
+# 的档名（如 `libtc-api-0.0.42.md`）。
 STALE_DOCNAME_RE = re.compile(
-    r"[A-Za-z\u4e00-\u9fff_\-]*-(?:v?0\.0\.(?!44\b)[0-9]+)\.md"
+    r"[A-Za-z\u4e00-\u9fff_\-]*-(?:v?0\.0\.(?!(?:44|46)\b)[0-9]+)\.md"
 )
 
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+FENCE_RE = re.compile(r"```.*?```", re.S)
+INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+
+def strip_code(text):
+    """去掉围栏块与行内代码，保留行号（代码里的示例链接不是文档链接）。"""
+    def blank(m):
+        return "\n" * m.group(0).count("\n")
+    text = FENCE_RE.sub(blank, text)
+    return "\n".join(INLINE_CODE_RE.sub("", line) for line in text.split("\n"))
 
 
 def read(rel):
@@ -126,9 +139,10 @@ def main():
             continue
         checked += 1
         lines = text.split("\n")
+        link_lines = strip_code(text).split("\n")
 
-        # 1) markdown 链接目标
-        for i, line in enumerate(lines, 1):
+        # 1) markdown 链接目标（忽略围栏块与行内代码中的示例）
+        for i, line in enumerate(link_lines, 1):
             for m in LINK_RE.finditer(line):
                 target = m.group(1)
                 if not is_allowed_target(target):

@@ -12,8 +12,12 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 ### Added
 
 - **0.0.46 language standard design frozen (2026-11-06)**: the address model, function addresses, and dangling-pointer semantics are final; only errata are accepted from now on ([standard](docs/TC语言标准-0.0.46.md)).
-- **0.0.46 compiler standard migration started**: new [TC编译器标准设计说明书-0.0.46.md](docs/TC编译器标准设计说明书-0.0.46.md); the platform profile and checked build moved to §12, with the 0.0.46 codes in §11.4.7; remaining chapters are being synced.
+- **0.0.46 compiler standard migration started**: new [TC编译器标准设计说明书-0.0.46.md](docs/TC编译器标准设计说明书-0.0.46.md); the platform profile and checked build moved to §12, with the 0.0.46 codes in §11.4.7 (later merged into the §11.4 tables); remaining chapters are being synced, and the compiler-side memblock → generics kernel sync is still pending.
 - **0.0.46 language standard text**: [TC语言标准-0.0.46.md](docs/TC语言标准-0.0.46.md) is the single source of truth for 0.0.46 (implementation not yet updated).
+
+### Changed
+
+- **0.0.46 documentation closeout**: the root README, CONTRIBUTING, examples, docs/README, and Cursor navigation now uniformly treat the 0.0.46 language standard as the sole authority and v0.0.44 as the implementation baseline; `check_doc_layering.py` covers nine design/spec documents; new relative-link and keyword-consistency gates (`check_doc_links.py` / `check_keywords.py`) run in pre-commit and CI.
 
 ### Deprecated
 

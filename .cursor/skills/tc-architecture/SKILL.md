@@ -9,7 +9,7 @@ description: >-
 
 # TC-Compiler Architecture
 
-**v0.0.44** · 语言规范 0.0.44 · 导航 [.cursor/README.md](../../README.md) · 易错点 [gotchas.md](gotchas.md)
+**实现 v0.0.44** · 语言目标规范 0.0.46 · 导航 [.cursor/README.md](../../README.md) · 易错点 [gotchas.md](gotchas.md)
 
 ## 三步
 
@@ -31,7 +31,7 @@ description: >-
 | 调用链、Analyze 顺序、CFG 编排 | [pipeline.md](pipeline.md) | locations |
 | 历史坑、菱形 import、const 堆、AOT 字段、memcopy 负下标 | [gotchas.md](gotchas.md) | 多个 kg-* |
 | AST / 枚举 / equals / sizeof / 槽位 | [types.md](types.md) | syntax |
-| 错误码、stderr、诊断阶段、测试子串 | [errors.md](errors.md)（文首 Agent 段 + `rg`） | 通读 86 码表 |
+| 错误码、stderr、诊断阶段、测试子串 | [errors.md](errors.md)（文首 Agent 段 + `rg`） | 通读全表 |
 | 语法 EBNF 摘要 | [syntax.md](syntax.md) | 语言标准全文 |
 | 某特性改哪一层 | [features.md](features.md) → **一行** → `features/*.md` | 其它 features |
 | 测试账本、是否已有用例 | [test-map.md](test-map.md)（先 `rg scripts/`） | kg-* |
@@ -48,7 +48,7 @@ description: >-
 | stmt_index / DFS | `tc_stmt_index.h` → [kg-cfg.md](kg-cfg.md) | — |
 | 跑测试 / CI | Skill `run-tests` | — |
 | Review / PR | Skill `review-tc-code` | — |
-| 语言/编译器规范全文 | `docs/TC语言标准设计说明书-0.0.44.md` 等 | 整份 skill |
+| 语言/编译器规范全文 | `docs/TC语言标准-0.0.46.md`（权威）· `docs/TC编译器标准设计说明书-0.0.46.md`（逐章同步中）· 0.0.44 设计书（实现基线） | 整份 skill |
 | libtc API | `docs/libtc设计说明书-0.0.44.md` | pipeline |
 
 ## Pipeline（一行）

@@ -6,7 +6,7 @@
 
 1. 先读下方 **诊断阶段** / **Fail-fast**（到分组标题即够多数任务）。
 2. 查具体码：`rg TC_CE_<NAME> 本文件` — **不要**线性读完 86 行。
-3. **口径**：语言标准附录 B **86** 语言码 + 实现 `TC_ERR_OUT_OF_MEMORY` = **87**（`test_types.c`）。
+3. **口径**：实现基线语言标准 0.0.44 附录 B **86** 语言码（目标规范 0.0.46 为 90 码，实现待跟进） + 实现 `TC_ERR_OUT_OF_MEMORY` = **87**（`test_types.c`）。
 4. static 期望子串：Rule `tests-tc` 常见表，或本文件打印名列。
 5. 新 `TcErrorKind`：`tc_error_kind_name` + `test_types.c` + 编译器标准 §11.4 + 语言标准附录 B。
 
@@ -59,7 +59,7 @@
 
 ## 87 种错误（`TcErrorKind` = 86 语言码 + 1 实现码）
 
-权威对照：语言标准附录 B（**86** 语言码，语言规范 0.0.44）· `docs/TC编译器标准设计说明书-0.0.44.md` §11.4（镜像）· 实现枚举：`tc_types.h`（**87** = 86 + `TC_ERR_OUT_OF_MEMORY`，`test_types.c` 断言）· 打印名见 `tc_error_kind_name()`
+权威对照：实现基线语言标准 0.0.44 附录 B（**86** 语言码）· `docs/TC编译器标准设计说明书-0.0.44.md` §11.4（镜像）· 目标规范 [语言标准 0.0.46](../../../docs/TC语言标准-0.0.46.md) 附录 B（**90** 码 = 76 `TC_CE_*` + 14 `TC_RE_*`，实现待跟进）· 实现枚举：`tc_types.h`（**87** = 86 + `TC_ERR_OUT_OF_MEMORY`，`test_types.c` 断言）· 打印名见 `tc_error_kind_name()`
 
 命名：编译期 `TC_CE_*`，运行时 `TC_RE_*`，实现专用 `TC_ERR_OUT_OF_MEMORY`。下表按附录 B 分组列出全部语言码与标准章节；历史文档偶用 `TC_ERR_*` 别称时以 `tc_types.h` 为准。
 

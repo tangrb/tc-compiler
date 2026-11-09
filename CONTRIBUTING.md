@@ -48,7 +48,7 @@ make hooks
 - 期望输出 vs 实际 stdout/stderr
 - 是否仅 VM、仅 AOT，或两者不一致
 
-语言/语义变更需对照 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.44.md)；设计书权威高于实现。
+语言/语义变更需对照 [TC 语言标准 0.0.46](docs/TC语言标准-0.0.46.md)；标准权威高于实现（实现基线为 v0.0.44，尚未跟进 0.0.46）。
 
 使用仓库提供的 [Issue 模板](.github/ISSUE_TEMPLATE/)。
 
@@ -106,7 +106,7 @@ make ci-coverage                         # 另收集覆盖率（需 lcov）
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)（[English](CHANGELOG.en.md)）
 - 发版步骤：[docs/release-checklist.md](docs/release-checklist.md)（[English](docs/release-checklist.en.md)）
 
-改语言语义、错误码或公开 API 时，同步更新对应 `docs/*-0.0.44.md`（或当前版本设计书）。CI、覆盖率与 sanitizer 命令见根目录 [README.md](README.md)「测试与质量门禁」。
+改语言语义或错误码时，先更新 [TC 语言标准 0.0.46](docs/TC语言标准-0.0.46.md)（唯一权威）；实现落地后再同步对应设计书（当前实现基线为 `docs/*-0.0.44.md`，0.0.46 编译器标准逐章同步中）。公开 API 变更同步更新对应设计书。CI、覆盖率与 sanitizer 命令见根目录 [README.md](README.md)「测试与质量门禁」。
 
 ## Cursor Agent（可选）
 

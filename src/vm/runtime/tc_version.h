@@ -1,7 +1,7 @@
 #ifndef TC_VERSION_H
 #define TC_VERSION_H
 
-/* 实现版本；语言规范 0.0.44 */
+/* 实现版本；实现基线对应语言标准 0.0.44（目标规范 0.0.46） */
 #define TC_VERSION_CORE "0.0.44"
 
 /* TC-Embed 模块版本（与核心版本一致） */

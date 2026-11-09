@@ -48,7 +48,7 @@ Search existing issues and docs first. Bug reports should include:
 - Expected vs actual stdout/stderr
 - Whether the bug is VM-only, AOT-only, or both differ
 
-Language/semantics changes must follow the [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md); the spec is authoritative over the implementation.
+Language/semantics changes must follow the [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md); the standard is authoritative over the implementation (the implementation baseline is v0.0.44 and has not caught up with 0.0.46).
 
 Use the repository [issue templates](.github/ISSUE_TEMPLATE/).
 
@@ -104,7 +104,7 @@ Match existing `src/` style and `.cursor/rules/coding-standards.mdc`.
 - Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md))
 - Release steps: [docs/release-checklist.en.md](docs/release-checklist.en.md) ([中文](docs/release-checklist.md))
 
-When changing language semantics, error codes, or public APIs, update the matching `docs/*-0.0.44.md` (or current-version specs). CI, coverage, and sanitizer commands are in the root [README.en.md](README.en.md) “Tests and Quality Gates” section.
+When changing language semantics or error codes, update the [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md) first (sole authority); sync the matching design documents after the implementation lands (the current implementation baseline is `docs/*-0.0.44.md`, and the 0.0.46 compiler standard is being synced chapter by chapter). Update the matching design document for public API changes. CI, coverage, and sanitizer commands are in the root [README.en.md](README.en.md) “Tests and Quality Gates” section.
 
 ## Cursor Agent (optional)
 
