@@ -1,4 +1,4 @@
-# TC 语言标准设计说明书
+# TC 语言标准
 
 > **版本**：0.0.46
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）

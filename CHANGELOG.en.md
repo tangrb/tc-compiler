@@ -11,13 +11,13 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ### Added
 
-- **0.0.46 language standard change set frozen (2026-11-06)**: the address model, block references, function addresses, and dangling-pointer design are final; only errata are accepted after the freeze ([change set](docs/TC-0.0.46-语言标准变更集.md)).
+- **0.0.46 language standard design frozen (2026-11-06)**: the address model, function addresses, and dangling-pointer semantics are final; only errata are accepted from now on ([standard](docs/TC语言标准-0.0.46.md)).
 - **0.0.46 compiler standard migration started**: new [TC编译器标准设计说明书-0.0.46.md](docs/TC编译器标准设计说明书-0.0.46.md); the platform profile and checked build moved to §12, with the 0.0.46 codes in §11.4.7; remaining chapters are being synced.
-- **0.0.46 language standard text**: written from the frozen change set ([standard](docs/TC语言标准设计说明书-0.0.46.md); implementation not yet updated).
+- **0.0.46 language standard text**: [TC语言标准-0.0.46.md](docs/TC语言标准-0.0.46.md) is the single source of truth for 0.0.46 (implementation not yet updated).
 
 ### Deprecated
 
-- **0.0.45 was never released and is deprecated**: the split between `ref<T>` (managed reference) and `addr<T>` (linear address) in its language draft is abandoned. 0.0.46 uses a single pointer type `ptr<T>` with a real-address model ([change set](docs/TC-0.0.46-语言标准变更集.md)).
+- **0.0.45 was never released and is deprecated**: the split between `ref<T>` (managed reference) and `addr<T>` (linear address) in its language draft is abandoned. 0.0.46 uses a single pointer type `ptr<T>` with a real-address model ([standard](docs/TC语言标准-0.0.46.md)).
 
 ## [0.0.44] - 2026-09-21
 

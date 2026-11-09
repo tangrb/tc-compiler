@@ -6,7 +6,7 @@ check_section_refs.py — 规范文本内部 § 交叉引用检查（防重构�
 用法：
     python3 scripts/sync/check_section_refs.py [文档路径]
 
-默认检查 docs/TC语言标准设计说明书-0.0.46.md：
+默认检查 docs/TC语言标准-0.0.46.md：
 
   1. 收集锚点：`## 1.` / `### 3.10` / `#### 6.8.1` 形式的标题编号，
      以及 `**3.10.3.2 标题**` 形式的粗体子节编号，附录 `A.2` / `B.6`；
@@ -21,7 +21,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEFAULT_DOC = "docs/TC语言标准设计说明书-0.0.46.md"
+DEFAULT_DOC = "docs/TC语言标准-0.0.46.md"
 
 HEADING_RE = re.compile(r"^#{2,4}\s+(\d+(?:\.\d+)*)[.、\s]")
 BOLD_RE = re.compile(r"^\*\*(\d+(?:\.\d+)+)\s")

@@ -8,7 +8,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Language Specification 0.0.44](TC语言标准设计说明书-0.0.44.md) | **Sole authority** for syntax, semantics, and diagnostics |
+| [TC Language Standard 0.0.46](TC语言标准-0.0.46.md) | **Sole authority** for 0.0.46 syntax, semantics, and diagnostics (implementation baseline 0.0.44) |
 | [TC-VM Command Reference 0.0.44](TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-Embed Design 0.0.44](TC-Embed详细设计说明书-0.0.44.md) | C↔TC embed API (includes caller-facing API) |
 | [libtc Design 0.0.44](libtc设计说明书-0.0.44.md) | Embeddable library lifecycle and caller API quick reference (§15) |
@@ -44,4 +44,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current core version: **v0.0.44** (the language specification and **all design documents** are **0.0.44**). **0.0.45 was never released and is deprecated**; the 0.0.46 language-standard change set is frozen ([change set](TC-0.0.46-语言标准变更集.md)) and the standard text has been written from it: [TC语言标准设计说明书-0.0.46.md](TC语言标准设计说明书-0.0.46.md) (implementation not yet updated). The 0.0.46 compiler standard migration has started: [TC编译器标准设计说明书-0.0.46.md](TC编译器标准设计说明书-0.0.46.md) (new §12 platform profile and checked build; remaining chapters are being synced).
+Current implementation version: **v0.0.44** (Phases 1–7 aligned with the 0.0.44 design documents). **0.0.45 was never released and is deprecated**. The 0.0.46 language standard is final and is the single source of truth: [TC语言标准-0.0.46.md](TC语言标准-0.0.46.md) (implementation not yet updated). The 0.0.46 compiler standard is being synced chapter by chapter: [TC编译器标准设计说明书-0.0.46.md](TC编译器标准设计说明书-0.0.46.md) (new §12 platform profile and checked build).
