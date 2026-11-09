@@ -30,6 +30,12 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 
 上表 7 份为**设计/规范文档**。它们只引用同类设计文档与 `src/` / `tests/`，**不得**引用过程性文档（符合性审计报告、整改进度台账、CHANGELOG、release-checklist、`docs/README` 地图、AGENTS / `.cursor/**`）。分层检查：`python3 scripts/sync/check_doc_layering.py`。查某条规范是否落地：对 `src/` 与测试，勿回写过程记录。
 
+## 语言标准排版
+
+- **规则用列表**：≤3 列、单元格为短语、逐行独立且无矩阵语义的规则表，改写为 `- **项**：说明。` 列表；错误码写在行内。
+- **保留表格**：模式对照（§4.2）、模式矩阵（§6.3.1）、数据表（类型宽度、字面量格式、§10 输出格式）、诊断/优先级索引（附录 B）保留为表格；行与列交叉产生含义的表不得拆成列表。
+- **不做全量重排**：只在新写或实质修改某节时按上述标准选形式，不为统一格式批量改写；转换不得改变规范语义。
+
 ## 同步检查
 
 改语言特性时确认：
@@ -45,6 +51,7 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 - [ ] 新模块同步 `locations.md` / `features/*.md` / `compiler-src.mdc` / `unit-tests-c.mdc`（Embed → `embed-src.mdc` / `kg-embed.md`）
 - [ ] 工程布局与 `tc_<module>.h` ↔ `tc_<module>.c` 命名一致；`check_source_naming.py`
 - [ ] 设计文档未引用过程性文档；`check_doc_layering.py`
+- [ ] 文档相对链接与 §2.7 关键字表一致；`check_doc_links.py` / `check_keywords.py`
 - [ ] 固定点入口写作 `tc_analyze_definite_init`（`tc_cfg.c`），勿写旧符号名
 - [ ] 无 REPL；skill/rule 中不得引入 `tc_repl` / `tc_analyze_statement`
 

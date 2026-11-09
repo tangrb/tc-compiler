@@ -93,6 +93,17 @@ errors.md（rg 码名）→ tests/errors/static/ 一文件一错
 → tc_error_kind_name + test_types.c + 标准 §11.4
 ```
 
+### 执行收尾工作
+
+```
+用户说「执行收尾工作」/ `/执行收尾工作`
+→ [commands/执行收尾工作.md](commands/执行收尾工作.md)
+→ 基线（版本/文档集/测试入口）→ 变更面 → 文档分层 → 注释扫描
+→ 冲突裁决 → 6 项 sync 门禁 + run_tests.sh / ci.sh → 收尾报告
+```
+
+适用：版本迁移、功能落地后、发版前，需要全面同步文档与代码注释、清理过时/错误/冲突内容。只动文档与注释，不改运行语义。
+
 ## Glob Rules
 
 | Glob | Rule | 用途 |
@@ -111,6 +122,8 @@ errors.md（rg 码名）→ tests/errors/static/ 一文件一错
 ```
 .cursor/
 ├── README.md                 ← 本文件
+├── commands/                 ← 可复用提示词（`/命令名`）
+│   └── 执行收尾工作.md
 ├── rules/
 │   ├── coding-standards · git-commit · test-patterns   [alwaysApply]
 │   ├── compiler-src [src/**] · aot-src [src/aot/**] · embed-src [embed/**]

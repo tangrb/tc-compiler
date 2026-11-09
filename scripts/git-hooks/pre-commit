@@ -1,0 +1,19 @@
+#!/bin/sh
+# pre-commit — 文档相关改动先跑文档门禁
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$repo_root"
+
+if ! git -c core.quotepath=false diff --cached --name-only --diff-filter=ACM |
+    grep -Eq '(^docs/.*\.md$|^[^/]+\.md$|^\.cursor/.*\.md$)'; then
+    exit 0
+fi
+
+python3 scripts/sync/check_section_refs.py
+python3 scripts/sync/check_doc_layering.py
+python3 scripts/sync/check_doc_counts.py
+python3 scripts/sync/check_doc_links.py
+python3 scripts/sync/check_keywords.py
+
+exit 0

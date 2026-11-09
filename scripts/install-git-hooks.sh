@@ -12,8 +12,11 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
     exit 1
 fi
 
-[ -f "$hooks_dir/commit-msg" ] && chmod +x "$hooks_dir/commit-msg"
+for hook in commit-msg pre-commit; do
+    [ -f "$hooks_dir/$hook" ] && chmod +x "$hooks_dir/$hook"
+done
 git config core.hooksPath scripts/git-hooks
 
 echo "Git hooks installed: core.hooksPath=scripts/git-hooks"
 echo "  commit-msg — strips Co-authored-by: Cursor <cursoragent@cursor.com>"
+echo "  pre-commit — runs documentation gates when docs are staged"

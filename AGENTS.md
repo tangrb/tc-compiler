@@ -33,6 +33,7 @@ L2 跨模块/RHS   → @knowledge-graph → 1 kg-*.md
 L3 加特性       → add-compiler-feature → feature-kinds 单§
 T  测试         → run-tests / tests-tc / unit-tests-c
 R  Review       → review-tc-code
+C  收尾/注释同步 → .cursor/commands/执行收尾工作.md
 规范全文        → docs/TC语言标准-0.0.46.md（按需单文件）
 ```
 

@@ -67,6 +67,14 @@ jobs:
       - name: Check type fact source
         run: python3 scripts/sync/check_type_fact_source.py
 
+      - name: Check documentation gates
+        run: |
+          python3 scripts/sync/check_section_refs.py
+          python3 scripts/sync/check_doc_layering.py
+          python3 scripts/sync/check_doc_counts.py
+          python3 scripts/sync/check_doc_links.py
+          python3 scripts/sync/check_keywords.py
+
   test-windows:
     runs-on: windows-latest
 

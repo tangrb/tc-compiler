@@ -7,8 +7,10 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
   - 错误码种类：src/vm/runtime/tc_types.h 的 TcErrorKind 枚举成员数；
                 交叉核对 tests/unit/runtime/test_types.c 的 `error_kind_count` 断言
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**语言标准附录 B 共 N 码** … 断言 M」
-  - 附录 B：语言标准（现行 0.0.44）附录 B 唯一 TC_CE_*/TC_RE_* 码数（86）
+  - 附录 B（0.0.44 基线）：语言标准附录 B 唯一 TC_CE_*/TC_RE_* 码数（86）
             vs 正文「共 N 码」vs 实现枚举 N+1（+ `TC_ERR_OUT_OF_MEMORY`）
+  - 附录 B（0.0.46 目标）：附录 B 90 码 = 76 CE + 14 RE，且每个码在
+            附录 B 之外至少出现一次；语法阶段专用码恰为 6 个且阶段为 SYN
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
                 vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
   - VM 用例规模：scripts/vm/run_tests.sh 的测试调用行数（不含 helper 定义）
@@ -30,6 +32,18 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+LANG_STD_BASELINE = "docs/TC语言标准设计说明书-0.0.44.md"
+LANG_STD_TARGET = "docs/TC语言标准-0.0.46.md"
+
+SYNTAX_SPECIAL_CODES = frozenset({
+    "TC_CE_MISSING_END",
+    "TC_CE_OPERAND_COUNT",
+    "TC_CE_MODULE_LAYER",
+    "TC_CE_MISSING_VISIBILITY",
+    "TC_CE_PROGRAM_MODE_MISUSE",
+    "TC_CE_VAR_MISSING_INIT",
+})
 
 VM_CALL_RE = (
     r"^\s*(?:run_expect_\w+|run_cli_\w+|run_with_stdin|"
@@ -83,6 +97,78 @@ def count_appendix_b_codes(lang_std):
     if not m:
         return None
     return len(set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", m.group(1))))
+
+
+def split_appendix_b(text):
+    """返回 (附录 B 之前的正文, 附录 B 及之后)，便于检查正文覆盖。"""
+    m = re.search(r"## 附录 B：错误码速查表", text)
+    if not m:
+        return None, None
+    return text[:m.start()], text[m.start():]
+
+
+def check_target_standard(lang_std, failures):
+    """校验 0.0.46 语言标准附录 B 的码数、正文覆盖与语法专用码。"""
+    body, appendix = split_appendix_b(lang_std)
+    if appendix is None:
+        failures.append("0.0.46 附录 B：无法定位附录 B 标题")
+        return
+
+    codes = set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", appendix))
+    ce = {c for c in codes if c.startswith("TC_CE_")}
+    rt = {c for c in codes if c.startswith("TC_RE_")}
+    if (len(codes), len(ce), len(rt)) != (90, 76, 14):
+        failures.append(
+            f"0.0.46 附录 B：码数 {len(codes)} = {len(ce)} CE + {len(rt)} RE，"
+            "应为 90 = 76 CE + 14 RE")
+    else:
+        m = re.search(
+            r"共 (\d+) 码\*\* = (\d+) `TC_CE_\*` \+ (\d+) `TC_RE_\*`",
+            appendix,
+        )
+        if not m:
+            failures.append("0.0.46 附录 B：无法提取「共 N 码 = N CE + N RE」声明")
+        else:
+            claimed = tuple(int(x) for x in m.groups())
+            if claimed != (90, 76, 14):
+                failures.append(
+                    f"0.0.46 附录 B：声明 {claimed[0]} = {claimed[1]} CE + "
+                    f"{claimed[2]} RE，应为 90 = 76 CE + 14 RE")
+
+    missing = sorted(c for c in codes if f"`{c}`" not in body)
+    if missing:
+        failures.append(
+            "0.0.46 附录 B：以下码在附录 B 之外无正文出现：" + ", ".join(missing))
+
+    intro_m = re.search(r"###\s+1\.3\s+.*?(?=\n##\s+2\.)", body, re.S)
+    intro = intro_m.group(0) if intro_m else ""
+    if not intro:
+        failures.append("0.0.46 §1.3：无法定位规范约定小节")
+    else:
+        m = re.search(r"语法阶段专用码\*\*共 (\d+) 个\*\*", intro)
+        if not m or int(m.group(1)) != len(SYNTAX_SPECIAL_CODES):
+            failures.append(
+                "0.0.46 §1.3：语法阶段专用码声明应为 "
+                f"{len(SYNTAX_SPECIAL_CODES)} 个")
+        for code in sorted(SYNTAX_SPECIAL_CODES):
+            if f"`{code}`" not in intro:
+                failures.append(f"0.0.46 §1.3：缺少语法阶段专用码 {code}")
+
+    m = re.search(r"语法阶段专用码共 (\d+) 个", appendix)
+    if not m or int(m.group(1)) != len(SYNTAX_SPECIAL_CODES):
+        failures.append(
+            "0.0.46 附录 B：语法阶段专用码说明应为 "
+            f"{len(SYNTAX_SPECIAL_CODES)} 个")
+
+    stages = dict(re.findall(
+        r"^\|\s*`(TC_(?:CE|RE)_[A-Z0-9_]+)`\s*\|\s*([^|]+?)\s*\|",
+        appendix, re.M))
+    for code in sorted(SYNTAX_SPECIAL_CODES):
+        if code not in codes:
+            failures.append(f"0.0.46 附录 B：语法阶段专用码 {code} 未收录")
+        elif "SYN" not in stages.get(code, ""):
+            failures.append(
+                f"0.0.46 附录 B：语法阶段专用码 {code} 阶段不是 SYN")
 
 
 def count_error_kinds(tc_types_h):
@@ -151,27 +237,38 @@ def main():
         failures.append(
             f"错误码种类：tc_types.h 枚举 {err_impl}，test_types.c 断言 {err_actual}")
 
-    # ---- 1b. 语言标准附录 B 码数 vs 实现枚举（语言码 + OOM）-------------
-    lang_std = read("docs/TC语言标准设计说明书-0.0.44.md")
-    appendix_actual = count_appendix_b_codes(lang_std) if lang_std else None
+    # ---- 1b. 语言标准附录 B 码数 vs 实现枚举（0.0.44 基线）-------------
+    lang_std_baseline = read(LANG_STD_BASELINE)
+    appendix_actual = (
+        count_appendix_b_codes(lang_std_baseline) if lang_std_baseline else None
+    )
     appendix_claimed = None
-    if lang_std:
+    if lang_std_baseline:
         m = re.search(r"本附录汇总正文及附录 A 中出现过的全部诊断码（\*\*共 (\d+) 码\*\*",
-                      lang_std)
+                      lang_std_baseline)
         appendix_claimed = int(m.group(1)) if m else None
     if appendix_actual is None or appendix_claimed is None:
-        failures.append("附录 B：无法从语言标准提取码数")
+        failures.append("附录 B（0.0.44 基线）：无法从语言标准提取码数")
     else:
         if appendix_actual != appendix_claimed:
             failures.append(
-                f"附录 B：表内唯一码 {appendix_actual}，正文写共 {appendix_claimed} 码")
+                f"附录 B（0.0.44 基线）：表内唯一码 {appendix_actual}，"
+                f"正文写共 {appendix_claimed} 码")
         if err_impl is not None and appendix_actual + 1 != err_impl:
             failures.append(
-                f"附录 B：语言码 {appendix_actual} + OOM 应为 {appendix_actual + 1}，"
-                f"tc_types.h 枚举 {err_impl}")
+                f"附录 B（0.0.44 基线）：语言码 {appendix_actual} + OOM 应为 "
+                f"{appendix_actual + 1}，tc_types.h 枚举 {err_impl}")
         if err_doc_lang is not None and appendix_actual != err_doc_lang:
             failures.append(
-                f"附录 B：types.md 写语言码 {err_doc_lang}，附录 B 实际 {appendix_actual}")
+                f"附录 B（0.0.44 基线）：types.md 写语言码 {err_doc_lang}，"
+                f"附录 B 实际 {appendix_actual}")
+
+    # ---- 1c. 0.0.46 语言标准（设计目标）--------------------------------
+    lang_std_target = read(LANG_STD_TARGET)
+    if lang_std_target is None:
+        failures.append(f"0.0.46 语言标准：文件缺失（{LANG_STD_TARGET}）")
+    else:
+        check_target_standard(lang_std_target, failures)
 
     # ---- 2. TcRhsKind 枚举数 -------------------------------------------
     rhs_actual = count_tc_rhs_kinds(tc_types_h) if tc_types_h else None
@@ -223,7 +320,10 @@ def main():
         for f in failures:
             print(f"  - {f}")
         sys.exit(1)
-    print("check_doc_counts: 错误码 / 附录 B / RHS / VM / AOT 文档数字均与事实源一致")
+    print(
+        "check_doc_counts: 错误码 / 附录 B（0.0.44 基线、0.0.46 目标）/ "
+        "RHS / VM / AOT 文档数字均与事实源一致"
+    )
 
 
 if __name__ == "__main__":
