@@ -9,8 +9,9 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**语言标准附录 B 共 N 码** … 断言 M」
   - 附录 B（0.0.44 基线）：语言标准附录 B 唯一 TC_CE_*/TC_RE_* 码数（86）
             vs 正文「共 N 码」vs 实现枚举 N+1（+ `TC_ERR_OUT_OF_MEMORY`）
-  - 附录 B（0.0.46 目标）：附录 B 90 码 = 76 CE + 14 RE，且每个码在
-            附录 B 之外至少出现一次；语法阶段专用码恰为 6 个且阶段为 SYN
+  - 附录 B（0.0.46 目标）：附录 B 91 个错误码 = 77 CE + 14 RE，另有
+            1 个 CW 编译警告码，且每个码在附录 B 之外至少出现一次；
+            语法阶段专用码恰为 6 个且阶段为 SYN
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
                 vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
   - VM 用例规模：scripts/vm/run_tests.sh 的测试调用行数（不含 helper 定义）
@@ -93,7 +94,7 @@ def count_appendix_b_codes(lang_std):
     终止边界取「下一个二级标题」或文末：0.0.42 之后是 `## 变更记录`，
     0.0.44 已把修订历史移出规范正文，附录 B 直接到文末。
     """
-    m = re.search(r"## 附录 B：错误码速查表(.*?)(?=\n## |\Z)", lang_std, re.S)
+    m = re.search(r"## 附录 B：(?:错误码|诊断码)速查表(.*?)(?=\n## |\Z)", lang_std, re.S)
     if not m:
         return None
     return len(set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", m.group(1))))
@@ -101,7 +102,7 @@ def count_appendix_b_codes(lang_std):
 
 def split_appendix_b(text):
     """返回 (附录 B 之前的正文, 附录 B 及之后)，便于检查正文覆盖。"""
-    m = re.search(r"## 附录 B：错误码速查表", text)
+    m = re.search(r"## 附录 B：(?:错误码|诊断码)速查表", text)
     if not m:
         return None, None
     return text[:m.start()], text[m.start():]
@@ -114,26 +115,31 @@ def check_target_standard(lang_std, failures):
         failures.append("0.0.46 附录 B：无法定位附录 B 标题")
         return
 
-    codes = set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", appendix))
+    codes = set(re.findall(r"`(TC_(?:CE|RE|CW)_[A-Z0-9_]+)`", appendix))
     ce = {c for c in codes if c.startswith("TC_CE_")}
     rt = {c for c in codes if c.startswith("TC_RE_")}
-    if (len(codes), len(ce), len(rt)) != (90, 76, 14):
+    cw = {c for c in codes if c.startswith("TC_CW_")}
+    if (len(codes), len(ce), len(rt), len(cw)) != (92, 77, 14, 1):
         failures.append(
-            f"0.0.46 附录 B：码数 {len(codes)} = {len(ce)} CE + {len(rt)} RE，"
-            "应为 90 = 76 CE + 14 RE")
+            f"0.0.46 附录 B：码数 {len(codes)} = {len(ce)} CE + {len(rt)} RE "
+            f"+ {len(cw)} CW，应为 92 = 77 CE + 14 RE + 1 CW")
     else:
         m = re.search(
-            r"共 (\d+) 码\*\* = (\d+) `TC_CE_\*` \+ (\d+) `TC_RE_\*`",
+            r"共 (\d+) 个错误码\*\* = (\d+) `TC_CE_\*` \+ (\d+) `TC_RE_\*`；"
+            r"另有 \*\*(\d+) 个编译警告码\*\*",
             appendix,
         )
         if not m:
-            failures.append("0.0.46 附录 B：无法提取「共 N 码 = N CE + N RE」声明")
+            failures.append(
+                "0.0.46 附录 B：无法提取「共 N 个错误码 = N CE + N RE；"
+                "另有 N 个编译警告码」声明")
         else:
             claimed = tuple(int(x) for x in m.groups())
-            if claimed != (90, 76, 14):
+            if claimed != (91, 77, 14, 1):
                 failures.append(
-                    f"0.0.46 附录 B：声明 {claimed[0]} = {claimed[1]} CE + "
-                    f"{claimed[2]} RE，应为 90 = 76 CE + 14 RE")
+                    f"0.0.46 附录 B：声明 {claimed[0]} 个错误码 = {claimed[1]} CE + "
+                    f"{claimed[2]} RE，另有 {claimed[3]} 个警告码，"
+                    "应为 91 = 77 CE + 14 RE，另有 1 个警告码")
 
     missing = sorted(c for c in codes if f"`{c}`" not in body)
     if missing:
