@@ -5,7 +5,7 @@
 > **诊断集**：**80** 码 = 65 个 `TC_CE_*` + 15 个 `TC_RE_*`（完整表见 §12.3）。
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）
 
-本文是 TC 0.0.46 的完整标准，按语言主题组织：每章先给出语言规则，再给出编译器的确定性实现要求与验证要点。语言语义是规范目标；编译器不得增加、放宽或改写静态接受集与可观察行为。文中 `§N` 是章节号；“编译器实现要求”小节只写实现增量，规则以同章正文为准。
+本文是 TC 0.0.46 的完整标准，定义语言语义、编译器的确定性实现要求与验证。语言规则优先于编译器实现要求；编译器不得增加、放宽或改写静态接受集与可观察行为。文中 `§N` 是章节号。
 
 ---
 
@@ -16,7 +16,7 @@
 - [2. 词法](#2-词法)
 - [3. 类型系统](#3-类型系统)
 - [4. 程序结构、模块与声明](#4-程序结构模块与声明)
-- [5. 槽、作用域与确定初始化](#5-槽作用域与确定初始化)
+- [5. 存储对象、作用域与确定初始化](#5-存储对象作用域与确定初始化)
 - [6. 指令集](#6-指令集)
 - [7. 控制流核心](#7-控制流核心)
 - [8. 函数](#8-函数)
@@ -39,7 +39,7 @@ TC 是带类型的三地址码/伪汇编：一行一条指令，声明与指令�
 
 | 层 | 内容 | 规则 |
 |---|---|---|
-| **核心指令** | `lhs = op`、类型、槽、内存、调用、标签/分支、trap | 一行一指令；语义在本标准 §6–§9 定义 |
+| **核心指令** | `lhs = op`、类型、存储对象、内存、调用、标签/分支、trap | 一行一指令；语义在本标准 §6–§9 定义 |
 | **声明** | `var`、`const`、`struct`、`func`、`import`、`label`、`#program`/`#lib` | 建立名字/布局/签名；不是指令 |
 | **运行时库** | 格式化 I/O、字符串、数组/切片、分配、容器、错误处理 | 非核心；由标准库/宿主提供；不得改变核心语义 |
 
@@ -63,8 +63,8 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 | 状态 | 说明 |
 |---|---|
 | **PC** | 当前函数/程序中的指令位置 |
-| **调用栈** | 每个活动调用一个帧；帧含参数槽、局部槽、返回地址/返回槽 |
-| **槽（slot）** | 命名的值存储；标量/指针/`fnptr`/结构体；由 `var`、参数、`static var`、`#program` 顶层 `var` 建立 |
+| **调用栈** | 每个活动调用一个帧；帧含参数、局部变量、返回地址/返回值存储 |
+| **存储对象（storage object）** | 命名的值存储；标量/指针/`fnptr`/结构体；由 `var`、参数、`static var`、`#program` 顶层 `var` 建立 |
 | **内存** | 一个字节寻址的地址空间；分为帧区、静态区、设备区、代码区 |
 | **标准输入/输出** | `read`/`write`/`writeln` 的字节流 |
 
@@ -73,7 +73,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 - 每次 `call` 创建新帧；`return` 销毁当前帧并把结果写入调用点的 LHS。
 - 抽象机维护调用深度 `depth`；环境定义上限 `D`（≥1）。每次 `call` 先检查：`depth == D` → `TC_RE_STACK_OVERFLOW`；否则 `depth++`。`return` 递减。
 - `D` 是环境定义；同一实现的所有优化级别使用同一 `D`；实现必须保证 `D` 个抽象帧可执行（物理栈不足属实现错误）。尾调用优化不得改变抽象深度计数或该 trap。
-- 发生 trap 时，当前指令不提交目标槽；程序立即终止；不执行清理代码。
+- 发生 trap 时，当前指令不提交目标对象；程序立即终止；不执行清理代码。
 
 ### 1.3 可观察行为
 
@@ -439,12 +439,12 @@ end
 
 **对象**是带类型和生命期的存储区域：
 
-- 每个 `var`/参数/程序槽/`static var` 是一个对象；
+- 每个 `var`/参数/程序变量/`static var` 是一个对象；
 - 结构体值是对象，其每个字段是对应的子对象；
 - 宿主分配库创建的块是 `n` 个 `T` 元素组成的对象（`n>=1`；§11.4）；
 - 代码区/设备区不是语言对象，访问按 §6.7 的 trap/UB 规则处理。
 
-**生命期**：帧槽从调用进入到返回；程序槽/`static var` 从程序开始到结束；宿主对象由运行时库创建/释放。生命期结束后，指向该对象的指针为**悬垂指针**。
+**生命期**：帧内对象从调用进入到返回；程序变量/`static var` 从程序开始到结束；宿主对象由运行时库创建/释放。生命期结束后，指向该对象的指针为**悬垂指针**。
 
 **指针状态**：
 
@@ -453,7 +453,7 @@ end
 | **null** | `copy`、比较、`ptrdiff`（按地址 0） | `load`/`store`/`ptradd`/`ptrsub`/`memmove`/`call_indirect`（trap） |
 | **live** | 读/写、算术、比较、`memmove` | 超出对象边界 |
 | **one-past** | 比较、`ptrdiff`、`ptradd` offset 0、`ptrsub` 回到对象内 | `load`/`store`、`ptradd` 非零、`memmove` |
-| **dangling** | `copy`、返回、存入槽/字段、`bitcast ptr↔ptr`、比较、`ptrdiff` | 解引用、`ptradd`/`ptrsub`、`memmove` |
+| **dangling** | `copy`、返回、存入存储对象/字段、`bitcast ptr↔ptr`、比较、`ptrdiff` | 解引用、`ptradd`/`ptrsub`、`memmove` |
 
 - **悬垂指针是地址值，不是立即 UB**：只有解引用、指针算术、`memmove` 或对原对象的访问才产生 UB；`copy`/返回/比较/`ptrdiff`/`bitcast ptr↔ptr` 定义。
 - **对象边界**：`load/store T` 访问的 `[p, p+sizeof(T))` 必须完全位于一个 live 对象/子对象内；否则 UB。
@@ -540,17 +540,17 @@ Analyze 入口创建类型表；Pass1 对声明类型做 intern；Pass2 对 `cas
 | 1 | `#program` | 恰好一个 |
 | 2 | `import` | 连续 |
 | 3 | `struct` | 类型定义 |
-| 4 | 指令/声明体 | `var`/`const` 声明与指令；`var` 是程序槽；无 `func`/`static`/可见性/`Self` |
+| 4 | 指令/声明体 | `var`/`const` 声明与指令；`var` 是程序变量；无 `func`/`static`/可见性/`Self` |
 
 跨层交错 → `TC_CE_MODULE_LAYER`（SYN）。`#lib` 成员缺 `public`/`private` → `TC_CE_MISSING_VISIBILITY`。`#program` 使用 `func`/`static`/`public`/`private`/`Self`，或 `#lib` 使用顶层 `var`/指令 → `TC_CE_PROGRAM_MODE_MISUSE`。
 
 ### 4.3 `#program` 语义
 
-- 顶层 `var`/`const` 是**程序体声明**：`var` 建立程序槽，`const` 是编译期常量；可见性从声明处到程序末尾（源序）。
+- 顶层 `var`/`const` 是**程序体声明**：`var` 建立程序变量，`const` 是编译期常量；可见性从声明处到程序末尾（源序）。
 - 指令按源序执行；遇到 `end of file` 正常终止。
 - 顶层可以出现 `label`/`br`/`br_if`/`switch`；`#program` 是一个控制流域。
 - 顶层 `var` 在声明执行后初始化；DI 规则同函数体（§5.4）。
-- 每次运行重新初始化程序槽与所有可达库的 `static var`（后者由 const 初始化，见 §4.7）。
+- 每次运行重新初始化程序变量与所有可达库的 `static var`（后者由 const 初始化，见 §4.7）。
 
 ### 4.4 `#lib` 语义
 
@@ -594,7 +594,7 @@ public static var counter: int32 = 0
 ```
 
 - `const`：编译期常量；无运行时存储、无地址；使用处内联。
-- `static var`：模块静态存储；初始化器必须是 `const_expr`；在程序准备阶段一次性写入；所有导入者共享同一个槽；可写。已解析模块的跨分支复用不会创建第二份静态存储。
+- `static var`：模块静态存储；初始化器必须是 `const_expr`；在程序准备阶段一次性写入；所有导入者共享同一个存储对象；可写。已解析模块的跨分支复用不会创建第二份静态存储。
 - `static var` 不参与运行时初始化顺序问题：初始化器是常量，不需要执行代码。
 - `static var` 的 `addr` 在程序生命期内有效。
 - 模块 `const`/`static var` 的初始化器**按源序**求值；只可引用更早的 `const`。前向引用/自引用 → `TC_CE_UNDEFINED_NAME`。跨模块求值顺序见 §4.10。
@@ -680,17 +680,19 @@ CT 以 `module_order`/模块内源序为启动顺序，对 `const` 与 `static v
 
 ---
 
-## 5. 槽、作用域与确定初始化
+## 5. 存储对象、作用域与确定初始化
 
-### 5.1 槽的种类
+### 5.1 存储对象的种类
 
-| 槽 | 建立方式 | 存储期 | 可写 | 参与 DI |
+| 存储对象 | 建立方式 | 存储期 | 可写 | 参与 DI |
 |---|---|---|---|---|
 | 参数 | `func` 形参 | 调用帧 | 否（只读） | 入口即已初始化 |
 | 局部 `var` | 函数体/`#program` 体 `var` | 帧/程序 | 是 | 是 |
 | 程序 `var` | `#program` 顶层 `var` | 程序 | 是 | 是 |
 | `static var` | `#lib` 成员 | 程序 | 是 | 入口即已初始化 |
 | `const` | 声明 | 无存储 | 否（不可寻址） | 否 |
+
+存储对象是抽象的命名存储，不是实现层的存储编号或数组索引；其编号、顺序、帧内偏移及 VM/AOT 中的具体表示均不可观察，不得作为地址或指针值。
 
 - **没有块级作用域**：`var`/`const` 是函数/程序作用域；`unsafe` 块也不引入新作用域。
 - 名字从声明处可见到函数/程序末尾（源序）；对 `var`/`const`，声明处指其初始化器结束之后，初始化器内引用该名字 → `TC_CE_UNDEFINED_NAME`；不得在声明前使用。
@@ -708,7 +710,7 @@ const K: int32 = 42
 
 - **`var` 必须带初始化器**；缺 `=` 或初始化器 → `TC_CE_VAR_MISSING_INIT`。
 - `var` 的初始化器必须是一个 op（`copy T, …`、计算、`call`、`read`、`make` 等）；`const` 初始化器是 `const_expr`，允许字面量。
-- `var` 执行后槽初始化为该值；再次执行同一 `var`（循环/跳转）会重新初始化。
+- `var` 执行后存储对象初始化为该值；再次执行同一 `var`（循环/跳转）会重新初始化。
 - `var` 的初始化器不在该声明的名字作用域内；初始化器内自引用 → `TC_CE_UNDEFINED_NAME`（§5.1）。
 - `const` 必须带 `const_expr`；编译期求值；无存储、无地址；不得作为赋值目标。
 - `const` 的可见性从初始化器之后到作用域末尾；前向引用/自引用 → `TC_CE_UNDEFINED_NAME`。
@@ -717,17 +719,17 @@ const K: int32 = 42
 
 - 按值传递；只读；在函数入口已初始化。
 - 参数不得赋值、不得作为 `read` 目标 → `TC_CE_PARAMETER_ASSIGNMENT`。
-- `addr` 参数合法，得到只读参数槽地址；经该地址 `store` → `TC_RE_WRITE_PROTECTED`。
+- `addr` 参数合法，得到只读参数对象地址；经该地址 `store` → `TC_RE_WRITE_PROTECTED`。
 - 指针/结构体参数按值复制；结构体的指针字段复制地址（所指对象共享）。
 
 ### 5.4 确定初始化（DI）
 
-- 每个 `var` 槽在函数/程序入口处于**未初始化**。
+- 每个 `var` 存储对象在函数/程序入口处于**未初始化**。
 - `var x: T = …` 成功执行后，`x` 在该路径上变为已初始化。
 - 读取 `x`、把 `x` 作为赋值目标、把 `x` 作为 `read` 目标，均要求在该程序点**所有可达路径**上已初始化；否则 `TC_CE_UNINITIALIZED`。
-- **`var` 声明自身的初始化器除外**：`var x: T = …` 的初始化器在 `x` 进入作用域前求值，不要求 `x` 先前已初始化；`var x: T = read T` 读取成功后 `x` 才变为已初始化。已有槽的 `x = read T` 仍要求 `x` 已初始化。
+- **`var` 声明自身的初始化器除外**：`var x: T = …` 的初始化器在 `x` 进入作用域前求值，不要求 `x` 先前已初始化；`var x: T = read T` 读取成功后 `x` 才变为已初始化。已有变量的 `x = read T` 仍要求 `x` 已初始化。
 - 分支汇合取合取：所有前驱都已初始化才算已初始化。
-- 循环：循环体回边按前驱处理；`var` 在循环体内重新执行会重新初始化同一槽。
+- 循环：循环体回边按前驱处理；`var` 在循环体内重新执行会重新初始化同一存储对象。
 - `param`/`static var` 入口即已初始化。
 - `const` 不参与。
 - 不可达代码不参与 DI（§12.4）。
@@ -763,12 +765,12 @@ IN[function entry] = 当前函数的全部参数
 IN[n] = ∩ EDGE_OUT[p → n]        /// p 为 n 的全部可达前驱
 EDGE_OUT[p → n] = OUT[p]         /// 无块作用域，不做作用域退出裁剪
 OUT[var x = rhs] = IN[n] ∪ {x}
-OUT[x = rhs] = IN[n]             /// x 必须 ∈ IN[n]；结果覆盖同一槽，不改变成员关系
+OUT[x = rhs] = IN[n]             /// x 必须 ∈ IN[n]；结果覆盖同一存储对象，不改变成员关系
 OUT[const ...] = IN[n]           /// 无运行时效果的身份节点
 OUT[其他指令] = IN[n]
 ```
 
-- `U[n]` 是当前函数/程序内全部运行时绑定的全集：当前函数形参（若为函数）以及函数/程序内所有 `var` 槽，不论相应 `var` 是否已经执行；不包含 `const`、其它函数的绑定或模块 `static var`（后者入口即已初始化，不进入 `U`）。
+- `U[n]` 是当前函数/程序内全部运行时绑定的全集：当前函数形参（若为函数）以及函数/程序内所有 `var` 存储对象，不论相应 `var` 是否已经执行；不包含 `const`、其它函数的绑定或模块 `static var`（后者入口即已初始化，不进入 `U`）。
 - 对非入口可达节点，以 `U[n]` 初始化 `IN[n]` 与 `OUT[n]`，再按上表单调向下迭代，直至稳定；两个入口边界值保持不变。工作队列、节点遍历与回边发现顺序不得改变最终结果。
 - 最大固定点等价于路径语义：绑定属于 `IN[n]`，当且仅当从当前控制流域唯一入口到 `n` 的每一条有限可达路径都已初始化该绑定。
 - 没有任何可达前驱的非入口节点不定义 `IN`；它们已由可达性排除，不参与固定点。
@@ -791,12 +793,12 @@ OUT[其他指令] = IN[n]
 
 名字解析见 §5.6。赋值目标验证按以下顺序：
 
-1. 解析基址与目标种类：简单槽、`Self.x`/`m.x`、字段路径。
+1. 解析基址与目标种类：简单变量、`Self.x`/`m.x`、字段路径。
 2. 检查目标可写性：`const`/`Self.K`/`m.K` → `TC_CE_CONST_ASSIGNMENT`；参数 → `TC_CE_PARAMETER_ASSIGNMENT`；函数名按 §5.6 规则处理。
 3. 字段目标：字段必须存在（`TC_CE_UNKNOWN_FIELD`）；中间层必须是结构体（`TC_CE_TYPE_MISMATCH`）。
 4. 字段路径自左向右检查每个字段；任一字段为 `readonly` 报告 `TC_CE_IMMUTABLE_FIELD`，定位到路径上首个 `readonly` 字段。
-5. 右侧结果类型必须严格等于字段类型（字段目标）或声明类型（简单槽）；整块赋值 `x = make S, …`/`x = copy S, y` 可替换整个值，包括 `readonly` 字段。
-6. DI 检查：外层槽必须已初始化；字段赋值不改变外层槽的“已初始化”状态。`var` 声明自身的初始化器不要求目标先前已初始化。
+5. 右侧结果类型必须严格等于字段类型（字段目标）或声明类型（简单变量）；整块赋值 `x = make S, …`/`x = copy S, y` 可替换整个值，包括 `readonly` 字段。
+6. DI 检查：外层对象必须已初始化；字段赋值不改变外层对象的“已初始化”状态。`var` 声明自身的初始化器不要求目标先前已初始化。
 
 #### 5.7.4 诊断位置
 
@@ -812,12 +814,12 @@ OUT[其他指令] = IN[n]
 
 规则：
 
-1. **`=` 是每条指令的一部分**；`lhs` 为可赋值目标（槽/字段/`Self.x`/`m.x`）或 `_`（无结果/仅效果/控制）。
+1. **`=` 是每条指令的一部分**；`lhs` 为可赋值目标（存储对象/字段/`Self.x`/`m.x`）或 `_`（无结果/仅效果/控制）。
 2. **一条指令一个 op**；操作数是值，不得嵌套 op/call。
 3. 类型是**参数列表中的一种**，由 opcode 表决定它出现在哪个位置；有的 op 无类型（`br`/`return`/`trap`），有的首项是函数名/标签/结构体名/类型（由 opcode 表定义）。语法层不强制“类型永远第一”，但 §6.2 的表中类型参数写作第一个参数。
 4. `copy T, x` 是复制指令；赋值/初始化必须写 `copy` 或其它 op。
 5. `var x: T = op …` 的初始化器必须是一个 op（`copy`/计算/`call`/`read`/`make` 等）；`var` 是声明，不是指令；一行仍只含一个 op。
-6. 不允许 `x = add T, y, mul T, a, b` 这类嵌套；先落到临时槽。
+6. 不允许 `x = add T, y, mul T, a, b` 这类嵌套；先落到临时变量。
 7. `_` 是独立的丢弃记号 `DISCARD`，不能作为读取操作数，也不能作变量/参数/字段/标签/结构体/函数等声明名；在只接受 `IDENT` 的位置出现 → `TC_CE_SYNTAX`（SYN）。
 8. `call` 的实参可以按位置或按名字写；名字必须匹配形参且保持声明顺序（§8.4）。
 9. `make` 的字段可以按位置或按名字写；名字必须匹配字段且保持声明顺序（§3.7、§8.4）。
@@ -894,7 +896,7 @@ OUT[其他指令] = IN[n]
 | `ptrlt` / `ptrle` / `ptrgt` / `ptrge` | 同上 | `ptr<T>`/`nullptr` | `bool` | pure | 无 | safe |
 | `sizeof` | `d = sizeof T` | 类型 | `usize`（字节） | pure | 无 | safe |
 
-- `addr` 的 target 是槽/字段路径；`const` 不可取址。`addr` 产生指向 live 对象/子对象的指针；对象生命期结束后指针悬垂（§3.12）。
+- `addr` 的 target 是存储对象/字段路径；`const` 不可取址。`addr` 产生指向 live 对象/子对象的指针；对象生命期结束后指针悬垂（§3.12）。
 - `load/store` 的 `T` 可为标量/指针/`fnptr`/结构体；对齐不要求；端序环境定义。访问范围必须完全位于一个 live 对象/子对象内；one-past/悬垂/越界访问 UB；未初始化存储的读取 UB。
 - `memmove` 按 `T` 元素复制，重叠等价于先临时缓冲；`n` 是元素数；dst/src 必须指向至少 `n` 个 `T` 元素的 live 对象；越界/悬垂 UB。
 - 指针算术按字节：`p ± n × sizeof(T)`；结果必须位于同一对象的 `[start, one-past]` 内；`ptradd` 从 one-past 只允许 `n=0`，`ptrsub` 可从 one-past 回到对象内；dangling/越界算术 UB。
@@ -1121,9 +1123,9 @@ OUT[其他指令] = IN[n]
 
 ### 6.14 赋值目标与字段赋值
 
-`lhs` 可以是简单槽、`Self.x`/`m.x` 模块静态槽，或字段路径 `x.f`/`x.f.g`。赋值/计算结果写入该目标。
+`lhs` 可以是简单变量、`Self.x`/`m.x` 模块静态对象，或字段路径 `x.f`/`x.f.g`。赋值/计算结果写入该目标。
 
-**简单槽**：
+**简单变量**：
 
 | 目标 | 规则 |
 |---|---|
@@ -1135,14 +1137,14 @@ OUT[其他指令] = IN[n]
 
 **字段目标** `x.f`：
 
-- 基址 `x` 必须是结构体类型的可写槽（`var`/`static var`/程序 `var`）；基址是参数 → `TC_CE_PARAMETER_ASSIGNMENT`；基址是 `const` → `TC_CE_CONST_ASSIGNMENT`。
+- 基址 `x` 必须是结构体类型的可写变量（`var`/`static var`/程序 `var`）；基址是参数 → `TC_CE_PARAMETER_ASSIGNMENT`；基址是 `const` → `TC_CE_CONST_ASSIGNMENT`。
 - 字段必须存在（`TC_CE_UNKNOWN_FIELD`）；中间层必须是结构体（`TC_CE_TYPE_MISMATCH`）。
 - 路径规则：从基址开始沿目标路径自左向右检查每个字段；任一字段为 `readonly` → `TC_CE_IMMUTABLE_FIELD`（诊断为路径上首个 `readonly` 字段）；全部为 `var` → 允许。
 - 深度只读只作用于结构体值子树；`ptr` 字段所指对象不受该字段 `readonly` 修饰影响，经指针写入按 unsafe 规则。
 - `readonly` 是**安全代码的赋值规则**；`addr` 取得的字段指针在 unsafe 代码中经 `store` 可以写穿。这是显式 unsafe 行为，不属于安全代码。
 - 右侧结果类型必须严格等于**字段**类型（不是整个结构体类型）。
 - 整块赋值 `x = make S, …`/`x = copy S, y` 可以替换整个值（路径规则的唯一例外），包括其中 `readonly` 字段；字段赋值仍禁止。
-- 字段赋值不改变外层槽的“已初始化”状态；外层槽本身必须已初始化。
+- 字段赋值不改变外层对象的“已初始化”状态；外层对象本身必须已初始化。
 - `addr T, x.f` 取字段地址；字段类型必须等于 `T`。
 
 **`read` 作为右侧**：`x = read T` / `x.f = read T` 合法；目标按上表检查。`var x: T = read T` 属 `var` 初始化，按 §5.4 的例外处理。
@@ -1225,7 +1227,7 @@ _ = br L
 
 - `label L:` 是声明，不产生运行时动作；重名 → `TC_CE_DUPLICATE_LABEL`。
 - 标签名与值名分属不同命名空间：`label L:` 与 `var L` 可以共存。
-- `_ = br L` 跳到同函数/程序的 `L`；不存在 → `TC_CE_LABEL_NOT_FOUND`；允许跳过 `var` 声明，读取未初始化槽 → `TC_CE_UNINITIALIZED`。
+- `_ = br L` 跳到同函数/程序的 `L`；不存在 → `TC_CE_LABEL_NOT_FOUND`；允许跳过 `var` 声明，读取未初始化变量 → `TC_CE_UNINITIALIZED`。
 
 ### 7.3 条件分支模式
 
@@ -1241,7 +1243,7 @@ label L_end:
 ```
 
 - `br_if c, L`：`c` 是 `bool`；true 跳转，false 落到下一条；false 分支用 `br` 和标签显式写出。
-- `c` 不是 `bool` → `TC_CE_CONDITION_TYPE`；条件必须是纯指令的结果（`call`/`load`/`read` 等先落临时槽）。
+- `c` 不是 `bool` → `TC_CE_CONDITION_TYPE`；条件必须是纯指令的结果（`call`/`load`/`read` 等先落临时变量）。
 
 ### 7.4 循环模式
 
@@ -1391,8 +1393,8 @@ end
 | `@safe` | 函数 | 断言函数体不含 unsafe 指令/调用；与 `@unsafe`/`@fast` 互斥 |
 | `@fast` | 函数 | unsafe 上下文 + 优化契约；调用者需要 unsafe 上下文；允许承诺注解 |
 | `@fast_math` | `@fast` 函数 | 仅 §10.3 的浮点因果例外：浮点值、浮点 trap、由这些值决定的控制流/终止可能不同；调用者需要 unsafe 上下文 |
-| `@pure` | `@fast` 函数 | 无内存效果（普通局部/参数槽值操作除外）；不 `addr`/`load`/`store`/I/O；不调用非 `@pure`；结果只依赖参数值；违反 UB |
-| `@readonly` | `@fast` 函数 | 无内存写入（普通局部槽写除外）；可读普通内存，不 I/O、不读 volatile/设备；只调用 `@pure`/`@readonly`；违反 UB |
+| `@pure` | `@fast` 函数 | 无内存效果（普通局部变量/参数值操作除外）；不 `addr`/`load`/`store`/I/O；不调用非 `@pure`；结果只依赖参数值；违反 UB |
+| `@readonly` | `@fast` 函数 | 无内存写入（普通局部变量写除外）；可读普通内存，不 I/O、不读 volatile/设备；只调用 `@pure`/`@readonly`；违反 UB |
 | `@nounwind` | `@fast` 函数 | 函数体及动态调用范围内无 trap（含栈溢出）；违反 UB |
 | `@willreturn` | `@fast` 函数 | 有限步内返回或执行终止 trap；不会无限执行；违反 UB |
 | `@no_overflow` | `@fast` 函数 | 函数内 strict 有符号 `add/sub/mul/neg/abs`、`div` 的溢出与全部 strict `shl` 不溢出（不覆盖除零）；违反 UB |
@@ -1435,7 +1437,7 @@ end
 
 #### 8.8.3 调用帧与调用图
 
-调用帧至少包含：被调函数标识、返回地址或继续点、按形参绑定的实参值、函数局部 `var` 槽、控制流状态、非 `void` 返回值位置。VM 与 AOT 的物理布局可以不同，可观察语义必须一致。
+调用帧至少包含：被调函数标识、返回地址或继续点、按形参绑定的实参值、函数局部 `var` 变量、控制流状态、非 `void` 返回值位置。VM 与 AOT 的物理布局可以不同，可观察语义必须一致。
 
 调用步骤：
 
@@ -1544,7 +1546,7 @@ end
 - 编译器在 SEM 阶段按词法上下文判定：`@unsafe`/`@fast` 函数体与 `unsafe` 块内为 unsafe 上下文，其余按 safe 检查。安全代码中的 unsafe 指令/调用报告 `TC_CE_UNSAFE_OPERATION`/`TC_CE_UNSAFE_CALL`；`@safe` 函数内的违规一律报告 `TC_CE_SAFE_VIOLATION`，优先于 `UNSAFE_*`/`FAST_CALL`。
 - 不得以警告或运行时 trap 代替静态拒绝；安全诊断属于 SEM，与类型/名称诊断一起按 `module_order` 与源序选择首诊。
 - 编译器不承诺编译期检出悬垂/越界；检出不改变合法程序集合，也不改变 UB 语义。checked build 可选，见 §13。
-- 实现不设运行时“常量区”；只读区由只读参数槽构成，写只读参数槽报告 `TC_RE_WRITE_PROTECTED`；代码区/区外/设备访问报告 `TC_RE_ADDR_UNAVAILABLE`。
+- 实现不设运行时“常量区”；只读区由只读参数对象构成，写只读参数对象报告 `TC_RE_WRITE_PROTECTED`；代码区/区外/设备访问报告 `TC_RE_ADDR_UNAVAILABLE`。
 - `@fast` 是显式 unsafe 优化上下文，调用者必须处于 unsafe 上下文；承诺违反是 UB；`@fast` 不改变类型/ABI，只改变优化假设；`@fast_math` 只放宽 §10.3 许可的浮点变换。
 
 安全诊断位置：`TC_CE_UNSAFE_OPERATION` 定位到 unsafe 指令助记符；`TC_CE_UNSAFE_CALL`/`TC_CE_FAST_CALL` 定位到调用助记符；`TC_CE_SAFE_VIOLATION` 定位到违规指令/调用。
@@ -1569,8 +1571,8 @@ end
 
 #### 10.2.1 承诺的精确定义
 
-- **`@pure`**：函数体无**显式内存效果**。普通局部槽和参数槽的值读写（`var`、`copy`、算术、`make`、`call` 参数等）不构成内存效果；`load`/`store`/`memmove`、全局/静态/程序/宿主/设备/volatile 访问构成内存效果。不得使用 `addr`；不执行 I/O；不调用非 `@pure`；结果只依赖各值参数的**值**（标量、`fnptr`、结构体按值；指针本身的值）。结构体字段读取属于按值读取；指针所指内容不可读；经 `fnptr` 间接调用时，被调函数也必须满足 `@pure` 的动态契约。违反 UB。
-- **`@readonly`**：函数体无**显式内存写入**；普通局部槽的写入不构成内存写入。可读取普通内存（通过局部/参数槽、指针参数、全局/静态区），但不得 `store`/`memmove`/写全局/静态/程序/宿主/设备/volatile，不得 I/O，不得 `load.volatile`/设备访问；只能调用 `@pure`/`@readonly`。经 `addr` 取得指针后的 `load` 算读取、`store` 算写入。违反 UB。
+- **`@pure`**：函数体无**显式内存效果**。普通局部变量和参数的值读写（`var`、`copy`、算术、`make`、`call` 参数等）不构成内存效果；`load`/`store`/`memmove`、全局/静态/程序/宿主/设备/volatile 访问构成内存效果。不得使用 `addr`；不执行 I/O；不调用非 `@pure`；结果只依赖各值参数的**值**（标量、`fnptr`、结构体按值；指针本身的值）。结构体字段读取属于按值读取；指针所指内容不可读；经 `fnptr` 间接调用时，被调函数也必须满足 `@pure` 的动态契约。违反 UB。
+- **`@readonly`**：函数体无**显式内存写入**；普通局部变量的写入不构成内存写入。可读取普通内存（通过局部变量/参数、指针参数、全局/静态区），但不得 `store`/`memmove`/写全局/静态/程序/宿主/设备/volatile，不得 I/O，不得 `load.volatile`/设备访问；只能调用 `@pure`/`@readonly`。经 `addr` 取得指针后的 `load` 算读取、`store` 算写入。违反 UB。
 - **`@no_alias`**：在调用期间，对标注指针参数可达对象的内存访问，必须通过该参数或其合法派生指针完成；通过其它参数、全局/静态/设备/宿主对象取得的非派生指针访问同一对象，属于违反。合法派生沿 `copy`、`bitcast ptr↔ptr`、`ptradd/ptrsub`，以及经派生指针 `load` 取得的嵌套指针传递；仅创建、复制、比较、`bitcast`、`ptradd/ptrsub` 派生指针不构成违反。违反 UB。
 - **`@nounwind`**：函数体及其动态调用范围内不发生任何 trap，包括 `trap`、算术/转换/内存 trap、`call_indirect` 空指针和 `TC_RE_STACK_OVERFLOW`。违反 UB。
 - **`@range(lo,hi)`**：调用时实参的数学值在 `[lo,hi]` 内；`lo/hi` 必须是与形参同类型的常量；不做运行时检查。违反 UB。
@@ -1744,7 +1746,7 @@ I/O 诊断位置：`TC_CE_TYPE_MISMATCH` 定位到操作数或目标标识符；
 
 | 码 | 打印名 | 阶段 | 触发 |
 |---|---|---|---|
-| `TC_CE_UNDEFINED_NAME` | `UndefinedName` | SEM | 名字未解析到槽/`const`/成员（含 `var` 初始化器自引用） |
+| `TC_CE_UNDEFINED_NAME` | `UndefinedName` | SEM | 名字未解析到变量/`const`/成员（含 `var` 初始化器自引用） |
 | `TC_CE_DUPLICATE_NAME` | `DuplicateName` | SEM | 同一函数/程序的值名字空间内 `var`/`const`/参数重名 |
 | `TC_CE_DUPLICATE_MEMBER` | `DuplicateMember` | SEM | 模块成员重名 |
 | `TC_CE_DUPLICATE_PARAMETER` | `DuplicateParameter` | SEM | 形参重名 |
@@ -1826,7 +1828,7 @@ I/O 诊断位置：`TC_CE_TYPE_MISMATCH` 定位到操作数或目标标识符；
 | `TC_RE_CAST_OVERFLOW` | `CastOverflow` | `cast` 结果不可表示 |
 | `TC_RE_NULL_POINTER` | `NullPointer` | `load`/`store`/`memmove`/`ptradd`/`ptrsub` 空指针 |
 | `TC_RE_PTRDIFF_OVERFLOW` | `PtrdiffOverflow` | `ptrdiff` 结果不可由 `isize` 表示 |
-| `TC_RE_WRITE_PROTECTED` | `WriteProtected` | 只读参数槽写穿 |
+| `TC_RE_WRITE_PROTECTED` | `WriteProtected` | 只读参数对象写穿 |
 | `TC_RE_ADDR_UNAVAILABLE` | `AddrUnavailable` | 代码区/区外/设备拒绝 |
 | `TC_RE_STACK_OVERFLOW` | `StackOverflow` | 抽象调用深度达到环境定义上限 `D` |
 | `TC_RE_NULL_FUNCTION_POINTER` | `NullFunctionPointer` | `call_indirect` 空指针 |
@@ -1864,7 +1866,7 @@ I/O 诊断位置：`TC_CE_TYPE_MISMATCH` 定位到操作数或目标标识符；
 #### 12.5.2 运行时提交与终止
 
 - 每条指令先读取全部实际需要的操作数并完成检查，再提交目标值。
-- 算术、移位、转换、指针运算或函数调用发生运行时错误时，不提交当前指令的目标槽、调用返回值或新 `var` 的已初始化状态。
+- 算术、移位、转换、指针运算或函数调用发生运行时错误时，不提交当前指令的目标对象、调用返回值或新 `var` 的已初始化状态。
 - `memmove` 在下标、区间或空指针检查失败时不修改目标的任何元素；`store` 在空指针或写保护检查失败时不提交写入。
 - `read` 失败不修改目标；`write`/`writeln` 失败贡献 0 字节，已提交前缀不回滚。
 - 首个运行时错误立即终止整个程序；不执行清理代码、后续语句或调用者续点，也不回滚此前已成功完成的赋值与 I/O。
@@ -1908,7 +1910,7 @@ I/O 诊断位置：`TC_CE_TYPE_MISMATCH` 定位到操作数或目标标识符；
 
 | 字段 | 说明 |
 | ---- | ---- |
-| 地址宽度 | 本实现固定 64 位目标字长；`isize`/`usize`/指针/`fnptr`/栈帧地址均为 64 位 |
+| 地址宽度 | 本档案固定 64 位目标字长；`isize`/`usize`/指针/`fnptr`/栈帧地址均为 64 位 |
 | 端序 | 设备与内存的字节序；多字节 `load`/`store` 按目标端序转换 |
 | 区表 | 帧区、静态区、设备区、代码区的基址与范围 |
 | 栈大小 | 帧变量区与参数区；必须保证 `D` 个抽象帧可执行 |
