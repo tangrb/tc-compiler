@@ -17,7 +17,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Compiler Specification 0.0.46](TC编译器标准-0.0.46.md) | 0.0.46 compiler target specification: 13-stage pipeline, diagnostic priority, complete diagnostic code tables, platform profile, implementation verification |
+| [TC Compiler Specification 0.0.46](TC编译器标准-0.0.46.md) | 0.0.46 compiler target specification: 13-step pipeline, diagnostic priority, complete diagnostic code tables, platform profile, implementation verification |
 | [TC Language Specification 0.0.44](TC语言标准设计说明书-0.0.44.md) | 0.0.44 implementation-baseline language specification (historical baseline; the factual reference until 0.0.46 is implemented) |
 | [TC Compiler Specification 0.0.44](TC编译器标准设计说明书-0.0.44.md) | 0.0.44 implementation baseline: 13-stage pipeline, diagnostic priority, call graph |
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |

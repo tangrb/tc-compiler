@@ -3,13 +3,7 @@
 > **版本**：0.0.46
 > **规范性引用**：IEEE 754-2019（二进制浮点）。除此之外不引用其它文档。
 
-本文档是 TC 语言的规范性定义：词法、语法、静态语义、抽象机执行语义、可观察行为，以及安全/优化契约。**核心可执行语法只有一种指令形态**：
-
-```text
-lhs = op [type] [operands]
-```
-
-其中 `lhs` 是目标槽或 `_`（丢弃/仅效果），`op` 是助记符，`type` 是显式类型参数，`operands` 是值。声明、标签不是指令；控制流只由核心 `br`/`br_if`/`switch`/`return`/`trap` 表达。
+本文档是 TC 语言的规范性定义：词法、语法、静态语义、抽象机执行语义、可观察行为，以及安全/优化契约。核心可执行语法只有 `lhs = op [type] [operands]` 一种形态（§6.1）；声明、标签不是指令；控制流只由 `br`/`br_if`/`switch`/`return`/`trap` 表达。
 
 ---
 
@@ -36,12 +30,7 @@ lhs = op [type] [operands]
 
 ### 0.1 设计原则
 
-- **伪汇编**：一行一条指令 `lhs = op …`；`_` 表示效果；控制流只有 `label`/`br`/`br_if`/`switch`/`return`/`trap`；声明与指令分离。
-- **可读**：命名槽、显式类型、类型首位、`end` 块、缩进仅为风格、`///` 注释/续行、分支模式、`const`/`var` 区分。
-- **AI 友好**：单一指令文法 + 规范性 opcode 表；确定性首个诊断；无静默删码；核心/库分离。
-- **确定**：抽象机；穷尽 trap/UB；固定初始化与模块解析；首个诊断确定；优化保持可观察行为。
-- **安全**：每指令安全类；结构性 `@unsafe`/`unsafe` 块；checked 运算；安全代码不可达 UB。
-- **可选优化**：默认 as-if；`@fast` + 承诺；O0/O2/`@fast` 级别；地址/浮点可观察性。
+TC 是带类型的三地址码/伪汇编：一行一条指令，声明与指令分离，控制流只由 `label`/`br`/`br_if`/`switch`/`return`/`trap` 表达；确定性首个诊断，优化保持可观察行为。核心保持小、正交、可 lowering；默认优化为 as-if，安全代码不可达 UB，`@fast` 是显式 opt-in。
 
 ### 0.2 组成
 
@@ -50,8 +39,6 @@ lhs = op [type] [operands]
 | **核心指令** | `lhs = op`、类型、槽、内存、调用、标签/分支、trap | 一行一指令；语义在本标准 §6–§9 定义 |
 | **声明** | `var`、`const`、`struct`、`func`、`import`、`label`、`#program`/`#lib` | 建立名字/布局/签名；不是指令 |
 | **运行时库** | 格式化 I/O、字符串、数组/切片、分配、容器、错误处理 | 非核心；由标准库/宿主提供；不得改变核心语义 |
-
-**核心保持小、正交、可 lowering；声明与运行时库不进入指令集。**
 
 ### 0.3 规范约定
 
@@ -105,32 +92,23 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 | **规范确定** | 除下列类别外的全部行为：trap 条件、值结果、I/O 字节、终止/非终止、诊断码/顺序 |
 | **环境定义** | 地址空间布局与基址、装载地址、端序、设备内存内容、经 `bitcast` 指针→整数观察到的地址值、跨对象/悬垂指针比较与 `ptrdiff` 结果、抽象调用深度上限 `D`、include 根目录、进程退出状态 |
 | **实现定义** | 帧内布局、栈帧大小、寄存器分配、指令选择、优化级别；同一实现的不同运行可以不同，但不得改变规范确定行为 |
-| **UB（穷尽）** | ① 悬垂指针的解引用、指针算术、`memmove` 或对原对象的访问；② 越出所属对象边界的访问或指针算术；③ 经指针/`memmove` 读取未初始化存储；④ 伪造或签名不符的 `fnptr` 调用；⑤ `@fast` 承诺被违反 |
+| **UB（穷尽）** | 见 §9.4 的穷尽列表 |
 
-`@fast_math` 仅放宽 §10.3 许可的浮点变换；由此引起的浮点值、浮点 trap、由这些浮点值决定的控制流/终止不属于规范确定。非浮点值、非浮点指令自身的 trap 条件及与许可浮点变换无关的行为仍按默认规则；I/O 和内存结果只有在控制流确实由被放宽的浮点值决定时才允许不同。
+`@fast_math` 的浮点因果例外见 §10.3；其它行为仍按默认规则。
 
-**安全代码不可达 UB。** UB 只可能由 unsafe 指令/调用或 `@fast` 承诺违反产生。对 `const` 取址是静态拒绝（`TC_CE_ADDR_OF_CONST`），不是 UB；`@fast_math` 之外的浮点重关联是实现错误；本语言无并发，不存在数据竞争。
+**安全代码不可达 UB**（§9.1）。对 `const` 取址是静态拒绝（`TC_CE_ADDR_OF_CONST`），不是 UB。
 
 本标准**不承诺**编译期检出悬垂/越界；检出不改变合法程序集合，也不改变 UB 语义。
 
 ### 1.5 as-if 与优化基线
 
-实现可以改变内部表示与指令序列，但必须保留：
-
-- 全部静态诊断及其首个错误码；
-- 实际执行路径上的 trap 存在性与顺序（默认模式；仅 §10.3 许可变换引起的浮点因果例外；不包含依赖 §10.5 地址相关结果的部分）；
-- 标准输出字节与顺序（默认模式；仅 §10.3 许可变换引起的浮点因果例外；不包含依赖 §10.5 地址相关结果的部分）；
-- 已定义程序的值结果、浮点 trap 存在性/顺序，以及由浮点值决定的控制流/终止（仅 §10.3 许可变换引起的浮点因果例外；不包含 §10.5 地址相关结果）。
-- 终止/非终止行为（默认模式；`@fast` 承诺违反的 UB，或仅由 §10.3 许可变换引起的浮点因果例外除外；不包含依赖 §10.5 地址相关结果的部分）。
-
-**默认模式下不得**因结果未使用而删除可能 trap 的指令；**不得**把 strict 运算静默改成 wrap；**不得**在默认模式下做浮点重关联/FMA/FTZ/DAZ。
+实现可以改变内部表示与指令序列，但必须保持 §1.3 的可观察行为与 §10.8 的不变量。默认模式下不得因结果未使用而删除可能 trap 的指令，不得把 strict 运算静默改成 wrap，不得做浮点重关联/FMA/FTZ/DAZ；`@fast`/`@fast_math` 的放宽见 §10。
 
 ### 1.6 源文件与模块
 
 - 一个 `.tc` 文件 = 一个编译单元 = 一个模块；模块名 = 文件名（不含 `.tc`）。
-- 文件首条非空、非注释行必须是 `#program` 或 `#lib`；恰好一个。
-- 未声明模式、重复模式、模式后出现另一模式 → 语法拒绝。
 - 源文件必须是有效 UTF-8；不接受 BOM；U+0000 非法；注释外仅 ASCII。
+- `#program`/`#lib` 模式声明与层序规则见 §4.1/§4.2。
 
 ---
 
@@ -150,7 +128,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 /// 行注释：从 /// 到行尾；可出现在任何位置
 ```
 
-- **唯一注释形态**：只有 `///` 开始行注释，无块注释；`/`、`//`、`;` 不开始注释，出现在注释外 → `TC_CE_SYNTAX`。这消除了“`x = 1; y = 2` 静默删掉 `y = 2`”和“`//` 被误当注释”的陷阱。
+- **唯一注释形态**：只有 `///` 开始行注释，无块注释；`/`、`//`、`;` 不开始注释，出现在注释外 → `TC_CE_SYNTAX`。
 - 注释内容不产生 Token。
 - **续行**：逻辑行以 `\` 结尾时，下一物理行属于同一逻辑行；`\` 后不得有注释。续行用于长指令/长类型。
 - 注释中的 `\` 只是注释内容，不产生续行；续行只作用于代码行尾。
@@ -158,12 +136,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 
 ### 2.3 标识符与关键字
 
-```ebnf
-identifier = letter , { letter | digit | "_" }
-           | "_" , ( letter | digit | "_" ) , { letter | digit | "_" } ;
-discard    = "_" ;
-letter     = "A"…"Z" | "a"…"z" ;
-```
+标识符与 `DISCARD` 的文法见 §13.2。
 
 - 区分大小写；ASCII only。
 - `_` 单独出现是词法记号 `DISCARD`（丢弃目标），不是 `IDENT`；`_x`、`x_`、`_1`、`__` 是合法标识符。
@@ -186,17 +159,7 @@ letter     = "A"…"Z" | "a"…"z" ;
 
 ### 2.4 字面量
 
-**整数**：
-
-```ebnf
-int_lit = signed_int | unsigned_int ;
-signed_int = [ "-" ] , ( dec_lit | hex_lit | bin_lit | oct_lit ) ;
-unsigned_int = ( dec_lit | hex_lit | bin_lit | oct_lit ) , ( "u" | "U" ) ;
-dec_lit = non_zero , { [ "_" ] , digit } | "0" ;
-hex_lit = ( "0x" | "0X" ) , hex , { [ "_" ] , hex } ;
-bin_lit = ( "0b" | "0B" ) , ( "0" | "1" ) , { [ "_" ] , ( "0" | "1" ) } ;
-oct_lit = ( "0o" | "0O" ) , oct , { [ "_" ] , oct } ;
-```
+**整数**：文法见 §13.2。
 
 - 无后缀 = 有符号；`u`/`U` = 无符号。
 - `-` 只与无后缀字面量组合；`-42u` 非法。
@@ -205,15 +168,7 @@ oct_lit = ( "0o" | "0O" ) , oct , { [ "_" ] , oct } ;
 - 词法值范围 `0 ≤ N ≤ 2^64−1`；超出 → `TC_CE_LITERAL_LEX_RANGE`（LEX）。
 - 进制只改变书写，不改变数学值；`0b1000_0000` 是 128，不能直接进 `int8` 上下文。
 
-**浮点**：
-
-```ebnf
-float_lit = [ "-" ] , (
-    digit , { digit } , "." , digit , { digit } , [ exp ]
-  | digit , { digit } , exp
-  ) , [ "f" | "F" ] ;
-exp = ( "e" | "E" ) , [ "+" | "-" ] , digit , { digit } ;
-```
+**浮点**：文法见 §13.2。
 
 - 无后缀 `float64`；`f`/`F` → `float32`。
 - 必须含 `.` 或 `e`/`E`；`.` 两侧都要有数字（`.5`、`1.` 非法）。
@@ -232,16 +187,10 @@ exp = ( "e" | "E" ) , [ "+" | "-" ] , digit , { digit } ;
 - Token 间可用空格/Tab；行首缩进**仅是风格**，不参与语法。
 - 块由 `then … end` 定义（`func`/`struct`/`unsafe`）；`end` 与块头**逻辑对齐**，但缩进错误不产生诊断。
 - 空行/注释行不产生 Token。
-- 续行（§2.2）把多个物理行合成一个逻辑行。
 
 ### 2.6 注解与属性
 
-```ebnf
-annotation = "@" , annotation_name , [ "(" , annotation_args , ")" ] ;
-annotation_name = IDENT | "unsafe" | "readonly" ;  /* readonly 是关键字，但可作注解名 */
-annotation_args = annotation_arg , { "," , annotation_arg } ;
-annotation_arg = INT | IDENT ;
-```
+注解文法见 §13.3。
 
 - 函数/参数/字段上的注解在 §8/§10/§3.7 定义。
 - `@padding(N)`：`N` 是非负十进制字面量（无 `u`、无进制、无负号）；带后缀/进制/负号 → `TC_CE_CONST_FORM`（SEM）。
@@ -276,22 +225,14 @@ annotation_arg = INT | IDENT ;
 | `isize`/`usize` | 目标字长 | 32 或 64 |
 
 - 补码；无符号非负。
-- 有符号 `add/sub/mul/neg/shl` 默认 strict（溢出 trap）；`.wrap` 回绕。
-- 无符号 `add/sub/mul/neg` 固定模 2^n；`shl` 默认 strict，`.wrap` 回绕。
-- `div` 向零截断；`mod` 余数符号随被除数；除零 trap。
-- `div(INT_MIN, −1)`、`abs(INT_MIN)`、`neg(INT_MIN)` strict → 溢出 trap；`mod(INT_MIN, −1)=0`。
 - 位宽/符号不同的值禁止隐式转换；必须 `cast`/`trunc`/`bitcast`。
+- 运算模式、溢出、移位、`div`/`mod` 与除零规则见 §6.3。
 
 ### 3.3 浮点
 
-- `float32`/`float64` 对应 IEEE 754 binary32/binary64；固定 roundTiesToEven。
-- 默认禁止 FMA、扩展精度、FTZ、DAZ；每条指令按目标格式立即舍入。
-- strict 模式：上溢/下溢/除零/无效操作 trap；优先级 `INVALID → DIV_ZERO → OVERFLOW → UNDERFLOW`。
-- `.ieee` 模式：异常不终止，返回 ±inf/NaN；NaN 统一 canonical quiet NaN（正号）。
-- `abs`/`neg` 是纯符号位操作，不 trap。
-- `mod` 是“商向零截断”的余数（fmod 语义），不是 IEEE remainder。
+- `float32`/`float64` 对应 IEEE 754 binary32/binary64；固定 roundTiesToEven；`abs`/`neg` 只操作符号位。
 - 浮点不参与位运算；位模式经等宽 `bitcast`。
-- `@fast_math` 区域可以重关联/使用 FMA/FTZ；默认模式禁止。
+- 异常模式（strict/`.ieee`）、异常优先级、精度规则与 `mod` 语义见 §6.3；`@fast_math` 见 §10.3。
 
 ### 3.4 布尔
 
@@ -308,14 +249,9 @@ ptr<T>   T 是非 void 值类型；宽度 = usize；地址单位 = 字节
 
 - `nullptr` 位模式 0；**地址 0 保留**，`addr`/`funcaddr` 结果非 0。
 - 不同 `T` 的指针禁止隐式转换；`bitcast ptr<T>, ptr<U>` 是等宽重标记（safe）；`cast` 不做指针转换。
-- `ptr<T>` 与整数：`bitcast` 等宽，**unsafe**。
-- 指针与浮点：禁止 `bitcast`。
-- 解引用：`load`/`store`；空指针 trap；越界/悬垂 UB（仅 unsafe 代码）。
-- 指针算术：`ptradd`/`ptrsub`（unsafe）；`ptrdiff`（safe，字节差）。
-- 比较：`ptreq`/`ptrne`/`ptrlt`/`ptrle`/`ptrgt`/`ptrge`（safe；跨对象序为环境定义）。
-- `addr T, target`：取槽/字段地址；`const` 无地址；参数槽只读（写穿 trap）。
+- `ptr<T>` 与整数：`bitcast` 等宽，**unsafe**；指针与浮点：禁止 `bitcast`。
+- 解引用、指针算术、比较、`addr` 与无效指针状态的规则见 §6.7/§6.8/§3.12。
 - **自引用例外**：在定义 `S` 的字段类型中，`ptr<S>`/`ptr<ptr<S>>` 以及 `fnptr<…>` 签名中的 `S` 允许 `S` 尚未完成；其它位置仍要求 `T` 是完整值类型（§3.7）。
-- `sizeof(T)`：字节数；常量表达式。
 
 ### 3.6 函数指针
 
@@ -324,9 +260,7 @@ fnptr<ret, p1, p2, …>   ret 可为 void；参数必须是值类型；宽度 = 
 ```
 
 - 签名逐项等价；参数名不参与。
-- `nullptr` 兼容；`funcaddr f` 产生 `fnptr<sig>`；`call_indirect` 是 unsafe 指令。
-- `fnptr` ↔ 整数：`bitcast` 等宽，unsafe；`ptr` ↔ `fnptr`、`fnptr` ↔ 浮点：禁止 `bitcast`。
-- 跨签名 `bitcast` 禁止；同签名 `fnptr↔fnptr` 是 safe 重解释；`funceq`/`funcne` 只比较同型（或 nullptr）。
+- `nullptr` 兼容；`bitcast` 类别规则见 §3.11；`funcaddr`/`call_indirect` 语义见 §8.5。
 - 函数指针不携带 `@unsafe` 信息；所有间接调用都在 unsafe 上下文中进行。
 
 ### 3.7 结构体
@@ -349,7 +283,7 @@ end
 - **整块赋值可以替换整个值，包括其中的 `readonly` 字段**；字段赋值按路径规则（§6.14）：目标路径上任一 `readonly` 字段都阻止赋值。深度只读作用于结构体值子树，不延伸到 `ptr` 字段所指对象。
 - 不支持结构体比较、算术、`cast`/`bitcast`、I/O；按字段操作。
 - 字段访问 `x.f`，可嵌套；`x.f` 是值（operand）。
-- 构造：`x = make S, v1, v2`；字段按声明顺序，全部必填，类型严格；也可写 `make S, x: v1, y: v2`（名字必须匹配字段且保持声明顺序）。
+- 构造：`x = make S, v1, v2`；字段顺序、必填与命名规则见 §6.2.7。
 - 结构体字段全部对外可见（透明记录）；不提供字段可见性/不透明类型。
 - 不支持泛型结构体；类型参数不在核心（§1.1）。
 
@@ -414,8 +348,7 @@ end
 - 矩阵覆盖所有值类型类别；`void` 不是值类型（§3.8），作为转换目标 → `TC_CE_VOID`；函数、标签、模块不是类型，出现在类型位置按名称解析的既有诊断处理。
 - 判定顺序：先查类别矩阵（禁止 → `TC_CE_TYPE_MISMATCH`），再查位宽（允许类别但不等宽 → `TC_CE_BITCAST_WIDTH`）。
 - `ptr` 与 `fnptr` 宽度均为 `usize`，故 `ptr↔ptr` 恒等宽、`fnptr↔fnptr` 恒等宽；后者仍只允许同签名。
-- 指针重标记只用 `bitcast`；`cast` 不作用于指针。
-- `bitcast` 的类别禁止项（`bool`、指针↔浮点、`fnptr`↔浮点、指针↔`fnptr`、跨签名 `fnptr`、结构体、`nullptr`）及 `cast` 作用于指针 → `TC_CE_TYPE_MISMATCH`（SEM）。
+- 指针重标记只用 `bitcast`；`cast` 不作用于指针（→ `TC_CE_TYPE_MISMATCH`）。
 - `nullptr` 不需要转换：期望类型为 `ptr<T>`/`fnptr<…>` 时直接使用。
 - 字面量在转换操作数位置的源类型见 §6.6.3。
 
@@ -458,7 +391,7 @@ end
 ### 4.1 文件、模块、模式
 
 - 一个 `.tc` 文件 = 一个模块；模块名 = 文件名（去 `.tc`），且必须是合法标识符；否则不能被 `import`。
-- 首条有效行必须是 `#program` 或 `#lib`；恰好一个。
+- 首条有效行必须是 `#program` 或 `#lib`；恰好一个；未声明模式、重复模式、模式后出现另一模式 → 语法拒绝。
 - `#program` 是入口模块；`#lib` 是库模块，不直接执行。
 - 一个程序由一个 `#program` 及其可达 `#lib` 导入组成。
 
@@ -490,14 +423,11 @@ end
 - 顶层 `var`/`const` 是**程序体声明**：`var` 建立程序槽，`const` 是编译期常量；可见性从声明处到程序末尾（源序）。
 - 指令按源序执行；遇到 `end of file` 正常终止。
 - 顶层可以出现 `label`/`br`/`br_if`/`switch`；`#program` 是一个控制流域。
-- 顶层不得定义 `func`；函数只能来自 `#lib`。
 - 顶层 `var` 在声明执行后初始化；DI 规则同函数体（§5.4）。
 - 每次运行重新初始化程序槽与所有可达库的 `static var`（后者由 const 初始化，见 §4.7）。
 
 ### 4.4 `#lib` 语义
 
-- 只允许 `struct`、`const`、`static var`、`func`；不得有顶层指令/顶层 `var`。
-- 每个顶层成员必须显式 `public` 或 `private`；无默认值。
 - `static var` 在程序准备阶段用 const 初始化；初始化失败是编译期错误（因为只允许 const），不存在运行时静态初始化失败。
 - 函数可以调用后定义的函数；递归允许（§8.4）。
 - `#lib` 不自动执行任何代码；需要初始化的库可以提供 `public func init()`，由 `#program` 显式调用。
@@ -516,8 +446,7 @@ import m
 - 同一模块只有一份模块静态存储（§4.7）。
 - 导入名占用**模块命名空间**；本文件的模块成员/局部名不得与导入名相同 → `TC_CE_IMPORT_NAME_CONFLICT`。
 - 访问导入成员必须限定：`m.f`、`m.K`、`m.S`；且成员必须是 `public`。
-- 不支持别名/选择性导入/通配导入/重导出。传递依赖不会自动可见；需要时显式 `import`。
-- 如果 `public` 签名使用导入类型，客户端必须同样导入该模块；不存在重导出。
+- 不支持别名/选择性导入/通配导入/重导出；传递依赖不会自动可见；`public` 签名使用导入类型时，客户端必须同样导入该模块。
 
 ### 4.6 可见性
 
@@ -530,7 +459,6 @@ import m
 - `public static var` 可读可写（`m.x`）；`public const` 只读；`public func` 可调用；`private` 成员只能 `Self.x`。
 - `private` **类型** 出现在 `public` 签名、`public struct` 字段、`public const`/`public static var` 的声明类型或初始化器中 → `TC_CE_PRIVATE_TYPE`（SEM）。
 - `public` 初始化器引用 `private const` 是允许的（值内联，不泄露名字）；引用 `private` 类型/成员按上述规则检查。
-- 结构体字段全部对外可见（透明记录）；不提供字段可见性/不透明类型。
 
 ### 4.7 模块常量与静态存储
 
@@ -544,7 +472,6 @@ public static var counter: int32 = 0
 - `static var` 不参与运行时初始化顺序问题：初始化器是常量，不需要执行代码。
 - `static var` 的 `addr` 在程序生命期内有效。
 - 模块 `const`/`static var` 的初始化器**按源序**求值；只可引用更早的 `const`。前向引用/自引用 → `TC_CE_UNDEFINED_NAME`。跨模块求值顺序见 §4.10。
-- `const` 的初始化器可以引用更早的 `const`、`sizeof`、`make`（const 字段）；不得引用 `static var`/`var`/参数/函数。
 
 ### 4.8 函数命名空间与 `Self`
 
@@ -601,7 +528,6 @@ const K: int32 = 42
 - `var` 的初始化器必须是一个 op（`copy T, …`、计算、`call`、`read`、`make` 等）；`const` 初始化器是 `const_expr`，允许字面量。
 - `var` 执行后槽初始化为该值；再次执行同一 `var`（循环/跳转）会重新初始化。
 - `const` 必须带 `const_expr`；编译期求值；无存储、无地址；不得作为赋值目标。
-- `const` 不参与运行时 DI；它不属于“读取前必须初始化”的槽。
 - `const` 的可见性从声明处到作用域末尾；前向引用/自引用 → `TC_CE_UNDEFINED_NAME`。
 
 ### 5.3 参数
@@ -620,7 +546,7 @@ const K: int32 = 42
 - 循环：循环体回边按前驱处理；`var` 在循环体内重新执行会重新初始化同一槽。
 - `param`/`static var` 入口即已初始化。
 - `const` 不参与。
-- 不可达代码不参与 DI，但仍必须通过词法/语法/名称/类型检查；不可达代码不是错误（§12.4）。
+- 不可达代码不参与 DI（§12.4）。
 
 ### 5.5 地址与 `const`
 
@@ -647,14 +573,7 @@ const K: int32 = 42
 
 ### 6.1 统一指令形态
 
-```text
-instruction := lhs "=" op [arg { "," arg }]
-lhs         := assignable | DISCARD
-assignable  := identifier { "." identifier }
-             | "Self" "." identifier { "." identifier }
-op          := 助记符 [ "." 模式/修饰 ]
-arg         := type | value | label | function | struct | named_arg
-```
+指令形态的文法见 §13.4；`arg` 可为 type/value/label/function/struct/named_arg。
 
 规则：
 
@@ -754,8 +673,7 @@ arg         := type | value | label | function | struct | named_arg
 | `call_indirect` | `d = call_indirect fp, args` | `fnptr<sig>` | 返回类型 | call | 空指针；签名不符/伪造 UB | unsafe |
 | `funceq` / `funcne` | `d = funceq T, f1, f2` | `fnptr<…>`/`nullptr` | `bool` | pure | 无 | safe |
 
-- `call` 的 args 可按位置或名字写；名字必须匹配形参且保持声明顺序；`call_indirect` 只按位置。
-- `call_indirect` 的 args 按 `fnptr` 签名位置；不支持命名；出现命名实参 → `TC_CE_UNKNOWN_ARGUMENT`。
+- `call` 的 args 可按位置或名字写；名字必须匹配形参且保持声明顺序；`call_indirect` 只按位置，出现命名实参 → `TC_CE_UNKNOWN_ARGUMENT`。
 - `funcaddr` 的目标是 `Self.f`/`m.f`；未解析 → `TC_CE_UNDEFINED_FUNCTION`。
 - 函数指针宽度 = `usize`；`nullptr` 兼容；`ptr` ↔ `fnptr` 禁止。
 
@@ -876,10 +794,8 @@ arg         := type | value | label | function | struct | named_arg
 
 #### 6.6.2 `bitcast`
 
-- 源/目标等宽；不改位。
-- 类别矩阵见 §3.11：数值↔数值 safe；`ptr↔ptr` safe；同签名 `fnptr↔fnptr` safe；`ptr↔整数`、`fnptr↔整数` unsafe；其余类别组合一律禁止。
-- 判定顺序：先类别后位宽。类别禁止（含 `bool`、指针↔浮点、`fnptr`↔浮点、指针↔`fnptr`、跨签名 `fnptr`、结构体、`nullptr`）→ `TC_CE_TYPE_MISMATCH`；类别允许但位宽不等 → `TC_CE_BITCAST_WIDTH`。
-- 位模式按抽象位串，不依赖宿主端序。
+- 源/目标等宽；不改位；位模式按抽象位串，不依赖宿主端序。
+- 类别矩阵、允许性（safe/unsafe）与判定顺序见 §3.11。
 
 #### 6.6.3 字面量操作数的源类型
 
@@ -909,16 +825,17 @@ arg         := type | value | label | function | struct | named_arg
 - 空指针 → `TC_RE_NULL_POINTER`。
 - 代码区/区外/设备拒绝 → `TC_RE_ADDR_UNAVAILABLE`。
 - 只读区写 → `TC_RE_WRITE_PROTECTED`。
-- 越界/悬垂/one-past 访问/未初始化读取 → UB（unsafe 代码）。
-- `memmove` 重叠等价于先临时缓冲；`n` 是 `usize` 元素数；空指针 trap；越界/悬垂/未初始化读取 UB；不存在负范围。
+- 越界/悬垂/one-past 访问/未初始化读取 → UB（§9.4）。
+- `memmove` 重叠等价于先临时缓冲；`n` 是 `usize` 元素数；空指针 trap；其余规则见 §3.12/§9.4。
 
 ### 6.8 指针语义
 
-- `addr T, x`：目标类型必须等于 `T`；结果 `ptr<T>`；`const` 不可取址；生命期结束后指针悬垂（§3.12）。
-- `ptradd/sub`：按数学字节偏移 `p ± n*sizeof(T)`；空指针 trap；结果必须位于同一对象的 `[start, one-past]`；`ptradd` 从 one-past 只允许 `n=0`，`ptrsub` 可从 one-past 回到对象内；越界/dangling UB。
-- `ptrdiff`：同一对象（含 one-past）为精确字节差；悬垂指针按原地址差（原本同对象为原差值，否则环境定义）；跨对象为环境定义；null 按地址 0；结果不可由 `isize` 表示 → `TC_RE_PTRDIFF_OVERFLOW`；跨对象/悬垂结果不保证跨优化级别稳定（§10.5）。
-- 指针比较：按地址整数比较；`nullptr`=0；dangling 可比较；跨对象序环境定义；不保证跨优化级别稳定（§10.5）；不 trap。
-- `bitcast ptr↔int`：unsafe；地址值环境定义；不得假设跨优化级别稳定。
+- `addr T, x`：目标类型必须等于 `T`；结果 `ptr<T>`；`const` 不可取址。
+- `ptradd`/`ptrsub` 按数学字节偏移 `p ± n*sizeof(T)`；空指针 trap；结果必须位于同一对象的 `[start, one-past]` 内。
+- `ptrdiff` 溢出 → `TC_RE_PTRDIFF_OVERFLOW`。
+- 指针比较按地址整数比较；`nullptr` = 0；不 trap。
+- `bitcast ptr↔int`：unsafe；地址值环境定义。
+- 悬垂/跨对象/one-past 的完整指针状态与 UB 见 §3.12/§9.4；地址相关结果不保证跨优化级别稳定（§10.5）。
 - `ptr` 不参与通用算术/位运算/标量 I/O。
 
 ### 6.9 调用语义
@@ -943,33 +860,20 @@ arg         := type | value | label | function | struct | named_arg
 
 ### 6.11 标准 I/O 语义
 
-- `read T`：跳过前导 ASCII 空白（`0x09–0x0D`、`0x20`），读一个完整 Token；非法/范围/EOF → `TC_RE_IO`。
-  - 整数：可选 `-`（仅 signed）+ 十进制数字；无前导 `+`/进制前缀/分隔符。
-  - `bool`：`true`/`false`（小写）。
-  - 浮点：十进制/小数点/指数；`inf`/`-inf`/`nan`；不接受 `f` 后缀/`-nan`/`+`；`nan` 产生 canonical quiet NaN（正号）。
-- `write T, x`：写该值的确定性文本；`writeln` 追加 LF。
-  - 整数：十进制；signed 可带 `-`；无前导零（0 除外）。
-  - `bool`：`true`/`false`。
-  - 浮点：`%g` 风格，6 位有效数字，小写 `e`；`inf`/`-inf`/`nan`；负零输出 `-0`。
-  - 无格式说明符/字符串。
-- `write`/`writeln` 要么整条提交，要么 `TC_RE_IO` 且贡献 0 字节；已提交的前缀不回滚。
-- 无文件/参数/环境变量 API；由运行时库提供（非核心）。
+- `read T`/`write T, x`/`writeln T, x` 只作用于标量 `T`；无格式说明符/字符串/字段整块 I/O。
+- 输入/输出格式、Token 完整性与 `nan`/负零规则见 §11；`read` 失败不修改目标；`write`/`writeln` 失败贡献 0 字节（已提交前缀不回滚）。
+- 无文件/参数/环境变量 API（§11.5）。
 
 ### 6.12 `copy` 指令
 
-- `copy T, x`：同型值复制；`x` 的类型必须严格等于 `T`；结构体整块（含 padding）；指针/`fnptr` 复制地址。
-- 赋值写作 `x = copy T, y`；初始化写作 `var x: T = copy T, y`。
-- 字面量/标识符/字段读取/`nullptr` 作为值时必须显式 `copy`；裸值不能直接作为赋值/初始化操作数。
-- `x = make S, …` / `x = add …` / `x = call …` / `x = read …` 等直接使用该 op 的结果，不需要 `copy`。
-- `copy` 不可能 trap；安全。
+- `copy T, x`：`x` 的类型必须严格等于 `T`；同型值复制，不 trap；结构体整块（含 padding），指针/`fnptr` 复制地址。
+- 赋值/初始化必须写 `copy` 或其它 op；字面量/标识符/字段读取/`nullptr` 不能裸用作赋值/初始化操作数（§6.14）。
 
 ### 6.13 `sizeof` 与常量
 
 - `sizeof(T)`：字节数；`usize`；编译期常量；可用于 `const_expr` 和指令。
-- 文档中的 `sizeof(T)` 是类型大小记号；指令语法是 `sizeof T`（§6.2.5、§13.4）。
 - 结构体大小 = Σ(字段大小 + `@padding`)；无隐式对齐/尾部填充；布局在 `struct` 声明处确定，求和中溢出 `usize` → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
 - `sizeof(void)` → `TC_CE_VOID`；`sizeof` 不作用于函数/标签/模块。
-- `sizeof(void)` 在使用处报 `TC_CE_VOID`；结构体布局溢出在声明处报 `TC_CE_LAYOUT_OVERFLOW`；两者同属 SEM，按 §12.2 的模块遍历/源序确定首诊。
 
 | 类型 | `sizeof`（字节） |
 |---|---|
@@ -1028,9 +932,8 @@ _ = return             /// void
 _ = trap              /// 立即 trap
 ```
 
-- 控制流由上述指令组成。
-- `return` 只作为核心指令助记符存在；返回写作 `_ = return x` / `_ = return`。
-- 标签在函数/程序内建立独立的标签命名空间（与值名分离）；可前向/后向；不跨函数/程序；可跳过 `var` 声明，由 DI 负责。
+- 标签在函数/程序内建立独立的标签命名空间（与值名分离）；可前向/后向；不跨函数/程序。
+- `return` 只作为核心指令助记符存在，写作 `_ = return x` / `_ = return`；语义见 §8.3。
 
 ### 7.2 标签与无条件分支
 
@@ -1039,11 +942,9 @@ label L:
 _ = br L
 ```
 
-- `label L:` 是声明，不产生运行时动作；同一函数/程序内标签重名 → `TC_CE_DUPLICATE_LABEL`。
-- 标签名与值名分属不同命名空间：`label L:` 与 `var L` 可以共存；分支位置解析标签，值位置解析值。
-- `_ = br L` 跳到同函数/程序的 `L`；目标标签不存在 → `TC_CE_LABEL_NOT_FOUND`。
-- 允许前向/后向跳转；允许跳过 `var` 声明；读取未初始化槽 → `TC_CE_UNINITIALIZED`。
-- 不允许跨函数/程序；标签表按函数/程序隔离。
+- `label L:` 是声明，不产生运行时动作；重名 → `TC_CE_DUPLICATE_LABEL`。
+- 标签名与值名分属不同命名空间：`label L:` 与 `var L` 可以共存。
+- `_ = br L` 跳到同函数/程序的 `L`；不存在 → `TC_CE_LABEL_NOT_FOUND`；允许跳过 `var` 声明，读取未初始化槽 → `TC_CE_UNINITIALIZED`。
 
 ### 7.3 条件分支模式
 
@@ -1058,20 +959,8 @@ label L_false:
 label L_end:
 ```
 
-- `br_if c, L`：`c` 是 `bool`；true 跳转，false 落到下一条。
-- false 分支用 `br` 和标签显式写出。
-- 没有 false 分支时，`L_false` 就是 `L_end`：
-
-```tc
-_ = br_if c, L_true
-_ = br L_end
-label L_true:
-/// true 分支
-label L_end:
-```
-
-- `c` 不是 `bool` → `TC_CE_CONDITION_TYPE`。
-- 条件可以是 `eq`/`lt`/`and`/`not`/`ptreq` 等纯指令的结果；不能是 `call`/`load`/`read` 等效果指令（先落临时槽）。
+- `br_if c, L`：`c` 是 `bool`；true 跳转，false 落到下一条；false 分支用 `br` 和标签显式写出。
+- `c` 不是 `bool` → `TC_CE_CONDITION_TYPE`；条件必须是纯指令的结果（`call`/`load`/`read` 等先落临时槽）。
 
 ### 7.4 循环模式
 
@@ -1086,10 +975,8 @@ _ = br L_cond
 label L_end:
 ```
 
-- `_ = br L_cond` 是“继续”；`_ = br L_end` 是“退出”。
 - 循环可能零次执行；没有静态条件折叠；`MISSING_RETURN` 按普通控制流处理（`br_if` 的 false 分支始终存在）。
-- 条件必须是显式计算出的 `bool` 值，由前面的指令写入槽。
-- 嵌套循环用不同标签；`br` 的目标始终显式。
+- 条件必须是显式计算出的 `bool` 值；嵌套循环用不同标签。
 
 ### 7.5 多路分支
 
@@ -1108,7 +995,6 @@ label L_end:
 
 - `x` 必须是整数（否则 `TC_CE_SWITCH_TYPE`）；`0→L0, 1→L1, …, n−1→Ln−1`；其它（含负数）→最后一个标签 `Ld`。
 - 最后一个标签是默认分支，必须有。
-- `switch` 是核心指令。
 
 ### 7.6 函数返回
 
@@ -1117,12 +1003,7 @@ _ = return x
 _ = return
 ```
 
-- 只在函数体内；`#program` 顶层 → `TC_CE_RETURN_OUTSIDE_FUNCTION`。
-- 非 `void` 必须带值；`void` 不得带值 → `TC_CE_RETURN_FORM`。
-- 操作数类型严格等于返回类型 → `TC_CE_RETURN_TYPE`。
-- `return` 是助记符，前面必须有 `_ =`。
-- 非 `void` 函数的所有到 `end` 的路径必须被 `_ = return`/`trap`/无出口 `br` 阻止；否则 `TC_CE_MISSING_RETURN`。
-- `void` 函数可以自然落到 `end`（隐式返回）。
+- `return` 只在函数体内；`return` 前必须有 `_ =`；返回值形式、类型与 `MISSING_RETURN` 规则见 §8.3。
 
 ## 8. 函数
 
@@ -1151,8 +1032,9 @@ end
 
 ### 8.3 返回
 
+- `return` 只在函数体内；`#program` 顶层 → `TC_CE_RETURN_OUTSIDE_FUNCTION`。
 - 非 `void` 函数：所有到达 `end` 的路径必须已被 `_ = return`/`trap`/无出口 `br` 阻止；否则 `TC_CE_MISSING_RETURN`。
-- `_ = return x` 的操作数类型严格等于返回类型；`_ = return` 用于 `void`。
+- `_ = return x` 的操作数类型严格等于返回类型 → `TC_CE_RETURN_TYPE`；`void` 只能用 `_ = return`，非 `void` 必须带值 → `TC_CE_RETURN_FORM`。
 - 返回只写作 `_ = return …`。
 - `void` 函数可以自然落到 `end`（隐式返回）。
 - 返回结构体按值复制；指针返回复制地址。
@@ -1240,7 +1122,6 @@ end
 - `@unsafe func`：整个函数体是 unsafe 上下文；调用者需要 unsafe 上下文或 `unsafe` 块。
 - `@safe func`：断言不含 unsafe；若含 → `TC_CE_SAFE_VIOLATION`。
 - 未标注函数：按 safe 检查；可以在内部使用 `unsafe` 块。
-- `@unsafe`/`@safe`/`@fast` 三者互斥；`@fast_math` 只与 `@fast` 同用。
 
 ### 9.4 UB（穷尽）
 
@@ -1281,31 +1162,13 @@ end
 
 ### 10.1 默认：as-if，保持确定/安全
 
-- 优化可以改变指令选择/寄存器分配/帧布局，但不得改变：
-  - 静态诊断与首个错误码；
-  - 实际执行路径上的 trap 存在性与顺序（包括抽象调用深度产生的 `TC_RE_STACK_OVERFLOW`；不包含依赖 §10.5 地址相关结果的部分）；
-  - 标准输出字节与顺序（默认模式；仅 §10.3 许可变换引起的浮点因果例外；不包含依赖 §10.5 地址相关结果的部分）；
-  - 已定义程序的值结果（不包含 §10.5 地址相关结果）。
+- 优化可以改变指令选择/寄存器分配/帧布局，但不得改变 §10.8 列出的事项。
 - 不得删除可能 trap 的指令（除非能证明不 trap）；不得把 strict 改成 wrap；不得默认做浮点重关联/FMA/FTZ/DAZ。
-- 默认优化（O0/O2）只做语义保持变换；不引入 UB；不得把非终止执行变为终止，也不得把终止执行变为非终止（`@fast` 承诺违反的 UB，或仅由 §10.3 许可变换引起的浮点因果例外除外；不包含依赖 §10.5 地址相关结果的部分）。
+- 默认优化（O0/O2）只做语义保持变换；不引入 UB；不得把非终止变为终止或反之（例外见 §10.8）。
 
 ### 10.2 `@fast`：显式 UB 优化契约
 
-`@fast` 函数是唯一的“承诺/UB”区域。调用者必须处于 unsafe 上下文（§9.6）。在 `@fast` 函数内可以使用以下承诺：
-
-| 承诺 | 位置 | 含义 | 违反 |
-|---|---|---|---|
-| `@no_overflow` | 函数 | 函数内 strict 有符号 `add/sub/mul/neg/abs`、`div` 的溢出与全部 strict `shl` 不溢出（不覆盖除零） | UB |
-| `.nsw` | 指令后缀 | 该指令有符号不溢出 | UB |
-| `.nuw` | 指令后缀 | 该指令无符号不溢出 | UB |
-| `@no_alias` | 指针形参 | 对可达对象的内存访问必须经该参数或其合法派生指针；非派生访问违反 | UB |
-| `@nonnull` | 指针形参 | 非空 | UB |
-| `@align(N)` | 指针形参 | 地址按 N 对齐 | UB |
-| `@range(lo,hi)` | 整数形参 | 调用时实参值在 `[lo,hi]`；`lo/hi` 为同类型常量 | UB |
-| `@pure` | 函数 | 无内存效果（普通局部/参数槽值操作除外）；不 `addr`/`load`/`store`/I/O；不调用非 `@pure`；结果只依赖参数值 | UB |
-| `@readonly` | 函数 | 无内存写入（普通局部槽写除外）；可读普通内存，不 I/O、不读 volatile/设备；只调用 `@pure`/`@readonly` | UB |
-| `@nounwind` | 函数 | 函数体及动态调用范围内不发生任何 trap（含 `TC_RE_STACK_OVERFLOW`） | UB |
-| `@willreturn` | 函数 | 有限步内返回或执行终止 trap；不会无限执行 | UB |
+`@fast` 函数是唯一的“承诺/UB”区域。调用者必须处于 unsafe 上下文（§9.6）。承诺注解的位置、含义与允许范围见 §8.6 的注解表；精确契约见 §10.2.1。
 
 - `.nsw`/`.nuw` 只允许在 `@fast` 函数内的 `add/sub/mul/shl` 上；其它位置 → `TC_CE_ANNOTATION`。
 - 承诺是“优化器可以假设”的契约；不检查，违反即 UB。
@@ -1354,15 +1217,11 @@ end
 
 - 地址相关结果**环境定义，且不保证跨优化级别稳定**；依赖它们的值或输出不属于“跨优化确定”。
 - 同一对象（含 one-past）内的指针比较与 `ptrdiff` 是确定的；`nullptr` 的相等比较是确定的；`ptrdiff` 结果不可由 `isize` 表示时 trap（`TC_RE_PTRDIFF_OVERFLOW`）。
-- `bitcast ptr→int` 仅 unsafe；打印地址的程序不属于“跨优化确定”的程序。
-- 优化可以改变帧布局/静态布局；不得改变不依赖地址相关结果的值、输出和 trap；依赖地址相关结果的控制流、输出、trap 或终止明确排除在跨优化保证之外。
+- `bitcast ptr→int` 仅 unsafe；打印地址的程序不属于“跨优化确定”的程序；优化可以改变帧布局/静态布局。
 
 ### 10.6 浮点
 
-- 默认：每条指令按目标格式舍入；禁止 FMA/扩展精度/FTZ/DAZ；禁止重关联。
-- `.ieee`：只改变异常处理，不改变舍入/重关联规则。
-- `@fast_math`：仅 §10.3 的浮点因果例外；允许重关联/FMA/FTZ/DAZ，浮点值、浮点 trap、由这些值决定的控制流可能不同。
-- 常量求值与运行时使用同一规则；不得用宿主扩展精度。
+默认与 `.ieee` 的舍入/异常规则见 §6.3；`@fast_math` 的放宽见 §10.3。常量求值与运行时使用同一规则；不得用宿主扩展精度。
 
 ### 10.7 别名与效果
 
@@ -1385,7 +1244,7 @@ end
 
 ### 11.1 核心 I/O
 
-- 只有 `read T`、`write T, x`、`writeln T, x`；`T` 是标量。
+- 只有 `read T`、`write T, x`、`writeln T, x`；`T` 是标量。`writeln` 在 `write` 的输出后追加 LF。
 - 无格式说明符、字符串、字段整块 I/O、文件/参数/环境 API。
 - `write`/`writeln` 的整条输出要么全部提交，要么 `TC_RE_IO` 且贡献 0 字节；已提交前缀不回滚。
 - `read` 失败不修改目标（因为 `read` 以 LHS 为目标，失败时 LHS 不提交）。
@@ -1415,8 +1274,7 @@ end
 ### 11.4 运行时库（非核心）
 
 - 格式化输出、字符串、数组/切片、分配、容器、错误处理属于运行时库；它们可以调用核心指令，但不得改变核心语义。
-- 运行时库的 API 不在本标准中定义；本标准只保证核心 I/O 的确定性。
-- 宿主分配对象必须 `n>=1`；零长度请求不创建核心对象，由库报错或返回库级错误。宿主对象与核心对象遵循同一套边界/生命期规则（§3.12）；分配/释放 API 不在核心。
+- 运行时库的 API 不在本标准中定义；本标准只保证核心 I/O 的确定性；宿主对象遵循 §3.12 的对象/边界/生命期规则。
 - 需要文本标签/格式化时，由库提供；核心不引入字符串字面量。
 
 ### 11.5 无文件/参数/环境
@@ -1430,9 +1288,9 @@ end
 
 ### 12.1 诊断模型
 
-- 静态阶段：LEX → SYN → IMPORT → SEM → CT。前序阶段有诊断即停止；CT 内部按 §4.10 求值。
+- 静态阶段：LEX → SYN → IMPORT → SEM → CT；前序阶段有诊断即停止（CT 内部见 §4.10）。
 - 运行时：遇到首个 trap 即终止；trap 有确定的错误码。
-- **fail-fast**：静态阶段只报告首个规范诊断；运行时只报告首个 trap。
+- **fail-fast**：静态只报告首个规范诊断，运行只报告首个 trap。
 - **无编译警告**：本标准不定义警告；所有规范诊断都是错误。
 
 ### 12.2 首个诊断顺序
@@ -1567,8 +1425,6 @@ end
 - 空行、纯注释行、续行由词法层处理；语法层的 `NL` 只表示语句/声明结束。
 - `IDENT`/`INT`/`FLOAT`/`DISCARD` 是 §2 的 Token；`opcode` 必须是 §6.2 的助记符（可带 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw`）。
 - `op_form` 是通用形态；opcode 表决定字段是 type/value/label/function/struct。字段不匹配 → `TC_CE_OPERAND_COUNT`/`TC_CE_TYPE_MISMATCH`。
-- `%` 不参与语法；注释外的 `%` 是 `TC_CE_SYNTAX`。
-- `Self` 只在 `#lib`；`#program` 使用 → `TC_CE_PROGRAM_MODE_MISUSE`。
 
 ### 13.2 词法（摘要）
 
@@ -1586,11 +1442,11 @@ dec       = non_zero , { [ "_" ] , digit } | "0" ;
 hex       = ( "0x" | "0X" ) , hex_digit , { [ "_" ] , hex_digit } ;
 bin       = ( "0b" | "0B" ) , ( "0" | "1" ) , { [ "_" ] , ( "0" | "1" ) } ;
 oct       = ( "0o" | "0O" ) , ( "0"…"7" ) , { [ "_" ] , ( "0"…"7" ) } ;
+letter    = "A"…"Z" | "a"…"z" ;
+digit     = "0"…"9" ;
+non_zero  = "1"…"9" ;
+hex_digit = digit | "A"…"F" | "a"…"f" ;
 ```
-
-- 注释：`///` 到行尾；其它 `/`、`//` 或 `;` → `TC_CE_SYNTAX`。
-- 续行：行尾 `\` 合并下一物理行；`\` 后不得有注释。
-- 缩进：仅风格，不进入语法。
 
 ### 13.3 程序/声明
 
