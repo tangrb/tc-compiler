@@ -78,7 +78,7 @@ make ci-coverage                         # also collect coverage (requires lcov)
 | ------ | ----------------- |
 | New `.tc` cases | Register in `scripts/vm/run_tests.sh` (and `scripts/aot/run_tests.sh` when AOT-relevant) |
 | New `TcRhsKind` | `python3 scripts/sync/check_rhs_coverage.py` |
-| New `TcErrorKind` | `tc_error_kind_name()` + unit test + compiler spec §11.4 |
+| New `TcErrorKind` | `tc_error_kind_name()` + unit test + compiler spec §12.3 |
 | New `src/` module | `python3 scripts/sync/check_source_naming.py` (`tc_*.h` ↔ `tc_*.c`) |
 | Type kernel | `check-types` / `check_type_fact_source.py` |
 | Control flow / uninit | `test_cfg` + matching `.tc` |

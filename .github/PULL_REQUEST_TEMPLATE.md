@@ -8,7 +8,7 @@
 - [ ] `bash scripts/run_tests.sh` (or a justified `--filter` plus CI)
 - [ ] New `.tc` cases registered in `scripts/vm/run_tests.sh` (and `scripts/aot/run_tests.sh` if AOT-relevant)
 - [ ] New `TcRhsKind` → `python3 scripts/sync/check_rhs_coverage.py`
-- [ ] New `TcErrorKind` → `tc_error_kind_name()` + unit test + compiler spec §11.4
+- [ ] New `TcErrorKind` → `tc_error_kind_name()` + unit test + compiler spec §12.3
 - [ ] New `src/` module → `python3 scripts/sync/check_source_naming.py`
 - [ ] Type / CFG / Embed changes covered by the matching check targets
 - [ ] Static error fixtures: one error per file

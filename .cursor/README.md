@@ -90,7 +90,7 @@ gotchas.md → 比对 tc_exec_* vs tc_aot_rt shim
 
 ```
 errors.md（rg 码名）→ tests/errors/static/ 一文件一错
-→ tc_error_kind_name + test_types.c + 标准 §11.4
+→ tc_error_kind_name + test_types.c + 标准 §12.3
 ```
 
 ### 执行收尾工作

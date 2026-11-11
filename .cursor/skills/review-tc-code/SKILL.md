@@ -37,7 +37,7 @@ description: >-
 ## 错误处理
 
 - [ ] fail-fast；OOM 消息 `memory allocation failed`
-- [ ] 新 `TcErrorKind`：`tc_error_kind_name` + `test_types.c` + §11.4
+- [ ] 新 `TcErrorKind`：`tc_error_kind_name` + `test_types.c` + §12.3
 
 ## 测试与风格
 

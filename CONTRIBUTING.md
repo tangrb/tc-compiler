@@ -80,7 +80,7 @@ make ci-coverage                         # 另收集覆盖率（需 lcov）
 | -------- | -------- |
 | 新 `.tc` 用例 | 注册到 `scripts/vm/run_tests.sh`（AOT 相关再注册 `scripts/aot/run_tests.sh`） |
 | 新 `TcRhsKind` | `python3 scripts/sync/check_rhs_coverage.py` |
-| 新 `TcErrorKind` | `tc_error_kind_name()` + `tests/unit` 对应用例 + 编译器标准 §11.4 |
+| 新 `TcErrorKind` | `tc_error_kind_name()` + `tests/unit` 对应用例 + 编译器标准 §12.3 |
 | 新 `src/` 模块 | `python3 scripts/sync/check_source_naming.py`（`tc_*.h` ↔ `tc_*.c`） |
 | 类型内核 | `check-types` / `check_type_fact_source.py` |
 | 控制流 / 未初始化 | `test_cfg` + 对应 `.tc` |
@@ -106,7 +106,7 @@ make ci-coverage                         # 另收集覆盖率（需 lcov）
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)（[English](CHANGELOG.en.md)）
 - 发版步骤：[docs/release-checklist.md](docs/release-checklist.md)（[English](docs/release-checklist.en.md)）
 
-改语言语义或错误码时，先更新 [TC 语言标准 0.0.46](docs/TC语言标准-0.0.46.md)（唯一权威）；实现落地后再同步对应设计书（当前实现基线为 `docs/*-0.0.44.md`，0.0.46 编译器标准逐章同步中）。公开 API 变更同步更新对应设计书。CI、覆盖率与 sanitizer 命令见根目录 [README.md](README.md)「测试与质量门禁」。
+改语言语义或错误码时，先更新 [TC 语言标准 0.0.46](docs/TC语言标准-0.0.46.md)（唯一权威）；实现落地后再同步对应设计书（当前实现基线为 `docs/*-0.0.44.md`）。公开 API 变更同步更新对应设计书。CI、覆盖率与 sanitizer 命令见根目录 [README.md](README.md)「测试与质量门禁」。
 
 ## Cursor Agent（可选）
 

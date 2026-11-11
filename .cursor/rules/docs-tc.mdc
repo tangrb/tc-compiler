@@ -21,7 +21,7 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 | 文件 | 内容 |
 |------|------|
 | `docs/TC语言标准-0.0.46.md` | 0.0.46 语法/语义唯一权威来源（§12.3 共 80 码）；语言特性变更**必更** |
-| `docs/TC编译器标准-0.0.46.md` | 13 阶段管线、诊断优先级、调用图等编译器规范（0.0.46 逐章同步中） |
+| `docs/TC编译器标准-0.0.46.md` | 13 阶段管线、诊断优先级、完整诊断码（§12.3）、平台档案等编译器规范 |
 | `docs/TC-VM详细设计说明书-0.0.44.md` | VM 架构、执行器、诊断（无 REPL） |
 | `docs/TC-AOT详细设计说明书-0.0.44.md` | AOT 代码生成、shim 层、差分测试 |
 | `docs/libtc设计说明书-0.0.44.md` | libtc 架构设计与嵌入 API（含 §15 调用者 API 速查，原 libtc-api 已并入） |
@@ -41,7 +41,7 @@ Agent 导航：[.cursor/README.md](../README.md) · 语法摘要同步 [syntax.m
 改语言特性时确认：
 
 - [ ] 语法摘要与 `tc-architecture/syntax.md` 一致（实现未到的特性以语言标准为准，syntax 可暂注「待落地」）
-- [ ] 新错误种类写入编译器标准 §11.4 + `errors.md` + VM 详设 + `tc_error_kind_name()`（语言标准仅当变更可观察语义时）
+- [ ] 新错误种类写入编译器标准 §12.3 + `errors.md` + VM 详设 + `tc_error_kind_name()`（语言标准仅当变更可观察语义时）
 - [ ] OOM 路径使用 `TC_ERR_OUT_OF_MEMORY`（非语法类错误码）
 - [ ] 特性实现写入 `features/*.md` 或 Embed→`kg-embed.md`（经 [features.md](../skills/tc-architecture/features.md) 路由）+ Rule `knowledge-graph` / 对应 `kg-*.md`
 - [ ] Agent 导航同步 [AGENTS.md](../../AGENTS.md) · [.cursor/README.md](../README.md)；易踩坑写入 [gotchas.md](../skills/tc-architecture/gotchas.md)（大改架构时）

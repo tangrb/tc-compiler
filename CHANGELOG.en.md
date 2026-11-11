@@ -12,7 +12,7 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 ### Added
 
 - **0.0.46 language standard design frozen (2026-11-06)**: the address model, function addresses, and dangling-pointer semantics are final; only errata are accepted from now on ([standard](docs/TC语言标准-0.0.46.md)).
-- **0.0.46 compiler standard migration started**: new [TC编译器标准-0.0.46.md](docs/TC编译器标准-0.0.46.md); the platform profile and checked build moved to §12, with the 0.0.46 codes in §11.4.7 (later merged into the §11.4 tables); remaining chapters are being synced, and the compiler-side memblock → generics kernel sync is still pending.
+- **0.0.46 compiler standard rewrite completed**: [TC编译器标准-0.0.46.md](docs/TC编译器标准-0.0.46.md) has been fully rewritten against the 0.0.46 language standard: 13 chapters cover the compilation pipeline, lexing, types, modules/declarations, definite initialization, instruction set, control flow, functions, safety, optimization contract, I/O, the 80-code diagnostic tables, and platform profiles; 0.0.44 constructs such as memblock, `let`, `if`/`while`, and format specifiers have been removed.
 - **0.0.46 language standard text**: [TC语言标准-0.0.46.md](docs/TC语言标准-0.0.46.md) is the single source of truth for 0.0.46 (implementation not yet updated).
 
 ### Changed
