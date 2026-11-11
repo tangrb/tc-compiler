@@ -9,7 +9,7 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**语言标准附录 B 共 N 码** … 断言 M」
   - 附录 B（0.0.44 基线）：语言标准附录 B 唯一 TC_CE_*/TC_RE_* 码数（86）
             vs 正文「共 N 码」vs 实现枚举 N+1（+ `TC_ERR_OUT_OF_MEMORY`）
-  - §12.3（0.0.46 目标）：完整集 79 个错误码 = 64 CE + 15 RE；
+  - §12.3（0.0.46 目标）：完整集 80 个错误码 = 65 CE + 15 RE；
             码表与正文引用一致，正文不得引用表外诊断码
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
                 vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
@@ -108,20 +108,20 @@ def check_target_standard(lang_std, failures):
     codes = set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", section))
     ce = {c for c in codes if c.startswith("TC_CE_")}
     rt = {c for c in codes if c.startswith("TC_RE_")}
-    if (len(codes), len(ce), len(rt)) != (79, 64, 15):
+    if (len(codes), len(ce), len(rt)) != (80, 65, 15):
         failures.append(
             f"0.0.46 §12.3：码数 {len(codes)} = {len(ce)} CE + {len(rt)} RE，"
-            "应为 79 = 64 CE + 15 RE")
+            "应为 80 = 65 CE + 15 RE")
     declared = re.search(
         r"完整集合（(\d+) 个 `TC_CE_\*` \+ (\d+) 个 `TC_RE_\*`）",
         section,
     )
     if not declared:
-        failures.append("0.0.46 §12.3：无法提取「64 CE + 15 RE」声明")
-    elif tuple(int(x) for x in declared.groups()) != (64, 15):
+        failures.append("0.0.46 §12.3：无法提取「65 CE + 15 RE」声明")
+    elif tuple(int(x) for x in declared.groups()) != (65, 15):
         failures.append(
             "0.0.46 §12.3：声明为 "
-            f"{declared.group(1)} CE + {declared.group(2)} RE，应为 64 + 15")
+            f"{declared.group(1)} CE + {declared.group(2)} RE，应为 65 + 15")
 
     all_codes = set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", lang_std))
     unknown = sorted(all_codes - codes)

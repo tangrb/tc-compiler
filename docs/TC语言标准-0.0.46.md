@@ -104,7 +104,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 | 类别 | 内容 |
 |---|---|
 | **规范确定** | 除下列类别外的全部行为：trap 条件、值结果、I/O 字节、终止/非终止、诊断码/顺序 |
-| **环境定义** | 地址空间布局与基址、装载地址、端序、设备内存内容、跨对象/悬垂指针比较与 `ptrdiff` 结果、抽象调用深度上限 `D`、include 根目录、进程退出状态 |
+| **环境定义** | 地址空间布局与基址、装载地址、端序、设备内存内容、经 `bitcast` 指针→整数观察到的地址值、跨对象/悬垂指针比较与 `ptrdiff` 结果、抽象调用深度上限 `D`、include 根目录、进程退出状态 |
 | **实现定义** | 帧内布局、栈帧大小、寄存器分配、指令选择、优化级别；同一实现的不同运行可以不同，但不得改变规范确定行为 |
 | **UB（穷尽）** | ① 悬垂指针的解引用、指针算术、`memmove` 或对原对象的访问；② 越出所属对象边界的访问或指针算术；③ 经指针/`memmove` 读取未初始化存储；④ 伪造或签名不符的 `fnptr` 调用；⑤ `@fast` 承诺被违反 |
 
@@ -139,7 +139,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 
 ### 2.1 字符集
 
-- 注释外只允许 ASCII：字母、数字、`_`、`+ - # % = : , ( ) < > ; . @ \ /`。
+- 注释外只允许 ASCII：字母、数字、空白（空格/Tab/LF/CR）、`_`、`+ - # % = : , ( ) < > ; . @ \ /`。
 - `%` 在本标准中没有语义；出现即 `TC_CE_SYNTAX`。
 - 注释内允许任意已解码 Unicode 标量值（U+0000 除外）。
 - 非法 UTF-8、BOM、U+0000、注释外非 ASCII、未列出 ASCII → `TC_CE_SYNTAX`（LEX）。
@@ -160,12 +160,15 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 ### 2.3 标识符与关键字
 
 ```ebnf
-identifier = ( letter | "_" ) , { letter | digit | "_" } ;
+identifier = letter , { letter | digit | "_" }
+           | "_" , ( letter | digit | "_" ) , { letter | digit | "_" } ;
+discard    = "_" ;
 letter     = "A"…"Z" | "a"…"z" ;
 ```
 
 - 区分大小写；ASCII only。
-- `_` 单独出现是**丢弃目标**，不是合法变量名；`_x` 是合法标识符。
+- `_` 单独出现是词法记号 `DISCARD`（丢弃目标），不是 `IDENT`；`_x`、`x_`、`_1`、`__` 是合法标识符。
+- 只接受 `IDENT` 的位置（声明名、字段名、参数名、标签名、结构体/函数名、导入名、命名实参）出现 `DISCARD` → `TC_CE_SYNTAX`（SYN）。
 - 关键字/助记符不可作标识符。关键字集合按类别：
 
 | 类别 | 词 |
@@ -187,7 +190,9 @@ letter     = "A"…"Z" | "a"…"z" ;
 **整数**：
 
 ```ebnf
-int_lit = [ "-" ] , ( dec_lit | hex_lit | bin_lit | oct_lit ) , [ "u" | "U" ] ;
+int_lit = signed_int | unsigned_int ;
+signed_int = [ "-" ] , ( dec_lit | hex_lit | bin_lit | oct_lit ) ;
+unsigned_int = ( dec_lit | hex_lit | bin_lit | oct_lit ) , ( "u" | "U" ) ;
 dec_lit = non_zero , { [ "_" ] , digit } | "0" ;
 hex_lit = ( "0x" | "0X" ) , hex , { [ "_" ] , hex } ;
 bin_lit = ( "0b" | "0B" ) , ( "0" | "1" ) , { [ "_" ] , ( "0" | "1" ) } ;
@@ -321,8 +326,8 @@ fnptr<ret, p1, p2, …>   ret 可为 void；参数必须是值类型；宽度 = 
 
 - 签名逐项等价；参数名不参与。
 - `nullptr` 兼容；`funcaddr f` 产生 `fnptr<sig>`；`call_indirect` 是 unsafe 指令。
-- `fnptr` ↔ 整数：`bitcast` 等宽，unsafe；`ptr` ↔ `fnptr` 禁止。
-- 跨签名 `bitcast` 禁止；`funceq`/`funcne` 只比较同型（或 nullptr）。
+- `fnptr` ↔ 整数：`bitcast` 等宽，unsafe；`ptr` ↔ `fnptr`、`fnptr` ↔ 浮点：禁止 `bitcast`。
+- 跨签名 `bitcast` 禁止；同签名 `fnptr↔fnptr` 是 safe 重解释；`funceq`/`funcne` 只比较同型（或 nullptr）。
 - 函数指针不携带 `@unsafe` 信息；所有间接调用都在 unsafe 上下文中进行。
 
 ### 3.7 结构体
@@ -336,13 +341,13 @@ end
 
 - 具名、名义类型；字段按声明顺序；字段名在同一结构体内唯一 → `TC_CE_DUPLICATE_FIELD`。
 - 至少 1 个字段；空结构体 → `TC_CE_EMPTY_STRUCT`。
-- 字段修饰符：`readonly`（构造后不可字段赋值）或 `var`（外层可写时可字段赋值）。
+- 字段修饰符：`readonly`（构造后其结构体值子树在安全代码中不可字段赋值）或 `var`（外层可写且路径无 `readonly` 时可字段赋值）。
 - **自引用**：字段类型可以是 `ptr<S>`/`ptr<ptr<S>>`，以及 `fnptr<…>` 签名中的 `S`（`fnptr` 宽度固定为 `usize`，签名不内联 `S`），因为指针/函数指针宽度固定；只有结构体值字段直接/间接出现 `S` 才会造成无限布局 → `TC_CE_STRUCT_SELF_VALUE`。
 - **前向引用**：字段类型不得引用尚未定义完毕的其它结构体（即使是 `ptr<其它>`）→ `TC_CE_UNDEFINED_NAME`；`S` 自身的指针/`fnptr` 签名自引用是例外。
 - 布局：字节单位，字段紧排；`@padding(N)` 在该字段后插入 N 个 0x00 字节；无隐式对齐/尾部填充。
-- `sizeof(S)` 返回字节数 = Σ(字段大小 + padding)；求和中溢出 `usize` → `TC_CE_CONST_OVERFLOW`。
+- `sizeof(S)` 返回字节数 = Σ(字段大小 + padding)；布局在 `struct` 声明处由 SEM 计算并缓存，求和中溢出 `usize` → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
 - 结构体是值类型：整块赋值/传参/返回复制全部字段与 padding；指针字段复制地址（所指对象共享）。
-- **整块赋值可以替换整个值，包括其中的 `readonly` 字段**；字段赋值仍受字段修饰符限制（§6.14）。
+- **整块赋值可以替换整个值，包括其中的 `readonly` 字段**；字段赋值按路径规则（§6.14）：目标路径上任一 `readonly` 字段都阻止赋值。深度只读作用于结构体值子树，不延伸到 `ptr` 字段所指对象。
 - 不支持结构体比较、算术、`cast`/`bitcast`、I/O；按字段操作。
 - 字段访问 `x.f`，可嵌套；`x.f` 是值（operand）。
 - 构造：`x = make S, v1, v2`；字段按声明顺序，全部必填，类型严格；也可写 `make S, x: v1, y: v2`（名字必须匹配字段且保持声明顺序）。
@@ -366,20 +371,20 @@ end
 
 ### 3.10 常量表达式
 
-`const` 初始化器、`@padding(N)`、`sizeof` 位置使用 `const_expr`：
+`const` 初始化器使用 `const_expr`（可含 `sizeof`）；`@padding(N)` 的 `N` 按 §2.6 单独约束：
 
 - 字面量（整数/浮点/bool/`nullptr`）；
-- 此前定义的 `const` 引用；`Self.K` / `m.K`（`public const`；跨模块求值/缓存见 §4.10）；
+- 此前定义的 `const` 引用；`Self.K`（本模块 `const`，含 `private`）/ `m.K`（必须是 `public const`；跨模块求值/缓存见 §4.10）；
 - `const` 结构体字段读取 `<const>.<field>`（逐层；每层中间结果是 const 结构体值）；
 - 纯运算：`add/sub/mul/div/mod/neg/abs/and/or/xor/not/shl/shr/eq/ne/lt/le/gt/ge`；
 - `cast`/`trunc`/`bitcast`；
 - `make S, …`（字段全为 const）；
 - `sizeof(T)`。
 
-**禁止**：`var`/参数、`addr`、`load`、`call`、`funcaddr`、`read`、`write`、`unsafe` 操作。 `const` 中的 `bitcast` 仅限数值↔数值（safe）；指针/`fnptr` 的位重解释是 unsafe → `TC_CE_CONST_FORM`。常量求值失败按原因映射（均为 CT）：
+**禁止**：`var`/参数、`addr`、`load`、`call`、`funcaddr`、`read`、`write`、`unsafe` 操作。 `const` 中的 `bitcast` 仅限数值↔数值（safe）；指针/`fnptr` 的位重解释在常量求值中不可用 → `TC_CE_CONST_FORM`。常量求值失败按原因映射（均为 CT）：
 
-- strict 整数/浮点溢出、`shl` 溢出 → `TC_CE_CONST_OVERFLOW`；
-- 整数/浮点除零 → `TC_CE_CONST_DIV_ZERO`；
+- strict 整数/浮点溢出、strict `shl` 溢出 → `TC_CE_CONST_OVERFLOW`；
+- 整数除零、strict 浮点除零（含 `mod` 零除数）→ `TC_CE_CONST_DIV_ZERO`；
 - 负移位计数 → `TC_CE_CONST_SHIFT`；
 - strict 浮点无效操作/NaN 输入 → `TC_CE_CONST_FLOAT_INVALID`；
 - strict 浮点下溢 → `TC_CE_CONST_FLOAT_UNDERFLOW`；
@@ -392,12 +397,28 @@ end
 | 形式 | 作用 | 规则 |
 |---|---|---|
 | `cast T, x` | 数值/bool 转换 | 范围检查；失败 trap `TC_RE_CAST_OVERFLOW`；浮点按 §6.6 |
-| `trunc T, x` | 整数窄化 | 仅整数，目标位宽 < 源；保留低位；不检查 |
-| `bitcast T, x` | 等宽位重解释 | 源/目标等宽；`bool` 禁止；数值↔数值 safe；ptr↔ptr safe；ptr↔int / fnptr↔int unsafe；ptr↔fnptr 禁止；跨签名 fnptr 禁止 |
+| `trunc T, x` | 整数窄化 | 仅整数，目标位宽 < 源；保留低位；不检查；目标位宽 ≥ 源 → `TC_CE_TRUNC_WIDTH` |
+| `bitcast T, x` | 等宽位重解释 | 类别矩阵见下；类别禁止 → `TC_CE_TYPE_MISMATCH`；类别允许但位宽不等 → `TC_CE_BITCAST_WIDTH` |
 
+**`bitcast` 类别矩阵**（行 = 源，列 = 目标；允许项仍须等宽）：
+
+| 源 \ 目标 | 整数 | 浮点 | `bool` | `ptr<U>` | `fnptr<sig2>` | 结构体 |
+|---|---|---|---|---|---|---|
+| 整数 | safe | safe | 禁止 | unsafe | unsafe | 禁止 |
+| 浮点 | safe | safe | 禁止 | 禁止 | 禁止 | 禁止 |
+| `bool` | 禁止 | 禁止 | 禁止 | 禁止 | 禁止 | 禁止 |
+| `ptr<T>` | unsafe | 禁止 | 禁止 | safe | 禁止 | 禁止 |
+| `fnptr<sig1>` | unsafe | 禁止 | 禁止 | 禁止 | safe（仅同签名） | 禁止 |
+| 结构体 | 禁止 | 禁止 | 禁止 | 禁止 | 禁止 | 禁止 |
+
+- `nullptr` 禁止作为 `bitcast` 源或目标。
+- 矩阵覆盖所有值类型类别；`void` 不是值类型（§3.8），作为转换目标 → `TC_CE_VOID`；函数、标签、模块不是类型，出现在类型位置按名称解析的既有诊断处理。
+- 判定顺序：先查类别矩阵（禁止 → `TC_CE_TYPE_MISMATCH`），再查位宽（允许类别但不等宽 → `TC_CE_BITCAST_WIDTH`）。
+- `ptr` 与 `fnptr` 宽度均为 `usize`，故 `ptr↔ptr` 恒等宽、`fnptr↔fnptr` 恒等宽；后者仍只允许同签名。
 - 指针重标记只用 `bitcast`；`cast` 不作用于指针。
+- `bitcast` 的类别禁止项（`bool`、指针↔浮点、`fnptr`↔浮点、指针↔`fnptr`、跨签名 `fnptr`、结构体、`nullptr`）及 `cast` 作用于指针 → `TC_CE_TYPE_MISMATCH`（SEM）。
 - `nullptr` 不需要转换：期望类型为 `ptr<T>`/`fnptr<…>` 时直接使用。
-- 字面量在转换操作数位置的源类型见 §6.6.2。
+- 字面量在转换操作数位置的源类型见 §6.6.3。
 
 ### 3.12 对象、存储期与指针状态
 
@@ -508,7 +529,7 @@ import m
 
 - 可见性只由修饰符决定；与名字字符无关。
 - `public static var` 可读可写（`m.x`）；`public const` 只读；`public func` 可调用；`private` 成员只能 `Self.x`。
-- `private` **类型** 出现在 `public` 签名、`public struct` 字段、`public const`/`static var` 的声明类型中 → `TC_CE_PRIVATE_TYPE`（SEM）。
+- `private` **类型** 出现在 `public` 签名、`public struct` 字段、`public const`/`public static var` 的声明类型或初始化器中 → `TC_CE_PRIVATE_TYPE`（SEM）。
 - `public` 初始化器引用 `private const` 是允许的（值内联，不泄露名字）；引用 `private` 类型/成员按上述规则检查。
 - 结构体字段全部对外可见（透明记录）；本版本不提供字段可见性/不透明类型。
 
@@ -550,8 +571,9 @@ CT 阶段以 `module_order`/模块内源序为**启动顺序**，对 `const` 与
 3. 初始化器内的常量引用按源文法从左到右依次递归求值；`make` 的命名字段按书写顺序处理。首个引用失败后立即停止，后续引用不再求值。该顺序只决定 CT 依赖求值与诊断，不改变 §3.10 的名称/类型检查阶段；它是 §12.2 模块顺序在 CT 子阶段的例外。
 4. 同一常量在一个模块或钻石依赖中只求值一次；成功和失败都缓存。
 5. CT 的首个诊断是按需求值过程中遇到的第一个失败，位置为目标声明；失败后停止，不再求值其它常量。
-6. 模块内源序和跨模块启动顺序保证独立错误的首错确定；依赖求值可以把目标模块提前，这是允许的，启动顺序只在无依赖时决定先后。
-7. 常量依赖无环：同模块只能引用更早的 `const`，跨模块只能沿 import DAG 单向引用，因此不会在“求值中”命中自身。
+6. 结构体布局与 `sizeof` 大小在 SEM 阶段计算并缓存；普通指令中的 `sizeof` 不参与 CT 求值，布局求和溢出 `TC_CE_LAYOUT_OVERFLOW` 在 SEM 报告，不进入 CT 排序。
+7. 模块内源序和跨模块启动顺序保证独立错误的首错确定；依赖求值可以把目标模块提前，这是允许的，启动顺序只在无依赖时决定先后。
+8. 常量依赖无环：同模块只能引用更早的 `const`，跨模块只能沿 import DAG 单向引用，因此不会在“求值中”命中自身。
 
 ---
 
@@ -569,7 +591,8 @@ CT 阶段以 `module_order`/模块内源序为**启动顺序**，对 `const` 与
 
 - **没有块级作用域**：`var`/`const` 是函数/程序作用域；`unsafe` 块也不引入新作用域。
 - 名字从声明处可见到函数/程序末尾（源序）；不得在声明前使用。
-- 同一函数/程序内不得重名（`var`/`const`/参数共享名字空间）→ `TC_CE_DUPLICATE_NAME`。
+- 同一函数/程序内不得重名（`var`/`const`/参数共享值名字空间；标签不在其中）→ `TC_CE_DUPLICATE_NAME`。
+- 标签有独立的标签命名空间：同一函数/程序内标签名与值名可以相同；值位置解析值，分支位置解析标签。
 - 局部名可以与模块成员同名；模块成员必须 `Self.`/`m.` 限定。
 - 类型名与值名分属不同命名空间；局部值名可以与结构体名相同（类型位置解析类型，值位置解析值）。
 
@@ -632,7 +655,7 @@ const K: int32 = 42
 
 ```text
 instruction := lhs "=" op [arg { "," arg }]
-lhs         := assignable | "_"
+lhs         := assignable | DISCARD
 assignable  := identifier { "." identifier }
              | "Self" "." identifier { "." identifier }
 op          := 助记符 [ "." 模式/修饰 ]
@@ -647,7 +670,7 @@ arg         := type | value | label | function | struct | named_arg
 4. `copy T, x` 是复制指令；赋值/初始化必须写 `copy` 或其它 op。
 5. `var x: T = op …` 的初始化器必须是一个 op（`copy`/计算/`call`/`read`/`make` 等）；`var` 是声明，不是指令；一行仍只含一个 op。
 6. 不允许 `x = add T, y, mul T, a, b` 这类嵌套；先落到临时槽。
-7. `_` 不能作为读取操作数；不能声明为变量名。
+7. `_` 是独立的丢弃记号 `DISCARD`，不能作为读取操作数，也不能作变量/参数/字段/标签/结构体/函数等声明名；在只接受 `IDENT` 的位置出现 → `TC_CE_SYNTAX`（SYN）。
 8. `call` 的实参可以按位置或按名字写；名字必须匹配形参且保持声明顺序（§8.4）。
 9. `make` 的字段可以按位置或按名字写；名字必须匹配字段且保持声明顺序（§3.7、§8.4）。
 10. `switch`/`br` 的目标是同一函数/程序内的标签。
@@ -749,7 +772,7 @@ arg         := type | value | label | function | struct | named_arg
 | `make` | `d = make S, v1, v2, …` | 结构体 `S` | `S` | pure | 无 | safe |
 | `copy` | `d = copy T, x` | 任意值类型 | T | pure | 无 | safe |
 
-- `make`：字段按声明顺序，全部必填，类型严格；也可用 `field: value` 命名形式，名字必须匹配字段且保持声明顺序；`@padding` 字节为 0。
+- `make`：字段按声明顺序，全部必填，类型严格；缺字段 → `TC_CE_MISSING_FIELD`，顺序不符 → `TC_CE_FIELD_ORDER`，重复字段 → `TC_CE_DUPLICATE_FIELD`；也可用 `field: value` 命名形式，名字必须匹配字段且保持声明顺序；`@padding` 字节为 0。
 - `copy`：标量/指针/`fnptr` 复制值；结构体整块复制（含 padding）；字段指针复制地址。
 - 赋值/初始化必须写 `copy` 或其它 op。
 
@@ -763,10 +786,10 @@ arg         := type | value | label | function | struct | named_arg
 | `return` | `_ = return [x]` | — | control | 无 | safe |
 | `trap` | `_ = trap` | — | control | `TC_RE_TRAP` | safe |
 
-- `switch`：`x` 为整数；`0→L0, 1→L1, …, n−1→Ln−1`；其它（含负数）→ `Ld`（最后一个标签，必须有）。
+- `switch`：`x` 必须为整数（否则 `TC_CE_SWITCH_TYPE`）；`0→L0, 1→L1, …, n−1→Ln−1`；其它（含负数）→ `Ld`（最后一个标签，必须有）。
 - `return`：`void` 函数无操作数；非 `void` 必须有操作数，类型严格等于返回类型。
 - `trap`：立即以 `TC_RE_TRAP` 终止。
-- 标签是声明 `label L:`，不是指令；函数/程序内唯一。
+- 标签是声明 `label L:`，不是指令；同一函数/程序的标签命名空间内唯一。
 
 #### 6.2.9 标准 I/O
 
@@ -800,7 +823,7 @@ arg         := type | value | label | function | struct | named_arg
 - 整数 `div` 向零；`mod` 余数随被除数；除零 → `TC_RE_DIV_ZERO`。
 - `shr` 在 `k<n` 时：signed 为算术右移（补符号），unsigned 为逻辑右移（补 0）。
 - `k>=n`：非零 `a` 的 strict `shl` 溢出（`a=0` 时结果为 0）；`shl.wrap` 返回 0；`shr` 返回 0。`shr` 的这个 0 是 TC 的特殊大计数规则，不做符号扩展。
-- 浮点 strict：上溢/下溢/除零/无效操作 trap；优先级 `INVALID → DIV_ZERO → OVERFLOW → UNDERFLOW`。
+- 浮点 strict：上溢 → `TC_RE_FLOAT_OVERFLOW`、下溢 → `TC_RE_FLOAT_UNDERFLOW`、除零 → `TC_RE_DIV_ZERO`、无效操作 → `TC_RE_FLOAT_INVALID`；优先级 `INVALID → DIV_ZERO → OVERFLOW → UNDERFLOW`。
 - 浮点 `.ieee`：返回 ±inf/NaN；NaN canonical quiet NaN；不 trap。
 - 浮点 `mod`：商向零截断的余数；`b=0` 的 strict 规则见 §6.3.3。
 - 浮点 `abs`/`neg`：只改符号位；NaN/Inf 不 trap。
@@ -860,12 +883,8 @@ arg         := type | value | label | function | struct | named_arg
 #### 6.6.2 `bitcast`
 
 - 源/目标等宽；不改位。
-- `bool` 禁止。
-- 数值↔数值：safe。
-- `ptr<T>↔ptr<U>`：safe（重标记）。
-- `ptr↔整数`、`fnptr↔整数`：unsafe；结果为环境定义地址/整数。
-- `ptr↔fnptr`：禁止；跨签名 `fnptr↔fnptr`：禁止。
-- `nullptr`：禁止。
+- 类别矩阵见 §3.11：数值↔数值 safe；`ptr↔ptr` safe；同签名 `fnptr↔fnptr` safe；`ptr↔整数`、`fnptr↔整数` unsafe；其余类别组合一律禁止。
+- 判定顺序：先类别后位宽。类别禁止（含 `bool`、指针↔浮点、`fnptr`↔浮点、指针↔`fnptr`、跨签名 `fnptr`、结构体、`nullptr`）→ `TC_CE_TYPE_MISMATCH`；类别允许但位宽不等 → `TC_CE_BITCAST_WIDTH`。
 - 位模式按抽象位串，不依赖宿主端序。
 
 #### 6.6.3 字面量操作数的源类型
@@ -875,13 +894,14 @@ arg         := type | value | label | function | struct | named_arg
 | `cast` | 无后缀整数 | `int64`；必须在 int64 范围 |
 | `cast` | `u` 整数 | `uint64` |
 | `cast` | 浮点 | `f`/`F` → float32；否则 float64 |
-| `cast` | `inf`/`-inf`/`nan` | 目标类型 |
+| `cast` | `inf`/`-inf`/`nan` | 目标必须是浮点类型；源类型 = 目标类型 |
 | `bitcast` | 整数 | 源位宽 = 目标位宽；后缀决定符号 |
 | `bitcast` | 浮点 | `f`/`F` → float32；否则 float64 |
 | `bitcast` | `inf`/`-inf`/`nan` | 目标 32 位→float32；64 位→float64 |
 | `bitcast` | `nullptr` | 非法 |
 
 - 普通指令/`copy`/`make`/`call`/`return`/`write` 的字面量以期望类型检查。
+- 字面量值超出其源类型或上下文期望类型可表示范围 → `TC_CE_LITERAL_RANGE`（SEM）。
 - 非零有限浮点字面量舍入为零/有限值舍入为 inf → `TC_CE_LITERAL_LEX_RANGE`（LEX）。
 - 类别/后缀/符号性不符 → `TC_CE_LITERAL_TYPE`（SEM）。
 
@@ -919,7 +939,7 @@ arg         := type | value | label | function | struct | named_arg
 
 ### 6.10 控制语义
 
-- 标签是函数/程序作用域的唯一名字；`label L:` 声明；`br L` 跳转。
+- 标签在函数/程序内建立**独立的标签命名空间**（与值名分离）；`label L:` 声明；分支位置 `br L` 解析标签。
 - `br_if c, L`：`c` 为 `bool`；true 跳转。
 - `switch x, L0,…,Ld`：整数；越界→`Ld`。
 - `return`：见 §6.9。
@@ -932,7 +952,7 @@ arg         := type | value | label | function | struct | named_arg
 - `read T`：跳过前导 ASCII 空白（`0x09–0x0D`、`0x20`），读一个完整 Token；非法/范围/EOF → `TC_RE_IO`。
   - 整数：可选 `-`（仅 signed）+ 十进制数字；无前导 `+`/进制前缀/分隔符。
   - `bool`：`true`/`false`（小写）。
-  - 浮点：十进制/小数点/指数；`inf`/`-inf`/`nan`；不接受 `f` 后缀/`-nan`/`+`。
+  - 浮点：十进制/小数点/指数；`inf`/`-inf`/`nan`；不接受 `f` 后缀/`-nan`/`+`；`nan` 产生 canonical quiet NaN（正号）。
 - `write T, x`：写该值的确定性文本；`writeln` 追加 LF。
   - 整数：十进制；signed 可带 `-`；无前导零（0 除外）。
   - `bool`：`true`/`false`。
@@ -952,8 +972,10 @@ arg         := type | value | label | function | struct | named_arg
 ### 6.13 `sizeof` 与常量
 
 - `sizeof(T)`：字节数；`usize`；编译期常量；可用于 `const_expr` 和指令。
-- 结构体大小 = Σ(字段大小 + `@padding`)；无隐式对齐/尾部填充；求和中溢出 → `TC_CE_CONST_OVERFLOW`。
+- 文档中的 `sizeof(T)` 是类型大小记号；指令语法是 `sizeof T`（§6.2.5、§13.4）。
+- 结构体大小 = Σ(字段大小 + `@padding`)；无隐式对齐/尾部填充；布局在 `struct` 声明处由 SEM 计算并缓存，求和中溢出 `usize` → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
 - `sizeof(void)` → `TC_CE_VOID`；`sizeof` 不作用于函数/标签/模块。
+- `sizeof(void)` 在使用处报 `TC_CE_VOID`；结构体布局溢出在声明处报 `TC_CE_LAYOUT_OVERFLOW`；两者同属 SEM，按 §12.2 的模块遍历/源序确定首诊。
 
 | 类型 | `sizeof`（字节） |
 |---|---|
@@ -982,10 +1004,11 @@ arg         := type | value | label | function | struct | named_arg
 
 - 基址 `x` 必须是结构体类型的可写槽（`var`/`static var`/程序 `var`）；基址是参数 → `TC_CE_PARAMETER_ASSIGNMENT`；基址是 `const` → `TC_CE_CONST_ASSIGNMENT`。
 - 字段必须存在（`TC_CE_UNKNOWN_FIELD`）；中间层必须是结构体（`TC_CE_TYPE_MISMATCH`）。
-- 字段为 `readonly` → `TC_CE_IMMUTABLE_FIELD`；字段为 `var` → 允许。
+- 路径规则：从基址开始沿目标路径自左向右检查每个字段；任一字段为 `readonly` → `TC_CE_IMMUTABLE_FIELD`（诊断为路径上首个 `readonly` 字段）；全部为 `var` → 允许。
+- 深度只读只作用于结构体值子树；`ptr` 字段所指对象不受该字段 `readonly` 修饰影响，经指针写入按 unsafe 规则。
 - `readonly` 是**安全代码的赋值规则**；`addr` 取得的字段指针在 unsafe 代码中经 `store` 可以写穿。这是显式 unsafe 行为，不属于安全代码。
 - 右侧结果类型必须严格等于**字段**类型（不是整个结构体类型）。
-- 整块赋值 `x = make S, …`/`x = copy S, y` 可以替换整个值，包括其中 `readonly` 字段；字段赋值仍禁止。
+- 整块赋值 `x = make S, …`/`x = copy S, y` 可以替换整个值（路径规则的唯一例外），包括其中 `readonly` 字段；字段赋值仍禁止。
 - 字段赋值不改变外层槽的“已初始化”状态；外层槽本身必须已初始化。
 - `addr T, x.f` 取字段地址；字段类型必须等于 `T`。
 
@@ -1013,7 +1036,7 @@ _ = trap              // 立即 trap
 
 - 控制流由上述指令组成。
 - `return` 只作为核心指令助记符存在；返回写作 `_ = return x` / `_ = return`。
-- 标签是函数/程序作用域的唯一名字；可前向/后向；不跨函数/程序；可跳过 `var` 声明，由 DI 负责。
+- 标签在函数/程序内建立独立的标签命名空间（与值名分离）；可前向/后向；不跨函数/程序；可跳过 `var` 声明，由 DI 负责。
 
 ### 7.2 标签与无条件分支
 
@@ -1022,8 +1045,9 @@ label L:
 _ = br L
 ```
 
-- `label L:` 是声明，不产生运行时动作；同一函数/程序内唯一 → `TC_CE_DUPLICATE_LABEL`。
-- `_ = br L` 跳到同函数/程序的 `L`；目标不存在 → `TC_CE_LABEL_NOT_FOUND`。
+- `label L:` 是声明，不产生运行时动作；同一函数/程序内标签重名 → `TC_CE_DUPLICATE_LABEL`。
+- 标签名与值名分属不同命名空间：`label L:` 与 `var L` 可以共存；分支位置解析标签，值位置解析值。
+- `_ = br L` 跳到同函数/程序的 `L`；目标标签不存在 → `TC_CE_LABEL_NOT_FOUND`。
 - 允许前向/后向跳转；允许跳过 `var` 声明；读取未初始化槽 → `TC_CE_UNINITIALIZED`。
 - 不允许跨函数/程序；标签表按函数/程序隔离。
 
@@ -1088,7 +1112,7 @@ label L2:
 label L_end:
 ```
 
-- `x` 必须是整数；`0→L0, 1→L1, …, n−1→Ln−1`；其它（含负数）→最后一个标签 `Ld`。
+- `x` 必须是整数（否则 `TC_CE_SWITCH_TYPE`）；`0→L0, 1→L1, …, n−1→Ln−1`；其它（含负数）→最后一个标签 `Ld`。
 - 最后一个标签是默认分支，必须有。
 - `switch` 是核心指令。
 
@@ -1168,7 +1192,7 @@ end
 | `@fast` | 函数 | unsafe 上下文 + 优化契约；调用者需要 unsafe 上下文；允许承诺注解 |
 | `@fast_math` | `@fast` 函数 | 仅 §10.3 的浮点因果例外：浮点值、浮点 trap、由这些值决定的控制流/终止可能不同；调用者需要 unsafe 上下文 |
 | `@pure` | `@fast` 函数 | 无内存效果（普通局部/参数槽值操作除外）；不 `addr`/`load`/`store`/I/O；不调用非 `@pure`；结果只依赖参数值；违反 UB |
-| `@readonly` | `@fast` 函数 | 无内存写入（普通局部槽写除外）；可读普通内存，不 I/O、不读 volatile/设备；违反 UB |
+| `@readonly` | `@fast` 函数 | 无内存写入（普通局部槽写除外）；可读普通内存，不 I/O、不读 volatile/设备；只调用 `@pure`/`@readonly`；违反 UB |
 | `@nounwind` | `@fast` 函数 | 函数体及动态调用范围内无 trap（含栈溢出）；违反 UB |
 | `@willreturn` | `@fast` 函数 | 有限步内返回或执行终止 trap；不会无限执行；违反 UB |
 | `@no_overflow` | `@fast` 函数 | 函数内 strict 有符号 `add/sub/mul/neg/abs`、`div` 的溢出与全部 strict `shl` 不溢出（不覆盖除零）；违反 UB |
@@ -1214,7 +1238,7 @@ end
 | 地址/位串重解释 | `bitcast` 指针↔整数、`fnptr`↔整数 |
 | 不安全调用 | 直接 `call` 到 `@unsafe`/`@fast`/`@fast_math` 函数（在 unsafe 上下文外） |
 
-以下**不是** unsafe：`addr`、`ptrdiff`、`ptreq/ne/lt/le/gt/ge`、`funcaddr`、`funceq/funcne`、数值 `bitcast`、`ptr↔ptr` `bitcast`、`cast`、`trunc`、全部算术/位/比较/逻辑、`make`、`copy`、`sizeof`、`read`/`write`/`writeln`、`trap`。
+以下**不是** unsafe：`addr`、`ptrdiff`、`ptreq/ne/lt/le/gt/ge`、`funcaddr`、`funceq/funcne`、数值 `bitcast`、`ptr↔ptr` `bitcast`、同签名 `fnptr↔fnptr` `bitcast`、`cast`、`trunc`、全部算术/位/比较/逻辑、`make`、`copy`、`sizeof`、`read`/`write`/`writeln`、`trap`。
 
 ### 9.3 `unsafe` 块与 `@unsafe` 函数
 
@@ -1284,7 +1308,7 @@ end
 | `@nonnull` | 指针形参 | 非空 | UB |
 | `@align(N)` | 指针形参 | 地址按 N 对齐 | UB |
 | `@range(lo,hi)` | 整数形参 | 调用时实参值在 `[lo,hi]`；`lo/hi` 为同类型常量 | UB |
-| `@pure` | 函数 | 无内存效果（普通局部/参数槽值操作除外）；不 `addr`/`load`/`store`/I/O；结果只依赖参数值 | UB |
+| `@pure` | 函数 | 无内存效果（普通局部/参数槽值操作除外）；不 `addr`/`load`/`store`/I/O；不调用非 `@pure`；结果只依赖参数值 | UB |
 | `@readonly` | 函数 | 无内存写入（普通局部槽写除外）；可读普通内存，不 I/O、不读 volatile/设备；只调用 `@pure`/`@readonly` | UB |
 | `@nounwind` | 函数 | 函数体及动态调用范围内不发生任何 trap（含 `TC_RE_STACK_OVERFLOW`） | UB |
 | `@willreturn` | 函数 | 有限步内返回或执行终止 trap；不会无限执行 | UB |
@@ -1370,7 +1394,7 @@ end
 - 只有 `read T`、`write T, x`、`writeln T, x`；`T` 是标量。
 - 无格式说明符、字符串、字段整块 I/O、文件/参数/环境 API。
 - `write`/`writeln` 的整条输出要么全部提交，要么 `TC_RE_IO` 且贡献 0 字节；已提交前缀不回滚。
-- `read` 失败不修改目标（因为 `read` 是表达式，结果写入 LHS；失败时 LHS 不提交）。
+- `read` 失败不修改目标（因为 `read` 以 LHS 为目标，失败时 LHS 不提交）。
 
 ### 11.2 输出格式（确定性）
 
@@ -1390,7 +1414,7 @@ end
 - 跳过前导 ASCII 空白（`0x09–0x0D`、`0x20`）；读一个完整 Token；非法/范围/EOF → `TC_RE_IO`。
 - 整数：可选 `-`（仅 signed）+ 十进制数字；无 `+`/进制前缀/分隔符/前导零限制（输入允许前导零）。
 - `bool`：`true`/`false`（小写）。
-- 浮点：十进制整数/小数/指数；`inf`/`-inf`/`nan`；不接受 `f` 后缀/`-nan`/`+`；小数点两侧要有数字。
+- 浮点：十进制整数/小数/指数；`inf`/`-inf`/`nan`；不接受 `f` 后缀/`-nan`/`+`；小数点两侧要有数字；`nan` 产生 canonical quiet NaN（正号）。
 - 浮点输入先解析精确十进制值，再按 roundTiesToEven 到目标格式；非零→0/有限→inf 是 `TC_RE_IO`。
 - 输入 Token 必须完整匹配；`12abc` 非法。
 
@@ -1424,6 +1448,7 @@ end
 2. **模块遍历顺序**：每个阶段内，从根模块开始，按 `import` 源序深度优先遍历，首次访问为准；CT 的依赖求值例外见 §4.10。
 3. **同模块、同阶段按源序**：行升序；同行列升序；同位置按专用码优先（如 `TC_CE_MISSING_END` 优先于 `TC_CE_SYNTAX`）。
 4. **条款内顺序优先**：如浮点异常优先级、负移位计数先行、空指针先于范围检查。
+5. **布局诊断归属 SEM**：结构体布局在 `struct` 声明处计算；`TC_CE_LAYOUT_OVERFLOW` 按 SEM 的模块遍历/源序参与首诊排序，不进入 CT 阶段。
 
 #### 12.2.1 模块发现与 PARSE 顺序
 
@@ -1444,13 +1469,13 @@ PARSE 阶段用以下算法确定模块集合与顺序：
 
 ### 12.3 诊断码（完整集）
 
-> 本表是完整集合（64 个 `TC_CE_*` + 15 个 `TC_RE_*`）；正文未列出的码不存在。阶段：LEX/SYN/SEM/CT/RT。
+> 本表是完整集合（65 个 `TC_CE_*` + 15 个 `TC_RE_*`）；正文未列出的码不存在。阶段：LEX/SYN/SEM/CT/RT。
 
 #### 词法/语法
 
 | 码 | 阶段 | 触发 |
 |---|---|---|
-| `TC_CE_SYNTAX` | LEX/SYN | 非法 UTF-8/BOM/U+0000/注释外非 ASCII/未列出字符；Token 序列不符合语法；代码后 `;` |
+| `TC_CE_SYNTAX` | LEX/SYN | 非法 UTF-8/BOM/U+0000/注释外非 ASCII/未列出字符；Token 序列不符合语法；代码后 `;`；`DISCARD` 出现在只接受 `IDENT` 的位置 |
 | `TC_CE_MISSING_END` | SYN | `func`/`struct`/`unsafe` 缺 `end` |
 | `TC_CE_MODULE_LAYER` | SYN | 模块层序交错 |
 | `TC_CE_MISSING_VISIBILITY` | SYN | `#lib` 成员缺 `public`/`private` |
@@ -1465,28 +1490,28 @@ PARSE 阶段用以下算法确定模块集合与顺序：
 | 码 | 阶段 | 触发 |
 |---|---|---|
 | `TC_CE_UNDEFINED_NAME` | SEM | 名字未解析到槽/`const`/成员 |
-| `TC_CE_DUPLICATE_NAME` | SEM | 同一函数/程序内 `var`/`const`/参数重名 |
+| `TC_CE_DUPLICATE_NAME` | SEM | 同一函数/程序的值名字空间内 `var`/`const`/参数重名 |
 | `TC_CE_DUPLICATE_MEMBER` | SEM | 模块成员重名 |
 | `TC_CE_DUPLICATE_PARAMETER` | SEM | 形参重名 |
 | `TC_CE_FUNCTION_SCOPE_ACCESS` | SEM | 函数体内裸名引用本模块成员 |
 | `TC_CE_UNDEFINED_FUNCTION` | SEM | 函数名未解析 |
 | `TC_CE_PRIVATE_ACCESS` | SEM | 访问 `private` 成员 |
-| `TC_CE_PRIVATE_TYPE` | SEM | `private` 类型出现在 `public` 签名/初始化器 |
+| `TC_CE_PRIVATE_TYPE` | SEM | `private` 类型出现在 `public` 签名、`public struct` 字段、`public const`/`public static var` 声明类型或初始化器 |
 | `TC_CE_IMPORT_NOT_FOUND` | SEM | 找不到 `m.tc` |
 | `TC_CE_IMPORT_NOT_LIB` | SEM | 导入目标不是 `#lib` |
 | `TC_CE_DUPLICATE_IMPORT` | SEM | 重复导入 |
 | `TC_CE_CIRCULAR_IMPORT` | SEM | 自导入/循环导入 |
 | `TC_CE_IMPORT_NAME_CONFLICT` | SEM | 导入名与本地名冲突 |
-| `TC_CE_DUPLICATE_LABEL` | SEM | 同函数/程序标签重名 |
+| `TC_CE_DUPLICATE_LABEL` | SEM | 同函数/程序的标签命名空间内重名 |
 | `TC_CE_LABEL_NOT_FOUND` | SEM | `br`/`switch` 目标不存在 |
 
 #### 类型/声明/控制
 
 | 码 | 阶段 | 触发 |
 |---|---|---|
-| `TC_CE_TYPE_MISMATCH` | SEM | 赋值/传参/返回/操作数类型或目标形态不符 |
+| `TC_CE_TYPE_MISMATCH` | SEM | 赋值/传参/返回/操作数类型或目标形态不符，含 `bitcast`/`cast` 的类别禁止组合 |
 | `TC_CE_LITERAL_TYPE` | SEM | 字面量类别/后缀/符号性与期望不符 |
-| `TC_CE_LITERAL_RANGE` | SEM | 字面量值在期望类型中不可表示 |
+| `TC_CE_LITERAL_RANGE` | SEM | 字面量值在源类型或期望类型中不可表示 |
 | `TC_CE_MODE` | SEM | 运算/类型/模式组合非法 |
 | `TC_CE_CONDITION_TYPE` | SEM | `br_if` 条件不是 `bool` |
 | `TC_CE_RETURN_TYPE` | SEM | `return` 类型不符 |
@@ -1503,13 +1528,14 @@ PARSE 阶段用以下算法确定模块集合与顺序：
 | `TC_CE_DUPLICATE_FIELD` | SEM | `make` 重复字段，或结构体字段重名 |
 | `TC_CE_STRUCT_SELF_VALUE` | SEM | 结构体值位置直接/间接自引用（无限布局；`fnptr` 签名除外） |
 | `TC_CE_EMPTY_STRUCT` | SEM | 结构体没有字段 |
+| `TC_CE_LAYOUT_OVERFLOW` | SEM | 结构体布局求和溢出 `usize` |
 | `TC_CE_FIELD_ORDER` | SEM | `make` 字段顺序不符 |
-| `TC_CE_IMMUTABLE_FIELD` | SEM | 对 `readonly` 字段赋值 |
+| `TC_CE_IMMUTABLE_FIELD` | SEM | 对 `readonly` 字段赋值，或字段赋值路径经过 `readonly` 字段 |
 | `TC_CE_CONST_ASSIGNMENT` | SEM | 对 `const`/`Self.K`/`m.K` 赋值 |
 | `TC_CE_PARAMETER_ASSIGNMENT` | SEM | 对参数赋值/`read` 目标 |
 | `TC_CE_UNINITIALIZED` | SEM | 读取/赋值/`read` 未确定初始化 |
 | `TC_CE_ADDR_OF_CONST` | SEM | 对 `const` 取址 |
-| `TC_CE_BITCAST_WIDTH` | SEM | `bitcast` 位宽不等 |
+| `TC_CE_BITCAST_WIDTH` | SEM | `bitcast` 类别允许但位宽不等 |
 | `TC_CE_TRUNC_WIDTH` | SEM | `trunc` 目标位宽 ≥ 源 |
 | `TC_CE_SWITCH_TYPE` | SEM | `switch` 值不是整数 |
 | `TC_CE_VOID` | SEM | `void` 作值类型/参数/`var`/转换目标 |
@@ -1522,9 +1548,9 @@ PARSE 阶段用以下算法确定模块集合与顺序：
 | `TC_CE_UNSAFE_CALL` | SEM | 调 `@unsafe` 不在 unsafe 上下文 |
 | `TC_CE_FAST_CALL` | SEM | 调 `@fast`/`@fast_math` 不在 unsafe 上下文 |
 | `TC_CE_SAFE_VIOLATION` | SEM | `@safe` 函数含 unsafe 指令/调用 |
-| `TC_CE_CONST_FORM` | SEM | `const` 初始化器含非法形态（`var`/`call`/`addr`/`load`/`@padding` 非法等） |
-| `TC_CE_CONST_OVERFLOW` | CT | 常量 strict 整数/浮点溢出或 `shl` 溢出 |
-| `TC_CE_CONST_DIV_ZERO` | CT | 常量整数/浮点除零 |
+| `TC_CE_CONST_FORM` | SEM | `const` 初始化器含非法形态（`var`/`call`/`addr`/`load` 等），或 `@padding(N)` 的 `N` 不合 §2.6 |
+| `TC_CE_CONST_OVERFLOW` | CT | 常量 strict 整数/浮点溢出或 strict `shl` 溢出 |
+| `TC_CE_CONST_DIV_ZERO` | CT | 常量整数除零、strict 浮点除零（含 `mod` 零除数） |
 | `TC_CE_CONST_SHIFT` | CT | 常量 `shl`/`shr` 计数为负 |
 | `TC_CE_CONST_FLOAT_INVALID` | CT | 常量 strict 浮点无效操作/NaN 输入 |
 | `TC_CE_CONST_FLOAT_UNDERFLOW` | CT | 常量 strict 浮点下溢 |
@@ -1564,7 +1590,7 @@ PARSE 阶段用以下算法确定模块集合与顺序：
 ### 13.1 约定
 
 - 空行、纯注释行、续行由词法层处理；语法层的 `NL` 只表示语句/声明结束。
-- `IDENT`/`INT`/`FLOAT` 是 §2 的 Token；`opcode` 必须是 §6.2 的助记符（可带 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw`）。
+- `IDENT`/`INT`/`FLOAT`/`DISCARD` 是 §2 的 Token；`opcode` 必须是 §6.2 的助记符（可带 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw`）。
 - `op_form` 是通用形态；opcode 表决定字段是 type/value/label/function/struct。字段不匹配 → `TC_CE_OPERAND_COUNT`/`TC_CE_TYPE_MISMATCH`。
 - `%` 不参与语法；注释外的 `%` 是 `TC_CE_SYNTAX`。
 - `Self` 只在 `#lib`；`#program` 使用 → `TC_CE_PROGRAM_MODE_MISUSE`。
@@ -1573,8 +1599,10 @@ PARSE 阶段用以下算法确定模块集合与顺序：
 
 ```ebnf
 NL        = "\n" | "\r\n" | "\r" ;
-IDENT     = ( letter | "_" ) , { letter | digit | "_" } ;
-INT       = [ "-" ] , ( dec | hex | bin | oct ) , [ "u" | "U" ] ;
+IDENT     = letter , { letter | digit | "_" }
+          | "_" , ( letter | digit | "_" ) , { letter | digit | "_" } ;
+DISCARD   = "_" ;
+INT       = ( [ "-" ] , ( dec | hex | bin | oct ) ) | ( ( dec | hex | bin | oct ) , ( "u" | "U" ) ) ;  /* 负号不与 u/U 组合 */
 FLOAT     = [ "-" ] , ( digit , { digit } , "." , digit , { digit } , [ exp ]
                       | digit , { digit } , exp ) , [ "f" | "F" ] ;
 INF_LIT   = [ "-" ] , "inf" ;
@@ -1633,7 +1661,7 @@ statement      = instruction | var_decl | const_decl | label_def
 
 var_decl       = "var" , IDENT , ":" , type , "=" , op_form , NL ;
 instruction    = lhs , "=" , op_form , NL ;
-lhs            = assignable | "_" ;
+lhs            = assignable | DISCARD ;
 assignable     = IDENT , { "." , IDENT }
                | "Self" , "." , IDENT , { "." , IDENT } ;
 op_form        = opcode , [ op_arg , { "," , op_arg } ] ;
