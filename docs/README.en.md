@@ -17,7 +17,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Compiler Specification 0.0.46](TC编译器标准设计说明书-0.0.46.md) | 0.0.46 compiler target specification (chapter-by-chapter sync in progress): 13-stage pipeline, diagnostic priority, platform profile, checked build |
+| [TC Compiler Specification 0.0.46](TC编译器标准-0.0.46.md) | 0.0.46 compiler target specification (chapter-by-chapter sync in progress): 13-stage pipeline, diagnostic priority, platform profile, checked build |
 | [TC Language Specification 0.0.44](TC语言标准设计说明书-0.0.44.md) | 0.0.44 implementation-baseline language specification (historical baseline; the factual reference until 0.0.46 is implemented) |
 | [TC Compiler Specification 0.0.44](TC编译器标准设计说明书-0.0.44.md) | 0.0.44 implementation baseline: 13-stage pipeline, diagnostic priority, call graph |
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
@@ -46,4 +46,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current implementation version: **v0.0.44** (Phases 1–7 aligned with the 0.0.44 design documents). **0.0.45 was never released and is deprecated**. The 0.0.46 language standard is final and is the single source of truth: [TC语言标准-0.0.46.md](TC语言标准-0.0.46.md) (implementation not yet updated). The 0.0.46 compiler standard is being synced chapter by chapter: [TC编译器标准设计说明书-0.0.46.md](TC编译器标准设计说明书-0.0.46.md) (new §12 platform profile and checked build).
+Current implementation version: **v0.0.44** (Phases 1–7 aligned with the 0.0.44 design documents). **0.0.45 was never released and is deprecated**. The 0.0.46 language standard is final and is the single source of truth: [TC语言标准-0.0.46.md](TC语言标准-0.0.46.md) (implementation not yet updated). The 0.0.46 compiler standard is being synced chapter by chapter: [TC编译器标准-0.0.46.md](TC编译器标准-0.0.46.md) (new §12 platform profile and checked build).

@@ -33,7 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # ---- 被检查的设计性质文档 -------------------------------------------------
 DESIGN_DOCS = [
     "docs/TC语言标准-0.0.46.md",
-    "docs/TC编译器标准设计说明书-0.0.46.md",
+    "docs/TC编译器标准-0.0.46.md",
     "docs/TC语言标准设计说明书-0.0.44.md",
     "docs/TC编译器标准设计说明书-0.0.44.md",
     "docs/TC-VM详细设计说明书-0.0.44.md",
@@ -46,7 +46,7 @@ DESIGN_DOCS = [
 # ---- 允许被设计文档引用的目标（同为设计/规范的文档，按 basename 前缀） ----
 ALLOWED_DOC_PREFIXES = (
     "TC语言标准",
-    "TC编译器标准设计说明书",
+    "TC编译器标准",
     "TC-VM详细设计说明书",
     "TC-VM命令行参考",
     "TC-AOT详细设计说明书",
