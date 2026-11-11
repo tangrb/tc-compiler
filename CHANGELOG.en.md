@@ -11,13 +11,14 @@ and this project roughly follows [Semantic Versioning](https://semver.org/) for 
 
 ### Added
 
-- **0.0.46 standards merged (2026-11-11)**: the language standard and the compiler standard are merged into the single document [TC 语言及编译器标准-0.0.46.md](docs/TC语言及编译器标准-0.0.46.md) (language part §0–§13, compiler part §14–§26, with the unified 80-code table and print names). The two old documents have been deleted.
+- **0.0.46 standards merged (2026-11-11)**: the language standard and the compiler standard are merged into the single document [TC 语言及编译器标准-0.0.46.md](docs/TC语言及编译器标准-0.0.46.md) (topic chapters §0–§14: language rules and compiler implementation requirements, with the unified 80-code table and print names). The two old documents have been deleted.
 - **0.0.46 language standard design frozen (2026-11-06)**: the address model, function addresses, and dangling-pointer semantics are final; only errata are accepted from now on ([standard](docs/TC语言及编译器标准-0.0.46.md)).
 - **0.0.46 compiler standard rewrite completed**: [TC语言及编译器标准-0.0.46.md](docs/TC语言及编译器标准-0.0.46.md) has been fully rewritten against the 0.0.46 language standard: 13 chapters cover the compilation pipeline, lexing, types, modules/declarations, definite initialization, instruction set, control flow, functions, safety, optimization contract, I/O, the 80-code diagnostic tables, and platform profiles; 0.0.44 constructs such as memblock, `let`, `if`/`while`, and format specifiers have been removed.
 - **0.0.46 standard text**: [TC语言及编译器标准-0.0.46.md](docs/TC语言及编译器标准-0.0.46.md) is the single source of truth for 0.0.46 (implementation not yet updated).
 
 ### Changed
 
+- **0.0.46 standard reorganized by topic**: the merged standard now uses 15 topic chapters (§0–§14) instead of separate language/compiler parts; each chapter presents language rules followed by compiler implementation requirements. Duplicated rule tables and stage descriptions were removed without changing normative semantics; the version remains 0.0.46.
 - **0.0.46 documentation closeout**: the root README, CONTRIBUTING, examples, docs/README, and Cursor navigation now uniformly treat the 0.0.46 standard as the sole authority and v0.0.44 as the implementation baseline; `check_doc_layering.py` covers six design/spec documents; new relative-link and keyword-consistency gates (`check_doc_links.py` / `check_keywords.py`) run in pre-commit and CI.
 
 ### Deprecated

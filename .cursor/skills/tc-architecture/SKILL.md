@@ -48,7 +48,7 @@ description: >-
 | stmt_index / DFS | `tc_stmt_index.h` → [kg-cfg.md](kg-cfg.md) | — |
 | 跑测试 / CI | Skill `run-tests` | — |
 | Review / PR | Skill `review-tc-code` | — |
-| 语言/编译器规范全文 | `docs/TC语言及编译器标准-0.0.46.md`（权威，语言篇 + 编译器篇）· 0.0.44 设计书（实现基线） | 整份 skill |
+| 语言/编译器规范全文 | `docs/TC语言及编译器标准-0.0.46.md`（权威，语言规则 + 编译器实现要求）· 0.0.44 设计书（实现基线） | 整份 skill |
 | libtc API | `docs/libtc设计说明书-0.0.44.md` | pipeline |
 
 ## Pipeline（一行）

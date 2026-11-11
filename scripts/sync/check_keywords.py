@@ -4,8 +4,8 @@
 check_keywords.py — 0.0.46 标准关键字/opcode/EBNF 一致性检查
 
 检查：
-  - §2.3 关键字表的语法关键字均能在 §13 EBNF 引号终端中找到；
-  - §13 EBNF 的关键字形态终端均登记在 §2.3；
+  - §2.3 关键字表的语法关键字均能在 §14 EBNF 引号终端中找到；
+  - §14 EBNF 的关键字形态终端均登记在 §2.3；
   - §2.3 指令表与 §6.2 opcode 表一致（含 copy）；
   - 标签声明使用 `label L:`，注解文法支持 `@readonly`。
 """
@@ -54,7 +54,7 @@ def extract_keyword_table(text):
 
 
 def extract_ebnf_terminals(text):
-    body = section(text, r"^##\s+13\.\s+", r"\n##\s+")
+    body = section(text, r"^##\s+14\.\s+", r"\n##\s+")
     terminals = set()
     for block in re.findall(r"```ebnf\n(.*?)```", body, re.S):
         for token in re.findall(r'"([^"]*)"', block):
@@ -92,10 +92,10 @@ def main():
         failures.append("§2.3 重复出现：" + ", ".join(duplicates))
     missing_in_ebnf = sorted(syntax - terminals)
     if missing_in_ebnf:
-        failures.append("§2.3 有、§13 EBNF 无：" + ", ".join(missing_in_ebnf))
+        failures.append("§2.3 有、§14 EBNF 无：" + ", ".join(missing_in_ebnf))
     missing_in_table = sorted(terminals - syntax)
     if missing_in_table:
-        failures.append("§13 EBNF 有、§2.3 无：" + ", ".join(missing_in_table))
+        failures.append("§14 EBNF 有、§2.3 无：" + ", ".join(missing_in_table))
     missing_in_6_2 = sorted(ops - table_ops)
     if missing_in_6_2:
         failures.append("§2.3 指令有、§6.2 opcode 无：" + ", ".join(missing_in_6_2))
@@ -105,9 +105,9 @@ def main():
     if "copy" not in ops or "copy" not in table_ops:
         failures.append("copy 未同时出现在 §2.3 指令表与 §6.2 opcode 表")
     if not re.search(r'label_def\s*=\s*"label"', text):
-        failures.append("§13 EBNF 的 label_def 未使用 \"label\" 关键字")
+        failures.append("§14 EBNF 的 label_def 未使用 \"label\" 关键字")
     if not re.search(r'annotation_name\s*=\s*IDENT\s*\|\s*"unsafe"\s*\|\s*"readonly"', text):
-        failures.append("§13 EBNF 的 annotation_name 未支持 @readonly")
+        failures.append("§14 EBNF 的 annotation_name 未支持 @readonly")
 
     if failures:
         print("check_keywords: 关键字/opcode/EBNF 不一致：")
@@ -117,7 +117,7 @@ def main():
 
     print(
         f"check_keywords: §2.3 语法关键字 {len(syntax)} 个、指令 {len(ops)} 个，"
-        "与 §13 EBNF / §6.2 opcode 表一致"
+        "与 §14 EBNF / §6.2 opcode 表一致"
     )
 
 

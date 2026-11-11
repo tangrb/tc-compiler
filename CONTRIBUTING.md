@@ -80,7 +80,7 @@ make ci-coverage                         # 另收集覆盖率（需 lcov）
 | -------- | -------- |
 | 新 `.tc` 用例 | 注册到 `scripts/vm/run_tests.sh`（AOT 相关再注册 `scripts/aot/run_tests.sh`） |
 | 新 `TcRhsKind` | `python3 scripts/sync/check_rhs_coverage.py` |
-| 新 `TcErrorKind` | `tc_error_kind_name()` + `tests/unit` 对应用例 + 标准 §12.3（语言篇）/§25.3（编译器篇） |
+| 新 `TcErrorKind` | `tc_error_kind_name()` + `tests/unit` 对应用例 + 标准 §12.3/§12.5 |
 | 新 `src/` 模块 | `python3 scripts/sync/check_source_naming.py`（`tc_*.h` ↔ `tc_*.c`） |
 | 类型内核 | `check-types` / `check_type_fact_source.py` |
 | 控制流 / 未初始化 | `test_cfg` + 对应 `.tc` |

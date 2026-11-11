@@ -1,6 +1,6 @@
 # 编译流水线与关键函数
 
-**何时读**：需要调用链、Analyze 编排顺序、或 libtc/驱动入口关系。13 阶段规格：`docs/TC语言及编译器标准-0.0.46.md`（编译器篇 §14–§26）；实现基线见 `src/vm/parser/`、`src/vm/analyzer/`、`src/vm/executor/`（0.0.44 规范文本已移除）。
+**何时读**：需要调用链、Analyze 编排顺序、或 libtc/驱动入口关系。13 阶段规格：`docs/TC语言及编译器标准-0.0.46.md`（§1.7–§1.9、§4.11、§12.2、§13）；实现基线见 `src/vm/parser/`、`src/vm/analyzer/`、`src/vm/executor/`（0.0.44 规范文本已移除）。
 
 Analyze：Pass1/2 + 模块/函数检查 + `tc_cfg_build_all` + `tc_analyze_definite_init_all` + 调用图。  
 **无 REPL**（无 `tc_repl` / `tc_analyze_statement`）。

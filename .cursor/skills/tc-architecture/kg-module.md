@@ -2,7 +2,7 @@
 
 **只读本文件** — 由 `@knowledge-graph` 索引指向；勿与其它 `kg-*.md` 同时整读。
 
-> **Phase 2（B+C+D）已落地**。规格：0.0.44 实现基线（`src/vm/parser` + `src/vm/analyzer`）；编译器阶段 4 见合并标准编译器篇。
+> **Phase 2（B+C+D）已落地**。规格：0.0.44 实现基线（`src/vm/parser` + `src/vm/analyzer`）；编译器阶段 4 见标准 §1.7/§4.11。
 
 ## 关键文件
 
