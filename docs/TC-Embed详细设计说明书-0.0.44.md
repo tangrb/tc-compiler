@@ -1,12 +1,14 @@
 # TC-Embed 详细设计说明书
 
-> **规范基线（唯一权威）**：[TC 语言标准 0.0.46](./TC语言标准-0.0.46.md) · [TC 编译器标准 0.0.46](./TC编译器标准-0.0.46.md)
+> **规范基线（唯一权威）**：[TC 语言及编译器标准 0.0.46](./TC语言及编译器标准-0.0.46.md)
 >
 > **当前实现基线**：TC-Embed v0.0.44（`TC_VERSION_CORE`，见 `src/vm/runtime/tc_version.h`）
 >
 > **状态**：v0.0.44 C 调用 TC 嵌入式运行时设计（语言规范 0.0.44 同步版）。VM 模式完整设计，AOT 模式扩展设计。以 `ptr<T>` 槽位编码为互操作原语。运行时便捷层（类型化参数 / 临时槽位区 / `make_ptr` / `call_typed`）见 **§16**。
 >
 > **上游契约**：[TC-VM 详细设计说明书](./TC-VM详细设计说明书-0.0.44.md) 的执行器与槽位系统 · [libtc 设计说明书](./libtc设计说明书-0.0.44.md) 的编译管线 · [TC-AOT 详细设计说明书](./TC-AOT详细设计说明书-0.0.44.md) 的代码生成模型
+
+> **章节引用说明**：正文中“语言标准 §x / 编译器标准 §x”指 0.0.44 实现基线规范（该规范文本已移除）；0.0.46 目标规范见上方合并标准。
 
 ---
 
@@ -73,7 +75,7 @@
 ### 1.3 非目标
 
 - 不实现 TC 调用外部 C 函数（TC → C FFI），此为独立问题。
-- 不修改 TC 语言标准或现有编译管线。
+- 不修改 TC 语言语义或现有编译管线。
 - 0.0.44 不改变 VM、Executor 或 libtc 的任何现有行为。
 - **AOT 模式 C→TC 互操作已全部落地**（设计见 §15）。
 - 不支持多线程并发调用同一 `TcEmbedCtx`（无锁、非线程安全）。
@@ -739,7 +741,7 @@ int tc_embed_had_error(const TcEmbedCtx *ctx);
 
 ### 10.3 错误种类与语言码映射
 
-嵌入模式**不另造语言错误码**。静态错误在**编译阶段**由 `tc_compile_file_opts` / `tc_compile_source`（AOT 模式为 `tc-aot` 编译期）按编译器标准 §11.4（镜像语言标准附录 B 86 码）报告；`tc_embed_create` / `tc_embed_create_aot` 只接受已通过全部静态阶段的 `TcTypedProgram`，**不在其中做静态检查**。运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
+嵌入模式**不另造语言错误码**。静态错误在**编译阶段**由 `tc_compile_file_opts` / `tc_compile_source`（AOT 模式为 `tc-aot` 编译期）按编译器静态检查（实现基线 0.0.44：86 语言码）报告；`tc_embed_create` / `tc_embed_create_aot` 只接受已通过全部静态阶段的 `TcTypedProgram`，**不在其中做静态检查**。运行时错误写入内部 `TcDiagnostic.kind`（`TC_RE_*` 或 `TC_ERR_OUT_OF_MEMORY`），宿主通过 `tc_embed_had_error` / `tc_embed_get_error` 读取消息。`kind` 与独立 VM/AOT 相同，例如除零为 `TC_RE_DIVISION_BY_ZERO`、I/O 为 `TC_RE_IO`。
 
 | 错误场景 | 错误码 / 消息 |
 | -------- | ------------ |
@@ -2046,5 +2048,5 @@ tc_embed_tmp_end(ctx);                                    /* 释放临时区 */
 
 ---
 
-*语言合法性与可观察语义以 [TC 语言标准 0.0.46](./TC语言标准-0.0.46.md) 与 [TC 编译器标准 0.0.46](./TC编译器标准-0.0.46.md) 为准。*
+*语言合法性与可观察语义以 [TC 语言及编译器标准 0.0.46](./TC语言及编译器标准-0.0.46.md) 为准。*
 

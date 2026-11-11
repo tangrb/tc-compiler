@@ -52,6 +52,6 @@ See the “TC-Embed” section in the root [README.en.md](../README.en.md) and i
 
 ## Next steps
 
-- Language spec: [docs/TC语言标准-0.0.46.md](../docs/TC语言标准-0.0.46.md) (implementation baseline v0.0.44)
+- Language spec: [docs/TC语言及编译器标准-0.0.46.md](../docs/TC语言及编译器标准-0.0.46.md) (implementation baseline v0.0.44)
 - Doc map: [docs/README.en.md](../docs/README.en.md)
 - Contributing: [CONTRIBUTING.en.md](../CONTRIBUTING.en.md)

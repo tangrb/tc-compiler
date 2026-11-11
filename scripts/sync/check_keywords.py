@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-check_keywords.py — 0.0.46 重写版关键字/opcode/EBNF 一致性检查
+check_keywords.py — 0.0.46 标准关键字/opcode/EBNF 一致性检查
 
 检查：
   - §2.3 关键字表的语法关键字均能在 §13 EBNF 引号终端中找到；
@@ -15,7 +15,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-LANG_STD = "docs/TC语言标准-0.0.46.md"
+LANG_STD = "docs/TC语言及编译器标准-0.0.46.md"
 
 SYNTAX_CATEGORIES = {"模式", "声明", "安全", "类型", "字面量", "命名空间"}
 TABLE_ROW_RE = re.compile(r"^\|\s*([^|]+?)\s*\|(.*)\|\s*$")
@@ -79,7 +79,7 @@ def extract_opcode_bases(text):
 def main():
     path = os.path.join(ROOT, LANG_STD)
     if not os.path.exists(path):
-        print(f"check_keywords: 语言标准缺失：{LANG_STD}")
+        print(f"check_keywords: 标准缺失：{LANG_STD}")
         sys.exit(1)
     text = read(path)
     syntax, ops, all_tokens = extract_keyword_table(text)

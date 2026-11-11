@@ -8,7 +8,7 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Language Standard 0.0.46](TC语言标准-0.0.46.md) | **Sole authority** for 0.0.46 syntax, semantics, and diagnostics (implementation baseline 0.0.44) |
+| [TC Language and Compiler Specification 0.0.46](TC语言及编译器标准-0.0.46.md) | **Sole authority** for 0.0.46 syntax, semantics, diagnostics, and compiler implementation rules (language part §0–§13, compiler part §14–§26; implementation baseline 0.0.44) |
 | [TC-VM Command Reference 0.0.44](TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-Embed Design 0.0.44](TC-Embed详细设计说明书-0.0.44.md) | C↔TC embed API (includes caller-facing API) |
 | [libtc Design 0.0.44](libtc设计说明书-0.0.44.md) | Embeddable library lifecycle and caller API quick reference (§15) |
@@ -17,9 +17,10 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Compiler Specification 0.0.46](TC编译器标准-0.0.46.md) | 0.0.46 compiler target specification: 13-step pipeline, diagnostic priority, complete diagnostic code tables, platform profile, implementation verification |
 | [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
 | [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
+
+> Compiler implementation rules (13-step pipeline, diagnostic priority, platform profile) are in the compiler part §14–§26 of the merged standard above.
 
 ## Repository-level docs (root)
 
@@ -33,4 +34,4 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | [release-checklist.en.md](release-checklist.en.md) ([中文](release-checklist.md)) | Release checklist |
 | [AGENTS.md](../AGENTS.md) | Cursor Agent entry (optional for maintainers) |
 
-Current implementation version: **v0.0.44** (Phases 1–7 aligned with the 0.0.44 design documents). **0.0.45 was never released and is deprecated**. The 0.0.46 language standard is final and is the single source of truth: [TC语言标准-0.0.46.md](TC语言标准-0.0.46.md) (implementation not yet updated). The 0.0.46 compiler standard has been rewritten: [TC编译器标准-0.0.46.md](TC编译器标准-0.0.46.md) (§12 complete diagnostic code tables, §13 platform profile and implementation verification).
+Current implementation version: **v0.0.44** (Phases 1–7 aligned with the 0.0.44 design documents). **0.0.45 was never released and is deprecated**. The 0.0.46 standard is final and is the single source of truth: [TC语言及编译器标准-0.0.46.md](TC语言及编译器标准-0.0.46.md) (language part §0–§13, compiler part §14–§26, including the §12 complete diagnostic code tables and §26 platform profile; implementation not yet updated).

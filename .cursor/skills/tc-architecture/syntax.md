@@ -1,6 +1,6 @@
 # TC 语言语法摘要（实现基线 0.0.44；目标规范 0.0.46）
 
-**何时读**：快速查 EBNF 结构。完整语法：`docs/TC语言标准-0.0.46.md`（目标）· `docs/TC语言标准设计说明书-0.0.44.md`（实现基线）。
+**何时读**：快速查 EBNF 结构。完整语法：`docs/TC语言及编译器标准-0.0.46.md`（语言篇，目标）· `src/vm/parser/` + `tests/`（实现基线；0.0.44 规范文本已移除）。
 
 一行一句；分号可选；注释以 `;` 开头；模块化程序；块级作用域；受限 `goto`/`label` 与 while 范式隔离。**无 REPL**。
 
@@ -48,4 +48,4 @@ const_rhs = 字面量 | const_ref | 单层标量运算 | struct ctor | field_rea
 - **确定初始化**：多域 CFG 固定点（顶层 + 每函数）；`MISSING_RETURN`
 - **Embed**：宿主经 `tc_embed_*` 调已编译函数（非语言语法）
 
-权威来源：`docs/TC语言标准-0.0.46.md`（目标）· `docs/TC语言标准设计说明书-0.0.44.md`（实现基线） · 诊断：[errors.md](errors.md) · 模块/函数：[kg-module.md](kg-module.md) / [kg-func.md](kg-func.md)
+权威来源：`docs/TC语言及编译器标准-0.0.46.md`（语言篇，目标）· `src/vm/parser/` + `tests/`（实现基线；0.0.44 规范文本已移除） · 诊断：[errors.md](errors.md) · 模块/函数：[kg-module.md](kg-module.md) / [kg-func.md](kg-func.md)

@@ -51,6 +51,6 @@ description: >-
 | executor | `tc_eval_rhs`；I/O 委托 |
 | aot | emit + shim → `tc_exec_*` / `tc_io_*` |
 | tests | valid+static+run_tests.sh；AOT；unit；`check_rhs_coverage.py` |
-| docs | 语言标准；`features/*.md` + `test-map.md` + 对应 `kg-*.md` |
+| docs | 标准语言篇；`features/*.md` + `test-map.md` + 对应 `kg-*.md` |
 
 错误消息：[errors.md](../tc-architecture/errors.md)（`rg` 查码，勿通读）

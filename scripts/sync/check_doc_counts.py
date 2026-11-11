@@ -6,8 +6,8 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
 从事实源提取计数并与文档声称值比对：
   - 错误码种类：src/vm/runtime/tc_types.h 的 TcErrorKind 枚举成员数；
                 交叉核对 tests/unit/runtime/test_types.c 的 `error_kind_count` 断言
-                vs .cursor/skills/tc-architecture/types.md「错误种类：**语言标准附录 B 共 N 码** … 断言 M」
-  - §12.3（0.0.46 语言标准）：完整集 80 个错误码 = 65 CE + 15 RE；
+                vs .cursor/skills/tc-architecture/types.md「错误种类：**N** 语言码 … 断言 M」
+  - §12.3（0.0.46 标准）：完整集 80 个错误码 = 65 CE + 15 RE；
             码表与正文引用一致，正文不得引用表外诊断码
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
                 vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
@@ -31,7 +31,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-LANG_STD_TARGET = "docs/TC语言标准-0.0.46.md"
+LANG_STD_TARGET = "docs/TC语言及编译器标准-0.0.46.md"
 
 VM_CALL_RE = (
     r"^\s*(?:run_expect_\w+|run_cli_\w+|run_with_stdin|"
@@ -76,10 +76,10 @@ def count_tc_rhs_kinds(tc_types_h):
 
 
 def check_target_standard(lang_std, failures):
-    """校验 0.0.46 §12.3 诊断码表的计数、声明与正文引用。"""
+    """校验 0.0.46 标准 §12.3 诊断码表的计数、声明与正文引用。"""
     m = re.search(r"###\s+12\.3\s+.*?(?=\n###\s+|\Z)", lang_std, re.S)
     if not m:
-        failures.append("0.0.46 §12.3：无法定位诊断码表")
+        failures.append("0.0.46 标准 §12.3：无法定位诊断码表")
         return
     section = m.group(0)
     codes = set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", section))
@@ -94,17 +94,17 @@ def check_target_standard(lang_std, failures):
         section,
     )
     if not declared:
-        failures.append("0.0.46 §12.3：无法提取「65 CE + 15 RE」声明")
+        failures.append("0.0.46 标准 §12.3：无法提取「65 CE + 15 RE」声明")
     elif tuple(int(x) for x in declared.groups()) != (65, 15):
         failures.append(
-            "0.0.46 §12.3：声明为 "
+            "0.0.46 标准 §12.3：声明为 "
             f"{declared.group(1)} CE + {declared.group(2)} RE，应为 65 + 15")
 
     all_codes = set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", lang_std))
     unknown = sorted(all_codes - codes)
     if unknown:
         failures.append(
-            "0.0.46 §12.3：正文引用了表外诊断码：" + ", ".join(unknown))
+            "0.0.46 标准 §12.3：正文引用了表外诊断码：" + ", ".join(unknown))
 
 
 def count_error_kinds(tc_types_h):
@@ -152,7 +152,7 @@ def main():
     types_md = read(".cursor/skills/tc-architecture/types.md")
     err_doc = None
     if types_md:
-        m = re.search(r"错误种类：\*\*语言标准附录 B 共 \d+ 码\*\*[^\n]*?断言 (\d+)",
+        m = re.search(r"错误种类：\*\*\d+\*\*\s*语言码[^\n]*?断言 (\d+)",
                       types_md)
         if m:
             err_doc = int(m.group(1))
@@ -172,10 +172,10 @@ def main():
         failures.append(
             f"错误码种类：tc_types.h 枚举 {err_impl}，test_types.c 断言 {err_actual}")
 
-    # ---- 1b. 0.0.46 语言标准（设计目标）--------------------------------
+    # ---- 1b. 0.0.46 标准（设计目标）------------------------------------
     lang_std_target = read(LANG_STD_TARGET)
     if lang_std_target is None:
-        failures.append(f"0.0.46 语言标准：文件缺失（{LANG_STD_TARGET}）")
+        failures.append(f"0.0.46 标准：文件缺失（{LANG_STD_TARGET}）")
     else:
         check_target_standard(lang_std_target, failures)
 
@@ -230,7 +230,7 @@ def main():
             print(f"  - {f}")
         sys.exit(1)
     print(
-        "check_doc_counts: 错误码 / 0.0.46 §12.3 / "
+        "check_doc_counts: 错误码 / 0.0.46 标准 §12.3 / "
         "RHS / VM / AOT 文档数字均与事实源一致"
     )
 

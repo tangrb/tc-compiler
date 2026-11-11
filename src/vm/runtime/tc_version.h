@@ -1,7 +1,7 @@
 #ifndef TC_VERSION_H
 #define TC_VERSION_H
 
-/* 实现版本；实现基线对应语言标准 0.0.44（目标规范 0.0.46） */
+/* 实现版本；实现基线对应 0.0.44 规范口径（目标：TC 语言及编译器标准 0.0.46） */
 #define TC_VERSION_CORE "0.0.44"
 
 /* TC-Embed 模块版本（与核心版本一致） */

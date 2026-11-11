@@ -24,7 +24,7 @@ alwaysApply: false
 | func / funcall / 调用图 / static / 调用帧 | [kg-func.md](../skills/tc-architecture/kg-func.md) |
 | TC-Embed / value_bridge / `--embed` | [kg-embed.md](../skills/tc-architecture/kg-embed.md) |
 | I/O / format | 只改 `src/vm/runtime/tc_io.c`；路由 [features/scalar.md](../skills/tc-architecture/features/scalar.md) § I/O |
-| 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 语言标准附录 B |
+| 新/改错误码 | [errors.md](../skills/tc-architecture/errors.md) + 标准 §12.3（实现基线 `TcErrorKind`） |
 | 测试/CI | Skill `run-tests` — **勿**加载 kg |
 
 ## 短工作流

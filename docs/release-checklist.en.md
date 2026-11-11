@@ -2,7 +2,7 @@
 
 [中文](release-checklist.md)
 
-Use this list before cutting a `v*` tag. Core version must match `tc_version.h` (currently **0.0.44**); the language standard target is **0.0.46** (`docs/TC语言标准-0.0.46.md`), the implementation-baseline design documents are `*-0.0.44.md`, and the 0.0.46 compiler standard has been rewritten (`docs/TC编译器标准-0.0.46.md`). Historical documents from 0.0.42 and earlier have been removed from the repository; retrieve them from release tags when needed.
+Use this list before cutting a `v*` tag. Core version must match `tc_version.h` (currently **0.0.44**); the 0.0.46 standard target is `docs/TC语言及编译器标准-0.0.46.md` (language and compiler parts), and the implementation-baseline design documents are `*-0.0.44.md`. Historical documents from 0.0.42 and earlier have been removed from the repository; retrieve them from release tags when needed.
 
 ## 1. Code and docs freeze
 

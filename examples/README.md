@@ -58,6 +58,6 @@ C 宿主嵌入示例请参阅根目录 [README.md](../README.md) 的「嵌入 TC
 
 ## 下一步
 
-- 语言权威：[docs/TC语言标准-0.0.46.md](../docs/TC语言标准-0.0.46.md)（实现基线 v0.0.44）
+- 语言权威：[docs/TC语言及编译器标准-0.0.46.md](../docs/TC语言及编译器标准-0.0.46.md)（实现基线 v0.0.44）
 - 文档地图：[docs/README.md](../docs/README.md)
 - 贡献：[CONTRIBUTING.md](../CONTRIBUTING.md)

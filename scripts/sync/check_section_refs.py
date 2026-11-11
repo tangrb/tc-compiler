@@ -6,7 +6,7 @@ check_section_refs.py — 规范文本内部 § 交叉引用检查（防重构�
 用法：
     python3 scripts/sync/check_section_refs.py [文档路径]
 
-默认检查 docs/TC语言标准-0.0.46.md：
+默认检查 docs/TC语言及编译器标准-0.0.46.md：
 
   1. 收集锚点：`## 1.` / `### 3.10` / `#### 6.8.1` 形式的标题编号，
      以及 `**3.10.3.2 标题**` 形式的粗体子节编号，附录 `A.2` / `B.6`；
@@ -21,7 +21,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEFAULT_DOC = "docs/TC语言标准-0.0.46.md"
+DEFAULT_DOC = "docs/TC语言及编译器标准-0.0.46.md"
 
 HEADING_RE = re.compile(r"^#{2,4}\s+(\d+(?:\.\d+)*)[.、\s]")
 BOLD_RE = re.compile(r"^\*\*(\d+(?:\.\d+)+)\s")
@@ -56,7 +56,7 @@ def main():
 
     anchors = collect_anchors(lines)
 
-    # 跨文档：[语言标准 §x] 引用按语言标准锚点校验
+    # 跨文档：[语言标准 §x] 旧式引用按标准语言篇锚点校验
     lang_anchors = None
     if os.path.abspath(path) != os.path.abspath(os.path.join(ROOT, DEFAULT_DOC)):
         lang_path = os.path.join(ROOT, DEFAULT_DOC)
@@ -77,7 +77,7 @@ def main():
             for m in LANG_REF_RE.finditer(line):
                 refs += 1
                 if m.group(1) not in lang_anchors:
-                    failures.append((i, "语言标准 §"+m.group(1), line.strip()[:120]))
+                    failures.append((i, "语言篇 §"+m.group(1), line.strip()[:120]))
 
     if failures:
         print(f"check_section_refs: {len(failures)} 处 § 引用无对应锚点：")

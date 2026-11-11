@@ -48,7 +48,7 @@ Search existing issues and docs first. Bug reports should include:
 - Expected vs actual stdout/stderr
 - Whether the bug is VM-only, AOT-only, or both differ
 
-Language/semantics changes must follow the [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md); the standard is authoritative over the implementation (the implementation baseline is v0.0.44 and has not caught up with 0.0.46).
+Language/semantics changes must follow the [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md); the standard is authoritative over the implementation (the implementation baseline is v0.0.44 and has not caught up with 0.0.46).
 
 Use the repository [issue templates](.github/ISSUE_TEMPLATE/).
 
@@ -78,7 +78,7 @@ make ci-coverage                         # also collect coverage (requires lcov)
 | ------ | ----------------- |
 | New `.tc` cases | Register in `scripts/vm/run_tests.sh` (and `scripts/aot/run_tests.sh` when AOT-relevant) |
 | New `TcRhsKind` | `python3 scripts/sync/check_rhs_coverage.py` |
-| New `TcErrorKind` | `tc_error_kind_name()` + unit test + compiler spec §12.3 |
+| New `TcErrorKind` | `tc_error_kind_name()` + unit test + standard §12.3 (language part) / §25.3 (compiler part) |
 | New `src/` module | `python3 scripts/sync/check_source_naming.py` (`tc_*.h` ↔ `tc_*.c`) |
 | Type kernel | `check-types` / `check_type_fact_source.py` |
 | Control flow / uninit | `test_cfg` + matching `.tc` |
@@ -104,7 +104,7 @@ Match existing `src/` style and `.cursor/rules/coding-standards.mdc`.
 - Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md))
 - Release steps: [docs/release-checklist.en.md](docs/release-checklist.en.md) ([中文](docs/release-checklist.md))
 
-When changing language semantics or error codes, update the [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md) first (sole authority); sync the matching design documents after the implementation lands (the current implementation baseline is `docs/*-0.0.44.md`, and the 0.0.46 compiler standard is being synced chapter by chapter). Update the matching design document for public API changes. CI, coverage, and sanitizer commands are in the root [README.en.md](README.en.md) “Tests and Quality Gates” section.
+When changing language semantics or error codes, update the [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) first (sole authority); sync the matching design documents after the implementation lands (the current implementation baseline is `docs/*-0.0.44.md`, and the 0.0.46 standard is being synced chapter by chapter). Update the matching design document for public API changes. CI, coverage, and sanitizer commands are in the root [README.en.md](README.en.md) “Tests and Quality Gates” section.
 
 ## Cursor Agent (optional)
 

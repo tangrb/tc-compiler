@@ -1,6 +1,6 @@
 # TC-Compiler — Cursor 文档索引
 
-> **v0.0.44**（Phase 1–7；实现基线设计书 `*-0.0.44.md`；语言目标规范 `docs/TC语言标准-0.0.46.md`）
+> **v0.0.44**（Phase 1–7；实现基线设计书 `*-0.0.44.md`；语言及编译器目标规范 `docs/TC语言及编译器标准-0.0.46.md`）
 > **始终加载**：[AGENTS.md](../AGENTS.md)（极简）· **本文件** = 导航权威（勿把长表复制进 AGENTS）
 
 ## 30 秒：Agent 该怎么读
@@ -161,6 +161,6 @@ cmake --build build --target check-embed check-embed-aot
 | 测试规模数字 | `test-map.md`（`check_doc_counts.py`） |
 | 易错点 | `gotchas.md` |
 | 加载分级 / 工作流 | **本 README** |
-| 错误码表（查码用） | `errors.md`（rg，勿通读）· 语言标准附录 B **86** 码 + OOM = 实现 **87** |
+| 错误码表（查码用） | `errors.md`（rg，勿通读）· 实现基线 0.0.44 **86** 语言码 + OOM = **87**；0.0.46 目标 **80** |
 
 新模块：`locations.md` · `features.md` · `compiler-src.mdc` · 必要时 `gotchas.md` / `unit-tests-c.mdc`。
