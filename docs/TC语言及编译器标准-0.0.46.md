@@ -581,7 +581,7 @@ public static var counter: int32 = 0
 ```
 
 - `const`：编译期常量；无运行时存储、无地址；使用处内联。
-- `static var`：模块静态存储；初始化器必须是 `const_expr`；在程序准备阶段一次性写入；所有导入者共享同一个存储对象；可写。已解析模块的跨分支复用不会创建第二份静态存储。
+- `static var`：模块静态存储；初始化器必须是 `const_expr`；在程序准备阶段一次性写入；**同一模块实例的所有导入者**共享同一个存储对象，同名但不同路径的模块实例各自独立；可写。已解析模块实例的跨分支复用不会创建第二份静态存储。模块实例身份见 §4.5。
 - `static var` 不参与运行时初始化顺序问题：初始化器是常量，不需要执行代码。
 - `static var` 的 `addr` 在程序生命期内有效。
 - 模块 `const`/`static var` 的初始化器**按源序**求值；只可引用更早的 `const`。前向引用/自引用 → `TC_CE_UNDEFINED_NAME`。跨模块求值顺序见 §4.10。
@@ -589,7 +589,7 @@ public static var counter: int32 = 0
 ### 4.8 函数命名空间与 `Self`
 
 - 函数名属于**模块命名空间**，不是程序全局；不同模块可以同名。
-- 本模块函数在函数体内必须写 `Self.f`；导入函数写 `m.f`；裸函数名在函数体内 → `TC_CE_FUNCTION_SCOPE_ACCESS`。
+- 本模块函数在函数体内必须写 `Self.f`；导入函数写 `m.f`；裸函数名在函数体**值位置** → `TC_CE_FUNCTION_SCOPE_ACCESS`。
 - 局部 `var`/`const`/参数名可以与本模块函数名/模块成员同名；因为模块成员必须限定访问，不产生歧义。
 - 模块级 `struct`/`const`/`static var`/`func` **共用同一模块成员命名空间**，之间不得重名 → `TC_CE_DUPLICATE_MEMBER`；局部值名不属于该命名空间（§5.1）。
 - `Self` 只在 `#lib` 中合法；`#program` 使用 → `TC_CE_PROGRAM_MODE_MISUSE`。
@@ -636,7 +636,7 @@ public static var counter: int32 = 0
 
 - 导入方访问 `private` 成员报告 `TC_CE_PRIVATE_ACCESS`，不得改报 `TC_CE_UNDEFINED_NAME`/`TC_CE_UNDEFINED_FUNCTION`。
 - `private` 类型出现在公开位置报告 `TC_CE_PRIVATE_TYPE`；模块成员重名报告 `TC_CE_DUPLICATE_MEMBER`。
-- 函数体中的裸名解析顺序见 §5.6；函数体内裸名命中本模块成员报告 `TC_CE_FUNCTION_SCOPE_ACCESS`。
+- 函数体中的裸名解析顺序见 §5.6；函数体内裸名在**值位置**命中本模块成员报告 `TC_CE_FUNCTION_SCOPE_ACCESS`。
 - `Self` 只在 `#lib` 中合法；`#program` 使用报告 `TC_CE_PROGRAM_MODE_MISUSE`。不支持别名、选择性导入、通配导入或重导出；传递依赖不会自动可见。
 - `var` 缺 `=` 或初始化器报告 `TC_CE_VAR_MISSING_INIT`（SYN）；初始化器必须是一个 op，不能是裸值。结构体声明、函数声明、导入声明与块结构必须符合本文 EBNF；不符合的形态使用 `TC_CE_SYNTAX` 或对应的专用 SYN 码，不得为产生后续语义诊断而放宽语法。
 
@@ -718,6 +718,8 @@ const K: int32 = 42
 - 局部 `var`/参数地址在函数返回后悬垂；`static var`/程序 `var` 的地址在程序生命期内有效。悬垂指针的 `copy`/返回/存入/比较/`ptrdiff`/`bitcast ptr↔ptr` 定义；解引用、指针算术、`memmove` 是 UB（§3.12）。
 
 ### 5.6 名字解析
+
+本节只适用于**值位置**；类型位置按 §3.11/§6.13 解析，不适用 `TC_CE_FUNCTION_SCOPE_ACCESS`。
 
 函数/程序体内裸标识符按以下顺序解析：
 
@@ -1021,12 +1023,13 @@ OUT[其他指令] = IN[n]
 | `cast` | `u` 整数 | `uint64` |
 | `cast` | 浮点 | `f`/`F` → float32；否则 float64 |
 | `cast` | `inf`/`-inf`/`nan` | 目标必须是浮点类型；源类型 = 目标类型 |
-| `bitcast` | 整数 | 源位宽 = 目标位宽；后缀决定符号 |
+| `bitcast` | 整数 | 源位宽 = 目标位宽；无后缀 = signed；`u`/`U` = unsigned |
 | `bitcast` | 浮点 | `f`/`F` → float32；否则 float64 |
 | `bitcast` | `inf`/`-inf`/`nan` | 目标 32 位→float32；64 位→float64 |
 | `bitcast` | `nullptr` | 非法 |
 
 - 普通指令/`copy`/`make`/`call`/`return`/`write` 的字面量以期望类型检查。
+- `bitcast` 的整数源类型是上下文例外：不受 §2.4 普通期望类型的符号性宽松规则影响；无后缀按 signed 定型。
 - 整数字面量在普通期望整数类型 `T` 下：无后缀非负值按 `T` 定型（`T` 可 signed/unsigned）；无后缀负值只允许 signed `T`；`u`/`U` 只允许 unsigned `T`；负值/符号性不符 → `TC_CE_LITERAL_TYPE`；超出 `T` 范围 → `TC_CE_LITERAL_RANGE`。
 - 字面量值超出其源类型或上下文期望类型可表示范围 → `TC_CE_LITERAL_RANGE`（SEM）。
 - 非零有限浮点字面量舍入为零/有限值舍入为 inf → `TC_CE_LITERAL_LEX_RANGE`（LEX）。
@@ -1090,7 +1093,7 @@ OUT[其他指令] = IN[n]
 
 - `sizeof T`：字节数；`usize`；编译期常量；可用于 `const_expr` 和指令。
 - 结构体大小 = Σ(字段大小 + `@padding`)；无隐式对齐/尾部填充；布局在 `struct` 声明处确定，求和中溢出 `usize` → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
-- `sizeof void` → `TC_CE_VOID`；`sizeof` 的操作数必须是类型：解析到函数/标签/模块或值名 → `TC_CE_TYPE_MISMATCH`；完全未解析 → `TC_CE_UNDEFINED_NAME`。
+- `sizeof void` → `TC_CE_VOID`；`sizeof` 的类型参数按类型命名空间解析，不适用 §5.6 的值名解析。解析到合法类型 → 正常；解析到已知函数/标签/模块/值名而非类型 → `TC_CE_TYPE_MISMATCH`；完全未解析 → `TC_CE_UNDEFINED_NAME`。
 
 | 类型 | `sizeof`（字节） |
 |---|---|
@@ -1595,7 +1598,7 @@ end
 - 无格式说明符、字符串、字段整块 I/O、文件/参数/环境 API。
 - `write`/`writeln` 按条缓冲：整条字节全部成功后才追加到标准输出；失败时报告 `TC_RE_IO`，该条贡献 0 字节。此前其它 I/O 指令已提交的字节保留，不回滚。
 - `read` 失败不修改目标（因为 `read` 以 LHS 为目标，失败时 LHS 不提交）。
-- trap 终止不撤销此前已提交的 I/O 字节；当前按条缓冲、尚未提交的字节丢弃。
+- trap 终止不撤销此前已提交的 I/O 字节；若 trap 来自 `write`/`writeln` 的 `TC_RE_IO`，该条尚未提交的缓冲字节丢弃。
 
 ### 11.2 输出格式（确定性）
 
@@ -1691,7 +1694,7 @@ I/O 诊断位置见 §12.5.1。
 | `TC_CE_DUPLICATE_NAME` | `DuplicateName` | SEM | 同一函数/程序的值名字空间内 `var`/`const`/参数重名 |
 | `TC_CE_DUPLICATE_MEMBER` | `DuplicateMember` | SEM | 模块成员重名 |
 | `TC_CE_DUPLICATE_PARAMETER` | `DuplicateParameter` | SEM | 形参重名 |
-| `TC_CE_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccess` | SEM | 函数体内裸名引用本模块成员 |
+| `TC_CE_FUNCTION_SCOPE_ACCESS` | `FunctionScopeAccess` | SEM | 值位置裸名引用本模块成员 |
 | `TC_CE_UNDEFINED_FUNCTION` | `UndefinedFunction` | SEM | 函数名未解析 |
 | `TC_CE_PRIVATE_ACCESS` | `PrivateAccess` | SEM | 访问 `private` 成员 |
 | `TC_CE_PRIVATE_TYPE` | `PrivateType` | SEM | `private` 类型出现在 `public` 签名、`public struct` 字段、`public const`/`public static var` 声明类型或初始化器 |
@@ -1804,7 +1807,7 @@ I/O 诊断位置见 §12.5.1。
 | `TC_CE_DUPLICATE_NAME` | 第二次及后续的重名声明；关联首次声明 |
 | `TC_CE_DUPLICATE_MEMBER` | 第二次及后续的模块成员名；关联首次声明 |
 | `TC_CE_DUPLICATE_PARAMETER` | 第二次及后续的形参名；关联首次声明 |
-| `TC_CE_FUNCTION_SCOPE_ACCESS` | 函数体内裸名引用本模块成员的标识符 |
+| `TC_CE_FUNCTION_SCOPE_ACCESS` | 值位置裸名引用本模块成员的标识符 |
 | `TC_CE_UNDEFINED_FUNCTION` | 调用目标的函数名 |
 | `TC_CE_PRIVATE_ACCESS` | 限定名中的成员名；关联私有声明 |
 | `TC_CE_PRIVATE_TYPE` | 出现在公开位置的私有类型名；关联类型声明 |
