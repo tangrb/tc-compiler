@@ -7,9 +7,7 @@ check_doc_counts.py — 文档统计数字与事实源一致性检查（防回�
   - 错误码种类：src/vm/runtime/tc_types.h 的 TcErrorKind 枚举成员数；
                 交叉核对 tests/unit/runtime/test_types.c 的 `error_kind_count` 断言
                 vs .cursor/skills/tc-architecture/types.md「错误种类：**语言标准附录 B 共 N 码** … 断言 M」
-  - 附录 B（0.0.44 基线）：语言标准附录 B 唯一 TC_CE_*/TC_RE_* 码数（86）
-            vs 正文「共 N 码」vs 实现枚举 N+1（+ `TC_ERR_OUT_OF_MEMORY`）
-  - §12.3（0.0.46 目标）：完整集 80 个错误码 = 65 CE + 15 RE；
+  - §12.3（0.0.46 语言标准）：完整集 80 个错误码 = 65 CE + 15 RE；
             码表与正文引用一致，正文不得引用表外诊断码
   - TcRhsKind 枚举数：src/vm/runtime/tc_types.h 的 TcRhsKind 枚举成员数
                 vs .cursor/skills/tc-architecture/types.md「RHS 分发覆盖：**N**」
@@ -33,7 +31,6 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-LANG_STD_BASELINE = "docs/TC语言标准设计说明书-0.0.44.md"
 LANG_STD_TARGET = "docs/TC语言标准-0.0.46.md"
 
 VM_CALL_RE = (
@@ -76,26 +73,6 @@ def count_tc_rhs_kinds(tc_types_h):
     if not m:
         return None
     return sum(1 for ln in m.group(1).split("\n") if re.match(r"\s*TC_RHS_", ln))
-
-
-def count_appendix_b_codes(lang_std):
-    """统计语言标准附录 B 表中唯一的 TC_CE_* / TC_RE_* 码。
-
-    终止边界取「下一个二级标题」或文末：0.0.42 之后是 `## 变更记录`，
-    0.0.44 已把修订历史移出规范正文，附录 B 直接到文末。
-    """
-    m = re.search(r"## 附录 B：(?:错误码|诊断码)速查表(.*?)(?=\n## |\Z)", lang_std, re.S)
-    if not m:
-        return None
-    return len(set(re.findall(r"`(TC_(?:CE|RE)_[A-Z0-9_]+)`", m.group(1))))
-
-
-def split_appendix_b(text):
-    """返回 (附录 B 之前的正文, 附录 B 及之后)，便于检查正文覆盖。"""
-    m = re.search(r"## 附录 B：(?:错误码|诊断码)速查表", text)
-    if not m:
-        return None, None
-    return text[:m.start()], text[m.start():]
 
 
 def check_target_standard(lang_std, failures):
@@ -173,13 +150,12 @@ def main():
             err_actual = err_impl  # 派生断言：等价于枚举成员数
 
     types_md = read(".cursor/skills/tc-architecture/types.md")
-    err_doc = None       # 实现枚举/断言口径
-    err_doc_lang = None  # types.md 声称的语言码数
+    err_doc = None
     if types_md:
-        m = re.search(r"错误种类：\*\*语言标准附录 B 共 (\d+) 码\*\*[^\n]*?断言 (\d+)",
+        m = re.search(r"错误种类：\*\*语言标准附录 B 共 \d+ 码\*\*[^\n]*?断言 (\d+)",
                       types_md)
         if m:
-            err_doc_lang, err_doc = int(m.group(1)), int(m.group(2))
+            err_doc = int(m.group(1))
         else:
             m = re.search(r"错误种类：\*\*(\d+)\*\*", types_md)
             if m:
@@ -196,33 +172,7 @@ def main():
         failures.append(
             f"错误码种类：tc_types.h 枚举 {err_impl}，test_types.c 断言 {err_actual}")
 
-    # ---- 1b. 语言标准附录 B 码数 vs 实现枚举（0.0.44 基线）-------------
-    lang_std_baseline = read(LANG_STD_BASELINE)
-    appendix_actual = (
-        count_appendix_b_codes(lang_std_baseline) if lang_std_baseline else None
-    )
-    appendix_claimed = None
-    if lang_std_baseline:
-        m = re.search(r"本附录汇总正文及附录 A 中出现过的全部诊断码（\*\*共 (\d+) 码\*\*",
-                      lang_std_baseline)
-        appendix_claimed = int(m.group(1)) if m else None
-    if appendix_actual is None or appendix_claimed is None:
-        failures.append("附录 B（0.0.44 基线）：无法从语言标准提取码数")
-    else:
-        if appendix_actual != appendix_claimed:
-            failures.append(
-                f"附录 B（0.0.44 基线）：表内唯一码 {appendix_actual}，"
-                f"正文写共 {appendix_claimed} 码")
-        if err_impl is not None and appendix_actual + 1 != err_impl:
-            failures.append(
-                f"附录 B（0.0.44 基线）：语言码 {appendix_actual} + OOM 应为 "
-                f"{appendix_actual + 1}，tc_types.h 枚举 {err_impl}")
-        if err_doc_lang is not None and appendix_actual != err_doc_lang:
-            failures.append(
-                f"附录 B（0.0.44 基线）：types.md 写语言码 {err_doc_lang}，"
-                f"附录 B 实际 {appendix_actual}")
-
-    # ---- 1c. 0.0.46 语言标准（设计目标）--------------------------------
+    # ---- 1b. 0.0.46 语言标准（设计目标）--------------------------------
     lang_std_target = read(LANG_STD_TARGET)
     if lang_std_target is None:
         failures.append(f"0.0.46 语言标准：文件缺失（{LANG_STD_TARGET}）")
@@ -280,7 +230,7 @@ def main():
             print(f"  - {f}")
         sys.exit(1)
     print(
-        "check_doc_counts: 错误码 / 0.0.44 附录 B / 0.0.46 §12.3 / "
+        "check_doc_counts: 错误码 / 0.0.46 §12.3 / "
         "RHS / VM / AOT 文档数字均与事实源一致"
     )
 

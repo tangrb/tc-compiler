@@ -418,8 +418,6 @@ For reading order and layers, see [docs/README.md](docs/README.md) ([English map
 | -------- | -------------- |
 | [TC Language Specification 0.0.46](docs/TC语言标准-0.0.46.md) | Sole authority for 0.0.46 syntax, semantics, and diagnostics (implementation not yet updated) |
 | [TC Compiler Specification 0.0.46](docs/TC编译器标准-0.0.46.md) | 0.0.46 compiler target specification: compilation phases, static verification, first diagnostics, complete diagnostic codes, and platform profiles |
-| [TC Language Specification 0.0.44](docs/TC语言标准设计说明书-0.0.44.md) | 0.0.44 implementation-baseline language specification |
-| [TC Compiler Specification 0.0.44](docs/TC编译器标准设计说明书-0.0.44.md) | 0.0.44 implementation baseline: 13-stage pipeline, diagnostic priority, call graph |
 | [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
 | [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, and executor design |
 | [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 generation, runtime shim, and differential verification |
