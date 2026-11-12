@@ -205,7 +205,7 @@ typedef struct {
 依据：§3.12（对象/存储期/指针状态）、§13.2（区表）、§13.3（布局与地址）。
 
 ```c
-typedef enum { TC_REG_FRAME, TC_REG_STATIC, TC_REG_DEVICE, TC_REG_CODE } TcRegionKind;
+typedef enum { TC_REG_FRAME, TC_REG_STATIC, TC_REG_DEVICE, TC_REG_CODE, TC_REG_HEAP } TcRegionKind;
 
 typedef struct {
     TcRegionKind region;
@@ -214,8 +214,8 @@ typedef struct {
 } TcAddress;
 ```
 
-- **四区**：帧/静态/设备/代码（§13.2）。地址 0 保留 `nullptr`，不放 TC 可访问对象。
-- **对象模型**（§3.12）：每个 var/参数/程序变量/static var 是对象；struct 值是对象、字段是子对象；宿主分配块是 n≥1 个 T 元素的对象。代码区/设备区非语言对象。
+- **五区**：帧/静态/设备/代码/宿主（堆）（§13.2）。地址 0 保留 `nullptr`，不放 TC 可访问对象。
+- **对象模型**（§3.12）：每个 var/参数/程序变量/static var 是对象；struct 值是对象、字段是子对象；宿主分配块是 n≥1 个 T 元素的对象，位于宿主（堆）区。代码区/设备区非语言对象。
 - **生命期**：帧内对象（调用进入→返回）；程序变量/static var（程序始→终）；宿主对象（运行时库创建/释放）。生命期结束后指针悬垂。
 - **指针状态**（§3.12 表）：
 
@@ -315,7 +315,7 @@ typedef struct { void (*trap)(void*, TcErrorKind, int line); void *ctx; } TcTrap
 typedef struct {
     unsigned addr_width;                       /* 32 或 64 */
     int little_endian;
-    struct { uint64_t base, size; } region[4]; /* 帧/静态/设备/代码 */
+    struct { uint64_t base, size; } region[5]; /* 帧/静态/设备/代码/宿主 */
     size_t stack_size;                         /* 保证 D 个抽象帧可执行 */
     unsigned depth_D;                          /* 抽象调用深度上限 ≥1 */
     TcIoSink *io;
@@ -365,7 +365,7 @@ typedef struct {
 | compare/逻辑 | 原生 cmp/cset |
 | br/br_if/switch/return | 原生 b/b.cond/cbz/tbz/ret + 标签映射 |
 | call/call_indirect | bl/blr + AAPCS64 帧 + 深度 D 检查 |
-| load/store（标量） | 原生 ldr/str + 区/状态检查（checked build） |
+| load/store（标量） | 原生 ldr/str + 必选空指针/只读区/代码区/设备检查；越界/悬垂/one-past 仅 checked build |
 | **FP/cast/bitcast** | **调运行时**（确定性，§6.3/§10.6） |
 | read/write/writeln | 调运行时 I/O |
 | make/copy/memmove/addr/ptr* | 调运行时（复杂内存/指针状态） |
@@ -396,7 +396,7 @@ typedef struct {
 2. **§13.4 八项一致性**：静态一致 / 模块顺序 / CFG-DI / 类型转换 / 安全 / 浮点 / I-O / 平台。
 3. **golden 向量**：从标准精确规则推导期望输出。
 4. **freestanding 编译门禁**：`-ffreestanding -nostdlib` 交叉编译运行时 + 最小 UART stub。
-5. **checked build**：trap 用例与静态诊断分开统计；悬垂栈水位/毒化检查只在产生 UB 的访问触发（§13.3），不放宽规范、不改变合法程序集合。
+5. **checked build**：trap 用例与静态诊断分开统计；空指针/只读区/代码区/设备拒绝等定义好的 trap 在所有构建中执行；悬垂栈水位/毒化检查只在产生 UB 的访问触发（§13.3），不放宽规范、不改变合法程序集合。
 
 ---
 
