@@ -1,3 +1,0 @@
-#program
-let N: int32 = 42
-writeln(int32, N)

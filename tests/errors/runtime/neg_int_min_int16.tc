@@ -1,3 +1,0 @@
-#program
-var a: int16 = -32768
-var b: int16 = neg(int16, a)

@@ -1,3 +1,0 @@
-#program
-var a: int8 = 1
-var r: int8 = shr(int8, wrap, a, 1)

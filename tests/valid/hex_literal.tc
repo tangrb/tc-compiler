@@ -1,3 +1,0 @@
-#program
-var mask: uint8 = 0xFFu
-writeln(uint8, mask)

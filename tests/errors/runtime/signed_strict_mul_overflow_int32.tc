@@ -1,4 +1,0 @@
-#program
-var a: int32 = 1000000
-var b: int32 = 2148
-var c: int32 = mul(int32, a, b)

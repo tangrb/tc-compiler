@@ -1,5 +1,0 @@
-; 双 -I 同名 #lib → import module path is ambiguous
-#program
-import Same
-var x: int32 = 1
-writeln(int32, x)

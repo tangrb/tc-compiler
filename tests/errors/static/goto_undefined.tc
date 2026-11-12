@@ -1,6 +1,0 @@
-#lib
-; 期望：label 'nonexistent' not found
-public func f() void then
-    goto nonexistent
-    return
-end

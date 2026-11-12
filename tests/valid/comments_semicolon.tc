@@ -1,5 +1,0 @@
-#program
-; leading comment
-
-var a: int32 = 1;
-writeln(int32, a)

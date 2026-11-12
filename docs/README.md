@@ -1,35 +1,32 @@
 # 文档地图
 
-本目录存放 TC-Compiler **正式设计与规范文档**。English map: [README.en.md](README.en.md)。
+本目录只保留 **0.0.46** 标准与设计文档。English: [README.en.md](README.en.md)。
 
-入门请先阅读仓库根目录 [README.md](../README.md) 与 [`examples/`](../examples/)，再按需深入下列文档。
-
-## 用户文档
+## 核心文档
 
 | 文档 | 用途 |
 | ---- | ---- |
-| [TC 语言及编译器标准-0.0.46.md](TC语言及编译器标准-0.0.46.md) | 0.0.46 语法、语义、诊断与编译器实现规范的**唯一权威**（§0–§14 主题章：语言规则 + 编译器实现要求；实现基线 0.0.44） |
-| [TC-VM 命令行参考-0.0.44.md](TC-VM命令行参考-0.0.44.md) | `tc-vm` 用法、输出与退出行为 |
-| [libtc 设计说明书-0.0.44.md](libtc设计说明书-0.0.44.md) | 嵌入式库生命周期与调用者 API 速查（§15） |
+| [TC 语言及编译器标准-0.0.46.md](TC语言及编译器标准-0.0.46.md) | 0.0.46 语法、语义、诊断、编译器实现要求与平台档案的**唯一权威**（§0–§14；80 码） |
+| [TC 原生编译器设计说明书-0.0.46.md](TC原生编译器设计说明书-0.0.46.md) | TC → 汇编 → 机器码原生编译器的**目标架构**；扁平 TAC IR、语义运行时、平台档案、后端与分期路线 |
 
-## 贡献者 / 实现者文档
+## 当前状态
 
-| 文档 | 用途 |
-| ---- | ---- |
-| [TC 原生编译器设计说明书-0.0.46.md](TC原生编译器设计说明书-0.0.46.md) | TC → 汇编 → 机器码原生编译器的**目标架构设计（待实现）**；以 0.0.46 标准为唯一输入，规定扁平 TAC IR / 语义运行时 / 平台档案 / AArch64 后端 / 分期路线，不描述当前 v0.0.44 实现 |
+- 分支：`tc-0.0.46` clean-sheet。
+- 0.0.46 编译器尚未实现；`src/` 只有目录骨架，没有 `tc-vm`/`tc-aot`。
+- 不提供 C 宿主公共库、嵌入 API/ABI。
+- 32/64 位均为 0.0.46 目标；`usize`/`isize` 为平台字长类型。规范文本的 32/64 修订按后续文档任务推进。
 
-编译器实现规范（13 步管线、诊断优先级、平台档案）见标准 §1.7–§1.9、§12.2/§12.5、§13。实现代码导航见 [.cursor/README.md](../.cursor/README.md)（知识图谱 `kg-*.md`、`gotchas.md`）。
-
-## 仓库级文档（根目录）
+## 仓库级文档
 
 | 文档 | 用途 |
 | ---- | ---- |
-| [README.md](../README.md)（[English](../README.en.md)） | 入门、测试与质量门禁、**GitHub CI / 覆盖率** |
-| [CHANGELOG.md](../CHANGELOG.md)（[English](../CHANGELOG.en.md)） | 用户可见变更记录 |
-| [CONTRIBUTING.md](../CONTRIBUTING.md)（[English](../CONTRIBUTING.en.md)） | 贡献流程与测试要求 |
-| [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)（[English](../CODE_OF_CONDUCT.en.md)） | 社区行为准则 |
-| [SECURITY.md](../SECURITY.md)（[English](../SECURITY.en.md)） | 漏洞报告 |
-| [release-checklist.md](release-checklist.md)（[English](release-checklist.en.md)） | 发版检查清单 |
-| [AGENTS.md](../AGENTS.md) | Cursor Agent 入口（维护者可选） |
+| [README.md](../README.md)（[English](../README.en.md)） | 项目入口、文档与骨架结构 |
+| [CHANGELOG.md](../CHANGELOG.md)（[English](../CHANGELOG.en.md)） | 0.0.46 clean-sheet 变更 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md)（[English](../CONTRIBUTING.en.md)） | 贡献流程 |
+| [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)（[English](../CODE_OF_CONDUCT.en.md)） | 行为准则 |
+| [SECURITY.md](../SECURITY.md)（[English](../SECURITY.en.md)） | 安全问题报告 |
+| [AGENTS.md](../AGENTS.md) | Agent 工作指南 |
 
-当前实现版本：**v0.0.44**（Phase 1–7 与 0.0.44 设计文档对齐）。**0.0.45 未发布且已废弃**。0.0.46 标准已定稿并为唯一事实源：[TC语言及编译器标准-0.0.46.md](TC语言及编译器标准-0.0.46.md)（§0–§14 主题章，含 §12.3 诊断码表与 §13 平台档案；实现尚未跟进）。
+## 历史
+
+历史实现与旧设计文档已从本分支移除；需要时从 git tag 恢复。本分支不再维护历史兼容。

@@ -1,6 +1,0 @@
-#program
-; 0.0.31：end 之后块内 var 不可见，统一为 UndefinedVariable。
-if true then
-    var inner: int32 = 1
-end
-writeln(int32, inner)

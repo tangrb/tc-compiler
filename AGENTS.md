@@ -1,49 +1,32 @@
 # TC-Compiler — Agent 指南
 
-C99 编译器：libtc + TC-VM + TC-AOT + TC-Embed · **v0.0.44**（Phase 1–7；语言及编译器标准 0.0.46）。
+**0.0.46 clean-sheet 分支**：只保留 0.0.46 标准、设计文档与实现骨架。历史实现、工具、测试、脚本与示例已移除。0.0.46 编译器尚未实现。
 
-**导航权威**：[.cursor/README.md](.cursor/README.md)（加载分级 · Skill 触发 · 工作流）。本文件始终加载，**勿**复制长路由表。
+## 当前事实
 
-## 硬上限（5 条）
+- 语言及编译器标准：`docs/TC语言及编译器标准-0.0.46.md`（唯一权威）。
+- 原生编译器目标设计：`docs/TC原生编译器设计说明书-0.0.46.md`。
+- 实现骨架：`src/`（只有目录，无实现）。
+- 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
+- 32/64 位均为 0.0.46 目标；`usize`/`isize` 为平台字长类型。
+- 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
+- 不兼容历史实现；历史代码只在 git tag 中。
 
-1. **先 `rg`，再读 md** — 已知文件/符号则直接改；每次只打开路由指向的 **1** 个文档。
-2. **Glob Rule 按目录附加**：`src/**`→`compiler-src`，`src/aot/**`→`aot-src`，`src/vm/embed/**`→`embed-src`，`*.tc`→`tests-tc`，`tests/unit/**`→`unit-tests-c`，`docs/**`→`docs-tc`。
-3. **`@knowledge-graph` 仅跨层** — 新/改 `TcRhsKind`/`TcStmtKind` 或同时动 parser+analyzer+executor/aot；单文件小改 / 查测试 **勿**加载。
-4. **改完最小测**：`bash scripts/run_tests.sh --filter <名>`；动 `TcRhsKind` → `check_rhs_coverage.py`。
-5. **易踩坑**：改模块/import/const/AOT/memcopy 前先扫 [gotchas.md](.cursor/skills/tc-architecture/gotchas.md)。
+## 工作规则
 
-## 何时用哪个 Skill
+1. **先读文档，再动骨架**：语言/语义/诊断问题以 0.0.46 标准为准；实现架构以设计说明书为准。
+2. **不要恢复旧实现**：不得从 git 历史或旧分支复制旧实现作为新实现；0.0.46 按设计重写。
+3. **文档改动最小化**：只改相关章节；不要凭旧实现行为反推 0.0.46 语义。
+4. **32/64 同时考虑**：`usize`/`isize`、`sizeof`、`bitcast`/`trunc`、布局与诊断的字长差异必须显式处理。
+5. **构建骨架**：`cmake -S . -B build` 只做骨架配置；当前没有 `tc-vm`/`tc-aot` 目标。
+6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明本分支为 clean-sheet。
 
-| 用户意图 / 场景 | Skill | 第一步 |
-|-----------------|-------|--------|
-| 符号在哪、调用链、选文档 | `tc-architecture` | 读 SKILL 路由 **1 行** → 1 个 md |
-| 加语法/运算符/RHS/STMT/特性 | `add-compiler-feature` | `feature-kinds.md` **单 §** |
-| 跑测试、修 CI、stdout 不匹配 | `run-tests` | `--filter` 或分层入口 |
-| PR / 代码 Review | `review-tc-code` | gotchas + checklist |
-| 只改 1 个 `.c` / 注释 / 已知 bugfix | **无** | Glob Rule + `rg`（L0） |
+## 导航
 
-路由表权威：`skills/tc-architecture/SKILL.md`（README 不重复）。
-
-## 决策树（一行）
-
-```
-L0 已知文件     → rg + Glob Rule
-L1 找文档       → tc-architecture → 1 md
-L2 跨模块/RHS   → @knowledge-graph → 1 kg-*.md
-L3 加特性       → add-compiler-feature → feature-kinds 单§
-T  测试         → run-tests / tests-tc / unit-tests-c
-R  Review       → review-tc-code
-C  收尾/注释同步 → .cursor/commands/执行收尾工作.md
-规范全文        → docs/TC语言及编译器标准-0.0.46.md（按需单文件）
-```
-
-## 命令
-
-```bash
-bash scripts/run_tests.sh --filter <名>
-python3 scripts/sync/check_rhs_coverage.py [--fix]
-python3 scripts/sync/check_source_naming.py
-python3 scripts/sync/check_doc_counts.py
-python3 scripts/sync/check_doc_layering.py
-make hooks
-```
+| 需求 | 位置 |
+| ---- | ---- |
+| 语言语义 / 诊断 / 平台档案 | `docs/TC语言及编译器标准-0.0.46.md` |
+| IR / 运行时 / 后端 / 路线图 | `docs/TC原生编译器设计说明书-0.0.46.md` |
+| 实现模块边界 | `src/README.md` |
+| 文档地图 | `docs/README.md` |
+| 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

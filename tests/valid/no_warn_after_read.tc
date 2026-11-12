@@ -1,5 +1,0 @@
-#program
-var a: int32 = 0
-var b: int32 = 0
-read(int32, a)
-b = add(int32, a, 0)

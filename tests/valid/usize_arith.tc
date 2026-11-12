@@ -1,4 +1,0 @@
-#program
-; usize 算术与 writeln
-var x: usize = add(usize, 2u, 5u)
-writeln(usize, x)

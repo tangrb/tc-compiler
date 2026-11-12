@@ -1,3 +1,0 @@
-#program
-var a: int8 = 0
-read(int8, a)

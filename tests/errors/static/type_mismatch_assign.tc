@@ -1,4 +1,0 @@
-#program
-var a: uint8 = 10
-var b: int32 = 20
-var c: int32 = add(int32, a, b)

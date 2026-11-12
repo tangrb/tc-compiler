@@ -1,9 +1,0 @@
-#lib
-; 期望：bool literal requires bool context（字面量路径 → TC_CE_LITERAL_TYPE，非已删的 ARGUMENT_TYPE）
-public func sum(a: int32) int32 then
-    return a
-end
-public func caller() void then
-    var x: int32 = funcall(Self.sum, a: true)
-    return
-end

@@ -1,4 +1,0 @@
-#program
-var a: int64 = 9223372036854775807
-var b: int64 = 1
-var c: int64 = add(int64, a, b)

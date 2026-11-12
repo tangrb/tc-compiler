@@ -1,5 +1,0 @@
-#program
-var a: int32 = 0
-var b: int32 = 0
-a = 1
-b = add(int32, a, 0)

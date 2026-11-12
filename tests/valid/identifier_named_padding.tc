@@ -1,4 +1,0 @@
-#program
-; padding 是普通标识符，不是关键字
-var padding: int32 = 1
-writeln(int32, padding)

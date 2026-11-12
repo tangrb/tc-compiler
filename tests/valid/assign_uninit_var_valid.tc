@@ -1,5 +1,0 @@
-#program
-; §4.4：对未初始化变量赋值视为初始化，后续读取无警告
-var a: int32 = 0
-a = 42
-writeln(int32, a)

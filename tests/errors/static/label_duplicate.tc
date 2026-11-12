@@ -1,7 +1,0 @@
-#lib
-; 期望：duplicate label 'dup'
-public func f() void then
-    label dup:
-    label dup:
-    return
-end

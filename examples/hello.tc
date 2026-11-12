@@ -1,3 +1,0 @@
-#program
-; Minimal program: print a greeting value
-writeln(int32, 42)

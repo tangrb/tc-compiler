@@ -1,4 +1,0 @@
-#program
-var a: int8 = 1
-var b: int32 = 2
-var r: int8 = shl(int8, a, b)

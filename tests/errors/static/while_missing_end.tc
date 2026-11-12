@@ -1,4 +1,0 @@
-#program
-; 期望：missing end for while statement
-while true then
-    var x: int32 = 1

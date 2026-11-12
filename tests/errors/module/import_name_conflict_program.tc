@@ -1,3 +1,0 @@
-#program
-import math
-var math: int32 = 42

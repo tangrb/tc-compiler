@@ -1,5 +1,0 @@
-#lib
-; 期望：return form
-public func f() void then
-    return 1
-end

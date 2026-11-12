@@ -1,3 +1,0 @@
-#program
-; 期望：float literal type does not match context
-var x: int32 = inf

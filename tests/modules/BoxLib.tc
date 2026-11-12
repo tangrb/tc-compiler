@@ -1,4 +1,0 @@
-#lib
-public struct Box then
-    var x: int32
-end

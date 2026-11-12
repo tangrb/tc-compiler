@@ -1,4 +1,0 @@
-    #program
-; 模块指令行本身也不得缩进
-var v: int32 = 7
-writeln(int32, v)

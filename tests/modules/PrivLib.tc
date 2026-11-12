@@ -1,7 +1,0 @@
-#lib
-private func secret() void then
-    return
-end
-public func ok() void then
-    return
-end

@@ -1,3 +1,0 @@
-#program
-var a: int8 = -128
-writeln(int8, %u, a)

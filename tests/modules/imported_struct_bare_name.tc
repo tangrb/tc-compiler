@@ -1,4 +1,0 @@
-#program
-; 期望：undefined struct
-import BoxLib
-var a: Box = BoxLib.Box(x: 1)

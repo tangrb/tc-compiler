@@ -1,4 +1,0 @@
-#program
-import BadLibMissingReturn
-var r: int32 = funcall(BadLibMissingReturn.bad)
-writeln(int32, r)

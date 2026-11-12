@@ -1,4 +1,0 @@
-#program
-; 期望：'#' flag not supported for this format specifier（%#d 非法）
-var x: int32 = 1
-write(int32, %#d, x)

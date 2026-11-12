@@ -1,5 +1,0 @@
-; 成功导入 #lib（本用例仅 --check；执行路径见 include_search_ok / phase5_*）
-#program
-import Util
-var x: int32 = 1
-writeln(int32, x)

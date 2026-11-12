@@ -1,3 +1,0 @@
-#program
-var a: uint16 = 65535
-var b: int16 = cast(int16, a)

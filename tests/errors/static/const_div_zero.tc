@@ -1,2 +1,0 @@
-#program
-let X: int32 = div(int32, 10, 0)

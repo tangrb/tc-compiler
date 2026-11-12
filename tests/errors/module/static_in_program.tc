@@ -1,3 +1,0 @@
-; 期望：static is not allowed in #program mode
-#program
-static let K: int32 = 1

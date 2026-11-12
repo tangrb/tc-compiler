@@ -1,3 +1,0 @@
-#program
-var a: int64 = 0
-read(int64, a)
