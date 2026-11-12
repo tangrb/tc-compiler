@@ -314,7 +314,7 @@ int tc_type_equals(const TcType *a, const TcType *b) {
         }
         return tc_type_equals(a->params.ptr_type.pointee, b->params.ptr_type.pointee);
     case TC_MEMBLOCK:
-        /* N 不参与等价（语言标准 §3.8 / VM 详设 §8.6） */
+        /* N 不参与等价（语言标准 §3.8） */
         if (!a->params.memblock_type.element || !b->params.memblock_type.element) {
             return a->params.memblock_type.element == b->params.memblock_type.element;
         }

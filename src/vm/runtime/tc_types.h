@@ -74,7 +74,7 @@ typedef enum {
 #define TC_TYPE_TAG_COUNT ((int)TC_STRUCT + 1)
 
 /**
- * 完整类型表示（VM 详设 §8.1）。
+ * 完整类型表示。
  * 标量与 void：仅 tag 有意义，params 为零。
  * ptr：pointee 堆分配或指向持久类型节点。
  * memblock：element + 声明 count（N）；tc_type_equals 忽略 N。

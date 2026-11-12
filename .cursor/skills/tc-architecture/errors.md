@@ -220,7 +220,7 @@
 |--------|--------|------|------|
 | `TC_ERR_OUT_OF_MEMORY` | `OutOfMemory` | 任意 | 内部分配失败；消息 `memory allocation failed` |
 
-新增错误时同步：`tc_types.h` → `tc_error_kind_name()` → `test_types.c` → 标准 §12.3 → §12.5 → VM 详设 → `errors.md`。
+新增错误时同步：`tc_types.h` → `tc_error_kind_name()` → `test_types.c` → 标准 §12.3 → §12.5 → `errors.md`。
 
 ## 警告
 

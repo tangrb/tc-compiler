@@ -57,7 +57,7 @@
 | 未找到 | ❌ | `TC_CE_LABEL_NOT_FOUND` |
 | 同作用域重名 | ❌ | `TC_CE_DUPLICATE_LABEL` |
 
-不新增 `TcRhsKind`。详设：VM §6.1.7/§7.7/§8.6；AOT §4.7；图谱 [kg-cfg.md](../kg-cfg.md)。
+不新增 `TcRhsKind`。图谱 [kg-cfg.md](../kg-cfg.md)。
 
 测试：`goto_simple`, `goto_forward`, `goto_out_of_if`, `goto_nested_out`, `goto_label_same_name`；static `goto_undefined`, `label_duplicate`, `goto_into_block`, `goto_sibling`；unit `test_symbol.c` / `test_analyzer.c` / `test_types.c`。
 

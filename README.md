@@ -280,7 +280,7 @@ int main(void) {
 ./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
 ```
 
-将生成的 `mylib.c` 与宿主程序、AOT runtime shim（`tc_aot_rt.c`）以及 Embed 桥接源一并按 C99 链接。完整文件清单与 `cc` 命令见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md) §15.6。
+将生成的 `mylib.c` 与宿主程序、AOT runtime shim（`tc_aot_rt.c`）以及 Embed 桥接源一并按 C99 链接。
 
 ### 值桥接
 
@@ -292,7 +292,7 @@ int64_t x;
 tc_value_to_int64(v, &x);
 ```
 
-完整 API 设计见 [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md)。
+完整 API 见 `src/vm/embed/tc_embed.h`。
 
 ## 测试与质量门禁
 
@@ -420,10 +420,7 @@ scripts/
 | ---- | ---- |
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 0.0.46 语法、语义、诊断与编译器实现规范的唯一权威来源（实现尚未跟进） |
 | [TC-VM 命令行参考](docs/TC-VM命令行参考-0.0.44.md) | `tc-vm` 使用方式、输出和退出行为 |
-| [TC-VM 详细设计说明书](docs/TC-VM详细设计说明书-0.0.44.md) | VM 流水线、IR、CFG、执行器设计 |
-| [TC-AOT 详细设计说明书](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 生成、runtime shim 与差分验证 |
 | [libtc 设计说明书](docs/libtc设计说明书-0.0.44.md) | libtc 架构、事务、生命周期、错误契约与 §15 调用者 API 速查 |
-| [TC-Embed 详细设计说明书](docs/TC-Embed详细设计说明书-0.0.44.md) | C→TC 嵌入互操作 API、`ptr<T>` 句柄模型、VM/AOT 双模式设计 |
 
 ## 贡献
 

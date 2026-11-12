@@ -10,17 +10,15 @@ Start with the root [README.en.md](../README.en.md) and [`examples/`](../example
 | -------- | ------- |
 | [TC Language and Compiler Specification 0.0.46](TC语言及编译器标准-0.0.46.md) | **Sole authority** for 0.0.46 syntax, semantics, diagnostics, and compiler implementation rules (topic chapters §0–§14: language rules and compiler implementation requirements; implementation baseline 0.0.44) |
 | [TC-VM Command Reference 0.0.44](TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
-| [TC-Embed Design 0.0.44](TC-Embed详细设计说明书-0.0.44.md) | C↔TC embed API (includes caller-facing API) |
 | [libtc Design 0.0.44](libtc设计说明书-0.0.44.md) | Embeddable library lifecycle and caller API quick reference (§15) |
 
 ## Contributor / implementer docs
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC-VM Design 0.0.44](TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, executor |
-| [TC-AOT Design 0.0.44](TC-AOT详细设计说明书-0.0.44.md) | C99 codegen, runtime shim, differential verification |
+| [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | **Target architecture design (not yet implemented)** for the TC → assembly → machine-code native compiler; takes the 0.0.46 standard as sole input and specifies the flat TAC IR / semantic runtime / platform profile / AArch64 backend / phasing. Does not describe the current v0.0.44 implementation |
 
-> Compiler implementation rules (13-step pipeline, diagnostic priority, platform profile) are in §1.7–§1.9, §12.2/§12.5, and §13 of the standard above.
+Compiler implementation rules (13-step pipeline, diagnostic priority, platform profile) are in §1.7–§1.9, §12.2/§12.5, and §13 of the standard. For implementation code navigation, see [.cursor/README.md](../.cursor/README.md) (knowledge graph `kg-*.md`, `gotchas.md`).
 
 ## Repository-level docs (root)
 
