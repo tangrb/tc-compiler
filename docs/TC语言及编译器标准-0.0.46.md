@@ -1,6 +1,7 @@
 # TC 语言及编译器标准
 
 > **版本**：0.0.46
+> **目标字长**：32 位与 64 位均为正式平台字长（`W ∈ {32, 64}`）。
 > **规范性引用**：IEEE 754-2019（二进制浮点）。除此之外不引用其它文档。
 > **诊断集**：**80** 码 = 65 个 `TC_CE_*` + 15 个 `TC_RE_*`（完整表见 §12.3）。
 > **作者**：唐荣兵（[yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)）
@@ -49,6 +50,8 @@ TC 是带类型的三地址码/伪汇编：一行一条指令，声明与指令�
 - **阶段**：LEX（词法）→ SYN（语法）→ IMPORT（导入解析，SEM 子阶段）→ SEM（静态语义）→ CT（常量求值）→ RT（运行时）。
 - **首个诊断**：按 §12.2 的阶段顺序优先、模块遍历顺序次之、再源序/专用码选取；报告后停止。运行时按执行顺序取首个 trap。
 - **已定义程序**：不存在 UB 的程序。安全代码不得产生 UB；unsafe 代码可以产生 UB。
+- **字长 `W`**：平台档案的字长，取值 32 或 64。`usize` 是 W 位无符号字长类型，`isize` 是 W 位有符号字长类型；`ptr<T>`/`fnptr` 宽度为 W，`sizeof` 返回 W 位 `usize`。`isize`/`usize` 是独立类型，不与任何固定宽度类型等价，也不是 `int32`/`int64`/`uint32`/`uint64` 的别名。
+- **目标相关静态结果**：由 W 决定的类型宽度、`sizeof`、布局、`bitcast`/`trunc` 的等宽/窄化合法性、字面量范围与相关诊断。不同 W 的档案可以有不同的静态结果与首诊；同一档案内必须确定（§13.2.2）。
 
 ## 1. 概述与抽象机
 
@@ -65,7 +68,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 | **PC** | 当前函数/程序中的指令位置 |
 | **调用栈** | 每个活动调用一个帧；帧含参数、局部变量、返回地址/返回值存储 |
 | **存储对象（storage object）** | 命名的值存储；标量/指针/`fnptr`/结构体；由 `var`、参数、`static var`、`#program` 顶层 `var` 建立；宿主分配对象另见 §3.12 |
-| **内存** | 一个字节寻址的地址空间；分为帧区、静态区、设备区、代码区 |
+| **内存** | 一个字节寻址的地址空间；地址宽度为 `usize`（W=32/64）；分为帧区、静态区、设备区、代码区 |
 | **标准输入/输出** | `read`/`write`/`writeln` 的字节流 |
 
 - 不暴露寄存器、栈指针、标志位；这些是实现细节。
@@ -79,7 +82,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 
 可观察行为包括：
 
-1. 是否通过静态检查，以及**首个规范诊断及其错误码**；
+1. 是否通过静态检查，以及**首个规范诊断及其错误码**（静态结果可随档案字长 W 不同，§13.2.2）；
 2. 正常运行时的标准输出字节、正常终止，或首个运行时 trap 的错误码；
 3. 经 `bitcast` 指针→整数观察到的地址值（仅 unsafe），以及跨对象/悬垂指针比较、`ptrdiff` 的地址相关结果（safe 或 unsafe）；它们**环境定义，且不保证跨优化级别稳定**；
 4. 终止/非终止：程序在无 trap、无进一步 I/O 时是否终止；默认模式必须保持该选择（`@fast` 承诺违反的 UB，或仅由 §10.3 许可变换引起的浮点相关控制流/终止除外）。
@@ -150,8 +153,8 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 ### 1.9 编译器实现约束
 
 - 不得增加本文未定义的静态拒绝、警告或错误码；不得放宽语法或静态接受集；不得以实现资源限制替代语言诊断。
-- 不得因优化级别、目标后端、内部哈希顺序或线程数改变首个诊断及其错误码。
-- VM 与 AOT 共享同一套前端静态语义；代码生成可以不同，但不得改变本文规定的静态结果与可观察行为。
+- 不得因优化级别、同一档案内的代码生成后端、内部哈希顺序或线程数改变首个诊断及其错误码；不同字长的档案允许有不同的目标相关静态结果（§13.2.2）。
+- VM 与 AOT 共享同一套前端静态语义；同一档案下代码生成可以不同，但不得改变本文规定的静态结果与可观察行为。
 - 编译器必须覆盖本文定义的全部核心能力；不得为核心指令引入隐藏的运行时语义。
 - 同一源程序、同一模块搜索路径、同一平台档案下，首个诊断及其错误码必须一致；成功编译后的运行时可观察行为必须符合 §1.3 与 §10.8。
 
@@ -217,6 +220,7 @@ TC 是**带类型的三地址码（TAC）/ 伪汇编**，面向教学、AI 生�
 - `_` 只能在数字之间，不可连续/首尾/前缀内。
 - 词法值范围 `0 ≤ N ≤ 2^64−1`；超出 → `TC_CE_LITERAL_LEX_RANGE`（LEX）。
 - 进制只改变书写，不改变数学值；`0b1000_0000` 是 128，不能直接进 `int8` 上下文。
+- `isize`/`usize` 的期望类型范围按档案字长 W：32 位档案为 4 字节，64 位档案为 8 字节；字面量词法上限仍为 `2^64−1`。超出期望类型范围 → `TC_CE_LITERAL_RANGE`（SEM）。
 
 **浮点**：文法见 §14.2。
 
@@ -282,11 +286,11 @@ LEX 只做 Token 自身的整数上限与浮点源类型舍入检查，超出报
 
 | 类别 | 类型 | 说明 |
 |---|---|---|
-| 整数 | `int8`…`uint64`、`isize`、`usize` | 固定宽度补码；`isize`/`usize` 随目标字长（32/64） |
+| 整数 | `int8`…`uint64`、`isize`、`usize` | 固定宽度整数；`isize`/`usize` 按档案字长 W（32/64）；`isize` 补码，`usize` 无符号 |
 | 浮点 | `float32`、`float64` | IEEE 754 binary32/binary64 |
 | 布尔 | `bool` | 1 字节；`false`=0x00，`true`=0x01；load 规范化 |
-| 指针 | `ptr<T>` | 字节地址；宽度 `usize`；`T` 是非 `void` 值类型 |
-| 函数指针 | `fnptr<ret, params…>` | 函数入口地址；宽度 `usize` |
+| 指针 | `ptr<T>` | 字节地址；宽度 `usize` = W；`T` 是非 `void` 值类型 |
+| 函数指针 | `fnptr<ret, params…>` | 函数入口地址；宽度 `usize` = W |
 | 结构体 | `S` | 具名值类型；字段 `readonly`/`var` |
 | 无值 | `void` | 仅返回类型 |
 
@@ -302,8 +306,8 @@ LEX 只做 Token 自身的整数上限与浮点源类型舍入检查，超出报
 | `int64`/`uint64` | 64 | … |
 | `isize`/`usize` | 目标字长 | 32 或 64 |
 
-- 补码；无符号非负。
-- 位宽/符号不同的值禁止隐式转换；必须 `cast`/`trunc`/`bitcast`。
+- `isize` 为 W 位补码，`usize` 为 W 位无符号；位宽不同/符号不同的值禁止隐式转换；必须 `cast`/`trunc`/`bitcast`。
+- `isize`/`usize` 的位宽为 W（32 或 64），不是固定宽度类型；`int32`/`int64` 等始终固定。
 - 运算模式、溢出、移位、`div`/`mod` 与除零规则见 §6.3。
 
 ### 3.3 浮点
@@ -323,7 +327,7 @@ LEX 只做 Token 自身的整数上限与浮点源类型舍入检查，超出报
 ### 3.5 指针
 
 ```text
-ptr<T>   T 是非 void 值类型；宽度 = usize；地址单位 = 字节
+ptr<T>   T 是非 void 值类型；宽度 = usize = W；地址单位 = 字节
 ```
 
 - `nullptr` 位模式 0；**地址 0 保留**，`addr`/`funcaddr` 结果非 0。
@@ -335,7 +339,7 @@ ptr<T>   T 是非 void 值类型；宽度 = usize；地址单位 = 字节
 ### 3.6 函数指针
 
 ```text
-fnptr<ret, p1, p2, …>   ret 可为 void；参数必须是值类型；宽度 = usize
+fnptr<ret, p1, p2, …>   ret 可为 void；参数必须是值类型；宽度 = usize = W
 ```
 
 - 签名逐项等价；参数名不参与。
@@ -354,10 +358,10 @@ end
 - 具名、名义类型；字段按声明顺序；字段名在同一结构体内唯一 → `TC_CE_DUPLICATE_FIELD`。
 - 至少 1 个字段；空结构体 → `TC_CE_EMPTY_STRUCT`。
 - 字段修饰符：`readonly`（构造后其结构体值子树在安全代码中不可字段赋值）或 `var`（外层可写且路径无 `readonly` 时可字段赋值）。
-- **自引用**：字段类型可以是 `ptr<S>`/`ptr<ptr<S>>`，以及 `fnptr<…>` 签名中的 `S`（`fnptr` 宽度固定为 `usize`，签名不内联 `S`），因为指针/函数指针宽度固定；只有结构体值字段直接/间接出现 `S` 才会造成无限布局 → `TC_CE_STRUCT_SELF_VALUE`。
+- **自引用**：字段类型可以是 `ptr<S>`/`ptr<ptr<S>>`，以及 `fnptr<…>` 签名中的 `S`（`fnptr` 宽度为 `usize` = W，签名不内联 `S`），因为指针/函数指针宽度固定；只有结构体值字段直接/间接出现 `S` 才会造成无限布局 → `TC_CE_STRUCT_SELF_VALUE`。
 - **前向引用**：字段类型不得引用尚未定义完毕的其它结构体（即使是 `ptr<其它>`）→ `TC_CE_UNDEFINED_NAME`；`S` 自身的指针/`fnptr` 签名自引用是例外。
 - 布局：字节单位，字段紧排；`@padding(N)` 在该字段后插入 N 个 0x00 字节；无隐式对齐/尾部填充。
-- `sizeof S` 返回字节数 = Σ(字段大小 + padding)；布局在 `struct` 声明处确定，求和中溢出 `usize` → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
+- `sizeof S` 返回字节数 = Σ(字段大小 + padding)；布局在 `struct` 声明处确定，求和在 W 位 `usize` 中溢出 → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
 - 结构体是值类型：整块赋值/传参/返回复制全部字段与 padding；指针字段复制地址（所指对象共享）。
 - **整块赋值可以替换整个值，包括其中的 `readonly` 字段**；字段赋值按路径规则（§6.14）：目标路径上任一 `readonly` 字段都阻止赋值。深度只读作用于结构体值子树，不延伸到 `ptr` 字段所指对象。
 - 不支持结构体比较、算术、`cast`/`bitcast`、I/O；按字段操作。
@@ -374,7 +378,8 @@ end
 
 ### 3.9 类型等价
 
-- 标量：按关键字。`isize`/`usize` 是独立的字长类型：宽度/范围由目标决定，但不与任何固定宽度类型等价；与固定宽度类型之间必须显式 `cast`/`trunc`/`bitcast`。
+- 标量：按关键字。`isize`/`usize` 是独立的字长类型：宽度/范围由档案字长 W 决定，但不与任何固定宽度类型等价；与固定宽度类型之间必须显式 `cast`/`trunc`/`bitcast`。
+- `isize`/`usize` 的宽度随 W 改变，但类型身份不随 W 改变：32 位档案中 `isize` 与 `int32` 同宽但不同型，64 位档案中与 `int64` 同宽但不同型；`usize` 同理对应 `uint32`/`uint64`。
 - 结构体：名义等价；不同结构体即使字段相同也不同型。
 - `ptr<T>`：`T` 等价才等价。
 - `fnptr<ret, ps…>`：返回与参数逐项等价；参数名无关。
@@ -392,6 +397,9 @@ end
 - `cast`/`trunc`/`bitcast`；
 - `make S, …`（字段全为 const）；
 - `sizeof T`。
+
+**求值说明**：常量求值按档案字长 W 执行；`sizeof`、`cast`/`bitcast`/`trunc`、布局与相关 `TC_CE_CONST_*`/`TC_CE_LAYOUT_OVERFLOW` 结果可随 W 不同，但在同一档案内确定。
+
 - `const_expr` 的 op_form 不得带 `.wrap`/`.ieee`/`.nsw`/`.nuw`/`.volatile`；纯运算只接受上述基础助记符（不带模式后缀）。带后缀 → `TC_CE_CONST_FORM`（SEM）。
 
 **禁止**：`var`/参数、`addr`、`load`、`call`、`funcaddr`、`read`、`write`、`unsafe` 操作。 `const` 中的 `bitcast` 仅限数值↔数值（safe）；指针/`fnptr` 的位重解释在常量求值中不可用 → `TC_CE_CONST_FORM`。常量求值失败按原因映射（均为 CT）：
@@ -410,8 +418,8 @@ end
 | 形式 | 作用 | 规则 |
 |---|---|---|
 | `cast T, x` | 数值/bool 转换 | 范围检查；失败 trap `TC_RE_CAST_OVERFLOW`；浮点按 §6.6 |
-| `trunc T, x` | 整数窄化 | 仅整数，目标位宽 < 源；保留低位；不检查；目标位宽 ≥ 源 → `TC_CE_TRUNC_WIDTH` |
-| `bitcast T, x` | 等宽位重解释 | 类别矩阵见下；类别禁止 → `TC_CE_TYPE_MISMATCH`；类别允许但位宽不等 → `TC_CE_BITCAST_WIDTH` |
+| `trunc T, x` | 整数窄化 | 仅整数，目标位宽 < 源；保留低位；不检查；目标/源位宽按 W（`isize`/`usize` 为 W）；目标位宽 ≥ 源 → `TC_CE_TRUNC_WIDTH` |
+| `bitcast T, x` | 等宽位重解释 | 类别矩阵见下；等宽按 W（`ptr`/`fnptr` 宽度为 W）；类别禁止 → `TC_CE_TYPE_MISMATCH`；类别允许但位宽不等 → `TC_CE_BITCAST_WIDTH` |
 
 **`bitcast` 类别矩阵**（行 = 源，列 = 目标；允许项仍须等宽）：
 
@@ -427,7 +435,9 @@ end
 - `nullptr` 禁止作为 `bitcast` 源或目标。
 - 矩阵覆盖所有值类型类别；`void` 不是值类型（§3.8），作为转换目标 → `TC_CE_VOID`；函数、标签、模块不是类型，出现在类型位置按名称解析的既有诊断处理。
 - 判定顺序：先查类别矩阵（禁止 → `TC_CE_TYPE_MISMATCH`），再查位宽（允许类别但不等宽 → `TC_CE_BITCAST_WIDTH`）。
-- `ptr` 与 `fnptr` 宽度均为 `usize`，故 `ptr↔ptr` 恒等宽、`fnptr↔fnptr` 恒等宽；后者仍只允许同签名。
+- `ptr` 与 `fnptr` 宽度均为 `usize` = W，故 `ptr↔ptr` 恒等宽、`fnptr↔fnptr` 恒等宽；后者仍只允许同签名。
+- 32 位档案中 `ptr`/`fnptr` 只能与 32 位整数等宽 `bitcast`；64 位档案只能与 64 位整数等宽。`bitcast isize, int32` 仅 32 位合法，`bitcast isize, int64` 仅 64 位合法。
+- `trunc` 的源/目标位宽包含 W：例如 `trunc isize, int64` 在 32 位合法、在 64 位报 `TC_CE_TRUNC_WIDTH`；`trunc int32, isize` 在 64 位合法、在 32 位报 `TC_CE_TRUNC_WIDTH`。
 - 指针重标记只用 `bitcast`；`cast` 不作用于指针（→ `TC_CE_TYPE_MISMATCH`）。
 - `nullptr` 不需要转换：期望类型为 `ptr<T>`/`fnptr<…>` 时直接使用。
 - 字面量在转换操作数位置的源类型见 §6.6.3。
@@ -453,13 +463,14 @@ end
 | **dangling** | `copy`、返回、存入存储对象/字段、`bitcast ptr↔ptr`、比较、`ptrdiff` | 解引用、`ptradd`/`ptrsub`、`memmove` |
 
 - **悬垂指针是地址值，不是立即 UB**：只有解引用、指针算术、`memmove` 或对原对象的访问才产生 UB；`copy`/返回/比较/`ptrdiff`/`bitcast ptr↔ptr` 定义。
+- 地址、指针、`usize`/`isize` 的宽度均为 W；`ptrdiff` 返回 W 位 `isize`；`memmove` 的 `n` 为 W 位 `usize`。
 - **对象边界**：`load/store T` 访问的 `[p, p+sizeof T)` 必须完全位于一个 live 对象/子对象内；否则 UB。
-- **`ptradd`/`ptrsub T`**：以 `sizeof T` 为步长；结果必须在同一对象的 `[start, one-past]` 内；否则 UB。`ptradd` 的输入为 one-past 时只允许 `n=0`；`ptrsub` 可从 one-past 回到对象内；输入为 dangling 时任何算术都 UB。
+- **`ptradd`/`ptrsub T`**：以 `sizeof T` 为步长；`n` 是 W 位 `usize`；`n × sizeof T` 按数学值计算，结果必须在同一对象的 `[start, one-past]` 内；否则 UB。`ptradd` 的输入为 one-past 时只允许 `n=0`；`ptrsub` 可从 one-past 回到对象内；输入为 dangling 时任何算术都 UB。
 - **字段子对象**：字段各自是独立子对象；不能通过一个字段的指针 `ptradd` 进入相邻字段。
-- **`memmove T, dst, src, n`**：dst/src 必须分别指向至少 `n` 个 `T` 元素的 live 对象；重叠按临时缓冲；越界/悬垂/未初始化读取 UB；`n` 是 `usize`。`n=0` 不绕过指针状态检查：null → `TC_RE_NULL_POINTER`；one-past → 按状态表禁止 `memmove`；dangling → UB；只有 live 对象的指针可作为零长度 no-op。
-- **`ptrdiff T, p, q`**：同一对象（含 one-past）内为精确字节差；悬垂指针按原地址差（原本同对象则为原字节差，否则环境定义）；跨对象为环境定义；null 视为地址 0；结果不可由 `isize` 表示 → `TC_RE_PTRDIFF_OVERFLOW`。
+- **`memmove T, dst, src, n`**：dst/src 必须分别指向至少 `n` 个 `T` 元素的 live 对象；重叠按临时缓冲；越界/悬垂/未初始化读取 UB；`n` 是 W 位 `usize`，`n × sizeof T` 按数学值计算。`n=0` 不绕过指针状态检查：null → `TC_RE_NULL_POINTER`；one-past → 按状态表禁止 `memmove`；dangling → UB；只有 live 对象的指针可作为零长度 no-op。
+- **`ptrdiff T, p, q`**：同一对象（含 one-past）内为精确字节差；悬垂指针按原地址差（原本同对象则为原字节差，否则环境定义）；跨对象为环境定义；null 视为地址 0；结果不可由 W 位 `isize` 表示 → `TC_RE_PTRDIFF_OVERFLOW`。
 - **`ptreq/ptrne/ptrlt/le/gt/ge`**：比较地址值；dangling 可比较；跨对象序为环境定义。
-- **`addr T, target`**：产生指向 live 对象/子对象的指针；生命期结束后变为 dangling；`const` 不可取址。
+- **`addr T, target`**：产生指向 live 对象/子对象的指针（宽度 W）；生命期结束后变为 dangling；`const` 不可取址。
 - **未初始化存储**：`addr` 可取址；经 `load` 读取未初始化存储是 UB（unsafe 代码）；安全代码不可 `load`。
 - **空结构体禁止**（至少 1 个字段），因此不存在零大小对象。
 - **宿主对象**：宿主分配对象必须由至少 1 个 `T` 元素组成（`n>=1`）；`n=0` 不创建核心对象，由运行时库报错或返回库级错误。宿主对象与核心对象遵循同一套边界/生命期规则；分配/释放 API 不在核心（§11.4）。
@@ -470,7 +481,7 @@ end
 
 编译器必须维护单一类型事实源：完整类型由类型对象（种类 + 参数）表示；符号、绑定、值与分析期期望类型持有稳定、共享的类型指针，不得另存裸标签充当完整类型。类型种类标签只是投影，用于判别、宽度与语义内核分派；不得用投影降级写回绑定或值。指针元素类型、函数指针签名、结构体标识等复合参数只存在于类型对象的参数中。
 
-Analyze 入口创建类型表；Pass1 对声明类型做 intern；Pass2 对 `cast`/`trunc`/`bitcast` 目标做 intern；Analyze 完成后类型表对执行器/AOT 只读。`cast`/`trunc`/`bitcast` 的目标类型必须按完整类型语法解析，包括 `ptr<T>`、`fnptr<…>` 与结构体名；执行器/AOT 不得重新解析或改写类型表。
+Analyze 入口创建类型表；Pass1 对声明类型做 intern；Pass2 对 `cast`/`trunc`/`bitcast` 目标做 intern；Analyze 完成后类型表对执行器/AOT 只读。`cast`/`trunc`/`bitcast` 的目标类型必须按完整类型语法解析，包括 `ptr<T>`、`fnptr<…>` 与结构体名；执行器/AOT 不得重新解析或改写类型表。类型表可跨 W 共享，但不得在类型对象中缓存 W 相关的 `sizeof`/布局/地址属性；这些由平台档案计算。
 
 #### 3.13.2 类型验证
 
@@ -490,7 +501,7 @@ Analyze 入口创建类型表；Pass1 对声明类型做 intern；Pass2 对 `cas
 - 结构体布局在 SEM 阶段按声明顺序计算：字段紧凑排列，`@padding(N)` 插入 `N` 个 `0x00` 字节，无隐式对齐或尾部填充；`sizeof S` 为字段大小与 padding 之和，求和中溢出 `usize` 报告 `TC_CE_LAYOUT_OVERFLOW`。
 - 字段类型引用尚未定义完毕的其它结构体：在 SEM 名称阶段报告 `TC_CE_UNDEFINED_NAME`，位置见 §12.5.1；不按 `TC_CE_LAYOUT_OVERFLOW` 的 `struct` 声明位置处理。
 
-转换验证按固定顺序：先查类别矩阵（禁止 → `TC_CE_TYPE_MISMATCH`），再查位宽（允许但不等宽 → `TC_CE_BITCAST_WIDTH`）。`nullptr`、`bool`、结构体、指针↔浮点、`fnptr`↔浮点、指针↔`fnptr`、跨签名 `fnptr` 一律禁止；`cast` 不作用于指针；`trunc` 只窄化（目标位宽 ≥ 源 → `TC_CE_TRUNC_WIDTH`）。字面量在转换操作数位置按源类型规则定型；普通指令、`copy`、`make`、`call`、`return`、`write` 的字面量以期望类型检查。整数字面量的符号性按 §2.4：无后缀非负值可用于有符号/无符号 `T`，无后缀负值只允许有符号 `T`，`u`/`U` 只允许无符号 `T`。值超出源类型或期望类型范围报告 `TC_CE_LITERAL_RANGE`；类别/后缀/符号性不符报告 `TC_CE_LITERAL_TYPE`。
+转换验证按固定顺序：先查类别矩阵（禁止 → `TC_CE_TYPE_MISMATCH`），再查位宽（允许但不等宽 → `TC_CE_BITCAST_WIDTH`）。位宽按档案 W 计算：`ptr`/`fnptr`/`isize`/`usize` 为 W 位，`int32` 等固定宽度不变。`nullptr`、`bool`、结构体、指针↔浮点、`fnptr`↔浮点、指针↔`fnptr`、跨签名 `fnptr` 一律禁止；`cast` 不作用于指针；`trunc` 只窄化（目标位宽 ≥ 源 → `TC_CE_TRUNC_WIDTH`）。字面量在转换操作数位置按源类型规则定型；普通指令、`copy`、`make`、`call`、`return`、`write` 的字面量以期望类型检查。整数字面量的符号性按 §2.4：无后缀非负值可用于有符号/无符号 `T`，无后缀负值只允许有符号 `T`，`u`/`U` 只允许无符号 `T`。值超出源类型或期望类型范围报告 `TC_CE_LITERAL_RANGE`；类别/后缀/符号性不符报告 `TC_CE_LITERAL_TYPE`。
 
 #### 3.13.4 类型诊断位置
 
@@ -865,19 +876,20 @@ OUT[其他指令] = IN[n]
 | `load.volatile` | `d = load.volatile T, p` | 同上 | T | read/volatile | 同上 | unsafe |
 | `store` | `_ = store T, p, v` | `T` 值类型 | — | write | 空指针；只读区；越界/悬垂 UB；代码区/设备拒绝 | unsafe |
 | `store.volatile` | `_ = store.volatile T, p, v` | 同上 | — | write/volatile | 同上 | unsafe |
-| `memmove` | `_ = memmove T, dst, src, n` | `T` 值类型；`n: usize` | — | read+write | 空指针；只读区；越界/悬垂/未初始化读取 UB | unsafe |
+| `memmove` | `_ = memmove T, dst, src, n` | `T` 值类型；`n: usize`（W 位） | — | read+write | 空指针；只读区；越界/悬垂/未初始化读取 UB | unsafe |
 | `addr` | `d = addr T, target` | 目标类型 `T` | `ptr<T>` | pure | 无 | safe |
-| `ptradd` | `d = ptradd T, p, n` | `ptr<T>`, `usize` | `ptr<T>` | pure | 空指针；越界/悬垂 UB | unsafe |
-| `ptrsub` | `d = ptrsub T, p, n` | `ptr<T>`, `usize` | `ptr<T>` | pure | 空指针；越界/悬垂 UB | unsafe |
-| `ptrdiff` | `d = ptrdiff T, p, q` | `ptr<T>`, `ptr<T>` | `isize`（字节差） | pure | 结果不可表示 → `TC_RE_PTRDIFF_OVERFLOW` | safe |
+| `ptradd` | `d = ptradd T, p, n` | `ptr<T>`, `usize`（W 位） | `ptr<T>` | pure | 空指针；越界/悬垂 UB | unsafe |
+| `ptrsub` | `d = ptrsub T, p, n` | `ptr<T>`, `usize`（W 位） | `ptr<T>` | pure | 空指针；越界/悬垂 UB | unsafe |
+| `ptrdiff` | `d = ptrdiff T, p, q` | `ptr<T>`, `ptr<T>` | `isize`（W 位，字节差） | pure | 结果不可表示 → `TC_RE_PTRDIFF_OVERFLOW` | safe |
 | `ptreq` / `ptrne` | `d = ptreq T, p, q` | `ptr<T>`/`nullptr` | `bool` | pure | 无 | safe |
 | `ptrlt` / `ptrle` / `ptrgt` / `ptrge` | 同上 | `ptr<T>`/`nullptr` | `bool` | pure | 无 | safe |
-| `sizeof` | `d = sizeof T` | 类型 | `usize`（字节） | pure | 无 | safe |
+| `sizeof` | `d = sizeof T` | 类型 | `usize`（W 位，字节） | pure | 无 | safe |
 
 - `addr` 的 target 是存储对象/字段路径；`const` 不可取址。`addr` 产生指向 live 对象/子对象的指针；对象生命期结束后指针悬垂（§3.12）。
 - `load/store` 的 `T` 可为标量/指针/`fnptr`/结构体；对齐不要求；端序环境定义。访问范围必须完全位于一个 live 对象/子对象内；one-past/悬垂/越界访问 UB；未初始化存储的读取 UB。
 - `memmove` 按 `T` 元素复制，重叠等价于先临时缓冲；`n` 是元素数；dst/src 必须指向至少 `n` 个 `T` 元素的 live 对象；越界/悬垂 UB。
-- 指针算术按字节：`p ± n × sizeof T`；结果必须位于同一对象的 `[start, one-past]` 内；`ptradd` 从 one-past 只允许 `n=0`，`ptrsub` 可从 one-past 回到对象内；dangling/越界算术 UB。
+- 指针算术按字节：`p ± n × sizeof T`；`n` 是 W 位 `usize`，乘法按数学值计算；结果必须位于同一对象的 `[start, one-past]` 内；`ptradd` 从 one-past 只允许 `n=0`，`ptrsub` 可从 one-past 回到对象内；dangling/越界算术 UB。
+- `usize`/`isize`/`ptr`/`fnptr` 的宽度为 W；`ptrdiff`/`sizeof` 的结果类型宽度随 W；`ptradd`/`ptrsub`/`memmove` 的 `n × sizeof T` 超出地址空间即 UB。
 
 #### 6.2.6 函数
 
@@ -890,8 +902,8 @@ OUT[其他指令] = IN[n]
 
 - `call` 的 args 可按位置或名字写；名字必须匹配形参且保持声明顺序；`call_indirect` 只按位置，出现命名实参 → `TC_CE_UNKNOWN_ARGUMENT`。
 - `funcaddr` 的目标是 `Self.f`/`m.f`；未解析 → `TC_CE_UNDEFINED_FUNCTION`。
-- 函数指针宽度 = `usize`；`nullptr` 兼容；`ptr` ↔ `fnptr` 禁止。
-- `funceq`/`funcne` 的 `T` 是函数签名 `fnptr<sig>`；两个操作数必须同为 `fnptr<sig>` 或 `nullptr`，不同签名 → `TC_CE_TYPE_MISMATCH`。`nullptr` 与 `nullptr` 相等；`nullptr` 与非空不等；两个非空 `fnptr` 比较其入口地址。`funcne` 是 `funceq` 的逻辑取反。
+- 函数指针宽度 = `usize` = W；`nullptr` 兼容；`ptr` ↔ `fnptr` 禁止。
+- `funceq`/`funcne` 的 `T` 是函数签名 `fnptr<sig>`（宽度 W）；两个操作数必须同为 `fnptr<sig>` 或 `nullptr`，不同签名 → `TC_CE_TYPE_MISMATCH`。`nullptr` 与 `nullptr` 相等；`nullptr` 与非空不等；两个非空 `fnptr` 比较其入口地址。`funcne` 是 `funceq` 的逻辑取反。
 
 #### 6.2.7 结构体与复制
 
@@ -944,6 +956,7 @@ OUT[其他指令] = IN[n]
 | `shl` | strict 或 `.wrap` | strict 或 `.wrap` | 非法 |
 | `shr` | 无模式 | 无模式 | 非法 |
 
+- `isize`/`usize` 的位宽为 W；`INT_MIN`/`INT_MAX`、溢出、移位与 `div`/`mod` 按 W 计算；`int64`/`uint64` 始终 64 位，在 32 位档案中也按 64 位语义执行（实现可用运行时辅助）。
 - 模式不适用于该类型/运算 → `TC_CE_MODE`。
 - `shl`/`shr` 的被移位数 `a` 与计数 `k` 必须同为 `T`；不同位宽先 `cast`。计数按 `T` 的数学值；负数 → `TC_RE_NEGATIVE_SHIFT`。
 - `shl` 的数学结果是 `a × 2^k`（`a` 按其有符号/无符号数学值解释）；strict 时若结果不能在 `T` 中表示 → `TC_RE_INTEGER_OVERFLOW`；`.wrap` 取低 n 位。
@@ -1001,9 +1014,9 @@ OUT[其他指令] = IN[n]
 
 #### 6.6.1 `cast`
 
-- 整数→整数：范围检查；不可表示 → `TC_RE_CAST_OVERFLOW`。
+- 整数→整数：范围检查；不可表示 → `TC_RE_CAST_OVERFLOW`。`isize`/`usize` 的目标范围按 W；`int64`/`uint64` 始终 64 位。
 - 整数→浮点：按 roundTiesToEven；允许精度损失；不产生 inf（现有整数范围）。
-- 浮点→整数：向零截断；NaN/inf/越界 → `TC_RE_CAST_OVERFLOW`。
+- 浮点→整数：向零截断；NaN/inf/越界 → `TC_RE_CAST_OVERFLOW`；目标为 `isize`/`usize` 时范围按 W。
 - `float64→float32`：roundTiesToEven；有限值→inf → `TC_RE_CAST_OVERFLOW`；下溢到 0/非规格化合法；NaN 按异类型规则规范化。
 - `float32→float64`：有限值无损；NaN 按异类型规则规范化。
 - `bool↔数值`：false=0，true=1；数值 0→false，非 0（含 NaN）→true。
@@ -1023,13 +1036,17 @@ OUT[其他指令] = IN[n]
 | `cast` | `u` 整数 | `uint64` |
 | `cast` | 浮点 | `f`/`F` → float32；否则 float64 |
 | `cast` | `inf`/`-inf`/`nan` | 目标必须是浮点类型；源类型 = 目标类型 |
+| `trunc` | 无后缀整数 | `int64`；必须在 int64 范围 |
+| `trunc` | `u` 整数 | `uint64` |
+| `trunc` | 浮点/`inf`/`nan`/`nullptr` | 非法（`trunc` 仅整数） |
 | `bitcast` | 整数 | 源位宽 = 目标位宽；无后缀 = signed；`u`/`U` = unsigned |
 | `bitcast` | 浮点 | `f`/`F` → float32；否则 float64 |
 | `bitcast` | `inf`/`-inf`/`nan` | 目标 32 位→float32；64 位→float64 |
 | `bitcast` | `nullptr` | 非法 |
 
 - 普通指令/`copy`/`make`/`call`/`return`/`write` 的字面量以期望类型检查。
-- `bitcast` 的整数源类型是上下文例外：不受 §2.4 普通期望类型的符号性宽松规则影响；无后缀按 signed 定型。
+- `bitcast` 的整数源类型是上下文例外：不受 §2.4 普通期望类型的符号性宽松规则影响；无后缀按 signed 定型。目标为 `ptr`/`fnptr` 时源位宽为 W；32 位档案中只能与 32 位整数等宽，64 位只能与 64 位整数等宽。
+- `trunc` 的源类型按上表；目标位宽必须小于源位宽；`isize`/`usize` 的源/目标宽度为 W。
 - 整数字面量在普通期望整数类型 `T` 下：无后缀非负值按 `T` 定型（`T` 可 signed/unsigned）；无后缀负值只允许 signed `T`；`u`/`U` 只允许 unsigned `T`；负值/符号性不符 → `TC_CE_LITERAL_TYPE`；超出 `T` 范围 → `TC_CE_LITERAL_RANGE`。
 - 字面量值超出其源类型或上下文期望类型可表示范围 → `TC_CE_LITERAL_RANGE`（SEM）。
 - 非零有限浮点字面量舍入为零/有限值舍入为 inf → `TC_CE_LITERAL_LEX_RANGE`（LEX）。
@@ -1037,7 +1054,7 @@ OUT[其他指令] = IN[n]
 
 ### 6.7 内存语义
 
-- 地址空间字节寻址；地址宽度 `usize`；端序环境定义。对象、生命期、指针状态与 one-past 规则见 §3.12。
+- 地址空间字节寻址；地址宽度 `usize` = W；端序环境定义。对象、生命期、指针状态与 one-past 规则见 §3.12。
 - `load T, p` 从 `p` 起读 `sizeof T` 字节；`store` 写。
 - `bool` 的读取一律规范化（0x00→false，非 0→true）；bool 值写存储一律写 0x00/0x01。结构体整块 `copy`/`memmove` 按字节复制，可保留非规范字节；其后的 bool 读取仍按此规则规范化。
 - 未对齐访问合法。
@@ -1046,15 +1063,15 @@ OUT[其他指令] = IN[n]
 - 代码区/区外/设备拒绝 → `TC_RE_ADDR_UNAVAILABLE`。
 - 只读区写 → `TC_RE_WRITE_PROTECTED`。
 - 越界/悬垂/one-past 访问/未初始化读取 → UB（§9.4）。
-- `memmove` 重叠等价于先临时缓冲；`n` 是 `usize` 元素数；空指针 trap；`n=0` 仍按 §3.12 检查 null/one-past/dangling，不做绕过；其余规则见 §3.12/§9.4。
+- `memmove` 重叠等价于先临时缓冲；`n` 是 W 位 `usize` 元素数；`n × sizeof T` 按数学值计算；空指针 trap；`n=0` 仍按 §3.12 检查 null/one-past/dangling，不做绕过；其余规则见 §3.12/§9.4。
 
 ### 6.8 指针语义
 
 - `addr T, x`：目标类型必须等于 `T`；结果 `ptr<T>`；`const` 不可取址。
-- `ptradd`/`ptrsub` 按数学字节偏移 `p ± n*sizeof T`；空指针 trap；结果必须位于同一对象的 `[start, one-past]` 内。
-- `ptrdiff` 溢出 → `TC_RE_PTRDIFF_OVERFLOW`。
+- `ptradd`/`ptrsub` 按数学字节偏移 `p ± n*sizeof T`；`n` 是 W 位 `usize`；空指针 trap；结果必须位于同一对象的 `[start, one-past]` 内。
+- `ptrdiff` 返回 W 位 `isize`；溢出 → `TC_RE_PTRDIFF_OVERFLOW`。
 - 指针比较按地址整数比较；`nullptr` = 0；不 trap。
-- `bitcast ptr↔int`：unsafe；地址值环境定义。
+- `bitcast ptr↔int`：unsafe；只允许 W 位整数；地址值环境定义。
 - 悬垂/跨对象/one-past 的完整指针状态与 UB 见 §3.12/§9.4；地址相关结果不保证跨优化级别稳定（§10.5）。
 - `ptr` 不参与通用算术/位运算/标量 I/O。
 
@@ -1103,6 +1120,8 @@ OUT[其他指令] = IN[n]
 | `int64` / `uint64` / `float64` | 8 |
 | `isize` / `usize` / `ptr<T>` / `fnptr<…>` | 目标字长：4 或 8 |
 | `S` | Σ(字段 + `@padding`) |
+
+- 表中“目标字长”即 W：32 位档案为 4，64 位档案为 8。`sizeof S` 的求和按 W 位 `usize`；溢出 → `TC_CE_LAYOUT_OVERFLOW`（SEM）。
 
 ### 6.14 赋值目标与字段赋值
 
@@ -1374,6 +1393,7 @@ end
 - `@fast` 函数可以包含 unsafe 指令/调用；不需要 `unsafe` 块。
 - `@unsafe`/`@safe`/`@fast` 三者互斥；`@fast_math` 必须与 `@fast` 同用；`@inline`/`@noinline` 互斥。
 - `@no_overflow`/`@pure`/`@readonly`/`@nounwind`/`@willreturn` 只在 `@fast` 函数上合法；`@nonnull`/`@no_alias`/`@align` 只在 `@fast` 指针形参上合法；`@range` 只在 `@fast` 整数形参上合法；否则 `TC_CE_ANNOTATION`。
+- `@align(N)` 的 `N` 与 `@range(lo,hi)` 的 `lo`/`hi` 按各自目标类型检查：`@align` 的 `N` 按 W 位地址宽度；`@range` 的 `lo`/`hi` 按形参类型（`isize`/`usize` 为 W，固定宽度类型保持其宽度）。超出目标类型可表示范围 → `TC_CE_ANNOTATION`；若字面量本身在期望类型中不可表示，仍按 §6.6.3 的 `TC_CE_LITERAL_RANGE` 优先。
 - `@align(N)` 的 `N` 必须是正的 2 的幂；`@range(lo,hi)` 必须 `lo <= hi`；否则 `TC_CE_ANNOTATION`。`@range` 的 `lo`/`hi` 必须是同型整数常量；整数字面量按 §2.4 与形参类型定型，无后缀非负值可用于有符号/无符号形参。字面量无法定型为形参类型 → `TC_CE_LITERAL_TYPE`；不同型、非整数常量或其它注解参数违规 → `TC_CE_ANNOTATION`。
 - 注解顺序不限；重复/冲突 → `TC_CE_ANNOTATION`。
 
@@ -1555,13 +1575,13 @@ end
 
 **地址相关结果**包括（依赖它们的控制流、输出、trap 或终止不在跨优化保证内）：
 
-- `bitcast ptr→int` 的结果（unsafe）；
+- `bitcast ptr→int` 的结果（unsafe；W 位）；
 - 跨对象或悬垂指针的 `ptreq`/`ptrne`/`ptrlt`/`ptrle`/`ptrgt`/`ptrge` 结果；
 - 跨对象或悬垂指针的 `ptrdiff` 结果。
 
 - 地址相关结果**环境定义，且不保证跨优化级别稳定**；依赖它们的值或输出不属于“跨优化确定”。
 - 同一对象（含 one-past）内的指针比较与 `ptrdiff` 是确定的；`nullptr` 的相等比较是确定的；`ptrdiff` 结果不可由 `isize` 表示时 trap（`TC_RE_PTRDIFF_OVERFLOW`）。
-- `bitcast ptr→int` 仅 unsafe；打印地址的程序不属于“跨优化确定”的程序；优化可以改变帧布局/静态布局。
+- `bitcast ptr→int` 仅 unsafe；只允许 W 位整数；打印地址的程序不属于“跨优化确定”的程序；优化可以改变帧布局/静态布局。
 
 ### 10.6 浮点
 
@@ -1616,6 +1636,7 @@ end
 - `%g` 规则：先按 6 位有效数字 roundTiesToEven；十进制指数 `e`；`e < −4` 或 `e >= 6` 用科学计数法，否则定点；删除小数末尾 0 与空小数点。
 - 指数至少两位；`e+00`；负零保留符号；NaN 不带符号（即使位模式符号位为 1）。
 - 十进制输出以源 binary32/64 的精确数学值为输入，按 roundTiesToEven 舍入；不得经宿主低精度类型。
+- `isize`/`usize` 的十进制范围按 W；`int64`/`uint64` 始终 64 位。格式本身不随 W 改变。
 
 ### 11.3 输入格式
 
@@ -1624,6 +1645,7 @@ end
 - `bool`：`true`/`false`（小写）。
 - 浮点：十进制整数/小数/指数；`inf`/`-inf`/`nan`；不接受 `f` 后缀/`-nan`/`+`；小数点两侧要有数字；`nan` 产生 canonical quiet NaN（正号）。输入不接受 `+`（包括指数正号）是刻意的输入约束；源码字面量的 `1e+5` 合法，不适用于输入 Token。
 - 浮点输入先解析精确十进制值，再按 roundTiesToEven 到目标格式；非零→0/有限→inf 是 `TC_RE_IO`。
+- `read isize`/`read usize` 的范围按 W；超出 W 位范围 → `TC_RE_IO`。
 - 输入 Token 必须完整匹配；`12abc` 非法。
 
 ### 11.4 运行时库（非核心）
@@ -1670,6 +1692,7 @@ I/O 诊断位置见 §12.5.1。
 5. **条款内顺序优先**：各章规定的顺序（浮点异常优先级、负移位计数先行、空指针分类先行等）优先于通用规则。
 6. **布局诊断归属 SEM**：结构体布局在 `struct` 声明处计算；`TC_CE_LAYOUT_OVERFLOW` 按 SEM 的模块遍历/源序参与首诊排序，不进入 CT。
 7. **遍历无关**：函数表、哈希表、CFG、调用图、导入表、字段表的内部遍历顺序不得改变首个诊断。
+8. **档案字长**：首诊顺序在同一档案内固定；不同字长档案的候选集与首诊可以不同（§13.2.2）。
 
 **IMPORT 码的阶段例外**：`TC_CE_IMPORT_NOT_FOUND`、`TC_CE_IMPORT_NOT_LIB`、`TC_CE_DUPLICATE_IMPORT`、`TC_CE_CIRCULAR_IMPORT`、`TC_CE_IMPORT_NAME_CONFLICT` 在码表中归入 SEM 子阶段，但必须在 IMPORT 阶段报告。任何实现都不得把它们推迟到步骤 6–11 再报告。
 
@@ -1677,6 +1700,7 @@ I/O 诊断位置见 §12.5.1。
 
 > 本表是完整集合（65 个 `TC_CE_*` + 15 个 `TC_RE_*`）；正文未列出的码不存在。阶段列取值：LEX、SYN、LEX/SYN、SEM、CT；`LEX/SYN` 表示该码可在词法或语法阶段报告；运行时错误无阶段列。
 > 打印名是实现约定（见 §12.5），错误码才是规范标识；不同实现的打印文本可以本地化，但错误码、阶段与触发条件必须一致。
+> **字长相关条件**：`TC_CE_BITCAST_WIDTH`、`TC_CE_TRUNC_WIDTH`、`TC_CE_LITERAL_RANGE`、`TC_CE_LAYOUT_OVERFLOW`、`TC_CE_CONST_CAST`、`TC_CE_CONST_OVERFLOW`、`TC_CE_ANNOTATION`、`TC_RE_CAST_OVERFLOW`、`TC_RE_PTRDIFF_OVERFLOW`、`TC_RE_IO`、`TC_RE_INTEGER_OVERFLOW`、`TC_RE_ADDR_UNAVAILABLE` 的触发条件按档案字长 W 实例化；码本身不变。`TC_RE_STACK_OVERFLOW` 由档案的 `D`/栈大小决定。
 
 #### 词法/语法
 
@@ -1888,7 +1912,7 @@ I/O 诊断位置见 §12.5.1。
 
 以下项目属于环境定义，实现必须文档化，且同一程序在同一档案下的行为必须确定：
 
-- 地址宽度与端序；
+- 地址宽度/字长 W 与端序（W 为 32 或 64）；
 - 地址空间布局与基址、栈大小；
 - 抽象调用深度上限 `D`；
 - include 根目录及搜索顺序；
@@ -1905,7 +1929,7 @@ I/O 诊断位置见 §12.5.1。
 
 | 字段 | 说明 |
 | ---- | ---- |
-| 地址宽度 | 本档案固定 64 位目标字长；`isize`/`usize`/指针/`fnptr`/栈帧地址均为 64 位 |
+| 地址宽度/字长 | `W ∈ {32,64}`；`isize`/`usize`/指针/`fnptr`/栈帧地址均为 W 位；`int64`/`uint64`/`float64` 固定 64 位 |
 | 端序 | 设备与内存的字节序；多字节 `load`/`store` 按目标端序转换 |
 | 区表 | 帧区、静态区、设备区、代码区的基址与范围 |
 | 栈大小 | 帧变量区与参数区；必须保证 `D` 个抽象帧可执行 |
@@ -1914,13 +1938,63 @@ I/O 诊断位置见 §12.5.1。
 | stdout 汇 | UART、信号量或等价输出端点 |
 | 代码合并 | 必须禁用 ICF 或等价入口合并 |
 
-同一档案下，VM 与 AOT 必须生成相同的区内部偏移。语言层的 32 位字长是保留能力；本档案只定义 64 位目标，32 位目标不属于本文定义的档案。
+同一档案下，VM 与 AOT 必须生成相同的区内部偏移。0.0.46 同时定义 32 位与 64 位档案；不同档案的字长、布局和静态结果可以不同，但同一档案内必须确定。
+
+#### 13.2.1 字长与类型
+
+- **32 位档案**：`usize`/`isize` 4 字节；`ptr<T>`/`fnptr` 4 字节；上述类型的 `sizeof` 为 4。
+- **64 位档案**：`usize`/`isize` 8 字节；`ptr<T>`/`fnptr` 8 字节；上述类型的 `sizeof` 为 8。
+- `int8`/`int16`/`int32`/`int64` 与 `float32`/`float64` 的宽度固定；`int64`/`uint64`/`float64` 在 32 位档案中仍是 64 位。
+- `isize`/`usize` 的类型身份不随 W 改变：32 位档案中 `isize` 与 `int32`、`usize` 与 `uint32` 同宽但不同型；64 位档案中分别与 `int64`、`uint64` 同宽但不同型。
+
+#### 13.2.2 字长相关静态结果
+
+下表是 0.0.46 中由 W 决定的静态结果。**同一档案内必须确定；不同 W 的档案可以不同。**
+
+| 项 | 32 位档案 | 64 位档案 |
+| ---- | ---- | ---- |
+| `isize`/`usize` 宽度 | 4 | 8 |
+| `ptr<T>`/`fnptr` 宽度 | 4 | 8 |
+| `sizeof isize`/`usize`/`ptr`/`fnptr` | 4 | 8 |
+| `ptrdiff` 结果 | `isize` 32 位 | `isize` 64 位 |
+| `bitcast ptr<T> ↔ int` / `bitcast fnptr<sig> ↔ int` | 仅 `int32`/`uint32`/`isize`/`usize` | 仅 `int64`/`uint64`/`isize`/`usize` |
+| `bitcast isize ↔ int32` | 等宽，合法 | `TC_CE_BITCAST_WIDTH` |
+| `bitcast isize ↔ int64` | `TC_CE_BITCAST_WIDTH` | 等宽，合法 |
+| `bitcast usize ↔ uint32` | 等宽，合法 | `TC_CE_BITCAST_WIDTH` |
+| `bitcast usize ↔ uint64` | `TC_CE_BITCAST_WIDTH` | 等宽，合法 |
+| `trunc isize, int64` | 合法（32 < 64） | `TC_CE_TRUNC_WIDTH` |
+| `trunc int32, isize` | `TC_CE_TRUNC_WIDTH`（32 = 32） | 合法（32 < 64） |
+| `trunc usize, int64` | 合法（32 < 64） | `TC_CE_TRUNC_WIDTH` |
+| `trunc int32, usize` | `TC_CE_TRUNC_WIDTH`（32 = 32） | 合法（32 < 64） |
+| `isize`/`usize` 字面量范围 | 32 位可表示范围 | 64 位可表示范围 |
+| `@padding`/结构体求和 | 按 32 位 `usize` 溢出 | 按 64 位 `usize` 溢出 |
+| `@range` 的 `isize`/`usize` 参数；`@align` 的 `N` | 按 32 位范围检查 | 按 64 位范围检查 |
+| `read`/`write` 的 `isize`/`usize` | 32 位范围 | 64 位范围 |
+
+上述差异可导致以下诊断在不同字长档案下不同；**码本身不增不减**：
+
+- `TC_CE_BITCAST_WIDTH`、`TC_CE_TRUNC_WIDTH`、`TC_CE_LITERAL_RANGE`、`TC_CE_LAYOUT_OVERFLOW`；
+- `TC_CE_CONST_CAST`、`TC_CE_CONST_OVERFLOW`、`TC_CE_ANNOTATION`；
+- `TC_RE_CAST_OVERFLOW`、`TC_RE_PTRDIFF_OVERFLOW`、`TC_RE_IO`、`TC_RE_INTEGER_OVERFLOW`、`TC_RE_ADDR_UNAVAILABLE`。
+
+`TC_RE_STACK_OVERFLOW` 由档案的 `D` 与栈大小决定，不由 W 直接决定。VM/AOT 的一致性比较只在同一档案内进行（§13.4）；跨 32/64 不承诺相同静态结果或首诊。
+
+#### 13.2.3 可移植写法（建议性）
+
+以下不是强制语法，而是让同一源码尽量同时适用于 32/64 的建议：
+
+- 地址、大小、计数用 `usize`；指针差用 `isize`；不要把 `int64`/`uint64` 当地址类型。
+- 指针↔整数用 `bitcast ptr<T>, usize`，不要用固定 64 位整数；后者在 32 位档案中会 `TC_CE_BITCAST_WIDTH`。
+- `sizeof` 结果用 `usize`；不要假设 8。
+- `trunc` 不要跨 `isize`/`usize` 与固定 64 位类型使用；需要显式意图时用 `cast`（范围检查）或 `bitcast`（等宽）。
+- `int64`/`float64` 只用于真正的 64 位数据，不用于地址/长度。
+- `@padding`/结构体大小不要超过 32 位 `usize`；需要跨 32/64 的 `@range` 值保持在 32 位可表示范围内。
 
 ### 13.3 布局与地址
 
-- 静态存储按依赖 DAG 的逆向拓扑序、模块内声明源序排列；每个静态元素按平台地址宽度对齐；同一档案下布局确定。
-- 结构体布局按字段声明顺序紧凑排列，`@padding` 插入 0 字节；不做隐式对齐或尾部填充。
-- 地址翻译是宿主到目标的映射，属实现定义且不可观察；实现可选择恒等映射或维护偏置。翻译不得改变 `bitcast` 观察到的目标地址值。
+- 静态存储按依赖 DAG 的逆向拓扑序、模块内声明源序排列；每个静态元素按 W 位地址宽度对齐（32 位档案 4 字节，64 位档案 8 字节）；同一档案下布局确定。
+- 结构体布局按字段声明顺序紧凑排列，`@padding` 插入 0 字节；不做隐式对齐或尾部填充。`sizeof S` 的求和按 W 位 `usize`，溢出 → `TC_CE_LAYOUT_OVERFLOW`。
+- 地址翻译是宿主到目标的映射，属实现定义且不可观察；实现可选择恒等映射或维护偏置。翻译不得改变 `bitcast` 观察到的目标地址值（W 位）。
 - 诊断构建（checked build）可选：函数返回造成的悬垂可用栈水位检查，块退出造成的悬垂可用毒化/ASan 式检查。检查只在会产生 UB 的访问上触发（解引用、指针算术、`memmove`、对原对象的访问）；当该访问使用落在 `[stack_base, 当前帧基址)` 的悬垂栈地址时报告 `TC_RE_ADDR_UNAVAILABLE`。对悬垂指针的 `copy`/返回/比较/`ptrdiff`/`bitcast ptr↔ptr` 不得触发。诊断构建不得放宽本文规范，也不得改变合法程序集合与已定义语义。
 - 静态分析与外部工具不属于语言承诺；其结果不得改变语言定义的合法程序集合与已定义语义。
 
@@ -1928,14 +2002,14 @@ I/O 诊断位置见 §12.5.1。
 
 编译器必须通过以下验证：
 
-1. **静态一致性**：同一源程序在 VM 与 AOT 前端产生相同的诊断码与首个诊断；优化前后静态诊断不变。
+1. **静态一致性**：同一源程序在**同一档案**下的 VM 与 AOT 前端产生相同的诊断码与首个诊断；优化前后静态诊断不变。不同字长档案允许不同结果。
 2. **模块顺序**：`module_order`、IMPORT 报告顺序、SEM 首诊顺序在重复运行、不同哈希种子与不同线程数下一致。
 3. **CFG/DI**：`br_if` 常量条件不裁剪边；不可达代码不报告错误；DI 最大固定点与路径语义一致；函数末尾检查只使用可达路径。
-4. **类型与转换**：类别矩阵先于位宽检查；指针不参与 `cast`；`bitcast` 禁止项报告 `TC_CE_TYPE_MISMATCH`；`trunc` 只窄化。
+4. **类型与转换**：类别矩阵先于位宽检查；指针不参与 `cast`；`bitcast` 禁止项报告 `TC_CE_TYPE_MISMATCH`；`trunc` 只窄化；位宽按档案 W 计算。
 5. **安全**：safe 代码在 unsafe 块外不含 unsafe 指令/调用；`@safe` 函数不含任何 `unsafe` 块（含空块）；`@safe` 违规报告 `TC_CE_SAFE_VIOLATION`；承诺违反不在静态阶段报错。
 6. **浮点**：常量与运行时使用同一精度/舍入/异常优先级；不使用宿主扩展精度、FMA、FTZ/DAZ；异常顺序固定。
 7. **I/O**：输入 Token 完整匹配；输出字节确定；失败提交规则符合 §11.6；不受 locale 影响。
-8. **平台**：VM/AOT 对同一档案生成相同静态偏移；差分测试按地址字节差对拍，不比对绝对地址；checked build 的 trap 用例与静态诊断分开统计。
+8. **平台**：VM/AOT 对同一档案生成相同静态偏移；32/64 分档案差分，不比较跨档案静态结果；差分测试按地址字节差对拍，不比对绝对地址；checked build 的 trap 用例与静态诊断分开统计。
 
 ### 13.5 一致性声明
 
@@ -1951,7 +2025,7 @@ I/O 诊断位置见 §12.5.1。
 ### 14.1 约定
 
 - 空行、纯注释行、续行由词法层处理；语法层的 `NL` 只表示语句/声明结束。
-- `IDENT`/`INT`/`FLOAT`/`DISCARD`/`ANNOTATION` 是 §2 的 Token；`opcode` 必须是 §6.2 的助记符（可带 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw`）；未知 opcode/后缀 → `TC_CE_SYNTAX`。
+- `IDENT`/`INT`/`FLOAT`/`DISCARD`/`ANNOTATION` 是 §2 的 Token；`opcode` 必须是 §6.2 的助记符（可带 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw`）；未知 opcode/后缀 → `TC_CE_SYNTAX`。字长 W 不改变 EBNF；W 相关限制在 SEM/平台档案中处理。
 - `op_form` 是通用形态；opcode 表决定字段是 type/value/label/function/struct。字段不匹配 → `TC_CE_OPERAND_COUNT`/`TC_CE_TYPE_MISMATCH`。
 
 ### 14.2 词法（摘要）

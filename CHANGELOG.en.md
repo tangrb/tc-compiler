@@ -8,7 +8,7 @@
 - `src/` is rebuilt as the `frontend` / `ir` / `runtime` / `vm` / `backend` / `driver` skeleton from design §14; no implementation, no `tc-vm`/`tc-aot` targets.
 - The root `CMakeLists.txt` is a skeleton configuration; `make`, `ctest`, VM/AOT test, and example flows are removed.
 - README, AGENTS, CONTRIBUTING, SECURITY, and docs/README now describe the 0.0.46 docs/skeleton branch.
-- The 32/64-bit target and `usize`/`isize` platform-word policy are recorded at the repository entry; normative text revision for word size is a follow-up task.
+- The 32/64-bit target and `usize`/`isize` platform-word policy are recorded at the repository entry; the standard and design now define 32/64 word-size profiles (types, sizeof/bitcast/trunc, layout, diagnostics, and platform profiles).
 
 ### Removed
 

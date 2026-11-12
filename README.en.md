@@ -14,7 +14,7 @@ This branch is the **0.0.46 clean-sheet branch**: only the 0.0.46 standard, desi
 
 ## Scope
 
-- **Both 32-bit and 64-bit are 0.0.46 targets**; `usize`/`isize` are platform-word types, and `ptr<T>`/`fnptr` are `usize` wide. The normative text will be revised for 32/64 as a documentation task.
+- **Both 32-bit and 64-bit are 0.0.46 targets**; `usize`/`isize` are platform-word types, and `ptr<T>`/`fnptr` are `usize` wide. The standard and design have been revised for both 32/64 profiles.
 - **Closed set of 80 diagnostic codes**: 65 `TC_CE_*` + 15 `TC_RE_*`.
 - No C host public library, embedding API, or ABI; `tc-vm`/`tc-aot` will be the only tool entry points.
 - No historical design or implementation compatibility. Historical code remains in git tags and is not maintained on this branch.

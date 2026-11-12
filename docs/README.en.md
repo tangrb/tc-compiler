@@ -14,7 +14,7 @@ This directory contains only the **0.0.46** standard and design documents. Chine
 - Branch: `tc-0.0.46` clean-sheet.
 - The 0.0.46 compiler is not implemented; `src/` is a directory skeleton with no `tc-vm`/`tc-aot`.
 - No C host public library, embedding API, or ABI.
-- Both 32-bit and 64-bit are 0.0.46 targets; `usize`/`isize` are platform-word types. Normative text revision for word size is a follow-up documentation task.
+- Both 32-bit and 64-bit are 0.0.46 targets; `usize`/`isize` are platform-word types. The standard and design have been revised for both 32/64 profiles (§13.2.1/§13.2.2).
 
 ## Repository docs
 

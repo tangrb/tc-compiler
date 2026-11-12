@@ -41,7 +41,8 @@
 | ---- | ---- |
 | 编译路径 | **TC → ASM → 机器码**；不转译 C99；不依赖宿主 C 编译器 |
 | 应用目标 | **裸机 + OS 双目标** |
-| 首个验证平台 | **AArch64** |
+| 字长 | **32/64 双档案**；`usize`/`isize`/指针/`fnptr` 宽度为平台字长 W |
+| 首个验证平台 | **AArch64（64 位先行）**；32 位后端后续接入 |
 | 工具链 | 复用平台汇编器/链接器（clang 集成汇编 + lld），不自写编码器/链接器 |
 | IR | 单级扁平 TAC IR，目标无关 |
 | 运行时 | freestanding-first，平台档案参数化 |
@@ -312,7 +313,7 @@ typedef struct { void (*trap)(void*, TcErrorKind, int line); void *ctx; } TcTrap
 
 ```c
 typedef struct {
-    unsigned addr_width;                       /* 固定 64 */
+    unsigned addr_width;                       /* 32 或 64 */
     int little_endian;
     struct { uint64_t base, size; } region[4]; /* 帧/静态/设备/代码 */
     size_t stack_size;                         /* 保证 D 个抽象帧可执行 */
@@ -324,9 +325,10 @@ typedef struct {
 } TcPlatformProfile;
 ```
 
-- 两实例：`aarch64-linux-user`（hosted）与 `aarch64-baremetal`（freestanding）。
+- 64 位实例：`aarch64-linux-user`（hosted）与 `aarch64-baremetal`（freestanding）；32 位实例（Cortex-M/RV32/ARM32-Linux）后续接入。
+- 0.0.46 同时定义 32/64 档案；`isize`/`usize`/`ptr`/`fnptr` 宽度为 W，`sizeof`/`ptrdiff`/布局按 W。32 位下 `int64`/`float64` 仍为 64 位，需运行时辅助与独立 ABI。
 - 同一档案下 VM 与 AOT 生成相同区内偏移（§13.2/§13.4）。
-- 语言层 32 位字长为保留能力；本档案只定义 64 位目标（§13.2）。
+- 32/64 均为正式档案；AArch64 为 64 位先行目标，32 位后端（AAPCS32/ILP32）在 P4/P5 接入（§13.2）。
 - 代码合并必须禁用 ICF 或等价入口合并（§13.2）。
 
 ---
@@ -338,7 +340,7 @@ typedef struct {
 - 在扁平 IR + 区内存模型上解释执行。
 - 实现：指针状态检查、确定初始化、trap 语义、bool 规范化、抽象深度 D 检查（`depth==D` → `TC_RE_STACK_OVERFLOW`，§1.2）。
 - **角色**：可执行参考。期望输出由标准精确规则推导（§10.4 等），不依赖既有实现。
-- 与 AArch64 后端消费同一 IR → 差分位级一致（§12）。
+- 与目标后端（AArch64 64 位 / 32 位后端）消费同一 IR → 同档案差分位级一致（§12）。
 - 可观察行为符合 §1.3；地址相关结果环境定义且不保证跨优化稳定（§10.5）。
 
 ---
@@ -350,7 +352,8 @@ typedef struct {
 ### 10.1 入口与调用约定
 
 - 入口：`tc_emit_asm(FILE*, const TcIR*, const TcPlatformProfile*, target)`。
-- **AAPCS64**：x0–x7 参数 / x0 返回 / x9–x15 临时 / x19–x28 callee-saved / x29 FP / x30 LR / sp 16 字节对齐。TC 标量 = 64 位模式入 x 寄存器。
+- **AAPCS64**：x0–x7 参数 / x0 返回 / x9–x15 临时 / x19–x28 callee-saved / x29 FP / x30 LR / sp 16 字节对齐。整数/指针标量按 64 位 x 寄存器传入；`float32`/`float64` 走 v0–v7，结构体按 AAPCS64 复合规则。
+- **AAPCS32/ILP32（32 位目标）**：r0–r3 参数 / r0–r1 或 v0 返回 / r4–r11 callee-saved / sp 8 字节对齐；`int64`/`float64` 双字或软浮点；需独立 backend 与 target desc，不复用 AArch64 ABI。
 - **帧/区布局**：按档案把区偏移映射到真实地址；帧区栈上，静态区/设备区固定基址。
 
 ### 10.2 lowering 分工
@@ -389,7 +392,7 @@ typedef struct {
 
 依据：§13.4（验证要求）、§13.3（checked build）。
 
-1. **VM↔AArch64 差分**：同源同档案，输出/退出/trap 位级一致；按地址字节差对拍，不比绝对地址。
+1. **VM↔AOT 差分**：同源同档案（32/64 分档案），输出/退出/trap 位级一致；按地址字节差对拍，不比绝对地址；不比较跨 32/64 结果。
 2. **§13.4 八项一致性**：静态一致 / 模块顺序 / CFG-DI / 类型转换 / 安全 / 浮点 / I-O / 平台。
 3. **golden 向量**：从标准精确规则推导期望输出。
 4. **freestanding 编译门禁**：`-ffreestanding -nostdlib` 交叉编译运行时 + 最小 UART stub。
@@ -403,11 +406,11 @@ typedef struct {
 
 | 期 | 内容 | 验证 |
 | ---- | ---- | ---- |
-| **P0 契约** | IR 规格 / Profile / 运行时 ABI / 诊断模型 / AArch64 target desc（设计先行） | 契约评审 |
-| **P1 前端+IR+VM** | 0.0.46 标量子集前端 + 扁平 IR + VM 参考 | VM 跑通子集；诊断序符合 §12.2 |
+| **P0 契约** | IR 规格 / 32+64 Profile / 运行时 ABI / 诊断模型 / AArch64 target desc（设计先行） | 契约评审 |
+| **P1 前端+IR+VM** | 0.0.46 标量子集前端 + 扁平 IR + VM 参考（32/64 profile） | VM 跑通子集；诊断序符合 §12.2；字长相关结果分档案 |
 | **P2 AArch64 子集** | 子集后端 + 工具链 + qemu | VM↔AArch64 子集差分位级一致 |
 | **P3 全量** | ptr/区/struct/控制流/fp 全量 + 全量运行时 | 全量差分 + §13.4 八项 |
-| **P4 裸机** | freestanding 档案 + aarch64-elf + 链接脚本 + PL011 | qemu-system virt；freestanding 门禁 |
+| **P4 裸机** | freestanding 档案 + aarch64-elf + 32 位后端（Cortex-M/RV32）+ 链接脚本 + UART | qemu-system；freestanding 门禁；32/64 分档案 |
 | **P5 多目标** | RISC-V / x86-64 / Cortex-M 按需 | 各目标差分 |
 
 ---
@@ -422,7 +425,9 @@ src/
   vm/         interp memory pointer_state
   backend/
     aarch64/  lower emit_asm frame layout regalloc(后期)
-    common/   target_desc toolchain_driver
+    arm32/    32 位目标（AAPCS32；目标待定）
+    riscv32/  32 位目标（ILP32；目标待定）
+    common/   target_desc abi toolchain_driver
   driver/     tc-vm tc-aot
 ```
 
@@ -439,8 +444,9 @@ src/
 | ① | **非 SSA 扁平 TAC IR + vreg + 显式 CFG**；SSA 延后为按需优化形态 | 源已扁平，IR 贴近源利于差分调试；目标是裸机+确定性+多目标，非激进优化；§10 契约为 as-if 保持行为，不要求 SSA |
 | ② | **FP/cast/复杂内存调运行时，简单整数/控制流原生** | 最难确定性语义留在与 VM 共享的运行时核，正确性最有保障；运行时 freestanding，裸机无 libc 依赖 |
 | ③ | **初期无 regalloc**（栈上局部 + 固定临时） | 正确性优先、跨目标可移植；regalloc 是优化非正确性需求；线性扫描留作后续 |
-| ④ | **ELF + clang 集成汇编 + lld + qemu** | ELF 是裸机终态同格式/标准 AAPCS64，无 ABI 返工；Mach-O 为裸机死路；clang/lld 是标准平台工具 |
+| ④ | **ELF + clang 集成汇编 + lld + qemu** | ELF 是裸机终态同格式/标准 ABI（AAPCS64/AAPCS32/ILP32），无 ABI 返工；Mach-O 为裸机死路；clang/lld 是标准平台工具 |
 | ⑤ | **分层模块结构**（目标无关 core + 每目标 backend） | 加目标 = 加 backend 目录，其余复用；支持多目标+清洁架构 |
+| ⑥ | **32/64 双字长正式档案**；`usize`/`isize`/`ptr`/`fnptr` 宽度 = W | 0.0.46 要求同时支持 32/64；AArch64 64 先行，32 位后端后续；`isize`/`usize` 保持独立类型，不做固定宽度别名 |
 
 ---
 
@@ -448,6 +454,7 @@ src/
 
 - **确定性语义重新验证**：fp 渲染/异常优先级从规范重新推导并验证（真实工作量；标准精确、可验证）。
 - **溢出/trap 正确性**：原生指令需补检查分支，是后端正确性关键。
+- **32 位后端与 ABI**：AAPCS32/ILP32、`int64`/`float64` 辅助、未对齐访问与 32 位 `n × sizeof T` 是额外工作量。
 - **无 regalloc 初期性能**：可控，后续优化。
 - **工具链安装**：lld + qemu 一次性。
 - **体量**：全栈清洁重建，重大 effort，独立分支。

@@ -8,7 +8,7 @@
 - `src/` 按设计说明书 §14 重建为 `frontend` / `ir` / `runtime` / `vm` / `backend` / `driver` 目录骨架，无实现、无 `tc-vm`/`tc-aot` 目标。
 - 根 `CMakeLists.txt` 改为骨架配置；`make`、`ctest`、VM/AOT 测试与示例流程已移除。
 - README、AGENTS、CONTRIBUTING、SECURITY、docs/README 统一为 0.0.46 文档/骨架口径。
-- 32/64 位目标与 `usize`/`isize` 平台字长口径写入仓库入口；规范文本的字长修订按后续任务推进。
+- 32/64 位目标与 `usize`/`isize` 平台字长口径写入仓库入口；标准与设计已按 32/64 双字长修订（字长相关类型、`sizeof`/`bitcast`/`trunc`/布局/诊断与平台档案）。
 
 ### Removed
 
