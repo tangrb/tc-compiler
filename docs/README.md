@@ -1,6 +1,6 @@
 # 文档地图
 
-本目录只保留 **0.0.46** 标准与设计文档。English: [README.en.md](README.en.md)。
+本目录保留 **0.0.46** 标准、设计文档与评估报告（过程性）。English: [README.en.md](README.en.md)。
 
 ## 核心文档
 

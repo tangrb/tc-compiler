@@ -1,6 +1,6 @@
 # Documentation map
 
-This directory contains only the **0.0.46** standard and design documents. Chinese: [README.md](README.md).
+This directory contains the **0.0.46** standard, design documents, and evaluation reports (process documents). Chinese: [README.md](README.md).
 
 ## Core documents
 
