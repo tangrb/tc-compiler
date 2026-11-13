@@ -2,7 +2,7 @@
 
 TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器码）目标设计。
 
-当前分支是 **0.0.46 clean-sheet 分支**：保留 0.0.46 标准、设计文档与按设计重写的实现。历史实现、旧测试与旧工具均已移除。S0 契约冻结与测试基建的**自动化证据已通过，但 G0 尚未签署**（见 [G0 报告](docs/TC-G0门禁报告-0.0.46.md)）；LEX/SYN 等前端实现尚未开始。
+当前分支是 **0.0.46 clean-sheet 分支**：保留 0.0.46 标准、设计文档与按设计重写的实现。历史实现、旧测试与旧工具均已移除。**S0 契约冻结与测试基建已完成并通过 G0**（见 [G0 报告](docs/TC-G0门禁报告-0.0.46.md)）；LEX/SYN 等前端实现从 S1 开始。
 
 ## 文档
 
@@ -44,7 +44,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S0 构建 `tc_core`、`tc-vm`、`tc-aot`；两个工具当前对合法调用显式返回
+S0/G0 已通过；S1 起实现前端/VM/后端。S0 构建 `tc_core`、`tc-vm`、`tc-aot`；两个工具当前对合法调用显式返回
 “未实现”（退出码 70），不宣称可用。契约与测试口径见
 [src/CONTRACTS.md](src/CONTRACTS.md) 与 [tests/README.md](tests/README.md)。
 

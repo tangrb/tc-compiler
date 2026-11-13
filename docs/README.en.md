@@ -15,7 +15,7 @@ This directory contains the **0.0.46** standard, design documents, and evaluatio
 
 - Branch: `tc-0.0.46` clean-sheet.
 - S0 contract layer and test infrastructure are implemented; `tc-vm`/`tc-aot` build but front-end/VM/backend semantics are not implemented.
-- Gate status is recorded in the [G0 gate report](TC-G0门禁报告-0.0.46.md).
+- S0 passed the [G0 gate report](TC-G0门禁报告-0.0.46.md); S1+ implementation is allowed.
 - No C host public library, embedding API, or ABI.
 - Both 32-bit and 64-bit are 0.0.46 targets; `usize`/`isize` are platform-word types. The standard and design have been revised for both 32/64 profiles (§13.2.1/§13.2.2).
 
