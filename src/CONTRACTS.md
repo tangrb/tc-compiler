@@ -40,7 +40,7 @@ language diagnostic.
 `CALL`/`MAKE` 位置先应用 §12.2 #10 的 `same_site_rank`（调用安全 →
 重复 → 未知 → 缺失 → 数量/多余 → 顺序 → 类型），再应用 origin。设计 §6 的
 编号列表是规则索引，不是扁平字典序键链；#6/#7/#8 是布局/遍历/档案约束。
-`CALL`/`MAKE` 的 `site_id` 把 #10 限制在同一调用的候选集合内；跨位置的同一 site 仍先按参数/字段检查顺序。L0 钉扎见 `tests/unit/README.md` 的 `TC-L0-DIAG-0001`…`0006`。
+`CALL`/`MAKE` 的 `site_id` 把 #10 限制在同一调用的候选集合内；跨位置的同一 site 仍先按参数/字段检查顺序。L0 钉扎见 `tests/unit/README.md` 的 `TC-L0-DIAG-0001`…`0009`。
 
 `tc_instr_lhs_is_valid()` 遵循 §6.15.1：任何有结果指令都可以用 `_` 丢弃结果，
 无结果指令必须用 `_`。类型表在创建时预创建全部标量单例，`freeze` 后不再新增
