@@ -37,10 +37,12 @@ nothing was backfilled from implementation output.
     {
       "artifact": "tests/golden/common/lex_syntax_comment_slash.golden.yaml",
       "author_role": "traceability/golden S0 author",
-      "reviewer": "independent gate auditor (read-only subagent; no implementation involvement)",
+      "reviewer": "gate-auditor (independent read-only subagent)",
       "reviewer_kind": "independent-agent",
       "reviewer_independent": true,
       "review_kind": "independent derivation audit",
+      "commit": "3d2c1ef",
+      "evidence_version": "S0-2026-11-13",
       "status": "approved",
       "date": "2026-11-13",
       "notes": "Independent audit re-derived line 2 column 30 from §2.1/§2.2/§12.3/§12.5.1; the comment-external first slash is the sole lexical diagnostic."

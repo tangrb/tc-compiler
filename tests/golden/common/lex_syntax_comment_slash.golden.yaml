@@ -28,12 +28,13 @@ derivation: |
   LEX/SYN).  Under the §12.1 fail-fast rule exactly one diagnostic is reported.
   No implementation was run to obtain this expectation.
 review:
-  reviewer: "independent gate auditor (read-only subagent; no implementation involvement)"
+  reviewer: "gate-auditor (independent read-only subagent)"
   reviewer_kind: independent-agent
   reviewer_independent: true
   review_kind: independent derivation audit
   status: approved
   date: "2026-11-13"
+  commit: "3d2c1ef"
   notes: "Independent review confirmed the §2.1/§2.2/§12.3/§12.5.1 derivation and line 2 column 30; no implementation was run."
 expect:
   stage: LEX

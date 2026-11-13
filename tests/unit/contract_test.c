@@ -460,6 +460,8 @@ static void test_site_id_scope(void) {
         bad = make_site_diag(TC_CE_MISSING_ARGUMENT, TC_DIAG_SITE_CALL, 17);
         bad.site_phase = TC_DIAG_PHASE_NONE;
         CHECK_EQ_INT(TC_IMPL_INTERNAL, tc_diag_buffer_push(buffer, &bad));
+        bad.site_phase = (TcDiagPhase)99;
+        CHECK_EQ_INT(TC_IMPL_INTERNAL, tc_diag_buffer_push(buffer, &bad));
         tc_diag_buffer_destroy(buffer);
     }
 }
@@ -652,6 +654,7 @@ static void test_contract_declarations(void) {
     TcParam param;
     TcFunc func;
     TcInitImage image;
+    TcInstr instr;
 
     CHECK(types != NULL);
     i32 = tc_type_scalar(types, TC_TY_I32);
@@ -696,7 +699,26 @@ static void test_contract_declarations(void) {
     op.field.base = 4;
     op.field.nfields = 0;
     CHECK(op.kind == TC_OP_FIELD && op.field.base == 4);
+    op.kind = TC_OP_VREG;
+    op.vreg = 7;
+    CHECK(op.kind == TC_OP_VREG && op.vreg == 7);
+    op.kind = TC_OP_CONST;
+    op.konst.bits = 0x2a;
+    op.konst.type = i32;
+    CHECK(op.kind == TC_OP_CONST && op.konst.bits == 0x2a);
+    op.kind = TC_OP_LABEL;
+    op.label = 3;
+    CHECK(op.kind == TC_OP_LABEL && op.label == 3);
+    op.kind = TC_OP_FUNC;
+    op.func = 8;
+    CHECK(op.kind == TC_OP_FUNC && op.func == 8);
+    op.kind = TC_OP_STRUCT;
+    op.struct_id = 9;
+    CHECK(op.kind == TC_OP_STRUCT && op.struct_id == 9);
+    op.kind = TC_OP_DISCARD;
+    CHECK(op.kind == TC_OP_DISCARD);
 
+    op.kind = TC_OP_FIELD;
     memset(&arg, 0, sizeof(arg));
     arg.name = NULL;
     arg.value = op;
@@ -805,6 +827,25 @@ static void test_contract_declarations(void) {
     image.bytes = NULL;
     image.size = 0;
     CHECK(image.bytes == NULL && image.size == 0);
+
+    memset(&instr, 0, sizeof(instr));
+    instr.op = TC_SWITCH;
+    instr.mode = TC_WRAP;
+    instr.type = i32;
+    instr.dst.kind = TC_OP_DISCARD;
+    instr.args = NULL;
+    instr.nargs = 0;
+    instr.switch_targets = NULL;
+    instr.ntargets = 0;
+    instr.span.file = "m.tc";
+    instr.span.line = 4;
+    instr.span.column = 9;
+    CHECK(instr.op == TC_SWITCH && instr.mode == TC_WRAP && instr.type == i32);
+    CHECK(instr.dst.kind == TC_OP_DISCARD);
+    CHECK(instr.args == NULL && instr.nargs == 0);
+    CHECK(instr.switch_targets == NULL && instr.ntargets == 0);
+    CHECK(strcmp(instr.span.file, "m.tc") == 0);
+    CHECK(instr.span.line == 4 && instr.span.column == 9);
 
     {
         TcModule mod;

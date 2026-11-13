@@ -18,10 +18,10 @@ specific contract assertions; they are not conformance `.tc` cases.
 | `TC-L0-DIAG-0006` | `test_negative_shift_first` | §12.2 #5 negative shift precedes strict `shl` overflow |
 | `TC-L0-IR-0001` | `test_ir_shape_and_zero_pass` | §6.15.1 any result instruction may discard with `_`; no-result LHS must be `_`; opcode/terminator shape |
 | `TC-L0-TYPE-0001` | `test_type_table` | scalar singletons are materialized before freeze; freeze adds no nodes; `void` is not a scalar value type; intern/freeze identity |
-| `TC-L0-CONTRACT-0001` | `test_contract_declarations` | enum values, struct fields, defaults, sentinels, 1-based positions and byte/bit units for the frozen declarations |
+| `TC-L0-CONTRACT-0001` | `test_contract_declarations` | enum values, struct fields, defaults, sentinels, operand kinds, `TcInstr` mode/type/args/switch/span, 1-based positions and byte/bit units |
 | `TC-L0-OBJ-0001` | `test_pointer_states` | standard §3.12 four-state pointer-permission matrix (null/live/one-past/dangling; bitcast only live/dangling) |
 | `TC-L0-DIAG-0007` | `test_call_check_phase_order` | §8.8.2 call/make check phases: target/visibility → safety → LHS/return shape → arguments → receiver |
-| `TC-L0-DIAG-0008` | `test_site_id_scope` | `site_id` scopes §12.2 #10 to one call/make site; zero is rejected by the buffer; distinct sites fall back to source order |
+| `TC-L0-DIAG-0008` | `test_site_id_scope` | `site_id` scopes §12.2 #10 to one call/make site; zero id/phase and out-of-range phase are rejected by the buffer; distinct sites fall back to source order |
 
 Run directly:
 

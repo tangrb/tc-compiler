@@ -217,6 +217,12 @@ void tc_diag_buffer_destroy(TcDiagBuffer *buffer) {
     buffer->alloc->free(buffer->alloc->ctx, buffer);
 }
 
+static int site_phase_valid(TcDiagPhase phase) {
+    return phase == TC_DIAG_PHASE_TARGET || phase == TC_DIAG_PHASE_SAFETY ||
+           phase == TC_DIAG_PHASE_RESULT_SHAPE ||
+           phase == TC_DIAG_PHASE_ARGUMENTS || phase == TC_DIAG_PHASE_RECEIVER;
+}
+
 static int record_is_valid(const TcDiagnostic *diag) {
     const TcDiagInfo *info;
     if (diag == NULL) {
@@ -240,8 +246,8 @@ static int record_is_valid(const TcDiagnostic *diag) {
         return 0;
     }
     if ((diag->site == TC_DIAG_SITE_CALL || diag->site == TC_DIAG_SITE_MAKE) &&
-        (diag->site_id == 0 || diag->site_phase == TC_DIAG_PHASE_NONE)) {
-        return 0; /* a call/make diagnostic must identify its site and phase */
+        (diag->site_id == 0 || !site_phase_valid(diag->site_phase))) {
+        return 0; /* a call/make diagnostic must identify a valid site phase */
     }
     return 1;
 }

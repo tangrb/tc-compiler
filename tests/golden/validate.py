@@ -33,7 +33,7 @@ ALLOWED_TOP = {
 }
 ALLOWED_REVIEW = {
     "reviewer", "reviewer_kind", "reviewer_independent", "review_kind",
-    "status", "date", "notes",
+    "status", "date", "commit", "evidence_version", "notes",
 }
 ALLOWED_EXPECT_DIAG = {
     "stage", "code", "primary", "related", "diagnostics",

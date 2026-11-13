@@ -86,7 +86,7 @@ def main() -> int:
         check(
             _bad_case(root, "badreview.golden.yaml",
                       lambda t: t.replace(
-                          "independent gate auditor (read-only subagent; no implementation involvement)",
+                          "gate-auditor (independent read-only subagent)",
                           "placeholder reviewer",
                       )) == 1,
             "placeholder reviewer must fail",
