@@ -1,8 +1,9 @@
 # Golden expectation layout (0.0.46)
 
 This directory is the **specification-derived** golden library.  It is not a
-copy of any compiler output.  At S0 no compiler implementation exists; every
-file here is a process/format rehearsal.
+copy of any compiler output.  At S0 no compiler implementation exists; each
+file must still be independently reviewed and approved before use.  The S0
+sample below has completed that independent review.
 
 ## Directory layout
 
@@ -34,12 +35,14 @@ Every `*.golden.yaml` must contain:
 
 ```yaml
 id: TC-LEX-...            # unique
-kind: diagnostic          # diagnostic | runtime | diff | platform | unit
+kind: diagnostic          # S0 validator accepts diagnostic only; other kinds S1+
+profile: common           # common | w32 | w64; must match the directory
 spec: "§2.1 ...; §12.3 ...; §12.5.1 ..."
 derivation: |
   Why this is the required expectation, computed only from the standard.
 review:
-  reviewer: "..."         # independent reviewer identity
+  reviewer: "..."         # independent non-author reviewer identity
+  reviewer_independent: true
   status: approved        # only approved goldens are usable
   date: "YYYY-MM-DD"
 source: |
@@ -60,8 +63,9 @@ features that the validator cannot check.
 For diagnostic goldens, `expect` must state the stage, the code, the primary
 1-based line/column, and `diagnostics: exactly_one`.  `related` may list
 associated positions when the standard requires them (for example the first
-declaration of a duplicate name).  Runtime goldens compare exact stdout bytes
-(or the documented trap/exit tuple), not decimal approximations of floats.
+declaration of a duplicate name).  Runtime goldens (S1+) will compare exact stdout bytes (or the documented
+trap/exit tuple), not decimal approximations of floats; the S0 validator
+rejects non-diagnostic kinds explicitly.
 
 ## Derivation and review rules
 
@@ -89,15 +93,19 @@ declaration of a duplicate name).  Runtime goldens compare exact stdout bytes
 python3 tests/golden/validate.py
 ```
 
-The validator walks this tree recursively, rejects missing required fields,
-unapproved reviews, malformed dates, duplicate ids, and diagnostic goldens
-without exactly-one stage/code/primary/diagnostics data.  Exit code 1 means
-the golden library is not usable.
+The validator walks this tree recursively and rejects missing required fields,
+unknown fields, duplicate keys/ids, unapproved or placeholder reviews,
+malformed dates, code names/stages that are not in the frozen 80-code table,
+source/profile/kind violations, and diagnostic goldens without exactly-one
+stage/code/primary/diagnostics data.  For the repository tree it also
+cross-checks `review-record.md` (reviewer/status/date and independence).  Exit code 1 means the golden library is
+not usable.  `tests/golden/selftest.py` exercises the positive and negative
+validator paths.
 
-## S0 rehearsal sample
+## S0 independently reviewed sample
 
 `common/lex_syntax_comment_slash.golden.yaml` is a lexical `TC_CE_SYNTAX`
-expectation derived from standard §2.1/§2.2/§12.3/§12.5.1.  It is a rehearsal
-record only: **it has not been run against any implementation**, and its
-review entry is a process placeholder to be replaced by a real second reviewer
-before S1 starts using goldens.
+expectation derived from standard §2.1/§2.2/§12.3/§12.5.1.  It has not been run
+against an implementation; its derivation and line 2/column 30 position were
+independently reviewed and approved by an independent non-author auditor
+(recorded in `review-record.md`).

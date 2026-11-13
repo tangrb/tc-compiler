@@ -4,7 +4,8 @@
  *   1. stage priority (LEX -> SYN -> IMPORT -> SEM -> CT -> RT)
  *   2. module_order index
  *   3. line, then column (1-based)
- *   4. at CALL/MAKE sites, fixed argument/field check rank (§12.2 #10)
+ *   4. at the same CALL/MAKE site (same non-zero site_id), fixed check phase
+ *      (§8.8.2) then argument/field rank (§12.2 #10) before source position
  *   5. operand-internal before construct-level at one position (§12.2 #9)
  *   6. same-position specific code rank (§12.2 #4)
  *   7. clause rank (§12.2 #5, e.g. INVALID -> DIV_ZERO -> OVERFLOW ->
@@ -80,6 +81,17 @@ typedef enum {
     TC_DIAG_SITE_READ
 } TcDiagSite;
 
+/* §8.8.2 / §12.2 #10 check phases for one call/make site.  Lower phase wins
+ * before the argument/field rank. */
+typedef enum {
+    TC_DIAG_PHASE_NONE = 0,
+    TC_DIAG_PHASE_TARGET = 10,       /* target existence/visibility */
+    TC_DIAG_PHASE_SAFETY = 20,       /* UNSAFE/FAST/SAFE_VIOLATION */
+    TC_DIAG_PHASE_RESULT_SHAPE = 30, /* LHS/return shape */
+    TC_DIAG_PHASE_ARGUMENTS = 40,    /* duplicate/unknown/missing/count/order/type */
+    TC_DIAG_PHASE_RECEIVER = 50      /* receiver variable type */
+} TcDiagPhase;
+
 typedef struct {
     TcDiagCode code;
     TcStage stage; /* actual reporting stage, must be in report_stage mask */
@@ -89,6 +101,8 @@ typedef struct {
     TcDiagPos related;
     TcDiagOrigin origin;
     TcDiagSite site;
+    uint32_t site_id;       /* non-zero identifies one call/make site */
+    TcDiagPhase site_phase; /* §8.8.2 check phase within that site */
     uint8_t same_site_rank; /* caller override; use table value via make helper */
     uint8_t clause_rank;
     uint64_t sequence; /* deterministic emission order; final tie only */

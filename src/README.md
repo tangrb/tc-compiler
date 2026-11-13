@@ -13,7 +13,7 @@ src/
   contract/     S0 frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
   frontend/     lex parse module resolve analyze consteval ebnf (S1+)
-  ir/           type instr block operand span region object address structs
+  ir/           type instr block operand span region object address structs pointer_state
   runtime/      alloc io trap profile module_loader (sem_* from S6)
   vm/           interp memory pointer_state (S6)
   backend/      aarch64 arm32 riscv32 common (S7+)

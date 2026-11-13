@@ -128,6 +128,19 @@ int tc_diag_compare(const TcDiagnostic *a, const TcDiagnostic *b) {
     if (c != 0) {
         return c;
     }
+    /* §12.2 #10: at the same call/make site, the fixed argument/field check
+     * order and call-safety priority apply before source position and before
+     * the generic origin/rank keys.  site_id scopes the rule to one call/make
+     * construct; separate sites fall back to source order. */
+    if (a->site == b->site && a->site_id != 0 && a->site_id == b->site_id &&
+        (a->site == TC_DIAG_SITE_CALL || a->site == TC_DIAG_SITE_MAKE)) {
+        if (a->site_phase != b->site_phase) {
+            return a->site_phase < b->site_phase ? -1 : 1;
+        }
+        if (a->same_site_rank != b->same_site_rank) {
+            return a->same_site_rank > b->same_site_rank ? -1 : 1;
+        }
+    }
     c = cmp_u32(a->primary.line, b->primary.line);
     if (c != 0) {
         return c;
@@ -135,14 +148,6 @@ int tc_diag_compare(const TcDiagnostic *a, const TcDiagnostic *b) {
     c = cmp_u32(a->primary.column, b->primary.column);
     if (c != 0) {
         return c;
-    }
-    /* §12.2 #10: at a call/make site the fixed argument/field check order
-     * (duplicate -> unknown -> missing -> count/extra -> order -> type) and
-     * call-safety priority apply before the generic origin/rank keys. */
-    if (a->site == b->site &&
-        (a->site == TC_DIAG_SITE_CALL || a->site == TC_DIAG_SITE_MAKE) &&
-        a->same_site_rank != b->same_site_rank) {
-        return a->same_site_rank > b->same_site_rank ? -1 : 1;
     }
     /* §12.2 #9: operand-internal diagnostics precede construct-level ones. */
     c = cmp_u32((uint32_t)a->origin, (uint32_t)b->origin);
@@ -194,8 +199,17 @@ TcDiagBuffer *tc_diag_buffer_create(const TcAllocator *alloc) {
 }
 
 void tc_diag_buffer_destroy(TcDiagBuffer *buffer) {
+    size_t i;
     if (buffer == NULL) {
         return;
+    }
+    for (i = 0; i < buffer->count; i++) {
+        buffer->alloc->free(buffer->alloc->ctx,
+                            (void *)buffer->items[i].primary.file);
+        if (buffer->items[i].has_related) {
+            buffer->alloc->free(buffer->alloc->ctx,
+                                (void *)buffer->items[i].related.file);
+        }
     }
     if (buffer->items != NULL) {
         buffer->alloc->free(buffer->alloc->ctx, buffer->items);
@@ -225,25 +239,62 @@ static int record_is_valid(const TcDiagnostic *diag) {
         (diag->related.file == NULL || diag->related.line < 1 || diag->related.column < 1)) {
         return 0;
     }
+    if ((diag->site == TC_DIAG_SITE_CALL || diag->site == TC_DIAG_SITE_MAKE) &&
+        (diag->site_id == 0 || diag->site_phase == TC_DIAG_PHASE_NONE)) {
+        return 0; /* a call/make diagnostic must identify its site and phase */
+    }
     return 1;
+}
+
+static char *dup_cstring(TcDiagBuffer *buffer, const char *text) {
+    size_t n;
+    char *copy;
+    if (text == NULL) {
+        return NULL;
+    }
+    n = strlen(text) + 1;
+    copy = (char *)buffer->alloc->alloc(buffer->alloc->ctx, n);
+    if (copy == NULL) {
+        return NULL;
+    }
+    memcpy(copy, text, n);
+    return copy;
 }
 
 TcImplError tc_diag_buffer_push(TcDiagBuffer *buffer, const TcDiagnostic *diag) {
     TcDiagnostic copy;
+    char *primary_file;
+    char *related_file = NULL;
     if (buffer == NULL || !record_is_valid(diag)) {
         return TC_IMPL_INTERNAL;
+    }
+    /* The buffer owns copies of all strings reachable from a record. */
+    primary_file = dup_cstring(buffer, diag->primary.file);
+    if (primary_file == NULL) {
+        return TC_IMPL_OOM;
+    }
+    if (diag->has_related) {
+        related_file = dup_cstring(buffer, diag->related.file);
+        if (related_file == NULL) {
+            buffer->alloc->free(buffer->alloc->ctx, primary_file);
+            return TC_IMPL_OOM;
+        }
     }
     if (buffer->count == buffer->cap) {
         size_t cap = buffer->cap ? buffer->cap * 2 : 8;
         TcDiagnostic *items = (TcDiagnostic *)buffer->alloc->realloc(
             buffer->alloc->ctx, buffer->items, cap * sizeof(TcDiagnostic));
         if (items == NULL) {
+            buffer->alloc->free(buffer->alloc->ctx, primary_file);
+            buffer->alloc->free(buffer->alloc->ctx, related_file);
             return TC_IMPL_OOM;
         }
         buffer->items = items;
         buffer->cap = cap;
     }
     copy = *diag;
+    copy.primary.file = primary_file;
+    copy.related.file = related_file;
     if (copy.sequence == 0) {
         copy.sequence = ++buffer->next_sequence;
     } else if (copy.sequence >= buffer->next_sequence) {

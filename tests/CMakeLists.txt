@@ -46,3 +46,7 @@ add_test(NAME trace.harness_codes
          COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/check_harness_codes.py)
 set_tests_properties(harness.selftest trace.harness_codes
                      PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(NAME golden.selftest
+         COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/selftest.py)
+set_tests_properties(golden.selftest PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

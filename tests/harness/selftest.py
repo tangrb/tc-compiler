@@ -215,6 +215,8 @@ def not_implemented_gate_exits_nonzero():
                 "  related: []\n"
                 "  diagnostics: exactly-one\n"
             )
+        with open(os.path.join(suite, "fake.tc"), "w", encoding="utf-8") as handle:
+            handle.write("#program\n")
         adapter_path = os.path.join(tmp, "fake_adapter.py")
         with open(adapter_path, "w", encoding="utf-8") as handle:
             handle.write(
@@ -399,6 +401,173 @@ def schema_rejects_unknown_and_missing_fields():
                 )
             continue
         raise AssertionError(f"case {index}: schema accepted invalid metadata")
+
+
+@scenario
+def import_codes_require_import_stage():
+    base = _compile_case()
+    for stage in ("SEM", "LEX", "SYN", "CT"):
+        data = copy.deepcopy(base)
+        data["expect"]["stage"] = stage
+        data["expect"]["code"] = "TC_CE_IMPORT_NOT_FOUND"
+        try:
+            case_schema.validate_case(data)
+        except case_schema.SchemaError:
+            continue
+        raise AssertionError(f"import code accepted stage {stage}")
+    good = copy.deepcopy(base)
+    good["expect"]["stage"] = "IMPORT"
+    good["expect"]["code"] = "TC_CE_IMPORT_NOT_FOUND"
+    case_schema.validate_case(good)
+
+
+@scenario
+def empty_suite_is_rejected():
+    with tempfile.TemporaryDirectory(prefix="tc-empty-") as tmp:
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code = runner.main([tmp])
+    if code != 2:
+        raise AssertionError(f"empty suite exit {code}, expected 2")
+    if "no cases selected" not in err.getvalue():
+        raise AssertionError(f"empty suite missing diagnostic: {err.getvalue()!r}")
+
+
+@scenario
+def missing_case_source_is_rejected():
+    with tempfile.TemporaryDirectory(prefix="tc-missing-") as tmp:
+        path = os.path.join(tmp, "case.yaml")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(
+                "id: TC-SEM-MISSING-0001\n"
+                "profiles: [w64]\n"
+                "source: missing.tc\n"
+                "spec: selftest only\n"
+                "expect:\n"
+                "  stage: SEM\n"
+                "  code: TC_CE_BITCAST_WIDTH\n"
+                "  primary: {file: main.tc, line: 1, column: 1}\n"
+                "  related: []\n"
+                "  diagnostics: exactly-one\n"
+            )
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code = runner.main([tmp])
+    if code != 2:
+        raise AssertionError(f"missing source exit {code}, expected 2")
+    if "does not exist" not in err.getvalue():
+        raise AssertionError(f"missing source diagnostic absent: {err.getvalue()!r}")
+
+
+@scenario
+def unit_decider_passes_and_fails():
+    case = case_schema.validate_case({
+        "id": "TC-UNIT-HARNESS-0001",
+        "profiles": ["w64"],
+        "spec": "selftest only",
+        "unit": {},
+        "expect": {"value": 42},
+    })
+    _expect_status(case, lambda c, a: {"value": 42}, "pass")
+    _expect_status(case, lambda c, a: {"value": 41}, "fail")
+
+
+@scenario
+def platform_decider_passes_and_fails():
+    case = case_schema.validate_case({
+        "id": "TC-PLT-HARNESS-0001",
+        "profiles": ["w64"],
+        "source": "main.tc",
+        "link": "link.ld",
+        "spec": "selftest only",
+        "expect": {
+            "stdout_hex": "", "trap": None, "exit": 0,
+            "termination": "normal",
+        },
+    })
+    good = lambda c, a: {
+        "stdout_hex": "", "trap": None, "exit": 0,
+        "termination": "normal",
+    }
+    _expect_status(case, good, "pass")
+    bad = dict(good(None, None))
+    bad["exit"] = 1
+    _expect_status(case, lambda c, a: bad, "fail")
+
+
+@scenario
+def tool_decider_passes_and_fails():
+    case = case_schema.validate_case({
+        "id": "TC-TOOL-HARNESS-0001",
+        "profiles": ["w64"],
+        "spec": "selftest only",
+        "tool": {"argv": ["tc-vm"]},
+        "expect": {"exit": 0, "stdout_hex": "", "stderr_hex": ""},
+    })
+    good = lambda c, a: {"exit": 0, "stdout_hex": "", "stderr_hex": ""}
+    _expect_status(case, good, "pass")
+    _expect_status(case, lambda c, a: {"exit": 7, "stdout_hex": "", "stderr_hex": ""}, "fail")
+
+
+@scenario
+def property_decider_passes_and_fails():
+    case = case_schema.validate_case({
+        "id": "TC-FZ-HARNESS-0001",
+        "profiles": ["w64"],
+        "spec": "selftest only",
+        "property": {"name": "selftest"},
+        "expect": {"counterexamples": "empty"},
+    })
+    _expect_status(case, lambda c, a: [], "pass")
+    _expect_status(case, lambda c, a: [{"input": 1}], "fail")
+
+
+@scenario
+def missing_include_and_link_paths_are_rejected():
+    with tempfile.TemporaryDirectory(prefix="tc-paths-") as tmp:
+        include_root = os.path.join(tmp, "include-root")
+        os.makedirs(include_root)
+        source = os.path.join(include_root, "main.tc")
+        with open(source, "w", encoding="utf-8") as handle:
+            handle.write("#program\n")
+        include_case = os.path.join(include_root, "case.yaml")
+        with open(include_case, "w", encoding="utf-8") as handle:
+            handle.write(
+                "id: TC-SEM-INCLUDE-0001\n"
+                "profiles: [w64]\n"
+                "source: main.tc\n"
+                "include_roots: [missing-dir]\n"
+                "spec: selftest only\n"
+                "expect:\n"
+                "  stage: SEM\n"
+                "  code: TC_CE_BITCAST_WIDTH\n"
+                "  primary: {file: main.tc, line: 1, column: 1}\n"
+                "  related: []\n"
+                "  diagnostics: exactly-one\n"
+            )
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code = runner.main([include_root])
+        if code != 2 or "include_roots" not in err.getvalue():
+            raise AssertionError(f"missing include root not rejected: {code}, {err.getvalue()!r}")
+
+    with tempfile.TemporaryDirectory(prefix="tc-link-") as tmp:
+        source = os.path.join(tmp, "main.tc")
+        with open(source, "w", encoding="utf-8") as handle:
+            handle.write("#program\n")
+        with open(os.path.join(tmp, "case.yaml"), "w", encoding="utf-8") as handle:
+            handle.write(
+                "id: TC-PLT-LINK-0001\n"
+                "profiles: [w64]\n"
+                "source: main.tc\n"
+                "link: missing.ld\n"
+                "spec: selftest only\n"
+                "expect:\n"
+                "  stdout_hex: \"\"\n"
+                "  trap: null\n"
+                "  exit: 0\n"
+            )
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code = runner.main([tmp])
+        if code != 2 or "link" not in err.getvalue():
+            raise AssertionError(f"missing link not rejected: {code}, {err.getvalue()!r}")
 
 
 @scenario

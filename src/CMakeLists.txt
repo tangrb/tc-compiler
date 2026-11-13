@@ -13,6 +13,7 @@ add_library(tc_core STATIC
     # IR representation and shape helpers.
     ir/type.c
     ir/instr.c
+    ir/pointer_state.c
     # Runtime seams and platform profiles.
     runtime/alloc.c
     runtime/module_loader.c

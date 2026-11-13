@@ -8,7 +8,8 @@
 - 80 码机器可读表（`tests/traceability/codes.json`）与生成的 C 表；65 `TC_CE_*` + 15 `TC_RE_*` 由标准 §12.3/§12.5.1 校验。
 - 首诊比较器、诊断缓冲、`TC_ERR_OUT_OF_MEMORY` 独立通道。
 - `tc-vm`/`tc-aot` CLI 骨架：参数与档案校验为真，前端/代码生成未实现时显式退出 70。
-- L0 契约测试、Python 用例 harness 与失败关闭自测、覆盖矩阵骨架、golden 评审校验、CLI 契约测试。
+- L0 契约测试、Python 用例 harness（23 个失败关闭自测、7 判定器）、覆盖矩阵骨架、golden 校验/负例自测、CLI 契约测试。
+- 指针状态契约 `src/ir/pointer_state.{h,c}`（§3.12 四态矩阵）与 `TC-L0-OBJ-0001`。
 - `src/CONTRACTS.md` 记录契约属主、冻结边界与后续语义表归属。
 
 ### Changed
@@ -22,7 +23,9 @@
 - `TC_CE_SAFE_VIOLATION` 写入 `same_site_rank=60`（`UNSAFE_*`/`FAST_CALL` 为 50），新增四码同位置优先 L0 用例（`TC-L0-DIAG-0002`）；覆盖矩阵新增 5 个 `same_site_priority` 行并标记 covered。
 - 修复 `tc_instr_lhs_is_valid()`：有结果指令允许 `_` 丢弃（§6.15.1），同步修正错误测试并补 `TC-L0-IR-0001`。
 - 补齐 §12.2 #10 调用/字段顺序、§8.8.2 调用安全优先、§12.2 #5 负移位优先的排序键与 L0 用例（`TC-L0-DIAG-0003`…`0006`）。
-- 类型表创建时预创建 14 个标量单例，冻结后不再新增节点；补 `TC-L0-TYPE-0001`。覆盖矩阵现为 634 槽、231 项、5 L0 covered / 629 uncovered。
+- 类型表创建时预创建 14 个标量单例，冻结后不再新增节点；补 `TC-L0-TYPE-0001`。
+- 首诊 CALL/MAKE 增加 `site_id` 与 §8.8.2 检查阶段（目标/可见性 → 安全 → LHS/返回形态 → 实参 → 接收者），补 `TC-L0-DIAG-0007/0008`；诊断缓冲深拷贝文件名（生命周期测试）。
+- 补齐 IR/对象/档案/标志/单位静态检查（`TC-L0-CONTRACT-0001`）、harness IMPORT 阶段与空套件/路径失败关闭、golden 独立评审与强化校验。覆盖矩阵现为 634 槽、231 项、5 L0 covered / 629 uncovered。
 
 ## [0.0.46] - 2026-11-12
 

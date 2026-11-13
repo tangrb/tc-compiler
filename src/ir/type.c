@@ -289,7 +289,10 @@ int tc_type_is_float(const TcType *type) {
 }
 
 int tc_type_is_scalar(const TcType *type) {
-    return type != NULL && type->tag < TC_TYPE_SCALAR_COUNT;
+    /* void is a scalar tag for representation purposes, but it is not a value
+     * type (standard §3.1/§3.8); callers use this predicate for value checks. */
+    return type != NULL && type->tag < TC_TYPE_SCALAR_COUNT &&
+           type->tag != TC_TY_VOID;
 }
 
 unsigned tc_type_bits(const TcType *type, unsigned addr_width) {

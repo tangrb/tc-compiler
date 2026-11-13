@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.46] - 2026-11-13
+
+### Added
+
+- **S0 contract freeze and test infrastructure**: type/IR/object/profile/diagnostic/zero-pass/build contracts and the private `tc_core` library.
+- Machine-readable 80-code table and generated C table (65 `TC_CE_*` + 15 `TC_RE_*`), checked against the standard.
+- First-diagnostic comparator/buffer, separate `TC_ERR_OUT_OF_MEMORY` channel, L0 contract tests, Python case harness with 7 deciders, traceability/coverage matrix, golden review/validation and CLI contract tests.
+- `src/CONTRACTS.md` contract ownership index; G0 gate report.
+
+### Changed
+
+- Builds as C11; only `tc_core`, `tc-vm` and `tc-aot` are produced; no install rules or public ABI.
+- `src/` reorganized into `base/`, `contract/`, `diagnostic/`, `ir/`, `runtime/`, `vm/`, `backend/` and `driver/`.
+
 ## [0.0.46] - 2026-11-12
 
 ### Changed

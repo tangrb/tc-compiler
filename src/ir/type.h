@@ -92,7 +92,7 @@ int tc_type_is_value(const TcType *type);
 int tc_type_is_integer(const TcType *type);
 int tc_type_is_signed_integer(const TcType *type);
 int tc_type_is_float(const TcType *type);
-int tc_type_is_scalar(const TcType *type);
+int tc_type_is_scalar(const TcType *type); /* scalar value type; false for void */
 
 /* Bit width under a given profile word size.  The caller supplies W (32/64)
  * from TcPlatformProfile.addr_width; isize/usize/ptr/fnptr equal W.  void and

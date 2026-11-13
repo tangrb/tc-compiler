@@ -15,6 +15,8 @@
 
 #include "base/assert.h"
 
+#define TC_SPAN_FIRST_LINE 1u
+#define TC_SPAN_FIRST_COLUMN 1u
 #define TC_SPAN_NO_INVALID_BYTE UINT32_MAX
 
 typedef struct {

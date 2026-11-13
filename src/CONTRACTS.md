@@ -23,6 +23,7 @@ runtime trap seam).  `frontend/` is reserved for the S1+ pipeline.
 | CFG/unit | `ir/block.h` | SEM | explicit successor/predecessor edges; one closed unit per function/program; vreg→type and vreg→object maps | SEM DI, VM, AOT |
 | Struct/layout | `ir/structs.h` | SEM | field order/padding/readonly; per-profile `offset`/`size`; layout is never cached in `TcType` | SEM, CT, VM, AOT |
 | Object/address | `ir/object.h`, `ir/address.h`, `ir/region.h` | SEM + runtime | five regions; object is the single boundary/lifetime/DI fact source; region+offset is not object identity; address 0 is reserved | VM, checked build, AOT |
+| Pointer state | `ir/pointer_state.h`, `ir/pointer_state.c` | SEM + VM + AOT | §3.12 null/live/one-past/dangling permission matrix; one-past `ptradd` only zero; shared by addr/ptrdiff/memmove/bounds checks | SEM, VM, AOT |
 | IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module identity is resolved path; frozen type table; per-profile consts/objects/units | VM, AOT |
 | Platform profile | `runtime/profile.h`, `runtime/profile.c` | runtime/driver | W∈{32,64}; five non-overlapping regions excluding address 0; `D≥1`; `disable_icf == 1`; stack/pointer alignment from `TcTargetDesc`; checked build only adds UB checks | VM, AOT, tests |
 | Runtime seams | `runtime/io.h`, `runtime/alloc.h`, `runtime/trap.h`, `runtime/module_loader.h` | runtime | all-or-nothing sink; short-read/EOF/error source; allocator sizes are target-W; trap gets first error + line; device runtime resolves no imports | VM, AOT, freestanding |
@@ -39,7 +40,7 @@ language diagnostic.
 `CALL`/`MAKE` 位置先应用 §12.2 #10 的 `same_site_rank`（调用安全 →
 重复 → 未知 → 缺失 → 数量/多余 → 顺序 → 类型），再应用 origin。设计 §6 的
 编号列表是规则索引，不是扁平字典序键链；#6/#7/#8 是布局/遍历/档案约束。
-L0 钉扎见 `tests/unit/README.md` 的 `TC-L0-DIAG-0001`…`0006`。
+`CALL`/`MAKE` 的 `site_id` 把 #10 限制在同一调用的候选集合内；跨位置的同一 site 仍先按参数/字段检查顺序。L0 钉扎见 `tests/unit/README.md` 的 `TC-L0-DIAG-0001`…`0006`。
 
 `tc_instr_lhs_is_valid()` 遵循 §6.15.1：任何有结果指令都可以用 `_` 丢弃结果，
 无结果指令必须用 `_`。类型表在创建时预创建全部标量单例，`freeze` 后不再新增

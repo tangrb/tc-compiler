@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：只维护标准、设计文档与实现骨架，历史实现已移除。
+感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：S0 契约层与测试基建已实现，前端、VM 与原生后端尚未实现；历史实现已移除。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -10,7 +10,7 @@ English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
 - 0.0.46 标准勘误、歧义澄清、诊断/平台档案修订。
 - 原生编译器设计补全（IR、ABI、profile、路线图）。
-- `src/` 骨架的模块边界与接口设计。
+- `src/` 冻结契约、模块边界与 S0/S1+ 接口。
 - 32/64 字长语义、`usize`/`isize`、`sizeof`/`bitcast`/`trunc`/布局的目标相关规则。
 
 当前**不接受**：
@@ -29,14 +29,15 @@ English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 - 提交信息建议：`docs(0.0.46): ...`、`design(0.0.46): ...`、`chore(0.0.46): ...`。
 - 不要提交 `build/` 或生成物。
 
-## 骨架构建
+## 构建与测试
 
 ```sh
 cmake -S . -B build
 cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-当前无编译器目标；构建成功只表示骨架配置通过。
+S0 构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。两个工具尚未实现前端；合法调用会以退出码 70 返回未实现。
 
 ## 提 Issue
 

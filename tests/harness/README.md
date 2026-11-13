@@ -15,7 +15,7 @@ VM, tool or generator behaviour.
 | `case_schema.py` | Strict metadata validation, kind inference, hex parsing |
 | `deciders.py` | compile / run / diff / unit / platform / tool / property |
 | `runner.py` | Discovery, fork worker, timeout, environment, CLI |
-| `selftest.py` | Named in-process fake scenarios; exits 0 only on full success |
+| `selftest.py` | 23 named fake scenarios for all 7 deciders, schema, timeout/crash, IMPORT-stage, empty-suite and missing-path failure closure |
 
 Run the selftest with:
 
@@ -336,6 +336,8 @@ failures.
 
 ## Interface decisions for the CTest integration
 
+- The harness rejects an empty selected suite (exit 2) and missing source/include/link paths before running an adapter; selftests cover all three path kinds.
+- IMPORT codes (`TC_CE_IMPORT_*`) only accept `stage: IMPORT`; `SEM` is rejected.
 - The only required S0 CTest entry is `harness.selftest` (command above).  No
   compiler adapter is needed for S0; when the adapter is absent every selected
   case is `not_implemented`, and the runner deliberately exits nonzero.

@@ -13,6 +13,7 @@
 #include "ir/block.h"
 #include "ir/instr.h"
 #include "ir/ir.h"
+#include "ir/pointer_state.h"
 #include "ir/type.h"
 #include "runtime/alloc.h"
 #include "runtime/module_loader.h"
@@ -128,6 +129,8 @@ static void test_type_table(void) {
     CHECK_EQ_INT(0, tc_type_bits(void_type, 64));
     CHECK(tc_type_is_value(i32));
     CHECK(!tc_type_is_value(void_type));
+    CHECK(tc_type_is_scalar(i32));
+    CHECK(!tc_type_is_scalar(void_type)); /* void is not a scalar value type */
     CHECK(tc_type_is_integer(isize));
     CHECK(!tc_type_is_integer(tc_type_scalar(table, TC_TY_F32)));
     CHECK(tc_type_is_signed_integer(isize));
@@ -306,7 +309,16 @@ static int first_is(const TcDiagnostic *a, const TcDiagnostic *b) {
 static TcDiagnostic make_site_diag(TcDiagCode code, TcDiagSite site, uint32_t line) {
     TcDiagnostic d = make_diag(code, TC_STAGE_SEM, 0, line, 1);
     d.site = site;
+    d.site_id = 1;
+    d.site_phase = TC_DIAG_PHASE_ARGUMENTS;
     d.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    return d;
+}
+
+static TcDiagnostic make_phase_diag(TcDiagCode code, TcDiagSite site,
+                                    TcDiagPhase phase, uint32_t line) {
+    TcDiagnostic d = make_site_diag(code, site, line);
+    d.site_phase = phase;
     return d;
 }
 
@@ -331,6 +343,18 @@ static void test_call_argument_order(void) {
         TcDiagnostic type = make_site_diag(TC_CE_TYPE_MISMATCH, TC_DIAG_SITE_CALL, 10);
         CHECK(first_is(&literal, &type));
     }
+    /* Cross-position pin: §12.2 #10 applies inside the same call site even
+     * when the diagnostic columns differ.  Unknown (rank 25) must beat
+     * missing (rank 20) at column 1. */
+    {
+        TcDiagnostic missing = make_site_diag(TC_CE_MISSING_ARGUMENT, TC_DIAG_SITE_CALL, 20);
+        TcDiagnostic unknown = make_site_diag(TC_CE_UNKNOWN_ARGUMENT, TC_DIAG_SITE_CALL, 20);
+        missing.site_id = 77;
+        unknown.site_id = 77;
+        missing.primary.column = 1;
+        unknown.primary.column = 20;
+        CHECK(first_is(&unknown, &missing));
+    }
 }
 
 /* TC-L0-DIAG-0004: §12.2 #10 make field order. */
@@ -349,23 +373,95 @@ static void test_make_field_order(void) {
         TcDiagnostic later = make_site_diag(order[i + 1], TC_DIAG_SITE_MAKE, 11);
         CHECK(first_is(&earlier, &later));
     }
+    /* Cross-position pin for make: unknown field before missing field. */
+    {
+        TcDiagnostic missing = make_site_diag(TC_CE_MISSING_FIELD, TC_DIAG_SITE_MAKE, 21);
+        TcDiagnostic unknown = make_site_diag(TC_CE_UNKNOWN_FIELD, TC_DIAG_SITE_MAKE, 21);
+        missing.site_id = 78;
+        unknown.site_id = 78;
+        missing.primary.column = 1;
+        unknown.primary.column = 20;
+        CHECK(first_is(&unknown, &missing));
+    }
 }
 
 /* TC-L0-DIAG-0005: §8.8.2/§9 call safety precedes arguments and
  * SAFE_VIOLATION outranks the non-@safe safety codes. */
 static void test_call_safety_first(void) {
     TcDiagnostic unsafe_call =
-        make_site_diag(TC_CE_UNSAFE_CALL, TC_DIAG_SITE_CALL, 12);
+        make_phase_diag(TC_CE_UNSAFE_CALL, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_SAFETY, 12);
     TcDiagnostic fast_call =
-        make_site_diag(TC_CE_FAST_CALL, TC_DIAG_SITE_CALL, 12);
+        make_phase_diag(TC_CE_FAST_CALL, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_SAFETY, 12);
     TcDiagnostic duplicate =
-        make_site_diag(TC_CE_DUPLICATE_ARGUMENT, TC_DIAG_SITE_CALL, 12);
+        make_phase_diag(TC_CE_DUPLICATE_ARGUMENT, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_ARGUMENTS, 12);
     TcDiagnostic safe =
-        make_site_diag(TC_CE_SAFE_VIOLATION, TC_DIAG_SITE_CALL, 12);
+        make_phase_diag(TC_CE_SAFE_VIOLATION, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_SAFETY, 12);
     CHECK(first_is(&unsafe_call, &duplicate));
     CHECK(first_is(&fast_call, &duplicate));
     CHECK(first_is(&safe, &unsafe_call));
     CHECK(first_is(&safe, &fast_call));
+}
+
+/* TC-L0-DIAG-0007: §8.8.2 call/make check phase order. */
+static void test_call_check_phase_order(void) {
+    TcDiagnostic target =
+        make_phase_diag(TC_CE_UNDEFINED_FUNCTION, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_TARGET, 14);
+    TcDiagnostic private_access =
+        make_phase_diag(TC_CE_PRIVATE_ACCESS, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_TARGET, 14);
+    TcDiagnostic unsafe_call =
+        make_phase_diag(TC_CE_UNSAFE_CALL, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_SAFETY, 14);
+    TcDiagnostic result_shape =
+        make_phase_diag(TC_CE_TYPE_MISMATCH, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_RESULT_SHAPE, 14);
+    TcDiagnostic receiver =
+        make_phase_diag(TC_CE_TYPE_MISMATCH, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_RECEIVER, 14);
+    TcDiagnostic duplicate =
+        make_phase_diag(TC_CE_DUPLICATE_ARGUMENT, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_ARGUMENTS, 14);
+    TcDiagnostic missing =
+        make_phase_diag(TC_CE_MISSING_ARGUMENT, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_ARGUMENTS, 14);
+    TcDiagnostic order =
+        make_phase_diag(TC_CE_ARGUMENT_ORDER, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_ARGUMENTS, 14);
+    TcDiagnostic void_result =
+        make_phase_diag(TC_CE_VOID, TC_DIAG_SITE_CALL, TC_DIAG_PHASE_RESULT_SHAPE, 14);
+
+    CHECK(first_is(&target, &duplicate));
+    CHECK(first_is(&private_access, &missing));
+    CHECK(first_is(&unsafe_call, &duplicate));
+    CHECK(first_is(&result_shape, &order));
+    CHECK(first_is(&void_result, &duplicate));
+    CHECK(first_is(&duplicate, &receiver));
+    CHECK(first_is(&missing, &receiver));
+
+    {
+        TcDiagnostic make_target =
+            make_phase_diag(TC_CE_UNDEFINED_NAME, TC_DIAG_SITE_MAKE, TC_DIAG_PHASE_TARGET, 15);
+        TcDiagnostic make_duplicate =
+            make_phase_diag(TC_CE_DUPLICATE_FIELD, TC_DIAG_SITE_MAKE, TC_DIAG_PHASE_ARGUMENTS, 15);
+        CHECK(first_is(&make_target, &make_duplicate));
+    }
+}
+
+/* TC-L0-DIAG-0008: site_id scopes #10; zero is rejected and different sites
+ * fall back to source order. */
+static void test_site_id_scope(void) {
+    TcDiagnostic missing = make_site_diag(TC_CE_MISSING_ARGUMENT, TC_DIAG_SITE_CALL, 16);
+    TcDiagnostic unknown = make_site_diag(TC_CE_UNKNOWN_ARGUMENT, TC_DIAG_SITE_CALL, 16);
+    missing.site_id = 1;
+    unknown.site_id = 2;
+    missing.primary.column = 1;
+    unknown.primary.column = 20;
+    CHECK(first_is(&missing, &unknown)); /* different sites: source order */
+
+    {
+        TcDiagBuffer *buffer = tc_diag_buffer_create(NULL);
+        TcDiagnostic bad = make_site_diag(TC_CE_MISSING_ARGUMENT, TC_DIAG_SITE_CALL, 17);
+        bad.site_id = 0;
+        CHECK(buffer != NULL);
+        CHECK_EQ_INT(TC_IMPL_INTERNAL, tc_diag_buffer_push(buffer, &bad));
+        bad = make_site_diag(TC_CE_MISSING_ARGUMENT, TC_DIAG_SITE_CALL, 17);
+        bad.site_phase = TC_DIAG_PHASE_NONE;
+        CHECK_EQ_INT(TC_IMPL_INTERNAL, tc_diag_buffer_push(buffer, &bad));
+        tc_diag_buffer_destroy(buffer);
+    }
 }
 
 /* TC-L0-DIAG-0006: §12.2 #5 negative shift precedes strict shl overflow. */
@@ -522,9 +618,272 @@ static void test_diag_buffer(void) {
     CHECK_EQ_INT(TC_IMPL_OOM, tc_diag_buffer_push(oom, &d1));
     tc_diag_buffer_destroy(oom);
 
+    {
+        TcDiagBuffer *owned = tc_diag_buffer_create(NULL);
+        char mutable_file[16] = "tmp.tc";
+        TcDiagnostic d = make_diag(TC_CE_UNDEFINED_NAME, TC_STAGE_SEM, 0, 2, 3);
+        d.primary.file = mutable_file;
+        CHECK(owned != NULL);
+        CHECK_EQ_INT(TC_IMPL_OK, tc_diag_buffer_push(owned, &d));
+        strcpy(mutable_file, "changed.tc");
+        CHECK(strcmp(tc_diag_buffer_at(owned, 0)->primary.file, "tmp.tc") == 0);
+        tc_diag_buffer_destroy(owned);
+    }
+
     tc_diag_buffer_destroy(a);
     tc_diag_buffer_destroy(b);
     tc_diag_buffer_destroy(NULL);
+}
+
+/* TC-L0-CONTRACT-0001: frozen struct/enum/field/default/unit checks. */
+static void test_contract_declarations(void) {
+    TcTypeTable *types = tc_type_table_create(NULL);
+    const TcType *i32;
+    TcSpan span;
+    TcOperand op;
+    TcArg arg;
+    TcField field;
+    TcStructDef sd;
+    TcObject obj;
+    TcAddress addr;
+    TcBlock block;
+    TcUnit unit;
+    TcIR ir;
+    TcParam param;
+    TcFunc func;
+    TcInitImage image;
+
+    CHECK(types != NULL);
+    i32 = tc_type_scalar(types, TC_TY_I32);
+    CHECK(i32 != NULL);
+    CHECK_EQ_INT(17, TC_TY_COUNT);
+    CHECK_EQ_INT(14, TC_TYPE_SCALAR_COUNT);
+    CHECK_EQ_INT(5, TC_REGION_COUNT);
+    CHECK_EQ_INT(5, TC_REG_COUNT);
+    CHECK_EQ_INT(0, TC_OP_VREG);
+    CHECK_EQ_INT(6, TC_OP_DISCARD);
+    CHECK_EQ_INT(0, TC_STRICT);
+    CHECK_EQ_INT(5, TC_VOLATILE);
+    CHECK_EQ_INT(2, TC_PARAM_NO_ALIAS);
+    CHECK_EQ_INT(4, TC_PARAM_ALIGN);
+    CHECK_EQ_INT(8, TC_PARAM_RANGE);
+    CHECK_EQ_INT(1u << 0, TC_FN_UNSAFE);
+    CHECK_EQ_INT(1u << 10, TC_FN_NOINLINE);
+    CHECK_EQ_INT(1, TC_SPAN_FIRST_LINE);
+    CHECK_EQ_INT(1, TC_SPAN_FIRST_COLUMN);
+    CHECK_EQ_INT(UINT32_MAX, TC_SPAN_NO_INVALID_BYTE);
+    CHECK_EQ_INT(UINT32_MAX, TC_UNIT_TOP_LEVEL);
+    CHECK_EQ_INT(UINT32_MAX, TC_OBJECT_NO_PARENT);
+    CHECK_EQ_INT(UINT32_MAX, TC_OBJECT_NO_MODULE);
+    CHECK_EQ_INT(UINT32_MAX, TC_ADDRESS_NO_OBJECT);
+    CHECK(TC_IO_OK == 0 && TC_IO_EOF == 1 && TC_IO_ERROR == 2);
+    CHECK(TC_DEV_REJECT == 0 && TC_DEV_VOLATILE == 3);
+    CHECK((int)TC_EK_TRAP == (int)TC_RE_TRAP);
+
+    memset(&span, 0, sizeof(span));
+    span.file = "m.tc";
+    span.line = 3;
+    span.column = 7;
+    span.valid_prefix_bytes = 2;
+    span.invalid_byte_offset = 5;
+    CHECK(span.line == 3 && span.column == 7);
+    CHECK(span.valid_prefix_bytes == 2);
+    CHECK(span.invalid_byte_offset == 5);
+    CHECK(span.line >= TC_SPAN_FIRST_LINE && span.column >= TC_SPAN_FIRST_COLUMN);
+
+    memset(&op, 0, sizeof(op));
+    op.kind = TC_OP_FIELD;
+    op.field.base = 4;
+    op.field.nfields = 0;
+    CHECK(op.kind == TC_OP_FIELD && op.field.base == 4);
+
+    memset(&arg, 0, sizeof(arg));
+    arg.name = NULL;
+    arg.value = op;
+    CHECK(arg.name == NULL && arg.value.kind == TC_OP_FIELD);
+
+    memset(&field, 0, sizeof(field));
+    field.name = "x";
+    field.readonly = 1;
+    field.padding = 4; /* bytes of 0x00 after this field */
+    field.offset = 8;  /* byte offset in the current profile */
+    CHECK(field.readonly == 1 && field.padding == 4 && field.offset == 8);
+
+    memset(&sd, 0, sizeof(sd));
+    sd.id = 1;
+    sd.module = 2;
+    sd.name = "S";
+    sd.fields = NULL;
+    sd.nfields = 0;
+    sd.size = 16; /* sizeof S in bytes under one profile */
+    CHECK(sd.id == 1 && sd.module == 2 && sd.size == 16);
+    CHECK(sd.fields == NULL && sd.nfields == 0);
+
+    memset(&obj, 0, sizeof(obj));
+    obj.id = 1;
+    obj.module = TC_OBJECT_NO_MODULE;
+    obj.region = TC_REG_STATIC;
+    obj.lifetime = TC_LIFE_PROGRAM;
+    obj.writable = 1;
+    obj.parent = TC_OBJECT_NO_PARENT;
+    obj.offset = 0; /* bytes */
+    obj.size = 8;   /* bytes */
+    obj.type = i32;
+    obj.init = NULL;
+    CHECK(obj.region == TC_REG_STATIC);
+    CHECK(obj.lifetime == TC_LIFE_PROGRAM);
+    CHECK(obj.parent == TC_OBJECT_NO_PARENT);
+    CHECK(obj.offset == 0 && obj.size == 8);
+    CHECK(obj.writable == 1 && obj.init == NULL && obj.type == i32);
+
+    memset(&addr, 0, sizeof(addr));
+    addr.region = TC_REG_STATIC;
+    addr.object = 1;
+    addr.offset = 0;
+    addr.type = i32;
+    CHECK(addr.region == TC_REG_STATIC && addr.object == 1);
+    CHECK(addr.offset == 0 && addr.type == i32);
+
+    memset(&block, 0, sizeof(block));
+    block.id = 0;
+    block.n = 0;
+    block.nsucc = 0;
+    block.npred = 0;
+    CHECK(block.id == 0 && block.n == 0);
+    CHECK(block.instrs == NULL && block.succs == NULL && block.preds == NULL);
+
+    memset(&unit, 0, sizeof(unit));
+    unit.func_id = TC_UNIT_TOP_LEVEL;
+    unit.nblocks = 0;
+    unit.entry = 0;
+    unit.nvregs = 0;
+    unit.nvreg_objects = 0;
+    CHECK(unit.func_id == TC_UNIT_TOP_LEVEL);
+    CHECK(unit.blocks == NULL && unit.entry == 0);
+    CHECK(unit.vreg_types == NULL && unit.vreg_objects == NULL);
+
+    memset(&ir, 0, sizeof(ir));
+    ir.nmodules = 0;
+    ir.nstructs = 0;
+    ir.nfuncs = 0;
+    ir.nconsts = 0;
+    ir.nobjects = 0;
+    ir.nunits = 0;
+    CHECK(ir.nmodules == 0 && ir.profile == NULL);
+    CHECK(ir.types == NULL && ir.modules == NULL && ir.structs == NULL);
+    CHECK(ir.funcs == NULL && ir.consts == NULL && ir.objects == NULL);
+    CHECK(ir.units == NULL);
+    CHECK(ir.profile == NULL);
+
+    memset(&param, 0, sizeof(param));
+    param.name = "p";
+    param.type = i32;
+    param.flags = TC_PARAM_NONNULL | TC_PARAM_ALIGN;
+    param.align = 8;
+    param.lo = 0x10;
+    param.hi = 0x20;
+    CHECK((param.flags & TC_PARAM_NONNULL) != 0);
+    CHECK((param.flags & TC_PARAM_ALIGN) != 0);
+    CHECK(param.type == i32 && param.align == 8);
+    CHECK(param.lo == 0x10 && param.hi == 0x20);
+
+    memset(&func, 0, sizeof(func));
+    func.id = 3;
+    func.module = 2;
+    func.name = "f";
+    func.flags = TC_FN_INLINE | TC_FN_NOINLINE;
+    func.sig.ret = i32;
+    func.sig.params = NULL;
+    func.sig.nparams = 0;
+    func.body = NULL;
+    CHECK((func.flags & TC_FN_INLINE) != 0);
+    CHECK((func.flags & TC_FN_NOINLINE) != 0);
+    CHECK(func.id == 3 && func.module == 2 && func.sig.ret == i32);
+    CHECK(func.body == NULL);
+
+    memset(&image, 0, sizeof(image));
+    image.bytes = NULL;
+    image.size = 0;
+    CHECK(image.bytes == NULL && image.size == 0);
+
+    {
+        TcModule mod;
+        TcConst konst;
+        TcIoSink sink;
+        TcIoSrc src;
+        TcTrapHandler trap;
+        memset(&mod, 0, sizeof(mod));
+        mod.id = 2;
+        mod.path = "lib/mod.tc";
+        CHECK(mod.id == 2 && strcmp(mod.path, "lib/mod.tc") == 0);
+        memset(&konst, 0, sizeof(konst));
+        konst.id = 4;
+        konst.module = 2;
+        konst.name = "K";
+        konst.type = i32;
+        konst.bits = 0x2a;
+        konst.init = NULL;
+        CHECK(konst.bits == 0x2a && konst.init == NULL);
+        memset(&sink, 0, sizeof(sink));
+        sink.ctx = NULL;
+        CHECK(sink.write == NULL && sink.flush == NULL);
+        memset(&src, 0, sizeof(src));
+        src.ctx = NULL;
+        CHECK(src.read == NULL);
+        memset(&trap, 0, sizeof(trap));
+        trap.ctx = NULL;
+        CHECK(trap.trap == NULL);
+    }
+    tc_type_table_destroy(types);
+}
+
+/* TC-L0-OBJ-0001: standard §3.12 pointer-state permission matrix. */
+static void test_pointer_states(void) {
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_COPY, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_COMPARE, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_PTRDIFF, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_LOAD, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_STORE, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_MEMMOVE, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_PTRADD, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_PTRSUB, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_CALL_INDIRECT, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_NULL, TC_PTR_OP_BITCAST, 0));
+
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_LOAD, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_STORE, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_MEMMOVE, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_PTRADD, 1));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_PTRSUB, 1));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_CALL_INDIRECT, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_LIVE, TC_PTR_OP_BITCAST, 0));
+
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_COPY, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_COMPARE, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_PTRDIFF, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_PTRADD, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_PTRADD, 1));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_PTRSUB, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_LOAD, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_STORE, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_MEMMOVE, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_ONE_PAST, TC_PTR_OP_BITCAST, 0));
+
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_COPY, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_COMPARE, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_PTRDIFF, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_LOAD, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_STORE, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_MEMMOVE, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_PTRADD, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_PTRSUB, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_CALL_INDIRECT, 0));
+    CHECK(tc_ptr_state_allows(TC_PTR_STATE_DANGLING, TC_PTR_OP_BITCAST, 0));
+
+    CHECK(!tc_ptr_state_allows((TcPtrState)99, TC_PTR_OP_COPY, 0));
+    CHECK(!tc_ptr_state_allows(TC_PTR_STATE_LIVE, (TcPtrOp)99, 0));
+    CHECK(strcmp(tc_ptr_state_name(TC_PTR_STATE_ONE_PAST), "one-past") == 0);
+    CHECK(strcmp(tc_ptr_op_name(TC_PTR_OP_CALL_INDIRECT), "call_indirect") == 0);
 }
 
 static void test_ir_shape_and_zero_pass(void) {
@@ -587,8 +946,12 @@ int main(void) {
     test_call_argument_order();
     test_make_field_order();
     test_call_safety_first();
+    test_call_check_phase_order();
+    test_site_id_scope();
     test_negative_shift_first();
     test_diag_buffer();
+    test_contract_declarations();
+    test_pointer_states();
     test_ir_shape_and_zero_pass();
     if (failures != 0) {
         fprintf(stderr, "contract tests: %d failure(s)\n", failures);

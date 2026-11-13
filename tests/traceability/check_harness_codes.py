@@ -45,6 +45,11 @@ def main() -> int:
             )
     if len(actual) != 80:
         errors.append(f"harness table has {len(actual)} codes, expected 80")
+    for code in sorted(diag_codes.IMPORT_CODES):
+        if not diag_codes.expected_stage_matches(code, "IMPORT"):
+            errors.append(f"{code}: harness does not accept IMPORT as its report stage")
+        if diag_codes.expected_stage_matches(code, "SEM"):
+            errors.append(f"{code}: harness incorrectly accepts SEM as its report stage")
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)

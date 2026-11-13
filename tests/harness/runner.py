@@ -414,6 +414,34 @@ def build_parser():
     return parser
 
 
+def _validate_case_paths(cases):
+    """Validate source/include/link paths for selected cases before execution.
+
+    Paths are resolved against the suite root (the directory passed to the
+    runner, or the case file's directory for an explicit file).  This keeps a
+    missing fixture from silently becoming a not-implemented/pass case.
+    """
+    errors = []
+    for case in cases:
+        root = os.path.abspath(case["_suite_root"])
+        case_dir = os.path.dirname(case.get("_origin") or root)
+        checks = []
+        if "source" in case:
+            checks.append(("source", case["source"]))
+        for index, value in enumerate(case.get("include_roots", [])):
+            checks.append((f"include_roots[{index}]", value))
+        if "link" in case:
+            checks.append(("link", case["link"]))
+        for label, value in checks:
+            if not isinstance(value, str) or not value:
+                errors.append(f"{case['id']}: {label} is empty")
+                continue
+            path = case_schema.resolve_relative(value, case_dir, root)
+            if not os.path.exists(path):
+                errors.append(f"{case['id']}: {label} does not exist: {value}")
+    return errors
+
+
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -439,6 +467,20 @@ def main(argv=None):
         print(
             f"tc-harness: filter {args.filter!r} matched no cases",
             file=sys.stderr,
+        )
+        return 2
+    if not selected:
+        # Fail closed: an empty suite must not look like a successful run.
+        print("tc-harness: no cases selected", file=sys.stderr)
+        return 2
+    path_errors = _validate_case_paths(selected)
+    if path_errors:
+        for error in path_errors:
+            print(f"PATH-ERROR {error}", file=sys.stderr)
+        _write_report(
+            args.json_out,
+            {"errors": path_errors, "cases": [], "summary": _summary([]),
+             "exit_code": 2},
         )
         return 2
     if args.list_cases:

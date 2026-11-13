@@ -130,7 +130,9 @@ def expected_stage_matches(code, stage):
     if listed is None:
         return False
     if code in IMPORT_CODES:
-        return stage in {"IMPORT", "SEM"}
+        # Standard §12.2 IMPORT exception: these codes must be reported in the
+        # IMPORT phase, even though the code table lists them under SEM.
+        return stage == "IMPORT"
     if listed == "LEX/SYN":
         return stage in {"LEX", "SYN", "LEX/SYN"}
     return listed == stage
