@@ -615,7 +615,7 @@
 | `first_diag_rule:01:combination_case` | 1. 阶段优先 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:02:combination_case` | 2. 模块遍历顺序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **covered** | TC-L0-DIAG-0001 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:05:combination_case` | 5. 条款内顺序优先 | combination_case | **covered** | TC-L0-DIAG-0006 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:06:combination_case` | 6. 布局诊断归属 SEM | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:07:combination_case` | 7. 遍历无关 | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |

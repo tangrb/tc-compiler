@@ -87,7 +87,7 @@ L0_COVERED_ROWS = {
     "first_diag_rule:01:combination_case": ["TC-L0-DIAG-0009"],
     "first_diag_rule:02:combination_case": ["TC-L0-DIAG-0009"],
     "first_diag_rule:03:combination_case": ["TC-L0-DIAG-0009"],
-    "first_diag_rule:04:combination_case": ["TC-L0-DIAG-0001"],
+    "first_diag_rule:04:combination_case": ["TC-L0-DIAG-0009"],
     "first_diag_rule:05:combination_case": ["TC-L0-DIAG-0006"],
     "first_diag_rule:09:combination_case": ["TC-L0-DIAG-0001"],
     "first_diag_rule:10:combination_case": [

@@ -10008,7 +10008,7 @@
       "spec": "standard §12.2, test plan §3.6/§6.1",
       "status": "covered",
       "case_ids": [
-        "TC-L0-DIAG-0001"
+        "TC-L0-DIAG-0009"
       ],
       "number": 4,
       "title": "同位置专用码优先",
