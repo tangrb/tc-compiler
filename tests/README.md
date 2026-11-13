@@ -1,6 +1,8 @@
 # Tests
 
-The 0.0.46 conformance suite is not implemented yet.
+The 0.0.46 conformance suite is not implemented yet. The planned staging, suites,
+coverage checklist and gates are defined in
+[TC 开发测试计划 0.0.46](../docs/TC开发测试计划-0.0.46.md).
 
 When the compiler skeleton gains real targets, this directory should hold:
 
