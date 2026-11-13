@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.46] - 2026-11-13
+
+### Added
+
+- **S0 契约冻结与测试基建（G0）**：类型/IR/对象/档案/诊断/零 pass/构建契约头文件与 `tc_core` 私有库。
+- 80 码机器可读表（`tests/traceability/codes.json`）与生成的 C 表；65 `TC_CE_*` + 15 `TC_RE_*` 由标准 §12.3/§12.5.1 校验。
+- 首诊比较器、诊断缓冲、`TC_ERR_OUT_OF_MEMORY` 独立通道。
+- `tc-vm`/`tc-aot` CLI 骨架：参数与档案校验为真，前端/代码生成未实现时显式退出 70。
+- L0 契约测试、Python 用例 harness 与失败关闭自测、覆盖矩阵骨架、golden 评审校验、CLI 契约测试。
+- `src/CONTRACTS.md` 记录契约属主、冻结边界与后续语义表归属。
+
+### Changed
+
+- 构建标准升为 C11；根 CMake 启用测试并只产出 `tc_core`、`tc-vm`、`tc-aot`。
+
 ## [0.0.46] - 2026-11-12
 
 ### Changed

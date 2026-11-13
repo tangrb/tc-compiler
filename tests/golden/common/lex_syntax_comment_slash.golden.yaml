@@ -1,0 +1,41 @@
+id: TC-LEX-COMMENT-0001
+kind: diagnostic
+profile: common
+spec: "§2.1 字符集；§2.2 注释与续行；§12.3 TC_CE_SYNTAX；§12.5.1 诊断位置"
+source_file: comment_slash.tc
+source: |
+  #program
+  var x: int32 = copy int32, 7 // not a comment
+derivation: |
+  Standard §2.1 states that `/` is allowed only as the start of a `///`
+  comment, and that `;` and any `/` or `//` outside a comment are
+  `TC_CE_SYNTAX`.  Standard §2.2 repeats that `///` is the only comment form;
+  `/`, `//` and `;` outside a comment do not start a comment and produce
+  `TC_CE_SYNTAX` (LEX).
+
+  The source has a complete, well-formed `#program` line and a complete
+  `var x: int32 = copy int32, 7` initializer.  The first two `/` characters
+  occur after the literal `7` and one space.  Counting 1-based Unicode scalar
+  columns on line 2:
+
+      v=1 a=2 r=3 space=4 x=5 :=6 space=7 i=8 n=9 t=10 3=11 2=12 space=13
+      ==14 space=15 c=16 o=17 p=18 y=19 space=20 i=21 n=22 t=23 3=24 2=25
+      ,=26 space=27 7=28 space=29 /=30
+
+  Therefore the first `/` is at line 2, column 30.  Standard §12.5.1 requires
+  comment-external `/`, `//` or `;` to be located at the first `/` or `;`.
+  The trigger is lexical, so the reported stage is LEX (the code row allows
+  LEX/SYN).  Under the §12.1 fail-fast rule exactly one diagnostic is reported.
+  No implementation was run to obtain this expectation.
+review:
+  reviewer: "S0 independent-review rehearsal (placeholder; replace before S1)"
+  status: approved
+  date: "2026-11-13"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary:
+    line: 2
+    column: 30
+  diagnostics: exactly_one
+  related: []
