@@ -136,6 +136,14 @@ int tc_diag_compare(const TcDiagnostic *a, const TcDiagnostic *b) {
     if (c != 0) {
         return c;
     }
+    /* §12.2 #10: at a call/make site the fixed argument/field check order
+     * (duplicate -> unknown -> missing -> count/extra -> order -> type) and
+     * call-safety priority apply before the generic origin/rank keys. */
+    if (a->site == b->site &&
+        (a->site == TC_DIAG_SITE_CALL || a->site == TC_DIAG_SITE_MAKE) &&
+        a->same_site_rank != b->same_site_rank) {
+        return a->same_site_rank > b->same_site_rank ? -1 : 1;
+    }
     /* §12.2 #9: operand-internal diagnostics precede construct-level ones. */
     c = cmp_u32((uint32_t)a->origin, (uint32_t)b->origin);
     if (c != 0) {

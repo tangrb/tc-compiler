@@ -54,7 +54,7 @@ struct TcType {
         struct {
             uint32_t struct_id; /* nominal identity */
         } struct_;
-    } u;
+    }; /* anonymous union: matches design §2 access (t->ptr, t->fnptr) */
 };
 
 struct TcAllocator;

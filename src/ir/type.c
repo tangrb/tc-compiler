@@ -60,6 +60,18 @@ TcTypeTable *tc_type_table_create(const TcAllocator *alloc) {
     }
     memset(table, 0, sizeof(*table));
     table->alloc = alloc;
+    /* Materialize every scalar singleton before Analyze can freeze the table.
+     * A frozen table must never create a node on a later scalar lookup. */
+    {
+        size_t i;
+        for (i = 0; i < TC_TYPE_SCALAR_COUNT; i++) {
+            table->scalars[i] = type_alloc(table, (TcTypeTag)i);
+            if (table->scalars[i] == NULL) {
+                tc_type_table_destroy(table);
+                return NULL;
+            }
+        }
+    }
     return table;
 }
 
@@ -70,8 +82,8 @@ void tc_type_table_destroy(TcTypeTable *table) {
     }
     for (i = 0; i < table->nnodes; i++) {
         TcType *node = table->nodes[i];
-        if (node->tag == TC_TY_FNPTR && node->u.fnptr.params != NULL) {
-            table->alloc->free(table->alloc->ctx, (void *)node->u.fnptr.params);
+        if (node->tag == TC_TY_FNPTR && node->fnptr.params != NULL) {
+            table->alloc->free(table->alloc->ctx, (void *)node->fnptr.params);
         }
         table->alloc->free(table->alloc->ctx, node);
     }
@@ -87,20 +99,13 @@ void tc_type_table_destroy(TcTypeTable *table) {
 }
 
 const TcType *tc_type_scalar(TcTypeTable *table, TcTypeTag tag) {
-    TcType *t;
     if (table == NULL || (unsigned)tag >= TC_TYPE_SCALAR_COUNT) {
         return NULL;
     }
-    t = table->scalars[tag];
-    if (t != NULL) {
-        return t;
-    }
-    t = type_alloc(table, tag);
-    if (t == NULL) {
-        return NULL;
-    }
-    table->scalars[tag] = t;
-    return t;
+    /* Scalars are pre-created by tc_type_table_create(); freeze never adds a
+     * node.  If a malformed table is observed, fail closed instead of mutating
+     * a frozen table. */
+    return table->scalars[tag];
 }
 
 static int intern_allowed(const TcTypeTable *table) {
@@ -124,7 +129,7 @@ const TcType *tc_type_ptr(TcTypeTable *table, const TcType *pointee) {
     }
     for (i = 0; i < table->nnodes; i++) {
         const TcType *candidate = table->nodes[i];
-        if (candidate->tag == TC_TY_PTR && candidate->u.ptr.pointee == pointee) {
+        if (candidate->tag == TC_TY_PTR && candidate->ptr.pointee == pointee) {
             return candidate;
         }
     }
@@ -132,7 +137,7 @@ const TcType *tc_type_ptr(TcTypeTable *table, const TcType *pointee) {
     if (node == NULL) {
         return NULL;
     }
-    node->u.ptr.pointee = pointee;
+    node->ptr.pointee = pointee;
     return register_node(table, node);
 }
 
@@ -161,11 +166,11 @@ const TcType *tc_type_fnptr(TcTypeTable *table, const TcType *ret,
         if (candidate->tag != TC_TY_FNPTR) {
             continue;
         }
-        if (candidate->u.fnptr.ret != ret || candidate->u.fnptr.n != nparams) {
+        if (candidate->fnptr.ret != ret || candidate->fnptr.n != nparams) {
             continue;
         }
         for (j = 0; j < nparams; j++) {
-            if (candidate->u.fnptr.params[j] != params[j]) {
+            if (candidate->fnptr.params[j] != params[j]) {
                 break;
             }
         }
@@ -190,9 +195,9 @@ const TcType *tc_type_fnptr(TcTypeTable *table, const TcType *ret,
         }
         return NULL;
     }
-    node->u.fnptr.ret = ret;
-    node->u.fnptr.params = copy;
-    node->u.fnptr.n = nparams;
+    node->fnptr.ret = ret;
+    node->fnptr.params = copy;
+    node->fnptr.n = nparams;
     {
         const TcType *registered = register_node(table, node);
         if (registered == NULL && copy != NULL) {
@@ -210,7 +215,7 @@ const TcType *tc_type_struct(TcTypeTable *table, uint32_t struct_id) {
     }
     for (i = 0; i < table->nnodes; i++) {
         const TcType *candidate = table->nodes[i];
-        if (candidate->tag == TC_TY_STRUCT && candidate->u.struct_.struct_id == struct_id) {
+        if (candidate->tag == TC_TY_STRUCT && candidate->struct_.struct_id == struct_id) {
             return candidate;
         }
     }
@@ -218,7 +223,7 @@ const TcType *tc_type_struct(TcTypeTable *table, uint32_t struct_id) {
     if (node == NULL) {
         return NULL;
     }
-    node->u.struct_.struct_id = struct_id;
+    node->struct_.struct_id = struct_id;
     return register_node(table, node);
 }
 

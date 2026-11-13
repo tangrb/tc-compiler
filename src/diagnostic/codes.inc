@@ -46,15 +46,15 @@ TC_DIAG_ENTRY(TC_CE_LABEL_NOT_FOUND, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DI
               "分支指令的标签名")
 TC_DIAG_ENTRY(TC_CE_TYPE_MISMATCH, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 1, 0, "TypeMismatch", "赋值/传参/返回/操作数类型或目标形态不符，含 bitcast/cast 的类别禁止组合",
               "首个不匹配操作数；RHS 结果与接收目标不符时定位到 RHS 首 Token；字段路径中间层不是结构体时定位到该字段名")
-TC_DIAG_ENTRY(TC_CE_LITERAL_TYPE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 11, 0, "LiteralType", "字面量类别/后缀/符号性与期望不符",
+TC_DIAG_ENTRY(TC_CE_LITERAL_TYPE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 8, 0, "LiteralType", "字面量类别/后缀/符号性与期望不符",
               "完整字面量首 Token；负号属于字面量时定位到 -")
-TC_DIAG_ENTRY(TC_CE_LITERAL_RANGE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 1, 10, 0, "LiteralRange", "字面量值在源类型或期望类型中不可表示",
+TC_DIAG_ENTRY(TC_CE_LITERAL_RANGE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 1, 7, 0, "LiteralRange", "字面量值在源类型或期望类型中不可表示",
               "完整字面量首 Token；负号属于字面量时定位到 -")
 TC_DIAG_ENTRY(TC_CE_MODE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "ModeError", "已知 (base, suffix) 组合、类型族正确但符号/模式不适用（类型族本身非法 → TYPE_MISMATCH）",
               "非法的模式后缀 Token")
 TC_DIAG_ENTRY(TC_CE_ANNOTATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 1, 0, 0, "AnnotationError", "未知注解/位置非法/注解冲突/承诺不在 @fast",
               "未知/位置非法的注解 Token；重复或冲突的第二个/冲突注解 Token；参数不合法时对应参数 Token（@align 的 N、@range 的 lo/hi）")
-TC_DIAG_ENTRY(TC_CE_OPERAND_COUNT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 6, 0, "OperandCountError", "opcode 的操作数数量/形状不符；无结果指令的 LHS 不是 _；make 多余位置字段",
+TC_DIAG_ENTRY(TC_CE_OPERAND_COUNT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 15, 0, "OperandCountError", "opcode 的操作数数量/形状不符；无结果指令的 LHS 不是 _；make 多余位置字段",
               "指令助记符")
 TC_DIAG_ENTRY(TC_CE_CONDITION_TYPE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "ConditionType", "br_if 条件不是 bool",
               "br_if 条件操作数")
@@ -66,21 +66,21 @@ TC_DIAG_ENTRY(TC_CE_RETURN_OUTSIDE_FUNCTION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SE
               "return 关键字")
 TC_DIAG_ENTRY(TC_CE_MISSING_RETURN, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "MissingReturn", "非 void 函数有路径到 end，或非 void 函数体为空",
               "函数返回类型；关联位置为函数体 end")
-TC_DIAG_ENTRY(TC_CE_ARGUMENT_COUNT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "ArgumentCount", "位置实参数量不符",
+TC_DIAG_ENTRY(TC_CE_ARGUMENT_COUNT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 15, 0, "ArgumentCount", "位置实参数量不符",
               "调用助记符")
-TC_DIAG_ENTRY(TC_CE_ARGUMENT_ORDER, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "ArgumentOrder", "命名实参顺序不符；位置与命名实参混用",
+TC_DIAG_ENTRY(TC_CE_ARGUMENT_ORDER, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 10, 0, "ArgumentOrder", "命名实参顺序不符；位置与命名实参混用",
               "第一个名称已知、集合完整但与对应位置形参不同的实参名")
-TC_DIAG_ENTRY(TC_CE_UNKNOWN_ARGUMENT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "UnknownArgument", "命名实参未知",
+TC_DIAG_ENTRY(TC_CE_UNKNOWN_ARGUMENT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 25, 0, "UnknownArgument", "命名实参未知",
               "最早未知实参名")
-TC_DIAG_ENTRY(TC_CE_DUPLICATE_ARGUMENT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "DuplicateArgument", "命名实参重复",
+TC_DIAG_ENTRY(TC_CE_DUPLICATE_ARGUMENT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 30, 0, "DuplicateArgument", "命名实参重复",
               "第二个及后续重复实参名")
-TC_DIAG_ENTRY(TC_CE_MISSING_ARGUMENT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "MissingArgument", "命名实参缺失",
+TC_DIAG_ENTRY(TC_CE_MISSING_ARGUMENT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 20, 0, "MissingArgument", "命名实参缺失",
               "调用助记符；指出声明顺序最靠前的缺失形参")
-TC_DIAG_ENTRY(TC_CE_UNKNOWN_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "UnknownField", "make/字段访问未知字段",
+TC_DIAG_ENTRY(TC_CE_UNKNOWN_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 25, 0, "UnknownField", "make/字段访问未知字段",
               "make 或字段访问的字段名/结构体名；FIELD_ORDER 定位到首个顺序不符的字段名")
-TC_DIAG_ENTRY(TC_CE_MISSING_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "MissingField", "make 缺字段",
+TC_DIAG_ENTRY(TC_CE_MISSING_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 20, 0, "MissingField", "make 缺字段",
               "make 或字段访问的字段名/结构体名；FIELD_ORDER 定位到首个顺序不符的字段名")
-TC_DIAG_ENTRY(TC_CE_DUPLICATE_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "DuplicateField", "make 重复字段，或结构体字段重名",
+TC_DIAG_ENTRY(TC_CE_DUPLICATE_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 30, 0, "DuplicateField", "make 重复字段，或结构体字段重名",
               "make 或字段访问的字段名/结构体名；FIELD_ORDER 定位到首个顺序不符的字段名")
 TC_DIAG_ENTRY(TC_CE_STRUCT_SELF_VALUE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "StructSelfValue", "结构体值位置直接/间接自引用（无限布局；fnptr 签名除外）",
               "自引用字段的类型 Token")
@@ -88,7 +88,7 @@ TC_DIAG_ENTRY(TC_CE_EMPTY_STRUCT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_
               "结构体名")
 TC_DIAG_ENTRY(TC_CE_LAYOUT_OVERFLOW, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 1, 0, 0, "LayoutOverflow", "结构体布局求和溢出 usize",
               "触发溢出的字段或结构体声明")
-TC_DIAG_ENTRY(TC_CE_FIELD_ORDER, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "FieldOrder", "make 字段顺序不符；位置与命名字段混用",
+TC_DIAG_ENTRY(TC_CE_FIELD_ORDER, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 10, 0, "FieldOrder", "make 字段顺序不符；位置与命名字段混用",
               "make 或字段访问的字段名/结构体名；FIELD_ORDER 定位到首个顺序不符的字段名")
 TC_DIAG_ENTRY(TC_CE_IMMUTABLE_FIELD, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "ImmutableField", "对 readonly 字段赋值，或字段赋值路径经过 readonly 字段",
               "字段路径上首个 readonly 字段")
@@ -108,13 +108,13 @@ TC_DIAG_ENTRY(TC_CE_SWITCH_TYPE, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_G
               "switch 值操作数")
 TC_DIAG_ENTRY(TC_CE_VOID, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_TYPE_DECL_CONTROL, 0, 0, 0, "VoidType", "void 作值类型/参数/var/结构体字段/fnptr 参数/ptr 所指/转换目标/sizeof/read/write 的 T",
               "void 类型 Token")
-TC_DIAG_ENTRY(TC_CE_UNSAFE_OPERATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "UnsafeOperation", "unsafe 指令不在 unsafe 上下文",
+TC_DIAG_ENTRY(TC_CE_UNSAFE_OPERATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 50, 0, "UnsafeOperation", "unsafe 指令不在 unsafe 上下文",
               "unsafe 指令助记符")
-TC_DIAG_ENTRY(TC_CE_UNSAFE_CALL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "UnsafeCall", "调 @unsafe 不在 unsafe 上下文",
+TC_DIAG_ENTRY(TC_CE_UNSAFE_CALL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 50, 0, "UnsafeCall", "调 @unsafe 不在 unsafe 上下文",
               "调用助记符")
-TC_DIAG_ENTRY(TC_CE_FAST_CALL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "FastCall", "调 @fast/@fast_math 不在 unsafe 上下文",
+TC_DIAG_ENTRY(TC_CE_FAST_CALL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 50, 0, "FastCall", "调 @fast/@fast_math 不在 unsafe 上下文",
               "调用助记符")
-TC_DIAG_ENTRY(TC_CE_SAFE_VIOLATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 20, 0, "SafeViolation", "@safe 函数含 unsafe 指令/调用或任何 unsafe 块（含空块；优先于 UNSAFE_*/FAST_CALL）",
+TC_DIAG_ENTRY(TC_CE_SAFE_VIOLATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 60, 0, "SafeViolation", "@safe 函数含 unsafe 指令/调用或任何 unsafe 块（含空块；优先于 UNSAFE_*/FAST_CALL）",
               "@safe 函数内的违规指令/调用；任何 unsafe 块定位到 unsafe 关键字（关联位置可指向块内首个违规指令）")
 TC_DIAG_ENTRY(TC_CE_CONST_FORM, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "ConstForm", "const/static var 初始化器含非法形态（var/call/addr/load 等），或 op 带非法后缀，或 @padding(N) 的 N 不合 §2.6",
               "const/static var 初始化器中首个非法子表达式的操作码或目标 Token；带后缀时定位到后缀 Token；@padding(N) 的 N 形式不合法时定位到 N")
@@ -130,7 +130,7 @@ TC_DIAG_ENTRY(TC_CE_CONST_FLOAT_UNDERFLOW, TC_STAGE_MASK_CT, TC_STAGE_MASK_CT, T
               "常量声明的目标声明")
 TC_DIAG_ENTRY(TC_CE_CONST_CAST, TC_STAGE_MASK_CT, TC_STAGE_MASK_CT, TC_DIAG_GROUP_SAFETY_CONST, 1, 0, 0, "ConstCast", "常量 cast 溢出",
               "常量声明的目标声明")
-TC_DIAG_ENTRY(TC_RE_INTEGER_OVERFLOW, TC_STAGE_MASK_RT, TC_STAGE_MASK_RT, TC_DIAG_GROUP_RUNTIME, 1, 0, 0, "IntegerOverflow", "有符号 strict 溢出；div(INT_MIN,−1)/abs/neg/strict shl",
+TC_DIAG_ENTRY(TC_RE_INTEGER_OVERFLOW, TC_STAGE_MASK_RT, TC_STAGE_MASK_RT, TC_DIAG_GROUP_RUNTIME, 1, 0, 1, "IntegerOverflow", "有符号 strict 溢出；div(INT_MIN,−1)/abs/neg/strict shl",
               "当前触发指令首 Token；STACK_OVERFLOW 用于 call/call_indirect，NULL_FUNCTION_POINTER 用于 call_indirect，WRITE_PROTECTED 用于写指令，ADDR_UNAVAILABLE 用于访问指令")
 TC_DIAG_ENTRY(TC_RE_DIV_ZERO, TC_STAGE_MASK_RT, TC_STAGE_MASK_RT, TC_DIAG_GROUP_RUNTIME, 0, 0, 1, "DivisionByZero", "整数除零或取模零；strict 浮点除零",
               "当前触发指令首 Token；STACK_OVERFLOW 用于 call/call_indirect，NULL_FUNCTION_POINTER 用于 call_indirect，WRITE_PROTECTED 用于写指令，ADDR_UNAVAILABLE 用于访问指令")

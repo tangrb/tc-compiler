@@ -83,8 +83,14 @@ int tc_instr_lhs_is_valid(const TcInstr *instr) {
     if (instr == NULL) {
         return 0;
     }
+    /* Standard §6.15.1: any result instruction may discard its result with
+     * `_` (including non-void call and read).  No-result instructions must use
+     * `_`; a result instruction may also write a vreg/field. */
+    if (instr->dst.kind == TC_OP_DISCARD) {
+        return 1;
+    }
     if (!tc_opcode_has_result(instr->op)) {
-        return instr->dst.kind == TC_OP_DISCARD;
+        return 0;
     }
     return instr->dst.kind == TC_OP_VREG || instr->dst.kind == TC_OP_FIELD;
 }

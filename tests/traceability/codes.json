@@ -335,7 +335,7 @@
       "w_sensitive": false,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 11,
+      "same_site_rank": 8,
       "clause_rank": 0
     },
     {
@@ -349,7 +349,7 @@
       "w_sensitive": true,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 10,
+      "same_site_rank": 7,
       "clause_rank": 0
     },
     {
@@ -391,7 +391,7 @@
       "w_sensitive": false,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 6,
+      "same_site_rank": 15,
       "clause_rank": 0
     },
     {
@@ -475,7 +475,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 15,
       "clause_rank": 0
     },
     {
@@ -489,7 +489,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 10,
       "clause_rank": 0
     },
     {
@@ -503,7 +503,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 25,
       "clause_rank": 0
     },
     {
@@ -517,7 +517,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 30,
       "clause_rank": 0
     },
     {
@@ -531,7 +531,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 20,
       "clause_rank": 0
     },
     {
@@ -545,7 +545,7 @@
       "w_sensitive": false,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 25,
       "clause_rank": 0
     },
     {
@@ -559,7 +559,7 @@
       "w_sensitive": false,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 20,
       "clause_rank": 0
     },
     {
@@ -573,7 +573,7 @@
       "w_sensitive": false,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 30,
       "clause_rank": 0
     },
     {
@@ -629,7 +629,7 @@
       "w_sensitive": false,
       "first_test_stage": "S3",
       "group": "type_decl_control",
-      "same_site_rank": 0,
+      "same_site_rank": 10,
       "clause_rank": 0
     },
     {
@@ -769,7 +769,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "safety_const",
-      "same_site_rank": 0,
+      "same_site_rank": 50,
       "clause_rank": 0
     },
     {
@@ -783,7 +783,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "safety_const",
-      "same_site_rank": 0,
+      "same_site_rank": 50,
       "clause_rank": 0
     },
     {
@@ -797,7 +797,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "safety_const",
-      "same_site_rank": 0,
+      "same_site_rank": 50,
       "clause_rank": 0
     },
     {
@@ -811,7 +811,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "safety_const",
-      "same_site_rank": 20,
+      "same_site_rank": 60,
       "clause_rank": 0
     },
     {
@@ -924,7 +924,7 @@
       "first_test_stage": "S6（VM）/S8（AOT）",
       "group": "runtime",
       "same_site_rank": 0,
-      "clause_rank": 0
+      "clause_rank": 1
     },
     {
       "code": "TC_RE_DIV_ZERO",

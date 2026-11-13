@@ -34,10 +34,16 @@ runtime trap seam).  `frontend/` is reserved for the S1+ pipeline.
 check. It must return `NULL`; any violation is an internal error, never a
 language diagnostic.
 
-首诊比较键序是 `origin`（标准 §12.2 #9，操作数内部优先）→ `same_site_rank`
-（#4，同 origin 类内专用码）→ `clause_rank`（#5）。设计 §6 的编号列表是规则
-索引，不是扁平字典序键链；#6/#7/#8 是布局/遍历/档案约束。L0 钉扎见
-`tests/unit/README.md` 的 `TC-L0-DIAG-0001`/`0002`。
+首诊比较键序：一般位置为 `origin`（标准 §12.2 #9，操作数内部优先）→
+`same_site_rank`（#4，同 origin 类内专用码）→ `clause_rank`（#5）；在
+`CALL`/`MAKE` 位置先应用 §12.2 #10 的 `same_site_rank`（调用安全 →
+重复 → 未知 → 缺失 → 数量/多余 → 顺序 → 类型），再应用 origin。设计 §6 的
+编号列表是规则索引，不是扁平字典序键链；#6/#7/#8 是布局/遍历/档案约束。
+L0 钉扎见 `tests/unit/README.md` 的 `TC-L0-DIAG-0001`…`0006`。
+
+`tc_instr_lhs_is_valid()` 遵循 §6.15.1：任何有结果指令都可以用 `_` 丢弃结果，
+无结果指令必须用 `_`。类型表在创建时预创建全部标量单例，`freeze` 后不再新增
+任何类型节点（L0 `TC-L0-IR-0001`/`TC-L0-TYPE-0001`）。
 
 ## Closed-set rules
 

@@ -19,7 +19,10 @@
 ### Fixed
 
 - G0 审计 F1/F2：补充 §12.2 #9/#4 键序文档说明；新增 `origin×rank` 合成 L0 用例（`TC-L0-DIAG-0001`）。
-- `TC_CE_SAFE_VIOLATION` 写入 `same_site_rank=20`，新增四码同位置优先 L0 用例（`TC-L0-DIAG-0002`）；覆盖矩阵新增 `same_site_priority` 行并标记 covered（630 槽，1 L0 covered / 629 uncovered）。
+- `TC_CE_SAFE_VIOLATION` 写入 `same_site_rank=60`（`UNSAFE_*`/`FAST_CALL` 为 50），新增四码同位置优先 L0 用例（`TC-L0-DIAG-0002`）；覆盖矩阵新增 5 个 `same_site_priority` 行并标记 covered。
+- 修复 `tc_instr_lhs_is_valid()`：有结果指令允许 `_` 丢弃（§6.15.1），同步修正错误测试并补 `TC-L0-IR-0001`。
+- 补齐 §12.2 #10 调用/字段顺序、§8.8.2 调用安全优先、§12.2 #5 负移位优先的排序键与 L0 用例（`TC-L0-DIAG-0003`…`0006`）。
+- 类型表创建时预创建 14 个标量单例，冻结后不再新增节点；补 `TC-L0-TYPE-0001`。覆盖矩阵现为 634 槽、231 项、5 L0 covered / 629 uncovered。
 
 ## [0.0.46] - 2026-11-12
 

@@ -10,7 +10,8 @@ an implementation:
     TcOpcode enum in design §3.2) with normal/static-error/trap slots,
   * the 15 design §12 verification items with suite-mapping/gate slots,
   * the ten first-diagnostic ordering rules in standard §12.2,
-  * explicit same-position code priorities (SAFE_VIOLATION over UNSAFE_*/FAST_CALL),
+  * explicit same-position code priorities (SAFE_VIOLATION over UNSAFE_*/FAST_CALL,
+    call argument order, make field order, call safety first),
   * the 32/64 flip table in standard §13.2.2,
   * every annotation, the four TcDevicePolicy values, the four TcIoSrc states
     and the normal/trap exit branches.
@@ -78,7 +79,28 @@ CATEGORY_LABELS = {
 # .tc cases; they are named in tests/unit/README.md.
 L0_COVERED_ROWS = {
     "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority": ["TC-L0-DIAG-0002"],
+    "same_site_priority:CALL_ARGUMENT_ORDER:priority": ["TC-L0-DIAG-0003"],
+    "same_site_priority:MAKE_FIELD_ORDER:priority": ["TC-L0-DIAG-0004"],
+    "same_site_priority:CALL_SAFETY_FIRST:priority": ["TC-L0-DIAG-0005"],
+    "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority": ["TC-L0-DIAG-0006"],
 }
+
+CALL_ARGUMENT_ORDER = [
+    "TC_CE_DUPLICATE_ARGUMENT",
+    "TC_CE_UNKNOWN_ARGUMENT",
+    "TC_CE_MISSING_ARGUMENT",
+    "TC_CE_ARGUMENT_COUNT",
+    "TC_CE_ARGUMENT_ORDER",
+    "TC_CE_TYPE_MISMATCH",
+]
+MAKE_FIELD_ORDER = [
+    "TC_CE_DUPLICATE_FIELD",
+    "TC_CE_UNKNOWN_FIELD",
+    "TC_CE_MISSING_FIELD",
+    "TC_CE_OPERAND_COUNT",
+    "TC_CE_FIELD_ORDER",
+    "TC_CE_TYPE_MISMATCH",
+]
 
 
 class CoverageError(Exception):
@@ -300,49 +322,92 @@ def parse_first_diag_rules(standard: str):
 def parse_same_site_priorities(codes_data: dict, standard: str):
     """Derive explicit same-position code priorities from the frozen table.
 
-    The only explicit priority in the standard's diagnostic table is
-    SAFE_VIOLATION > UNSAFE_*/FAST_CALL (§12.3, §9.1/§9.3).  The row is derived
-    from codes.json ranks and cross-checked against the standard trigger text,
-    not hardcoded from an implementation result.
+    Sources: standard §12.3 (SAFE_VIOLATION trigger), §12.2 #10 (call/make
+    order), §8.8.2/§9 (call safety).  Ranks are read from codes.json and
+    cross-checked; this function never invents an implementation result.
     """
     entries = {
         entry.get("code"): entry
         for entry in codes_data.get("codes", [])
         if isinstance(entry, dict)
     }
-    required = [
-        "TC_CE_SAFE_VIOLATION",
-        "TC_CE_UNSAFE_OPERATION",
-        "TC_CE_UNSAFE_CALL",
-        "TC_CE_FAST_CALL",
-    ]
-    missing = [code for code in required if code not in entries]
-    if missing:
-        raise CoverageError(f"same-site priority: codes.json missing {missing}")
-    safe = entries["TC_CE_SAFE_VIOLATION"]
+
+    def require(code: str) -> dict:
+        entry = entries.get(code)
+        if entry is None:
+            raise CoverageError(f"same-site priority: codes.json missing {code}")
+        return entry
+
+    def require_descending(sequence: list[str], label: str) -> None:
+        ranks = [require(code).get("same_site_rank") for code in sequence]
+        if not all(isinstance(rank, int) for rank in ranks):
+            raise CoverageError(f"{label}: non-integer same_site_rank")
+        if ranks != sorted(ranks, reverse=True) or len(set(ranks)) != len(ranks):
+            raise CoverageError(f"{label}: ranks are not strictly descending: {ranks}")
+
+    safe = require("TC_CE_SAFE_VIOLATION")
     trigger = safe.get("trigger", "")
     if "优先于" not in trigger or "UNSAFE" not in trigger or "FAST_CALL" not in trigger:
         raise CoverageError(
             "SAFE_VIOLATION trigger no longer says it precedes UNSAFE_*/FAST_CALL"
         )
     safe_rank = safe.get("same_site_rank")
-    if not isinstance(safe_rank, int):
-        raise CoverageError("SAFE_VIOLATION same_site_rank is not an integer")
-    for code in required[1:]:
-        rank = entries[code].get("same_site_rank")
-        if not isinstance(rank, int) or rank >= safe_rank:
-            raise CoverageError(
-                f"same-site priority not encoded: {code} rank {rank!r} >= "
-                f"SAFE_VIOLATION rank {safe_rank}"
-            )
-    return [{
-        "item_id": "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE",
-        "item": "SAFE_VIOLATION over UNSAFE_*/FAST_CALL",
-        "slot": "priority",
-        "spec": "standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1",
-        "codes": required,
-        "safe_rank": safe_rank,
-    }]
+    for code in ("TC_CE_UNSAFE_OPERATION", "TC_CE_UNSAFE_CALL", "TC_CE_FAST_CALL"):
+        if require(code).get("same_site_rank") >= safe_rank:
+            raise CoverageError(f"same-site priority not encoded: {code} >= SAFE_VIOLATION")
+
+    require_descending(CALL_ARGUMENT_ORDER, "§12.2 #10 call argument order")
+    require_descending(MAKE_FIELD_ORDER, "§12.2 #10 make field order")
+    unsafe_rank = require("TC_CE_UNSAFE_CALL").get("same_site_rank")
+    if unsafe_rank <= require("TC_CE_DUPLICATE_ARGUMENT").get("same_site_rank"):
+        raise CoverageError("call safety rank does not precede argument checks")
+
+    neg_rank = require("TC_RE_NEGATIVE_SHIFT").get("clause_rank")
+    overflow_rank = require("TC_RE_INTEGER_OVERFLOW").get("clause_rank")
+    if not isinstance(neg_rank, int) or not isinstance(overflow_rank, int):
+        raise CoverageError("negative-shift/overflow clause ranks are not integers")
+    if neg_rank >= overflow_rank:
+        raise CoverageError("negative shift clause rank does not precede overflow")
+
+    return [
+        {
+            "item_id": "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE",
+            "item": "SAFE_VIOLATION over UNSAFE_*/FAST_CALL",
+            "slot": "priority",
+            "spec": "standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1",
+            "codes": ["TC_CE_SAFE_VIOLATION", "TC_CE_UNSAFE_OPERATION",
+                      "TC_CE_UNSAFE_CALL", "TC_CE_FAST_CALL"],
+        },
+        {
+            "item_id": "same_site_priority:CALL_ARGUMENT_ORDER",
+            "item": "call argument order",
+            "slot": "priority",
+            "spec": "standard §12.2 #10; test plan §3.6/§6.1",
+            "codes": CALL_ARGUMENT_ORDER,
+        },
+        {
+            "item_id": "same_site_priority:MAKE_FIELD_ORDER",
+            "item": "make field order",
+            "slot": "priority",
+            "spec": "standard §12.2 #10; test plan §3.6/§6.1",
+            "codes": MAKE_FIELD_ORDER,
+        },
+        {
+            "item_id": "same_site_priority:CALL_SAFETY_FIRST",
+            "item": "call safety before arguments",
+            "slot": "priority",
+            "spec": "standard §8.8.2/§12.2 #9 exception; test plan §3.6/§6.1",
+            "codes": ["TC_CE_UNSAFE_CALL", "TC_CE_FAST_CALL",
+                      "TC_CE_SAFE_VIOLATION", "TC_CE_DUPLICATE_ARGUMENT"],
+        },
+        {
+            "item_id": "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW",
+            "item": "negative shift before shl overflow",
+            "slot": "priority",
+            "spec": "standard §12.2 #5; test plan §3.6/§6.1",
+            "codes": ["TC_RE_NEGATIVE_SHIFT", "TC_RE_INTEGER_OVERFLOW"],
+        },
+    ]
 
 
 def parse_flips(standard: str):
@@ -635,7 +700,7 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
     for item in parse_same_site_priorities(codes_data, standard):
         rows.append(slot_row(
             "same_site_priority", item["item_id"], item["item"], item["slot"],
-            item["spec"], codes=item["codes"], safe_rank=item["safe_rank"],
+            item["spec"], codes=item["codes"],
         ))
 
     for item in parse_flips(standard):

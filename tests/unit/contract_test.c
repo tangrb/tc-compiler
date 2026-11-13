@@ -108,6 +108,7 @@ static void test_type_table(void) {
     const TcType *s1;
     const TcType *s1b;
     const TcType *s2;
+    const TcType *f64_before;
     CHECK(table != NULL);
     i32 = tc_type_scalar(table, TC_TY_I32);
     i64 = tc_type_scalar(table, TC_TY_I64);
@@ -156,11 +157,20 @@ static void test_type_table(void) {
     CHECK(s1 != NULL && s1 == s1b && s1 != s2);
     CHECK(!tc_type_equal(s1, s2));
 
+    f64_before = tc_type_scalar(table, TC_TY_F64);
+    CHECK(f64_before != NULL);
     CHECK(tc_type_table_freeze(table));
     CHECK(tc_type_table_is_frozen(table));
     CHECK(tc_type_ptr(table, i64) == NULL);
     CHECK(tc_type_struct(table, 3) == NULL);
     CHECK(tc_type_scalar(table, TC_TY_I32) == i32);
+    CHECK(tc_type_scalar(table, TC_TY_F64) == f64_before);
+    {
+        unsigned tag;
+        for (tag = 0; tag < TC_TYPE_SCALAR_COUNT; tag++) {
+            CHECK(tc_type_scalar(table, (TcTypeTag)tag) != NULL);
+        }
+    }
     tc_type_table_destroy(table);
 }
 
@@ -291,6 +301,78 @@ static TcDiagnostic make_diag(TcDiagCode code, TcStage stage, uint32_t module,
 
 static int first_is(const TcDiagnostic *a, const TcDiagnostic *b) {
     return tc_diag_compare(a, b) < 0;
+}
+
+static TcDiagnostic make_site_diag(TcDiagCode code, TcDiagSite site, uint32_t line) {
+    TcDiagnostic d = make_diag(code, TC_STAGE_SEM, 0, line, 1);
+    d.site = site;
+    d.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    return d;
+}
+
+/* TC-L0-DIAG-0003: §12.2 #10 call argument order. */
+static void test_call_argument_order(void) {
+    static const TcDiagCode order[] = {
+        TC_CE_DUPLICATE_ARGUMENT,
+        TC_CE_UNKNOWN_ARGUMENT,
+        TC_CE_MISSING_ARGUMENT,
+        TC_CE_ARGUMENT_COUNT,
+        TC_CE_ARGUMENT_ORDER,
+        TC_CE_TYPE_MISMATCH,
+    };
+    size_t i;
+    for (i = 0; i + 1 < sizeof(order) / sizeof(order[0]); i++) {
+        TcDiagnostic earlier = make_site_diag(order[i], TC_DIAG_SITE_CALL, 10);
+        TcDiagnostic later = make_site_diag(order[i + 1], TC_DIAG_SITE_CALL, 10);
+        CHECK(first_is(&earlier, &later));
+    }
+    {
+        TcDiagnostic literal = make_site_diag(TC_CE_LITERAL_TYPE, TC_DIAG_SITE_CALL, 10);
+        TcDiagnostic type = make_site_diag(TC_CE_TYPE_MISMATCH, TC_DIAG_SITE_CALL, 10);
+        CHECK(first_is(&literal, &type));
+    }
+}
+
+/* TC-L0-DIAG-0004: §12.2 #10 make field order. */
+static void test_make_field_order(void) {
+    static const TcDiagCode order[] = {
+        TC_CE_DUPLICATE_FIELD,
+        TC_CE_UNKNOWN_FIELD,
+        TC_CE_MISSING_FIELD,
+        TC_CE_OPERAND_COUNT,
+        TC_CE_FIELD_ORDER,
+        TC_CE_TYPE_MISMATCH,
+    };
+    size_t i;
+    for (i = 0; i + 1 < sizeof(order) / sizeof(order[0]); i++) {
+        TcDiagnostic earlier = make_site_diag(order[i], TC_DIAG_SITE_MAKE, 11);
+        TcDiagnostic later = make_site_diag(order[i + 1], TC_DIAG_SITE_MAKE, 11);
+        CHECK(first_is(&earlier, &later));
+    }
+}
+
+/* TC-L0-DIAG-0005: §8.8.2/§9 call safety precedes arguments and
+ * SAFE_VIOLATION outranks the non-@safe safety codes. */
+static void test_call_safety_first(void) {
+    TcDiagnostic unsafe_call =
+        make_site_diag(TC_CE_UNSAFE_CALL, TC_DIAG_SITE_CALL, 12);
+    TcDiagnostic fast_call =
+        make_site_diag(TC_CE_FAST_CALL, TC_DIAG_SITE_CALL, 12);
+    TcDiagnostic duplicate =
+        make_site_diag(TC_CE_DUPLICATE_ARGUMENT, TC_DIAG_SITE_CALL, 12);
+    TcDiagnostic safe =
+        make_site_diag(TC_CE_SAFE_VIOLATION, TC_DIAG_SITE_CALL, 12);
+    CHECK(first_is(&unsafe_call, &duplicate));
+    CHECK(first_is(&fast_call, &duplicate));
+    CHECK(first_is(&safe, &unsafe_call));
+    CHECK(first_is(&safe, &fast_call));
+}
+
+/* TC-L0-DIAG-0006: §12.2 #5 negative shift precedes strict shl overflow. */
+static void test_negative_shift_first(void) {
+    TcDiagnostic overflow = make_diag(TC_RE_INTEGER_OVERFLOW, TC_STAGE_RT, 0, 13, 1);
+    TcDiagnostic negative = make_diag(TC_RE_NEGATIVE_SHIFT, TC_STAGE_RT, 0, 13, 1);
+    CHECK(first_is(&negative, &overflow));
 }
 
 static void test_diag_ordering(void) {
@@ -474,9 +556,14 @@ static void test_ir_shape_and_zero_pass(void) {
     instr.dst.kind = TC_OP_DISCARD;
     CHECK(tc_instr_lhs_is_valid(&instr));
     instr.op = TC_ADD;
-    CHECK(!tc_instr_lhs_is_valid(&instr));
+    CHECK(tc_instr_lhs_is_valid(&instr)); /* _ = add: result discarded */
     instr.dst.kind = TC_OP_VREG;
     CHECK(tc_instr_lhs_is_valid(&instr));
+    instr.op = TC_READ;
+    instr.dst.kind = TC_OP_DISCARD;
+    CHECK(tc_instr_lhs_is_valid(&instr)); /* _ = read: result discarded */
+    instr.op = TC_CALL;
+    CHECK(tc_instr_lhs_is_valid(&instr)); /* _ = call: result discarded */
 
     CHECK(tc_pipeline_build(TC_OPT_O0, &o0));
     CHECK(tc_pipeline_build(TC_OPT_O2, &o1));
@@ -497,6 +584,10 @@ int main(void) {
     test_diag_ordering();
     test_diag_origin_rank_conflict();
     test_safe_violation_priority();
+    test_call_argument_order();
+    test_make_field_order();
+    test_call_safety_first();
+    test_negative_shift_first();
     test_diag_buffer();
     test_ir_shape_and_zero_pass();
     if (failures != 0) {

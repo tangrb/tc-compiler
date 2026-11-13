@@ -4,11 +4,12 @@
  *   1. stage priority (LEX -> SYN -> IMPORT -> SEM -> CT -> RT)
  *   2. module_order index
  *   3. line, then column (1-based)
- *   4. operand-internal before construct-level at one position (§12.2 #9)
- *   5. same-position specific code rank (§12.2 #4)
- *   6. clause rank (§12.2 #5, e.g. INVALID -> DIV_ZERO -> OVERFLOW ->
- *      UNDERFLOW)
- *   7. code enum index, then sequence, only as deterministic final ties.
+ *   4. at CALL/MAKE sites, fixed argument/field check rank (§12.2 #10)
+ *   5. operand-internal before construct-level at one position (§12.2 #9)
+ *   6. same-position specific code rank (§12.2 #4)
+ *   7. clause rank (§12.2 #5, e.g. INVALID -> DIV_ZERO -> OVERFLOW ->
+ *      UNDERFLOW; negative shift before shl overflow)
+ *   8. code enum index, then sequence, only as deterministic final ties.
  *
  * Positions never decide which file is the primary file: a related position
  * cannot change the primary file (standard §12.5.1).
@@ -67,9 +68,10 @@ typedef enum {
     TC_DIAG_ORIGIN_CONSTRUCT   /* construct-level: condition/return/branch/args/... */
 } TcDiagOrigin;
 
-/* Call/make/site ordering (§12.2 #10) is carried explicitly.  The value is
- * opaque to the comparator except for equality and rank fields; EMITTER sets
- * rank overrides where a clause requires it. */
+/* Site tag for clause-specific ordering.  For CALL/MAKE the comparator applies
+ * the frozen same_site_rank (argument/field check order and call safety)
+ * before origin; other sites use the generic origin/rank keys.  The emitter
+ * must set this tag for call/make diagnostics. */
 typedef enum {
     TC_DIAG_SITE_NONE = 0,
     TC_DIAG_SITE_CALL,

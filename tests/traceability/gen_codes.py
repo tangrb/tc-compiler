@@ -162,23 +162,39 @@ def parse_first_test(text: str) -> dict[str, str]:
 
 
 # §12.2 第 4 项: a more specific code wins at the identical source position.
-# This is a contract-level default; site-specific rules (§12.2 #9/#10) are
-# carried by the diagnostic record's origin/site tags, not by this column.
+# This is the frozen same-position rank table.  For CALL/MAKE sites the
+# comparator applies this rank before origin (standard §12.2 #10); for other
+# sites origin (§12.2 #9) comes first.
 SAME_SITE_RANK = {
     "TC_CE_SYNTAX": 0,
     "TC_CE_MISSING_END": 10,
-    "TC_CE_LITERAL_TYPE": 11,
-    "TC_CE_LITERAL_RANGE": 10,
+    "TC_CE_LITERAL_TYPE": 8,
+    "TC_CE_LITERAL_RANGE": 7,
     "TC_CE_TYPE_MISMATCH": 1,
     "TC_CE_CONDITION_TYPE": 0,
     "TC_CE_RETURN_TYPE": 5,
     "TC_CE_RETURN_FORM": 5,
     "TC_CE_SWITCH_TYPE": 5,
-    "TC_CE_OPERAND_COUNT": 6,
-    # Standard §12.3/§9: SAFE_VIOLATION wins over UNSAFE_*/FAST_CALL at the
-    # same position.  This is a same-origin (construct-level) priority; the
-    # comparator still applies §12.2 #9 origin ordering first.
-    "TC_CE_SAFE_VIOLATION": 20,
+    "TC_CE_OPERAND_COUNT": 15,
+    # §12.2 #10 call argument order: duplicate -> unknown -> missing ->
+    # count/extra -> order -> type.
+    "TC_CE_DUPLICATE_ARGUMENT": 30,
+    "TC_CE_UNKNOWN_ARGUMENT": 25,
+    "TC_CE_MISSING_ARGUMENT": 20,
+    "TC_CE_ARGUMENT_COUNT": 15,
+    "TC_CE_ARGUMENT_ORDER": 10,
+    # §12.2 #10 make field order: duplicate -> unknown -> missing ->
+    # extra positional -> order -> type.
+    "TC_CE_DUPLICATE_FIELD": 30,
+    "TC_CE_UNKNOWN_FIELD": 25,
+    "TC_CE_MISSING_FIELD": 20,
+    "TC_CE_FIELD_ORDER": 10,
+    # §8.8.2/§9: call safety precedes arguments; SAFE_VIOLATION outranks the
+    # non-@safe safety codes.
+    "TC_CE_UNSAFE_OPERATION": 50,
+    "TC_CE_UNSAFE_CALL": 50,
+    "TC_CE_FAST_CALL": 50,
+    "TC_CE_SAFE_VIOLATION": 60,
 }
 
 # §6.3.1 fixed strict-float exception priority: INVALID → DIV_ZERO →
@@ -188,7 +204,9 @@ CLAUSE_RANK = {
     "TC_RE_DIV_ZERO": 1,
     "TC_RE_FLOAT_OVERFLOW": 2,
     "TC_RE_FLOAT_UNDERFLOW": 3,
+    # §12.2 #5: negative shift is checked before strict shl overflow.
     "TC_RE_NEGATIVE_SHIFT": 0,
+    "TC_RE_INTEGER_OVERFLOW": 1,
 }
 
 IMPORT_CODES = {

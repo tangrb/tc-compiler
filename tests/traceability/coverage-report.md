@@ -8,7 +8,7 @@
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **630** total, **629** uncovered, **1** covered
+- Rows: **634** total, **629** uncovered, **5** covered
 
 ## Summary by category
 
@@ -19,13 +19,13 @@
 | Opcode (`opcode`) | 63 | 155 | 0 | 155 |
 | Design §12 item (`design12`) | 15 | 30 | 0 | 30 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 0 | 10 |
-| Same-position code priority (`same_site_priority`) | 1 | 1 | 1 | 0 |
+| Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 |
 | 32/64 flip (`flip32_64`) | 17 | 34 | 0 | 34 |
 | Annotation (`annotation`) | 16 | 16 | 0 | 16 |
 | Device policy (`device_policy`) | 4 | 4 | 0 | 4 |
 | I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 |
 | Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 |
-| **Total** | **227** | **630** | **1** | **629** |
+| **Total** | **231** | **634** | **5** | **629** |
 
 ## Coverage rows
 
@@ -628,6 +628,10 @@
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
 | `same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority` | SAFE_VIOLATION over UNSAFE_*/FAST_CALL | priority | **covered** | TC-L0-DIAG-0002 | standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1 |
+| `same_site_priority:CALL_ARGUMENT_ORDER:priority` | call argument order | priority | **covered** | TC-L0-DIAG-0003 | standard §12.2 #10; test plan §3.6/§6.1 |
+| `same_site_priority:MAKE_FIELD_ORDER:priority` | make field order | priority | **covered** | TC-L0-DIAG-0004 | standard §12.2 #10; test plan §3.6/§6.1 |
+| `same_site_priority:CALL_SAFETY_FIRST:priority` | call safety before arguments | priority | **covered** | TC-L0-DIAG-0005 | standard §8.8.2/§12.2 #9 exception; test plan §3.6/§6.1 |
+| `same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority` | negative shift before shl overflow | priority | **covered** | TC-L0-DIAG-0006 | standard §12.2 #5; test plan §3.6/§6.1 |
 
 ### 32/64 flip (`flip32_64`)
 

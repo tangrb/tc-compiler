@@ -8,7 +8,7 @@
     "design": "docs/TC原生编译器设计说明书-0.0.46.md",
     "test_plan": "docs/TC开发测试计划-0.0.46.md",
     "sha256": {
-      "codes_json": "14b4b0473ac380d10a024f677d07dd141c3d9c77181b82fd55e16d4bf083d4f5",
+      "codes_json": "d96519bc5a8a75a336bca0121a367b849522c41263e9bbdc1b08690058ca96cb",
       "standard": "e8a3bc0ca9b9fc672af6eca35c6a13c4fd31319c7d3f4e6f308853e13520eea9",
       "design": "7cf369a819f98c2ae53f83cbce55de97fdf5899e5566446b65a8a3be40c9751e",
       "test_plan": "524815ab560910138ee8e4857b63764406af204ab129c25de03662702b01d40a"
@@ -23,6 +23,10 @@
     ],
     "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty.",
     "l0_covered_rows": [
+      "same_site_priority:CALL_ARGUMENT_ORDER:priority",
+      "same_site_priority:CALL_SAFETY_FIRST:priority",
+      "same_site_priority:MAKE_FIELD_ORDER:priority",
+      "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority",
       "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority"
     ]
   },
@@ -33,9 +37,9 @@
     "tc_opcode_enum": 51
   },
   "summary": {
-    "items": 227,
-    "slots": 630,
-    "covered": 1,
+    "items": 231,
+    "slots": 634,
+    "covered": 5,
     "uncovered": 629
   },
   "categories": {
@@ -76,9 +80,9 @@
     },
     "same_site_priority": {
       "label": "Same-position code priority",
-      "items": 1,
-      "slots": 1,
-      "covered": 1,
+      "items": 5,
+      "slots": 5,
+      "covered": 5,
       "uncovered": 0
     },
     "flip32_64": {
@@ -10072,8 +10076,81 @@
         "TC_CE_UNSAFE_OPERATION",
         "TC_CE_UNSAFE_CALL",
         "TC_CE_FAST_CALL"
+      ]
+    },
+    {
+      "id": "same_site_priority:CALL_ARGUMENT_ORDER:priority",
+      "category": "same_site_priority",
+      "item_id": "same_site_priority:CALL_ARGUMENT_ORDER",
+      "item": "call argument order",
+      "slot": "priority",
+      "spec": "standard §12.2 #10; test plan §3.6/§6.1",
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0003"
       ],
-      "safe_rank": 20
+      "codes": [
+        "TC_CE_DUPLICATE_ARGUMENT",
+        "TC_CE_UNKNOWN_ARGUMENT",
+        "TC_CE_MISSING_ARGUMENT",
+        "TC_CE_ARGUMENT_COUNT",
+        "TC_CE_ARGUMENT_ORDER",
+        "TC_CE_TYPE_MISMATCH"
+      ]
+    },
+    {
+      "id": "same_site_priority:MAKE_FIELD_ORDER:priority",
+      "category": "same_site_priority",
+      "item_id": "same_site_priority:MAKE_FIELD_ORDER",
+      "item": "make field order",
+      "slot": "priority",
+      "spec": "standard §12.2 #10; test plan §3.6/§6.1",
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0004"
+      ],
+      "codes": [
+        "TC_CE_DUPLICATE_FIELD",
+        "TC_CE_UNKNOWN_FIELD",
+        "TC_CE_MISSING_FIELD",
+        "TC_CE_OPERAND_COUNT",
+        "TC_CE_FIELD_ORDER",
+        "TC_CE_TYPE_MISMATCH"
+      ]
+    },
+    {
+      "id": "same_site_priority:CALL_SAFETY_FIRST:priority",
+      "category": "same_site_priority",
+      "item_id": "same_site_priority:CALL_SAFETY_FIRST",
+      "item": "call safety before arguments",
+      "slot": "priority",
+      "spec": "standard §8.8.2/§12.2 #9 exception; test plan §3.6/§6.1",
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0005"
+      ],
+      "codes": [
+        "TC_CE_UNSAFE_CALL",
+        "TC_CE_FAST_CALL",
+        "TC_CE_SAFE_VIOLATION",
+        "TC_CE_DUPLICATE_ARGUMENT"
+      ]
+    },
+    {
+      "id": "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority",
+      "category": "same_site_priority",
+      "item_id": "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW",
+      "item": "negative shift before shl overflow",
+      "slot": "priority",
+      "spec": "standard §12.2 #5; test plan §3.6/§6.1",
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0006"
+      ],
+      "codes": [
+        "TC_RE_NEGATIVE_SHIFT",
+        "TC_RE_INTEGER_OVERFLOW"
+      ]
     },
     {
       "id": "flip32_64:01:w32",

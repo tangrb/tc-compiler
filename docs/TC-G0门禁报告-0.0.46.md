@@ -4,7 +4,7 @@
 > **依据**：[开发测试计划](TC开发测试计划-0.0.46.md) §5 S0、§7、附录 D；
 > [标准](TC语言及编译器标准-0.0.46.md) §12/§13；[设计](TC原生编译器设计说明书-0.0.46.md) §2–§8/§12。
 > **执行方式**：本会话无人介入（agent 执行）。独立人工契约评审尚未签署。
-> **报告状态**：契约审计项已关闭；自动化证据通过；**G0 未签署，S1 暂缓**。
+> **报告状态**：自动化证据通过；当前审计范围内契约审计项均已关闭；**G0 未签署，S1 暂缓**。
 
 ## 1. 结论
 
@@ -13,7 +13,7 @@
 | S0 开发交付 | 完成（契约头文件、`tc_core`、两个 CLI 骨架） |
 | S0 测试活动 | 工程测试活动完成；真实 `.tc`/VM/AOT 用例属于 S1 起的后续阶段 |
 | 自动化证据 | **PASS**：Debug、Release、ASan/UBSan 三套构建各 `ctest` 10/10；harness 15/15；码表三向一致 |
-| 契约审计 | 首诊键序与 `SAFE_VIOLATION` 同位置优先均已关闭 |
+| 契约审计 | 当前审计范围内 **CLOSED**：首诊键序、`_` 丢弃、调用/字段顺序、调用安全、负移位优先、类型表冻结 |
 | 独立人工契约评审 | **未执行**（本会话无人介入） |
 | **G0 门禁** | **未签署（NOT SIGNED）**：唯一剩余为独立人工契约评审 |
 | 进入 S1 | **暂缓**，直至独立人工契约评审签署 |
@@ -48,8 +48,8 @@
 
 | S0 交付 | 位置 | 证据 |
 | ---- | ---- | ---- |
-| 类型契约 | `src/ir/type.h`、`type.c` | intern/单例/冻结、`isize`≠`int32`、W 位宽；L0 `contract.unit` |
-| IR 契约 | `src/ir/{operand,instr,block,ir,span}.h`、`instr.c` | 51 opcode、无结果指令 LHS、显式 CFG、命名实参、span |
+| 类型契约 | `src/ir/type.h`、`type.c` | 标量单例预创建、intern/冻结、`isize`≠`int32`、W 位宽；L0 `TC-L0-TYPE-0001` |
+| IR 契约 | `src/ir/{operand,instr,block,ir,span}.h`、`instr.c` | 51 opcode、`_` 丢弃规则（§6.15.1）、显式 CFG、命名实参、span；L0 `TC-L0-IR-0001` |
 | 对象/区契约 | `src/ir/{region,object,address,structs}.h` | 五区、对象表、地址 0 保留 |
 | 档案契约 | `src/runtime/profile.h`、`profile.c` | 两个 64 位内置档案；W=32 档案校验（测试本地 target） |
 | 运行时四缝 | `src/runtime/{io,alloc,trap,module_loader}.h/.c` | I/O all-or-nothing、短读/EOF/错误、目标 W 分配器、trap 首错、设备端不解析 import |
@@ -57,7 +57,7 @@
 | 零 pass 契约 | `src/contract/optimizer.h/.c` | O0/O2 均 0 pass、`@fast` 不消费、`@inline` 只保存 |
 | 构建契约 | `src/CMakeLists.txt`、`src/driver/` | 私有 `tc_core`；仅 `tc-vm`/`tc-aot`；无 install 规则 |
 | 用例 harness | `tests/harness/` | 附录 C YAML 子集、7 判定器、超时/捕获/归一化、失败关闭 |
-| 码表/覆盖 | `tests/traceability/` | `codes.json`、生成的 C 表、630 个覆盖槽、227 项（1 L0 covered / 629 uncovered） |
+| 码表/覆盖 | `tests/traceability/` | `codes.json`、生成的 C 表、634 个覆盖槽、231 项（5 L0 covered / 629 uncovered） |
 | golden 评审演练 | `tests/golden/` | 推导说明 + 评审记录 + 机器校验 |
 | 契约索引 | `src/CONTRACTS.md` | 属主、冻结标记、后续阶段边界 |
 
@@ -67,8 +67,8 @@
 | ---- | ---- | ---- |
 | 80 码表未增删；码名/阶段/触发与标准一致 | PASS | `trace.codes`：65 CE + 15 RE，码名/打印名/阶段/C 表逐行一致 |
 | 新增/修改用例有 `spec` 与独立评审 | PARTIAL | 样例 golden 有 §2.1/§2.2/§12.3/§12.5.1 推导与评审记录；评审人是演练占位 |
-| 覆盖矩阵已更新；未覆盖/挂起解释 | PASS | 630 槽：1 个 L0 covered（`same_site_priority`），629 个显式 `uncovered`；无静默通过 |
-| 首诊/位置断言覆盖本阶段相关码 | PARTIAL | 比较器 L0 已钉扎阶段/模块/源序/专用码/条款序/`origin×rank`/SAFE 优先；`.tc` 位置断言从 S1 开始 |
+| 覆盖矩阵已更新；未覆盖/挂起解释 | PASS | 634 槽：5 个 L0 covered（`same_site_priority`），629 个显式 `uncovered`；无静默通过 |
+| 首诊/位置断言覆盖本阶段相关码 | PARTIAL | 比较器 L0 已钉扎阶段/模块/源序/`origin×rank`/调用/字段/安全/条款序；`.tc` 位置断言从 S1 开始 |
 | 32/64 期望分档案；无跨档案比较 | PARTIAL（结构级） | `golden/common` 仅 W 无关；`golden/w32`、`w64` 已建目录；覆盖矩阵含 12 个 W 敏感码的 w32/w64 槽；真实分档案期望从 S1 起 |
 | 确定性套件（重复/哈希/线程/顺序） | PARTIAL（S0 范围） | 三套构建与重复运行一致；harness 固定环境、排序输出、无时间戳；哈希/线程/顺序扰动属于 S1+ 真前端用例 |
 | 无新增警告；无标准之外诊断 | PASS | `-Wall -Wextra -Werror -Wpedantic`；`tc_diag_contract_violation()` 检查唯一码/打印名/阶段 |
@@ -77,10 +77,10 @@
 
 ## 5. S0 专项门禁（计划 §5 S0 出口准则）
 
-1. **契约评审与唯一属主**：**PARTIAL**。`src/CONTRACTS.md` 已给出头文件、属主、冻结事实与消费者，`tc_contract_check()` 在工具启动时强制检查；独立人工评审未签。
+1. **契约评审与唯一属主**：**PARTIAL**。`src/CONTRACTS.md` 已给出头文件、属主、冻结事实与消费者；`tc_contract_check()` 在工具启动时强制检查；当前审计项已关闭，但独立人工评审未签。
 2. **80 码机读校验**：**PASS**。`tests/traceability/codes.json` 由标准 §12.3/§12.5.1 与计划附录 A 生成；`check_codes.py` 重新解析标准与 C 表 dump 比对；计数 65+15，12 个 W 敏感码，5 个 IMPORT 报告码。
 3. **harness 失败关闭**：**PASS**。`tests/harness/selftest.py` 15 个场景全部通过：正确期望通过、错误码失败、漏报、额外诊断、位置错误、超时、adapter 崩溃、`skip` 被拒、`not-implemented` 不计通过、地址归一化、YAML/模式校验。
-4. **覆盖矩阵可报告、未覆盖可见**：**PASS**。630 槽、227 项（1 L0 covered / 629 uncovered）；分类：标准章节 15、诊断码 80（344 槽）、opcode 63（155 槽）、设计 §12 15、首诊规则 §12.2 10、同位置优先级 1（covered）、32/64 翻转 17、注解 16、设备策略 4、I/O 源状态 4、退出策略 2。
+4. **覆盖矩阵可报告、未覆盖可见**：**PASS**。634 槽、231 项（5 L0 covered / 629 uncovered）；分类：标准章节 15、诊断码 80（344 槽）、opcode 63（155 槽）、设计 §12 15、首诊规则 §12.2 10、同位置优先级 5（covered）、32/64 翻转 17、注解 16、设备策略 4、I/O 源状态 4、退出策略 2。
 5. **无实现语义承诺**：**PASS**。`tc-vm`/`tc-aot` 对合法调用显式返回 `tc_error_unavailable`（退出码 70），不产出工件、不打印成功；README/AGENTS 明确前端/VM/后端未实现。
 
 ### 5.1 零 pass 契约
@@ -101,7 +101,7 @@
 | ---- | ---- | ---- |
 | 独立人工契约评审/签署 | **未执行**（本会话无人介入；当前为自动化对照 + 文档核对） | G0 签署前 |
 | golden 评审人真实身份 | 演练占位 | S1 首个真实 golden 前替换 |
-| 真实 `.tc` LEX/SYN/IMPORT/SEM/CT 用例 | 未实现；除 1 个 L0 覆盖行外，相应覆盖槽仍为 `uncovered` | S1–S5 |
+| 真实 `.tc` LEX/SYN/IMPORT/SEM/CT 用例 | 未实现；除 5 个 L0 覆盖行外，相应覆盖槽仍为 `uncovered` | S1–S5 |
 | VM 执行与 golden | 未实现 | S6 |
 | AArch64 后端/工具链/差分 | 未实现 | S7 |
 | 32 位目标选型与后端 | 未实现（仅档案契约与本地校验） | S9 |
@@ -109,41 +109,51 @@
 | harness 真实 adapter | 未实现（S0 只验证 harness 自身） | S1 |
 
 > §7.4 只允许挂起“尚未实现的能力”，不适用于已知契约/测试缺口。
-> 契约审计项已关闭，不再挂起；当前唯一 G0 签署阻塞项是独立人工评审。
+> 当前审计项已关闭，不再挂起；唯一 G0 签署阻塞项是独立人工评审。
 
 ## 7. 契约审计结论（已关闭）
 
-### 7.1 首诊排序键序（CLOSED）
+### 7.1 首诊排序键序与条款顺序
 
-标准 §12.2 #9 规定：同一位置“操作数内部诊断”先于“构造级诊断”；#4 只在同一 origin 类内选择更专用的码。实现的比较器键序为：
+比较器键序为：
 
-`origin（#9） → same_site_rank（#4） → clause_rank（#5）`
+- 一般位置：`origin`（§12.2 #9）→ `same_site_rank`（#4）→ `clause_rank`（#5）；
+- `CALL`/`MAKE` 位置：先按站点 `same_site_rank` 应用 §12.2 #10，再按通用 origin/rank/clause。
 
-该键序正确，不修改比较器。设计 §6 的首诊选取条目已补注记：编号列表是规则索引，不是扁平字典序键链；#6/#7/#8 是布局/遍历/档案约束。`src/CONTRACTS.md` 同步记录键序。
+冻结表已编码：
 
-L0 钉扎：
+| 规则 | 关键码 | 排序键 |
+| ---- | ---- | ---- |
+| 调用参数顺序 | `DUPLICATE_ARGUMENT` → `UNKNOWN_ARGUMENT` → `MISSING_ARGUMENT` → `ARGUMENT_COUNT` → `ARGUMENT_ORDER` → `TYPE_MISMATCH` | `same_site_rank` 30/25/20/15/10/1 |
+| 结构体字段顺序 | `DUPLICATE_FIELD` → `UNKNOWN_FIELD` → `MISSING_FIELD` → `OPERAND_COUNT` → `FIELD_ORDER` → `TYPE_MISMATCH` | `same_site_rank` 30/25/20/15/10/1 |
+| 调用安全先于实参 | `SAFE_VIOLATION` > `UNSAFE_*`/`FAST_CALL` > 参数检查 | `same_site_rank` 60/50/≤30 |
+| 负移位先于 strict `shl` 溢出 | `TC_RE_NEGATIVE_SHIFT` 先于 `TC_RE_INTEGER_OVERFLOW` | `clause_rank` 0 vs 1 |
 
-- `TC-L0-DIAG-0001` / `test_diag_origin_rank_conflict`：`TYPE_MISMATCH(OPERAND, rank 1)` 胜 `RETURN_TYPE(CONSTRUCT, rank 5)`；
-- 该用例是比较器合成钉扎，不代表 `return` 位置存在真实双候选（标准 §8.3 规定 return 操作数类型不符只报 `TC_CE_RETURN_TYPE`）。
+L0 钉扎：`TC-L0-DIAG-0001`（origin 支配 rank）、`0003`（call 顺序）、`0004`（make 顺序）、`0005`（调用安全）、`0006`（负移位）。
 
-### 7.2 SAFE_VIOLATION 同位置优先（CLOSED）
+### 7.2 `_` 丢弃规则（已关闭）
 
-标准 §12.3/§9.1/§9.3 要求 `TC_CE_SAFE_VIOLATION` 优先于 `UNSAFE_OPERATION`/`UNSAFE_CALL`/`FAST_CALL`。冻结表已编码：
+标准 §6.15.1 规定任何有结果指令都可以用 `_` 丢弃结果，包括非 `void` 的 `call` 与 `read`；无结果指令必须用 `_`。`tc_instr_lhs_is_valid()` 已按此修正，原错误的测试预期已同步更新。
 
-| 码 | `same_site_rank` |
-| ---- | ---- |
-| `TC_CE_SAFE_VIOLATION` | 20 |
-| `TC_CE_UNSAFE_OPERATION` | 0 |
-| `TC_CE_UNSAFE_CALL` | 0 |
-| `TC_CE_FAST_CALL` | 0 |
+L0 钉扎：`TC-L0-IR-0001`（`test_ir_shape_and_zero_pass`）。
 
-覆盖矩阵新增 `same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority` 行，状态 `covered`，case id `TC-L0-DIAG-0002`。L0 用例 `test_safe_violation_priority` 同时验证：四码同位置时 `SAFE_VIOLATION` 胜；`TYPE_MISMATCH(OPERAND)` 与 `SAFE_VIOLATION(CONSTRUCT)` 同位置时 §12.2 #9 仍让操作数内部诊断胜出。
+### 7.3 类型表冻结（已关闭）
+
+类型表创建时预创建全部 14 个标量单例；`tc_type_table_freeze()` 后 `tc_type_scalar()` 不再创建节点，只返回已有单例。`tc_type_ptr`/`fnptr`/struct 在冻结后继续拒绝新 intern。
+
+L0 钉扎：`TC-L0-TYPE-0001`（`test_type_table`）。
+
+### 7.4 SAFE_VIOLATION 同位置优先（已关闭）
+
+`TC_CE_SAFE_VIOLATION.same_site_rank=60`，`UNSAFE_OPERATION`/`UNSAFE_CALL`/`FAST_CALL` 为 `50`；在 `@safe` 上下文由 §9.1/§9.3 保证互斥，静态排序键提供防御性兜底。
+
+L0 钉扎：`TC-L0-DIAG-0002`；覆盖矩阵行 `same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority` 为 `covered`。
 
 ## 8. 门禁判定
 
-**自动化工程证据：PASS**。三套构建各 `ctest` 10/10、harness 15/15、码表三向一致、覆盖矩阵 630 槽（1 L0 covered / 629 uncovered）、CLI 合法调用退出 70、macOS `leaks` 0。
+**自动化工程证据：PASS**。三套构建各 `ctest` 10/10、harness 15/15、码表三向一致、覆盖矩阵 634 槽（5 L0 covered / 629 uncovered）、CLI 合法调用退出 70、macOS `leaks` 0。
 
-**契约审计：CLOSED**。首诊键序、`SAFE_VIOLATION` 同位置优先、L0 用例与覆盖行均已关闭。
+**当前审计范围内契约审计：CLOSED**。§7 列出的排序、`_` 丢弃、类型冻结与 SAFE 优先均有实现与 L0 钉扎。
 
 **G0：未签署（NOT SIGNED）**。唯一剩余原因是独立人工契约评审尚未执行；自动化测试不能替代该治理项。
 
