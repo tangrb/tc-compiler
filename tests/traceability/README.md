@@ -55,7 +55,9 @@ python3 tests/golden/validate.py
 require every row to be covered at S0.  A covered-row gate belongs to later
 stages, where zero uncovered rows (or an approved suspension list) is required.
 At S0 the matrix must exist and every gap must be visible: 231 items / 634
-slots, 5 L0-covered rows (`same_site_priority`) and 629 uncovered slots.
+slots: 12 L0-covered rows (`first_diag_rule` 01–05/09–10 and `same_site_priority`),
+3 explicit N/A(S0) rows (`first_diag_rule` 06–08, closure S3/S4), and 619
+uncovered slots.
 
 ## What the matrix contains
 
@@ -65,7 +67,7 @@ slots, 5 L0-covered rows (`same_site_priority`) and 629 uncovered slots.
 | `code` | 80 codes × trigger/no-false-positive/position/stage = 320, plus w32/w64 slots for the 12 W-sensitive codes = 344 | `codes.json`, standard §12.3/§12.5.1, §13.2.2 |
 | `opcode` | 63 opcodes × normal/static-error, plus a trap slot where §6.2 says trap | standard §6.2, cross-checked against the `TcOpcode` enum in design §3.2 |
 | `design12` | 15 items × suite-mapping/gate = 30 | design §12, test plan §8.2 |
-| `first_diag_rule` | 10 rules × combination case = 10 | standard §12.2, test plan §6.1 |
+| `first_diag_rule` | 10 rules × combination case = 10; 7 covered by L0, 3 N/A(S0) | standard §12.2, test plan §6.1 |
 | `same_site_priority` | 5 explicit priorities: SAFE over unsafe, call argument order, make field order, call safety first, negative shift before overflow | standard §12.2 #5/#10, §12.3, §8.8.2/§9 |
 | `flip32_64` | 17 rows × w32/w64 = 34 | standard §13.2.2 |
 | `annotation` | 16 | standard §2.3/§8.6 |
@@ -81,13 +83,14 @@ changes, generation fails instead of silently producing a stale list.
 ## Explicit-uncovered rule
 
 1. Every row is emitted as `"uncovered"` by default.  The only exceptions are
-   named S0 L0 contract rows in `L0_COVERED_ROWS` (`TC-L0-DIAG-0002` …
-   `TC-L0-DIAG-0006` for the five `same_site_priority` rows); they carry an
-   explicit case id and are listed in `tests/unit/README.md`.
+   named S0 L0 contract rows in `L0_COVERED_ROWS` (`TC-L0-DIAG-0001`…`0009`
+   for `first_diag_rule`/`same_site_priority`); they carry explicit case ids
+   and are listed in `tests/unit/README.md`.
 2. A row may be marked `covered` **only** when it carries at least one real
    case id (test plan §3.3 format, e.g. `TC-LEX-LIT-0007@w64`).
-3. `suspended`/`not-implemented` is an explicit status with an explanation in
-   the gate report; it is never counted as covered.  Do not silently omit a
+3. `suspended` is an explicit N/A(S0) status with a reason and closing stage
+   in `SCOPE_NA_ROWS` (currently first-diag rules 06–08; close in S3/S4); it is
+   never counted as covered or silently treated as an uncovered blocker.  Do not silently omit a
    row, rename it, or replace a missing case with a skip.
 4. Missing coverage is therefore always visible in both
    `coverage.generated.json` and `coverage-report.md`.  An unexplained

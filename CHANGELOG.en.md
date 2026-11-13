@@ -13,6 +13,7 @@
 
 - Builds as C11; only `tc_core`, `tc-vm` and `tc-aot` are produced; no install rules or public ABI.
 - `src/` reorganized into `base/`, `contract/`, `diagnostic/`, `ir/`, `runtime/`, `vm/`, `backend/` and `driver/`.
+- Coverage is 634 slots / 231 items: 12 L0-covered, 3 N/A(S0) first-diagnostic rows (S3/S4), 619 uncovered.
 
 ## [0.0.46] - 2026-11-12
 

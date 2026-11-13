@@ -83,6 +83,25 @@ L0_COVERED_ROWS = {
     "same_site_priority:MAKE_FIELD_ORDER:priority": ["TC-L0-DIAG-0004"],
     "same_site_priority:CALL_SAFETY_FIRST:priority": ["TC-L0-DIAG-0005"],
     "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority": ["TC-L0-DIAG-0006"],
+    # §12.2 rules 01-05 and 09-10 are pinned by the L0 comparator tests.
+    "first_diag_rule:01:combination_case": ["TC-L0-DIAG-0009"],
+    "first_diag_rule:02:combination_case": ["TC-L0-DIAG-0009"],
+    "first_diag_rule:03:combination_case": ["TC-L0-DIAG-0009"],
+    "first_diag_rule:04:combination_case": ["TC-L0-DIAG-0001"],
+    "first_diag_rule:05:combination_case": ["TC-L0-DIAG-0006"],
+    "first_diag_rule:09:combination_case": ["TC-L0-DIAG-0001"],
+    "first_diag_rule:10:combination_case": [
+        "TC-L0-DIAG-0003", "TC-L0-DIAG-0004", "TC-L0-DIAG-0007",
+    ],
+}
+
+# Rules 06-08 are not comparator-level at S0: layout belongs to SEM/S3,
+# traversal independence needs full front-end tables/S4, and W instantiation
+# needs S3 layout/conversion cases.
+SCOPE_NA_ROWS = {
+    "first_diag_rule:06:combination_case": ("layout is SEM/S3", "S3"),
+    "first_diag_rule:07:combination_case": ("traversal needs front-end tables", "S4"),
+    "first_diag_rule:08:combination_case": ("W instantiation needs S3 layout/CT", "S3"),
 }
 
 CALL_ARGUMENT_ORDER = [
@@ -752,6 +771,12 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
         if case_ids:
             row["status"] = "covered"
             row["case_ids"] = list(case_ids)
+        scope_na = SCOPE_NA_ROWS.get(row["id"])
+        if scope_na:
+            row["status"] = "suspended"
+            row["case_ids"] = []
+            row["reason"] = scope_na[0]
+            row["closure_stage"] = scope_na[1]
 
     return rows, design_ops
 
@@ -763,18 +788,21 @@ def summarize(rows):
         item_ids = {row["item_id"] for row in category_rows}
         uncovered = sum(1 for row in category_rows if row["status"] == "uncovered")
         covered = sum(1 for row in category_rows if row["status"] == "covered")
+        suspended = sum(1 for row in category_rows if row["status"] == "suspended")
         categories[category] = {
             "label": CATEGORY_LABELS[category],
             "items": len(item_ids),
             "slots": len(category_rows),
             "covered": covered,
             "uncovered": uncovered,
+            "suspended": suspended,
         }
     total = {
         "items": len({row["item_id"] for row in rows}),
         "slots": len(rows),
         "covered": sum(1 for row in rows if row["status"] == "covered"),
         "uncovered": sum(1 for row in rows if row["status"] == "uncovered"),
+        "suspended": sum(1 for row in rows if row["status"] == "suspended"),
     }
     return categories, total
 
@@ -802,8 +830,9 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
         "policy": {
             "initial_status": "uncovered",
             "statuses": ["uncovered", "covered", "suspended"],
-            "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty.",
+            "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty; suspended rows have a reason and closure stage.",
             "l0_covered_rows": sorted(L0_COVERED_ROWS),
+            "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {
             "standard_chapters": "§0-§14",
@@ -831,22 +860,24 @@ def render_markdown(doc) -> str:
         f"- Language version: `{doc['language_version']}`",
         f"- Spec: {doc['spec']}",
         f"- Rows: **{summary['slots']}** total, **{summary['uncovered']}** uncovered, "
-        f"**{summary['covered']}** covered",
+        f"**{summary['covered']}** covered, **{summary.get('suspended', 0)}** N/A (S0)",
         "",
         "## Summary by category",
         "",
-        "| Category | Items | Slots | Covered | Uncovered |",
-        "|---|---:|---:|---:|---:|",
+        "| Category | Items | Slots | Covered | Uncovered | N/A (S0) |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
     for category in CATEGORY_ORDER:
         info = doc["categories"][category]
         lines.append(
             f"| {CATEGORY_LABELS[category]} (`{category}`) | {info['items']} | "
-            f"{info['slots']} | {info['covered']} | {info['uncovered']} |"
+            f"{info['slots']} | {info['covered']} | {info['uncovered']} | "
+            f"{info.get('suspended', 0)} |"
         )
     lines.append(
         f"| **Total** | **{summary['items']}** | **{summary['slots']}** | "
-        f"**{summary['covered']}** | **{summary['uncovered']}** |"
+        f"**{summary['covered']}** | **{summary['uncovered']}** | "
+        f"**{summary.get('suspended', 0)}** |"
     )
     lines.extend(["", "## Coverage rows", ""])
 

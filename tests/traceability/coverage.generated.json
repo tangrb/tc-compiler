@@ -21,13 +21,25 @@
       "covered",
       "suspended"
     ],
-    "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty.",
+    "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty; suspended rows have a reason and closure stage.",
     "l0_covered_rows": [
+      "first_diag_rule:01:combination_case",
+      "first_diag_rule:02:combination_case",
+      "first_diag_rule:03:combination_case",
+      "first_diag_rule:04:combination_case",
+      "first_diag_rule:05:combination_case",
+      "first_diag_rule:09:combination_case",
+      "first_diag_rule:10:combination_case",
       "same_site_priority:CALL_ARGUMENT_ORDER:priority",
       "same_site_priority:CALL_SAFETY_FIRST:priority",
       "same_site_priority:MAKE_FIELD_ORDER:priority",
       "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority",
       "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority"
+    ],
+    "scope_na_rows": [
+      "first_diag_rule:06:combination_case",
+      "first_diag_rule:07:combination_case",
+      "first_diag_rule:08:combination_case"
     ]
   },
   "cross_checks": {
@@ -39,8 +51,9 @@
   "summary": {
     "items": 231,
     "slots": 634,
-    "covered": 5,
-    "uncovered": 629
+    "covered": 12,
+    "uncovered": 619,
+    "suspended": 3
   },
   "categories": {
     "chapter": {
@@ -48,77 +61,88 @@
       "items": 15,
       "slots": 30,
       "covered": 0,
-      "uncovered": 30
+      "uncovered": 30,
+      "suspended": 0
     },
     "code": {
       "label": "Diagnostic code",
       "items": 80,
       "slots": 344,
       "covered": 0,
-      "uncovered": 344
+      "uncovered": 344,
+      "suspended": 0
     },
     "opcode": {
       "label": "Opcode",
       "items": 63,
       "slots": 155,
       "covered": 0,
-      "uncovered": 155
+      "uncovered": 155,
+      "suspended": 0
     },
     "design12": {
       "label": "Design §12 item",
       "items": 15,
       "slots": 30,
       "covered": 0,
-      "uncovered": 30
+      "uncovered": 30,
+      "suspended": 0
     },
     "first_diag_rule": {
       "label": "First-diagnostic rule (§12.2)",
       "items": 10,
       "slots": 10,
-      "covered": 0,
-      "uncovered": 10
+      "covered": 7,
+      "uncovered": 0,
+      "suspended": 3
     },
     "same_site_priority": {
       "label": "Same-position code priority",
       "items": 5,
       "slots": 5,
       "covered": 5,
-      "uncovered": 0
+      "uncovered": 0,
+      "suspended": 0
     },
     "flip32_64": {
       "label": "32/64 flip",
       "items": 17,
       "slots": 34,
       "covered": 0,
-      "uncovered": 34
+      "uncovered": 34,
+      "suspended": 0
     },
     "annotation": {
       "label": "Annotation",
       "items": 16,
       "slots": 16,
       "covered": 0,
-      "uncovered": 16
+      "uncovered": 16,
+      "suspended": 0
     },
     "device_policy": {
       "label": "Device policy",
       "items": 4,
       "slots": 4,
       "covered": 0,
-      "uncovered": 4
+      "uncovered": 4,
+      "suspended": 0
     },
     "io_source_state": {
       "label": "I/O source state",
       "items": 4,
       "slots": 4,
       "covered": 0,
-      "uncovered": 4
+      "uncovered": 4,
+      "suspended": 0
     },
     "exit_strategy": {
       "label": "Exit strategy",
       "items": 2,
       "slots": 2,
       "covered": 0,
-      "uncovered": 2
+      "uncovered": 2,
+      "suspended": 0
     }
   },
   "rows": [
@@ -9937,8 +9961,10 @@
       "item": "1. 阶段优先",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0009"
+      ],
       "number": 1,
       "title": "阶段优先",
       "detail": "LEX → SYN → IMPORT → SEM → CT。前一阶段有诊断即停止，不进入后一阶段；全部静态阶段通过后才进入 RT，运行时报告首个 trap。"
@@ -9950,8 +9976,10 @@
       "item": "2. 模块遍历顺序",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0009"
+      ],
       "number": 2,
       "title": "模块遍历顺序",
       "detail": "每个阶段内，从根模块开始，按 `import` 源序深度优先遍历，首次访问为准；CT 的依赖求值例外见 §4.10。`module_order` 在 LEX/SYN 闭包完成后固定，后续阶段不得改变。"
@@ -9963,8 +9991,10 @@
       "item": "3. 同模块源序",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0009"
+      ],
       "number": 3,
       "title": "同模块源序",
       "detail": "行号升序；同行列号升序。"
@@ -9976,8 +10006,10 @@
       "item": "4. 同位置专用码优先",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0001"
+      ],
       "number": 4,
       "title": "同位置专用码优先",
       "detail": "同一位置存在多个候选码时，语义更专用的码优先于通用码。例如 `TC_CE_MISSING_END` 优先于 `TC_CE_SYNTAX`；字面量的 `TC_CE_LITERAL_TYPE`/`TC_CE_LITERAL_RANGE` 优先于笼统的 `TC_CE_TYPE_MISMATCH`；`TC_CE_CONDITION_TYPE` 只用于条件值本身不是 `bool`，不抢先于条件操作数内部的字面量/类型专用码。"
@@ -9989,8 +10021,10 @@
       "item": "5. 条款内顺序优先",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0006"
+      ],
       "number": 5,
       "title": "条款内顺序优先",
       "detail": "各章规定的顺序（浮点异常优先级、负移位计数先行、空指针分类先行等）优先于通用规则。"
@@ -10002,11 +10036,13 @@
       "item": "6. 布局诊断归属 SEM",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
+      "status": "suspended",
       "case_ids": [],
       "number": 6,
       "title": "布局诊断归属 SEM",
-      "detail": "结构体布局在 `struct` 声明处计算；`TC_CE_LAYOUT_OVERFLOW` 按 SEM 的模块遍历/源序参与首诊排序，不进入 CT。"
+      "detail": "结构体布局在 `struct` 声明处计算；`TC_CE_LAYOUT_OVERFLOW` 按 SEM 的模块遍历/源序参与首诊排序，不进入 CT。",
+      "reason": "layout is SEM/S3",
+      "closure_stage": "S3"
     },
     {
       "id": "first_diag_rule:07:combination_case",
@@ -10015,11 +10051,13 @@
       "item": "7. 遍历无关",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
+      "status": "suspended",
       "case_ids": [],
       "number": 7,
       "title": "遍历无关",
-      "detail": "函数表、哈希表、CFG、调用图、导入表、字段表的内部遍历顺序不得改变首个诊断。"
+      "detail": "函数表、哈希表、CFG、调用图、导入表、字段表的内部遍历顺序不得改变首个诊断。",
+      "reason": "traversal needs front-end tables",
+      "closure_stage": "S4"
     },
     {
       "id": "first_diag_rule:08:combination_case",
@@ -10028,11 +10066,13 @@
       "item": "8. 档案字长",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
+      "status": "suspended",
       "case_ids": [],
       "number": 8,
       "title": "档案字长",
-      "detail": "首诊顺序在同一档案内固定；不同字长档案的候选集与首诊可以不同（§13.2.2）。"
+      "detail": "首诊顺序在同一档案内固定；不同字长档案的候选集与首诊可以不同（§13.2.2）。",
+      "reason": "W instantiation needs S3 layout/CT",
+      "closure_stage": "S3"
     },
     {
       "id": "first_diag_rule:09:combination_case",
@@ -10041,8 +10081,10 @@
       "item": "9. 操作数内部优先",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0001"
+      ],
       "number": 9,
       "title": "操作数内部优先",
       "detail": "同一位置同时存在操作数内部诊断（名称/可见性/字面量类别/范围/类型）与构造级诊断（条件/返回/分支/参数/字段/模式/安全）时，先报操作数内部诊断；例外是 `call` 的调用安全（§8.8.2）先于实参检查。字面量在 `br_if` 条件、`switch` 值、`return` 操作数、`call`/`make` 实参/字段位置先按期望类型检查；失败报 `TC_CE_LITERAL_TYPE`/`TC_CE_LITERAL_RANGE`，不报 `TC_CE_CONDITION_TYPE`/`TC_CE_SWITCH_TYPE`/`TC_CE_RETURN_TYPE`/`TC_CE_TYPE_MISMATCH`。同一字面量同时类别/符号性与范围不符时，`TC_CE_LITERAL_TYPE` 优先。"
@@ -10054,8 +10096,12 @@
       "item": "10. call/make 参数顺序",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0003",
+        "TC-L0-DIAG-0004",
+        "TC-L0-DIAG-0007"
+      ],
       "number": 10,
       "title": "call/make 参数顺序",
       "detail": "重复 → 未知 → 缺失 → 数量/多余 → 顺序 → 类型；位置/命名不得混用（`call` → `TC_CE_ARGUMENT_ORDER`，`make` → `TC_CE_FIELD_ORDER`）；`make` 多余位置字段 → `TC_CE_OPERAND_COUNT`。 **IMPORT 码的阶段例外**：`TC_CE_IMPORT_NOT_FOUND`、`TC_CE_IMPORT_NOT_LIB`、`TC_CE_DUPLICATE_IMPORT`、`TC_CE_CIRCULAR_IMPORT`、`TC_CE_IMPORT_NAME_CONFLICT` 在码表中归入 SEM 子阶段，但必须在 IMPORT 阶段报告。任何实现都不得把它们推迟到步骤 6–11 再报告。"

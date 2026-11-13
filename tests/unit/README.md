@@ -22,6 +22,7 @@ specific contract assertions; they are not conformance `.tc` cases.
 | `TC-L0-OBJ-0001` | `test_pointer_states` | standard §3.12 four-state pointer-permission matrix (null/live/one-past/dangling; bitcast only live/dangling) |
 | `TC-L0-DIAG-0007` | `test_call_check_phase_order` | §8.8.2 call/make check phases: target/visibility → safety → LHS/return shape → arguments → receiver |
 | `TC-L0-DIAG-0008` | `test_site_id_scope` | `site_id` scopes §12.2 #10 to one call/make site; zero id/phase and out-of-range phase are rejected by the buffer; distinct sites fall back to source order |
+| `TC-L0-DIAG-0009` | `test_diag_ordering` | §12.2 #1 stage, #2 module order, #3 source order and #4 same-position behavior |
 
 Run directly:
 

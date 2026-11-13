@@ -12,8 +12,8 @@
 | 项 | 结果 |
 | ---- | ---- |
 | S0 开发交付 | **PASS** — 契约头文件、`tc_core`、`tc-vm`/`tc-aot` 骨架、指针状态契约 |
-| S0 测试活动 | **PASS** — L0 契约/类型/IR/对象/指针状态；harness 23/23；golden 1/1 + golden selftest；覆盖矩阵 634 槽 / 231 项 |
-| 自动化证据 | **PASS** — Debug/Release/ASan+UBSan 各 `ctest` 11/11；harness 23/23；golden 校验通过；码表/覆盖检查通过；CLI 合法调用 70；leaks 0；`nm` 仅 `_main` |
+| S0 测试活动 | **PASS** — L0 契约/类型/IR/对象/指针状态；harness 23/23；golden 1/1 + golden selftest；覆盖矩阵 634 槽 / 231 项（12 L0 covered / 619 uncovered / 3 N/A(S0)） |
+| 自动化证据 | **PASS** — Debug/Release/ASan+UBSan 各 `ctest` 11/11；harness 23/23；golden 校验通过；码表/覆盖检查通过；CLI 合法调用 70；leaks 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`） |
 | 契约审计 | **CLOSED** — 独立非作者 reviewer `gate-auditor`（read-only subagent，无实现参与），reviewed code commit `5ca7449`，evidence version `S0-2026-11-13`；无未关闭 B1/B2/B3/B4 |
 | 独立评审 | **PASS** — `gate-auditor`；golden derivation 独立复核 |
 | **G0** | **PASS** |
@@ -59,7 +59,7 @@
 | 零 pass 契约 | `src/contract/optimizer.h/.c` | O0/O2 均 0 pass、`@fast` 不消费、`@inline` 只保存 |
 | 构建契约 | `src/CMakeLists.txt`、`src/driver/` | 私有 `tc_core`；仅 `tc-vm`/`tc-aot`；无 install 规则 |
 | 用例 harness | `tests/harness/` | 7 判定器、超时/捕获/归一化、失败关闭、23 个自测；空套件/路径/IMPORT 阶段均 fail-closed |
-| 码表/覆盖 | `tests/traceability/` | `codes.json`、生成的 C 表、634 槽、231 项（5 L0 covered / 629 uncovered） |
+| 码表/覆盖 | `tests/traceability/` | `codes.json`、生成的 C 表、634 槽、231 项（12 L0 covered / 619 uncovered / 3 N/A(S0)） |
 | golden | `tests/golden/` | 独立评审记录、code/stage/source/profile/kind/reviewer 校验、负例自测 |
 | 契约索引 | `src/CONTRACTS.md` | 属主、冻结标记、指针状态与后续阶段边界 |
 
@@ -69,12 +69,12 @@
 | ---- | ---- | ---- |
 | 80 码表未增删；码名/阶段/触发与标准一致 | **PASS** | `trace.codes`：65 CE + 15 RE；C 表/JSON/标准逐行一致 |
 | 新增/修改用例有 `spec` 与独立评审 | **PASS** | golden `TC-LEX-COMMENT-0001` 由独立 `gate-auditor` 复核并记录；L0 case 在 `tests/unit/README.md` 有 spec 依据 |
-| 覆盖矩阵已更新；未覆盖/挂起解释 | **PASS (S0)** | 634 槽、231 项：5 个 L0 covered，629 个显式 `uncovered`；未覆盖项标 deferred-to-S1+ |
-| 首诊/位置断言覆盖本阶段相关码 | **PASS (S0)** | 比较器覆盖 §12.2 #1–#10，含 target/visibility → safety → LHS/return shape → args → receiver 阶段与跨位置测试；真实 `.tc` 位置断言 `N/A until S1` |
+| 覆盖矩阵已更新；未覆盖/挂起解释 | **PASS (S0)** | 634 槽、231 项：12 个 L0 covered，619 个显式 `uncovered`，3 个 `N/A (S0)`；未覆盖项标 deferred-to-S1+ |
+| 首诊/位置断言覆盖本阶段相关码 | **PASS (S0)** | 比较器/L0 覆盖 §12.2 规则 01–05、09–10（`TC-L0-DIAG-0001`…`0009`），含 target/visibility → safety → LHS/return shape → args → receiver 阶段与跨位置测试；规则 06–08 为 `N/A(S0)`（S3/S4）；真实 `.tc` 位置断言 `N/A until S1` |
 | 32/64 期望分档案；无跨档案比较 | **PASS (S0)** | W=32/64 类型宽度/档案结构测试；`golden/common` W 无关；真实分档案 golden `N/A until S3/S9` |
 | 确定性套件（重复/哈希/线程/顺序） | **PASS (S0)** | 三套构建、`-j8`、repeat-3、coverage/harness JSON 可复现；哈希/线程/顺序扰动 `N/A until S1+` 前端 |
 | 无新增警告；无标准之外诊断 | **PASS** | `-Wall -Wextra -Werror -Wpedantic`；`tc_diag_contract_violation()` 检查唯一码/打印名/阶段 |
-| 构建/消毒器/符号审计 | **PASS** | ASan+UBSan 11/11；`tc-vm`/`tc-aot` 仅 `_main`；无 install 规则；无公共 ABI；`leaks` 0 |
+| 构建/消毒器/符号审计 | **PASS** | ASan+UBSan 11/11；`tc-vm`/`tc-aot` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；无 install 规则；无公共 ABI；`leaks` 0 |
 | 门禁报告记录 profile/工具链版本 | **PASS** | 本文件 §2；reviewed commit `5ca7449` |
 
 ## 5. S0 专项门禁（计划 §5 S0 出口准则）
@@ -82,7 +82,7 @@
 1. **契约评审与唯一属主**：**PASS**。`src/CONTRACTS.md` 给出头文件、属主、冻结事实与消费者；`tc_contract_check()` 在工具启动时强制检查；独立评审 `gate-auditor` 已复核。
 2. **80 码机读校验**：**PASS**。65 CE + 15 RE；12 个 W 敏感码，5 个 IMPORT 报告码；`check_codes.py` 与 C 表 dump 一致。
 3. **harness 失败关闭**：**PASS**。`tests/harness/selftest.py` 23 个场景通过：全部 7 判定器、空套件、缺失 source/include/link、IMPORT 阶段、超时、崩溃、`not-implemented`、地址归一化、schema/YAML。
-4. **覆盖矩阵可报告、未覆盖可见**：**PASS**。634 槽、231 项（5 L0 covered / 629 uncovered）；分类完整，无静默通过。
+4. **覆盖矩阵可报告、未覆盖可见**：**PASS**。634 槽、231 项（12 L0 covered / 619 uncovered / 3 N/A(S0)）；分类完整，无静默通过。
 5. **无实现语义承诺**：**PASS**。`tc-vm`/`tc-aot` 对合法调用显式返回 `tc_error_unavailable`（退出码 70），不产出工件、不打印成功；README/AGENTS 明确前端/VM/后端未实现。
 
 ### 5.1 零 pass 契约
@@ -108,6 +108,9 @@
 | AArch64 后端/工具链/差分 | `N/A (S0)` | S7 |
 | 32 位目标选型与后端 | `N/A (S0)`；档案契约已校验 | S9 |
 | harness 真实 adapter | `N/A (S0)`；harness 自身已通过 23 个自测 | S1 |
+| 首诊规则 06 布局归属 | `N/A (S0)`；`SCOPE_NA_ROWS` 记录原因 | S3 |
+| 首诊规则 07 遍历无关 | `N/A (S0)`；`SCOPE_NA_ROWS` 记录原因 | S4 |
+| 首诊规则 08 档案字长 | `N/A (S0)`；`SCOPE_NA_ROWS` 记录原因 | S3 |
 
 上述项不属于 S0 出口准则，均已在本表显式标注为 `N/A (S0)`，不伪装为通过，也不构成 G0 阻塞。
 
@@ -115,7 +118,7 @@
 
 独立 reviewer `gate-auditor`（read-only subagent，无实现参与）复核 reviewed code commit `5ca7449`，确认以下项关闭：
 
-- **首诊排序**：一般位置 `origin → same_site_rank → clause_rank`；同一 CALL/MAKE site 按 §8.8.2 phase（target/visibility → safety → LHS/return shape → args/fields → receiver）再按 §12.2 #10 rank；跨位置测试与 site_id/phase 校验覆盖。L0 `TC-L0-DIAG-0001`…`0008`。
+- **首诊排序**：一般位置 `origin → same_site_rank → clause_rank`；同一 CALL/MAKE site 按 §8.8.2 phase（target/visibility → safety → LHS/return shape → args/fields → receiver）再按 §12.2 #10 rank；跨位置测试与 site_id/phase 校验覆盖。L0 `TC-L0-DIAG-0001`…`0009`；首诊规则 06–08 在覆盖矩阵中标为 `N/A(S0)`（S3/S4）。
 - **`_` 丢弃**：§6.15.1 任何有结果指令可用 `_`；无结果指令必须 `_`。L0 `TC-L0-IR-0001`。
 - **类型契约**：14 个标量单例预创建、冻结后不新增节点；`void` 非标量值。L0 `TC-L0-TYPE-0001`。
 - **指针状态**：§3.12 四态矩阵，bitcast 仅 live/dangling；one-past ptradd 仅 0。L0 `TC-L0-OBJ-0001`。
@@ -130,7 +133,7 @@
 
 **G0：PASS。**
 
-- 自动化工程证据：Debug/Release/ASan+UBSan 各 `ctest` 11/11；harness 23/23；golden 1/1 + golden selftest；覆盖矩阵 634/231/5 L0 covered；CLI 合法调用退出 70；leaks 0；符号/install 审计通过。
+- 自动化工程证据：Debug/Release/ASan+UBSan 各 `ctest` 11/11；harness 23/23；golden 1/1 + golden selftest；覆盖矩阵 634/231（12 L0 covered / 619 uncovered / 3 N/A(S0)）；CLI 合法调用退出 70；leaks 0；符号/install 审计通过。
 - 契约审计：CLOSED；独立评审记录见 `tests/golden/review-record.md`，reviewed code commit `5ca7449`。
 - D.1：所有适用项 PASS；不适用项显式 `N/A (S0)` 并注明关闭阶段；无 `PARTIAL` 非阻塞行。
 - **S1：允许**。

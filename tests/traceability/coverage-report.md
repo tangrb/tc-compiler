@@ -8,24 +8,24 @@
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **634** total, **629** uncovered, **5** covered
+- Rows: **634** total, **619** uncovered, **12** covered, **3** N/A (S0)
 
 ## Summary by category
 
-| Category | Items | Slots | Covered | Uncovered |
-|---|---:|---:|---:|---:|
-| Standard chapter (`chapter`) | 15 | 30 | 0 | 30 |
-| Diagnostic code (`code`) | 80 | 344 | 0 | 344 |
-| Opcode (`opcode`) | 63 | 155 | 0 | 155 |
-| Design §12 item (`design12`) | 15 | 30 | 0 | 30 |
-| First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 0 | 10 |
-| Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 |
-| 32/64 flip (`flip32_64`) | 17 | 34 | 0 | 34 |
-| Annotation (`annotation`) | 16 | 16 | 0 | 16 |
-| Device policy (`device_policy`) | 4 | 4 | 0 | 4 |
-| I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 |
-| Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 |
-| **Total** | **231** | **634** | **5** | **629** |
+| Category | Items | Slots | Covered | Uncovered | N/A (S0) |
+|---|---:|---:|---:|---:|---:|
+| Standard chapter (`chapter`) | 15 | 30 | 0 | 30 | 0 |
+| Diagnostic code (`code`) | 80 | 344 | 0 | 344 | 0 |
+| Opcode (`opcode`) | 63 | 155 | 0 | 155 | 0 |
+| Design §12 item (`design12`) | 15 | 30 | 0 | 30 | 0 |
+| First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 7 | 0 | 3 |
+| Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 | 0 |
+| 32/64 flip (`flip32_64`) | 17 | 34 | 0 | 34 | 0 |
+| Annotation (`annotation`) | 16 | 16 | 0 | 16 | 0 |
+| Device policy (`device_policy`) | 4 | 4 | 0 | 4 | 0 |
+| I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 | 0 |
+| Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 | 0 |
+| **Total** | **231** | **634** | **12** | **619** | **3** |
 
 ## Coverage rows
 
@@ -612,16 +612,16 @@
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `first_diag_rule:01:combination_case` | 1. 阶段优先 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:02:combination_case` | 2. 模块遍历顺序 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:05:combination_case` | 5. 条款内顺序优先 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:06:combination_case` | 6. 布局诊断归属 SEM | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:07:combination_case` | 7. 遍历无关 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:08:combination_case` | 8. 档案字长 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:09:combination_case` | 9. 操作数内部优先 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:10:combination_case` | 10. call/make 参数顺序 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:01:combination_case` | 1. 阶段优先 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:02:combination_case` | 2. 模块遍历顺序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **covered** | TC-L0-DIAG-0001 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:05:combination_case` | 5. 条款内顺序优先 | combination_case | **covered** | TC-L0-DIAG-0006 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:06:combination_case` | 6. 布局诊断归属 SEM | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:07:combination_case` | 7. 遍历无关 | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:08:combination_case` | 8. 档案字长 | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:09:combination_case` | 9. 操作数内部优先 | combination_case | **covered** | TC-L0-DIAG-0001 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:10:combination_case` | 10. call/make 参数顺序 | combination_case | **covered** | TC-L0-DIAG-0003, TC-L0-DIAG-0004, TC-L0-DIAG-0007 | standard §12.2, test plan §3.6/§6.1 |
 
 ### Same-position code priority (`same_site_priority`)
 
