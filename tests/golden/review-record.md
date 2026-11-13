@@ -41,7 +41,7 @@ nothing was backfilled from implementation output.
       "reviewer_kind": "independent-agent",
       "reviewer_independent": true,
       "review_kind": "independent derivation audit",
-      "commit": "5ca7449",
+      "commit": "05fad40",
       "evidence_version": "S0-2026-11-13",
       "status": "approved",
       "date": "2026-11-13",

@@ -14,7 +14,7 @@
 | S0 开发交付 | **PASS** — 契约头文件、`tc_core`、`tc-vm`/`tc-aot` 骨架、指针状态契约 |
 | S0 测试活动 | **PASS** — L0 契约/类型/IR/对象/指针状态；harness 23/23；golden 1/1 + golden selftest；覆盖矩阵 634 槽 / 231 项（12 L0 covered / 619 uncovered / 3 N/A(S0)） |
 | 自动化证据 | **PASS** — Debug/Release/ASan+UBSan 各 `ctest` 11/11；harness 23/23；golden 校验通过；码表/覆盖检查通过；CLI 合法调用 70；leaks 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`） |
-| 契约审计 | **CLOSED** — 独立非作者 reviewer `gate-auditor`（read-only subagent，无实现参与），reviewed code commit `5ca7449`，evidence version `S0-2026-11-13`；无未关闭 B1/B2/B3/B4 |
+| 契约审计 | **CLOSED** — 独立非作者 reviewer `gate-auditor`（read-only subagent，无实现参与），reviewed code commit `05fad40`，evidence version `S0-2026-11-13`；无未关闭 B1/B2/B3/B4 |
 | 独立评审 | **PASS** — `gate-auditor`；golden derivation 独立复核 |
 | **G0** | **PASS** |
 | 进入 S1 | **允许** |
@@ -75,7 +75,7 @@
 | 确定性套件（重复/哈希/线程/顺序） | **PASS (S0)** | 三套构建、`-j8`、repeat-3、coverage/harness JSON 可复现；哈希/线程/顺序扰动 `N/A until S1+` 前端 |
 | 无新增警告；无标准之外诊断 | **PASS** | `-Wall -Wextra -Werror -Wpedantic`；`tc_diag_contract_violation()` 检查唯一码/打印名/阶段 |
 | 构建/消毒器/符号审计 | **PASS** | ASan+UBSan 11/11；`tc-vm`/`tc-aot` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；无 install 规则；无公共 ABI；`leaks` 0 |
-| 门禁报告记录 profile/工具链版本 | **PASS** | 本文件 §2；reviewed commit `5ca7449` |
+| 门禁报告记录 profile/工具链版本 | **PASS** | 本文件 §2；reviewed commit `05fad40` |
 
 ## 5. S0 专项门禁（计划 §5 S0 出口准则）
 
@@ -116,7 +116,7 @@
 
 ## 7. 契约审计结论（CLOSED）
 
-独立 reviewer `gate-auditor`（read-only subagent，无实现参与）复核 reviewed code commit `5ca7449`，确认以下项关闭：
+独立 reviewer `gate-auditor`（read-only subagent，无实现参与）复核 reviewed code commit `05fad40`，确认以下项关闭：
 
 - **首诊排序**：一般位置 `origin → same_site_rank → clause_rank`；同一 CALL/MAKE site 按 §8.8.2 phase（target/visibility → safety → LHS/return shape → args/fields → receiver）再按 §12.2 #10 rank；跨位置测试与 site_id/phase 校验覆盖。L0 `TC-L0-DIAG-0001`…`0009`；首诊规则 06–08 在覆盖矩阵中标为 `N/A(S0)`（S3/S4）。
 - **`_` 丢弃**：§6.15.1 任何有结果指令可用 `_`；无结果指令必须 `_`。L0 `TC-L0-IR-0001`。
@@ -134,7 +134,7 @@
 **G0：PASS。**
 
 - 自动化工程证据：Debug/Release/ASan+UBSan 各 `ctest` 11/11；harness 23/23；golden 1/1 + golden selftest；覆盖矩阵 634/231（12 L0 covered / 619 uncovered / 3 N/A(S0)）；CLI 合法调用退出 70；leaks 0；符号/install 审计通过。
-- 契约审计：CLOSED；独立评审记录见 `tests/golden/review-record.md`，reviewed code commit `5ca7449`。
+- 契约审计：CLOSED；独立评审记录见 `tests/golden/review-record.md`，reviewed code commit `05fad40`。
 - D.1：所有适用项 PASS；不适用项显式 `N/A (S0)` 并注明关闭阶段；无 `PARTIAL` 非阻塞行。
 - **S1：允许**。
 
