@@ -10,12 +10,14 @@ an implementation:
     TcOpcode enum in design §3.2) with normal/static-error/trap slots,
   * the 15 design §12 verification items with suite-mapping/gate slots,
   * the ten first-diagnostic ordering rules in standard §12.2,
+  * explicit same-position code priorities (SAFE_VIOLATION over UNSAFE_*/FAST_CALL),
   * the 32/64 flip table in standard §13.2.2,
   * every annotation, the four TcDevicePolicy values, the four TcIoSrc states
     and the normal/trap exit branches.
 
-All rows start as "uncovered".  Missing coverage is explicit; it is never
-silently rendered as covered.
+All rows start as "uncovered".  Only named S0 L0 contract rows in
+L0_COVERED_ROWS may be marked "covered" with a real case id; missing coverage
+for everything else is explicit and is never silently rendered as covered.
 
 Usage:
     python3 tests/traceability/coverage.py            # regenerate committed files
@@ -49,6 +51,7 @@ CATEGORY_ORDER = [
     "opcode",
     "design12",
     "first_diag_rule",
+    "same_site_priority",
     "flip32_64",
     "annotation",
     "device_policy",
@@ -62,11 +65,19 @@ CATEGORY_LABELS = {
     "opcode": "Opcode",
     "design12": "Design §12 item",
     "first_diag_rule": "First-diagnostic rule (§12.2)",
+    "same_site_priority": "Same-position code priority",
     "flip32_64": "32/64 flip",
     "annotation": "Annotation",
     "device_policy": "Device policy",
     "io_source_state": "I/O source state",
     "exit_strategy": "Exit strategy",
+}
+
+
+# S0 L0 cases that pin a contract-level row.  These are not conformance
+# .tc cases; they are named in tests/unit/README.md.
+L0_COVERED_ROWS = {
+    "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority": ["TC-L0-DIAG-0002"],
 }
 
 
@@ -284,6 +295,54 @@ def parse_first_diag_rules(standard: str):
     if [item["number"] for item in items] != list(range(1, 11)):
         raise CoverageError("standard §12.2 must contain numbered rules 1..10")
     return items
+
+
+def parse_same_site_priorities(codes_data: dict, standard: str):
+    """Derive explicit same-position code priorities from the frozen table.
+
+    The only explicit priority in the standard's diagnostic table is
+    SAFE_VIOLATION > UNSAFE_*/FAST_CALL (§12.3, §9.1/§9.3).  The row is derived
+    from codes.json ranks and cross-checked against the standard trigger text,
+    not hardcoded from an implementation result.
+    """
+    entries = {
+        entry.get("code"): entry
+        for entry in codes_data.get("codes", [])
+        if isinstance(entry, dict)
+    }
+    required = [
+        "TC_CE_SAFE_VIOLATION",
+        "TC_CE_UNSAFE_OPERATION",
+        "TC_CE_UNSAFE_CALL",
+        "TC_CE_FAST_CALL",
+    ]
+    missing = [code for code in required if code not in entries]
+    if missing:
+        raise CoverageError(f"same-site priority: codes.json missing {missing}")
+    safe = entries["TC_CE_SAFE_VIOLATION"]
+    trigger = safe.get("trigger", "")
+    if "优先于" not in trigger or "UNSAFE" not in trigger or "FAST_CALL" not in trigger:
+        raise CoverageError(
+            "SAFE_VIOLATION trigger no longer says it precedes UNSAFE_*/FAST_CALL"
+        )
+    safe_rank = safe.get("same_site_rank")
+    if not isinstance(safe_rank, int):
+        raise CoverageError("SAFE_VIOLATION same_site_rank is not an integer")
+    for code in required[1:]:
+        rank = entries[code].get("same_site_rank")
+        if not isinstance(rank, int) or rank >= safe_rank:
+            raise CoverageError(
+                f"same-site priority not encoded: {code} rank {rank!r} >= "
+                f"SAFE_VIOLATION rank {safe_rank}"
+            )
+    return [{
+        "item_id": "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE",
+        "item": "SAFE_VIOLATION over UNSAFE_*/FAST_CALL",
+        "slot": "priority",
+        "spec": "standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1",
+        "codes": required,
+        "safe_rank": safe_rank,
+    }]
 
 
 def parse_flips(standard: str):
@@ -573,6 +632,12 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             number=item["number"], title=item["title"], detail=item["detail"],
         ))
 
+    for item in parse_same_site_priorities(codes_data, standard):
+        rows.append(slot_row(
+            "same_site_priority", item["item_id"], item["item"], item["slot"],
+            item["spec"], codes=item["codes"], safe_rank=item["safe_rank"],
+        ))
+
     for item in parse_flips(standard):
         for slot in ("w32", "w64"):
             rows.append(slot_row(
@@ -614,6 +679,14 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             item["spec"], branch=item["branch"], field=item["field"],
             description=item["description"],
         ))
+
+    # S0 explicitly covered contract rows.  Only named L0 cases may set a row
+    # to covered; everything else remains visibly uncovered.
+    for row in rows:
+        case_ids = L0_COVERED_ROWS.get(row["id"])
+        if case_ids:
+            row["status"] = "covered"
+            row["case_ids"] = list(case_ids)
 
     return rows, design_ops
 
@@ -665,6 +738,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "initial_status": "uncovered",
             "statuses": ["uncovered", "covered", "suspended"],
             "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty.",
+            "l0_covered_rows": sorted(L0_COVERED_ROWS),
         },
         "cross_checks": {
             "standard_chapters": "§0-§14",
@@ -684,9 +758,10 @@ def render_markdown(doc) -> str:
         "# TC-Compiler 0.0.46 Structural Coverage Matrix",
         "",
         "> Generated skeleton from the 0.0.46 standard, design and test plan.",
-        "> **Every row starts as `uncovered`; no row is covered until it carries",
-        "> at least one `case_ids` entry.** Missing coverage is explicit and must",
-        "> not be silently treated as covered (test plan §3.6/§7.5).",
+        "> **Every row starts as `uncovered`; a row is `covered` only when it",
+        "> carries at least one `case_ids` entry.** S0 L0 rows named in",
+        "> `tests/unit/README.md` are explicitly covered; conformance cases remain",
+        "> uncovered until S1+. Missing coverage is explicit (test plan §3.6/§7.5).",
         "",
         f"- Language version: `{doc['language_version']}`",
         f"- Spec: {doc['spec']}",

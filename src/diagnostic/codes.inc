@@ -114,7 +114,7 @@ TC_DIAG_ENTRY(TC_CE_UNSAFE_CALL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_G
               "调用助记符")
 TC_DIAG_ENTRY(TC_CE_FAST_CALL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "FastCall", "调 @fast/@fast_math 不在 unsafe 上下文",
               "调用助记符")
-TC_DIAG_ENTRY(TC_CE_SAFE_VIOLATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "SafeViolation", "@safe 函数含 unsafe 指令/调用或任何 unsafe 块（含空块；优先于 UNSAFE_*/FAST_CALL）",
+TC_DIAG_ENTRY(TC_CE_SAFE_VIOLATION, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 20, 0, "SafeViolation", "@safe 函数含 unsafe 指令/调用或任何 unsafe 块（含空块；优先于 UNSAFE_*/FAST_CALL）",
               "@safe 函数内的违规指令/调用；任何 unsafe 块定位到 unsafe 关键字（关联位置可指向块内首个违规指令）")
 TC_DIAG_ENTRY(TC_CE_CONST_FORM, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_SAFETY_CONST, 0, 0, 0, "ConstForm", "const/static var 初始化器含非法形态（var/call/addr/load 等），或 op 带非法后缀，或 @padding(N) 的 N 不合 §2.6",
               "const/static var 初始化器中首个非法子表达式的操作码或目标 Token；带后缀时定位到后缀 Token；@padding(N) 的 N 形式不合法时定位到 N")

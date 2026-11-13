@@ -175,6 +175,10 @@ SAME_SITE_RANK = {
     "TC_CE_RETURN_FORM": 5,
     "TC_CE_SWITCH_TYPE": 5,
     "TC_CE_OPERAND_COUNT": 6,
+    # Standard §12.3/§9: SAFE_VIOLATION wins over UNSAFE_*/FAST_CALL at the
+    # same position.  This is a same-origin (construct-level) priority; the
+    # comparator still applies §12.2 #9 origin ordering first.
+    "TC_CE_SAFE_VIOLATION": 20,
 }
 
 # §6.3.1 fixed strict-float exception priority: INVALID → DIV_ZERO →

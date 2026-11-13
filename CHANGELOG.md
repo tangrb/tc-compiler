@@ -16,6 +16,11 @@
 - 构建标准升为 C11；根 CMake 启用测试并只产出 `tc_core`、`tc-vm`、`tc-aot`。
 - 重组 `src/`：跨阶段基础设施移入 `base/`（断言/版本）、`contract/`（契约检查/零 pass）、`diagnostic/`（80 码表/首诊选择）；`frontend/` 保留给 S1 起的 LEX/SYN 流水线；`runtime/profiles.c` 更名为 `profile.c`；两个 CLI 的档案选择合并到 `driver/profile_select.c`。
 
+### Fixed
+
+- G0 审计 F1/F2：补充 §12.2 #9/#4 键序文档说明；新增 `origin×rank` 合成 L0 用例（`TC-L0-DIAG-0001`）。
+- `TC_CE_SAFE_VIOLATION` 写入 `same_site_rank=20`，新增四码同位置优先 L0 用例（`TC-L0-DIAG-0002`）；覆盖矩阵新增 `same_site_priority` 行并标记 covered（630 槽，1 L0 covered / 629 uncovered）。
+
 ## [0.0.46] - 2026-11-12
 
 ### Changed

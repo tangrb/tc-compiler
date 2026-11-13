@@ -54,7 +54,8 @@ python3 tests/golden/validate.py
 `coverage.py --check` proves the JSON and Markdown are current; it does **not**
 require every row to be covered at S0.  A covered-row gate belongs to later
 stages, where zero uncovered rows (or an approved suspension list) is required.
-At S0 the matrix must exist and every gap must be visible.
+At S0 the matrix must exist and every gap must be visible: 227 items / 630
+slots, 1 L0-covered row (`same_site_priority`) and 629 uncovered slots.
 
 ## What the matrix contains
 
@@ -65,6 +66,7 @@ At S0 the matrix must exist and every gap must be visible.
 | `opcode` | 63 opcodes × normal/static-error, plus a trap slot where §6.2 says trap | standard §6.2, cross-checked against the `TcOpcode` enum in design §3.2 |
 | `design12` | 15 items × suite-mapping/gate = 30 | design §12, test plan §8.2 |
 | `first_diag_rule` | 10 rules × combination case = 10 | standard §12.2, test plan §6.1 |
+| `same_site_priority` | 1 explicit priority: `SAFE_VIOLATION` over `UNSAFE_*`/`FAST_CALL` | standard §12.3, §9.1/§9.3 |
 | `flip32_64` | 17 rows × w32/w64 = 34 | standard §13.2.2 |
 | `annotation` | 16 | standard §2.3/§8.6 |
 | `device_policy` | 4 | design §8 `TcDevicePolicy` |
@@ -78,7 +80,10 @@ changes, generation fails instead of silently producing a stale list.
 
 ## Explicit-uncovered rule
 
-1. Every row is emitted with `"status": "uncovered"` and `"case_ids": []`.
+1. Every row is emitted as `"uncovered"` by default.  The only exceptions are
+   named S0 L0 contract rows in `L0_COVERED_ROWS` (currently
+   `TC-L0-DIAG-0002` for `SAFE_VIOLATION` priority); they carry an explicit
+   case id and are listed in `tests/unit/README.md`.
 2. A row may be marked `covered` **only** when it carries at least one real
    case id (test plan §3.3 format, e.g. `TC-LEX-LIT-0007@w64`).
 3. `suspended`/`not-implemented` is an explicit status with an explanation in

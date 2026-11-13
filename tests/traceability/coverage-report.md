@@ -1,13 +1,14 @@
 # TC-Compiler 0.0.46 Structural Coverage Matrix
 
 > Generated skeleton from the 0.0.46 standard, design and test plan.
-> **Every row starts as `uncovered`; no row is covered until it carries
-> at least one `case_ids` entry.** Missing coverage is explicit and must
-> not be silently treated as covered (test plan §3.6/§7.5).
+> **Every row starts as `uncovered`; a row is `covered` only when it
+> carries at least one `case_ids` entry.** S0 L0 rows named in
+> `tests/unit/README.md` are explicitly covered; conformance cases remain
+> uncovered until S1+. Missing coverage is explicit (test plan §3.6/§7.5).
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **629** total, **629** uncovered, **0** covered
+- Rows: **630** total, **629** uncovered, **1** covered
 
 ## Summary by category
 
@@ -18,12 +19,13 @@
 | Opcode (`opcode`) | 63 | 155 | 0 | 155 |
 | Design §12 item (`design12`) | 15 | 30 | 0 | 30 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 0 | 10 |
+| Same-position code priority (`same_site_priority`) | 1 | 1 | 1 | 0 |
 | 32/64 flip (`flip32_64`) | 17 | 34 | 0 | 34 |
 | Annotation (`annotation`) | 16 | 16 | 0 | 16 |
 | Device policy (`device_policy`) | 4 | 4 | 0 | 4 |
 | I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 |
 | Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 |
-| **Total** | **226** | **629** | **0** | **629** |
+| **Total** | **227** | **630** | **1** | **629** |
 
 ## Coverage rows
 
@@ -620,6 +622,12 @@
 | `first_diag_rule:08:combination_case` | 8. 档案字长 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:09:combination_case` | 9. 操作数内部优先 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:10:combination_case` | 10. call/make 参数顺序 | combination_case | **uncovered** | — | standard §12.2, test plan §3.6/§6.1 |
+
+### Same-position code priority (`same_site_priority`)
+
+| Row ID | Item | Slot | Status | Case IDs | Spec |
+|---|---|---|---|---|---|
+| `same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority` | SAFE_VIOLATION over UNSAFE_*/FAST_CALL | priority | **covered** | TC-L0-DIAG-0002 | standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1 |
 
 ### 32/64 flip (`flip32_64`)
 

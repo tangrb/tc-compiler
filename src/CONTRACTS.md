@@ -34,6 +34,11 @@ runtime trap seam).  `frontend/` is reserved for the S1+ pipeline.
 check. It must return `NULL`; any violation is an internal error, never a
 language diagnostic.
 
+首诊比较键序是 `origin`（标准 §12.2 #9，操作数内部优先）→ `same_site_rank`
+（#4，同 origin 类内专用码）→ `clause_rank`（#5）。设计 §6 的编号列表是规则
+索引，不是扁平字典序键链；#6/#7/#8 是布局/遍历/档案约束。L0 钉扎见
+`tests/unit/README.md` 的 `TC-L0-DIAG-0001`/`0002`。
+
 ## Closed-set rules
 
 - The diagnostic table is generated from `tests/traceability/codes.json`; the

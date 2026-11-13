@@ -320,6 +320,50 @@ static void test_diag_ordering(void) {
     CHECK(first_is(&invalid, &overflow));
 }
 
+/* TC-L0-DIAG-0001: §12.2 #9 origin dominates §12.2 #4 rank.  This is a
+ * comparator pin, not a reachable return-site candidate pair: standard §8.3
+ * gives return-operand mismatch only TC_CE_RETURN_TYPE. */
+static void test_diag_origin_rank_conflict(void) {
+    TcDiagnostic operand = make_diag(TC_CE_TYPE_MISMATCH, TC_STAGE_SEM, 0, 6, 1);
+    TcDiagnostic construct = make_diag(TC_CE_RETURN_TYPE, TC_STAGE_SEM, 0, 6, 1);
+    construct.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    CHECK(first_is(&operand, &construct));
+    CHECK(!first_is(&construct, &operand));
+}
+
+/* TC-L0-DIAG-0002: standard §12.3/§9 SAFE_VIOLATION priority over
+ * UNSAFE_* / FAST_CALL is encoded in the frozen same-site rank.  The
+ * diagnostics are construct-level; a real emitter makes the four codes
+ * mutually exclusive by context (standard §9.1/§9.3). */
+static void test_safe_violation_priority(void) {
+    TcDiagnostic safe = make_diag(TC_CE_SAFE_VIOLATION, TC_STAGE_SEM, 0, 7, 1);
+    TcDiagnostic unsafe_op = make_diag(TC_CE_UNSAFE_OPERATION, TC_STAGE_SEM, 0, 7, 1);
+    TcDiagnostic unsafe_call = make_diag(TC_CE_UNSAFE_CALL, TC_STAGE_SEM, 0, 7, 1);
+    TcDiagnostic fast_call = make_diag(TC_CE_FAST_CALL, TC_STAGE_SEM, 0, 7, 1);
+    TcDiagnostic operand_type;
+    TcDiagnostic safe_construct;
+    safe.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    unsafe_op.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    unsafe_call.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    fast_call.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    CHECK(tc_diag_info(TC_CE_SAFE_VIOLATION)->same_site_rank >
+          tc_diag_info(TC_CE_UNSAFE_OPERATION)->same_site_rank);
+    CHECK(tc_diag_info(TC_CE_SAFE_VIOLATION)->same_site_rank >
+          tc_diag_info(TC_CE_UNSAFE_CALL)->same_site_rank);
+    CHECK(tc_diag_info(TC_CE_SAFE_VIOLATION)->same_site_rank >
+          tc_diag_info(TC_CE_FAST_CALL)->same_site_rank);
+    CHECK(first_is(&safe, &unsafe_op));
+    CHECK(first_is(&safe, &unsafe_call));
+    CHECK(first_is(&safe, &fast_call));
+
+    /* §12.2 #9 still wins over the SAFE_VIOLATION rank for operand-internal
+     * diagnostics; rank only breaks ties within the same origin class. */
+    operand_type = make_diag(TC_CE_TYPE_MISMATCH, TC_STAGE_SEM, 0, 8, 1);
+    safe_construct = make_diag(TC_CE_SAFE_VIOLATION, TC_STAGE_SEM, 0, 8, 1);
+    safe_construct.origin = TC_DIAG_ORIGIN_CONSTRUCT;
+    CHECK(first_is(&operand_type, &safe_construct));
+}
+
 typedef struct {
     int fail_after;
     int calls;
@@ -451,6 +495,8 @@ int main(void) {
     test_type_table();
     test_profiles();
     test_diag_ordering();
+    test_diag_origin_rank_conflict();
+    test_safe_violation_priority();
     test_diag_buffer();
     test_ir_shape_and_zero_pass();
     if (failures != 0) {

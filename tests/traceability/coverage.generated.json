@@ -8,9 +8,9 @@
     "design": "docs/TC原生编译器设计说明书-0.0.46.md",
     "test_plan": "docs/TC开发测试计划-0.0.46.md",
     "sha256": {
-      "codes_json": "f3769a0b95fcf9542d3b2c5c5577cf95b7e6447203c58902fc4d37dff24e4c55",
+      "codes_json": "14b4b0473ac380d10a024f677d07dd141c3d9c77181b82fd55e16d4bf083d4f5",
       "standard": "e8a3bc0ca9b9fc672af6eca35c6a13c4fd31319c7d3f4e6f308853e13520eea9",
-      "design": "1d8cf34104831239d55ebfa621e2c5314b9034262154b9955933da78760b44eb",
+      "design": "7cf369a819f98c2ae53f83cbce55de97fdf5899e5566446b65a8a3be40c9751e",
       "test_plan": "524815ab560910138ee8e4857b63764406af204ab129c25de03662702b01d40a"
     }
   },
@@ -21,7 +21,10 @@
       "covered",
       "suspended"
     ],
-    "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty."
+    "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty.",
+    "l0_covered_rows": [
+      "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority"
+    ]
   },
   "cross_checks": {
     "standard_chapters": "§0-§14",
@@ -30,9 +33,9 @@
     "tc_opcode_enum": 51
   },
   "summary": {
-    "items": 226,
-    "slots": 629,
-    "covered": 0,
+    "items": 227,
+    "slots": 630,
+    "covered": 1,
     "uncovered": 629
   },
   "categories": {
@@ -70,6 +73,13 @@
       "slots": 10,
       "covered": 0,
       "uncovered": 10
+    },
+    "same_site_priority": {
+      "label": "Same-position code priority",
+      "items": 1,
+      "slots": 1,
+      "covered": 1,
+      "uncovered": 0
     },
     "flip32_64": {
       "label": "32/64 flip",
@@ -10045,6 +10055,25 @@
       "number": 10,
       "title": "call/make 参数顺序",
       "detail": "重复 → 未知 → 缺失 → 数量/多余 → 顺序 → 类型；位置/命名不得混用（`call` → `TC_CE_ARGUMENT_ORDER`，`make` → `TC_CE_FIELD_ORDER`）；`make` 多余位置字段 → `TC_CE_OPERAND_COUNT`。 **IMPORT 码的阶段例外**：`TC_CE_IMPORT_NOT_FOUND`、`TC_CE_IMPORT_NOT_LIB`、`TC_CE_DUPLICATE_IMPORT`、`TC_CE_CIRCULAR_IMPORT`、`TC_CE_IMPORT_NAME_CONFLICT` 在码表中归入 SEM 子阶段，但必须在 IMPORT 阶段报告。任何实现都不得把它们推迟到步骤 6–11 再报告。"
+    },
+    {
+      "id": "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority",
+      "category": "same_site_priority",
+      "item_id": "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE",
+      "item": "SAFE_VIOLATION over UNSAFE_*/FAST_CALL",
+      "slot": "priority",
+      "spec": "standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1",
+      "status": "covered",
+      "case_ids": [
+        "TC-L0-DIAG-0002"
+      ],
+      "codes": [
+        "TC_CE_SAFE_VIOLATION",
+        "TC_CE_UNSAFE_OPERATION",
+        "TC_CE_UNSAFE_CALL",
+        "TC_CE_FAST_CALL"
+      ],
+      "safe_rank": 20
     },
     {
       "id": "flip32_64:01:w32",

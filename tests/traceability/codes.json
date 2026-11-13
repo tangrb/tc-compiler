@@ -811,7 +811,7 @@
       "w_sensitive": false,
       "first_test_stage": "S4",
       "group": "safety_const",
-      "same_site_rank": 0,
+      "same_site_rank": 20,
       "clause_rank": 0
     },
     {
