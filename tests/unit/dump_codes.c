@@ -5,8 +5,8 @@
  * executable only; it is not a product tool. */
 #include <stdio.h>
 
-#include "frontend/contract.h"
-#include "frontend/diagnostic.h"
+#include "contract/contract.h"
+#include "diagnostic/diagnostic.h"
 
 static const char *stage_name(TcStageMask mask) {
     if (mask == TC_STAGE_MASK_LEX_SYN) {

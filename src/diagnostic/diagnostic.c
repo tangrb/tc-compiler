@@ -1,9 +1,7 @@
 /* TC 0.0.46 contract: diagnostics and first-diagnostic ordering (standard §12). */
-#include "frontend/diagnostic.h"
+#include "diagnostic/diagnostic.h"
 
 #include <string.h>
-
-#include "tc_assert.h"
 
 TcStage tc_stage_first(TcStageMask mask) {
     unsigned i;

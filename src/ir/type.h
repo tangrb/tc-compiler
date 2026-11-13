@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "tc_assert.h"
+#include "base/assert.h"
 
 typedef enum {
     TC_TY_I8 = 0,

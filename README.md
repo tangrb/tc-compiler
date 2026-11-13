@@ -24,7 +24,10 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 ```text
 docs/                 0.0.46 标准与设计
 src/                  0.0.46 实现（S0 契约层已实现）
-  frontend/           diagnostic / contract / optimizer（lex/parse/... 待 S1 起）
+  base/               assert / version
+  contract/           S0 契约检查 / 零 pass 策略
+  diagnostic/         80 码闭集 / 生成表 / 首诊选择
+  frontend/           lex / parse / module / resolve / analyze / consteval（S1 起）
   ir/                 type / instr / operand / block / ir / region / object / address / span
   runtime/            alloc / io / trap / profile / module_loader
   vm/                 interp（S6）

@@ -5,12 +5,13 @@
  * invariant holds, otherwise a static English description of the first
  * violation.  It never reports a language diagnostic.
  */
-#ifndef TC_FRONTEND_CONTRACT_H
-#define TC_FRONTEND_CONTRACT_H
+#ifndef TC_CONTRACT_CONTRACT_H
+#define TC_CONTRACT_CONTRACT_H
 
-#define TC_LANGUAGE_VERSION "0.0.46"
+#include "base/version.h"
+
 #define TC_CONTRACT_FROZEN 1
 
 const char *tc_contract_check(void);
 
-#endif /* TC_FRONTEND_CONTRACT_H */
+#endif /* TC_CONTRACT_CONTRACT_H */

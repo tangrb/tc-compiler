@@ -5,8 +5,8 @@
  * regalloc and inlining are not part of this baseline; introducing them first
  * requires a declared pass pipeline and standard §10.8 invariant tests.
  */
-#ifndef TC_FRONTEND_OPTIMIZER_H
-#define TC_FRONTEND_OPTIMIZER_H
+#ifndef TC_CONTRACT_OPTIMIZER_H
+#define TC_CONTRACT_OPTIMIZER_H
 
 #include <stddef.h>
 
@@ -32,4 +32,4 @@ int tc_pipeline_levels_equivalent(const TcPassPipeline *a, const TcPassPipeline 
 /* Parse "O0"/"O2" (also accepts "-O0"/"-O2"); returns 0 on failure. */
 int tc_opt_level_parse(const char *text, TcOptLevel *out);
 
-#endif /* TC_FRONTEND_OPTIMIZER_H */
+#endif /* TC_CONTRACT_OPTIMIZER_H */

@@ -6,10 +6,16 @@ and observable behavior remain governed only by
 [the 0.0.46 standard](../docs/TC语言及编译器标准-0.0.46.md); architecture is
 governed by [the design](../docs/TC原生编译器设计说明书-0.0.46.md).
 
+S0 infrastructure lives outside the four language layers so no phase owns it:
+`base/` (assert/version), `contract/` (freeze check and zero-pass policy) and
+`diagnostic/` (closed code set and first-diagnostic selection, also used by the
+runtime trap seam).  `frontend/` is reserved for the S1+ pipeline.
+
 ## Ownership and freeze markers
 
 | Contract | Header(s) | Owner | Frozen facts | Consumers |
 | --- | --- | --- | --- | --- |
+| Foundation | `base/assert.h`, `base/version.h` | contract/build | compile-time assertions; language/contract version | all modules |
 | Type identity | `ir/type.h` | IR + SEM | scalar singletons; interned `ptr`/`fnptr`/struct nodes; pointer equality; no W-dependent layout in a type; freeze after Analyze | SEM, CT, VM, AOT |
 | Span | `ir/span.h` | LEX/SYN | file + 1-based line/column (Unicode scalar column); LEX valid-prefix bytes + 0-based invalid byte offset; `TC_SPAN_NO_INVALID_BYTE` | all diagnostics |
 | Operands/args | `ir/operand.h` | SYN + SEM | VREG/FIELD/CONST/LABEL/FUNC/STRUCT/DISCARD; `_` is LHS-only; `TcArg.name == NULL` means positional; field names disappear after SEM | SEM, IR freeze, VM, AOT |
@@ -18,13 +24,13 @@ governed by [the design](../docs/TC原生编译器设计说明书-0.0.46.md).
 | Struct/layout | `ir/structs.h` | SEM | field order/padding/readonly; per-profile `offset`/`size`; layout is never cached in `TcType` | SEM, CT, VM, AOT |
 | Object/address | `ir/object.h`, `ir/address.h`, `ir/region.h` | SEM + runtime | five regions; object is the single boundary/lifetime/DI fact source; region+offset is not object identity; address 0 is reserved | VM, checked build, AOT |
 | IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module identity is resolved path; frozen type table; per-profile consts/objects/units | VM, AOT |
-| Platform profile | `runtime/profile.h`, `runtime/profiles.c` | runtime/driver | W∈{32,64}; five non-overlapping regions excluding address 0; `D≥1`; `disable_icf == 1`; stack/pointer alignment from `TcTargetDesc`; checked build only adds UB checks | VM, AOT, tests |
+| Platform profile | `runtime/profile.h`, `runtime/profile.c` | runtime/driver | W∈{32,64}; five non-overlapping regions excluding address 0; `D≥1`; `disable_icf == 1`; stack/pointer alignment from `TcTargetDesc`; checked build only adds UB checks | VM, AOT, tests |
 | Runtime seams | `runtime/io.h`, `runtime/alloc.h`, `runtime/trap.h`, `runtime/module_loader.h` | runtime | all-or-nothing sink; short-read/EOF/error source; allocator sizes are target-W; trap gets first error + line; device runtime resolves no imports | VM, AOT, freestanding |
-| Diagnostics | `frontend/diagnostic_codes.h`, `frontend/diagnostic.h`, `frontend/diagnostic.c`, generated `frontend/diagnostic_table.c` | frontend | closed 80 codes (65 `TC_CE_*` + 15 `TC_RE_*`); stage and report stage; 1-based positions; first-diagnostic comparator; `TC_ERR_OUT_OF_MEMORY` separate | all phases, VM |
-| Zero pass | `frontend/optimizer.h`, `frontend/optimizer.c` | frontend/backend | O0 and O2 run zero IR passes; `@fast`/`@fast_math` recorded only; `@inline`/`@noinline` stored only | VM, AOT |
-| Build/CLI | `driver/cli.h`, `driver/cli.c`, `src/CMakeLists.txt` | build | private `tc_core`; only `tc-vm`/`tc-aot`; no install, no public C ABI; unavailable capabilities fail explicitly with exit 70 | tools, tests |
+| Diagnostics | `diagnostic/codes.h`, `diagnostic/diagnostic.h`, `diagnostic/diagnostic.c`, generated `diagnostic/table.c` | diagnostic (cross-cutting) | closed 80 codes (65 `TC_CE_*` + 15 `TC_RE_*`); stage and report stage; 1-based positions; first-diagnostic comparator; `TC_ERR_OUT_OF_MEMORY` separate | all phases, VM |
+| Zero pass | `contract/optimizer.h`, `contract/optimizer.c` | contract (frontend/backend consumers) | O0 and O2 run zero IR passes; `@fast`/`@fast_math` recorded only; `@inline`/`@noinline` stored only | VM, AOT |
+| Build/CLI | `driver/cli.h`, `driver/cli.c`, `driver/profile_select.h`, `src/CMakeLists.txt` | build | private `tc_core`; only `tc-vm`/`tc-aot`; no install, no public C ABI; unavailable capabilities fail explicitly with exit 70 | tools, tests |
 
-`tc_contract_check()` in `frontend/contract.c` is the startup/L0 aggregate
+`tc_contract_check()` in `contract/contract.c` is the startup/L0 aggregate
 check. It must return `NULL`; any violation is an internal error, never a
 language diagnostic.
 

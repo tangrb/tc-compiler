@@ -7,7 +7,7 @@ plan §3.6, §7.5, §8 and §10.1:
   15 `TC_RE_*`), generated from standard §12.3/§12.5.1 and test-plan appendix A
   by `gen_codes.py`.  This directory must never add, remove or rename a code.
 - `gen_codes.py` / `gen_c_table.py` — regenerate `codes.json`, the C X-macro
-  table and `src/frontend/diagnostic_table.c`; `--check` detects stale files.
+  table and `src/diagnostic/table.c`; `--check` detects stale files.
 - `check_codes.py` — validates `codes.json` against standard §12.3 and,
   optionally, the C table dump.
 - `check_harness_codes.py` — cross-checks the standalone harness code table

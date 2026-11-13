@@ -1,4 +1,4 @@
-# 0.0.46 implementation skeleton
+# 0.0.46 implementation layout
 
 This directory is the **target module layout** from
 [TC Native Compiler Design 0.0.46](../docs/TC原生编译器设计说明书-0.0.46.md) §14.
@@ -9,13 +9,22 @@ VM and backends start in S1/S6/S7.  Frozen contract ownership is indexed in
 
 ```text
 src/
-  frontend/   lex parse module resolve analyze consteval diagnostic
-  ir/         type instr block cfg region address print
-  runtime/    sem_int sem_fp sem_cast sem_bitwise io sink alloc trap profile
-  vm/         interp memory pointer_state
-  backend/    aarch64 arm32 riscv32 common
-  driver/     tc-vm tc-aot
+  base/         assert version (shared foundations, no language semantics)
+  contract/     S0 frozen-contract check + zero-pass optimization policy
+  diagnostic/   closed 80-code set, generated table, first-diagnostic selection
+  frontend/     lex parse module resolve analyze consteval ebnf (S1+)
+  ir/           type instr block operand span region object address structs
+  runtime/      alloc io trap profile module_loader (sem_* from S6)
+  vm/           interp memory pointer_state (S6)
+  backend/      aarch64 arm32 riscv32 common (S7+)
+  driver/       tc-vm tc-aot + shared CLI/profile selection
 ```
+
+`base/`, `contract/` and `diagnostic/` are S0 **infrastructure**, not language
+pipeline stages: their facts are consumed by every phase (and by the runtime
+trap seam), so they must not be buried inside `frontend/`.  `frontend/` itself
+stays reserved for the LEX/SYN/IMPORT/SEM/CT pipeline that starts in S1.
+`ir/`, `runtime/`, `vm/`, `backend/` and `driver/` follow design §14.
 
 ## Rules
 
@@ -24,6 +33,11 @@ src/
   AArch64; the first 32-bit target is still to be selected (arm32 / riscv32).
 - The private build target `tc_core` contains the compiler, IR, runtime, and VM
   implementation. It is not installed and exposes no public API/ABI.
+- Each source file has one module owner: `base/` + `contract/` are frozen S0
+  infrastructure; `diagnostic/` owns the single diagnostic fact source;
+  `ir/` owns representation; `runtime/` owns platform seams/profiles;
+  `driver/` owns only CLI parsing and tool policy.  Do not create a second
+  table, profile instance or diagnostic code set in another directory.
 - `tc-vm` and `tc-aot` are the only tool entry points.
 - Do not reintroduce a C host public library, embedding API, host ABI, or
   AOT embed mode.

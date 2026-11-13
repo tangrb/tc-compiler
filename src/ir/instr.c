@@ -1,7 +1,7 @@
 /* TC 0.0.46 contract: instruction shape helpers. */
 #include "ir/instr.h"
 
-#include "tc_assert.h"
+#include "base/assert.h"
 
 TC_STATIC_ASSERT((size_t)TC_OPCODE_COUNT == 51, __LINE__);
 

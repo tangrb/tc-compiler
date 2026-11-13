@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#include "tc_assert.h"
+#include "base/assert.h"
 
 #define TC_SPAN_NO_INVALID_BYTE UINT32_MAX
 

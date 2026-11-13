@@ -2,7 +2,7 @@
 #ifndef TC_IR_REGION_H
 #define TC_IR_REGION_H
 
-#include "tc_assert.h"
+#include "base/assert.h"
 
 /* The five regions of the abstract machine.  The order is normative for the
  * profile region table: profile.region[TC_REG_*] selects the same region. */

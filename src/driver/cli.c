@@ -3,7 +3,7 @@
 
 #include <string.h>
 
-#include "frontend/contract.h"
+#include "contract/contract.h"
 
 void tc_cli_options_init(TcCliOptions *options) {
     if (options == NULL) {

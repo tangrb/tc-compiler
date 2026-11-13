@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "frontend/contract.h"
-#include "frontend/diagnostic.h"
-#include "frontend/optimizer.h"
+#include "contract/contract.h"
+#include "diagnostic/diagnostic.h"
+#include "contract/optimizer.h"
 #include "ir/block.h"
 #include "ir/instr.h"
 #include "ir/ir.h"

@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "frontend/optimizer.h"
+#include "contract/optimizer.h"
 
 #define TC_EXIT_OK 0
 #define TC_EXIT_DIAGNOSTIC 1

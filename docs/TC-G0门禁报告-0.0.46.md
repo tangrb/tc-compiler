@@ -37,10 +37,10 @@
 | 类型契约 | `src/ir/type.h`、`type.c` | intern/单例/冻结、`isize`≠`int32`、W 位宽；L0 `contract.unit` |
 | IR 契约 | `src/ir/{operand,instr,block,ir,span}.h`、`instr.c` | 51 opcode、无结果指令 LHS、显式 CFG、命名实参、span |
 | 对象/区契约 | `src/ir/{region,object,address,structs}.h` | 五区、对象表、地址 0 保留 |
-| 档案契约 | `src/runtime/profile.h`、`profiles.c` | 两个 64 位内置档案；W=32 档案校验（测试本地 target） |
+| 档案契约 | `src/runtime/profile.h`、`profile.c` | 两个 64 位内置档案；W=32 档案校验（测试本地 target） |
 | 运行时四缝 | `src/runtime/{io,alloc,trap,module_loader}.h/.c` | I/O all-or-nothing、短读/EOF/错误、目标 W 分配器、trap 首错、设备端不解析 import |
-| 诊断契约 | `src/frontend/diagnostic*.{h,c,inc}` | 80 码机读表、首诊比较器、缓冲、OOM 独立通道 |
-| 零 pass 契约 | `src/frontend/optimizer.h/.c` | O0/O2 均 0 pass、`@fast` 不消费、`@inline` 只保存 |
+| 诊断契约 | `src/diagnostic/{codes,diagnostic,table}.{h,c,inc}` | 80 码机读表、首诊比较器、缓冲、OOM 独立通道 |
+| 零 pass 契约 | `src/contract/optimizer.h/.c` | O0/O2 均 0 pass、`@fast` 不消费、`@inline` 只保存 |
 | 构建契约 | `src/CMakeLists.txt`、`src/driver/` | 私有 `tc_core`；仅 `tc-vm`/`tc-aot`；无 install 规则 |
 | 用例 harness | `tests/harness/` | 附录 C YAML 子集、7 判定器、超时/捕获/归一化、失败关闭 |
 | 码表/覆盖 | `tests/traceability/` | `codes.json`、生成的 C 表、629 行覆盖骨架 |

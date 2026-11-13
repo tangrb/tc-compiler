@@ -1,10 +1,10 @@
 /* TC 0.0.46 contract: aggregate freeze check implementation. */
-#include "frontend/contract.h"
+#include "contract/contract.h"
 
 #include <string.h>
 
-#include "frontend/diagnostic.h"
-#include "frontend/optimizer.h"
+#include "diagnostic/diagnostic.h"
+#include "contract/optimizer.h"
 #include "ir/instr.h"
 #include "runtime/alloc.h"
 #include "runtime/module_loader.h"

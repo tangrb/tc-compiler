@@ -1,5 +1,5 @@
 /* TC 0.0.46 contract: zero-pass baseline implementation. */
-#include "frontend/optimizer.h"
+#include "contract/optimizer.h"
 
 #include <string.h>
 

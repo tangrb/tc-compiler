@@ -8,12 +8,12 @@
  * error (standard §12.5.3) with its own channel and never participates in
  * language first-diagnostic ordering.
  */
-#ifndef TC_FRONTEND_DIAGNOSTIC_CODES_H
-#define TC_FRONTEND_DIAGNOSTIC_CODES_H
+#ifndef TC_DIAGNOSTIC_CODES_H
+#define TC_DIAGNOSTIC_CODES_H
 
 #include <stdint.h>
 
-#include "tc_assert.h"
+#include "base/assert.h"
 
 #define TC_DIAG_CE_COUNT 65u
 #define TC_DIAG_RE_COUNT 15u
@@ -53,7 +53,7 @@ typedef enum {
 #define TC_DIAG_ENTRY(name, stage, report_stage, group, w, rank, clause, print_name, trigger, \
                            position)                                                                \
     name,
-#include "frontend/diagnostic_codes.inc"
+#include "diagnostic/codes.inc"
 #undef TC_DIAG_ENTRY
     TC_DIAG_CODE_COUNT_ENUM
 } TcDiagCode;
@@ -65,4 +65,4 @@ TC_STATIC_ASSERT(TC_DIAG_CE_COUNT + TC_DIAG_RE_COUNT == TC_DIAG_CODE_COUNT, __LI
  * the mask is empty. */
 TcStage tc_stage_first(TcStageMask mask);
 
-#endif /* TC_FRONTEND_DIAGNOSTIC_CODES_H */
+#endif /* TC_DIAGNOSTIC_CODES_H */

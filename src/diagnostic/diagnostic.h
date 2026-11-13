@@ -13,13 +13,13 @@
  * Positions never decide which file is the primary file: a related position
  * cannot change the primary file (standard §12.5.1).
  */
-#ifndef TC_FRONTEND_DIAGNOSTIC_H
-#define TC_FRONTEND_DIAGNOSTIC_H
+#ifndef TC_DIAGNOSTIC_DIAGNOSTIC_H
+#define TC_DIAGNOSTIC_DIAGNOSTIC_H
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "frontend/diagnostic_codes.h"
+#include "diagnostic/codes.h"
 #include "runtime/alloc.h"
 
 typedef struct {
@@ -130,4 +130,4 @@ const char *tc_diag_contract_violation(void);
 
 const TcDiagInfo *tc_diag_info(TcDiagCode code);
 
-#endif /* TC_FRONTEND_DIAGNOSTIC_H */
+#endif /* TC_DIAGNOSTIC_DIAGNOSTIC_H */

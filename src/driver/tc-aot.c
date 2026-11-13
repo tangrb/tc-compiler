@@ -5,29 +5,15 @@
  * status; it never emits an artifact or silently produces wrong code.
  */
 #include <stdio.h>
-#include <string.h>
 
+#include "contract/contract.h"
+#include "diagnostic/diagnostic.h"
 #include "driver/cli.h"
-#include "frontend/contract.h"
-#include "frontend/diagnostic.h"
-#include "runtime/profile.h"
-
-static int validate_profile(const char *name) {
-    TcPlatformProfile profile;
-    int ok;
-    if (strcmp(name, "aarch64-linux-user") == 0) {
-        ok = tc_profile_init_aarch64_linux_user(&profile);
-    } else {
-        ok = tc_profile_init_aarch64_baremetal(&profile);
-    }
-    if (!ok || tc_profile_validate(&profile) != TC_PROFILE_OK) {
-        return 0;
-    }
-    return 1;
-}
+#include "driver/profile_select.h"
 
 int main(int argc, char **argv) {
     const char *violation = tc_contract_check();
+    TcPlatformProfile profile;
     TcCliOptions options;
     TcCliParseResult parsed;
     if (violation != NULL) {
@@ -48,7 +34,7 @@ int main(int argc, char **argv) {
         printf("tc-aot %s (contract skeleton)\n", TC_LANGUAGE_VERSION);
         return TC_EXIT_OK;
     }
-    if (!validate_profile(options.profile_name)) {
+    if (!tc_driver_select_profile(options.profile_name, &profile)) {
         fprintf(stderr, "tc-aot: tc_error_internal: built-in profile is invalid\n");
         return TC_EXIT_INTERNAL;
     }

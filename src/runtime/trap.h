@@ -7,7 +7,7 @@
 #ifndef TC_RUNTIME_TRAP_H
 #define TC_RUNTIME_TRAP_H
 
-#include "frontend/diagnostic_codes.h"
+#include "diagnostic/codes.h"
 
 /* Only the 15 TC_RE_* codes are valid error kinds.  TcErrorKind is a distinct
  * name so runtime-facing code never accepts a TC_CE_* by mistake in review. */

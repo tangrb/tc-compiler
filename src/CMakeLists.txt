@@ -4,16 +4,22 @@
 # tool entry points.  No install rule, no exported headers, no host ABI.
 
 add_library(tc_core STATIC
+    # Cross-cutting S0 contracts.
+    contract/contract.c
+    contract/optimizer.c
+    # Closed diagnostic set, table and first-diagnostic selection.
+    diagnostic/diagnostic.c
+    diagnostic/table.c
+    # IR representation and shape helpers.
     ir/type.c
     ir/instr.c
+    # Runtime seams and platform profiles.
     runtime/alloc.c
-    runtime/profiles.c
     runtime/module_loader.c
-    frontend/diagnostic.c
-    frontend/diagnostic_table.c
-    frontend/optimizer.c
-    frontend/contract.c
+    runtime/profile.c
+    # Code shared by the two tool entry points.
     driver/cli.c
+    driver/profile_select.c
 )
 
 target_include_directories(tc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
