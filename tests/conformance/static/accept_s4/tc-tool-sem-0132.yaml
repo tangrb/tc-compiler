@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0132
+profile: common
+source: tc-tool-sem-0132/root.tc
+spec: "§6.6.1 float64 2^64 -> uint64 越界属于 CT CONST_CAST"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

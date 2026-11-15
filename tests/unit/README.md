@@ -66,7 +66,7 @@ registered as `frontend.unit` and currently runs 688 checks.
 ## L1 SEM tests (`tc_sem_test`)
 
 `tc_sem_test` calls the private `frontend/sem.h` interface directly.  It
-currently runs 87 checks.
+currently runs 100 checks.
 
 | Case ID | C function | Pins |
 | --- | --- | --- |

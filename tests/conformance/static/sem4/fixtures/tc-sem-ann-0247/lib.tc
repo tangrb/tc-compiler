@@ -1,0 +1,5 @@
+#lib
+public const R: float32 = mod float32, 1.0f, inf
+public const X: int32 = cast int32, Self.R
+public @fast func f(@range(2, Self.X) n: int32) void then
+end

@@ -1,0 +1,8 @@
+#lib
+public const R: float32 = mod float32, 291731.1875f, 0.0201671552f
+public const M: float32 = mul float32, Self.R, 10000000.0f
+public const X: int32 = cast int32, Self.M
+public const B: bool = eq int32, Self.X, 176696
+public const V: int32 = cast int32, Self.B
+public @fast func f(@align(Self.V) p: ptr<int32>) void then
+end

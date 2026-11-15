@@ -1387,6 +1387,81 @@ CASES = [
         "SEM", "TC_CE_UNINITIALIZED",
     ),
     _case(
+        "TC-SEM-ANN-0242",
+        "§6.3 uint32 加法回绕：UINT32_MAX+1=0；@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: uint32 = add uint32, 4294967295, 1\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0243",
+        "§6.3 shl 的 k>=n：a=0 -> 0；@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: int32 = shl int32, 0, 40\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0244",
+        "§6.3 shr 的 k>=n -> 0；@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: int32 = shr int32, 123, 40\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0245",
+        "§6.3 mod(INT_MIN,-1)=0 不 trap；@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: int32 = mod int32, -2147483648, -1\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0246",
+        "§6.3 uint64 abs 保持原值；max 非 2 的幂 -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: uint64 = abs uint64, 18446744073709551615\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0247",
+        "§6.3.3 float32 mod b=inf 按位等于 a；R=1，@range(2,1) -> "
+        "ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const R: float32 = mod float32, 1.0f, inf\n"
+         "public const X: int32 = cast int32, Self.R\n"
+         "public @fast func f(@range(2, @HERE@Self.X) n: int32) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0248",
+        "§6.3 inf+1=inf 合法；比较得到 1，@range(2,1) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const I: float32 = inf\n"
+         "public const S: float32 = add float32, Self.I, 1.0f\n"
+         "public const B: bool = eq float32, Self.S, inf\n"
+         "public const X: int32 = cast int32, Self.B\n"
+         "public @fast func f(@range(2, @HERE@Self.X) n: int32) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -1714,6 +1789,82 @@ POSITIVE = [
          "public const H: usize = 10\n"
          "public @fast func f(@align(Self.A) p: ptr<int32>, "
          "@range(Self.L, Self.H) n: usize) void then\nend\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0127",
+        "§6.3 uint64 abs(max)=max；@range(2,max) 合法",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const H: uint64 = 2\n"
+         "public const L: uint64 = abs uint64, 18446744073709551615\n"
+         "public @fast func f(@range(Self.H, Self.L) n: uint64) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0128",
+        "§6.3.3 浮点 mod 使用精确有理商；R*1e7 截断为 176696，"
+        "eq 比较后 @align(1) 接受",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const R: float32 = mod float32, 291731.1875f, 0.0201671552f\n"
+         "public const M: float32 = mul float32, Self.R, 10000000.0f\n"
+         "public const X: int32 = cast int32, Self.M\n"
+         "public const B: bool = eq int32, Self.X, 176696\n"
+         "public const V: int32 = cast int32, Self.B\n"
+         "public @fast func f(@align(Self.V) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0129",
+        "§3.10 strict 浮点下溢属于 CT；SEM 端点求值不得误报 ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const F: float64 = mul float64, 1e-308, 1e-308\n"
+         "public const X: int32 = cast int32, Self.F\n"
+         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0130",
+        "§6.6.1 整数 cast 越界属于 CT CONST_CAST；SEM 不得截断后接受",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const A: int32 = cast int32, 2147483648\n"
+         "public const B: int32 = cast int32, 4294967304\n"
+         "public @fast func a(@align(Self.A) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func b(@align(Self.B) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0131",
+        "§13.2.2 w32 isize cast 4294967304 越界属于 CT CONST_CAST",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: isize = cast isize, 4294967304\n"
+         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        profile="w32",
+    ),
+    _positive(
+        "TC-TOOL-SEM-0132",
+        "§6.6.1 float64 2^64 -> uint64 越界属于 CT CONST_CAST",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: uint64 = cast uint64, 18446744073709551616.0\n"
+         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0133",
+        "§6.6.1 float64 1e308 -> float32 溢出属于 CT CONST_CAST",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const F: float32 = cast float32, 1e308\n"
+         "public const B: bool = eq float32, Self.F, inf\n"
+         "public const X: int32 = cast int32, Self.B\n"
+         "public @fast func f(@range(2, Self.X) n: int32) void then\n"
+         "end\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0125",

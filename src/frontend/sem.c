@@ -1,6 +1,7 @@
 /* TC 0.0.46 IMPORT and SEM implementation (standard §3–§6, §13.2). */
 #include "frontend/sem.h"
 
+#include <fenv.h>
 #include <limits.h>
 #include <math.h>
 #include <setjmp.h>
@@ -4576,10 +4577,6 @@ static int const_signed_fits_width(int64_t value, unsigned width) {
            value <= (int64_t)(((uint64_t)1u << (width - 1u)) - 1u);
 }
 
-static int const_unsigned_fits_width(uint64_t value, unsigned width) {
-    return width >= 64 || value <= width_max(width);
-}
-
 static int const_special_float_bits(const TcParseValue *v, unsigned width,
                                   uint64_t *out) {
     if (v->kind == TC_PVAL_INF) {
@@ -4607,6 +4604,16 @@ static int const_special_float_bits(const TcParseValue *v, unsigned width,
         return 0;
     }
     return 0;
+}
+
+static void const_float_clear_exceptions(void) {
+    (void)feclearexcept(FE_ALL_EXCEPT);
+}
+
+static int const_float_exceptions_ok(void) {
+    int raised = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW |
+                              FE_UNDERFLOW);
+    return raised == 0;
 }
 
 static int const_is_negative(const TcAnalysis *an, const TcConstInt *value) {
@@ -4965,6 +4972,53 @@ static int eval_const_source(Sem *s, const TcParseValue *v, TcConstInt *out,
     return eval_const_value_int(s, v, source, out, depth + 1u);
 }
 
+static int const_int_cast_fits(const TcConstInt *source,
+                               const TcType *target, TcAnalysis *an) {
+    unsigned sw;
+    unsigned tw;
+    uint64_t smask;
+    if (source == NULL || source->type == NULL || target == NULL ||
+        !type_is_integer(target)) {
+        return 0;
+    }
+    if (type_is_bool(source->type)) {
+        return 1;
+    }
+    if (!type_is_integer(source->type)) {
+        return 0;
+    }
+    sw = type_bits(an, source->type);
+    tw = type_bits(an, target);
+    if (sw == 0 || sw > 64 || tw == 0 || tw > 64) {
+        return 0;
+    }
+    smask = const_mask(sw);
+    if (type_is_signed_integer(source->type)) {
+        int64_t value = (int64_t)const_sign_extend(source->bits, sw);
+        if (type_is_signed_integer(target)) {
+            int64_t max = tw == 64
+                              ? INT64_MAX
+                              : (int64_t)(((uint64_t)1u << (tw - 1u)) - 1u);
+            int64_t min = tw == 64
+                              ? INT64_MIN
+                              : -(int64_t)((uint64_t)1u << (tw - 1u));
+            return value >= min && value <= max;
+        }
+        return value >= 0 &&
+               (uint64_t)value <= width_max(tw);
+    }
+    {
+        uint64_t value = source->bits & smask;
+        if (type_is_signed_integer(target)) {
+            uint64_t max = tw == 64
+                               ? (uint64_t)INT64_MAX
+                               : (((uint64_t)1u << (tw - 1u)) - 1u);
+            return value <= max;
+        }
+        return value <= width_max(tw);
+    }
+}
+
 static int eval_float_to_int(const TcConstInt *source,
                              const TcType *target, TcAnalysis *an,
                              uint64_t *out) {
@@ -4991,16 +5045,24 @@ static int eval_float_to_int(const TcConstInt *source,
     if (width == 0 || width > 64) {
         return 0;
     }
+    value = truncl(value);
     if (type_is_signed_integer(target)) {
-        long double min = -(long double)signed_min_magnitude(width);
-        long double max = (long double)signed_max(width);
-        if (value < min || value > max) {
+        long double limit = width == 64
+                                ? 9223372036854775808.0L
+                                : (long double)((uint64_t)1u << width);
+        if (value < -limit || value >= limit) {
             return 0;
         }
-    } else if (value < 0.0L || value > (long double)width_max(width)) {
-        return 0;
+        *out = (uint64_t)(int64_t)value & const_mask(width);
+    } else {
+        long double limit = width == 64
+                                ? 18446744073709551616.0L
+                                : (long double)((uint64_t)1u << width);
+        if (value < 0.0L || value >= limit) {
+            return 0;
+        }
+        *out = (uint64_t)value & const_mask(width);
     }
-    *out = (uint64_t)value & const_mask(width);
     return 1;
 }
 
@@ -5036,9 +5098,17 @@ static int eval_to_float(const TcConstInt *source, const TcType *target,
         return 0;
     }
     if (target_width == 32) {
-        *out = const_f32_to_bits((float)value);
+        float result = (float)value;
+        if (isinf(result) && isfinite((double)value)) {
+            return 0; /* strict cast overflow; CT owns CONST_CAST */
+        }
+        *out = const_f32_to_bits(result);
     } else if (target_width == 64) {
-        *out = const_f64_to_bits((double)value);
+        double result = (double)value;
+        if (isinf(result) && isfinite((double)value)) {
+            return 0;
+        }
+        *out = const_f64_to_bits(result);
     } else {
         return 0;
     }
@@ -5107,14 +5177,11 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
             if (const_mask(type_bits(s->an, type)) == 0) {
                 return 0;
             }
+            const_float_clear_exceptions();
             if (type_bits(s->an, type) == 32) {
                 float fa = const_bits_to_f32(a.bits);
                 float fb = const_bits_to_f32(b.bits);
                 float r;
-                if (fb == 0.0f &&
-                    (instr->op == TC_DIV || instr->op == TC_MOD)) {
-                    return 0;
-                }
                 if (instr->op == TC_ADD) {
                     r = fa + fb;
                 } else if (instr->op == TC_SUB) {
@@ -5124,14 +5191,17 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 } else if (instr->op == TC_DIV) {
                     r = fa / fb;
                 } else {
-                    float q = fa / fb;
-                    if (!isfinite((double)q) ||
-                        q < (float)LLONG_MIN || q > (float)LLONG_MAX) {
-                        return 0;
-                    }
-                    r = fa - (float)(long long)q * fb;
+                    r = fmodf(fa, fb);
                 }
-                if (!isfinite((double)r)) {
+                if (!const_float_exceptions_ok()) {
+                    return 0;
+                }
+                if (fpclassify(r) == FP_SUBNORMAL) {
+                    return 0;
+                }
+                if (r == 0.0f &&
+                    (instr->op == TC_MUL || instr->op == TC_DIV) &&
+                    fa != 0.0f && fb != 0.0f) {
                     return 0;
                 }
                 out->bits = const_f32_to_bits(r);
@@ -5139,10 +5209,6 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 double da = const_bits_to_f64(a.bits);
                 double db = const_bits_to_f64(b.bits);
                 double r;
-                if (db == 0.0 &&
-                    (instr->op == TC_DIV || instr->op == TC_MOD)) {
-                    return 0;
-                }
                 if (instr->op == TC_ADD) {
                     r = da + db;
                 } else if (instr->op == TC_SUB) {
@@ -5152,14 +5218,17 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 } else if (instr->op == TC_DIV) {
                     r = da / db;
                 } else {
-                    double q = da / db;
-                    if (!isfinite(q) || q < (double)LLONG_MIN ||
-                        q > (double)LLONG_MAX) {
-                        return 0;
-                    }
-                    r = da - (double)(long long)q * db;
+                    r = fmod(da, db);
                 }
-                if (!isfinite(r)) {
+                if (!const_float_exceptions_ok()) {
+                    return 0;
+                }
+                if (fpclassify(r) == FP_SUBNORMAL) {
+                    return 0;
+                }
+                if (r == 0.0 &&
+                    (instr->op == TC_MUL || instr->op == TC_DIV) &&
+                    da != 0.0 && db != 0.0) {
                     return 0;
                 }
                 out->bits = const_f64_to_bits(r);
@@ -5211,19 +5280,13 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
             } else {
                 uint64_t ua = a.bits & mask;
                 uint64_t ub = b.bits & mask;
-                uint64_t result;
-                int overflow;
                 if (instr->op == TC_ADD) {
-                    overflow = __builtin_add_overflow(ua, ub, &result);
+                    out->bits = (ua + ub) & mask;
                 } else if (instr->op == TC_SUB) {
-                    overflow = __builtin_sub_overflow(ua, ub, &result);
+                    out->bits = (ua - ub) & mask;
                 } else {
-                    overflow = __builtin_mul_overflow(ua, ub, &result);
+                    out->bits = (ua * ub) & mask;
                 }
-                if (overflow || !const_unsigned_fits_width(result, width)) {
-                    return 0;
-                }
-                out->bits = result & mask;
             }
             break;
         case TC_AND: out->bits = (a.bits & b.bits) & mask; break;
@@ -5238,9 +5301,15 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 uint64_t min_bits = (uint64_t)1u << (width - 1u);
                 sa = (int64_t)const_sign_extend(a.bits, width);
                 sb = (int64_t)const_sign_extend(b.bits, width);
-                if (sb == 0 || ((a.bits & mask) == min_bits &&
-                               (b.bits & mask) == mask)) {
+                if (sb == 0) {
                     return 0;
+                }
+                if ((a.bits & mask) == min_bits && (b.bits & mask) == mask) {
+                    if (instr->op == TC_DIV) {
+                        return 0;
+                    }
+                    out->bits = 0;
+                    break;
                 }
                 out->bits = (instr->op == TC_DIV ? (uint64_t)(sa / sb)
                                                  : (uint64_t)(sa % sb)) & mask;
@@ -5260,7 +5329,8 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 count = (uint64_t)sb;
             }
             if (count >= width) {
-                return 0;
+                out->bits = 0;
+                break;
             }
             if (instr->op == TC_SHL) {
                 if (type_is_signed_integer(type)) {
@@ -5272,14 +5342,8 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     if (sa > (smax >> count) || sa < (smin >> count)) {
                         return 0;
                     }
-                    out->bits = (a.bits << count) & mask;
-                } else {
-                    uint64_t ua = a.bits & mask;
-                    if (count != 0 && (ua >> (width - count)) != 0) {
-                        return 0;
-                    }
-                    out->bits = (ua << count) & mask;
                 }
+                out->bits = (a.bits << count) & mask;
             } else if (type_is_signed_integer(type)) {
                 sa = (int64_t)const_sign_extend(a.bits, width);
                 out->bits = (uint64_t)(sa >> count) & mask;
@@ -5345,10 +5409,15 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
         mask = const_mask(width);
         if (instr->op == TC_NOT) {
             out->bits = (~a.bits) & mask;
+        } else if (!type_is_signed_integer(type)) {
+            if (instr->op == TC_NEG) {
+                out->bits = (0u - a.bits) & mask;
+            } else {
+                out->bits = a.bits & mask;
+            }
         } else {
             uint64_t min_bits = (uint64_t)1u << (width - 1u);
-            if (type_is_signed_integer(type) &&
-                (a.bits & mask) == min_bits) {
+            if ((a.bits & mask) == min_bits) {
                 return 0;
             }
             if (instr->op == TC_NEG) {
@@ -5507,8 +5576,12 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                                            &out->bits)) {
                         return 0;
                     }
-                } else if (type_is_bool(source.type) ||
-                           type_is_integer(source.type)) {
+                } else if (type_is_bool(source.type)) {
+                    out->bits = source.bits != 0;
+                } else if (type_is_integer(source.type)) {
+                    if (!const_int_cast_fits(&source, type, s->an)) {
+                        return 0;
+                    }
                     out->bits = source.bits &
                                 const_mask(type_bits(s->an, type));
                 } else {

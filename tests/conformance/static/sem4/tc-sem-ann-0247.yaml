@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0247
+profile: common
+source: fixtures/tc-sem-ann-0247/root.tc
+spec: "§6.3.3 float32 mod b=inf 按位等于 a；R=1，@range(2,1) -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0247/lib.tc, line: 4, column: 31}
+  related: []
+  diagnostics: exactly-one

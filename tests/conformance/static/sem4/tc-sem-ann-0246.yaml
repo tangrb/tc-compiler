@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0246
+profile: common
+source: fixtures/tc-sem-ann-0246/root.tc
+spec: "§6.3 uint64 abs 保持原值；max 非 2 的幂 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0246/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

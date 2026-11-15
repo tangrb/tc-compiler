@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0244
+profile: common
+source: fixtures/tc-sem-ann-0244/root.tc
+spec: "§6.3 shr 的 k>=n -> 0；@align(0) -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0244/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

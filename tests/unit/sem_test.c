@@ -276,6 +276,13 @@ static void test_annotation_metadata(void) {
         "public const PF: int32 = PV.v\n"
         "public const B: bool = eq int32, 8, 8\n"
         "public const BF: int32 = cast int32, B\n"
+        "public const CO: int32 = cast int32, 2147483648\n"
+        "public const CO2: int32 = cast int32, 4294967304\n"
+        "public const CU: uint64 = cast uint64, 18446744073709551616.0\n"
+        "public const CF: float32 = cast float32, 1e308\n"
+        "public const CI: int32 = cast int32, Self.CF\n"
+        "public const UF: float64 = mul float64, 1e-308, 1e-308\n"
+        "public const UX: int32 = cast int32, Self.UF\n"
         "public @fast func a(@align(Self.A) p: ptr<int32>) void then\n"
         "end\n"
         "public @fast func c(@align(Self.C) p: ptr<int32>) void then\n"
@@ -287,6 +294,16 @@ static void test_annotation_metadata(void) {
         "public @fast func pf(@align(Self.PF) p: ptr<int32>) void then\n"
         "end\n"
         "public @fast func bf(@align(Self.BF) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func co(@align(Self.CO) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func co2(@align(Self.CO2) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func cu(@align(Self.CU) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func ci(@align(Self.CI) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func ux(@align(Self.UX) p: ptr<int32>) void then\n"
         "end\n"
         "public @fast func r(@range(Self.L, Self.H) n: int32) void then\n"
         "end\n"
@@ -301,6 +318,11 @@ static void test_annotation_metadata(void) {
     const TcFuncSig *af;
     const TcFuncSig *pf;
     const TcFuncSig *bf;
+    const TcFuncSig *co;
+    const TcFuncSig *co2;
+    const TcFuncSig *cu;
+    const TcFuncSig *ci;
+    const TcFuncSig *ux;
     const TcFuncSig *r;
     const TcFuncSig *w;
     const TcStructDef *s;
@@ -318,6 +340,11 @@ static void test_annotation_metadata(void) {
     af = tc_analysis_find_func(an, NULL, "af");
     pf = tc_analysis_find_func(an, NULL, "pf");
     bf = tc_analysis_find_func(an, NULL, "bf");
+    co = tc_analysis_find_func(an, NULL, "co");
+    co2 = tc_analysis_find_func(an, NULL, "co2");
+    cu = tc_analysis_find_func(an, NULL, "cu");
+    ci = tc_analysis_find_func(an, NULL, "ci");
+    ux = tc_analysis_find_func(an, NULL, "ux");
     r = tc_analysis_find_func(an, NULL, "r");
     w = tc_analysis_find_func(an, NULL, "w");
     s = tc_analysis_find_struct(an, NULL, "S");
@@ -327,6 +354,11 @@ static void test_annotation_metadata(void) {
     CHECK(af != NULL && af->nparams == 1);
     CHECK(pf != NULL && pf->nparams == 1);
     CHECK(bf != NULL && bf->nparams == 1);
+    CHECK(co != NULL && co->nparams == 1);
+    CHECK(co2 != NULL && co2->nparams == 1);
+    CHECK(cu != NULL && cu->nparams == 1);
+    CHECK(ci != NULL && ci->nparams == 1);
+    CHECK(ux != NULL && ux->nparams == 1);
     CHECK(r != NULL && r->nparams == 1);
     CHECK(w != NULL && w->nparams == 1);
     CHECK(s != NULL && s->nfields == 1);
@@ -354,6 +386,21 @@ static void test_annotation_metadata(void) {
         CHECK((bf->params[0].flags & TC_PARAM_ALIGN) != 0);
         CHECK_EQ(bf->params[0].align, 1);
     }
+    if (co != NULL && co->nparams == 1) {
+        CHECK((co->params[0].flags & TC_PARAM_ALIGN) == 0);
+    }
+    if (co2 != NULL && co2->nparams == 1) {
+        CHECK((co2->params[0].flags & TC_PARAM_ALIGN) == 0);
+    }
+    if (cu != NULL && cu->nparams == 1) {
+        CHECK((cu->params[0].flags & TC_PARAM_ALIGN) == 0);
+    }
+    if (ci != NULL && ci->nparams == 1) {
+        CHECK((ci->params[0].flags & TC_PARAM_ALIGN) == 0);
+    }
+    if (ux != NULL && ux->nparams == 1) {
+        CHECK((ux->params[0].flags & TC_PARAM_ALIGN) == 0);
+    }
     if (r != NULL && r->nparams == 1) {
         CHECK((r->params[0].flags & TC_PARAM_RANGE) != 0);
         CHECK_EQ(r->params[0].lo, 1);
@@ -366,6 +413,28 @@ static void test_annotation_metadata(void) {
     if (s != NULL && s->nfields == 1) {
         CHECK(s->fields[0].padding == UINT64_C(4294967296));
         CHECK(s->size == UINT64_C(4294967297));
+    }
+    tc_analysis_destroy(an);
+}
+
+static void test_annotation_cast_w32(void) {
+    static const char *source =
+        "#lib\n"
+        "public const X: isize = cast isize, 4294967304\n"
+        "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+        "end\n";
+    TcAnalysisStatus status;
+    TcAnalysisDiag diag;
+    TcAnalysis *an = analyze_lib_text(source, 32, &status, &diag);
+    const TcFuncSig *f;
+    if (an == NULL) {
+        return;
+    }
+    CHECK(status == TC_ANALYSIS_OK);
+    f = tc_analysis_find_func(an, NULL, "f");
+    CHECK(f != NULL && f->nparams == 1);
+    if (f != NULL && f->nparams == 1) {
+        CHECK((f->params[0].flags & TC_PARAM_ALIGN) == 0);
     }
     tc_analysis_destroy(an);
 }
@@ -454,6 +523,7 @@ int main(void) {
     test_type_identity();
     test_conversion_flip();
     test_annotation_metadata();
+    test_annotation_cast_w32();
     test_module_order();
     test_module_instances();
     if (failures != 0) {

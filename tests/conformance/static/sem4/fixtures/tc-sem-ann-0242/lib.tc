@@ -1,0 +1,4 @@
+#lib
+public const X: uint32 = add uint32, 4294967295, 1
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

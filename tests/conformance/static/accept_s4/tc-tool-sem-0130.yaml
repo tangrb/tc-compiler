@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0130
+profile: common
+source: tc-tool-sem-0130/root.tc
+spec: "§6.6.1 整数 cast 越界属于 CT CONST_CAST；SEM 不得截断后接受"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

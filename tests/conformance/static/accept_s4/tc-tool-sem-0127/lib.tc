@@ -1,0 +1,5 @@
+#lib
+public const H: uint64 = 2
+public const L: uint64 = abs uint64, 18446744073709551615
+public @fast func f(@range(Self.H, Self.L) n: uint64) void then
+end

@@ -1,0 +1,7 @@
+#lib
+public const A: int32 = cast int32, 2147483648
+public const B: int32 = cast int32, 4294967304
+public @fast func a(@align(Self.A) p: ptr<int32>) void then
+end
+public @fast func b(@align(Self.B) p: ptr<int32>) void then
+end
