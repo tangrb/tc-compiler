@@ -1,16 +1,16 @@
 # TC 0.0.46 implementation.
 #
-# S0 freezes the contracts and builds the private tc_core library plus the two
-# tool entry points.  No install rule, no exported headers, no host ABI.
+# The frozen contracts build the private tc_core library plus the two tool
+# entry points.  No install rule, no exported headers, no host ABI.
 
 add_library(tc_core STATIC
-    # Cross-cutting S0 contracts.
+    # Cross-cutting frozen contracts.
     contract/contract.c
     contract/optimizer.c
     # Closed diagnostic set, table and first-diagnostic selection.
     diagnostic/diagnostic.c
     diagnostic/table.c
-    # S1 front-end: source/arena, exact decimal conversion, LEX and SYN.
+    # LEX/SYN front end: source/arena, exact decimal conversion, LEX and SYN.
     frontend/input.c
     frontend/num.c
     frontend/lex.c

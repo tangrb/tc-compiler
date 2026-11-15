@@ -1,4 +1,4 @@
-"""Self-test for the TC 0.0.46 S0 harness.
+"""Self-test for the TC 0.0.46 test harness.
 
 Runs only in-process fakes and temporary files.  No compiler, no network and
 no writes outside the system temporary directory are used.  The script exits
@@ -189,7 +189,7 @@ def not_implemented_is_not_pass():
     case = _compile_case()
 
     def adapter(case, action):
-        raise NotImplementedError("S0 fake")
+        raise NotImplementedError("fake adapter")
 
     report = _expect_status(case, adapter, "not_implemented")
     if report["status"] == "pass":
@@ -221,7 +221,7 @@ def not_implemented_gate_exits_nonzero():
         with open(adapter_path, "w", encoding="utf-8") as handle:
             handle.write(
                 "def adapter(case, action):\n"
-                "    raise NotImplementedError('S0 fake')\n"
+                "    raise NotImplementedError('fake adapter')\n"
             )
         report_path = os.path.join(tmp, "report.json")
         command = [

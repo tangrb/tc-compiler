@@ -93,7 +93,7 @@ CE_CODES = frozenset(c for c in DIAGNOSTIC_CODES if c.startswith("TC_CE_"))
 RE_CODES = frozenset(c for c in DIAGNOSTIC_CODES if c.startswith("TC_RE_"))
 
 # IMPORT codes are listed under SEM in the standard table but must be reported
-# in the IMPORT phase (standard section 12.2).
+# in the IMPORT stage (standard section 12.2).
 IMPORT_CODES = frozenset({
     "TC_CE_IMPORT_NOT_FOUND",
     "TC_CE_IMPORT_NOT_LIB",
@@ -124,14 +124,14 @@ def expected_stage_matches(code, stage):
 
     The standard table labels IMPORT codes as SEM, but the mandated report
     phase is IMPORT.  LEX/SYN is a combined label and may be specialized to
-    either concrete phase.
+    either concrete stage.
     """
     listed = code_stage(code)
     if listed is None:
         return False
     if code in IMPORT_CODES:
         # Standard §12.2 IMPORT exception: these codes must be reported in the
-        # IMPORT phase, even though the code table lists them under SEM.
+        # IMPORT stage, even though the code table lists them under SEM.
         return stage == "IMPORT"
     if listed == "LEX/SYN":
         return stage in {"LEX", "SYN", "LEX/SYN"}

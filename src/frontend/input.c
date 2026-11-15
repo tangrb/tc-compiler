@@ -1,4 +1,4 @@
-/* TC 0.0.46 front-end input layer (S1). */
+/* TC 0.0.46 front-end input layer (LEX/SYN). */
 #include "frontend/input.h"
 
 #include <stdio.h>
@@ -125,7 +125,7 @@ char *tc_arena_strdup(TcArena *arena, const char *text) {
 
 const char *tc_source_limit_violation(size_t size) {
     if (size > TC_FRONTEND_MAX_SOURCE_BYTES) {
-        return "source file exceeds the documented S1 size limit";
+        return "source file exceeds the documented source size limit";
     }
     return NULL;
 }

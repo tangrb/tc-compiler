@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""S1 determinism and order-perturbation gate.
+"""LEX/SYN determinism and order-perturbation checks.
 
-Checks (test plan §2.2 D1/D5, §5 S1, §6.18):
+Checks:
   * every conformance `.tc` produces byte-identical exit/stdout/stderr across
     three invocations;
   * the whole case suite produces byte-identical JSON under different

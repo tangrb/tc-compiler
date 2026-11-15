@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed self-test for the S1 harness adapter.
+"""Fail-closed self-test for the LEX/SYN harness adapter.
 
 Uses fake tc-vm scripts to verify that the adapter accepts exactly one clean
 LEX/SYN diagnostic and rejects junk stderr, a diagnostic for another file,
 stdout output in `--syntax-only` mode, and junk on the property path.  This is
-the regression test required by G1 audit finding A5/B3.
+the fail-closed regression test for the adapter.
 
 Usage:
     python3 tests/adapters/adapter_selftest.py <configured adapter path>

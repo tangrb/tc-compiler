@@ -1,4 +1,4 @@
-/* TC 0.0.46 exact decimal -> IEEE-754 binary32/binary64 conversion (S1).
+/* TC 0.0.46 exact decimal -> IEEE-754 binary32/binary64 conversion.
  *
  * Standard §2.4: the exact decimal value is rounded directly to the target
  * format with roundTiesToEven; no intermediate floating type may be used.

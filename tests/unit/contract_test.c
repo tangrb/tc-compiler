@@ -1,8 +1,8 @@
-/* S0 L0 contract tests: closed code table, type identity, IR shape, profiles,
- * diagnostics ordering/buffer, zero-pass baseline and OOM channel.
+/* TC 0.0.46 contract tests: closed code table, type identity, IR shape,
+ * profiles, diagnostics ordering/buffer, zero-pass baseline and OOM channel.
  *
  * These tests assert the frozen 0.0.46 contracts, not compiler behavior; no
- * .tc source is compiled in S0. */
+ * .tc source is compiled. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -265,8 +265,8 @@ static void test_profiles(void) {
     bad.checked_build = 2;
     CHECK(tc_profile_validate(&bad) == TC_PROFILE_ERR_CHECKED);
 
-    /* W=32 is a first-class profile contract even though the target itself is
-     * selected in S9.  A test-local target/ABI proves validation. */
+    /* W=32 is a first-class profile contract even though no 32-bit target is
+     * selected yet.  A test-local target/ABI proves validation. */
     bad_abi = tc_abi_aapcs32_ilp32;
     w32_target.name = "w32-contract-test";
     w32_target.addr_width = 32;

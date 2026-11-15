@@ -1,4 +1,4 @@
-"""Runner and execution control for the TC 0.0.46 S0 harness.
+"""Runner and execution control for the TC 0.0.46 test harness.
 
 The runner discovers YAML cases, validates them, and executes one decider per
 case in a forked worker.  The worker runs with a fixed environment and an
@@ -380,7 +380,7 @@ def _adapter_object(module):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="tc-harness",
-        description="TC 0.0.46 S0 metadata harness (standard library only)",
+        description="TC 0.0.46 metadata harness (standard library only)",
     )
     parser.add_argument(
         "paths", nargs="+",

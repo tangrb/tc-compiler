@@ -1,4 +1,4 @@
-/* TC 0.0.46 SYN (S1): EBNF parser and flat parse IR.
+/* TC 0.0.46 SYN: EBNF parser and flat parse IR.
  *
  * Standard §14 and §4.2/§4.11.3.  The parser directly builds the flat TAC
  * shape (one source line = one op, no nested expressions, no AST).  Source
@@ -6,7 +6,7 @@
  *   - the opcode arity/type/security table is SEM work (standard §6.15.1),
  *   - names are not resolved before SEM (standard §5.6),
  *   - struct type identity is a SEM/IMPORT fact (standard §3.9, §4.11.2).
- * The frozen final IR (`TcInstr`/`TcIR`, src/ir) is produced by SEM in S3.
+ * The frozen final IR (`TcInstr`/`TcIR`, src/ir) is produced by SEM.
  *
  * Field paths are kept as `TcFieldRef`-shaped name vectors; named arguments
  * keep their names; every construct keeps a 1-based line/column span and an
@@ -247,7 +247,7 @@ int tc_parse_source(const char *path, const uint8_t *bytes, size_t size,
 
 void tc_parse_module_destroy(TcParseModule *module);
 
-/* Name helpers used by tests and later phases. */
+/* Name helpers used by tests and SEM. */
 const char *tc_parse_type_name(const TcParseType *type);
 const char *tc_parse_value_name(const TcParseValue *value);
 

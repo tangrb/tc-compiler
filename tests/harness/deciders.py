@@ -1,4 +1,4 @@
-"""The seven S0 deciders.
+"""The seven test deciders.
 
 Each public `decide_*` function takes a validated case dict and an injected
 adapter.  An adapter is either:

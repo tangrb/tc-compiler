@@ -1,4 +1,4 @@
-/* TC 0.0.46 exact decimal -> binary floating-point conversion (S1). */
+/* TC 0.0.46 exact decimal -> binary floating-point conversion. */
 #include "frontend/num.h"
 
 #include <string.h>

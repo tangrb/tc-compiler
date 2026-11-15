@@ -24,6 +24,7 @@
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
    S1 的 `tc-vm`/`tc-aot` 支持 `--syntax-only`：退出 0 仅表示“无 LEX/SYN 诊断”，不是程序有效；普通调用在 LEX/SYN 通过后显式返回未实现（退出码 70）。不得把部分能力写成“已支持”。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明本分支为 clean-sheet。
+7. **代码注释边界**：注释只解释代码本身，引用标准/设计条款或自包含事实；不得引用阶段编号（S0/S1…）、门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。
 
 ## 导航
 

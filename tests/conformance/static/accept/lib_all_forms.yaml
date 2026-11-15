@@ -1,7 +1,7 @@
 id: TC-TOOL-SYN-0001
 profile: common
 source: lib_all_forms.tc
-spec: "§14 EBNF 全部产生式（#lib/import/struct/const/static var/func/注解/unsafe/标签/指令/类型/字面量）；S1 LEX/SYN 接受"
+spec: "§14 EBNF 全部产生式（#lib/import/struct/const/static var/func/注解/unsafe/标签/指令/类型/字面量）；LEX/SYN 接受"
 kind: tool
 tool:
   argv: [tc-vm, --syntax-only, "@source"]

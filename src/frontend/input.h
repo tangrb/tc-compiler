@@ -1,4 +1,4 @@
-/* TC 0.0.46 front-end input layer (S1).
+/* TC 0.0.46 front-end input layer (LEX/SYN).
  *
  * Owns:
  *   - the per-module arena used by LEX/SYN structures,

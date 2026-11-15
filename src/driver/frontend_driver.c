@@ -1,4 +1,4 @@
-/* TC 0.0.46 driver: S1 front-end invocation. */
+/* TC 0.0.46 driver: LEX/SYN front-end invocation. */
 #include "driver/frontend_driver.h"
 
 #include <stdio.h>
@@ -48,8 +48,9 @@ static int print_impl_error(const char *tool_name, TcImplError error,
     const char *symbol = tc_impl_error_symbol(error);
     const char *message = tc_impl_error_message(error);
     if (error == TC_IMPL_INTERNAL) {
-        /* Internal failures include the documented S1 implementation limits
-         * (source/token size, nesting).  They are never language diagnostics
+        /* Internal failures include the documented front-end implementation
+         * limits (source/token size, nesting).  They are never language
+         * diagnostics
          * (standard §12.5.3/§13.5) and are distinct from OOM/I/O. */
         message = "internal error or documented implementation limit exceeded";
     }

@@ -3,7 +3,7 @@
 
 The validator is deliberately independent of any compiler.  It parses the
 small YAML subset used by the golden files with the Python standard library
-only and checks the S0 contract:
+only and checks the golden-file contract:
 
   * id, spec, derivation;
   * review.reviewer, review.status == approved, review.date (YYYY-MM-DD);
@@ -320,7 +320,10 @@ def validate_file(path: Path, root: Path, code_map: dict[str, dict] | None = Non
     expect = data.get("expect")
     diagnostic = kind == "diagnostic"
     if not diagnostic:
-        errors.append(f"{path}: unsupported golden kind {kind!r}; S0 accepts diagnostic")
+        errors.append(
+            f"{path}: unsupported golden kind {kind!r}; "
+            "only diagnostic goldens are accepted"
+        )
         return errors
     if not isinstance(expect, dict):
         errors.append(f"{path}: diagnostic golden needs an 'expect' mapping")

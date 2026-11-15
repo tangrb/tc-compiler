@@ -140,8 +140,8 @@ size_t tc_diag_buffer_count(const TcDiagBuffer *buffer);
 const TcDiagnostic *tc_diag_buffer_at(const TcDiagBuffer *buffer, size_t index);
 const TcDiagnostic *tc_diag_buffer_first(const TcDiagBuffer *buffer);
 
-/* Contract self-check used at startup and by L0 tests.  Returns NULL when all
- * invariants hold, otherwise a static English description. */
+/* Contract self-check used at startup and by contract tests.  Returns NULL
+ * when all invariants hold, otherwise a static English description. */
 const char *tc_diag_contract_violation(void);
 
 const TcDiagInfo *tc_diag_info(TcDiagCode code);

@@ -1,7 +1,7 @@
-"""Case metadata schema for the TC 0.0.46 S0 harness.
+"""Case metadata schema for the TC 0.0.46 test harness.
 
 The accepted shape is the Appendix C YAML subset plus the extensions listed in
-the S0 plan: kind inference, tool/property/unit cases, normalization rules,
+the case plan: kind inference, tool/property/unit cases, normalization rules,
 timeouts, device/link/UART descriptors and run/link options.  Validation is
 strict: unknown fields and missing required fields are errors, never skips.
 """

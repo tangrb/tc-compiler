@@ -1,7 +1,7 @@
 /* TC 0.0.46 contract: aggregate freeze check.
  *
  * tc_contract_check() is the single entry point used by the tools at startup
- * and by the L0 contract tests.  It returns NULL when every frozen contract
+ * and by the contract tests.  It returns NULL when every frozen contract
  * invariant holds, otherwise a static English description of the first
  * violation.  It never reports a language diagnostic.
  */

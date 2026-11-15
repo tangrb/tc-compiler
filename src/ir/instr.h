@@ -1,8 +1,8 @@
 /* TC 0.0.46 contract: flattened TAC instruction (design §3.2).
  *
  * One source instruction is exactly one op.  Non-result instructions must use
- * TC_OP_DISCARD as dst.  The opcode table itself is S3 work; this header only
- * freezes the representation and the result/terminator structure.
+ * TC_OP_DISCARD as dst.  The opcode table itself belongs to SEM; this header
+ * only freezes the representation and the result/terminator structure.
  */
 #ifndef TC_IR_INSTR_H
 #define TC_IR_INSTR_H

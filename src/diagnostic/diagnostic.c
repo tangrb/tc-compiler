@@ -65,7 +65,7 @@ const char *tc_impl_error_message(TcImplError err) {
     case TC_IMPL_USAGE:
         return "invalid command line";
     case TC_IMPL_UNAVAILABLE:
-        return "requested capability is not implemented in this phase";
+        return "requested capability is not implemented";
     case TC_IMPL_INTERNAL:
         return "internal contract violation";
     case TC_IMPL_OK:

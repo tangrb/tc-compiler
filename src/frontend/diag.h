@@ -1,9 +1,9 @@
-/* TC 0.0.46 front-end diagnostics (S1).
+/* TC 0.0.46 front-end diagnostics (LEX/SYN).
  *
  * LEX/SYN report the first diagnostic immediately (standard §1.8/§12.1).
  * The position is always the primary position from standard §12.5.1; the
- * optional related position is reserved for later phases (S3/S4) and is not
- * produced by S1.
+ * optional related position is reserved for semantic diagnostics and is not
+ * produced by LEX/SYN.
  */
 #ifndef TC_FRONTEND_DIAG_H
 #define TC_FRONTEND_DIAG_H

@@ -16,6 +16,7 @@
 - `src/CONTRACTS.md` records the S1 front-end boundary: the parse IR is front-end-internal (names/type syntax retained for SEM) and the frozen `TcInstr`/`TcIR` are materialized in S3; `--syntax-only` is partial.
 - Coverage is now 44 covered / 587 uncovered / 3 N/A(S0); S1 covers the §2/§14 chapter rows, four slots of each of the seven codes, and the stage/source-order rows.
 - Gate reports are consolidated under `docs/gates/` (G0/G1 plus an index); README/AGENTS/docs map and the reports' relative links were updated.
+- Code-comment cleanup: removed references to phase numbers (S0/S1...), gate reports, the test plan and audit results; comments now cite standard/design clauses or are self-contained. The CLI `--version` suffix is `(LEX/SYN frontend)`.
 
 ### Fixed
 

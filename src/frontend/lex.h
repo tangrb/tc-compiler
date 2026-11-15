@@ -1,4 +1,4 @@
-/* TC 0.0.46 LEX (S1): character decoding and tokenization.
+/* TC 0.0.46 LEX: character decoding and tokenization.
  *
  * Standard §2 and §14.2.  The lexer:
  *   - validates UTF-8, rejects BOM, U+0000 and non-ASCII outside comments,

@@ -16,6 +16,7 @@
 - `src/CONTRACTS.md` 记录 S1 前端边界：解析 IR 为前端内部结构（源名/类型语法保留给 SEM），冻结 `TcInstr`/`TcIR` 由 S3 物化；`--syntax-only` 为部分能力。
 - 覆盖矩阵更新为 44 covered / 587 uncovered / 3 N/A(S0)；S1 覆盖 §2/§14 章节行、七码四槽与首诊阶段/源序行。
 - 门禁报告统一迁入 `docs/gates/`（G0/G1 + 目录索引），README/AGENTS/文档地图与报告内部相对链接同步。
+- 代码注释清理：移除对阶段编号（S0/S1…）、门禁报告、测试计划与审计结果的引用，改用标准/设计条款或自包含说明；CLI `--version` 后缀改为 `(LEX/SYN frontend)`。
 
 ### Fixed
 

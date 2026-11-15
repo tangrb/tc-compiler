@@ -1,4 +1,4 @@
-/* TC 0.0.46 S1 front-end unit tests (L1).
+/* TC 0.0.46 LEX/SYN front-end unit tests.
  *
  * These tests call the private LEX/SYN interfaces directly.  They pin:
  *   - exact decimal -> binary32/64 rounding (standard §2.4/§6.6.3),
@@ -458,7 +458,8 @@ static void test_lex_errors(void) {
     expect_diag("#program\nvar x: float64 = copy float64, 1.\n", TC_STAGE_LEX,
                 TC_CE_SYNTAX, 2, 32, "trailing dot");
     /* Malformed numeric candidates are one illegal numeric token anchored at
-     * the candidate start (documented S1 recovery convention; TC-UNIT-LEX-0005). */
+     * the candidate start (malformed-numeric-candidate recovery convention).
+     */
     expect_diag("#program\nvar x: float64 = copy float64, 1.5.5\n",
                 TC_STAGE_LEX, TC_CE_SYNTAX, 2, 32, "multi-dot float");
     expect_diag("#program\nvar x: float64 = copy float64, 1..5\n",
@@ -1313,7 +1314,7 @@ static void test_accept_forms(void) {
 
 static void test_field_annotation_shape(void) {
     /* SYN accepts any ANNOTATION(INT) in the field_padding shape; the
-     * @padding name and N constraints are SEM (S4/S5). */
+     * @padding name and N constraints are SEM. */
     expect_ok("#lib\n"
               "public struct S then\n"
               "    readonly a: int32 @align(4)\n"

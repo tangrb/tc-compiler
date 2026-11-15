@@ -31,6 +31,10 @@ LEX/SYN/IMPORT/SEM/CT pipeline; S1 provides `input` (arena/source/decode),
 
 ## Rules
 
+- Source comments explain the code itself, cite the standard/design where
+  useful, or state a self-contained fact.  Do not cite phase numbers (S0/S1...),
+  gate reports, the test plan or audit findings in implementation comments;
+  test-case ids belong to tests and the coverage matrix.
 - Keep the target-independent core (`frontend`, `ir`, `runtime`, `vm`) separate
   from target-specific backends (`backend/<target>`). The first 64-bit target is
   AArch64; the first 32-bit target is still to be selected (arm32 / riscv32).

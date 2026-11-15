@@ -1,8 +1,8 @@
 /* TC 0.0.46 contract: shared CLI contract for tc-vm / tc-aot (design §11).
  *
- * The tools are the only entry points.  In the S0 contract phase argument
- * parsing, profile selection and contract checks are real; front-end and code
- * generation are explicitly unavailable (exit 70), never silently "supported".
+ * The tools are the only entry points.  Argument parsing, profile selection
+ * and contract checks are real; the front-end and code generation may be
+ * unavailable (exit 70), never silently "supported".
  */
 #ifndef TC_DRIVER_CLI_H
 #define TC_DRIVER_CLI_H
@@ -28,7 +28,7 @@ typedef struct {
     size_t ninclude_roots;
     TcOptLevel opt;
     int checked;
-    int syntax_only; /* S1 partial LEX/SYN check; not a valid-program claim */
+    int syntax_only; /* partial LEX/SYN check; not a valid-program claim */
     int help;
     int version;
 } TcCliOptions;

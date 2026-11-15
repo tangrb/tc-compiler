@@ -7,8 +7,8 @@
  *
  * The built-in constructors provide the two 64-bit instances from design §8
  * (aarch64-linux-user, aarch64-baremetal).  The first 32-bit target is selected
- * in S9; tc_profile_validate() already accepts and validates any W=32 profile
- * supplied by tests or a future target.
+ * when the 32-bit profile is enabled; tc_profile_validate() already accepts
+ * and validates any W=32 profile supplied by tests or a future target.
  */
 #ifndef TC_RUNTIME_PROFILE_H
 #define TC_RUNTIME_PROFILE_H
@@ -93,7 +93,7 @@ typedef struct TcPlatformProfile {
 } TcPlatformProfile;
 
 /* Built-in descriptors.  The 32-bit ABI descriptor is a contract description
- * only; it is not bound to a target until S9 selects one. */
+ * only; it is not bound to a target until a 32-bit target is selected. */
 extern const TcABIDesc tc_abi_aapcs64;
 extern const TcABIDesc tc_abi_aapcs32_ilp32;
 extern const TcTargetDesc tc_target_aarch64_linux_user;

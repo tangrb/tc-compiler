@@ -1,4 +1,4 @@
-# S0 tests: L0 contract units, code-table/traceability checks, harness and
+# Contract tests: contract units, code-table/traceability checks, harness and
 # golden self-tests, CLI contract.  All tests are deterministic and offline.
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -27,7 +27,7 @@ add_test(
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cli_contract_test.py
             $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
 
-# --- S0 traceability / golden / harness checks -------------------------------
+# --- traceability / golden / harness checks ----------------------------------
 
 set(TC_TRACE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/traceability)
 set(TC_GOLDEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/golden)
@@ -59,7 +59,7 @@ add_test(NAME golden.selftest
          COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/selftest.py)
 set_tests_properties(golden.selftest PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-# --- S1 LEX/SYN front-end conformance ---------------------------------------
+# --- LEX/SYN front-end conformance ------------------------------------------
 #
 # The adapter is configured with this build tree's tool paths.  The runner is
 # a hard gate: every selected case must pass; not_implemented is never allowed.

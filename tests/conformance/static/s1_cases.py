@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S1 LEX/SYN conformance case table for TC 0.0.46.
+"""LEX/SYN conformance case table for TC 0.0.46.
 
 The expectations are derived from the standard; this file is the auditable
 source table for the generated `*.tc` / `*.yaml` files.  The marker `@HERE@`
@@ -760,9 +760,10 @@ def check_cases():
                 print(f"STALE {path}")
                 failures += 1
     if failures:
-        print(f"S1 case table: {failures} stale/missing file(s)")
+        print(f"case table: {failures} stale/missing file(s)")
         return 1
-    print(f"S1 case table: {len(CASES) + len(RAW_CASES)} cases match generated files")
+    print(f"case table: {len(CASES) + len(RAW_CASES)} cases match "
+          "generated files")
     return 0
 
 
@@ -785,14 +786,14 @@ def main():
 # ---------------------------------------------------------------------------
 # Positive LEX/SYN acceptance cases.  These are tool-kind cases: the adapter
 # runs `tc-vm --syntax-only` and requires exit 0 with empty stdout/stderr.
-# S1 acceptance is not a semantic validity claim (SEM starts in S3).
+# LEX/SYN acceptance is not a semantic validity claim.
 # ---------------------------------------------------------------------------
 
 ACCEPT_CASES = [
     {
         "id": "TC-TOOL-SYN-0001",
         "source": "lib_all_forms.tc",
-        "spec": "§14 EBNF 全部产生式（#lib/import/struct/const/static var/func/注解/unsafe/标签/指令/类型/字面量）；S1 LEX/SYN 接受",
+        "spec": "§14 EBNF 全部产生式（#lib/import/struct/const/static var/func/注解/unsafe/标签/指令/类型/字面量）；LEX/SYN 接受",
         "text": """/// broad #lib coverage
 #lib
 import util
@@ -832,7 +833,7 @@ end
     {
         "id": "TC-TOOL-SYN-0002",
         "source": "program_all_forms.tc",
-        "spec": "§14 EBNF #program 全部产生式（import/struct/顶层 const/var/label/unsafe/字段 lvalue/命名实参）；S1 LEX/SYN 接受",
+        "spec": "§14 EBNF #program 全部产生式（import/struct/顶层 const/var/label/unsafe/字段 lvalue/命名实参）；LEX/SYN 接受",
         "text": """#program
 import util
 struct S then
@@ -857,7 +858,7 @@ end
     {
         "id": "TC-TOOL-SYN-0003",
         "source": "identifiers.tc",
-        "spec": "§2.3/§14.2 IDENT 与 DISCARD：_x/x_/_1/__ 是合法标识符，小写 self 不是关键字；S1 LEX/SYN 接受",
+        "spec": "§2.3/§14.2 IDENT 与 DISCARD：_x/x_/_1/__ 是合法标识符，小写 self 不是关键字；LEX/SYN 接受",
         "text": """#program
 var _x: int32 = copy int32, 1
 var x_: int32 = copy int32, 2
@@ -869,7 +870,7 @@ var self: int32 = copy int32, 5
     {
         "id": "TC-TOOL-SYN-0004",
         "source": "literal_forms.tc",
-        "spec": "§2.4/§14.2 整数字面量（进制/下划线/u/负值）、浮点（小数/指数/f）、inf/-inf/nan、bool/nullptr；S1 LEX/SYN 接受",
+        "spec": "§2.4/§14.2 整数字面量（进制/下划线/u/负值）、浮点（小数/指数/f）、inf/-inf/nan、bool/nullptr；LEX/SYN 接受",
         "text": """#program
 var a: int32 = copy int32, -42
 var b: uint32 = copy uint32, 42u
@@ -892,7 +893,7 @@ var p: ptr<int32> = copy ptr<int32>, nullptr
     {
         "id": "TC-TOOL-SYN-0005",
         "source": "comments_continuation.tc",
-        "spec": "§2.2 注释与续行；§2.1 注释内 Unicode；S1 LEX/SYN 接受",
+        "spec": "§2.2 注释与续行；§2.1 注释内 Unicode；LEX/SYN 接受",
         "text": """#program
 /// Unicode comment ✓ 中文
 var x: int32 = copy int32, \\
@@ -905,19 +906,19 @@ var y: int32 = add int32, x, \\
     {
         "id": "TC-TOOL-SYN-0006",
         "source": "crlf.tc",
-        "spec": "§2.5/§14.2 CRLF 为单个行终止符；S1 LEX/SYN 接受",
+        "spec": "§2.5/§14.2 CRLF 为单个行终止符；LEX/SYN 接受",
         "text": "#program\r\nvar x: int32 = copy int32, 1\r\n_ = trap\r\n",
     },
     {
         "id": "TC-TOOL-SYN-0007",
         "source": "lone_cr.tc",
-        "spec": "§2.5/§14.2 CR 为行终止符；S1 LEX/SYN 接受",
+        "spec": "§2.5/§14.2 CR 为行终止符；LEX/SYN 接受",
         "text": "#program\rvar x: int32 = copy int32, 1\r_ = trap\r",
     },
     {
         "id": "TC-TOOL-SYN-0008",
         "source": "annotations.tc",
-        "spec": "§2.6/§8.6/§14.3 注解产生式与全部 16 个注解名（@unsafe/@readonly 为关键字名，其余为 IDENT）；S1 LEX/SYN 接受",
+        "spec": "§2.6/§8.6/§14.3 注解产生式与全部 16 个注解名（@unsafe/@readonly 为关键字名，其余为 IDENT）；LEX/SYN 接受",
         "text": """#lib
 public struct P then
     readonly x: int32 @padding(4)
@@ -939,7 +940,7 @@ end
     {
         "id": "TC-TOOL-SYN-0009",
         "source": "types.tc",
-        "spec": "§14.5 全部类型产生式（标量/void/ptr<T>/fnptr<ret, params...>/结构体名/限定结构体名）；S1 LEX/SYN 接受",
+        "spec": "§14.5 全部类型产生式（标量/void/ptr<T>/fnptr<ret, params...>/结构体名/限定结构体名）；LEX/SYN 接受",
         "text": """#lib
 import util
 public struct S then
@@ -952,7 +953,7 @@ end
     {
         "id": "TC-TOOL-SYN-0010",
         "source": "switch_named.tc",
-        "spec": "§6.1/§6.2.8/§14.4 switch 多目标、命名实参、命名字段、字段 lvalue/value；S1 LEX/SYN 接受",
+        "spec": "§6.1/§6.2.8/§14.4 switch 多目标、命名实参、命名字段、字段 lvalue/value；LEX/SYN 接受",
         "text": """#lib
 public struct S then
     readonly a: int32
@@ -980,7 +981,7 @@ end
 PROPERTY_CASES = [
     {
         "id": "TC-FZ-LEX-0001",
-        "spec": "§2/§12.1 fail-fast：随机字节不得崩溃/挂起，拒绝时恰好一个 LEX/SYN 诊断；测试计划 §5 S1 模糊/属性",
+        "spec": "§2/§12.1 fail-fast：随机字节不得崩溃/挂起，拒绝时恰好一个 LEX/SYN 诊断；§2/§12.1 模糊/属性",
         "trials": 200,
         "seed": 1,
     },
@@ -1049,10 +1050,10 @@ def check_positive_cases():
             print(f"STALE {path}")
             failures += 1
     if failures:
-        print(f"S1 positive case table: {failures} stale/missing file(s)")
+        print(f"positive case table: {failures} stale/missing file(s)")
         return 1
     print(
-        f"S1 positive case table: {len(ACCEPT_CASES)} accept + "
+        f"positive case table: {len(ACCEPT_CASES)} accept + "
         f"{len(PROPERTY_CASES)} property cases match"
     )
     return 0

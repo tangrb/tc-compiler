@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""S1 CLI contract test for tc-vm / tc-aot.
+"""CLI contract test for tc-vm / tc-aot.
 
-S1 provides LEX/SYN.  A well-formed source has no diagnostic under
-`--syntax-only` (exit 0, no output), while a normal invocation still fails
-explicitly with the implementation-level "unavailable" status (70) because
-IMPORT/SEM/CT and code generation start in later phases.  LEX/SYN diagnostics
-exit 1 with the stable diagnostic line; file-open failures are implementation
-errors (71) and are never language diagnostics.
+The LEX/SYN front end is implemented.  A well-formed source has no diagnostic
+under `--syntax-only` (exit 0, no output), while a normal invocation still
+fails explicitly with the implementation-level "unavailable" status (70)
+because IMPORT/SEM/CT and code generation are not implemented yet.  LEX/SYN
+diagnostics exit 1 with the stable diagnostic line; file-open failures are
+implementation errors (71) and are never language diagnostics.
 """
 
 from __future__ import annotations
