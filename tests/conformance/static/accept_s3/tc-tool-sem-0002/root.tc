@@ -1,0 +1,15 @@
+#program
+struct S then
+    var x: int32
+end
+var i: int64 = copy int64, 7
+var x: int32 = trunc int32, i
+var f: float64 = cast float64, x
+var b: bool = cast bool, f
+var p: ptr<int32> = copy ptr<int32>, nullptr
+var q: ptr<int32> = bitcast ptr<int32>, p
+var u: ptr<int32> = bitcast ptr<int32>, q
+var w: int64 = bitcast int64, u
+var v: ptr<int32> = bitcast ptr<int32>, w
+var bits: uint32 = bitcast uint32, 1065353216
+var ff: float32 = bitcast float32, bits

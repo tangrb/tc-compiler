@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0001
+profile: common
+source: const_padding_suffix.tc
+spec: "§2.6 @padding(N) 必须是非负十进制字面量（无 u/进制/负号）-> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: const_padding_suffix.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

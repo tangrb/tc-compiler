@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0002
+profile: common
+source: field_intermediate.tc
+spec: "§6.14 字段路径中间层必须是结构体 -> TYPE_MISMATCH；定位于该字段名"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: field_intermediate.tc, line: 6, column: 32}
+  related: []
+  diagnostics: exactly-one

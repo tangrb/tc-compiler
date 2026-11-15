@@ -378,6 +378,7 @@ static TcParseValue parse_value(TcParser *p) {
         value.int_negative = token->u.integer.negative;
         value.int_magnitude = token->u.integer.magnitude;
         value.int_unsigned_suffix = token->u.integer.has_unsigned_suffix;
+        value.int_radix = token->u.integer.radix;
         advance(p);
         return value;
     case TC_TOK_FLOAT:
@@ -584,6 +585,7 @@ static void parse_op_form(TcParser *p, TcParseInstr *instr) {
     instr->mode = token->u.mnemonic.mode;
     instr->has_suffix = token->u.mnemonic.has_suffix;
     instr->span = token->span;
+    instr->suffix_span = token->u.mnemonic.suffix_span;
     instr->end_span = token->span;
     while (peek(p)->kind != TC_TOK_NL && peek(p)->kind != TC_TOK_EOF) {
         TcParseArg arg;
@@ -649,6 +651,7 @@ static TcParseValue parse_annotation_arg(TcParser *p) {
         value.int_negative = token->u.integer.negative;
         value.int_magnitude = token->u.integer.magnitude;
         value.int_unsigned_suffix = token->u.integer.has_unsigned_suffix;
+        value.int_radix = token->u.integer.radix;
         advance(p);
         return value;
     }
@@ -792,6 +795,7 @@ static TcParseField parse_field(TcParser *p) {
             value.int_negative = arg->u.integer.negative;
             value.int_magnitude = arg->u.integer.magnitude;
             value.int_unsigned_suffix = arg->u.integer.has_unsigned_suffix;
+            value.int_radix = arg->u.integer.radix;
             value.span = arg->span;
             vec_push(p, &args, &value, sizeof(value));
         }

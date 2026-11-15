@@ -1,0 +1,8 @@
+#program
+struct S then
+    readonly p: ptr<int32>
+end
+var s: S = make S, nullptr
+unsafe then
+    _ = store int32, s.p, 1
+end

@@ -1,0 +1,2 @@
+#program
+var x: int32 = add.nsw int32, 1, 2

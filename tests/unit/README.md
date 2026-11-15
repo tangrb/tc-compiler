@@ -3,7 +3,9 @@
 Two CTest entries live here:
 
 - `contract.unit` (`tc_contract_test`): frozen S0 contracts (L0).
-- `frontend.unit` (`tc_frontend_test`): S1 LEX/SYN + flat parse IR (L1).
+- `frontend.unit` (`tc_frontend_test`): LEX/SYN + flat parse IR (L1).
+- `sem.unit` (`tc_sem_test`): IMPORT/SEM type identity, layout, word sizes,
+  type-table freeze and module order/instances (L1).
 
 ## L0 case ids
 
@@ -61,9 +63,23 @@ registered as `frontend.unit` and currently runs 688 checks.
 | `TC-UNIT-DET-0001` | `test_determinism` | repeated parse/lex produce identical structure fingerprints and tokens |
 | `TC-UNIT-ACCEPT-0001` | `test_accept_forms` | representative legal EBNF forms are not rejected |
 
+## L1 SEM tests (`tc_sem_test`)
+
+`tc_sem_test` calls the private `frontend/sem.h` interface directly.  It
+currently runs 58 checks.
+
+| Case ID | C function | Pins |
+| --- | --- | --- |
+| `TC-UNIT-LAYOUT-0001@w32`, `@w64` | `test_layout` | §3.7/§6.13/§13.3 compact fields, `@padding` 0x00 bytes, no implicit alignment/tail padding, offsets/size; §13.2.1 ptr/fnptr/isize/usize sizes per W |
+| `TC-UNIT-TYPE-0001` | `test_type_identity` | §3.9 scalar singletons, interned `ptr<T>`, nominal structs, `isize` != `int64`, `fnptr` per-signature equivalence |
+| `TC-UNIT-CONV-0001@w32`, `@w64` | `test_conversion_flip` | §13.2.2 `bitcast int32,isize` is W-dependent; the type table is frozen after Analyze |
+| `TC-UNIT-MODULE-0001` | `test_module_order` | §4.11.1 diamond import order `root, a, c, b`; each module parsed once |
+| `TC-UNIT-MODULE-0002` | `test_module_instances` | §4.5 same module name at two resolved paths is two instances |
+
 Run directly:
 
 ```sh
 ./build/tests/tc_frontend_test
-ctest --test-dir build -R frontend.unit --output-on-failure
+./build/tests/tc_sem_test
+ctest --test-dir build -R 'frontend.unit|sem.unit' --output-on-failure
 ```

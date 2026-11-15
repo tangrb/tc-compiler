@@ -1,0 +1,11 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const K: int32 = 7
+public func f() int32 then
+    var K: int32 = copy int32, 1
+    var S: int32 = copy int32, 2
+    var x: int32 = add int32, K, S
+    _ = return x
+end

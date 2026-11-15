@@ -1,0 +1,7 @@
+#program
+struct A then
+    var b: ptr<B>
+end
+struct B then
+    var x: int32
+end

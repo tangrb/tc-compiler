@@ -37,6 +37,10 @@ const TcTargetDesc tc_target_aarch64_baremetal = {
     "aarch64-baremetal", 64, 1, 16, 8, &tc_abi_aapcs64
 };
 
+const TcTargetDesc tc_target_generic_w32 = {
+    "generic-w32", 32, 1, 8, 4, &tc_abi_aapcs32_ilp32
+};
+
 static void profile_set_regions(TcPlatformProfile *p, uint64_t frame_base,
                                 uint64_t frame_size, uint64_t static_base,
                                 uint64_t static_size, uint64_t device_base,
@@ -104,6 +108,31 @@ int tc_profile_init_aarch64_baremetal(TcPlatformProfile *out) {
     out->entry = out->region[TC_REG_CODE].base;
     out->target = &tc_target_aarch64_baremetal;
     out->device = TC_DEV_VOLATILE;
+    out->checked_build = 0;
+    out->disable_icf = 1;
+    return 1;
+}
+
+int tc_profile_init_generic_w32(TcPlatformProfile *out) {
+    if (out == NULL) {
+        return 0;
+    }
+    memset(out, 0, sizeof(*out));
+    out->addr_width = 32;
+    out->little_endian = 1;
+    profile_set_regions(out,
+                        0x70000000ull, 0x00100000ull,
+                        0x10000000ull, 0x00100000ull,
+                        0x20000000ull, 0x00100000ull,
+                        0x40000000ull, 0x01000000ull,
+                        0x80000000ull, 0x10000000ull);
+    out->stack_size = 0x100000;
+    out->depth_D = 256;
+    out->exit.normal_status = 0;
+    out->exit.trap_status = 1;
+    out->entry = out->region[TC_REG_CODE].base;
+    out->target = &tc_target_generic_w32;
+    out->device = TC_DEV_REJECT;
     out->checked_build = 0;
     out->disable_icf = 1;
     return 1;

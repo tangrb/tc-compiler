@@ -2,18 +2,20 @@
 
 This directory is the **target module layout** from
 [TC Native Compiler Design 0.0.46](../docs/TC原生编译器设计说明书-0.0.46.md) §14.
-S0 (contract freeze) and **S1 (LEX/SYN + flat parse IR)** are implemented: the
+S0 (contract freeze), S1 (LEX/SYN + flat parse IR), S2 (module discovery and
+IMPORT) and S3 (names, types, conversions and layout) are implemented: the
 private `tc_core` library, the `tc-vm`/`tc-aot` entry points, the frozen headers,
-and the `frontend/` reader/lexer/parser.  IMPORT/SEM/CT, the VM and backends
-start in S2/S6/S7.  Frozen contract ownership is indexed in
-[CONTRACTS.md](CONTRACTS.md).
+and the `frontend/` reader/lexer/parser/module-loader/analyzer.  CT, CFG/DI,
+safety/annotations, the VM and backends are later work.  Frozen contract
+ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
 ```text
 src/
   base/         assert version (shared foundations, no language semantics)
   contract/     S0 frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
-  frontend/     input num lex parse (S1); module resolve analyze consteval ebnf (S2+)
+  frontend/     input num lex parse; module (discovery/IMPORT); sem (names/types/
+                conversions/layout/instruction shape)
   ir/           type instr block operand span region object address structs pointer_state
   runtime/      alloc io trap profile module_loader (sem_* from S6)
   vm/           interp memory pointer_state (S6)
@@ -45,13 +47,14 @@ LEX/SYN/IMPORT/SEM/CT pipeline; S1 provides `input` (arena/source/decode),
   `ir/` owns representation; `runtime/` owns platform seams/profiles;
   `driver/` owns only CLI parsing and tool policy.  Do not create a second
   table, profile instance or diagnostic code set in another directory.
-- `tc-vm` and `tc-aot` are the only tool entry points.  S1 adds the partial
-  `--syntax-only` check (exit 0 = no LEX/SYN diagnostic, not a valid program);
-  a normal invocation still exits 70 after LEX/SYN.
-- S1 parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
-  source names/type syntax stay unresolved until SEM, and field paths keep the
-  `TcFieldRef` shape.  S3 materializes `TcInstr`/`TcIR`.  Do not add source
-  names to the frozen `TcOperand`/`TcInstr`.
+- `tc-vm` and `tc-aot` are the only tool entry points.  `--syntax-only` and
+  `--static-only` are partial checks: exit 0 never claims a valid program.  A
+  normal invocation still exits 70 after the implemented static stages.
+- Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
+  source names/type syntax stay until SEM, and field paths keep the
+  `TcFieldRef` shape.  SEM resolves and validates them and owns the frozen type
+  table; materializing `TcInstr`/`TcIR` belongs to IR finalization.  Do not add
+  source names to the frozen `TcOperand`/`TcInstr`.
 - Documented S1 limits: 4 MiB source, 16 KiB token (identifier/annotation/float), 256 type/block nesting
   levels.  Exceeding them returns `tc_error_internal` (exit 71); it is never a
   language diagnostic.

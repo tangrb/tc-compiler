@@ -1,0 +1,10 @@
+#lib
+private struct P then
+    var a: int32
+end
+public func f() int32 then
+    var p: P = make P, 1
+    var n: usize = sizeof P
+    var r: int32 = add int32, p.a, 1
+    _ = return r
+end

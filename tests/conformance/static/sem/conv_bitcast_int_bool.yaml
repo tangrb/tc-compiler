@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0020
+profile: common
+source: conv_bitcast_int_bool.tc
+spec: "§3.11 bitcast 类别矩阵：整数 -> bool 禁止，先于位宽 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: conv_bitcast_int_bool.tc, line: 2, column: 29}
+  related: []
+  diagnostics: exactly-one

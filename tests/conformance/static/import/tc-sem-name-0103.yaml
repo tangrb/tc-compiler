@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0103
+profile: common
+source: fixtures/tc-sem-name-0103/root.tc
+spec: "§8.2 形参名在签名内唯一 -> DUPLICATE_PARAMETER；关联首次"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_PARAMETER
+  primary: {file: fixtures/tc-sem-name-0103/lib.tc, line: 2, column: 25}
+  related: [{file: fixtures/tc-sem-name-0103/lib.tc, line: 2, column: 15}]
+  diagnostics: exactly-one

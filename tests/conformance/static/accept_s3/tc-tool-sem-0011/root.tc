@@ -1,0 +1,5 @@
+#program
+var x: isize = read isize
+_ = write isize, x
+var y: usize = read usize
+_ = writeln usize, y

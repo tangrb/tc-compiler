@@ -15,6 +15,8 @@ add_library(tc_core STATIC
     frontend/num.c
     frontend/lex.c
     frontend/parse.c
+    frontend/module.c
+    frontend/sem.c
     # IR representation and shape helpers.
     ir/type.c
     ir/instr.c

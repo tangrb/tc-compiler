@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0001
+profile: common
+source: name_undefined.tc
+spec: "§5.6 裸值名先查局部，未命中且非模块成员 -> UNDEFINED_NAME；§12.5.1 未解析标识符"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: name_undefined.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

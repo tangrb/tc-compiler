@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0001
+profile: common
+source: conv_bitcast_width_w64.tc
+spec: "§3.11 类别允许但位宽不等 -> BITCAST_WIDTH；§13.2.2 bitcast isize<->int32 仅 32 位"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: conv_bitcast_width_w64.tc, line: 3, column: 31}
+  related: []
+  diagnostics: exactly-one

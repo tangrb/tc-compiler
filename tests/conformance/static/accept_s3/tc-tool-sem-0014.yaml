@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0014
+profile: w64
+source: tc-tool-sem-0014/root.tc
+spec: "§13.2.2 ptrdiff 结果为 isize，64 位宽度按 W"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

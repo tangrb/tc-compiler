@@ -1,16 +1,27 @@
-# S1 LEX/SYN conformance suite
+# Static conformance suites
 
-This tree holds the S1 (LEX/SYN) static conformance cases and the positive
-acceptance/property gates.  Later stages add their own subdirectories; every
-case is still derived from the standard, never backfilled from compiler output.
+This tree holds the LEX/SYN, IMPORT and SEM static conformance cases and the
+positive acceptance/property gates.  Every case is derived from the standard,
+never backfilled from compiler output.
+
+- S1 LEX/SYN: `lex/`, `syn/`, `accept/`, `fuzz/` (source table
+  `s1_cases.py`).
+- S2 module discovery/IMPORT and S3 names/types/conversions/layout:
+  `import/`, `sem/`, `accept_s3/` (source table `s2s3_cases.py`).  Import
+  fixtures live under `import/fixtures/<case-id>/`; the same fixture tree is
+  reused by `tc_sem_test` for module-order/instance checks.
 
 ```text
 tests/conformance/
   static/
     s1_cases.py        auditable source table for the S1 cases
+    s2s3_cases.py      auditable source table for S2/S3 cases
     lex/               LEX diagnostics (TC_CE_SYNTAX, TC_CE_LITERAL_LEX_RANGE)
     syn/               SYN diagnostics (the other five SYN codes + TC_CE_SYNTAX)
     accept/            positive LEX/SYN acceptance sources
+    import/            IMPORT cases + root/library fixtures
+    sem/               SEM name/type/conversion/layout cases
+    accept_s3/         positive IMPORT/SEM acceptance sources
   fuzz/                L7 property case (random bytes; no crash/hang)
 ```
 
@@ -26,12 +37,22 @@ removes it and computes the 1-based line and Unicode-scalar column.  It never
 reads compiler output.
 
 ```sh
-# regenerate lex/ syn/ accept/ fuzz/ YAML+source files
+# regenerate the S1 and S2/S3 YAML+source files
 python3 tests/conformance/static/s1_cases.py --write
+python3 tests/conformance/static/s2s3_cases.py --write
 
 # gate: every generated file must match the table
 python3 tests/conformance/static/s1_cases.py --check
+python3 tests/conformance/static/s2s3_cases.py --check
 ```
+
+`@HERE@` and `@REL@` mark primary/related positions before marker removal.
+Compile cases now run the full static pipeline (`--static-only`), so an
+imported module's LEX/SYN diagnostic still wins over an earlier IMPORT error
+(stage priority).  Tool acceptance cases name `--syntax-only` or
+`--static-only` explicitly.  Profile-sensitive cases set `profile: w32` or
+`profile: w64`; the adapter passes `--profile=w32` for the former and the
+default 64-bit profile for the latter.
 
 Do not edit generated `.tc`/`.yaml` files by hand; update the table and
 regenerate.  CRLF/CR and invalid-UTF-8 byte fixtures are marked `-text` in `.gitattributes`
@@ -53,7 +74,8 @@ The harness requires an adapter.  `tests/CMakeLists.txt` configures
 
 ```sh
 ctest --test-dir build -R harness.conformance --output-on-failure
-ctest --test-dir build -R determinism.s1 --output-on-failure
+ctest --test-dir build -R 'determinism.s1|determinism.s2s3' --output-on-failure
+ctest --test-dir build -R 'sem.unit|conformance.s2s3_cases' --output-on-failure
 ```
 
 `adapter.selftest` uses fake tc-vm scripts to prove the adapter is fail-closed

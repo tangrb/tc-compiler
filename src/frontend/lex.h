@@ -96,6 +96,7 @@ typedef struct {
     int negative;
     uint64_t magnitude;
     int has_unsigned_suffix;
+    unsigned radix; /* 10 unless the source used 0x/0b/0o */
 } TcIntLiteral;
 
 typedef struct {
@@ -120,6 +121,7 @@ typedef struct {
             TcOpMode mode;
             int has_suffix;
             int combo_valid;
+            TcSpan suffix_span; /* suffix token; unused when has_suffix == 0 */
         } mnemonic;
     } u;
 } TcToken;

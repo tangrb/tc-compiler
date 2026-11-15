@@ -1,0 +1,2 @@
+#program
+var p: ptr<void> = copy ptr<int32>, nullptr

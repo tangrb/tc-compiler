@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0019
+profile: common
+source: tc-tool-sem-0019/root.tc
+spec: "§3.7 @padding(0) 与无 padding 均合法；无隐式对齐/尾填充"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

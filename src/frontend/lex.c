@@ -782,6 +782,7 @@ static int lex_number(TcLexer *lx) {
             token.u.integer.negative = negative;
             token.u.integer.magnitude = magnitude;
             token.u.integer.has_unsigned_suffix = has_u;
+            token.u.integer.radix = (unsigned)base;
             (void)start;
             return push_token(lx, &token);
         }
@@ -930,6 +931,7 @@ static int lex_number(TcLexer *lx) {
             token.u.integer.negative = negative;
             token.u.integer.magnitude = magnitude;
             token.u.integer.has_unsigned_suffix = has_u;
+            token.u.integer.radix = 10;
             return push_token(lx, &token);
         } else {
             /* Build the exact decimal digit string: integer part without
@@ -1045,6 +1047,9 @@ static int lex_ident(TcLexer *lx) {
                  * position rule applies. */
                 token.u.mnemonic.has_suffix = 1;
                 token.u.mnemonic.combo_valid = 0;
+                token.u.mnemonic.suffix_span = token_at(
+                    lx, TC_TOK_COUNT, line,
+                    column + (uint32_t)(after - start)).span;
                 after += 1u;
             } else if (after + 1u < lx->size && lx->bytes[after] == '.' &&
                        (is_letter(lx->bytes[after + 1u]) ||
@@ -1059,6 +1064,9 @@ static int lex_ident(TcLexer *lx) {
                     suffix_len++;
                 }
                 token.u.mnemonic.has_suffix = 1;
+                token.u.mnemonic.suffix_span = token_at(
+                    lx, TC_TOK_COUNT, line,
+                    column + (uint32_t)(suffix_start - start)).span;
                 if (suffix_lookup(lx->bytes, suffix_start, suffix_len, &mode) &&
                     suffix_combo_valid(op, mode)) {
                     token.u.mnemonic.mode = mode;

@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0002
+profile: common
+source: conv_trunc_width_w64.tc
+spec: "§3.11 trunc 目标位宽 >= 源 -> TRUNC_WIDTH；§12.5.1 目标类型 Token"
+expect:
+  stage: SEM
+  code: TC_CE_TRUNC_WIDTH
+  primary: {file: conv_trunc_width_w64.tc, line: 3, column: 22}
+  related: []
+  diagnostics: exactly-one

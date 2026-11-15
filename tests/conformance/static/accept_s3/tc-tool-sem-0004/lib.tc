@@ -1,0 +1,9 @@
+#lib
+public @fast func f() int32 then
+    var a: int32 = add.nsw int32, 1, 2
+    var b: uint32 = add.nuw uint32, 1, 2
+    var c: int32 = add.wrap int32, a, 3
+    var d: float64 = add.ieee float64, 1.0, 2.0
+    var e: float32 = div.ieee float32, 4.0f, 2.0f
+    _ = return c
+end

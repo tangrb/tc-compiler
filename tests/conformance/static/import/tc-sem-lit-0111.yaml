@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0111
+profile: common
+source: fixtures/tc-sem-lit-0111/root.tc
+spec: "§8.3 return 操作数按返回类型检查；浮点字面量用于 int32 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: fixtures/tc-sem-lit-0111/lib.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

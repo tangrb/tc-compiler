@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0013
+profile: common
+source: lit_trunc_float.tc
+spec: "§6.6.3 trunc 不接受浮点字面量 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_trunc_float.tc, line: 2, column: 29}
+  related: []
+  diagnostics: exactly-one

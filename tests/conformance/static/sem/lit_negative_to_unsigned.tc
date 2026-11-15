@@ -1,0 +1,2 @@
+#program
+var x: uint32 = copy uint32, -1

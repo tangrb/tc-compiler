@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0007
+profile: common
+source: lit_int8_range.tc
+spec: "§2.4/§3.13 超出期望类型范围 -> LITERAL_RANGE；§12.5.1 完整字面量"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: lit_int8_range.tc, line: 2, column: 26}
+  related: []
+  diagnostics: exactly-one

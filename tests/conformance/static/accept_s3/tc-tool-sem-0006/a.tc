@@ -1,0 +1,5 @@
+#lib
+import c
+public func f() int32 then
+    _ = return c.K
+end

@@ -12,6 +12,8 @@ int tc_driver_select_profile(const char *name, TcPlatformProfile *out) {
         ok = tc_profile_init_aarch64_linux_user(out);
     } else if (strcmp(name, "aarch64-baremetal") == 0) {
         ok = tc_profile_init_aarch64_baremetal(out);
+    } else if (strcmp(name, "w32") == 0) {
+        ok = tc_profile_init_generic_w32(out);
     } else {
         return 0;
     }

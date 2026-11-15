@@ -1,0 +1,5 @@
+#lib
+public @fast func f() uint32 then
+    var x: uint32 = add.nsw uint32, 1, 2
+    _ = return x
+end

@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0101
+profile: common
+source: fixtures/tc-sem-conv-0101/root.tc
+spec: "§3.11 fnptr -> fnptr 仅同签名；不同签名 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-conv-0101/lib.tc, line: 7, column: 63}
+  related: []
+  diagnostics: exactly-one

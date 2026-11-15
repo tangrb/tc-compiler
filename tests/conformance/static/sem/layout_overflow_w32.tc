@@ -1,0 +1,5 @@
+#program
+struct S then
+    var x: uint8 @padding(4294967295)
+    var y: uint8
+end

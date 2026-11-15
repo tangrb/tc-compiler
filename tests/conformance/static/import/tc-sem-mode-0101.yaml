@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0101
+profile: common
+source: fixtures/tc-sem-mode-0101/root.tc
+spec: "§3.13.2 .nsw 在 @fast 函数内合法；非 @fast -> ANNOTATION（在库函数中）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-mode-0101/lib.tc, line: 3, column: 24}
+  related: []
+  diagnostics: exactly-one

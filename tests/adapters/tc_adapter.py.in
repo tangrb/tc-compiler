@@ -57,87 +57,147 @@ def _run(argv, timeout):
     )
 
 
-def _strict_diagnostics(text, expected_path=None):
+NOTE_RE = re.compile(
+    r"^(?P<file>.*):(?P<line>[0-9]+):(?P<column>[0-9]+): "
+    r"note: related position$"
+)
+
+
+def _strict_diagnostics(text, case, mode):
     """Parse stderr strictly.
 
-    Every non-empty line must be a recognized diagnostic line.  LEX/SYN has
-    no related positions, so `note:` lines are not accepted here; a later
-    stage that emits them must extend this function explicitly.  Returns the
-    list of regex matches (one per diagnostic).  Raises RuntimeError on junk.
+    Syntax mode accepts only LEX/SYN diagnostics and no related notes.  Static
+    mode accepts any normative static stage and one optional related note per
+    diagnostic.  Every line must match; junk is an adapter failure.
     """
     matches = []
-    expected = os.path.normpath(expected_path) if expected_path else None
+    harness = case["_harness"]
+    source = os.path.normpath(harness["source_path"])
+    case_file = harness.get("case_file", source)
+    case_dir = os.path.dirname(os.path.normpath(case_file))
+    expect = case.get("expect") or {}
+
+    def resolve_reported(path):
+        path = os.path.normpath(path)
+        if not os.path.isabs(path):
+            path = os.path.normpath(os.path.join(case_dir, path))
+        return path
+
+    allowed_primary = {source}
+    expected_primary = (expect.get("primary") or {}).get("file")
+    if isinstance(expected_primary, str):
+        allowed_primary.add(resolve_reported(expected_primary))
+    for entry in expect.get("related") or []:
+        if isinstance(entry, dict) and isinstance(entry.get("file"), str):
+            allowed_primary.add(resolve_reported(entry["file"]))
     for line in text.splitlines():
         if not line.strip():
+            continue
+        note = NOTE_RE.match(line)
+        if note:
+            if mode != "static" or not matches:
+                raise RuntimeError(f"unexpected note line: {line!r}")
+            if matches[-1]["related"] is not None:
+                raise RuntimeError("more than one related note for a diagnostic")
+            matches[-1]["related"] = note
             continue
         match = DIAG_RE.match(line)
         if not match:
             raise RuntimeError(
                 f"unrecognized stderr line from tc-vm: {line!r}"
             )
-        reported = os.path.normpath(match.group("file"))
-        if expected is not None and reported != expected:
+        reported = resolve_reported(match.group("file"))
+        if reported not in allowed_primary:
             raise RuntimeError(
-                f"tc-vm reported a diagnostic for {reported!r}, "
-                f"expected {expected!r}"
+                f"diagnostic file {match.group('file')!r} is not the expected "
+                "case or module file"
             )
         stage = match.group("stage")
         code = match.group("code")
-        if stage not in {"LEX", "SYN"}:
-            raise RuntimeError(
-                f"tc-vm reported a non-LEX/SYN stage: {stage}"
-            )
-        if code not in LEX_SYN_CODES:
-            raise RuntimeError(f"tc-vm reported a non-LEX/SYN code: {code}")
-        matches.append(match)
+        if mode == "syntax":
+            if stage not in {"LEX", "SYN"}:
+                raise RuntimeError(
+                    f"tc-vm reported a non-LEX/SYN stage: {stage}"
+                )
+            if code not in LEX_SYN_CODES:
+                raise RuntimeError(
+                    f"tc-vm reported a non-LEX/SYN code: {code}"
+                )
+        matches.append({"match": match, "related": None})
     return matches
 
 
-def _parse_diagnostics(text, case):
-    """Parse and map the stable diagnostic lines for a compile case.
+def _parse_diagnostics(text, case, mode):
+    """Map stable diagnostic lines to the case's metadata paths.
 
-    The adapter substitutes the case's metadata `source` string in the result
-    (the harness compares that string), but only after `_strict_diagnostics`
-    verified that the compiler actually reported the case source file.  A
-    diagnostic from another file or any junk line is an adapter failure, never
-    a pass.
+    Files inside the case tree are reported relative to the case file's
+    directory (POSIX separators), so imported-module diagnostics can be
+    asserted without exposing absolute build paths.
     """
-    matches = _strict_diagnostics(text, case["_harness"]["source_path"])
+    matches = _strict_diagnostics(text, case, mode)
+    harness = case["_harness"]
+    source = os.path.normpath(harness["source_path"])
+    case_file = harness.get("case_file", source)
+    case_dir = os.path.dirname(os.path.normpath(case_file))
+
+    def rel(path):
+        path = os.path.normpath(path)
+        if path == source:
+            return case["source"]
+        return os.path.relpath(path, case_dir).replace(os.sep, "/")
+
     diagnostics = []
-    for match in matches:
+    for entry in matches:
+        match = entry["match"]
+        related = []
+        if entry["related"] is not None:
+            related.append(
+                {
+                    "file": rel(entry["related"].group("file")),
+                    "line": int(entry["related"].group("line")),
+                    "column": int(entry["related"].group("column")),
+                }
+            )
         diagnostics.append(
             {
                 "stage": match.group("stage"),
                 "code": match.group("code"),
                 "primary": {
-                    "file": case["source"],
+                    "file": rel(match.group("file")),
                     "line": int(match.group("line")),
                     "column": int(match.group("column")),
                 },
-                "related": [],
+                "related": related,
             }
         )
     return diagnostics
 
 
 class Adapter:
-    def _syntax_only(self, case):
+    def _static_check(self, case, mode):
         harness = case["_harness"]
         source = harness["source_path"]
         timeout = harness.get("timeout_s", 10.0)
-        proc = _run([TC_VM, "--syntax-only", source], timeout)
+        argv = [TC_VM, "--syntax-only" if mode == "syntax" else "--static-only"]
+        profile = case.get("profile")
+        if isinstance(profile, str) and profile not in {"common", "w64"}:
+            argv.append(f"--profile={profile}")
+        for root in harness.get("include_roots", []):
+            argv.append(f"--include={root}")
+        argv.append(source)
+        proc = _run(argv, timeout)
         if proc.stdout:
             raise RuntimeError(
-                "tc-vm --syntax-only wrote to stdout in LEX/SYN mode: "
+                f"tc-vm {argv[1]} wrote to stdout in static mode: "
                 f"{proc.stdout!r}"
             )
         if proc.returncode == 1:
             diagnostics = _parse_diagnostics(
-                proc.stderr.decode("utf-8", "replace"), case
+                proc.stderr.decode("utf-8", "replace"), case, mode
             )
             if len(diagnostics) == 0:
                 raise RuntimeError(
-                    "tc-vm exited 1 without a parseable LEX/SYN diagnostic"
+                    "tc-vm exited 1 without a parseable diagnostic"
                 )
             return diagnostics
         if proc.returncode == 0:
@@ -148,18 +208,30 @@ class Adapter:
                 )
             return []
         raise RuntimeError(
-            f"tc-vm --syntax-only failed with exit {proc.returncode}: "
+            f"tc-vm {argv[1]} failed with exit {proc.returncode}: "
             f"{proc.stderr.decode('utf-8', 'replace')}"
         )
 
     def compile(self, case):
-        return {"diagnostics": self._syntax_only(case)}
+        # The full static pipeline includes LEX/SYN and then discovers imports;
+        # using it for every compile case keeps LEX/SYN stage priority and
+        # imported-module diagnostics observable.  A LEX/SYN error still stops
+        # the pipeline before IMPORT/SEM.
+        return {"diagnostics": self._static_check(case, "static")}
 
     def tool(self, case):
         harness = case["_harness"]
         argv = [_tool_path(item) for item in case["tool"]["argv"]]
         source = harness.get("source_path")
-        argv = [source if item == "@source" else item for item in argv]
+        expanded = []
+        for item in argv:
+            if item == "@source":
+                for root in harness.get("include_roots", []):
+                    expanded.append(f"--include={root}")
+                expanded.append(source)
+            else:
+                expanded.append(item)
+        argv = expanded
         timeout = harness.get("timeout_s", 10.0)
         proc = _run(argv, timeout)
         return {
@@ -224,7 +296,11 @@ class Adapter:
                     )
                 continue
             try:
-                lines = _strict_diagnostics(text, path)
+                fake = {
+                    "_harness": {"case_file": path, "source_path": path},
+                    "source": path,
+                }
+                lines = _strict_diagnostics(text, fake, "syntax")
             except RuntimeError as exc:
                 counterexamples.append(
                     {"trial": trial, "seed": seed, "hex": data.hex(),
@@ -237,8 +313,8 @@ class Adapter:
                      "reason": "not exactly one diagnostic", "stderr": text}
                 )
                 continue
-            if (lines[0].group("stage") not in {"LEX", "SYN"} or
-                lines[0].group("code") not in LEX_SYN_CODES):
+            if (lines[0]["match"].group("stage") not in {"LEX", "SYN"} or
+                lines[0]["match"].group("code") not in LEX_SYN_CODES):
                 counterexamples.append(
                     {"trial": trial, "seed": seed, "hex": data.hex(),
                      "reason": "non-LEX/SYN stage or code", "stderr": text}

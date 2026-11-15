@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0008
+profile: w64
+source: conv_trunc_usize_i64_w64.tc
+spec: "§13.2.2 trunc usize,int64 在 64 位报 TRUNC_WIDTH（64 = 64）"
+expect:
+  stage: SEM
+  code: TC_CE_TRUNC_WIDTH
+  primary: {file: conv_trunc_usize_i64_w64.tc, line: 3, column: 22}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0023
+profile: common
+source: tc-tool-sem-0023/root.tc
+spec: "§3.7/§6.14 深度只读不延伸到 ptr 字段所指对象；unsafe 中经 ptr 字段写入"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

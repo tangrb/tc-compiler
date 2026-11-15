@@ -98,11 +98,16 @@ extern const TcABIDesc tc_abi_aapcs64;
 extern const TcABIDesc tc_abi_aapcs32_ilp32;
 extern const TcTargetDesc tc_target_aarch64_linux_user;
 extern const TcTargetDesc tc_target_aarch64_baremetal;
+/* Target-independent 32-bit profile used for static analysis of the word-size
+ * matrix.  It is not an executable target; a 32-bit ABI target is selected by
+ * the platform stage. */
+extern const TcTargetDesc tc_target_generic_w32;
 
 /* Fill a 64-bit profile.  I/O, allocator, trap and include roots are left NULL
  * for the caller/platform instance to supply; validate_runtime checks them. */
 int tc_profile_init_aarch64_linux_user(TcPlatformProfile *out);
 int tc_profile_init_aarch64_baremetal(TcPlatformProfile *out);
+int tc_profile_init_generic_w32(TcPlatformProfile *out);
 
 typedef enum {
     TC_PROFILE_OK = 0,

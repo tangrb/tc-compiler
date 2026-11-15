@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0001
+profile: common
+source: tc-tool-sem-0001/root.tc
+spec: "§3.7/§6.2.7/§6.13 结构体字段布局、make/copy、字段读写、sizeof 类型参数；静态接受"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

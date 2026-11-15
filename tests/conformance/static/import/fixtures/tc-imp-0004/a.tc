@@ -1,0 +1,5 @@
+#lib
+import root
+public func f() int32 then
+    _ = return 0
+end

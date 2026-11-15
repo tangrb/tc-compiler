@@ -1,0 +1,2 @@
+#program
+var x: void = copy int32, 1

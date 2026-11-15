@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0001
+profile: common
+source: lit_unsigned_to_signed.tc
+spec: "§2.4 u/U 只允许无符号 T -> LITERAL_TYPE；§12.5.1 完整字面量首 Token"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_unsigned_to_signed.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

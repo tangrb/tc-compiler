@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0001
+profile: common
+source: type_copy_mismatch.tc
+spec: "§3.9/§6.12 赋值/复制严格同型，无隐式加宽 -> TYPE_MISMATCH；§12.5.1 RHS 首 Token"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_copy_mismatch.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

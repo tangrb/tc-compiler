@@ -1,0 +1,5 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const S: int32 = 1

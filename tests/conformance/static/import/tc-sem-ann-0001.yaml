@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0001
+profile: w32
+source: fixtures/tc-sem-ann-0001/root.tc
+spec: "§8.6/§13.2.2 @align 的 N 按 W 位地址宽度检查；32 位下 2^32 不可表示 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0001/lib.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0006
+profile: common
+source: field_make_unknown.tc
+spec: "§6.2.7 make 未知字段 -> UNKNOWN_FIELD；§12.5.1 字段名"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_FIELD
+  primary: {file: field_make_unknown.tc, line: 5, column: 20}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-SEM-CONV-0014
+profile: w32
+source: conv_trunc_w32_ok.tc
+spec: "§13.2.2 trunc isize,int64 在 32 位合法（32 < 64）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

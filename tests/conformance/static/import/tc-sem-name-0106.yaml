@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0106
+profile: common
+source: fixtures/tc-sem-name-0106/root.tc
+spec: "§4.6 private 类型出现在 public 签名 -> PRIVATE_TYPE；关联类型声明"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_TYPE
+  primary: {file: fixtures/tc-sem-name-0106/lib.tc, line: 5, column: 18}
+  related: [{file: fixtures/tc-sem-name-0106/lib.tc, line: 2, column: 16}]
+  diagnostics: exactly-one

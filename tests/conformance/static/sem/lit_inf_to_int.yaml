@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0006
+profile: common
+source: lit_inf_to_int.tc
+spec: "§2.4 inf/nan 只能用于浮点上下文 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_inf_to_int.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

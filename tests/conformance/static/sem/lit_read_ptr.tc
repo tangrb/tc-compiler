@@ -1,0 +1,2 @@
+#program
+var p: ptr<int32> = read ptr<int32>

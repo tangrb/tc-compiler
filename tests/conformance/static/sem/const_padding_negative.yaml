@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0003
+profile: common
+source: const_padding_negative.tc
+spec: "§2.6 @padding(N) 不得为负 -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: const_padding_negative.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

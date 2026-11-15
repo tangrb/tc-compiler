@@ -1,0 +1,10 @@
+#lib
+private struct P then
+    var x: int32
+end
+private const A: int32 = 1
+public const B: int32 = Self.A
+public static var C: int32 = Self.B
+private func hidden(p: P) int32 then
+    _ = return p.x
+end

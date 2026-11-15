@@ -1,0 +1,10 @@
+id: TC-SEM-VOID-0005
+profile: common
+source: void_arith_type.tc
+spec: "§3.8/§6.15.2 void 不得作运算类型 -> VOID；§12.5.1 void Token"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: void_arith_type.tc, line: 2, column: 20}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0101
+profile: common
+source: fixtures/tc-sem-name-0101/root.tc
+spec: "§5.6 值位置裸名命中本模块值成员 -> FUNCTION_SCOPE_ACCESS"
+expect:
+  stage: SEM
+  code: TC_CE_FUNCTION_SCOPE_ACCESS
+  primary: {file: fixtures/tc-sem-name-0101/lib.tc, line: 6, column: 32}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0104
+profile: common
+source: fixtures/tc-sem-name-0104/root.tc
+spec: "§4.6 访问导入的 private const -> PRIVATE_ACCESS；关联私有声明"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_ACCESS
+  primary: {file: fixtures/tc-sem-name-0104/root.tc, line: 3, column: 32}
+  related: [{file: fixtures/tc-sem-name-0104/lib.tc, line: 2, column: 15}]
+  diagnostics: exactly-one

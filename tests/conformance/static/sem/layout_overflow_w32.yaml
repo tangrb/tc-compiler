@@ -1,0 +1,10 @@
+id: TC-SEM-LAYOUT-0001
+profile: w32
+source: layout_overflow_w32.tc
+spec: "§3.7/§6.13 布局求和在 W 位 usize 中溢出 -> LAYOUT_OVERFLOW（仅 32 位）"
+expect:
+  stage: SEM
+  code: TC_CE_LAYOUT_OVERFLOW
+  primary: {file: layout_overflow_w32.tc, line: 3, column: 9}
+  related: []
+  diagnostics: exactly-one

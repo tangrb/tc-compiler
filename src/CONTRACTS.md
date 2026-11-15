@@ -9,7 +9,7 @@ governed by [the design](../docs/TC原生编译器设计说明书-0.0.46.md).
 S0 infrastructure lives outside the four language layers so no phase owns it:
 `base/` (assert/version), `contract/` (freeze check and zero-pass policy) and
 `diagnostic/` (closed code set and first-diagnostic selection, also used by the
-runtime trap seam).  `frontend/` is reserved for the S1+ pipeline.
+runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 
 ## Ownership and freeze markers
 
@@ -69,20 +69,36 @@ S1 adds the LEX/SYN pipeline under `src/frontend/`:
 | LEX | `frontend/lex.h`, `lex.c` | UTF-8 decode, BOM/U+0000/non-ASCII rejection, `///` comments, `\` continuation, longest-match tokens, mnemonics/suffixes, annotations, DISCARD, INT/FLOAT values, token spans |
 | SYN | `frontend/parse.h`, `parse.c` | EBNF §14; flat one-op-per-line parse IR; source names and type syntax retained for SEM; `TcFieldRef`-shaped paths; named args; `switch` targets; spans and end positions; all six SYN-specific codes plus `TC_CE_SYNTAX` |
 
-S1's parse IR is **front-end internal** (`TcParseModule`/`TcParseStmt`/
+The parse IR is **front-end internal** (`TcParseModule`/`TcParseStmt`/
 `TcParseInstr`/`TcParseType`/`TcParseValue`).  It deliberately does not force
-the frozen final `TcInstr`/`TcIR`: the opcode shape/type/security table and name
-resolution are S3/S4 work, and struct type identity is an IMPORT/SEM fact.
-S3 materializes the final IR into the frozen `ir/` structures; it must not add
-source names to `TcOperand`/`TcInstr`.
+the frozen final `TcInstr`/`TcIR`: opcode shape/type/security checks, name
+resolution and struct identity are semantic facts.  SEM resolves the parse IR
+and freezes the type table; materializing `TcInstr`/`TcIR` belongs to IR
+finalization.  No source names may be added to `TcOperand`/`TcInstr`.
 
-The only tool-visible S1 addition is `--syntax-only`: exit 0 means "no LEX/SYN
-diagnostic" (a partial check, not a valid-program claim); a normal invocation
-still exits 70 after LEX/SYN.  The driver prints one stable line per diagnostic:
+The tool-visible additions are `--syntax-only` (LEX/SYN only) and
+`--static-only` (LEX/SYN/IMPORT/SEM); exit 0 for either is a partial check, not
+a valid-program claim.  A normal invocation still exits 70 after the
+implemented static stages.  The driver prints one stable line per diagnostic:
 
 ```text
 <file>:<line>:<column>: error[<LEX|SYN>]: <TC_CE_*>: <print-name>
 ```
+
+## S2/S3 static pipeline (implemented; not a frozen cross-module contract)
+
+| Area | Files | Facts |
+| --- | --- | --- |
+| Module discovery | `frontend/module.h`, `module.c` | root must be `#program`; import DFS in source order; importer directory then include roots in order; canonical resolved path is the instance key; `module_order` fixed before IMPORT/SEM; `#program` import target is parsed but not recursed |
+| IMPORT | `frontend/module.c`, `sem.c` | the five `TC_CE_IMPORT_*` codes report in the IMPORT stage; duplicate/circular priority; import names occupy the module namespace; imported private access; diamond reuse keeps one instance |
+| Names/members | `frontend/sem.h`, `sem.c` | value/type/label namespaces; module `Self`/`m`; bare value member is `FUNCTION_SCOPE_ACCESS`; struct name in value position is `TYPE_MISMATCH`; duplicate member/parameter/local diagnostics; public/private and `PRIVATE_TYPE` positions |
+| Types/literals | `frontend/sem.c` | one interned type table per Analyze, scalar singletons, `ptr`/`fnptr` interning, nominal structs; `isize`/`usize` independent of fixed-width types; literal category/suffix/sign/range per W |
+| Conversions | `frontend/sem.c` | category matrix before width for `bitcast`; `trunc` only narrows; `cast` is numeric/bool only; W-dependent widths |
+| Layout/`sizeof` facts | `frontend/sem.c`, `ir/structs.h` | fields are compact, `@padding(N)` adds N bytes, no implicit alignment or tail padding; sum overflow in W-bit `usize` is SEM `LAYOUT_OVERFLOW`; types never cache layout |
+| Instruction shape | `frontend/sem.c` | opcode arity/operand category checks, mode matrix, no-result LHS rule, field/make and call argument type checks, `sizeof` type argument | 
+
+The type table is frozen after Analyze.  Final `TcInstr`/`TcIR` materialization,
+CFG/DI, call ordering/safety, annotation matrices and CT are later stages.
 
 ## Not frozen here (later stages, same headers)
 
@@ -91,9 +107,9 @@ must fill in:
 
 | Item | Stage |
 | --- | --- |
-| opcode arity/shape/type/mode/security table | S3/S4 (design decision ⑩) |
-| type equivalence/conversion/literal algorithms | S3 |
-| struct layout/`sizeof` computation | S3 |
+| opcode arity/shape/type/mode table | implemented; security table remains with the safety stage |
+| type equivalence/conversion/literal algorithms | implemented |
+| struct layout/`sizeof` computation | implemented |
 | CFG/DI fixed-point algorithm | S4 |
 | CT allowlist/evaluation/caching | S5 |
 | runtime semantics and I/O formatting | S6 |

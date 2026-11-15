@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0003
+profile: common
+source: name_self_reference.tc
+spec: "§5.2 var 初始化器不在声明名字作用域内，自引用 -> UNDEFINED_NAME"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: name_self_reference.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

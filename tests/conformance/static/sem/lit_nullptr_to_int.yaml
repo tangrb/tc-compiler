@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0005
+profile: common
+source: lit_nullptr_to_int.tc
+spec: "§2.4 nullptr 只用于 ptr<T>/fnptr<...> -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_nullptr_to_int.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

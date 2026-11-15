@@ -1,0 +1,6 @@
+#program
+struct S then
+    var x: int32
+end
+var src: ptr<int32> = copy ptr<int32>, nullptr
+var dst: S = bitcast S, src

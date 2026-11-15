@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0015
+profile: w32
+source: tc-tool-sem-0015/root.tc
+spec: "§13.2.2 bitcast ptr<T> <-> int 仅与 W 位整数等宽；32 位 ptr<->uint32"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

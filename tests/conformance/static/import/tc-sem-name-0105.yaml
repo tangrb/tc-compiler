@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0105
+profile: common
+source: fixtures/tc-sem-name-0105/root.tc
+spec: "§4.6 访问导入的 private 类型（非公开位置）-> PRIVATE_ACCESS"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_ACCESS
+  primary: {file: fixtures/tc-sem-name-0105/root.tc, line: 3, column: 12}
+  related: [{file: fixtures/tc-sem-name-0105/lib.tc, line: 2, column: 16}]
+  diagnostics: exactly-one

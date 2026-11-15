@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0003
+profile: common
+source: type_cast_pointer.tc
+spec: "§3.11 cast 不作用于指针 -> TYPE_MISMATCH（源操作数）"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_cast_pointer.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

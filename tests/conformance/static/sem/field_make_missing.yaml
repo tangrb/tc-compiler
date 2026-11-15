@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0004
+profile: common
+source: field_make_missing.tc
+spec: "§6.2.7 make 缺字段 -> MISSING_FIELD；§12.5.1 make 结构体名"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_FIELD
+  primary: {file: field_make_missing.tc, line: 6, column: 17}
+  related: []
+  diagnostics: exactly-one

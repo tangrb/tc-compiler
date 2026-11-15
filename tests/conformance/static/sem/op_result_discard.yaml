@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0002
+profile: common
+source: op_result_discard.tc
+spec: "§6.15.1 无结果指令的 LHS 必须是 _ -> OPERAND_COUNT"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_result_discard.tc, line: 4, column: 5}
+  related: []
+  diagnostics: exactly-one

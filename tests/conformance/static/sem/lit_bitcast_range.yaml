@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0012
+profile: common
+source: lit_bitcast_range.tc
+spec: "§6.6.3 bitcast 整数源位宽 = 目标位宽；无后缀按 signed，值超出源类型 -> LITERAL_RANGE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: lit_bitcast_range.tc, line: 2, column: 31}
+  related: []
+  diagnostics: exactly-one

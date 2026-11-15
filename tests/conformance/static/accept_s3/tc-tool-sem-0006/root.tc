@@ -1,0 +1,5 @@
+#program
+import a
+import b
+var x: int32 = call a.f
+var y: int32 = call b.g

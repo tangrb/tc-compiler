@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0004
+profile: common
+source: lit_bool_to_int.tc
+spec: "§2.4 true/false 只用于 bool -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_bool_to_int.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

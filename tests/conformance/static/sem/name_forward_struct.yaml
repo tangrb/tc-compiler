@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0004
+profile: common
+source: name_forward_struct.tc
+spec: "§3.7 字段类型不得引用尚未定义完毕的其它结构体（即使 ptr<其它>）-> UNDEFINED_NAME"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: name_forward_struct.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

@@ -73,11 +73,212 @@
       "first_diag_rule:03:combination_case",
       "first_diag_rule:04:combination_case"
     ],
-    "scope_na_rows": [
+    "s2_covered_rows": [
+      "chapter:§4:negative",
+      "chapter:§4:positive",
+      "code:TC_CE_CIRCULAR_IMPORT:no_false_positive",
+      "code:TC_CE_CIRCULAR_IMPORT:position",
+      "code:TC_CE_CIRCULAR_IMPORT:stage",
+      "code:TC_CE_CIRCULAR_IMPORT:trigger",
+      "code:TC_CE_DUPLICATE_IMPORT:no_false_positive",
+      "code:TC_CE_DUPLICATE_IMPORT:position",
+      "code:TC_CE_DUPLICATE_IMPORT:stage",
+      "code:TC_CE_DUPLICATE_IMPORT:trigger",
+      "code:TC_CE_IMPORT_NAME_CONFLICT:no_false_positive",
+      "code:TC_CE_IMPORT_NAME_CONFLICT:position",
+      "code:TC_CE_IMPORT_NAME_CONFLICT:stage",
+      "code:TC_CE_IMPORT_NAME_CONFLICT:trigger",
+      "code:TC_CE_IMPORT_NOT_FOUND:no_false_positive",
+      "code:TC_CE_IMPORT_NOT_FOUND:position",
+      "code:TC_CE_IMPORT_NOT_FOUND:stage",
+      "code:TC_CE_IMPORT_NOT_FOUND:trigger",
+      "code:TC_CE_IMPORT_NOT_LIB:no_false_positive",
+      "code:TC_CE_IMPORT_NOT_LIB:position",
+      "code:TC_CE_IMPORT_NOT_LIB:stage",
+      "code:TC_CE_IMPORT_NOT_LIB:trigger",
+      "design12:13:gate_case",
+      "design12:13:suite_mapping",
+      "first_diag_rule:07:combination_case"
+    ],
+    "s3_covered_rows": [
+      "chapter:§0:negative",
+      "chapter:§0:positive",
+      "chapter:§13:negative",
+      "chapter:§13:positive",
+      "chapter:§3:negative",
+      "chapter:§3:positive",
+      "chapter:§5:negative",
+      "chapter:§5:positive",
+      "chapter:§6:negative",
+      "chapter:§6:positive",
+      "code:TC_CE_ADDR_OF_CONST:no_false_positive",
+      "code:TC_CE_ADDR_OF_CONST:position",
+      "code:TC_CE_ADDR_OF_CONST:stage",
+      "code:TC_CE_ADDR_OF_CONST:trigger",
+      "code:TC_CE_ANNOTATION:no_false_positive",
+      "code:TC_CE_ANNOTATION:position",
+      "code:TC_CE_ANNOTATION:stage",
+      "code:TC_CE_ANNOTATION:trigger",
+      "code:TC_CE_ANNOTATION:w32",
+      "code:TC_CE_ANNOTATION:w64",
+      "code:TC_CE_BITCAST_WIDTH:no_false_positive",
+      "code:TC_CE_BITCAST_WIDTH:position",
+      "code:TC_CE_BITCAST_WIDTH:stage",
+      "code:TC_CE_BITCAST_WIDTH:trigger",
+      "code:TC_CE_BITCAST_WIDTH:w32",
+      "code:TC_CE_BITCAST_WIDTH:w64",
+      "code:TC_CE_CONST_ASSIGNMENT:no_false_positive",
+      "code:TC_CE_CONST_ASSIGNMENT:position",
+      "code:TC_CE_CONST_ASSIGNMENT:stage",
+      "code:TC_CE_CONST_ASSIGNMENT:trigger",
+      "code:TC_CE_CONST_FORM:no_false_positive",
+      "code:TC_CE_CONST_FORM:position",
+      "code:TC_CE_CONST_FORM:stage",
+      "code:TC_CE_CONST_FORM:trigger",
+      "code:TC_CE_DUPLICATE_FIELD:no_false_positive",
+      "code:TC_CE_DUPLICATE_FIELD:position",
+      "code:TC_CE_DUPLICATE_FIELD:stage",
+      "code:TC_CE_DUPLICATE_FIELD:trigger",
+      "code:TC_CE_DUPLICATE_MEMBER:no_false_positive",
+      "code:TC_CE_DUPLICATE_MEMBER:position",
+      "code:TC_CE_DUPLICATE_MEMBER:stage",
+      "code:TC_CE_DUPLICATE_MEMBER:trigger",
+      "code:TC_CE_DUPLICATE_NAME:no_false_positive",
+      "code:TC_CE_DUPLICATE_NAME:position",
+      "code:TC_CE_DUPLICATE_NAME:stage",
+      "code:TC_CE_DUPLICATE_NAME:trigger",
+      "code:TC_CE_DUPLICATE_PARAMETER:no_false_positive",
+      "code:TC_CE_DUPLICATE_PARAMETER:position",
+      "code:TC_CE_DUPLICATE_PARAMETER:stage",
+      "code:TC_CE_DUPLICATE_PARAMETER:trigger",
+      "code:TC_CE_EMPTY_STRUCT:no_false_positive",
+      "code:TC_CE_EMPTY_STRUCT:position",
+      "code:TC_CE_EMPTY_STRUCT:stage",
+      "code:TC_CE_EMPTY_STRUCT:trigger",
+      "code:TC_CE_FIELD_ORDER:no_false_positive",
+      "code:TC_CE_FIELD_ORDER:position",
+      "code:TC_CE_FIELD_ORDER:stage",
+      "code:TC_CE_FIELD_ORDER:trigger",
+      "code:TC_CE_FUNCTION_SCOPE_ACCESS:no_false_positive",
+      "code:TC_CE_FUNCTION_SCOPE_ACCESS:position",
+      "code:TC_CE_FUNCTION_SCOPE_ACCESS:stage",
+      "code:TC_CE_FUNCTION_SCOPE_ACCESS:trigger",
+      "code:TC_CE_IMMUTABLE_FIELD:no_false_positive",
+      "code:TC_CE_IMMUTABLE_FIELD:position",
+      "code:TC_CE_IMMUTABLE_FIELD:stage",
+      "code:TC_CE_IMMUTABLE_FIELD:trigger",
+      "code:TC_CE_LAYOUT_OVERFLOW:no_false_positive",
+      "code:TC_CE_LAYOUT_OVERFLOW:position",
+      "code:TC_CE_LAYOUT_OVERFLOW:stage",
+      "code:TC_CE_LAYOUT_OVERFLOW:trigger",
+      "code:TC_CE_LAYOUT_OVERFLOW:w32",
+      "code:TC_CE_LAYOUT_OVERFLOW:w64",
+      "code:TC_CE_LITERAL_RANGE:no_false_positive",
+      "code:TC_CE_LITERAL_RANGE:position",
+      "code:TC_CE_LITERAL_RANGE:stage",
+      "code:TC_CE_LITERAL_RANGE:trigger",
+      "code:TC_CE_LITERAL_RANGE:w32",
+      "code:TC_CE_LITERAL_RANGE:w64",
+      "code:TC_CE_LITERAL_TYPE:no_false_positive",
+      "code:TC_CE_LITERAL_TYPE:position",
+      "code:TC_CE_LITERAL_TYPE:stage",
+      "code:TC_CE_LITERAL_TYPE:trigger",
+      "code:TC_CE_MISSING_FIELD:no_false_positive",
+      "code:TC_CE_MISSING_FIELD:position",
+      "code:TC_CE_MISSING_FIELD:stage",
+      "code:TC_CE_MISSING_FIELD:trigger",
+      "code:TC_CE_MODE:no_false_positive",
+      "code:TC_CE_MODE:position",
+      "code:TC_CE_MODE:stage",
+      "code:TC_CE_MODE:trigger",
+      "code:TC_CE_OPERAND_COUNT:no_false_positive",
+      "code:TC_CE_OPERAND_COUNT:position",
+      "code:TC_CE_OPERAND_COUNT:stage",
+      "code:TC_CE_OPERAND_COUNT:trigger",
+      "code:TC_CE_PARAMETER_ASSIGNMENT:no_false_positive",
+      "code:TC_CE_PARAMETER_ASSIGNMENT:position",
+      "code:TC_CE_PARAMETER_ASSIGNMENT:stage",
+      "code:TC_CE_PARAMETER_ASSIGNMENT:trigger",
+      "code:TC_CE_PRIVATE_ACCESS:no_false_positive",
+      "code:TC_CE_PRIVATE_ACCESS:position",
+      "code:TC_CE_PRIVATE_ACCESS:stage",
+      "code:TC_CE_PRIVATE_ACCESS:trigger",
+      "code:TC_CE_PRIVATE_TYPE:no_false_positive",
+      "code:TC_CE_PRIVATE_TYPE:position",
+      "code:TC_CE_PRIVATE_TYPE:stage",
+      "code:TC_CE_PRIVATE_TYPE:trigger",
+      "code:TC_CE_STRUCT_SELF_VALUE:no_false_positive",
+      "code:TC_CE_STRUCT_SELF_VALUE:position",
+      "code:TC_CE_STRUCT_SELF_VALUE:stage",
+      "code:TC_CE_STRUCT_SELF_VALUE:trigger",
+      "code:TC_CE_TRUNC_WIDTH:no_false_positive",
+      "code:TC_CE_TRUNC_WIDTH:position",
+      "code:TC_CE_TRUNC_WIDTH:stage",
+      "code:TC_CE_TRUNC_WIDTH:trigger",
+      "code:TC_CE_TRUNC_WIDTH:w32",
+      "code:TC_CE_TRUNC_WIDTH:w64",
+      "code:TC_CE_TYPE_MISMATCH:no_false_positive",
+      "code:TC_CE_TYPE_MISMATCH:position",
+      "code:TC_CE_TYPE_MISMATCH:stage",
+      "code:TC_CE_TYPE_MISMATCH:trigger",
+      "code:TC_CE_UNDEFINED_FUNCTION:no_false_positive",
+      "code:TC_CE_UNDEFINED_FUNCTION:position",
+      "code:TC_CE_UNDEFINED_FUNCTION:stage",
+      "code:TC_CE_UNDEFINED_FUNCTION:trigger",
+      "code:TC_CE_UNDEFINED_NAME:no_false_positive",
+      "code:TC_CE_UNDEFINED_NAME:position",
+      "code:TC_CE_UNDEFINED_NAME:stage",
+      "code:TC_CE_UNDEFINED_NAME:trigger",
+      "code:TC_CE_UNKNOWN_FIELD:no_false_positive",
+      "code:TC_CE_UNKNOWN_FIELD:position",
+      "code:TC_CE_UNKNOWN_FIELD:stage",
+      "code:TC_CE_UNKNOWN_FIELD:trigger",
+      "code:TC_CE_VOID:no_false_positive",
+      "code:TC_CE_VOID:position",
+      "code:TC_CE_VOID:stage",
+      "code:TC_CE_VOID:trigger",
+      "design12:06:gate_case",
+      "design12:06:suite_mapping",
+      "design12:09:gate_case",
+      "design12:09:suite_mapping",
       "first_diag_rule:06:combination_case",
-      "first_diag_rule:07:combination_case",
-      "first_diag_rule:08:combination_case"
-    ]
+      "first_diag_rule:08:combination_case",
+      "flip32_64:01:w32",
+      "flip32_64:01:w64",
+      "flip32_64:02:w32",
+      "flip32_64:02:w64",
+      "flip32_64:03:w32",
+      "flip32_64:03:w64",
+      "flip32_64:04:w32",
+      "flip32_64:04:w64",
+      "flip32_64:05:w32",
+      "flip32_64:05:w64",
+      "flip32_64:06:w32",
+      "flip32_64:06:w64",
+      "flip32_64:07:w32",
+      "flip32_64:07:w64",
+      "flip32_64:08:w32",
+      "flip32_64:08:w64",
+      "flip32_64:09:w32",
+      "flip32_64:09:w64",
+      "flip32_64:10:w32",
+      "flip32_64:10:w64",
+      "flip32_64:11:w32",
+      "flip32_64:11:w64",
+      "flip32_64:12:w32",
+      "flip32_64:12:w64",
+      "flip32_64:13:w32",
+      "flip32_64:13:w64",
+      "flip32_64:14:w32",
+      "flip32_64:14:w64",
+      "flip32_64:15:w32",
+      "flip32_64:15:w64",
+      "flip32_64:16:w32",
+      "flip32_64:16:w64",
+      "flip32_64:17:w32",
+      "flip32_64:17:w64"
+    ],
+    "scope_na_rows": []
   },
   "cross_checks": {
     "standard_chapters": "§0-§14",
@@ -88,25 +289,25 @@
   "summary": {
     "items": 231,
     "slots": 634,
-    "covered": 44,
-    "uncovered": 587,
-    "suspended": 3
+    "covered": 245,
+    "uncovered": 389,
+    "suspended": 0
   },
   "categories": {
     "chapter": {
       "label": "Standard chapter",
       "items": 15,
       "slots": 30,
-      "covered": 4,
-      "uncovered": 26,
+      "covered": 16,
+      "uncovered": 14,
       "suspended": 0
     },
     "code": {
       "label": "Diagnostic code",
       "items": 80,
       "slots": 344,
-      "covered": 28,
-      "uncovered": 316,
+      "covered": 174,
+      "uncovered": 170,
       "suspended": 0
     },
     "opcode": {
@@ -121,17 +322,17 @@
       "label": "Design §12 item",
       "items": 15,
       "slots": 30,
-      "covered": 0,
-      "uncovered": 30,
+      "covered": 6,
+      "uncovered": 24,
       "suspended": 0
     },
     "first_diag_rule": {
       "label": "First-diagnostic rule (§12.2)",
       "items": 10,
       "slots": 10,
-      "covered": 7,
+      "covered": 10,
       "uncovered": 0,
-      "suspended": 3
+      "suspended": 0
     },
     "same_site_priority": {
       "label": "Same-position code priority",
@@ -145,8 +346,8 @@
       "label": "32/64 flip",
       "items": 17,
       "slots": 34,
-      "covered": 0,
-      "uncovered": 34,
+      "covered": 34,
+      "uncovered": 0,
       "suspended": 0
     },
     "annotation": {
@@ -190,8 +391,11 @@
       "item": "§0 原则/字长/目标相关静态结果",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0009",
+        "TC-TOOL-SEM-0010"
+      ],
       "chapter": "§0",
       "title": "原则/字长/目标相关静态结果",
       "primary_stage": "S0/S3",
@@ -207,8 +411,11 @@
       "item": "§0 原则/字长/目标相关静态结果",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0003",
+        "TC-SEM-LAYOUT-0001"
+      ],
       "chapter": "§0",
       "title": "原则/字长/目标相关静态结果",
       "primary_stage": "S0/S3",
@@ -300,8 +507,11 @@
       "item": "§3 类型/转换/对象/指针状态",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001",
+        "TC-TOOL-SEM-0002"
+      ],
       "chapter": "§3",
       "title": "类型/转换/对象/指针状态",
       "primary_stage": "S3/S6",
@@ -318,8 +528,11 @@
       "item": "§3 类型/转换/对象/指针状态",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-TYPE-0001",
+        "TC-SEM-TYPE-0004"
+      ],
       "chapter": "§3",
       "title": "类型/转换/对象/指针状态",
       "primary_stage": "S3/S6",
@@ -336,8 +549,11 @@
       "item": "§4 程序结构/模块/导入/可见性/CT 顺序",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006",
+        "TC-TOOL-SEM-0007"
+      ],
       "chapter": "§4",
       "title": "程序结构/模块/导入/可见性/CT 顺序",
       "primary_stage": "S1/S2/S5",
@@ -352,8 +568,11 @@
       "item": "§4 程序结构/模块/导入/可见性/CT 顺序",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0001",
+        "TC-IMP-0003"
+      ],
       "chapter": "§4",
       "title": "程序结构/模块/导入/可见性/CT 顺序",
       "primary_stage": "S1/S2/S5",
@@ -368,8 +587,11 @@
       "item": "§5 存储对象/作用域/DI",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001",
+        "TC-TOOL-SEM-0008"
+      ],
       "chapter": "§5",
       "title": "存储对象/作用域/DI",
       "primary_stage": "S3/S4",
@@ -384,8 +606,11 @@
       "item": "§5 存储对象/作用域/DI",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0001",
+        "TC-SEM-NAME-0003"
+      ],
       "chapter": "§5",
       "title": "存储对象/作用域/DI",
       "primary_stage": "S3/S4",
@@ -400,8 +625,11 @@
       "item": "§6 指令集/语义/验证",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0002",
+        "TC-TOOL-SEM-0004"
+      ],
       "chapter": "§6",
       "title": "指令集/语义/验证",
       "primary_stage": "S1/S3/S4/S6/S8",
@@ -419,8 +647,11 @@
       "item": "§6 指令集/语义/验证",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OP-0001",
+        "TC-SEM-MODE-0001"
+      ],
       "chapter": "§6",
       "title": "指令集/语义/验证",
       "primary_stage": "S1/S3/S4/S6/S8",
@@ -648,8 +879,11 @@
       "item": "§13 平台档案/验证要求",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0009",
+        "TC-TOOL-SEM-0010"
+      ],
       "chapter": "§13",
       "title": "平台档案/验证要求",
       "primary_stage": "S0/S3/S7/S8/S9",
@@ -667,8 +901,11 @@
       "item": "§13 平台档案/验证要求",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0001",
+        "TC-SEM-CONV-0003"
+      ],
       "chapter": "§13",
       "title": "平台档案/验证要求",
       "primary_stage": "S0/S3/S7/S8/S9",
@@ -1293,8 +1530,10 @@
       "item": "TC_CE_UNDEFINED_NAME",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0001"
+      ],
       "code": "TC_CE_UNDEFINED_NAME",
       "print_name": "UndefinedName",
       "stage": "SEM",
@@ -1311,8 +1550,10 @@
       "item": "TC_CE_UNDEFINED_NAME",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_UNDEFINED_NAME",
       "print_name": "UndefinedName",
       "stage": "SEM",
@@ -1329,8 +1570,10 @@
       "item": "TC_CE_UNDEFINED_NAME",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0007"
+      ],
       "code": "TC_CE_UNDEFINED_NAME",
       "print_name": "UndefinedName",
       "stage": "SEM",
@@ -1347,8 +1590,10 @@
       "item": "TC_CE_UNDEFINED_NAME",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0001"
+      ],
       "code": "TC_CE_UNDEFINED_NAME",
       "print_name": "UndefinedName",
       "stage": "SEM",
@@ -1365,8 +1610,10 @@
       "item": "TC_CE_DUPLICATE_NAME",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0002"
+      ],
       "code": "TC_CE_DUPLICATE_NAME",
       "print_name": "DuplicateName",
       "stage": "SEM",
@@ -1383,8 +1630,10 @@
       "item": "TC_CE_DUPLICATE_NAME",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_DUPLICATE_NAME",
       "print_name": "DuplicateName",
       "stage": "SEM",
@@ -1401,8 +1650,10 @@
       "item": "TC_CE_DUPLICATE_NAME",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0002"
+      ],
       "code": "TC_CE_DUPLICATE_NAME",
       "print_name": "DuplicateName",
       "stage": "SEM",
@@ -1419,8 +1670,10 @@
       "item": "TC_CE_DUPLICATE_NAME",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0002"
+      ],
       "code": "TC_CE_DUPLICATE_NAME",
       "print_name": "DuplicateName",
       "stage": "SEM",
@@ -1437,8 +1690,10 @@
       "item": "TC_CE_DUPLICATE_MEMBER",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0102"
+      ],
       "code": "TC_CE_DUPLICATE_MEMBER",
       "print_name": "DuplicateMember",
       "stage": "SEM",
@@ -1455,8 +1710,10 @@
       "item": "TC_CE_DUPLICATE_MEMBER",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0008"
+      ],
       "code": "TC_CE_DUPLICATE_MEMBER",
       "print_name": "DuplicateMember",
       "stage": "SEM",
@@ -1473,8 +1730,10 @@
       "item": "TC_CE_DUPLICATE_MEMBER",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0102"
+      ],
       "code": "TC_CE_DUPLICATE_MEMBER",
       "print_name": "DuplicateMember",
       "stage": "SEM",
@@ -1491,8 +1750,10 @@
       "item": "TC_CE_DUPLICATE_MEMBER",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0102"
+      ],
       "code": "TC_CE_DUPLICATE_MEMBER",
       "print_name": "DuplicateMember",
       "stage": "SEM",
@@ -1509,8 +1770,10 @@
       "item": "TC_CE_DUPLICATE_PARAMETER",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0103"
+      ],
       "code": "TC_CE_DUPLICATE_PARAMETER",
       "print_name": "DuplicateParameter",
       "stage": "SEM",
@@ -1527,8 +1790,10 @@
       "item": "TC_CE_DUPLICATE_PARAMETER",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0005"
+      ],
       "code": "TC_CE_DUPLICATE_PARAMETER",
       "print_name": "DuplicateParameter",
       "stage": "SEM",
@@ -1545,8 +1810,10 @@
       "item": "TC_CE_DUPLICATE_PARAMETER",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0103"
+      ],
       "code": "TC_CE_DUPLICATE_PARAMETER",
       "print_name": "DuplicateParameter",
       "stage": "SEM",
@@ -1563,8 +1830,10 @@
       "item": "TC_CE_DUPLICATE_PARAMETER",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0103"
+      ],
       "code": "TC_CE_DUPLICATE_PARAMETER",
       "print_name": "DuplicateParameter",
       "stage": "SEM",
@@ -1581,8 +1850,10 @@
       "item": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0101"
+      ],
       "code": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "print_name": "FunctionScopeAccess",
       "stage": "SEM",
@@ -1599,8 +1870,10 @@
       "item": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "code": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "print_name": "FunctionScopeAccess",
       "stage": "SEM",
@@ -1617,8 +1890,10 @@
       "item": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0101"
+      ],
       "code": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "print_name": "FunctionScopeAccess",
       "stage": "SEM",
@@ -1635,8 +1910,10 @@
       "item": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0101"
+      ],
       "code": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "print_name": "FunctionScopeAccess",
       "stage": "SEM",
@@ -1653,8 +1930,10 @@
       "item": "TC_CE_UNDEFINED_FUNCTION",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FUNC-0101"
+      ],
       "code": "TC_CE_UNDEFINED_FUNCTION",
       "print_name": "UndefinedFunction",
       "stage": "SEM",
@@ -1671,8 +1950,10 @@
       "item": "TC_CE_UNDEFINED_FUNCTION",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0005"
+      ],
       "code": "TC_CE_UNDEFINED_FUNCTION",
       "print_name": "UndefinedFunction",
       "stage": "SEM",
@@ -1689,8 +1970,10 @@
       "item": "TC_CE_UNDEFINED_FUNCTION",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FUNC-0101"
+      ],
       "code": "TC_CE_UNDEFINED_FUNCTION",
       "print_name": "UndefinedFunction",
       "stage": "SEM",
@@ -1707,8 +1990,10 @@
       "item": "TC_CE_UNDEFINED_FUNCTION",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FUNC-0101"
+      ],
       "code": "TC_CE_UNDEFINED_FUNCTION",
       "print_name": "UndefinedFunction",
       "stage": "SEM",
@@ -1725,8 +2010,10 @@
       "item": "TC_CE_PRIVATE_ACCESS",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0104"
+      ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
       "stage": "SEM",
@@ -1743,8 +2030,10 @@
       "item": "TC_CE_PRIVATE_ACCESS",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0008"
+      ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
       "stage": "SEM",
@@ -1761,8 +2050,11 @@
       "item": "TC_CE_PRIVATE_ACCESS",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0104",
+        "TC-SEM-FUNC-0102"
+      ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
       "stage": "SEM",
@@ -1779,8 +2071,10 @@
       "item": "TC_CE_PRIVATE_ACCESS",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0105"
+      ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
       "stage": "SEM",
@@ -1797,8 +2091,10 @@
       "item": "TC_CE_PRIVATE_TYPE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0106"
+      ],
       "code": "TC_CE_PRIVATE_TYPE",
       "print_name": "PrivateType",
       "stage": "SEM",
@@ -1815,8 +2111,10 @@
       "item": "TC_CE_PRIVATE_TYPE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0008"
+      ],
       "code": "TC_CE_PRIVATE_TYPE",
       "print_name": "PrivateType",
       "stage": "SEM",
@@ -1833,8 +2131,10 @@
       "item": "TC_CE_PRIVATE_TYPE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0107"
+      ],
       "code": "TC_CE_PRIVATE_TYPE",
       "print_name": "PrivateType",
       "stage": "SEM",
@@ -1851,8 +2151,10 @@
       "item": "TC_CE_PRIVATE_TYPE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0106"
+      ],
       "code": "TC_CE_PRIVATE_TYPE",
       "print_name": "PrivateType",
       "stage": "SEM",
@@ -1869,8 +2171,10 @@
       "item": "TC_CE_IMPORT_NOT_FOUND",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0001"
+      ],
       "code": "TC_CE_IMPORT_NOT_FOUND",
       "print_name": "ImportNotFound",
       "stage": "SEM",
@@ -1887,8 +2191,10 @@
       "item": "TC_CE_IMPORT_NOT_FOUND",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "code": "TC_CE_IMPORT_NOT_FOUND",
       "print_name": "ImportNotFound",
       "stage": "SEM",
@@ -1905,8 +2211,10 @@
       "item": "TC_CE_IMPORT_NOT_FOUND",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0001"
+      ],
       "code": "TC_CE_IMPORT_NOT_FOUND",
       "print_name": "ImportNotFound",
       "stage": "SEM",
@@ -1923,8 +2231,10 @@
       "item": "TC_CE_IMPORT_NOT_FOUND",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0001"
+      ],
       "code": "TC_CE_IMPORT_NOT_FOUND",
       "print_name": "ImportNotFound",
       "stage": "SEM",
@@ -1941,8 +2251,10 @@
       "item": "TC_CE_IMPORT_NOT_LIB",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0002"
+      ],
       "code": "TC_CE_IMPORT_NOT_LIB",
       "print_name": "ImportNotLib",
       "stage": "SEM",
@@ -1959,8 +2271,10 @@
       "item": "TC_CE_IMPORT_NOT_LIB",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "code": "TC_CE_IMPORT_NOT_LIB",
       "print_name": "ImportNotLib",
       "stage": "SEM",
@@ -1977,8 +2291,10 @@
       "item": "TC_CE_IMPORT_NOT_LIB",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0002"
+      ],
       "code": "TC_CE_IMPORT_NOT_LIB",
       "print_name": "ImportNotLib",
       "stage": "SEM",
@@ -1995,8 +2311,10 @@
       "item": "TC_CE_IMPORT_NOT_LIB",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0002"
+      ],
       "code": "TC_CE_IMPORT_NOT_LIB",
       "print_name": "ImportNotLib",
       "stage": "SEM",
@@ -2013,8 +2331,10 @@
       "item": "TC_CE_DUPLICATE_IMPORT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0003"
+      ],
       "code": "TC_CE_DUPLICATE_IMPORT",
       "print_name": "DuplicateImport",
       "stage": "SEM",
@@ -2031,8 +2351,10 @@
       "item": "TC_CE_DUPLICATE_IMPORT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "code": "TC_CE_DUPLICATE_IMPORT",
       "print_name": "DuplicateImport",
       "stage": "SEM",
@@ -2049,8 +2371,10 @@
       "item": "TC_CE_DUPLICATE_IMPORT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0003"
+      ],
       "code": "TC_CE_DUPLICATE_IMPORT",
       "print_name": "DuplicateImport",
       "stage": "SEM",
@@ -2067,8 +2391,10 @@
       "item": "TC_CE_DUPLICATE_IMPORT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0003"
+      ],
       "code": "TC_CE_DUPLICATE_IMPORT",
       "print_name": "DuplicateImport",
       "stage": "SEM",
@@ -2085,8 +2411,10 @@
       "item": "TC_CE_CIRCULAR_IMPORT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0004"
+      ],
       "code": "TC_CE_CIRCULAR_IMPORT",
       "print_name": "CircularImport",
       "stage": "SEM",
@@ -2103,8 +2431,10 @@
       "item": "TC_CE_CIRCULAR_IMPORT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "code": "TC_CE_CIRCULAR_IMPORT",
       "print_name": "CircularImport",
       "stage": "SEM",
@@ -2121,8 +2451,10 @@
       "item": "TC_CE_CIRCULAR_IMPORT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0004"
+      ],
       "code": "TC_CE_CIRCULAR_IMPORT",
       "print_name": "CircularImport",
       "stage": "SEM",
@@ -2139,8 +2471,10 @@
       "item": "TC_CE_CIRCULAR_IMPORT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0004"
+      ],
       "code": "TC_CE_CIRCULAR_IMPORT",
       "print_name": "CircularImport",
       "stage": "SEM",
@@ -2157,8 +2491,10 @@
       "item": "TC_CE_IMPORT_NAME_CONFLICT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0005"
+      ],
       "code": "TC_CE_IMPORT_NAME_CONFLICT",
       "print_name": "ImportNameConflict",
       "stage": "SEM",
@@ -2175,8 +2511,10 @@
       "item": "TC_CE_IMPORT_NAME_CONFLICT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "code": "TC_CE_IMPORT_NAME_CONFLICT",
       "print_name": "ImportNameConflict",
       "stage": "SEM",
@@ -2193,8 +2531,10 @@
       "item": "TC_CE_IMPORT_NAME_CONFLICT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0005"
+      ],
       "code": "TC_CE_IMPORT_NAME_CONFLICT",
       "print_name": "ImportNameConflict",
       "stage": "SEM",
@@ -2211,8 +2551,10 @@
       "item": "TC_CE_IMPORT_NAME_CONFLICT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0005"
+      ],
       "code": "TC_CE_IMPORT_NAME_CONFLICT",
       "print_name": "ImportNameConflict",
       "stage": "SEM",
@@ -2373,8 +2715,10 @@
       "item": "TC_CE_TYPE_MISMATCH",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-TYPE-0001"
+      ],
       "code": "TC_CE_TYPE_MISMATCH",
       "print_name": "TypeMismatch",
       "stage": "SEM",
@@ -2391,8 +2735,10 @@
       "item": "TC_CE_TYPE_MISMATCH",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_TYPE_MISMATCH",
       "print_name": "TypeMismatch",
       "stage": "SEM",
@@ -2409,8 +2755,11 @@
       "item": "TC_CE_TYPE_MISMATCH",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-TYPE-0002",
+        "TC-SEM-FIELD-0002"
+      ],
       "code": "TC_CE_TYPE_MISMATCH",
       "print_name": "TypeMismatch",
       "stage": "SEM",
@@ -2427,8 +2776,10 @@
       "item": "TC_CE_TYPE_MISMATCH",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-TYPE-0001"
+      ],
       "code": "TC_CE_TYPE_MISMATCH",
       "print_name": "TypeMismatch",
       "stage": "SEM",
@@ -2445,8 +2796,10 @@
       "item": "TC_CE_LITERAL_TYPE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0001"
+      ],
       "code": "TC_CE_LITERAL_TYPE",
       "print_name": "LiteralType",
       "stage": "SEM",
@@ -2463,8 +2816,10 @@
       "item": "TC_CE_LITERAL_TYPE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0003"
+      ],
       "code": "TC_CE_LITERAL_TYPE",
       "print_name": "LiteralType",
       "stage": "SEM",
@@ -2481,8 +2836,10 @@
       "item": "TC_CE_LITERAL_TYPE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0002"
+      ],
       "code": "TC_CE_LITERAL_TYPE",
       "print_name": "LiteralType",
       "stage": "SEM",
@@ -2499,8 +2856,10 @@
       "item": "TC_CE_LITERAL_TYPE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0001"
+      ],
       "code": "TC_CE_LITERAL_TYPE",
       "print_name": "LiteralType",
       "stage": "SEM",
@@ -2517,8 +2876,10 @@
       "item": "TC_CE_LITERAL_RANGE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0007"
+      ],
       "code": "TC_CE_LITERAL_RANGE",
       "print_name": "LiteralRange",
       "stage": "SEM",
@@ -2535,8 +2896,10 @@
       "item": "TC_CE_LITERAL_RANGE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0003"
+      ],
       "code": "TC_CE_LITERAL_RANGE",
       "print_name": "LiteralRange",
       "stage": "SEM",
@@ -2553,8 +2916,10 @@
       "item": "TC_CE_LITERAL_RANGE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0008"
+      ],
       "code": "TC_CE_LITERAL_RANGE",
       "print_name": "LiteralRange",
       "stage": "SEM",
@@ -2571,8 +2936,10 @@
       "item": "TC_CE_LITERAL_RANGE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0007"
+      ],
       "code": "TC_CE_LITERAL_RANGE",
       "print_name": "LiteralRange",
       "stage": "SEM",
@@ -2589,8 +2956,11 @@
       "item": "TC_CE_LITERAL_RANGE",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0100",
+        "TC-SEM-LIT-0101"
+      ],
       "code": "TC_CE_LITERAL_RANGE",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -2602,8 +2972,10 @@
       "item": "TC_CE_LITERAL_RANGE",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0016"
+      ],
       "code": "TC_CE_LITERAL_RANGE",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -2615,8 +2987,10 @@
       "item": "TC_CE_MODE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-MODE-0001"
+      ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
       "stage": "SEM",
@@ -2633,8 +3007,10 @@
       "item": "TC_CE_MODE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0004"
+      ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
       "stage": "SEM",
@@ -2651,8 +3027,10 @@
       "item": "TC_CE_MODE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-MODE-0002"
+      ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
       "stage": "SEM",
@@ -2669,8 +3047,10 @@
       "item": "TC_CE_MODE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-MODE-0001"
+      ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
       "stage": "SEM",
@@ -2687,8 +3067,11 @@
       "item": "TC_CE_ANNOTATION",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-MODE-0003",
+        "TC-SEM-ANN-0001"
+      ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
       "stage": "SEM",
@@ -2705,8 +3088,11 @@
       "item": "TC_CE_ANNOTATION",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0004",
+        "TC-TOOL-SEM-0017"
+      ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
       "stage": "SEM",
@@ -2723,8 +3109,11 @@
       "item": "TC_CE_ANNOTATION",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-MODE-0003",
+        "TC-SEM-ANN-0001"
+      ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
       "stage": "SEM",
@@ -2741,8 +3130,10 @@
       "item": "TC_CE_ANNOTATION",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-MODE-0003"
+      ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
       "stage": "SEM",
@@ -2759,8 +3150,10 @@
       "item": "TC_CE_ANNOTATION",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ANN-0001"
+      ],
       "code": "TC_CE_ANNOTATION",
       "w_sensitive": true,
       "first_test_stage": "S4"
@@ -2772,8 +3165,10 @@
       "item": "TC_CE_ANNOTATION",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0017"
+      ],
       "code": "TC_CE_ANNOTATION",
       "w_sensitive": true,
       "first_test_stage": "S4"
@@ -2785,8 +3180,10 @@
       "item": "TC_CE_OPERAND_COUNT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OP-0001"
+      ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
       "stage": "SEM",
@@ -2803,8 +3200,10 @@
       "item": "TC_CE_OPERAND_COUNT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
       "stage": "SEM",
@@ -2821,8 +3220,11 @@
       "item": "TC_CE_OPERAND_COUNT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OP-0002",
+        "TC-SEM-FIELD-0009"
+      ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
       "stage": "SEM",
@@ -2839,8 +3241,10 @@
       "item": "TC_CE_OPERAND_COUNT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OP-0001"
+      ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
       "stage": "SEM",
@@ -3577,8 +3981,10 @@
       "item": "TC_CE_UNKNOWN_FIELD",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0001"
+      ],
       "code": "TC_CE_UNKNOWN_FIELD",
       "print_name": "UnknownField",
       "stage": "SEM",
@@ -3595,8 +4001,10 @@
       "item": "TC_CE_UNKNOWN_FIELD",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_UNKNOWN_FIELD",
       "print_name": "UnknownField",
       "stage": "SEM",
@@ -3613,8 +4021,10 @@
       "item": "TC_CE_UNKNOWN_FIELD",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0001"
+      ],
       "code": "TC_CE_UNKNOWN_FIELD",
       "print_name": "UnknownField",
       "stage": "SEM",
@@ -3631,8 +4041,10 @@
       "item": "TC_CE_UNKNOWN_FIELD",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0001"
+      ],
       "code": "TC_CE_UNKNOWN_FIELD",
       "print_name": "UnknownField",
       "stage": "SEM",
@@ -3649,8 +4061,10 @@
       "item": "TC_CE_MISSING_FIELD",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0004"
+      ],
       "code": "TC_CE_MISSING_FIELD",
       "print_name": "MissingField",
       "stage": "SEM",
@@ -3667,8 +4081,10 @@
       "item": "TC_CE_MISSING_FIELD",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_MISSING_FIELD",
       "print_name": "MissingField",
       "stage": "SEM",
@@ -3685,8 +4101,10 @@
       "item": "TC_CE_MISSING_FIELD",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0004"
+      ],
       "code": "TC_CE_MISSING_FIELD",
       "print_name": "MissingField",
       "stage": "SEM",
@@ -3703,8 +4121,10 @@
       "item": "TC_CE_MISSING_FIELD",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0004"
+      ],
       "code": "TC_CE_MISSING_FIELD",
       "print_name": "MissingField",
       "stage": "SEM",
@@ -3721,8 +4141,10 @@
       "item": "TC_CE_DUPLICATE_FIELD",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0005"
+      ],
       "code": "TC_CE_DUPLICATE_FIELD",
       "print_name": "DuplicateField",
       "stage": "SEM",
@@ -3739,8 +4161,10 @@
       "item": "TC_CE_DUPLICATE_FIELD",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_DUPLICATE_FIELD",
       "print_name": "DuplicateField",
       "stage": "SEM",
@@ -3757,8 +4181,10 @@
       "item": "TC_CE_DUPLICATE_FIELD",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0010"
+      ],
       "code": "TC_CE_DUPLICATE_FIELD",
       "print_name": "DuplicateField",
       "stage": "SEM",
@@ -3775,8 +4201,10 @@
       "item": "TC_CE_DUPLICATE_FIELD",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0010"
+      ],
       "code": "TC_CE_DUPLICATE_FIELD",
       "print_name": "DuplicateField",
       "stage": "SEM",
@@ -3793,8 +4221,10 @@
       "item": "TC_CE_STRUCT_SELF_VALUE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0005"
+      ],
       "code": "TC_CE_STRUCT_SELF_VALUE",
       "print_name": "StructSelfValue",
       "stage": "SEM",
@@ -3811,8 +4241,10 @@
       "item": "TC_CE_STRUCT_SELF_VALUE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_STRUCT_SELF_VALUE",
       "print_name": "StructSelfValue",
       "stage": "SEM",
@@ -3829,8 +4261,10 @@
       "item": "TC_CE_STRUCT_SELF_VALUE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0005"
+      ],
       "code": "TC_CE_STRUCT_SELF_VALUE",
       "print_name": "StructSelfValue",
       "stage": "SEM",
@@ -3847,8 +4281,10 @@
       "item": "TC_CE_STRUCT_SELF_VALUE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0005"
+      ],
       "code": "TC_CE_STRUCT_SELF_VALUE",
       "print_name": "StructSelfValue",
       "stage": "SEM",
@@ -3865,8 +4301,10 @@
       "item": "TC_CE_EMPTY_STRUCT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0006"
+      ],
       "code": "TC_CE_EMPTY_STRUCT",
       "print_name": "EmptyStruct",
       "stage": "SEM",
@@ -3883,8 +4321,10 @@
       "item": "TC_CE_EMPTY_STRUCT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_EMPTY_STRUCT",
       "print_name": "EmptyStruct",
       "stage": "SEM",
@@ -3901,8 +4341,10 @@
       "item": "TC_CE_EMPTY_STRUCT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0006"
+      ],
       "code": "TC_CE_EMPTY_STRUCT",
       "print_name": "EmptyStruct",
       "stage": "SEM",
@@ -3919,8 +4361,10 @@
       "item": "TC_CE_EMPTY_STRUCT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-NAME-0006"
+      ],
       "code": "TC_CE_EMPTY_STRUCT",
       "print_name": "EmptyStruct",
       "stage": "SEM",
@@ -3937,8 +4381,10 @@
       "item": "TC_CE_LAYOUT_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0001"
+      ],
       "code": "TC_CE_LAYOUT_OVERFLOW",
       "print_name": "LayoutOverflow",
       "stage": "SEM",
@@ -3955,8 +4401,10 @@
       "item": "TC_CE_LAYOUT_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0009"
+      ],
       "code": "TC_CE_LAYOUT_OVERFLOW",
       "print_name": "LayoutOverflow",
       "stage": "SEM",
@@ -3973,8 +4421,10 @@
       "item": "TC_CE_LAYOUT_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0002"
+      ],
       "code": "TC_CE_LAYOUT_OVERFLOW",
       "print_name": "LayoutOverflow",
       "stage": "SEM",
@@ -3991,8 +4441,10 @@
       "item": "TC_CE_LAYOUT_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0001"
+      ],
       "code": "TC_CE_LAYOUT_OVERFLOW",
       "print_name": "LayoutOverflow",
       "stage": "SEM",
@@ -4009,8 +4461,10 @@
       "item": "TC_CE_LAYOUT_OVERFLOW",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0001"
+      ],
       "code": "TC_CE_LAYOUT_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -4022,8 +4476,10 @@
       "item": "TC_CE_LAYOUT_OVERFLOW",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0002"
+      ],
       "code": "TC_CE_LAYOUT_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -4035,8 +4491,10 @@
       "item": "TC_CE_FIELD_ORDER",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0007"
+      ],
       "code": "TC_CE_FIELD_ORDER",
       "print_name": "FieldOrder",
       "stage": "SEM",
@@ -4053,8 +4511,10 @@
       "item": "TC_CE_FIELD_ORDER",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_FIELD_ORDER",
       "print_name": "FieldOrder",
       "stage": "SEM",
@@ -4071,8 +4531,10 @@
       "item": "TC_CE_FIELD_ORDER",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0008"
+      ],
       "code": "TC_CE_FIELD_ORDER",
       "print_name": "FieldOrder",
       "stage": "SEM",
@@ -4089,8 +4551,10 @@
       "item": "TC_CE_FIELD_ORDER",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0007"
+      ],
       "code": "TC_CE_FIELD_ORDER",
       "print_name": "FieldOrder",
       "stage": "SEM",
@@ -4107,8 +4571,10 @@
       "item": "TC_CE_IMMUTABLE_FIELD",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0003"
+      ],
       "code": "TC_CE_IMMUTABLE_FIELD",
       "print_name": "ImmutableField",
       "stage": "SEM",
@@ -4125,8 +4591,10 @@
       "item": "TC_CE_IMMUTABLE_FIELD",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_IMMUTABLE_FIELD",
       "print_name": "ImmutableField",
       "stage": "SEM",
@@ -4143,8 +4611,10 @@
       "item": "TC_CE_IMMUTABLE_FIELD",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0003"
+      ],
       "code": "TC_CE_IMMUTABLE_FIELD",
       "print_name": "ImmutableField",
       "stage": "SEM",
@@ -4161,8 +4631,10 @@
       "item": "TC_CE_IMMUTABLE_FIELD",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-FIELD-0003"
+      ],
       "code": "TC_CE_IMMUTABLE_FIELD",
       "print_name": "ImmutableField",
       "stage": "SEM",
@@ -4179,8 +4651,10 @@
       "item": "TC_CE_CONST_ASSIGNMENT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0001"
+      ],
       "code": "TC_CE_CONST_ASSIGNMENT",
       "print_name": "ConstAssignment",
       "stage": "SEM",
@@ -4197,8 +4671,10 @@
       "item": "TC_CE_CONST_ASSIGNMENT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_CONST_ASSIGNMENT",
       "print_name": "ConstAssignment",
       "stage": "SEM",
@@ -4215,8 +4691,10 @@
       "item": "TC_CE_CONST_ASSIGNMENT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0102"
+      ],
       "code": "TC_CE_CONST_ASSIGNMENT",
       "print_name": "ConstAssignment",
       "stage": "SEM",
@@ -4233,8 +4711,10 @@
       "item": "TC_CE_CONST_ASSIGNMENT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0001"
+      ],
       "code": "TC_CE_CONST_ASSIGNMENT",
       "print_name": "ConstAssignment",
       "stage": "SEM",
@@ -4251,8 +4731,10 @@
       "item": "TC_CE_PARAMETER_ASSIGNMENT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0101"
+      ],
       "code": "TC_CE_PARAMETER_ASSIGNMENT",
       "print_name": "ParameterAssignment",
       "stage": "SEM",
@@ -4269,8 +4751,10 @@
       "item": "TC_CE_PARAMETER_ASSIGNMENT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0005"
+      ],
       "code": "TC_CE_PARAMETER_ASSIGNMENT",
       "print_name": "ParameterAssignment",
       "stage": "SEM",
@@ -4287,8 +4771,10 @@
       "item": "TC_CE_PARAMETER_ASSIGNMENT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0101"
+      ],
       "code": "TC_CE_PARAMETER_ASSIGNMENT",
       "print_name": "ParameterAssignment",
       "stage": "SEM",
@@ -4305,8 +4791,10 @@
       "item": "TC_CE_PARAMETER_ASSIGNMENT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0101"
+      ],
       "code": "TC_CE_PARAMETER_ASSIGNMENT",
       "print_name": "ParameterAssignment",
       "stage": "SEM",
@@ -4395,8 +4883,10 @@
       "item": "TC_CE_ADDR_OF_CONST",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0002"
+      ],
       "code": "TC_CE_ADDR_OF_CONST",
       "print_name": "AddrOfConst",
       "stage": "SEM",
@@ -4413,8 +4903,10 @@
       "item": "TC_CE_ADDR_OF_CONST",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_ADDR_OF_CONST",
       "print_name": "AddrOfConst",
       "stage": "SEM",
@@ -4431,8 +4923,10 @@
       "item": "TC_CE_ADDR_OF_CONST",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0002"
+      ],
       "code": "TC_CE_ADDR_OF_CONST",
       "print_name": "AddrOfConst",
       "stage": "SEM",
@@ -4449,8 +4943,10 @@
       "item": "TC_CE_ADDR_OF_CONST",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ASSIGN-0002"
+      ],
       "code": "TC_CE_ADDR_OF_CONST",
       "print_name": "AddrOfConst",
       "stage": "SEM",
@@ -4467,8 +4963,10 @@
       "item": "TC_CE_BITCAST_WIDTH",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0001"
+      ],
       "code": "TC_CE_BITCAST_WIDTH",
       "print_name": "BitcastWidth",
       "stage": "SEM",
@@ -4485,8 +4983,11 @@
       "item": "TC_CE_BITCAST_WIDTH",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0002",
+        "TC-TOOL-SEM-0015"
+      ],
       "code": "TC_CE_BITCAST_WIDTH",
       "print_name": "BitcastWidth",
       "stage": "SEM",
@@ -4503,8 +5004,10 @@
       "item": "TC_CE_BITCAST_WIDTH",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0001"
+      ],
       "code": "TC_CE_BITCAST_WIDTH",
       "print_name": "BitcastWidth",
       "stage": "SEM",
@@ -4521,8 +5024,10 @@
       "item": "TC_CE_BITCAST_WIDTH",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0001"
+      ],
       "code": "TC_CE_BITCAST_WIDTH",
       "print_name": "BitcastWidth",
       "stage": "SEM",
@@ -4539,8 +5044,11 @@
       "item": "TC_CE_BITCAST_WIDTH",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0003",
+        "TC-SEM-CONV-0005"
+      ],
       "code": "TC_CE_BITCAST_WIDTH",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -4552,8 +5060,11 @@
       "item": "TC_CE_BITCAST_WIDTH",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0001",
+        "TC-SEM-CONV-0004"
+      ],
       "code": "TC_CE_BITCAST_WIDTH",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -4565,8 +5076,10 @@
       "item": "TC_CE_TRUNC_WIDTH",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0002"
+      ],
       "code": "TC_CE_TRUNC_WIDTH",
       "print_name": "TruncWidth",
       "stage": "SEM",
@@ -4583,8 +5096,10 @@
       "item": "TC_CE_TRUNC_WIDTH",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0002"
+      ],
       "code": "TC_CE_TRUNC_WIDTH",
       "print_name": "TruncWidth",
       "stage": "SEM",
@@ -4601,8 +5116,10 @@
       "item": "TC_CE_TRUNC_WIDTH",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0002"
+      ],
       "code": "TC_CE_TRUNC_WIDTH",
       "print_name": "TruncWidth",
       "stage": "SEM",
@@ -4619,8 +5136,10 @@
       "item": "TC_CE_TRUNC_WIDTH",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0002"
+      ],
       "code": "TC_CE_TRUNC_WIDTH",
       "print_name": "TruncWidth",
       "stage": "SEM",
@@ -4637,8 +5156,10 @@
       "item": "TC_CE_TRUNC_WIDTH",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0007"
+      ],
       "code": "TC_CE_TRUNC_WIDTH",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -4650,8 +5171,10 @@
       "item": "TC_CE_TRUNC_WIDTH",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0006"
+      ],
       "code": "TC_CE_TRUNC_WIDTH",
       "w_sensitive": true,
       "first_test_stage": "S3"
@@ -4735,8 +5258,10 @@
       "item": "TC_CE_VOID",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-VOID-0001"
+      ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
       "stage": "SEM",
@@ -4753,8 +5278,10 @@
       "item": "TC_CE_VOID",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0005"
+      ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
       "stage": "SEM",
@@ -4771,8 +5298,11 @@
       "item": "TC_CE_VOID",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-VOID-0002",
+        "TC-SEM-VOID-0003"
+      ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
       "stage": "SEM",
@@ -4789,8 +5319,10 @@
       "item": "TC_CE_VOID",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-VOID-0001"
+      ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
       "stage": "SEM",
@@ -5095,8 +5627,10 @@
       "item": "TC_CE_CONST_FORM",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONST-0001"
+      ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
       "stage": "SEM",
@@ -5113,8 +5647,10 @@
       "item": "TC_CE_CONST_FORM",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0001"
+      ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
       "stage": "SEM",
@@ -5131,8 +5667,11 @@
       "item": "TC_CE_CONST_FORM",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONST-0002",
+        "TC-SEM-CONST-0003"
+      ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
       "stage": "SEM",
@@ -5149,8 +5688,10 @@
       "item": "TC_CE_CONST_FORM",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONST-0001"
+      ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
       "stage": "SEM",
@@ -9753,8 +10294,11 @@
       "item": "6. 32/64 静态矩阵",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0010",
+        "TC-TOOL-SEM-0009"
+      ],
       "number": 6,
       "title": "32/64 静态矩阵",
       "detail": "`bitcast`/`trunc`/`cast`、`sizeof`/`@padding` 布局、`ptrdiff`、字面量范围、`@range`/`@align`、`read/write` 的 32/64 翻转；`TC_CE_BITCAST_WIDTH`/`TRUNC_WIDTH`/`LITERAL_RANGE`/`LAYOUT_OVERFLOW` 等按档案。",
@@ -9769,8 +10313,11 @@
       "item": "6. 32/64 静态矩阵",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0001",
+        "TC-SEM-LAYOUT-0001"
+      ],
       "number": 6,
       "title": "32/64 静态矩阵",
       "detail": "`bitcast`/`trunc`/`cast`、`sizeof`/`@padding` 布局、`ptrdiff`、字面量范围、`@range`/`@align`、`read/write` 的 32/64 翻转；`TC_CE_BITCAST_WIDTH`/`TRUNC_WIDTH`/`LITERAL_RANGE`/`LAYOUT_OVERFLOW` 等按档案。",
@@ -9849,8 +10396,10 @@
       "item": "9. 诊断/语法",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-TYPE-0001"
+      ],
       "number": 9,
       "title": "诊断/语法",
       "detail": "同位置候选总序、跨文件位置、call/make 参数顺序、`(base,suffix)` 矩阵、EBNF token/mode-misuse；80 码双射。",
@@ -9865,8 +10414,11 @@
       "item": "9. 诊断/语法",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-IMP-0001",
+        "TC-SEM-MODE-0001"
+      ],
       "number": 9,
       "title": "诊断/语法",
       "detail": "同位置候选总序、跨文件位置、call/make 参数顺序、`(base,suffix)` 矩阵、EBNF token/mode-misuse；80 码双射。",
@@ -9977,8 +10529,10 @@
       "item": "13. 类型表/模块实例",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-MODULE-0001"
+      ],
       "number": 13,
       "title": "类型表/模块实例",
       "detail": "Analyze 后类型表冻结、不可重解析/改写；`TcIR.modules`/`TcModule` 键控；同路径钻石依赖共享静态存储，同名不同路径分离。",
@@ -9993,8 +10547,10 @@
       "item": "13. 类型表/模块实例",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0006"
+      ],
       "number": 13,
       "title": "类型表/模块实例",
       "detail": "Analyze 后类型表冻结、不可重解析/改写；`TcIR.modules`/`TcModule` 键控；同路径钻石依赖共享静态存储，同名不同路径分离。",
@@ -10153,13 +10709,13 @@
       "item": "6. 布局诊断归属 SEM",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "suspended",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0001"
+      ],
       "number": 6,
       "title": "布局诊断归属 SEM",
-      "detail": "结构体布局在 `struct` 声明处计算；`TC_CE_LAYOUT_OVERFLOW` 按 SEM 的模块遍历/源序参与首诊排序，不进入 CT。",
-      "reason": "layout is SEM/S3",
-      "closure_stage": "S3"
+      "detail": "结构体布局在 `struct` 声明处计算；`TC_CE_LAYOUT_OVERFLOW` 按 SEM 的模块遍历/源序参与首诊排序，不进入 CT。"
     },
     {
       "id": "first_diag_rule:07:combination_case",
@@ -10168,13 +10724,14 @@
       "item": "7. 遍历无关",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "suspended",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-MODULE-0001",
+        "TC-TOOL-SEM-0006"
+      ],
       "number": 7,
       "title": "遍历无关",
-      "detail": "函数表、哈希表、CFG、调用图、导入表、字段表的内部遍历顺序不得改变首个诊断。",
-      "reason": "traversal needs front-end tables",
-      "closure_stage": "S4"
+      "detail": "函数表、哈希表、CFG、调用图、导入表、字段表的内部遍历顺序不得改变首个诊断。"
     },
     {
       "id": "first_diag_rule:08:combination_case",
@@ -10183,13 +10740,14 @@
       "item": "8. 档案字长",
       "slot": "combination_case",
       "spec": "standard §12.2, test plan §3.6/§6.1",
-      "status": "suspended",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0010",
+        "TC-SEM-CONV-0011"
+      ],
       "number": 8,
       "title": "档案字长",
-      "detail": "首诊顺序在同一档案内固定；不同字长档案的候选集与首诊可以不同（§13.2.2）。",
-      "reason": "W instantiation needs S3 layout/CT",
-      "closure_stage": "S3"
+      "detail": "首诊顺序在同一档案内固定；不同字长档案的候选集与首诊可以不同（§13.2.2）。"
     },
     {
       "id": "first_diag_rule:09:combination_case",
@@ -10322,8 +10880,10 @@
       "item": "`isize`/`usize` 宽度",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-LAYOUT-0001@w32"
+      ],
       "expected_w32": "4",
       "expected_w64": "8"
     },
@@ -10334,8 +10894,10 @@
       "item": "`isize`/`usize` 宽度",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-LAYOUT-0001@w64"
+      ],
       "expected_w32": "4",
       "expected_w64": "8"
     },
@@ -10346,8 +10908,10 @@
       "item": "`ptr<T>`/`fnptr` 宽度",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-LAYOUT-0001@w32"
+      ],
       "expected_w32": "4",
       "expected_w64": "8"
     },
@@ -10358,8 +10922,10 @@
       "item": "`ptr<T>`/`fnptr` 宽度",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-LAYOUT-0001@w64"
+      ],
       "expected_w32": "4",
       "expected_w64": "8"
     },
@@ -10370,8 +10936,10 @@
       "item": "sizeof isize`/`usize`/`ptr`/`fnptr",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-LAYOUT-0001@w32"
+      ],
       "expected_w32": "4",
       "expected_w64": "8"
     },
@@ -10382,8 +10950,10 @@
       "item": "sizeof isize`/`usize`/`ptr`/`fnptr",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-LAYOUT-0001@w64"
+      ],
       "expected_w32": "4",
       "expected_w64": "8"
     },
@@ -10394,8 +10964,10 @@
       "item": "`ptrdiff` 结果",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0013"
+      ],
       "expected_w32": "`isize` 32 位",
       "expected_w64": "`isize` 64 位"
     },
@@ -10406,8 +10978,10 @@
       "item": "`ptrdiff` 结果",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0014"
+      ],
       "expected_w32": "`isize` 32 位",
       "expected_w64": "`isize` 64 位"
     },
@@ -10418,8 +10992,10 @@
       "item": "bitcast ptr<T> ↔ int` / `bitcast fnptr<sig> ↔ int",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0015"
+      ],
       "expected_w32": "仅 `int32`/`uint32`/`isize`/`usize`",
       "expected_w64": "仅 `int64`/`uint64`/`isize`/`usize`"
     },
@@ -10430,8 +11006,10 @@
       "item": "bitcast ptr<T> ↔ int` / `bitcast fnptr<sig> ↔ int",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0002"
+      ],
       "expected_w32": "仅 `int32`/`uint32`/`isize`/`usize`",
       "expected_w64": "仅 `int64`/`uint64`/`isize`/`usize`"
     },
@@ -10442,8 +11020,10 @@
       "item": "bitcast isize ↔ int32",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0010"
+      ],
       "expected_w32": "等宽，合法",
       "expected_w64": "TC_CE_BITCAST_WIDTH"
     },
@@ -10454,8 +11034,10 @@
       "item": "bitcast isize ↔ int32",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0001"
+      ],
       "expected_w32": "等宽，合法",
       "expected_w64": "TC_CE_BITCAST_WIDTH"
     },
@@ -10466,8 +11048,10 @@
       "item": "bitcast isize ↔ int64",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0003"
+      ],
       "expected_w32": "TC_CE_BITCAST_WIDTH",
       "expected_w64": "等宽，合法"
     },
@@ -10478,8 +11062,10 @@
       "item": "bitcast isize ↔ int64",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0011"
+      ],
       "expected_w32": "TC_CE_BITCAST_WIDTH",
       "expected_w64": "等宽，合法"
     },
@@ -10490,8 +11076,10 @@
       "item": "bitcast usize ↔ uint32",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0012"
+      ],
       "expected_w32": "等宽，合法",
       "expected_w64": "TC_CE_BITCAST_WIDTH"
     },
@@ -10502,8 +11090,10 @@
       "item": "bitcast usize ↔ uint32",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0004"
+      ],
       "expected_w32": "等宽，合法",
       "expected_w64": "TC_CE_BITCAST_WIDTH"
     },
@@ -10514,8 +11104,10 @@
       "item": "bitcast usize ↔ uint64",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0005"
+      ],
       "expected_w32": "TC_CE_BITCAST_WIDTH",
       "expected_w64": "等宽，合法"
     },
@@ -10526,8 +11118,10 @@
       "item": "bitcast usize ↔ uint64",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0013"
+      ],
       "expected_w32": "TC_CE_BITCAST_WIDTH",
       "expected_w64": "等宽，合法"
     },
@@ -10538,8 +11132,10 @@
       "item": "trunc isize, int64",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0014"
+      ],
       "expected_w32": "合法（32 < 64）",
       "expected_w64": "TC_CE_TRUNC_WIDTH"
     },
@@ -10550,8 +11146,10 @@
       "item": "trunc isize, int64",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0006"
+      ],
       "expected_w32": "合法（32 < 64）",
       "expected_w64": "TC_CE_TRUNC_WIDTH"
     },
@@ -10562,8 +11160,10 @@
       "item": "trunc int32, isize",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0007"
+      ],
       "expected_w32": "`TC_CE_TRUNC_WIDTH`（32 = 32）",
       "expected_w64": "合法（32 < 64）"
     },
@@ -10574,8 +11174,10 @@
       "item": "trunc int32, isize",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0015"
+      ],
       "expected_w32": "`TC_CE_TRUNC_WIDTH`（32 = 32）",
       "expected_w64": "合法（32 < 64）"
     },
@@ -10586,8 +11188,10 @@
       "item": "trunc usize, int64",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0016"
+      ],
       "expected_w32": "合法（32 < 64）",
       "expected_w64": "TC_CE_TRUNC_WIDTH"
     },
@@ -10598,8 +11202,10 @@
       "item": "trunc usize, int64",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0008"
+      ],
       "expected_w32": "合法（32 < 64）",
       "expected_w64": "TC_CE_TRUNC_WIDTH"
     },
@@ -10610,8 +11216,10 @@
       "item": "trunc int32, usize",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0009"
+      ],
       "expected_w32": "`TC_CE_TRUNC_WIDTH`（32 = 32）",
       "expected_w64": "合法（32 < 64）"
     },
@@ -10622,8 +11230,10 @@
       "item": "trunc int32, usize",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-CONV-0017"
+      ],
       "expected_w32": "`TC_CE_TRUNC_WIDTH`（32 = 32）",
       "expected_w64": "合法（32 < 64）"
     },
@@ -10634,8 +11244,11 @@
       "item": "`isize`/`usize` 字面量范围",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LIT-0100",
+        "TC-SEM-LIT-0101"
+      ],
       "expected_w32": "32 位可表示范围",
       "expected_w64": "64 位可表示范围"
     },
@@ -10646,8 +11259,10 @@
       "item": "`isize`/`usize` 字面量范围",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0016"
+      ],
       "expected_w32": "32 位可表示范围",
       "expected_w64": "64 位可表示范围"
     },
@@ -10658,8 +11273,10 @@
       "item": "`@padding`/结构体求和",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0001"
+      ],
       "expected_w32": "按 32 位 `usize` 溢出",
       "expected_w64": "按 64 位 `usize` 溢出"
     },
@@ -10670,8 +11287,10 @@
       "item": "`@padding`/结构体求和",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-LAYOUT-0002"
+      ],
       "expected_w32": "按 32 位 `usize` 溢出",
       "expected_w64": "按 64 位 `usize` 溢出"
     },
@@ -10682,8 +11301,11 @@
       "item": "@range` 的 `isize`/`usize` 参数；`@align` 的 `N",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ANN-0001",
+        "TC-SEM-ANN-0002"
+      ],
       "expected_w32": "按 32 位范围检查",
       "expected_w64": "按 64 位范围检查"
     },
@@ -10694,8 +11316,11 @@
       "item": "@range` 的 `isize`/`usize` 参数；`@align` 的 `N",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0017",
+        "TC-TOOL-SEM-0018"
+      ],
       "expected_w32": "按 32 位范围检查",
       "expected_w64": "按 64 位范围检查"
     },
@@ -10706,8 +11331,10 @@
       "item": "read`/`write` 的 `isize`/`usize",
       "slot": "w32",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0011"
+      ],
       "expected_w32": "32 位范围",
       "expected_w64": "64 位范围"
     },
@@ -10718,8 +11345,10 @@
       "item": "read`/`write` 的 `isize`/`usize",
       "slot": "w64",
       "spec": "standard §13.2.2, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SEM-0012"
+      ],
       "expected_w32": "32 位范围",
       "expected_w64": "64 位范围"
     },

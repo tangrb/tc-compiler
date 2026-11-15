@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0002
+profile: common
+source: mode_ieee_int.tc
+spec: "§6.3 .ieee 只适用于浮点 -> MODE"
+expect:
+  stage: SEM
+  code: TC_CE_MODE
+  primary: {file: mode_ieee_int.tc, line: 2, column: 20}
+  related: []
+  diagnostics: exactly-one

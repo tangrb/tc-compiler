@@ -1,0 +1,12 @@
+id: TC-SEM-BITCAST-0007
+profile: w64
+source: bitcast_float_int.tc
+spec: "§3.11 bitcast 类别矩阵：float -> int 允许且等宽"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

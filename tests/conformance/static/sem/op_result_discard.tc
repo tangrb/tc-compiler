@@ -1,0 +1,4 @@
+#program
+var x: int32 = copy int32, 0
+var p: ptr<int32> = addr int32, x
+x = store int32, p, 1

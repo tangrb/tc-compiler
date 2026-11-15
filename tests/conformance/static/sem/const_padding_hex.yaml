@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0002
+profile: common
+source: const_padding_hex.tc
+spec: "§2.6 @padding(N) 不得使用进制前缀 -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: const_padding_hex.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

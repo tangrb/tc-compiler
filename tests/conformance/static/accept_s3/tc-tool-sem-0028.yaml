@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0028
+profile: w64
+source: tc-tool-sem-0028/root.tc
+spec: "§3.7/§13.2.2 W=64 布局求和 2^32 不溢出（W=32 会溢出）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

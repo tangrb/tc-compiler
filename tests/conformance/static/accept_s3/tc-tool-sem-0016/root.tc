@@ -1,0 +1,3 @@
+#program
+var a: isize = copy isize, 2147483648
+var b: usize = copy usize, 4294967296

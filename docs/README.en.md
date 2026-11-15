@@ -11,14 +11,16 @@ This directory contains the **0.0.46** standard, design documents, and evaluatio
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 development/test stages, gates, coverage and traceability |
 | [G0 gate report](gates/TC-G0门禁报告-0.0.46.md) | S0 contract/test evidence, audit conclusions and gate status |
 | [G1 gate report](gates/TC-G1门禁报告-0.0.46.md) | S1 LEX/SYN + flat parse IR evidence, exit criteria, coverage/first-diagnostic conventions, independent review and gate status |
+| [G2 gate report](gates/TC-G2门禁报告-0.0.46.md) | S2 module discovery/IMPORT evidence, module_order/instance keys/IMPORT codes and determinism |
+| [G3 gate report](gates/TC-G3门禁报告-0.0.46.md) | S3 names/types/conversions/layout, type-table freeze, 32/64 matrix and gate status |
 
 > Gate reports live under [`gates/`](gates/); see [`gates/README.md`](gates/README.md) for the index.
 
 ## Status
 
 - Branch: `tc-0.0.46` clean-sheet.
-- S0 contract layer/test infrastructure and the S1 LEX/SYN front end (flat parse IR) are implemented; IMPORT/SEM/CT, VM and backend start in S2.
-- S0 passed the [G0 gate report](gates/TC-G0门禁报告-0.0.46.md); S1 evidence is in the [G1 gate report](gates/TC-G1门禁报告-0.0.46.md) (final gate status per its §1/§13).
+- S0 contract layer/test infrastructure, S1 LEX/SYN and S2/S3 module/IMPORT + name/type/conversion/layout are implemented and gated; CT, CFG/DI/safety/annotations, VM and backend remain future work.
+- S0 passed [G0](gates/TC-G0门禁报告-0.0.46.md); S1 passed [G1](gates/TC-G1门禁报告-0.0.46.md); S2/S3 passed [G2](gates/TC-G2门禁报告-0.0.46.md)/[G3](gates/TC-G3门禁报告-0.0.46.md).
 - No C host public library, embedding API, or ABI.
 - Both 32-bit and 64-bit are 0.0.46 targets; `usize`/`isize` are platform-word types. The standard and design have been revised for both 32/64 profiles (§13.2.1/§13.2.2).
 

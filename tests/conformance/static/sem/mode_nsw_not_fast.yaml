@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0003
+profile: common
+source: mode_nsw_not_fast.tc
+spec: "§3.13.2/§6.15.1 .nsw 在合法 base 但不在 @fast -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: mode_nsw_not_fast.tc, line: 2, column: 20}
+  related: []
+  diagnostics: exactly-one

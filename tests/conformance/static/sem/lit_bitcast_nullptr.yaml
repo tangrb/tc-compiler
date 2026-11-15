@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0014
+profile: common
+source: lit_bitcast_nullptr.tc
+spec: "§3.11 nullptr 禁止作为 bitcast 源或目标 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_bitcast_nullptr.tc, line: 2, column: 31}
+  related: []
+  diagnostics: exactly-one

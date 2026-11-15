@@ -1,0 +1,5 @@
+#lib
+import shared
+public func f() int32 then
+    _ = return shared.K
+end

@@ -52,11 +52,12 @@ python3 tests/golden/validate.py
 ```
 
 `coverage.py --check` proves the JSON and Markdown are current; it does **not**
-require every row to be covered at S1.  A covered-row gate belongs to later
-stages, where zero uncovered rows (or an approved suspension list) is required.
-After S1 the matrix has 231 items / 634 slots: 44 covered rows, 3 explicit
-N/A(S0) rows (`first_diag_rule` 06–08, closing in S3/S4), and 587 uncovered
-slots.  The 32 S1-covered rows are:
+require every row to be covered before its stage.  A covered-row gate belongs
+to each stage, where zero uncovered rows for that stage (or an approved
+suspension list) is required.  After S3 the matrix has 231 items / 634 slots:
+245 covered slots, no suspended rows, and 389 uncovered slots (S4–S10 work:
+CFG/DI, call ordering/safety, annotations, CT, opcodes, VM/backend, platform).
+The S1-covered rows are:
 
 - `chapter:§2:{positive,negative}` and `chapter:§14:{positive,negative}`
   (LEX forms and EBNF, from `tests/conformance/static/s1_cases.py`);
@@ -70,7 +71,15 @@ slots.  The 32 S1-covered rows are:
   `TC-SYN-VAR-0001` VAR_MISSING_INIT over generic SYNTAX) alongside the S0
   comparator rows.
 
-The remaining 12 L0-covered rows are the S0 comparator/same-site pins.
+The remaining L0-covered rows are the S0 comparator/same-site pins.
+
+S2 closes the five `TC_CE_IMPORT_*` codes (trigger/no-false-positive/position/
+stage), `chapter:§4`, `first_diag_rule:07` and `design12:13` via the import
+suite plus `TC-UNIT-MODULE-0001/0002`.  S3 closes the name/type/conversion/
+layout codes, `chapter:§0/§3/§5/§6/§13`, `first_diag_rule:06/08`, `design12:06/09`
+and every `flip32_64` row (17 items × w32/w64) via `sem/`, `accept_s3/` and
+`tc_sem_test`.  S4–S10 rows remain explicit and uncovered; they are listed in
+the G3 report's deferred-work section.
 
 ## What the matrix contains
 

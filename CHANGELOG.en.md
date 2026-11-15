@@ -4,6 +4,23 @@
 
 ### Added
 
+- **S2 module discovery and IMPORT**: `src/frontend/module.{h,c}` add root `#program` validation, import-source-order DFS, deterministic importer-directory-then-include-roots search, resolved-path instance keys, a fixed `module_order`, and buffered missing/duplicate/circular/non-library/name-conflict IMPORT diagnostics.  A `#program` import target is LEX/SYN-parsed but its imports are not recursed.
+- **S3 names, types, conversions and layout**: `src/frontend/sem.{h,c}` add module member/namespace and visibility rules, `Self`/`m`/bare-name resolution, type-table interning and post-Analyze freeze, scalar/ptr/fnptr/struct equivalence, W-dependent literal category/suffix/sign/range checks, `cast`/`trunc`/`bitcast` category-before-width rules, struct fields/`@padding`/layout/`LAYOUT_OVERFLOW`, `sizeof` type arguments, field-assignment paths and `readonly`, `make`/call argument shape and types, mode-matrix and `.nsw/.nuw` `@fast` constraints, and W range checks for `@align`/`@range`.
+- `tc-vm`/`tc-aot` gain `--static-only` (LEX/SYN/IMPORT/SEM; exit 0 still does not claim a valid program) and a `w32` static profile (`tc_profile_init_generic_w32`) for the 32/64 matrix; it is not bound to an executable target.
+- Tests: `tc_sem_test` (58 L1 checks: type identity, layout/offsets, W sizes, type-table freeze, diamond `module_order`, same-name/different-path instances); `tests/conformance/static/s2s3_cases.py` generates 126 SEM/flip, 28 import/library-fixture and 29 acceptance tool cases; `determinism.s2s3`; the adapter supports `--static-only`, imported-module positions, related notes and include roots.
+- G2/G3 gate reports; coverage is now 245 covered / 389 uncovered / 0 suspended (`flip32_64` 34/34, `first_diag_rule` 10/10).
+
+### Changed
+
+- A normal invocation still exits 70 after the implemented static stages; CT/CFG/DI/safety/annotations/VM/backend are not implemented and are not described as supported.
+- Compile conformance cases use the full static pipeline so a LEX/SYN error still outranks an earlier IMPORT error; acceptance tool cases keep `--syntax-only`/`--static-only` explicit.
+- Final `TcInstr`/`TcIR` materialization remains part of IR finalization; SEM resolves/validates and freezes the type table.
+
+### Fixed
+
+- Fixed a `TYPE_MISMATCH` cascade after an unknown field, private same-module/#program struct access, and the missing signed upper-bound check for unsuffixed non-negative literals.
+- Fixed module-instance duplication from a non-canonical root path, `Self.f`/`m.f` value-position diagnostics, `.nsw/.nuw` suffix positions, and padding radix/suffix/sign checks.
+
 - **S1 LEX/SYN and flat parse IR**: `src/frontend/` now provides `input` (arena/source/documentated limits), `num` (exact decimal -> binary32/64 with roundTiesToEven and integer arithmetic only), `lex` (UTF-8 decoding, BOM/U+0000/non-ASCII rejection, `///` comments, `\` continuations, longest-match tokens, mnemonics/suffixes, annotations, DISCARD, literals, line/column spans) and `parse` (§14 EBNF, module pattern/layers/visibility, blocks, all declarations/statements/types/instruction forms, field paths, named args, `switch` targets, unsafe depth).
 - Trigger/no-false-positive/position/stage coverage for the seven LEX/SYN codes (`TC_CE_SYNTAX`, `TC_CE_MISSING_END`, `TC_CE_MODULE_LAYER`, `TC_CE_MISSING_VISIBILITY`, `TC_CE_PROGRAM_MODE_MISUSE`, `TC_CE_VAR_MISSING_INIT`, `TC_CE_LITERAL_LEX_RANGE`); `TC_CE_SYNTAX` keeps LEX and SYN stages distinct.
 - `--syntax-only` partial check in `tc-vm`/`tc-aot` (exit 0 = no LEX/SYN diagnostic, not a valid-program claim); a normal invocation still exits 70 after LEX/SYN. Stable diagnostic line `<file>:<line>:<column>: error[<STAGE>]: <CODE>: <name>`; I/O and resource failures use `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`, never language codes.

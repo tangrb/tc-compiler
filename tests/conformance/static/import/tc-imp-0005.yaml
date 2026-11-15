@@ -1,0 +1,10 @@
+id: TC-IMP-0005
+profile: common
+source: fixtures/tc-imp-0005/root.tc
+spec: "§4.5 导入名占用模块命名空间，与本地名冲突 -> IMPORT_NAME_CONFLICT；关联冲突声明"
+expect:
+  stage: IMPORT
+  code: TC_CE_IMPORT_NAME_CONFLICT
+  primary: {file: fixtures/tc-imp-0005/root.tc, line: 2, column: 8}
+  related: [{file: fixtures/tc-imp-0005/root.tc, line: 3, column: 5}]
+  diagnostics: exactly-one

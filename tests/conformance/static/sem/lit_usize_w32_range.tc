@@ -1,0 +1,2 @@
+#program
+var x: usize = copy usize, 4294967296

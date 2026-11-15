@@ -26,6 +26,8 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --checked           enable checked-build UB diagnostics\n"
             "  --syntax-only       run LEX/SYN only; exit 0 means no LEX/SYN\n"
             "                      diagnostic (partial check, not a valid program)\n"
+            "  --static-only       run LEX/SYN/IMPORT/SEM; exit 0 means no\n"
+            "                      diagnostic from those stages (CT/codegen not run)\n"
             "  --output=<path>     output path\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n",
@@ -59,6 +61,10 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         }
         if (!only_positional && strcmp(arg, "--syntax-only") == 0) {
             options->syntax_only = 1;
+            continue;
+        }
+        if (!only_positional && strcmp(arg, "--static-only") == 0) {
+            options->static_only = 1;
             continue;
         }
         if (!only_positional && strncmp(arg, "--profile=", 10) == 0) {
@@ -115,7 +121,8 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         return TC_CLI_PARSE_ERROR;
     }
     if (strcmp(options->profile_name, "aarch64-linux-user") != 0 &&
-        strcmp(options->profile_name, "aarch64-baremetal") != 0) {
+        strcmp(options->profile_name, "aarch64-baremetal") != 0 &&
+        strcmp(options->profile_name, "w32") != 0) {
         fprintf(stderr, "%s: unknown profile '%s'\n", tool_name, options->profile_name);
         return TC_CLI_PARSE_ERROR;
     }

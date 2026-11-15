@@ -1,0 +1,12 @@
+#lib
+public func zero() void then
+    _ = return
+end
+public func takes(a: int32) void then
+    _ = return
+end
+public func f() int32 then
+    var a: fnptr<void> = funcaddr Self.zero
+    var b: fnptr<void, int32> = funcaddr Self.takes
+    _ = return 0
+end

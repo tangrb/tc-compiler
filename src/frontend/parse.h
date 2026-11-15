@@ -68,6 +68,7 @@ typedef struct {
     int int_negative;
     uint64_t int_magnitude;
     int int_unsigned_suffix;
+    unsigned int_radix; /* 10 unless the source used 0x/0b/0o */
     /* FLOAT */
     int float_negative;
     uint64_t float_bits;
@@ -91,8 +92,9 @@ typedef struct {
     TcOpcode op;
     TcOpMode mode;
     int has_suffix;
-    TcSpan span;     /* mnemonic token, diagnostic anchor */
-    TcSpan end_span; /* last token of the op_form */
+    TcSpan span;        /* mnemonic token, diagnostic anchor */
+    TcSpan suffix_span; /* suffix token; unused when has_suffix == 0 */
+    TcSpan end_span;    /* last token of the op_form */
     int dst_discard;
     const char *dst_base;
     TcSpan dst_base_span;

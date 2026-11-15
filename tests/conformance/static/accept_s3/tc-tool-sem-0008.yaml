@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0008
+profile: common
+source: tc-tool-sem-0008/root.tc
+spec: "§4.6 public/private 可见性与 public const 初始化器引用 private const（值内联）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

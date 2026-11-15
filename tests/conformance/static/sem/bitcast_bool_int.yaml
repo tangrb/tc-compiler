@@ -1,0 +1,10 @@
+id: TC-SEM-BITCAST-0013
+profile: w64
+source: bitcast_bool_int.tc
+spec: "§3.11 bitcast 类别矩阵：bool -> int 禁止 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: bitcast_bool_int.tc, line: 6, column: 33}
+  related: []
+  diagnostics: exactly-one

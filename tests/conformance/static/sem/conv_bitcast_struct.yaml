@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0023
+profile: common
+source: conv_bitcast_struct.tc
+spec: "§3.11 bitcast 类别矩阵：结构体不参与 bitcast -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: conv_bitcast_struct.tc, line: 6, column: 27}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0024
+profile: common
+source: conv_bitcast_bool_source.tc
+spec: "§3.11 bitcast 类别矩阵：bool 源禁止 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: conv_bitcast_bool_source.tc, line: 3, column: 29}
+  related: []
+  diagnostics: exactly-one

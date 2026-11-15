@@ -1,0 +1,4 @@
+#lib
+public @fast func f(@align(4294967296) p: ptr<int32>) int32 then
+    _ = return 0
+end
