@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0009
+profile: common
+source: backslash_eof.tc
+spec: "§2.2 文件末尾的孤立续行；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: backslash_eof.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

@@ -330,6 +330,12 @@ tests/
    嵌套 op/裸值赋值在 SYN 拒绝；块结构 `then…end`；`TC_CE_MISSING_END`。
 4. **扁平 IR 构造**：parser 直接产 `TcInstr`；字段路径保留为 `TcFieldRef`；命名实参/字段保留
    `TcArg.name`；span 保留文件/行/列；不建 AST 再降级。
+
+   > **S1 扁平 IR 类型说明（0.0.46 澄清）**：本阶段 parser 直接产生前端内部扁平结构
+   > `TcParseInstr`（`src/frontend/parse.h`），保留源名、类型语法、字段路径、命名实参、
+   > `switch` 目标与 span；冻结的 `TcInstr`/`TcIR` 在 S3 名称/类型/opcode 表就绪后由 SEM
+   > 物化（设计 §3.1）。这不改变“parser 直接产扁平 IR、不建 AST 再降级”的要求，也不放宽
+   > LEX/SYN 接受集或诊断；S1 的 IR 形态判据使用 `TcParseInstr`。
 5. **SYN 专用码**：`TC_CE_MODULE_LAYER`、`TC_CE_MISSING_VISIBILITY`、
    `TC_CE_PROGRAM_MODE_MISUSE`、`TC_CE_VAR_MISSING_INIT`、`TC_CE_SYNTAX`（含未知
    opcode/后缀、未定义 `(base,suffix)` 组合）。

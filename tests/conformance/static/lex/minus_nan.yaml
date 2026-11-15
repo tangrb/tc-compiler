@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0013
+profile: common
+source: minus_nan.tc
+spec: "§2.4 -nan 语法拒绝；§2.7.1 - 紧邻数字或 inf 才属于字面量；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: minus_nan.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

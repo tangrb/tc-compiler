@@ -28,6 +28,7 @@ typedef struct {
     size_t ninclude_roots;
     TcOptLevel opt;
     int checked;
+    int syntax_only; /* S1 partial LEX/SYN check; not a valid-program claim */
     int help;
     int version;
 } TcCliOptions;

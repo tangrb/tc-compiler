@@ -1,7 +1,9 @@
-# L0 contract tests
+# Unit tests
 
-`tc_contract_test` asserts the frozen S0 contracts. It is registered in CTest
-as `contract.unit`.
+Two CTest entries live here:
+
+- `contract.unit` (`tc_contract_test`): frozen S0 contracts (L0).
+- `frontend.unit` (`tc_frontend_test`): S1 LEX/SYN + flat parse IR (L1).
 
 ## L0 case ids
 
@@ -29,4 +31,37 @@ Run directly:
 ```sh
 ./build/tests/tc_contract_test
 ctest --test-dir build -R contract.unit --output-on-failure
+```
+
+
+## L1 front-end tests (`tc_frontend_test`)
+
+`tc_frontend_test` calls the private `frontend/` interfaces directly.  It is
+registered as `frontend.unit` and currently runs 683 checks.
+
+| Case ID | C function | Pins |
+| --- | --- | --- |
+| `TC-UNIT-NUM-0001` | `test_num` | §2.4/§6.6.3 exact decimal -> binary32/64: bit patterns, ties-to-even, subnormal/overflow boundaries, negative zero |
+| `TC-UNIT-LEX-0001` | `test_lex_tokens` | §2.3/§2.4 token kinds and literal values: identifiers, `-0x1F`, `1_000u`, `0.5f`, `-0.0`, `@padding/@unsafe/@readonly` |
+| `TC-UNIT-LEX-0002` | `test_lex_mnemonics` | §6.2 all defined suffixes and undefined `(base,suffix)` combinations |
+| `TC-UNIT-LEX-0003` | `test_lex_positions`, `test_lex_errors` | §2/§12.5.1 spans, CRLF/CR, comments/continuations, illegal bytes/scalars, BOM/U+0000, numeric forms, `-nan`, literal ranges |
+| `TC-UNIT-UTF8-0001` | `test_utf8_spans` | §12.5.1 longest valid prefix + 0-based invalid-byte offset for invalid/truncated UTF-8; `TC_SPAN_NO_INVALID_BYTE` for valid-but-illegal scalars |
+| `TC-UNIT-SYN-0001` | `test_parse_program_shape` | §14.3/§14.4/§14.5 flat parse IR: regions, fields/padding, named args, `sizeof` type arg, field paths/lvalue, retained base/field spans and import-name span |
+| `TC-UNIT-SYN-0002` | `test_lib_shape`, `test_unsafe_depth` | §4.2/§8.1 `#lib` regions, annotations/params, qualified type member spans, nested unsafe markers/depth, paired-vs-unpaired nested block behavior |
+| `TC-UNIT-SYN-0003` | `test_switch_targets` | §6.2.8 explicit `switch` targets retained in order; a one-operand `switch` has zero targets (S3 reports the shape error) |
+| `TC-UNIT-OPCODE-0001` | `test_all_opcodes` | all 51 base opcodes and every defined mode suffix parse to the expected op/mode |
+| `TC-UNIT-DIAG-0001` | `test_diagnostics` | the seven LEX/SYN codes, stages and §12.5.1 primary positions; nested paired/unpaired blocks; `#program` `Self` in IDENT positions; incomplete vs whitespace-separated suffixes |
+| `TC-UNIT-ORDER-0001` | `test_first_diagnostic_order` | §12.2 #1 stage priority: a later LEX error beats an earlier SYN error |
+| `TC-UNIT-ORDER-0002` | `test_first_diagnostic_order` | §12.2 #3 source order for two SYN errors |
+| `TC-UNIT-ORDER-0003` | `test_first_diagnostic_order` | §12.2 #3 earlier column at the same source line |
+| `TC-UNIT-LIMIT-0001` | `test_nesting_limit` | documented nesting limits are `TC_IMPL_INTERNAL`, never language diagnostics |
+| `TC-UNIT-LIMIT-0002` | `test_token_limits` | a pathological float token is `TC_IMPL_INTERNAL`; a huge integer token is still the language `TC_CE_LITERAL_LEX_RANGE` |
+| `TC-UNIT-DET-0001` | `test_determinism` | repeated parse/lex produce identical structure fingerprints and tokens |
+| `TC-UNIT-ACCEPT-0001` | `test_accept_forms` | representative legal EBNF forms are not rejected |
+
+Run directly:
+
+```sh
+./build/tests/tc_frontend_test
+ctest --test-dir build -R frontend.unit --output-on-failure
 ```

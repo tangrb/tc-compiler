@@ -1,0 +1,10 @@
+id: TC-SYN-MODE-0007
+profile: common
+source: lib_var.tc
+spec: "§4.2 #lib 顶层不得使用 var/指令；§12.3 TC_CE_PROGRAM_MODE_MISUSE；§12.5.1 误用的 var 关键字"
+expect:
+  stage: SYN
+  code: TC_CE_PROGRAM_MODE_MISUSE
+  primary: {file: lib_var.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

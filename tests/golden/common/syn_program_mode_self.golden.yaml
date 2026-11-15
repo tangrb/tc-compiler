@@ -1,0 +1,33 @@
+id: TC-SYN-GOLD-0005
+kind: diagnostic
+profile: common
+spec: "§4.2 #program 不得使用 Self；§4.8 Self 只在 #lib 中合法；§12.3 TC_CE_PROGRAM_MODE_MISUSE；§12.5.1 误用的 Self 关键字"
+source_file: syn_program_mode_self.tc
+source: |
+  #program
+  Self.x = copy int32, 1
+derivation: |
+  §4.2 forbids `Self` in a `#program` module and §4.8 states that `Self` is
+  legal only in `#lib`; §12.3 assigns this misuse to
+  TC_CE_PROGRAM_MODE_MISUSE (SYN).  §12.5.1 locates the diagnostic at the
+  misused `Self` keyword.
+
+  The `Self` token is the first token of line 2, so the primary position is
+  line 2, column 1.  Exactly one diagnostic is expected (§12.1 fail-fast).
+  No compiler was run to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: SYN
+  code: TC_CE_PROGRAM_MODE_MISUSE
+  primary:
+    line: 2
+    column: 1
+  diagnostics: exactly_one
+  related: []

@@ -10,6 +10,11 @@ add_library(tc_core STATIC
     # Closed diagnostic set, table and first-diagnostic selection.
     diagnostic/diagnostic.c
     diagnostic/table.c
+    # S1 front-end: source/arena, exact decimal conversion, LEX and SYN.
+    frontend/input.c
+    frontend/num.c
+    frontend/lex.c
+    frontend/parse.c
     # IR representation and shape helpers.
     ir/type.c
     ir/instr.c
@@ -20,6 +25,7 @@ add_library(tc_core STATIC
     runtime/profile.c
     # Code shared by the two tool entry points.
     driver/cli.c
+    driver/frontend_driver.c
     driver/profile_select.c
 )
 

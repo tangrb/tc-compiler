@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0003
+profile: common
+source: undefined_combo.tc
+spec: "§6.15.1 未定义的 (base,suffix) 组合（div.wrap）属 SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: undefined_combo.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

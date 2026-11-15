@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0010
+profile: common
+source: incomplete_suffix.tc
+spec: "§12.5.1 未知后缀定位到助记符首 Token；§2.7.1 后缀属于助记符；不完整后缀 `add.` 作为无效后缀 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: incomplete_suffix.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0014
+profile: common
+source: plus_standalone.tc
+spec: "§2.7.1 + 只允许出现在浮点指数中；§12.3 TC_CE_SYNTAX；§12.5.1 非法标量定位到该标量"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: plus_standalone.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

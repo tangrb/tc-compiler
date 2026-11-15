@@ -7,12 +7,20 @@ add_executable(tc_contract_test unit/contract_test.c)
 target_link_libraries(tc_contract_test PRIVATE tc_core)
 target_compile_options(tc_contract_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
+add_executable(tc_frontend_test unit/frontend_test.c)
+target_link_libraries(tc_frontend_test PRIVATE tc_core)
+target_compile_options(tc_frontend_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 add_executable(tc_dump_codes unit/dump_codes.c)
 target_link_libraries(tc_dump_codes PRIVATE tc_core)
 target_compile_options(tc_dump_codes PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_test(NAME contract.unit COMMAND tc_contract_test)
+add_test(NAME frontend.unit COMMAND tc_frontend_test)
 add_test(NAME contract.dump_codes COMMAND tc_dump_codes)
+add_test(NAME conformance.s1_cases
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s1_cases.py --check)
 
 add_test(
     NAME cli.contract
@@ -44,9 +52,47 @@ add_test(NAME harness.selftest
          COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/harness/selftest.py)
 add_test(NAME trace.harness_codes
          COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/check_harness_codes.py)
-set_tests_properties(harness.selftest trace.harness_codes
+set_tests_properties(harness.selftest trace.harness_codes conformance.s1_cases
                      PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(NAME golden.selftest
          COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/selftest.py)
 set_tests_properties(golden.selftest PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# --- S1 LEX/SYN front-end conformance ---------------------------------------
+#
+# The adapter is configured with this build tree's tool paths.  The runner is
+# a hard gate: every selected case must pass; not_implemented is never allowed.
+
+set(TC_VM_PATH ${CMAKE_BINARY_DIR}/src/driver/tc-vm)
+set(TC_AOT_PATH ${CMAKE_BINARY_DIR}/src/driver/tc-aot)
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/adapters/tc_adapter.py.in
+    ${CMAKE_BINARY_DIR}/tc_adapter.py
+    @ONLY)
+
+add_test(
+    NAME adapter.selftest
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/adapters/adapter_selftest.py
+            ${CMAKE_BINARY_DIR}/tc_adapter.py)
+set_tests_properties(adapter.selftest PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(
+    NAME determinism.s1
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s1_determinism.py
+            $<TARGET_FILE:tc-vm>
+            ${CMAKE_BINARY_DIR}/tc_adapter.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/conformance
+            ${CMAKE_BINARY_DIR}/determinism)
+set_tests_properties(determinism.s1 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(
+    NAME harness.conformance
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/harness/runner.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/conformance
+            --adapter ${CMAKE_BINARY_DIR}/tc_adapter.py
+            --json-out ${CMAKE_BINARY_DIR}/harness-report.json)
+set_tests_properties(harness.conformance PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

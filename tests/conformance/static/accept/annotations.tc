@@ -1,0 +1,16 @@
+#lib
+public struct P then
+    readonly x: int32 @padding(4)
+end
+public @inline func f0() void then
+end
+public @noinline func f1() void then
+end
+public @unsafe func f2() void then
+end
+public @safe func f3() void then
+end
+public @fast func f4(@nonnull p: ptr<int32>, @no_alias q: ptr<int32>, @align(8) r: ptr<int32>, @range(0, 10) n: int32) void then
+end
+public @fast @fast_math @pure @readonly @nounwind @willreturn @no_overflow func f5() void then
+end

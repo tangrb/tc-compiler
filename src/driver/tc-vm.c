@@ -1,14 +1,17 @@
 /* TC 0.0.46 contract: tc-vm entry point (S0 skeleton).
  *
- * Real front-end + VM execution starts in S1/S6.  Until then a well-formed
- * invocation fails explicitly with an implementation-level "unavailable"
- * status; it never pretends to compile or execute a program.
+ * S1 provides the LEX/SYN front-end.  `--syntax-only` reports only lexical
+ * and syntax diagnostics and exits 0 when the source has none; it is a partial
+ * check, not a valid-program claim.  A normal invocation still fails with the
+ * implementation-level "unavailable" status after LEX/SYN succeeds, because
+ * IMPORT/SEM/CT and VM execution start in later phases.
  */
 #include <stdio.h>
 
 #include "contract/contract.h"
 #include "diagnostic/diagnostic.h"
 #include "driver/cli.h"
+#include "driver/frontend_driver.h"
 #include "driver/profile_select.h"
 
 int main(int argc, char **argv) {
@@ -31,14 +34,12 @@ int main(int argc, char **argv) {
         return TC_EXIT_OK;
     }
     if (options.version) {
-        printf("tc-vm %s (contract skeleton)\n", TC_LANGUAGE_VERSION);
+        printf("tc-vm %s (S1 frontend)\n", TC_LANGUAGE_VERSION);
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {
         fprintf(stderr, "tc-vm: tc_error_internal: built-in profile is invalid\n");
         return TC_EXIT_INTERNAL;
     }
-    fprintf(stderr, "tc-vm: %s: %s\n", tc_impl_error_symbol(TC_IMPL_UNAVAILABLE),
-            tc_impl_error_message(TC_IMPL_UNAVAILABLE));
-    return TC_EXIT_UNAVAILABLE;
+    return tc_driver_frontend("tc-vm", &options);
 }

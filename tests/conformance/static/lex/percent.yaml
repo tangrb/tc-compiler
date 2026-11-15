@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0004
+profile: common
+source: percent.tc
+spec: "§2.1 字符集（% 不属于允许集）；§12.3 TC_CE_SYNTAX；§12.5.1 非法标量定位到该标量"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: percent.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

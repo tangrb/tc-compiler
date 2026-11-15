@@ -1,0 +1,19 @@
+#program
+import util
+struct S then
+    readonly flag: bool
+    var count: int32
+end
+const K: int32 = 7
+var s: S = make S, flag: true, count: 1
+var n: usize = sizeof S
+var a: int32 = add int32, s.count, K
+var ap: ptr<int32> = addr int32, n
+_ = br_if s.flag, L0
+_ = br L1
+label L0:
+s.count = copy int32, 2
+label L1:
+unsafe then
+    _ = store int32, ap, a
+end

@@ -1,0 +1,3 @@
+#lib
+@fast func f() void then
+end

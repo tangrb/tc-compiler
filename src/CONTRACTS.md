@@ -58,6 +58,32 @@ language diagnostic.
 - 32-bit and 64-bit profiles are separate instances. Static results, layouts,
   consts, objects and golden values are never compared across W.
 
+## S1 front end (implemented; not a frozen cross-module contract)
+
+S1 adds the LEX/SYN pipeline under `src/frontend/`:
+
+| Area | Files | Facts |
+| --- | --- | --- |
+| Input/arena/limits | `frontend/input.h`, `input.c` | source read is an API error on failure; documented limits (4 MiB source, 16 KiB token (identifier/annotation/float), 256 nesting) are implementation errors, never language codes; arena-owned parse lifetime |
+| Exact literals | `frontend/num.h`, `num.c` | decimal -> binary32/64 with roundTiesToEven using integer arithmetic only; reports rounded-to-zero / rounded-to-infinity for `TC_CE_LITERAL_LEX_RANGE` |
+| LEX | `frontend/lex.h`, `lex.c` | UTF-8 decode, BOM/U+0000/non-ASCII rejection, `///` comments, `\` continuation, longest-match tokens, mnemonics/suffixes, annotations, DISCARD, INT/FLOAT values, token spans |
+| SYN | `frontend/parse.h`, `parse.c` | EBNF §14; flat one-op-per-line parse IR; source names and type syntax retained for SEM; `TcFieldRef`-shaped paths; named args; `switch` targets; spans and end positions; all six SYN-specific codes plus `TC_CE_SYNTAX` |
+
+S1's parse IR is **front-end internal** (`TcParseModule`/`TcParseStmt`/
+`TcParseInstr`/`TcParseType`/`TcParseValue`).  It deliberately does not force
+the frozen final `TcInstr`/`TcIR`: the opcode shape/type/security table and name
+resolution are S3/S4 work, and struct type identity is an IMPORT/SEM fact.
+S3 materializes the final IR into the frozen `ir/` structures; it must not add
+source names to `TcOperand`/`TcInstr`.
+
+The only tool-visible S1 addition is `--syntax-only`: exit 0 means "no LEX/SYN
+diagnostic" (a partial check, not a valid-program claim); a normal invocation
+still exits 70 after LEX/SYN.  The driver prints one stable line per diagnostic:
+
+```text
+<file>:<line>:<column>: error[<LEX|SYN>]: <TC_CE_*>: <print-name>
+```
+
 ## Not frozen here (later stages, same headers)
 
 The contract freezes representation, not the semantic tables that later phases

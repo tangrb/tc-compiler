@@ -1,0 +1,10 @@
+id: TC-SYN-LAYER-0004
+profile: common
+source: layer_program_struct.tc
+spec: "§4.2 #program 层序（struct 在指令体之前）；§12.3 TC_CE_MODULE_LAYER；§12.5.1 破坏层序的最早构造首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_MODULE_LAYER
+  primary: {file: layer_program_struct.tc, line: 3, column: 1}
+  related: []
+  diagnostics: exactly-one

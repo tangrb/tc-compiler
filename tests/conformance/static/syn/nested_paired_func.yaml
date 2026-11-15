@@ -1,0 +1,10 @@
+id: TC-SYN-END-0007
+profile: common
+source: nested_paired_func.tc
+spec: "§8.7 嵌套函数不受支持；§14.3 func 体语句不含 func；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（public）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: nested_paired_func.tc, line: 3, column: 5}
+  related: []
+  diagnostics: exactly-one

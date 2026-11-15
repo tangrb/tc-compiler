@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0005
+profile: common
+source: hash_plain.tc
+spec: "§2.1 字符集（# 仅作为模式声明首字符）；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: hash_plain.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

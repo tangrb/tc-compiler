@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0005
+profile: common
+source: bare_value_init.tc
+spec: "§4.11.3/§6.12 var 初始化器必须是一个 op，不能是裸值；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: bare_value_init.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

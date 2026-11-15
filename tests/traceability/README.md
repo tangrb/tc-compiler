@@ -52,12 +52,25 @@ python3 tests/golden/validate.py
 ```
 
 `coverage.py --check` proves the JSON and Markdown are current; it does **not**
-require every row to be covered at S0.  A covered-row gate belongs to later
+require every row to be covered at S1.  A covered-row gate belongs to later
 stages, where zero uncovered rows (or an approved suspension list) is required.
-At S0 the matrix must exist and every gap must be visible: 231 items / 634
-slots: 12 L0-covered rows (`first_diag_rule` 01–05/09–10 and `same_site_priority`),
-3 explicit N/A(S0) rows (`first_diag_rule` 06–08, closure S3/S4), and 619
-uncovered slots.
+After S1 the matrix has 231 items / 634 slots: 44 covered rows, 3 explicit
+N/A(S0) rows (`first_diag_rule` 06–08, closing in S3/S4), and 587 uncovered
+slots.  The 32 S1-covered rows are:
+
+- `chapter:§2:{positive,negative}` and `chapter:§14:{positive,negative}`
+  (LEX forms and EBNF, from `tests/conformance/static/s1_cases.py`);
+- all four slots (`trigger`, `no_false_positive`, `position`, `stage`) of the
+  seven LEX/SYN codes (`TC_CE_SYNTAX`, `TC_CE_MISSING_END`,
+  `TC_CE_MODULE_LAYER`, `TC_CE_MISSING_VISIBILITY`,
+  `TC_CE_PROGRAM_MODE_MISUSE`, `TC_CE_VAR_MISSING_INIT`,
+  `TC_CE_LITERAL_LEX_RANGE`);
+- S1 real-source ids added to `first_diag_rule` 01 (`TC-UNIT-ORDER-0001`),
+  03 (`TC-UNIT-ORDER-0002/0003`) and 04 (`TC-SYN-END-0001` MISSING_END and
+  `TC-SYN-VAR-0001` VAR_MISSING_INIT over generic SYNTAX) alongside the S0
+  comparator rows.
+
+The remaining 12 L0-covered rows are the S0 comparator/same-site pins.
 
 ## What the matrix contains
 
@@ -84,8 +97,9 @@ changes, generation fails instead of silently producing a stale list.
 
 1. Every row is emitted as `"uncovered"` by default.  The only exceptions are
    named S0 L0 contract rows in `L0_COVERED_ROWS` (`TC-L0-DIAG-0001`…`0009`
-   for `first_diag_rule`/`same_site_priority`); they carry explicit case ids
-   and are listed in `tests/unit/README.md`.
+   for `first_diag_rule`/`same_site_priority`) and named S1 LEX/SYN rows in
+   `S1_COVERED_ROWS`; both carry explicit case ids, listed in
+   `tests/unit/README.md` and `tests/conformance/static/s1_cases.py`.
 2. A row may be marked `covered` **only** when it carries at least one real
    case id (test plan §3.3 format, e.g. `TC-LEX-LIT-0007@w64`).
 3. `suspended` is an explicit N/A(S0) status with a reason and closing stage

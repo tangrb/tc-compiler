@@ -1,0 +1,3 @@
+#program
+unsafe then
+    _ = trap

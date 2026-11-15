@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0011
+profile: common
+source: at_eof.tc
+spec: "§2.3 @ 后必须紧跟注解名；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: at_eof.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

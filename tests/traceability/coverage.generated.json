@@ -11,7 +11,7 @@
       "codes_json": "d96519bc5a8a75a336bca0121a367b849522c41263e9bbdc1b08690058ca96cb",
       "standard": "e8a3bc0ca9b9fc672af6eca35c6a13c4fd31319c7d3f4e6f308853e13520eea9",
       "design": "7cf369a819f98c2ae53f83cbce55de97fdf5899e5566446b65a8a3be40c9751e",
-      "test_plan": "524815ab560910138ee8e4857b63764406af204ab129c25de03662702b01d40a"
+      "test_plan": "58a564c4f2212065714c39acdef3299cfc8a2d09b9eb49cc332df2b263150b67"
     }
   },
   "policy": {
@@ -21,7 +21,7 @@
       "covered",
       "suspended"
     ],
-    "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty; suspended rows have a reason and closure stage.",
+    "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty (S0 L0 and S1 LEX/SYN rows are named sets); suspended rows have a reason and closure stage.",
     "l0_covered_rows": [
       "first_diag_rule:01:combination_case",
       "first_diag_rule:02:combination_case",
@@ -35,6 +35,43 @@
       "same_site_priority:MAKE_FIELD_ORDER:priority",
       "same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority",
       "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority"
+    ],
+    "s1_covered_rows": [
+      "chapter:§14:negative",
+      "chapter:§14:positive",
+      "chapter:§2:negative",
+      "chapter:§2:positive",
+      "code:TC_CE_LITERAL_LEX_RANGE:no_false_positive",
+      "code:TC_CE_LITERAL_LEX_RANGE:position",
+      "code:TC_CE_LITERAL_LEX_RANGE:stage",
+      "code:TC_CE_LITERAL_LEX_RANGE:trigger",
+      "code:TC_CE_MISSING_END:no_false_positive",
+      "code:TC_CE_MISSING_END:position",
+      "code:TC_CE_MISSING_END:stage",
+      "code:TC_CE_MISSING_END:trigger",
+      "code:TC_CE_MISSING_VISIBILITY:no_false_positive",
+      "code:TC_CE_MISSING_VISIBILITY:position",
+      "code:TC_CE_MISSING_VISIBILITY:stage",
+      "code:TC_CE_MISSING_VISIBILITY:trigger",
+      "code:TC_CE_MODULE_LAYER:no_false_positive",
+      "code:TC_CE_MODULE_LAYER:position",
+      "code:TC_CE_MODULE_LAYER:stage",
+      "code:TC_CE_MODULE_LAYER:trigger",
+      "code:TC_CE_PROGRAM_MODE_MISUSE:no_false_positive",
+      "code:TC_CE_PROGRAM_MODE_MISUSE:position",
+      "code:TC_CE_PROGRAM_MODE_MISUSE:stage",
+      "code:TC_CE_PROGRAM_MODE_MISUSE:trigger",
+      "code:TC_CE_SYNTAX:no_false_positive",
+      "code:TC_CE_SYNTAX:position",
+      "code:TC_CE_SYNTAX:stage",
+      "code:TC_CE_SYNTAX:trigger",
+      "code:TC_CE_VAR_MISSING_INIT:no_false_positive",
+      "code:TC_CE_VAR_MISSING_INIT:position",
+      "code:TC_CE_VAR_MISSING_INIT:stage",
+      "code:TC_CE_VAR_MISSING_INIT:trigger",
+      "first_diag_rule:01:combination_case",
+      "first_diag_rule:03:combination_case",
+      "first_diag_rule:04:combination_case"
     ],
     "scope_na_rows": [
       "first_diag_rule:06:combination_case",
@@ -51,8 +88,8 @@
   "summary": {
     "items": 231,
     "slots": 634,
-    "covered": 12,
-    "uncovered": 619,
+    "covered": 44,
+    "uncovered": 587,
     "suspended": 3
   },
   "categories": {
@@ -60,16 +97,16 @@
       "label": "Standard chapter",
       "items": 15,
       "slots": 30,
-      "covered": 0,
-      "uncovered": 30,
+      "covered": 4,
+      "uncovered": 26,
       "suspended": 0
     },
     "code": {
       "label": "Diagnostic code",
       "items": 80,
       "slots": 344,
-      "covered": 0,
-      "uncovered": 344,
+      "covered": 28,
+      "uncovered": 316,
       "suspended": 0
     },
     "opcode": {
@@ -223,8 +260,11 @@
       "item": "§2 词法",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0004",
+        "TC-TOOL-SYN-0005"
+      ],
       "chapter": "§2",
       "title": "词法",
       "primary_stage": "S1",
@@ -240,8 +280,11 @@
       "item": "§2 词法",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0001",
+        "TC-LEX-SYN-0025"
+      ],
       "chapter": "§2",
       "title": "词法",
       "primary_stage": "S1",
@@ -643,8 +686,11 @@
       "item": "§14 EBNF",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0001",
+        "TC-TOOL-SYN-0009"
+      ],
       "chapter": "§14",
       "title": "EBNF",
       "primary_stage": "S1",
@@ -660,8 +706,11 @@
       "item": "§14 EBNF",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-GRAM-0001",
+        "TC-SYN-GRAM-0004"
+      ],
       "chapter": "§14",
       "title": "EBNF",
       "primary_stage": "S1",
@@ -677,8 +726,10 @@
       "item": "TC_CE_SYNTAX",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0001"
+      ],
       "code": "TC_CE_SYNTAX",
       "print_name": "SyntaxError",
       "stage": "LEX/SYN",
@@ -695,8 +746,10 @@
       "item": "TC_CE_SYNTAX",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0001"
+      ],
       "code": "TC_CE_SYNTAX",
       "print_name": "SyntaxError",
       "stage": "LEX/SYN",
@@ -713,8 +766,12 @@
       "item": "TC_CE_SYNTAX",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0001",
+        "TC-SYN-END-0006",
+        "TC-SYN-OP-0010"
+      ],
       "code": "TC_CE_SYNTAX",
       "print_name": "SyntaxError",
       "stage": "LEX/SYN",
@@ -731,8 +788,11 @@
       "item": "TC_CE_SYNTAX",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0001",
+        "TC-SYN-OP-0001"
+      ],
       "code": "TC_CE_SYNTAX",
       "print_name": "SyntaxError",
       "stage": "LEX/SYN",
@@ -749,8 +809,10 @@
       "item": "TC_CE_MISSING_END",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-END-0001"
+      ],
       "code": "TC_CE_MISSING_END",
       "print_name": "MissingEnd",
       "stage": "SYN",
@@ -767,8 +829,10 @@
       "item": "TC_CE_MISSING_END",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0001"
+      ],
       "code": "TC_CE_MISSING_END",
       "print_name": "MissingEnd",
       "stage": "SYN",
@@ -785,8 +849,11 @@
       "item": "TC_CE_MISSING_END",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-END-0004",
+        "TC-SYN-END-0008"
+      ],
       "code": "TC_CE_MISSING_END",
       "print_name": "MissingEnd",
       "stage": "SYN",
@@ -803,8 +870,10 @@
       "item": "TC_CE_MISSING_END",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-END-0001"
+      ],
       "code": "TC_CE_MISSING_END",
       "print_name": "MissingEnd",
       "stage": "SYN",
@@ -821,8 +890,10 @@
       "item": "TC_CE_MODULE_LAYER",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-LAYER-0001"
+      ],
       "code": "TC_CE_MODULE_LAYER",
       "print_name": "ModuleLayerError",
       "stage": "SYN",
@@ -839,8 +910,10 @@
       "item": "TC_CE_MODULE_LAYER",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0001"
+      ],
       "code": "TC_CE_MODULE_LAYER",
       "print_name": "ModuleLayerError",
       "stage": "SYN",
@@ -857,8 +930,10 @@
       "item": "TC_CE_MODULE_LAYER",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-LAYER-0003"
+      ],
       "code": "TC_CE_MODULE_LAYER",
       "print_name": "ModuleLayerError",
       "stage": "SYN",
@@ -875,8 +950,10 @@
       "item": "TC_CE_MODULE_LAYER",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-LAYER-0001"
+      ],
       "code": "TC_CE_MODULE_LAYER",
       "print_name": "ModuleLayerError",
       "stage": "SYN",
@@ -893,8 +970,10 @@
       "item": "TC_CE_MISSING_VISIBILITY",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-VIS-0001"
+      ],
       "code": "TC_CE_MISSING_VISIBILITY",
       "print_name": "MissingVisibility",
       "stage": "SYN",
@@ -911,8 +990,10 @@
       "item": "TC_CE_MISSING_VISIBILITY",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0001"
+      ],
       "code": "TC_CE_MISSING_VISIBILITY",
       "print_name": "MissingVisibility",
       "stage": "SYN",
@@ -929,8 +1010,10 @@
       "item": "TC_CE_MISSING_VISIBILITY",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-VIS-0005"
+      ],
       "code": "TC_CE_MISSING_VISIBILITY",
       "print_name": "MissingVisibility",
       "stage": "SYN",
@@ -947,8 +1030,10 @@
       "item": "TC_CE_MISSING_VISIBILITY",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-VIS-0002"
+      ],
       "code": "TC_CE_MISSING_VISIBILITY",
       "print_name": "MissingVisibility",
       "stage": "SYN",
@@ -965,8 +1050,10 @@
       "item": "TC_CE_PROGRAM_MODE_MISUSE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-MODE-0001"
+      ],
       "code": "TC_CE_PROGRAM_MODE_MISUSE",
       "print_name": "ProgramModeMisuse",
       "stage": "SYN",
@@ -983,8 +1070,10 @@
       "item": "TC_CE_PROGRAM_MODE_MISUSE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0002"
+      ],
       "code": "TC_CE_PROGRAM_MODE_MISUSE",
       "print_name": "ProgramModeMisuse",
       "stage": "SYN",
@@ -1001,8 +1090,11 @@
       "item": "TC_CE_PROGRAM_MODE_MISUSE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-MODE-0005",
+        "TC-SYN-SELF-0001"
+      ],
       "code": "TC_CE_PROGRAM_MODE_MISUSE",
       "print_name": "ProgramModeMisuse",
       "stage": "SYN",
@@ -1019,8 +1111,10 @@
       "item": "TC_CE_PROGRAM_MODE_MISUSE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-MODE-0008"
+      ],
       "code": "TC_CE_PROGRAM_MODE_MISUSE",
       "print_name": "ProgramModeMisuse",
       "stage": "SYN",
@@ -1037,8 +1131,10 @@
       "item": "TC_CE_VAR_MISSING_INIT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-VAR-0001"
+      ],
       "code": "TC_CE_VAR_MISSING_INIT",
       "print_name": "VarMissingInitializer",
       "stage": "SYN",
@@ -1055,8 +1151,10 @@
       "item": "TC_CE_VAR_MISSING_INIT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0002"
+      ],
       "code": "TC_CE_VAR_MISSING_INIT",
       "print_name": "VarMissingInitializer",
       "stage": "SYN",
@@ -1073,8 +1171,10 @@
       "item": "TC_CE_VAR_MISSING_INIT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-VAR-0003"
+      ],
       "code": "TC_CE_VAR_MISSING_INIT",
       "print_name": "VarMissingInitializer",
       "stage": "SYN",
@@ -1091,8 +1191,10 @@
       "item": "TC_CE_VAR_MISSING_INIT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SYN-VAR-0002"
+      ],
       "code": "TC_CE_VAR_MISSING_INIT",
       "print_name": "VarMissingInitializer",
       "stage": "SYN",
@@ -1109,8 +1211,10 @@
       "item": "TC_CE_LITERAL_LEX_RANGE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0015"
+      ],
       "code": "TC_CE_LITERAL_LEX_RANGE",
       "print_name": "LiteralLexRange",
       "stage": "LEX",
@@ -1127,8 +1231,10 @@
       "item": "TC_CE_LITERAL_LEX_RANGE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-SYN-0004"
+      ],
       "code": "TC_CE_LITERAL_LEX_RANGE",
       "print_name": "LiteralLexRange",
       "stage": "LEX",
@@ -1145,8 +1251,10 @@
       "item": "TC_CE_LITERAL_LEX_RANGE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0016"
+      ],
       "code": "TC_CE_LITERAL_LEX_RANGE",
       "print_name": "LiteralLexRange",
       "stage": "LEX",
@@ -1163,8 +1271,10 @@
       "item": "TC_CE_LITERAL_LEX_RANGE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-LEX-SYN-0017"
+      ],
       "code": "TC_CE_LITERAL_LEX_RANGE",
       "print_name": "LiteralLexRange",
       "stage": "LEX",
@@ -9963,7 +10073,8 @@
       "spec": "standard §12.2, test plan §3.6/§6.1",
       "status": "covered",
       "case_ids": [
-        "TC-L0-DIAG-0009"
+        "TC-L0-DIAG-0009",
+        "TC-UNIT-ORDER-0001"
       ],
       "number": 1,
       "title": "阶段优先",
@@ -9993,7 +10104,9 @@
       "spec": "standard §12.2, test plan §3.6/§6.1",
       "status": "covered",
       "case_ids": [
-        "TC-L0-DIAG-0009"
+        "TC-L0-DIAG-0009",
+        "TC-UNIT-ORDER-0002",
+        "TC-UNIT-ORDER-0003"
       ],
       "number": 3,
       "title": "同模块源序",
@@ -10008,7 +10121,9 @@
       "spec": "standard §12.2, test plan §3.6/§6.1",
       "status": "covered",
       "case_ids": [
-        "TC-L0-DIAG-0009"
+        "TC-L0-DIAG-0009",
+        "TC-SYN-END-0001",
+        "TC-SYN-VAR-0001"
       ],
       "number": 4,
       "title": "同位置专用码优先",

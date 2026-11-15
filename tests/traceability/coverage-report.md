@@ -3,19 +3,21 @@
 > Generated skeleton from the 0.0.46 standard, design and test plan.
 > **Every row starts as `uncovered`; a row is `covered` only when it
 > carries at least one `case_ids` entry.** S0 L0 rows named in
-> `tests/unit/README.md` are explicitly covered; conformance cases remain
-> uncovered until S1+. Missing coverage is explicit (test plan §3.6/§7.5).
+> `tests/unit/README.md` and S1 LEX/SYN rows named in
+> `tests/conformance/static/s1_cases.py` are explicitly covered; every
+> later-stage row remains visibly uncovered. Missing coverage is explicit
+> (test plan §3.6/§7.5).
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **634** total, **619** uncovered, **12** covered, **3** N/A (S0)
+- Rows: **634** total, **587** uncovered, **44** covered, **3** N/A (S0)
 
 ## Summary by category
 
 | Category | Items | Slots | Covered | Uncovered | N/A (S0) |
 |---|---:|---:|---:|---:|---:|
-| Standard chapter (`chapter`) | 15 | 30 | 0 | 30 | 0 |
-| Diagnostic code (`code`) | 80 | 344 | 0 | 344 | 0 |
+| Standard chapter (`chapter`) | 15 | 30 | 4 | 26 | 0 |
+| Diagnostic code (`code`) | 80 | 344 | 28 | 316 | 0 |
 | Opcode (`opcode`) | 63 | 155 | 0 | 155 | 0 |
 | Design §12 item (`design12`) | 15 | 30 | 0 | 30 | 0 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 7 | 0 | 3 |
@@ -25,7 +27,7 @@
 | Device policy (`device_policy`) | 4 | 4 | 0 | 4 | 0 |
 | I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 | 0 |
 | Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 | 0 |
-| **Total** | **231** | **634** | **12** | **619** | **3** |
+| **Total** | **231** | **634** | **44** | **587** | **3** |
 
 ## Coverage rows
 
@@ -37,8 +39,8 @@
 | `chapter:§0:negative` | §0 原则/字长/目标相关静态结果 | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§1:positive` | §1 抽象机/可观察行为/阶段/顺序 | positive | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§1:negative` | §1 抽象机/可观察行为/阶段/顺序 | negative | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§2:positive` | §2 词法 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§2:negative` | §2 词法 | negative | **uncovered** | — | test plan §3.6/§8.1 |
+| `chapter:§2:positive` | §2 词法 | positive | **covered** | TC-TOOL-SYN-0004, TC-TOOL-SYN-0005 | test plan §3.6/§8.1 |
+| `chapter:§2:negative` | §2 词法 | negative | **covered** | TC-LEX-SYN-0001, TC-LEX-SYN-0025 | test plan §3.6/§8.1 |
 | `chapter:§3:positive` | §3 类型/转换/对象/指针状态 | positive | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§3:negative` | §3 类型/转换/对象/指针状态 | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§4:positive` | §4 程序结构/模块/导入/可见性/CT 顺序 | positive | **uncovered** | — | test plan §3.6/§8.1 |
@@ -61,41 +63,41 @@
 | `chapter:§12:negative` | §12 诊断/首诊/位置/80 码 | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§13:positive` | §13 平台档案/验证要求 | positive | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§13:negative` | §13 平台档案/验证要求 | negative | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§14:positive` | §14 EBNF | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§14:negative` | §14 EBNF | negative | **uncovered** | — | test plan §3.6/§8.1 |
+| `chapter:§14:positive` | §14 EBNF | positive | **covered** | TC-TOOL-SYN-0001, TC-TOOL-SYN-0009 | test plan §3.6/§8.1 |
+| `chapter:§14:negative` | §14 EBNF | negative | **covered** | TC-SYN-GRAM-0001, TC-SYN-GRAM-0004 | test plan §3.6/§8.1 |
 
 ### Diagnostic code (`code`)
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `code:TC_CE_SYNTAX:trigger` | TC_CE_SYNTAX | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SYNTAX:no_false_positive` | TC_CE_SYNTAX | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SYNTAX:position` | TC_CE_SYNTAX | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SYNTAX:stage` | TC_CE_SYNTAX | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_END:trigger` | TC_CE_MISSING_END | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_END:no_false_positive` | TC_CE_MISSING_END | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_END:position` | TC_CE_MISSING_END | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_END:stage` | TC_CE_MISSING_END | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MODULE_LAYER:trigger` | TC_CE_MODULE_LAYER | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MODULE_LAYER:no_false_positive` | TC_CE_MODULE_LAYER | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MODULE_LAYER:position` | TC_CE_MODULE_LAYER | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MODULE_LAYER:stage` | TC_CE_MODULE_LAYER | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_VISIBILITY:trigger` | TC_CE_MISSING_VISIBILITY | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_VISIBILITY:no_false_positive` | TC_CE_MISSING_VISIBILITY | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_VISIBILITY:position` | TC_CE_MISSING_VISIBILITY | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_VISIBILITY:stage` | TC_CE_MISSING_VISIBILITY | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_PROGRAM_MODE_MISUSE:trigger` | TC_CE_PROGRAM_MODE_MISUSE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_PROGRAM_MODE_MISUSE:no_false_positive` | TC_CE_PROGRAM_MODE_MISUSE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_PROGRAM_MODE_MISUSE:position` | TC_CE_PROGRAM_MODE_MISUSE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_PROGRAM_MODE_MISUSE:stage` | TC_CE_PROGRAM_MODE_MISUSE | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VAR_MISSING_INIT:trigger` | TC_CE_VAR_MISSING_INIT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VAR_MISSING_INIT:no_false_positive` | TC_CE_VAR_MISSING_INIT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VAR_MISSING_INIT:position` | TC_CE_VAR_MISSING_INIT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VAR_MISSING_INIT:stage` | TC_CE_VAR_MISSING_INIT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_LEX_RANGE:trigger` | TC_CE_LITERAL_LEX_RANGE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_LEX_RANGE:no_false_positive` | TC_CE_LITERAL_LEX_RANGE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_LEX_RANGE:position` | TC_CE_LITERAL_LEX_RANGE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_LEX_RANGE:stage` | TC_CE_LITERAL_LEX_RANGE | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SYNTAX:trigger` | TC_CE_SYNTAX | trigger | **covered** | TC-LEX-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SYNTAX:no_false_positive` | TC_CE_SYNTAX | no_false_positive | **covered** | TC-TOOL-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SYNTAX:position` | TC_CE_SYNTAX | position | **covered** | TC-LEX-SYN-0001, TC-SYN-END-0006, TC-SYN-OP-0010 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SYNTAX:stage` | TC_CE_SYNTAX | stage | **covered** | TC-LEX-SYN-0001, TC-SYN-OP-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_END:trigger` | TC_CE_MISSING_END | trigger | **covered** | TC-SYN-END-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_END:no_false_positive` | TC_CE_MISSING_END | no_false_positive | **covered** | TC-TOOL-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_END:position` | TC_CE_MISSING_END | position | **covered** | TC-SYN-END-0004, TC-SYN-END-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_END:stage` | TC_CE_MISSING_END | stage | **covered** | TC-SYN-END-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MODULE_LAYER:trigger` | TC_CE_MODULE_LAYER | trigger | **covered** | TC-SYN-LAYER-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MODULE_LAYER:no_false_positive` | TC_CE_MODULE_LAYER | no_false_positive | **covered** | TC-TOOL-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MODULE_LAYER:position` | TC_CE_MODULE_LAYER | position | **covered** | TC-SYN-LAYER-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MODULE_LAYER:stage` | TC_CE_MODULE_LAYER | stage | **covered** | TC-SYN-LAYER-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_VISIBILITY:trigger` | TC_CE_MISSING_VISIBILITY | trigger | **covered** | TC-SYN-VIS-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_VISIBILITY:no_false_positive` | TC_CE_MISSING_VISIBILITY | no_false_positive | **covered** | TC-TOOL-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_VISIBILITY:position` | TC_CE_MISSING_VISIBILITY | position | **covered** | TC-SYN-VIS-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_VISIBILITY:stage` | TC_CE_MISSING_VISIBILITY | stage | **covered** | TC-SYN-VIS-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_PROGRAM_MODE_MISUSE:trigger` | TC_CE_PROGRAM_MODE_MISUSE | trigger | **covered** | TC-SYN-MODE-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_PROGRAM_MODE_MISUSE:no_false_positive` | TC_CE_PROGRAM_MODE_MISUSE | no_false_positive | **covered** | TC-TOOL-SYN-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_PROGRAM_MODE_MISUSE:position` | TC_CE_PROGRAM_MODE_MISUSE | position | **covered** | TC-SYN-MODE-0005, TC-SYN-SELF-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_PROGRAM_MODE_MISUSE:stage` | TC_CE_PROGRAM_MODE_MISUSE | stage | **covered** | TC-SYN-MODE-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VAR_MISSING_INIT:trigger` | TC_CE_VAR_MISSING_INIT | trigger | **covered** | TC-SYN-VAR-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VAR_MISSING_INIT:no_false_positive` | TC_CE_VAR_MISSING_INIT | no_false_positive | **covered** | TC-TOOL-SYN-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VAR_MISSING_INIT:position` | TC_CE_VAR_MISSING_INIT | position | **covered** | TC-SYN-VAR-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VAR_MISSING_INIT:stage` | TC_CE_VAR_MISSING_INIT | stage | **covered** | TC-SYN-VAR-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_LEX_RANGE:trigger` | TC_CE_LITERAL_LEX_RANGE | trigger | **covered** | TC-LEX-SYN-0015 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_LEX_RANGE:no_false_positive` | TC_CE_LITERAL_LEX_RANGE | no_false_positive | **covered** | TC-TOOL-SYN-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_LEX_RANGE:position` | TC_CE_LITERAL_LEX_RANGE | position | **covered** | TC-LEX-SYN-0016 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_LEX_RANGE:stage` | TC_CE_LITERAL_LEX_RANGE | stage | **covered** | TC-LEX-SYN-0017 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNDEFINED_NAME:trigger` | TC_CE_UNDEFINED_NAME | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNDEFINED_NAME:no_false_positive` | TC_CE_UNDEFINED_NAME | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNDEFINED_NAME:position` | TC_CE_UNDEFINED_NAME | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -612,10 +614,10 @@
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `first_diag_rule:01:combination_case` | 1. 阶段优先 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:01:combination_case` | 1. 阶段优先 | combination_case | **covered** | TC-L0-DIAG-0009, TC-UNIT-ORDER-0001 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:02:combination_case` | 2. 模块遍历顺序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **covered** | TC-L0-DIAG-0009, TC-UNIT-ORDER-0002, TC-UNIT-ORDER-0003 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **covered** | TC-L0-DIAG-0009, TC-SYN-END-0001, TC-SYN-VAR-0001 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:05:combination_case` | 5. 条款内顺序优先 | combination_case | **covered** | TC-L0-DIAG-0006 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:06:combination_case` | 6. 布局诊断归属 SEM | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:07:combination_case` | 7. 遍历无关 | combination_case | **suspended** | — | standard §12.2, test plan §3.6/§6.1 |

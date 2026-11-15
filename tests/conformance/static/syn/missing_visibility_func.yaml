@@ -1,0 +1,10 @@
+id: TC-SYN-VIS-0002
+profile: common
+source: missing_visibility_func.tc
+spec: "§4.2 #lib 成员必须 public/private；§12.3 TC_CE_MISSING_VISIBILITY；§12.5.1 缺少可见性的成员关键字"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_VISIBILITY
+  primary: {file: missing_visibility_func.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

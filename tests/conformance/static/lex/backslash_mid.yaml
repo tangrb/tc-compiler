@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0007
+profile: common
+source: backslash_mid.tc
+spec: "§2.2 续行只允许逻辑行末；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: backslash_mid.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

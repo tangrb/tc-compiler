@@ -1,0 +1,10 @@
+id: TC-SYN-MODE-0002
+profile: common
+source: program_static.tc
+spec: "§4.2 #program 不得使用 static；§12.3 TC_CE_PROGRAM_MODE_MISUSE；§12.5.1 误用的 static 关键字"
+expect:
+  stage: SYN
+  code: TC_CE_PROGRAM_MODE_MISUSE
+  primary: {file: program_static.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

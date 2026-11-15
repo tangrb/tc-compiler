@@ -102,10 +102,30 @@ cross-checks `review-record.md` (reviewer/status/date and independence).  Exit c
 not usable.  `tests/golden/selftest.py` exercises the positive and negative
 validator paths.
 
-## S0 independently reviewed sample
+## Independently reviewed samples
 
-`common/lex_syntax_comment_slash.golden.yaml` is a lexical `TC_CE_SYNTAX`
-expectation derived from standard §2.1/§2.2/§12.3/§12.5.1.  It has not been run
-against an implementation; its derivation and line 2/column 30 position were
-independently reviewed and approved by an independent non-author auditor
-(recorded in `review-record.md`).
+`common/lex_syntax_comment_slash.golden.yaml` is the S0 lexical
+`TC_CE_SYNTAX` sample derived from standard §2.1/§2.2/§12.3/§12.5.1.  It has not
+been run against an implementation; its derivation and 2:30 position were
+independently reviewed and approved by `gate-auditor` (see `review-record.md`).
+
+S1 adds seven LEX/SYN goldens, all derived only from the standard and
+independently audited by the same non-author reviewer on 2026-11-15:
+
+| ID | File | Expectation |
+| --- | --- | --- |
+| `TC-LEX-GOLD-0001` | `common/lex_non_ascii_column.golden.yaml` | LEX `TC_CE_SYNTAX` at 2:30 (Unicode scalar column) |
+| `TC-LEX-GOLD-0002` | `common/lex_literal_lex_range_negative.golden.yaml` | LEX `TC_CE_LITERAL_LEX_RANGE` at the `-`, 2:28 |
+| `TC-SYN-GOLD-0001` | `common/syn_missing_end_earliest.golden.yaml` | SYN `TC_CE_MISSING_END` at the earliest opener, 2:1 |
+| `TC-SYN-GOLD-0002` | `common/syn_module_layer.golden.yaml` | SYN `TC_CE_MODULE_LAYER` at the construct first token, 3:1 |
+| `TC-SYN-GOLD-0003` | `common/syn_discard_field.golden.yaml` | SYN `TC_CE_SYNTAX` at DISCARD `_`, 3:14 |
+| `TC-SYN-GOLD-0004` | `common/syn_var_missing_init.golden.yaml` | SYN `TC_CE_VAR_MISSING_INIT` at the identifier, 2:19 |
+| `TC-SYN-GOLD-0005` | `common/syn_program_mode_self.golden.yaml` | SYN `TC_CE_PROGRAM_MODE_MISUSE` at `Self`, 2:1 |
+
+`review-record.md` records the reviewer identity, independence, date and the
+per-artifact derived values.  The independent audit also recorded four
+conventions that the G1 report carries forward: the `MODULE_LAYER` construct
+first token includes the `#lib` visibility keyword; multiple unclosed block
+openers yield one `MISSING_END` at the earliest opener; `TC_CE_SYNTAX` cases
+must assert the concrete LEX or SYN stage; and Unicode-scalar column counting is
+further exercised by unit tests where scalar and byte columns diverge.

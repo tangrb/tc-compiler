@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0001
+profile: common
+source: struct_missing_colon.tc
+spec: "§14.3 field_def 需要 \":\"；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: struct_missing_colon.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

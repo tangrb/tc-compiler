@@ -1,0 +1,10 @@
+id: TC-SYN-END-0008
+profile: common
+source: nested_inner_func_one_end.tc
+spec: "§12.3 TC_CE_MISSING_END（只在实际缺 end 时）；§12.5.1 未配对开启关键字取源位置最早者；嵌套 func 的 then/end 配对"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_END
+  primary: {file: nested_inner_func_one_end.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

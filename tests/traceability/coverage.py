@@ -17,8 +17,9 @@ an implementation:
     and the normal/trap exit branches.
 
 All rows start as "uncovered".  Only named S0 L0 contract rows in
-L0_COVERED_ROWS may be marked "covered" with a real case id; missing coverage
-for everything else is explicit and is never silently rendered as covered.
+L0_COVERED_ROWS and named S1 LEX/SYN rows in S1_COVERED_ROWS may be marked
+"covered" with a real case id; missing coverage for everything else is
+explicit and is never silently rendered as covered.
 
 Usage:
     python3 tests/traceability/coverage.py            # regenerate committed files
@@ -102,6 +103,65 @@ SCOPE_NA_ROWS = {
     "first_diag_rule:06:combination_case": ("layout is SEM/S3", "S3"),
     "first_diag_rule:07:combination_case": ("traversal needs front-end tables", "S4"),
     "first_diag_rule:08:combination_case": ("W instantiation needs S3 layout/CT", "S3"),
+}
+
+# S1 LEX/SYN rows.  Case ids are real artefacts: conformance cases live under
+# tests/conformance/static/{lex,syn,accept} and the L1 suite is
+# tests/unit/frontend_test.c.  Only the seven LEX/SYN codes and the lexical /
+# EBNF chapter rows are marked; every SEM/CT/VM/backend row stays uncovered
+# until its stage.
+_S1_SYNTAX = ["TC-LEX-SYN-0001", "TC-SYN-OP-0001"]
+S1_COVERED_ROWS = {
+    # §2 词法 and §14 EBNF: positive acceptance and negative diagnostics.
+    "chapter:§2:positive": ["TC-TOOL-SYN-0004", "TC-TOOL-SYN-0005"],
+    "chapter:§2:negative": ["TC-LEX-SYN-0001", "TC-LEX-SYN-0025"],
+    "chapter:§14:positive": ["TC-TOOL-SYN-0001", "TC-TOOL-SYN-0009"],
+    "chapter:§14:negative": ["TC-SYN-GRAM-0001", "TC-SYN-GRAM-0004"],
+    # TC_CE_SYNTAX
+    "code:TC_CE_SYNTAX:trigger": ["TC-LEX-SYN-0001"],
+    "code:TC_CE_SYNTAX:no_false_positive": ["TC-TOOL-SYN-0001"],
+    "code:TC_CE_SYNTAX:position": ["TC-LEX-SYN-0001", "TC-SYN-END-0006", "TC-SYN-OP-0010"],
+    "code:TC_CE_SYNTAX:stage": ["TC-LEX-SYN-0001", "TC-SYN-OP-0001"],
+    # TC_CE_MISSING_END
+    "code:TC_CE_MISSING_END:trigger": ["TC-SYN-END-0001"],
+    "code:TC_CE_MISSING_END:no_false_positive": ["TC-TOOL-SYN-0001"],
+    "code:TC_CE_MISSING_END:position": ["TC-SYN-END-0004", "TC-SYN-END-0008"],
+    "code:TC_CE_MISSING_END:stage": ["TC-SYN-END-0001"],
+    # TC_CE_MODULE_LAYER
+    "code:TC_CE_MODULE_LAYER:trigger": ["TC-SYN-LAYER-0001"],
+    "code:TC_CE_MODULE_LAYER:no_false_positive": ["TC-TOOL-SYN-0001"],
+    "code:TC_CE_MODULE_LAYER:position": ["TC-SYN-LAYER-0003"],
+    "code:TC_CE_MODULE_LAYER:stage": ["TC-SYN-LAYER-0001"],
+    # TC_CE_MISSING_VISIBILITY
+    "code:TC_CE_MISSING_VISIBILITY:trigger": ["TC-SYN-VIS-0001"],
+    "code:TC_CE_MISSING_VISIBILITY:no_false_positive": ["TC-TOOL-SYN-0001"],
+    "code:TC_CE_MISSING_VISIBILITY:position": ["TC-SYN-VIS-0005"],
+    "code:TC_CE_MISSING_VISIBILITY:stage": ["TC-SYN-VIS-0002"],
+    # TC_CE_PROGRAM_MODE_MISUSE
+    "code:TC_CE_PROGRAM_MODE_MISUSE:trigger": ["TC-SYN-MODE-0001"],
+    "code:TC_CE_PROGRAM_MODE_MISUSE:no_false_positive": ["TC-TOOL-SYN-0002"],
+    "code:TC_CE_PROGRAM_MODE_MISUSE:position": ["TC-SYN-MODE-0005", "TC-SYN-SELF-0001"],
+    "code:TC_CE_PROGRAM_MODE_MISUSE:stage": ["TC-SYN-MODE-0008"],
+    # TC_CE_VAR_MISSING_INIT
+    "code:TC_CE_VAR_MISSING_INIT:trigger": ["TC-SYN-VAR-0001"],
+    "code:TC_CE_VAR_MISSING_INIT:no_false_positive": ["TC-TOOL-SYN-0002"],
+    "code:TC_CE_VAR_MISSING_INIT:position": ["TC-SYN-VAR-0003"],
+    "code:TC_CE_VAR_MISSING_INIT:stage": ["TC-SYN-VAR-0002"],
+    # TC_CE_LITERAL_LEX_RANGE
+    "code:TC_CE_LITERAL_LEX_RANGE:trigger": ["TC-LEX-SYN-0015"],
+    "code:TC_CE_LITERAL_LEX_RANGE:no_false_positive": ["TC-TOOL-SYN-0004"],
+    "code:TC_CE_LITERAL_LEX_RANGE:position": ["TC-LEX-SYN-0016"],
+    "code:TC_CE_LITERAL_LEX_RANGE:stage": ["TC-LEX-SYN-0017"],
+    # §12.2 #1 stage priority and #3 source order, exercised by real sources.
+    "first_diag_rule:01:combination_case": ["TC-UNIT-ORDER-0001"],
+    "first_diag_rule:03:combination_case": [
+        "TC-UNIT-ORDER-0002", "TC-UNIT-ORDER-0003",
+    ],
+    # §12.2 #4 same-position specialized code beats generic SYNTAX:
+    # MISSING_END (unpaired opener) and VAR_MISSING_INIT (declaration name).
+    "first_diag_rule:04:combination_case": [
+        "TC-SYN-END-0001", "TC-SYN-VAR-0001",
+    ],
 }
 
 CALL_ARGUMENT_ORDER = [
@@ -764,13 +824,21 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             description=item["description"],
         ))
 
-    # S0 explicitly covered contract rows.  Only named L0 cases may set a row
-    # to covered; everything else remains visibly uncovered.
+    # S0/S1 explicitly covered rows.  Only named case ids may set a row to
+    # covered; everything else remains visibly uncovered.
     for row in rows:
         case_ids = L0_COVERED_ROWS.get(row["id"])
         if case_ids:
             row["status"] = "covered"
             row["case_ids"] = list(case_ids)
+        s1_case_ids = S1_COVERED_ROWS.get(row["id"])
+        if s1_case_ids:
+            row["status"] = "covered"
+            merged = list(row["case_ids"])
+            for case_id in s1_case_ids:
+                if case_id not in merged:
+                    merged.append(case_id)
+            row["case_ids"] = merged
         scope_na = SCOPE_NA_ROWS.get(row["id"])
         if scope_na:
             row["status"] = "suspended"
@@ -830,8 +898,9 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
         "policy": {
             "initial_status": "uncovered",
             "statuses": ["uncovered", "covered", "suspended"],
-            "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty; suspended rows have a reason and closure stage.",
+            "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty (S0 L0 and S1 LEX/SYN rows are named sets); suspended rows have a reason and closure stage.",
             "l0_covered_rows": sorted(L0_COVERED_ROWS),
+            "s1_covered_rows": sorted(S1_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {
@@ -854,8 +923,10 @@ def render_markdown(doc) -> str:
         "> Generated skeleton from the 0.0.46 standard, design and test plan.",
         "> **Every row starts as `uncovered`; a row is `covered` only when it",
         "> carries at least one `case_ids` entry.** S0 L0 rows named in",
-        "> `tests/unit/README.md` are explicitly covered; conformance cases remain",
-        "> uncovered until S1+. Missing coverage is explicit (test plan §3.6/§7.5).",
+        "> `tests/unit/README.md` and S1 LEX/SYN rows named in",
+        "> `tests/conformance/static/s1_cases.py` are explicitly covered; every",
+        "> later-stage row remains visibly uncovered. Missing coverage is explicit",
+        "> (test plan §3.6/§7.5).",
         "",
         f"- Language version: `{doc['language_version']}`",
         f"- Spec: {doc['spec']}",

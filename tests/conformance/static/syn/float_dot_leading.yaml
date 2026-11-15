@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0013
+profile: common
+source: float_dot_leading.tc
+spec: "§14.2 FLOAT 文法不含前导 .；§14.4 op_arg 不能以 . 开始；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（.）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: float_dot_leading.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

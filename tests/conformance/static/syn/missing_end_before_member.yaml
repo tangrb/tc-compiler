@@ -1,0 +1,10 @@
+id: TC-SYN-END-0005
+profile: common
+source: missing_end_before_member.tc
+spec: "§4.2 层序；§12.3 TC_CE_MISSING_END；§12.5.1 未配对开启关键字（最早的 struct）"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_END
+  primary: {file: missing_end_before_member.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

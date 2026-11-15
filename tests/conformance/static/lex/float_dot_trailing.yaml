@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0022
+profile: common
+source: float_dot_trailing.tc
+spec: "§2.4 浮点 . 两侧都要有数字（1. 非法）；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: float_dot_trailing.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

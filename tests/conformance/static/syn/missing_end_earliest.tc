@@ -1,0 +1,4 @@
+#program
+unsafe then
+    unsafe then
+        _ = trap

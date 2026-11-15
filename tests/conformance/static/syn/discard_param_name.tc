@@ -1,0 +1,3 @@
+#lib
+public func f(_, x: int32) void then
+end

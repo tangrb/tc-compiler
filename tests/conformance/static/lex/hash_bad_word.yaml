@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0006
+profile: common
+source: hash_bad_word.tc
+spec: "§2.1 字符集；§2.3 模式词仅为 #program/#lib；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: hash_bad_word.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

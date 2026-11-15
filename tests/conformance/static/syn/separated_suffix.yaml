@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0011
+profile: common
+source: separated_suffix.tc
+spec: "§2.7.1 后缀属于助记符的一部分（不拆成独立 Token）；空白分隔的 .wrap 是 Token 序列错误；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（.）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: separated_suffix.tc, line: 2, column: 9}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SYN-MODE-0009
+profile: common
+source: lib_label.tc
+spec: "§4.2 #lib 顶层不得使用指令/标签；§12.3 TC_CE_PROGRAM_MODE_MISUSE；§12.5.1 误用构造首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_PROGRAM_MODE_MISUSE
+  primary: {file: lib_label.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

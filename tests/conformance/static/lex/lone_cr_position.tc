@@ -1,0 +1,1 @@
+#programvar x: int32 = copy int32, 1_ = trap ;

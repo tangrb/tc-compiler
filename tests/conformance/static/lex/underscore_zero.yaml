@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0021
+profile: common
+source: underscore_zero.tc
+spec: "§2.4 0_0 非法（下划线只能在数字之间）；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: underscore_zero.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

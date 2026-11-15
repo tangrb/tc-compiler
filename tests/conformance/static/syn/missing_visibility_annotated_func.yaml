@@ -1,0 +1,10 @@
+id: TC-SYN-VIS-0005
+profile: common
+source: missing_visibility_annotated_func.tc
+spec: "§4.2/§8.1 注解位于 func 之前但可见性仍是必需的；§12.3 TC_CE_MISSING_VISIBILITY；§12.5.1 成员关键字 func"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_VISIBILITY
+  primary: {file: missing_visibility_annotated_func.tc, line: 2, column: 7}
+  related: []
+  diagnostics: exactly-one

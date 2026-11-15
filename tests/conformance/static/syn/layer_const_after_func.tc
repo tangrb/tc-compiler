@@ -1,0 +1,4 @@
+#lib
+public func f() void then
+end
+public const K: int32 = 1

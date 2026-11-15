@@ -1,0 +1,10 @@
+id: TC-SYN-LAYER-0003
+profile: common
+source: layer_const_after_func.tc
+spec: "§4.2 #lib 层序（const/static 在 func 之前）；§12.3 TC_CE_MODULE_LAYER；§12.5.1 构造首 Token（public）"
+expect:
+  stage: SYN
+  code: TC_CE_MODULE_LAYER
+  primary: {file: layer_const_after_func.tc, line: 4, column: 1}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,3 @@
+#program
+struct S then
+    readonly x: int32

@@ -1,0 +1,4 @@
+#lib
+public struct S then
+    readonly _: int32
+end

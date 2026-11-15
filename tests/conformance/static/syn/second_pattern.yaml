@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0008
+profile: common
+source: second_pattern.tc
+spec: "§4.1 恰好一个模式声明，模式后出现另一模式属 SYN；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: second_pattern.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

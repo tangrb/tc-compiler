@@ -24,6 +24,8 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --include=<dir>     import search root (repeatable, order significant)\n"
             "  --opt=O0|O2         optimization level (zero-pass baseline; default O0)\n"
             "  --checked           enable checked-build UB diagnostics\n"
+            "  --syntax-only       run LEX/SYN only; exit 0 means no LEX/SYN\n"
+            "                      diagnostic (partial check, not a valid program)\n"
             "  --output=<path>     output path\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n",
@@ -53,6 +55,10 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         }
         if (!only_positional && strcmp(arg, "--checked") == 0) {
             options->checked = 1;
+            continue;
+        }
+        if (!only_positional && strcmp(arg, "--syntax-only") == 0) {
+            options->syntax_only = 1;
             continue;
         }
         if (!only_positional && strncmp(arg, "--profile=", 10) == 0) {

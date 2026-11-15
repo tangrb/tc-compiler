@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0026
+profile: common
+source: bom.tc
+spec: "§1.6/§2.1 不接受 BOM；§12.3 TC_CE_SYNTAX；§12.5.1 非法标量定位到该标量"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: bom.tc, line: 1, column: 1}
+  related: []
+  diagnostics: exactly-one

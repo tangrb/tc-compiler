@@ -1,0 +1,7 @@
+#lib
+public struct S then
+    readonly x: int32
+    public struct T then
+        readonly y: int32
+    end
+end

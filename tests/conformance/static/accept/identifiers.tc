@@ -1,0 +1,6 @@
+#program
+var _x: int32 = copy int32, 1
+var x_: int32 = copy int32, 2
+var _1: int32 = copy int32, 3
+var __: int32 = copy int32, 4
+var self: int32 = copy int32, 5

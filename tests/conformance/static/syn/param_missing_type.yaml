@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0004
+profile: common
+source: param_missing_type.tc
+spec: "§14.3 param 需要 \":\" type；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: param_missing_type.tc, line: 2, column: 18}
+  related: []
+  diagnostics: exactly-one

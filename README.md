@@ -2,7 +2,7 @@
 
 TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器码）目标设计。
 
-当前分支是 **0.0.46 clean-sheet 分支**：保留 0.0.46 标准、设计文档与按设计重写的实现。历史实现、旧测试与旧工具均已移除。**S0 契约冻结与测试基建已完成并通过 G0**（见 [G0 报告](docs/TC-G0门禁报告-0.0.46.md)）；LEX/SYN 等前端实现从 S1 开始。
+当前分支是 **0.0.46 clean-sheet 分支**：保留 0.0.46 标准、设计文档与按设计重写的实现。历史实现、旧测试与旧工具均已移除。**S0 契约冻结与测试基建已完成并通过 G0**（见 [G0 报告](docs/TC-G0门禁报告-0.0.46.md)）；**S1（LEX/SYN 与扁平 parse IR）已实现**，门禁证据与状态见 [G1 报告](docs/TC-G1门禁报告-0.0.46.md)；IMPORT/SEM/CT、VM 与原生后端从 S2 起继续。
 
 ## 文档
 
@@ -27,13 +27,13 @@ src/                  0.0.46 实现（S0 契约层已实现）
   base/               assert / version
   contract/           S0 契约检查 / 零 pass 策略
   diagnostic/         80 码闭集 / 生成表 / 首诊选择
-  frontend/           lex / parse / module / resolve / analyze / consteval（S1 起）
+  frontend/           input / num / lex / parse（S1 已实现）；module / resolve / analyze / consteval（S2+）
   ir/                 type / instr / operand / block / ir / region / object / address / span
   runtime/            alloc / io / trap / profile / module_loader
   vm/                 interp（S6）
   backend/            aarch64 / arm32 / riscv32 / common（S7 起）
-  driver/             tc-vm / tc-aot CLI 骨架
-tests/                L0 契约测试、harness、可追溯性与 golden 校验
+  driver/             tc-vm / tc-aot CLI（S1 前端检查；后续阶段补齐）
+tests/                L0/L1 测试、L3 一致性、harness、可追溯性、golden 与确定性门禁
 ```
 
 ## 构建
@@ -44,9 +44,13 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S0/G0 已通过；S1 起实现前端/VM/后端。S0 构建 `tc_core`、`tc-vm`、`tc-aot`；两个工具当前对合法调用显式返回
-“未实现”（退出码 70），不宣称可用。契约与测试口径见
-[src/CONTRACTS.md](src/CONTRACTS.md) 与 [tests/README.md](tests/README.md)。
+S0/G0 已通过；S1 已实现 LEX/SYN 前端。`tc_core`、`tc-vm`、`tc-aot` 构建通过；工具现在可以：
+
+- `--syntax-only <source>`：只做 LEX/SYN，退出 0 表示**没有词法/语法诊断**（部分检查，不等于程序有效）；有诊断时退出 1；
+- 普通调用：LEX/SYN 通过后仍显式返回“后续阶段未实现”（退出码 70），不宣称可执行；
+- 文件打开失败、超出文档化实现上限等属实现级错误，使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，不伪装成语言诊断。
+
+契约与测试口径见 [src/CONTRACTS.md](src/CONTRACTS.md) 与 [tests/README.md](tests/README.md)。S1 文档化实现上限：单源文件 4 MiB、单 Token（标识符/注解/浮点）16 KiB、类型/块嵌套 256 层；超出返回 `tc_error_internal`（退出 71），不产生语言码。
 
 ## 参与
 

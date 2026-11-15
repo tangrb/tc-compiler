@@ -1,0 +1,12 @@
+id: TC-TOOL-SYN-0006
+profile: common
+source: crlf.tc
+spec: "§2.5/§14.2 CRLF 为单个行终止符；S1 LEX/SYN 接受"
+kind: tool
+tool:
+  argv: [tc-vm, --syntax-only, "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

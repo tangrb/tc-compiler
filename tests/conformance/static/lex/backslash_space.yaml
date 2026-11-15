@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0008
+profile: common
+source: backslash_space.tc
+spec: "§2.2 \\ 后不得有空白再换行；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: backslash_space.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

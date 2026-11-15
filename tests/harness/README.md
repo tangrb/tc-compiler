@@ -338,9 +338,11 @@ failures.
 
 - The harness rejects an empty selected suite (exit 2) and missing source/include/link paths before running an adapter; selftests cover all three path kinds.
 - IMPORT codes (`TC_CE_IMPORT_*`) only accept `stage: IMPORT`; `SEM` is rejected.
-- The only required S0 CTest entry is `harness.selftest` (command above).  No
-  compiler adapter is needed for S0; when the adapter is absent every selected
-  case is `not_implemented`, and the runner deliberately exits nonzero.
+- The only required S0 CTest entry is `harness.selftest` (command above).  S1
+  adds the real `harness.conformance` gate: `tests/CMakeLists.txt` configures
+  `build/tc_adapter.py` from `tests/adapters/tc_adapter.py.in` with the tool
+  paths of that build tree, and the gate invokes `runner.py` with no
+  `--allow-not-implemented`.
 - Later conformance gates should invoke `runner.py` with an adapter and no
   `--allow-not-implemented`.  Use `--json-out` for machine-readable evidence.
 - Diagnostic `primary.file` and `related[].file` strings are compared exactly.
@@ -409,9 +411,9 @@ Equivalent direct command line:
 python3 tests/harness/selftest.py
 ```
 
-When the compiler adapter and the S1+ conformance tree exist, add the case
-runner as a separate gate (do not pass `--allow-not-implemented` for a real
-gate):
+The S1 conformance tree exists.  The checked-in template is configured by
+CMake (so each build tree gets its own tool paths); add the case runner as a
+separate gate (do not pass `--allow-not-implemented` for a real gate):
 
 ```cmake
 add_test(

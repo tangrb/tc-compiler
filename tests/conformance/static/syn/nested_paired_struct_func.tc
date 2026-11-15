@@ -1,0 +1,6 @@
+#lib
+public struct S then
+    readonly x: int32
+    public func f() void then
+    end
+end

@@ -1,0 +1,38 @@
+id: TC-SYN-GOLD-0002
+kind: diagnostic
+profile: common
+spec: "§4.2 #lib 层序（struct 在 const/static 之前）；§12.3 TC_CE_MODULE_LAYER；§12.5.1 破坏层序的最早构造首 Token"
+source_file: syn_module_layer.tc
+source: |
+  #lib
+  public const K: int32 = 1
+  public struct S then
+      readonly x: int32
+  end
+derivation: |
+  §4.2 defines the #lib top-level layers: imports, then structs, then
+  const/static var, then functions.  A `struct` after a `const` moves backwards
+  from layer 4 to layer 3 and breaks the required order, so it is
+  TC_CE_MODULE_LAYER (SYN, §12.3).
+
+  §12.5.1 places TC_CE_MODULE_LAYER at the first token of the earliest
+  construct that breaks the order.  The breaking construct is
+  `public struct S ...`; its first token is `public` on line 3, column 1.
+  Exactly one diagnostic is expected (§12.1 fail-fast).  No compiler was run
+  to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: SYN
+  code: TC_CE_MODULE_LAYER
+  primary:
+    line: 3
+    column: 1
+  diagnostics: exactly_one
+  related: []

@@ -1,0 +1,12 @@
+id: TC-TOOL-SYN-0005
+profile: common
+source: comments_continuation.tc
+spec: "§2.2 注释与续行；§2.1 注释内 Unicode；S1 LEX/SYN 接受"
+kind: tool
+tool:
+  argv: [tc-vm, --syntax-only, "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

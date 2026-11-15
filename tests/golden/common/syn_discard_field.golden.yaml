@@ -1,0 +1,36 @@
+id: TC-SYN-GOLD-0003
+kind: diagnostic
+profile: common
+spec: "§2.3 DISCARD 不是 IDENT；§14.3 field_def 需要 IDENT 字段名；§12.3 TC_CE_SYNTAX；§12.5.1 DISCARD 定位到 _"
+source_file: syn_discard_field.tc
+source: |
+  #lib
+  public struct S then
+      readonly _: int32
+  end
+derivation: |
+  §2.3 makes the single `_` the DISCARD token, not IDENT, and the field name
+  position in §14.3 requires IDENT.  §2.3/§6.15.1 therefore require
+  TC_CE_SYNTAX (SYN) for DISCARD in an IDENT-only position.  §12.5.1 locates
+  this SYNTAX at the `_`.
+
+  Line 3 is `    readonly _: int32`: four leading spaces occupy columns 1-4,
+  `readonly` occupies 5-12, the space is 13, and `_` is column 14.  Primary
+  position: line 3, column 14.  Exactly one diagnostic is expected (§12.1
+  fail-fast).  No compiler was run to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary:
+    line: 3
+    column: 14
+  diagnostics: exactly_one
+  related: []

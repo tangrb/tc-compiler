@@ -1,0 +1,2 @@
+#program
+Self.x = copy int32, 1

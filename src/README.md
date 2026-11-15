@@ -2,9 +2,10 @@
 
 This directory is the **target module layout** from
 [TC Native Compiler Design 0.0.46](../docs/TC原生编译器设计说明书-0.0.46.md) §14.
-S0 (contract freeze) is implemented: the private `tc_core` library, the
-`tc-vm`/`tc-aot` entry points and the frozen headers.  Front-end semantics,
-VM and backends start in S1/S6/S7.  Frozen contract ownership is indexed in
+S0 (contract freeze) and **S1 (LEX/SYN + flat parse IR)** are implemented: the
+private `tc_core` library, the `tc-vm`/`tc-aot` entry points, the frozen headers,
+and the `frontend/` reader/lexer/parser.  IMPORT/SEM/CT, the VM and backends
+start in S2/S6/S7.  Frozen contract ownership is indexed in
 [CONTRACTS.md](CONTRACTS.md).
 
 ```text
@@ -12,7 +13,7 @@ src/
   base/         assert version (shared foundations, no language semantics)
   contract/     S0 frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
-  frontend/     lex parse module resolve analyze consteval ebnf (S1+)
+  frontend/     input num lex parse (S1); module resolve analyze consteval ebnf (S2+)
   ir/           type instr block operand span region object address structs pointer_state
   runtime/      alloc io trap profile module_loader (sem_* from S6)
   vm/           interp memory pointer_state (S6)
@@ -22,9 +23,11 @@ src/
 
 `base/`, `contract/` and `diagnostic/` are S0 **infrastructure**, not language
 pipeline stages: their facts are consumed by every phase (and by the runtime
-trap seam), so they must not be buried inside `frontend/`.  `frontend/` itself
-stays reserved for the LEX/SYN/IMPORT/SEM/CT pipeline that starts in S1.
-`ir/`, `runtime/`, `vm/`, `backend/` and `driver/` follow design §14.
+trap seam), so they must not be buried inside `frontend/`.  `frontend/` owns the
+LEX/SYN/IMPORT/SEM/CT pipeline; S1 provides `input` (arena/source/decode),
+`num` (exact decimal -> binary32/64), `lex` (tokens/spans/LEX diagnostics) and
+`parse` (EBNF + flat name-carrying parse IR).  `ir/`, `runtime/`, `vm/`,
+`backend/` and `driver/` follow design §14.
 
 ## Rules
 
@@ -38,7 +41,16 @@ stays reserved for the LEX/SYN/IMPORT/SEM/CT pipeline that starts in S1.
   `ir/` owns representation; `runtime/` owns platform seams/profiles;
   `driver/` owns only CLI parsing and tool policy.  Do not create a second
   table, profile instance or diagnostic code set in another directory.
-- `tc-vm` and `tc-aot` are the only tool entry points.
+- `tc-vm` and `tc-aot` are the only tool entry points.  S1 adds the partial
+  `--syntax-only` check (exit 0 = no LEX/SYN diagnostic, not a valid program);
+  a normal invocation still exits 70 after LEX/SYN.
+- S1 parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
+  source names/type syntax stay unresolved until SEM, and field paths keep the
+  `TcFieldRef` shape.  S3 materializes `TcInstr`/`TcIR`.  Do not add source
+  names to the frozen `TcOperand`/`TcInstr`.
+- Documented S1 limits: 4 MiB source, 16 KiB token (identifier/annotation/float), 256 type/block nesting
+  levels.  Exceeding them returns `tc_error_internal` (exit 71); it is never a
+  language diagnostic.
 - Do not reintroduce a C host public library, embedding API, host ABI, or
   AOT embed mode.
 - Both 32-bit and 64-bit targets are in scope. `usize`/`isize` are platform-word

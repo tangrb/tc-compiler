@@ -10,12 +10,13 @@ This directory contains the **0.0.46** standard, design documents, and evaluatio
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | **Target architecture** for TC → assembly → machine code: flat TAC IR, semantic runtime, platform profiles, backend, and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 development/test stages, gates, coverage and traceability |
 | [G0 gate report](TC-G0门禁报告-0.0.46.md) | S0 contract/test evidence, audit conclusions and gate status |
+| [G1 gate report](TC-G1门禁报告-0.0.46.md) | S1 LEX/SYN + flat parse IR evidence, exit criteria, coverage/first-diagnostic conventions, independent review and gate status |
 
 ## Status
 
 - Branch: `tc-0.0.46` clean-sheet.
-- S0 contract layer and test infrastructure are implemented; `tc-vm`/`tc-aot` build but front-end/VM/backend semantics are not implemented.
-- S0 passed the [G0 gate report](TC-G0门禁报告-0.0.46.md); S1+ implementation is allowed.
+- S0 contract layer/test infrastructure and the S1 LEX/SYN front end (flat parse IR) are implemented; IMPORT/SEM/CT, VM and backend start in S2.
+- S0 passed the [G0 gate report](TC-G0门禁报告-0.0.46.md); S1 evidence is in the [G1 gate report](TC-G1门禁报告-0.0.46.md) (final gate status per its §1/§13).
 - No C host public library, embedding API, or ABI.
 - Both 32-bit and 64-bit are 0.0.46 targets; `usize`/`isize` are platform-word types. The standard and design have been revised for both 32/64 profiles (§13.2.1/§13.2.2).
 

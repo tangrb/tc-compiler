@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0004
+profile: common
+source: nested_op.tc
+spec: "§6.1 规则 6 禁止嵌套 op；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（嵌套 op 的助记符）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: nested_op.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one
