@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0117
+profile: common
+source: fixtures/tc-sem-safe-0117/root.tc
+spec: "§12.4 不可达代码不参与 DI/末尾传播，但仍必须通过安全/构造检查；不可达 safe load -> UNSAFE_OPERATION"
+expect:
+  stage: SEM
+  code: TC_CE_UNSAFE_OPERATION
+  primary: {file: fixtures/tc-sem-safe-0117/root.tc, line: 4, column: 16}
+  related: []
+  diagnostics: exactly-one

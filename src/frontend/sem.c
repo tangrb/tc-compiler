@@ -3172,7 +3172,15 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             }
             cat_type = ref.type;
         } else if (instr->args[0].value.kind == TC_PVAL_INT) {
-            cat_type = tc_type_scalar(s->an->types, TC_TY_I64);
+            const TcType *source = NULL;
+            /* A switch selector has no declared expected type, so an integer
+             * literal is typed by its own source type (int64/uint64) before
+             * the integer check (standard §6.6.3/§12.2 #9). */
+            if (!literal_source_integer(s, &instr->args[0].value, &source,
+                                        NULL)) {
+                break;
+            }
+            cat_type = source;
         } else {
             sem_diag_simple(s, TC_CE_LITERAL_TYPE, instr->args[0].span);
             break;

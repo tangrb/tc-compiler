@@ -142,6 +142,9 @@ as a `TcUnit`.
 - A `void` call used as a value/target reports `TC_CE_VOID` at the call
   mnemonic, because the call site has no `void` token; the callee signature is
   not used as the primary position.
+- A `switch` integer literal selector has no declared expected type; it is
+  typed by its own source type (`int64` without suffix, `uint64` with `u`) and
+  range-checked before the integer-selector check.
 - A unit whose branch target cannot be resolved (label shape, missing label or
   duplicate label) is marked control-flow incomplete: DI and `MISSING_RETURN`
   are suppressed so the label diagnostic is first, while name/type/safety

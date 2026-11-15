@@ -290,6 +290,15 @@ CASES = [
         "SEM", "TC_CE_MISSING_RETURN",
     ),
     _case(
+        "TC-SEM-CFG-0021",
+        "§6.6.3/§12.2 #9 switch 的整数字面量先按其源类型（无后缀 int64）定型；"
+        "2^63 不可表示 -> LITERAL_RANGE",
+        {"root.tc": PROGRAM +
+         "_ = switch @HERE@9223372036854775808, L\n"
+         "label L:\n"},
+        "SEM", "TC_CE_LITERAL_RANGE",
+    ),
+    _case(
         "TC-SEM-CFG-0020",
         "§7.1/§7.7.1 标签命名空间按函数/程序封闭；跨函数 br 目标 -> "
         "LABEL_NOT_FOUND",
@@ -810,6 +819,17 @@ CASES = [
         {"root.tc": PROGRAM +
          "var f: fnptr<void> = copy fnptr<void>, nullptr\n"
          "var x: int64 = @HERE@bitcast int64, f\n"},
+        "SEM", "TC_CE_UNSAFE_OPERATION",
+    ),
+    _case(
+        "TC-SEM-SAFE-0117",
+        "§12.4 不可达代码不参与 DI/末尾传播，但仍必须通过安全/构造检查；"
+        "不可达 safe load -> UNSAFE_OPERATION",
+        {"root.tc": PROGRAM +
+         "_ = br E\n"
+         "var p: ptr<int32> = copy ptr<int32>, nullptr\n"
+         "var x: int32 = @HERE@load int32, p\n"
+         "label E:\n"},
         "SEM", "TC_CE_UNSAFE_OPERATION",
     ),
     _case(
@@ -1405,6 +1425,33 @@ POSITIVE = [
          "end\n"},
     ),
     _positive(
+        "TC-TOOL-SEM-0122",
+        "§6.6.3 switch 整数字面量源类型：无后缀 int64 下界与 u 后缀 uint64 "
+        "上界均为合法整数选择器",
+        {"root.tc": PROGRAM +
+         "_ = switch -9223372036854775808, L\n"
+         "label L:\n"
+         "_ = switch 18446744073709551615u, L\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0120",
+        "§8.6/§13.2.2 @align(N) 按 W 位地址宽度：32 位下 2^31 是合法的 2 的幂",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(2147483648) p: ptr<int32>) void then\n"
+         "end\n"},
+        profile="w32",
+    ),
+    _positive(
+        "TC-TOOL-SEM-0121",
+        "§8.6/§13.2.2 @align(N) 按 W 位地址宽度：64 位下 2^63 是合法的 2 的幂",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(9223372036854775808) "
+         "p: ptr<int32>) void then\nend\n"},
+        profile="w64",
+    ),
+    _positive(
         "TC-TOOL-SEM-0119",
         "§9.2 unsafe 块接受全部 unsafe 指令：load/store/volatile/memmove/"
         "ptradd/ptrsub/ptr-int/fnptr-int/call_indirect",
@@ -1466,6 +1513,19 @@ POSITIVE = [
          "@align(base.A) p: ptr<int32>) void then\nend\n",
          "base.tc": LIB + "public const H: int32 = 2\n"
          "public const A: int32 = 8\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0123",
+        "§5.7.1 DI 路径语义：trap 路径终止、不是汇合前驱；仅经 var 的路径到达"
+        "读取时视为已初始化",
+        {"root.tc": PROGRAM +
+         "var c: bool = copy bool, true\n"
+         "_ = br_if c, A\n"
+         "_ = trap\n"
+         "label A:\n"
+         "var x: int32 = copy int32, 1\n"
+         "label M:\n"
+         "_ = write int32, x\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0115",

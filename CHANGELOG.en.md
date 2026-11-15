@@ -31,8 +31,8 @@
   (LEX/SYN/IMPORT/SEM) partial checks; a normal invocation explicitly exits 70 after
   the static stages. Added the `w32` static profile (not an executable target).
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, S1/S2/S3/S4 conformance tables
-  (S4: 105 compile + 19 accept), determinism suites and a fail-closed adapter
-  self-test; currently 22/22 `ctest` and 470/470 harness cases in Debug/Release/ASan
+  (S4: 107 compile + 23 accept), determinism suites and a fail-closed adapter
+  self-test; currently 22/22 `ctest` and 476/476 harness cases in Debug/Release/ASan
   builds.
 
 ### Changed

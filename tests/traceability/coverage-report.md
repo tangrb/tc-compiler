@@ -165,10 +165,10 @@
 | `code:TC_CE_LITERAL_TYPE:no_false_positive` | TC_CE_LITERAL_TYPE | no_false_positive | **covered** | TC-TOOL-SEM-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_LITERAL_TYPE:position` | TC_CE_LITERAL_TYPE | position | **covered** | TC-SEM-LIT-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_LITERAL_TYPE:stage` | TC_CE_LITERAL_TYPE | stage | **covered** | TC-SEM-LIT-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_RANGE:trigger` | TC_CE_LITERAL_RANGE | trigger | **covered** | TC-SEM-LIT-0007 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_RANGE:no_false_positive` | TC_CE_LITERAL_RANGE | no_false_positive | **covered** | TC-TOOL-SEM-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_RANGE:position` | TC_CE_LITERAL_RANGE | position | **covered** | TC-SEM-LIT-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LITERAL_RANGE:stage` | TC_CE_LITERAL_RANGE | stage | **covered** | TC-SEM-LIT-0007 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_RANGE:trigger` | TC_CE_LITERAL_RANGE | trigger | **covered** | TC-SEM-LIT-0007, TC-SEM-CFG-0021 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_RANGE:no_false_positive` | TC_CE_LITERAL_RANGE | no_false_positive | **covered** | TC-TOOL-SEM-0003, TC-TOOL-SEM-0122 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_RANGE:position` | TC_CE_LITERAL_RANGE | position | **covered** | TC-SEM-LIT-0008, TC-SEM-CFG-0021 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LITERAL_RANGE:stage` | TC_CE_LITERAL_RANGE | stage | **covered** | TC-SEM-LIT-0007, TC-SEM-CFG-0021 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_LITERAL_RANGE:w32` | TC_CE_LITERAL_RANGE | w32 | **covered** | TC-SEM-LIT-0100, TC-SEM-LIT-0101 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_LITERAL_RANGE:w64` | TC_CE_LITERAL_RANGE | w64 | **covered** | TC-TOOL-SEM-0016 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_MODE:trigger` | TC_CE_MODE | trigger | **covered** | TC-SEM-MODE-0001, TC-SEM-MODE-0104, TC-SEM-MODE-0105 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -268,7 +268,7 @@
 | `code:TC_CE_PARAMETER_ASSIGNMENT:position` | TC_CE_PARAMETER_ASSIGNMENT | position | **covered** | TC-SEM-ASSIGN-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_PARAMETER_ASSIGNMENT:stage` | TC_CE_PARAMETER_ASSIGNMENT | stage | **covered** | TC-SEM-ASSIGN-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNINITIALIZED:trigger` | TC_CE_UNINITIALIZED | trigger | **covered** | TC-SEM-DI-0001, TC-SEM-DI-0004, TC-SEM-DI-0005, TC-SEM-DI-0006, TC-SEM-DI-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNINITIALIZED:no_false_positive` | TC_CE_UNINITIALIZED | no_false_positive | **covered** | TC-TOOL-SEM-0101, TC-TOOL-SEM-0102, TC-TOOL-SEM-0103, TC-TOOL-SEM-0115, TC-TOOL-SEM-0117 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNINITIALIZED:no_false_positive` | TC_CE_UNINITIALIZED | no_false_positive | **covered** | TC-TOOL-SEM-0101, TC-TOOL-SEM-0102, TC-TOOL-SEM-0103, TC-TOOL-SEM-0115, TC-TOOL-SEM-0117, TC-TOOL-SEM-0123 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNINITIALIZED:position` | TC_CE_UNINITIALIZED | position | **covered** | TC-SEM-DI-0001, TC-SEM-DI-0007, TC-SEM-DI-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNINITIALIZED:stage` | TC_CE_UNINITIALIZED | stage | **covered** | TC-SEM-DI-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_ADDR_OF_CONST:trigger` | TC_CE_ADDR_OF_CONST | trigger | **covered** | TC-SEM-ASSIGN-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -295,7 +295,7 @@
 | `code:TC_CE_VOID:no_false_positive` | TC_CE_VOID | no_false_positive | **covered** | TC-TOOL-SEM-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_VOID:position` | TC_CE_VOID | position | **covered** | TC-SEM-VOID-0002, TC-SEM-VOID-0003, TC-SEM-CALL-0112, TC-SEM-CALL-0123 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_VOID:stage` | TC_CE_VOID | stage | **covered** | TC-SEM-VOID-0001, TC-SEM-CALL-0112, TC-SEM-CALL-0123 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_OPERATION:trigger` | TC_CE_UNSAFE_OPERATION | trigger | **covered** | TC-SEM-SAFE-0101, TC-SEM-SAFE-0102, TC-SEM-SAFE-0103, TC-SEM-SAFE-0104, TC-SEM-SAFE-0105, TC-SEM-SAFE-0106, TC-SEM-SAFE-0107, TC-SEM-SAFE-0108, TC-SEM-SAFE-0112, TC-SEM-SAFE-0113, TC-SEM-SAFE-0115, TC-SEM-CALL-0116 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_OPERATION:trigger` | TC_CE_UNSAFE_OPERATION | trigger | **covered** | TC-SEM-SAFE-0101, TC-SEM-SAFE-0102, TC-SEM-SAFE-0103, TC-SEM-SAFE-0104, TC-SEM-SAFE-0105, TC-SEM-SAFE-0106, TC-SEM-SAFE-0107, TC-SEM-SAFE-0108, TC-SEM-SAFE-0112, TC-SEM-SAFE-0113, TC-SEM-SAFE-0115, TC-SEM-SAFE-0117, TC-SEM-CALL-0116 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNSAFE_OPERATION:no_false_positive` | TC_CE_UNSAFE_OPERATION | no_false_positive | **covered** | TC-TOOL-SEM-0107, TC-TOOL-SEM-0108, TC-TOOL-SEM-0113, TC-TOOL-SEM-0119 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNSAFE_OPERATION:position` | TC_CE_UNSAFE_OPERATION | position | **covered** | TC-SEM-SAFE-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNSAFE_OPERATION:stage` | TC_CE_UNSAFE_OPERATION | stage | **covered** | TC-SEM-SAFE-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -668,8 +668,8 @@
 | `flip32_64:14:w64` | `isize`/`usize` 字面量范围 | w64 | **covered** | TC-TOOL-SEM-0016 | standard §13.2.2, test plan §3.6/§8.2 |
 | `flip32_64:15:w32` | `@padding`/结构体求和 | w32 | **covered** | TC-SEM-LAYOUT-0001 | standard §13.2.2, test plan §3.6/§8.2 |
 | `flip32_64:15:w64` | `@padding`/结构体求和 | w64 | **covered** | TC-SEM-LAYOUT-0002 | standard §13.2.2, test plan §3.6/§8.2 |
-| `flip32_64:16:w32` | @range` 的 `isize`/`usize` 参数；`@align` 的 `N | w32 | **covered** | TC-SEM-ANN-0001, TC-SEM-ANN-0002 | standard §13.2.2, test plan §3.6/§8.2 |
-| `flip32_64:16:w64` | @range` 的 `isize`/`usize` 参数；`@align` 的 `N | w64 | **covered** | TC-TOOL-SEM-0017, TC-TOOL-SEM-0018 | standard §13.2.2, test plan §3.6/§8.2 |
+| `flip32_64:16:w32` | @range` 的 `isize`/`usize` 参数；`@align` 的 `N | w32 | **covered** | TC-SEM-ANN-0001, TC-SEM-ANN-0002, TC-TOOL-SEM-0120 | standard §13.2.2, test plan §3.6/§8.2 |
+| `flip32_64:16:w64` | @range` 的 `isize`/`usize` 参数；`@align` 的 `N | w64 | **covered** | TC-TOOL-SEM-0017, TC-TOOL-SEM-0018, TC-TOOL-SEM-0121 | standard §13.2.2, test plan §3.6/§8.2 |
 | `flip32_64:17:w32` | read`/`write` 的 `isize`/`usize | w32 | **covered** | TC-TOOL-SEM-0011 | standard §13.2.2, test plan §3.6/§8.2 |
 | `flip32_64:17:w64` | read`/`write` 的 `isize`/`usize | w64 | **covered** | TC-TOOL-SEM-0012 | standard §13.2.2, test plan §3.6/§8.2 |
 
@@ -688,7 +688,7 @@
 | `annotation:@no_overflow:coverage` | @no_overflow | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0227, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
 | `annotation:@no_alias:coverage` | @no_alias | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0228, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
 | `annotation:@nonnull:coverage` | @nonnull | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0208, TC-SEM-ANN-0209, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
-| `annotation:@align:coverage` | @align | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0210, TC-SEM-ANN-0211, TC-SEM-ANN-0212, TC-SEM-ANN-0213, TC-SEM-ANN-0225, TC-TOOL-SEM-0110, TC-TOOL-SEM-0116 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@align:coverage` | @align | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0210, TC-SEM-ANN-0211, TC-SEM-ANN-0212, TC-SEM-ANN-0213, TC-SEM-ANN-0225, TC-TOOL-SEM-0110, TC-TOOL-SEM-0116, TC-TOOL-SEM-0120, TC-TOOL-SEM-0121 | §2.6, §8.6; test plan §3.6 |
 | `annotation:@range:coverage` | @range | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0215, TC-SEM-ANN-0214, TC-SEM-ANN-0216, TC-SEM-ANN-0217, TC-SEM-ANN-0218, TC-SEM-ANN-0219, TC-SEM-ANN-0220, TC-SEM-ANN-0221, TC-TOOL-SEM-0110, TC-TOOL-SEM-0116, TC-SEM-ANN-0233 | §2.6, §8.6; test plan §3.6 |
 | `annotation:@padding:coverage` | @padding | coverage | **covered** | TC-TOOL-SEM-0019, TC-SEM-ANN-0229, TC-SEM-CONST-0001, TC-SEM-CONST-0002, TC-SEM-CONST-0003 | §2.3, §2.6; test plan §3.6 |
 | `annotation:@inline:coverage` | @inline | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0207 | §2.6, §8.6; test plan §3.6 |
