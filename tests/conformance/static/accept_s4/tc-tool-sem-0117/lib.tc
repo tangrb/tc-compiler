@@ -1,0 +1,7 @@
+#lib
+public static var S: int32 = 1
+public const K: int32 = 2
+public func f() int32 then
+    var x: int32 = add int32, Self.S, Self.K
+    _ = return x
+end

@@ -136,6 +136,21 @@ as a `TcUnit`.
 - `TcParam.align` is `uint32_t` (design §3.4); an `@align` value above
   `UINT32_MAX` is valid per W but caps the recorded field.  The annotation
   value checks themselves use the full 64-bit N.
+- `MISSING_ARGUMENT` points its related position at the earliest missing
+  parameter declaration (call mnemonic stays primary); `DUPLICATE_ARGUMENT`
+  relates the first duplicate.
+- A `void` call used as a value/target reports `TC_CE_VOID` at the call
+  mnemonic, because the call site has no `void` token; the callee signature is
+  not used as the primary position.
+- A unit whose branch target cannot be resolved (label shape, missing label or
+  duplicate label) is marked control-flow incomplete: DI and `MISSING_RETURN`
+  are suppressed so the label diagnostic is first, while name/type/safety
+  checks still run for every statement.
+- Direct call target errors precede call safety; `call_indirect` resolves its
+  `fp` operand before the instruction-level safety check.  Other unsafe
+  memory/pointer instructions check their unsafe context at the mnemonic before
+  operand shape, so a malformed `load`/`store` in safe code reports the unsafe
+  diagnostic first.
 
 ### Deferred decisions
 
@@ -146,7 +161,7 @@ as a `TcUnit`.
 - `-0` for an unsigned expected type: treated as an explicit negative literal
   (`LITERAL_TYPE`); the mathematical-zero reading remains an open clarification.
 - `@align`/`@range` const-path endpoint values (power-of-two, `lo <= hi`, bit
-  patterns) are completed by CT; S4 resolves the path and checks name,
+  patterns) are completed by CT; SEM resolves the path and checks name,
   visibility, kind and type.
 - `TcField.padding` is `uint32_t` (design §2.1); padding above `UINT32_MAX`
   keeps layout size/offset correct but caps the metadata.  Resolve before IR

@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0125
+profile: common
+source: fixtures/tc-sem-call-0125/root.tc
+spec: "§5.7.3/§8.8.2 调用安全通过后先检查 LHS；对 const 赋值 -> CONST_ASSIGNMENT 先于实参类型"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_ASSIGNMENT
+  primary: {file: fixtures/tc-sem-call-0125/root.tc, line: 4, column: 1}
+  related: []
+  diagnostics: exactly-one

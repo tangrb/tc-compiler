@@ -1,0 +1,6 @@
+#program
+import lib
+var vf: fnptr<void> = funcaddr lib.v
+unsafe then
+    var x: int32 = call_indirect vf
+end

@@ -22,8 +22,8 @@
 - **工具能力**：`--syntax-only`（LEX/SYN）与 `--static-only`（LEX/SYN/IMPORT/SEM）部分检查；
   普通调用在静态阶段后显式退出 70。新增 `w32` 静态档案（不可执行目标）。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、S1/S2/S3/S4 一致性用例表（S4 为
-  90 编译 + 15 接受）、确定性套件、adapter 失败关闭自测；当前 Debug/Release/ASan
-  `ctest` 22/22，harness 452/452。
+  105 编译 + 19 接受）、确定性套件、adapter 失败关闭自测；当前 Debug/Release/ASan
+  `ctest` 22/22，harness 470/470。
 
 ### Changed
 

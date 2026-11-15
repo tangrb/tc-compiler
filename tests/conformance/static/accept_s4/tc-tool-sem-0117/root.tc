@@ -1,0 +1,3 @@
+#program
+import lib
+var y: int32 = copy int32, lib.S

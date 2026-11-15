@@ -1,0 +1,4 @@
+#program
+import lib
+const K: int32 = 1
+K = call lib.one, true

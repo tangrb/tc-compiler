@@ -1117,11 +1117,11 @@ IMPORT_CASES = [
         }, "source": "root.tc",
     },
     {
-        "id": "TC-SEM-OP-0102", "spec": "§8.8.2/§12.2 #10 call 混用位置/命名实参仍先检查缺失 -> MISSING_ARGUMENT",
+        "id": "TC-SEM-OP-0102", "spec": "§8.8.2/§12.2 #10 call 混用位置/命名实参仍先检查缺失 -> MISSING_ARGUMENT；§12.5.1 指出声明顺序最靠前的缺失形参",
         "stage": "SEM", "code": "TC_CE_MISSING_ARGUMENT", "profile": "common",
         "files": {
             "root.tc": "#program\nimport lib\nvar r: int32 = @HERE@call lib.t3, 1, b: 2\n",
-            "lib.tc": "#lib\npublic func t3(a: int32, b: int32, c: int32) int32 then\n    _ = return a\nend\n",
+            "lib.tc": "#lib\npublic func t3(a: int32, b: int32, @REL@c: int32) int32 then\n    _ = return a\nend\n",
         }, "source": "root.tc",
     },
     {
@@ -1937,6 +1937,35 @@ def _write_tool_cases(failures, check):
     return tool_dir
 
 
+def _expected_artifacts():
+    sem_paths = set()
+    import_paths = set()
+    tool_paths = set()
+    for (case_id, source, _profile, _spec, _text, _stage, _code,
+         _related) in SEM_CASES:
+        sem_paths.add(HERE / "sem" / source)
+        sem_paths.add(HERE / "sem" / (source[:-3] + ".yaml"))
+    for case in IMPORT_CASES:
+        fixture = HERE / "import" / "fixtures" / case["id"].lower()
+        for name in case["files"]:
+            import_paths.add(fixture / name)
+        import_paths.add(HERE / "import" / f"{case['id'].lower()}.yaml")
+    for case in TOOL_CASES:
+        fixture = HERE / "accept_s3" / case["id"].lower()
+        for name in case["files"]:
+            tool_paths.add(fixture / name)
+        tool_paths.add(HERE / "accept_s3" / f"{case['id'].lower()}.yaml")
+    return sem_paths, import_paths, tool_paths
+
+
+def _actual_artifacts(root):
+    return {
+        path
+        for path in root.rglob("*")
+        if path.is_file() and path.suffix in {".tc", ".yaml"}
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true")
@@ -1948,6 +1977,16 @@ def main(argv=None):
     _write_sem_cases(failures)
     _write_import_cases(failures, args.check)
     _write_tool_cases(failures, args.check)
+    expected_sem, expected_import, expected_tool = _expected_artifacts()
+    for label, expected, root in (
+        ("sem", expected_sem, HERE / "sem"),
+        ("import", expected_import, HERE / "import"),
+        ("accept_s3", expected_tool, HERE / "accept_s3"),
+    ):
+        for stale in sorted(_actual_artifacts(root) - expected):
+            failures.append(
+                f"{label}: stale generated file {stale.relative_to(HERE)}"
+            )
     if failures:
         for failure in failures:
             print(f"FAIL {failure}")

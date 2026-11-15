@@ -1,0 +1,7 @@
+#lib
+public func f() void then
+    label L:
+end
+public func g() void then
+    _ = br L
+end

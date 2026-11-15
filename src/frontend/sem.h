@@ -1,8 +1,9 @@
-/* TC 0.0.46 static analysis: IMPORT through SEM (standard §3–§6, §13.2).
+/* TC 0.0.46 static analysis: IMPORT through SEM (standard §3–§10, §13.2).
  *
  * `tc_analyze()` loads the module closure, reports IMPORT-stage candidates
  * before SEM, then performs name resolution, type interning/freeze, literal
- * typing, conversion checking and struct layout for one word size.  CT and
+ * typing, conversion checking, struct layout, per-unit CFG/DI, return and call
+ * checks, safety contexts and annotation validation for one word size.  CT and
  * code generation are later stages; a successful analysis is not a claim that
  * a program executes.
  */

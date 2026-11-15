@@ -1,0 +1,3 @@
+#lib
+public const H: int32 = 2
+public const A: int32 = 8

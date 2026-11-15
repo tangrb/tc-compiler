@@ -2387,7 +2387,8 @@ static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
 
 static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
                                      const TcFuncSig *sig, size_t first_arg,
-                                     int indirect, uint32_t site_id) {
+                                     int indirect, uint32_t site_id,
+                                     const TcParseFunc *callee) {
     size_t nargs = instr->nargs - first_arg;
     size_t i;
     int any_named = 0;
@@ -2481,7 +2482,11 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
         }
         for (i = 0; i < sig->nparams; i++) {
             if (!covered[i]) {
-                sem_diag(s, TC_CE_MISSING_ARGUMENT, instr->span, NULL,
+                const TcSpan *related =
+                    (callee != NULL && i < callee->nparams)
+                        ? &callee->params[i].name_span
+                        : NULL;
+                sem_diag(s, TC_CE_MISSING_ARGUMENT, instr->span, related,
                          TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
                          TC_DIAG_PHASE_ARGUMENTS, site_id);
                 return NULL;
@@ -2501,9 +2506,33 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
     }
     if (any_named) {
         if (nargs < sig->nparams) {
-            sem_diag(s, TC_CE_MISSING_ARGUMENT, instr->span, NULL,
-                     TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
-                     TC_DIAG_PHASE_ARGUMENTS, site_id);
+            size_t missing = 0;
+            size_t p;
+            for (p = 0; p < sig->nparams; p++) {
+                int present = 0;
+                for (i = first_arg; i < instr->nargs; i++) {
+                    if (instr->args[i].name != NULL &&
+                        sig->params[p].name != NULL &&
+                        strcmp(instr->args[i].name, sig->params[p].name) ==
+                            0) {
+                        present = 1;
+                        break;
+                    }
+                }
+                if (!present) {
+                    missing = p;
+                    break;
+                }
+            }
+            {
+                const TcSpan *related =
+                    (callee != NULL && missing < callee->nparams)
+                        ? &callee->params[missing].name_span
+                        : NULL;
+                sem_diag(s, TC_CE_MISSING_ARGUMENT, instr->span, related,
+                         TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                         TC_DIAG_PHASE_ARGUMENTS, site_id);
+            }
             return NULL;
         }
         if (nargs > sig->nparams) {
@@ -2950,7 +2979,8 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
                                     tspan, site_id)) {
             break;
         }
-        if (check_call_args(s, instr, &func->sig, 1, 0, site_id) == NULL) {
+        if (check_call_args(s, instr, &func->sig, 1, 0, site_id,
+                            func->func) == NULL) {
             break;
         }
         if (!check_call_receiver(s, ret, has_target, &target, expected_result,
@@ -3016,7 +3046,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             for (i = 0; i < sig.nparams; i++) {
                 sig.params[i].type = signature->fnptr.params[i];
             }
-            if (check_call_args(s, instr, &sig, 1, 1, site_id) == NULL) {
+            if (check_call_args(s, instr, &sig, 1, 1, site_id, NULL) == NULL) {
                 break;
             }
         }

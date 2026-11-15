@@ -946,12 +946,13 @@ S4_COVERED_ROWS = {
     "chapter:§8:negative": [
         "TC-SEM-CFG-0012", "TC-SEM-CFG-0013", "TC-SEM-CALL-0101",
         "TC-SEM-CALL-0105", "TC-SEM-CALL-0108", "TC-SEM-CALL-0113",
-        "TC-SEM-ANN-0201",
+        "TC-SEM-CALL-0120", "TC-SEM-CALL-0125", "TC-SEM-ANN-0201",
     ],
-    "chapter:§9:positive": ["TC-TOOL-SEM-0107"],
+    "chapter:§9:positive": ["TC-TOOL-SEM-0107", "TC-TOOL-SEM-0119"],
     "chapter:§9:negative": [
         "TC-SEM-SAFE-0101", "TC-SEM-SAFE-0109", "TC-SEM-SAFE-0110",
-        "TC-SEM-CALL-0108", "TC-SEM-CALL-0109", "TC-SEM-CALL-0114",
+        "TC-SEM-SAFE-0115", "TC-SEM-SAFE-0116", "TC-SEM-CALL-0108",
+        "TC-SEM-CALL-0109", "TC-SEM-CALL-0114", "TC-SEM-CALL-0121",
     ],
     "chapter:§10:positive": ["TC-TOOL-SEM-0109", "TC-TOOL-SEM-0110"],
     "chapter:§10:negative": ["TC-SEM-ANN-0206", "TC-SEM-ANN-0224"],
@@ -960,11 +961,12 @@ S4_COVERED_ROWS = {
     ],
     # §5.4/§5.7.1 definite initialization.
     "code:TC_CE_UNINITIALIZED:trigger": [
-        "TC-SEM-DI-0001", "TC-SEM-DI-0004", "TC-SEM-DI-0006",
+        "TC-SEM-DI-0001", "TC-SEM-DI-0004", "TC-SEM-DI-0005",
+        "TC-SEM-DI-0006", "TC-SEM-DI-0009",
     ],
     "code:TC_CE_UNINITIALIZED:no_false_positive": [
         "TC-TOOL-SEM-0101", "TC-TOOL-SEM-0102", "TC-TOOL-SEM-0103",
-        "TC-TOOL-SEM-0115",
+        "TC-TOOL-SEM-0115", "TC-TOOL-SEM-0117",
     ],
     "code:TC_CE_UNINITIALIZED:position": [
         "TC-SEM-DI-0001", "TC-SEM-DI-0007", "TC-SEM-DI-0008",
@@ -976,9 +978,11 @@ S4_COVERED_ROWS = {
     "code:TC_CE_DUPLICATE_LABEL:position": ["TC-SEM-CFG-0005"],
     "code:TC_CE_DUPLICATE_LABEL:stage": ["TC-SEM-CFG-0005"],
     "code:TC_CE_LABEL_NOT_FOUND:trigger": [
-        "TC-SEM-CFG-0006", "TC-SEM-CFG-0007",
+        "TC-SEM-CFG-0006", "TC-SEM-CFG-0007", "TC-SEM-CFG-0020",
     ],
-    "code:TC_CE_LABEL_NOT_FOUND:no_false_positive": ["TC-TOOL-SEM-0105"],
+    "code:TC_CE_LABEL_NOT_FOUND:no_false_positive": [
+        "TC-TOOL-SEM-0105", "TC-TOOL-SEM-0118",
+    ],
     "code:TC_CE_LABEL_NOT_FOUND:position": ["TC-SEM-CFG-0006"],
     "code:TC_CE_LABEL_NOT_FOUND:stage": ["TC-SEM-CFG-0006"],
     "code:TC_CE_CONDITION_TYPE:trigger": ["TC-SEM-CFG-0008"],
@@ -1014,13 +1018,37 @@ S4_COVERED_ROWS = {
     "code:TC_CE_RETURN_FORM:stage": ["TC-SEM-CFG-0013"],
     "code:TC_CE_MISSING_RETURN:trigger": [
         "TC-SEM-CFG-0001", "TC-SEM-CFG-0002", "TC-SEM-CFG-0003",
-        "TC-SEM-CFG-0004",
+        "TC-SEM-CFG-0004", "TC-SEM-CFG-0019",
     ],
     "code:TC_CE_MISSING_RETURN:no_false_positive": ["TC-TOOL-SEM-0104"],
     "code:TC_CE_MISSING_RETURN:position": [
         "TC-SEM-CFG-0001", "TC-SEM-CFG-0002",
     ],
     "code:TC_CE_MISSING_RETURN:stage": ["TC-SEM-CFG-0001"],
+    "code:TC_CE_OPERAND_COUNT:trigger": [
+        "TC-SEM-CFG-0010", "TC-SEM-CFG-0018",
+    ],
+    "code:TC_CE_OPERAND_COUNT:no_false_positive": ["TC-TOOL-SEM-0112"],
+    "code:TC_CE_OPERAND_COUNT:position": [
+        "TC-SEM-CFG-0010", "TC-SEM-CFG-0018",
+    ],
+    "code:TC_CE_OPERAND_COUNT:stage": ["TC-SEM-CFG-0010"],
+    "code:TC_CE_TYPE_MISMATCH:trigger": [
+        "TC-SEM-CALL-0117", "TC-SEM-CALL-0120", "TC-SEM-CALL-0122",
+        "TC-SEM-CFG-0015",
+    ],
+    "code:TC_CE_LITERAL_TYPE:trigger": ["TC-SEM-CALL-0127"],
+    "code:TC_CE_CONST_ASSIGNMENT:trigger": ["TC-SEM-CALL-0125"],
+    "code:TC_CE_CONST_ASSIGNMENT:position": ["TC-SEM-CALL-0125"],
+    "code:TC_CE_PRIVATE_ACCESS:trigger": ["TC-SEM-ANN-0233"],
+    "code:TC_CE_PRIVATE_ACCESS:position": ["TC-SEM-ANN-0233"],
+    "code:TC_CE_MODE:trigger": [
+        "TC-SEM-MODE-0104", "TC-SEM-MODE-0105",
+    ],
+    "code:TC_CE_MODE:position": [
+        "TC-SEM-MODE-0104", "TC-SEM-MODE-0105",
+    ],
+    "code:TC_CE_MODE:stage": ["TC-SEM-MODE-0104"],
     # §8.8.2/§12.2 #10 call checks.
     "code:TC_CE_ARGUMENT_COUNT:trigger": ["TC-SEM-CALL-0104"],
     "code:TC_CE_ARGUMENT_COUNT:no_false_positive": ["TC-TOOL-SEM-0106"],
@@ -1048,18 +1076,19 @@ S4_COVERED_ROWS = {
     "code:TC_CE_MISSING_ARGUMENT:no_false_positive": ["TC-TOOL-SEM-0106"],
     "code:TC_CE_MISSING_ARGUMENT:position": ["TC-SEM-CALL-0103"],
     "code:TC_CE_MISSING_ARGUMENT:stage": ["TC-SEM-CALL-0103"],
-    "code:TC_CE_VOID:trigger": ["TC-SEM-CALL-0112"],
-    "code:TC_CE_VOID:position": ["TC-SEM-CALL-0112"],
-    "code:TC_CE_VOID:stage": ["TC-SEM-CALL-0112"],
+    "code:TC_CE_VOID:trigger": ["TC-SEM-CALL-0112", "TC-SEM-CALL-0123"],
+    "code:TC_CE_VOID:position": ["TC-SEM-CALL-0112", "TC-SEM-CALL-0123"],
+    "code:TC_CE_VOID:stage": ["TC-SEM-CALL-0112", "TC-SEM-CALL-0123"],
     # §9 safety.
     "code:TC_CE_UNSAFE_OPERATION:trigger": [
         "TC-SEM-SAFE-0101", "TC-SEM-SAFE-0102", "TC-SEM-SAFE-0103",
         "TC-SEM-SAFE-0104", "TC-SEM-SAFE-0105", "TC-SEM-SAFE-0106",
         "TC-SEM-SAFE-0107", "TC-SEM-SAFE-0108", "TC-SEM-SAFE-0112",
-        "TC-SEM-SAFE-0113", "TC-SEM-CALL-0116",
+        "TC-SEM-SAFE-0113", "TC-SEM-SAFE-0115", "TC-SEM-CALL-0116",
     ],
     "code:TC_CE_UNSAFE_OPERATION:no_false_positive": [
         "TC-TOOL-SEM-0107", "TC-TOOL-SEM-0108", "TC-TOOL-SEM-0113",
+        "TC-TOOL-SEM-0119",
     ],
     "code:TC_CE_UNSAFE_OPERATION:position": ["TC-SEM-SAFE-0101"],
     "code:TC_CE_UNSAFE_OPERATION:stage": ["TC-SEM-SAFE-0101"],
@@ -1069,14 +1098,15 @@ S4_COVERED_ROWS = {
     "code:TC_CE_UNSAFE_CALL:stage": ["TC-SEM-CALL-0108"],
     "code:TC_CE_FAST_CALL:trigger": [
         "TC-SEM-CALL-0109", "TC-SEM-CALL-0110", "TC-SEM-CALL-0107",
-        "TC-SEM-CALL-0114",
+        "TC-SEM-CALL-0114", "TC-SEM-CALL-0124", "TC-SEM-CALL-0126",
     ],
     "code:TC_CE_FAST_CALL:no_false_positive": ["TC-TOOL-SEM-0107"],
     "code:TC_CE_FAST_CALL:position": ["TC-SEM-CALL-0109"],
     "code:TC_CE_FAST_CALL:stage": ["TC-SEM-CALL-0109"],
     "code:TC_CE_SAFE_VIOLATION:trigger": [
         "TC-SEM-SAFE-0109", "TC-SEM-SAFE-0110", "TC-SEM-SAFE-0111",
-        "TC-SEM-CALL-0111", "TC-SEM-SAFE-0114",
+        "TC-SEM-CALL-0111", "TC-SEM-SAFE-0114", "TC-SEM-SAFE-0116",
+        "TC-SEM-CALL-0121",
     ],
     "code:TC_CE_SAFE_VIOLATION:no_false_positive": [
         "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0114",
@@ -1087,9 +1117,10 @@ S4_COVERED_ROWS = {
     "code:TC_CE_SAFE_VIOLATION:stage": ["TC-SEM-SAFE-0109"],
     # §2.6/§8.6 annotations.
     "code:TC_CE_ANNOTATION:trigger": [
-        "TC-SEM-ANN-0201", "TC-SEM-ANN-0204", "TC-SEM-ANN-0205",
-        "TC-SEM-ANN-0208", "TC-SEM-ANN-0211", "TC-SEM-ANN-0214",
-        "TC-SEM-ANN-0222", "TC-SEM-ANN-0229",
+        "TC-SEM-ANN-0201", "TC-SEM-ANN-0202", "TC-SEM-ANN-0204",
+        "TC-SEM-ANN-0205", "TC-SEM-ANN-0208", "TC-SEM-ANN-0211",
+        "TC-SEM-ANN-0214", "TC-SEM-ANN-0222", "TC-SEM-ANN-0223",
+        "TC-SEM-ANN-0229",
     ],
     "code:TC_CE_ANNOTATION:no_false_positive": [
         "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0111",
@@ -1118,7 +1149,9 @@ S4_COVERED_ROWS = {
     "same_site_priority:CALL_ARGUMENT_ORDER:priority": [
         "TC-SEM-CALL-0101", "TC-SEM-CALL-0105",
     ],
-    "same_site_priority:CALL_SAFETY_FIRST:priority": ["TC-SEM-CALL-0107"],
+    "same_site_priority:CALL_SAFETY_FIRST:priority": [
+        "TC-SEM-CALL-0107", "TC-SEM-CALL-0124", "TC-SEM-CALL-0126",
+    ],
     # §8.6 annotation matrix slots.
     "annotation:@unsafe:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0231", "TC-SEM-ANN-0204"],
     "annotation:@safe:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0230", "TC-SEM-ANN-0204"],
@@ -1133,8 +1166,8 @@ S4_COVERED_ROWS = {
     "annotation:@noinline:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0207"],
     "annotation:@nonnull:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0208", "TC-SEM-ANN-0209", "TC-TOOL-SEM-0110"],
     "annotation:@no_alias:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0228", "TC-TOOL-SEM-0110"],
-    "annotation:@align:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0210", "TC-SEM-ANN-0211", "TC-SEM-ANN-0212", "TC-SEM-ANN-0213", "TC-SEM-ANN-0225", "TC-TOOL-SEM-0110"],
-    "annotation:@range:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0215", "TC-SEM-ANN-0214", "TC-SEM-ANN-0216", "TC-SEM-ANN-0217", "TC-SEM-ANN-0218", "TC-SEM-ANN-0219", "TC-SEM-ANN-0220", "TC-SEM-ANN-0221", "TC-TOOL-SEM-0110"],
+    "annotation:@align:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0210", "TC-SEM-ANN-0211", "TC-SEM-ANN-0212", "TC-SEM-ANN-0213", "TC-SEM-ANN-0225", "TC-TOOL-SEM-0110", "TC-TOOL-SEM-0116"],
+    "annotation:@range:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0215", "TC-SEM-ANN-0214", "TC-SEM-ANN-0216", "TC-SEM-ANN-0217", "TC-SEM-ANN-0218", "TC-SEM-ANN-0219", "TC-SEM-ANN-0220", "TC-SEM-ANN-0221", "TC-TOOL-SEM-0110", "TC-TOOL-SEM-0116", "TC-SEM-ANN-0233"],
     "annotation:@padding:coverage": ["TC-TOOL-SEM-0019", "TC-SEM-ANN-0229", "TC-SEM-CONST-0001", "TC-SEM-CONST-0002", "TC-SEM-CONST-0003"],
     "design12:09:suite_mapping": [
         "TC-SEM-CALL-0101", "TC-SEM-CFG-0016",

@@ -13,21 +13,21 @@ S4 交付：CFG/可达性、DI 最大固定点、`MISSING_RETURN`、标签与控
 
 | G4 准则 | 证据 | 结论 |
 | --- | --- | --- |
-| DI 固定点与路径语义 | `TC-SEM-DI-0001`…`0008`（分支/汇合/回边/switch/字段/赋值/read 目标）、`TC-TOOL-SEM-0101`/`0102`/`0115` | 通过 |
-| `MISSING_RETURN` | `TC-SEM-CFG-0001`…`0004`（空体、`br_if` 常量边、函数源序、模块序）、`TC-TOOL-SEM-0104`（void/`trap`/无出口循环） | 通过 |
-| 调用参数顺序 | `TC-SEM-CALL-0101`…`0106`（重复/未知/缺失/数量/顺序/混用）、`TC-TOOL-SEM-0106` | 通过 |
-| 调用安全优先 | `TC-SEM-CALL-0107`/`0114`、`TC-SEM-SAFE-0114` | 通过 |
-| 标签/控制 | `TC-SEM-CFG-0005`…`0014`、`TC-TOOL-SEM-0112` | 通过 |
-| 安全静态保证 | `TC-SEM-SAFE-0101`…`0114`、`TC-SEM-CALL-0108`…`0111`、`TC-TOOL-SEM-0107`/`0108`/`0113`/`0114` | 通过 |
-| `@safe` 优先与空 unsafe 块 | `TC-SEM-SAFE-0109`…`0111`/`0114` | 通过 |
-| 注解完整矩阵 | `TC-SEM-ANN-0201`…`0232`、`TC-TOOL-SEM-0109`/`0111` | 通过 |
+| DI 固定点与路径语义 | `TC-SEM-DI-0001`…`0009`（分支/汇合/回边/switch/字段/赋值/read 目标/函数单元）、`TC-TOOL-SEM-0101`/`0102`/`0115`/`0117` | 通过 |
+| `MISSING_RETURN` | `TC-SEM-CFG-0001`…`0020`（空体、`br_if` 常量边、函数源序、模块序、标签/控制/调用原子性）、`TC-TOOL-SEM-0104`（void/`trap`/无出口循环） | 通过 |
+| 调用参数顺序 | `TC-SEM-CALL-0101`…`0127`（重复/未知/缺失/数量/顺序/混用、安全相位、间接调用）、`TC-TOOL-SEM-0106` | 通过 |
+| 调用安全优先 | `TC-SEM-CALL-0107`/`0114`/`0124`/`0126`、`TC-SEM-SAFE-0114` | 通过 |
+| 标签/控制 | `TC-SEM-CFG-0005`…`0020`、`TC-TOOL-SEM-0112`/`0118` | 通过 |
+| 安全静态保证 | `TC-SEM-SAFE-0101`…`0116`、`TC-SEM-CALL-0108`…`0111`/`0121`、`TC-TOOL-SEM-0107`/`0108`/`0113`/`0114`/`0119` | 通过 |
+| `@safe` 优先与空 unsafe 块 | `TC-SEM-SAFE-0109`…`0111`/`0114`/`0116` | 通过 |
+| 注解完整矩阵 | `TC-SEM-ANN-0201`…`0233`、`TC-TOOL-SEM-0109`/`0111`/`0116` | 通过 |
 | 承诺违反不静态拒绝 | `TC-TOOL-SEM-0110` | 通过 |
 | 首诊组合（§12.2 #1–#10） | L0 比较器测试；S4 组合 `TC-SEM-CFG-0003`/`0004`/`0016`/`0017`、`TC-SEM-CALL-0101`/`0105`/`0106`/`0107`/`0114` | 通过 |
 | 32/64 注解参数 | `TC-SEM-ANN-0213`（w32）、`TC-TOOL-SEM-0017`（w64） | 通过 |
 
 ## 覆盖
 
-- 一致性用例：S4 表 90 个编译用例、15 个接受用例；S1/S2/S3 表继续通过。
+- 一致性用例：S4 表 105 个编译用例、19 个接受用例；S1/S2/S3 表继续通过。
 - 80 码：S4 涉及的 `DUPLICATE_LABEL`、`LABEL_NOT_FOUND`、`CONDITION_TYPE`、
   `SWITCH_TYPE`、`RETURN_TYPE`、`RETURN_FORM`、`RETURN_OUTSIDE_FUNCTION`、
   `MISSING_RETURN`、五个 `ARGUMENT_*`、`UNINITIALIZED`、四个安全码、

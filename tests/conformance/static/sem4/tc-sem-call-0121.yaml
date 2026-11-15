@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0121
+profile: common
+source: fixtures/tc-sem-call-0121/root.tc
+spec: "§8.8.2/§9.8 @safe 函数中 call_indirect 先按调用安全报 SAFE_VIOLATION，不报命名实参 UNKNOWN_ARGUMENT"
+expect:
+  stage: SEM
+  code: TC_CE_SAFE_VIOLATION
+  primary: {file: fixtures/tc-sem-call-0121/lib.tc, line: 6, column: 20}
+  related: []
+  diagnostics: exactly-one

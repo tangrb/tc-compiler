@@ -31,7 +31,6 @@ def _yaml_scalar(value):
 
 
 def _marker_position(text, marker):
-    other = REL if marker == MARK else MARK
     for lineno, line in enumerate(text.splitlines(), 1):
         index = line.find(marker)
         if index < 0:
@@ -218,6 +217,21 @@ CASES = [
          "@HERE@s.f = copy int32, 2\n"},
         "SEM", "TC_CE_UNINITIALIZED",
     ),
+    _case(
+        "TC-SEM-DI-0009",
+        "§5.7.1 每个函数是独立 DI 分析单元；函数内 br 跳过 var 后读取 -> "
+        "UNINITIALIZED（导入模块内）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() int32 then\n"
+         "    _ = br L\n"
+         "    var x: int32 = copy int32, 1\n"
+         "    label L:\n"
+         "    var y: int32 = copy int32, @HERE@x\n"
+         "    _ = return y\n"
+         "end\n"},
+        "SEM", "TC_CE_UNINITIALIZED",
+    ),
     # ------------------------------------------------------------------
     # Missing returns and control flow (§7.7/§8.3).
     _case(
@@ -263,6 +277,31 @@ CASES = [
          "public func g() int32 then\n"
          "end\n"},
         "SEM", "TC_CE_MISSING_RETURN",
+    ),
+    _case(
+        "TC-SEM-CFG-0019",
+        "§7.7.1/§8.8.3 call 是调用者 CFG 的原子节点；被调函数缺返回在被调模块"
+        "报告，不展开到调用者",
+        {"root.tc": PROGRAM + "import lib\n"
+         "var x: int32 = call lib.f\n",
+         "lib.tc": LIB +
+         "public func f() @HERE@int32 then\n"
+         "@REL@end\n"},
+        "SEM", "TC_CE_MISSING_RETURN",
+    ),
+    _case(
+        "TC-SEM-CFG-0020",
+        "§7.1/§7.7.1 标签命名空间按函数/程序封闭；跨函数 br 目标 -> "
+        "LABEL_NOT_FOUND",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    label L:\n"
+         "end\n"
+         "public func g() void then\n"
+         "    _ = br @HERE@L\n"
+         "end\n"},
+        "SEM", "TC_CE_LABEL_NOT_FOUND",
     ),
     _case(
         "TC-SEM-CFG-0005",
@@ -417,12 +456,13 @@ CASES = [
     ),
     _case(
         "TC-SEM-CALL-0103",
-        "§8.8.2 命名实参缺失先于数量 -> MISSING_ARGUMENT（助记符）",
+        "§8.8.2 命名实参缺失先于数量 -> MISSING_ARGUMENT（助记符）；"
+        "§12.5.1 关联声明顺序最靠前的缺失形参",
         {"root.tc": PROGRAM +
          "import lib\n"
          "var x: int32 = @HERE@call lib.two, a: 1\n",
          "lib.tc": LIB +
-         "public func two(a: int32, b: int32) int32 then\n"
+         "public func two(a: int32, @REL@b: int32) int32 then\n"
          "    _ = return a\n"
          "end\n"},
         "SEM", "TC_CE_MISSING_ARGUMENT",
@@ -594,6 +634,118 @@ CASES = [
          "_ = call_indirect @HERE@p\n"},
         "SEM", "TC_CE_TYPE_MISMATCH",
     ),
+    _case(
+        "TC-SEM-CALL-0126",
+        "§8.8.2 调用安全先于调用点结果形态：@fast void 调用写在 var 初始化器"
+        " -> FAST_CALL，不报 VOID",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "var x: int32 = @HERE@call lib.fv\n",
+         "lib.tc": LIB +
+         "public @fast func fv() void then\n"
+         "end\n"},
+        "SEM", "TC_CE_FAST_CALL",
+    ),
+    _case(
+        "TC-SEM-CALL-0127",
+        "§6.14/§8.8.2 有结果调用用 `_` 丢弃结果仍做完整实参类型检查 -> "
+        "LITERAL_TYPE",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "_ = call lib.one, @HERE@true\n",
+         "lib.tc": LIB +
+         "public func one(a: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_LITERAL_TYPE",
+    ),
+    _case(
+        "TC-SEM-CALL-0120",
+        "§8.8.2 实参检查先于接收变量类型：实参字面量错误 -> LITERAL_TYPE，"
+        "不报结果类型 TYPE_MISMATCH",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "var x: int64 = call lib.one, @HERE@true\n",
+         "lib.tc": LIB +
+         "public func one(a: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_LITERAL_TYPE",
+    ),
+    _case(
+        "TC-SEM-CALL-0121",
+        "§8.8.2/§9.8 @safe 函数中 call_indirect 先按调用安全报 "
+        "SAFE_VIOLATION，不报命名实参 UNKNOWN_ARGUMENT",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func one(a: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"
+         "public @safe func f(p: fnptr<int32, int32>) int32 then\n"
+         "    var x: int32 = @HERE@call_indirect p, a: 1\n"
+         "    _ = return x\n"
+         "end\n"},
+        "SEM", "TC_CE_SAFE_VIOLATION",
+    ),
+    _case(
+        "TC-SEM-CALL-0122",
+        "§8.8.2 call_indirect 实参先于接收变量类型；实参合法但接收类型不符 "
+        "-> TYPE_MISMATCH（调用点）",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "var fp: fnptr<int32, int32> = funcaddr lib.one\n"
+         "unsafe then\n"
+         "    var x: int64 = @HERE@call_indirect fp, 1\n"
+         "end\n",
+         "lib.tc": LIB +
+         "public func one(a: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_TYPE_MISMATCH",
+    ),
+    _case(
+        "TC-SEM-CALL-0123",
+        "§8.8.2 call_indirect 返回 void 时只能写 `_`；作为 var 初始化器 -> "
+        "VOID（调用助记符）",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "var vf: fnptr<void> = funcaddr lib.v\n"
+         "unsafe then\n"
+         "    var x: int32 = @HERE@call_indirect vf\n"
+         "end\n",
+         "lib.tc": LIB +
+         "public func v() void then\n"
+         "    _ = return\n"
+         "end\n"},
+        "SEM", "TC_CE_VOID",
+    ),
+    _case(
+        "TC-SEM-CALL-0124",
+        "§8.8.2 调用安全先于调用点 LHS：const 目标 + @fast 调用 -> FAST_CALL",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "const K: int32 = 1\n"
+         "K = @HERE@call lib.ff\n",
+         "lib.tc": LIB +
+         "public @fast func ff() int32 then\n"
+         "    _ = return 0\n"
+         "end\n"},
+        "SEM", "TC_CE_FAST_CALL",
+    ),
+    _case(
+        "TC-SEM-CALL-0125",
+        "§5.7.3/§8.8.2 调用安全通过后先检查 LHS；对 const 赋值 -> "
+        "CONST_ASSIGNMENT 先于实参类型",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "const K: int32 = 1\n"
+         "@HERE@K = call lib.one, true\n",
+         "lib.tc": LIB +
+         "public func one(a: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_ASSIGNMENT",
+    ),
     # ------------------------------------------------------------------
     # Safety model (§9).
     _case(
@@ -659,6 +811,25 @@ CASES = [
          "var f: fnptr<void> = copy fnptr<void>, nullptr\n"
          "var x: int64 = @HERE@bitcast int64, f\n"},
         "SEM", "TC_CE_UNSAFE_OPERATION",
+    ),
+    _case(
+        "TC-SEM-SAFE-0115",
+        "§9.2/§9.8 int->fnptr 的 bitcast 是 unsafe -> UNSAFE_OPERATION",
+        {"root.tc": PROGRAM +
+         "var x: int64 = copy int64, 0\n"
+         "var f: fnptr<void> = @HERE@bitcast fnptr<void>, x\n"},
+        "SEM", "TC_CE_UNSAFE_OPERATION",
+    ),
+    _case(
+        "TC-SEM-SAFE-0116",
+        "§9.3/§9.8 @safe 函数中的 ptr->int bitcast -> SAFE_VIOLATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @safe func f(p: ptr<int32>) int64 then\n"
+         "    var x: int64 = @HERE@bitcast int64, p\n"
+         "    _ = return x\n"
+         "end\n"},
+        "SEM", "TC_CE_SAFE_VIOLATION",
     ),
     _case(
         "TC-SEM-SAFE-0109",
@@ -967,6 +1138,15 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0225",
+        "§8.6 @align(N) 的 N 必须是正整数；负号 -> ANNOTATION（N Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(@HERE@-1) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-ANN-0226",
         "§8.6 @willreturn 只在 @fast 函数上合法 -> ANNOTATION",
         {"root.tc": PROGRAM + "import lib\n",
@@ -1019,6 +1199,17 @@ CASES = [
          "public func f(@HERE@@unsafe p: ptr<int32>) void then\n"
          "end\n"},
         "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0233",
+        "§8.6/§4.6 @range 的 m.K 必须是 public const；导入 private const "
+        "-> PRIVATE_ACCESS，位置为成员名并关联声明",
+        {"root.tc": PROGRAM + "import user\n",
+         "user.tc": LIB + "import base\n"
+         "public @fast func f(@range(base.@HERE@K, base.K) n: int32) void "
+         "then\nend\n",
+         "base.tc": LIB + "private const @REL@K: int32 = 1\n"},
+        "SEM", "TC_CE_PRIVATE_ACCESS",
     ),
     _case(
         "TC-SEM-ANN-0232",
@@ -1214,6 +1405,69 @@ POSITIVE = [
          "end\n"},
     ),
     _positive(
+        "TC-TOOL-SEM-0119",
+        "§9.2 unsafe 块接受全部 unsafe 指令：load/store/volatile/memmove/"
+        "ptradd/ptrsub/ptr-int/fnptr-int/call_indirect",
+        {"root.tc": PROGRAM +
+         "var x: int32 = copy int32, 1\n"
+         "var p: ptr<int32> = addr int32, x\n"
+         "var f: fnptr<void> = copy fnptr<void>, nullptr\n"
+         "unsafe then\n"
+         "    var v: int32 = load int32, p\n"
+         "    _ = store int32, p, v\n"
+         "    var lv: int32 = load.volatile int32, p\n"
+         "    _ = store.volatile int32, p, lv\n"
+         "    var q: ptr<int32> = ptradd int32, p, 0\n"
+         "    var r: ptr<int32> = ptrsub int32, p, 0\n"
+         "    _ = memmove int32, q, r, 1\n"
+         "    var bits: int64 = bitcast int64, p\n"
+         "    var back: ptr<int32> = bitcast ptr<int32>, bits\n"
+         "    var fbits: int64 = bitcast int64, f\n"
+         "    var ff: fnptr<void> = bitcast fnptr<void>, fbits\n"
+         "    _ = call_indirect ff\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0118",
+        "§7.1 每个函数/程序的标签命名空间独立；不同函数可复用同名标签",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    label L:\n"
+         "    _ = br L\n"
+         "end\n"
+         "public func g() void then\n"
+         "    label L:\n"
+         "    _ = br L\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0117",
+        "§5.1/§5.7.1 static var 与 const 不进入 U，入口即已初始化；函数内"
+        "Self.S/Self.K 与导入 public static var 读取不产生 UNINITIALIZED",
+        {"root.tc": PROGRAM + "import lib\n"
+         "var y: int32 = copy int32, lib.S\n",
+         "lib.tc": LIB +
+         "public static var S: int32 = 1\n"
+         "public const K: int32 = 2\n"
+         "public func f() int32 then\n"
+         "    var x: int32 = add int32, Self.S, Self.K\n"
+         "    _ = return x\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0116",
+        "§8.6 @range/@align 的常量路径：本模块 private const 与导入 public "
+        "const 均可用于同型端点；@align 取地址宽度整数常量",
+        {"root.tc": PROGRAM + "import user\n",
+         "user.tc": LIB + "import base\n"
+         "private const L: int32 = 1\n"
+         "public @fast func f(@range(Self.L, base.H) n: int32, "
+         "@align(base.A) p: ptr<int32>) void then\nend\n",
+         "base.tc": LIB + "public const H: int32 = 2\n"
+         "public const A: int32 = 8\n"},
+    ),
+    _positive(
         "TC-TOOL-SEM-0115",
         "§5.4/§5.5 addr 取未初始化存储合法、字段赋值不改外层初始化状态；"
         "经指针读取未初始化存储是运行时 UB，不是静态拒绝",
@@ -1376,6 +1630,30 @@ def _write_positive_case(case, failures, check):
             yaml_path.write_text(yaml, encoding="utf-8", newline="")
 
 
+def _expected_artifacts():
+    compile_paths = set()
+    positive_paths = set()
+    for case in CASES:
+        fixture = HERE / "sem4" / "fixtures" / case["id"].lower()
+        for name in case["files"]:
+            compile_paths.add(fixture / name)
+        compile_paths.add(HERE / "sem4" / f"{case['id'].lower()}.yaml")
+    for case in POSITIVE:
+        fixture = HERE / "accept_s4" / case["id"].lower()
+        for name in case["files"]:
+            positive_paths.add(fixture / name)
+        positive_paths.add(HERE / "accept_s4" / f"{case['id'].lower()}.yaml")
+    return compile_paths, positive_paths
+
+
+def _actual_artifacts(root):
+    return {
+        path
+        for path in root.rglob("*")
+        if path.is_file() and path.suffix in {".tc", ".yaml"}
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true")
@@ -1388,6 +1666,15 @@ def main(argv=None):
         _write_compile_case(case, failures, args.check)
     for case in POSITIVE:
         _write_positive_case(case, failures, args.check)
+    expected_compile, expected_positive = _expected_artifacts()
+    for label, expected, root in (
+        ("sem4", expected_compile, HERE / "sem4"),
+        ("accept_s4", expected_positive, HERE / "accept_s4"),
+    ):
+        for stale in sorted(_actual_artifacts(root) - expected):
+            failures.append(
+                f"{label}: stale generated file {stale.relative_to(HERE)}"
+            )
     if failures:
         for failure in failures:
             print(f"FAIL {failure}")

@@ -324,6 +324,8 @@
       "code:TC_CE_CONDITION_TYPE:position",
       "code:TC_CE_CONDITION_TYPE:stage",
       "code:TC_CE_CONDITION_TYPE:trigger",
+      "code:TC_CE_CONST_ASSIGNMENT:position",
+      "code:TC_CE_CONST_ASSIGNMENT:trigger",
       "code:TC_CE_DUPLICATE_ARGUMENT:no_false_positive",
       "code:TC_CE_DUPLICATE_ARGUMENT:position",
       "code:TC_CE_DUPLICATE_ARGUMENT:stage",
@@ -340,6 +342,7 @@
       "code:TC_CE_LABEL_NOT_FOUND:position",
       "code:TC_CE_LABEL_NOT_FOUND:stage",
       "code:TC_CE_LABEL_NOT_FOUND:trigger",
+      "code:TC_CE_LITERAL_TYPE:trigger",
       "code:TC_CE_MISSING_ARGUMENT:no_false_positive",
       "code:TC_CE_MISSING_ARGUMENT:position",
       "code:TC_CE_MISSING_ARGUMENT:stage",
@@ -348,6 +351,15 @@
       "code:TC_CE_MISSING_RETURN:position",
       "code:TC_CE_MISSING_RETURN:stage",
       "code:TC_CE_MISSING_RETURN:trigger",
+      "code:TC_CE_MODE:position",
+      "code:TC_CE_MODE:stage",
+      "code:TC_CE_MODE:trigger",
+      "code:TC_CE_OPERAND_COUNT:no_false_positive",
+      "code:TC_CE_OPERAND_COUNT:position",
+      "code:TC_CE_OPERAND_COUNT:stage",
+      "code:TC_CE_OPERAND_COUNT:trigger",
+      "code:TC_CE_PRIVATE_ACCESS:position",
+      "code:TC_CE_PRIVATE_ACCESS:trigger",
       "code:TC_CE_RETURN_FORM:no_false_positive",
       "code:TC_CE_RETURN_FORM:position",
       "code:TC_CE_RETURN_FORM:stage",
@@ -368,6 +380,7 @@
       "code:TC_CE_SWITCH_TYPE:position",
       "code:TC_CE_SWITCH_TYPE:stage",
       "code:TC_CE_SWITCH_TYPE:trigger",
+      "code:TC_CE_TYPE_MISMATCH:trigger",
       "code:TC_CE_UNINITIALIZED:no_false_positive",
       "code:TC_CE_UNINITIALIZED:position",
       "code:TC_CE_UNINITIALIZED:stage",
@@ -871,6 +884,8 @@
         "TC-SEM-CALL-0105",
         "TC-SEM-CALL-0108",
         "TC-SEM-CALL-0113",
+        "TC-SEM-CALL-0120",
+        "TC-SEM-CALL-0125",
         "TC-SEM-ANN-0201"
       ],
       "chapter": "§8",
@@ -891,7 +906,8 @@
       "spec": "test plan §3.6/§8.1",
       "status": "covered",
       "case_ids": [
-        "TC-TOOL-SEM-0107"
+        "TC-TOOL-SEM-0107",
+        "TC-TOOL-SEM-0119"
       ],
       "chapter": "§9",
       "title": "安全模型",
@@ -913,9 +929,12 @@
         "TC-SEM-SAFE-0101",
         "TC-SEM-SAFE-0109",
         "TC-SEM-SAFE-0110",
+        "TC-SEM-SAFE-0115",
+        "TC-SEM-SAFE-0116",
         "TC-SEM-CALL-0108",
         "TC-SEM-CALL-0109",
-        "TC-SEM-CALL-0114"
+        "TC-SEM-CALL-0114",
+        "TC-SEM-CALL-0121"
       ],
       "chapter": "§9",
       "title": "安全模型",
@@ -2185,7 +2204,8 @@
       "case_ids": [
         "TC-SEM-NAME-0104",
         "TC-SEM-NAME-0109",
-        "TC-SEM-NAME-0113"
+        "TC-SEM-NAME-0113",
+        "TC-SEM-ANN-0233"
       ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
@@ -2227,7 +2247,8 @@
       "case_ids": [
         "TC-SEM-NAME-0104",
         "TC-SEM-FUNC-0102",
-        "TC-SEM-NAME-0113"
+        "TC-SEM-NAME-0113",
+        "TC-SEM-ANN-0233"
       ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
@@ -2828,7 +2849,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-CFG-0006",
-        "TC-SEM-CFG-0007"
+        "TC-SEM-CFG-0007",
+        "TC-SEM-CFG-0020"
       ],
       "code": "TC_CE_LABEL_NOT_FOUND",
       "print_name": "LabelNotFound",
@@ -2848,7 +2870,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-TOOL-SEM-0105"
+        "TC-TOOL-SEM-0105",
+        "TC-TOOL-SEM-0118"
       ],
       "code": "TC_CE_LABEL_NOT_FOUND",
       "print_name": "LabelNotFound",
@@ -2908,7 +2931,11 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-TYPE-0001"
+        "TC-SEM-TYPE-0001",
+        "TC-SEM-CALL-0117",
+        "TC-SEM-CALL-0120",
+        "TC-SEM-CALL-0122",
+        "TC-SEM-CFG-0015"
       ],
       "code": "TC_CE_TYPE_MISMATCH",
       "print_name": "TypeMismatch",
@@ -2989,7 +3016,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-LIT-0001"
+        "TC-SEM-LIT-0001",
+        "TC-SEM-CALL-0127"
       ],
       "code": "TC_CE_LITERAL_TYPE",
       "print_name": "LiteralType",
@@ -3180,7 +3208,9 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-MODE-0001"
+        "TC-SEM-MODE-0001",
+        "TC-SEM-MODE-0104",
+        "TC-SEM-MODE-0105"
       ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
@@ -3220,7 +3250,9 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-MODE-0002"
+        "TC-SEM-MODE-0002",
+        "TC-SEM-MODE-0104",
+        "TC-SEM-MODE-0105"
       ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
@@ -3240,7 +3272,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-MODE-0001"
+        "TC-SEM-MODE-0001",
+        "TC-SEM-MODE-0104"
       ],
       "code": "TC_CE_MODE",
       "print_name": "ModeError",
@@ -3263,12 +3296,14 @@
         "TC-SEM-MODE-0003",
         "TC-SEM-ANN-0001",
         "TC-SEM-ANN-0201",
+        "TC-SEM-ANN-0202",
         "TC-SEM-ANN-0204",
         "TC-SEM-ANN-0205",
         "TC-SEM-ANN-0208",
         "TC-SEM-ANN-0211",
         "TC-SEM-ANN-0214",
         "TC-SEM-ANN-0222",
+        "TC-SEM-ANN-0223",
         "TC-SEM-ANN-0229"
       ],
       "code": "TC_CE_ANNOTATION",
@@ -3416,7 +3451,9 @@
         "TC-SEM-OP-0108",
         "TC-SEM-OP-0109",
         "TC-SEM-OP-0111",
-        "TC-SEM-NAME-0111"
+        "TC-SEM-NAME-0111",
+        "TC-SEM-CFG-0010",
+        "TC-SEM-CFG-0018"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3436,7 +3473,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-TOOL-SEM-0001"
+        "TC-TOOL-SEM-0001",
+        "TC-TOOL-SEM-0112"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3461,7 +3499,9 @@
         "TC-SEM-OP-0013",
         "TC-SEM-OP-0018",
         "TC-SEM-OP-0019",
-        "TC-SEM-FIELD-0009"
+        "TC-SEM-FIELD-0009",
+        "TC-SEM-CFG-0010",
+        "TC-SEM-CFG-0018"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3483,7 +3523,8 @@
       "case_ids": [
         "TC-SEM-OP-0001",
         "TC-SEM-OP-0004",
-        "TC-SEM-OP-0013"
+        "TC-SEM-OP-0013",
+        "TC-SEM-CFG-0010"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3831,7 +3872,8 @@
         "TC-SEM-CFG-0001",
         "TC-SEM-CFG-0002",
         "TC-SEM-CFG-0003",
-        "TC-SEM-CFG-0004"
+        "TC-SEM-CFG-0004",
+        "TC-SEM-CFG-0019"
       ],
       "code": "TC_CE_MISSING_RETURN",
       "print_name": "MissingReturn",
@@ -4988,7 +5030,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-ASSIGN-0001"
+        "TC-SEM-ASSIGN-0001",
+        "TC-SEM-CALL-0125"
       ],
       "code": "TC_CE_CONST_ASSIGNMENT",
       "print_name": "ConstAssignment",
@@ -5028,7 +5071,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-ASSIGN-0102"
+        "TC-SEM-ASSIGN-0102",
+        "TC-SEM-CALL-0125"
       ],
       "code": "TC_CE_CONST_ASSIGNMENT",
       "print_name": "ConstAssignment",
@@ -5150,7 +5194,9 @@
       "case_ids": [
         "TC-SEM-DI-0001",
         "TC-SEM-DI-0004",
-        "TC-SEM-DI-0006"
+        "TC-SEM-DI-0005",
+        "TC-SEM-DI-0006",
+        "TC-SEM-DI-0009"
       ],
       "code": "TC_CE_UNINITIALIZED",
       "print_name": "Uninitialized",
@@ -5173,7 +5219,8 @@
         "TC-TOOL-SEM-0101",
         "TC-TOOL-SEM-0102",
         "TC-TOOL-SEM-0103",
-        "TC-TOOL-SEM-0115"
+        "TC-TOOL-SEM-0115",
+        "TC-TOOL-SEM-0117"
       ],
       "code": "TC_CE_UNINITIALIZED",
       "print_name": "Uninitialized",
@@ -5619,7 +5666,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-VOID-0001",
-        "TC-SEM-CALL-0112"
+        "TC-SEM-CALL-0112",
+        "TC-SEM-CALL-0123"
       ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
@@ -5661,7 +5709,8 @@
       "case_ids": [
         "TC-SEM-VOID-0002",
         "TC-SEM-VOID-0003",
-        "TC-SEM-CALL-0112"
+        "TC-SEM-CALL-0112",
+        "TC-SEM-CALL-0123"
       ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
@@ -5682,7 +5731,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-VOID-0001",
-        "TC-SEM-CALL-0112"
+        "TC-SEM-CALL-0112",
+        "TC-SEM-CALL-0123"
       ],
       "code": "TC_CE_VOID",
       "print_name": "VoidType",
@@ -5712,6 +5762,7 @@
         "TC-SEM-SAFE-0108",
         "TC-SEM-SAFE-0112",
         "TC-SEM-SAFE-0113",
+        "TC-SEM-SAFE-0115",
         "TC-SEM-CALL-0116"
       ],
       "code": "TC_CE_UNSAFE_OPERATION",
@@ -5734,7 +5785,8 @@
       "case_ids": [
         "TC-TOOL-SEM-0107",
         "TC-TOOL-SEM-0108",
-        "TC-TOOL-SEM-0113"
+        "TC-TOOL-SEM-0113",
+        "TC-TOOL-SEM-0119"
       ],
       "code": "TC_CE_UNSAFE_OPERATION",
       "print_name": "UnsafeOperation",
@@ -5877,7 +5929,9 @@
         "TC-SEM-CALL-0109",
         "TC-SEM-CALL-0110",
         "TC-SEM-CALL-0107",
-        "TC-SEM-CALL-0114"
+        "TC-SEM-CALL-0114",
+        "TC-SEM-CALL-0124",
+        "TC-SEM-CALL-0126"
       ],
       "code": "TC_CE_FAST_CALL",
       "print_name": "FastCall",
@@ -5961,7 +6015,9 @@
         "TC-SEM-SAFE-0110",
         "TC-SEM-SAFE-0111",
         "TC-SEM-CALL-0111",
-        "TC-SEM-SAFE-0114"
+        "TC-SEM-SAFE-0114",
+        "TC-SEM-SAFE-0116",
+        "TC-SEM-CALL-0121"
       ],
       "code": "TC_CE_SAFE_VIOLATION",
       "print_name": "SafeViolation",
@@ -11281,7 +11337,9 @@
       "status": "covered",
       "case_ids": [
         "TC-L0-DIAG-0005",
-        "TC-SEM-CALL-0107"
+        "TC-SEM-CALL-0107",
+        "TC-SEM-CALL-0124",
+        "TC-SEM-CALL-0126"
       ],
       "codes": [
         "TC_CE_UNSAFE_CALL",
@@ -12063,7 +12121,8 @@
         "TC-SEM-ANN-0212",
         "TC-SEM-ANN-0213",
         "TC-SEM-ANN-0225",
-        "TC-TOOL-SEM-0110"
+        "TC-TOOL-SEM-0110",
+        "TC-TOOL-SEM-0116"
       ],
       "annotation": "@align",
       "location": "`@fast` 指针形参",
@@ -12094,7 +12153,9 @@
         "TC-SEM-ANN-0219",
         "TC-SEM-ANN-0220",
         "TC-SEM-ANN-0221",
-        "TC-TOOL-SEM-0110"
+        "TC-TOOL-SEM-0110",
+        "TC-TOOL-SEM-0116",
+        "TC-SEM-ANN-0233"
       ],
       "annotation": "@range",
       "location": "`@fast` 整数形参",
