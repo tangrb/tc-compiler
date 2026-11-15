@@ -29,6 +29,37 @@
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。
+8. **收尾即清理**：每个阶段或分支收尾必须执行下方“收尾工作”；文档清理是门禁的一部分，
+   不是可选的整理工作。
+
+## 收尾工作
+
+阶段/分支收尾按以下清单执行，顺序固定：
+
+1. **冻结规范文档**：不改标准、设计、测试计划的语义条款；只允许修正链接或必要的
+   交叉引用。
+2. **清理过程/历史内容**：从 README、AGENTS、CONTRIBUTING、CHANGELOG、`docs/gates/`、
+   `src/README.md`、`src/CONTRACTS.md`、`tests/*/README.md` 等非规范文档中删除：
+   - 逐轮审计、首轮/复核、勘误、B1/B2/B3/B4 编号与修复日志；
+   - reviewed commit、evidence version、环境快照与逐轮实测记录；
+   - 按日期堆叠的迭代 changelog 条目、过期的阶段状态/计数；
+   - 已被当前实现取代的约定或“历史实现如何做”的叙述。
+   详细过程保留在 git 历史中，不进入分支文档。
+3. **收敛门禁记录**：`docs/gates/` 只保留 G 状态表与每阶段一页以内的当前记录
+   （结论、范围、证据入口、复现命令、当前限制）。门禁记录不得复述审计过程。
+4. **归并当前约定**：仍影响实现的诊断位置、边界裁定、已知限制与后续阶段移交事项写入
+   `src/CONTRACTS.md`，不留在门禁过程记录中。
+5. **同步当前状态**：更新 README/AGENTS/CONTRIBUTING/文档地图/测试 README 的当前能力、
+   测试计数、门禁状态与链接；CHANGELOG 按发布版本收敛为当前条目。
+6. **全量验证**：执行
+   `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`，
+   并确认 `tests/conformance/static/*_cases.py --check`、`tests/traceability/coverage.py --check`
+   与 `tests/tools/docs_cleanup_check.py` 均通过。
+7. **提交与洁净**：以 `docs(0.0.46): ...` 提交清理结果；确认 `git status` 干净，
+   `build/` 与生成物未入库。
+
+`docs.cleanup`（`tests/tools/docs_cleanup_check.py`）是上述清理的固定门禁：
+出现审计/勘误/commit pin、门禁记录超长或 changelog 版本重复时失败。
 
 ## 导航
 
@@ -42,6 +73,7 @@
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h` |
 | 测试基建 | `tests/README.md` |
 | 门禁状态 | `docs/gates/README.md` |
+| 文档收尾检查 | `tests/tools/docs_cleanup_check.py`（`docs.cleanup`） |
 | 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

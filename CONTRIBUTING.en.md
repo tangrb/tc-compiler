@@ -54,3 +54,4 @@ Please search existing issues and documents first. Include:
 2. Keep the change minimal; avoid unrelated formatting.
 3. Check internal links and `§` references.
 4. Update [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md) for user-visible changes.
+5. For a stage/branch wrap-up, follow the "wrap-up" checklist in [AGENTS.md](AGENTS.md) and pass `ctest -R docs.cleanup`.

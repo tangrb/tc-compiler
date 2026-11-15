@@ -24,6 +24,9 @@ python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/traceability/coverage.py --check
 ```
 
+收尾清理由 `docs.cleanup`（`tests/tools/docs_cleanup_check.py`）门禁检查；详细过程记录
+保留在 git 历史中。
+
 规范依据始终是 [标准](../TC语言及编译器标准-0.0.46.md)、
 [设计](../TC原生编译器设计说明书-0.0.46.md) 与
 [开发测试计划](../TC开发测试计划-0.0.46.md)；门禁记录不增加或放宽任何规范要求。

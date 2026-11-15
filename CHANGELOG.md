@@ -18,11 +18,13 @@
 - **工具能力**：`--syntax-only`（LEX/SYN）与 `--static-only`（LEX/SYN/IMPORT/SEM）部分检查；
   普通调用在静态阶段后显式退出 70。新增 `w32` 静态档案（不可执行目标）。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、S1/S2/S3 一致性用例表、确定性套件、adapter
-  失败关闭自测；当前 Debug/Release/ASan `ctest` 19/19，harness 346/346。
+  失败关闭自测；当前 Debug/Release/ASan `ctest` 20/20，harness 346/346。
 
 ### Changed
 
 - 最终 `TcInstr`/`TcIR` 物化保留在 IR 最终化阶段；S3 完成解析/校验并冻结类型表。
+- 收尾流程固化：阶段/分支收尾必须清理过程/历史文档，并通过 `docs.cleanup` 门禁；
+  当前约定与已知限制归并到 `src/CONTRACTS.md`。
 - 诊断位置与混用形态约定见 `src/CONTRACTS.md`；`--static-only` 与普通调用都不宣称程序有效。
 
 ### Removed

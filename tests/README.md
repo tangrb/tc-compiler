@@ -13,6 +13,7 @@
 | Golden | `golden/` | L3 | 规范推导的期望值及评审记录 |
 | Tools | `tools/` | L6 | `tc-vm`/`tc-aot` CLI 契约（用法、档案、部分检查、诊断、实现错误） |
 | Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON |
+| Docs | `tools/docs_cleanup_check.py` | — | 文档收尾门禁：无过程/历史叙事、门禁记录简短、changelog 版本不重复 |
 
 运行：
 
@@ -22,5 +23,6 @@ ctest --test-dir build --output-on-failure
 ```
 
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
+每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
 一致性用例按规范对象组织，期望必须引用标准条款，不得由编译器输出回填。
 32/64 结果分档案保存；差分测试（后续阶段）只在同一档案内比较 VM 与 AOT。

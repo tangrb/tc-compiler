@@ -33,6 +33,11 @@ add_test(NAME conformance.s1_cases
                  ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s1_cases.py --check)
 
 add_test(
+    NAME docs.cleanup
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/docs_cleanup_check.py)
+
+add_test(
     NAME cli.contract
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cli_contract_test.py
             $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)

@@ -54,3 +54,4 @@ ctest --test-dir build --output-on-failure
 2. 做最小必要改动；避免无关格式化。
 3. 检查文档内部链接与 `§` 引用。
 4. 用户可见变更更新 [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md)。
+5. 阶段/分支收尾按 [AGENTS.md](AGENTS.md) 的“收尾工作”清理文档，并通过 `ctest -R docs.cleanup`。

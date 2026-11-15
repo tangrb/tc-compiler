@@ -24,13 +24,16 @@
   (LEX/SYN/IMPORT/SEM) partial checks; a normal invocation explicitly exits 70 after
   the static stages. Added the `w32` static profile (not an executable target).
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, S1/S2/S3 conformance tables,
-  determinism suites and a fail-closed adapter self-test; currently 19/19 `ctest`
+  determinism suites and a fail-closed adapter self-test; currently 20/20 `ctest`
   and 346/346 harness cases in Debug/Release/ASan builds.
 
 ### Changed
 
 - Final `TcInstr`/`TcIR` materialization remains part of IR finalization; S3 validates
   and freezes the type table.
+- Wrap-up is now fixed process: process/historical documentation is removed and the
+  `docs.cleanup` gate must pass; current conventions and known limits live in
+  `src/CONTRACTS.md`.
 - Diagnostic-position and mixed-form conventions live in `src/CONTRACTS.md`;
   `--static-only` and normal invocation never claim a valid program.
 
