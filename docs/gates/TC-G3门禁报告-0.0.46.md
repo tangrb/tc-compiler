@@ -236,7 +236,7 @@ ctest --test-dir build -R 'determinism.s2s3|harness.conformance' --output-on-fai
 
 ## 附录 B. reviewed commit / 证据版本
 
-- reviewed commit：`b7b9704`（S2/S3 实现）+ `3298cae`（B1-5 修复）+ `3508f1d`（B1-6 批次修复）；基线 `3a12ab3`。
+- reviewed commit：`b7b9704`（S2/S3 实现）+ `3298cae`（B1-5 修复）+ `3508f1d`（B1-6 批次修复）+ `b94818b`（D-4 定位裁定）；基线 `3a12ab3`。
 - 独立审计：`gate-auditor` 首轮 FAIL（4×B1 + B2）→ 修复 → 复核 PASS。
 - 生成文件指纹由 `s2s3_cases.py --check` 与 `coverage.py --check` 固定。
 - 报告时间：2026-11-15。
