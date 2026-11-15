@@ -457,6 +457,14 @@ static void test_lex_errors(void) {
                 TC_CE_SYNTAX, 2, 28, "underscore zero");
     expect_diag("#program\nvar x: float64 = copy float64, 1.\n", TC_STAGE_LEX,
                 TC_CE_SYNTAX, 2, 32, "trailing dot");
+    /* Malformed numeric candidates are one illegal numeric token anchored at
+     * the candidate start (documented S1 recovery convention; TC-UNIT-LEX-0005). */
+    expect_diag("#program\nvar x: float64 = copy float64, 1.5.5\n",
+                TC_STAGE_LEX, TC_CE_SYNTAX, 2, 32, "multi-dot float");
+    expect_diag("#program\nvar x: float64 = copy float64, 1..5\n",
+                TC_STAGE_LEX, TC_CE_SYNTAX, 2, 32, "empty fraction");
+    expect_diag("#program\nvar x: float64 = copy float64, 1.5e5.5\n",
+                TC_STAGE_LEX, TC_CE_SYNTAX, 2, 32, "dot after exponent");
     expect_diag("#program\nvar x: uint32 = copy uint32, -42u\n", TC_STAGE_LEX,
                 TC_CE_SYNTAX, 2, 30, "negative unsigned");
     expect_diag("#program\nvar x: uint64 = copy uint64, 18446744073709551616\n",
@@ -1299,6 +1307,29 @@ static void test_accept_forms(void) {
               "switch targets");
 }
 
+/* ------------------------------------------------------------------------- */
+/* TC-UNIT-SYN-0004: field padding annotation shape.                         */
+/* ------------------------------------------------------------------------- */
+
+static void test_field_annotation_shape(void) {
+    /* SYN accepts any ANNOTATION(INT) in the field_padding shape; the
+     * @padding name and N constraints are SEM (S4/S5). */
+    expect_ok("#lib\n"
+              "public struct S then\n"
+              "    readonly a: int32 @align(4)\n"
+              "    var b: int32 @fast(1)\n"
+              "    var c: int32 @padding(4)\n"
+              "    var d: int32 @padding(4u)\n"
+              "end\n",
+              "field annotation shape");
+    /* A bare annotation has no (INT) field_padding shape and is SYNTAX. */
+    expect_diag("#lib\n"
+                "public struct S then\n"
+                "    readonly x: int32 @fast\n"
+                "end\n",
+                TC_STAGE_SYN, TC_CE_SYNTAX, 3, 28, "bare field annotation");
+}
+
 int main(void) {
     test_num();
     test_lex_tokens();
@@ -1318,6 +1349,7 @@ int main(void) {
     test_token_limits();
     test_determinism();
     test_accept_forms();
+    test_field_annotation_shape();
     if (failures != 0) {
         printf("front-end unit: %d failure(s) in %d checks\n", failures, checks);
         return 1;

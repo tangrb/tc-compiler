@@ -1,0 +1,1 @@
+/tmp/tc-probe/me1.tc:2:8: error[SYN]: TC_CE_MISSING_END: MissingEnd

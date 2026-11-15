@@ -72,7 +72,7 @@
 |---|---|---|---|---|---|
 | `code:TC_CE_SYNTAX:trigger` | TC_CE_SYNTAX | trigger | **covered** | TC-LEX-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_SYNTAX:no_false_positive` | TC_CE_SYNTAX | no_false_positive | **covered** | TC-TOOL-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SYNTAX:position` | TC_CE_SYNTAX | position | **covered** | TC-LEX-SYN-0001, TC-SYN-END-0006, TC-SYN-OP-0010 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SYNTAX:position` | TC_CE_SYNTAX | position | **covered** | TC-LEX-SYN-0001, TC-SYN-END-0006, TC-SYN-OP-0010, TC-LEX-SYN-0031, TC-LEX-SYN-0032 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_SYNTAX:stage` | TC_CE_SYNTAX | stage | **covered** | TC-LEX-SYN-0001, TC-SYN-OP-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_MISSING_END:trigger` | TC_CE_MISSING_END | trigger | **covered** | TC-SYN-END-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_MISSING_END:no_false_positive` | TC_CE_MISSING_END | no_false_positive | **covered** | TC-TOOL-SYN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |

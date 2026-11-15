@@ -16,3 +16,4 @@ tests/conformance/static/accept/crlf.tc -text
 tests/conformance/static/accept/lone_cr.tc -text
 tests/conformance/static/lex/crlf_position.tc -text
 tests/conformance/static/lex/lone_cr_position.tc -text
+tests/conformance/static/lex/invalid_utf8_l3.tc -text

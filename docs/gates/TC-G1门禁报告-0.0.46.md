@@ -13,7 +13,7 @@
 | 项 | 结果 |
 | ---- | ---- |
 | S1 开发交付 | **PASS（A1–A9 复核通过）** — UTF-8 读取/解码、`num` 精确字面量转换、LEX、SYN/扁平 parse IR、LEX/SYN 诊断与位置、`--syntax-only` 部分检查 |
-| S1 测试活动 | **PASS（A1–A9 复核通过）** — L1 683 项检查；L3 105 个一致性/接受/属性用例；L7 确定性门禁；8 个 golden（7 个 S1）独立复核；覆盖矩阵 44 covered / 587 uncovered / 3 N/A(S0) |
+| S1 测试活动 | **PASS（A1–A9 复核通过）** — L1 688 项检查；L3 107 个一致性/接受/属性用例；L7 确定性门禁；8 个 golden（7 个 S1）独立复核；覆盖矩阵 44 covered / 587 uncovered / 3 N/A(S0) |
 | 自动化证据 | **PASS（三套从当前源码重跑）** — Debug/Release/ASan+UBSan 各 `ctest` 16/16；`-j8` 与 `--repeat until-fail:3` 通过；`leaks` 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；install 产物 0 |
 | 独立 golden 评审 | **PASS** — 7 个 S1 golden 由 `gate-auditor` 独立推导并批准（2026-11-15）；记录见 `tests/golden/review-record.md` |
 | 独立门禁审计 | **PASS** — `gate-auditor` 首轮发现 A1–A9；修复后复核通过，无未关闭 B1/B2/B3/B4（见 §12） |
@@ -53,7 +53,7 @@
 - `leaks --atExit` 对 `tc_frontend_test` 与 `tc-vm --syntax-only` 报告 0 leaks；
 - `nm -gU` 显示 `tc-vm`/`tc-aot` 除 Mach-O 固有 `__mh_execute_header` 外仅 `_main`；
 - `cmake --install` 安装产物 0 个文件（无公共 API/ABI、无 install 规则）；
-- 确定性门禁 `determinism.s1`：104 个源文件各 3 次运行一致，105 个用例的 harness JSON 在 `PYTHONHASHSEED=0/1/42` 与逆序参数下逐字节一致；
+- 确定性门禁 `determinism.s1`：106 个源文件各 3 次运行一致，107 个用例的 harness JSON 在 `PYTHONHASHSEED=0/1/42` 与逆序参数下逐字节一致；
 - 修复后 Debug `tc-vm --syntax-only` 对 `_ = switch x` 退出 0（审计 A4 回归源）；Debug/Release/ASan 三套均从当前源码重建。
 
 ## 4. 交付物与证据
@@ -67,9 +67,9 @@
 | LEX/SYN 诊断 | `src/frontend/diag.h`、两端解析器 | 七码触发/阶段/位置；LEX 码闭集（L1 `TC-UNIT-DIAG-0001`/`TC-UNIT-LEX-0004`） |
 | 首诊顺序 | LEX→SYN、源序 | `TC-UNIT-ORDER-0001/0002/0003`（#1/#3）；`TC-SYN-END-0001`/`TC-SYN-VAR-0001`（#4 专用码）；覆盖矩阵 `first_diag_rule` 01/03/04 |
 | `--syntax-only` | `src/driver/frontend_driver.{h,c}`、`tc-vm.c`、`tc-aot.c`、`cli.{h,c}` | 退出码 0/1/70/71；诊断行格式；`cli.contract` |
-| L1 前端单元 | `tests/unit/frontend_test.c` | 683 checks；CTest `frontend.unit` |
+| L1 前端单元 | `tests/unit/frontend_test.c` | 688 checks；CTest `frontend.unit` |
 | 适配器失败关闭 | `tests/adapters/adapter_selftest.py` | fake tc-vm 覆盖干净诊断/诊断+垃圾/错误文件/stdout/属性 exit 0+垃圾；CTest `adapter.selftest` |
-| L3 一致性/接受 | `tests/conformance/static/{lex,syn,accept}`、`s1_cases.py` | 94 个诊断 + 10 个接受 + 1 个属性；`conformance.s1_cases` 与 `harness.conformance` |
+| L3 一致性/接受 | `tests/conformance/static/{lex,syn,accept}`、`s1_cases.py` | 96 个诊断 + 10 个接受 + 1 个属性；`conformance.s1_cases` 与 `harness.conformance` |
 | S1 adapter | `tests/adapters/tc_adapter.py.in` | CMake 生成 `build/tc_adapter.py`；编译/工具/属性动作；失败关闭 |
 | L7 确定性 | `tests/determinism/s1_determinism.py` | `determinism.s1` |
 | golden | `tests/golden/common/*.golden.yaml` | 8 个通过校验；7 个 S1 独立复核（2026-11-15） |
@@ -79,7 +79,7 @@
 ## 5. S1 出口准则（计划 §5 S1）
 
 1. **LEX 与 SYN 的全部专用码均有触发用例与不误报正例**：**PASS**。七码的 trigger/no_false_positive/position/stage 四个槽位均在覆盖矩阵标记 covered，case id 见 `tests/conformance/static/s1_cases.py` 与 `tests/traceability/coverage-report.md`。
-2. **非法 UTF-8/BOM/U+0000/非 ASCII/非法 ASCII 全部只报 `TC_CE_SYNTAX`**：**PASS**。L3 `TC-LEX-SYN-0025/0026/0027`、L1 `TC-UNIT-UTF8-0001`/`TC-UNIT-LEX-0003`；LEX 码闭集由 `TC-UNIT-LEX-0004` 钉扎。
+2. **非法 UTF-8/BOM/U+0000/非 ASCII/非法 ASCII 全部只报 `TC_CE_SYNTAX`**：**PASS**。L3 `TC-LEX-SYN-0025/0026/0027/0032`、L1 `TC-UNIT-UTF8-0001`/`TC-UNIT-LEX-0003`；LEX 码闭集由 `TC-UNIT-LEX-0004` 钉扎。
 3. **所有合法 EBNF 形态可构造 IR（含字段 lvalue/命名实参/span）**：**PASS**。L1 `TC-UNIT-SYN-0001/0002/0003`、`TC-UNIT-OPCODE-0001`、`TC-UNIT-ACCEPT-0001`；L3 10 个接受用例覆盖 `#program`/`#lib`/import/struct/func/const/static/unsafe/注解/类型/字面量/字段路径/命名实参/switch/续行/CRLF/CR/注释 Unicode。S1 判据使用计划 S1 澄清的 `TcParseInstr`（字段路径 `TcFieldRef` 形状、命名实参、`switch` 目标、span）；冻结 `TcInstr` 由 S3 物化（设计 §3.1）。
 4. **LEX 阶段不出现任何 SEM/CT 码**：**PASS**。`frontend/lex.c` 只产生 `TC_CE_SYNTAX`/`TC_CE_LITERAL_LEX_RANGE`；`TC-UNIT-LEX-0004` 遍历非法输入断言 stage=LEX 且码属于该二元集。
 5. **词法失败 Token 不进入语法/语义**：**PASS**。前端先完成全部 LEX，只有 LEX 无诊断时才进入 parser；LEX 诊断路径在 `tc_parse_source` 中直接返回（`src/frontend/parse.c`）。
@@ -107,25 +107,25 @@
 | 所有合法 EBNF 可构造 IR | **PASS** | L1 形态/opcode/接受 + L3 接受用例；S1 类型为 `TcParseInstr`（计划 S1 澄清），`TcInstr` 由 S3 物化 |
 | span 行列 | **PASS** | L1 `TC-UNIT-LEX-0002/0003`、`TC-UNIT-UTF8-0001`、`TC-UNIT-SYN-0001`；L3 CRLF/CR/注释/非法字节用例 |
 | 阶段边界（LEX→SYN→后续） | **PASS** | LEX 全量先于 SYN；SYN 通过后普通调用退出 70；`--syntax-only` 不宣称程序有效 |
-| `not-implemented` 不计为通过 | **PASS** | `harness.conformance` 使用 adapter 且无 `--allow-not-implemented`；105/105 pass、0 not_implemented |
+| `not-implemented` 不计为通过 | **PASS** | `harness.conformance` 使用 adapter 且无 `--allow-not-implemented`；107/107 pass、0 not_implemented |
 
 ## 8. 测试与覆盖证据
 
-### 8.1 L1（`frontend.unit`，683 checks）
+### 8.1 L1（`frontend.unit`，688 checks）
 
 | 领域 | 用例 |
 | ---- | ---- |
 | 精确字面量 | `TC-UNIT-NUM-0001`：`3e22` 精确、`1e308/1e309`、`5e-324`、`2.4e-324`、`-0.0`、float32 边界、精确 tie-to-even |
-| Token/位置 | `TC-UNIT-LEX-0001/0002/0003`：关键字、助记符/后缀、注释/续行、CRLF/CR、BOM/U+0000/非 ASCII、非法数字、`-nan`、字面量范围 |
+| Token/位置 | `TC-UNIT-LEX-0001/0002/0003/0005`：关键字、助记符/后缀、注释/续行、CRLF/CR、BOM/U+0000/非 ASCII、非法数字（含 `1.5.5`/`1..5`/`1.5e5.5`）、`-nan`、字面量范围 |
 | UTF-8 span | `TC-UNIT-UTF8-0001`：非法首字节/非法续字节/截断；`valid_prefix_bytes` 与 `invalid_byte_offset`；标量列 vs 字节列（非 ASCII 注释前缀、非 BMP 标量） |
-| parse IR | `TC-UNIT-SYN-0001/0002/0003`：字段路径作为值/lvalue、命名实参/字段、`sizeof` 类型参数、`switch` 目标、unsafe 深度、import 名 span、字段/base/限定类型成员 span |
+| parse IR | `TC-UNIT-SYN-0001/0002/0003/0004`：字段路径作为值/lvalue、命名实参/字段、`sizeof` 类型参数、`switch` 目标、unsafe 深度、import 名 span、字段/base/限定类型成员 span、字段 padding 注解形状 |
 | opcode | `TC-UNIT-OPCODE-0001`：51 个 base + 全部定义后缀的 op/mode |
 | 诊断/顺序 | `TC-UNIT-DIAG-0001`、`TC-UNIT-ORDER-0001/0002/0003`、`TC-UNIT-LEX-0004` |
 | 限制/确定性 | `TC-UNIT-LIMIT-0001/0002`、`TC-UNIT-DET-0001`、`TC-UNIT-ACCEPT-0001` |
 
-### 8.2 L3（`harness.conformance`，105/105）
+### 8.2 L3（`harness.conformance`，107/107）
 
-- 94 个编译诊断用例：LEX 29、SYN 65；每例断言 stage/code/primary/related 且“恰好一个”；
+- 96 个编译诊断用例：LEX 31、SYN 65；其中 2 个为 `RAW_CASES` 字节夹具（畸形数字候选、非法 UTF-8）；每例断言 stage/code/primary/related 且“恰好一个”；
 - 10 个接受工具用例：`--syntax-only` 退出 0、stdout/stderr 为空、两次运行逐字节一致；
 - 1 个属性用例：`lex_random` 200 次确定性随机字节，不崩溃/不挂起，拒绝时恰好一个 LEX/SYN 码；
 - 用例表 `tests/conformance/static/s1_cases.py` 是唯一事实源，`--check` 验证生成文件与表一致；期望值不由实现输出回填。
@@ -168,6 +168,9 @@ S1 覆盖：§2/§14 章节正反例；七码 ×（trigger/no_false_positive/pos
 9. **嵌套块与 `MISSING_END`（A1 修复后约定）**：在块内遇到模块级构造时，用 `then`/`end` 词法配对前看决定：从当前 Token 到 EOF，深度 0 的 `end` 数少于当前打开块数 → 外层块确有未配对 opener，报 `MISSING_END` 于源位置最早者；足够 → 外层块已配对，报 `SYNTAX` 于嵌套构造首 Token（如 `public`/`unsafe`/`func`）。嵌套 opener 的 `then` 会消费其后的 `end`；若没有更多 `end`，较早的外层 opener 是未配对候选（`TC-SYN-END-0008`）。回归用例：`TC-SYN-END-0006…0010`、L1 `TC-UNIT-DIAG-0001`。
 10. **`#program` 的 `Self`（A7 约定）**：`#program` 中 `Self` 在任何位置（值、lvalue、类型、注解参数、`struct`/`var`/`const`/`label`/`import` 等 IDENT-only 声明名）均报 `PROGRAM_MODE_MISUSE` 于 `Self`；`#lib` 的 IDENT-only 位置仍是 `SYNTAX`（Self 是关键字，不是 IDENT）。用例：`TC-SYN-SELF-0001/0002`、`TC-SYN-MODE-0005/0006`。
 11. **后缀位置（A8 约定）**：紧邻助记符的 `.` 属于助记符 Token 的一部分；若 `.` 后没有后缀词，作为无效后缀 Token，`SYNTAX` 定位到助记符首 Token（`add.` → `add`）。空白分隔的 `.wrap` 不是后缀 Token（§2.7.1 后缀不拆分），按 Token 序列错误定位到 `.`（`add .wrap` → `.`）。用例：`TC-SYN-OP-0010/0011`。
+12. **畸形数字候选（S2 前置钉扎）**：数字候选（多个小数点、点后无数字、指数后点、前导零、非法下划线等）作为一个非法数字 Token 处理，LEX `TC_CE_SYNTAX` 定位到候选首 Token；不拆成“最长有效数字前缀 + 后续标点”。该恢复约定与 `007`/`0_0`/`1.` 的既有 LEX 用例一致。用例：`TC-LEX-SYN-0031`（`1.5.5`）、L1 `TC-UNIT-LEX-0005`（`1..5`/`1.5e5.5`）。
+13. **字段 padding 注解形状（S2 前置记录）**：SYN 对字段 padding 接受任意 `ANNOTATION(INT)`；`@padding` 名字规则、非 `@padding` 字段注解（如 `@align(4)`/`@fast(1)`）由 S4 报 `TC_CE_ANNOTATION`，`@padding` 的 N 形式违规由 SEM 报 `TC_CE_CONST_FORM`（§2.6/§8.6）。字段后无 `(INT)` 的裸注解按 §14.3 形状报 SYNTAX。用例：L1 `TC-UNIT-SYN-0004`；S4 用例清单见计划 §5 S4 注解测试活动。
+14. **L3 非法 UTF-8 夹具（S2 前置补强）**：`TC-LEX-SYN-0032` 以字节夹具断言非法字节的行/列（注释内两个非 ASCII 标量后，标量列 7 与字节列 9 分离）；`valid_prefix_bytes`/`invalid_byte_offset` 仍由 L1 `TC-UNIT-UTF8-0001` 断言（compile-case schema 无 span 字段）。
 
 ## 10. 实现上限与实现级错误
 
@@ -212,7 +215,7 @@ S1 文档化上限（标准 §13.5 允许；不得伪装语言诊断）：
 | A1 | **B1** | `src/frontend/parse.c` 的嵌套块处理 | 在块内遇到 `func`/`struct`/`unsafe` 时无条件报 `MISSING_END` 于 `blocks[0]`；配对的嵌套块（有自己的 `end`）被误报，而不是在嵌套构造处报 `SYNTAX`。 | 新增 `enclosing_blocks_paired()` 词法配对前看：统计当前 Token 起 `then`/`end` 深度与深度 0 的 `end` 数；不足外层块数才报 `MISSING_END`（最早 opener），足够则报 `SYNTAX` 于嵌套构造首 Token。新增 L1/L3 回归用例（`TC-SYN-END-0006…0010`、`TC-UNIT-DIAG-0001`）。 | **复核通过** |
 | A2 | **B2** | `tests/traceability/coverage.py`、覆盖报告 | `first_diag_rule:04` 误映射到 `TC-UNIT-ORDER-0003`，后者实为 §12.2 #3 同行列序；导致报告虚假声称规则 04 有 S1 真实源例。 | 规则 03 映射 `TC-UNIT-ORDER-0002/0003`；规则 04 改为真实专用码优先用例 `TC-SYN-END-0001`（`MISSING_END` 优先于通用 `SYNTAX`）与 `TC-SYN-VAR-0001`（`VAR_MISSING_INIT` 优先于通用 `SYNTAX`）；保留 L0 `TC-L0-DIAG-0009`。覆盖报告/文档同步。 | **复核通过** |
 | A3 | **B2** | `tests/conformance/static/s1_cases.py` | 缺少嵌套配对/嵌套未配对块用例，导致 A1 通过全部 96 例。 | 新增 9 个 L3 用例（嵌套配对 `struct/func/struct/unsafe`、嵌套未配对 func、`#program` 的 `Self` IDENT 位置、不完整/分离后缀）；新增 L1 断言。 | **复核通过** |
-| A4 | **B3** | Debug 构建/证据 | 审计时 Debug `tc-vm` 早于源码修复，出现 `_ = switch x` 退出 71（OOM）而 Release 退 0；Debug ctest/conformance 使用了陈旧工具。 | 三套构建均从当前源码重建；Debug `_ = switch x` 退 0；Debug/Release/ASan ctest 各 16/16，harness 105/105，determinism 通过（见 §3/§13）。 | **复核通过（A4 重跑证据）** |
+| A4 | **B3** | Debug 构建/证据 | 审计时 Debug `tc-vm` 早于源码修复，出现 `_ = switch x` 退出 71（OOM）而 Release 退 0；Debug ctest/conformance 使用了陈旧工具。 | 三套构建均从当前源码重建；Debug `_ = switch x` 退 0；Debug/Release/ASan ctest 各 16/16，harness 107/107，determinism 通过（见 §3/§13）。 | **复核通过（A4 重跑证据）** |
 | A5 | **B3** | `tests/adapters/tc_adapter.py.in` | 编译用例把诊断文件替换为 metadata 源名而不校验实际文件；`--syntax-only` 忽略 stdout；属性用例不校验 stage，且属性路径忽略非诊断 stderr 行（可被诊断+垃圾绕过）。 | 统一严格解析：每条非空 stderr 行必须是诊断；文件路径必须匹配；stdout 必须为空；属性路径也使用严格解析并校验 stage/code。新增 `tests/adapters/adapter_selftest.py`（fake tc-vm：干净诊断、诊断+垃圾、exit 0+垃圾、错误文件、stdout 垃圾），注册为 `adapter.selftest`。 | **复核通过（adapter.selftest）** |
 | A6 | **B4** | 计划 §5 S1 第 4 条 vs `parse.h`/AGENTS | 计划字面要求 parser 直接产 `TcInstr`，实现产 `TcParseInstr` 并在 S3 物化 `TcInstr`。 | 在计划 S1 第 4 条加入“S1 扁平 IR 类型说明”：`TcParseInstr` 为前端内部扁平结构，冻结 `TcInstr` 由 S3 物化；不改变“直接产扁平 IR、不建 AST”的要求；S1 判据使用 `TcParseInstr`。报告/AGENTS/CONTRACTS 同步。 | **复核通过** |
 | A7 | **B4** | `src/frontend/parse.c` `expect_ident` | `#program` 的 IDENT-only 位置（`struct Self`/`var Self`/`label Self`）报 `SYNTAX`，而非 `PROGRAM_MODE_MISUSE`；§4.2 可宽读为任一 `Self`。 | 采用宽读约定：`#program` 中 `Self` 在任何位置（含 IDENT-only 声明名）均报 `PROGRAM_MODE_MISUSE` 于 `Self`；`#lib` 保持关键字语法错误。新增 L1/L3 用例与 §9 约定。 | **复核通过** |
@@ -226,7 +229,7 @@ S1 文档化上限（标准 §13.5 允许；不得伪装语言诊断）：
 - 首轮审计的 85 个（现 94 个）一致性用例表的 stage/code/line/column 与 §12.3/§12.5.1 推导一致，包括所有 `@convention` 位置；
 - LEX 码闭集、LEX→SYN 阶段边界、实现级错误通道、CLI `--syntax-only`/默认退出码符合报告；
 - 7 个 S1 golden 的独立推导批准（无 golden 缺陷）；
-- 生成文件与 `s1_cases.py --check` 一致，golden/coverage 校验通过，96（现 105）例无 skipped/not_implemented。
+- 生成文件与 `s1_cases.py --check` 一致，golden/coverage 校验通过，96（现 107）例无 skipped/not_implemented。
 
 ### 12.3 复核结论
 
@@ -235,12 +238,19 @@ S1 文档化上限（标准 §13.5 允许；不得伪装语言诊断）：
 - A9 的 §13 与本附录已恢复/更新；
 - 无未关闭 B1/B2/B3/B4；G1 可判定 PASS。
 
+### 12.4 G1 后补充（S2 前置，2026-11-15）
+
+- 新增 `TC-LEX-SYN-0031`（`1.5.5` 畸形数字候选约定）、`TC-LEX-SYN-0032`（L3 非法 UTF-8 + 注释标量列）、
+  L1 `TC-UNIT-LEX-0005`/`TC-UNIT-SYN-0004`；补充 §9.12–§9.14 与计划 S4 字段注解用例清单；
+- 这些是**证据/文档增强**，不改变 S1 实现行为与接受集；G1 仍 PASS，reviewed behavior commit 仍为
+  `79dfee9`，additive tests/docs 提交见 git 历史。
+
 ## 13. 门禁判定
 
 **G1：PASS。**
 
 - S1 LEX/SYN 与扁平 parse IR 满足计划 §5 S1；
-- 自动化证据：Debug/Release/ASan+UBSan `ctest` 各 16/16；`-j8` 与 `--repeat until-fail:3` 通过；L1 683 checks；L3 105/105（94 compile + 10 tool + 1 property，0 skipped/not_implemented）；`adapter.selftest` 通过；`determinism.s1` 通过；golden 8/8；覆盖率 44 covered / 587 uncovered / 3 N/A(S0)；`leaks` 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；install 产物 0；
+- 自动化证据：Debug/Release/ASan+UBSan `ctest` 各 16/16；`-j8` 与 `--repeat until-fail:3` 通过；L1 688 checks；L3 107/107（96 compile + 10 tool + 1 property，0 skipped/not_implemented）；`adapter.selftest` 通过；`determinism.s1` 通过；golden 8/8；覆盖率 44 covered / 587 uncovered / 3 N/A(S0)；`leaks` 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；install 产物 0；
 - 独立 golden 评审 PASS；独立门禁审计首轮 FAIL → A1–A9 修复 → 复核 PASS；无未关闭 B1/B2/B3/B4；
 - 附录 D.1 适用项与 S1 附加项全部 PASS；范围外项显式 `uncovered`/`N/A(S0)` 并注明关闭阶段。
 
@@ -282,9 +292,10 @@ cmake --install build --prefix /tmp/tc-install && find /tmp/tc-install -type f |
 
 ## 附录 B. reviewed commit / 证据版本
 
-- reviewed code commit：`79dfee947c484a2887f0a5c243dc73ead6bbd6b5`（S1 实现/测试；其后提交仅涉及本报告 PASS 记录、CRLF 夹具属性与门禁报告目录整理，不改变实现/测试）。
+- reviewed code commit：`79dfee947c484a2887f0a5c243dc73ead6bbd6b5`（S1 实现/测试；其后提交涉及本报告 PASS 记录、CRLF 夹具属性、门禁报告目录整理，以及 G1 后补充的测试/文档增强；不改变 S1 实现行为与接受集）。
 - evidence version：`S1-2026-11-15`。
 - 独立 golden 评审：2026-11-15（`gate-auditor`）。
 - 独立门禁审计：首轮 2026-11-15（FAIL：A1–A9）；A1–A9 修复后复核通过（2026-11-15），无未关闭 B1/B2/B3/B4。
+- G1 后补充：`TC-LEX-SYN-0031/0032`、L1 `TC-UNIT-LEX-0005`/`TC-UNIT-SYN-0004`、§9.12–§9.14；仅增强证据/文档，不改变实现行为与接受集。
 
 *— 文档结束 —*

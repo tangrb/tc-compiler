@@ -11,7 +11,7 @@
       "codes_json": "d96519bc5a8a75a336bca0121a367b849522c41263e9bbdc1b08690058ca96cb",
       "standard": "e8a3bc0ca9b9fc672af6eca35c6a13c4fd31319c7d3f4e6f308853e13520eea9",
       "design": "7cf369a819f98c2ae53f83cbce55de97fdf5899e5566446b65a8a3be40c9751e",
-      "test_plan": "58a564c4f2212065714c39acdef3299cfc8a2d09b9eb49cc332df2b263150b67"
+      "test_plan": "73d453df28497e3771e88c9653d6406f72b3d6d63f832d253c9f846f6bef882b"
     }
   },
   "policy": {
@@ -770,7 +770,9 @@
       "case_ids": [
         "TC-LEX-SYN-0001",
         "TC-SYN-END-0006",
-        "TC-SYN-OP-0010"
+        "TC-SYN-OP-0010",
+        "TC-LEX-SYN-0031",
+        "TC-LEX-SYN-0032"
       ],
       "code": "TC_CE_SYNTAX",
       "print_name": "SyntaxError",

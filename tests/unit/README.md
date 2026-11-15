@@ -37,7 +37,7 @@ ctest --test-dir build -R contract.unit --output-on-failure
 ## L1 front-end tests (`tc_frontend_test`)
 
 `tc_frontend_test` calls the private `frontend/` interfaces directly.  It is
-registered as `frontend.unit` and currently runs 683 checks.
+registered as `frontend.unit` and currently runs 688 checks.
 
 | Case ID | C function | Pins |
 | --- | --- | --- |
@@ -45,10 +45,12 @@ registered as `frontend.unit` and currently runs 683 checks.
 | `TC-UNIT-LEX-0001` | `test_lex_tokens` | §2.3/§2.4 token kinds and literal values: identifiers, `-0x1F`, `1_000u`, `0.5f`, `-0.0`, `@padding/@unsafe/@readonly` |
 | `TC-UNIT-LEX-0002` | `test_lex_mnemonics` | §6.2 all defined suffixes and undefined `(base,suffix)` combinations |
 | `TC-UNIT-LEX-0003` | `test_lex_positions`, `test_lex_errors` | §2/§12.5.1 spans, CRLF/CR, comments/continuations, illegal bytes/scalars, BOM/U+0000, numeric forms, `-nan`, literal ranges |
+| `TC-UNIT-LEX-0005` | `test_lex_errors` | §2.7.1 recovery convention: malformed numeric candidates (`1.5.5`/`1..5`/`1.5e5.5`) are one LEX token at the candidate start |
 | `TC-UNIT-UTF8-0001` | `test_utf8_spans` | §12.5.1 longest valid prefix + 0-based invalid-byte offset for invalid/truncated UTF-8; `TC_SPAN_NO_INVALID_BYTE` for valid-but-illegal scalars |
 | `TC-UNIT-SYN-0001` | `test_parse_program_shape` | §14.3/§14.4/§14.5 flat parse IR: regions, fields/padding, named args, `sizeof` type arg, field paths/lvalue, retained base/field spans and import-name span |
 | `TC-UNIT-SYN-0002` | `test_lib_shape`, `test_unsafe_depth` | §4.2/§8.1 `#lib` regions, annotations/params, qualified type member spans, nested unsafe markers/depth, paired-vs-unpaired nested block behavior |
 | `TC-UNIT-SYN-0003` | `test_switch_targets` | §6.2.8 explicit `switch` targets retained in order; a one-operand `switch` has zero targets (S3 reports the shape error) |
+| `TC-UNIT-SYN-0004` | `test_field_annotation_shape` | §2.6/§8.6/§14.3: SYN accepts `ANNOTATION(INT)` field padding (`@align(4)`/`@fast(1)`/`@padding(4)`), while a bare field annotation is SYNTAX; name/N constraints are S4/S5 SEM |
 | `TC-UNIT-OPCODE-0001` | `test_all_opcodes` | all 51 base opcodes and every defined mode suffix parse to the expected op/mode |
 | `TC-UNIT-DIAG-0001` | `test_diagnostics` | the seven LEX/SYN codes, stages and §12.5.1 primary positions; nested paired/unpaired blocks; `#program` `Self` in IDENT positions; incomplete vs whitespace-separated suffixes |
 | `TC-UNIT-ORDER-0001` | `test_first_diagnostic_order` | §12.2 #1 stage priority: a later LEX error beats an earlier SYN error |

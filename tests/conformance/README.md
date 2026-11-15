@@ -16,7 +16,8 @@ tests/conformance/
 
 ## Source table and generated files
 
-`static/s1_cases.py` is the **auditable source table**: it records each case
+`static/s1_cases.py` is the **auditable source table** (text/marker cases plus
+`RAW_CASES` byte fixtures with explicit positions): it records each case
 id, source, `spec` citation, expected stage/code/primary position, and whether
 a position comes from an explicit §12.5.1 rule or from the documented
 `@convention` (the first token that cannot be consumed by the EBNF parse).  The
@@ -33,8 +34,10 @@ python3 tests/conformance/static/s1_cases.py --check
 ```
 
 Do not edit generated `.tc`/`.yaml` files by hand; update the table and
-regenerate.  CRLF/CR fixtures are marked `-text` in `.gitattributes` so Git
-preserves their exact bytes; `--check` compares bytes, not normalized text.  A new case needs a `spec` citation and, for positions not
+regenerate.  CRLF/CR and invalid-UTF-8 byte fixtures are marked `-text` in `.gitattributes`
+so Git preserves their exact bytes; `--check` compares bytes, not normalized
+text.  `RAW_CASES` pins the malformed-numeric-candidate recovery (`1.5.5` LEX at
+the number start) and invalid-UTF-8 line/scalar-column behavior.  A new case needs a `spec` citation and, for positions not
 enumerated in §12.5.1, an explicit `@convention` note.
 
 ## Case ids

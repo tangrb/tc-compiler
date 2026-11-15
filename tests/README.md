@@ -6,7 +6,7 @@ defined in [TC 开发测试计划 0.0.46](../docs/TC开发测试计划-0.0.46.md
 
 | Suite | Location | Level | Current content |
 | --- | --- | --- | --- |
-| Contract/unit | `unit/` | L0/L1 | S0 contract checks; `tc_frontend_test` (683 checks: exact literals, tokens/positions, all 51 opcodes, parse IR shape, LEX/SYN codes, UTF-8 spans, ordering, limits, determinism) |
+| Contract/unit | `unit/` | L0/L1 | S0 contract checks; `tc_frontend_test` (688 checks: exact literals, tokens/positions, all 51 opcodes, parse IR shape, LEX/SYN codes, UTF-8 spans, ordering, limits, determinism) |
 | Conformance | `conformance/` | L3 | S1 LEX/SYN cases + acceptance tool cases + property case; see [conformance/README.md](conformance/README.md) |
 | Harness | `harness/` | — | Metadata parser, 7 deciders, fail-closed self-tests, S1 adapter (configured by CMake) |
 | Traceability | `traceability/` | — | 80-code table, coverage matrix (634 slots; S1 marks LEX/SYN rows covered), generator checks |

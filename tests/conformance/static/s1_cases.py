@@ -559,6 +559,59 @@ CASES = [
         "SYN", "TC_CE_SYNTAX"),
 ]
 
+# Byte-exact L3 fixtures.  These cannot be expressed through the text/marker
+# table: one pins the documented malformed-numeric-candidate recovery, the
+# other exercises invalid UTF-8 line/column (including two non-ASCII scalars
+# in a comment, where scalar and byte columns diverge).
+RAW_CASES = [
+    {
+        "id": "TC-LEX-SYN-0031",
+        "source": "multi_dot_float.tc",
+        "group": "lex",
+        "spec": "§2.4/§2.7.1/§14.2 数字产生式与最长匹配；畸形数字候选（多个小数点）按一个非法数字 Token 处理；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token",
+        "data": b"#program\nvar x: float64 = copy float64, 1.5.5\n",
+        "line": 2,
+        "column": 32,
+        "stage": "LEX",
+        "code": "TC_CE_SYNTAX",
+    },
+    {
+        "id": "TC-LEX-SYN-0032",
+        "source": "invalid_utf8_l3.tc",
+        "group": "lex",
+        "spec": "§2.1/§12.5.1 非法 UTF-8 定位到首个非法字节；行列为最长有效前缀的标量计数；§12.3 TC_CE_SYNTAX",
+        "data": b"#program\n/// \xc3\xa9\xc3\xa9\xff\n",
+        "line": 2,
+        "column": 7,
+        "stage": "LEX",
+        "code": "TC_CE_SYNTAX",
+    },
+]
+
+
+def _raw_case_paths(case):
+    group = case.get("group", "lex")
+    return (
+        HERE / group / f"{case['source'][:-3]}.yaml",
+        HERE / group / case["source"],
+    )
+
+
+def _raw_case_yaml(case):
+    source = case["source"]
+    return (
+        f"id: {case['id']}\n"
+        f"profile: common\n"
+        f"source: {source}\n"
+        f"spec: {_yaml_scalar(case['spec'])}\n"
+        f"expect:\n"
+        f"  stage: {case['stage']}\n"
+        f"  code: {case['code']}\n"
+        f"  primary: {{file: {source}, line: {case['line']}, column: {case['column']}}}\n"
+        f"  related: []\n"
+        f"  diagnostics: exactly-one\n"
+    )
+
 
 def _line_col(text):
     """Return the 1-based line and Unicode-scalar column of the marker."""
@@ -628,12 +681,17 @@ def write_cases():
         yaml_path.parent.mkdir(parents=True, exist_ok=True)
         source_path.write_text(text, encoding="utf-8", newline="")
         yaml_path.write_text(yaml, encoding="utf-8", newline="")
+    for case in RAW_CASES:
+        yaml_path, source_path = _raw_case_paths(case)
+        yaml_path.parent.mkdir(parents=True, exist_ok=True)
+        source_path.write_bytes(case["data"])
+        yaml_path.write_text(_raw_case_yaml(case), encoding="utf-8", newline="")
 
 
 def _check_unique_ids():
     failures = 0
     seen = {}
-    for case in [*CASES, *ACCEPT_CASES, *PROPERTY_CASES]:
+    for case in [*CASES, *RAW_CASES, *ACCEPT_CASES, *PROPERTY_CASES]:
         case_id = case["id"]
         if case_id in seen:
             print(f"DUPLICATE case id {case_id}")
@@ -664,6 +722,9 @@ def check_cases():
     for case in CASES:
         yaml_path, source_path = _case_paths(case)
         expected_paths.extend([yaml_path, source_path])
+    for case in RAW_CASES:
+        yaml_path, source_path = _raw_case_paths(case)
+        expected_paths.extend([yaml_path, source_path])
     for case in ACCEPT_CASES:
         accept_dir = HERE / "accept"
         expected_paths.extend([
@@ -686,10 +747,22 @@ def check_cases():
             if actual != wanted:
                 print(f"STALE {path}")
                 failures += 1
+    for case in RAW_CASES:
+        yaml_path, source_path = _raw_case_paths(case)
+        for path, expected in ((yaml_path, _raw_case_yaml(case)), (source_path, case["data"])):
+            if not path.exists():
+                print(f"MISSING {path}")
+                failures += 1
+                continue
+            actual = path.read_bytes()
+            wanted = expected.encode("utf-8") if isinstance(expected, str) else expected
+            if actual != wanted:
+                print(f"STALE {path}")
+                failures += 1
     if failures:
         print(f"S1 case table: {failures} stale/missing file(s)")
         return 1
-    print(f"S1 case table: {len(CASES)} cases match generated files")
+    print(f"S1 case table: {len(CASES) + len(RAW_CASES)} cases match generated files")
     return 0
 
 

@@ -526,6 +526,10 @@ IMPORT 阶段报告，不得推迟到 SEM。
   `@range` 的 lo>hi、非同型、非整数、超出类型；`@align` 非 2 的幂、0、超出 W 位地址宽度
   可表示范围；字面量范围与 `LITERAL_RANGE` 的优先级；承诺内容违反（如 `@pure` 函数 `store`）
   不得静态报错。
+- **字段注解形状**：SYN 对字段 padding 形状接受任意 `ANNOTATION(INT)`（如 `@align(4)`/
+  `@fast(1)`）；S4 对非 `@padding` 字段注解报 `TC_CE_ANNOTATION`，`@padding(4u/0x10/-1)` 报
+  `TC_CE_CONST_FORM`（§2.6/§8.6）；字段后无 `(INT)` 的裸注解按 §14.3 形状报 SYNTAX（记录约定，
+  若未来改为 SEM 需先改标准/EBNF 解读）。
 - **首诊组合**：阶段优先、模块顺序、源序、同位置专用码、条款内顺序、布局归属、遍历无关、
   操作数内部优先、call/make 顺序；重点覆盖标准 §12.2 第 9/10 项。
 

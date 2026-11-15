@@ -787,7 +787,12 @@ static int lex_number(TcLexer *lx) {
         }
     }
 
-    /* Decimal integer or float. */
+    /* Decimal integer or float.  A malformed numeric candidate (multiple
+     * dots, missing fraction/exponent digits, bad underscores, leading zero)
+     * is one illegal numeric token anchored at the candidate start; it is not
+     * split into a longest valid numeric prefix plus punctuation.  This is the
+     * documented S1 recovery convention (G1 report §9.12) and matches the
+     * existing 007/0_0/1. cases. */
     {
         size_t int_start;
         size_t int_len;

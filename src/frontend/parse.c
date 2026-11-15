@@ -771,6 +771,11 @@ static TcParseField parse_field(TcParser *p) {
     }
     expect(p, TC_TOK_COLON);
     field.type = *parse_type(p);
+    /* SYN accepts every ANNOTATION(INT) in the field_padding shape.  The
+     * "@padding only" name rule and N constraints are SEM (standard §2.6:
+     * unknown/illegal-position annotations -> TC_CE_ANNOTATION; wider INT
+     * forms -> TC_CE_CONST_FORM).  A bare annotation without "(INT)" is not a
+     * field_padding shape and remains TC_CE_SYNTAX (§14.3). */
     if (peek(p)->kind == TC_TOK_ANNOTATION) {
         TcParseAnnotation annotation;
         TcVec args = {0};

@@ -7,7 +7,7 @@
 - **S1 LEX/SYN 与扁平 parse IR**：`src/frontend/` 新增 `input`（arena/源读取/文档化上限）、`num`（精确十进制→binary32/64，roundTiesToEven，纯整数运算）、`lex`（UTF-8 解码、BOM/U+0000/非 ASCII 拒绝、`///` 注释、`\` 续行、最长匹配、助记符/后缀、注解、DISCARD、字面量、行列 span）与 `parse`（§14 EBNF、模式/层序/可见性、块结构、全部声明/语句/类型/指令形态、字段路径、命名实参、`switch` 目标、unsafe 深度）。
 - LEX/SYN 七码（`TC_CE_SYNTAX`、`TC_CE_MISSING_END`、`TC_CE_MODULE_LAYER`、`TC_CE_MISSING_VISIBILITY`、`TC_CE_PROGRAM_MODE_MISUSE`、`TC_CE_VAR_MISSING_INIT`、`TC_CE_LITERAL_LEX_RANGE`）的触发、不误报、位置与阶段覆盖；`TC_CE_SYNTAX` 严格区分 LEX/SYN 阶段。
 - `tc-vm`/`tc-aot` 的 `--syntax-only` 部分检查（退出 0 = 无 LEX/SYN 诊断，不宣称程序有效）；普通调用在 LEX/SYN 通过后仍显式退出 70。诊断行格式固定为 `<file>:<line>:<column>: error[<STAGE>]: <CODE>: <name>`；文件/资源失败使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，不伪装语言诊断。
-- 测试：`tc_frontend_test`（683 项 L1 检查，含全部 51 opcode/后缀、解析 IR 形态、UTF-8 前缀/偏移、首诊阶段/源序、文档化上限、重复解析确定性）；`tests/conformance/`（94 个 LEX/SYN 诊断用例 + 10 个接受用例 + 1 个随机字节属性用例，均由 `s1_cases.py` 表生成并 `--check`）；`tests/determinism/`（重复运行、哈希种子、参数顺序）；CMake 生成的 S1 harness adapter、`adapter.selftest`（fake tool 失败关闭）与 `harness.conformance`/`determinism.s1` 门禁。
+- 测试：`tc_frontend_test`（688 项 L1 检查，含全部 51 opcode/后缀、解析 IR 形态、UTF-8 前缀/偏移、首诊阶段/源序、文档化上限、重复解析确定性）；`tests/conformance/`（96 个 LEX/SYN 诊断用例 + 10 个接受用例 + 1 个随机字节属性用例，均由 `s1_cases.py` 表生成并 `--check`）；`tests/determinism/`（重复运行、哈希种子、参数顺序）；CMake 生成的 S1 harness adapter、`adapter.selftest`（fake tool 失败关闭）与 `harness.conformance`/`determinism.s1` 门禁。
 - S1 golden：7 个规范推导的 LEX/SYN 期望（非 ASCII 列计数、负字面量词法范围、最早缺失 `end`、模块层序、DISCARD 字段名、`static var` 缺初始化、`#program` 的 `Self`）。
 
 ### Changed
@@ -21,6 +21,7 @@
 
 - 修复解析失败路径在释放 parser 后读取 `impl` 的 use-after-free；嵌套深度/源文件/Token 上限统一返回实现级错误，不产生语言码。
 - CRLF/CR 夹具在 `.gitattributes` 中标记 `-text`，避免 Git 行尾规范化丢失字节；`s1_cases.py --check` 按字节比较。
+- S2 前置钉扎：新增 `1.5.5` 畸形数字候选 L3 用例与 L1 `1..5`/`1.5e5.5` 断言，记录“畸形数字候选按一个 LEX Token”的恢复约定；新增 L3 非法 UTF-8 字节夹具（注释内非 ASCII 标量后，断言标量列）；新增字段 padding `ANNOTATION(INT)` 形状用例与 S4 字段注解清单。
 - G1 独立审计 A1–A9：修复嵌套配对块被误报 `MISSING_END`（改用 `then`/`end` 词法配对前看，配对时在嵌套构造处报 `SYNTAX`）；修正首诊规则 04 的覆盖映射（改用 `TC-SYN-END-0001`/`TC-SYN-VAR-0001` 专用码优先）；新增嵌套块/`Self`/后缀回归用例；Debug/Release/ASan 三套从当前源码重跑；adapter 增加诊断文件校验、stdout 为空与属性 stage 校验；澄清计划 S1 的 `TcParseInstr`/`TcInstr` 分工；统一 `#program` 中 IDENT-only 位置 `Self` 的 `PROGRAM_MODE_MISUSE` 约定与不完整/空白分隔后缀的定位约定。
 
 ## [0.0.46] - 2026-11-13

@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0031
+profile: common
+source: multi_dot_float.tc
+spec: "§2.4/§2.7.1/§14.2 数字产生式与最长匹配；畸形数字候选（多个小数点）按一个非法数字 Token 处理；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: multi_dot_float.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

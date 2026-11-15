@@ -120,7 +120,10 @@ S1_COVERED_ROWS = {
     # TC_CE_SYNTAX
     "code:TC_CE_SYNTAX:trigger": ["TC-LEX-SYN-0001"],
     "code:TC_CE_SYNTAX:no_false_positive": ["TC-TOOL-SYN-0001"],
-    "code:TC_CE_SYNTAX:position": ["TC-LEX-SYN-0001", "TC-SYN-END-0006", "TC-SYN-OP-0010"],
+    "code:TC_CE_SYNTAX:position": [
+        "TC-LEX-SYN-0001", "TC-SYN-END-0006", "TC-SYN-OP-0010",
+        "TC-LEX-SYN-0031", "TC-LEX-SYN-0032",
+    ],
     "code:TC_CE_SYNTAX:stage": ["TC-LEX-SYN-0001", "TC-SYN-OP-0001"],
     # TC_CE_MISSING_END
     "code:TC_CE_MISSING_END:trigger": ["TC-SYN-END-0001"],
