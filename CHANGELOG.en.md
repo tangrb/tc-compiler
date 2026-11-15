@@ -19,6 +19,7 @@
 ### Fixed
 
 - Fixed a use-after-free on the parser failure path (reading `impl` after freeing the parser); nesting/source/token limits report implementation-level errors, never language codes.
+- CRLF/CR fixtures are marked `-text` in `.gitattributes` so Git does not normalize away their bytes; `s1_cases.py --check` compares bytes.
 - G1 independent audit A1–A9: paired nested blocks no longer report a false `MISSING_END` (lexical `then`/`end` pairing lookahead; paired nesting is `SYNTAX` at the nested construct); corrected the first-diagnostic rule 04 coverage mapping (`TC-SYN-END-0001`/`TC-SYN-VAR-0001` specific-over-generic); added nested-block/`Self`/suffix regression cases; rebuilt Debug/Release/ASan from current source; hardened the adapter (reported-file check, empty stdout, property stage check); clarified the plan's S1 `TcParseInstr`/`TcInstr` split; unified `#program` `Self` in IDENT-only positions to `PROGRAM_MODE_MISUSE` and documented incomplete/separated suffix positions.
 
 ## [0.0.46] - 2026-11-13

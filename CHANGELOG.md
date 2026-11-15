@@ -19,6 +19,7 @@
 ### Fixed
 
 - 修复解析失败路径在释放 parser 后读取 `impl` 的 use-after-free；嵌套深度/源文件/Token 上限统一返回实现级错误，不产生语言码。
+- CRLF/CR 夹具在 `.gitattributes` 中标记 `-text`，避免 Git 行尾规范化丢失字节；`s1_cases.py --check` 按字节比较。
 - G1 独立审计 A1–A9：修复嵌套配对块被误报 `MISSING_END`（改用 `then`/`end` 词法配对前看，配对时在嵌套构造处报 `SYNTAX`）；修正首诊规则 04 的覆盖映射（改用 `TC-SYN-END-0001`/`TC-SYN-VAR-0001` 专用码优先）；新增嵌套块/`Self`/后缀回归用例；Debug/Release/ASan 三套从当前源码重跑；adapter 增加诊断文件校验、stdout 为空与属性 stage 校验；澄清计划 S1 的 `TcParseInstr`/`TcInstr` 分工；统一 `#program` 中 IDENT-only 位置 `Self` 的 `PROGRAM_MODE_MISUSE` 约定与不完整/空白分隔后缀的定位约定。
 
 ## [0.0.46] - 2026-11-13

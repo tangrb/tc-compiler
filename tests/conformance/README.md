@@ -33,7 +33,8 @@ python3 tests/conformance/static/s1_cases.py --check
 ```
 
 Do not edit generated `.tc`/`.yaml` files by hand; update the table and
-regenerate.  A new case needs a `spec` citation and, for positions not
+regenerate.  CRLF/CR fixtures are marked `-text` in `.gitattributes` so Git
+preserves their exact bytes; `--check` compares bytes, not normalized text.  A new case needs a `spec` citation and, for positions not
 enumerated in §12.5.1, an explicit `@convention` note.
 
 ## Case ids

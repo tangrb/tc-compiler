@@ -9,3 +9,10 @@
 *.yaml text eol=lf
 *.json text eol=lf
 *.txt text eol=lf
+
+# Byte-exact LEX/SYN fixtures: CRLF/CR and invalid-byte tests must keep their
+# working-tree bytes (the generator writes them with newline="").
+tests/conformance/static/accept/crlf.tc -text
+tests/conformance/static/accept/lone_cr.tc -text
+tests/conformance/static/lex/crlf_position.tc -text
+tests/conformance/static/lex/lone_cr_position.tc -text

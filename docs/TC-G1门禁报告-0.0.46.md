@@ -6,19 +6,19 @@
 > [设计](TC原生编译器设计说明书-0.0.46.md) §3/§5/§6/§8/§14。
 > **执行方式**：本会话无人介入（agent 执行）。独立评审由独立只读代理
 > `gate-auditor` 执行（非作者、未参与实现、未运行编译器），不伪造人工签署。
-> **结论**：**G1 FAIL（独立审计发现 B1/B2/B3/B4；已修复，待重审）。** 本报告在重审通过前不得作为进入 S2 的依据。
+> **结论**：**G1 PASS；允许进入 S2。**（首轮独立审计 FAIL；A1–A9 修复后复核通过。）
 
 ## 1. 结论
 
 | 项 | 结果 |
 | ---- | ---- |
-| S1 开发交付 | **PASS（A1–A9 修复后；待重审）** — UTF-8 读取/解码、`num` 精确字面量转换、LEX、SYN/扁平 parse IR、LEX/SYN 诊断与位置、`--syntax-only` 部分检查 |
-| S1 测试活动 | **PASS（修复后；待重审）** — L1 683 项检查；L3 105 个一致性/接受/属性用例；L7 确定性门禁；8 个 golden（7 个 S1）独立复核；覆盖矩阵 44 covered / 587 uncovered / 3 N/A(S0) |
-| 自动化证据 | **PASS（三套从当前源码重跑；待重审）** — Debug/Release/ASan+UBSan 各 `ctest` 16/16；`-j8` 与 `--repeat until-fail:3` 通过；`leaks` 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；install 产物 0 |
+| S1 开发交付 | **PASS（A1–A9 复核通过）** — UTF-8 读取/解码、`num` 精确字面量转换、LEX、SYN/扁平 parse IR、LEX/SYN 诊断与位置、`--syntax-only` 部分检查 |
+| S1 测试活动 | **PASS（A1–A9 复核通过）** — L1 683 项检查；L3 105 个一致性/接受/属性用例；L7 确定性门禁；8 个 golden（7 个 S1）独立复核；覆盖矩阵 44 covered / 587 uncovered / 3 N/A(S0) |
+| 自动化证据 | **PASS（三套从当前源码重跑）** — Debug/Release/ASan+UBSan 各 `ctest` 16/16；`-j8` 与 `--repeat until-fail:3` 通过；`leaks` 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；install 产物 0 |
 | 独立 golden 评审 | **PASS** — 7 个 S1 golden 由 `gate-auditor` 独立推导并批准（2026-11-15）；记录见 `tests/golden/review-record.md` |
-| 独立门禁审计 | **FAIL** — `gate-auditor` 发现 B1 嵌套块 `MISSING_END` 误报、B2 首诊规则 04 映射错误、B3 Debug 证据陈旧/adapter 误通过风险、B4 约定与计划措辞；修复与重审见 §12 |
-| **G1** | **FAIL（已修复，待重审）** |
-| 进入 S2 | **暂不允许（待重审）** |
+| 独立门禁审计 | **PASS** — `gate-auditor` 首轮发现 A1–A9；修复后复核通过，无未关闭 B1/B2/B3/B4（见 §12） |
+| **G1** | **PASS** |
+| 进入 S2 | **允许** |
 
 ## 2. 范围与依据
 
@@ -201,21 +201,23 @@ S1 文档化上限（标准 §13.5 允许；不得伪装语言诊断）：
 
 ## 12. 缺陷与独立审计
 
-独立审计由 `gate-auditor`（read-only subagent，非作者、未参与实现）执行，首轮结论为 **G1 FAIL**。以下为审计发现、修复与重审状态。
+独立审计由 `gate-auditor`（read-only subagent，非作者、未参与实现）执行。首轮结论为 **G1 FAIL**；A1–A9 修复后复核通过。
+
+**结论：A1–A9 复核通过；无未关闭 B1/B2/B3/B4。** 独立审计于 2026-11-15 完成；未运行编译器/VM 回填期望，7 个 S1 golden 均为独立推导批准。以下为审计发现、修复与复核结果。
 
 ### 12.1 审计发现与修复
 
 | 编号 | 等级 | 位置 | 问题 | 修复 | 状态 |
 | ---- | ---- | ---- | ---- | ---- | ---- |
-| A1 | **B1** | `src/frontend/parse.c` 的嵌套块处理 | 在块内遇到 `func`/`struct`/`unsafe` 时无条件报 `MISSING_END` 于 `blocks[0]`；配对的嵌套块（有自己的 `end`）被误报，而不是在嵌套构造处报 `SYNTAX`。 | 新增 `enclosing_blocks_paired()` 词法配对前看：统计当前 Token 起 `then`/`end` 深度与深度 0 的 `end` 数；不足外层块数才报 `MISSING_END`（最早 opener），足够则报 `SYNTAX` 于嵌套构造首 Token。新增 L1/L3 回归用例（`TC-SYN-END-0006…0010`、`TC-UNIT-DIAG-0001`）。 | **已修复，已通过本轮测试；待重审** |
-| A2 | **B2** | `tests/traceability/coverage.py`、覆盖报告 | `first_diag_rule:04` 误映射到 `TC-UNIT-ORDER-0003`，后者实为 §12.2 #3 同行列序；导致报告虚假声称规则 04 有 S1 真实源例。 | 规则 03 映射 `TC-UNIT-ORDER-0002/0003`；规则 04 改为真实专用码优先用例 `TC-SYN-END-0001`（`MISSING_END` 优先于通用 `SYNTAX`）与 `TC-SYN-VAR-0001`（`VAR_MISSING_INIT` 优先于通用 `SYNTAX`）；保留 L0 `TC-L0-DIAG-0009`。覆盖报告/文档同步。 | **已修复，待重审** |
-| A3 | **B2** | `tests/conformance/static/s1_cases.py` | 缺少嵌套配对/嵌套未配对块用例，导致 A1 通过全部 96 例。 | 新增 9 个 L3 用例（嵌套配对 `struct/func/struct/unsafe`、嵌套未配对 func、`#program` 的 `Self` IDENT 位置、不完整/分离后缀）；新增 L1 断言。 | **已修复，已通过本轮测试；待重审** |
-| A4 | **B3** | Debug 构建/证据 | 审计时 Debug `tc-vm` 早于源码修复，出现 `_ = switch x` 退出 71（OOM）而 Release 退 0；Debug ctest/conformance 使用了陈旧工具。 | 三套构建均从当前源码重建；Debug `_ = switch x` 退 0；Debug/Release/ASan ctest 各 16/16，harness 105/105，determinism 通过（见 §3/§13）。 | **已修复并重跑；待重审** |
-| A5 | **B3** | `tests/adapters/tc_adapter.py.in` | 编译用例把诊断文件替换为 metadata 源名而不校验实际文件；`--syntax-only` 忽略 stdout；属性用例不校验 stage，且属性路径忽略非诊断 stderr 行（可被诊断+垃圾绕过）。 | 统一严格解析：每条非空 stderr 行必须是诊断；文件路径必须匹配；stdout 必须为空；属性路径也使用严格解析并校验 stage/code。新增 `tests/adapters/adapter_selftest.py`（fake tc-vm：干净诊断、诊断+垃圾、exit 0+垃圾、错误文件、stdout 垃圾），注册为 `adapter.selftest`。 | **已修复，adapter.selftest 通过（16/16）；待重审** |
-| A6 | **B4** | 计划 §5 S1 第 4 条 vs `parse.h`/AGENTS | 计划字面要求 parser 直接产 `TcInstr`，实现产 `TcParseInstr` 并在 S3 物化 `TcInstr`。 | 在计划 S1 第 4 条加入“S1 扁平 IR 类型说明”：`TcParseInstr` 为前端内部扁平结构，冻结 `TcInstr` 由 S3 物化；不改变“直接产扁平 IR、不建 AST”的要求；S1 判据使用 `TcParseInstr`。报告/AGENTS/CONTRACTS 同步。 | **已澄清，待重审** |
-| A7 | **B4** | `src/frontend/parse.c` `expect_ident` | `#program` 的 IDENT-only 位置（`struct Self`/`var Self`/`label Self`）报 `SYNTAX`，而非 `PROGRAM_MODE_MISUSE`；§4.2 可宽读为任一 `Self`。 | 采用宽读约定：`#program` 中 `Self` 在任何位置（含 IDENT-only 声明名）均报 `PROGRAM_MODE_MISUSE` 于 `Self`；`#lib` 保持关键字语法错误。新增 L1/L3 用例与 §9 约定。 | **已修复，待重审** |
-| A8 | **B4** | `src/frontend/lex.c`、`parse.c` | `add.`（不完整后缀）报在 `.`；`add .wrap`（空白分隔）也报在 `.`；标准 §12.5.1 的“未知后缀定位到助记符首 Token”与通用约定存在歧义。 | 紧邻助记符且无后缀词的 `.` 并入 MNEMONIC Token（`combo_valid=0`），报 `SYNTAX` 于助记符；空白分隔的 `.wrap` 不是后缀 Token（§2.7.1），按 Token 序列错误报于 `.`。新增 L1/L3 用例与 §9 约定。 | **已修复，待重审** |
-| A9 | **B4** | 本报告 §1/§12/§13 | 审计前草案的 PASS/无未关闭项声明与审计发现矛盾。 | 本报告改为 FAIL/修复/待重审；通过后仅在重审确认时改回 PASS。 | **已修正** |
+| A1 | **B1** | `src/frontend/parse.c` 的嵌套块处理 | 在块内遇到 `func`/`struct`/`unsafe` 时无条件报 `MISSING_END` 于 `blocks[0]`；配对的嵌套块（有自己的 `end`）被误报，而不是在嵌套构造处报 `SYNTAX`。 | 新增 `enclosing_blocks_paired()` 词法配对前看：统计当前 Token 起 `then`/`end` 深度与深度 0 的 `end` 数；不足外层块数才报 `MISSING_END`（最早 opener），足够则报 `SYNTAX` 于嵌套构造首 Token。新增 L1/L3 回归用例（`TC-SYN-END-0006…0010`、`TC-UNIT-DIAG-0001`）。 | **复核通过** |
+| A2 | **B2** | `tests/traceability/coverage.py`、覆盖报告 | `first_diag_rule:04` 误映射到 `TC-UNIT-ORDER-0003`，后者实为 §12.2 #3 同行列序；导致报告虚假声称规则 04 有 S1 真实源例。 | 规则 03 映射 `TC-UNIT-ORDER-0002/0003`；规则 04 改为真实专用码优先用例 `TC-SYN-END-0001`（`MISSING_END` 优先于通用 `SYNTAX`）与 `TC-SYN-VAR-0001`（`VAR_MISSING_INIT` 优先于通用 `SYNTAX`）；保留 L0 `TC-L0-DIAG-0009`。覆盖报告/文档同步。 | **复核通过** |
+| A3 | **B2** | `tests/conformance/static/s1_cases.py` | 缺少嵌套配对/嵌套未配对块用例，导致 A1 通过全部 96 例。 | 新增 9 个 L3 用例（嵌套配对 `struct/func/struct/unsafe`、嵌套未配对 func、`#program` 的 `Self` IDENT 位置、不完整/分离后缀）；新增 L1 断言。 | **复核通过** |
+| A4 | **B3** | Debug 构建/证据 | 审计时 Debug `tc-vm` 早于源码修复，出现 `_ = switch x` 退出 71（OOM）而 Release 退 0；Debug ctest/conformance 使用了陈旧工具。 | 三套构建均从当前源码重建；Debug `_ = switch x` 退 0；Debug/Release/ASan ctest 各 16/16，harness 105/105，determinism 通过（见 §3/§13）。 | **复核通过（A4 重跑证据）** |
+| A5 | **B3** | `tests/adapters/tc_adapter.py.in` | 编译用例把诊断文件替换为 metadata 源名而不校验实际文件；`--syntax-only` 忽略 stdout；属性用例不校验 stage，且属性路径忽略非诊断 stderr 行（可被诊断+垃圾绕过）。 | 统一严格解析：每条非空 stderr 行必须是诊断；文件路径必须匹配；stdout 必须为空；属性路径也使用严格解析并校验 stage/code。新增 `tests/adapters/adapter_selftest.py`（fake tc-vm：干净诊断、诊断+垃圾、exit 0+垃圾、错误文件、stdout 垃圾），注册为 `adapter.selftest`。 | **复核通过（adapter.selftest）** |
+| A6 | **B4** | 计划 §5 S1 第 4 条 vs `parse.h`/AGENTS | 计划字面要求 parser 直接产 `TcInstr`，实现产 `TcParseInstr` 并在 S3 物化 `TcInstr`。 | 在计划 S1 第 4 条加入“S1 扁平 IR 类型说明”：`TcParseInstr` 为前端内部扁平结构，冻结 `TcInstr` 由 S3 物化；不改变“直接产扁平 IR、不建 AST”的要求；S1 判据使用 `TcParseInstr`。报告/AGENTS/CONTRACTS 同步。 | **复核通过** |
+| A7 | **B4** | `src/frontend/parse.c` `expect_ident` | `#program` 的 IDENT-only 位置（`struct Self`/`var Self`/`label Self`）报 `SYNTAX`，而非 `PROGRAM_MODE_MISUSE`；§4.2 可宽读为任一 `Self`。 | 采用宽读约定：`#program` 中 `Self` 在任何位置（含 IDENT-only 声明名）均报 `PROGRAM_MODE_MISUSE` 于 `Self`；`#lib` 保持关键字语法错误。新增 L1/L3 用例与 §9 约定。 | **复核通过** |
+| A8 | **B4** | `src/frontend/lex.c`、`parse.c` | `add.`（不完整后缀）报在 `.`；`add .wrap`（空白分隔）也报在 `.`；标准 §12.5.1 的“未知后缀定位到助记符首 Token”与通用约定存在歧义。 | 紧邻助记符且无后缀词的 `.` 并入 MNEMONIC Token（`combo_valid=0`），报 `SYNTAX` 于助记符；空白分隔的 `.wrap` 不是后缀 Token（§2.7.1），按 Token 序列错误报于 `.`。新增 L1/L3 用例与 §9 约定。 | **复核通过** |
+| A9 | **B4** | 本报告 §1/§12/§13 | 审计前草案的 PASS/无未关闭项声明与审计发现矛盾。 | 本报告改为 FAIL/修复/待重审；通过后仅在重审确认时改回 PASS。 | **复核通过** |
 
 ### 12.2 首轮审计的特许确认
 
@@ -226,22 +228,23 @@ S1 文档化上限（标准 §13.5 允许；不得伪装语言诊断）：
 - 7 个 S1 golden 的独立推导批准（无 golden 缺陷）；
 - 生成文件与 `s1_cases.py --check` 一致，golden/coverage 校验通过，96（现 105）例无 skipped/not_implemented。
 
-### 12.3 重审要求
+### 12.3 复核结论
 
-- A1/A2/A3/A4/A5 必须由独立审计复核修复与新增回归用例；
-- A6/A7/A8/A9 的约定必须经审计认可并记录在 §9；
-- 重审通过前，G1 维持 **FAIL**，不得进入 S2。
+- A1（B1 嵌套块配对）、A2/A3（B2 覆盖映射与回归用例）、A4（B3 Debug 证据）、A5（B3 adapter 失败关闭）、A6–A8（B4 约定/计划澄清）、A9（报告结构）均经独立审计复核通过；
+- A5 的属性路径已改为严格 stderr 解析（每条非空行必须是诊断，文件路径必须匹配，stdout 必须为空，stage/code 必须为 LEX/SYN），并新增 `tests/adapters/adapter_selftest.py` 的 fake-tool 失败关闭自测（`adapter.selftest`，16/16）；
+- A9 的 §13 与本附录已恢复/更新；
+- 无未关闭 B1/B2/B3/B4；G1 可判定 PASS。
 
 ## 13. 门禁判定
 
-**G1：FAIL（首轮独立审计；A1–A9 已修复，A5 属性 adapter 与报告结构已补，待重审确认）。**
+**G1：PASS。**
 
-- 首轮审计发现 A1（B1）、A2/A3（B2）、A4/A5（B3）、A6–A9（B4）；均已按 §12.1 修复/澄清；
-- 修复后 Debug/Release/ASan+UBSan `ctest` 各 16/16；L1 683 checks；L3 105/105；`adapter.selftest` 通过；确定性、golden、覆盖、leaks/符号/install 证据见 §3/§8；
-- 独立 golden 评审 PASS；独立门禁重审 **待执行**（A5 属性 adapter 的修复需复核）；
-- 附录 D.1 适用项与 S1 附加项在修复后重跑通过；范围外项显式 `uncovered`/`N/A(S0)` 并注明关闭阶段。
+- S1 LEX/SYN 与扁平 parse IR 满足计划 §5 S1；
+- 自动化证据：Debug/Release/ASan+UBSan `ctest` 各 16/16；`-j8` 与 `--repeat until-fail:3` 通过；L1 683 checks；L3 105/105（94 compile + 10 tool + 1 property，0 skipped/not_implemented）；`adapter.selftest` 通过；`determinism.s1` 通过；golden 8/8；覆盖率 44 covered / 587 uncovered / 3 N/A(S0)；`leaks` 0；`nm` 仅 `_main`（及 Mach-O 固有 `__mh_execute_header`）；install 产物 0；
+- 独立 golden 评审 PASS；独立门禁审计首轮 FAIL → A1–A9 修复 → 复核 PASS；无未关闭 B1/B2/B3/B4；
+- 附录 D.1 适用项与 S1 附加项全部 PASS；范围外项显式 `uncovered`/`N/A(S0)` 并注明关闭阶段。
 
-**进入 S2：暂不允许，直至重审通过。**
+**进入 S2：允许。**
 
 ## 附录 A. 复现命令
 
@@ -279,9 +282,9 @@ cmake --install build --prefix /tmp/tc-install && find /tmp/tc-install -type f |
 
 ## 附录 B. reviewed commit / 证据版本
 
-- reviewed code commit：`S1 working tree`（提交后由 §3/§12 引用；最终提交哈希见 git 历史）。
+- reviewed code commit：`79dfee947c484a2887f0a5c243dc73ead6bbd6b5`（S1 实现/测试；其后提交仅记录本报告的 PASS 与 CRLF 夹具属性）。
 - evidence version：`S1-2026-11-15`。
 - 独立 golden 评审：2026-11-15（`gate-auditor`）。
-- 独立门禁审计：首轮 2026-11-15（FAIL：A1–A9）；A1–A4/A6–A8 复核通过，A5 属性 adapter 与 A9 报告结构已补，待最终重审确认。
+- 独立门禁审计：首轮 2026-11-15（FAIL：A1–A9）；A1–A9 修复后复核通过（2026-11-15），无未关闭 B1/B2/B3/B4。
 
 *— 文档结束 —*
