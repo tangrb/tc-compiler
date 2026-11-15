@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0029
+profile: common
+source: fixtures/tc-sem-cfg-0029/root.tc
+spec: "§12.2 缺失标签的 br 不再全局抑制 DI；已知边上的第 6 行 UNINITIALIZED 早于第 7 行 LABEL_NOT_FOUND"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-cfg-0029/lib.tc, line: 6, column: 22}
+  related: []
+  diagnostics: exactly-one

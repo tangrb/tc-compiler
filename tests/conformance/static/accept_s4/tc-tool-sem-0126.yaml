@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0126
+profile: common
+source: tc-tool-sem-0126/root.tc
+spec: "§3.10 strict 溢出属于 CT 的 CONST_OVERFLOW；SEM 端点求值返回未解析，不得产生 ANNOTATION（--static-only 只验证 SEM 无误报）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

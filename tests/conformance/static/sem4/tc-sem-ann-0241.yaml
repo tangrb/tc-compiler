@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0241
+profile: common
+source: fixtures/tc-sem-ann-0241/root.tc
+spec: "§3.10/§8.6 比较表达式得到 H=0，@range(1,H) -> ANNOTATION（hi）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0241/lib.tc, line: 5, column: 36}
+  related: []
+  diagnostics: exactly-one

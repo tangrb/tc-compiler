@@ -1332,6 +1332,61 @@ CASES = [
         "SEM", "TC_CE_UNINITIALIZED",
     ),
     _case(
+        "TC-SEM-ANN-0239",
+        "§3.10/§8.6 比较表达式产生 bool、cast 为整数后作为 @align 端点；"
+        "X=0 -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const B: bool = eq int32, 1, 2\n"
+         "public const X: int32 = cast int32, Self.B\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0240",
+        "§3.10/§8.6 const 结构体字段读取作为 @align 端点；Z.x=0 -> "
+        "ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n"
+         "    var x: int32\n"
+         "end\n"
+         "public const Z: S = make S, x: 0\n"
+         "public const X: int32 = Z.x\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0241",
+        "§3.10/§8.6 比较表达式得到 H=0，@range(1,H) -> ANNOTATION（hi）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const B: bool = eq int32, 1, 2\n"
+         "public const H: int32 = cast int32, Self.B\n"
+         "public const L: int32 = 1\n"
+         "public @fast func f(@range(Self.L, @HERE@Self.H) n: int32) void "
+         "then\nend\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-CFG-0029",
+        "§12.2 缺失标签的 br 不再全局抑制 DI；已知边上的第 6 行 "
+        "UNINITIALIZED 早于第 7 行 LABEL_NOT_FOUND",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(c: bool) void then\n"
+         "    _ = br_if c, A\n"
+         "    var x: int32 = copy int32, 1\n"
+         "    label A:\n"
+         "    _ = write int32, @HERE@x\n"
+         "    _ = br Missing\n"
+         "    label L:\n"
+         "end\n"},
+        "SEM", "TC_CE_UNINITIALIZED",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -1659,6 +1714,32 @@ POSITIVE = [
          "public const H: usize = 10\n"
          "public @fast func f(@align(Self.A) p: ptr<int32>, "
          "@range(Self.L, Self.H) n: usize) void then\nend\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0125",
+        "§3.10 const 结构体字段读取与比较/cast 产生的合法整数端点："
+        "@align=8 与 @align=1 均接受",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n"
+         "    var x: int32\n"
+         "end\n"
+         "public const Z: S = make S, x: 8\n"
+         "public const B: bool = eq int32, 8, 8\n"
+         "public const X: int32 = Z.x\n"
+         "public const Y: int32 = cast int32, Self.B\n"
+         "public @fast func a(@align(Self.X) p: ptr<int32>) void then\nend\n"
+         "public @fast func b(@align(Self.Y) p: ptr<int32>) void then\nend\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0126",
+        "§3.10 strict 溢出属于 CT 的 CONST_OVERFLOW；SEM 端点求值返回未解析，"
+        "不得产生 ANNOTATION（--static-only 只验证 SEM 无误报）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const A: int32 = add int32, 2147483647, 1\n"
+         "public @fast func f(@align(Self.A) p: ptr<int32>) void then\n"
+         "end\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0123",

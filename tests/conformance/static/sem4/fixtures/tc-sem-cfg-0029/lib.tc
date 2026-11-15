@@ -1,0 +1,9 @@
+#lib
+public @fast func f(c: bool) void then
+    _ = br_if c, A
+    var x: int32 = copy int32, 1
+    label A:
+    _ = write int32, x
+    _ = br Missing
+    label L:
+end

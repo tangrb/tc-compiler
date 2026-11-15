@@ -1,0 +1,6 @@
+#lib
+public const B: bool = eq int32, 1, 2
+public const H: int32 = cast int32, Self.B
+public const L: int32 = 1
+public @fast func f(@range(Self.L, Self.H) n: int32) void then
+end

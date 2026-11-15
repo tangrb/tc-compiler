@@ -130,13 +130,15 @@ as a `TcUnit`.
   safety precedes LHS/argument checks at one call.
 - `@range` endpoints record `TcParam.lo`/`hi` bit patterns; `@align` records
   `TcParam.align` (both full 64-bit fields).  Endpoint values are SEM facts:
-  literals and const paths are evaluated by the SEM integer const resolver
-  (literals, prior/`Self.K`/`m.K` references, integer pure expressions,
-  `sizeof`, integer/bool `cast`/`trunc`/`bitcast`, and scalar float
-  literal/arithmetic/convert forms), then validated and recorded.  Invalid
-  values report `TC_CE_ANNOTATION` at the endpoint token.  Endpoint const
-  expressions that need aggregate or remaining float CT evaluation are
-  resolved by the CT-owned const machinery and do not populate SEM metadata.
+  literals and const paths are evaluated by the SEM const resolver (literals
+  including `inf`/`nan`, prior/`Self.K`/`m.K` references, const struct field
+  reads, integer pure expressions including the six comparisons, `sizeof`,
+  numeric/bool `cast`/`trunc`/`bitcast`, and scalar
+  float arithmetic/conversion forms including `mod` and int-to-float chains),
+  then validated and recorded.  Invalid values report `TC_CE_ANNOTATION` at
+  the endpoint token.  Strict evaluation failures return unresolved; SEM does
+  not wrap and does not emit an annotation diagnostic, leaving the CT-owned
+  `TC_CE_CONST_*` error.
 - `MISSING_ARGUMENT` points its related position at the earliest missing
   parameter declaration (call mnemonic stays primary); `DUPLICATE_ARGUMENT`
   relates the first duplicate.
@@ -148,10 +150,10 @@ as a `TcUnit`.
   range-checked before the integer-selector check.
 - Duplicate labels and malformed branch/switch forms use conservative
   fallthrough edges; they do not suppress DI or `MISSING_RETURN`.  A valid
-  branch whose target label is absent keeps the unresolved edge out of the CFG
-  and suppresses DI; `MISSING_RETURN` is still checked on known edges and may
-  win when the end is reachable without the unresolved edge.  Name, type,
-  safety and construct checks still run for every statement.
+  branch whose target label is absent keeps the unresolved edge out of the CFG;
+  DI and `MISSING_RETURN` are evaluated on the known edges, so an earlier
+  diagnostic on a known path may win over the label error.  Name, type, safety
+  and construct checks still run for every statement.
 - Direct call target errors precede call safety; `call_indirect` resolves its
   `fp` operand before the instruction-level safety check.  Other unsafe
   memory/pointer instructions check their unsafe context at the mnemonic before
@@ -166,10 +168,6 @@ as a `TcUnit`.
   deferred to the VM stage.
 - `-0` for an unsigned expected type: treated as an explicit negative literal
   (`LITERAL_TYPE`); the mathematical-zero reading remains an open clarification.
-- `@align`/`@range` endpoint const expressions that require aggregate or
-  remaining float CT evaluation are resolved by CT; the SEM resolver covers the
-  scalar integer and common float forms above.  `TcParam.align` and
-  `TcField.padding` are 64-bit fields.
 
 ## Not frozen here (later stages, same headers)
 

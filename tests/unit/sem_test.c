@@ -262,6 +262,9 @@ static void test_annotation_metadata(void) {
         "public struct S then\n"
         "    var x: int8 @padding(4294967296)\n"
         "end\n"
+        "public struct P then\n"
+        "    var v: int32\n"
+        "end\n"
         "public const A: int32 = 8\n"
         "public const C: int32 = add int32, 7, 1\n"
         "public const L: int32 = 1\n"
@@ -269,6 +272,10 @@ static void test_annotation_metadata(void) {
         "public const BIG: uint64 = 4294967296\n"
         "public const F: float64 = add float64, 7.5, 0.5\n"
         "public const AF: int32 = cast int32, F\n"
+        "public const PV: P = make P, v: 8\n"
+        "public const PF: int32 = PV.v\n"
+        "public const B: bool = eq int32, 8, 8\n"
+        "public const BF: int32 = cast int32, B\n"
         "public @fast func a(@align(Self.A) p: ptr<int32>) void then\n"
         "end\n"
         "public @fast func c(@align(Self.C) p: ptr<int32>) void then\n"
@@ -276,6 +283,10 @@ static void test_annotation_metadata(void) {
         "public @fast func b(@align(Self.BIG) p: ptr<int32>) void then\n"
         "end\n"
         "public @fast func af(@align(Self.AF) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func pf(@align(Self.PF) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func bf(@align(Self.BF) p: ptr<int32>) void then\n"
         "end\n"
         "public @fast func r(@range(Self.L, Self.H) n: int32) void then\n"
         "end\n"
@@ -288,6 +299,8 @@ static void test_annotation_metadata(void) {
     const TcFuncSig *c;
     const TcFuncSig *b;
     const TcFuncSig *af;
+    const TcFuncSig *pf;
+    const TcFuncSig *bf;
     const TcFuncSig *r;
     const TcFuncSig *w;
     const TcStructDef *s;
@@ -303,6 +316,8 @@ static void test_annotation_metadata(void) {
     c = tc_analysis_find_func(an, NULL, "c");
     b = tc_analysis_find_func(an, NULL, "b");
     af = tc_analysis_find_func(an, NULL, "af");
+    pf = tc_analysis_find_func(an, NULL, "pf");
+    bf = tc_analysis_find_func(an, NULL, "bf");
     r = tc_analysis_find_func(an, NULL, "r");
     w = tc_analysis_find_func(an, NULL, "w");
     s = tc_analysis_find_struct(an, NULL, "S");
@@ -310,6 +325,8 @@ static void test_annotation_metadata(void) {
     CHECK(c != NULL && c->nparams == 1);
     CHECK(b != NULL && b->nparams == 1);
     CHECK(af != NULL && af->nparams == 1);
+    CHECK(pf != NULL && pf->nparams == 1);
+    CHECK(bf != NULL && bf->nparams == 1);
     CHECK(r != NULL && r->nparams == 1);
     CHECK(w != NULL && w->nparams == 1);
     CHECK(s != NULL && s->nfields == 1);
@@ -328,6 +345,14 @@ static void test_annotation_metadata(void) {
     if (af != NULL && af->nparams == 1) {
         CHECK((af->params[0].flags & TC_PARAM_ALIGN) != 0);
         CHECK_EQ(af->params[0].align, 8);
+    }
+    if (pf != NULL && pf->nparams == 1) {
+        CHECK((pf->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK_EQ(pf->params[0].align, 8);
+    }
+    if (bf != NULL && bf->nparams == 1) {
+        CHECK((bf->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK_EQ(bf->params[0].align, 1);
     }
     if (r != NULL && r->nparams == 1) {
         CHECK((r->params[0].flags & TC_PARAM_RANGE) != 0);

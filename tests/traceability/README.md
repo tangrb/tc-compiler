@@ -55,6 +55,6 @@ python3 tests/golden/validate.py
 require every row to be covered before its stage.  Current matrix: 231 items /
 636 slots, **344 covered / 292 uncovered / 0 suspended**.  Covered rows include
 the completed contract/LEX/SYN/IMPORT/SEM and S4 CFG/DI/call/safety/annotation
-(including const-path endpoint values and 64-bit metadata) requirements; uncovered rows are S5–S10 work (CT, IR finalization, opcodes,
+(including comparison/const-struct-field const-path endpoint values, strict-failure boundaries and 64-bit metadata) requirements; uncovered rows are S5–S10 work (CT, IR finalization, opcodes,
 VM/backend, platform).  Stage detail lives in the generated coverage report; gate conclusions
 are in [docs/gates/README.md](../../docs/gates/README.md).

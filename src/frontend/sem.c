@@ -1,6 +1,7 @@
 /* TC 0.0.46 IMPORT and SEM implementation (standard §3–§6, §13.2). */
 #include "frontend/sem.h"
 
+#include <limits.h>
 #include <math.h>
 #include <setjmp.h>
 #include <stdlib.h>
@@ -3984,19 +3985,17 @@ static void check_unit_flow(Sem *s, const TcParseStmt *body, size_t nbody) {
             break;
         }
     }
-    if (!s->cfg_incomplete) {
-        for (i = 0; i < nnodes; i++) {
-            size_t si = flow.node_stmt[i];
-            if (!flow.reachable[i]) {
-                continue;
-            }
-            s->stmt_index = (int)si;
-            if (body[si].kind == TC_STMT_INSTR) {
-                flow_check_target(s, &flow, i, &body[si].instr);
-                flow_check_reads(s, &flow, i, &body[si].instr);
-            } else if (body[si].kind == TC_STMT_VAR) {
-                flow_check_reads(s, &flow, i, &body[si].var.init);
-            }
+    for (i = 0; i < nnodes; i++) {
+        size_t si = flow.node_stmt[i];
+        if (!flow.reachable[i]) {
+            continue;
+        }
+        s->stmt_index = (int)si;
+        if (body[si].kind == TC_STMT_INSTR) {
+            flow_check_target(s, &flow, i, &body[si].instr);
+            flow_check_reads(s, &flow, i, &body[si].instr);
+        } else if (body[si].kind == TC_STMT_VAR) {
+            flow_check_reads(s, &flow, i, &body[si].var.init);
         }
     }
     if (s->func != NULL && s->ret != NULL && !type_is_void(s->ret) &&
@@ -4569,6 +4568,47 @@ static uint64_t const_f64_to_bits(double value) {
     return raw;
 }
 
+static int const_signed_fits_width(int64_t value, unsigned width) {
+    if (width >= 64) {
+        return 1;
+    }
+    return value >= -(int64_t)((uint64_t)1u << (width - 1u)) &&
+           value <= (int64_t)(((uint64_t)1u << (width - 1u)) - 1u);
+}
+
+static int const_unsigned_fits_width(uint64_t value, unsigned width) {
+    return width >= 64 || value <= width_max(width);
+}
+
+static int const_special_float_bits(const TcParseValue *v, unsigned width,
+                                  uint64_t *out) {
+    if (v->kind == TC_PVAL_INF) {
+        if (width == 32) {
+            *out = v->inf_negative ? UINT64_C(0xff800000)
+                                   : UINT64_C(0x7f800000);
+            return 1;
+        }
+        if (width == 64) {
+            *out = v->inf_negative ? UINT64_C(0xfff0000000000000)
+                                   : UINT64_C(0x7ff0000000000000);
+            return 1;
+        }
+        return 0;
+    }
+    if (v->kind == TC_PVAL_NAN) {
+        if (width == 32) {
+            *out = UINT64_C(0x7fc00000);
+            return 1;
+        }
+        if (width == 64) {
+            *out = UINT64_C(0x7ff8000000000000);
+            return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
 static int const_is_negative(const TcAnalysis *an, const TcConstInt *value) {
     unsigned width;
     if (value == NULL || value->type == NULL ||
@@ -4585,41 +4625,96 @@ static int const_is_negative(const TcAnalysis *an, const TcConstInt *value) {
     return (int)((value->bits >> (width - 1u)) & 1u);
 }
 
-static TcMember *find_const_member_quiet(Sem *s, const TcParseValue *v,
-                                         uint32_t *out_module) {
+static TcStructDef *struct_def_for_type(TcAnalysis *an,
+                                        const TcType *type) {
+    if (type == NULL || type->tag != TC_TY_STRUCT ||
+        type->struct_.struct_id >= an->nstructs) {
+        return NULL;
+    }
+    return an->structs[type->struct_.struct_id].def;
+}
+
+static int resolve_const_path(Sem *s, const TcParseValue *v,
+                              TcMember **out_member, uint32_t *out_module,
+                              const char ***out_fields, size_t *out_nfields) {
     TcMember *member = NULL;
     uint32_t module = s->module_index;
+    size_t consumed = 0;
     if (v->kind != TC_PVAL_NAME) {
-        return NULL;
+        return 0;
     }
     if (v->nfields == 0) {
         member = find_member(s->module, v->base);
-    } else if (v->nfields == 1) {
-        if (strcmp(v->base, "Self") == 0) {
-            member = find_member(s->module, v->fields[0]);
-        } else {
-            TcMember *import = find_member(s->module, v->base);
-            if (import == NULL || import->kind != TC_MEM_IMPORT ||
-                import->import_target == TC_MODULE_NO_TARGET) {
-                return NULL;
-            }
+    } else if (strcmp(v->base, "Self") == 0) {
+        member = find_member(s->module, v->fields[0]);
+        consumed = 1;
+    } else {
+        TcMember *import = find_member(s->module, v->base);
+        if (import != NULL && import->kind == TC_MEM_IMPORT &&
+            import->import_target != TC_MODULE_NO_TARGET) {
             module = import->import_target;
             member = find_member_in(s->an, module, v->fields[0]);
-            if (member != NULL && !member->is_public) {
-                return NULL;
-            }
+            consumed = 1;
+        } else {
+            member = find_member(s->module, v->base);
         }
-    } else {
-        return NULL;
     }
     if (member == NULL || member->kind != TC_MEM_CONST ||
         member->type == NULL) {
-        return NULL;
+        return 0;
+    }
+    if (out_member != NULL) {
+        *out_member = member;
     }
     if (out_module != NULL) {
         *out_module = module;
     }
-    return member;
+    if (out_fields != NULL) {
+        *out_fields = v->fields + consumed;
+    }
+    if (out_nfields != NULL) {
+        *out_nfields = v->nfields - consumed;
+    }
+    return 1;
+}
+
+static const TcType *infer_const_value_type(Sem *s, const TcParseValue *v) {
+    const TcType *type;
+    if (v->kind == TC_PVAL_NAME) {
+        TcMember *member = NULL;
+        uint32_t module = 0;
+        const char **fields = NULL;
+        size_t nfields = 0;
+        size_t i;
+        if (!resolve_const_path(s, v, &member, &module, &fields,
+                                &nfields)) {
+            return NULL;
+        }
+        (void)module;
+        type = member->type;
+        for (i = 0; i < nfields; i++) {
+            TcStructDef *def = struct_def_for_type(s->an, type);
+            const TcField *field = find_struct_field(def, fields[i]);
+            if (field == NULL) {
+                return NULL;
+            }
+            type = field->type;
+        }
+        return type;
+    }
+    if (v->kind == TC_PVAL_INT) {
+        return tc_type_scalar(s->an->types,
+                              v->int_unsigned_suffix ? TC_TY_U64
+                                                     : TC_TY_I64);
+    }
+    if (v->kind == TC_PVAL_BOOL) {
+        return tc_type_scalar(s->an->types, TC_TY_BOOL);
+    }
+    if (v->kind == TC_PVAL_FLOAT) {
+        return tc_type_scalar(s->an->types,
+                              v->float_width == 32 ? TC_TY_F32 : TC_TY_F64);
+    }
+    return NULL;
 }
 
 static int eval_const_decl_int(TcAnalysis *an, uint32_t module_index,
@@ -4631,6 +4726,16 @@ static int eval_const_value_int(Sem *s, const TcParseValue *v,
 static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                                 const TcType *expected, TcConstInt *out,
                                 unsigned depth);
+static int eval_field_from_init(Sem *s, const TcParseConstInit *init,
+                                const TcType *value_type,
+                                const char **fields, size_t nfields,
+                                const TcType *expected, TcConstInt *out,
+                                unsigned depth);
+static int eval_field_from_value(Sem *s, const TcParseValue *v,
+                                 const TcType *value_type,
+                                 const char **fields, size_t nfields,
+                                 const TcType *expected, TcConstInt *out,
+                                 unsigned depth);
 
 static int eval_const_decl_int(TcAnalysis *an, uint32_t module_index,
                                TcMember *member, TcConstInt *out,
@@ -4683,15 +4788,37 @@ static int eval_const_value_int(Sem *s, const TcParseValue *v,
         }
         return 0;
     }
-    if (v->kind == TC_PVAL_NAME) {
-        uint32_t member_module = s->module_index;
-        TcMember *member = find_const_member_quiet(s, v, &member_module);
-        if (member == NULL ||
-            !tc_type_equal(member->type, expected)) {
+    if ((v->kind == TC_PVAL_INF || v->kind == TC_PVAL_NAN) &&
+        type_is_float(expected)) {
+        if (!const_special_float_bits(v, type_bits(s->an, expected),
+                                      &out->bits)) {
             return 0;
         }
-        return eval_const_decl_int(s->an, member_module, member, out,
-                                   depth + 1u);
+        out->type = expected;
+        return 1;
+    }
+    if (v->kind == TC_PVAL_NAME) {
+        TcMember *member = NULL;
+        uint32_t member_module = s->module_index;
+        const char **fields = NULL;
+        size_t nfields = 0;
+        if (!resolve_const_path(s, v, &member, &member_module, &fields,
+                                &nfields)) {
+            return 0;
+        }
+        if (nfields == 0) {
+            if (!tc_type_equal(member->type, expected)) {
+                return 0;
+            }
+            return eval_const_decl_int(s->an, member_module, member, out,
+                                       depth + 1u);
+        }
+        if (member->value_decl == NULL) {
+            return 0;
+        }
+        return eval_field_from_init(s, &member->value_decl->init,
+                                    member->type, fields, nfields,
+                                    expected, out, depth + 1u);
     }
     return 0;
 }
@@ -4706,11 +4833,113 @@ static int eval_int_operand(Sem *s, const TcParseInstr *instr, size_t index,
                                 depth + 1u);
 }
 
+static int eval_field_from_init(Sem *s, const TcParseConstInit *init,
+                                const TcType *value_type,
+                                const char **fields, size_t nfields,
+                                const TcType *expected, TcConstInt *out,
+                                unsigned depth) {
+    TcStructDef *def;
+    const TcField *field;
+    size_t field_index;
+    size_t i;
+    if (depth > 256 || init == NULL || value_type == NULL) {
+        return 0;
+    }
+    if (nfields == 0) {
+        if (init->is_op) {
+            return eval_const_instr_int(s, &init->op, expected, out,
+                                        depth + 1u);
+        }
+        return eval_const_value_int(s, &init->value, expected, out,
+                                    depth + 1u);
+    }
+    def = struct_def_for_type(s->an, value_type);
+    if (def == NULL) {
+        return 0;
+    }
+    field = find_struct_field(def, fields[0]);
+    if (field == NULL || field->type == NULL) {
+        return 0;
+    }
+    field_index = (size_t)(field - def->fields);
+    if (init->is_op) {
+        const TcParseInstr *instr = &init->op;
+        const TcParseArg *arg = NULL;
+        if (instr->op != TC_MAKE) {
+            return 0;
+        }
+        for (i = 1; i < instr->nargs; i++) {
+            if (instr->args[i].kind != TC_PARG_VALUE) {
+                continue;
+            }
+            if (instr->args[i].name != NULL) {
+                if (strcmp(instr->args[i].name, fields[0]) == 0) {
+                    arg = &instr->args[i];
+                    break;
+                }
+            } else if (i - 1u == field_index) {
+                arg = &instr->args[i];
+                break;
+            }
+        }
+        if (arg == NULL) {
+            return 0;
+        }
+        if (nfields == 1) {
+            return eval_const_value_int(s, &arg->value, field->type, out,
+                                        depth + 1u);
+        }
+        return eval_field_from_value(s, &arg->value, field->type,
+                                     fields + 1, nfields - 1, expected, out,
+                                     depth + 1u);
+    }
+    return eval_field_from_value(s, &init->value, value_type, fields,
+                                 nfields, expected, out, depth + 1u);
+}
+
+static int eval_field_from_value(Sem *s, const TcParseValue *v,
+                                 const TcType *value_type,
+                                 const char **fields, size_t nfields,
+                                 const TcType *expected, TcConstInt *out,
+                                 unsigned depth) {
+    TcMember *member = NULL;
+    uint32_t module = 0;
+    const char **own_fields = NULL;
+    size_t own_nfields = 0;
+    const char **combined;
+    size_t i;
+    if (depth > 256 || v == NULL || value_type == NULL) {
+        return 0;
+    }
+    if (nfields == 0) {
+        return eval_const_value_int(s, v, expected, out, depth + 1u);
+    }
+    if (v->kind != TC_PVAL_NAME ||
+        !tc_type_equal(infer_const_value_type(s, v), value_type) ||
+        !resolve_const_path(s, v, &member, &module, &own_fields,
+                            &own_nfields) ||
+        member->value_decl == NULL) {
+        return 0;
+    }
+    (void)module;
+    combined = (const char **)an_alloc(
+        s->an, (own_nfields + nfields) * sizeof(*combined));
+    for (i = 0; i < own_nfields; i++) {
+        combined[i] = own_fields[i];
+    }
+    for (i = 0; i < nfields; i++) {
+        combined[own_nfields + i] = fields[i];
+    }
+    return eval_field_from_init(s, &member->value_decl->init,
+                                member->type, combined,
+                                own_nfields + nfields, expected, out,
+                                depth + 1u);
+}
+
 static const TcType *infer_const_source_type(Sem *s,
                                             const TcParseValue *v) {
     if (v->kind == TC_PVAL_NAME) {
-        TcMember *member = find_const_member_quiet(s, v, NULL);
-        return member == NULL ? NULL : member->type;
+        return infer_const_value_type(s, v);
     }
     if (v->kind == TC_PVAL_INT) {
         return tc_type_scalar(s->an->types,
@@ -4775,6 +5004,47 @@ static int eval_float_to_int(const TcConstInt *source,
     return 1;
 }
 
+static int eval_to_float(const TcConstInt *source, const TcType *target,
+                          TcAnalysis *an, uint64_t *out) {
+    unsigned target_width;
+    long double value;
+    if (source == NULL || source->type == NULL || target == NULL ||
+        !type_is_float(target)) {
+        return 0;
+    }
+    target_width = type_bits(an, target);
+    if (type_is_float(source->type)) {
+        if (type_bits(an, source->type) == 32) {
+            value = (long double)const_bits_to_f32(source->bits);
+        } else {
+            value = (long double)const_bits_to_f64(source->bits);
+        }
+    } else if (type_is_bool(source->type)) {
+        value = source->bits != 0 ? 1.0L : 0.0L;
+    } else if (type_is_integer(source->type)) {
+        unsigned width = type_bits(an, source->type);
+        if (width == 0 || width > 64) {
+            return 0;
+        }
+        if (type_is_signed_integer(source->type)) {
+            value = (long double)(int64_t)const_sign_extend(source->bits,
+                                                            width);
+        } else {
+            value = (long double)(source->bits & const_mask(width));
+        }
+    } else {
+        return 0;
+    }
+    if (target_width == 32) {
+        *out = const_f32_to_bits((float)value);
+    } else if (target_width == 64) {
+        *out = const_f64_to_bits((double)value);
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
 static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                                 const TcType *expected, TcConstInt *out,
                                 unsigned depth) {
@@ -4830,7 +5100,8 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
         }
         if (type_is_float(type)) {
             if (instr->op != TC_ADD && instr->op != TC_SUB &&
-                instr->op != TC_MUL && instr->op != TC_DIV) {
+                instr->op != TC_MUL && instr->op != TC_DIV &&
+                instr->op != TC_MOD) {
                 return 0;
             }
             if (const_mask(type_bits(s->an, type)) == 0) {
@@ -4840,7 +5111,8 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 float fa = const_bits_to_f32(a.bits);
                 float fb = const_bits_to_f32(b.bits);
                 float r;
-                if (fb == 0.0f && instr->op == TC_DIV) {
+                if (fb == 0.0f &&
+                    (instr->op == TC_DIV || instr->op == TC_MOD)) {
                     return 0;
                 }
                 if (instr->op == TC_ADD) {
@@ -4849,8 +5121,15 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     r = fa - fb;
                 } else if (instr->op == TC_MUL) {
                     r = fa * fb;
-                } else {
+                } else if (instr->op == TC_DIV) {
                     r = fa / fb;
+                } else {
+                    float q = fa / fb;
+                    if (!isfinite((double)q) ||
+                        q < (float)LLONG_MIN || q > (float)LLONG_MAX) {
+                        return 0;
+                    }
+                    r = fa - (float)(long long)q * fb;
                 }
                 if (!isfinite((double)r)) {
                     return 0;
@@ -4860,7 +5139,8 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 double da = const_bits_to_f64(a.bits);
                 double db = const_bits_to_f64(b.bits);
                 double r;
-                if (db == 0.0 && instr->op == TC_DIV) {
+                if (db == 0.0 &&
+                    (instr->op == TC_DIV || instr->op == TC_MOD)) {
                     return 0;
                 }
                 if (instr->op == TC_ADD) {
@@ -4869,13 +5149,33 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     r = da - db;
                 } else if (instr->op == TC_MUL) {
                     r = da * db;
-                } else {
+                } else if (instr->op == TC_DIV) {
                     r = da / db;
+                } else {
+                    double q = da / db;
+                    if (!isfinite(q) || q < (double)LLONG_MIN ||
+                        q > (double)LLONG_MAX) {
+                        return 0;
+                    }
+                    r = da - (double)(long long)q * db;
                 }
                 if (!isfinite(r)) {
                     return 0;
                 }
                 out->bits = const_f64_to_bits(r);
+            }
+            out->type = type;
+            return 1;
+        }
+        if (type_is_bool(type)) {
+            if (instr->op == TC_AND) {
+                out->bits = a.bits && b.bits;
+            } else if (instr->op == TC_OR) {
+                out->bits = a.bits || b.bits;
+            } else if (instr->op == TC_XOR) {
+                out->bits = (a.bits != 0) != (b.bits != 0);
+            } else {
+                return 0;
             }
             out->type = type;
             return 1;
@@ -4889,9 +5189,43 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
         }
         mask = const_mask(width);
         switch (instr->op) {
-        case TC_ADD: out->bits = (a.bits + b.bits) & mask; break;
-        case TC_SUB: out->bits = (a.bits - b.bits) & mask; break;
-        case TC_MUL: out->bits = (a.bits * b.bits) & mask; break;
+        case TC_ADD:
+        case TC_SUB:
+        case TC_MUL:
+            if (type_is_signed_integer(type)) {
+                int64_t sa = (int64_t)const_sign_extend(a.bits, width);
+                int64_t sb = (int64_t)const_sign_extend(b.bits, width);
+                int64_t result;
+                int overflow;
+                if (instr->op == TC_ADD) {
+                    overflow = __builtin_add_overflow(sa, sb, &result);
+                } else if (instr->op == TC_SUB) {
+                    overflow = __builtin_sub_overflow(sa, sb, &result);
+                } else {
+                    overflow = __builtin_mul_overflow(sa, sb, &result);
+                }
+                if (overflow || !const_signed_fits_width(result, width)) {
+                    return 0;
+                }
+                out->bits = (uint64_t)result & mask;
+            } else {
+                uint64_t ua = a.bits & mask;
+                uint64_t ub = b.bits & mask;
+                uint64_t result;
+                int overflow;
+                if (instr->op == TC_ADD) {
+                    overflow = __builtin_add_overflow(ua, ub, &result);
+                } else if (instr->op == TC_SUB) {
+                    overflow = __builtin_sub_overflow(ua, ub, &result);
+                } else {
+                    overflow = __builtin_mul_overflow(ua, ub, &result);
+                }
+                if (overflow || !const_unsigned_fits_width(result, width)) {
+                    return 0;
+                }
+                out->bits = result & mask;
+            }
+            break;
         case TC_AND: out->bits = (a.bits & b.bits) & mask; break;
         case TC_OR: out->bits = (a.bits | b.bits) & mask; break;
         case TC_XOR: out->bits = (a.bits ^ b.bits) & mask; break;
@@ -4901,9 +5235,11 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 return 0;
             }
             if (type_is_signed_integer(type)) {
+                uint64_t min_bits = (uint64_t)1u << (width - 1u);
                 sa = (int64_t)const_sign_extend(a.bits, width);
                 sb = (int64_t)const_sign_extend(b.bits, width);
-                if (sb == 0 || (sa == INT64_MIN && sb == -1)) {
+                if (sb == 0 || ((a.bits & mask) == min_bits &&
+                               (b.bits & mask) == mask)) {
                     return 0;
                 }
                 out->bits = (instr->op == TC_DIV ? (uint64_t)(sa / sb)
@@ -4916,11 +5252,34 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
         case TC_SHL:
         case TC_SHR: {
             uint64_t count = b.bits;
+            if (type_is_signed_integer(type)) {
+                sb = (int64_t)const_sign_extend(b.bits, width);
+                if (sb < 0) {
+                    return 0;
+                }
+                count = (uint64_t)sb;
+            }
             if (count >= width) {
                 return 0;
             }
             if (instr->op == TC_SHL) {
-                out->bits = (a.bits << count) & mask;
+                if (type_is_signed_integer(type)) {
+                    sa = (int64_t)const_sign_extend(a.bits, width);
+                    int64_t smax =
+                        (int64_t)(((uint64_t)1u << (width - 1u)) - 1u);
+                    int64_t smin =
+                        -(int64_t)((uint64_t)1u << (width - 1u));
+                    if (sa > (smax >> count) || sa < (smin >> count)) {
+                        return 0;
+                    }
+                    out->bits = (a.bits << count) & mask;
+                } else {
+                    uint64_t ua = a.bits & mask;
+                    if (count != 0 && (ua >> (width - count)) != 0) {
+                        return 0;
+                    }
+                    out->bits = (ua << count) & mask;
+                }
             } else if (type_is_signed_integer(type)) {
                 sa = (int64_t)const_sign_extend(a.bits, width);
                 out->bits = (uint64_t)(sa >> count) & mask;
@@ -4964,6 +5323,15 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
             out->type = type;
             return 1;
         }
+        if (type_is_bool(type)) {
+            if (instr->op != TC_NOT ||
+                !eval_int_operand(s, instr, 1, type, &a, depth)) {
+                return 0;
+            }
+            out->bits = a.bits == 0 ? 1u : 0u;
+            out->type = type;
+            return 1;
+        }
         if (!type_is_integer(type)) {
             return 0;
         }
@@ -4977,26 +5345,141 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
         mask = const_mask(width);
         if (instr->op == TC_NOT) {
             out->bits = (~a.bits) & mask;
-        } else if (instr->op == TC_NEG) {
-            out->bits = (0u - a.bits) & mask;
         } else {
-            sa = (int64_t)const_sign_extend(a.bits, width);
-            out->bits = (sa < 0 ? (0u - a.bits) : a.bits) & mask;
+            uint64_t min_bits = (uint64_t)1u << (width - 1u);
+            if (type_is_signed_integer(type) &&
+                (a.bits & mask) == min_bits) {
+                return 0;
+            }
+            if (instr->op == TC_NEG) {
+                out->bits = (0u - a.bits) & mask;
+            } else {
+                sa = (int64_t)const_sign_extend(a.bits, width);
+                out->bits = (sa < 0 ? (0u - a.bits) : a.bits) & mask;
+            }
         }
         out->type = type;
         return 1;
+    case TC_EQ:
+    case TC_NE:
+    case TC_LT:
+    case TC_LE:
+    case TC_GT:
+    case TC_GE: {
+        TcConstInt rhs;
+        unsigned width;
+        int result = 0;
+        if (instr->nargs < 3) {
+            return 0;
+        }
+        type = check_type_arg(s, &instr->args[0]);
+        if (type == NULL ||
+            !eval_int_operand(s, instr, 1, type, &a, depth) ||
+            !eval_int_operand(s, instr, 2, type, &rhs, depth)) {
+            return 0;
+        }
+        if (type_is_float(type)) {
+            if (type_bits(s->an, type) == 32) {
+                float fa = const_bits_to_f32(a.bits);
+                float fb = const_bits_to_f32(rhs.bits);
+                switch (instr->op) {
+                case TC_EQ: result = fa == fb; break;
+                case TC_NE: result = fa != fb; break;
+                case TC_LT: result = fa < fb; break;
+                case TC_LE: result = fa <= fb; break;
+                case TC_GT: result = fa > fb; break;
+                case TC_GE: result = fa >= fb; break;
+                default: return 0;
+                }
+            } else {
+                double da = const_bits_to_f64(a.bits);
+                double db = const_bits_to_f64(rhs.bits);
+                switch (instr->op) {
+                case TC_EQ: result = da == db; break;
+                case TC_NE: result = da != db; break;
+                case TC_LT: result = da < db; break;
+                case TC_LE: result = da <= db; break;
+                case TC_GT: result = da > db; break;
+                case TC_GE: result = da >= db; break;
+                default: return 0;
+                }
+            }
+        } else if (type_is_bool(type)) {
+            if (instr->op != TC_EQ && instr->op != TC_NE) {
+                return 0;
+            }
+            result = instr->op == TC_EQ ? (a.bits == rhs.bits)
+                                        : (a.bits != rhs.bits);
+        } else if (type_is_integer(type)) {
+            width = type_bits(s->an, type);
+            if (width == 0 || width > 64) {
+                return 0;
+            }
+            if (type_is_signed_integer(type)) {
+                int64_t sa = (int64_t)const_sign_extend(a.bits, width);
+                int64_t sb = (int64_t)const_sign_extend(rhs.bits, width);
+                switch (instr->op) {
+                case TC_EQ: result = sa == sb; break;
+                case TC_NE: result = sa != sb; break;
+                case TC_LT: result = sa < sb; break;
+                case TC_LE: result = sa <= sb; break;
+                case TC_GT: result = sa > sb; break;
+                case TC_GE: result = sa >= sb; break;
+                default: return 0;
+                }
+            } else {
+                uint64_t ua = a.bits & const_mask(width);
+                uint64_t ub = rhs.bits & const_mask(width);
+                switch (instr->op) {
+                case TC_EQ: result = ua == ub; break;
+                case TC_NE: result = ua != ub; break;
+                case TC_LT: result = ua < ub; break;
+                case TC_LE: result = ua <= ub; break;
+                case TC_GT: result = ua > ub; break;
+                case TC_GE: result = ua >= ub; break;
+                default: return 0;
+                }
+            }
+        } else {
+            return 0;
+        }
+        out->bits = result ? 1u : 0u;
+        out->type = tc_type_scalar(s->an->types, TC_TY_BOOL);
+        return 1;
+    }
     case TC_CAST:
     case TC_TRUNC:
     case TC_BITCAST: {
         TcConstInt source;
         unsigned target_width;
         unsigned source_width;
-        if (instr->nargs < 2 ||
-            !eval_const_source(s, &instr->args[1].value, &source, depth)) {
+        if (instr->nargs < 2) {
             return 0;
         }
         type = check_type_arg(s, &instr->args[0]);
         if (type == NULL) {
+            return 0;
+        }
+        if ((instr->args[1].value.kind == TC_PVAL_INF ||
+             instr->args[1].value.kind == TC_PVAL_NAN) &&
+            (instr->op == TC_CAST || instr->op == TC_BITCAST)) {
+            unsigned width = type_bits(s->an, type);
+            const TcType *source_type = NULL;
+            if (instr->op == TC_CAST && type_is_float(type)) {
+                source_type = type;
+            } else if (instr->op == TC_BITCAST && width != 0) {
+                source_type = tc_type_scalar(s->an->types,
+                                             width == 32 ? TC_TY_F32
+                                                         : TC_TY_F64);
+            }
+            if (source_type == NULL ||
+                !const_special_float_bits(&instr->args[1].value, width,
+                                          &source.bits)) {
+                return 0;
+            }
+            source.type = source_type;
+        } else if (!eval_const_source(s, &instr->args[1].value, &source,
+                                      depth)) {
             return 0;
         }
         if (instr->op == TC_CAST) {
@@ -5029,6 +5512,10 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     out->bits = source.bits &
                                 const_mask(type_bits(s->an, type));
                 } else {
+                    return 0;
+                }
+            } else if (type_is_float(type)) {
+                if (!eval_to_float(&source, type, s->an, &out->bits)) {
                     return 0;
                 }
             } else {

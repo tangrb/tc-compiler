@@ -851,7 +851,8 @@
         "TC-SEM-CFG-0025",
         "TC-SEM-CFG-0026",
         "TC-SEM-CFG-0027",
-        "TC-SEM-CFG-0028"
+        "TC-SEM-CFG-0028",
+        "TC-SEM-CFG-0029"
       ],
       "chapter": "§7",
       "title": "控制流核心/CFG",
@@ -904,7 +905,10 @@
         "TC-SEM-ANN-0235",
         "TC-SEM-ANN-0236",
         "TC-SEM-ANN-0237",
-        "TC-SEM-ANN-0238"
+        "TC-SEM-ANN-0238",
+        "TC-SEM-ANN-0239",
+        "TC-SEM-ANN-0240",
+        "TC-SEM-ANN-0241"
       ],
       "chapter": "§8",
       "title": "函数/调用/注解",
@@ -3335,7 +3339,10 @@
         "TC-SEM-ANN-0235",
         "TC-SEM-ANN-0236",
         "TC-SEM-ANN-0237",
-        "TC-SEM-ANN-0238"
+        "TC-SEM-ANN-0238",
+        "TC-SEM-ANN-0239",
+        "TC-SEM-ANN-0240",
+        "TC-SEM-ANN-0241"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3359,7 +3366,8 @@
         "TC-TOOL-SEM-0017",
         "TC-TOOL-SEM-0109",
         "TC-TOOL-SEM-0111",
-        "TC-TOOL-SEM-0124"
+        "TC-TOOL-SEM-0124",
+        "TC-TOOL-SEM-0126"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3390,7 +3398,10 @@
         "TC-SEM-ANN-0235",
         "TC-SEM-ANN-0236",
         "TC-SEM-ANN-0237",
-        "TC-SEM-ANN-0238"
+        "TC-SEM-ANN-0238",
+        "TC-SEM-ANN-0239",
+        "TC-SEM-ANN-0240",
+        "TC-SEM-ANN-0241"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -5242,7 +5253,8 @@
         "TC-SEM-DI-0005",
         "TC-SEM-DI-0006",
         "TC-SEM-DI-0009",
-        "TC-SEM-CFG-0024"
+        "TC-SEM-CFG-0024",
+        "TC-SEM-CFG-0029"
       ],
       "code": "TC_CE_UNINITIALIZED",
       "print_name": "Uninitialized",
@@ -5290,7 +5302,8 @@
         "TC-SEM-DI-0001",
         "TC-SEM-DI-0007",
         "TC-SEM-DI-0008",
-        "TC-SEM-CFG-0024"
+        "TC-SEM-CFG-0024",
+        "TC-SEM-CFG-0029"
       ],
       "code": "TC_CE_UNINITIALIZED",
       "print_name": "Uninitialized",
@@ -11192,7 +11205,8 @@
         "TC-SEM-CFG-0003",
         "TC-SEM-CFG-0022",
         "TC-SEM-CFG-0023",
-        "TC-SEM-CFG-0024"
+        "TC-SEM-CFG-0024",
+        "TC-SEM-CFG-0029"
       ],
       "number": 3,
       "title": "同模块源序",
@@ -12184,7 +12198,10 @@
         "TC-SEM-ANN-0235",
         "TC-SEM-ANN-0236",
         "TC-SEM-ANN-0238",
-        "TC-TOOL-SEM-0124"
+        "TC-SEM-ANN-0239",
+        "TC-SEM-ANN-0240",
+        "TC-TOOL-SEM-0124",
+        "TC-TOOL-SEM-0125"
       ],
       "annotation": "@align",
       "location": "`@fast` 指针形参",
@@ -12210,8 +12227,12 @@
         "TC-SEM-ANN-0235",
         "TC-SEM-ANN-0236",
         "TC-SEM-ANN-0238",
+        "TC-SEM-ANN-0239",
+        "TC-SEM-ANN-0240",
         "TC-TOOL-SEM-0116",
         "TC-TOOL-SEM-0124",
+        "TC-TOOL-SEM-0125",
+        "TC-TOOL-SEM-0126",
         "TC-UNIT-ANN-0001"
       ],
       "annotation": "@align",
@@ -12240,7 +12261,9 @@
         "TC-TOOL-SEM-0116",
         "TC-SEM-ANN-0233",
         "TC-SEM-ANN-0237",
-        "TC-TOOL-SEM-0124"
+        "TC-SEM-ANN-0241",
+        "TC-TOOL-SEM-0124",
+        "TC-TOOL-SEM-0125"
       ],
       "annotation": "@range",
       "location": "`@fast` 整数形参",
@@ -12263,8 +12286,10 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-ANN-0237",
+        "TC-SEM-ANN-0241",
         "TC-TOOL-SEM-0116",
         "TC-TOOL-SEM-0124",
+        "TC-TOOL-SEM-0125",
         "TC-UNIT-ANN-0001"
       ],
       "annotation": "@range",
