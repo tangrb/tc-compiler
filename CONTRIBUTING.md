@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：S0 契约层与测试基建已实现，前端、VM 与原生后端尚未实现；历史实现已移除。
+感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：契约、LEX/SYN、IMPORT、名称/类型/转换/布局与静态指令检查已实现；CT、CFG/DI、调用顺序/安全、完整注解矩阵、VM 与原生后端尚未实现。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -10,7 +10,7 @@ English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
 - 0.0.46 标准勘误、歧义澄清、诊断/平台档案修订。
 - 原生编译器设计补全（IR、ABI、profile、路线图）。
-- `src/` 冻结契约、模块边界与 S0/S1+ 接口。
+- `src/` 冻结契约、模块边界与前端接口。
 - 32/64 字长语义、`usize`/`isize`、`sizeof`/`bitcast`/`trunc`/布局的目标相关规则。
 
 当前**不接受**：
@@ -37,7 +37,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S0 构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。两个工具尚未实现前端；合法调用会以退出码 70 返回未实现。
+构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。工具支持 `--syntax-only` 与 `--static-only` 部分检查；普通合法调用在静态阶段后以退出码 70 返回后续阶段未实现。
 
 ## 提 Issue
 
@@ -46,7 +46,7 @@ S0 构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。两个工具尚未实现
 - 目标文档与章节（标准/设计）；
 - 期望规则 vs 当前文本；
 - 若涉及 32/64：明确字长与示例；
-- 是否有可复现的 TC 片段（当前无编译器，仅作语义说明）。
+- 是否有可复现的 TC 片段（可用 `--static-only` 复现静态阶段行为）。
 
 ## 提 Pull Request
 

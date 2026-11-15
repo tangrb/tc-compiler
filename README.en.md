@@ -1,42 +1,54 @@
 # TC-Compiler
 
-TC **0.0.46** language/compiler specification and target design for the native compiler (TC → ASM → machine code).
+TC **0.0.46** language/compiler specification and target design for the native
+compiler (TC → ASM → machine code). This is the 0.0.46 clean-sheet branch: only
+the standard, design, test plan and the implementation rewritten from them are
+kept; historical implementation and tools live in git tags.
 
-This branch is the **0.0.46 clean-sheet branch**. The S0 contract layer/test infrastructure and the S1 LEX/SYN front end passed their gates; **S2 module discovery/IMPORT and S3 names/types/conversions/layout are implemented** (see the [G2](docs/gates/TC-G2门禁报告-0.0.46.md) and [G3](docs/gates/TC-G3门禁报告-0.0.46.md) reports). CT, CFG/DI/safety/annotations, the VM and the native backend remain future work. See [src/CONTRACTS.md](src/CONTRACTS.md) and the [G0 gate report](docs/gates/TC-G0门禁报告-0.0.46.md).
+## Current status
+
+- **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
+  names/types/conversions/layout, static instruction-shape checks, 32/64 static
+  profiles.
+- **Not implemented**: CT, CFG/DI, call ordering/safety, the full annotation matrix,
+  IR finalization, the VM and native backends.
+- Gates: G0–G3 PASS; **G3 allows S4**. See [gate status](docs/gates/README.en.md).
 
 ## Documents
 
 | Document | Purpose |
 | -------- | ------- |
-| [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements, and platform profiles |
-| [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend, and phasing |
+| [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
+| [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
+| [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope
 
-- **Both 32-bit and 64-bit are 0.0.46 targets**; `usize`/`isize` are platform-word types, and `ptr<T>`/`fnptr` are `usize` wide. The standard and design have been revised for both 32/64 profiles.
+- **Both 32-bit and 64-bit are targets**; `usize`/`isize` are platform-word types
+  and `ptr<T>`/`fnptr` are `usize` wide.
 - **Closed set of 80 diagnostic codes**: 65 `TC_CE_*` + 15 `TC_RE_*`.
-- No C host public library, embedding API, or ABI; `tc-vm`/`tc-aot` are the only tool entry points. `--syntax-only` runs LEX/SYN only and `--static-only` runs LEX/SYN/IMPORT/SEM (exit 0 is a partial check, never a valid-program claim); a normal invocation still exits 70 after the implemented static phases.
-- No historical design or implementation compatibility. Historical code remains in git tags and is not maintained on this branch.
+- No C host public library, embedding API or ABI; `tc-vm`/`tc-aot` are the only
+  tool entry points.
 
 ## Repository layout
 
 ```text
-docs/                0.0.46 standard and design
-src/                 0.0.46 implementation
+docs/                 standard, design, test plan, gate status
+src/                  0.0.46 implementation
   base/               assert / version
-  contract/           S0 contract check / zero-pass policy
-  diagnostic/         closed 80-code table / first-diagnostic selection
-  frontend/           input / num / lex / parse; module (discovery/IMPORT); sem (names/types/conversions/layout)
-  ir/                 type / instr / operand / block / span / region / object / address / pointer_state
-  runtime/            alloc / io / trap / profile / module_loader (sem_* from S6)
-  vm/                 interp / memory / pointer_state (S6)
-  backend/            aarch64 / arm32 / riscv32 / common (S7+)
-  driver/             tc-vm / tc-aot + shared CLI/profile selection
-tests/                L0/L1 tests, L3 conformance, harness, traceability, golden and determinism gates
+  contract/           contract checks / zero-pass policy
+  diagnostic/         closed 80-code set / generated table / first diagnostic
+  frontend/           input num lex parse module sem
+  ir/                 type instr operand block ir region object address structs pointer_state
+  runtime/            alloc io trap profile module_loader
+  vm/                 interp (later)
+  backend/            aarch64 arm32 riscv32 common (later)
+  driver/             tc-vm / tc-aot CLI
+tests/                L0/L1, L3 conformance, harness, traceability, golden, determinism
 ```
 
-## Build
+## Build and test
 
 ```sh
 cmake -S . -B build
@@ -44,14 +56,26 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S0–S3 build the private `tc_core` library plus `tc-vm`/`tc-aot`.  `--syntax-only` performs LEX/SYN and `--static-only` performs LEX/SYN/IMPORT/SEM (exit 0 is a partial check); a normal invocation exits 70 after the implemented static phases because CT/code generation are unavailable. Documented limits: 4 MiB source, 16 KiB token (identifier/annotation/float), 256 nesting levels; exceeding them returns `tc_error_internal` (exit 71), never a language diagnostic.
+Tools currently support:
+
+- `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
+  **not a valid program**.
+- `--static-only <source>`: LEX/SYN/IMPORT/SEM; exit 0 still does not claim a valid
+  program, since CT and code generation have not run.
+- A normal invocation explicitly exits 70 after the static stages.
+
+Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal`/
+`TC_ERR_OUT_OF_MEMORY`, never a language diagnostic. Documented limits: 4 MiB source,
+16 KiB token, 256 type/block nesting levels; exceeding them returns
+`tc_error_internal` (exit 71). Contract and test conventions are in
+[src/CONTRACTS.md](src/CONTRACTS.md) and [tests/README.md](tests/README.md).
 
 ## Contributing
 
-- [CONTRIBUTING.en.md](CONTRIBUTING.en.md) ([中文](CONTRIBUTING.md))
-- [SECURITY.en.md](SECURITY.en.md) ([中文](SECURITY.md))
-- [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) ([中文](CODE_OF_CONDUCT.md))
-- [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md))
+- [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
+- [SECURITY.en.md](SECURITY.en.md)
+- [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md)
+- [CHANGELOG.en.md](CHANGELOG.en.md)
 
 ## License
 

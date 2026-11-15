@@ -1,26 +1,29 @@
-# 门禁报告（G0–G10）
+# 门禁状态（0.0.46）
 
-本目录集中保存 TC 0.0.46 的**阶段门禁报告**（过程性文档）。语言语义、诊断、接受集与
-可追溯性仍以 [标准](../TC语言及编译器标准-0.0.46.md)、[设计](../TC原生编译器设计说明书-0.0.46.md)
-与 [开发测试计划](../TC开发测试计划-0.0.46.md) 为唯一依据；门禁报告只记录证据、审计与判定，
-不增加或放宽任何规范要求。
+本目录只保留每个已完成阶段的**当前门禁结论与可复现证据入口**。逐轮审计记录、缺陷修复过程、
+历史 commit/环境快照不进入分支；需要追溯时使用 git 历史。
 
-| 门禁 | 阶段 | 结论 | 报告 |
+| 门禁 | 阶段 | 结论 | 记录 |
 | ---- | ---- | ---- | ---- |
-| G0 | S0 契约冻结与测试基建 | **PASS**；允许进入 S1 | [TC-G0门禁报告-0.0.46.md](TC-G0门禁报告-0.0.46.md) |
-| G1 | S1 LEX/SYN 与扁平 parse IR | **PASS**；允许进入 S2 | [TC-G1门禁报告-0.0.46.md](TC-G1门禁报告-0.0.46.md) |
-| G2 | S2 模块发现与 IMPORT | **PASS**；允许进入 S3 | [TC-G2门禁报告-0.0.46.md](TC-G2门禁报告-0.0.46.md) |
-| G3 | S3 名称、类型、转换与布局 | **PASS**；允许进入 S4 | [TC-G3门禁报告-0.0.46.md](TC-G3门禁报告-0.0.46.md) |
+| G0 | S0 契约冻结与测试基建 | **PASS** | [G0](TC-G0门禁报告-0.0.46.md) |
+| G1 | S1 LEX/SYN 与扁平 parse IR | **PASS** | [G1](TC-G1门禁报告-0.0.46.md) |
+| G2 | S2 模块发现与 IMPORT | **PASS** | [G2](TC-G2门禁报告-0.0.46.md) |
+| G3 | S3 名称、类型、转换与布局 | **PASS** | [G3](TC-G3门禁报告-0.0.46.md) |
 
-后续 S2–S10 的 G2–G10 报告继续加入本目录；每份报告须记录 reviewed code commit、
-独立评审/审计结论、适用/不适用门禁项与明确的范围说明。当前 S0/S1 报告均以通过状态签署，
-并保留首轮审计发现与修复记录（见 G1 §12）。
+**当前状态**：G3 通过，允许进入 S4。S4 起（CFG/DI、调用顺序、安全/注解、CT、VM、后端）
+尚未实现；覆盖矩阵中的未覆盖项是后续阶段范围，不是已完成阶段的遗漏。
 
-返回：[文档地图](../README.md) · [仓库入口](../../README.md)
+复现：
 
-## English
+```sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+python3 tests/conformance/static/s1_cases.py --check
+python3 tests/conformance/static/s2s3_cases.py --check
+python3 tests/traceability/coverage.py --check
+```
 
-This directory holds the 0.0.46 phase **gate reports** (process documents).  The
-language standard, design and test plan remain the sole normative sources; a
-gate report records evidence, independent audit and the gate decision only.
-G0 (S0), G1 (S1), G2 (S2) and G3 (S3) are PASS; G3 allows S4.  Future G4–G10 reports belong here.
+规范依据始终是 [标准](../TC语言及编译器标准-0.0.46.md)、
+[设计](../TC原生编译器设计说明书-0.0.46.md) 与
+[开发测试计划](../TC开发测试计划-0.0.46.md)；门禁记录不增加或放宽任何规范要求。

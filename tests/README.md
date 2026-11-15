@@ -1,35 +1,26 @@
 # Tests
 
-S0 provides the contract/traceability infrastructure; S1 adds the LEX/SYN
-front-end suites; S2/S3 add module/IMPORT and name/type/conversion/layout
-suites.  The staging, suites, coverage checklist and gates are defined in
-[TC 开发测试计划 0.0.46](../docs/TC开发测试计划-0.0.46.md).
+测试层级、覆盖清单与门禁要求见
+[TC 开发测试计划 0.0.46](../docs/TC开发测试计划-0.0.46.md)；当前门禁状态见
+[门禁状态](../docs/gates/README.md)。
 
-| Suite | Location | Level | Current content |
+| Suite | Location | Level | Content |
 | --- | --- | --- | --- |
-| Contract/unit | `unit/` | L0/L1 | S0 contract checks; `tc_frontend_test` (688 checks); `tc_sem_test` (58 checks: type identity, layout, W sizes, freeze, module order/instances) |
-| Conformance | `conformance/` | L3 | S1 LEX/SYN cases; S2 import and S3 name/type/conversion/layout cases; acceptance tool cases; property case; see [conformance/README.md](conformance/README.md) |
-| Harness | `harness/` | — | Metadata parser, 7 deciders, fail-closed self-tests, adapter for `--syntax-only` and `--static-only` (configured by CMake) |
-| Traceability | `traceability/` | — | 80-code table, coverage matrix (634 slots; S0–S3 rows marked covered, later stages explicit), generator checks |
-| Golden | `golden/` | L3 | Specification-derived expectations with independent review (`common/`; W-independent LEX/SYN) |
-| Tools | `tools/` | L6 | `tc-vm`/`tc-aot` CLI contract (usage, profiles, `--syntax-only`, diagnostics, implementation errors) |
-| Determinism | `determinism/` | L7 | repeated runs, hash-seed/order perturbation; byte-identical harness JSON (`s1`, `s2s3`) |
+| Contract/unit | `unit/` | L0/L1 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例） |
+| Conformance | `conformance/` | L3 | 静态 LEX/SYN/IMPORT/SEM 用例、接受工具用例、属性用例；见 [conformance/README.md](conformance/README.md) |
+| Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、`--syntax-only`/`--static-only` adapter |
+| Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查 |
+| Golden | `golden/` | L3 | 规范推导的期望值及评审记录 |
+| Tools | `tools/` | L6 | `tc-vm`/`tc-aot` CLI 契约（用法、档案、部分检查、诊断、实现错误） |
+| Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON |
 
-Run everything:
+运行：
 
 ```sh
 cmake -S . -B build && cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S1/S2/S3 gate entries include `frontend.unit`, `sem.unit`,
-`conformance.s1_cases`, `conformance.s2s3_cases`, `harness.conformance`,
-`adapter.selftest`, `determinism.s1`, `determinism.s2s3` and `cli.contract`.  A
-real gate uses the adapter with no `--allow-not-implemented`;
-`not_implemented` is never a pass.
-
-Case-level conformance suites are organized by normative object, not by
-implementation module.  The static expectations must cite the standard
-(`spec`) and are never derived from compiler output.  Differential tests
-(S7+) compare VM and AOT at the same profile; 32/64 results are never compared
-cross-profile.
+门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
+一致性用例按规范对象组织，期望必须引用标准条款，不得由编译器输出回填。
+32/64 结果分档案保存；差分测试（后续阶段）只在同一档案内比较 VM 与 AOT。

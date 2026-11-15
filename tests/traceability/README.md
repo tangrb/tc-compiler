@@ -1,6 +1,6 @@
 # Traceability and structural coverage (0.0.46)
 
-This directory implements the S0 traceability skeleton required by the test
+This directory implements the traceability skeleton required by the test
 plan §3.6, §7.5, §8 and §10.1:
 
 - `codes.json` — the 80-code machine-readable table (65 `TC_CE_*` +
@@ -45,106 +45,16 @@ python3 tests/traceability/coverage.py
 python3 tests/traceability/coverage.py --check
 
 # 4. Write a gate report elsewhere without touching the committed skeleton.
-python3 tests/traceability/coverage.py --out-dir build/coverage/S0
+python3 tests/traceability/coverage.py --out-dir build/coverage
 
 # 5. Golden library validation.
 python3 tests/golden/validate.py
 ```
 
-`coverage.py --check` proves the JSON and Markdown are current; it does **not**
-require every row to be covered before its stage.  A covered-row gate belongs
-to each stage, where zero uncovered rows for that stage (or an approved
-suspension list) is required.  After S3 the matrix has 231 items / 634 slots:
-245 covered slots, no suspended rows, and 389 uncovered slots (S4–S10 work:
-CFG/DI, call ordering/safety, annotations, CT, opcodes, VM/backend, platform).
-The S1-covered rows are:
-
-- `chapter:§2:{positive,negative}` and `chapter:§14:{positive,negative}`
-  (LEX forms and EBNF, from `tests/conformance/static/s1_cases.py`);
-- all four slots (`trigger`, `no_false_positive`, `position`, `stage`) of the
-  seven LEX/SYN codes (`TC_CE_SYNTAX`, `TC_CE_MISSING_END`,
-  `TC_CE_MODULE_LAYER`, `TC_CE_MISSING_VISIBILITY`,
-  `TC_CE_PROGRAM_MODE_MISUSE`, `TC_CE_VAR_MISSING_INIT`,
-  `TC_CE_LITERAL_LEX_RANGE`);
-- S1 real-source ids added to `first_diag_rule` 01 (`TC-UNIT-ORDER-0001`),
-  03 (`TC-UNIT-ORDER-0002/0003`) and 04 (`TC-SYN-END-0001` MISSING_END and
-  `TC-SYN-VAR-0001` VAR_MISSING_INIT over generic SYNTAX) alongside the S0
-  comparator rows.
-
-The remaining L0-covered rows are the S0 comparator/same-site pins.
-
-S2 closes the five `TC_CE_IMPORT_*` codes (trigger/no-false-positive/position/
-stage), `chapter:§4`, `first_diag_rule:07` and `design12:13` via the import
-suite plus `TC-UNIT-MODULE-0001/0002`.  S3 closes the name/type/conversion/
-layout codes, `chapter:§0/§3/§5/§6/§13`, `first_diag_rule:06/08`, `design12:06/09`
-and every `flip32_64` row (17 items × w32/w64) via `sem/`, `accept_s3/` and
-`tc_sem_test`.  S4–S10 rows remain explicit and uncovered; they are listed in
-the G3 report's deferred-work section.
-
-## What the matrix contains
-
-| Category | Rows (S0) | Source |
-|---|---:|---|
-| `chapter` | 15 chapters × positive/negative = 30 | test plan §8.1, cross-checked against standard §0–§14 |
-| `code` | 80 codes × trigger/no-false-positive/position/stage = 320, plus w32/w64 slots for the 12 W-sensitive codes = 344 | `codes.json`, standard §12.3/§12.5.1, §13.2.2 |
-| `opcode` | 63 opcodes × normal/static-error, plus a trap slot where §6.2 says trap | standard §6.2, cross-checked against the `TcOpcode` enum in design §3.2 |
-| `design12` | 15 items × suite-mapping/gate = 30 | design §12, test plan §8.2 |
-| `first_diag_rule` | 10 rules × combination case = 10; 7 covered by L0, 3 N/A(S0) | standard §12.2, test plan §6.1 |
-| `same_site_priority` | 5 explicit priorities: SAFE over unsafe, call argument order, make field order, call safety first, negative shift before overflow | standard §12.2 #5/#10, §12.3, §8.8.2/§9 |
-| `flip32_64` | 17 rows × w32/w64 = 34 | standard §13.2.2 |
-| `annotation` | 16 | standard §2.3/§8.6 |
-| `device_policy` | 4 | design §8 `TcDevicePolicy` |
-| `io_source_state` | 4: OK, EOF, ERROR, short read | design §7.2 `TcIoSrc` |
-| `exit_strategy` | 2: normal and trap exit | design §8 `TcExitPolicy` |
-
-The opcode list is parsed from the normative §6.2 tables, so it contains the
-63 spellings including `.wrap`, `.ieee` and `.volatile`; the 51 base names are
-cross-checked against the design's 51 `TC_*` enum values.  If either document
-changes, generation fails instead of silently producing a stale list.
-
-## Explicit-uncovered rule
-
-1. Every row is emitted as `"uncovered"` by default.  The only exceptions are
-   named S0 L0 contract rows in `L0_COVERED_ROWS` (`TC-L0-DIAG-0001`…`0009`
-   for `first_diag_rule`/`same_site_priority`) and named S1 LEX/SYN rows in
-   `S1_COVERED_ROWS`; both carry explicit case ids, listed in
-   `tests/unit/README.md` and `tests/conformance/static/s1_cases.py`.
-2. A row may be marked `covered` **only** when it carries at least one real
-   case id (test plan §3.3 format, e.g. `TC-LEX-LIT-0007@w64`).
-3. `suspended` is an explicit N/A(S0) status with a reason and closing stage
-   in `SCOPE_NA_ROWS` (currently first-diag rules 06–08; close in S3/S4); it is
-   never counted as covered or silently treated as an uncovered blocker.  Do not silently omit a
-   row, rename it, or replace a missing case with a skip.
-4. Missing coverage is therefore always visible in both
-   `coverage.generated.json` and `coverage-report.md`.  An unexplained
-   uncovered item blocks the stage gate (§7.5, Appendix D).
-
-## CTest interface for the lead
-
-Suggested CMake/CTest registration (paths relative to the repository root;
-the scripts need no environment variables):
-
-```cmake
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-
-add_test(NAME trace.codes
-         COMMAND ${Python3_EXECUTABLE} tests/traceability/check_codes.py)
-add_test(NAME trace.coverage
-         COMMAND ${Python3_EXECUTABLE} tests/traceability/coverage.py --check)
-add_test(NAME trace.golden
-         COMMAND ${Python3_EXECUTABLE} tests/golden/validate.py)
-
-set_tests_properties(trace.codes trace.coverage trace.golden
-                     PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-```
-
-- `check_codes.py [--codes PATH] [--standard PATH] [--c-table-dump PATH]`
-  returns 0/1 and prints a one-line `OK:`/`FAIL:` summary plus details.
-- `coverage.py [--check] [--out-dir DIR] [--codes PATH]` returns 0/1 and
-  prints per-category counts plus the uncovered total.  `--out-dir` lets a
-  gate copy the report into a build artifact directory.
-- `validate.py [ROOT]` recursively validates every `*.golden.yaml`; default
-  root is `tests/golden`.
-
-If `codes.json` is absent, `check_codes.py` and `coverage.py` fail with a
-clear `codes.json missing: ...` message instead of fabricating a table.
+`coverage.py --check` proves the JSON and Markdown are current; it does not
+require every row to be covered before its stage.  Current matrix: 231 items /
+634 slots, **245 covered / 389 uncovered / 0 suspended**.  Covered rows are the
+completed contract/LEX/SYN/IMPORT/SEM requirements; uncovered rows are S4–S10
+work (CFG/DI, call ordering/safety, annotations, CT, opcodes, VM/backend,
+platform).  Stage detail lives in the generated coverage report; gate conclusions
+are in [docs/gates/README.md](../../docs/gates/README.md).

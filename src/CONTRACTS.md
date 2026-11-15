@@ -1,12 +1,12 @@
-# TC 0.0.46 S0 frozen contracts
+# TC 0.0.46 frozen contracts
 
 **Status: frozen for the 0.0.46 clean-sheet implementation.** This file is the
-review index for the S0 contract deliverables. Language legality, diagnostics
+review index for the frozen contract deliverables. Language legality, diagnostics
 and observable behavior remain governed only by
 [the 0.0.46 standard](../docs/TC语言及编译器标准-0.0.46.md); architecture is
 governed by [the design](../docs/TC原生编译器设计说明书-0.0.46.md).
 
-S0 infrastructure lives outside the four language layers so no phase owns it:
+Shared infrastructure lives outside the four language layers so no phase owns it:
 `base/` (assert/version), `contract/` (freeze check and zero-pass policy) and
 `diagnostic/` (closed code set and first-diagnostic selection, also used by the
 runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
@@ -58,9 +58,9 @@ language diagnostic.
 - 32-bit and 64-bit profiles are separate instances. Static results, layouts,
   consts, objects and golden values are never compared across W.
 
-## S1 front end (implemented; not a frozen cross-module contract)
+## Front end (implemented; not a frozen cross-module contract)
 
-S1 adds the LEX/SYN pipeline under `src/frontend/`:
+The LEX/SYN pipeline lives under `src/frontend/`:
 
 | Area | Files | Facts |
 | --- | --- | --- |
@@ -85,7 +85,7 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 <file>:<line>:<column>: error[<LEX|SYN>]: <TC_CE_*>: <print-name>
 ```
 
-## S2/S3 static pipeline (implemented; not a frozen cross-module contract)
+## Static pipeline (implemented; not a frozen cross-module contract)
 
 | Area | Files | Facts |
 | --- | --- | --- |
@@ -101,6 +101,36 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 
 The type table is frozen after Analyze.  Final `TcInstr`/`TcIR` materialization,
 CFG/DI, call ordering/safety, annotation matrices and CT are later stages.
+
+### Current implementation conventions
+
+- `TC_CE_OPERAND_COUNT` always reports at the instruction mnemonic, including
+  type-argument shape, operand-kind and no-result-LHS violations.
+- Named operands are accepted only for `make` fields and direct `call`
+  arguments; `call_indirect` named arguments are `UNKNOWN_ARGUMENT`, and a
+  named function/`fp` target or type argument is `OPERAND_COUNT`.
+- If positional and named call arguments or make fields are mixed and the
+  argument/field set would otherwise be complete, `ARGUMENT_ORDER`/`FIELD_ORDER`
+  is reported at the first *named* argument/field.
+- Module layout/type definitions use a dependency-first DFS postorder over the
+  import DAG; diagnostics still use `module_order`.
+- `Self.S` is not type syntax (`Self` is a keyword, not `IDENT`); type
+  parameters do not accept `Self.*`. Qualified imported type names use
+  `m.S`.
+
+### Deferred decisions
+
+- `call_indirect nullptr`: statically rejected as `LITERAL_TYPE`; the runtime
+  `TC_RE_NULL_FUNCTION_POINTER` path and the signature-inference question are
+  deferred to the call/runtime stage.
+- `-0` for an unsigned expected type: treated as an explicit negative literal
+  (`LITERAL_TYPE`); the mathematical-zero reading remains an open clarification.
+- `.nsw`/`.nuw` outside `@fast` with a sign mismatch reports `ANNOTATION` in
+  the current implementation; the `MODE`-vs-`ANNOTATION` precedence is deferred
+  to the annotation stage.
+- `TcField.padding` is `uint32_t` (design §2.1); padding above `UINT32_MAX`
+  keeps layout size/offset correct but caps the metadata.  Resolve before IR
+  finalization/backends consume the count.
 
 ## Not frozen here (later stages, same headers)
 

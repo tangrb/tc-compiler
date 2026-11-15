@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: the S0 contract layer and test infrastructure are implemented; the front end, VM and native backend are still to be built. The historical implementation has been removed.
+Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout and static instruction checks are implemented; CT, CFG/DI, call ordering/safety, the full annotation matrix, VM and native backend are still to be built.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -10,7 +10,7 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.en.md
 
 - 0.0.46 standard errata, ambiguity clarifications, diagnostic/platform-profile revisions.
 - Native compiler design: IR, ABI, profiles, roadmap.
-- `src/` frozen contracts, module boundaries and S0/S1+ interfaces.
+- `src/` frozen contracts, module boundaries and front-end interfaces.
 - 32/64-bit semantics: `usize`/`isize`, `sizeof`, `bitcast`/`trunc`, layout, and target-dependent rules.
 
 Not accepted:
@@ -37,7 +37,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S0 builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The tools do not implement the front end yet; a well-formed invocation exits 70.
+Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The tools support `--syntax-only` and `--static-only` partial checks; a normal well-formed invocation exits 70 after the static stages.
 
 ## Issues
 
@@ -46,7 +46,7 @@ Please search existing issues and documents first. Include:
 - target document and section (standard/design);
 - expected rule vs current text;
 - for 32/64 issues, the word size and an example;
-- a minimal TC snippet if it clarifies semantics (no compiler exists yet).
+- a minimal TC snippet if it clarifies semantics (reproducible with `--static-only`).
 
 ## Pull requests
 
