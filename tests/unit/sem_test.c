@@ -421,20 +421,29 @@ static void test_annotation_cast_w32(void) {
     static const char *source =
         "#lib\n"
         "public const X: isize = cast isize, 4294967304\n"
+        "public const Y: isize = cast isize, 2147483648.0\n"
         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func g(@align(Self.Y) p: ptr<int32>) void then\n"
         "end\n";
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
     TcAnalysis *an = analyze_lib_text(source, 32, &status, &diag);
     const TcFuncSig *f;
+    const TcFuncSig *g;
     if (an == NULL) {
         return;
     }
     CHECK(status == TC_ANALYSIS_OK);
     f = tc_analysis_find_func(an, NULL, "f");
+    g = tc_analysis_find_func(an, NULL, "g");
     CHECK(f != NULL && f->nparams == 1);
+    CHECK(g != NULL && g->nparams == 1);
     if (f != NULL && f->nparams == 1) {
         CHECK((f->params[0].flags & TC_PARAM_ALIGN) == 0);
+    }
+    if (g != NULL && g->nparams == 1) {
+        CHECK((g->params[0].flags & TC_PARAM_ALIGN) == 0);
     }
     tc_analysis_destroy(an);
 }

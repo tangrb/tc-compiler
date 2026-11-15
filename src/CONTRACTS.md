@@ -136,9 +136,11 @@ as a `TcUnit`.
   numeric/bool `cast`/`trunc`/`bitcast`, and scalar
   float arithmetic/conversion forms including `mod` and int-to-float chains),
   then validated and recorded.  Invalid values report `TC_CE_ANNOTATION` at
-  the endpoint token.  Strict evaluation failures return unresolved; SEM does
-  not wrap and does not emit an annotation diagnostic, leaving the CT-owned
-  `TC_CE_CONST_*` error.
+  the endpoint token.  Floating evaluation uses fixed binary32/binary64 bit
+  rules, not host `fenv` or `long double`: cross-type NaN becomes canonical
+  quiet NaN, exact subnormals retain their value, and strict invalid/overflow/
+  underflow cases return unresolved so CT reports `TC_CE_CONST_*`.  SEM does
+  not wrap and does not emit an annotation diagnostic.
 - `MISSING_ARGUMENT` points its related position at the earliest missing
   parameter declaration (call mnemonic stays primary); `DUPLICATE_ARGUMENT`
   relates the first duplicate.

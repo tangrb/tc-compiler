@@ -1,0 +1,7 @@
+#lib
+public const A: int32 = shl int32, 1, 40
+public const B: uint32 = shl uint32, 4, 30
+public @fast func a(@align(Self.A) p: ptr<int32>) void then
+end
+public @fast func b(@align(Self.B) p: ptr<int32>) void then
+end

@@ -20,14 +20,14 @@ S4 交付：CFG/可达性、DI 最大固定点、`MISSING_RETURN`、标签与控
 | 标签/控制 | `TC-SEM-CFG-0005`…`0029`、`TC-TOOL-SEM-0112`/`0118` | 通过 |
 | 安全静态保证 | `TC-SEM-SAFE-0101`…`0117`、`TC-SEM-CALL-0108`…`0111`/`0121`、`TC-TOOL-SEM-0107`/`0108`/`0113`/`0114`/`0119` | 通过 |
 | `@safe` 优先与空 unsafe 块 | `TC-SEM-SAFE-0109`…`0111`/`0114`/`0116` | 通过 |
-| 注解矩阵与 const 端点 | `TC-SEM-ANN-0201`…`0248`、`TC-TOOL-SEM-0109`/`0111`/`0116`/`0124`/`0125`/`0126`/`0127`/`0128`/`0129`/`0130`/`0131`/`0132`/`0133`、`TC-UNIT-ANN-0001` | 通过 |
+| 注解矩阵与 const 端点 | `TC-SEM-ANN-0201`…`0250`、`TC-TOOL-SEM-0109`/`0111`/`0116`/`0124`/`0125`/`0126`/`0127`/`0128`/`0129`/`0130`/`0131`/`0132`/`0133`/`0134`/`0135`/`0137`/`0138`、`TC-UNIT-ANN-0001` | 通过 |
 | 承诺违反不静态拒绝 | `TC-TOOL-SEM-0110` | 通过 |
 | 首诊组合（§12.2 #1–#10） | L0 比较器测试；S4 组合 `TC-SEM-CFG-0003`/`0004`/`0016`/`0017`/`0022`/`0023`/`0024`/`0027`/`0028`/`0029`、`TC-SEM-CALL-0101`/`0105`/`0106`/`0107`/`0114` | 通过 |
 | 32/64 注解参数 | `TC-SEM-ANN-0213`/`TC-TOOL-SEM-0120`（w32）、`TC-TOOL-SEM-0017`/`0121`（w64） | 通过 |
 
 ## 覆盖
 
-- 一致性用例：S4 表 130 个编译用例、33 个接受用例；S1/S2/S3 表继续通过。
+- 一致性用例：S4 表 132 个编译用例、37 个接受用例；S1/S2/S3 表继续通过。
 - 80 码：S4 涉及的 `DUPLICATE_LABEL`、`LABEL_NOT_FOUND`、`CONDITION_TYPE`、
   `SWITCH_TYPE`、`RETURN_TYPE`、`RETURN_FORM`、`RETURN_OUTSIDE_FUNCTION`、
   `MISSING_RETURN`、五个 `ARGUMENT_*`、`UNINITIALIZED`、四个安全码、
@@ -56,7 +56,9 @@ python3 tests/tools/docs_cleanup_check.py
   比较）、`sizeof`、数值/布尔 `cast`/`trunc`/`bitcast`、标量浮点
   算术/转换（含 `mod`、int→float 链）。合法值按 W 校验并写入 `TcParam`；
   strict 求值失败返回未解析，不产生 SEM 注解诊断，由 CT 报
-  `TC_CE_CONST_*`；见 [CONTRACTS](../../src/CONTRACTS.md)。
+  `TC_CE_CONST_*`。浮点求值使用固定 binary32/64 位规则，不依赖宿主
+  `fenv`/`long double`；异类型 NaN canonical、精确非规格化保留；见
+  [CONTRACTS](../../src/CONTRACTS.md)。
 - `call_indirect nullptr` 的无签名静态定型仍按 `LITERAL_TYPE` 拒绝；运行时
   `TC_RE_NULL_FUNCTION_POINTER` 路径属于 VM 阶段。
 - CFG/DI 是前端内部逐单元事实，尚未物化为 `TcUnit`；IR 最终化属于 S5。

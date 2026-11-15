@@ -33,10 +33,11 @@ add_library(tc_core STATIC
 
 target_include_directories(tc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 if(UNIX AND NOT APPLE)
-    # fenv/fmod for the exact SEM constant evaluator.
+    # fmod/fmodf for the exact SEM constant evaluator.
     target_link_libraries(tc_core PUBLIC m)
 endif()
-target_compile_options(tc_core PRIVATE -Wall -Wextra -Werror -Wpedantic)
+target_compile_options(tc_core PRIVATE -Wall -Wextra -Werror -Wpedantic
+    -ffp-contract=off)
 set_target_properties(tc_core PROPERTIES
     C_VISIBILITY_PRESET hidden
     POSITION_INDEPENDENT_CODE OFF)

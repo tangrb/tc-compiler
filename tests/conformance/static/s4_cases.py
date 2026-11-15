@@ -1462,6 +1462,32 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0249",
+        "§6.3.2 精确非规格化结果不是 strict 下溢；R=2^-1023 精确，"
+        "cast int32 得 0，@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const N: float64 = 2.2250738585072014e-308\n"
+         "public const R: float64 = mul float64, Self.N, 0.5\n"
+         "public const X: int32 = cast int32, Self.R\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0250",
+        "§6.3.2 f32 精确非规格化结果保留值；cast int32 得 0，"
+        "@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const N: float32 = 1.1754944e-38f\n"
+         "public const R: float32 = mul float32, Self.N, 0.5f\n"
+         "public const X: int32 = cast int32, Self.R\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -1789,6 +1815,73 @@ POSITIVE = [
          "public const H: usize = 10\n"
          "public @fast func f(@align(Self.A) p: ptr<int32>, "
          "@range(Self.L, Self.H) n: usize) void then\nend\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0134",
+        "§6.3 strict shl 非零 a 的大计数与无符号高位溢出属于 CT "
+        "CONST_OVERFLOW；SEM 不得误报",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const A: int32 = shl int32, 1, 40\n"
+         "public const B: uint32 = shl uint32, 4, 30\n"
+         "public @fast func a(@align(Self.A) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func b(@align(Self.B) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0135",
+        "§6.6.1 浮点→整数窄类型边界属于 CT CONST_CAST；SEM 不得提前报 "
+        "ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const A: int32 = cast int32, 2147483648.0\n"
+         "public const B: int32 = cast int32, -2147483649.0\n"
+         "public const C: int8 = cast int8, 128.0\n"
+         "public const D: int16 = cast int16, 32768.0\n"
+         "public @fast func a(@align(Self.A) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func b(@align(Self.B) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func c(@align(Self.C) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func d(@align(Self.D) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0137",
+        "§6.3.1 NaN 输入和 mod(inf,·) 属于 CT FLOAT_INVALID；SEM 不得误报",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const A: float32 = add float32, nan, 1.0f\n"
+         "public const B: float32 = mod float32, inf, 2.0f\n"
+         "public const XA: int32 = cast int32, Self.A\n"
+         "public const XB: int32 = cast int32, Self.B\n"
+         "public @fast func a(@align(Self.XA) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func b(@align(Self.XB) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0138",
+        "§6.6.1 异类型浮点 NaN 规范化为 canonical quiet NaN；f32→f64 "
+        "与 f64→f32 均按规范值比较并通过 @align(1)",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const F: float32 = bitcast float32, 2143289345\n"
+         "public const D: float64 = cast float64, Self.F\n"
+         "public const D64: uint64 = bitcast uint64, Self.D\n"
+         "public const B1: bool = eq uint64, Self.D64, 9221120237041090560\n"
+         "public const X1: int32 = cast int32, Self.B1\n"
+         "public const D2: float64 = bitcast float64, 9221120237041090561\n"
+         "public const F2: float32 = cast float32, Self.D2\n"
+         "public const F32: uint32 = bitcast uint32, Self.F2\n"
+         "public const B2: bool = eq uint32, Self.F32, 2143289344\n"
+         "public const X2: int32 = cast int32, Self.B2\n"
+         "public @fast func a(@align(Self.X1) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func b(@align(Self.X2) p: ptr<int32>) void then\n"
+         "end\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0127",
