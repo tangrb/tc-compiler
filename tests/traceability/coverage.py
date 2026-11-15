@@ -1148,6 +1148,7 @@ S4_COVERED_ROWS = {
         "TC-SEM-ANN-0242", "TC-SEM-ANN-0243", "TC-SEM-ANN-0244",
         "TC-SEM-ANN-0245", "TC-SEM-ANN-0246", "TC-SEM-ANN-0247",
         "TC-SEM-ANN-0248", "TC-SEM-ANN-0249", "TC-SEM-ANN-0250",
+        "TC-SEM-ANN-0251",
     ],
     "code:TC_CE_ANNOTATION:no_false_positive": [
         "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0111", "TC-TOOL-SEM-0124",
@@ -1164,7 +1165,7 @@ S4_COVERED_ROWS = {
         "TC-SEM-ANN-0241", "TC-SEM-ANN-0242", "TC-SEM-ANN-0243",
         "TC-SEM-ANN-0244", "TC-SEM-ANN-0245", "TC-SEM-ANN-0246",
         "TC-SEM-ANN-0247", "TC-SEM-ANN-0248", "TC-SEM-ANN-0249",
-        "TC-SEM-ANN-0250",
+        "TC-SEM-ANN-0250", "TC-SEM-ANN-0251",
     ],
     "code:TC_CE_ANNOTATION:stage": ["TC-SEM-ANN-0201"],
     # §12.2 ordering rules exercised by S4 combinations.

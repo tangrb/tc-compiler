@@ -3351,7 +3351,8 @@
         "TC-SEM-ANN-0247",
         "TC-SEM-ANN-0248",
         "TC-SEM-ANN-0249",
-        "TC-SEM-ANN-0250"
+        "TC-SEM-ANN-0250",
+        "TC-SEM-ANN-0251"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3429,7 +3430,8 @@
         "TC-SEM-ANN-0247",
         "TC-SEM-ANN-0248",
         "TC-SEM-ANN-0249",
-        "TC-SEM-ANN-0250"
+        "TC-SEM-ANN-0250",
+        "TC-SEM-ANN-0251"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",

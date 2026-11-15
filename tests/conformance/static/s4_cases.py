@@ -1488,6 +1488,20 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0251",
+        "§6.3.1 inf/0 是合法 IEEE 结果 inf（非除零/无效）；比较得到 1，"
+        "@range(2,1) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const I: float32 = inf\n"
+         "public const Q: float32 = div float32, Self.I, 0.0f\n"
+         "public const B: bool = eq float32, Self.Q, inf\n"
+         "public const X: int32 = cast int32, Self.B\n"
+         "public @fast func f(@range(2, @HERE@Self.X) n: int32) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",

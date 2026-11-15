@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0251
+profile: common
+source: fixtures/tc-sem-ann-0251/root.tc
+spec: "§6.3.1 inf/0 是合法 IEEE 结果 inf（非除零/无效）；比较得到 1，@range(2,1) -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0251/lib.tc, line: 6, column: 31}
+  related: []
+  diagnostics: exactly-one
