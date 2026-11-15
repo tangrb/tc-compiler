@@ -1,6 +1,6 @@
 # TC-Compiler — Agent 指南
 
-**0.0.46 clean-sheet 分支**：只保留 0.0.46 标准、设计文档与按设计重写的实现。历史实现、工具、测试、脚本与示例已移除。S0 契约与测试基建已完成并通过 G0（见 `docs/TC-G0门禁报告-0.0.46.md`）；**S1（LEX/SYN 与扁平 parse IR）已实现**，S2 起实现模块发现/IMPORT，随后是 SEM、CT、VM 与后端。
+**0.0.46 clean-sheet 分支**：只保留 0.0.46 标准、设计文档与按设计重写的实现。历史实现、工具、测试、脚本与示例已移除。S0 契约与测试基建已完成并通过 G0（见 `docs/gates/TC-G0门禁报告-0.0.46.md`）；**S1（LEX/SYN 与扁平 parse IR）已实现**，S2 起实现模块发现/IMPORT，随后是 SEM、CT、VM 与后端。
 
 ## 当前事实
 
@@ -35,7 +35,7 @@
 | S0 冻结契约 | `src/CONTRACTS.md` |
 | S1 前端接口 | `src/frontend/parse.h`、`src/frontend/lex.h`、`src/frontend/input.h` |
 | 测试基建 | `tests/README.md` |
-| S1 门禁证据/状态 | `docs/TC-G1门禁报告-0.0.46.md` |
+| S1 门禁证据/状态 | `docs/gates/TC-G1门禁报告-0.0.46.md` |
 | S1 一致性用例表 | `tests/conformance/static/s1_cases.py`、`tests/conformance/README.md` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

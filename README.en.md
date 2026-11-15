@@ -2,7 +2,7 @@
 
 TC **0.0.46** language/compiler specification and target design for the native compiler (TC → ASM → machine code).
 
-This branch is the **0.0.46 clean-sheet branch**. The S0 contract layer/test infrastructure and the **S1 LEX/SYN front end (flat parse IR)** are implemented (see the [G1 gate report](docs/TC-G1门禁报告-0.0.46.md) for evidence/status); IMPORT/SEM/CT, the VM, and the native backend start in S2. See [src/CONTRACTS.md](src/CONTRACTS.md) and the [G0 gate report](docs/TC-G0门禁报告-0.0.46.md).
+This branch is the **0.0.46 clean-sheet branch**. The S0 contract layer/test infrastructure and the **S1 LEX/SYN front end (flat parse IR)** are implemented (see the [G1 gate report](docs/gates/TC-G1门禁报告-0.0.46.md) for evidence/status); IMPORT/SEM/CT, the VM, and the native backend start in S2. See [src/CONTRACTS.md](src/CONTRACTS.md) and the [G0 gate report](docs/gates/TC-G0门禁报告-0.0.46.md).
 
 ## Documents
 
