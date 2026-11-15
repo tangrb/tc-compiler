@@ -218,8 +218,8 @@ SEM_CASES = [
     ),
     (
         "TC-SEM-FIELD-0008", "field_make_mixed.tc", "common",
-        "§6.2.7 位置字段与命名字段不得混用 -> FIELD_ORDER",
-        "#program\nstruct S then\n    var x: int32\n    var y: int32\nend\nvar s: S = make S, @HERE@1, y: 2\n",
+        "§6.2.7 位置字段与命名字段不得混用 -> FIELD_ORDER；定位首个带名字段",
+        "#program\nstruct S then\n    var x: int32\n    var y: int32\nend\nvar s: S = make S, 1, @HERE@y: 2\n",
         "SEM", "TC_CE_FIELD_ORDER", [],
     ),
     (
@@ -1098,6 +1098,14 @@ IMPORT_CASES = [
             "lib.tc": "#lib\npublic static var V: int32 = 2\npublic func bad() int32 then\n    @HERE@V = copy int32, 9\n    _ = return 1\nend\n",
         },
         "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0112", "spec": "§8.8.2 位置实参与命名实参不得混用 -> ARGUMENT_ORDER；定位首个带名实参",
+        "stage": "SEM", "code": "TC_CE_ARGUMENT_ORDER", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar r: int32 = call lib.t3, 1, @HERE@b: 2, c: 3\n",
+            "lib.tc": "#lib\npublic func t3(a: int32, b: int32, c: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
     },
     {
         "id": "TC-SEM-OP-0102", "spec": "§8.8.2/§12.2 #10 call 混用位置/命名实参仍先检查缺失 -> MISSING_ARGUMENT",

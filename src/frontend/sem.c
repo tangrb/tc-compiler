@@ -2204,9 +2204,16 @@ static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
                 return NULL;
             }
         }
-        sem_diag(s, TC_CE_FIELD_ORDER, instr->args[1].span, NULL,
-                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
-                 TC_DIAG_PHASE_ARGUMENTS, site_id);
+        for (i = 1; i < instr->nargs; i++) {
+            if (instr->args[i].name != NULL) {
+                /* Mixed form: the named field is the locatable offender
+                 * (standard §12.5.1 names a field/argument name). */
+                sem_diag(s, TC_CE_FIELD_ORDER, instr->args[i].span, NULL,
+                         TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
+                         TC_DIAG_PHASE_ARGUMENTS, site_id);
+                return NULL;
+            }
+        }
         return NULL;
     }
     if (any_named) {
@@ -2360,9 +2367,16 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
                 return NULL;
             }
         }
-        sem_diag(s, TC_CE_ARGUMENT_ORDER, instr->args[first_arg].span, NULL,
-                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
-                 TC_DIAG_PHASE_ARGUMENTS, site_id);
+        for (i = first_arg; i < instr->nargs; i++) {
+            if (instr->args[i].name != NULL) {
+                /* Mixed form: the named argument is the locatable offender
+                 * (standard §12.5.1 names an argument name). */
+                sem_diag(s, TC_CE_ARGUMENT_ORDER, instr->args[i].span, NULL,
+                         TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                         TC_DIAG_PHASE_ARGUMENTS, site_id);
+                return NULL;
+            }
+        }
         return NULL;
     }
     if (any_named) {

@@ -12,7 +12,7 @@
 | 项 | 结果 |
 | ---- | ---- |
 | S3 开发交付 | **PASS** — 名称/命名空间/可见性、类型表 intern+冻结、字面量定型、转换矩阵、结构体布局/`sizeof` 事实、指令形状/类型、32/64 实例化 |
-| S3 测试活动 | **PASS** — L1 `tc_sem_test` 58 checks；L3 160 个 SEM/翻转用例 + 44 个 import/库夹具 + 34 个接受工具用例（含 B1-5/B1-6 回归）；`determinism.s2s3` |
+| S3 测试活动 | **PASS** — L1 `tc_sem_test` 58 checks；L3 160 个 SEM/翻转用例 + 45 个 import/库夹具 + 34 个接受工具用例（含 B1-5/B1-6 回归）；`determinism.s2s3` |
 | 32/64 翻转矩阵 | **PASS** — 覆盖矩阵 `flip32_64` 34/34；32/64 分档案运行，不跨档比较 |
 | 布局归属 | **PASS** — 布局在 SEM 计算；`LAYOUT_OVERFLOW` 为 SEM 码；未进入 CT |
 | 类型表冻结 | **PASS** — Analyze 完成后 `tc_type_table_freeze`；`TC-UNIT-TYPE-0001`/`TC-UNIT-CONV-0001@w32/@w64` |
@@ -108,10 +108,10 @@
 
 ### 8.2 L3
 
-`conformance.s2s3_cases`/`harness.conformance` 共 238 个 S2/S3 用例通过（0 fail / 0 not_implemented）：
+`conformance.s2s3_cases`/`harness.conformance` 共 239 个 S2/S3 用例通过（0 fail / 0 not_implemented）：
 
 - 160 个 SEM/翻转用例（含 32/64 分档案期望、B1-5 的 10 个 var 初始化器形态与命名/位置回归）；
-- 44 个 import/库夹具用例；
+- 45 个 import/库夹具用例；
 - 34 个接受工具用例（`--static-only`，含 include roots、`w32`/`w64` 合法翻转、`fnptr<void>`、`padding(0)`、深度只读、跨模块/钻石布局）。
 
 ### 8.3 覆盖
@@ -188,7 +188,7 @@
 
 `const` 初始化器中的无结果指令保持 S5 `CONST_FORM` 范围（见 §9 的 O-1/O-2），`br`/`switch` 未知标签保持 S4 `LABEL_NOT_FOUND` 范围（O-3），未在本修复中越权报告。
 
-修复后 Debug/Release/ASan+UBSan `ctest` 19/19、harness 345/345、S2/S3 238/238。同一只读审计代理复核：9 种无结果 var 初始化器均在助记符处报 `OPERAND_COUNT`；`_ =` 形态、`read`/`copy`/`add` 初始化器与显式目标语句保持正确；**G3 PASS，无残留**。
+修复后 Debug/Release/ASan+UBSan `ctest` 19/19、harness 346/346、S2/S3 239/239。同一只读审计代理复核：9 种无结果 var 初始化器均在助记符处报 `OPERAND_COUNT`；`_ =` 形态、`read`/`copy`/`add` 初始化器与显式目标语句保持正确；**G3 PASS，无残留**。
 
 ### 10.5 全面自检追加（B1-6 批次，已关闭）
 
@@ -203,14 +203,14 @@ B1-5 关闭后，按“全面自检、直至满足 S4 进入条件”的要求�
 | 裸模块 const 赋值 | #lib 内 `K = …` 报 `CONST_ASSIGNMENT` | 裸模块 const/static 赋值目标 → `FUNCTION_SCOPE_ACCESS`；`Self.K` 仍 `CONST_ASSIGNMENT` |
 | `Self.S` 类型参数 | `sizeof/make/copy/load/store/addr Self.S` exit 0 | `Self` 是关键字、不是 `struct_name` 的 `IDENT`；类型参数中的 `Self.*` → `OPERAND_COUNT` |
 | 限定缺失类型成员 | `sizeof lib.NOPE` 报 `TYPE_MISMATCH`，与 `Self.NOPE` 不一致 | 限定成员未命中 → `UNDEFINED_NAME`（位置成员名），不再看同名局部 |
-| 混用位置/命名 | `make`/`call` 混用先报 `FIELD_ORDER`/`ARGUMENT_ORDER`，抢在重复/未知/缺失/数量之前 | 混用也按重复→未知→缺失→数量→顺序；覆盖完整时才报顺序码 |
+| 混用位置/命名 | `make`/`call` 混用先报 `FIELD_ORDER`/`ARGUMENT_ORDER`，抢在重复/未知/缺失/数量之前 | 混用也按重复→未知→缺失→数量→顺序；覆盖完整时才报顺序码；**D-4 裁定**：混用形态定位到首个带名实参/字段（§12.5.1 的“实参名/字段名”字面；`TC-SEM-FIELD-0008`、`TC-SEM-OP-0112`） |
 | 调用检查顺序 | `call` 先解析 LHS、先检查实参，导致 `VOID`/`UNDEFINED_FUNCTION` 被覆盖 | 目标存在性/可见性 → fp 类型 → LHS/返回形态 → 实参；void 调用 LHS 非 `_` 先报 `VOID` |
 
 回归用例：`TC-SEM-OP-0013…0028`（命名/位置/混用）、`TC-SEM-OP-0102…0111`（调用顺序/混用/命名目标）、`TC-SEM-NAME-0109…0113`（private、裸 const、Self 类型参数、限定缺失成员）。
 
 三个探测的其余 PASS 结论：名称/可见性/重复、跨模块/钻石结构体布局、padding/溢出、私有类型公开位置、36 格 bitcast 矩阵、cast/trunc W 翻转、字面量全部上下文、模式矩阵、全部 51 opcode 的 arity、无结果 LHS（语句与 var 初始化器）、字段路径、驱动退出码/阶段/位置均未发现新的 S3 偏差。
 
-同一只读审计代理对 B1-6 批次复核：命名/位置、private 非函数/非类型、裸 const 目标、`Self.S`、混用顺序、调用顺序全部通过；`ctest` 19/19、harness 345/345；**G3 PASS，无 B1/B2 残留**。四项歧义均判定不阻塞 S3→S4：`call_indirect nullptr` 与 `.nsw` 优先级在 S4 固定，`-0` 选择已记录，`TcField.padding` 在 S5/IR 冻结前解决。
+同一只读审计代理对 B1-6 批次复核：命名/位置、private 非函数/非类型、裸 const 目标、`Self.S`、混用顺序、调用顺序全部通过；`ctest` 19/19、harness 346/346；**G3 PASS，无 B1/B2 残留**。四项未决歧义均判定不阻塞 S3→S4；D-4 混用定位已裁定并锁入回归，不再列为未决：`call_indirect nullptr` 与 `.nsw` 优先级在 S4 固定，`-0` 选择已记录，`TcField.padding` 在 S5/IR 冻结前解决。
 
 **未决但非 S3 阻塞的歧义（记录，不伪装为已解决）**：
 
