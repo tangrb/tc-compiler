@@ -15,6 +15,7 @@
 - LEX/SYN 在 `tc_core` 内实现（`frontend/` 四个模块），仍不安装、不导出公共 API/ABI；仅 `tc-vm`/`tc-aot` 两个入口。
 - `src/CONTRACTS.md` 记录 S1 前端边界：解析 IR 为前端内部结构（源名/类型语法保留给 SEM），冻结 `TcInstr`/`TcIR` 由 S3 物化；`--syntax-only` 为部分能力。
 - 覆盖矩阵更新为 44 covered / 587 uncovered / 3 N/A(S0)；S1 覆盖 §2/§14 章节行、七码四槽与首诊阶段/源序行。
+- 门禁报告统一迁入 `docs/gates/`（G0/G1 + 目录索引），README/AGENTS/文档地图与报告内部相对链接同步。
 
 ### Fixed
 

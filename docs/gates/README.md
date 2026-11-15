@@ -14,6 +14,8 @@
 独立评审/审计结论、适用/不适用门禁项与明确的范围说明。当前 S0/S1 报告均以通过状态签署，
 并保留首轮审计发现与修复记录（见 G1 §12）。
 
+返回：[文档地图](../README.md) · [仓库入口](../../README.md)
+
 ## English
 
 This directory holds the 0.0.46 phase **gate reports** (process documents).  The
