@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0204
+profile: common
+source: fixtures/tc-sem-ann-0204/root.tc
+spec: "§8.6 @unsafe/@safe/@fast 互斥 -> ANNOTATION（冲突的第二个注解）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0204/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

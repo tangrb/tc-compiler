@@ -1,0 +1,14 @@
+#lib
+public func g(a: int32) int32 then
+    _ = return a
+end
+public @safe func f(x: int32) int32 then
+    var p: ptr<int32> = addr int32, x
+    var d: isize = ptrdiff int32, p, p
+    var q: ptr<int32> = bitcast ptr<int32>, p
+    var n: uint32 = bitcast uint32, x
+    var fp: fnptr<int32, int32> = funcaddr Self.g
+    var same: bool = funceq fnptr<int32, int32>, fp, fp
+    _ = write uint32, n
+    _ = return x
+end

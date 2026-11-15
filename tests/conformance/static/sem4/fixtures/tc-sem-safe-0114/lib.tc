@@ -1,0 +1,6 @@
+#lib
+public @fast func ff() void then
+end
+public @safe func f() void then
+    _ = call Self.ff
+end

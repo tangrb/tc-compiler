@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0007
+profile: common
+source: fixtures/tc-sem-cfg-0007/root.tc
+spec: "§7.5 switch 的任一目标不存在 -> LABEL_NOT_FOUND；§12.5.1 标签名"
+expect:
+  stage: SEM
+  code: TC_CE_LABEL_NOT_FOUND
+  primary: {file: fixtures/tc-sem-cfg-0007/root.tc, line: 3, column: 18}
+  related: []
+  diagnostics: exactly-one

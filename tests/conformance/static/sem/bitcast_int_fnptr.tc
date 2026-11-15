@@ -3,4 +3,6 @@ struct S then
     var x: int32
 end
 var src: int64 = copy int64, 0
-var dst: fnptr<void> = bitcast fnptr<void>, src
+unsafe then
+    var dst: fnptr<void> = bitcast fnptr<void>, src
+end

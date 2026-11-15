@@ -1,0 +1,6 @@
+#lib
+public @unsafe func uu() void then
+end
+public @safe func f() void then
+    _ = call Self.uu
+end

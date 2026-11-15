@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0005
+profile: common
+source: fixtures/tc-sem-cfg-0005/root.tc
+spec: "§7.2/§12.3 标签命名空间重名 -> DUPLICATE_LABEL；§12.5.1 第二次标签名并关联首次"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_LABEL
+  primary: {file: fixtures/tc-sem-cfg-0005/root.tc, line: 3, column: 7}
+  related: [{file: fixtures/tc-sem-cfg-0005/root.tc, line: 2, column: 7}]
+  diagnostics: exactly-one

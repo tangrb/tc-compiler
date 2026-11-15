@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0103
+profile: common
+source: fixtures/tc-sem-call-0103/root.tc
+spec: "§8.8.2 命名实参缺失先于数量 -> MISSING_ARGUMENT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_ARGUMENT
+  primary: {file: fixtures/tc-sem-call-0103/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

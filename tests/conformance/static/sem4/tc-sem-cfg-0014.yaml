@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0014
+profile: common
+source: fixtures/tc-sem-cfg-0014/root.tc
+spec: "§8.3 void 函数只能 `_ = return`，带操作数 -> RETURN_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_RETURN_FORM
+  primary: {file: fixtures/tc-sem-cfg-0014/lib.tc, line: 3, column: 9}
+  related: []
+  diagnostics: exactly-one

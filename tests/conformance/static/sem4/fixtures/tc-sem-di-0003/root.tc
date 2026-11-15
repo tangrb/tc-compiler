@@ -1,0 +1,9 @@
+#program
+label L:
+_ = br_if true, B
+_ = br E
+label B:
+var x: int32 = copy int32, 1
+_ = br L
+label E:
+_ = write int32, x

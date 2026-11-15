@@ -1,0 +1,3 @@
+#program
+var p: ptr<int32> = copy ptr<int32>, nullptr
+_ = store.volatile int32, p, 1

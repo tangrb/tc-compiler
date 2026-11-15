@@ -7,7 +7,7 @@
 | Suite | Location | Level | Content |
 | --- | --- | --- | --- |
 | Contract/unit | `unit/` | L0/L1 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例） |
-| Conformance | `conformance/` | L3 | 静态 LEX/SYN/IMPORT/SEM 用例、接受工具用例、属性用例；见 [conformance/README.md](conformance/README.md) |
+| Conformance | `conformance/` | L3 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解用例、接受工具用例、属性用例；见 [conformance/README.md](conformance/README.md) |
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、`--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查 |
 | Golden | `golden/` | L3 | 规范推导的期望值及评审记录 |
@@ -25,4 +25,6 @@ ctest --test-dir build --output-on-failure
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
 每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
 一致性用例按规范对象组织，期望必须引用标准条款，不得由编译器输出回填。
+S1/S2/S3/S4 用例表分别由 `tests/conformance/static/s1_cases.py`、
+`s2s3_cases.py`、`s4_cases.py` 生成并 `--check`。
 32/64 结果分档案保存；差分测试（后续阶段）只在同一档案内比较 VM 与 AOT。

@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0008
+profile: common
+source: fixtures/tc-sem-cfg-0008/root.tc
+spec: "§7.3 br_if 条件不是 bool -> CONDITION_TYPE；§12.5.1 条件操作数"
+expect:
+  stage: SEM
+  code: TC_CE_CONDITION_TYPE
+  primary: {file: fixtures/tc-sem-cfg-0008/root.tc, line: 3, column: 11}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,3 @@
+#lib
+public @willreturn func f() void then
+end

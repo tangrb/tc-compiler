@@ -84,11 +84,17 @@ typedef struct {
     TcModuleSem *module;
     TcParseFunc *func; /* NULL for the program body or module-level consts */
     int is_program;
-    int fast;
+    int fast;       /* function is a @fast unsafe context */
+    int fn_unsafe;  /* function is an @unsafe unsafe context */
+    int fn_safe;    /* explicit @safe assertion */
+    int unsafe_context; /* current statement is lexically unsafe */
+    int skip_safety;    /* const_expr shapes are checked as CONST_FORM later */
+    int cfg_incomplete; /* a control-flow edge could not be resolved */
     const TcType *ret;
     TcLocal *locals;
     size_t nlocals;
     const char **labels;
+    TcSpan *label_spans;
     size_t nlabels;
     TcSpan mnemonic_span;
     int stmt_index;
@@ -175,6 +181,78 @@ static void sem_diag_related(Sem *s, TcDiagCode code, TcSpan span,
              TC_DIAG_SITE_NONE, TC_DIAG_PHASE_NONE, 0);
 }
 
+static void parse_func_effects(const TcParseFunc *func, int *unsafe,
+                               int *fast, int *safe_);
+
+/* Safety diagnostics are construction-level: the operand checks of the same
+ * construction still precede them at one position (standard §12.2 #9).  Call
+ * safety is the §8.8.2 exception and is emitted in the call-site SAFETY phase
+ * so it precedes the LHS and argument checks. */
+static void sem_diag_safety(Sem *s, TcDiagCode code, TcSpan span,
+                            int is_call, uint32_t site_id) {
+    if (is_call) {
+        sem_diag(s, code, span, NULL, TC_DIAG_ORIGIN_CONSTRUCT,
+                 TC_DIAG_SITE_CALL, TC_DIAG_PHASE_SAFETY, site_id);
+    } else {
+        sem_diag(s, code, span, NULL, TC_DIAG_ORIGIN_CONSTRUCT,
+                 TC_DIAG_SITE_NONE, TC_DIAG_PHASE_NONE, 0);
+    }
+}
+
+/* Returns 0 after reporting an unsafe instruction used outside an unsafe
+ * context.  const_expr shapes are deferred to CONST_FORM. */
+static int check_unsafe_operation(Sem *s, TcSpan span) {
+    TcDiagCode code;
+    if (s->skip_safety || s->unsafe_context) {
+        return 1;
+    }
+    code = s->fn_safe ? TC_CE_SAFE_VIOLATION : TC_CE_UNSAFE_OPERATION;
+    sem_diag_safety(s, code, span, 0, 0);
+    return 0;
+}
+
+/* Direct call safety: target existence is checked before this (§8.8.2).  The
+ * @safe assertion wins over UNSAFE_CALL/FAST_CALL (standard §9.3/§9.8). */
+static int check_call_safety(Sem *s, const TcMember *func, TcSpan span,
+                             uint32_t site_id) {
+    int callee_unsafe;
+    int callee_fast;
+    int callee_safe;
+    TcDiagCode code;
+    if (s->skip_safety || s->unsafe_context || func->kind != TC_MEM_FUNC) {
+        return 1;
+    }
+    parse_func_effects(func->func, &callee_unsafe, &callee_fast, &callee_safe);
+    (void)callee_safe;
+    if (callee_unsafe) {
+        code = TC_CE_UNSAFE_CALL;
+    } else if (callee_fast) {
+        code = TC_CE_FAST_CALL;
+    } else {
+        return 1;
+    }
+    if (s->fn_safe) {
+        code = TC_CE_SAFE_VIOLATION;
+    }
+    sem_diag_safety(s, code, span, 1, site_id);
+    return 0;
+}
+
+static void sem_diag_flow(Sem *s, TcDiagCode code, TcSpan span) {
+    sem_diag(s, code, span, NULL, TC_DIAG_ORIGIN_CONSTRUCT,
+             TC_DIAG_SITE_NONE, TC_DIAG_PHASE_NONE, 0);
+}
+
+static int check_indirect_call_safety(Sem *s, TcSpan span, uint32_t site_id) {
+    TcDiagCode code;
+    if (s->skip_safety || s->unsafe_context) {
+        return 1;
+    }
+    code = s->fn_safe ? TC_CE_SAFE_VIOLATION : TC_CE_UNSAFE_OPERATION;
+    sem_diag_safety(s, code, span, 1, site_id);
+    return 0;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Small type helpers.                                                       */
 /* ------------------------------------------------------------------------- */
@@ -204,6 +282,28 @@ static int type_is_struct(const TcType *t) {
 }
 
 static int type_is_void(const TcType *t) { return t != NULL && t->tag == TC_TY_VOID; }
+
+static int parse_func_has_annotation(const TcParseFunc *func, const char *name) {
+    size_t i;
+    for (i = 0; i < func->nannotations; i++) {
+        if (strcmp(func->annotations[i].name, name) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Lexical safety/optimization effects of a function annotation set.  The
+ * annotation matrix itself is validated separately; callers only need the
+ * context a function body establishes and the caller requirements a target
+ * imposes (standard §8.6/§9.3/§9.6). */
+static void parse_func_effects(const TcParseFunc *func, int *unsafe,
+                               int *fast, int *safe_) {
+    *unsafe = parse_func_has_annotation(func, "unsafe");
+    *fast = parse_func_has_annotation(func, "fast") ||
+            parse_func_has_annotation(func, "fast_math");
+    *safe_ = parse_func_has_annotation(func, "safe");
+}
 
 static uint64_t width_max(unsigned bits) {
     if (bits >= 64u) {
@@ -1235,6 +1335,13 @@ static void resolve_structs(TcAnalysis *an) {
                     break;
                 }
             }
+            if (field->has_padding &&
+                strcmp(field->padding.name, "padding") != 0) {
+                /* §14.3: the field_padding shape admits one ANNOTATION(INT),
+                 * but only @padding is a field annotation (standard §2.6/
+                 * §8.6); a non-@padding name is ANNOTATION, not syntax. */
+                sem_diag_simple(&s, TC_CE_ANNOTATION, field->padding.span);
+            }
             ctx.public_position = structure->is_public;
             ctx.in_struct_field = 1;
             ctx.self_allowed = 0;
@@ -1792,7 +1899,8 @@ static const TcType *check_trunc(Sem *s, const TcParseInstr *instr) {
     return target;
 }
 
-static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr) {
+static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr,
+                                   int *unsafe_out) {
     const TcType *target;
     const TcType *source = NULL;
     const TcParseArg *arg = &instr->args[1];
@@ -1897,6 +2005,12 @@ static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr) {
         sem_diag_simple(s, TC_CE_BITCAST_WIDTH, arg->span);
         return NULL;
     }
+    /* §9.2: pointer<->integer and fnptr<->integer bit reinterpretation is
+     * unsafe; numeric, ptr<->ptr and same-signature fnptr<->fnptr are safe. */
+    *unsafe_out = (sc == TC_CAT_INT &&
+                   (tc == TC_CAT_PTR || tc == TC_CAT_FNPTR)) ||
+                  ((sc == TC_CAT_PTR || sc == TC_CAT_FNPTR) &&
+                   tc == TC_CAT_INT);
     return target;
 }
 
@@ -1958,8 +2072,11 @@ static int check_mode(Sem *s, const TcParseInstr *instr, const TcType *type,
         }
     }
     if (mode == TC_NSW || mode == TC_NUW) {
-        if (!s->fast) {
-            sem_diag_simple(s, TC_CE_ANNOTATION, suffix_span(instr));
+        /* §10.9: type/sign mismatch is MODE; a legal integer base outside
+         * @fast is ANNOTATION.  The more specific mismatch is checked first
+         * when both conditions hold. */
+        if (!type_is_integer(type)) {
+            sem_diag_simple(s, TC_CE_MODE, suffix_span(instr));
             return 0;
         }
         if (type_is_signed_integer(type) && mode == TC_NUW) {
@@ -1968,6 +2085,10 @@ static int check_mode(Sem *s, const TcParseInstr *instr, const TcType *type,
         }
         if (!type_is_signed_integer(type) && mode == TC_NSW) {
             sem_diag_simple(s, TC_CE_MODE, suffix_span(instr));
+            return 0;
+        }
+        if (!s->fast) {
+            sem_diag_simple(s, TC_CE_ANNOTATION, suffix_span(instr));
             return 0;
         }
     }
@@ -2266,10 +2387,9 @@ static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
 
 static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
                                      const TcFuncSig *sig, size_t first_arg,
-                                     int indirect) {
+                                     int indirect, uint32_t site_id) {
     size_t nargs = instr->nargs - first_arg;
     size_t i;
-    uint32_t site_id = ++s->an->next_site_id;
     int any_named = 0;
     int any_positional = 0;
     for (i = first_arg; i < instr->nargs; i++) {
@@ -2429,34 +2549,61 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
     return sig->ret;
 }
 
-static int check_call_result_shape(Sem *s, const TcType *ret, int has_target,
-                                   const Ref *target, const TcType *expected,
-                                   TcSpan tspan) {
+/* §8.8.2 call phases: result shape (void/`_`) precedes the argument checks;
+ * the receiver/result type is checked only after them. */
+static int check_call_result_form(Sem *s, const TcType *ret, int has_target,
+                                  const TcType *expected, TcSpan tspan,
+                                  uint32_t site_id) {
     if (ret == NULL) {
         return 1;
     }
-    if (type_is_void(ret)) {
-        if (has_target || expected != NULL) {
-            sem_diag_simple(s, TC_CE_VOID, tspan);
-            return 0;
-        }
-        return 1;
-    }
-    if (expected != NULL && !tc_type_equal(ret, expected)) {
-        sem_diag_simple(s, TC_CE_TYPE_MISMATCH, tspan);
-        return 0;
-    }
-    if (has_target && !tc_type_equal(ret, target->type)) {
-        sem_diag_simple(s, TC_CE_TYPE_MISMATCH, tspan);
+    if (type_is_void(ret) && (has_target || expected != NULL)) {
+        sem_diag(s, TC_CE_VOID, tspan, NULL, TC_DIAG_ORIGIN_CONSTRUCT,
+                 TC_DIAG_SITE_CALL, TC_DIAG_PHASE_RESULT_SHAPE, site_id);
         return 0;
     }
     return 1;
 }
 
+static int check_call_receiver(Sem *s, const TcType *ret, int has_target,
+                               const Ref *target, const TcType *expected,
+                               TcSpan tspan, uint32_t site_id) {
+    if (ret == NULL || type_is_void(ret)) {
+        return 1;
+    }
+    if (expected != NULL && !tc_type_equal(ret, expected)) {
+        sem_diag(s, TC_CE_TYPE_MISMATCH, tspan, NULL,
+                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                 TC_DIAG_PHASE_RECEIVER, site_id);
+        return 0;
+    }
+    if (has_target && !tc_type_equal(ret, target->type)) {
+        sem_diag(s, TC_CE_TYPE_MISMATCH, tspan, NULL,
+                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                 TC_DIAG_PHASE_RECEIVER, site_id);
+        return 0;
+    }
+    return 1;
+}
+
+static int find_label_index(const Sem *s, const char *name) {
+    size_t i;
+    for (i = 0; i < s->nlabels; i++) {
+        if (strcmp(s->labels[i], name) == 0) {
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
 static int check_label_arg(Sem *s, const TcParseArg *arg) {
-    if (arg->kind != TC_PARG_VALUE || arg->value.kind != TC_PVAL_NAME ||
-        arg->value.nfields != 0) {
+    if (arg->kind != TC_PARG_VALUE || arg->name != NULL ||
+        arg->value.kind != TC_PVAL_NAME || arg->value.nfields != 0) {
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
+        return 0;
+    }
+    if (find_label_index(s, arg->value.base) < 0) {
+        sem_diag_simple(s, TC_CE_LABEL_NOT_FOUND, arg->value.base_span);
         return 0;
     }
     return 1;
@@ -2468,11 +2615,25 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
     const TcType *result = NULL;
     Ref target;
     int has_target = 0;
+    int result_checked = 0;
     int has_result = tc_opcode_has_result(instr->op);
     int explicit_target = !instr->dst_discard && instr->dst_base != NULL;
     TcSpan tspan = instr->span;
     s->mnemonic_span = tspan;
     memset(&target, 0, sizeof(target));
+    switch (instr->op) {
+    case TC_LOAD:
+    case TC_STORE:
+    case TC_MEMMOVE:
+    case TC_PTRADD:
+    case TC_PTRSUB:
+        if (!check_unsafe_operation(s, tspan)) {
+            return NULL;
+        }
+        break;
+    default:
+        break;
+    }
     /* A var declaration target is the instruction's LHS even though the parse
      * IR keeps dst_base empty for an initializer; a no-result op there has no
      * legal `_` and is OPERAND_COUNT (standard §6.15.1). */
@@ -2528,9 +2689,15 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
     case TC_TRUNC:
         result = check_trunc(s, instr);
         break;
-    case TC_BITCAST:
-        result = check_bitcast(s, instr);
+    case TC_BITCAST: {
+        int unsafe_cast = 0;
+        result = check_bitcast(s, instr, &unsafe_cast);
+        if (result != NULL && unsafe_cast &&
+            !check_unsafe_operation(s, tspan)) {
+            return NULL;
+        }
         break;
+    }
     case TC_LOAD: {
         const TcType *type;
         if (instr->nargs != 2) {
@@ -2753,6 +2920,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         TcSpan name_span;
         TcMember *func;
         const TcType *ret;
+        uint32_t site_id = ++s->an->next_site_id;
         if (instr->nargs < 1) {
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
             break;
@@ -2761,8 +2929,13 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
             break;
         }
+        /* §8.8.2: target existence/visibility, then call safety, then the
+         * call-site LHS and arguments. */
         func = resolve_function_arg(s, &instr->args[0], &name_span);
         if (func == NULL) {
+            break;
+        }
+        if (!check_call_safety(s, func, tspan, site_id)) {
             break;
         }
         if (explicit_target) {
@@ -2773,19 +2946,25 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             has_target = 1;
         }
         ret = func->sig.ret;
-        if (!check_call_result_shape(s, ret, has_target, &target,
-                                     expected_result, tspan)) {
+        if (!check_call_result_form(s, ret, has_target, expected_result,
+                                    tspan, site_id)) {
             break;
         }
-        if (check_call_args(s, instr, &func->sig, 1, 0) == NULL) {
+        if (check_call_args(s, instr, &func->sig, 1, 0, site_id) == NULL) {
+            break;
+        }
+        if (!check_call_receiver(s, ret, has_target, &target, expected_result,
+                                 tspan, site_id)) {
             break;
         }
         result = ret;
+        result_checked = 1;
         break;
     }
     case TC_CALL_INDIRECT: {
         const TcType *signature = NULL;
         const TcType *ret;
+        uint32_t site_id = ++s->an->next_site_id;
         if (instr->nargs < 1) {
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
             break;
@@ -2810,6 +2989,9 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             sem_diag_simple(s, TC_CE_LITERAL_TYPE, instr->args[0].span);
             break;
         }
+        if (!check_indirect_call_safety(s, tspan, site_id)) {
+            break;
+        }
         if (explicit_target) {
             target = resolve_target(s, instr);
             if (!target.ok) {
@@ -2818,8 +3000,8 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             has_target = 1;
         }
         ret = signature->fnptr.ret;
-        if (!check_call_result_shape(s, ret, has_target, &target,
-                                     expected_result, tspan)) {
+        if (!check_call_result_form(s, ret, has_target, expected_result,
+                                    tspan, site_id)) {
             break;
         }
         {
@@ -2834,11 +3016,16 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             for (i = 0; i < sig.nparams; i++) {
                 sig.params[i].type = signature->fnptr.params[i];
             }
-            if (check_call_args(s, instr, &sig, 1, 1) == NULL) {
+            if (check_call_args(s, instr, &sig, 1, 1, site_id) == NULL) {
                 break;
             }
         }
+        if (!check_call_receiver(s, ret, has_target, &target, expected_result,
+                                 tspan, site_id)) {
+            break;
+        }
         result = ret;
+        result_checked = 1;
         break;
     }
     case TC_FUNCEQ:
@@ -2893,14 +3080,18 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
     case TC_BR:
         if (instr->nargs != 1) {
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
+            s->cfg_incomplete = 1;
             break;
         }
-        check_label_arg(s, &instr->args[0]);
+        if (!check_label_arg(s, &instr->args[0])) {
+            s->cfg_incomplete = 1;
+        }
         break;
     case TC_BR_IF: {
         const TcType *boolean;
         if (instr->nargs != 2) {
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
+            s->cfg_incomplete = 1;
             break;
         }
         boolean = tc_type_scalar(s->an->types, TC_TY_BOOL);
@@ -2923,7 +3114,9 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
                                            boolean)) {
             break;
         }
-        check_label_arg(s, &instr->args[1]);
+        if (!check_label_arg(s, &instr->args[1])) {
+            s->cfg_incomplete = 1;
+        }
         break;
     }
     case TC_SWITCH: {
@@ -2957,6 +3150,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         (void)cat_type;
         for (i = 1; i < instr->nargs; i++) {
             if (!check_label_arg(s, &instr->args[i])) {
+                s->cfg_incomplete = 1;
                 return NULL;
             }
         }
@@ -3054,7 +3248,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
         break;
     }
-    if (result != NULL) {
+    if (result != NULL && !result_checked) {
         if (type_is_void(result) && (expected_result != NULL || has_target)) {
             sem_diag_simple(s, TC_CE_VOID, tspan);
             return NULL;
@@ -3111,11 +3305,25 @@ static void build_locals(Sem *s, const TcParseFunc *func, const TcFuncSig *sig,
     }
     s->labels = (const char **)an_alloc(
         s->an, (nlabels == 0 ? 1u : nlabels) * sizeof(const char *));
+    s->label_spans = (TcSpan *)an_alloc(
+        s->an, (nlabels == 0 ? 1u : nlabels) * sizeof(TcSpan));
     s->nlabels = 0;
     for (i = 0; i < nbody; i++) {
-        if (body[i].kind == TC_STMT_LABEL) {
-            s->labels[s->nlabels++] = body[i].label.name;
+        size_t j;
+        if (body[i].kind != TC_STMT_LABEL) {
+            continue;
         }
+        for (j = 0; j < s->nlabels; j++) {
+            if (strcmp(s->labels[j], body[i].label.name) == 0) {
+                sem_diag_related(s, TC_CE_DUPLICATE_LABEL,
+                                 body[i].label.name_span, s->label_spans[j]);
+                s->cfg_incomplete = 1;
+                break;
+            }
+        }
+        s->labels[s->nlabels] = body[i].label.name;
+        s->label_spans[s->nlabels] = body[i].label.name_span;
+        s->nlabels++;
     }
     if (func != NULL && sig != NULL) {
         for (i = 0; i < func->nparams; i++) {
@@ -3183,6 +3391,547 @@ static TcLocal *local_slot(Sem *s, const char *name, int visible_from) {
     return NULL;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Control-flow graph, reachability and definite initialization.            */
+/*                                                                          */
+/* Standard §5.7.1/§7.7: each program body and each function body is one     */
+/* closed unit.  Nodes are source-level statements (instructions and        */
+/* declarations); label declarations are block entries.  The DI sets are    */
+/* the standard's maximum fixed point, initialized from U[n] for non-entry   */
+/* reachable nodes and from the parameter set at the unit entry.            */
+/* ------------------------------------------------------------------------- */
+
+typedef struct {
+    size_t nsucc;
+    size_t npred;
+    uint32_t *succs;
+    uint32_t *preds;
+    uint64_t *in;
+    uint64_t *out;
+} TcFlowNode;
+
+typedef struct {
+    TcFlowNode *nodes; /* index `end` (== nnodes) is the function/program end */
+    size_t nnodes;
+    uint32_t end;
+    size_t *node_stmt;  /* node -> body statement index */
+    size_t *stmt_node;  /* body statement index -> node or SIZE_MAX */
+    uint32_t *label_node; /* label index -> node or UINT32_MAX */
+    int *local_bit;     /* local index -> DI bit or -1 */
+    int *stmt_bit;      /* var statement -> DI bit or -1 */
+    size_t nbits;
+    size_t nwords;
+    uint64_t *universe;
+    uint64_t *param_mask;
+    uint8_t *reachable;
+} TcFlow;
+
+static void bits_set(uint64_t *bits, size_t bit) {
+    bits[bit >> 6] |= (uint64_t)1u << (bit & 63u);
+}
+
+static int bits_get(const uint64_t *bits, size_t bit) {
+    return (int)((bits[bit >> 6] >> (bit & 63u)) & 1u);
+}
+
+static void bits_fill(uint64_t *bits, size_t words, uint64_t value) {
+    size_t i;
+    for (i = 0; i < words; i++) {
+        bits[i] = value;
+    }
+}
+
+static void bits_copy(uint64_t *dst, const uint64_t *src, size_t words) {
+    memcpy(dst, src, words * sizeof(uint64_t));
+}
+
+static int bits_equal(const uint64_t *a, const uint64_t *b, size_t words) {
+    return memcmp(a, b, words * sizeof(uint64_t)) == 0;
+}
+
+static int flow_stmt_is_node(TcStmtKind kind) {
+    return kind == TC_STMT_INSTR || kind == TC_STMT_VAR ||
+           kind == TC_STMT_CONST || kind == TC_STMT_LABEL;
+}
+
+static int flow_label_arg(const TcParseArg *arg) {
+    return arg->kind == TC_PARG_VALUE && arg->name == NULL &&
+           arg->value.kind == TC_PVAL_NAME && arg->value.nfields == 0;
+}
+
+static uint32_t flow_label_target(const TcFlow *flow, const Sem *s,
+                                  const TcParseArg *arg) {
+    int label;
+    if (!flow_label_arg(arg)) {
+        return UINT32_MAX;
+    }
+    label = find_label_index(s, arg->value.base);
+    if (label < 0) {
+        return UINT32_MAX;
+    }
+    return flow->label_node[(size_t)label];
+}
+
+static uint32_t flow_next_node(const TcFlow *flow, size_t node) {
+    return node + 1u < flow->nnodes ? (uint32_t)(node + 1u) : flow->end;
+}
+
+/* Duplicate switch targets denote one CFG edge (standard §7.7.1 item 3):
+ * every listed target is an edge, but repeated labels add no new successor. */
+static int flow_switch_seen(const TcFlow *flow, const Sem *s,
+                            const TcParseInstr *instr, size_t upto) {
+    uint32_t target = flow_label_target(flow, s, &instr->args[upto]);
+    size_t i;
+    if (target == UINT32_MAX) {
+        return 0;
+    }
+    for (i = 1; i < upto; i++) {
+        if (flow_label_target(flow, s, &instr->args[i]) == target) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static size_t flow_succ_count(const TcFlow *flow, const Sem *s,
+                              const TcParseStmt *body, size_t node) {
+    const TcParseStmt *stmt = &body[flow->node_stmt[node]];
+    size_t i;
+    if (stmt->kind != TC_STMT_INSTR) {
+        return 1;
+    }
+    switch (stmt->instr.op) {
+    case TC_BR:
+        return flow_label_target(flow, s, &stmt->instr.args[0]) == UINT32_MAX
+                   ? 0u
+                   : 1u;
+    case TC_BR_IF:
+        return (flow_label_target(flow, s, &stmt->instr.args[1]) == UINT32_MAX
+                    ? 0u
+                    : 1u) +
+               1u;
+    case TC_SWITCH: {
+        size_t count = 0;
+        for (i = 1; i < stmt->instr.nargs; i++) {
+            if (flow_label_target(flow, s, &stmt->instr.args[i]) !=
+                    UINT32_MAX &&
+                !flow_switch_seen(flow, s, &stmt->instr, i)) {
+                count++;
+            }
+        }
+        return count;
+    }
+    case TC_RETURN:
+    case TC_TRAP:
+        return 0;
+    default:
+        return 1;
+    }
+}
+
+static void flow_fill_succs(const TcFlow *flow, const Sem *s,
+                            const TcParseStmt *body, size_t node) {
+    const TcParseStmt *stmt = &body[flow->node_stmt[node]];
+    TcFlowNode *n = &flow->nodes[node];
+    size_t i;
+    n->nsucc = 0;
+    if (stmt->kind != TC_STMT_INSTR) {
+        n->succs[n->nsucc++] = flow_next_node(flow, node);
+        return;
+    }
+    switch (stmt->instr.op) {
+    case TC_BR: {
+        uint32_t target = flow_label_target(flow, s, &stmt->instr.args[0]);
+        if (target != UINT32_MAX) {
+            n->succs[n->nsucc++] = target;
+        }
+        return;
+    }
+    case TC_BR_IF: {
+        uint32_t target = flow_label_target(flow, s, &stmt->instr.args[1]);
+        if (target != UINT32_MAX) {
+            n->succs[n->nsucc++] = target;
+        }
+        n->succs[n->nsucc++] = flow_next_node(flow, node);
+        return;
+    }
+    case TC_SWITCH:
+        for (i = 1; i < stmt->instr.nargs; i++) {
+            uint32_t target =
+                flow_label_target(flow, s, &stmt->instr.args[i]);
+            if (target != UINT32_MAX &&
+                !flow_switch_seen(flow, s, &stmt->instr, i)) {
+                n->succs[n->nsucc++] = target;
+            }
+        }
+        return;
+    case TC_RETURN:
+    case TC_TRAP:
+        return;
+    default:
+        n->succs[n->nsucc++] = flow_next_node(flow, node);
+        return;
+    }
+}
+
+/* DI read: a var base (including a field path base) must be initialized on
+ * every reachable path.  Parameters/consts and module statics do not carry a
+ * DI bit (standard §5.7.1 U[n]). */
+static void flow_check_value(Sem *s, const TcFlow *flow, size_t node,
+                             const TcParseValue *value) {
+    TcLocal *local;
+    int bit;
+    if (value->kind != TC_PVAL_NAME) {
+        return;
+    }
+    if (strcmp(value->base, "Self") == 0) {
+        return;
+    }
+    {
+        TcMember *member = find_member(s->module, value->base);
+        if (member != NULL && member->kind == TC_MEM_IMPORT) {
+            return;
+        }
+    }
+    local = lookup_local(s, value->base);
+    if (local == NULL || local->kind != TC_LOC_VAR) {
+        return;
+    }
+    bit = flow->local_bit[(size_t)(local - s->locals)];
+    if (bit < 0) {
+        return;
+    }
+    if (!bits_get(flow->nodes[node].in, (size_t)bit)) {
+        sem_diag_flow(s, TC_CE_UNINITIALIZED, value->base_span);
+    }
+}
+
+static void flow_check_target(Sem *s, const TcFlow *flow, size_t node,
+                              const TcParseInstr *instr) {
+    TcLocal *local;
+    int bit;
+    if (instr->dst_discard || instr->dst_base == NULL) {
+        return;
+    }
+    if (strcmp(instr->dst_base, "Self") == 0) {
+        return;
+    }
+    {
+        TcMember *member = find_member(s->module, instr->dst_base);
+        if (member != NULL && member->kind == TC_MEM_IMPORT) {
+            return;
+        }
+    }
+    local = lookup_local(s, instr->dst_base);
+    if (local == NULL || local->kind != TC_LOC_VAR) {
+        return;
+    }
+    bit = flow->local_bit[(size_t)(local - s->locals)];
+    if (bit < 0) {
+        return;
+    }
+    if (!bits_get(flow->nodes[node].in, (size_t)bit)) {
+        sem_diag_flow(s, TC_CE_UNINITIALIZED, instr->dst_base_span);
+    }
+}
+
+static void flow_check_reads(Sem *s, const TcFlow *flow, size_t node,
+                             const TcParseInstr *instr) {
+    size_t i;
+    size_t first = 0;
+    switch (instr->op) {
+    case TC_BR:
+    case TC_ADDR:
+        return;
+    case TC_BR_IF:
+    case TC_SWITCH:
+        /* args[0] is the condition/selector; the remaining args are labels. */
+        for (i = 0; i < instr->nargs && i < 1u; i++) {
+            if (instr->args[i].kind == TC_PARG_VALUE) {
+                flow_check_value(s, flow, node, &instr->args[i].value);
+            }
+        }
+        return;
+    case TC_CALL:
+    case TC_FUNCADDR:
+        first = 1;
+        break;
+    default:
+        break;
+    }
+    for (i = first; i < instr->nargs; i++) {
+        if (instr->args[i].kind == TC_PARG_VALUE) {
+            flow_check_value(s, flow, node, &instr->args[i].value);
+        }
+    }
+}
+
+static void flow_report_missing_return(Sem *s) {
+    TcSpan related;
+    if (s->func == NULL || s->ret == NULL || type_is_void(s->ret)) {
+        return;
+    }
+    related = s->func->end_span;
+    sem_diag(s, TC_CE_MISSING_RETURN, s->func->ret.span, &related,
+             TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_NONE,
+             TC_DIAG_PHASE_NONE, 0);
+}
+
+static void check_unit_flow(Sem *s, const TcParseStmt *body, size_t nbody) {
+    TcFlow flow;
+    size_t i;
+    size_t nnodes = 0;
+    size_t total_succs = 0;
+    size_t *fill;
+    uint32_t *succ_pool;
+    uint32_t *pred_pool;
+    uint32_t *queue;
+    size_t top;
+    size_t nbits = 0;
+    uint64_t *scratch_in;
+    uint64_t *scratch_out;
+
+    memset(&flow, 0, sizeof(flow));
+    if (s->cfg_incomplete) {
+        return;
+    }
+    for (i = 0; i < nbody; i++) {
+        if (flow_stmt_is_node(body[i].kind)) {
+            nnodes++;
+        }
+    }
+    if (nnodes == 0) {
+        /* Empty (or only lexical-marker) body: no entry node.  A non-void
+         * function has no path that returns (standard §7.7.3). */
+        if (s->func != NULL && s->ret != NULL && !type_is_void(s->ret)) {
+            flow_report_missing_return(s);
+        }
+        return;
+    }
+    flow.nnodes = nnodes;
+    flow.end = (uint32_t)nnodes;
+    flow.nodes = (TcFlowNode *)an_alloc(
+        s->an, (nnodes + 1u) * sizeof(TcFlowNode));
+    flow.node_stmt = (size_t *)an_alloc(s->an, nnodes * sizeof(size_t));
+    flow.stmt_node = (size_t *)an_alloc(
+        s->an, (nbody == 0 ? 1u : nbody) * sizeof(size_t));
+    flow.label_node = (uint32_t *)an_alloc(
+        s->an, (s->nlabels == 0 ? 1u : s->nlabels) * sizeof(uint32_t));
+    for (i = 0; i < nbody; i++) {
+        flow.stmt_node[i] = SIZE_MAX;
+    }
+    for (i = 0; i < s->nlabels; i++) {
+        flow.label_node[i] = UINT32_MAX;
+    }
+    {
+        size_t node = 0;
+        for (i = 0; i < nbody; i++) {
+            if (!flow_stmt_is_node(body[i].kind)) {
+                continue;
+            }
+            flow.node_stmt[node] = i;
+            flow.stmt_node[i] = node;
+            if (body[i].kind == TC_STMT_LABEL) {
+                int label = find_label_index(s, body[i].label.name);
+                if (label >= 0 && flow.label_node[(size_t)label] ==
+                                      UINT32_MAX) {
+                    flow.label_node[(size_t)label] = (uint32_t)node;
+                }
+            }
+            node++;
+        }
+    }
+    for (i = 0; i < nnodes; i++) {
+        total_succs += flow_succ_count(&flow, s, body, i);
+    }
+    succ_pool = (uint32_t *)an_alloc(
+        s->an, (total_succs == 0 ? 1u : total_succs) * sizeof(uint32_t));
+    {
+        size_t offset = 0;
+        for (i = 0; i < nnodes; i++) {
+            flow.nodes[i].succs = succ_pool + offset;
+            flow_fill_succs(&flow, s, body, i);
+            offset += flow.nodes[i].nsucc;
+        }
+    }
+    for (i = 0; i < nnodes; i++) {
+        size_t k;
+        for (k = 0; k < flow.nodes[i].nsucc; k++) {
+            flow.nodes[flow.nodes[i].succs[k]].npred++;
+        }
+    }
+    pred_pool = (uint32_t *)an_alloc(
+        s->an, (total_succs == 0 ? 1u : total_succs) * sizeof(uint32_t));
+    fill = (size_t *)an_alloc(s->an, (nnodes + 1u) * sizeof(size_t));
+    for (i = 0; i <= nnodes; i++) {
+        fill[i] = 0;
+    }
+    /* Assign predecessor slices after the total counts are known. */
+    {
+        size_t offset = 0;
+        for (i = 0; i <= nnodes; i++) {
+            flow.nodes[i].preds = pred_pool + offset;
+            offset += flow.nodes[i].npred;
+        }
+    }
+    for (i = 0; i < nnodes; i++) {
+        size_t k;
+        for (k = 0; k < flow.nodes[i].nsucc; k++) {
+            uint32_t target = flow.nodes[i].succs[k];
+            flow.nodes[target].preds[fill[target]++] = (uint32_t)i;
+        }
+    }
+
+    flow.reachable = (uint8_t *)an_alloc(s->an, nnodes + 1u);
+    queue = (uint32_t *)an_alloc(s->an, (nnodes + 1u) * sizeof(uint32_t));
+    top = 0;
+    flow.reachable[0] = 1;
+    queue[top++] = 0;
+    while (top > 0) {
+        uint32_t node = queue[--top];
+        size_t k;
+        for (k = 0; k < flow.nodes[node].nsucc; k++) {
+            uint32_t target = flow.nodes[node].succs[k];
+            if (!flow.reachable[target]) {
+                flow.reachable[target] = 1;
+                queue[top++] = target;
+            }
+        }
+    }
+
+    for (i = 0; i < s->nlocals; i++) {
+        if (s->locals[i].kind == TC_LOC_PARAM ||
+            s->locals[i].kind == TC_LOC_VAR) {
+            nbits++;
+        }
+    }
+    flow.nbits = nbits;
+    flow.nwords = (nbits + 63u) / 64u;
+    if (flow.nwords == 0) {
+        flow.nwords = 1;
+    }
+    flow.universe = (uint64_t *)an_alloc(
+        s->an, flow.nwords * sizeof(uint64_t));
+    flow.param_mask = (uint64_t *)an_alloc(
+        s->an, flow.nwords * sizeof(uint64_t));
+    bits_fill(flow.universe, flow.nwords, 0);
+    bits_fill(flow.param_mask, flow.nwords, 0);
+    flow.local_bit = (int *)an_alloc(
+        s->an, (s->nlocals == 0 ? 1u : s->nlocals) * sizeof(int));
+    flow.stmt_bit = (int *)an_alloc(
+        s->an, (nbody == 0 ? 1u : nbody) * sizeof(int));
+    for (i = 0; i < s->nlocals; i++) {
+        flow.local_bit[i] = -1;
+    }
+    for (i = 0; i < nbody; i++) {
+        flow.stmt_bit[i] = -1;
+    }
+    {
+        size_t bit = 0;
+        for (i = 0; i < s->nlocals; i++) {
+            if (s->locals[i].kind != TC_LOC_PARAM &&
+                s->locals[i].kind != TC_LOC_VAR) {
+                continue;
+            }
+            flow.local_bit[i] = (int)bit;
+            bits_set(flow.universe, bit);
+            if (s->locals[i].kind == TC_LOC_PARAM) {
+                bits_set(flow.param_mask, bit);
+            } else if (s->locals[i].visible_from >= 0 &&
+                       s->locals[i].visible_from < (int)nbody &&
+                       flow.stmt_bit[s->locals[i].visible_from] < 0) {
+                flow.stmt_bit[s->locals[i].visible_from] = (int)bit;
+            }
+            bit++;
+        }
+    }
+    {
+        uint64_t *in_pool = (uint64_t *)an_alloc(
+            s->an, (nnodes + 1u) * flow.nwords * sizeof(uint64_t));
+        uint64_t *out_pool = (uint64_t *)an_alloc(
+            s->an, (nnodes + 1u) * flow.nwords * sizeof(uint64_t));
+        for (i = 0; i <= nnodes; i++) {
+            flow.nodes[i].in = in_pool + i * flow.nwords;
+            flow.nodes[i].out = out_pool + i * flow.nwords;
+            bits_fill(flow.nodes[i].in, flow.nwords, 0);
+            bits_fill(flow.nodes[i].out, flow.nwords, 0);
+        }
+    }
+    for (i = 0; i < nnodes; i++) {
+        if (!flow.reachable[i]) {
+            continue;
+        }
+        if (i == 0) {
+            bits_fill(flow.nodes[i].in, flow.nwords, 0);
+            bits_copy(flow.nodes[i].in, flow.param_mask, flow.nwords);
+        } else {
+            bits_fill(flow.nodes[i].in, flow.nwords, ~(uint64_t)0);
+        }
+        bits_fill(flow.nodes[i].out, flow.nwords, ~(uint64_t)0);
+    }
+    scratch_in = (uint64_t *)an_alloc(
+        s->an, flow.nwords * sizeof(uint64_t));
+    scratch_out = (uint64_t *)an_alloc(
+        s->an, flow.nwords * sizeof(uint64_t));
+    for (;;) {
+        int changed = 0;
+        for (i = 0; i < nnodes; i++) {
+            size_t k;
+            if (!flow.reachable[i]) {
+                continue;
+            }
+            if (i == 0) {
+                bits_copy(scratch_in, flow.param_mask, flow.nwords);
+            } else {
+                bits_fill(scratch_in, flow.nwords, ~(uint64_t)0);
+                for (k = 0; k < flow.nodes[i].npred; k++) {
+                    uint32_t pred = flow.nodes[i].preds[k];
+                    size_t w;
+                    if (!flow.reachable[pred]) {
+                        continue;
+                    }
+                    for (w = 0; w < flow.nwords; w++) {
+                        scratch_in[w] &= flow.nodes[pred].out[w];
+                    }
+                }
+            }
+            bits_copy(scratch_out, scratch_in, flow.nwords);
+            if (body[flow.node_stmt[i]].kind == TC_STMT_VAR) {
+                int bit = flow.stmt_bit[flow.node_stmt[i]];
+                if (bit >= 0) {
+                    bits_set(scratch_out, (size_t)bit);
+                }
+            }
+            if (!bits_equal(flow.nodes[i].in, scratch_in, flow.nwords) ||
+                !bits_equal(flow.nodes[i].out, scratch_out, flow.nwords)) {
+                bits_copy(flow.nodes[i].in, scratch_in, flow.nwords);
+                bits_copy(flow.nodes[i].out, scratch_out, flow.nwords);
+                changed = 1;
+            }
+        }
+        if (!changed) {
+            break;
+        }
+    }
+    for (i = 0; i < nnodes; i++) {
+        size_t si = flow.node_stmt[i];
+        if (!flow.reachable[i]) {
+            continue;
+        }
+        s->stmt_index = (int)si;
+        if (body[si].kind == TC_STMT_INSTR) {
+            flow_check_target(s, &flow, i, &body[si].instr);
+            flow_check_reads(s, &flow, i, &body[si].instr);
+        } else if (body[si].kind == TC_STMT_VAR) {
+            flow_check_reads(s, &flow, i, &body[si].var.init);
+        }
+    }
+    if (s->func != NULL && s->ret != NULL && !type_is_void(s->ret) &&
+        flow.reachable[flow.end]) {
+        flow_report_missing_return(s);
+    }
+}
+
 static void check_body(Sem *s, const TcParseFunc *func, const TcFuncSig *sig,
                        const TcParseStmt *body, size_t nbody) {
     size_t i;
@@ -3190,6 +3939,9 @@ static void check_body(Sem *s, const TcParseFunc *func, const TcFuncSig *sig,
     for (i = 0; i < nbody; i++) {
         s->stmt_index = (int)i;
         s->module_const_init = 0;
+        s->skip_safety = body[i].kind == TC_STMT_CONST;
+        s->unsafe_context = s->fn_unsafe || s->fast ||
+                            body[i].unsafe_depth > 0;
         switch (body[i].kind) {
         case TC_STMT_INSTR:
             check_instr(s, &body[i].instr, NULL, 0);
@@ -3222,12 +3974,21 @@ static void check_body(Sem *s, const TcParseFunc *func, const TcFuncSig *sig,
             }
             break;
         }
-        case TC_STMT_LABEL:
         case TC_STMT_UNSAFE_BEGIN:
+            /* @safe forbids every unsafe block, including an empty one; this
+             * violation outranks UNSAFE_* and FAST_CALL (standard §9.3/§9.8). */
+            if (s->fn_safe) {
+                sem_diag_flow(s, TC_CE_SAFE_VIOLATION, body[i].span);
+            }
+            break;
+        case TC_STMT_LABEL:
         case TC_STMT_UNSAFE_END:
             break;
         }
     }
+    s->skip_safety = 0;
+    s->unsafe_context = 0;
+    check_unit_flow(s, body, nbody);
 }
 
 static TcMember *value_member_at(TcModuleSem *module, size_t decl_index) {
@@ -3251,6 +4012,7 @@ static void check_module_values(Sem *s) {
             continue;
         }
         s->module_const_init = 1;
+        s->skip_safety = 1;
         s->const_decl_index = i;
         s->public_position = m->is_public;
         s->stmt_index = 0;
@@ -3301,14 +4063,8 @@ static void check_all_units(TcAnalysis *an) {
                  * fields and public const/static declarations/initializers
                  * (standard §4.6). */
                 fs.public_position = 0;
-                {
-                    size_t a;
-                    for (a = 0; a < m->func->nannotations; a++) {
-                        if (strcmp(m->func->annotations[a].name, "fast") == 0) {
-                            fs.fast = 1;
-                        }
-                    }
-                }
+                parse_func_effects(m->func, &fs.fn_unsafe, &fs.fast,
+                                   &fs.fn_safe);
                 check_body(&fs, m->func, &m->sig, m->func->body,
                            m->func->nbody);
             }
@@ -3556,18 +4312,30 @@ const char *tc_analysis_member_module(const TcAnalysis *analysis,
 }
 
 /* ------------------------------------------------------------------------- */
-/* Minimal word-size-dependent annotation checks.                           */
+/* Annotation matrix (standard §2.6/§8.6).                                   */
 /*                                                                          */
-/* @align and @range carry W-dependent parameter ranges; the full annotation */
-/* placement/conflict matrix is checked by the annotation stage.  These      */
-/* checks are needed by the 32/64 static matrix and must not reject any       */
-/* legal annotation form.                                                     */
+/* Positions, allowed names, mutual exclusion and parameter ranges are SEM   */
+/* facts.  Parameter values may be INT literals or const paths: literals are */
+/* checked here; const-path values that need compile-time evaluation are      */
+/* completed by CT without changing the annotation diagnostics below.        */
+/* Promise violations (@pure store, @nounwind trap, ...) are UB, never a     */
+/* static rejection (standard §8.6/§10.2).                                    */
 /* ------------------------------------------------------------------------- */
 
-static int func_has_annotation(const TcParseFunc *func, const char *name) {
+static const char *const tc_func_annotations[] = {
+    "unsafe", "safe", "fast", "fast_math", "pure", "readonly",
+    "nounwind", "willreturn", "no_overflow", "inline", "noinline"
+};
+
+static const char *const tc_param_annotations[] = {
+    "nonnull", "no_alias", "align", "range"
+};
+
+static int annotation_name_in(const char *name, const char *const *names,
+                              size_t count) {
     size_t i;
-    for (i = 0; i < func->nannotations; i++) {
-        if (strcmp(func->annotations[i].name, name) == 0) {
+    for (i = 0; i < count; i++) {
+        if (strcmp(name, names[i]) == 0) {
             return 1;
         }
     }
@@ -3591,46 +4359,228 @@ static int literal_to_signed(const TcParseValue *v, int64_t *out) {
     return 1;
 }
 
-static void check_param_annotations(Sem *s, const TcParseParam *param,
-                                    const TcType *param_type, int fast) {
-    size_t a;
-    if (param_type == NULL) {
-        return;
+static uint64_t integer_literal_bits(const TcParseValue *v, unsigned bits) {
+    uint64_t mask = bits >= 64 ? ~(uint64_t)0
+                               : (((uint64_t)1u << bits) - 1u);
+    uint64_t magnitude = v->int_magnitude & mask;
+    if (v->int_negative && magnitude != 0) {
+        magnitude = (uint64_t)(0u - magnitude) & mask;
     }
+    return magnitude;
+}
+
+/* Resolve a const_path annotation argument.  Bare names and Self.K denote
+ * the current module; m.K requires a public const (standard §3.10/§4.6). */
+static const TcType *check_annotation_const(Sem *s, const TcParseValue *v,
+                                            int require_integer) {
+    TcMember *member = NULL;
+    TcSpan name_span = v->base_span;
+    if (v->kind != TC_PVAL_NAME) {
+        sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
+        return NULL;
+    }
+    if (v->nfields == 0) {
+        member = find_member(s->module, v->base);
+    } else if (v->nfields == 1) {
+        name_span = v->field_spans[0];
+        if (strcmp(v->base, "Self") == 0) {
+            member = find_member(s->module, v->fields[0]);
+        } else {
+            TcMember *import = find_member(s->module, v->base);
+            if (import == NULL || import->kind != TC_MEM_IMPORT) {
+                sem_diag_simple(s, TC_CE_UNDEFINED_NAME, v->base_span);
+                return NULL;
+            }
+            if (import->import_target == TC_MODULE_NO_TARGET) {
+                sem_diag_simple(s, TC_CE_UNDEFINED_NAME, v->base_span);
+                return NULL;
+            }
+            member = find_member_in(s->an, import->import_target,
+                                    v->fields[0]);
+            if (member != NULL && !member->is_public) {
+                sem_diag_related(s, TC_CE_PRIVATE_ACCESS, name_span,
+                                 member->span);
+                return NULL;
+            }
+        }
+    } else {
+        sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
+        return NULL;
+    }
+    if (member == NULL) {
+        sem_diag_simple(s, TC_CE_UNDEFINED_NAME, name_span);
+        return NULL;
+    }
+    if (member->kind != TC_MEM_CONST) {
+        sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
+        return NULL;
+    }
+    if (member->type == NULL) {
+        return NULL;
+    }
+    if (require_integer && !type_is_integer(member->type)) {
+        sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
+        return NULL;
+    }
+    return member->type;
+}
+
+static void check_func_annotations(Sem *s, const TcParseFunc *func) {
+    size_t i;
+    size_t j;
+    int has_fast = parse_func_has_annotation(func, "fast");
+    for (i = 0; i < func->nannotations; i++) {
+        const TcParseAnnotation *ann = &func->annotations[i];
+        if (!annotation_name_in(ann->name, tc_func_annotations,
+                                sizeof(tc_func_annotations) /
+                                    sizeof(tc_func_annotations[0]))) {
+            sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            continue;
+        }
+        if (ann->nargs != 0) {
+            sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            continue;
+        }
+        for (j = 0; j < i; j++) {
+            if (strcmp(func->annotations[j].name, ann->name) == 0) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                break;
+            }
+        }
+        if (j < i) {
+            continue;
+        }
+        if (strcmp(ann->name, "unsafe") == 0 ||
+            strcmp(ann->name, "safe") == 0 ||
+            strcmp(ann->name, "fast") == 0) {
+            for (j = 0; j < i; j++) {
+                const char *other = func->annotations[j].name;
+                if (strcmp(other, "unsafe") == 0 ||
+                    strcmp(other, "safe") == 0 ||
+                    strcmp(other, "fast") == 0) {
+                    sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                    break;
+                }
+            }
+        } else if (strcmp(ann->name, "inline") == 0) {
+            for (j = 0; j < i; j++) {
+                if (strcmp(func->annotations[j].name, "noinline") == 0) {
+                    sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                    break;
+                }
+            }
+        } else if (strcmp(ann->name, "noinline") == 0) {
+            for (j = 0; j < i; j++) {
+                if (strcmp(func->annotations[j].name, "inline") == 0) {
+                    sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                    break;
+                }
+            }
+        } else if (strcmp(ann->name, "fast_math") == 0) {
+            if (!has_fast) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            }
+        } else if (strcmp(ann->name, "pure") == 0 ||
+                   strcmp(ann->name, "readonly") == 0 ||
+                   strcmp(ann->name, "nounwind") == 0 ||
+                   strcmp(ann->name, "willreturn") == 0 ||
+                   strcmp(ann->name, "no_overflow") == 0) {
+            if (!has_fast) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            }
+        }
+    }
+}
+
+static void check_param_annotations(Sem *s, const TcParseParam *param,
+                                    TcParam *out, const TcType *param_type,
+                                    int fast) {
+    size_t a;
     for (a = 0; a < param->nannotations; a++) {
         const TcParseAnnotation *ann = &param->annotations[a];
-        if (strcmp(ann->name, "align") == 0) {
-            uint64_t n;
-            if (!fast) {
+        size_t j;
+        if (!annotation_name_in(ann->name, tc_param_annotations,
+                                sizeof(tc_param_annotations) /
+                                    sizeof(tc_param_annotations[0]))) {
+            sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            continue;
+        }
+        if (!fast) {
+            sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            continue;
+        }
+        for (j = 0; j < a; j++) {
+            if (strcmp(param->annotations[j].name, ann->name) == 0) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                break;
+            }
+        }
+        if (j < a) {
+            continue;
+        }
+        if (strcmp(ann->name, "nonnull") == 0 ||
+            strcmp(ann->name, "no_alias") == 0) {
+            if (ann->nargs != 0) {
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
-            if (ann->nargs != 1 || ann->args[0].kind != TC_PVAL_INT) {
-                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            if (param_type == NULL) {
                 continue;
             }
             if (!type_is_ptr(param_type)) {
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
-            n = ann->args[0].int_magnitude;
-            if (ann->args[0].int_negative || n == 0 ||
-                (n & (n - 1ull)) != 0) {
-                sem_diag_simple(s, TC_CE_ANNOTATION, ann->args[0].span);
+            if (strcmp(ann->name, "nonnull") == 0) {
+                out->flags |= TC_PARAM_NONNULL;
+            } else {
+                out->flags |= TC_PARAM_NO_ALIAS;
+            }
+        } else if (strcmp(ann->name, "align") == 0) {
+            const TcParseValue *v;
+            uint64_t n;
+            if (ann->nargs != 1) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                continue;
+            }
+            if (param_type == NULL) {
+                continue;
+            }
+            if (!type_is_ptr(param_type)) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                continue;
+            }
+            v = &ann->args[0];
+            if (v->kind == TC_PVAL_NAME) {
+                if (check_annotation_const(s, v, 1) != NULL) {
+                    out->flags |= TC_PARAM_ALIGN;
+                }
+                continue;
+            }
+            if (v->kind != TC_PVAL_INT) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
+                continue;
+            }
+            n = v->int_magnitude;
+            if (v->int_negative || n == 0 || (n & (n - 1ull)) != 0) {
+                sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
                 continue;
             }
             if (n > width_max(s->an->W)) {
-                sem_diag_simple(s, TC_CE_ANNOTATION, ann->args[0].span);
+                sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
+                continue;
             }
+            out->flags |= TC_PARAM_ALIGN;
+            out->align =
+                n > UINT32_MAX ? UINT32_MAX : (uint32_t)n;
         } else if (strcmp(ann->name, "range") == 0) {
             const TcParseValue *lo;
             const TcParseValue *hi;
-            if (!fast) {
+            if (ann->nargs != 2) {
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
-            if (ann->nargs != 2) {
-                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+            if (param_type == NULL) {
                 continue;
             }
             if (!type_is_integer(param_type)) {
@@ -3640,11 +4590,46 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
             lo = &ann->args[0];
             hi = &ann->args[1];
             if (lo->kind == TC_PVAL_NAME || hi->kind == TC_PVAL_NAME) {
-                /* Constant-path arguments are evaluated by CT. */
+                const TcType *lo_type = NULL;
+                const TcType *hi_type = NULL;
+                int bad = 0;
+                if (lo->kind == TC_PVAL_NAME) {
+                    lo_type = check_annotation_const(s, lo, 1);
+                    if (lo_type == NULL) {
+                        bad = 1;
+                    } else if (!tc_type_equal(lo_type, param_type)) {
+                        sem_diag_simple(s, TC_CE_ANNOTATION, lo->span);
+                        bad = 1;
+                    }
+                } else if (lo->kind != TC_PVAL_INT ||
+                           !check_literal_expected(s, lo, param_type)) {
+                    bad = 1;
+                }
+                if (!bad) {
+                    if (hi->kind == TC_PVAL_NAME) {
+                        hi_type = check_annotation_const(s, hi, 1);
+                        if (hi_type == NULL) {
+                            bad = 1;
+                        } else if (!tc_type_equal(hi_type, param_type)) {
+                            sem_diag_simple(s, TC_CE_ANNOTATION, hi->span);
+                            bad = 1;
+                        }
+                    } else if (hi->kind != TC_PVAL_INT ||
+                               !check_literal_expected(s, hi, param_type)) {
+                        bad = 1;
+                    }
+                }
+                if (!bad) {
+                    /* At least one endpoint is a const path: value ordering
+                     * and bit patterns are completed by CT (standard §3.10). */
+                    out->flags |= TC_PARAM_RANGE;
+                }
                 continue;
             }
             if (lo->kind != TC_PVAL_INT || hi->kind != TC_PVAL_INT) {
-                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                sem_diag_simple(s, TC_CE_ANNOTATION,
+                                lo->kind != TC_PVAL_INT ? lo->span
+                                                        : hi->span);
                 continue;
             }
             if (!check_literal_expected(s, lo, param_type) ||
@@ -3654,16 +4639,22 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
             if (type_is_signed_integer(param_type)) {
                 int64_t l;
                 int64_t h;
-                if (!literal_to_signed(lo, &l) || !literal_to_signed(hi, &h)) {
+                if (!literal_to_signed(lo, &l) ||
+                    !literal_to_signed(hi, &h)) {
                     sem_diag_simple(s, TC_CE_ANNOTATION, hi->span);
                     continue;
                 }
                 if (l > h) {
                     sem_diag_simple(s, TC_CE_ANNOTATION, hi->span);
+                    continue;
                 }
             } else if (lo->int_magnitude > hi->int_magnitude) {
                 sem_diag_simple(s, TC_CE_ANNOTATION, hi->span);
+                continue;
             }
+            out->flags |= TC_PARAM_RANGE;
+            out->lo = integer_literal_bits(lo, type_bits(s->an, param_type));
+            out->hi = integer_literal_bits(hi, type_bits(s->an, param_type));
         }
     }
 }
@@ -3687,9 +4678,11 @@ static void check_annotations(TcAnalysis *an) {
             s.module = module;
             s.func = m->func;
             s.ret = m->sig.ret;
-            fast = func_has_annotation(m->func, "fast");
+            check_func_annotations(&s, m->func);
+            fast = parse_func_has_annotation(m->func, "fast");
             for (p = 0; p < m->func->nparams; p++) {
                 check_param_annotations(&s, &m->func->params[p],
+                                        &m->sig.params[p],
                                         m->sig.params[p].type, fast);
             }
         }

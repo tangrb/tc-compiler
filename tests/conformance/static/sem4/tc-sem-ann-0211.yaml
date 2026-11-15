@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0211
+profile: common
+source: fixtures/tc-sem-ann-0211/root.tc
+spec: "§8.6 @align(N) 的 N 必须是正的 2 的幂；0 -> ANNOTATION（N Token）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0211/lib.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

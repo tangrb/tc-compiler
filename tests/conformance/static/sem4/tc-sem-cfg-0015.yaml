@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0015
+profile: common
+source: fixtures/tc-sem-cfg-0015/root.tc
+spec: "§7.7.2 不可达代码仍做名称/类型检查（只是不参与 DI/末尾传播）"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-cfg-0015/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0108
+profile: common
+source: fixtures/tc-sem-call-0108/root.tc
+spec: "§8.8.2/§9.2 安全代码调用 @unsafe 函数 -> UNSAFE_CALL（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_UNSAFE_CALL
+  primary: {file: fixtures/tc-sem-call-0108/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

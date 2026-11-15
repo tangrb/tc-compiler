@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0008
+profile: common
+source: fixtures/tc-sem-di-0008/root.tc
+spec: "§5.4 字段赋值不改变外层对象的外层初始化状态：未初始化基址作为字段目标 -> UNINITIALIZED"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0008/root.tc, line: 8, column: 1}
+  related: []
+  diagnostics: exactly-one

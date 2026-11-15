@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0104
+profile: common
+source: fixtures/tc-sem-safe-0104/root.tc
+spec: "§9.2/§9.8 安全代码中的 ptradd -> UNSAFE_OPERATION"
+expect:
+  stage: SEM
+  code: TC_CE_UNSAFE_OPERATION
+  primary: {file: fixtures/tc-sem-safe-0104/root.tc, line: 3, column: 21}
+  related: []
+  diagnostics: exactly-one

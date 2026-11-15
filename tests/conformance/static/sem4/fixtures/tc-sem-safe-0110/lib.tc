@@ -1,0 +1,5 @@
+#lib
+public @safe func f() void then
+    unsafe then
+    end
+end

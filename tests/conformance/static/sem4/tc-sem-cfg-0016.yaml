@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0016
+profile: common
+source: fixtures/tc-sem-cfg-0016/root.tc
+spec: "§12.2 #9 操作数内部优先：br_if 的浮点字面量先按 bool 期望类型报 LITERAL_TYPE，不报 CONDITION_TYPE/LABEL_NOT_FOUND"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: fixtures/tc-sem-cfg-0016/root.tc, line: 2, column: 11}
+  related: []
+  diagnostics: exactly-one

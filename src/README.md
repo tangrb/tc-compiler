@@ -5,8 +5,10 @@ This directory is the **target module layout** from
 Implemented: the private `tc_core` library, the `tc-vm`/`tc-aot` entry points,
 the frozen headers, and the `frontend/` reader/lexer/parser/module-loader/
 analyzer (LEX/SYN, IMPORT, names, types, conversions, layout, static instruction
-checks).  CT, CFG/DI, safety/annotations, the VM and backends are later work.
-Frozen contract ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
+checks, CFG/reachability/DI, missing returns, call ordering/safety, safety
+contexts and annotations).  CT, IR finalization, the VM and backends are later
+work.  Frozen contract ownership is indexed in
+[CONTRACTS.md](CONTRACTS.md).
 
 ```text
 src/
@@ -14,7 +16,7 @@ src/
   contract/     frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
   frontend/     input num lex parse; module (discovery/IMPORT); sem (names/types/
-                conversions/layout/instruction shape)
+                conversions/layout/instruction shape/CFG/DI/calls/safety/annotations)
   ir/           type instr block operand span region object address structs pointer_state
   runtime/      alloc io trap profile module_loader (sem_* from S6)
   vm/           interp memory pointer_state (S6)
@@ -28,7 +30,8 @@ runtime trap seam), so they must not be buried inside `frontend/`.  `frontend/`
 owns the LEX/SYN/IMPORT/SEM/CT pipeline: `input` (arena/source/decode), `num`
 (exact decimal -> binary32/64), `lex` (tokens/spans/LEX diagnostics), `parse`
 (EBNF + flat name-carrying parse IR), `module` (discovery/IMPORT) and `sem`
-(names/types/conversions/layout/instruction shape).  `ir/`, `runtime/`, `vm/`,
+(names/types/conversions/layout/instruction shape, per-unit CFG/DI, call checks,
+safety contexts and annotation validation).  `ir/`, `runtime/`, `vm/`,
 `backend/` and `driver/` follow design §14.
 
 ## Rules

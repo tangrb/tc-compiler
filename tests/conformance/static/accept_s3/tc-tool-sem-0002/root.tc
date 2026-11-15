@@ -9,7 +9,9 @@ var b: bool = cast bool, f
 var p: ptr<int32> = copy ptr<int32>, nullptr
 var q: ptr<int32> = bitcast ptr<int32>, p
 var u: ptr<int32> = bitcast ptr<int32>, q
-var w: int64 = bitcast int64, u
-var v: ptr<int32> = bitcast ptr<int32>, w
+unsafe then
+    var w: int64 = bitcast int64, u
+    var v: ptr<int32> = bitcast ptr<int32>, w
+end
 var bits: uint32 = bitcast uint32, 1065353216
 var ff: float32 = bitcast float32, bits

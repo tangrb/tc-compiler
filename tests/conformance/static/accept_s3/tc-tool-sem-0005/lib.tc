@@ -5,11 +5,12 @@ end
 public func f() int32 then
     var p: fnptr<int32, int32, int32> = funcaddr Self.sum
     var q: fnptr<int32, int32, int32> = copy fnptr<int32, int32, int32>, p
-    var x: int32 = call_indirect q, 1, 2
     var same: bool = funceq fnptr<int32, int32, int32>, p, q
     var nullq: fnptr<int32, int32, int32> = copy fnptr<int32, int32, int32>, nullptr
     var eqn: bool = funceq fnptr<int32, int32, int32>, nullq, nullq
+    var x: int32 = copy int32, 0
     unsafe then
+        x = call_indirect q, 1, 2
         var y: int32 = call_indirect nullq, 1, 2
         _ = write int32, y
     end

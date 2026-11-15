@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0216
+profile: common
+source: fixtures/tc-sem-ann-0216/root.tc
+spec: "§8.6 @range 参数个数非法 -> ANNOTATION（注解 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0216/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

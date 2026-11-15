@@ -1,0 +1,11 @@
+#lib
+public func v() void then
+    var x: int32 = copy int32, 1
+end
+public func t() int32 then
+    _ = trap
+end
+public func l() int32 then
+    label L:
+    _ = br L
+end

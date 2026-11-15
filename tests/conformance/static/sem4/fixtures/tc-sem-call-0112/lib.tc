@@ -1,0 +1,4 @@
+#lib
+public func voidf() void then
+    _ = return
+end

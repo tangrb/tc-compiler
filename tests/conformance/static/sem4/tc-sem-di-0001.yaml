@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0001
+profile: common
+source: fixtures/tc-sem-di-0001/root.tc
+spec: "§5.4/§7.2 br 跳过 var 声明后读取：该路径未初始化 -> UNINITIALIZED；§12.5.1 读取标识符"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0001/root.tc, line: 5, column: 18}
+  related: []
+  diagnostics: exactly-one

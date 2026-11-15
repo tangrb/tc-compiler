@@ -1,0 +1,3 @@
+#lib
+public @nounwind func f() void then
+end

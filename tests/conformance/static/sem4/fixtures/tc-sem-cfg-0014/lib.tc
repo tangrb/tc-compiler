@@ -1,0 +1,4 @@
+#lib
+public func f() void then
+    _ = return 1
+end

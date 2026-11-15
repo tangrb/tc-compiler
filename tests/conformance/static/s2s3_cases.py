@@ -321,7 +321,7 @@ SEM_CASES = [
     (
         "TC-SEM-OP-0002", "op_result_discard.tc", "common",
         "§6.15.1 无结果指令的 LHS 必须是 _ -> OPERAND_COUNT",
-        "#program\nvar x: int32 = copy int32, 0\nvar p: ptr<int32> = addr int32, x\nx = @HERE@store int32, p, 1\n",
+        "#program\nvar x: int32 = copy int32, 0\nvar p: ptr<int32> = addr int32, x\nunsafe then\n    x = @HERE@store int32, p, 1\nend\n",
         "SEM", "TC_CE_OPERAND_COUNT", [],
     ),
     (
@@ -501,7 +501,7 @@ SEM_CASES = [
     (
         "TC-SEM-OP-0004", "op_var_init_store.tc", "common",
         "§6.15.1 无结果指令不能作 var 初始化器（没有合法的 _ LHS）-> OPERAND_COUNT",
-        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@store int32, p, 1\n",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nunsafe then\n    var t: int32 = @HERE@store int32, p, 1\nend\n",
         "SEM", "TC_CE_OPERAND_COUNT", [],
     ),
     (
@@ -531,7 +531,7 @@ SEM_CASES = [
     (
         "TC-SEM-OP-0009", "op_var_init_memmove.tc", "common",
         "§6.15.1 memmove 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
-        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@memmove int32, p, p, 1\n",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nunsafe then\n    var t: int32 = @HERE@memmove int32, p, p, 1\nend\n",
         "SEM", "TC_CE_OPERAND_COUNT", [],
     ),
     (
@@ -549,7 +549,7 @@ SEM_CASES = [
     (
         "TC-SEM-OP-0012", "op_var_init_store_volatile.tc", "common",
         "§6.15.1 store.volatile 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
-        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@store.volatile int32, p, 1\n",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nunsafe then\n    var t: int32 = @HERE@store.volatile int32, p, 1\nend\n",
         "SEM", "TC_CE_OPERAND_COUNT", [],
     ),
     (
@@ -904,13 +904,22 @@ def _bitcast_matrix_cases():
     for index, (src_cat, dst_cat, src_type, dst_type, allowed) in enumerate(
             cells, 1):
         marker = "" if allowed else "@HERE@"
+        unsafe = allowed and (
+            (src_cat == "int" and dst_cat in ("ptr", "fnptr"))
+            or (src_cat in ("ptr", "fnptr") and dst_cat == "int")
+        )
+        cast = f"bitcast {dst_type}, {marker}src"
+        if unsafe:
+            body = f"unsafe then\n    var dst: {dst_type} = {cast}\nend\n"
+        else:
+            body = f"var dst: {dst_type} = {cast}\n"
         text = (
             "#program\n"
             "struct S then\n"
             "    var x: int32\n"
             "end\n"
             f"var src: {src_type} = {_init_expr(src_type)}\n"
-            f"var dst: {dst_type} = bitcast {dst_type}, {marker}src\n"
+            + body
         )
         case = (
             f"TC-SEM-BITCAST-{index:04d}",
@@ -1175,7 +1184,7 @@ IMPORT_CASES = [
         "id": "TC-SEM-OP-0110", "spec": "§6.2.6/§8.4 call_indirect 只按位置，命名实参 -> UNKNOWN_ARGUMENT",
         "stage": "SEM", "code": "TC_CE_UNKNOWN_ARGUMENT", "profile": "common",
         "files": {
-            "root.tc": "#program\nimport lib\nvar fv: fnptr<int32, int32> = funcaddr lib.f\nvar r: int32 = call_indirect fv, @HERE@x: 1\n",
+            "root.tc": "#program\nimport lib\nvar fv: fnptr<int32, int32> = funcaddr lib.f\nunsafe then\n    var r: int32 = call_indirect fv, @HERE@x: 1\nend\n",
             "lib.tc": "#lib\npublic func f(a: int32) int32 then\n    _ = return a\nend\n",
         }, "source": "root.tc",
     },
@@ -1352,8 +1361,10 @@ var b: bool = cast bool, f
 var p: ptr<int32> = copy ptr<int32>, nullptr
 var q: ptr<int32> = bitcast ptr<int32>, p
 var u: ptr<int32> = bitcast ptr<int32>, q
-var w: int64 = bitcast int64, u
-var v: ptr<int32> = bitcast ptr<int32>, w
+unsafe then
+    var w: int64 = bitcast int64, u
+    var v: ptr<int32> = bitcast ptr<int32>, w
+end
 var bits: uint32 = bitcast uint32, 1065353216
 var ff: float32 = bitcast float32, bits
 """}, "source": "root.tc",
@@ -1379,7 +1390,7 @@ var j: int8 = cast int8, 300
         "id": "TC-TOOL-SEM-0004", "spec": "§6.3 模式正例：signed .wrap、浮点 .ieee、@fast 内 .nsw/.nuw；§10.2 承诺不在静态拒绝",
         "profile": "common",
         "files": {
-            "root.tc": "#program\nimport lib\nvar x: int32 = call lib.f\n",
+            "root.tc": "#program\nimport lib\nunsafe then\n    var x: int32 = call lib.f\nend\n",
             "lib.tc": """#lib
 public @fast func f() int32 then
     var a: int32 = add.nsw int32, 1, 2
@@ -1404,11 +1415,12 @@ end
 public func f() int32 then
     var p: fnptr<int32, int32, int32> = funcaddr Self.sum
     var q: fnptr<int32, int32, int32> = copy fnptr<int32, int32, int32>, p
-    var x: int32 = call_indirect q, 1, 2
     var same: bool = funceq fnptr<int32, int32, int32>, p, q
     var nullq: fnptr<int32, int32, int32> = copy fnptr<int32, int32, int32>, nullptr
     var eqn: bool = funceq fnptr<int32, int32, int32>, nullq, nullq
+    var x: int32 = copy int32, 0
     unsafe then
+        x = call_indirect q, 1, 2
         var y: int32 = call_indirect nullq, 1, 2
         _ = write int32, y
     end
@@ -1538,8 +1550,10 @@ var d: isize = ptrdiff int32, p, p
         "profile": "w32",
         "files": {"root.tc": """#program
 var p: ptr<int32> = copy ptr<int32>, nullptr
-var u: uint32 = bitcast uint32, p
-var q: ptr<int32> = bitcast ptr<int32>, u
+unsafe then
+    var u: uint32 = bitcast uint32, p
+    var q: ptr<int32> = bitcast ptr<int32>, u
+end
 """}, "source": "root.tc", "profile_argv": "w32",
     },
     {

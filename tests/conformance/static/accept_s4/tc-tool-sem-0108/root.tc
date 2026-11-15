@@ -1,0 +1,11 @@
+#program
+var x: int32 = copy int32, 0
+var p: ptr<int32> = addr int32, x
+var d: isize = ptrdiff int32, p, p
+var is_eq: bool = ptreq int32, p, p
+var q: ptr<int32> = bitcast ptr<int32>, p
+var u: uint32 = bitcast uint32, x
+var f: fnptr<void> = copy fnptr<void>, nullptr
+var g: fnptr<void> = bitcast fnptr<void>, f
+var same: bool = funceq fnptr<void>, f, g
+var n: int32 = cast int32, u

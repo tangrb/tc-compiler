@@ -52,7 +52,7 @@ registered as `frontend.unit` and currently runs 688 checks.
 | `TC-UNIT-SYN-0001` | `test_parse_program_shape` | §14.3/§14.4/§14.5 flat parse IR: regions, fields/padding, named args, `sizeof` type arg, field paths/lvalue, retained base/field spans and import-name span |
 | `TC-UNIT-SYN-0002` | `test_lib_shape`, `test_unsafe_depth` | §4.2/§8.1 `#lib` regions, annotations/params, qualified type member spans, nested unsafe markers/depth, paired-vs-unpaired nested block behavior |
 | `TC-UNIT-SYN-0003` | `test_switch_targets` | §6.2.8 explicit `switch` targets retained in order; a one-operand `switch` has zero targets (static analysis reports the shape error) |
-| `TC-UNIT-SYN-0004` | `test_field_annotation_shape` | §2.6/§8.6/§14.3: SYN accepts `ANNOTATION(INT)` field padding (`@align(4)`/`@fast(1)`/`@padding(4)`), while a bare field annotation is SYNTAX; name/N constraints are later-stage SEM checks |
+| `TC-UNIT-SYN-0004` | `test_field_annotation_shape` | §2.6/§8.6/§14.3: SYN accepts `ANNOTATION(INT)` field padding (`@align(4)`/`@fast(1)`/`@padding(4)`), while a bare field annotation is SYNTAX; name/N constraints are SEM checks |
 | `TC-UNIT-OPCODE-0001` | `test_all_opcodes` | all 51 base opcodes and every defined mode suffix parse to the expected op/mode |
 | `TC-UNIT-DIAG-0001` | `test_diagnostics` | the seven LEX/SYN codes, stages and §12.5.1 primary positions; nested paired/unpaired blocks; `#program` `Self` in IDENT positions; incomplete vs whitespace-separated suffixes |
 | `TC-UNIT-ORDER-0001` | `test_first_diagnostic_order` | §12.2 #1 stage priority: a later LEX error beats an earlier SYN error |

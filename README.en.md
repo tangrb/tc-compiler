@@ -8,11 +8,11 @@ kept; historical implementation and tools live in git tags.
 ## Current status
 
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
-  names/types/conversions/layout, static instruction-shape checks, 32/64 static
-  profiles.
-- **Not implemented**: CT, CFG/DI, call ordering/safety, the full annotation matrix,
-  IR finalization, the VM and native backends.
-- Gates: G0–G3 PASS; **G3 allows S4**. See [gate status](docs/gates/README.en.md).
+  names/types/conversions/layout, static instruction-shape checks, CFG/reachability/DI,
+  missing returns, call ordering/safety, safety contexts and the annotation matrix,
+  32/64 static profiles.
+- **Not implemented**: CT, IR finalization/printing, the VM and native backends.
+- Gates: G0–G4 PASS; **G4 allows S5**. See [gate status](docs/gates/README.en.md).
 
 ## Documents
 
@@ -60,8 +60,9 @@ Tools currently support:
 
 - `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
   **not a valid program**.
-- `--static-only <source>`: LEX/SYN/IMPORT/SEM; exit 0 still does not claim a valid
-  program, since CT and code generation have not run.
+- `--static-only <source>`: LEX/SYN/IMPORT/SEM (including CFG/DI, calls, safety and
+  annotations); exit 0 still does not claim a valid program, since CT and code
+  generation have not run.
 - A normal invocation explicitly exits 70 after the static stages.
 
 Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal`/

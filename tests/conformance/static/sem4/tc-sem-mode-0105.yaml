@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0105
+profile: common
+source: fixtures/tc-sem-mode-0105/root.tc
+spec: "§10.9 .nsw/.nuw 只用于整数；@fast 内浮点 -> MODE"
+expect:
+  stage: SEM
+  code: TC_CE_MODE
+  primary: {file: fixtures/tc-sem-mode-0105/lib.tc, line: 3, column: 26}
+  related: []
+  diagnostics: exactly-one

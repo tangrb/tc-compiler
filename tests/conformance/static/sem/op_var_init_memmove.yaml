@@ -5,6 +5,6 @@ spec: "§6.15.1 memmove 无结果，不能作 var 初始化器 -> OPERAND_COUNT"
 expect:
   stage: SEM
   code: TC_CE_OPERAND_COUNT
-  primary: {file: op_var_init_memmove.tc, line: 3, column: 16}
+  primary: {file: op_var_init_memmove.tc, line: 4, column: 20}
   related: []
   diagnostics: exactly-one

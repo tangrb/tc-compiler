@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0104
+profile: common
+source: tc-tool-sem-0104/root.tc
+spec: "§7.7.3 void 自然落到 end、trap 终止、无出口 br 循环均不报 MISSING_RETURN"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

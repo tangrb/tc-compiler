@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0010
+profile: common
+source: fixtures/tc-sem-cfg-0010/root.tc
+spec: "§6.2.8 switch 至少一个默认标签；零标签 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-cfg-0010/root.tc, line: 3, column: 5}
+  related: []
+  diagnostics: exactly-one

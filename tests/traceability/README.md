@@ -53,8 +53,8 @@ python3 tests/golden/validate.py
 
 `coverage.py --check` proves the JSON and Markdown are current; it does not
 require every row to be covered before its stage.  Current matrix: 231 items /
-634 slots, **245 covered / 389 uncovered / 0 suspended**.  Covered rows are the
-completed contract/LEX/SYN/IMPORT/SEM requirements; uncovered rows are S4–S10
-work (CFG/DI, call ordering/safety, annotations, CT, opcodes, VM/backend,
-platform).  Stage detail lives in the generated coverage report; gate conclusions
+634 slots, **342 covered / 292 uncovered / 0 suspended**.  Covered rows include
+the completed contract/LEX/SYN/IMPORT/SEM and S4 CFG/DI/call/safety/annotation
+requirements; uncovered rows are S5–S10 work (CT, IR finalization, opcodes,
+VM/backend, platform).  Stage detail lives in the generated coverage report; gate conclusions
 are in [docs/gates/README.md](../../docs/gates/README.md).

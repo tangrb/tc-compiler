@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0115
+profile: common
+source: fixtures/tc-sem-call-0115/root.tc
+spec: "§8.4/§6.2.6 call_indirect 只按位置；命名实参 -> UNKNOWN_ARGUMENT"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_ARGUMENT
+  primary: {file: fixtures/tc-sem-call-0115/root.tc, line: 5, column: 38}
+  related: []
+  diagnostics: exactly-one

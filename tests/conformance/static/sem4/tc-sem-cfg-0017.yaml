@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0017
+profile: common
+source: fixtures/tc-sem-cfg-0017/root.tc
+spec: "§12.2 #9 操作数内部优先：return 的浮点字面量先按返回类型报 LITERAL_TYPE，不报 RETURN_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: fixtures/tc-sem-cfg-0017/lib.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

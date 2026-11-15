@@ -3,4 +3,6 @@ struct S then
     var x: int32
 end
 var src: ptr<int32> = copy ptr<int32>, nullptr
-var dst: int64 = bitcast int64, src
+unsafe then
+    var dst: int64 = bitcast int64, src
+end

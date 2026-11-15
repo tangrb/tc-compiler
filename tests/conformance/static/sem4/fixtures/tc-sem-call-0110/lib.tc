@@ -1,0 +1,4 @@
+#lib
+public @fast @fast_math func fm(a: int32) int32 then
+    _ = return a
+end

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0109
+profile: common
+source: tc-tool-sem-0109/root.tc
+spec: "§8.6 完整合法注解矩阵：@fast 承诺、@fast_math、@inline、@safe @inline、@nonnull/@no_alias/@align/@range"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

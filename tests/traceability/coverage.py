@@ -16,9 +16,9 @@ an implementation:
   * every annotation, the four TcDevicePolicy values, the four TcIoSrc states
     and the normal/trap exit branches.
 
-All rows start as "uncovered".  Only named S0 L0 contract rows in
-L0_COVERED_ROWS and named S1 LEX/SYN rows in S1_COVERED_ROWS may be marked
-"covered" with a real case id; missing coverage for everything else is
+All rows start as "uncovered".  Only named stage rows in L0_COVERED_ROWS,
+S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS and S4_COVERED_ROWS may be
+marked "covered" with a real case id; missing coverage for everything else is
 explicit and is never silently rendered as covered.
 
 Usage:
@@ -929,6 +929,220 @@ S3_COVERED_ROWS = {
     "flip32_64:17:w64": ["TC-TOOL-SEM-0012"],
 }
 
+# S4 CFG/DI/call/safety/annotation rows.
+S4_COVERED_ROWS = {
+    "chapter:§5:positive": ["TC-TOOL-SEM-0101", "TC-TOOL-SEM-0102"],
+    "chapter:§5:negative": [
+        "TC-SEM-DI-0001", "TC-SEM-DI-0002", "TC-SEM-DI-0003",
+    ],
+    "chapter:§6:positive": ["TC-TOOL-SEM-0106", "TC-TOOL-SEM-0112"],
+    "chapter:§6:negative": ["TC-SEM-CFG-0010", "TC-SEM-CALL-0112"],
+    "chapter:§7:positive": ["TC-TOOL-SEM-0104", "TC-TOOL-SEM-0105"],
+    "chapter:§7:negative": [
+        "TC-SEM-CFG-0001", "TC-SEM-CFG-0005", "TC-SEM-CFG-0006",
+        "TC-SEM-CFG-0008", "TC-SEM-CFG-0009",
+    ],
+    "chapter:§8:positive": ["TC-TOOL-SEM-0106", "TC-TOOL-SEM-0109"],
+    "chapter:§8:negative": [
+        "TC-SEM-CFG-0012", "TC-SEM-CFG-0013", "TC-SEM-CALL-0101",
+        "TC-SEM-CALL-0105", "TC-SEM-CALL-0108", "TC-SEM-CALL-0113",
+        "TC-SEM-ANN-0201",
+    ],
+    "chapter:§9:positive": ["TC-TOOL-SEM-0107"],
+    "chapter:§9:negative": [
+        "TC-SEM-SAFE-0101", "TC-SEM-SAFE-0109", "TC-SEM-SAFE-0110",
+        "TC-SEM-CALL-0108", "TC-SEM-CALL-0109", "TC-SEM-CALL-0114",
+    ],
+    "chapter:§10:positive": ["TC-TOOL-SEM-0109", "TC-TOOL-SEM-0110"],
+    "chapter:§10:negative": ["TC-SEM-ANN-0206", "TC-SEM-ANN-0224"],
+    "chapter:§12:negative": [
+        "TC-SEM-CFG-0016", "TC-SEM-CFG-0017",
+    ],
+    # §5.4/§5.7.1 definite initialization.
+    "code:TC_CE_UNINITIALIZED:trigger": [
+        "TC-SEM-DI-0001", "TC-SEM-DI-0004", "TC-SEM-DI-0006",
+    ],
+    "code:TC_CE_UNINITIALIZED:no_false_positive": [
+        "TC-TOOL-SEM-0101", "TC-TOOL-SEM-0102", "TC-TOOL-SEM-0103",
+        "TC-TOOL-SEM-0115",
+    ],
+    "code:TC_CE_UNINITIALIZED:position": [
+        "TC-SEM-DI-0001", "TC-SEM-DI-0007", "TC-SEM-DI-0008",
+    ],
+    "code:TC_CE_UNINITIALIZED:stage": ["TC-SEM-DI-0001"],
+    # §7.2 labels and control.
+    "code:TC_CE_DUPLICATE_LABEL:trigger": ["TC-SEM-CFG-0005"],
+    "code:TC_CE_DUPLICATE_LABEL:no_false_positive": ["TC-TOOL-SEM-0105"],
+    "code:TC_CE_DUPLICATE_LABEL:position": ["TC-SEM-CFG-0005"],
+    "code:TC_CE_DUPLICATE_LABEL:stage": ["TC-SEM-CFG-0005"],
+    "code:TC_CE_LABEL_NOT_FOUND:trigger": [
+        "TC-SEM-CFG-0006", "TC-SEM-CFG-0007",
+    ],
+    "code:TC_CE_LABEL_NOT_FOUND:no_false_positive": ["TC-TOOL-SEM-0105"],
+    "code:TC_CE_LABEL_NOT_FOUND:position": ["TC-SEM-CFG-0006"],
+    "code:TC_CE_LABEL_NOT_FOUND:stage": ["TC-SEM-CFG-0006"],
+    "code:TC_CE_CONDITION_TYPE:trigger": ["TC-SEM-CFG-0008"],
+    "code:TC_CE_CONDITION_TYPE:no_false_positive": [
+        "TC-TOOL-SEM-0112", "TC-TOOL-SEM-0101",
+    ],
+    "code:TC_CE_CONDITION_TYPE:position": ["TC-SEM-CFG-0008"],
+    "code:TC_CE_CONDITION_TYPE:stage": ["TC-SEM-CFG-0008"],
+    "code:TC_CE_SWITCH_TYPE:trigger": ["TC-SEM-CFG-0009"],
+    "code:TC_CE_SWITCH_TYPE:no_false_positive": ["TC-TOOL-SEM-0112"],
+    "code:TC_CE_SWITCH_TYPE:position": ["TC-SEM-CFG-0009"],
+    "code:TC_CE_SWITCH_TYPE:stage": ["TC-SEM-CFG-0009"],
+    # §7.7.3/§8.3 returns.
+    "code:TC_CE_RETURN_OUTSIDE_FUNCTION:trigger": ["TC-SEM-CFG-0011"],
+    "code:TC_CE_RETURN_OUTSIDE_FUNCTION:no_false_positive": [
+        "TC-TOOL-SEM-0106", "TC-TOOL-SEM-0104",
+    ],
+    "code:TC_CE_RETURN_OUTSIDE_FUNCTION:position": ["TC-SEM-CFG-0011"],
+    "code:TC_CE_RETURN_OUTSIDE_FUNCTION:stage": ["TC-SEM-CFG-0011"],
+    "code:TC_CE_RETURN_TYPE:trigger": ["TC-SEM-CFG-0012"],
+    "code:TC_CE_RETURN_TYPE:no_false_positive": [
+        "TC-TOOL-SEM-0106", "TC-TOOL-SEM-0104",
+    ],
+    "code:TC_CE_RETURN_TYPE:position": ["TC-SEM-CFG-0012"],
+    "code:TC_CE_RETURN_TYPE:stage": ["TC-SEM-CFG-0012"],
+    "code:TC_CE_RETURN_FORM:trigger": [
+        "TC-SEM-CFG-0013", "TC-SEM-CFG-0014",
+    ],
+    "code:TC_CE_RETURN_FORM:no_false_positive": ["TC-TOOL-SEM-0106"],
+    "code:TC_CE_RETURN_FORM:position": [
+        "TC-SEM-CFG-0013", "TC-SEM-CFG-0014",
+    ],
+    "code:TC_CE_RETURN_FORM:stage": ["TC-SEM-CFG-0013"],
+    "code:TC_CE_MISSING_RETURN:trigger": [
+        "TC-SEM-CFG-0001", "TC-SEM-CFG-0002", "TC-SEM-CFG-0003",
+        "TC-SEM-CFG-0004",
+    ],
+    "code:TC_CE_MISSING_RETURN:no_false_positive": ["TC-TOOL-SEM-0104"],
+    "code:TC_CE_MISSING_RETURN:position": [
+        "TC-SEM-CFG-0001", "TC-SEM-CFG-0002",
+    ],
+    "code:TC_CE_MISSING_RETURN:stage": ["TC-SEM-CFG-0001"],
+    # §8.8.2/§12.2 #10 call checks.
+    "code:TC_CE_ARGUMENT_COUNT:trigger": ["TC-SEM-CALL-0104"],
+    "code:TC_CE_ARGUMENT_COUNT:no_false_positive": ["TC-TOOL-SEM-0106"],
+    "code:TC_CE_ARGUMENT_COUNT:position": ["TC-SEM-CALL-0104"],
+    "code:TC_CE_ARGUMENT_COUNT:stage": ["TC-SEM-CALL-0104"],
+    "code:TC_CE_ARGUMENT_ORDER:trigger": [
+        "TC-SEM-CALL-0105", "TC-SEM-CALL-0106",
+    ],
+    "code:TC_CE_ARGUMENT_ORDER:no_false_positive": ["TC-TOOL-SEM-0106"],
+    "code:TC_CE_ARGUMENT_ORDER:position": [
+        "TC-SEM-CALL-0105", "TC-SEM-CALL-0106",
+    ],
+    "code:TC_CE_ARGUMENT_ORDER:stage": ["TC-SEM-CALL-0105"],
+    "code:TC_CE_UNKNOWN_ARGUMENT:trigger": [
+        "TC-SEM-CALL-0102", "TC-SEM-CALL-0115",
+    ],
+    "code:TC_CE_UNKNOWN_ARGUMENT:no_false_positive": ["TC-TOOL-SEM-0106"],
+    "code:TC_CE_UNKNOWN_ARGUMENT:position": ["TC-SEM-CALL-0102"],
+    "code:TC_CE_UNKNOWN_ARGUMENT:stage": ["TC-SEM-CALL-0102"],
+    "code:TC_CE_DUPLICATE_ARGUMENT:trigger": ["TC-SEM-CALL-0101"],
+    "code:TC_CE_DUPLICATE_ARGUMENT:no_false_positive": ["TC-TOOL-SEM-0106"],
+    "code:TC_CE_DUPLICATE_ARGUMENT:position": ["TC-SEM-CALL-0101"],
+    "code:TC_CE_DUPLICATE_ARGUMENT:stage": ["TC-SEM-CALL-0101"],
+    "code:TC_CE_MISSING_ARGUMENT:trigger": ["TC-SEM-CALL-0103"],
+    "code:TC_CE_MISSING_ARGUMENT:no_false_positive": ["TC-TOOL-SEM-0106"],
+    "code:TC_CE_MISSING_ARGUMENT:position": ["TC-SEM-CALL-0103"],
+    "code:TC_CE_MISSING_ARGUMENT:stage": ["TC-SEM-CALL-0103"],
+    "code:TC_CE_VOID:trigger": ["TC-SEM-CALL-0112"],
+    "code:TC_CE_VOID:position": ["TC-SEM-CALL-0112"],
+    "code:TC_CE_VOID:stage": ["TC-SEM-CALL-0112"],
+    # §9 safety.
+    "code:TC_CE_UNSAFE_OPERATION:trigger": [
+        "TC-SEM-SAFE-0101", "TC-SEM-SAFE-0102", "TC-SEM-SAFE-0103",
+        "TC-SEM-SAFE-0104", "TC-SEM-SAFE-0105", "TC-SEM-SAFE-0106",
+        "TC-SEM-SAFE-0107", "TC-SEM-SAFE-0108", "TC-SEM-SAFE-0112",
+        "TC-SEM-SAFE-0113", "TC-SEM-CALL-0116",
+    ],
+    "code:TC_CE_UNSAFE_OPERATION:no_false_positive": [
+        "TC-TOOL-SEM-0107", "TC-TOOL-SEM-0108", "TC-TOOL-SEM-0113",
+    ],
+    "code:TC_CE_UNSAFE_OPERATION:position": ["TC-SEM-SAFE-0101"],
+    "code:TC_CE_UNSAFE_OPERATION:stage": ["TC-SEM-SAFE-0101"],
+    "code:TC_CE_UNSAFE_CALL:trigger": ["TC-SEM-CALL-0108"],
+    "code:TC_CE_UNSAFE_CALL:no_false_positive": ["TC-TOOL-SEM-0107"],
+    "code:TC_CE_UNSAFE_CALL:position": ["TC-SEM-CALL-0108"],
+    "code:TC_CE_UNSAFE_CALL:stage": ["TC-SEM-CALL-0108"],
+    "code:TC_CE_FAST_CALL:trigger": [
+        "TC-SEM-CALL-0109", "TC-SEM-CALL-0110", "TC-SEM-CALL-0107",
+        "TC-SEM-CALL-0114",
+    ],
+    "code:TC_CE_FAST_CALL:no_false_positive": ["TC-TOOL-SEM-0107"],
+    "code:TC_CE_FAST_CALL:position": ["TC-SEM-CALL-0109"],
+    "code:TC_CE_FAST_CALL:stage": ["TC-SEM-CALL-0109"],
+    "code:TC_CE_SAFE_VIOLATION:trigger": [
+        "TC-SEM-SAFE-0109", "TC-SEM-SAFE-0110", "TC-SEM-SAFE-0111",
+        "TC-SEM-CALL-0111", "TC-SEM-SAFE-0114",
+    ],
+    "code:TC_CE_SAFE_VIOLATION:no_false_positive": [
+        "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0114",
+    ],
+    "code:TC_CE_SAFE_VIOLATION:position": [
+        "TC-SEM-SAFE-0109", "TC-SEM-SAFE-0110",
+    ],
+    "code:TC_CE_SAFE_VIOLATION:stage": ["TC-SEM-SAFE-0109"],
+    # §2.6/§8.6 annotations.
+    "code:TC_CE_ANNOTATION:trigger": [
+        "TC-SEM-ANN-0201", "TC-SEM-ANN-0204", "TC-SEM-ANN-0205",
+        "TC-SEM-ANN-0208", "TC-SEM-ANN-0211", "TC-SEM-ANN-0214",
+        "TC-SEM-ANN-0222", "TC-SEM-ANN-0229",
+    ],
+    "code:TC_CE_ANNOTATION:no_false_positive": [
+        "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0111",
+    ],
+    "code:TC_CE_ANNOTATION:position": [
+        "TC-SEM-ANN-0201", "TC-SEM-ANN-0203", "TC-SEM-ANN-0211",
+        "TC-SEM-ANN-0214", "TC-SEM-ANN-0222",
+    ],
+    "code:TC_CE_ANNOTATION:stage": ["TC-SEM-ANN-0201"],
+    # §12.2 ordering rules exercised by S4 combinations.
+    "first_diag_rule:02:combination_case": ["TC-SEM-CFG-0004"],
+    "first_diag_rule:03:combination_case": ["TC-SEM-CFG-0003"],
+    "first_diag_rule:07:combination_case": [
+        "TC-SEM-CFG-0003", "TC-SEM-DI-0002",
+    ],
+    "first_diag_rule:09:combination_case": [
+        "TC-SEM-CFG-0016", "TC-SEM-CFG-0017",
+    ],
+    "first_diag_rule:10:combination_case": [
+        "TC-SEM-CALL-0101", "TC-SEM-CALL-0105", "TC-SEM-CALL-0106",
+        "TC-SEM-CALL-0107",
+    ],
+    "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority": [
+        "TC-SEM-SAFE-0114", "TC-SEM-CALL-0111",
+    ],
+    "same_site_priority:CALL_ARGUMENT_ORDER:priority": [
+        "TC-SEM-CALL-0101", "TC-SEM-CALL-0105",
+    ],
+    "same_site_priority:CALL_SAFETY_FIRST:priority": ["TC-SEM-CALL-0107"],
+    # §8.6 annotation matrix slots.
+    "annotation:@unsafe:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0231", "TC-SEM-ANN-0204"],
+    "annotation:@safe:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0230", "TC-SEM-ANN-0204"],
+    "annotation:@fast:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0204", "TC-TOOL-SEM-0110"],
+    "annotation:@fast_math:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0205"],
+    "annotation:@pure:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0206", "TC-TOOL-SEM-0110"],
+    "annotation:@readonly:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0224", "TC-TOOL-SEM-0110"],
+    "annotation:@nounwind:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0232", "TC-TOOL-SEM-0110"],
+    "annotation:@willreturn:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0226"],
+    "annotation:@no_overflow:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0227", "TC-TOOL-SEM-0110"],
+    "annotation:@inline:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0207"],
+    "annotation:@noinline:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0207"],
+    "annotation:@nonnull:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0208", "TC-SEM-ANN-0209", "TC-TOOL-SEM-0110"],
+    "annotation:@no_alias:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0228", "TC-TOOL-SEM-0110"],
+    "annotation:@align:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0210", "TC-SEM-ANN-0211", "TC-SEM-ANN-0212", "TC-SEM-ANN-0213", "TC-SEM-ANN-0225", "TC-TOOL-SEM-0110"],
+    "annotation:@range:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0215", "TC-SEM-ANN-0214", "TC-SEM-ANN-0216", "TC-SEM-ANN-0217", "TC-SEM-ANN-0218", "TC-SEM-ANN-0219", "TC-SEM-ANN-0220", "TC-SEM-ANN-0221", "TC-TOOL-SEM-0110"],
+    "annotation:@padding:coverage": ["TC-TOOL-SEM-0019", "TC-SEM-ANN-0229", "TC-SEM-CONST-0001", "TC-SEM-CONST-0002", "TC-SEM-CONST-0003"],
+    "design12:09:suite_mapping": [
+        "TC-SEM-CALL-0101", "TC-SEM-CFG-0016",
+    ],
+    "design12:09:gate_case": [
+        "TC-SEM-CALL-0107", "TC-SEM-CFG-0004",
+    ],
+}
 
 def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
     rows = []
@@ -1075,7 +1289,8 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
         if case_ids:
             row["status"] = "covered"
             row["case_ids"] = list(case_ids)
-        for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS):
+        for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
+                        S4_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1143,11 +1358,12 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
         "policy": {
             "initial_status": "uncovered",
             "statuses": ["uncovered", "covered", "suspended"],
-            "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty (S0 L0 and S1 LEX/SYN rows are named sets); suspended rows have a reason and closure stage.",
+            "rule": "Missing coverage is explicit; an item is covered only when case_ids are non-empty (named L0/S1/S2-S3/S4 stage sets); suspended rows have a reason and closure stage.",
             "l0_covered_rows": sorted(L0_COVERED_ROWS),
             "s1_covered_rows": sorted(S1_COVERED_ROWS),
             "s2_covered_rows": sorted(S2_COVERED_ROWS),
             "s3_covered_rows": sorted(S3_COVERED_ROWS),
+            "s4_covered_rows": sorted(S4_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {
@@ -1169,9 +1385,8 @@ def render_markdown(doc) -> str:
         "",
         "> Generated skeleton from the 0.0.46 standard, design and test plan.",
         "> **Every row starts as `uncovered`; a row is `covered` only when it",
-        "> carries at least one `case_ids` entry.** S0 L0 rows named in",
-        "> `tests/unit/README.md` and S1 LEX/SYN rows named in",
-        "> `tests/conformance/static/s1_cases.py` are explicitly covered; every",
+        "> carries at least one `case_ids` entry.** Named L0/S1/S2-S3/S4 rows",
+        "> from the unit and conformance tables are explicitly covered; every",
         "> later-stage row remains visibly uncovered. Missing coverage is explicit",
         "> (test plan §3.6/§7.5).",
         "",

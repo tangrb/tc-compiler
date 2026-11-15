@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0003
+profile: common
+source: fixtures/tc-sem-di-0003/root.tc
+spec: "§5.4 循环回边按前驱处理：循环体内 var 可被零次执行，循环外读取 -> UNINITIALIZED"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0003/root.tc, line: 9, column: 18}
+  related: []
+  diagnostics: exactly-one

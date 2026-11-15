@@ -20,17 +20,26 @@
   interning and freeze, W-dependent literal typing, `cast`/`trunc`/`bitcast` matrices,
   struct layout/`@padding`, `sizeof`, field/assignment paths, instruction shapes/types,
   mode matrix and the 32/64 static profile.
+- **CFG, DI, returns, calls, safety and annotations**: one closed CFG per
+  program/function, all edges and reachability, `U[n]` initialization and the DI
+  maximum fixed point, `MISSING_RETURN`; labels/control shapes; direct/indirect call
+  order (target → safety → LHS → arguments → receiver) and call safety; safe/unsafe
+  contexts with `@safe` priority; function/parameter/field annotation matrix,
+  W-dependent `@align`/`@range` ranges, and promise violations that are never a
+  static rejection.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN) and `--static-only`
   (LEX/SYN/IMPORT/SEM) partial checks; a normal invocation explicitly exits 70 after
   the static stages. Added the `w32` static profile (not an executable target).
-- **Tests**: `tc_frontend_test`, `tc_sem_test`, S1/S2/S3 conformance tables,
-  determinism suites and a fail-closed adapter self-test; currently 20/20 `ctest`
-  and 346/346 harness cases in Debug/Release/ASan builds.
+- **Tests**: `tc_frontend_test`, `tc_sem_test`, S1/S2/S3/S4 conformance tables
+  (S4: 90 compile + 15 accept), determinism suites and a fail-closed adapter
+  self-test; currently 22/22 `ctest` and 452/452 harness cases in Debug/Release/ASan
+  builds.
 
 ### Changed
 
-- Final `TcInstr`/`TcIR` materialization remains part of IR finalization; S3 validates
-  and freezes the type table.
+- Final `TcInstr`/`TcIR`/`TcUnit` materialization remains part of IR finalization; SEM
+  validates and freezes the type table, while CFG/DI is currently an internal
+  per-unit fact.
 - Wrap-up is now fixed process: process/historical documentation is removed and the
   `docs.cleanup` gate must pass; current conventions and known limits live in
   `src/CONTRACTS.md`.

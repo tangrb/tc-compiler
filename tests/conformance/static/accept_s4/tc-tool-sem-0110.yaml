@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0110
+profile: common
+source: tc-tool-sem-0110/root.tc
+spec: "§8.6 承诺内容违反是 UB，不是静态拒绝：@pure store、@nounwind trap、@no_overflow strict add、@range 形参越界值均可静态通过"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

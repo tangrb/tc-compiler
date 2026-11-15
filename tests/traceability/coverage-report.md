@@ -2,32 +2,31 @@
 
 > Generated skeleton from the 0.0.46 standard, design and test plan.
 > **Every row starts as `uncovered`; a row is `covered` only when it
-> carries at least one `case_ids` entry.** S0 L0 rows named in
-> `tests/unit/README.md` and S1 LEX/SYN rows named in
-> `tests/conformance/static/s1_cases.py` are explicitly covered; every
+> carries at least one `case_ids` entry.** Named L0/S1/S2-S3/S4 rows
+> from the unit and conformance tables are explicitly covered; every
 > later-stage row remains visibly uncovered. Missing coverage is explicit
 > (test plan §3.6/§7.5).
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **634** total, **389** uncovered, **245** covered, **0** N/A (S0)
+- Rows: **634** total, **292** uncovered, **342** covered, **0** N/A (S0)
 
 ## Summary by category
 
 | Category | Items | Slots | Covered | Uncovered | N/A (S0) |
 |---|---:|---:|---:|---:|---:|
-| Standard chapter (`chapter`) | 15 | 30 | 16 | 14 | 0 |
-| Diagnostic code (`code`) | 80 | 344 | 174 | 170 | 0 |
+| Standard chapter (`chapter`) | 15 | 30 | 25 | 5 | 0 |
+| Diagnostic code (`code`) | 80 | 344 | 246 | 98 | 0 |
 | Opcode (`opcode`) | 63 | 155 | 0 | 155 | 0 |
 | Design §12 item (`design12`) | 15 | 30 | 6 | 24 | 0 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 10 | 0 | 0 |
 | Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 | 0 |
 | 32/64 flip (`flip32_64`) | 17 | 34 | 34 | 0 | 0 |
-| Annotation (`annotation`) | 16 | 16 | 0 | 16 | 0 |
+| Annotation (`annotation`) | 16 | 16 | 16 | 0 | 0 |
 | Device policy (`device_policy`) | 4 | 4 | 0 | 4 | 0 |
 | I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 | 0 |
 | Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 | 0 |
-| **Total** | **231** | **634** | **245** | **389** | **0** |
+| **Total** | **231** | **634** | **342** | **292** | **0** |
 
 ## Coverage rows
 
@@ -45,22 +44,22 @@
 | `chapter:§3:negative` | §3 类型/转换/对象/指针状态 | negative | **covered** | TC-SEM-TYPE-0001, TC-SEM-TYPE-0004 | test plan §3.6/§8.1 |
 | `chapter:§4:positive` | §4 程序结构/模块/导入/可见性/CT 顺序 | positive | **covered** | TC-TOOL-SEM-0006, TC-TOOL-SEM-0007 | test plan §3.6/§8.1 |
 | `chapter:§4:negative` | §4 程序结构/模块/导入/可见性/CT 顺序 | negative | **covered** | TC-IMP-0001, TC-IMP-0003 | test plan §3.6/§8.1 |
-| `chapter:§5:positive` | §5 存储对象/作用域/DI | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0008 | test plan §3.6/§8.1 |
-| `chapter:§5:negative` | §5 存储对象/作用域/DI | negative | **covered** | TC-SEM-NAME-0001, TC-SEM-NAME-0003 | test plan §3.6/§8.1 |
-| `chapter:§6:positive` | §6 指令集/语义/验证 | positive | **covered** | TC-TOOL-SEM-0002, TC-TOOL-SEM-0004 | test plan §3.6/§8.1 |
-| `chapter:§6:negative` | §6 指令集/语义/验证 | negative | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004, TC-SEM-MODE-0001 | test plan §3.6/§8.1 |
-| `chapter:§7:positive` | §7 控制流核心/CFG | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§7:negative` | §7 控制流核心/CFG | negative | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§8:positive` | §8 函数/调用/注解 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§8:negative` | §8 函数/调用/注解 | negative | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§9:positive` | §9 安全模型 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§9:negative` | §9 安全模型 | negative | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§10:positive` | §10 优化契约 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§10:negative` | §10 优化契约 | negative | **uncovered** | — | test plan §3.6/§8.1 |
+| `chapter:§5:positive` | §5 存储对象/作用域/DI | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0008, TC-TOOL-SEM-0101, TC-TOOL-SEM-0102 | test plan §3.6/§8.1 |
+| `chapter:§5:negative` | §5 存储对象/作用域/DI | negative | **covered** | TC-SEM-NAME-0001, TC-SEM-NAME-0003, TC-SEM-DI-0001, TC-SEM-DI-0002, TC-SEM-DI-0003 | test plan §3.6/§8.1 |
+| `chapter:§6:positive` | §6 指令集/语义/验证 | positive | **covered** | TC-TOOL-SEM-0002, TC-TOOL-SEM-0004, TC-TOOL-SEM-0106, TC-TOOL-SEM-0112 | test plan §3.6/§8.1 |
+| `chapter:§6:negative` | §6 指令集/语义/验证 | negative | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004, TC-SEM-MODE-0001, TC-SEM-CFG-0010, TC-SEM-CALL-0112 | test plan §3.6/§8.1 |
+| `chapter:§7:positive` | §7 控制流核心/CFG | positive | **covered** | TC-TOOL-SEM-0104, TC-TOOL-SEM-0105 | test plan §3.6/§8.1 |
+| `chapter:§7:negative` | §7 控制流核心/CFG | negative | **covered** | TC-SEM-CFG-0001, TC-SEM-CFG-0005, TC-SEM-CFG-0006, TC-SEM-CFG-0008, TC-SEM-CFG-0009 | test plan §3.6/§8.1 |
+| `chapter:§8:positive` | §8 函数/调用/注解 | positive | **covered** | TC-TOOL-SEM-0106, TC-TOOL-SEM-0109 | test plan §3.6/§8.1 |
+| `chapter:§8:negative` | §8 函数/调用/注解 | negative | **covered** | TC-SEM-CFG-0012, TC-SEM-CFG-0013, TC-SEM-CALL-0101, TC-SEM-CALL-0105, TC-SEM-CALL-0108, TC-SEM-CALL-0113, TC-SEM-ANN-0201 | test plan §3.6/§8.1 |
+| `chapter:§9:positive` | §9 安全模型 | positive | **covered** | TC-TOOL-SEM-0107 | test plan §3.6/§8.1 |
+| `chapter:§9:negative` | §9 安全模型 | negative | **covered** | TC-SEM-SAFE-0101, TC-SEM-SAFE-0109, TC-SEM-SAFE-0110, TC-SEM-CALL-0108, TC-SEM-CALL-0109, TC-SEM-CALL-0114 | test plan §3.6/§8.1 |
+| `chapter:§10:positive` | §10 优化契约 | positive | **covered** | TC-TOOL-SEM-0109, TC-TOOL-SEM-0110 | test plan §3.6/§8.1 |
+| `chapter:§10:negative` | §10 优化契约 | negative | **covered** | TC-SEM-ANN-0206, TC-SEM-ANN-0224 | test plan §3.6/§8.1 |
 | `chapter:§11:positive` | §11 标准 I/O | positive | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§11:negative` | §11 标准 I/O | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§12:positive` | §12 诊断/首诊/位置/80 码 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§12:negative` | §12 诊断/首诊/位置/80 码 | negative | **uncovered** | — | test plan §3.6/§8.1 |
+| `chapter:§12:negative` | §12 诊断/首诊/位置/80 码 | negative | **covered** | TC-SEM-CFG-0016, TC-SEM-CFG-0017 | test plan §3.6/§8.1 |
 | `chapter:§13:positive` | §13 平台档案/验证要求 | positive | **covered** | TC-TOOL-SEM-0009, TC-TOOL-SEM-0010 | test plan §3.6/§8.1 |
 | `chapter:§13:negative` | §13 平台档案/验证要求 | negative | **covered** | TC-SEM-LAYOUT-0001, TC-SEM-CONV-0003 | test plan §3.6/§8.1 |
 | `chapter:§14:positive` | §14 EBNF | positive | **covered** | TC-TOOL-SYN-0001, TC-TOOL-SYN-0009 | test plan §3.6/§8.1 |
@@ -150,14 +149,14 @@
 | `code:TC_CE_IMPORT_NAME_CONFLICT:no_false_positive` | TC_CE_IMPORT_NAME_CONFLICT | no_false_positive | **covered** | TC-TOOL-SEM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_IMPORT_NAME_CONFLICT:position` | TC_CE_IMPORT_NAME_CONFLICT | position | **covered** | TC-IMP-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_IMPORT_NAME_CONFLICT:stage` | TC_CE_IMPORT_NAME_CONFLICT | stage | **covered** | TC-IMP-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_LABEL:trigger` | TC_CE_DUPLICATE_LABEL | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_LABEL:no_false_positive` | TC_CE_DUPLICATE_LABEL | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_LABEL:position` | TC_CE_DUPLICATE_LABEL | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_LABEL:stage` | TC_CE_DUPLICATE_LABEL | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LABEL_NOT_FOUND:trigger` | TC_CE_LABEL_NOT_FOUND | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LABEL_NOT_FOUND:no_false_positive` | TC_CE_LABEL_NOT_FOUND | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LABEL_NOT_FOUND:position` | TC_CE_LABEL_NOT_FOUND | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_LABEL_NOT_FOUND:stage` | TC_CE_LABEL_NOT_FOUND | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_LABEL:trigger` | TC_CE_DUPLICATE_LABEL | trigger | **covered** | TC-SEM-CFG-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_LABEL:no_false_positive` | TC_CE_DUPLICATE_LABEL | no_false_positive | **covered** | TC-TOOL-SEM-0105 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_LABEL:position` | TC_CE_DUPLICATE_LABEL | position | **covered** | TC-SEM-CFG-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_LABEL:stage` | TC_CE_DUPLICATE_LABEL | stage | **covered** | TC-SEM-CFG-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LABEL_NOT_FOUND:trigger` | TC_CE_LABEL_NOT_FOUND | trigger | **covered** | TC-SEM-CFG-0006, TC-SEM-CFG-0007 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LABEL_NOT_FOUND:no_false_positive` | TC_CE_LABEL_NOT_FOUND | no_false_positive | **covered** | TC-TOOL-SEM-0105 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LABEL_NOT_FOUND:position` | TC_CE_LABEL_NOT_FOUND | position | **covered** | TC-SEM-CFG-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_LABEL_NOT_FOUND:stage` | TC_CE_LABEL_NOT_FOUND | stage | **covered** | TC-SEM-CFG-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_TYPE_MISMATCH:trigger` | TC_CE_TYPE_MISMATCH | trigger | **covered** | TC-SEM-TYPE-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_TYPE_MISMATCH:no_false_positive` | TC_CE_TYPE_MISMATCH | no_false_positive | **covered** | TC-TOOL-SEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_TYPE_MISMATCH:position` | TC_CE_TYPE_MISMATCH | position | **covered** | TC-SEM-TYPE-0002, TC-SEM-FIELD-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -176,56 +175,56 @@
 | `code:TC_CE_MODE:no_false_positive` | TC_CE_MODE | no_false_positive | **covered** | TC-TOOL-SEM-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_MODE:position` | TC_CE_MODE | position | **covered** | TC-SEM-MODE-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_MODE:stage` | TC_CE_MODE | stage | **covered** | TC-SEM-MODE-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ANNOTATION:trigger` | TC_CE_ANNOTATION | trigger | **covered** | TC-SEM-MODE-0003, TC-SEM-ANN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ANNOTATION:no_false_positive` | TC_CE_ANNOTATION | no_false_positive | **covered** | TC-TOOL-SEM-0004, TC-TOOL-SEM-0017 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ANNOTATION:position` | TC_CE_ANNOTATION | position | **covered** | TC-SEM-MODE-0003, TC-SEM-ANN-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ANNOTATION:stage` | TC_CE_ANNOTATION | stage | **covered** | TC-SEM-MODE-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ANNOTATION:trigger` | TC_CE_ANNOTATION | trigger | **covered** | TC-SEM-MODE-0003, TC-SEM-ANN-0001, TC-SEM-ANN-0201, TC-SEM-ANN-0204, TC-SEM-ANN-0205, TC-SEM-ANN-0208, TC-SEM-ANN-0211, TC-SEM-ANN-0214, TC-SEM-ANN-0222, TC-SEM-ANN-0229 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ANNOTATION:no_false_positive` | TC_CE_ANNOTATION | no_false_positive | **covered** | TC-TOOL-SEM-0004, TC-TOOL-SEM-0017, TC-TOOL-SEM-0109, TC-TOOL-SEM-0111 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ANNOTATION:position` | TC_CE_ANNOTATION | position | **covered** | TC-SEM-MODE-0003, TC-SEM-ANN-0001, TC-SEM-ANN-0201, TC-SEM-ANN-0203, TC-SEM-ANN-0211, TC-SEM-ANN-0214, TC-SEM-ANN-0222 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ANNOTATION:stage` | TC_CE_ANNOTATION | stage | **covered** | TC-SEM-MODE-0003, TC-SEM-ANN-0201 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_ANNOTATION:w32` | TC_CE_ANNOTATION | w32 | **covered** | TC-SEM-ANN-0001 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_ANNOTATION:w64` | TC_CE_ANNOTATION | w64 | **covered** | TC-TOOL-SEM-0017 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_OPERAND_COUNT:trigger` | TC_CE_OPERAND_COUNT | trigger | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004, TC-SEM-OP-0005, TC-SEM-OP-0006, TC-SEM-OP-0007, TC-SEM-OP-0008, TC-SEM-OP-0009, TC-SEM-OP-0010, TC-SEM-OP-0011, TC-SEM-OP-0012, TC-SEM-OP-0013, TC-SEM-OP-0014, TC-SEM-OP-0015, TC-SEM-OP-0016, TC-SEM-OP-0017, TC-SEM-OP-0018, TC-SEM-OP-0019, TC-SEM-OP-0020, TC-SEM-OP-0021, TC-SEM-OP-0022, TC-SEM-OP-0023, TC-SEM-OP-0024, TC-SEM-OP-0028, TC-SEM-OP-0101, TC-SEM-OP-0108, TC-SEM-OP-0109, TC-SEM-OP-0111, TC-SEM-NAME-0111 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_OPERAND_COUNT:no_false_positive` | TC_CE_OPERAND_COUNT | no_false_positive | **covered** | TC-TOOL-SEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_OPERAND_COUNT:position` | TC_CE_OPERAND_COUNT | position | **covered** | TC-SEM-OP-0002, TC-SEM-OP-0004, TC-SEM-OP-0013, TC-SEM-OP-0018, TC-SEM-OP-0019, TC-SEM-FIELD-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_OPERAND_COUNT:stage` | TC_CE_OPERAND_COUNT | stage | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004, TC-SEM-OP-0013 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONDITION_TYPE:trigger` | TC_CE_CONDITION_TYPE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONDITION_TYPE:no_false_positive` | TC_CE_CONDITION_TYPE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONDITION_TYPE:position` | TC_CE_CONDITION_TYPE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONDITION_TYPE:stage` | TC_CE_CONDITION_TYPE | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_TYPE:trigger` | TC_CE_RETURN_TYPE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_TYPE:no_false_positive` | TC_CE_RETURN_TYPE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_TYPE:position` | TC_CE_RETURN_TYPE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_TYPE:stage` | TC_CE_RETURN_TYPE | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_FORM:trigger` | TC_CE_RETURN_FORM | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_FORM:no_false_positive` | TC_CE_RETURN_FORM | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_FORM:position` | TC_CE_RETURN_FORM | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_FORM:stage` | TC_CE_RETURN_FORM | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:trigger` | TC_CE_RETURN_OUTSIDE_FUNCTION | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:no_false_positive` | TC_CE_RETURN_OUTSIDE_FUNCTION | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:position` | TC_CE_RETURN_OUTSIDE_FUNCTION | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:stage` | TC_CE_RETURN_OUTSIDE_FUNCTION | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_RETURN:trigger` | TC_CE_MISSING_RETURN | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_RETURN:no_false_positive` | TC_CE_MISSING_RETURN | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_RETURN:position` | TC_CE_MISSING_RETURN | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_RETURN:stage` | TC_CE_MISSING_RETURN | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_COUNT:trigger` | TC_CE_ARGUMENT_COUNT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_COUNT:no_false_positive` | TC_CE_ARGUMENT_COUNT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_COUNT:position` | TC_CE_ARGUMENT_COUNT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_COUNT:stage` | TC_CE_ARGUMENT_COUNT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_ORDER:trigger` | TC_CE_ARGUMENT_ORDER | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_ORDER:no_false_positive` | TC_CE_ARGUMENT_ORDER | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_ORDER:position` | TC_CE_ARGUMENT_ORDER | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_ARGUMENT_ORDER:stage` | TC_CE_ARGUMENT_ORDER | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNKNOWN_ARGUMENT:trigger` | TC_CE_UNKNOWN_ARGUMENT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNKNOWN_ARGUMENT:no_false_positive` | TC_CE_UNKNOWN_ARGUMENT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNKNOWN_ARGUMENT:position` | TC_CE_UNKNOWN_ARGUMENT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNKNOWN_ARGUMENT:stage` | TC_CE_UNKNOWN_ARGUMENT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_ARGUMENT:trigger` | TC_CE_DUPLICATE_ARGUMENT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_ARGUMENT:no_false_positive` | TC_CE_DUPLICATE_ARGUMENT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_ARGUMENT:position` | TC_CE_DUPLICATE_ARGUMENT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_DUPLICATE_ARGUMENT:stage` | TC_CE_DUPLICATE_ARGUMENT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_ARGUMENT:trigger` | TC_CE_MISSING_ARGUMENT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_ARGUMENT:no_false_positive` | TC_CE_MISSING_ARGUMENT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_ARGUMENT:position` | TC_CE_MISSING_ARGUMENT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_MISSING_ARGUMENT:stage` | TC_CE_MISSING_ARGUMENT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONDITION_TYPE:trigger` | TC_CE_CONDITION_TYPE | trigger | **covered** | TC-SEM-CFG-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONDITION_TYPE:no_false_positive` | TC_CE_CONDITION_TYPE | no_false_positive | **covered** | TC-TOOL-SEM-0112, TC-TOOL-SEM-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONDITION_TYPE:position` | TC_CE_CONDITION_TYPE | position | **covered** | TC-SEM-CFG-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONDITION_TYPE:stage` | TC_CE_CONDITION_TYPE | stage | **covered** | TC-SEM-CFG-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_TYPE:trigger` | TC_CE_RETURN_TYPE | trigger | **covered** | TC-SEM-CFG-0012 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_TYPE:no_false_positive` | TC_CE_RETURN_TYPE | no_false_positive | **covered** | TC-TOOL-SEM-0106, TC-TOOL-SEM-0104 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_TYPE:position` | TC_CE_RETURN_TYPE | position | **covered** | TC-SEM-CFG-0012 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_TYPE:stage` | TC_CE_RETURN_TYPE | stage | **covered** | TC-SEM-CFG-0012 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_FORM:trigger` | TC_CE_RETURN_FORM | trigger | **covered** | TC-SEM-CFG-0013, TC-SEM-CFG-0014 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_FORM:no_false_positive` | TC_CE_RETURN_FORM | no_false_positive | **covered** | TC-TOOL-SEM-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_FORM:position` | TC_CE_RETURN_FORM | position | **covered** | TC-SEM-CFG-0013, TC-SEM-CFG-0014 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_FORM:stage` | TC_CE_RETURN_FORM | stage | **covered** | TC-SEM-CFG-0013 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:trigger` | TC_CE_RETURN_OUTSIDE_FUNCTION | trigger | **covered** | TC-SEM-CFG-0011 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:no_false_positive` | TC_CE_RETURN_OUTSIDE_FUNCTION | no_false_positive | **covered** | TC-TOOL-SEM-0106, TC-TOOL-SEM-0104 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:position` | TC_CE_RETURN_OUTSIDE_FUNCTION | position | **covered** | TC-SEM-CFG-0011 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_RETURN_OUTSIDE_FUNCTION:stage` | TC_CE_RETURN_OUTSIDE_FUNCTION | stage | **covered** | TC-SEM-CFG-0011 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_RETURN:trigger` | TC_CE_MISSING_RETURN | trigger | **covered** | TC-SEM-CFG-0001, TC-SEM-CFG-0002, TC-SEM-CFG-0003, TC-SEM-CFG-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_RETURN:no_false_positive` | TC_CE_MISSING_RETURN | no_false_positive | **covered** | TC-TOOL-SEM-0104 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_RETURN:position` | TC_CE_MISSING_RETURN | position | **covered** | TC-SEM-CFG-0001, TC-SEM-CFG-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_RETURN:stage` | TC_CE_MISSING_RETURN | stage | **covered** | TC-SEM-CFG-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_COUNT:trigger` | TC_CE_ARGUMENT_COUNT | trigger | **covered** | TC-SEM-CALL-0104 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_COUNT:no_false_positive` | TC_CE_ARGUMENT_COUNT | no_false_positive | **covered** | TC-TOOL-SEM-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_COUNT:position` | TC_CE_ARGUMENT_COUNT | position | **covered** | TC-SEM-CALL-0104 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_COUNT:stage` | TC_CE_ARGUMENT_COUNT | stage | **covered** | TC-SEM-CALL-0104 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_ORDER:trigger` | TC_CE_ARGUMENT_ORDER | trigger | **covered** | TC-SEM-CALL-0105, TC-SEM-CALL-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_ORDER:no_false_positive` | TC_CE_ARGUMENT_ORDER | no_false_positive | **covered** | TC-TOOL-SEM-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_ORDER:position` | TC_CE_ARGUMENT_ORDER | position | **covered** | TC-SEM-CALL-0105, TC-SEM-CALL-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_ARGUMENT_ORDER:stage` | TC_CE_ARGUMENT_ORDER | stage | **covered** | TC-SEM-CALL-0105 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNKNOWN_ARGUMENT:trigger` | TC_CE_UNKNOWN_ARGUMENT | trigger | **covered** | TC-SEM-CALL-0102, TC-SEM-CALL-0115 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNKNOWN_ARGUMENT:no_false_positive` | TC_CE_UNKNOWN_ARGUMENT | no_false_positive | **covered** | TC-TOOL-SEM-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNKNOWN_ARGUMENT:position` | TC_CE_UNKNOWN_ARGUMENT | position | **covered** | TC-SEM-CALL-0102 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNKNOWN_ARGUMENT:stage` | TC_CE_UNKNOWN_ARGUMENT | stage | **covered** | TC-SEM-CALL-0102 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_ARGUMENT:trigger` | TC_CE_DUPLICATE_ARGUMENT | trigger | **covered** | TC-SEM-CALL-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_ARGUMENT:no_false_positive` | TC_CE_DUPLICATE_ARGUMENT | no_false_positive | **covered** | TC-TOOL-SEM-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_ARGUMENT:position` | TC_CE_DUPLICATE_ARGUMENT | position | **covered** | TC-SEM-CALL-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_DUPLICATE_ARGUMENT:stage` | TC_CE_DUPLICATE_ARGUMENT | stage | **covered** | TC-SEM-CALL-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_ARGUMENT:trigger` | TC_CE_MISSING_ARGUMENT | trigger | **covered** | TC-SEM-CALL-0103 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_ARGUMENT:no_false_positive` | TC_CE_MISSING_ARGUMENT | no_false_positive | **covered** | TC-TOOL-SEM-0106 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_ARGUMENT:position` | TC_CE_MISSING_ARGUMENT | position | **covered** | TC-SEM-CALL-0103 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_MISSING_ARGUMENT:stage` | TC_CE_MISSING_ARGUMENT | stage | **covered** | TC-SEM-CALL-0103 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNKNOWN_FIELD:trigger` | TC_CE_UNKNOWN_FIELD | trigger | **covered** | TC-SEM-FIELD-0001, TC-SEM-OP-0026 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNKNOWN_FIELD:no_false_positive` | TC_CE_UNKNOWN_FIELD | no_false_positive | **covered** | TC-TOOL-SEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_UNKNOWN_FIELD:position` | TC_CE_UNKNOWN_FIELD | position | **covered** | TC-SEM-FIELD-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -268,10 +267,10 @@
 | `code:TC_CE_PARAMETER_ASSIGNMENT:no_false_positive` | TC_CE_PARAMETER_ASSIGNMENT | no_false_positive | **covered** | TC-TOOL-SEM-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_PARAMETER_ASSIGNMENT:position` | TC_CE_PARAMETER_ASSIGNMENT | position | **covered** | TC-SEM-ASSIGN-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_PARAMETER_ASSIGNMENT:stage` | TC_CE_PARAMETER_ASSIGNMENT | stage | **covered** | TC-SEM-ASSIGN-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNINITIALIZED:trigger` | TC_CE_UNINITIALIZED | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNINITIALIZED:no_false_positive` | TC_CE_UNINITIALIZED | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNINITIALIZED:position` | TC_CE_UNINITIALIZED | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNINITIALIZED:stage` | TC_CE_UNINITIALIZED | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNINITIALIZED:trigger` | TC_CE_UNINITIALIZED | trigger | **covered** | TC-SEM-DI-0001, TC-SEM-DI-0004, TC-SEM-DI-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNINITIALIZED:no_false_positive` | TC_CE_UNINITIALIZED | no_false_positive | **covered** | TC-TOOL-SEM-0101, TC-TOOL-SEM-0102, TC-TOOL-SEM-0103, TC-TOOL-SEM-0115 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNINITIALIZED:position` | TC_CE_UNINITIALIZED | position | **covered** | TC-SEM-DI-0001, TC-SEM-DI-0007, TC-SEM-DI-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNINITIALIZED:stage` | TC_CE_UNINITIALIZED | stage | **covered** | TC-SEM-DI-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_ADDR_OF_CONST:trigger` | TC_CE_ADDR_OF_CONST | trigger | **covered** | TC-SEM-ASSIGN-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_ADDR_OF_CONST:no_false_positive` | TC_CE_ADDR_OF_CONST | no_false_positive | **covered** | TC-TOOL-SEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_ADDR_OF_CONST:position` | TC_CE_ADDR_OF_CONST | position | **covered** | TC-SEM-ASSIGN-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -288,30 +287,30 @@
 | `code:TC_CE_TRUNC_WIDTH:stage` | TC_CE_TRUNC_WIDTH | stage | **covered** | TC-SEM-CONV-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_TRUNC_WIDTH:w32` | TC_CE_TRUNC_WIDTH | w32 | **covered** | TC-SEM-CONV-0007 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_TRUNC_WIDTH:w64` | TC_CE_TRUNC_WIDTH | w64 | **covered** | TC-SEM-CONV-0006 | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_CE_SWITCH_TYPE:trigger` | TC_CE_SWITCH_TYPE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SWITCH_TYPE:no_false_positive` | TC_CE_SWITCH_TYPE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SWITCH_TYPE:position` | TC_CE_SWITCH_TYPE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SWITCH_TYPE:stage` | TC_CE_SWITCH_TYPE | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VOID:trigger` | TC_CE_VOID | trigger | **covered** | TC-SEM-VOID-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SWITCH_TYPE:trigger` | TC_CE_SWITCH_TYPE | trigger | **covered** | TC-SEM-CFG-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SWITCH_TYPE:no_false_positive` | TC_CE_SWITCH_TYPE | no_false_positive | **covered** | TC-TOOL-SEM-0112 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SWITCH_TYPE:position` | TC_CE_SWITCH_TYPE | position | **covered** | TC-SEM-CFG-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SWITCH_TYPE:stage` | TC_CE_SWITCH_TYPE | stage | **covered** | TC-SEM-CFG-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VOID:trigger` | TC_CE_VOID | trigger | **covered** | TC-SEM-VOID-0001, TC-SEM-CALL-0112 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_VOID:no_false_positive` | TC_CE_VOID | no_false_positive | **covered** | TC-TOOL-SEM-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VOID:position` | TC_CE_VOID | position | **covered** | TC-SEM-VOID-0002, TC-SEM-VOID-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_VOID:stage` | TC_CE_VOID | stage | **covered** | TC-SEM-VOID-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_OPERATION:trigger` | TC_CE_UNSAFE_OPERATION | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_OPERATION:no_false_positive` | TC_CE_UNSAFE_OPERATION | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_OPERATION:position` | TC_CE_UNSAFE_OPERATION | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_OPERATION:stage` | TC_CE_UNSAFE_OPERATION | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_CALL:trigger` | TC_CE_UNSAFE_CALL | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_CALL:no_false_positive` | TC_CE_UNSAFE_CALL | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_CALL:position` | TC_CE_UNSAFE_CALL | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_UNSAFE_CALL:stage` | TC_CE_UNSAFE_CALL | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_FAST_CALL:trigger` | TC_CE_FAST_CALL | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_FAST_CALL:no_false_positive` | TC_CE_FAST_CALL | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_FAST_CALL:position` | TC_CE_FAST_CALL | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_FAST_CALL:stage` | TC_CE_FAST_CALL | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SAFE_VIOLATION:trigger` | TC_CE_SAFE_VIOLATION | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SAFE_VIOLATION:no_false_positive` | TC_CE_SAFE_VIOLATION | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SAFE_VIOLATION:position` | TC_CE_SAFE_VIOLATION | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_SAFE_VIOLATION:stage` | TC_CE_SAFE_VIOLATION | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VOID:position` | TC_CE_VOID | position | **covered** | TC-SEM-VOID-0002, TC-SEM-VOID-0003, TC-SEM-CALL-0112 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_VOID:stage` | TC_CE_VOID | stage | **covered** | TC-SEM-VOID-0001, TC-SEM-CALL-0112 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_OPERATION:trigger` | TC_CE_UNSAFE_OPERATION | trigger | **covered** | TC-SEM-SAFE-0101, TC-SEM-SAFE-0102, TC-SEM-SAFE-0103, TC-SEM-SAFE-0104, TC-SEM-SAFE-0105, TC-SEM-SAFE-0106, TC-SEM-SAFE-0107, TC-SEM-SAFE-0108, TC-SEM-SAFE-0112, TC-SEM-SAFE-0113, TC-SEM-CALL-0116 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_OPERATION:no_false_positive` | TC_CE_UNSAFE_OPERATION | no_false_positive | **covered** | TC-TOOL-SEM-0107, TC-TOOL-SEM-0108, TC-TOOL-SEM-0113 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_OPERATION:position` | TC_CE_UNSAFE_OPERATION | position | **covered** | TC-SEM-SAFE-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_OPERATION:stage` | TC_CE_UNSAFE_OPERATION | stage | **covered** | TC-SEM-SAFE-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_CALL:trigger` | TC_CE_UNSAFE_CALL | trigger | **covered** | TC-SEM-CALL-0108 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_CALL:no_false_positive` | TC_CE_UNSAFE_CALL | no_false_positive | **covered** | TC-TOOL-SEM-0107 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_CALL:position` | TC_CE_UNSAFE_CALL | position | **covered** | TC-SEM-CALL-0108 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_UNSAFE_CALL:stage` | TC_CE_UNSAFE_CALL | stage | **covered** | TC-SEM-CALL-0108 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_FAST_CALL:trigger` | TC_CE_FAST_CALL | trigger | **covered** | TC-SEM-CALL-0109, TC-SEM-CALL-0110, TC-SEM-CALL-0107, TC-SEM-CALL-0114 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_FAST_CALL:no_false_positive` | TC_CE_FAST_CALL | no_false_positive | **covered** | TC-TOOL-SEM-0107 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_FAST_CALL:position` | TC_CE_FAST_CALL | position | **covered** | TC-SEM-CALL-0109 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_FAST_CALL:stage` | TC_CE_FAST_CALL | stage | **covered** | TC-SEM-CALL-0109 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SAFE_VIOLATION:trigger` | TC_CE_SAFE_VIOLATION | trigger | **covered** | TC-SEM-SAFE-0109, TC-SEM-SAFE-0110, TC-SEM-SAFE-0111, TC-SEM-CALL-0111, TC-SEM-SAFE-0114 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SAFE_VIOLATION:no_false_positive` | TC_CE_SAFE_VIOLATION | no_false_positive | **covered** | TC-TOOL-SEM-0109, TC-TOOL-SEM-0114 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SAFE_VIOLATION:position` | TC_CE_SAFE_VIOLATION | position | **covered** | TC-SEM-SAFE-0109, TC-SEM-SAFE-0110 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_SAFE_VIOLATION:stage` | TC_CE_SAFE_VIOLATION | stage | **covered** | TC-SEM-SAFE-0109 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONST_FORM:trigger` | TC_CE_CONST_FORM | trigger | **covered** | TC-SEM-CONST-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONST_FORM:no_false_positive` | TC_CE_CONST_FORM | no_false_positive | **covered** | TC-TOOL-SEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONST_FORM:position` | TC_CE_CONST_FORM | position | **covered** | TC-SEM-CONST-0002, TC-SEM-CONST-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -595,8 +594,8 @@
 | `design12:07:gate_case` | 7. ABI/调用 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:08:suite_mapping` | 8. 对象/内存 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:08:gate_case` | 8. 对象/内存 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:09:suite_mapping` | 9. 诊断/语法 | suite_mapping | **covered** | TC-SEM-TYPE-0001 | design §12, test plan §3.6/§8.2 |
-| `design12:09:gate_case` | 9. 诊断/语法 | gate_case | **covered** | TC-IMP-0001, TC-SEM-MODE-0001 | design §12, test plan §3.6/§8.2 |
+| `design12:09:suite_mapping` | 9. 诊断/语法 | suite_mapping | **covered** | TC-SEM-TYPE-0001, TC-SEM-CALL-0101, TC-SEM-CFG-0016 | design §12, test plan §3.6/§8.2 |
+| `design12:09:gate_case` | 9. 诊断/语法 | gate_case | **covered** | TC-IMP-0001, TC-SEM-MODE-0001, TC-SEM-CALL-0107, TC-SEM-CFG-0004 | design §12, test plan §3.6/§8.2 |
 | `design12:10:suite_mapping` | 10. `@fast_math` | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:10:gate_case` | 10. `@fast_math` | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:11:suite_mapping` | 11. IR 形态 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
@@ -615,24 +614,24 @@
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
 | `first_diag_rule:01:combination_case` | 1. 阶段优先 | combination_case | **covered** | TC-L0-DIAG-0009, TC-UNIT-ORDER-0001 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:02:combination_case` | 2. 模块遍历顺序 | combination_case | **covered** | TC-L0-DIAG-0009 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **covered** | TC-L0-DIAG-0009, TC-UNIT-ORDER-0002, TC-UNIT-ORDER-0003 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:02:combination_case` | 2. 模块遍历顺序 | combination_case | **covered** | TC-L0-DIAG-0009, TC-SEM-CFG-0004 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:03:combination_case` | 3. 同模块源序 | combination_case | **covered** | TC-L0-DIAG-0009, TC-UNIT-ORDER-0002, TC-UNIT-ORDER-0003, TC-SEM-CFG-0003 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:04:combination_case` | 4. 同位置专用码优先 | combination_case | **covered** | TC-L0-DIAG-0009, TC-SYN-END-0001, TC-SYN-VAR-0001 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:05:combination_case` | 5. 条款内顺序优先 | combination_case | **covered** | TC-L0-DIAG-0006 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:06:combination_case` | 6. 布局诊断归属 SEM | combination_case | **covered** | TC-SEM-LAYOUT-0001 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:07:combination_case` | 7. 遍历无关 | combination_case | **covered** | TC-UNIT-MODULE-0001, TC-TOOL-SEM-0006 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:07:combination_case` | 7. 遍历无关 | combination_case | **covered** | TC-UNIT-MODULE-0001, TC-TOOL-SEM-0006, TC-SEM-CFG-0003, TC-SEM-DI-0002 | standard §12.2, test plan §3.6/§6.1 |
 | `first_diag_rule:08:combination_case` | 8. 档案字长 | combination_case | **covered** | TC-SEM-CONV-0010, TC-SEM-CONV-0011 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:09:combination_case` | 9. 操作数内部优先 | combination_case | **covered** | TC-L0-DIAG-0001 | standard §12.2, test plan §3.6/§6.1 |
-| `first_diag_rule:10:combination_case` | 10. call/make 参数顺序 | combination_case | **covered** | TC-L0-DIAG-0003, TC-L0-DIAG-0004, TC-L0-DIAG-0007 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:09:combination_case` | 9. 操作数内部优先 | combination_case | **covered** | TC-L0-DIAG-0001, TC-SEM-CFG-0016, TC-SEM-CFG-0017 | standard §12.2, test plan §3.6/§6.1 |
+| `first_diag_rule:10:combination_case` | 10. call/make 参数顺序 | combination_case | **covered** | TC-L0-DIAG-0003, TC-L0-DIAG-0004, TC-L0-DIAG-0007, TC-SEM-CALL-0101, TC-SEM-CALL-0105, TC-SEM-CALL-0106, TC-SEM-CALL-0107 | standard §12.2, test plan §3.6/§6.1 |
 
 ### Same-position code priority (`same_site_priority`)
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority` | SAFE_VIOLATION over UNSAFE_*/FAST_CALL | priority | **covered** | TC-L0-DIAG-0002 | standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1 |
-| `same_site_priority:CALL_ARGUMENT_ORDER:priority` | call argument order | priority | **covered** | TC-L0-DIAG-0003 | standard §12.2 #10; test plan §3.6/§6.1 |
+| `same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority` | SAFE_VIOLATION over UNSAFE_*/FAST_CALL | priority | **covered** | TC-L0-DIAG-0002, TC-SEM-SAFE-0114, TC-SEM-CALL-0111 | standard §12.3 SAFE_VIOLATION trigger; §9.1/§9.3; test plan §3.6/§6.1 |
+| `same_site_priority:CALL_ARGUMENT_ORDER:priority` | call argument order | priority | **covered** | TC-L0-DIAG-0003, TC-SEM-CALL-0101, TC-SEM-CALL-0105 | standard §12.2 #10; test plan §3.6/§6.1 |
 | `same_site_priority:MAKE_FIELD_ORDER:priority` | make field order | priority | **covered** | TC-L0-DIAG-0004 | standard §12.2 #10; test plan §3.6/§6.1 |
-| `same_site_priority:CALL_SAFETY_FIRST:priority` | call safety before arguments | priority | **covered** | TC-L0-DIAG-0005 | standard §8.8.2/§12.2 #9 exception; test plan §3.6/§6.1 |
+| `same_site_priority:CALL_SAFETY_FIRST:priority` | call safety before arguments | priority | **covered** | TC-L0-DIAG-0005, TC-SEM-CALL-0107 | standard §8.8.2/§12.2 #9 exception; test plan §3.6/§6.1 |
 | `same_site_priority:NEGATIVE_SHIFT_BEFORE_OVERFLOW:priority` | negative shift before shl overflow | priority | **covered** | TC-L0-DIAG-0006 | standard §12.2 #5; test plan §3.6/§6.1 |
 
 ### 32/64 flip (`flip32_64`)
@@ -678,22 +677,22 @@
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `annotation:@unsafe:coverage` | @unsafe | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@safe:coverage` | @safe | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@fast:coverage` | @fast | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@fast_math:coverage` | @fast_math | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@pure:coverage` | @pure | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@readonly:coverage` | @readonly | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@nounwind:coverage` | @nounwind | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@willreturn:coverage` | @willreturn | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@no_overflow:coverage` | @no_overflow | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@no_alias:coverage` | @no_alias | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@nonnull:coverage` | @nonnull | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@align:coverage` | @align | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@range:coverage` | @range | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@padding:coverage` | @padding | coverage | **uncovered** | — | §2.3, §2.6; test plan §3.6 |
-| `annotation:@inline:coverage` | @inline | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
-| `annotation:@noinline:coverage` | @noinline | coverage | **uncovered** | — | §2.6, §8.6; test plan §3.6 |
+| `annotation:@unsafe:coverage` | @unsafe | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0231, TC-SEM-ANN-0204 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@safe:coverage` | @safe | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0230, TC-SEM-ANN-0204 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@fast:coverage` | @fast | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0204, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@fast_math:coverage` | @fast_math | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0205 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@pure:coverage` | @pure | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0206, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@readonly:coverage` | @readonly | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0224, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@nounwind:coverage` | @nounwind | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0232, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@willreturn:coverage` | @willreturn | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0226 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@no_overflow:coverage` | @no_overflow | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0227, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@no_alias:coverage` | @no_alias | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0228, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@nonnull:coverage` | @nonnull | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0208, TC-SEM-ANN-0209, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@align:coverage` | @align | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0210, TC-SEM-ANN-0211, TC-SEM-ANN-0212, TC-SEM-ANN-0213, TC-SEM-ANN-0225, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@range:coverage` | @range | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0215, TC-SEM-ANN-0214, TC-SEM-ANN-0216, TC-SEM-ANN-0217, TC-SEM-ANN-0218, TC-SEM-ANN-0219, TC-SEM-ANN-0220, TC-SEM-ANN-0221, TC-TOOL-SEM-0110 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@padding:coverage` | @padding | coverage | **covered** | TC-TOOL-SEM-0019, TC-SEM-ANN-0229, TC-SEM-CONST-0001, TC-SEM-CONST-0002, TC-SEM-CONST-0003 | §2.3, §2.6; test plan §3.6 |
+| `annotation:@inline:coverage` | @inline | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0207 | §2.6, §8.6; test plan §3.6 |
+| `annotation:@noinline:coverage` | @noinline | coverage | **covered** | TC-TOOL-SEM-0109, TC-SEM-ANN-0207 | §2.6, §8.6; test plan §3.6 |
 
 ### Device policy (`device_policy`)
 

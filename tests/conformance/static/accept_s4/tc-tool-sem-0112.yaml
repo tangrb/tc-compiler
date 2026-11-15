@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0112
+profile: common
+source: tc-tool-sem-0112/root.tc
+spec: "§6.2.8 label 声明与 switch/br_if 控制形态；默认标签为最后一个"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

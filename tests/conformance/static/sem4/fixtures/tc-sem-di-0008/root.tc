@@ -1,0 +1,8 @@
+#program
+struct S then
+    var f: int32
+end
+_ = br L
+var s: S = make S, 1
+label L:
+s.f = copy int32, 2

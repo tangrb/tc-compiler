@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0101
+profile: common
+source: fixtures/tc-sem-call-0101/root.tc
+spec: "§8.8.2/#10 命名实参重复先于其它实参错误 -> DUPLICATE_ARGUMENT；§12.5.1 第二重复名并关联首次"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_ARGUMENT
+  primary: {file: fixtures/tc-sem-call-0101/root.tc, line: 3, column: 36}
+  related: [{file: fixtures/tc-sem-call-0101/root.tc, line: 3, column: 30}]
+  diagnostics: exactly-one

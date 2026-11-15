@@ -10,10 +10,11 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G1 | S1 LEX/SYN and flat parse IR | **PASS** | [G1](TC-G1门禁报告-0.0.46.md) |
 | G2 | S2 module discovery and IMPORT | **PASS** | [G2](TC-G2门禁报告-0.0.46.md) |
 | G3 | S3 names, types, conversions and layout | **PASS** | [G3](TC-G3门禁报告-0.0.46.md) |
+| G4 | S4 CFG, DI, returns, calls, safety and annotations | **PASS** | [G4](TC-G4门禁报告-0.0.46.md) |
 
-**Current status**: G3 passed and S4 is allowed. S4 onward (CFG/DI, call ordering,
-safety/annotations, CT, VM, backend) is not implemented; uncovered rows in the
-coverage matrix belong to later stages, not omissions of completed stages.
+**Current status**: G4 passed and S5 is allowed. S5 onward (CT, IR finalization,
+VM, backend) is not implemented; uncovered rows in the coverage matrix belong to
+later stages, not omissions of completed stages.
 
 Reproduce:
 
@@ -23,6 +24,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
+python3 tests/conformance/static/s4_cases.py --check
 python3 tests/traceability/coverage.py --check
 ```
 

@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0018
+profile: common
+source: fixtures/tc-sem-cfg-0018/root.tc
+spec: "§6.15.1 br_if 操作数数量不符 -> OPERAND_COUNT；畸形分支不参与 CFG/DI 传播"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-cfg-0018/root.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

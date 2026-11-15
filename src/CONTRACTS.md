@@ -95,12 +95,19 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 | Types/literals | `frontend/sem.c` | one interned type table per Analyze, scalar singletons, `ptr`/`fnptr` interning, nominal structs; `isize`/`usize` independent of fixed-width types; literal category/suffix/sign/range per W |
 | Conversions | `frontend/sem.c` | category matrix before width for `bitcast`; `trunc` only narrows; `cast` is numeric/bool only; W-dependent widths |
 | Layout/`sizeof` facts | `frontend/sem.c`, `ir/structs.h` | fields are compact, `@padding(N)` adds N bytes, no implicit alignment or tail padding; sum overflow in W-bit `usize` is SEM `LAYOUT_OVERFLOW`; types never cache layout |
-| Instruction shape | `frontend/sem.c` | opcode arity/operand category checks, mode matrix, no-result LHS rule, field/make and call argument type checks, `sizeof` type argument | 
+| Instruction shape | `frontend/sem.c` | opcode arity/operand category checks, mode matrix, no-result LHS rule, field/make and call argument type checks, `sizeof` type argument |
+| CFG/DI | `frontend/sem.c` | one closed unit per program/function; instruction/declaration nodes, labels as block entries, all `br`/`br_if`/`switch` edges, `return`/`trap` terminal, call atomic, reachable end; `U[n]` initialization and the maximum fixed point of standard §5.7.1; unreachable code excluded from DI and return propagation |
+| Returns | `frontend/sem.c` | `return` only in functions; void/non-void forms; operand type; non-void reachable end and empty body report `MISSING_RETURN` at the return type with the `end` related position; void/program natural end, trap and non-exiting loops are legal |
+| Calls | `frontend/sem.c` | signature collection first; direct/indirect; target visibility, call safety, result shape, arguments (duplicate → unknown → missing → count → order → type), receiver; recursion allowed; `call_indirect` positional only |
+| Safety | `frontend/sem.c` | lexical unsafe context (`@unsafe`/`@fast`/`unsafe` block); load/store/memmove/ptradd/ptrsub/call_indirect and ptr↔int/fnptr↔int bitcast are unsafe; `@safe` rejects any unsafe block or unsafe operation with `SAFE_VIOLATION` priority |
+| Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` literal ranges per W, `@padding`; promise-content violations are not static rejections |
 
 **Known representation limit**: `TcField.padding` is `uint32_t` (design §2.1) while `@padding(N)` accepts any non-negative decimal N; `TcStructDef.size`/`TcField.offset` are computed from the full 64-bit N, but a padding byte count above `UINT32_MAX` is capped in `TcField.padding`. Later stages must use the size/offset facts or revisit the frozen field before consuming the count.
 
-The type table is frozen after Analyze.  Final `TcInstr`/`TcIR` materialization,
-CFG/DI, call ordering/safety, annotation matrices and CT are later stages.
+The type table is frozen after Analyze.  Final `TcInstr`/`TcIR`/`TcUnit`
+materialization, CT and code generation are later stages; CFG/DI is currently an
+internal per-unit fact (statement nodes, explicit edges) and is not yet exported
+as a `TcUnit`.
 
 ### Current implementation conventions
 
@@ -117,20 +124,36 @@ CFG/DI, call ordering/safety, annotation matrices and CT are later stages.
 - `Self.S` is not type syntax (`Self` is a keyword, not `IDENT`); type
   parameters do not accept `Self.*`. Qualified imported type names use
   `m.S`.
+- CFG/DI nodes are source statements (instructions, `var`, `const`, `label`);
+  `unsafe` markers are lexical only.  A unit is built and discarded per body;
+  units never share nodes, edges, reachability or DI state.
+- Call diagnostics carry a call-site id and the §8.8.2 phase
+  (`TARGET` → `SAFETY` → `RESULT_SHAPE` → `ARGUMENTS` → `RECEIVER`), so call
+  safety precedes LHS/argument checks at one call.
+- `@range` literal endpoints record `TcParam.lo`/`hi` bit patterns; `@align`
+  literals record `TcParam.align`.  Const-path endpoints are resolved, required
+  to be the same type where applicable, and their values are completed by CT.
+- `TcParam.align` is `uint32_t` (design §3.4); an `@align` value above
+  `UINT32_MAX` is valid per W but caps the recorded field.  The annotation
+  value checks themselves use the full 64-bit N.
 
 ### Deferred decisions
 
-- `call_indirect nullptr`: statically rejected as `LITERAL_TYPE`; the runtime
-  `TC_RE_NULL_FUNCTION_POINTER` path and the signature-inference question are
-  deferred to the call/runtime stage.
+- `call_indirect nullptr`: statically rejected as `LITERAL_TYPE` because no
+  signature can be inferred from an untyped null operand; the runtime
+  `TC_RE_NULL_FUNCTION_POINTER` path and the signature-inference question remain
+  deferred to the VM stage.
 - `-0` for an unsigned expected type: treated as an explicit negative literal
   (`LITERAL_TYPE`); the mathematical-zero reading remains an open clarification.
-- `.nsw`/`.nuw` outside `@fast` with a sign mismatch reports `ANNOTATION` in
-  the current implementation; the `MODE`-vs-`ANNOTATION` precedence is deferred
-  to the annotation stage.
+- `@align`/`@range` const-path endpoint values (power-of-two, `lo <= hi`, bit
+  patterns) are completed by CT; S4 resolves the path and checks name,
+  visibility, kind and type.
 - `TcField.padding` is `uint32_t` (design §2.1); padding above `UINT32_MAX`
   keeps layout size/offset correct but caps the metadata.  Resolve before IR
   finalization/backends consume the count.
+- `TcParam.align` is `uint32_t`; values above `UINT32_MAX` are accepted by the
+  W-bit check but cap the recorded metadata.  Resolve before the optimizer
+  consumes it.
 
 ## Not frozen here (later stages, same headers)
 
@@ -139,11 +162,13 @@ must fill in:
 
 | Item | Stage |
 | --- | --- |
-| opcode arity/shape/type/mode table | implemented; security table remains with the safety stage |
+| opcode arity/shape/type/mode table | implemented |
+| security table (unsafe instruction/call set) | implemented |
 | type equivalence/conversion/literal algorithms | implemented |
 | struct layout/`sizeof` computation | implemented |
-| CFG/DI fixed-point algorithm | S4 |
+| CFG/DI fixed-point and return reachability | implemented (internal per unit) |
 | CT allowlist/evaluation/caching | S5 |
+| final `TcInstr`/`TcIR`/`TcUnit` materialization and printing | S5 |
 | runtime semantics and I/O formatting | S6 |
 | AArch64 lowering/ABI/frame layout | S7 |
 

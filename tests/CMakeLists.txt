@@ -32,6 +32,10 @@ add_test(NAME conformance.s1_cases
          COMMAND ${Python3_EXECUTABLE}
                  ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s1_cases.py --check)
 
+add_test(NAME conformance.s4_cases
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s4_cases.py --check)
+
 add_test(
     NAME docs.cleanup
     COMMAND ${Python3_EXECUTABLE}
@@ -68,7 +72,7 @@ add_test(NAME harness.selftest
 add_test(NAME trace.harness_codes
          COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/check_harness_codes.py)
 set_tests_properties(harness.selftest trace.harness_codes conformance.s1_cases
-                     conformance.s2s3_cases
+                     conformance.s2s3_cases conformance.s4_cases
                      PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(NAME golden.selftest
@@ -113,6 +117,16 @@ add_test(
             ${CMAKE_CURRENT_SOURCE_DIR}/conformance
             ${CMAKE_BINARY_DIR}/determinism)
 set_tests_properties(determinism.s2s3 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(
+    NAME determinism.s4
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s4_determinism.py
+            $<TARGET_FILE:tc-vm>
+            ${CMAKE_BINARY_DIR}/tc_adapter.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/conformance
+            ${CMAKE_BINARY_DIR}/determinism)
+set_tests_properties(determinism.s4 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(
     NAME harness.conformance

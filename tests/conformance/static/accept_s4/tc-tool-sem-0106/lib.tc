@@ -1,0 +1,11 @@
+#lib
+public func two(a: int32, b: int32) int32 then
+    _ = return a
+end
+public func voidf() void then
+    _ = return
+end
+public func rec(n: int32) int32 then
+    var x: int32 = call Self.rec, n
+    _ = return x
+end

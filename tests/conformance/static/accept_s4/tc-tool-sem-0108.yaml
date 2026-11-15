@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0108
+profile: common
+source: tc-tool-sem-0108/root.tc
+spec: "§9.2 非 unsafe 操作在安全代码中合法：addr、ptrdiff、指针比较、funcaddr、funceq、数值/ptr↔ptr bitcast、trap"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

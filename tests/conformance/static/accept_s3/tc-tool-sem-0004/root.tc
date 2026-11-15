@@ -1,3 +1,5 @@
 #program
 import lib
-var x: int32 = call lib.f
+unsafe then
+    var x: int32 = call lib.f
+end

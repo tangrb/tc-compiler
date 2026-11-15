@@ -1,0 +1,4 @@
+#program
+var x: int32 = read int32
+var y: int32 = add int32, x, 1
+_ = write int32, y

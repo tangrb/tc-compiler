@@ -1,0 +1,3 @@
+#lib
+public @no_overflow func f() void then
+end

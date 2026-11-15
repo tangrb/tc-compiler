@@ -1,0 +1,3 @@
+#lib
+public @fast func f(@range(Self.Missing, 1) n: int32) void then
+end

@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0002
+profile: common
+source: fixtures/tc-sem-cfg-0002/root.tc
+spec: "§7.7.1/§7.7.3 br_if 常量条件仍保留 false 边；false 边落到 end -> MISSING_RETURN"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0002/lib.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0002/lib.tc, line: 5, column: 1}]
+  diagnostics: exactly-one

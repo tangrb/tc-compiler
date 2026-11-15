@@ -1,0 +1,3 @@
+#program
+var fv: fnptr<void> = copy fnptr<void>, nullptr
+_ = call_indirect fv

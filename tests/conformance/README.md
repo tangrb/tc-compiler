@@ -10,18 +10,25 @@ never backfilled from compiler output.
   `import/`, `sem/`, `accept_s3/` (source table `s2s3_cases.py`).  Import
   fixtures live under `import/fixtures/<case-id>/`; the same fixture tree is
   reused by `tc_sem_test` for module-order/instance checks.
+- S4 CFG/DI/returns/calls/safety/annotations: `sem4/`, `accept_s4/` (source
+  table `s4_cases.py`).  Each case owns `sem4/fixtures/<case-id>/` or
+  `accept_s4/<case-id>/`; `@HERE@`/`@REL@` positions follow the same
+  §12.5.1 conventions.
 
 ```text
 tests/conformance/
   static/
     s1_cases.py        auditable source table for the S1 cases
     s2s3_cases.py      auditable source table for S2/S3 cases
+    s4_cases.py        auditable source table for S4 cases
     lex/               LEX diagnostics (TC_CE_SYNTAX, TC_CE_LITERAL_LEX_RANGE)
     syn/               SYN diagnostics (the other five SYN codes + TC_CE_SYNTAX)
     accept/            positive LEX/SYN acceptance sources
     import/            IMPORT cases + root/library fixtures
     sem/               SEM name/type/conversion/layout cases
+    sem4/              S4 CFG/DI/call/safety/annotation cases
     accept_s3/         positive IMPORT/SEM acceptance sources
+    accept_s4/         positive CFG/DI/call/safety/annotation sources
   fuzz/                L7 property case (random bytes; no crash/hang)
 ```
 
@@ -37,13 +44,15 @@ removes it and computes the 1-based line and Unicode-scalar column.  It never
 reads compiler output.
 
 ```sh
-# regenerate the S1 and S2/S3 YAML+source files
+# regenerate the S1, S2/S3 and S4 YAML+source files
 python3 tests/conformance/static/s1_cases.py --write
 python3 tests/conformance/static/s2s3_cases.py --write
+python3 tests/conformance/static/s4_cases.py --write
 
 # gate: every generated file must match the table
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
+python3 tests/conformance/static/s4_cases.py --check
 ```
 
 `@HERE@` and `@REL@` mark primary/related positions before marker removal.
@@ -74,8 +83,8 @@ The harness requires an adapter.  `tests/CMakeLists.txt` configures
 
 ```sh
 ctest --test-dir build -R harness.conformance --output-on-failure
-ctest --test-dir build -R 'determinism.s1|determinism.s2s3' --output-on-failure
-ctest --test-dir build -R 'sem.unit|conformance.s2s3_cases' --output-on-failure
+ctest --test-dir build -R 'determinism.s1|determinism.s2s3|determinism.s4' --output-on-failure
+ctest --test-dir build -R 'sem.unit|conformance.s2s3_cases|conformance.s4_cases' --output-on-failure
 ```
 
 `adapter.selftest` uses fake tc-vm scripts to prove the adapter is fail-closed

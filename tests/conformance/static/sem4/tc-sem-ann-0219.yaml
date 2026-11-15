@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0219
+profile: common
+source: fixtures/tc-sem-ann-0219/root.tc
+spec: "§8.6 @range 的 const 常量必须与形参同型；不同型 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0219/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

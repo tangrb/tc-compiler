@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0001
+profile: common
+source: fixtures/tc-sem-cfg-0001/root.tc
+spec: "§7.7.3 非 void 空函数体直接 MISSING_RETURN；§12.5.1 返回类型，关联 end"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0001/lib.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0001/lib.tc, line: 3, column: 1}]
+  diagnostics: exactly-one

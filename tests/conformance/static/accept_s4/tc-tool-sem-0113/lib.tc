@@ -1,0 +1,20 @@
+#lib
+public func id(a: int32) int32 then
+    _ = return a
+end
+public @unsafe func call_ptr(p: fnptr<int32, int32>) int32 then
+    var x: int32 = call_indirect p, 1
+    var n: int64 = bitcast int64, p
+    _ = return x
+end
+public @fast func fast_ptr(p: fnptr<int32, int32>) int32 then
+    var x: int32 = call_indirect p, 1
+    _ = return x
+end
+public func block(p: ptr<int32>) int32 then
+    var x: int32 = copy int32, 0
+    unsafe then
+        x = load int32, p
+    end
+    _ = return x
+end

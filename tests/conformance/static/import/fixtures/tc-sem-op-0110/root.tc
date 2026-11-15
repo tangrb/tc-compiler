@@ -1,4 +1,6 @@
 #program
 import lib
 var fv: fnptr<int32, int32> = funcaddr lib.f
-var r: int32 = call_indirect fv, x: 1
+unsafe then
+    var r: int32 = call_indirect fv, x: 1
+end

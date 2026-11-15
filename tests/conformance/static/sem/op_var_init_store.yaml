@@ -5,6 +5,6 @@ spec: "§6.15.1 无结果指令不能作 var 初始化器（没有合法的 _ LH
 expect:
   stage: SEM
   code: TC_CE_OPERAND_COUNT
-  primary: {file: op_var_init_store.tc, line: 3, column: 16}
+  primary: {file: op_var_init_store.tc, line: 4, column: 20}
   related: []
   diagnostics: exactly-one

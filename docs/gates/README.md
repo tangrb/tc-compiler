@@ -9,9 +9,10 @@
 | G1 | S1 LEX/SYN 与扁平 parse IR | **PASS** | [G1](TC-G1门禁报告-0.0.46.md) |
 | G2 | S2 模块发现与 IMPORT | **PASS** | [G2](TC-G2门禁报告-0.0.46.md) |
 | G3 | S3 名称、类型、转换与布局 | **PASS** | [G3](TC-G3门禁报告-0.0.46.md) |
+| G4 | S4 CFG、DI、返回、调用、安全与注解 | **PASS** | [G4](TC-G4门禁报告-0.0.46.md) |
 
-**当前状态**：G3 通过，允许进入 S4。S4 起（CFG/DI、调用顺序、安全/注解、CT、VM、后端）
-尚未实现；覆盖矩阵中的未覆盖项是后续阶段范围，不是已完成阶段的遗漏。
+**当前状态**：G4 通过，允许进入 S5。S5 起（CT、IR 最终化、VM、后端）尚未实现；
+覆盖矩阵中的未覆盖项是后续阶段范围，不是已完成阶段的遗漏。
 
 复现：
 
@@ -21,6 +22,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
+python3 tests/conformance/static/s4_cases.py --check
 python3 tests/traceability/coverage.py --check
 ```
 

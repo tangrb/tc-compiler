@@ -1,0 +1,4 @@
+#program
+label L:
+label L:
+_ = br L

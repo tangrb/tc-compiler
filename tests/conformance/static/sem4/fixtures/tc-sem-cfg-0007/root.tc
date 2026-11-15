@@ -1,0 +1,4 @@
+#program
+var x: int32 = copy int32, 0
+_ = switch x, L, M
+label L:
