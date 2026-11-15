@@ -445,6 +445,60 @@ SEM_CASES = [
         "SEM", "TC_CE_TYPE_MISMATCH", [],
     ),
     (
+        "TC-SEM-OP-0004", "op_var_init_store.tc", "common",
+        "§6.15.1 无结果指令不能作 var 初始化器（没有合法的 _ LHS）-> OPERAND_COUNT",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@store int32, p, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0005", "op_var_init_trap.tc", "common",
+        "§6.15.1 trap 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar t: int32 = @HERE@trap\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0006", "op_var_init_br.tc", "common",
+        "§6.15.1 br 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar t: int32 = @HERE@br L\nlabel L:\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0007", "op_var_init_br_if.tc", "common",
+        "§6.15.1 br_if 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar t: int32 = @HERE@br_if true, L\nlabel L:\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0008", "op_var_init_switch.tc", "common",
+        "§6.15.1 switch 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar t: int32 = @HERE@switch 0, L\nlabel L:\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0009", "op_var_init_memmove.tc", "common",
+        "§6.15.1 memmove 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@memmove int32, p, p, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0010", "op_var_init_write.tc", "common",
+        "§6.15.1 write 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar t: int32 = @HERE@write int32, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0011", "op_var_init_writeln.tc", "common",
+        "§6.15.1 writeln 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar t: int32 = @HERE@writeln int32, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0012", "op_var_init_store_volatile.tc", "common",
+        "§6.15.1 store.volatile 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@store.volatile int32, p, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
         "TC-SEM-OP-0003", "op_extra_operand.tc", "common",
         "§6.15.1 操作数数量不符 -> OPERAND_COUNT；§12.5.1 助记符",
         "#program\nvar x: int32 = @HERE@add int32, 1, 2, 3\n",
@@ -892,6 +946,15 @@ IMPORT_CASES = [
         "files": {
             "root.tc": "#program\nimport lib\n",
             "lib.tc": "#lib\npublic static var V: int32 = 2\npublic func bad() int32 then\n    @HERE@V = copy int32, 9\n    _ = return 1\nend\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0101", "spec": "§6.15.1 无结果指令在 #lib 函数体作 var 初始化器 -> OPERAND_COUNT",
+        "stage": "SEM", "code": "TC_CE_OPERAND_COUNT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\n",
+            "lib.tc": "#lib\npublic func f() int32 then\n    var t: int32 = @HERE@trap\n    _ = return 0\nend\n",
         },
         "source": "root.tc",
     },

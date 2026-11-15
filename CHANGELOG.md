@@ -7,7 +7,7 @@
 - **S2 模块发现与 IMPORT**：`src/frontend/module.{h,c}` 实现根 `#program` 校验、按 import 源序 DFS、导入目录→include roots 的确定性搜索、解析路径实例键、`module_order` 固定、循环/重复/缺失/非库/导入名冲突的 IMPORT 缓冲；`#program` 导入目标仍做 LEX/SYN 但不递归。
 - **S3 名称、类型、转换与布局**：`src/frontend/sem.{h,c}` 实现模块成员/命名空间与可见性、`Self`/`m`/裸名规则、类型表 intern 与 Analyze 后冻结、标量/ptr/fnptr/struct 等价、字面量按 W 的类别/后缀/符号/范围、`cast`/`trunc`/`bitcast` 类别矩阵先于位宽、结构体字段/`@padding`/布局/`LAYOUT_OVERFLOW`、`sizeof` 类型参数、字段赋值路径与 readonly、`make`/`call` 实参形状与类型、模式矩阵与 `.nsw/.nuw` 的 `@fast` 约束、`@align`/`@range` 的 W 范围检查。
 - `tc-vm`/`tc-aot` 新增 `--static-only` 部分检查（LEX/SYN/IMPORT/SEM；退出 0 仍不宣称程序有效）；新增 `w32` 静态档案（`tc_profile_init_generic_w32`），用于 32/64 矩阵，不绑定可执行目标。
-- 测试：`tc_sem_test`（58 项 L1 检查：类型身份、布局/偏移、W 尺寸、类型表冻结、钻石 module_order、同名不同路径实例）；`tests/conformance/static/s2s3_cases.py` 生成 126 个 SEM/翻转、28 个 import/库夹具、29 个接受工具用例；`determinism.s2s3`；adapter 支持 `--static-only`、imported-module 位置、related note 与 include roots。
+- 测试：`tc_sem_test`（58 项 L1 检查：类型身份、布局/偏移、W 尺寸、类型表冻结、钻石 module_order、同名不同路径实例）；`tests/conformance/static/s2s3_cases.py` 生成 135 个 SEM/翻转、29 个 import/库夹具、29 个接受工具用例；`determinism.s2s3`；adapter 支持 `--static-only`、imported-module 位置、related note 与 include roots。
 - G2/G3 门禁报告；覆盖矩阵更新为 245 covered / 389 uncovered / 0 suspended（`flip32_64` 34/34、`first_diag_rule` 10/10）。
 
 ### Changed
@@ -19,6 +19,7 @@
 ### Fixed
 
 - 修复 `resolve_fields` 未知字段后未清除 `ok` 导致的 `TYPE_MISMATCH` 级联；修复同模块 private/#program struct 被误判为不可访问；补齐无后缀非负字面量对 signed 上界的检查。
+- 门禁后修复 B1-5：无结果指令作 `var` 初始化器（`store`/`trap`/`br`/`br_if`/`switch`/`memmove`/`write`/`writeln`/`store.volatile`）必须报 `OPERAND_COUNT`；新增 `TC-SEM-OP-0004…0012` 与 `#lib` 函数体 `TC-SEM-OP-0101`。
 - 修复 root 路径未规范化导致的模块实例重复；修复 `Self.f`/`m.f` 在值位置应报 `TYPE_MISMATCH` 而非 `FUNCTION_SCOPE_ACCESS`；修复 `.nsw/.nuw` 后缀位置与 padding 进制/后缀/负号检查。
 
 - **S1 LEX/SYN 与扁平 parse IR**：`src/frontend/` 新增 `input`（arena/源读取/文档化上限）、`num`（精确十进制→binary32/64，roundTiesToEven，纯整数运算）、`lex`（UTF-8 解码、BOM/U+0000/非 ASCII 拒绝、`///` 注释、`\` 续行、最长匹配、助记符/后缀、注解、DISCARD、字面量、行列 span）与 `parse`（§14 EBNF、模式/层序/可见性、块结构、全部声明/语句/类型/指令形态、字段路径、命名实参、`switch` 目标、unsafe 深度）。

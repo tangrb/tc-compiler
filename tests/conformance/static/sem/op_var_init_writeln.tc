@@ -1,0 +1,2 @@
+#program
+var t: int32 = writeln int32, 1

@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0012
+profile: common
+source: op_var_init_store_volatile.tc
+spec: "§6.15.1 store.volatile 无结果，不能作 var 初始化器 -> OPERAND_COUNT"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_var_init_store_volatile.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

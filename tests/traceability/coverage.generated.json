@@ -650,6 +650,7 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-OP-0001",
+        "TC-SEM-OP-0004",
         "TC-SEM-MODE-0001"
       ],
       "chapter": "§6",
@@ -3182,7 +3183,17 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-OP-0001"
+        "TC-SEM-OP-0001",
+        "TC-SEM-OP-0004",
+        "TC-SEM-OP-0005",
+        "TC-SEM-OP-0006",
+        "TC-SEM-OP-0007",
+        "TC-SEM-OP-0008",
+        "TC-SEM-OP-0009",
+        "TC-SEM-OP-0010",
+        "TC-SEM-OP-0011",
+        "TC-SEM-OP-0012",
+        "TC-SEM-OP-0101"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3223,6 +3234,7 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-OP-0002",
+        "TC-SEM-OP-0004",
         "TC-SEM-FIELD-0009"
       ],
       "code": "TC_CE_OPERAND_COUNT",
@@ -3243,7 +3255,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-OP-0001"
+        "TC-SEM-OP-0001",
+        "TC-SEM-OP-0004"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",

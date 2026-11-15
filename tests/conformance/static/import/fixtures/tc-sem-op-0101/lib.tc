@@ -1,0 +1,5 @@
+#lib
+public func f() int32 then
+    var t: int32 = trap
+    _ = return 0
+end

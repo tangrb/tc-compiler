@@ -48,7 +48,7 @@
 | `chapter:§5:positive` | §5 存储对象/作用域/DI | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0008 | test plan §3.6/§8.1 |
 | `chapter:§5:negative` | §5 存储对象/作用域/DI | negative | **covered** | TC-SEM-NAME-0001, TC-SEM-NAME-0003 | test plan §3.6/§8.1 |
 | `chapter:§6:positive` | §6 指令集/语义/验证 | positive | **covered** | TC-TOOL-SEM-0002, TC-TOOL-SEM-0004 | test plan §3.6/§8.1 |
-| `chapter:§6:negative` | §6 指令集/语义/验证 | negative | **covered** | TC-SEM-OP-0001, TC-SEM-MODE-0001 | test plan §3.6/§8.1 |
+| `chapter:§6:negative` | §6 指令集/语义/验证 | negative | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004, TC-SEM-MODE-0001 | test plan §3.6/§8.1 |
 | `chapter:§7:positive` | §7 控制流核心/CFG | positive | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§7:negative` | §7 控制流核心/CFG | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§8:positive` | §8 函数/调用/注解 | positive | **uncovered** | — | test plan §3.6/§8.1 |
@@ -182,10 +182,10 @@
 | `code:TC_CE_ANNOTATION:stage` | TC_CE_ANNOTATION | stage | **covered** | TC-SEM-MODE-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_ANNOTATION:w32` | TC_CE_ANNOTATION | w32 | **covered** | TC-SEM-ANN-0001 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_ANNOTATION:w64` | TC_CE_ANNOTATION | w64 | **covered** | TC-TOOL-SEM-0017 | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_CE_OPERAND_COUNT:trigger` | TC_CE_OPERAND_COUNT | trigger | **covered** | TC-SEM-OP-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_OPERAND_COUNT:trigger` | TC_CE_OPERAND_COUNT | trigger | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004, TC-SEM-OP-0005, TC-SEM-OP-0006, TC-SEM-OP-0007, TC-SEM-OP-0008, TC-SEM-OP-0009, TC-SEM-OP-0010, TC-SEM-OP-0011, TC-SEM-OP-0012, TC-SEM-OP-0101 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_OPERAND_COUNT:no_false_positive` | TC_CE_OPERAND_COUNT | no_false_positive | **covered** | TC-TOOL-SEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_OPERAND_COUNT:position` | TC_CE_OPERAND_COUNT | position | **covered** | TC-SEM-OP-0002, TC-SEM-FIELD-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_OPERAND_COUNT:stage` | TC_CE_OPERAND_COUNT | stage | **covered** | TC-SEM-OP-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_OPERAND_COUNT:position` | TC_CE_OPERAND_COUNT | position | **covered** | TC-SEM-OP-0002, TC-SEM-OP-0004, TC-SEM-FIELD-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_OPERAND_COUNT:stage` | TC_CE_OPERAND_COUNT | stage | **covered** | TC-SEM-OP-0001, TC-SEM-OP-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONDITION_TYPE:trigger` | TC_CE_CONDITION_TYPE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONDITION_TYPE:no_false_positive` | TC_CE_CONDITION_TYPE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONDITION_TYPE:position` | TC_CE_CONDITION_TYPE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |

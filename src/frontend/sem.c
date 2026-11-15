@@ -2077,7 +2077,8 @@ static const TcType *check_arith(Sem *s, const TcParseInstr *instr) {
 }
 
 static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
-                                 const TcType *expected_result);
+                                 const TcType *expected_result,
+                                 int implicit_result);
 
 static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
     const TcType *type;
@@ -2318,19 +2319,23 @@ static int check_label_arg(Sem *s, const TcParseArg *arg) {
 }
 
 static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
-                                 const TcType *expected_result) {
+                                 const TcType *expected_result,
+                                 int implicit_result) {
     const TcType *result = NULL;
     Ref target;
     int has_target = 0;
     int has_result = tc_opcode_has_result(instr->op);
-    int dst_discard = instr->dst_discard || instr->dst_base == NULL;
+    int explicit_target = !instr->dst_discard && instr->dst_base != NULL;
     TcSpan tspan = instr->span;
     memset(&target, 0, sizeof(target));
-    if (!has_result && !dst_discard) {
+    /* A var declaration target is the instruction's LHS even though the parse
+     * IR keeps dst_base empty for an initializer; a no-result op there has no
+     * legal `_` and is OPERAND_COUNT (standard §6.15.1). */
+    if (!has_result && (implicit_result || explicit_target)) {
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
         return NULL;
     }
-    if (has_result && !dst_discard) {
+    if (has_result && explicit_target) {
         target = resolve_target(s, instr);
         if (!target.ok) {
             return NULL;
@@ -2901,7 +2906,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
 static void check_const_init(Sem *s, const TcParseConstInit *init,
                              const TcType *expected) {
     if (init->is_op) {
-        check_instr(s, &init->op, expected);
+        check_instr(s, &init->op, expected, 0);
     } else if (init->value.kind == TC_PVAL_NAME) {
         check_value_expected(s, &init->value, expected, NULL);
     } else if (init->value.kind != TC_PVAL_NAME) {
@@ -3012,7 +3017,7 @@ static void check_body(Sem *s, const TcParseFunc *func, const TcFuncSig *sig,
         s->module_const_init = 0;
         switch (body[i].kind) {
         case TC_STMT_INSTR:
-            check_instr(s, &body[i].instr, NULL);
+            check_instr(s, &body[i].instr, NULL, 0);
             break;
         case TC_STMT_VAR: {
             const TcType *declared =
@@ -3023,7 +3028,7 @@ static void check_body(Sem *s, const TcParseFunc *func, const TcFuncSig *sig,
             }
             if (declared != NULL) {
                 s->declaring_name = body[i].var.name;
-                check_instr(s, &body[i].var.init, declared);
+                check_instr(s, &body[i].var.init, declared, 1);
                 s->declaring_name = NULL;
             }
             break;

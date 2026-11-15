@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0101
+profile: common
+source: fixtures/tc-sem-op-0101/root.tc
+spec: "§6.15.1 无结果指令在 #lib 函数体作 var 初始化器 -> OPERAND_COUNT"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-op-0101/lib.tc, line: 3, column: 20}
+  related: []
+  diagnostics: exactly-one

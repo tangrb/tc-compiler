@@ -12,11 +12,11 @@
 | 项 | 结果 |
 | ---- | ---- |
 | S3 开发交付 | **PASS** — 名称/命名空间/可见性、类型表 intern+冻结、字面量定型、转换矩阵、结构体布局/`sizeof` 事实、指令形状/类型、32/64 实例化 |
-| S3 测试活动 | **PASS** — L1 `tc_sem_test` 58 checks；L3 126 个 SEM/翻转用例 + 28 个 import/库夹具 + 29 个接受工具用例；`determinism.s2s3` |
+| S3 测试活动 | **PASS** — L1 `tc_sem_test` 58 checks；L3 135 个 SEM/翻转用例 + 29 个 import/库夹具 + 29 个接受工具用例（含 B1-5 回归）；`determinism.s2s3` |
 | 32/64 翻转矩阵 | **PASS** — 覆盖矩阵 `flip32_64` 34/34；32/64 分档案运行，不跨档比较 |
 | 布局归属 | **PASS** — 布局在 SEM 计算；`LAYOUT_OVERFLOW` 为 SEM 码；未进入 CT |
 | 类型表冻结 | **PASS** — Analyze 完成后 `tc_type_table_freeze`；`TC-UNIT-TYPE-0001`/`TC-UNIT-CONV-0001@w32/@w64` |
-| 独立门禁审计 | **PASS** — 首轮发现 4 个 B1 与 B2 缺口；修复后复核 PASS（§10） |
+| 独立门禁审计 | **PASS** — 首轮发现 4 个 B1 与 B2 缺口；修复后复核 PASS；门禁后追加 B1-5 并复核关闭（§10/§10.4） |
 | **G3** | **PASS** |
 | 进入 S4 | **允许** |
 
@@ -29,7 +29,7 @@
 - 字面量：普通上下文按期望类型；`cast`/`trunc`/`bitcast` 源类型按标准 §6.6.3；无后缀/`u`/负值符号性与范围；`inf`/`nan`/`nullptr`/bool；LEX 与 SEM 分工（标准 §2.4/§2.7.3/§6.6.3）。
 - 转换：`cast` 数值/bool；`trunc` 仅整数且目标更窄；`bitcast` 类别矩阵先于位宽；W 位宽；禁止项（标准 §3.11/§6.6/§13.2.2）。
 - 结构体与布局：字段顺序/唯一/非空；`readonly`/`var`；`@padding(N)` 形式与 N；紧凑字段 + 0x00 padding + 无隐式对齐/尾填充；求和按 W 位 `usize`；自引用/前向引用；`sizeof` 类型参数；字段访问/赋值路径；`addr const`（标准 §3.7/§3.8/§6.13/§6.14/§13.3）。
-- 指令形状与类型：opcode 表驱动 arity/shape、类型参数、模式矩阵、`.nsw/.nuw` 的 `@fast` 约束、无结果 LHS、`make`/`call` 实参/字段类型检查（标准 §6.1/§6.2/§6.15/§10.2）。
+- 指令形状与类型：按标准 §6.2 的 opcode 规则检查 arity/shape、类型参数、模式矩阵、`.nsw/.nuw` 的 `@fast` 约束、无结果 LHS（含 var 初始化器形态）、`make`/`call` 实参/字段类型检查（标准 §6.1/§6.2/§6.15/§10.2）。
 - 32/64：`isize`/`usize`/`ptr`/`fnptr` 宽度、`bitcast`/`trunc`、字面量范围、`@padding`/布局求和、`@align`/`@range` 参数范围（标准 §13.2.1/§13.2.2）。
 
 不在本阶段范围：CFG/DI/返回末尾/调用顺序/安全/完整注解矩阵（S4）、CT/const 求值/IR 最终化（S5）、VM/AOT（S6+）。最终 `TcInstr`/`TcIR` 物化属于 IR 最终化；SEM 提供并冻结其所需的类型/名称/opcode/布局事实。
@@ -108,11 +108,11 @@
 
 ### 8.2 L3
 
-`conformance.s2s3_cases`/`harness.conformance` 共 183 个 S2/S3 用例通过（0 fail / 0 not_implemented）：
+`conformance.s2s3_cases`/`harness.conformance` 共 193 个 S2/S3 用例通过（0 fail / 0 not_implemented）：
 
-- 126 个 SEM/翻转用例（含 32/64 分档案期望）；
-- 28 个 import/库夹具用例；
-- 29 个接受工具用例（`--static-only`，含 include roots、`w32`/`w64` 合法翻转、`fnptr<void>`、`padding(0)`、深度只读）。
+- 135 个 SEM/翻转用例（含 32/64 分档案期望与 B1-5 的 10 个 var 初始化器形态）；
+- 29 个 import/库夹具用例；
+- 29 个接受工具用例（`--static-only`，含 include roots、`w32`/`w64` 合法翻转、`fnptr<void>`、`padding(0)`、深度只读、跨模块/钻石布局）。
 
 ### 8.3 覆盖
 
@@ -132,6 +132,11 @@
 - **静态存储**：`static var` 实例与初值属 S5；S3 只校验声明类型/初始化器类型。
 - **w32**：静态分析档案，不是可执行 ABI 目标；32 位 ABI/后端属 S9。
 - **翻转行 17 的运行时范围**：`read`/`write` 的 isize/usize 输入范围与 `TC_RE_IO` 属 S6；S3 覆盖其静态类型/W 宽度。翻转行 4/5 的运行时地址值/溢出同属 S6。
+- **O-1 const 初始化器形态**：`const c: int32 = trap`/`copy` 等非法 const 形态属 S5 `CONST_FORM`；S3 只做名称/类型检查，不越权报告 SEM 形态码。
+- **O-2 static var 初值**：`static var` 只能用 const 初始化器、初值写入静态区属 S5；S3 只校验声明类型与初始化器类型。
+- **O-3 标签解析**：`br`/`switch` 未知标签属 S4 `LABEL_NOT_FOUND`；S3 只校验标签操作数形状与分支条件/选择器类型。
+- **D-1 报告措辞**：本报告已把“opcode 表驱动”改为“按 §6.2 opcode 规则检查”，与 `switch` + `tc_opcode_has_result()` 的实现一致。
+- **D-3 模块拆分**：`sem.c` 已超过 3500 行；S4 期间按名称/类型/指令/布局拆分，属可维护性工作，不是 G3 语义门禁项。
 
 ## 10. 独立审计
 
@@ -168,9 +173,26 @@
 
 **复核结论：G3 PASS，无残留 B1/B2/B3/B4。**
 
+### 10.4 门禁后补充发现 B1-5（已关闭）
+
+门禁报告提交后，追加审计发现一个 S3 B1：
+
+| 项 | 内容 |
+| ---- | ---- |
+| 现象 | 无结果指令作 `var` 初始化器被接受：`var t: int32 = store int32, p, 1`、`= trap`、`br`、`br_if`、`switch`、`memmove`、`write`、`writeln`、`store.volatile` |
+| 依据 | §6.15.1 无结果指令的 LHS 必须是 `_`；var 初始化器没有 `_`，应 `TC_CE_OPERAND_COUNT`（测试计划附录 A.3 将该码首测阶段列为 S3） |
+| 根因 | `check_instr` 把 `dst_base == NULL` 当作丢弃目标；该形态只用于 var/const 初始化器，语句形态 `x = store …` 会正确报错 |
+| 修复 | `check_instr` 增加 `implicit_result` 参数：var 初始化器显式声明“该指令是值位置”；无结果指令在此形态直接 `OPERAND_COUNT`，不再进入值类型检查 |
+| 回归 | `TC-SEM-OP-0004…0012`（#program 全部 9 种形态）与 `TC-SEM-OP-0101`（#lib 函数体）；语句形态 `TC-SEM-OP-0002` 保持通过；`TC-TOOL-SEM-0001` 等正常 var 初始化器不受影响 |
+| 覆盖 | `TC_CE_OPERAND_COUNT` 的 trigger/position/stage 行与 `chapter:§6:negative` 已并入新用例；矩阵仍为 245 covered / 389 uncovered（无新增行） |
+
+`const` 初始化器中的无结果指令保持 S5 `CONST_FORM` 范围（见 §9 的 O-1/O-2），`br`/`switch` 未知标签保持 S4 `LABEL_NOT_FOUND` 范围（O-3），未在本修复中越权报告。
+
+修复后 Debug/Release/ASan+UBSan `ctest` 19/19、harness 300/300、S2/S3 193/193。同一只读审计代理复核：9 种无结果 var 初始化器均在助记符处报 `OPERAND_COUNT`；`_ =` 形态、`read`/`copy`/`add` 初始化器与显式目标语句保持正确；**G3 PASS，无残留**。
+
 ## 11. 门禁判定
 
-**G3 PASS。** 类型/转换/布局、类型表冻结、32/64 翻转矩阵与 S3 相关诊断均满足计划 §5 S3 与附录 D.2 S3 附加检查。首轮独立审计的 4 个 B1 与 B2 缺口已全部关闭并复核通过；无未关闭的 B1/B2/B3/B4。允许进入 S4，S4 报告见 `TC-G4门禁报告-0.0.46.md`（待编写）。
+**G3 PASS（含门禁后 B1-5 勘误关闭）。** 类型/转换/布局、类型表冻结、32/64 翻转矩阵与 S3 相关诊断均满足计划 §5 S3 与附录 D.2 S3 附加检查。首轮独立审计的 4 个 B1 与 B2 缺口、门禁后发现的无结果 var 初始化器 B1-5 均已关闭并复核通过；无未关闭的 B1/B2/B3/B4。允许进入 S4，S4 报告见 `TC-G4门禁报告-0.0.46.md`（待编写）。
 
 ## 附录 A. 复现命令
 
