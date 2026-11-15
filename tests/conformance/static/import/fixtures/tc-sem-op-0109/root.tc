@@ -1,0 +1,4 @@
+#program
+import lib
+var fv: fnptr<int32, int32> = funcaddr lib.f
+var r: int32 = call_indirect foo: fv, 1

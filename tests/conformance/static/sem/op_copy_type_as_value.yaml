@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0020
+profile: common
+source: op_copy_type_as_value.tc
+spec: "§6.15.1 copy 的值操作数位置放类型记号 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_copy_type_as_value.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

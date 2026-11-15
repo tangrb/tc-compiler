@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0033
+profile: common
+source: tc-tool-sem-0033/root.tc
+spec: "§6.10 br_if 条件字面量按 bool 检查；true 合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

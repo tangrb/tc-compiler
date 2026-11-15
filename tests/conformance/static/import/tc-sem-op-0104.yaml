@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0104
+profile: common
+source: fixtures/tc-sem-op-0104/root.tc
+spec: "§8.8.2/§12.2 #10 call 混用仍先检查重复实参 -> DUPLICATE_ARGUMENT"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_ARGUMENT
+  primary: {file: fixtures/tc-sem-op-0104/root.tc, line: 3, column: 34}
+  related: [{file: fixtures/tc-sem-op-0104/root.tc, line: 3, column: 28}]
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0016
+profile: common
+source: lit_float64_to_float32.tc
+spec: "§2.4 浮点字面量后缀决定源类型；f 后缀 -> float32，用于 float64 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_float64_to_float32.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

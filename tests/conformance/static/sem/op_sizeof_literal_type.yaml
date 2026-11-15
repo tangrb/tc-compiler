@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0019
+profile: common
+source: op_sizeof_literal_type.tc
+spec: "§6.15.1 sizeof 的类型参数位置放值字面量 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_sizeof_literal_type.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

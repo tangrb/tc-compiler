@@ -1573,7 +1573,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-NAME-0007"
+        "TC-SEM-NAME-0007",
+        "TC-SEM-NAME-0112"
       ],
       "code": "TC_CE_UNDEFINED_NAME",
       "print_name": "UndefinedName",
@@ -1853,7 +1854,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-NAME-0101"
+        "TC-SEM-NAME-0101",
+        "TC-SEM-NAME-0110"
       ],
       "code": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "print_name": "FunctionScopeAccess",
@@ -1893,7 +1895,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-NAME-0101"
+        "TC-SEM-NAME-0101",
+        "TC-SEM-NAME-0110"
       ],
       "code": "TC_CE_FUNCTION_SCOPE_ACCESS",
       "print_name": "FunctionScopeAccess",
@@ -2013,7 +2016,9 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-NAME-0104"
+        "TC-SEM-NAME-0104",
+        "TC-SEM-NAME-0109",
+        "TC-SEM-NAME-0113"
       ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
@@ -2054,7 +2059,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-NAME-0104",
-        "TC-SEM-FUNC-0102"
+        "TC-SEM-FUNC-0102",
+        "TC-SEM-NAME-0113"
       ],
       "code": "TC_CE_PRIVATE_ACCESS",
       "print_name": "PrivateAccess",
@@ -3193,7 +3199,24 @@
         "TC-SEM-OP-0010",
         "TC-SEM-OP-0011",
         "TC-SEM-OP-0012",
-        "TC-SEM-OP-0101"
+        "TC-SEM-OP-0013",
+        "TC-SEM-OP-0014",
+        "TC-SEM-OP-0015",
+        "TC-SEM-OP-0016",
+        "TC-SEM-OP-0017",
+        "TC-SEM-OP-0018",
+        "TC-SEM-OP-0019",
+        "TC-SEM-OP-0020",
+        "TC-SEM-OP-0021",
+        "TC-SEM-OP-0022",
+        "TC-SEM-OP-0023",
+        "TC-SEM-OP-0024",
+        "TC-SEM-OP-0028",
+        "TC-SEM-OP-0101",
+        "TC-SEM-OP-0108",
+        "TC-SEM-OP-0109",
+        "TC-SEM-OP-0111",
+        "TC-SEM-NAME-0111"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3235,6 +3258,9 @@
       "case_ids": [
         "TC-SEM-OP-0002",
         "TC-SEM-OP-0004",
+        "TC-SEM-OP-0013",
+        "TC-SEM-OP-0018",
+        "TC-SEM-OP-0019",
         "TC-SEM-FIELD-0009"
       ],
       "code": "TC_CE_OPERAND_COUNT",
@@ -3256,7 +3282,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-OP-0001",
-        "TC-SEM-OP-0004"
+        "TC-SEM-OP-0004",
+        "TC-SEM-OP-0013"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3996,7 +4023,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-FIELD-0001"
+        "TC-SEM-FIELD-0001",
+        "TC-SEM-OP-0026"
       ],
       "code": "TC_CE_UNKNOWN_FIELD",
       "print_name": "UnknownField",
@@ -4076,7 +4104,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-FIELD-0004"
+        "TC-SEM-FIELD-0004",
+        "TC-SEM-OP-0025"
       ],
       "code": "TC_CE_MISSING_FIELD",
       "print_name": "MissingField",
@@ -4156,7 +4185,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-FIELD-0005"
+        "TC-SEM-FIELD-0005",
+        "TC-SEM-OP-0027"
       ],
       "code": "TC_CE_DUPLICATE_FIELD",
       "print_name": "DuplicateField",

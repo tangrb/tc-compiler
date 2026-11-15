@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0016
+profile: common
+source: op_named_br_label.tc
+spec: "§6.1/§6.15.1 分支标签不得命名 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_named_br_label.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0111
+profile: common
+source: fixtures/tc-sem-name-0111/root.tc
+spec: "§14.3/§14.5 类型语法 struct_name=IDENT|IDENT.IDENT；Self 是关键字，Self.S 不能作类型参数 -> OPERAND_COUNT"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-name-0111/lib.tc, line: 6, column: 20}
+  related: []
+  diagnostics: exactly-one

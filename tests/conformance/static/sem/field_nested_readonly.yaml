@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0012
+profile: common
+source: field_nested_readonly.tc
+spec: "§6.14 字段赋值路径任一 readonly -> IMMUTABLE_FIELD（嵌套路径）"
+expect:
+  stage: SEM
+  code: TC_CE_IMMUTABLE_FIELD
+  primary: {file: field_nested_readonly.tc, line: 10, column: 3}
+  related: []
+  diagnostics: exactly-one

@@ -97,6 +97,8 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 | Layout/`sizeof` facts | `frontend/sem.c`, `ir/structs.h` | fields are compact, `@padding(N)` adds N bytes, no implicit alignment or tail padding; sum overflow in W-bit `usize` is SEM `LAYOUT_OVERFLOW`; types never cache layout |
 | Instruction shape | `frontend/sem.c` | opcode arity/operand category checks, mode matrix, no-result LHS rule, field/make and call argument type checks, `sizeof` type argument | 
 
+**Known representation limit**: `TcField.padding` is `uint32_t` (design §2.1) while `@padding(N)` accepts any non-negative decimal N; `TcStructDef.size`/`TcField.offset` are computed from the full 64-bit N, but a padding byte count above `UINT32_MAX` is capped in `TcField.padding`. Later stages must use the size/offset facts or revisit the frozen field before consuming the count.
+
 The type table is frozen after Analyze.  Final `TcInstr`/`TcIR` materialization,
 CFG/DI, call ordering/safety, annotation matrices and CT are later stages.
 

@@ -373,6 +373,60 @@ SEM_CASES = [
         "SEM", "TC_CE_BITCAST_WIDTH", [],
     ),
     (
+        "TC-SEM-LIT-0016", "lit_float64_to_float32.tc", "common",
+        "§2.4 浮点字面量后缀决定源类型；f 后缀 -> float32，用于 float64 -> LITERAL_TYPE",
+        "#program\nvar x: float64 = copy float64, @HERE@1.0f\n",
+        "SEM", "TC_CE_LITERAL_TYPE", [],
+    ),
+    (
+        "TC-SEM-LIT-0017", "lit_float32_no_suffix.tc", "common",
+        "§2.4 无后缀浮点 -> float64，用于 float32 -> LITERAL_TYPE",
+        "#program\nvar x: float32 = copy float32, @HERE@1.0\n",
+        "SEM", "TC_CE_LITERAL_TYPE", [],
+    ),
+    (
+        "TC-SEM-LIT-0018", "lit_int_to_float.tc", "common",
+        "§2.4 整数字面量不能用于浮点上下文（无隐式转换）-> LITERAL_TYPE",
+        "#program\nvar x: float64 = copy float64, @HERE@1\n",
+        "SEM", "TC_CE_LITERAL_TYPE", [],
+    ),
+    (
+        "TC-SEM-LIT-0019", "lit_switch_float.tc", "common",
+        "§6.10 switch 选择字面量必须为整数 -> LITERAL_TYPE",
+        "#program\n_ = switch @HERE@1.0, L0\nlabel L0:\n",
+        "SEM", "TC_CE_LITERAL_TYPE", [],
+    ),
+    (
+        "TC-SEM-CONV-0037", "conv_bitcast_int_width.tc", "common",
+        "§3.11 整数 -> 整数类别允许但位宽不等 -> BITCAST_WIDTH",
+        "#program\nvar a: int64 = copy int64, 0\nvar b: int32 = bitcast int32, @HERE@a\n",
+        "SEM", "TC_CE_BITCAST_WIDTH", [],
+    ),
+    (
+        "TC-SEM-CONV-0038", "conv_bitcast_float_width.tc", "common",
+        "§3.11 浮点 -> 浮点类别允许但位宽不等 -> BITCAST_WIDTH",
+        "#program\nvar a: float64 = copy float64, 1.0\nvar b: float32 = bitcast float32, @HERE@a\n",
+        "SEM", "TC_CE_BITCAST_WIDTH", [],
+    ),
+    (
+        "TC-SEM-TYPE-0105", "type_ptr_mismatch.tc", "common",
+        "§3.9/§3.11 ptr<T> 按 T 等价，不同 T 无隐式转换 -> TYPE_MISMATCH",
+        "#program\nvar a: ptr<int32> = copy ptr<int32>, nullptr\nvar b: ptr<int64> = copy ptr<int64>, @HERE@a\n",
+        "SEM", "TC_CE_TYPE_MISMATCH", [],
+    ),
+    (
+        "TC-SEM-TYPE-0106", "type_fnptr_mismatch.tc", "common",
+        "§3.9/§3.11 fnptr 签名逐项等价，不同签名无隐式转换 -> TYPE_MISMATCH",
+        "#program\nvar a: fnptr<void> = copy fnptr<void>, nullptr\nvar b: fnptr<int32> = copy fnptr<int32>, @HERE@a\n",
+        "SEM", "TC_CE_TYPE_MISMATCH", [],
+    ),
+    (
+        "TC-SEM-FIELD-0012", "field_nested_readonly.tc", "common",
+        "§6.14 字段赋值路径任一 readonly -> IMMUTABLE_FIELD（嵌套路径）",
+        "#program\nstruct Inner then\n    var z: int32\nend\nstruct Outer then\n    readonly ro: Inner\nend\nvar i: Inner = make Inner, 1\nvar o: Outer = make Outer, i\no.@HERE@ro.z = copy int32, 2\n",
+        "SEM", "TC_CE_IMMUTABLE_FIELD", [],
+    ),
+    (
         "TC-SEM-LIT-0009", "lit_br_if_condition.tc", "common",
         "§6.10/§12.2 #9 br_if 条件字面量按 bool 检查 -> LITERAL_TYPE",
         "#program\n_ = br_if @HERE@1, L\nlabel L:\n",
@@ -496,6 +550,102 @@ SEM_CASES = [
         "TC-SEM-OP-0012", "op_var_init_store_volatile.tc", "common",
         "§6.15.1 store.volatile 无结果，不能作 var 初始化器 -> OPERAND_COUNT",
         "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nvar t: int32 = @HERE@store.volatile int32, p, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0013", "op_named_cast_source.tc", "common",
+        "§6.1/§6.15.1 命名操作数只允许 call 实参与 make 字段；cast 源命名 -> OPERAND_COUNT（助记符）",
+        "#program\nvar x: int64 = @HERE@cast int64, foo: 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0014", "op_named_sizeof_type.tc", "common",
+        "§6.1/§6.15.1 命名操作数只允许 call/make；sizeof 类型参数命名 -> OPERAND_COUNT（助记符）",
+        "#program\nstruct S then\n    var a: int32\nend\nvar n: usize = @HERE@sizeof foo: S\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0015", "op_named_copy_value.tc", "common",
+        "§6.1/§6.15.1 copy 值操作数不得命名 -> OPERAND_COUNT（助记符）",
+        "#program\nvar x: int32 = @HERE@copy int32, foo: 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0016", "op_named_br_label.tc", "common",
+        "§6.1/§6.15.1 分支标签不得命名 -> OPERAND_COUNT（助记符）",
+        "#program\n_ = @HERE@br zz: L\nlabel L:\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0017", "op_named_make_type.tc", "common",
+        "§6.1/§6.15.1 make 的结构体类型参数不得命名 -> OPERAND_COUNT（助记符）",
+        "#program\nstruct S then\n    var a: int32\nend\nvar s: S = @HERE@make foo: S, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0018", "op_cast_literal_type.tc", "common",
+        "§6.15.1 cast 的类型参数位置放值字面量 -> OPERAND_COUNT（助记符）",
+        "#program\nvar x: int64 = @HERE@cast 1, 2\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0019", "op_sizeof_literal_type.tc", "common",
+        "§6.15.1 sizeof 的类型参数位置放值字面量 -> OPERAND_COUNT（助记符）",
+        "#program\nvar n: usize = @HERE@sizeof 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0020", "op_copy_type_as_value.tc", "common",
+        "§6.15.1 copy 的值操作数位置放类型记号 -> OPERAND_COUNT（助记符）",
+        "#program\nvar x: int32 = @HERE@copy int32, int32\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0021", "op_br_literal_label.tc", "common",
+        "§6.15.1 分支标签操作数不是标签记号 -> OPERAND_COUNT（助记符）",
+        "#program\n_ = @HERE@br 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0022", "op_switch_literal_label.tc", "common",
+        "§6.15.1 switch 标签操作数不是标签记号 -> OPERAND_COUNT（助记符）",
+        "#program\n_ = @HERE@switch 0, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0023", "op_addr_literal_target.tc", "common",
+        "§6.15.1 addr 目标必须是可寻址名字 -> OPERAND_COUNT（助记符）",
+        "#program\nvar p: ptr<int32> = @HERE@addr int32, 1\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0024", "op_named_funcref.tc", "common",
+        "§6.1/§6.15.1 funcaddr 函数操作数不得命名 -> OPERAND_COUNT（助记符）",
+        "#program\nvar p: fnptr<void> = @HERE@funcaddr foo: f\n",
+        "SEM", "TC_CE_OPERAND_COUNT", [],
+    ),
+    (
+        "TC-SEM-OP-0025", "op_make_mixed_missing.tc", "common",
+        "§6.2.7/§12.2 #10 make 混用位置/命名字段仍先检查缺失 -> MISSING_FIELD",
+        "#program\nstruct S3 then\n    var a: int32\n    var b: int32\n    var c: int32\nend\nvar s: S3 = make @HERE@S3, 1, b: 2\n",
+        "SEM", "TC_CE_MISSING_FIELD", [],
+    ),
+    (
+        "TC-SEM-OP-0026", "op_make_mixed_unknown.tc", "common",
+        "§6.2.7/§12.2 #10 make 混用仍先检查未知字段 -> UNKNOWN_FIELD",
+        "#program\nstruct S3 then\n    var a: int32\n    var b: int32\n    var c: int32\nend\nvar s: S3 = make S3, 1, @HERE@z: 2\n",
+        "SEM", "TC_CE_UNKNOWN_FIELD", [],
+    ),
+    (
+        "TC-SEM-OP-0027", "op_make_mixed_duplicate.tc", "common",
+        "§6.2.7/§12.2 #10 make 混用仍先检查重复字段 -> DUPLICATE_FIELD",
+        "#program\nstruct S3 then\n    var a: int32\n    var b: int32\n    var c: int32\nend\nvar s: S3 = make S3, @REL@a: 1, @HERE@a: 2, 3\n",
+        "SEM", "TC_CE_DUPLICATE_FIELD", [],
+    ),
+    (
+        "TC-SEM-OP-0028", "op_make_mixed_extra.tc", "common",
+        "§6.2.7/§12.2 #10 make 多余位置字段 -> OPERAND_COUNT（助记符）",
+        "#program\nstruct S3 then\n    var a: int32\n    var b: int32\n    var c: int32\nend\nvar s: S3 = @HERE@make S3, 1, 2, 3, 4, a: 1\n",
         "SEM", "TC_CE_OPERAND_COUNT", [],
     ),
     (
@@ -950,6 +1100,86 @@ IMPORT_CASES = [
         "source": "root.tc",
     },
     {
+        "id": "TC-SEM-OP-0102", "spec": "§8.8.2/§12.2 #10 call 混用位置/命名实参仍先检查缺失 -> MISSING_ARGUMENT",
+        "stage": "SEM", "code": "TC_CE_MISSING_ARGUMENT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar r: int32 = @HERE@call lib.t3, 1, b: 2\n",
+            "lib.tc": "#lib\npublic func t3(a: int32, b: int32, c: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0103", "spec": "§8.8.2/§12.2 #10 call 混用仍先检查未知实参 -> UNKNOWN_ARGUMENT",
+        "stage": "SEM", "code": "TC_CE_UNKNOWN_ARGUMENT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar r: int32 = call lib.t3, 1, @HERE@z: 2\n",
+            "lib.tc": "#lib\npublic func t3(a: int32, b: int32, c: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0104", "spec": "§8.8.2/§12.2 #10 call 混用仍先检查重复实参 -> DUPLICATE_ARGUMENT",
+        "stage": "SEM", "code": "TC_CE_DUPLICATE_ARGUMENT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar r: int32 = call lib.f, @REL@a: 1, @HERE@a: 2, 3\n",
+            "lib.tc": "#lib\npublic func f(a: int32, b: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0105", "spec": "§8.8.2/§12.2 #10 call 多余位置实参/数量不符 -> ARGUMENT_COUNT（助记符）",
+        "stage": "SEM", "code": "TC_CE_ARGUMENT_COUNT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar r: int32 = @HERE@call lib.f, 1, 2, 3, a: 4\n",
+            "lib.tc": "#lib\npublic func f(a: int32, b: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0106", "spec": "§8.8.2 call 的 void LHS/返回形态先于实参检查 -> VOID",
+        "stage": "SEM", "code": "TC_CE_VOID", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar a: int32 = copy int32, 1\na = @HERE@call lib.z, 1\n",
+            "lib.tc": "#lib\npublic func z() void then\n    _ = return\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0107", "spec": "§8.8.2 call 目标存在性先于 LHS 解析 -> UNDEFINED_FUNCTION",
+        "stage": "SEM", "code": "TC_CE_UNDEFINED_FUNCTION", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nnope = call lib.@HERE@nope, 1, 2\n",
+            "lib.tc": "#lib\npublic func f() int32 then\n    _ = return 0\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0108", "spec": "§6.15.1 call 函数操作数必须 Self.f/m.f，命名目标 -> OPERAND_COUNT（助记符）",
+        "stage": "SEM", "code": "TC_CE_OPERAND_COUNT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar r: int32 = @HERE@call foo: lib.f, 1\n",
+            "lib.tc": "#lib\npublic func f(a: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0109", "spec": "§6.15.1 call_indirect 的 fp 操作数不得命名 -> OPERAND_COUNT（助记符）",
+        "stage": "SEM", "code": "TC_CE_OPERAND_COUNT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar fv: fnptr<int32, int32> = funcaddr lib.f\nvar r: int32 = @HERE@call_indirect foo: fv, 1\n",
+            "lib.tc": "#lib\npublic func f(a: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0110", "spec": "§6.2.6/§8.4 call_indirect 只按位置，命名实参 -> UNKNOWN_ARGUMENT",
+        "stage": "SEM", "code": "TC_CE_UNKNOWN_ARGUMENT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar fv: fnptr<int32, int32> = funcaddr lib.f\nvar r: int32 = call_indirect fv, @HERE@x: 1\n",
+            "lib.tc": "#lib\npublic func f(a: int32) int32 then\n    _ = return a\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-OP-0111", "spec": "§6.1/§6.15.1 return 操作数不得命名 -> OPERAND_COUNT（助记符）",
+        "stage": "SEM", "code": "TC_CE_OPERAND_COUNT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\n",
+            "lib.tc": "#lib\npublic func f() int32 then\n    _ = @HERE@return foo: 1\nend\n",
+        }, "source": "root.tc",
+    },
+    {
         "id": "TC-SEM-OP-0101", "spec": "§6.15.1 无结果指令在 #lib 函数体作 var 初始化器 -> OPERAND_COUNT",
         "stage": "SEM", "code": "TC_CE_OPERAND_COUNT", "profile": "common",
         "files": {
@@ -957,6 +1187,46 @@ IMPORT_CASES = [
             "lib.tc": "#lib\npublic func f() int32 then\n    var t: int32 = @HERE@trap\n    _ = return 0\nend\n",
         },
         "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-NAME-0109", "spec": "§4.11.3 导入 private 非函数成员作 call 目标仍报 PRIVATE_ACCESS，不得降级为 UNDEFINED_FUNCTION",
+        "stage": "SEM", "code": "TC_CE_PRIVATE_ACCESS", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar x: int32 = call lib.@HERE@P\n",
+            "lib.tc": "#lib\nprivate struct @REL@P then\n    var x: int32\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-NAME-0110", "spec": "§5.6/§6.14 裸名模块 const 作赋值目标 -> FUNCTION_SCOPE_ACCESS（必须 Self.）",
+        "stage": "SEM", "code": "TC_CE_FUNCTION_SCOPE_ACCESS", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\n",
+            "lib.tc": "#lib\nprivate const K: int32 = 1\npublic func f() int32 then\n    @HERE@K = copy int32, 2\n    _ = return 0\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-NAME-0111", "spec": "§14.3/§14.5 类型语法 struct_name=IDENT|IDENT.IDENT；Self 是关键字，Self.S 不能作类型参数 -> OPERAND_COUNT",
+        "stage": "SEM", "code": "TC_CE_OPERAND_COUNT", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\n",
+            "lib.tc": "#lib\npublic struct S then\n    var x: int32\nend\npublic func f() usize then\n    var n: usize = @HERE@sizeof Self.S\n    _ = return n\nend\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-NAME-0113", "spec": "§4.11.3 导入 private 非类型成员出现在类型位置 -> PRIVATE_ACCESS，不得降级为 TYPE_MISMATCH",
+        "stage": "SEM", "code": "TC_CE_PRIVATE_ACCESS", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar n: usize = sizeof lib.@HERE@K\n",
+            "lib.tc": "#lib\nprivate const @REL@K: int32 = 1\n",
+        }, "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-NAME-0112", "spec": "§5.6/§6.13 限定成员类型解析未命中 -> UNDEFINED_NAME（位置成员名）",
+        "stage": "SEM", "code": "TC_CE_UNDEFINED_NAME", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar n: usize = sizeof lib.@HERE@NOPE\n",
+            "lib.tc": "#lib\npublic struct S then\n    var x: int32\nend\n",
+        }, "source": "root.tc",
     },
     {
         "id": "TC-SEM-VOID-0101", "spec": "§6.15.2 void 调用只能写 _；用作值/接收目标 -> VOID",
@@ -1402,6 +1672,55 @@ public func f() int32 then
 end
 """,
         }, "source": "root.tc",
+    },
+    {
+        "id": "TC-TOOL-SEM-0030", "spec": "§13.2.2 W=32 布局求和恰好为 usize 最大值时不溢出",
+        "profile": "w32",
+        "files": {"root.tc": """#program
+struct S then
+    var a: uint8 @padding(4294967294)
+end
+var n: usize = sizeof S
+"""}, "source": "root.tc", "profile_argv": "w32",
+    },
+    {
+        "id": "TC-TOOL-SEM-0031", "spec": "§13.2.2 W=64 布局求和恰好为 usize 最大值时不溢出",
+        "profile": "w64",
+        "files": {"root.tc": """#program
+struct S then
+    var a: uint8 @padding(18446744073709551614)
+end
+var n: usize = sizeof S
+"""}, "source": "root.tc", "profile_argv": "aarch64-linux-user",
+    },
+    {
+        "id": "TC-TOOL-SEM-0032", "spec": "§2.4 inf/nan 源类型由期望浮点类型决定；float32 上下文合法",
+        "profile": "common",
+        "files": {"root.tc": """#program
+var a: float32 = copy float32, inf
+var b: float32 = copy float32, -inf
+var c: float32 = copy float32, nan
+var d: float64 = copy float64, inf
+"""}, "source": "root.tc",
+    },
+    {
+        "id": "TC-TOOL-SEM-0033", "spec": "§6.10 br_if 条件字面量按 bool 检查；true 合法",
+        "profile": "common",
+        "files": {"root.tc": """#program
+_ = br_if true, L
+label L:
+"""}, "source": "root.tc",
+    },
+    {
+        "id": "TC-TOOL-SEM-0034", "spec": "§6.14 addr 可作用于 readonly 字段；readonly 只限制字段赋值",
+        "profile": "common",
+        "files": {"root.tc": """#program
+struct S then
+    readonly x: int32
+end
+var s: S = make S, 1
+var p: ptr<int32> = addr int32, s.x
+"""}, "source": "root.tc",
     },
     {
         "id": "TC-TOOL-SEM-0028", "spec": "§3.7/§13.2.2 W=64 布局求和 2^32 不溢出（W=32 会溢出）",

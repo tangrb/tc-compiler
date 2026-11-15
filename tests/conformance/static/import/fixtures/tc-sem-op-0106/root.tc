@@ -1,0 +1,4 @@
+#program
+import lib
+var a: int32 = copy int32, 1
+a = call lib.z, 1

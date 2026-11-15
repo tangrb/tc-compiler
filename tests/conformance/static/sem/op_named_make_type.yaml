@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0017
+profile: common
+source: op_named_make_type.tc
+spec: "§6.1/§6.15.1 make 的结构体类型参数不得命名 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_named_make_type.tc, line: 5, column: 12}
+  related: []
+  diagnostics: exactly-one

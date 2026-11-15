@@ -1,0 +1,8 @@
+#lib
+public struct S then
+    var x: int32
+end
+public func f() usize then
+    var n: usize = sizeof Self.S
+    _ = return n
+end

@@ -90,6 +90,7 @@ typedef struct {
     size_t nlocals;
     const char **labels;
     size_t nlabels;
+    TcSpan mnemonic_span;
     int stmt_index;
     int module_const_init;
     size_t const_decl_index;
@@ -878,14 +879,10 @@ static Ref resolve_target(Sem *s, const TcParseInstr *instr) {
                                     instr->dst_base_span);
                     return ref;
                 }
-                if (m->kind == TC_MEM_CONST) {
-                    sem_diag_simple(s, TC_CE_CONST_ASSIGNMENT,
-                                    instr->dst_base_span);
-                    return ref;
-                }
-                if (m->kind == TC_MEM_STATIC) {
-                    /* Module members require Self./m.; a bare static var in a
-                     * value position is FUNCTION_SCOPE_ACCESS (standard §5.6). */
+                if (m->kind == TC_MEM_CONST || m->kind == TC_MEM_STATIC) {
+                    /* Module value members require Self./m.; a bare const or
+                     * static var as an assignment target is
+                     * FUNCTION_SCOPE_ACCESS (standard §5.6/§6.14). */
                     sem_diag_simple(s, TC_CE_FUNCTION_SCOPE_ACCESS,
                                     instr->dst_base_span);
                     return ref;
@@ -934,11 +931,13 @@ static const TcType *resolve_named_type(Sem *s, const TcParseType *type,
     TcMember *import = NULL;
     uint32_t target_module = s->module_index;
     int same_module = 1;
+    int qualified = 0;
     if (strcmp(type->base, "Self") == 0) {
         if (member_name == NULL) {
             sem_diag_simple(s, TC_CE_SYNTAX, base_span);
             return NULL;
         }
+        qualified = 1;
         member = find_member(s->module, member_name);
     } else {
         import = find_member(s->module, type->base);
@@ -952,6 +951,7 @@ static const TcType *resolve_named_type(Sem *s, const TcParseType *type,
             }
             target_module = import->import_target;
             same_module = 0;
+            qualified = 1;
             member = find_member_in(s->an, target_module, member_name);
         } else if (member_name != NULL) {
             /* `x.T`: the first name is not an imported module.  A known value
@@ -969,13 +969,16 @@ static const TcType *resolve_named_type(Sem *s, const TcParseType *type,
         }
     }
     if (member == NULL) {
-        /* A known value name in a type position is a type mismatch; an
-         * unresolved name is UNDEFINED_NAME. */
-        TcLocal *local = lookup_local(s, member_name != NULL ? member_name
-                                                             : type->base);
-        TcMember *value = find_member(s->module, member_name != NULL
-                                                     ? member_name
-                                                     : type->base);
+        if (qualified) {
+            /* A qualified member that does not exist is unresolved; a
+             * same-named local is unrelated (standard §5.6/§6.13). */
+            sem_diag_simple(s, TC_CE_UNDEFINED_NAME, name_span);
+            return NULL;
+        }
+        /* A known value/label name in a type position is a type mismatch; an
+         * unresolved bare name is UNDEFINED_NAME. */
+        TcLocal *local = lookup_local(s, type->base);
+        TcMember *value = find_member(s->module, type->base);
         size_t li;
         int is_label = 0;
         for (li = 0; li < s->nlabels; li++) {
@@ -987,9 +990,17 @@ static const TcType *resolve_named_type(Sem *s, const TcParseType *type,
         if (local != NULL || is_label ||
             (value != NULL && value->kind != TC_MEM_STRUCT) ||
             (import != NULL && import->kind == TC_MEM_IMPORT)) {
-            sem_diag_simple(s, TC_CE_TYPE_MISMATCH, name_span);
+            sem_diag_simple(s, TC_CE_TYPE_MISMATCH, base_span);
         } else {
-            sem_diag_simple(s, TC_CE_UNDEFINED_NAME, name_span);
+            sem_diag_simple(s, TC_CE_UNDEFINED_NAME, base_span);
+        }
+        return NULL;
+    }
+    if (!same_module && !member->is_public) {
+        if (member->kind == TC_MEM_STRUCT && ctx.public_position) {
+            sem_diag_related(s, TC_CE_PRIVATE_TYPE, name_span, member->span);
+        } else {
+            sem_diag_related(s, TC_CE_PRIVATE_ACCESS, name_span, member->span);
         }
         return NULL;
     }
@@ -997,15 +1008,9 @@ static const TcType *resolve_named_type(Sem *s, const TcParseType *type,
         sem_diag_simple(s, TC_CE_TYPE_MISMATCH, name_span);
         return NULL;
     }
-    if (!member->is_public) {
-        if (ctx.public_position) {
-            sem_diag_related(s, TC_CE_PRIVATE_TYPE, name_span, member->span);
-            return NULL;
-        }
-        if (!same_module) {
-            sem_diag_related(s, TC_CE_PRIVATE_ACCESS, name_span, member->span);
-            return NULL;
-        }
+    if (!member->is_public && ctx.public_position) {
+        sem_diag_related(s, TC_CE_PRIVATE_TYPE, name_span, member->span);
+        return NULL;
     }
     {
         uint32_t id = member->sdef->id;
@@ -1481,7 +1486,7 @@ static int check_value_expected(Sem *s, const TcParseValue *v,
 static int check_arg_value(Sem *s, const TcParseArg *arg,
                            const TcType *expected) {
     if (arg->kind != TC_PARG_VALUE) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return 0;
     }
     return check_value_expected(s, &arg->value, expected, NULL);
@@ -1490,7 +1495,7 @@ static int check_arg_value(Sem *s, const TcParseArg *arg,
 static int check_operand(Sem *s, const TcParseArg *arg, const TcType *expected,
                          const TcType **out_type) {
     if (arg->kind != TC_PARG_VALUE || arg->name != NULL) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return 0;
     }
     return check_value_expected(s, &arg->value, expected, out_type);
@@ -1507,11 +1512,14 @@ static const TcType *check_type_arg(Sem *s, const TcParseArg *arg) {
         return resolve_type(s, &arg->type, ctx);
     }
     if (!type_arg_value(arg)) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return NULL;
     }
-    if (arg->value.nfields > 1) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+    if (arg->value.nfields > 1 ||
+        (arg->value.nfields == 1 && strcmp(arg->value.base, "Self") == 0)) {
+        /* Type syntax has struct_name = IDENT | IDENT "." IDENT; Self is a
+         * keyword, not an IDENT, so Self.S is not a type argument spelling. */
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return NULL;
     }
     memset(&type, 0, sizeof(type));
@@ -1554,12 +1562,12 @@ static TcMember *resolve_function_arg(Sem *s, const TcParseArg *arg,
     TcMember *import;
     TcMember *target;
     if (arg->kind != TC_PARG_VALUE || arg->value.kind != TC_PVAL_NAME) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return NULL;
     }
     v = &arg->value;
     if (v->nfields != 1) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return NULL;
     }
     *name_span = v->field_spans[0];
@@ -1574,12 +1582,18 @@ static TcMember *resolve_function_arg(Sem *s, const TcParseArg *arg,
         }
         target = find_member_in(s->an, import->import_target, v->fields[0]);
     }
-    if (target == NULL || target->kind != TC_MEM_FUNC) {
+    if (target == NULL) {
         sem_diag_simple(s, TC_CE_UNDEFINED_FUNCTION, *name_span);
         return NULL;
     }
+    /* A private imported member is PRIVATE_ACCESS even if its kind is not a
+     * function; §4.11.3 forbids downgrading it to UNDEFINED_FUNCTION. */
     if (strcmp(v->base, "Self") != 0 && !target->is_public) {
         sem_diag_related(s, TC_CE_PRIVATE_ACCESS, *name_span, target->span);
+        return NULL;
+    }
+    if (target->kind != TC_MEM_FUNC) {
+        sem_diag_simple(s, TC_CE_UNDEFINED_FUNCTION, *name_span);
         return NULL;
     }
     return target;
@@ -1698,7 +1712,7 @@ static const TcType *check_cast(Sem *s, const TcParseInstr *instr) {
         }
     } else {
         if (arg->kind != TC_PARG_VALUE || arg->name != NULL) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             return NULL;
         }
         {
@@ -1756,7 +1770,7 @@ static const TcType *check_trunc(Sem *s, const TcParseInstr *instr) {
     } else {
         Ref ref;
         if (arg->kind != TC_PARG_VALUE || arg->name != NULL) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             return NULL;
         }
         ref = resolve_value(s, &arg->value);
@@ -1857,7 +1871,7 @@ static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr) {
     } else {
         Ref ref;
         if (arg->kind != TC_PARG_VALUE || arg->name != NULL) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             return NULL;
         }
         ref = resolve_value(s, &arg->value);
@@ -2093,6 +2107,10 @@ static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->span);
         return NULL;
     }
+    if (instr->args[0].name != NULL) {
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->span);
+        return NULL;
+    }
     type = check_type_arg(s, &instr->args[0]);
     if (type == NULL) {
         return NULL;
@@ -2117,22 +2135,17 @@ static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
             any_positional = 1;
         }
     }
-    if (any_named && any_positional) {
-        sem_diag(s, TC_CE_FIELD_ORDER, instr->args[1].span, NULL,
-                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
-                 TC_DIAG_PHASE_ARGUMENTS, site_id);
-        return NULL;
-    }
     if (any_named) {
-        int *seen = (int *)an_alloc(
-            s->an, (def->nfields == 0 ? 1u : def->nfields) * sizeof(int));
-        memset(seen, 0, (def->nfields == 0 ? 1u : def->nfields) * sizeof(int));
-        /* Check order: duplicate -> unknown -> missing -> count -> order ->
-         * type (standard §6.2.7/§12.2 #10). */
+        /* duplicate -> unknown first, also for mixed forms (standard §6.2.7/
+         * §12.2 #10). */
         for (i = 1; i < instr->nargs; i++) {
             size_t g;
+            if (instr->args[i].name == NULL) {
+                continue;
+            }
             for (g = 1; g < i; g++) {
-                if (strcmp(instr->args[g].name, instr->args[i].name) == 0) {
+                if (instr->args[g].name != NULL &&
+                    strcmp(instr->args[g].name, instr->args[i].name) == 0) {
                     sem_diag(s, TC_CE_DUPLICATE_FIELD, instr->args[i].span,
                              &instr->args[g].span, TC_DIAG_ORIGIN_CONSTRUCT,
                              TC_DIAG_SITE_MAKE, TC_DIAG_PHASE_ARGUMENTS,
@@ -2142,13 +2155,61 @@ static const TcType *check_make(Sem *s, const TcParseInstr *instr) {
             }
         }
         for (i = 1; i < instr->nargs; i++) {
-            if (find_struct_field(def, instr->args[i].name) == NULL) {
+            if (instr->args[i].name != NULL &&
+                find_struct_field(def, instr->args[i].name) == NULL) {
                 sem_diag(s, TC_CE_UNKNOWN_FIELD, instr->args[i].span, NULL,
                          TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
                          TC_DIAG_PHASE_ARGUMENTS, site_id);
                 return NULL;
             }
         }
+    }
+    if (any_named && any_positional) {
+        size_t positional = 0;
+        int *covered = (int *)an_alloc(
+            s->an, (def->nfields == 0 ? 1u : def->nfields) * sizeof(int));
+        memset(covered, 0,
+               (def->nfields == 0 ? 1u : def->nfields) * sizeof(int));
+        for (i = 1; i < instr->nargs; i++) {
+            if (instr->args[i].name == NULL) {
+                positional++;
+            }
+        }
+        if (positional > def->nfields) {
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->span);
+            return NULL;
+        }
+        for (i = 0; i < positional; i++) {
+            covered[i] = 1;
+        }
+        for (i = 1; i < instr->nargs; i++) {
+            const TcField *f;
+            size_t fi;
+            if (instr->args[i].name == NULL) {
+                continue;
+            }
+            f = find_struct_field(def, instr->args[i].name);
+            for (fi = 0; fi < def->nfields; fi++) {
+                if (&def->fields[fi] == f) {
+                    covered[fi] = 1;
+                    break;
+                }
+            }
+        }
+        for (i = 0; i < def->nfields; i++) {
+            if (!covered[i]) {
+                sem_diag(s, TC_CE_MISSING_FIELD, instr->args[0].span, NULL,
+                         TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
+                         TC_DIAG_PHASE_ARGUMENTS, site_id);
+                return NULL;
+            }
+        }
+        sem_diag(s, TC_CE_FIELD_ORDER, instr->args[1].span, NULL,
+                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
+                 TC_DIAG_PHASE_ARGUMENTS, site_id);
+        return NULL;
+    }
+    if (any_named) {
         if (instr->nargs - 1u < def->nfields) {
             sem_diag(s, TC_CE_MISSING_FIELD, instr->args[0].span, NULL,
                      TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_MAKE,
@@ -2221,21 +2282,16 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
             }
         }
     }
-    if (any_named && any_positional) {
-        sem_diag(s, TC_CE_ARGUMENT_ORDER, instr->args[first_arg].span, NULL,
-                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
-                 TC_DIAG_PHASE_ARGUMENTS, site_id);
-        return NULL;
-    }
     if (any_named) {
-        int *seen = (int *)an_alloc(s->an,
-                                    (sig->nparams == 0 ? 1u : sig->nparams) *
-                                        sizeof(int));
-        memset(seen, 0, (sig->nparams == 0 ? 1u : sig->nparams) * sizeof(int));
+        /* duplicate -> unknown first, also for mixed forms (§12.2 #10). */
         for (i = first_arg; i < instr->nargs; i++) {
             size_t g;
+            if (instr->args[i].name == NULL) {
+                continue;
+            }
             for (g = first_arg; g < i; g++) {
-                if (strcmp(instr->args[g].name, instr->args[i].name) == 0) {
+                if (instr->args[g].name != NULL &&
+                    strcmp(instr->args[g].name, instr->args[i].name) == 0) {
                     sem_diag(s, TC_CE_DUPLICATE_ARGUMENT, instr->args[i].span,
                              &instr->args[g].span, TC_DIAG_ORIGIN_CONSTRUCT,
                              TC_DIAG_SITE_CALL, TC_DIAG_PHASE_ARGUMENTS,
@@ -2247,6 +2303,9 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
         for (i = first_arg; i < instr->nargs; i++) {
             size_t p;
             int found = 0;
+            if (instr->args[i].name == NULL) {
+                continue;
+            }
             for (p = 0; p < sig->nparams; p++) {
                 if (strcmp(sig->params[p].name, instr->args[i].name) == 0) {
                     found = 1;
@@ -2260,6 +2319,53 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
                 return NULL;
             }
         }
+    }
+    if (any_named && any_positional) {
+        size_t positional = 0;
+        int *covered = (int *)an_alloc(
+            s->an, (sig->nparams == 0 ? 1u : sig->nparams) * sizeof(int));
+        memset(covered, 0,
+               (sig->nparams == 0 ? 1u : sig->nparams) * sizeof(int));
+        for (i = first_arg; i < instr->nargs; i++) {
+            if (instr->args[i].name == NULL) {
+                positional++;
+            }
+        }
+        if (positional > sig->nparams) {
+            sem_diag(s, TC_CE_ARGUMENT_COUNT, instr->span, NULL,
+                     TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                     TC_DIAG_PHASE_ARGUMENTS, site_id);
+            return NULL;
+        }
+        for (i = 0; i < positional; i++) {
+            covered[i] = 1;
+        }
+        for (i = first_arg; i < instr->nargs; i++) {
+            size_t p;
+            if (instr->args[i].name == NULL) {
+                continue;
+            }
+            for (p = 0; p < sig->nparams; p++) {
+                if (strcmp(sig->params[p].name, instr->args[i].name) == 0) {
+                    covered[p] = 1;
+                    break;
+                }
+            }
+        }
+        for (i = 0; i < sig->nparams; i++) {
+            if (!covered[i]) {
+                sem_diag(s, TC_CE_MISSING_ARGUMENT, instr->span, NULL,
+                         TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                         TC_DIAG_PHASE_ARGUMENTS, site_id);
+                return NULL;
+            }
+        }
+        sem_diag(s, TC_CE_ARGUMENT_ORDER, instr->args[first_arg].span, NULL,
+                 TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
+                 TC_DIAG_PHASE_ARGUMENTS, site_id);
+        return NULL;
+    }
+    if (any_named) {
         if (nargs < sig->nparams) {
             sem_diag(s, TC_CE_MISSING_ARGUMENT, instr->span, NULL,
                      TC_DIAG_ORIGIN_CONSTRUCT, TC_DIAG_SITE_CALL,
@@ -2309,10 +2415,34 @@ static const TcType *check_call_args(Sem *s, const TcParseInstr *instr,
     return sig->ret;
 }
 
+static int check_call_result_shape(Sem *s, const TcType *ret, int has_target,
+                                   const Ref *target, const TcType *expected,
+                                   TcSpan tspan) {
+    if (ret == NULL) {
+        return 1;
+    }
+    if (type_is_void(ret)) {
+        if (has_target || expected != NULL) {
+            sem_diag_simple(s, TC_CE_VOID, tspan);
+            return 0;
+        }
+        return 1;
+    }
+    if (expected != NULL && !tc_type_equal(ret, expected)) {
+        sem_diag_simple(s, TC_CE_TYPE_MISMATCH, tspan);
+        return 0;
+    }
+    if (has_target && !tc_type_equal(ret, target->type)) {
+        sem_diag_simple(s, TC_CE_TYPE_MISMATCH, tspan);
+        return 0;
+    }
+    return 1;
+}
+
 static int check_label_arg(Sem *s, const TcParseArg *arg) {
     if (arg->kind != TC_PARG_VALUE || arg->value.kind != TC_PVAL_NAME ||
         arg->value.nfields != 0) {
-        sem_diag_simple(s, TC_CE_OPERAND_COUNT, arg->span);
+        sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
         return 0;
     }
     return 1;
@@ -2327,6 +2457,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
     int has_result = tc_opcode_has_result(instr->op);
     int explicit_target = !instr->dst_discard && instr->dst_base != NULL;
     TcSpan tspan = instr->span;
+    s->mnemonic_span = tspan;
     memset(&target, 0, sizeof(target));
     /* A var declaration target is the instruction's LHS even though the parse
      * IR keeps dst_base empty for an initializer; a no-result op there has no
@@ -2335,12 +2466,25 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
         return NULL;
     }
-    if (has_result && explicit_target) {
+    if (has_result && explicit_target && instr->op != TC_CALL &&
+        instr->op != TC_CALL_INDIRECT) {
         target = resolve_target(s, instr);
         if (!target.ok) {
             return NULL;
         }
         has_target = 1;
+    }
+    if (instr->op != TC_CALL && instr->op != TC_CALL_INDIRECT &&
+        instr->op != TC_MAKE) {
+        size_t ai;
+        for (ai = 0; ai < instr->nargs; ai++) {
+            if (instr->args[ai].name != NULL) {
+                /* Named operands exist only for call arguments and make fields
+                 * (standard §6.1 rules 8-9). */
+                sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
+                return NULL;
+            }
+        }
     }
     switch (instr->op) {
     case TC_ADD:
@@ -2460,7 +2604,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         }
         if (instr->args[1].kind != TC_PARG_VALUE ||
             instr->args[1].value.kind != TC_PVAL_NAME) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->args[1].span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             break;
         }
         ref = resolve_value(s, &instr->args[1].value);
@@ -2599,17 +2743,27 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
             break;
         }
+        if (instr->args[0].name != NULL) {
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
+            break;
+        }
         func = resolve_function_arg(s, &instr->args[0], &name_span);
         if (func == NULL) {
             break;
         }
-        ret = check_call_args(s, instr, &func->sig, 1, 0);
-        if (ret == NULL) {
+        if (explicit_target) {
+            target = resolve_target(s, instr);
+            if (!target.ok) {
+                break;
+            }
+            has_target = 1;
+        }
+        ret = func->sig.ret;
+        if (!check_call_result_shape(s, ret, has_target, &target,
+                                     expected_result, tspan)) {
             break;
         }
-        if (type_is_void(ret) && has_target) {
-            sem_diag_simple(s, TC_CE_VOID, tspan);
-            result = NULL;
+        if (check_call_args(s, instr, &func->sig, 1, 0) == NULL) {
             break;
         }
         result = ret;
@@ -2624,7 +2778,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         }
         if (instr->args[0].kind != TC_PARG_VALUE ||
             instr->args[0].name != NULL) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->args[0].span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, tspan);
             break;
         }
         if (instr->args[0].value.kind == TC_PVAL_NAME) {
@@ -2642,10 +2796,22 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             sem_diag_simple(s, TC_CE_LITERAL_TYPE, instr->args[0].span);
             break;
         }
+        if (explicit_target) {
+            target = resolve_target(s, instr);
+            if (!target.ok) {
+                break;
+            }
+            has_target = 1;
+        }
+        ret = signature->fnptr.ret;
+        if (!check_call_result_shape(s, ret, has_target, &target,
+                                     expected_result, tspan)) {
+            break;
+        }
         {
             TcFuncSig sig;
             size_t i;
-            sig.ret = signature->fnptr.ret;
+            sig.ret = ret;
             sig.nparams = signature->fnptr.n;
             sig.params = (TcParam *)an_alloc(
                 s->an, (sig.nparams == 0 ? 1u : sig.nparams) * sizeof(TcParam));
@@ -2654,14 +2820,9 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
             for (i = 0; i < sig.nparams; i++) {
                 sig.params[i].type = signature->fnptr.params[i];
             }
-            ret = check_call_args(s, instr, &sig, 1, 1);
-        }
-        if (ret == NULL) {
-            break;
-        }
-        if (type_is_void(ret) && has_target) {
-            sem_diag_simple(s, TC_CE_VOID, tspan);
-            break;
+            if (check_call_args(s, instr, &sig, 1, 1) == NULL) {
+                break;
+            }
         }
         result = ret;
         break;
@@ -2731,7 +2892,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         boolean = tc_type_scalar(s->an->types, TC_TY_BOOL);
         if (instr->args[0].kind != TC_PARG_VALUE ||
             instr->args[0].name != NULL) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->args[0].span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             break;
         }
         if (instr->args[0].value.kind == TC_PVAL_NAME) {
@@ -2760,7 +2921,7 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
         }
         if (instr->args[0].kind != TC_PARG_VALUE ||
             instr->args[0].name != NULL) {
-            sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->args[0].span);
+            sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             break;
         }
         if (instr->args[0].value.kind == TC_PVAL_NAME) {

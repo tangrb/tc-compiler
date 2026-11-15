@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0028
+profile: common
+source: op_make_mixed_extra.tc
+spec: "§6.2.7/§12.2 #10 make 多余位置字段 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_make_mixed_extra.tc, line: 7, column: 13}
+  related: []
+  diagnostics: exactly-one

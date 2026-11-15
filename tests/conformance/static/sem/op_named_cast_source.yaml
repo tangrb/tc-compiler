@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0013
+profile: common
+source: op_named_cast_source.tc
+spec: "§6.1/§6.15.1 命名操作数只允许 call 实参与 make 字段；cast 源命名 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_named_cast_source.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

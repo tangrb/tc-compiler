@@ -12,7 +12,7 @@
 | 项 | 结果 |
 | ---- | ---- |
 | S2 开发交付 | **PASS** — 根 `#program` 校验、import 源序 DFS、导入目录→include roots 搜索、解析路径实例键、`module_order` 固定、五个 IMPORT 码与导入名冲突缓冲、成员/签名入口事实收集 |
-| S2 测试活动 | **PASS** — 29 个 import/库夹具 L3 用例；L1 `TC-UNIT-MODULE-0001/0002`；阶段优先组合用例；`determinism.s2s3` |
+| S2 测试活动 | **PASS** — 44 个 import/库夹具 L3 用例；L1 `TC-UNIT-MODULE-0001/0002`；阶段优先组合用例；`determinism.s2s3` |
 | 自动化证据 | **PASS** — Debug/Sanitizer 构建与 `ctest` 通过；`--check` 生成器与覆盖矩阵一致 |
 | 独立门禁审计 | **PASS** — 无 S2 阻塞发现；S3 布局问题记入 G3 并已关闭（§10） |
 | **G2** | **PASS** |
@@ -104,7 +104,7 @@
 
 ### 8.2 L3（S2 部分）
 
-`sem.unit`、`conformance.s2s3_cases`、`harness.conformance` 共 193 个 S2/S3 用例通过；其中 S2 相关 29 个 import/库夹具用例与 2 个阶段组合用例：
+`sem.unit`、`conformance.s2s3_cases`、`harness.conformance` 共 238 个 S2/S3 用例通过；其中 S2 相关 44 个 import/库夹具用例与 2 个阶段组合用例：
 
 - 五码：`TC-IMP-0001`…`0005`；
 - 阶段：`TC-IMP-0006/0007`；

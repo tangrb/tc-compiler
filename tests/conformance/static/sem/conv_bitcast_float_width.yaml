@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0038
+profile: common
+source: conv_bitcast_float_width.tc
+spec: "§3.11 浮点 -> 浮点类别允许但位宽不等 -> BITCAST_WIDTH"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: conv_bitcast_float_width.tc, line: 3, column: 35}
+  related: []
+  diagnostics: exactly-one

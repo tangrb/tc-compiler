@@ -1,0 +1,7 @@
+#program
+struct S3 then
+    var a: int32
+    var b: int32
+    var c: int32
+end
+var s: S3 = make S3, 1, b: 2

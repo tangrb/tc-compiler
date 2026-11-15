@@ -1,0 +1,2 @@
+#program
+var x: float32 = copy float32, 1.0

@@ -1,0 +1,2 @@
+#program
+_ = switch 0, 1

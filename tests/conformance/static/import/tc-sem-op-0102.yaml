@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0102
+profile: common
+source: fixtures/tc-sem-op-0102/root.tc
+spec: "§8.8.2/§12.2 #10 call 混用位置/命名实参仍先检查缺失 -> MISSING_ARGUMENT"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_ARGUMENT
+  primary: {file: fixtures/tc-sem-op-0102/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

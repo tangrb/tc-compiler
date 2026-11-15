@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0103
+profile: common
+source: fixtures/tc-sem-op-0103/root.tc
+spec: "§8.8.2/§12.2 #10 call 混用仍先检查未知实参 -> UNKNOWN_ARGUMENT"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_ARGUMENT
+  primary: {file: fixtures/tc-sem-op-0103/root.tc, line: 3, column: 32}
+  related: []
+  diagnostics: exactly-one

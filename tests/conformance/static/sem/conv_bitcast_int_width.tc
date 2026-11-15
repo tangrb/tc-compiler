@@ -1,0 +1,3 @@
+#program
+var a: int64 = copy int64, 0
+var b: int32 = bitcast int32, a

@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0107
+profile: common
+source: fixtures/tc-sem-op-0107/root.tc
+spec: "§8.8.2 call 目标存在性先于 LHS 解析 -> UNDEFINED_FUNCTION"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_FUNCTION
+  primary: {file: fixtures/tc-sem-op-0107/root.tc, line: 3, column: 17}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+#program
+struct Inner then
+    var z: int32
+end
+struct Outer then
+    readonly ro: Inner
+end
+var i: Inner = make Inner, 1
+var o: Outer = make Outer, i
+o.ro.z = copy int32, 2

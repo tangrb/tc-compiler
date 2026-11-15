@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0106
+profile: common
+source: fixtures/tc-sem-op-0106/root.tc
+spec: "§8.8.2 call 的 void LHS/返回形态先于实参检查 -> VOID"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: fixtures/tc-sem-op-0106/root.tc, line: 4, column: 5}
+  related: []
+  diagnostics: exactly-one

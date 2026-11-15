@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0030
+profile: w32
+source: tc-tool-sem-0030/root.tc
+spec: "§13.2.2 W=32 布局求和恰好为 usize 最大值时不溢出"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

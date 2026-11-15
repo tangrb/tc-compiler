@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0108
+profile: common
+source: fixtures/tc-sem-op-0108/root.tc
+spec: "§6.15.1 call 函数操作数必须 Self.f/m.f，命名目标 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-op-0108/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

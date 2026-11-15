@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0017
+profile: common
+source: lit_float32_no_suffix.tc
+spec: "§2.4 无后缀浮点 -> float64，用于 float32 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_float32_no_suffix.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

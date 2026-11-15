@@ -1,0 +1,5 @@
+#program
+struct S then
+    var a: int32
+end
+var n: usize = sizeof foo: S
