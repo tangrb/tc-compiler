@@ -18,12 +18,14 @@
 - **CFG、DI、返回、调用、安全与注解**：每个程序/函数独立封闭 CFG、全边与可达性、
   `U[n]` 初始化与 DI 最大固定点、`MISSING_RETURN`；标签/控制形态；直接/间接调用的
   目标→安全→LHS→实参→接收者顺序与调用安全；safe/unsafe 上下文与 `@safe` 优先；
-  函数/形参/字段注解矩阵、`@align`/`@range` 的 W 相关范围、承诺违反不静态拒绝。
+  函数/形参/字段注解矩阵、`@align`/`@range` 的字面量与整数常量路径值、64 位
+  `@align`/`@padding` 元数据、承诺违反不静态拒绝；重复标签/畸形分支按保守
+  fallthrough 参与首诊。
 - **工具能力**：`--syntax-only`（LEX/SYN）与 `--static-only`（LEX/SYN/IMPORT/SEM）部分检查；
   普通调用在静态阶段后显式退出 70。新增 `w32` 静态档案（不可执行目标）。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、S1/S2/S3/S4 一致性用例表（S4 为
-  107 编译 + 23 接受）、确定性套件、adapter 失败关闭自测；当前 Debug/Release/ASan
-  `ctest` 22/22，harness 476/476。
+  119 编译 + 24 接受）、确定性套件、adapter 失败关闭自测；当前 Debug/Release/ASan
+  `ctest` 22/22，harness 489/489。
 
 ### Changed
 

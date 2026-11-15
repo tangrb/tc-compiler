@@ -412,8 +412,8 @@ CASES = [
     ),
     _case(
         "TC-SEM-CFG-0018",
-        "§6.15.1 br_if 操作数数量不符 -> OPERAND_COUNT；畸形分支不参与 "
-        "CFG/DI 传播",
+        "§6.15.1 br_if 操作数数量不符 -> OPERAND_COUNT；畸形分支按保守 "
+        "fallthrough 参与可达性（此处无更早 MISSING_RETURN 竞争）",
         {"root.tc": PROGRAM + "_ = @HERE@br_if true\n"},
         "SEM", "TC_CE_OPERAND_COUNT",
     ),
@@ -1240,6 +1240,140 @@ CASES = [
          "end\n"},
         "SEM", "TC_CE_ANNOTATION",
     ),
+    _case(
+        "TC-SEM-ANN-0234",
+        "§8.6 @align 的 const 路径端点值为 0 -> ANNOTATION（端点 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const ZERO: int32 = 0\n"
+         "public @fast func f(@align(@HERE@Self.ZERO) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0235",
+        "§8.6 @align 的 const 路径端点值非 2 的幂 -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const THREE: int32 = 3\n"
+         "public @fast func f(@align(@HERE@Self.THREE) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0236",
+        "§8.6 @align 的 const 路径端点值超出 w32 地址宽度 -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const BIG: uint64 = 4294967296\n"
+         "public @fast func f(@align(@HERE@Self.BIG) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION", profile="w32",
+    ),
+    _case(
+        "TC-SEM-ANN-0237",
+        "§8.6 @range 的 const 路径端点 lo > hi -> ANNOTATION（hi Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const HI: int32 = 10\n"
+         "public const LO: int32 = 1\n"
+         "public @fast func f(@range(Self.HI, @HERE@Self.LO) n: int32) void "
+         "then\nend\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0238",
+        "§8.6 @align 的 const 路径端点由整数纯表达式产生；SEM 求值后非 2 的幂 "
+        "-> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const THREE: int32 = add int32, 1, 2\n"
+         "public @fast func f(@align(@HERE@Self.THREE) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-CFG-0022",
+        "§12.2 模块内源序：非 void 函数的重复标签与 MISSING_RETURN 并存时，"
+        "返回类型处的 MISSING_RETURN 是更早首诊",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() @HERE@int32 then\n"
+         "    label L:\n"
+         "    label L:\n"
+         "@REL@end\n"},
+        "SEM", "TC_CE_MISSING_RETURN",
+    ),
+    _case(
+        "TC-SEM-CFG-0023",
+        "§12.2 模块内源序：非 void 函数的畸形 br_if 与 MISSING_RETURN 并存时，"
+        "保守 fallthrough 使返回类型处 MISSING_RETURN 更早",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() @HERE@int32 then\n"
+         "    _ = br_if true\n"
+         "@REL@end\n"},
+        "SEM", "TC_CE_MISSING_RETURN",
+    ),
+    _case(
+        "TC-SEM-CFG-0024",
+        "§5.4/§12.2 重复标签不再抑制 DI：更早的 UNINITIALIZED 优先于 "
+        "DUPLICATE_LABEL",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f(c: bool) int32 then\n"
+         "    _ = br_if c, A\n"
+         "    var x: int32 = copy int32, 1\n"
+         "    label A:\n"
+         "    _ = write int32, @HERE@x\n"
+         "    label A:\n"
+         "    _ = return 1\n"
+         "end\n"},
+        "SEM", "TC_CE_UNINITIALIZED",
+    ),
+    _case(
+        "TC-SEM-CFG-0027",
+        "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
+        "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f(c: bool) @HERE@int32 then\n"
+         "    _ = br_if c, M\n"
+         "@REL@end\n"},
+        "SEM", "TC_CE_MISSING_RETURN",
+    ),
+    _case(
+        "TC-SEM-CFG-0028",
+        "§12.2 缺失标签的 br 无已知出口；无法证明末尾可达时仍报 "
+        "LABEL_NOT_FOUND",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() int32 then\n"
+         "    _ = br @HERE@M\n"
+         "end\n"},
+        "SEM", "TC_CE_LABEL_NOT_FOUND",
+    ),
+    _case(
+        "TC-SEM-CFG-0025",
+        "§7.2/§12.3 无 MISSING_RETURN 竞争时，重复标签仍报 DUPLICATE_LABEL",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    label @REL@L:\n"
+         "    label @HERE@L:\n"
+         "end\n"},
+        "SEM", "TC_CE_DUPLICATE_LABEL",
+    ),
+    _case(
+        "TC-SEM-CFG-0026",
+        "§6.15.1 无 MISSING_RETURN 竞争时，畸形 br_if 仍报 OPERAND_COUNT",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    _ = @HERE@br_if true\n"
+         "end\n"},
+        "SEM", "TC_CE_OPERAND_COUNT",
+    ),
 ]
 
 
@@ -1513,6 +1647,18 @@ POSITIVE = [
          "@align(base.A) p: ptr<int32>) void then\nend\n",
          "base.tc": LIB + "public const H: int32 = 2\n"
          "public const A: int32 = 8\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0124",
+        "§8.6 const 路径端点由整数纯表达式/ sizeof 产生且值合法；"
+        "@align=8、@range(4,10) 记录",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const A: int32 = add int32, 7, 1\n"
+         "public const L: usize = sizeof int32\n"
+         "public const H: usize = 10\n"
+         "public @fast func f(@align(Self.A) p: ptr<int32>, "
+         "@range(Self.L, Self.H) n: usize) void then\nend\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0123",

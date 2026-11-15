@@ -100,9 +100,7 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 | Returns | `frontend/sem.c` | `return` only in functions; void/non-void forms; operand type; non-void reachable end and empty body report `MISSING_RETURN` at the return type with the `end` related position; void/program natural end, trap and non-exiting loops are legal |
 | Calls | `frontend/sem.c` | signature collection first; direct/indirect; target visibility, call safety, result shape, arguments (duplicate → unknown → missing → count → order → type), receiver; recursion allowed; `call_indirect` positional only |
 | Safety | `frontend/sem.c` | lexical unsafe context (`@unsafe`/`@fast`/`unsafe` block); load/store/memmove/ptradd/ptrsub/call_indirect and ptr↔int/fnptr↔int bitcast are unsafe; `@safe` rejects any unsafe block or unsafe operation with `SAFE_VIOLATION` priority |
-| Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` literal ranges per W, `@padding`; promise-content violations are not static rejections |
-
-**Known representation limit**: `TcField.padding` is `uint32_t` (design §2.1) while `@padding(N)` accepts any non-negative decimal N; `TcStructDef.size`/`TcField.offset` are computed from the full 64-bit N, but a padding byte count above `UINT32_MAX` is capped in `TcField.padding`. Later stages must use the size/offset facts or revisit the frozen field before consuming the count.
+| Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` literal and integer const-path values per W, `@padding`; promise-content violations are not static rejections |
 
 The type table is frozen after Analyze.  Final `TcInstr`/`TcIR`/`TcUnit`
 materialization, CT and code generation are later stages; CFG/DI is currently an
@@ -130,12 +128,15 @@ as a `TcUnit`.
 - Call diagnostics carry a call-site id and the §8.8.2 phase
   (`TARGET` → `SAFETY` → `RESULT_SHAPE` → `ARGUMENTS` → `RECEIVER`), so call
   safety precedes LHS/argument checks at one call.
-- `@range` literal endpoints record `TcParam.lo`/`hi` bit patterns; `@align`
-  literals record `TcParam.align`.  Const-path endpoints are resolved, required
-  to be the same type where applicable, and their values are completed by CT.
-- `TcParam.align` is `uint32_t` (design §3.4); an `@align` value above
-  `UINT32_MAX` is valid per W but caps the recorded field.  The annotation
-  value checks themselves use the full 64-bit N.
+- `@range` endpoints record `TcParam.lo`/`hi` bit patterns; `@align` records
+  `TcParam.align` (both full 64-bit fields).  Endpoint values are SEM facts:
+  literals and const paths are evaluated by the SEM integer const resolver
+  (literals, prior/`Self.K`/`m.K` references, integer pure expressions,
+  `sizeof`, integer/bool `cast`/`trunc`/`bitcast`, and scalar float
+  literal/arithmetic/convert forms), then validated and recorded.  Invalid
+  values report `TC_CE_ANNOTATION` at the endpoint token.  Endpoint const
+  expressions that need aggregate or remaining float CT evaluation are
+  resolved by the CT-owned const machinery and do not populate SEM metadata.
 - `MISSING_ARGUMENT` points its related position at the earliest missing
   parameter declaration (call mnemonic stays primary); `DUPLICATE_ARGUMENT`
   relates the first duplicate.
@@ -145,10 +146,12 @@ as a `TcUnit`.
 - A `switch` integer literal selector has no declared expected type; it is
   typed by its own source type (`int64` without suffix, `uint64` with `u`) and
   range-checked before the integer-selector check.
-- A unit whose branch target cannot be resolved (label shape, missing label or
-  duplicate label) is marked control-flow incomplete: DI and `MISSING_RETURN`
-  are suppressed so the label diagnostic is first, while name/type/safety
-  checks still run for every statement.
+- Duplicate labels and malformed branch/switch forms use conservative
+  fallthrough edges; they do not suppress DI or `MISSING_RETURN`.  A valid
+  branch whose target label is absent keeps the unresolved edge out of the CFG
+  and suppresses DI; `MISSING_RETURN` is still checked on known edges and may
+  win when the end is reachable without the unresolved edge.  Name, type,
+  safety and construct checks still run for every statement.
 - Direct call target errors precede call safety; `call_indirect` resolves its
   `fp` operand before the instruction-level safety check.  Other unsafe
   memory/pointer instructions check their unsafe context at the mnemonic before
@@ -163,15 +166,10 @@ as a `TcUnit`.
   deferred to the VM stage.
 - `-0` for an unsigned expected type: treated as an explicit negative literal
   (`LITERAL_TYPE`); the mathematical-zero reading remains an open clarification.
-- `@align`/`@range` const-path endpoint values (power-of-two, `lo <= hi`, bit
-  patterns) are completed by CT; SEM resolves the path and checks name,
-  visibility, kind and type.
-- `TcField.padding` is `uint32_t` (design §2.1); padding above `UINT32_MAX`
-  keeps layout size/offset correct but caps the metadata.  Resolve before IR
-  finalization/backends consume the count.
-- `TcParam.align` is `uint32_t`; values above `UINT32_MAX` are accepted by the
-  W-bit check but cap the recorded metadata.  Resolve before the optimizer
-  consumes it.
+- `@align`/`@range` endpoint const expressions that require aggregate or
+  remaining float CT evaluation are resolved by CT; the SEM resolver covers the
+  scalar integer and common float forms above.  `TcParam.align` and
+  `TcField.padding` are 64-bit fields.
 
 ## Not frozen here (later stages, same headers)
 

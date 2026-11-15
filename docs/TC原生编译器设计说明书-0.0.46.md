@@ -125,7 +125,7 @@ typedef struct {
     const char *name;
     const TcType *type;
     int readonly;
-    uint32_t padding;          /* @padding(N) 的 N；0 表示无 */
+    uint64_t padding;          /* @padding(N) 的 N；0 表示无 */
     uint64_t offset;           /* 当前 profile 下的字段偏移（本文 §2.1 计算） */
 } TcField;
 
@@ -279,7 +279,7 @@ typedef struct {
     const char *name;
     const TcType *type;
     TcParamFlags flags;        /* SEM/优化器前置条件；fnptr 不携带；运行期不检查 */
-    uint32_t align;            /* @align(N) 的 N；flags&ALIGN 有效 */
+    uint64_t align;            /* @align(N) 的 N；flags&ALIGN 有效 */
     uint64_t lo, hi;           /* @range(lo,hi) 的位模式；按 type 解释；flags&RANGE 有效 */
 } TcParam;
 

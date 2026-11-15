@@ -15,6 +15,7 @@
 
 #include "diagnostic/diagnostic.h"
 #include "frontend/diag.h"
+#include "ir/ir.h"
 #include "ir/structs.h"
 #include "ir/type.h"
 
@@ -60,5 +61,8 @@ const TcStructDef *tc_analysis_find_struct(const TcAnalysis *analysis,
 const char *tc_analysis_member_module(const TcAnalysis *analysis,
                                       const char *module_path,
                                       const char *member_name);
+const TcFuncSig *tc_analysis_find_func(const TcAnalysis *analysis,
+                                       const char *module_path,
+                                       const char *func_name);
 
 #endif /* TC_FRONTEND_SEM_H */

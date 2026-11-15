@@ -10,7 +10,7 @@
     "sha256": {
       "codes_json": "d96519bc5a8a75a336bca0121a367b849522c41263e9bbdc1b08690058ca96cb",
       "standard": "e8a3bc0ca9b9fc672af6eca35c6a13c4fd31319c7d3f4e6f308853e13520eea9",
-      "design": "7cf369a819f98c2ae53f83cbce55de97fdf5899e5566446b65a8a3be40c9751e",
+      "design": "4f984b2d639b85e7b417ba992dc617a8168e591282bbdb55ce2e87bf9a89816d",
       "test_plan": "73d453df28497e3771e88c9653d6406f72b3d6d63f832d253c9f846f6bef882b"
     }
   },
@@ -279,6 +279,7 @@
       "flip32_64:17:w64"
     ],
     "s4_covered_rows": [
+      "annotation:@align:const_path_value",
       "annotation:@align:coverage",
       "annotation:@fast:coverage",
       "annotation:@fast_math:coverage",
@@ -290,6 +291,7 @@
       "annotation:@nounwind:coverage",
       "annotation:@padding:coverage",
       "annotation:@pure:coverage",
+      "annotation:@range:const_path_value",
       "annotation:@range:coverage",
       "annotation:@readonly:coverage",
       "annotation:@safe:coverage",
@@ -425,8 +427,8 @@
   },
   "summary": {
     "items": 231,
-    "slots": 634,
-    "covered": 342,
+    "slots": 636,
+    "covered": 344,
     "uncovered": 292,
     "suspended": 0
   },
@@ -490,8 +492,8 @@
     "annotation": {
       "label": "Annotation",
       "items": 16,
-      "slots": 16,
-      "covered": 16,
+      "slots": 18,
+      "covered": 18,
       "uncovered": 0,
       "suspended": 0
     },
@@ -842,7 +844,14 @@
         "TC-SEM-CFG-0005",
         "TC-SEM-CFG-0006",
         "TC-SEM-CFG-0008",
-        "TC-SEM-CFG-0009"
+        "TC-SEM-CFG-0009",
+        "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023",
+        "TC-SEM-CFG-0024",
+        "TC-SEM-CFG-0025",
+        "TC-SEM-CFG-0026",
+        "TC-SEM-CFG-0027",
+        "TC-SEM-CFG-0028"
       ],
       "chapter": "§7",
       "title": "控制流核心/CFG",
@@ -890,7 +899,12 @@
         "TC-SEM-CALL-0113",
         "TC-SEM-CALL-0120",
         "TC-SEM-CALL-0125",
-        "TC-SEM-ANN-0201"
+        "TC-SEM-ANN-0201",
+        "TC-SEM-ANN-0234",
+        "TC-SEM-ANN-0235",
+        "TC-SEM-ANN-0236",
+        "TC-SEM-ANN-0237",
+        "TC-SEM-ANN-0238"
       ],
       "chapter": "§8",
       "title": "函数/调用/注解",
@@ -2772,7 +2786,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-CFG-0005"
+        "TC-SEM-CFG-0005",
+        "TC-SEM-CFG-0025"
       ],
       "code": "TC_CE_DUPLICATE_LABEL",
       "print_name": "DuplicateLabel",
@@ -2812,7 +2827,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-CFG-0005"
+        "TC-SEM-CFG-0005",
+        "TC-SEM-CFG-0025"
       ],
       "code": "TC_CE_DUPLICATE_LABEL",
       "print_name": "DuplicateLabel",
@@ -2854,7 +2870,8 @@
       "case_ids": [
         "TC-SEM-CFG-0006",
         "TC-SEM-CFG-0007",
-        "TC-SEM-CFG-0020"
+        "TC-SEM-CFG-0020",
+        "TC-SEM-CFG-0028"
       ],
       "code": "TC_CE_LABEL_NOT_FOUND",
       "print_name": "LabelNotFound",
@@ -2895,7 +2912,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-CFG-0006"
+        "TC-SEM-CFG-0006",
+        "TC-SEM-CFG-0028"
       ],
       "code": "TC_CE_LABEL_NOT_FOUND",
       "print_name": "LabelNotFound",
@@ -3312,7 +3330,12 @@
         "TC-SEM-ANN-0214",
         "TC-SEM-ANN-0222",
         "TC-SEM-ANN-0223",
-        "TC-SEM-ANN-0229"
+        "TC-SEM-ANN-0229",
+        "TC-SEM-ANN-0234",
+        "TC-SEM-ANN-0235",
+        "TC-SEM-ANN-0236",
+        "TC-SEM-ANN-0237",
+        "TC-SEM-ANN-0238"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3335,7 +3358,8 @@
         "TC-TOOL-SEM-0004",
         "TC-TOOL-SEM-0017",
         "TC-TOOL-SEM-0109",
-        "TC-TOOL-SEM-0111"
+        "TC-TOOL-SEM-0111",
+        "TC-TOOL-SEM-0124"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3361,7 +3385,12 @@
         "TC-SEM-ANN-0203",
         "TC-SEM-ANN-0211",
         "TC-SEM-ANN-0214",
-        "TC-SEM-ANN-0222"
+        "TC-SEM-ANN-0222",
+        "TC-SEM-ANN-0234",
+        "TC-SEM-ANN-0235",
+        "TC-SEM-ANN-0236",
+        "TC-SEM-ANN-0237",
+        "TC-SEM-ANN-0238"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3461,7 +3490,8 @@
         "TC-SEM-OP-0111",
         "TC-SEM-NAME-0111",
         "TC-SEM-CFG-0010",
-        "TC-SEM-CFG-0018"
+        "TC-SEM-CFG-0018",
+        "TC-SEM-CFG-0026"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3509,7 +3539,8 @@
         "TC-SEM-OP-0019",
         "TC-SEM-FIELD-0009",
         "TC-SEM-CFG-0010",
-        "TC-SEM-CFG-0018"
+        "TC-SEM-CFG-0018",
+        "TC-SEM-CFG-0026"
       ],
       "code": "TC_CE_OPERAND_COUNT",
       "print_name": "OperandCountError",
@@ -3881,7 +3912,10 @@
         "TC-SEM-CFG-0002",
         "TC-SEM-CFG-0003",
         "TC-SEM-CFG-0004",
-        "TC-SEM-CFG-0019"
+        "TC-SEM-CFG-0019",
+        "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023",
+        "TC-SEM-CFG-0027"
       ],
       "code": "TC_CE_MISSING_RETURN",
       "print_name": "MissingReturn",
@@ -3922,7 +3956,10 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-CFG-0001",
-        "TC-SEM-CFG-0002"
+        "TC-SEM-CFG-0002",
+        "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023",
+        "TC-SEM-CFG-0027"
       ],
       "code": "TC_CE_MISSING_RETURN",
       "print_name": "MissingReturn",
@@ -5204,7 +5241,8 @@
         "TC-SEM-DI-0004",
         "TC-SEM-DI-0005",
         "TC-SEM-DI-0006",
-        "TC-SEM-DI-0009"
+        "TC-SEM-DI-0009",
+        "TC-SEM-CFG-0024"
       ],
       "code": "TC_CE_UNINITIALIZED",
       "print_name": "Uninitialized",
@@ -5251,7 +5289,8 @@
       "case_ids": [
         "TC-SEM-DI-0001",
         "TC-SEM-DI-0007",
-        "TC-SEM-DI-0008"
+        "TC-SEM-DI-0008",
+        "TC-SEM-CFG-0024"
       ],
       "code": "TC_CE_UNINITIALIZED",
       "print_name": "Uninitialized",
@@ -11150,7 +11189,10 @@
         "TC-L0-DIAG-0009",
         "TC-UNIT-ORDER-0002",
         "TC-UNIT-ORDER-0003",
-        "TC-SEM-CFG-0003"
+        "TC-SEM-CFG-0003",
+        "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023",
+        "TC-SEM-CFG-0024"
       ],
       "number": 3,
       "title": "同模块源序",
@@ -11215,7 +11257,8 @@
         "TC-UNIT-MODULE-0001",
         "TC-TOOL-SEM-0006",
         "TC-SEM-CFG-0003",
-        "TC-SEM-DI-0002"
+        "TC-SEM-DI-0002",
+        "TC-SEM-CFG-0024"
       ],
       "number": 7,
       "title": "遍历无关",
@@ -12136,7 +12179,12 @@
         "TC-TOOL-SEM-0110",
         "TC-TOOL-SEM-0116",
         "TC-TOOL-SEM-0120",
-        "TC-TOOL-SEM-0121"
+        "TC-TOOL-SEM-0121",
+        "TC-SEM-ANN-0234",
+        "TC-SEM-ANN-0235",
+        "TC-SEM-ANN-0236",
+        "TC-SEM-ANN-0238",
+        "TC-TOOL-SEM-0124"
       ],
       "annotation": "@align",
       "location": "`@fast` 指针形参",
@@ -12148,6 +12196,27 @@
         "parameter_range",
         "promise_violation_non_static"
       ]
+    },
+    {
+      "id": "annotation:@align:const_path_value",
+      "category": "annotation",
+      "item_id": "annotation:@align",
+      "item": "@align",
+      "slot": "const_path_value",
+      "spec": "§8.6 constant-path endpoint value: power-of-two/lo<=hi/W",
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ANN-0234",
+        "TC-SEM-ANN-0235",
+        "TC-SEM-ANN-0236",
+        "TC-SEM-ANN-0238",
+        "TC-TOOL-SEM-0116",
+        "TC-TOOL-SEM-0124",
+        "TC-UNIT-ANN-0001"
+      ],
+      "annotation": "@align",
+      "location": "`@fast` 指针形参",
+      "meaning": "地址按 N 对齐；违反 UB"
     },
     {
       "id": "annotation:@range:coverage",
@@ -12169,7 +12238,9 @@
         "TC-SEM-ANN-0221",
         "TC-TOOL-SEM-0110",
         "TC-TOOL-SEM-0116",
-        "TC-SEM-ANN-0233"
+        "TC-SEM-ANN-0233",
+        "TC-SEM-ANN-0237",
+        "TC-TOOL-SEM-0124"
       ],
       "annotation": "@range",
       "location": "`@fast` 整数形参",
@@ -12181,6 +12252,24 @@
         "parameter_range",
         "promise_violation_non_static"
       ]
+    },
+    {
+      "id": "annotation:@range:const_path_value",
+      "category": "annotation",
+      "item_id": "annotation:@range",
+      "item": "@range",
+      "slot": "const_path_value",
+      "spec": "§8.6 constant-path endpoint value: power-of-two/lo<=hi/W",
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-ANN-0237",
+        "TC-TOOL-SEM-0116",
+        "TC-TOOL-SEM-0124",
+        "TC-UNIT-ANN-0001"
+      ],
+      "annotation": "@range",
+      "location": "`@fast` 整数形参",
+      "meaning": "调用时值在 `[lo,hi]`；`lo/hi` 为同类型常量；违反 UB"
     },
     {
       "id": "annotation:@padding:coverage",

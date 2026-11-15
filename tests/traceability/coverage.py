@@ -944,13 +944,17 @@ S4_COVERED_ROWS = {
     "chapter:§7:positive": ["TC-TOOL-SEM-0104", "TC-TOOL-SEM-0105"],
     "chapter:§7:negative": [
         "TC-SEM-CFG-0001", "TC-SEM-CFG-0005", "TC-SEM-CFG-0006",
-        "TC-SEM-CFG-0008", "TC-SEM-CFG-0009",
+        "TC-SEM-CFG-0008", "TC-SEM-CFG-0009", "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023", "TC-SEM-CFG-0024", "TC-SEM-CFG-0025",
+        "TC-SEM-CFG-0026", "TC-SEM-CFG-0027", "TC-SEM-CFG-0028",
     ],
     "chapter:§8:positive": ["TC-TOOL-SEM-0106", "TC-TOOL-SEM-0109"],
     "chapter:§8:negative": [
         "TC-SEM-CFG-0012", "TC-SEM-CFG-0013", "TC-SEM-CALL-0101",
         "TC-SEM-CALL-0105", "TC-SEM-CALL-0108", "TC-SEM-CALL-0113",
         "TC-SEM-CALL-0120", "TC-SEM-CALL-0125", "TC-SEM-ANN-0201",
+        "TC-SEM-ANN-0234", "TC-SEM-ANN-0235", "TC-SEM-ANN-0236",
+        "TC-SEM-ANN-0237", "TC-SEM-ANN-0238",
     ],
     "chapter:§9:positive": ["TC-TOOL-SEM-0107", "TC-TOOL-SEM-0119"],
     "chapter:§9:negative": [
@@ -966,7 +970,7 @@ S4_COVERED_ROWS = {
     # §5.4/§5.7.1 definite initialization.
     "code:TC_CE_UNINITIALIZED:trigger": [
         "TC-SEM-DI-0001", "TC-SEM-DI-0004", "TC-SEM-DI-0005",
-        "TC-SEM-DI-0006", "TC-SEM-DI-0009",
+        "TC-SEM-DI-0006", "TC-SEM-DI-0009", "TC-SEM-CFG-0024",
     ],
     "code:TC_CE_UNINITIALIZED:no_false_positive": [
         "TC-TOOL-SEM-0101", "TC-TOOL-SEM-0102", "TC-TOOL-SEM-0103",
@@ -974,20 +978,24 @@ S4_COVERED_ROWS = {
     ],
     "code:TC_CE_UNINITIALIZED:position": [
         "TC-SEM-DI-0001", "TC-SEM-DI-0007", "TC-SEM-DI-0008",
+        "TC-SEM-CFG-0024",
     ],
     "code:TC_CE_UNINITIALIZED:stage": ["TC-SEM-DI-0001"],
     # §7.2 labels and control.
-    "code:TC_CE_DUPLICATE_LABEL:trigger": ["TC-SEM-CFG-0005"],
+    "code:TC_CE_DUPLICATE_LABEL:trigger": ["TC-SEM-CFG-0005", "TC-SEM-CFG-0025"],
     "code:TC_CE_DUPLICATE_LABEL:no_false_positive": ["TC-TOOL-SEM-0105"],
-    "code:TC_CE_DUPLICATE_LABEL:position": ["TC-SEM-CFG-0005"],
+    "code:TC_CE_DUPLICATE_LABEL:position": ["TC-SEM-CFG-0005", "TC-SEM-CFG-0025"],
     "code:TC_CE_DUPLICATE_LABEL:stage": ["TC-SEM-CFG-0005"],
     "code:TC_CE_LABEL_NOT_FOUND:trigger": [
         "TC-SEM-CFG-0006", "TC-SEM-CFG-0007", "TC-SEM-CFG-0020",
+        "TC-SEM-CFG-0028",
     ],
     "code:TC_CE_LABEL_NOT_FOUND:no_false_positive": [
         "TC-TOOL-SEM-0105", "TC-TOOL-SEM-0118",
     ],
-    "code:TC_CE_LABEL_NOT_FOUND:position": ["TC-SEM-CFG-0006"],
+    "code:TC_CE_LABEL_NOT_FOUND:position": [
+        "TC-SEM-CFG-0006", "TC-SEM-CFG-0028",
+    ],
     "code:TC_CE_LABEL_NOT_FOUND:stage": ["TC-SEM-CFG-0006"],
     "code:TC_CE_CONDITION_TYPE:trigger": ["TC-SEM-CFG-0008"],
     "code:TC_CE_CONDITION_TYPE:no_false_positive": [
@@ -1022,19 +1030,21 @@ S4_COVERED_ROWS = {
     "code:TC_CE_RETURN_FORM:stage": ["TC-SEM-CFG-0013"],
     "code:TC_CE_MISSING_RETURN:trigger": [
         "TC-SEM-CFG-0001", "TC-SEM-CFG-0002", "TC-SEM-CFG-0003",
-        "TC-SEM-CFG-0004", "TC-SEM-CFG-0019",
+        "TC-SEM-CFG-0004", "TC-SEM-CFG-0019", "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023", "TC-SEM-CFG-0027",
     ],
     "code:TC_CE_MISSING_RETURN:no_false_positive": ["TC-TOOL-SEM-0104"],
     "code:TC_CE_MISSING_RETURN:position": [
-        "TC-SEM-CFG-0001", "TC-SEM-CFG-0002",
+        "TC-SEM-CFG-0001", "TC-SEM-CFG-0002", "TC-SEM-CFG-0022",
+        "TC-SEM-CFG-0023", "TC-SEM-CFG-0027",
     ],
     "code:TC_CE_MISSING_RETURN:stage": ["TC-SEM-CFG-0001"],
     "code:TC_CE_OPERAND_COUNT:trigger": [
-        "TC-SEM-CFG-0010", "TC-SEM-CFG-0018",
+        "TC-SEM-CFG-0010", "TC-SEM-CFG-0018", "TC-SEM-CFG-0026",
     ],
     "code:TC_CE_OPERAND_COUNT:no_false_positive": ["TC-TOOL-SEM-0112"],
     "code:TC_CE_OPERAND_COUNT:position": [
-        "TC-SEM-CFG-0010", "TC-SEM-CFG-0018",
+        "TC-SEM-CFG-0010", "TC-SEM-CFG-0018", "TC-SEM-CFG-0026",
     ],
     "code:TC_CE_OPERAND_COUNT:stage": ["TC-SEM-CFG-0010"],
     "code:TC_CE_TYPE_MISMATCH:trigger": [
@@ -1129,21 +1139,27 @@ S4_COVERED_ROWS = {
         "TC-SEM-ANN-0201", "TC-SEM-ANN-0202", "TC-SEM-ANN-0204",
         "TC-SEM-ANN-0205", "TC-SEM-ANN-0208", "TC-SEM-ANN-0211",
         "TC-SEM-ANN-0214", "TC-SEM-ANN-0222", "TC-SEM-ANN-0223",
-        "TC-SEM-ANN-0229",
+        "TC-SEM-ANN-0229", "TC-SEM-ANN-0234", "TC-SEM-ANN-0235",
+        "TC-SEM-ANN-0236", "TC-SEM-ANN-0237", "TC-SEM-ANN-0238",
     ],
     "code:TC_CE_ANNOTATION:no_false_positive": [
-        "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0111",
+        "TC-TOOL-SEM-0109", "TC-TOOL-SEM-0111", "TC-TOOL-SEM-0124",
     ],
     "code:TC_CE_ANNOTATION:position": [
         "TC-SEM-ANN-0201", "TC-SEM-ANN-0203", "TC-SEM-ANN-0211",
-        "TC-SEM-ANN-0214", "TC-SEM-ANN-0222",
+        "TC-SEM-ANN-0214", "TC-SEM-ANN-0222", "TC-SEM-ANN-0234",
+        "TC-SEM-ANN-0235", "TC-SEM-ANN-0236", "TC-SEM-ANN-0237",
+        "TC-SEM-ANN-0238",
     ],
     "code:TC_CE_ANNOTATION:stage": ["TC-SEM-ANN-0201"],
     # §12.2 ordering rules exercised by S4 combinations.
     "first_diag_rule:02:combination_case": ["TC-SEM-CFG-0004"],
-    "first_diag_rule:03:combination_case": ["TC-SEM-CFG-0003"],
+    "first_diag_rule:03:combination_case": [
+        "TC-SEM-CFG-0003", "TC-SEM-CFG-0022", "TC-SEM-CFG-0023",
+        "TC-SEM-CFG-0024",
+    ],
     "first_diag_rule:07:combination_case": [
-        "TC-SEM-CFG-0003", "TC-SEM-DI-0002",
+        "TC-SEM-CFG-0003", "TC-SEM-DI-0002", "TC-SEM-CFG-0024",
     ],
     "first_diag_rule:09:combination_case": [
         "TC-SEM-CFG-0016", "TC-SEM-CFG-0017",
@@ -1175,8 +1191,10 @@ S4_COVERED_ROWS = {
     "annotation:@noinline:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0207"],
     "annotation:@nonnull:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0208", "TC-SEM-ANN-0209", "TC-TOOL-SEM-0110"],
     "annotation:@no_alias:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0228", "TC-TOOL-SEM-0110"],
-    "annotation:@align:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0210", "TC-SEM-ANN-0211", "TC-SEM-ANN-0212", "TC-SEM-ANN-0213", "TC-SEM-ANN-0225", "TC-TOOL-SEM-0110", "TC-TOOL-SEM-0116", "TC-TOOL-SEM-0120", "TC-TOOL-SEM-0121"],
-    "annotation:@range:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0215", "TC-SEM-ANN-0214", "TC-SEM-ANN-0216", "TC-SEM-ANN-0217", "TC-SEM-ANN-0218", "TC-SEM-ANN-0219", "TC-SEM-ANN-0220", "TC-SEM-ANN-0221", "TC-TOOL-SEM-0110", "TC-TOOL-SEM-0116", "TC-SEM-ANN-0233"],
+    "annotation:@align:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0210", "TC-SEM-ANN-0211", "TC-SEM-ANN-0212", "TC-SEM-ANN-0213", "TC-SEM-ANN-0225", "TC-TOOL-SEM-0110", "TC-TOOL-SEM-0116", "TC-TOOL-SEM-0120", "TC-TOOL-SEM-0121", "TC-SEM-ANN-0234", "TC-SEM-ANN-0235", "TC-SEM-ANN-0236", "TC-SEM-ANN-0238", "TC-TOOL-SEM-0124"],
+    "annotation:@range:coverage": ["TC-TOOL-SEM-0109", "TC-SEM-ANN-0215", "TC-SEM-ANN-0214", "TC-SEM-ANN-0216", "TC-SEM-ANN-0217", "TC-SEM-ANN-0218", "TC-SEM-ANN-0219", "TC-SEM-ANN-0220", "TC-SEM-ANN-0221", "TC-TOOL-SEM-0110", "TC-TOOL-SEM-0116", "TC-SEM-ANN-0233", "TC-SEM-ANN-0237", "TC-TOOL-SEM-0124"],
+    "annotation:@align:const_path_value": ["TC-SEM-ANN-0234", "TC-SEM-ANN-0235", "TC-SEM-ANN-0236", "TC-SEM-ANN-0238", "TC-TOOL-SEM-0116", "TC-TOOL-SEM-0124", "TC-UNIT-ANN-0001"],
+    "annotation:@range:const_path_value": ["TC-SEM-ANN-0237", "TC-TOOL-SEM-0116", "TC-TOOL-SEM-0124", "TC-UNIT-ANN-0001"],
     "annotation:@padding:coverage": ["TC-TOOL-SEM-0019", "TC-SEM-ANN-0229", "TC-SEM-CONST-0001", "TC-SEM-CONST-0002", "TC-SEM-CONST-0003"],
     "design12:09:suite_mapping": [
         "TC-SEM-CALL-0101", "TC-SEM-CFG-0016",
@@ -1302,6 +1320,14 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
                 "parameter_range", "promise_violation_non_static",
             ],
         ))
+        if item["annotation"] in ("@align", "@range"):
+            rows.append(slot_row(
+                "annotation", item["item_id"], item["annotation"],
+                "const_path_value",
+                "§8.6 constant-path endpoint value: power-of-two/lo<=hi/W",
+                annotation=item["annotation"], location=item["location"],
+                meaning=item["meaning"],
+            ))
 
     for item in parse_device_policies(design):
         rows.append(slot_row(

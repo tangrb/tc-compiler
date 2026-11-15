@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0124
+profile: common
+source: tc-tool-sem-0124/root.tc
+spec: "§8.6 const 路径端点由整数纯表达式/ sizeof 产生且值合法；@align=8、@range(4,10) 记录"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

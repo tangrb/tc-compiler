@@ -13,26 +13,26 @@ S4 交付：CFG/可达性、DI 最大固定点、`MISSING_RETURN`、标签与控
 
 | G4 准则 | 证据 | 结论 |
 | --- | --- | --- |
-| DI 固定点与路径语义 | `TC-SEM-DI-0001`…`0009`（分支/汇合/回边/switch/字段/赋值/read 目标/函数单元）、`TC-TOOL-SEM-0101`/`0102`/`0115`/`0117`/`0123` | 通过 |
-| `MISSING_RETURN` | `TC-SEM-CFG-0001`…`0021`（空体、`br_if` 常量边、函数源序、模块序、标签/控制/调用原子性）、`TC-TOOL-SEM-0104`（void/`trap`/无出口循环） | 通过 |
+| DI 固定点与路径语义 | `TC-SEM-DI-0001`…`0009`/`TC-SEM-CFG-0024`（分支/汇合/回边/switch/字段/赋值/read 目标/函数单元、标签错误与 DI 首诊）、`TC-TOOL-SEM-0101`/`0102`/`0115`/`0117`/`0123` | 通过 |
+| `MISSING_RETURN` | `TC-SEM-CFG-0001`…`0028`（空体、`br_if` 常量边、函数源序、模块序、标签/控制/调用原子性、重复标签/畸形分支的首诊）、`TC-TOOL-SEM-0104`（void/`trap`/无出口循环） | 通过 |
 | 调用参数顺序 | `TC-SEM-CALL-0101`…`0127`（重复/未知/缺失/数量/顺序/混用、安全相位、间接调用）、`TC-TOOL-SEM-0106` | 通过 |
 | 调用安全优先 | `TC-SEM-CALL-0107`/`0114`/`0124`/`0126`、`TC-SEM-SAFE-0114` | 通过 |
-| 标签/控制 | `TC-SEM-CFG-0005`…`0021`、`TC-TOOL-SEM-0112`/`0118` | 通过 |
+| 标签/控制 | `TC-SEM-CFG-0005`…`0028`、`TC-TOOL-SEM-0112`/`0118` | 通过 |
 | 安全静态保证 | `TC-SEM-SAFE-0101`…`0117`、`TC-SEM-CALL-0108`…`0111`/`0121`、`TC-TOOL-SEM-0107`/`0108`/`0113`/`0114`/`0119` | 通过 |
 | `@safe` 优先与空 unsafe 块 | `TC-SEM-SAFE-0109`…`0111`/`0114`/`0116` | 通过 |
-| 注解完整矩阵 | `TC-SEM-ANN-0201`…`0233`、`TC-TOOL-SEM-0109`/`0111`/`0116` | 通过 |
+| 注解完整矩阵 | `TC-SEM-ANN-0201`…`0238`、`TC-TOOL-SEM-0109`/`0111`/`0116`/`0124`、`TC-UNIT-ANN-0001` | 通过 |
 | 承诺违反不静态拒绝 | `TC-TOOL-SEM-0110` | 通过 |
-| 首诊组合（§12.2 #1–#10） | L0 比较器测试；S4 组合 `TC-SEM-CFG-0003`/`0004`/`0016`/`0017`、`TC-SEM-CALL-0101`/`0105`/`0106`/`0107`/`0114` | 通过 |
+| 首诊组合（§12.2 #1–#10） | L0 比较器测试；S4 组合 `TC-SEM-CFG-0003`/`0004`/`0016`/`0017`/`0022`/`0023`/`0024`/`0027`/`0028`、`TC-SEM-CALL-0101`/`0105`/`0106`/`0107`/`0114` | 通过 |
 | 32/64 注解参数 | `TC-SEM-ANN-0213`/`TC-TOOL-SEM-0120`（w32）、`TC-TOOL-SEM-0017`/`0121`（w64） | 通过 |
 
 ## 覆盖
 
-- 一致性用例：S4 表 107 个编译用例、23 个接受用例；S1/S2/S3 表继续通过。
+- 一致性用例：S4 表 119 个编译用例、24 个接受用例；S1/S2/S3 表继续通过。
 - 80 码：S4 涉及的 `DUPLICATE_LABEL`、`LABEL_NOT_FOUND`、`CONDITION_TYPE`、
   `SWITCH_TYPE`、`RETURN_TYPE`、`RETURN_FORM`、`RETURN_OUTSIDE_FUNCTION`、
   `MISSING_RETURN`、五个 `ARGUMENT_*`、`UNINITIALIZED`、四个安全码、
   `ANNOTATION`、`MODE` 均有触发/位置/阶段与正例。
-- 覆盖矩阵：634 槽中 342 covered / 292 uncovered / 0 suspended；未覆盖项属于
+- 覆盖矩阵：636 槽中 344 covered / 292 uncovered / 0 suspended；未覆盖项属于
   S5–S10（CT、IR 最终化、opcode 运行时、VM/后端、平台）。
 - 确定性：S4 用例在重复运行、不同 `PYTHONHASHSEED` 与反向用例顺序下 JSON 一致。
 
@@ -51,8 +51,10 @@ python3 tests/tools/docs_cleanup_check.py
 
 ## 当前限制
 
-- `@align`/`@range` 的常量路径端点已做路径解析与同型检查；端点值语义
-  （幂次、`lo <= hi`、位模式）在 CT 中完成，见 [CONTRACTS](../../src/CONTRACTS.md)。
+- `@align`/`@range` 的常量路径端点由 SEM 整数常量解析器求值（字面量、
+  `Self.K`/`m.K`、整数纯表达式、`sizeof`、整数/布尔 `cast`/`trunc`/`bitcast`、
+  标量浮点字面量/算术与转换），并按 W 校验、写入 `TcParam`。涉及聚合或未覆盖
+  浮点运算的端点表达式属于 CT；见 [CONTRACTS](../../src/CONTRACTS.md)。
 - `call_indirect nullptr` 的无签名静态定型仍按 `LITERAL_TYPE` 拒绝；运行时
   `TC_RE_NULL_FUNCTION_POINTER` 路径属于 VM 阶段。
 - CFG/DI 是前端内部逐单元事实，尚未物化为 `TcUnit`；IR 最终化属于 S5。

@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0234
+profile: common
+source: fixtures/tc-sem-ann-0234/root.tc
+spec: "§8.6 @align 的 const 路径端点值为 0 -> ANNOTATION（端点 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0234/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

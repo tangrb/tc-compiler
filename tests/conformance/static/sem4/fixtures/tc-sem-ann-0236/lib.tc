@@ -1,0 +1,4 @@
+#lib
+public const BIG: uint64 = 4294967296
+public @fast func f(@align(Self.BIG) p: ptr<int32>) void then
+end

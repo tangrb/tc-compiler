@@ -34,6 +34,4 @@ python3 tests/traceability/coverage.py --check
   不代表程序有效。
 - 最终 `TcInstr`/`TcIR` 物化在 IR 最终化阶段；S3 提供并冻结类型/名称/opcode/布局事实。
 - `call_indirect nullptr`、无符号 `-0`、非 `@fast` 的 `.nsw/.nuw` 符号优先级在 S4 固定。
-- `TcField.padding` 为 `uint32_t`；`N > UINT32_MAX` 时布局 size/offset 正确但 padding
-  元数据被截断，S5/IR 冻结前处理。
 - `sem.c` 的按名称/类型/指令/布局拆分在 S4 进行。

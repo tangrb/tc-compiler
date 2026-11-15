@@ -33,7 +33,7 @@ typedef struct {
     const char *name;
     const TcType *type;
     TcParamFlags flags;
-    uint32_t align; /* @align(N) when flags & ALIGN */
+    uint64_t align; /* @align(N) when flags & ALIGN */
     uint64_t lo;    /* @range(lo,hi) bit patterns, interpreted by type */
     uint64_t hi;
 } TcParam;

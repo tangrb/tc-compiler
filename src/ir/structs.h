@@ -15,7 +15,7 @@ typedef struct {
     const char *name;
     const TcType *type;
     int readonly;
-    uint32_t padding;
+    uint64_t padding; /* full @padding(N) value; 0 means none */
     uint64_t offset;
 } TcField;
 

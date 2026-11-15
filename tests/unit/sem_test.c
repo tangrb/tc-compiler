@@ -82,6 +82,53 @@ static TcAnalysis *analyze_text(const char *text, unsigned width,
     return analysis;
 }
 
+static int write_text_file(const char *path, const char *text) {
+    FILE *file = fopen(path, "wb");
+    if (file == NULL) {
+        return 0;
+    }
+    if (fwrite(text, 1, strlen(text), file) != strlen(text)) {
+        fclose(file);
+        return 0;
+    }
+    return fclose(file) == 0;
+}
+
+static TcAnalysis *analyze_lib_text(const char *text, unsigned width,
+                                    TcAnalysisStatus *status,
+                                    TcAnalysisDiag *diag) {
+    char dir[] = "/tmp/tc-sem-lib-XXXXXX";
+    char lib_path[512];
+    char root_path[512];
+    static const char *root = "#program\nimport lib\n";
+    TcImplError impl = TC_IMPL_OK;
+    TcAnalysis *analysis;
+    if (mkdtemp(dir) == NULL) {
+        printf("FAIL cannot create temp dir\n");
+        failures++;
+        return NULL;
+    }
+    snprintf(lib_path, sizeof(lib_path), "%s/lib.tc", dir);
+    snprintf(root_path, sizeof(root_path), "%s/root.tc", dir);
+    if (!write_text_file(lib_path, text) || !write_text_file(root_path, root)) {
+        printf("FAIL cannot write temp lib\n");
+        unlink(lib_path);
+        unlink(root_path);
+        rmdir(dir);
+        failures++;
+        return NULL;
+    }
+    analysis = tc_analyze(root_path, width, NULL, 0, status, diag, &impl);
+    unlink(lib_path);
+    unlink(root_path);
+    rmdir(dir);
+    if (analysis == NULL) {
+        printf("FAIL lib analysis returned NULL (impl %d)\n", (int)impl);
+        failures++;
+    }
+    return analysis;
+}
+
 static const char *base_name(const char *path) {
     const char *slash = strrchr(path, '/');
     return slash != NULL ? slash + 1 : path;
@@ -209,6 +256,95 @@ static void test_type_identity(void) {
     tc_analysis_destroy(an);
 }
 
+static void test_annotation_metadata(void) {
+    static const char *source =
+        "#lib\n"
+        "public struct S then\n"
+        "    var x: int8 @padding(4294967296)\n"
+        "end\n"
+        "public const A: int32 = 8\n"
+        "public const C: int32 = add int32, 7, 1\n"
+        "public const L: int32 = 1\n"
+        "public const H: int32 = 10\n"
+        "public const BIG: uint64 = 4294967296\n"
+        "public const F: float64 = add float64, 7.5, 0.5\n"
+        "public const AF: int32 = cast int32, F\n"
+        "public @fast func a(@align(Self.A) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func c(@align(Self.C) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func b(@align(Self.BIG) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func af(@align(Self.AF) p: ptr<int32>) void then\n"
+        "end\n"
+        "public @fast func r(@range(Self.L, Self.H) n: int32) void then\n"
+        "end\n"
+        "public @fast func w(@align(9223372036854775808) p: ptr<int32>) void then\n"
+        "end\n";
+    TcAnalysisStatus status;
+    TcAnalysisDiag diag;
+    TcAnalysis *an = analyze_lib_text(source, 64, &status, &diag);
+    const TcFuncSig *a;
+    const TcFuncSig *c;
+    const TcFuncSig *b;
+    const TcFuncSig *af;
+    const TcFuncSig *r;
+    const TcFuncSig *w;
+    const TcStructDef *s;
+    if (an == NULL) {
+        return;
+    }
+    if (status != TC_ANALYSIS_OK) {
+        printf("annotation metadata diagnostic code=%d line=%u column=%u\n",
+               (int)diag.code, diag.span.line, diag.span.column);
+    }
+    CHECK(status == TC_ANALYSIS_OK);
+    a = tc_analysis_find_func(an, NULL, "a");
+    c = tc_analysis_find_func(an, NULL, "c");
+    b = tc_analysis_find_func(an, NULL, "b");
+    af = tc_analysis_find_func(an, NULL, "af");
+    r = tc_analysis_find_func(an, NULL, "r");
+    w = tc_analysis_find_func(an, NULL, "w");
+    s = tc_analysis_find_struct(an, NULL, "S");
+    CHECK(a != NULL && a->nparams == 1);
+    CHECK(c != NULL && c->nparams == 1);
+    CHECK(b != NULL && b->nparams == 1);
+    CHECK(af != NULL && af->nparams == 1);
+    CHECK(r != NULL && r->nparams == 1);
+    CHECK(w != NULL && w->nparams == 1);
+    CHECK(s != NULL && s->nfields == 1);
+    if (a != NULL && a->nparams == 1) {
+        CHECK((a->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK_EQ(a->params[0].align, 8);
+    }
+    if (c != NULL && c->nparams == 1) {
+        CHECK((c->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK_EQ(c->params[0].align, 8);
+    }
+    if (b != NULL && b->nparams == 1) {
+        CHECK((b->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK(b->params[0].align == UINT64_C(4294967296));
+    }
+    if (af != NULL && af->nparams == 1) {
+        CHECK((af->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK_EQ(af->params[0].align, 8);
+    }
+    if (r != NULL && r->nparams == 1) {
+        CHECK((r->params[0].flags & TC_PARAM_RANGE) != 0);
+        CHECK_EQ(r->params[0].lo, 1);
+        CHECK_EQ(r->params[0].hi, 10);
+    }
+    if (w != NULL && w->nparams == 1) {
+        CHECK((w->params[0].flags & TC_PARAM_ALIGN) != 0);
+        CHECK(w->params[0].align == (UINT64_C(1) << 63));
+    }
+    if (s != NULL && s->nfields == 1) {
+        CHECK(s->fields[0].padding == UINT64_C(4294967296));
+        CHECK(s->size == UINT64_C(4294967297));
+    }
+    tc_analysis_destroy(an);
+}
+
 static void test_conversion_flip(void) {
     static const char *source =
         "#program\n"
@@ -292,6 +428,7 @@ int main(void) {
     test_layout();
     test_type_identity();
     test_conversion_flip();
+    test_annotation_metadata();
     test_module_order();
     test_module_instances();
     if (failures != 0) {

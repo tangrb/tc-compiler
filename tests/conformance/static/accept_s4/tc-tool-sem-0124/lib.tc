@@ -1,0 +1,6 @@
+#lib
+public const A: int32 = add int32, 7, 1
+public const L: usize = sizeof int32
+public const H: usize = 10
+public @fast func f(@align(Self.A) p: ptr<int32>, @range(Self.L, Self.H) n: usize) void then
+end

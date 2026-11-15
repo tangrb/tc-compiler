@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0238
+profile: common
+source: fixtures/tc-sem-ann-0238/root.tc
+spec: "§8.6 @align 的 const 路径端点由整数纯表达式产生；SEM 求值后非 2 的幂 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0238/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

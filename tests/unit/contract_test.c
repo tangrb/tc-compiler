@@ -730,6 +730,8 @@ static void test_contract_declarations(void) {
     field.padding = 4; /* bytes of 0x00 after this field */
     field.offset = 8;  /* byte offset in the current profile */
     CHECK(field.readonly == 1 && field.padding == 4 && field.offset == 8);
+    field.padding = UINT64_C(0x100000000);
+    CHECK(field.padding == UINT64_C(0x100000000));
 
     memset(&sd, 0, sizeof(sd));
     sd.id = 1;
@@ -808,6 +810,8 @@ static void test_contract_declarations(void) {
     CHECK((param.flags & TC_PARAM_ALIGN) != 0);
     CHECK(param.type == i32 && param.align == 8);
     CHECK(param.lo == 0x10 && param.hi == 0x20);
+    param.align = UINT64_C(1) << 63;
+    CHECK(param.align == (UINT64_C(1) << 63));
 
     memset(&func, 0, sizeof(func));
     func.id = 3;

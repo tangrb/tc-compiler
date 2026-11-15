@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0027
+profile: common
+source: fixtures/tc-sem-cfg-0027/root.tc
+spec: "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 MISSING_RETURN 优先于 LABEL_NOT_FOUND"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0027/lib.tc, line: 2, column: 24}
+  related: [{file: fixtures/tc-sem-cfg-0027/lib.tc, line: 4, column: 1}]
+  diagnostics: exactly-one

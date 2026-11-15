@@ -22,7 +22,7 @@ specific contract assertions; they are not conformance `.tc` cases.
 | `TC-L0-DIAG-0006` | `test_negative_shift_first` | §12.2 #5 negative shift precedes strict `shl` overflow |
 | `TC-L0-IR-0001` | `test_ir_shape_and_zero_pass` | §6.15.1 any result instruction may discard with `_`; no-result LHS must be `_`; opcode/terminator shape |
 | `TC-L0-TYPE-0001` | `test_type_table` | scalar singletons are materialized before freeze; freeze adds no nodes; `void` is not a scalar value type; intern/freeze identity |
-| `TC-L0-CONTRACT-0001` | `test_contract_declarations` | enum values, struct fields, defaults, sentinels, operand kinds, `TcInstr` mode/type/args/switch/span, 1-based positions and byte/bit units |
+| `TC-L0-CONTRACT-0001` | `test_contract_declarations` | enum values, struct fields (including full-width `padding`/`align`), defaults, sentinels, operand kinds, `TcInstr` mode/type/args/switch/span, 1-based positions and byte/bit units |
 | `TC-L0-OBJ-0001` | `test_pointer_states` | standard §3.12 four-state pointer-permission matrix (null/live/one-past/dangling; bitcast only live/dangling) |
 | `TC-L0-DIAG-0007` | `test_call_check_phase_order` | §8.8.2 call/make check phases: target/visibility → safety → LHS/return shape → arguments → receiver |
 | `TC-L0-DIAG-0008` | `test_site_id_scope` | `site_id` scopes §12.2 #10 to one call/make site; zero id/phase and out-of-range phase are rejected by the buffer; distinct sites fall back to source order |
@@ -66,13 +66,14 @@ registered as `frontend.unit` and currently runs 688 checks.
 ## L1 SEM tests (`tc_sem_test`)
 
 `tc_sem_test` calls the private `frontend/sem.h` interface directly.  It
-currently runs 58 checks.
+currently runs 81 checks.
 
 | Case ID | C function | Pins |
 | --- | --- | --- |
 | `TC-UNIT-LAYOUT-0001@w32`, `@w64` | `test_layout` | §3.7/§6.13/§13.3 compact fields, `@padding` 0x00 bytes, no implicit alignment/tail padding, offsets/size; §13.2.1 ptr/fnptr/isize/usize sizes per W |
 | `TC-UNIT-TYPE-0001` | `test_type_identity` | §3.9 scalar singletons, interned `ptr<T>`, nominal structs, `isize` != `int64`, `fnptr` per-signature equivalence |
 | `TC-UNIT-CONV-0001@w32`, `@w64` | `test_conversion_flip` | §13.2.2 `bitcast int32,isize` is W-dependent; the type table is frozen after Analyze |
+| `TC-UNIT-ANN-0001` | `test_annotation_metadata` | §8.6 const-path endpoints are evaluated and written to `TcParam.align`/`lo`/`hi`; 64-bit `@align`/`@padding` metadata is not truncated |
 | `TC-UNIT-MODULE-0001` | `test_module_order` | §4.11.1 diamond import order `root, a, c, b`; each module parsed once |
 | `TC-UNIT-MODULE-0002` | `test_module_instances` | §4.5 same module name at two resolved paths is two instances |
 

@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0025
+profile: common
+source: fixtures/tc-sem-cfg-0025/root.tc
+spec: "§7.2/§12.3 无 MISSING_RETURN 竞争时，重复标签仍报 DUPLICATE_LABEL"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_LABEL
+  primary: {file: fixtures/tc-sem-cfg-0025/lib.tc, line: 4, column: 11}
+  related: [{file: fixtures/tc-sem-cfg-0025/lib.tc, line: 3, column: 11}]
+  diagnostics: exactly-one

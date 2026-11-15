@@ -25,14 +25,16 @@
   maximum fixed point, `MISSING_RETURN`; labels/control shapes; direct/indirect call
   order (target → safety → LHS → arguments → receiver) and call safety; safe/unsafe
   contexts with `@safe` priority; function/parameter/field annotation matrix,
-  W-dependent `@align`/`@range` ranges, and promise violations that are never a
-  static rejection.
+  literal and integer const-path `@align`/`@range` values, 64-bit
+  `@align`/`@padding` metadata, and promise violations that are never a static
+  rejection; duplicate labels and malformed branches participate in first-
+  diagnostic selection via conservative fallthrough.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN) and `--static-only`
   (LEX/SYN/IMPORT/SEM) partial checks; a normal invocation explicitly exits 70 after
   the static stages. Added the `w32` static profile (not an executable target).
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, S1/S2/S3/S4 conformance tables
-  (S4: 107 compile + 23 accept), determinism suites and a fail-closed adapter
-  self-test; currently 22/22 `ctest` and 476/476 harness cases in Debug/Release/ASan
+  (S4: 119 compile + 24 accept), determinism suites and a fail-closed adapter
+  self-test; currently 22/22 `ctest` and 489/489 harness cases in Debug/Release/ASan
   builds.
 
 ### Changed
