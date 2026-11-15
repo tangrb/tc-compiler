@@ -5013,6 +5013,7 @@ typedef struct {
     int is_nan;
     int is_inf;
     int is_zero;
+    int is_subnormal;
     int scale;
     uint64_t mantissa;
 } TcFloatParts;
@@ -5034,6 +5035,7 @@ static int const_float_parts(uint64_t bits, unsigned width,
             out->mantissa = frac;
             out->scale = -149;
             out->is_zero = frac == 0;
+            out->is_subnormal = frac != 0;
         } else {
             out->mantissa = frac | (UINT64_C(1) << 23);
             out->scale = (int)exp - 127 - 23;
@@ -5054,6 +5056,7 @@ static int const_float_parts(uint64_t bits, unsigned width,
             out->mantissa = frac;
             out->scale = -1074;
             out->is_zero = frac == 0;
+            out->is_subnormal = frac != 0;
         } else {
             out->mantissa = frac | (UINT64_C(1) << 52);
             out->scale = (int)exp - 1023 - 52;
@@ -5061,6 +5064,78 @@ static int const_float_parts(uint64_t bits, unsigned width,
         return 1;
     }
     return 0;
+}
+
+typedef struct {
+    uint64_t hi;
+    uint64_t lo;
+} TcU128;
+
+static TcU128 const_u128_mul(uint64_t a, uint64_t b) {
+    uint64_t a0 = a & UINT64_C(0xffffffff);
+    uint64_t a1 = a >> 32;
+    uint64_t b0 = b & UINT64_C(0xffffffff);
+    uint64_t b1 = b >> 32;
+    uint64_t p0 = a0 * b0;
+    uint64_t p1 = a0 * b1;
+    uint64_t p2 = a1 * b0;
+    uint64_t p3 = a1 * b1;
+    uint64_t mid = (p0 >> 32) + (p1 & UINT64_C(0xffffffff)) +
+                  (p2 & UINT64_C(0xffffffff));
+    TcU128 out;
+    out.lo = (p0 & UINT64_C(0xffffffff)) | (mid << 32);
+    out.hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
+    return out;
+}
+
+static TcU128 const_u128_shl(TcU128 value, unsigned shift) {
+    TcU128 out;
+    if (shift >= 128) {
+        out.hi = 0;
+        out.lo = 0;
+    } else if (shift >= 64) {
+        out.hi = value.lo << (shift - 64);
+        out.lo = 0;
+    } else if (shift == 0) {
+        out = value;
+    } else {
+        out.hi = (value.hi << shift) | (value.lo >> (64 - shift));
+        out.lo = value.lo << shift;
+    }
+    return out;
+}
+
+static int const_u128_equals_u64(TcU128 value, uint64_t expected) {
+    return value.hi == 0 && value.lo == expected;
+}
+
+static int const_mul_subnormal_exact(const TcConstInt *a,
+                                     const TcConstInt *b,
+                                     const TcConstInt *result,
+                                     unsigned width) {
+    TcFloatParts pa;
+    TcFloatParts pb;
+    TcFloatParts pr;
+    TcU128 product;
+    int diff;
+    if (!const_float_parts(a->bits, width, &pa) ||
+        !const_float_parts(b->bits, width, &pb) ||
+        !const_float_parts(result->bits, width, &pr) ||
+        !pr.is_subnormal || pa.is_nan || pb.is_nan ||
+        pa.is_inf || pb.is_inf || pa.is_zero || pb.is_zero) {
+        return 0;
+    }
+    product = const_u128_mul(pa.mantissa, pb.mantissa);
+    diff = (pa.scale + pb.scale) - pr.scale;
+    if (diff >= 0) {
+        product = const_u128_shl(product, (unsigned)diff);
+        return const_u128_equals_u64(product, pr.mantissa);
+    }
+    {
+        TcU128 shifted = const_u128_shl(
+            (TcU128){0, pr.mantissa}, (unsigned)(-diff));
+        return shifted.hi == product.hi && shifted.lo == product.lo;
+    }
 }
 
 static uint64_t const_float_nan_bits(unsigned width) {
@@ -5291,9 +5366,13 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     }
                     r = fa * fb;
                 } else if (instr->op == TC_DIV) {
-                    if ((a_inf && b_inf) ||
-                        (fa == 0.0f && fb == 0.0f) || fb == 0.0f) {
+                    if (a_inf && b_inf) {
                         return 0;
+                    }
+                    if (fb == 0.0f) {
+                        if (fa == 0.0f || !a_inf) {
+                            return 0;
+                        }
                     }
                     r = fa / fb;
                 } else {
@@ -5319,6 +5398,18 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     return 0; /* strict underflow to zero */
                 }
                 out->bits = const_f32_to_bits(r);
+                if (instr->op == TC_MUL) {
+                    TcFloatParts pr;
+                    if (const_float_parts(out->bits, 32, &pr) &&
+                        pr.is_subnormal) {
+                        TcConstInt result;
+                        result.bits = out->bits;
+                        result.type = type;
+                        if (!const_mul_subnormal_exact(&a, &b, &result, 32)) {
+                            return 0;
+                        }
+                    }
+                }
             } else {
                 double da = const_bits_to_f64(a.bits);
                 double db = const_bits_to_f64(b.bits);
@@ -5346,9 +5437,13 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     }
                     r = da * db;
                 } else if (instr->op == TC_DIV) {
-                    if ((a_inf && b_inf) ||
-                        (da == 0.0 && db == 0.0) || db == 0.0) {
+                    if (a_inf && b_inf) {
                         return 0;
+                    }
+                    if (db == 0.0) {
+                        if (da == 0.0 || !a_inf) {
+                            return 0;
+                        }
                     }
                     r = da / db;
                 } else {
@@ -5374,6 +5469,18 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     return 0;
                 }
                 out->bits = const_f64_to_bits(r);
+                if (instr->op == TC_MUL) {
+                    TcFloatParts pr;
+                    if (const_float_parts(out->bits, 64, &pr) &&
+                        pr.is_subnormal) {
+                        TcConstInt result;
+                        result.bits = out->bits;
+                        result.type = type;
+                        if (!const_mul_subnormal_exact(&a, &b, &result, 64)) {
+                            return 0;
+                        }
+                    }
+                }
             }
             out->type = type;
             return 1;

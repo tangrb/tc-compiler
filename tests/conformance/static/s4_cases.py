@@ -1817,6 +1817,18 @@ POSITIVE = [
          "@range(Self.L, Self.H) n: usize) void then\nend\n"},
     ),
     _positive(
+        "TC-TOOL-SEM-0139",
+        "§6.3.2 非精确非规格化乘法属于 strict 下溢（tininess after "
+        "rounding）；SEM 不得把舍入结果当合法值",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const N: float64 = 4.9406564584124654e-324\n"
+         "public const R: float64 = mul float64, Self.N, 1.5\n"
+         "public const X: int32 = cast int32, Self.R\n"
+         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
         "TC-TOOL-SEM-0134",
         "§6.3 strict shl 非零 a 的大计数与无符号高位溢出属于 CT "
         "CONST_OVERFLOW；SEM 不得误报",
