@@ -243,7 +243,10 @@ S1 文档化上限（标准 §13.5 允许；不得伪装语言诊断）：
 - 新增 `TC-LEX-SYN-0031`（`1.5.5` 畸形数字候选约定）、`TC-LEX-SYN-0032`（L3 非法 UTF-8 + 注释标量列）、
   L1 `TC-UNIT-LEX-0005`/`TC-UNIT-SYN-0004`；补充 §9.12–§9.14 与计划 S4 字段注解用例清单；
 - 这些是**证据/文档增强**，不改变 S1 实现行为与接受集；G1 仍 PASS，reviewed behavior commit 仍为
-  `79dfee9`，additive tests/docs 提交见 git 历史。
+  `79dfee9`，additive tests/docs 提交见 git 历史；
+- 另完成实现/测试代码注释清理：去除阶段编号、门禁报告、测试计划与审计结果引用，改引标准/设计
+  条款或自包含说明；删除误提交的探针文件 `e.txt`。注释边界规则见 `AGENTS.md` 与 `src/README.md`
+  的 Rules；不改变语言行为与门禁证据。
 
 ## 13. 门禁判定
 
@@ -296,6 +299,6 @@ cmake --install build --prefix /tmp/tc-install && find /tmp/tc-install -type f |
 - evidence version：`S1-2026-11-15`。
 - 独立 golden 评审：2026-11-15（`gate-auditor`）。
 - 独立门禁审计：首轮 2026-11-15（FAIL：A1–A9）；A1–A9 修复后复核通过（2026-11-15），无未关闭 B1/B2/B3/B4。
-- G1 后补充：`TC-LEX-SYN-0031/0032`、L1 `TC-UNIT-LEX-0005`/`TC-UNIT-SYN-0004`、§9.12–§9.14；仅增强证据/文档，不改变实现行为与接受集。
+- G1 后补充：`TC-LEX-SYN-0031/0032`、L1 `TC-UNIT-LEX-0005`/`TC-UNIT-SYN-0004`、§9.12–§9.14；代码注释清理（阶段/门禁/测试计划/审计引用移除，`e.txt` 删除）；仅增强证据/文档，不改变实现行为与接受集。
 
 *— 文档结束 —*
