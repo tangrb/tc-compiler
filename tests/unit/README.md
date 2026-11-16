@@ -96,7 +96,7 @@ ctest --test-dir build -R 'frontend.unit|sem.unit' --output-on-failure
 ## L1 CT tests (`tc_ct_test`)
 
 `tc_ct_test` evaluates spec-derived CT vectors through `tc_analyze` and reads
-the CT value table directly.  It currently runs 362 checks.  Expectations come
+the CT value table directly.  It currently runs 370 checks.  Expectations come
 from the standard (integer strict/mode matrix, IEEE strict arithmetic and
 exception priority, exact `mod`, `cast`/`trunc`/`bitcast`, `sizeof`/layout and
 the 32/64 matrix), never from compiler output.
