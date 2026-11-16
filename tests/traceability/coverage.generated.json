@@ -3352,7 +3352,14 @@
         "TC-SEM-ANN-0248",
         "TC-SEM-ANN-0249",
         "TC-SEM-ANN-0250",
-        "TC-SEM-ANN-0251"
+        "TC-SEM-ANN-0251",
+        "TC-SEM-ANN-0252",
+        "TC-SEM-ANN-0253",
+        "TC-SEM-ANN-0254",
+        "TC-SEM-ANN-0255",
+        "TC-SEM-ANN-0256",
+        "TC-SEM-ANN-0257",
+        "TC-SEM-ANN-0258"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -3387,7 +3394,8 @@
         "TC-TOOL-SEM-0135",
         "TC-TOOL-SEM-0137",
         "TC-TOOL-SEM-0138",
-        "TC-TOOL-SEM-0139"
+        "TC-TOOL-SEM-0139",
+        "TC-TOOL-SEM-0141"
       ],
       "code": "TC_CE_ANNOTATION",
       "print_name": "AnnotationError",
@@ -12250,7 +12258,15 @@
         "TC-TOOL-SEM-0135",
         "TC-TOOL-SEM-0137",
         "TC-TOOL-SEM-0138",
-        "TC-TOOL-SEM-0139"
+        "TC-TOOL-SEM-0139",
+        "TC-SEM-ANN-0252",
+        "TC-SEM-ANN-0254",
+        "TC-SEM-ANN-0255",
+        "TC-SEM-ANN-0256",
+        "TC-SEM-ANN-0257",
+        "TC-SEM-ANN-0258",
+        "TC-TOOL-SEM-0140",
+        "TC-TOOL-SEM-0141"
       ],
       "annotation": "@align",
       "location": "`@fast` 指针形参",
@@ -12302,7 +12318,16 @@
         "TC-TOOL-SEM-0135",
         "TC-TOOL-SEM-0137",
         "TC-TOOL-SEM-0138",
-        "TC-TOOL-SEM-0139"
+        "TC-TOOL-SEM-0139",
+        "TC-SEM-ANN-0252",
+        "TC-SEM-ANN-0253",
+        "TC-SEM-ANN-0254",
+        "TC-SEM-ANN-0255",
+        "TC-SEM-ANN-0256",
+        "TC-SEM-ANN-0257",
+        "TC-SEM-ANN-0258",
+        "TC-TOOL-SEM-0140",
+        "TC-TOOL-SEM-0141"
       ],
       "annotation": "@align",
       "location": "`@fast` 指针形参",

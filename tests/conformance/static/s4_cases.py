@@ -1502,6 +1502,87 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0252",
+        "§6.6.1 有符号加宽保留符号：int8 -128 -> int64 -128；"
+        "@align(负数) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const M: int8 = -128\n"
+         "public const X: int64 = cast int64, Self.M\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0253",
+        "§13.2.2 w32 isize -1 -> int64 必须为 -1；@range(0,-1) -> "
+        "ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const M: isize = -1\n"
+         "public const X: int64 = cast int64, Self.M\n"
+         "public @fast func f(@range(0, @HERE@Self.X) n: int64) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION", profile="w32",
+    ),
+    _case(
+        "TC-SEM-ANN-0254",
+        "§6.6.3 w32 bitcast int32 字面量源位宽=目标位宽；0 -> @align(0) "
+        "ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: int32 = bitcast int32, 0\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION", profile="w32",
+    ),
+    _case(
+        "TC-SEM-ANN-0255",
+        "§6.6.3 w64 bitcast uint32 字面量源位宽=目标位宽；0 -> "
+        "@align(0) ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: uint32 = bitcast uint32, 0\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0256",
+        "§6.3.2 精确非规格化 DIV（min_sub/1.0）保留值；cast 得 0，"
+        "@align(0) -> ANNOTATION",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const N: float32 = 1.40129846e-45f\n"
+         "public const R: float32 = div float32, Self.N, 1.0f\n"
+         "public const X: int32 = cast int32, Self.R\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0257",
+        "§6.3.1 有限非零 / inf 为精确 +0；@align(0) -> ANNOTATION（f32）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const F: float32 = div float32, 1.0f, inf\n"
+         "public const X: int32 = cast int32, Self.F\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0258",
+        "§6.3.1 有限非零 / inf 为精确 +0；@align(0) -> ANNOTATION（f64）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const F: float64 = div float64, 1.0, inf\n"
+         "public const X: int32 = cast int32, Self.F\n"
+         "public @fast func f(@align(@HERE@Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -1840,6 +1921,32 @@ POSITIVE = [
          "public const R: float64 = mul float64, Self.N, 1.5\n"
          "public const X: int32 = cast int32, Self.R\n"
          "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0140",
+        "§6.6.3 bitcast int32 字面量 8 的源类型为 int32；结果 8 合法",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: int32 = bitcast int32, 8\n"
+         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0141",
+        "§6.3.2 非精确非规格化 DIV（f32 min_sub/1.5、f64 min_sub/1.5）"
+        "属于 strict 下溢；SEM 不得解析舍入结果",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const N32: float32 = 1.40129846e-45f\n"
+         "public const R32: float32 = div float32, Self.N32, 1.5f\n"
+         "public const X32: int32 = cast int32, Self.R32\n"
+         "public const N64: float64 = 4.9406564584124654e-324\n"
+         "public const R64: float64 = div float64, Self.N64, 1.5\n"
+         "public const X64: int32 = cast int32, Self.R64\n"
+         "public @fast func a(@align(Self.X32) p: ptr<int32>) void then\n"
+         "end\n"
+         "public @fast func b(@align(Self.X64) p: ptr<int32>) void then\n"
          "end\n"},
     ),
     _positive(

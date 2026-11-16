@@ -1,0 +1,4 @@
+#lib
+public const X: uint32 = bitcast uint32, 0
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

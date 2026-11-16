@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0253
+profile: w32
+source: fixtures/tc-sem-ann-0253/root.tc
+spec: "§13.2.2 w32 isize -1 -> int64 必须为 -1；@range(0,-1) -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0253/lib.tc, line: 4, column: 31}
+  related: []
+  diagnostics: exactly-one

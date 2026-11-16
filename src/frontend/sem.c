@@ -4952,6 +4952,25 @@ static const TcType *infer_const_source_type(Sem *s,
     return NULL;
 }
 
+static const TcType *infer_bitcast_source_type(Sem *s,
+                                                const TcType *target,
+                                                const TcParseValue *v) {
+    unsigned width;
+    TcTypeTag tag;
+    if (v->kind != TC_PVAL_INT) {
+        return infer_const_source_type(s, v);
+    }
+    width = type_bits(s->an, target);
+    switch (width) {
+    case 8: tag = v->int_unsigned_suffix ? TC_TY_U8 : TC_TY_I8; break;
+    case 16: tag = v->int_unsigned_suffix ? TC_TY_U16 : TC_TY_I16; break;
+    case 32: tag = v->int_unsigned_suffix ? TC_TY_U32 : TC_TY_I32; break;
+    case 64: tag = v->int_unsigned_suffix ? TC_TY_U64 : TC_TY_I64; break;
+    default: return NULL;
+    }
+    return tc_type_scalar(s->an->types, tag);
+}
+
 static int eval_const_source(Sem *s, const TcParseValue *v, TcConstInt *out,
                              unsigned depth) {
     const TcType *source = infer_const_source_type(s, v);
@@ -5277,6 +5296,35 @@ static int eval_to_float(const TcConstInt *source, const TcType *target,
     return 0;
 }
 
+static int const_div_subnormal_exact(const TcConstInt *a,
+                                     const TcConstInt *b,
+                                     const TcConstInt *result,
+                                     unsigned width) {
+    TcFloatParts pa;
+    TcFloatParts pb;
+    TcFloatParts pr;
+    TcU128 product;
+    int diff;
+    if (!const_float_parts(a->bits, width, &pa) ||
+        !const_float_parts(b->bits, width, &pb) ||
+        !const_float_parts(result->bits, width, &pr) ||
+        !pr.is_subnormal || pa.is_nan || pb.is_nan ||
+        pa.is_inf || pb.is_inf || pa.is_zero || pb.is_zero) {
+        return 0;
+    }
+    product = const_u128_mul(pr.mantissa, pb.mantissa);
+    diff = (pr.scale + pb.scale) - pa.scale;
+    if (diff >= 0) {
+        product = const_u128_shl(product, (unsigned)diff);
+        return const_u128_equals_u64(product, pa.mantissa);
+    }
+    {
+        TcU128 shifted = const_u128_shl(
+            (TcU128){0, pa.mantissa}, (unsigned)(-diff));
+        return shifted.hi == product.hi && shifted.lo == product.lo;
+    }
+}
+
 static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                                 const TcType *expected, TcConstInt *out,
                                 unsigned depth) {
@@ -5394,18 +5442,23 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 }
                 if (r == 0.0f &&
                     (instr->op == TC_MUL || instr->op == TC_DIV) &&
-                    fa != 0.0f && fb != 0.0f) {
+                    fa != 0.0f && fb != 0.0f &&
+                    !(instr->op == TC_DIV && b_inf)) {
                     return 0; /* strict underflow to zero */
                 }
                 out->bits = const_f32_to_bits(r);
-                if (instr->op == TC_MUL) {
+                if (instr->op == TC_MUL || instr->op == TC_DIV) {
                     TcFloatParts pr;
                     if (const_float_parts(out->bits, 32, &pr) &&
                         pr.is_subnormal) {
                         TcConstInt result;
                         result.bits = out->bits;
                         result.type = type;
-                        if (!const_mul_subnormal_exact(&a, &b, &result, 32)) {
+                        if (!(instr->op == TC_MUL
+                                  ? const_mul_subnormal_exact(&a, &b,
+                                                              &result, 32)
+                                  : const_div_subnormal_exact(&a, &b,
+                                                              &result, 32))) {
                             return 0;
                         }
                     }
@@ -5465,18 +5518,23 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 }
                 if (r == 0.0 &&
                     (instr->op == TC_MUL || instr->op == TC_DIV) &&
-                    da != 0.0 && db != 0.0) {
+                    da != 0.0 && db != 0.0 &&
+                    !(instr->op == TC_DIV && b_inf)) {
                     return 0;
                 }
                 out->bits = const_f64_to_bits(r);
-                if (instr->op == TC_MUL) {
+                if (instr->op == TC_MUL || instr->op == TC_DIV) {
                     TcFloatParts pr;
                     if (const_float_parts(out->bits, 64, &pr) &&
                         pr.is_subnormal) {
                         TcConstInt result;
                         result.bits = out->bits;
                         result.type = type;
-                        if (!const_mul_subnormal_exact(&a, &b, &result, 64)) {
+                        if (!(instr->op == TC_MUL
+                                  ? const_mul_subnormal_exact(&a, &b,
+                                                              &result, 64)
+                                  : const_div_subnormal_exact(&a, &b,
+                                                              &result, 64))) {
                             return 0;
                         }
                     }
@@ -5804,6 +5862,14 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 return 0;
             }
             source.type = source_type;
+        } else if (instr->op == TC_BITCAST) {
+            const TcType *source_type = infer_bitcast_source_type(
+                s, type, &instr->args[1].value);
+            if (source_type == NULL ||
+                !eval_const_value_int(s, &instr->args[1].value,
+                                      source_type, &source, depth)) {
+                return 0;
+            }
         } else if (!eval_const_source(s, &instr->args[1].value, &source,
                                       depth)) {
             return 0;
@@ -5836,10 +5902,18 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                 } else if (type_is_bool(source.type)) {
                     out->bits = source.bits != 0;
                 } else if (type_is_integer(source.type)) {
-                    if (!const_int_cast_fits(&source, type, s->an)) {
+                    unsigned source_width =
+                        type_bits(s->an, source.type);
+                    uint64_t bits;
+                    if (!const_int_cast_fits(&source, type, s->an) ||
+                        source_width == 0 || source_width > 64) {
                         return 0;
                     }
-                    out->bits = source.bits &
+                    bits = source.bits & const_mask(source_width);
+                    if (type_is_signed_integer(source.type)) {
+                        bits = const_sign_extend(bits, source_width);
+                    }
+                    out->bits = bits &
                                 const_mask(type_bits(s->an, type));
                 } else {
                     return 0;

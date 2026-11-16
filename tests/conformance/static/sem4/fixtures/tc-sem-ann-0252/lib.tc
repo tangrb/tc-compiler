@@ -1,0 +1,5 @@
+#lib
+public const M: int8 = -128
+public const X: int64 = cast int64, Self.M
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

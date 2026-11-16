@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0141
+profile: common
+source: tc-tool-sem-0141/root.tc
+spec: "§6.3.2 非精确非规格化 DIV（f32 min_sub/1.5、f64 min_sub/1.5）属于 strict 下溢；SEM 不得解析舍入结果"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

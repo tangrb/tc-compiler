@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0256
+profile: common
+source: fixtures/tc-sem-ann-0256/root.tc
+spec: "§6.3.2 精确非规格化 DIV（min_sub/1.0）保留值；cast 得 0，@align(0) -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0256/lib.tc, line: 5, column: 28}
+  related: []
+  diagnostics: exactly-one
