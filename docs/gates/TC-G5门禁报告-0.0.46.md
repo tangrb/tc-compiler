@@ -49,6 +49,8 @@ python3 tests/tools/docs_cleanup_check.py
   不表示程序有效；静态初值的 VM 预载/AOT `.data` 字节一致性按测试计划在 S8 关闭。
 - SEM 部分检查使用 `--sem-only`；S4 接受用例使用该模式，S5/编译用例使用
   `--static-only`。
+- 指针/对象运行时尚需的字段子对象与 `TcObject.parent` 链接、字段地址解析属 S6/S8；
+  当前每个 `var`/形参/`static var` 一个对象，`parent` 为无效值。
 - `call_indirect nullptr` 的静态定型与 `-0` 用于无符号期望类型的读法仍按
   [CONTRACTS](../../src/CONTRACTS.md) 的约定挂起，属后续阶段澄清项。
 - 文档化实现上限（4 MiB 源文件、16 KiB Token、256 层嵌套）仍返回

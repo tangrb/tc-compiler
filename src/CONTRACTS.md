@@ -227,6 +227,11 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 
 ### Deferred decisions
 
+- Field sub-objects: IR finalization creates one object per `var`/parameter/
+  `static var`; struct field sub-objects and `TcObject.parent` links are
+  materialized by the pointer/object runtime stage (standard §3.12/§6.8).  Until
+  then every object has `parent == UINT32_MAX`.
+
 - `call_indirect nullptr`: statically rejected as `LITERAL_TYPE` because no
   signature can be inferred from an untyped null operand; the runtime
   `TC_RE_NULL_FUNCTION_POINTER` path and the signature-inference question remain
