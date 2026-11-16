@@ -753,6 +753,45 @@ CASES = [
         },
         out="107\n7\n100\n",
     ),
+    run_case(
+        "TC-RT-CALL-0006", "w64",
+        "§10.3 the @fast_math permission stays inside the callee lexical body: direct "
+        "and fnptr indirect calls keep the callee semantics and grant the caller no "
+        "permission; §10.4 zero-pass baseline; §6.3 strict rounding; §11.2 output",
+        files={
+            "root.tc": program(
+                "import lib",
+                "var fp: fnptr<float64, float64> = funcaddr lib.fm",
+                "unsafe then",
+                "var direct: float64 = call lib.fm, 1.0",
+                "_ = writeln float64, direct",
+                "var indirect: float64 = call_indirect fp, 1.0",
+                "_ = writeln float64, indirect",
+                "var own: float64 = add float64, 1.0, 1.0e16",
+                "var own2: float64 = sub float64, own, 1.0e16",
+                "_ = writeln float64, own2",
+                "var w: float64 = call lib.wrap, 2.0",
+                "_ = writeln float64, w",
+                "end",
+            ),
+            "lib.tc": library(
+                "public @fast @fast_math func fm(x: float64) float64 then",
+                "var t: float64 = add float64, x, 1.0e16",
+                "var r: float64 = sub float64, t, 1.0e16",
+                "_ = return r",
+                "end",
+                "public @fast func wrap(x: float64) float64 then",
+                "var fp: fnptr<float64, float64> = funcaddr Self.fm",
+                "var via: float64 = call_indirect fp, x",
+                "var own: float64 = add float64, x, 1.0e16",
+                "var own2: float64 = sub float64, own, 1.0e16",
+                "_ = writeln float64, via",
+                "_ = return own2",
+                "end",
+            ),
+        },
+        out="0\n0\n0\n2\n2\n",
+    ),
     # ------------------------------------------------------------------
     # Control flow (§6.10, §7).
     run_case(

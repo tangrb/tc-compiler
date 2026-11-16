@@ -1,0 +1,14 @@
+#lib
+public @fast @fast_math func fm(x: float64) float64 then
+var t: float64 = add float64, x, 1.0e16
+var r: float64 = sub float64, t, 1.0e16
+_ = return r
+end
+public @fast func wrap(x: float64) float64 then
+var fp: fnptr<float64, float64> = funcaddr Self.fm
+var via: float64 = call_indirect fp, x
+var own: float64 = add float64, x, 1.0e16
+var own2: float64 = sub float64, own, 1.0e16
+_ = writeln float64, via
+_ = return own2
+end

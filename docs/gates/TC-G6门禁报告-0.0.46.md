@@ -16,22 +16,41 @@ S6 交付：W 相关运行时语义核（整数 strict/wrap、除/模/移位边�
 
 | G6 准则 | 证据 | 结论 |
 | --- | --- | --- |
-| 全部 opcode 正常/边界/trap 用例通过 | 66 个 L4 运行时用例 + 63 个逐 opcode 静态形状用例；覆盖矩阵的 63 个 opcode 项 **63 normal + 29 trap + 63 static_error 槽全部 covered**；边界含 `INT_MIN`/`INT_MAX`、`div(INT_MIN,−1)`、`mod(INT_MIN,−1)`、`k>=n` 移位、NaN/±0/±inf/subnormal、自拷贝 `memmove`、one-past `ptradd`/`ptrsub`、`D` 边界 | 通过 |
+| 全部 opcode 正常/边界/trap 用例通过 | 67 个 L4 运行时用例 + 63 个逐 opcode 静态形状用例；覆盖矩阵的 63 个 opcode 项 **63 normal + 29 trap + 63 static_error 槽全部 covered**；边界含 `INT_MIN`/`INT_MAX`、`div(INT_MIN,−1)`、`mod(INT_MIN,−1)`、`k>=n` 移位、NaN/±0/±inf/subnormal、自拷贝 `memmove`、one-past `ptradd`/`ptrsub`、`D` 边界 | 通过 |
 | 15 个 `TC_RE_*` 均有触发用例；必选 trap 在 release VM 执行 | 每个码都有释放构建下的运行用例（`TC-RT-INT/F...`、`TC-RT-MEM...`、`TC-RT-CALL...`、`TC-RT-IO...`）；`TC-UNIT-VM-0006` 断言全部 15 个码的指令位置；必选 trap 不受 `--checked` 影响 | 通过 |
 | VM golden 在 W=32/64 分别建立且不交叉比较 | `tests/golden/w64/` 8 个、`tests/golden/w32/` 3 个 `kind: run` golden；`golden.run` 按目录分别执行，无跨档案比较；独立复核记录见 `tests/golden/review-record.md` | 通过 |
 | 提交/终止语义用例通过 | `TC-RT-CTRL-0002`（trap 前 stdout 保留、之后不提交）、`TC-RT-INT-0004/0005/0006`、`TC-RT-MEM-0005…0017`、`TC-RT-CALL-0002/0004`、`TC-RT-IO-0003/0004`；单元测试覆盖 sink 失败贡献 0 字节、`read` 失败不改目标 | 通过 |
-| VM 可作为 S7 差分参考：同源同档案输出可重复 | `determinism.s6`：66 个用例各重复 3 次逐字节一致；harness 在 `PYTHONHASHSEED` 0/1/42 与反向用例顺序下 JSON 一致；W=32/64 分档案 | 通过 |
+| VM 可作为 S7 差分参考：同源同档案输出可重复 | `determinism.s6`：67 个用例各重复 3 次逐字节一致；harness 在 `PYTHONHASHSEED` 0/1/42 与反向用例顺序下 JSON 一致；W=32/64 分档案 | 通过 |
 
 ## 覆盖与测试
 
-- `ctest` 32/32；harness 753/753（557 编译、129 工具、66 运行、1 属性）。
+- `ctest` 32/32；harness 754/754（557 编译、129 工具、67 运行、1 属性）。
 - 单元检查：frontend 688、sem 102、ct 370、ir 437、vm 413。
 - 覆盖矩阵：636 槽中 626 covered / 10 uncovered / 0 suspended。未覆盖仅为
   design §12 的差分/ABI/freestanding/`@fast_math` 项（S7–S9）。
+- 计划 §5 的 `@fast_math` 运行时边界（直接/间接调用不扩散）由 `TC-RT-CALL-0006`
+  覆盖：零 pass 基线下直接调用、`fnptr` 间接调用、非 `@fast_math` 调用者与调用者
+  自有浮点运算均保持 §6.3 严格语义；design §12 第 10 项的完整套件
+  （`runtime/float` L4/L5 与内联相关验证）仍按计划 §8.2 归 S8。
 - 构建/测试：Debug、Release、ASan+UBSan 全量 `ctest` 均为 32/32；输出不受
   locale/hash/用例顺序影响。
 
 ## 复现
+
+验证环境：cmake 4.4.2、Apple clang 21.0.0（arm64-apple-darwin27.0.0）。
+Debug 之外的两种构建配置（CMake 无内置消毒器开关，必须显式传编译/链接旗标；
+均复跑同一全量 `ctest`）：
+
+```sh
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release
+ctest --test-dir build-release --output-on-failure
+cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+cmake --build build-asan
+ctest --test-dir build-asan --output-on-failure
+```
 
 ```sh
 cmake -S . -B build

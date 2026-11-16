@@ -47,8 +47,8 @@
   首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用仍退出 70（后端未实现）。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
   S1/S2/S3/S4/S5/S6 一致性用例表、W=32/64 运行时 golden、确定性套件、
-  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 32/32，harness 753/753
-  （557 编译、129 工具、66 运行、1 属性），vm 单元 413 检查。
+  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 32/32，harness 754/754
+  （557 编译、129 工具、67 运行、1 属性），vm 单元 413 检查。
 
 ### Changed
 

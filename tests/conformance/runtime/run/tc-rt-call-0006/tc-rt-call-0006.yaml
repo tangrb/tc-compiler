@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0006
+profile: w64
+source: root.tc
+spec: "§10.3 the @fast_math permission stays inside the callee lexical body: direct and fnptr indirect calls keep the callee semantics and grant the caller no permission; §10.4 zero-pass baseline; §6.3 strict rounding; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "300a300a300a320a320a"
+  trap: null
+  exit: 0
+  termination: normal
