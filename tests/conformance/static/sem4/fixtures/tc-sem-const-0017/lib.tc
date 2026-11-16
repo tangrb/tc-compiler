@@ -1,0 +1,3 @@
+#lib
+public static var A: int32 = 1
+public const C: int32 = Self.A

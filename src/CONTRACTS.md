@@ -96,7 +96,7 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 | Conversions | `frontend/sem.c` | category matrix before width for `bitcast`; `trunc` only narrows; `cast` is numeric/bool only; W-dependent widths |
 | Layout/`sizeof` facts | `frontend/sem.c`, `ir/structs.h` | fields are compact, `@padding(N)` adds N bytes, no implicit alignment or tail padding; sum overflow in W-bit `usize` is SEM `LAYOUT_OVERFLOW`; types never cache layout |
 | Instruction shape | `frontend/sem.c` | opcode arity/operand category checks, mode matrix, no-result LHS rule, field/make and call argument type checks, `sizeof` type argument |
-| const_expr form | `frontend/sem.c` | `const`/`static var` initializers use the §3.10 positive op set; unlisted ops, mode/volatile suffixes and pointer/`fnptr` bitcasts are SEM `CONST_FORM`; `@padding(N)` N form is the separate `CONST_FORM` check |
+| const_expr form | `frontend/sem.c` | `const`/`static var` initializers use the §3.10 positive op set and only const value references; unlisted ops, mode/volatile suffixes, pointer/`fnptr` bitcasts, and var/parameter/static-var references are SEM `CONST_FORM`; `@padding(N)` N form is the separate `CONST_FORM` check |
 | CFG/DI | `frontend/sem.c` | one closed unit per program/function; instruction/declaration nodes, labels as block entries, all `br`/`br_if`/`switch` edges, `return`/`trap` terminal, call atomic, reachable end; `U[n]` initialization and the maximum fixed point of standard §5.7.1; unreachable code excluded from DI and return propagation |
 | Returns | `frontend/sem.c` | `return` only in functions; void/non-void forms; operand type; non-void reachable end and empty body report `MISSING_RETURN` at the return type with the `end` related position; void/program natural end, trap and non-exiting loops are legal |
 | Calls | `frontend/sem.c` | signature collection first; direct/indirect; target visibility, call safety, result shape, arguments (duplicate → unknown → missing → count → order → type), receiver; recursion allowed; `call_indirect` positional only |
@@ -116,6 +116,9 @@ as a `TcUnit`.
   allowlist before instruction checks: an unlisted op reports `CONST_FORM` at
   the opcode, an op with a mode/volatile suffix reports at the suffix token,
   and a `bitcast` involving a pointer/`fnptr` type reports at the opcode.
+  A value reference inside the initializer must resolve to a `const`; a
+  `var`/parameter/`static var` reference reports `CONST_FORM` at the target
+  token (including `make` field values and nested operands).
 - Named operands are accepted only for `make` fields and direct `call`
   arguments; `call_indirect` named arguments are `UNKNOWN_ARGUMENT`, and a
   named function/`fp` target or type argument is `OPERAND_COUNT`.

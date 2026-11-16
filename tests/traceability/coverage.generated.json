@@ -6208,7 +6208,14 @@
         "TC-SEM-CONST-0009",
         "TC-SEM-CONST-0010",
         "TC-SEM-CONST-0011",
-        "TC-SEM-CONST-0012"
+        "TC-SEM-CONST-0012",
+        "TC-SEM-CONST-0013",
+        "TC-SEM-CONST-0014",
+        "TC-SEM-CONST-0015",
+        "TC-SEM-CONST-0016",
+        "TC-SEM-CONST-0017",
+        "TC-SEM-CONST-0018",
+        "TC-SEM-CONST-0019"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
@@ -6229,7 +6236,8 @@
       "status": "covered",
       "case_ids": [
         "TC-TOOL-SEM-0001",
-        "TC-TOOL-SEM-0142"
+        "TC-TOOL-SEM-0142",
+        "TC-TOOL-SEM-0143"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
@@ -6258,7 +6266,14 @@
         "TC-SEM-CONST-0009",
         "TC-SEM-CONST-0010",
         "TC-SEM-CONST-0011",
-        "TC-SEM-CONST-0012"
+        "TC-SEM-CONST-0012",
+        "TC-SEM-CONST-0013",
+        "TC-SEM-CONST-0014",
+        "TC-SEM-CONST-0015",
+        "TC-SEM-CONST-0016",
+        "TC-SEM-CONST-0017",
+        "TC-SEM-CONST-0018",
+        "TC-SEM-CONST-0019"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",

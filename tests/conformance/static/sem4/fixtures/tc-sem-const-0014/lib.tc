@@ -1,0 +1,4 @@
+#lib
+public func f(p: int32) void then
+    const D: int32 = p
+end

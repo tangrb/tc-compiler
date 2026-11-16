@@ -1,0 +1,5 @@
+#lib
+public func f() void then
+    var v: int32 = copy int32, 1
+    const D: int32 = v
+end

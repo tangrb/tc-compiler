@@ -1,0 +1,12 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const K: int32 = 1
+public static var V: int32 = Self.K
+public const C: S = make S, x: Self.K
+public func f() void then
+    const A: int32 = 1
+    const B: int32 = A
+    const D: S = make S, x: B
+end

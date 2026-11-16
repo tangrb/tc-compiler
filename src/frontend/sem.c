@@ -91,6 +91,7 @@ typedef struct {
     int fn_safe;    /* explicit @safe assertion */
     int unsafe_context; /* current statement is lexically unsafe */
     int skip_safety;    /* const_expr shapes are checked as CONST_FORM later */
+    int const_context;  /* checking a const/static var initializer */
     int cfg_incomplete; /* a control-flow edge could not be resolved */
     const TcType *ret;
     TcLocal *locals;
@@ -1559,6 +1560,21 @@ static int check_literal_expected(Sem *s, const TcParseValue *v,
     }
 }
 
+static TcSpan const_ref_span(Sem *s, const TcParseValue *v) {
+    if (v->nfields > 0) {
+        if (strcmp(v->base, "Self") == 0) {
+            return v->field_spans[0];
+        }
+        {
+            TcMember *m = find_member(s->module, v->base);
+            if (m != NULL && m->kind == TC_MEM_IMPORT) {
+                return v->field_spans[0];
+            }
+        }
+    }
+    return v->base_span;
+}
+
 static int check_value_expected(Sem *s, const TcParseValue *v,
                                 const TcType *expected,
                                 const TcType **out_type) {
@@ -1568,6 +1584,11 @@ static int check_value_expected(Sem *s, const TcParseValue *v,
     if (v->kind == TC_PVAL_NAME) {
         Ref ref = resolve_value(s, v);
         if (!ref.ok) {
+            return 0;
+        }
+        if (s->const_context && !ref.is_const) {
+            sem_diag_simple(s, TC_CE_CONST_FORM,
+                            const_ref_span(s, v));
             return 0;
         }
         if (expected != NULL && !tc_type_equal(ref.type, expected)) {
@@ -3403,16 +3424,18 @@ static int check_const_form(Sem *s, const TcParseConstInit *init) {
 
 static void check_const_init(Sem *s, const TcParseConstInit *init,
                              const TcType *expected) {
+    int saved = s->const_context;
+    s->const_context = 1;
     if (!check_const_form(s, init)) {
+        s->const_context = saved;
         return;
     }
     if (init->is_op) {
         check_instr(s, &init->op, expected, 0);
-    } else if (init->value.kind == TC_PVAL_NAME) {
-        check_value_expected(s, &init->value, expected, NULL);
-    } else if (init->value.kind != TC_PVAL_NAME) {
+    } else {
         check_value_expected(s, &init->value, expected, NULL);
     }
+    s->const_context = saved;
 }
 
 /* ------------------------------------------------------------------------- */

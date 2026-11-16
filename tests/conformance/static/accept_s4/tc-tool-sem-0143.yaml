@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0143
+profile: common
+source: tc-tool-sem-0143/root.tc
+spec: "§3.10 合法 const 引用：static var 由 const 初始化、make 字段用 const、局部 const 引用局部 const 均不报 CONST_FORM"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

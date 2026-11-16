@@ -1663,6 +1663,82 @@ CASES = [
         "SEM", "TC_CE_CONST_FORM",
     ),
     _case(
+        "TC-SEM-CONST-0013",
+        "§3.10 const_expr 禁止 var 值引用；局部 const = 局部 var -> "
+        "CONST_FORM（目标 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    var v: int32 = copy int32, 1\n"
+         "    const D: int32 = @HERE@v\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0014",
+        "§3.10 const_expr 禁止参数值引用；局部 const = 参数 -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f(p: int32) void then\n"
+         "    const D: int32 = @HERE@p\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0015",
+        "§3.10 make 字段值必须是 const；字段引用局部 var -> CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n    var x: int32\nend\n"
+         "public func f() void then\n"
+         "    var v: int32 = copy int32, 1\n"
+         "    const C: S = make S, x: @HERE@v\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0016",
+        "§3.10/§4.7 static var 初始化器禁止引用 static var（Self.A）-> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public static var A: int32 = 1\n"
+         "public static var B: int32 = Self.@HERE@A\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0017",
+        "§3.10/§4.7 const 初始化器禁止引用 static var（Self.A）-> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public static var A: int32 = 1\n"
+         "public const C: int32 = Self.@HERE@A\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0018",
+        "§3.10/§4.10 跨模块 const 初始化器禁止引用 public static var -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import user\n",
+         "user.tc": LIB +
+         "import base\n"
+         "public const C: int32 = base.@HERE@V\n",
+         "base.tc": LIB + "public static var V: int32 = 1\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0019",
+        "§3.10 const 初始化器禁止裸名引用本模块 static var -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public static var A: int32 = 1\n"
+         "public const C: int32 = @HERE@A\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -2016,6 +2092,22 @@ POSITIVE = [
          "public const D: bool = eq int32, 1, 1\n"
          "public const E: int32 = cast int32, Self.D\n"
          "public const F: S = make S, x: 8\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0143",
+        "§3.10 合法 const 引用：static var 由 const 初始化、make 字段用 "
+        "const、局部 const 引用局部 const 均不报 CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n    var x: int32\nend\n"
+         "public const K: int32 = 1\n"
+         "public static var V: int32 = Self.K\n"
+         "public const C: S = make S, x: Self.K\n"
+         "public func f() void then\n"
+         "    const A: int32 = 1\n"
+         "    const B: int32 = A\n"
+         "    const D: S = make S, x: B\n"
+         "end\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0140",

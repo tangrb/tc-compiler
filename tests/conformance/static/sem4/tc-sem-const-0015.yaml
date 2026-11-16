@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0015
+profile: common
+source: fixtures/tc-sem-const-0015/root.tc
+spec: "§3.10 make 字段值必须是 const；字段引用局部 var -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0015/lib.tc, line: 7, column: 29}
+  related: []
+  diagnostics: exactly-one
