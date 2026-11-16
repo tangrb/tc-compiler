@@ -1803,7 +1803,16 @@ static int build_unit(IrBuild *b, uint32_t module, TcMember *member,
         size_t bi;
         for (bi = 0; bi < u.nblocks; bi++) {
             TcBlock *block = &u.blocks[bi];
-            uint32_t succs[8];
+            /* Successor capacity follows the terminator: a switch block has
+             * one successor per target and target count is unbounded. */
+            size_t succ_cap = 2;
+            if (block->n != 0 &&
+                block->instrs[block->n - 1u].op == TC_SWITCH &&
+                block->instrs[block->n - 1u].ntargets > succ_cap) {
+                succ_cap = block->instrs[block->n - 1u].ntargets;
+            }
+            uint32_t *succs = (uint32_t *)ir_alloc(
+                b->an, succ_cap * sizeof(uint32_t));
             size_t nsucc = 0;
             uint32_t fallthrough = bi + 1u < u.nblocks
                                        ? (uint32_t)(bi + 1u)

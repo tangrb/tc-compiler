@@ -44,7 +44,19 @@ BINOPS = ["add", "sub", "mul", "div", "mod", "shl", "shr", "and", "or", "xor"]
 CMPOPS = ["eq", "ne", "lt", "le", "gt", "ge"]
 UNOPS = ["neg", "abs", "not"]
 WRAPPABLE = {"add", "sub", "mul", "shl"}
-COUNT = 40
+SHIFT_K = [-1, 0, 1, 6, 7, 8, 9, 14, 15, 16, 17, 30, 31, 32, 33,
+           62, 63, 64, 65, 127, 128]
+COUNT = 120
+
+
+def operand(rng: random.Random, type_name: str) -> int:
+    low, high = TYPES[type_name]
+    if rng.random() < 0.6:
+        pool = [low, high, low + 1, high - 1, 0, 1, low // 2, high // 2]
+        if low < 0:
+            pool.append(-1)
+        return rng.choice(pool)
+    return rng.randint(low, high)
 
 
 def literal(type_name: str, value: int) -> str:
@@ -55,16 +67,18 @@ def literal(type_name: str, value: int) -> str:
 
 def generate(rng: random.Random) -> tuple[str, str]:
     type_name = rng.choice(list(TYPES))
-    low, high = TYPES[type_name]
     kind = rng.choice(["bin", "cmp", "un"])
     if kind == "bin":
         op = rng.choice(BINOPS)
-        a = rng.randint(low, high)
-        b = rng.randint(low, high)
-        if op in ("div", "mod") and b == 0:
-            b = 1
+        a = operand(rng, type_name)
+        b = operand(rng, type_name)
+        if op in ("div", "mod"):
+            if rng.random() < 0.1:
+                b = 0
+            elif b == 0:
+                b = 1
         if op in ("shl", "shr"):
-            b = rng.choice([-1, 0, 1, 7, 8, 15, 16, 31, 32, 63, 64, 65])
+            b = rng.choice(SHIFT_K)
         mode = ""
         if type_name in SIGNED and op in WRAPPABLE and rng.random() < 0.3:
             mode = ".wrap"
@@ -74,13 +88,13 @@ def generate(rng: random.Random) -> tuple[str, str]:
         return type_name, source
     if kind == "cmp":
         op = rng.choice(CMPOPS)
-        a = rng.randint(low, high)
-        b = rng.randint(low, high)
+        a = operand(rng, type_name)
+        b = operand(rng, type_name)
         return type_name, (f"var x: bool = {op} {type_name}, "
                            f"{literal(type_name, a)}, {literal(type_name, b)}\n"
                            f"_ = writeln bool, x\n")
     op = rng.choice(UNOPS)
-    a = rng.randint(low, high)
+    a = operand(rng, type_name)
     mode = ".wrap" if type_name in SIGNED and op == "neg" and \
         rng.random() < 0.3 else ""
     return type_name, (f"var x: {type_name} = {op}{mode} {type_name}, "

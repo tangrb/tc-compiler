@@ -392,6 +392,8 @@ int tc_aarch64_read_scalar(unsigned tag, uint64_t *out) {
     size_t len = 0;
     int c;
     int negative = 0;
+    int leading_zero = 0;
+    int is_bool = (TcTypeTag)tag == TC_TY_BOOL;
     unsigned width;
     uint64_t limit;
     uint64_t magnitude;
@@ -419,6 +421,13 @@ int tc_aarch64_read_scalar(unsigned tag, uint64_t *out) {
         }
     }
     while (c >= 0 && !is_ascii_space(c)) {
+        /* Leading zeros do not affect the value and input tokens allow any
+         * number of them; store only the significant part. */
+        if (!is_bool && len == 0 && c == '0') {
+            leading_zero = 1;
+            c = input_get();
+            continue;
+        }
         if (len + 1u >= sizeof(token)) {
             /* Consume the rest of this token, then fail deterministically. */
             while (c >= 0 && !is_ascii_space(c)) {
@@ -432,7 +441,7 @@ int tc_aarch64_read_scalar(unsigned tag, uint64_t *out) {
     if (c >= 0) {
         input_unget(c);
     }
-    if ((TcTypeTag)tag == TC_TY_BOOL) {
+    if (is_bool) {
         if (negative) {
             return 1;
         }
@@ -445,6 +454,9 @@ int tc_aarch64_read_scalar(unsigned tag, uint64_t *out) {
             return 0;
         }
         return 1;
+    }
+    if (len == 0 && leading_zero) {
+        token[len++] = '0';
     }
     if (negative) {
         limit = UINT64_C(1) << (width - 1u);
