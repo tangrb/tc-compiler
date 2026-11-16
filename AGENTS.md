@@ -8,10 +8,11 @@
 - 语言及编译器标准：`docs/TC语言及编译器标准-0.0.46.md`（唯一权威）。
 - 原生编译器目标设计：`docs/TC原生编译器设计说明书-0.0.46.md`。
 - 已实现：契约、LEX/SYN 与扁平 parse IR、IMPORT、名称/类型/转换/布局、静态指令形状检查、
-  const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵、32/64 静态档案；代码在
-  `src/frontend/` 的 `input`/`num`/`lex`/`parse`/`module`/`sem`。
-- 未实现：CT、IR 最终化与打印、VM 与后端。
-- 门禁：G0–G4 PASS，G4 允许进入 S5；见 `docs/gates/README.md`。
+  const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵、CT 求值
+  （按需求值/缓存、静态初值）、IR 最终化/冻结与打印、32/64 静态档案；代码在
+  `src/frontend/` 的 `input`/`num`/`lex`/`parse`/`module`/`sem`/`ct`/`irgen` 与 `src/ir/print.c`。
+- 未实现：VM、运行时语义与后端。
+- 门禁：G0–G5 PASS，G5 允许进入 S6；见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
@@ -26,8 +27,9 @@
 4. **32/64 同时考虑**：`usize`/`isize`、`sizeof`、`bitcast`/`trunc`、布局与诊断的字长差异
    必须显式处理。
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
-   `--syntax-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；普通调用在静态阶段
-   后仍退出 70。不得把部分能力写成“已支持”。
+   `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
+   `--static-only` 含 CT 与 IR 最终化，普通调用在静态阶段后仍退出 70。不得把部分能力写成
+   “已支持”。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。
@@ -72,10 +74,12 @@
 | 阶段 / 覆盖 / 门禁要求 | `docs/TC开发测试计划-0.0.46.md` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
-| 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h` |
+| 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |
+| CT/IR 实现约定 | `src/CONTRACTS.md`（CT 顺序/缓存/错误映射、对象布局、IR 操作数） |
+| IR 打印 | `src/ir/print.h`、`src/ir/print.c` |
 | 测试基建 | `tests/README.md` |
 | 门禁状态 | `docs/gates/README.md` |
 | 文档收尾检查 | `tests/tools/docs_cleanup_check.py`（`docs.cleanup`） |
-| 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py`、`s4_cases.py` |
+| 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py`、`s4_cases.py`、`s5_cases.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

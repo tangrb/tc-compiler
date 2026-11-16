@@ -14,8 +14,8 @@ current gate status. Chinese: [README.md](README.md).
 
 ## Current status
 
-- S0–S4 are implemented and passed G0–G4; **G4 allows S5**.
-- Not implemented: CT, IR finalization/printing, VM and backend.
+- S0–S5 are implemented and passed G0–G5; **G5 allows S6**.
+- Not implemented: the VM, runtime semantics and backends.
 - No C host public library, embedding API or ABI.
 - Both 32/64 are targets; `usize`/`isize` are platform-word types (§13.2.1/§13.2.2).
 

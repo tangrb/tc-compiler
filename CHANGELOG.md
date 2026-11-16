@@ -25,19 +25,30 @@
   `fenv`/`long double`）、strict 失败不产生 SEM 注解诊断、64 位 `@align`/`@padding`
   元数据、承诺违反不静态拒绝；重复标签/畸形分支按保守 fallthrough 参与首诊，
   缺失标签不再抑制已知边上的 DI。
-- **工具能力**：`--syntax-only`（LEX/SYN）与 `--static-only`（LEX/SYN/IMPORT/SEM）部分检查；
-  普通调用在静态阶段后显式退出 70。新增 `w32` 静态档案（不可执行目标）。
-- **测试**：`tc_frontend_test`、`tc_sem_test`、S1/S2/S3/S4 一致性用例表（S4 为
-  163 编译 + 44 接受）、确定性套件、adapter 失败关闭自测；当前 Debug/Release/ASan
-  `ctest` 22/22，harness 553/553。
+- **CT 求值**：`const`/`static var`/局部 `const` 的编译期求值；§3.10 正向 allowlist、
+  §6.3–§6.6 的严格整数/浮点语义与 `CONST_*` 错误映射、精确 `mod`、下溢按
+  tininess-after-rounding 判定；按 `module_order`/模块源序按需求值，成功/失败缓存，
+  首个失败归属目标声明且无级联；聚合 const 字段树、静态初值 `TcInitImage`
+  （按档案端序、padding 为 0、bool 0x00/0x01）。
+- **IR 最终化与冻结**：`TcIR`/`TcUnit`/`TcBlock`/`TcInstr` 物化；字段路径变为
+  vreg+字段索引，标签/`switch` 目标使用块 id，命名实参保留，span 保留；聚合 const
+  在使用处内联为 `make`，`const` 不占对象；静态/帧对象表、模块实例 id、按 profile 的
+  布局与冻结类型表；`tc_ir_print` 确定性文本转储。
+- **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
+  `--static-only`（含 CT 与 IR 最终化）部分检查；普通调用在静态阶段后显式退出 70。
+  新增 `w32` 静态档案（不可执行目标）。
+- **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、S1/S2/S3/S4/S5
+  一致性用例表（S4 为 163 编译 + 44 接受；S5 为 48 编译 + 23 接受）、确定性套件、
+  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 26/26，harness 624/624。
 
 ### Changed
 
-- 最终 `TcInstr`/`TcIR`/`TcUnit` 物化保留在 IR 最终化阶段；SEM 完成解析/校验并冻结
-  类型表，CFG/DI 当前是逐单元内部事实。
+- SEM 完成解析/校验并冻结类型表；CT 与 IR 最终化在其后运行，只使用只读类型查找，
+  不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边。
 - 收尾流程固化：阶段/分支收尾必须清理过程/历史文档，并通过 `docs.cleanup` 门禁；
   当前约定与已知限制归并到 `src/CONTRACTS.md`。
-- 诊断位置与混用形态约定见 `src/CONTRACTS.md`；`--static-only` 与普通调用都不宣称程序有效。
+- 诊断位置、CT 顺序/缓存/错误映射、静态布局与 IR 操作数约定见 `src/CONTRACTS.md`；
+  `--sem-only`/`--static-only` 与普通调用都不宣称程序有效。
 
 ### Removed
 

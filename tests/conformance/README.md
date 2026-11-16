@@ -13,7 +13,14 @@ never backfilled from compiler output.
 - S4 CFG/DI/returns/calls/safety/annotations: `sem4/`, `accept_s4/` (source
   table `s4_cases.py`).  Each case owns `sem4/fixtures/<case-id>/` or
   `accept_s4/<case-id>/`; `@HERE@`/`@REL@` positions follow the same
-  §12.5.1 conventions.
+  §12.5.1 conventions.  S4 acceptance tool cases use `--sem-only` because they
+  assert SEM acceptance only.
+- S5 CT/const/static-var: `ct/`, `accept_s5/` (source table `s5_cases.py`).
+  Negative cases pin the six `TC_CE_CONST_*` CT codes, attribution/order,
+  stage boundary and static-var initializers; positive cases cover the §3.10
+  allowlist, const paths/struct chains, casts/bitcasts/`sizeof`, `make` and
+  static initializers.  Positions follow §12.5.1 with the target-declaration
+  convention documented in the table.
 
 ```text
 tests/conformance/
@@ -21,14 +28,17 @@ tests/conformance/
     s1_cases.py        auditable source table for the S1 cases
     s2s3_cases.py      auditable source table for S2/S3 cases
     s4_cases.py        auditable source table for S4 cases
+    s5_cases.py        auditable source table for S5 CT cases
     lex/               LEX diagnostics (TC_CE_SYNTAX, TC_CE_LITERAL_LEX_RANGE)
     syn/               SYN diagnostics (the other five SYN codes + TC_CE_SYNTAX)
     accept/            positive LEX/SYN acceptance sources
     import/            IMPORT cases + root/library fixtures
     sem/               SEM name/type/conversion/layout cases
     sem4/              S4 CFG/DI/call/safety/annotation cases
+    ct/                S5 CT/const/static-var cases
     accept_s3/         positive IMPORT/SEM acceptance sources
     accept_s4/         positive CFG/DI/call/safety/annotation sources
+    accept_s5/         positive CT acceptance sources
   fuzz/                L7 property case (random bytes; no crash/hang)
 ```
 
@@ -44,22 +54,24 @@ removes it and computes the 1-based line and Unicode-scalar column.  It never
 reads compiler output.
 
 ```sh
-# regenerate the S1, S2/S3 and S4 YAML+source files
+# regenerate the S1, S2/S3, S4 and S5 YAML+source files
 python3 tests/conformance/static/s1_cases.py --write
 python3 tests/conformance/static/s2s3_cases.py --write
 python3 tests/conformance/static/s4_cases.py --write
+python3 tests/conformance/static/s5_cases.py --write
 
 # gate: every generated file must match the table
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
+python3 tests/conformance/static/s5_cases.py --check
 ```
 
 `@HERE@` and `@REL@` mark primary/related positions before marker removal.
-Compile cases now run the full static pipeline (`--static-only`), so an
-imported module's LEX/SYN diagnostic still wins over an earlier IMPORT error
-(stage priority).  Tool acceptance cases name `--syntax-only` or
-`--static-only` explicitly.  Profile-sensitive cases set `profile: w32` or
+Compile cases now run the full static pipeline (`--static-only`, including CT
+and IR finalization), so an imported module's LEX/SYN diagnostic still wins
+over an earlier IMPORT error (stage priority).  Tool acceptance cases name
+`--syntax-only`, `--sem-only` or `--static-only` explicitly.  Profile-sensitive cases set `profile: w32` or
 `profile: w64`; the adapter passes `--profile=w32` for the former and the
 default 64-bit profile for the latter.
 

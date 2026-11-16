@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety and the annotation matrix are implemented; CT, IR finalization, the VM and native backend are still to be built.
+Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation and IR finalization/printing are implemented; the VM, runtime semantics and native backend are still to be built.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 

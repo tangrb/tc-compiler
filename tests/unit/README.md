@@ -6,6 +6,13 @@ CTest entries:
 - `frontend.unit` (`tc_frontend_test`): LEX/SYN + flat parse IR (L1).
 - `sem.unit` (`tc_sem_test`): IMPORT/SEM type identity, layout, word sizes,
   type-table freeze and module order/instances (L1).
+- `ct.unit` (`tc_ct_test`): CT vectors for strict integer/float semantics,
+  casts/bitcasts/trunc, exact `mod`, `sizeof`/layout, 32/64 results, aggregate
+  const images, demand order/cache and local consts (L1).
+- `ir.unit` (`tc_ir_test`): finalized IR shape: module/struct/const/object
+  identity, types and profile, flat operands/field paths, CFG edges, named
+  arguments, const inlining, word-size layout and the deterministic printer
+  (L1).
 
 ## L0 case ids
 
@@ -84,3 +91,35 @@ Run directly:
 ./build/tests/tc_sem_test
 ctest --test-dir build -R 'frontend.unit|sem.unit' --output-on-failure
 ```
+
+
+## L1 CT tests (`tc_ct_test`)
+
+`tc_ct_test` evaluates spec-derived CT vectors through `tc_analyze` and reads
+the CT value table directly.  It currently runs 362 checks.  Expectations come
+from the standard (integer strict/mode matrix, IEEE strict arithmetic and
+exception priority, exact `mod`, `cast`/`trunc`/`bitcast`, `sizeof`/layout and
+the 32/64 matrix), never from compiler output.
+
+| Case ID | Function | Pins |
+| --- | --- | --- |
+| `TC-UNIT-CT-0001` | `run_vector` | §3.10/§6.3-§6.6 CT vectors: strict signed overflow, unsigned modular wrap, `abs`/`neg` edges, div/mod edges, negative/infinite shift counts, odd shifts, strict float invalid/div-zero/overflow/underflow (tininess after rounding, exact subnormals), exact floating `mod`, NaN comparisons and sign ops, cast/trunc/bitcast, `sizeof`/layout and 32/64 result flips |
+| `TC-UNIT-CT-0002` | `test_ct_cache` | §4.10 demand order and success cache: a diamond dependency evaluates the shared const once (`tc_ct_eval_count`) |
+| `TC-UNIT-CT-0003` | `test_ct_failure_cache` | §4.10 first failure stops CT, is attributed to the target declaration, is evaluated once, and yields no `TcIR` |
+| `TC-UNIT-CT-0004` | `test_local_const` | §5.2 function-local `const` evaluation, later-local reference and cache |
+
+## L1 IR tests (`tc_ir_test`)
+
+`tc_ir_test` analyzes small multi-module programs and inspects the finalized
+`TcIR` directly.  It currently runs 437 checks.
+
+| Case ID | Function | Pins |
+| --- | --- | --- |
+| `TC-UNIT-IR-0001` | `test_ir_shape` | design §3/§12.11: `module_order` modules, struct layout/ids, `TcIR.consts` (scalar bits, aggregate image, no static var), static/frame objects and init images, function module ids/signatures/flags/bodies, `br_if` keeps both edges, named `make` field, field operand paths, span retention, const inlining |
+| `TC-UNIT-IR-0002` | `test_ir_control_flow` | design §3.3/§12.11: `switch` target block ids, unique CFG edges, `trap` terminal, unreachable block retained with no predecessors |
+| `TC-UNIT-IR-0003` | `test_ir_aggregate_const` | design §3.1/§3.4: aggregate const image bytes; use-site synthetic `make` for nested const structs; `const` owns no object |
+| `TC-UNIT-IR-0004` | `test_ir_word_sizes` | standard §13.2.1/§13.2.2 and design §2.2: per-profile struct size, static object size/alignment, `sizeof isize/ptr/fnptr` const values in 32/64 |
+| `TC-UNIT-IR-0005` | `test_ir_forms` | design §12.11: field lvalue, `addr` on frame and static fields, `funcaddr`/`call`/`call_indirect` operands and named call argument, `sizeof` type parameter, static field object mapping |
+| `TC-UNIT-IR-0006` | `test_ir_print` | deterministic textual dump: exact golden text, 1-based spans, repeated print is identical |
+| `TC-UNIT-IR-0007` | `test_ir_sem_only` | a SEM-only analysis has no finalized `TcIR` |
+| `TC-UNIT-IR-0008` | `test_ir_static_layout` | standard §13.3: static objects use import-DAG reverse topological order (importers first, `module_order` ties), module source order, W/8 alignment and one object per module instance in a diamond |

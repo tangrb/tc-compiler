@@ -11,9 +11,10 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G2 | S2 module discovery and IMPORT | **PASS** | [G2](TC-G2门禁报告-0.0.46.md) |
 | G3 | S3 names, types, conversions and layout | **PASS** | [G3](TC-G3门禁报告-0.0.46.md) |
 | G4 | S4 CFG, DI, returns, calls, safety and annotations | **PASS** | [G4](TC-G4门禁报告-0.0.46.md) |
+| G5 | S5 CT and IR freeze | **PASS** | [G5](TC-G5门禁报告-0.0.46.md) |
 
-**Current status**: G4 passed and S5 is allowed. S5 onward (CT, IR finalization,
-VM, backend) is not implemented; uncovered rows in the coverage matrix belong to
+**Current status**: G5 passed and S6 is allowed. The VM, runtime semantics and
+backends are not implemented; uncovered rows in the coverage matrix belong to
 later stages, not omissions of completed stages.
 
 Reproduce:
@@ -25,7 +26,9 @@ ctest --test-dir build --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
+python3 tests/conformance/static/s5_cases.py --check
 python3 tests/traceability/coverage.py --check
+python3 tests/tools/docs_cleanup_check.py
 ```
 
 The normative sources remain the [standard](../TC语言及编译器标准-0.0.46.md),

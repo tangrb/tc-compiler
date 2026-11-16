@@ -8,9 +8,9 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
-  32/64 静态档案。
-- **未实现**：CT、IR 最终化与打印、VM 与原生后端。
-- 当前门禁：G0–G4 PASS；**G4 允许进入 S5**。详见 [门禁状态](docs/gates/README.md)。
+  CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；32/64 静态档案。
+- **未实现**：VM、运行时语义与原生后端。
+- 当前门禁：G0–G5 PASS；**G5 允许进入 S6**。详见 [门禁状态](docs/gates/README.md)。
 
 ## 文档
 
@@ -35,8 +35,8 @@ src/                  0.0.46 实现
   base/               assert / version
   contract/           契约检查 / 零 pass 策略
   diagnostic/         80 码闭集 / 生成表 / 首诊选择
-  frontend/           input num lex parse module sem
-  ir/                 type instr operand block ir region object address structs pointer_state
+  frontend/           input num lex parse module sem ct irgen
+  ir/                 type instr operand block ir region object address structs pointer_state print
   runtime/            alloc io trap profile module_loader
   vm/                 interp（后续阶段）
   backend/            aarch64 arm32 riscv32 common（后续阶段）
@@ -55,8 +55,10 @@ ctest --test-dir build --output-on-failure
 工具当前支持：
 
 - `--syntax-only <source>`：只做 LEX/SYN；退出 0 表示无 LEX/SYN 诊断，**不是程序有效**。
-- `--static-only <source>`：执行 LEX/SYN/IMPORT/SEM（含 CFG/DI、调用、安全与注解）；
-  退出 0 仍不代表程序有效，CT 与代码生成未运行。
+- `--sem-only <source>`：执行 LEX/SYN/IMPORT/SEM（含 CFG/DI、调用、安全与注解）；
+  退出 0 仍不代表程序有效，CT/IR/代码生成未运行。
+- `--static-only <source>`：执行全部静态阶段（含 CT 与 IR 最终化）；
+  退出 0 仍不代表程序有效，代码生成未运行。
 - 普通调用：静态阶段通过后显式退出 70（后续阶段未实现）。
 
 文件/资源失败的实现级错误使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，

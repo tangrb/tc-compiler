@@ -35,24 +35,37 @@
   are never a static rejection; duplicate labels and malformed branches use
   conservative fallthrough, and missing labels no longer suppress DI on known
   edges.
-- **Tool capabilities**: `--syntax-only` (LEX/SYN) and `--static-only`
-  (LEX/SYN/IMPORT/SEM) partial checks; a normal invocation explicitly exits 70 after
-  the static stages. Added the `w32` static profile (not an executable target).
-- **Tests**: `tc_frontend_test`, `tc_sem_test`, S1/S2/S3/S4 conformance tables
-  (S4: 163 compile + 44 accept), determinism suites and a fail-closed adapter
-  self-test; currently 22/22 `ctest` and 553/553 harness cases in Debug/Release/ASan
-  builds.
+- **CT evaluation**: compile-time evaluation of `const`/`static var`/local `const`;
+  the §3.10 positive allowlist, §6.3–§6.6 strict integer/float semantics and `CONST_*`
+  mapping, exact `mod`, underflow as tininess-after-rounding; demand-driven in
+  `module_order`/module source order with success/failure caching, the first failure
+  attributed to its target declaration and no cascade; aggregate const field trees and
+  static `TcInitImage` (profile endianness, zero padding, bool 0x00/0x01).
+- **IR finalization and freeze**: materialized `TcIR`/`TcUnit`/`TcBlock`/`TcInstr`;
+  field paths become vreg + field indices, labels/`switch` targets use block ids, named
+  arguments and spans survive; an aggregate const inlines as a use-site `make` and owns
+  no object; static/frame object tables, module instance ids, per-profile layout and the
+  frozen type table; deterministic `tc_ir_print` text dump.
+- **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
+  and `--static-only` (through CT and IR finalization) partial checks; a normal
+  invocation explicitly exits 70 after the static stages. Added the `w32` static profile
+  (not an executable target).
+- **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
+  S1/S2/S3/S4/S5 conformance tables (S4: 163 compile + 44 accept; S5: 48 compile + 23
+  accept), determinism suites and a fail-closed adapter self-test; currently 26/26
+  `ctest` and 624/624 harness cases in Debug/Release/ASan builds.
 
 ### Changed
 
-- Final `TcInstr`/`TcIR`/`TcUnit` materialization remains part of IR finalization; SEM
-  validates and freezes the type table, while CFG/DI is currently an internal
-  per-unit fact.
+- SEM validates and freezes the type table; CT and IR finalization run afterwards with
+  read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
+  explicit block edges during IR finalization.
 - Wrap-up is now fixed process: process/historical documentation is removed and the
   `docs.cleanup` gate must pass; current conventions and known limits live in
   `src/CONTRACTS.md`.
-- Diagnostic-position and mixed-form conventions live in `src/CONTRACTS.md`;
-  `--static-only` and normal invocation never claim a valid program.
+- Diagnostic positions, CT order/cache/error mapping, static layout and IR operand
+  conventions live in `src/CONTRACTS.md`; `--sem-only`/`--static-only` and normal
+  invocation never claim a valid program.
 
 ### Removed
 

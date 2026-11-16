@@ -33,7 +33,7 @@ S4 交付：CFG/可达性、DI 最大固定点、`MISSING_RETURN`、标签与控
   `MISSING_RETURN`、五个 `ARGUMENT_*`、`UNINITIALIZED`、四个安全码、
   `ANNOTATION`、`MODE` 均有触发/位置/阶段与正例。
 - 覆盖矩阵：636 槽中 344 covered / 292 uncovered / 0 suspended；未覆盖项属于
-  S5–S10（CT、IR 最终化、opcode 运行时、VM/后端、平台）。
+  S6–S10（opcode 运行时、VM/后端、平台）；CT 与 IR 最终化已由 G5 关闭。
 - 确定性：S4 用例在重复运行、不同 `PYTHONHASHSEED` 与反向用例顺序下 JSON 一致。
 
 ## 复现

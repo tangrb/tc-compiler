@@ -31,7 +31,7 @@ python3 tests/traceability/coverage.py --check
 ## 边界与移交
 
 - 本记录只覆盖 S3；CFG/DI、调用/安全、注解矩阵与 const_expr 形态见 G4 记录；
-  CT、IR 最终化、VM 与后端由后续阶段维护。
+  后续阶段边界：G5 已关闭 CT 与 IR 最终化；VM 与后端见后续门禁。
 - 最终 `TcInstr`/`TcIR` 物化在 IR 最终化阶段；S3 提供并冻结类型/名称/opcode/布局事实。
 - `call_indirect nullptr`、无符号 `-0`、非 `@fast` 的 `.nsw/.nuw` 符号优先级在 S4 固定。
 - `--static-only` 退出 0 不代表程序有效。
