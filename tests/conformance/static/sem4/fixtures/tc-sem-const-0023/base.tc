@@ -1,0 +1,2 @@
+#lib
+public static var V: int32 = 1

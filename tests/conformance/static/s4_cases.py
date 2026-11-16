@@ -1739,6 +1739,50 @@ CASES = [
         "SEM", "TC_CE_CONST_FORM",
     ),
     _case(
+        "TC-SEM-CONST-0020",
+        "§3.10 转换源名字仍须是 const；bitcast 源引用局部 var -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    var v: int32 = copy int32, 1\n"
+         "    const X: int32 = bitcast int32, @HERE@v\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0021",
+        "§3.10 转换源名字仍须是 const；cast 源引用模块 static var -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public static var A: int32 = 1\n"
+         "public const X: int64 = cast int64, Self.@HERE@A\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0022",
+        "§3.10 转换源名字仍须是 const；trunc 源引用局部 var -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    var v: int32 = copy int32, 1\n"
+         "    const X: int16 = trunc int16, @HERE@v\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0023",
+        "§3.10/§4.10 转换源引用跨模块 public static var -> CONST_FORM",
+        {"root.tc": PROGRAM + "import user\n",
+         "user.tc": LIB +
+         "import base\n"
+         "public const X: int64 = cast int64, base.@HERE@V\n",
+         "base.tc": LIB + "public static var V: int32 = 1\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -2092,6 +2136,21 @@ POSITIVE = [
          "public const D: bool = eq int32, 1, 1\n"
          "public const E: int32 = cast int32, Self.D\n"
          "public const F: S = make S, x: 8\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0144",
+        "§3.10 合法转换源：const 的 cast/trunc/bitcast、const 结构体字段与 "
+        "static var 由 const 初始化均接受",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n    var x: int32\nend\n"
+         "public const K: int32 = 1\n"
+         "public const KS: S = make S, x: Self.K\n"
+         "public const A: int64 = cast int64, Self.K\n"
+         "public const B: int16 = trunc int16, Self.K\n"
+         "public const C: int32 = bitcast int32, Self.K\n"
+         "public const D: int32 = Self.KS.x\n"
+         "public static var V: int32 = Self.K\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0143",

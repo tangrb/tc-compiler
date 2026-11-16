@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0020
+profile: common
+source: fixtures/tc-sem-const-0020/root.tc
+spec: "§3.10 转换源名字仍须是 const；bitcast 源引用局部 var -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0020/lib.tc, line: 4, column: 37}
+  related: []
+  diagnostics: exactly-one

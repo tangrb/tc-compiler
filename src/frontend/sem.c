@@ -1575,6 +1575,21 @@ static TcSpan const_ref_span(Sem *s, const TcParseValue *v) {
     return v->base_span;
 }
 
+static int check_const_ref(Sem *s, const TcParseValue *v, Ref *out) {
+    Ref ref = resolve_value(s, v);
+    if (!ref.ok) {
+        return 0;
+    }
+    if (s->const_context && !ref.is_const) {
+        sem_diag_simple(s, TC_CE_CONST_FORM, const_ref_span(s, v));
+        return 0;
+    }
+    if (out != NULL) {
+        *out = ref;
+    }
+    return 1;
+}
+
 static int check_value_expected(Sem *s, const TcParseValue *v,
                                 const TcType *expected,
                                 const TcType **out_type) {
@@ -1582,13 +1597,8 @@ static int check_value_expected(Sem *s, const TcParseValue *v,
         *out_type = NULL;
     }
     if (v->kind == TC_PVAL_NAME) {
-        Ref ref = resolve_value(s, v);
-        if (!ref.ok) {
-            return 0;
-        }
-        if (s->const_context && !ref.is_const) {
-            sem_diag_simple(s, TC_CE_CONST_FORM,
-                            const_ref_span(s, v));
+        Ref ref;
+        if (!check_const_ref(s, v, &ref)) {
             return 0;
         }
         if (expected != NULL && !tc_type_equal(ref.type, expected)) {
@@ -1842,8 +1852,8 @@ static const TcType *check_cast(Sem *s, const TcParseInstr *instr) {
             return NULL;
         }
         {
-            Ref ref = resolve_value(s, &arg->value);
-            if (!ref.ok) {
+            Ref ref;
+            if (!check_const_ref(s, &arg->value, &ref)) {
                 return NULL;
             }
             source = ref.type;
@@ -1899,8 +1909,7 @@ static const TcType *check_trunc(Sem *s, const TcParseInstr *instr) {
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             return NULL;
         }
-        ref = resolve_value(s, &arg->value);
-        if (!ref.ok) {
+        if (!check_const_ref(s, &arg->value, &ref)) {
             return NULL;
         }
         if (!type_is_integer(ref.type)) {
@@ -2001,8 +2010,7 @@ static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr,
             sem_diag_simple(s, TC_CE_OPERAND_COUNT, s->mnemonic_span);
             return NULL;
         }
-        ref = resolve_value(s, &arg->value);
-        if (!ref.ok) {
+        if (!check_const_ref(s, &arg->value, &ref)) {
             return NULL;
         }
         source = ref.type;
