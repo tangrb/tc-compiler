@@ -951,6 +951,63 @@ static void test_ir_sem_only(void) {
     }
 }
 
+
+/* Multiple library functions: `units` grows while functions are built, so each
+ * TcFunc.body pointer must still refer to the final unit array. */
+static void test_ir_multi_function_bodies(void) {
+    Fixture fixture;
+    TcAnalysisStatus status;
+    TcAnalysisDiag diag;
+    TcAnalysis *an;
+    const TcIR *ir;
+    size_t i;
+    if (!make_fixture(&fixture,
+                      "#program\n"
+                      "import lib\n"
+                      "var a: int32 = call lib.f0, 1\n"
+                      "var b: int32 = call lib.f1, a\n"
+                      "var c: int32 = call lib.f2, b\n",
+                      "#lib\n"
+                      "public func f0(x: int32) int32 then\n"
+                      "var r: int32 = add int32, x, 1\n"
+                      "_ = return r\n"
+                      "end\n"
+                      "public func f1(x: int32) int32 then\n"
+                      "var r: int32 = add int32, x, 2\n"
+                      "_ = return r\n"
+                      "end\n"
+                      "public func f2(x: int32) int32 then\n"
+                      "var r: int32 = add int32, x, 3\n"
+                      "_ = return r\n"
+                      "end\n")) {
+        CHECK(0);
+        return;
+    }
+    an = analyze_fixture(&fixture, 64, &status, &diag);
+    free_fixture(&fixture);
+    CHECK(an != NULL);
+    if (an == NULL) {
+        return;
+    }
+    CHECK(status == TC_ANALYSIS_OK);
+    ir = tc_analysis_ir(an);
+    CHECK(ir != NULL);
+    if (ir != NULL) {
+        CHECK_EQ(ir->nfuncs, 3);
+        for (i = 0; i < ir->nfuncs; i++) {
+            const TcFunc *func = &ir->funcs[i];
+            CHECK(func->body != NULL);
+            if (func->body == NULL) {
+                continue;
+            }
+            CHECK(func->body >= ir->units &&
+                  func->body < ir->units + ir->nunits);
+            CHECK_EQ(func->body->func_id, func->id);
+        }
+    }
+    tc_analysis_destroy(an);
+}
+
 int main(void) {
     test_ir_shape();
     test_ir_control_flow();
@@ -960,6 +1017,7 @@ int main(void) {
     test_ir_word_sizes();
     test_ir_print();
     test_ir_sem_only();
+    test_ir_multi_function_bodies();
     if (failures != 0) {
         printf("ir.unit: %d failure(s), %d checks\n", failures, checks);
         return 1;

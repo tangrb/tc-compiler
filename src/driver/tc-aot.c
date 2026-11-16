@@ -1,10 +1,9 @@
 /* TC 0.0.46 contract: tc-aot entry point.
  *
  * The static front end is shared with tc-vm.  `--syntax-only`/`--sem-only`/
- * `--static-only` are partial checks; a normal invocation still fails with the
- * implementation-level "unavailable" status after the static stages succeed,
- * because the native backend is not implemented yet.  The tool never emits an
- * artifact or silently produces wrong code.
+ * `--static-only` are partial checks.  A normal invocation emits deterministic
+ * AArch64 subset assembly and can assemble/link an ELF with --emit=obj/elf.
+ * Unsupported opcodes are reported as unavailable and never silently lowered.
  */
 #include <stdio.h>
 
@@ -34,7 +33,7 @@ int main(int argc, char **argv) {
         return TC_EXIT_OK;
     }
     if (options.version) {
-        printf("tc-aot %s (static frontend; backend unavailable)\n", TC_LANGUAGE_VERSION);
+        printf("tc-aot %s (AArch64 subset backend)\n", TC_LANGUAGE_VERSION);
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {

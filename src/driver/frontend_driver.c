@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "diagnostic/diagnostic.h"
+#include "driver/aot_driver.h"
 #include "driver/profile_select.h"
 #include "frontend/input.h"
 #include "frontend/parse.h"
@@ -272,10 +273,7 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         tc_analysis_destroy(analysis);
         return result;
     }
+    result = tc_aot_driver_run(analysis, &profile, options);
     tc_analysis_destroy(analysis);
-    fprintf(stderr, "%s: %s: %s\n", tool_name,
-            tc_impl_error_symbol(TC_IMPL_UNAVAILABLE),
-            tc_impl_error_message(TC_IMPL_UNAVAILABLE));
-    result = TC_EXIT_UNAVAILABLE;
     return result;
 }

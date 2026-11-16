@@ -5,10 +5,11 @@ The static front end is implemented.  `--syntax-only` (LEX/SYN), `--sem-only`
 (through SEM) and `--static-only` (through CT and IR finalization) are partial
 checks with exit 0, no output.  `tc-vm` executes a normal invocation on the
 reference VM and reports the first `TC_RE_*` trap on stderr with
-`error[RT]`; `tc-aot` still fails explicitly with the implementation-level
-"unavailable" status (70) because code generation is not implemented yet.
-Diagnostics exit 1 with the stable diagnostic line; file-open failures are
-implementation errors (71) and are never language diagnostics.
+`error[RT]`; `tc-aot` emits the AArch64 subset assembly on a normal
+invocation.  Capabilities outside the subset (checked build, non-AArch64
+profiles) still fail explicitly with the implementation-level "unavailable"
+status (70).  Diagnostics exit 1 with the stable diagnostic line; file-open
+failures are implementation errors (71) and are never language diagnostics.
 """
 
 from __future__ import annotations
@@ -108,16 +109,26 @@ def main() -> int:
                         r.stdout == "" and r.stderr == "",
                         f"{name} {' '.join(extra) or 'default'} silent success",
                     )
-                else:
+                elif extra == ["--checked"] or extra == ["--profile=aarch64-baremetal"]:
                     check(
                         r.returncode == 70,
-                        f"{name} {' '.join(extra) or 'default'} unavailable exit {r.returncode}",
+                        f"{name} {' '.join(extra)} unavailable exit {r.returncode}",
                     )
                     check(
                         "tc_error_unavailable" in r.stderr,
-                        f"{name} {' '.join(extra) or 'default'} stderr contract",
+                        f"{name} {' '.join(extra)} stderr contract",
                     )
-                    check(r.stdout == "", f"{name} {' '.join(extra) or 'default'} stdout empty")
+                    check(r.stdout == "", f"{name} {' '.join(extra)} stdout empty")
+                else:
+                    check(
+                        r.returncode == 0,
+                        f"{name} {' '.join(extra) or 'default'} emit exit {r.returncode}",
+                    )
+                    check(
+                        "tc_main:" in r.stdout,
+                        f"{name} {' '.join(extra) or 'default'} assembly on stdout",
+                    )
+                    check(r.stderr == "", f"{name} {' '.join(extra) or 'default'} stderr empty")
 
             r = run(tool, [str(run_source)], cwd)
             if name == "tc-vm":
@@ -125,7 +136,9 @@ def main() -> int:
                 check(r.stdout == "42\n", f"{name} run stdout bytes {r.stdout!r}")
                 check(r.stderr == "", f"{name} run stderr empty")
             else:
-                check(r.returncode == 70, f"{name} run unavailable exit {r.returncode}")
+                check(r.returncode == 0, f"{name} run emit exit {r.returncode}")
+                check("tc_main:" in r.stdout, f"{name} run assembly stdout")
+                check(r.stderr == "", f"{name} run stderr empty")
 
             r = run(tool, [str(trap_source)], cwd)
             if name == "tc-vm":
@@ -137,8 +150,9 @@ def main() -> int:
                     f"{name} trap stderr contract",
                 )
             else:
-                check(r.returncode == 70, f"{name} trap unavailable exit {r.returncode}")
-                check(r.stdout == "", f"{name} trap unavailable stdout empty")
+                check(r.returncode == 0, f"{name} trap emit exit {r.returncode}")
+                check("tc_main:" in r.stdout, f"{name} trap assembly stdout")
+                check(r.stderr == "", f"{name} trap stderr empty")
 
             r = run(tool, ["--syntax-only", str(source)], cwd)
             check(r.returncode == 0, f"{name} --syntax-only exit {r.returncode}")

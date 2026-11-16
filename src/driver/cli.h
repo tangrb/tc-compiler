@@ -24,6 +24,12 @@ typedef struct {
     const char *source;
     const char *profile_name;
     const char *output;
+    const char *emit;          /* asm (default), obj, elf */
+    const char *cc;            /* assembler driver; NULL = build default */
+    const char *ld;            /* linker; NULL = build default */
+    const char *runtime_path;  /* freestanding runtime archive override */
+    const char *linker_script; /* AArch64 linker script override */
+    int keep_temps;            /* keep intermediate .s/.o/.elf files */
     const char *include_roots[TC_CLI_MAX_INCLUDE_ROOTS];
     size_t ninclude_roots;
     TcOptLevel opt;

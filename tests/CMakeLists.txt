@@ -29,6 +29,10 @@ add_executable(tc_vm_test unit/vm_test.c)
 target_link_libraries(tc_vm_test PRIVATE tc_core)
 target_compile_options(tc_vm_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
+add_executable(tc_aot_test unit/aot_test.c)
+target_link_libraries(tc_aot_test PRIVATE tc_core)
+target_compile_options(tc_aot_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 add_executable(tc_dump_codes unit/dump_codes.c)
 target_link_libraries(tc_dump_codes PRIVATE tc_core)
 target_compile_options(tc_dump_codes PRIVATE -Wall -Wextra -Werror -Wpedantic)
@@ -39,6 +43,7 @@ add_test(NAME sem.unit COMMAND tc_sem_test)
 add_test(NAME ct.unit COMMAND tc_ct_test)
 add_test(NAME ir.unit COMMAND tc_ir_test)
 add_test(NAME vm.unit COMMAND tc_vm_test)
+add_test(NAME aot.unit COMMAND tc_aot_test)
 add_test(NAME contract.dump_codes COMMAND tc_dump_codes)
 add_test(NAME conformance.s2s3_cases
          COMMAND ${Python3_EXECUTABLE}
@@ -114,6 +119,49 @@ add_test(NAME golden.run
          COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/run.py
                  $<TARGET_FILE:tc-vm>)
 set_tests_properties(golden.selftest golden.run PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# --- S7 AArch64 backend, ABI, toolchain and differential --------------------
+#
+# These tests need an AArch64 ELF toolchain and qemu.  qemu-user is not
+# available on every host (design §11 allows qemu-system as the fallback), so
+# the tests are registered only when both tools are present.
+
+find_program(TC_QEMU_SYSTEM_AARCH64 NAMES qemu-system-aarch64)
+find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
+             /usr/local/opt/llvm/bin)
+option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
+if(TC_ENABLE_AOT_TESTS AND TC_QEMU_SYSTEM_AARCH64 AND TC_LLD)
+    add_test(NAME conformance.s7_diff
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s7_cases.py
+                     --check)
+    add_test(NAME conformance.s7_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s7_fuzz.py
+                     --check)
+    add_test(NAME conformance.s7_abi
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s7_abi_cases.py
+                     --check)
+    add_test(NAME conformance.s7_tools
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s7_toolchain_cases.py
+                     --check)
+    add_test(NAME determinism.s7
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s7_determinism.py
+                     --check)
+    add_test(NAME conformance.s7_static_parity
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s7_static_parity.py
+                     --check)
+    set_tests_properties(
+        conformance.s7_diff conformance.s7_fuzz conformance.s7_abi
+        conformance.s7_tools determinism.s7 conformance.s7_static_parity
+        PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_LD=${TC_LLD}")
+endif()
 
 # --- LEX/SYN front-end conformance ------------------------------------------
 #

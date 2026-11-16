@@ -1943,7 +1943,18 @@ static int build_units(IrBuild *b) {
                                 parse->funcs[i].nbody)) {
                     return 0;
                 }
-                b->ir->funcs[fid].body = &b->units[b->nunits - 1u];
+            }
+        }
+    }
+    /* `units` grows by reallocation while functions are built, so body
+     * pointers captured during the loop would dangle.  Fix them up once the
+     * unit array is final. */
+    {
+        size_t ui;
+        for (ui = 0; ui < b->nunits; ui++) {
+            uint32_t fid = b->units[ui].func_id;
+            if (fid != TC_UNIT_TOP_LEVEL && fid < b->ir->nfuncs) {
+                b->ir->funcs[fid].body = &b->units[ui];
             }
         }
     }
