@@ -63,9 +63,15 @@ features that the validator cannot check.
 For diagnostic goldens, `expect` must state the stage, the code, the primary
 1-based line/column, and `diagnostics: exactly_one`.  `related` may list
 associated positions when the standard requires them (for example the first
-declaration of a duplicate name).  Runtime goldens (S1+) will compare exact stdout bytes (or the documented
-trap/exit tuple), not decimal approximations of floats; the S0 validator
-rejects non-diagnostic kinds explicitly.
+declaration of a duplicate name).
+
+For runtime goldens, use `kind: run` and `expect.stdout_hex`, `expect.trap`
+(`null` or a `TC_RE_*` code), `expect.exit` and `expect.termination`
+(`normal`/`trap`).  `run.stdin_hex` supplies exact stdin bytes.  The source is a
+complete `#program`; the runtime golden runner executes `tc-vm` explicitly with
+`--profile=w32` for `w32/` and `--profile=aarch64-linux-user` for `w64/`, then
+compares stdout bytes, trap, exit and termination.  Floating expectations are derived with an independent exact
+decimal renderer, never from VM output.
 
 ## Derivation and review rules
 
@@ -91,6 +97,7 @@ rejects non-diagnostic kinds explicitly.
 
 ```sh
 python3 tests/golden/validate.py
+python3 tests/golden/run.py <path-to-tc-vm>
 ```
 
 The validator walks this tree recursively and rejects missing required fields,
@@ -100,7 +107,9 @@ source/profile/kind violations, and diagnostic goldens without exactly-one
 stage/code/primary/diagnostics data.  For the repository tree it also
 cross-checks `review-record.md` (reviewer/status/date and independence).  Exit code 1 means the golden library is
 not usable.  `tests/golden/selftest.py` exercises the positive and negative
-validator paths.
+validator paths.  `tests/golden/run.py` is the L4 execution gate for the
+`kind: run` goldens; `w32` and `w64` are executed separately and never compared
+with each other.
 
 ## Independently reviewed samples
 
@@ -122,8 +131,11 @@ independently audited by the same non-author reviewer on 2026-11-15:
 | `TC-SYN-GOLD-0004` | `common/syn_var_missing_init.golden.yaml` | SYN `TC_CE_VAR_MISSING_INIT` at the identifier, 2:19 |
 | `TC-SYN-GOLD-0005` | `common/syn_program_mode_self.golden.yaml` | SYN `TC_CE_PROGRAM_MODE_MISUSE` at `Self`, 2:1 |
 
-`review-record.md` records the reviewer identity, independence, date and the
-per-artifact derived values.  The independent audit also recorded four
+S6 adds eleven independently reviewed `kind: run` goldens: eight under `w64/`
+(integer/float formatting, control flow, memory/struct, stdin I/O, division trap,
+`.ieee` inf/NaN, device rejection) and three under `w32/` (word sizes, isize
+overflow trap, usize maximum).  `review-record.md` records the reviewer identity,
+independence, date and the per-artifact derived values.  The independent audit also recorded four
 conventions that the G1 report carries forward: the `MODULE_LAYER` construct
 first token includes the `#lib` visibility keyword; multiple unclosed block
 openers yield one `MISSING_END` at the earliest opener; `TC_CE_SYNTAX` cases

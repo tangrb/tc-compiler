@@ -3,11 +3,12 @@
 
 The static front end is implemented.  `--syntax-only` (LEX/SYN), `--sem-only`
 (through SEM) and `--static-only` (through CT and IR finalization) are partial
-checks with exit 0, no output; a normal invocation still fails explicitly with
-the implementation-level "unavailable" status (70) because code generation is
-not implemented yet.  Diagnostics exit 1 with the stable diagnostic line;
-file-open failures are implementation errors (71) and are never language
-diagnostics.
+checks with exit 0, no output.  `tc-vm` executes a normal invocation on the
+reference VM and reports the first `TC_RE_*` trap on stderr with
+`error[RT]`; `tc-aot` still fails explicitly with the implementation-level
+"unavailable" status (70) because code generation is not implemented yet.
+Diagnostics exit 1 with the stable diagnostic line; file-open failures are
+implementation errors (71) and are never language diagnostics.
 """
 
 from __future__ import annotations
@@ -50,6 +51,17 @@ def main() -> int:
         source.write_text("#program\nvar x: int32 = copy int32, 1\n", encoding="utf-8")
         bad = cwd / "bad.tc"
         bad.write_text("#program\nvar x: int32 = 1 ;\n", encoding="utf-8")
+        run_source = cwd / "run_main.tc"
+        run_source.write_text(
+            "#program\n_ = writeln int32, 42\n", encoding="utf-8"
+        )
+        trap_source = cwd / "trap_main.tc"
+        trap_source.write_text(
+            "#program\n"
+            "var z: int32 = copy int32, 0\n"
+            "var x: int32 = div int32, 1, z\n",
+            encoding="utf-8",
+        )
         ct_source = cwd / "ct_main.tc"
         ct_source.write_text(
             "#lib\n"
@@ -87,15 +99,46 @@ def main() -> int:
 
             for extra in ([], ["--checked"], ["--opt=O2"], ["--profile=aarch64-baremetal"]):
                 r = run(tool, [*extra, str(source)], cwd)
+                if name == "tc-vm":
+                    check(
+                        r.returncode == 0,
+                        f"{name} {' '.join(extra) or 'default'} run exit {r.returncode}",
+                    )
+                    check(
+                        r.stdout == "" and r.stderr == "",
+                        f"{name} {' '.join(extra) or 'default'} silent success",
+                    )
+                else:
+                    check(
+                        r.returncode == 70,
+                        f"{name} {' '.join(extra) or 'default'} unavailable exit {r.returncode}",
+                    )
+                    check(
+                        "tc_error_unavailable" in r.stderr,
+                        f"{name} {' '.join(extra) or 'default'} stderr contract",
+                    )
+                    check(r.stdout == "", f"{name} {' '.join(extra) or 'default'} stdout empty")
+
+            r = run(tool, [str(run_source)], cwd)
+            if name == "tc-vm":
+                check(r.returncode == 0, f"{name} run stdout exit {r.returncode}")
+                check(r.stdout == "42\n", f"{name} run stdout bytes {r.stdout!r}")
+                check(r.stderr == "", f"{name} run stderr empty")
+            else:
+                check(r.returncode == 70, f"{name} run unavailable exit {r.returncode}")
+
+            r = run(tool, [str(trap_source)], cwd)
+            if name == "tc-vm":
+                check(r.returncode == 1, f"{name} trap exit {r.returncode}")
+                check(r.stdout == "", f"{name} trap stdout empty")
                 check(
-                    r.returncode == 70,
-                    f"{name} {' '.join(extra) or 'default'} unavailable exit {r.returncode}",
+                    r.stderr.count("error[RT]") == 1
+                    and "TC_RE_DIV_ZERO" in r.stderr,
+                    f"{name} trap stderr contract",
                 )
-                check(
-                    "tc_error_unavailable" in r.stderr,
-                    f"{name} {' '.join(extra) or 'default'} stderr contract",
-                )
-                check(r.stdout == "", f"{name} {' '.join(extra) or 'default'} stdout empty")
+            else:
+                check(r.returncode == 70, f"{name} trap unavailable exit {r.returncode}")
+                check(r.stdout == "", f"{name} trap unavailable stdout empty")
 
             r = run(tool, ["--syntax-only", str(source)], cwd)
             check(r.returncode == 0, f"{name} --syntax-only exit {r.returncode}")

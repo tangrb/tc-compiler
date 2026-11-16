@@ -1,0 +1,40 @@
+id: TC-RT-GOLD-0002
+kind: run
+profile: w64
+spec: "§11.2 floating `%g` rule: six significant digits, exponent form, -0/inf/nan"
+source: |
+  #program
+  var a: float64 = copy float64, 0.1
+  _ = writeln float64, a
+  var b: float64 = copy float64, -0.0
+  _ = writeln float64, b
+  var c: float64 = copy float64, 1000000.0
+  _ = writeln float64, c
+  var d: float64 = copy float64, 0.0001
+  _ = writeln float64, d
+  var e: float64 = copy float64, nan
+  _ = writeln float64, e
+  var f: float64 = copy float64, -inf
+  _ = writeln float64, f
+  var g: float32 = copy float32, 0.1f
+  _ = writeln float32, g
+derivation: |
+  Six significant digits: 0.1 prints `0.1`; -0.0 keeps its sign; decimal
+   exponent 6 selects scientific form `1e+06`; exponent -4 stays fixed
+   `0.0001` (scientific only below -4); NaN prints unsigned `nan`; -inf prints
+   `-inf`; binary32 0.1f rounds to 0.1 at six digits (standard §11.2).
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "302e310a2d300a31652b30360a302e303030310a6e616e0a2d696e660a302e310a"
+  trap: null
+  exit: 0
+  termination: normal

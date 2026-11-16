@@ -1,0 +1,10 @@
+id: TC-RT-INT-0006
+profile: w64
+source: root.tc
+spec: "§6.3 div(INT_MIN,-1) -> TC_RE_INTEGER_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_INTEGER_OVERFLOW
+  exit: 1
+  termination: trap

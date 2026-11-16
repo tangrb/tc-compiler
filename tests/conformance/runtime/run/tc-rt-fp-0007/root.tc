@@ -1,0 +1,9 @@
+#program
+var m: float64 = copy float64, 4.9406564584124654e-324
+var one: float64 = copy float64, 1.0
+var a: float64 = mul float64, m, one
+_ = writeln float64, a
+var b: float64 = div float64, m, one
+_ = writeln float64, b
+var c: float64 = add float64, m, 0.0
+_ = writeln float64, c

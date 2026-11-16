@@ -1,0 +1,10 @@
+id: TC-RT-INT-0010
+profile: w64
+source: root.tc
+spec: "§6.3 strict shl k>=n and a=0; .wrap truncation; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "300a300a300a31350a"
+  trap: null
+  exit: 0
+  termination: normal

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation and IR finalization/printing are implemented; the VM, runtime semantics and native backend are still to be built.
+Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core and the reference VM are implemented; the native backend and the freestanding/ABI/toolchain stages are still to be built.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -37,7 +37,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The tools support `--syntax-only` and `--static-only` partial checks; a normal well-formed invocation exits 70 after the static stages.
+Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The tools
+support `--syntax-only`/`--sem-only`/`--static-only` partial checks; a normal `tc-vm`
+invocation executes the reference VM (exit 0 on normal termination, 1 on the first
+trap), while a normal `tc-aot` invocation exits 70 because the backend is not
+implemented.
 
 ## Issues
 

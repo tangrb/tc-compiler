@@ -1,0 +1,46 @@
+id: TC-RT-GOLD-0004
+kind: run
+profile: w64
+spec: "§3.7 struct layout/values; §3.12 memmove and one-past; §6.7 load/store; §6.8 ptrdiff; §11.2 output"
+source: |
+  #program
+  struct S then
+      var a: int32
+      var b: int32
+      var c: int32
+  end
+  var s: S = make S, 1, 2, 3
+  var pa: ptr<int32> = addr int32, s.a
+  var pb: ptr<int32> = addr int32, s.b
+  var pe: ptr<int32> = copy ptr<int32>, pa
+  unsafe then
+  _ = memmove int32, pb, pa, 1
+  pe = ptradd int32, pa, 1
+  end
+  _ = writeln int32, s.a
+  _ = writeln int32, s.b
+  _ = writeln int32, s.c
+  var d: isize = ptrdiff int32, pe, pa
+  _ = writeln isize, d
+derivation: |
+  Struct fields are compact: a at offset 0, b at 4, c at 8.  memmove of one
+  int32 element from the a sub-object to the live b sub-object copies 1 into b;
+  a stays 1 and c stays 3 (standard §3.7/§3.12/§6.7).  `pe = ptradd int32, pa,
+  1` is the one-past pointer of the 4-byte a object, so `ptrdiff int32, pe, pa`
+  is the same-object byte difference 4 (standard §6.8, defined within one
+  object).  No cross-object pointer order or address value is asserted.
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "310a310a330a340a"
+  trap: null
+  exit: 0
+  termination: normal

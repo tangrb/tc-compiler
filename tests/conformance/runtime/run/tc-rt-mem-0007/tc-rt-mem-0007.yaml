@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0007
+profile: w64
+source: root.tc
+spec: "§3.12 memmove n=0 still checks null pointers -> TC_RE_NULL_POINTER"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_NULL_POINTER
+  exit: 1
+  termination: trap

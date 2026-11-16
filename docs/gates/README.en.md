@@ -12,10 +12,13 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G3 | S3 names, types, conversions and layout | **PASS** | [G3](TC-G3门禁报告-0.0.46.md) |
 | G4 | S4 CFG, DI, returns, calls, safety and annotations | **PASS** | [G4](TC-G4门禁报告-0.0.46.md) |
 | G5 | S5 CT and IR freeze | **PASS** | [G5](TC-G5门禁报告-0.0.46.md) |
+| G6 | S6 reference VM (W=32/64) | **PASS** | [G6](TC-G6门禁报告-0.0.46.md) |
 
-**Current status**: G5 passed and S6 is allowed. The VM, runtime semantics and
-backends are not implemented; uncovered rows in the coverage matrix belong to
-later stages, not omissions of completed stages.
+**Current status**: G6 passed and S7 is allowed. The front end, CT/IR, runtime
+semantic core and reference VM are implemented; the native backend and the
+freestanding/ABI/toolchain stages are not. Coverage is 626/636; the 10 remaining
+rows are design §12 items owned by S7–S9 (differential/ABI/freestanding/
+`@fast_math`).
 
 Reproduce:
 
@@ -27,6 +30,10 @@ python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
 python3 tests/conformance/static/s5_cases.py --check
+python3 tests/conformance/runtime/s6_cases.py --check
+python3 tests/conformance/static/s6_static_cases.py --check
+python3 tests/golden/validate.py
+python3 tests/golden/run.py build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check
 python3 tests/tools/docs_cleanup_check.py
 ```

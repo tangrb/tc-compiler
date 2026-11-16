@@ -1,0 +1,10 @@
+id: TC-SEM-OPC-0056
+profile: common
+source: root.tc
+spec: "§6.15.1 opcode 已识别但操作数数量/形状不符 -> OPERAND_COUNT；§12.5.1 助记符"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: root.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,6 @@
+#program
+var p: ptr<int32> = copy ptr<int32>, nullptr
+var n: usize = copy usize, 1
+unsafe then
+var q: ptr<int32> = ptrsub int32, p, n
+end

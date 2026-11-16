@@ -1,0 +1,4 @@
+#program
+_ = writeln int32, 7
+_ = trap
+_ = writeln int32, 8

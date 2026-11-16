@@ -1,32 +1,32 @@
 # TC-Compiler 0.0.46 Structural Coverage Matrix
 
-> Generated skeleton from the 0.0.46 standard, design and test plan.
+> Generated from the 0.0.46 standard, design and test plan.
 > **Every row starts as `uncovered`; a row is `covered` only when it
-> carries at least one `case_ids` entry.** Named L0/S1/S2-S3/S4 rows
-> from the unit and conformance tables are explicitly covered; every
-> later-stage row remains visibly uncovered. Missing coverage is explicit
-> (test plan §3.6/§7.5).
+> carries at least one `case_ids` entry.** Named L0/S1/S2-S3/S4/S5/S6
+> rows from the unit, conformance and golden tables are explicitly
+> covered; every later-stage row remains visibly uncovered. Missing
+> coverage is explicit (test plan §3.6/§7.5).
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **636** total, **260** uncovered, **376** covered, **0** N/A (S0)
+- Rows: **636** total, **10** uncovered, **626** covered, **0** N/A
 
 ## Summary by category
 
-| Category | Items | Slots | Covered | Uncovered | N/A (S0) |
+| Category | Items | Slots | Covered | Uncovered | N/A |
 |---|---:|---:|---:|---:|---:|
-| Standard chapter (`chapter`) | 15 | 30 | 25 | 5 | 0 |
-| Diagnostic code (`code`) | 80 | 344 | 274 | 70 | 0 |
-| Opcode (`opcode`) | 63 | 155 | 0 | 155 | 0 |
-| Design §12 item (`design12`) | 15 | 30 | 10 | 20 | 0 |
+| Standard chapter (`chapter`) | 15 | 30 | 30 | 0 | 0 |
+| Diagnostic code (`code`) | 80 | 344 | 344 | 0 | 0 |
+| Opcode (`opcode`) | 63 | 155 | 155 | 0 | 0 |
+| Design §12 item (`design12`) | 15 | 30 | 20 | 10 | 0 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 10 | 0 | 0 |
 | Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 | 0 |
 | 32/64 flip (`flip32_64`) | 17 | 34 | 34 | 0 | 0 |
 | Annotation (`annotation`) | 16 | 18 | 18 | 0 | 0 |
-| Device policy (`device_policy`) | 4 | 4 | 0 | 4 | 0 |
-| I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 | 0 |
-| Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 | 0 |
-| **Total** | **231** | **636** | **376** | **260** | **0** |
+| Device policy (`device_policy`) | 4 | 4 | 4 | 0 | 0 |
+| I/O source state (`io_source_state`) | 4 | 4 | 4 | 0 | 0 |
+| Exit strategy (`exit_strategy`) | 2 | 2 | 2 | 0 | 0 |
+| **Total** | **231** | **636** | **626** | **10** | **0** |
 
 ## Coverage rows
 
@@ -36,8 +36,8 @@
 |---|---|---|---|---|---|
 | `chapter:§0:positive` | §0 原则/字长/目标相关静态结果 | positive | **covered** | TC-TOOL-SEM-0009, TC-TOOL-SEM-0010 | test plan §3.6/§8.1 |
 | `chapter:§0:negative` | §0 原则/字长/目标相关静态结果 | negative | **covered** | TC-SEM-CONV-0003, TC-SEM-LAYOUT-0001 | test plan §3.6/§8.1 |
-| `chapter:§1:positive` | §1 抽象机/可观察行为/阶段/顺序 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§1:negative` | §1 抽象机/可观察行为/阶段/顺序 | negative | **uncovered** | — | test plan §3.6/§8.1 |
+| `chapter:§1:positive` | §1 抽象机/可观察行为/阶段/顺序 | positive | **covered** | TC-RT-INT-0001, TC-RT-INT-0003, TC-RT-MEM-0001 | test plan §3.6/§8.1 |
+| `chapter:§1:negative` | §1 抽象机/可观察行为/阶段/顺序 | negative | **covered** | TC-RT-INT-0004, TC-RT-CTRL-0002 | test plan §3.6/§8.1 |
 | `chapter:§2:positive` | §2 词法 | positive | **covered** | TC-TOOL-SYN-0004, TC-TOOL-SYN-0005 | test plan §3.6/§8.1 |
 | `chapter:§2:negative` | §2 词法 | negative | **covered** | TC-LEX-SYN-0001, TC-LEX-SYN-0025 | test plan §3.6/§8.1 |
 | `chapter:§3:positive` | §3 类型/转换/对象/指针状态 | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0002, TC-TOOL-CT-CONV-0001, TC-TOOL-CT-LIT-0001, TC-TOOL-CT-OPS-0001, TC-TOOL-CT-XMOD-0001 | test plan §3.6/§8.1 |
@@ -56,9 +56,9 @@
 | `chapter:§9:negative` | §9 安全模型 | negative | **covered** | TC-SEM-SAFE-0101, TC-SEM-SAFE-0109, TC-SEM-SAFE-0110, TC-SEM-SAFE-0115, TC-SEM-SAFE-0116, TC-SEM-CALL-0108, TC-SEM-CALL-0109, TC-SEM-CALL-0114, TC-SEM-CALL-0121 | test plan §3.6/§8.1 |
 | `chapter:§10:positive` | §10 优化契约 | positive | **covered** | TC-TOOL-SEM-0109, TC-TOOL-SEM-0110 | test plan §3.6/§8.1 |
 | `chapter:§10:negative` | §10 优化契约 | negative | **covered** | TC-SEM-ANN-0206, TC-SEM-ANN-0224 | test plan §3.6/§8.1 |
-| `chapter:§11:positive` | §11 标准 I/O | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§11:negative` | §11 标准 I/O | negative | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§12:positive` | §12 诊断/首诊/位置/80 码 | positive | **uncovered** | — | test plan §3.6/§8.1 |
+| `chapter:§11:positive` | §11 标准 I/O | positive | **covered** | TC-RT-IO-0001, TC-RT-IO-0002, TC-RT-IO-0006 | test plan §3.6/§8.1 |
+| `chapter:§11:negative` | §11 标准 I/O | negative | **covered** | TC-RT-IO-0003, TC-RT-IO-0004, TC-RT-IO-0005 | test plan §3.6/§8.1 |
+| `chapter:§12:positive` | §12 诊断/首诊/位置/80 码 | positive | **covered** | TC-RT-CTRL-0002, TC-RT-MEM-0005, TC-RT-INT-0001 | test plan §3.6/§8.1 |
 | `chapter:§12:negative` | §12 诊断/首诊/位置/80 码 | negative | **covered** | TC-SEM-CFG-0016, TC-SEM-CFG-0017, TC-CT-ORDER-0001, TC-CT-ORDER-0002, TC-CT-STAGE-0001 | test plan §3.6/§8.1 |
 | `chapter:§13:positive` | §13 平台档案/验证要求 | positive | **covered** | TC-TOOL-SEM-0009, TC-TOOL-SEM-0010 | test plan §3.6/§8.1 |
 | `chapter:§13:negative` | §13 平台档案/验证要求 | negative | **covered** | TC-SEM-LAYOUT-0001, TC-SEM-CONV-0003 | test plan §3.6/§8.1 |
@@ -343,236 +343,236 @@
 | `code:TC_CE_CONST_CAST:stage` | TC_CE_CONST_CAST | stage | **covered** | TC-CT-CAST-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONST_CAST:w32` | TC_CE_CONST_CAST | w32 | **covered** | TC-CT-CAST-0004 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_CE_CONST_CAST:w64` | TC_CE_CONST_CAST | w64 | **covered** | TC-CT-CAST-0005 | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_INTEGER_OVERFLOW:trigger` | TC_RE_INTEGER_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_INTEGER_OVERFLOW:no_false_positive` | TC_RE_INTEGER_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_INTEGER_OVERFLOW:position` | TC_RE_INTEGER_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_INTEGER_OVERFLOW:stage` | TC_RE_INTEGER_OVERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_INTEGER_OVERFLOW:w32` | TC_RE_INTEGER_OVERFLOW | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_INTEGER_OVERFLOW:w64` | TC_RE_INTEGER_OVERFLOW | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_DIV_ZERO:trigger` | TC_RE_DIV_ZERO | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_DIV_ZERO:no_false_positive` | TC_RE_DIV_ZERO | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_DIV_ZERO:position` | TC_RE_DIV_ZERO | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_DIV_ZERO:stage` | TC_RE_DIV_ZERO | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NEGATIVE_SHIFT:trigger` | TC_RE_NEGATIVE_SHIFT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NEGATIVE_SHIFT:no_false_positive` | TC_RE_NEGATIVE_SHIFT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NEGATIVE_SHIFT:position` | TC_RE_NEGATIVE_SHIFT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NEGATIVE_SHIFT:stage` | TC_RE_NEGATIVE_SHIFT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_OVERFLOW:trigger` | TC_RE_FLOAT_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_OVERFLOW:no_false_positive` | TC_RE_FLOAT_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_OVERFLOW:position` | TC_RE_FLOAT_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_OVERFLOW:stage` | TC_RE_FLOAT_OVERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_UNDERFLOW:trigger` | TC_RE_FLOAT_UNDERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_UNDERFLOW:no_false_positive` | TC_RE_FLOAT_UNDERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_UNDERFLOW:position` | TC_RE_FLOAT_UNDERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_UNDERFLOW:stage` | TC_RE_FLOAT_UNDERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_INVALID:trigger` | TC_RE_FLOAT_INVALID | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_INVALID:no_false_positive` | TC_RE_FLOAT_INVALID | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_INVALID:position` | TC_RE_FLOAT_INVALID | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_FLOAT_INVALID:stage` | TC_RE_FLOAT_INVALID | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_CAST_OVERFLOW:trigger` | TC_RE_CAST_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_CAST_OVERFLOW:no_false_positive` | TC_RE_CAST_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_CAST_OVERFLOW:position` | TC_RE_CAST_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_CAST_OVERFLOW:stage` | TC_RE_CAST_OVERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_CAST_OVERFLOW:w32` | TC_RE_CAST_OVERFLOW | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_CAST_OVERFLOW:w64` | TC_RE_CAST_OVERFLOW | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_NULL_POINTER:trigger` | TC_RE_NULL_POINTER | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_POINTER:no_false_positive` | TC_RE_NULL_POINTER | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_POINTER:position` | TC_RE_NULL_POINTER | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_POINTER:stage` | TC_RE_NULL_POINTER | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_PTRDIFF_OVERFLOW:trigger` | TC_RE_PTRDIFF_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_PTRDIFF_OVERFLOW:no_false_positive` | TC_RE_PTRDIFF_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_PTRDIFF_OVERFLOW:position` | TC_RE_PTRDIFF_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_PTRDIFF_OVERFLOW:stage` | TC_RE_PTRDIFF_OVERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_PTRDIFF_OVERFLOW:w32` | TC_RE_PTRDIFF_OVERFLOW | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_PTRDIFF_OVERFLOW:w64` | TC_RE_PTRDIFF_OVERFLOW | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_WRITE_PROTECTED:trigger` | TC_RE_WRITE_PROTECTED | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_WRITE_PROTECTED:no_false_positive` | TC_RE_WRITE_PROTECTED | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_WRITE_PROTECTED:position` | TC_RE_WRITE_PROTECTED | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_WRITE_PROTECTED:stage` | TC_RE_WRITE_PROTECTED | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_ADDR_UNAVAILABLE:trigger` | TC_RE_ADDR_UNAVAILABLE | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_ADDR_UNAVAILABLE:no_false_positive` | TC_RE_ADDR_UNAVAILABLE | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_ADDR_UNAVAILABLE:position` | TC_RE_ADDR_UNAVAILABLE | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_ADDR_UNAVAILABLE:stage` | TC_RE_ADDR_UNAVAILABLE | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_ADDR_UNAVAILABLE:w32` | TC_RE_ADDR_UNAVAILABLE | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_ADDR_UNAVAILABLE:w64` | TC_RE_ADDR_UNAVAILABLE | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_STACK_OVERFLOW:trigger` | TC_RE_STACK_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_STACK_OVERFLOW:no_false_positive` | TC_RE_STACK_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_STACK_OVERFLOW:position` | TC_RE_STACK_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_STACK_OVERFLOW:stage` | TC_RE_STACK_OVERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_FUNCTION_POINTER:trigger` | TC_RE_NULL_FUNCTION_POINTER | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_FUNCTION_POINTER:no_false_positive` | TC_RE_NULL_FUNCTION_POINTER | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_FUNCTION_POINTER:position` | TC_RE_NULL_FUNCTION_POINTER | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_NULL_FUNCTION_POINTER:stage` | TC_RE_NULL_FUNCTION_POINTER | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_IO:trigger` | TC_RE_IO | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_IO:no_false_positive` | TC_RE_IO | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_IO:position` | TC_RE_IO | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_IO:stage` | TC_RE_IO | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_IO:w32` | TC_RE_IO | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_IO:w64` | TC_RE_IO | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_RE_TRAP:trigger` | TC_RE_TRAP | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_TRAP:no_false_positive` | TC_RE_TRAP | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_TRAP:position` | TC_RE_TRAP | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_RE_TRAP:stage` | TC_RE_TRAP | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_INTEGER_OVERFLOW:trigger` | TC_RE_INTEGER_OVERFLOW | trigger | **covered** | TC-RT-INT-0004, TC-RT-INT-0006, TC-RT-INT-0007, TC-RT-INT-0008, TC-RT-INT-0012, TC-RT-INT-0015, TC-RT-W-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_INTEGER_OVERFLOW:no_false_positive` | TC_RE_INTEGER_OVERFLOW | no_false_positive | **covered** | TC-RT-INT-0001, TC-RT-INT-0002, TC-RT-W-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_INTEGER_OVERFLOW:position` | TC_RE_INTEGER_OVERFLOW | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_INTEGER_OVERFLOW:stage` | TC_RE_INTEGER_OVERFLOW | stage | **covered** | TC-RT-INT-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_INTEGER_OVERFLOW:w32` | TC_RE_INTEGER_OVERFLOW | w32 | **covered** | TC-RT-W-0001 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_INTEGER_OVERFLOW:w64` | TC_RE_INTEGER_OVERFLOW | w64 | **covered** | TC-RT-INT-0004 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_DIV_ZERO:trigger` | TC_RE_DIV_ZERO | trigger | **covered** | TC-RT-INT-0005, TC-RT-INT-0011, TC-RT-FP-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_DIV_ZERO:no_false_positive` | TC_RE_DIV_ZERO | no_false_positive | **covered** | TC-RT-INT-0001, TC-RT-FP-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_DIV_ZERO:position` | TC_RE_DIV_ZERO | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_DIV_ZERO:stage` | TC_RE_DIV_ZERO | stage | **covered** | TC-RT-INT-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NEGATIVE_SHIFT:trigger` | TC_RE_NEGATIVE_SHIFT | trigger | **covered** | TC-RT-INT-0009, TC-RT-INT-0013, TC-RT-INT-0014 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NEGATIVE_SHIFT:no_false_positive` | TC_RE_NEGATIVE_SHIFT | no_false_positive | **covered** | TC-RT-INT-0010 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NEGATIVE_SHIFT:position` | TC_RE_NEGATIVE_SHIFT | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NEGATIVE_SHIFT:stage` | TC_RE_NEGATIVE_SHIFT | stage | **covered** | TC-RT-INT-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_OVERFLOW:trigger` | TC_RE_FLOAT_OVERFLOW | trigger | **covered** | TC-RT-FP-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_OVERFLOW:no_false_positive` | TC_RE_FLOAT_OVERFLOW | no_false_positive | **covered** | TC-RT-FP-0001, TC-RT-FP-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_OVERFLOW:position` | TC_RE_FLOAT_OVERFLOW | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_OVERFLOW:stage` | TC_RE_FLOAT_OVERFLOW | stage | **covered** | TC-RT-FP-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_UNDERFLOW:trigger` | TC_RE_FLOAT_UNDERFLOW | trigger | **covered** | TC-RT-FP-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_UNDERFLOW:no_false_positive` | TC_RE_FLOAT_UNDERFLOW | no_false_positive | **covered** | TC-RT-FP-0007 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_UNDERFLOW:position` | TC_RE_FLOAT_UNDERFLOW | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_UNDERFLOW:stage` | TC_RE_FLOAT_UNDERFLOW | stage | **covered** | TC-RT-FP-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_INVALID:trigger` | TC_RE_FLOAT_INVALID | trigger | **covered** | TC-RT-FP-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_INVALID:no_false_positive` | TC_RE_FLOAT_INVALID | no_false_positive | **covered** | TC-RT-FP-0001, TC-RT-FP-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_INVALID:position` | TC_RE_FLOAT_INVALID | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_FLOAT_INVALID:stage` | TC_RE_FLOAT_INVALID | stage | **covered** | TC-RT-FP-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_CAST_OVERFLOW:trigger` | TC_RE_CAST_OVERFLOW | trigger | **covered** | TC-RT-CONV-0002, TC-RT-CONV-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_CAST_OVERFLOW:no_false_positive` | TC_RE_CAST_OVERFLOW | no_false_positive | **covered** | TC-RT-CONV-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_CAST_OVERFLOW:position` | TC_RE_CAST_OVERFLOW | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_CAST_OVERFLOW:stage` | TC_RE_CAST_OVERFLOW | stage | **covered** | TC-RT-CONV-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_CAST_OVERFLOW:w32` | TC_RE_CAST_OVERFLOW | w32 | **covered** | TC-RT-CONV-0004 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_CAST_OVERFLOW:w64` | TC_RE_CAST_OVERFLOW | w64 | **covered** | TC-RT-CONV-0002 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_NULL_POINTER:trigger` | TC_RE_NULL_POINTER | trigger | **covered** | TC-RT-MEM-0005, TC-RT-MEM-0006, TC-RT-MEM-0007, TC-RT-MEM-0012, TC-RT-MEM-0015, TC-RT-MEM-0016, TC-RT-MEM-0017 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_POINTER:no_false_positive` | TC_RE_NULL_POINTER | no_false_positive | **covered** | TC-RT-MEM-0001, TC-RT-MEM-0010 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_POINTER:position` | TC_RE_NULL_POINTER | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_POINTER:stage` | TC_RE_NULL_POINTER | stage | **covered** | TC-RT-MEM-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_PTRDIFF_OVERFLOW:trigger` | TC_RE_PTRDIFF_OVERFLOW | trigger | **covered** | TC-RT-MEM-0011, TC-RT-MEM-0013 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_PTRDIFF_OVERFLOW:no_false_positive` | TC_RE_PTRDIFF_OVERFLOW | no_false_positive | **covered** | TC-RT-MEM-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_PTRDIFF_OVERFLOW:position` | TC_RE_PTRDIFF_OVERFLOW | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_PTRDIFF_OVERFLOW:stage` | TC_RE_PTRDIFF_OVERFLOW | stage | **covered** | TC-RT-MEM-0011 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_PTRDIFF_OVERFLOW:w32` | TC_RE_PTRDIFF_OVERFLOW | w32 | **covered** | TC-RT-MEM-0013 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_PTRDIFF_OVERFLOW:w64` | TC_RE_PTRDIFF_OVERFLOW | w64 | **covered** | TC-RT-MEM-0011 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_WRITE_PROTECTED:trigger` | TC_RE_WRITE_PROTECTED | trigger | **covered** | TC-RT-MEM-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_WRITE_PROTECTED:no_false_positive` | TC_RE_WRITE_PROTECTED | no_false_positive | **covered** | TC-RT-MEM-0001, TC-RT-MEM-0010 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_WRITE_PROTECTED:position` | TC_RE_WRITE_PROTECTED | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_WRITE_PROTECTED:stage` | TC_RE_WRITE_PROTECTED | stage | **covered** | TC-RT-MEM-0009 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_ADDR_UNAVAILABLE:trigger` | TC_RE_ADDR_UNAVAILABLE | trigger | **covered** | TC-RT-MEM-0008, TC-RT-MEM-0014, TC-RT-DEV-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_ADDR_UNAVAILABLE:no_false_positive` | TC_RE_ADDR_UNAVAILABLE | no_false_positive | **covered** | TC-RT-MEM-0001, TC-RT-MEM-0010 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_ADDR_UNAVAILABLE:position` | TC_RE_ADDR_UNAVAILABLE | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_ADDR_UNAVAILABLE:stage` | TC_RE_ADDR_UNAVAILABLE | stage | **covered** | TC-RT-MEM-0008 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_ADDR_UNAVAILABLE:w32` | TC_RE_ADDR_UNAVAILABLE | w32 | **covered** | TC-RT-MEM-0014 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_ADDR_UNAVAILABLE:w64` | TC_RE_ADDR_UNAVAILABLE | w64 | **covered** | TC-RT-MEM-0008 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_STACK_OVERFLOW:trigger` | TC_RE_STACK_OVERFLOW | trigger | **covered** | TC-RT-CALL-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_STACK_OVERFLOW:no_false_positive` | TC_RE_STACK_OVERFLOW | no_false_positive | **covered** | TC-RT-CALL-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_STACK_OVERFLOW:position` | TC_RE_STACK_OVERFLOW | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_STACK_OVERFLOW:stage` | TC_RE_STACK_OVERFLOW | stage | **covered** | TC-RT-CALL-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_FUNCTION_POINTER:trigger` | TC_RE_NULL_FUNCTION_POINTER | trigger | **covered** | TC-RT-CALL-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_FUNCTION_POINTER:no_false_positive` | TC_RE_NULL_FUNCTION_POINTER | no_false_positive | **covered** | TC-RT-CALL-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_FUNCTION_POINTER:position` | TC_RE_NULL_FUNCTION_POINTER | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_NULL_FUNCTION_POINTER:stage` | TC_RE_NULL_FUNCTION_POINTER | stage | **covered** | TC-RT-CALL-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_IO:trigger` | TC_RE_IO | trigger | **covered** | TC-RT-IO-0003, TC-RT-IO-0004, TC-RT-IO-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_IO:no_false_positive` | TC_RE_IO | no_false_positive | **covered** | TC-RT-IO-0001, TC-RT-IO-0002, TC-RT-IO-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_IO:position` | TC_RE_IO | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_IO:stage` | TC_RE_IO | stage | **covered** | TC-RT-IO-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_IO:w32` | TC_RE_IO | w32 | **covered** | TC-RT-IO-0005 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_IO:w64` | TC_RE_IO | w64 | **covered** | TC-RT-IO-0003 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_RE_TRAP:trigger` | TC_RE_TRAP | trigger | **covered** | TC-RT-CTRL-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_TRAP:no_false_positive` | TC_RE_TRAP | no_false_positive | **covered** | TC-RT-INT-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_TRAP:position` | TC_RE_TRAP | position | **covered** | TC-UNIT-VM-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_RE_TRAP:stage` | TC_RE_TRAP | stage | **covered** | TC-RT-CTRL-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 
 ### Opcode (`opcode`)
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `opcode:add:normal` | add | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:add:static_error` | add | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:add:trap` | add | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:add.wrap:normal` | add.wrap | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:add.wrap:static_error` | add.wrap | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:add.ieee:normal` | add.ieee | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:add.ieee:static_error` | add.ieee | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub:normal` | sub | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub:static_error` | sub | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub:trap` | sub | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:sub.wrap:normal` | sub.wrap | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub.wrap:static_error` | sub.wrap | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub.wrap:trap` | sub.wrap | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:sub.ieee:normal` | sub.ieee | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub.ieee:static_error` | sub.ieee | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sub.ieee:trap` | sub.ieee | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:mul:normal` | mul | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mul:static_error` | mul | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mul:trap` | mul | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:mul.wrap:normal` | mul.wrap | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mul.wrap:static_error` | mul.wrap | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mul.wrap:trap` | mul.wrap | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:mul.ieee:normal` | mul.ieee | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mul.ieee:static_error` | mul.ieee | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mul.ieee:trap` | mul.ieee | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:div:normal` | div | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:div:static_error` | div | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:div:trap` | div | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:div.ieee:normal` | div.ieee | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:div.ieee:static_error` | div.ieee | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mod:normal` | mod | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mod:static_error` | mod | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mod:trap` | mod | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:mod.ieee:normal` | mod.ieee | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:mod.ieee:static_error` | mod.ieee | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:neg:normal` | neg | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:neg:static_error` | neg | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:neg:trap` | neg | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:neg.wrap:normal` | neg.wrap | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:neg.wrap:static_error` | neg.wrap | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:abs:normal` | abs | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:abs:static_error` | abs | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:abs:trap` | abs | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:shl:normal` | shl | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:shl:static_error` | shl | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:shl:trap` | shl | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:shl.wrap:normal` | shl.wrap | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:shl.wrap:static_error` | shl.wrap | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:shl.wrap:trap` | shl.wrap | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:shr:normal` | shr | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:shr:static_error` | shr | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:shr:trap` | shr | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:and:normal` | and | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:and:static_error` | and | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:or:normal` | or | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:or:static_error` | or | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:xor:normal` | xor | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:xor:static_error` | xor | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:not:normal` | not | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:not:static_error` | not | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:eq:normal` | eq | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:eq:static_error` | eq | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ne:normal` | ne | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ne:static_error` | ne | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:lt:normal` | lt | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:lt:static_error` | lt | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:le:normal` | le | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:le:static_error` | le | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:gt:normal` | gt | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:gt:static_error` | gt | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ge:normal` | ge | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ge:static_error` | ge | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:cast:normal` | cast | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:cast:static_error` | cast | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:cast:trap` | cast | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:trunc:normal` | trunc | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:trunc:static_error` | trunc | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:bitcast:normal` | bitcast | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:bitcast:static_error` | bitcast | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:load:normal` | load | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:load:static_error` | load | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:load:trap` | load | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:load.volatile:normal` | load.volatile | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:load.volatile:static_error` | load.volatile | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:load.volatile:trap` | load.volatile | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:store:normal` | store | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:store:static_error` | store | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:store:trap` | store | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:store.volatile:normal` | store.volatile | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:store.volatile:static_error` | store.volatile | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:store.volatile:trap` | store.volatile | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:memmove:normal` | memmove | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:memmove:static_error` | memmove | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:memmove:trap` | memmove | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:addr:normal` | addr | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:addr:static_error` | addr | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptradd:normal` | ptradd | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptradd:static_error` | ptradd | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptradd:trap` | ptradd | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:ptrsub:normal` | ptrsub | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrsub:static_error` | ptrsub | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrsub:trap` | ptrsub | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:ptrdiff:normal` | ptrdiff | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrdiff:static_error` | ptrdiff | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrdiff:trap` | ptrdiff | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:ptreq:normal` | ptreq | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptreq:static_error` | ptreq | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrne:normal` | ptrne | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrne:static_error` | ptrne | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrlt:normal` | ptrlt | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrlt:static_error` | ptrlt | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrle:normal` | ptrle | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrle:static_error` | ptrle | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrgt:normal` | ptrgt | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrgt:static_error` | ptrgt | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrge:normal` | ptrge | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:ptrge:static_error` | ptrge | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sizeof:normal` | sizeof | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:sizeof:static_error` | sizeof | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:funcaddr:normal` | funcaddr | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:funcaddr:static_error` | funcaddr | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:call:normal` | call | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:call:static_error` | call | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:call:trap` | call | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:call_indirect:normal` | call_indirect | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:call_indirect:static_error` | call_indirect | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:call_indirect:trap` | call_indirect | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:funceq:normal` | funceq | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:funceq:static_error` | funceq | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:funcne:normal` | funcne | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:funcne:static_error` | funcne | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:make:normal` | make | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:make:static_error` | make | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:copy:normal` | copy | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:copy:static_error` | copy | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:br:normal` | br | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:br:static_error` | br | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:br_if:normal` | br_if | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:br_if:static_error` | br_if | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:switch:normal` | switch | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:switch:static_error` | switch | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:return:normal` | return | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:return:static_error` | return | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:trap:normal` | trap | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:trap:static_error` | trap | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:trap:trap` | trap | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:read:normal` | read | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:read:static_error` | read | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:read:trap` | read | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:write:normal` | write | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:write:static_error` | write | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:write:trap` | write | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
-| `opcode:writeln:normal` | writeln | normal | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:writeln:static_error` | writeln | static_error | **uncovered** | — | standard §6.2, design §3.2; test plan §3.6 |
-| `opcode:writeln:trap` | writeln | trap | **uncovered** | — | standard §6.2 trap column; test plan §3.6 |
+| `opcode:add:normal` | add | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:add:static_error` | add | static_error | **covered** | TC-SEM-OPC-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:add:trap` | add | trap | **covered** | TC-RT-INT-0004 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:add.wrap:normal` | add.wrap | normal | **covered** | TC-RT-INT-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:add.wrap:static_error` | add.wrap | static_error | **covered** | TC-SEM-OPC-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:add.ieee:normal` | add.ieee | normal | **covered** | TC-RT-FP-0006 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:add.ieee:static_error` | add.ieee | static_error | **covered** | TC-SEM-OPC-0003 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub:normal` | sub | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub:static_error` | sub | static_error | **covered** | TC-SEM-OPC-0004 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub:trap` | sub | trap | **covered** | TC-RT-INT-0015 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:sub.wrap:normal` | sub.wrap | normal | **covered** | TC-RT-INT-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub.wrap:static_error` | sub.wrap | static_error | **covered** | TC-SEM-OPC-0005 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub.wrap:trap` | sub.wrap | trap | **covered** | TC-RT-INT-0002 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:sub.ieee:normal` | sub.ieee | normal | **covered** | TC-RT-FP-0006 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub.ieee:static_error` | sub.ieee | static_error | **covered** | TC-SEM-OPC-0006 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sub.ieee:trap` | sub.ieee | trap | **covered** | TC-RT-FP-0006 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:mul:normal` | mul | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mul:static_error` | mul | static_error | **covered** | TC-SEM-OPC-0007 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mul:trap` | mul | trap | **covered** | TC-RT-INT-0012 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:mul.wrap:normal` | mul.wrap | normal | **covered** | TC-RT-INT-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mul.wrap:static_error` | mul.wrap | static_error | **covered** | TC-SEM-OPC-0008 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mul.wrap:trap` | mul.wrap | trap | **covered** | TC-RT-INT-0002 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:mul.ieee:normal` | mul.ieee | normal | **covered** | TC-RT-FP-0006 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mul.ieee:static_error` | mul.ieee | static_error | **covered** | TC-SEM-OPC-0009 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mul.ieee:trap` | mul.ieee | trap | **covered** | TC-RT-FP-0006 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:div:normal` | div | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:div:static_error` | div | static_error | **covered** | TC-SEM-OPC-0010 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:div:trap` | div | trap | **covered** | TC-RT-INT-0005 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:div.ieee:normal` | div.ieee | normal | **covered** | TC-RT-FP-0006 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:div.ieee:static_error` | div.ieee | static_error | **covered** | TC-SEM-OPC-0011 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mod:normal` | mod | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mod:static_error` | mod | static_error | **covered** | TC-SEM-OPC-0012 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mod:trap` | mod | trap | **covered** | TC-RT-INT-0011 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:mod.ieee:normal` | mod.ieee | normal | **covered** | TC-RT-FP-0006 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:mod.ieee:static_error` | mod.ieee | static_error | **covered** | TC-SEM-OPC-0013 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:neg:normal` | neg | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:neg:static_error` | neg | static_error | **covered** | TC-SEM-OPC-0014 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:neg:trap` | neg | trap | **covered** | TC-RT-INT-0007 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:neg.wrap:normal` | neg.wrap | normal | **covered** | TC-RT-INT-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:neg.wrap:static_error` | neg.wrap | static_error | **covered** | TC-SEM-OPC-0015 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:abs:normal` | abs | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:abs:static_error` | abs | static_error | **covered** | TC-SEM-OPC-0016 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:abs:trap` | abs | trap | **covered** | TC-RT-INT-0008 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:shl:normal` | shl | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:shl:static_error` | shl | static_error | **covered** | TC-SEM-OPC-0017 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:shl:trap` | shl | trap | **covered** | TC-RT-INT-0009 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:shl.wrap:normal` | shl.wrap | normal | **covered** | TC-RT-INT-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:shl.wrap:static_error` | shl.wrap | static_error | **covered** | TC-SEM-OPC-0018 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:shl.wrap:trap` | shl.wrap | trap | **covered** | TC-RT-INT-0013 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:shr:normal` | shr | normal | **covered** | TC-RT-INT-0010 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:shr:static_error` | shr | static_error | **covered** | TC-SEM-OPC-0019 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:shr:trap` | shr | trap | **covered** | TC-RT-INT-0014 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:and:normal` | and | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:and:static_error` | and | static_error | **covered** | TC-SEM-OPC-0020 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:or:normal` | or | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:or:static_error` | or | static_error | **covered** | TC-SEM-OPC-0021 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:xor:normal` | xor | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:xor:static_error` | xor | static_error | **covered** | TC-SEM-OPC-0022 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:not:normal` | not | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:not:static_error` | not | static_error | **covered** | TC-SEM-OPC-0023 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:eq:normal` | eq | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:eq:static_error` | eq | static_error | **covered** | TC-SEM-OPC-0024 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ne:normal` | ne | normal | **covered** | TC-RT-FP-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ne:static_error` | ne | static_error | **covered** | TC-SEM-OPC-0025 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:lt:normal` | lt | normal | **covered** | TC-RT-INT-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:lt:static_error` | lt | static_error | **covered** | TC-SEM-OPC-0026 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:le:normal` | le | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:le:static_error` | le | static_error | **covered** | TC-SEM-OPC-0027 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:gt:normal` | gt | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:gt:static_error` | gt | static_error | **covered** | TC-SEM-OPC-0028 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ge:normal` | ge | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ge:static_error` | ge | static_error | **covered** | TC-SEM-OPC-0029 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:cast:normal` | cast | normal | **covered** | TC-RT-CONV-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:cast:static_error` | cast | static_error | **covered** | TC-SEM-OPC-0030 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:cast:trap` | cast | trap | **covered** | TC-RT-CONV-0002 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:trunc:normal` | trunc | normal | **covered** | TC-RT-CONV-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:trunc:static_error` | trunc | static_error | **covered** | TC-SEM-OPC-0031 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:bitcast:normal` | bitcast | normal | **covered** | TC-RT-CONV-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:bitcast:static_error` | bitcast | static_error | **covered** | TC-SEM-OPC-0032 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:load:normal` | load | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:load:static_error` | load | static_error | **covered** | TC-SEM-OPC-0033 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:load:trap` | load | trap | **covered** | TC-RT-MEM-0005 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:load.volatile:normal` | load.volatile | normal | **covered** | TC-RT-MEM-0010 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:load.volatile:static_error` | load.volatile | static_error | **covered** | TC-SEM-OPC-0034 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:load.volatile:trap` | load.volatile | trap | **covered** | TC-RT-MEM-0016 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:store:normal` | store | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:store:static_error` | store | static_error | **covered** | TC-SEM-OPC-0035 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:store:trap` | store | trap | **covered** | TC-RT-MEM-0006 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:store.volatile:normal` | store.volatile | normal | **covered** | TC-RT-MEM-0010 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:store.volatile:static_error` | store.volatile | static_error | **covered** | TC-SEM-OPC-0036 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:store.volatile:trap` | store.volatile | trap | **covered** | TC-RT-MEM-0015 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:memmove:normal` | memmove | normal | **covered** | TC-RT-MEM-0004 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:memmove:static_error` | memmove | static_error | **covered** | TC-SEM-OPC-0037 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:memmove:trap` | memmove | trap | **covered** | TC-RT-MEM-0007 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:addr:normal` | addr | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:addr:static_error` | addr | static_error | **covered** | TC-SEM-OPC-0038 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptradd:normal` | ptradd | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptradd:static_error` | ptradd | static_error | **covered** | TC-SEM-OPC-0039 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptradd:trap` | ptradd | trap | **covered** | TC-RT-MEM-0012 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:ptrsub:normal` | ptrsub | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrsub:static_error` | ptrsub | static_error | **covered** | TC-SEM-OPC-0040 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrsub:trap` | ptrsub | trap | **covered** | TC-RT-MEM-0017 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:ptrdiff:normal` | ptrdiff | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrdiff:static_error` | ptrdiff | static_error | **covered** | TC-SEM-OPC-0041 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrdiff:trap` | ptrdiff | trap | **covered** | TC-RT-MEM-0011 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:ptreq:normal` | ptreq | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptreq:static_error` | ptreq | static_error | **covered** | TC-SEM-OPC-0042 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrne:normal` | ptrne | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrne:static_error` | ptrne | static_error | **covered** | TC-SEM-OPC-0043 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrlt:normal` | ptrlt | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrlt:static_error` | ptrlt | static_error | **covered** | TC-SEM-OPC-0044 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrle:normal` | ptrle | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrle:static_error` | ptrle | static_error | **covered** | TC-SEM-OPC-0045 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrgt:normal` | ptrgt | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrgt:static_error` | ptrgt | static_error | **covered** | TC-SEM-OPC-0046 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrge:normal` | ptrge | normal | **covered** | TC-RT-MEM-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:ptrge:static_error` | ptrge | static_error | **covered** | TC-SEM-OPC-0047 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sizeof:normal` | sizeof | normal | **covered** | TC-RT-SIZEOF-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:sizeof:static_error` | sizeof | static_error | **covered** | TC-SEM-OPC-0048 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:funcaddr:normal` | funcaddr | normal | **covered** | TC-RT-CALL-0003 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:funcaddr:static_error` | funcaddr | static_error | **covered** | TC-SEM-OPC-0049 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:call:normal` | call | normal | **covered** | TC-RT-CALL-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:call:static_error` | call | static_error | **covered** | TC-SEM-OPC-0050 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:call:trap` | call | trap | **covered** | TC-RT-CALL-0002 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:call_indirect:normal` | call_indirect | normal | **covered** | TC-RT-CALL-0003 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:call_indirect:static_error` | call_indirect | static_error | **covered** | TC-SEM-OPC-0051 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:call_indirect:trap` | call_indirect | trap | **covered** | TC-RT-CALL-0004 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:funceq:normal` | funceq | normal | **covered** | TC-RT-CALL-0003 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:funceq:static_error` | funceq | static_error | **covered** | TC-SEM-OPC-0052 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:funcne:normal` | funcne | normal | **covered** | TC-RT-CALL-0003 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:funcne:static_error` | funcne | static_error | **covered** | TC-SEM-OPC-0053 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:make:normal` | make | normal | **covered** | TC-RT-MEM-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:make:static_error` | make | static_error | **covered** | TC-SEM-OPC-0054 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:copy:normal` | copy | normal | **covered** | TC-RT-MEM-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:copy:static_error` | copy | static_error | **covered** | TC-SEM-OPC-0055 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:br:normal` | br | normal | **covered** | TC-RT-CTRL-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:br:static_error` | br | static_error | **covered** | TC-SEM-OPC-0056 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:br_if:normal` | br_if | normal | **covered** | TC-RT-CTRL-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:br_if:static_error` | br_if | static_error | **covered** | TC-SEM-OPC-0057 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:switch:normal` | switch | normal | **covered** | TC-RT-CTRL-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:switch:static_error` | switch | static_error | **covered** | TC-SEM-OPC-0058 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:return:normal` | return | normal | **covered** | TC-RT-CALL-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:return:static_error` | return | static_error | **covered** | TC-SEM-OPC-0059 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:trap:normal` | trap | normal | **covered** | TC-RT-CTRL-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:trap:static_error` | trap | static_error | **covered** | TC-SEM-OPC-0060 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:trap:trap` | trap | trap | **covered** | TC-RT-CTRL-0002 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:read:normal` | read | normal | **covered** | TC-RT-IO-0002 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:read:static_error` | read | static_error | **covered** | TC-SEM-OPC-0061 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:read:trap` | read | trap | **covered** | TC-RT-IO-0003 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:write:normal` | write | normal | **covered** | TC-RT-IO-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:write:static_error` | write | static_error | **covered** | TC-SEM-OPC-0062 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:write:trap` | write | trap | **covered** | TC-UNIT-VM-0006 | standard §6.2 trap column; test plan §3.6 |
+| `opcode:writeln:normal` | writeln | normal | **covered** | TC-RT-IO-0001 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:writeln:static_error` | writeln | static_error | **covered** | TC-SEM-OPC-0063 | standard §6.2, design §3.2; test plan §3.6 |
+| `opcode:writeln:trap` | writeln | trap | **covered** | TC-UNIT-VM-0006 | standard §6.2 trap column; test plan §3.6 |
 
 ### Design §12 item (`design12`)
 
@@ -582,18 +582,18 @@
 | `design12:01:gate_case` | 1. VM↔AOT 差分 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:02:suite_mapping` | 2. 标准 §13.4 八项一致性 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:02:gate_case` | 2. 标准 §13.4 八项一致性 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:03:suite_mapping` | 3. golden 向量 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:03:gate_case` | 3. golden 向量 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
+| `design12:03:suite_mapping` | 3. golden 向量 | suite_mapping | **covered** | TC-RT-GOLD-0001, TC-RT-GOLD-0002, TC-RT-GOLD-0101, TC-RT-GOLD-0102 | design §12, test plan §3.6/§8.2 |
+| `design12:03:gate_case` | 3. golden 向量 | gate_case | **covered** | TC-RT-GOLD-0001, TC-RT-GOLD-0102 | design §12, test plan §3.6/§8.2 |
 | `design12:04:suite_mapping` | 4. freestanding 编译门禁 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:04:gate_case` | 4. freestanding 编译门禁 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:05:suite_mapping` | 5. checked build | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:05:gate_case` | 5. checked build | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
+| `design12:05:suite_mapping` | 5. checked build | suite_mapping | **covered** | TC-UNIT-VM-0006 | design §12, test plan §3.6/§8.2 |
+| `design12:05:gate_case` | 5. checked build | gate_case | **covered** | TC-UNIT-VM-0006 | design §12, test plan §3.6/§8.2 |
 | `design12:06:suite_mapping` | 6. 32/64 静态矩阵 | suite_mapping | **covered** | TC-SEM-CONV-0010, TC-TOOL-SEM-0009 | design §12, test plan §3.6/§8.2 |
 | `design12:06:gate_case` | 6. 32/64 静态矩阵 | gate_case | **covered** | TC-SEM-CONV-0001, TC-SEM-LAYOUT-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:07:suite_mapping` | 7. ABI/调用 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:07:gate_case` | 7. ABI/调用 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:08:suite_mapping` | 8. 对象/内存 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:08:gate_case` | 8. 对象/内存 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
+| `design12:08:suite_mapping` | 8. 对象/内存 | suite_mapping | **covered** | TC-RT-MEM-0001, TC-RT-MEM-0002, TC-RT-MEM-0004 | design §12, test plan §3.6/§8.2 |
+| `design12:08:gate_case` | 8. 对象/内存 | gate_case | **covered** | TC-RT-MEM-0004, TC-RT-MEM-0011 | design §12, test plan §3.6/§8.2 |
 | `design12:09:suite_mapping` | 9. 诊断/语法 | suite_mapping | **covered** | TC-SEM-TYPE-0001, TC-SEM-CALL-0101, TC-SEM-CFG-0016 | design §12, test plan §3.6/§8.2 |
 | `design12:09:gate_case` | 9. 诊断/语法 | gate_case | **covered** | TC-IMP-0001, TC-SEM-MODE-0001, TC-SEM-CALL-0107, TC-SEM-CFG-0004 | design §12, test plan §3.6/§8.2 |
 | `design12:10:suite_mapping` | 10. `@fast_math` | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
@@ -604,10 +604,10 @@
 | `design12:12:gate_case` | 12. const/静态初值 | gate_case | **covered** | TC-CT-STATIC-0001, TC-UNIT-IR-0003, TC-UNIT-CT-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:13:suite_mapping` | 13. 类型表/模块实例 | suite_mapping | **covered** | TC-UNIT-MODULE-0001, TC-UNIT-IR-0001, TC-UNIT-IR-0004, TC-UNIT-IR-0008 | design §12, test plan §3.6/§8.2 |
 | `design12:13:gate_case` | 13. 类型表/模块实例 | gate_case | **covered** | TC-TOOL-SEM-0006, TC-UNIT-IR-0001, TC-TOOL-CT-CHAIN-0001 | design §12, test plan §3.6/§8.2 |
-| `design12:14:suite_mapping` | 14. 退出/设备/输入 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:14:gate_case` | 14. 退出/设备/输入 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:15:suite_mapping` | 15. 零 pass | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:15:gate_case` | 15. 零 pass | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
+| `design12:14:suite_mapping` | 14. 退出/设备/输入 | suite_mapping | **covered** | TC-RT-DEV-0001, TC-RT-IO-0002, TC-UNIT-VM-0006 | design §12, test plan §3.6/§8.2 |
+| `design12:14:gate_case` | 14. 退出/设备/输入 | gate_case | **covered** | TC-RT-DEV-0001, TC-RT-IO-0003, TC-RT-IO-0004 | design §12, test plan §3.6/§8.2 |
+| `design12:15:suite_mapping` | 15. 零 pass | suite_mapping | **covered** | TC-RT-OPT-0001 | design §12, test plan §3.6/§8.2 |
+| `design12:15:gate_case` | 15. 零 pass | gate_case | **covered** | TC-RT-OPT-0001 | design §12, test plan §3.6/§8.2 |
 
 ### First-diagnostic rule (§12.2) (`first_diag_rule`)
 
@@ -700,23 +700,23 @@
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `device_policy:TC_DEV_REJECT:trap_mapping` | TC_DEV_REJECT | trap_mapping | **uncovered** | — | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
-| `device_policy:TC_DEV_READ:trap_mapping` | TC_DEV_READ | trap_mapping | **uncovered** | — | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
-| `device_policy:TC_DEV_READWRITE:trap_mapping` | TC_DEV_READWRITE | trap_mapping | **uncovered** | — | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
-| `device_policy:TC_DEV_VOLATILE:trap_mapping` | TC_DEV_VOLATILE | trap_mapping | **uncovered** | — | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
+| `device_policy:TC_DEV_REJECT:trap_mapping` | TC_DEV_REJECT | trap_mapping | **covered** | TC-RT-DEV-0001 | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
+| `device_policy:TC_DEV_READ:trap_mapping` | TC_DEV_READ | trap_mapping | **covered** | TC-UNIT-VM-0006 | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
+| `device_policy:TC_DEV_READWRITE:trap_mapping` | TC_DEV_READWRITE | trap_mapping | **covered** | TC-UNIT-VM-0006 | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
+| `device_policy:TC_DEV_VOLATILE:trap_mapping` | TC_DEV_VOLATILE | trap_mapping | **covered** | TC-UNIT-VM-0006 | design §8 (TcDevicePolicy), test plan §3.6/§7.5 |
 
 ### I/O source state (`io_source_state`)
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `io_source_state:TC_IO_OK:path` | TC_IO_OK | path | **uncovered** | — | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
-| `io_source_state:TC_IO_EOF:path` | TC_IO_EOF | path | **uncovered** | — | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
-| `io_source_state:TC_IO_ERROR:path` | TC_IO_ERROR | path | **uncovered** | — | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
-| `io_source_state:SHORT_READ:path` | TC_IO_OK (short read) | path | **uncovered** | — | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
+| `io_source_state:TC_IO_OK:path` | TC_IO_OK | path | **covered** | TC-RT-IO-0002 | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
+| `io_source_state:TC_IO_EOF:path` | TC_IO_EOF | path | **covered** | TC-RT-IO-0004 | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
+| `io_source_state:TC_IO_ERROR:path` | TC_IO_ERROR | path | **covered** | TC-UNIT-VM-0006 | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
+| `io_source_state:SHORT_READ:path` | TC_IO_OK (short read) | path | **covered** | TC-UNIT-VM-0006 | design §7.2 (TcIoSrc), test plan §3.6/§7.5 |
 
 ### Exit strategy (`exit_strategy`)
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `exit_strategy:normal_exit:branch` | normal_exit | branch | **uncovered** | — | design §8 (TcExitPolicy), standard §13.1, test plan §3.6 |
-| `exit_strategy:trap_exit:branch` | trap_exit | branch | **uncovered** | — | design §8 (TcExitPolicy), standard §13.1, test plan §3.6 |
+| `exit_strategy:normal_exit:branch` | normal_exit | branch | **covered** | TC-RT-INT-0001 | design §8 (TcExitPolicy), standard §13.1, test plan §3.6 |
+| `exit_strategy:trap_exit:branch` | trap_exit | branch | **covered** | TC-RT-CTRL-0002 | design §8 (TcExitPolicy), standard §13.1, test plan §3.6 |

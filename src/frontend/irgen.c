@@ -62,33 +62,12 @@ static void *ir_alloc(TcAnalysis *an, size_t size) {
     return p;
 }
 
-static uint32_t *grow_u32(TcAnalysis *an, uint32_t *old, size_t count,
-                          size_t *cap) {
-    size_t next = *cap == 0 ? 16u : *cap * 2u;
-    uint32_t *fresh;
-    while (next < count) {
-        next *= 2u;
+static void *grow_array(TcAnalysis *an, void *old, size_t old_count,
+                        size_t new_count, size_t element) {
+    void *fresh = ir_alloc(an, new_count * element);
+    if (old_count != 0) {
+        memcpy(fresh, old, old_count * element);
     }
-    fresh = (uint32_t *)ir_alloc(an, next * sizeof(uint32_t));
-    if (old != NULL) {
-        memcpy(fresh, old, *cap * sizeof(uint32_t));
-    }
-    *cap = next;
-    return fresh;
-}
-
-static const TcType **grow_types(TcAnalysis *an, const TcType **old,
-                                 size_t count, size_t *cap) {
-    size_t next = *cap == 0 ? 16u : *cap * 2u;
-    const TcType **fresh;
-    while (next < count) {
-        next *= 2u;
-    }
-    fresh = (const TcType **)ir_alloc(an, next * sizeof(const TcType *));
-    if (old != NULL) {
-        memcpy(fresh, old, *cap * sizeof(const TcType *));
-    }
-    *cap = next;
     return fresh;
 }
 
@@ -569,10 +548,12 @@ typedef struct {
 static uint32_t alloc_vreg(UnitBuild *u, const TcType *type, uint32_t object) {
     uint32_t id;
     if (u->nvregs == u->capvregs) {
-        u->vreg_types = grow_types(u->an, u->vreg_types, u->nvregs + 1u,
-                                   &u->capvregs);
-        u->vreg_objects = grow_u32(u->an, u->vreg_objects, u->capvregs,
-                                   &u->capvregs);
+        size_t cap = u->capvregs == 0 ? 16u : u->capvregs * 2u;
+        u->vreg_types = (const TcType **)grow_array(
+            u->an, u->vreg_types, u->nvregs, cap, sizeof(const TcType *));
+        u->vreg_objects = (uint32_t *)grow_array(
+            u->an, u->vreg_objects, u->nvregs, cap, sizeof(uint32_t));
+        u->capvregs = cap;
     }
     id = (uint32_t)u->nvregs;
     u->vreg_types[u->nvregs] = type;

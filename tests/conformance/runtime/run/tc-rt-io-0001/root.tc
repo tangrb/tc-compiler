@@ -1,0 +1,15 @@
+#program
+var i: int8 = copy int8, -128
+_ = writeln int8, i
+var u: uint64 = copy uint64, 18446744073709551615u
+_ = writeln uint64, u
+var b: bool = copy bool, true
+_ = writeln bool, b
+var z: float64 = copy float64, -0.0
+_ = writeln float64, z
+var n: float64 = copy float64, nan
+_ = writeln float64, n
+var infv: float64 = copy float64, -inf
+_ = writeln float64, infv
+var e: float64 = copy float64, 1000000.0
+_ = writeln float64, e

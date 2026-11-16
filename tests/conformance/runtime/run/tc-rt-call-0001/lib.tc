@@ -1,0 +1,11 @@
+#lib
+public func fact(n: int32) int32 then
+var c: bool = le int32, n, 1
+_ = br_if c, base
+var m: int32 = sub int32, n, 1
+var r: int32 = call Self.fact, m
+var out: int32 = mul int32, n, r
+_ = return out
+label base:
+_ = return n
+end

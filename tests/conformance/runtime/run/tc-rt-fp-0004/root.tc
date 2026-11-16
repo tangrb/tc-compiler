@@ -1,0 +1,3 @@
+#program
+var a: float64 = copy float64, 1.0e308
+var x: float64 = add float64, a, a

@@ -14,8 +14,10 @@ current gate status. Chinese: [README.md](README.md).
 
 ## Current status
 
-- S0–S5 are implemented and passed G0–G5; **G5 allows S6**.
-- Not implemented: the VM, runtime semantics and backends.
+- S0–S6 are implemented and G0–G6 passed; **G6 allows S7**.
+- Implemented: the front end, CT/IR, the runtime semantic core and the reference VM
+  (32/64 profiles).
+- Not implemented: the native backend and the freestanding/ABI/toolchain stages.
 - No C host public library, embedding API or ABI.
 - Both 32/64 are targets; `usize`/`isize` are platform-word types (§13.2.1/§13.2.2).
 

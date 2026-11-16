@@ -34,12 +34,21 @@
   vreg+字段索引，标签/`switch` 目标使用块 id，命名实参保留，span 保留；聚合 const
   在使用处内联为 `make`，`const` 不占对象；静态/帧对象表、模块实例 id、按 profile 的
   布局与冻结类型表；`tc_ir_print` 确定性文本转储。
+- **运行时语义核与确定性 I/O**：W 相关的 strict/wrap 整数、除/模/移位边界、
+  binary32/64 固定舍入与异常优先级、精确下溢、`cast`/`trunc`/`bitcast`；CT 与 VM
+  共用该语义核（CT 映射到六个 `TC_CE_CONST_*`）；§11.2 六位有效数字精确渲染
+  （不调用宿主 `printf`）与 §11.3 完整 Token 输入（EOF/短读/错误）。
+- **参考 VM（W=32/64）**：五区地址空间、运行时对象与字段子对象、指针状态、
+  全部 51 个 opcode、调用/`D`、尾调用不改变深度、I/O 整条提交、15 个
+  `TC_RE_*` 必选 trap、trap 前已提交输出不回滚；`--checked` 增加 UB 越界检查；
+  `aarch64-linux-user`、`aarch64-baremetal` 与 `w32` 档案。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
-  `--static-only`（含 CT 与 IR 最终化）部分检查；普通调用在静态阶段后显式退出 70。
-  新增 `w32` 静态档案（不可执行目标）。
-- **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、S1/S2/S3/S4/S5
-  一致性用例表（S4 为 163 编译 + 44 接受；S5 为 48 编译 + 23 接受）、确定性套件、
-  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 26/26，harness 624/624。
+  `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
+  首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用仍退出 70（后端未实现）。
+- **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
+  S1/S2/S3/S4/S5/S6 一致性用例表、W=32/64 运行时 golden、确定性套件、
+  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 32/32，harness 753/753
+  （557 编译、129 工具、66 运行、1 属性），vm 单元 413 检查。
 
 ### Changed
 
@@ -47,8 +56,9 @@
   不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边。
 - 收尾流程固化：阶段/分支收尾必须清理过程/历史文档，并通过 `docs.cleanup` 门禁；
   当前约定与已知限制归并到 `src/CONTRACTS.md`。
-- 诊断位置、CT 顺序/缓存/错误映射、静态布局与 IR 操作数约定见 `src/CONTRACTS.md`；
-  `--sem-only`/`--static-only` 与普通调用都不宣称程序有效。
+- 诊断位置、CT 顺序/缓存/错误映射、静态布局、IR 操作数与运行时/VM 约定见
+  `src/CONTRACTS.md`；`--sem-only`/`--static-only` 都不宣称程序有效，普通
+  `tc-vm` 运行也只报告首个 trap 或正常终止。
 
 ### Removed
 

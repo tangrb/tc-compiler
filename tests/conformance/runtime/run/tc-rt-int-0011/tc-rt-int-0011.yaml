@@ -1,0 +1,10 @@
+id: TC-RT-INT-0011
+profile: w64
+source: root.tc
+spec: "§6.3 integer modulo by zero -> TC_RE_DIV_ZERO"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_DIV_ZERO
+  exit: 1
+  termination: trap

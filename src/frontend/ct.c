@@ -16,8 +16,9 @@
  */
 #include "frontend/ct.h"
 
+#include "runtime/semantics.h"
+
 #include <float.h>
-#include <math.h>
 #include <string.h>
 
 /* CT floating evaluation must round once per instruction in the target
@@ -127,14 +128,6 @@ static uint64_t ct_mask(unsigned bits) {
     return bits >= 64u ? ~(uint64_t)0 : ((UINT64_C(1) << bits) - 1u);
 }
 
-static uint64_t ct_sign_extend(uint64_t bits, unsigned width) {
-    uint64_t mask = ct_mask(width);
-    if (width < 64u && (bits & (UINT64_C(1) << (width - 1u))) != 0) {
-        return bits | ~mask;
-    }
-    return bits & mask;
-}
-
 /* ------------------------------------------------------------------------- */
 /* Values.                                                                   */
 /* ------------------------------------------------------------------------- */
@@ -154,600 +147,68 @@ static const TcCtValue *ct_scalar(TcCt *ct, const TcType *type, uint64_t bits) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* Floating point helpers.                                                   */
-/* ------------------------------------------------------------------------- */
-
-typedef struct {
-    int sign;
-    int is_nan;
-    int is_inf;
-    int is_zero;
-    int is_subnormal;
-    int scale;
-    uint64_t mantissa;
-} CtFParts;
-
-static int ct_fp_parts(uint64_t bits, unsigned width, CtFParts *out) {
-    memset(out, 0, sizeof(*out));
-    if (width == 32) {
-        unsigned exp = (unsigned)((bits >> 23) & 0xffu);
-        uint64_t frac = bits & UINT64_C(0x7fffff);
-        out->sign = (int)((bits >> 31) & 1u);
-        if (exp == 0xffu) {
-            out->is_inf = frac == 0;
-            out->is_nan = frac != 0;
-            out->mantissa = frac;
-            return 1;
-        }
-        if (exp == 0) {
-            out->mantissa = frac;
-            out->scale = -149;
-            out->is_zero = frac == 0;
-            out->is_subnormal = frac != 0;
-        } else {
-            out->mantissa = frac | (UINT64_C(1) << 23);
-            out->scale = (int)exp - 127 - 23;
-        }
-        return 1;
-    }
-    if (width == 64) {
-        unsigned exp = (unsigned)((bits >> 52) & 0x7ffu);
-        uint64_t frac = bits & UINT64_C(0xfffffffffffff);
-        out->sign = (int)((bits >> 63) & 1u);
-        if (exp == 0x7ffu) {
-            out->is_inf = frac == 0;
-            out->is_nan = frac != 0;
-            out->mantissa = frac;
-            return 1;
-        }
-        if (exp == 0) {
-            out->mantissa = frac;
-            out->scale = -1074;
-            out->is_zero = frac == 0;
-            out->is_subnormal = frac != 0;
-        } else {
-            out->mantissa = frac | (UINT64_C(1) << 52);
-            out->scale = (int)exp - 1023 - 52;
-        }
-        return 1;
-    }
-    return 0;
-}
-
-static float ct_bits_to_f32(uint64_t bits) {
-    uint32_t raw = (uint32_t)bits;
-    float value;
-    memcpy(&value, &raw, sizeof(value));
-    return value;
-}
-
-static uint64_t ct_f32_to_bits(float value) {
-    uint32_t raw;
-    memcpy(&raw, &value, sizeof(raw));
-    return raw;
-}
-
-static double ct_bits_to_f64(uint64_t bits) {
-    double value;
-    memcpy(&value, &bits, sizeof(value));
-    return value;
-}
-
-static uint64_t ct_f64_to_bits(double value) {
-    uint64_t raw;
-    memcpy(&raw, &value, sizeof(raw));
-    return raw;
-}
-
-static uint64_t ct_nan_bits(unsigned width) {
-    return width == 32 ? UINT64_C(0x7fc00000)
-                       : UINT64_C(0x7ff8000000000000);
-}
-
-static uint64_t ct_inf_bits(unsigned width, int sign) {
-    if (width == 32) {
-        return sign != 0 ? UINT64_C(0xff800000) : UINT64_C(0x7f800000);
-    }
-    return sign != 0 ? UINT64_C(0xfff0000000000000)
-                     : UINT64_C(0x7ff0000000000000);
-}
-
-typedef struct {
-    uint64_t hi;
-    uint64_t lo;
-} CtU128;
-
-static CtU128 ct_u128_mul(uint64_t a, uint64_t b) {
-    uint64_t a0 = a & UINT64_C(0xffffffff);
-    uint64_t a1 = a >> 32;
-    uint64_t b0 = b & UINT64_C(0xffffffff);
-    uint64_t b1 = b >> 32;
-    uint64_t p0 = a0 * b0;
-    uint64_t p1 = a0 * b1;
-    uint64_t p2 = a1 * b0;
-    uint64_t p3 = a1 * b1;
-    uint64_t mid = (p0 >> 32) + (p1 & UINT64_C(0xffffffff)) +
-                   (p2 & UINT64_C(0xffffffff));
-    CtU128 out;
-    out.lo = (p0 & UINT64_C(0xffffffff)) | (mid << 32);
-    out.hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
-    return out;
-}
-
-static CtU128 ct_u128_from_u64(uint64_t value) {
-    CtU128 out;
-    out.hi = 0;
-    out.lo = value;
-    return out;
-}
-
-/* 0 on overflow (nonzero bits shifted out), 1 otherwise. */
-static int ct_u128_shl_checked(CtU128 value, unsigned shift, CtU128 *out) {
-    if (shift == 0) {
-        *out = value;
-        return 1;
-    }
-    if (shift >= 128) {
-        if (value.hi == 0 && value.lo == 0) {
-            *out = ct_u128_from_u64(0);
-            return 1;
-        }
-        return 0;
-    }
-    if (shift >= 64) {
-        if (value.hi != 0) {
-            return 0;
-        }
-        out->hi = value.lo << (shift - 64u);
-        out->lo = 0;
-        return 1;
-    }
-    if ((value.hi >> (64u - shift)) != 0) {
-        return 0;
-    }
-    out->hi = (value.hi << shift) | (value.lo >> (64u - shift));
-    out->lo = value.lo << shift;
-    return 1;
-}
-
-static int ct_u128_equal(CtU128 a, CtU128 b) {
-    return a.hi == b.hi && a.lo == b.lo;
-}
-
-static int ct_u128_equal_u64(CtU128 a, uint64_t b) {
-    return a.hi == 0 && a.lo == b;
-}
-
-static int ct_fp_special_pair(const CtFParts *a, const CtFParts *b,
-                              const CtFParts *r) {
-    return a->is_nan || b->is_nan || a->is_inf || b->is_inf || a->is_zero ||
-           b->is_zero || !r->is_subnormal;
-}
-
-/* Whether the subnormal result `r` of mul(a,b) is the exact product. */
-static int ct_mul_subnormal_exact(const CtFParts *a, const CtFParts *b,
-                                  const CtFParts *r) {
-    CtU128 product;
-    CtU128 shifted;
-    long diff;
-    if (ct_fp_special_pair(a, b, r)) {
-        return 0;
-    }
-    product = ct_u128_mul(a->mantissa, b->mantissa);
-    diff = (long)a->scale + (long)b->scale - (long)r->scale;
-    if (diff >= 0) {
-        if (!ct_u128_shl_checked(product, (unsigned)diff, &shifted)) {
-            return 0;
-        }
-        return ct_u128_equal_u64(shifted, r->mantissa);
-    }
-    if (!ct_u128_shl_checked(ct_u128_from_u64(r->mantissa),
-                             (unsigned)(-diff), &shifted)) {
-        return 0;
-    }
-    return ct_u128_equal(product, shifted);
-}
-
-/* Whether the subnormal result `r` of div(a,b) is the exact quotient. */
-static int ct_div_subnormal_exact(const CtFParts *a, const CtFParts *b,
-                                  const CtFParts *r) {
-    CtU128 product;
-    CtU128 shifted;
-    long diff;
-    if (ct_fp_special_pair(a, b, r)) {
-        return 0;
-    }
-    product = ct_u128_mul(r->mantissa, b->mantissa);
-    diff = (long)r->scale + (long)b->scale - (long)a->scale;
-    if (diff >= 0) {
-        if (!ct_u128_shl_checked(product, (unsigned)diff, &shifted)) {
-            return 0;
-        }
-        return ct_u128_equal_u64(shifted, a->mantissa);
-    }
-    if (!ct_u128_shl_checked(ct_u128_from_u64(a->mantissa),
-                             (unsigned)(-diff), &shifted)) {
-        return 0;
-    }
-    return ct_u128_equal(product, shifted);
-}
-
-/* Exactness of a subnormal mul/div result decides tininess-after-rounding:
- * an exact subnormal result is not an underflow (standard §6.3.2). */
-static int ct_float_op_exact(unsigned width, TcOpcode op, uint64_t a_bits,
-                             uint64_t b_bits, uint64_t r_bits) {
-    CtFParts a;
-    CtFParts b;
-    CtFParts r;
-    if (!ct_fp_parts(a_bits, width, &a) || !ct_fp_parts(b_bits, width, &b) ||
-        !ct_fp_parts(r_bits, width, &r)) {
-        return 0;
-    }
-    if (op == TC_MUL) {
-        return ct_mul_subnormal_exact(&a, &b, &r);
-    }
-    if (op == TC_DIV) {
-        return ct_div_subnormal_exact(&a, &b, &r);
-    }
-    return 0;
-}
-
-/* ------------------------------------------------------------------------- */
 /* Integer operations.                                                       */
 /* ------------------------------------------------------------------------- */
-
-static int ct_signed_fits(int64_t value, unsigned width) {
-    if (width >= 64u) {
-        return 1;
-    }
-    return value >= -(int64_t)(UINT64_C(1) << (width - 1u)) &&
-           value <= (int64_t)((UINT64_C(1) << (width - 1u)) - 1u);
-}
-
-static int64_t ct_signed_value(uint64_t bits, unsigned width) {
-    return (int64_t)ct_sign_extend(bits, width);
-}
 
 /* Returns 1 with *out, or 0 with *error set. */
 static int ct_int_binop(TcAnalysis *an, TcOpcode op, const TcType *type,
                         uint64_t a_bits, uint64_t b_bits, uint64_t *out,
                         TcDiagCode *error) {
-    unsigned width = ct_bits(an, type);
-    uint64_t mask = ct_mask(width);
-    uint64_t a = a_bits & mask;
-    uint64_t b = b_bits & mask;
-    int is_signed = tc_type_is_signed_integer(type);
-    switch (op) {
-    case TC_ADD:
-    case TC_SUB:
-    case TC_MUL:
-        if (is_signed) {
-            int64_t sa = ct_signed_value(a, width);
-            int64_t sb = ct_signed_value(b, width);
-            int64_t result = 0;
-            int overflow;
-            if (op == TC_ADD) {
-                overflow = __builtin_add_overflow(sa, sb, &result);
-            } else if (op == TC_SUB) {
-                overflow = __builtin_sub_overflow(sa, sb, &result);
-            } else {
-                overflow = __builtin_mul_overflow(sa, sb, &result);
-            }
-            if (overflow || !ct_signed_fits(result, width)) {
-                *error = TC_CE_CONST_OVERFLOW;
-                return 0;
-            }
-            *out = (uint64_t)result & mask;
-            return 1;
-        }
-        if (op == TC_ADD) {
-            *out = (a + b) & mask;
-        } else if (op == TC_SUB) {
-            *out = (a - b) & mask;
-        } else {
-            *out = (a * b) & mask;
-        }
-        return 1;
-    case TC_DIV:
-    case TC_MOD:
-        if (b == 0) {
-            *error = TC_CE_CONST_DIV_ZERO;
-            return 0;
-        }
-        if (is_signed) {
-            int64_t sa = ct_signed_value(a, width);
-            int64_t sb = ct_signed_value(b, width);
-            if (a == (UINT64_C(1) << (width - 1u)) && b == mask) {
-                if (op == TC_DIV) {
-                    *error = TC_CE_CONST_OVERFLOW;
-                    return 0;
-                }
-                *out = 0;
-                return 1;
-            }
-            *out = op == TC_DIV ? ((uint64_t)(sa / sb) & mask)
-                                : ((uint64_t)(sa % sb) & mask);
-        } else {
-            *out = op == TC_DIV ? a / b : a % b;
-        }
-        return 1;
-    case TC_SHL:
-    case TC_SHR: {
-        uint64_t count;
-        if (is_signed) {
-            int64_t sk = ct_signed_value(b, width);
-            if (sk < 0) {
-                *error = TC_CE_CONST_SHIFT;
-                return 0;
-            }
-            count = (uint64_t)sk;
-        } else {
-            count = b;
-        }
-        if (op == TC_SHL) {
-            if (count >= width) {
-                if (a != 0) {
-                    *error = TC_CE_CONST_OVERFLOW;
-                    return 0;
-                }
-                *out = 0;
-                return 1;
-            }
-            if (is_signed) {
-                int64_t sa = ct_signed_value(a, width);
-                int64_t smax;
-                int64_t smin;
-                if (width >= 64u) {
-                    smax = INT64_MAX;
-                    smin = INT64_MIN;
-                } else {
-                    smax = (int64_t)((UINT64_C(1) << (width - 1u)) - 1u);
-                    smin = -(int64_t)(UINT64_C(1) << (width - 1u));
-                }
-                if (count != 0 &&
-                    (sa > (smax >> count) || sa < (smin >> count))) {
-                    *error = TC_CE_CONST_OVERFLOW;
-                    return 0;
-                }
-                *out = (a << count) & mask;
-            } else {
-                if (count != 0 && (a >> (width - count)) != 0) {
-                    *error = TC_CE_CONST_OVERFLOW;
-                    return 0;
-                }
-                *out = (a << count) & mask;
-            }
-            return 1;
-        }
-        if (count >= width) {
-            *out = 0;
-        } else if (is_signed) {
-            int64_t sa = ct_signed_value(a, width);
-            *out = (uint64_t)(sa >> count) & mask;
-        } else {
-            *out = a >> count;
-        }
-        return 1;
-    }
-    case TC_AND:
-        *out = a & b;
-        return 1;
-    case TC_OR:
-        *out = a | b;
-        return 1;
-    case TC_XOR:
-        *out = a ^ b;
-        return 1;
-    default:
-        *error = CT_NO_ERROR;
-        return 0;
-    }
-}
-
-/* ------------------------------------------------------------------------- */
-/* IEEE arithmetic (strict; standard §6.3/§6.3.1-§6.3.3).                     */
-/* ------------------------------------------------------------------------- */
-/* Returns 1 with *out, or 0 with *error set. */
-static int ct_float_binop(TcAnalysis *an, TcOpcode op, const TcType *type,
-                          uint64_t a_bits, uint64_t b_bits, uint64_t *out,
-                          TcDiagCode *error) {
-    unsigned width = ct_bits(an, type);
-    CtFParts a;
-    CtFParts b;
-    CtFParts r;
+    TcErrorKind trap = (TcErrorKind)0;
     uint64_t result = 0;
-    if (!ct_fp_parts(a_bits, width, &a) || !ct_fp_parts(b_bits, width, &b)) {
-        *error = TC_CE_CONST_FLOAT_INVALID;
-        return 0;
-    }
-    if (a.is_nan || b.is_nan) {
-        *error = TC_CE_CONST_FLOAT_INVALID;
-        return 0;
-    }
-    switch (op) {
-    case TC_ADD:
-        if (a.is_inf && b.is_inf && a.sign != b.sign) {
-            *error = TC_CE_CONST_FLOAT_INVALID;
-            return 0;
-        }
-        if (width == 32) {
-            result = ct_f32_to_bits(ct_bits_to_f32(a_bits) +
-                                    ct_bits_to_f32(b_bits));
-        } else {
-            result = ct_f64_to_bits(ct_bits_to_f64(a_bits) +
-                                    ct_bits_to_f64(b_bits));
-        }
-        break;
-    case TC_SUB:
-        if (a.is_inf && b.is_inf && a.sign == b.sign) {
-            *error = TC_CE_CONST_FLOAT_INVALID;
-            return 0;
-        }
-        if (width == 32) {
-            result = ct_f32_to_bits(ct_bits_to_f32(a_bits) -
-                                    ct_bits_to_f32(b_bits));
-        } else {
-            result = ct_f64_to_bits(ct_bits_to_f64(a_bits) -
-                                    ct_bits_to_f64(b_bits));
-        }
-        break;
-    case TC_MUL:
-        if ((a.is_inf && b.is_zero) || (b.is_inf && a.is_zero)) {
-            *error = TC_CE_CONST_FLOAT_INVALID;
-            return 0;
-        }
-        if (width == 32) {
-            result = ct_f32_to_bits(ct_bits_to_f32(a_bits) *
-                                    ct_bits_to_f32(b_bits));
-        } else {
-            result = ct_f64_to_bits(ct_bits_to_f64(a_bits) *
-                                    ct_bits_to_f64(b_bits));
-        }
-        break;
-    case TC_DIV:
-        if ((a.is_inf && b.is_inf) || (a.is_zero && b.is_zero)) {
-            *error = TC_CE_CONST_FLOAT_INVALID;
-            return 0;
-        }
-        if (b.is_zero && !a.is_inf) {
+    if (!tc_sem_int_binop(an->W, type, op, TC_STRICT, a_bits, b_bits, &result,
+                          &trap)) {
+        switch (trap) {
+        case TC_EK_INTEGER_OVERFLOW:
+            *error = TC_CE_CONST_OVERFLOW;
+            break;
+        case TC_EK_DIV_ZERO:
             *error = TC_CE_CONST_DIV_ZERO;
-            return 0;
+            break;
+        case TC_EK_NEGATIVE_SHIFT:
+            *error = TC_CE_CONST_SHIFT;
+            break;
+        default:
+            *error = CT_NO_ERROR;
+            break;
         }
-        if (width == 32) {
-            result = ct_f32_to_bits(ct_bits_to_f32(a_bits) /
-                                    ct_bits_to_f32(b_bits));
-        } else {
-            result = ct_f64_to_bits(ct_bits_to_f64(a_bits) /
-                                    ct_bits_to_f64(b_bits));
-        }
-        break;
-    case TC_MOD:
-        if (a.is_inf) {
-            *error = TC_CE_CONST_FLOAT_INVALID;
-            return 0;
-        }
-        if (b.is_zero) {
-            if (a.is_zero) {
-                *error = TC_CE_CONST_FLOAT_INVALID;
-                return 0;
-            }
-            *error = TC_CE_CONST_DIV_ZERO;
-            return 0;
-        }
-        if (b.is_inf) {
-            *out = a_bits;
-            return 1;
-        }
-        if (width == 32) {
-            result = ct_f32_to_bits(fmodf(ct_bits_to_f32(a_bits),
-                                          ct_bits_to_f32(b_bits)));
-        } else {
-            result = ct_f64_to_bits(fmod(ct_bits_to_f64(a_bits),
-                                         ct_bits_to_f64(b_bits)));
-        }
-        break;
-    default:
-        *error = CT_NO_ERROR;
-        return 0;
-    }
-    if (!ct_fp_parts(result, width, &r)) {
-        *error = CT_NO_ERROR;
-        return 0;
-    }
-    if (r.is_nan) {
-        *error = TC_CE_CONST_FLOAT_INVALID;
-        return 0;
-    }
-    if (r.is_inf && !a.is_inf && !b.is_inf) {
-        *error = TC_CE_CONST_OVERFLOW;
-        return 0;
-    }
-    if ((op == TC_MUL || op == TC_DIV) && r.is_subnormal) {
-        if (!ct_float_op_exact(width, op, a_bits, b_bits, result)) {
-            *error = TC_CE_CONST_FLOAT_UNDERFLOW;
-            return 0;
-        }
-    } else if ((op == TC_MUL || op == TC_DIV) && r.is_zero && !a.is_zero &&
-               !b.is_zero && !a.is_inf && !b.is_inf) {
-        *error = TC_CE_CONST_FLOAT_UNDERFLOW;
         return 0;
     }
     *out = result;
     return 1;
 }
 
-static int ct_float_to_int(uint64_t bits, unsigned source_width,
-                           const TcType *target, TcAnalysis *an,
-                           uint64_t *out) {
-    CtFParts parts;
-    unsigned width = ct_bits(an, target);
-    uint64_t magnitude;
-    if (!ct_fp_parts(bits, source_width, &parts) || parts.is_nan ||
-        parts.is_inf || width == 0 || width > 64u) {
+/* ------------------------------------------------------------------------- */
+/* IEEE arithmetic (strict; standard §6.3/§6.3.1-§6.3.3).                     */
+/* ------------------------------------------------------------------------- */
+static int ct_float_binop(TcAnalysis *an, TcOpcode op, const TcType *type,
+                          uint64_t a_bits, uint64_t b_bits, uint64_t *out,
+                          TcDiagCode *error) {
+    TcErrorKind trap = (TcErrorKind)0;
+    uint64_t result = 0;
+    if (!tc_sem_float_binop(an->W, type, op, TC_STRICT, a_bits, b_bits,
+                            &result, &trap)) {
+        switch (trap) {
+        case TC_EK_FLOAT_INVALID:
+            *error = TC_CE_CONST_FLOAT_INVALID;
+            break;
+        case TC_EK_DIV_ZERO:
+            *error = TC_CE_CONST_DIV_ZERO;
+            break;
+        case TC_EK_FLOAT_OVERFLOW:
+            *error = TC_CE_CONST_OVERFLOW;
+            break;
+        case TC_EK_FLOAT_UNDERFLOW:
+            *error = TC_CE_CONST_FLOAT_UNDERFLOW;
+            break;
+        default:
+            *error = CT_NO_ERROR;
+            break;
+        }
         return 0;
     }
-    if (parts.is_zero) {
-        *out = 0;
-        return 1;
-    }
-    if (parts.scale >= 0) {
-        unsigned shift = (unsigned)parts.scale;
-        if (shift >= 64u || parts.mantissa > (UINT64_MAX >> shift)) {
-            return 0;
-        }
-        magnitude = parts.mantissa << shift;
-    } else {
-        unsigned shift = (unsigned)(-parts.scale);
-        magnitude = shift >= 64u ? 0 : parts.mantissa >> shift;
-    }
-    if (tc_type_is_signed_integer(target)) {
-        uint64_t limit = width >= 64u ? (UINT64_C(1) << 63)
-                                      : (UINT64_C(1) << (width - 1u));
-        if (parts.sign != 0) {
-            if (magnitude > limit) {
-                return 0;
-            }
-        } else if (magnitude >= limit) {
-            return 0;
-        }
-        *out = parts.sign != 0 ? (UINT64_C(0) - magnitude) : magnitude;
-    } else {
-        if (parts.sign != 0 && magnitude != 0) {
-            return 0;
-        }
-        if (width < 64u && magnitude > ct_mask(width)) {
-            return 0;
-        }
-        *out = magnitude;
-    }
-    *out &= ct_mask(width);
+    *out = result;
     return 1;
-}
-
-static int ct_int_to_float(uint64_t bits, const TcType *source,
-                           const TcType *target, TcAnalysis *an,
-                           uint64_t *out) {
-    unsigned width = ct_bits(an, target);
-    if (width != 32u && width != 64u) {
-        return 0;
-    }
-    if (ct_type_is_bool(source) || tc_type_is_integer(source)) {
-        unsigned sw = ct_bits(an, source);
-        if (sw == 0 || sw > 64u) {
-            return 0;
-        }
-        if (tc_type_is_signed_integer(source)) {
-            int64_t value = ct_signed_value(bits, sw);
-            *out = width == 32 ? ct_f32_to_bits((float)value)
-                               : ct_f64_to_bits((double)value);
-        } else {
-            uint64_t value = bits & ct_mask(sw);
-            *out = width == 32 ? ct_f32_to_bits((float)value)
-                               : ct_f64_to_bits((double)value);
-        }
-        return 1;
-    }
-    return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -917,7 +378,7 @@ static int ct_eval_value(CtScope *sc, const TcParseValue *v,
             return ct_internal(sc);
         }
         *out = ct_scalar(sc->ct, expected,
-                         ct_inf_bits(ct_bits(sc->an, expected),
+                         tc_sem_inf_bits(ct_bits(sc->an, expected),
                                      v->inf_negative));
         return 1;
     case TC_PVAL_NAN:
@@ -925,7 +386,7 @@ static int ct_eval_value(CtScope *sc, const TcParseValue *v,
             return ct_internal(sc);
         }
         *out = ct_scalar(sc->ct, expected,
-                         ct_nan_bits(ct_bits(sc->an, expected)));
+                         tc_sem_nan_bits(ct_bits(sc->an, expected)));
         return 1;
     case TC_PVAL_NULLPTR:
         if (expected == NULL ||
@@ -1011,134 +472,43 @@ static int ct_eval_source(CtScope *sc, const TcParseInstr *instr,
 
 static int ct_cast_value(CtScope *sc, const TcType *target,
                          const TcCtValue *source, const TcCtValue **out) {
+    TcErrorKind trap = (TcErrorKind)0;
     uint64_t bits = 0;
-    unsigned tw = ct_bits(sc->an, target);
     if (source == NULL || ct_type_is_void(source->type)) {
         return ct_internal(sc);
     }
-    if (ct_type_is_bool(target)) {
-        if (tc_type_is_float(source->type)) {
-            unsigned sw = ct_bits(sc->an, source->type);
-            bits = (sw == 32 ? (ct_bits_to_f32(source->bits) != 0.0f)
-                             : (ct_bits_to_f64(source->bits) != 0.0))
-                       ? 1u
-                       : 0u;
-        } else {
-            bits = source->bits != 0 ? 1u : 0u;
+    if (!tc_sem_cast(sc->an->W, source->type, target, source->bits, &bits,
+                     &trap)) {
+        if (trap == TC_EK_CAST_OVERFLOW) {
+            return ct_fail(sc, TC_CE_CONST_CAST);
         }
-    } else if (tc_type_is_integer(target)) {
-        if (tc_type_is_float(source->type)) {
-            if (!ct_float_to_int(source->bits,
-                                 ct_bits(sc->an, source->type), target,
-                                 sc->an, &bits)) {
-                return ct_fail(sc, TC_CE_CONST_CAST);
-            }
-        } else if (ct_type_is_bool(source->type)) {
-            bits = source->bits != 0 ? 1u : 0u;
-        } else if (tc_type_is_integer(source->type)) {
-            unsigned sw = ct_bits(sc->an, source->type);
-            if (sw == 0 || sw > 64u || tw == 0 || tw > 64u) {
-                return ct_internal(sc);
-            }
-            if (tc_type_is_signed_integer(source->type)) {
-                int64_t value = ct_signed_value(source->bits, sw);
-                if (tc_type_is_signed_integer(target)) {
-                    if (!ct_signed_fits(value, tw)) {
-                        return ct_fail(sc, TC_CE_CONST_CAST);
-                    }
-                } else if (value < 0 ||
-                           (uint64_t)value > ct_mask(tw)) {
-                    return ct_fail(sc, TC_CE_CONST_CAST);
-                }
-                bits = (uint64_t)value;
-            } else {
-                uint64_t value = source->bits & ct_mask(sw);
-                if (tc_type_is_signed_integer(target)) {
-                    uint64_t max = tw >= 64u ? (uint64_t)INT64_MAX
-                                             : (ct_mask(tw) >> 1u);
-                    if (value > max) {
-                        return ct_fail(sc, TC_CE_CONST_CAST);
-                    }
-                } else if (tw < 64u && value > ct_mask(tw)) {
-                    return ct_fail(sc, TC_CE_CONST_CAST);
-                }
-                bits = value;
-            }
-        } else {
-            return ct_internal(sc);
-        }
-    } else if (tc_type_is_float(target)) {
-        if (tc_type_is_float(source->type)) {
-            unsigned sw = ct_bits(sc->an, source->type);
-            CtFParts parts;
-            if (sw == tw) {
-                bits = source->bits;
-            } else if (sw == 32 && tw == 64) {
-                ct_fp_parts(source->bits, 32, &parts);
-                if (parts.is_nan) {
-                    bits = ct_nan_bits(64);
-                } else if (parts.is_inf) {
-                    bits = ct_inf_bits(64, parts.sign);
-                } else {
-                    bits = ct_f64_to_bits((double)ct_bits_to_f32(
-                        source->bits));
-                }
-            } else if (sw == 64 && tw == 32) {
-                ct_fp_parts(source->bits, 64, &parts);
-                if (parts.is_nan) {
-                    bits = ct_nan_bits(32);
-                } else if (parts.is_inf) {
-                    bits = ct_inf_bits(32, parts.sign);
-                } else {
-                    double original = ct_bits_to_f64(source->bits);
-                    float narrowed = (float)original;
-                    if (isinf(narrowed) && !isinf(original)) {
-                        return ct_fail(sc, TC_CE_CONST_CAST);
-                    }
-                    bits = ct_f32_to_bits(narrowed);
-                }
-            } else {
-                return ct_internal(sc);
-            }
-        } else if (ct_type_is_bool(source->type) ||
-                   tc_type_is_integer(source->type)) {
-            if (!ct_int_to_float(source->bits, source->type, target, sc->an,
-                                 &bits)) {
-                return ct_internal(sc);
-            }
-        } else {
-            return ct_internal(sc);
-        }
-    } else {
+        return ct_internal(sc);
+    }
+    *out = ct_scalar(sc->ct, target,
+                     bits & ct_mask(ct_bits(sc->an, target)));
+    return 1;
+}
+
+static int ct_trunc_value(CtScope *sc, const TcType *target,
+                          const TcCtValue *source, const TcCtValue **out) {
+    uint64_t bits = 0;
+    if (!tc_type_is_integer(target) || source == NULL ||
+        !tc_type_is_integer(source->type) ||
+        !tc_sem_trunc(sc->an->W, source->type, target, source->bits, &bits)) {
         return ct_internal(sc);
     }
     *out = ct_scalar(sc->ct, target, bits);
     return 1;
 }
 
-static int ct_trunc_value(CtScope *sc, const TcType *target,
-                          const TcCtValue *source, const TcCtValue **out) {
-    unsigned tw = ct_bits(sc->an, target);
-    if (!tc_type_is_integer(target) || source == NULL ||
-        !tc_type_is_integer(source->type)) {
-        return ct_internal(sc);
-    }
-    *out = ct_scalar(sc->ct, target, source->bits & ct_mask(tw));
-    return 1;
-}
-
 static int ct_bitcast_value(CtScope *sc, const TcType *target,
                             const TcCtValue *source, const TcCtValue **out) {
-    unsigned tw = ct_bits(sc->an, target);
-    unsigned sw;
-    if (source == NULL) {
+    uint64_t bits = 0;
+    if (source == NULL ||
+        !tc_sem_bitcast(sc->an->W, target, source->bits, &bits)) {
         return ct_internal(sc);
     }
-    sw = ct_bits(sc->an, source->type);
-    if (tw == 0 || tw != sw) {
-        return ct_internal(sc);
-    }
-    *out = ct_scalar(sc->ct, target, source->bits);
+    *out = ct_scalar(sc->ct, target, bits);
     return 1;
 }
 
@@ -1287,34 +657,24 @@ static int ct_eval_op(CtScope *sc, const TcParseInstr *instr,
             return 0;
         }
         if (tc_type_is_float(type)) {
-            unsigned width = ct_bits(sc->an, type);
-            uint64_t sign = UINT64_C(1) << (width - 1u);
-            if (instr->op == TC_NOT) {
+            if (instr->op == TC_NOT ||
+                !tc_sem_float_unop(sc->an->W, type, instr->op, a->bits,
+                                   &bits)) {
                 return ct_internal(sc);
             }
-            bits = instr->op == TC_NEG ? (a->bits ^ sign) : (a->bits & ~sign);
         } else if (ct_type_is_bool(type)) {
             if (instr->op != TC_NOT) {
                 return ct_internal(sc);
             }
             bits = a->bits != 0 ? 0u : 1u;
         } else if (tc_type_is_integer(type)) {
-            unsigned width = ct_bits(sc->an, type);
-            uint64_t mask = ct_mask(width);
-            if (instr->op == TC_NOT) {
-                bits = (~a->bits) & mask;
-            } else if (!tc_type_is_signed_integer(type)) {
-                bits = instr->op == TC_NEG ? ((UINT64_C(0) - a->bits) & mask)
-                                           : (a->bits & mask);
-            } else {
-                int64_t sv = ct_signed_value(a->bits, width);
-                uint64_t min_bits = UINT64_C(1) << (width - 1u);
-                if ((a->bits & mask) == min_bits) {
+            TcErrorKind trap = (TcErrorKind)0;
+            if (!tc_sem_int_unop(sc->an->W, type, instr->op, TC_STRICT,
+                                 a->bits, &bits, &trap)) {
+                if (trap == TC_EK_INTEGER_OVERFLOW) {
                     return ct_fail(sc, TC_CE_CONST_OVERFLOW);
                 }
-                bits = instr->op == TC_NEG
-                           ? ((UINT64_C(0) - a->bits) & mask)
-                           : ((uint64_t)(sv < 0 ? -sv : sv) & mask);
+                return ct_internal(sc);
             }
         } else {
             return ct_internal(sc);
@@ -1338,65 +698,11 @@ static int ct_eval_op(CtScope *sc, const TcParseInstr *instr,
         if (!ct_eval_operand(sc, instr, 2, type, &b)) {
             return 0;
         }
-        if (tc_type_is_float(type)) {
-            unsigned width = ct_bits(sc->an, type);
-            if (width == 32) {
-                float fa = ct_bits_to_f32(a->bits);
-                float fb = ct_bits_to_f32(b->bits);
-                switch (instr->op) {
-                case TC_EQ: result = fa == fb; break;
-                case TC_NE: result = fa != fb; break;
-                case TC_LT: result = fa < fb; break;
-                case TC_LE: result = fa <= fb; break;
-                case TC_GT: result = fa > fb; break;
-                default: result = fa >= fb; break;
-                }
-            } else {
-                double da = ct_bits_to_f64(a->bits);
-                double db = ct_bits_to_f64(b->bits);
-                switch (instr->op) {
-                case TC_EQ: result = da == db; break;
-                case TC_NE: result = da != db; break;
-                case TC_LT: result = da < db; break;
-                case TC_LE: result = da <= db; break;
-                case TC_GT: result = da > db; break;
-                default: result = da >= db; break;
-                }
-            }
-        } else if (ct_type_is_bool(type)) {
-            if (instr->op != TC_EQ && instr->op != TC_NE) {
-                return ct_internal(sc);
-            }
-            result = instr->op == TC_EQ ? (a->bits == b->bits)
-                                        : (a->bits != b->bits);
-        } else if (tc_type_is_integer(type)) {
-            unsigned width = ct_bits(sc->an, type);
-            if (tc_type_is_signed_integer(type)) {
-                int64_t sa = ct_signed_value(a->bits, width);
-                int64_t sb = ct_signed_value(b->bits, width);
-                switch (instr->op) {
-                case TC_EQ: result = sa == sb; break;
-                case TC_NE: result = sa != sb; break;
-                case TC_LT: result = sa < sb; break;
-                case TC_LE: result = sa <= sb; break;
-                case TC_GT: result = sa > sb; break;
-                default: result = sa >= sb; break;
-                }
-            } else {
-                uint64_t ua = a->bits & ct_mask(width);
-                uint64_t ub = b->bits & ct_mask(width);
-                switch (instr->op) {
-                case TC_EQ: result = ua == ub; break;
-                case TC_NE: result = ua != ub; break;
-                case TC_LT: result = ua < ub; break;
-                case TC_LE: result = ua <= ub; break;
-                case TC_GT: result = ua > ub; break;
-                default: result = ua >= ub; break;
-                }
-            }
-        } else {
+        if (!tc_sem_compare(sc->an->W, type, instr->op, a->bits, b->bits,
+                            &bits)) {
             return ct_internal(sc);
         }
+        result = bits != 0;
         *out = ct_scalar(sc->ct, scalar_type(sc->an, TC_TY_BOOL),
                          result != 0 ? 1u : 0u);
         return 1;

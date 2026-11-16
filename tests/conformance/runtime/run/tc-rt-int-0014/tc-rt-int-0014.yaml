@@ -1,0 +1,10 @@
+id: TC-RT-INT-0014
+profile: w64
+source: root.tc
+spec: "§6.3 shr with a negative count -> TC_RE_NEGATIVE_SHIFT"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_NEGATIVE_SHIFT
+  exit: 1
+  termination: trap

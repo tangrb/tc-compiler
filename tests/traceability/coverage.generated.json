@@ -458,6 +458,258 @@
       "design12:13:gate_case",
       "design12:13:suite_mapping"
     ],
+    "s6_covered_rows": [
+      "chapter:§11:negative",
+      "chapter:§11:positive",
+      "chapter:§12:positive",
+      "chapter:§1:negative",
+      "chapter:§1:positive",
+      "code:TC_RE_ADDR_UNAVAILABLE:no_false_positive",
+      "code:TC_RE_ADDR_UNAVAILABLE:position",
+      "code:TC_RE_ADDR_UNAVAILABLE:stage",
+      "code:TC_RE_ADDR_UNAVAILABLE:trigger",
+      "code:TC_RE_ADDR_UNAVAILABLE:w32",
+      "code:TC_RE_ADDR_UNAVAILABLE:w64",
+      "code:TC_RE_CAST_OVERFLOW:no_false_positive",
+      "code:TC_RE_CAST_OVERFLOW:position",
+      "code:TC_RE_CAST_OVERFLOW:stage",
+      "code:TC_RE_CAST_OVERFLOW:trigger",
+      "code:TC_RE_CAST_OVERFLOW:w32",
+      "code:TC_RE_CAST_OVERFLOW:w64",
+      "code:TC_RE_DIV_ZERO:no_false_positive",
+      "code:TC_RE_DIV_ZERO:position",
+      "code:TC_RE_DIV_ZERO:stage",
+      "code:TC_RE_DIV_ZERO:trigger",
+      "code:TC_RE_FLOAT_INVALID:no_false_positive",
+      "code:TC_RE_FLOAT_INVALID:position",
+      "code:TC_RE_FLOAT_INVALID:stage",
+      "code:TC_RE_FLOAT_INVALID:trigger",
+      "code:TC_RE_FLOAT_OVERFLOW:no_false_positive",
+      "code:TC_RE_FLOAT_OVERFLOW:position",
+      "code:TC_RE_FLOAT_OVERFLOW:stage",
+      "code:TC_RE_FLOAT_OVERFLOW:trigger",
+      "code:TC_RE_FLOAT_UNDERFLOW:no_false_positive",
+      "code:TC_RE_FLOAT_UNDERFLOW:position",
+      "code:TC_RE_FLOAT_UNDERFLOW:stage",
+      "code:TC_RE_FLOAT_UNDERFLOW:trigger",
+      "code:TC_RE_INTEGER_OVERFLOW:no_false_positive",
+      "code:TC_RE_INTEGER_OVERFLOW:position",
+      "code:TC_RE_INTEGER_OVERFLOW:stage",
+      "code:TC_RE_INTEGER_OVERFLOW:trigger",
+      "code:TC_RE_INTEGER_OVERFLOW:w32",
+      "code:TC_RE_INTEGER_OVERFLOW:w64",
+      "code:TC_RE_IO:no_false_positive",
+      "code:TC_RE_IO:position",
+      "code:TC_RE_IO:stage",
+      "code:TC_RE_IO:trigger",
+      "code:TC_RE_IO:w32",
+      "code:TC_RE_IO:w64",
+      "code:TC_RE_NEGATIVE_SHIFT:no_false_positive",
+      "code:TC_RE_NEGATIVE_SHIFT:position",
+      "code:TC_RE_NEGATIVE_SHIFT:stage",
+      "code:TC_RE_NEGATIVE_SHIFT:trigger",
+      "code:TC_RE_NULL_FUNCTION_POINTER:no_false_positive",
+      "code:TC_RE_NULL_FUNCTION_POINTER:position",
+      "code:TC_RE_NULL_FUNCTION_POINTER:stage",
+      "code:TC_RE_NULL_FUNCTION_POINTER:trigger",
+      "code:TC_RE_NULL_POINTER:no_false_positive",
+      "code:TC_RE_NULL_POINTER:position",
+      "code:TC_RE_NULL_POINTER:stage",
+      "code:TC_RE_NULL_POINTER:trigger",
+      "code:TC_RE_PTRDIFF_OVERFLOW:no_false_positive",
+      "code:TC_RE_PTRDIFF_OVERFLOW:position",
+      "code:TC_RE_PTRDIFF_OVERFLOW:stage",
+      "code:TC_RE_PTRDIFF_OVERFLOW:trigger",
+      "code:TC_RE_PTRDIFF_OVERFLOW:w32",
+      "code:TC_RE_PTRDIFF_OVERFLOW:w64",
+      "code:TC_RE_STACK_OVERFLOW:no_false_positive",
+      "code:TC_RE_STACK_OVERFLOW:position",
+      "code:TC_RE_STACK_OVERFLOW:stage",
+      "code:TC_RE_STACK_OVERFLOW:trigger",
+      "code:TC_RE_TRAP:no_false_positive",
+      "code:TC_RE_TRAP:position",
+      "code:TC_RE_TRAP:stage",
+      "code:TC_RE_TRAP:trigger",
+      "code:TC_RE_WRITE_PROTECTED:no_false_positive",
+      "code:TC_RE_WRITE_PROTECTED:position",
+      "code:TC_RE_WRITE_PROTECTED:stage",
+      "code:TC_RE_WRITE_PROTECTED:trigger",
+      "design12:03:gate_case",
+      "design12:03:suite_mapping",
+      "design12:05:gate_case",
+      "design12:05:suite_mapping",
+      "design12:08:gate_case",
+      "design12:08:suite_mapping",
+      "design12:14:gate_case",
+      "design12:14:suite_mapping",
+      "design12:15:gate_case",
+      "design12:15:suite_mapping",
+      "device_policy:TC_DEV_READ:trap_mapping",
+      "device_policy:TC_DEV_READWRITE:trap_mapping",
+      "device_policy:TC_DEV_REJECT:trap_mapping",
+      "device_policy:TC_DEV_VOLATILE:trap_mapping",
+      "exit_strategy:normal_exit:branch",
+      "exit_strategy:trap_exit:branch",
+      "io_source_state:SHORT_READ:path",
+      "io_source_state:TC_IO_EOF:path",
+      "io_source_state:TC_IO_ERROR:path",
+      "io_source_state:TC_IO_OK:path",
+      "opcode:abs:normal",
+      "opcode:abs:static_error",
+      "opcode:abs:trap",
+      "opcode:add.ieee:normal",
+      "opcode:add.ieee:static_error",
+      "opcode:add.wrap:normal",
+      "opcode:add.wrap:static_error",
+      "opcode:add:normal",
+      "opcode:add:static_error",
+      "opcode:add:trap",
+      "opcode:addr:normal",
+      "opcode:addr:static_error",
+      "opcode:and:normal",
+      "opcode:and:static_error",
+      "opcode:bitcast:normal",
+      "opcode:bitcast:static_error",
+      "opcode:br:normal",
+      "opcode:br:static_error",
+      "opcode:br_if:normal",
+      "opcode:br_if:static_error",
+      "opcode:call:normal",
+      "opcode:call:static_error",
+      "opcode:call:trap",
+      "opcode:call_indirect:normal",
+      "opcode:call_indirect:static_error",
+      "opcode:call_indirect:trap",
+      "opcode:cast:normal",
+      "opcode:cast:static_error",
+      "opcode:cast:trap",
+      "opcode:copy:normal",
+      "opcode:copy:static_error",
+      "opcode:div.ieee:normal",
+      "opcode:div.ieee:static_error",
+      "opcode:div:normal",
+      "opcode:div:static_error",
+      "opcode:div:trap",
+      "opcode:eq:normal",
+      "opcode:eq:static_error",
+      "opcode:funcaddr:normal",
+      "opcode:funcaddr:static_error",
+      "opcode:funceq:normal",
+      "opcode:funceq:static_error",
+      "opcode:funcne:normal",
+      "opcode:funcne:static_error",
+      "opcode:ge:normal",
+      "opcode:ge:static_error",
+      "opcode:gt:normal",
+      "opcode:gt:static_error",
+      "opcode:le:normal",
+      "opcode:le:static_error",
+      "opcode:load.volatile:normal",
+      "opcode:load.volatile:static_error",
+      "opcode:load.volatile:trap",
+      "opcode:load:normal",
+      "opcode:load:static_error",
+      "opcode:load:trap",
+      "opcode:lt:normal",
+      "opcode:lt:static_error",
+      "opcode:make:normal",
+      "opcode:make:static_error",
+      "opcode:memmove:normal",
+      "opcode:memmove:static_error",
+      "opcode:memmove:trap",
+      "opcode:mod.ieee:normal",
+      "opcode:mod.ieee:static_error",
+      "opcode:mod:normal",
+      "opcode:mod:static_error",
+      "opcode:mod:trap",
+      "opcode:mul.ieee:normal",
+      "opcode:mul.ieee:static_error",
+      "opcode:mul.ieee:trap",
+      "opcode:mul.wrap:normal",
+      "opcode:mul.wrap:static_error",
+      "opcode:mul.wrap:trap",
+      "opcode:mul:normal",
+      "opcode:mul:static_error",
+      "opcode:mul:trap",
+      "opcode:ne:normal",
+      "opcode:ne:static_error",
+      "opcode:neg.wrap:normal",
+      "opcode:neg.wrap:static_error",
+      "opcode:neg:normal",
+      "opcode:neg:static_error",
+      "opcode:neg:trap",
+      "opcode:not:normal",
+      "opcode:not:static_error",
+      "opcode:or:normal",
+      "opcode:or:static_error",
+      "opcode:ptradd:normal",
+      "opcode:ptradd:static_error",
+      "opcode:ptradd:trap",
+      "opcode:ptrdiff:normal",
+      "opcode:ptrdiff:static_error",
+      "opcode:ptrdiff:trap",
+      "opcode:ptreq:normal",
+      "opcode:ptreq:static_error",
+      "opcode:ptrge:normal",
+      "opcode:ptrge:static_error",
+      "opcode:ptrgt:normal",
+      "opcode:ptrgt:static_error",
+      "opcode:ptrle:normal",
+      "opcode:ptrle:static_error",
+      "opcode:ptrlt:normal",
+      "opcode:ptrlt:static_error",
+      "opcode:ptrne:normal",
+      "opcode:ptrne:static_error",
+      "opcode:ptrsub:normal",
+      "opcode:ptrsub:static_error",
+      "opcode:ptrsub:trap",
+      "opcode:read:normal",
+      "opcode:read:static_error",
+      "opcode:read:trap",
+      "opcode:return:normal",
+      "opcode:return:static_error",
+      "opcode:shl.wrap:normal",
+      "opcode:shl.wrap:static_error",
+      "opcode:shl.wrap:trap",
+      "opcode:shl:normal",
+      "opcode:shl:static_error",
+      "opcode:shl:trap",
+      "opcode:shr:normal",
+      "opcode:shr:static_error",
+      "opcode:shr:trap",
+      "opcode:sizeof:normal",
+      "opcode:sizeof:static_error",
+      "opcode:store.volatile:normal",
+      "opcode:store.volatile:static_error",
+      "opcode:store.volatile:trap",
+      "opcode:store:normal",
+      "opcode:store:static_error",
+      "opcode:store:trap",
+      "opcode:sub.ieee:normal",
+      "opcode:sub.ieee:static_error",
+      "opcode:sub.ieee:trap",
+      "opcode:sub.wrap:normal",
+      "opcode:sub.wrap:static_error",
+      "opcode:sub.wrap:trap",
+      "opcode:sub:normal",
+      "opcode:sub:static_error",
+      "opcode:sub:trap",
+      "opcode:switch:normal",
+      "opcode:switch:static_error",
+      "opcode:trap:normal",
+      "opcode:trap:static_error",
+      "opcode:trap:trap",
+      "opcode:trunc:normal",
+      "opcode:trunc:static_error",
+      "opcode:write:normal",
+      "opcode:write:static_error",
+      "opcode:write:trap",
+      "opcode:writeln:normal",
+      "opcode:writeln:static_error",
+      "opcode:writeln:trap",
+      "opcode:xor:normal",
+      "opcode:xor:static_error"
+    ],
     "scope_na_rows": []
   },
   "cross_checks": {
@@ -469,8 +721,8 @@
   "summary": {
     "items": 231,
     "slots": 636,
-    "covered": 376,
-    "uncovered": 260,
+    "covered": 626,
+    "uncovered": 10,
     "suspended": 0
   },
   "categories": {
@@ -478,32 +730,32 @@
       "label": "Standard chapter",
       "items": 15,
       "slots": 30,
-      "covered": 25,
-      "uncovered": 5,
+      "covered": 30,
+      "uncovered": 0,
       "suspended": 0
     },
     "code": {
       "label": "Diagnostic code",
       "items": 80,
       "slots": 344,
-      "covered": 274,
-      "uncovered": 70,
+      "covered": 344,
+      "uncovered": 0,
       "suspended": 0
     },
     "opcode": {
       "label": "Opcode",
       "items": 63,
       "slots": 155,
-      "covered": 0,
-      "uncovered": 155,
+      "covered": 155,
+      "uncovered": 0,
       "suspended": 0
     },
     "design12": {
       "label": "Design §12 item",
       "items": 15,
       "slots": 30,
-      "covered": 10,
-      "uncovered": 20,
+      "covered": 20,
+      "uncovered": 10,
       "suspended": 0
     },
     "first_diag_rule": {
@@ -542,24 +794,24 @@
       "label": "Device policy",
       "items": 4,
       "slots": 4,
-      "covered": 0,
-      "uncovered": 4,
+      "covered": 4,
+      "uncovered": 0,
       "suspended": 0
     },
     "io_source_state": {
       "label": "I/O source state",
       "items": 4,
       "slots": 4,
-      "covered": 0,
-      "uncovered": 4,
+      "covered": 4,
+      "uncovered": 0,
       "suspended": 0
     },
     "exit_strategy": {
       "label": "Exit strategy",
       "items": 2,
       "slots": 2,
-      "covered": 0,
-      "uncovered": 2,
+      "covered": 2,
+      "uncovered": 0,
       "suspended": 0
     }
   },
@@ -611,8 +863,12 @@
       "item": "§1 抽象机/可观察行为/阶段/顺序",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001",
+        "TC-RT-INT-0003",
+        "TC-RT-MEM-0001"
+      ],
       "chapter": "§1",
       "title": "抽象机/可观察行为/阶段/顺序",
       "primary_stage": "S0/S6/S8",
@@ -629,8 +885,11 @@
       "item": "§1 抽象机/可观察行为/阶段/顺序",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0004",
+        "TC-RT-CTRL-0002"
+      ],
       "chapter": "§1",
       "title": "抽象机/可观察行为/阶段/顺序",
       "primary_stage": "S0/S6/S8",
@@ -1070,8 +1329,12 @@
       "item": "§11 标准 I/O",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0001",
+        "TC-RT-IO-0002",
+        "TC-RT-IO-0006"
+      ],
       "chapter": "§11",
       "title": "标准 I/O",
       "primary_stage": "S6/S8/S9",
@@ -1087,8 +1350,12 @@
       "item": "§11 标准 I/O",
       "slot": "negative",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0003",
+        "TC-RT-IO-0004",
+        "TC-RT-IO-0005"
+      ],
       "chapter": "§11",
       "title": "标准 I/O",
       "primary_stage": "S6/S8/S9",
@@ -1104,8 +1371,12 @@
       "item": "§12 诊断/首诊/位置/80 码",
       "slot": "positive",
       "spec": "test plan §3.6/§8.1",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0002",
+        "TC-RT-MEM-0005",
+        "TC-RT-INT-0001"
+      ],
       "chapter": "§12",
       "title": "诊断/首诊/位置/80 码",
       "primary_stage": "S0/S1/S3/S4/S5",
@@ -6950,8 +7221,16 @@
       "item": "TC_RE_INTEGER_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0004",
+        "TC-RT-INT-0006",
+        "TC-RT-INT-0007",
+        "TC-RT-INT-0008",
+        "TC-RT-INT-0012",
+        "TC-RT-INT-0015",
+        "TC-RT-W-0001"
+      ],
       "code": "TC_RE_INTEGER_OVERFLOW",
       "print_name": "IntegerOverflow",
       "stage": "RT",
@@ -6968,8 +7247,12 @@
       "item": "TC_RE_INTEGER_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001",
+        "TC-RT-INT-0002",
+        "TC-RT-W-0002"
+      ],
       "code": "TC_RE_INTEGER_OVERFLOW",
       "print_name": "IntegerOverflow",
       "stage": "RT",
@@ -6986,8 +7269,10 @@
       "item": "TC_RE_INTEGER_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_INTEGER_OVERFLOW",
       "print_name": "IntegerOverflow",
       "stage": "RT",
@@ -7004,8 +7289,10 @@
       "item": "TC_RE_INTEGER_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0004"
+      ],
       "code": "TC_RE_INTEGER_OVERFLOW",
       "print_name": "IntegerOverflow",
       "stage": "RT",
@@ -7022,8 +7309,10 @@
       "item": "TC_RE_INTEGER_OVERFLOW",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-W-0001"
+      ],
       "code": "TC_RE_INTEGER_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S6（VM）/S8（AOT）"
@@ -7035,8 +7324,10 @@
       "item": "TC_RE_INTEGER_OVERFLOW",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0004"
+      ],
       "code": "TC_RE_INTEGER_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S6（VM）/S8（AOT）"
@@ -7048,8 +7339,12 @@
       "item": "TC_RE_DIV_ZERO",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0005",
+        "TC-RT-INT-0011",
+        "TC-RT-FP-0003"
+      ],
       "code": "TC_RE_DIV_ZERO",
       "print_name": "DivisionByZero",
       "stage": "RT",
@@ -7066,8 +7361,11 @@
       "item": "TC_RE_DIV_ZERO",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001",
+        "TC-RT-FP-0001"
+      ],
       "code": "TC_RE_DIV_ZERO",
       "print_name": "DivisionByZero",
       "stage": "RT",
@@ -7084,8 +7382,10 @@
       "item": "TC_RE_DIV_ZERO",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_DIV_ZERO",
       "print_name": "DivisionByZero",
       "stage": "RT",
@@ -7102,8 +7402,10 @@
       "item": "TC_RE_DIV_ZERO",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0005"
+      ],
       "code": "TC_RE_DIV_ZERO",
       "print_name": "DivisionByZero",
       "stage": "RT",
@@ -7120,8 +7422,12 @@
       "item": "TC_RE_NEGATIVE_SHIFT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0009",
+        "TC-RT-INT-0013",
+        "TC-RT-INT-0014"
+      ],
       "code": "TC_RE_NEGATIVE_SHIFT",
       "print_name": "NegativeShift",
       "stage": "RT",
@@ -7138,8 +7444,10 @@
       "item": "TC_RE_NEGATIVE_SHIFT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0010"
+      ],
       "code": "TC_RE_NEGATIVE_SHIFT",
       "print_name": "NegativeShift",
       "stage": "RT",
@@ -7156,8 +7464,10 @@
       "item": "TC_RE_NEGATIVE_SHIFT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_NEGATIVE_SHIFT",
       "print_name": "NegativeShift",
       "stage": "RT",
@@ -7174,8 +7484,10 @@
       "item": "TC_RE_NEGATIVE_SHIFT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0009"
+      ],
       "code": "TC_RE_NEGATIVE_SHIFT",
       "print_name": "NegativeShift",
       "stage": "RT",
@@ -7192,8 +7504,10 @@
       "item": "TC_RE_FLOAT_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0004"
+      ],
       "code": "TC_RE_FLOAT_OVERFLOW",
       "print_name": "FloatOverflow",
       "stage": "RT",
@@ -7210,8 +7524,11 @@
       "item": "TC_RE_FLOAT_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0001",
+        "TC-RT-FP-0006"
+      ],
       "code": "TC_RE_FLOAT_OVERFLOW",
       "print_name": "FloatOverflow",
       "stage": "RT",
@@ -7228,8 +7545,10 @@
       "item": "TC_RE_FLOAT_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_FLOAT_OVERFLOW",
       "print_name": "FloatOverflow",
       "stage": "RT",
@@ -7246,8 +7565,10 @@
       "item": "TC_RE_FLOAT_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0004"
+      ],
       "code": "TC_RE_FLOAT_OVERFLOW",
       "print_name": "FloatOverflow",
       "stage": "RT",
@@ -7264,8 +7585,10 @@
       "item": "TC_RE_FLOAT_UNDERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0005"
+      ],
       "code": "TC_RE_FLOAT_UNDERFLOW",
       "print_name": "FloatUnderflow",
       "stage": "RT",
@@ -7282,8 +7605,10 @@
       "item": "TC_RE_FLOAT_UNDERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0007"
+      ],
       "code": "TC_RE_FLOAT_UNDERFLOW",
       "print_name": "FloatUnderflow",
       "stage": "RT",
@@ -7300,8 +7625,10 @@
       "item": "TC_RE_FLOAT_UNDERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_FLOAT_UNDERFLOW",
       "print_name": "FloatUnderflow",
       "stage": "RT",
@@ -7318,8 +7645,10 @@
       "item": "TC_RE_FLOAT_UNDERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0005"
+      ],
       "code": "TC_RE_FLOAT_UNDERFLOW",
       "print_name": "FloatUnderflow",
       "stage": "RT",
@@ -7336,8 +7665,10 @@
       "item": "TC_RE_FLOAT_INVALID",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0002"
+      ],
       "code": "TC_RE_FLOAT_INVALID",
       "print_name": "FloatInvalidOperation",
       "stage": "RT",
@@ -7354,8 +7685,11 @@
       "item": "TC_RE_FLOAT_INVALID",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0001",
+        "TC-RT-FP-0006"
+      ],
       "code": "TC_RE_FLOAT_INVALID",
       "print_name": "FloatInvalidOperation",
       "stage": "RT",
@@ -7372,8 +7706,10 @@
       "item": "TC_RE_FLOAT_INVALID",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_FLOAT_INVALID",
       "print_name": "FloatInvalidOperation",
       "stage": "RT",
@@ -7390,8 +7726,10 @@
       "item": "TC_RE_FLOAT_INVALID",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0002"
+      ],
       "code": "TC_RE_FLOAT_INVALID",
       "print_name": "FloatInvalidOperation",
       "stage": "RT",
@@ -7408,8 +7746,11 @@
       "item": "TC_RE_CAST_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0002",
+        "TC-RT-CONV-0004"
+      ],
       "code": "TC_RE_CAST_OVERFLOW",
       "print_name": "CastOverflow",
       "stage": "RT",
@@ -7426,8 +7767,10 @@
       "item": "TC_RE_CAST_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0001"
+      ],
       "code": "TC_RE_CAST_OVERFLOW",
       "print_name": "CastOverflow",
       "stage": "RT",
@@ -7444,8 +7787,10 @@
       "item": "TC_RE_CAST_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_CAST_OVERFLOW",
       "print_name": "CastOverflow",
       "stage": "RT",
@@ -7462,8 +7807,10 @@
       "item": "TC_RE_CAST_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0002"
+      ],
       "code": "TC_RE_CAST_OVERFLOW",
       "print_name": "CastOverflow",
       "stage": "RT",
@@ -7480,8 +7827,10 @@
       "item": "TC_RE_CAST_OVERFLOW",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0004"
+      ],
       "code": "TC_RE_CAST_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -7493,8 +7842,10 @@
       "item": "TC_RE_CAST_OVERFLOW",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0002"
+      ],
       "code": "TC_RE_CAST_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -7506,8 +7857,16 @@
       "item": "TC_RE_NULL_POINTER",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0005",
+        "TC-RT-MEM-0006",
+        "TC-RT-MEM-0007",
+        "TC-RT-MEM-0012",
+        "TC-RT-MEM-0015",
+        "TC-RT-MEM-0016",
+        "TC-RT-MEM-0017"
+      ],
       "code": "TC_RE_NULL_POINTER",
       "print_name": "NullPointer",
       "stage": "RT",
@@ -7524,8 +7883,11 @@
       "item": "TC_RE_NULL_POINTER",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001",
+        "TC-RT-MEM-0010"
+      ],
       "code": "TC_RE_NULL_POINTER",
       "print_name": "NullPointer",
       "stage": "RT",
@@ -7542,8 +7904,10 @@
       "item": "TC_RE_NULL_POINTER",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_NULL_POINTER",
       "print_name": "NullPointer",
       "stage": "RT",
@@ -7560,8 +7924,10 @@
       "item": "TC_RE_NULL_POINTER",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0005"
+      ],
       "code": "TC_RE_NULL_POINTER",
       "print_name": "NullPointer",
       "stage": "RT",
@@ -7578,8 +7944,11 @@
       "item": "TC_RE_PTRDIFF_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0011",
+        "TC-RT-MEM-0013"
+      ],
       "code": "TC_RE_PTRDIFF_OVERFLOW",
       "print_name": "PtrdiffOverflow",
       "stage": "RT",
@@ -7596,8 +7965,10 @@
       "item": "TC_RE_PTRDIFF_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "code": "TC_RE_PTRDIFF_OVERFLOW",
       "print_name": "PtrdiffOverflow",
       "stage": "RT",
@@ -7614,8 +7985,10 @@
       "item": "TC_RE_PTRDIFF_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_PTRDIFF_OVERFLOW",
       "print_name": "PtrdiffOverflow",
       "stage": "RT",
@@ -7632,8 +8005,10 @@
       "item": "TC_RE_PTRDIFF_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0011"
+      ],
       "code": "TC_RE_PTRDIFF_OVERFLOW",
       "print_name": "PtrdiffOverflow",
       "stage": "RT",
@@ -7650,8 +8025,10 @@
       "item": "TC_RE_PTRDIFF_OVERFLOW",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0013"
+      ],
       "code": "TC_RE_PTRDIFF_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -7663,8 +8040,10 @@
       "item": "TC_RE_PTRDIFF_OVERFLOW",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0011"
+      ],
       "code": "TC_RE_PTRDIFF_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -7676,8 +8055,10 @@
       "item": "TC_RE_WRITE_PROTECTED",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0009"
+      ],
       "code": "TC_RE_WRITE_PROTECTED",
       "print_name": "WriteProtected",
       "stage": "RT",
@@ -7694,8 +8075,11 @@
       "item": "TC_RE_WRITE_PROTECTED",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001",
+        "TC-RT-MEM-0010"
+      ],
       "code": "TC_RE_WRITE_PROTECTED",
       "print_name": "WriteProtected",
       "stage": "RT",
@@ -7712,8 +8096,10 @@
       "item": "TC_RE_WRITE_PROTECTED",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_WRITE_PROTECTED",
       "print_name": "WriteProtected",
       "stage": "RT",
@@ -7730,8 +8116,10 @@
       "item": "TC_RE_WRITE_PROTECTED",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0009"
+      ],
       "code": "TC_RE_WRITE_PROTECTED",
       "print_name": "WriteProtected",
       "stage": "RT",
@@ -7748,8 +8136,12 @@
       "item": "TC_RE_ADDR_UNAVAILABLE",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0008",
+        "TC-RT-MEM-0014",
+        "TC-RT-DEV-0001"
+      ],
       "code": "TC_RE_ADDR_UNAVAILABLE",
       "print_name": "AddrUnavailable",
       "stage": "RT",
@@ -7766,8 +8158,11 @@
       "item": "TC_RE_ADDR_UNAVAILABLE",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001",
+        "TC-RT-MEM-0010"
+      ],
       "code": "TC_RE_ADDR_UNAVAILABLE",
       "print_name": "AddrUnavailable",
       "stage": "RT",
@@ -7784,8 +8179,10 @@
       "item": "TC_RE_ADDR_UNAVAILABLE",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_ADDR_UNAVAILABLE",
       "print_name": "AddrUnavailable",
       "stage": "RT",
@@ -7802,8 +8199,10 @@
       "item": "TC_RE_ADDR_UNAVAILABLE",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0008"
+      ],
       "code": "TC_RE_ADDR_UNAVAILABLE",
       "print_name": "AddrUnavailable",
       "stage": "RT",
@@ -7820,8 +8219,10 @@
       "item": "TC_RE_ADDR_UNAVAILABLE",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0014"
+      ],
       "code": "TC_RE_ADDR_UNAVAILABLE",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -7833,8 +8234,10 @@
       "item": "TC_RE_ADDR_UNAVAILABLE",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0008"
+      ],
       "code": "TC_RE_ADDR_UNAVAILABLE",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -7846,8 +8249,10 @@
       "item": "TC_RE_STACK_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0002"
+      ],
       "code": "TC_RE_STACK_OVERFLOW",
       "print_name": "StackOverflow",
       "stage": "RT",
@@ -7864,8 +8269,10 @@
       "item": "TC_RE_STACK_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0001"
+      ],
       "code": "TC_RE_STACK_OVERFLOW",
       "print_name": "StackOverflow",
       "stage": "RT",
@@ -7882,8 +8289,10 @@
       "item": "TC_RE_STACK_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_STACK_OVERFLOW",
       "print_name": "StackOverflow",
       "stage": "RT",
@@ -7900,8 +8309,10 @@
       "item": "TC_RE_STACK_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0002"
+      ],
       "code": "TC_RE_STACK_OVERFLOW",
       "print_name": "StackOverflow",
       "stage": "RT",
@@ -7918,8 +8329,10 @@
       "item": "TC_RE_NULL_FUNCTION_POINTER",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0004"
+      ],
       "code": "TC_RE_NULL_FUNCTION_POINTER",
       "print_name": "NullFunctionPointer",
       "stage": "RT",
@@ -7936,8 +8349,10 @@
       "item": "TC_RE_NULL_FUNCTION_POINTER",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0003"
+      ],
       "code": "TC_RE_NULL_FUNCTION_POINTER",
       "print_name": "NullFunctionPointer",
       "stage": "RT",
@@ -7954,8 +8369,10 @@
       "item": "TC_RE_NULL_FUNCTION_POINTER",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_NULL_FUNCTION_POINTER",
       "print_name": "NullFunctionPointer",
       "stage": "RT",
@@ -7972,8 +8389,10 @@
       "item": "TC_RE_NULL_FUNCTION_POINTER",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0004"
+      ],
       "code": "TC_RE_NULL_FUNCTION_POINTER",
       "print_name": "NullFunctionPointer",
       "stage": "RT",
@@ -7990,8 +8409,12 @@
       "item": "TC_RE_IO",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0003",
+        "TC-RT-IO-0004",
+        "TC-RT-IO-0005"
+      ],
       "code": "TC_RE_IO",
       "print_name": "IOError",
       "stage": "RT",
@@ -8008,8 +8431,12 @@
       "item": "TC_RE_IO",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0001",
+        "TC-RT-IO-0002",
+        "TC-RT-IO-0006"
+      ],
       "code": "TC_RE_IO",
       "print_name": "IOError",
       "stage": "RT",
@@ -8026,8 +8453,10 @@
       "item": "TC_RE_IO",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_IO",
       "print_name": "IOError",
       "stage": "RT",
@@ -8044,8 +8473,10 @@
       "item": "TC_RE_IO",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0003"
+      ],
       "code": "TC_RE_IO",
       "print_name": "IOError",
       "stage": "RT",
@@ -8062,8 +8493,10 @@
       "item": "TC_RE_IO",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0005"
+      ],
       "code": "TC_RE_IO",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -8075,8 +8508,10 @@
       "item": "TC_RE_IO",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0003"
+      ],
       "code": "TC_RE_IO",
       "w_sensitive": true,
       "first_test_stage": "S6/S8"
@@ -8088,8 +8523,10 @@
       "item": "TC_RE_TRAP",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0002"
+      ],
       "code": "TC_RE_TRAP",
       "print_name": "Trap",
       "stage": "RT",
@@ -8106,8 +8543,10 @@
       "item": "TC_RE_TRAP",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "code": "TC_RE_TRAP",
       "print_name": "Trap",
       "stage": "RT",
@@ -8124,8 +8563,10 @@
       "item": "TC_RE_TRAP",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "code": "TC_RE_TRAP",
       "print_name": "Trap",
       "stage": "RT",
@@ -8142,8 +8583,10 @@
       "item": "TC_RE_TRAP",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0002"
+      ],
       "code": "TC_RE_TRAP",
       "print_name": "Trap",
       "stage": "RT",
@@ -8160,8 +8603,10 @@
       "item": "add",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "add",
       "base_opcode": "add",
       "mode": "strict",
@@ -8178,8 +8623,10 @@
       "item": "add",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0001"
+      ],
       "opcode": "add",
       "base_opcode": "add",
       "mode": "strict",
@@ -8196,8 +8643,10 @@
       "item": "add",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0004"
+      ],
       "opcode": "add",
       "base_opcode": "add",
       "mode": "strict",
@@ -8212,8 +8661,10 @@
       "item": "add.wrap",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "add.wrap",
       "base_opcode": "add",
       "mode": "wrap",
@@ -8230,8 +8681,10 @@
       "item": "add.wrap",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0002"
+      ],
       "opcode": "add.wrap",
       "base_opcode": "add",
       "mode": "wrap",
@@ -8248,8 +8701,10 @@
       "item": "add.ieee",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "add.ieee",
       "base_opcode": "add",
       "mode": "ieee",
@@ -8266,8 +8721,10 @@
       "item": "add.ieee",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0003"
+      ],
       "opcode": "add.ieee",
       "base_opcode": "add",
       "mode": "ieee",
@@ -8284,8 +8741,10 @@
       "item": "sub",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "sub",
       "base_opcode": "sub",
       "mode": "strict",
@@ -8302,8 +8761,10 @@
       "item": "sub",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0004"
+      ],
       "opcode": "sub",
       "base_opcode": "sub",
       "mode": "strict",
@@ -8320,8 +8781,10 @@
       "item": "sub",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0015"
+      ],
       "opcode": "sub",
       "base_opcode": "sub",
       "mode": "strict",
@@ -8336,8 +8799,10 @@
       "item": "sub.wrap",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "sub.wrap",
       "base_opcode": "sub",
       "mode": "wrap",
@@ -8354,8 +8819,10 @@
       "item": "sub.wrap",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0005"
+      ],
       "opcode": "sub.wrap",
       "base_opcode": "sub",
       "mode": "wrap",
@@ -8372,8 +8839,10 @@
       "item": "sub.wrap",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "sub.wrap",
       "base_opcode": "sub",
       "mode": "wrap",
@@ -8388,8 +8857,10 @@
       "item": "sub.ieee",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "sub.ieee",
       "base_opcode": "sub",
       "mode": "ieee",
@@ -8406,8 +8877,10 @@
       "item": "sub.ieee",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0006"
+      ],
       "opcode": "sub.ieee",
       "base_opcode": "sub",
       "mode": "ieee",
@@ -8424,8 +8897,10 @@
       "item": "sub.ieee",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "sub.ieee",
       "base_opcode": "sub",
       "mode": "ieee",
@@ -8440,8 +8915,10 @@
       "item": "mul",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "mul",
       "base_opcode": "mul",
       "mode": "strict",
@@ -8458,8 +8935,10 @@
       "item": "mul",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0007"
+      ],
       "opcode": "mul",
       "base_opcode": "mul",
       "mode": "strict",
@@ -8476,8 +8955,10 @@
       "item": "mul",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0012"
+      ],
       "opcode": "mul",
       "base_opcode": "mul",
       "mode": "strict",
@@ -8492,8 +8973,10 @@
       "item": "mul.wrap",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "mul.wrap",
       "base_opcode": "mul",
       "mode": "wrap",
@@ -8510,8 +8993,10 @@
       "item": "mul.wrap",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0008"
+      ],
       "opcode": "mul.wrap",
       "base_opcode": "mul",
       "mode": "wrap",
@@ -8528,8 +9013,10 @@
       "item": "mul.wrap",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "mul.wrap",
       "base_opcode": "mul",
       "mode": "wrap",
@@ -8544,8 +9031,10 @@
       "item": "mul.ieee",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "mul.ieee",
       "base_opcode": "mul",
       "mode": "ieee",
@@ -8562,8 +9051,10 @@
       "item": "mul.ieee",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0009"
+      ],
       "opcode": "mul.ieee",
       "base_opcode": "mul",
       "mode": "ieee",
@@ -8580,8 +9071,10 @@
       "item": "mul.ieee",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "mul.ieee",
       "base_opcode": "mul",
       "mode": "ieee",
@@ -8596,8 +9089,10 @@
       "item": "div",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "div",
       "base_opcode": "div",
       "mode": "strict",
@@ -8614,8 +9109,10 @@
       "item": "div",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0010"
+      ],
       "opcode": "div",
       "base_opcode": "div",
       "mode": "strict",
@@ -8632,8 +9129,10 @@
       "item": "div",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0005"
+      ],
       "opcode": "div",
       "base_opcode": "div",
       "mode": "strict",
@@ -8648,8 +9147,10 @@
       "item": "div.ieee",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "div.ieee",
       "base_opcode": "div",
       "mode": "ieee",
@@ -8666,8 +9167,10 @@
       "item": "div.ieee",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0011"
+      ],
       "opcode": "div.ieee",
       "base_opcode": "div",
       "mode": "ieee",
@@ -8684,8 +9187,10 @@
       "item": "mod",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "mod",
       "base_opcode": "mod",
       "mode": "strict",
@@ -8702,8 +9207,10 @@
       "item": "mod",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0012"
+      ],
       "opcode": "mod",
       "base_opcode": "mod",
       "mode": "strict",
@@ -8720,8 +9227,10 @@
       "item": "mod",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0011"
+      ],
       "opcode": "mod",
       "base_opcode": "mod",
       "mode": "strict",
@@ -8736,8 +9245,10 @@
       "item": "mod.ieee",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0006"
+      ],
       "opcode": "mod.ieee",
       "base_opcode": "mod",
       "mode": "ieee",
@@ -8754,8 +9265,10 @@
       "item": "mod.ieee",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0013"
+      ],
       "opcode": "mod.ieee",
       "base_opcode": "mod",
       "mode": "ieee",
@@ -8772,8 +9285,10 @@
       "item": "neg",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "neg",
       "base_opcode": "neg",
       "mode": "strict",
@@ -8790,8 +9305,10 @@
       "item": "neg",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0014"
+      ],
       "opcode": "neg",
       "base_opcode": "neg",
       "mode": "strict",
@@ -8808,8 +9325,10 @@
       "item": "neg",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0007"
+      ],
       "opcode": "neg",
       "base_opcode": "neg",
       "mode": "strict",
@@ -8824,8 +9343,10 @@
       "item": "neg.wrap",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "neg.wrap",
       "base_opcode": "neg",
       "mode": "wrap",
@@ -8842,8 +9363,10 @@
       "item": "neg.wrap",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0015"
+      ],
       "opcode": "neg.wrap",
       "base_opcode": "neg",
       "mode": "wrap",
@@ -8860,8 +9383,10 @@
       "item": "abs",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "abs",
       "base_opcode": "abs",
       "mode": "strict",
@@ -8878,8 +9403,10 @@
       "item": "abs",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0016"
+      ],
       "opcode": "abs",
       "base_opcode": "abs",
       "mode": "strict",
@@ -8896,8 +9423,10 @@
       "item": "abs",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0008"
+      ],
       "opcode": "abs",
       "base_opcode": "abs",
       "mode": "strict",
@@ -8912,8 +9441,10 @@
       "item": "shl",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "shl",
       "base_opcode": "shl",
       "mode": "strict",
@@ -8930,8 +9461,10 @@
       "item": "shl",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0017"
+      ],
       "opcode": "shl",
       "base_opcode": "shl",
       "mode": "strict",
@@ -8948,8 +9481,10 @@
       "item": "shl",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0009"
+      ],
       "opcode": "shl",
       "base_opcode": "shl",
       "mode": "strict",
@@ -8964,8 +9499,10 @@
       "item": "shl.wrap",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0002"
+      ],
       "opcode": "shl.wrap",
       "base_opcode": "shl",
       "mode": "wrap",
@@ -8982,8 +9519,10 @@
       "item": "shl.wrap",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0018"
+      ],
       "opcode": "shl.wrap",
       "base_opcode": "shl",
       "mode": "wrap",
@@ -9000,8 +9539,10 @@
       "item": "shl.wrap",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0013"
+      ],
       "opcode": "shl.wrap",
       "base_opcode": "shl",
       "mode": "wrap",
@@ -9016,8 +9557,10 @@
       "item": "shr",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0010"
+      ],
       "opcode": "shr",
       "base_opcode": "shr",
       "mode": "strict",
@@ -9034,8 +9577,10 @@
       "item": "shr",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0019"
+      ],
       "opcode": "shr",
       "base_opcode": "shr",
       "mode": "strict",
@@ -9052,8 +9597,10 @@
       "item": "shr",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0014"
+      ],
       "opcode": "shr",
       "base_opcode": "shr",
       "mode": "strict",
@@ -9068,8 +9615,10 @@
       "item": "and",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "and",
       "base_opcode": "and",
       "mode": "strict",
@@ -9086,8 +9635,10 @@
       "item": "and",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0020"
+      ],
       "opcode": "and",
       "base_opcode": "and",
       "mode": "strict",
@@ -9104,8 +9655,10 @@
       "item": "or",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "or",
       "base_opcode": "or",
       "mode": "strict",
@@ -9122,8 +9675,10 @@
       "item": "or",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0021"
+      ],
       "opcode": "or",
       "base_opcode": "or",
       "mode": "strict",
@@ -9140,8 +9695,10 @@
       "item": "xor",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "xor",
       "base_opcode": "xor",
       "mode": "strict",
@@ -9158,8 +9715,10 @@
       "item": "xor",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0022"
+      ],
       "opcode": "xor",
       "base_opcode": "xor",
       "mode": "strict",
@@ -9176,8 +9735,10 @@
       "item": "not",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "not",
       "base_opcode": "not",
       "mode": "strict",
@@ -9194,8 +9755,10 @@
       "item": "not",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0023"
+      ],
       "opcode": "not",
       "base_opcode": "not",
       "mode": "strict",
@@ -9212,8 +9775,10 @@
       "item": "eq",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "eq",
       "base_opcode": "eq",
       "mode": "strict",
@@ -9230,8 +9795,10 @@
       "item": "eq",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0024"
+      ],
       "opcode": "eq",
       "base_opcode": "eq",
       "mode": "strict",
@@ -9248,8 +9815,10 @@
       "item": "ne",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-FP-0001"
+      ],
       "opcode": "ne",
       "base_opcode": "ne",
       "mode": "strict",
@@ -9266,8 +9835,10 @@
       "item": "ne",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0025"
+      ],
       "opcode": "ne",
       "base_opcode": "ne",
       "mode": "strict",
@@ -9284,8 +9855,10 @@
       "item": "lt",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "opcode": "lt",
       "base_opcode": "lt",
       "mode": "strict",
@@ -9302,8 +9875,10 @@
       "item": "lt",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0026"
+      ],
       "opcode": "lt",
       "base_opcode": "lt",
       "mode": "strict",
@@ -9320,8 +9895,10 @@
       "item": "le",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "le",
       "base_opcode": "le",
       "mode": "strict",
@@ -9338,8 +9915,10 @@
       "item": "le",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0027"
+      ],
       "opcode": "le",
       "base_opcode": "le",
       "mode": "strict",
@@ -9356,8 +9935,10 @@
       "item": "gt",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "gt",
       "base_opcode": "gt",
       "mode": "strict",
@@ -9374,8 +9955,10 @@
       "item": "gt",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0028"
+      ],
       "opcode": "gt",
       "base_opcode": "gt",
       "mode": "strict",
@@ -9392,8 +9975,10 @@
       "item": "ge",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ge",
       "base_opcode": "ge",
       "mode": "strict",
@@ -9410,8 +9995,10 @@
       "item": "ge",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0029"
+      ],
       "opcode": "ge",
       "base_opcode": "ge",
       "mode": "strict",
@@ -9428,8 +10015,10 @@
       "item": "cast",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0001"
+      ],
       "opcode": "cast",
       "base_opcode": "cast",
       "mode": "strict",
@@ -9446,8 +10035,10 @@
       "item": "cast",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0030"
+      ],
       "opcode": "cast",
       "base_opcode": "cast",
       "mode": "strict",
@@ -9464,8 +10055,10 @@
       "item": "cast",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0002"
+      ],
       "opcode": "cast",
       "base_opcode": "cast",
       "mode": "strict",
@@ -9480,8 +10073,10 @@
       "item": "trunc",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0001"
+      ],
       "opcode": "trunc",
       "base_opcode": "trunc",
       "mode": "strict",
@@ -9498,8 +10093,10 @@
       "item": "trunc",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0031"
+      ],
       "opcode": "trunc",
       "base_opcode": "trunc",
       "mode": "strict",
@@ -9516,8 +10113,10 @@
       "item": "bitcast",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CONV-0001"
+      ],
       "opcode": "bitcast",
       "base_opcode": "bitcast",
       "mode": "strict",
@@ -9534,8 +10133,10 @@
       "item": "bitcast",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0032"
+      ],
       "opcode": "bitcast",
       "base_opcode": "bitcast",
       "mode": "strict",
@@ -9552,8 +10153,10 @@
       "item": "load",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "load",
       "base_opcode": "load",
       "mode": "strict",
@@ -9570,8 +10173,10 @@
       "item": "load",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0033"
+      ],
       "opcode": "load",
       "base_opcode": "load",
       "mode": "strict",
@@ -9588,8 +10193,10 @@
       "item": "load",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0005"
+      ],
       "opcode": "load",
       "base_opcode": "load",
       "mode": "strict",
@@ -9604,8 +10211,10 @@
       "item": "load.volatile",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0010"
+      ],
       "opcode": "load.volatile",
       "base_opcode": "load",
       "mode": "volatile",
@@ -9622,8 +10231,10 @@
       "item": "load.volatile",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0034"
+      ],
       "opcode": "load.volatile",
       "base_opcode": "load",
       "mode": "volatile",
@@ -9640,8 +10251,10 @@
       "item": "load.volatile",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0016"
+      ],
       "opcode": "load.volatile",
       "base_opcode": "load",
       "mode": "volatile",
@@ -9656,8 +10269,10 @@
       "item": "store",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "store",
       "base_opcode": "store",
       "mode": "strict",
@@ -9674,8 +10289,10 @@
       "item": "store",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0035"
+      ],
       "opcode": "store",
       "base_opcode": "store",
       "mode": "strict",
@@ -9692,8 +10309,10 @@
       "item": "store",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0006"
+      ],
       "opcode": "store",
       "base_opcode": "store",
       "mode": "strict",
@@ -9708,8 +10327,10 @@
       "item": "store.volatile",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0010"
+      ],
       "opcode": "store.volatile",
       "base_opcode": "store",
       "mode": "volatile",
@@ -9726,8 +10347,10 @@
       "item": "store.volatile",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0036"
+      ],
       "opcode": "store.volatile",
       "base_opcode": "store",
       "mode": "volatile",
@@ -9744,8 +10367,10 @@
       "item": "store.volatile",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0015"
+      ],
       "opcode": "store.volatile",
       "base_opcode": "store",
       "mode": "volatile",
@@ -9760,8 +10385,10 @@
       "item": "memmove",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0004"
+      ],
       "opcode": "memmove",
       "base_opcode": "memmove",
       "mode": "strict",
@@ -9778,8 +10405,10 @@
       "item": "memmove",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0037"
+      ],
       "opcode": "memmove",
       "base_opcode": "memmove",
       "mode": "strict",
@@ -9796,8 +10425,10 @@
       "item": "memmove",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0007"
+      ],
       "opcode": "memmove",
       "base_opcode": "memmove",
       "mode": "strict",
@@ -9812,8 +10443,10 @@
       "item": "addr",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "addr",
       "base_opcode": "addr",
       "mode": "strict",
@@ -9830,8 +10463,10 @@
       "item": "addr",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0038"
+      ],
       "opcode": "addr",
       "base_opcode": "addr",
       "mode": "strict",
@@ -9848,8 +10483,10 @@
       "item": "ptradd",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptradd",
       "base_opcode": "ptradd",
       "mode": "strict",
@@ -9866,8 +10503,10 @@
       "item": "ptradd",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0039"
+      ],
       "opcode": "ptradd",
       "base_opcode": "ptradd",
       "mode": "strict",
@@ -9884,8 +10523,10 @@
       "item": "ptradd",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0012"
+      ],
       "opcode": "ptradd",
       "base_opcode": "ptradd",
       "mode": "strict",
@@ -9900,8 +10541,10 @@
       "item": "ptrsub",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrsub",
       "base_opcode": "ptrsub",
       "mode": "strict",
@@ -9918,8 +10561,10 @@
       "item": "ptrsub",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0040"
+      ],
       "opcode": "ptrsub",
       "base_opcode": "ptrsub",
       "mode": "strict",
@@ -9936,8 +10581,10 @@
       "item": "ptrsub",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0017"
+      ],
       "opcode": "ptrsub",
       "base_opcode": "ptrsub",
       "mode": "strict",
@@ -9952,8 +10599,10 @@
       "item": "ptrdiff",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrdiff",
       "base_opcode": "ptrdiff",
       "mode": "strict",
@@ -9970,8 +10619,10 @@
       "item": "ptrdiff",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0041"
+      ],
       "opcode": "ptrdiff",
       "base_opcode": "ptrdiff",
       "mode": "strict",
@@ -9988,8 +10639,10 @@
       "item": "ptrdiff",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0011"
+      ],
       "opcode": "ptrdiff",
       "base_opcode": "ptrdiff",
       "mode": "strict",
@@ -10004,8 +10657,10 @@
       "item": "ptreq",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptreq",
       "base_opcode": "ptreq",
       "mode": "strict",
@@ -10022,8 +10677,10 @@
       "item": "ptreq",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0042"
+      ],
       "opcode": "ptreq",
       "base_opcode": "ptreq",
       "mode": "strict",
@@ -10040,8 +10697,10 @@
       "item": "ptrne",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrne",
       "base_opcode": "ptrne",
       "mode": "strict",
@@ -10058,8 +10717,10 @@
       "item": "ptrne",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0043"
+      ],
       "opcode": "ptrne",
       "base_opcode": "ptrne",
       "mode": "strict",
@@ -10076,8 +10737,10 @@
       "item": "ptrlt",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrlt",
       "base_opcode": "ptrlt",
       "mode": "strict",
@@ -10094,8 +10757,10 @@
       "item": "ptrlt",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0044"
+      ],
       "opcode": "ptrlt",
       "base_opcode": "ptrlt",
       "mode": "strict",
@@ -10112,8 +10777,10 @@
       "item": "ptrle",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrle",
       "base_opcode": "ptrle",
       "mode": "strict",
@@ -10130,8 +10797,10 @@
       "item": "ptrle",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0045"
+      ],
       "opcode": "ptrle",
       "base_opcode": "ptrle",
       "mode": "strict",
@@ -10148,8 +10817,10 @@
       "item": "ptrgt",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrgt",
       "base_opcode": "ptrgt",
       "mode": "strict",
@@ -10166,8 +10837,10 @@
       "item": "ptrgt",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0046"
+      ],
       "opcode": "ptrgt",
       "base_opcode": "ptrgt",
       "mode": "strict",
@@ -10184,8 +10857,10 @@
       "item": "ptrge",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001"
+      ],
       "opcode": "ptrge",
       "base_opcode": "ptrge",
       "mode": "strict",
@@ -10202,8 +10877,10 @@
       "item": "ptrge",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0047"
+      ],
       "opcode": "ptrge",
       "base_opcode": "ptrge",
       "mode": "strict",
@@ -10220,8 +10897,10 @@
       "item": "sizeof",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-SIZEOF-0001"
+      ],
       "opcode": "sizeof",
       "base_opcode": "sizeof",
       "mode": "strict",
@@ -10238,8 +10917,10 @@
       "item": "sizeof",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0048"
+      ],
       "opcode": "sizeof",
       "base_opcode": "sizeof",
       "mode": "strict",
@@ -10256,8 +10937,10 @@
       "item": "funcaddr",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0003"
+      ],
       "opcode": "funcaddr",
       "base_opcode": "funcaddr",
       "mode": "strict",
@@ -10274,8 +10957,10 @@
       "item": "funcaddr",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0049"
+      ],
       "opcode": "funcaddr",
       "base_opcode": "funcaddr",
       "mode": "strict",
@@ -10292,8 +10977,10 @@
       "item": "call",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0001"
+      ],
       "opcode": "call",
       "base_opcode": "call",
       "mode": "strict",
@@ -10310,8 +10997,10 @@
       "item": "call",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0050"
+      ],
       "opcode": "call",
       "base_opcode": "call",
       "mode": "strict",
@@ -10328,8 +11017,10 @@
       "item": "call",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0002"
+      ],
       "opcode": "call",
       "base_opcode": "call",
       "mode": "strict",
@@ -10344,8 +11035,10 @@
       "item": "call_indirect",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0003"
+      ],
       "opcode": "call_indirect",
       "base_opcode": "call_indirect",
       "mode": "strict",
@@ -10362,8 +11055,10 @@
       "item": "call_indirect",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0051"
+      ],
       "opcode": "call_indirect",
       "base_opcode": "call_indirect",
       "mode": "strict",
@@ -10380,8 +11075,10 @@
       "item": "call_indirect",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0004"
+      ],
       "opcode": "call_indirect",
       "base_opcode": "call_indirect",
       "mode": "strict",
@@ -10396,8 +11093,10 @@
       "item": "funceq",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0003"
+      ],
       "opcode": "funceq",
       "base_opcode": "funceq",
       "mode": "strict",
@@ -10414,8 +11113,10 @@
       "item": "funceq",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0052"
+      ],
       "opcode": "funceq",
       "base_opcode": "funceq",
       "mode": "strict",
@@ -10432,8 +11133,10 @@
       "item": "funcne",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0003"
+      ],
       "opcode": "funcne",
       "base_opcode": "funcne",
       "mode": "strict",
@@ -10450,8 +11153,10 @@
       "item": "funcne",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0053"
+      ],
       "opcode": "funcne",
       "base_opcode": "funcne",
       "mode": "strict",
@@ -10468,8 +11173,10 @@
       "item": "make",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0002"
+      ],
       "opcode": "make",
       "base_opcode": "make",
       "mode": "strict",
@@ -10486,8 +11193,10 @@
       "item": "make",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0054"
+      ],
       "opcode": "make",
       "base_opcode": "make",
       "mode": "strict",
@@ -10504,8 +11213,10 @@
       "item": "copy",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0002"
+      ],
       "opcode": "copy",
       "base_opcode": "copy",
       "mode": "strict",
@@ -10522,8 +11233,10 @@
       "item": "copy",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0055"
+      ],
       "opcode": "copy",
       "base_opcode": "copy",
       "mode": "strict",
@@ -10540,8 +11253,10 @@
       "item": "br",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0001"
+      ],
       "opcode": "br",
       "base_opcode": "br",
       "mode": "strict",
@@ -10558,8 +11273,10 @@
       "item": "br",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0056"
+      ],
       "opcode": "br",
       "base_opcode": "br",
       "mode": "strict",
@@ -10576,8 +11293,10 @@
       "item": "br_if",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0001"
+      ],
       "opcode": "br_if",
       "base_opcode": "br_if",
       "mode": "strict",
@@ -10594,8 +11313,10 @@
       "item": "br_if",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0057"
+      ],
       "opcode": "br_if",
       "base_opcode": "br_if",
       "mode": "strict",
@@ -10612,8 +11333,10 @@
       "item": "switch",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0001"
+      ],
       "opcode": "switch",
       "base_opcode": "switch",
       "mode": "strict",
@@ -10630,8 +11353,10 @@
       "item": "switch",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0058"
+      ],
       "opcode": "switch",
       "base_opcode": "switch",
       "mode": "strict",
@@ -10648,8 +11373,10 @@
       "item": "return",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CALL-0001"
+      ],
       "opcode": "return",
       "base_opcode": "return",
       "mode": "strict",
@@ -10666,8 +11393,10 @@
       "item": "return",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0059"
+      ],
       "opcode": "return",
       "base_opcode": "return",
       "mode": "strict",
@@ -10684,8 +11413,10 @@
       "item": "trap",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0002"
+      ],
       "opcode": "trap",
       "base_opcode": "trap",
       "mode": "strict",
@@ -10702,8 +11433,10 @@
       "item": "trap",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0060"
+      ],
       "opcode": "trap",
       "base_opcode": "trap",
       "mode": "strict",
@@ -10720,8 +11453,10 @@
       "item": "trap",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0002"
+      ],
       "opcode": "trap",
       "base_opcode": "trap",
       "mode": "strict",
@@ -10736,8 +11471,10 @@
       "item": "read",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0002"
+      ],
       "opcode": "read",
       "base_opcode": "read",
       "mode": "strict",
@@ -10754,8 +11491,10 @@
       "item": "read",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0061"
+      ],
       "opcode": "read",
       "base_opcode": "read",
       "mode": "strict",
@@ -10772,8 +11511,10 @@
       "item": "read",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0003"
+      ],
       "opcode": "read",
       "base_opcode": "read",
       "mode": "strict",
@@ -10788,8 +11529,10 @@
       "item": "write",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0001"
+      ],
       "opcode": "write",
       "base_opcode": "write",
       "mode": "strict",
@@ -10806,8 +11549,10 @@
       "item": "write",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0062"
+      ],
       "opcode": "write",
       "base_opcode": "write",
       "mode": "strict",
@@ -10824,8 +11569,10 @@
       "item": "write",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "opcode": "write",
       "base_opcode": "write",
       "mode": "strict",
@@ -10840,8 +11587,10 @@
       "item": "writeln",
       "slot": "normal",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0001"
+      ],
       "opcode": "writeln",
       "base_opcode": "writeln",
       "mode": "strict",
@@ -10858,8 +11607,10 @@
       "item": "writeln",
       "slot": "static_error",
       "spec": "standard §6.2, design §3.2; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-SEM-OPC-0063"
+      ],
       "opcode": "writeln",
       "base_opcode": "writeln",
       "mode": "strict",
@@ -10876,8 +11627,10 @@
       "item": "writeln",
       "slot": "trap",
       "spec": "standard §6.2 trap column; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "opcode": "writeln",
       "base_opcode": "writeln",
       "mode": "strict",
@@ -10956,8 +11709,13 @@
       "item": "3. golden 向量",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-GOLD-0001",
+        "TC-RT-GOLD-0002",
+        "TC-RT-GOLD-0101",
+        "TC-RT-GOLD-0102"
+      ],
       "number": 3,
       "title": "golden 向量",
       "detail": "从标准精确规则推导期望输出；32/64 分别建库，不比较跨档案结果。",
@@ -10972,8 +11730,11 @@
       "item": "3. golden 向量",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-GOLD-0001",
+        "TC-RT-GOLD-0102"
+      ],
       "number": 3,
       "title": "golden 向量",
       "detail": "从标准精确规则推导期望输出；32/64 分别建库，不比较跨档案结果。",
@@ -11020,8 +11781,10 @@
       "item": "5. checked build",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "number": 5,
       "title": "checked build",
       "detail": "trap 用例与静态诊断分开统计；空指针/只读区/代码区/设备拒绝等定义好的 trap 在所有构建中执行；悬垂栈水位/毒化检查只在产生 UB 的访问触发（标准 §13.3），不放宽规范、不改变合法程序集合。",
@@ -11036,8 +11799,10 @@
       "item": "5. checked build",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "number": 5,
       "title": "checked build",
       "detail": "trap 用例与静态诊断分开统计；空指针/只读区/代码区/设备拒绝等定义好的 trap 在所有构建中执行；悬垂栈水位/毒化检查只在产生 UB 的访问触发（标准 §13.3），不放宽规范、不改变合法程序集合。",
@@ -11122,8 +11887,12 @@
       "item": "8. 对象/内存",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0001",
+        "TC-RT-MEM-0002",
+        "TC-RT-MEM-0004"
+      ],
       "number": 8,
       "title": "对象/内存",
       "detail": "`TcObject` 边界/生命期/宿主 heap、`ptrdiff`/`memmove`/`n × sizeof T`、未对齐 64 位访问、必选 trap 与 checked build 分离。",
@@ -11138,8 +11907,11 @@
       "item": "8. 对象/内存",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-MEM-0004",
+        "TC-RT-MEM-0011"
+      ],
       "number": 8,
       "title": "对象/内存",
       "detail": "`TcObject` 边界/生命期/宿主 heap、`ptrdiff`/`memmove`/`n × sizeof T`、未对齐 64 位访问、必选 trap 与 checked build 分离。",
@@ -11349,8 +12121,12 @@
       "item": "14. 退出/设备/输入",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-DEV-0001",
+        "TC-RT-IO-0002",
+        "TC-UNIT-VM-0006"
+      ],
       "number": 14,
       "title": "退出/设备/输入",
       "detail": "正常/trap 退出状态；四种 `TcDevicePolicy` 的 trap 码；`TcIoSrc` 短读/EOF/错误路径。",
@@ -11365,8 +12141,12 @@
       "item": "14. 退出/设备/输入",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-DEV-0001",
+        "TC-RT-IO-0003",
+        "TC-RT-IO-0004"
+      ],
       "number": 14,
       "title": "退出/设备/输入",
       "detail": "正常/trap 退出状态；四种 `TcDevicePolicy` 的 trap 码；`TcIoSrc` 短读/EOF/错误路径。",
@@ -11381,8 +12161,10 @@
       "item": "15. 零 pass",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-OPT-0001"
+      ],
       "number": 15,
       "title": "零 pass",
       "detail": "O0/O2 无 IR 变换；`@fast` 承诺不消费；`@inline`/`@noinline` 只保存；无内联/regalloc/SSA。",
@@ -11397,8 +12179,10 @@
       "item": "15. 零 pass",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-OPT-0001"
+      ],
       "number": 15,
       "title": "零 pass",
       "detail": "O0/O2 无 IR 变换；`@fast` 承诺不消费；`@inline`/`@noinline` 只保存；无内联/regalloc/SSA。",
@@ -12689,8 +13473,10 @@
       "item": "TC_DEV_REJECT",
       "slot": "trap_mapping",
       "spec": "design §8 (TcDevicePolicy), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-DEV-0001"
+      ],
       "policy": "TC_DEV_REJECT",
       "description": "设备区不可访问：ADDR_UNAVAILABLE",
       "expected": "all device accesses -> TC_RE_ADDR_UNAVAILABLE"
@@ -12702,8 +13488,10 @@
       "item": "TC_DEV_READ",
       "slot": "trap_mapping",
       "spec": "design §8 (TcDevicePolicy), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "policy": "TC_DEV_READ",
       "description": "可读，写拒绝",
       "expected": "reads allowed; writes -> TC_RE_ADDR_UNAVAILABLE"
@@ -12715,8 +13503,10 @@
       "item": "TC_DEV_READWRITE",
       "slot": "trap_mapping",
       "spec": "design §8 (TcDevicePolicy), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "policy": "TC_DEV_READWRITE",
       "description": "可读可写",
       "expected": "reads and writes allowed"
@@ -12728,8 +13518,10 @@
       "item": "TC_DEV_VOLATILE",
       "slot": "trap_mapping",
       "spec": "design §8 (TcDevicePolicy), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "policy": "TC_DEV_VOLATILE",
       "description": "仅允许 volatile load/store",
       "expected": "only load.volatile/store.volatile; others -> TC_RE_ADDR_UNAVAILABLE"
@@ -12741,8 +13533,10 @@
       "item": "TC_IO_OK",
       "slot": "path",
       "spec": "design §7.2 (TcIoSrc), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0002"
+      ],
       "state": "TC_IO_OK",
       "description": "full read (n == cap)",
       "expected": "read/IO instruction consumes complete token; no trap"
@@ -12754,8 +13548,10 @@
       "item": "TC_IO_EOF",
       "slot": "path",
       "spec": "design §7.2 (TcIoSrc), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-IO-0004"
+      ],
       "state": "TC_IO_EOF",
       "description": "EOF before a complete token",
       "expected": "TC_RE_IO; no partial token and no target commit"
@@ -12767,8 +13563,10 @@
       "item": "TC_IO_ERROR",
       "slot": "path",
       "spec": "design §7.2 (TcIoSrc), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "state": "TC_IO_ERROR",
       "description": "source error",
       "expected": "TC_RE_IO; no partial token and no target commit"
@@ -12780,8 +13578,10 @@
       "item": "TC_IO_OK (short read)",
       "slot": "path",
       "spec": "design §7.2 (TcIoSrc), test plan §3.6/§7.5",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-VM-0006"
+      ],
       "state": "TC_IO_OK (short read)",
       "description": "n < cap with TC_IO_OK",
       "expected": "keep reading until the token is complete; never emit a partial token"
@@ -12793,8 +13593,10 @@
       "item": "normal_exit",
       "slot": "branch",
       "spec": "design §8 (TcExitPolicy), standard §13.1, test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-INT-0001"
+      ],
       "branch": "normal_exit",
       "field": "normal_status",
       "description": "program terminates without trap"
@@ -12806,8 +13608,10 @@
       "item": "trap_exit",
       "slot": "branch",
       "spec": "design §8 (TcExitPolicy), standard §13.1, test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-RT-CTRL-0002"
+      ],
       "branch": "trap_exit",
       "field": "trap_status",
       "description": "first runtime trap terminates the program"

@@ -1,0 +1,10 @@
+id: TC-RT-FP-0004
+profile: w64
+source: root.tc
+spec: "§6.3 strict finite overflow -> TC_RE_FLOAT_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_FLOAT_OVERFLOW
+  exit: 1
+  termination: trap

@@ -1,0 +1,14 @@
+#program
+import lib
+var fp: fnptr<int32, int32> = funcaddr lib.add1
+var z: fnptr<int32, int32> = copy fnptr<int32, int32>, nullptr
+var a: bool = funceq fnptr<int32, int32>, fp, z
+_ = writeln bool, a
+var b: bool = funceq fnptr<int32, int32>, fp, fp
+_ = writeln bool, b
+var c: bool = funcne fnptr<int32, int32>, fp, z
+_ = writeln bool, c
+unsafe then
+var x: int32 = call_indirect fp, 41
+_ = writeln int32, x
+end

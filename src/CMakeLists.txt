@@ -24,10 +24,16 @@ add_library(tc_core STATIC
     ir/instr.c
     ir/pointer_state.c
     ir/print.c
-    # Runtime seams and platform profiles.
+    # Runtime semantic core, deterministic I/O, platform profiles and seams.
     runtime/alloc.c
+    runtime/format.c
+    runtime/input.c
     runtime/module_loader.c
     runtime/profile.c
+    runtime/semantics.c
+    # Reference VM: memory/objects and interpreter.
+    vm/memory.c
+    vm/interp.c
     # Code shared by the two tool entry points.
     driver/cli.c
     driver/frontend_driver.c

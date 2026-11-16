@@ -13,6 +13,10 @@ CTest entries:
   identity, types and profile, flat operands/field paths, CFG edges, named
   arguments, const inlining, word-size layout and the deterministic printer
   (L1).
+- `vm.unit` (`tc_vm_test`): runtime semantic core, exact scalar formatting,
+  token input, regions/objects/pointer states, all mandatory traps and their
+  positions, calls/`D`, device policies, I/O source states, checked build and
+  the W=32/W=64 matrix (L1/L2).
 
 ## L0 case ids
 
@@ -107,6 +111,20 @@ the 32/64 matrix), never from compiler output.
 | `TC-UNIT-CT-0002` | `test_ct_cache` | §4.10 demand order and success cache: a diamond dependency evaluates the shared const once (`tc_ct_eval_count`) |
 | `TC-UNIT-CT-0003` | `test_ct_failure_cache` | §4.10 first failure stops CT, is attributed to the target declaration, is evaluated once, and yields no `TcIR` |
 | `TC-UNIT-CT-0004` | `test_local_const` | §5.2 function-local `const` evaluation, later-local reference and cache |
+
+## L1/L2 VM tests (`tc_vm_test`)
+
+`tc_vm_test` links the private runtime/VM interfaces and also analyzes complete
+programs with an in-memory I/O harness.  It currently runs 413 checks.
+
+| Case ID | Function | Pins |
+| --- | --- | --- |
+| `TC-UNIT-VM-0001` | `test_integer_semantics` | §6.3 strict signed overflow, unsigned wrap, `.wrap`, division/modulo edges, `div(INT_MIN,-1)`, negative shift precedence, `k>=n` shifts, W-dependent isize overflow and 64-bit types on W=32 |
+| `TC-UNIT-VM-0002` | `test_float_semantics` | §6.3.1-§6.3.3 strict exception priority, `.ieee` inf/NaN, exact floating `mod` signs and `b=inf`, exact subnormal vs inexact underflow, `abs`/`neg` sign-bit behavior, NaN comparisons |
+| `TC-UNIT-VM-0003` | `test_conversions` | §6.6 `cast` range/truncation/NaN/inf, float32↔float64 and overflow, same-type NaN payload, cross-type canonical NaN, bool truth rules, `trunc` low bits, `bitcast` bit strings and W widths |
+| `TC-UNIT-VM-0004` | `test_formatting` | §11.2 integers/bool, float `%g` six-digit rounding, fixed/scientific threshold, `-0`, `inf`/`nan`, binary32 rendering and min/max finite values |
+| `TC-UNIT-VM-0005` | `test_input` | §11.3 complete-token parsing, whitespace/leading zeros, `-0`, `nan`, invalid/range tokens, EOF/error source states and single-byte short reads |
+| `TC-UNIT-VM-0006` | `test_program_*` | §1.2/§1.3/§12.5.2 complete programs: all 15 `TC_RE_*` traps and their instruction positions, committed output before a trap, call-depth `D` boundary, struct/pointer/memmove behavior, all four `TcDevicePolicy` values, I/O source OK/EOF/ERROR and sink failure, checked-build bounds, and the W=32/W=64 output matrix |
 
 ## L1 IR tests (`tc_ir_test`)
 

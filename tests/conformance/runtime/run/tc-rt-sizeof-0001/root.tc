@@ -1,0 +1,9 @@
+#program
+var a: usize = sizeof ptr<int32>
+_ = writeln usize, a
+var b: usize = sizeof isize
+_ = writeln usize, b
+var c: usize = sizeof fnptr<int32, int32>
+_ = writeln usize, c
+var d: usize = sizeof int64
+_ = writeln usize, d

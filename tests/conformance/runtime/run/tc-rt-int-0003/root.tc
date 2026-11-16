@@ -1,0 +1,11 @@
+#program
+var min: int32 = copy int32, -2147483648
+var max: int32 = copy int32, 2147483647
+_ = writeln int32, min
+_ = writeln int32, max
+var r: int32 = mod int32, min, -1
+_ = writeln int32, r
+var imin: int64 = copy int64, -9223372036854775808
+var imax: int64 = copy int64, 9223372036854775807
+_ = writeln int64, imin
+_ = writeln int64, imax

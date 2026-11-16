@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0006
+profile: w64
+source: root.tc
+spec: "§6.7 store null -> TC_RE_NULL_POINTER"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_NULL_POINTER
+  exit: 1
+  termination: trap

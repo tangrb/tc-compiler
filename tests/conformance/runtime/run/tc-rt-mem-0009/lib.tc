@@ -1,0 +1,8 @@
+#lib
+public func f(x: int32) int32 then
+var p: ptr<int32> = addr int32, x
+unsafe then
+_ = store int32, p, 5
+end
+_ = return x
+end

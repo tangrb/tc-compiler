@@ -1,0 +1,10 @@
+id: TC-RT-INT-0001
+profile: w64
+source: root.tc
+spec: "§6.3 integer arithmetic; §6.4 bit/logical; §6.5 comparison; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "31320a320a33350a2d330a2d310a2d370a370a31360a2d340a380a31340a360a2d310a747275650a747275650a66616c73650a"
+  trap: null
+  exit: 0
+  termination: normal

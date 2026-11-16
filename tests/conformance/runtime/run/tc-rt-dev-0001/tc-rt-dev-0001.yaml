@@ -1,0 +1,10 @@
+id: TC-RT-DEV-0001
+profile: w64
+source: root.tc
+spec: "§6.7 device access; §13.1 environment profile; design §8 TC_DEV_REJECT -> TC_RE_ADDR_UNAVAILABLE"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_ADDR_UNAVAILABLE
+  exit: 1
+  termination: trap

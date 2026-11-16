@@ -1,0 +1,6 @@
+#program
+var a: float64 = copy float64, -0.5
+var b: int32 = cast int32, a
+_ = writeln int32, b
+var c: float64 = copy float64, nan
+var d: int32 = cast int32, c

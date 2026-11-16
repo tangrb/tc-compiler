@@ -26,6 +26,9 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Pointer state | `ir/pointer_state.h`, `ir/pointer_state.c` | SEM + VM + AOT | §3.12 null/live/one-past/dangling permission matrix; one-past `ptradd` only zero; shared by addr/ptrdiff/memmove/bounds checks | SEM, VM, AOT |
 | IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module identity is resolved path; frozen type table; per-profile consts/objects/units | VM, AOT |
 | CT results | `frontend/ct.h` | frontend/CT | typed CT value table (scalar bits / struct field tree), demand order and success/failure cache, target-declaration failure position, target-endian `TcInitImage` | IR finalization, L1/L3 tests |
+| Runtime semantic core | `runtime/semantics.h`, `runtime/semantics.c` | runtime | W-aware strict/wrap integer arithmetic, division/shift boundaries, binary32/64 arithmetic with fixed exception priority and exact underflow, `cast`/`trunc`/`bitcast`; failures are the 15 `TcErrorKind` values | CT (maps to `TC_CE_CONST_*`), VM, AOT |
+| Deterministic scalar I/O | `runtime/format.h`, `runtime/input.h`, corresponding `.c` | runtime | exact six-significant-digit `%g` rendering from the binary value, target integer/bool text, §11.3 complete-token parsing with EOF/short-read/error states | VM, AOT, tests |
+| Reference VM | `vm/vm.h`, `vm/memory.c`, `vm/interp.c` | vm | five-region address space, runtime objects and field sub-objects, pointer states, frames/`D`, all 51 opcodes, mandatory traps, I/O commit semantics | `tc-vm`, tests, AOT reference |
 | IR finalization/print | `frontend/irgen.h`, `frontend/sem_internal.h`, `ir/print.h`, `ir/print.c` | frontend/IR | flat `TcInstr`/`TcUnit`/`TcIR` materialization from parse IR + SEM + CT; deterministic text dump | VM/AOT, L1 tests |
 | Platform profile | `runtime/profile.h`, `runtime/profile.c` | runtime/driver | W∈{32,64}; five non-overlapping regions excluding address 0; `D≥1`; `disable_icf == 1`; stack/pointer alignment from `TcTargetDesc`; checked build only adds UB checks | VM, AOT, tests |
 | Runtime seams | `runtime/io.h`, `runtime/alloc.h`, `runtime/trap.h`, `runtime/module_loader.h` | runtime | all-or-nothing sink; short-read/EOF/error source; allocator sizes are target-W; trap gets first error + line; device runtime resolves no imports | VM, AOT, freestanding |
@@ -105,7 +108,7 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 | Calls | `frontend/sem.c` | signature collection first; direct/indirect; target visibility, call safety, result shape, arguments (duplicate → unknown → missing → count → order → type), receiver; recursion allowed; `call_indirect` positional only |
 | Safety | `frontend/sem.c` | lexical unsafe context (`@unsafe`/`@fast`/`unsafe` block); load/store/memmove/ptradd/ptrsub/call_indirect and ptr↔int/fnptr↔int bitcast are unsafe; `@safe` rejects any unsafe block or unsafe operation with `SAFE_VIOLATION` priority |
 | Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` endpoint constants per §8.6 (`@range` `lo`/`hi` same-type integer constants; `@align` `N` a positive power of two checked by W-bit address width), resolved by the SEM const resolver (fixed binary32/64 rules), `@padding`; promise-content violations are not static rejections |
-| CT evaluation | `frontend/ct.h`, `ct.c` | runs only after every SEM buffer is empty and the type table is frozen; evaluates module `const`/`static var` initializers (and later local `const` initializers) on demand in `module_order`/module source order; §3.10 allowlist and §6.3-§6.6 strict semantics; successes and failures cached; the first failure is attributed to its target declaration and stops CT; no cascade; local consts are evaluated after all module-level initializers |
+| CT evaluation | `frontend/ct.h`, `ct.c`, `runtime/semantics.c` | runs only after every SEM buffer is empty and the type table is frozen; evaluates module `const`/`static var` initializers (and later local `const` initializers) on demand in `module_order`/module source order; §3.10 allowlist and the shared §6.3-§6.6 strict semantic core (one implementation with the VM, mapped to the six `TC_CE_CONST_*` codes); successes and failures cached; the first failure is attributed to its target declaration and stops CT; no cascade; local consts are evaluated after all module-level initializers |
 | IR finalization | `frontend/irgen.h`, `irgen.c` | materializes `TcIR`/`TcUnit`/`TcBlock`/`TcInstr` from the frozen type table, layout, CT results and parse IR; operand field paths become base vreg + field indices; labels/switch targets carry block ids; named call/make arguments survive; aggregate const values inline as a use-site `make`; no object is created for a `const`; static/Frame object tables and per-profile offsets |
 
 The type table is frozen after SEM.  CT and IR finalization run after the freeze
@@ -225,19 +228,77 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 - `tc_ir_print()` is a stable, deterministic text dump for tests/debugging;
   it is not an input format and does not define semantics.
 
+### Runtime and VM conventions
+
+- The VM executes one finalized `TcIR` with the profile bound to that IR.  A
+  target address is `profile.region[kind].base + object.offset`; host pointers
+  are never language values and never leak into target integers.
+- `TcIR.objects` contains one base object per `var`/parameter/`static var`.
+  The VM clones static objects at setup, frame objects on every call, and
+  appends field sub-objects recursively from `TcStructDef` offsets.  A field
+  sub-object inherits its ancestor's writability, so a write through a
+  parameter's field is `TC_RE_WRITE_PROTECTED`.  Frame clones are appended in
+  call order and truncated on return; static clones remain for the whole run.
+- Static objects are preloaded from `TcObject.init` (padding/endianness already
+  encoded by CT); program `var` storage starts zeroed and is initialized by the
+  program's own instructions.  Frame storage is zeroed per call; DI guarantees
+  that accepted programs do not read it before initialization.
+- `addr` produces a pointer into a live object/sub-object.  Load/store/memmove
+  and `ptradd`/`ptrsub` check null, code/outside, device policy, read-only
+  parameters and (in `checked_build`) object bounds before modifying anything.
+  Contiguous struct fields are **separate sub-objects**, not an `n`-element
+  array of the field type; `memmove T` with `n>1` across sibling fields is
+  outside a single live object and therefore UB.  A field one-past pointer is
+  still within that sub-object's `[start, one-past]` interval, so `ptradd`
+  offset 0, `ptrsub` back into the field and `ptrdiff` against the field start
+  are defined; entering the adjacent field through such a pointer is not.
+  Out-of-object, one-past dereference and dangling accesses are UB: release may
+  continue within the region's host backing, while `checked_build` reports
+  `TC_RE_ADDR_UNAVAILABLE` and never changes the defined-program set.
+- Function addresses are unique: `code_base + (func_id + 1) * 16`.
+  `funcaddr`/`funceq`/`funcne` use those values; `call_indirect` maps a non-null
+  address back to its function.  A typed null `fnptr` reaches the runtime and
+  reports `TC_RE_NULL_FUNCTION_POINTER`; an untyped `nullptr` operand remains a
+  static `LITERAL_TYPE` because no signature can be inferred.
+- `D` counts active function calls, not the top-level program.  A call checks
+  `depth == D` before creating a frame and increments on entry; `return`
+  decrements.  Tail calls are not optimized and cannot change the count.
+- Built-in reference profiles (documented environment definitions, standard
+  §13.1; implementations may choose other values): `aarch64-linux-user` is
+  W=64, little-endian, device base `0x20000000` size `0x100000` with
+  `TC_DEV_REJECT`, D=512; `aarch64-baremetal` is W=64, little-endian, device base
+  `0x09000000` size `0x100000` with `TC_DEV_VOLATILE`, D=256; `w32` is W=32,
+  little-endian, device base `0x20000000` size `0x100000` with `TC_DEV_REJECT`,
+  D=256.  All three reserve a 16 MiB frame region and `stack_size`, and use
+  `TcExitPolicy` normal 0 / first-trap 1.  Frame storage is host-backed.  If a
+  program's static frame footprints exhaust the profile region before `D`, the
+  VM reports `tc_error_internal` (exit 71): physical stack exhaustion is an
+  implementation error, never a language diagnostic.
+- Runtime trap spans use `TcInstr.span`, the opcode token that identifies the
+  triggered instruction (the same anchor used for instruction-level static
+  diagnostics); `tc-vm` executes a normal invocation and prints the first trap as
+  `<file>:<line>:<column>: error[RT]: <TC_RE_*>: <print-name>` on stderr; the
+  exit status is the profile's `trap_status` (1), while normal termination uses
+  `normal_status` (0).  `--checked` sets `checked_build`; `--opt` is accepted
+  but the zero-pass baseline keeps O0/O2 identical.  `tc-aot` still exits 70.
+- I/O uses the `TcIoSink`/`TcIoSrc` seams: one write call per `write`/
+  `writeln` record (newline included), no partial record on failure, and
+  `read` parses a complete whitespace-delimited token before committing its
+  target.  Output formatting uses the exact decimal renderer, not host
+  `printf`.
+- The core creates no heap objects: the allocation API is a runtime-library
+  concern.  Until that library lands, heap-region addresses that are not
+  language objects are reported as `TC_RE_ADDR_UNAVAILABLE` rather than being
+  accessed through the host; this is a safety fallback for UB, not a language
+  guarantee.
+
 ### Deferred decisions
 
-- Field sub-objects: IR finalization creates one object per `var`/parameter/
-  `static var`; struct field sub-objects and `TcObject.parent` links are
-  materialized by the pointer/object runtime stage (standard §3.12/§6.8).  Until
-  then every object has `parent == UINT32_MAX`.
-
-- `call_indirect nullptr`: statically rejected as `LITERAL_TYPE` because no
-  signature can be inferred from an untyped null operand; the runtime
-  `TC_RE_NULL_FUNCTION_POINTER` path and the signature-inference question remain
-  deferred to the VM stage.
 - `-0` for an unsigned expected type: treated as an explicit negative literal
   (`LITERAL_TYPE`); the mathematical-zero reading remains an open clarification.
+- Heap objects created by the runtime library and the checked-build poison/
+  stack-watermark checks are later runtime work; the VM already isolates them
+  behind the access layer.
 
 ## Not frozen here (later stages, same headers)
 
@@ -253,7 +314,7 @@ must fill in:
 | CFG/DI fixed-point and return reachability | implemented (internal per unit) |
 | CT allowlist/evaluation/caching | implemented |
 | final `TcInstr`/`TcIR`/`TcUnit` materialization and printing | implemented |
-| runtime semantics and I/O formatting | S6 |
+| heap/runtime-library objects and checked-build poison/watermark | later runtime work |
 | AArch64 lowering/ABI/frame layout | S7 |
 
 Changing a frozen structure requires a contract review, updating this file, the

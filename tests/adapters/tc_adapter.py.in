@@ -61,6 +61,10 @@ NOTE_RE = re.compile(
     r"^(?P<file>.*):(?P<line>[0-9]+):(?P<column>[0-9]+): "
     r"note: related position$"
 )
+RT_RE = re.compile(
+    r"^(?P<file>.*):(?P<line>[0-9]+):(?P<column>[0-9]+): "
+    r"error\[RT\]: (?P<code>TC_RE_[A-Z0-9_]+): (?P<name>[^:\n]*)$"
+)
 
 
 def _strict_diagnostics(text, case, mode):
@@ -211,6 +215,68 @@ class Adapter:
             f"tc-vm {argv[1]} failed with exit {proc.returncode}: "
             f"{proc.stderr.decode('utf-8', 'replace')}"
         )
+
+    def run(self, case):
+        harness = case["_harness"]
+        source = harness["source_path"]
+        argv = [TC_VM]
+        profile = case.get("profile")
+        if isinstance(profile, str) and profile not in {"common", "w64"}:
+            argv.append(f"--profile={profile}")
+        for root in harness.get("include_roots", []):
+            argv.append(f"--include={root}")
+        if case.get("checked"):
+            argv.append("--checked")
+        if case.get("opt") is not None:
+            argv.append(f"--opt={case['opt']}")
+        argv.append(source)
+        stdin_bytes = bytes.fromhex(
+            "".join(str(harness.get("stdin_hex", "")).split())
+        )
+        timeout = harness.get("timeout_s", 10.0)
+        try:
+            proc = subprocess.run(
+                argv,
+                cwd=os.getcwd(),
+                input=stdin_bytes,
+                capture_output=True,
+                timeout=timeout,
+                env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
+                     "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"tc-vm timed out: {exc}") from exc
+        stderr = proc.stderr.decode("utf-8", "replace")
+        trap = None
+        runtime_lines = []
+        for line in stderr.splitlines():
+            match = RT_RE.match(line)
+            if match:
+                runtime_lines.append(match)
+            elif line.strip():
+                raise RuntimeError(
+                    f"tc-vm run wrote an unexpected stderr line: {line!r}"
+                )
+        if len(runtime_lines) > 1:
+            raise RuntimeError("tc-vm emitted more than one runtime trap")
+        if proc.returncode == 0:
+            if runtime_lines:
+                raise RuntimeError("tc-vm exited 0 with a trap diagnostic")
+            trap = None
+            termination = "normal"
+        elif proc.returncode == 1 and len(runtime_lines) == 1:
+            trap = runtime_lines[0].group("code")
+            termination = "trap"
+        else:
+            raise RuntimeError(
+                f"tc-vm run failed with exit {proc.returncode}: {stderr}"
+            )
+        return {
+            "stdout_hex": proc.stdout.hex(),
+            "trap": trap,
+            "exit": proc.returncode,
+            "termination": termination,
+        }
 
     def compile(self, case):
         # The full static pipeline includes LEX/SYN and then discovers imports;

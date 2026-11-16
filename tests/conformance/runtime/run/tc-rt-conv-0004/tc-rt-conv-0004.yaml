@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0004
+profile: w32
+source: root.tc
+spec: "§6.6.1/§13.2.2 float->isize range under W=32 -> TC_RE_CAST_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_CAST_OVERFLOW
+  exit: 1
+  termination: trap

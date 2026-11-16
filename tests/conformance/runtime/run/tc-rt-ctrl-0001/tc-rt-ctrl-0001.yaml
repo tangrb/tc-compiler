@@ -1,0 +1,10 @@
+id: TC-RT-CTRL-0001
+profile: w64
+source: root.tc
+spec: "§6.10 br/br_if/switch: loop accumulation and default target"
+kind: run
+expect:
+  stdout_hex: "31300a320a"
+  trap: null
+  exit: 0
+  termination: normal

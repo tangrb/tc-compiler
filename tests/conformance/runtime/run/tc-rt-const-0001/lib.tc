@@ -1,0 +1,12 @@
+#lib
+public struct S then
+    var a: int32
+    readonly b: bool
+end
+public const K: int32 = 7
+public static var V: int32 = add int32, K, 1
+public const S0: S = make S, 5, true
+public static var Z: S = make S, S0.a, S0.b
+public func get() int32 then
+_ = return Self.V
+end

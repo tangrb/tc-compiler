@@ -1,0 +1,14 @@
+#lib
+public struct S then
+    var a: int32
+    var b: int64
+end
+public func mk(x: int32) S then
+var s: S = make S, x, 100
+_ = return s
+end
+public func sum(s: S) int32 then
+var b: int32 = cast int32, s.b
+var r: int32 = add int32, s.a, b
+_ = return r
+end

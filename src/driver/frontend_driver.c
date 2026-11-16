@@ -1,4 +1,4 @@
-/* TC 0.0.46 driver: LEX/SYN/IMPORT/SEM invocation. */
+/* TC 0.0.46 driver: static stages plus tc-vm execution. */
 #include "driver/frontend_driver.h"
 
 #include <stdio.h>
@@ -9,6 +9,7 @@
 #include "frontend/input.h"
 #include "frontend/parse.h"
 #include "frontend/sem.h"
+#include "vm/vm.h"
 
 static const char *stage_name(TcStage stage) {
     switch (stage) {
@@ -72,6 +73,83 @@ static int print_impl_error(const char *tool_name, TcImplError error,
         return TC_EXIT_USAGE;
     }
     return TC_EXIT_INTERNAL;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Hosted I/O seams and trap reporting for the reference VM.                 */
+/* ------------------------------------------------------------------------- */
+
+static int host_sink_write(void *ctx, const uint8_t *bytes, size_t size) {
+    (void)ctx;
+    if (size == 0) {
+        return 0;
+    }
+    return fwrite(bytes, 1, size, stdout) == size ? 0 : -1;
+}
+
+static int host_sink_flush(void *ctx) {
+    (void)ctx;
+    return fflush(stdout) == 0 ? 0 : -1;
+}
+
+static int host_source_read(void *ctx, uint8_t *buf, size_t cap, size_t *n,
+                            TcIoStatus *status) {
+    size_t got;
+    (void)ctx;
+    if (buf == NULL || n == NULL || status == NULL) {
+        return -1;
+    }
+    got = fread(buf, 1, cap, stdin);
+    *n = got;
+    if (got != 0) {
+        *status = TC_IO_OK;
+    } else if (feof(stdin)) {
+        *status = TC_IO_EOF;
+    } else {
+        *status = TC_IO_ERROR;
+    }
+    if (ferror(stdin)) {
+        return -1;
+    }
+    return 0;
+}
+
+static void host_trap(void *ctx, TcErrorKind kind, int line) {
+    (void)ctx;
+    (void)kind;
+    (void)line;
+}
+
+static void install_host_vm_seams(TcPlatformProfile *profile, TcIo *io,
+                                  TcIoSink *sink, TcIoSrc *src,
+                                  TcTrapHandler *trap) {
+    sink->write = host_sink_write;
+    sink->flush = host_sink_flush;
+    sink->ctx = NULL;
+    src->read = host_source_read;
+    src->ctx = NULL;
+    trap->trap = host_trap;
+    trap->ctx = NULL;
+    io->out = sink;
+    io->in = src;
+    profile->io = io;
+    profile->alloc = (TcAllocator *)tc_allocator_libc();
+    profile->trap = trap;
+}
+
+static int print_vm_trap(const char *tool_name, const TcVmResult *result) {
+    const TcDiagInfo *info;
+    if (result == NULL || !result->trapped) {
+        return TC_EXIT_INTERNAL;
+    }
+    info = tc_diag_info((TcDiagCode)result->kind);
+    fprintf(stderr, "%s:%u:%u: error[RT]: %s: %s\n",
+            result->span.file != NULL ? result->span.file : "<source>",
+            result->span.line, result->span.column,
+            info != NULL ? info->symbol : "TC_RE_TRAP",
+            info != NULL ? info->print_name : "Trap");
+    (void)tool_name;
+    return TC_EXIT_DIAGNOSTIC;
 }
 
 static int run_syntax_only(const char *tool_name,
@@ -152,15 +230,49 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         tc_analysis_destroy(analysis);
         return TC_EXIT_DIAGNOSTIC;
     }
-    tc_analysis_destroy(analysis);
     if (options->sem_only) {
         /* IMPORT/SEM accepted; CT and code generation were not run. */
+        tc_analysis_destroy(analysis);
         return TC_EXIT_OK;
     }
     if (options->static_only) {
         /* LEX/SYN/IMPORT/SEM/CT and IR finalization accepted; no codegen. */
+        tc_analysis_destroy(analysis);
         return TC_EXIT_OK;
     }
+    if (strcmp(tool_name, "tc-vm") == 0) {
+        TcIo io;
+        TcIoSink sink;
+        TcIoSrc src;
+        TcTrapHandler trap;
+        TcVmResult vm_result;
+        TcImplError vm_impl = TC_IMPL_OK;
+        TcVmStatus vm_status;
+        const TcIR *ir = tc_analysis_ir(analysis);
+        install_host_vm_seams(&profile, &io, &sink, &src, &trap);
+        profile.checked_build = options->checked ? 1 : 0;
+        if (ir == NULL) {
+            tc_analysis_destroy(analysis);
+            return print_impl_error(tool_name, TC_IMPL_INTERNAL, NULL);
+        }
+        vm_status = tc_vm_run(ir, &profile, &vm_result, &vm_impl);
+        if (io.out != NULL && io.out->flush != NULL) {
+            (void)io.out->flush(io.out->ctx);
+        }
+        if (vm_status == TC_VM_STATUS_OK) {
+            result = profile.exit.normal_status;
+        } else if (vm_status == TC_VM_STATUS_TRAP) {
+            print_vm_trap(tool_name, &vm_result);
+            result = profile.exit.trap_status;
+        } else {
+            result = print_impl_error(
+                tool_name, vm_impl != TC_IMPL_OK ? vm_impl : TC_IMPL_INTERNAL,
+                NULL);
+        }
+        tc_analysis_destroy(analysis);
+        return result;
+    }
+    tc_analysis_destroy(analysis);
     fprintf(stderr, "%s: %s: %s\n", tool_name,
             tc_impl_error_symbol(TC_IMPL_UNAVAILABLE),
             tc_impl_error_message(TC_IMPL_UNAVAILABLE));

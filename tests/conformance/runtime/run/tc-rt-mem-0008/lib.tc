@@ -1,0 +1,5 @@
+#lib
+public func add1(x: int32) int32 then
+var r: int32 = add int32, x, 1
+_ = return r
+end

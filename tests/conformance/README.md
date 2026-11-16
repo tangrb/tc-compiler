@@ -15,6 +15,16 @@ never backfilled from compiler output.
   `accept_s4/<case-id>/`; `@HERE@`/`@REL@` positions follow the same
   §12.5.1 conventions.  S4 acceptance tool cases use `--sem-only` because they
   assert SEM acceptance only.
+- S6 per-opcode static shape: `opcode_static/<case-id>/` (source table
+  `s6_static_cases.py`).  Each of the 63 opcode-table items gets one
+  missing-operand SEM `TC_CE_OPERAND_COUNT` case at the mnemonic; type, mode,
+  safety and result-type negatives remain in the S3/S4 tables.
+- S6 VM runtime: `runtime/run/<case-id>/` (source table `runtime/s6_cases.py`).
+  Each case owns `root.tc` plus optional imported `lib.tc`; the YAML declares
+  profile, stdin, expected stdout bytes, first `TC_RE_*` trap, exit status and
+  termination.  Normal/boundary/trap cases cover all 51 opcodes, the 15
+  `TC_RE_*` codes, commit semantics, device policy, `D`, I/O tokens and the
+  32/64 matrix.
 - S5 CT/const/static-var: `ct/`, `accept_s5/` (source table `s5_cases.py`).
   Negative cases pin the six `TC_CE_CONST_*` CT codes, attribution/order,
   stage boundary and static-var initializers; positive cases cover the §3.10
@@ -39,6 +49,8 @@ tests/conformance/
     accept_s3/         positive IMPORT/SEM acceptance sources
     accept_s4/         positive CFG/DI/call/safety/annotation sources
     accept_s5/         positive CT acceptance sources
+  opcode_static/      S6 per-opcode static shape cases (one directory per case)
+  runtime/            S6 VM runtime cases (one directory per case)
   fuzz/                L7 property case (random bytes; no crash/hang)
 ```
 
@@ -59,12 +71,16 @@ python3 tests/conformance/static/s1_cases.py --write
 python3 tests/conformance/static/s2s3_cases.py --write
 python3 tests/conformance/static/s4_cases.py --write
 python3 tests/conformance/static/s5_cases.py --write
+python3 tests/conformance/runtime/s6_cases.py --write
+python3 tests/conformance/static/s6_static_cases.py --write
 
 # gate: every generated file must match the table
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
 python3 tests/conformance/static/s5_cases.py --check
+python3 tests/conformance/runtime/s6_cases.py --check
+python3 tests/conformance/static/s6_static_cases.py --check
 ```
 
 `@HERE@` and `@REL@` mark primary/related positions before marker removal.
@@ -74,6 +90,12 @@ over an earlier IMPORT error (stage priority).  Tool acceptance cases name
 `--syntax-only`, `--sem-only` or `--static-only` explicitly.  Profile-sensitive cases set `profile: w32` or
 `profile: w64`; the adapter passes `--profile=w32` for the former and the
 default 64-bit profile for the latter.
+
+Runtime case expectations are derived from standard §6/§11 for integers,
+bools and floats; floating output uses Python's independent exact decimal
+renderer (`format(value, '.6g')`), never `tc-vm` output.  The harness `run`
+decider compares stdout bytes, trap code, exit status and termination, and the
+adapter rejects any unexpected stderr line or more than one trap.
 
 Do not edit generated `.tc`/`.yaml` files by hand; update the table and
 regenerate.  CRLF/CR and invalid-UTF-8 byte fixtures are marked `-text` in `.gitattributes`

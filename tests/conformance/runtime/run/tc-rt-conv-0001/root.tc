@@ -1,0 +1,16 @@
+#program
+var a: int32 = copy int32, -1
+var b: uint32 = bitcast uint32, a
+_ = writeln uint32, b
+var c: uint8 = trunc uint8, a
+_ = writeln uint8, c
+var d: float64 = cast float64, a
+_ = writeln float64, d
+var e: int8 = cast int8, d
+_ = writeln int8, e
+var f: float32 = cast float32, 0.1
+_ = writeln float32, f
+var g: bool = cast bool, 2.5
+_ = writeln bool, g
+var h: int32 = cast int32, true
+_ = writeln int32, h

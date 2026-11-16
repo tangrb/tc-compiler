@@ -25,6 +25,10 @@ add_executable(tc_ct_test unit/ct_test.c)
 target_link_libraries(tc_ct_test PRIVATE tc_core)
 target_compile_options(tc_ct_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
+add_executable(tc_vm_test unit/vm_test.c)
+target_link_libraries(tc_vm_test PRIVATE tc_core)
+target_compile_options(tc_vm_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 add_executable(tc_dump_codes unit/dump_codes.c)
 target_link_libraries(tc_dump_codes PRIVATE tc_core)
 target_compile_options(tc_dump_codes PRIVATE -Wall -Wextra -Werror -Wpedantic)
@@ -34,6 +38,7 @@ add_test(NAME frontend.unit COMMAND tc_frontend_test)
 add_test(NAME sem.unit COMMAND tc_sem_test)
 add_test(NAME ct.unit COMMAND tc_ct_test)
 add_test(NAME ir.unit COMMAND tc_ir_test)
+add_test(NAME vm.unit COMMAND tc_vm_test)
 add_test(NAME contract.dump_codes COMMAND tc_dump_codes)
 add_test(NAME conformance.s2s3_cases
          COMMAND ${Python3_EXECUTABLE}
@@ -49,6 +54,15 @@ add_test(NAME conformance.s4_cases
 add_test(NAME conformance.s5_cases
          COMMAND ${Python3_EXECUTABLE}
                  ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s5_cases.py --check)
+
+add_test(NAME conformance.s6_cases
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/conformance/runtime/s6_cases.py --check)
+
+add_test(NAME conformance.s6_static_cases
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s6_static_cases.py
+                 --check)
 
 add_test(
     NAME docs.cleanup
@@ -74,11 +88,14 @@ add_test(NAME trace.codes
                  --c-table-dump $<TARGET_FILE:tc_dump_codes>)
 add_test(NAME trace.coverage
          COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/coverage.py --check)
+add_test(NAME trace.case_ids
+         COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/check_case_ids.py)
 add_test(NAME trace.golden
          COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/validate.py)
 
 set_tests_properties(
-    trace.gen_codes trace.gen_c_table trace.codes trace.coverage trace.golden
+    trace.gen_codes trace.gen_c_table trace.codes trace.coverage trace.case_ids
+    trace.golden
     PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(NAME harness.selftest
@@ -87,12 +104,16 @@ add_test(NAME trace.harness_codes
          COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/check_harness_codes.py)
 set_tests_properties(harness.selftest trace.harness_codes conformance.s1_cases
                      conformance.s2s3_cases conformance.s4_cases
-                     conformance.s5_cases
+                     conformance.s5_cases conformance.s6_cases
+                     conformance.s6_static_cases
                      PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(NAME golden.selftest
          COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/selftest.py)
-set_tests_properties(golden.selftest PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+add_test(NAME golden.run
+         COMMAND ${Python3_EXECUTABLE} ${TC_GOLDEN_DIR}/run.py
+                 $<TARGET_FILE:tc-vm>)
+set_tests_properties(golden.selftest golden.run PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # --- LEX/SYN front-end conformance ------------------------------------------
 #
@@ -142,6 +163,16 @@ add_test(
             ${CMAKE_CURRENT_SOURCE_DIR}/conformance
             ${CMAKE_BINARY_DIR}/determinism)
 set_tests_properties(determinism.s5 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(
+    NAME determinism.s6
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s6_determinism.py
+            $<TARGET_FILE:tc-vm>
+            ${CMAKE_BINARY_DIR}/tc_adapter.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/conformance
+            ${CMAKE_BINARY_DIR}/determinism)
+set_tests_properties(determinism.s6 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(
     NAME determinism.s4

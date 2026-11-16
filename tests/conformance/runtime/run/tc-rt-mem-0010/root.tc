@@ -1,0 +1,8 @@
+#program
+var a: int32 = copy int32, 1
+var p: ptr<int32> = addr int32, a
+unsafe then
+_ = store.volatile int32, p, 9
+var x: int32 = load.volatile int32, p
+_ = writeln int32, x
+end

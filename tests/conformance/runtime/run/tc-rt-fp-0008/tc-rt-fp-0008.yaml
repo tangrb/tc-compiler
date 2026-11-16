@@ -1,0 +1,10 @@
+id: TC-RT-FP-0008
+profile: w64
+source: root.tc
+spec: "§6.3.3 mod exact rational quotient, sign of dividend, b=inf"
+kind: run
+expect:
+  stdout_hex: "312e350a2d312e350a352e350a"
+  trap: null
+  exit: 0
+  termination: normal

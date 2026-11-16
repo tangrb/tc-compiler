@@ -1,10 +1,9 @@
 /* TC 0.0.46 contract: tc-vm entry point.
  *
- * The static front end (LEX/SYN/IMPORT/SEM/CT and IR finalization) is
- * implemented.  `--syntax-only`/`--sem-only`/`--static-only` are partial checks,
- * not valid-program claims.  A normal invocation still fails with the
- * implementation-level "unavailable" status after the static stages succeed,
- * because VM/AOT execution is not implemented yet.
+ * `--syntax-only`/`--sem-only`/`--static-only` are partial checks, not
+ * valid-program claims.  A normal invocation executes the finalized program on
+ * the reference VM after the static stages succeed; the first runtime trap is
+ * reported as error[RT] and the profile's trap exit status is returned.
  */
 #include <stdio.h>
 
@@ -34,7 +33,7 @@ int main(int argc, char **argv) {
         return TC_EXIT_OK;
     }
     if (options.version) {
-        printf("tc-vm %s (static frontend)\n", TC_LANGUAGE_VERSION);
+        printf("tc-vm %s (reference VM)\n", TC_LANGUAGE_VERSION);
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {

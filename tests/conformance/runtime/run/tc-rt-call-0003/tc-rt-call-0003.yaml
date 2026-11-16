@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0003
+profile: w64
+source: root.tc
+spec: "§6.2.6 funcaddr/funceq/funcne and §6.9 call_indirect"
+kind: run
+expect:
+  stdout_hex: "66616c73650a747275650a747275650a34320a"
+  trap: null
+  exit: 0
+  termination: normal

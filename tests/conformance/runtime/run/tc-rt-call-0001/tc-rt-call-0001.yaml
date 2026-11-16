@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0001
+profile: w64
+source: root.tc
+spec: "§6.9 direct calls, recursion, by-value parameters and return"
+kind: run
+expect:
+  stdout_hex: "3132300a"
+  trap: null
+  exit: 0
+  termination: normal

@@ -1,0 +1,9 @@
+#program
+var z: int8 = shl int8, 0, 8
+_ = writeln int8, z
+var w: int8 = shl.wrap int8, 1, 8
+_ = writeln int8, w
+var s: int8 = shr int8, -128, 8
+_ = writeln int8, s
+var u: uint8 = shr uint8, 255, 4
+_ = writeln uint8, u

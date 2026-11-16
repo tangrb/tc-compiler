@@ -11,9 +11,11 @@
 | G3 | S3 名称、类型、转换与布局 | **PASS** | [G3](TC-G3门禁报告-0.0.46.md) |
 | G4 | S4 CFG、DI、返回、调用、安全与注解 | **PASS** | [G4](TC-G4门禁报告-0.0.46.md) |
 | G5 | S5 CT 与 IR 冻结 | **PASS** | [G5](TC-G5门禁报告-0.0.46.md) |
+| G6 | S6 VM 参考实现（W=32/64） | **PASS** | [G6](TC-G6门禁报告-0.0.46.md) |
 
-**当前状态**：G5 通过，允许进入 S6。VM、运行时语义与后端尚未实现；
-覆盖矩阵中的未覆盖项是后续阶段范围，不是已完成阶段的遗漏。
+**当前状态**：G6 通过，允许进入 S7。前端、CT/IR、运行时语义核与参考 VM 已实现；
+原生后端、freestanding/ABI/工具链尚未实现。覆盖矩阵 626/636；剩余 10 项均为
+S7–S9 的 design §12 项（差分/ABI/freestanding/`@fast_math`）。
 
 复现：
 
@@ -25,6 +27,10 @@ python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
 python3 tests/conformance/static/s5_cases.py --check
+python3 tests/conformance/runtime/s6_cases.py --check
+python3 tests/conformance/static/s6_static_cases.py --check
+python3 tests/golden/validate.py
+python3 tests/golden/run.py build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check
 python3 tests/tools/docs_cleanup_check.py
 ```

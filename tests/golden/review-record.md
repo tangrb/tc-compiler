@@ -10,7 +10,7 @@ nothing was backfilled from implementation output.
   "language_version": "0.0.46",
   "rehearsal": false,
   "date": "2026-11-15",
-  "scope": "S0 golden layout/derivation; S1 LEX/SYN goldens (derivation and independent review)",
+  "scope": "S0 golden layout/derivation; S1 LEX/SYN goldens; S6 runtime goldens (integer/float formatting, control flow, memory, I/O, traps, device policy, word size)",
   "implementation_run": false,
   "policy": {
     "expectation_source": "standard clauses only",
@@ -241,11 +241,213 @@ nothing was backfilled from implementation output.
       "status": "approved",
       "date": "2026-11-15",
       "notes": "Independently re-derived SYN/TC_CE_PROGRAM_MODE_MISUSE at 2:1; no compiler/VM run."
+    },
+    {
+      "artifact": "tests/golden/w64/run_int_format.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "2d3132380a31383434363734343037333730393535313631350a747275650a2d393232333337323033363835343737353830380a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0001 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_float_format.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "302e310a2d300a31652b30360a302e303030310a6e616e0a2d696e660a302e310a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0002 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_control_flow.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "31300a320a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0003 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_memory_struct.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "310a310a330a340a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0004 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_io_read.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "2d370a322e350a66616c73650a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0005 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_trap_divzero.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "310a",
+        "trap": "TC_RE_DIV_ZERO",
+        "exit": 1,
+        "termination": "trap"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0006 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_ieee_float.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "696e660a6e616e0a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0007 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/run_device_reject.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "",
+        "trap": "TC_RE_ADDR_UNAVAILABLE",
+        "exit": 1,
+        "termination": "trap"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0008 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w32/run_word_size.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "340a340a380a323134373438333634370a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0101 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w32/run_isize_overflow.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "",
+        "trap": "TC_RE_INTEGER_OVERFLOW",
+        "exit": 1,
+        "termination": "trap"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0102 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w32/run_usize_max.golden.yaml",
+      "author_role": "S6 runtime/test author",
+      "reviewer": "gate-auditor (independent read-only subagent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent derivation audit",
+      "status": "approved",
+      "date": "2026-11-16",
+      "derived": {
+        "stdout_hex": "343239343936373239350a",
+        "trap": null,
+        "exit": 0,
+        "termination": "normal"
+      },
+      "notes": "Independently re-derived TC-RT-GOLD-0103 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
     }
   ],
   "validator": {
     "command": "python3 tests/golden/validate.py",
     "result": "pass"
+  },
+  "s6_reviews": {
+    "scope": "S6 runtime goldens (11 kind:run); w64/w32; current content after the field-subobject correction",
+    "reviewer": "gate-auditor (independent read-only subagent)",
+    "reviewer_kind": "independent-agent",
+    "reviewer_independent": true,
+    "review_kind": "independent derivation audit",
+    "date": "2026-11-16",
+    "implementation_run": false,
+    "concerns": [
+      "Device address 0x20000000 is an environment-defined profile fact; the golden now cites §13.1 and src/CONTRACTS.md, and the runner selects aarch64-linux-user explicitly.",
+      "Normal exit 0 / trap exit 1 are environment-defined TcExitPolicy values; every derivation cites §13.1/design §8 and src/CONTRACTS.md.",
+      "Contiguous struct fields are separate sub-objects: memmove with n>1 across sibling fields is UB. The runtime golden uses n=1 and a one-past ptrdiff; the conformance self-copy covers the overlap path.",
+      "Spec citations include §11.1/§11.2 where output bytes or pre-trap retention are asserted."
+    ]
   }
 }
 ```

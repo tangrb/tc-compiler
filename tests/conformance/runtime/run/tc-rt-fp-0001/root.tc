@@ -1,0 +1,24 @@
+#program
+var a: float64 = copy float64, 1.5
+var b: float64 = copy float64, 2.5
+var s: float64 = add float64, a, b
+_ = writeln float64, s
+var d: float64 = sub float64, a, b
+_ = writeln float64, d
+var m: float64 = mul float64, a, b
+_ = writeln float64, m
+var q: float64 = div float64, a, b
+_ = writeln float64, q
+var r: float64 = mod float64, a, b
+_ = writeln float64, r
+var n: float64 = neg float64, a
+_ = writeln float64, n
+var ab: float64 = abs float64, n
+_ = writeln float64, ab
+var nanv: float64 = copy float64, nan
+var r_eq: bool = eq float64, nanv, nanv
+_ = writeln bool, r_eq
+var r_ne: bool = ne float64, nanv, nanv
+_ = writeln bool, r_ne
+var r_lt: bool = lt float64, 1.0, 2.0
+_ = writeln bool, r_lt

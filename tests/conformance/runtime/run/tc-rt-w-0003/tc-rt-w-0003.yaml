@@ -1,0 +1,10 @@
+id: TC-RT-W-0003
+profile: w32
+source: root.tc
+spec: "§13.2.2 usize/pointer width on the 32-bit profile"
+kind: run
+expect:
+  stdout_hex: "343239343936373239350a747275650a"
+  trap: null
+  exit: 0
+  termination: normal

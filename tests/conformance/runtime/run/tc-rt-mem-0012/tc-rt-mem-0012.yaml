@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0012
+profile: w64
+source: root.tc
+spec: "§6.8 ptradd null pointer -> TC_RE_NULL_POINTER"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_NULL_POINTER
+  exit: 1
+  termination: trap

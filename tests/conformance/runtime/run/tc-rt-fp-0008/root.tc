@@ -1,0 +1,11 @@
+#program
+var a: float64 = copy float64, 5.5
+var b: float64 = copy float64, 2.0
+var r: float64 = mod float64, a, b
+_ = writeln float64, r
+var n: float64 = copy float64, -5.5
+var s: float64 = mod float64, n, b
+_ = writeln float64, s
+var infv: float64 = copy float64, inf
+var t: float64 = mod float64, a, infv
+_ = writeln float64, t

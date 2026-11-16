@@ -1,0 +1,10 @@
+id: TC-RT-SIZEOF-0002
+profile: w32
+source: root.tc
+spec: "§6.13 sizeof under W=32; §13.2.1 pointer/fnptr/isize/usize are 4 bytes"
+kind: run
+expect:
+  stdout_hex: "340a340a380a"
+  trap: null
+  exit: 0
+  termination: normal

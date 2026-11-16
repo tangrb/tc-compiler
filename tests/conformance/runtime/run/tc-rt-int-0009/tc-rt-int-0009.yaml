@@ -1,0 +1,10 @@
+id: TC-RT-INT-0009
+profile: w64
+source: root.tc
+spec: "§6.3 negative shift count -> TC_RE_NEGATIVE_SHIFT (before overflow)"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_NEGATIVE_SHIFT
+  exit: 1
+  termination: trap

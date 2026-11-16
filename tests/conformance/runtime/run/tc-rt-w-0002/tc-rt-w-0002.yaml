@@ -1,0 +1,10 @@
+id: TC-RT-W-0002
+profile: w64
+source: root.tc
+spec: "§13.2.2 the same isize addition is in range on the 64-bit profile"
+kind: run
+expect:
+  stdout_hex: "323134373438333634380a"
+  trap: null
+  exit: 0
+  termination: normal

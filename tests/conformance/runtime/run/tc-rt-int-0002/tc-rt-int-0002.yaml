@@ -1,0 +1,10 @@
+id: TC-RT-INT-0002
+profile: w64
+source: root.tc
+spec: "§6.3 unsigned wrap, .wrap mode, k>=n shift rules; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "300a3235350a2d3132380a300a2d3132380a300a2d3132380a3132370a34340a"
+  trap: null
+  exit: 0
+  termination: normal

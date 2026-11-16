@@ -8,9 +8,12 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
-  CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；32/64 静态档案。
-- **未实现**：VM、运行时语义与原生后端。
-- 当前门禁：G0–G5 PASS；**G5 允许进入 S6**。详见 [门禁状态](docs/gates/README.md)。
+  CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
+  W 相关运行时语义核（整数/浮点/转换、§11.2 精确格式化、§11.3 输入）、参考 VM
+  （五区/对象与字段子对象、指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、
+  提交语义）；32/64 档案，VM 可执行 `aarch64-linux-user`、`aarch64-baremetal` 与 `w32`。
+- **未实现**：原生后端（`tc-aot`），以及 freestanding/ABI/工具链阶段。
+- 当前门禁：G0–G6 PASS；**G6 允许进入 S7**。详见 [门禁状态](docs/gates/README.md)。
 
 ## 文档
 
@@ -37,11 +40,11 @@ src/                  0.0.46 实现
   diagnostic/         80 码闭集 / 生成表 / 首诊选择
   frontend/           input num lex parse module sem ct irgen
   ir/                 type instr operand block ir region object address structs pointer_state print
-  runtime/            alloc io trap profile module_loader
-  vm/                 interp（后续阶段）
+  runtime/            alloc io trap profile module_loader；semantics/format/input
+  vm/                 vm.h interp memory（五区/对象/指针状态/全部 opcode）
   backend/            aarch64 arm32 riscv32 common（后续阶段）
   driver/             tc-vm / tc-aot CLI
-tests/                L0/L1 测试、L3 一致性、harness、可追溯性、golden、确定性
+tests/                L0/L1/L2 测试、L3/L4 一致性、harness、可追溯性、golden、确定性
 ```
 
 ## 构建与测试
@@ -59,11 +62,17 @@ ctest --test-dir build --output-on-failure
   退出 0 仍不代表程序有效，CT/IR/代码生成未运行。
 - `--static-only <source>`：执行全部静态阶段（含 CT 与 IR 最终化）；
   退出 0 仍不代表程序有效，代码生成未运行。
-- 普通调用：静态阶段通过后显式退出 70（后续阶段未实现）。
+- 普通 `tc-vm` 调用：静态阶段通过后执行参考 VM；正常终止退出 0，首个
+  `TC_RE_*` trap 以 `<file>:<line>:<column>: error[RT]: <code>: <print-name>`
+  报出并退出 1。`--profile=w32` 选择 32 位档案，`--checked` 增加 UB 访问检查
+  （不改变必选 trap），`--opt=O0|O2` 为零 pass 基线、语义一致。
+- `tc-aot` 普通调用：静态阶段通过后显式退出 70（后端未实现）。
 
 文件/资源失败的实现级错误使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，
 不伪装成语言诊断。实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
-超出返回 `tc_error_internal`（退出 71）。契约与测试口径见
+超出返回 `tc_error_internal`（退出 71）。内置档案的帧区/栈为 16 MiB
+（默认 `D`：hosted 512，baremetal/w32 256）；程序静态帧足迹耗尽该区域属实现错误
+（退出 71），不是语言诊断。契约与测试口径见
 [src/CONTRACTS.md](src/CONTRACTS.md) 与 [tests/README.md](tests/README.md)。
 
 ## 参与

@@ -1,0 +1,3 @@
+#program
+var k: int32 = copy int32, -1
+var x: int32 = shr int32, 1, k

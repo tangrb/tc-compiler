@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0005
+profile: w64
+source: root.tc
+spec: "§3.7/§6.9 struct parameters and struct return by value"
+kind: run
+expect:
+  stdout_hex: "3130370a370a3130300a"
+  trap: null
+  exit: 0
+  termination: normal

@@ -29,7 +29,7 @@ CODES_PATH = HERE.parent / "traceability" / "codes.json"
 ALLOWED_TOP = {
     "id", "kind", "profile", "profiles", "spec", "source", "source_file",
     "derivation", "review", "expect", "compare", "normalize", "link", "uart",
-    "device",
+    "device", "run",
 }
 ALLOWED_REVIEW = {
     "reviewer", "reviewer_kind", "reviewer_independent", "review_kind",
@@ -38,6 +38,7 @@ ALLOWED_REVIEW = {
 ALLOWED_EXPECT_DIAG = {
     "stage", "code", "primary", "related", "diagnostics",
 }
+ALLOWED_EXPECT_RUN = {"stdout_hex", "trap", "exit", "termination"}
 
 
 class YamlError(ValueError):
@@ -258,6 +259,15 @@ def _reject_unknown(mapping, allowed, where, errors, path):
         errors.append(f"{path}: {where} has unknown field(s): {', '.join(unknown)}")
 
 
+def is_hex(value) -> bool:
+    if not isinstance(value, str):
+        return False
+    cleaned = "".join(value.split())
+    if len(cleaned) % 2:
+        return False
+    return all(char in "0123456789abcdefABCDEF" for char in cleaned)
+
+
 def validate_file(path: Path, root: Path, code_map: dict[str, dict] | None = None) -> list[str]:
     errors = []
     try:
@@ -318,11 +328,44 @@ def validate_file(path: Path, root: Path, code_map: dict[str, dict] | None = Non
 
     kind = data.get("kind")
     expect = data.get("expect")
-    diagnostic = kind == "diagnostic"
-    if not diagnostic:
+    if kind == "run":
+        run = data.get("run")
+        if run is not None:
+            if not isinstance(run, dict):
+                errors.append(f"{path}: 'run' must be a mapping")
+            else:
+                _reject_unknown(run, {"stdin_hex"}, "run", errors, path)
+                if "stdin_hex" in run and not is_hex(run["stdin_hex"]):
+                    errors.append(f"{path}: 'run.stdin_hex' must be a hex string")
+        if not isinstance(expect, dict):
+            errors.append(f"{path}: run golden needs an 'expect' mapping")
+            return errors
+        _reject_unknown(expect, ALLOWED_EXPECT_RUN, "expect", errors, path)
+        if not is_hex(expect.get("stdout_hex")):
+            errors.append(f"{path}: 'expect.stdout_hex' must be a hex string")
+        trap = expect.get("trap")
+        if trap is not None and not (
+            isinstance(trap, str)
+            and re.fullmatch(r"TC_RE_[A-Z0-9_]+", trap)
+        ):
+            errors.append(f"{path}: 'expect.trap' must be null or a TC_RE_* code")
+        exit_value = expect.get("exit")
+        if not isinstance(exit_value, int) or isinstance(exit_value, bool):
+            errors.append(f"{path}: 'expect.exit' must be an integer")
+        termination = expect.get("termination")
+        if termination not in {"normal", "trap"}:
+            errors.append(
+                f"{path}: 'expect.termination' must be normal or trap"
+            )
+        if (trap is None) != (termination == "normal"):
+            errors.append(
+                f"{path}: expect.trap and expect.termination disagree"
+            )
+        return errors
+    if kind != "diagnostic":
         errors.append(
             f"{path}: unsupported golden kind {kind!r}; "
-            "only diagnostic goldens are accepted"
+            "accepted kinds are diagnostic and run"
         )
         return errors
     if not isinstance(expect, dict):

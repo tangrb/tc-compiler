@@ -1,0 +1,10 @@
+id: TC-RT-IO-0001
+profile: w64
+source: root.tc
+spec: "§11.2 deterministic write/writeln formats for integers, bool and floats"
+kind: run
+expect:
+  stdout_hex: "2d3132380a31383434363734343037333730393535313631350a747275650a2d300a6e616e0a2d696e660a31652b30360a"
+  trap: null
+  exit: 0
+  termination: normal

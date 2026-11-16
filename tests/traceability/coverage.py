@@ -17,9 +17,10 @@ an implementation:
     and the normal/trap exit branches.
 
 All rows start as "uncovered".  Only named stage rows in L0_COVERED_ROWS,
-S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS, S4_COVERED_ROWS and
-S5_COVERED_ROWS may be marked "covered" with a real case id; missing coverage
-for everything else is explicit and is never silently rendered as covered.
+S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS, S4_COVERED_ROWS,
+S5_COVERED_ROWS and S6_COVERED_ROWS may be marked "covered" with a real case
+id; missing coverage for everything else is explicit and is never silently
+rendered as covered.
 
 Usage:
     python3 tests/traceability/coverage.py            # regenerate committed files
@@ -1353,6 +1354,247 @@ S5_COVERED_ROWS = {
     ],
 }
 
+S6_COVERED_ROWS = {
+    # §1 observable behavior, §11 I/O and §12 runtime diagnostics.
+    "chapter:§1:positive": ["TC-RT-INT-0001", "TC-RT-INT-0003", "TC-RT-MEM-0001"],
+    "chapter:§1:negative": ["TC-RT-INT-0004", "TC-RT-CTRL-0002"],
+    "chapter:§11:positive": ["TC-RT-IO-0001", "TC-RT-IO-0002", "TC-RT-IO-0006"],
+    "chapter:§11:negative": ["TC-RT-IO-0003", "TC-RT-IO-0004", "TC-RT-IO-0005"],
+    "chapter:§12:positive": ["TC-RT-CTRL-0002", "TC-RT-MEM-0005", "TC-RT-INT-0001"],
+    # Design §12 items owned by the reference VM and runtime.
+    "design12:03:suite_mapping": [
+        "TC-RT-GOLD-0001", "TC-RT-GOLD-0002", "TC-RT-GOLD-0101",
+        "TC-RT-GOLD-0102",
+    ],
+    "design12:03:gate_case": ["TC-RT-GOLD-0001", "TC-RT-GOLD-0102"],
+    "design12:05:suite_mapping": ["TC-UNIT-VM-0006"],
+    "design12:05:gate_case": ["TC-UNIT-VM-0006"],
+    "design12:08:suite_mapping": [
+        "TC-RT-MEM-0001", "TC-RT-MEM-0002", "TC-RT-MEM-0004",
+    ],
+    "design12:08:gate_case": ["TC-RT-MEM-0004", "TC-RT-MEM-0011"],
+    "design12:14:suite_mapping": [
+        "TC-RT-DEV-0001", "TC-RT-IO-0002", "TC-UNIT-VM-0006",
+    ],
+    "design12:14:gate_case": [
+        "TC-RT-DEV-0001", "TC-RT-IO-0003", "TC-RT-IO-0004",
+    ],
+    "design12:15:suite_mapping": ["TC-RT-OPT-0001"],
+    "design12:15:gate_case": ["TC-RT-OPT-0001"],
+    # Device policy matrix (design §8).
+    "device_policy:TC_DEV_REJECT:trap_mapping": ["TC-RT-DEV-0001"],
+    "device_policy:TC_DEV_READ:trap_mapping": ["TC-UNIT-VM-0006"],
+    "device_policy:TC_DEV_READWRITE:trap_mapping": ["TC-UNIT-VM-0006"],
+    "device_policy:TC_DEV_VOLATILE:trap_mapping": ["TC-UNIT-VM-0006"],
+    # TcIoSrc states and short reads (design §7.2).
+    "io_source_state:TC_IO_OK:path": ["TC-RT-IO-0002"],
+    "io_source_state:TC_IO_EOF:path": ["TC-RT-IO-0004"],
+    "io_source_state:TC_IO_ERROR:path": ["TC-UNIT-VM-0006"],
+    "io_source_state:SHORT_READ:path": ["TC-UNIT-VM-0006"],
+    # Exit policy branches (design §8, standard §13.1).
+    "exit_strategy:normal_exit:branch": ["TC-RT-INT-0001"],
+    "exit_strategy:trap_exit:branch": ["TC-RT-CTRL-0002"],
+}
+
+_S6_OPCODE_CASES = {
+    "abs": ("TC-RT-INT-0001", "TC-RT-INT-0008"),
+    "add": ("TC-RT-INT-0001", "TC-RT-INT-0004"),
+    "add.ieee": ("TC-RT-FP-0006", None),
+    "add.wrap": ("TC-RT-INT-0002", None),
+    "addr": ("TC-RT-MEM-0001", None),
+    "and": ("TC-RT-INT-0001", None),
+    "bitcast": ("TC-RT-CONV-0001", None),
+    "br": ("TC-RT-CTRL-0001", None),
+    "br_if": ("TC-RT-CTRL-0001", None),
+    "call": ("TC-RT-CALL-0001", "TC-RT-CALL-0002"),
+    "call_indirect": ("TC-RT-CALL-0003", "TC-RT-CALL-0004"),
+    "cast": ("TC-RT-CONV-0001", "TC-RT-CONV-0002"),
+    "copy": ("TC-RT-MEM-0002", None),
+    "div": ("TC-RT-INT-0001", "TC-RT-INT-0005"),
+    "div.ieee": ("TC-RT-FP-0006", None),
+    "eq": ("TC-RT-INT-0001", None),
+    "funcaddr": ("TC-RT-CALL-0003", None),
+    "funceq": ("TC-RT-CALL-0003", None),
+    "funcne": ("TC-RT-CALL-0003", None),
+    "ge": ("TC-RT-MEM-0001", None),
+    "gt": ("TC-RT-MEM-0001", None),
+    "le": ("TC-RT-MEM-0001", None),
+    "load": ("TC-RT-MEM-0001", "TC-RT-MEM-0005"),
+    "load.volatile": ("TC-RT-MEM-0010", "TC-RT-MEM-0016"),
+    "lt": ("TC-RT-INT-0001", None),
+    "make": ("TC-RT-MEM-0002", None),
+    "memmove": ("TC-RT-MEM-0004", "TC-RT-MEM-0007"),
+    "mod": ("TC-RT-INT-0001", "TC-RT-INT-0011"),
+    "mod.ieee": ("TC-RT-FP-0006", None),
+    "mul": ("TC-RT-INT-0001", "TC-RT-INT-0012"),
+    "mul.ieee": ("TC-RT-FP-0006", "TC-RT-FP-0006"),
+    "mul.wrap": ("TC-RT-INT-0002", "TC-RT-INT-0002"),
+    "ne": ("TC-RT-FP-0001", None),
+    "neg": ("TC-RT-INT-0001", "TC-RT-INT-0007"),
+    "neg.wrap": ("TC-RT-INT-0002", None),
+    "not": ("TC-RT-INT-0001", None),
+    "or": ("TC-RT-INT-0001", None),
+    "ptradd": ("TC-RT-MEM-0001", "TC-RT-MEM-0012"),
+    "ptrdiff": ("TC-RT-MEM-0001", "TC-RT-MEM-0011"),
+    "ptreq": ("TC-RT-MEM-0001", None),
+    "ptrge": ("TC-RT-MEM-0001", None),
+    "ptrgt": ("TC-RT-MEM-0001", None),
+    "ptrle": ("TC-RT-MEM-0001", None),
+    "ptrlt": ("TC-RT-MEM-0001", None),
+    "ptrne": ("TC-RT-MEM-0001", None),
+    "ptrsub": ("TC-RT-MEM-0001", "TC-RT-MEM-0017"),
+    "read": ("TC-RT-IO-0002", "TC-RT-IO-0003"),
+    "return": ("TC-RT-CALL-0001", None),
+    "shl": ("TC-RT-INT-0001", "TC-RT-INT-0009"),
+    "shl.wrap": ("TC-RT-INT-0002", "TC-RT-INT-0013"),
+    "shr": ("TC-RT-INT-0010", "TC-RT-INT-0014"),
+    "sizeof": ("TC-RT-SIZEOF-0001", None),
+    "store": ("TC-RT-MEM-0001", "TC-RT-MEM-0006"),
+    "store.volatile": ("TC-RT-MEM-0010", "TC-RT-MEM-0015"),
+    "sub": ("TC-RT-INT-0001", "TC-RT-INT-0015"),
+    "sub.ieee": ("TC-RT-FP-0006", "TC-RT-FP-0006"),
+    "sub.wrap": ("TC-RT-INT-0002", "TC-RT-INT-0002"),
+    "switch": ("TC-RT-CTRL-0001", None),
+    "trap": ("TC-RT-CTRL-0002", "TC-RT-CTRL-0002"),
+    "trunc": ("TC-RT-CONV-0001", None),
+    "write": ("TC-RT-IO-0001", "TC-UNIT-VM-0006"),
+    "writeln": ("TC-RT-IO-0001", "TC-UNIT-VM-0006"),
+    "xor": ("TC-RT-INT-0001", None),
+}
+for _opcode, (_normal, _trap) in _S6_OPCODE_CASES.items():
+    S6_COVERED_ROWS[f"opcode:{_opcode}:normal"] = [_normal]
+    if _trap is not None:
+        S6_COVERED_ROWS[f"opcode:{_opcode}:trap"] = [_trap]
+
+_S6_STATIC_OPCODES = [
+    "add", "add.wrap", "add.ieee", "sub", "sub.wrap", "sub.ieee", "mul",
+    "mul.wrap", "mul.ieee", "div", "div.ieee", "mod", "mod.ieee", "neg",
+    "neg.wrap", "abs", "shl", "shl.wrap", "shr", "and", "or", "xor", "not",
+    "eq", "ne", "lt", "le", "gt", "ge", "cast", "trunc", "bitcast", "load",
+    "load.volatile", "store", "store.volatile", "memmove", "addr", "ptradd",
+    "ptrsub", "ptrdiff", "ptreq", "ptrne", "ptrlt", "ptrle", "ptrgt", "ptrge",
+    "sizeof", "funcaddr", "call", "call_indirect", "funceq", "funcne", "make",
+    "copy", "br", "br_if", "switch", "return", "trap", "read", "write",
+    "writeln",
+]
+for _index, _opcode in enumerate(_S6_STATIC_OPCODES, 1):
+    S6_COVERED_ROWS[f"opcode:{_opcode}:static_error"] = [
+        f"TC-SEM-OPC-{_index:04d}"
+    ]
+
+_S6_CODE_CASES = {
+    "TC_RE_INTEGER_OVERFLOW": {
+        "trigger": ["TC-RT-INT-0004", "TC-RT-INT-0006", "TC-RT-INT-0007",
+                    "TC-RT-INT-0008", "TC-RT-INT-0012", "TC-RT-INT-0015",
+                    "TC-RT-W-0001"],
+        "no_false_positive": ["TC-RT-INT-0001", "TC-RT-INT-0002",
+                              "TC-RT-W-0002"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-INT-0004"],
+        "w32": ["TC-RT-W-0001"],
+        "w64": ["TC-RT-INT-0004"],
+    },
+    "TC_RE_DIV_ZERO": {
+        "trigger": ["TC-RT-INT-0005", "TC-RT-INT-0011", "TC-RT-FP-0003"],
+        "no_false_positive": ["TC-RT-INT-0001", "TC-RT-FP-0001"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-INT-0005"],
+    },
+    "TC_RE_NEGATIVE_SHIFT": {
+        "trigger": ["TC-RT-INT-0009", "TC-RT-INT-0013", "TC-RT-INT-0014"],
+        "no_false_positive": ["TC-RT-INT-0010"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-INT-0009"],
+    },
+    "TC_RE_FLOAT_OVERFLOW": {
+        "trigger": ["TC-RT-FP-0004"],
+        "no_false_positive": ["TC-RT-FP-0001", "TC-RT-FP-0006"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-FP-0004"],
+    },
+    "TC_RE_FLOAT_UNDERFLOW": {
+        "trigger": ["TC-RT-FP-0005"],
+        "no_false_positive": ["TC-RT-FP-0007"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-FP-0005"],
+    },
+    "TC_RE_FLOAT_INVALID": {
+        "trigger": ["TC-RT-FP-0002"],
+        "no_false_positive": ["TC-RT-FP-0001", "TC-RT-FP-0006"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-FP-0002"],
+    },
+    "TC_RE_CAST_OVERFLOW": {
+        "trigger": ["TC-RT-CONV-0002", "TC-RT-CONV-0004"],
+        "no_false_positive": ["TC-RT-CONV-0001"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-CONV-0002"],
+        "w32": ["TC-RT-CONV-0004"],
+        "w64": ["TC-RT-CONV-0002"],
+    },
+    "TC_RE_NULL_POINTER": {
+        "trigger": ["TC-RT-MEM-0005", "TC-RT-MEM-0006", "TC-RT-MEM-0007",
+                    "TC-RT-MEM-0012", "TC-RT-MEM-0015", "TC-RT-MEM-0016",
+                    "TC-RT-MEM-0017"],
+        "no_false_positive": ["TC-RT-MEM-0001", "TC-RT-MEM-0010"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-MEM-0005"],
+    },
+    "TC_RE_PTRDIFF_OVERFLOW": {
+        "trigger": ["TC-RT-MEM-0011", "TC-RT-MEM-0013"],
+        "no_false_positive": ["TC-RT-MEM-0001"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-MEM-0011"],
+        "w32": ["TC-RT-MEM-0013"],
+        "w64": ["TC-RT-MEM-0011"],
+    },
+    "TC_RE_WRITE_PROTECTED": {
+        "trigger": ["TC-RT-MEM-0009"],
+        "no_false_positive": ["TC-RT-MEM-0001", "TC-RT-MEM-0010"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-MEM-0009"],
+    },
+    "TC_RE_ADDR_UNAVAILABLE": {
+        "trigger": ["TC-RT-MEM-0008", "TC-RT-MEM-0014", "TC-RT-DEV-0001"],
+        "no_false_positive": ["TC-RT-MEM-0001", "TC-RT-MEM-0010"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-MEM-0008"],
+        "w32": ["TC-RT-MEM-0014"],
+        "w64": ["TC-RT-MEM-0008"],
+    },
+    "TC_RE_STACK_OVERFLOW": {
+        "trigger": ["TC-RT-CALL-0002"],
+        "no_false_positive": ["TC-RT-CALL-0001"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-CALL-0002"],
+    },
+    "TC_RE_NULL_FUNCTION_POINTER": {
+        "trigger": ["TC-RT-CALL-0004"],
+        "no_false_positive": ["TC-RT-CALL-0003"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-CALL-0004"],
+    },
+    "TC_RE_IO": {
+        "trigger": ["TC-RT-IO-0003", "TC-RT-IO-0004", "TC-RT-IO-0005"],
+        "no_false_positive": ["TC-RT-IO-0001", "TC-RT-IO-0002",
+                              "TC-RT-IO-0006"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-IO-0003"],
+        "w32": ["TC-RT-IO-0005"],
+        "w64": ["TC-RT-IO-0003"],
+    },
+    "TC_RE_TRAP": {
+        "trigger": ["TC-RT-CTRL-0002"],
+        "no_false_positive": ["TC-RT-INT-0001"],
+        "position": ["TC-UNIT-VM-0006"],
+        "stage": ["TC-RT-CTRL-0002"],
+    },
+}
+for _code, _slots in _S6_CODE_CASES.items():
+    for _slot, _cases in _slots.items():
+        S6_COVERED_ROWS[f"code:{_code}:{_slot}"] = _cases
+
+
 def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
     rows = []
 
@@ -1507,7 +1749,7 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             row["status"] = "covered"
             row["case_ids"] = list(case_ids)
         for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
-                        S4_COVERED_ROWS, S5_COVERED_ROWS):
+                        S4_COVERED_ROWS, S5_COVERED_ROWS, S6_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1582,6 +1824,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "s3_covered_rows": sorted(S3_COVERED_ROWS),
             "s4_covered_rows": sorted(S4_COVERED_ROWS),
             "s5_covered_rows": sorted(S5_COVERED_ROWS),
+            "s6_covered_rows": sorted(S6_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {
@@ -1601,21 +1844,21 @@ def render_markdown(doc) -> str:
     lines = [
         "# TC-Compiler 0.0.46 Structural Coverage Matrix",
         "",
-        "> Generated skeleton from the 0.0.46 standard, design and test plan.",
+        "> Generated from the 0.0.46 standard, design and test plan.",
         "> **Every row starts as `uncovered`; a row is `covered` only when it",
-        "> carries at least one `case_ids` entry.** Named L0/S1/S2-S3/S4 rows",
-        "> from the unit and conformance tables are explicitly covered; every",
-        "> later-stage row remains visibly uncovered. Missing coverage is explicit",
-        "> (test plan §3.6/§7.5).",
+        "> carries at least one `case_ids` entry.** Named L0/S1/S2-S3/S4/S5/S6",
+        "> rows from the unit, conformance and golden tables are explicitly",
+        "> covered; every later-stage row remains visibly uncovered. Missing",
+        "> coverage is explicit (test plan §3.6/§7.5).",
         "",
         f"- Language version: `{doc['language_version']}`",
         f"- Spec: {doc['spec']}",
         f"- Rows: **{summary['slots']}** total, **{summary['uncovered']}** uncovered, "
-        f"**{summary['covered']}** covered, **{summary.get('suspended', 0)}** N/A (S0)",
+        f"**{summary['covered']}** covered, **{summary.get('suspended', 0)}** N/A",
         "",
         "## Summary by category",
         "",
-        "| Category | Items | Slots | Covered | Uncovered | N/A (S0) |",
+        "| Category | Items | Slots | Covered | Uncovered | N/A |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for category in CATEGORY_ORDER:

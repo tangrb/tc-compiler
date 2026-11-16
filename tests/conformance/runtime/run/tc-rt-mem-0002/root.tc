@@ -1,0 +1,17 @@
+#program
+struct S then
+    var a: int32
+    var b: int32
+end
+var s: S = make S, 3, 4
+var t: S = copy S, s
+t.a = add int32, t.a, 10
+_ = writeln int32, s.a
+_ = writeln int32, t.a
+_ = writeln int32, t.b
+var p: ptr<S> = addr S, s
+unsafe then
+_ = store S, p, t
+end
+_ = writeln int32, s.a
+_ = writeln int32, s.b

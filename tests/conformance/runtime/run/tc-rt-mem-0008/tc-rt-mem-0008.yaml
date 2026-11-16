@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0008
+profile: w64
+source: root.tc
+spec: "§6.7 code region access -> TC_RE_ADDR_UNAVAILABLE"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_ADDR_UNAVAILABLE
+  exit: 1
+  termination: trap

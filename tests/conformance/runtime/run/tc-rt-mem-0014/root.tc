@@ -1,0 +1,8 @@
+#program
+import lib
+var fp: fnptr<int32, int32> = funcaddr lib.add1
+unsafe then
+var a: usize = bitcast usize, fp
+var p: ptr<int32> = bitcast ptr<int32>, a
+var x: int32 = load int32, p
+end

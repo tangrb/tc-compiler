@@ -8,9 +8,13 @@ the frozen headers, the `frontend/` reader/lexer/parser/module-loader/analyzer
 const_expr form, CFG/reachability/DI, missing returns, call ordering/safety,
 safety contexts and annotations), the CT evaluator (const/static-var/const-local
 values, demand order/cache, static initializer images), IR finalization
-(`TcIR`/`TcUnit`/`TcBlock`/`TcInstr`, objects, consts, named arguments) and the
-deterministic IR text dump.  The VM, runtime semantics and backends are later
-work.  Frozen contract ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
+(`TcIR`/`TcUnit`/`TcBlock`/`TcInstr`, objects, consts, named arguments), the
+deterministic IR text dump, the W-aware runtime semantic core (integer/float
+arithmetic, conversions, exact deterministic scalar formatting, standard input
+tokens) and the reference VM (regions, objects/sub-objects, pointer states, all
+51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics).  Native
+backends are later work.  Frozen contract ownership is indexed in
+[CONTRACTS.md](CONTRACTS.md).
 
 ```text
 src/
@@ -23,8 +27,10 @@ src/
                 irgen (final IR materialization)
   ir/           type instr block operand span region object address structs pointer_state
                 print (deterministic IR text dump)
-  runtime/      alloc io trap profile module_loader (VM/AOT seams; further runtime later)
-  vm/           interp memory pointer_state (not implemented)
+  runtime/      alloc io trap profile module_loader (platform seams);
+                semantics (W-aware integer/float/conversion core);
+                format (exact §11.2 scalar rendering); input (§11.3 tokens)
+  vm/           vm.h interp memory (regions/objects/pointer state/all opcodes)
   backend/      aarch64 arm32 riscv32 common (not implemented)
   driver/       tc-vm tc-aot + shared CLI/profile selection
 ```
@@ -59,8 +65,8 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   table, profile instance or diagnostic code set in another directory.
 - `tc-vm` and `tc-aot` are the only tool entry points.  `--syntax-only`,
   `--sem-only` and `--static-only` are partial checks: exit 0 never claims a
-  valid program.  A normal invocation still exits 70 after the implemented
-  static stages (through IR finalization) until code generation exists.
+  valid program.  A normal `tc-vm` invocation executes the finalized program on
+  the reference VM; `tc-aot` still exits 70 until a backend exists.
 - Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
   source names/type syntax stay until SEM, and field paths keep the
   `TcFieldRef` shape.  SEM resolves and validates them and owns the frozen type
@@ -77,6 +83,18 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   AOT embed mode.
 - Both 32-bit and 64-bit targets are in scope. `usize`/`isize` are platform-word
   types; `sizeof`, `bitcast`, `trunc`, layout, and diagnostics must handle both.
+  The VM executes the `aarch64-linux-user`, `aarch64-baremetal` and `w32`
+  profiles; the 32-bit profile is an executable reference VM profile while its
+  native backend is still to be selected.
+- The runtime semantic core is shared with CT: one implementation of strict
+  integer/float rounding, exception priority and conversions.  `CT` maps a
+  runtime trap kind to the corresponding `TC_CE_CONST_*` code; it does not keep a
+  second arithmetic implementation.
+- VM frame storage is host-backed but addressed in the profile's frame region.
+  The built-in profiles reserve a 16 MiB frame region and `stack_size`, enough
+  for the default `D` (512 for hosted, 256 for baremetal/w32); a program whose
+  static frame footprints exhaust that region is an implementation error, not a
+  language diagnostic.
 
 Implementation starts from the 0.0.46 standard and design document; historical
 code exists only in git tags.

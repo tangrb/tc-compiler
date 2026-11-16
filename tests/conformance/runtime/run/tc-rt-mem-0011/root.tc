@@ -1,0 +1,7 @@
+#program
+var u: usize = copy usize, 18446744073709551615u
+var z: ptr<int32> = copy ptr<int32>, nullptr
+unsafe then
+var p: ptr<int32> = bitcast ptr<int32>, u
+var d: isize = ptrdiff int32, p, z
+end

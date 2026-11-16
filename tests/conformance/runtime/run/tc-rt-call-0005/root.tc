@@ -1,0 +1,7 @@
+#program
+import lib
+var s: lib.S = call lib.mk, 7
+var x: int32 = call lib.sum, s
+_ = writeln int32, x
+_ = writeln int32, s.a
+_ = writeln int64, s.b

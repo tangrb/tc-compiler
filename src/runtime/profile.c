@@ -71,12 +71,12 @@ int tc_profile_init_aarch64_linux_user(TcPlatformProfile *out) {
     out->addr_width = 64;
     out->little_endian = 1;
     profile_set_regions(out,
-                        0x0000000070000000ull, 0x0000000000100000ull,
+                        0x0000000070000000ull, 0x0000000001000000ull,
                         0x0000000010000000ull, 0x0000000000100000ull,
                         0x0000000020000000ull, 0x0000000000100000ull,
                         0x0000000040000000ull, 0x0000000001000000ull,
                         0x0000000080000000ull, 0x0000000010000000ull);
-    out->stack_size = 0x100000;
+    out->stack_size = 0x1000000;
     out->depth_D = 512;
     out->exit.normal_status = 0;
     out->exit.trap_status = 1;
@@ -101,7 +101,7 @@ int tc_profile_init_aarch64_baremetal(TcPlatformProfile *out) {
                         0x0000000009000000ull, 0x0000000000100000ull,
                         0x0000000040000000ull, 0x0000000000100000ull,
                         0x0000000042000000ull, 0x0000000001000000ull);
-    out->stack_size = 0x100000;
+    out->stack_size = 0x1000000;
     out->depth_D = 256;
     out->exit.normal_status = 0;
     out->exit.trap_status = 1;
@@ -121,12 +121,12 @@ int tc_profile_init_generic_w32(TcPlatformProfile *out) {
     out->addr_width = 32;
     out->little_endian = 1;
     profile_set_regions(out,
-                        0x70000000ull, 0x00100000ull,
+                        0x70000000ull, 0x01000000ull,
                         0x10000000ull, 0x00100000ull,
                         0x20000000ull, 0x00100000ull,
                         0x40000000ull, 0x01000000ull,
                         0x80000000ull, 0x10000000ull);
-    out->stack_size = 0x100000;
+    out->stack_size = 0x1000000;
     out->depth_D = 256;
     out->exit.normal_status = 0;
     out->exit.trap_status = 1;

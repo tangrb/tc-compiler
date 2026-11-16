@@ -46,14 +46,27 @@
   arguments and spans survive; an aggregate const inlines as a use-site `make` and owns
   no object; static/frame object tables, module instance ids, per-profile layout and the
   frozen type table; deterministic `tc_ir_print` text dump.
+- **Runtime semantic core and deterministic I/O**: W-aware strict/wrap integers,
+  division/modulo/shift boundaries, fixed binary32/64 rounding and exception
+  priority, exact underflow, `cast`/`trunc`/`bitcast`; CT and the VM share this core
+  (CT maps failures to the six `TC_CE_CONST_*` codes); exact six-significant-digit
+  §11.2 rendering without host `printf`, and §11.3 complete-token input with
+  EOF/short-read/error states.
+- **Reference VM (W=32/64)**: five-region address space, runtime objects and field
+  sub-objects, pointer states, all 51 opcodes, calls/`D`, no tail-call depth change,
+  all-or-nothing I/O, the 15 mandatory `TC_RE_*` traps, and no rollback of output
+  committed before a trap; `--checked` adds UB bounds checks;
+  `aarch64-linux-user`, `aarch64-baremetal` and `w32` profiles.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
-  invocation explicitly exits 70 after the static stages. Added the `w32` static profile
-  (not an executable target).
+  `tc-vm` invocation executes the reference VM and reports the first trap as
+  `error[RT]` with exit 1; a normal `tc-aot` invocation still exits 70 (backend not
+  implemented).
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
-  S1/S2/S3/S4/S5 conformance tables (S4: 163 compile + 44 accept; S5: 48 compile + 23
-  accept), determinism suites and a fail-closed adapter self-test; currently 26/26
-  `ctest` and 624/624 harness cases in Debug/Release/ASan builds.
+  `tc_vm_test`, S1/S2/S3/S4/S5/S6 conformance tables, W=32/64 runtime goldens,
+  determinism suites and a fail-closed adapter self-test; currently 32/32 `ctest`
+  and 753/753 harness cases (557 compile, 129 tool, 66 run, 1 property) in
+  Debug/Release/ASan builds; vm unit 413 checks.
 
 ### Changed
 
@@ -63,9 +76,10 @@
 - Wrap-up is now fixed process: process/historical documentation is removed and the
   `docs.cleanup` gate must pass; current conventions and known limits live in
   `src/CONTRACTS.md`.
-- Diagnostic positions, CT order/cache/error mapping, static layout and IR operand
-  conventions live in `src/CONTRACTS.md`; `--sem-only`/`--static-only` and normal
-  invocation never claim a valid program.
+- Diagnostic positions, CT order/cache/error mapping, static layout, IR operand and
+  runtime/VM conventions live in `src/CONTRACTS.md`; `--sem-only`/`--static-only`
+  never claim a valid program, and a normal `tc-vm` run reports only the first trap
+  or normal termination.
 
 ### Removed
 

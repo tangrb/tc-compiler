@@ -1790,11 +1790,12 @@ static const TcType *check_cast(Sem *s, const TcParseInstr *instr) {
     const TcType *target;
     TcTypeCat tc;
     const TcType *source = NULL;
-    const TcParseArg *arg = &instr->args[1];
+    const TcParseArg *arg;
     if (instr->nargs != 2) {
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->span);
         return NULL;
     }
+    arg = &instr->args[1];
     target = check_type_arg(s, &instr->args[0]);
     if (target == NULL) {
         return NULL;
@@ -1870,13 +1871,14 @@ static int out_type_is_pointer_like(const TcType *t) {
 static const TcType *check_trunc(Sem *s, const TcParseInstr *instr) {
     const TcType *target;
     const TcType *source = NULL;
-    const TcParseArg *arg = &instr->args[1];
+    const TcParseArg *arg;
     unsigned target_bits;
     unsigned source_bits;
     if (instr->nargs != 2) {
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->span);
         return NULL;
     }
+    arg = &instr->args[1];
     target = check_type_arg(s, &instr->args[0]);
     if (target == NULL) {
         return NULL;
@@ -1925,7 +1927,7 @@ static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr,
                                    int *unsafe_out) {
     const TcType *target;
     const TcType *source = NULL;
-    const TcParseArg *arg = &instr->args[1];
+    const TcParseArg *arg;
     TcTypeCat sc;
     TcTypeCat tc;
     unsigned target_bits;
@@ -1934,6 +1936,7 @@ static const TcType *check_bitcast(Sem *s, const TcParseInstr *instr,
         sem_diag_simple(s, TC_CE_OPERAND_COUNT, instr->span);
         return NULL;
     }
+    arg = &instr->args[1];
     target = check_type_arg(s, &instr->args[0]);
     if (target == NULL) {
         return NULL;

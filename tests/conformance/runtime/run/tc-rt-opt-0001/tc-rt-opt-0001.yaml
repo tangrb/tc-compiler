@@ -1,0 +1,11 @@
+id: TC-RT-OPT-0001
+profile: w64
+source: root.tc
+spec: "§10.4 zero-pass baseline: O2 produces the same observable output as O0"
+kind: run
+opt: O2
+expect:
+  stdout_hex: "34320a"
+  trap: null
+  exit: 0
+  termination: normal
