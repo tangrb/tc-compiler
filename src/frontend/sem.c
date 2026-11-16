@@ -4382,6 +4382,18 @@ static TcAnalysis *analyze_impl(const char *root_path,
     an->graph = graph;
     an->profile = (TcPlatformProfile *)an_alloc(an, sizeof(TcPlatformProfile));
     *an->profile = *profile;
+    if (profile->include_roots != NULL && profile->ninclude_roots != 0) {
+        const char **roots = (const char **)an_alloc(
+            an, profile->ninclude_roots * sizeof(const char *));
+        size_t ri;
+        for (ri = 0; ri < profile->ninclude_roots; ri++) {
+            roots[ri] = an_strdup(an, profile->include_roots[ri]);
+        }
+        an->profile->include_roots = roots;
+    } else {
+        an->profile->include_roots = NULL;
+        an->profile->ninclude_roots = 0;
+    }
     an->diags = tc_diag_buffer_create(alloc);
     an->types = tc_type_table_create(alloc);
     if (an->diags == NULL || an->types == NULL) {

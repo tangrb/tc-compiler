@@ -1920,8 +1920,10 @@ const TcInitImage *tc_ct_value_image(TcAnalysis *an, const TcCtValue *value,
     image = (TcInitImage *)tc_arena_alloc0(&an->arena, sizeof(TcInitImage));
     bytes = (uint8_t *)tc_arena_alloc0(&an->arena, size);
     if (image == NULL || bytes == NULL) {
+        /* Image materialization is also a read-only query after Analyze; do
+         * not jump into a completed analysis frame. */
         an->impl = TC_IMPL_OOM;
-        longjmp(an->env, 1);
+        return NULL;
     }
     if (!fill_image(an, value, bytes, size, 0)) {
         return NULL;
