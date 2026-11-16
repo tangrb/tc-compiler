@@ -12,10 +12,12 @@
 | G4 | S4 CFG、DI、返回、调用、安全与注解 | **PASS** | [G4](TC-G4门禁报告-0.0.46.md) |
 | G5 | S5 CT 与 IR 冻结 | **PASS** | [G5](TC-G5门禁报告-0.0.46.md) |
 | G6 | S6 VM 参考实现（W=32/64） | **PASS** | [G6](TC-G6门禁报告-0.0.46.md) |
+| G7 | S7 AArch64 子集后端、工具链与差分 | **PASS** | [G7](TC-G7门禁报告-0.0.46.md) |
 
-**当前状态**：G6 通过，允许进入 S7。前端、CT/IR、运行时语义核与参考 VM 已实现；
-原生后端、freestanding/ABI/工具链尚未实现。覆盖矩阵 626/636；剩余 10 项均为
-S7–S9 的 design §12 项（差分/ABI/freestanding/`@fast_math`）。
+**当前状态**：G7 通过，允许进入 S8。前端、CT/IR、运行时语义核、参考 VM 与
+AArch64 W=64 子集后端/工具链/差分已实现；全量 ABI、checked build、
+freestanding/裸机与 32 位后端尚未实现。覆盖矩阵 630/636；剩余 6 项为
+S8–S9 的 design §12 项（§13.4 八项一致性、freestanding、`@fast_math`）。
 
 复现：
 
@@ -29,6 +31,12 @@ python3 tests/conformance/static/s4_cases.py --check
 python3 tests/conformance/static/s5_cases.py --check
 python3 tests/conformance/runtime/s6_cases.py --check
 python3 tests/conformance/static/s6_static_cases.py --check
+python3 tests/conformance/diff/s7_cases.py --check
+python3 tests/conformance/diff/s7_fuzz.py --check
+python3 tests/conformance/abi/s7_abi_cases.py --check
+python3 tests/conformance/tools/s7_toolchain_cases.py --check
+python3 tests/conformance/tools/s7_static_parity.py --check
+python3 tests/determinism/s7_determinism.py --check
 python3 tests/golden/validate.py
 python3 tests/golden/run.py build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check

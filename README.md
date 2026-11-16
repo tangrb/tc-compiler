@@ -11,9 +11,13 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
   W 相关运行时语义核（整数/浮点/转换、§11.2 精确格式化、§11.3 输入）、参考 VM
   （五区/对象与字段子对象、指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、
-  提交语义）；32/64 档案，VM 可执行 `aarch64-linux-user`、`aarch64-baremetal` 与 `w32`。
-- **未实现**：原生后端（`tc-aot`），以及 freestanding/ABI/工具链阶段。
-- 当前门禁：G0–G6 PASS；**G6 允许进入 S7**。详见 [门禁状态](docs/gates/README.md)。
+  提交语义）；32/64 档案，VM 可执行 `aarch64-linux-user`、`aarch64-baremetal` 与 `w32`；
+  AArch64 W=64 子集后端（整数/位/比较、控制流、直接调用、整数/bool I/O、`sizeof`、
+  `copy`）、AAPCS64 子集、帧/静态区布局、确定性汇编发射，`tc-aot` 的
+  `.s`/`.o`/ELF 产物与 clang/lld/qemu 驱动，以及 VM↔AOT 差分/ABI/工具链/零 pass 套件。
+- **未实现**：全量 ABI（struct/HFA/浮点/间接调用）、checked build、freestanding/裸机
+  与 32 位后端；这些属 S8/S9。
+- 当前门禁：G0–G7 PASS；**G7 允许进入 S8**。详见 [门禁状态](docs/gates/README.md)。
 
 ## 文档
 
@@ -42,8 +46,9 @@ src/                  0.0.46 实现
   ir/                 type instr operand block ir region object address structs pointer_state print
   runtime/            alloc io trap profile module_loader；semantics/format/input
   vm/                 vm.h interp memory（五区/对象/指针状态/全部 opcode）
-  backend/            aarch64 arm32 riscv32 common（后续阶段）
-  driver/             tc-vm / tc-aot CLI
+  backend/            aarch64（子集后端 + freestanding 运行时）/ common（target 描述）
+                      arm32 riscv32（后续阶段）
+  driver/             tc-vm / tc-aot CLI 与 AOT 驱动
 tests/                L0/L1/L2 测试、L3/L4 一致性、harness、可追溯性、golden、确定性
 ```
 
@@ -55,7 +60,8 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-工具当前支持：
+S7 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`；CMake 找到两者时自动
+注册这些 ctest 项。工具当前支持：
 
 - `--syntax-only <source>`：只做 LEX/SYN；退出 0 表示无 LEX/SYN 诊断，**不是程序有效**。
 - `--sem-only <source>`：执行 LEX/SYN/IMPORT/SEM（含 CFG/DI、调用、安全与注解）；
@@ -66,13 +72,19 @@ ctest --test-dir build --output-on-failure
   `TC_RE_*` trap 以 `<file>:<line>:<column>: error[RT]: <code>: <print-name>`
   报出并退出 1。`--profile=w32` 选择 32 位档案，`--checked` 增加 UB 访问检查
   （不改变必选 trap），`--opt=O0|O2` 为零 pass 基线、语义一致。
-- `tc-aot` 普通调用：静态阶段通过后显式退出 70（后端未实现）。
+- 普通 `tc-aot` 调用：静态阶段通过后发射 AArch64 子集汇编到 stdout；`--emit=asm`
+  （默认）/`--emit=obj`/`--emit=elf` 与 `--output=<path>` 生成 `.s`/ELF 目标文件/ELF
+  可执行文件，`--opt=O0|O2` 为零 pass 基线。子集外的 opcode/类型/checked build/
+  非 W=64 `aarch64-linux-user` 档案显式退出 70，不发布错误产物。
+- AOT 可执行路径为 qemu-system-aarch64 + semihosting（macOS 无 qemu-user，按设计
+  §11 回退）；差分比较程序 stdout、首个 trap 码与退出策略。
 
 文件/资源失败的实现级错误使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，
 不伪装成语言诊断。实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
 超出返回 `tc_error_internal`（退出 71）。内置档案的帧区/栈为 16 MiB
 （默认 `D`：hosted 512，baremetal/w32 256）；程序静态帧足迹耗尽该区域属实现错误
-（退出 71），不是语言诊断。契约与测试口径见
+（退出 71），不是语言诊断。AOT 子集使用 W=64 `aarch64-linux-user`；完整 ABI、
+checked build、freestanding/裸机与 32 位后端属 S8/S9。契约与测试口径见
 [src/CONTRACTS.md](src/CONTRACTS.md) 与 [tests/README.md](tests/README.md)。
 
 ## 参与

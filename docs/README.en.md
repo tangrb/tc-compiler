@@ -14,10 +14,12 @@ current gate status. Chinese: [README.md](README.md).
 
 ## Current status
 
-- S0–S6 are implemented and G0–G6 passed; **G6 allows S7**.
-- Implemented: the front end, CT/IR, the runtime semantic core and the reference VM
-  (32/64 profiles).
-- Not implemented: the native backend and the freestanding/ABI/toolchain stages.
+- S0–S7 are implemented and G0–G7 passed; **G7 allows S8**.
+- Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
+  (32/64 profiles), the W=64 AArch64 subset backend/toolchain and the VM↔AOT
+  differential/ABI suites.
+- Not implemented: the full ABI, checked build, freestanding/bare metal and the
+  32-bit backend.
 - No C host public library, embedding API or ABI.
 - Both 32/64 are targets; `usize`/`isize` are platform-word types (§13.2.1/§13.2.2).
 

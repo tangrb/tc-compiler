@@ -31,6 +31,18 @@ never backfilled from compiler output.
   allowlist, const paths/struct chains, casts/bitcasts/`sizeof`, `make` and
   static initializers.  Positions follow §12.5.1 with the target-declaration
   convention documented in the table.
+- S7 differential: `diff/` (`s7_cases.py`, `s7_fuzz.py`).  Cases are executed
+  on the reference VM and on an AArch64 ELF built by `tc-aot --emit=elf` under
+  qemu-system-aarch64; program stdout, first `TC_RE_*` and exit policy must
+  match the derived expectation and each other.  The S7 subset reuses the S6
+  W=64 fixtures whose sources stay inside the backend subset.
+- S7 ABI: `abi/s7_abi_cases.py` covers the AAPCS64 integer subset (x0-x7,
+  x0 return, bool/int8/int16 extension, callee-saved bases, 16-byte alignment,
+  recursion and the depth limit `D`).
+- S7 toolchain: `tools/s7_toolchain_cases.py` checks `.s`/`.o`/ELF artifacts,
+  reproducibility, O0/O2 zero pass, explicit rejection of out-of-subset
+  programs and `tc-vm`/`tc-aot` static-result parity; `tools/s7_static_parity.py`
+  compares `--static-only` over every static conformance source.
 
 ```text
 tests/conformance/
@@ -51,7 +63,10 @@ tests/conformance/
     accept_s5/         positive CT acceptance sources
   opcode_static/      S6 per-opcode static shape cases (one directory per case)
   runtime/            S6 VM runtime cases (one directory per case)
-  fuzz/                L7 property case (random bytes; no crash/hang)
+  diff/               S7 VM↔AOT differential cases and fixed-seed fuzz
+  abi/                S7 AAPCS64 subset ABI cases
+  tools/              S7 artifact/toolchain and static-parity checks
+  static/fuzz/        L7 property case (random bytes; no crash/hang)
 ```
 
 ## Source table and generated files
@@ -81,6 +96,11 @@ python3 tests/conformance/static/s4_cases.py --check
 python3 tests/conformance/static/s5_cases.py --check
 python3 tests/conformance/runtime/s6_cases.py --check
 python3 tests/conformance/static/s6_static_cases.py --check
+python3 tests/conformance/diff/s7_cases.py --check
+python3 tests/conformance/diff/s7_fuzz.py --check
+python3 tests/conformance/abi/s7_abi_cases.py --check
+python3 tests/conformance/tools/s7_toolchain_cases.py --check
+python3 tests/conformance/tools/s7_static_parity.py --check
 ```
 
 `@HERE@` and `@REL@` mark primary/related positions before marker removal.

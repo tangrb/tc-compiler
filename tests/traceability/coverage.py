@@ -18,7 +18,8 @@ an implementation:
 
 All rows start as "uncovered".  Only named stage rows in L0_COVERED_ROWS,
 S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS, S4_COVERED_ROWS,
-S5_COVERED_ROWS and S6_COVERED_ROWS may be marked "covered" with a real case
+S5_COVERED_ROWS, S6_COVERED_ROWS and S7_COVERED_ROWS may be marked
+"covered" with a real case
 id; missing coverage for everything else is explicit and is never silently
 rendered as covered.
 
@@ -1396,6 +1397,28 @@ S6_COVERED_ROWS = {
     "exit_strategy:trap_exit:branch": ["TC-RT-CTRL-0002"],
 }
 
+S7_COVERED_ROWS = {
+    # Design §12 item 1 (VM/AOT differential) and item 7 (ABI/calls) are owned
+    # by the S7 AArch64 subset.  Item 15 (zero pass) adds the S7 determinism
+    # evidence to the VM-level case.
+    "design12:01:suite_mapping": [
+        "TC-DIFF-A64-0001", "TC-DIFF-A64-0002", "TC-DIFF-A64-0003",
+        "TC-DIFF-A64-0004", "TC-DIFF-A64-0005", "TC-DIFF-A64-0006",
+        "TC-DIFF-A64-0007", "TC-DIFF-A64-0008", "TC-DIFF-A64-0009",
+        "TC-DIFF-A64-0010", "TC-DIFF-A64-0011", "TC-DIFF-A64-0012",
+        "TC-DIFF-A64-0013",
+    ],
+    "design12:01:gate_case": ["TC-DIFF-A64-0001"],
+    "design12:07:suite_mapping": [
+        "TC-AOT-ABI-0001", "TC-AOT-ABI-0002", "TC-AOT-ABI-0003",
+        "TC-AOT-ABI-0004", "TC-AOT-ABI-0005", "TC-AOT-ABI-0006",
+        "TC-AOT-ABI-0007", "TC-AOT-ABI-0008", "TC-AOT-ABI-0009",
+    ],
+    "design12:07:gate_case": ["TC-AOT-ABI-0001"],
+    "design12:15:suite_mapping": ["TC-DET-S7-0001"],
+    "design12:15:gate_case": ["TC-DET-S7-0001"],
+}
+
 _S6_OPCODE_CASES = {
     "abs": ("TC-RT-INT-0001", "TC-RT-INT-0008"),
     "add": ("TC-RT-INT-0001", "TC-RT-INT-0004"),
@@ -1749,7 +1772,8 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             row["status"] = "covered"
             row["case_ids"] = list(case_ids)
         for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
-                        S4_COVERED_ROWS, S5_COVERED_ROWS, S6_COVERED_ROWS):
+                        S4_COVERED_ROWS, S5_COVERED_ROWS, S6_COVERED_ROWS,
+                        S7_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1825,6 +1849,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "s4_covered_rows": sorted(S4_COVERED_ROWS),
             "s5_covered_rows": sorted(S5_COVERED_ROWS),
             "s6_covered_rows": sorted(S6_COVERED_ROWS),
+            "s7_covered_rows": sorted(S7_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {

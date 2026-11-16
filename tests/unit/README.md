@@ -17,6 +17,9 @@ CTest entries:
   token input, regions/objects/pointer states, all mandatory traps and their
   positions, calls/`D`, device policies, I/O source states, checked build and
   the W=32/W=64 matrix (L1/L2).
+- `aot.unit` (`tc_aot_test`): AArch64 subset lowering shape, frame alignment,
+  static initializer emission, deterministic assembly and explicit rejection of
+  unsupported IR (L1).
 
 ## L0 case ids
 
@@ -129,7 +132,7 @@ programs with an in-memory I/O harness.  It currently runs 413 checks.
 ## L1 IR tests (`tc_ir_test`)
 
 `tc_ir_test` analyzes small multi-module programs and inspects the finalized
-`TcIR` directly.  It currently runs 437 checks.
+`TcIR` directly.  It currently runs 450 checks.
 
 | Case ID | Function | Pins |
 | --- | --- | --- |
@@ -138,6 +141,20 @@ programs with an in-memory I/O harness.  It currently runs 413 checks.
 | `TC-UNIT-IR-0003` | `test_ir_aggregate_const` | design §3.1/§3.4: aggregate const image bytes; use-site synthetic `make` for nested const structs; `const` owns no object |
 | `TC-UNIT-IR-0004` | `test_ir_word_sizes` | standard §13.2.1/§13.2.2 and design §2.2: per-profile struct size, static object size/alignment, `sizeof isize/ptr/fnptr` const values in 32/64 |
 | `TC-UNIT-IR-0005` | `test_ir_forms` | design §12.11: field lvalue, `addr` on frame and static fields, `funcaddr`/`call`/`call_indirect` operands and named call argument, `sizeof` type parameter, static field object mapping |
+| `TC-UNIT-IR-0006` | `test_ir_multi_function_bodies` | design §3.4: with multiple library functions, every `TcFunc.body` points into the final `TcIR.units` array and matches its `func_id` after unit-array growth |
+
+## L1 AArch64 backend tests (`tc_aot_test`)
+
+`tc_aot_test` analyzes small programs, emits assembly to memory and inspects the
+lowering shape.  It currently runs 34 checks and needs no qemu/linker.
+
+| Case ID | Function | Pins |
+| --- | --- | --- |
+| `TC-UNIT-AOT-0001` | `test_lowering_shapes` | design §10.3: native strict add overflow (`adds`/`b.vs`), signed `sdiv`/`msub`, shift-count checks, signed/unsigned `cset`, call depth, switch compare chain, `sizeof` immediate and frame prologue |
+| `TC-UNIT-AOT-0002` | `test_frame_alignment` | design §10.2: every emitted `sub sp, sp, #N` frame size is a multiple of 16 |
+| `TC-UNIT-AOT-0003` | `test_unsupported` | design §10.3: pointer/load programs return `TC_A64_UNSUPPORTED` with an explicit unsupported-opcode reason |
+| `TC-UNIT-AOT-0004` | `test_static_initializer` | design §4/§10: static object bytes appear in `__tc_static` at their object offsets |
+| `TC-UNIT-AOT-0005` | `test_deterministic` | design §10.1: two emissions of the same IR are byte-identical |
 | `TC-UNIT-IR-0006` | `test_ir_print` | deterministic textual dump: exact golden text, 1-based spans, repeated print is identical |
 | `TC-UNIT-IR-0007` | `test_ir_sem_only` | a SEM-only analysis has no finalized `TcIR` |
 | `TC-UNIT-IR-0008` | `test_ir_static_layout` | standard §13.3: static objects use import-DAG reverse topological order (importers first, `module_order` ties), module source order, W/8 alignment and one object per module instance in a diamond |

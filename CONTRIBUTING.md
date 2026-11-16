@@ -39,7 +39,9 @@ ctest --test-dir build --output-on-failure
 
 构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。工具支持 `--syntax-only`/`--sem-only`/
 `--static-only` 部分检查；普通 `tc-vm` 调用执行参考 VM（正常退出 0，trap 退出 1），
-普通 `tc-aot` 调用在静态阶段后以退出码 70 返回后端未实现。
+普通 `tc-aot` 调用发射 AArch64 W=64 子集汇编，`--emit=obj|elf` 经 clang/lld 生成
+ELF 产物；子集外能力显式退出 70 且不发布错误产物。S7 差分/工具链测试需要
+`ld.lld` 与 `qemu-system-aarch64`。
 
 ## 提 Issue
 

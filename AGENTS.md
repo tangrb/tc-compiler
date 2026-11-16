@@ -12,9 +12,14 @@
   （按需求值/缓存、静态初值；与 VM 共用 `runtime/semantics.c`）、IR 最终化/冻结与打印、
   W 相关运行时语义核、§11.2 精确格式化、§11.3 输入、参考 VM（五区/对象与字段子对象、
   指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、提交语义）、32/64 档案；
-  代码在 `src/frontend/`、`src/ir/`、`src/runtime/` 与 `src/vm/`。
-- 未实现：原生后端（`tc-aot`）、freestanding/ABI/工具链阶段。
-- 门禁：G0–G6 PASS，G6 允许进入 S7；见 `docs/gates/README.md`。
+  AArch64 W=64 子集后端（整数/位/比较、控制流、直接调用、整数/bool I/O、`sizeof`、
+  `copy`）、AAPCS64 子集、帧/静态区布局、确定性汇编发射、`tc-aot`
+  `--emit=asm|obj|elf`、clang/lld/qemu 驱动与 VM↔AOT 差分/ABI/工具链/零 pass 套件。
+  代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
+  `src/driver/`。
+- 未实现：全量 ABI（struct/HFA/浮点/间接调用）、checked build、freestanding/裸机、
+  32 位后端；属 S8/S9。
+- 门禁：G0–G7 PASS，G7 允许进入 S8；见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
@@ -31,7 +36,9 @@
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
    `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
-   trap 退出 1）；普通 `tc-aot` 调用仍退出 70。不得把部分能力写成“已支持”。
+   trap 退出 1）；普通 `tc-aot` 调用发射 AArch64 子集汇编，`--emit=obj|elf` 经
+   clang/lld 生成产物；子集外能力显式退出 70 且不发布错误产物。不得把部分能力
+   写成“已支持”。S7 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。
@@ -61,7 +68,12 @@
    `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`，
    并确认 `tests/conformance/static/*_cases.py --check`、
    `tests/conformance/runtime/s6_cases.py --check`、
-   `tests/conformance/static/s6_static_cases.py --check`、`tests/golden/validate.py`、
+   `tests/conformance/static/s6_static_cases.py --check`、
+   `tests/conformance/diff/s7_cases.py --check`、`tests/conformance/diff/s7_fuzz.py --check`、
+   `tests/conformance/abi/s7_abi_cases.py --check`、
+   `tests/conformance/tools/s7_toolchain_cases.py --check`、
+   `tests/conformance/tools/s7_static_parity.py --check`、
+   `tests/determinism/s7_determinism.py --check`、`tests/golden/validate.py`、
    `tests/golden/run.py build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
    与 `tests/tools/docs_cleanup_check.py` 均通过。
 7. **提交与洁净**：以 `docs(0.0.46): ...` 提交清理结果；确认 `git status` 干净，
@@ -83,11 +95,14 @@
 | CT/IR 实现约定 | `src/CONTRACTS.md`（CT 顺序/缓存/错误映射、对象布局、IR 操作数） |
 | IR 打印 | `src/ir/print.h`、`src/ir/print.c` |
 | 运行时语义核 / 格式化 / 输入 | `src/runtime/semantics.h`、`format.h`、`input.h` |
+| AArch64 子集后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`runtime.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
+| AOT 工具链驱动 | `src/driver/aot_driver.h`、`aot_driver.c`；`src/driver/cli.h` |
 | VM 接口 / 内存对象 / 解释器 | `src/vm/vm.h`、`src/vm/internal.h`、`src/vm/memory.c`、`src/vm/interp.c` |
 | 测试基建 | `tests/README.md` |
 | 门禁状态 | `docs/gates/README.md` |
 | 文档收尾检查 | `tests/tools/docs_cleanup_check.py`（`docs.cleanup`） |
 | 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py`、`s4_cases.py`、`s5_cases.py`、`s6_static_cases.py`；`tests/conformance/runtime/s6_cases.py` |
+| S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

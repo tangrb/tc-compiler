@@ -710,6 +710,14 @@
       "opcode:xor:normal",
       "opcode:xor:static_error"
     ],
+    "s7_covered_rows": [
+      "design12:01:gate_case",
+      "design12:01:suite_mapping",
+      "design12:07:gate_case",
+      "design12:07:suite_mapping",
+      "design12:15:gate_case",
+      "design12:15:suite_mapping"
+    ],
     "scope_na_rows": []
   },
   "cross_checks": {
@@ -721,8 +729,8 @@
   "summary": {
     "items": 231,
     "slots": 636,
-    "covered": 626,
-    "uncovered": 10,
+    "covered": 630,
+    "uncovered": 6,
     "suspended": 0
   },
   "categories": {
@@ -754,8 +762,8 @@
       "label": "Design §12 item",
       "items": 15,
       "slots": 30,
-      "covered": 20,
-      "uncovered": 10,
+      "covered": 24,
+      "uncovered": 6,
       "suspended": 0
     },
     "first_diag_rule": {
@@ -11645,8 +11653,22 @@
       "item": "1. VM↔AOT 差分",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-DIFF-A64-0001",
+        "TC-DIFF-A64-0002",
+        "TC-DIFF-A64-0003",
+        "TC-DIFF-A64-0004",
+        "TC-DIFF-A64-0005",
+        "TC-DIFF-A64-0006",
+        "TC-DIFF-A64-0007",
+        "TC-DIFF-A64-0008",
+        "TC-DIFF-A64-0009",
+        "TC-DIFF-A64-0010",
+        "TC-DIFF-A64-0011",
+        "TC-DIFF-A64-0012",
+        "TC-DIFF-A64-0013"
+      ],
       "number": 1,
       "title": "VM↔AOT 差分",
       "detail": "同源同档案（32/64 分档案），输出/退出/trap 位级一致；按地址字节差对拍，不比绝对地址；不比较跨 32/64 结果。",
@@ -11661,8 +11683,10 @@
       "item": "1. VM↔AOT 差分",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-DIFF-A64-0001"
+      ],
       "number": 1,
       "title": "VM↔AOT 差分",
       "detail": "同源同档案（32/64 分档案），输出/退出/trap 位级一致；按地址字节差对拍，不比绝对地址；不比较跨 32/64 结果。",
@@ -11855,8 +11879,18 @@
       "item": "7. ABI/调用",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-AOT-ABI-0001",
+        "TC-AOT-ABI-0002",
+        "TC-AOT-ABI-0003",
+        "TC-AOT-ABI-0004",
+        "TC-AOT-ABI-0005",
+        "TC-AOT-ABI-0006",
+        "TC-AOT-ABI-0007",
+        "TC-AOT-ABI-0008",
+        "TC-AOT-ABI-0009"
+      ],
       "number": 7,
       "title": "ABI/调用",
       "detail": "64 位 AAPCS64 与 32 位 AAPCS32/ILP32 的参数/返回/struct/HFA/int64/float64/bool 扩展；`sp` 对齐、callee-saved、`addr` 参数、`funcaddr`；直接 `call` 的前置条件只进入优化器假设、运行期无检查；`call_indirect` 无检查；SEM 注解位置/类型/范围错误仍按 80 码。",
@@ -11871,8 +11905,10 @@
       "item": "7. ABI/调用",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-AOT-ABI-0001"
+      ],
       "number": 7,
       "title": "ABI/调用",
       "detail": "64 位 AAPCS64 与 32 位 AAPCS32/ILP32 的参数/返回/struct/HFA/int64/float64/bool 扩展；`sp` 对齐、callee-saved、`addr` 参数、`funcaddr`；直接 `call` 的前置条件只进入优化器假设、运行期无检查；`call_indirect` 无检查；SEM 注解位置/类型/范围错误仍按 80 码。",
@@ -12163,7 +12199,8 @@
       "spec": "design §12, test plan §3.6/§8.2",
       "status": "covered",
       "case_ids": [
-        "TC-RT-OPT-0001"
+        "TC-RT-OPT-0001",
+        "TC-DET-S7-0001"
       ],
       "number": 15,
       "title": "零 pass",
@@ -12181,7 +12218,8 @@
       "spec": "design §12, test plan §3.6/§8.2",
       "status": "covered",
       "case_ids": [
-        "TC-RT-OPT-0001"
+        "TC-RT-OPT-0001",
+        "TC-DET-S7-0001"
       ],
       "number": 15,
       "title": "零 pass",

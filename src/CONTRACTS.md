@@ -35,6 +35,7 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Diagnostics | `diagnostic/codes.h`, `diagnostic/diagnostic.h`, `diagnostic/diagnostic.c`, generated `diagnostic/table.c` | diagnostic (cross-cutting) | closed 80 codes (65 `TC_CE_*` + 15 `TC_RE_*`); stage and report stage; 1-based positions; first-diagnostic comparator; `TC_ERR_OUT_OF_MEMORY` separate | all phases, VM |
 | Zero pass | `contract/optimizer.h`, `contract/optimizer.c` | contract (frontend/backend consumers) | O0 and O2 run zero IR passes; `@fast`/`@fast_math` recorded only; `@inline`/`@noinline` stored only | VM, AOT |
 | Build/CLI | `driver/cli.h`, `driver/cli.c`, `driver/profile_select.h`, `src/CMakeLists.txt` | build | private `tc_core`; only `tc-vm`/`tc-aot`; no install, no public C ABI; unavailable capabilities fail explicitly with exit 70 | tools, tests |
+| AArch64 subset backend | `backend/aarch64/emit.h`, `emit.c`, `runtime.c`, `start.S`, `link.ld`; `backend/common/toolchain.h` | backend | W=64 subset lowering and deterministic assembly; AAPCS64 subset; frame/static layout; freestanding runtime; target triple mapping; unsupported IR rejected before emission | `tc-aot`, L5/L6 tests |
 
 `tc_contract_check()` in `contract/contract.c` is the startup/L0 aggregate
 check. It must return `NULL`; any violation is an internal error, never a
@@ -84,8 +85,10 @@ finalization.  No source names may be added to `TcOperand`/`TcInstr`.
 The tool-visible partial checks are `--syntax-only` (LEX/SYN),
 `--sem-only` (LEX/SYN/IMPORT/SEM) and `--static-only` (all static stages
 through CT and IR finalization); exit 0 for any of them is a partial check, not
-a valid-program claim.  A normal invocation still exits 70 after the
-implemented static stages.  The driver prints one stable line per diagnostic:
+a valid-program claim.  A normal `tc-vm` invocation executes the reference VM;
+a normal `tc-aot` invocation emits the implemented AArch64 subset or exits 70
+without publishing an artifact.  The driver prints one stable line per
+diagnostic:
 
 ```text
 <file>:<line>:<column>: error[<LEX|SYN|IMPORT|SEM|CT>]: <TC_CE_*>: <print-name>
@@ -183,8 +186,10 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 
 - Stage flags: `--syntax-only` = LEX/SYN; `--sem-only` = LEX/SYN/IMPORT/SEM;
   `--static-only` = all static stages through CT and IR finalization; none
-  claim a valid program (no VM/AOT execution).  A normal invocation exits 70
-  after the static stages until code generation exists.
+  claim a valid program (no VM/AOT execution).  A normal `tc-vm` invocation
+  runs the reference VM; a normal `tc-aot` invocation emits AArch64 subset
+  assembly, or exits 70 without publishing an artifact when the program is
+  outside the implemented subset.
 - CT startup order is `module_order` then module source order.  A referenced
   `Self.K`/`m.K`/local const is evaluated first; initializer references are
   left to right and `make` fields in written order.  Every declaration is
@@ -225,6 +230,9 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   aggregates) immediately before the use and passes the temp vreg.  A `const`
   never owns an object; `TcIR.consts` contains only successfully evaluated
   module `const` declarations.
+- Every `TcFunc.body` points into the final `TcIR.units` array at the unit
+  whose `func_id` is that function's id (body pointers are fixed up after the
+  unit array stops growing).
 - `tc_ir_print()` is a stable, deterministic text dump for tests/debugging;
   it is not an input format and does not define semantics.
 
@@ -280,7 +288,8 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   `<file>:<line>:<column>: error[RT]: <TC_RE_*>: <print-name>` on stderr; the
   exit status is the profile's `trap_status` (1), while normal termination uses
   `normal_status` (0).  `--checked` sets `checked_build`; `--opt` is accepted
-  but the zero-pass baseline keeps O0/O2 identical.  `tc-aot` still exits 70.
+  but the zero-pass baseline keeps O0/O2 identical.  `tc-aot` applies the same
+  first-diagnostic pipeline and then emits the AArch64 subset.
 - I/O uses the `TcIoSink`/`TcIoSrc` seams: one write call per `write`/
   `writeln` record (newline included), no partial record on failure, and
   `read` parses a complete whitespace-delimited token before committing its
@@ -291,6 +300,43 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   language objects are reported as `TC_RE_ADDR_UNAVAILABLE` rather than being
   accessed through the host; this is a safety fallback for UB, not a language
   guarantee.
+
+### AArch64 subset backend and toolchain conventions
+
+- Scope: W=64 `aarch64-linux-user`; scalar integer/bit/comparison ops,
+  `br`/`br_if`/`switch`/`return`/`trap`, direct `call`, integer/bool
+  `read`/`write`/`writeln`, `sizeof` and `copy`.  Pointers/structs/`cast`/
+  `trunc`/`bitcast`/`load`/`store`/pointer arithmetic/`make`/`memmove`/floats/
+  indirect calls/checked build/other profiles are rejected with exit 70 before
+  any artifact is published.
+- ABI subset: integer/pointer/bool/fnptr arguments in x0-x7, scalar result in
+  x0; at most 8 parameters; narrow integers are passed zero-extended and stored
+  at their declared width; bool memory is 0x00/0x01; sp is 16-byte aligned;
+  x19/x20 hold the frame/static bases and are saved by every function; x29/x30
+  form the frame record.  A call checks `depth < D` before `bl` and increments,
+  decrements after return (top level is not counted).  Direct-call parameter
+  annotations are not checked at runtime.
+- Layout: each vreg has a stack slot; frame objects keep `TcObject.offset`
+  relative to the frame base, static objects keep their in-region offset in one
+  emitted byte array, temporaries follow the object area, and frame size is
+  rounded to 16 bytes.  Absolute region bases are chosen by the platform/
+  loader instance; VM and AOT agree on in-region offsets.
+- Static data is the concatenation of `TcObject.init` images at their object
+  offsets; program `var` storage starts zeroed and is initialized by the
+  program.  Traps use the span of the triggering instruction and the same 15
+  `TC_RE_*` codes as the VM.
+- Toolchain: emission is deterministic; clang (`-target` from
+  `tc_aot_target_triple`) assembles, `ld.lld` links with the bundled
+  freestanding runtime and linker script.  The image is an AArch64 ELF.
+  qemu-user is unavailable on some hosts; design §11 permits qemu-system as the
+  execution fallback.  The S7 runtime uses semihosting for program stdout and
+  the PL011 UART as a separate trap/exit-record channel; `read` consumes a
+  loader-provided `tc-stdin.bin` image (8-byte little-endian length followed by
+  bytes) because console EOF is not observable through that seam.  These are
+  platform-instance facts, not language semantics.
+- No register allocator: values live in stack slots and x9-x17 are fixed
+  temporaries.  Frame size is capped at the profile stack budget; exceeding it
+  is an implementation error.
 
 ### Deferred decisions
 
@@ -315,7 +361,8 @@ must fill in:
 | CT allowlist/evaluation/caching | implemented |
 | final `TcInstr`/`TcIR`/`TcUnit` materialization and printing | implemented |
 | heap/runtime-library objects and checked-build poison/watermark | later runtime work |
-| AArch64 lowering/ABI/frame layout | S7 |
+| AArch64 lowering/ABI/frame layout | implemented (W=64 subset) |
+| full AAPCS64 ABI, checked build, freestanding/bare metal, 32-bit backend | S8/S9 |
 
 Changing a frozen structure requires a contract review, updating this file, the
 L0 tests and the coverage matrix in the same change.

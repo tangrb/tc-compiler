@@ -57,22 +57,41 @@
   all-or-nothing I/O, the 15 mandatory `TC_RE_*` traps, and no rollback of output
   committed before a trap; `--checked` adds UB bounds checks;
   `aarch64-linux-user`, `aarch64-baremetal` and `w32` profiles.
+- **AArch64 W=64 subset backend and toolchain**: lowering for scalar integer/bit/
+  comparison ops, `br`/`br_if`/`switch`/`return`/`trap`, direct calls, integer/bool
+  `read`/`write`/`writeln`, `sizeof` and `copy`; the AAPCS64 subset (x0-x7/x0,
+  16-byte stack alignment, callee-saved frame/static bases, bool/int8/int16
+  extension, `D`); frame/static layout at `TcObject` offsets, static initializer
+  `.data`, deterministic assembly emission, no regalloc; `tc-aot
+  --emit=asm|obj|elf`, clang/lld driving and the `aarch64-none-elf` target-triple
+  mapping; a freestanding AArch64 runtime (startup, semihosting output, integer/
+  bool formatting/input, trap/exit and depth counter).
+- **S7 VM↔AOT differential, ABI and toolchain verification**: reuse of the S6
+  W=64 subset cases, 64-bit/static/switch boundary cases, fixed-seed integer fuzz,
+  AAPCS64 subset ABI, byte-reproducible `.s`/ELF, O0/O2 zero pass, byte-identical
+  VM/AOT first diagnostics over every static `.tc`, and explicit exit-70 rejection
+  of unsupported opcodes/checked build/non-target profiles; Release and
+  ASan+UBSan pass.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
-  `error[RT]` with exit 1; a normal `tc-aot` invocation still exits 70 (backend not
-  implemented).
+  `error[RT]` with exit 1; a normal `tc-aot` invocation emits AArch64 subset
+  assembly and `--emit=obj|elf` produces ELF artifacts; capabilities outside the
+  subset exit 70 without publishing a wrong artifact.
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
-  `tc_vm_test`, S1/S2/S3/S4/S5/S6 conformance tables, W=32/64 runtime goldens,
-  determinism suites and a fail-closed adapter self-test; currently 32/32 `ctest`
-  and 753/753 harness cases (557 compile, 129 tool, 66 run, 1 property) in
-  Debug/Release/ASan builds; vm unit 413 checks.
+  `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7
+  differential/ABI/toolchain/static-parity/determinism suites, W=32/64 runtime
+  goldens, determinism suites and a fail-closed adapter self-test; currently
+  39/39 `ctest` and 754/754 harness cases (557 compile, 129 tool, 67 run,
+  1 property) in Debug/Release/ASan builds; unit checks: frontend 688, sem 102,
+  ct 370, ir 450, vm 413, aot 34.
 
 ### Changed
 
 - SEM validates and freezes the type table; CT and IR finalization run afterwards with
   read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
-  explicit block edges during IR finalization.
+  explicit block edges during IR finalization; `TcFunc.body` pointers are fixed up
+  after the unit array stops growing and point into the final `TcIR.units`.
 - Wrap-up is now fixed process: process/historical documentation is removed and the
   `docs.cleanup` gate must pass; current conventions and known limits live in
   `src/CONTRACTS.md`.

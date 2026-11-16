@@ -42,18 +42,32 @@
   全部 51 个 opcode、调用/`D`、尾调用不改变深度、I/O 整条提交、15 个
   `TC_RE_*` 必选 trap、trap 前已提交输出不回滚；`--checked` 增加 UB 越界检查；
   `aarch64-linux-user`、`aarch64-baremetal` 与 `w32` 档案。
+- **AArch64 W=64 子集后端与工具链**：标量整数/位/比较、`br`/`br_if`/`switch`/
+  `return`/`trap`、直接调用、整数/bool `read`/`write`/`writeln`、`sizeof`、`copy`
+  的 lowering；AAPCS64 子集（x0–x7/x0、16 字节栈对齐、callee-saved 帧/静态基址、
+  bool/int8/int16 扩展、`D`）；按 `TcObject` 偏移的帧/静态区布局、静态初值
+  `.data`、确定性汇编发射、无 regalloc；`tc-aot --emit=asm|obj|elf`、
+  clang/lld 驱动与 `aarch64-none-elf` target triple 映射；freestanding AArch64
+  运行时（启动、semihosting 输出、整数/bool 格式化/输入、trap/退出、深度计数）。
+- **S7 VM↔AOT 差分与 ABI/工具链验证**：S6 W=64 子集用例复用、64 位/静态/开关
+  边界用例、固定种子整数 fuzz、AAPCS64 子集 ABI、`.s`/ELF 可重复、O0/O2 零 pass、
+  全部静态 `.tc` 的 VM/AOT 首诊逐字节一致、未支持 opcode/checked build/非目标档案的
+  显式 exit 70 拒绝；release 与 ASan+UBSan 均通过。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
   `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
-  首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用仍退出 70（后端未实现）。
+  首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射 AArch64 子集汇编，
+  `--emit=obj|elf` 生成 ELF 产物；子集外能力显式退出 70 且不发布错误产物。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
-  S1/S2/S3/S4/S5/S6 一致性用例表、W=32/64 运行时 golden、确定性套件、
-  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 32/32，harness 754/754
-  （557 编译、129 工具、67 运行、1 属性），vm 单元 413 检查。
+  `tc_aot_test`、S1/S2/S3/S4/S5/S6 一致性用例表、S7 差分/ABI/工具链/静态一致/
+  确定性套件、W=32/64 运行时 golden、确定性套件、adapter 失败关闭自测；当前
+  Debug/Release/ASan `ctest` 39/39，harness 754/754（557 编译、129 工具、67 运行、
+  1 属性），单元检查 frontend 688、sem 102、ct 370、ir 450、vm 413、aot 34。
 
 ### Changed
 
 - SEM 完成解析/校验并冻结类型表；CT 与 IR 最终化在其后运行，只使用只读类型查找，
-  不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边。
+  不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边；`TcFunc.body`
+  在 unit 数组增长结束后统一校正，稳定指向最终 `TcIR.units`。
 - 收尾流程固化：阶段/分支收尾必须清理过程/历史文档，并通过 `docs.cleanup` 门禁；
   当前约定与已知限制归并到 `src/CONTRACTS.md`。
 - 诊断位置、CT 顺序/缓存/错误映射、静态布局、IR 操作数与运行时/VM 约定见

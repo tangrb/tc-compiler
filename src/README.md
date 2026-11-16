@@ -12,8 +12,10 @@ values, demand order/cache, static initializer images), IR finalization
 deterministic IR text dump, the W-aware runtime semantic core (integer/float
 arithmetic, conversions, exact deterministic scalar formatting, standard input
 tokens) and the reference VM (regions, objects/sub-objects, pointer states, all
-51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics).  Native
-backends are later work.  Frozen contract ownership is indexed in
+51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics).  The AArch64
+W=64 subset backend emits deterministic assembly and drives clang/lld to an ELF;
+the full ABI, checked build, freestanding/bare metal and 32-bit targets are
+later work.  Frozen contract ownership is indexed in
 [CONTRACTS.md](CONTRACTS.md).
 
 ```text
@@ -31,8 +33,9 @@ src/
                 semantics (W-aware integer/float/conversion core);
                 format (exact §11.2 scalar rendering); input (§11.3 tokens)
   vm/           vm.h interp memory (regions/objects/pointer state/all opcodes)
-  backend/      aarch64 arm32 riscv32 common (not implemented)
-  driver/       tc-vm tc-aot + shared CLI/profile selection
+  backend/      aarch64 (subset emitter + freestanding runtime) common (target
+                description); arm32 riscv32 not implemented
+  driver/       tc-vm tc-aot + shared CLI/profile selection and AOT driver
 ```
 
 `base/`, `contract/` and `diagnostic/` are shared **infrastructure**, not
@@ -66,7 +69,10 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
 - `tc-vm` and `tc-aot` are the only tool entry points.  `--syntax-only`,
   `--sem-only` and `--static-only` are partial checks: exit 0 never claims a
   valid program.  A normal `tc-vm` invocation executes the finalized program on
-  the reference VM; `tc-aot` still exits 70 until a backend exists.
+  the reference VM.  A normal `tc-aot` invocation emits AArch64 subset assembly;
+  `--emit=obj|elf` assembles/links with the bundled freestanding runtime.
+  Unsupported opcodes/types/ABIs fail explicitly with exit 70 and publish no
+  wrong artifact.
 - Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
   source names/type syntax stay until SEM, and field paths keep the
   `TcFieldRef` shape.  SEM resolves and validates them and owns the frozen type
@@ -86,6 +92,12 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   The VM executes the `aarch64-linux-user`, `aarch64-baremetal` and `w32`
   profiles; the 32-bit profile is an executable reference VM profile while its
   native backend is still to be selected.
+- The AArch64 backend consumes the same frozen `TcIR` as the VM and never
+  re-parses the source or rewrites the type table.  It keeps object offsets
+  identical to the VM for the in-region layout; absolute region bases are a
+  platform/loader instance choice.  Values are allocated on the stack with a
+  fixed temporary-register set (no regalloc); unsupported IR is rejected before
+  any bytes are emitted.
 - The runtime semantic core is shared with CT: one implementation of strict
   integer/float rounding, exception priority and conversions.  `CT` maps a
   runtime trap kind to the corresponding `TC_CE_CONST_*` code; it does not keep a

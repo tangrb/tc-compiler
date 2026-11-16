@@ -9,7 +9,7 @@
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **636** total, **10** uncovered, **626** covered, **0** N/A
+- Rows: **636** total, **6** uncovered, **630** covered, **0** N/A
 
 ## Summary by category
 
@@ -18,7 +18,7 @@
 | Standard chapter (`chapter`) | 15 | 30 | 30 | 0 | 0 |
 | Diagnostic code (`code`) | 80 | 344 | 344 | 0 | 0 |
 | Opcode (`opcode`) | 63 | 155 | 155 | 0 | 0 |
-| Design §12 item (`design12`) | 15 | 30 | 20 | 10 | 0 |
+| Design §12 item (`design12`) | 15 | 30 | 24 | 6 | 0 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 10 | 0 | 0 |
 | Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 | 0 |
 | 32/64 flip (`flip32_64`) | 17 | 34 | 34 | 0 | 0 |
@@ -26,7 +26,7 @@
 | Device policy (`device_policy`) | 4 | 4 | 4 | 0 | 0 |
 | I/O source state (`io_source_state`) | 4 | 4 | 4 | 0 | 0 |
 | Exit strategy (`exit_strategy`) | 2 | 2 | 2 | 0 | 0 |
-| **Total** | **231** | **636** | **626** | **10** | **0** |
+| **Total** | **231** | **636** | **630** | **6** | **0** |
 
 ## Coverage rows
 
@@ -578,8 +578,8 @@
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `design12:01:suite_mapping` | 1. VM↔AOT 差分 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:01:gate_case` | 1. VM↔AOT 差分 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
+| `design12:01:suite_mapping` | 1. VM↔AOT 差分 | suite_mapping | **covered** | TC-DIFF-A64-0001, TC-DIFF-A64-0002, TC-DIFF-A64-0003, TC-DIFF-A64-0004, TC-DIFF-A64-0005, TC-DIFF-A64-0006, TC-DIFF-A64-0007, TC-DIFF-A64-0008, TC-DIFF-A64-0009, TC-DIFF-A64-0010, TC-DIFF-A64-0011, TC-DIFF-A64-0012, TC-DIFF-A64-0013 | design §12, test plan §3.6/§8.2 |
+| `design12:01:gate_case` | 1. VM↔AOT 差分 | gate_case | **covered** | TC-DIFF-A64-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:02:suite_mapping` | 2. 标准 §13.4 八项一致性 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:02:gate_case` | 2. 标准 §13.4 八项一致性 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:03:suite_mapping` | 3. golden 向量 | suite_mapping | **covered** | TC-RT-GOLD-0001, TC-RT-GOLD-0002, TC-RT-GOLD-0101, TC-RT-GOLD-0102 | design §12, test plan §3.6/§8.2 |
@@ -590,8 +590,8 @@
 | `design12:05:gate_case` | 5. checked build | gate_case | **covered** | TC-UNIT-VM-0006 | design §12, test plan §3.6/§8.2 |
 | `design12:06:suite_mapping` | 6. 32/64 静态矩阵 | suite_mapping | **covered** | TC-SEM-CONV-0010, TC-TOOL-SEM-0009 | design §12, test plan §3.6/§8.2 |
 | `design12:06:gate_case` | 6. 32/64 静态矩阵 | gate_case | **covered** | TC-SEM-CONV-0001, TC-SEM-LAYOUT-0001 | design §12, test plan §3.6/§8.2 |
-| `design12:07:suite_mapping` | 7. ABI/调用 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:07:gate_case` | 7. ABI/调用 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
+| `design12:07:suite_mapping` | 7. ABI/调用 | suite_mapping | **covered** | TC-AOT-ABI-0001, TC-AOT-ABI-0002, TC-AOT-ABI-0003, TC-AOT-ABI-0004, TC-AOT-ABI-0005, TC-AOT-ABI-0006, TC-AOT-ABI-0007, TC-AOT-ABI-0008, TC-AOT-ABI-0009 | design §12, test plan §3.6/§8.2 |
+| `design12:07:gate_case` | 7. ABI/调用 | gate_case | **covered** | TC-AOT-ABI-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:08:suite_mapping` | 8. 对象/内存 | suite_mapping | **covered** | TC-RT-MEM-0001, TC-RT-MEM-0002, TC-RT-MEM-0004 | design §12, test plan §3.6/§8.2 |
 | `design12:08:gate_case` | 8. 对象/内存 | gate_case | **covered** | TC-RT-MEM-0004, TC-RT-MEM-0011 | design §12, test plan §3.6/§8.2 |
 | `design12:09:suite_mapping` | 9. 诊断/语法 | suite_mapping | **covered** | TC-SEM-TYPE-0001, TC-SEM-CALL-0101, TC-SEM-CFG-0016 | design §12, test plan §3.6/§8.2 |
@@ -606,8 +606,8 @@
 | `design12:13:gate_case` | 13. 类型表/模块实例 | gate_case | **covered** | TC-TOOL-SEM-0006, TC-UNIT-IR-0001, TC-TOOL-CT-CHAIN-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:14:suite_mapping` | 14. 退出/设备/输入 | suite_mapping | **covered** | TC-RT-DEV-0001, TC-RT-IO-0002, TC-UNIT-VM-0006 | design §12, test plan §3.6/§8.2 |
 | `design12:14:gate_case` | 14. 退出/设备/输入 | gate_case | **covered** | TC-RT-DEV-0001, TC-RT-IO-0003, TC-RT-IO-0004 | design §12, test plan §3.6/§8.2 |
-| `design12:15:suite_mapping` | 15. 零 pass | suite_mapping | **covered** | TC-RT-OPT-0001 | design §12, test plan §3.6/§8.2 |
-| `design12:15:gate_case` | 15. 零 pass | gate_case | **covered** | TC-RT-OPT-0001 | design §12, test plan §3.6/§8.2 |
+| `design12:15:suite_mapping` | 15. 零 pass | suite_mapping | **covered** | TC-RT-OPT-0001, TC-DET-S7-0001 | design §12, test plan §3.6/§8.2 |
+| `design12:15:gate_case` | 15. 零 pass | gate_case | **covered** | TC-RT-OPT-0001, TC-DET-S7-0001 | design §12, test plan §3.6/§8.2 |
 
 ### First-diagnostic rule (§12.2) (`first_diag_rule`)
 
