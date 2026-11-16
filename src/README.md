@@ -5,7 +5,7 @@ This directory is the **target module layout** from
 Implemented: the private `tc_core` library, the `tc-vm`/`tc-aot` entry points,
 the frozen headers, and the `frontend/` reader/lexer/parser/module-loader/
 analyzer (LEX/SYN, IMPORT, names, types, conversions, layout, static instruction
-checks, CFG/reachability/DI, missing returns, call ordering/safety, safety
+checks, const_expr form, CFG/reachability/DI, missing returns, call ordering/safety, safety
 contexts and annotations).  CT, IR finalization, the VM and backends are later
 work.  Frozen contract ownership is indexed in
 [CONTRACTS.md](CONTRACTS.md).
@@ -16,7 +16,8 @@ src/
   contract/     frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
   frontend/     input num lex parse; module (discovery/IMPORT); sem (names/types/
-                conversions/layout/instruction shape/CFG/DI/calls/safety/annotations)
+                conversions/layout/instruction shape/const_expr form/CFG/DI/calls/
+                safety/annotations)
   ir/           type instr block operand span region object address structs pointer_state
   runtime/      alloc io trap profile module_loader (VM/AOT seams; further runtime later)
   vm/           interp memory pointer_state (not implemented)

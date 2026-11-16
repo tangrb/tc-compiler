@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.46] - 2026-11-15
+## [0.0.46] - 2026-11-16
 
 ### Added
 
@@ -28,8 +28,8 @@
   maximum fixed point, `MISSING_RETURN`; labels/control shapes; direct/indirect call
   order (target → safety → LHS → arguments → receiver) and call safety; safe/unsafe
   contexts with `@safe` priority; function/parameter/field annotation matrix,
-  literal, comparison, const-struct-field and integer const-path
-  `@align`/`@range` values, fixed binary32/64 NaN/underflow/cast rules
+  `@align`/`@range` endpoint constants (same-type integer `lo`/`hi`,
+  power-of-two `N`), fixed binary32/64 NaN/underflow/cast rules
   independent of host `fenv`/`long double`, strict failures that never become
   SEM annotation diagnostics, 64-bit `@align`/`@padding` metadata, and promise violations that
   are never a static rejection; duplicate labels and malformed branches use
