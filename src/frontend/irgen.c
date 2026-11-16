@@ -1578,9 +1578,6 @@ static int lower_instr(UnitBuild *u, const TcParseInstr *instr,
     out.dst = dst;
     out.args = args;
     out.nargs = nargs;
-    if (tc_opcode_has_result(op) && dst.kind == TC_OP_DISCARD) {
-        out.dst = dst;
-    }
     *append_instr(u, u->cur) = out;
     if (tc_opcode_is_terminator(op)) {
         u->terminated = 1;

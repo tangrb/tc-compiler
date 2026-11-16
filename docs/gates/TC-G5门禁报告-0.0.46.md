@@ -28,6 +28,7 @@ S5 交付：CT 求值（allowlist、严格语义、错误映射）、跨模块�
 - 覆盖矩阵：636 槽中 376 covered / 260 uncovered / 0 suspended；未覆盖项属于 S6–S10
   （VM/后端/ABI/平台/freestanding），不是 S5 遗漏。
 - 确定性：S5 源在重复运行、不同 `PYTHONHASHSEED` 与反向用例顺序下 JSON 一致。
+- 构建/测试：Debug、Release、ASan+UBSan `ctest` 通过；`leaks` 0；`nm` 仅 `_main`。
 
 ## 复现
 

@@ -161,8 +161,6 @@ nothing was backfilled from implementation output.
       "reviewer_kind": "independent-agent",
       "reviewer_independent": true,
       "review_kind": "independent derivation audit",
-      "commit": "fd7fa2a",
-      "evidence_version": "S0-2026-11-13",
       "status": "approved",
       "date": "2026-11-13",
       "notes": "Independent audit re-derived line 2 column 30 from §2.1/§2.2/§12.3/§12.5.1; the comment-external first slash is the sole lexical diagnostic."
@@ -176,7 +174,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived LEX/TC_CE_SYNTAX at 2:30; no compiler/VM run."
     },
     {
@@ -188,7 +185,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived LEX/TC_CE_LITERAL_LEX_RANGE at 2:28; no compiler/VM run."
     },
     {
@@ -200,7 +196,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived SYN/TC_CE_MISSING_END at 2:1; no compiler/VM run."
     },
     {
@@ -212,7 +207,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived SYN/TC_CE_MODULE_LAYER at 3:1; no compiler/VM run."
     },
     {
@@ -224,7 +218,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived SYN/TC_CE_SYNTAX at 3:14; no compiler/VM run."
     },
     {
@@ -236,7 +229,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived SYN/TC_CE_VAR_MISSING_INIT at 2:19; no compiler/VM run."
     },
     {
@@ -248,7 +240,6 @@ nothing was backfilled from implementation output.
       "review_kind": "independent derivation audit",
       "status": "approved",
       "date": "2026-11-15",
-      "evidence_version": "S1-2026-11-15",
       "notes": "Independently re-derived SYN/TC_CE_PROGRAM_MODE_MISUSE at 2:1; no compiler/VM run."
     }
   ],
