@@ -1783,6 +1783,42 @@ CASES = [
         "SEM", "TC_CE_CONST_FORM",
     ),
     _case(
+        "TC-SEM-CONST-0024",
+        "§12.2 源序：base.V.x 同时有 static var 基名与字段错误；"
+        "CONST_FORM@V 先于 TYPE_MISMATCH@x",
+        {"root.tc": PROGRAM + "import user\n",
+         "user.tc": LIB +
+         "import base\n"
+         "public const A: int32 = base.@HERE@V.x\n",
+         "base.tc": LIB + "public static var V: int32 = 1\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0025",
+        "§12.2 源序：v.x 同时有局部 var 基名与字段错误；"
+        "CONST_FORM@v 先于 TYPE_MISMATCH@x",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    var v: int32 = copy int32, 1\n"
+         "    const A: int32 = @HERE@v.x\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0026",
+        "§3.10/§12.2 static var 结构体字段链的基名仍先报 "
+        "CONST_FORM@V",
+        {"root.tc": PROGRAM + "import user\n",
+         "user.tc": LIB +
+         "import base\n"
+         "public const A: int32 = base.@HERE@V.x\n",
+         "base.tc": LIB +
+         "public struct S then\n    var x: int32\nend\n"
+         "public static var V: S = make S, x: 1\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -2136,6 +2172,16 @@ POSITIVE = [
          "public const D: bool = eq int32, 1, 1\n"
          "public const E: int32 = cast int32, Self.D\n"
          "public const F: S = make S, x: 8\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0145",
+        "§3.10 const 结构体字段链（Self.KS.x）合法，不报 CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n    var x: int32\nend\n"
+         "public const K: int32 = 1\n"
+         "public const KS: S = make S, x: Self.K\n"
+         "public const A: int32 = Self.KS.x\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0144",

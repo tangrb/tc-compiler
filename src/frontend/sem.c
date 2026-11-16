@@ -773,6 +773,14 @@ static int resolve_fields(Sem *s, Ref *ref, const char **fields,
                           int for_write) {
     size_t i;
     const TcType *cur;
+    /* A const_expr value must be a const.  Check the base kind before field
+     * resolution so a non-const base is diagnosed at its own (earlier)
+     * token even when the field path is also invalid. */
+    if (s->const_context && ref->ok && !ref->is_const) {
+        sem_diag_simple(s, TC_CE_CONST_FORM, ref->span);
+        ref->ok = 0;
+        return 0;
+    }
     /* §5.7.3 steps 3 then 4: existence and intermediate-struct checks for the
      * whole path come before the readonly path rule. */
     cur = ref->type;

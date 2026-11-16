@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0026
+profile: common
+source: fixtures/tc-sem-const-0026/root.tc
+spec: "§3.10/§12.2 static var 结构体字段链的基名仍先报 CONST_FORM@V"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0026/user.tc, line: 3, column: 30}
+  related: []
+  diagnostics: exactly-one

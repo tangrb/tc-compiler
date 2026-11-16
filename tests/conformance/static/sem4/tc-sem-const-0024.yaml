@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0024
+profile: common
+source: fixtures/tc-sem-const-0024/root.tc
+spec: "§12.2 源序：base.V.x 同时有 static var 基名与字段错误；CONST_FORM@V 先于 TYPE_MISMATCH@x"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0024/user.tc, line: 3, column: 30}
+  related: []
+  diagnostics: exactly-one

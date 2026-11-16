@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0025
+profile: common
+source: fixtures/tc-sem-const-0025/root.tc
+spec: "§12.2 源序：v.x 同时有局部 var 基名与字段错误；CONST_FORM@v 先于 TYPE_MISMATCH@x"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0025/lib.tc, line: 4, column: 22}
+  related: []
+  diagnostics: exactly-one
