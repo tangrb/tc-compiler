@@ -1,0 +1,10 @@
+id: TC-CT-LITERAL-0002
+profile: w32
+source: tc-ct-literal-0002/root.tc
+spec: "§6.6.3/§13.2.2 isize 字面量范围按 W；w32 下 2^31 不可表示 -> LITERAL_RANGE（SEM），w64 同一源码接受；§12.5.1 字面量首 Token"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: tc-ct-literal-0002/lib.tc, line: 2, column: 25}
+  related: []
+  diagnostics: exactly-one

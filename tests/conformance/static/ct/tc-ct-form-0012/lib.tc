@@ -1,0 +1,2 @@
+#lib
+public const X: int32 = copy int32, 1

@@ -4,7 +4,7 @@ source: tc-tool-sem-0106/root.tc
 spec: "§8.4/§8.8.2 直接调用位置/命名实参、void 用 `_`、有结果调用 `_` 丢弃、递归允许"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

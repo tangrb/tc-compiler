@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0013
+profile: common
+source: tc-ct-form-0013/root.tc
+spec: "§3.10 正向允许集不含 store；@unsafe 函数内的局部 const 使用 store -> CONST_FORM（首个非法子表达式操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0013/lib.tc, line: 3, column: 22}
+  related: []
+  diagnostics: exactly-one

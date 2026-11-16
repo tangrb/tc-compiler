@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0006
+profile: common
+source: tc-ct-order-0006/root.tc
+spec: "§4.10 初始化器内常量引用从左到右递归求值：user.R 先引用 b.B1 再引用 a.A2，b.B1 失败即停止；失败归属 b 的声明（主位置在 b.tc，user 无级联），a.A2 与 user.LATER 不报；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_DIV_ZERO
+  primary: {file: tc-ct-order-0006/b.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

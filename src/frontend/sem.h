@@ -3,9 +3,9 @@
  * `tc_analyze()` loads the module closure, reports IMPORT-stage candidates
  * before SEM, then performs name resolution, type interning/freeze, literal
  * typing, conversion checking, struct layout, per-unit CFG/DI, return and call
- * checks, safety contexts and annotation validation for one word size.  CT and
- * code generation are later stages; a successful analysis is not a claim that
- * a program executes.
+ * checks, safety contexts and annotation validation for one word size.  A
+ * successful analysis means the static stages (through SEM) accepted the
+ * program; CT and code generation are later stages.
  */
 #ifndef TC_FRONTEND_SEM_H
 #define TC_FRONTEND_SEM_H
@@ -44,9 +44,34 @@ TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
                        size_t ninclude_roots, TcAnalysisStatus *out_status,
                        TcAnalysisDiag *out_diag, TcImplError *out_impl);
 
+/* Same analysis with an explicit platform profile.  The profile copy (and its
+ * word size/endianness/region table) is bound to the analysis and later to the
+ * finalized TcIR; `profile->addr_width` must equal `addr_width`.  Passing NULL
+ * is equivalent to tc_analyze(). */
+TcAnalysis *tc_analyze_with_profile(const char *root_path,
+                                    const TcPlatformProfile *profile,
+                                    unsigned addr_width,
+                                    const char *const *include_roots,
+                                    size_t ninclude_roots,
+                                    TcAnalysisStatus *out_status,
+                                    TcAnalysisDiag *out_diag,
+                                    TcImplError *out_impl);
+
+/* Partial static check through SEM: type table frozen, CT/IR/codegen not run.
+ * Exit status OK never claims the program is valid (CT diagnostics are not
+ * computed). */
+TcAnalysis *tc_analyze_sem_only(const char *root_path, unsigned addr_width,
+                                const char *const *include_roots,
+                                size_t ninclude_roots,
+                                TcAnalysisStatus *out_status,
+                                TcAnalysisDiag *out_diag,
+                                TcImplError *out_impl);
+
 void tc_analysis_destroy(TcAnalysis *analysis);
 
 const TcTypeTable *tc_analysis_type_table(const TcAnalysis *analysis);
+/* Finalized IR for an OK analysis (NULL for SEM-only or failed analyses). */
+const TcIR *tc_analysis_ir(const TcAnalysis *analysis);
 int tc_analysis_type_table_frozen(const TcAnalysis *analysis);
 unsigned tc_analysis_addr_width(const TcAnalysis *analysis);
 

@@ -1,0 +1,10 @@
+id: TC-CT-WIDTH-0001
+profile: w64
+source: tc-ct-width-0001/root.tc
+spec: "§3.11/§13.2.2 trunc 目标位宽 >= 源位宽：w64 下 trunc isize,int64 的 isize 为 64 位 -> TRUNC_WIDTH（SEM），w32 下 32<64 合法；§12.5.1 目标类型 Token"
+expect:
+  stage: SEM
+  code: TC_CE_TRUNC_WIDTH
+  primary: {file: tc-ct-width-0001/lib.tc, line: 2, column: 31}
+  related: []
+  diagnostics: exactly-one

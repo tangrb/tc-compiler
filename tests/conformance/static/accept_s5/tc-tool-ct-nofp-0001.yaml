@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-NOFP-0001
+profile: common
+source: tc-tool-ct-nofp-0001/root.tc
+spec: "§6.3 strict 整数边界不溢出：INT_MAX-1+1、INT_MIN+0、neg/abs(INT_MIN+1) 均合法（与 TC-CT-OVERFLOW-0001 相邻）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

@@ -1,0 +1,2 @@
+#lib
+public const A: int32 = Self.A

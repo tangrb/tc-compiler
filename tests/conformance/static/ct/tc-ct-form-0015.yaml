@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0015
+profile: common
+source: tc-ct-form-0015/root.tc
+spec: "§2.6/§3.10/§12.3 @padding(N) 的 N 必须是非负十进制字面量，进制前缀不合法 -> CONST_FORM（SEM，S3 已覆盖同一规则，S5 只作回归锚点）；§12.5.1 定位到 N"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0015/root.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

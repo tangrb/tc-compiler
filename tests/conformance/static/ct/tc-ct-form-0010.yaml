@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0010
+profile: common
+source: tc-ct-form-0010/root.tc
+spec: "§3.10 const_expr 的 op_form 不得带 .wrap；add.wrap 形态错误 -> CONST_FORM；§12.5.1 带后缀时定位到后缀 Token（与 S4 相同：点号后的名字）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0010/lib.tc, line: 2, column: 29}
+  related: []
+  diagnostics: exactly-one

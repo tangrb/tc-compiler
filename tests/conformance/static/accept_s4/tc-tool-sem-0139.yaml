@@ -4,7 +4,7 @@ source: tc-tool-sem-0139/root.tc
 spec: "§6.3.2 非精确非规格化乘法属于 strict 下溢（tininess after rounding）；SEM 不得把舍入结果当合法值"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

@@ -4,7 +4,7 @@ source: tc-tool-sem-0111/root.tc
 spec: "§8.6 @range 的 const 常量同型合法；@align 的 const 路径语法合法"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

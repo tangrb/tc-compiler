@@ -2402,7 +2402,7 @@ POSITIVE = [
     _positive(
         "TC-TOOL-SEM-0126",
         "§3.10 strict 溢出属于 CT 的 CONST_OVERFLOW；SEM 端点求值返回未解析，"
-        "不得产生 ANNOTATION（--static-only 只验证 SEM 无误报）",
+        "不得产生 ANNOTATION（--sem-only 只验证 SEM 无误报）",
         {"root.tc": PROGRAM + "import lib\n",
          "lib.tc": LIB +
          "public const A: int32 = add int32, 2147483647, 1\n"
@@ -2572,7 +2572,7 @@ def _write_positive_case(case, failures, check):
             else:
                 path.write_text(text, encoding="utf-8", newline="")
     source = f"{case['id'].lower()}/{case['source']}"
-    argv = ["tc-vm", "--static-only"]
+    argv = ["tc-vm", "--sem-only"]
     if case.get("profile") == "w32":
         argv.append("--profile=w32")
     argv.append("@source")

@@ -417,6 +417,47 @@
       "same_site_priority:CALL_SAFETY_FIRST:priority",
       "same_site_priority:SAFE_VIOLATION_OVER_UNSAFE:priority"
     ],
+    "s5_covered_rows": [
+      "chapter:§12:negative",
+      "chapter:§3:negative",
+      "chapter:§3:positive",
+      "chapter:§4:negative",
+      "chapter:§4:positive",
+      "code:TC_CE_CONST_CAST:no_false_positive",
+      "code:TC_CE_CONST_CAST:position",
+      "code:TC_CE_CONST_CAST:stage",
+      "code:TC_CE_CONST_CAST:trigger",
+      "code:TC_CE_CONST_CAST:w32",
+      "code:TC_CE_CONST_CAST:w64",
+      "code:TC_CE_CONST_DIV_ZERO:no_false_positive",
+      "code:TC_CE_CONST_DIV_ZERO:position",
+      "code:TC_CE_CONST_DIV_ZERO:stage",
+      "code:TC_CE_CONST_DIV_ZERO:trigger",
+      "code:TC_CE_CONST_FLOAT_INVALID:no_false_positive",
+      "code:TC_CE_CONST_FLOAT_INVALID:position",
+      "code:TC_CE_CONST_FLOAT_INVALID:stage",
+      "code:TC_CE_CONST_FLOAT_INVALID:trigger",
+      "code:TC_CE_CONST_FLOAT_UNDERFLOW:no_false_positive",
+      "code:TC_CE_CONST_FLOAT_UNDERFLOW:position",
+      "code:TC_CE_CONST_FLOAT_UNDERFLOW:stage",
+      "code:TC_CE_CONST_FLOAT_UNDERFLOW:trigger",
+      "code:TC_CE_CONST_OVERFLOW:no_false_positive",
+      "code:TC_CE_CONST_OVERFLOW:position",
+      "code:TC_CE_CONST_OVERFLOW:stage",
+      "code:TC_CE_CONST_OVERFLOW:trigger",
+      "code:TC_CE_CONST_OVERFLOW:w32",
+      "code:TC_CE_CONST_OVERFLOW:w64",
+      "code:TC_CE_CONST_SHIFT:no_false_positive",
+      "code:TC_CE_CONST_SHIFT:position",
+      "code:TC_CE_CONST_SHIFT:stage",
+      "code:TC_CE_CONST_SHIFT:trigger",
+      "design12:11:gate_case",
+      "design12:11:suite_mapping",
+      "design12:12:gate_case",
+      "design12:12:suite_mapping",
+      "design12:13:gate_case",
+      "design12:13:suite_mapping"
+    ],
     "scope_na_rows": []
   },
   "cross_checks": {
@@ -428,8 +469,8 @@
   "summary": {
     "items": 231,
     "slots": 636,
-    "covered": 344,
-    "uncovered": 292,
+    "covered": 376,
+    "uncovered": 260,
     "suspended": 0
   },
   "categories": {
@@ -445,8 +486,8 @@
       "label": "Diagnostic code",
       "items": 80,
       "slots": 344,
-      "covered": 246,
-      "uncovered": 98,
+      "covered": 274,
+      "uncovered": 70,
       "suspended": 0
     },
     "opcode": {
@@ -461,8 +502,8 @@
       "label": "Design §12 item",
       "items": 15,
       "slots": 30,
-      "covered": 6,
-      "uncovered": 24,
+      "covered": 10,
+      "uncovered": 20,
       "suspended": 0
     },
     "first_diag_rule": {
@@ -649,7 +690,11 @@
       "status": "covered",
       "case_ids": [
         "TC-TOOL-SEM-0001",
-        "TC-TOOL-SEM-0002"
+        "TC-TOOL-SEM-0002",
+        "TC-TOOL-CT-CONV-0001",
+        "TC-TOOL-CT-LIT-0001",
+        "TC-TOOL-CT-OPS-0001",
+        "TC-TOOL-CT-XMOD-0001"
       ],
       "chapter": "§3",
       "title": "类型/转换/对象/指针状态",
@@ -670,7 +715,10 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-TYPE-0001",
-        "TC-SEM-TYPE-0004"
+        "TC-SEM-TYPE-0004",
+        "TC-CT-CAST-0001",
+        "TC-CT-FORM-0009",
+        "TC-CT-WIDTH-0003"
       ],
       "chapter": "§3",
       "title": "类型/转换/对象/指针状态",
@@ -691,7 +739,10 @@
       "status": "covered",
       "case_ids": [
         "TC-TOOL-SEM-0006",
-        "TC-TOOL-SEM-0007"
+        "TC-TOOL-SEM-0007",
+        "TC-TOOL-CT-REF-0001",
+        "TC-TOOL-CT-CHAIN-0001",
+        "TC-TOOL-CT-STATIC-0001"
       ],
       "chapter": "§4",
       "title": "程序结构/模块/导入/可见性/CT 顺序",
@@ -710,7 +761,11 @@
       "status": "covered",
       "case_ids": [
         "TC-IMP-0001",
-        "TC-IMP-0003"
+        "TC-IMP-0003",
+        "TC-CT-ORDER-0003",
+        "TC-CT-ORDER-0006",
+        "TC-CT-ORDER-0007",
+        "TC-CT-STATIC-0001"
       ],
       "chapter": "§4",
       "title": "程序结构/模块/导入/可见性/CT 顺序",
@@ -1070,7 +1125,10 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-CFG-0016",
-        "TC-SEM-CFG-0017"
+        "TC-SEM-CFG-0017",
+        "TC-CT-ORDER-0001",
+        "TC-CT-ORDER-0002",
+        "TC-CT-STAGE-0001"
       ],
       "chapter": "§12",
       "title": "诊断/首诊/位置/80 码",
@@ -6328,8 +6386,15 @@
       "item": "TC_CE_CONST_OVERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-OVERFLOW-0001",
+        "TC-CT-OVERFLOW-0002",
+        "TC-CT-OVERFLOW-0003",
+        "TC-CT-OVERFLOW-0004",
+        "TC-CT-ORDER-0005",
+        "TC-CT-STATIC-0001"
+      ],
       "code": "TC_CE_CONST_OVERFLOW",
       "print_name": "ConstOverflow",
       "stage": "CT",
@@ -6346,8 +6411,11 @@
       "item": "TC_CE_CONST_OVERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-CT-NOFP-0001",
+        "TC-TOOL-CT-WCAST-0001"
+      ],
       "code": "TC_CE_CONST_OVERFLOW",
       "print_name": "ConstOverflow",
       "stage": "CT",
@@ -6364,8 +6432,12 @@
       "item": "TC_CE_CONST_OVERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-OVERFLOW-0001",
+        "TC-CT-OVERFLOW-0004",
+        "TC-CT-STATIC-0001"
+      ],
       "code": "TC_CE_CONST_OVERFLOW",
       "print_name": "ConstOverflow",
       "stage": "CT",
@@ -6382,8 +6454,10 @@
       "item": "TC_CE_CONST_OVERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-OVERFLOW-0001"
+      ],
       "code": "TC_CE_CONST_OVERFLOW",
       "print_name": "ConstOverflow",
       "stage": "CT",
@@ -6400,8 +6474,10 @@
       "item": "TC_CE_CONST_OVERFLOW",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-OVERFLOW-0004"
+      ],
       "code": "TC_CE_CONST_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S5"
@@ -6413,8 +6489,10 @@
       "item": "TC_CE_CONST_OVERFLOW",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-ORDER-0005"
+      ],
       "code": "TC_CE_CONST_OVERFLOW",
       "w_sensitive": true,
       "first_test_stage": "S5"
@@ -6426,8 +6504,16 @@
       "item": "TC_CE_CONST_DIV_ZERO",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-DIVZERO-0001",
+        "TC-CT-DIVZERO-0002",
+        "TC-CT-DIVZERO-0003",
+        "TC-CT-ORDER-0003",
+        "TC-CT-ORDER-0004",
+        "TC-CT-ORDER-0006",
+        "TC-CT-ORDER-0007"
+      ],
       "code": "TC_CE_CONST_DIV_ZERO",
       "print_name": "ConstDivZero",
       "stage": "CT",
@@ -6444,8 +6530,10 @@
       "item": "TC_CE_CONST_DIV_ZERO",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-CT-NOFP-0002"
+      ],
       "code": "TC_CE_CONST_DIV_ZERO",
       "print_name": "ConstDivZero",
       "stage": "CT",
@@ -6462,8 +6550,11 @@
       "item": "TC_CE_CONST_DIV_ZERO",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-DIVZERO-0003",
+        "TC-CT-ORDER-0006"
+      ],
       "code": "TC_CE_CONST_DIV_ZERO",
       "print_name": "ConstDivZero",
       "stage": "CT",
@@ -6480,8 +6571,10 @@
       "item": "TC_CE_CONST_DIV_ZERO",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-DIVZERO-0001"
+      ],
       "code": "TC_CE_CONST_DIV_ZERO",
       "print_name": "ConstDivZero",
       "stage": "CT",
@@ -6498,8 +6591,11 @@
       "item": "TC_CE_CONST_SHIFT",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-SHIFT-0001",
+        "TC-CT-SHIFT-0002"
+      ],
       "code": "TC_CE_CONST_SHIFT",
       "print_name": "ConstShift",
       "stage": "CT",
@@ -6516,8 +6612,10 @@
       "item": "TC_CE_CONST_SHIFT",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-CT-NOFP-0003"
+      ],
       "code": "TC_CE_CONST_SHIFT",
       "print_name": "ConstShift",
       "stage": "CT",
@@ -6534,8 +6632,10 @@
       "item": "TC_CE_CONST_SHIFT",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-SHIFT-0002"
+      ],
       "code": "TC_CE_CONST_SHIFT",
       "print_name": "ConstShift",
       "stage": "CT",
@@ -6552,8 +6652,10 @@
       "item": "TC_CE_CONST_SHIFT",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-SHIFT-0001"
+      ],
       "code": "TC_CE_CONST_SHIFT",
       "print_name": "ConstShift",
       "stage": "CT",
@@ -6570,8 +6672,11 @@
       "item": "TC_CE_CONST_FLOAT_INVALID",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-FLOATINVALID-0001",
+        "TC-CT-FLOATINVALID-0002"
+      ],
       "code": "TC_CE_CONST_FLOAT_INVALID",
       "print_name": "ConstFloatInvalid",
       "stage": "CT",
@@ -6588,8 +6693,10 @@
       "item": "TC_CE_CONST_FLOAT_INVALID",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-CT-NOFP-0004"
+      ],
       "code": "TC_CE_CONST_FLOAT_INVALID",
       "print_name": "ConstFloatInvalid",
       "stage": "CT",
@@ -6606,8 +6713,10 @@
       "item": "TC_CE_CONST_FLOAT_INVALID",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-FLOATINVALID-0001"
+      ],
       "code": "TC_CE_CONST_FLOAT_INVALID",
       "print_name": "ConstFloatInvalid",
       "stage": "CT",
@@ -6624,8 +6733,10 @@
       "item": "TC_CE_CONST_FLOAT_INVALID",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-FLOATINVALID-0001"
+      ],
       "code": "TC_CE_CONST_FLOAT_INVALID",
       "print_name": "ConstFloatInvalid",
       "stage": "CT",
@@ -6642,8 +6753,11 @@
       "item": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-FLOATUNDERFLOW-0001",
+        "TC-CT-FLOATUNDERFLOW-0002"
+      ],
       "code": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "print_name": "ConstFloatUnderflow",
       "stage": "CT",
@@ -6660,8 +6774,10 @@
       "item": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-CT-NOFP-0005"
+      ],
       "code": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "print_name": "ConstFloatUnderflow",
       "stage": "CT",
@@ -6678,8 +6794,10 @@
       "item": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-FLOATUNDERFLOW-0002"
+      ],
       "code": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "print_name": "ConstFloatUnderflow",
       "stage": "CT",
@@ -6696,8 +6814,10 @@
       "item": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-FLOATUNDERFLOW-0001"
+      ],
       "code": "TC_CE_CONST_FLOAT_UNDERFLOW",
       "print_name": "ConstFloatUnderflow",
       "stage": "CT",
@@ -6714,8 +6834,14 @@
       "item": "TC_CE_CONST_CAST",
       "slot": "trigger",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-CAST-0001",
+        "TC-CT-CAST-0002",
+        "TC-CT-CAST-0003",
+        "TC-CT-CAST-0004",
+        "TC-CT-CAST-0005"
+      ],
       "code": "TC_CE_CONST_CAST",
       "print_name": "ConstCast",
       "stage": "CT",
@@ -6732,8 +6858,12 @@
       "item": "TC_CE_CONST_CAST",
       "slot": "no_false_positive",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-TOOL-CT-NOFP-0006",
+        "TC-TOOL-CT-WCAST-0001",
+        "TC-TOOL-CT-WCASTVICE-0001"
+      ],
       "code": "TC_CE_CONST_CAST",
       "print_name": "ConstCast",
       "stage": "CT",
@@ -6750,8 +6880,10 @@
       "item": "TC_CE_CONST_CAST",
       "slot": "position",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-CAST-0002"
+      ],
       "code": "TC_CE_CONST_CAST",
       "print_name": "ConstCast",
       "stage": "CT",
@@ -6768,8 +6900,10 @@
       "item": "TC_CE_CONST_CAST",
       "slot": "stage",
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-CAST-0001"
+      ],
       "code": "TC_CE_CONST_CAST",
       "print_name": "ConstCast",
       "stage": "CT",
@@ -6786,8 +6920,10 @@
       "item": "TC_CE_CONST_CAST",
       "slot": "w32",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-CAST-0004"
+      ],
       "code": "TC_CE_CONST_CAST",
       "w_sensitive": true,
       "first_test_stage": "S5"
@@ -6799,8 +6935,10 @@
       "item": "TC_CE_CONST_CAST",
       "slot": "w64",
       "spec": "standard §13.2.2 word-size instantiation; test plan §3.6",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-CAST-0005"
+      ],
       "code": "TC_CE_CONST_CAST",
       "w_sensitive": true,
       "first_test_stage": "S5"
@@ -11089,8 +11227,13 @@
       "item": "11. IR 形态",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-IR-0001",
+        "TC-UNIT-IR-0002",
+        "TC-UNIT-IR-0003",
+        "TC-UNIT-IR-0004"
+      ],
       "number": 11,
       "title": "IR 形态",
       "detail": "字段路径作为值（`copy T, s.f`、`br_if s.flag`、`call_indirect s.fp`）、字段作为 lvalue、`addr T, s.f`、命名实参/字段；所有合法源形态可构造。",
@@ -11105,8 +11248,11 @@
       "item": "11. IR 形态",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-IR-0001",
+        "TC-UNIT-IR-0005"
+      ],
       "number": 11,
       "title": "IR 形态",
       "detail": "字段路径作为值（`copy T, s.f`、`br_if s.flag`、`call_indirect s.fp`）、字段作为 lvalue、`addr T, s.f`、命名实参/字段；所有合法源形态可构造。",
@@ -11121,8 +11267,13 @@
       "item": "12. const/静态初值",
       "slot": "suite_mapping",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-UNIT-CT-0001",
+        "TC-CT-STATIC-0001",
+        "TC-TOOL-CT-MAKE-0001",
+        "TC-TOOL-CT-STATIC-0001"
+      ],
       "number": 12,
       "title": "const/静态初值",
       "detail": "`TcIR.consts`/`TcObject.init` 的 VM 预载与 AOT `.data` 字节一致；`const` 使用处内联；CT 结果按 32/64 实例化。",
@@ -11137,8 +11288,12 @@
       "item": "12. const/静态初值",
       "slot": "gate_case",
       "spec": "design §12, test plan §3.6/§8.2",
-      "status": "uncovered",
-      "case_ids": [],
+      "status": "covered",
+      "case_ids": [
+        "TC-CT-STATIC-0001",
+        "TC-UNIT-IR-0003",
+        "TC-UNIT-CT-0001"
+      ],
       "number": 12,
       "title": "const/静态初值",
       "detail": "`TcIR.consts`/`TcObject.init` 的 VM 预载与 AOT `.data` 字节一致；`const` 使用处内联；CT 结果按 32/64 实例化。",
@@ -11155,7 +11310,10 @@
       "spec": "design §12, test plan §3.6/§8.2",
       "status": "covered",
       "case_ids": [
-        "TC-UNIT-MODULE-0001"
+        "TC-UNIT-MODULE-0001",
+        "TC-UNIT-IR-0001",
+        "TC-UNIT-IR-0004",
+        "TC-UNIT-IR-0008"
       ],
       "number": 13,
       "title": "类型表/模块实例",
@@ -11173,7 +11331,9 @@
       "spec": "design §12, test plan §3.6/§8.2",
       "status": "covered",
       "case_ids": [
-        "TC-TOOL-SEM-0006"
+        "TC-TOOL-SEM-0006",
+        "TC-UNIT-IR-0001",
+        "TC-TOOL-CT-CHAIN-0001"
       ],
       "number": 13,
       "title": "类型表/模块实例",

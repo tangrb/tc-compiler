@@ -1,0 +1,3 @@
+#lib
+public const U: usize = 4294967296
+public const I: isize = 2147483648

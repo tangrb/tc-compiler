@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-WBITCAST-0001
+profile: w32
+source: tc-tool-ct-wbitcast-0001/root.tc
+spec: "§13.2.2 w32 bitcast int32,isize 等宽合法；与 w64 的 TC-CT-WIDTH-0003 成对（w64 失败、w32 接受）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

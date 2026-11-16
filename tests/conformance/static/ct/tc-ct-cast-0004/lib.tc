@@ -1,0 +1,2 @@
+#lib
+public const BAD: isize = cast isize, 4294967296

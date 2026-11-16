@@ -1,0 +1,3 @@
+#lib
+public const S: isize = 1
+public const X: int32 = trunc int32, Self.S

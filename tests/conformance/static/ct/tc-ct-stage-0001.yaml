@@ -1,0 +1,10 @@
+id: TC-CT-STAGE-0001
+profile: common
+source: tc-ct-stage-0001/root.tc
+spec: "§12.1/§12.2 阶段优先：源中同时有 SEM 类型错误和 CT 除零时先报 SEM；const 的除零在 SEM 只是待 CT 的错误；§12.5.1 首个不匹配操作数"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: tc-ct-stage-0001/root.tc, line: 4, column: 28}
+  related: []
+  diagnostics: exactly-one

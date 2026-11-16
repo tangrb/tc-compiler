@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-NOFP-0004
+profile: common
+source: tc-tool-ct-nofp-0004/root.tc
+spec: "§6.3.1 有限非 NaN 输入、非 0×inf、非零除数：strict 浮点普通运算合法（与 TC-CT-FLOATINVALID-0002 相邻）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

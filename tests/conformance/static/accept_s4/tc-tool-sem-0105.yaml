@@ -4,7 +4,7 @@ source: tc-tool-sem-0105/root.tc
 spec: "§7.2/§5.1 标签与值名分属不同命名空间；前后向标签均合法"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

@@ -4,7 +4,7 @@ source: tc-tool-sem-0115/root.tc
 spec: "§5.4/§5.5 addr 取未初始化存储合法、字段赋值不改外层初始化状态；经指针读取未初始化存储是运行时 UB，不是静态拒绝"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

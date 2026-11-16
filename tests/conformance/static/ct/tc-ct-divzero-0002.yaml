@@ -1,0 +1,10 @@
+id: TC-CT-DIVZERO-0002
+profile: common
+source: tc-ct-divzero-0002/root.tc
+spec: "§3.10/§6.3.1 strict 浮点除零（有限非零 / ±0）-> CONST_DIV_ZERO；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_DIV_ZERO
+  primary: {file: tc-ct-divzero-0002/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

@@ -9,16 +9,16 @@
 
 - Language version: `0.0.46`
 - Spec: docs/TC语言及编译器标准-0.0.46.md §12.3; §12.5.1; docs/TC开发测试计划-0.0.46.md 附录 A
-- Rows: **636** total, **292** uncovered, **344** covered, **0** N/A (S0)
+- Rows: **636** total, **260** uncovered, **376** covered, **0** N/A (S0)
 
 ## Summary by category
 
 | Category | Items | Slots | Covered | Uncovered | N/A (S0) |
 |---|---:|---:|---:|---:|---:|
 | Standard chapter (`chapter`) | 15 | 30 | 25 | 5 | 0 |
-| Diagnostic code (`code`) | 80 | 344 | 246 | 98 | 0 |
+| Diagnostic code (`code`) | 80 | 344 | 274 | 70 | 0 |
 | Opcode (`opcode`) | 63 | 155 | 0 | 155 | 0 |
-| Design §12 item (`design12`) | 15 | 30 | 6 | 24 | 0 |
+| Design §12 item (`design12`) | 15 | 30 | 10 | 20 | 0 |
 | First-diagnostic rule (§12.2) (`first_diag_rule`) | 10 | 10 | 10 | 0 | 0 |
 | Same-position code priority (`same_site_priority`) | 5 | 5 | 5 | 0 | 0 |
 | 32/64 flip (`flip32_64`) | 17 | 34 | 34 | 0 | 0 |
@@ -26,7 +26,7 @@
 | Device policy (`device_policy`) | 4 | 4 | 0 | 4 | 0 |
 | I/O source state (`io_source_state`) | 4 | 4 | 0 | 4 | 0 |
 | Exit strategy (`exit_strategy`) | 2 | 2 | 0 | 2 | 0 |
-| **Total** | **231** | **636** | **344** | **292** | **0** |
+| **Total** | **231** | **636** | **376** | **260** | **0** |
 
 ## Coverage rows
 
@@ -40,10 +40,10 @@
 | `chapter:§1:negative` | §1 抽象机/可观察行为/阶段/顺序 | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§2:positive` | §2 词法 | positive | **covered** | TC-TOOL-SYN-0004, TC-TOOL-SYN-0005 | test plan §3.6/§8.1 |
 | `chapter:§2:negative` | §2 词法 | negative | **covered** | TC-LEX-SYN-0001, TC-LEX-SYN-0025 | test plan §3.6/§8.1 |
-| `chapter:§3:positive` | §3 类型/转换/对象/指针状态 | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0002 | test plan §3.6/§8.1 |
-| `chapter:§3:negative` | §3 类型/转换/对象/指针状态 | negative | **covered** | TC-SEM-TYPE-0001, TC-SEM-TYPE-0004 | test plan §3.6/§8.1 |
-| `chapter:§4:positive` | §4 程序结构/模块/导入/可见性/CT 顺序 | positive | **covered** | TC-TOOL-SEM-0006, TC-TOOL-SEM-0007 | test plan §3.6/§8.1 |
-| `chapter:§4:negative` | §4 程序结构/模块/导入/可见性/CT 顺序 | negative | **covered** | TC-IMP-0001, TC-IMP-0003 | test plan §3.6/§8.1 |
+| `chapter:§3:positive` | §3 类型/转换/对象/指针状态 | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0002, TC-TOOL-CT-CONV-0001, TC-TOOL-CT-LIT-0001, TC-TOOL-CT-OPS-0001, TC-TOOL-CT-XMOD-0001 | test plan §3.6/§8.1 |
+| `chapter:§3:negative` | §3 类型/转换/对象/指针状态 | negative | **covered** | TC-SEM-TYPE-0001, TC-SEM-TYPE-0004, TC-CT-CAST-0001, TC-CT-FORM-0009, TC-CT-WIDTH-0003 | test plan §3.6/§8.1 |
+| `chapter:§4:positive` | §4 程序结构/模块/导入/可见性/CT 顺序 | positive | **covered** | TC-TOOL-SEM-0006, TC-TOOL-SEM-0007, TC-TOOL-CT-REF-0001, TC-TOOL-CT-CHAIN-0001, TC-TOOL-CT-STATIC-0001 | test plan §3.6/§8.1 |
+| `chapter:§4:negative` | §4 程序结构/模块/导入/可见性/CT 顺序 | negative | **covered** | TC-IMP-0001, TC-IMP-0003, TC-CT-ORDER-0003, TC-CT-ORDER-0006, TC-CT-ORDER-0007, TC-CT-STATIC-0001 | test plan §3.6/§8.1 |
 | `chapter:§5:positive` | §5 存储对象/作用域/DI | positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0008, TC-TOOL-SEM-0101, TC-TOOL-SEM-0102 | test plan §3.6/§8.1 |
 | `chapter:§5:negative` | §5 存储对象/作用域/DI | negative | **covered** | TC-SEM-NAME-0001, TC-SEM-NAME-0003, TC-SEM-DI-0001, TC-SEM-DI-0002, TC-SEM-DI-0003 | test plan §3.6/§8.1 |
 | `chapter:§6:positive` | §6 指令集/语义/验证 | positive | **covered** | TC-TOOL-SEM-0002, TC-TOOL-SEM-0004, TC-TOOL-SEM-0106, TC-TOOL-SEM-0112 | test plan §3.6/§8.1 |
@@ -59,7 +59,7 @@
 | `chapter:§11:positive` | §11 标准 I/O | positive | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§11:negative` | §11 标准 I/O | negative | **uncovered** | — | test plan §3.6/§8.1 |
 | `chapter:§12:positive` | §12 诊断/首诊/位置/80 码 | positive | **uncovered** | — | test plan §3.6/§8.1 |
-| `chapter:§12:negative` | §12 诊断/首诊/位置/80 码 | negative | **covered** | TC-SEM-CFG-0016, TC-SEM-CFG-0017 | test plan §3.6/§8.1 |
+| `chapter:§12:negative` | §12 诊断/首诊/位置/80 码 | negative | **covered** | TC-SEM-CFG-0016, TC-SEM-CFG-0017, TC-CT-ORDER-0001, TC-CT-ORDER-0002, TC-CT-STAGE-0001 | test plan §3.6/§8.1 |
 | `chapter:§13:positive` | §13 平台档案/验证要求 | positive | **covered** | TC-TOOL-SEM-0009, TC-TOOL-SEM-0010 | test plan §3.6/§8.1 |
 | `chapter:§13:negative` | §13 平台档案/验证要求 | negative | **covered** | TC-SEM-LAYOUT-0001, TC-SEM-CONV-0003 | test plan §3.6/§8.1 |
 | `chapter:§14:positive` | §14 EBNF | positive | **covered** | TC-TOOL-SYN-0001, TC-TOOL-SYN-0009 | test plan §3.6/§8.1 |
@@ -315,34 +315,34 @@
 | `code:TC_CE_CONST_FORM:no_false_positive` | TC_CE_CONST_FORM | no_false_positive | **covered** | TC-TOOL-SEM-0001, TC-TOOL-SEM-0142, TC-TOOL-SEM-0143, TC-TOOL-SEM-0144, TC-TOOL-SEM-0145 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONST_FORM:position` | TC_CE_CONST_FORM | position | **covered** | TC-SEM-CONST-0002, TC-SEM-CONST-0003, TC-SEM-CONST-0004, TC-SEM-CONST-0006, TC-SEM-CONST-0007, TC-SEM-CONST-0008, TC-SEM-CONST-0009, TC-SEM-CONST-0010, TC-SEM-CONST-0011, TC-SEM-CONST-0012, TC-SEM-CONST-0013, TC-SEM-CONST-0014, TC-SEM-CONST-0015, TC-SEM-CONST-0016, TC-SEM-CONST-0017, TC-SEM-CONST-0018, TC-SEM-CONST-0019, TC-SEM-CONST-0020, TC-SEM-CONST-0021, TC-SEM-CONST-0022, TC-SEM-CONST-0023, TC-SEM-CONST-0024, TC-SEM-CONST-0025, TC-SEM-CONST-0026 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_CE_CONST_FORM:stage` | TC_CE_CONST_FORM | stage | **covered** | TC-SEM-CONST-0001, TC-SEM-CONST-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_OVERFLOW:trigger` | TC_CE_CONST_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_OVERFLOW:no_false_positive` | TC_CE_CONST_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_OVERFLOW:position` | TC_CE_CONST_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_OVERFLOW:stage` | TC_CE_CONST_OVERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_OVERFLOW:w32` | TC_CE_CONST_OVERFLOW | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_CE_CONST_OVERFLOW:w64` | TC_CE_CONST_OVERFLOW | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_CE_CONST_DIV_ZERO:trigger` | TC_CE_CONST_DIV_ZERO | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_DIV_ZERO:no_false_positive` | TC_CE_CONST_DIV_ZERO | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_DIV_ZERO:position` | TC_CE_CONST_DIV_ZERO | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_DIV_ZERO:stage` | TC_CE_CONST_DIV_ZERO | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_SHIFT:trigger` | TC_CE_CONST_SHIFT | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_SHIFT:no_false_positive` | TC_CE_CONST_SHIFT | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_SHIFT:position` | TC_CE_CONST_SHIFT | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_SHIFT:stage` | TC_CE_CONST_SHIFT | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_INVALID:trigger` | TC_CE_CONST_FLOAT_INVALID | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_INVALID:no_false_positive` | TC_CE_CONST_FLOAT_INVALID | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_INVALID:position` | TC_CE_CONST_FLOAT_INVALID | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_INVALID:stage` | TC_CE_CONST_FLOAT_INVALID | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_UNDERFLOW:trigger` | TC_CE_CONST_FLOAT_UNDERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_UNDERFLOW:no_false_positive` | TC_CE_CONST_FLOAT_UNDERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_UNDERFLOW:position` | TC_CE_CONST_FLOAT_UNDERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_FLOAT_UNDERFLOW:stage` | TC_CE_CONST_FLOAT_UNDERFLOW | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_CAST:trigger` | TC_CE_CONST_CAST | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_CAST:no_false_positive` | TC_CE_CONST_CAST | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_CAST:position` | TC_CE_CONST_CAST | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_CAST:stage` | TC_CE_CONST_CAST | stage | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
-| `code:TC_CE_CONST_CAST:w32` | TC_CE_CONST_CAST | w32 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
-| `code:TC_CE_CONST_CAST:w64` | TC_CE_CONST_CAST | w64 | **uncovered** | — | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_CE_CONST_OVERFLOW:trigger` | TC_CE_CONST_OVERFLOW | trigger | **covered** | TC-CT-OVERFLOW-0001, TC-CT-OVERFLOW-0002, TC-CT-OVERFLOW-0003, TC-CT-OVERFLOW-0004, TC-CT-ORDER-0005, TC-CT-STATIC-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_OVERFLOW:no_false_positive` | TC_CE_CONST_OVERFLOW | no_false_positive | **covered** | TC-TOOL-CT-NOFP-0001, TC-TOOL-CT-WCAST-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_OVERFLOW:position` | TC_CE_CONST_OVERFLOW | position | **covered** | TC-CT-OVERFLOW-0001, TC-CT-OVERFLOW-0004, TC-CT-STATIC-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_OVERFLOW:stage` | TC_CE_CONST_OVERFLOW | stage | **covered** | TC-CT-OVERFLOW-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_OVERFLOW:w32` | TC_CE_CONST_OVERFLOW | w32 | **covered** | TC-CT-OVERFLOW-0004 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_CE_CONST_OVERFLOW:w64` | TC_CE_CONST_OVERFLOW | w64 | **covered** | TC-CT-ORDER-0005 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_CE_CONST_DIV_ZERO:trigger` | TC_CE_CONST_DIV_ZERO | trigger | **covered** | TC-CT-DIVZERO-0001, TC-CT-DIVZERO-0002, TC-CT-DIVZERO-0003, TC-CT-ORDER-0003, TC-CT-ORDER-0004, TC-CT-ORDER-0006, TC-CT-ORDER-0007 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_DIV_ZERO:no_false_positive` | TC_CE_CONST_DIV_ZERO | no_false_positive | **covered** | TC-TOOL-CT-NOFP-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_DIV_ZERO:position` | TC_CE_CONST_DIV_ZERO | position | **covered** | TC-CT-DIVZERO-0003, TC-CT-ORDER-0006 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_DIV_ZERO:stage` | TC_CE_CONST_DIV_ZERO | stage | **covered** | TC-CT-DIVZERO-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_SHIFT:trigger` | TC_CE_CONST_SHIFT | trigger | **covered** | TC-CT-SHIFT-0001, TC-CT-SHIFT-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_SHIFT:no_false_positive` | TC_CE_CONST_SHIFT | no_false_positive | **covered** | TC-TOOL-CT-NOFP-0003 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_SHIFT:position` | TC_CE_CONST_SHIFT | position | **covered** | TC-CT-SHIFT-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_SHIFT:stage` | TC_CE_CONST_SHIFT | stage | **covered** | TC-CT-SHIFT-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_INVALID:trigger` | TC_CE_CONST_FLOAT_INVALID | trigger | **covered** | TC-CT-FLOATINVALID-0001, TC-CT-FLOATINVALID-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_INVALID:no_false_positive` | TC_CE_CONST_FLOAT_INVALID | no_false_positive | **covered** | TC-TOOL-CT-NOFP-0004 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_INVALID:position` | TC_CE_CONST_FLOAT_INVALID | position | **covered** | TC-CT-FLOATINVALID-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_INVALID:stage` | TC_CE_CONST_FLOAT_INVALID | stage | **covered** | TC-CT-FLOATINVALID-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_UNDERFLOW:trigger` | TC_CE_CONST_FLOAT_UNDERFLOW | trigger | **covered** | TC-CT-FLOATUNDERFLOW-0001, TC-CT-FLOATUNDERFLOW-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_UNDERFLOW:no_false_positive` | TC_CE_CONST_FLOAT_UNDERFLOW | no_false_positive | **covered** | TC-TOOL-CT-NOFP-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_UNDERFLOW:position` | TC_CE_CONST_FLOAT_UNDERFLOW | position | **covered** | TC-CT-FLOATUNDERFLOW-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_FLOAT_UNDERFLOW:stage` | TC_CE_CONST_FLOAT_UNDERFLOW | stage | **covered** | TC-CT-FLOATUNDERFLOW-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_CAST:trigger` | TC_CE_CONST_CAST | trigger | **covered** | TC-CT-CAST-0001, TC-CT-CAST-0002, TC-CT-CAST-0003, TC-CT-CAST-0004, TC-CT-CAST-0005 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_CAST:no_false_positive` | TC_CE_CONST_CAST | no_false_positive | **covered** | TC-TOOL-CT-NOFP-0006, TC-TOOL-CT-WCAST-0001, TC-TOOL-CT-WCASTVICE-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_CAST:position` | TC_CE_CONST_CAST | position | **covered** | TC-CT-CAST-0002 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_CAST:stage` | TC_CE_CONST_CAST | stage | **covered** | TC-CT-CAST-0001 | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
+| `code:TC_CE_CONST_CAST:w32` | TC_CE_CONST_CAST | w32 | **covered** | TC-CT-CAST-0004 | standard §13.2.2 word-size instantiation; test plan §3.6 |
+| `code:TC_CE_CONST_CAST:w64` | TC_CE_CONST_CAST | w64 | **covered** | TC-CT-CAST-0005 | standard §13.2.2 word-size instantiation; test plan §3.6 |
 | `code:TC_RE_INTEGER_OVERFLOW:trigger` | TC_RE_INTEGER_OVERFLOW | trigger | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_RE_INTEGER_OVERFLOW:no_false_positive` | TC_RE_INTEGER_OVERFLOW | no_false_positive | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
 | `code:TC_RE_INTEGER_OVERFLOW:position` | TC_RE_INTEGER_OVERFLOW | position | **uncovered** | — | §12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6 |
@@ -598,12 +598,12 @@
 | `design12:09:gate_case` | 9. 诊断/语法 | gate_case | **covered** | TC-IMP-0001, TC-SEM-MODE-0001, TC-SEM-CALL-0107, TC-SEM-CFG-0004 | design §12, test plan §3.6/§8.2 |
 | `design12:10:suite_mapping` | 10. `@fast_math` | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:10:gate_case` | 10. `@fast_math` | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:11:suite_mapping` | 11. IR 形态 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:11:gate_case` | 11. IR 形态 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:12:suite_mapping` | 12. const/静态初值 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:12:gate_case` | 12. const/静态初值 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:13:suite_mapping` | 13. 类型表/模块实例 | suite_mapping | **covered** | TC-UNIT-MODULE-0001 | design §12, test plan §3.6/§8.2 |
-| `design12:13:gate_case` | 13. 类型表/模块实例 | gate_case | **covered** | TC-TOOL-SEM-0006 | design §12, test plan §3.6/§8.2 |
+| `design12:11:suite_mapping` | 11. IR 形态 | suite_mapping | **covered** | TC-UNIT-IR-0001, TC-UNIT-IR-0002, TC-UNIT-IR-0003, TC-UNIT-IR-0004 | design §12, test plan §3.6/§8.2 |
+| `design12:11:gate_case` | 11. IR 形态 | gate_case | **covered** | TC-UNIT-IR-0001, TC-UNIT-IR-0005 | design §12, test plan §3.6/§8.2 |
+| `design12:12:suite_mapping` | 12. const/静态初值 | suite_mapping | **covered** | TC-UNIT-CT-0001, TC-CT-STATIC-0001, TC-TOOL-CT-MAKE-0001, TC-TOOL-CT-STATIC-0001 | design §12, test plan §3.6/§8.2 |
+| `design12:12:gate_case` | 12. const/静态初值 | gate_case | **covered** | TC-CT-STATIC-0001, TC-UNIT-IR-0003, TC-UNIT-CT-0001 | design §12, test plan §3.6/§8.2 |
+| `design12:13:suite_mapping` | 13. 类型表/模块实例 | suite_mapping | **covered** | TC-UNIT-MODULE-0001, TC-UNIT-IR-0001, TC-UNIT-IR-0004, TC-UNIT-IR-0008 | design §12, test plan §3.6/§8.2 |
+| `design12:13:gate_case` | 13. 类型表/模块实例 | gate_case | **covered** | TC-TOOL-SEM-0006, TC-UNIT-IR-0001, TC-TOOL-CT-CHAIN-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:14:suite_mapping` | 14. 退出/设备/输入 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:14:gate_case` | 14. 退出/设备/输入 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:15:suite_mapping` | 15. 零 pass | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |

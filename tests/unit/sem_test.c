@@ -73,7 +73,7 @@ static TcAnalysis *analyze_text(const char *text, unsigned width,
         return NULL;
     }
     fclose(file);
-    analysis = tc_analyze(path, width, NULL, 0, status, diag, &impl);
+    analysis = tc_analyze_sem_only(path, width, NULL, 0, status, diag, &impl);
     unlink(path);
     if (analysis == NULL) {
         printf("FAIL analysis returned NULL (impl %d)\n", (int)impl);
@@ -118,7 +118,8 @@ static TcAnalysis *analyze_lib_text(const char *text, unsigned width,
         failures++;
         return NULL;
     }
-    analysis = tc_analyze(root_path, width, NULL, 0, status, diag, &impl);
+    analysis = tc_analyze_sem_only(root_path, width, NULL, 0, status, diag,
+                                   &impl);
     unlink(lib_path);
     unlink(root_path);
     rmdir(dir);
@@ -475,7 +476,8 @@ static void test_module_order(void) {
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
     TcImplError impl = TC_IMPL_OK;
-    TcAnalysis *an = tc_analyze(root, 64, NULL, 0, &status, &diag, &impl);
+    TcAnalysis *an =
+        tc_analyze_sem_only(root, 64, NULL, 0, &status, &diag, &impl);
     const char *expected[] = {"root.tc", "a.tc", "c.tc", "b.tc"};
     size_t i;
     if (an == NULL) {
@@ -505,7 +507,8 @@ static void test_module_instances(void) {
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
     TcImplError impl = TC_IMPL_OK;
-    TcAnalysis *an = tc_analyze(root, 64, roots, 2, &status, &diag, &impl);
+    TcAnalysis *an =
+        tc_analyze_sem_only(root, 64, roots, 2, &status, &diag, &impl);
     const char *paths[5];
     size_t i;
     if (an == NULL) {

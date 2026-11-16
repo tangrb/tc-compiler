@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0001
+profile: common
+source: tc-ct-order-0001/root.tc
+spec: "§4.7/§5.2 同模块只能引用更早的 const；前向引用 Self.B -> UNDEFINED_NAME（SEM，不是 CT）；§12.5.1 未解析标识符（Self. 后的 B）"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: tc-ct-order-0001/lib.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

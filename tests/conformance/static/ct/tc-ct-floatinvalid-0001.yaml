@@ -1,0 +1,10 @@
+id: TC-CT-FLOATINVALID-0001
+profile: common
+source: tc-ct-floatinvalid-0001/root.tc
+spec: "§3.10/§6.3.1 strict 浮点 NaN 输入为无效操作 -> CONST_FLOAT_INVALID；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_FLOAT_INVALID
+  primary: {file: tc-ct-floatinvalid-0001/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

@@ -17,10 +17,13 @@ add_library(tc_core STATIC
     frontend/parse.c
     frontend/module.c
     frontend/sem.c
+    frontend/ct.c
+    frontend/irgen.c
     # IR representation and shape helpers.
     ir/type.c
     ir/instr.c
     ir/pointer_state.c
+    ir/print.c
     # Runtime seams and platform profiles.
     runtime/alloc.c
     runtime/module_loader.c

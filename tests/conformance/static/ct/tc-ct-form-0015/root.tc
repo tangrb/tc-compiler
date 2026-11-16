@@ -1,0 +1,4 @@
+#program
+struct S then
+    var x: int32 @padding(0x10)
+end

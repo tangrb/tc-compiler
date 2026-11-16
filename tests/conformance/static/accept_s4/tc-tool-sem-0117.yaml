@@ -4,7 +4,7 @@ source: tc-tool-sem-0117/root.tc
 spec: "§5.1/§5.7.1 static var 与 const 不进入 U，入口即已初始化；函数内Self.S/Self.K 与导入 public static var 读取不产生 UNINITIALIZED"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

@@ -1,0 +1,10 @@
+id: TC-CT-CAST-0002
+profile: common
+source: tc-ct-cast-0002/root.tc
+spec: "§3.10/§6.6.1 浮点->整数 cast 越界（1e10 -> int32）-> CONST_CAST；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_CAST
+  primary: {file: tc-ct-cast-0002/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

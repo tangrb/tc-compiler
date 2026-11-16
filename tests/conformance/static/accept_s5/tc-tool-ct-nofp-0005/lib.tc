@@ -1,0 +1,4 @@
+#lib
+public const A: float32 = mul float32, 1.1754944e-38f, 0.5f
+public const B: float64 = mul float64, 1e-300, 0.0
+public const C: float32 = mul float32, 5.877472e-39f, 2.0f

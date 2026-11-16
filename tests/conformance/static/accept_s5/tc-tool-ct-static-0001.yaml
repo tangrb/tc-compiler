@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-STATIC-0001
+profile: common
+source: tc-tool-ct-static-0001/root.tc
+spec: "§3.10/§4.7 static var 用 const 标量与 const 结构体初始化；成功值与 const 使用处内联无关"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

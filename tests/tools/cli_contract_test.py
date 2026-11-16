@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """CLI contract test for tc-vm / tc-aot.
 
-The LEX/SYN front end is implemented.  A well-formed source has no diagnostic
-under `--syntax-only` (exit 0, no output), while a normal invocation still
-fails explicitly with the implementation-level "unavailable" status (70)
-because IMPORT/SEM/CT and code generation are not implemented yet.  LEX/SYN
-diagnostics exit 1 with the stable diagnostic line; file-open failures are
-implementation errors (71) and are never language diagnostics.
+The static front end is implemented.  `--syntax-only` (LEX/SYN), `--sem-only`
+(through SEM) and `--static-only` (through CT and IR finalization) are partial
+checks with exit 0, no output; a normal invocation still fails explicitly with
+the implementation-level "unavailable" status (70) because code generation is
+not implemented yet.  Diagnostics exit 1 with the stable diagnostic line;
+file-open failures are implementation errors (71) and are never language
+diagnostics.
 """
 
 from __future__ import annotations
@@ -49,6 +50,14 @@ def main() -> int:
         source.write_text("#program\nvar x: int32 = copy int32, 1\n", encoding="utf-8")
         bad = cwd / "bad.tc"
         bad.write_text("#program\nvar x: int32 = 1 ;\n", encoding="utf-8")
+        ct_source = cwd / "ct_main.tc"
+        ct_source.write_text(
+            "#lib\n"
+            "public const BAD: int32 = div int32, 1, 0\n",
+            encoding="utf-8",
+        )
+        ct_root = cwd / "ct_root.tc"
+        ct_root.write_text("#program\nimport ct_main\n", encoding="utf-8")
         missing = cwd / "missing.tc"
 
         for tool in tools:
@@ -92,6 +101,33 @@ def main() -> int:
             check(r.returncode == 0, f"{name} --syntax-only exit {r.returncode}")
             check(r.stdout == "", f"{name} --syntax-only stdout empty")
             check(r.stderr == "", f"{name} --syntax-only stderr empty")
+
+            r = run(tool, ["--sem-only", str(source)], cwd)
+            check(r.returncode == 0, f"{name} --sem-only exit {r.returncode}")
+            check(r.stdout == "", f"{name} --sem-only stdout empty")
+            check(r.stderr == "", f"{name} --sem-only stderr empty")
+
+            r = run(tool, ["--static-only", str(source)], cwd)
+            check(r.returncode == 0, f"{name} --static-only exit {r.returncode}")
+            check(r.stdout == "", f"{name} --static-only stdout empty")
+            check(r.stderr == "", f"{name} --static-only stderr empty")
+
+            # --static-only includes CT and IR finalization; a CT failure is a
+            # stable CT diagnostic, while --sem-only stops before CT.
+            r = run(tool, ["--static-only", str(ct_root)], cwd)
+            check(
+                r.returncode == 1,
+                f"{name} --static-only CT failure exit {r.returncode}",
+            )
+            check(
+                "TC_CE_CONST_DIV_ZERO" in r.stderr and "error[CT]" in r.stderr,
+                f"{name} --static-only CT failure diagnostic",
+            )
+            r = run(tool, ["--sem-only", str(ct_root)], cwd)
+            check(
+                r.returncode == 0,
+                f"{name} --sem-only partial pass exit {r.returncode}",
+            )
 
             r = run(tool, ["--syntax-only", str(bad)], cwd)
             check(r.returncode == 1, f"{name} --syntax-only bad exit {r.returncode}")

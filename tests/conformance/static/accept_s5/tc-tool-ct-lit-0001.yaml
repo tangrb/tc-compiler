@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-LIT-0001
+profile: common
+source: tc-tool-ct-lit-0001/root.tc
+spec: "§3.10/§6.6.3 常量字面量四类：整数/浮点（含 f 后缀）/bool/nullptr 作为 ptr 值；全部是 const_expr 允许的源"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

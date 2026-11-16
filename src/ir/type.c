@@ -227,6 +227,62 @@ const TcType *tc_type_struct(TcTypeTable *table, uint32_t struct_id) {
     return register_node(table, node);
 }
 
+const TcType *tc_type_ptr_find(const TcTypeTable *table,
+                              const TcType *pointee) {
+    size_t i;
+    if (table == NULL || pointee == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < table->nnodes; i++) {
+        const TcType *candidate = table->nodes[i];
+        if (candidate->tag == TC_TY_PTR && candidate->ptr.pointee == pointee) {
+            return candidate;
+        }
+    }
+    return NULL;
+}
+
+const TcType *tc_type_fnptr_find(const TcTypeTable *table, const TcType *ret,
+                                 const TcType *const *params, size_t nparams) {
+    size_t i;
+    if (table == NULL || ret == NULL || (nparams > 0 && params == NULL)) {
+        return NULL;
+    }
+    for (i = 0; i < table->nnodes; i++) {
+        const TcType *candidate = table->nodes[i];
+        size_t j;
+        if (candidate->tag != TC_TY_FNPTR || candidate->fnptr.ret != ret ||
+            candidate->fnptr.n != nparams) {
+            continue;
+        }
+        for (j = 0; j < nparams; j++) {
+            if (candidate->fnptr.params[j] != params[j]) {
+                break;
+            }
+        }
+        if (j == nparams) {
+            return candidate;
+        }
+    }
+    return NULL;
+}
+
+const TcType *tc_type_struct_find(const TcTypeTable *table,
+                                  uint32_t struct_id) {
+    size_t i;
+    if (table == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < table->nnodes; i++) {
+        const TcType *candidate = table->nodes[i];
+        if (candidate->tag == TC_TY_STRUCT &&
+            candidate->struct_.struct_id == struct_id) {
+            return candidate;
+        }
+    }
+    return NULL;
+}
+
 int tc_type_table_freeze(TcTypeTable *table) {
     if (table == NULL) {
         return 0;

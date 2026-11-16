@@ -1,0 +1,4 @@
+#program
+import lib
+const R: int32 = lib.K
+var x: int32 = copy int32, R

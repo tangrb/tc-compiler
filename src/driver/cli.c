@@ -26,8 +26,10 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --checked           enable checked-build UB diagnostics\n"
             "  --syntax-only       run LEX/SYN only; exit 0 means no LEX/SYN\n"
             "                      diagnostic (partial check, not a valid program)\n"
-            "  --static-only       run LEX/SYN/IMPORT/SEM; exit 0 means no\n"
-            "                      diagnostic from those stages (CT/codegen not run)\n"
+            "  --sem-only          run LEX/SYN/IMPORT/SEM; exit 0 means no\n"
+            "                      diagnostic from those stages (CT/IR/codegen not run)\n"
+            "  --static-only       run LEX/SYN/IMPORT/SEM/CT and finalize IR; exit 0\n"
+            "                      means no diagnostic from those stages (no codegen)\n"
             "  --output=<path>     output path\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n",
@@ -61,6 +63,10 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         }
         if (!only_positional && strcmp(arg, "--syntax-only") == 0) {
             options->syntax_only = 1;
+            continue;
+        }
+        if (!only_positional && strcmp(arg, "--sem-only") == 0) {
+            options->sem_only = 1;
             continue;
         }
         if (!only_positional && strcmp(arg, "--static-only") == 0) {

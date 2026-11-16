@@ -4,7 +4,7 @@ source: tc-tool-sem-0138/root.tc
 spec: "§6.6.1 异类型浮点 NaN 规范化为 canonical quiet NaN；f32→f64 与 f64→f32 均按规范值比较并通过 @align(1)"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

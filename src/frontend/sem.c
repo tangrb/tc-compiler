@@ -1,73 +1,17 @@
 /* TC 0.0.46 IMPORT and SEM implementation (standard §3–§6, §13.2). */
-#include "frontend/sem.h"
+#include "frontend/sem_internal.h"
+
+#include "frontend/ct.h"
+#include "frontend/irgen.h"
 
 #include <limits.h>
 #include <math.h>
-#include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "frontend/module.h"
-#include "ir/ir.h"
-
 /* ------------------------------------------------------------------------- */
-/* Analysis state.                                                           */
+/* Analysis-private state.                                                   */
 /* ------------------------------------------------------------------------- */
-
-typedef enum {
-    TC_MEM_STRUCT = 0,
-    TC_MEM_CONST,
-    TC_MEM_STATIC,
-    TC_MEM_FUNC,
-    TC_MEM_IMPORT
-} TcMemberKind;
-
-typedef struct {
-    const char *name;
-    TcSpan span; /* declaration name / import name */
-    int is_public;
-    TcMemberKind kind;
-    TcParseStruct *structure;
-    TcParseConstDecl *value_decl;
-    TcParseFunc *func;
-    uint32_t import_target;
-    size_t decl_index; /* index in parse->consts for const/static */
-    TcStructDef *sdef;
-    const TcType *type;
-    TcFuncSig sig;
-} TcMember;
-
-typedef struct {
-    TcModuleInfo *info;
-    TcMember *members;
-    size_t nmembers;
-} TcModuleSem;
-
-typedef struct {
-    TcStructDef *def;
-    uint32_t module;
-    TcParseStruct *structure;
-    int state; /* 0 unresolved, 1 resolving, 2 complete */
-    uint64_t *paddings;
-} TcStructSlot;
-
-struct TcAnalysis {
-    const TcAllocator *alloc;
-    TcArena arena;
-    TcTypeTable *types;
-    unsigned W;
-    TcModuleGraph *graph;
-    TcModuleSem *modules;
-    size_t nmodules;
-    TcStructSlot *structs;
-    size_t nstructs;
-    TcDiagBuffer *diags;
-    TcImplError impl;
-    jmp_buf env;
-    uint32_t next_site_id;
-    int import_checked;
-    TcAnalysisDiag result_diag;
-};
 
 typedef enum { TC_LOC_VAR = 0, TC_LOC_CONST, TC_LOC_PARAM } TcLocalKind;
 
@@ -383,6 +327,18 @@ static uint64_t type_size(TcAnalysis *an, const TcType *t, int *ok) {
     return (uint64_t)bits / 8u;
 }
 
+const TcField *tc_sem_find_field(const TcStructDef *def, const char *name) {
+    return find_struct_field(def, name);
+}
+
+unsigned tc_sem_type_bits(const TcAnalysis *an, const TcType *type) {
+    return type_bits(an, type);
+}
+
+uint64_t tc_sem_type_size(TcAnalysis *an, const TcType *type, int *ok) {
+    return type_size(an, type, ok);
+}
+
 static int value_fits_signed(uint64_t magnitude, int negative, unsigned bits) {
     if (bits == 0 || bits > 64u) {
         return 0;
@@ -423,6 +379,15 @@ static TcMember *find_member_in(TcAnalysis *an, uint32_t module,
         return NULL;
     }
     return find_member(&an->modules[module], name);
+}
+
+TcMember *tc_sem_find_member(TcModuleSem *module, const char *name) {
+    return find_member(module, name);
+}
+
+TcMember *tc_sem_find_member_in(TcAnalysis *an, uint32_t module,
+                                const char *name) {
+    return find_member_in(an, module, name);
 }
 
 typedef struct {
@@ -1170,6 +1135,11 @@ static const TcType *resolve_type(Sem *s, const TcParseType *type,
             sem_diag_simple(s, TC_CE_VOID, type->pointee->span);
             return NULL;
         }
+        /* A frozen table only permits read-only lookup: every type argument
+         * of an accepted program was already interned by SEM. */
+        if (tc_type_table_is_frozen(s->an->types)) {
+            return tc_type_ptr_find(s->an->types, pointee);
+        }
         return tc_type_ptr(s->an->types, pointee);
     }
     case TC_PTYPE_FNPTR: {
@@ -1194,6 +1164,9 @@ static const TcType *resolve_type(Sem *s, const TcParseType *type,
                 sem_diag_simple(s, TC_CE_VOID, type->params[i]->span);
                 return NULL;
             }
+        }
+        if (tc_type_table_is_frozen(s->an->types)) {
+            return tc_type_fnptr_find(s->an->types, ret, params, n);
         }
         return tc_type_fnptr(s->an->types, ret, params, n);
     }
@@ -1681,6 +1654,19 @@ static const TcType *check_type_arg(Sem *s, const TcParseArg *arg) {
 }
 
 static int out_type_is_pointer_like(const TcType *t);
+
+const TcType *tc_sem_resolve_type_arg(TcAnalysis *an, uint32_t module_index,
+                                      const TcParseArg *arg) {
+    Sem s;
+    if (an == NULL || arg == NULL || module_index >= an->nmodules) {
+        return NULL;
+    }
+    memset(&s, 0, sizeof(s));
+    s.an = an;
+    s.module_index = module_index;
+    s.module = &an->modules[module_index];
+    return check_type_arg(&s, arg);
+}
 
 /* Construct the fnptr<sig> for a directly referenced function. */
 static const TcType *function_pointer_type(TcAnalysis *an, const TcFuncSig *sig) {
@@ -4309,6 +4295,21 @@ static void set_result_diag(TcAnalysis *an, const TcDiagnostic *diag) {
     }
 }
 
+/* CT-stage result diagnostic (standard §4.10/§12.5.1).  The primary position
+ * is the target declaration; CT reports at most one failure and keeps no
+ * related position. */
+void tc_sem_set_result_diag(TcAnalysis *an, TcDiagCode code, TcStage stage,
+                            const TcSpan *span) {
+    TcAnalysisDiag *out = &an->result_diag;
+    memset(out, 0, sizeof(*out));
+    out->code = code;
+    out->stage = stage;
+    out->span = (TcSpan){0};
+    out->span.file = an_strdup(an, span != NULL ? span->file : NULL);
+    out->span.line = span != NULL ? span->line : 0;
+    out->span.column = span != NULL ? span->column : 0;
+}
+
 static void set_lexsyn_diag(TcAnalysis *an, const TcFrontendDiag *diag) {
     TcAnalysisDiag *out = &an->result_diag;
     memset(out, 0, sizeof(*out));
@@ -4325,13 +4326,17 @@ static void set_lexsyn_diag(TcAnalysis *an, const TcFrontendDiag *diag) {
     }
 }
 
-TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
-                       const char *const *include_roots,
-                       size_t ninclude_roots, TcAnalysisStatus *out_status,
-                       TcAnalysisDiag *out_diag, TcImplError *out_impl) {
+static TcAnalysis *analyze_impl(const char *root_path,
+                                const TcPlatformProfile *profile,
+                                unsigned addr_width,
+                                const char *const *include_roots,
+                                size_t ninclude_roots, int sem_only,
+                                TcAnalysisStatus *out_status,
+                                TcAnalysisDiag *out_diag, TcImplError *out_impl) {
     const TcAllocator *alloc = tc_allocator_libc();
     TcAnalysis *an;
     TcModuleGraph *graph;
+    TcPlatformProfile fallback;
     size_t total_structs = 0;
     size_t mi;
     int jumped;
@@ -4340,6 +4345,19 @@ TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
         if (out_impl != NULL) {
             *out_impl = TC_IMPL_USAGE;
         }
+        return NULL;
+    }
+    if (profile == NULL) {
+        int ok = addr_width == 32 ? tc_profile_init_generic_w32(&fallback)
+                                  : tc_profile_init_aarch64_linux_user(&fallback);
+        if (!ok) {
+            *out_impl = TC_IMPL_INTERNAL;
+            return NULL;
+        }
+        profile = &fallback;
+    }
+    if (profile->addr_width != addr_width) {
+        *out_impl = TC_IMPL_USAGE;
         return NULL;
     }
     memset(out_diag, 0, sizeof(*out_diag));
@@ -4362,6 +4380,8 @@ TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
     tc_arena_init(&an->arena, alloc);
     an->W = addr_width;
     an->graph = graph;
+    an->profile = (TcPlatformProfile *)an_alloc(an, sizeof(TcPlatformProfile));
+    *an->profile = *profile;
     an->diags = tc_diag_buffer_create(alloc);
     an->types = tc_type_table_create(alloc);
     if (an->diags == NULL || an->types == NULL) {
@@ -4435,8 +4455,66 @@ TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
             return an;
         }
     }
+    if (sem_only) {
+        *out_status = TC_ANALYSIS_OK;
+        return an;
+    }
+    {
+        TcCtDiagnostic ct_diag;
+        int ct_status;
+        memset(&ct_diag, 0, sizeof(ct_diag));
+        ct_status = tc_ct_run(an, &ct_diag);
+        if (ct_status != 1) {
+            if (ct_status < 0 || an->impl != TC_IMPL_OK) {
+                *out_status = TC_ANALYSIS_IMPL;
+                *out_impl = an->impl != TC_IMPL_OK ? an->impl
+                                                   : TC_IMPL_INTERNAL;
+                return an;
+            }
+            tc_sem_set_result_diag(an, ct_diag.code, TC_STAGE_CT,
+                                   &ct_diag.span);
+            *out_status = TC_ANALYSIS_DIAGNOSTIC;
+            *out_diag = an->result_diag;
+            return an;
+        }
+    }
+    if (tc_ir_build(an) != 0) {
+        *out_status = TC_ANALYSIS_IMPL;
+        *out_impl = an->impl != TC_IMPL_OK ? an->impl : TC_IMPL_INTERNAL;
+        return an;
+    }
     *out_status = TC_ANALYSIS_OK;
     return an;
+}
+
+TcAnalysis *tc_analyze_with_profile(const char *root_path,
+                                    const TcPlatformProfile *profile,
+                                    unsigned addr_width,
+                                    const char *const *include_roots,
+                                    size_t ninclude_roots,
+                                    TcAnalysisStatus *out_status,
+                                    TcAnalysisDiag *out_diag,
+                                    TcImplError *out_impl) {
+    return analyze_impl(root_path, profile, addr_width, include_roots,
+                        ninclude_roots, 0, out_status, out_diag, out_impl);
+}
+
+TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
+                       const char *const *include_roots,
+                       size_t ninclude_roots, TcAnalysisStatus *out_status,
+                       TcAnalysisDiag *out_diag, TcImplError *out_impl) {
+    return analyze_impl(root_path, NULL, addr_width, include_roots,
+                        ninclude_roots, 0, out_status, out_diag, out_impl);
+}
+
+TcAnalysis *tc_analyze_sem_only(const char *root_path, unsigned addr_width,
+                                const char *const *include_roots,
+                                size_t ninclude_roots,
+                                TcAnalysisStatus *out_status,
+                                TcAnalysisDiag *out_diag,
+                                TcImplError *out_impl) {
+    return analyze_impl(root_path, NULL, addr_width, include_roots,
+                        ninclude_roots, 1, out_status, out_diag, out_impl);
 }
 
 void tc_analysis_destroy(TcAnalysis *analysis) {
@@ -4454,6 +4532,10 @@ void tc_analysis_destroy(TcAnalysis *analysis) {
     }
     tc_arena_destroy(&analysis->arena);
     alloc->free(alloc->ctx, analysis);
+}
+
+const TcIR *tc_analysis_ir(const TcAnalysis *analysis) {
+    return analysis == NULL ? NULL : analysis->ir;
 }
 
 const TcTypeTable *tc_analysis_type_table(const TcAnalysis *analysis) {
@@ -4770,6 +4852,10 @@ static TcStructDef *struct_def_for_type(TcAnalysis *an,
     return an->structs[type->struct_.struct_id].def;
 }
 
+TcStructDef *tc_sem_struct_for_type(TcAnalysis *an, const TcType *type) {
+    return struct_def_for_type(an, type);
+}
+
 static int resolve_const_path(Sem *s, const TcParseValue *v,
                               TcMember **out_member, uint32_t *out_module,
                               const char ***out_fields, size_t *out_nfields) {
@@ -4812,6 +4898,22 @@ static int resolve_const_path(Sem *s, const TcParseValue *v,
         *out_nfields = v->nfields - consumed;
     }
     return 1;
+}
+
+int tc_sem_resolve_const_path(TcAnalysis *an, uint32_t module_index,
+                              const TcParseValue *v, TcMember **out_member,
+                              uint32_t *out_module, const char ***out_fields,
+                              size_t *out_nfields) {
+    Sem s;
+    if (an == NULL || v == NULL || module_index >= an->nmodules) {
+        return 0;
+    }
+    memset(&s, 0, sizeof(s));
+    s.an = an;
+    s.module_index = module_index;
+    s.module = &an->modules[module_index];
+    return resolve_const_path(&s, v, out_member, out_module, out_fields,
+                              out_nfields);
 }
 
 static const TcType *infer_const_value_type(Sem *s, const TcParseValue *v) {

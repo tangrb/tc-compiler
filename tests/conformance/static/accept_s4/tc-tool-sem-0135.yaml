@@ -4,7 +4,7 @@ source: tc-tool-sem-0135/root.tc
 spec: "§6.6.1 浮点→整数窄类型边界属于 CT CONST_CAST；SEM 不得提前报 ANNOTATION"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

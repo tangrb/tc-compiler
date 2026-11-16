@@ -120,9 +120,17 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         return print_impl_error(tool_name, TC_IMPL_USAGE,
                                 options->profile_name);
     }
-    analysis = tc_analyze(options->source, profile.addr_width,
-                          options->include_roots, options->ninclude_roots,
-                          &status, &diag, &impl);
+    if (options->sem_only) {
+        analysis = tc_analyze_sem_only(options->source, profile.addr_width,
+                                       options->include_roots,
+                                       options->ninclude_roots, &status, &diag,
+                                       &impl);
+    } else {
+        analysis = tc_analyze_with_profile(
+            options->source, &profile, profile.addr_width,
+            options->include_roots, options->ninclude_roots, &status, &diag,
+            &impl);
+    }
     if (analysis == NULL) {
         return print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
                                                               : TC_IMPL_INTERNAL,
@@ -145,8 +153,12 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         return TC_EXIT_DIAGNOSTIC;
     }
     tc_analysis_destroy(analysis);
-    if (options->static_only) {
+    if (options->sem_only) {
         /* IMPORT/SEM accepted; CT and code generation were not run. */
+        return TC_EXIT_OK;
+    }
+    if (options->static_only) {
+        /* LEX/SYN/IMPORT/SEM/CT and IR finalization accepted; no codegen. */
         return TC_EXIT_OK;
     }
     fprintf(stderr, "%s: %s: %s\n", tool_name,

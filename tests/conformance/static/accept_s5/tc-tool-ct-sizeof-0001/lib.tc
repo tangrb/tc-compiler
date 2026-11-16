@@ -1,0 +1,9 @@
+#lib
+public struct S then
+    var a: int8
+    var b: int32
+end
+public const N: usize = sizeof int32
+public const P: usize = sizeof ptr<int32>
+public const F: usize = sizeof fnptr<int32>
+public const Z: usize = sizeof S

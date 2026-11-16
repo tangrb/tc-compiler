@@ -4,7 +4,7 @@ source: tc-tool-sem-0122/root.tc
 spec: "§6.6.3 switch 整数字面量源类型：无后缀 int64 下界与 u 后缀 uint64 上界均为合法整数选择器"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

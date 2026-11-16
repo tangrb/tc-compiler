@@ -4,7 +4,7 @@ source: tc-tool-sem-0107/root.tc
 spec: "§9.2/§9.3 unsafe 块接受全部 unsafe 指令；@unsafe/@fast 函数体也是 unsafe 上下文"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

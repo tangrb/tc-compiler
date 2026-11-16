@@ -4,7 +4,7 @@ source: tc-tool-sem-0131/root.tc
 spec: "§13.2.2 w32 isize cast 4294967304 越界属于 CT CONST_CAST"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  argv: ["tc-vm", "--sem-only", "--profile=w32", "@source"]
   repeat: 2
 expect:
   exit: 0

@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-WCAST-0001
+profile: w64
+source: tc-tool-ct-wcast-0001/root.tc
+spec: "§13.2.2 w64 isize 的 INT_MAX+1 与 2^32 cast 均可表示；与 w32 的 TC-CT-OVERFLOW-0004/TC-CT-CAST-0004 成对（w32 失败、w64 接受）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

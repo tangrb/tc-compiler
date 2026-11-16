@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0001
+profile: common
+source: tc-ct-form-0001/root.tc
+spec: "§3.10 正向允许集不含 var 引用；#program 顶层 const 初始化器引用程序 var -> CONST_FORM；§12.5.1 首个非法子表达式的目标 Token"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0001/root.tc, line: 3, column: 18}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-OPS-0001
+profile: common
+source: tc-tool-ct-ops-0001/root.tc
+spec: "§3.10/§6.3/§6.4/§6.5 纯运算全组：add/sub/mul/div/mod/neg/abs/and/or/xor/not/shl/shr/eq/ne/lt/le/gt/ge；整数与 bool 两种类型族，结果均可表示"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

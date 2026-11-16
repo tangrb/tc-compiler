@@ -4,7 +4,7 @@ source: tc-tool-sem-0116/root.tc
 spec: "§8.6 @range/@align 的常量路径：本模块 private const 与导入 public const 均可用于同型端点；@align 取地址宽度整数常量"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

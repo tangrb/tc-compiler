@@ -4,7 +4,7 @@ source: tc-tool-sem-0120/root.tc
 spec: "§8.6/§13.2.2 @align(N) 按 W 位地址宽度：32 位下 2^31 是合法的 2 的幂"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  argv: ["tc-vm", "--sem-only", "--profile=w32", "@source"]
   repeat: 2
 expect:
   exit: 0

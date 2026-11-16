@@ -4,7 +4,7 @@ source: tc-tool-sem-0119/root.tc
 spec: "§9.2 unsafe 块接受全部 unsafe 指令：load/store/volatile/memmove/ptradd/ptrsub/ptr-int/fnptr-int/call_indirect"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

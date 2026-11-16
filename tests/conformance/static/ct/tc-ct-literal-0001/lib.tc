@@ -1,0 +1,2 @@
+#lib
+public const U: usize = 4294967296

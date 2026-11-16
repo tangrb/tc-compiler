@@ -4,7 +4,7 @@ source: tc-tool-sem-0102/root.tc
 spec: "§5.4 var x = read T 成功后才初始化；后续读取合法（失败路径终止程序）"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

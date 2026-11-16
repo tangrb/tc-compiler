@@ -1,0 +1,5 @@
+#lib
+public const A: int32 = shl int32, 0, 40
+public const B: int32 = shr int32, 123, 40
+public const C: int32 = shr int32, -8, 1
+public const D: int32 = shl int32, 1, 30

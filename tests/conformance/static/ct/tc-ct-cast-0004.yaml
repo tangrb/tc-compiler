@@ -1,0 +1,10 @@
+id: TC-CT-CAST-0004
+profile: w32
+source: tc-ct-cast-0004/root.tc
+spec: "§3.10/§6.6.1/§13.2.2 isize 目标范围按 W；w32 下 2^32 不可表示 -> CONST_CAST，w64 同一源码接受；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_CAST
+  primary: {file: tc-ct-cast-0004/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

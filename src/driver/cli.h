@@ -29,7 +29,8 @@ typedef struct {
     TcOptLevel opt;
     int checked;
     int syntax_only; /* partial LEX/SYN check; not a valid-program claim */
-    int static_only; /* IMPORT/SEM check; CT/codegen not run */
+    int sem_only;    /* partial LEX/SYN/IMPORT/SEM check; CT/IR/codegen not run */
+    int static_only; /* static stages through CT + IR finalization; no codegen */
     int help;
     int version;
 } TcCliOptions;

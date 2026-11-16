@@ -1,0 +1,2 @@
+#lib
+public const BAD: float32 = cast float32, 1e308

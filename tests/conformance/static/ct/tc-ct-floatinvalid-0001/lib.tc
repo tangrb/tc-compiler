@@ -1,0 +1,2 @@
+#lib
+public const BAD: float32 = add float32, nan, 1.0f

@@ -17,9 +17,9 @@ an implementation:
     and the normal/trap exit branches.
 
 All rows start as "uncovered".  Only named stage rows in L0_COVERED_ROWS,
-S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS and S4_COVERED_ROWS may be
-marked "covered" with a real case id; missing coverage for everything else is
-explicit and is never silently rendered as covered.
+S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS, S4_COVERED_ROWS and
+S5_COVERED_ROWS may be marked "covered" with a real case id; missing coverage
+for everything else is explicit and is never silently rendered as covered.
 
 Usage:
     python3 tests/traceability/coverage.py            # regenerate committed files
@@ -1245,6 +1245,114 @@ S4_COVERED_ROWS = {
     ],
 }
 
+# S5 CT / IR finalization rows.  Case ids are real artefacts: S5 conformance
+# cases live under tests/conformance/static/{ct,accept_s5} and the L1 suites
+# are tests/unit/ct_test.c and tests/unit/ir_test.c (case ids documented in
+# tests/unit/README.md).
+S5_COVERED_ROWS = {
+    # §3.10 const_expr / §4.10 cross-module demand order / §6.3-§6.6 values.
+    "chapter:§3:positive": [
+        "TC-TOOL-CT-CONV-0001", "TC-TOOL-CT-LIT-0001",
+        "TC-TOOL-CT-OPS-0001", "TC-TOOL-CT-XMOD-0001",
+    ],
+    "chapter:§3:negative": [
+        "TC-CT-CAST-0001", "TC-CT-FORM-0009", "TC-CT-WIDTH-0003",
+    ],
+    "chapter:§4:positive": [
+        "TC-TOOL-CT-REF-0001", "TC-TOOL-CT-CHAIN-0001",
+        "TC-TOOL-CT-STATIC-0001",
+    ],
+    "chapter:§4:negative": [
+        "TC-CT-ORDER-0003", "TC-CT-ORDER-0006", "TC-CT-ORDER-0007",
+        "TC-CT-STATIC-0001",
+    ],
+    "chapter:§12:negative": [
+        "TC-CT-ORDER-0001", "TC-CT-ORDER-0002", "TC-CT-STAGE-0001",
+    ],
+    # Six CT codes: trigger, no false positive, position, stage, word size.
+    "code:TC_CE_CONST_OVERFLOW:trigger": [
+        "TC-CT-OVERFLOW-0001", "TC-CT-OVERFLOW-0002",
+        "TC-CT-OVERFLOW-0003", "TC-CT-OVERFLOW-0004",
+        "TC-CT-ORDER-0005", "TC-CT-STATIC-0001",
+    ],
+    "code:TC_CE_CONST_OVERFLOW:no_false_positive": [
+        "TC-TOOL-CT-NOFP-0001", "TC-TOOL-CT-WCAST-0001",
+    ],
+    "code:TC_CE_CONST_OVERFLOW:position": [
+        "TC-CT-OVERFLOW-0001", "TC-CT-OVERFLOW-0004",
+        "TC-CT-STATIC-0001",
+    ],
+    "code:TC_CE_CONST_OVERFLOW:stage": ["TC-CT-OVERFLOW-0001"],
+    "code:TC_CE_CONST_OVERFLOW:w32": ["TC-CT-OVERFLOW-0004"],
+    "code:TC_CE_CONST_OVERFLOW:w64": ["TC-CT-ORDER-0005"],
+    "code:TC_CE_CONST_DIV_ZERO:trigger": [
+        "TC-CT-DIVZERO-0001", "TC-CT-DIVZERO-0002",
+        "TC-CT-DIVZERO-0003", "TC-CT-ORDER-0003",
+        "TC-CT-ORDER-0004", "TC-CT-ORDER-0006", "TC-CT-ORDER-0007",
+    ],
+    "code:TC_CE_CONST_DIV_ZERO:no_false_positive": ["TC-TOOL-CT-NOFP-0002"],
+    "code:TC_CE_CONST_DIV_ZERO:position": [
+        "TC-CT-DIVZERO-0003", "TC-CT-ORDER-0006",
+    ],
+    "code:TC_CE_CONST_DIV_ZERO:stage": ["TC-CT-DIVZERO-0001"],
+    "code:TC_CE_CONST_SHIFT:trigger": [
+        "TC-CT-SHIFT-0001", "TC-CT-SHIFT-0002",
+    ],
+    "code:TC_CE_CONST_SHIFT:no_false_positive": ["TC-TOOL-CT-NOFP-0003"],
+    "code:TC_CE_CONST_SHIFT:position": ["TC-CT-SHIFT-0002"],
+    "code:TC_CE_CONST_SHIFT:stage": ["TC-CT-SHIFT-0001"],
+    "code:TC_CE_CONST_FLOAT_INVALID:trigger": [
+        "TC-CT-FLOATINVALID-0001", "TC-CT-FLOATINVALID-0002",
+    ],
+    "code:TC_CE_CONST_FLOAT_INVALID:no_false_positive": [
+        "TC-TOOL-CT-NOFP-0004",
+    ],
+    "code:TC_CE_CONST_FLOAT_INVALID:position": ["TC-CT-FLOATINVALID-0001"],
+    "code:TC_CE_CONST_FLOAT_INVALID:stage": ["TC-CT-FLOATINVALID-0001"],
+    "code:TC_CE_CONST_FLOAT_UNDERFLOW:trigger": [
+        "TC-CT-FLOATUNDERFLOW-0001", "TC-CT-FLOATUNDERFLOW-0002",
+    ],
+    "code:TC_CE_CONST_FLOAT_UNDERFLOW:no_false_positive": [
+        "TC-TOOL-CT-NOFP-0005",
+    ],
+    "code:TC_CE_CONST_FLOAT_UNDERFLOW:position": [
+        "TC-CT-FLOATUNDERFLOW-0002",
+    ],
+    "code:TC_CE_CONST_FLOAT_UNDERFLOW:stage": ["TC-CT-FLOATUNDERFLOW-0001"],
+    "code:TC_CE_CONST_CAST:trigger": [
+        "TC-CT-CAST-0001", "TC-CT-CAST-0002", "TC-CT-CAST-0003",
+        "TC-CT-CAST-0004", "TC-CT-CAST-0005",
+    ],
+    "code:TC_CE_CONST_CAST:no_false_positive": [
+        "TC-TOOL-CT-NOFP-0006", "TC-TOOL-CT-WCAST-0001",
+        "TC-TOOL-CT-WCASTVICE-0001",
+    ],
+    "code:TC_CE_CONST_CAST:position": ["TC-CT-CAST-0002"],
+    "code:TC_CE_CONST_CAST:stage": ["TC-CT-CAST-0001"],
+    "code:TC_CE_CONST_CAST:w32": ["TC-CT-CAST-0004"],
+    "code:TC_CE_CONST_CAST:w64": ["TC-CT-CAST-0005"],
+    # Design §12 items owned by IR finalization.
+    "design12:11:suite_mapping": [
+        "TC-UNIT-IR-0001", "TC-UNIT-IR-0002",
+        "TC-UNIT-IR-0003", "TC-UNIT-IR-0004",
+    ],
+    "design12:11:gate_case": ["TC-UNIT-IR-0001", "TC-UNIT-IR-0005"],
+    "design12:12:suite_mapping": [
+        "TC-UNIT-CT-0001", "TC-CT-STATIC-0001",
+        "TC-TOOL-CT-MAKE-0001", "TC-TOOL-CT-STATIC-0001",
+    ],
+    "design12:12:gate_case": [
+        "TC-CT-STATIC-0001", "TC-UNIT-IR-0003", "TC-UNIT-CT-0001",
+    ],
+    "design12:13:suite_mapping": [
+        "TC-UNIT-IR-0001", "TC-UNIT-IR-0004", "TC-UNIT-IR-0008",
+        "TC-UNIT-MODULE-0001",
+    ],
+    "design12:13:gate_case": [
+        "TC-UNIT-IR-0001", "TC-TOOL-CT-CHAIN-0001",
+    ],
+}
+
 def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
     rows = []
 
@@ -1399,7 +1507,7 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             row["status"] = "covered"
             row["case_ids"] = list(case_ids)
         for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
-                        S4_COVERED_ROWS):
+                        S4_COVERED_ROWS, S5_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1473,6 +1581,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "s2_covered_rows": sorted(S2_COVERED_ROWS),
             "s3_covered_rows": sorted(S3_COVERED_ROWS),
             "s4_covered_rows": sorted(S4_COVERED_ROWS),
+            "s5_covered_rows": sorted(S5_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {

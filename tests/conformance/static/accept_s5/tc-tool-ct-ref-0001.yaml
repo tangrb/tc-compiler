@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-REF-0001
+profile: common
+source: tc-tool-ct-ref-0001/root.tc
+spec: "§3.10 此前定义的 const 引用与 Self.K：Self.A、Self.B 及纯运算组合"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
         return TC_EXIT_OK;
     }
     if (options.version) {
-        printf("tc-aot %s (LEX/SYN frontend)\n", TC_LANGUAGE_VERSION);
+        printf("tc-aot %s (static frontend)\n", TC_LANGUAGE_VERSION);
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {

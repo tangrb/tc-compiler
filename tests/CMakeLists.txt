@@ -17,6 +17,14 @@ target_compile_options(tc_sem_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 target_compile_definitions(tc_sem_test PRIVATE
     TC_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
+add_executable(tc_ir_test unit/ir_test.c)
+target_link_libraries(tc_ir_test PRIVATE tc_core)
+target_compile_options(tc_ir_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_ct_test unit/ct_test.c)
+target_link_libraries(tc_ct_test PRIVATE tc_core)
+target_compile_options(tc_ct_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 add_executable(tc_dump_codes unit/dump_codes.c)
 target_link_libraries(tc_dump_codes PRIVATE tc_core)
 target_compile_options(tc_dump_codes PRIVATE -Wall -Wextra -Werror -Wpedantic)
@@ -24,6 +32,8 @@ target_compile_options(tc_dump_codes PRIVATE -Wall -Wextra -Werror -Wpedantic)
 add_test(NAME contract.unit COMMAND tc_contract_test)
 add_test(NAME frontend.unit COMMAND tc_frontend_test)
 add_test(NAME sem.unit COMMAND tc_sem_test)
+add_test(NAME ct.unit COMMAND tc_ct_test)
+add_test(NAME ir.unit COMMAND tc_ir_test)
 add_test(NAME contract.dump_codes COMMAND tc_dump_codes)
 add_test(NAME conformance.s2s3_cases
          COMMAND ${Python3_EXECUTABLE}
@@ -35,6 +45,10 @@ add_test(NAME conformance.s1_cases
 add_test(NAME conformance.s4_cases
          COMMAND ${Python3_EXECUTABLE}
                  ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s4_cases.py --check)
+
+add_test(NAME conformance.s5_cases
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/conformance/static/s5_cases.py --check)
 
 add_test(
     NAME docs.cleanup
@@ -73,6 +87,7 @@ add_test(NAME trace.harness_codes
          COMMAND ${Python3_EXECUTABLE} ${TC_TRACE_DIR}/check_harness_codes.py)
 set_tests_properties(harness.selftest trace.harness_codes conformance.s1_cases
                      conformance.s2s3_cases conformance.s4_cases
+                     conformance.s5_cases
                      PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(NAME golden.selftest
@@ -117,6 +132,16 @@ add_test(
             ${CMAKE_CURRENT_SOURCE_DIR}/conformance
             ${CMAKE_BINARY_DIR}/determinism)
 set_tests_properties(determinism.s2s3 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(
+    NAME determinism.s5
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s5_determinism.py
+            $<TARGET_FILE:tc-vm>
+            ${CMAKE_BINARY_DIR}/tc_adapter.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/conformance
+            ${CMAKE_BINARY_DIR}/determinism)
+set_tests_properties(determinism.s5 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(
     NAME determinism.s4

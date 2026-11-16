@@ -25,6 +25,8 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Object/address | `ir/object.h`, `ir/address.h`, `ir/region.h` | SEM + runtime | five regions; object is the single boundary/lifetime/DI fact source; region+offset is not object identity; address 0 is reserved | VM, checked build, AOT |
 | Pointer state | `ir/pointer_state.h`, `ir/pointer_state.c` | SEM + VM + AOT | §3.12 null/live/one-past/dangling permission matrix; one-past `ptradd` only zero; shared by addr/ptrdiff/memmove/bounds checks | SEM, VM, AOT |
 | IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module identity is resolved path; frozen type table; per-profile consts/objects/units | VM, AOT |
+| CT results | `frontend/ct.h` | frontend/CT | typed CT value table (scalar bits / struct field tree), demand order and success/failure cache, target-declaration failure position, target-endian `TcInitImage` | IR finalization, L1/L3 tests |
+| IR finalization/print | `frontend/irgen.h`, `frontend/sem_internal.h`, `ir/print.h`, `ir/print.c` | frontend/IR | flat `TcInstr`/`TcUnit`/`TcIR` materialization from parse IR + SEM + CT; deterministic text dump | VM/AOT, L1 tests |
 | Platform profile | `runtime/profile.h`, `runtime/profile.c` | runtime/driver | W∈{32,64}; five non-overlapping regions excluding address 0; `D≥1`; `disable_icf == 1`; stack/pointer alignment from `TcTargetDesc`; checked build only adds UB checks | VM, AOT, tests |
 | Runtime seams | `runtime/io.h`, `runtime/alloc.h`, `runtime/trap.h`, `runtime/module_loader.h` | runtime | all-or-nothing sink; short-read/EOF/error source; allocator sizes are target-W; trap gets first error + line; device runtime resolves no imports | VM, AOT, freestanding |
 | Diagnostics | `diagnostic/codes.h`, `diagnostic/diagnostic.h`, `diagnostic/diagnostic.c`, generated `diagnostic/table.c` | diagnostic (cross-cutting) | closed 80 codes (65 `TC_CE_*` + 15 `TC_RE_*`); stage and report stage; 1-based positions; first-diagnostic comparator; `TC_ERR_OUT_OF_MEMORY` separate | all phases, VM |
@@ -76,13 +78,14 @@ resolution and struct identity are semantic facts.  SEM resolves the parse IR
 and freezes the type table; materializing `TcInstr`/`TcIR` belongs to IR
 finalization.  No source names may be added to `TcOperand`/`TcInstr`.
 
-The tool-visible additions are `--syntax-only` (LEX/SYN only) and
-`--static-only` (LEX/SYN/IMPORT/SEM); exit 0 for either is a partial check, not
+The tool-visible partial checks are `--syntax-only` (LEX/SYN),
+`--sem-only` (LEX/SYN/IMPORT/SEM) and `--static-only` (all static stages
+through CT and IR finalization); exit 0 for any of them is a partial check, not
 a valid-program claim.  A normal invocation still exits 70 after the
 implemented static stages.  The driver prints one stable line per diagnostic:
 
 ```text
-<file>:<line>:<column>: error[<LEX|SYN>]: <TC_CE_*>: <print-name>
+<file>:<line>:<column>: error[<LEX|SYN|IMPORT|SEM|CT>]: <TC_CE_*>: <print-name>
 ```
 
 ## Static pipeline (implemented; not a frozen cross-module contract)
@@ -102,11 +105,14 @@ implemented static stages.  The driver prints one stable line per diagnostic:
 | Calls | `frontend/sem.c` | signature collection first; direct/indirect; target visibility, call safety, result shape, arguments (duplicate → unknown → missing → count → order → type), receiver; recursion allowed; `call_indirect` positional only |
 | Safety | `frontend/sem.c` | lexical unsafe context (`@unsafe`/`@fast`/`unsafe` block); load/store/memmove/ptradd/ptrsub/call_indirect and ptr↔int/fnptr↔int bitcast are unsafe; `@safe` rejects any unsafe block or unsafe operation with `SAFE_VIOLATION` priority |
 | Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` endpoint constants per §8.6 (`@range` `lo`/`hi` same-type integer constants; `@align` `N` a positive power of two checked by W-bit address width), resolved by the SEM const resolver (fixed binary32/64 rules), `@padding`; promise-content violations are not static rejections |
+| CT evaluation | `frontend/ct.h`, `ct.c` | runs only after every SEM buffer is empty and the type table is frozen; evaluates module `const`/`static var` initializers (and later local `const` initializers) on demand in `module_order`/module source order; §3.10 allowlist and §6.3-§6.6 strict semantics; successes and failures cached; the first failure is attributed to its target declaration and stops CT; no cascade; local consts are evaluated after all module-level initializers |
+| IR finalization | `frontend/irgen.h`, `irgen.c` | materializes `TcIR`/`TcUnit`/`TcBlock`/`TcInstr` from the frozen type table, layout, CT results and parse IR; operand field paths become base vreg + field indices; labels/switch targets carry block ids; named call/make arguments survive; aggregate const values inline as a use-site `make`; no object is created for a `const`; static/Frame object tables and per-profile offsets |
 
-The type table is frozen after Analyze.  Final `TcInstr`/`TcIR`/`TcUnit`
-materialization, CT and code generation are later stages; CFG/DI is currently an
-internal per-unit fact (statement nodes, explicit edges) and is not yet exported
-as a `TcUnit`.
+The type table is frozen after SEM.  CT and IR finalization run after the freeze
+and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
+`tc_type_struct_find`) so a frozen table is never mutated.  Code generation
+(VM/AOT) remains a later stage; SEM's CFG/DI fact is re-derived into explicit
+`TcBlock` edges during IR finalization.
 
 ### Current implementation conventions
 
@@ -170,6 +176,55 @@ as a `TcUnit`.
   operand shape, so a malformed `load`/`store` in safe code reports the unsafe
   diagnostic first.
 
+### Compile-time evaluation and finalized IR conventions
+
+- Stage flags: `--syntax-only` = LEX/SYN; `--sem-only` = LEX/SYN/IMPORT/SEM;
+  `--static-only` = all static stages through CT and IR finalization; none
+  claim a valid program (no VM/AOT execution).  A normal invocation exits 70
+  after the static stages until code generation exists.
+- CT startup order is `module_order` then module source order.  A referenced
+  `Self.K`/`m.K`/local const is evaluated first; initializer references are
+  left to right and `make` fields in written order.  Every declaration is
+  evaluated at most once; success and failure are cached.  The first failure is
+  reported at the target declaration (name token) and stops CT; referencing
+  declarations contribute no cascade diagnostic.
+- CT values are scalars (own-width bit pattern) or struct field trees.  The
+  strict error mapping is §3.10: signed integer/float overflow and strict
+  `shl` overflow → `CONST_OVERFLOW`; integer/strict float division or `mod` by
+  zero → `CONST_DIV_ZERO`; negative shift count → `CONST_SHIFT`; strict float
+  invalid/NaN input → `CONST_FLOAT_INVALID`; strict float underflow
+  (tininess after rounding and inexact) → `CONST_FLOAT_UNDERFLOW`;
+  non-representable `cast` → `CONST_CAST`.
+- Floating evaluation uses fixed binary32/binary64 operations with
+  `FLT_EVAL_METHOD == 0` and `-ffp-contract=off`; exact subnormal results do
+  not underflow, and float→float `cast` overflow is `CONST_CAST` while
+  underflow to zero/subnormal is legal (standard §6.6.1).  Pointer/fnptr
+  `bitcast` never reaches CT (SEM `CONST_FORM`).
+- `TcConst.bits` stores the scalar bit pattern in its own width, zero-extended
+  into 64 bits; consumers must ignore higher bits for narrower types.  Struct
+  consts use `TcInitImage` (field offsets, `@padding` zero bytes, bool
+  0x00/0x01, profile endianness).  `static var` init images use the same
+  encoding; `TcObject.init` points at them.
+- Static object layout: modules in reverse topological order of the import DAG
+  (importers first, same layer broken by `module_order`), then module source
+  order; each object is aligned to W/8 bytes; program top-level `var` and
+  `static var` share the static region.  Frame objects are appended in unit
+  order and laid out per unit with params first, then `var` declarations.
+- Final IR operand conventions: a field operand is `{base vreg, field index
+  path}`; `TC_OP_LABEL` and `switch` targets carry the **target block id**;
+  `call`/`call_indirect` put the function/fnptr operand in `args[0]`;
+  `sizeof` carries its type in `instr.type` with no args; `funcaddr` records
+  the resulting `fnptr` signature in `instr.type`; `addr` keeps its target in
+  `args[0]`.  Named call/make arguments keep `TcArg.name`; all other operands
+  carry no source names.
+- A reference to a scalar `const` is inlined as a `TC_OP_CONST`; a reference to
+  an aggregate `const` emits a synthetic `make` (recursively for nested
+  aggregates) immediately before the use and passes the temp vreg.  A `const`
+  never owns an object; `TcIR.consts` contains only successfully evaluated
+  module `const` declarations.
+- `tc_ir_print()` is a stable, deterministic text dump for tests/debugging;
+  it is not an input format and does not define semantics.
+
 ### Deferred decisions
 
 - `call_indirect nullptr`: statically rejected as `LITERAL_TYPE` because no
@@ -191,8 +246,8 @@ must fill in:
 | type equivalence/conversion/literal algorithms | implemented |
 | struct layout/`sizeof` computation | implemented |
 | CFG/DI fixed-point and return reachability | implemented (internal per unit) |
-| CT allowlist/evaluation/caching | S5 |
-| final `TcInstr`/`TcIR`/`TcUnit` materialization and printing | S5 |
+| CT allowlist/evaluation/caching | implemented |
+| final `TcInstr`/`TcIR`/`TcUnit` materialization and printing | implemented |
 | runtime semantics and I/O formatting | S6 |
 | AArch64 lowering/ABI/frame layout | S7 |
 

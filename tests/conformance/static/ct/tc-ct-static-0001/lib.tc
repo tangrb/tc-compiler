@@ -1,0 +1,2 @@
+#lib
+public static var BAD: int32 = add int32, 2147483647, 1

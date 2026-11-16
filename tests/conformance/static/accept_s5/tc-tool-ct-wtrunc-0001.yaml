@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-WTRUNC-0001
+profile: w32
+source: tc-tool-ct-wtrunc-0001/root.tc
+spec: "§13.2.2 w32 trunc isize,int64 目标 32 < 源 64 合法；与 w64 的 TC-CT-WIDTH-0001 成对（w64 失败、w32 接受）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

@@ -1,0 +1,8 @@
+#lib
+import a
+import b
+public struct S then
+    var x: int32
+    var y: int32
+end
+public const SM: S = make S, x: a.B1, y: b.B2

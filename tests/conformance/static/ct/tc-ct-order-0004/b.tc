@@ -1,0 +1,2 @@
+#lib
+public const B: int32 = add int32, 2147483647, 1

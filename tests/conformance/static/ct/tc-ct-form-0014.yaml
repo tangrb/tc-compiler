@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0014
+profile: common
+source: tc-ct-form-0014/root.tc
+spec: "§3.10 正向允许集不含 trap；#program const 初始化器使用 trap -> CONST_FORM（操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0014/root.tc, line: 2, column: 18}
+  related: []
+  diagnostics: exactly-one

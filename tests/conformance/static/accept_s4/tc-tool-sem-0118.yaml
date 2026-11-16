@@ -4,7 +4,7 @@ source: tc-tool-sem-0118/root.tc
 spec: "§7.1 每个函数/程序的标签命名空间独立；不同函数可复用同名标签"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

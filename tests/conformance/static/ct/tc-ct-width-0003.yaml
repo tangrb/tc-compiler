@@ -1,0 +1,10 @@
+id: TC-CT-WIDTH-0003
+profile: w64
+source: tc-ct-width-0003/root.tc
+spec: "§3.11/§13.2.2 bitcast isize<->int32 仅 w32 等宽；w64 下类别允许但位宽不等 -> BITCAST_WIDTH（SEM），w32 接受；§12.5.1 源操作数首 Token（源操作数是限定名 Self.S 时，约定取 Self 的首 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: tc-ct-width-0003/lib.tc, line: 3, column: 40}
+  related: []
+  diagnostics: exactly-one

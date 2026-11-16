@@ -1,0 +1,6 @@
+#lib
+public func f() int32 then
+    const BAD: int32 = div int32, 1, 0
+    var r: int32 = copy int32, BAD
+    _ = return r
+end

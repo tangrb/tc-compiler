@@ -4,7 +4,7 @@ source: tc-tool-sem-0125/root.tc
 spec: "§3.10 const 结构体字段读取与比较/cast 产生的合法整数端点：@align=8 与 @align=1 均接受"
 kind: tool
 tool:
-  argv: ["tc-vm", "--static-only", "@source"]
+  argv: ["tc-vm", "--sem-only", "@source"]
   repeat: 2
 expect:
   exit: 0

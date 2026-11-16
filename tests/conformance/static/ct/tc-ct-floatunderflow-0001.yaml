@@ -1,0 +1,10 @@
+id: TC-CT-FLOATUNDERFLOW-0001
+profile: common
+source: tc-ct-floatunderflow-0001/root.tc
+spec: "§3.10/§6.3.2 strict 浮点下溢（tininess-after-rounding，结果非精确）-> CONST_FLOAT_UNDERFLOW；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_FLOAT_UNDERFLOW
+  primary: {file: tc-ct-floatunderflow-0001/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

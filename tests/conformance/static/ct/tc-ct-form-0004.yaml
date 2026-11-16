@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0004
+profile: common
+source: tc-ct-form-0004/root.tc
+spec: "§3.10 正向允许集不含 load；@unsafe 函数内的局部 const 用 load 读取参数（安全上下文外不引入 UNSAFE_OPERATION 竞争）-> CONST_FORM（操作码）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0004/lib.tc, line: 3, column: 22}
+  related: []
+  diagnostics: exactly-one

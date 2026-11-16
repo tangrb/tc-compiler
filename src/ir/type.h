@@ -84,6 +84,14 @@ const TcType *tc_type_struct(TcTypeTable *table, uint32_t struct_id);
 int tc_type_table_freeze(TcTypeTable *table);
 int tc_type_table_is_frozen(const TcTypeTable *table);
 
+/* Read-only lookups.  They never create a node, so they remain valid after the
+ * table is frozen; they return NULL when no equal interned node exists.  CT/IR
+ * finalization use these instead of the interning constructors. */
+const TcType *tc_type_ptr_find(const TcTypeTable *table, const TcType *pointee);
+const TcType *tc_type_fnptr_find(const TcTypeTable *table, const TcType *ret,
+                                 const TcType *const *params, size_t nparams);
+const TcType *tc_type_struct_find(const TcTypeTable *table, uint32_t struct_id);
+
 /* Type equality is interned pointer equality (standard §3.9).  NULL only
  * equals NULL. */
 int tc_type_equal(const TcType *a, const TcType *b);

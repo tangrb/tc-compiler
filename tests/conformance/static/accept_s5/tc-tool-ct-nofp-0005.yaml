@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-NOFP-0005
+profile: common
+source: tc-tool-ct-nofp-0005/root.tc
+spec: "§6.3.2 精确非规格化不触发下溢：min-normal×0.5 精确为非规格化；×0 精确为 0；min-subnormal×2 精确回 min-normal（与 TC-CT-FLOATUNDERFLOW-0001 相邻）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

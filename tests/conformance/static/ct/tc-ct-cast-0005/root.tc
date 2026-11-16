@@ -1,0 +1,3 @@
+#program
+import lib
+var keep: int32 = copy int32, 0

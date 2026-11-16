@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-WCASTVICE-0001
+profile: w32
+source: tc-tool-ct-wcastvice-0001/root.tc
+spec: "§6.13/§13.2.2 w32 下 sizeof isize=4，X=2^30 可 cast 到 int32；与 w64 的 TC-CT-CAST-0005 成对（w64 失败、w32 接受，CT 结果随 W 反向翻转）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""
