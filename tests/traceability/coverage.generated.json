@@ -6199,7 +6199,16 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-CONST-0001"
+        "TC-SEM-CONST-0001",
+        "TC-SEM-CONST-0004",
+        "TC-SEM-CONST-0005",
+        "TC-SEM-CONST-0006",
+        "TC-SEM-CONST-0007",
+        "TC-SEM-CONST-0008",
+        "TC-SEM-CONST-0009",
+        "TC-SEM-CONST-0010",
+        "TC-SEM-CONST-0011",
+        "TC-SEM-CONST-0012"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
@@ -6219,7 +6228,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-TOOL-SEM-0001"
+        "TC-TOOL-SEM-0001",
+        "TC-TOOL-SEM-0142"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
@@ -6240,7 +6250,15 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-CONST-0002",
-        "TC-SEM-CONST-0003"
+        "TC-SEM-CONST-0003",
+        "TC-SEM-CONST-0004",
+        "TC-SEM-CONST-0006",
+        "TC-SEM-CONST-0007",
+        "TC-SEM-CONST-0008",
+        "TC-SEM-CONST-0009",
+        "TC-SEM-CONST-0010",
+        "TC-SEM-CONST-0011",
+        "TC-SEM-CONST-0012"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",
@@ -6260,7 +6278,8 @@
       "spec": "§12.3 trigger/print name/stage; §12.5.1 position; test plan §3.6",
       "status": "covered",
       "case_ids": [
-        "TC-SEM-CONST-0001"
+        "TC-SEM-CONST-0001",
+        "TC-SEM-CONST-0004"
       ],
       "code": "TC_CE_CONST_FORM",
       "print_name": "ConstForm",

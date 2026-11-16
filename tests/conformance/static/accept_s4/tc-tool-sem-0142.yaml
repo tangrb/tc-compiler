@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0142
+profile: common
+source: tc-tool-sem-0142/root.tc
+spec: "§3.10 合法 const_expr：sizeof/make/数值 bitcast/比较/cast 不报 CONST_FORM"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

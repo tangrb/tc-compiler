@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0010
+profile: common
+source: fixtures/tc-sem-const-0010/root.tc
+spec: "§3.10/§4.7 static var 初始化器必须是 const_expr；copy -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0010/lib.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

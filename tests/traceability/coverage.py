@@ -883,10 +883,24 @@ S3_COVERED_ROWS = {
     "code:TC_CE_VOID:no_false_positive": ["TC-TOOL-SEM-0005"],
     "code:TC_CE_VOID:position": ["TC-SEM-VOID-0002", "TC-SEM-VOID-0003"],
     "code:TC_CE_VOID:stage": ["TC-SEM-VOID-0001"],
-    "code:TC_CE_CONST_FORM:trigger": ["TC-SEM-CONST-0001"],
-    "code:TC_CE_CONST_FORM:no_false_positive": ["TC-TOOL-SEM-0001"],
-    "code:TC_CE_CONST_FORM:position": ["TC-SEM-CONST-0002", "TC-SEM-CONST-0003"],
-    "code:TC_CE_CONST_FORM:stage": ["TC-SEM-CONST-0001"],
+    "code:TC_CE_CONST_FORM:trigger": [
+        "TC-SEM-CONST-0001", "TC-SEM-CONST-0004", "TC-SEM-CONST-0005",
+        "TC-SEM-CONST-0006", "TC-SEM-CONST-0007", "TC-SEM-CONST-0008",
+        "TC-SEM-CONST-0009", "TC-SEM-CONST-0010", "TC-SEM-CONST-0011",
+        "TC-SEM-CONST-0012",
+    ],
+    "code:TC_CE_CONST_FORM:no_false_positive": [
+        "TC-TOOL-SEM-0001", "TC-TOOL-SEM-0142",
+    ],
+    "code:TC_CE_CONST_FORM:position": [
+        "TC-SEM-CONST-0002", "TC-SEM-CONST-0003", "TC-SEM-CONST-0004",
+        "TC-SEM-CONST-0006", "TC-SEM-CONST-0007", "TC-SEM-CONST-0008",
+        "TC-SEM-CONST-0009", "TC-SEM-CONST-0010", "TC-SEM-CONST-0011",
+        "TC-SEM-CONST-0012",
+    ],
+    "code:TC_CE_CONST_FORM:stage": [
+        "TC-SEM-CONST-0001", "TC-SEM-CONST-0004",
+    ],
     "first_diag_rule:06:combination_case": ["TC-SEM-LAYOUT-0001"],
     "first_diag_rule:08:combination_case": ["TC-SEM-CONV-0010", "TC-SEM-CONV-0011"],
     "design12:06:suite_mapping": ["TC-SEM-CONV-0010", "TC-TOOL-SEM-0009"],

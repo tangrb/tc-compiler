@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0012
+profile: common
+source: fixtures/tc-sem-const-0012/root.tc
+spec: "§3.10 const 中指针值→整数 bitcast 仍属指针位重解释 -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0012/lib.tc, line: 3, column: 25}
+  related: []
+  diagnostics: exactly-one

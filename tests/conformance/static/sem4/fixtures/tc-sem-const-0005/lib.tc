@@ -1,0 +1,5 @@
+#lib
+public const X: int32 = call Self.g
+public func g() int32 then
+    _ = return 1
+end

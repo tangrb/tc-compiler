@@ -3303,8 +3303,109 @@ static const TcType *check_instr(Sem *s, const TcParseInstr *instr,
     return result;
 }
 
+static TcStructDef *struct_def_for_type(TcAnalysis *an,
+                                        const TcType *type);
+static const TcType *infer_const_value_type(Sem *s,
+                                            const TcParseValue *v);
+
+static int const_op_form_allowed(TcOpcode op) {
+    switch (op) {
+    case TC_ADD:
+    case TC_SUB:
+    case TC_MUL:
+    case TC_DIV:
+    case TC_MOD:
+    case TC_NEG:
+    case TC_ABS:
+    case TC_SHL:
+    case TC_SHR:
+    case TC_AND:
+    case TC_OR:
+    case TC_XOR:
+    case TC_NOT:
+    case TC_EQ:
+    case TC_NE:
+    case TC_LT:
+    case TC_LE:
+    case TC_GT:
+    case TC_GE:
+    case TC_CAST:
+    case TC_TRUNC:
+    case TC_BITCAST:
+    case TC_MAKE:
+    case TC_SIZEOF:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static const TcType *const_form_value_type(Sem *s,
+                                           const TcParseValue *v) {
+    TcLocal *local;
+    const TcType *type;
+    size_t i;
+    if (v->kind != TC_PVAL_NAME) {
+        return infer_const_value_type(s, v);
+    }
+    local = lookup_local(s, v->base);
+    if (local == NULL || local->kind != TC_LOC_CONST ||
+        local->type == NULL) {
+        return infer_const_value_type(s, v);
+    }
+    type = local->type;
+    for (i = 0; i < v->nfields; i++) {
+        TcStructDef *def = struct_def_for_type(s->an, type);
+        const TcField *field = find_struct_field(def, v->fields[i]);
+        if (field == NULL) {
+            return NULL;
+        }
+        type = field->type;
+    }
+    return type;
+}
+
+static int const_bitcast_has_pointer(Sem *s, const TcParseInstr *instr) {
+    const TcType *source_type;
+    if (instr->nargs < 2) {
+        return 0;
+    }
+    if (instr->args[0].kind == TC_PARG_TYPE &&
+        (instr->args[0].type.kind == TC_PTYPE_PTR ||
+         instr->args[0].type.kind == TC_PTYPE_FNPTR)) {
+        return 1;
+    }
+    source_type = const_form_value_type(s, &instr->args[1].value);
+    return type_is_ptr(source_type) || type_is_fnptr(source_type);
+}
+
+static int check_const_form(Sem *s, const TcParseConstInit *init) {
+    const TcParseInstr *instr;
+    if (!init->is_op) {
+        return 1;
+    }
+    instr = &init->op;
+    if (!const_op_form_allowed(instr->op)) {
+        sem_diag_simple(s, TC_CE_CONST_FORM, instr->span);
+        return 0;
+    }
+    if (instr->has_suffix) {
+        sem_diag_simple(s, TC_CE_CONST_FORM, instr->suffix_span);
+        return 0;
+    }
+    if (instr->op == TC_BITCAST &&
+        const_bitcast_has_pointer(s, instr)) {
+        sem_diag_simple(s, TC_CE_CONST_FORM, instr->span);
+        return 0;
+    }
+    return 1;
+}
+
 static void check_const_init(Sem *s, const TcParseConstInit *init,
                              const TcType *expected) {
+    if (!check_const_form(s, init)) {
+        return;
+    }
     if (init->is_op) {
         check_instr(s, &init->op, expected, 0);
     } else if (init->value.kind == TC_PVAL_NAME) {
@@ -5648,7 +5749,7 @@ static int eval_const_instr_int(Sem *s, const TcParseInstr *instr,
                     int64_t smax =
                         (int64_t)(((uint64_t)1u << (width - 1u)) - 1u);
                     int64_t smin =
-                        -(int64_t)((uint64_t)1u << (width - 1u));
+                        (int64_t)(UINT64_MAX << (width - 1u));
                     if (sa > (smax >> count) || sa < (smin >> count)) {
                         return 0;
                     }

@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0008
+profile: common
+source: fixtures/tc-sem-const-0008/root.tc
+spec: "§3.10 const_expr 的 op 带模式后缀 -> CONST_FORM（后缀 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0008/lib.tc, line: 2, column: 29}
+  related: []
+  diagnostics: exactly-one

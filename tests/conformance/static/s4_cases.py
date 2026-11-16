@@ -1583,6 +1583,86 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-CONST-0004",
+        "§3.10 正向允许集外的 copy 出现在 const 初始化器 -> CONST_FORM"
+        "（操作码 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB + "public const X: int32 = @HERE@copy int32, 1\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0005",
+        "§3.10 const 初始化器禁止 call -> CONST_FORM（操作码 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB + "public const X: int32 = @HERE@call Self.g\n"
+         "public func g() int32 then\n    _ = return 1\nend\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0006",
+        "§3.10 const 初始化器禁止 load -> CONST_FORM（操作码 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const P: ptr<int32> = nullptr\n"
+         "public const X: int32 = @HERE@load int32, Self.P\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0007",
+        "§3.10 const 初始化器禁止 read -> CONST_FORM（操作码 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB + "public const X: int32 = @HERE@read int32\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0008",
+        "§3.10 const_expr 的 op 带模式后缀 -> CONST_FORM（后缀 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const X: int32 = add.@HERE@wrap int32, 1, 2\n"
+         "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0009",
+        "§3.10 const 中指针 bitcast -> CONST_FORM（操作码 Token）",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const P: ptr<int32> = @HERE@bitcast ptr<int32>, 0\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0010",
+        "§3.10/§4.7 static var 初始化器必须是 const_expr；copy -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public static var X: int32 = @HERE@copy int32, 1\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0011",
+        "§3.10 局部 const 初始化器同样只接受 const_expr；copy -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() void then\n"
+         "    const X: int32 = @HERE@copy int32, 1\n"
+         "end\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
+        "TC-SEM-CONST-0012",
+        "§3.10 const 中指针值→整数 bitcast 仍属指针位重解释 -> "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public const P: ptr<int32> = nullptr\n"
+         "public const X: int64 = @HERE@bitcast int64, Self.P\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
+    _case(
         "TC-SEM-CFG-0027",
         "§12.2 缺失标签的 br_if 仍有已知 fallthrough 边；返回类型处 "
         "MISSING_RETURN 优先于 LABEL_NOT_FOUND",
@@ -1922,6 +2002,20 @@ POSITIVE = [
          "public const X: int32 = cast int32, Self.R\n"
          "public @fast func f(@align(Self.X) p: ptr<int32>) void then\n"
          "end\n"},
+    ),
+    _positive(
+        "TC-TOOL-SEM-0142",
+        "§3.10 合法 const_expr：sizeof/make/数值 bitcast/比较/cast 不报 "
+        "CONST_FORM",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n    var x: int32\nend\n"
+         "public const A: usize = sizeof int32\n"
+         "public const B: int32 = bitcast int32, 8\n"
+         "public const C: int32 = add int32, 1, 2\n"
+         "public const D: bool = eq int32, 1, 1\n"
+         "public const E: int32 = cast int32, Self.D\n"
+         "public const F: S = make S, x: 8\n"},
     ),
     _positive(
         "TC-TOOL-SEM-0140",

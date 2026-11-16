@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0006
+profile: common
+source: fixtures/tc-sem-const-0006/root.tc
+spec: "§3.10 const 初始化器禁止 load -> CONST_FORM（操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0006/lib.tc, line: 3, column: 25}
+  related: []
+  diagnostics: exactly-one
