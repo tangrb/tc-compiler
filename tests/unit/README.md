@@ -152,8 +152,8 @@ lowering shape.  It currently runs 34 checks and needs no qemu/linker.
 | --- | --- | --- |
 | `TC-UNIT-AOT-0001` | `test_lowering_shapes` | design §10.3: native strict add overflow (`adds`/`b.vs`), signed `sdiv`/`msub`, shift-count checks, signed/unsigned `cset`, call depth, switch compare chain, `sizeof` immediate and frame prologue |
 | `TC-UNIT-AOT-0002` | `test_frame_alignment` | design §10.2: every emitted `sub sp, sp, #N` frame size is a multiple of 16 |
-| `TC-UNIT-AOT-0003` | `test_unsupported` | design §10.3: pointer/load programs return `TC_A64_UNSUPPORTED` with an explicit unsupported-opcode reason |
-| `TC-UNIT-AOT-0004` | `test_static_initializer` | design §4/§10: static object bytes appear in `__tc_static` at their object offsets |
+| `TC-UNIT-AOT-0003` | `test_unsupported` | design §10.3: pointer/load programs return `TC_AARCH64_EMIT_UNSUPPORTED` with an explicit unsupported-opcode reason |
+| `TC-UNIT-AOT-0004` | `test_static_initializer` | design §4/§10: static object bytes appear in `__tc_static_region` at their object offsets |
 | `TC-UNIT-AOT-0005` | `test_deterministic` | design §10.1: two emissions of the same IR are byte-identical |
 | `TC-UNIT-IR-0006` | `test_ir_print` | deterministic textual dump: exact golden text, 1-based spans, repeated print is identical |
 | `TC-UNIT-IR-0007` | `test_ir_sem_only` | a SEM-only analysis has no finalized `TcIR` |

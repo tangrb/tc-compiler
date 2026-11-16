@@ -1950,11 +1950,12 @@ static int build_units(IrBuild *b) {
      * pointers captured during the loop would dangle.  Fix them up once the
      * unit array is final. */
     {
-        size_t ui;
-        for (ui = 0; ui < b->nunits; ui++) {
-            uint32_t fid = b->units[ui].func_id;
-            if (fid != TC_UNIT_TOP_LEVEL && fid < b->ir->nfuncs) {
-                b->ir->funcs[fid].body = &b->units[ui];
+        size_t unit_index;
+        for (unit_index = 0; unit_index < b->nunits; unit_index++) {
+            uint32_t function_id = b->units[unit_index].func_id;
+            if (function_id != TC_UNIT_TOP_LEVEL &&
+                function_id < b->ir->nfuncs) {
+                b->ir->funcs[function_id].body = &b->units[unit_index];
             }
         }
     }

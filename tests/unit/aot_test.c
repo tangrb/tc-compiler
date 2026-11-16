@@ -67,7 +67,9 @@ static void free_fixture(Fixture *fixture) {
 }
 
 static char *emit_fixture(const Fixture *fixture, size_t *out_len,
-                          TcA64Status *out_status, char *err, size_t errcap) {
+                          TcAArch64EmitStatus *out_status,
+                          char *error_message,
+                          size_t error_message_capacity) {
     TcPlatformProfile profile;
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
@@ -94,8 +96,9 @@ static char *emit_fixture(const Fixture *fixture, size_t *out_len,
         tc_analysis_destroy(analysis);
         return NULL;
     }
-    *out_status = tc_a64_emit_asm(stream, tc_analysis_ir(analysis), &profile,
-                                  profile.target, err, errcap);
+    *out_status = tc_aarch64_emit_asm(
+        stream, tc_analysis_ir(analysis), &profile, profile.target,
+        error_message, error_message_capacity);
     fclose(stream);
     tc_analysis_destroy(analysis);
     *out_len = length;
@@ -104,8 +107,8 @@ static char *emit_fixture(const Fixture *fixture, size_t *out_len,
 
 static void test_lowering_shapes(void) {
     Fixture fixture;
-    TcA64Status status = TC_A64_INTERNAL;
-    char err[256];
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
     size_t len = 0;
     char *text;
     if (!make_fixture(
@@ -138,10 +141,11 @@ static void test_lowering_shapes(void) {
         CHECK(0);
         return;
     }
-    text = emit_fixture(&fixture, &len, &status, err, sizeof(err));
+    text = emit_fixture(&fixture, &len, &status, error_message,
+                        sizeof(error_message));
     free_fixture(&fixture);
     CHECK(text != NULL);
-    CHECK(status == TC_A64_OK);
+    CHECK(status == TC_AARCH64_EMIT_OK);
     if (text == NULL) {
         return;
     }
@@ -153,20 +157,20 @@ static void test_lowering_shapes(void) {
     CHECK(strstr(text, "cbz x10, ") != NULL);
     CHECK(strstr(text, "tbnz x10, #63") != NULL);
     CHECK(strstr(text, "cset w11, lt") != NULL);
-    CHECK(strstr(text, "bl tc_fn_0") != NULL);
-    CHECK(strstr(text, "__tc_depth") != NULL);
+    CHECK(strstr(text, "bl tc_function_0") != NULL);
+    CHECK(strstr(text, "__tc_call_depth") != NULL);
     CHECK(strstr(text, "stp x29, x30, [sp, #-16]!") != NULL);
-    CHECK(strstr(text, "adrp x20, __tc_static") != NULL);
+    CHECK(strstr(text, "adrp x20, __tc_static_region") != NULL);
     CHECK(strstr(text, "movz x11, #0x4") != NULL);
-    CHECK(strstr(text, "b.eq .Lsw") != NULL);
+    CHECK(strstr(text, "b.eq .Lswitch") != NULL);
     CHECK(strstr(text, "tc_main:") != NULL);
     free(text);
 }
 
 static void test_frame_alignment(void) {
     Fixture fixture;
-    TcA64Status status = TC_A64_INTERNAL;
-    char err[256];
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
     size_t len = 0;
     char *text;
     const char *cursor;
@@ -190,7 +194,8 @@ static void test_frame_alignment(void) {
         CHECK(0);
         return;
     }
-    text = emit_fixture(&fixture, &len, &status, err, sizeof(err));
+    text = emit_fixture(&fixture, &len, &status, error_message,
+                        sizeof(error_message));
     free_fixture(&fixture);
     CHECK(text != NULL);
     if (text == NULL) {
@@ -211,11 +216,11 @@ static void test_frame_alignment(void) {
 
 static void test_unsupported(void) {
     Fixture fixture;
-    TcA64Status status = TC_A64_OK;
-    char err[256];
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_OK;
+    char error_message[256];
     size_t len = 0;
     char *text;
-    err[0] = '\0';
+    error_message[0] = '\0';
     if (!make_fixture(
             &fixture,
             "#program\nvar x: int32 = copy int32, 1\nunsafe then\n"
@@ -225,17 +230,18 @@ static void test_unsupported(void) {
         CHECK(0);
         return;
     }
-    text = emit_fixture(&fixture, &len, &status, err, sizeof(err));
+    text = emit_fixture(&fixture, &len, &status, error_message,
+                        sizeof(error_message));
     free_fixture(&fixture);
     free(text);
-    CHECK(status == TC_A64_UNSUPPORTED);
-    CHECK(strstr(err, "unsupported opcode") != NULL);
+    CHECK(status == TC_AARCH64_EMIT_UNSUPPORTED);
+    CHECK(strstr(error_message, "unsupported opcode") != NULL);
 }
 
 static void test_static_initializer(void) {
     Fixture fixture;
-    TcA64Status status = TC_A64_INTERNAL;
-    char err[256];
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
     size_t len = 0;
     char *text;
     if (!make_fixture(
@@ -245,12 +251,13 @@ static void test_static_initializer(void) {
         CHECK(0);
         return;
     }
-    text = emit_fixture(&fixture, &len, &status, err, sizeof(err));
+    text = emit_fixture(&fixture, &len, &status, error_message,
+                        sizeof(error_message));
     free_fixture(&fixture);
     CHECK(text != NULL);
     if (text != NULL) {
-        CHECK(status == TC_A64_OK);
-        CHECK(strstr(text, "__tc_static:") != NULL);
+        CHECK(status == TC_AARCH64_EMIT_OK);
+        CHECK(strstr(text, "__tc_static_region:") != NULL);
         CHECK(strstr(text, ".byte 0x78") != NULL);
         CHECK(strstr(text, ".byte 0x56") != NULL);
         CHECK(strstr(text, ".byte 0x34") != NULL);
@@ -261,9 +268,9 @@ static void test_static_initializer(void) {
 
 static void test_deterministic(void) {
     Fixture fixture;
-    TcA64Status status1 = TC_A64_INTERNAL;
-    TcA64Status status2 = TC_A64_INTERNAL;
-    char err[256];
+    TcAArch64EmitStatus status1 = TC_AARCH64_EMIT_INTERNAL;
+    TcAArch64EmitStatus status2 = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
     size_t len1 = 0;
     size_t len2 = 0;
     char *first;
@@ -276,11 +283,13 @@ static void test_deterministic(void) {
         CHECK(0);
         return;
     }
-    first = emit_fixture(&fixture, &len1, &status1, err, sizeof(err));
-    second = emit_fixture(&fixture, &len2, &status2, err, sizeof(err));
+    first = emit_fixture(&fixture, &len1, &status1, error_message,
+                         sizeof(error_message));
+    second = emit_fixture(&fixture, &len2, &status2, error_message,
+                          sizeof(error_message));
     free_fixture(&fixture);
     CHECK(first != NULL && second != NULL);
-    CHECK(status1 == TC_A64_OK && status2 == TC_A64_OK);
+    CHECK(status1 == TC_AARCH64_EMIT_OK && status2 == TC_AARCH64_EMIT_OK);
     CHECK(len1 == len2);
     if (first != NULL && second != NULL && len1 == len2) {
         CHECK(memcmp(first, second, len1) == 0);

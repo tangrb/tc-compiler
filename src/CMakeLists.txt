@@ -57,31 +57,31 @@ set_target_properties(tc_core PROPERTIES
 
 # Freestanding AArch64 runtime archive used by `tc-aot --emit=obj/elf`.
 # Apple clang can assemble/link AArch64 ELF objects; no host C library is used.
-find_program(TC_LLVM_AR NAMES llvm-ar
+find_program(TC_LLVM_ARCHIVER NAMES llvm-ar
     HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
-if(NOT TC_LLVM_AR)
-    set(TC_LLVM_AR ${CMAKE_AR})
+if(NOT TC_LLVM_ARCHIVER)
+    set(TC_LLVM_ARCHIVER ${CMAKE_AR})
 endif()
-set(TC_A64_RT_DIR ${CMAKE_CURRENT_BINARY_DIR}/aarch64-runtime)
-set(TC_A64_RT_LIB ${TC_A64_RT_DIR}/libtcrt_a64.a)
-set(TC_A64_LINK_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/link.ld)
+set(TC_AARCH64_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/aarch64-runtime)
+set(TC_AARCH64_RUNTIME_LIB ${TC_AARCH64_RUNTIME_DIR}/libtc_aarch64_runtime.a)
+set(TC_AARCH64_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/link.ld)
 target_compile_definitions(tc_core PRIVATE
-    TC_A64_RUNTIME_LIB="${TC_A64_RT_LIB}"
-    TC_A64_LINKER_SCRIPT="${TC_A64_LINK_SCRIPT}")
+    TC_AARCH64_RUNTIME_LIB="${TC_AARCH64_RUNTIME_LIB}"
+    TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}")
 add_custom_command(
-    OUTPUT ${TC_A64_RT_LIB}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${TC_A64_RT_DIR}
+    OUTPUT ${TC_AARCH64_RUNTIME_LIB}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${TC_AARCH64_RUNTIME_DIR}
     COMMAND ${CMAKE_C_COMPILER} -target aarch64-none-elf -ffreestanding
             -nostdlib -fno-zero-initialized-in-bss -O2 -std=c11
             -fno-vectorize -fno-slp-vectorize -fno-stack-protector
             -Wall -Wextra -Werror -I ${CMAKE_CURRENT_SOURCE_DIR}
             -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/runtime.c
-            -o ${TC_A64_RT_DIR}/runtime.o
+            -o ${TC_AARCH64_RUNTIME_DIR}/runtime.o
     COMMAND ${CMAKE_C_COMPILER} -target aarch64-none-elf -ffreestanding
             -nostdlib -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
-            -o ${TC_A64_RT_DIR}/start.o
-    COMMAND ${TC_LLVM_AR} rcs ${TC_A64_RT_LIB}
-            ${TC_A64_RT_DIR}/runtime.o ${TC_A64_RT_DIR}/start.o
+            -o ${TC_AARCH64_RUNTIME_DIR}/start.o
+    COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_AARCH64_RUNTIME_LIB}
+            ${TC_AARCH64_RUNTIME_DIR}/runtime.o ${TC_AARCH64_RUNTIME_DIR}/start.o
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/runtime.c
             ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
             ${CMAKE_CURRENT_SOURCE_DIR}/ir/type.h
@@ -90,6 +90,6 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.inc
     COMMENT "Building AArch64 freestanding runtime archive"
     VERBATIM)
-add_custom_target(tc_a64_runtime ALL DEPENDS ${TC_A64_RT_LIB})
+add_custom_target(tc_aarch64_runtime ALL DEPENDS ${TC_AARCH64_RUNTIME_LIB})
 
 add_subdirectory(driver)

@@ -91,11 +91,11 @@ def tc_aot_path() -> str:
 
 
 def qemu_path() -> str:
-    return _tool("qemu-system-aarch64", "TC_AOT_QEMU")
+    return _tool("qemu-system-aarch64", "TC_AOT_QEMU_SYSTEM")
 
 
 def lld_path() -> str:
-    return _tool("ld.lld", "TC_AOT_LD")
+    return _tool("ld.lld", "TC_AOT_LINKER")
 
 
 def _write_files(directory: Path, files: dict[str, str]) -> None:
@@ -233,20 +233,24 @@ def first_difference(expected: bytes, actual: bytes) -> str:
     return "no byte difference"
 
 
-def compare_observation(case: Case, who: str, obs: Observation,
+def compare_observation(case: Case, who: str,
+                        observation: Observation,
                         expected: bytes) -> list[str]:
     errors: list[str] = []
-    if obs.stdout != expected:
+    if observation.stdout != expected:
         errors.append(
-            f"{case.case_id}: {who} stdout {obs.stdout!r} != expected "
-            f"{expected!r} ({first_difference(expected, obs.stdout)})")
-    if obs.trap != case.trap:
+            f"{case.case_id}: {who} stdout {observation.stdout!r} != "
+            f"expected "
+            f"{expected!r} "
+            f"({first_difference(expected, observation.stdout)})")
+    if observation.trap != case.trap:
         errors.append(
-            f"{case.case_id}: {who} trap {obs.trap!r} != expected "
+            f"{case.case_id}: {who} trap {observation.trap!r} != expected "
             f"{case.trap!r}")
-    if obs.exit != case.exit:
+    if observation.exit != case.exit:
         errors.append(
-            f"{case.case_id}: {who} exit {obs.exit} != expected {case.exit}")
+            f"{case.case_id}: {who} exit {observation.exit} != "
+            f"expected {case.exit}")
     return errors
 
 
@@ -256,43 +260,56 @@ def run_case(case: Case, keep: bool = False) -> list[str]:
     base = Path(tempfile.mkdtemp(prefix=f"tc-s7-{case.case_id.lower()}-"))
     try:
         _write_files(base, case.files)
-        vm = run_vm(case, base)
-        errors.extend(compare_observation(case, "VM", vm, expected))
+        vm_observation = run_vm(case, base)
+        errors.extend(compare_observation(case, "VM", vm_observation,
+                                          expected))
         if case.unsupported:
-            code, _out, err = compile_aot(case, base, emit="asm")
+            code, _stdout, error_output = compile_aot(case, base,
+                                                       emit="asm")
             if code != 70:
                 errors.append(
                     f"{case.case_id}: unsupported AOT compile exit {code}, "
-                    f"expected 70: {err.strip()}")
+                    f"expected 70: {error_output.strip()}")
             return errors
         asm_path = base / f"{case.case_id}.s"
-        code, _out, err = compile_aot(case, base, asm_out=asm_path,
-                                      emit="asm")
+        code, _stdout, error_output = compile_aot(case, base,
+                                                   asm_out=asm_path,
+                                                   emit="asm")
         if code != 0:
             errors.append(
-                f"{case.case_id}: AOT assembly failed ({code}): {err.strip()}")
+                f"{case.case_id}: AOT assembly failed ({code}): "
+                f"{error_output.strip()}")
             return errors
         elf = base / f"{case.case_id}.elf"
-        code, _out, err = compile_aot(case, base, asm_out=None, emit="elf")
+        code, _stdout, error_output = compile_aot(case, base,
+                                                   asm_out=None, emit="elf")
         # compile_aot names the ELF from the case id.
         produced = base / f"{case.case_id}.elf"
         if produced.exists():
             elf = produced
         if code != 0 or not elf.exists():
             errors.append(
-                f"{case.case_id}: AOT ELF build failed ({code}): {err.strip()}")
+                f"{case.case_id}: AOT ELF build failed ({code}): "
+                f"{error_output.strip()}")
             return errors
         diag = base / f"{case.case_id}.diag"
-        aot = run_elf(elf, case.stdin, diag, base)
-        errors.extend(compare_observation(case, "AOT", aot, expected))
-        if vm.stdout != aot.stdout or vm.trap != aot.trap or \
-                vm.exit != aot.exit:
+        aot_observation = run_elf(elf, case.stdin, diag, base)
+        errors.extend(compare_observation(case, "AOT", aot_observation,
+                                          expected))
+        if vm_observation.stdout != aot_observation.stdout or \
+                vm_observation.trap != aot_observation.trap or \
+                vm_observation.exit != aot_observation.exit:
             errors.append(
-                f"{case.case_id}: VM/AOT differ: VM(stdout={vm.stdout!r}, "
-                f"trap={vm.trap!r}, exit={vm.exit}) AOT(stdout={aot.stdout!r}, "
-                f"trap={aot.trap!r}, exit={aot.exit})")
-        if errors and aot.diagnostic:
-            errors.append(f"{case.case_id}: AOT diagnostic: {aot.diagnostic}")
+                f"{case.case_id}: VM/AOT differ: "
+                f"VM(stdout={vm_observation.stdout!r}, "
+                f"trap={vm_observation.trap!r}, "
+                f"exit={vm_observation.exit}) "
+                f"AOT(stdout={aot_observation.stdout!r}, "
+                f"trap={aot_observation.trap!r}, "
+                f"exit={aot_observation.exit})")
+        if errors and aot_observation.diagnostic:
+            errors.append(f"{case.case_id}: AOT diagnostic: "
+                          f"{aot_observation.diagnostic}")
         return errors
     finally:
         if not keep:

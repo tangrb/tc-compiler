@@ -19,17 +19,17 @@
 #include "backend/common/toolchain.h"
 #include "diagnostic/diagnostic.h"
 
-#ifndef TC_A64_RUNTIME_LIB
-#define TC_A64_RUNTIME_LIB ""
+#ifndef TC_AARCH64_RUNTIME_LIB
+#define TC_AARCH64_RUNTIME_LIB ""
 #endif
-#ifndef TC_A64_LINKER_SCRIPT
-#define TC_A64_LINKER_SCRIPT ""
+#ifndef TC_AARCH64_LINKER_SCRIPT
+#define TC_AARCH64_LINKER_SCRIPT ""
 #endif
-#ifndef TC_A64_CC
-#define TC_A64_CC "clang"
+#ifndef TC_AARCH64_ASSEMBLER
+#define TC_AARCH64_ASSEMBLER "clang"
 #endif
-#ifndef TC_A64_LD
-#define TC_A64_LD "ld.lld"
+#ifndef TC_AARCH64_LINKER
+#define TC_AARCH64_LINKER "ld.lld"
 #endif
 
 static int report(TcImplError error, const char *detail) {
@@ -74,109 +74,117 @@ static int run_tool(char *const argv[]) {
     return -1;
 }
 
-static int copy_file(const char *from, const char *to) {
-    FILE *in = fopen(from, "rb");
-    FILE *out;
+static int copy_file(const char *source_path, const char *destination_path) {
+    FILE *input_file = fopen(source_path, "rb");
+    FILE *output_file;
     char buffer[8192];
-    size_t n;
-    if (in == NULL) {
+    size_t bytes_read;
+    if (input_file == NULL) {
         return -1;
     }
-    out = fopen(to, "wb");
-    if (out == NULL) {
-        fclose(in);
+    output_file = fopen(destination_path, "wb");
+    if (output_file == NULL) {
+        fclose(input_file);
         return -1;
     }
-    while ((n = fread(buffer, 1, sizeof(buffer), in)) != 0) {
-        if (fwrite(buffer, 1, n, out) != n) {
-            fclose(in);
-            fclose(out);
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), input_file)) != 0) {
+        if (fwrite(buffer, 1, bytes_read, output_file) != bytes_read) {
+            fclose(input_file);
+            fclose(output_file);
             return -1;
         }
     }
-    if (ferror(in)) {
-        fclose(in);
-        fclose(out);
+    if (ferror(input_file)) {
+        fclose(input_file);
+        fclose(output_file);
         return -1;
     }
-    if (fclose(out) != 0) {
-        fclose(in);
+    if (fclose(output_file) != 0) {
+        fclose(input_file);
         return -1;
     }
-    fclose(in);
+    fclose(input_file);
     return 0;
 }
 
-static int make_temp(char *path, size_t cap, const char *suffix) {
-    const char *tmp = getenv("TMPDIR");
-    int fd;
-    if (tmp == NULL || tmp[0] == '\0') {
-        tmp = "/tmp";
+static int make_temp(char *path, size_t path_capacity, const char *suffix) {
+    const char *temporary_directory = getenv("TMPDIR");
+    int file_descriptor;
+    if (temporary_directory == NULL || temporary_directory[0] == '\0') {
+        temporary_directory = "/tmp";
     }
-    if (snprintf(path, cap, "%s/tc-aot-XXXXXX%s", tmp, suffix) >= (int)cap) {
+    if (snprintf(path, path_capacity, "%s/tc-aot-XXXXXX%s",
+                 temporary_directory, suffix) >= (int)path_capacity) {
         return -1;
     }
-    fd = mkstemps(path, (int)strlen(suffix));
-    if (fd < 0) {
+    file_descriptor = mkstemps(path, (int)strlen(suffix));
+    if (file_descriptor < 0) {
         return -1;
     }
-    close(fd);
+    close(file_descriptor);
     return 0;
 }
 
-static int emit_asm_to(const TcIR *ir, const TcPlatformProfile *profile,
-                       const char *path, char *err, size_t errcap,
-                       int *unsupported) {
-    FILE *out;
-    TcA64Status status;
-    *unsupported = 0;
-    out = fopen(path, "wb");
-    if (out == NULL) {
+static int emit_assembly_to(const TcIR *ir,
+                            const TcPlatformProfile *profile,
+                            const char *path, char *error_message,
+                            size_t error_capacity, int *is_unsupported) {
+    FILE *output_file;
+    TcAArch64EmitStatus status;
+    *is_unsupported = 0;
+    output_file = fopen(path, "wb");
+    if (output_file == NULL) {
         return report(TC_IMPL_IO, path);
     }
-    status = tc_a64_emit_asm(out, ir, profile, profile->target, err, errcap);
-    if (fclose(out) != 0) {
+    status = tc_aarch64_emit_asm(output_file, ir, profile, profile->target,
+                                 error_message, error_capacity);
+    if (fclose(output_file) != 0) {
         return report(TC_IMPL_IO, path);
     }
-    if (status == TC_A64_UNSUPPORTED) {
-        *unsupported = 1;
+    if (status == TC_AARCH64_EMIT_UNSUPPORTED) {
+        *is_unsupported = 1;
         return 70;
     }
-    if (status != TC_A64_OK) {
-        return report(TC_IMPL_INTERNAL, err[0] != '\0' ? err : NULL);
+    if (status == TC_AARCH64_EMIT_IO) {
+        return report(TC_IMPL_IO,
+                      error_message[0] != '\0' ? error_message : NULL);
+    }
+    if (status != TC_AARCH64_EMIT_OK) {
+        return report(TC_IMPL_INTERNAL,
+                      error_message[0] != '\0' ? error_message : NULL);
     }
     return 0;
 }
 
-static const char *runtime_lib_path(const TcCliOptions *options) {
+static const char *runtime_archive_path(const TcCliOptions *options) {
     if (options->runtime_path != NULL) {
         return options->runtime_path;
     }
-    return TC_A64_RUNTIME_LIB;
+    return TC_AARCH64_RUNTIME_LIB;
 }
 
 static const char *linker_script_path(const TcCliOptions *options) {
     if (options->linker_script != NULL) {
         return options->linker_script;
     }
-    return TC_A64_LINKER_SCRIPT;
+    return TC_AARCH64_LINKER_SCRIPT;
 }
 
 int tc_aot_driver_run(const TcAnalysis *analysis,
                       const TcPlatformProfile *profile,
                       const TcCliOptions *options) {
     const TcIR *ir;
-    char err[512];
+    char error_message[512];
     char asm_path[512];
     char obj_path[512];
     char out_path[512];
-    int unsupported = 0;
-    int result;
-    int keep;
-    const char *emit;
-    const char *cc;
-    const char *ld;
-    const char *triple;
+    int is_unsupported = 0;
+    int exit_status;
+    int keep_temporaries;
+    const char *emit_kind;
+    const char *assembler;
+    const char *linker;
+    const char *target_triple;
 
     if (analysis == NULL || profile == NULL || options == NULL) {
         return report(TC_IMPL_INTERNAL, "missing AOT driver argument");
@@ -194,30 +202,38 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     if (ir == NULL) {
         return report(TC_IMPL_INTERNAL, "analysis has no finalized IR");
     }
-    emit = options->emit != NULL ? options->emit : "asm";
-    if (strcmp(emit, "asm") != 0 && strcmp(emit, "obj") != 0 &&
-        strcmp(emit, "elf") != 0) {
+    emit_kind = options->emit_kind != NULL ? options->emit_kind : "asm";
+    if (strcmp(emit_kind, "asm") != 0 && strcmp(emit_kind, "obj") != 0 &&
+        strcmp(emit_kind, "elf") != 0) {
         return report(TC_IMPL_USAGE, "unknown --emit value");
     }
-    cc = options->cc != NULL ? options->cc : TC_A64_CC;
-    ld = options->ld != NULL ? options->ld : TC_A64_LD;
-    triple = tc_aot_target_triple(profile->target);
-    if (triple == NULL) {
+    assembler = options->assembler != NULL
+                    ? options->assembler
+                    : TC_AARCH64_ASSEMBLER;
+    linker = options->linker != NULL ? options->linker : TC_AARCH64_LINKER;
+    target_triple = tc_aot_target_triple(profile->target);
+    if (target_triple == NULL) {
         return report_unavailable(
             "no toolchain mapping for the selected target descriptor");
     }
-    keep = options->keep_temps;
-    err[0] = '\0';
+    keep_temporaries = options->keep_temps;
+    error_message[0] = '\0';
 
-    if (strcmp(emit, "asm") == 0 && options->output == NULL) {
-        TcA64Status status =
-            tc_a64_emit_asm(stdout, ir, profile, profile->target, err,
-                            sizeof(err));
-        if (status == TC_A64_UNSUPPORTED) {
-            return report_unavailable(err[0] != '\0' ? err : NULL);
+    if (strcmp(emit_kind, "asm") == 0 && options->output == NULL) {
+        TcAArch64EmitStatus status =
+            tc_aarch64_emit_asm(stdout, ir, profile, profile->target,
+                                error_message, sizeof(error_message));
+        if (status == TC_AARCH64_EMIT_UNSUPPORTED) {
+            return report_unavailable(
+                error_message[0] != '\0' ? error_message : NULL);
         }
-        if (status != TC_A64_OK) {
-            return report(TC_IMPL_INTERNAL, err[0] != '\0' ? err : NULL);
+        if (status == TC_AARCH64_EMIT_IO) {
+            return report(TC_IMPL_IO,
+                          error_message[0] != '\0' ? error_message : NULL);
+        }
+        if (status != TC_AARCH64_EMIT_OK) {
+            return report(TC_IMPL_INTERNAL,
+                          error_message[0] != '\0' ? error_message : NULL);
         }
         return 0;
     }
@@ -228,22 +244,23 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     if (make_temp(asm_path, sizeof(asm_path), ".s") != 0) {
         return report(TC_IMPL_IO, "cannot create temporary assembly file");
     }
-    result = emit_asm_to(ir, profile, asm_path, err, sizeof(err),
-                         &unsupported);
-    if (result != 0) {
-        if (unsupported) {
+    exit_status = emit_assembly_to(ir, profile, asm_path, error_message,
+                                   sizeof(error_message), &is_unsupported);
+    if (exit_status != 0) {
+        if (is_unsupported) {
             unlink(asm_path);
-            return report_unavailable(err[0] != '\0' ? err : NULL);
+            return report_unavailable(
+                error_message[0] != '\0' ? error_message : NULL);
         }
         unlink(asm_path);
-        return result;
+        return exit_status;
     }
-    if (strcmp(emit, "asm") == 0) {
+    if (strcmp(emit_kind, "asm") == 0) {
         if (copy_file(asm_path, options->output) != 0) {
             unlink(asm_path);
             return report(TC_IMPL_IO, options->output);
         }
-        if (!keep) {
+        if (!keep_temporaries) {
             unlink(asm_path);
         }
         return 0;
@@ -256,9 +273,9 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     {
         char *argv[8];
         int status;
-        argv[0] = (char *)cc;
+        argv[0] = (char *)assembler;
         argv[1] = "-target";
-        argv[2] = (char *)triple;
+        argv[2] = (char *)target_triple;
         argv[3] = "-c";
         argv[4] = asm_path;
         argv[5] = "-o";
@@ -272,13 +289,13 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
                           "clang could not assemble the emitted .s");
         }
     }
-    if (strcmp(emit, "obj") == 0) {
+    if (strcmp(emit_kind, "obj") == 0) {
         if (copy_file(obj_path, options->output) != 0) {
             unlink(asm_path);
             unlink(obj_path);
             return report(TC_IMPL_IO, options->output);
         }
-        if (!keep) {
+        if (!keep_temporaries) {
             unlink(asm_path);
             unlink(obj_path);
         }
@@ -286,18 +303,19 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     }
 
     {
-        const char *runtime = runtime_lib_path(options);
-        const char *script = linker_script_path(options);
+        const char *runtime_archive = runtime_archive_path(options);
+        const char *linker_script = linker_script_path(options);
         char *argv[16];
-        int n = 0;
+        size_t argument_index = 0;
         int status;
-        if (runtime == NULL || runtime[0] == '\0' ||
-            access(runtime, R_OK) != 0) {
+        if (runtime_archive == NULL || runtime_archive[0] == '\0' ||
+            access(runtime_archive, R_OK) != 0) {
             unlink(asm_path);
             unlink(obj_path);
             return report_unavailable("AArch64 runtime archive is unavailable");
         }
-        if (script == NULL || script[0] == '\0' || access(script, R_OK) != 0) {
+        if (linker_script == NULL || linker_script[0] == '\0' ||
+            access(linker_script, R_OK) != 0) {
             unlink(asm_path);
             unlink(obj_path);
             return report_unavailable("AArch64 linker script is unavailable");
@@ -307,18 +325,18 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             unlink(obj_path);
             return report(TC_IMPL_IO, "cannot create temporary ELF file");
         }
-        argv[n++] = (char *)ld;
-        argv[n++] = "-m";
-        argv[n++] = "aarch64elf";
-        argv[n++] = "-static";
-        argv[n++] = "-nostdlib";
-        argv[n++] = "-T";
-        argv[n++] = (char *)script;
-        argv[n++] = "-o";
-        argv[n++] = out_path;
-        argv[n++] = obj_path;
-        argv[n++] = (char *)runtime;
-        argv[n] = NULL;
+        argv[argument_index++] = (char *)linker;
+        argv[argument_index++] = "-m";
+        argv[argument_index++] = "aarch64elf";
+        argv[argument_index++] = "-static";
+        argv[argument_index++] = "-nostdlib";
+        argv[argument_index++] = "-T";
+        argv[argument_index++] = (char *)linker_script;
+        argv[argument_index++] = "-o";
+        argv[argument_index++] = out_path;
+        argv[argument_index++] = obj_path;
+        argv[argument_index++] = (char *)runtime_archive;
+        argv[argument_index] = NULL;
         status = run_tool(argv);
         if (status != 0) {
             unlink(asm_path);
@@ -333,7 +351,7 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             unlink(out_path);
             return report(TC_IMPL_IO, options->output);
         }
-        if (!keep) {
+        if (!keep_temporaries) {
             unlink(asm_path);
             unlink(obj_path);
             unlink(out_path);

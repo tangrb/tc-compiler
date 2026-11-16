@@ -160,7 +160,7 @@ if(TC_ENABLE_AOT_TESTS AND TC_QEMU_SYSTEM_AARCH64 AND TC_LLD)
         conformance.s7_tools determinism.s7 conformance.s7_static_parity
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_LD=${TC_LLD}")
+        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_LINKER=${TC_LLD}")
 endif()
 
 # --- LEX/SYN front-end conformance ------------------------------------------

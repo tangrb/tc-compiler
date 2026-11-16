@@ -126,7 +126,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                         tool_name, arg + 7);
                 return TC_CLI_PARSE_ERROR;
             }
-            options->emit = arg + 7;
+            options->emit_kind = arg + 7;
             continue;
         }
         if (!only_positional && strncmp(arg, "--cc=", 5) == 0) {
@@ -134,7 +134,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                 fprintf(stderr, "%s: missing value for --cc\n", tool_name);
                 return TC_CLI_PARSE_ERROR;
             }
-            options->cc = arg + 5;
+            options->assembler = arg + 5;
             continue;
         }
         if (!only_positional && strncmp(arg, "--ld=", 5) == 0) {
@@ -142,7 +142,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                 fprintf(stderr, "%s: missing value for --ld\n", tool_name);
                 return TC_CLI_PARSE_ERROR;
             }
-            options->ld = arg + 5;
+            options->linker = arg + 5;
             continue;
         }
         if (!only_positional && strncmp(arg, "--runtime=", 10) == 0) {

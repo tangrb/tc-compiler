@@ -19,7 +19,6 @@
 #include "ir/type.h"
 
 #define TC_AARCH64_PL011_BASE UINT64_C(0x09000000)
-#define TC_AARCH64_STACK_TOP UINT64_C(0x4f000000)
 
 #define TC_SEMIHOST_SYS_OPEN 0x01
 #define TC_SEMIHOST_SYS_CLOSE 0x02
@@ -33,9 +32,9 @@
 
 /* Abstract call depth (standard §1.2/design §10.3).  Defined in .data so the
  * loader initializes it without requiring a BSS zeroing loop. */
-unsigned long __tc_depth = 0;
+unsigned long __tc_call_depth = 0;
 
-static long semihost_call(unsigned long op, unsigned long arg) {
+static long semihosting_call(unsigned long op, unsigned long arg) {
     register unsigned long x0 __asm__("x0") = op;
     register unsigned long x1 __asm__("x1") = arg;
     __asm__ volatile("hlt #0xf000" : "+r"(x0) : "r"(x1) : "memory");
@@ -65,7 +64,7 @@ static void uart_puts(const char *text) {
     }
 }
 
-static void uart_put_u64(unsigned long value) {
+static void uart_put_uint64(unsigned long value) {
     char digits[24];
     size_t n = 0;
     if (value == 0) {
@@ -81,7 +80,7 @@ static void uart_put_u64(unsigned long value) {
     }
 }
 
-static const char *trap_symbol(unsigned code) {
+static const char *aarch64_trap_error_symbol(unsigned code) {
     switch ((TcDiagCode)code) {
     case TC_RE_INTEGER_OVERFLOW: return "TC_RE_INTEGER_OVERFLOW";
     case TC_RE_DIV_ZERO: return "TC_RE_DIV_ZERO";
@@ -102,16 +101,16 @@ static const char *trap_symbol(unsigned code) {
     }
 }
 
-__attribute__((noreturn)) static void semihost_exit(unsigned status) {
+__attribute__((noreturn)) static void semihosting_exit(unsigned status) {
     struct {
         uint32_t reason;
         uint32_t exit_code;
     } block;
     block.reason = TC_SEMIHOST_ADP_STOPPED_APPLICATION_EXIT;
     block.exit_code = status;
-    (void)semihost_call(TC_SEMIHOST_SYS_EXIT_EXTENDED,
+    (void)semihosting_call(TC_SEMIHOST_SYS_EXIT_EXTENDED,
                         (unsigned long)(uintptr_t)&block);
-    (void)semihost_call(TC_SEMIHOST_SYS_EXIT,
+    (void)semihosting_call(TC_SEMIHOST_SYS_EXIT,
                         (unsigned long)(TC_SEMIHOST_ADP_STOPPED_APPLICATION_EXIT +
                                         status));
     for (;;) {
@@ -119,32 +118,32 @@ __attribute__((noreturn)) static void semihost_exit(unsigned status) {
 }
 
 /* Called from _start after tc_main returns. */
-void tc_runtime_exit(unsigned status) {
+void tc_aarch64_runtime_exit(unsigned status) {
     uart_init();
     uart_puts("TC-EXIT ");
-    uart_put_u64(status);
+    uart_put_uint64(status);
     uart_puts(" none\n");
-    semihost_exit(status);
+    semihosting_exit(status);
 }
 
-__attribute__((noreturn)) void tc_trap(unsigned code, unsigned line,
+__attribute__((noreturn)) void tc_aarch64_trap(unsigned code, unsigned line,
                                        unsigned column, const char *file) {
     uart_init();
     uart_puts("error[RT]: ");
-    uart_puts(trap_symbol(code));
+    uart_puts(aarch64_trap_error_symbol(code));
     uart_puts(" at ");
     uart_puts(file != NULL ? file : "<source>");
     uart_putc(':');
-    uart_put_u64(line);
+    uart_put_uint64(line);
     uart_putc(':');
-    uart_put_u64(column);
+    uart_put_uint64(column);
     uart_putc('\n');
     uart_puts("TC-EXIT ");
-    uart_put_u64(1u);
+    uart_put_uint64(1u);
     uart_putc(' ');
-    uart_puts(trap_symbol(code));
+    uart_puts(aarch64_trap_error_symbol(code));
     uart_putc('\n');
-    semihost_exit(1u);
+    semihosting_exit(1u);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -166,7 +165,7 @@ static int format_bool(uint64_t bits, char *out, size_t cap) {
     return 1;
 }
 
-static unsigned type_width(unsigned tag) {
+static unsigned aarch64_type_width(unsigned tag) {
     switch ((TcTypeTag)tag) {
     case TC_TY_I8:
     case TC_TY_U8:
@@ -188,7 +187,7 @@ static unsigned type_width(unsigned tag) {
     }
 }
 
-static int type_signed(unsigned tag) {
+static int aarch64_type_is_signed(unsigned tag) {
     switch ((TcTypeTag)tag) {
     case TC_TY_I8:
     case TC_TY_I16:
@@ -201,7 +200,7 @@ static int type_signed(unsigned tag) {
     }
 }
 
-static uint64_t width_mask(unsigned width) {
+static uint64_t aarch64_width_mask(unsigned width) {
     return width >= 64u ? UINT64_MAX : ((UINT64_C(1) << width) - 1u);
 }
 
@@ -228,7 +227,7 @@ static int format_unsigned(uint64_t value, char *out, size_t cap,
     return 1;
 }
 
-int tc_a64_write(unsigned tag, uint64_t bits, unsigned newline) {
+int tc_aarch64_write_scalar(unsigned tag, uint64_t bits, unsigned newline) {
     char buffer[64];
     size_t len = 0;
     if ((TcTypeTag)tag == TC_TY_BOOL) {
@@ -239,14 +238,14 @@ int tc_a64_write(unsigned tag, uint64_t bits, unsigned newline) {
             len++;
         }
     } else {
-        unsigned width = type_width(tag);
+        unsigned width = aarch64_type_width(tag);
         uint64_t mask;
         if (width == 0) {
             return 1;
         }
-        mask = width_mask(width);
+        mask = aarch64_width_mask(width);
         bits &= mask;
-        if (type_signed(tag)) {
+        if (aarch64_type_is_signed(tag)) {
             uint64_t sign = UINT64_C(1) << (width - 1u);
             if ((bits & sign) != 0) {
                 buffer[len++] = '-';
@@ -280,7 +279,7 @@ int tc_a64_write(unsigned tag, uint64_t bits, unsigned newline) {
         /* The semihosting console has no separate failure status; the call
          * either writes the record or the platform terminates.  A single call
          * keeps the record all-or-nothing. */
-        (void)semihost_call(TC_SEMIHOST_SYS_WRITE0,
+        (void)semihosting_call(TC_SEMIHOST_SYS_WRITE0,
                             (unsigned long)(uintptr_t)buffer);
     }
     return 0;
@@ -345,7 +344,7 @@ static void input_unget(int c) {
     input_pending = c;
 }
 
-static int is_space(int c) {
+static int is_ascii_space(int c) {
     return c == 0x09 || c == 0x0a || c == 0x0b || c == 0x0c || c == 0x0d ||
            c == 0x20;
 }
@@ -388,7 +387,7 @@ static int parse_digits(const char *token, size_t len, uint64_t limit,
     return 1;
 }
 
-int tc_a64_read(unsigned tag, uint64_t *out) {
+int tc_aarch64_read_scalar(unsigned tag, uint64_t *out) {
     char token[96];
     size_t len = 0;
     int c;
@@ -399,18 +398,18 @@ int tc_a64_read(unsigned tag, uint64_t *out) {
     if (out == NULL) {
         return 1;
     }
-    width = type_width(tag);
+    width = aarch64_type_width(tag);
     if (width == 0) {
         return 1;
     }
     do {
         c = input_get();
-    } while (c >= 0 && is_space(c));
+    } while (c >= 0 && is_ascii_space(c));
     if (c < 0) {
         return 1;
     }
     if (c == '-') {
-        if (!type_signed(tag)) {
+        if (!aarch64_type_is_signed(tag)) {
             return 1;
         }
         negative = 1;
@@ -419,10 +418,10 @@ int tc_a64_read(unsigned tag, uint64_t *out) {
             return 1;
         }
     }
-    while (c >= 0 && !is_space(c)) {
+    while (c >= 0 && !is_ascii_space(c)) {
         if (len + 1u >= sizeof(token)) {
             /* Consume the rest of this token, then fail deterministically. */
-            while (c >= 0 && !is_space(c)) {
+            while (c >= 0 && !is_ascii_space(c)) {
                 c = input_get();
             }
             return 1;
@@ -449,18 +448,18 @@ int tc_a64_read(unsigned tag, uint64_t *out) {
     }
     if (negative) {
         limit = UINT64_C(1) << (width - 1u);
-    } else if (type_signed(tag)) {
+    } else if (aarch64_type_is_signed(tag)) {
         limit = (UINT64_C(1) << (width - 1u)) - 1u;
     } else {
-        limit = width_mask(width);
+        limit = aarch64_width_mask(width);
     }
     if (!parse_digits(token, len, limit, &magnitude)) {
         return 1;
     }
     if (negative) {
-        *out = (UINT64_C(0) - magnitude) & width_mask(width);
+        *out = (UINT64_C(0) - magnitude) & aarch64_width_mask(width);
     } else {
-        *out = magnitude & width_mask(width);
+        *out = magnitude & aarch64_width_mask(width);
     }
     return 0;
 }
