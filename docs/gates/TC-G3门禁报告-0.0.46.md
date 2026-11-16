@@ -18,7 +18,7 @@
 | 结构体/布局/字段 | `TC-SEM-FIELD-*`、`TC-SEM-LAYOUT-*`；`TC-UNIT-LAYOUT-0001@w32/@w64` |
 | 指令形状/位置 | `TC-SEM-OP-*`；命名操作数与 `OPERAND_COUNT` 助记符定位 |
 | 32/64 | `flip32_64` 17 行 × w32/w64；`w32` 静态档案 |
-| 覆盖 | 245 covered / 389 uncovered（未覆盖属 S4–S10）；`flip32_64` 34/34、`first_diag_rule` 10/10 |
+| 覆盖 | `tests/traceability/coverage-report.md`；`flip32_64` 34/34、`first_diag_rule` 10/10 |
 
 复现：
 
@@ -28,10 +28,10 @@ python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/traceability/coverage.py --check
 ```
 
-## 当前限制与移交
+## 边界与移交
 
-- CT、CFG/DI、调用顺序/安全、完整注解矩阵、VM 与后端尚未实现；`--static-only` 退出 0
-  不代表程序有效。
+- 本记录只覆盖 S3；CFG/DI、调用/安全、注解矩阵与 const_expr 形态见 G4 记录；
+  CT、IR 最终化、VM 与后端由后续阶段维护。
 - 最终 `TcInstr`/`TcIR` 物化在 IR 最终化阶段；S3 提供并冻结类型/名称/opcode/布局事实。
 - `call_indirect nullptr`、无符号 `-0`、非 `@fast` 的 `.nsw/.nuw` 符号优先级在 S4 固定。
-- `sem.c` 的按名称/类型/指令/布局拆分在 S4 进行。
+- `--static-only` 退出 0 不代表程序有效。

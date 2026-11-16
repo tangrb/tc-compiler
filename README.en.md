@@ -8,7 +8,7 @@ kept; historical implementation and tools live in git tags.
 ## Current status
 
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
-  names/types/conversions/layout, static instruction-shape checks, CFG/reachability/DI,
+  names/types/conversions/layout, static instruction-shape checks, const_expr forms, CFG/reachability/DI,
   missing returns, call ordering/safety, safety contexts and the annotation matrix,
   32/64 static profiles.
 - **Not implemented**: CT, IR finalization/printing, the VM and native backends.

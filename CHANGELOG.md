@@ -15,6 +15,8 @@
 - **名称、类型、转换与布局**：成员/命名空间/可见性、类型表 intern 与冻结、字面量按 W 定型、
   `cast`/`trunc`/`bitcast` 矩阵、结构体布局/`@padding`、`sizeof`、字段/赋值路径、指令形状/
   类型、模式矩阵、32/64 静态档案。
+- **const_expr 形态**：`const`/`static var` 初始化器的 §3.10 正向 op 集、
+  const-only 值引用、禁止后缀/指针位重解释/var/参数/static 引用，统一 `CONST_FORM`。
 - **CFG、DI、返回、调用、安全与注解**：每个程序/函数独立封闭 CFG、全边与可达性、
   `U[n]` 初始化与 DI 最大固定点、`MISSING_RETURN`；标签/控制形态；直接/间接调用的
   目标→安全→LHS→实参→接收者顺序与调用安全；safe/unsafe 上下文与 `@safe` 优先；

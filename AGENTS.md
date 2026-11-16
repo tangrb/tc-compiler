@@ -8,7 +8,7 @@
 - 语言及编译器标准：`docs/TC语言及编译器标准-0.0.46.md`（唯一权威）。
 - 原生编译器目标设计：`docs/TC原生编译器设计说明书-0.0.46.md`。
 - 已实现：契约、LEX/SYN 与扁平 parse IR、IMPORT、名称/类型/转换/布局、静态指令形状检查、
-  CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵、32/64 静态档案；代码在
+  const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵、32/64 静态档案；代码在
   `src/frontend/` 的 `input`/`num`/`lex`/`parse`/`module`/`sem`。
 - 未实现：CT、IR 最终化与打印、VM 与后端。
 - 门禁：G0–G4 PASS，G4 允许进入 S5；见 `docs/gates/README.md`。

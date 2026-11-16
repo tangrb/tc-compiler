@@ -20,6 +20,9 @@
   interning and freeze, W-dependent literal typing, `cast`/`trunc`/`bitcast` matrices,
   struct layout/`@padding`, `sizeof`, field/assignment paths, instruction shapes/types,
   mode matrix and the 32/64 static profile.
+- **const_expr forms**: the §3.10 positive op set for `const`/`static var`
+  initializers, const-only value references, and `CONST_FORM` for forbidden
+  suffixes, pointer bitcasts and var/parameter/static references.
 - **CFG, DI, returns, calls, safety and annotations**: one closed CFG per
   program/function, all edges and reachability, `U[n]` initialization and the DI
   maximum fixed point, `MISSING_RETURN`; labels/control shapes; direct/indirect call

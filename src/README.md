@@ -18,9 +18,9 @@ src/
   frontend/     input num lex parse; module (discovery/IMPORT); sem (names/types/
                 conversions/layout/instruction shape/CFG/DI/calls/safety/annotations)
   ir/           type instr block operand span region object address structs pointer_state
-  runtime/      alloc io trap profile module_loader (sem_* from S6)
-  vm/           interp memory pointer_state (S6)
-  backend/      aarch64 arm32 riscv32 common (S7+)
+  runtime/      alloc io trap profile module_loader (VM/AOT seams; further runtime later)
+  vm/           interp memory pointer_state (not implemented)
+  backend/      aarch64 arm32 riscv32 common (not implemented)
   driver/       tc-vm tc-aot + shared CLI/profile selection
 ```
 

@@ -10,7 +10,7 @@
 | Conformance | `conformance/` | L3 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解用例、接受工具用例、属性用例；见 [conformance/README.md](conformance/README.md) |
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、`--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查 |
-| Golden | `golden/` | L3 | 规范推导的期望值及评审记录 |
+| Golden | `golden/` | L3 | 规范推导的期望值及规范来源 |
 | Tools | `tools/` | L6 | `tc-vm`/`tc-aot` CLI 契约（用法、档案、部分检查、诊断、实现错误） |
 | Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON |
 | Docs | `tools/docs_cleanup_check.py` | — | 文档收尾门禁：无过程/历史叙事、门禁记录简短、changelog 版本不重复 |
