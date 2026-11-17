@@ -72,6 +72,13 @@
   VM/AOT first diagnostics over every static `.tc`, and explicit exit-70 rejection
   of unsupported opcodes/checked build/non-target profiles; Release and
   ASan+UBSan pass.
+- **S7 hardening**: dynamic switch-CFG successor capacity; arbitrary leading zeros
+  in AOT input; executable permission on ELF artifacts; CMake requires
+  clang/llvm-ar/lld/qemu and no longer silently degrades; linker-provided input/
+  stack addresses with overlap assertions; regression tests for switch successors
+  and `TcFunc.body`; test adapter canonicalizes symlinked workspaces; G7
+  evidence distinguishes 61 actual differential cases from one explicit
+  rejection.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
@@ -84,7 +91,7 @@
   goldens, determinism suites and a fail-closed adapter self-test; currently
   39/39 `ctest` and 754/754 harness cases (557 compile, 129 tool, 67 run,
   1 property) in Debug/Release/ASan builds; unit checks: frontend 688, sem 102,
-  ct 370, ir 450, vm 413, aot 34.
+  ct 370, ir 674, vm 413, aot 34.
 
 ### Changed
 

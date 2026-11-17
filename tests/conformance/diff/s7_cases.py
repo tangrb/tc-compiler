@@ -9,9 +9,11 @@ rejected by the backend (see tests/conformance/tools/s7_toolchain_cases.py).
 
 Existing S6 runtime fixtures are reused when their source is already inside the
 subset; their expectations were independently derived for the reference VM.
-New cases cover integer/bool formatting, token input, 64-bit arithmetic and
-static storage.  Expectations below follow standard §6.3/§6.5/§6.10/§6.13 and
-§11.2/§11.3, not AOT output.
+New cases cover integer/bool formatting, token input, 64-bit arithmetic,
+static storage and CFG/ABI boundaries.  One case (`TC-DIFF-A64-0034`) is an
+expected rejection outside the ABI subset, not an executable differential;
+the runner reports it separately.  Expectations below follow standard
+§6.3/§6.5/§6.10/§6.13 and §11.2/§11.3, not AOT output.
 
 Run:
     python3 tests/conformance/diff/s7_cases.py --check

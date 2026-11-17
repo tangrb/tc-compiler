@@ -439,6 +439,84 @@ static void test_ir_control_flow(void) {
     tc_analysis_destroy(an);
 }
 
+/* A switch's successor list is unbounded: more than eight targets must still
+ * produce a complete, unique CFG. */
+static void test_ir_switch_successor_capacity(void) {
+    static const char *root =
+        "#program\n"
+        "var k: int32 = copy int32, 5\n"
+        "_ = switch k, L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, LD\n"
+        "label L0:\n_ = br FIN\n"
+        "label L1:\n_ = br FIN\n"
+        "label L2:\n_ = br FIN\n"
+        "label L3:\n_ = br FIN\n"
+        "label L4:\n_ = br FIN\n"
+        "label L5:\n_ = br FIN\n"
+        "label L6:\n_ = br FIN\n"
+        "label L7:\n_ = br FIN\n"
+        "label L8:\n_ = br FIN\n"
+        "label L9:\n_ = br FIN\n"
+        "label L10:\n_ = br FIN\n"
+        "label LD:\n_ = br FIN\n"
+        "label FIN:\n_ = writeln int32, 0\n";
+    static const char *lib = "#lib\n";
+    Fixture fixture;
+    TcAnalysisStatus status;
+    TcAnalysisDiag diag;
+    TcAnalysis *an;
+    const TcIR *ir;
+    const TcUnit *top;
+    if (!make_fixture(&fixture, root, lib)) {
+        CHECK(0);
+        return;
+    }
+    an = analyze_fixture(&fixture, 64, &status, &diag);
+    free_fixture(&fixture);
+    CHECK(an != NULL);
+    if (an == NULL) {
+        return;
+    }
+    CHECK(status == TC_ANALYSIS_OK);
+    ir = tc_analysis_ir(an);
+    CHECK(ir != NULL);
+    if (ir == NULL) {
+        tc_analysis_destroy(an);
+        return;
+    }
+    top = find_unit(ir, TC_UNIT_TOP_LEVEL);
+    CHECK(top != NULL);
+    if (top != NULL) {
+        const TcInstr *sw = NULL;
+        size_t switch_block = 0;
+        size_t bi;
+        size_t i;
+        for (bi = 0; bi < top->nblocks && sw == NULL; bi++) {
+            for (i = 0; i < top->blocks[bi].n; i++) {
+                if (top->blocks[bi].instrs[i].op == TC_SWITCH) {
+                    sw = &top->blocks[bi].instrs[i];
+                    switch_block = bi;
+                    break;
+                }
+            }
+        }
+        CHECK(sw != NULL);
+        if (sw != NULL) {
+            CHECK_EQ(sw->ntargets, 12);
+            CHECK_EQ(top->blocks[switch_block].nsucc, 12);
+            for (i = 0; i < top->blocks[switch_block].nsucc; i++) {
+                size_t j;
+                for (j = i + 1u;
+                     j < top->blocks[switch_block].nsucc; j++) {
+                    CHECK(top->blocks[switch_block].succs[i] !=
+                          top->blocks[switch_block].succs[j]);
+                }
+            }
+        }
+        validate_unit(ir, top);
+    }
+    tc_analysis_destroy(an);
+}
+
 static void test_ir_aggregate_const(void) {
     static const char *root =
         "#program\n"
@@ -1011,6 +1089,7 @@ static void test_ir_multi_function_bodies(void) {
 int main(void) {
     test_ir_shape();
     test_ir_control_flow();
+    test_ir_switch_successor_capacity();
     test_ir_aggregate_const();
     test_ir_forms();
     test_ir_static_layout();

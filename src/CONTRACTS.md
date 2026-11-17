@@ -328,12 +328,16 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 - Toolchain: emission is deterministic; clang (`-target` from
   `tc_aot_target_triple`) assembles, `ld.lld` links with the bundled
   freestanding runtime and linker script.  The image is an AArch64 ELF.
-  qemu-user is unavailable on some hosts; design §11 permits qemu-system as the
-  execution fallback.  The S7 runtime uses semihosting for program stdout and
-  the PL011 UART as a separate trap/exit-record channel; `read` consumes a
-  loader-provided `tc-stdin.bin` image (8-byte little-endian length followed by
-  bytes) because console EOF is not observable through that seam.  These are
-  platform-instance facts, not language semantics.
+  The S7 image is a semihosting EL1 platform instance executed by
+  qemu-system-aarch64; there is no EL0/Linux-user runtime yet.  Program stdout
+  uses semihosting and the PL011 UART is a separate trap/exit-record channel;
+  `read` consumes the loader-provided `__tc_input_image` (8-byte little-endian
+  length followed by bytes) because console EOF is not observable through that
+  seam.  These are platform-instance facts, not language semantics.  Absolute
+  static/frame/input addresses are linker/platform-instance values and do not
+  currently use `TcPlatformProfile.region[]` bases; VM and AOT agree on
+  in-region offsets.  I/O sink failure mapping and full profile-base mapping
+  are later runtime/backend work.
 - No register allocator: values live in stack slots and x9-x17 are fixed
   temporaries.  Frame size is capped at the profile stack budget; exceeding it
   is an implementation error.

@@ -38,10 +38,12 @@ stdout、首个 trap 码与退出策略；`s7_cases.py` 复用 S6 中落在子�
 `s7_fuzz.py` 用固定种子生成整数程序，`s7_abi_cases.py` 覆盖 AAPCS64 子集，
 `s7_toolchain_cases.py` 覆盖 `.s`/`.o`/ELF、显式拒绝与静态一致，
 `s7_static_parity.py` 对全部静态 `.tc` 比较两个工具的首诊，
-`s7_determinism.py` 覆盖 O0/O2、重复构建与重复执行。这些测试需要 `ld.lld` 与
-`qemu-system-aarch64`；CMake 找到两者时才注册。
+`s7_determinism.py` 覆盖 O0/O2、重复构建与重复执行。S7 构建/测试默认要求
+`clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld` 与 `qemu-system-aarch64`；
+缺失时 CMake 配置失败。`-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；
+运行时构建仍需 clang 与 llvm-ar/aarch64-elf-ar。
 32/64 结果分档案保存；差分只在同一档案内比较 VM 与 AOT。
 
 当前全量：`ctest` 39/39（Debug/Release/ASan+UBSan）；harness 754/754
 （557 编译、129 工具、67 运行、1 属性）；单元检查 frontend 688、sem 102、
-ct 370、ir 450、vm 413、aot 34。
+ct 370、ir 674、vm 413、aot 34。

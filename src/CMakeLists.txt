@@ -56,28 +56,45 @@ set_target_properties(tc_core PROPERTIES
     POSITION_INDEPENDENT_CODE OFF)
 
 # Freestanding AArch64 runtime archive used by `tc-aot --emit=obj/elf`.
-# Apple clang can assemble/link AArch64 ELF objects; no host C library is used.
-find_program(TC_LLVM_ARCHIVER NAMES llvm-ar
+# A clang that can target aarch64-none-elf and an archiver that preserves ELF
+# members are required; falling back to the host `ar` silently produces an
+# unusable archive on platforms whose ar only understands Mach-O.
+find_program(TC_AARCH64_CLANG NAMES clang
+    HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
+if(NOT TC_AARCH64_CLANG)
+    message(FATAL_ERROR
+        "clang is required to build the AArch64 freestanding runtime")
+endif()
+find_program(TC_LLVM_ARCHIVER NAMES llvm-ar aarch64-elf-ar
     HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
 if(NOT TC_LLVM_ARCHIVER)
-    set(TC_LLVM_ARCHIVER ${CMAKE_AR})
+    message(FATAL_ERROR
+        "llvm-ar or aarch64-elf-ar is required to build the AArch64 runtime")
+endif()
+find_program(TC_AARCH64_LINKER NAMES ld.lld
+    HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
+if(NOT TC_AARCH64_LINKER)
+    set(TC_AARCH64_LINKER "ld.lld")
 endif()
 set(TC_AARCH64_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/aarch64-runtime)
 set(TC_AARCH64_RUNTIME_LIB ${TC_AARCH64_RUNTIME_DIR}/libtc_aarch64_runtime.a)
 set(TC_AARCH64_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/link.ld)
 target_compile_definitions(tc_core PRIVATE
     TC_AARCH64_RUNTIME_LIB="${TC_AARCH64_RUNTIME_LIB}"
-    TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}")
+    TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}"
+    TC_AARCH64_ASSEMBLER="${TC_AARCH64_CLANG}"
+    TC_AARCH64_LINKER="${TC_AARCH64_LINKER}")
 add_custom_command(
     OUTPUT ${TC_AARCH64_RUNTIME_LIB}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${TC_AARCH64_RUNTIME_DIR}
-    COMMAND ${CMAKE_C_COMPILER} -target aarch64-none-elf -ffreestanding
+    COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
             -nostdlib -fno-zero-initialized-in-bss -O2 -std=c11
             -fno-vectorize -fno-slp-vectorize -fno-stack-protector
+            -mgeneral-regs-only -mstrict-align
             -Wall -Wextra -Werror -I ${CMAKE_CURRENT_SOURCE_DIR}
             -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/runtime.c
             -o ${TC_AARCH64_RUNTIME_DIR}/runtime.o
-    COMMAND ${CMAKE_C_COMPILER} -target aarch64-none-elf -ffreestanding
+    COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
             -nostdlib -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
             -o ${TC_AARCH64_RUNTIME_DIR}/start.o
     COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_AARCH64_RUNTIME_LIB}

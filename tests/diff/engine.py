@@ -328,7 +328,13 @@ def run_cases(cases: list[Case], title: str, keep: bool = False) -> int:
         for item in failures:
             print(f"  {item}")
         return 1
-    print(f"{title}: {len(cases)} case(s) VM/AOT identical")
+    expected_rejections = sum(1 for case in cases if case.unsupported)
+    differential = len(cases) - expected_rejections
+    if expected_rejections:
+        print(f"{title}: {differential} case(s) VM/AOT identical, "
+              f"{expected_rejections} expected rejection(s)")
+    else:
+        print(f"{title}: {len(cases)} case(s) VM/AOT identical")
     return 0
 
 

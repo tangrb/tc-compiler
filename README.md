@@ -60,8 +60,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S7 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`；CMake 找到两者时自动
-注册这些 ctest 项。工具当前支持：
+S7 差分/工具链测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld`
+与 `qemu-system-aarch64`；工具缺失时配置失败。`-DTC_ENABLE_AOT_TESTS=OFF`
+只关闭依赖 lld/qemu 的 ctest 项；构建 AArch64 运行时仍需要 clang 与
+llvm-ar/aarch64-elf-ar，且不用于 G7 门禁构建。
+工具当前支持：
 
 - `--syntax-only <source>`：只做 LEX/SYN；退出 0 表示无 LEX/SYN 诊断，**不是程序有效**。
 - `--sem-only <source>`：执行 LEX/SYN/IMPORT/SEM（含 CFG/DI、调用、安全与注解）；
@@ -76,8 +79,9 @@ S7 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`；CMake 找�
   （默认）/`--emit=obj`/`--emit=elf` 与 `--output=<path>` 生成 `.s`/ELF 目标文件/ELF
   可执行文件，`--opt=O0|O2` 为零 pass 基线。子集外的 opcode/类型/checked build/
   非 W=64 `aarch64-linux-user` 档案显式退出 70，不发布错误产物。
-- AOT 可执行路径为 qemu-system-aarch64 + semihosting（macOS 无 qemu-user，按设计
-  §11 回退）；差分比较程序 stdout、首个 trap 码与退出策略。
+- S7 的 AOT 平台实例为 qemu-system-aarch64 + semihosting；qemu-user/Linux-user
+  用户态运行时尚未实现，不能把该 ELF 当作 Linux 用户程序直接执行。
+  差分比较程序 stdout、首个 trap 码与退出策略。
 
 文件/资源失败的实现级错误使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，
 不伪装成语言诊断。实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；

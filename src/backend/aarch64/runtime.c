@@ -276,11 +276,13 @@ int tc_aarch64_write_scalar(unsigned tag, uint64_t bits, unsigned newline) {
         buffer[len] = '\0';
     }
     if (len != 0) {
-        /* The semihosting console has no separate failure status; the call
-         * either writes the record or the platform terminates.  A single call
-         * keeps the record all-or-nothing. */
-        (void)semihosting_call(TC_SEMIHOST_SYS_WRITE0,
-                            (unsigned long)(uintptr_t)buffer);
+        /* qemu returns a positive byte count for the console write; a negative
+         * value is the semihosting error result.  A single call keeps the
+         * record all-or-nothing. */
+        if (semihosting_call(TC_SEMIHOST_SYS_WRITE0,
+                             (unsigned long)(uintptr_t)buffer) < 0) {
+            return 1;
+        }
     }
     return 0;
 }
@@ -294,8 +296,10 @@ int tc_aarch64_write_scalar(unsigned tag, uint64_t bits, unsigned newline) {
  * an absent loader leaves the RAM zero, which is an empty input stream.  This
  * keeps EOF and short reads observable without depending on host console EOF
  * behavior.  PL011 input is a later freestanding-platform seam. */
-#define TC_INPUT_IMAGE_BASE UINT64_C(0x41000000)
 #define TC_INPUT_IMAGE_MAX UINT64_C(0x00100000)
+
+/* Absolute platform-instance address supplied by the linker script. */
+extern const uint8_t __tc_input_image[];
 
 static int input_loaded = 0;
 static const uint8_t *input_data = NULL;
@@ -304,7 +308,7 @@ static size_t input_pos = 0;
 static int input_pending = -2; /* -2: none, -1: EOF, otherwise a byte */
 
 static const uint8_t *input_image_base(void) {
-    return (const uint8_t *)(uintptr_t)TC_INPUT_IMAGE_BASE;
+    return __tc_input_image;
 }
 
 static void input_load(void) {
@@ -497,7 +501,7 @@ void *memmove(void *dst, const void *src, size_t n) {
     if (d == s || n == 0) {
         return dst;
     }
-    if (d < s) {
+    if ((uintptr_t)d < (uintptr_t)s) {
         for (i = 0; i < n; i++) {
             d[i] = s[i];
         }

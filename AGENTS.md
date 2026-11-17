@@ -38,7 +38,9 @@
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
    trap 退出 1）；普通 `tc-aot` 调用发射 AArch64 子集汇编，`--emit=obj|elf` 经
    clang/lld 生成产物；子集外能力显式退出 70 且不发布错误产物。不得把部分能力
-   写成“已支持”。S7 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`。
+   写成“已支持”。S7 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld` 与
+   `qemu-system-aarch64`；缺失时配置失败。`-DTC_ENABLE_AOT_TESTS=OFF` 只关闭
+   lld/qemu 测试项；运行时构建仍需 clang 与 llvm-ar/aarch64-elf-ar，且不用于门禁。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。

@@ -123,14 +123,22 @@ set_tests_properties(golden.selftest golden.run PROPERTIES WORKING_DIRECTORY ${C
 # --- S7 AArch64 backend, ABI, toolchain and differential --------------------
 #
 # These tests need an AArch64 ELF toolchain and qemu.  qemu-user is not
-# available on every host (design §11 allows qemu-system as the fallback), so
-# the tests are registered only when both tools are present.
+# available on every host (design §11 allows qemu-system as the fallback).  A
+# gate build must not silently omit them: configure fails unless the tools are
+# present, or the user explicitly disables the suite with
+# -DTC_ENABLE_AOT_TESTS=OFF.
 
 find_program(TC_QEMU_SYSTEM_AARCH64 NAMES qemu-system-aarch64)
 find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
-             /usr/local/opt/llvm/bin)
+             /usr/local/opt/llvm/bin /opt/homebrew/bin)
 option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
-if(TC_ENABLE_AOT_TESTS AND TC_QEMU_SYSTEM_AARCH64 AND TC_LLD)
+if(TC_ENABLE_AOT_TESTS AND
+   (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_LLD))
+    message(FATAL_ERROR
+        "S7 AOT tests need qemu-system-aarch64 and ld.lld; install them or "
+        "configure with -DTC_ENABLE_AOT_TESTS=OFF")
+endif()
+if(TC_ENABLE_AOT_TESTS)
     add_test(NAME conformance.s7_diff
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s7_cases.py

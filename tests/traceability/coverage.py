@@ -1337,6 +1337,7 @@ S5_COVERED_ROWS = {
     "design12:11:suite_mapping": [
         "TC-UNIT-IR-0001", "TC-UNIT-IR-0002",
         "TC-UNIT-IR-0003", "TC-UNIT-IR-0004",
+        "TC-UNIT-IR-0009", "TC-UNIT-IR-0010",
     ],
     "design12:11:gate_case": ["TC-UNIT-IR-0001", "TC-UNIT-IR-0005"],
     "design12:12:suite_mapping": [
@@ -1406,7 +1407,15 @@ S7_COVERED_ROWS = {
         "TC-DIFF-A64-0004", "TC-DIFF-A64-0005", "TC-DIFF-A64-0006",
         "TC-DIFF-A64-0007", "TC-DIFF-A64-0008", "TC-DIFF-A64-0009",
         "TC-DIFF-A64-0010", "TC-DIFF-A64-0011", "TC-DIFF-A64-0012",
-        "TC-DIFF-A64-0013",
+        "TC-DIFF-A64-0013", "TC-DIFF-A64-0014", "TC-DIFF-A64-0015",
+        "TC-DIFF-A64-0016", "TC-DIFF-A64-0017", "TC-DIFF-A64-0018",
+        "TC-DIFF-A64-0019", "TC-DIFF-A64-0020", "TC-DIFF-A64-0021",
+        "TC-DIFF-A64-0022", "TC-DIFF-A64-0023", "TC-DIFF-A64-0024",
+        "TC-DIFF-A64-0025", "TC-DIFF-A64-0026", "TC-DIFF-A64-0027",
+        "TC-DIFF-A64-0028", "TC-DIFF-A64-0029", "TC-DIFF-A64-0030",
+        "TC-DIFF-A64-0031", "TC-DIFF-A64-0032", "TC-DIFF-A64-0033",
+        "TC-DIFF-A64-0035", "TC-DIFF-A64-0036", "TC-DIFF-A64-0037",
+        "TC-DIFF-A64-0038",
     ],
     "design12:01:gate_case": ["TC-DIFF-A64-0001"],
     "design12:07:suite_mapping": [

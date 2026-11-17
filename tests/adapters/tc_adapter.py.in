@@ -76,16 +76,16 @@ def _strict_diagnostics(text, case, mode):
     """
     matches = []
     harness = case["_harness"]
-    source = os.path.normpath(harness["source_path"])
-    case_file = harness.get("case_file", source)
-    case_dir = os.path.dirname(os.path.normpath(case_file))
+    source = os.path.realpath(harness["source_path"])
+    case_file = os.path.realpath(harness.get("case_file", source))
+    case_dir = os.path.dirname(case_file)
     expect = case.get("expect") or {}
 
     def resolve_reported(path):
         path = os.path.normpath(path)
         if not os.path.isabs(path):
             path = os.path.normpath(os.path.join(case_dir, path))
-        return path
+        return os.path.realpath(path)
 
     allowed_primary = {source}
     expected_primary = (expect.get("primary") or {}).get("file")
@@ -140,12 +140,15 @@ def _parse_diagnostics(text, case, mode):
     """
     matches = _strict_diagnostics(text, case, mode)
     harness = case["_harness"]
-    source = os.path.normpath(harness["source_path"])
-    case_file = harness.get("case_file", source)
-    case_dir = os.path.dirname(os.path.normpath(case_file))
+    source = os.path.realpath(harness["source_path"])
+    case_file = os.path.realpath(harness.get("case_file", source))
+    case_dir = os.path.dirname(case_file)
 
     def rel(path):
         path = os.path.normpath(path)
+        if not os.path.isabs(path):
+            path = os.path.normpath(os.path.join(case_dir, path))
+        path = os.path.realpath(path)
         if path == source:
             return case["source"]
         return os.path.relpath(path, case_dir).replace(os.sep, "/")

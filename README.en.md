@@ -68,8 +68,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The S7 differential/toolchain tests need `ld.lld` and `qemu-system-aarch64`;
-CMake registers them when both are found. Tools currently support:
+The S7 differential/toolchain tests require `clang`, `llvm-ar` (or
+`aarch64-elf-ar`), `ld.lld` and `qemu-system-aarch64` by default; configuration
+fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
+lld/qemu-dependent ctest entries; building the AArch64 runtime still requires
+clang and llvm-ar/aarch64-elf-ar, and this is not a G7 gate build. Tools
+currently support:
 
 - `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
   **not a valid program**.
@@ -89,9 +93,10 @@ CMake registers them when both are found. Tools currently support:
   `--opt=O0|O2` stays the zero-pass baseline. Opcodes/types outside the subset,
   checked build or a non-W=64 `aarch64-linux-user` profile exit 70 without
   publishing a wrong artifact.
-- The AOT execution path is qemu-system-aarch64 + semihosting on hosts without
-  qemu-user (design §11 fallback); differential tests compare program stdout,
-  the first trap code and the exit policy.
+- The S7 AOT platform instance is qemu-system-aarch64 + semihosting; an
+  EL0/Linux-user runtime is not implemented, so the ELF is not a Linux user
+  program. Differential tests compare program stdout, the first trap code and
+  the exit policy.
 
 Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal`/
 `TC_ERR_OUT_OF_MEMORY`, never a language diagnostic. Documented limits: 4 MiB source,

@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -350,6 +351,17 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             unlink(obj_path);
             unlink(out_path);
             return report(TC_IMPL_IO, options->output);
+        }
+        {
+            struct stat output_status;
+            if (stat(options->output, &output_status) == 0 &&
+                S_ISREG(output_status.st_mode) &&
+                chmod(options->output, 0755) != 0) {
+                unlink(asm_path);
+                unlink(obj_path);
+                unlink(out_path);
+                return report(TC_IMPL_IO, options->output);
+            }
         }
         if (!keep_temporaries) {
             unlink(asm_path);

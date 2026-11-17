@@ -578,7 +578,7 @@
 
 | Row ID | Item | Slot | Status | Case IDs | Spec |
 |---|---|---|---|---|---|
-| `design12:01:suite_mapping` | 1. VM↔AOT 差分 | suite_mapping | **covered** | TC-DIFF-A64-0001, TC-DIFF-A64-0002, TC-DIFF-A64-0003, TC-DIFF-A64-0004, TC-DIFF-A64-0005, TC-DIFF-A64-0006, TC-DIFF-A64-0007, TC-DIFF-A64-0008, TC-DIFF-A64-0009, TC-DIFF-A64-0010, TC-DIFF-A64-0011, TC-DIFF-A64-0012, TC-DIFF-A64-0013 | design §12, test plan §3.6/§8.2 |
+| `design12:01:suite_mapping` | 1. VM↔AOT 差分 | suite_mapping | **covered** | TC-DIFF-A64-0001, TC-DIFF-A64-0002, TC-DIFF-A64-0003, TC-DIFF-A64-0004, TC-DIFF-A64-0005, TC-DIFF-A64-0006, TC-DIFF-A64-0007, TC-DIFF-A64-0008, TC-DIFF-A64-0009, TC-DIFF-A64-0010, TC-DIFF-A64-0011, TC-DIFF-A64-0012, TC-DIFF-A64-0013, TC-DIFF-A64-0014, TC-DIFF-A64-0015, TC-DIFF-A64-0016, TC-DIFF-A64-0017, TC-DIFF-A64-0018, TC-DIFF-A64-0019, TC-DIFF-A64-0020, TC-DIFF-A64-0021, TC-DIFF-A64-0022, TC-DIFF-A64-0023, TC-DIFF-A64-0024, TC-DIFF-A64-0025, TC-DIFF-A64-0026, TC-DIFF-A64-0027, TC-DIFF-A64-0028, TC-DIFF-A64-0029, TC-DIFF-A64-0030, TC-DIFF-A64-0031, TC-DIFF-A64-0032, TC-DIFF-A64-0033, TC-DIFF-A64-0035, TC-DIFF-A64-0036, TC-DIFF-A64-0037, TC-DIFF-A64-0038 | design §12, test plan §3.6/§8.2 |
 | `design12:01:gate_case` | 1. VM↔AOT 差分 | gate_case | **covered** | TC-DIFF-A64-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:02:suite_mapping` | 2. 标准 §13.4 八项一致性 | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:02:gate_case` | 2. 标准 §13.4 八项一致性 | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
@@ -598,7 +598,7 @@
 | `design12:09:gate_case` | 9. 诊断/语法 | gate_case | **covered** | TC-IMP-0001, TC-SEM-MODE-0001, TC-SEM-CALL-0107, TC-SEM-CFG-0004 | design §12, test plan §3.6/§8.2 |
 | `design12:10:suite_mapping` | 10. `@fast_math` | suite_mapping | **uncovered** | — | design §12, test plan §3.6/§8.2 |
 | `design12:10:gate_case` | 10. `@fast_math` | gate_case | **uncovered** | — | design §12, test plan §3.6/§8.2 |
-| `design12:11:suite_mapping` | 11. IR 形态 | suite_mapping | **covered** | TC-UNIT-IR-0001, TC-UNIT-IR-0002, TC-UNIT-IR-0003, TC-UNIT-IR-0004 | design §12, test plan §3.6/§8.2 |
+| `design12:11:suite_mapping` | 11. IR 形态 | suite_mapping | **covered** | TC-UNIT-IR-0001, TC-UNIT-IR-0002, TC-UNIT-IR-0003, TC-UNIT-IR-0004, TC-UNIT-IR-0009, TC-UNIT-IR-0010 | design §12, test plan §3.6/§8.2 |
 | `design12:11:gate_case` | 11. IR 形态 | gate_case | **covered** | TC-UNIT-IR-0001, TC-UNIT-IR-0005 | design §12, test plan §3.6/§8.2 |
 | `design12:12:suite_mapping` | 12. const/静态初值 | suite_mapping | **covered** | TC-UNIT-CT-0001, TC-CT-STATIC-0001, TC-TOOL-CT-MAKE-0001, TC-TOOL-CT-STATIC-0001 | design §12, test plan §3.6/§8.2 |
 | `design12:12:gate_case` | 12. const/静态初值 | gate_case | **covered** | TC-CT-STATIC-0001, TC-UNIT-IR-0003, TC-UNIT-CT-0001 | design §12, test plan §3.6/§8.2 |
