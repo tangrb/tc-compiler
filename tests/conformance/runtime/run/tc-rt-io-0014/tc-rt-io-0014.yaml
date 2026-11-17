@@ -1,0 +1,12 @@
+id: TC-RT-IO-0014
+profile: w32
+source: root.tc
+spec: "§11.3/§13.2.2 W=32 isize input beyond 2^31-1 is out of range -> TC_RE_IO"
+kind: run
+run:
+  stdin_hex: "32313437343833363438"
+expect:
+  stdout_hex: ""
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

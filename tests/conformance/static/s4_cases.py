@@ -1861,6 +1861,158 @@ CASES = [
          "end\n"},
         "SEM", "TC_CE_OPERAND_COUNT",
     ),
+    _case(
+        "TC-SEM-CFG-0030",
+        "§7.7.1 switch 不得因常量选择器删除边：恒 0 选择器仍保留默认标签边，"
+        "默认标签落到 end 的非 void 函数 -> MISSING_RETURN",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public func f() @HERE@int32 then\n"
+         "    _ = switch 0, A, D\n"
+         "    label A:\n"
+         "    _ = br A\n"
+         "    label D:\n"
+         "@REL@end\n"},
+        "SEM", "TC_CE_MISSING_RETURN",
+    ),
+    _case(
+        "TC-SEM-MODE-0106",
+        "§6.15.1 add.wrap 已定义组合但浮点操作数不适用 -> MODE",
+        {"root.tc": PROGRAM +
+         "var x: float64 = add.@HERE@wrap float64, 1.0, 2.0\n"},
+        "SEM", "TC_CE_MODE",
+    ),
+    _case(
+        "TC-SEM-MODE-0107",
+        "§6.3 neg.wrap 只定义于有符号整数；uint32 -> MODE",
+        {"root.tc": PROGRAM +
+         "var x: uint32 = neg.@HERE@wrap uint32, 1\n"},
+        "SEM", "TC_CE_MODE",
+    ),
+    _case(
+        "TC-SEM-MODE-0108",
+        "§6.3 neg.wrap 只定义于有符号整数；float64 -> MODE",
+        {"root.tc": PROGRAM +
+         "var x: float64 = neg.@HERE@wrap float64, 1.0\n"},
+        "SEM", "TC_CE_MODE",
+    ),
+    _case(
+        "TC-SEM-MODE-0109",
+        "§6.15.1 mul.ieee 已定义组合但整数操作数不适用 -> MODE",
+        {"root.tc": PROGRAM +
+         "var x: int32 = mul.@HERE@ieee int32, 1, 2\n"},
+        "SEM", "TC_CE_MODE",
+    ),
+    _case(
+        "TC-SEM-CALL-0128",
+        "§8.8.2/#10 未知实参先于缺失实参 -> UNKNOWN_ARGUMENT",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "var r: int32 = call lib.f, @HERE@x: 1\n",
+         "lib.tc": LIB +
+         "public func f(a: int32, b: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_UNKNOWN_ARGUMENT",
+    ),
+    _case(
+        "TC-SEM-CALL-0129",
+        "§8.8.2/#10 命名实参顺序先于实参类型：顺序不符 + 字面量类型错 -> "
+        "ARGUMENT_ORDER",
+        {"root.tc": PROGRAM +
+         "import lib\n"
+         "var r: int32 = call lib.f, @HERE@b: true, a: 2\n",
+         "lib.tc": LIB +
+         "public func f(a: int32, b: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_ARGUMENT_ORDER",
+    ),
+    _case(
+        "TC-SEM-CALL-0130",
+        "§3.7/#10 make 未知字段先于缺失字段 -> UNKNOWN_FIELD",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    var a: int32\n"
+         "    var b: int32\n"
+         "end\n"
+         "var s: S = make S, @HERE@z: 1\n"},
+        "SEM", "TC_CE_UNKNOWN_FIELD",
+    ),
+    _case(
+        "TC-SEM-CALL-0131",
+        "§3.7/#10 make 重复字段先于未知字段 -> DUPLICATE_FIELD",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    var a: int32\n"
+         "    var b: int32\n"
+         "end\n"
+         "var s: S = make S, @REL@a: 1, @HERE@a: 2, z: 3\n"},
+        "SEM", "TC_CE_DUPLICATE_FIELD",
+    ),
+    _case(
+        "TC-SEM-CALL-0132",
+        "§3.7/#10 make 缺失字段先于顺序 -> MISSING_FIELD",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    var a: int32\n"
+         "    var b: int32\n"
+         "    var c: int32\n"
+         "end\n"
+         "var s: S = make @HERE@S, c: 1, b: 2\n"},
+        "SEM", "TC_CE_MISSING_FIELD",
+    ),
+    _case(
+        "TC-SEM-CALL-0133",
+        "§8.8.2 调用安全先于实参检查：安全代码调用 @unsafe 目标 + 未知命名实参 "
+        "-> UNSAFE_CALL",
+        {"root.tc": PROGRAM + "import lib\n"
+         "var r: int32 = @HERE@call lib.f, x: 1\n",
+         "lib.tc": LIB +
+         "public @unsafe func f(a: int32, b: int32) int32 then\n"
+         "    _ = return a\n"
+         "end\n"},
+        "SEM", "TC_CE_UNSAFE_CALL",
+    ),
+    _case(
+        "TC-SEM-CALL-0134",
+        "§3.7/#10 make 命名字段顺序先于字段值类型 -> FIELD_ORDER",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    var a: int32\n"
+         "    var b: int32\n"
+         "end\n"
+         "var s: S = make S, @HERE@b: 2, a: true\n"},
+        "SEM", "TC_CE_FIELD_ORDER",
+    ),
+    _case(
+        "TC-SEM-CALL-0135",
+        "§12.2 #3 同行多个未知 make 字段按列号升序取最左者 -> UNKNOWN_FIELD",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    var a: int32\n"
+         "end\n"
+         "var s: S = make S, @HERE@z: 1, w: 2\n"},
+        "SEM", "TC_CE_UNKNOWN_FIELD",
+    ),
+    _case(
+        "TC-SEM-DI-0010",
+        "§12.2 #2 跨模块按 import 源序深度优先：a.tc 第 5 行的类型错误先于 "
+        "b.tc 第 2 行的重复形参，即使后者源行更早",
+        {"root.tc": PROGRAM + "import a\nimport b\n",
+         "a.tc": LIB +
+         "public func f() int32 then\n"
+         "    var v: bool = copy bool, true\n"
+         "    var t: bool = copy bool, false\n"
+         "    var w: int32 = copy int32, @HERE@v\n"
+         "    _ = return w\n"
+         "end\n",
+         "b.tc": LIB +
+         "public func g(u: int32, u: int32) int32 then\n"
+         "    _ = return u\n"
+         "end\n"},
+        "SEM", "TC_CE_TYPE_MISMATCH",
+    ),
 ]
 
 
@@ -2499,6 +2651,31 @@ POSITIVE = [
          "_ = br E\n"
          "label E:\n"
          "_ = br_if true, E\n"},
+    ),
+    _positive(
+        "TC-SEM-SAFE-0118",
+        "§3.7/§6.14 整块赋值可替换含 readonly 字段的整个结构体值；同值写回合法",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    readonly x: int32\n"
+         "    var y: int32\n"
+         "end\n"
+         "var s: S = make S, 1, 2\n"
+         "var t: S = copy S, s\n"
+         "s = copy S, t\n"
+         "_ = writeln int32, s.y\n"},
+    ),
+    _positive(
+        "TC-SEM-SAFE-0119",
+        "§6.14 readonly 只约束其自身路径的子树；同层 var 兄弟字段仍可字段赋值",
+        {"root.tc": PROGRAM +
+         "struct S then\n"
+         "    readonly x: int32\n"
+         "    var y: int32\n"
+         "end\n"
+         "var s: S = make S, 1, 2\n"
+         "s.y = copy int32, 3\n"
+         "_ = writeln int32, s.y\n"},
     ),
 ]
 

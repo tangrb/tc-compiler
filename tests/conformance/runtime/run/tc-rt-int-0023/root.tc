@@ -1,0 +1,9 @@
+#program
+var a: int64 = neg.wrap int64, -9223372036854775808
+_ = writeln int64, a
+var b: int64 = shl.wrap int64, 1, 64
+_ = writeln int64, b
+var c: int64 = shr int64, -1, 64
+_ = writeln int64, c
+var d: int64 = shr int64, -1, 63
+_ = writeln int64, d

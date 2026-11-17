@@ -1,0 +1,2 @@
+#program
+var a: uint32 = shl uint32, 3, 31

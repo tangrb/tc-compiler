@@ -1154,6 +1154,525 @@ CASES = [
         )},
         trap="TC_RE_NULL_POINTER",
     ),
+    # ------------------------------------------------------------------
+    # Integer edge adversarial cases (§6.3 strict/wrap, W-flip §13.2.2).
+    run_case(
+        "TC-RT-INT-0020", "w64",
+        "§6.3 int64 edges: mod(INT64_MIN,-1) is 0; div(INT64_MAX,1) is exact",
+        files={"root.tc": program(
+            "var a: int64 = mod int64, -9223372036854775808, -1",
+            "_ = writeln int64, a",
+            "var b: int64 = div int64, 9223372036854775807, 1",
+            "_ = writeln int64, b",
+        )},
+        out="0\n9223372036854775807\n",
+    ),
+    run_case(
+        "TC-RT-INT-0021", "w64",
+        "§6.3 int64 div(INT64_MIN,-1) overflows -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: int64 = div int64, -9223372036854775808, -1",
+        )},
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0022", "w64",
+        "§6.3 int64 neg(INT64_MIN) overflows -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: int64 = neg int64, -9223372036854775808",
+        )},
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0023", "w64",
+        "§6.3 int64 wrap and wide-shift paths: neg.wrap(INT64_MIN), shl.wrap k>=n, "
+        "shr k>=n returns 0 without sign extension, shr k=n-1 is arithmetic",
+        files={"root.tc": program(
+            "var a: int64 = neg.wrap int64, -9223372036854775808",
+            "_ = writeln int64, a",
+            "var b: int64 = shl.wrap int64, 1, 64",
+            "_ = writeln int64, b",
+            "var c: int64 = shr int64, -1, 64",
+            "_ = writeln int64, c",
+            "var d: int64 = shr int64, -1, 63",
+            "_ = writeln int64, d",
+        )},
+        out="-9223372036854775808\n0\n0\n-1\n",
+    ),
+    run_case(
+        "TC-RT-INT-0024", "w64",
+        "§6.3 k>=n: strict shl of a=0 is defined 0, nonzero a traps -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: int64 = shl int64, 0, 64",
+            "_ = writeln int64, a",
+            "var b: int64 = shl int64, 1, 64",
+        )},
+        out="0\n",
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0025", "w64",
+        "§6.3 unsigned strict shl k>=n with nonzero a overflows -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: usize = shl usize, 1, 64",
+        )},
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0026", "w64",
+        "§6.3 unsigned multiplication wraps silently at both widths",
+        files={"root.tc": program(
+            "var a: uint32 = mul uint32, 4294967295, 3",
+            "_ = writeln uint32, a",
+            "var b: uint64 = mul uint64, 18446744073709551615, 2",
+            "_ = writeln uint64, b",
+        )},
+        out="4294967293\n18446744073709551614\n",
+    ),
+    run_case(
+        "TC-RT-INT-0027", "w64",
+        "§6.3 mode matrix: unsigned shl defaults to strict; k=n-1 with a fitting "
+        "result is exact and shl.wrap on unsigned shl is a defined combination",
+        files={"root.tc": program(
+            "var a: uint32 = shl uint32, 1, 31",
+            "_ = writeln uint32, a",
+            "var b: uint32 = shl.wrap uint32, 3, 31",
+            "_ = writeln uint32, b",
+        )},
+        out="2147483648\n2147483648\n",
+    ),
+    run_case(
+        "TC-RT-INT-0034", "w64",
+        "§6.3 unsigned strict shl whose result does not fit T traps -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: uint32 = shl uint32, 3, 31",
+        )},
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0028", "w64",
+        "§6.3 trunc-division sign grid for all divisor-sign combinations",
+        files={"root.tc": program(
+            "var a: int32 = div int32, -7, -2",
+            "_ = writeln int32, a",
+            "var b: int32 = mod int32, -7, -2",
+            "_ = writeln int32, b",
+            "var c: int32 = div int32, 7, -2",
+            "_ = writeln int32, c",
+            "var d: int32 = mod int32, 7, -2",
+            "_ = writeln int32, d",
+            "var e: int32 = div int32, -7, 2",
+            "_ = writeln int32, e",
+            "var f: int32 = mod int32, -7, 2",
+            "_ = writeln int32, f",
+        )},
+        out="3\n-1\n-3\n1\n-3\n-1\n",
+    ),
+    run_case(
+        "TC-RT-INT-0029", "w32",
+        "§6.3/§13.2.2 W=32 isize INT_MIN edges: mod by -1 is 0; div by 1 exact",
+        files={"root.tc": program(
+            "var a: isize = mod isize, -2147483648, -1",
+            "_ = writeln isize, a",
+            "var b: isize = div isize, 2147483647, 1",
+            "_ = writeln isize, b",
+        )},
+        out="0\n2147483647\n",
+    ),
+    run_case(
+        "TC-RT-INT-0030", "w32",
+        "§6.3/§13.2.2 W=32 isize div(INT_MIN,-1) overflows -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: isize = div isize, -2147483648, -1",
+        )},
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0031", "w32",
+        "§6.3/§13.2.2 W=32 isize k>=n: shl of 0 is 0, shl of 1 traps -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: isize = shl isize, 0, 32",
+            "_ = writeln isize, a",
+            "var b: isize = shl isize, 1, 32",
+        )},
+        out="0\n",
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-INT-0032", "w32",
+        "§6.3/§13.2.2 int64 arithmetic under W=32 stays 64-bit exact",
+        files={"root.tc": program(
+            "var a: int64 = mul int64, 3037000499, 3037000499",
+            "_ = writeln int64, a",
+            "var b: int64 = div int64, 9223372036854775807, 2",
+            "_ = writeln int64, b",
+            "var c: int64 = shl int64, 1, 62",
+            "_ = writeln int64, c",
+        )},
+        out="9223372030926249001\n4611686018427387903\n4611686018427387904\n",
+    ),
+    run_case(
+        "TC-RT-INT-0033", "w32",
+        "§6.3 int64 strict multiplication overflow under W=32 -> TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var a: int64 = mul int64, 3037000500, 3037000500",
+        )},
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    # ------------------------------------------------------------------
+    # Floating exception priority and mod edge adversarial cases (§6.3.1-§6.3.3).
+    run_case(
+        "TC-RT-FP-0010", "w64",
+        "§6.3.1 0/0 is an invalid operation, not division by zero -> TC_RE_FLOAT_INVALID",
+        files={"root.tc": program(
+            "var z: float64 = copy float64, 0.0",
+            "var x: float64 = div float64, z, z",
+        )},
+        trap="TC_RE_FLOAT_INVALID",
+    ),
+    run_case(
+        "TC-RT-FP-0011", "w64",
+        "§6.3.1 NaN operand beats division-by-zero classification -> TC_RE_FLOAT_INVALID",
+        files={"root.tc": program(
+            "var n: float64 = copy float64, nan",
+            "var z: float64 = copy float64, 0.0",
+            "var x: float64 = div float64, n, z",
+        )},
+        trap="TC_RE_FLOAT_INVALID",
+    ),
+    run_case(
+        "TC-RT-FP-0012", "w64",
+        "§6.5 unordered comparisons: eq/lt/le/gt/ge are false, ne is true for NaN",
+        files={"root.tc": program(
+            "var n: float64 = copy float64, nan",
+            "var a: bool = eq float64, n, n",
+            "_ = writeln bool, a",
+            "var b: bool = ne float64, n, n",
+            "_ = writeln bool, b",
+            "var c: bool = lt float64, n, n",
+            "_ = writeln bool, c",
+            "var d: bool = le float64, n, n",
+            "_ = writeln bool, d",
+            "var e: bool = gt float64, n, n",
+            "_ = writeln bool, e",
+            "var f: bool = ge float64, n, n",
+            "_ = writeln bool, f",
+        )},
+        out="false\ntrue\nfalse\nfalse\nfalse\nfalse\n",
+    ),
+    run_case(
+        "TC-RT-FP-0013", "w64",
+        "§6.3.3 exact zero remainder keeps the dividend sign in mod",
+        files={"root.tc": program(
+            "var a: float64 = mod float64, 5.0, 2.5",
+            "_ = writeln float64, a",
+            "var b: float64 = mod float64, -5.0, 2.5",
+            "_ = writeln float64, b",
+        )},
+        out="0\n-0\n",
+    ),
+    run_case(
+        "TC-RT-FP-0014", "w64",
+        "§6.3.3 mod with b=-inf returns the dividend bit-exactly",
+        files={"root.tc": program(
+            "var n: float64 = copy float64, -inf",
+            "var r: float64 = mod float64, 3.5, n",
+            "_ = writeln float64, r",
+        )},
+        out="3.5\n",
+    ),
+    run_case(
+        "TC-RT-FP-0015", "w64",
+        "§6.3.3 mod exact rational remainder for a power-of-two dividend: 2^60 mod 3 = 1",
+        files={"root.tc": program(
+            "var a: float64 = mod float64, 1152921504606846976.0, 3.0",
+            "_ = writeln float64, a",
+            "var b: float64 = mod float64, -1152921504606846976.0, 3.0",
+            "_ = writeln float64, b",
+        )},
+        out="1\n-1\n",
+    ),
+    run_case(
+        "TC-RT-FP-0016", "w64",
+        "§6.3 neg/abs flip only the sign bit: zeros stay zeros, NaN stays NaN",
+        files={"root.tc": program(
+            "var a: float64 = neg float64, -0.0",
+            "_ = writeln float64, a",
+            "var b: float64 = abs float64, -0.0",
+            "_ = writeln float64, b",
+            "var c: float64 = neg float64, inf",
+            "_ = writeln float64, c",
+            "var d: float64 = abs float64, -inf",
+            "_ = writeln float64, d",
+            "var e: float64 = neg float64, nan",
+            "_ = writeln float64, e",
+            "var f: float64 = abs float64, nan",
+            "_ = writeln float64, f",
+        )},
+        out="0\n0\n-inf\ninf\nnan\nnan\n",
+    ),
+    run_case(
+        "TC-RT-FP-0017", "w64",
+        "§6.3.2 .ieee subnormal boundary: half of min subnormal rounds to zero (RT2E tie), "
+        "three times min subnormal is an exact subnormal",
+        files={"root.tc": program(
+            "var a: float64 = mul.ieee float64, 5.0e-324, 0.5",
+            "_ = writeln float64, a",
+            "var b: float64 = mul.ieee float64, 5.0e-324, 3.0",
+            "_ = writeln float64, b",
+        )},
+        out="0\n1.4822e-323\n",
+    ),
+    run_case(
+        "TC-RT-FP-0018", "w64",
+        "§6.3.2 strict product below min subnormal is inexact and tiny -> TC_RE_FLOAT_UNDERFLOW",
+        files={"root.tc": program(
+            "var a: float64 = mul float64, 5.0e-324, 0.5",
+        )},
+        trap="TC_RE_FLOAT_UNDERFLOW",
+    ),
+    run_case(
+        "TC-RT-FP-0019", "w64",
+        "§11.2 %g round-to-even ties at the 7th significant digit and rounding just above",
+        files={"root.tc": program(
+            "var a: float64 = copy float64, 1234555.0",
+            "_ = writeln float64, a",
+            "var b: float64 = copy float64, 1234545.0",
+            "_ = writeln float64, b",
+            "var c: float64 = copy float64, 1234560.0",
+            "_ = writeln float64, c",
+            "var d: float64 = copy float64, 1234567.0",
+            "_ = writeln float64, d",
+        )},
+        out="1.23456e+06\n1.23454e+06\n1.23456e+06\n1.23457e+06\n",
+    ),
+    run_case(
+        "TC-RT-FP-0020", "w64",
+        "§11.2 %g exponent boundary: e=-4 stays fixed, e=-5 goes scientific; 7th digit rounds",
+        files={"root.tc": program(
+            "var a: float64 = copy float64, 0.000123456",
+            "_ = writeln float64, a",
+            "var b: float64 = copy float64, 0.0000123456",
+            "_ = writeln float64, b",
+            "var c: float64 = copy float64, 0.0001234567",
+            "_ = writeln float64, c",
+        )},
+        out="0.000123456\n1.23456e-05\n0.000123457\n",
+    ),
+    # ------------------------------------------------------------------
+    # Conversion edge adversarial cases (§6.6, §6.6.1).
+    run_case(
+        "TC-RT-CONV-0010", "w64",
+        "§6.6.1 int-to-int cast narrowing overflow -> TC_RE_CAST_OVERFLOW",
+        files={"root.tc": program(
+            "var a: int64 = copy int64, 200",
+            "var b: int8 = cast int8, a",
+        )},
+        trap="TC_RE_CAST_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-CONV-0011", "w64",
+        "§6.6.3 int-to-float cast rounds-to-even at the 2^53 and 2^52 boundaries",
+        files={"root.tc": program(
+            "var a: float64 = cast float64, 9007199254740993",
+            "_ = writeln float64, a",
+            "var b: float64 = cast float64, 4503599627370497",
+            "_ = writeln float64, b",
+        )},
+        out="9.0072e+15\n4.5036e+15\n",
+    ),
+    run_case(
+        "TC-RT-CONV-0012", "w64",
+        "§6.6.1 f64-to-f32 cast of a finite value beyond binary32 range -> TC_RE_CAST_OVERFLOW",
+        files={"root.tc": program(
+            "var a: float64 = copy float64, 1.0e300",
+            "var b: float32 = cast float32, a",
+        )},
+        trap="TC_RE_CAST_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-CONV-0013", "w64",
+        "§6.6 f32-to-f64 widening preserves the binary32 value exactly",
+        files={"root.tc": program(
+            "var a: float32 = copy float32, 0.1f",
+            "var b: float64 = cast float64, a",
+            "_ = writeln float64, b",
+        )},
+        out="0.1\n",
+    ),
+    # ------------------------------------------------------------------
+    # Input edge adversarial cases (§11.3).
+    run_case(
+        "TC-RT-IO-0007", "w64",
+        "§11.3 float input accepts inf, -0.0 and exponent tokens; -0 stays negative",
+        files={"root.tc": program(
+            "var a: float64 = read float64",
+            "_ = writeln float64, a",
+            "var b: float64 = read float64",
+            "_ = writeln float64, b",
+            "var c: float64 = read float64",
+            "_ = writeln float64, c",
+        )},
+        stdin="inf -0.0 1e5",
+        out="inf\n-0\n100000\n",
+    ),
+    run_case(
+        "TC-RT-IO-0008", "w64",
+        "§11.3 '+' is rejected even in the exponent of a float token -> TC_RE_IO",
+        files={"root.tc": program(
+            "var a: float64 = read float64",
+        )},
+        stdin="1e+5",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0009", "w64",
+        "§11.3 'f' suffix is not part of an input float token -> TC_RE_IO",
+        files={"root.tc": program(
+            "var a: float64 = read float64",
+        )},
+        stdin="1.5f",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0010", "w64",
+        "§11.3 input token that rounds to infinity is out of range -> TC_RE_IO",
+        files={"root.tc": program(
+            "var a: float64 = read float64",
+        )},
+        stdin="1e400",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0011", "w64",
+        "§11.3 nonzero input token that rounds to zero is out of range -> TC_RE_IO",
+        files={"root.tc": program(
+            "var a: float64 = read float64",
+        )},
+        stdin="1e-400",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0012", "w64",
+        "§11.3 input decimal 2^52+0.5 rounds to even at the binary64 boundary",
+        files={"root.tc": program(
+            "var a: float64 = read float64",
+            "_ = writeln float64, a",
+        )},
+        stdin="4503599627370496.5",
+        out="4.5036e+15\n",
+    ),
+    run_case(
+        "TC-RT-IO-0013", "w64",
+        "§11.3 read at EOF fails even when the result is discarded with `_` -> TC_RE_IO",
+        files={"root.tc": program(
+            "_ = read float64",
+        )},
+        stdin="",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0014", "w32",
+        "§11.3/§13.2.2 W=32 isize input beyond 2^31-1 is out of range -> TC_RE_IO",
+        files={"root.tc": program(
+            "var a: isize = read isize",
+        )},
+        stdin="2147483648",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0015", "w64",
+        "§11.3 isize input beyond 2^63-1 is out of range -> TC_RE_IO",
+        files={"root.tc": program(
+            "var a: isize = read isize",
+        )},
+        stdin="9223372036854775808",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0016", "w64",
+        "§11.3 binary32 input keeps a negative zero through read and print",
+        files={"root.tc": program(
+            "var a: float32 = read float32",
+            "_ = writeln float32, a",
+        )},
+        stdin="-0",
+        out="-0\n",
+    ),
+    # ------------------------------------------------------------------
+    # Call depth boundary adversarial cases (§1.2, §8.8.3).
+    run_case(
+        "TC-RT-CALL-0007", "w64",
+        "§1.2 depth D=512: exactly 512 active calls succeed and return",
+        files={
+            "root.tc": program(
+                "import lib",
+                "var r: int32 = call lib.down, 511",
+                "_ = writeln int32, r",
+            ),
+            "lib.tc": library(
+                "public func down(n: int32) int32 then",
+                "var c: bool = eq int32, n, 0",
+                "_ = br_if c, fin",
+                "var m: int32 = sub int32, n, 1",
+                "var r: int32 = call Self.down, m",
+                "var s: int32 = add int32, r, 1",
+                "_ = return s",
+                "label fin:",
+                "_ = return n",
+                "end",
+            ),
+        },
+        out="511\n",
+    ),
+    run_case(
+        "TC-RT-CALL-0008", "w64",
+        "§1.2 depth D=512: the call that would create the 513th frame traps -> TC_RE_STACK_OVERFLOW",
+        files={
+            "root.tc": program(
+                "import lib",
+                "var r: int32 = call lib.down, 512",
+            ),
+            "lib.tc": library(
+                "public func down(n: int32) int32 then",
+                "var c: bool = eq int32, n, 0",
+                "_ = br_if c, fin",
+                "var m: int32 = sub int32, n, 1",
+                "var r: int32 = call Self.down, m",
+                "var s: int32 = add int32, r, 1",
+                "_ = return s",
+                "label fin:",
+                "_ = return n",
+                "end",
+            ),
+        },
+        trap="TC_RE_STACK_OVERFLOW",
+    ),
+    # ------------------------------------------------------------------
+    # Field sub-object one-past adversarial case (§3.12, §6.8).
+    run_case(
+        "TC-RT-MEM-0018", "w64",
+        "§3.12/§6.8 field one-past: ptradd n=0, ptrsub back are defined and "
+        "ptrdiff is the exact byte difference (8 bytes for one int64 element)",
+        files={"root.tc": program(
+            "struct S then",
+            "var a: int64",
+            "var b: int64",
+            "end",
+            "var s: S = make S, 7, 9",
+            "var p: ptr<int64> = addr int64, s.a",
+            "unsafe then",
+            "var q: ptr<int64> = ptradd int64, p, 1",
+            "var r: ptr<int64> = ptradd int64, q, 0",
+            "var t: ptr<int64> = ptrsub int64, r, 1",
+            "var v: int64 = load int64, t",
+            "var d: isize = ptrdiff int64, q, p",
+            "end",
+            "_ = writeln int64, v",
+            "_ = writeln isize, d",
+        )},
+        out="7\n8\n",
+    ),
 ]
 
 

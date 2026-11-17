@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0016
+profile: common
+source: suffix_shr_nsw.tc
+spec: "§6.15.1/§10.9 .nsw/.nuw 只定义于 add/sub/mul/shl；(shr,nsw) 组合 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: suffix_shr_nsw.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

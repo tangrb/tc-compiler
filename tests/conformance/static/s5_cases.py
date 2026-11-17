@@ -288,6 +288,14 @@ CASES = [
          "end\n"},
         "SEM", "TC_CE_CONST_FORM",
     ),
+    _case(
+        "TC-CT-FORM-0016",
+        "§3.10 正向允许集不含 I/O 出向指令：const 初始化器中的 write 不在 "
+        "const_expr 形态内 -> CONST_FORM（SEM）；§12.5.1 定位到违规 op",
+        {"root.tc": PROGRAM +
+         "const K: int32 = @HERE@write int64, 5\n"},
+        "SEM", "TC_CE_CONST_FORM",
+    ),
     # ------------------------------------------------------------------
     # CT evaluation failures (§3.10/§4.10/§6.3/§6.6.1).  Primary position is
     # the target declaration; the convention is the declaration identifier.
@@ -389,6 +397,15 @@ CASES = [
         {"root.tc": ROOT_IMPORT_LIB,
          "lib.tc": LIB +
          "public const @HERE@BAD: float64 = mul float64, 0.0, inf\n"},
+        "CT", "TC_CE_CONST_FLOAT_INVALID",
+    ),
+    _case(
+        "TC-CT-FLOATINVALID-0003",
+        "§3.10/§6.3.1 strict 浮点 0/0 属无效操作行而非除零行 -> "
+        "CONST_FLOAT_INVALID，不报 CONST_DIV_ZERO；§12.5.1 目标声明",
+        {"root.tc": ROOT_IMPORT_LIB,
+         "lib.tc": LIB +
+         "public const @HERE@BAD: float64 = div float64, 0.0, 0.0\n"},
         "CT", "TC_CE_CONST_FLOAT_INVALID",
     ),
     _case(

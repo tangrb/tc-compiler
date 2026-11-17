@@ -645,6 +645,93 @@ CHECKED_CASES = [
         out="24\n",
         checked=True,
     ),
+    engine.case(
+        "TC-CHK-S8-0033",
+        "§3.12/§6.7 memmove of a positive count from an uninitialized source object "
+        "reports ADDR_UNAVAILABLE in a checked build",
+        root=P(
+            "var flag: bool = read bool",
+            "_ = br_if flag, Ldecl",
+            "var src: int64 = copy int64, 1",
+            "label Ldecl:",
+            "var dst: int64 = copy int64, 2",
+            "var p: ptr<int64> = addr int64, src",
+            "var q: ptr<int64> = addr int64, dst",
+            "unsafe then",
+            "_ = memmove int64, q, p, 1",
+            "end",
+        ),
+        stdin="true",
+        trap="TC_RE_ADDR_UNAVAILABLE",
+        checked=True,
+    ),
+    engine.case(
+        "TC-CHK-S8-0034",
+        "§3.12 memmove with zero elements still rejects a dangling destination "
+        "pointer in a checked build",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var p: ptr<int64> = call lib.leak",
+                "var b: int64 = copy int64, 4",
+                "var pb: ptr<int64> = addr int64, b",
+                "unsafe then",
+                "_ = memmove int64, p, pb, 0",
+                "end",
+            ),
+            "lib.tc": L(
+                "public func leak() ptr<int64> then",
+                "var x: int64 = copy int64, 5",
+                "var q: ptr<int64> = addr int64, x",
+                "_ = return q",
+                "end",
+            ),
+        },
+        trap="TC_RE_ADDR_UNAVAILABLE",
+        checked=True,
+    ),
+    engine.case(
+        "TC-CHK-S8-0035",
+        "§6.3 integer division by zero is a mandatory trap that also fires in a checked build",
+        root=P(
+            "var z: int32 = copy int32, 0",
+            "var x: int32 = div int32, 1, z",
+        ),
+        trap="TC_RE_DIV_ZERO",
+        checked=True,
+    ),
+    engine.case(
+        "TC-CHK-S8-0036",
+        "§6.6.1 cast overflow is a mandatory trap that also fires in a checked build",
+        root=P(
+            "var a: int64 = copy int64, 200",
+            "var b: int8 = cast int8, a",
+        ),
+        trap="TC_RE_CAST_OVERFLOW",
+        checked=True,
+    ),
+    engine.case(
+        "TC-CHK-S8-0037",
+        "§6.7/§8 device-rejected access is a mandatory trap that also fires in a checked build",
+        root=P(
+            "var a: usize = copy usize, 0x20000000",
+            "unsafe then",
+            "var p: ptr<int32> = bitcast ptr<int32>, a",
+            "var x: int32 = load int32, p",
+            "end",
+        ),
+        trap="TC_RE_ADDR_UNAVAILABLE",
+        checked=True,
+    ),
+    engine.case(
+        "TC-CHK-S8-0038",
+        "§6.3.2 strict float underflow is a mandatory trap that also fires in a checked build",
+        root=P(
+            "var a: float64 = mul float64, 5.0e-324, 0.5",
+        ),
+        trap="TC_RE_FLOAT_UNDERFLOW",
+        checked=True,
+    ),
 ]
 
 def w64_s6_ids() -> list[str]:

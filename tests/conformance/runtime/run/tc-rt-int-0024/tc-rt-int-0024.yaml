@@ -1,0 +1,10 @@
+id: TC-RT-INT-0024
+profile: w64
+source: root.tc
+spec: "§6.3 k>=n: strict shl of a=0 is defined 0, nonzero a traps -> TC_RE_INTEGER_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: "300a"
+  trap: TC_RE_INTEGER_OVERFLOW
+  exit: 1
+  termination: trap

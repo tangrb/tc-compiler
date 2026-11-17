@@ -1,0 +1,13 @@
+#program
+var a: int32 = div int32, -7, -2
+_ = writeln int32, a
+var b: int32 = mod int32, -7, -2
+_ = writeln int32, b
+var c: int32 = div int32, 7, -2
+_ = writeln int32, c
+var d: int32 = mod int32, 7, -2
+_ = writeln int32, d
+var e: int32 = div int32, -7, 2
+_ = writeln int32, e
+var f: int32 = mod int32, -7, 2
+_ = writeln int32, f

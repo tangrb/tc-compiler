@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0013
+profile: common
+source: suffix_br_wrap.tc
+spec: "§6.15.1 (br,wrap) 组合从未定义 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: suffix_br_wrap.tc, line: 3, column: 5}
+  related: []
+  diagnostics: exactly-one

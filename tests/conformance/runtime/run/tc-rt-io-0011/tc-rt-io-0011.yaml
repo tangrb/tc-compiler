@@ -1,0 +1,12 @@
+id: TC-RT-IO-0011
+profile: w64
+source: root.tc
+spec: "§11.3 nonzero input token that rounds to zero is out of range -> TC_RE_IO"
+kind: run
+run:
+  stdin_hex: "31652d343030"
+expect:
+  stdout_hex: ""
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

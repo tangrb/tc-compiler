@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0030
+profile: common
+source: fixtures/tc-sem-cfg-0030/root.tc
+spec: "§7.7.1 switch 不得因常量选择器删除边：恒 0 选择器仍保留默认标签边，默认标签落到 end 的非 void 函数 -> MISSING_RETURN"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0030/lib.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0030/lib.tc, line: 7, column: 1}]
+  diagnostics: exactly-one

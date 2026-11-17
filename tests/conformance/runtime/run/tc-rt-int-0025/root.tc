@@ -1,0 +1,2 @@
+#program
+var a: usize = shl usize, 1, 64

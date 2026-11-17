@@ -1,0 +1,2 @@
+#program
+var x: int8 = cast.nsw int8, 1

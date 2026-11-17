@@ -1,0 +1,10 @@
+id: TC-RT-FP-0016
+profile: w64
+source: root.tc
+spec: "§6.3 neg/abs flip only the sign bit: zeros stay zeros, NaN stays NaN"
+kind: run
+expect:
+  stdout_hex: "300a300a2d696e660a696e660a6e616e0a6e616e0a"
+  trap: null
+  exit: 0
+  termination: normal

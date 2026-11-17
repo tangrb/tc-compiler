@@ -1,0 +1,12 @@
+id: TC-SEM-SAFE-0119
+profile: common
+source: tc-sem-safe-0119/root.tc
+spec: "§6.14 readonly 只约束其自身路径的子树；同层 var 兄弟字段仍可字段赋值"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

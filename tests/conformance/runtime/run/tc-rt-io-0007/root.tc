@@ -1,0 +1,7 @@
+#program
+var a: float64 = read float64
+_ = writeln float64, a
+var b: float64 = read float64
+_ = writeln float64, b
+var c: float64 = read float64
+_ = writeln float64, c

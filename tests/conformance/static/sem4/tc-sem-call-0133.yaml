@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0133
+profile: common
+source: fixtures/tc-sem-call-0133/root.tc
+spec: "§8.8.2 调用安全先于实参检查：安全代码调用 @unsafe 目标 + 未知命名实参 -> UNSAFE_CALL"
+expect:
+  stage: SEM
+  code: TC_CE_UNSAFE_CALL
+  primary: {file: fixtures/tc-sem-call-0133/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

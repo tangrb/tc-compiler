@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0134
+profile: common
+source: fixtures/tc-sem-call-0134/root.tc
+spec: "§3.7/#10 make 命名字段顺序先于字段值类型 -> FIELD_ORDER"
+expect:
+  stage: SEM
+  code: TC_CE_FIELD_ORDER
+  primary: {file: fixtures/tc-sem-call-0134/root.tc, line: 6, column: 20}
+  related: []
+  diagnostics: exactly-one

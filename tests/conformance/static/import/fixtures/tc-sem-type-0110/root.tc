@@ -1,0 +1,3 @@
+#program
+var f: float64 = copy float64, 1.5
+var x: int8 = trunc int8, f

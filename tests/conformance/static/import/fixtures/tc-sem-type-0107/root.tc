@@ -1,0 +1,4 @@
+#program
+import lib
+var fv: fnptr<int32, int32> = funcaddr lib.f
+var x: int32 = cast int32, fv

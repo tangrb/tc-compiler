@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0107
+profile: common
+source: fixtures/tc-sem-mode-0107/root.tc
+spec: "§6.3 neg.wrap 只定义于有符号整数；uint32 -> MODE"
+expect:
+  stage: SEM
+  code: TC_CE_MODE
+  primary: {file: fixtures/tc-sem-mode-0107/root.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-RT-FP-0018
+profile: w64
+source: root.tc
+spec: "§6.3.2 strict product below min subnormal is inexact and tiny -> TC_RE_FLOAT_UNDERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_FLOAT_UNDERFLOW
+  exit: 1
+  termination: trap

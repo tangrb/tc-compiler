@@ -1,0 +1,10 @@
+id: TC-RT-IO-0013
+profile: w64
+source: root.tc
+spec: "§11.3 read at EOF fails even when the result is discarded with `_` -> TC_RE_IO"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

@@ -1,0 +1,2 @@
+#program
+var a: float64 = read float64

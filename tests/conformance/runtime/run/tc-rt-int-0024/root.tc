@@ -1,0 +1,4 @@
+#program
+var a: int64 = shl int64, 0, 64
+_ = writeln int64, a
+var b: int64 = shl int64, 1, 64

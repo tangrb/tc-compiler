@@ -1,0 +1,5 @@
+#program
+var a: uint32 = mul uint32, 4294967295, 3
+_ = writeln uint32, a
+var b: uint64 = mul uint64, 18446744073709551615, 2
+_ = writeln uint64, b

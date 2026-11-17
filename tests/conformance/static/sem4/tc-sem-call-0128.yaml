@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0128
+profile: common
+source: fixtures/tc-sem-call-0128/root.tc
+spec: "§8.8.2/#10 未知实参先于缺失实参 -> UNKNOWN_ARGUMENT"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_ARGUMENT
+  primary: {file: fixtures/tc-sem-call-0128/root.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

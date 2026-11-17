@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0010
+profile: w64
+source: root.tc
+spec: "§6.6.1 int-to-int cast narrowing overflow -> TC_RE_CAST_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_CAST_OVERFLOW
+  exit: 1
+  termination: trap

@@ -1,0 +1,13 @@
+#program
+var a: float64 = neg float64, -0.0
+_ = writeln float64, a
+var b: float64 = abs float64, -0.0
+_ = writeln float64, b
+var c: float64 = neg float64, inf
+_ = writeln float64, c
+var d: float64 = abs float64, -inf
+_ = writeln float64, d
+var e: float64 = neg float64, nan
+_ = writeln float64, e
+var f: float64 = abs float64, nan
+_ = writeln float64, f

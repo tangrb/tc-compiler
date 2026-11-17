@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0107
+profile: common
+source: fixtures/tc-sem-type-0107/root.tc
+spec: "§3.11 cast 不作用于指针；fnptr 操作数 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-type-0107/root.tc, line: 4, column: 28}
+  related: []
+  diagnostics: exactly-one

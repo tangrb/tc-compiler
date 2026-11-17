@@ -1,0 +1,12 @@
+id: TC-RT-IO-0016
+profile: w64
+source: root.tc
+spec: "§11.3 binary32 input keeps a negative zero through read and print"
+kind: run
+run:
+  stdin_hex: "2d30"
+expect:
+  stdout_hex: "2d300a"
+  trap: null
+  exit: 0
+  termination: normal

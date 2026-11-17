@@ -1,0 +1,10 @@
+id: TC-RT-FP-0012
+profile: w64
+source: root.tc
+spec: "§6.5 unordered comparisons: eq/lt/le/gt/ge are false, ne is true for NaN"
+kind: run
+expect:
+  stdout_hex: "66616c73650a747275650a66616c73650a66616c73650a66616c73650a66616c73650a"
+  trap: null
+  exit: 0
+  termination: normal

@@ -1,0 +1,10 @@
+id: TC-RT-FP-0017
+profile: w64
+source: root.tc
+spec: "§6.3.2 .ieee subnormal boundary: half of min subnormal rounds to zero (RT2E tie), three times min subnormal is an exact subnormal"
+kind: run
+expect:
+  stdout_hex: "300a312e34383232652d3332330a"
+  trap: null
+  exit: 0
+  termination: normal

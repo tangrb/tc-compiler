@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0014
+profile: common
+source: suffix_shr_wrap.tc
+spec: "§6.15.1 (shr,wrap) 组合从未定义（.wrap 只定义于 add/sub/mul/shl/neg）-> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: suffix_shr_wrap.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

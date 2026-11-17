@@ -1,0 +1,8 @@
+#program
+struct S then
+    readonly x: int32
+    var y: int32
+end
+var s: S = make S, 1, 2
+s.y = copy int32, 3
+_ = writeln int32, s.y

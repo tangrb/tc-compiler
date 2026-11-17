@@ -1,0 +1,6 @@
+#program
+import lib
+var fv: fnptr<int32, int32> = funcaddr lib.f
+unsafe then
+var x: int32 = bitcast int32, fv
+end

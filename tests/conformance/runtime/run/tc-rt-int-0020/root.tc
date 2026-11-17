@@ -1,0 +1,5 @@
+#program
+var a: int64 = mod int64, -9223372036854775808, -1
+_ = writeln int64, a
+var b: int64 = div int64, 9223372036854775807, 1
+_ = writeln int64, b

@@ -1,0 +1,10 @@
+id: TC-RT-INT-0028
+profile: w64
+source: root.tc
+spec: "§6.3 trunc-division sign grid for all divisor-sign combinations"
+kind: run
+expect:
+  stdout_hex: "330a2d310a2d330a310a2d330a2d310a"
+  trap: null
+  exit: 0
+  termination: normal

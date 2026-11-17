@@ -1,0 +1,10 @@
+id: TC-RT-FP-0010
+profile: w64
+source: root.tc
+spec: "§6.3.1 0/0 is an invalid operation, not division by zero -> TC_RE_FLOAT_INVALID"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_FLOAT_INVALID
+  exit: 1
+  termination: trap

@@ -1,0 +1,5 @@
+#program
+var a: float64 = mul.ieee float64, 5.0e-324, 0.5
+_ = writeln float64, a
+var b: float64 = mul.ieee float64, 5.0e-324, 3.0
+_ = writeln float64, b

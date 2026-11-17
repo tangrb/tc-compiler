@@ -1,0 +1,10 @@
+id: TC-RT-INT-0032
+profile: w32
+source: root.tc
+spec: "§6.3/§13.2.2 int64 arithmetic under W=32 stays 64-bit exact"
+kind: run
+expect:
+  stdout_hex: "393232333337323033303932363234393030310a343631313638363031383432373338373930330a343631313638363031383432373338373930340a"
+  trap: null
+  exit: 0
+  termination: normal

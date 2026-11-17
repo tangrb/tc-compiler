@@ -1,0 +1,10 @@
+id: TC-RT-INT-0031
+profile: w32
+source: root.tc
+spec: "§6.3/§13.2.2 W=32 isize k>=n: shl of 0 is 0, shl of 1 traps -> TC_RE_INTEGER_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: "300a"
+  trap: TC_RE_INTEGER_OVERFLOW
+  exit: 1
+  termination: trap

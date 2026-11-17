@@ -1,0 +1,14 @@
+#program
+var n: float64 = copy float64, nan
+var a: bool = eq float64, n, n
+_ = writeln bool, a
+var b: bool = ne float64, n, n
+_ = writeln bool, b
+var c: bool = lt float64, n, n
+_ = writeln bool, c
+var d: bool = le float64, n, n
+_ = writeln bool, d
+var e: bool = gt float64, n, n
+_ = writeln bool, e
+var f: bool = ge float64, n, n
+_ = writeln bool, f

@@ -1,0 +1,11 @@
+#lib
+public func down(n: int32) int32 then
+var c: bool = eq int32, n, 0
+_ = br_if c, fin
+var m: int32 = sub int32, n, 1
+var r: int32 = call Self.down, m
+var s: int32 = add int32, r, 1
+_ = return s
+label fin:
+_ = return n
+end

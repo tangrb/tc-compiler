@@ -1,0 +1,9 @@
+#program
+var a: float64 = copy float64, 1234555.0
+_ = writeln float64, a
+var b: float64 = copy float64, 1234545.0
+_ = writeln float64, b
+var c: float64 = copy float64, 1234560.0
+_ = writeln float64, c
+var d: float64 = copy float64, 1234567.0
+_ = writeln float64, d

@@ -557,6 +557,41 @@ CASES = [
         "§14.3 field_padding = ANNOTATION \"(\" INT \")\"；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（行终止符）",
         "#lib\npublic struct S then\n    readonly x: int32 @padding@HERE@\nend\n",
         "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-SYN-OP-0012", "suffix_load_wrap.tc",
+        "§6.15.1 (load,wrap) 组合从未定义 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token",
+        "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nunsafe then\nvar x: int32 = @HERE@load.wrap int32, p\nend\n",
+        "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-SYN-OP-0013", "suffix_br_wrap.tc",
+        "§6.15.1 (br,wrap) 组合从未定义 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token",
+        "#program\nlabel L:\n_ = @HERE@br.wrap L\n",
+        "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-SYN-OP-0014", "suffix_shr_wrap.tc",
+        "§6.15.1 (shr,wrap) 组合从未定义（.wrap 只定义于 add/sub/mul/shl/neg）-> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token",
+        "#program\nvar x: int32 = @HERE@shr.wrap int32, 1, 1\n",
+        "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-SYN-OP-0015", "suffix_and_nsw.tc",
+        "§6.15.1/§10.9 .nsw/.nuw 只定义于 add/sub/mul/shl；(and,nsw) 组合 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token",
+        "#program\nvar x: int32 = @HERE@and.nsw int32, 1, 2\n",
+        "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-SYN-OP-0016", "suffix_shr_nsw.tc",
+        "§6.15.1/§10.9 .nsw/.nuw 只定义于 add/sub/mul/shl；(shr,nsw) 组合 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token",
+        "#program\nvar x: int32 = @HERE@shr.nsw int32, 1, 1\n",
+        "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-SYN-OP-0017", "suffix_cast_nsw.tc",
+        "§6.15.1/§10.9 .nsw/.nuw 只定义于 add/sub/mul/shl；(cast,nsw) 组合 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token",
+        "#program\nvar x: int8 = @HERE@cast.nsw int8, 1\n",
+        "SYN", "TC_CE_SYNTAX"),
+    make_case(
+        "TC-LEX-SYN-0033", "stage_priority_lex_wins.tc",
+        "§12.2 #1 阶段优先：全部 LEX 诊断先于全部 SYN 诊断；第 1 行 SYN 错误与第 2 行字面量词法超界并存时报 LITERAL_LEX_RANGE；§12.5.1 定位到完整字面量首 Token",
+        "#program\n_ = frobnicate int32, 1\nvar x: int64 = copy int64, @HERE@99999999999999999999999999999999\n",
+        "LEX", "TC_CE_LITERAL_LEX_RANGE"),
 ]
 
 # Byte-exact L3 fixtures.  These cannot be expressed through the text/marker

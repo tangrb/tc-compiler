@@ -1,0 +1,10 @@
+id: TC-RT-INT-0026
+profile: w64
+source: root.tc
+spec: "§6.3 unsigned multiplication wraps silently at both widths"
+kind: run
+expect:
+  stdout_hex: "343239343936373239330a31383434363734343037333730393535313631340a"
+  trap: null
+  exit: 0
+  termination: normal

@@ -1,0 +1,4 @@
+#lib
+public func g(u: int32, u: int32) int32 then
+    _ = return u
+end

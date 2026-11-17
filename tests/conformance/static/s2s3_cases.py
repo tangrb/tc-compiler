@@ -1326,6 +1326,64 @@ IMPORT_CASES = [
         },
         "source": "root.tc",
     },
+    {
+        "id": "TC-SEM-LIT-0113", "spec": "§6.7/§12.2 #9 store 值字面量按期望类型检查 -> LITERAL_TYPE，不报 TYPE_MISMATCH",
+        "stage": "SEM", "code": "TC_CE_LITERAL_TYPE", "profile": "common",
+        "files": {
+            "root.tc": "#program\nvar a: int32 = copy int32, 1\nvar p: ptr<int32> = addr int32, a\nunsafe then\n_ = store int32, p, @HERE@true\nend\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-TYPE-0107", "spec": "§3.11 cast 不作用于指针；fnptr 操作数 -> TYPE_MISMATCH",
+        "stage": "SEM", "code": "TC_CE_TYPE_MISMATCH", "profile": "common",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar fv: fnptr<int32, int32> = funcaddr lib.f\nvar x: int32 = cast int32, @HERE@fv\n",
+            "lib.tc": "#lib\npublic func f(a: int32) int32 then\n    _ = return a\nend\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-TYPE-0108", "spec": "§3.11 cast 不作用于结构体值 -> TYPE_MISMATCH",
+        "stage": "SEM", "code": "TC_CE_TYPE_MISMATCH", "profile": "common",
+        "files": {
+            "root.tc": "#program\nstruct S then\n    var x: int32\nend\nvar s: S = make S, 1\nvar x: int32 = cast int32, @HERE@s\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-TYPE-0109", "spec": "§6.6 trunc 只窄化整数；bool 变量源 -> TYPE_MISMATCH",
+        "stage": "SEM", "code": "TC_CE_TYPE_MISMATCH", "profile": "common",
+        "files": {
+            "root.tc": "#program\nvar b: bool = copy bool, true\nvar x: int8 = trunc int8, @HERE@b\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-TYPE-0110", "spec": "§6.6 trunc 只窄化整数；浮点变量源 -> TYPE_MISMATCH",
+        "stage": "SEM", "code": "TC_CE_TYPE_MISMATCH", "profile": "common",
+        "files": {
+            "root.tc": "#program\nvar f: float64 = copy float64, 1.5\nvar x: int8 = trunc int8, @HERE@f\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-TYPE-0111", "spec": "§6.6.3/§13.2.2 W=64 fnptr(64 位) 与 int32 位宽不等 -> BITCAST_WIDTH",
+        "stage": "SEM", "code": "TC_CE_BITCAST_WIDTH", "profile": "w64",
+        "files": {
+            "root.tc": "#program\nimport lib\nvar fv: fnptr<int32, int32> = funcaddr lib.f\nunsafe then\nvar x: int32 = bitcast int32, @HERE@fv\nend\n",
+            "lib.tc": "#lib\npublic func f(a: int32) int32 then\n    _ = return a\nend\n",
+        },
+        "source": "root.tc",
+    },
+    {
+        "id": "TC-SEM-TYPE-0112", "spec": "§6.6.3/§13.2.2 W=64 ptr(64 位) 与 int32 位宽不等 -> BITCAST_WIDTH",
+        "stage": "SEM", "code": "TC_CE_BITCAST_WIDTH", "profile": "w64",
+        "files": {
+            "root.tc": "#program\nvar p: ptr<int32> = copy ptr<int32>, nullptr\nunsafe then\nvar x: int32 = bitcast int32, @HERE@p\nend\n",
+        },
+        "source": "root.tc",
+    },
 ]
 
 # Positive acceptance cases exercised through the tool.
