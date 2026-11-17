@@ -333,7 +333,12 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   uses semihosting and the PL011 UART is a separate trap/exit-record channel;
   `read` consumes the loader-provided `__tc_input_image` (8-byte little-endian
   length followed by bytes) because console EOF is not observable through that
-  seam.  These are platform-instance facts, not language semantics.  Absolute
+  seam; the image window is 1 MiB (`TC_INPUT_IMAGE_MAX`), and a declared length
+  above it currently degrades to an empty stream, so inputs above the window
+  diverge from the VM until the seam gains real bounds handling.  SYS_WRITE0's
+  return value is undefined (qemu fills it with a fixed sentinel) and is not
+  interpreted.  These are platform-instance facts, not language semantics.
+  Absolute
   static/frame/input addresses are linker/platform-instance values and do not
   currently use `TcPlatformProfile.region[]` bases; VM and AOT agree on
   in-region offsets.  I/O sink failure mapping and full profile-base mapping

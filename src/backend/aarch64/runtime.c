@@ -276,13 +276,12 @@ int tc_aarch64_write_scalar(unsigned tag, uint64_t bits, unsigned newline) {
         buffer[len] = '\0';
     }
     if (len != 0) {
-        /* qemu returns a positive byte count for the console write; a negative
-         * value is the semihosting error result.  A single call keeps the
-         * record all-or-nothing. */
-        if (semihosting_call(TC_SEMIHOST_SYS_WRITE0,
-                             (unsigned long)(uintptr_t)buffer) < 0) {
-            return 1;
-        }
+        /* SYS_WRITE0 has no defined return value (the semihosting spec leaves
+         * the register corrupted; qemu fills it with a fixed sentinel on every
+         * path, including faults), so the result cannot be checked.  A single
+         * call keeps the record all-or-nothing. */
+        (void)semihosting_call(TC_SEMIHOST_SYS_WRITE0,
+                               (unsigned long)(uintptr_t)buffer);
     }
     return 0;
 }

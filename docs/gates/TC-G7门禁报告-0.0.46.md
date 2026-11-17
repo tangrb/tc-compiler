@@ -61,7 +61,8 @@ python3 tests/tools/docs_cleanup_check.py
   stdout 走 semihosting 控制台，首个 trap 码与退出策略记录走 PL011 侧信道，
   差分比较前者字节与后者的码/状态。
 - `read` 的 AOT 平台输入缝为 QEMU loader 的 `tc-stdin.bin` 镜像（8 字节长度 +
-  字节）；空镜像为 EOF。PL011 输入属 S9。
+  字节）；空镜像为 EOF；镜像窗口为 1 MiB，声明长度超出时当前降级为空流
+  （平台实例限制，S8 随输入缝扩展处理）。PL011 输入属 S9。
 - 绝对区基址由装载器/平台实例决定，并非直接使用 `TcPlatformProfile.region[]`
   的基址；VM/AOT 只要求且已保证相同区内偏移。S7 子集拒绝一切地址可观察操作，
   差分不做地址归一化；S8 引入地址相关用例前必须补 profile 基址映射与归一化。
