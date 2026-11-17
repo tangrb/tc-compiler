@@ -6,7 +6,7 @@
 
 S8 交付：全量运行时（浮点/转换/位重解释、复杂内存与指针、`make`/`copy`/`memmove`、
 struct 布局/复制/bool 规范化、volatile、设备/退出策略）；全量 AArch64 后端
-（AAPCS64 复合/HFA/大 struct 间接返回、`fnptr`/`call_indirect`、`funcaddr`/
+（AAPCS64 复合/HFA/大复合按引用指针/大 struct 间接返回、`fnptr`/`call_indirect`、`funcaddr`/
 `funceq`/`funcne`、多尺寸与未对齐 `load`/`store`、`int64`/`float64`、checked
 build）；入口/产物（复位入口、区基址、静态区 `.data`、代码区、ELF、禁用 ICF）；
 VM/AOT 一致性（同档案区内偏移、静态初值字节、`const` 内联）；checked build
@@ -17,16 +17,16 @@ VM/AOT 一致性（同档案区内偏移、静态初值字节、`const` 内联�
 
 | G8 准则 | 证据 | 结论 |
 | --- | --- | --- |
-| 全量 opcode 覆盖；全量 runtime golden 通过 | `conformance.s8_diff`：60 个 W=64 S6 运行用例 + 29 个 S8 全量用例（struct/HFA/大复合/9–10 参数/间接调用/指针/静态字节/`@fast_math`）全部 VM↔AOT 一致；S6 运行时与 W=32/64 golden 通过；`aot.unit` 58 项钉扎全量 lowering 形态（浮点/内存 helper、HFA v 寄存器、x8 间接返回、checked shadow、帧描述符） | 通过 |
-| 全量 VM↔AOT 差分零不一致 | `conformance.s8_diff` 89 例、`conformance.s8_abi` 9 例、`conformance.s8_consistency` 8 项、`conformance.s8_checked` 13 例 + 60 个 checked 合法夹具；S7 差分/ABI/工具链套件继续通过；比较 stdout 字节、首个 `TC_RE_*`、退出状态，地址仅以定义关系（`ptrdiff`/`funceq`/区内偏移）观察 | 通过 |
+| 全量 opcode 覆盖；全量 runtime golden 通过 | `conformance.s8_diff`：60 个 W=64 S6 运行用例 + 53 个 S8 用例（struct/HFA/大复合按引用/9–300 参数/递归/间接调用/大偏移/静态字节/`@fast_math`）共 113 例全部 VM↔AOT 一致；S6 运行时与 W=32/64 golden 通过；`aot.unit` 58 项钉扎全量 lowering 形态（浮点/内存 helper、HFA v 寄存器、x8 间接返回、checked shadow、帧描述符） | 通过 |
+| 全量 VM↔AOT 差分零不一致 | `conformance.s8_diff` 113 例、`conformance.s8_abi` 9 例、`conformance.s8_consistency` 8 项、`conformance.s8_checked` 32 例 + 60 个 checked 合法夹具；生成式 ABI/布局/内存/浮点 fuzz 与静态变异双工具首诊一致（默认证集及 ABI 300/布局 150/内存 150/浮点 150/静态 1000 扩展证集）；S7 差分/ABI/工具链套件继续通过；比较 stdout 字节、首个 `TC_RE_*`、退出状态，地址仅以定义关系（`ptrdiff`/`funceq`/区内偏移）观察 | 通过 |
 | §13.4 八项全部有证据；设计 §12 十五项有套件映射 | `conformance.s8_consistency` 输出八项映射（静态一致、模块顺序、CFG/DI、类型与转换、安全、浮点、I/O、平台）；`conformance.s8_artifact` 以 `-ffreestanding -nostdlib` 运行时、无解释器/无动态依赖/无 libc 符号审计覆盖设计 §12 第 4 项；覆盖矩阵 636/636 | 通过 |
-| checked build 与必选 trap 分开统计，且不改变合法程序集合 | `conformance.s8_checked`：11 个 UB 检出/捕获用例（未初始化、one-past、越界、悬垂、零长度 one-past `memmove`）与 2 个合法用例；必选 trap（空指针、只读参数、代码区、溢出、`D`、`TC_RE_IO`）在 checked 构建中保持；全部 60 个 W=64 S6 合法夹具在 checked 下观察行为不变；VM 与 AOT 的 checked 观察、trap 码与退出状态一致 | 通过 |
-| 全量 ABI 用例通过；ICF 禁用验证通过 | `conformance.s8_abi` 9 个可执行用例 + 汇编形态审计（HFA v 寄存器、x8 间接返回、栈参数 16 字节步长、直接/间接调用）；`conformance.s8_artifact` 断言两个同体函数入口地址不同，`ld.lld --icf=none` | 通过 |
-| 无开放的一级规格偏差 | 规范码集仍为 80；无警告；诊断/首诊/位置规则未改；S8 新增能力均有标准条款与用例映射 | 通过 |
+| checked build 与必选 trap 分开统计，且不改变合法程序集合 | `conformance.s8_checked`：15 个 UB 检出/捕获用例（未初始化、one-past、越界、悬垂、零长度 one-past `memmove`、跨字段/填充误报回归）与 17 个合法用例（padding/跨字段访问、字段 one-past 回退、参数/静态定义字节）；必选 trap 在 checked 构建中保持；全部 60 个 W=64 S6 合法夹具在 checked 下观察行为不变；对象检查按访问区间解析，指针来源限制记录于 `CONTRACTS.md` | 通过 |
+| 全量 ABI 用例通过；ICF 禁用验证通过 | `conformance.s8_abi` 9 个可执行用例 + 汇编形态审计（HFA v 寄存器、x8 间接返回、16 字节栈步长、直接/间接调用、大复合调用者副本与指针传递）；`conformance.s8_interop` 以 clang 作为独立 AAPCS64 调用方验证 30 个大复合/HFA/寄存器溢出/窄整数/间接返回用例；`conformance.s8_artifact` 断言同体函数入口不同，`ld.lld --icf=none` | 通过 |
+| 无开放的一级规格偏差 | 规范码集仍为 80；无警告；诊断/首诊/位置规则未改；S8 新增能力均有标准条款与用例映射；静态布局超出档案静态区在 VM/AOT 均报告实现错误（71）且不发布产物 | 通过 |
 
 ## 覆盖与测试
 
-- 全量 `ctest`：Debug/Release/ASan+UBSan 均 45/45。
+- 全量 `ctest`：Debug/Release/ASan+UBSan 均 51/51。
 - 单元：frontend 688、sem 102、ct 370、ir 674、vm 413、aot 58 检查。
 - 覆盖矩阵：636/636 covered；设计 §12 十五项均有套件映射。
 - 零 pass：O0/O2 `.s` 逐字节一致；重复 `.s`/ELF/执行可重复；checked `.s` 自身可重复
@@ -42,10 +42,16 @@ cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
 python3 tests/conformance/diff/s8_cases.py --check
+python3 tests/conformance/diff/s8_abi_fuzz.py --check
+python3 tests/conformance/diff/s8_layout_fuzz.py --check
+python3 tests/conformance/diff/s8_mem_fuzz.py --check
+python3 tests/conformance/diff/s8_fp_fuzz.py --check
 python3 tests/conformance/abi/s8_abi_cases.py --check
+python3 tests/conformance/abi/s8_interop_cases.py --check
 python3 tests/conformance/checked/s8_checked_cases.py --check
 python3 tests/conformance/consistency/s8_consistency_cases.py --check
 python3 tests/conformance/tools/s8_artifact_cases.py --check
+python3 tests/conformance/tools/s8_static_fuzz.py --check
 python3 tests/determinism/s8_determinism.py --check
 python3 tests/traceability/coverage.py --check
 python3 tests/tools/docs_cleanup_check.py
@@ -65,3 +71,7 @@ python3 tests/tools/docs_cleanup_check.py
   偏移与静态初值字节一致，差分不比较绝对地址。
 - AOT 输入缝为 QEMU loader 提供的镜像（8 字节长度 + 字节），按短读路径消费；
   空镜像为 EOF；设备端输入属 S9。
+- 静态对象布局必须适配档案静态区（当前 1 MiB）；超出时两个工具都以实现错误退出
+  71 且不发布产物。AOT 在编译期按最坏帧足迹检查栈预算，超出时同样退出 71。
+- checked 对象检查按字节区间解析，不追踪指针来源；相邻对象/复用帧槽可能隐藏 UB，
+  但不会拒绝落在同一包含对象内的合法 padding/跨字段访问。

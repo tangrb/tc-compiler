@@ -911,6 +911,635 @@ EXTRA = [
 ]
 
 
+_EDGE_CASES = [
+    engine.case(
+        "TC-DIFF-S8-0030",
+        "§6.6.1 a same-type cast preserves the full NaN payload",
+        root=P(
+            "var a: float64 = bitcast float64, 0x7ff8000000000123u",
+            "var b: float64 = cast float64, a",
+            "var u: uint64 = bitcast uint64, b",
+            "_ = writeln uint64, u",
+            "var c: float32 = bitcast float32, 0x7fc00123u",
+            "var d: float32 = cast float32, c",
+            "var v: uint32 = bitcast uint32, d",
+            "_ = writeln uint32, v",
+        ),
+        out="9221120237041090851\n2143289635\n",
+    ),
+    engine.case(
+        "TC-DIFF-S8-0031",
+        "§6.6.1 a cross-type float cast produces a canonical quiet NaN",
+        root=P(
+            "var a: float64 = bitcast float64, 0xfff8000000000123u",
+            "var b: float32 = cast float32, a",
+            "var u: uint32 = bitcast uint32, b",
+            "_ = writeln uint32, u",
+            "var c: float32 = bitcast float32, 0xffc00123u",
+            "var d: float64 = cast float64, c",
+            "var v: uint64 = bitcast uint64, d",
+            "_ = writeln uint64, v",
+        ),
+        out="2143289344\n9221120237041090560\n",
+    ),
+    engine.case(
+        "TC-DIFF-S8-0032",
+        "§6.8 ptrdiff whose mathematical difference exceeds the W-bit isize traps",
+        root=P(
+            "var p: ptr<int8> = copy ptr<int8>, nullptr",
+            "var b: usize = copy usize, 18446744073709551615u",
+            "unsafe then",
+            "var q: ptr<int8> = bitcast ptr<int8>, b",
+            "var d: isize = ptrdiff int8, p, q",
+            "end",
+        ),
+        trap="TC_RE_PTRDIFF_OVERFLOW",
+    ),
+    engine.case(
+        "TC-DIFF-S8-0033",
+        "§3.12 pointer arithmetic whose byte delta exceeds INT64_MAX traps",
+        root=P(
+            "var a: int64 = copy int64, 1",
+            "var p: ptr<int64> = addr int64, a",
+            "var n: usize = copy usize, 18446744073709551615u",
+            "unsafe then",
+            "var q: ptr<int64> = ptradd int64, p, n",
+            "end",
+        ),
+        trap="TC_RE_ADDR_UNAVAILABLE",
+    ),
+    engine.case(
+        "TC-DIFF-S8-0034",
+        "§6.7 an address outside every region reports ADDR_UNAVAILABLE",
+        root=P(
+            "var u: usize = copy usize, 18446744073709551615u",
+            "unsafe then",
+            "var p: ptr<int32> = bitcast ptr<int32>, u",
+            "var v: int32 = load int32, p",
+            "end",
+        ),
+        trap="TC_RE_ADDR_UNAVAILABLE",
+    ),
+]
+
+
+def _scale_cases():
+    cases = []
+    names = [f"p{i}" for i in range(100)]
+    signature = ", ".join(f"{name}: int64" for name in names)
+    body = []
+    for index in range(100):
+        if index == 0:
+            body.append(f"var s0: int64 = copy int64, {names[0]}")
+        else:
+            body.append(
+                f"var s{index}: int64 = add int64, s{index - 1}, {names[index]}")
+    body.append("_ = return s99")
+    cases.append(engine.case(
+        "TC-DIFF-S8-0035",
+        "§8.5 one hundred integer arguments cover the stack argument area",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var r: int64 = call lib.many, "
+                + ", ".join(str(i + 1) for i in range(100)),
+                "_ = writeln int64, r",
+            ),
+            "lib.tc": L(f"public func many({signature}) int64 then", *body,
+                        "end"),
+        },
+        out="5050\n",
+    ))
+    functions = []
+    for index in range(60):
+        functions += [
+            f"public func f{index}(x: int64) int64 then",
+            f"var r: int64 = add int64, x, {index}",
+            "_ = return r",
+            "end",
+        ]
+    lines = ["import lib"]
+    for index in range(60):
+        lines.append(
+            f"var a{index}: fnptr<int64, int64> = funcaddr lib.f{index}")
+    for index in range(59):
+        lines.append(
+            f"var e{index}: bool = funceq fnptr<int64, int64>, a{index}, "
+            f"a{index + 1}")
+        lines.append(f"_ = writeln bool, e{index}")
+    cases.append(engine.case(
+        "TC-DIFF-S8-0036",
+        "§3.13.3 identical function bodies keep distinct entry addresses",
+        files={"root.tc": P(*lines), "lib.tc": L(*functions)},
+        out="false\n" * 59,
+    ))
+    lines = []
+    for index in range(300):
+        lines.append(f"var v{index}: int64 = copy int64, {index}")
+    lines.append("_ = writeln int64, v299")
+    cases.append(engine.case(
+        "TC-DIFF-S8-0037",
+        "§4.7 a large static object table keeps program-var layout deterministic",
+        root=P(*lines),
+        out="299\n",
+    ))
+    labels = [f"l{index}" for index in range(200)]
+    lines = ["var x: int64 = copy int64, 199",
+             "_ = switch x, " + ", ".join(labels)]
+    for index, label in enumerate(labels):
+        lines += [f"label {label}:", f"_ = writeln int32, {index}",
+                  "_ = br fin"]
+    lines.append("label fin:")
+    cases.append(engine.case(
+        "TC-DIFF-S8-0038",
+        "§7.5 a 200-target switch selects the last case",
+        root=P(*lines),
+        out="199\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0039",
+        "§3.7/§10.3 frame fields beyond a 4095-byte displacement",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var x: int32 = copy int32, 7",
+                "var r: int64 = call lib.f, x",
+                "_ = writeln int64, r",
+                "var z: usize = sizeof lib.B",
+                "_ = writeln usize, z",
+            ),
+            "lib.tc": L(
+                "public struct B then",
+                "var a: int32 @padding(20000)",
+                "var b: int64",
+                "end",
+                "public func f(x: int32) int64 then",
+                "var s: B = make B, x, 99",
+                "var p: ptr<int64> = addr int64, s.b",
+                "var y: int64 = copy int64, 0",
+                "unsafe then",
+                "y = load int64, p",
+                "end",
+                "var r: int64 = add int64, y, 1",
+                "_ = return r",
+                "end",
+            ),
+        },
+        out="100\n20012\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0040",
+        "§4.7 a 900000-byte static object is emitted at its in-region offsets",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var s: lib.Big = make lib.Big, 3, 123456",
+                "_ = writeln int32, s.b",
+                "var z: usize = sizeof lib.Big",
+                "_ = writeln usize, z",
+            ),
+            "lib.tc": L(
+                "public struct Big then",
+                "var a: int8 @padding(900000)",
+                "var b: int32",
+                "end",
+            ),
+        },
+        out="123456\n900005\n",
+    ))
+    types = ["public struct N0 then", "var v: int64", "end"]
+    lines = ["import lib", "var x0: lib.N0 = make lib.N0, 5"]
+    for level in range(1, 12):
+        types += [f"public struct N{level} then", f"var inner: N{level - 1}",
+                  "var extra: int64", "end"]
+        lines.append(
+            f"var x{level}: lib.N{level} = make lib.N{level}, "
+            f"x{level - 1}, {level}")
+    field = "x11" + ".inner" * 11 + ".v"
+    lines.append(f"_ = writeln int64, {field}")
+    cases.append(engine.case(
+        "TC-DIFF-S8-0041",
+        "§3.7 twelve nested struct levels keep compact field offsets",
+        files={"root.tc": P(*lines), "lib.tc": L(*types)},
+        out="5\n",
+    ))
+    return cases
+
+
+EXTRA = EXTRA + _EDGE_CASES + _scale_cases()
+
+
+def _advanced_cases():
+    cases = []
+    cases.append(engine.case(
+        "TC-DIFF-S8-0042",
+        "§8.5 recursive calls returning a 24-byte composite use the x8 indirect buffer",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var r: lib.B = call lib.rec, 10",
+                "_ = writeln int64, r.a",
+                "_ = writeln int64, r.b",
+                "_ = writeln int64, r.c",
+            ),
+            "lib.tc": L(
+                "public struct B then",
+                "var a: int64",
+                "var b: int64",
+                "var c: int64",
+                "end",
+                "public func rec(n: int64) B then",
+                "var zero: int64 = copy int64, 0",
+                "var stop: bool = eq int64, n, zero",
+                "var result: B = make B, 0, 0, 0",
+                "_ = br_if stop, done",
+                "var m: int64 = sub int64, n, 1",
+                "var d: B = call Self.rec, m",
+                "var a1: int64 = add int64, d.a, 1",
+                "var b1: int64 = add int64, d.b, 1",
+                "var c1: int64 = add int64, d.c, 1",
+                "result = make B, a1, b1, c1",
+                "label done:",
+                "_ = return result",
+                "end",
+            ),
+        },
+        out="10\n10\n10\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0043",
+        "§8.5 recursive HFA returns keep the v-register return class",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var r: lib.H = call lib.hrec, 4",
+                "_ = writeln float64, r.x",
+                "_ = writeln float64, r.y",
+            ),
+            "lib.tc": L(
+                "public struct H then",
+                "var x: float64",
+                "var y: float64",
+                "end",
+                "public func hrec(n: int64) H then",
+                "var zero: int64 = copy int64, 0",
+                "var stop: bool = eq int64, n, zero",
+                "var result: H = make H, 10.5, 20.5",
+                "_ = br_if stop, done",
+                "var m: int64 = sub int64, n, 1",
+                "var d: H = call Self.hrec, m",
+                "var x1: float64 = add float64, d.x, 0.5",
+                "var y1: float64 = add float64, d.y, 0.5",
+                "result = make H, x1, y1",
+                "label done:",
+                "_ = return result",
+                "end",
+            ),
+        },
+        out="12.5\n22.5\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0044",
+        "§6.9 depth D still traps for recursive indirect-return calls",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var r: lib.B = call lib.rec, 600",
+                "_ = writeln int64, r.a",
+            ),
+            "lib.tc": L(
+                "public struct B then",
+                "var a: int64",
+                "var b: int64",
+                "var c: int64",
+                "end",
+                "public func rec(n: int64) B then",
+                "var zero: int64 = copy int64, 0",
+                "var stop: bool = eq int64, n, zero",
+                "var result: B = make B, 0, 0, 0",
+                "_ = br_if stop, done",
+                "var m: int64 = sub int64, n, 1",
+                "var d: B = call Self.rec, m",
+                "var a1: int64 = add int64, d.a, 1",
+                "result = make B, a1, d.b, d.c",
+                "label done:",
+                "_ = return result",
+                "end",
+            ),
+        },
+        trap="TC_RE_STACK_OVERFLOW",
+    ))
+    # 100-field struct: make, aggregate sum, identity and sizeof.
+    fields = [f"var f{i}: int32" for i in range(100)]
+    body = []
+    previous = None
+    for index in range(100):
+        if previous is None:
+            body.append(f"var s0: int64 = cast int64, m.f0")
+        else:
+            body.append(f"var c{index}: int64 = cast int64, m.f{index}")
+            body.append(
+                f"var s{index}: int64 = add int64, s{previous}, c{index}")
+        previous = index
+    body.append("_ = return s99")
+    lib_text = "\n".join(
+        ["#lib", "public struct M then"] + fields + ["end",
+         "public func sum(m: M) int64 then"] + body + ["end",
+         "public func id(m: M) M then", "_ = return m", "end"]) + "\n"
+    make = ", ".join(str(i + 1) for i in range(100))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0045",
+        "§3.7/§8.5 a 100-field struct passes by value and returns indirectly",
+        files={
+            "root.tc": P(
+                "import lib",
+                f"var m: lib.M = make lib.M, {make}",
+                "var r: int64 = call lib.sum, m",
+                "_ = writeln int64, r",
+                "var n: lib.M = call lib.id, m",
+                "_ = writeln int32, n.f99",
+                "var z: usize = sizeof lib.M",
+                "_ = writeln usize, z",
+            ),
+            "lib.tc": lib_text,
+        },
+        out="5050\n100\n400\n",
+    ))
+    # 150 locals in one frame.
+    body = ["public func f(x: int64) int64 then"]
+    for index in range(150):
+        body.append(f"var v{index}: int64 = add int64, x, {index}")
+    body.append("var sum: int64 = copy int64, 0")
+    for index in range(150):
+        body.append(f"sum = add int64, sum, v{index}")
+    body += ["_ = return sum", "end"]
+    cases.append(engine.case(
+        "TC-DIFF-S8-0046",
+        "§10.3 150 frame locals keep distinct slots and offsets",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var r: int64 = call lib.f, 2",
+                "_ = writeln int64, r",
+            ),
+            "lib.tc": L(*body),
+        },
+        out=f"{2 * 150 + sum(range(150))}\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0047",
+        "§7.6 multiple returns deliver scalar and composite values on every path",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var a: lib.T = call lib.choose, true",
+                "var b: lib.T = call lib.choose, false",
+                "_ = writeln int64, a.a",
+                "_ = writeln int64, b.a",
+                "var c: int64 = call lib.pick, true",
+                "_ = writeln int64, c",
+            ),
+            "lib.tc": L(
+                "public struct T then",
+                "var a: int64",
+                "var b: int64",
+                "end",
+                "public func choose(x: bool) T then",
+                "var t1: T = make T, 1, 2",
+                "var t2: T = make T, 3, 4",
+                "_ = br_if x, first",
+                "_ = return t2",
+                "label first:",
+                "_ = return t1",
+                "end",
+                "public func pick(x: bool) int64 then",
+                "var a: int64 = copy int64, 10",
+                "var b: int64 = copy int64, 20",
+                "_ = br_if x, yes",
+                "_ = return b",
+                "label yes:",
+                "_ = return a",
+                "end",
+            ),
+        },
+        out="1\n3\n10\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0048",
+        "§6.9 indirect recursion mixes direct returns with call_indirect frames",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var r: lib.B = call lib.rec, 5",
+                "_ = writeln int64, r.a",
+            ),
+            "lib.tc": L(
+                "public struct B then",
+                "var a: int64",
+                "end",
+                "public func rec(n: int64) B then",
+                "var zero: int64 = copy int64, 0",
+                "var stop: bool = eq int64, n, zero",
+                "var r: B = make B, 0",
+                "_ = br_if stop, done",
+                "var fp: fnptr<B, int64> = funcaddr Self.rec",
+                "var m: int64 = sub int64, n, 1",
+                "var d: B = make B, 0",
+                "unsafe then",
+                "d = call_indirect fp, m",
+                "end",
+                "var a1: int64 = add int64, d.a, 1",
+                "r = make B, a1",
+                "label done:",
+                "_ = return r",
+                "end",
+            ),
+        },
+        out="5\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0049",
+        "§3.7/§6.12 struct field copy, call result and load beyond 4095-byte offsets",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var i0: lib.Inner = make lib.Inner, 0, 0",
+                "var o: lib.Outer = make lib.Outer, 1, i0, 3",
+                "var n: lib.Inner = make lib.Inner, 11, 22",
+                "o.inner = copy lib.Inner, n",
+                "var r: lib.Inner = call lib.mk",
+                "o.inner = call lib.id, r",
+                "var p: ptr<lib.Inner> = addr lib.Inner, o.inner",
+                "unsafe then",
+                "var t: lib.Inner = load lib.Inner, p",
+                "end",
+                "_ = writeln int64, o.inner.a",
+                "_ = writeln int64, o.inner.b",
+                "_ = writeln int32, o.tail",
+            ),
+            "lib.tc": L(
+                "public struct Inner then",
+                "var a: int64",
+                "var b: int64",
+                "end",
+                "public struct Outer then",
+                "var pad: int8 @padding(5000)",
+                "var inner: Inner",
+                "var tail: int32",
+                "end",
+                "public func id(x: Inner) Inner then",
+                "_ = return x",
+                "end",
+                "public func mk() Inner then",
+                "var x: Inner = make Inner, 11, 22",
+                "_ = return x",
+                "end",
+            ),
+        },
+        out="11\n22\n3\n",
+    ))
+    # 300 composite arguments: the outgoing argument area exceeds 4 KiB.
+    count = 300
+    signature = ", ".join(f"p{i}: S" for i in range(count))
+    body = []
+    previous = None
+    for index in range(count):
+        body.append(
+            f"var c{index}: int64 = add int64, p{index}.a, p{index}.c")
+        if previous is None:
+            body.append(f"var s0: int64 = copy int64, c0")
+        else:
+            body.append(
+                f"var s{index}: int64 = add int64, s{previous}, c{index}")
+        previous = index
+    body.append(f"_ = return s{previous}")
+    lib_text = "\n".join(
+        ["#lib", "public struct S then", "var a: int64", "var b: int64",
+         "var c: int64", "end",
+         f"public func many({signature}) int64 then"] + body + ["end"]) + "\n"
+    lines = ["import lib"]
+    for index in range(count):
+        lines.append(f"var v{index}: lib.S = make lib.S, 1, 2, 3")
+    lines.append(
+        "var r: int64 = call lib.many, " + ", ".join(
+            f"v{i}" for i in range(count)))
+    lines.append("_ = writeln int64, r")
+    cases.append(engine.case(
+        "TC-DIFF-S8-0050",
+        "§8.5 300 composite arguments place a multi-kilobyte outgoing area",
+        files={"root.tc": P(*lines), "lib.tc": lib_text},
+        out=f"{4 * count}\n",
+    ))
+    cases.append(engine.case(
+        "TC-DIFF-S8-0051",
+        "§8.5 a 6008-byte composite argument and return uses the stack and x8",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var b: lib.Big = make lib.Big, 7, 9",
+                "var c: lib.Big = call lib.id, b",
+                "var r: int64 = call lib.get, c",
+                "_ = writeln int64, r",
+                "_ = writeln int64, c.a",
+            ),
+            "lib.tc": L(
+                "public struct Big then",
+                "var a: int64 @padding(6000)",
+                "var b: int64",
+                "end",
+                "public func id(x: Big) Big then",
+                "_ = return x",
+                "end",
+                "public func get(x: Big) int64 then",
+                "_ = return x.b",
+                "end",
+            ),
+        },
+        out="9\n7\n",
+    ))
+    return cases
+
+
+EXTRA = EXTRA + _advanced_cases()
+
+
+def _byref_composition_case():
+    return engine.case(
+        "TC-DIFF-S8-0052",
+        "§8.5 a by-reference parameter can be forwarded to another by-reference call",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var b: lib.Big = make lib.Big, 4, 5, 6",
+                "var r: int64 = call lib.outer, b",
+                "_ = writeln int64, r",
+            ),
+            "lib.tc": L(
+                "public struct Big then",
+                "var a: int64",
+                "var b: int64",
+                "var c: int64",
+                "end",
+                "public func inner(x: Big) int64 then",
+                "var r: int64 = add int64, x.a, x.b",
+                "var s: int64 = add int64, r, x.c",
+                "_ = return s",
+                "end",
+                "public func outer(x: Big) int64 then",
+                "var r: int64 = call Self.inner, x",
+                "var s: int64 = add int64, r, 1",
+                "_ = return s",
+                "end",
+            ),
+        },
+        out="16\n",
+    )
+
+
+EXTRA = EXTRA + [_byref_composition_case()]
+
+
+def _byref_field_indirect_case():
+    return engine.case(
+        "TC-DIFF-S8-0053",
+        "§8.5 by-reference arguments copy from a field operand and through call_indirect",
+        files={
+            "root.tc": P(
+                "import lib",
+                "var i: lib.Big = make lib.Big, 2, 3, 4",
+                "var o: lib.Outer = make lib.Outer, 1, i, 9",
+                "var r: int64 = call lib.take, o.big",
+                "_ = writeln int64, r",
+                "var fp: fnptr<int64, lib.Big> = funcaddr lib.take",
+                "unsafe then",
+                "var s: int64 = call_indirect fp, o.big",
+                "_ = writeln int64, s",
+                "end",
+            ),
+            "lib.tc": L(
+                "public struct Big then",
+                "var a: int64",
+                "var b: int64",
+                "var c: int64",
+                "end",
+                "public struct Outer then",
+                "var tag: int8",
+                "var big: Big",
+                "var tail: int32",
+                "end",
+                "public func take(x: Big) int64 then",
+                "var r: int64 = add int64, x.a, x.b",
+                "var s: int64 = add int64, r, x.c",
+                "_ = return s",
+                "end",
+            ),
+        },
+        out="9\n9\n",
+    )
+
+
+EXTRA = EXTRA + [_byref_field_indirect_case()]
+
 CASES = CASES + EXTRA
 
 

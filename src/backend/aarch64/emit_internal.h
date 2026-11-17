@@ -43,6 +43,7 @@ typedef struct TcA64Emitter {
     char *error_message;
     size_t error_capacity;
     int failed;
+    int internal_error; /* capability limit of the platform instance */
     int output_failed;
     unsigned next_label;
 
@@ -88,6 +89,8 @@ typedef struct {
     int hfa;              /* aggregate passed as consecutive float members */
     int hfa32;            /* HFA element is float32 (else float64) */
     unsigned hfa_count;
+    int indirect;         /* composite >16 bytes: caller copy, pointer passed */
+    uint64_t copy_offset; /* outgoing-area offset of the caller's copy */
 } TcA64ArgSlot;
 
 typedef struct {
@@ -116,6 +119,10 @@ typedef struct {
 void tc_a64_write(TcA64Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 void tc_a64_error(TcA64Emitter *emitter, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+/* Record a platform-instance capacity limit: the tool reports an internal
+ * implementation error rather than an unsupported language capability. */
+void tc_a64_internal_error(TcA64Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 unsigned tc_a64_label(TcA64Emitter *emitter);
 

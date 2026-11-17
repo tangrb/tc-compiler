@@ -169,10 +169,20 @@ void tc_a64_plan_arguments(TcA64Emitter *emitter, const TcType **param_types,
                 nsaa += (size + 7u) & ~UINT64_C(7);
                 continue;
             }
-            nsaa = (nsaa + 7u) & ~UINT64_C(7);
-            slot->kind = TC_A64_LOC_STACK;
-            slot->stack_offset = nsaa;
-            nsaa += (size + 7u) & ~UINT64_C(7);
+            /* AAPCS64 B.4: a composite larger than 16 bytes is replaced by
+             * a pointer to a caller-made copy.  The pointer consumes one
+             * general-purpose register (or an eight-byte stack slot when the
+             * registers are exhausted); the copy lives in the outgoing area. */
+            slot->indirect = 1;
+            if (ngrn < 8u) {
+                slot->kind = TC_A64_LOC_XREG;
+                slot->index = ngrn++;
+            } else {
+                nsaa = (nsaa + 7u) & ~UINT64_C(7);
+                slot->kind = TC_A64_LOC_STACK;
+                slot->stack_offset = nsaa;
+                nsaa += 8u;
+            }
             continue;
         }
         if (ngrn < 8u) {
@@ -185,7 +195,19 @@ void tc_a64_plan_arguments(TcA64Emitter *emitter, const TcType **param_types,
             nsaa += ((size == 0 ? 8u : size) + 7u) & ~UINT64_C(7);
         }
     }
-    out->stack_bytes = (nsaa + 15u) & ~UINT64_C(15);
+    {
+        uint64_t copies = nsaa;
+        for (i = 0; i < count; i++) {
+            TcA64ArgSlot *slot = &out->slots[i];
+            if (!slot->indirect) {
+                continue;
+            }
+            copies = (copies + 7u) & ~UINT64_C(7);
+            slot->copy_offset = copies;
+            copies += slot->size;
+        }
+        out->stack_bytes = (copies + 15u) & ~UINT64_C(15);
+    }
 }
 
 void tc_a64_plan_return(TcA64Emitter *emitter, const TcType *ret,

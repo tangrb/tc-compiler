@@ -13,10 +13,11 @@
   W 相关运行时语义核、§11.2 精确格式化、§11.3 输入、参考 VM（五区/对象与字段子对象、
   指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、提交语义、checked 越界/悬垂/
   未初始化检测）、32/64 档案；W=64 AArch64 全量后端（整数/位/比较/浮点/转换、指针/
-  内存/struct、全部 51 个 opcode、AAPCS64 复合/HFA/大 struct 间接返回、`fnptr`/
+  内存/struct、全部 51 个 opcode、AAPCS64 复合/HFA/大复合按引用/大 struct 间接返回、`fnptr`/
   `call_indirect`、多尺寸与未对齐访问、checked build、复位入口/区基址/静态 `.data`/
   ELF/禁用 ICF）、freestanding AArch64 运行时、`tc-aot` `--emit=asm|obj|elf`、
-  clang/lld/qemu 驱动与全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件。
+  clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C 调用者
+  AAPCS64 互操作与生成式 fuzz。
   代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
   `src/driver/`。
 - 未实现：freestanding/裸机平台实例（PL011 UART、裸机链接/设备策略）、设备实例与
@@ -79,7 +80,9 @@
    `tests/conformance/tools/s7_static_parity.py --check`、
    `tests/determinism/s7_determinism.py --check`、
    `tests/conformance/diff/s8_cases.py --check`、`tests/conformance/abi/s8_abi_cases.py --check`、
+   `tests/conformance/abi/s8_interop_cases.py --check`、`tests/conformance/diff/s8_*_fuzz.py --check`、
    `tests/conformance/checked/s8_checked_cases.py --check`、
+   `tests/conformance/tools/s8_static_fuzz.py --check`、
    `tests/conformance/consistency/s8_consistency_cases.py --check`、
    `tests/conformance/tools/s8_artifact_cases.py --check`、
    `tests/determinism/s8_determinism.py --check`、`tests/golden/validate.py`、
@@ -112,7 +115,7 @@
 | 文档收尾检查 | `tests/tools/docs_cleanup_check.py`（`docs.cleanup`） |
 | 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py`、`s4_cases.py`、`s5_cases.py`、`s6_static_cases.py`；`tests/conformance/runtime/s6_cases.py` |
 | S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
-| S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
+| S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/diff/s8_*_fuzz.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/tools/s8_static_fuzz.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

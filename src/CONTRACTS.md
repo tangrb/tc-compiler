@@ -264,6 +264,19 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   Out-of-object, one-past dereference and dangling accesses are UB: release may
   continue within the region's host backing, while `checked_build` reports
   `TC_RE_ADDR_UNAVAILABLE` and never changes the defined-program set.
+- A checked build also tracks defined bytes for static and frame objects:
+  initializer-image bytes start defined, `var` storage starts undefined, and a
+  committed scalar/aggregate write marks its range; a pointer-mediated load or
+  `memmove` source with undefined bytes reports `TC_RE_ADDR_UNAVAILABLE`.
+  Name-based accesses need no runtime fact because static DI already proves
+  initialization.  The object checks are address-range based and do not track
+  pointer provenance: an access is resolved against the object that fully
+  contains its byte range (a containing struct wins over a smaller sibling
+  field), so legal accesses into padding or across sibling fields of one object
+  are accepted.  UB that happens to remain inside some live object (forged
+  provenance, adjacent-object aliasing, a reused frame slot) may go undetected;
+  this is permitted for an optional checked build and never relaxes a mandatory
+  trap.
 - Function addresses are unique: `code_base + (func_id + 1) * 16`.
   `funcaddr`/`funceq`/`funcne` use those values; `call_indirect` maps a non-null
   address back to its function.  A typed null `fnptr` reaches the runtime and
@@ -313,9 +326,14 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   `tc-aot` exits 70 before publishing any artifact.
 - ABI: AAPCS64.  Integer/pointer/bool/fnptr arguments use x0-x7, float32/float64
   v0-v7; a homogeneous float aggregate uses one v register per member; other
-  composites of at most 16 bytes use consecutive x registers; larger aggregates
-  and exhausted register classes go by value on the stack.  Returns use x0/x1,
-  v0-v3 for HFAs, or an x8 indirect result pointer for large composites.
+  composites of at most 16 bytes use consecutive x registers.  A composite
+  larger than 16 bytes is replaced by a pointer to a caller-made copy: the
+  pointer occupies one x register (or an eight-byte stack slot when x0-x7 are
+  exhausted), and the copy lives in the call's outgoing area.  HFAs and
+  at-most-16-byte composites that do not fit their register class go by value
+  on the stack.  Returns use x0/x1, v0-v3 for HFAs, or an x8 indirect result
+  pointer for composites larger than 16 bytes; the callee copies an indirect
+  argument into its own parameter object before the body runs.
   Narrow integers are zero-extended in registers and stored at their declared
   width; bool storage is 0x00/0x01; sp stays 16-byte aligned.  x19/x20 hold the
   frame/static bases and x29/x30 form the frame record; every function saves
@@ -333,9 +351,12 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   call; a frame's total footprint is checked against the profile stack budget.
 - Static data is the concatenation of `TcObject.init` images at their object
   offsets; program `var` storage starts zeroed and is initialized by the
-  program.  The `.data` bytes are the same image the VM preloads.  A checked
-  build adds per-frame and static defined-byte shadows; the emit-time checked
-  flag is the platform constant `__tc_a64_checked`.
+  program.  The `.data` bytes are the same image the VM preloads.  The static
+  layout must fit `profile.region[TC_REG_STATIC].size`; exceeding it is an
+  implementation error (`tc_error_internal`, exit 71) in both tools, never a
+  language diagnostic.  A checked build adds per-frame and static defined-byte
+  shadows; the emit-time checked flag is the platform constant
+  `__tc_a64_checked`.
 - Emitted code calls the freestanding runtime for floating arithmetic,
   conversions, object/pointer memory operations, I/O and first-trap reporting.
   The runtime archive is compiled from the shared semantic core, formatter,

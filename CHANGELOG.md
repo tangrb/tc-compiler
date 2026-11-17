@@ -45,16 +45,17 @@
 - **AArch64 W=64 全量后端与工具链**：全部 51 个 opcode 与全部值类型（整数/位/
   比较、浮点、转换、指针/对象、`struct`/`make`/`copy`/`memmove`、直接/间接调用、
   `funcaddr`/`funceq`/`funcne`、`sizeof`、I/O、控制流）的 lowering；AAPCS64
-  复合/HFA/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问；
+  复合/HFA/大复合按引用/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问；
   按 `TcObject` 偏移的帧/静态区布局、对象描述符表、静态初值 `.data`、复位入口、
   区基址、确定性汇编发射、无 regalloc；`tc-aot --emit=asm|obj|elf`、
   clang/lld 驱动、`--icf=none` 与 `aarch64-none-elf` target triple 映射；
   freestanding AArch64 运行时（启动、semihosting 输出、确定性格式化/输入、
   对象/指针检查、checked shadow、trap/退出、深度计数、运行时分配器）。
 - **全量运行时与差分/一致性验证**：S6 W=64 全部运行时用例复用 + struct/HFA/
-  大复合/多参数/间接调用/指针/静态字节/`@fast_math` 的新差分用例；全量 AAPCS64
-  ABI 与汇编形态审计；标准 §13.4 八项一致性套件；checked build（越界/悬垂/
-  one-past/未初始化）与必选 trap 分离统计、合法程序集合不变；ELF 入口/区布局/
+  大复合按引用/多参数/递归/间接调用/指针/大偏移/静态字节/`@fast_math` 的新差分用例；
+  全量 AAPCS64 ABI、汇编形态审计与 clang C 调用者互操作；生成式 ABI/布局/内存/
+  浮点 fuzz 与静态变异双工具首诊；标准 §13.4 八项一致性套件；checked build（越界/
+  悬垂/one-past/未初始化）与必选 trap 分离统计、合法程序集合不变；ELF 入口/区布局/
   符号/静态字节/ICF 与确定性套件；S7 差分/ABI/工具链/静态一致/零 pass 套件继续通过；
   全部静态 `.tc` 的 VM/AOT 首诊逐字节一致；release 与 ASan+UBSan 均通过。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
@@ -64,8 +65,9 @@
   的能力显式退出 70 且不发布错误产物。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
   `tc_aot_test`、S1/S2/S3/S4/S5/S6 一致性用例表、S7 差分/ABI/工具链/静态一致/
-  确定性套件、S8 全量差分/ABI/checked/一致性/产物/确定性套件、W=32/64 运行时
-  golden、adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 45/45，harness
+  确定性套件、S8 全量差分/ABI/C 互操作/生成式 fuzz/checked/一致性/产物/确定性/
+  静态变异套件、W=32/64 运行时 golden、adapter 失败关闭自测；当前
+  Debug/Release/ASan `ctest` 51/51，harness
   754/754（557 编译、129 工具、67 运行、1 属性），单元检查 frontend 688、sem 102、
   ct 370、ir 674、vm 413、aot 58。
 

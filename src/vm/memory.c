@@ -270,14 +270,21 @@ static int add_field_objects(TcVm *vm, uint64_t start, const TcType *type,
     return 1;
 }
 
-/* Best object match for an address: a live object containing it, or (when
- * allow_one_past) an object whose end equals it.  A candidate whose type is
- * the preferred element type wins; ties prefer the innermost object. */
+/* Best object match for an address: a live object containing it wins over an
+ * object that merely ends at it, then the requested element type, then the
+ * innermost object.  Prioritizing containment keeps a byte access into a
+ * containing struct's padding legal even when a preceding field's one-past
+ * address coincides with it; one-past is only used when no live object
+ * contains the address. */
 static TcVmObject *find_object(TcVm *vm, uint64_t address,
                                const TcType *prefer, int allow_one_past,
                                int *out_one_past) {
-    TcVmObject *best_type = NULL;
-    TcVmObject *best_any = NULL;
+    TcVmObject *best = NULL;
+    int best_live = 0;
+    int best_type = 0;
+    uint64_t best_start = 0;
+    uint64_t best_size = 0;
+    int best_past = 0;
     size_t i;
     if (out_one_past != NULL) {
         *out_one_past = 0;
@@ -288,34 +295,130 @@ static TcVmObject *find_object(TcVm *vm, uint64_t address,
                    address - object->start < object->size;
         int one_past = allow_one_past && object->size != 0 &&
                        address == object->start + object->size;
-        TcVmObject **slot;
+        int type_match;
+        int better;
         if (!live && !one_past) {
             continue;
         }
-        slot = prefer != NULL && object->type == prefer ? &best_type
-                                                        : &best_any;
-        if (*slot == NULL ||
-            object->start > (*slot)->start ||
-            (object->start == (*slot)->start &&
-             object->size < (*slot)->size) ||
-            (object->start == (*slot)->start &&
-             object->size == (*slot)->size && live && !one_past)) {
-            *slot = object;
+        type_match = prefer != NULL && object->type == prefer;
+        better = best == NULL;
+        if (!better && live != best_live) {
+            better = live > best_live;
+        } else if (!better && type_match != best_type) {
+            better = type_match > best_type;
+        } else if (!better && object->start != best_start) {
+            better = object->start > best_start;
+        } else if (!better && object->size != best_size) {
+            better = object->size < best_size;
+        }
+        if (better) {
+            best = object;
+            best_live = live;
+            best_type = type_match;
+            best_start = object->start;
+            best_size = object->size;
+            best_past = one_past;
         }
     }
-    if (best_type != NULL) {
-        if (out_one_past != NULL) {
-            *out_one_past = address == best_type->start + best_type->size;
-        }
-        return best_type;
+    if (best == NULL) {
+        return NULL;
     }
-    if (best_any != NULL) {
-        if (out_one_past != NULL) {
-            *out_one_past = address == best_any->start + best_any->size;
-        }
-        return best_any;
+    if (out_one_past != NULL) {
+        *out_one_past = best_past;
     }
-    return NULL;
+    return best;
+}
+
+/* Best object that fully contains an access range, or (when none) an object
+ * whose one-past address matches.  Containment beats one-past so a byte access
+ * into a containing struct's padding or across its fields is checked against
+ * the containing object rather than a smaller sibling sub-object; the access
+ * range must still fit the chosen object. */
+static TcVmObject *find_access_object(TcVm *vm, uint64_t address,
+                                      uint64_t size, const TcType *prefer,
+                                      int *out_contained) {
+    TcVmObject *best = NULL;
+    int best_contained = 0;
+    int best_type = 0;
+    uint64_t best_start = 0;
+    uint64_t best_size = 0;
+    size_t i;
+    if (out_contained != NULL) {
+        *out_contained = 0;
+    }
+    for (i = 0; i < vm->nobjects; i++) {
+        TcVmObject *object = &vm->objects[i];
+        uint64_t relative;
+        int contained;
+        int one_past;
+        int type_match;
+        int better;
+        if (address < object->start) {
+            continue;
+        }
+        relative = address - object->start;
+        if (relative > object->size) {
+            continue;
+        }
+        contained = relative <= object->size &&
+                    size <= object->size - relative;
+        one_past = address == object->start + object->size;
+        if (!contained && !one_past) {
+            continue;
+        }
+        type_match = prefer != NULL && object->type == prefer;
+        better = best == NULL;
+        if (!better && contained != best_contained) {
+            better = contained > best_contained;
+        } else if (!better && type_match != best_type) {
+            better = type_match > best_type;
+        } else if (!better && object->start != best_start) {
+            better = object->start > best_start;
+        } else if (!better && object->size != best_size) {
+            better = object->size < best_size;
+        }
+        if (better) {
+            best = object;
+            best_contained = contained;
+            best_type = type_match;
+            best_start = object->start;
+            best_size = object->size;
+        }
+    }
+    if (out_contained != NULL) {
+        *out_contained = best_contained;
+    }
+    return best;
+}
+
+/* Any object whose live/one-past interval keeps a pointer-arithmetic result
+ * inside it.  Considering every candidate avoids rejecting a defined
+ * operation merely because the same address also belongs to an adjacent
+ * object; pointer provenance is not tracked (see CONTRACTS.md). */
+static int ptr_arith_in_bounds(TcVm *vm, uint64_t pointer, uint64_t result,
+                               uint64_t count, int add) {
+    size_t i;
+    for (i = 0; i < vm->nobjects; i++) {
+        TcVmObject *object = &vm->objects[i];
+        int live;
+        int one_past;
+        if (pointer < object->start) {
+            continue;
+        }
+        live = pointer - object->start < object->size;
+        one_past = pointer == object->start + object->size;
+        if (!live && !one_past) {
+            continue;
+        }
+        if (one_past && add && count != 0) {
+            continue;
+        }
+        if (result >= object->start &&
+            result <= object->start + object->size) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -453,20 +556,16 @@ static int check_access(TcVm *vm, uint64_t address, uint64_t size,
         return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
     }
     {
-        int one_past = 0;
-        TcVmObject *object = find_object(vm, address, type, 1, &one_past);
-        if (object != NULL && !one_past &&
-            address - object->start <= object->size &&
-            size <= object->size - (address - object->start)) {
+        int contained = 0;
+        TcVmObject *object = find_access_object(vm, address, size, type,
+                                                &contained);
+        if (object != NULL && contained) {
             if (write && !object->writable) {
                 return tc_vm_trap(vm, NULL, TC_EK_WRITE_PROTECTED);
             }
-        } else if (object != NULL && one_past) {
-            /* Dereferencing one-past is UB; only checked builds trap. */
-            if (vm->profile->checked_build) {
-                return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
-            }
         } else if (vm->profile->checked_build) {
+            /* One-past dereference or an access outside every object is UB;
+             * only a checked build traps. */
             return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
         }
     }
@@ -935,7 +1034,6 @@ int tc_vm_ptr_arith(TcVm *vm, uint64_t ptr, uint64_t count,
     unsigned __int128 delta;
     __int128 result;
     int ok = 0;
-    int one_past = 0;
 
     if (ptr == 0) {
         return tc_vm_trap(vm, NULL, TC_EK_NULL_POINTER);
@@ -971,16 +1069,8 @@ int tc_vm_ptr_arith(TcVm *vm, uint64_t ptr, uint64_t count,
         return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
     }
     {
-        TcVmObject *object = find_object(vm, ptr, element, 1, &one_past);
-        int in_bounds = 0;
-        if (object != NULL) {
-            if (one_past && add && count != 0) {
-                in_bounds = 0;
-            } else if ((uint64_t)result >= object->start &&
-                       (uint64_t)result <= object->start + object->size) {
-                in_bounds = 1;
-            }
-        }
+        int in_bounds = ptr_arith_in_bounds(vm, ptr, (uint64_t)result, count,
+                                            add);
         if (!in_bounds) {
             if (vm->profile->checked_build) {
                 return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);

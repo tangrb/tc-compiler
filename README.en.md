@@ -18,12 +18,13 @@ kept; historical implementation and tools live in git tags.
   profiles, with the VM able to execute `aarch64-linux-user`, `aarch64-baremetal`
   and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/float/
   conversion, pointers/memory/struct, all 51 opcodes, AAPCS64 composites/HFA/
-  large indirect returns, `fnptr`/`call_indirect`, multi-size and unaligned
-  access, checked build); the freestanding AArch64 runtime (object table/pointer
+  large by-reference composites and indirect returns, `fnptr`/`call_indirect`,
+  multi-size and unaligned access, checked build); the freestanding AArch64 runtime (object table/pointer
   states/mandatory traps/checked shadow, deterministic I/O, allocator, trap and
   exit); reset entry, region bases, static `.data`, ELF artifacts with ICF
   disabled and clang/lld/qemu driving; checked build in both tools; and the full
-  VM↔AOT differential/ABI/consistency/artifact/determinism suites.
+  VM↔AOT differential/ABI/consistency/artifact/determinism suites, C-caller
+  AAPCS64 interoperability and generated ABI/layout/memory/float fuzz suites.
 - **Not implemented**: the freestanding/bare-metal platform instance (PL011 UART,
   bare-metal link/device policy) and the 32-bit backend/ABI; these belong to S9.
 - Gates: G0–G8 PASS; **G8 allows S9**. See [gate status](docs/gates/README.en.md).

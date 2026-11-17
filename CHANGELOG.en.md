@@ -61,7 +61,8 @@
   all value types (integer/bit/comparison, float, conversion, pointer/object,
   `struct`/`make`/`copy`/`memmove`, direct/indirect calls, `funcaddr`/`funceq`/
   `funcne`, `sizeof`, I/O, control flow); AAPCS64 composites/HFA/large indirect
-  returns, `fnptr`/`call_indirect`, multi-size and unaligned access; frame/static
+  returns and large by-reference composites, `fnptr`/`call_indirect`, multi-size
+  and unaligned access; frame/static
   layout at `TcObject` offsets, object descriptor tables, static initializer
   `.data`, reset entry, region bases, deterministic assembly emission, no
   regalloc; `tc-aot --emit=asm|obj|elf`, clang/lld driving with `--icf=none` and
@@ -87,9 +88,10 @@
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
   `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7
   differential/ABI/toolchain/static-parity/determinism suites, S8 full
-  differential/ABI/checked/consistency/artifact/determinism suites, W=32/64
-  runtime goldens, determinism suites and a fail-closed adapter self-test;
-  currently 45/45 `ctest` and 754/754 harness cases (557 compile, 129 tool,
+  differential/ABI/C-interop/generated-fuzz/checked/consistency/artifact/
+  determinism/static-mutation suites, W=32/64 runtime goldens, determinism
+  suites and a fail-closed adapter self-test; currently 51/51 `ctest` and
+  754/754 harness cases (557 compile, 129 tool,
   67 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
   sem 102, ct 370, ir 674, vm 413, aot 58.
 

@@ -11988,7 +11988,8 @@
         "TC-ABI-S8-0004",
         "TC-ABI-S8-0005",
         "TC-ABI-S8-0006",
-        "TC-ABI-S8-0008"
+        "TC-ABI-S8-0008",
+        "TC-ABI-S8-0010"
       ],
       "number": 7,
       "title": "ABI/调用",
@@ -12008,7 +12009,8 @@
       "case_ids": [
         "TC-AOT-ABI-0001",
         "TC-ABI-S8-0001",
-        "TC-ABI-S8-0006"
+        "TC-ABI-S8-0006",
+        "TC-ABI-S8-0010"
       ],
       "number": 7,
       "title": "ABI/调用",

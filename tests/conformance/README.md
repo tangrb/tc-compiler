@@ -48,7 +48,13 @@ never backfilled from compiler output.
   tools; absolute addresses are never printed, only defined relations.
 - S8 ABI: `abi/s8_abi_cases.py` covers the full AAPCS64 surface plus an
   assembly-shape audit (v registers for HFAs, x8 indirect returns, 16-byte stack
-  steps, `blr`).
+  steps, `blr`, by-reference large composites); `abi/s8_interop_cases.py` compiles
+  a C caller with clang and calls the AArch64 callee for 28 composite/HFA/spill
+  cases, checking the published ABI independently of the VM.
+- S8 generated: `diff/s8_abi_fuzz.py`, `s8_layout_fuzz.py`, `s8_mem_fuzz.py` and
+  `s8_fp_fuzz.py` derive expected behavior in Python and run fixed seed sets
+  (scalable with `--seeds`); `tools/s8_static_fuzz.py` compares both tools on
+  mutated sources.
 - S8 checked: `checked/s8_checked_cases.py` separates checked-build UB traps
   (out-of-object, one-past, dangling, uninitialized) from mandatory traps and
   re-runs legal release fixtures under `--checked`.

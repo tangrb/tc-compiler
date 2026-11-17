@@ -766,6 +766,23 @@ static void emit_argument(TcA64Emitter *emitter, const TcArg *arg,
         tc_a64_error(emitter, "call argument has an incomplete type");
         return;
     }
+    if (location->indirect) {
+        if (arg->value.kind == TC_OP_CONST) {
+            tc_a64_error(emitter, "aggregate constant argument has no address");
+            return;
+        }
+        tc_a64_add_constant(emitter, 15u, 31u, location->copy_offset);
+        tc_a64_operand_address(emitter, &arg->value, 17u);
+        tc_a64_write(emitter, "  mov x16, x15\n");
+        tc_a64_copy_bytes(emitter, size);
+        if (location->kind == TC_A64_LOC_XREG) {
+            tc_a64_write(emitter, "  mov x%u, x15\n", location->index);
+        } else {
+            tc_a64_add_constant(emitter, 16u, 31u, location->stack_offset);
+            tc_a64_write(emitter, "  str x15, [x16]\n");
+        }
+        return;
+    }
     if (location->kind == TC_A64_LOC_STACK) {
         if (type->tag == TC_TY_STRUCT) {
             tc_a64_operand_address(emitter, &arg->value, 17u);

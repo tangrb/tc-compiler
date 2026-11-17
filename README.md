@@ -13,11 +13,12 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   （五区/对象与字段子对象、指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、
   提交语义）；32/64 档案，VM 可执行 `aarch64-linux-user`、`aarch64-baremetal` 与 `w32`；
   W=64 AArch64 全量后端（整数/位/比较/浮点/转换、指针/内存/struct、全部 51 个 opcode、
-  AAPCS64 复合/HFA/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问、
+  AAPCS64 复合/HFA/大复合按引用指针/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问、
   checked build）；freestanding AArch64 运行时（对象表/指针状态/必选定检/checked
   shadow、确定性 I/O、分配器、trap/退出）；复位入口、区基址、静态区 `.data`、ELF
   产物（禁用 ICF）与 clang/lld/qemu 驱动；`tc-vm`/`tc-aot` 的 checked build，以及
-  全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件。
+  全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C 调用者 AAPCS64 互操作与
+  生成式 ABI/布局/内存/浮点 fuzz。
 - **未实现**：freestanding/裸机平台实例（PL011 UART、裸机链接/设备策略）与 32 位
   后端/ABI；这些属 S9。
 - 当前门禁：G0–G8 PASS；**G8 允许进入 S9**。详见 [门禁状态](docs/gates/README.md)。

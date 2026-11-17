@@ -15,7 +15,7 @@ tokens) and the reference VM (regions, objects/sub-objects, pointer states, all
 51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics, checked-build
 bounds/dangling/uninitialized detection).  The full W=64 AArch64 backend emits
 deterministic assembly for all value types and opcodes, implements the AAPCS64
-argument/return surface (composites, HFA, large indirect returns, `fnptr`/
+argument/return surface (composites, HFA, large by-reference composites and indirect returns, `fnptr`/
 `call_indirect`), the object-table driven memory helpers (mandatory and
 checked-build traps), reset entry/region layout/static `.data` and drives
 clang/lld to an ELF with ICF disabled; the freestanding runtime archive is shared

@@ -4,8 +4,8 @@
 Covers the S8 delivery row "full ABI": integer/pointer/function-pointer
 arguments in x0-x7, float32/float64 in v0-v7, homogeneous float aggregates
 (HFA) in consecutive v registers, composites of at most 16 bytes in consecutive
-x registers, larger aggregates by value on the stack with an x8 indirect
-result pointer, bool/int8/int16 extension, stack alignment, callee-saved
+x registers, aggregates larger than 16 bytes by reference to a caller copy
+with an x8 indirect result pointer, bool/int8/int16 extension, stack alignment, callee-saved
 registers across calls and recursion, the D boundary, and the rule that direct
 call parameter preconditions (`@nonnull`/`@align`/`@range`) are optimization
 assumptions, never runtime checks (standard §8.5/§8.6/§10.2.1).
@@ -350,6 +350,8 @@ def check_lowering_shape(tmp: Path, failures: list[str]) -> None:
             "import shape_lib",
             "var q: shape_lib.Q = call shape_lib.mk, 1.0f, 2.0f, 3.0f",
             "var b: shape_lib.B = call shape_lib.big, 4",
+            "var v: shape_lib.B = make shape_lib.B, 1, 2, 3",
+            "var t: int64 = call shape_lib.take, v",
             "var r: int64 = call shape_lib.many, 1, 2, 3, 4, 5, 6, 7, 8, 9",
             "var fp: fnptr<int64, int64> = funcaddr shape_lib.one",
             "var z: int64 = copy int64, 0",
@@ -382,6 +384,9 @@ def check_lowering_shape(tmp: Path, failures: list[str]) -> None:
             "public func big(x: int64) B then",
             "var b: B = make B, x, 2, 3",
             "_ = return b",
+            "end",
+            "public func take(x: B) int64 then",
+            "_ = return x.a",
             "end",
             "public func one(x: int64) int64 then",
             "_ = return x",
@@ -421,6 +426,14 @@ def check_lowering_shape(tmp: Path, failures: list[str]) -> None:
         failures.append("abi shape: direct calls are not emitted")
     if not re.search(r"blr x16", text):
         failures.append("abi shape: indirect calls do not use blr")
+    if not re.search(r"(add|mov) x15, sp", text):
+        failures.append("abi shape: a large composite has no caller copy")
+    if "mov x0, x15" not in text:
+        failures.append(
+            "abi shape: a large composite pointer is not passed in x0")
+    if "mov x17, x0" not in text:
+        failures.append(
+            "abi shape: a large composite parameter is not read through its pointer")
 
 
 def main() -> int:

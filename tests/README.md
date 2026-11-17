@@ -39,7 +39,10 @@ stdout、首个 trap 码与退出策略；`s7_cases.py`/`s7_fuzz.py` 覆盖子�
 显式拒绝与静态一致，`s7_static_parity.py` 对全部静态 `.tc` 比较两个工具的首诊，
 `s7_determinism.py` 覆盖 O0/O2、重复构建与重复执行。S8 套件在同一执行机制上
 覆盖全部 51 个 opcode 与全部值类型：`s8_cases.py`（全量差分）、
-`s8_abi_cases.py`（全量 ABI + 汇编形态）、`s8_checked_cases.py`（checked/
+`s8_abi_cases.py`（全量 ABI + 汇编形态）、`s8_interop_cases.py`（clang
+AAPCS64 调用方互操作）、`s8_abi_fuzz.py`/`s8_layout_fuzz.py`/`s8_mem_fuzz.py`/
+`s8_fp_fuzz.py`（生成式对抗用例）、`s8_static_fuzz.py`（静态变异双工具首诊）、
+`s8_checked_cases.py`（checked/
 必选 trap/合法集分离）、`s8_consistency_cases.py`（§13.4 八项）、
 `s8_artifact_cases.py`（入口/区/符号/静态字节/ICF）与 `s8_determinism.py`。
 AOT 构建/测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld` 与
@@ -47,6 +50,6 @@ AOT 构建/测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`l
 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与 llvm-ar/aarch64-elf-ar。
 32/64 结果分档案保存；差分只在同一档案内比较 VM 与 AOT。
 
-当前全量：`ctest` 45/45（Debug/Release/ASan+UBSan）；harness 754/754
+当前全量：`ctest` 51/51（Debug/Release/ASan+UBSan）；harness 754/754
 （557 编译、129 工具、67 运行、1 属性）；单元检查 frontend 688、sem 102、
 ct 370、ir 674、vm 413、aot 58。

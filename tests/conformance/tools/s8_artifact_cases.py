@@ -341,6 +341,59 @@ def check_artifacts(tmp: Path, failures: list[str]) -> None:
                 failures.append("artifact: checked build lacks define tracking")
 
 
+def check_implementation_limits(tmp: Path, failures: list[str]) -> None:
+    """The profile static region bounds both tools; exceeding it is an
+    implementation error (exit 71), not a language diagnostic, and publishes no
+    artifact.  A large but in-budget static object still works."""
+    directory = tmp / "limits"
+    directory.mkdir()
+    lib = """#lib
+public struct Big then
+var a: int8 @padding({pad})
+var b: int32
+end
+"""
+    root = """#program
+import lib
+var s: lib.Big = make lib.Big, 3, 123456
+_ = writeln int32, s.b
+"""
+    (directory / "root.tc").write_text(root, encoding="utf-8")
+    # 900000-byte object plus the 5-byte tail fits in the 1 MiB profile region.
+    (directory / "lib.tc").write_text(lib.format(pad=900000), encoding="utf-8")
+    source = directory / "root.tc"
+    proc = subprocess.run(
+        [engine.tc_vm_path(), "--profile=aarch64-linux-user",
+         f"--include={directory}", str(source)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+    if proc.returncode != 0 or proc.stdout != b"123456\n":
+        failures.append(
+            "limits: in-budget static object failed on the VM "
+            f"(exit {proc.returncode}, stdout {proc.stdout!r})")
+    good_elf = directory / "good.elf"
+    proc = aot(source, directory, "--emit=elf", f"--output={good_elf}")
+    if proc.returncode != 0 or not good_elf.exists():
+        failures.append("limits: in-budget static object failed on the backend")
+    # A 1 MiB + 5-byte object exceeds the profile static region.
+    (directory / "lib.tc").write_text(lib.format(pad=1048576), encoding="utf-8")
+    proc = subprocess.run(
+        [engine.tc_vm_path(), "--profile=aarch64-linux-user",
+         f"--include={directory}", str(source)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+    if proc.returncode != 71:
+        failures.append(
+            f"limits: oversized static object VM exit {proc.returncode}, "
+            "expected 71")
+    bad_elf = directory / "bad.elf"
+    proc = aot(source, directory, "--emit=elf", f"--output={bad_elf}")
+    if proc.returncode != 71:
+        failures.append(
+            f"limits: oversized static object AOT exit {proc.returncode}, "
+            "expected 71")
+    if bad_elf.exists():
+        failures.append("limits: oversized static object published an artifact")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
@@ -351,6 +404,7 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="tc-s8-artifact-"))
     try:
         check_artifacts(tmp, failures)
+        check_implementation_limits(tmp, failures)
     except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
         failures.append(f"artifact: {exc}")
     finally:

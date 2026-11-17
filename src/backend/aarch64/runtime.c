@@ -374,23 +374,22 @@ static int locate_address(uint64_t address, TcRegionKind *out_region,
     return 0;
 }
 
-/* Find the best object for an address, mirroring the reference VM: a live
- * object containing the address (or ending at it when `allow_one_past`),
- * preferring the requested element type and then the innermost object. */
+/* Find the best object for an address.  A live object containing the address
+ * wins over an object that merely ends at it, then the requested element type,
+ * then the innermost object.  This mirrors the reference VM and keeps a byte
+ * access into a containing struct's padding legal even when a preceding
+ * field's one-past address coincides with it. */
 static int object_lookup(uint64_t address, uint32_t prefer_type,
                          int allow_one_past, int *out_one_past,
                          uint64_t *out_start, uint64_t *out_size,
                          int *out_writable) {
-    int have_best_type = 0;
-    int have_best_any = 0;
-    uint64_t best_type_start = 0;
-    uint64_t best_type_size = 0;
-    int best_type_writable = 0;
-    int best_type_past = 0;
-    uint64_t best_any_start = 0;
-    uint64_t best_any_size = 0;
-    int best_any_writable = 0;
-    int best_any_past = 0;
+    const TcA64ObjectDesc *best_desc = NULL;
+    int best_live = 0;
+    int best_type = 0;
+    uint64_t best_start = 0;
+    uint64_t best_size = 0;
+    int best_past = 0;
+    int best_writable = 0;
     uint64_t i;
     if (out_one_past != NULL) {
         *out_one_past = 0;
@@ -417,56 +416,165 @@ static int object_lookup(uint64_t address, uint32_t prefer_type,
             int one_past = allow_one_past && desc->size != 0 &&
                            address == start + desc->size;
             int type_match;
+            int better;
             if (!live && !one_past) {
                 continue;
             }
             type_match = desc->type_id == prefer_type;
-            {
-                int use_type = type_match && (!have_best_type ||
-                    start > best_type_start ||
-                    (start == best_type_start && desc->size < best_type_size) ||
-                    (start == best_type_start && desc->size == best_type_size &&
-                     live && !one_past));
-                int use_any = !have_best_any || start > best_any_start ||
-                    (start == best_any_start && desc->size < best_any_size) ||
-                    (start == best_any_start && desc->size == best_any_size &&
-                     live && !one_past);
-                if (type_match && use_type) {
-                    have_best_type = 1;
-                    best_type_start = start;
-                    best_type_size = desc->size;
-                    best_type_writable =
-                        (desc->flags & TC_A64_OBJECT_WRITABLE) != 0;
-                    best_type_past = one_past;
-                }
-                if (!type_match && use_any) {
-                    have_best_any = 1;
-                    best_any_start = start;
-                    best_any_size = desc->size;
-                    best_any_writable =
-                        (desc->flags & TC_A64_OBJECT_WRITABLE) != 0;
-                    best_any_past = one_past;
-                }
+            better = best_desc == NULL;
+            if (!better && live != best_live) {
+                better = live > best_live;
+            } else if (!better && type_match != best_type) {
+                better = type_match > best_type;
+            } else if (!better && start != best_start) {
+                better = start > best_start;
+            } else if (!better && desc->size != best_size) {
+                better = desc->size < best_size;
+            }
+            if (better) {
+                best_desc = desc;
+                best_live = live;
+                best_type = type_match;
+                best_start = start;
+                best_size = desc->size;
+                best_past = one_past;
+                best_writable =
+                    (desc->flags & TC_A64_OBJECT_WRITABLE) != 0;
             }
         }
     }
-    if (have_best_type) {
-        *out_start = best_type_start;
-        *out_size = best_type_size;
-        *out_writable = best_type_writable;
-        if (out_one_past != NULL) {
-            *out_one_past = best_type_past;
-        }
-        return 1;
+    if (best_desc == NULL) {
+        return 0;
     }
-    if (have_best_any) {
-        *out_start = best_any_start;
-        *out_size = best_any_size;
-        *out_writable = best_any_writable;
-        if (out_one_past != NULL) {
-            *out_one_past = best_any_past;
+    *out_start = best_start;
+    *out_size = best_size;
+    *out_writable = best_writable;
+    if (out_one_past != NULL) {
+        *out_one_past = best_past;
+    }
+    return 1;
+}
+
+/* Best object whose range fully contains an access, or (when none) an object
+ * whose one-past address matches.  Containment wins so padding and
+ * cross-field accesses inside a containing struct are validated against the
+ * containing object, matching the reference VM. */
+static int access_object(uint64_t address, uint64_t size, uint32_t type_id,
+                         uint64_t *out_start, uint64_t *out_size,
+                         int *out_writable) {
+    const TcA64ObjectDesc *best_desc = NULL;
+    int best_contained = 0;
+    int best_type = 0;
+    uint64_t best_start = 0;
+    uint64_t best_size = 0;
+    int best_writable = 0;
+    uint64_t i;
+    for (i = 0; i <= tc_frame_count; i++) {
+        const TcA64ObjectDesc *descs;
+        uint64_t count;
+        uint64_t base;
+        uint64_t k;
+        if (i == tc_frame_count) {
+            descs = __tc_static_objects;
+            count = __tc_static_object_count;
+            base = (uintptr_t)__tc_static_region;
+        } else {
+            descs = tc_frames[tc_frame_count - 1u - i].objects;
+            count = tc_frames[tc_frame_count - 1u - i].count;
+            base = tc_frames[tc_frame_count - 1u - i].base;
         }
-        return 1;
+        for (k = 0; k < count; k++) {
+            const TcA64ObjectDesc *desc = &descs[k];
+            uint64_t start = base + desc->offset;
+            uint64_t relative;
+            int contained;
+            int one_past;
+            int type_match;
+            int better;
+            if (address < start) {
+                continue;
+            }
+            relative = address - start;
+            if (relative > desc->size) {
+                continue;
+            }
+            contained = size <= desc->size - relative;
+            one_past = address == start + desc->size;
+            if (!contained && !one_past) {
+                continue;
+            }
+            type_match = desc->type_id == type_id;
+            better = best_desc == NULL;
+            if (!better && contained != best_contained) {
+                better = contained > best_contained;
+            } else if (!better && type_match != best_type) {
+                better = type_match > best_type;
+            } else if (!better && start != best_start) {
+                better = start > best_start;
+            } else if (!better && desc->size != best_size) {
+                better = desc->size < best_size;
+            }
+            if (better) {
+                best_desc = desc;
+                best_contained = contained;
+                best_type = type_match;
+                best_start = start;
+                best_size = desc->size;
+                best_writable =
+                    (desc->flags & TC_A64_OBJECT_WRITABLE) != 0;
+            }
+        }
+    }
+    if (best_desc == NULL || !best_contained) {
+        return 0;
+    }
+    *out_start = best_start;
+    *out_size = best_size;
+    *out_writable = best_writable;
+    return 1;
+}
+
+/* Any object whose live/one-past interval keeps a pointer-arithmetic result
+ * inside it.  Pointer provenance is not tracked, so the result is accepted
+ * when any candidate interval contains it; this never rejects a defined
+ * operation because the address also belongs to an adjacent object. */
+static int ptr_bounds_ok(uint64_t pointer, uint64_t result, uint64_t count,
+                         int add) {
+    uint64_t i;
+    for (i = 0; i <= tc_frame_count; i++) {
+        const TcA64ObjectDesc *descs;
+        uint64_t count_desc;
+        uint64_t base;
+        uint64_t k;
+        if (i == tc_frame_count) {
+            descs = __tc_static_objects;
+            count_desc = __tc_static_object_count;
+            base = (uintptr_t)__tc_static_region;
+        } else {
+            descs = tc_frames[tc_frame_count - 1u - i].objects;
+            count_desc = tc_frames[tc_frame_count - 1u - i].count;
+            base = tc_frames[tc_frame_count - 1u - i].base;
+        }
+        for (k = 0; k < count_desc; k++) {
+            const TcA64ObjectDesc *desc = &descs[k];
+            uint64_t start = base + desc->offset;
+            int live;
+            int one_past;
+            if (pointer < start) {
+                continue;
+            }
+            live = pointer - start < desc->size;
+            one_past = pointer == start + desc->size;
+            if (!live && !one_past) {
+                continue;
+            }
+            if (one_past && add != 0 && count != 0) {
+                continue;
+            }
+            if (result >= start && result <= start + desc->size) {
+                return 1;
+            }
+        }
     }
     return 0;
 }
@@ -599,7 +707,6 @@ static uint64_t check_access(uint64_t address, uint64_t size,
     uint64_t start = 0;
     uint64_t object_size = 0;
     int writable = 0;
-    int one_past = 0;
     int found;
     if (address == 0) {
         span_trap(TC_EK_NULL_POINTER, line, column, file);
@@ -623,18 +730,15 @@ static uint64_t check_access(uint64_t address, uint64_t size,
     if (address > UINT64_MAX - size) {
         span_trap(TC_EK_ADDR_UNAVAILABLE, line, column, file);
     }
-    found = object_lookup(address, type_id, 1, &one_past, &start,
-                          &object_size, &writable);
-    if (found && !one_past && address - start <= object_size &&
-        size <= object_size - (address - start)) {
+    found = access_object(address, size, type_id, &start, &object_size,
+                          &writable);
+    if (found) {
         if (write && !writable) {
             span_trap(TC_EK_WRITE_PROTECTED, line, column, file);
         }
-    } else if (found && one_past) {
-        if (checked_build()) {
-            span_trap(TC_EK_ADDR_UNAVAILABLE, line, column, file);
-        }
     } else if (checked_build()) {
+        /* One-past dereference or an access outside every object is UB; only
+         * a checked build traps. */
         span_trap(TC_EK_ADDR_UNAVAILABLE, line, column, file);
     }
     if (checked_build() && !write && !shadow_defined(address, size)) {
@@ -725,7 +829,7 @@ uint64_t tc_a64_ptradd(uint64_t pointer, uint64_t count, uint64_t element_size,
     TcRegionKind region;
     unsigned __int128 delta;
     __int128 result;
-    int one_past = 0;
+    (void)type_id;
     if (pointer == 0) {
         span_trap(TC_EK_NULL_POINTER, line, column, file);
     }
@@ -748,21 +852,8 @@ uint64_t tc_a64_ptradd(uint64_t pointer, uint64_t count, uint64_t element_size,
         span_trap(TC_EK_ADDR_UNAVAILABLE, line, column, file);
     }
     {
-        uint64_t start = 0;
-        uint64_t object_size = 0;
-        int writable = 0;
-        int found = object_lookup(pointer, (uint32_t)type_id, 1, &one_past,
-                                  &start, &object_size, &writable);
-        int in_bounds = 0;
-        (void)writable;
-        if (found) {
-            if (one_past && add != 0 && count != 0) {
-                in_bounds = 0;
-            } else if ((uint64_t)result >= start &&
-                       (uint64_t)result <= start + object_size) {
-                in_bounds = 1;
-            }
-        }
+        int in_bounds = ptr_bounds_ok(pointer, (uint64_t)result, count,
+                                      (int)add);
         if (!in_bounds) {
             if (checked_build()) {
                 span_trap(TC_EK_ADDR_UNAVAILABLE, line, column, file);

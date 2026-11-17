@@ -1438,7 +1438,8 @@ S7_COVERED_ROWS = {
 S8_COVERED_ROWS = {
     # Full-runtime differential, the §13.4 eight-item consistency suite, the
     # checked-build separation, the full ABI surface and the @fast_math
-    # boundary.  Freestanding (item 4) remains S9 work.
+    # boundary.  Design §12 item 4 is the freestanding compile/symbol audit;
+    # the full bare-metal platform instance remains S9 work.
     "design12:01:suite_mapping": ["TC-DIFF-S8-0001", "TC-DIFF-S8-0021"],
     "design12:01:gate_case": ["TC-DIFF-S8-0001"],
     "design12:04:suite_mapping": ["TC-ART-S8-0001"],
@@ -1457,8 +1458,11 @@ S8_COVERED_ROWS = {
     "design12:07:suite_mapping": [
         "TC-ABI-S8-0001", "TC-ABI-S8-0002", "TC-ABI-S8-0004",
         "TC-ABI-S8-0005", "TC-ABI-S8-0006", "TC-ABI-S8-0008",
+        "TC-ABI-S8-0010",
     ],
-    "design12:07:gate_case": ["TC-ABI-S8-0001", "TC-ABI-S8-0006"],
+    "design12:07:gate_case": [
+        "TC-ABI-S8-0001", "TC-ABI-S8-0006", "TC-ABI-S8-0010",
+    ],
     "design12:08:suite_mapping": [
         "TC-DIFF-S8-0015", "TC-DIFF-S8-0016", "TC-DIFF-S8-0017",
         "TC-CHK-S8-0003",

@@ -590,8 +590,8 @@
 | `design12:05:gate_case` | 5. checked build | gate_case | **covered** | TC-UNIT-VM-0006, TC-CHK-S8-0001, TC-CHK-S8-0012 | design §12, test plan §3.6/§8.2 |
 | `design12:06:suite_mapping` | 6. 32/64 静态矩阵 | suite_mapping | **covered** | TC-SEM-CONV-0010, TC-TOOL-SEM-0009 | design §12, test plan §3.6/§8.2 |
 | `design12:06:gate_case` | 6. 32/64 静态矩阵 | gate_case | **covered** | TC-SEM-CONV-0001, TC-SEM-LAYOUT-0001 | design §12, test plan §3.6/§8.2 |
-| `design12:07:suite_mapping` | 7. ABI/调用 | suite_mapping | **covered** | TC-AOT-ABI-0001, TC-AOT-ABI-0002, TC-AOT-ABI-0003, TC-AOT-ABI-0004, TC-AOT-ABI-0005, TC-AOT-ABI-0006, TC-AOT-ABI-0007, TC-AOT-ABI-0008, TC-AOT-ABI-0009, TC-ABI-S8-0001, TC-ABI-S8-0002, TC-ABI-S8-0004, TC-ABI-S8-0005, TC-ABI-S8-0006, TC-ABI-S8-0008 | design §12, test plan §3.6/§8.2 |
-| `design12:07:gate_case` | 7. ABI/调用 | gate_case | **covered** | TC-AOT-ABI-0001, TC-ABI-S8-0001, TC-ABI-S8-0006 | design §12, test plan §3.6/§8.2 |
+| `design12:07:suite_mapping` | 7. ABI/调用 | suite_mapping | **covered** | TC-AOT-ABI-0001, TC-AOT-ABI-0002, TC-AOT-ABI-0003, TC-AOT-ABI-0004, TC-AOT-ABI-0005, TC-AOT-ABI-0006, TC-AOT-ABI-0007, TC-AOT-ABI-0008, TC-AOT-ABI-0009, TC-ABI-S8-0001, TC-ABI-S8-0002, TC-ABI-S8-0004, TC-ABI-S8-0005, TC-ABI-S8-0006, TC-ABI-S8-0008, TC-ABI-S8-0010 | design §12, test plan §3.6/§8.2 |
+| `design12:07:gate_case` | 7. ABI/调用 | gate_case | **covered** | TC-AOT-ABI-0001, TC-ABI-S8-0001, TC-ABI-S8-0006, TC-ABI-S8-0010 | design §12, test plan §3.6/§8.2 |
 | `design12:08:suite_mapping` | 8. 对象/内存 | suite_mapping | **covered** | TC-RT-MEM-0001, TC-RT-MEM-0002, TC-RT-MEM-0004, TC-DIFF-S8-0015, TC-DIFF-S8-0016, TC-DIFF-S8-0017, TC-CHK-S8-0003 | design §12, test plan §3.6/§8.2 |
 | `design12:08:gate_case` | 8. 对象/内存 | gate_case | **covered** | TC-RT-MEM-0004, TC-RT-MEM-0011, TC-DIFF-S8-0015, TC-DIFF-S8-0016 | design §12, test plan §3.6/§8.2 |
 | `design12:09:suite_mapping` | 9. 诊断/语法 | suite_mapping | **covered** | TC-SEM-TYPE-0001, TC-SEM-CALL-0101, TC-SEM-CFG-0016 | design §12, test plan §3.6/§8.2 |

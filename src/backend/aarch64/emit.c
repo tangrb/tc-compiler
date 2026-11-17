@@ -49,6 +49,20 @@ void tc_a64_error(TcA64Emitter *emitter, const char *format, ...) {
     }
 }
 
+void tc_a64_internal_error(TcA64Emitter *emitter, const char *format, ...) {
+    va_list ap;
+    if (emitter == NULL || emitter->failed) {
+        return;
+    }
+    emitter->failed = 1;
+    emitter->internal_error = 1;
+    if (emitter->error_message != NULL && emitter->error_capacity != 0) {
+        va_start(ap, format);
+        vsnprintf(emitter->error_message, emitter->error_capacity, format, ap);
+        va_end(ap);
+    }
+}
+
 unsigned tc_a64_label(TcA64Emitter *emitter) {
     return emitter->next_label++;
 }
@@ -1104,6 +1118,18 @@ static void emit_parameter_setup(TcA64Emitter *emitter, const TcFunc *func) {
             tc_a64_free_argument_plan(&plan);
             return;
         }
+        if (loc->indirect) {
+            if (loc->kind == TC_A64_LOC_XREG) {
+                tc_a64_write(emitter, "  mov x17, x%u\n", loc->index);
+            } else {
+                tc_a64_add_constant(emitter, 17u, 29u,
+                                    16u + loc->stack_offset);
+                tc_a64_write(emitter, "  ldr x17, [x17]\n");
+            }
+            tc_a64_add_constant(emitter, 16u, 19u, slot_offset);
+            tc_a64_copy_bytes(emitter, size);
+            continue;
+        }
         if (loc->kind == TC_A64_LOC_XREG) {
             if (type->tag == TC_TY_STRUCT) {
                 uint64_t written = 0;
@@ -1641,6 +1667,33 @@ static int preflight_ir(TcA64Emitter *emitter) {
         tc_a64_error(emitter, "the profile must disable ICF");
         return 0;
     }
+    {
+        /* The platform profile bounds the static region; the reference VM
+         * rejects a program whose static layout exceeds it as an
+         * implementation error, so the backend applies the same bound. */
+        uint64_t static_limit =
+            emitter->profile->region[TC_REG_STATIC].size;
+        size_t object_index;
+        for (object_index = 0; object_index < emitter->ir->nobjects;
+             object_index++) {
+            const TcObject *object = &emitter->ir->objects[object_index];
+            if (object->region != TC_REG_STATIC) {
+                continue;
+            }
+            if (object->offset > static_limit ||
+                object->size > static_limit - object->offset) {
+                tc_a64_internal_error(
+                    emitter,
+                    "static object %u at offset %llu size %llu exceeds the "
+                    "profile static region (%llu bytes)",
+                    (unsigned)object_index,
+                    (unsigned long long)object->offset,
+                    (unsigned long long)object->size,
+                    (unsigned long long)static_limit);
+                return 0;
+            }
+        }
+    }
     for (f = 0; f < emitter->ir->nfuncs; f++) {
         const TcFunc *func = &emitter->ir->funcs[f];
         size_t p;
@@ -1772,6 +1825,9 @@ TcAArch64EmitStatus tc_aarch64_emit_asm(FILE *out, const TcIR *ir,
     if (!preflight_ir(&emitter)) {
         free(emitter.types);
         free(emitter.type_ids);
+        if (emitter.internal_error) {
+            return TC_AARCH64_EMIT_INTERNAL;
+        }
         return emitter.failed ? TC_AARCH64_EMIT_UNSUPPORTED
                               : TC_AARCH64_EMIT_INTERNAL;
     }

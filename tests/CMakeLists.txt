@@ -171,6 +171,26 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s8_abi_cases.py
                      --check)
+    add_test(NAME conformance.s8_abi_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s8_abi_fuzz.py
+                     --check)
+    add_test(NAME conformance.s8_layout_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s8_layout_fuzz.py
+                     --check)
+    add_test(NAME conformance.s8_mem_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s8_mem_fuzz.py
+                     --check)
+    add_test(NAME conformance.s8_fp_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s8_fp_fuzz.py
+                     --check)
+    add_test(NAME conformance.s8_interop
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s8_interop_cases.py
+                     --check)
     add_test(NAME conformance.s8_checked
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/checked/s8_checked_cases.py
@@ -192,6 +212,9 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s7_tools determinism.s7 conformance.s7_static_parity
         conformance.s8_diff conformance.s8_abi conformance.s8_checked
         conformance.s8_consistency conformance.s8_artifact determinism.s8
+        conformance.s8_abi_fuzz conformance.s8_layout_fuzz
+        conformance.s8_mem_fuzz conformance.s8_fp_fuzz
+        conformance.s8_interop
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_LINKER=${TC_LLD}")
@@ -265,6 +288,14 @@ add_test(
             ${CMAKE_CURRENT_SOURCE_DIR}/conformance
             ${CMAKE_BINARY_DIR}/determinism)
 set_tests_properties(determinism.s4 PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_test(
+    NAME conformance.s8_static_fuzz
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s8_static_fuzz.py
+            --check)
+set_tests_properties(conformance.s8_static_fuzz PROPERTIES
+                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_test(
     NAME harness.conformance
