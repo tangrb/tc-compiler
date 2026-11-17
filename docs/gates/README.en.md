@@ -62,6 +62,7 @@ python3 tests/conformance/abi/s9_arm32_interop.py --check
 python3 tests/conformance/abi/reverse_interop_cases.py --check
 python3 tests/tools/abi_mutation_audit.py --check
 python3 tests/tools/s9_capacity_report.py --check
+python3 tests/tools/s9_softfloat_audit.py --check
 python3 tests/conformance/tools/s9_static_parity.py --check
 python3 tests/conformance/platform/s9_profiles.py --check
 python3 tests/determinism/s9_determinism.py --check

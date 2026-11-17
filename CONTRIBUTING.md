@@ -39,7 +39,8 @@ ctest --test-dir build --output-on-failure
 
 构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。工具支持 `--syntax-only`/`--sem-only`/
 `--static-only` 部分检查；普通 `tc-vm` 调用执行参考 VM（正常退出 0，trap 退出 1），
-普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf` 经 clang/lld 生成 ELF 产物，
+普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf|flat` 经 clang/lld 生成 ELF
+或裸二进制产物，
 `--checked` 生成 checked build；当前平台实例外的能力显式退出 70 且不发布错误产物。
 AOT 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`。
 

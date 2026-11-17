@@ -81,12 +81,12 @@
 - **Freestanding/bare-metal and the 32-bit backend**: a target-neutral
   freestanding runtime core with platform seams (object-table mandatory and
   checked traps, all four device policies, deterministic I/O, arena allocator,
-  trap/exit records); `aarch64-baremetal` (PL011 UART0 stdout, UART1 exit
-  record, PSCI SYSTEM_OFF, no semihosting, injected stdin, ELF/symbol/region
+  trap/exit records); `aarch64-baremetal` (PL011 UART0 stdout/framed stdin, UART1 exit
+  record, PSCI SYSTEM_OFF, no semihosting, ELF/flat/symbol/region
   audit); the first 32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500,
   `thumbv7em-none-eabihf`, base AAPCS32/ILP32 softfp, an independent ARM32
   backend for all 51 opcodes, composite arguments as Rule C.4/C.5 memory words,
-  64-bit pair returns/indirect returns, `int64`/`float64` helpers, unaligned
+  64-bit pair returns/indirect returns, `int64` helpers, software binary64, unaligned
   access, checked build, ARM EABI `__aeabi_*` division/memory helpers and
   `qemu-system-arm` execution); `tc-aot --profile=` target dispatch and
   `--device=` platform-policy override; 32/64 static results, goldens and
@@ -95,8 +95,8 @@
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
   `error[RT]` with exit 1; a normal `tc-aot` invocation emits target assembly,
-  `--emit=obj|elf` produces ELF artifacts and `--checked` produces a checked
-  build; `--profile=`/`--device=` select a target profile and device policy;
+  `--emit=obj/elf/flat` produces ELF or flat artifacts and `--checked` produces
+  a checked build; `--profile=`/`--device=` select a target profile and device policy;
   unmapped platform capabilities exit 70 without publishing a wrong artifact.
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
   `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7
@@ -106,10 +106,10 @@
   ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
   AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
   determinism suites and a fail-closed adapter self-test; currently 58/58
-  `ctest` and 754/754 harness cases (557 compile, 129 tool,
-  67 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
-  sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 25 fixed
-  cases plus 260 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
+  `ctest` and 834/834 harness cases (587 compile, 131 tool,
+  115 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
+  sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
+  cases plus 270 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
   AAPCS64 cases, 19 reverse ABI cases and 1033 static sources under each of two
   bare-metal profiles; 4/4 ABI mutants were found by interop.
 

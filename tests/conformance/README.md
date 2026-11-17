@@ -68,10 +68,10 @@ never backfilled from compiler output.
   initializer bytes, `--icf=none` and checked-build emission.
 - S9 bare-metal platform: `platform/s9_baremetal_cases.py` builds the
   `aarch64-baremetal` ELF and runs it on qemu-system-aarch64 virt without
-  semihosting: PL011 UART0 stdout, UART1 exit record, PSCI termination, loader
-  input, the four device policies, static initializer bytes and an
-  ELF/symbol/no-libc/dynamic-dependency audit.
-- S9 ARM32: `platform/s9_arm32_cases.py` runs 25 fixed W=32 semantics/ABI cases
+  semihosting: PL011 UART0 stdout and framed stdin, UART1 exit record, PSCI
+  termination, the four device policies, static initializer bytes, ELF/flat
+  artifacts and an ELF/symbol/no-libc/dynamic-dependency audit.
+- S9 ARM32: `platform/s9_arm32_cases.py` runs 29 fixed W=32 semantics/ABI cases
   plus the complete S6 runtime and S8 differential corpora as same-profile
   VM↔AOT comparisons on qemu-system-arm MPS2 AN500; it also audits the ARM32
   ELF header/entry/symbols and the absence of dynamic or libc imports.

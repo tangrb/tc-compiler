@@ -260,7 +260,7 @@ def check_cli(tmp: Path, failures: list[str]) -> None:
         failures.append(f"cli: invalid --emit exit {result.returncode}, expected 2")
     tt = tool("tc-aot", "TC_AOT")
     result = run([tt, "--help"])
-    if result.returncode != 0 or b"--emit=asm|obj|elf" not in result.stdout:
+    if result.returncode != 0 or b"--emit=asm|obj|elf|flat" not in result.stdout:
         failures.append("cli: --help does not document the AOT options")
     result = run([tt, "--version"])
     if result.returncode != 0 or b"AArch64 backend" not in result.stdout:

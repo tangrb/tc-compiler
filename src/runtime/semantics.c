@@ -366,18 +366,6 @@ static uint64_t f32_to_bits(float value) {
     return raw;
 }
 
-static double f64_from_bits(uint64_t bits) {
-    double value;
-    tc_rt_memcpy(&value, &bits, sizeof(value));
-    return value;
-}
-
-static uint64_t f64_to_bits(double value) {
-    uint64_t raw;
-    tc_rt_memcpy(&raw, &value, sizeof(raw));
-    return raw;
-}
-
 /* Round `value / 2^shift` to an integer, ties to even.  Used by the exact
  * integer-to-floating conversions so a 32-bit target never needs a compiler
  * runtime helper for 64-bit integer conversion. */
@@ -803,6 +791,444 @@ static int fp_is_tiny(const TcFpParts *r) {
     return r->is_subnormal || r->is_zero;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Software binary64.                                                        */
+/*                                                                           */
+/* The 32-bit target must not require an FPU for float64: the standard's     */
+/* soft-float requirement is implemented with integer arithmetic.  The       */
+/* algorithms are the classic IEEE-754 pack/unpack, align, round-ties-to-even */
+/* form; binary32 still uses the target FPU under the softfp ABI.            */
+/* ------------------------------------------------------------------------- */
+
+#define SF_MANTBITS64 52u
+#define SF_EXPBITS64 11u
+#define SF_BIAS64 (-1023)
+#define SF_MANTBITS32 23u
+#define SF_EXPBITS32 8u
+#define SF_BIAS32 (-127)
+
+static uint64_t sf_nan64(void) {
+    return UINT64_C(0x7ff8000000000000);
+}
+
+static uint32_t sf_nan32(void) {
+    return UINT32_C(0x7fc00000);
+}
+
+static uint64_t sf_inf64(void) {
+    return UINT64_C(0x7ff0000000000000);
+}
+
+static uint64_t sf_neg64(void) {
+    return UINT64_C(0x8000000000000000);
+}
+
+static uint64_t sf_unpack64(uint64_t f, uint64_t *mantissa, int *exponent,
+                            int *is_inf, int *is_nan) {
+    uint64_t sign = f & sf_neg64();
+    *mantissa = f & ((UINT64_C(1) << SF_MANTBITS64) - 1u);
+    *exponent = (int)((f >> SF_MANTBITS64) & 0x7ffu);
+    *is_inf = 0;
+    *is_nan = 0;
+    if (*exponent == 0x7ff) {
+        if (*mantissa != 0) {
+            *is_nan = 1;
+        } else {
+            *is_inf = 1;
+        }
+        return sign;
+    }
+    if (*exponent == 0) {
+        if (*mantissa != 0) {
+            *exponent += SF_BIAS64 + 1;
+            while (*mantissa < (UINT64_C(1) << SF_MANTBITS64)) {
+                *mantissa <<= 1;
+                (*exponent)--;
+            }
+        }
+    } else {
+        *mantissa |= UINT64_C(1) << SF_MANTBITS64;
+        *exponent += SF_BIAS64;
+    }
+    return sign;
+}
+
+static uint32_t sf_unpack32(uint32_t f, uint32_t *mantissa, int *exponent,
+                            int *is_inf, int *is_nan) {
+    uint32_t sign = f & UINT32_C(0x80000000);
+    *mantissa = f & ((UINT32_C(1) << SF_MANTBITS32) - 1u);
+    *exponent = (int)((f >> SF_MANTBITS32) & 0xffu);
+    *is_inf = 0;
+    *is_nan = 0;
+    if (*exponent == 0xffu) {
+        if (*mantissa != 0) {
+            *is_nan = 1;
+        } else {
+            *is_inf = 1;
+        }
+        return sign;
+    }
+    if (*exponent == 0) {
+        if (*mantissa != 0) {
+            *exponent += SF_BIAS32 + 1;
+            while (*mantissa < (UINT32_C(1) << SF_MANTBITS32)) {
+                *mantissa <<= 1;
+                (*exponent)--;
+            }
+        }
+    } else {
+        *mantissa |= UINT32_C(1) << SF_MANTBITS32;
+        *exponent += SF_BIAS32;
+    }
+    return sign;
+}
+
+static uint64_t sf_pack64(uint64_t sign, uint64_t mantissa, int exponent,
+                          uint64_t trunc) {
+    uint64_t mantissa0 = mantissa;
+    uint64_t trunc0 = trunc;
+    int exponent0 = exponent;
+    if (mantissa == 0) {
+        return sign;
+    }
+    while (mantissa < (UINT64_C(1) << SF_MANTBITS64)) {
+        mantissa <<= 1;
+        exponent--;
+    }
+    while (mantissa >= (UINT64_C(4) << SF_MANTBITS64)) {
+        trunc |= mantissa & 1u;
+        mantissa >>= 1;
+        exponent++;
+    }
+    if (mantissa >= (UINT64_C(2) << SF_MANTBITS64)) {
+        if ((mantissa & 1u) != 0 && (trunc != 0 || (mantissa & 2u) != 0)) {
+            mantissa++;
+            if (mantissa >= (UINT64_C(4) << SF_MANTBITS64)) {
+                mantissa >>= 1;
+                exponent++;
+            }
+        }
+        mantissa >>= 1;
+        exponent++;
+    }
+    if (exponent >= 1024) {
+        return sign ^ sf_inf64();
+    }
+    if (exponent < SF_BIAS64 + 1) {
+        if (exponent < SF_BIAS64 - (int)SF_MANTBITS64) {
+            return sign;
+        }
+        mantissa = mantissa0;
+        exponent = exponent0;
+        trunc = trunc0;
+        while (exponent < SF_BIAS64) {
+            trunc |= mantissa & 1u;
+            mantissa >>= 1;
+            exponent++;
+        }
+        if ((mantissa & 1u) != 0 && (trunc != 0 || (mantissa & 2u) != 0)) {
+            mantissa++;
+        }
+        mantissa >>= 1;
+        exponent++;
+        if (mantissa < (UINT64_C(1) << SF_MANTBITS64)) {
+            return sign | mantissa;
+        }
+    }
+    return sign | ((uint64_t)(exponent - SF_BIAS64) << SF_MANTBITS64) |
+           (mantissa & ((UINT64_C(1) << SF_MANTBITS64) - 1u));
+}
+
+static uint32_t sf_pack32(uint32_t sign, uint32_t mantissa, int exponent,
+                          uint32_t trunc) {
+    uint32_t mantissa0 = mantissa;
+    uint32_t trunc0 = trunc;
+    int exponent0 = exponent;
+    if (mantissa == 0) {
+        return sign;
+    }
+    while (mantissa < (UINT32_C(1) << SF_MANTBITS32)) {
+        mantissa <<= 1;
+        exponent--;
+    }
+    while (mantissa >= (UINT32_C(4) << SF_MANTBITS32)) {
+        trunc |= mantissa & 1u;
+        mantissa >>= 1;
+        exponent++;
+    }
+    if (mantissa >= (UINT32_C(2) << SF_MANTBITS32)) {
+        if ((mantissa & 1u) != 0 && (trunc != 0 || (mantissa & 2u) != 0)) {
+            mantissa++;
+            if (mantissa >= (UINT32_C(4) << SF_MANTBITS32)) {
+                mantissa >>= 1;
+                exponent++;
+            }
+        }
+        mantissa >>= 1;
+        exponent++;
+    }
+    if (exponent >= 128) {
+        return sign ^ UINT32_C(0x7f800000);
+    }
+    if (exponent < SF_BIAS32 + 1) {
+        if (exponent < SF_BIAS32 - (int)SF_MANTBITS32) {
+            return sign;
+        }
+        mantissa = mantissa0;
+        exponent = exponent0;
+        trunc = trunc0;
+        while (exponent < SF_BIAS32) {
+            trunc |= mantissa & 1u;
+            mantissa >>= 1;
+            exponent++;
+        }
+        if ((mantissa & 1u) != 0 && (trunc != 0 || (mantissa & 2u) != 0)) {
+            mantissa++;
+        }
+        mantissa >>= 1;
+        exponent++;
+        if (mantissa < (UINT32_C(1) << SF_MANTBITS32)) {
+            return sign | mantissa;
+        }
+    }
+    return sign | ((uint32_t)(exponent - SF_BIAS32) << SF_MANTBITS32) |
+           (mantissa & ((UINT32_C(1) << SF_MANTBITS32) - 1u));
+}
+
+static uint64_t sf_add64(uint64_t f, uint64_t g) {
+    uint64_t fs, fm, gs, gm;
+    uint64_t trunc;
+    int fe, ge, fi, fn, gi, gn;
+    uint32_t shift;
+    fs = sf_unpack64(f, &fm, &fe, &fi, &fn);
+    gs = sf_unpack64(g, &gm, &ge, &gi, &gn);
+    if (fn || gn) {
+        return sf_nan64();
+    }
+    if (fi && gi && fs != gs) {
+        return sf_nan64();
+    }
+    if (fi) {
+        return f;
+    }
+    if (gi) {
+        return g;
+    }
+    if (fm == 0 && gm == 0 && fs != 0 && gs != 0) {
+        return f;
+    }
+    if (fm == 0) {
+        if (gm == 0) {
+            g ^= gs;
+        }
+        return g;
+    }
+    if (gm == 0) {
+        return f;
+    }
+    if (fe < ge || (fe == ge && fm < gm)) {
+        uint64_t tf = f, tm = fm, ts = fs;
+        int te = fe;
+        f = g; fm = gm; fs = gs; fe = ge;
+        g = tf; gm = tm; gs = ts; ge = te;
+    }
+    shift = (uint32_t)(fe - ge);
+    fm <<= 2;
+    gm <<= 2;
+    if (shift >= 64u) {
+        trunc = gm != 0;
+        gm = 0;
+    } else {
+        trunc = gm & ((UINT64_C(1) << shift) - 1u);
+        gm >>= shift;
+    }
+    if (fs == gs) {
+        fm += gm;
+    } else {
+        fm -= gm;
+        if (trunc != 0) {
+            fm--;
+        }
+    }
+    if (fm == 0) {
+        fs = 0;
+    }
+    return sf_pack64(fs, fm, fe - 2, trunc);
+}
+
+static void sf_mullu(uint64_t u, uint64_t v, uint64_t *lo, uint64_t *hi) {
+    uint64_t u0 = u & UINT64_C(0xffffffff);
+    uint64_t u1 = u >> 32;
+    uint64_t v0 = v & UINT64_C(0xffffffff);
+    uint64_t v1 = v >> 32;
+    uint64_t w0 = u0 * v0;
+    uint64_t t = u1 * v0 + (w0 >> 32);
+    uint64_t w1 = t & UINT64_C(0xffffffff);
+    uint64_t w2 = t >> 32;
+    w1 += u0 * v1;
+    *lo = u * v;
+    *hi = u1 * v1 + w2 + (w1 >> 32);
+}
+
+static uint64_t sf_mul64(uint64_t f, uint64_t g) {
+    uint64_t fs, fm, gs, gm, lo, hi, trunc, mantissa;
+    int fe, ge, fi, fn, gi, gn;
+    fs = sf_unpack64(f, &fm, &fe, &fi, &fn);
+    gs = sf_unpack64(g, &gm, &ge, &gi, &gn);
+    if (fn || gn) {
+        return sf_nan64();
+    }
+    if (fi && gi) {
+        return f ^ gs;
+    }
+    if ((fi && gm == 0) || (fm == 0 && gi)) {
+        return sf_nan64();
+    }
+    if (fm == 0) {
+        return f ^ gs;
+    }
+    if (gm == 0) {
+        return g ^ fs;
+    }
+    sf_mullu(fm, gm, &lo, &hi);
+    trunc = lo & ((UINT64_C(1) << (SF_MANTBITS64 - 1u)) - 1u);
+    mantissa = (hi << (64u - (SF_MANTBITS64 - 1u))) |
+               (lo >> (SF_MANTBITS64 - 1u));
+    return sf_pack64(fs ^ gs, mantissa, fe + ge - 1, trunc);
+}
+
+static void sf_divlu(uint64_t u1, uint64_t u0, uint64_t v, uint64_t *q_out,
+                     uint64_t *r_out) {
+    const uint64_t b = UINT64_C(1) << 32;
+    uint64_t s = 0;
+    uint64_t vn1, vn0, un32, un10, un1, un0, q1, rhat, un21, q0;
+    if (u1 >= v) {
+        *q_out = UINT64_MAX;
+        *r_out = UINT64_MAX;
+        return;
+    }
+    while ((v & (UINT64_C(1) << 63)) == 0) {
+        s++;
+        v <<= 1;
+    }
+    vn1 = v >> 32;
+    vn0 = v & UINT64_C(0xffffffff);
+    un32 = (u1 << s) | (s != 0 ? u0 >> (64u - s) : 0);
+    un10 = u0 << s;
+    un1 = un10 >> 32;
+    un0 = un10 & UINT64_C(0xffffffff);
+    q1 = un32 / vn1;
+    rhat = un32 - q1 * vn1;
+    while (q1 >= b || q1 * vn0 > b * rhat + un1) {
+        q1--;
+        rhat += vn1;
+        if (rhat >= b) {
+            break;
+        }
+    }
+    un21 = un32 * b + un1 - q1 * v;
+    q0 = un21 / vn1;
+    rhat = un21 - q0 * vn1;
+    while (q0 >= b || q0 * vn0 > b * rhat + un0) {
+        q0--;
+        rhat += vn1;
+        if (rhat >= b) {
+            break;
+        }
+    }
+    *q_out = q1 * b + q0;
+    *r_out = (un21 * b + un0 - q0 * v) >> s;
+}
+
+static uint64_t sf_div64(uint64_t f, uint64_t g) {
+    uint64_t fs, fm, gs, gm, q, r;
+    int fe, ge, fi, fn, gi, gn;
+    fs = sf_unpack64(f, &fm, &fe, &fi, &fn);
+    gs = sf_unpack64(g, &gm, &ge, &gi, &gn);
+    if (fn || gn) {
+        return sf_nan64();
+    }
+    if (fi && gi) {
+        return sf_nan64();
+    }
+    if (!fi && !gi && fm == 0 && gm == 0) {
+        return sf_nan64();
+    }
+    if (fi) {
+        return fs ^ gs ^ sf_inf64();
+    }
+    if (!gi && gm == 0) {
+        return fs ^ gs ^ sf_inf64();
+    }
+    if (gi || fm == 0) {
+        return fs ^ gs;
+    }
+    sf_divlu(fm >> (64u - (SF_MANTBITS64 + 2u)),
+             fm << (SF_MANTBITS64 + 2u), gm, &q, &r);
+    return sf_pack64(fs ^ gs, q, fe - ge - 2, r);
+}
+
+static uint32_t sf_f64to32(uint64_t f) {
+    uint64_t fs, fm;
+    int fe, fi, fn;
+    uint32_t fs32;
+    unsigned d = SF_MANTBITS64 - SF_MANTBITS32 - 1u;
+    fs = sf_unpack64(f, &fm, &fe, &fi, &fn);
+    if (fn) {
+        return sf_nan32();
+    }
+    fs32 = (uint32_t)(fs >> 32);
+    if (fi) {
+        return fs32 ^ UINT32_C(0x7f800000);
+    }
+    return sf_pack32(fs32, (uint32_t)(fm >> d), fe - 1,
+                     (uint32_t)(fm & ((UINT64_C(1) << d) - 1u)));
+}
+
+static uint64_t sf_f32to64(uint32_t f) {
+    uint64_t fs64, fm;
+    uint32_t fm32, fs;
+    int fe, fi, fn;
+    unsigned d = SF_MANTBITS64 - SF_MANTBITS32;
+    fs = sf_unpack32(f, &fm32, &fe, &fi, &fn);
+    if (fn) {
+        return sf_nan64();
+    }
+    fs64 = (uint64_t)fs << 32;
+    fm = (uint64_t)fm32 << d;
+    if (fi) {
+        return fs64 ^ sf_inf64();
+    }
+    return sf_pack64(fs64, fm, fe, 0);
+}
+
+static int sf_cmp64(uint64_t f, uint64_t g, int *is_nan) {
+    uint64_t fs, fm, gs, gm;
+    int fe, ge, fi, fn, gi, gn;
+    fs = sf_unpack64(f, &fm, &fe, &fi, &fn);
+    gs = sf_unpack64(g, &gm, &ge, &gi, &gn);
+    (void)fe;
+    (void)ge;
+    if (fn || gn) {
+        *is_nan = 1;
+        return 0;
+    }
+    *is_nan = 0;
+    if (!fi && !gi && fm == 0 && gm == 0) {
+        return 0;
+    }
+    if (fs != gs) {
+        return fs != 0 ? -1 : 1;
+    }
+    if (f == g) {
+        return 0;
+    }
+    if (fs != 0) {
+        return f > g ? -1 : 1;
+    }
+    return f < g ? -1 : 1;
+}
+
 static int float_binop(unsigned W, const TcType *type, TcOpcode op,
                        TcOpMode mode, uint64_t a_bits, uint64_t b_bits,
                        uint64_t *out, TcErrorKind *trap) {
@@ -843,7 +1269,7 @@ static int float_binop(unsigned W, const TcType *type, TcOpcode op,
         if (width == 32u) {
             result = f32_to_bits(f32_from_bits(a_bits) + f32_from_bits(b_bits));
         } else {
-            result = f64_to_bits(f64_from_bits(a_bits) + f64_from_bits(b_bits));
+            result = sf_add64(a_bits, b_bits);
         }
         break;
     case TC_SUB:
@@ -858,7 +1284,7 @@ static int float_binop(unsigned W, const TcType *type, TcOpcode op,
         if (width == 32u) {
             result = f32_to_bits(f32_from_bits(a_bits) - f32_from_bits(b_bits));
         } else {
-            result = f64_to_bits(f64_from_bits(a_bits) - f64_from_bits(b_bits));
+            result = sf_add64(a_bits, b_bits ^ sf_neg64());
         }
         break;
     case TC_MUL:
@@ -873,7 +1299,7 @@ static int float_binop(unsigned W, const TcType *type, TcOpcode op,
         if (width == 32u) {
             result = f32_to_bits(f32_from_bits(a_bits) * f32_from_bits(b_bits));
         } else {
-            result = f64_to_bits(f64_from_bits(a_bits) * f64_from_bits(b_bits));
+            result = sf_mul64(a_bits, b_bits);
         }
         break;
     case TC_DIV:
@@ -898,7 +1324,7 @@ static int float_binop(unsigned W, const TcType *type, TcOpcode op,
         if (width == 32u) {
             result = f32_to_bits(f32_from_bits(a_bits) / f32_from_bits(b_bits));
         } else {
-            result = f64_to_bits(f64_from_bits(a_bits) / f64_from_bits(b_bits));
+            result = sf_div64(a_bits, b_bits);
         }
         break;
     case TC_MOD:
@@ -1082,15 +1508,15 @@ int tc_sem_compare(unsigned W, const TcType *type, TcOpcode op, uint64_t a,
             default: return 0;
             }
         } else {
-            double da = f64_from_bits(a);
-            double db = f64_from_bits(b);
+            int nan = 0;
+            int cmp = sf_cmp64(a, b, &nan);
             switch (op) {
-            case TC_EQ: result = da == db; break;
-            case TC_NE: result = da != db; break;
-            case TC_LT: result = da < db; break;
-            case TC_LE: result = da <= db; break;
-            case TC_GT: result = da > db; break;
-            case TC_GE: result = da >= db; break;
+            case TC_EQ: result = !nan && cmp == 0; break;
+            case TC_NE: result = nan || cmp != 0; break;
+            case TC_LT: result = !nan && cmp < 0; break;
+            case TC_LE: result = !nan && cmp <= 0; break;
+            case TC_GT: result = !nan && cmp > 0; break;
+            case TC_GE: result = !nan && cmp >= 0; break;
             default: return 0;
             }
         }
@@ -1173,8 +1599,9 @@ int tc_sem_cast(unsigned W, const TcType *src, const TcType *dst, uint64_t bits,
         int truth;
         if (tc_type_is_float(src)) {
             unsigned sw = tc_sem_type_width(src, W);
-            truth = sw == 32u ? f32_from_bits(bits) != 0.0f
-                              : f64_from_bits(bits) != 0.0;
+            uint64_t magnitude = sw == 32u ? (bits & UINT64_C(0x7fffffff))
+                                           : (bits & ~sf_neg64());
+            truth = magnitude != 0;
         } else {
             truth = (bits & low_mask(tc_sem_type_width(src, W))) != 0;
         }
@@ -1252,15 +1679,14 @@ int tc_sem_cast(unsigned W, const TcType *src, const TcType *dst, uint64_t bits,
                 return 1;
             }
             if (sw == 32u && tw == 64u) {
-                *out = f64_to_bits((double)f32_from_bits(bits));
+                *out = sf_f32to64((uint32_t)bits);
                 return 1;
             }
             if (sw == 64u && tw == 32u) {
                 /* The input is finite here (NaN and infinity were handled
                  * above), so a float32 result with the infinity exponent is a
                  * magnitude overflow of the narrowing cast. */
-                float narrowed = (float)f64_from_bits(bits);
-                uint64_t narrowed_bits = f32_to_bits(narrowed);
+                uint64_t narrowed_bits = sf_f64to32(bits);
                 if ((narrowed_bits & UINT64_C(0x7fffffff)) ==
                     UINT64_C(0x7f800000)) {
                     *trap = TC_EK_CAST_OVERFLOW;

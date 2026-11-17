@@ -60,18 +60,18 @@
   全部静态 `.tc` 的 VM/AOT 首诊逐字节一致；release 与 ASan+UBSan 均通过。
 - **freestanding/裸机与 32 位后端**：目标无关 freestanding 运行时核与平台缝
   （对象表/必选定检/checked shadow、全部设备策略、确定性 I/O、分配器、trap/退出记录）；
-  `aarch64-baremetal`（PL011 UART0 stdout、UART1 退出记录、PSCI SYSTEM_OFF、
-  无 semihosting、注入式 stdin、ELF/符号/区布局审计）；首个 32 位目标
+  `aarch64-baremetal`（PL011 UART0 stdout/分帧 stdin、UART1 退出记录、PSCI SYSTEM_OFF、
+  无 semihosting、ELF/flat/符号/区布局审计）；首个 32 位目标
   `arm32-baremetal`（Cortex-M7 MPS2 AN500、`thumbv7em-none-eabihf`、base
   AAPCS32/ILP32 softfp、独立 ARM32 后端与全部 51 个 opcode、复合实参按
-  Rule C.4/C.5 字传递、64 位返回对/间接返回、`int64`/`float64` 辅助、未对齐
+  Rule C.4/C.5 字传递、64 位返回对/间接返回、`int64` 辅助、软件 binary64、未对齐
   访问、checked build、ARM EABI `__aeabi_*` 除法/内存辅助、`qemu-system-arm`
   执行）；`tc-aot --profile=` 目标分派与 `--device=` 平台实例策略覆盖；32/64
   分档案静态结果、golden 与差分保持隔离。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
   `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
   首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射目标汇编，
-  `--emit=obj|elf` 生成 ELF 产物，`--checked` 生成 checked build，
+  `--emit=obj/elf/flat` 生成 ELF/裸二进制产物，`--checked` 生成 checked build，
   `--profile=`/`--device=` 选择目标档案与设备策略；无映射的平台能力显式退出 70
   且不发布错误产物。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
@@ -80,9 +80,9 @@
   静态变异套件、W=32/64 运行时 golden、S9 裸机/ARM32/互操作/静态一致/
   分档案/确定性套件、AAPCS64/AAPCS32 双向 interop、ABI mutation 审计与容量报告、
   adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 58/58，
-  harness 754/754（557 编译、129 工具、67 运行、1 属性），单元检查 frontend 688、
-  sem 102、ct 370、ir 674、vm 413、aot 81；S9 ARM32 差分 25 个固定用例 +
-  260 个 S6/S8 语料，C 调用者 AAPCS32 14 例、AAPCS64 33 例，反向 ABI 19 例，
+  harness 834/834（587 编译、131 工具、115 运行、1 属性），单元检查 frontend 688、
+  sem 102、ct 370、ir 674、vm 413、aot 81；S9 ARM32 差分 29 个固定用例 +
+  270 个 S6/S8 语料，C 调用者 AAPCS32 14 例、AAPCS64 33 例，反向 ABI 19 例，
   1033 个静态源 × 2 个裸机档案；4/4 ABI mutant 被 interop 发现。
 
 ### Changed

@@ -17,10 +17,10 @@
   `call_indirect`、多尺寸与未对齐访问、checked build、复位入口/区基址/静态 `.data`/
   ELF/禁用 ICF）；freestanding 目标运行时核与平台缝（对象表/指针状态/必选定检/checked
   shadow、确定性 I/O、分配器、trap/退出）；`aarch64-baremetal` 平台实例（PL011
-  UART0 stdout、UART1 退出记录、PSCI SYSTEM_OFF、无 semihosting）；首个 32 位目标
+  UART0 stdout 与分帧 stdin、UART1 退出记录、PSCI SYSTEM_OFF、无 semihosting）；首个 32 位目标
   `arm32-baremetal`（Cortex-M7 MPS2 AN500、AAPCS32/ILP32 softfp、独立 ARM32 后端、
   int64/float64 辅助、未对齐访问、四设备策略、`qemu-system-arm`）；`tc-aot`
-  `--emit=asm|obj|elf`、clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/
+  `--emit=asm|obj|elf|flat`、clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/
   确定性套件、C caller/TC caller 双向 AAPCS64/AAPCS32 互操作、32/64 分档案隔离
   与生成式 fuzz；ABI 参考版本、规则矩阵与范围限制见 `tests/conformance/abi/README.md`。
   代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
@@ -43,7 +43,7 @@
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
    `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
-   trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf` 经
+   trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf|flat` 经
    clang/lld 生成产物；`--profile=` 选择 `aarch64-linux-user`/`aarch64-baremetal`/
    `arm32-baremetal`（`w32` 仅 VM 静态档案），`--device=` 覆盖平台实例设备策略；
    无后端/工具链映射的档案显式退出 70 且不发布错误产物。不得把部分能力写成“已支持”。
@@ -134,7 +134,7 @@
 | S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/diff/s8_*_fuzz.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/tools/s8_static_fuzz.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
 | S9 freestanding / ARM32 | `tests/conformance/platform/s9_baremetal_cases.py`；`tests/conformance/platform/s9_arm32_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/tools/s9_static_parity.py`；`tests/conformance/platform/s9_profiles.py`；`tests/determinism/s9_determinism.py` |
 | ABI 规则矩阵 / 双向互操作 | `tests/conformance/abi/README.md`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/abi/reverse_interop_cases.py` |
-| ABI mutation / 容量审计 | `tests/tools/abi_mutation_audit.py`；`tests/tools/s9_capacity_report.py`（手动工具，不进入 ctest） |
+| ABI mutation / 容量 / 软浮点审计 | `tests/tools/abi_mutation_audit.py`；`tests/tools/s9_capacity_report.py`；`tests/tools/s9_softfloat_audit.py`（手动工具，不进入 ctest） |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

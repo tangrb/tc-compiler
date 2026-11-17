@@ -21,10 +21,11 @@ kept; historical implementation and tools live in git tags.
   large by-reference composites and indirect returns, `fnptr`/`call_indirect`,
   multi-size and unaligned access, checked build); the freestanding target runtime
   (object table/pointer states/mandatory traps/checked shadow, deterministic I/O,
-  allocator, trap and exit), with `aarch64-baremetal` using PL011 UART0 for stdout,
+  allocator, trap and exit), with `aarch64-baremetal` using PL011 UART0 for stdout and framed stdin,
   PL011 UART1 for the exit record and PSCI SYSTEM_OFF (no semihosting); the first
   32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500, AAPCS32/ILP32 softfp, an
-  independent ARM32 backend for all 51 opcodes, `int64`/`float64` helpers, unaligned
+  independent ARM32 backend for all 51 opcodes, `int64` helpers, software binary64,
+  unaligned
   access, all four device policies and qemu-system-arm execution); reset entry,
   region bases, static `.data`, ELF artifacts with ICF disabled and clang/lld
   driving; the full VM↔AOT differential/ABI/consistency/artifact/determinism
@@ -99,7 +100,7 @@ currently support:
   `--profile=w32` selects the 32-bit profile, `--checked` adds UB access checks
   (mandatory traps are unchanged), and `--opt=O0|O2` stays a zero-pass baseline.
 - A normal `tc-aot` invocation emits target assembly to stdout after the static
-  stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf` with
+  stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf`/`--emit=flat` with
   `--output=<path>` produce `.s`, an ELF relocatable or an ELF executable;
   `--checked` produces a checked build and `--opt=O0|O2` stays the zero-pass
   baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal` or
@@ -108,7 +109,7 @@ currently support:
   device policy. A profile without a backend/toolchain mapping exits 70 without
   publishing a wrong artifact.
 - AOT platform instances: `aarch64-linux-user` uses qemu-system-aarch64 +
-  semihosting; `aarch64-baremetal` uses PL011 UART0/UART1 + PSCI;
+  semihosting; `aarch64-baremetal` uses PL011 UART0 (stdout/stdin)/UART1 + PSCI;
   `arm32-baremetal` uses qemu-system-arm MPS2 AN500 (semihosting stdout, CMSDK
   UART0 exit record). A qemu-user/Linux-user runtime is not on the gate path;
   differential tests compare program stdout, the first trap code and the exit

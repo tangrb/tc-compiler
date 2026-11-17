@@ -62,7 +62,7 @@ set_target_properties(tc_core PROPERTIES
     C_VISIBILITY_PRESET hidden
     POSITION_INDEPENDENT_CODE OFF)
 
-# Freestanding target runtimes used by `tc-aot --emit=obj/elf`.
+# Freestanding target runtimes used by `tc-aot --emit=obj/elf/flat`.
 #
 # A clang that can target aarch64-none-elf / thumbv7em-none-eabihf and an
 # archiver that preserves ELF members are required; falling back to the host
@@ -114,7 +114,8 @@ set(TC_RUNTIME_DEPENDENCIES
     ${CMAKE_CURRENT_SOURCE_DIR}/runtime/input.h
     ${CMAKE_CURRENT_SOURCE_DIR}/runtime/profile.h
     ${CMAKE_CURRENT_SOURCE_DIR}/backend/common/rt_abi.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/backend/common/rt_platform.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/common/rt_platform.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/common/rt_image.h)
 
 function(tc_compile_runtime_objects out_var directory)
     set(objects)

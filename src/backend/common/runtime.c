@@ -71,8 +71,6 @@ extern const uint8_t __tc_code_end[];
 extern const uint8_t __tc_stack_bottom[];
 extern const uint8_t __tc_stack_top[];
 
-extern const uint8_t __tc_input_image[];
-
 /* ------------------------------------------------------------------------- */
 /* Trap and exit.                                                            */
 /* ------------------------------------------------------------------------- */
@@ -1067,71 +1065,34 @@ int tc_rt_write_scalar(uint32_t tag, uint32_t newline, uint64_t bits) {
     return 0;
 }
 
-/* Input image for the QEMU platform instance: an 8-byte little-endian length
- * followed by the bytes, placed by the test loader.  Reads are deliberately
- * short (at most four bytes per source call) so the standard §11.3 short-read
- * path is exercised.  A zero image is an empty stream (EOF). */
-#define TC_INPUT_IMAGE_MAX UINT64_C(0x00100000)
-
-static int image_loaded = 0;
-static const uint8_t *image_data = NULL;
-static size_t image_len = 0;
-static size_t image_pos = 0;
 static TcInput tc_input_state;
 static int tc_input_ready = 0;
 
-static void image_load(void) {
-    uint64_t n = 0;
-    unsigned i;
-    if (image_loaded) {
-        return;
-    }
-    for (i = 0; i < 8u; i++) {
-        n |= (uint64_t)__tc_input_image[i] << (8u * i);
-    }
-    if (n > TC_INPUT_IMAGE_MAX) {
-        n = 0;
-    }
-    image_data = __tc_input_image + 8;
-    image_len = (size_t)n;
-    image_pos = 0;
-    image_loaded = 1;
-}
-
-static int image_read(void *ctx, uint8_t *buffer, size_t cap, size_t *n,
-                      TcIoStatus *status) {
-    size_t take;
-    size_t i;
+/* Program stdin is supplied by the platform seam.  The source may return a
+ * short read even when more input follows; the token reader handles that. */
+static int platform_input_read(void *ctx, uint8_t *buffer, size_t capacity,
+                               size_t *n, TcIoStatus *status) {
+    size_t got = 0;
+    int eof = 0;
     (void)ctx;
-    image_load();
-    if (image_pos >= image_len) {
+    if (tc_rt_platform_read((char *)buffer, capacity, &got, &eof) != 0) {
         *n = 0;
-        *status = TC_IO_EOF;
+        *status = TC_IO_ERROR;
         return 0;
     }
-    take = image_len - image_pos;
-    if (take > cap) {
-        take = cap;
-    }
-    if (take > 4u) {
-        take = 4u;
-    }
-    for (i = 0; i < take; i++) {
-        buffer[i] = image_data[image_pos + i];
-    }
-    image_pos += take;
-    *n = take;
-    *status = TC_IO_OK;
+    *n = got;
+    *status = eof ? TC_IO_EOF : TC_IO_OK;
     return 0;
 }
 
-static const TcIoSrc tc_image_source = { image_read, NULL };
+static const TcIoSrc tc_platform_source = { platform_input_read, NULL };
 
 int tc_rt_read_scalar(uint32_t tag, uint64_t *out) {
     TcType type = type_from_tag((uint32_t)tag);
     uint64_t bits = 0;
     if (!tc_input_ready) {
-        tc_input_init(&tc_input_state, &tc_image_source, tc_allocator_libc());
+        tc_input_init(&tc_input_state, &tc_platform_source,
+                      tc_allocator_libc());
         tc_input_ready = 1;
     }
     if (tc_input_state.token == NULL) {

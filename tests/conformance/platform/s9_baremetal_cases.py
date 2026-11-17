@@ -4,10 +4,10 @@
 The suite builds the `aarch64-baremetal` ELF and runs it on
 qemu-system-aarch64 virt **without semihosting**:
 
-  - PL011 UART0 is the program stdout channel;
+  - PL011 UART0 is the program stdout and stdin channel (a framed byte
+    stream: "TCINTCIN", an eight-byte little-endian length, then payload);
   - PL011 UART1 is the exit-record channel;
-  - termination is PSCI SYSTEM_OFF (the platform's halt policy);
-  - stdin is an eight-byte length plus bytes injected by the QEMU loader.
+  - termination is PSCI SYSTEM_OFF (the platform's halt policy).
 
 It verifies the ELF/region/symbol contract, the absence of libc/dynamic
 dependencies, the UART console, traps, token input through the runtime arena,
@@ -406,6 +406,29 @@ def check_relocatable(directory: Path, failures: list[str]) -> None:
         failures.append(f"TC-PLAT-S9-0007: object is not AArch64 ET_REL")
 
 
+def check_flat(directory: Path, failures: list[str]) -> None:
+    source = program("_ = writeln int32, 1")
+    root = write(directory, "root.tc", source)
+    for profile in ("aarch64-baremetal", "arm32-baremetal"):
+        output = directory / f"flat-{profile}.bin"
+        proc = subprocess.run(
+            [engine.tc_aot_path(), f"--profile={profile}",
+             "--emit=flat", f"--output={output}", f"--include={directory}",
+             f"--ld={engine.lld_path()}", str(root)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
+        if proc.returncode != 0 or not output.is_file() or                 output.stat().st_size == 0:
+            failures.append(
+                f"TC-PLAT-S9-0008: {profile} flat artifact failed: "
+                f"{proc.stderr.decode('utf-8', 'replace').strip()}")
+            continue
+        if profile == "arm32-baremetal":
+            data = output.read_bytes()
+            if len(data) < 4 or struct.unpack("<I", data[:4])[0] != 0x00400000:
+                failures.append(
+                    "TC-PLAT-S9-0008: ARM32 flat image does not start with "
+                    "the initial stack vector")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
@@ -421,6 +444,7 @@ def main() -> int:
         check_device_policies(directory / "device", failures)
         check_static_initializer(directory / "static", failures)
         check_relocatable(directory / "obj", failures)
+        check_flat(directory / "flat", failures)
     finally:
         shutil.rmtree(directory, ignore_errors=True)
     if failures:
@@ -428,8 +452,8 @@ def main() -> int:
             print(failure)
         print(f"{CASE_ID}: {len(failures)} failure(s)")
         return 1
-    print(f"{CASE_ID}: bare-metal ELF/UART/trap/input/static/device/object "
-          f"checks passed")
+    print(f"{CASE_ID}: bare-metal ELF/UART/trap/input/static/device/object/"
+          f"flat checks passed")
     return 0
 
 

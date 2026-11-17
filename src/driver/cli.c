@@ -31,7 +31,7 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --static-only       run LEX/SYN/IMPORT/SEM/CT and finalize IR; exit 0\n"
             "                      means no diagnostic from those stages (no codegen)\n"
             "  --output=<path>     output path\n"
-            "  --emit=asm|obj|elf  tc-aot artifact kind (default asm)\n"
+            "  --emit=asm|obj|elf|flat  tc-aot artifact kind (default asm)\n"
             "  --cc=<path>         clang used to assemble tc-aot output\n"
             "  --ld=<path>         ld.lld used to link tc-aot output\n"
             "  --device=<policy>   device region policy for the platform instance:\n"
@@ -43,7 +43,7 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --help              print this help and exit\n"
             "\n"
             "A normal tc-vm invocation executes the reference VM.  A normal\n"
-            "tc-aot invocation emits target assembly; --emit=obj/elf also\n"
+            "tc-aot invocation emits target assembly; --emit=obj/elf/flat also\n"
             "assembles/links with the bundled freestanding target runtime.\n",
             tool_name);
 }
@@ -131,7 +131,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         }
         if (!only_positional && strncmp(arg, "--emit=", 7) == 0) {
             if (strcmp(arg + 7, "asm") != 0 && strcmp(arg + 7, "obj") != 0 &&
-                strcmp(arg + 7, "elf") != 0) {
+                strcmp(arg + 7, "elf") != 0 && strcmp(arg + 7, "flat") != 0) {
                 fprintf(stderr, "%s: invalid --emit value '%s'\n",
                         tool_name, arg + 7);
                 return TC_CLI_PARSE_ERROR;

@@ -10,10 +10,11 @@ The engine runs one TC program on two same-profile implementations:
 ARM32 images run on the QEMU MPS2 AN500 (Cortex-M7) board with semihosting as
 the program stdout channel and CMSDK UART0 as the exit-record channel.  AArch64
 bare-metal images run on the QEMU virt machine with PL011 UART0 for program
-stdout, PL011 UART1 for the exit record and PSCI SYSTEM_OFF termination; no
-semihosting call is made.  Both use an eight-byte little-endian length plus the
-stdin bytes placed by the QEMU loader, so the input path is a freestanding
-memory image rather than a host file descriptor.
+stdout/stdin, PL011 UART1 for the exit record and PSCI SYSTEM_OFF termination;
+no semihosting call is made.  The AArch64 stdin frame is "TCINTCIN", an
+eight-byte little-endian length and the payload, delivered over the UART0
+chardev.  ARM32 retains the loader image because its input path is not on the
+PL011 gate.
 
 This module is test infrastructure only; it is not part of the compiler.
 """
@@ -192,7 +193,11 @@ def run_arm32_elf(elf: Path, stdin: bytes, work: Path) -> Observation:
             f"stdout={exc.stdout!r}") from exc
     text = diag.read_text(encoding="utf-8", errors="replace") \
         if diag.exists() else ""
-    status, trap = _parse_exit_record(text)
+    try:
+        status, trap = _parse_exit_record(text)
+    except CaseError as exc:
+        raise CaseError(f"{exc}; qemu stdout={proc.stdout!r} "
+                        f"stderr={proc.stderr!r}") from exc
     return Observation(
         stdout=proc.stdout,
         trap=trap,
@@ -205,13 +210,10 @@ def run_arm32_elf(elf: Path, stdin: bytes, work: Path) -> Observation:
 
 def run_aarch64_baremetal_elf(elf: Path, stdin: bytes,
                               work: Path) -> Observation:
-    stdout_file = work / "uart0.txt"
     diag = work / "uart1.txt"
-    for path in (stdout_file, diag):
-        if path.exists():
-            path.unlink()
-    image = work / "stdin.img"
-    image.write_bytes(struct.pack("<Q", len(stdin)) + stdin)
+    if diag.exists():
+        diag.unlink()
+    frame = b"TCINTCIN" + struct.pack("<Q", len(stdin)) + stdin
     argv = [
         qemu_aarch64_path(),
         "-M", "virt",
@@ -219,20 +221,21 @@ def run_aarch64_baremetal_elf(elf: Path, stdin: bytes,
         "-m", "256M",
         "-display", "none",
         "-monitor", "none",
-        "-serial", f"file:{stdout_file}",
+        "-serial", "stdio",
         "-serial", f"file:{diag}",
-        "-device", f"loader,file={image},addr=0x41000000,force-raw=on",
         "-kernel", str(elf),
     ]
-    proc = subprocess.run(argv, input=stdin, stdout=subprocess.PIPE,
+    proc = subprocess.run(argv, input=frame, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE, timeout=120)
     text = diag.read_text(encoding="utf-8", errors="replace") \
         if diag.exists() else ""
-    status, trap = _parse_exit_record(text)
-    console = stdout_file.read_text(encoding="utf-8", errors="replace") \
-        if stdout_file.exists() else ""
+    try:
+        status, trap = _parse_exit_record(text)
+    except CaseError as exc:
+        raise CaseError(f"{exc}; qemu stdout={proc.stdout!r} "
+                        f"stderr={proc.stderr!r}") from exc
     return Observation(
-        stdout=console.encode("utf-8"),
+        stdout=proc.stdout,
         trap=trap,
         exit=status,
         stderr=proc.stderr.decode("utf-8", "replace"),

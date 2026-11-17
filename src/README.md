@@ -18,13 +18,14 @@ deterministic assembly for all value types and opcodes, implements the AAPCS64
 argument/return surface (composites, HFA, large by-reference composites and indirect returns, `fnptr`/
 `call_indirect`), the object-table driven memory helpers (mandatory and
 checked-build traps), reset entry/region layout/static `.data` and drives
-clang/lld to an ELF with ICF disabled.  The freestanding runtime is now a
+clang/lld to an ELF or flat image with ICF disabled.  The freestanding runtime is now a
 target-neutral core with platform seams: `aarch64-baremetal` uses PL011 UART0
-for program stdout, PL011 UART1 for the exit record and PSCI shutdown (no
-semihosting), while `arm32-baremetal` is an independent Cortex-M7 backend with
-the base AAPCS32/ILP32 softfp classifier, 32-bit word-size semantics, int64
-helpers and binary64 arithmetic, qemu-system-arm execution and a
-semihosting/PL011-free control path.  All four device policies, checked build,
+for program stdout and framed stdin, PL011 UART1 for the exit record and PSCI
+shutdown (no semihosting), while `arm32-baremetal` is an independent Cortex-M7
+backend with the base AAPCS32/ILP32 softfp classifier, 32-bit word-size
+semantics, int64 helpers and software binary64, qemu-system-arm execution and
+a semihosting exit record; binary32 uses FPv5-D.  All four device policies,
+checked build,
 ELF/symbol audits and 32/64 profile isolation are tested.  Frozen contract
 ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
@@ -85,7 +86,7 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   `--sem-only` and `--static-only` are partial checks: exit 0 never claims a
   valid program.  A normal `tc-vm` invocation executes the finalized program on
   the reference VM.  A normal `tc-aot` invocation emits target assembly (AArch64 or ARM32);
-  `--emit=obj|elf` assembles/links with the bundled freestanding target runtime.
+  `--emit=obj|elf|flat` assembles/links with the bundled freestanding target runtime.
   Capabilities outside the bound platform instance fail explicitly with exit 70
   and publish no wrong artifact.
 - Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:

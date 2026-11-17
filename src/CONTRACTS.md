@@ -68,12 +68,15 @@ language diagnostic.
 
 ## Target and platform instances (implemented)
 
-- **AArch64 64-bit**: `aarch64-linux-user` (semihosting stdout, PL011 exit
-  record, semihosting exit) and `aarch64-baremetal` (PL011 UART0 stdout, PL011
-  UART1 exit record, PSCI `SYSTEM_OFF`, no semihosting call).  The bare-metal
-  linker script fixes code at `0x40000000`, the injected stdin image at
-  `0x41000000` and the stack top at `0x4f000000`; the device region is
-  `0x09000000` (both PL011s).
+- **AArch64 64-bit**: `aarch64-linux-user` (semihosting stdout, loader-image
+  stdin, PL011 exit record, semihosting exit) and `aarch64-baremetal` (PL011
+  UART0 stdout and framed stdin, PL011 UART1 exit record, PSCI
+  `SYSTEM_OFF`, no semihosting call).  The bare-metal linker script fixes code
+  at `0x40000000`, the unused input-image symbol at `0x41000000` and the stack
+  top at `0x4f000000`; the device region is `0x09000000` (both PL011s).  The
+  UART stdin frame is `TCINTCIN`, an eight-byte little-endian length and the
+  payload; the duplicate magic tolerates a console backend that consumes one
+  leading byte.
 - **ARM32 32-bit**: the selected target is `arm32-baremetal` (QEMU MPS2 AN500,
   Cortex-M7).  clang triple `thumbv7em-none-eabihf`, `-mfloat-abi=softfp
   -mfpu=fpv5-d16`.  The C/ABI convention is the base AAPCS32/ILP32 variant:
@@ -82,9 +85,12 @@ language diagnostic.
   C.4/C.5 split) with 4-byte alignment because TC layout is compact; signed
   narrow arguments are sign-extended to a full word, unsigned ones are
   zero-extended; returns in r0/r0:r1, and composites larger than four bytes
-  through a hidden r0 pointer.  The VFP register classes of the VFP variant are not used.  The
-  runtime uses the FPv5-D unit internally with roundTiesToEven and no FMA
-  contraction; the semantic core still owns overflow/underflow classification.
+  through a hidden r0 pointer.  The VFP register classes of the VFP variant
+  are not used.  Binary32 uses FPv5-D with roundTiesToEven and no FMA
+  contraction; binary64 is implemented by the shared semantic core in integer
+  arithmetic and contains no double-register FPU instruction, so the soft-float
+  requirement does not depend on the target FPU.  The semantic core still owns
+  overflow/underflow classification.
   Code starts above the M-profile vector page (`0x00001000`), the static
   region at `0x00100000`, the stack at `0x00300000`-`0x00400000` (`D=32`) and
   the injected stdin image at `0x20000000`; CMSDK UART0 at `0x40004000` is the
@@ -103,7 +109,7 @@ language diagnostic.
   private token/decimal buffers.  The ARM32 profile uses 64-bit and 32-bit
   helpers from `aeabi.c`/`aeabi_glue.S`; no libc or compiler-rt archive is
   linked.  Checked build is available on both targets and only adds UB checks.
-- **Artifacts**: `tc-aot --emit=asm|obj|elf` binds one target/profile per build;
+- **Artifacts**: `tc-aot --emit=asm|obj|elf|flat` binds one target/profile per build;
   the ELF is static, has no interpreter/dynamic section/undefined symbols, and
   ICF is disabled.  Toolchain or platform-instance failures exit 70 without
   publishing an artifact.
@@ -345,7 +351,8 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   first-trap 1.  Frame storage is host-backed in the VM.  A 900005-byte static
   object measures 900016/900012 bytes of static span on the AArch64/ARM32
   profiles, leaving limited room under the 1 MiB static limit; the 1 MiB input
-  image is the test loader seam, not the production UART input capacity.
+  image is the semihosting/ARM32 test loader seam, while `aarch64-baremetal`
+  uses the UART0 byte stream for stdin.
   Increasing either limit requires a profile/linker re-layout and a fresh gate.
   If a program's static frame footprints exhaust the profile region before `D`,
   the VM reports `tc_error_internal` (exit 71): physical stack exhaustion is an
@@ -429,7 +436,9 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   The runtime archive is compiled from the shared semantic core, formatter,
   token reader, decimal converter, arena and a target platform seam; it is
   freestanding (no libc) and contains its own allocator for runtime-private
-  buffers only.  ARM32 adds word-pair scalar wrappers and ARM EABI division/
+  buffers only.  The platform seam supplies stdout, a short-read stdin source
+  (UART0 framing on `aarch64-baremetal`, loader image on the semihosting/MPS2
+  instances), the exit record and termination.  ARM32 adds word-pair scalar wrappers and ARM EABI division/
   memory helpers.  Traps use the span of the triggering instruction and the
   same 15 `TC_RE_*` codes as the VM.
 - Toolchain: emission is deterministic; clang (`-target` from
@@ -437,13 +446,19 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   freestanding runtime and linker script, with `--icf=none` so distinct
   function entry addresses stay distinct.  The image is a target ELF with a
   `_start`/reset entry; linker symbols describe code, static and stack regions.
+  `--emit=flat` emits raw bytes starting at the linker script's lowest load
+  address (AArch64 `0x40000000`, ARM32 `0x0`); the caller supplies the load
+  address for a flat image.
   Platform instances are `aarch64-linux-user` (qemu-system-aarch64 +
-  semihosting), `aarch64-baremetal` (PL011 UART0 stdout, UART1 exit record,
-  PSCI SYSTEM_OFF) and `arm32-baremetal` (qemu-system-arm MPS2 AN500,
-  semihosting stdout, CMSDK UART0 exit record).  There is no EL0/Linux-user
-  runtime yet.  `read` consumes the loader-provided `__tc_input_image`
-  (8-byte little-endian length followed by bytes), returning short reads of at
-  most four bytes; an empty image is EOF; the image window is 1 MiB.  SYS_WRITE0's return value is undefined (qemu fills
+  semihosting), `aarch64-baremetal` (PL011 UART0 stdout and framed stdin,
+  UART1 exit record, PSCI SYSTEM_OFF) and `arm32-baremetal` (qemu-system-arm
+  MPS2 AN500, semihosting stdout, CMSDK UART0 exit record).  There is no
+  EL0/Linux-user runtime yet.  `read` consumes the platform stdin seam: on
+  `aarch64-baremetal` it is the PL011 UART0 frame (`TCINTCIN`, an 8-byte
+  little-endian length and the payload); on the semihosting/ARM32 instances it
+  is the loader-provided `__tc_input_image` (8-byte little-endian length
+  followed by bytes).  Both return short reads of at most four bytes and an
+  empty stream is EOF; the loader image window is 1 MiB.  SYS_WRITE0's return value is undefined (qemu fills
   it with a fixed sentinel) and is not interpreted.  These are
   platform-instance facts, not language semantics.  The device/heap region
   constants are emitted from the bound profile; this instance maps only

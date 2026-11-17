@@ -48,7 +48,8 @@ AAPCS64 调用方互操作）、`s8_abi_fuzz.py`/`s8_layout_fuzz.py`/`s8_mem_fuz
 S9 套件在 `conformance/platform/`、`conformance/abi/s9_arm32_interop.py`、
 `conformance/abi/reverse_interop_cases.py`、`conformance/tools/s9_static_parity.py`
 与 `determinism/s9_determinism.py`：
-`aarch64-baremetal` 的 ELF/UART/trap/输入/静态字节/四设备策略/符号审计，
+`aarch64-baremetal` 的 ELF/flat、PL011 UART0 输出与分帧输入、trap、静态字节、
+四设备策略与符号审计，
 `arm32-baremetal` 的 29 个固定语义/ABI 用例 + 270 个 S6/S8 语料同档案
 VM↔AOT 差分、14 个 C 调用者 AAPCS32 互操作用例、19 个 TC caller → C callee
 反向 ABI 用例、1033 个静态源 × 2 个裸机档案的 VM/AOT 首诊逐字节一致、
@@ -68,5 +69,7 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 29 个固定 ARM32 用例、
 270 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
 19 个反向 ABI 用例与 1033×2 个静态源一致性检查。
-`tests/tools/abi_mutation_audit.py --check` 与
-`tests/tools/s9_capacity_report.py --check` 是手动审计工具，不进入 ctest。
+`tests/tools/abi_mutation_audit.py --check`、
+`tests/tools/s9_capacity_report.py --check` 与
+`tests/tools/s9_softfloat_audit.py --check` 是手动审计工具，不进入 ctest；
+后者扫描 ARM32 运行时对象，确认 binary64 不含 `d` 寄存器浮点指令。

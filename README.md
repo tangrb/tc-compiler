@@ -16,10 +16,10 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   W=64 AArch64 全量后端（整数/位/比较/浮点/转换、指针/内存/struct、全部 51 个 opcode、
   AAPCS64 复合/HFA/大复合按引用指针/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问、
   checked build）；freestanding 目标运行时（对象表/指针状态/必选定检/checked shadow、
-  确定性 I/O、分配器、trap/退出），`aarch64-baremetal` 使用 PL011 UART0 输出、
+  确定性 I/O、分配器、trap/退出），`aarch64-baremetal` 使用 PL011 UART0 输出与分帧输入、
   PL011 UART1 退出记录与 PSCI SYSTEM_OFF（无 semihosting）；首个 32 位目标
   `arm32-baremetal`（Cortex-M7 MPS2 AN500、AAPCS32/ILP32 softfp、独立 ARM32
-  后端与全部 51 个 opcode、`int64`/`float64` 辅助、未对齐访问、四设备策略、
+  后端与全部 51 个 opcode、`int64` 辅助、软件 binary64、未对齐访问、四设备策略、
   qemu-system-arm 执行）；复位入口、区基址、静态区 `.data`、ELF 产物与 clang/lld 驱动；
   全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C caller/TC caller 双向
   AAPCS64/AAPCS32 互操作、32/64 分档案隔离与生成式 ABI/布局/内存/浮点 fuzz。
@@ -84,13 +84,14 @@ clang 与 llvm-ar/aarch64-elf-ar，且不用于门禁构建。
   报出并退出 1。`--profile=w32` 选择 32 位档案，`--checked` 增加 UB 访问检查
   （不改变必选 trap），`--opt=O0|O2` 为零 pass 基线、语义一致。
 - 普通 `tc-aot` 调用：静态阶段通过后发射目标汇编到 stdout；`--emit=asm`
-  （默认）/`--emit=obj`/`--emit=elf` 与 `--output=<path>` 生成 `.s`/ELF 目标文件/ELF
+  （默认）/`--emit=obj`/`--emit=elf`/`--emit=flat` 与 `--output=<path>` 生成
+  `.s`/ELF 目标文件/ELF 可执行文件/裸二进制
   可执行文件，`--checked` 生成 checked build，`--opt=O0|O2` 为零 pass 基线，
   `--profile=` 选择 `aarch64-linux-user`/`aarch64-baremetal`/`arm32-baremetal`
   （`w32` 仅 VM 静态档案），`--device=reject|read|readwrite|volatile` 覆盖平台实例
   的设备区策略。无后端/工具链映射的档案显式退出 70，不发布错误产物。
 - AOT 平台实例：`aarch64-linux-user` 使用 qemu-system-aarch64 + semihosting；
-  `aarch64-baremetal` 使用 PL011 UART0/UART1 + PSCI；`arm32-baremetal` 使用
+  `aarch64-baremetal` 使用 PL011 UART0（stdout/stdin）/UART1 + PSCI；`arm32-baremetal` 使用
   qemu-system-arm MPS2 AN500（semihosting stdout、CMSDK UART0 退出记录）。
   qemu-user/Linux-user 用户态运行时不在本阶段的门禁路径内；差分比较程序 stdout、
   首个 trap 码与退出策略，且只在同一档案内进行。

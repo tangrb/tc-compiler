@@ -41,7 +41,8 @@ Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The 
 support `--syntax-only`/`--sem-only`/`--static-only` partial checks; a normal `tc-vm`
 invocation executes the reference VM (exit 0 on normal termination, 1 on the first
 trap), while a normal `tc-aot` invocation emits target assembly;
-`--emit=obj|elf` drives clang/lld to an ELF and `--checked` produces a checked
+`--emit=obj|elf|flat` drives clang/lld to an ELF or flat image and `--checked`
+produces a checked
 build. Capabilities outside the current platform instance exit 70
 without publishing a wrong artifact. The S7 differential/toolchain tests need
 `ld.lld` and `qemu-system-aarch64`.

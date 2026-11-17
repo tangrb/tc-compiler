@@ -273,7 +273,7 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     }
     emit_kind = options->emit_kind != NULL ? options->emit_kind : "asm";
     if (strcmp(emit_kind, "asm") != 0 && strcmp(emit_kind, "obj") != 0 &&
-        strcmp(emit_kind, "elf") != 0) {
+        strcmp(emit_kind, "elf") != 0 && strcmp(emit_kind, "flat") != 0) {
         return report(TC_IMPL_USAGE, "unknown --emit value");
     }
     assembler = options->assembler != NULL
@@ -304,7 +304,8 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     }
 
     if (options->output == NULL) {
-        return report(TC_IMPL_USAGE, "--output is required for --emit=obj/elf");
+        return report(TC_IMPL_USAGE,
+                      "--output is required for --emit=obj/elf/flat");
     }
     if (make_temp(asm_path, sizeof(asm_path), ".s") != 0) {
         return report(TC_IMPL_IO, "cannot create temporary assembly file");
@@ -387,10 +388,11 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             unlink(obj_path);
             return report_unavailable("target linker script is unavailable");
         }
-        if (make_temp(out_path, sizeof(out_path), ".elf") != 0) {
+        int flat = strcmp(emit_kind, "flat") == 0;
+        if (make_temp(out_path, sizeof(out_path), flat ? ".bin" : ".elf") != 0) {
             unlink(asm_path);
             unlink(obj_path);
-            return report(TC_IMPL_IO, "cannot create temporary ELF file");
+            return report(TC_IMPL_IO, "cannot create temporary image file");
         }
         argv[argument_index++] = (char *)linker;
         argv[argument_index++] = "-m";
@@ -400,6 +402,9 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
         /* Standard §3.13.3: distinct function entry addresses; never fold
          * identical code or merge entries. */
         argv[argument_index++] = "--icf=none";
+        if (flat) {
+            argv[argument_index++] = "--oformat=binary";
+        }
         argv[argument_index++] = "-T";
         argv[argument_index++] = (char *)linker_script;
         argv[argument_index++] = "-o";
@@ -421,7 +426,7 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             unlink(out_path);
             return report(TC_IMPL_IO, options->output);
         }
-        {
+        if (!flat) {
             struct stat output_status;
             if (stat(options->output, &output_status) == 0 &&
                 S_ISREG(output_status.st_mode) &&

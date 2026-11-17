@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "backend/common/rt_image.h"
 #include "backend/common/rt_platform.h"
 
 #define TC_PL011_BASE UINT64_C(0x09000000)
@@ -67,6 +68,10 @@ void tc_rt_platform_record(const char *bytes, size_t size) {
     for (i = 0; i < size; i++) {
         uart_putc(bytes[i]);
     }
+}
+
+int tc_rt_platform_read(char *bytes, size_t capacity, size_t *n, int *eof) {
+    return tc_rt_image_input(bytes, capacity, n, eof);
 }
 
 __attribute__((noreturn)) void tc_rt_platform_exit(uint32_t status) {
