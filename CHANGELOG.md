@@ -49,15 +49,16 @@
   `.data`、确定性汇编发射、无 regalloc；`tc-aot --emit=asm|obj|elf`、
   clang/lld 驱动与 `aarch64-none-elf` target triple 映射；freestanding AArch64
   运行时（启动、semihosting 输出、整数/bool 格式化/输入、trap/退出、深度计数）。
-- **S7 VM↔AOT 差分与 ABI/工具链验证**：S6 W=64 子集用例复用、64 位/静态/开关
-  边界用例、固定种子整数 fuzz、AAPCS64 子集 ABI、`.s`/ELF 可重复、O0/O2 零 pass、
+- **S7 VM↔AOT 差分与 ABI/工具链验证**：S6 W=64 子集用例复用、64 位/静态/开关/
+  §11.3 输入边界与对抗用例、固定种子整数 fuzz、AAPCS64 子集 ABI、`.s`/ELF 可重复、
+  O0/O2 零 pass、
   全部静态 `.tc` 的 VM/AOT 首诊逐字节一致、未支持 opcode/checked build/非目标档案的
   显式 exit 70 拒绝；release 与 ASan+UBSan 均通过。
 - **S7 加固**：switch CFG 后继缓冲区按目标数动态分配；AOT 输入支持任意前导零；
   ELF 产物设置可执行权限；CMake 要求 clang/llvm-ar/lld/qemu 并拒绝静默降级；
   输入/栈地址改由链接脚本提供并加重叠断言；新增 switch 后继与 `TcFunc.body`
-  回归测试；测试适配器对符号链接工作区使用 canonical 路径；G7 证据区分
-  61 个实际差分与 1 个显式拒绝。
+  回归测试；测试适配器对符号链接工作区使用 canonical 路径；差分套件区分
+  实际差分用例与显式拒绝用例。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
   `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
   首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射 AArch64 子集汇编，

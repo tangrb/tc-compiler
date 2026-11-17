@@ -67,7 +67,8 @@
   mapping; a freestanding AArch64 runtime (startup, semihosting output, integer/
   bool formatting/input, trap/exit and depth counter).
 - **S7 VM↔AOT differential, ABI and toolchain verification**: reuse of the S6
-  W=64 subset cases, 64-bit/static/switch boundary cases, fixed-seed integer fuzz,
+  W=64 subset cases, 64-bit/static/switch/§11.3-input boundary and adversarial
+  cases, fixed-seed integer fuzz,
   AAPCS64 subset ABI, byte-reproducible `.s`/ELF, O0/O2 zero pass, byte-identical
   VM/AOT first diagnostics over every static `.tc`, and explicit exit-70 rejection
   of unsupported opcodes/checked build/non-target profiles; Release and
@@ -76,9 +77,9 @@
   in AOT input; executable permission on ELF artifacts; CMake requires
   clang/llvm-ar/lld/qemu and no longer silently degrades; linker-provided input/
   stack addresses with overlap assertions; regression tests for switch successors
-  and `TcFunc.body`; test adapter canonicalizes symlinked workspaces; G7
-  evidence distinguishes 61 actual differential cases from one explicit
-  rejection.
+  and `TcFunc.body`; test adapter canonicalizes symlinked workspaces; the
+  differential suite separates actual differential cases from explicit
+  rejections.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as

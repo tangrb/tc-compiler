@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核与参考 VM 已实现；原生后端与 freestanding/ABI/工具链阶段尚未实现。
+感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM 与 W=64 AArch64 子集后端/工具链/差分套件已实现；全量 ABI、checked build、freestanding/裸机与 32 位后端尚未实现。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
