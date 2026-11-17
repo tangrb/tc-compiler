@@ -1,0 +1,10 @@
+id: TC-RT-IMP-0001
+profile: w64
+source: root.tc
+spec: "§4.5/§4.7 importers that resolve to the same module file share one module instance and one static storage: the root module and two library modules all importing shared.tc bump the same counter"
+kind: run
+expect:
+  stdout_hex: "310a320a330a340a"
+  trap: null
+  exit: 0
+  termination: normal

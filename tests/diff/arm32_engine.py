@@ -112,6 +112,7 @@ def _parse_vm_trap(stderr: str) -> str | None:
 def run_vm(case: Case, work: Path, profile: str) -> Observation:
     source = work / "root.tc"
     argv = [tc_vm_path(), f"--profile={profile}", f"--include={work}"]
+    argv.extend(f"--include={work / root}" for root in case.include_roots)
     if case.checked:
         argv.append("--checked")
     if case.opt:
@@ -135,6 +136,7 @@ def compile_aot(case: Case, work: Path, profile: str,
     argv = [tc_aot_path(), f"--emit={emit}", f"--output={output}",
             f"--profile={profile}", f"--include={work}",
             f"--ld={lld_path()}"]
+    argv.extend(f"--include={work / root}" for root in case.include_roots)
     if case.checked:
         argv.append("--checked")
     if case.opt:

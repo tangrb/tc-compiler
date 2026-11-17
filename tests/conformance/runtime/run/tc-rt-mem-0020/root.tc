@@ -1,0 +1,14 @@
+#program
+struct S then
+var x: int32
+end
+var p: ptr<int32> = copy ptr<int32>, nullptr
+var q: ptr<int32> = copy ptr<int32>, nullptr
+var d: isize = ptrdiff int32, p, q
+_ = writeln isize, d
+var ps: ptr<S> = copy ptr<S>, nullptr
+var qs: ptr<S> = copy ptr<S>, nullptr
+var ds: isize = ptrdiff S, ps, qs
+_ = writeln isize, ds
+var e: bool = ptreq int32, p, q
+_ = writeln bool, e

@@ -727,6 +727,111 @@ CASES: list[Case] = [
             "_ = writeln float64, z",
         )},
     ),
+    case(
+        "TC-ARM32-S9-0026",
+        "standard §6.3 int64 division/modulo sign grid through the 32-bit "
+        "runtime helpers (truncating division, remainder takes the dividend "
+        "sign, mod INT64_MIN by -1 is defined 0)",
+        out=("-3\n-1\n0\n2\n0\n"),
+        files={"root.tc": program(
+            "var a: int64 = copy int64, -7",
+            "var b: int64 = copy int64, 2",
+            "var q1: int64 = div int64, a, b",
+            "var m1: int64 = mod int64, a, b",
+            "var q2: int64 = div int64, b, a",
+            "var m2: int64 = mod int64, b, a",
+            "_ = writeln int64, q1",
+            "_ = writeln int64, m1",
+            "_ = writeln int64, q2",
+            "_ = writeln int64, m2",
+            "var n: int64 = copy int64, -9223372036854775808",
+            "var d: int64 = copy int64, -1",
+            "var m3: int64 = mod int64, n, d",
+            "_ = writeln int64, m3",
+        )},
+    ),
+    case(
+        "TC-ARM32-S9-0027",
+        "standard §6.3 int64 division INT64_MIN / -1 overflows through the "
+        "32-bit runtime helpers; committed output before the trap is kept",
+        out="0\n",
+        trap="TC_RE_INTEGER_OVERFLOW",
+        files={"root.tc": program(
+            "var n: int64 = copy int64, -9223372036854775808",
+            "var d: int64 = copy int64, -1",
+            "var m: int64 = mod int64, n, d",
+            "_ = writeln int64, m",
+            "var q: int64 = div int64, n, d",
+            "_ = writeln int64, q",
+        )},
+    ),
+    case(
+        "TC-ARM32-S9-0028",
+        "standard §6.7 unaligned multi-byte access is legal: int32 and "
+        "float64 stores/loads at byte-offset addresses inside one object",
+        out="1651564865\n2.5\n",
+        files={"root.tc": program(
+            "struct S then",
+            "var c: int64",
+            "end",
+            "struct T then",
+            "var c: int64",
+            "var d: int64",
+            "end",
+            "var s: S = make S, 305419896",
+            "var ps: ptr<int64> = addr int64, s.c",
+            "var t: T = make T, 1, 2",
+            "var pt: ptr<int64> = addr int64, t.c",
+            "unsafe then",
+            "var b1: ptr<int8> = bitcast ptr<int8>, ps",
+            "var o1: ptr<int8> = ptradd int8, b1, 1",
+            "var p32: ptr<int32> = bitcast ptr<int32>, o1",
+            "_ = store int32, p32, 1651564865",
+            "var v: int32 = load int32, p32",
+            "end",
+            "_ = writeln int32, v",
+            "unsafe then",
+            "var b2: ptr<int8> = bitcast ptr<int8>, pt",
+            "var o2: ptr<int8> = ptradd int8, b2, 2",
+            "var p64: ptr<float64> = bitcast ptr<float64>, o2",
+            "_ = store float64, p64, 2.5",
+            "var f: float64 = load float64, p64",
+            "end",
+            "_ = writeln float64, f",
+        )},
+    ),
+    case(
+        "TC-ARM32-S9-0029",
+        "standard §8.5 AAPCS32 stack passing: a fifth float32 argument and a "
+        "fifth int64 argument exceed the four core registers and are passed "
+        "on the stack with correct alignment",
+        out="15\n8844323110111\n",
+        files={
+            "root.tc": program(
+                "import lib",
+                "var r: float32 = call lib.sum5, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f",
+                "_ = writeln float32, r",
+                "var t: int64 = call lib.pick, 1, 2, 3, 4, 8844323110110",
+                "_ = writeln int64, t",
+            ),
+            "lib.tc": library(
+                "public func sum5(a: float32, b: float32, c: float32, "
+                "d: float32, e: float32) float32 then",
+                "var s1: float32 = add float32, a, b",
+                "var s2: float32 = add float32, s1, c",
+                "var s3: float32 = add float32, s2, d",
+                "var s4: float32 = add float32, s3, e",
+                "_ = return s4",
+                "end",
+                "public func pick(a: int32, b: int32, c: int32, d: int32, "
+                "e: int64) int64 then",
+                "var x: int64 = cast int64, a",
+                "var r: int64 = add int64, x, e",
+                "_ = return r",
+                "end",
+            ),
+        },
+    ),
 ]
 
 

@@ -732,6 +732,34 @@ CHECKED_CASES = [
         trap="TC_RE_FLOAT_UNDERFLOW",
         checked=True,
     ),
+    engine.case(
+        "TC-CHK-S8-0039",
+        "§3.12/§13.3 a one-past pointer may be stored into a field, loaded "
+        "back and ptrsub back into the object in a checked build",
+        root=P(
+            "struct S then",
+            "var a: int64",
+            "var b: int64",
+            "end",
+            "struct Holder then",
+            "var p: ptr<int64>",
+            "end",
+            "var s: S = make S, 7, 9",
+            "var pa: ptr<int64> = addr int64, s.a",
+            "unsafe then",
+            "var one: ptr<int64> = ptradd int64, pa, 2",
+            "end",
+            "var h: Holder = make Holder, one",
+            "var back: ptr<int64> = copy ptr<int64>, h.p",
+            "unsafe then",
+            "var inb: ptr<int64> = ptrsub int64, back, 2",
+            "var v: int64 = load int64, inb",
+            "end",
+            "_ = writeln int64, v",
+        ),
+        out="7\n",
+        checked=True,
+    ),
 ]
 
 def w64_s6_ids() -> list[str]:

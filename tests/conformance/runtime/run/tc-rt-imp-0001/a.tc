@@ -1,0 +1,6 @@
+#lib
+import shared
+public func fa() int32 then
+var t: int32 = call shared.bump
+_ = return t
+end

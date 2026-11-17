@@ -1,0 +1,9 @@
+#program
+import lib
+var r: lib.P = call lib.grab
+var d: isize = ptrdiff int64, r.p, r.q
+_ = writeln isize, d
+var less: bool = ptrlt int64, r.p, r.q
+_ = writeln bool, less
+var same: bool = ptreq int64, r.p, r.q
+_ = writeln bool, same

@@ -17,7 +17,7 @@ semihosting）；首个 32 位目标 `arm32-baremetal`（Cortex-M7 MPS2 AN500、
 | G9 准则 | 证据 | 结论 |
 | --- | --- | --- |
 | freestanding 构建/运行门禁通过；符号审计无 libc | `conformance.s9_baremetal`：aarch64-baremetal ELF/区/符号/无未解析符号/无动态段/无 `INTERP`/无 semihosting、UART 输出、trap、注入输入、静态 `.data` 字节、四设备策略；`conformance.s9_arm32`：ARM32 ELF 头/入口/符号/无动态依赖/无 libc 导入；两个目标运行时均由 `-ffreestanding -nostdlib` 构建并链接 | 通过 |
-| 32 位目标选定并有 ABI/后端实现；32 位 ABI/语义套件通过 | 目标 `arm32-baremetal`（Cortex-M7/AAPCS32-ILP32，triple `thumbv7em-none-eabihf`，qemu-system-arm MPS2 AN500）记录于 `src/CONTRACTS.md`；`conformance.s9_arm32` 的 25 个固定语义/ABI 用例与 260 个 S6/S8 同档案语料全部 VM↔AOT 一致；`conformance.s9_arm32_interop` 以 clang 独立 AAPCS32 调用方通过 14 个复合/64 位/浮点/窄值用例；`aot.unit` 与 `conformance.s9_static_parity` 覆盖发射形态与静态一致 | 通过 |
+| 32 位目标选定并有 ABI/后端实现；32 位 ABI/语义套件通过 | 目标 `arm32-baremetal`（Cortex-M7/AAPCS32-ILP32，triple `thumbv7em-none-eabihf`，qemu-system-arm MPS2 AN500）记录于 `src/CONTRACTS.md`；`conformance.s9_arm32` 的 29 个固定语义/ABI 用例与 270 个 S6/S8 同档案语料全部 VM↔AOT 一致；`conformance.s9_arm32_interop` 以 clang 独立 AAPCS32 调用方通过 14 个复合/64 位/浮点/窄值用例；`aot.unit` 与 `conformance.s9_static_parity` 覆盖发射形态与静态一致 | 通过 |
 | 32/64 分档案 golden 与差分隔离 | `conformance.s9_profiles` 钉扎 §13.2.2 的 `sizeof`/字面量范围/`bitcast`/`trunc` 差异；`conformance.s9_static_parity` 分别在 `arm32-baremetal` 与 `aarch64-baremetal` 下比较 VM/AOT 首诊，跨档案不比较；`tests/golden/w32` 与 `w64` 分别执行；所有 S9 差分只比较同一档案 | 通过 |
 | 四种设备策略、退出策略、UART/heap/trap 全部覆盖 | `conformance.s9_baremetal` 的 reject/read/readwrite/volatile 矩阵（普通/volatile 读与写）与退出记录；PL011 UART0/UART1 分离；4000 位前导零 token 经 freestanding arena（`TC-ARM32-S9-0021`、bare-metal 输入用例）；必选 trap 与 checked build 在 ARM32 上执行（`TC-ARM32-S9-0014`…`0019`）；8 MiB/128 KiB 运行时 arena | 通过 |
 | 32 位 `int64`/`float64` 辅助与未对齐访问用例通过 | `conformance.s9_arm32` 覆盖 `int64`/`uint64` 乘除/移位/比较、binary64 算术/异常/格式化、32 位 `usize`/`isize`/`ptrdiff`/`memmove`/`n×sizeof T`；ARM EABI `__aeabi_uldivmod`/`__aeabi_ldivmod`/内存辅助由独立 `aeabi` 实现；未对齐 `int64`/`float64` 字段访问经共享对象/运行时路径 | 通过 |
@@ -26,7 +26,7 @@ semihosting）；首个 32 位目标 `arm32-baremetal`（Cortex-M7 MPS2 AN500、
 ## 覆盖与测试
 
 - 全量 `ctest`：58/58（Debug、Release、ASan+UBSan）。
-- S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（25 固定 + 260 语料）、
+- S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（29 固定 + 270 语料）、
   `conformance.s9_arm32_interop`（14）、`conformance.s9_static_parity`
   （1033 源 × 2 档案）、`conformance.s9_profiles`（7）、`determinism.s9`。
 - 覆盖矩阵：636/636；设计 §12 十五项均有套件映射（第 4/7/14/15 项纳入 S9 用例）。
@@ -57,6 +57,12 @@ python3 tests/tools/docs_cleanup_check.py
 
 ## 补充验证（G9 后）
 
+- 对抗覆盖扩展：S6 运行时语料 110→115（bool 非规范字节经 `memmove` 走私与规范化、
+  `ptrdiff(null,null)=0`、悬垂 `ptrdiff`/比较按原地址、模块实例三导入方共享、
+  同名不同路径模块实例分离），S8 差分 150→155 且全部 VM↔AOT 一致，checked 38→39
+  （one-past 指针存入字段再取回），ARM32 固定用例 25→29（int64 除法符号格与
+  `INT64_MIN/-1` 溢出、字节偏移未对齐 `int32`/`float64` 访问、第 5 个 `float32`/
+  `int64` 实参栈传递）。差分引擎补充 yaml `include_roots` 支持以承载多目录语料。
 - 反向 interop：19 例 TC caller → C callee 覆盖整数/栈参数、int64 对、float32/float64、
   HFA 构造与返回、复合按引用/按值、间接返回与窄值。当前实现按符号性扩展
   ARM32 caller 的窄实参；AArch64 33 例、ARM32 14 例 C-caller 互操作与全部

@@ -1,0 +1,16 @@
+#lib
+public struct P then
+var p: ptr<int64>
+var q: ptr<int64>
+end
+public struct S then
+var a: int64
+var b: int64
+end
+public func grab() P then
+var s: S = make S, 7, 9
+var pa: ptr<int64> = addr int64, s.a
+var pb: ptr<int64> = addr int64, s.b
+var r: P = make P, pa, pb
+_ = return r
+end

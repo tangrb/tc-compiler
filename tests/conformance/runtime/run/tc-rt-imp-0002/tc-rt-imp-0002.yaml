@@ -1,0 +1,11 @@
+id: TC-RT-IMP-0002
+profile: w64
+source: root.tc
+spec: "§4.5 module identity is the resolved file path: left/shared.tc and right/shared.tc are two module instances with independent static storage, so a.tc bumps only the left counter and b.tc only the right one"
+kind: run
+include_roots: ["left", "right"]
+expect:
+  stdout_hex: "310a320a310a320a"
+  trap: null
+  exit: 0
+  termination: normal

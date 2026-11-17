@@ -59,6 +59,8 @@ class Case:
     unsupported: bool = False
     # Checked-build execution (UB access checks; mandatory traps unchanged).
     checked: bool = False
+    # Import search roots relative to the case directory (standard §4.5).
+    include_roots: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -121,10 +123,15 @@ def _parse_vm_trap(stderr: str) -> str | None:
     return None
 
 
+def _include_argv(case: Case, work: Path) -> list[str]:
+    return [f"--include={work / root}" for root in case.include_roots]
+
+
 def run_vm(case: Case, work: Path) -> Observation:
     source = work / "root.tc"
     argv = [tc_vm_path(), "--profile=aarch64-linux-user",
             f"--include={work}"]
+    argv.extend(_include_argv(case, work))
     if case.checked:
         argv.append("--checked")
     if case.opt:
@@ -151,6 +158,7 @@ def compile_aot(case: Case, work: Path, asm_out: Path | None = None,
     argv = [tc_aot_path(), f"--emit={emit}", f"--output={output}",
             "--profile=aarch64-linux-user", f"--include={work}",
             f"--ld={lld_path()}"]
+    argv.extend(_include_argv(case, work))
     if case.checked:
         argv.append("--checked")
     if case.opt:
@@ -353,8 +361,9 @@ def load_s6_case(case_id: str, category: str = "diff") -> Case:
     if data.get("profile") != "w64":
         raise CaseError(f"{case_id} is not a W=64 case")
     files: dict[str, str] = {}
-    for path in sorted(directory.glob("*.tc")):
-        files[path.name] = path.read_text(encoding="utf-8")
+    for path in sorted(directory.rglob("*.tc")):
+        files[str(path.relative_to(directory))] = \
+            path.read_text(encoding="utf-8")
     expect = data.get("expect", {})
     run = data.get("run", {})
     stdin_hex = run.get("stdin_hex", "")
@@ -372,6 +381,7 @@ def load_s6_case(case_id: str, category: str = "diff") -> Case:
         spec=str(data.get("spec", "")),
         category=category,
         checked=bool(data.get("checked", False)),
+        include_roots=list(data.get("include_roots", [])),
     )
 
 

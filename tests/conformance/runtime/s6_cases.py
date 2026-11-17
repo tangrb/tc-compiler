@@ -57,7 +57,7 @@ def library(*lines: str) -> str:
 
 
 def run_case(cid, profile, spec, out="", trap=None, stdin="", checked=False,
-             opt=None, files=None):
+             opt=None, files=None, include_roots=None):
     return {
         "id": cid,
         "profile": profile,
@@ -68,6 +68,7 @@ def run_case(cid, profile, spec, out="", trap=None, stdin="", checked=False,
         "stdin": stdin,
         "checked": checked,
         "opt": opt,
+        "include_roots": list(include_roots or []),
     }
 
 
@@ -1673,6 +1674,212 @@ CASES = [
         )},
         out="7\n8\n",
     ),
+    # ------------------------------------------------------------------
+    # Bool representation smuggling through byte copies (§3.4, §3.12, §6.7).
+    run_case(
+        "TC-RT-MEM-0019", "w64",
+        "§3.4/§3.12/§6.7 struct copy/memmove moves raw bytes: a non-canonical "
+        "bool byte (0x02) read back normalizes to true, and bool stores write "
+        "canonical 0x00/0x01 observable through a byte-level copy; ptr<->ptr "
+        "bitcast is a safe operation",
+        files={"root.tc": program(
+            "struct Raw then",
+            "var b: int8",
+            "end",
+            "struct Flag then",
+            "var f: bool",
+            "end",
+            "var r: Raw = make Raw, 2",
+            "var g: Flag = make Flag, false",
+            "var pr: ptr<Raw> = addr Raw, r",
+            "var pg: ptr<Flag> = addr Flag, g",
+            "var pf: ptr<Flag> = bitcast ptr<Flag>, pr",
+            "unsafe then",
+            "_ = memmove Flag, pg, pf, 1",
+            "end",
+            "_ = writeln bool, g.f",
+            "var r2: Raw = make Raw, 0",
+            "var g2: Flag = make Flag, true",
+            "var pr2: ptr<Raw> = addr Raw, r2",
+            "var pg2: ptr<Flag> = addr Flag, g2",
+            "var pf2: ptr<Flag> = bitcast ptr<Flag>, pg2",
+            "var pr2r: ptr<Raw> = bitcast ptr<Raw>, pr2",
+            "var dst2: ptr<Flag> = bitcast ptr<Flag>, pr2r",
+            "unsafe then",
+            "_ = memmove Flag, dst2, pf2, 1",
+            "end",
+            "_ = writeln int8, r2.b",
+            "var g3: Flag = make Flag, false",
+            "var pg3: ptr<Flag> = addr Flag, g3",
+            "var pf3: ptr<Flag> = bitcast ptr<Flag>, pg3",
+            "unsafe then",
+            "_ = memmove Flag, dst2, pf3, 1",
+            "end",
+            "_ = writeln int8, r2.b",
+        )},
+        out="true\n1\n0\n",
+    ),
+    # ------------------------------------------------------------------
+    # ptrdiff between two null pointers is the address-0 difference (§3.12).
+    run_case(
+        "TC-RT-MEM-0020", "w64",
+        "§3.12/§6.8 null participates in ptrdiff as address 0: the difference "
+        "of two null pointers is 0 for scalar and struct element types and "
+        "does not trap; nullptr equality comparison is defined",
+        files={"root.tc": program(
+            "struct S then",
+            "var x: int32",
+            "end",
+            "var p: ptr<int32> = copy ptr<int32>, nullptr",
+            "var q: ptr<int32> = copy ptr<int32>, nullptr",
+            "var d: isize = ptrdiff int32, p, q",
+            "_ = writeln isize, d",
+            "var ps: ptr<S> = copy ptr<S>, nullptr",
+            "var qs: ptr<S> = copy ptr<S>, nullptr",
+            "var ds: isize = ptrdiff S, ps, qs",
+            "_ = writeln isize, ds",
+            "var e: bool = ptreq int32, p, q",
+            "_ = writeln bool, e",
+        )},
+        out="0\n0\ntrue\n",
+    ),
+    # ------------------------------------------------------------------
+    # Dangling pointers keep their original address relations (§3.12, §6.8).
+    run_case(
+        "TC-RT-MEM-0021", "w64",
+        "§3.12/§6.8 dangling pointers may be copied, returned, compared and "
+        "subtracted: ptrdiff of two dangling pointers into the same original "
+        "object is the original byte difference and the comparison uses the "
+        "original addresses",
+        files={
+            "root.tc": program(
+                "import lib",
+                "var r: lib.P = call lib.grab",
+                "var d: isize = ptrdiff int64, r.p, r.q",
+                "_ = writeln isize, d",
+                "var less: bool = ptrlt int64, r.p, r.q",
+                "_ = writeln bool, less",
+                "var same: bool = ptreq int64, r.p, r.q",
+                "_ = writeln bool, same",
+            ),
+            "lib.tc": library(
+                "public struct P then",
+                "var p: ptr<int64>",
+                "var q: ptr<int64>",
+                "end",
+                "public struct S then",
+                "var a: int64",
+                "var b: int64",
+                "end",
+                "public func grab() P then",
+                "var s: S = make S, 7, 9",
+                "var pa: ptr<int64> = addr int64, s.a",
+                "var pb: ptr<int64> = addr int64, s.b",
+                "var r: P = make P, pa, pb",
+                "_ = return r",
+                "end",
+            ),
+        },
+        out="-8\ntrue\nfalse\n",
+    ),
+    # ------------------------------------------------------------------
+    # One module file shared by several importers is one instance (§4.5).
+    run_case(
+        "TC-RT-IMP-0001", "w64",
+        "§4.5/§4.7 importers that resolve to the same module file share one "
+        "module instance and one static storage: the root module and two "
+        "library modules all importing shared.tc bump the same counter",
+        files={
+            "root.tc": program(
+                "import shared",
+                "import a",
+                "import b",
+                "var r0: int32 = call shared.bump",
+                "_ = writeln int32, r0",
+                "var r1: int32 = call a.fa",
+                "_ = writeln int32, r1",
+                "var r2: int32 = call b.fb",
+                "_ = writeln int32, r2",
+                "var r3: int32 = call shared.bump",
+                "_ = writeln int32, r3",
+            ),
+            "a.tc": library(
+                "import shared",
+                "public func fa() int32 then",
+                "var t: int32 = call shared.bump",
+                "_ = return t",
+                "end",
+            ),
+            "b.tc": library(
+                "import shared",
+                "public func fb() int32 then",
+                "var t: int32 = call shared.bump",
+                "_ = return t",
+                "end",
+            ),
+            "shared.tc": library(
+                "public static var C: int32 = 0",
+                "public func bump() int32 then",
+                "Self.C = add int32, Self.C, 1",
+                "_ = return Self.C",
+                "end",
+            ),
+        },
+        out="1\n2\n3\n4\n",
+    ),
+    # ------------------------------------------------------------------
+    # Same-name modules at different paths are separate instances (§4.5).
+    run_case(
+        "TC-RT-IMP-0002", "w64",
+        "§4.5 module identity is the resolved file path: left/shared.tc and "
+        "right/shared.tc are two module instances with independent static "
+        "storage, so a.tc bumps only the left counter and b.tc only the "
+        "right one",
+        include_roots=["left", "right"],
+        files={
+            "root.tc": program(
+                "import a",
+                "import b",
+                "var r1: int32 = call a.fa",
+                "_ = writeln int32, r1",
+                "var r2: int32 = call a.fa",
+                "_ = writeln int32, r2",
+                "var s1: int32 = call b.fb",
+                "_ = writeln int32, s1",
+                "var s2: int32 = call b.fb",
+                "_ = writeln int32, s2",
+            ),
+            "left/a.tc": library(
+                "import shared",
+                "public func fa() int32 then",
+                "var t: int32 = call shared.bump",
+                "_ = return t",
+                "end",
+            ),
+            "right/b.tc": library(
+                "import shared",
+                "public func fb() int32 then",
+                "var t: int32 = call shared.bump",
+                "_ = return t",
+                "end",
+            ),
+            "left/shared.tc": library(
+                "public static var C: int32 = 0",
+                "public func bump() int32 then",
+                "Self.C = add int32, Self.C, 1",
+                "_ = return Self.C",
+                "end",
+            ),
+            "right/shared.tc": library(
+                "public static var C: int32 = 0",
+                "public func bump() int32 then",
+                "Self.C = add int32, Self.C, 1",
+                "_ = return Self.C",
+                "end",
+            ),
+        },
+        out="1\n2\n1\n2\n",
+    ),
 ]
 
 
@@ -1700,6 +1907,9 @@ def render(case):
         lines.append("checked: true")
     if case["opt"] is not None:
         lines.append(f"opt: {case['opt']}")
+    if case["include_roots"]:
+        roots = ", ".join(_yaml_scalar(root) for root in case["include_roots"])
+        lines.append(f"include_roots: [{roots}]")
     lines.append("expect:")
     lines.append(f"  stdout_hex: {_yaml_scalar(hexout(case['stdout']))}")
     lines.append(f"  trap: {case['trap'] if case['trap'] is not None else 'null'}")
@@ -1717,7 +1927,9 @@ def write_all():
         directory, files, yaml = render(case)
         directory.mkdir(parents=True, exist_ok=True)
         for name, text in files.items():
-            (directory / name).write_text(text, encoding="utf-8")
+            path = directory / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
         (directory / f"{case['id'].lower()}.yaml").write_text(
             yaml, encoding="utf-8"
         )
