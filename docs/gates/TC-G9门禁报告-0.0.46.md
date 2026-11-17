@@ -26,8 +26,8 @@ semihosting）；首个 32 位目标 `arm32-baremetal`（Cortex-M7 MPS2 AN500、
 ## 覆盖与测试
 
 - 全量 `ctest`：58/58（Debug、Release、ASan+UBSan）。
-- S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（21 固定 + 260 语料）、
-  `conformance.s9_arm32_interop`（10）、`conformance.s9_static_parity`
+- S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（25 固定 + 260 语料）、
+  `conformance.s9_arm32_interop`（14）、`conformance.s9_static_parity`
   （1033 源 × 2 档案）、`conformance.s9_profiles`（7）、`determinism.s9`。
 - 覆盖矩阵：636/636；设计 §12 十五项均有套件映射（第 4/7/14/15 项纳入 S9 用例）。
 - 确定性：O0/O2 `.s` 逐字节一致；重复 `.s`/ELF/执行一致；checked `.s` 可重复且与
