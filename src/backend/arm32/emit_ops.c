@@ -409,6 +409,21 @@ static void emit_depth_leave(TcArm32Emitter *emitter) {
                    TC_ARM32_VALUE0, TC_ARM32_VALUE0, TC_ARM32_TMP0);
 }
 
+static int arg_needs_sign_extend(const TcType *type) {
+    return type != NULL && tc_type_is_signed_integer(type) &&
+           tc_arm32_type_width(type) < 32u;
+}
+
+static void emit_narrow_sign_extend(TcArm32Emitter *emitter, unsigned reg,
+                                    const TcType *type) {
+    unsigned width = tc_arm32_type_width(type);
+    if (width == 8u) {
+        tc_arm32_write(emitter, "  sxtb r%u, r%u\n", reg, reg);
+    } else if (width == 16u) {
+        tc_arm32_write(emitter, "  sxth r%u, r%u\n", reg, reg);
+    }
+}
+
 static void store_call_result(TcArm32Emitter *emitter, const TcInstr *instr,
                               const TcType *ret, TcArm32RetPlan *plan) {
     int ok = 0;
@@ -503,6 +518,9 @@ static void emit_call(TcArm32Emitter *emitter, const TcInstr *instr) {
         }
         tc_arm32_load_operand64(emitter, &arg->value, TC_ARM32_VALUE0,
                                 TC_ARM32_VALUE1);
+        if (arg_needs_sign_extend(params[i])) {
+            emit_narrow_sign_extend(emitter, TC_ARM32_VALUE0, params[i]);
+        }
         if (loc->stack_offset <= 4095u) {
             tc_arm32_write(emitter, "  str r%u, [sp, #%llu]\n",
                            TC_ARM32_VALUE0,
@@ -565,6 +583,9 @@ static void emit_call(TcArm32Emitter *emitter, const TcInstr *instr) {
         tc_arm32_load_operand64(emitter, &arg->value, loc->reg,
                                 loc->is64 ? loc->reg + 1u
                                           : TC_ARM32_VALUE1);
+        if (arg_needs_sign_extend(params[i])) {
+            emit_narrow_sign_extend(emitter, loc->reg, params[i]);
+        }
     }
     emit_depth_enter(emitter, &instr->span);
     if (indirect) {

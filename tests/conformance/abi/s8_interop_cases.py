@@ -741,6 +741,47 @@ void tc_main(void) { F1 x; x.a = 2.5f; pi(fb(tc_test_call(x).a)); }
 """,
         f"{f32bits(2.5)}\n",
     ),
+    (
+        "float32 scalar argument and return",
+        """#lib
+public func bump(x: float32) float32 then
+var one: float32 = copy float32, 1.0f
+var r: float32 = add float32, x, one
+_ = return r
+end
+""",
+        """extern float tc_test_call(float);
+void tc_main(void) { pi(fb(tc_test_call(1.5f))); }
+""",
+        f"{f32bits(2.5)}\n",
+    ),
+    (
+        "bool return value",
+        """#lib
+public func negative(x: int32) bool then
+var z: int32 = copy int32, 0
+var r: bool = lt int32, x, z
+_ = return r
+end
+""",
+        """extern _Bool tc_test_call(int32_t);
+void tc_main(void) { pi(tc_test_call(-1) ? 1u : 0u); }
+""",
+        "1\n",
+    ),
+    (
+        "uint16 return value",
+        """#lib
+public func wide16(x: int64) uint16 then
+var r: uint16 = trunc uint16, x
+_ = return r
+end
+""",
+        """extern uint16_t tc_test_call(int64_t);
+void tc_main(void) { pi((uint64_t)tc_test_call(0x1ffff)); }
+""",
+        "65535\n",
+    ),
 ]
 
 

@@ -451,6 +451,74 @@ static char *emit_arm32_fixture(const Fixture *fixture,
     return buffer;
 }
 
+static void test_abi_descriptor_match(void) {
+    Fixture fixture;
+    TcPlatformProfile profile;
+    TcABIDesc abi;
+    TcTargetDesc target;
+    TcAnalysisStatus status;
+    TcAnalysisDiag diag;
+    TcImplError impl = TC_IMPL_OK;
+    TcAnalysis *analysis;
+    TcAArch64EmitStatus emit_status = TC_AARCH64_EMIT_OK;
+    char error_message[256];
+    char *buffer = NULL;
+    size_t length = 0;
+    FILE *stream;
+
+    CHECK(tc_abi_aapcs64.hfa == 1);
+    CHECK(tc_abi_aapcs64.composite_max_bytes == 16u);
+    CHECK(tc_abi_aapcs64.hfa_max_regs == 4u);
+    CHECK(tc_abi_aapcs64.stack_align == 16u);
+    CHECK(tc_abi_aapcs32_ilp32.hfa == 0);
+    CHECK(tc_abi_aapcs32_ilp32.composite_max_bytes == 4u);
+    CHECK(tc_abi_aapcs32_ilp32.stack_align == 8u);
+    CHECK(tc_abi_aapcs32_ilp32.composite_return == TC_ABI_RET_INDIRECT);
+    CHECK(tc_abi_aapcs32_ilp32.int64_pair == 1);
+    CHECK(tc_abi_aapcs32_ilp32.float64_pair == 1);
+
+    if (!make_fixture(&fixture,
+                      "#program\nvar a: int32 = copy int32, 1\n"
+                      "_ = writeln int32, a\n", "#lib\n")) {
+        CHECK(0);
+        return;
+    }
+    if (!tc_profile_init_aarch64_baremetal(&profile)) {
+        free_fixture(&fixture);
+        CHECK(0);
+        return;
+    }
+    analysis = tc_analyze_with_profile(fixture.root, &profile,
+                                       profile.addr_width, NULL, 0, &status,
+                                       &diag, &impl);
+    free_fixture(&fixture);
+    if (analysis == NULL || status != TC_ANALYSIS_OK) {
+        if (analysis != NULL) {
+            tc_analysis_destroy(analysis);
+        }
+        CHECK(0);
+        return;
+    }
+    abi = *profile.target->abi;
+    abi.composite_max_bytes = 8u;
+    target = *profile.target;
+    target.abi = &abi;
+    profile.target = &target;
+    stream = open_memstream(&buffer, &length);
+    if (stream == NULL) {
+        tc_analysis_destroy(analysis);
+        CHECK(0);
+        return;
+    }
+    emit_status = tc_aarch64_emit_asm(
+        stream, tc_analysis_ir(analysis), &profile, &target, error_message,
+        sizeof(error_message));
+    fclose(stream);
+    tc_analysis_destroy(analysis);
+    free(buffer);
+    CHECK(emit_status == TC_AARCH64_EMIT_INTERNAL);
+}
+
 static void test_arm32_emitter(void) {
     Fixture fixture;
     TcArm32EmitStatus status = TC_ARM32_EMIT_INTERNAL;
@@ -541,6 +609,7 @@ int main(void) {
     test_checked_shapes();
     test_hfa_and_indirect_return();
     test_static_initializer();
+    test_abi_descriptor_match();
     test_arm32_emitter();
     test_deterministic();
     if (failures != 0) {

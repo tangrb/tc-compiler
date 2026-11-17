@@ -46,17 +46,27 @@ AAPCS64 调用方互操作）、`s8_abi_fuzz.py`/`s8_layout_fuzz.py`/`s8_mem_fuz
 必选 trap/合法集分离）、`s8_consistency_cases.py`（§13.4 八项）、
 `s8_artifact_cases.py`（入口/区/符号/静态字节/ICF）与 `s8_determinism.py`。
 S9 套件在 `conformance/platform/`、`conformance/abi/s9_arm32_interop.py`、
-`conformance/tools/s9_static_parity.py` 与 `determinism/s9_determinism.py`：
+`conformance/abi/reverse_interop_cases.py`、`conformance/tools/s9_static_parity.py`
+与 `determinism/s9_determinism.py`：
 `aarch64-baremetal` 的 ELF/UART/trap/输入/静态字节/四设备策略/符号审计，
 `arm32-baremetal` 的 25 个固定语义/ABI 用例 + 260 个 S6/S8 语料同档案
-VM↔AOT 差分、10 个 C 调用者 AAPCS32 互操作用例、1033 个静态源 × 2 个裸机
-档案的 VM/AOT 首诊逐字节一致、32/64 分档案隔离与重复构建/执行确定性。
+VM↔AOT 差分、14 个 C 调用者 AAPCS32 互操作用例、19 个 TC caller → C callee
+反向 ABI 用例、1033 个静态源 × 2 个裸机档案的 VM/AOT 首诊逐字节一致、
+32/64 分档案隔离与重复构建/执行确定性。AAPCS64/AAPCS32 的参考版本、规则矩阵
+与明确不支持的 over-aligned/bit-field/vector/variadic 形态见
+[conformance/abi/README.md](conformance/abi/README.md)。
 AOT 构建/测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld`、
 `qemu-system-aarch64` 与 `qemu-system-arm`；缺失时 CMake 配置失败。
 `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
 llvm-ar/aarch64-elf-ar。32/64 结果分档案保存；差分只在同一档案内比较 VM 与 AOT。
+S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑使用
+`python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
+同理）扩大样本，不改变 ctest 的默认时间。
 
-当前全量：`ctest` 57/57（Debug/Release/ASan+UBSan）；harness 754/754
+当前全量：`ctest` 58/58（Debug/Release/ASan+UBSan）；harness 754/754
 （557 编译、129 工具、67 运行、1 属性）；单元检查 frontend 688、sem 102、
-ct 370、ir 674、vm 413、aot 70。S9 平台套件另有 25 个固定 ARM32 用例、
-260 个 S6/S8 语料、10 个 AAPCS32 互操作用例与 1033×2 个静态源一致性检查。
+ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 25 个固定 ARM32 用例、
+260 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
+19 个反向 ABI 用例与 1033×2 个静态源一致性检查。
+`tests/tools/abi_mutation_audit.py --check` 与
+`tests/tools/s9_capacity_report.py --check` 是手动审计工具，不进入 ctest。

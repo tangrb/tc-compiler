@@ -21,8 +21,8 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   `arm32-baremetal`（Cortex-M7 MPS2 AN500、AAPCS32/ILP32 softfp、独立 ARM32
   后端与全部 51 个 opcode、`int64`/`float64` 辅助、未对齐访问、四设备策略、
   qemu-system-arm 执行）；复位入口、区基址、静态区 `.data`、ELF 产物与 clang/lld 驱动；
-  全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C 调用者 AAPCS64/AAPCS32 互操作、
-  32/64 分档案隔离与生成式 ABI/布局/内存/浮点 fuzz。
+  全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C caller/TC caller 双向
+  AAPCS64/AAPCS32 互操作、32/64 分档案隔离与生成式 ABI/布局/内存/浮点 fuzz。
 - **未实现**：RISC-V 等后续目标与可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 当前门禁：G0–G9 PASS；**G9 允许进入 S10**。详见 [门禁状态](docs/gates/README.md)。
 

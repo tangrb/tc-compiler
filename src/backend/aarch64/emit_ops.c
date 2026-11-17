@@ -761,6 +761,8 @@ static void emit_depth_leave(TcA64Emitter *emitter) {
 static void emit_argument(TcA64Emitter *emitter, const TcArg *arg,
                           const TcType *type, const TcA64ArgSlot *location) {
     int ok = 0;
+    int sign_extend = tc_type_is_signed_integer(type) &&
+                      type->tag != TC_TY_STRUCT;
     uint64_t size = tc_a64_type_size(emitter->ir, type, &ok);
     if (!ok) {
         tc_a64_error(emitter, "call argument has an incomplete type");
@@ -789,7 +791,7 @@ static void emit_argument(TcA64Emitter *emitter, const TcArg *arg,
             tc_a64_add_constant(emitter, 16u, 31u, location->stack_offset);
             tc_a64_copy_bytes(emitter, size);
         } else {
-            tc_a64_load_operand(emitter, &arg->value, 9u, 0);
+            tc_a64_load_operand(emitter, &arg->value, 9u, sign_extend);
             tc_a64_add_constant(emitter, 16u, 31u, location->stack_offset);
             tc_a64_write(emitter, "  str x9, [x16]\n");
         }
@@ -835,7 +837,8 @@ static void emit_argument(TcA64Emitter *emitter, const TcArg *arg,
             chunk++;
         }
     } else {
-        tc_a64_load_operand(emitter, &arg->value, location->index, 0);
+        tc_a64_load_operand(emitter, &arg->value, location->index,
+                            sign_extend);
     }
 }
 

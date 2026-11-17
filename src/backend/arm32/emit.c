@@ -1852,6 +1852,13 @@ static int preflight_ir(TcArm32Emitter *emitter) {
     return 1;
 }
 
+static int abi_matches_classifier(const TcABIDesc *abi) {
+    return abi != NULL && abi->hfa == 0 &&
+           abi->composite_max_bytes == 4u && abi->stack_align == 8u &&
+           abi->int64_pair == 1 && abi->float64_pair == 1 &&
+           abi->composite_return == TC_ABI_RET_INDIRECT;
+}
+
 TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
                                     const TcPlatformProfile *profile,
                                     const TcTargetDesc *target,
@@ -1870,6 +1877,14 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
         if (error_message != NULL && error_capacity != 0) {
             snprintf(error_message, error_capacity,
                      "target descriptor does not match the profile");
+        }
+        return TC_ARM32_EMIT_INTERNAL;
+    }
+    if (!abi_matches_classifier(target->abi)) {
+        if (error_message != NULL && error_capacity != 0) {
+            snprintf(error_message, error_capacity,
+                     "profile ABI descriptor does not match the ARM32 "
+                     "classifier");
         }
         return TC_ARM32_EMIT_INTERNAL;
     }

@@ -49,8 +49,11 @@ never backfilled from compiler output.
 - S8 ABI: `abi/s8_abi_cases.py` covers the full AAPCS64 surface plus an
   assembly-shape audit (v registers for HFAs, x8 indirect returns, 16-byte stack
   steps, `blr`, by-reference large composites); `abi/s8_interop_cases.py` compiles
-  a C caller with clang and calls the AArch64 callee for 28 composite/HFA/spill
-  cases, checking the published ABI independently of the VM.
+  a C caller with clang and calls the AArch64 callee for 33 composite/HFA/spill/
+  narrow-value cases, checking the published ABI independently of the VM.
+  `abi/reverse_interop_cases.py` adds 19 TC-caller → C-callee cases for both
+  targets; the reference edition, rule matrix and explicit ABI scope limits are
+  in `abi/README.md`.
 - S8 generated: `diff/s8_abi_fuzz.py`, `s8_layout_fuzz.py`, `s8_mem_fuzz.py` and
   `s8_fp_fuzz.py` derive expected behavior in Python and run fixed seed sets
   (scalable with `--seeds`); `tools/s8_static_fuzz.py` compares both tools on
@@ -72,8 +75,8 @@ never backfilled from compiler output.
   plus the complete S6 runtime and S8 differential corpora as same-profile
   VM↔AOT comparisons on qemu-system-arm MPS2 AN500; it also audits the ARM32
   ELF header/entry/symbols and the absence of dynamic or libc imports.
-  `abi/s9_arm32_interop.py` compiles a C caller with clang and exercises ten
-  AAPCS32 composite/int64/float64 cases; `tools/s9_static_parity.py` compares
+  `abi/s9_arm32_interop.py` compiles a C caller with clang and exercises 14
+  AAPCS32 composite/int64/float64/narrow cases; `tools/s9_static_parity.py` compares
   VM/AOT static results over every source under both bare-metal profiles;
   `platform/s9_profiles.py` pins the §13.2.2 W=32/W=64 differences.
 
@@ -97,7 +100,7 @@ tests/conformance/
   opcode_static/      S6 per-opcode static shape cases (one directory per case)
   runtime/            S6 VM runtime cases (one directory per case)
   diff/               S7/S8 VM↔AOT differential cases and fixed-seed fuzz
-  abi/                S7/S8 AAPCS64 and S9 AAPCS32 ABI cases
+  abi/                S7/S8 AAPCS64 and S9 AAPCS32 ABI cases; reverse TC→C interop
   checked/            S8 checked-build cases
   consistency/        S8 standard §13.4 eight-item consistency cases
   platform/           S9 bare-metal/ARM32/profile-isolation cases

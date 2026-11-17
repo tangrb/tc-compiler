@@ -19,7 +19,7 @@
 **当前状态**：G9 通过，允许进入 S10。前端、CT/IR、运行时语义核、参考 VM、
 W=64 AArch64 全量后端、W=32 ARM32 后端、freestanding 目标运行时核与
 `aarch64-baremetal`/`arm32-baremetal` 平台实例、四设备策略、checked build、
-C 调用者 AAPCS64/AAPCS32 互操作、全量差分/生成式对抗测试与 32/64 分档案
+C caller/TC caller 双向 AAPCS64/AAPCS32 互操作、全量差分/生成式对抗测试与 32/64 分档案
 隔离均已实现。覆盖矩阵 636/636；design §12 十五项均有套件映射。
 
 复现：
@@ -55,6 +55,9 @@ python3 tests/determinism/s8_determinism.py --check
 python3 tests/conformance/platform/s9_baremetal_cases.py --check
 python3 tests/conformance/platform/s9_arm32_cases.py --check
 python3 tests/conformance/abi/s9_arm32_interop.py --check
+python3 tests/conformance/abi/reverse_interop_cases.py --check
+python3 tests/tools/abi_mutation_audit.py --check
+python3 tests/tools/s9_capacity_report.py --check
 python3 tests/conformance/tools/s9_static_parity.py --check
 python3 tests/conformance/platform/s9_profiles.py --check
 python3 tests/determinism/s9_determinism.py --check

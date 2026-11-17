@@ -221,6 +221,10 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s9_arm32_interop.py
                      --check)
+    add_test(NAME conformance.abi_reverse
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/reverse_interop_cases.py
+                     --check)
     add_test(NAME conformance.s9_static_parity
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s9_static_parity.py
@@ -242,8 +246,8 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s8_mem_fuzz conformance.s8_fp_fuzz
         conformance.s8_interop conformance.s9_baremetal
         conformance.s9_arm32 conformance.s9_arm32_interop
-        conformance.s9_static_parity conformance.s9_profiles
-        determinism.s9
+        conformance.abi_reverse conformance.s9_static_parity
+        conformance.s9_profiles determinism.s9
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_LINKER=${TC_LLD}")

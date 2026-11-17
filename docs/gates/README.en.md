@@ -21,8 +21,9 @@ environment snapshots are not kept on the branch; use git history if needed.
 semantic core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32
 backend, the freestanding target runtime core with the
 `aarch64-baremetal`/`arm32-baremetal` platform instances, all four device
-policies, checked build, C-caller AAPCS64/AAPCS32 interoperability, the full
-differential suite and 32/64 profile isolation are implemented. Coverage is
+policies, checked build, bidirectional C-caller/TC-caller AAPCS64/AAPCS32
+interoperability, the full differential suite and 32/64 profile isolation are
+implemented. Coverage is
 636/636; every design §12 item has a suite mapping.
 
 Reproduce:
@@ -58,6 +59,9 @@ python3 tests/determinism/s8_determinism.py --check
 python3 tests/conformance/platform/s9_baremetal_cases.py --check
 python3 tests/conformance/platform/s9_arm32_cases.py --check
 python3 tests/conformance/abi/s9_arm32_interop.py --check
+python3 tests/conformance/abi/reverse_interop_cases.py --check
+python3 tests/tools/abi_mutation_audit.py --check
+python3 tests/tools/s9_capacity_report.py --check
 python3 tests/conformance/tools/s9_static_parity.py --check
 python3 tests/conformance/platform/s9_profiles.py --check
 python3 tests/determinism/s9_determinism.py --check

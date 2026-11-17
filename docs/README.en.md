@@ -11,6 +11,7 @@ current gate status. Chinese: [README.md](README.md).
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
+| [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
 ## Current status
 

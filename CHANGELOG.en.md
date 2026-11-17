@@ -103,13 +103,15 @@
   differential/ABI/toolchain/static-parity/determinism suites, S8 full
   differential/ABI/C-interop/generated-fuzz/checked/consistency/artifact/
   determinism/static-mutation suites, W=32/64 runtime goldens, S9 bare-metal/
-  ARM32/interop/static-parity/profile-isolation/determinism suites, determinism
-  suites and a fail-closed adapter self-test; currently 57/57 `ctest` and
-  754/754 harness cases (557 compile, 129 tool,
+  ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
+  AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
+  determinism suites and a fail-closed adapter self-test; currently 58/58
+  `ctest` and 754/754 harness cases (557 compile, 129 tool,
   67 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
-  sem 102, ct 370, ir 674, vm 413, aot 70; S9 ARM32 differential: 25 fixed
-  cases plus 260 S6/S8 corpus cases, 10 C-caller AAPCS32 cases and 1033 static
-  sources under each of two bare-metal profiles.
+  sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 25 fixed
+  cases plus 260 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
+  AAPCS64 cases, 19 reverse ABI cases and 1033 static sources under each of two
+  bare-metal profiles; 4/4 ABI mutants were found by interop.
 
 ### Changed
 

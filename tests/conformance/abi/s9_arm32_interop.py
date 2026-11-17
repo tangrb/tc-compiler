@@ -252,6 +252,93 @@ void tc_main(void) { P p; p.a = 10; p.b = 20;
 """,
         "1037\n",
     ),
+    (
+        "eight-byte composite split between r3 and the stack",
+        """#lib
+public struct Pair then
+var x: int32
+var y: int32
+end
+public func f(a: int32, b: int32, c: int32, p: Pair, n: int32) int32 then
+var s: int32 = add int32, a, b
+var t: int32 = add int32, s, c
+var u: int32 = add int32, t, p.x
+var v: int32 = add int32, u, p.y
+var w: int32 = add int32, v, n
+_ = return w
+end
+""",
+        """typedef struct __attribute__((packed)) { int32_t x; int32_t y; } Pair;
+extern int32_t tc_test_call(int32_t, int32_t, int32_t, Pair, int32_t);
+void tc_main(void) {
+    Pair p; p.x = 10; p.y = 20;
+    pi((uint64_t)(int64_t)tc_test_call(1, 2, 3, p, 64));
+}
+""",
+        "100\n",
+    ),
+    (
+        "float32 scalar argument and return",
+        """#lib
+public func bump(x: float32) float32 then
+var one: float32 = copy float32, 1.0f
+var r: float32 = add float32, x, one
+_ = return r
+end
+""",
+        """extern float tc_test_call(float);
+void tc_main(void) { pi(fb(tc_test_call(1.5f))); }
+""",
+        f"{f32bits(2.5)}\n",
+    ),
+    (
+        "twenty-byte five-float composite by value words",
+        """#lib
+public struct F5 then
+var a: float32
+var b: float32
+var c: float32
+var d: float32
+var e: float32
+end
+public func fsum(x: F5) float64 then
+var a: float64 = cast float64, x.a
+var b: float64 = cast float64, x.b
+var c: float64 = cast float64, x.c
+var d: float64 = cast float64, x.d
+var e: float64 = cast float64, x.e
+var s1: float64 = add float64, a, b
+var s2: float64 = add float64, c, d
+var s3: float64 = add float64, s1, s2
+var s4: float64 = add float64, s3, e
+_ = return s4
+end
+""",
+        """typedef struct __attribute__((packed)) {
+    float a; float b; float c; float d; float e;
+} F5;
+extern double tc_test_call(F5);
+void tc_main(void) {
+    F5 x; x.a = 1.0f; x.b = 2.0f; x.c = 3.0f; x.d = 4.0f; x.e = 5.0f;
+    pi(db(tc_test_call(x)));
+}
+""",
+        f"{f64bits(15.0)}\n",
+    ),
+    (
+        "bool return value",
+        """#lib
+public func negative(x: int32) bool then
+var z: int32 = copy int32, 0
+var r: bool = lt int32, x, z
+_ = return r
+end
+""",
+        """extern bool tc_test_call(int32_t);
+void tc_main(void) { pi(tc_test_call(-1) ? 1u : 0u); }
+""",
+        "1\n",
+    ),
 ]
 
 

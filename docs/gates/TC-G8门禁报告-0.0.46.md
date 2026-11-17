@@ -26,7 +26,7 @@ VM/AOT 一致性（同档案区内偏移、静态初值字节、`const` 内联�
 
 ## 覆盖与测试
 
-- 全量 `ctest`：Debug/Release/ASan+UBSan 均 57/57（S8 套件全部通过；G9 增补后）。
+- 全量 `ctest`：Debug/Release/ASan+UBSan 均 58/58（S8 套件全部通过；S9 补充验证后）。
 - 单元：frontend 688、sem 102、ct 370、ir 674、vm 413、aot 58 检查。
 - 覆盖矩阵：636/636 covered；设计 §12 十五项均有套件映射。
 - 零 pass：O0/O2 `.s` 逐字节一致；重复 `.s`/ELF/执行可重复；checked `.s` 自身可重复

@@ -28,8 +28,8 @@ kept; historical implementation and tools live in git tags.
   access, all four device policies and qemu-system-arm execution); reset entry,
   region bases, static `.data`, ELF artifacts with ICF disabled and clang/lld
   driving; the full VM↔AOT differential/ABI/consistency/artifact/determinism
-  suites, C-caller AAPCS64/AAPCS32 interoperability, 32/64 profile isolation and
-  generated ABI/layout/memory/float fuzz suites.
+  suites, bidirectional C-caller/TC-caller AAPCS64/AAPCS32 interoperability,
+  32/64 profile isolation and generated ABI/layout/memory/float fuzz suites.
 - **Not implemented**: later targets such as RISC-V and the optional optimization
   pipeline (SSA/regalloc/inlining); the 0.0.46 baseline stays zero-pass.
 - Gates: G0–G9 PASS; **G9 allows S10**. See [gate status](docs/gates/README.en.md).

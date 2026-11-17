@@ -1798,6 +1798,12 @@ static int preflight_ir(TcA64Emitter *emitter) {
     return 1;
 }
 
+static int abi_matches_classifier(const TcABIDesc *abi) {
+    return abi != NULL && abi->hfa == 1 &&
+           abi->composite_max_bytes == 16u && abi->hfa_max_regs == 4u &&
+           abi->stack_align == 16u;
+}
+
 TcAArch64EmitStatus tc_aarch64_emit_asm(FILE *out, const TcIR *ir,
                                         const TcPlatformProfile *profile,
                                         const TcTargetDesc *target,
@@ -1816,6 +1822,14 @@ TcAArch64EmitStatus tc_aarch64_emit_asm(FILE *out, const TcIR *ir,
         if (error_message != NULL && error_capacity != 0) {
             snprintf(error_message, error_capacity,
                      "target descriptor does not match the profile");
+        }
+        return TC_AARCH64_EMIT_INTERNAL;
+    }
+    if (!abi_matches_classifier(target->abi)) {
+        if (error_message != NULL && error_capacity != 0) {
+            snprintf(error_message, error_capacity,
+                     "profile ABI descriptor does not match the AArch64 "
+                     "classifier");
         }
         return TC_AARCH64_EMIT_INTERNAL;
     }

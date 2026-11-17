@@ -79,9 +79,10 @@ language diagnostic.
   -mfpu=fpv5-d16`.  The C/ABI convention is the base AAPCS32/ILP32 variant:
   arguments in r0-r3 then the stack; `int64`/`uint64`/`float64` in aligned
   core-register pairs; composites marshalled as 32-bit memory words (Rule
-  C.4/C.5 split) with 4-byte alignment because TC layout is compact; returns
-  in r0/r0:r1, and composites larger than four bytes through a hidden r0
-  pointer.  The VFP register classes of the VFP variant are not used.  The
+  C.4/C.5 split) with 4-byte alignment because TC layout is compact; signed
+  narrow arguments are sign-extended to a full word, unsigned ones are
+  zero-extended; returns in r0/r0:r1, and composites larger than four bytes
+  through a hidden r0 pointer.  The VFP register classes of the VFP variant are not used.  The
   runtime uses the FPv5-D unit internally with roundTiesToEven and no FMA
   contraction; the semantic core still owns overflow/underflow classification.
   Code starts above the M-profile vector page (`0x00001000`), the static
@@ -319,7 +320,12 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   are accepted.  UB that happens to remain inside some live object (forged
   provenance, adjacent-object aliasing, a reused frame slot) may go undetected;
   this is permitted for an optional checked build and never relaxes a mandatory
-  trap.
+  trap.  This address-range model is the accepted checked-build design for both
+  hosted and freestanding targets: AOT emits the object descriptors and shadow
+  into the target image, so baremetal does not depend on a host object table.
+  Precise pointer provenance is not part of the 0.0.46 checked ABI; adding it
+  would change pointer representation or add a side table and is left to a
+  future target/profile design.
 - Function addresses are unique: `code_base + (func_id + 1) * 16`.
   `funcaddr`/`funceq`/`funcne` use those values; `call_indirect` maps a non-null
   address back to its function.  A typed null `fnptr` reaches the runtime and
@@ -336,9 +342,13 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   `arm32-baremetal` is W=32, little-endian, device base `0x40004000` size
   `0x1000`, D=32; `w32` is W=32, little-endian, device base `0x20000000` size
   `0x100000` with `TC_DEV_REJECT`, D=256.  All use `TcExitPolicy` normal 0 /
-  first-trap 1.  Frame storage is host-backed in the VM.  If a program's static
-  frame footprints exhaust the profile region before `D`, the VM reports
-  `tc_error_internal` (exit 71): physical stack exhaustion is an
+  first-trap 1.  Frame storage is host-backed in the VM.  A 900005-byte static
+  object measures 900016/900012 bytes of static span on the AArch64/ARM32
+  profiles, leaving limited room under the 1 MiB static limit; the 1 MiB input
+  image is the test loader seam, not the production UART input capacity.
+  Increasing either limit requires a profile/linker re-layout and a fresh gate.
+  If a program's static frame footprints exhaust the profile region before `D`,
+  the VM reports `tc_error_internal` (exit 71): physical stack exhaustion is an
   implementation error, never a language diagnostic.
 - Runtime trap spans use `TcInstr.span`, the opcode token that identifies the
   triggered instruction (the same anchor used for instruction-level static
@@ -378,12 +388,25 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   on the stack.  Returns use x0/x1, v0-v3 for HFAs, or an x8 indirect result
   pointer for composites larger than 16 bytes; the callee copies an indirect
   argument into its own parameter object before the body runs.
-  Narrow integers are zero-extended in registers and stored at their declared
-  width; bool storage is 0x00/0x01; sp stays 16-byte aligned.  x19/x20 hold the
+  Narrow integers are sign- or zero-extended in registers according to their
+  signedness and stored at their declared width; bool storage is 0x00/0x01; sp
+  stays 16-byte aligned.  x19/x20 hold the
   frame/static bases and x29/x30 form the frame record; every function saves
   them.  A call checks `depth < D` before `bl`/`blr` and increments, then
   decrements after return (the top level is not counted).  Direct-call parameter
   annotations are optimization assumptions and are never checked at runtime.
+- ABI reference and scope: the AArch64 mapping follows AAPCS64 (LP64) and the
+  ARM32 mapping follows the base AAPCS32 PCS, as published in the ARM ABI
+  [2024Q3 release](https://github.com/ARM-software/abi-aa/releases/tag/2024Q3);
+  the 2021Q1 Rule C.4 clarification for over-aligned HFAs is part of that
+  reference.  The TC type system has a compact layout and no over-aligned
+  types, bit-fields, vector types or variadic functions, so C ABI forms that
+  require those source constructs are outside the TC ABI mapping; `@align` is
+  a pointer-parameter precondition, not a type-alignment attribute.
+  `TcABIDesc` fields are validated profile metadata: the AArch64 backend
+  requires `composite_max_bytes=16`, `hfa_max_regs=4` and `stack_align=16`,
+  and the ARM32 backend requires `composite_max_bytes=4`, `hfa=0` and
+  `stack_align=8`, matching the fixed classifiers.
 - Layout: each vreg has a stack slot; frame objects keep `TcObject.offset`
   relative to the frame base, static objects keep their in-region offset in one
   emitted byte array, temporaries follow the object area, and frame size is

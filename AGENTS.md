@@ -21,7 +21,8 @@
   `arm32-baremetal`（Cortex-M7 MPS2 AN500、AAPCS32/ILP32 softfp、独立 ARM32 后端、
   int64/float64 辅助、未对齐访问、四设备策略、`qemu-system-arm`）；`tc-aot`
   `--emit=asm|obj|elf`、clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/
-  确定性套件、C 调用者 AAPCS64/AAPCS32 互操作、32/64 分档案隔离与生成式 fuzz。
+  确定性套件、C caller/TC caller 双向 AAPCS64/AAPCS32 互操作、32/64 分档案隔离
+  与生成式 fuzz；ABI 参考版本、规则矩阵与范围限制见 `tests/conformance/abi/README.md`。
   代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
   `src/driver/`。
 - 未实现：RISC-V 等后续目标与可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
@@ -95,6 +96,7 @@
    `tests/conformance/platform/s9_baremetal_cases.py --check`、
    `tests/conformance/platform/s9_arm32_cases.py --check`、
    `tests/conformance/abi/s9_arm32_interop.py --check`、
+   `tests/conformance/abi/reverse_interop_cases.py --check`、
    `tests/conformance/tools/s9_static_parity.py --check`、
    `tests/conformance/platform/s9_profiles.py --check`、
    `tests/determinism/s9_determinism.py --check`、`tests/golden/validate.py`、
@@ -131,6 +133,8 @@
 | S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
 | S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/diff/s8_*_fuzz.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/tools/s8_static_fuzz.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
 | S9 freestanding / ARM32 | `tests/conformance/platform/s9_baremetal_cases.py`；`tests/conformance/platform/s9_arm32_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/tools/s9_static_parity.py`；`tests/conformance/platform/s9_profiles.py`；`tests/determinism/s9_determinism.py` |
+| ABI 规则矩阵 / 双向互操作 | `tests/conformance/abi/README.md`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/abi/reverse_interop_cases.py` |
+| ABI mutation / 容量审计 | `tests/tools/abi_mutation_audit.py`；`tests/tools/s9_capacity_report.py`（手动工具，不进入 ctest） |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |
