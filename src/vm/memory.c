@@ -319,6 +319,82 @@ static TcVmObject *find_object(TcVm *vm, uint64_t address,
 }
 
 /* ------------------------------------------------------------------------- */
+/* Checked-build defined-byte tracking.                                      */
+/* ------------------------------------------------------------------------- */
+
+static int vm_defined_range(TcVm *vm, uint64_t address, uint8_t **out_shadow,
+                            uint64_t *out_index) {
+    TcRegionKind region;
+    size_t frame_index;
+    if (!vm->profile->checked_build || address == 0) {
+        return 0;
+    }
+    if (!region_of_address(vm, address, &region)) {
+        return 0;
+    }
+    if (region == TC_REG_STATIC) {
+        uint64_t index = address - vm->static_base;
+        if (vm->static_defined == NULL || index >= vm->static_size) {
+            return 0;
+        }
+        *out_shadow = vm->static_defined;
+        *out_index = index;
+        return 1;
+    }
+    if (region == TC_REG_FRAME) {
+        if (!frame_index_for_address(vm, address, &frame_index)) {
+            return 0;
+        }
+        {
+            uint64_t index = address - vm->frames[frame_index].base;
+            if (vm->frames[frame_index].defined == NULL ||
+                index >= (uint64_t)vm->frames[frame_index].defined_size) {
+                return 0;
+            }
+            *out_shadow = vm->frames[frame_index].defined;
+            *out_index = index;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void vm_define_range(TcVm *vm, uint64_t address, uint64_t size) {
+    uint8_t *shadow = NULL;
+    uint64_t index = 0;
+    uint64_t i;
+    if (!vm->profile->checked_build || size == 0) {
+        return;
+    }
+    if (!vm_defined_range(vm, address, &shadow, &index)) {
+        return;
+    }
+    for (i = 0; i < size; i++) {
+        uint64_t bit = index + i;
+        shadow[bit >> 3] = (uint8_t)(shadow[bit >> 3] | (1u << (bit & 7u)));
+    }
+}
+
+static int vm_range_defined(TcVm *vm, uint64_t address, uint64_t size) {
+    uint8_t *shadow = NULL;
+    uint64_t index = 0;
+    uint64_t i;
+    if (!vm->profile->checked_build || size == 0) {
+        return 1;
+    }
+    if (!vm_defined_range(vm, address, &shadow, &index)) {
+        return 1;
+    }
+    for (i = 0; i < size; i++) {
+        uint64_t bit = index + i;
+        if ((shadow[bit >> 3] & (1u << (bit & 7u))) == 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* ------------------------------------------------------------------------- */
 /* Access checking.                                                          */
 /* ------------------------------------------------------------------------- */
 
@@ -659,10 +735,19 @@ int tc_vm_write_operand(TcVm *vm, TcVmFrame *frame, const TcOperand *operand,
                 &vm->objects[frame->vreg_obj[operand->vreg]];
             int ok = 0;
             uint8_t *host = storage_host(vm, object->start, object->size, &ok);
+            int ok_write;
             if (!ok) {
                 return tc_vm_impl(vm, TC_IMPL_INTERNAL);
             }
-            return tc_vm_write_host_value(vm, host, type, value);
+            ok_write = tc_vm_write_host_value(vm, host, type, value);
+            if (ok_write) {
+                int type_ok = 0;
+                uint64_t size = tc_vm_type_size(vm, type, &type_ok);
+                if (type_ok) {
+                    vm_define_range(vm, object->start, size);
+                }
+            }
+            return ok_write;
         }
         if (type->tag == TC_TY_STRUCT) {
             int ok = 0;
@@ -683,11 +768,21 @@ int tc_vm_write_operand(TcVm *vm, TcVmFrame *frame, const TcOperand *operand,
     }
     case TC_OP_FIELD: {
         uint8_t *host = NULL;
-        type = field_storage(vm, frame, operand, &host, NULL);
+        uint64_t address = 0;
+        int ok_write;
+        type = field_storage(vm, frame, operand, &host, &address);
         if (type == NULL || host == NULL) {
             return tc_vm_impl(vm, TC_IMPL_INTERNAL);
         }
-        return tc_vm_write_host_value(vm, host, type, value);
+        ok_write = tc_vm_write_host_value(vm, host, type, value);
+        if (ok_write && address != 0) {
+            int type_ok = 0;
+            uint64_t size = tc_vm_type_size(vm, type, &type_ok);
+            if (type_ok) {
+                vm_define_range(vm, address, size);
+            }
+        }
+        return ok_write;
     }
     default:
         return tc_vm_impl(vm, TC_IMPL_INTERNAL);
@@ -745,6 +840,9 @@ int tc_vm_load_value(TcVm *vm, uint64_t address, const TcType *type,
     if (!check_access(vm, address, size, type, 0, volatile_access, &host)) {
         return 0;
     }
+    if (vm->profile->checked_build && !vm_range_defined(vm, address, size)) {
+        return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
+    }
     return host_read_value(vm, host, type, out);
 }
 
@@ -763,7 +861,13 @@ int tc_vm_store_value(TcVm *vm, uint64_t address, const TcType *type,
     if (!check_access(vm, address, size, type, 1, volatile_access, &host)) {
         return 0;
     }
-    return tc_vm_write_host_value(vm, host, type, value);
+    {
+        int ok_write = tc_vm_write_host_value(vm, host, type, value);
+        if (ok_write) {
+            vm_define_range(vm, address, size);
+        }
+        return ok_write;
+    }
 }
 
 int tc_vm_memmove(TcVm *vm, uint64_t dst, uint64_t src, uint64_t count,
@@ -806,6 +910,9 @@ int tc_vm_memmove(TcVm *vm, uint64_t dst, uint64_t src, uint64_t count,
     if (!check_access(vm, src, bytes, type, 0, 0, &src_host)) {
         return 0;
     }
+    if (vm->profile->checked_build && !vm_range_defined(vm, src, bytes)) {
+        return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
+    }
     temp = (uint8_t *)tc_vm_alloc(vm, (size_t)bytes);
     if (temp == NULL) {
         return 0;
@@ -813,6 +920,7 @@ int tc_vm_memmove(TcVm *vm, uint64_t dst, uint64_t src, uint64_t count,
     memcpy(temp, src_host, (size_t)bytes);
     memcpy(dst_host, temp, (size_t)bytes);
     tc_vm_free(vm, temp);
+    vm_define_range(vm, dst, bytes);
     return 1;
 }
 
@@ -1014,13 +1122,20 @@ int tc_vm_push_frame(TcVm *vm, const TcUnit *unit, uint32_t func_id,
     frame->mem = (uint8_t *)tc_vm_calloc(vm, frame->mem_size, 1u);
     frame->temps_size = info->temp_size == 0 ? 1u : (size_t)info->temp_size;
     frame->temps = (uint8_t *)tc_vm_calloc(vm, frame->temps_size, 1u);
+    frame->defined_size = (size_t)info->frame_size;
+    if (vm->profile->checked_build && frame->defined_size != 0) {
+        size_t bitmap = (frame->defined_size + 7u) / 8u;
+        frame->defined = (uint8_t *)tc_vm_calloc(vm, bitmap, 1u);
+    }
     frame->regs = (TcVmValue *)tc_vm_calloc(
         vm, unit->nvregs == 0 ? 1u : unit->nvregs, sizeof(TcVmValue));
     frame->vreg_obj = (uint32_t *)tc_vm_calloc(
         vm, unit->nvregs == 0 ? 1u : unit->nvregs, sizeof(uint32_t));
     frame->first_object = (uint32_t)vm->nobjects;
     if (frame->mem == NULL || frame->temps == NULL || frame->regs == NULL ||
-        frame->vreg_obj == NULL) {
+        frame->vreg_obj == NULL ||
+        (vm->profile->checked_build && frame->defined_size != 0 &&
+         frame->defined == NULL)) {
         goto fail;
     }
     for (i = 0; i < unit->nvregs; i++) {
@@ -1108,6 +1223,7 @@ fail:
     }
     tc_vm_free(vm, frame->mem);
     tc_vm_free(vm, frame->temps);
+    tc_vm_free(vm, frame->defined);
     tc_vm_free(vm, frame->regs);
     tc_vm_free(vm, frame->vreg_obj);
     memset(frame, 0, sizeof(*frame));
@@ -1125,6 +1241,7 @@ void tc_vm_pop_frame(TcVm *vm) {
     }
     tc_vm_free(vm, frame->mem);
     tc_vm_free(vm, frame->temps);
+    tc_vm_free(vm, frame->defined);
     tc_vm_free(vm, frame->regs);
     tc_vm_free(vm, frame->vreg_obj);
     vm->frame_top = frame->base - vm->profile->region[TC_REG_FRAME].base;
@@ -1292,6 +1409,13 @@ static int build_static_storage(TcVm *vm) {
     if (vm->static_mem == NULL) {
         return 0;
     }
+    if (vm->profile->checked_build) {
+        size_t bitmap = (size_t)((vm->static_size + 7u) / 8u);
+        vm->static_defined = (uint8_t *)tc_vm_calloc(vm, bitmap, 1u);
+        if (vm->static_defined == NULL) {
+            return 0;
+        }
+    }
     for (i = 0; i < vm->ir->nobjects; i++) {
         const TcObject *object = &vm->ir->objects[i];
         TcVmObject clone;
@@ -1326,6 +1450,7 @@ static int build_static_storage(TcVm *vm) {
                 memcpy(vm->static_mem + object->offset, object->init->bytes,
                        object->init->size);
             }
+            vm_define_range(vm, clone.start, object->size);
         }
     }
     return 1;
@@ -1397,6 +1522,7 @@ void tc_vm_teardown(TcVm *vm) {
         for (i = 0; i < vm->nframes; i++) {
             tc_vm_free(vm, vm->frames[i].mem);
             tc_vm_free(vm, vm->frames[i].temps);
+            tc_vm_free(vm, vm->frames[i].defined);
             tc_vm_free(vm, vm->frames[i].regs);
             tc_vm_free(vm, vm->frames[i].vreg_obj);
         }
@@ -1406,6 +1532,7 @@ void tc_vm_teardown(TcVm *vm) {
     tc_vm_free(vm, vm->objects);
     tc_vm_free(vm, vm->static_index);
     tc_vm_free(vm, vm->static_mem);
+    tc_vm_free(vm, vm->static_defined);
     tc_vm_free(vm, vm->device_mem);
     tc_input_destroy(&vm->input);
     vm->objects = NULL;

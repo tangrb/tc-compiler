@@ -8,13 +8,16 @@ ENTRY(_start)
  * stack. */
 __tc_input_image = 0x41000000;
 __tc_stack_top = 0x4f000000;
+__tc_stack_bottom = __tc_stack_top - 0x01000000;
 
 SECTIONS
 {
   . = 0x40000000;
   .text : {
+    __tc_code_start = .;
     *(.text._start)
     *(.text*)
+    __tc_code_end = .;
   }
   .rodata : { *(.rodata*) }
   .data : { *(.data*) }
@@ -27,7 +30,9 @@ SECTIONS
   __tc_image_end = .;
   ASSERT(__tc_image_end <= __tc_input_image,
          "TC image overlaps the platform input image")
-  ASSERT(__tc_input_image + 0x00100000 <= __tc_stack_top - 0x01000000,
+  ASSERT(__tc_input_image + 0x00100000 <= __tc_stack_bottom,
          "TC input image overlaps the stack region")
+  ASSERT(__tc_stack_bottom <= __tc_stack_top,
+         "TC stack region is empty")
   /DISCARD/ : { *(.comment) *(.note*) *(.eh_frame*) }
 }

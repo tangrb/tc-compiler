@@ -34,15 +34,29 @@ never backfilled from compiler output.
 - S7 differential: `diff/` (`s7_cases.py`, `s7_fuzz.py`).  Cases are executed
   on the reference VM and on an AArch64 ELF built by `tc-aot --emit=elf` under
   qemu-system-aarch64; program stdout, first `TC_RE_*` and exit policy must
-  match the derived expectation and each other.  The S7 subset reuses the S6
-  W=64 fixtures whose sources stay inside the backend subset.
+  match the derived expectation and each other.
 - S7 ABI: `abi/s7_abi_cases.py` covers the AAPCS64 integer subset (x0-x7,
   x0 return, bool/int8/int16 extension, callee-saved bases, 16-byte alignment,
   recursion and the depth limit `D`).
 - S7 toolchain: `tools/s7_toolchain_cases.py` checks `.s`/`.o`/ELF artifacts,
-  reproducibility, O0/O2 zero pass, explicit rejection of out-of-subset
-  programs and `tc-vm`/`tc-aot` static-result parity; `tools/s7_static_parity.py`
+  reproducibility, O0/O2 zero pass, platform-instance limits and
+  `tc-vm`/`tc-aot` static-result parity; `tools/s7_static_parity.py`
   compares `--static-only` over every static conformance source.
+- S8 full differential: `diff/s8_cases.py` runs every W=64 S6 runtime case plus
+  the full-type surface (structures, HFA/large composites, many arguments,
+  indirect calls, pointers/objects/regions, static bytes, `@fast_math`) on both
+  tools; absolute addresses are never printed, only defined relations.
+- S8 ABI: `abi/s8_abi_cases.py` covers the full AAPCS64 surface plus an
+  assembly-shape audit (v registers for HFAs, x8 indirect returns, 16-byte stack
+  steps, `blr`).
+- S8 checked: `checked/s8_checked_cases.py` separates checked-build UB traps
+  (out-of-object, one-past, dangling, uninitialized) from mandatory traps and
+  re-runs legal release fixtures under `--checked`.
+- S8 consistency: `consistency/s8_consistency_cases.py` backs the standard
+  §13.4 eight items with static parity sources and differential cases.
+- S8 artifact: `tools/s8_artifact_cases.py` checks ELF entry/type/machine,
+  symbols and undefined-symbol freedom, code/static/stack region layout, static
+  initializer bytes, `--icf=none` and checked-build emission.
 
 ```text
 tests/conformance/
@@ -63,9 +77,11 @@ tests/conformance/
     accept_s5/         positive CT acceptance sources
   opcode_static/      S6 per-opcode static shape cases (one directory per case)
   runtime/            S6 VM runtime cases (one directory per case)
-  diff/               S7 VM↔AOT differential cases and fixed-seed fuzz
-  abi/                S7 AAPCS64 subset ABI cases
-  tools/              S7 artifact/toolchain and static-parity checks
+  diff/               S7/S8 VM↔AOT differential cases and fixed-seed fuzz
+  abi/                S7/S8 AAPCS64 ABI cases
+  checked/            S8 checked-build cases
+  consistency/        S8 standard §13.4 eight-item consistency cases
+  tools/              S7/S8 artifact/toolchain and static-parity checks
   static/fuzz/        L7 property case (random bytes; no crash/hang)
 ```
 

@@ -17,9 +17,10 @@ CTest entries:
   token input, regions/objects/pointer states, all mandatory traps and their
   positions, calls/`D`, device policies, I/O source states, checked build and
   the W=32/W=64 matrix (L1/L2).
-- `aot.unit` (`tc_aot_test`): AArch64 subset lowering shape, frame alignment,
-  static initializer emission, deterministic assembly and explicit rejection of
-  unsupported IR (L1).
+- `aot.unit` (`tc_aot_test`): AArch64 lowering shape for integer/float/memory
+  helpers, frame alignment, HFA and indirect-return ABI, checked-build shadow
+  and define tracking, static initializer emission, deterministic assembly and
+  explicit rejection of unsupported platform instances (L1).
 
 ## L0 case ids
 

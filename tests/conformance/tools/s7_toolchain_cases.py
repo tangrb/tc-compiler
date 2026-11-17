@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """S7 toolchain, artifact and static-parity checks (design §11, test plan S7).
 
-Checks the contract around the subset backend rather than program semantics:
+Checks the toolchain/artifact contract rather than program semantics:
 
   - `.s` is byte-for-byte reproducible and O0/O2 are identical (zero pass);
   - `--emit=obj` produces an AArch64 ELF relocatable and `--emit=elf` an
     executable that runs, reproducibly, on qemu-system-aarch64;
-  - unsupported opcodes/ABIs/profiles are rejected explicitly (exit 70) and no
-    artifact is published;
+  - platform-instance capabilities that the hosted backend does not implement
+    (a different word size or device policy) are rejected explicitly (exit 70)
+    and no artifact is published;
   - `tc-aot` static diagnostics are byte-identical to `tc-vm` (same front end).
 
 The environment is documented in the G7 record: qemu-user is not available on
@@ -142,62 +143,72 @@ def check_artifacts(tmp: Path, failures: list[str]) -> None:
         failures.append("elf run: repeated qemu execution differs")
 
 
-def check_unsupported(tmp: Path, failures: list[str]) -> None:
+def check_profile_limits(tmp: Path, failures: list[str]) -> None:
+    """Features outside the current platform instance fail explicitly.
+
+    The S8 backend lowers pointers, structures, floats, indirect calls,
+    checked builds and multi-register argument lists; what remains unsupported
+    is a different word size or a platform instance this hosted backend cannot
+    map (the bare-metal device policy).  Both must fail with exit 70 and must
+    not publish an artifact.
+    """
     pointer = write(tmp, "ptr.tc",
                     "#program\nvar x: int32 = copy int32, 1\nunsafe then\n"
                     "var p: ptr<int32> = addr int32, x\n"
-                    "var y: int32 = load int32, p\nend\n")
+                    "var y: int32 = load int32, p\n"
+                    "_ = writeln int32, y\nend\n")
     out = tmp / "ptr.s"
     result = aot(tmp, pointer, "--emit=asm", output=str(out))
-    if result.returncode != 70:
+    if result.returncode != 0 or not out.exists() or out.stat().st_size == 0:
         failures.append(
-            f"unsupported opcode: exit {result.returncode}, expected 70")
-    if b"tc_error_unavailable" not in result.stderr:
-        failures.append("unsupported opcode: missing tc_error_unavailable")
-    if out.exists() and out.stat().st_size != 0:
-        failures.append("unsupported opcode: an artifact was published")
-
+            f"pointer lowering: exit {result.returncode}, expected a published "
+            f"artifact ({result.stderr.decode('utf-8', 'replace').strip()})")
     elf_out = tmp / "ptr.elf"
     result = aot(tmp, pointer, "--emit=elf", output=str(elf_out))
-    if result.returncode != 70:
+    if result.returncode != 0 or not elf_out.exists():
         failures.append(
-            f"unsupported ELF path: exit {result.returncode}, expected 70")
-    if elf_out.exists():
-        failures.append("unsupported ELF path published an artifact")
+            f"pointer ELF path: exit {result.returncode}, expected an ELF")
 
     float_src = write(tmp, "float.tc",
                       "#program\n"
                       "var a: float64 = add float64, 1.5, 2.5\n"
                       "_ = writeln float64, a\n")
     result = aot(tmp, float_src, "--emit=asm", output=str(tmp / "float.s"))
-    if result.returncode != 70:
+    if result.returncode != 0:
         failures.append(
-            f"unsupported float lowering: exit {result.returncode}, expected 70")
-    if b"tc_error_unavailable" not in result.stderr:
-        failures.append("unsupported float lowering lacks tc_error_unavailable")
+            f"float lowering: exit {result.returncode}, expected success")
 
     valid = write(tmp, "valid.tc",
                   "#program\n_ = writeln int32, 1\n")
     result = aot(tmp, valid, "--emit=asm", "--checked", output=str(tmp / "c.s"))
-    if result.returncode != 70:
-        failures.append(f"checked build: exit {result.returncode}, expected 70")
-    result = aot(tmp, valid, "--emit=asm", "--profile=w32",
-                 output=str(tmp / "w32.s"))
-    if result.returncode != 70:
-        failures.append(f"w32 profile: exit {result.returncode}, expected 70")
+    if result.returncode != 0:
+        failures.append(
+            f"checked build: exit {result.returncode}, expected success")
 
     nine = write(tmp, "nine.tc",
                  "#program\nimport lib\n"
-                 "var r: int32 = call lib.nine, 1, 2, 3, 4, 5, 6, 7, 8, 9\n")
+                 "var r: int32 = call lib.nine, 1, 2, 3, 4, 5, 6, 7, 8, 9\n"
+                 "_ = writeln int32, r\n")
     write(tmp, "lib.tc",
           "#lib\npublic func nine(a: int32, b: int32, c: int32, d: int32, "
           "e: int32, f: int32, g: int32, h: int32, i: int32) int32 then\n"
           "var s: int32 = add int32, a, i\n_ = return s\nend\n")
+    nine_out = tmp / "nine.s"
     result = aot(tmp, nine, "--emit=asm", "--include=" + str(tmp),
-                 output=str(tmp / "nine.s"))
-    if result.returncode != 70:
+                 output=str(nine_out))
+    if result.returncode != 0 or not nine_out.exists():
         failures.append(
-            f"nine parameters: exit {result.returncode}, expected 70")
+            f"nine parameters: exit {result.returncode}, expected success")
+
+    for profile in ("w32", "aarch64-baremetal"):
+        out = tmp / f"{profile}.s"
+        result = aot(tmp, valid, "--emit=asm", f"--profile={profile}",
+                     output=str(out))
+        if result.returncode != 70:
+            failures.append(
+                f"{profile} profile: exit {result.returncode}, expected 70")
+        if out.exists() and out.stat().st_size != 0:
+            failures.append(f"{profile} profile published an artifact")
     result = aot(tmp, valid, "--emit=elf")
     if result.returncode != 2:
         failures.append(
@@ -246,7 +257,7 @@ def check_cli(tmp: Path, failures: list[str]) -> None:
     if result.returncode != 0 or b"--emit=asm|obj|elf" not in result.stdout:
         failures.append("cli: --help does not document the AOT options")
     result = run([tt, "--version"])
-    if result.returncode != 0 or b"AArch64 subset backend" not in result.stdout:
+    if result.returncode != 0 or b"AArch64 backend" not in result.stdout:
         failures.append("cli: --version does not identify the AArch64 backend")
 
 
@@ -261,7 +272,7 @@ def main() -> int:
     try:
         check_zero_pass_and_repro(tmp, failures)
         check_artifacts(tmp, failures)
-        check_unsupported(tmp, failures)
+        check_profile_limits(tmp, failures)
         check_static_parity(tmp, failures)
         check_cli(tmp, failures)
     finally:

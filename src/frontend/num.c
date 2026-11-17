@@ -1,7 +1,7 @@
 /* TC 0.0.46 exact decimal -> binary floating-point conversion. */
 #include "frontend/num.h"
 
-#include <string.h>
+#include "runtime/rt_memory.h"
 
 /* ------------------------------------------------------------------------- */
 /* Minimal unsigned big integer, base 2^32, arena allocated.                 */
@@ -32,7 +32,7 @@ static int big_reserve(TcBig *a, size_t cap) {
         return -1;
     }
     if (a->n != 0) {
-        memcpy(fresh, a->limbs, a->n * sizeof(uint32_t));
+        tc_rt_memcpy(fresh, a->limbs, a->n * sizeof(uint32_t));
     }
     a->limbs = fresh;
     a->cap = cap;
@@ -58,7 +58,7 @@ static int big_copy(TcBig *dst, const TcBig *src) {
         if (big_reserve(dst, src->n) != 0) {
             return -1;
         }
-        memcpy(dst->limbs, src->limbs, src->n * sizeof(uint32_t));
+        tc_rt_memcpy(dst->limbs, src->limbs, src->n * sizeof(uint32_t));
     }
     dst->n = src->n;
     return 0;
@@ -182,7 +182,7 @@ static int big_shl(TcBig *a, size_t bits) {
     if (fresh == NULL) {
         return -1;
     }
-    memset(fresh, 0, new_n * sizeof(uint32_t));
+    tc_rt_memset(fresh, 0, new_n * sizeof(uint32_t));
     for (i = 0; i < a->n; i++) {
         uint64_t value = (uint64_t)a->limbs[i] << offset;
         fresh[i + words] |= (uint32_t)(value & 0xffffffffu);

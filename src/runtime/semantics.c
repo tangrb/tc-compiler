@@ -9,9 +9,11 @@
  */
 #include "runtime/semantics.h"
 
+#include "ir/type_width.h"
+
 #include <float.h>
-#include <math.h>
-#include <string.h>
+
+#include "runtime/rt_memory.h"
 
 #if defined(FLT_EVAL_METHOD) && FLT_EVAL_METHOD != 0
 #error "TC floating semantics require FLT_EVAL_METHOD == 0"
@@ -27,7 +29,7 @@ unsigned tc_sem_type_width(const TcType *type, unsigned W) {
     if (W != 32u && W != 64u) {
         return 0;
     }
-    return tc_type_bits(type, W);
+    return tc_type_width_of_tag(type->tag, W);
 }
 
 uint64_t tc_sem_mask(unsigned width) {
@@ -350,25 +352,25 @@ int tc_sem_int_unop(unsigned W, const TcType *type, TcOpcode op, TcOpMode mode,
 static float f32_from_bits(uint64_t bits) {
     uint32_t raw = (uint32_t)bits;
     float value;
-    memcpy(&value, &raw, sizeof(value));
+    tc_rt_memcpy(&value, &raw, sizeof(value));
     return value;
 }
 
 static uint64_t f32_to_bits(float value) {
     uint32_t raw;
-    memcpy(&raw, &value, sizeof(raw));
+    tc_rt_memcpy(&raw, &value, sizeof(raw));
     return raw;
 }
 
 static double f64_from_bits(uint64_t bits) {
     double value;
-    memcpy(&value, &bits, sizeof(value));
+    tc_rt_memcpy(&value, &bits, sizeof(value));
     return value;
 }
 
 static uint64_t f64_to_bits(double value) {
     uint64_t raw;
-    memcpy(&raw, &value, sizeof(raw));
+    tc_rt_memcpy(&raw, &value, sizeof(raw));
     return raw;
 }
 
@@ -390,6 +392,134 @@ uint64_t tc_sem_inf_bits(unsigned width, int negative) {
     return bits;
 }
 
+static int tc_bit_length64(uint64_t value) {
+    return value == 0 ? 0 : 64 - __builtin_clzll(value);
+}
+
+static int tc_bit_length32(uint32_t value) {
+    return value == 0 ? 0 : 32 - __builtin_clz(value);
+}
+
+/* Exact floating-point remainder of finite operands (standard §6.3.3: the
+ * quotient is the exact rational quotient truncated toward zero, so the
+ * remainder is x - trunc(x/y)*y).  Both results are exactly representable in
+ * their format, so no rounding happens here and no host libm is involved.
+ *
+ * With x = Ma * 2^Ea and y = Mb * 2^Eb, the magnitude of the remainder is
+ * (Ma * 2^(Ea-Eb) mod Mb) * 2^Eb.  When |x| >= |y| the exponent difference is
+ * non-negative and the residue is computed by repeated doubling modulo Mb;
+ * both mantissas fit in 53/24 bits, so the intermediate stays in 64 bits. */
+static uint64_t tc_f64_fmod_bits(uint64_t a, uint64_t b) {
+    uint64_t sign = a & (UINT64_C(1) << 63);
+    uint64_t ax = a & ~(UINT64_C(1) << 63);
+    uint64_t bx = b & ~(UINT64_C(1) << 63);
+    unsigned exponent_a = (unsigned)(ax >> 52) & 0x7ffu;
+    unsigned exponent_b = (unsigned)(bx >> 52) & 0x7ffu;
+    uint64_t mantissa_a = ax & ((UINT64_C(1) << 52) - 1u);
+    uint64_t mantissa_b = bx & ((UINT64_C(1) << 52) - 1u);
+    int scale_a;
+    int scale_b;
+    long shift;
+    uint64_t residue;
+    if (exponent_a == 0) {
+        scale_a = -1074;
+    } else {
+        mantissa_a |= UINT64_C(1) << 52;
+        scale_a = (int)exponent_a - 1075;
+    }
+    if (exponent_b == 0) {
+        scale_b = -1074;
+    } else {
+        mantissa_b |= UINT64_C(1) << 52;
+        scale_b = (int)exponent_b - 1075;
+    }
+    if (mantissa_b == 0) {
+        return sign;
+    }
+    if (mantissa_a == 0 ||
+        tc_bit_length64(mantissa_a) - 1 + scale_a <
+            tc_bit_length64(mantissa_b) - 1 + scale_b) {
+        return a;
+    }
+    shift = (long)scale_a - (long)scale_b;
+    residue = mantissa_a % mantissa_b;
+    while (shift-- > 0) {
+        residue <<= 1;
+        if (residue >= mantissa_b) {
+            residue -= mantissa_b;
+        }
+    }
+    if (residue == 0) {
+        return sign;
+    }
+    {
+        int exponent = scale_b + tc_bit_length64(residue) - 1;
+        if (exponent >= -1022) {
+            int bits = tc_bit_length64(residue);
+            uint64_t mantissa = residue << (53 - bits);
+            return sign | ((uint64_t)(exponent + 1023) << 52) |
+                   (mantissa & ((UINT64_C(1) << 52) - 1u));
+        }
+        /* The subnormal unit is 2^-1074 and scale_b >= -1074. */
+        return sign | (residue << (scale_b + 1074));
+    }
+}
+
+static uint32_t tc_f32_fmod_bits(uint32_t a, uint32_t b) {
+    uint32_t sign = a & UINT32_C(0x80000000);
+    uint32_t ax = a & UINT32_C(0x7fffffff);
+    uint32_t bx = b & UINT32_C(0x7fffffff);
+    unsigned exponent_a = (ax >> 23) & 0xffu;
+    unsigned exponent_b = (bx >> 23) & 0xffu;
+    uint32_t mantissa_a = ax & UINT32_C(0x7fffff);
+    uint32_t mantissa_b = bx & UINT32_C(0x7fffff);
+    int scale_a;
+    int scale_b;
+    long shift;
+    uint32_t residue;
+    if (exponent_a == 0) {
+        scale_a = -149;
+    } else {
+        mantissa_a |= UINT32_C(1) << 23;
+        scale_a = (int)exponent_a - 150;
+    }
+    if (exponent_b == 0) {
+        scale_b = -149;
+    } else {
+        mantissa_b |= UINT32_C(1) << 23;
+        scale_b = (int)exponent_b - 150;
+    }
+    if (mantissa_b == 0) {
+        return sign;
+    }
+    if (mantissa_a == 0 ||
+        tc_bit_length32(mantissa_a) - 1 + scale_a <
+            tc_bit_length32(mantissa_b) - 1 + scale_b) {
+        return a;
+    }
+    shift = (long)scale_a - (long)scale_b;
+    residue = mantissa_a % mantissa_b;
+    while (shift-- > 0) {
+        residue <<= 1;
+        if (residue >= mantissa_b) {
+            residue -= mantissa_b;
+        }
+    }
+    if (residue == 0) {
+        return sign;
+    }
+    {
+        int exponent = scale_b + tc_bit_length32(residue) - 1;
+        if (exponent >= -126) {
+            int bits = tc_bit_length32(residue);
+            uint32_t mantissa = residue << (24 - bits);
+            return sign | ((uint32_t)(exponent + 127) << 23) |
+                   (mantissa & UINT32_C(0x7fffff));
+        }
+        return sign | (residue << (scale_b + 149));
+    }
+}
+
 typedef struct {
     uint64_t mantissa; /* without implicit hidden bit materialization issues */
     int scale;         /* value = mantissa * 2^scale */
@@ -401,7 +531,7 @@ typedef struct {
 } TcFpParts;
 
 static int fp_parts(uint64_t bits, unsigned width, TcFpParts *out) {
-    memset(out, 0, sizeof(*out));
+    tc_rt_memset(out, 0, sizeof(*out));
     if (width == 32u) {
         uint32_t raw = (uint32_t)bits;
         unsigned exponent = (raw >> 23) & 0xffu;
@@ -729,13 +859,8 @@ static int float_binop(unsigned W, const TcType *type, TcOpcode op,
             *out = a_bits;
             return 1;
         }
-        if (width == 32u) {
-            result = f32_to_bits(fmodf(f32_from_bits(a_bits),
-                                       f32_from_bits(b_bits)));
-        } else {
-            result = f64_to_bits(fmod(f64_from_bits(a_bits),
-                                      f64_from_bits(b_bits)));
-        }
+        result = width == 32u ? tc_f32_fmod_bits((uint32_t)a_bits, (uint32_t)b_bits)
+                              : tc_f64_fmod_bits(a_bits, b_bits);
         break;
     default:
         *trap = TC_SEM_NO_TRAP;
@@ -1072,13 +1197,17 @@ int tc_sem_cast(unsigned W, const TcType *src, const TcType *dst, uint64_t bits,
                 return 1;
             }
             if (sw == 64u && tw == 32u) {
-                double original = f64_from_bits(bits);
-                float narrowed = (float)original;
-                if (isinf(narrowed) && !isinf(original)) {
+                /* The input is finite here (NaN and infinity were handled
+                 * above), so a float32 result with the infinity exponent is a
+                 * magnitude overflow of the narrowing cast. */
+                float narrowed = (float)f64_from_bits(bits);
+                uint64_t narrowed_bits = f32_to_bits(narrowed);
+                if ((narrowed_bits & UINT64_C(0x7fffffff)) ==
+                    UINT64_C(0x7f800000)) {
                     *trap = TC_EK_CAST_OVERFLOW;
                     return 0;
                 }
-                *out = f32_to_bits(narrowed);
+                *out = narrowed_bits;
                 return 1;
             }
             return 0;

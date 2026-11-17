@@ -11,7 +11,7 @@
 
 #include "runtime/semantics.h"
 
-#include <string.h>
+#include "runtime/rt_memory.h"
 
 #define DEC_BASE UINT32_C(1000000000)
 #define DEC_MAX_LIMBS 192u
@@ -165,7 +165,7 @@ int tc_format_float(unsigned width, uint64_t bits, char *out, size_t cap) {
         if (cap < 4u) {
             return 0;
         }
-        memcpy(out, "nan", 4u);
+        tc_rt_memcpy(out, "nan", 4u);
         return 1;
     }
     if (is_inf) {
@@ -205,7 +205,7 @@ int tc_format_float(unsigned width, uint64_t bits, char *out, size_t cap) {
     }
     /* value = digits * 10^-k: exponent of the leading digit. */
     exp10 = (long)ndigits - 1 - (long)k;
-    memset(head, 0, sizeof(head));
+    tc_rt_memset(head, 0, sizeof(head));
     for (i = 0; i < 6u && i < ndigits; i++) {
         head[i] = digits[i];
     }
@@ -349,11 +349,11 @@ int tc_format_scalar(unsigned W, const TcType *type, uint64_t bits, char *out,
     }
     if (type->tag == TC_TY_BOOL) {
         const char *text = (bits & 0xffu) != 0 ? "true" : "false";
-        size_t len = strlen(text);
+        size_t len = tc_rt_strlen(text);
         if (len >= cap) {
             return 0;
         }
-        memcpy(out, text, len + 1u);
+        tc_rt_memcpy(out, text, len + 1u);
         return 1;
     }
     if (type->tag == TC_TY_F32) {
@@ -384,7 +384,7 @@ int tc_format_scalar(unsigned W, const TcType *type, uint64_t bits, char *out,
         if (len >= cap) {
             return 0;
         }
-        memcpy(out, digits, len);
+        tc_rt_memcpy(out, digits, len);
         out[len] = '\0';
         return 1;
     }

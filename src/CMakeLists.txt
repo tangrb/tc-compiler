@@ -12,6 +12,7 @@ add_library(tc_core STATIC
     diagnostic/table.c
     # LEX/SYN front end: source/arena, exact decimal conversion, LEX and SYN.
     frontend/input.c
+    frontend/arena.c
     frontend/num.c
     frontend/lex.c
     frontend/parse.c
@@ -19,8 +20,10 @@ add_library(tc_core STATIC
     frontend/sem.c
     frontend/ct.c
     frontend/irgen.c
-    # AArch64 subset backend (assembly emission; toolchain driver below).
+    # AArch64 backend (assembly emission; toolchain driver below).
     backend/aarch64/emit.c
+    backend/aarch64/emit_abi.c
+    backend/aarch64/emit_ops.c
     backend/common/toolchain.c
     # IR representation and shape helpers.
     ir/type.c
@@ -84,27 +87,51 @@ target_compile_definitions(tc_core PRIVATE
     TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}"
     TC_AARCH64_ASSEMBLER="${TC_AARCH64_CLANG}"
     TC_AARCH64_LINKER="${TC_AARCH64_LINKER}")
+set(TC_AARCH64_RUNTIME_SOURCES
+    backend/aarch64/runtime.c
+    runtime/semantics.c
+    runtime/format.c
+    runtime/input.c
+    frontend/arena.c
+    frontend/num.c
+    ir/type.c)
+set(TC_AARCH64_RUNTIME_OBJECTS)
+foreach(source IN LISTS TC_AARCH64_RUNTIME_SOURCES)
+    get_filename_component(name ${source} NAME_WE)
+    set(object ${TC_AARCH64_RUNTIME_DIR}/${name}.o)
+    add_custom_command(
+        OUTPUT ${object}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${TC_AARCH64_RUNTIME_DIR}
+        COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
+                -nostdlib -O2 -std=c11
+                -fno-vectorize -fno-slp-vectorize -fno-stack-protector
+                -mstrict-align
+                -Wall -Wextra -Werror -I ${CMAKE_CURRENT_SOURCE_DIR}
+                -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                -o ${object}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                ${CMAKE_CURRENT_SOURCE_DIR}/ir/type.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/ir/type_width.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/ir/region.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/ir/instr.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/base/assert.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.inc
+                ${CMAKE_CURRENT_SOURCE_DIR}/runtime/rt_memory.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/rt_abi.h
+        COMMENT "Compiling freestanding AArch64 runtime member ${source}"
+        VERBATIM)
+    list(APPEND TC_AARCH64_RUNTIME_OBJECTS ${object})
+endforeach()
 add_custom_command(
     OUTPUT ${TC_AARCH64_RUNTIME_LIB}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${TC_AARCH64_RUNTIME_DIR}
-    COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
-            -nostdlib -fno-zero-initialized-in-bss -O2 -std=c11
-            -fno-vectorize -fno-slp-vectorize -fno-stack-protector
-            -mgeneral-regs-only -mstrict-align
-            -Wall -Wextra -Werror -I ${CMAKE_CURRENT_SOURCE_DIR}
-            -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/runtime.c
-            -o ${TC_AARCH64_RUNTIME_DIR}/runtime.o
     COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
             -nostdlib -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
             -o ${TC_AARCH64_RUNTIME_DIR}/start.o
     COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_AARCH64_RUNTIME_LIB}
-            ${TC_AARCH64_RUNTIME_DIR}/runtime.o ${TC_AARCH64_RUNTIME_DIR}/start.o
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/runtime.c
+            ${TC_AARCH64_RUNTIME_OBJECTS} ${TC_AARCH64_RUNTIME_DIR}/start.o
+    DEPENDS ${TC_AARCH64_RUNTIME_OBJECTS}
             ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
-            ${CMAKE_CURRENT_SOURCE_DIR}/ir/type.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/base/assert.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.inc
     COMMENT "Building AArch64 freestanding runtime archive"
     VERBATIM)
 add_custom_target(tc_aarch64_runtime ALL DEPENDS ${TC_AARCH64_RUNTIME_LIB})

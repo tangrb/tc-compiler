@@ -43,6 +43,8 @@ typedef struct {
     size_t mem_size;
     uint8_t *temps;
     size_t temps_size;
+    uint8_t *defined; /* checked build: one bit per frame-object byte */
+    size_t defined_size;
     TcVmValue *regs;
     uint32_t *vreg_obj; /* per vreg runtime object index, UINT32_MAX if none */
     uint32_t first_object;
@@ -68,6 +70,7 @@ typedef struct TcVm {
 
     uint32_t *static_index; /* ir->nobjects entries */
     uint8_t *static_mem;
+    uint8_t *static_defined; /* checked build defined-byte bitmap */
     uint64_t static_size;
     uint64_t static_base;
 

@@ -18,7 +18,8 @@ an implementation:
 
 All rows start as "uncovered".  Only named stage rows in L0_COVERED_ROWS,
 S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS, S4_COVERED_ROWS,
-S5_COVERED_ROWS, S6_COVERED_ROWS and S7_COVERED_ROWS may be marked
+S5_COVERED_ROWS, S6_COVERED_ROWS, S7_COVERED_ROWS and S8_COVERED_ROWS may
+be marked
 "covered" with a real case
 id; missing coverage for everything else is explicit and is never silently
 rendered as covered.
@@ -1434,6 +1435,45 @@ S7_COVERED_ROWS = {
     "design12:15:gate_case": ["TC-DET-S7-0001"],
 }
 
+S8_COVERED_ROWS = {
+    # Full-runtime differential, the §13.4 eight-item consistency suite, the
+    # checked-build separation, the full ABI surface and the @fast_math
+    # boundary.  Freestanding (item 4) remains S9 work.
+    "design12:01:suite_mapping": ["TC-DIFF-S8-0001", "TC-DIFF-S8-0021"],
+    "design12:01:gate_case": ["TC-DIFF-S8-0001"],
+    "design12:04:suite_mapping": ["TC-ART-S8-0001"],
+    "design12:04:gate_case": ["TC-ART-S8-0001"],
+    "design12:02:suite_mapping": [
+        "TC-CON-S8-0001", "TC-CON-S8-0002", "TC-CON-S8-0003",
+        "TC-CON-S8-0004", "TC-CON-S8-0005", "TC-CON-S8-0006",
+        "TC-CON-S8-0007", "TC-CON-S8-0008",
+    ],
+    "design12:02:gate_case": ["TC-CON-S8-0001", "TC-CON-S8-0005"],
+    "design12:05:suite_mapping": [
+        "TC-CHK-S8-0001", "TC-CHK-S8-0003", "TC-CHK-S8-0005",
+        "TC-CHK-S8-0006", "TC-CHK-S8-0008", "TC-CHK-S8-0011",
+    ],
+    "design12:05:gate_case": ["TC-CHK-S8-0001", "TC-CHK-S8-0012"],
+    "design12:07:suite_mapping": [
+        "TC-ABI-S8-0001", "TC-ABI-S8-0002", "TC-ABI-S8-0004",
+        "TC-ABI-S8-0005", "TC-ABI-S8-0006", "TC-ABI-S8-0008",
+    ],
+    "design12:07:gate_case": ["TC-ABI-S8-0001", "TC-ABI-S8-0006"],
+    "design12:08:suite_mapping": [
+        "TC-DIFF-S8-0015", "TC-DIFF-S8-0016", "TC-DIFF-S8-0017",
+        "TC-CHK-S8-0003",
+    ],
+    "design12:08:gate_case": ["TC-DIFF-S8-0015", "TC-DIFF-S8-0016"],
+    "design12:10:suite_mapping": ["TC-DIFF-S8-0022"],
+    "design12:10:gate_case": ["TC-DIFF-S8-0022"],
+    "design12:12:suite_mapping": ["TC-DIFF-S8-0020", "TC-DIFF-S8-0021"],
+    "design12:12:gate_case": ["TC-DIFF-S8-0020"],
+    "design12:14:suite_mapping": ["TC-CHK-S8-0008", "TC-CHK-S8-0013"],
+    "design12:14:gate_case": ["TC-CHK-S8-0008", "TC-CHK-S8-0013"],
+    "design12:15:suite_mapping": ["TC-DET-S8-0001"],
+    "design12:15:gate_case": ["TC-DET-S8-0001"],
+}
+
 _S6_OPCODE_CASES = {
     "abs": ("TC-RT-INT-0001", "TC-RT-INT-0008"),
     "add": ("TC-RT-INT-0001", "TC-RT-INT-0004"),
@@ -1788,7 +1828,7 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             row["case_ids"] = list(case_ids)
         for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
                         S4_COVERED_ROWS, S5_COVERED_ROWS, S6_COVERED_ROWS,
-                        S7_COVERED_ROWS):
+                        S7_COVERED_ROWS, S8_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1865,6 +1905,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "s5_covered_rows": sorted(S5_COVERED_ROWS),
             "s6_covered_rows": sorted(S6_COVERED_ROWS),
             "s7_covered_rows": sorted(S7_COVERED_ROWS),
+            "s8_covered_rows": sorted(S8_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {

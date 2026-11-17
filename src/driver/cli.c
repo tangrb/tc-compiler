@@ -23,7 +23,7 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --profile=<name>    platform profile (default aarch64-linux-user)\n"
             "  --include=<dir>     import search root (repeatable, order significant)\n"
             "  --opt=O0|O2         optimization level (zero-pass baseline; default O0)\n"
-            "  --checked           enable checked-build UB access checks (tc-vm)\n"
+            "  --checked           enable checked-build UB access checks\n"
             "  --syntax-only       run LEX/SYN only; exit 0 means no LEX/SYN\n"
             "                      diagnostic (partial check, not a valid program)\n"
             "  --sem-only          run LEX/SYN/IMPORT/SEM; exit 0 means no\n"
@@ -41,7 +41,7 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --help              print this help and exit\n"
             "\n"
             "A normal tc-vm invocation executes the reference VM.  A normal\n"
-            "tc-aot invocation emits the AArch64 subset assembly; --emit=obj/elf\n"
+            "tc-aot invocation emits the AArch64 assembly; --emit=obj/elf\n"
             "also assembles/links with the bundled freestanding runtime.\n",
             tool_name);
 }

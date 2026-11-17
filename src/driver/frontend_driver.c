@@ -199,6 +199,9 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         return print_impl_error(tool_name, TC_IMPL_USAGE,
                                 options->profile_name);
     }
+    /* Checked build is an execution option of the selected platform instance:
+     * the same profile instance drives analysis and code generation. */
+    profile.checked_build = options->checked ? 1 : 0;
     if (options->sem_only) {
         analysis = tc_analyze_sem_only(options->source, profile.addr_width,
                                        options->include_roots,
@@ -251,7 +254,6 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         TcVmStatus vm_status;
         const TcIR *ir = tc_analysis_ir(analysis);
         install_host_vm_seams(&profile, &io, &sink, &src, &trap);
-        profile.checked_build = options->checked ? 1 : 0;
         if (ir == NULL) {
             tc_analysis_destroy(analysis);
             return print_impl_error(tool_name, TC_IMPL_INTERNAL, NULL);

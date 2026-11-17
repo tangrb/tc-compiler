@@ -1,7 +1,7 @@
 /* TC 0.0.46 standard input token reader. */
 #include "runtime/input.h"
 
-#include <string.h>
+#include "runtime/rt_memory.h"
 
 #include "frontend/input.h" /* arena used by the exact decimal converter */
 #include "frontend/num.h"
@@ -17,7 +17,7 @@ void tc_input_init(TcInput *input, const TcIoSrc *src,
     if (input == NULL) {
         return;
     }
-    memset(input, 0, sizeof(*input));
+    tc_rt_memset(input, 0, sizeof(*input));
     input->src = src;
     input->alloc = alloc != NULL ? alloc : tc_allocator_libc();
     input->token_cap = 64;
@@ -176,15 +176,15 @@ static int parse_float_token(TcInput *input, const char *token, size_t n,
     int rc;
     int ok = 0;
 
-    if (n == 3 && memcmp(token, "inf", 3) == 0) {
+    if (n == 3 && tc_rt_memcmp(token, "inf", 3) == 0) {
         *out = tc_sem_inf_bits(width, 0);
         return 1;
     }
-    if (n == 4 && memcmp(token, "-inf", 4) == 0) {
+    if (n == 4 && tc_rt_memcmp(token, "-inf", 4) == 0) {
         *out = tc_sem_inf_bits(width, 1);
         return 1;
     }
-    if (n == 3 && memcmp(token, "nan", 3) == 0) {
+    if (n == 3 && tc_rt_memcmp(token, "nan", 3) == 0) {
         *out = tc_sem_nan_bits(width);
         return 1;
     }
@@ -302,12 +302,12 @@ TcInputStatus tc_input_read_scalar(TcInput *input, unsigned W,
     }
     if (type->tag == TC_TY_BOOL) {
         if (input->token_len == 4 &&
-            memcmp(input->token, "true", 4) == 0) {
+            tc_rt_memcmp(input->token, "true", 4) == 0) {
             *bits = 1;
             return TC_INPUT_OK;
         }
         if (input->token_len == 5 &&
-            memcmp(input->token, "false", 5) == 0) {
+            tc_rt_memcmp(input->token, "false", 5) == 0) {
             *bits = 0;
             return TC_INPUT_OK;
         }

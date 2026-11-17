@@ -12,10 +12,15 @@ values, demand order/cache, static initializer images), IR finalization
 deterministic IR text dump, the W-aware runtime semantic core (integer/float
 arithmetic, conversions, exact deterministic scalar formatting, standard input
 tokens) and the reference VM (regions, objects/sub-objects, pointer states, all
-51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics).  The AArch64
-W=64 subset backend emits deterministic assembly and drives clang/lld to an ELF;
-the full ABI, checked build, freestanding/bare metal and 32-bit targets are
-later work.  Frozen contract ownership is indexed in
+51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics, checked-build
+bounds/dangling/uninitialized detection).  The full W=64 AArch64 backend emits
+deterministic assembly for all value types and opcodes, implements the AAPCS64
+argument/return surface (composites, HFA, large indirect returns, `fnptr`/
+`call_indirect`), the object-table driven memory helpers (mandatory and
+checked-build traps), reset entry/region layout/static `.data` and drives
+clang/lld to an ELF with ICF disabled; the freestanding runtime archive is shared
+by release and checked builds.  Freestanding/bare-metal platform instances and
+32-bit targets are later work.  Frozen contract ownership is indexed in
 [CONTRACTS.md](CONTRACTS.md).
 
 ```text
@@ -23,18 +28,19 @@ src/
   base/         assert version (shared foundations, no language semantics)
   contract/     frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
-  frontend/     input num lex parse; module (discovery/IMPORT); sem (names/types/
-                conversions/layout/instruction shape/const_expr form/CFG/DI/calls/
-                safety/annotations); ct (compile-time values/cache/images);
+  frontend/     input arena num lex parse; module (discovery/IMPORT); sem (names/
+                types/conversions/layout/instruction shape/const_expr form/CFG/DI/
+                calls/safety/annotations); ct (compile-time values/cache/images);
                 irgen (final IR materialization)
-  ir/           type instr block operand span region object address structs pointer_state
-                print (deterministic IR text dump)
+  ir/           type type_width instr block operand span region object address
+                structs pointer_state print (deterministic IR text dump)
   runtime/      alloc io trap profile module_loader (platform seams);
                 semantics (W-aware integer/float/conversion core);
                 format (exact §11.2 scalar rendering); input (§11.3 tokens)
   vm/           vm.h interp memory (regions/objects/pointer state/all opcodes)
-  backend/      aarch64 (subset emitter + freestanding runtime) common (target
-                description); arm32 riscv32 not implemented
+  backend/      aarch64 (full emitter: emit services / AAPCS64 classifier /
+                lowering, rt_abi + freestanding runtime, linker script) common
+                (target description); arm32 riscv32 not implemented
   driver/       tc-vm tc-aot + shared CLI/profile selection and AOT driver
 ```
 
@@ -69,9 +75,10 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
 - `tc-vm` and `tc-aot` are the only tool entry points.  `--syntax-only`,
   `--sem-only` and `--static-only` are partial checks: exit 0 never claims a
   valid program.  A normal `tc-vm` invocation executes the finalized program on
-  the reference VM.  A normal `tc-aot` invocation emits AArch64 subset assembly;
+  the reference VM.  A normal `tc-aot` invocation emits AArch64 assembly;
   `--emit=obj|elf` assembles/links with the bundled freestanding runtime.
-  Unsupported opcodes/types/ABIs fail explicitly with exit 70 and publish no
+  Capabilities outside the hosted platform instance (a different word size or a
+  non-`TC_DEV_REJECT` device policy) fail explicitly with exit 70 and publish no
   wrong artifact.
 - Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
   source names/type syntax stay until SEM, and field paths keep the

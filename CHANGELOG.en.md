@@ -57,42 +57,41 @@
   all-or-nothing I/O, the 15 mandatory `TC_RE_*` traps, and no rollback of output
   committed before a trap; `--checked` adds UB bounds checks;
   `aarch64-linux-user`, `aarch64-baremetal` and `w32` profiles.
-- **AArch64 W=64 subset backend and toolchain**: lowering for scalar integer/bit/
-  comparison ops, `br`/`br_if`/`switch`/`return`/`trap`, direct calls, integer/bool
-  `read`/`write`/`writeln`, `sizeof` and `copy`; the AAPCS64 subset (x0-x7/x0,
-  16-byte stack alignment, callee-saved frame/static bases, bool/int8/int16
-  extension, `D`); frame/static layout at `TcObject` offsets, static initializer
-  `.data`, deterministic assembly emission, no regalloc; `tc-aot
-  --emit=asm|obj|elf`, clang/lld driving and the `aarch64-none-elf` target-triple
-  mapping; a freestanding AArch64 runtime (startup, semihosting output, integer/
-  bool formatting/input, trap/exit and depth counter).
-- **S7 VM↔AOT differential, ABI and toolchain verification**: reuse of the S6
-  W=64 subset cases, 64-bit/static/switch/§11.3-input boundary and adversarial
-  cases, fixed-seed integer fuzz,
-  AAPCS64 subset ABI, byte-reproducible `.s`/ELF, O0/O2 zero pass, byte-identical
-  VM/AOT first diagnostics over every static `.tc`, and explicit exit-70 rejection
-  of unsupported opcodes/checked build/non-target profiles; Release and
-  ASan+UBSan pass.
-- **S7 hardening**: dynamic switch-CFG successor capacity; arbitrary leading zeros
-  in AOT input; executable permission on ELF artifacts; CMake requires
-  clang/llvm-ar/lld/qemu and no longer silently degrades; linker-provided input/
-  stack addresses with overlap assertions; regression tests for switch successors
-  and `TcFunc.body`; test adapter canonicalizes symlinked workspaces; the
-  differential suite separates actual differential cases from explicit
-  rejections.
+- **Full W=64 AArch64 backend and toolchain**: lowering for all 51 opcodes and
+  all value types (integer/bit/comparison, float, conversion, pointer/object,
+  `struct`/`make`/`copy`/`memmove`, direct/indirect calls, `funcaddr`/`funceq`/
+  `funcne`, `sizeof`, I/O, control flow); AAPCS64 composites/HFA/large indirect
+  returns, `fnptr`/`call_indirect`, multi-size and unaligned access; frame/static
+  layout at `TcObject` offsets, object descriptor tables, static initializer
+  `.data`, reset entry, region bases, deterministic assembly emission, no
+  regalloc; `tc-aot --emit=asm|obj|elf`, clang/lld driving with `--icf=none` and
+  the `aarch64-none-elf` target-triple mapping; a freestanding AArch64 runtime
+  (startup, semihosting output, deterministic formatting/input, object/pointer
+  checks, checked shadow, trap/exit, depth counter and runtime allocator).
+- **Full runtime and differential/consistency verification**: every W=64 S6
+  runtime case plus new struct/HFA/large-composite/many-argument/indirect-call/
+  pointer/static-byte/`@fast_math` differential cases; full AAPCS64 ABI and an
+  assembly-shape audit; a standard §13.4 eight-item consistency suite; checked
+  build (out-of-object, one-past, dangling and uninitialized) counted separately
+  from mandatory traps without changing the legal program set; ELF entry/region/
+  symbol/static-byte/ICF and determinism suites; the S7 differential/ABI/
+  toolchain/static-parity/zero-pass suites keep passing; byte-identical VM/AOT
+  first diagnostics over every static `.tc`; Release and ASan+UBSan pass.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
-  `error[RT]` with exit 1; a normal `tc-aot` invocation emits AArch64 subset
-  assembly and `--emit=obj|elf` produces ELF artifacts; capabilities outside the
-  subset exit 70 without publishing a wrong artifact.
+  `error[RT]` with exit 1; a normal `tc-aot` invocation emits AArch64 assembly,
+  `--emit=obj|elf` produces ELF artifacts and `--checked` produces a checked
+  build; capabilities outside the current platform instance exit 70 without
+  publishing a wrong artifact.
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
   `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7
-  differential/ABI/toolchain/static-parity/determinism suites, W=32/64 runtime
-  goldens, determinism suites and a fail-closed adapter self-test; currently
-  39/39 `ctest` and 754/754 harness cases (557 compile, 129 tool, 67 run,
-  1 property) in Debug/Release/ASan builds; unit checks: frontend 688, sem 102,
-  ct 370, ir 674, vm 413, aot 34.
+  differential/ABI/toolchain/static-parity/determinism suites, S8 full
+  differential/ABI/checked/consistency/artifact/determinism suites, W=32/64
+  runtime goldens, determinism suites and a fail-closed adapter self-test;
+  currently 45/45 `ctest` and 754/754 harness cases (557 compile, 129 tool,
+  67 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
+  sem 102, ct 370, ir 674, vm 413, aot 58.
 
 ### Changed
 

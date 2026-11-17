@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM and the W=64 AArch64 subset backend/toolchain/differential suites are implemented; the full ABI, checked build, freestanding/bare metal and the 32-bit backend are still to be built.
+Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64 backend/toolchain, checked build and the full differential/ABI/consistency/artifact suites are implemented; freestanding/bare metal platform instances and the 32-bit backend are still to be built.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -40,8 +40,9 @@ ctest --test-dir build --output-on-failure
 Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The tools
 support `--syntax-only`/`--sem-only`/`--static-only` partial checks; a normal `tc-vm`
 invocation executes the reference VM (exit 0 on normal termination, 1 on the first
-trap), while a normal `tc-aot` invocation emits AArch64 W=64 subset assembly;
-`--emit=obj|elf` drives clang/lld to an ELF. Capabilities outside the subset exit 70
+trap), while a normal `tc-aot` invocation emits AArch64 assembly;
+`--emit=obj|elf` drives clang/lld to an ELF and `--checked` produces a checked
+build. Capabilities outside the current platform instance exit 70
 without publishing a wrong artifact. The S7 differential/toolchain tests need
 `ld.lld` and `qemu-system-aarch64`.
 

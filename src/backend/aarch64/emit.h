@@ -1,11 +1,12 @@
-/* TC 0.0.46 AArch64 subset assembly emitter (design §10/§11).
+/* TC 0.0.46 AArch64 assembly emitter (design §10/§11).
  *
  * The emitter consumes one finalized TcIR bound to a 64-bit AArch64 profile
- * and writes deterministic GNU-syntax AArch64 assembly for the implemented
- * subset: scalar integer/bit/comparison operations, control flow, direct
- * calls, read/write/writeln, sizeof and copy.  It never silently lowers an
- * unsupported opcode: the caller receives TC_AARCH64_EMIT_UNSUPPORTED and no
- * artifact should be published (design §10.3).
+ * and writes deterministic GNU-syntax AArch64 assembly for every opcode and
+ * value type: integer/bit/comparison/float/conversion operations, control
+ * flow, direct and indirect calls, pointer/object memory access, structures,
+ * `make`/`copy`/`memmove`, standard I/O and `sizeof`.  Capabilities outside the
+ * bound platform instance are rejected with TC_AARCH64_EMIT_UNSUPPORTED before
+ * any artifact is published (design §10.3).
  *
  * This is an internal compiler interface, not an installed API.
  */

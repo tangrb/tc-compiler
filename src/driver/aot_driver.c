@@ -190,14 +190,10 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     if (analysis == NULL || profile == NULL || options == NULL) {
         return report(TC_IMPL_INTERNAL, "missing AOT driver argument");
     }
-    if (options->checked) {
-        return report_unavailable(
-            "checked build is not in the AArch64 subset");
-    }
     if (strcmp(profile->target != NULL ? profile->target->name : "",
                "aarch64-linux-user") != 0) {
         return report_unavailable(
-            "the AArch64 subset currently targets aarch64-linux-user only");
+            "the AArch64 backend currently targets the hosted aarch64-linux-user instance only");
     }
     ir = tc_analysis_ir(analysis);
     if (ir == NULL) {
@@ -306,7 +302,7 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     {
         const char *runtime_archive = runtime_archive_path(options);
         const char *linker_script = linker_script_path(options);
-        char *argv[16];
+        char *argv[20];
         size_t argument_index = 0;
         int status;
         if (runtime_archive == NULL || runtime_archive[0] == '\0' ||
@@ -331,6 +327,9 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
         argv[argument_index++] = "aarch64elf";
         argv[argument_index++] = "-static";
         argv[argument_index++] = "-nostdlib";
+        /* Standard §3.13.3: distinct function entry addresses; never fold
+         * identical code or merge entries. */
+        argv[argument_index++] = "--icf=none";
         argv[argument_index++] = "-T";
         argv[argument_index++] = (char *)linker_script;
         argv[argument_index++] = "-o";

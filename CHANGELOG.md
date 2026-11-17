@@ -42,32 +42,32 @@
   全部 51 个 opcode、调用/`D`、尾调用不改变深度、I/O 整条提交、15 个
   `TC_RE_*` 必选 trap、trap 前已提交输出不回滚；`--checked` 增加 UB 越界检查；
   `aarch64-linux-user`、`aarch64-baremetal` 与 `w32` 档案。
-- **AArch64 W=64 子集后端与工具链**：标量整数/位/比较、`br`/`br_if`/`switch`/
-  `return`/`trap`、直接调用、整数/bool `read`/`write`/`writeln`、`sizeof`、`copy`
-  的 lowering；AAPCS64 子集（x0–x7/x0、16 字节栈对齐、callee-saved 帧/静态基址、
-  bool/int8/int16 扩展、`D`）；按 `TcObject` 偏移的帧/静态区布局、静态初值
-  `.data`、确定性汇编发射、无 regalloc；`tc-aot --emit=asm|obj|elf`、
-  clang/lld 驱动与 `aarch64-none-elf` target triple 映射；freestanding AArch64
-  运行时（启动、semihosting 输出、整数/bool 格式化/输入、trap/退出、深度计数）。
-- **S7 VM↔AOT 差分与 ABI/工具链验证**：S6 W=64 子集用例复用、64 位/静态/开关/
-  §11.3 输入边界与对抗用例、固定种子整数 fuzz、AAPCS64 子集 ABI、`.s`/ELF 可重复、
-  O0/O2 零 pass、
-  全部静态 `.tc` 的 VM/AOT 首诊逐字节一致、未支持 opcode/checked build/非目标档案的
-  显式 exit 70 拒绝；release 与 ASan+UBSan 均通过。
-- **S7 加固**：switch CFG 后继缓冲区按目标数动态分配；AOT 输入支持任意前导零；
-  ELF 产物设置可执行权限；CMake 要求 clang/llvm-ar/lld/qemu 并拒绝静默降级；
-  输入/栈地址改由链接脚本提供并加重叠断言；新增 switch 后继与 `TcFunc.body`
-  回归测试；测试适配器对符号链接工作区使用 canonical 路径；差分套件区分
-  实际差分用例与显式拒绝用例。
+- **AArch64 W=64 全量后端与工具链**：全部 51 个 opcode 与全部值类型（整数/位/
+  比较、浮点、转换、指针/对象、`struct`/`make`/`copy`/`memmove`、直接/间接调用、
+  `funcaddr`/`funceq`/`funcne`、`sizeof`、I/O、控制流）的 lowering；AAPCS64
+  复合/HFA/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问；
+  按 `TcObject` 偏移的帧/静态区布局、对象描述符表、静态初值 `.data`、复位入口、
+  区基址、确定性汇编发射、无 regalloc；`tc-aot --emit=asm|obj|elf`、
+  clang/lld 驱动、`--icf=none` 与 `aarch64-none-elf` target triple 映射；
+  freestanding AArch64 运行时（启动、semihosting 输出、确定性格式化/输入、
+  对象/指针检查、checked shadow、trap/退出、深度计数、运行时分配器）。
+- **全量运行时与差分/一致性验证**：S6 W=64 全部运行时用例复用 + struct/HFA/
+  大复合/多参数/间接调用/指针/静态字节/`@fast_math` 的新差分用例；全量 AAPCS64
+  ABI 与汇编形态审计；标准 §13.4 八项一致性套件；checked build（越界/悬垂/
+  one-past/未初始化）与必选 trap 分离统计、合法程序集合不变；ELF 入口/区布局/
+  符号/静态字节/ICF 与确定性套件；S7 差分/ABI/工具链/静态一致/零 pass 套件继续通过；
+  全部静态 `.tc` 的 VM/AOT 首诊逐字节一致；release 与 ASan+UBSan 均通过。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
   `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
-  首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射 AArch64 子集汇编，
-  `--emit=obj|elf` 生成 ELF 产物；子集外能力显式退出 70 且不发布错误产物。
+  首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射 AArch64 汇编，
+  `--emit=obj|elf` 生成 ELF 产物，`--checked` 生成 checked build；当前平台实例外
+  的能力显式退出 70 且不发布错误产物。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
   `tc_aot_test`、S1/S2/S3/S4/S5/S6 一致性用例表、S7 差分/ABI/工具链/静态一致/
-  确定性套件、W=32/64 运行时 golden、确定性套件、adapter 失败关闭自测；当前
-  Debug/Release/ASan `ctest` 39/39，harness 754/754（557 编译、129 工具、67 运行、
-  1 属性），单元检查 frontend 688、sem 102、ct 370、ir 674、vm 413、aot 34。
+  确定性套件、S8 全量差分/ABI/checked/一致性/产物/确定性套件、W=32/64 运行时
+  golden、adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 45/45，harness
+  754/754（557 编译、129 工具、67 运行、1 属性），单元检查 frontend 688、sem 102、
+  ct 370、ir 674、vm 413、aot 58。
 
 ### Changed
 

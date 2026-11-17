@@ -66,10 +66,11 @@ static void free_fixture(Fixture *fixture) {
     rmdir(fixture->dir);
 }
 
-static char *emit_fixture(const Fixture *fixture, size_t *out_len,
-                          TcAArch64EmitStatus *out_status,
-                          char *error_message,
-                          size_t error_message_capacity) {
+static char *emit_fixture_ex(const Fixture *fixture, int checked,
+                             int baremetal, size_t *out_len,
+                             TcAArch64EmitStatus *out_status,
+                             char *error_message,
+                             size_t error_message_capacity) {
     TcPlatformProfile profile;
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
@@ -79,9 +80,11 @@ static char *emit_fixture(const Fixture *fixture, size_t *out_len,
     size_t length = 0;
     FILE *stream;
 
-    if (!tc_profile_init_aarch64_linux_user(&profile)) {
+    if (baremetal ? !tc_profile_init_aarch64_baremetal(&profile)
+                  : !tc_profile_init_aarch64_linux_user(&profile)) {
         return NULL;
     }
+    profile.checked_build = checked ? 1 : 0;
     analysis = tc_analyze_with_profile(fixture->root, &profile,
                                        profile.addr_width, NULL, 0, &status,
                                        &diag, &impl);
@@ -103,6 +106,14 @@ static char *emit_fixture(const Fixture *fixture, size_t *out_len,
     tc_analysis_destroy(analysis);
     *out_len = length;
     return buffer;
+}
+
+static char *emit_fixture(const Fixture *fixture, size_t *out_len,
+                          TcAArch64EmitStatus *out_status,
+                          char *error_message,
+                          size_t error_message_capacity) {
+    return emit_fixture_ex(fixture, 0, 0, out_len, out_status,
+                           error_message, error_message_capacity);
 }
 
 static void test_lowering_shapes(void) {
@@ -214,7 +225,7 @@ static void test_frame_alignment(void) {
     free(text);
 }
 
-static void test_unsupported(void) {
+static void test_profile_limits(void) {
     Fixture fixture;
     TcAArch64EmitStatus status = TC_AARCH64_EMIT_OK;
     char error_message[256];
@@ -223,9 +234,44 @@ static void test_unsupported(void) {
     error_message[0] = '\0';
     if (!make_fixture(
             &fixture,
-            "#program\nvar x: int32 = copy int32, 1\nunsafe then\n"
-            "var p: ptr<int32> = addr int32, x\n"
-            "var y: int32 = load int32, p\nend\n",
+            "#program\n_ = writeln int32, 1\n",
+            "#lib\n")) {
+        CHECK(0);
+        return;
+    }
+    text = emit_fixture_ex(&fixture, 0, 1, &len, &status, error_message,
+                           sizeof(error_message));
+    free_fixture(&fixture);
+    free(text);
+    CHECK(status == TC_AARCH64_EMIT_UNSUPPORTED);
+    CHECK(strstr(error_message, "device policy") != NULL);
+}
+
+static void test_full_value_shapes(void) {
+    Fixture fixture;
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
+    size_t len = 0;
+    char *text;
+    if (!make_fixture(
+            &fixture,
+            "#program\n"
+            "struct S then\n"
+            "var a: int32\n"
+            "var b: float64\n"
+            "end\n"
+            "var s: S = make S, 7, 2.5\n"
+            "var p: ptr<S> = addr S, s\n"
+            "var q: ptr<int32> = addr int32, s.a\n"
+            "var n: usize = copy usize, 1\n"
+            "var f: float64 = add float64, s.b, 1.0\n"
+            "unsafe then\n"
+            "var v: int32 = load int32, q\n"
+            "_ = store int32, q, v\n"
+            "var r: ptr<int32> = ptradd int32, q, n\n"
+            "_ = memmove S, p, p, n\n"
+            "end\n"
+            "_ = writeln float64, f\n",
             "#lib\n")) {
         CHECK(0);
         return;
@@ -233,9 +279,104 @@ static void test_unsupported(void) {
     text = emit_fixture(&fixture, &len, &status, error_message,
                         sizeof(error_message));
     free_fixture(&fixture);
-    free(text);
-    CHECK(status == TC_AARCH64_EMIT_UNSUPPORTED);
-    CHECK(strstr(error_message, "unsupported opcode") != NULL);
+    CHECK(text != NULL);
+    if (text != NULL) {
+        CHECK(status == TC_AARCH64_EMIT_OK);
+        CHECK(strstr(text, "bl tc_a64_float_binop") != NULL);
+        CHECK(strstr(text, "bl tc_a64_load") != NULL);
+        CHECK(strstr(text, "bl tc_a64_store") != NULL);
+        CHECK(strstr(text, "bl tc_a64_ptradd") != NULL);
+        CHECK(strstr(text, "bl tc_a64_memmove") != NULL);
+        CHECK(strstr(text, "bl tc_a64_frame_enter") != NULL);
+        CHECK(strstr(text, "bl tc_a64_frame_leave") != NULL);
+        CHECK(strstr(text, ".Lunit_objs_0:") != NULL);
+        CHECK(strstr(text, "bl memset") != NULL);
+        free(text);
+    }
+}
+
+static void test_checked_shapes(void) {
+    Fixture fixture;
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
+    size_t len = 0;
+    char *text;
+    if (!make_fixture(
+            &fixture,
+            "#program\n"
+            "var x: int32 = copy int32, 1\n"
+            "var p: ptr<int32> = addr int32, x\n"
+            "unsafe then\n"
+            "var y: int32 = load int32, p\n"
+            "_ = writeln int32, y\n"
+            "end\n",
+            "#lib\n")) {
+        CHECK(0);
+        return;
+    }
+    text = emit_fixture_ex(&fixture, 1, 0, &len, &status, error_message,
+                           sizeof(error_message));
+    free_fixture(&fixture);
+    CHECK(text != NULL);
+    if (text != NULL) {
+        CHECK(status == TC_AARCH64_EMIT_OK);
+        CHECK(strstr(text, "__tc_a64_checked:") != NULL);
+        CHECK(strstr(text, "  .quad 1") != NULL);
+        CHECK(strstr(text, "__tc_static_shadow:") != NULL);
+        CHECK(strstr(text, "bl tc_a64_define") != NULL);
+        free(text);
+    }
+}
+
+static void test_hfa_and_indirect_return(void) {
+    Fixture fixture;
+    TcAArch64EmitStatus status = TC_AARCH64_EMIT_INTERNAL;
+    char error_message[256];
+    size_t len = 0;
+    char *text;
+    if (!make_fixture(
+            &fixture,
+            "#program\nimport lib\n"
+            "var q: lib.Q = call lib.mk, 1.0f, 2.0f, 3.0f\n"
+            "var b: lib.B = call lib.big, 4\n"
+            "_ = writeln float32, q.a\n"
+            "_ = writeln int64, b.c\n",
+            "#lib\n"
+            "public struct Q then\n"
+            "var a: float32\n"
+            "var b: float32\n"
+            "var c: float32\n"
+            "end\n"
+            "public struct B then\n"
+            "var a: int64\n"
+            "var b: int64\n"
+            "var c: int64\n"
+            "end\n"
+            "public func mk(a: float32, b: float32, c: float32) Q then\n"
+            "var q: Q = make Q, a, b, c\n"
+            "_ = return q\n"
+            "end\n"
+            "public func big(x: int64) B then\n"
+            "var b: B = make B, x, 2, 3\n"
+            "_ = return b\n"
+            "end\n")) {
+        CHECK(0);
+        return;
+    }
+    text = emit_fixture(&fixture, &len, &status, error_message,
+                        sizeof(error_message));
+    free_fixture(&fixture);
+    CHECK(text != NULL);
+    if (text != NULL) {
+        CHECK(status == TC_AARCH64_EMIT_OK);
+        /* HFA return: the members leave in v0-v2. */
+        CHECK(strstr(text, "fmov s0, w") != NULL);
+        CHECK(strstr(text, "fmov s2, w") != NULL);
+        /* Large return: the incoming x8 indirect pointer is saved and used. */
+        CHECK(strstr(text, "str x8, [x19, #") != NULL);
+        CHECK(strstr(text, "ldr x16, [x19, #") != NULL);
+        free(text);
+    }
 }
 
 static void test_static_initializer(void) {
@@ -301,7 +442,10 @@ static void test_deterministic(void) {
 int main(void) {
     test_lowering_shapes();
     test_frame_alignment();
-    test_unsupported();
+    test_profile_limits();
+    test_full_value_shapes();
+    test_checked_shapes();
+    test_hfa_and_indirect_return();
     test_static_initializer();
     test_deterministic();
     if (failures != 0) {

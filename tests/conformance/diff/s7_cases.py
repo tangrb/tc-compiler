@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """S7 VM/AOT differential conformance cases.
 
-The subset is the design §10.3 initial lowering set: scalar integer/bit/
+The stage exercised the design §10.3 initial lowering set: scalar integer/bit/
 comparison operations, br/br_if/switch/return/trap, direct calls, integer/bool
-read/write/writeln, sizeof and copy.  Cases that need pointers, structs,
-casts, floating point or indirect calls are explicitly outside S7 and are
-rejected by the backend (see tests/conformance/tools/s7_toolchain_cases.py).
+read/write/writeln, sizeof and copy.  The current backend also lowers pointers,
+structures, conversions, floating point and indirect calls; the S8 suite owns
+that full surface.  These cases stay executable so the initial subset keeps its
+own regression evidence.
 
-Existing S6 runtime fixtures are reused when their source is already inside the
-subset; their expectations were independently derived for the reference VM.
+Existing S6 runtime fixtures are reused when their source is inside the initial
+lowering set; their expectations were independently derived for the reference
+VM.
 New cases cover integer/bool formatting, token input, 64-bit arithmetic,
-static storage and CFG/ABI boundaries.  One case (`TC-DIFF-A64-0034`) is an
-expected rejection outside the ABI subset, not an executable differential;
-the runner reports it separately.  Expectations below follow standard
-§6.3/§6.5/§6.10/§6.13 and §11.2/§11.3, not AOT output.
+static storage and CFG/ABI boundaries.  Every case is executable on both
+tools; the S8 suite extends the surface to the full ABI and all value types.
+Expectations below follow standard §6.3/§6.5/§6.10/§6.13 and §11.2/§11.3, not
+AOT output.
 
 Run:
     python3 tests/conformance/diff/s7_cases.py --check
@@ -766,8 +768,7 @@ CASES = [engine.load_s6_case(case_id) for case_id in S6_SUBSET] + [
     ),
     engine.case(
         "TC-DIFF-A64-0034",
-        "§8.5 nine-argument calls execute on the VM but stay outside the S7 "
-        "backend subset",
+        "§8.5 nine-argument calls pass later arguments on the stack",
         files={
             "root.tc": engine.program(
                 "import lib",
@@ -783,7 +784,6 @@ CASES = [engine.load_s6_case(case_id) for case_id in S6_SUBSET] + [
             ),
         },
         out="1\n",
-        unsupported=True,
     ),
     engine.case(
         "TC-DIFF-A64-0035",

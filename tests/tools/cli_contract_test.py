@@ -5,10 +5,10 @@ The static front end is implemented.  `--syntax-only` (LEX/SYN), `--sem-only`
 (through SEM) and `--static-only` (through CT and IR finalization) are partial
 checks with exit 0, no output.  `tc-vm` executes a normal invocation on the
 reference VM and reports the first `TC_RE_*` trap on stderr with
-`error[RT]`; `tc-aot` emits the AArch64 subset assembly on a normal
-invocation.  Capabilities outside the subset (checked build, non-AArch64
-profiles) still fail explicitly with the implementation-level "unavailable"
-status (70).  Diagnostics exit 1 with the stable diagnostic line; file-open
+`error[RT]`; `tc-aot` emits AArch64 assembly on a normal invocation.
+Capabilities outside this hosted platform instance (a different word size or
+the bare-metal device policy) still fail explicitly with the
+implementation-level "unavailable" status (70).  Diagnostics exit 1 with the stable diagnostic line; file-open
 failures are implementation errors (71) and are never language diagnostics.
 """
 
@@ -109,7 +109,7 @@ def main() -> int:
                         r.stdout == "" and r.stderr == "",
                         f"{name} {' '.join(extra) or 'default'} silent success",
                     )
-                elif extra == ["--checked"] or extra == ["--profile=aarch64-baremetal"]:
+                elif extra == ["--profile=aarch64-baremetal"]:
                     check(
                         r.returncode == 70,
                         f"{name} {' '.join(extra)} unavailable exit {r.returncode}",

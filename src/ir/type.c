@@ -1,7 +1,9 @@
 /* TC 0.0.46 contract: type table implementation (design §2.2). */
 #include "ir/type.h"
 
-#include <string.h>
+#include "ir/type_width.h"
+
+#include "runtime/rt_memory.h"
 
 #include "runtime/alloc.h"
 
@@ -19,7 +21,7 @@ static TcType *type_alloc(TcTypeTable *table, TcTypeTag tag) {
     if (t == NULL) {
         return NULL;
     }
-    memset(t, 0, sizeof(*t));
+    tc_rt_memset(t, 0, sizeof(*t));
     t->tag = tag;
     return t;
 }
@@ -58,7 +60,7 @@ TcTypeTable *tc_type_table_create(const TcAllocator *alloc) {
     if (table == NULL) {
         return NULL;
     }
-    memset(table, 0, sizeof(*table));
+    tc_rt_memset(table, 0, sizeof(*table));
     table->alloc = alloc;
     /* Materialize every scalar singleton before Analyze can freeze the table.
      * A frozen table must never create a node on a later scalar lookup. */
@@ -352,33 +354,8 @@ int tc_type_is_scalar(const TcType *type) {
 }
 
 unsigned tc_type_bits(const TcType *type, unsigned addr_width) {
-    if (type == NULL || (addr_width != 32 && addr_width != 64)) {
+    if (type == NULL) {
         return 0;
     }
-    switch (type->tag) {
-    case TC_TY_I8:
-    case TC_TY_U8:
-    case TC_TY_BOOL:
-        return 8;
-    case TC_TY_I16:
-    case TC_TY_U16:
-        return 16;
-    case TC_TY_I32:
-    case TC_TY_U32:
-    case TC_TY_F32:
-        return 32;
-    case TC_TY_I64:
-    case TC_TY_U64:
-    case TC_TY_F64:
-        return 64;
-    case TC_TY_ISIZE:
-    case TC_TY_USIZE:
-    case TC_TY_PTR:
-    case TC_TY_FNPTR:
-        return addr_width;
-    case TC_TY_VOID:
-    case TC_TY_STRUCT:
-    default:
-        return 0;
-    }
+    return tc_type_width_of_tag(type->tag, addr_width);
 }

@@ -57,6 +57,8 @@ class Case:
     # When true the source is expected to be outside the subset and the AOT
     # compile is expected to be rejected explicitly.
     unsupported: bool = False
+    # Checked-build execution (UB access checks; mandatory traps unchanged).
+    checked: bool = False
 
 
 @dataclass
@@ -123,6 +125,8 @@ def run_vm(case: Case, work: Path) -> Observation:
     source = work / "root.tc"
     argv = [tc_vm_path(), "--profile=aarch64-linux-user",
             f"--include={work}"]
+    if case.checked:
+        argv.append("--checked")
     if case.opt:
         argv.append(f"--opt={case.opt}")
     argv.append(str(source))
@@ -147,6 +151,8 @@ def compile_aot(case: Case, work: Path, asm_out: Path | None = None,
     argv = [tc_aot_path(), f"--emit={emit}", f"--output={output}",
             "--profile=aarch64-linux-user", f"--include={work}",
             f"--ld={lld_path()}"]
+    if case.checked:
+        argv.append("--checked")
     if case.opt:
         argv.append(f"--opt={case.opt}")
     argv.append(str(source))
@@ -365,6 +371,7 @@ def load_s6_case(case_id: str, category: str = "diff") -> Case:
         opt=data.get("opt"),
         spec=str(data.get("spec", "")),
         category=category,
+        checked=bool(data.get("checked", False)),
     )
 
 
@@ -379,7 +386,8 @@ def library(*lines: str) -> str:
 def case(case_id: str, spec: str, *, root: str | None = None,
          files: dict[str, str] | None = None, out: str = "",
          trap: str | None = None, stdin: str = "", opt: str | None = None,
-         category: str = "diff", unsupported: bool = False) -> Case:
+         category: str = "diff", unsupported: bool = False,
+         checked: bool = False) -> Case:
     if files is None:
         files = {"root.tc": root if root is not None else program()}
     return Case(
@@ -394,4 +402,5 @@ def case(case_id: str, spec: str, *, root: str | None = None,
         spec=spec,
         category=category,
         unsupported=unsupported,
+        checked=checked,
     )

@@ -16,14 +16,17 @@ kept; historical implementation and tools live in git tags.
   input) and the reference VM (five regions, objects/field sub-objects, pointer
   states, all 51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics); 32/64
   profiles, with the VM able to execute `aarch64-linux-user`, `aarch64-baremetal`
-  and `w32`; the W=64 AArch64 subset backend (integer/bit/comparison, control
-  flow, direct calls, integer/bool I/O, `sizeof`, `copy`), the AAPCS64 subset,
-  frame/static layout, deterministic assembly emission, `tc-aot`
-  `.s`/`.o`/ELF artifacts with clang/lld/qemu driving, and the VM↔AOT
-  differential/ABI/toolchain/zero-pass suites.
-- **Not implemented**: the full ABI (struct/HFA/float/indirect calls), checked
-  build, freestanding/bare metal and the 32-bit backend; these belong to S8/S9.
-- Gates: G0–G7 PASS; **G7 allows S8**. See [gate status](docs/gates/README.en.md).
+  and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/float/
+  conversion, pointers/memory/struct, all 51 opcodes, AAPCS64 composites/HFA/
+  large indirect returns, `fnptr`/`call_indirect`, multi-size and unaligned
+  access, checked build); the freestanding AArch64 runtime (object table/pointer
+  states/mandatory traps/checked shadow, deterministic I/O, allocator, trap and
+  exit); reset entry, region bases, static `.data`, ELF artifacts with ICF
+  disabled and clang/lld/qemu driving; checked build in both tools; and the full
+  VM↔AOT differential/ABI/consistency/artifact/determinism suites.
+- **Not implemented**: the freestanding/bare-metal platform instance (PL011 UART,
+  bare-metal link/device policy) and the 32-bit backend/ABI; these belong to S9.
+- Gates: G0–G8 PASS; **G8 allows S9**. See [gate status](docs/gates/README.en.md).
 
 ## Documents
 
@@ -54,7 +57,7 @@ src/                  0.0.46 implementation
   ir/                 type instr operand block ir region object address structs pointer_state print
   runtime/            alloc io trap profile module_loader; semantics/format/input
   vm/                 vm.h interp memory (regions/objects/pointer states/all opcodes)
-  backend/            aarch64 (subset backend + freestanding runtime) / common
+  backend/            aarch64 (full backend + freestanding runtime) / common
                       (target description); arm32 riscv32 later
   driver/             tc-vm / tc-aot CLI and AOT driver
 tests/                L0/L1/L2, L3/L4 conformance, harness, traceability, golden, determinism
@@ -68,11 +71,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The S7 differential/toolchain tests require `clang`, `llvm-ar` (or
+The S7/S8 differential/toolchain tests require `clang`, `llvm-ar` (or
 `aarch64-elf-ar`), `ld.lld` and `qemu-system-aarch64` by default; configuration
 fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
 lld/qemu-dependent ctest entries; building the AArch64 runtime still requires
-clang and llvm-ar/aarch64-elf-ar, and this is not a G7 gate build. Tools
+clang and llvm-ar/aarch64-elf-ar, and this is not a gate build. Tools
 currently support:
 
 - `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
@@ -87,12 +90,12 @@ currently support:
   `<file>:<line>:<column>: error[RT]: <code>: <print-name>` with exit 1.
   `--profile=w32` selects the 32-bit profile, `--checked` adds UB access checks
   (mandatory traps are unchanged), and `--opt=O0|O2` stays a zero-pass baseline.
-- A normal `tc-aot` invocation emits AArch64 subset assembly to stdout after the
-  static stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf` with
+- A normal `tc-aot` invocation emits AArch64 assembly to stdout after the static
+  stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf` with
   `--output=<path>` produce `.s`, an ELF relocatable or an ELF executable;
-  `--opt=O0|O2` stays the zero-pass baseline. Opcodes/types outside the subset,
-  checked build or a non-W=64 `aarch64-linux-user` profile exit 70 without
-  publishing a wrong artifact.
+  `--checked` produces a checked build and `--opt=O0|O2` stays the zero-pass
+  baseline. Capabilities outside the current hosted platform instance (`w32`
+  and non-`TC_DEV_REJECT` profiles) exit 70 without publishing a wrong artifact.
 - The S7 AOT platform instance is qemu-system-aarch64 + semihosting; an
   EL0/Linux-user runtime is not implemented, so the ELF is not a Linux user
   program. Differential tests compare program stdout, the first trap code and
@@ -104,8 +107,8 @@ Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal
 `tc_error_internal` (exit 71). Built-in profiles reserve a 16 MiB frame region/stack
 (default `D`: 512 hosted, 256 baremetal/w32); exhausting it with static frame
 footprints is an implementation error (exit 71), not a language diagnostic. The
-AOT subset is W=64 `aarch64-linux-user`; the full ABI, checked build,
-freestanding/bare metal and the 32-bit backend belong to S8/S9. Contract and test
+AOT target is the W=64 `aarch64-linux-user` qemu-system semihosting platform
+instance; freestanding/bare metal and the 32-bit backend belong to S9. Contract and test
 conventions are in
 [src/CONTRACTS.md](src/CONTRACTS.md) and [tests/README.md](tests/README.md).
 

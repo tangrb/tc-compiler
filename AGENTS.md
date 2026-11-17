@@ -11,15 +11,17 @@
   const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵、CT 求值
   （按需求值/缓存、静态初值；与 VM 共用 `runtime/semantics.c`）、IR 最终化/冻结与打印、
   W 相关运行时语义核、§11.2 精确格式化、§11.3 输入、参考 VM（五区/对象与字段子对象、
-  指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、提交语义）、32/64 档案；
-  AArch64 W=64 子集后端（整数/位/比较、控制流、直接调用、整数/bool I/O、`sizeof`、
-  `copy`）、AAPCS64 子集、帧/静态区布局、确定性汇编发射、`tc-aot`
-  `--emit=asm|obj|elf`、clang/lld/qemu 驱动与 VM↔AOT 差分/ABI/工具链/零 pass 套件。
+  指针状态、全部 51 个 opcode、调用/`D`、I/O、必选 trap、提交语义、checked 越界/悬垂/
+  未初始化检测）、32/64 档案；W=64 AArch64 全量后端（整数/位/比较/浮点/转换、指针/
+  内存/struct、全部 51 个 opcode、AAPCS64 复合/HFA/大 struct 间接返回、`fnptr`/
+  `call_indirect`、多尺寸与未对齐访问、checked build、复位入口/区基址/静态 `.data`/
+  ELF/禁用 ICF）、freestanding AArch64 运行时、`tc-aot` `--emit=asm|obj|elf`、
+  clang/lld/qemu 驱动与全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件。
   代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
   `src/driver/`。
-- 未实现：全量 ABI（struct/HFA/浮点/间接调用）、checked build、freestanding/裸机、
-  32 位后端；属 S8/S9。
-- 门禁：G0–G7 PASS，G7 允许进入 S8；见 `docs/gates/README.md`。
+- 未实现：freestanding/裸机平台实例（PL011 UART、裸机链接/设备策略）、设备实例与
+  32 位后端/ABI；属 S9。
+- 门禁：G0–G8 PASS，G8 允许进入 S9；见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
@@ -36,9 +38,9 @@
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
    `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
-   trap 退出 1）；普通 `tc-aot` 调用发射 AArch64 子集汇编，`--emit=obj|elf` 经
-   clang/lld 生成产物；子集外能力显式退出 70 且不发布错误产物。不得把部分能力
-   写成“已支持”。S7 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld` 与
+   trap 退出 1）；普通 `tc-aot` 调用发射 AArch64 汇编，`--emit=obj|elf` 经
+   clang/lld 生成产物；当前平台实例外的能力显式退出 70 且不发布错误产物。不得把部分能力
+   写成“已支持”。S7/S8 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld` 与
    `qemu-system-aarch64`；缺失时配置失败。`-DTC_ENABLE_AOT_TESTS=OFF` 只关闭
    lld/qemu 测试项；运行时构建仍需 clang 与 llvm-ar/aarch64-elf-ar，且不用于门禁。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
@@ -75,7 +77,12 @@
    `tests/conformance/abi/s7_abi_cases.py --check`、
    `tests/conformance/tools/s7_toolchain_cases.py --check`、
    `tests/conformance/tools/s7_static_parity.py --check`、
-   `tests/determinism/s7_determinism.py --check`、`tests/golden/validate.py`、
+   `tests/determinism/s7_determinism.py --check`、
+   `tests/conformance/diff/s8_cases.py --check`、`tests/conformance/abi/s8_abi_cases.py --check`、
+   `tests/conformance/checked/s8_checked_cases.py --check`、
+   `tests/conformance/consistency/s8_consistency_cases.py --check`、
+   `tests/conformance/tools/s8_artifact_cases.py --check`、
+   `tests/determinism/s8_determinism.py --check`、`tests/golden/validate.py`、
    `tests/golden/run.py build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
    与 `tests/tools/docs_cleanup_check.py` 均通过。
 7. **提交与洁净**：以 `docs(0.0.46): ...` 提交清理结果；确认 `git status` 干净，
@@ -97,7 +104,7 @@
 | CT/IR 实现约定 | `src/CONTRACTS.md`（CT 顺序/缓存/错误映射、对象布局、IR 操作数） |
 | IR 打印 | `src/ir/print.h`、`src/ir/print.c` |
 | 运行时语义核 / 格式化 / 输入 | `src/runtime/semantics.h`、`format.h`、`input.h` |
-| AArch64 子集后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`runtime.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
+| AArch64 后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`runtime.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
 | AOT 工具链驱动 | `src/driver/aot_driver.h`、`aot_driver.c`；`src/driver/cli.h` |
 | VM 接口 / 内存对象 / 解释器 | `src/vm/vm.h`、`src/vm/internal.h`、`src/vm/memory.c`、`src/vm/interp.c` |
 | 测试基建 | `tests/README.md` |
@@ -105,6 +112,7 @@
 | 文档收尾检查 | `tests/tools/docs_cleanup_check.py`（`docs.cleanup`） |
 | 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py`、`s4_cases.py`、`s5_cases.py`、`s6_static_cases.py`；`tests/conformance/runtime/s6_cases.py` |
 | S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
+| S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |
