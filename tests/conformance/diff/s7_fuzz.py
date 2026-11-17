@@ -46,7 +46,7 @@ UNOPS = ["neg", "abs", "not"]
 WRAPPABLE = {"add", "sub", "mul", "shl"}
 SHIFT_K = [-1, 0, 1, 6, 7, 8, 9, 14, 15, 16, 17, 30, 31, 32, 33,
            62, 63, 64, 65, 127, 128]
-COUNT = 120
+COUNT = 240
 
 
 def operand(rng: random.Random, type_name: str) -> int:

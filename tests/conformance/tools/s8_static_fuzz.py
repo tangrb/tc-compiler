@@ -79,7 +79,7 @@ def run_tool(tool: str, source: Path, include: Path) -> tuple[int, bytes, bytes]
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--seeds", type=int, default=120)
+    parser.add_argument("--seeds", type=int, default=240)
     args = parser.parse_args()
     if not args.check:
         parser.error("use --check")

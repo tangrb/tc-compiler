@@ -199,7 +199,7 @@ def build(seed):
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--seeds", type=int, default=24)
+    parser.add_argument("--seeds", type=int, default=48)
     args = parser.parse_args()
     if not args.check:
         parser.error("use --check")
