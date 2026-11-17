@@ -10,7 +10,7 @@ against the published ABI rather than against the reference VM.
 
 The TC function uses parameters and locals only (no static/global accesses);
 the generated ``tc_main`` is renamed and never executed.  Results are printed
-through ``tc_a64_write_scalar`` as integer bit patterns.
+through ``tc_rt_write_scalar`` as integer bit patterns.
 
 Run:
     python3 tests/conformance/abi/s8_interop_cases.py --check
@@ -35,8 +35,8 @@ from diff import engine  # noqa: E402
 CASE_ID = "TC-ABI-S8-0010"
 CLANG = shutil.which("clang")
 CPREFIX = r"""#include <stdint.h>
-extern int tc_a64_write_scalar(uint64_t tag, uint64_t bits, uint64_t newline);
-static void pi(uint64_t value) { (void)tc_a64_write_scalar(3, value, 1); }
+extern int tc_rt_write_scalar(uint32_t tag, uint32_t newline, uint64_t bits);
+static void pi(uint64_t value) { (void)tc_rt_write_scalar(3, 1, value); }
 static uint64_t db(double value) {
     union { double d; uint64_t u; } bits;
     bits.d = value;

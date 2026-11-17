@@ -215,12 +215,12 @@ def check_artifacts(tmp: Path, failures: list[str]) -> None:
         "_start", "tc_main", "__tc_static_region",
         "__tc_static_region_end", "__tc_static_objects",
         "__tc_static_object_count", "__tc_code_start", "__tc_code_end",
-        "__tc_stack_bottom", "__tc_stack_top", "__tc_a64_checked",
-        "__tc_a64_device_base", "__tc_a64_device_size",
-        "__tc_a64_device_policy", "__tc_a64_heap_base", "__tc_a64_heap_size",
-        "__tc_a64_normal_status", "__tc_a64_trap_status",
-        "__tc_static_shadow", "tc_a64_load", "tc_a64_store",
-        "tc_a64_frame_enter", "tc_a64_frame_leave",
+        "__tc_stack_bottom", "__tc_stack_top", "__tc_rt_checked",
+        "__tc_rt_device_base", "__tc_rt_device_size",
+        "__tc_rt_device_policy", "__tc_rt_heap_base", "__tc_rt_heap_size",
+        "__tc_rt_normal_status", "__tc_rt_trap_status",
+        "__tc_static_shadow", "tc_rt_load", "tc_rt_store",
+        "tc_rt_frame_enter", "tc_rt_frame_leave",
     ):
         if required not in symbols:
             failures.append(f"artifact: missing symbol {required}")
@@ -316,8 +316,8 @@ def check_artifacts(tmp: Path, failures: list[str]) -> None:
         failures.append("artifact: --emit=asm failed")
     else:
         text = asm.read_text(encoding="utf-8")
-        for helper in ("tc_a64_load", "tc_a64_store", "tc_a64_ptradd",
-                       "tc_a64_float_binop", "tc_a64_write_scalar"):
+        for helper in ("tc_rt_load", "tc_rt_store", "tc_rt_ptradd",
+                       "tc_rt_float_binop", "tc_rt_write_scalar"):
             if helper not in text:
                 failures.append(
                     f"artifact: assembly does not reference {helper}")
@@ -335,9 +335,9 @@ def check_artifacts(tmp: Path, failures: list[str]) -> None:
             failures.append("artifact: checked --emit=asm failed")
         else:
             text = checked_asm.read_text(encoding="utf-8")
-            if "__tc_a64_checked:" not in text or ".quad 1" not in text:
+            if "__tc_rt_checked:" not in text or ".quad 1" not in text:
                 failures.append("artifact: checked flag is not emitted")
-            if "bl tc_a64_define" not in text:
+            if "bl tc_rt_define" not in text:
                 failures.append("artifact: checked build lacks define tracking")
 
 

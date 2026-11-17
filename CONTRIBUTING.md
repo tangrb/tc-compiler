@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64 全量后端/工具链、checked build 与全量差分/ABI/一致性/产物套件已实现；freestanding/裸机平台实例与 32 位后端尚未实现。
+感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64 与 W=32 ARM32 全量后端/工具链、freestanding/裸机平台实例、四设备策略、checked build 与全量差分/ABI/一致性/产物套件已实现；RISC-V 等后续目标与可选优化管线尚未实现。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -39,7 +39,7 @@ ctest --test-dir build --output-on-failure
 
 构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。工具支持 `--syntax-only`/`--sem-only`/
 `--static-only` 部分检查；普通 `tc-vm` 调用执行参考 VM（正常退出 0，trap 退出 1），
-普通 `tc-aot` 调用发射 AArch64 汇编，`--emit=obj|elf` 经 clang/lld 生成 ELF 产物，
+普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf` 经 clang/lld 生成 ELF 产物，
 `--checked` 生成 checked build；当前平台实例外的能力显式退出 70 且不发布错误产物。
 AOT 差分/工具链测试需要 `ld.lld` 与 `qemu-system-aarch64`。
 

@@ -1,6 +1,6 @@
 /* TC 0.0.46 target-to-toolchain mapping (design §10.2/§11).
  *
- * The backend emits AArch64 assembly; this table selects the clang target
+ * The backends emit target assembly; this table selects the clang target
  * triple used for the integrated assembler.  Target descriptors remain the
  * single source of truth for word size/ABI; the driver binds exactly one
  * profile per build.

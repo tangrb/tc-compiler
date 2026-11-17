@@ -17,21 +17,75 @@
 #include <unistd.h>
 
 #include "backend/aarch64/emit.h"
+#include "backend/arm32/emit.h"
 #include "backend/common/toolchain.h"
 #include "diagnostic/diagnostic.h"
 
 #ifndef TC_AARCH64_RUNTIME_LIB
 #define TC_AARCH64_RUNTIME_LIB ""
 #endif
+#ifndef TC_AARCH64_BAREMETAL_RUNTIME_LIB
+#define TC_AARCH64_BAREMETAL_RUNTIME_LIB ""
+#endif
+#ifndef TC_ARM32_RUNTIME_LIB
+#define TC_ARM32_RUNTIME_LIB ""
+#endif
 #ifndef TC_AARCH64_LINKER_SCRIPT
 #define TC_AARCH64_LINKER_SCRIPT ""
 #endif
-#ifndef TC_AARCH64_ASSEMBLER
-#define TC_AARCH64_ASSEMBLER "clang"
+#ifndef TC_ARM32_LINKER_SCRIPT
+#define TC_ARM32_LINKER_SCRIPT ""
 #endif
-#ifndef TC_AARCH64_LINKER
-#define TC_AARCH64_LINKER "ld.lld"
+#ifndef TC_TARGET_ASSEMBLER
+#define TC_TARGET_ASSEMBLER "clang"
 #endif
+#ifndef TC_TARGET_LINKER
+#define TC_TARGET_LINKER "ld.lld"
+#endif
+
+/* One supported target/platform-instance binding (design §10.2/§11). */
+typedef struct {
+    const char *name;
+    const char *default_runtime;
+    const char *default_linker_script;
+    const char *linker_emulation;
+    int is_arm32;
+} TcTargetInstance;
+
+static int select_instance(const TcPlatformProfile *profile,
+                           TcTargetInstance *out) {
+    const char *name = profile != NULL && profile->target != NULL
+                           ? profile->target->name
+                           : NULL;
+    if (name == NULL) {
+        return 0;
+    }
+    if (strcmp(name, "aarch64-linux-user") == 0) {
+        out->name = name;
+        out->default_runtime = TC_AARCH64_RUNTIME_LIB;
+        out->default_linker_script = TC_AARCH64_LINKER_SCRIPT;
+        out->linker_emulation = "aarch64elf";
+        out->is_arm32 = 0;
+        return 1;
+    }
+    if (strcmp(name, "aarch64-baremetal") == 0) {
+        out->name = name;
+        out->default_runtime = TC_AARCH64_BAREMETAL_RUNTIME_LIB;
+        out->default_linker_script = TC_AARCH64_LINKER_SCRIPT;
+        out->linker_emulation = "aarch64elf";
+        out->is_arm32 = 0;
+        return 1;
+    }
+    if (strcmp(name, "arm32-baremetal") == 0) {
+        out->name = name;
+        out->default_runtime = TC_ARM32_RUNTIME_LIB;
+        out->default_linker_script = TC_ARM32_LINKER_SCRIPT;
+        out->linker_emulation = "armelf";
+        out->is_arm32 = 1;
+        return 1;
+    }
+    return 0;
+}
 
 static int report(TcImplError error, const char *detail) {
     fprintf(stderr, "tc-aot: %s: %s", tc_impl_error_symbol(error),
@@ -128,47 +182,65 @@ static int make_temp(char *path, size_t path_capacity, const char *suffix) {
 
 static int emit_assembly_to(const TcIR *ir,
                             const TcPlatformProfile *profile,
+                            const TcTargetInstance *instance,
                             const char *path, char *error_message,
                             size_t error_capacity, int *is_unsupported) {
     FILE *output_file;
-    TcAArch64EmitStatus status;
+    int unsupported = 0;
+    int io_error = 0;
+    int ok = 0;
     *is_unsupported = 0;
-    output_file = fopen(path, "wb");
+    output_file = path == NULL ? stdout : fopen(path, "wb");
     if (output_file == NULL) {
         return report(TC_IMPL_IO, path);
     }
-    status = tc_aarch64_emit_asm(output_file, ir, profile, profile->target,
-                                 error_message, error_capacity);
-    if (fclose(output_file) != 0) {
+    if (instance->is_arm32) {
+        TcArm32EmitStatus status =
+            tc_arm32_emit_asm(output_file, ir, profile, profile->target,
+                              error_message, error_capacity);
+        unsupported = status == TC_ARM32_EMIT_UNSUPPORTED;
+        io_error = status == TC_ARM32_EMIT_IO;
+        ok = status == TC_ARM32_EMIT_OK;
+    } else {
+        TcAArch64EmitStatus status =
+            tc_aarch64_emit_asm(output_file, ir, profile, profile->target,
+                                error_message, error_capacity);
+        unsupported = status == TC_AARCH64_EMIT_UNSUPPORTED;
+        io_error = status == TC_AARCH64_EMIT_IO;
+        ok = status == TC_AARCH64_EMIT_OK;
+    }
+    if (output_file != stdout && fclose(output_file) != 0) {
         return report(TC_IMPL_IO, path);
     }
-    if (status == TC_AARCH64_EMIT_UNSUPPORTED) {
+    if (unsupported) {
         *is_unsupported = 1;
         return 70;
     }
-    if (status == TC_AARCH64_EMIT_IO) {
+    if (io_error) {
         return report(TC_IMPL_IO,
                       error_message[0] != '\0' ? error_message : NULL);
     }
-    if (status != TC_AARCH64_EMIT_OK) {
+    if (!ok) {
         return report(TC_IMPL_INTERNAL,
                       error_message[0] != '\0' ? error_message : NULL);
     }
     return 0;
 }
 
-static const char *runtime_archive_path(const TcCliOptions *options) {
+static const char *runtime_archive_path(const TcCliOptions *options,
+                                        const TcTargetInstance *instance) {
     if (options->runtime_path != NULL) {
         return options->runtime_path;
     }
-    return TC_AARCH64_RUNTIME_LIB;
+    return instance->default_runtime;
 }
 
-static const char *linker_script_path(const TcCliOptions *options) {
+static const char *linker_script_path(const TcCliOptions *options,
+                                      const TcTargetInstance *instance) {
     if (options->linker_script != NULL) {
         return options->linker_script;
     }
-    return TC_AARCH64_LINKER_SCRIPT;
+    return instance->default_linker_script;
 }
 
 int tc_aot_driver_run(const TcAnalysis *analysis,
@@ -186,14 +258,14 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     const char *assembler;
     const char *linker;
     const char *target_triple;
+    TcTargetInstance instance;
 
     if (analysis == NULL || profile == NULL || options == NULL) {
         return report(TC_IMPL_INTERNAL, "missing AOT driver argument");
     }
-    if (strcmp(profile->target != NULL ? profile->target->name : "",
-               "aarch64-linux-user") != 0) {
+    if (!select_instance(profile, &instance)) {
         return report_unavailable(
-            "the AArch64 backend currently targets the hosted aarch64-linux-user instance only");
+            "no backend/toolchain is bound to the selected target descriptor");
     }
     ir = tc_analysis_ir(analysis);
     if (ir == NULL) {
@@ -206,8 +278,8 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     }
     assembler = options->assembler != NULL
                     ? options->assembler
-                    : TC_AARCH64_ASSEMBLER;
-    linker = options->linker != NULL ? options->linker : TC_AARCH64_LINKER;
+                    : TC_TARGET_ASSEMBLER;
+    linker = options->linker != NULL ? options->linker : TC_TARGET_LINKER;
     target_triple = tc_aot_target_triple(profile->target);
     if (target_triple == NULL) {
         return report_unavailable(
@@ -217,20 +289,16 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     error_message[0] = '\0';
 
     if (strcmp(emit_kind, "asm") == 0 && options->output == NULL) {
-        TcAArch64EmitStatus status =
-            tc_aarch64_emit_asm(stdout, ir, profile, profile->target,
-                                error_message, sizeof(error_message));
-        if (status == TC_AARCH64_EMIT_UNSUPPORTED) {
+        int unsupported = 0;
+        int status = emit_assembly_to(ir, profile, &instance, NULL,
+                                      error_message,
+                                      sizeof(error_message), &unsupported);
+        if (unsupported) {
             return report_unavailable(
                 error_message[0] != '\0' ? error_message : NULL);
         }
-        if (status == TC_AARCH64_EMIT_IO) {
-            return report(TC_IMPL_IO,
-                          error_message[0] != '\0' ? error_message : NULL);
-        }
-        if (status != TC_AARCH64_EMIT_OK) {
-            return report(TC_IMPL_INTERNAL,
-                          error_message[0] != '\0' ? error_message : NULL);
+        if (status != 0) {
+            return status;
         }
         return 0;
     }
@@ -241,8 +309,9 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     if (make_temp(asm_path, sizeof(asm_path), ".s") != 0) {
         return report(TC_IMPL_IO, "cannot create temporary assembly file");
     }
-    exit_status = emit_assembly_to(ir, profile, asm_path, error_message,
-                                   sizeof(error_message), &is_unsupported);
+    exit_status = emit_assembly_to(ir, profile, &instance, asm_path,
+                                   error_message, sizeof(error_message),
+                                   &is_unsupported);
     if (exit_status != 0) {
         if (is_unsupported) {
             unlink(asm_path);
@@ -300,8 +369,9 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
     }
 
     {
-        const char *runtime_archive = runtime_archive_path(options);
-        const char *linker_script = linker_script_path(options);
+        const char *runtime_archive =
+            runtime_archive_path(options, &instance);
+        const char *linker_script = linker_script_path(options, &instance);
         char *argv[20];
         size_t argument_index = 0;
         int status;
@@ -309,13 +379,13 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             access(runtime_archive, R_OK) != 0) {
             unlink(asm_path);
             unlink(obj_path);
-            return report_unavailable("AArch64 runtime archive is unavailable");
+            return report_unavailable("target runtime archive is unavailable");
         }
         if (linker_script == NULL || linker_script[0] == '\0' ||
             access(linker_script, R_OK) != 0) {
             unlink(asm_path);
             unlink(obj_path);
-            return report_unavailable("AArch64 linker script is unavailable");
+            return report_unavailable("target linker script is unavailable");
         }
         if (make_temp(out_path, sizeof(out_path), ".elf") != 0) {
             unlink(asm_path);
@@ -324,7 +394,7 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
         }
         argv[argument_index++] = (char *)linker;
         argv[argument_index++] = "-m";
-        argv[argument_index++] = "aarch64elf";
+        argv[argument_index++] = (char *)instance.linker_emulation;
         argv[argument_index++] = "-static";
         argv[argument_index++] = "-nostdlib";
         /* Standard §3.13.3: distinct function entry addresses; never fold
@@ -343,7 +413,7 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
             unlink(obj_path);
             unlink(out_path);
             return report(TC_IMPL_UNAVAILABLE,
-                          "ld.lld could not link the AArch64 image");
+                          "ld.lld could not link the target image");
         }
         if (copy_file(out_path, options->output) != 0) {
             unlink(asm_path);

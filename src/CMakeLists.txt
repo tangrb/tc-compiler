@@ -24,6 +24,9 @@ add_library(tc_core STATIC
     backend/aarch64/emit.c
     backend/aarch64/emit_abi.c
     backend/aarch64/emit_ops.c
+    backend/arm32/emit.c
+    backend/arm32/emit_abi.c
+    backend/arm32/emit_ops.c
     backend/common/toolchain.c
     # IR representation and shape helpers.
     ir/type.c
@@ -37,6 +40,7 @@ add_library(tc_core STATIC
     runtime/module_loader.c
     runtime/profile.c
     runtime/semantics.c
+    runtime/wide.c
     # Reference VM: memory/objects and interpreter.
     vm/memory.c
     vm/interp.c
@@ -58,82 +62,182 @@ set_target_properties(tc_core PROPERTIES
     C_VISIBILITY_PRESET hidden
     POSITION_INDEPENDENT_CODE OFF)
 
-# Freestanding AArch64 runtime archive used by `tc-aot --emit=obj/elf`.
-# A clang that can target aarch64-none-elf and an archiver that preserves ELF
-# members are required; falling back to the host `ar` silently produces an
-# unusable archive on platforms whose ar only understands Mach-O.
-find_program(TC_AARCH64_CLANG NAMES clang
+# Freestanding target runtimes used by `tc-aot --emit=obj/elf`.
+#
+# A clang that can target aarch64-none-elf / thumbv7em-none-eabihf and an
+# archiver that preserves ELF members are required; falling back to the host
+# `ar` silently produces an unusable archive on platforms whose ar only
+# understands Mach-O.  Each target compiles the shared runtime core and the
+# semantic core once; only the platform seam, startup and (for ARM32) the ARM
+# EABI helpers differ.  ARM32 uses the Cortex-M7 FPv5-D unit with the base
+# AAPCS32 softfp calling convention: float64 values travel in core-register
+# pairs while arithmetic uses the hardware unit.
+find_program(TC_TARGET_CLANG NAMES clang
     HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
-if(NOT TC_AARCH64_CLANG)
+if(NOT TC_TARGET_CLANG)
     message(FATAL_ERROR
-        "clang is required to build the AArch64 freestanding runtime")
+        "clang is required to build the freestanding target runtimes")
 endif()
 find_program(TC_LLVM_ARCHIVER NAMES llvm-ar aarch64-elf-ar
     HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
 if(NOT TC_LLVM_ARCHIVER)
     message(FATAL_ERROR
-        "llvm-ar or aarch64-elf-ar is required to build the AArch64 runtime")
+        "llvm-ar or aarch64-elf-ar is required to build the target runtimes")
 endif()
 find_program(TC_AARCH64_LINKER NAMES ld.lld
     HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin /opt/homebrew/bin)
 if(NOT TC_AARCH64_LINKER)
     set(TC_AARCH64_LINKER "ld.lld")
 endif()
-set(TC_AARCH64_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/aarch64-runtime)
-set(TC_AARCH64_RUNTIME_LIB ${TC_AARCH64_RUNTIME_DIR}/libtc_aarch64_runtime.a)
-set(TC_AARCH64_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/link.ld)
-target_compile_definitions(tc_core PRIVATE
-    TC_AARCH64_RUNTIME_LIB="${TC_AARCH64_RUNTIME_LIB}"
-    TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}"
-    TC_AARCH64_ASSEMBLER="${TC_AARCH64_CLANG}"
-    TC_AARCH64_LINKER="${TC_AARCH64_LINKER}")
-set(TC_AARCH64_RUNTIME_SOURCES
-    backend/aarch64/runtime.c
+
+set(TC_RUNTIME_COMMON_SOURCES
+    backend/common/runtime.c
     runtime/semantics.c
+    runtime/wide.c
     runtime/format.c
     runtime/input.c
     frontend/arena.c
     frontend/num.c
     ir/type.c)
-set(TC_AARCH64_RUNTIME_OBJECTS)
-foreach(source IN LISTS TC_AARCH64_RUNTIME_SOURCES)
-    get_filename_component(name ${source} NAME_WE)
-    set(object ${TC_AARCH64_RUNTIME_DIR}/${name}.o)
+set(TC_RUNTIME_DEPENDENCIES
+    ${CMAKE_CURRENT_SOURCE_DIR}/ir/type.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ir/type_width.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ir/region.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ir/instr.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/base/assert.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/rt_memory.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/wide.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/semantics.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/format.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/input.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/profile.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/common/rt_abi.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/common/rt_platform.h)
+
+function(tc_compile_runtime_objects out_var directory)
+    set(objects)
+    foreach(source IN LISTS TC_RUNTIME_COMMON_SOURCES)
+        get_filename_component(name ${source} NAME_WE)
+        set(object ${directory}/${name}.o)
+        add_custom_command(
+            OUTPUT ${object}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${directory}
+            COMMAND ${TC_TARGET_CLANG} ${ARGN}
+                    -Wall -Wextra -Werror -I ${CMAKE_CURRENT_SOURCE_DIR}
+                    -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                    -o ${object}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                    ${TC_RUNTIME_DEPENDENCIES}
+            COMMENT "Compiling freestanding ${directory} member ${source}"
+            VERBATIM)
+        list(APPEND objects ${object})
+    endforeach()
+    set(${out_var} ${objects} PARENT_SCOPE)
+endfunction()
+
+function(tc_compile_runtime_member out_var object source directory)
     add_custom_command(
         OUTPUT ${object}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${TC_AARCH64_RUNTIME_DIR}
-        COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
-                -nostdlib -O2 -std=c11
-                -fno-vectorize -fno-slp-vectorize -fno-stack-protector
-                -mstrict-align
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${directory}
+        COMMAND ${TC_TARGET_CLANG} ${ARGN}
                 -Wall -Wextra -Werror -I ${CMAKE_CURRENT_SOURCE_DIR}
                 -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
                 -o ${object}
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-                ${CMAKE_CURRENT_SOURCE_DIR}/ir/type.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/ir/type_width.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/ir/region.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/ir/instr.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/base/assert.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic/codes.inc
-                ${CMAKE_CURRENT_SOURCE_DIR}/runtime/rt_memory.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/rt_abi.h
-        COMMENT "Compiling freestanding AArch64 runtime member ${source}"
+                ${TC_RUNTIME_DEPENDENCIES}
+        COMMENT "Compiling freestanding ${directory} member ${source}"
         VERBATIM)
-    list(APPEND TC_AARCH64_RUNTIME_OBJECTS ${object})
-endforeach()
+    set(${out_var} ${object} PARENT_SCOPE)
+endfunction()
+
+set(TC_AARCH64_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/aarch64-runtime)
+set(TC_AARCH64_RUNTIME_LIB ${TC_AARCH64_RUNTIME_DIR}/libtc_aarch64_runtime.a)
+set(TC_AARCH64_BAREMETAL_RUNTIME_LIB
+    ${TC_AARCH64_RUNTIME_DIR}/libtc_aarch64_baremetal_runtime.a)
+set(TC_AARCH64_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/link.ld)
+set(TC_ARM32_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/arm32-runtime)
+set(TC_ARM32_RUNTIME_LIB ${TC_ARM32_RUNTIME_DIR}/libtc_arm32_runtime.a)
+set(TC_ARM32_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/arm32/link.ld)
+target_compile_definitions(tc_core PRIVATE
+    TC_AARCH64_RUNTIME_LIB="${TC_AARCH64_RUNTIME_LIB}"
+    TC_AARCH64_BAREMETAL_RUNTIME_LIB="${TC_AARCH64_BAREMETAL_RUNTIME_LIB}"
+    TC_ARM32_RUNTIME_LIB="${TC_ARM32_RUNTIME_LIB}"
+    TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}"
+    TC_ARM32_LINKER_SCRIPT="${TC_ARM32_LINKER_SCRIPT}"
+    TC_TARGET_ASSEMBLER="${TC_TARGET_CLANG}"
+    TC_TARGET_LINKER="${TC_AARCH64_LINKER}")
+
+set(TC_AARCH64_FLAGS
+    -target aarch64-none-elf -ffreestanding -nostdlib -O2 -std=c11
+    -ffp-contract=off -fno-vectorize -fno-slp-vectorize
+    -fno-stack-protector -mstrict-align)
+tc_compile_runtime_objects(TC_AARCH64_COMMON_OBJECTS
+    ${TC_AARCH64_RUNTIME_DIR}/common ${TC_AARCH64_FLAGS})
+tc_compile_runtime_member(TC_AARCH64_SEMIHOST_PLATFORM
+    ${TC_AARCH64_RUNTIME_DIR}/platform_semihost.o
+    backend/aarch64/platform_semihost.c ${TC_AARCH64_RUNTIME_DIR}/common
+    ${TC_AARCH64_FLAGS})
+tc_compile_runtime_member(TC_AARCH64_BAREMETAL_PLATFORM
+    ${TC_AARCH64_RUNTIME_DIR}/platform_baremetal.o
+    backend/aarch64/platform_baremetal.c ${TC_AARCH64_RUNTIME_DIR}/common
+    ${TC_AARCH64_FLAGS})
+tc_compile_runtime_member(TC_AARCH64_START
+    ${TC_AARCH64_RUNTIME_DIR}/start.o backend/aarch64/start.S
+    ${TC_AARCH64_RUNTIME_DIR}/common ${TC_AARCH64_FLAGS})
 add_custom_command(
     OUTPUT ${TC_AARCH64_RUNTIME_LIB}
-    COMMAND ${TC_AARCH64_CLANG} -target aarch64-none-elf -ffreestanding
-            -nostdlib -c ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
-            -o ${TC_AARCH64_RUNTIME_DIR}/start.o
     COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_AARCH64_RUNTIME_LIB}
-            ${TC_AARCH64_RUNTIME_OBJECTS} ${TC_AARCH64_RUNTIME_DIR}/start.o
-    DEPENDS ${TC_AARCH64_RUNTIME_OBJECTS}
-            ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/start.S
-    COMMENT "Building AArch64 freestanding runtime archive"
+            ${TC_AARCH64_COMMON_OBJECTS} ${TC_AARCH64_SEMIHOST_PLATFORM}
+            ${TC_AARCH64_START}
+    DEPENDS ${TC_AARCH64_COMMON_OBJECTS} ${TC_AARCH64_SEMIHOST_PLATFORM}
+            ${TC_AARCH64_START}
+    COMMENT "Building AArch64 semihosting runtime archive"
     VERBATIM)
-add_custom_target(tc_aarch64_runtime ALL DEPENDS ${TC_AARCH64_RUNTIME_LIB})
+add_custom_command(
+    OUTPUT ${TC_AARCH64_BAREMETAL_RUNTIME_LIB}
+    COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_AARCH64_BAREMETAL_RUNTIME_LIB}
+            ${TC_AARCH64_COMMON_OBJECTS} ${TC_AARCH64_BAREMETAL_PLATFORM}
+            ${TC_AARCH64_START}
+    DEPENDS ${TC_AARCH64_COMMON_OBJECTS} ${TC_AARCH64_BAREMETAL_PLATFORM}
+            ${TC_AARCH64_START}
+    COMMENT "Building AArch64 bare-metal runtime archive"
+    VERBATIM)
+add_custom_target(tc_aarch64_runtime ALL
+    DEPENDS ${TC_AARCH64_RUNTIME_LIB} ${TC_AARCH64_BAREMETAL_RUNTIME_LIB})
+
+set(TC_ARM32_FLAGS
+    -target thumbv7em-none-eabihf -mcpu=cortex-m7 -mfloat-abi=softfp
+    -mfpu=fpv5-d16 -ffreestanding -nostdlib -O2 -std=c11
+    -ffp-contract=off -fno-vectorize -fno-slp-vectorize
+    -fno-stack-protector)
+tc_compile_runtime_objects(TC_ARM32_COMMON_OBJECTS
+    ${TC_ARM32_RUNTIME_DIR}/common ${TC_ARM32_FLAGS})
+tc_compile_runtime_member(TC_ARM32_PLATFORM
+    ${TC_ARM32_RUNTIME_DIR}/platform_mps2.o backend/arm32/platform_mps2.c
+    ${TC_ARM32_RUNTIME_DIR}/common ${TC_ARM32_FLAGS})
+tc_compile_runtime_member(TC_ARM32_AEABI
+    ${TC_ARM32_RUNTIME_DIR}/aeabi.o backend/arm32/aeabi.c
+    ${TC_ARM32_RUNTIME_DIR}/common ${TC_ARM32_FLAGS})
+tc_compile_runtime_member(TC_ARM32_HELPERS
+    ${TC_ARM32_RUNTIME_DIR}/rt_helpers.o backend/arm32/rt_helpers.c
+    ${TC_ARM32_RUNTIME_DIR}/common ${TC_ARM32_FLAGS})
+tc_compile_runtime_member(TC_ARM32_AEABI_GLUE
+    ${TC_ARM32_RUNTIME_DIR}/aeabi_glue.o backend/arm32/aeabi_glue.S
+    ${TC_ARM32_RUNTIME_DIR}/common ${TC_ARM32_FLAGS})
+tc_compile_runtime_member(TC_ARM32_START
+    ${TC_ARM32_RUNTIME_DIR}/start.o backend/arm32/start.S
+    ${TC_ARM32_RUNTIME_DIR}/common ${TC_ARM32_FLAGS})
+add_custom_command(
+    OUTPUT ${TC_ARM32_RUNTIME_LIB}
+    COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_ARM32_RUNTIME_LIB}
+            ${TC_ARM32_COMMON_OBJECTS} ${TC_ARM32_PLATFORM} ${TC_ARM32_AEABI}
+            ${TC_ARM32_HELPERS} ${TC_ARM32_AEABI_GLUE} ${TC_ARM32_START}
+    DEPENDS ${TC_ARM32_COMMON_OBJECTS} ${TC_ARM32_PLATFORM} ${TC_ARM32_AEABI}
+            ${TC_ARM32_HELPERS} ${TC_ARM32_AEABI_GLUE} ${TC_ARM32_START}
+    COMMENT "Building ARM32 freestanding runtime archive"
+    VERBATIM)
+add_custom_target(tc_arm32_runtime ALL DEPENDS ${TC_ARM32_RUNTIME_LIB})
 
 add_subdirectory(driver)

@@ -59,6 +59,7 @@ the completed contract/LEX/SYN/IMPORT/SEM, S4 CFG/DI/call/safety/annotation, S5
 CT/IR requirements, S6 VM/runtime requirements and the S7 differential/ABI
 requirements (all 80 codes, all 155 opcode slots including per-opcode static
 shape errors, device policy, I/O source states, exit branches and design §12
-items 1/3/5/7/8/14/15 and S8 items 1/2/5/7/8/10/12/14/15); design §12
-item 4 is evidenced by the freestanding compile/symbol audit.  Stage detail lives in the generated coverage report; gate
+items 1/3/4/5/6/7/8/10/12/14/15); S9 adds the freestanding bare-metal
+platform, ARM32 differential/ABI, 32/64 profile isolation and zero-pass
+evidence.  Stage detail lives in the generated coverage report; gate
 conclusions are in [docs/gates/README.md](../../docs/gates/README.md).

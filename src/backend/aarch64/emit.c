@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "backend/aarch64/rt_abi.h"
+#include "backend/common/rt_abi.h"
 #include "diagnostic/diagnostic.h"
 #include "runtime/trap.h"
 
@@ -398,7 +398,7 @@ void tc_a64_trap(TcA64Emitter *emitter, const TcSpan *span, TcErrorKind kind) {
                  "  add x3, x3, :lo12:.Lsource_file_%zu\n"
                  "  bl %s\n"
                  "  brk #0\n",
-                 index, index, TC_A64_SYM_TRAP);
+                 index, index, TC_RT_SYM_TRAP);
 }
 
 /* Emit the line, column and file arguments for helper register `first`. */
@@ -709,7 +709,7 @@ void tc_a64_define_range(TcA64Emitter *emitter, unsigned address_reg,
         tc_a64_write(emitter, "  mov x0, x%u\n", address_reg);
     }
     tc_a64_move_immediate(emitter, 1u, size);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_DEFINE);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_DEFINE);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1194,7 +1194,7 @@ static void emit_epilogue(TcA64Emitter *emitter, size_t unit_index) {
                           "  ldp x19, x20, [sp], #16\n"
                           "  ldp x29, x30, [sp], #16\n"
                           "  ret\n",
-                 TC_A64_SYM_FRAME_LEAVE);
+                 TC_RT_SYM_FRAME_LEAVE);
 }
 
 static void emit_unit(TcA64Emitter *emitter, const TcUnit *unit,
@@ -1249,7 +1249,7 @@ static void emit_unit(TcA64Emitter *emitter, const TcUnit *unit,
     tc_a64_write(emitter, "  mov x19, sp\n"
                           "  adrp x20, %s\n"
                           "  add x20, x20, :lo12:%s\n",
-                 TC_A64_SYM_STATIC_START, TC_A64_SYM_STATIC_START);
+                 TC_RT_SYM_STATIC_START, TC_RT_SYM_STATIC_START);
     if (emitter->sret_offset != 0) {
         tc_a64_store_bits(emitter, 19u, emitter->sret_offset, 8u, 8u);
     }
@@ -1261,7 +1261,7 @@ static void emit_unit(TcA64Emitter *emitter, const TcUnit *unit,
         }
     }
     if (unit->func_id == TC_UNIT_TOP_LEVEL) {
-        tc_a64_emit_call0(emitter, TC_A64_SYM_PROGRAM_INIT);
+        tc_a64_emit_call0(emitter, TC_RT_SYM_PROGRAM_INIT);
     }
     tc_a64_write(emitter, "  adrp x0, .Lunit_objs_%zu\n"
                           "  add x0, x0, :lo12:.Lunit_objs_%zu\n",
@@ -1276,7 +1276,7 @@ static void emit_unit(TcA64Emitter *emitter, const TcUnit *unit,
         tc_a64_move_immediate(emitter, 4u, 0u);
         tc_a64_move_immediate(emitter, 5u, 0u);
     }
-    tc_a64_emit_call0(emitter, TC_A64_SYM_FRAME_ENTER);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_FRAME_ENTER);
     if (emitter->profile->checked_build && func != NULL) {
         size_t p;
         for (p = 0; p < func->sig.nparams; p++) {
@@ -1318,15 +1318,15 @@ static void emit_unit(TcA64Emitter *emitter, const TcUnit *unit,
 /* ------------------------------------------------------------------------- */
 
 typedef struct {
-    TcA64ObjectDesc *items;
+    TcRtObjectDesc *items;
     size_t count;
     size_t capacity;
 } TcA64DescList;
 
-static int desc_push(TcA64DescList *list, TcA64ObjectDesc desc) {
+static int desc_push(TcA64DescList *list, TcRtObjectDesc desc) {
     if (list->count == list->capacity) {
         size_t capacity = list->capacity == 0 ? 16u : list->capacity * 2u;
-        TcA64ObjectDesc *items = (TcA64ObjectDesc *)realloc(
+        TcRtObjectDesc *items = (TcRtObjectDesc *)realloc(
             list->items, capacity * sizeof(*items));
         if (items == NULL) {
             return 0;
@@ -1349,7 +1349,7 @@ static int add_field_descs(TcA64Emitter *emitter, TcA64DescList *list,
         const TcField *field = &def->fields[i];
         int ok = 0;
         uint64_t size = tc_a64_type_size(emitter->ir, field->type, &ok);
-        TcA64ObjectDesc desc;
+        TcRtObjectDesc desc;
         if (!ok) {
             tc_a64_error(emitter, "field %u has an incomplete type",
                          (unsigned)i);
@@ -1358,7 +1358,7 @@ static int add_field_descs(TcA64Emitter *emitter, TcA64DescList *list,
         desc.offset = offset + field->offset;
         desc.size = size;
         desc.type_id = tc_a64_type_id(emitter, field->type);
-        desc.flags = writable ? TC_A64_OBJECT_WRITABLE : 0;
+        desc.flags = writable ? TC_RT_OBJECT_WRITABLE : 0;
         if (!desc_push(list, desc)) {
             tc_a64_error(emitter, "out of memory while building descriptors");
             return 0;
@@ -1379,7 +1379,7 @@ static void emit_unit_descriptors(TcA64Emitter *emitter, const TcUnit *unit,
     for (v = 0; v < unit->nvregs; v++) {
         uint32_t object_id;
         const TcObject *object;
-        TcA64ObjectDesc desc;
+        TcRtObjectDesc desc;
         if (unit->vreg_objects == NULL || v >= unit->nvreg_objects) {
             continue;
         }
@@ -1409,7 +1409,7 @@ static void emit_unit_descriptors(TcA64Emitter *emitter, const TcUnit *unit,
         desc.offset = object->offset;
         desc.size = object->size;
         desc.type_id = tc_a64_type_id(emitter, object->type);
-        desc.flags = object->writable ? TC_A64_OBJECT_WRITABLE : 0;
+        desc.flags = object->writable ? TC_RT_OBJECT_WRITABLE : 0;
         if (!desc_push(&list, desc)) {
             tc_a64_error(emitter, "out of memory while building descriptors");
             break;
@@ -1491,8 +1491,8 @@ static int emit_static_region(TcA64Emitter *emitter) {
                           "  .globl %s\n"
                           "  .type %s, %%object\n"
                           "%s:\n",
-                 TC_A64_SYM_STATIC_START, TC_A64_SYM_STATIC_START,
-                 TC_A64_SYM_STATIC_START);
+                 TC_RT_SYM_STATIC_START, TC_RT_SYM_STATIC_START,
+                 TC_RT_SYM_STATIC_START);
     pos = 0;
     while (pos < size) {
         uint64_t run = 0;
@@ -1511,20 +1511,20 @@ static int emit_static_region(TcA64Emitter *emitter) {
         tc_a64_write(emitter, "  .byte 0\n");
     }
     tc_a64_write(emitter, "  .globl %s\n%s:\n",
-                 TC_A64_SYM_STATIC_END, TC_A64_SYM_STATIC_END);
+                 TC_RT_SYM_STATIC_END, TC_RT_SYM_STATIC_END);
     free(bytes);
     memset(&list, 0, sizeof(list));
     for (i = 0; i < emitter->ir->nobjects; i++) {
         const TcObject *object = &emitter->ir->objects[i];
-        TcA64ObjectDesc desc;
+        TcRtObjectDesc desc;
         if (object->region != TC_REG_STATIC) {
             continue;
         }
         desc.offset = object->offset;
         desc.size = object->size;
         desc.type_id = tc_a64_type_id(emitter, object->type);
-        desc.flags = (object->writable ? TC_A64_OBJECT_WRITABLE : 0) |
-                     (object->init != NULL ? TC_A64_OBJECT_HAS_INIT : 0);
+        desc.flags = (object->writable ? TC_RT_OBJECT_WRITABLE : 0) |
+                     (object->init != NULL ? TC_RT_OBJECT_HAS_INIT : 0);
         if (!desc_push(&list, desc)) {
             tc_a64_error(emitter, "out of memory");
             return 0;
@@ -1536,7 +1536,7 @@ static int emit_static_region(TcA64Emitter *emitter) {
     }
     tc_a64_write(emitter, "  .section .rodata\n  .p2align 3\n"
                           "  .globl %s\n%s:\n",
-                 TC_A64_SYM_STATIC_OBJECTS, TC_A64_SYM_STATIC_OBJECTS);
+                 TC_RT_SYM_STATIC_OBJECTS, TC_RT_SYM_STATIC_OBJECTS);
     if (list.count == 0) {
         tc_a64_write(emitter, "  .quad 0\n  .quad 0\n  .long 0\n  .long 0\n");
     } else {
@@ -1550,8 +1550,8 @@ static int emit_static_region(TcA64Emitter *emitter) {
         }
     }
     tc_a64_write(emitter, "  .p2align 3\n  .globl %s\n%s:\n  .quad %llu\n",
-                 TC_A64_SYM_STATIC_OBJECT_COUNT,
-                 TC_A64_SYM_STATIC_OBJECT_COUNT,
+                 TC_RT_SYM_STATIC_OBJECT_COUNT,
+                 TC_RT_SYM_STATIC_OBJECT_COUNT,
                  (unsigned long long)list.count);
     free(list.items);
     return 1;
@@ -1573,21 +1573,21 @@ static void emit_platform_constants(TcA64Emitter *emitter) {
                  "  .globl %s\n%s:\n  .quad %llu\n"
                  "  .globl %s\n%s:\n  .quad %llu\n"
                  "  .globl %s\n%s:\n  .quad %llu\n",
-                 TC_A64_SYM_DEVICE_BASE, TC_A64_SYM_DEVICE_BASE,
+                 TC_RT_SYM_DEVICE_BASE, TC_RT_SYM_DEVICE_BASE,
                  (unsigned long long)emitter->profile->region[TC_REG_DEVICE].base,
-                 TC_A64_SYM_DEVICE_SIZE, TC_A64_SYM_DEVICE_SIZE,
+                 TC_RT_SYM_DEVICE_SIZE, TC_RT_SYM_DEVICE_SIZE,
                  (unsigned long long)emitter->profile->region[TC_REG_DEVICE].size,
-                 TC_A64_SYM_DEVICE_POLICY, TC_A64_SYM_DEVICE_POLICY,
+                 TC_RT_SYM_DEVICE_POLICY, TC_RT_SYM_DEVICE_POLICY,
                  (unsigned long long)emitter->profile->device,
-                 TC_A64_SYM_HEAP_BASE, TC_A64_SYM_HEAP_BASE,
+                 TC_RT_SYM_HEAP_BASE, TC_RT_SYM_HEAP_BASE,
                  (unsigned long long)emitter->profile->region[TC_REG_HEAP].base,
-                 TC_A64_SYM_HEAP_SIZE, TC_A64_SYM_HEAP_SIZE,
+                 TC_RT_SYM_HEAP_SIZE, TC_RT_SYM_HEAP_SIZE,
                  (unsigned long long)emitter->profile->region[TC_REG_HEAP].size,
-                 TC_A64_SYM_CHECKED, TC_A64_SYM_CHECKED,
+                 TC_RT_SYM_CHECKED, TC_RT_SYM_CHECKED,
                  (unsigned long long)(emitter->profile->checked_build ? 1u : 0u),
-                 TC_A64_SYM_NORMAL_STATUS, TC_A64_SYM_NORMAL_STATUS,
+                 TC_RT_SYM_NORMAL_STATUS, TC_RT_SYM_NORMAL_STATUS,
                  (unsigned long long)(emitter->profile->exit.normal_status),
-                 TC_A64_SYM_TRAP_STATUS, TC_A64_SYM_TRAP_STATUS,
+                 TC_RT_SYM_TRAP_STATUS, TC_RT_SYM_TRAP_STATUS,
                  (unsigned long long)(emitter->profile->exit.trap_status));
 }
 
@@ -1607,7 +1607,7 @@ static void emit_static_shadow(TcA64Emitter *emitter) {
     tc_a64_write(emitter,
                  "\n  .bss\n  .p2align 3\n"
                  "  .globl %s\n%s:\n  .zero %llu\n",
-                 TC_A64_SYM_STATIC_SHADOW, TC_A64_SYM_STATIC_SHADOW,
+                 TC_RT_SYM_STATIC_SHADOW, TC_RT_SYM_STATIC_SHADOW,
                  (unsigned long long)size);
 }
 
@@ -1655,9 +1655,12 @@ static int preflight_ir(TcA64Emitter *emitter) {
                      "profile");
         return 0;
     }
-    if (emitter->profile->device != TC_DEV_REJECT) {
-        /* The hosted semihosting platform instance maps no device memory;
-         * a non-reject policy needs a freestanding device instance. */
+    if (emitter->profile->target != NULL &&
+        emitter->profile->target->name != NULL &&
+        strcmp(emitter->profile->target->name, "aarch64-linux-user") == 0 &&
+        emitter->profile->device != TC_DEV_REJECT) {
+        /* The hosted semihosting platform instance maps no device memory; a
+         * non-reject policy needs the freestanding device instance. */
         tc_a64_error(emitter,
                      "the hosted AArch64 platform instance requires the "
                      "TC_DEV_REJECT device policy");

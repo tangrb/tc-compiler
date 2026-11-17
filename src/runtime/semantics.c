@@ -14,6 +14,7 @@
 #include <float.h>
 
 #include "runtime/rt_memory.h"
+#include "runtime/wide.h"
 
 #if defined(FLT_EVAL_METHOD) && FLT_EVAL_METHOD != 0
 #error "TC floating semantics require FLT_EVAL_METHOD == 0"
@@ -213,13 +214,14 @@ static int integer_binop(unsigned W, const TcType *type, TcOpcode op,
                 }
                 *out = (((uint64_t)sa) << count) & mask;
             } else {
-                unsigned __int128 uproduct =
-                    ((unsigned __int128)ua) << count;
-                if (uproduct > (unsigned __int128)mask) {
+                TcWide uproduct;
+                if (!tc_wide_shl_checked(tc_wide_from_u64(ua), count,
+                                         &uproduct) ||
+                    tc_wide_gt_u64(uproduct, mask)) {
                     *trap = TC_EK_INTEGER_OVERFLOW;
                     return 0;
                 }
-                *out = (uint64_t)uproduct & mask;
+                *out = tc_wide_low_u64(uproduct) & mask;
             }
         }
         return 1;
@@ -349,6 +351,8 @@ int tc_sem_int_unop(unsigned W, const TcType *type, TcOpcode op, TcOpMode mode,
 /* IEEE-754 helpers.                                                         */
 /* ------------------------------------------------------------------------- */
 
+static int tc_bit_length64(uint64_t value);
+
 static float f32_from_bits(uint64_t bits) {
     uint32_t raw = (uint32_t)bits;
     float value;
@@ -372,6 +376,83 @@ static uint64_t f64_to_bits(double value) {
     uint64_t raw;
     tc_rt_memcpy(&raw, &value, sizeof(raw));
     return raw;
+}
+
+/* Round `value / 2^shift` to an integer, ties to even.  Used by the exact
+ * integer-to-floating conversions so a 32-bit target never needs a compiler
+ * runtime helper for 64-bit integer conversion. */
+static uint64_t round_shift_ties_even(uint64_t value, unsigned shift) {
+    uint64_t quotient;
+    uint64_t remainder;
+    uint64_t half;
+    if (shift == 0u) {
+        return value;
+    }
+    if (shift >= 64u) {
+        if (shift == 64u && value > (UINT64_C(1) << 63)) {
+            return 1;
+        }
+        return 0;
+    }
+    quotient = value >> shift;
+    remainder = value & ((UINT64_C(1) << shift) - 1u);
+    half = UINT64_C(1) << (shift - 1u);
+    if (remainder > half || (remainder == half && (quotient & 1u) != 0u)) {
+        quotient++;
+    }
+    return quotient;
+}
+
+/* Exact integer-to-binary64 conversion.  All uint64 magnitudes convert to a
+ * normal binary64 value, so only the significand needs rounding. */
+static uint64_t int_to_f64_bits(uint64_t magnitude, int negative) {
+    uint64_t sign = negative ? (UINT64_C(1) << 63) : 0;
+    unsigned bits;
+    int exponent;
+    uint64_t significand;
+    if (magnitude == 0) {
+        return sign;
+    }
+    bits = (unsigned)tc_bit_length64(magnitude);
+    exponent = (int)bits - 1;
+    if (bits <= 53u) {
+        significand = magnitude << (53u - bits);
+    } else {
+        unsigned shift = bits - 53u;
+        significand = round_shift_ties_even(magnitude, shift);
+        if (significand == (UINT64_C(1) << 53)) {
+            significand >>= 1;
+            exponent++;
+        }
+    }
+    return sign | ((uint64_t)(exponent + 1023) << 52) |
+           (significand & UINT64_C(0xfffffffffffff));
+}
+
+/* Exact integer-to-binary32 conversion (uint64 magnitudes stay far below the
+ * binary32 overflow threshold). */
+static uint64_t int_to_f32_bits(uint64_t magnitude, int negative) {
+    uint64_t sign = negative ? (UINT64_C(1) << 31) : 0;
+    unsigned bits;
+    int exponent;
+    uint64_t significand;
+    if (magnitude == 0) {
+        return sign;
+    }
+    bits = (unsigned)tc_bit_length64(magnitude);
+    exponent = (int)bits - 1;
+    if (bits <= 24u) {
+        significand = magnitude << (24u - bits);
+    } else {
+        unsigned shift = bits - 24u;
+        significand = round_shift_ties_even(magnitude, shift);
+        if (significand == (UINT64_C(1) << 24)) {
+            significand >>= 1;
+            exponent++;
+        }
+    }
+    return sign | ((uint64_t)(exponent + 127) << 23) |
+           (significand & UINT64_C(0x7fffff));
 }
 
 uint64_t tc_sem_nan_bits(unsigned width) {
@@ -582,76 +663,59 @@ static int fp_parts(uint64_t bits, unsigned width, TcFpParts *out) {
     return 0;
 }
 
-static int u128_shl_checked(unsigned __int128 value, unsigned shift,
-                            unsigned __int128 *out) {
-    unsigned __int128 limit;
-    if (shift >= 128u) {
-        if (value == 0) {
-            *out = 0;
-            return 1;
-        }
-        return 0;
-    }
-    limit = ~((unsigned __int128)0) >> shift;
-    if (value > limit) {
-        return 0;
-    }
-    *out = value << shift;
-    return 1;
-}
-
-static int u128_equal_u64(unsigned __int128 value, uint64_t other) {
-    return value == (unsigned __int128)other;
+static int wide_shl_checked(TcWide value, unsigned shift,
+                                 TcWide *out) {
+    return tc_wide_shl_checked(value, shift, out);
 }
 
 /* Whether subnormal result r of mul(a,b) is the exact product. */
 static int mul_subnormal_exact(const TcFpParts *a, const TcFpParts *b,
                                const TcFpParts *r) {
-    unsigned __int128 product;
-    unsigned __int128 shifted;
+    TcWide product;
+    TcWide shifted;
     long diff;
     if (a->is_nan || b->is_nan || a->is_inf || b->is_inf || a->is_zero ||
         b->is_zero || !r->is_subnormal) {
         return 0;
     }
-    product = (unsigned __int128)a->mantissa * b->mantissa;
+    product = tc_wide_mul_u64(a->mantissa, b->mantissa);
     diff = (long)a->scale + (long)b->scale - (long)r->scale;
     if (diff >= 0) {
-        if (!u128_shl_checked(product, (unsigned)diff, &shifted)) {
+        if (!wide_shl_checked(product, (unsigned)diff, &shifted)) {
             return 0;
         }
-        return u128_equal_u64(shifted, r->mantissa);
+        return tc_wide_eq_u64(shifted, r->mantissa);
     }
-    if (!u128_shl_checked((unsigned __int128)r->mantissa,
-                          (unsigned)(-diff), &shifted)) {
+    if (!wide_shl_checked(tc_wide_from_u64(r->mantissa),
+                               (unsigned)(-diff), &shifted)) {
         return 0;
     }
-    return product == shifted;
+    return tc_wide_cmp(product, shifted) == 0;
 }
 
 /* Whether subnormal result r of div(a,b) is the exact quotient. */
 static int div_subnormal_exact(const TcFpParts *a, const TcFpParts *b,
                                const TcFpParts *r) {
-    unsigned __int128 product;
-    unsigned __int128 shifted;
+    TcWide product;
+    TcWide shifted;
     long diff;
     if (a->is_nan || b->is_nan || a->is_inf || b->is_inf || a->is_zero ||
         b->is_zero || !r->is_subnormal) {
         return 0;
     }
-    product = (unsigned __int128)r->mantissa * b->mantissa;
+    product = tc_wide_mul_u64(r->mantissa, b->mantissa);
     diff = (long)r->scale + (long)b->scale - (long)a->scale;
     if (diff >= 0) {
-        if (!u128_shl_checked(product, (unsigned)diff, &shifted)) {
+        if (!wide_shl_checked(product, (unsigned)diff, &shifted)) {
             return 0;
         }
-        return u128_equal_u64(shifted, a->mantissa);
+        return tc_wide_eq_u64(shifted, a->mantissa);
     }
-    if (!u128_shl_checked((unsigned __int128)a->mantissa,
-                          (unsigned)(-diff), &shifted)) {
+    if (!wide_shl_checked(tc_wide_from_u64(a->mantissa),
+                               (unsigned)(-diff), &shifted)) {
         return 0;
     }
-    return product == shifted;
+    return tc_wide_cmp(product, shifted) == 0;
 }
 
 /* Whether result r of add/sub is the exact mathematical sum.  The exact result
@@ -664,9 +728,9 @@ static int add_sub_exact(const TcFpParts *a, const TcFpParts *b, int subtract,
     long common;
     unsigned da;
     unsigned db;
-    unsigned __int128 ma;
-    unsigned __int128 mb;
-    unsigned __int128 magnitude;
+    TcWide ma;
+    TcWide mb;
+    TcWide magnitude;
     long diff;
 
     if (a->is_nan || b->is_nan || a->is_inf || b->is_inf) {
@@ -690,29 +754,28 @@ static int add_sub_exact(const TcFpParts *a, const TcFpParts *b, int subtract,
     common = ea < eb ? ea : eb;
     da = (unsigned)(ea - common);
     db = (unsigned)(eb - common);
-    if (!u128_shl_checked((unsigned __int128)a->mantissa, da, &ma) ||
-        !u128_shl_checked((unsigned __int128)b->mantissa, db, &mb)) {
+    if (!wide_shl_checked(tc_wide_from_u64(a->mantissa), da, &ma) ||
+        !wide_shl_checked(tc_wide_from_u64(b->mantissa), db, &mb)) {
         return 0;
     }
     {
         int sign_b = subtract ? !b->sign : b->sign;
         if (a->sign == sign_b) {
-            if (ma > (unsigned __int128)~((unsigned __int128)0) - mb) {
+            if (!tc_wide_add_checked(ma, mb, &magnitude)) {
                 return 0;
             }
-            magnitude = ma + mb;
             if (r->mantissa == 0 || r->sign != a->sign) {
                 return 0;
             }
-        } else if (ma == mb) {
+        } else if (tc_wide_cmp(ma, mb) == 0) {
             return r->mantissa == 0;
-        } else if (ma > mb) {
-            magnitude = ma - mb;
+        } else if (tc_wide_cmp(ma, mb) > 0) {
+            magnitude = tc_wide_sub(ma, mb);
             if (r->mantissa == 0 || r->sign != a->sign) {
                 return 0;
             }
         } else {
-            magnitude = mb - ma;
+            magnitude = tc_wide_sub(mb, ma);
             if (r->mantissa == 0 || r->sign != sign_b) {
                 return 0;
             }
@@ -720,19 +783,19 @@ static int add_sub_exact(const TcFpParts *a, const TcFpParts *b, int subtract,
     }
     diff = (long)common - (long)r->scale;
     if (diff >= 0) {
-        unsigned __int128 shifted;
-        if (!u128_shl_checked(magnitude, (unsigned)diff, &shifted)) {
+        TcWide shifted;
+        if (!wide_shl_checked(magnitude, (unsigned)diff, &shifted)) {
             return 0;
         }
-        return u128_equal_u64(shifted, r->mantissa);
+        return tc_wide_eq_u64(shifted, r->mantissa);
     }
     {
-        unsigned __int128 shifted;
-        if (!u128_shl_checked((unsigned __int128)r->mantissa,
-                              (unsigned)(-diff), &shifted)) {
+        TcWide shifted;
+        if (!wide_shl_checked(tc_wide_from_u64(r->mantissa),
+                                   (unsigned)(-diff), &shifted)) {
             return 0;
         }
-        return magnitude == shifted;
+        return tc_wide_cmp(magnitude, shifted) == 0;
     }
 }
 
@@ -1045,8 +1108,8 @@ static int float_to_int(unsigned W, uint64_t bits, unsigned source_width,
                         const TcType *target, uint64_t *out) {
     TcFpParts parts;
     unsigned width = tc_sem_type_width(target, W);
-    unsigned __int128 magnitude;
-    unsigned __int128 limit;
+    TcWide magnitude;
+    TcWide limit;
 
     if (!fp_parts(bits, source_width, &parts) || parts.is_nan || parts.is_inf ||
         width == 0 || width > 64u) {
@@ -1058,43 +1121,39 @@ static int float_to_int(unsigned W, uint64_t bits, unsigned source_width,
     }
     if (parts.scale >= 0) {
         unsigned shift = (unsigned)parts.scale;
-        unsigned __int128 shifted;
-        if (shift >= 128u ||
-            !u128_shl_checked((unsigned __int128)parts.mantissa, shift,
-                              &shifted)) {
+        if (!tc_wide_shl_checked(tc_wide_from_u64(parts.mantissa), shift,
+                                 &magnitude)) {
             return 0;
         }
-        magnitude = shifted;
     } else {
         unsigned shift = (unsigned)(-parts.scale);
-        magnitude = shift >= 64u
-                        ? 0
-                        : ((unsigned __int128)(parts.mantissa >> shift));
+        magnitude = tc_wide_from_u64(shift >= 64u
+                                         ? 0
+                                         : (parts.mantissa >> shift));
     }
     if (tc_type_is_signed_integer(target)) {
-        limit = (unsigned __int128)1 << (width - 1u);
+        limit = tc_wide_from_u64(UINT64_C(1) << (width - 1u));
         if (parts.sign) {
-            if (magnitude > limit) {
+            if (tc_wide_cmp(magnitude, limit) > 0) {
                 return 0;
             }
-        } else if (magnitude >= limit) {
+        } else if (tc_wide_cmp(magnitude, limit) >= 0) {
             return 0;
         }
-        *out = ((uint64_t)magnitude) & low_mask(width);
-        if (parts.sign && magnitude != 0) {
+        *out = tc_wide_low_u64(magnitude) & low_mask(width);
+        if (parts.sign && tc_wide_cmp(magnitude, tc_wide_from_u64(0)) != 0) {
             *out = (UINT64_C(0) - *out) & low_mask(width);
         }
         return 1;
     }
-    if (parts.sign && magnitude != 0) {
+    if (parts.sign && tc_wide_cmp(magnitude, tc_wide_from_u64(0)) != 0) {
         return 0;
     }
-    limit = width >= 64u ? (unsigned __int128)UINT64_MAX
-                         : (unsigned __int128)low_mask(width);
-    if (magnitude > limit) {
+    limit = tc_wide_from_u64(width >= 64u ? UINT64_MAX : low_mask(width));
+    if (tc_wide_cmp(magnitude, limit) > 0) {
         return 0;
     }
-    *out = (uint64_t)magnitude & low_mask(width);
+    *out = tc_wide_low_u64(magnitude) & low_mask(width);
     return 1;
 }
 
@@ -1214,18 +1273,22 @@ int tc_sem_cast(unsigned W, const TcType *src, const TcType *dst, uint64_t bits,
         }
         if (src->tag == TC_TY_BOOL || tc_type_is_integer(src)) {
             unsigned sw = tc_sem_type_width(src, W);
+            uint64_t magnitude;
+            int negative;
             if (sw == 0) {
                 return 0;
             }
             if (tc_type_is_signed_integer(src)) {
                 int64_t value = sign_extend(bits, sw);
-                *out = tw == 32u ? f32_to_bits((float)value)
-                                 : f64_to_bits((double)value);
+                negative = value < 0;
+                magnitude = negative ? (uint64_t)(-(value + 1)) + 1u
+                                     : (uint64_t)value;
             } else {
-                uint64_t value = bits & low_mask(sw);
-                *out = tw == 32u ? f32_to_bits((float)value)
-                                 : f64_to_bits((double)value);
+                negative = 0;
+                magnitude = bits & low_mask(sw);
             }
+            *out = tw == 32u ? int_to_f32_bits(magnitude, negative)
+                             : int_to_f64_bits(magnitude, negative);
             return 1;
         }
         return 0;

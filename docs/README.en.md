@@ -14,13 +14,15 @@ current gate status. Chinese: [README.md](README.md).
 
 ## Current status
 
-- S0–S8 are implemented and G0–G8 passed; **G8 allows S9**.
+- S0–S9 are implemented and G0–G9 passed; **G9 allows S10**.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
-  (32/64 profiles), the full W=64 AArch64 backend/toolchain (full ABI, checked
-  build, ELF/region layout) and the full differential/ABI/consistency/artifact
-  suites.
-- Not implemented: freestanding/bare metal platform instances and the 32-bit
-  backend.
+  (32/64 profiles), the full W=64 AArch64 and W=32 ARM32 backends/toolchains
+  (full ABI, checked build, ELF/region layout), the freestanding target runtime
+  core with the `aarch64-baremetal`/`arm32-baremetal` platform instances, all
+  four device policies, 32/64 profile isolation and the full
+  differential/ABI/consistency/artifact suites.
+- Not implemented: later targets such as RISC-V and the optional optimization
+  pipeline (SSA/regalloc/inlining).
 - No C host public library, embedding API or ABI.
 - Both 32/64 are targets; `usize`/`isize` are platform-word types (§13.2.1/§13.2.2).
 

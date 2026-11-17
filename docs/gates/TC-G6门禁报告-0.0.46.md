@@ -27,7 +27,7 @@ S6 交付：W 相关运行时语义核（整数 strict/wrap、除/模/移位边�
 - `ctest` 32/32；harness 754/754（557 编译、129 工具、67 运行、1 属性）。
 - 单元检查：frontend 688、sem 102、ct 370、ir 437、vm 413。
 - 覆盖矩阵：636 槽中 626 covered / 10 uncovered / 0 suspended。未覆盖仅为
-  design §12 的差分/ABI/freestanding/`@fast_math` 项（S7–S9）。
+  design §12 的差分/ABI/freestanding/`@fast_math` 项（S7–S9；后续阶段已关闭）。
 - 计划 §5 的 `@fast_math` 运行时边界（直接/间接调用不扩散）由 `TC-RT-CALL-0006`
   覆盖：零 pass 基线下直接调用、`fnptr` 间接调用、非 `@fast_math` 调用者与调用者
   自有浮点运算均保持 §6.3 严格语义；design §12 第 10 项的完整套件

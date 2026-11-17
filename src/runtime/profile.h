@@ -5,10 +5,11 @@
  * checked-build flag and mandatory ICF disabling.  A TcIR binds exactly one
  * profile; 32-bit and 64-bit results are never compared across profiles.
  *
- * The built-in constructors provide the two 64-bit instances from design §8
- * (aarch64-linux-user, aarch64-baremetal).  The first 32-bit target is selected
- * when the 32-bit profile is enabled; tc_profile_validate() already accepts
- * and validates any W=32 profile supplied by tests or a future target.
+ * The built-in constructors provide the two AArch64 instances from design §8
+ * (aarch64-linux-user, aarch64-baremetal), the selected W=32 target
+ * (arm32-baremetal: Cortex-M7, base AAPCS32/ILP32) and the target-independent
+ * w32 static profile.  tc_profile_validate() accepts and validates any
+ * conforming W=32 profile supplied by a future target.
  */
 #ifndef TC_RUNTIME_PROFILE_H
 #define TC_RUNTIME_PROFILE_H
@@ -92,21 +93,22 @@ typedef struct TcPlatformProfile {
     int disable_icf;              /* must be 1: no ICF/entry merging */
 } TcPlatformProfile;
 
-/* Built-in descriptors.  The 32-bit ABI descriptor is a contract description
- * only; it is not bound to a target until a 32-bit target is selected. */
+/* Built-in descriptors. */
 extern const TcABIDesc tc_abi_aapcs64;
 extern const TcABIDesc tc_abi_aapcs32_ilp32;
 extern const TcTargetDesc tc_target_aarch64_linux_user;
 extern const TcTargetDesc tc_target_aarch64_baremetal;
-/* Target-independent 32-bit profile used for static analysis of the word-size
- * matrix.  It is not an executable target; a 32-bit ABI target is selected by
- * the platform stage. */
+/* The first 32-bit target selected for 0.0.46: Cortex-M7, AAPCS32/ILP32. */
+extern const TcTargetDesc tc_target_arm32_baremetal;
+/* Target-independent 32-bit profile used for the word-size static matrix. */
 extern const TcTargetDesc tc_target_generic_w32;
 
-/* Fill a 64-bit profile.  I/O, allocator, trap and include roots are left NULL
- * for the caller/platform instance to supply; validate_runtime checks them. */
+/* Fill a built-in profile.  I/O, allocator, trap and include roots are left
+ * NULL for the caller/platform instance to supply; validate_runtime checks
+ * them. */
 int tc_profile_init_aarch64_linux_user(TcPlatformProfile *out);
 int tc_profile_init_aarch64_baremetal(TcPlatformProfile *out);
+int tc_profile_init_arm32_baremetal(TcPlatformProfile *out);
 int tc_profile_init_generic_w32(TcPlatformProfile *out);
 
 typedef enum {

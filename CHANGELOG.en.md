@@ -78,22 +78,38 @@
   symbol/static-byte/ICF and determinism suites; the S7 differential/ABI/
   toolchain/static-parity/zero-pass suites keep passing; byte-identical VM/AOT
   first diagnostics over every static `.tc`; Release and ASan+UBSan pass.
+- **Freestanding/bare-metal and the 32-bit backend**: a target-neutral
+  freestanding runtime core with platform seams (object-table mandatory and
+  checked traps, all four device policies, deterministic I/O, arena allocator,
+  trap/exit records); `aarch64-baremetal` (PL011 UART0 stdout, UART1 exit
+  record, PSCI SYSTEM_OFF, no semihosting, injected stdin, ELF/symbol/region
+  audit); the first 32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500,
+  `thumbv7em-none-eabihf`, base AAPCS32/ILP32 softfp, an independent ARM32
+  backend for all 51 opcodes, composite arguments as Rule C.4/C.5 memory words,
+  64-bit pair returns/indirect returns, `int64`/`float64` helpers, unaligned
+  access, checked build, ARM EABI `__aeabi_*` division/memory helpers and
+  `qemu-system-arm` execution); `tc-aot --profile=` target dispatch and
+  `--device=` platform-policy override; 32/64 static results, goldens and
+  differentials stay isolated.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
-  `error[RT]` with exit 1; a normal `tc-aot` invocation emits AArch64 assembly,
+  `error[RT]` with exit 1; a normal `tc-aot` invocation emits target assembly,
   `--emit=obj|elf` produces ELF artifacts and `--checked` produces a checked
-  build; capabilities outside the current platform instance exit 70 without
-  publishing a wrong artifact.
+  build; `--profile=`/`--device=` select a target profile and device policy;
+  unmapped platform capabilities exit 70 without publishing a wrong artifact.
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
   `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7
   differential/ABI/toolchain/static-parity/determinism suites, S8 full
   differential/ABI/C-interop/generated-fuzz/checked/consistency/artifact/
-  determinism/static-mutation suites, W=32/64 runtime goldens, determinism
-  suites and a fail-closed adapter self-test; currently 51/51 `ctest` and
+  determinism/static-mutation suites, W=32/64 runtime goldens, S9 bare-metal/
+  ARM32/interop/static-parity/profile-isolation/determinism suites, determinism
+  suites and a fail-closed adapter self-test; currently 57/57 `ctest` and
   754/754 harness cases (557 compile, 129 tool,
   67 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
-  sem 102, ct 370, ir 674, vm 413, aot 58.
+  sem 102, ct 370, ir 674, vm 413, aot 70; S9 ARM32 differential: 25 fixed
+  cases plus 260 S6/S8 corpus cases, 10 C-caller AAPCS32 cases and 1033 static
+  sources under each of two bare-metal profiles.
 
 ### Changed
 

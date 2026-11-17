@@ -12,10 +12,30 @@ int tc_driver_select_profile(const char *name, TcPlatformProfile *out) {
         ok = tc_profile_init_aarch64_linux_user(out);
     } else if (strcmp(name, "aarch64-baremetal") == 0) {
         ok = tc_profile_init_aarch64_baremetal(out);
+    } else if (strcmp(name, "arm32-baremetal") == 0) {
+        ok = tc_profile_init_arm32_baremetal(out);
     } else if (strcmp(name, "w32") == 0) {
         ok = tc_profile_init_generic_w32(out);
     } else {
         return 0;
     }
     return ok && tc_profile_validate(out) == TC_PROFILE_OK;
+}
+
+int tc_driver_apply_device(TcPlatformProfile *profile, const char *name) {
+    if (profile == NULL || name == NULL) {
+        return 0;
+    }
+    if (strcmp(name, "reject") == 0) {
+        profile->device = TC_DEV_REJECT;
+    } else if (strcmp(name, "read") == 0) {
+        profile->device = TC_DEV_READ;
+    } else if (strcmp(name, "readwrite") == 0) {
+        profile->device = TC_DEV_READWRITE;
+    } else if (strcmp(name, "volatile") == 0) {
+        profile->device = TC_DEV_VOLATILE;
+    } else {
+        return 0;
+    }
+    return 1;
 }

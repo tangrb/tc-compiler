@@ -2,7 +2,7 @@
  *
  * The static front end is shared with tc-vm.  `--syntax-only`/`--sem-only`/
  * `--static-only` are partial checks.  A normal invocation emits deterministic
- * AArch64 assembly and can assemble/link an ELF with --emit=obj/elf.
+ * target assembly and can assemble/link an ELF with --emit=obj/elf.
  * Unsupported platform instances are reported as unavailable and never
  * silently lowered.
  */

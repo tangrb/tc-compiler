@@ -34,15 +34,17 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --emit=asm|obj|elf  tc-aot artifact kind (default asm)\n"
             "  --cc=<path>         clang used to assemble tc-aot output\n"
             "  --ld=<path>         ld.lld used to link tc-aot output\n"
-            "  --runtime=<path>    freestanding AArch64 runtime archive\n"
-            "  --linker-script=<path> AArch64 image linker script\n"
+            "  --device=<policy>   device region policy for the platform instance:\n"
+            "                      reject|read|readwrite|volatile\n"
+            "  --runtime=<path>    freestanding target runtime archive\n"
+            "  --linker-script=<path> target image linker script\n"
             "  --keep-temps        keep tc-aot intermediate files\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n"
             "\n"
             "A normal tc-vm invocation executes the reference VM.  A normal\n"
-            "tc-aot invocation emits the AArch64 assembly; --emit=obj/elf\n"
-            "also assembles/links with the bundled freestanding runtime.\n",
+            "tc-aot invocation emits target assembly; --emit=obj/elf also\n"
+            "assembles/links with the bundled freestanding target runtime.\n",
             tool_name);
 }
 
@@ -89,6 +91,14 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                 return TC_CLI_PARSE_ERROR;
             }
             options->profile_name = arg + 10;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--device=", 9) == 0) {
+            if (arg[9] == '\0') {
+                fprintf(stderr, "%s: missing value for --device\n", tool_name);
+                return TC_CLI_PARSE_ERROR;
+            }
+            options->device_name = arg + 9;
             continue;
         }
         if (!only_positional && strncmp(arg, "--include=", 10) == 0) {
@@ -185,6 +195,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
     }
     if (strcmp(options->profile_name, "aarch64-linux-user") != 0 &&
         strcmp(options->profile_name, "aarch64-baremetal") != 0 &&
+        strcmp(options->profile_name, "arm32-baremetal") != 0 &&
         strcmp(options->profile_name, "w32") != 0) {
         fprintf(stderr, "%s: unknown profile '%s'\n", tool_name, options->profile_name);
         return TC_CLI_PARSE_ERROR;

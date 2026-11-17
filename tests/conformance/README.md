@@ -63,6 +63,19 @@ never backfilled from compiler output.
 - S8 artifact: `tools/s8_artifact_cases.py` checks ELF entry/type/machine,
   symbols and undefined-symbol freedom, code/static/stack region layout, static
   initializer bytes, `--icf=none` and checked-build emission.
+- S9 bare-metal platform: `platform/s9_baremetal_cases.py` builds the
+  `aarch64-baremetal` ELF and runs it on qemu-system-aarch64 virt without
+  semihosting: PL011 UART0 stdout, UART1 exit record, PSCI termination, loader
+  input, the four device policies, static initializer bytes and an
+  ELF/symbol/no-libc/dynamic-dependency audit.
+- S9 ARM32: `platform/s9_arm32_cases.py` runs 25 fixed W=32 semantics/ABI cases
+  plus the complete S6 runtime and S8 differential corpora as same-profile
+  VM↔AOT comparisons on qemu-system-arm MPS2 AN500; it also audits the ARM32
+  ELF header/entry/symbols and the absence of dynamic or libc imports.
+  `abi/s9_arm32_interop.py` compiles a C caller with clang and exercises ten
+  AAPCS32 composite/int64/float64 cases; `tools/s9_static_parity.py` compares
+  VM/AOT static results over every source under both bare-metal profiles;
+  `platform/s9_profiles.py` pins the §13.2.2 W=32/W=64 differences.
 
 ```text
 tests/conformance/
@@ -84,10 +97,11 @@ tests/conformance/
   opcode_static/      S6 per-opcode static shape cases (one directory per case)
   runtime/            S6 VM runtime cases (one directory per case)
   diff/               S7/S8 VM↔AOT differential cases and fixed-seed fuzz
-  abi/                S7/S8 AAPCS64 ABI cases
+  abi/                S7/S8 AAPCS64 and S9 AAPCS32 ABI cases
   checked/            S8 checked-build cases
   consistency/        S8 standard §13.4 eight-item consistency cases
-  tools/              S7/S8 artifact/toolchain and static-parity checks
+  platform/           S9 bare-metal/ARM32/profile-isolation cases
+  tools/              S7/S8/S9 artifact/toolchain and static-parity checks
   static/fuzz/        L7 property case (random bytes; no crash/hang)
 ```
 

@@ -200,15 +200,21 @@ def check_profile_limits(tmp: Path, failures: list[str]) -> None:
         failures.append(
             f"nine parameters: exit {result.returncode}, expected success")
 
-    for profile in ("w32", "aarch64-baremetal"):
-        out = tmp / f"{profile}.s"
-        result = aot(tmp, valid, "--emit=asm", f"--profile={profile}",
-                     output=str(out))
-        if result.returncode != 70:
-            failures.append(
-                f"{profile} profile: exit {result.returncode}, expected 70")
-        if out.exists() and out.stat().st_size != 0:
-            failures.append(f"{profile} profile published an artifact")
+    w32_out = tmp / "w32.s"
+    result = aot(tmp, valid, "--emit=asm", "--profile=w32",
+                 output=str(w32_out))
+    if result.returncode != 70:
+        failures.append(
+            f"w32 profile: exit {result.returncode}, expected 70")
+    if w32_out.exists() and w32_out.stat().st_size != 0:
+        failures.append("w32 profile published an artifact")
+    baremetal_out = tmp / "aarch64-baremetal.s"
+    result = aot(tmp, valid, "--emit=asm", "--profile=aarch64-baremetal",
+                 output=str(baremetal_out))
+    if result.returncode != 0 or not baremetal_out.exists():
+        failures.append(
+            f"aarch64-baremetal profile: exit {result.returncode}, "
+            f"expected success")
     result = aot(tmp, valid, "--emit=elf")
     if result.returncode != 2:
         failures.append(

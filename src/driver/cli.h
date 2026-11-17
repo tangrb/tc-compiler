@@ -28,7 +28,8 @@ typedef struct {
     const char *assembler;     /* assembler driver; NULL = build default */
     const char *linker;        /* linker; NULL = build default */
     const char *runtime_path;  /* freestanding runtime archive override */
-    const char *linker_script; /* AArch64 linker script override */
+    const char *linker_script; /* target linker script override */
+    const char *device_name;   /* optional device-policy override */
     int keep_temps;            /* keep intermediate .s/.o/.elf files */
     const char *include_roots[TC_CLI_MAX_INCLUDE_ROOTS];
     size_t ninclude_roots;

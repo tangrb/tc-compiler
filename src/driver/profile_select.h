@@ -14,4 +14,9 @@
  * built-in profile. */
 int tc_driver_select_profile(const char *name, TcPlatformProfile *out);
 
+/* Apply an explicit device-region policy name (reject/read/readwrite/
+ * volatile) to a selected profile.  Returns 1 on success, 0 for an unknown
+ * name or a NULL argument. */
+int tc_driver_apply_device(TcPlatformProfile *profile, const char *name);
+
 #endif /* TC_DRIVER_PROFILE_SELECT_H */

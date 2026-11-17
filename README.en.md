@@ -15,19 +15,24 @@ kept; historical implementation and tools live in git tags.
   runtime semantic core (integer/float/conversions, exact §11.2 formatting, §11.3
   input) and the reference VM (five regions, objects/field sub-objects, pointer
   states, all 51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics); 32/64
-  profiles, with the VM able to execute `aarch64-linux-user`, `aarch64-baremetal`
-  and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/float/
-  conversion, pointers/memory/struct, all 51 opcodes, AAPCS64 composites/HFA/
+  profiles, with the VM able to execute `aarch64-linux-user`, `aarch64-baremetal`,
+  `arm32-baremetal` and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/
+  float/conversion, pointers/memory/struct, all 51 opcodes, AAPCS64 composites/HFA/
   large by-reference composites and indirect returns, `fnptr`/`call_indirect`,
-  multi-size and unaligned access, checked build); the freestanding AArch64 runtime (object table/pointer
-  states/mandatory traps/checked shadow, deterministic I/O, allocator, trap and
-  exit); reset entry, region bases, static `.data`, ELF artifacts with ICF
-  disabled and clang/lld/qemu driving; checked build in both tools; and the full
-  VM↔AOT differential/ABI/consistency/artifact/determinism suites, C-caller
-  AAPCS64 interoperability and generated ABI/layout/memory/float fuzz suites.
-- **Not implemented**: the freestanding/bare-metal platform instance (PL011 UART,
-  bare-metal link/device policy) and the 32-bit backend/ABI; these belong to S9.
-- Gates: G0–G8 PASS; **G8 allows S9**. See [gate status](docs/gates/README.en.md).
+  multi-size and unaligned access, checked build); the freestanding target runtime
+  (object table/pointer states/mandatory traps/checked shadow, deterministic I/O,
+  allocator, trap and exit), with `aarch64-baremetal` using PL011 UART0 for stdout,
+  PL011 UART1 for the exit record and PSCI SYSTEM_OFF (no semihosting); the first
+  32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500, AAPCS32/ILP32 softfp, an
+  independent ARM32 backend for all 51 opcodes, `int64`/`float64` helpers, unaligned
+  access, all four device policies and qemu-system-arm execution); reset entry,
+  region bases, static `.data`, ELF artifacts with ICF disabled and clang/lld
+  driving; the full VM↔AOT differential/ABI/consistency/artifact/determinism
+  suites, C-caller AAPCS64/AAPCS32 interoperability, 32/64 profile isolation and
+  generated ABI/layout/memory/float fuzz suites.
+- **Not implemented**: later targets such as RISC-V and the optional optimization
+  pipeline (SSA/regalloc/inlining); the 0.0.46 baseline stays zero-pass.
+- Gates: G0–G9 PASS; **G9 allows S10**. See [gate status](docs/gates/README.en.md).
 
 ## Documents
 
@@ -58,8 +63,10 @@ src/                  0.0.46 implementation
   ir/                 type instr operand block ir region object address structs pointer_state print
   runtime/            alloc io trap profile module_loader; semantics/format/input
   vm/                 vm.h interp memory (regions/objects/pointer states/all opcodes)
-  backend/            aarch64 (full backend + freestanding runtime) / common
-                      (target description); arm32 riscv32 later
+  backend/            common (target-neutral freestanding runtime core/target
+                      description); aarch64 (full backend + semihosting/PL011
+                      platform instances); arm32 (Cortex-M7 backend + MPS2
+                      platform instance); riscv32 later
   driver/             tc-vm / tc-aot CLI and AOT driver
 tests/                L0/L1/L2, L3/L4 conformance, harness, traceability, golden, determinism
 ```
@@ -72,9 +79,9 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The S7/S8 differential/toolchain tests require `clang`, `llvm-ar` (or
-`aarch64-elf-ar`), `ld.lld` and `qemu-system-aarch64` by default; configuration
-fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
+The S7/S8/S9 differential/toolchain tests require `clang`, `llvm-ar` (or
+`aarch64-elf-ar`), `ld.lld`, `qemu-system-aarch64` and `qemu-system-arm` by
+default; configuration fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
 lld/qemu-dependent ctest entries; building the AArch64 runtime still requires
 clang and llvm-ar/aarch64-elf-ar, and this is not a gate build. Tools
 currently support:
@@ -91,25 +98,30 @@ currently support:
   `<file>:<line>:<column>: error[RT]: <code>: <print-name>` with exit 1.
   `--profile=w32` selects the 32-bit profile, `--checked` adds UB access checks
   (mandatory traps are unchanged), and `--opt=O0|O2` stays a zero-pass baseline.
-- A normal `tc-aot` invocation emits AArch64 assembly to stdout after the static
+- A normal `tc-aot` invocation emits target assembly to stdout after the static
   stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf` with
   `--output=<path>` produce `.s`, an ELF relocatable or an ELF executable;
   `--checked` produces a checked build and `--opt=O0|O2` stays the zero-pass
-  baseline. Capabilities outside the current hosted platform instance (`w32`
-  and non-`TC_DEV_REJECT` profiles) exit 70 without publishing a wrong artifact.
-- The S7 AOT platform instance is qemu-system-aarch64 + semihosting; an
-  EL0/Linux-user runtime is not implemented, so the ELF is not a Linux user
-  program. Differential tests compare program stdout, the first trap code and
-  the exit policy.
+  baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal` or
+  `arm32-baremetal` (`w32` is a VM-only static profile), and
+  `--device=reject|read|readwrite|volatile` overrides the platform instance's
+  device policy. A profile without a backend/toolchain mapping exits 70 without
+  publishing a wrong artifact.
+- AOT platform instances: `aarch64-linux-user` uses qemu-system-aarch64 +
+  semihosting; `aarch64-baremetal` uses PL011 UART0/UART1 + PSCI;
+  `arm32-baremetal` uses qemu-system-arm MPS2 AN500 (semihosting stdout, CMSDK
+  UART0 exit record). A qemu-user/Linux-user runtime is not on the gate path;
+  differential tests compare program stdout, the first trap code and the exit
+  policy, always within one profile.
 
 Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal`/
 `TC_ERR_OUT_OF_MEMORY`, never a language diagnostic. Documented limits: 4 MiB source,
 16 KiB token, 256 type/block nesting levels; exceeding them returns
-`tc_error_internal` (exit 71). Built-in profiles reserve a 16 MiB frame region/stack
-(default `D`: 512 hosted, 256 baremetal/w32); exhausting it with static frame
-footprints is an implementation error (exit 71), not a language diagnostic. The
-AOT target is the W=64 `aarch64-linux-user` qemu-system semihosting platform
-instance; freestanding/bare metal and the 32-bit backend belong to S9. Contract and test
+`tc_error_internal` (exit 71). Built-in profiles define their frame region/stack
+(default `D`: 512 hosted, 256 `aarch64-baremetal`/`w32`, 32 `arm32-baremetal`);
+exhausting the region with static frame footprints is an implementation error
+(exit 71), not a language diagnostic. Target/ABI/region and runtime-seam
+conventions are in [src/CONTRACTS.md](src/CONTRACTS.md); contract and test
 conventions are in
 [src/CONTRACTS.md](src/CONTRACTS.md) and [tests/README.md](tests/README.md).
 

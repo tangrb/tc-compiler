@@ -740,6 +740,20 @@
       "design12:15:gate_case",
       "design12:15:suite_mapping"
     ],
+    "s9_covered_rows": [
+      "design12:01:gate_case",
+      "design12:01:suite_mapping",
+      "design12:04:gate_case",
+      "design12:04:suite_mapping",
+      "design12:06:gate_case",
+      "design12:06:suite_mapping",
+      "design12:07:gate_case",
+      "design12:07:suite_mapping",
+      "design12:14:gate_case",
+      "design12:14:suite_mapping",
+      "design12:15:gate_case",
+      "design12:15:suite_mapping"
+    ],
     "scope_na_rows": []
   },
   "cross_checks": {
@@ -11735,7 +11749,8 @@
         "TC-DIFF-A64-0057",
         "TC-DIFF-A64-0058",
         "TC-DIFF-S8-0001",
-        "TC-DIFF-S8-0021"
+        "TC-DIFF-S8-0021",
+        "TC-ARM32-S9-0001"
       ],
       "number": 1,
       "title": "VM↔AOT 差分",
@@ -11754,7 +11769,8 @@
       "status": "covered",
       "case_ids": [
         "TC-DIFF-A64-0001",
-        "TC-DIFF-S8-0001"
+        "TC-DIFF-S8-0001",
+        "TC-ARM32-S9-0001"
       ],
       "number": 1,
       "title": "VM↔AOT 差分",
@@ -11856,7 +11872,9 @@
       "spec": "design §12, test plan §3.6/§8.2",
       "status": "covered",
       "case_ids": [
-        "TC-ART-S8-0001"
+        "TC-ART-S8-0001",
+        "TC-PLAT-S9-0001",
+        "TC-ARM32-S9-0001"
       ],
       "number": 4,
       "title": "freestanding 编译门禁",
@@ -11874,7 +11892,8 @@
       "spec": "design §12, test plan §3.6/§8.2",
       "status": "covered",
       "case_ids": [
-        "TC-ART-S8-0001"
+        "TC-ART-S8-0001",
+        "TC-PLAT-S9-0001"
       ],
       "number": 4,
       "title": "freestanding 编译门禁",
@@ -11937,7 +11956,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-CONV-0010",
-        "TC-TOOL-SEM-0009"
+        "TC-TOOL-SEM-0009",
+        "TC-PROF-S9-0001"
       ],
       "number": 6,
       "title": "32/64 静态矩阵",
@@ -11956,7 +11976,8 @@
       "status": "covered",
       "case_ids": [
         "TC-SEM-CONV-0001",
-        "TC-SEM-LAYOUT-0001"
+        "TC-SEM-LAYOUT-0001",
+        "TC-PROF-S9-0001"
       ],
       "number": 6,
       "title": "32/64 静态矩阵",
@@ -11989,7 +12010,13 @@
         "TC-ABI-S8-0005",
         "TC-ABI-S8-0006",
         "TC-ABI-S8-0008",
-        "TC-ABI-S8-0010"
+        "TC-ABI-S8-0010",
+        "TC-ABI-S9-0010",
+        "TC-ARM32-S9-0006",
+        "TC-ARM32-S9-0007",
+        "TC-ARM32-S9-0008",
+        "TC-ARM32-S9-0009",
+        "TC-ARM32-S9-0010"
       ],
       "number": 7,
       "title": "ABI/调用",
@@ -12010,7 +12037,9 @@
         "TC-AOT-ABI-0001",
         "TC-ABI-S8-0001",
         "TC-ABI-S8-0006",
-        "TC-ABI-S8-0010"
+        "TC-ABI-S8-0010",
+        "TC-ABI-S9-0010",
+        "TC-ARM32-S9-0008"
       ],
       "number": 7,
       "title": "ABI/调用",
@@ -12281,7 +12310,9 @@
         "TC-RT-IO-0002",
         "TC-UNIT-VM-0006",
         "TC-CHK-S8-0008",
-        "TC-CHK-S8-0013"
+        "TC-CHK-S8-0013",
+        "TC-PLAT-S9-0001",
+        "TC-ARM32-S9-0021"
       ],
       "number": 14,
       "title": "退出/设备/输入",
@@ -12303,7 +12334,8 @@
         "TC-RT-IO-0003",
         "TC-RT-IO-0004",
         "TC-CHK-S8-0008",
-        "TC-CHK-S8-0013"
+        "TC-CHK-S8-0013",
+        "TC-PLAT-S9-0001"
       ],
       "number": 14,
       "title": "退出/设备/输入",
@@ -12323,7 +12355,8 @@
       "case_ids": [
         "TC-RT-OPT-0001",
         "TC-DET-S7-0001",
-        "TC-DET-S8-0001"
+        "TC-DET-S8-0001",
+        "TC-DET-S9-0001"
       ],
       "number": 15,
       "title": "零 pass",
@@ -12343,7 +12376,8 @@
       "case_ids": [
         "TC-RT-OPT-0001",
         "TC-DET-S7-0001",
-        "TC-DET-S8-0001"
+        "TC-DET-S8-0001",
+        "TC-DET-S9-0001"
       ],
       "number": 15,
       "title": "零 pass",

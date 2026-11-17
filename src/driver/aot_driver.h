@@ -1,7 +1,7 @@
 /* TC 0.0.46 tc-aot backend driver (design §11).
  *
  * The static front end is shared with tc-vm.  After IR finalization this
- * driver emits AArch64 assembly and, on request, assembles and links it with
+ * driver emits target assembly and, on request, assembles and links it with
  * the freestanding AArch64 runtime.  Toolchain failures are implementation/
  * usage errors, never language diagnostics; an unsupported platform instance
  * is reported as "unavailable" and no artifact is published.

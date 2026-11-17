@@ -13,11 +13,12 @@
 
 ## 当前状态
 
-- S0–S8 已实现并通过 G0–G8；**G8 允许进入 S9**。
+- S0–S9 已实现并通过 G0–G9；**G9 允许进入 S10**。
 - 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64
-  全量后端/工具链（全量 ABI、checked build、ELF/区布局）与全量差分/ABI/
-  一致性/产物套件。
-- 未实现：freestanding/裸机平台实例与 32 位后端。
+  与 W=32 ARM32 全量后端/工具链（全量 ABI、checked build、ELF/区布局）、
+  freestanding 目标运行时核与 `aarch64-baremetal`/`arm32-baremetal` 平台实例、
+  四设备策略、32/64 分档案隔离与全量差分/ABI/一致性/产物套件。
+- 未实现：RISC-V 等后续目标与可选优化管线（SSA/regalloc/内联）。
 - 不提供 C 宿主公共库、嵌入 API/ABI。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型（§13.2.1/§13.2.2）。
 

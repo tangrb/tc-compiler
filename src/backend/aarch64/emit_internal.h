@@ -16,7 +16,7 @@
 #include <stdio.h>
 
 #include "backend/aarch64/emit.h"
-#include "backend/aarch64/rt_abi.h"
+#include "backend/common/rt_abi.h"
 #include "ir/ir.h"
 #include "runtime/profile.h"
 

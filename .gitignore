@@ -13,8 +13,10 @@
 # Generated files
 *.out
 *.s
-# The AArch64 entry stub is source, not generated assembly.
+# Target entry stubs and EABI glue are source, not generated assembly.
 !src/backend/aarch64/start.S
+!src/backend/arm32/start.S
+!src/backend/arm32/aeabi_glue.S
 
 # Python
 __pycache__/

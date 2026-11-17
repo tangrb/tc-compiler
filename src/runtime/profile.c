@@ -16,13 +16,18 @@ const TcABIDesc tc_abi_aapcs64 = {
     0      /* float64_pair */
 };
 
+/* Base AAPCS32/ILP32 (softfp) variant: floating-point values travel in core
+ * registers, composites of at most four bytes go in one core register, larger
+ * composites are replaced by a pointer to a caller copy, and 64-bit scalars
+ * use register/stack pairs.  There are no floating-point register classes in
+ * this variant, so HFAs follow the composite rule. */
 const TcABIDesc tc_abi_aapcs32_ilp32 = {
-    TC_ABI_INT, TC_ABI_FP, TC_ABI_INT, TC_ABI_INT,
-    TC_ABI_INT, TC_ABI_FP,
-    1,     /* hfa */
+    TC_ABI_INT, TC_ABI_INT, TC_ABI_INT, TC_ABI_INT,
+    TC_ABI_INT, TC_ABI_INT,
+    0,     /* hfa: base AAPCS32 has no FP register class */
     4,     /* composite_max_bytes: r0-r3 by-value budget */
-    4,     /* hfa_max_regs */
-    TC_ABI_RET_DIRECT,
+    1,     /* hfa_max_regs (unused by the base variant) */
+    TC_ABI_RET_INDIRECT,
     8,     /* stack_align */
     (uint32_t)(((1u << 8) - 1u) << 4), /* r4-r11 */
     1,     /* int64_pair */
@@ -35,6 +40,10 @@ const TcTargetDesc tc_target_aarch64_linux_user = {
 
 const TcTargetDesc tc_target_aarch64_baremetal = {
     "aarch64-baremetal", 64, 1, 16, 8, &tc_abi_aapcs64
+};
+
+const TcTargetDesc tc_target_arm32_baremetal = {
+    "arm32-baremetal", 32, 1, 8, 4, &tc_abi_aapcs32_ilp32
 };
 
 const TcTargetDesc tc_target_generic_w32 = {
@@ -107,6 +116,34 @@ int tc_profile_init_aarch64_baremetal(TcPlatformProfile *out) {
     out->exit.trap_status = 1;
     out->entry = out->region[TC_REG_CODE].base;
     out->target = &tc_target_aarch64_baremetal;
+    out->device = TC_DEV_VOLATILE;
+    out->checked_build = 0;
+    out->disable_icf = 1;
+    return 1;
+}
+
+/* ARM32 bare-metal platform instance: MPS2 AN500 (Cortex-M7).  The code and
+ * static regions start above the M-profile vector page; the second SRAM bank
+ * holds the injected stdin image and the platform heap. */
+int tc_profile_init_arm32_baremetal(TcPlatformProfile *out) {
+    if (out == NULL) {
+        return 0;
+    }
+    memset(out, 0, sizeof(*out));
+    out->addr_width = 32;
+    out->little_endian = 1;
+    profile_set_regions(out,
+                        0x00300000ull, 0x00100000ull,
+                        0x00100000ull, 0x00100000ull,
+                        0x40004000ull, 0x00001000ull,
+                        0x00001000ull, 0x000f0000ull,
+                        0x20100000ull, 0x00100000ull);
+    out->stack_size = 0x00100000;
+    out->depth_D = 32;
+    out->exit.normal_status = 0;
+    out->exit.trap_status = 1;
+    out->entry = 0x00001000ull;
+    out->target = &tc_target_arm32_baremetal;
     out->device = TC_DEV_VOLATILE;
     out->checked_build = 0;
     out->disable_icf = 1;

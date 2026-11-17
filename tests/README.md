@@ -7,7 +7,7 @@
 | Suite | Location | Level | Content |
 | --- | --- | --- | --- |
 | Contract/unit | `unit/` | L0/L1/L2 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例）；`tc_ct_test`（CT 向量/缓存/局部 const）；`tc_ir_test`（最终 IR 形态/CFG/打印）；`tc_vm_test`（语义核、格式化、输入、内存/指针、trap/位置、调用/`D`、设备策略、W 矩阵） |
-| Conformance | `conformance/` | L3/L4/L5/L6 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解/CT 用例、接受工具用例、属性用例；VM 运行时用例（`runtime/`）；S7/S8 VM↔AOT 差分（`diff/`）、AAPCS64 ABI（`abi/`）、checked build（`checked/`）、§13.4 八项一致性（`consistency/`）、工具链/ELF/静态一致（`tools/`）；见 [conformance/README.md](conformance/README.md) |
+| Conformance | `conformance/` | L3/L4/L5/L6 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解/CT 用例、接受工具用例、属性用例；VM 运行时用例（`runtime/`）；S7/S8 VM↔AOT 差分（`diff/`）、AAPCS64 ABI（`abi/`）、checked build（`checked/`）、§13.4 八项一致性（`consistency/`）、工具链/ELF/静态一致（`tools/`）；S9 freestanding/裸机与 ARM32 平台（`platform/`）、AAPCS32 互操作（`abi/s9_*`）、双档案静态一致（`tools/s9_*`）；见 [conformance/README.md](conformance/README.md) |
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、`--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查、矩阵 case id 存在性交叉检查 |
 | Golden | `golden/` | L3/L4 | 规范推导的期望值及规范来源；`validate.py` 校验诊断与运行时 golden，`run.py` 执行 w32/w64 运行时 golden |
@@ -45,11 +45,18 @@ AAPCS64 调用方互操作）、`s8_abi_fuzz.py`/`s8_layout_fuzz.py`/`s8_mem_fuz
 `s8_checked_cases.py`（checked/
 必选 trap/合法集分离）、`s8_consistency_cases.py`（§13.4 八项）、
 `s8_artifact_cases.py`（入口/区/符号/静态字节/ICF）与 `s8_determinism.py`。
-AOT 构建/测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld` 与
-`qemu-system-aarch64`；缺失时 CMake 配置失败。`-DTC_ENABLE_AOT_TESTS=OFF`
-只关闭 lld/qemu 测试项；运行时构建仍需 clang 与 llvm-ar/aarch64-elf-ar。
-32/64 结果分档案保存；差分只在同一档案内比较 VM 与 AOT。
+S9 套件在 `conformance/platform/`、`conformance/abi/s9_arm32_interop.py`、
+`conformance/tools/s9_static_parity.py` 与 `determinism/s9_determinism.py`：
+`aarch64-baremetal` 的 ELF/UART/trap/输入/静态字节/四设备策略/符号审计，
+`arm32-baremetal` 的 25 个固定语义/ABI 用例 + 260 个 S6/S8 语料同档案
+VM↔AOT 差分、10 个 C 调用者 AAPCS32 互操作用例、1033 个静态源 × 2 个裸机
+档案的 VM/AOT 首诊逐字节一致、32/64 分档案隔离与重复构建/执行确定性。
+AOT 构建/测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld`、
+`qemu-system-aarch64` 与 `qemu-system-arm`；缺失时 CMake 配置失败。
+`-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
+llvm-ar/aarch64-elf-ar。32/64 结果分档案保存；差分只在同一档案内比较 VM 与 AOT。
 
-当前全量：`ctest` 51/51（Debug/Release/ASan+UBSan）；harness 754/754
+当前全量：`ctest` 57/57（Debug/Release/ASan+UBSan）；harness 754/754
 （557 编译、129 工具、67 运行、1 属性）；单元检查 frontend 688、sem 102、
-ct 370、ir 674、vm 413、aot 58。
+ct 370、ir 674、vm 413、aot 70。S9 平台套件另有 25 个固定 ARM32 用例、
+260 个 S6/S8 语料、10 个 AAPCS32 互操作用例与 1033×2 个静态源一致性检查。

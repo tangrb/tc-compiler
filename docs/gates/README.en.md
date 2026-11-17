@@ -15,14 +15,15 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G6 | S6 reference VM (W=32/64) | **PASS** | [G6](TC-G6门禁报告-0.0.46.md) |
 | G7 | S7 AArch64 subset backend, toolchain and differential | **PASS** | [G7](TC-G7门禁报告-0.0.46.md) |
 | G8 | S8 full semantics, runtime and full differential | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
+| G9 | S9 freestanding/bare metal and 32-bit backend | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 
-**Current status**: G8 passed and S9 is allowed. The front end, CT/IR, runtime
-semantic core, reference VM, the full W=64 AArch64 backend (full ABI, C-caller
-interoperability, float/pointer/struct/indirect calls, checked build,
-ELF/ICF/region layout), the full differential suite and generated adversarial
-tests are implemented; freestanding/bare metal, the device instance
-and the 32-bit backend are not. Coverage is 636/636; every design §12 item has a suite
-mapping (item 4 is evidenced by the freestanding compile/symbol audit).
+**Current status**: G9 passed and S10 is allowed. The front end, CT/IR, runtime
+semantic core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32
+backend, the freestanding target runtime core with the
+`aarch64-baremetal`/`arm32-baremetal` platform instances, all four device
+policies, checked build, C-caller AAPCS64/AAPCS32 interoperability, the full
+differential suite and 32/64 profile isolation are implemented. Coverage is
+636/636; every design §12 item has a suite mapping.
 
 Reproduce:
 
@@ -54,6 +55,12 @@ python3 tests/conformance/consistency/s8_consistency_cases.py --check
 python3 tests/conformance/tools/s8_artifact_cases.py --check
 python3 tests/conformance/tools/s8_static_fuzz.py --check
 python3 tests/determinism/s8_determinism.py --check
+python3 tests/conformance/platform/s9_baremetal_cases.py --check
+python3 tests/conformance/platform/s9_arm32_cases.py --check
+python3 tests/conformance/abi/s9_arm32_interop.py --check
+python3 tests/conformance/tools/s9_static_parity.py --check
+python3 tests/conformance/platform/s9_profiles.py --check
+python3 tests/determinism/s9_determinism.py --check
 python3 tests/golden/validate.py
 python3 tests/golden/run.py build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check

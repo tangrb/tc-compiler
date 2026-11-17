@@ -1478,6 +1478,27 @@ S8_COVERED_ROWS = {
     "design12:15:gate_case": ["TC-DET-S8-0001"],
 }
 
+S9_COVERED_ROWS = {
+    # Freestanding bare-metal build/run gate: ELF/UART/trap/input/static
+    # bytes/device policies; ARM32 same-profile VM-AOT differential covers the
+    # 32-bit backend and its full corpus.
+    "design12:01:suite_mapping": ["TC-ARM32-S9-0001"],
+    "design12:01:gate_case": ["TC-ARM32-S9-0001"],
+    "design12:04:suite_mapping": ["TC-PLAT-S9-0001", "TC-ARM32-S9-0001"],
+    "design12:04:gate_case": ["TC-PLAT-S9-0001"],
+    "design12:06:suite_mapping": ["TC-PROF-S9-0001"],
+    "design12:06:gate_case": ["TC-PROF-S9-0001"],
+    "design12:07:suite_mapping": [
+        "TC-ABI-S9-0010", "TC-ARM32-S9-0006", "TC-ARM32-S9-0007",
+        "TC-ARM32-S9-0008", "TC-ARM32-S9-0009", "TC-ARM32-S9-0010",
+    ],
+    "design12:07:gate_case": ["TC-ABI-S9-0010", "TC-ARM32-S9-0008"],
+    "design12:14:suite_mapping": ["TC-PLAT-S9-0001", "TC-ARM32-S9-0021"],
+    "design12:14:gate_case": ["TC-PLAT-S9-0001"],
+    "design12:15:suite_mapping": ["TC-DET-S9-0001"],
+    "design12:15:gate_case": ["TC-DET-S9-0001"],
+}
+
 _S6_OPCODE_CASES = {
     "abs": ("TC-RT-INT-0001", "TC-RT-INT-0008"),
     "add": ("TC-RT-INT-0001", "TC-RT-INT-0004"),
@@ -1832,7 +1853,7 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             row["case_ids"] = list(case_ids)
         for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
                         S4_COVERED_ROWS, S5_COVERED_ROWS, S6_COVERED_ROWS,
-                        S7_COVERED_ROWS, S8_COVERED_ROWS):
+                        S7_COVERED_ROWS, S8_COVERED_ROWS, S9_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1910,6 +1931,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "s6_covered_rows": sorted(S6_COVERED_ROWS),
             "s7_covered_rows": sorted(S7_COVERED_ROWS),
             "s8_covered_rows": sorted(S8_COVERED_ROWS),
+            "s9_covered_rows": sorted(S9_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {

@@ -129,14 +129,15 @@ set_tests_properties(golden.selftest golden.run PROPERTIES WORKING_DIRECTORY ${C
 # -DTC_ENABLE_AOT_TESTS=OFF.
 
 find_program(TC_QEMU_SYSTEM_AARCH64 NAMES qemu-system-aarch64)
+find_program(TC_QEMU_SYSTEM_ARM NAMES qemu-system-arm)
 find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
              /usr/local/opt/llvm/bin /opt/homebrew/bin)
 option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
 if(TC_ENABLE_AOT_TESTS AND
-   (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_LLD))
+   (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_QEMU_SYSTEM_ARM OR NOT TC_LLD))
     message(FATAL_ERROR
-        "S7 AOT tests need qemu-system-aarch64 and ld.lld; install them or "
-        "configure with -DTC_ENABLE_AOT_TESTS=OFF")
+        "S7/S9 AOT tests need qemu-system-aarch64, qemu-system-arm and "
+        "ld.lld; install them or configure with -DTC_ENABLE_AOT_TESTS=OFF")
 endif()
 if(TC_ENABLE_AOT_TESTS)
     add_test(NAME conformance.s7_diff
@@ -207,6 +208,31 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s8_determinism.py
                      --check)
+    # --- S9 freestanding / ARM32 ------------------------------------------
+    add_test(NAME conformance.s9_baremetal
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s9_baremetal_cases.py
+                     --check)
+    add_test(NAME conformance.s9_arm32
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s9_arm32_cases.py
+                     --check)
+    add_test(NAME conformance.s9_arm32_interop
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s9_arm32_interop.py
+                     --check)
+    add_test(NAME conformance.s9_static_parity
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s9_static_parity.py
+                     --check)
+    add_test(NAME conformance.s9_profiles
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s9_profiles.py
+                     --check)
+    add_test(NAME determinism.s9
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s9_determinism.py
+                     --check)
     set_tests_properties(
         conformance.s7_diff conformance.s7_fuzz conformance.s7_abi
         conformance.s7_tools determinism.s7 conformance.s7_static_parity
@@ -214,10 +240,13 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s8_consistency conformance.s8_artifact determinism.s8
         conformance.s8_abi_fuzz conformance.s8_layout_fuzz
         conformance.s8_mem_fuzz conformance.s8_fp_fuzz
-        conformance.s8_interop
+        conformance.s8_interop conformance.s9_baremetal
+        conformance.s9_arm32 conformance.s9_arm32_interop
+        conformance.s9_static_parity conformance.s9_profiles
+        determinism.s9
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_LINKER=${TC_LLD}")
+        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_LINKER=${TC_LLD}")
 endif()
 
 # --- LEX/SYN front-end conformance ------------------------------------------

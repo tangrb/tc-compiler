@@ -14,11 +14,13 @@
 | G6 | S6 VM 参考实现（W=32/64） | **PASS** | [G6](TC-G6门禁报告-0.0.46.md) |
 | G7 | S7 AArch64 子集后端、工具链与差分 | **PASS** | [G7](TC-G7门禁报告-0.0.46.md) |
 | G8 | S8 全量语义、运行时与全量差分 | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
+| G9 | S9 freestanding/裸机与 32 位后端 | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 
-**当前状态**：G8 通过，允许进入 S9。前端、CT/IR、运行时语义核、参考 VM、
-W=64 AArch64 全量后端（全量 ABI、C 调用者互操作、浮点/指针/struct/间接调用、
-checked build、ELF/ICF/区布局）与全量差分/生成式对抗测试已实现；freestanding/裸机、设备实例与 32 位后端尚未
-实现。覆盖矩阵 636/636；design §12 十五项均有套件映射（第 4 项由 freestanding 编译/符号审计证据覆盖）。
+**当前状态**：G9 通过，允许进入 S10。前端、CT/IR、运行时语义核、参考 VM、
+W=64 AArch64 全量后端、W=32 ARM32 后端、freestanding 目标运行时核与
+`aarch64-baremetal`/`arm32-baremetal` 平台实例、四设备策略、checked build、
+C 调用者 AAPCS64/AAPCS32 互操作、全量差分/生成式对抗测试与 32/64 分档案
+隔离均已实现。覆盖矩阵 636/636；design §12 十五项均有套件映射。
 
 复现：
 
@@ -50,6 +52,12 @@ python3 tests/conformance/consistency/s8_consistency_cases.py --check
 python3 tests/conformance/tools/s8_artifact_cases.py --check
 python3 tests/conformance/tools/s8_static_fuzz.py --check
 python3 tests/determinism/s8_determinism.py --check
+python3 tests/conformance/platform/s9_baremetal_cases.py --check
+python3 tests/conformance/platform/s9_arm32_cases.py --check
+python3 tests/conformance/abi/s9_arm32_interop.py --check
+python3 tests/conformance/tools/s9_static_parity.py --check
+python3 tests/conformance/platform/s9_profiles.py --check
+python3 tests/determinism/s9_determinism.py --check
 python3 tests/golden/validate.py
 python3 tests/golden/run.py build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check

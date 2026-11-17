@@ -199,6 +199,11 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         return print_impl_error(tool_name, TC_IMPL_USAGE,
                                 options->profile_name);
     }
+    if (options->device_name != NULL &&
+        !tc_driver_apply_device(&profile, options->device_name)) {
+        return print_impl_error(tool_name, TC_IMPL_USAGE,
+                                options->device_name);
+    }
     /* Checked build is an execution option of the selected platform instance:
      * the same profile instance drives analysis and code generation. */
     profile.checked_build = options->checked ? 1 : 0;

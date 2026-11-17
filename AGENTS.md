@@ -15,14 +15,17 @@
   未初始化检测）、32/64 档案；W=64 AArch64 全量后端（整数/位/比较/浮点/转换、指针/
   内存/struct、全部 51 个 opcode、AAPCS64 复合/HFA/大复合按引用/大 struct 间接返回、`fnptr`/
   `call_indirect`、多尺寸与未对齐访问、checked build、复位入口/区基址/静态 `.data`/
-  ELF/禁用 ICF）、freestanding AArch64 运行时、`tc-aot` `--emit=asm|obj|elf`、
-  clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C 调用者
-  AAPCS64 互操作与生成式 fuzz。
+  ELF/禁用 ICF）；freestanding 目标运行时核与平台缝（对象表/指针状态/必选定检/checked
+  shadow、确定性 I/O、分配器、trap/退出）；`aarch64-baremetal` 平台实例（PL011
+  UART0 stdout、UART1 退出记录、PSCI SYSTEM_OFF、无 semihosting）；首个 32 位目标
+  `arm32-baremetal`（Cortex-M7 MPS2 AN500、AAPCS32/ILP32 softfp、独立 ARM32 后端、
+  int64/float64 辅助、未对齐访问、四设备策略、`qemu-system-arm`）；`tc-aot`
+  `--emit=asm|obj|elf`、clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/
+  确定性套件、C 调用者 AAPCS64/AAPCS32 互操作、32/64 分档案隔离与生成式 fuzz。
   代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
   `src/driver/`。
-- 未实现：freestanding/裸机平台实例（PL011 UART、裸机链接/设备策略）、设备实例与
-  32 位后端/ABI；属 S9。
-- 门禁：G0–G8 PASS，G8 允许进入 S9；见 `docs/gates/README.md`。
+- 未实现：RISC-V 等后续目标与可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
+- 门禁：G0–G9 PASS，G9 允许进入 S10；见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
@@ -39,11 +42,14 @@
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
    `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
-   trap 退出 1）；普通 `tc-aot` 调用发射 AArch64 汇编，`--emit=obj|elf` 经
-   clang/lld 生成产物；当前平台实例外的能力显式退出 70 且不发布错误产物。不得把部分能力
-   写成“已支持”。S7/S8 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld` 与
-   `qemu-system-aarch64`；缺失时配置失败。`-DTC_ENABLE_AOT_TESTS=OFF` 只关闭
-   lld/qemu 测试项；运行时构建仍需 clang 与 llvm-ar/aarch64-elf-ar，且不用于门禁。
+   trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf` 经
+   clang/lld 生成产物；`--profile=` 选择 `aarch64-linux-user`/`aarch64-baremetal`/
+   `arm32-baremetal`（`w32` 仅 VM 静态档案），`--device=` 覆盖平台实例设备策略；
+   无后端/工具链映射的档案显式退出 70 且不发布错误产物。不得把部分能力写成“已支持”。
+   S7/S8/S9 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld`、
+   `qemu-system-aarch64` 与 `qemu-system-arm`；缺失时配置失败。
+   `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
+   llvm-ar/aarch64-elf-ar，且不用于门禁。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。
@@ -85,7 +91,13 @@
    `tests/conformance/tools/s8_static_fuzz.py --check`、
    `tests/conformance/consistency/s8_consistency_cases.py --check`、
    `tests/conformance/tools/s8_artifact_cases.py --check`、
-   `tests/determinism/s8_determinism.py --check`、`tests/golden/validate.py`、
+   `tests/determinism/s8_determinism.py --check`、
+   `tests/conformance/platform/s9_baremetal_cases.py --check`、
+   `tests/conformance/platform/s9_arm32_cases.py --check`、
+   `tests/conformance/abi/s9_arm32_interop.py --check`、
+   `tests/conformance/tools/s9_static_parity.py --check`、
+   `tests/conformance/platform/s9_profiles.py --check`、
+   `tests/determinism/s9_determinism.py --check`、`tests/golden/validate.py`、
    `tests/golden/run.py build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
    与 `tests/tools/docs_cleanup_check.py` 均通过。
 7. **提交与洁净**：以 `docs(0.0.46): ...` 提交清理结果；确认 `git status` 干净，
@@ -107,7 +119,9 @@
 | CT/IR 实现约定 | `src/CONTRACTS.md`（CT 顺序/缓存/错误映射、对象布局、IR 操作数） |
 | IR 打印 | `src/ir/print.h`、`src/ir/print.c` |
 | 运行时语义核 / 格式化 / 输入 | `src/runtime/semantics.h`、`format.h`、`input.h` |
-| AArch64 后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`runtime.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
+| AArch64 后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`platform_semihost.c`、`platform_baremetal.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
+| ARM32 后端 / 平台 | `src/backend/arm32/emit.h`、`emit.c`、`emit_abi.c`、`emit_ops.c`、`rt_helpers.c`、`aeabi.c`、`platform_mps2.c`、`start.S`、`link.ld` |
+| freestanding 运行时核 / 平台缝 | `src/backend/common/runtime.c`、`rt_abi.h`、`rt_platform.h`；`src/backend/{aarch64,arm32}/platform_*.c` |
 | AOT 工具链驱动 | `src/driver/aot_driver.h`、`aot_driver.c`；`src/driver/cli.h` |
 | VM 接口 / 内存对象 / 解释器 | `src/vm/vm.h`、`src/vm/internal.h`、`src/vm/memory.c`、`src/vm/interp.c` |
 | 测试基建 | `tests/README.md` |
@@ -116,6 +130,7 @@
 | 一致性用例表 | `tests/conformance/static/s1_cases.py`、`s2s3_cases.py`、`s4_cases.py`、`s5_cases.py`、`s6_static_cases.py`；`tests/conformance/runtime/s6_cases.py` |
 | S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
 | S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/diff/s8_*_fuzz.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/tools/s8_static_fuzz.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
+| S9 freestanding / ARM32 | `tests/conformance/platform/s9_baremetal_cases.py`；`tests/conformance/platform/s9_arm32_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/tools/s9_static_parity.py`；`tests/conformance/platform/s9_profiles.py`；`tests/determinism/s9_determinism.py` |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |
 | 文档地图 | `docs/README.md` |
 | 贡献 / 安全 | `CONTRIBUTING.md` / `SECURITY.md` |

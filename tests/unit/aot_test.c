@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "backend/aarch64/emit.h"
+#include "backend/arm32/emit.h"
 #include "frontend/sem.h"
 #include "runtime/profile.h"
 
@@ -242,9 +243,14 @@ static void test_profile_limits(void) {
     text = emit_fixture_ex(&fixture, 0, 1, &len, &status, error_message,
                            sizeof(error_message));
     free_fixture(&fixture);
-    free(text);
-    CHECK(status == TC_AARCH64_EMIT_UNSUPPORTED);
-    CHECK(strstr(error_message, "device policy") != NULL);
+    CHECK(status == TC_AARCH64_EMIT_OK);
+    if (text != NULL) {
+        CHECK(strstr(text, "__tc_rt_device_policy:") != NULL);
+        CHECK(strstr(text, "  .quad 3") != NULL);
+        free(text);
+    } else {
+        CHECK(0);
+    }
 }
 
 static void test_full_value_shapes(void) {
@@ -282,13 +288,13 @@ static void test_full_value_shapes(void) {
     CHECK(text != NULL);
     if (text != NULL) {
         CHECK(status == TC_AARCH64_EMIT_OK);
-        CHECK(strstr(text, "bl tc_a64_float_binop") != NULL);
-        CHECK(strstr(text, "bl tc_a64_load") != NULL);
-        CHECK(strstr(text, "bl tc_a64_store") != NULL);
-        CHECK(strstr(text, "bl tc_a64_ptradd") != NULL);
-        CHECK(strstr(text, "bl tc_a64_memmove") != NULL);
-        CHECK(strstr(text, "bl tc_a64_frame_enter") != NULL);
-        CHECK(strstr(text, "bl tc_a64_frame_leave") != NULL);
+        CHECK(strstr(text, "bl tc_rt_float_binop") != NULL);
+        CHECK(strstr(text, "bl tc_rt_load") != NULL);
+        CHECK(strstr(text, "bl tc_rt_store") != NULL);
+        CHECK(strstr(text, "bl tc_rt_ptradd") != NULL);
+        CHECK(strstr(text, "bl tc_rt_memmove") != NULL);
+        CHECK(strstr(text, "bl tc_rt_frame_enter") != NULL);
+        CHECK(strstr(text, "bl tc_rt_frame_leave") != NULL);
         CHECK(strstr(text, ".Lunit_objs_0:") != NULL);
         CHECK(strstr(text, "bl memset") != NULL);
         free(text);
@@ -320,10 +326,10 @@ static void test_checked_shapes(void) {
     CHECK(text != NULL);
     if (text != NULL) {
         CHECK(status == TC_AARCH64_EMIT_OK);
-        CHECK(strstr(text, "__tc_a64_checked:") != NULL);
+        CHECK(strstr(text, "__tc_rt_checked:") != NULL);
         CHECK(strstr(text, "  .quad 1") != NULL);
         CHECK(strstr(text, "__tc_static_shadow:") != NULL);
-        CHECK(strstr(text, "bl tc_a64_define") != NULL);
+        CHECK(strstr(text, "bl tc_rt_define") != NULL);
         free(text);
     }
 }
@@ -407,6 +413,94 @@ static void test_static_initializer(void) {
     }
 }
 
+static char *emit_arm32_fixture(const Fixture *fixture,
+                                TcArm32EmitStatus *out_status,
+                                char *error_message,
+                                size_t error_message_capacity) {
+    TcPlatformProfile profile;
+    TcAnalysisStatus status;
+    TcAnalysisDiag diag;
+    TcImplError impl = TC_IMPL_OK;
+    TcAnalysis *analysis;
+    char *buffer = NULL;
+    size_t length = 0;
+    FILE *stream;
+
+    if (!tc_profile_init_arm32_baremetal(&profile)) {
+        return NULL;
+    }
+    analysis = tc_analyze_with_profile(fixture->root, &profile,
+                                       profile.addr_width, NULL, 0, &status,
+                                       &diag, &impl);
+    if (analysis == NULL || status != TC_ANALYSIS_OK) {
+        if (analysis != NULL) {
+            tc_analysis_destroy(analysis);
+        }
+        return NULL;
+    }
+    stream = open_memstream(&buffer, &length);
+    if (stream == NULL) {
+        tc_analysis_destroy(analysis);
+        return NULL;
+    }
+    *out_status = tc_arm32_emit_asm(
+        stream, tc_analysis_ir(analysis), &profile, profile.target,
+        error_message, error_message_capacity);
+    fclose(stream);
+    tc_analysis_destroy(analysis);
+    return buffer;
+}
+
+static void test_arm32_emitter(void) {
+    Fixture fixture;
+    TcArm32EmitStatus status = TC_ARM32_EMIT_INTERNAL;
+    TcArm32EmitStatus status2 = TC_ARM32_EMIT_INTERNAL;
+    char error_message[256];
+    char *first;
+    char *second;
+    if (!make_fixture(
+            &fixture,
+            "#program\n"
+            "import lib\n"
+            "var p: lib.P = make lib.P, 1, 2\n"
+            "var r: int32 = call lib.f, p, 3\n"
+            "_ = writeln int32, r\n",
+            "#lib\n"
+            "public struct P then\n"
+            "var x: int32\n"
+            "var y: int32\n"
+            "end\n"
+            "public func f(p: P, n: int32) int32 then\n"
+            "var a: int32 = add int32, p.y, n\n"
+            "_ = return a\n"
+            "end\n")) {
+        CHECK(0);
+        return;
+    }
+    first = emit_arm32_fixture(&fixture, &status, error_message,
+                               sizeof(error_message));
+    second = emit_arm32_fixture(&fixture, &status2, error_message,
+                                sizeof(error_message));
+    free_fixture(&fixture);
+    CHECK(first != NULL && second != NULL);
+    CHECK(status == TC_ARM32_EMIT_OK && status2 == TC_ARM32_EMIT_OK);
+    if (first != NULL) {
+        CHECK(strstr(first, ".cpu cortex-m7") != NULL);
+        CHECK(strstr(first, "push {r4-r11, lr}") != NULL);
+        CHECK(strstr(first, "bl tc_arm32_int_binop") != NULL);
+        CHECK(strstr(first, "bl tc_rt_frame_enter") != NULL);
+        CHECK(strstr(first, "bl tc_rt_write_scalar") != NULL);
+        CHECK(strstr(first, "bl tc_function_0") != NULL);
+        CHECK(strstr(first, "movw r") != NULL);
+        CHECK(strstr(first, ", =") == NULL);
+    }
+    if (first != NULL && second != NULL) {
+        CHECK(strcmp(first, second) == 0);
+    }
+    free(first);
+    free(second);
+}
+
 static void test_deterministic(void) {
     Fixture fixture;
     TcAArch64EmitStatus status1 = TC_AARCH64_EMIT_INTERNAL;
@@ -447,6 +541,7 @@ int main(void) {
     test_checked_shapes();
     test_hfa_and_indirect_return();
     test_static_initializer();
+    test_arm32_emitter();
     test_deterministic();
     if (failures != 0) {
         printf("aot.unit: %d failure(s), %d checks\n", failures, checks);

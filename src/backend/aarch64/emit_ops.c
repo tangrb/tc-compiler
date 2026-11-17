@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "backend/aarch64/rt_abi.h"
+#include "backend/common/rt_abi.h"
 #include "ir/instr.h"
 #include "runtime/trap.h"
 
@@ -399,7 +399,7 @@ static void emit_float_binop(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_move_immediate(emitter, 1u, (uint64_t)instr->mode);
     tc_a64_move_immediate(emitter, 2u, (uint64_t)instr->type->tag);
     tc_a64_span_arguments(emitter, &instr->span, 5u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_FLOAT_BINOP);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_FLOAT_BINOP);
     tc_a64_store_result(emitter, instr, 0u);
 }
 
@@ -407,7 +407,7 @@ static void emit_float_unop(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_load_operand(emitter, &instr->args[0].value, 2u, 0);
     tc_a64_move_immediate(emitter, 0u, (uint64_t)instr->op);
     tc_a64_move_immediate(emitter, 1u, (uint64_t)instr->type->tag);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_FLOAT_UNOP);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_FLOAT_UNOP);
     tc_a64_store_result(emitter, instr, 0u);
 }
 
@@ -416,7 +416,7 @@ static void emit_float_compare(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_load_operand(emitter, &instr->args[1].value, 3u, 0);
     tc_a64_move_immediate(emitter, 0u, (uint64_t)instr->op);
     tc_a64_move_immediate(emitter, 1u, (uint64_t)instr->type->tag);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_FLOAT_COMPARE);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_FLOAT_COMPARE);
     tc_a64_store_result(emitter, instr, 0u);
 }
 
@@ -430,7 +430,7 @@ static void emit_cast(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_move_immediate(emitter, 0u, (uint64_t)source->tag);
     tc_a64_move_immediate(emitter, 1u, (uint64_t)instr->type->tag);
     tc_a64_span_arguments(emitter, &instr->span, 3u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_CAST);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_CAST);
     tc_a64_store_result(emitter, instr, 0u);
 }
 
@@ -444,11 +444,11 @@ static void emit_trunc_bitcast(TcA64Emitter *emitter, const TcInstr *instr) {
         tc_a64_load_operand(emitter, &instr->args[0].value, 2u, 0);
         tc_a64_move_immediate(emitter, 0u, (uint64_t)source->tag);
         tc_a64_move_immediate(emitter, 1u, (uint64_t)instr->type->tag);
-        tc_a64_emit_call0(emitter, TC_A64_SYM_TRUNC);
+        tc_a64_emit_call0(emitter, TC_RT_SYM_TRUNC);
     } else {
         tc_a64_load_operand(emitter, &instr->args[0].value, 1u, 0);
         tc_a64_move_immediate(emitter, 0u, (uint64_t)instr->type->tag);
-        tc_a64_emit_call0(emitter, TC_A64_SYM_BITCAST);
+        tc_a64_emit_call0(emitter, TC_RT_SYM_BITCAST);
     }
     tc_a64_store_result(emitter, instr, 0u);
 }
@@ -460,7 +460,7 @@ static void emit_trunc_bitcast(TcA64Emitter *emitter, const TcInstr *instr) {
 static void emit_load(TcA64Emitter *emitter, const TcInstr *instr) {
     int ok = 0;
     uint64_t size = tc_a64_type_size(emitter->ir, instr->type, &ok);
-    uint64_t flags = instr->mode == TC_VOLATILE ? TC_A64_ACCESS_VOLATILE : 0;
+    uint64_t flags = instr->mode == TC_VOLATILE ? TC_RT_ACCESS_VOLATILE : 0;
     uint32_t type_id = tc_a64_type_id(emitter, instr->type);
     if (!ok) {
         tc_a64_error(emitter, "load of an incomplete type");
@@ -481,7 +481,7 @@ static void emit_load(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_move_immediate(emitter, 3u, flags);
     tc_a64_move_immediate(emitter, 4u, type_id);
     tc_a64_span_arguments(emitter, &instr->span, 5u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_LOAD);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_LOAD);
     if (instr->dst.kind != TC_OP_DISCARD) {
         TcOperand dst = instr->dst;
         if (instr->type->tag == TC_TY_BOOL) {
@@ -510,7 +510,7 @@ static void emit_load(TcA64Emitter *emitter, const TcInstr *instr) {
 static void emit_store(TcA64Emitter *emitter, const TcInstr *instr) {
     int ok = 0;
     uint64_t size = tc_a64_type_size(emitter->ir, instr->type, &ok);
-    uint64_t flags = instr->mode == TC_VOLATILE ? TC_A64_ACCESS_VOLATILE : 0;
+    uint64_t flags = instr->mode == TC_VOLATILE ? TC_RT_ACCESS_VOLATILE : 0;
     uint32_t type_id = tc_a64_type_id(emitter, instr->type);
     if (!ok) {
         tc_a64_error(emitter, "store of an incomplete type");
@@ -522,7 +522,7 @@ static void emit_store(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_move_immediate(emitter, 3u, flags);
     tc_a64_move_immediate(emitter, 4u, type_id);
     tc_a64_span_arguments(emitter, &instr->span, 5u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_STORE);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_STORE);
 }
 
 static void emit_memmove(TcA64Emitter *emitter, const TcInstr *instr) {
@@ -539,7 +539,7 @@ static void emit_memmove(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_move_immediate(emitter, 3u, element);
     tc_a64_move_immediate(emitter, 4u, type_id);
     tc_a64_span_arguments(emitter, &instr->span, 5u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_MEMMOVE);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_MEMMOVE);
 }
 
 static void emit_addr(TcA64Emitter *emitter, const TcInstr *instr) {
@@ -561,7 +561,7 @@ static void emit_ptr_arith(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_move_immediate(emitter, 3u, instr->op == TC_PTRADD ? 1u : 0u);
     tc_a64_move_immediate(emitter, 4u, type_id);
     tc_a64_span_arguments(emitter, &instr->span, 5u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_PTRADD);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_PTRADD);
     tc_a64_store_result(emitter, instr, 0u);
 }
 
@@ -569,7 +569,7 @@ static void emit_ptrdiff(TcA64Emitter *emitter, const TcInstr *instr) {
     tc_a64_load_operand(emitter, &instr->args[0].value, 0u, 0);
     tc_a64_load_operand(emitter, &instr->args[1].value, 1u, 0);
     tc_a64_span_arguments(emitter, &instr->span, 2u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_PTRDIFF);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_PTRDIFF);
     tc_a64_store_result(emitter, instr, 0u);
 }
 
@@ -738,14 +738,14 @@ static void emit_depth_check_and_enter(TcA64Emitter *emitter,
     unsigned id = tc_a64_label(emitter);
     tc_a64_write(emitter,
                  "  adrp x9, %s\n  ldr x10, [x9, :lo12:%s]\n",
-                 TC_A64_SYM_CALL_DEPTH, TC_A64_SYM_CALL_DEPTH);
+                 TC_RT_SYM_CALL_DEPTH, TC_RT_SYM_CALL_DEPTH);
     tc_a64_move_immediate(emitter, 11u, emitter->profile->depth_D);
     tc_a64_write(emitter, "  cmp x10, x11\n  b.lo .Ldepth_ok_%u\n", id);
     tc_a64_trap(emitter, span, TC_EK_STACK_OVERFLOW);
     tc_a64_write(emitter,
                  ".Ldepth_ok_%u:\n  add x10, x10, #1\n"
                  "  str x10, [x9, :lo12:%s]\n",
-                 id, TC_A64_SYM_CALL_DEPTH);
+                 id, TC_RT_SYM_CALL_DEPTH);
 }
 
 static void emit_depth_leave(TcA64Emitter *emitter) {
@@ -753,8 +753,8 @@ static void emit_depth_leave(TcA64Emitter *emitter) {
                  "  adrp x9, %s\n  ldr x10, [x9, :lo12:%s]\n"
                  "  sub x10, x10, #1\n"
                  "  str x10, [x9, :lo12:%s]\n",
-                 TC_A64_SYM_CALL_DEPTH, TC_A64_SYM_CALL_DEPTH,
-                 TC_A64_SYM_CALL_DEPTH);
+                 TC_RT_SYM_CALL_DEPTH, TC_RT_SYM_CALL_DEPTH,
+                 TC_RT_SYM_CALL_DEPTH);
 }
 
 /* Place one argument in its AAPCS64 location. */
@@ -1188,10 +1188,10 @@ static void emit_switch(TcA64Emitter *emitter, const TcInstr *instr) {
 static void emit_write(TcA64Emitter *emitter, const TcInstr *instr) {
     unsigned id = tc_a64_label(emitter);
     unsigned tag = (unsigned)instr->type->tag;
-    tc_a64_load_operand(emitter, &instr->args[0].value, 1u, 0);
     tc_a64_move_immediate(emitter, 0u, tag);
-    tc_a64_move_immediate(emitter, 2u, instr->op == TC_WRITELN ? 1u : 0u);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_WRITE);
+    tc_a64_move_immediate(emitter, 1u, instr->op == TC_WRITELN ? 1u : 0u);
+    tc_a64_load_operand(emitter, &instr->args[0].value, 2u, 0);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_WRITE);
     tc_a64_write(emitter, "  cbz w0, .Lio_ok_%u\n", id);
     tc_a64_trap(emitter, &instr->span, TC_EK_IO);
     tc_a64_write(emitter, ".Lio_ok_%u:\n", id);
@@ -1208,7 +1208,7 @@ static void emit_read(TcA64Emitter *emitter, const TcInstr *instr) {
     }
     tc_a64_move_immediate(emitter, 0u, tag);
     tc_a64_add_constant(emitter, 1u, 19u, emitter->read_scratch_offset);
-    tc_a64_emit_call0(emitter, TC_A64_SYM_READ);
+    tc_a64_emit_call0(emitter, TC_RT_SYM_READ);
     tc_a64_write(emitter, "  cbz w0, .Lio_ok_%u\n", id);
     tc_a64_trap(emitter, &instr->span, TC_EK_IO);
     tc_a64_write(emitter, ".Lio_ok_%u:\n", id);
