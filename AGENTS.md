@@ -25,7 +25,8 @@
   退出记录、SiFive test finisher、`qemu-system-riscv32` virt）；`tc-aot`
   `--emit=asm|obj|elf|flat`、clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/
   确定性套件、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32 互操作、
-  32/64 分档案隔离、S10 长期回归语料/发布审计与生成式 fuzz；ABI 参考版本、规则矩阵
+  生成式 ABI fuzz、实现边界/checked/规模/长跳转回归、复位入口 BSS 清零与
+  far-branch 长跳转、32/64 分档案隔离、S10 长期回归语料/发布审计；ABI 参考版本、规则矩阵
   与范围限制见 `tests/conformance/abi/README.md`。代码在 `src/frontend/`、`src/ir/`、
   `src/runtime/`、`src/vm/`、`src/backend/` 与 `src/driver/`。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
@@ -34,7 +35,10 @@
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
 - 文档化实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
-  超出是 `tc_error_internal`（退出 71），不是语言诊断。
+  超出是 `tc_error_internal`（退出 71），不是语言诊断。AOT 还检查
+  `frame_total*(D+1) <= stack_size`（VM 宿主帧不受此限），ARM32 代码窗口
+  1 MiB；单函数 30000 指令有 far-branch 回归，更大规模受宿主/工具链资源影响，
+  不纳入门禁。
 
 ## 工作规则
 
@@ -46,7 +50,7 @@
 5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
    `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
-   trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf|flat` 经
+   trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=asm|obj|elf|flat` 经
    clang/lld 生成产物；`--profile=` 选择 `aarch64-linux-user`/`aarch64-baremetal`/
    `arm32-baremetal`/`riscv32-baremetal`（`w32` 仅 VM 静态档案），`--device=` 覆盖
    平台实例设备策略；
@@ -54,7 +58,7 @@
    S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld`、
    `qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；缺失时配置失败。
    `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
-   llvm-ar/aarch64-elf-ar，且不用于门禁。
+   llvm-ar（或对应 target ar），且不用于门禁。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。

@@ -18,15 +18,17 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G9 | S9 freestanding/bare metal and 32-bit backend | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 | G10 | S10 multi-target expansion and long-term regression | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 
-**Current status**: G10 passed and the 0.0.46 stage exit is complete. The front
-end, CT/IR, runtime semantic core, reference VM, the full W=64 AArch64 backend,
-the W=32 ARM32 backend, the W=32 RISC-V `riscv32-baremetal` backend, the
-freestanding target runtime core with the
+**Current status**: G10 passed and the 0.0.46 stage exit is complete; full
+`ctest` is 71/71. The front end, CT/IR, runtime semantic core, reference VM, the
+full W=64 AArch64 backend, the W=32 ARM32 backend, the W=32 RISC-V
+`riscv32-baremetal` backend, the freestanding target runtime core with the
 `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform instances,
 all four device policies, checked build, bidirectional C-caller/TC-caller
-AAPCS64/AAPCS32/RISC-V ILP32 interoperability, the full differential suite,
-32/64 profile isolation, the long-term regression corpus and the release audit
-are implemented. Coverage is 636/636; every design §12 item has a suite mapping.
+AAPCS64/AAPCS32/RISC-V ILP32 interoperability, the full differential and
+generated ABI adversarial suites, implementation-limit/scale/far-branch
+regressions, reset-entry BSS clearing, 32/64 profile isolation, the long-term
+regression corpus and the release audit are implemented. Coverage is 636/636;
+every design §12 item has a suite mapping.
 
 Reproduce:
 

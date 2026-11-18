@@ -80,18 +80,21 @@
   `tc_core`、两个 CLI、freestanding 符号、版本与文档一致性。
 - **S10 对抗性扩展**：新增生成式 ABI fuzz（随机标量/复合/padding 签名，C→TC
   与 TC→C 双向，三个 AOT 目标）、RISC-V 实现边界/鲁棒性用例（帧与静态区预算、
-  `D=63/64`、设备窗口末端、空输入、长路径 trap 记录）与 RISC-V 静态变异套件；
+  `D=63/64`、设备窗口末端、空输入、flat 执行、长路径 trap 记录）与
+  RISC-V 静态变异套件；
   长路径 trap/exit 记录缓冲增至 8192 字节以保留 `TC-EXIT`；C 互操作 harness 对
   未对齐 packed 复合使用 `-mstrict-align`。同时移除前端 arena 对单次分配误加的
   4 MiB 上限（约 3.3 万 token 的合法源会被误报 OOM），新增 800-case switch
   前端规模回归，并新增 39 个 RISC-V checked UB 用例的 VM/AOT 一致性套件与
   30000 指令 far-branch 长跳转回归；RISC-V 的 `br`/`br_if`/`switch`/`return`
-  在超过 1 MiB 距离时使用 auipc/jalr，避免汇编器 fixup 越界。全量 `ctest`
-  增至 71 项。
+  在超过 1 MiB 距离时使用 auipc/jalr，避免汇编器 fixup 越界；AArch64/ARM32
+  条件远分支改为条件跳过 + 无条件转移。三个目标的复位入口在 `tc_main` 前清零
+  BSS，使 ELF 与 flat 镜像都从确定的零运行时状态开始；ARM32 1 MiB 代码窗口
+  仍是明确实现边界。全量 `ctest` 增至 71 项。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
   `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
   首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射目标汇编，
-  `--emit=obj/elf/flat` 生成 ELF/裸二进制产物，`--checked` 生成 checked build，
+  `--emit=asm|obj|elf|flat` 生成汇编/ELF/裸二进制产物，`--checked` 生成 checked build，
   `--profile=`/`--device=` 选择目标档案与设备策略；无映射的平台能力显式退出 70
   且不发布错误产物。
 - **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、

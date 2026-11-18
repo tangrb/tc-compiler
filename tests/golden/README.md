@@ -1,9 +1,8 @@
 # Golden expectation layout (0.0.46)
 
 This directory is the **specification-derived** golden library.  It is not a
-copy of any compiler output.  At S0 no compiler implementation exists; each
-file must still be independently reviewed and approved before use.  The S0
-sample below has completed that independent review.
+copy of any compiler output.  Every file is independently reviewed and approved
+before use; the initial lexical sample below records that review.
 
 ## Directory layout
 
@@ -35,7 +34,7 @@ Every `*.golden.yaml` must contain:
 
 ```yaml
 id: TC-LEX-...            # unique
-kind: diagnostic          # S0 validator accepts diagnostic only; other kinds S1+
+kind: diagnostic          # diagnostic or run (see below)
 profile: common           # common | w32 | w64; must match the directory
 spec: "§2.1 ...; §12.3 ...; §12.5.1 ..."
 derivation: |
@@ -113,13 +112,14 @@ with each other.
 
 ## Independently reviewed samples
 
-`common/lex_syntax_comment_slash.golden.yaml` is the S0 lexical
-`TC_CE_SYNTAX` sample derived from standard §2.1/§2.2/§12.3/§12.5.1.  It has not
-been run against an implementation; its derivation and 2:30 position were
-independently reviewed and approved by `gate-auditor` (see `review-record.md`).
+`common/lex_syntax_comment_slash.golden.yaml` is the initial lexical
+`TC_CE_SYNTAX` sample derived from standard §2.1/§2.2/§12.3/§12.5.1.  Its
+derivation and 2:30 position were independently reviewed and approved by
+`gate-auditor` (see `review-record.md`); it was not backfilled from compiler
+output.
 
-S1 adds seven LEX/SYN goldens, all derived only from the standard and
-independently audited by the same non-author reviewer on 2026-11-15:
+The diagnostic set includes seven LEX/SYN goldens, all derived only from the
+standard and independently audited by a non-author reviewer on 2026-11-15:
 
 | ID | File | Expectation |
 | --- | --- | --- |
@@ -131,12 +131,13 @@ independently audited by the same non-author reviewer on 2026-11-15:
 | `TC-SYN-GOLD-0004` | `common/syn_var_missing_init.golden.yaml` | SYN `TC_CE_VAR_MISSING_INIT` at the identifier, 2:19 |
 | `TC-SYN-GOLD-0005` | `common/syn_program_mode_self.golden.yaml` | SYN `TC_CE_PROGRAM_MODE_MISUSE` at `Self`, 2:1 |
 
-S6 adds eleven independently reviewed `kind: run` goldens: eight under `w64/`
+The runtime set contains eleven independently reviewed `kind: run` goldens:
+eight under `w64/`
 (integer/float formatting, control flow, memory/struct, stdin I/O, division trap,
 `.ieee` inf/NaN, device rejection) and three under `w32/` (word sizes, isize
 overflow trap, usize maximum).  `review-record.md` records the reviewer identity,
 independence, date and the per-artifact derived values.  The independent audit also recorded four
-conventions that the G1 report carries forward: the `MODULE_LAYER` construct
+conventions used by the current test suites: the `MODULE_LAYER` construct
 first token includes the `#lib` visibility keyword; multiple unclosed block
 openers yield one `MISSING_END` at the earliest opener; `TC_CE_SYNTAX` cases
 must assert the concrete LEX or SYN stage; and Unicode-scalar column counting is

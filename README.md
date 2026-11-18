@@ -24,12 +24,16 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   （RV32IMAFDC、ILP32 soft-float ABI、独立 RISC-V 后端与全部 51 个 opcode、
   `__divdi3`/`__udivdi3` 等 64 位辅助、NS16550A UART0 输出与分帧输入、
   semihosting 退出记录、SiFive test finisher、qemu-system-riscv32 virt）；
-  复位入口、区基址、静态区 `.data`、ELF/flat 产物与 clang/lld 驱动；
+  复位入口在 `tc_main` 前清零 BSS、区基址、静态区 `.data`、ELF/flat 产物与
+  clang/lld 驱动；远距离分支长跳转（RISC-V auipc/jalr，AArch64/ARM32
+  条件跳过 + 无条件转移）；
   全量 VM↔AOT 差分/ABI/一致性/产物/确定性套件、C caller/TC caller 双向
-  AAPCS64/AAPCS32/RISC-V ILP32 互操作、32/64 分档案隔离、S10 长期回归语料与
-  发布审计、生成式 ABI/布局/内存/浮点 fuzz。
+  AAPCS64/AAPCS32/RISC-V ILP32 互操作、32/64 分档案隔离、S10 长期回归语料、
+  发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
+  长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-- 当前门禁：G0–G10 PASS；**G10 完成 0.0.46 阶段出口**。详见 [门禁状态](docs/gates/README.md)。
+- **当前验证**：全量 `ctest` 71/71；覆盖矩阵 636/636；G0–G10 PASS；
+  **G10 完成 0.0.46 阶段出口**。详见 [门禁状态](docs/gates/README.md)。
 
 ## 文档
 
@@ -63,7 +67,8 @@ src/                  0.0.46 实现
                       arm32（Cortex-M7 后端 + MPS2 平台实例）
                       riscv32（RISC-V 32 后端 + QEMU virt 平台实例）
   driver/             tc-vm / tc-aot CLI 与 AOT 驱动
-tests/                L0/L1/L2 测试、L3/L4 一致性、harness、可追溯性、golden、确定性
+tests/                L0–L7：单元、静态/运行时一致性、差分/ABI/平台、harness、
+                      可追溯性、golden、确定性
 ```
 
 ## 构建与测试
@@ -74,11 +79,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、
+S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`（或对应 target ar）、
 `ld.lld`、`qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；
 工具缺失时配置失败。
 `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭依赖 lld/qemu 的 ctest 项；构建目标运行时仍需要
-clang 与 llvm-ar/aarch64-elf-ar，且不用于门禁构建。
+clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
 工具当前支持：
 
 - `--syntax-only <source>`：只做 LEX/SYN；退出 0 表示无 LEX/SYN 诊断，**不是程序有效**。
@@ -110,10 +115,12 @@ clang 与 llvm-ar/aarch64-elf-ar，且不用于门禁构建。
 不伪装成语言诊断。实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
 超出返回 `tc_error_internal`（退出 71）。内置档案的帧区/栈按平台实例定义
 （默认 `D`：hosted 512、`aarch64-baremetal`/`w32` 256、`arm32-baremetal` 32、
-`riscv32-baremetal` 64）；
-程序静态帧足迹耗尽该区域属实现错误（退出 71），不是语言诊断。目标选择、ABI、
-区基址与运行时缝的当前约定以及契约/测试口径见 [src/CONTRACTS.md](src/CONTRACTS.md)
-与 [tests/README.md](tests/README.md)。
+`riscv32-baremetal` 64）。VM 的帧由宿主内存承载；AOT 额外检查
+`frame_total*(D+1) <= stack_size`，超出时以实现错误（退出 71）拒绝，不发布产物，
+这不是语言诊断。ARM32 代码窗口为 1 MiB，超窗口函数在链接阶段拒绝；单函数
+30000 指令已有 far-branch 回归，更大规模受宿主内存及汇编/链接工具处理能力影响，
+不纳入门禁也不宣称支持。目标选择、ABI、区基址与运行时缝的当前约定以及契约/测试
+口径见 [src/CONTRACTS.md](src/CONTRACTS.md) 与 [tests/README.md](tests/README.md)。
 
 ## 参与
 

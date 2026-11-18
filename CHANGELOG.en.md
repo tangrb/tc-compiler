@@ -98,8 +98,8 @@
   composites / larger by-reference composites / hidden-pointer indirect
   returns, 64-bit division helpers, NS16550A UART0 stdout and framed stdin, a
   semihosting exit record, the SiFive test finisher and qemu-system-riscv32
-  virt); the S10 RISC-V platform/ELF/device/checked/UART-input suite, 30 C-caller
-  and 13 TC-caller RISC-V ILP32 interoperability cases, 1037 static sources with
+  virt); the S10 RISC-V platform/ELF/device/checked/UART-input suite, 32 C-caller
+  and 14 TC-caller RISC-V ILP32 interoperability cases, 1037 static sources with
   identical VM/AOT first diagnostics, 149×2 long-term static sources, 16×3
   differential samples, 15 fuzz regression cases and 3-target platform corpus,
   plus RISC-V repeat-build/execute and O0/O2 determinism; the release audit
@@ -108,22 +108,26 @@
 - **S10 adversarial expansion**: generated ABI fuzz (random scalar/composite/
   padding signatures, C→TC and TC→C, all three AOT targets), RISC-V
   implementation-limit/robustness cases (frame and static-region budgets,
-  `D=63/64`, device-window end, empty input, long trap-record paths) and a
-  RISC-V static-mutation suite; the trap/exit record buffer grows to 8192 bytes
-  so practical paths retain `TC-EXIT`; C interop harnesses use
-  `-mstrict-align` for unaligned packed composites. The full `ctest` suite
-  grows to 71 tests. The front-end arena no longer rejects a single allocation
-  above 4 MiB (a legal source crossing the 32768-token growth step was
-  misreported as OOM); an 800-case switch regression covers the boundary, and
-  39 checked-build UB fixtures are rerun on RISC-V for VM/AOT agreement, and a
-  30000-instruction far-branch regression covers the auipc/jalr lowering used
-  when a RISC-V branch exceeds the 1 MiB `j`/`b.cond` range.
+  `D=63/64`, device-window end, empty input, flat execution, long trap-record
+  paths) and a RISC-V static-mutation suite; the trap/exit record buffer grows
+  to 8192 bytes so practical paths retain `TC-EXIT`; C interop harnesses use
+  `-mstrict-align` for unaligned packed composites. The full `ctest` suite grows
+  to 71 tests. The front-end arena no longer rejects a single allocation above
+  4 MiB (a legal source crossing the 32768-token growth step was misreported as
+  OOM); an 800-case switch regression covers the boundary, 39 checked-build UB
+  fixtures are rerun on RISC-V for VM/AOT agreement, and a 30000-instruction
+  far-branch regression covers the auipc/jalr lowering used when a RISC-V
+  branch exceeds the 1 MiB `j`/`b.cond` range. The reset entry zeros BSS before
+  `tc_main`, so ELF and flat images start from a deterministic zero runtime
+  state; AArch64/ARM32 conditionals over far blocks use a conditional skip plus
+  an unconditional transfer. The ARM32 1 MiB code window remains an explicit
+  implementation boundary.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
   `error[RT]` with exit 1; a normal `tc-aot` invocation emits target assembly,
-  `--emit=obj/elf/flat` produces ELF or flat artifacts and `--checked` produces
-  a checked build; `--profile=`/`--device=` select a target profile and device policy;
+  `--emit=asm|obj|elf|flat` produces assembly, ELF or flat artifacts and
+  `--checked` produces a checked build; `--profile=`/`--device=` select a target profile and device policy;
   unmapped platform capabilities exit 70 without publishing a wrong artifact.
 - **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
   `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7

@@ -17,11 +17,12 @@
 | G9 | S9 freestanding/裸机与 32 位后端 | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 | G10 | S10 多目标扩展与长期回归 | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 
-**当前状态**：G10 通过，0.0.46 阶段出口完成。前端、CT/IR、运行时语义核、参考 VM、
-W=64 AArch64 全量后端、W=32 ARM32 后端、W=32 RISC-V `riscv32-baremetal` 后端、
-freestanding 目标运行时核与三个裸机平台实例、四设备策略、checked build、
-C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32 互操作、全量差分/生成式对抗
-测试、32/64 分档案隔离、长期回归语料与发布审计均已实现。覆盖矩阵 636/636；
+**当前状态**：G10 通过，0.0.46 阶段出口完成；全量 `ctest` 71/71。前端、CT/IR、
+运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、W=32 RISC-V
+`riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、四设备策略、
+checked build、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32 互操作、
+全量差分/生成式 ABI 对抗测试、实现边界/规模/长跳转回归、复位入口 BSS 清零、
+32/64 分档案隔离、长期回归语料与发布审计均已实现。覆盖矩阵 636/636；
 design §12 十五项均有套件映射。
 
 复现：

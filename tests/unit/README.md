@@ -19,8 +19,9 @@ CTest entries:
   the W=32/W=64 matrix (L1/L2).
 - `aot.unit` (`tc_aot_test`): AArch64 lowering shape for integer/float/memory
   helpers, frame alignment, HFA and indirect-return ABI, checked-build shadow
-  and define tracking, static initializer emission, deterministic assembly and
-  explicit rejection of unsupported platform instances (L1).
+  and define tracking, static initializer emission, deterministic assembly,
+  large-function-safe conditional/switch lowering, and explicit rejection of
+  unsupported platform instances (L1).
 
 ## L0 case ids
 
@@ -151,11 +152,11 @@ programs with an in-memory I/O harness.  It currently runs 413 checks.
 ## L1 AArch64 backend tests (`tc_aot_test`)
 
 `tc_aot_test` analyzes small programs, emits assembly to memory and inspects the
-lowering shape.  It currently runs 34 checks and needs no qemu/linker.
+lowering shape.  It currently runs 81 checks and needs no qemu/linker.
 
 | Case ID | Function | Pins |
 | --- | --- | --- |
-| `TC-UNIT-AOT-0001` | `test_lowering_shapes` | design §10.3: native strict add overflow (`adds`/`b.vs`), signed `sdiv`/`msub`, shift-count checks, signed/unsigned `cset`, call depth, switch compare chain, `sizeof` immediate and frame prologue |
+| `TC-UNIT-AOT-0001` | `test_lowering_shapes` | design §10.3: native strict add overflow (`adds`/`b.vs`), signed `sdiv`/`msub`, shift-count checks, signed/unsigned `cset`, call depth, far-safe switch compare chain, `sizeof` immediate and frame prologue |
 | `TC-UNIT-AOT-0002` | `test_frame_alignment` | design §10.2: every emitted `sub sp, sp, #N` frame size is a multiple of 16 |
 | `TC-UNIT-AOT-0003` | `test_unsupported` | design §10.3: pointer/load programs return `TC_AARCH64_EMIT_UNSUPPORTED` with an explicit unsupported-opcode reason |
 | `TC-UNIT-AOT-0004` | `test_static_initializer` | design §4/§10: static object bytes appear in `__tc_static_region` at their object offsets |

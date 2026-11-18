@@ -51,8 +51,8 @@ never backfilled from compiler output.
   steps, `blr`, by-reference large composites); `abi/s8_interop_cases.py` compiles
   a C caller with clang and calls the AArch64 callee for 33 composite/HFA/spill/
   narrow-value cases, checking the published ABI independently of the VM.
-  `abi/reverse_interop_cases.py` adds 19 TC-caller → C-callee cases for both
-  targets; the reference edition, rule matrix and explicit ABI scope limits are
+  `abi/reverse_interop_cases.py` adds 19 TC-caller → C-callee cases across
+  AArch64, ARM32 and RISC-V ILP32; the reference edition, rule matrix and explicit ABI scope limits are
   in `abi/README.md`.
 - S8 generated: `diff/s8_abi_fuzz.py`, `s8_layout_fuzz.py`, `s8_mem_fuzz.py` and
   `s8_fp_fuzz.py` derive expected behavior in Python and run fixed seed sets
@@ -92,8 +92,8 @@ never backfilled from compiler output.
   fuzz regression seeds and a platform program on all three targets.
   `abi/s10_abi_fuzz.py` generates random scalar/composite signatures for all
   three AOT targets (C→TC and TC→C); `platform/s10_limits_cases.py` covers
-  frame/static-region budgets, deep recursion, device-window end, empty input
-  and long trap-record paths; `tools/s8_static_fuzz.py --profile=riscv32-baremetal`
+  frame/static-region budgets, deep recursion, device-window end, empty input,
+  flat execution and long trap-record paths; `tools/s8_static_fuzz.py --profile=riscv32-baremetal`
   checks 240 mutated sources;
   `tools/s10_frontend_scale.py` emits an 800-case switch, above the lexer's
   32768-token growth step; `checked/s10_checked_cases.py` reruns the 39
@@ -123,7 +123,7 @@ tests/conformance/
   runtime/            S6 VM runtime cases (one directory per case)
   diff/               S7/S8 VM↔AOT differential cases and fixed-seed fuzz
   abi/                S7/S8 AAPCS64, S9 AAPCS32 and S10 RISC-V ILP32 ABI cases; reverse TC→C interop
-  checked/            S8 checked-build cases
+  checked/            S8 checked-build cases and S10 RISC-V checked fixtures
   consistency/        S8 standard §13.4 eight-item consistency cases
   platform/           S9 bare-metal/ARM32 and S10 RISC-V platform cases
   longterm/           S10 standard/boundary/differential/fuzz/platform corpus

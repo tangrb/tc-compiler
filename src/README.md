@@ -18,8 +18,10 @@ deterministic assembly for all value types and opcodes, implements the AAPCS64
 argument/return surface (composites, HFA, large by-reference composites and indirect returns, `fnptr`/
 `call_indirect`), the object-table driven memory helpers (mandatory and
 checked-build traps), reset entry/region layout/static `.data` and drives
-clang/lld to an ELF or flat image with ICF disabled.  The freestanding runtime is now a
-target-neutral core with platform seams: `aarch64-baremetal` uses PL011 UART0
+clang/lld to an ELF or flat image with ICF disabled.  The reset entry clears
+BSS before `tc_main`, and far conditional/switch/return transfers use a local
+skip plus an unconditional transfer (RISC-V uses the auipc/jalr sequence).  The
+freestanding runtime is a target-neutral core with platform seams: `aarch64-baremetal` uses PL011 UART0
 for program stdout and framed stdin, PL011 UART1 for the exit record and PSCI
 shutdown (no semihosting), while `arm32-baremetal` is an independent Cortex-M7
 backend with the base AAPCS32/ILP32 softfp classifier, 32-bit word-size
@@ -28,8 +30,9 @@ a semihosting exit record; binary32 uses FPv5-D.  `riscv32-baremetal` is an
 independent RV32IMAFDC/ILP32 soft-float backend with an NS16550A UART0
 stdout/stdin seam, a semihosting exit record, the SiFive test finisher and
 qemu-system-riscv32 virt execution; its runtime adds the RV32 compiler-runtime
-64-bit divide/remainder helpers.  All four device policies, checked build,
-ELF/symbol audits and 32/64 profile isolation are tested.  Frozen contract
+64-bit divide/remainder helpers.  All four device policies, checked build, generated ABI fuzz,
+implementation-limit/scale/far-branch regressions, ELF/symbol audits and 32/64
+profile isolation are tested.  Frozen contract
 ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
 ```text
@@ -89,8 +92,10 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
 - `tc-vm` and `tc-aot` are the only tool entry points.  `--syntax-only`,
   `--sem-only` and `--static-only` are partial checks: exit 0 never claims a
   valid program.  A normal `tc-vm` invocation executes the finalized program on
-  the reference VM.  A normal `tc-aot` invocation emits target assembly (AArch64 or ARM32);
-  `--emit=obj|elf|flat` assembles/links with the bundled freestanding target runtime.
+  the reference VM.  A normal `tc-aot` invocation emits target assembly
+  (AArch64, ARM32 or RISC-V 32);
+  `--emit=asm|obj|elf|flat` assembles/links with the bundled freestanding target
+  runtime.
   Capabilities outside the bound platform instance fail explicitly with exit 70
   and publish no wrong artifact.
 - Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
@@ -126,8 +131,13 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   `__int128` on the 32-bit target.
 - VM frame storage is host-backed but addressed in the profile's frame region.
   The built-in profiles reserve a frame region and `stack_size` for the default
-  `D` (512/256/32/64); a program whose static frame footprints exhaust that region
-  is an implementation error, not a language diagnostic.
+  `D` (512/256/32/64).  AOT additionally enforces
+  `frame_total*(D+1) <= stack_size` before emission, so a large frame may run on
+  the VM but is rejected by AOT with the implementation error (exit 71) and no
+  artifact; this is an implementation resource boundary, not a language
+  diagnostic.  ARM32's 1 MiB code window rejects oversized functions at link
+  time; a 30000-instruction far-branch regression is covered, but larger single
+  functions depend on host/toolchain resources.
 - Target backends share the freestanding runtime core, not target lowering:
   AArch64, ARM32 and RISC-V 32 keep separate emitters, ABI classifiers and
   startup/linker scripts.  Platform seam files own the console/termination policy; the core

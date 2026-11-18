@@ -30,15 +30,19 @@ kept; historical implementation and tools live in git tags.
   32-bit target `riscv32-baremetal` (RV32IMAFDC, ILP32 soft-float ABI, an
   independent RISC-V backend for all 51 opcodes, `__divdi3`/`__udivdi3` 64-bit
   helpers, NS16550A UART0 stdout/framed stdin, a semihosting exit record, the
-  SiFive test finisher and qemu-system-riscv32 virt); reset entry, region
-  bases, static `.data`, ELF/flat artifacts with ICF disabled and clang/lld
-  driving; the full VM↔AOT differential/ABI/consistency/artifact/determinism
-  suites, bidirectional C-caller/TC-caller AAPCS64/AAPCS32/RISC-V ILP32
-  interoperability, 32/64 profile isolation, the S10 long-term regression
-  corpus and release audit, and generated ABI/layout/memory/float fuzz suites.
+  SiFive test finisher and qemu-system-riscv32 virt); reset entry with BSS
+  clearing before `tc_main`, region bases, static `.data`, ELF/flat artifacts
+  with ICF disabled and clang/lld driving; far conditional/switch/return
+  transfers use a local skip plus an unconditional transfer (RISC-V
+  auipc/jalr); the full VM↔AOT differential/ABI/consistency/artifact/
+  determinism suites, bidirectional C-caller/TC-caller AAPCS64/AAPCS32/RISC-V
+  ILP32 interoperability, 32/64 profile isolation, the S10 long-term regression
+  corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
+  implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
   inlining); the 0.0.46 baseline stays zero-pass.
-- Gates: G0–G10 PASS; **G10 completes the 0.0.46 stage exit**. See
+- **Current verification**: full `ctest` 71/71; coverage matrix 636/636; G0–G10
+  PASS; **G10 completes the 0.0.46 stage exit**. See
   [gate status](docs/gates/README.en.md).
 
 ## Documents
@@ -76,7 +80,8 @@ src/                  0.0.46 implementation
                       platform instance); riscv32 (RISC-V 32 backend + QEMU
                       virt platform instance)
   driver/             tc-vm / tc-aot CLI and AOT driver
-tests/                L0/L1/L2, L3/L4 conformance, harness, traceability, golden, determinism
+tests/                L0–L7: unit, static/runtime conformance, differential/ABI/
+                      platform, harness, traceability, golden, determinism
 ```
 
 ## Build and test
@@ -87,12 +92,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The S7/S8/S9/S10 differential/toolchain tests require `clang`, `llvm-ar` (or
-`aarch64-elf-ar`), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
-`qemu-system-riscv32` by default; configuration fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
-lld/qemu-dependent ctest entries; building the AArch64 runtime still requires
-clang and llvm-ar/aarch64-elf-ar, and this is not a gate build. Tools
-currently support:
+The S7/S8/S9/S10 differential/toolchain tests require `clang`, `llvm-ar` (or the
+matching target ar), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
+`qemu-system-riscv32` by default; configuration fails when they are missing.
+`-DTC_ENABLE_AOT_TESTS=OFF` only skips the lld/qemu-dependent ctest entries;
+building the target runtimes still requires clang and llvm-ar (or the matching
+target ar), and this is not a gate build. Tools currently support:
 
 - `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
   **not a valid program**.
@@ -108,7 +113,7 @@ currently support:
   (mandatory traps are unchanged), and `--opt=O0|O2` stays a zero-pass baseline.
 - A normal `tc-aot` invocation emits target assembly to stdout after the static
   stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf`/`--emit=flat` with
-  `--output=<path>` produce `.s`, an ELF relocatable or an ELF executable;
+  `--output=<path>` produce `.s`, an ELF relocatable/executable or a flat binary;
   `--checked` produces a checked build and `--opt=O0|O2` stays the zero-pass
   baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal`,
   `arm32-baremetal` or `riscv32-baremetal` (`w32` is a VM-only static profile), and
@@ -129,12 +134,16 @@ Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal
 16 KiB token, 256 type/block nesting levels; exceeding them returns
 `tc_error_internal` (exit 71). Built-in profiles define their frame region/stack
 (default `D`: 512 hosted, 256 `aarch64-baremetal`/`w32`,
-32 `arm32-baremetal`, 64 `riscv32-baremetal`);
-exhausting the region with static frame footprints is an implementation error
-(exit 71), not a language diagnostic. Target/ABI/region and runtime-seam
-conventions are in [src/CONTRACTS.md](src/CONTRACTS.md); contract and test
-conventions are in
-[src/CONTRACTS.md](src/CONTRACTS.md) and [tests/README.md](tests/README.md).
+32 `arm32-baremetal`, 64 `riscv32-baremetal`). VM frames are host-backed; AOT
+additionally enforces `frame_total*(D+1) <= stack_size` before emission and
+rejects an oversized frame with the implementation error (exit 71) and no
+artifact; this is not a language diagnostic. The ARM32 code window is 1 MiB and
+oversized functions are rejected at link time; a 30000-instruction far-branch
+regression exists, but larger single functions depend on host memory and the
+assembler/linker and are not covered by the gate. Target/ABI/region and
+runtime-seam conventions are in [src/CONTRACTS.md](src/CONTRACTS.md); contract and
+test conventions are in [src/CONTRACTS.md](src/CONTRACTS.md) and
+[tests/README.md](tests/README.md).
 
 ## Contributing
 

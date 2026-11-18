@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, the long-term regression corpus and the release audit are implemented; the optional optimization pipeline is not enabled.
+Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit are implemented; the optional optimization pipeline is not enabled.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -41,7 +41,7 @@ Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The 
 support `--syntax-only`/`--sem-only`/`--static-only` partial checks; a normal `tc-vm`
 invocation executes the reference VM (exit 0 on normal termination, 1 on the first
 trap), while a normal `tc-aot` invocation emits target assembly;
-`--emit=obj|elf|flat` drives clang/lld to an ELF or flat image and `--checked`
+`--emit=asm|obj|elf|flat` drives clang/lld to assembly, ELF or flat artifacts and `--checked`
 produces a checked
 build. Capabilities outside the current platform instance exit 70
 without publishing a wrong artifact. The S7/S8/S9/S10 differential/toolchain

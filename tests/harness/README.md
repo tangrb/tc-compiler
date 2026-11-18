@@ -1,4 +1,4 @@
-# TC 0.0.46 S0 test harness
+# TC 0.0.46 test harness
 
 Dependency-free Python 3 harness for TC case metadata, the seven deciders from
 the test plan section 3.4, hard timeouts, output capture and fail-closed
@@ -54,7 +54,7 @@ python3 tests/harness/runner.py tests/conformance \
 python3 tests/harness/runner.py tests/conformance --filter 'TC-RT-FP-*' \
     --adapter tests/adapters/tc_adapter.py
 
-# Explicitly allow S0 placeholder cases (still not counted as pass).
+# Explicitly allow placeholder cases (still not counted as pass).
 python3 tests/harness/runner.py tests/conformance --allow-not-implemented
 ```
 
@@ -338,12 +338,13 @@ failures.
 
 - The harness rejects an empty selected suite (exit 2) and missing source/include/link paths before running an adapter; selftests cover all three path kinds.
 - IMPORT codes (`TC_CE_IMPORT_*`) only accept `stage: IMPORT`; `SEM` is rejected.
-- The only required S0 CTest entry is `harness.selftest` (command above).  S1
-  adds the real `harness.conformance` gate: `tests/CMakeLists.txt` configures
+- `harness.selftest` is the harness self-test entry.  The current
+  `harness.conformance` gate is registered by
+  `tests/CMakeLists.txt`, which configures
   `build/tc_adapter.py` from `tests/adapters/tc_adapter.py.in` with the tool
   paths of that build tree, and the gate invokes `runner.py` with no
   `--allow-not-implemented`.
-- Later conformance gates should invoke `runner.py` with an adapter and no
+- Conformance gates invoke `runner.py` with an adapter and no
   `--allow-not-implemented`.  Use `--json-out` for machine-readable evidence.
 - Diagnostic `primary.file` and `related[].file` strings are compared exactly.
   The adapter should report the source names written in the case metadata
@@ -392,8 +393,8 @@ failures.
 
 ## CTest integration
 
-S0 needs one CTest entry.  The lead adds this to `tests/CMakeLists.txt` (not
-modified by this harness):
+`harness.selftest` is the harness self-test entry.  It is registered in
+`tests/CMakeLists.txt` with this command:
 
 ```cmake
 add_test(
@@ -411,8 +412,8 @@ Equivalent direct command line:
 python3 tests/harness/selftest.py
 ```
 
-The S1 conformance tree exists.  The checked-in template is configured by
-CMake (so each build tree gets its own tool paths); add the case runner as a
+The conformance tree is present.  The checked-in adapter template is configured
+by CMake (so each build tree gets its own tool paths); the case runner is a
 separate gate (do not pass `--allow-not-implemented` for a real gate):
 
 ```cmake
@@ -432,7 +433,7 @@ The runner prints `SUMMARY pass=... fail=... not_implemented=... total=...`;
 CTest treats the nonzero exit as the gate failure.  The JSON report contains the
 same per-case records and summary, sorted by id, with no timestamps.
 
-## S0 source references
+## Source references
 
 - Test plan section 3.4 (seven deciders), section 5 S0, Appendix C.
 - Standard section 12.1/12.2 (first diagnosis), 12.3 (80 codes), 12.5.1

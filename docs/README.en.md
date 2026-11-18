@@ -16,14 +16,15 @@ current gate status. Chinese: [README.md](README.md).
 ## Current status
 
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**.
+  exit**; full `ctest` 71/71 and coverage matrix 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
   (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V
-  backends/toolchains (full ABI, checked build, ELF/region layout), the
-  freestanding target runtime core with the
-  `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform instances,
-  all four device policies, 32/64 profile isolation, the full
-  differential/ABI/consistency/artifact/determinism suites, the S10 long-term
+  backends/toolchains (full ABI, checked build, ELF/region layout, reset-entry
+  BSS clearing, far-branch long jumps), the freestanding target runtime core
+  with the `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform
+  instances, all four device policies, 32/64 profile isolation, the full
+  differential/ABI/consistency/artifact/determinism suites, generated ABI fuzz,
+  implementation-limit/checked/scale/far-branch regressions, the S10 long-term
   regression corpus and the release audit.
 - Not implemented: the optional optimization pipeline (SSA/regalloc/inlining).
 - No C host public library, embedding API or ABI.
