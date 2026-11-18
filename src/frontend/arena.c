@@ -51,9 +51,9 @@ static TcArenaBlock *arena_new_block(TcArena *arena, size_t payload) {
     size_t size = align_up(sizeof(TcArenaBlock));
     size_t bytes;
     TcArenaBlock *block;
-    if (payload > TC_FRONTEND_MAX_SOURCE_BYTES) {
-        return NULL;
-    }
+    /* The source-size and token-size limits are enforced at input/lexing.
+     * Growable token/block arrays legitimately exceed any smaller per-block
+     * cap, so only an actual allocation failure is OOM. */
     bytes = size + payload;
     block = (TcArenaBlock *)arena->alloc->alloc(arena->alloc->ctx, bytes);
     if (block == NULL) {

@@ -69,8 +69,10 @@ def mutate(data: bytes, rng: random.Random) -> bytes:
     return bytes(out)
 
 
-def run_tool(tool: str, source: Path, include: Path) -> tuple[int, bytes, bytes]:
-    argv = [tool, "--static-only", f"--include={include}", str(source)]
+def run_tool(tool: str, source: Path, include: Path,
+             profile: str) -> tuple[int, bytes, bytes]:
+    argv = [tool, "--static-only", f"--profile={profile}",
+            f"--include={include}", str(source)]
     proc = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                           timeout=20)
     return proc.returncode, proc.stdout, proc.stderr
@@ -79,6 +81,7 @@ def run_tool(tool: str, source: Path, include: Path) -> tuple[int, bytes, bytes]
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--profile", default="aarch64-linux-user")
     parser.add_argument("--seeds", type=int, default=240)
     args = parser.parse_args()
     if not args.check:
@@ -101,8 +104,8 @@ def main() -> int:
             source.write_bytes(mutated)
             # The original fixture may import a sibling module; keep it visible.
             include = base.parent
-            vm_result = run_tool(vm, source, include)
-            aot_result = run_tool(aot, source, include)
+            vm_result = run_tool(vm, source, include, args.profile)
+            aot_result = run_tool(aot, source, include, args.profile)
         except subprocess.TimeoutExpired as exc:
             failures.append(f"seed {seed} ({base.name}): timeout: {exc}")
             continue

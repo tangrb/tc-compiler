@@ -23,6 +23,17 @@ _start:
     bic x0, x0, #(1 << 1)
     msr sctlr_el1, x0
     isb
+    /* A flat image carries no BSS metadata; zero it before generated code or
+     * the runtime observes any static object. */
+    ldr x1, =__bss_start
+    ldr x2, =__bss_end
+    cmp x1, x2
+    b.hs 2f
+1:
+    str xzr, [x1], #8
+    cmp x1, x2
+    b.lo 1b
+2:
     ldr x0, =__tc_stack_top
     mov sp, x0
     bl tc_main

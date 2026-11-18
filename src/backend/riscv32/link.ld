@@ -28,9 +28,11 @@ SECTIONS
   . = 0x81000000;
   .data : { *(.data*) }
   .bss : {
+    . = ALIGN(16);
     __bss_start = .;
     *(.bss*)
     *(COMMON)
+    . = ALIGN(16);
     __bss_end = .;
   }
   __tc_image_end = .;

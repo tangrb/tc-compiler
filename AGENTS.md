@@ -128,7 +128,7 @@
 | AArch64 后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`platform_semihost.c`、`platform_baremetal.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
 | ARM32 后端 / 平台 | `src/backend/arm32/emit.h`、`emit.c`、`emit_abi.c`、`emit_ops.c`、`rt_helpers.c`、`aeabi.c`、`platform_mps2.c`、`start.S`、`link.ld` |
 | RISC-V 32 后端 / 平台 | `src/backend/riscv32/emit.h`、`emit.c`、`emit_abi.c`、`emit_ops.c`、`rt_helpers.c`、`compiler_rt.c`、`platform_virt.c`、`semi.S`、`start.S`、`link.ld` |
-| freestanding 运行时核 / 平台缝 | `src/backend/common/runtime.c`、`rt_abi.h`、`rt_platform.h`；`src/backend/{aarch64,arm32}/platform_*.c` |
+| freestanding 运行时核 / 平台缝 | `src/backend/common/runtime.c`、`rt_abi.h`、`rt_platform.h`；`src/backend/{aarch64,arm32,riscv32}/platform_*.c` |
 | AOT 工具链驱动 | `src/driver/aot_driver.h`、`aot_driver.c`；`src/driver/cli.h` |
 | VM 接口 / 内存对象 / 解释器 | `src/vm/vm.h`、`src/vm/internal.h`、`src/vm/memory.c`、`src/vm/interp.c` |
 | 测试基建 | `tests/README.md` |
@@ -138,7 +138,7 @@
 | S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
 | S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/diff/s8_*_fuzz.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/tools/s8_static_fuzz.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
 | S9 freestanding / ARM32 | `tests/conformance/platform/s9_baremetal_cases.py`；`tests/conformance/platform/s9_arm32_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/tools/s9_static_parity.py`；`tests/conformance/platform/s9_profiles.py`；`tests/determinism/s9_determinism.py` |
-| S10 RISC-V / 长期回归 / 发布审计 | `tests/conformance/platform/s10_riscv32_cases.py`；`tests/conformance/abi/s10_riscv32_interop.py`、`s10_reverse_interop.py`；`tests/conformance/tools/s10_static_parity.py`；`tests/conformance/longterm/s10_longterm.py`；`tests/determinism/s10_determinism.py`；`tests/tools/s10_release_audit.py` |
+| S10 RISC-V / 长期回归 / 发布审计 | `tests/conformance/platform/s10_riscv32_cases.py`、`s10_limits_cases.py`；`tests/conformance/abi/s10_riscv32_interop.py`、`s10_reverse_interop.py`、`s10_abi_fuzz.py`；`tests/conformance/tools/s10_static_parity.py`、`s10_frontend_scale.py`；`tests/conformance/checked/s10_checked_cases.py`、`tests/conformance/platform/s10_long_branch.py`；`tests/conformance/longterm/s10_longterm.py`；`tests/determinism/s10_determinism.py`；`tests/tools/s10_release_audit.py` |
 | ABI 规则矩阵 / 双向互操作 | `tests/conformance/abi/README.md`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/abi/reverse_interop_cases.py` |
 | ABI mutation / 容量 / 软浮点审计 | `tests/tools/abi_mutation_audit.py`；`tests/tools/s9_capacity_report.py`；`tests/tools/s9_softfloat_audit.py`（手动工具，不进入 ctest） |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |

@@ -84,13 +84,23 @@ never backfilled from compiler output.
   cases plus the complete S6/S8 corpora as same-profile VM↔AOT comparisons,
   ELF/symbol/no-dynamic/no-libc audits, the four device policies, checked/UB
   separation, UART framed stdin and flat artifacts.  `abi/s10_riscv32_interop.py`
-  adds 26 C-caller ILP32 cases (including the one-register 2×XLEN split) and
-  `abi/s10_reverse_interop.py` adds 12 TC-caller → C-callee cases;
+  adds 32 C-caller ILP32 cases (including the one-register 2×XLEN split) and
+  `abi/s10_reverse_interop.py` adds 14 TC-caller → C-callee cases;
   `tools/s10_static_parity.py` compares VM/AOT first diagnostics over every
   static source under the RISC-V profile.  `longterm/s10_longterm.py` is the
   long-term corpus: sampled standard/boundary sources, differential cases,
   fuzz regression seeds and a platform program on all three targets.
-  `tests/tools/s10_release_audit.py` checks the release surface.
+  `abi/s10_abi_fuzz.py` generates random scalar/composite signatures for all
+  three AOT targets (C→TC and TC→C); `platform/s10_limits_cases.py` covers
+  frame/static-region budgets, deep recursion, device-window end, empty input
+  and long trap-record paths; `tools/s8_static_fuzz.py --profile=riscv32-baremetal`
+  checks 240 mutated sources;
+  `tools/s10_frontend_scale.py` emits an 800-case switch, above the lexer's
+  32768-token growth step; `checked/s10_checked_cases.py` reruns the 39
+  checked-build UB fixtures on RISC-V and requires VM/AOT agreement;
+  `platform/s10_long_branch.py` builds a 30000-instruction function and checks
+  the auipc/jalr far-branch lowering.  `tests/tools/s10_release_audit.py` checks the
+  release surface.
 
 ```text
 tests/conformance/

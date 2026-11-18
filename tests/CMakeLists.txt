@@ -265,6 +265,30 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/longterm/s10_longterm.py
                      --check)
+    add_test(NAME conformance.s10_abi_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s10_abi_fuzz.py
+                     --check --seeds 8)
+    add_test(NAME conformance.s10_limits
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s10_limits_cases.py
+                     --check)
+    add_test(NAME conformance.s10_static_fuzz
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s8_static_fuzz.py
+                     --check --profile=riscv32-baremetal)
+    add_test(NAME conformance.s10_frontend_scale
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s10_frontend_scale.py
+                     --check)
+    add_test(NAME conformance.s10_checked
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/checked/s10_checked_cases.py
+                     --check)
+    add_test(NAME conformance.s10_long_branch
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s10_long_branch.py
+                     --check)
     add_test(NAME release.s10_audit
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/s10_release_audit.py
@@ -282,7 +306,10 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s9_profiles determinism.s9 conformance.s10_riscv32
         conformance.s10_interop conformance.s10_reverse_interop
         conformance.s10_static_parity determinism.s10
-        conformance.s10_longterm release.s10_audit
+        conformance.s10_longterm conformance.s10_abi_fuzz
+        conformance.s10_limits conformance.s10_static_fuzz
+        conformance.s10_frontend_scale conformance.s10_checked
+        conformance.s10_long_branch release.s10_audit
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_QEMU_SYSTEM_RISCV32=${TC_QEMU_SYSTEM_RISCV32};TC_AOT_LINKER=${TC_LLD}")

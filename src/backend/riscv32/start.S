@@ -23,6 +23,16 @@ _start:
     or t0, t0, t1
     csrw mstatus, t0
     csrwi fcsr, 0
+    /* A flat image carries no BSS metadata; zero it before generated code or
+     * the runtime observes any static object. */
+    la t0, __bss_start
+    la t1, __bss_end
+    bgeu t0, t1, .Lbss_done
+.Lbss_loop:
+    sb zero, 0(t0)
+    addi t0, t0, 1
+    bltu t0, t1, .Lbss_loop
+.Lbss_done:
     la sp, __tc_stack_top
     call tc_main
     lui t0, %hi(__tc_rt_normal_status)

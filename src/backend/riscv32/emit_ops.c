@@ -829,15 +829,30 @@ static void emit_copy(TcRiscv32Emitter *emitter, const TcInstr *instr) {
 /* Control flow, return and I/O.                                             */
 /* ------------------------------------------------------------------------- */
 
+static void emit_long_jump_target(TcRiscv32Emitter *emitter,
+                                   const char *target) {
+    unsigned id = tc_riscv32_label(emitter);
+    tc_riscv32_write(emitter, ".Llong_%u:\n", id);
+    tc_riscv32_write(emitter, "  auipc t0, %%pcrel_hi(%s)\n", target);
+    tc_riscv32_write(emitter,
+                     "  jalr x0, %%pcrel_lo(.Llong_%u)(t0)\n", id);
+}
+
+static void emit_long_jump_block(TcRiscv32Emitter *emitter,
+                                 size_t unit_index, unsigned block) {
+    char target[64];
+    snprintf(target, sizeof(target), ".L%zu_block%u", unit_index, block);
+    emit_long_jump_target(emitter, target);
+}
+
 static void emit_branch(TcRiscv32Emitter *emitter, const TcInstr *instr) {
     if (instr->args[0].value.kind != TC_OP_LABEL ||
         instr->args[0].value.label >= emitter->unit->nblocks) {
         tc_riscv32_error(emitter, "invalid branch label");
         return;
     }
-    tc_riscv32_write(emitter, "  j .L%zu_block%u\n",
-                     emitter->unit_index,
-                     instr->args[0].value.label);
+    emit_long_jump_block(emitter, emitter->unit_index,
+                         instr->args[0].value.label);
 }
 
 static void emit_branch_if(TcRiscv32Emitter *emitter,
@@ -849,9 +864,13 @@ static void emit_branch_if(TcRiscv32Emitter *emitter,
         return;
     }
     tc_riscv32_load_operand32(emitter, &instr->args[0].value, 10u);
-    tc_riscv32_write(emitter, "  bne a0, zero, .L%zu_block%u\n",
-                     emitter->unit_index,
-                     instr->args[1].value.label);
+    {
+        unsigned id = tc_riscv32_label(emitter);
+        tc_riscv32_write(emitter, "  beq a0, zero, .Lbrif_skip_%u\n", id);
+        emit_long_jump_block(emitter, emitter->unit_index,
+                             instr->args[1].value.label);
+        tc_riscv32_write(emitter, ".Lbrif_skip_%u:\n", id);
+    }
 }
 
 static void emit_switch(TcRiscv32Emitter *emitter, const TcInstr *instr) {
@@ -870,31 +889,46 @@ static void emit_switch(TcRiscv32Emitter *emitter, const TcInstr *instr) {
     ndispatch = ntargets - 1u;
     tc_riscv32_load_operand64(emitter, &instr->args[0].value, 10u, 11u);
     if (width > 32u) {
+        unsigned low = tc_riscv32_label(emitter);
         tc_riscv32_write(emitter,
-                         "  bne a1, zero, .Lswitch_default_%u\n", id);
+                         "  beq a1, zero, .Lswitch_low_%u\n", low);
+        emit_long_jump_block(emitter, emitter->unit_index,
+                             instr->switch_targets[ntargets - 1u]);
+        tc_riscv32_write(emitter, ".Lswitch_low_%u:\n", low);
     }
     if (ndispatch == 0) {
-        tc_riscv32_write(emitter, "  j .Lswitch_default_%u\n", id);
+        emit_long_jump_block(emitter, emitter->unit_index,
+                             instr->switch_targets[ntargets - 1u]);
     } else {
+        unsigned in_range;
         tc_riscv32_move_immediate(emitter, 12u, (uint32_t)ndispatch);
+        in_range = tc_riscv32_label(emitter);
         tc_riscv32_write(emitter,
-                         "  bgeu a0, a2, .Lswitch_default_%u\n", id);
+                         "  bltu a0, a2, .Lswitch_inrange_%u\n",
+                         in_range);
+        emit_long_jump_block(emitter, emitter->unit_index,
+                             instr->switch_targets[ntargets - 1u]);
+        tc_riscv32_write(emitter, ".Lswitch_inrange_%u:\n", in_range);
         for (i = 0; i < ndispatch; i++) {
+            unsigned next;
             tc_riscv32_move_immediate(emitter, 12u, (uint32_t)i);
+            next = tc_riscv32_label(emitter);
             tc_riscv32_write(emitter,
-                             "  beq a0, a2, .Lswitch_%u_case_%zu\n",
-                             id, i);
+                             "  bne a0, a2, .Lswitch_next_%u\n", next);
+            emit_long_jump_block(emitter, emitter->unit_index,
+                                 instr->switch_targets[i]);
+            tc_riscv32_write(emitter, ".Lswitch_next_%u:\n", next);
         }
-        tc_riscv32_write(emitter, "  j .Lswitch_default_%u\n", id);
+        emit_long_jump_block(emitter, emitter->unit_index,
+                             instr->switch_targets[ntargets - 1u]);
     }
-    tc_riscv32_write(emitter, ".Lswitch_default_%u:\n  j .L%zu_block%u\n",
-                     id, emitter->unit_index,
-                     instr->switch_targets[ntargets - 1u]);
+    tc_riscv32_write(emitter, ".Lswitch_default_%u:\n", id);
+    emit_long_jump_block(emitter, emitter->unit_index,
+                         instr->switch_targets[ntargets - 1u]);
     for (i = 0; i < ndispatch; i++) {
-        tc_riscv32_write(emitter,
-                         ".Lswitch_%u_case_%zu:\n  j .L%zu_block%u\n", id,
-                         i, emitter->unit_index,
-                         instr->switch_targets[i]);
+        tc_riscv32_write(emitter, ".Lswitch_case_%u_%zu:\n", id, i);
+        emit_long_jump_block(emitter, emitter->unit_index,
+                             instr->switch_targets[i]);
     }
 }
 
@@ -906,8 +940,10 @@ static void emit_return(TcRiscv32Emitter *emitter, const TcInstr *instr) {
         ret = emitter->ir->funcs[emitter->unit->func_id].sig.ret;
     }
     if (instr->nargs == 0) {
-        tc_riscv32_write(emitter, "  j .Lreturn_%zu\n",
-                         emitter->unit_index);
+        char target[64];
+        snprintf(target, sizeof(target), ".Lreturn_%zu",
+                 emitter->unit_index);
+        emit_long_jump_target(emitter, target);
         return;
     }
     if (ret == NULL || ret->tag == TC_TY_VOID) {
@@ -963,8 +999,12 @@ static void emit_return(TcRiscv32Emitter *emitter, const TcInstr *instr) {
             tc_riscv32_write(emitter, "  call memcpy\n");
         }
     }
-    tc_riscv32_write(emitter, "  j .Lreturn_%zu\n",
-                     emitter->unit_index);
+    {
+        char target[64];
+        snprintf(target, sizeof(target), ".Lreturn_%zu",
+                 emitter->unit_index);
+        emit_long_jump_target(emitter, target);
+    }
 }
 
 static void emit_read(TcRiscv32Emitter *emitter, const TcInstr *instr) {

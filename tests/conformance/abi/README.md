@@ -31,8 +31,9 @@ register class, 16-byte stack alignment).
 | --- | --- | --- | --- |
 | `s8_interop_cases.py` | C caller → TC callee (AAPCS64) | 33 | Independent callee-side ABI oracle, including composites, HFA, stack spill, indirect returns and narrow values |
 | `s9_arm32_interop.py` | C caller → TC callee (AAPCS32) | 14 | Base AAPCS32 callee oracle, including Rule C.5 splits and by-value composites |
-| `s10_riscv32_interop.py` | C caller → TC callee (RISC-V ILP32) | 26 | Independent callee oracle, including the one-register 2×XLEN split, packed composites and 64-bit pairs |
-| `s10_reverse_interop.py` | TC caller → C callee (RISC-V ILP32) | 12 | Caller-side oracle on the target-neutral reverse cases |
+| `s10_riscv32_interop.py` | C caller → TC callee (RISC-V ILP32) | 32 | Independent callee oracle, including the one-register 2×XLEN split, packed composites and 64-bit pairs |
+| `s10_reverse_interop.py` | TC caller → C callee (RISC-V ILP32) | 14 | Caller-side oracle on the target-neutral reverse cases |
+| `s10_abi_fuzz.py` | generated C/TC signatures on all three AOT targets | 48 default | Two directions, random scalars/composites/padding, expected checksum from a Python model |
 | `reverse_interop_cases.py` | TC caller → C callee (AAPCS64, AAPCS32 and RISC-V ILP32) | 19 | Independent caller-side oracle; redirects the TC caller's call to a C callee |
 
 The reverse suite is test infrastructure only.  TC has no extern/FFI
@@ -64,6 +65,9 @@ C `tc_main` invoke it.
   language-neutral contract.
 - Variadic calls: TC has no variadic function type.
 - Vector/HVA register classes: TC has no vector type.
+- Padded AArch64 HFA: a packed C struct needs a non-float member to carry
+  explicit padding and is then no longer an HFA; generated C interop keeps
+  all-float HFA candidates padding-free rather than comparing unlike types.
 
 ## Running
 

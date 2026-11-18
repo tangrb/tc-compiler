@@ -58,12 +58,14 @@ VM↔AOT 差分、14 个 C 调用者 AAPCS32 互操作用例、19 个 TC caller 
 [conformance/abi/README.md](conformance/abi/README.md)。
 S10 套件在 `conformance/platform/s10_riscv32_cases.py`、
 `conformance/abi/s10_riscv32_interop.py`、`conformance/abi/s10_reverse_interop.py`、
-`conformance/tools/s10_static_parity.py`、`conformance/longterm/s10_longterm.py`、
+`conformance/abi/s10_abi_fuzz.py`、`conformance/platform/s10_limits_cases.py`、
+`conformance/tools/s10_static_parity.py`、`conformance/tools/s10_frontend_scale.py`、
+`conformance/longterm/s10_longterm.py`、
 `determinism/s10_determinism.py` 与 `tools/s10_release_audit.py`：
 `riscv32-baremetal` 的 ELF32/EM_RISCV/区符号/无动态依赖/无未定义符号审计、
 29 个固定语义/ABI 用例 + 296 个 S6/S8 语料同档案 VM↔AOT 差分、四设备策略、
 checked/必选 trap 分离、UART 分帧 stdin、flat 产物、1037 个静态源的 VM/AOT
-首诊一致、26 个 C 调用者 RISC-V ILP32 互操作、12 个 TC caller → C callee 反向
+首诊一致、32 个 C 调用者 RISC-V ILP32 互操作、14 个 TC caller → C callee 反向
 ABI 用例、重复构建/执行与 O0/O2 确定性，以及标准条款/边界/差分/fuzz/平台长期
 回归语料。RISC-V ABI 规则见 [conformance/abi/README.md](conformance/abi/README.md)。
 AOT 构建/测试默认要求 `clang`、`llvm-ar`（或 `aarch64-elf-ar`）、`ld.lld`、
@@ -75,13 +77,13 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-当前全量：`ctest` 65/65（Debug/Release/ASan+UBSan）；harness 850/850
+当前全量：`ctest` 71/71（Debug/Release/ASan+UBSan）；harness 850/850
 （590 编译、131 工具、128 运行、1 属性）；单元检查 frontend 688、sem 102、
 ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 29 个固定 ARM32 用例、
 296 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
 19 个反向 ABI 用例与 1037×2 个静态源一致性检查；S10 另有 29 个固定 RISC-V
-用例、296 个同档案语料、26 个 C 调用者用例、12 个反向 ABI 用例、1037 个 RISC-V
-静态源一致性与 149×2 个长期回归静态源。
+用例、296 个同档案语料、32 个 C 调用者用例、14 个反向 ABI 用例、1037 个 RISC-V
+静态源一致性与 149×2 个长期回归静态源；S10 对抗套件另含 48 个生成式 ABI 用例、7 类实现边界/鲁棒性用例与 240 个 RISC-V 静态变异源，以及 800-case switch 的前端规模回归；S10 checked 套件在 RISC-V 上重跑 39 个 W=64 checked 用例并比较 VM/AOT；30000 指令的 far-branch 回归覆盖 auipc/jalr 长跳转。
 `tests/tools/abi_mutation_audit.py --check`、
 `tests/tools/s9_capacity_report.py --check` 与
 `tests/tools/s9_softfloat_audit.py --check` 是手动审计工具，不进入 ctest；

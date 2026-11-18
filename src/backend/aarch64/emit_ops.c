@@ -1137,8 +1137,13 @@ static void emit_branch_if(TcA64Emitter *emitter, const TcInstr *instr) {
         return;
     }
     tc_a64_load_operand(emitter, &instr->args[0].value, 9u, 0);
-    tc_a64_write(emitter, "  cbnz x9, .L%zu_block%u\n", emitter->unit_index,
-                 instr->args[1].value.label);
+    {
+        unsigned id = tc_a64_label(emitter);
+        tc_a64_write(emitter, "  cbz x9, .Lbrif_skip_%u\n", id);
+        tc_a64_write(emitter, "  b .L%zu_block%u\n", emitter->unit_index,
+                     instr->args[1].value.label);
+        tc_a64_write(emitter, ".Lbrif_skip_%u:\n", id);
+    }
 }
 
 static void emit_switch(TcA64Emitter *emitter, const TcInstr *instr) {
@@ -1155,8 +1160,11 @@ static void emit_switch(TcA64Emitter *emitter, const TcInstr *instr) {
     ndispatch = ntargets - 1u;
     tc_a64_load_operand(emitter, &instr->args[0].value, 9u, 0);
     if (tc_type_is_signed_integer(type)) {
-        tc_a64_write(emitter, "  tbnz %s9, #%u, .Lswitch_default_%u\n",
-                     width == 64u ? "x" : "w", width - 1u, id);
+        unsigned sign_ok = tc_a64_label(emitter);
+        tc_a64_write(emitter, "  tbz %s9, #%u, .Lswitch_sign_ok_%u\n",
+                     width == 64u ? "x" : "w", width - 1u, sign_ok);
+        tc_a64_write(emitter, "  b .Lswitch_default_%u\n", id);
+        tc_a64_write(emitter, ".Lswitch_sign_ok_%u:\n", sign_ok);
     }
     if (ndispatch == 0) {
         tc_a64_write(emitter, "  b .Lswitch_default_%u\n", id);
@@ -1167,15 +1175,24 @@ static void emit_switch(TcA64Emitter *emitter, const TcInstr *instr) {
             tc_a64_move_immediate(emitter, 16u, ndispatch);
             tc_a64_write(emitter, "  cmp x9, x16\n");
         }
-        tc_a64_write(emitter, "  b.hs .Lswitch_default_%u\n", id);
+        {
+            unsigned in_range = tc_a64_label(emitter);
+            tc_a64_write(emitter, "  b.lo .Lswitch_inrange_%u\n",
+                         in_range);
+            tc_a64_write(emitter, "  b .Lswitch_default_%u\n", id);
+            tc_a64_write(emitter, ".Lswitch_inrange_%u:\n", in_range);
+        }
         for (i = 0; i < ndispatch; i++) {
+            unsigned next = tc_a64_label(emitter);
             if (i <= 4095u) {
                 tc_a64_write(emitter, "  cmp x9, #%zu\n", i);
             } else {
                 tc_a64_move_immediate(emitter, 16u, i);
                 tc_a64_write(emitter, "  cmp x9, x16\n");
             }
-            tc_a64_write(emitter, "  b.eq .Lswitch_%u_case_%zu\n", id, i);
+            tc_a64_write(emitter, "  b.ne .Lswitch_next_%u\n", next);
+            tc_a64_write(emitter, "  b .Lswitch_%u_case_%zu\n", id, i);
+            tc_a64_write(emitter, ".Lswitch_next_%u:\n", next);
         }
         tc_a64_write(emitter, "  b .Lswitch_default_%u\n", id);
     }

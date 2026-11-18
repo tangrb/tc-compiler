@@ -346,12 +346,16 @@ void tc_main(void) { pi(tc_test_call(-1) ? 1u : 0u); }
 def runtime_archive(profile: str = PROFILE) -> Path:
     if profile == "arm32-baremetal":
         return engine.runtime_archive(32)
+    if profile == "aarch64-baremetal":
+        return engine.runtime_archive(64, baremetal=True)
     return engine.runtime_archive_riscv32()
 
 
 def linker_script(profile: str = PROFILE) -> Path:
     if profile == "arm32-baremetal":
         return ROOT / "src/backend/arm32/link.ld"
+    if profile == "aarch64-baremetal":
+        return ROOT / "src/backend/aarch64/link.ld"
     return ROOT / "src/backend/riscv32/link.ld"
 
 
@@ -360,6 +364,10 @@ def compile_flags(profile: str = PROFILE) -> list[str]:
         return ["-target", "thumbv7em-none-eabihf", "-mcpu=cortex-m7",
                 "-mfloat-abi=softfp", "-mfpu=fpv5-d16", "-ffreestanding",
                 "-nostdlib", "-O2", "-ffp-contract=off",
+                "-Wno-unused-command-line-argument"]
+    if profile == "aarch64-baremetal":
+        return ["-target", "aarch64-none-elf", "-ffreestanding", "-nostdlib",
+                "-O2", "-ffp-contract=off", "-mstrict-align",
                 "-Wno-unused-command-line-argument"]
     return ["-target", "riscv32-unknown-elf", "-march=rv32imafdc",
             "-mabi=ilp32", "-mno-relax", "-msmall-data-limit=0",
@@ -370,6 +378,8 @@ def compile_flags(profile: str = PROFILE) -> list[str]:
 def run_elf(profile: str, elf: Path, directory: Path):
     if profile == "arm32-baremetal":
         return engine.run_arm32_elf(elf, b"", directory)
+    if profile == "aarch64-baremetal":
+        return engine.run_aarch64_baremetal_elf(elf, b"", directory)
     return engine.run_riscv32_elf(elf, b"", directory)
 
 
@@ -393,6 +403,16 @@ def build_and_run(lib: str, harness: str, directory: Path,
   .text
   .p2align 2
   .thumb_func
+  .globl tc_test_call
+  .type tc_test_call, %function
+tc_test_call:
+  b tc_function_0
+  .size tc_test_call, .-tc_test_call
+"""
+    elif profile == "aarch64-baremetal":
+        text += """
+  .text
+  .p2align 2
   .globl tc_test_call
   .type tc_test_call, %function
 tc_test_call:
@@ -424,9 +444,15 @@ tc_test_call:
             return proc.returncode, b"", proc.stderr.decode("utf-8", "replace")
         objects.append(obj)
     elf = directory / "out.elf"
-    linker_emulation = ("armelf" if profile == "arm32-baremetal"
-                        else "elf32lriscv")
-    linker_flags = ([] if profile == "arm32-baremetal" else ["--no-relax"])
+    if profile == "arm32-baremetal":
+        linker_emulation = "armelf"
+        linker_flags = []
+    elif profile == "aarch64-baremetal":
+        linker_emulation = "aarch64elf"
+        linker_flags = []
+    else:
+        linker_emulation = "elf32lriscv"
+        linker_flags = ["--no-relax"]
     proc = subprocess.run(
         [engine.lld_path(), "-m", linker_emulation, *linker_flags,
          "-T", str(linker_script(profile)), "--icf=none",

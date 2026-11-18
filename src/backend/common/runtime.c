@@ -41,7 +41,7 @@ void *memset(void *dst, int value, size_t n);
 #else
 #define TC_RT_ALLOC_ARENA_SIZE (8u * 1024u * 1024u)
 #endif
-#define TC_RT_RECORD_BUFFER_SIZE 512u
+#define TC_RT_RECORD_BUFFER_SIZE 8192u
 
 /* Abstract call depth (standard §1.2/design §10.3).  Defined in .bss so the
  * loader zero-initializes it. */
@@ -128,7 +128,7 @@ static void record_emit(char *buffer, size_t length) {
 }
 
 __attribute__((noreturn)) void tc_rt_runtime_exit(uint32_t status) {
-    char buffer[TC_RT_RECORD_BUFFER_SIZE];
+    char buffer[64];
     size_t length = 0;
     length = record_append(buffer, sizeof(buffer), length, "TC-EXIT ");
     length = record_append_u64(buffer, sizeof(buffer), length, status);
@@ -137,28 +137,33 @@ __attribute__((noreturn)) void tc_rt_runtime_exit(uint32_t status) {
     tc_rt_platform_exit(status);
 }
 
+/* Emitted once per process; a static buffer avoids charging the target stack
+ * budget while the trap is being reported. */
+static char tc_rt_trap_record[TC_RT_RECORD_BUFFER_SIZE];
+
 __attribute__((noreturn)) void tc_rt_trap(uint32_t code, uint32_t line,
                                           uint32_t column, const char *file) {
-    char buffer[TC_RT_RECORD_BUFFER_SIZE];
+    char *buffer = tc_rt_trap_record;
+    const size_t capacity = sizeof(tc_rt_trap_record);
     uint32_t profile_status = (uint32_t)__tc_rt_trap_status;
     size_t length = 0;
-    length = record_append(buffer, sizeof(buffer), length, "error[RT]: ");
-    length = record_append(buffer, sizeof(buffer), length,
+    length = record_append(buffer, capacity, length, "error[RT]: ");
+    length = record_append(buffer, capacity, length,
                            tc_rt_trap_error_symbol((unsigned)code));
-    length = record_append(buffer, sizeof(buffer), length, " at ");
-    length = record_append(buffer, sizeof(buffer), length,
+    length = record_append(buffer, capacity, length, " at ");
+    length = record_append(buffer, capacity, length,
                            file != NULL ? file : "<source>");
-    length = record_append(buffer, sizeof(buffer), length, ":");
-    length = record_append_u64(buffer, sizeof(buffer), length, line);
-    length = record_append(buffer, sizeof(buffer), length, ":");
-    length = record_append_u64(buffer, sizeof(buffer), length, column);
-    length = record_append(buffer, sizeof(buffer), length, "\n");
-    length = record_append(buffer, sizeof(buffer), length, "TC-EXIT ");
-    length = record_append_u64(buffer, sizeof(buffer), length, profile_status);
-    length = record_append(buffer, sizeof(buffer), length, " ");
-    length = record_append(buffer, sizeof(buffer), length,
+    length = record_append(buffer, capacity, length, ":");
+    length = record_append_u64(buffer, capacity, length, line);
+    length = record_append(buffer, capacity, length, ":");
+    length = record_append_u64(buffer, capacity, length, column);
+    length = record_append(buffer, capacity, length, "\n");
+    length = record_append(buffer, capacity, length, "TC-EXIT ");
+    length = record_append_u64(buffer, capacity, length, profile_status);
+    length = record_append(buffer, capacity, length, " ");
+    length = record_append(buffer, capacity, length,
                            tc_rt_trap_error_symbol((unsigned)code));
-    length = record_append(buffer, sizeof(buffer), length, "\n");
+    length = record_append(buffer, capacity, length, "\n");
     record_emit(buffer, length);
     tc_rt_platform_exit(profile_status);
 }

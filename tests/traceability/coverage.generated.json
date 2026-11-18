@@ -11766,7 +11766,8 @@
         "TC-DIFF-S8-0021",
         "TC-ARM32-S9-0001",
         "TC-RISCV32-S10-0001",
-        "TC-LT-S10-0001"
+        "TC-LT-S10-0001",
+        "TC-FSCALE-S10-0001"
       ],
       "number": 1,
       "title": "VM↔AOT 差分",
@@ -11892,7 +11893,9 @@
         "TC-ART-S8-0001",
         "TC-PLAT-S9-0001",
         "TC-ARM32-S9-0001",
-        "TC-RISCV32-S10-0001"
+        "TC-RISCV32-S10-0001",
+        "TC-RISCV32-S10-0002",
+        "TC-FSCALE-S10-0001"
       ],
       "number": 4,
       "title": "freestanding 编译门禁",
@@ -12040,7 +12043,9 @@
         "TC-ARM32-S9-0010",
         "TC-ABI-S10-0001",
         "TC-ABI-S10-0002",
-        "TC-RISCV32-S10-0001"
+        "TC-ABI-FUZZ-S10-0001",
+        "TC-RISCV32-S10-0001",
+        "TC-RISCV32-S10-0003"
       ],
       "number": 7,
       "title": "ABI/调用",
@@ -12065,7 +12070,8 @@
         "TC-ABI-S9-0010",
         "TC-ARM32-S9-0008",
         "TC-ABI-S10-0001",
-        "TC-ABI-S10-0002"
+        "TC-ABI-S10-0002",
+        "TC-ABI-FUZZ-S10-0001"
       ],
       "number": 7,
       "title": "ABI/调用",
@@ -12340,6 +12346,8 @@
         "TC-PLAT-S9-0001",
         "TC-ARM32-S9-0021",
         "TC-RISCV32-S10-0001",
+        "TC-RISCV32-S10-0002",
+        "TC-CHK-S10-0001",
         "TC-LT-S10-0001"
       ],
       "number": 14,
@@ -12364,7 +12372,9 @@
         "TC-CHK-S8-0008",
         "TC-CHK-S8-0013",
         "TC-PLAT-S9-0001",
-        "TC-RISCV32-S10-0001"
+        "TC-RISCV32-S10-0001",
+        "TC-RISCV32-S10-0002",
+        "TC-CHK-S10-0001"
       ],
       "number": 14,
       "title": "退出/设备/输入",

@@ -35,6 +35,18 @@ _start:
     ldr r1, [r0]
     bic r1, r1, #(1 << 3)        /* allow unaligned scalar access */
     str r1, [r0]
+    /* A flat image carries no BSS metadata; zero it before generated code or
+     * the runtime observes any static object. */
+    ldr r0, =__bss_start
+    ldr r1, =__bss_end
+    cmp r0, r1
+    bhs 2f
+    movs r2, #0
+1:
+    str r2, [r0], #4
+    cmp r0, r1
+    blo 1b
+2:
     ldr r0, =__tc_stack_top
     mov sp, r0
     bl tc_main

@@ -98,13 +98,26 @@
   composites / larger by-reference composites / hidden-pointer indirect
   returns, 64-bit division helpers, NS16550A UART0 stdout and framed stdin, a
   semihosting exit record, the SiFive test finisher and qemu-system-riscv32
-  virt); the S10 RISC-V platform/ELF/device/checked/UART-input suite, 26 C-caller
-  and 12 TC-caller RISC-V ILP32 interoperability cases, 1037 static sources with
+  virt); the S10 RISC-V platform/ELF/device/checked/UART-input suite, 30 C-caller
+  and 13 TC-caller RISC-V ILP32 interoperability cases, 1037 static sources with
   identical VM/AOT first diagnostics, 149×2 long-term static sources, 16×3
   differential samples, 15 fuzz regression cases and 3-target platform corpus,
   plus RISC-V repeat-build/execute and O0/O2 determinism; the release audit
   checks the closed 80-code set, private `tc_core`, two CLIs, freestanding
   symbols, version and documentation consistency.
+- **S10 adversarial expansion**: generated ABI fuzz (random scalar/composite/
+  padding signatures, C→TC and TC→C, all three AOT targets), RISC-V
+  implementation-limit/robustness cases (frame and static-region budgets,
+  `D=63/64`, device-window end, empty input, long trap-record paths) and a
+  RISC-V static-mutation suite; the trap/exit record buffer grows to 8192 bytes
+  so practical paths retain `TC-EXIT`; C interop harnesses use
+  `-mstrict-align` for unaligned packed composites. The full `ctest` suite
+  grows to 71 tests. The front-end arena no longer rejects a single allocation
+  above 4 MiB (a legal source crossing the 32768-token growth step was
+  misreported as OOM); an 800-case switch regression covers the boundary, and
+  39 checked-build UB fixtures are rerun on RISC-V for VM/AOT agreement, and a
+  30000-instruction far-branch regression covers the auipc/jalr lowering used
+  when a RISC-V branch exceeds the 1 MiB `j`/`b.cond` range.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
@@ -119,14 +132,14 @@
   determinism/static-mutation suites, W=32/64 runtime goldens, S9 bare-metal/
   ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
   AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
-  determinism suites and a fail-closed adapter self-test; currently 65/65
+  determinism suites and a fail-closed adapter self-test; currently 71/71
   `ctest` and 850/850 harness cases (590 compile, 131 tool,
   128 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
   sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
   cases plus 296 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
   AAPCS64 cases, 19 reverse ABI cases and 1037 static sources under each of two
   bare-metal profiles; the S10 RISC-V suite adds 29 fixed cases plus 296 S6/S8
-  corpus cases, 26 C-caller/12 reverse ABI cases, 1037 static sources, 149×2
+  corpus cases, 32 C-caller/14 reverse ABI cases, 1037 static sources, 149×2
   long-term static sources and 15 fuzz cases; 5/5 ABI mutants were found by
   interop.
 

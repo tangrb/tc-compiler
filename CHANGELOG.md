@@ -73,11 +73,21 @@
   51 个 opcode、a0-a7 参数/16 字节栈对齐/2×XLEN 复合按值/更大复合按引用/
   隐藏指针间接返回、64 位除法辅助、NS16550A UART0 stdout 与分帧 stdin、
   semihosting 退出记录、SiFive test finisher、`qemu-system-riscv32` virt）；
-  S10 RISC-V 平台/ELF/设备策略/checked/UART 输入套件、26 个 C caller 与 12 个
+  S10 RISC-V 平台/ELF/设备策略/checked/UART 输入套件、32 个 C caller 与 14 个
   TC caller 的 RISC-V ILP32 互操作用例、1037 个静态源 VM/AOT 首诊一致、
   149×2 个长期回归静态源、16×3 个差分样本、15 个 fuzz 回归用例与 3 目标平台
   语料、RISC-V 重复构建/执行与 O0/O2 确定性；发布审计检查 80 码闭集、私有
   `tc_core`、两个 CLI、freestanding 符号、版本与文档一致性。
+- **S10 对抗性扩展**：新增生成式 ABI fuzz（随机标量/复合/padding 签名，C→TC
+  与 TC→C 双向，三个 AOT 目标）、RISC-V 实现边界/鲁棒性用例（帧与静态区预算、
+  `D=63/64`、设备窗口末端、空输入、长路径 trap 记录）与 RISC-V 静态变异套件；
+  长路径 trap/exit 记录缓冲增至 8192 字节以保留 `TC-EXIT`；C 互操作 harness 对
+  未对齐 packed 复合使用 `-mstrict-align`。同时移除前端 arena 对单次分配误加的
+  4 MiB 上限（约 3.3 万 token 的合法源会被误报 OOM），新增 800-case switch
+  前端规模回归，并新增 39 个 RISC-V checked UB 用例的 VM/AOT 一致性套件与
+  30000 指令 far-branch 长跳转回归；RISC-V 的 `br`/`br_if`/`switch`/`return`
+  在超过 1 MiB 距离时使用 auipc/jalr，避免汇编器 fixup 越界。全量 `ctest`
+  增至 71 项。
 - **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
   `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
   首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射目标汇编，
@@ -89,12 +99,12 @@
   确定性套件、S8 全量差分/ABI/C 互操作/生成式 fuzz/checked/一致性/产物/确定性/
   静态变异套件、W=32/64 运行时 golden、S9 裸机/ARM32/互操作/静态一致/
   分档案/确定性套件、AAPCS64/AAPCS32 双向 interop、ABI mutation 审计与容量报告、
-  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 65/65，
+  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 71/71，
   harness 850/850（590 编译、131 工具、128 运行、1 属性），单元检查 frontend 688、
   sem 102、ct 370、ir 674、vm 413、aot 81；S9 ARM32 差分 29 个固定用例 +
   296 个 S6/S8 语料，C 调用者 AAPCS32 14 例、AAPCS64 33 例，反向 ABI 19 例，
   1037 个静态源 × 2 个裸机档案；S10 RISC-V 29 个固定用例 + 296 个 S6/S8
-  语料、26 个 C caller/12 个反向 ABI 用例、1037 个静态源、149×2 个长期回归
+  语料、32 个 C caller/14 个反向 ABI 用例、1037 个静态源、149×2 个长期回归
   静态源与 15 个 fuzz 用例；5/5 ABI mutant 被 interop 发现。
 
 ### Changed

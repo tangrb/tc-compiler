@@ -375,7 +375,14 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   `0x10000000` size `0x10000000`, D=64; `w32` is W=32, little-endian, device
   base `0x20000000` size `0x100000` with `TC_DEV_REJECT`, D=256.  All use
   `TcExitPolicy` normal 0 / first-trap 1.  Frame storage is host-backed in the
-  VM.  A 900005-byte static object measures 900016 bytes on AArch64 and
+  VM; the AOT target additionally enforces the target stack budget
+  (`frame_total * (D+1) <= stack_size`) before emission.  A program with a
+  large static frame footprint can therefore execute on the host-backed VM and
+  be rejected by AOT with the implementation error (exit 71); this is an
+  implementation resource boundary, not language behavior.  The reset entry
+  zeroes `__bss_start..__bss_end` before `tc_main`, so ELF and flat images both
+  start with zero runtime state.  The trap/exit record buffer is 8192 bytes so
+  practical source paths retain the `TC-EXIT` line.  A 900005-byte static object measures 900016 bytes on AArch64 and
   900012 bytes on the 32-bit targets, leaving limited room under the 1 MiB
   static limit; the 1 MiB input image is the semihosting/ARM32 test loader
   seam, while `aarch64-baremetal` and `riscv32-baremetal` use their UART0 byte

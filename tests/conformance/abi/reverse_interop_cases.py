@@ -591,7 +591,7 @@ def compile_flags(profile: str) -> list[str]:
                 "-mstrict-align", "-ffreestanding", "-nostdlib", "-O2",
                 "-ffp-contract=off", "-Wno-unused-command-line-argument"]
     return ["-target", "aarch64-none-elf", "-ffreestanding", "-nostdlib",
-            "-O2", "-ffp-contract=off",
+            "-O2", "-ffp-contract=off", "-mstrict-align",
             "-Wno-unused-command-line-argument"]
 
 

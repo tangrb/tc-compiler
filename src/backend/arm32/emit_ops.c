@@ -762,8 +762,14 @@ static void emit_branch_if(TcArm32Emitter *emitter, const TcInstr *instr) {
         return;
     }
     tc_arm32_load_operand32(emitter, &instr->args[0].value, 0u);
-    tc_arm32_write(emitter, "  cmp r0, #0\n  bne .L%zu_block%u\n",
-                   emitter->unit_index, instr->args[1].value.label);
+    {
+        unsigned id = tc_arm32_label(emitter);
+        tc_arm32_write(emitter, "  cmp r0, #0\n"
+                                "  beq .Lbrif_skip_%u\n", id);
+        tc_arm32_write(emitter, "  b .L%zu_block%u\n",
+                       emitter->unit_index, instr->args[1].value.label);
+        tc_arm32_write(emitter, ".Lbrif_skip_%u:\n", id);
+    }
 }
 
 static void emit_switch(TcArm32Emitter *emitter, const TcInstr *instr) {
@@ -782,19 +788,27 @@ static void emit_switch(TcArm32Emitter *emitter, const TcInstr *instr) {
     ndispatch = ntargets - 1u;
     tc_arm32_load_operand64(emitter, &instr->args[0].value, 0u, 1u);
     if (width > 32u) {
+        unsigned low = tc_arm32_label(emitter);
         tc_arm32_write(emitter, "  cmp r1, #0\n"
-                                "  bne .Lswitch_default_%u\n",
-                       id);
+                                "  beq .Lswitch_low_%u\n", low);
+        tc_arm32_write(emitter, "  b .Lswitch_default_%u\n", id);
+        tc_arm32_write(emitter, ".Lswitch_low_%u:\n", low);
     }
     if (ndispatch == 0) {
         tc_arm32_write(emitter, "  b .Lswitch_default_%u\n", id);
     } else {
         tc_arm32_move_immediate(emitter, TC_ARM32_TMP0,
                                 (uint32_t)ndispatch);
-        tc_arm32_write(emitter, "  cmp r0, r%u\n"
-                                "  bhs .Lswitch_default_%u\n",
-                       TC_ARM32_TMP0, id);
+        {
+            unsigned in_range = tc_arm32_label(emitter);
+            tc_arm32_write(emitter, "  cmp r0, r%u\n"
+                                    "  blo .Lswitch_inrange_%u\n",
+                           TC_ARM32_TMP0, in_range);
+            tc_arm32_write(emitter, "  b .Lswitch_default_%u\n", id);
+            tc_arm32_write(emitter, ".Lswitch_inrange_%u:\n", in_range);
+        }
         for (i = 0; i < ndispatch; i++) {
+            unsigned next = tc_arm32_label(emitter);
             if (i <= 255u) {
                 tc_arm32_write(emitter, "  cmp r0, #%zu\n", i);
             } else {
@@ -802,7 +816,9 @@ static void emit_switch(TcArm32Emitter *emitter, const TcInstr *instr) {
                                         (uint32_t)i);
                 tc_arm32_write(emitter, "  cmp r0, r%u\n", TC_ARM32_TMP0);
             }
-            tc_arm32_write(emitter, "  beq .Lswitch_%u_case_%zu\n", id, i);
+            tc_arm32_write(emitter, "  bne .Lswitch_next_%u\n", next);
+            tc_arm32_write(emitter, "  b .Lswitch_%u_case_%zu\n", id, i);
+            tc_arm32_write(emitter, ".Lswitch_next_%u:\n", next);
         }
         tc_arm32_write(emitter, "  b .Lswitch_default_%u\n", id);
     }

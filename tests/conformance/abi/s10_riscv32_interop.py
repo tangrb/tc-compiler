@@ -239,6 +239,179 @@ void tc_main(void) { F2 r = tc_test_call(1.5f); pi(fb(r.a)); pi(fb(r.b)); }
         f"{f32bits(1.5)}\n{f32bits(2.5)}\n",
     ),
     (
+        "C callback through a function pointer",
+        """#lib
+public @unsafe func f(fp: fnptr<int64, int64>, x: int64) int64 then
+var r: int64 = call_indirect fp, x
+_ = return r
+end
+""",
+        """typedef int64_t (*FP)(int64_t);
+static int64_t cb(int64_t x) { return x + 5; }
+extern int64_t tc_test_call(FP, int64_t);
+void tc_main(void) { pi((uint64_t)tc_test_call(cb, 37)); }
+""",
+        "42\n",
+    ),
+    (
+        "twenty integers, a stack composite and an int64 pair",
+        """#lib
+public struct Pair then
+var x: int32
+var y: int32
+end
+public func f(p0: int32, p1: int32, p2: int32, p3: int32, p4: int32, p5: int32, p6: int32, p7: int32, p8: int32, p9: int32, p10: int32, p11: int32, p12: int32, p13: int32, p14: int32, p15: int32, p16: int32, p17: int32, p18: int32, p19: int32, p: Pair, x: int64) int64 then
+var s: int64 = cast int64, p0
+var t0: int64 = cast int64, p1
+var s1: int64 = add int64, s, t0
+var t1: int64 = cast int64, p2
+var s2: int64 = add int64, s1, t1
+var t2: int64 = cast int64, p3
+var s3: int64 = add int64, s2, t2
+var t3: int64 = cast int64, p4
+var s4: int64 = add int64, s3, t3
+var t4: int64 = cast int64, p5
+var s5: int64 = add int64, s4, t4
+var t5: int64 = cast int64, p6
+var s6: int64 = add int64, s5, t5
+var t6: int64 = cast int64, p7
+var s7: int64 = add int64, s6, t6
+var t7: int64 = cast int64, p8
+var s8: int64 = add int64, s7, t7
+var t8: int64 = cast int64, p9
+var s9: int64 = add int64, s8, t8
+var t9: int64 = cast int64, p10
+var s10: int64 = add int64, s9, t9
+var t10: int64 = cast int64, p11
+var s11: int64 = add int64, s10, t10
+var t11: int64 = cast int64, p12
+var s12: int64 = add int64, s11, t11
+var t12: int64 = cast int64, p13
+var s13: int64 = add int64, s12, t12
+var t13: int64 = cast int64, p14
+var s14: int64 = add int64, s13, t13
+var t14: int64 = cast int64, p15
+var s15: int64 = add int64, s14, t14
+var t15: int64 = cast int64, p16
+var s16: int64 = add int64, s15, t15
+var t16: int64 = cast int64, p17
+var s17: int64 = add int64, s16, t16
+var t17: int64 = cast int64, p18
+var s18: int64 = add int64, s17, t17
+var t18: int64 = cast int64, p19
+var s19: int64 = add int64, s18, t18
+var px: int64 = cast int64, p.x
+var s20: int64 = add int64, s19, px
+var py: int64 = cast int64, p.y
+var s21: int64 = add int64, s20, py
+var r: int64 = add int64, s21, x
+_ = return r
+end
+""",
+        """typedef struct __attribute__((packed)) { int32_t x; int32_t y; } Pair;
+extern int64_t tc_test_call(int32_t, int32_t, int32_t, int32_t, int32_t,
+    int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t,
+    int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, Pair,
+    int64_t);
+void tc_main(void) { Pair p; p.x = 10; p.y = 20;
+    pi((uint64_t)tc_test_call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+        15, 16, 17, 18, 19, 20, p, 1000000000LL)); }
+""",
+        "1000000240\n",
+    ),
+    (
+        "nested packed composite argument",
+        """#lib
+public struct Inner then
+var a: int32
+var b: int64
+end
+public struct Outer then
+var x: Inner
+var c: uint8
+end
+public func f(p: Outer) int64 then
+var s: int64 = cast int64, p.x.a
+var t: int64 = add int64, s, p.x.b
+var u: int64 = cast int64, p.c
+var r: int64 = add int64, t, u
+_ = return r
+end
+""",
+        """typedef struct __attribute__((packed)) { int32_t a; int64_t b; } Inner;
+typedef struct __attribute__((packed)) { Inner x; uint8_t c; } Outer;
+extern int64_t tc_test_call(Outer);
+void tc_main(void) { Outer o; o.x.a = 3; o.x.b = 100; o.c = 7;
+    pi((uint64_t)tc_test_call(o)); }
+""",
+        "110\n",
+    ),
+    (
+        "nested packed composite return",
+        """#lib
+public struct Inner then
+var a: int32
+var b: int64
+end
+public struct Outer then
+var x: Inner
+var c: uint8
+end
+public func f() Outer then
+var i: Inner = make Inner, 3, 100
+var o: Outer = make Outer, i, 7
+_ = return o
+end
+""",
+        """typedef struct __attribute__((packed)) { int32_t a; int64_t b; } Inner;
+typedef struct __attribute__((packed)) { Inner x; uint8_t c; } Outer;
+extern Outer tc_test_call(void);
+void tc_main(void) { Outer o = tc_test_call(); pi((uint64_t)(int64_t)o.x.a);
+    pi((uint64_t)o.x.b); pi((uint64_t)o.c); }
+""",
+        "3\n100\n7\n",
+    ),
+    (
+        "sret with seven integers and a stack int64 pair",
+        """#lib
+public struct Big then
+var a: int64
+var b: int64
+end
+public func f(p0: int32, p1: int32, p2: int32, p3: int32, p4: int32, p5: int32, p6: int32, p7: int64) Big then
+var r: Big = make Big, p7, 42
+_ = return r
+end
+""",
+        """typedef struct __attribute__((packed)) { int64_t a; int64_t b; } Big;
+extern Big tc_test_call(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t,
+                        int32_t, int64_t);
+void tc_main(void) { Big r = tc_test_call(1, 2, 3, 4, 5, 6, 7, 1000000000LL);
+    pi((uint64_t)r.a); pi((uint64_t)r.b); }
+""",
+        "1000000000\n42\n",
+    ),
+    (
+        "sret with six integers and a split int64",
+        """#lib
+public struct Big then
+var a: int64
+var b: int64
+end
+public func f(p0: int32, p1: int32, p2: int32, p3: int32, p4: int32, p5: int32, p6: int64) Big then
+var r: Big = make Big, p6, 7
+_ = return r
+end
+""",
+        """typedef struct __attribute__((packed)) { int64_t a; int64_t b; } Big;
+extern Big tc_test_call(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t,
+                        int64_t);
+void tc_main(void) { Big r = tc_test_call(1, 2, 3, 4, 5, 6, 1000000000LL);
+    pi((uint64_t)r.a); pi((uint64_t)r.b); }
+""",
+        "1000000000\n7\n",
+    ),
+    (
         "signed int8 return extension",
         """#lib
 public func f(x: int32) int8 then

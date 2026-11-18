@@ -174,7 +174,7 @@ static void test_lowering_shapes(void) {
     CHECK(strstr(text, "stp x29, x30, [sp, #-16]!") != NULL);
     CHECK(strstr(text, "adrp x20, __tc_static_region") != NULL);
     CHECK(strstr(text, "movz x11, #0x4") != NULL);
-    CHECK(strstr(text, "b.eq .Lswitch") != NULL);
+    CHECK(strstr(text, "b.ne .Lswitch_next") != NULL);
     CHECK(strstr(text, "tc_main:") != NULL);
     free(text);
 }

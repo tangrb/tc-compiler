@@ -29,6 +29,59 @@ PROFILE = "riscv32-baremetal"
 
 EXTRA_CASES = [
     {
+        "id": "TC-ABI-S10-0014",
+        "name": "TC function pointer called by C",
+        "lib": """#lib
+public @unsafe func target(fp: fnptr<int64, int64>, x: int64) int64 then
+var r: int64 = call_indirect fp, x
+_ = return r
+end
+public @unsafe func caller() int64 then
+var fp: fnptr<int64, int64> = funcaddr Self.add5
+var r: int64 = call Self.target, fp, 37
+_ = return r
+end
+public func add5(x: int64) int64 then
+var r: int64 = add int64, x, 5
+_ = return r
+end
+""",
+        "c": """typedef int64_t (*FP)(int64_t);
+extern int64_t tc_function_1(void);
+int64_t c_callee(FP fp, int64_t x) { return fp(x); }
+void tc_main(void) { pi((uint64_t)tc_function_1()); }
+""",
+        "out": "42\n",
+    },
+    {
+        "id": "TC-ABI-S10-0013",
+        "name": "TC caller sret with seven integers and a stack int64 pair",
+        "lib": """#lib
+public struct Big then
+var a: int64
+var b: int64
+end
+public func target(p0: int32, p1: int32, p2: int32, p3: int32, p4: int32, p5: int32, p6: int32, p7: int64) Big then
+var r: Big = make Big, p7, 42
+_ = return r
+end
+public func caller() int64 then
+var r: Big = call Self.target, 1, 2, 3, 4, 5, 6, 7, 1000000000
+_ = return r.a
+end
+""",
+        "c": """typedef struct __attribute__((packed)) { int64_t a; int64_t b; } Big;
+extern int64_t tc_function_1(void);
+Big c_callee(int32_t p0, int32_t p1, int32_t p2, int32_t p3, int32_t p4,
+             int32_t p5, int32_t p6, int64_t p7) {
+    Big r; r.a = p7 + 1; r.b = (int64_t)p0 + p1 + p2 + p3 + p4 + p5 + p6;
+    return r;
+}
+void tc_main(void) { pi((uint64_t)tc_function_1()); }
+""",
+        "out": "1000000001\n",
+    },
+    {
         "id": "TC-ABI-S10-0010",
         "name": "TC caller split int64 pair after seven integers",
         "lib": """#lib

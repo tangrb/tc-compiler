@@ -65,9 +65,15 @@ python3 tests/conformance/tools/s9_static_parity.py --check
 python3 tests/conformance/platform/s9_profiles.py --check
 python3 tests/determinism/s9_determinism.py --check
 python3 tests/conformance/platform/s10_riscv32_cases.py --check
+python3 tests/conformance/platform/s10_limits_cases.py --check
 python3 tests/conformance/abi/s10_riscv32_interop.py --check
 python3 tests/conformance/abi/s10_reverse_interop.py --check
+python3 tests/conformance/abi/s10_abi_fuzz.py --check --seeds 8
 python3 tests/conformance/tools/s10_static_parity.py --check
+python3 tests/conformance/tools/s8_static_fuzz.py --check --profile=riscv32-baremetal
+python3 tests/conformance/tools/s10_frontend_scale.py --check
+python3 tests/conformance/checked/s10_checked_cases.py --check
+python3 tests/conformance/platform/s10_long_branch.py --check
 python3 tests/conformance/longterm/s10_longterm.py --check
 python3 tests/determinism/s10_determinism.py --check
 python3 tests/tools/s10_release_audit.py --check
