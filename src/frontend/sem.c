@@ -6313,6 +6313,27 @@ static int annotation_range_endpoint(Sem *s, const TcParseValue *v,
     return 1;
 }
 
+static int parse_type_is_integer_scalar(const TcParseType *type) {
+    if (type == NULL || type->kind != TC_PTYPE_SCALAR) {
+        return 0;
+    }
+    switch (type->scalar) {
+    case TC_TY_I8:
+    case TC_TY_I16:
+    case TC_TY_I32:
+    case TC_TY_I64:
+    case TC_TY_U8:
+    case TC_TY_U16:
+    case TC_TY_U32:
+    case TC_TY_U64:
+    case TC_TY_ISIZE:
+    case TC_TY_USIZE:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 static void check_param_annotations(Sem *s, const TcParseParam *param,
                                     TcParam *out, const TcType *param_type,
                                     int fast) {
@@ -6346,6 +6367,11 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 continue;
             }
             if (param_type == NULL) {
+                if (param->type.kind == TC_PTYPE_PTR ||
+                    param->type.kind == TC_PTYPE_NAME) {
+                    continue;
+                }
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
             if (!type_is_ptr(param_type)) {
@@ -6364,10 +6390,16 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
-            if (param_type == NULL) {
+            if (param_type == NULL && param->type.kind != TC_PTYPE_PTR) {
+                /* The annotation position itself is invalid for a known
+                 * non-pointer parameter.  An unresolved name is left to its
+                 * type diagnostic; a syntactic pointer can still validate N. */
+                if (param->type.kind != TC_PTYPE_NAME) {
+                    sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
+                }
                 continue;
             }
-            if (!type_is_ptr(param_type)) {
+            if (param_type != NULL && !type_is_ptr(param_type)) {
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
@@ -6394,6 +6426,9 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                     sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
                     continue;
                 }
+                if (param_type == NULL) {
+                    continue;
+                }
                 out->flags |= TC_PARAM_ALIGN;
                 out->align = n;
                 continue;
@@ -6411,6 +6446,9 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 sem_diag_simple(s, TC_CE_ANNOTATION, v->span);
                 continue;
             }
+            if (param_type == NULL) {
+                continue;
+            }
             out->flags |= TC_PARAM_ALIGN;
             out->align = n;
         } else if (strcmp(ann->name, "range") == 0) {
@@ -6421,6 +6459,12 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 continue;
             }
             if (param_type == NULL) {
+                if (param->type.kind == TC_PTYPE_NAME ||
+                    (param->type.kind == TC_PTYPE_SCALAR &&
+                     parse_type_is_integer_scalar(&param->type))) {
+                    continue;
+                }
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
             if (!type_is_integer(param_type)) {

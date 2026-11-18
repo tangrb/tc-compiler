@@ -2052,6 +2052,70 @@ CASES = [
         trap="TC_RE_FLOAT_INVALID",
     ),
     run_case(
+        "TC-RT-FP-0024", "w64",
+        "§6.3.1/§6.3.2 finite value divided by infinity is exact zero and must "
+        "not underflow (f64 and f32)",
+        files={"root.tc": program(
+            "var a: float64 = copy float64, 1.0",
+            "var b: float64 = copy float64, inf",
+            "var r: float64 = div float64, a, b",
+            "_ = writeln float64, r",
+            "var c: float32 = copy float32, 1.0f",
+            "var d: float32 = copy float32, inf",
+            "var q: float32 = div float32, c, d",
+            "_ = writeln float32, q",
+        )},
+        out="0\n0\n",
+    ),
+    run_case(
+        "TC-RT-FP-0025", "w64",
+        "§6.3.1/§6.3.2 CT const finite/inf is exact zero, not CONST_FLOAT_UNDERFLOW",
+        files={"root.tc": program(
+            "const K: float64 = div float64, 1.0, inf",
+            "_ = writeln float64, K",
+        )},
+        out="0\n",
+    ),
+    run_case(
+        "TC-RT-FP-0026", "w64",
+        "§2.4 decimal literal roundTiesToEven carry across a binade boundary "
+        "(f64 and f32)",
+        files={"root.tc": program(
+            "_ = writeln float64, 9007199254740991.5",
+            "_ = writeln float64, 9007199254740991.9",
+            "_ = writeln float32, 16777215.5f",
+            "_ = writeln float64, 1152921504606846975.1",
+            "var x: float64 = copy float64, 9007199254740991.5",
+            "var b: int64 = bitcast int64, x",
+            "_ = writeln int64, b",
+        )},
+        out="9.0072e+15\n9.0072e+15\n1.67772e+07\n1.15292e+18\n"
+            "4845873199050653696\n",
+    ),
+    run_case(
+        "TC-RT-FP-0027", "w64",
+        "§2.4 CT const literal carry across a binade boundary",
+        files={"root.tc": program(
+            "const K: float64 = 9007199254740991.5",
+            "_ = writeln float64, K",
+            "var b: int64 = bitcast int64, K",
+            "_ = writeln int64, b",
+        )},
+        out="9.0072e+15\n4845873199050653696\n",
+    ),
+    run_case(
+        "TC-RT-FP-0028", "w32",
+        "§2.4/§6.3.1 W=32 also fixes literal binade carry and finite/inf exact zero",
+        files={"root.tc": program(
+            "_ = writeln float64, 9007199254740991.5",
+            "var a: float64 = copy float64, 1.0",
+            "var b: float64 = copy float64, inf",
+            "var r: float64 = div float64, a, b",
+            "_ = writeln float64, r",
+        )},
+        out="9.0072e+15\n0\n",
+    ),
+    run_case(
         "TC-RT-CONV-0014", "w64",
         "§6.6.1 int->float cast applies roundTiesToEven (float32 2^24+1); "
         "§3.13 equal-width int->float bitcast exposes the minimal binary32 "

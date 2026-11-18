@@ -1,0 +1,3 @@
+#program
+const K: float64 = div float64, 1.0, inf
+_ = writeln float64, K

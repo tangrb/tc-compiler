@@ -1,0 +1,5 @@
+#program
+const K: float64 = 9007199254740991.5
+_ = writeln float64, K
+var b: int64 = bitcast int64, K
+_ = writeln int64, b

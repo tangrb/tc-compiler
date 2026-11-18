@@ -1,0 +1,10 @@
+id: TC-RT-FP-0024
+profile: w64
+source: root.tc
+spec: "§6.3.1/§6.3.2 finite value divided by infinity is exact zero and must not underflow (f64 and f32)"
+kind: run
+expect:
+  stdout_hex: "300a300a"
+  trap: null
+  exit: 0
+  termination: normal

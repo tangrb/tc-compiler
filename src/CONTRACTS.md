@@ -400,8 +400,11 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   but the zero-pass baseline keeps O0/O2 identical.  `tc-aot` applies the same
   first-diagnostic pipeline and then emits full target assembly.
 - I/O uses the `TcIoSink`/`TcIoSrc` seams: one write call per `write`/
-  `writeln` record (newline included), no partial record on failure, and
-  `read` parses a complete whitespace-delimited token before committing its
+  `writeln` record (newline included), no partial record on failure, and the
+  hosted VM flushes each record so a closed/full stdout reports `TC_RE_IO` at
+  the failing instruction.  LEX invalid UTF-8 prints the 0-based byte offset as
+  an additional `note: invalid byte offset N`.  `read` parses a complete
+  whitespace-delimited token before committing its
   target.  Output formatting uses the exact decimal renderer, not host
   `printf`.
 - The core creates no heap objects: the allocation API is a runtime-library

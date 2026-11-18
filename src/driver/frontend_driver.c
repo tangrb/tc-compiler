@@ -1,6 +1,7 @@
 /* TC 0.0.46 driver: static stages plus tc-vm execution. */
 #include "driver/frontend_driver.h"
 
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -39,6 +40,12 @@ static void print_frontend_diag(const TcFrontendDiag *diag) {
             diag->span.line, diag->span.column, stage_name(diag->stage),
             info != NULL ? info->symbol : "TC_CE_SYNTAX",
             info != NULL ? info->print_name : "SyntaxError");
+    if (diag->span.invalid_byte_offset != TC_SPAN_NO_INVALID_BYTE) {
+        fprintf(stderr, "%s:%u:%u: note: invalid byte offset %u\n",
+                diag->span.file != NULL ? diag->span.file : "<source>",
+                diag->span.line, diag->span.column,
+                diag->span.invalid_byte_offset);
+    }
 }
 
 static void print_analysis_diag(const TcAnalysisDiag *diag) {
@@ -85,7 +92,12 @@ static int host_sink_write(void *ctx, const uint8_t *bytes, size_t size) {
     if (size == 0) {
         return 0;
     }
-    return fwrite(bytes, 1, size, stdout) == size ? 0 : -1;
+    if (fwrite(bytes, 1, size, stdout) != size) {
+        return -1;
+    }
+    /* Commit each write/writeln record immediately: a buffered fwrite alone
+     * cannot report a closed or full stdout at the failed record. */
+    return fflush(stdout) == 0 ? 0 : -1;
 }
 
 static int host_sink_flush(void *ctx) {
@@ -185,6 +197,11 @@ static int run_syntax_only(const char *tool_name,
 int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
     TcPlatformProfile profile;
     TcAnalysis *analysis;
+#ifdef SIGPIPE
+    /* A closed pipe is an I/O failure, not a process-terminating signal; the
+     * VM's per-record sink then reports TC_RE_IO at the failed instruction. */
+    (void)signal(SIGPIPE, SIG_IGN);
+#endif
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
     TcImplError impl = TC_IMPL_OK;

@@ -137,8 +137,8 @@
   ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
   AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
   determinism suites and a fail-closed adapter self-test; currently 71/71
-  `ctest` and 850/850 harness cases (590 compile, 131 tool,
-  128 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
+  `ctest` and 860/860 harness cases (595 compile, 131 tool,
+  133 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
   sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
   cases plus 296 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
   AAPCS64 cases, 19 reverse ABI cases and 1037 static sources under each of two
@@ -149,6 +149,13 @@
 
 ### Changed
 
+- **Adversarial-review B1 fixes**: finite/±inf division no longer reports a false
+  underflow (RT/CT); decimal literals that round across a binade boundary no
+  longer double the value; same-parameter annotation errors now precede later
+  type errors by §12.2 #3; each stdout write/writeln record is committed
+  immediately and a failure reports `TC_RE_IO` at that instruction; invalid
+  UTF-8 emits a 0-based byte-offset note. Added S6/S4/CLI regressions; the Debug
+  gate is 71/71 `ctest` and 860/860 harness cases.
 - SEM validates and freezes the type table; CT and IR finalization run afterwards with
   read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
   explicit block edges during IR finalization; `TcFunc.body` pointers are fixed up

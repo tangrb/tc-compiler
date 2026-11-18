@@ -1380,8 +1380,10 @@ static int float_binop(unsigned W, const TcType *type, TcOpcode op,
         fp_is_tiny(&r)) {
         int exact;
         if ((op == TC_MUL || op == TC_DIV) &&
-            (a.is_zero || b.is_zero)) {
-            /* A zero operand makes the result exactly zero. */
+            (a.is_zero || b.is_zero ||
+             (op == TC_DIV && b.is_inf))) {
+            /* A zero operand, or a finite value divided by infinity, makes
+             * the result exactly zero. */
             exact = r.is_zero;
         } else if (op == TC_MUL) {
             exact = mul_subnormal_exact(&a, &b, &r);

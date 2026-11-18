@@ -1,0 +1,10 @@
+id: TC-RT-FP-0027
+profile: w64
+source: root.tc
+spec: "§2.4 CT const literal carry across a binade boundary"
+kind: run
+expect:
+  stdout_hex: "392e30303732652b31350a343834353837333139393035303635333639360a"
+  trap: null
+  exit: 0
+  termination: normal

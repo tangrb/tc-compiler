@@ -14,6 +14,7 @@ failures are implementation errors (71) and are never language diagnostics.
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -72,6 +73,8 @@ def main() -> int:
         ct_root = cwd / "ct_root.tc"
         ct_root.write_text("#program\nimport ct_main\n", encoding="utf-8")
         missing = cwd / "missing.tc"
+        invalid_utf8 = cwd / "invalid_utf8.tc"
+        invalid_utf8.write_bytes(b"#program\n/// ab \xc3\xa9 \xff\n")
 
         for tool in tools:
             name = Path(tool).name
@@ -138,6 +141,40 @@ def main() -> int:
                 check(r.returncode == 0, f"{name} run emit exit {r.returncode}")
                 check("tc_main:" in r.stdout, f"{name} run assembly stdout")
                 check(r.stderr == "", f"{name} run stderr empty")
+
+            r = run(tool, ["--syntax-only", str(invalid_utf8)], cwd)
+            check(
+                r.returncode == 1,
+                f"{name} invalid UTF-8 exit {r.returncode}",
+            )
+            check(
+                "TC_CE_SYNTAX" in r.stderr
+                and "error[LEX]" in r.stderr
+                and "note: invalid byte offset " in r.stderr,
+                f"{name} invalid UTF-8 byte-offset note",
+            )
+
+            if name == "tc-vm":
+                closed = subprocess.run(
+                    [
+                        "bash",
+                        "-c",
+                        f"{shlex.quote(str(Path(tool).resolve()))} "
+                        f"{shlex.quote(str(run_source))} >&-",
+                    ],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                    env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
+                         "PATH": "/usr/bin:/bin"},
+                )
+                check(
+                    closed.returncode == 1
+                    and closed.stdout == ""
+                    and "TC_RE_IO" in closed.stderr,
+                    f"{name} closed stdout reports TC_RE_IO",
+                )
 
             r = run(tool, [str(trap_source)], cwd)
             if name == "tc-vm":

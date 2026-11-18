@@ -1583,6 +1583,53 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0259",
+        "§12.2 #3 same-parameter annotation N error precedes the later ptr<void> "
+        "type error",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(@HERE@3) p: ptr<void>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0260",
+        "§12.2 #3 invalid @align placement precedes the later void parameter "
+        "type error",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@align(3) p: void) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0261",
+        "§8.6/§12.2 #3 a valid @align does not mask the later ptr<void> type error",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(4) p: ptr<@HERE@void>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_VOID",
+    ),
+    _case(
+        "TC-SEM-ANN-0262",
+        "§12.2 #3 invalid @nonnull arity precedes the later void parameter type error",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@nonnull(1) p: void) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0263",
+        "§12.2 #3 non-integer @range placement precedes the later void parameter type error",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@range(1, 2) p: void) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CONST-0004",
         "§3.10 正向允许集外的 copy 出现在 const 初始化器 -> CONST_FORM"
         "（操作码 Token）",

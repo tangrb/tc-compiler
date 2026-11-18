@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0262
+profile: common
+source: fixtures/tc-sem-ann-0262/root.tc
+spec: "§12.2 #3 invalid @nonnull arity precedes the later void parameter type error"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0262/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

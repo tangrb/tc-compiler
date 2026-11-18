@@ -131,8 +131,11 @@ expect:
 ```
 
 All five expectation keys are required.  `primary` and each `related` entry are
-`{file, line, column}` with 1-based integer line/column.  The code must exist in
-the frozen table and be legal for the expected stage.  `LEX/SYN` may be
+`{file, line, column}` with 1-based integer line/column.  A LEX invalid-UTF-8
+diagnostic may also carry `note: invalid byte offset N`; this is the standard's
+additional 0-based position, not a related position, and is accepted in syntax
+mode.  The code must exist in the frozen table and be legal for the expected
+stage.  `LEX/SYN` may be
 specialized to `LEX` or `SYN`; `TC_CE_IMPORT_*` cases normally use `IMPORT`.
 The decider requires exactly one diagnostic, then compares stage, code, primary
 and the ordered related list.  Zero diagnostics, extra diagnostics or any

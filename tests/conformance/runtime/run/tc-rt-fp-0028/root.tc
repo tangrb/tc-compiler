@@ -1,0 +1,6 @@
+#program
+_ = writeln float64, 9007199254740991.5
+var a: float64 = copy float64, 1.0
+var b: float64 = copy float64, inf
+var r: float64 = div float64, a, b
+_ = writeln float64, r

@@ -675,9 +675,10 @@ static int decimal_to_float(const char *digits, size_t ndigits, int exp10,
         unsigned bl = bitlen64(qv);
         int result_exp = qexp + (int)bl - 1;
         if (bl > fmt->p) {
+            /* Rounding carried into a new binade.  result_exp is the exponent
+             * of the leading bit and must not change when the significand is
+             * shifted down to p bits. */
             qv >>= 1;
-            result_exp++;
-            bl--;
         }
         if (result_exp > fmt->emax) {
             *out_bits = (negative ? sign_bit : 0) |

@@ -103,7 +103,7 @@
   静态变异套件、W=32/64 运行时 golden、S9 裸机/ARM32/互操作/静态一致/
   分档案/确定性套件、AAPCS64/AAPCS32 双向 interop、ABI mutation 审计与容量报告、
   adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 71/71，
-  harness 850/850（590 编译、131 工具、128 运行、1 属性），单元检查 frontend 688、
+  harness 860/860（595 编译、131 工具、133 运行、1 属性），单元检查 frontend 688、
   sem 102、ct 370、ir 674、vm 413、aot 81；S9 ARM32 差分 29 个固定用例 +
   296 个 S6/S8 语料，C 调用者 AAPCS32 14 例、AAPCS64 33 例，反向 ABI 19 例，
   1037 个静态源 × 2 个裸机档案；S10 RISC-V 29 个固定用例 + 296 个 S6/S8
