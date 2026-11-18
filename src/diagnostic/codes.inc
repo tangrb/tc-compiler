@@ -37,7 +37,7 @@ TC_DIAG_ENTRY(TC_CE_IMPORT_NOT_LIB, TC_STAGE_MASK_SEM, TC_STAGE_MASK_IMPORT, TC_
 TC_DIAG_ENTRY(TC_CE_DUPLICATE_IMPORT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_IMPORT, TC_DIAG_GROUP_NAME_MODULE, 0, 0, 0, "DuplicateImport", "重复导入",
               "第二次及后续 import 的模块名；关联首次导入")
 TC_DIAG_ENTRY(TC_CE_CIRCULAR_IMPORT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_IMPORT, TC_DIAG_GROUP_NAME_MODULE, 0, 0, 0, "CircularImport", "自导入/循环导入",
-              "环中源位置最早的 import 边；关联环路径")
+              "环中源位置最早的 import 边；关联位置为该回边指向的环内目标模块的模块头 Token（#program/#lib）")
 TC_DIAG_ENTRY(TC_CE_IMPORT_NAME_CONFLICT, TC_STAGE_MASK_SEM, TC_STAGE_MASK_IMPORT, TC_DIAG_GROUP_NAME_MODULE, 0, 0, 0, "ImportNameConflict", "导入名与本地名冲突",
               "import 的模块名；关联冲突的本模块成员")
 TC_DIAG_ENTRY(TC_CE_DUPLICATE_LABEL, TC_STAGE_MASK_SEM, TC_STAGE_MASK_SEM, TC_DIAG_GROUP_NAME_MODULE, 0, 0, 0, "DuplicateLabel", "同函数/程序的标签命名空间内重名",

@@ -149,6 +149,15 @@
 
 ### Changed
 
+- **Specification wording clarifications**: §12.2 #9 applies only when the
+  candidate primary positions are identical; fixed-shape errors
+  (`OPERAND_COUNT`/`RETURN_FORM`) precede later-column literals by column;
+  device policy constrains accesses, while pure `ptradd`/`ptrsub` only traps
+  under the reject policy; one-past `ptrsub n=0` stays one-past;
+  `CIRCULAR_IMPORT` relates to the target module header; "cycle before
+  duplicate" is per import edge; `make` fields accept only const value forms
+  (op_form/nested `make` is SYNTAX). No diagnostic code, acceptance set or
+  observable behavior changes.
 - **Adversarial-review B1 fixes**: finite/±inf division no longer reports a false
   underflow (RT/CT); decimal literals that round across a binade boundary no
   longer double the value; same-parameter annotation errors now precede later

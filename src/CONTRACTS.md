@@ -23,7 +23,7 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | CFG/unit | `ir/block.h` | SEM | explicit successor/predecessor edges; one closed unit per function/program; vreg→type and vreg→object maps | SEM DI, VM, AOT |
 | Struct/layout | `ir/structs.h` | SEM | field order/padding/readonly; per-profile `offset`/`size`; layout is never cached in `TcType` | SEM, CT, VM, AOT |
 | Object/address | `ir/object.h`, `ir/address.h`, `ir/region.h` | SEM + runtime | five regions; object is the single boundary/lifetime/DI fact source; region+offset is not object identity; address 0 is reserved | VM, checked build, AOT |
-| Pointer state | `ir/pointer_state.h`, `ir/pointer_state.c` | SEM + VM + AOT | §3.12 null/live/one-past/dangling permission matrix; one-past `ptradd` only zero; shared by addr/ptrdiff/memmove/bounds checks | SEM, VM, AOT |
+| Pointer state | `ir/pointer_state.h`, `ir/pointer_state.c` | SEM + VM + AOT | §3.12 null/live/one-past/dangling permission matrix; one-past `ptradd`/`ptrsub` zero stays one-past; shared by addr/ptrdiff/memmove/bounds checks | SEM, VM, AOT |
 | IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module identity is resolved path; frozen type table; per-profile consts/objects/units | VM, AOT |
 | CT results | `frontend/ct.h` | frontend/CT | typed CT value table (scalar bits / struct field tree), demand order and success/failure cache, target-declaration failure position, target-endian `TcInitImage` | IR finalization, L1/L3 tests |
 | Runtime semantic core | `runtime/semantics.h`, `runtime/semantics.c`, `runtime/wide.h`, `runtime/wide.c`, `runtime/rt_memory.h` | runtime | W-aware strict/wrap integer arithmetic, division/shift boundaries, binary32/64 arithmetic with fixed exception priority and exact underflow, exact `mod`, `cast`/`trunc`/`bitcast`; failures are the 15 `TcErrorKind` values; freestanding-safe (no libc/math.h); exact 128-bit comparisons use `TcWide`, not `__int128`, so the same source builds for W=32 and W=64. VM and both target runtimes share one implementation of rounding and exception rules | CT (maps to `TC_CE_CONST_*`), VM, AOT |
@@ -325,8 +325,9 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   program's own instructions.  Frame storage is zeroed per call; DI guarantees
   that accepted programs do not read it before initialization.
 - `addr` produces a pointer into a live object/sub-object.  Load/store/memmove
-  and `ptradd`/`ptrsub` check null, code/outside, device policy, read-only
-  parameters and (in `checked_build`) object bounds before modifying anything.
+  and `ptradd`/`ptrsub` check null, code/outside, device policy (pure
+  arithmetic traps under `TC_DEV_REJECT` or outside the device window), read-only parameters and (in
+  `checked_build`) object bounds before modifying anything.
   Unaligned multi-byte accesses read and write bytes in profile endianness
   (§13.2 profile contract), so byte-offset stores and loads reconstruct the
   same value in the VM and on every target.

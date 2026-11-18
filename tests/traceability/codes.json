@@ -261,7 +261,7 @@
       "stage": "SEM",
       "report_stage": "IMPORT",
       "trigger": "自导入/循环导入",
-      "position": "环中源位置最早的 import 边；关联环路径",
+      "position": "环中源位置最早的 import 边；关联位置为该回边指向的环内目标模块的模块头 Token（#program/#lib）",
       "w_sensitive": false,
       "first_test_stage": "S2",
       "group": "name_module",

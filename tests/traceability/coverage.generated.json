@@ -8,10 +8,10 @@
     "design": "docs/TC原生编译器设计说明书-0.0.46.md",
     "test_plan": "docs/TC开发测试计划-0.0.46.md",
     "sha256": {
-      "codes_json": "d96519bc5a8a75a336bca0121a367b849522c41263e9bbdc1b08690058ca96cb",
-      "standard": "e8a3bc0ca9b9fc672af6eca35c6a13c4fd31319c7d3f4e6f308853e13520eea9",
-      "design": "4f984b2d639b85e7b417ba992dc617a8168e591282bbdb55ce2e87bf9a89816d",
-      "test_plan": "73d453df28497e3771e88c9653d6406f72b3d6d63f832d253c9f846f6bef882b"
+      "codes_json": "b0aaa907c2e2b6e225afdcf8ff9e2519cfc4775e1523e016b72007b9c8460e77",
+      "standard": "a697cc2ac148bd2db81ca45447947e8dd8dc2c9934578c2c6543924020d58058",
+      "design": "7f37a7dd4680502024167c3a463b7a604435bfa220e10d8a375a66a054d07c4b",
+      "test_plan": "ed09eb4c4b1d9158f366482b782efd4732b16e3e7dfc7bf1e463dd58d7822ff6"
     }
   },
   "policy": {
@@ -10222,7 +10222,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针；越界/悬垂/未初始化 UB；代码区/设备拒绝 → `TC_RE_ADDR_UNAVAILABLE`"
+      "trap": "空指针；越界/悬垂/未初始化 UB；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`"
     },
     {
       "id": "opcode:load:static_error",
@@ -10242,7 +10242,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针；越界/悬垂/未初始化 UB；代码区/设备拒绝 → `TC_RE_ADDR_UNAVAILABLE`"
+      "trap": "空指针；越界/悬垂/未初始化 UB；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`"
     },
     {
       "id": "opcode:load:trap",
@@ -10260,7 +10260,7 @@
       "mode": "strict",
       "tc_opcode": "TC_LOAD",
       "group": "内存与指针",
-      "trap": "空指针；越界/悬垂/未初始化 UB；代码区/设备拒绝 → `TC_RE_ADDR_UNAVAILABLE`"
+      "trap": "空指针；越界/悬垂/未初始化 UB；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`"
     },
     {
       "id": "opcode:load.volatile:normal",
@@ -10338,7 +10338,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
     },
     {
       "id": "opcode:store:static_error",
@@ -10358,7 +10358,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
     },
     {
       "id": "opcode:store:trap",
@@ -10376,7 +10376,7 @@
       "mode": "strict",
       "tc_opcode": "TC_STORE",
       "group": "内存与指针",
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
     },
     {
       "id": "opcode:store.volatile:normal",
@@ -10454,7 +10454,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB"
     },
     {
       "id": "opcode:memmove:static_error",
@@ -10474,7 +10474,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB"
     },
     {
       "id": "opcode:memmove:trap",
@@ -10492,7 +10492,7 @@
       "mode": "strict",
       "tc_opcode": "TC_MEMMOVE",
       "group": "内存与指针",
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB"
     },
     {
       "id": "opcode:addr:normal",
@@ -10552,7 +10552,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB"
     },
     {
       "id": "opcode:ptradd:static_error",
@@ -10572,7 +10572,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB"
     },
     {
       "id": "opcode:ptradd:trap",
@@ -10590,7 +10590,7 @@
       "mode": "strict",
       "tc_opcode": "TC_PTRADD",
       "group": "内存与指针",
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB"
     },
     {
       "id": "opcode:ptrsub:normal",
@@ -10610,7 +10610,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB"
     },
     {
       "id": "opcode:ptrsub:static_error",
@@ -10630,7 +10630,7 @@
       "group": "内存与指针",
       "safety": "unsafe",
       "trap_capable": true,
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB"
     },
     {
       "id": "opcode:ptrsub:trap",
@@ -10648,7 +10648,7 @@
       "mode": "strict",
       "tc_opcode": "TC_PTRSUB",
       "group": "内存与指针",
-      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB"
+      "trap": "空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB"
     },
     {
       "id": "opcode:ptrdiff:normal",
@@ -12579,7 +12579,7 @@
       ],
       "number": 9,
       "title": "操作数内部优先",
-      "detail": "同一位置同时存在操作数内部诊断（名称/可见性/字面量类别/范围/类型）与构造级诊断（条件/返回/分支/参数/字段/模式/安全）时，先报操作数内部诊断；例外是 `call` 的调用安全（§8.8.2）先于实参检查。字面量在 `br_if` 条件、`switch` 值、`return` 操作数、`call`/`make` 实参/字段位置先按期望类型检查；失败报 `TC_CE_LITERAL_TYPE`/`TC_CE_LITERAL_RANGE`，不报 `TC_CE_CONDITION_TYPE`/`TC_CE_SWITCH_TYPE`/`TC_CE_RETURN_TYPE`/`TC_CE_TYPE_MISMATCH`。同一字面量同时类别/符号性与范围不符时，`TC_CE_LITERAL_TYPE` 优先。"
+      "detail": "同一位置同时存在操作数内部诊断（名称/可见性/字面量类别/范围/类型）与构造级诊断（条件/返回/分支/参数/字段/模式/安全）时，先报操作数内部诊断；例外是 `call` 的调用安全（§8.8.2）先于实参检查。字面量在 `br_if` 条件、`switch` 值、`return` 操作数、`call`/`make` 实参/字段位置先按期望类型检查；失败报 `TC_CE_LITERAL_TYPE`/`TC_CE_LITERAL_RANGE`，不报 `TC_CE_CONDITION_TYPE`/`TC_CE_SWITCH_TYPE`/`TC_CE_RETURN_TYPE`/`TC_CE_TYPE_MISMATCH`。同一字面量同时类别/符号性与范围不符时，`TC_CE_LITERAL_TYPE` 优先。 本项只在候选诊断的主位置（文件、行、列）相同时适用；主位置不同时仍按第 3 项 的列号升序。固定形态错误（如 `TC_CE_OPERAND_COUNT`、`TC_CE_RETURN_FORM`） 定位在助记符/`return` 关键字，若其列早于字面量操作数，仍可先报；本项第二句的 “字面量先检查”只适用于构造形态本身已合法、仅操作数内部类型有误的情形。"
     },
     {
       "id": "first_diag_rule:10:combination_case",

@@ -965,7 +965,7 @@ IMPORT_CASES = [
         "source": "root.tc",
     },
     {
-        "id": "TC-IMP-0004", "spec": "§4.5 目标在当前递归栈上 -> CIRCULAR_IMPORT（循环优先于重复）；最早 import 边",
+        "id": "TC-IMP-0004", "spec": "§4.5 目标在当前递归栈上 -> CIRCULAR_IMPORT（循环优先于重复）；最早 import 边，关联目标模块头",
         "stage": "IMPORT", "code": "TC_CE_CIRCULAR_IMPORT", "profile": "common",
         "files": {
             "root.tc": "@REL@#program\nimport @HERE@a\n",

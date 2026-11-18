@@ -396,12 +396,15 @@ end
 - `const` 结构体字段读取 `<const>.<field>`（逐层；每层中间结果是 const 结构体值）；
 - 纯运算：`add/sub/mul/div/mod/neg/abs/and/or/xor/not/shl/shr/eq/ne/lt/le/gt/ge`；
 - `cast`/`trunc`/`bitcast`；
-- `make S, …`（字段全为 const）；
+- `make S, …`（每个字段值必须是本节的 const 值形式：字面量、const 路径或
+  `nullptr`；字段位置不得写成 op_form 或嵌套 `make`，否则按 §14.4 的 value
+  语法在 SYN 阶段报 `TC_CE_SYNTAX`）；
 - `sizeof T`。
 
 - **正向允许集**：未列入上述列表的 op 一律违规 → `TC_CE_CONST_FORM`，包括 `trap`/`br`/`br_if`/`switch`/`return`/`copy`/`store`/`memmove`/`load.volatile`/`store.volatile`/`ptradd`/`ptrsub`/`ptrdiff`/`ptreq`/`ptrne`/`ptrlt`/`ptrle`/`ptrgt`/`ptrge`/`funcaddr`/`funceq`/`funcne`/`read`/`write`/`writeln`。
 
-**求值说明**：常量求值按档案字长 W 执行；`sizeof`、`cast`/`bitcast`/`trunc`、布局与相关 `TC_CE_CONST_*`/`TC_CE_LAYOUT_OVERFLOW` 结果可随 W 不同，但在同一档案内确定。
+“字段全为 const”是值形式的限定，不是字段语法扩展；`make` 的字段位置仍按
+§14.4 的 `named_arg = IDENT ":" value` / `value` 形式解析。常量求值按档案字长 W 执行；`sizeof`、`cast`/`bitcast`/`trunc`、布局与相关 `TC_CE_CONST_*`/`TC_CE_LAYOUT_OVERFLOW` 结果可随 W 不同，但在同一档案内确定。
 
 - `const_expr` 的 op_form 不得带 `.wrap`/`.ieee`/`.nsw`/`.nuw`/`.volatile`；纯运算只接受上述基础助记符（不带模式后缀）。带后缀 → `TC_CE_CONST_FORM`（SEM）。
 
@@ -462,13 +465,13 @@ end
 |---|---|---|
 | **null** | `copy`、比较、`ptrdiff`（按地址 0） | `load`/`store`/`ptradd`/`ptrsub`/`memmove`/`call_indirect`（trap） |
 | **live** | 读/写、算术、比较、`memmove` | 超出对象边界 |
-| **one-past** | 比较、`ptrdiff`、`ptradd` offset 0、`ptrsub` 回到对象内 | `load`/`store`、`ptradd` 非零、`memmove` |
+| **one-past** | 比较、`ptrdiff`、`ptradd` n=0、`ptrsub` n=0（保持 one-past）或回到对象内 | `load`/`store`、`ptradd` 非零、`memmove` |
 | **dangling** | `copy`、返回、存入存储对象/字段、`bitcast ptr↔ptr`、比较、`ptrdiff` | 解引用、`ptradd`/`ptrsub`、`memmove` |
 
 - **悬垂指针是地址值，不是立即 UB**：只有解引用、指针算术、`memmove` 或对原对象的访问才产生 UB；`copy`/返回/比较/`ptrdiff`/`bitcast ptr↔ptr` 定义。
 - 地址、指针、`usize`/`isize` 的宽度均为 W；`ptrdiff` 返回 W 位 `isize`；`memmove` 的 `n` 为 W 位 `usize`。
 - **对象边界**：`load/store T` 访问的 `[p, p+sizeof T)` 必须完全位于一个 live 对象/子对象内；否则 UB。
-- **`ptradd`/`ptrsub T`**：以 `sizeof T` 为步长；`n` 是 W 位 `usize`；`n × sizeof T` 按数学值计算，结果必须在同一对象的 `[start, one-past]` 内；否则 UB。`ptradd` 的输入为 one-past 时只允许 `n=0`；`ptrsub` 可从 one-past 回到对象内；输入为 dangling 时任何算术都 UB。
+- **`ptradd`/`ptrsub T`**：以 `sizeof T` 为步长；`n` 是 W 位 `usize`；`n × sizeof T` 按数学值计算，结果必须在同一对象的 `[start, one-past]` 内；否则 UB。`ptradd` 的输入为 one-past 时只允许 `n=0`；`ptrsub` 可从 one-past 回到对象内，`ptrsub` 的 `n=0` 也允许并保持 one-past；输入为 dangling 时任何算术都 UB。
 - **字段子对象**：字段各自是独立子对象；不能通过一个字段的指针 `ptradd` 进入相邻字段。
 - **`memmove T, dst, src, n`**：dst/src 必须分别指向至少 `n` 个 `T` 元素的 live 对象；重叠按临时缓冲；越界/悬垂/未初始化读取 UB；`n` 是 W 位 `usize`，`n × sizeof T` 按数学值计算。`n=0` 不绕过指针状态检查：null → `TC_RE_NULL_POINTER`；one-past → 按状态表禁止 `memmove`；dangling → UB；只有 live 对象的指针可作为零长度 no-op。
 - **`ptrdiff T, p, q`**：同一对象（含 one-past）内为精确字节差；悬垂指针按原地址差（原本同对象则为原字节差，否则环境定义）；跨对象为环境定义；null 视为地址 0；结果不可由 W 位 `isize` 表示 → `TC_RE_PTRDIFF_OVERFLOW`。
@@ -569,6 +572,9 @@ import m
 - 找不到目标文件 → `TC_CE_IMPORT_NOT_FOUND`。
 - 目标文件必须是 `#lib`；导入 `#program` → `TC_CE_IMPORT_NOT_LIB`。
 - 目标在当前递归栈上 → `TC_CE_CIRCULAR_IMPORT`（循环优先于重复）；同一导入者的导入列表重复引用同一解析目标 → `TC_CE_DUPLICATE_IMPORT`（位置为后一个 `import`）；不同导入者共享同一已解析目标 → 正常复用，不诊断。
+  “循环优先于重复”只描述同一条 `import` 边上的目标分类顺序（先在递归栈上判循环，
+  再判导入者重复引用），不是跨 `import` 边的全局首诊优先级；跨边首诊仍按 §12.2 的
+  `module_order`/模块内源序。
 - 模块身份按解析后的文件路径确定，不以模块名唯一确定；同名但不同路径的 `m.tc` 是不同模块实例。每个 `import m` 绑定到该导入者按搜索顺序解析到的文件；`m.x`/`m.f`/`m.S` 只访问该绑定实例。不同导入者可以绑定不同实例。
 - 同一模块实例只有一份模块静态存储（§4.7）。
 - 导入名占用**模块命名空间**；本文件的模块成员/局部名不得与导入名相同 → `TC_CE_IMPORT_NAME_CONFLICT`。
@@ -629,7 +635,7 @@ public static var counter: int32 = 0
 #### 4.11.1 模块发现与 LEX/SYN 闭包
 
 1. 从根模块开始，对当前模块执行 LEX→SYN；成功后加入 `module_order` 并标记已访问。
-2. 按该模块 `import` 的源序逐条处理：目标文件不存在记录 `TC_CE_IMPORT_NOT_FOUND`；目标在当前递归栈上记录 `TC_CE_CIRCULAR_IMPORT`（循环优先于重复）；当前导入者已引用同一解析目标记录 `TC_CE_DUPLICATE_IMPORT`；目标已解析且不在当前栈上正常复用，不重复 LEX/SYN 解析，不重复加入 `module_order`；新目标递归执行本算法。
+2. 按该模块 `import` 的源序逐条处理：目标文件不存在记录 `TC_CE_IMPORT_NOT_FOUND`；目标在当前递归栈上记录 `TC_CE_CIRCULAR_IMPORT`（循环优先于重复；该优先仅针对同一条边，跨边首诊按 §12.2）；当前导入者已引用同一解析目标记录 `TC_CE_DUPLICATE_IMPORT`；目标已解析且不在当前栈上正常复用，不重复 LEX/SYN 解析，不重复加入 `module_order`；新目标递归执行本算法。
 3. 目标存在但模式为 `#program`：仍执行 LEX→SYN；不继续发现该目标的 `import`；在 IMPORT 阶段记录 `TC_CE_IMPORT_NOT_LIB`。
 4. 任何 LEX/SYN 错误立即报告并停止。第 2 步记录的导入错误延迟到 IMPORT 阶段，不阻止继续发现其它导入。
 5. 每个成功发现的模块只做一次 LEX/SYN 解析。`module_order` 记录模块实例（解析后的文件路径）；同名但不同路径的实例分别记录。所有可达模块 LEX/SYN 成功后，`module_order` 固定；后续阶段不得因依赖拓扑或哈希遍历改变它。
@@ -641,7 +647,8 @@ public static var counter: int32 = 0
 1. 按 `module_order` 与模块内 `import` 源序定位每个 `import m` 的目标 `m.tc`；搜索顺序为导入文件所在目录 → 环境声明的 include 根目录（按顺序）→ 首个匹配。include 根目录属于环境定义，实现必须文档化。
 2. 目标必须是 `#lib`；导入 `#program` 报告 `TC_CE_IMPORT_NOT_LIB`。
 3. 同一导入者重复引用同一解析目标报告 `TC_CE_DUPLICATE_IMPORT`；不同导入者共享同一目标属于正常复用。
-4. 目标在当前递归栈上报告 `TC_CE_CIRCULAR_IMPORT`；循环优先于重复。
+4. 目标在当前递归栈上报告 `TC_CE_CIRCULAR_IMPORT`；循环优先于重复，该优先仅
+   适用于同一条 `import` 边的分类，跨边首诊仍按 §12.2。
 5. 导入名占用模块命名空间；导入名与本模块的模块成员名或局部名冲突报告 `TC_CE_IMPORT_NAME_CONFLICT`。检查与 `import` 的文本位置无关。每个 `import` 的成员访问绑定到该导入者解析到的模块实例；签名、静态存储和成员表以模块实例（文件）为键，不以模块名为键。
 6. 导入成功后，按依赖 DAG 的逆向拓扑序收集全部可达模块实例的函数签名、结构体定义与模块成员；同层并列时按 `module_order` 打破平局。签名收集不得依赖函数表遍历顺序。
 7. IMPORT 阶段不报告名称解析、类型或 CFG 诊断；这些属于 SEM。
@@ -875,14 +882,14 @@ OUT[其他指令] = IN[n]
 
 | op | 语法 | 类型 | 结果 | 效果 | trap | 安全 |
 |---|---|---|---|---|---|---|
-| `load` | `d = load T, p` | `T` 值类型 | T | read | 空指针；越界/悬垂/未初始化 UB；代码区/设备拒绝 → `TC_RE_ADDR_UNAVAILABLE` | unsafe |
+| `load` | `d = load T, p` | `T` 值类型 | T | read | 空指针；越界/悬垂/未初始化 UB；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE` | unsafe |
 | `load.volatile` | `d = load.volatile T, p` | 同上 | T | read/volatile | 同上 | unsafe |
-| `store` | `_ = store T, p, v` | `T` 值类型 | — | write | 空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB | unsafe |
+| `store` | `_ = store T, p, v` | `T` 值类型 | — | write | 空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB | unsafe |
 | `store.volatile` | `_ = store.volatile T, p, v` | 同上 | — | write/volatile | 同上 | unsafe |
-| `memmove` | `_ = memmove T, dst, src, n` | `T` 值类型；`n: usize`（W 位） | — | read+write | 空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB | unsafe |
+| `memmove` | `_ = memmove T, dst, src, n` | `T` 值类型；`n: usize`（W 位） | — | read+write | 空指针 → `TC_RE_NULL_POINTER`；只读区 → `TC_RE_WRITE_PROTECTED`；代码区或设备策略不允许该访问 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂/未初始化读取 UB | unsafe |
 | `addr` | `d = addr T, target` | 目标类型 `T` | `ptr<T>` | pure | 无 | safe |
-| `ptradd` | `d = ptradd T, p, n` | `ptr<T>`, `usize`（W 位） | `ptr<T>` | pure | 空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB | unsafe |
-| `ptrsub` | `d = ptrsub T, p, n` | `ptr<T>`, `usize`（W 位） | `ptr<T>` | pure | 空指针 → `TC_RE_NULL_POINTER`；代码区/设备 → `TC_RE_ADDR_UNAVAILABLE`；越界/悬垂 UB | unsafe |
+| `ptradd` | `d = ptradd T, p, n` | `ptr<T>`, `usize`（W 位） | `ptr<T>` | pure | 空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB | unsafe |
+| `ptrsub` | `d = ptrsub T, p, n` | `ptr<T>`, `usize`（W 位） | `ptr<T>` | pure | 空指针 → `TC_RE_NULL_POINTER`；代码区 → `TC_RE_ADDR_UNAVAILABLE`；设备区仅 `TC_DEV_REJECT` 或结果越出设备窗口时 trap；越界/悬垂 UB | unsafe |
 | `ptrdiff` | `d = ptrdiff T, p, q` | `ptr<T>`, `ptr<T>` | `isize`（W 位，字节差） | pure | 结果不可表示 → `TC_RE_PTRDIFF_OVERFLOW` | safe |
 | `ptreq` / `ptrne` | `d = ptreq T, p, q` | `ptr<T>`/`nullptr` | `bool` | pure | 无 | safe |
 | `ptrlt` / `ptrle` / `ptrgt` / `ptrge` | 同上 | `ptr<T>`/`nullptr` | `bool` | pure | 无 | safe |
@@ -891,8 +898,9 @@ OUT[其他指令] = IN[n]
 - `addr` 的 target 是存储对象/字段路径；`const` 不可取址。`addr` 产生指向 live 对象/子对象的指针；对象生命期结束后指针悬垂（§3.12）。
 - `load/store` 的 `T` 可为标量/指针/`fnptr`/结构体；对齐不要求；端序环境定义。访问范围必须完全位于一个 live 对象/子对象内；one-past/悬垂/越界访问 UB；未初始化存储的读取 UB。
 - `memmove` 按 `T` 元素复制，重叠等价于先临时缓冲；`n` 是元素数；dst/src 必须指向至少 `n` 个 `T` 元素的 live 对象；越界/悬垂 UB。
-- 指针算术按字节：`p ± n × sizeof T`；`n` 是 W 位 `usize`，乘法按数学值计算；结果必须位于同一对象的 `[start, one-past]` 内；`ptradd` 从 one-past 只允许 `n=0`，`ptrsub` 可从 one-past 回到对象内；dangling/越界算术 UB。
+- 指针算术按字节：`p ± n × sizeof T`；`n` 是 W 位 `usize`，乘法按数学值计算；结果必须位于同一对象的 `[start, one-past]` 内；`ptradd` 从 one-past 只允许 `n=0`，`ptrsub` 可从 one-past 回到对象内，`ptrsub` 的 `n=0` 也保持 one-past；dangling/越界算术 UB。
 - `usize`/`isize`/`ptr`/`fnptr` 的宽度为 W；`ptrdiff`/`sizeof` 的结果类型宽度随 W；`ptradd`/`ptrsub`/`memmove` 的 `n × sizeof T` 超出地址空间即 UB。
+- 设备区策略按 §6.7/§13.1 的当前实例决定访问是否允许；表中的“设备策略不允许”指该访问形式不被当前策略允许。`ptradd`/`ptrsub` 是纯指针算术，不读取/写入设备内容：代码区始终 trap；设备区仅在 `TC_DEV_REJECT` 或结果越出设备窗口时 trap，其它策略且结果仍在设备窗口内时允许算术，结果指针的后续访问仍按设备策略检查。
 
 #### 6.2.6 函数
 
@@ -1703,6 +1711,10 @@ I/O 诊断位置见 §12.5.1。
 7. **遍历无关**：函数表、哈希表、CFG、调用图、导入表、字段表的内部遍历顺序不得改变首个诊断。
 8. **档案字长**：首诊顺序在同一档案内固定；不同字长档案的候选集与首诊可以不同（§13.2.2）。
 9. **操作数内部优先**：同一位置同时存在操作数内部诊断（名称/可见性/字面量类别/范围/类型）与构造级诊断（条件/返回/分支/参数/字段/模式/安全）时，先报操作数内部诊断；例外是 `call` 的调用安全（§8.8.2）先于实参检查。字面量在 `br_if` 条件、`switch` 值、`return` 操作数、`call`/`make` 实参/字段位置先按期望类型检查；失败报 `TC_CE_LITERAL_TYPE`/`TC_CE_LITERAL_RANGE`，不报 `TC_CE_CONDITION_TYPE`/`TC_CE_SWITCH_TYPE`/`TC_CE_RETURN_TYPE`/`TC_CE_TYPE_MISMATCH`。同一字面量同时类别/符号性与范围不符时，`TC_CE_LITERAL_TYPE` 优先。
+    本项只在候选诊断的主位置（文件、行、列）相同时适用；主位置不同时仍按第 3 项
+    的列号升序。固定形态错误（如 `TC_CE_OPERAND_COUNT`、`TC_CE_RETURN_FORM`）
+    定位在助记符/`return` 关键字，若其列早于字面量操作数，仍可先报；本项第二句的
+    “字面量先检查”只适用于构造形态本身已合法、仅操作数内部类型有误的情形。
 10. **call/make 参数顺序**：重复 → 未知 → 缺失 → 数量/多余 → 顺序 → 类型；位置/命名不得混用（`call` → `TC_CE_ARGUMENT_ORDER`，`make` → `TC_CE_FIELD_ORDER`）；`make` 多余位置字段 → `TC_CE_OPERAND_COUNT`。
 
 **IMPORT 码的阶段例外**：`TC_CE_IMPORT_NOT_FOUND`、`TC_CE_IMPORT_NOT_LIB`、`TC_CE_DUPLICATE_IMPORT`、`TC_CE_CIRCULAR_IMPORT`、`TC_CE_IMPORT_NAME_CONFLICT` 在码表中归入 SEM 子阶段，但必须在 IMPORT 阶段报告。任何实现都不得把它们推迟到步骤 6–11 再报告。
@@ -1860,7 +1872,7 @@ I/O 诊断位置见 §12.5.1。
 | `TC_CE_PRIVATE_TYPE` | 出现在公开位置的私有类型名；关联类型声明 |
 | `TC_CE_IMPORT_NOT_FOUND` / `TC_CE_IMPORT_NOT_LIB` | `import` 的模块名 |
 | `TC_CE_DUPLICATE_IMPORT` | 第二次及后续 `import` 的模块名；关联首次导入 |
-| `TC_CE_CIRCULAR_IMPORT` | 环中源位置最早的 `import` 边；关联环路径 |
+| `TC_CE_CIRCULAR_IMPORT` | 环中源位置最早的 `import` 边；关联位置为该回边指向的环内目标模块的模块头 Token（`#program`/`#lib`） |
 | `TC_CE_IMPORT_NAME_CONFLICT` | `import` 的模块名；关联冲突的本模块成员 |
 | `TC_CE_DUPLICATE_LABEL` | 第二次及后续标签名；关联首次声明 |
 | `TC_CE_LABEL_NOT_FOUND` | 分支指令的标签名 |

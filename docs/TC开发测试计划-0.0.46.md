@@ -619,7 +619,7 @@ IMPORT 阶段报告，不得推迟到 SEM。
 - **转换**：整数→整数范围；整数→浮点；浮点→整数截断/NaN/inf；`float64→float32` 溢出/下溢；
   同类型 cast 保留 NaN payload；异类型 NaN canonical；`bitcast` 位串与端序无关。
 - **内存/指针**：指针状态四态允许/禁止逐格；对象边界/子对象；one-past 的 `ptradd n=0`/
-  `ptrsub` 回对象；dangling 的 copy/比较/`ptrdiff` 定义 vs 解引用 UB；`memmove` 重叠/`n=0`/
+  `ptrsub n=0` 或回对象；dangling 的 copy/比较/`ptrdiff` 定义 vs 解引用 UB；`memmove` 重叠/`n=0`/
   null/one-past/dangling；`n×sizeof T` 数学值；未对齐访问；volatile 顺序。
 - **调用**：参数从左到右；任一 trap 终止；递归；`D` 边界（D-1 成功、D 失败）；`call_indirect`
   null → `TC_RE_NULL_FUNCTION_POINTER`（全构建必选 trap）；签名不符/伪造 UB（不检测）；
