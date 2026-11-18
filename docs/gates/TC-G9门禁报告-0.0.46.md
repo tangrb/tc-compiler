@@ -25,11 +25,28 @@ ELF/flat 产物；四设备策略、退出策略、checked build 与 32/64 分�
 
 ## 覆盖与测试
 
-- 全量 `ctest`：58/58（Debug、Release、ASan+UBSan）。
+- 全量 `ctest`：58/58（Debug、Release、ASan+UBSan）；harness 850/850
+  （590 编译、131 工具、128 运行、1 属性）。
 - S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（29 固定 + 296 语料）、
   `conformance.s9_arm32_interop`（14）、`conformance.s9_static_parity`
   （1037 源 × 2 档案）、`conformance.s9_profiles`（7）、`determinism.s9`。
+- 双向 ABI 互操作：C caller → TC（AArch64 33、ARM32 14）与 TC caller → C（19），
+  覆盖整数/栈参数、int64 对、float32/float64、HFA、复合按引用/按值、间接返回与
+  窄值；ABI mutation 注入 4/4 被 interop 套件发现（`tests/tools/abi_mutation_audit.py`
+  为手动审计工具，不进入 ctest）。
+- VM↔AOT 差分：S8 全量差分 168 例全部一致；checked build 39 固定 + 115 合法集
+  不变；静态用例 s1 104、s4 179 + 46 工具；静态一致 1037 源 × 2 裸机档案首诊
+  逐字节一致。
+- 对抗空隙钉扎（期望全部由标准条款推导）：浮点 mod 符号零/±inf/严格 trap 顺序
+  （§6.3.3）、移位 k≥n（§6.3）、cast 舍入与最小次正规 bitcast（§3.13）、
+  readonly 矩阵（§6.14）、未对齐访问字节序按 §13.2 档案契约（§6.7）、不可达块
+  名称检查与 DI 豁免（§7.7.2）、@safe 空 unsafe 块（§9.3）、EOF 输入与已提交
+  输出保留（§11.1/§11.3）、阶段优先（§12.2）、模块实例绑定、bool 字节规范化、
+  fnptr null 恒等、实现上限边界（`s8_artifact_cases`：退出 71 侧双工具一致且
+  不发布产物，边界合法侧 VM 执行 + AOT 发射验证）。
 - 覆盖矩阵：636/636；设计 §12 十五项均有套件映射（第 4/7/14/15 项纳入 S9 用例）。
+- 软浮点：`tests/tools/s9_softfloat_audit.py --check` 确认 ARM32 binary64 不含
+  `d` 寄存器浮点指令（FP fuzz 512 seeds 通过）。
 - 确定性：O0/O2 `.s` 逐字节一致；重复 `.s`/ELF/执行一致；checked `.s` 可重复且与
   release 分离；32/64 产物与结果不跨档案比较。
 
@@ -55,49 +72,6 @@ python3 tests/determinism/s9_determinism.py --check
 python3 tests/traceability/coverage.py --check
 python3 tests/tools/docs_cleanup_check.py
 ```
-
-## 补充验证（G9 后）
-
-- 诊断优先级与语义边界扩展：S6 运行时语料 118→128（§6.3.3 浮点 mod 符号零/
-  ±inf/严格 trap 顺序、§6.3 移位 k≥n 语义与 `TC_RE_INTEGER_OVERFLOW`、§3.13
-  整数→浮点 cast 舍入与 bitcast 最小次正规、fnptr null 恒等、§11.3 EOF 输入
-  `TC_RE_IO` 与已提交输出保留、§7.7.2 不可达块 DI 豁免），S8 差分 158→168 且
-  全部 VM↔AOT 一致，checked 合法集 105→115，ARM32 语料 276→296；静态用例
-  s1 103→104（§12.2 全部 SYN 先于全部 SEM）、s4 177→179（§7.7.2 不可达块仍
-  名称检查、§9.3 @safe 函数体内空 unsafe 块）；静态一致语料增至 1037 源 × 2 裸机
-  档案，首诊逐字节一致。`s6_cases` 中 §6.7 未对齐访问
-  用例补注字节序按档案契约（§13.2）裁定。
-- 运行时与边界覆盖扩展：S6 运行时语料 115→118（§11.1 已提交 stdout 字节在调用帧内
-  trap 时保留、§6.14 readonly 矩阵——unsafe 写穿/兄弟字段/整块替换/readonly
-  ptr 字段所指对象/副本对象可写/参数对象字段写 → `TC_RE_WRITE_PROTECTED`、
-  §6.7 W=64 未对齐 int32/float64 访问与字节走私读回），S8 差分 155→158 且
-  全部 VM↔AOT 一致，checked 合法集 102→105，ARM32 语料 270→276。
-  实现上限边界在 `s8_artifact_cases` 钉扎：退出 71 侧（257 层嵌套、16385 字节
-  token 含病态 float 数字串、源文件超出 4 MiB 1 字节）VM 与 AOT 双工具一致且
-  不发布产物；边界合法侧（256 层块/类型嵌套、16384 字节 token、恰 4 MiB 源
-  文件）VM 执行通过且 AOT 发射验证正常。
-- 对抗覆盖扩展：S6 运行时语料 110→115（bool 非规范字节经 `memmove` 走私与规范化、
-  `ptrdiff(null,null)=0`、悬垂 `ptrdiff`/比较按原地址、模块实例三导入方共享、
-  同名不同路径模块实例分离），S8 差分 150→155 且全部 VM↔AOT 一致，checked 38→39
-  （one-past 指针存入字段再取回），ARM32 固定用例 25→29（int64 除法符号格与
-  `INT64_MIN/-1` 溢出、字节偏移未对齐 `int32`/`float64` 访问、第 5 个 `float32`/
-  `int64` 实参栈传递）。差分引擎补充 yaml `include_roots` 支持以承载多目录语料。
-- 反向 interop：19 例 TC caller → C callee 覆盖整数/栈参数、int64 对、float32/float64、
-  HFA 构造与返回、复合按引用/按值、间接返回与窄值。当前实现按符号性扩展
-  ARM32 caller 的窄实参；AArch64 33 例、ARM32 14 例 C-caller 互操作与全部
-  S8/S9 差分保持通过。
-- ABI mutation 审计：B.4 阈值、HFA 寄存器耗尽、复合 `NGRN` 计数、ARM32 Rule C.5
-  拆分四类注入均被 interop 套件发现，4/4 killed；工具为手动审计，不进入 ctest。
-- 容量：900005 字节静态对象在 AArch64 的 static span 为 900016、ARM32 为 900012；
-  ELF 分别约 1.01 MB/1.04 MB，AArch64 image_end 0x40907d21、ARM32 0x21e544。
-  1 MiB 静态区对当前最大用例仍有余量，但已接近上限；`aarch64-baremetal` 的
-  stdin 是 PL011 UART0 分帧输入，1 MiB 输入镜像窗口只用于 semihosting/ARM32
-  测试装入。
-- 软浮点审计：`tests/tools/s9_softfloat_audit.py --check` 扫描 ARM32 运行时 13 个
-  对象，确认 binary64 不产生任何 `d` 寄存器浮点指令；binary64 由整数算法实现，
-  binary32 仍使用 FPv5-D。FP fuzz 在 512 seeds 下通过。
-- ABI 参考与范围已固定到 `src/CONTRACTS.md`：AAPCS64 LP64 / 基 AAPCS32 的 2024Q3
-  版本；over-aligned 类型、bit-field、vector、variadic 不在 TC 可表达 ABI 范围。
 
 ## 当前限制
 

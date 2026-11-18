@@ -305,6 +305,9 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 - `addr` produces a pointer into a live object/sub-object.  Load/store/memmove
   and `ptradd`/`ptrsub` check null, code/outside, device policy, read-only
   parameters and (in `checked_build`) object bounds before modifying anything.
+  Unaligned multi-byte accesses read and write bytes in profile endianness
+  (§13.2 profile contract), so byte-offset stores and loads reconstruct the
+  same value in the VM and on every target.
   Contiguous struct fields are **separate sub-objects**, not an `n`-element
   array of the field type; `memmove T` with `n>1` across sibling fields is
   outside a single live object and therefore UB.  A field one-past pointer is
@@ -476,6 +479,11 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   heap-region addresses that are not language objects report
   `TC_RE_ADDR_UNAVAILABLE`.  The allocator seam stays available for a later
   runtime library.
+- Strict `and`/`or` evaluation is auditable only through emitted assembly: the
+  VM evaluates both operand loads unconditionally, and TC operands are pure
+  (§1 forbids nested expressions), so differential execution cannot observe a
+  short-circuiting AOT lowering.  Asm-shape checks for strict evaluation are a
+  later-stage verification item, not a 0.0.46 gate.
 
 ## Not frozen here (later stages, same headers)
 
