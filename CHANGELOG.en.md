@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.46] - 2026-11-16
+## [0.0.46] - 2026-11-19
 
 ### Added
 
@@ -149,13 +149,14 @@
 
 ### Changed
 
-- **R1/R2 closure**: annotations on bare `NAME` are classified by syntactic
-  type; `@align`/`@nonnull`/`@no_alias` on a non-pointer and `@range` on a
-  non-integer now report `TC_CE_ANNOTATION` at the annotation token.  The
+- **Diagnostic closure**: annotations on a bare `NAME` are classified by
+  syntactic type; `@align`/`@nonnull`/`@no_alias` on a non-pointer and `@range`
+  on a non-integer report `TC_CE_ANNOTATION` at the annotation token.  The
   0-based invalid-UTF-8 byte offset is carried through every diagnostic path
-  (default, `--sem-only`, `--static-only`, `--syntax-only`, AOT).  Added seven
-  S4 cases, all-path CLI checks and an adapter offset expectation; harness is
-  873/873.
+  (default, `--sem-only`, `--static-only`, `--syntax-only`, AOT).  Added the S4
+  annotation matrix, all-path/malformed/imported/pipe CLI checks and an adapter
+  offset expectation; the harness rejects undeclared offsets and validates the
+  note's file/position/stage; harness is 873/873.
 - **Specification wording clarifications**: §12.2 #9 applies only when the
   candidate primary positions are identical; fixed-shape errors
   (`OPERAND_COUNT`/`RETURN_FORM`) precede later-column literals by column;
@@ -165,13 +166,13 @@
   duplicate" is per import edge; `make` fields accept only const value forms
   (op_form/nested `make` is SYNTAX). No diagnostic code, acceptance set or
   observable behavior changes.
-- **Adversarial-review B1 fixes**: finite/±inf division no longer reports a false
+- **Runtime/diagnostic fixes**: finite/±inf division no longer reports a false
   underflow (RT/CT); decimal literals that round across a binade boundary no
-  longer double the value; same-parameter annotation errors now precede later
-  type errors by §12.2 #3; each stdout write/writeln record is committed
-  immediately and a failure reports `TC_RE_IO` at that instruction; invalid
-  UTF-8 emits a 0-based byte-offset note. Added S6/S4/CLI regressions; the Debug
-  gate is 71/71 `ctest` and 873/873 harness cases.
+  longer double the value; same-parameter annotation errors precede later type
+  errors by §12.2 #3; each stdout write/writeln record is committed immediately
+  and a failure reports `TC_RE_IO` at that instruction; invalid UTF-8 emits a
+  0-based byte-offset note. Added S6/S4/CLI regressions; the Debug gate is
+  71/71 `ctest` and 873/873 harness cases.
 - SEM validates and freezes the type table; CT and IR finalization run afterwards with
   read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
   explicit block edges during IR finalization; `TcFunc.body` pointers are fixed up

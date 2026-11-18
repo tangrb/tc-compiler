@@ -18,7 +18,7 @@ S6 交付：W 相关运行时语义核（整数 strict/wrap、除/模/移位边�
 | --- | --- | --- |
 | 全部 opcode 正常/边界/trap 用例通过 | 67 个 L4 运行时用例 + 63 个逐 opcode 静态形状用例；覆盖矩阵的 63 个 opcode 项 **63 normal + 29 trap + 63 static_error 槽全部 covered**；边界含 `INT_MIN`/`INT_MAX`、`div(INT_MIN,−1)`、`mod(INT_MIN,−1)`、`k>=n` 移位、NaN/±0/±inf/subnormal、自拷贝 `memmove`、one-past `ptradd`/`ptrsub`、`D` 边界 | 通过 |
 | 15 个 `TC_RE_*` 均有触发用例；必选 trap 在 release VM 执行 | 每个码都有释放构建下的运行用例（`TC-RT-INT/F...`、`TC-RT-MEM...`、`TC-RT-CALL...`、`TC-RT-IO...`）；`TC-UNIT-VM-0006` 断言全部 15 个码的指令位置；必选 trap 不受 `--checked` 影响 | 通过 |
-| VM golden 在 W=32/64 分别建立且不交叉比较 | `tests/golden/w64/` 8 个、`tests/golden/w32/` 3 个 `kind: run` golden；`golden.run` 按目录分别执行，无跨档案比较；独立复核记录见 `tests/golden/review-record.md` | 通过 |
+| VM golden 在 W=32/64 分别建立且不交叉比较 | `tests/golden/w64/` 8 个、`tests/golden/w32/` 3 个 `kind: run` golden；`golden.run` 按目录分别执行，无跨档案比较；golden 来源/推导记录见 `tests/golden/review-record.md` | 通过 |
 | 提交/终止语义用例通过 | `TC-RT-CTRL-0002`（trap 前 stdout 保留、之后不提交）、`TC-RT-INT-0004/0005/0006`、`TC-RT-MEM-0005…0017`、`TC-RT-CALL-0002/0004`、`TC-RT-IO-0003/0004`；单元测试覆盖 sink 失败贡献 0 字节、`read` 失败不改目标 | 通过 |
 | VM 可作为 S7 差分参考：同源同档案输出可重复 | `determinism.s6`：67 个用例各重复 3 次逐字节一致；harness 在 `PYTHONHASHSEED` 0/1/42 与反向用例顺序下 JSON 一致；W=32/64 分档案 | 通过 |
 

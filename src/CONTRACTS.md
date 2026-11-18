@@ -262,7 +262,8 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 
 ### Compile-time evaluation and finalized IR conventions
 
-- Stage flags: `--syntax-only` = LEX/SYN; `--sem-only` = LEX/SYN/IMPORT/SEM;
+- Stage flags: `--syntax-only` = root-module LEX/SYN (imports are not loaded);
+  `--sem-only` = LEX/SYN/IMPORT/SEM;
   `--static-only` = all static stages through CT and IR finalization; none
   claim a valid program (no VM/AOT execution).  A normal `tc-vm` invocation
   runs the reference VM; a normal `tc-aot` invocation emits target assembly,

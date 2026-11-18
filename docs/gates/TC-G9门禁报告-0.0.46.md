@@ -21,7 +21,7 @@ ELF/flat 产物；四设备策略、退出策略、checked build 与 32/64 分�
 | 32/64 分档案 golden 与差分隔离 | `conformance.s9_profiles` 钉扎 §13.2.2 的 `sizeof`/字面量范围/`bitcast`/`trunc` 差异；`conformance.s9_static_parity` 分别在 `arm32-baremetal` 与 `aarch64-baremetal` 下比较 VM/AOT 首诊，跨档案不比较；`tests/golden/w32` 与 `w64` 分别执行；所有 S9 差分只比较同一档案 | 通过 |
 | 四种设备策略、退出策略、UART/heap/trap 全部覆盖 | `conformance.s9_baremetal` 的 ELF/flat 产物审计与 reject/read/readwrite/volatile 矩阵（普通/volatile 读与写）与退出记录；PL011 UART0/UART1 分离；4000 位前导零 token 经 freestanding arena（`TC-ARM32-S9-0021`、bare-metal 输入用例）；必选 trap 与 checked build 在 ARM32 上执行（`TC-ARM32-S9-0014`…`0019`）；8 MiB/128 KiB 运行时 arena | 通过 |
 | 32 位 `int64`/`float64` 辅助与未对齐访问用例通过 | `conformance.s9_arm32` 覆盖 `int64`/`uint64` 乘除/移位/比较、binary64 算术/异常/格式化、32 位 `usize`/`isize`/`ptrdiff`/`memmove`/`n×sizeof T`；ARM EABI `__aeabi_uldivmod`/`__aeabi_ldivmod`/内存辅助由独立 `aeabi` 实现；未对齐 `int64`/`float64` 字段访问经共享对象/运行时路径 | 通过 |
-| 无开放 B1 级规格偏差 | 80 码集未增删；无警告；诊断/首诊/位置规则未改；32 位复合实参按 AAPCS32 Rule C.4/C.5 传字、>4 字节返回经隐藏指针；VFP 变体寄存器类未使用；架构/ABI/区/运行时缝约定记录于 `src/CONTRACTS.md` | 通过 |
+| 无开放规格偏差 | 80 码集未增删；无警告；诊断/首诊/位置规则未改；32 位复合实参按 AAPCS32 Rule C.4/C.5 传字、>4 字节返回经隐藏指针；VFP 变体寄存器类未使用；架构/ABI/区/运行时缝约定记录于 `src/CONTRACTS.md` | 通过 |
 
 ## 覆盖与测试
 

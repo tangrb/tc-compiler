@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | Contract/unit | `unit/` | L0/L1/L2 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例）；`tc_ct_test`（CT 向量/缓存/局部 const）；`tc_ir_test`（最终 IR 形态/CFG/打印）；`tc_vm_test`（语义核、格式化、输入、内存/指针、trap/位置、调用/`D`、设备策略、W 矩阵） |
 | Conformance | `conformance/` | L3/L4/L5/L6 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解/CT 用例、接受工具用例、属性用例；VM 运行时用例（`runtime/`）；S7/S8 VM↔AOT 差分（`diff/`）、AAPCS64 ABI（`abi/`）、checked build（`checked/`）、§13.4 八项一致性（`consistency/`）、工具链/ELF/静态一致（`tools/`）；S9 freestanding/裸机与 ARM32 平台（`platform/`）、AAPCS32 互操作（`abi/s9_*`）、双档案静态一致（`tools/s9_*`）；S10 RISC-V 32 平台/ABI/静态一致、checked/规模/长跳转、长期回归语料（`platform/s10_*`、`abi/s10_*`、`tools/s10_*`、`checked/s10_*`、`longterm/`）；见 [conformance/README.md](conformance/README.md) |
-| Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、`--syntax-only`/`--static-only` adapter |
+| Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、root-module `--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查、矩阵 case id 存在性交叉检查 |
 | Golden | `golden/` | L3/L4 | 规范推导的期望值及规范来源；`validate.py` 校验诊断与运行时 golden，`run.py` 执行 w32/w64 运行时 golden |
 | Tools | `tools/` | L6 | `tc-vm`/`tc-aot` CLI 契约（用法、档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝）；S10 发布审计（80 码闭集、私有 core、两个 CLI、freestanding 符号、文档/版本一致性） |
@@ -94,9 +94,9 @@ S10 对抗套件另含：
 - 800-case switch 前端规模回归；
 - 39 个 RISC-V checked UB 用例（VM/AOT 一致）；
 - 30000 指令 far-branch 回归（RISC-V auipc/jalr 长跳转）；
-- 7 个对抗审查 B1 回归（div-by-inf 精确零、binade 字面量、注解列序、
-  closed stdout 的 `TC_RE_IO`、非法 UTF-8 0 基偏移 note，以及 R1 bare NAME
-  注解放置、R2 全诊断路径的 UTF-8 offset note）。
+- 诊断/浮点/I/O 回归：div-by-inf 精确零、binade 字面量、注解矩阵
+  （bare NAME 放置、多重注解、`ptr<Nope>` 对照）、closed stdout/broken pipe 的
+  `TC_RE_IO`、非法 UTF-8 全诊断路径/畸形序列/导入/offset 0。
 `tests/tools/abi_mutation_audit.py --check`、
 `tests/tools/s9_capacity_report.py --check` 与
 `tests/tools/s9_softfloat_audit.py --check` 是手动审计工具，不进入 ctest；

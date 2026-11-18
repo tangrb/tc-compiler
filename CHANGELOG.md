@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.46] - 2026-11-16
+## [0.0.46] - 2026-11-19
 
 ### Added
 
@@ -112,11 +112,11 @@
 
 ### Changed
 
-- 对抗审查 B1 收口：裸 `NAME` 的注解按语法类型判定，`@align`/`@nonnull`/
-  `@no_alias` 非指针及 `@range` 非整数统一在注解 Token 报 `TC_CE_ANNOTATION`；
-  非法 UTF-8 的 0 基字节偏移在默认、`--sem-only`、`--static-only`、
-  `--syntax-only` 与 AOT 诊断路径均呈现；新增 S4 12 例、CLI 全路径检查及
-  adapter `byte_offset` 期望。
+- 诊断收口：裸 `NAME` 的注解按语法类型判定，`@align`/`@nonnull`/`@no_alias`
+  非指针及 `@range` 非整数统一在注解 Token 报 `TC_CE_ANNOTATION`；非法 UTF-8
+  的 0 基字节偏移在默认、`--sem-only`、`--static-only`、`--syntax-only` 与 AOT
+  诊断路径均呈现；新增 S4 注解矩阵、CLI 全路径/畸形序列/导入/管道检查及
+  adapter `byte_offset` 期望，并拒绝未声明 offset、校验 note 的文件/位置/阶段。
 - SEM 完成解析/校验并冻结类型表；CT 与 IR 最终化在其后运行，只使用只读类型查找，
   不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边；`TcFunc.body`
   在 unit 数组增长结束后统一校正，稳定指向最终 `TcIR.units`。
