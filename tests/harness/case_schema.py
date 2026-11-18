@@ -205,11 +205,18 @@ def _validate_expect_container(expect, kind):
 
 def _validate_compile(data):
     expect = data["expect"]
-    allowed = {"stage", "code", "primary", "related", "diagnostics"}
+    allowed = {"stage", "code", "primary", "related", "diagnostics",
+               "byte_offset"}
     _reject_unknown(expect, allowed, "expect")
-    for field in sorted(allowed):
+    for field in sorted(allowed - {"byte_offset"}):
         if field not in expect:
             raise SchemaError(f"missing required field {field!r}", f"expect.{field}")
+    if "byte_offset" in expect:
+        offset = expect["byte_offset"]
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise SchemaError(
+                "must be a non-negative integer", "expect.byte_offset"
+            )
     stage = _string(expect["stage"], "expect.stage")
     if stage not in STATIC_STAGES:
         raise SchemaError(

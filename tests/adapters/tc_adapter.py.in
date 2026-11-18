@@ -188,6 +188,7 @@ def _parse_diagnostics(text, case, mode):
                     "column": int(match.group("column")),
                 },
                 "related": related,
+                "byte_offset": entry["byte_offset"],
             }
         )
     return diagnostics

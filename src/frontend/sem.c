@@ -4286,12 +4286,14 @@ static void set_result_diag(TcAnalysis *an, const TcDiagnostic *diag) {
     out->code = diag->code;
     out->stage = diag->stage;
     out->span = (TcSpan){0};
+    out->span.invalid_byte_offset = TC_SPAN_NO_INVALID_BYTE;
     out->span.file = an_strdup(an, diag->primary.file);
     out->span.line = diag->primary.line;
     out->span.column = diag->primary.column;
     if (diag->has_related) {
         out->has_related = 1;
         out->related = (TcSpan){0};
+        out->related.invalid_byte_offset = TC_SPAN_NO_INVALID_BYTE;
         out->related.file = an_strdup(an, diag->related.file);
         out->related.line = diag->related.line;
         out->related.column = diag->related.column;
@@ -4308,6 +4310,7 @@ void tc_sem_set_result_diag(TcAnalysis *an, TcDiagCode code, TcStage stage,
     out->code = code;
     out->stage = stage;
     out->span = (TcSpan){0};
+    out->span.invalid_byte_offset = TC_SPAN_NO_INVALID_BYTE;
     out->span.file = an_strdup(an, span != NULL ? span->file : NULL);
     out->span.line = span != NULL ? span->line : 0;
     out->span.column = span != NULL ? span->column : 0;
@@ -4318,14 +4321,12 @@ static void set_lexsyn_diag(TcAnalysis *an, const TcFrontendDiag *diag) {
     memset(out, 0, sizeof(*out));
     out->code = diag->code;
     out->stage = diag->stage;
+    out->span = diag->span;
     out->span.file = an_strdup(an, diag->span.file);
-    out->span.line = diag->span.line;
-    out->span.column = diag->span.column;
     if (diag->has_related) {
         out->has_related = 1;
+        out->related = diag->related;
         out->related.file = an_strdup(an, diag->related.file);
-        out->related.line = diag->related.line;
-        out->related.column = diag->related.column;
     }
 }
 
@@ -6367,8 +6368,7 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 continue;
             }
             if (param_type == NULL) {
-                if (param->type.kind == TC_PTYPE_PTR ||
-                    param->type.kind == TC_PTYPE_NAME) {
+                if (param->type.kind == TC_PTYPE_PTR) {
                     continue;
                 }
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
@@ -6391,12 +6391,10 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 continue;
             }
             if (param_type == NULL && param->type.kind != TC_PTYPE_PTR) {
-                /* The annotation position itself is invalid for a known
-                 * non-pointer parameter.  An unresolved name is left to its
-                 * type diagnostic; a syntactic pointer can still validate N. */
-                if (param->type.kind != TC_PTYPE_NAME) {
-                    sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
-                }
+                /* A bare name is a struct type, so the annotation position is
+                 * invalid regardless of whether the name resolves.  Only a
+                 * syntactic pointer can continue to the N check. */
+                sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);
                 continue;
             }
             if (param_type != NULL && !type_is_ptr(param_type)) {
@@ -6459,9 +6457,8 @@ static void check_param_annotations(Sem *s, const TcParseParam *param,
                 continue;
             }
             if (param_type == NULL) {
-                if (param->type.kind == TC_PTYPE_NAME ||
-                    (param->type.kind == TC_PTYPE_SCALAR &&
-                     parse_type_is_integer_scalar(&param->type))) {
+                if (param->type.kind == TC_PTYPE_SCALAR &&
+                    parse_type_is_integer_scalar(&param->type)) {
                     continue;
                 }
                 sem_diag_simple(s, TC_CE_ANNOTATION, ann->span);

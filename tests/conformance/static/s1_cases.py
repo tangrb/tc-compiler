@@ -625,6 +625,7 @@ RAW_CASES = [
         "column": 7,
         "stage": "LEX",
         "code": "TC_CE_SYNTAX",
+        "byte_offset": 17,
     },
 ]
 
@@ -649,7 +650,9 @@ def _raw_case_yaml(case):
         f"  code: {case['code']}\n"
         f"  primary: {{file: {source}, line: {case['line']}, column: {case['column']}}}\n"
         f"  related: []\n"
-        f"  diagnostics: exactly-one\n"
+        + (f"  byte_offset: {case['byte_offset']}\n"
+           if "byte_offset" in case else "")
+        + f"  diagnostics: exactly-one\n"
     )
 
 

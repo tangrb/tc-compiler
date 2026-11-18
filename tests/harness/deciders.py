@@ -167,6 +167,13 @@ def decide_compile(case, adapter):
         problems.append(
             f"related expected {expected['related']!r}, got {actual['related']!r}"
         )
+    if "byte_offset" in expected:
+        actual_offset = actual.get("byte_offset")
+        if actual_offset != expected["byte_offset"]:
+            problems.append(
+                f"byte_offset expected {expected['byte_offset']!r}, "
+                f"got {actual_offset!r}"
+            )
     if problems:
         return _fail(
             "; ".join(problems),
@@ -219,6 +226,13 @@ def _normalize_diagnostic(item, index):
         return _fail(f"malformed diagnostic[{index}]: invalid primary position")
     if not isinstance(related, list):
         return _fail(f"malformed diagnostic[{index}]: related is not a list")
+    byte_offset = item.get("byte_offset")
+    if byte_offset is not None and (
+        isinstance(byte_offset, bool)
+        or not isinstance(byte_offset, int)
+        or byte_offset < 0
+    ):
+        return _fail(f"malformed diagnostic[{index}]: invalid byte_offset")
     related_positions = []
     for related_index, entry in enumerate(related):
         normalized = _normalize_position(entry)
@@ -227,10 +241,13 @@ def _normalize_diagnostic(item, index):
                 f"malformed diagnostic[{index}].related[{related_index}]"
             )
         related_positions.append(normalized)
-    return {
+    normalized = {
         "stage": stage, "code": code, "primary": position,
         "related": related_positions,
     }
+    if byte_offset is not None:
+        normalized["byte_offset"] = byte_offset
+    return normalized
 
 
 def _normalize_position(value):
@@ -254,6 +271,7 @@ def _diag_summary(diag):
         "code": diag.get("code"),
         "primary": diag.get("primary"),
         "related": diag.get("related", []),
+        **({"byte_offset": diag["byte_offset"]} if "byte_offset" in diag else {}),
     }
 
 

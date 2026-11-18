@@ -1,0 +1,6 @@
+#lib
+public struct Nope then
+    readonly x: int32
+end
+public @fast func f(@align(3) p: Nope) void then
+end

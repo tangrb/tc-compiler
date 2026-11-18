@@ -183,7 +183,7 @@ diagnostic:
 | Returns | `frontend/sem.c` | `return` only in functions; void/non-void forms; operand type; non-void reachable end and empty body report `MISSING_RETURN` at the return type with the `end` related position; void/program natural end, trap and non-exiting loops are legal |
 | Calls | `frontend/sem.c` | signature collection first; direct/indirect; target visibility, call safety, result shape, arguments (duplicate → unknown → missing → count → order → type), receiver; recursion allowed; `call_indirect` positional only |
 | Safety | `frontend/sem.c` | lexical unsafe context (`@unsafe`/`@fast`/`unsafe` block); load/store/memmove/ptradd/ptrsub/call_indirect and ptr↔int/fnptr↔int bitcast are unsafe; `@safe` rejects any unsafe block or unsafe operation with `SAFE_VIOLATION` priority |
-| Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` endpoint constants per §8.6 (`@range` `lo`/`hi` same-type integer constants; `@align` `N` a positive power of two checked by W-bit address width), resolved by the SEM const resolver (fixed binary32/64 rules), `@padding`; promise-content violations are not static rejections |
+| Annotations | `frontend/sem.c` | function/parameter/field positions, unknown/duplicate/conflict, `@unsafe`/`@safe`/`@fast` exclusion, `@fast_math`/promise placement, `@inline`/`@noinline`, `@align`/`@range` endpoint constants per §8.6 (`@range` `lo`/`hi` same-type integer constants; `@align` `N` a positive power of two checked by W-bit address width), resolved by the SEM const resolver (fixed binary32/64 rules), `@padding`; parameter annotation placement is decided from the syntactic type (bare `NAME` is a struct, `ptr<T>` is a pointer; unresolved names do not suppress placement); promise-content violations are not static rejections |
 | CT evaluation | `frontend/ct.h`, `ct.c`, `runtime/semantics.c` | runs only after every SEM buffer is empty and the type table is frozen; evaluates module `const`/`static var` initializers (and later local `const` initializers) on demand in `module_order`/module source order; §3.10 allowlist and the shared §6.3-§6.6 strict semantic core (one implementation with the VM, mapped to the six `TC_CE_CONST_*` codes); successes and failures cached; the first failure is attributed to its target declaration and stops CT; no cascade; local consts are evaluated after all module-level initializers |
 | IR finalization | `frontend/irgen.h`, `irgen.c` | materializes `TcIR`/`TcUnit`/`TcBlock`/`TcInstr` from the frozen type table, layout, CT results and parse IR; operand field paths become base vreg + field indices; labels/switch targets carry block ids; named call/make arguments survive; aggregate const values inline as a use-site `make`; no object is created for a `const`; static/Frame object tables and per-profile offsets |
 
@@ -197,6 +197,11 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 
 - `TC_CE_OPERAND_COUNT` always reports at the instruction mnemonic, including
   type-argument shape, operand-kind and no-result-LHS violations.
+- Parameter annotation placement is decided from the syntactic type: a bare
+  `NAME` is a struct, not a pointer; unresolved names do not suppress placement
+  diagnostics.  A misplaced `@align`/`@nonnull`/`@no_alias`/`@range` reports
+  `TC_CE_ANNOTATION` at the annotation token; only a syntactically valid
+  pointer placement reaches the `@align` N check (N token on failure).
 - A `const`/`static var` initializer is checked against the §3.10 positive
   allowlist before instruction checks: an unlisted op reports `CONST_FORM` at
   the opcode, an op with a mode/volatile suffix reports at the suffix token,
@@ -403,8 +408,9 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
 - I/O uses the `TcIoSink`/`TcIoSrc` seams: one write call per `write`/
   `writeln` record (newline included), no partial record on failure, and the
   hosted VM flushes each record so a closed/full stdout reports `TC_RE_IO` at
-  the failing instruction.  LEX invalid UTF-8 prints the 0-based byte offset as
-  an additional `note: invalid byte offset N`.  `read` parses a complete
+  the failing instruction.  LEX invalid UTF-8 carries the 0-based byte offset
+  through both frontend and analysis diagnostics and prints it as an additional
+  `note: invalid byte offset N` on every diagnostic path.  `read` parses a complete
   whitespace-delimited token before committing its
   target.  Output formatting uses the exact decimal renderer, not host
   `printf`.

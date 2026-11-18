@@ -78,8 +78,8 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-当前全量：`ctest` 71/71（Debug/Release/ASan+UBSan）；harness 860/860
-（595 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、
+当前全量：`ctest` 71/71（Debug/Release/ASan+UBSan）；harness 867/867
+（602 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、
 ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 29 个固定 ARM32 用例、
 296 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
 19 个反向 ABI 用例与 1037×2 个静态源一致性检查；S10 另有 29 个固定 RISC-V
@@ -94,8 +94,9 @@ S10 对抗套件另含：
 - 800-case switch 前端规模回归；
 - 39 个 RISC-V checked UB 用例（VM/AOT 一致）；
 - 30000 指令 far-branch 回归（RISC-V auipc/jalr 长跳转）；
-- 5 个对抗审查 B1 回归（div-by-inf 精确零、binade 字面量、注解列序、closed
-  stdout 的 `TC_RE_IO`、非法 UTF-8 0 基偏移 note）。
+- 7 个对抗审查 B1 回归（div-by-inf 精确零、binade 字面量、注解列序、
+  closed stdout 的 `TC_RE_IO`、非法 UTF-8 0 基偏移 note，以及 R1 bare NAME
+  注解放置、R2 全诊断路径的 UTF-8 offset note）。
 `tests/tools/abi_mutation_audit.py --check`、
 `tests/tools/s9_capacity_report.py --check` 与
 `tests/tools/s9_softfloat_audit.py --check` 是手动审计工具，不进入 ctest；

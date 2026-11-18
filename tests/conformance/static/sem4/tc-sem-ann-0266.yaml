@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0266
+profile: common
+source: fixtures/tc-sem-ann-0266/root.tc
+spec: "§8.6/§12.5.1 bare unresolved NAME with a legal @align N still fails placement before the undefined type"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0266/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

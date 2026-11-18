@@ -33,6 +33,14 @@ static const char *stage_name(TcStage stage) {
     }
 }
 
+static void print_byte_offset_note(const TcSpan *span) {
+    if (span->invalid_byte_offset != TC_SPAN_NO_INVALID_BYTE) {
+        fprintf(stderr, "%s:%u:%u: note: invalid byte offset %u\n",
+                span->file != NULL ? span->file : "<source>",
+                span->line, span->column, span->invalid_byte_offset);
+    }
+}
+
 static void print_frontend_diag(const TcFrontendDiag *diag) {
     const TcDiagInfo *info = tc_diag_info(diag->code);
     fprintf(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
@@ -40,11 +48,8 @@ static void print_frontend_diag(const TcFrontendDiag *diag) {
             diag->span.line, diag->span.column, stage_name(diag->stage),
             info != NULL ? info->symbol : "TC_CE_SYNTAX",
             info != NULL ? info->print_name : "SyntaxError");
-    if (diag->span.invalid_byte_offset != TC_SPAN_NO_INVALID_BYTE) {
-        fprintf(stderr, "%s:%u:%u: note: invalid byte offset %u\n",
-                diag->span.file != NULL ? diag->span.file : "<source>",
-                diag->span.line, diag->span.column,
-                diag->span.invalid_byte_offset);
+    if (diag->stage == TC_STAGE_LEX) {
+        print_byte_offset_note(&diag->span);
     }
 }
 
@@ -59,6 +64,9 @@ static void print_analysis_diag(const TcAnalysisDiag *diag) {
         fprintf(stderr, "%s:%u:%u: note: related position\n",
                 diag->related.file != NULL ? diag->related.file : "<source>",
                 diag->related.line, diag->related.column);
+    }
+    if (diag->stage == TC_STAGE_LEX) {
+        print_byte_offset_note(&diag->span);
     }
 }
 

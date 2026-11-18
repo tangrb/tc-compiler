@@ -7,4 +7,5 @@ expect:
   code: TC_CE_SYNTAX
   primary: {file: invalid_utf8_l3.tc, line: 2, column: 7}
   related: []
+  byte_offset: 17
   diagnostics: exactly-one

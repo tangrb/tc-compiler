@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0268
+profile: common
+source: fixtures/tc-sem-ann-0268/root.tc
+spec: "§8.6/§12.5.1 @range on a bare unresolved NAME is a placement error at the annotation Token"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0268/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

@@ -142,17 +142,20 @@ def main() -> int:
                 check("tc_main:" in r.stdout, f"{name} run assembly stdout")
                 check(r.stderr == "", f"{name} run stderr empty")
 
-            r = run(tool, ["--syntax-only", str(invalid_utf8)], cwd)
-            check(
-                r.returncode == 1,
-                f"{name} invalid UTF-8 exit {r.returncode}",
-            )
-            check(
-                "TC_CE_SYNTAX" in r.stderr
-                and "error[LEX]" in r.stderr
-                and "note: invalid byte offset " in r.stderr,
-                f"{name} invalid UTF-8 byte-offset note",
-            )
+            for extra in ([], ["--sem-only"], ["--static-only"],
+                          ["--syntax-only"]):
+                r = run(tool, [*extra, str(invalid_utf8)], cwd)
+                label = " ".join(extra) or "default"
+                check(
+                    r.returncode == 1,
+                    f"{name} invalid UTF-8 {label} exit {r.returncode}",
+                )
+                check(
+                    "TC_CE_SYNTAX" in r.stderr
+                    and "error[LEX]" in r.stderr
+                    and r.stderr.count("invalid byte offset 19") == 1,
+                    f"{name} invalid UTF-8 {label} byte-offset note",
+                )
 
             if name == "tc-vm":
                 closed = subprocess.run(

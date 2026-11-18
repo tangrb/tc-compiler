@@ -1630,6 +1630,78 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0264",
+        "§8.6/§12.5.1 bare unresolved NAME is syntactically a struct: @align "
+        "placement error wins at the annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@align(3) p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0265",
+        "§8.6/§12.5.1 defined struct control: @align placement error at the "
+        "annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct Nope then\n"
+         "    readonly x: int32\n"
+         "end\n"
+         "public @fast func f(@HERE@@align(3) p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0266",
+        "§8.6/§12.5.1 bare unresolved NAME with a legal @align N still fails "
+        "placement before the undefined type",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@align(4) p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0267",
+        "§8.6/§12.5.1 @nonnull on a bare unresolved NAME is a placement "
+        "error at the annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@nonnull p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0268",
+        "§8.6/§12.5.1 @range on a bare unresolved NAME is a placement error "
+        "at the annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@range(1, 2) p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0269",
+        "§8.6/§12.5.1 syntactic pointer control: @align N error at the N Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(@HERE@3) p: ptr<Nope>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0270",
+        "§8.6/§12.5.1 @no_alias on a bare unresolved NAME is a placement "
+        "error at the annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@no_alias p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CONST-0004",
         "§3.10 正向允许集外的 copy 出现在 const 初始化器 -> CONST_FORM"
         "（操作码 Token）",

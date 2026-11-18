@@ -137,7 +137,7 @@
   ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
   AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
   determinism suites and a fail-closed adapter self-test; currently 71/71
-  `ctest` and 860/860 harness cases (595 compile, 131 tool,
+  `ctest` and 867/867 harness cases (602 compile, 131 tool,
   133 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
   sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
   cases plus 296 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
@@ -149,6 +149,13 @@
 
 ### Changed
 
+- **R1/R2 closure**: annotations on bare `NAME` are classified by syntactic
+  type; `@align`/`@nonnull`/`@no_alias` on a non-pointer and `@range` on a
+  non-integer now report `TC_CE_ANNOTATION` at the annotation token.  The
+  0-based invalid-UTF-8 byte offset is carried through every diagnostic path
+  (default, `--sem-only`, `--static-only`, `--syntax-only`, AOT).  Added seven
+  S4 cases, all-path CLI checks and an adapter offset expectation; harness is
+  867/867.
 - **Specification wording clarifications**: §12.2 #9 applies only when the
   candidate primary positions are identical; fixed-shape errors
   (`OPERAND_COUNT`/`RETURN_FORM`) precede later-column literals by column;
