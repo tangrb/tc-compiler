@@ -135,8 +135,10 @@ All five core expectation keys are required: `stage`, `code`, `primary`,
 `{file, line, column}` with 1-based integer line/column.  A LEX invalid-UTF-8
 diagnostic may also carry `byte_offset: N`, the standard's additional 0-based
 byte position (not a related position); it is optional in the YAML, but when
-present the adapter must report exactly that offset.  The code must exist in the
-frozen table and be legal for the expected stage.  `LEX/SYN` may be
+present the adapter must report exactly that offset.  A reported offset is
+rejected when the case does not expect one, and its note must be on a LEX
+diagnostic with the same file/line/column as the primary position.  The code
+must exist in the frozen table and be legal for the expected stage.  `LEX/SYN` may be
 specialized to `LEX` or `SYN`; `TC_CE_IMPORT_*` cases normally use `IMPORT`.
 The decider requires exactly one diagnostic, then compares stage, code, primary
 and the ordered related list.  Zero diagnostics, extra diagnostics or any

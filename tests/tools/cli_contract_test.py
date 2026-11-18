@@ -75,6 +75,24 @@ def main() -> int:
         missing = cwd / "missing.tc"
         invalid_utf8 = cwd / "invalid_utf8.tc"
         invalid_utf8.write_bytes(b"#program\n/// ab \xc3\xa9 \xff\n")
+        malformed_utf8 = [
+            (b"#program\n/// ab \x80\n", 16),
+            (b"#program\n/// ab \xe0\x80\x80\n", 17),
+            (b"#program\n/// ab \xc3\x28\n", 17),
+            (b"#program\n/// ab \xe2\x82", 18),
+        ]
+        imported_utf8 = cwd / "imported_utf8"
+        imported_utf8.mkdir()
+        (imported_utf8 / "root.tc").write_text(
+            "#program\nimport lib\n", encoding="utf-8"
+        )
+        (imported_utf8 / "lib.tc").write_bytes(b"#lib\n/// ab \xff\n")
+        pipe_source = cwd / "pipe_main.tc"
+        pipe_source.write_text(
+            "#program\n"
+            + "_ = writeln int64, 123456789012345\n" * 5000,
+            encoding="utf-8",
+        )
 
         for tool in tools:
             name = Path(tool).name
@@ -157,7 +175,65 @@ def main() -> int:
                     f"{name} invalid UTF-8 {label} byte-offset note",
                 )
 
+            for index, (malformed, offset) in enumerate(malformed_utf8):
+                malformed_path = cwd / f"malformed_utf8_{index}.tc"
+                malformed_path.write_bytes(malformed)
+                for extra in ([], ["--sem-only"], ["--static-only"],
+                              ["--syntax-only"]):
+                    r = run(tool, [*extra, str(malformed_path)], cwd)
+                    label = " ".join(extra) or "default"
+                    check(
+                        r.returncode == 1
+                        and "TC_CE_SYNTAX" in r.stderr
+                        and r.stderr.count(
+                            f"invalid byte offset {offset}"
+                        ) == 1,
+                        f"{name} malformed UTF-8 {index} {label} offset "
+                        f"{offset}",
+                    )
+
+            for extra in ([], ["--sem-only"], ["--static-only"]):
+                r = run(
+                    tool,
+                    [
+                        *extra,
+                        f"--include={imported_utf8}",
+                        str(imported_utf8 / "root.tc"),
+                    ],
+                    cwd,
+                )
+                label = " ".join(extra) or "default"
+                check(
+                    r.returncode == 1
+                    and "TC_CE_SYNTAX" in r.stderr
+                    and r.stderr.count("invalid byte offset 12") == 1
+                    and "lib.tc" in r.stderr,
+                    f"{name} imported UTF-8 {label} offset note",
+                )
+
             if name == "tc-vm":
+                broken_pipe = subprocess.run(
+                    [
+                        "bash",
+                        "-o",
+                        "pipefail",
+                        "-c",
+                        f"{shlex.quote(str(Path(tool).resolve()))} "
+                        f"{shlex.quote(str(pipe_source))} | head -c 1 "
+                        ">/dev/null",
+                    ],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
+                         "PATH": "/usr/bin:/bin"},
+                )
+                check(
+                    broken_pipe.returncode == 1
+                    and "TC_RE_IO" in broken_pipe.stderr,
+                    f"{name} broken pipe reports TC_RE_IO",
+                )
                 closed = subprocess.run(
                     [
                         "bash",

@@ -627,6 +627,18 @@ RAW_CASES = [
         "code": "TC_CE_SYNTAX",
         "byte_offset": 17,
     },
+    {
+        "id": "TC-LEX-SYN-0034",
+        "source": "invalid_utf8_at_zero.tc",
+        "group": "lex",
+        "spec": "§2.1/§12.5.1 非法 UTF-8 在文件首字节；主位置 1:1，附加 0 基偏移 0；§12.3 TC_CE_SYNTAX",
+        "data": b"\xff\n",
+        "line": 1,
+        "column": 1,
+        "stage": "LEX",
+        "code": "TC_CE_SYNTAX",
+        "byte_offset": 0,
+    },
 ]
 
 

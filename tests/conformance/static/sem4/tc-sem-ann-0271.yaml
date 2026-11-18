@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0271
+profile: common
+source: fixtures/tc-sem-ann-0271/root.tc
+spec: "§8.6/§12.2 #3 first annotation placement wins for a bare unresolved NAME"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0271/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

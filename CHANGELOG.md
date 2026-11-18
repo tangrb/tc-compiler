@@ -103,7 +103,7 @@
   静态变异套件、W=32/64 运行时 golden、S9 裸机/ARM32/互操作/静态一致/
   分档案/确定性套件、AAPCS64/AAPCS32 双向 interop、ABI mutation 审计与容量报告、
   adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 71/71，
-  harness 867/867（602 编译、131 工具、133 运行、1 属性），单元检查 frontend 688、
+  harness 873/873（608 编译、131 工具、133 运行、1 属性），单元检查 frontend 688、
   sem 102、ct 370、ir 674、vm 413、aot 81；S9 ARM32 差分 29 个固定用例 +
   296 个 S6/S8 语料，C 调用者 AAPCS32 14 例、AAPCS64 33 例，反向 ABI 19 例，
   1037 个静态源 × 2 个裸机档案；S10 RISC-V 29 个固定用例 + 296 个 S6/S8
@@ -115,7 +115,7 @@
 - 对抗审查 B1 收口：裸 `NAME` 的注解按语法类型判定，`@align`/`@nonnull`/
   `@no_alias` 非指针及 `@range` 非整数统一在注解 Token 报 `TC_CE_ANNOTATION`；
   非法 UTF-8 的 0 基字节偏移在默认、`--sem-only`、`--static-only`、
-  `--syntax-only` 与 AOT 诊断路径均呈现；新增 S4 7 例、CLI 全路径检查及
+  `--syntax-only` 与 AOT 诊断路径均呈现；新增 S4 12 例、CLI 全路径检查及
   adapter `byte_offset` 期望。
 - SEM 完成解析/校验并冻结类型表；CT 与 IR 最终化在其后运行，只使用只读类型查找，
   不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边；`TcFunc.body`

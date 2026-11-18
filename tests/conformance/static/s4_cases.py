@@ -1702,6 +1702,61 @@ CASES = [
         "SEM", "TC_CE_ANNOTATION",
     ),
     _case(
+        "TC-SEM-ANN-0271",
+        "§8.6/§12.2 #3 first annotation placement wins for a bare unresolved "
+        "NAME",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@HERE@@nonnull @align(3) p: Nope) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0272",
+        "§8.6/§12.2 #3 later @align N error after a valid @nonnull uses its "
+        "own N Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@nonnull @align(@HERE@3) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0273",
+        "§8.6/§12.2 #3 an invalid first N precedes a later duplicate annotation",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @fast func f(@align(@HERE@3) @align(4) p: ptr<int32>) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0274",
+        "§8.6/§12.5.1 @nonnull on a defined struct parameter is a placement "
+        "error at the annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n"
+         "    readonly x: int32\n"
+         "end\n"
+         "public @fast func f(@HERE@@nonnull p: S) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
+        "TC-SEM-ANN-0275",
+        "§8.6/§12.5.1 @no_alias on a defined struct parameter is a placement "
+        "error at the annotation Token",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public struct S then\n"
+         "    readonly x: int32\n"
+         "end\n"
+         "public @fast func f(@HERE@@no_alias p: S) void then\n"
+         "end\n"},
+        "SEM", "TC_CE_ANNOTATION",
+    ),
+    _case(
         "TC-SEM-CONST-0004",
         "§3.10 正向允许集外的 copy 出现在 const 初始化器 -> CONST_FORM"
         "（操作码 Token）",

@@ -137,7 +137,7 @@
   ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
   AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
   determinism suites and a fail-closed adapter self-test; currently 71/71
-  `ctest` and 867/867 harness cases (602 compile, 131 tool,
+  `ctest` and 873/873 harness cases (608 compile, 131 tool,
   133 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
   sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
   cases plus 296 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
@@ -155,7 +155,7 @@
   0-based invalid-UTF-8 byte offset is carried through every diagnostic path
   (default, `--sem-only`, `--static-only`, `--syntax-only`, AOT).  Added seven
   S4 cases, all-path CLI checks and an adapter offset expectation; harness is
-  867/867.
+  873/873.
 - **Specification wording clarifications**: §12.2 #9 applies only when the
   candidate primary positions are identical; fixed-shape errors
   (`OPERAND_COUNT`/`RETURN_FORM`) precede later-column literals by column;
@@ -171,7 +171,7 @@
   type errors by §12.2 #3; each stdout write/writeln record is committed
   immediately and a failure reports `TC_RE_IO` at that instruction; invalid
   UTF-8 emits a 0-based byte-offset note. Added S6/S4/CLI regressions; the Debug
-  gate is 71/71 `ctest` and 860/860 harness cases.
+  gate is 71/71 `ctest` and 873/873 harness cases.
 - SEM validates and freezes the type table; CT and IR finalization run afterwards with
   read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
   explicit block edges during IR finalization; `TcFunc.body` pointers are fixed up

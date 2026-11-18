@@ -78,8 +78,8 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-当前全量：`ctest` 71/71（Debug/Release/ASan+UBSan）；harness 867/867
-（602 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、
+当前全量：`ctest` 71/71（Debug/Release/ASan+UBSan）；harness 873/873
+（608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、
 ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 29 个固定 ARM32 用例、
 296 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
 19 个反向 ABI 用例与 1037×2 个静态源一致性检查；S10 另有 29 个固定 RISC-V

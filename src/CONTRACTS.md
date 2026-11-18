@@ -154,10 +154,10 @@ resolution and struct identity are semantic facts.  SEM resolves the parse IR
 and freezes the type table; materializing `TcInstr`/`TcIR` belongs to IR
 finalization.  No source names may be added to `TcOperand`/`TcInstr`.
 
-The tool-visible partial checks are `--syntax-only` (LEX/SYN),
-`--sem-only` (LEX/SYN/IMPORT/SEM) and `--static-only` (all static stages
-through CT and IR finalization); exit 0 for any of them is a partial check, not
-a valid-program claim.  A normal `tc-vm` invocation executes the reference VM;
+The tool-visible partial checks are `--syntax-only` (LEX/SYN of the root
+source only; imports are not loaded), `--sem-only` (LEX/SYN/IMPORT/SEM) and
+`--static-only` (all static stages through CT and IR finalization); exit 0 for
+any of them is a partial check, not a valid-program claim.  A normal `tc-vm` invocation executes the reference VM;
 a normal `tc-aot` invocation emits target assembly (AArch64 or ARM32), or
 exits 70 without publishing an artifact when the platform instance is outside
 the implemented capability.  The driver prints one stable line per

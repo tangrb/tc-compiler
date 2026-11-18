@@ -31,19 +31,22 @@ def check(condition: bool, message: str) -> None:
 
 def write_tool(path: Path, *, diag: bool, junk: bool = False,
                stdout_junk: bool = False, other_file: bool = False,
-               exit_code: int = 1) -> None:
+               exit_code: int = 1, stage: str = "LEX",
+               code: str = "TC_CE_SYNTAX", note: str | None = None) -> None:
     lines = ["#!/bin/sh"]
     if stdout_junk:
         lines.append("printf 'STDOUT JUNK\\n'")
     if diag:
         if other_file:
             lines.append(
-                "printf 'other.tc:1:1: error[LEX]: TC_CE_SYNTAX: SyntaxError\\n' >&2"
+                f"printf 'other.tc:1:1: error[{stage}]: {code}: Error\\n' >&2"
             )
         else:
             lines.append(
-                "printf '%s:1:1: error[LEX]: TC_CE_SYNTAX: SyntaxError\\n' \"$2\" >&2"
+                f"printf '%s:1:1: error[{stage}]: {code}: Error\\n' \"$2\" >&2"
             )
+    if note is not None:
+        lines.append(note)
     if junk:
         lines.append("printf 'UNEXPECTED TOOL JUNK\\n' >&2")
     lines.append(f"exit {exit_code}")
@@ -98,7 +101,27 @@ def main() -> int:
         other = work / "fake-other"
         compile_junk = work / "fake-compile-junk"
         stdout_junk = work / "fake-stdout-junk"
+        offset_good = work / "fake-offset-good"
+        offset_other = work / "fake-offset-other"
+        offset_bad_pos = work / "fake-offset-bad-pos"
+        offset_sem = work / "fake-offset-sem"
         write_tool(good, diag=True)
+        write_tool(
+            offset_good, diag=True,
+            note="printf '%s:1:1: note: invalid byte offset 7\\n' \"$2\" >&2",
+        )
+        write_tool(
+            offset_other, diag=True,
+            note="printf 'other.tc:1:1: note: invalid byte offset 7\\n' >&2",
+        )
+        write_tool(
+            offset_bad_pos, diag=True,
+            note="printf '%s:2:1: note: invalid byte offset 7\\n' \"$2\" >&2",
+        )
+        write_tool(
+            offset_sem, diag=True, stage="SEM", code="TC_CE_UNDEFINED_NAME",
+            note="printf '%s:1:1: note: invalid byte offset 7\\n' \"$2\" >&2",
+        )
         write_tool(junk, diag=True, junk=True)
         write_tool(zero_junk, diag=False, junk=True, exit_code=0)
         write_tool(other, diag=True, other_file=True)
@@ -129,6 +152,29 @@ def main() -> int:
             check(diagnostics[0]["code"] == "TC_CE_SYNTAX", "compile code")
             check(diagnostics[0]["primary"]["file"] == "main.tc",
                   "compile primary file maps to metadata source")
+
+        module.TC_VM = str(offset_good)
+        result = adapter.compile(dict(compile_case))
+        diagnostics = result.get("diagnostics") if isinstance(result, dict) else None
+        check(
+            isinstance(diagnostics, list)
+            and len(diagnostics) == 1
+            and diagnostics[0].get("byte_offset") == 7,
+            "matching byte-offset note must parse",
+        )
+
+        for fake, label in (
+            (offset_other, "note for another file"),
+            (offset_bad_pos, "note with a different position"),
+            (offset_sem, "note on a non-LEX diagnostic"),
+        ):
+            module.TC_VM = str(fake)
+            try:
+                adapter.compile(dict(compile_case))
+            except RuntimeError:
+                pass
+            else:
+                check(False, f"{label} must raise")
 
         module.TC_VM = str(other)
         try:

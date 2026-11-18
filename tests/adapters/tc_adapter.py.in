@@ -106,9 +106,25 @@ def _strict_diagnostics(text, case, mode):
         if offset_note:
             if not matches:
                 raise RuntimeError(f"unexpected byte-offset note: {line!r}")
-            if matches[-1].get("byte_offset") is not None:
+            last = matches[-1]
+            if last["match"].group("stage") != "LEX":
+                raise RuntimeError(
+                    "byte-offset note is only valid for a LEX diagnostic"
+                )
+            note_file = resolve_reported(offset_note.group("file"))
+            primary_file = resolve_reported(last["match"].group("file"))
+            if (
+                note_file != primary_file
+                or offset_note.group("line") != last["match"].group("line")
+                or offset_note.group("column") != last["match"].group("column")
+            ):
+                raise RuntimeError(
+                    "byte-offset note file/line/column differs from the "
+                    "diagnostic primary position"
+                )
+            if last.get("byte_offset") is not None:
                 raise RuntimeError("more than one byte-offset note for a diagnostic")
-            matches[-1]["byte_offset"] = int(offset_note.group("offset"))
+            last["byte_offset"] = int(offset_note.group("offset"))
             continue
         note = NOTE_RE.match(line)
         if note:

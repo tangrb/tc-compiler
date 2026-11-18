@@ -174,6 +174,10 @@ def decide_compile(case, adapter):
                 f"byte_offset expected {expected['byte_offset']!r}, "
                 f"got {actual_offset!r}"
             )
+    elif "byte_offset" in actual:
+        problems.append(
+            f"unexpected byte_offset {actual['byte_offset']!r}"
+        )
     if problems:
         return _fail(
             "; ".join(problems),

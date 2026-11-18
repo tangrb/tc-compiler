@@ -57,13 +57,17 @@ def _compile_case(case_id="TC-SEM-HARNESS-0001@w64"):
     })
 
 
-def _diagnostic(code="TC_CE_BITCAST_WIDTH", line=7, column=11):
-    return {
+def _diagnostic(code="TC_CE_BITCAST_WIDTH", line=7, column=11,
+                byte_offset=None):
+    diagnostic = {
         "stage": "SEM",
         "code": code,
         "primary": {"file": "main.tc", "line": line, "column": column},
         "related": [],
     }
+    if byte_offset is not None:
+        diagnostic["byte_offset"] = byte_offset
+    return diagnostic
 
 
 def _compile_adapter(diagnostics):
@@ -111,6 +115,37 @@ def compile_wrong_primary_position_fails():
     _expect_status(
         _compile_case(),
         _compile_adapter([_diagnostic(line=8)]),
+        "fail",
+    )
+
+
+@scenario
+def compile_unexpected_byte_offset_fails():
+    _expect_status(
+        _compile_case(),
+        _compile_adapter([_diagnostic(byte_offset=7)]),
+        "fail",
+    )
+
+
+@scenario
+def compile_expected_byte_offset_passes():
+    case = _compile_case()
+    case["expect"]["byte_offset"] = 7
+    _expect_status(
+        case,
+        _compile_adapter([_diagnostic(byte_offset=7)]),
+        "pass",
+    )
+
+
+@scenario
+def compile_expected_byte_offset_mismatch_fails():
+    case = _compile_case()
+    case["expect"]["byte_offset"] = 7
+    _expect_status(
+        case,
+        _compile_adapter([_diagnostic(byte_offset=8)]),
         "fail",
     )
 

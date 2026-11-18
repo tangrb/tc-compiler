@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0274
+profile: common
+source: fixtures/tc-sem-ann-0274/root.tc
+spec: "§8.6/§12.5.1 @nonnull on a defined struct parameter is a placement error at the annotation Token"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0274/lib.tc, line: 5, column: 21}
+  related: []
+  diagnostics: exactly-one
