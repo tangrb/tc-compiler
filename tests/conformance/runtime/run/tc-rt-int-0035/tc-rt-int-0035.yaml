@@ -1,0 +1,10 @@
+id: TC-RT-INT-0035
+profile: w64
+source: root.tc
+spec: "§6.3 k>=n: strict shl of a=0 yields 0 and shr yields 0 without sign extension"
+kind: run
+expect:
+  stdout_hex: "300a300a"
+  trap: null
+  exit: 0
+  termination: normal

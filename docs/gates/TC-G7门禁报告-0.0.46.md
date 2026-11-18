@@ -18,7 +18,7 @@ callee-saved、bool/int8/int16 扩展、`D`）；帧/静态区布局与汇编发
 | 子集所有用例 VM↔AArch64 差分零不一致 | `conformance.s7_diff` 共 82 例（24 个 S6 W=64 复用 + 58 个边界/对抗），其中 81 例执行 VM/AOT 差分、1 例（9 参数调用）验证显式拒绝；覆盖窄宽严格溢出、无符号固定模、移位 k≥n、立即数边界、9/34 目标与重复目标 switch、8 寄存器/混合宽度与 bool/uint8/isize 调用、求值顺序、互递归、深度 D、I/O 提交语义、前导零极长 token、write 字节流与 §11.3 全部拒绝形态（`+`/双负号/分离负号/尾随垃圾/进制前缀/无符号负数/bool 大小写与前导零/超长 token/仅空白输入/丢弃 read 消费 token）。81 个差分例的 stdout 字节、首个 `TC_RE_*`、退出状态三方一致；`conformance.s7_abi` 9 例；`conformance.s7_fuzz` 240 个固定种子生成程序（操作数向类型边界偏置、含除零与 k≥n 移位）。 | 通过 |
 | `.s` 可重复；链接/运行可重复；qemu 结果稳定 | `determinism.s7`：O0/O2 与重复构建 `.s` 逐字节一致；重复 ELF 构建逐字节一致；同一 ELF 三次执行观察值一致；`conformance.s7_tools` 检查 `--emit=obj/elf`、ELF 头、可执行权限与重复运行 | 通过 |
 | 子集必选 trap 在 release 构建执行 | Release `ctest` 39/39；用例含整数溢出、除零、负移位、`div(INT_MIN,−1)`、显式 `trap`、`D`、`TC_RE_IO`；release AOT 无 checked-build 分支 | 通过 |
-| 前端静态结果与 VM 完全一致 | `conformance.s7_static_parity`：`tests/conformance/static` 的 1033 个 `.tc` 在 `tc-vm --static-only` 与 `tc-aot --static-only` 下 exit/stdout/stderr 逐字节一致（仅归一化工具名） | 通过 |
+| 前端静态结果与 VM 完全一致 | `conformance.s7_static_parity`：`tests/conformance/static` 的 1037 个 `.tc` 在 `tc-vm --static-only` 与 `tc-aot --static-only` 下 exit/stdout/stderr 逐字节一致（仅归一化工具名） | 通过 |
 | 零 pass：O0/O2 无 IR 变换，结果一致 | O0/O2 `.s` 逐字节一致；`TC-RT-OPT-0001` 与 `s7.diff` 的 O2 用例输出一致；`@fast`/`@inline` 仍只记录不消费 | 通过 |
 
 ## 覆盖与测试

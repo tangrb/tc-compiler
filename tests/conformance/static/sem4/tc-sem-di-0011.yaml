@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0011
+profile: common
+source: fixtures/tc-sem-di-0011/root.tc
+spec: "§7.7.2 不可达代码（无前驱块）不参与 DI，但仍必须通过名称检查：不可达块内读取未定义名 -> UNDEFINED_NAME"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: fixtures/tc-sem-di-0011/root.tc, line: 11, column: 18}
+  related: []
+  diagnostics: exactly-one

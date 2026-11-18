@@ -1964,9 +1964,10 @@ CASES = [
     ),
     run_case(
         "TC-RT-MEM-0023", "w64",
-        "§6.7 unaligned multi-byte access at byte-offset addresses: an "
-        "int32 store at +1 inside an int64 object and the resulting "
-        "little-endian byte smear, a float64 store/load at +2",
+        "§6.7 unaligned multi-byte access at byte-offset addresses; "
+        "little-endian per the documented profile contract (§13.2): an "
+        "int32 store at +1 inside an int64 object and the resulting byte "
+        "smear, a float64 store/load at +2",
         files={"root.tc": program(
             "struct S then",
             "var c: int64",
@@ -1999,6 +2000,152 @@ CASES = [
             "_ = writeln float64, f",
         )},
         out="287454020\n73588229359\n2.5\n",
+    ),
+    run_case(
+        "TC-RT-FP-0021", "w64",
+        "§6.3.3 mod keeps the sign of a when r=0 (including -0) and "
+        "b=±inf yields the bit-equal a",
+        files={"root.tc": program(
+            "var a: float64 = copy float64, -4.0",
+            "var b: float64 = copy float64, 2.0",
+            "var r: float64 = mod float64, a, b",
+            "_ = writeln float64, r",
+            "var c: float64 = copy float64, 4.0",
+            "var d: float64 = copy float64, -2.0",
+            "var s: float64 = mod float64, c, d",
+            "_ = writeln float64, s",
+            "var p: float64 = copy float64, 5.5",
+            "var infv: float64 = copy float64, inf",
+            "var t: float64 = mod float64, p, infv",
+            "_ = writeln float64, t",
+            "var n: float64 = copy float64, -5.5",
+            "var ninf: float64 = copy float64, -inf",
+            "var u: float64 = mod float64, n, ninf",
+            "_ = writeln float64, u",
+        )},
+        out="-0\n0\n5.5\n-5.5\n",
+    ),
+    run_case(
+        "TC-RT-FP-0022", "w64",
+        "§6.3.3 strict float mod with finite nonzero a and b=0 -> "
+        "TC_RE_DIV_ZERO after committed output",
+        files={"root.tc": program(
+            "_ = writeln float64, 1.5",
+            "var z: float64 = copy float64, 0.0",
+            "var r: float64 = mod float64, 1.0, z",
+            "_ = writeln float64, r",
+        )},
+        out="1.5\n",
+        trap="TC_RE_DIV_ZERO",
+    ),
+    run_case(
+        "TC-RT-FP-0023", "w64",
+        "§6.3.3 strict float mod with a=inf -> TC_RE_FLOAT_INVALID after "
+        "committed output",
+        files={"root.tc": program(
+            "_ = writeln float64, 2.5",
+            "var infv: float64 = copy float64, inf",
+            "var r: float64 = mod float64, infv, 2.0",
+            "_ = writeln float64, r",
+        )},
+        out="2.5\n",
+        trap="TC_RE_FLOAT_INVALID",
+    ),
+    run_case(
+        "TC-RT-CONV-0014", "w64",
+        "§6.6.1 int->float cast applies roundTiesToEven (float32 2^24+1); "
+        "§3.13 equal-width int->float bitcast exposes the minimal binary32 "
+        "subnormal bit pattern",
+        files={"root.tc": program(
+            "var i: int32 = copy int32, 16777217",
+            "var f: float32 = cast float32, i",
+            "_ = writeln float32, f",
+            "var b: int32 = copy int32, 1",
+            "var g: float32 = bitcast float32, b",
+            "_ = writeln float32, g",
+        )},
+        out=f"{f32s(16777217)}\n"
+            f"{f32s(struct.unpack('>f', struct.pack('>I', 1))[0])}\n",
+    ),
+    run_case(
+        "TC-RT-CALL-0009", "w64",
+        "§6.2.6 funceq/funcne on nullptr operands: nullptr equals nullptr",
+        files={"root.tc": program(
+            "var z: fnptr<int32, int32> = copy fnptr<int32, int32>, nullptr",
+            "var a: bool = funceq fnptr<int32, int32>, z, z",
+            "_ = writeln bool, a",
+            "var b: bool = funcne fnptr<int32, int32>, z, z",
+            "_ = writeln bool, b",
+        )},
+        out="true\nfalse\n",
+    ),
+    run_case(
+        "TC-RT-INT-0035", "w64",
+        "§6.3 k>=n: strict shl of a=0 yields 0 and shr yields 0 without "
+        "sign extension",
+        files={"root.tc": program(
+            "var z: uint32 = shl uint32, 0, 64",
+            "_ = writeln uint32, z",
+            "var n: int32 = copy int32, -1",
+            "var s: int32 = shr int32, n, 33",
+            "_ = writeln int32, s",
+        )},
+        out="0\n0\n",
+    ),
+    run_case(
+        "TC-RT-INT-0036", "w64",
+        "§6.3 k>=n with nonzero a in strict shl -> TC_RE_INTEGER_OVERFLOW "
+        "after committed output",
+        files={"root.tc": program(
+            "_ = writeln int32, 9",
+            "var x: int32 = shl int32, 1, 32",
+        )},
+        out="9\n",
+        trap="TC_RE_INTEGER_OVERFLOW",
+    ),
+    run_case(
+        "TC-RT-IO-0018", "w64",
+        "§11.3 EOF at the very start of the input stream -> TC_RE_IO",
+        files={"root.tc": program(
+            "var x: int32 = read int32",
+        )},
+        stdin="",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-IO-0019", "w64",
+        "§11.1/§11.3 committed stdout bytes are retained when a discarded "
+        "`_ = read` hits EOF -> TC_RE_IO",
+        files={"root.tc": program(
+            "_ = writeln int32, 42",
+            "_ = read int32",
+        )},
+        stdin="",
+        out="42\n",
+        trap="TC_RE_IO",
+    ),
+    run_case(
+        "TC-RT-CTRL-0003", "w64",
+        "§7.7.2 unreachable code (a no-predecessor block) does not "
+        "participate in DI: reading a variable never initialized on any "
+        "real path is legal there while the reachable region still runs",
+        files={"root.tc": program(
+            "var c: bool = copy bool, false",
+            "_ = br_if c, A",
+            "_ = br M",
+            "label A:",
+            "var x: int32 = copy int32, 1",
+            "_ = br M",
+            "label M:",
+            "_ = writeln int32, 7",
+            "_ = br E",
+            "label DEAD:",
+            "_ = write int32, x",
+            "_ = writeln int32, 8",
+            "label E:",
+            "_ = writeln int32, 9",
+        )},
+        out="7\n9\n",
     ),
 ]
 

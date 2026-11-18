@@ -1,0 +1,10 @@
+id: TC-RT-FP-0021
+profile: w64
+source: root.tc
+spec: "§6.3.3 mod keeps the sign of a when r=0 (including -0) and b=±inf yields the bit-equal a"
+kind: run
+expect:
+  stdout_hex: "2d300a300a352e350a2d352e350a"
+  trap: null
+  exit: 0
+  termination: normal

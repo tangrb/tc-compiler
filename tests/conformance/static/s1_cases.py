@@ -592,6 +592,11 @@ CASES = [
         "§12.2 #1 阶段优先：全部 LEX 诊断先于全部 SYN 诊断；第 1 行 SYN 错误与第 2 行字面量词法超界并存时报 LITERAL_LEX_RANGE；§12.5.1 定位到完整字面量首 Token",
         "#program\n_ = frobnicate int32, 1\nvar x: int64 = copy int64, @HERE@99999999999999999999999999999999\n",
         "LEX", "TC_CE_LITERAL_LEX_RANGE"),
+    make_case(
+        "TC-SYN-SEM-0001", "stage_priority_syn_wins.tc",
+        "§12.2 #1 阶段优先：全部 SYN 诊断先于全部 SEM 诊断；第 2 行 SEM 未定义名与第 4 行 SYN 未知助记符并存时报 SYN；§12.5.1 定位到未知助记符首 Token",
+        "#program\nvar x: int32 = copy int32, noSuch\n_ = writeln int32, 1\nvar y: int32 = @HERE@frobnicate int32, 1\n",
+        "SYN", "TC_CE_SYNTAX"),
 ]
 
 # Byte-exact L3 fixtures.  These cannot be expressed through the text/marker

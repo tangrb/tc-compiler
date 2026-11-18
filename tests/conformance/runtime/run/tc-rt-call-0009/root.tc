@@ -1,0 +1,6 @@
+#program
+var z: fnptr<int32, int32> = copy fnptr<int32, int32>, nullptr
+var a: bool = funceq fnptr<int32, int32>, z, z
+_ = writeln bool, a
+var b: bool = funcne fnptr<int32, int32>, z, z
+_ = writeln bool, b

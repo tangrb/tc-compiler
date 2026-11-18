@@ -1,0 +1,10 @@
+id: TC-RT-FP-0023
+profile: w64
+source: root.tc
+spec: "§6.3.3 strict float mod with a=inf -> TC_RE_FLOAT_INVALID after committed output"
+kind: run
+expect:
+  stdout_hex: "322e350a"
+  trap: TC_RE_FLOAT_INVALID
+  exit: 1
+  termination: trap

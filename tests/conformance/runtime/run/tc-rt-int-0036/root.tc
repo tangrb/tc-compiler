@@ -1,0 +1,3 @@
+#program
+_ = writeln int32, 9
+var x: int32 = shl int32, 1, 32

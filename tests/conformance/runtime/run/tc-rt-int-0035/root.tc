@@ -1,0 +1,6 @@
+#program
+var z: uint32 = shl uint32, 0, 64
+_ = writeln uint32, z
+var n: int32 = copy int32, -1
+var s: int32 = shr int32, n, 33
+_ = writeln int32, s

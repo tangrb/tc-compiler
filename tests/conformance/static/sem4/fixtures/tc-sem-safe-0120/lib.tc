@@ -1,0 +1,7 @@
+#lib
+public @safe func f() int32 then
+    unsafe then
+    end
+    var r: int32 = copy int32, 0
+    _ = return r
+end

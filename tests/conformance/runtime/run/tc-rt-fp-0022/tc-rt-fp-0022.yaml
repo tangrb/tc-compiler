@@ -1,0 +1,10 @@
+id: TC-RT-FP-0022
+profile: w64
+source: root.tc
+spec: "§6.3.3 strict float mod with finite nonzero a and b=0 -> TC_RE_DIV_ZERO after committed output"
+kind: run
+expect:
+  stdout_hex: "312e350a"
+  trap: TC_RE_DIV_ZERO
+  exit: 1
+  termination: trap

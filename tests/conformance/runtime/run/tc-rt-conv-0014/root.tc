@@ -1,0 +1,7 @@
+#program
+var i: int32 = copy int32, 16777217
+var f: float32 = cast float32, i
+_ = writeln float32, f
+var b: int32 = copy int32, 1
+var g: float32 = bitcast float32, b
+_ = writeln float32, g

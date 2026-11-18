@@ -50,9 +50,9 @@ S9 套件在 `conformance/platform/`、`conformance/abi/s9_arm32_interop.py`、
 与 `determinism/s9_determinism.py`：
 `aarch64-baremetal` 的 ELF/flat、PL011 UART0 输出与分帧输入、trap、静态字节、
 四设备策略与符号审计，
-`arm32-baremetal` 的 29 个固定语义/ABI 用例 + 276 个 S6/S8 语料同档案
+`arm32-baremetal` 的 29 个固定语义/ABI 用例 + 296 个 S6/S8 语料同档案
 VM↔AOT 差分、14 个 C 调用者 AAPCS32 互操作用例、19 个 TC caller → C callee
-反向 ABI 用例、1033 个静态源 × 2 个裸机档案的 VM/AOT 首诊逐字节一致、
+反向 ABI 用例、1037 个静态源 × 2 个裸机档案的 VM/AOT 首诊逐字节一致、
 32/64 分档案隔离与重复构建/执行确定性。AAPCS64/AAPCS32 的参考版本、规则矩阵
 与明确不支持的 over-aligned/bit-field/vector/variadic 形态见
 [conformance/abi/README.md](conformance/abi/README.md)。
@@ -64,11 +64,11 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-当前全量：`ctest` 58/58（Debug/Release/ASan+UBSan）；harness 837/837
-（587 编译、131 工具、118 运行、1 属性）；单元检查 frontend 688、sem 102、
+当前全量：`ctest` 58/58（Debug/Release/ASan+UBSan）；harness 850/850
+（590 编译、131 工具、128 运行、1 属性）；单元检查 frontend 688、sem 102、
 ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 29 个固定 ARM32 用例、
-276 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
-19 个反向 ABI 用例与 1033×2 个静态源一致性检查。
+296 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
+19 个反向 ABI 用例与 1037×2 个静态源一致性检查。
 `tests/tools/abi_mutation_audit.py --check`、
 `tests/tools/s9_capacity_report.py --check` 与
 `tests/tools/s9_softfloat_audit.py --check` 是手动审计工具，不进入 ctest；

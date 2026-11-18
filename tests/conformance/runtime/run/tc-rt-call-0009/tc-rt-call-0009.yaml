@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0009
+profile: w64
+source: root.tc
+spec: "§6.2.6 funceq/funcne on nullptr operands: nullptr equals nullptr"
+kind: run
+expect:
+  stdout_hex: "747275650a66616c73650a"
+  trap: null
+  exit: 0
+  termination: normal

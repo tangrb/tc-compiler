@@ -2013,6 +2013,39 @@ CASES = [
          "end\n"},
         "SEM", "TC_CE_TYPE_MISMATCH",
     ),
+    _case(
+        "TC-SEM-DI-0011",
+        "§7.7.2 不可达代码（无前驱块）不参与 DI，但仍必须通过名称检查：不可达"
+        "块内读取未定义名 -> UNDEFINED_NAME",
+        {"root.tc": PROGRAM +
+         "var c: bool = copy bool, false\n"
+         "_ = br_if c, A\n"
+         "_ = br M\n"
+         "label A:\n"
+         "var x: int32 = copy int32, 1\n"
+         "_ = br M\n"
+         "label M:\n"
+         "_ = br E\n"
+         "label DEAD:\n"
+         "_ = write int32, @HERE@noSuchName\n"
+         "label E:\n"
+         "_ = writeln int32, 9\n"},
+        "SEM", "TC_CE_UNDEFINED_NAME",
+    ),
+    _case(
+        "TC-SEM-SAFE-0120",
+        "§9.3/§9.8 @safe 函数体内出现任何 unsafe 块（含空块）-> SAFE_VIOLATION；"
+        "§12.5.1 定位到 unsafe 关键字",
+        {"root.tc": PROGRAM + "import lib\n",
+         "lib.tc": LIB +
+         "public @safe func f() int32 then\n"
+         "    @HERE@unsafe then\n"
+         "    end\n"
+         "    var r: int32 = copy int32, 0\n"
+         "    _ = return r\n"
+         "end\n"},
+        "SEM", "TC_CE_SAFE_VIOLATION",
+    ),
 ]
 
 
