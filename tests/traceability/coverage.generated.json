@@ -9,7 +9,7 @@
     "test_plan": "docs/TC开发测试计划-0.0.46.md",
     "sha256": {
       "codes_json": "b0aaa907c2e2b6e225afdcf8ff9e2519cfc4775e1523e016b72007b9c8460e77",
-      "standard": "a697cc2ac148bd2db81ca45447947e8dd8dc2c9934578c2c6543924020d58058",
+      "standard": "bed708557ee9e9f578288e424a85c8c64bdd643bad165d19288766af75ca1676",
       "design": "7f37a7dd4680502024167c3a463b7a604435bfa220e10d8a375a66a054d07c4b",
       "test_plan": "ed09eb4c4b1d9158f366482b782efd4732b16e3e7dfc7bf1e463dd58d7822ff6"
     }
