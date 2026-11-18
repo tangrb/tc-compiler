@@ -130,14 +130,17 @@ set_tests_properties(golden.selftest golden.run PROPERTIES WORKING_DIRECTORY ${C
 
 find_program(TC_QEMU_SYSTEM_AARCH64 NAMES qemu-system-aarch64)
 find_program(TC_QEMU_SYSTEM_ARM NAMES qemu-system-arm)
+find_program(TC_QEMU_SYSTEM_RISCV32 NAMES qemu-system-riscv32)
 find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
              /usr/local/opt/llvm/bin /opt/homebrew/bin)
 option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
 if(TC_ENABLE_AOT_TESTS AND
-   (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_QEMU_SYSTEM_ARM OR NOT TC_LLD))
+   (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_QEMU_SYSTEM_ARM OR
+    NOT TC_QEMU_SYSTEM_RISCV32 OR NOT TC_LLD))
     message(FATAL_ERROR
-        "S7/S9 AOT tests need qemu-system-aarch64, qemu-system-arm and "
-        "ld.lld; install them or configure with -DTC_ENABLE_AOT_TESTS=OFF")
+        "S7/S9/S10 AOT tests need qemu-system-aarch64, qemu-system-arm, "
+        "qemu-system-riscv32 and ld.lld; install them or configure with "
+        "-DTC_ENABLE_AOT_TESTS=OFF")
 endif()
 if(TC_ENABLE_AOT_TESTS)
     add_test(NAME conformance.s7_diff
@@ -237,6 +240,35 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s9_determinism.py
                      --check)
+    # --- S10 RISC-V 32 target admission and long-term regression ----------
+    add_test(NAME conformance.s10_riscv32
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s10_riscv32_cases.py
+                     --check)
+    add_test(NAME conformance.s10_interop
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s10_riscv32_interop.py
+                     --check)
+    add_test(NAME conformance.s10_reverse_interop
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/abi/s10_reverse_interop.py
+                     --check)
+    add_test(NAME conformance.s10_static_parity
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s10_static_parity.py
+                     --check)
+    add_test(NAME determinism.s10
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/determinism/s10_determinism.py
+                     --check)
+    add_test(NAME conformance.s10_longterm
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/longterm/s10_longterm.py
+                     --check)
+    add_test(NAME release.s10_audit
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/s10_release_audit.py
+                     --check)
     set_tests_properties(
         conformance.s7_diff conformance.s7_fuzz conformance.s7_abi
         conformance.s7_tools determinism.s7 conformance.s7_static_parity
@@ -247,10 +279,13 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s8_interop conformance.s9_baremetal
         conformance.s9_arm32 conformance.s9_arm32_interop
         conformance.abi_reverse conformance.s9_static_parity
-        conformance.s9_profiles determinism.s9
+        conformance.s9_profiles determinism.s9 conformance.s10_riscv32
+        conformance.s10_interop conformance.s10_reverse_interop
+        conformance.s10_static_parity determinism.s10
+        conformance.s10_longterm release.s10_audit
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_LINKER=${TC_LLD}")
+        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_QEMU_SYSTEM_RISCV32=${TC_QEMU_SYSTEM_RISCV32};TC_AOT_LINKER=${TC_LLD}")
 endif()
 
 # --- LEX/SYN front-end conformance ------------------------------------------

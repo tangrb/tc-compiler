@@ -37,7 +37,8 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Build/CLI | `driver/cli.h`, `driver/cli.c`, `driver/profile_select.h`, `src/CMakeLists.txt` | build | private `tc_core`; only `tc-vm`/`tc-aot`; no install, no public C ABI; unavailable capabilities fail explicitly with exit 70 | tools, tests |
 | AArch64 backend | `backend/aarch64/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `start.S`, `link.ld`, `platform_semihost.c`, `platform_baremetal.c`; `backend/common/toolchain.h` | backend | W=64 full lowering and deterministic assembly; AAPCS64 composites/HFA/indirect returns; object-table memory helpers; frame/static layout, static `.data`, reset entry and region facts; semihosting and bare-metal platform instances; ICF disabled; platform-instance capability limits rejected before emission | `tc-aot`, L5/L6 tests |
 | ARM32 backend | `backend/arm32/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `rt_helpers.c`, `aeabi.c`, `aeabi_glue.S`, `platform_mps2.c`, `start.S`, `link.ld` | backend | Independent W=32 Cortex-M7 lowering; base AAPCS32/ILP32 softfp classifier (core-register pairs for int64/float64; composites marshalled as memory words with Rule C.4/C.5 split; >4-byte returns indirect); object-table helpers, frame/static layout, reset vector/region layout, ICF disabled | `tc-aot`, L5/L6 tests |
-| Target runtime core | `backend/common/runtime.c`, `rt_abi.h`, `rt_platform.h` | runtime/backend | One freestanding runtime for every target: object-table memory checks (mandatory and checked), device-policy mapping, semantic helpers, deterministic I/O, arena allocator, trap/exit records; platform seam supplies program stdout, exit-record channel and termination | AArch64/ARM32 AOT, bare-metal tests |
+| RISC-V 32 backend | `backend/riscv32/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `rt_helpers.c`, `compiler_rt.c`, `semi.S`, `platform_virt.c`, `start.S`, `link.ld` | backend | Independent RV32IMAFDC lowering; base ILP32 soft-float classifier (a0-a7, aligned 64-bit pairs, 2*XLEN by-value aggregates with the one-register split, >2*XLEN by reference, indirect returns); NS16550A UART0 stdout/stdin, semihosting exit record, SiFive test finisher; RV32 compiler-runtime 64-bit division helpers; ICF disabled | `tc-aot`, L5/L6 tests |
+| Target runtime core | `backend/common/runtime.c`, `rt_abi.h`, `rt_platform.h` | runtime/backend | One freestanding runtime for every target: object-table memory checks (mandatory and checked), device-policy mapping, semantic helpers, deterministic I/O, arena allocator, trap/exit records; platform seam supplies program stdout, exit-record channel and termination | AArch64/ARM32/RISC-V AOT, bare-metal tests |
 
 `tc_contract_check()` in `contract/contract.c` is the startup/L0 aggregate
 check. It must return `NULL`; any violation is an internal error, never a
@@ -96,6 +97,25 @@ language diagnostic.
   the injected stdin image at `0x20000000`; CMSDK UART0 at `0x40004000` is the
   exit-record channel and semihosting is the program stdout/termination
   service.
+- **RISC-V 32-bit**: `riscv32-baremetal` (QEMU virt).  clang triple
+  `riscv32-unknown-elf`, `-march=rv32imafdc -mabi=ilp32` (hardware F/D
+  arithmetic, soft-float base-integer calling convention).  Arguments use
+  a0-a7: 32-bit scalars in one register, `int64`/`uint64`/`float64` in a
+  register pair (or one register plus one stack word when only one remains),
+  composites of at most 2*XLEN bytes by value in words (whole composite on the
+  stack when two words do not fit, with the one-register end-of-list split),
+  and larger composites by reference to a caller copy.  Stack alignment is 16
+  bytes; returns use a0/a1 and composites larger than eight bytes use a hidden
+  a0 pointer.  TC structs are byte-packed, so by-value aggregates have a
+  four-byte stack slot.  Signed narrow arguments are sign-extended; bool is
+  0x00/0x01.  Code starts at `0x80000000`, the static region at `0x81000000`,
+  the stack at `0x87800000`-`0x88000000` (`D=64`) and the device window at
+  `0x10000000` (NS16550A UART0 and SiFive test finisher).  Program stdout and
+  framed stdin use UART0 (`TCINTCIN`, length and payload); the exit record
+  uses semihosting SYS_WRITE0 on stderr and termination uses the test finisher.
+  The runtime provides `__udivdi3`/`__umoddi3`/`__divdi3`/`__moddi3` because
+  RV32 has no 64-bit division instruction.  startup sets `mstatus.FS` before
+  any F/D instruction.
 - **Device policy**: the target runtime applies all four `TcDevicePolicy`
   values with the VM's mapping (`REJECT`/`READ`/`READWRITE`/`VOLATILE`, the
   last only for `load.volatile`/`store.volatile`).  Device accesses use one
@@ -105,10 +125,12 @@ language diagnostic.
 - **Device-side imports**: AOT resolves imports at compile time only.  The
   freestanding runtime has no module loader and no host file access; stdin is a
   loader-injected length-plus-bytes image.
-- **Runtime arenas**: 8 MiB on AArch64 and 128 KiB on ARM32 for the runtime's
-  private token/decimal buffers.  The ARM32 profile uses 64-bit and 32-bit
-  helpers from `aeabi.c`/`aeabi_glue.S`; no libc or compiler-rt archive is
-  linked.  Checked build is available on both targets and only adds UB checks.
+- **Runtime arenas**: 8 MiB on AArch64 and 128 KiB on the 32-bit targets for
+  the runtime's private token/decimal buffers.  The ARM32 profile uses 64-bit
+  and 32-bit helpers from `aeabi.c`/`aeabi_glue.S`; the RISC-V profile uses
+  `compiler_rt.c` for 64-bit division/remainder.  No libc or host compiler-rt
+  archive is linked.  Checked build is available on all targets and only adds
+  UB checks.
 - **Artifacts**: `tc-aot --emit=asm|obj|elf|flat` binds one target/profile per build;
   the ELF is static, has no interpreter/dynamic section/undefined symbols, and
   ICF is disabled.  Toolchain or platform-instance failures exit 70 without
@@ -349,13 +371,15 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   `TC_DEV_REJECT`, D=512; `aarch64-baremetal` is W=64, little-endian, device base
   `0x09000000` size `0x100000` with `TC_DEV_VOLATILE`, D=256;
   `arm32-baremetal` is W=32, little-endian, device base `0x40004000` size
-  `0x1000`, D=32; `w32` is W=32, little-endian, device base `0x20000000` size
-  `0x100000` with `TC_DEV_REJECT`, D=256.  All use `TcExitPolicy` normal 0 /
-  first-trap 1.  Frame storage is host-backed in the VM.  A 900005-byte static
-  object measures 900016/900012 bytes of static span on the AArch64/ARM32
-  profiles, leaving limited room under the 1 MiB static limit; the 1 MiB input
-  image is the semihosting/ARM32 test loader seam, while `aarch64-baremetal`
-  uses the UART0 byte stream for stdin.
+  `0x1000`, D=32; `riscv32-baremetal` is W=32, little-endian, device base
+  `0x10000000` size `0x10000000`, D=64; `w32` is W=32, little-endian, device
+  base `0x20000000` size `0x100000` with `TC_DEV_REJECT`, D=256.  All use
+  `TcExitPolicy` normal 0 / first-trap 1.  Frame storage is host-backed in the
+  VM.  A 900005-byte static object measures 900016 bytes on AArch64 and
+  900012 bytes on the 32-bit targets, leaving limited room under the 1 MiB
+  static limit; the 1 MiB input image is the semihosting/ARM32 test loader
+  seam, while `aarch64-baremetal` and `riscv32-baremetal` use their UART0 byte
+  stream for stdin.
   Increasing either limit requires a profile/linker re-layout and a fresh gate.
   If a program's static frame footprints exhaust the profile region before `D`,
   the VM reports `tc_error_internal` (exit 71): physical stack exhaustion is an
@@ -409,14 +433,17 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   ARM32 mapping follows the base AAPCS32 PCS, as published in the ARM ABI
   [2024Q3 release](https://github.com/ARM-software/abi-aa/releases/tag/2024Q3);
   the 2021Q1 Rule C.4 clarification for over-aligned HFAs is part of that
-  reference.  The TC type system has a compact layout and no over-aligned
-  types, bit-fields, vector types or variadic functions, so C ABI forms that
-  require those source constructs are outside the TC ABI mapping; `@align` is
-  a pointer-parameter precondition, not a type-alignment attribute.
+  reference.  The RISC-V 32 mapping follows the base integer calling
+  convention of the RISC-V ELF psABI (ILP32, soft-float argument passing).
+  The TC type system has a compact layout and no over-aligned types,
+  bit-fields, vector types or variadic functions, so C ABI forms that require
+  those source constructs are outside the TC ABI mapping; `@align` is a
+  pointer-parameter precondition, not a type-alignment attribute.
   `TcABIDesc` fields are validated profile metadata: the AArch64 backend
   requires `composite_max_bytes=16`, `hfa_max_regs=4` and `stack_align=16`,
-  and the ARM32 backend requires `composite_max_bytes=4`, `hfa=0` and
-  `stack_align=8`, matching the fixed classifiers.
+  the ARM32 backend requires `composite_max_bytes=4`, `hfa=0` and
+  `stack_align=8`, and the RISC-V backend requires `composite_max_bytes=8`,
+  `hfa=0` and `stack_align=16`, matching the fixed classifiers.
 - Layout: each vreg has a stack slot; frame objects keep `TcObject.offset`
   relative to the frame base, static objects keep their in-region offset in one
   emitted byte array, temporaries follow the object area, and frame size is
@@ -454,13 +481,15 @@ and use read-only type lookups (`tc_type_ptr_find`/`tc_type_fnptr_find`/
   address for a flat image.
   Platform instances are `aarch64-linux-user` (qemu-system-aarch64 +
   semihosting), `aarch64-baremetal` (PL011 UART0 stdout and framed stdin,
-  UART1 exit record, PSCI SYSTEM_OFF) and `arm32-baremetal` (qemu-system-arm
-  MPS2 AN500, semihosting stdout, CMSDK UART0 exit record).  There is no
+  UART1 exit record, PSCI SYSTEM_OFF), `arm32-baremetal` (qemu-system-arm
+  MPS2 AN500, semihosting stdout, CMSDK UART0 exit record) and
+  `riscv32-baremetal` (qemu-system-riscv32 virt, NS16550A UART0 stdout and
+  framed stdin, semihosting exit record, SiFive test finisher).  There is no
   EL0/Linux-user runtime yet.  `read` consumes the platform stdin seam: on
-  `aarch64-baremetal` it is the PL011 UART0 frame (`TCINTCIN`, an 8-byte
-  little-endian length and the payload); on the semihosting/ARM32 instances it
-  is the loader-provided `__tc_input_image` (8-byte little-endian length
-  followed by bytes).  Both return short reads of at most four bytes and an
+  `aarch64-baremetal` and `riscv32-baremetal` it is the UART frame (`TCINTCIN`,
+  an 8-byte little-endian length and the payload); on the semihosting/ARM32
+  instances it is the loader-provided `__tc_input_image` (8-byte little-endian
+  length followed by bytes).  Both return short reads of at most four bytes and an
   empty stream is EOF; the loader image window is 1 MiB.  SYS_WRITE0's return value is undefined (qemu fills
   it with a fixed sentinel) and is not interpreted.  These are
   platform-instance facts, not language semantics.  The device/heap region
@@ -500,9 +529,9 @@ must fill in:
 | CT allowlist/evaluation/caching | implemented |
 | final `TcInstr`/`TcIR`/`TcUnit` materialization and printing | implemented |
 | heap/runtime-library objects | later runtime library |
-| AArch64/ARM32 lowering, ABI and frame layout | implemented (W=64 and W=32) |
-| checked build (VM, AArch64 and ARM32) | implemented |
-| freestanding/bare-metal platform instances, 32-bit backend | implemented (S9) |
+| AArch64/ARM32/RISC-V lowering, ABI and frame layout | implemented (W=64 and W=32) |
+| checked build (VM, AArch64, ARM32 and RISC-V) | implemented |
+| freestanding/bare-metal platform instances, 32-bit backends | implemented (S9/S10) |
 
 Changing a frozen structure requires a contract review, updating this file, the
 L0 tests and the coverage matrix in the same change.

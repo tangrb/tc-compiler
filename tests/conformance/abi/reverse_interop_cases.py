@@ -566,12 +566,16 @@ void tc_main(void) { pi((uint64_t)tc_function_1()); }
 def runtime_archive(profile: str) -> Path:
     if profile == "arm32-baremetal":
         return engine.runtime_archive(32)
+    if profile == "riscv32-baremetal":
+        return engine.runtime_archive_riscv32()
     return engine.runtime_archive(64, baremetal=True)
 
 
 def linker_script(profile: str) -> Path:
     if profile == "arm32-baremetal":
         return ROOT / "src/backend/arm32/link.ld"
+    if profile == "riscv32-baremetal":
+        return ROOT / "src/backend/riscv32/link.ld"
     return ROOT / "src/backend/aarch64/link.ld"
 
 
@@ -581,9 +585,34 @@ def compile_flags(profile: str) -> list[str]:
                 "-mfloat-abi=softfp", "-mfpu=fpv5-d16", "-ffreestanding",
                 "-nostdlib", "-O2", "-ffp-contract=off",
                 "-Wno-unused-command-line-argument"]
+    if profile == "riscv32-baremetal":
+        return ["-target", "riscv32-unknown-elf", "-march=rv32imafdc",
+                "-mabi=ilp32", "-mno-relax", "-msmall-data-limit=0",
+                "-mstrict-align", "-ffreestanding", "-nostdlib", "-O2",
+                "-ffp-contract=off", "-Wno-unused-command-line-argument"]
     return ["-target", "aarch64-none-elf", "-ffreestanding", "-nostdlib",
             "-O2", "-ffp-contract=off",
             "-Wno-unused-command-line-argument"]
+
+
+def linker_emulation(profile: str) -> str:
+    if profile == "arm32-baremetal":
+        return "armelf"
+    if profile == "riscv32-baremetal":
+        return "elf32lriscv"
+    return "aarch64elf"
+
+
+def linker_flags(profile: str) -> list[str]:
+    return ["--no-relax"] if profile == "riscv32-baremetal" else []
+
+
+def run_elf(profile: str, elf: Path, directory: Path):
+    if profile == "arm32-baremetal":
+        return engine.run_arm32_elf(elf, b"", directory)
+    if profile == "riscv32-baremetal":
+        return engine.run_riscv32_elf(elf, b"", directory)
+    return engine.run_aarch64_baremetal_elf(elf, b"", directory)
 
 
 def build_and_run(profile: str, lib: str, c_code: str,
@@ -601,7 +630,9 @@ def build_and_run(profile: str, lib: str, c_code: str,
     text = assembly.read_text(encoding="utf-8")
     if "tc_function_0:" not in text or "tc_function_1:" not in text:
         return 1, b"", "emitter did not produce target/caller functions"
-    calls = text.count("bl tc_function_0")
+    call_instruction = ("call" if profile == "riscv32-baremetal"
+                        else "bl")
+    calls = text.count(f"{call_instruction} tc_function_0")
     if calls != 1:
         return 1, b"", f"expected one caller to target call, found {calls}"
     text = text.replace("tc_main", "tc_program_main")
@@ -610,12 +641,18 @@ def build_and_run(profile: str, lib: str, c_code: str,
         if marker not in text:
             return 1, b"", "ARM32 caller symbol shape not found"
         text = text.replace(marker, "  .globl tc_function_1\n" + marker)
+    elif profile == "riscv32-baremetal":
+        marker = "  .type tc_function_1, @function\n"
+        if marker not in text:
+            return 1, b"", "RISC-V caller symbol shape not found"
+        text = text.replace(marker, "  .globl tc_function_1\n" + marker)
     else:
         marker = "  .type tc_function_1, %function\n"
         if marker not in text:
             return 1, b"", "AArch64 caller symbol shape not found"
         text = text.replace(marker, "  .globl tc_function_1\n" + marker)
-    text = text.replace("bl tc_function_0", "bl c_callee")
+    text = text.replace(f"{call_instruction} tc_function_0",
+                        f"{call_instruction} c_callee")
     assembly.write_text(text, encoding="utf-8")
     (directory / "harness.c").write_text(CPREFIX + c_code, encoding="utf-8")
     flags = compile_flags(profile)
@@ -633,18 +670,15 @@ def build_and_run(profile: str, lib: str, c_code: str,
         objects.append(obj)
     elf = directory / "out.elf"
     proc = subprocess.run(
-        [engine.lld_path(), "-m",
-         "armelf" if profile == "arm32-baremetal" else "aarch64elf",
+        [engine.lld_path(), "-m", linker_emulation(profile),
+         *linker_flags(profile),
          "-T", str(linker_script(profile)), "--icf=none",
          *[str(obj) for obj in objects], str(runtime_archive(profile)),
          "-o", str(elf)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
     if proc.returncode != 0:
         return proc.returncode, b"", proc.stderr.decode("utf-8", "replace")
-    if profile == "arm32-baremetal":
-        result = engine.run_arm32_elf(elf, b"", directory)
-    else:
-        result = engine.run_aarch64_baremetal_elf(elf, b"", directory)
+    result = run_elf(profile, elf, directory)
     return result.exit, result.stdout, result.diagnostic
 
 

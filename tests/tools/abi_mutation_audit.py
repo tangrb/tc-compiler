@@ -31,6 +31,7 @@ CLANG = shutil.which("clang")
 LLD = shutil.which("ld.lld")
 QEMU_A64 = shutil.which("qemu-system-aarch64")
 QEMU_ARM = shutil.which("qemu-system-arm")
+QEMU_RISCV32 = shutil.which("qemu-system-riscv32")
 
 MUTANTS = [
     {
@@ -61,6 +62,15 @@ MUTANTS = [
         "expect": "following arguments reuse the composite's x registers",
     },
     {
+        "name": "riscv_split_aggregate",
+        "file": "src/backend/riscv32/emit_abi.c",
+        "old": "if (*ncrn == 7u && words == 2u) {",
+        "new": "if (0) {",
+        "count": 1,
+        "suites": ["tests/conformance/abi/s10_riscv32_interop.py"],
+        "expect": "one-register 2*XLEN aggregate is not split to the stack",
+    },
+    {
         "name": "arm32_c5_underflow",
         "file": "src/backend/arm32/emit_abi.c",
         "old": "unsigned reg_words = 4u - *ncrn;",
@@ -88,7 +98,8 @@ def configure_and_build(source: Path, build: Path) -> tuple[bool, str]:
         return False, configure.stdout.decode("utf-8", "replace")
     built = subprocess.run(
         ["cmake", "--build", str(build), "--target", "tc-aot",
-         "tc_aarch64_runtime", "tc_arm32_runtime", "-j", "8"],
+         "tc_aarch64_runtime", "tc_arm32_runtime", "tc_riscv32_runtime",
+         "-j", "8"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1800)
     return built.returncode == 0, built.stdout.decode("utf-8", "replace")
 
@@ -100,6 +111,8 @@ def run_suite(source: Path, build: Path, suite: str) -> tuple[bool, str]:
     env["TC_AOT_QEMU_SYSTEM"] = QEMU_A64 or env.get("TC_AOT_QEMU_SYSTEM", "")
     env["TC_AOT_QEMU_SYSTEM_ARM"] = QEMU_ARM or env.get(
         "TC_AOT_QEMU_SYSTEM_ARM", "")
+    env["TC_AOT_QEMU_SYSTEM_RISCV32"] = QEMU_RISCV32 or env.get(
+        "TC_AOT_QEMU_SYSTEM_RISCV32", "")
     proc = subprocess.run(
         [sys.executable, str(source / suite), "--check"],
         cwd=str(source), env=env, stdout=subprocess.PIPE,

@@ -11,19 +11,21 @@ current gate status. Chinese: [README.md](README.md).
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
-| [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
+| [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
 ## Current status
 
-- S0–S9 are implemented and G0–G9 passed; **G9 allows S10**.
+- S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
+  exit**.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
-  (32/64 profiles), the full W=64 AArch64 and W=32 ARM32 backends/toolchains
-  (full ABI, checked build, ELF/region layout), the freestanding target runtime
-  core with the `aarch64-baremetal`/`arm32-baremetal` platform instances, all
-  four device policies, 32/64 profile isolation and the full
-  differential/ABI/consistency/artifact suites.
-- Not implemented: later targets such as RISC-V and the optional optimization
-  pipeline (SSA/regalloc/inlining).
+  (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V
+  backends/toolchains (full ABI, checked build, ELF/region layout), the
+  freestanding target runtime core with the
+  `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform instances,
+  all four device policies, 32/64 profile isolation, the full
+  differential/ABI/consistency/artifact/determinism suites, the S10 long-term
+  regression corpus and the release audit.
+- Not implemented: the optional optimization pipeline (SSA/regalloc/inlining).
 - No C host public library, embedding API or ABI.
 - Both 32/64 are targets; `usize`/`isize` are platform-word types (§13.2.1/§13.2.2).
 

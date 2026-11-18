@@ -10,6 +10,7 @@ an implementation:
     TcOpcode enum in design §3.2) with normal/static-error/trap slots,
   * the 15 design §12 verification items with suite-mapping/gate slots,
   * the ten first-diagnostic ordering rules in standard §12.2,
+  * the S10 RISC-V target/long-term/release cases,
   * explicit same-position code priorities (SAFE_VIOLATION over UNSAFE_*/FAST_CALL,
     call argument order, make field order, call safety first),
   * the 32/64 flip table in standard §13.2.2,
@@ -18,8 +19,8 @@ an implementation:
 
 All rows start as "uncovered".  Only named stage rows in L0_COVERED_ROWS,
 S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS, S4_COVERED_ROWS,
-S5_COVERED_ROWS, S6_COVERED_ROWS, S7_COVERED_ROWS and S8_COVERED_ROWS may
-be marked
+S5_COVERED_ROWS, S6_COVERED_ROWS, S7_COVERED_ROWS, S8_COVERED_ROWS,
+S9_COVERED_ROWS and S10_COVERED_ROWS may be marked
 "covered" with a real case
 id; missing coverage for everything else is explicit and is never silently
 rendered as covered.
@@ -1499,6 +1500,25 @@ S9_COVERED_ROWS = {
     "design12:15:gate_case": ["TC-DET-S9-0001"],
 }
 
+S10_COVERED_ROWS = {
+    # RISC-V 32 target admission: platform/ELF/device/checked/input gate,
+    # ILP32 C interop, static parity, long-term corpus and release audit.
+    "design12:01:suite_mapping": ["TC-RISCV32-S10-0001", "TC-LT-S10-0001"],
+    "design12:01:gate_case": ["TC-RISCV32-S10-0001"],
+    "design12:04:suite_mapping": ["TC-RISCV32-S10-0001"],
+    "design12:04:gate_case": ["TC-RISCV32-S10-0001"],
+    "design12:06:suite_mapping": ["TC-RISCV32-S10-0001"],
+    "design12:06:gate_case": ["TC-RISCV32-S10-0001"],
+    "design12:07:suite_mapping": [
+        "TC-ABI-S10-0001", "TC-ABI-S10-0002", "TC-RISCV32-S10-0001",
+    ],
+    "design12:07:gate_case": ["TC-ABI-S10-0001", "TC-ABI-S10-0002"],
+    "design12:14:suite_mapping": ["TC-RISCV32-S10-0001", "TC-LT-S10-0001"],
+    "design12:14:gate_case": ["TC-RISCV32-S10-0001"],
+    "design12:15:suite_mapping": ["TC-DET-S10-0001", "TC-REL-S10-0001"],
+    "design12:15:gate_case": ["TC-DET-S10-0001"],
+}
+
 _S6_OPCODE_CASES = {
     "abs": ("TC-RT-INT-0001", "TC-RT-INT-0008"),
     "add": ("TC-RT-INT-0001", "TC-RT-INT-0004"),
@@ -1853,7 +1873,8 @@ def build_rows(codes_data: dict, standard: str, design: str, test_plan: str):
             row["case_ids"] = list(case_ids)
         for covered in (S1_COVERED_ROWS, S2_COVERED_ROWS, S3_COVERED_ROWS,
                         S4_COVERED_ROWS, S5_COVERED_ROWS, S6_COVERED_ROWS,
-                        S7_COVERED_ROWS, S8_COVERED_ROWS, S9_COVERED_ROWS):
+                        S7_COVERED_ROWS, S8_COVERED_ROWS, S9_COVERED_ROWS,
+                        S10_COVERED_ROWS):
             case_ids = covered.get(row["id"])
             if case_ids:
                 row["status"] = "covered"
@@ -1932,6 +1953,7 @@ def build_document(codes_data, standard_text, design_text, test_plan_text,
             "s7_covered_rows": sorted(S7_COVERED_ROWS),
             "s8_covered_rows": sorted(S8_COVERED_ROWS),
             "s9_covered_rows": sorted(S9_COVERED_ROWS),
+            "s10_covered_rows": sorted(S10_COVERED_ROWS),
             "scope_na_rows": sorted(SCOPE_NA_ROWS),
         },
         "cross_checks": {

@@ -5,5 +5,6 @@ target_compile_options(tc-vm PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc-aot tc-aot.c)
 target_link_libraries(tc-aot PRIVATE tc_core)
-add_dependencies(tc-aot tc_aarch64_runtime)
+add_dependencies(tc-aot tc_aarch64_runtime tc_arm32_runtime
+                 tc_riscv32_runtime)
 target_compile_options(tc-aot PRIVATE -Wall -Wextra -Werror -Wpedantic)

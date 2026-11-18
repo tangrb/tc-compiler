@@ -14,6 +14,8 @@ int tc_driver_select_profile(const char *name, TcPlatformProfile *out) {
         ok = tc_profile_init_aarch64_baremetal(out);
     } else if (strcmp(name, "arm32-baremetal") == 0) {
         ok = tc_profile_init_arm32_baremetal(out);
+    } else if (strcmp(name, "riscv32-baremetal") == 0) {
+        ok = tc_profile_init_riscv32_baremetal(out);
     } else if (strcmp(name, "w32") == 0) {
         ok = tc_profile_init_generic_w32(out);
     } else {

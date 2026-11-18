@@ -46,6 +46,26 @@ const TcTargetDesc tc_target_arm32_baremetal = {
     "arm32-baremetal", 32, 1, 8, 4, &tc_abi_aapcs32_ilp32
 };
 
+/* RISC-V ILP32 base integer calling convention.  Stack alignment is 16 bytes,
+ * and the ABI uses a0-a7 for arguments (a0-a1 for 64-bit results) with
+ * s0-s11 callee-saved. */
+const TcABIDesc tc_abi_ilp32_riscv = {
+    TC_ABI_INT, TC_ABI_INT, TC_ABI_INT, TC_ABI_INT,
+    TC_ABI_INT, TC_ABI_INT,
+    0,     /* hfa: the base integer convention has no FP register class */
+    8,     /* composite_max_bytes: 2 * XLEN */
+    1,     /* hfa_max_regs (unused by the base convention) */
+    TC_ABI_RET_INDIRECT,
+    16,    /* stack_align */
+    (uint32_t)((1u << 8) | (1u << 9) | (((1u << 10) - 1u) << 18)), /* s0-s11 */
+    1,     /* int64_pair */
+    1      /* float64_pair */
+};
+
+const TcTargetDesc tc_target_riscv32_baremetal = {
+    "riscv32-baremetal", 32, 1, 16, 4, &tc_abi_ilp32_riscv
+};
+
 const TcTargetDesc tc_target_generic_w32 = {
     "generic-w32", 32, 1, 8, 4, &tc_abi_aapcs32_ilp32
 };
@@ -150,8 +170,36 @@ int tc_profile_init_arm32_baremetal(TcPlatformProfile *out) {
     return 1;
 }
 
-int tc_profile_init_generic_w32(TcPlatformProfile *out) {
+/* RISC-V 32 bare-metal platform instance: QEMU virt.  Code is loaded at the
+ * start of RAM, the language static region is a fixed 1 MiB window above it,
+ * and the stack occupies the top of the 8 MiB runtime arena.  The device
+ * window covers the NS16550A console and the SiFive test finisher. */
+int tc_profile_init_riscv32_baremetal(TcPlatformProfile *out) {
     if (out == NULL) {
+        return 0;
+    }
+    memset(out, 0, sizeof(*out));
+    out->addr_width = 32;
+    out->little_endian = 1;
+    profile_set_regions(out,
+                        0x87800000ull, 0x00800000ull,
+                        0x81000000ull, 0x00100000ull,
+                        0x10000000ull, 0x10000000ull,
+                        0x80000000ull, 0x00100000ull,
+                        0x82000000ull, 0x00100000ull);
+    out->stack_size = 0x00800000;
+    out->depth_D = 64;
+    out->exit.normal_status = 0;
+    out->exit.trap_status = 1;
+    out->entry = 0x80000000ull;
+    out->target = &tc_target_riscv32_baremetal;
+    out->device = TC_DEV_VOLATILE;
+    out->checked_build = 0;
+    out->disable_icf = 1;
+    return 1;
+}
+
+int tc_profile_init_generic_w32(TcPlatformProfile *out) {    if (out == NULL) {
         return 0;
     }
     memset(out, 0, sizeof(*out));

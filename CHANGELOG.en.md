@@ -91,6 +91,20 @@
   `qemu-system-arm` execution); `tc-aot --profile=` target dispatch and
   `--device=` platform-policy override; 32/64 static results, goldens and
   differentials stay isolated.
+- **S10 multi-target expansion and long-term regression**: the second 32-bit
+  target `riscv32-baremetal` (RV32IMAFDC, ILP32 soft-float ABI,
+  `TcTargetDesc`/`TcABIDesc`, an independent RISC-V 32 backend for all 51
+  opcodes, a0-a7 arguments / 16-byte stack alignment / 2×XLEN by-value
+  composites / larger by-reference composites / hidden-pointer indirect
+  returns, 64-bit division helpers, NS16550A UART0 stdout and framed stdin, a
+  semihosting exit record, the SiFive test finisher and qemu-system-riscv32
+  virt); the S10 RISC-V platform/ELF/device/checked/UART-input suite, 26 C-caller
+  and 12 TC-caller RISC-V ILP32 interoperability cases, 1037 static sources with
+  identical VM/AOT first diagnostics, 149×2 long-term static sources, 16×3
+  differential samples, 15 fuzz regression cases and 3-target platform corpus,
+  plus RISC-V repeat-build/execute and O0/O2 determinism; the release audit
+  checks the closed 80-code set, private `tc_core`, two CLIs, freestanding
+  symbols, version and documentation consistency.
 - **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
   and `--static-only` (through CT and IR finalization) partial checks; a normal
   `tc-vm` invocation executes the reference VM and reports the first trap as
@@ -105,13 +119,16 @@
   determinism/static-mutation suites, W=32/64 runtime goldens, S9 bare-metal/
   ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
   AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
-  determinism suites and a fail-closed adapter self-test; currently 58/58
+  determinism suites and a fail-closed adapter self-test; currently 65/65
   `ctest` and 850/850 harness cases (590 compile, 131 tool,
   128 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
   sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
   cases plus 296 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
   AAPCS64 cases, 19 reverse ABI cases and 1037 static sources under each of two
-  bare-metal profiles; 4/4 ABI mutants were found by interop.
+  bare-metal profiles; the S10 RISC-V suite adds 29 fixed cases plus 296 S6/S8
+  corpus cases, 26 C-caller/12 reverse ABI cases, 1037 static sources, 149×2
+  long-term static sources and 15 fuzz cases; 5/5 ABI mutants were found by
+  interop.
 
 ### Changed
 

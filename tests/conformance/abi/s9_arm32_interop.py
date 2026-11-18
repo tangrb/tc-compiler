@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 from diff import arm32_engine as engine  # noqa: E402
 
 CASE_ID = "TC-ABI-S9-0010"
+PROFILE = "arm32-baremetal"
 CLANG = shutil.which("clang")
 CPREFIX = r"""#include <stdint.h>
 #include <stdbool.h>
@@ -342,25 +343,53 @@ void tc_main(void) { pi(tc_test_call(-1) ? 1u : 0u); }
 ]
 
 
-def runtime_archive() -> Path:
-    return engine.runtime_archive(32)
+def runtime_archive(profile: str = PROFILE) -> Path:
+    if profile == "arm32-baremetal":
+        return engine.runtime_archive(32)
+    return engine.runtime_archive_riscv32()
 
 
-def build_and_run(lib: str, harness: str, directory: Path) -> tuple[int, bytes,
-                                                                  str]:
+def linker_script(profile: str = PROFILE) -> Path:
+    if profile == "arm32-baremetal":
+        return ROOT / "src/backend/arm32/link.ld"
+    return ROOT / "src/backend/riscv32/link.ld"
+
+
+def compile_flags(profile: str = PROFILE) -> list[str]:
+    if profile == "arm32-baremetal":
+        return ["-target", "thumbv7em-none-eabihf", "-mcpu=cortex-m7",
+                "-mfloat-abi=softfp", "-mfpu=fpv5-d16", "-ffreestanding",
+                "-nostdlib", "-O2", "-ffp-contract=off",
+                "-Wno-unused-command-line-argument"]
+    return ["-target", "riscv32-unknown-elf", "-march=rv32imafdc",
+            "-mabi=ilp32", "-mno-relax", "-msmall-data-limit=0",
+            "-mstrict-align", "-ffreestanding", "-nostdlib", "-O2",
+            "-ffp-contract=off", "-Wno-unused-command-line-argument"]
+
+
+def run_elf(profile: str, elf: Path, directory: Path):
+    if profile == "arm32-baremetal":
+        return engine.run_arm32_elf(elf, b"", directory)
+    return engine.run_riscv32_elf(elf, b"", directory)
+
+
+def build_and_run(lib: str, harness: str, directory: Path,
+                  profile: str = PROFILE) -> tuple[int, bytes,
+                                                   str]:
     (directory / "lib.tc").write_text(lib, encoding="utf-8")
     (directory / "root.tc").write_text(ROOT_TC, encoding="utf-8")
     assembly = directory / "gen.s"
     proc = subprocess.run(
         [engine.tc_aot_path(), "--emit=asm", f"--output={assembly}",
-         "--profile=arm32-baremetal", f"--include={directory}",
+         f"--profile={profile}", f"--include={directory}",
          str(directory / "root.tc")],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
     if proc.returncode != 0:
         return proc.returncode, b"", proc.stderr.decode("utf-8", "replace")
     text = assembly.read_text(encoding="utf-8").replace(
         "tc_main", "tc_program_main")
-    text += """
+    if profile == "arm32-baremetal":
+        text += """
   .text
   .p2align 2
   .thumb_func
@@ -370,12 +399,19 @@ tc_test_call:
   b tc_function_0
   .size tc_test_call, .-tc_test_call
 """
+    else:
+        text += """
+  .text
+  .p2align 2
+  .globl tc_test_call
+  .type tc_test_call, @function
+tc_test_call:
+  j tc_function_0
+  .size tc_test_call, .-tc_test_call
+"""
     assembly.write_text(text, encoding="utf-8")
     (directory / "harness.c").write_text(CPREFIX + harness, encoding="utf-8")
-    flags = ["-target", "thumbv7em-none-eabihf", "-mcpu=cortex-m7",
-             "-mfloat-abi=softfp", "-mfpu=fpv5-d16", "-ffreestanding",
-             "-nostdlib", "-O2", "-ffp-contract=off",
-             "-Wno-unused-command-line-argument"]
+    flags = compile_flags(profile)
     objects = []
     for source, name in ((assembly, "gen.o"),
                          (directory / "harness.c", "h.o")):
@@ -388,15 +424,18 @@ tc_test_call:
             return proc.returncode, b"", proc.stderr.decode("utf-8", "replace")
         objects.append(obj)
     elf = directory / "out.elf"
+    linker_emulation = ("armelf" if profile == "arm32-baremetal"
+                        else "elf32lriscv")
+    linker_flags = ([] if profile == "arm32-baremetal" else ["--no-relax"])
     proc = subprocess.run(
-        [engine.lld_path(), "-m", "armelf",
-         "-T", str(ROOT / "src/backend/arm32/link.ld"), "--icf=none",
-         *[str(obj) for obj in objects], str(runtime_archive()),
+        [engine.lld_path(), "-m", linker_emulation, *linker_flags,
+         "-T", str(linker_script(profile)), "--icf=none",
+         *[str(obj) for obj in objects], str(runtime_archive(profile)),
          "-o", str(elf)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode != 0:
         return proc.returncode, b"", proc.stderr.decode("utf-8", "replace")
-    result = engine.run_arm32_elf(elf, b"", directory)
+    result = run_elf(profile, elf, directory)
     return result.exit, result.stdout, result.diagnostic
 
 
@@ -409,7 +448,7 @@ def main() -> int:
     if CLANG is None:
         print(f"{CASE_ID}: clang not found")
         return 1
-    archive = runtime_archive()
+    archive = runtime_archive(PROFILE)
     if not archive.exists():
         print(f"{CASE_ID}: runtime archive not found at {archive}")
         return 1

@@ -851,11 +851,13 @@ def compare_rejection(vm, build, failures: list[str], label: str) -> None:
         failures.append(f"{label}: static rejection {aot_code} != {vm_code}")
 
 
-def run_curated(failures: list[str]) -> None:
-    for item in CASES:
+def run_curated(failures: list[str], profile: str = PROFILE,
+                cases: list[Case] | None = None) -> None:
+    selected = CASES if cases is None else cases
+    for item in selected:
         directory = engine.temporary_directory("tc-s9-arm32-")
         try:
-            vm, aot, build = engine.run_case(item, PROFILE, directory)
+            vm, aot, build = engine.run_case(item, profile, directory)
         except Exception as exc:  # noqa: BLE001 - report and continue
             failures.append(f"{item.case_id}: {exc}")
             shutil.rmtree(directory, ignore_errors=True)
@@ -897,7 +899,7 @@ def load_s8() -> list[Case]:
     return list(module.CASES)
 
 
-def run_corpus(failures: list[str]) -> None:
+def run_corpus(failures: list[str], profile: str = PROFILE) -> None:
     corpus = 0
     for item in load_s6():
         directory = engine.temporary_directory("tc-s9-arm32-s6-")
@@ -915,7 +917,7 @@ def run_corpus(failures: list[str]) -> None:
             spec=item.get("spec", ""),
         )
         try:
-            vm, aot, build = engine.run_case(corpus_case, PROFILE, directory)
+            vm, aot, build = engine.run_case(corpus_case, profile, directory)
         except Exception as exc:  # noqa: BLE001
             failures.append(f"S6 {item['id']}: {exc}")
             shutil.rmtree(directory, ignore_errors=True)
@@ -940,7 +942,7 @@ def run_corpus(failures: list[str]) -> None:
     for item in load_s8():
         directory = engine.temporary_directory("tc-s9-arm32-s8-")
         try:
-            vm, aot, build = engine.run_case(item, PROFILE, directory)
+            vm, aot, build = engine.run_case(item, profile, directory)
         except Exception as exc:  # noqa: BLE001
             failures.append(f"S8 {item.case_id}: {exc}")
             shutil.rmtree(directory, ignore_errors=True)

@@ -155,7 +155,8 @@ def main() -> int:
     args = parser.parse_args()
     if not args.check:
         parser.error("use --check")
-    rows = [report("aarch64-baremetal"), report("arm32-baremetal")]
+    rows = [report("aarch64-baremetal"), report("arm32-baremetal"),
+            report("riscv32-baremetal")]
     failures = 0
     print(f"{CASE_ID}: 900005-byte static object capacity")
     for row in rows:
@@ -172,7 +173,7 @@ def main() -> int:
             failures += 1
             print(f"  {row['profile']}: static span exceeds the 1 MiB profile")
     print("  input image window: 1 MiB; token limit: 16 KiB; "
-          "runtime arena: AArch64 8 MiB / ARM32 128 KiB")
+          "runtime arena: AArch64 8 MiB / 32-bit targets 128 KiB")
     if failures:
         print(f"{CASE_ID}: {failures} capacity failure(s)")
         return 1

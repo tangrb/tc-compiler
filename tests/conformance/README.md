@@ -79,6 +79,18 @@ never backfilled from compiler output.
   AAPCS32 composite/int64/float64/narrow cases; `tools/s9_static_parity.py` compares
   VM/AOT static results over every source under both bare-metal profiles;
   `platform/s9_profiles.py` pins the §13.2.2 W=32/W=64 differences.
+- S10 RISC-V: `platform/s10_riscv32_cases.py` builds `riscv32-baremetal` ELF32
+  images and runs them on qemu-system-riscv32 virt: 29 fixed W=32 semantics/ABI
+  cases plus the complete S6/S8 corpora as same-profile VM↔AOT comparisons,
+  ELF/symbol/no-dynamic/no-libc audits, the four device policies, checked/UB
+  separation, UART framed stdin and flat artifacts.  `abi/s10_riscv32_interop.py`
+  adds 26 C-caller ILP32 cases (including the one-register 2×XLEN split) and
+  `abi/s10_reverse_interop.py` adds 12 TC-caller → C-callee cases;
+  `tools/s10_static_parity.py` compares VM/AOT first diagnostics over every
+  static source under the RISC-V profile.  `longterm/s10_longterm.py` is the
+  long-term corpus: sampled standard/boundary sources, differential cases,
+  fuzz regression seeds and a platform program on all three targets.
+  `tests/tools/s10_release_audit.py` checks the release surface.
 
 ```text
 tests/conformance/
@@ -100,11 +112,12 @@ tests/conformance/
   opcode_static/      S6 per-opcode static shape cases (one directory per case)
   runtime/            S6 VM runtime cases (one directory per case)
   diff/               S7/S8 VM↔AOT differential cases and fixed-seed fuzz
-  abi/                S7/S8 AAPCS64 and S9 AAPCS32 ABI cases; reverse TC→C interop
+  abi/                S7/S8 AAPCS64, S9 AAPCS32 and S10 RISC-V ILP32 ABI cases; reverse TC→C interop
   checked/            S8 checked-build cases
   consistency/        S8 standard §13.4 eight-item consistency cases
-  platform/           S9 bare-metal/ARM32/profile-isolation cases
-  tools/              S7/S8/S9 artifact/toolchain and static-parity checks
+  platform/           S9 bare-metal/ARM32 and S10 RISC-V platform cases
+  longterm/           S10 standard/boundary/differential/fuzz/platform corpus
+  tools/              S7/S8/S9/S10 artifact/toolchain and static-parity checks
   static/fuzz/        L7 property case (random bytes; no crash/hang)
 ```
 

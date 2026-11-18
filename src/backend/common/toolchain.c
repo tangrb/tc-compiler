@@ -27,5 +27,9 @@ const char *tc_aot_target_triple(const TcTargetDesc *target) {
         target->addr_width == 32u) {
         return "thumbv7em-none-eabihf";
     }
+    if (strcmp(target->name, "riscv32-baremetal") == 0 &&
+        target->addr_width == 32u) {
+        return "riscv32-unknown-elf";
+    }
     return NULL;
 }

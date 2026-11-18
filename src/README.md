@@ -24,8 +24,11 @@ for program stdout and framed stdin, PL011 UART1 for the exit record and PSCI
 shutdown (no semihosting), while `arm32-baremetal` is an independent Cortex-M7
 backend with the base AAPCS32/ILP32 softfp classifier, 32-bit word-size
 semantics, int64 helpers and software binary64, qemu-system-arm execution and
-a semihosting exit record; binary32 uses FPv5-D.  All four device policies,
-checked build,
+a semihosting exit record; binary32 uses FPv5-D.  `riscv32-baremetal` is an
+independent RV32IMAFDC/ILP32 soft-float backend with an NS16550A UART0
+stdout/stdin seam, a semihosting exit record, the SiFive test finisher and
+qemu-system-riscv32 virt execution; its runtime adds the RV32 compiler-runtime
+64-bit divide/remainder helpers.  All four device policies, checked build,
 ELF/symbol audits and 32/64 profile isolation are tested.  Frozen contract
 ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
@@ -48,8 +51,9 @@ src/
                 toolchain mapping); aarch64 (emitter/AAPCS64 classifier,
                 semihosting + PL011/PSCI platform instances, linker script);
                 arm32 (independent Cortex-M7 emitter/AAPCS32 classifier, ARM
-                EABI helpers, MPS2 platform, linker script); riscv32 not
-                implemented
+                EABI helpers, MPS2 platform, linker script); riscv32
+                (independent RV32IMAFDC emitter/ILP32 classifier, compiler
+                runtime helpers, QEMU virt platform, linker script)
   driver/       tc-vm tc-aot + shared CLI/profile selection and AOT driver
 ```
 
@@ -73,8 +77,8 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   test-case ids belong to tests and the coverage matrix.
 - Keep the target-independent core (`frontend`, `ir`, `runtime`, `vm`) separate
   from target-specific backends (`backend/<target>`). AArch64 is the 64-bit
-  target and Cortex-M7 `arm32-baremetal` is the selected 32-bit target;
-  `riscv32` remains a future target.
+  target; Cortex-M7 `arm32-baremetal` and RISC-V `riscv32-baremetal` are the
+  two implemented 32-bit targets.
 - The private build target `tc_core` contains the compiler, IR, runtime, and VM
   implementation. It is not installed and exposes no public API/ABI.
 - Each source file has one module owner: `base/` + `contract/` are frozen
@@ -106,15 +110,15 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
 - Both 32-bit and 64-bit targets are in scope. `usize`/`isize` are platform-word
   types; `sizeof`, `bitcast`, `trunc`, layout, and diagnostics must handle both.
   The VM executes the `aarch64-linux-user`, `aarch64-baremetal`,
-  `arm32-baremetal` and `w32` profiles; `arm32-baremetal` has both a reference
-  VM profile and a native backend.
+  `arm32-baremetal`, `riscv32-baremetal` and `w32` profiles; the bare-metal
+  profiles have both a reference VM profile and a native backend.
 - The AArch64 backend consumes the same frozen `TcIR` as the VM and never
   re-parses the source or rewrites the type table.  It keeps object offsets
   identical to the VM for the in-region layout; absolute region bases are a
   platform/loader instance choice.  Values are allocated on the stack with a
   fixed temporary-register set (no regalloc); unsupported IR is rejected before
   any bytes are emitted.
-- The runtime semantic core is shared with CT and both AOT targets: one
+- The runtime semantic core is shared with CT and all AOT targets: one
   implementation of strict integer/float rounding, exception priority and
   conversions.  `CT` maps a runtime trap kind to the corresponding
   `TC_CE_CONST_*` code; it does not keep a second arithmetic implementation.
@@ -122,11 +126,11 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   `__int128` on the 32-bit target.
 - VM frame storage is host-backed but addressed in the profile's frame region.
   The built-in profiles reserve a frame region and `stack_size` for the default
-  `D` (512/256/32); a program whose static frame footprints exhaust that region
+  `D` (512/256/32/64); a program whose static frame footprints exhaust that region
   is an implementation error, not a language diagnostic.
 - Target backends share the freestanding runtime core, not target lowering:
-  AArch64 and ARM32 keep separate emitters, ABI classifiers and startup/linker
-  scripts.  Platform seam files own the console/termination policy; the core
+  AArch64, ARM32 and RISC-V 32 keep separate emitters, ABI classifiers and
+  startup/linker scripts.  Platform seam files own the console/termination policy; the core
   owns object checks, device-policy mapping and deterministic I/O.
 
 Implementation starts from the 0.0.46 standard and design document; historical

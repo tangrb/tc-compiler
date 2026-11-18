@@ -17,6 +17,8 @@
 !src/backend/aarch64/start.S
 !src/backend/arm32/start.S
 !src/backend/arm32/aeabi_glue.S
+!src/backend/riscv32/start.S
+!src/backend/riscv32/semi.S
 
 # Python
 __pycache__/

@@ -96,10 +96,15 @@ typedef struct TcPlatformProfile {
 /* Built-in descriptors. */
 extern const TcABIDesc tc_abi_aapcs64;
 extern const TcABIDesc tc_abi_aapcs32_ilp32;
+/* RISC-V ILP32 with the base integer calling convention (soft-float).  The
+ * target uses the F/D extensions for arithmetic but passes floating-point
+ * values in integer registers, matching `-mabi=ilp32`. */
+extern const TcABIDesc tc_abi_ilp32_riscv;
 extern const TcTargetDesc tc_target_aarch64_linux_user;
 extern const TcTargetDesc tc_target_aarch64_baremetal;
 /* The first 32-bit target selected for 0.0.46: Cortex-M7, AAPCS32/ILP32. */
 extern const TcTargetDesc tc_target_arm32_baremetal;
+extern const TcTargetDesc tc_target_riscv32_baremetal;
 /* Target-independent 32-bit profile used for the word-size static matrix. */
 extern const TcTargetDesc tc_target_generic_w32;
 
@@ -109,6 +114,7 @@ extern const TcTargetDesc tc_target_generic_w32;
 int tc_profile_init_aarch64_linux_user(TcPlatformProfile *out);
 int tc_profile_init_aarch64_baremetal(TcPlatformProfile *out);
 int tc_profile_init_arm32_baremetal(TcPlatformProfile *out);
+int tc_profile_init_riscv32_baremetal(TcPlatformProfile *out);
 int tc_profile_init_generic_w32(TcPlatformProfile *out);
 
 typedef enum {

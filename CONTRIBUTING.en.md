@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64 and W=32 ARM32 backends/toolchains, freestanding/bare-metal platform instances, all four device policies, checked build and the full differential/ABI/consistency/artifact suites are implemented; later targets such as RISC-V and the optional optimization pipeline are still to be built.
+Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, the long-term regression corpus and the release audit are implemented; the optional optimization pipeline is not enabled.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -44,8 +44,9 @@ trap), while a normal `tc-aot` invocation emits target assembly;
 `--emit=obj|elf|flat` drives clang/lld to an ELF or flat image and `--checked`
 produces a checked
 build. Capabilities outside the current platform instance exit 70
-without publishing a wrong artifact. The S7 differential/toolchain tests need
-`ld.lld` and `qemu-system-aarch64`.
+without publishing a wrong artifact. The S7/S8/S9/S10 differential/toolchain
+tests need `clang`, `llvm-ar`, `ld.lld`, `qemu-system-aarch64`,
+`qemu-system-arm` and `qemu-system-riscv32`.
 
 ## Issues
 

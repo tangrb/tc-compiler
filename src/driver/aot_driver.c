@@ -19,6 +19,7 @@
 #include "backend/aarch64/emit.h"
 #include "backend/arm32/emit.h"
 #include "backend/common/toolchain.h"
+#include "backend/riscv32/emit.h"
 #include "diagnostic/diagnostic.h"
 
 #ifndef TC_AARCH64_RUNTIME_LIB
@@ -30,11 +31,17 @@
 #ifndef TC_ARM32_RUNTIME_LIB
 #define TC_ARM32_RUNTIME_LIB ""
 #endif
+#ifndef TC_RISCV32_RUNTIME_LIB
+#define TC_RISCV32_RUNTIME_LIB ""
+#endif
 #ifndef TC_AARCH64_LINKER_SCRIPT
 #define TC_AARCH64_LINKER_SCRIPT ""
 #endif
 #ifndef TC_ARM32_LINKER_SCRIPT
 #define TC_ARM32_LINKER_SCRIPT ""
+#endif
+#ifndef TC_RISCV32_LINKER_SCRIPT
+#define TC_RISCV32_LINKER_SCRIPT ""
 #endif
 #ifndef TC_TARGET_ASSEMBLER
 #define TC_TARGET_ASSEMBLER "clang"
@@ -50,7 +57,15 @@ typedef struct {
     const char *default_linker_script;
     const char *linker_emulation;
     int is_arm32;
+    int is_riscv32;
+    const char *const *assembler_flags;
+    const char *const *linker_flags;
 } TcTargetInstance;
+
+static const char *const riscv32_assembler_flags[] = {
+    "-march=rv32imafdc", "-mabi=ilp32", "-mno-relax", NULL
+};
+static const char *const riscv32_linker_flags[] = { "--no-relax", NULL };
 
 static int select_instance(const TcPlatformProfile *profile,
                            TcTargetInstance *out) {
@@ -60,12 +75,15 @@ static int select_instance(const TcPlatformProfile *profile,
     if (name == NULL) {
         return 0;
     }
+    out->is_arm32 = 0;
+    out->is_riscv32 = 0;
+    out->assembler_flags = NULL;
+    out->linker_flags = NULL;
     if (strcmp(name, "aarch64-linux-user") == 0) {
         out->name = name;
         out->default_runtime = TC_AARCH64_RUNTIME_LIB;
         out->default_linker_script = TC_AARCH64_LINKER_SCRIPT;
         out->linker_emulation = "aarch64elf";
-        out->is_arm32 = 0;
         return 1;
     }
     if (strcmp(name, "aarch64-baremetal") == 0) {
@@ -73,7 +91,6 @@ static int select_instance(const TcPlatformProfile *profile,
         out->default_runtime = TC_AARCH64_BAREMETAL_RUNTIME_LIB;
         out->default_linker_script = TC_AARCH64_LINKER_SCRIPT;
         out->linker_emulation = "aarch64elf";
-        out->is_arm32 = 0;
         return 1;
     }
     if (strcmp(name, "arm32-baremetal") == 0) {
@@ -82,6 +99,16 @@ static int select_instance(const TcPlatformProfile *profile,
         out->default_linker_script = TC_ARM32_LINKER_SCRIPT;
         out->linker_emulation = "armelf";
         out->is_arm32 = 1;
+        return 1;
+    }
+    if (strcmp(name, "riscv32-baremetal") == 0) {
+        out->name = name;
+        out->default_runtime = TC_RISCV32_RUNTIME_LIB;
+        out->default_linker_script = TC_RISCV32_LINKER_SCRIPT;
+        out->linker_emulation = "elf32lriscv";
+        out->is_riscv32 = 1;
+        out->assembler_flags = riscv32_assembler_flags;
+        out->linker_flags = riscv32_linker_flags;
         return 1;
     }
     return 0;
@@ -201,6 +228,13 @@ static int emit_assembly_to(const TcIR *ir,
         unsupported = status == TC_ARM32_EMIT_UNSUPPORTED;
         io_error = status == TC_ARM32_EMIT_IO;
         ok = status == TC_ARM32_EMIT_OK;
+    } else if (instance->is_riscv32) {
+        TcRiscv32EmitStatus status =
+            tc_riscv32_emit_asm(output_file, ir, profile, profile->target,
+                                error_message, error_capacity);
+        unsupported = status == TC_RISCV32_EMIT_UNSUPPORTED;
+        io_error = status == TC_RISCV32_EMIT_IO;
+        ok = status == TC_RISCV32_EMIT_OK;
     } else {
         TcAArch64EmitStatus status =
             tc_aarch64_emit_asm(output_file, ir, profile, profile->target,
@@ -338,16 +372,22 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
         return report(TC_IMPL_IO, "cannot create temporary object file");
     }
     {
-        char *argv[8];
+        char *argv[16];
+        size_t argument_count = 0;
+        const char *const *flag;
         int status;
-        argv[0] = (char *)assembler;
-        argv[1] = "-target";
-        argv[2] = (char *)target_triple;
-        argv[3] = "-c";
-        argv[4] = asm_path;
-        argv[5] = "-o";
-        argv[6] = obj_path;
-        argv[7] = NULL;
+        argv[argument_count++] = (char *)assembler;
+        argv[argument_count++] = "-target";
+        argv[argument_count++] = (char *)target_triple;
+        for (flag = instance.assembler_flags;
+             flag != NULL && *flag != NULL; ++flag) {
+            argv[argument_count++] = (char *)*flag;
+        }
+        argv[argument_count++] = "-c";
+        argv[argument_count++] = asm_path;
+        argv[argument_count++] = "-o";
+        argv[argument_count++] = obj_path;
+        argv[argument_count] = NULL;
         status = run_tool(argv);
         if (status != 0) {
             unlink(asm_path);
@@ -373,8 +413,9 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
         const char *runtime_archive =
             runtime_archive_path(options, &instance);
         const char *linker_script = linker_script_path(options, &instance);
-        char *argv[20];
+        char *argv[24];
         size_t argument_index = 0;
+        const char *const *flag;
         int status;
         if (runtime_archive == NULL || runtime_archive[0] == '\0' ||
             access(runtime_archive, R_OK) != 0) {
@@ -399,6 +440,10 @@ int tc_aot_driver_run(const TcAnalysis *analysis,
         argv[argument_index++] = (char *)instance.linker_emulation;
         argv[argument_index++] = "-static";
         argv[argument_index++] = "-nostdlib";
+        for (flag = instance.linker_flags;
+             flag != NULL && *flag != NULL; ++flag) {
+            argv[argument_index++] = (char *)*flag;
+        }
         /* Standard §3.13.3: distinct function entry addresses; never fold
          * identical code or merge entries. */
         argv[argument_index++] = "--icf=none";

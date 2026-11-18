@@ -10,16 +10,18 @@
 | [TC 原生编译器设计说明书-0.0.46.md](TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、语义运行时、平台档案、后端与分期路线 |
 | [TC开发测试计划-0.0.46.md](TC开发测试计划-0.0.46.md) | S0–S10 阶段、门禁、80 码/opcode/章节覆盖与可追溯性 |
 | [门禁状态](gates/README.md) | 已完成门禁的当前结论、证据入口与后续阶段边界 |
-| [ABI 规则矩阵](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32 参考版本、双向 C/TC 互操作、规则覆盖与明确范围限制 |
+| [ABI 规则矩阵](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 参考版本、双向 C/TC 互操作、规则覆盖与明确范围限制 |
 
 ## 当前状态
 
-- S0–S9 已实现并通过 G0–G9；**G9 允许进入 S10**。
-- 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64
-  与 W=32 ARM32 全量后端/工具链（全量 ABI、checked build、ELF/区布局）、
-  freestanding 目标运行时核与 `aarch64-baremetal`/`arm32-baremetal` 平台实例、
-  四设备策略、32/64 分档案隔离与全量差分/ABI/一致性/产物套件。
-- 未实现：RISC-V 等后续目标与可选优化管线（SSA/regalloc/内联）。
+- S0–S10 已实现并通过 G0–G10；**G10 完成 0.0.46 阶段出口**。
+- 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64、
+  W=32 ARM32 与 W=32 RISC-V 全量后端/工具链（全量 ABI、checked build、
+  ELF/区布局）、freestanding 目标运行时核与
+  `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` 平台实例、四设备策略、
+  32/64 分档案隔离、全量差分/ABI/一致性/产物/确定性套件、S10 长期回归语料与
+  发布审计。
+- 未实现：可选优化管线（SSA/regalloc/内联）。
 - 不提供 C 宿主公共库、嵌入 API/ABI。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型（§13.2.1/§13.2.2）。
 

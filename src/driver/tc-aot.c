@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
         return TC_EXIT_OK;
     }
     if (options.version) {
-        printf("tc-aot %s (AArch64 backend)\n", TC_LANGUAGE_VERSION);
+        printf("tc-aot %s (native backends)\n", TC_LANGUAGE_VERSION);
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {

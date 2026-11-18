@@ -19,14 +19,17 @@
   shadow、确定性 I/O、分配器、trap/退出）；`aarch64-baremetal` 平台实例（PL011
   UART0 stdout 与分帧 stdin、UART1 退出记录、PSCI SYSTEM_OFF、无 semihosting）；首个 32 位目标
   `arm32-baremetal`（Cortex-M7 MPS2 AN500、AAPCS32/ILP32 softfp、独立 ARM32 后端、
-  int64/float64 辅助、未对齐访问、四设备策略、`qemu-system-arm`）；`tc-aot`
+  int64/float64 辅助、未对齐访问、四设备策略、`qemu-system-arm`）；S10 新增
+  `riscv32-baremetal`（RV32IMAFDC、ILP32 soft-float ABI、独立 RISC-V 32 后端、
+  全部 51 个 opcode、64 位除法辅助、NS16550A UART0 stdout/stdin、semihosting
+  退出记录、SiFive test finisher、`qemu-system-riscv32` virt）；`tc-aot`
   `--emit=asm|obj|elf|flat`、clang/lld/qemu 驱动、全量 VM↔AOT 差分/ABI/一致性/产物/
-  确定性套件、C caller/TC caller 双向 AAPCS64/AAPCS32 互操作、32/64 分档案隔离
-  与生成式 fuzz；ABI 参考版本、规则矩阵与范围限制见 `tests/conformance/abi/README.md`。
-  代码在 `src/frontend/`、`src/ir/`、`src/runtime/`、`src/vm/`、`src/backend/` 与
-  `src/driver/`。
-- 未实现：RISC-V 等后续目标与可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-- 门禁：G0–G9 PASS，G9 允许进入 S10；见 `docs/gates/README.md`。
+  确定性套件、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32 互操作、
+  32/64 分档案隔离、S10 长期回归语料/发布审计与生成式 fuzz；ABI 参考版本、规则矩阵
+  与范围限制见 `tests/conformance/abi/README.md`。代码在 `src/frontend/`、`src/ir/`、
+  `src/runtime/`、`src/vm/`、`src/backend/` 与 `src/driver/`。
+- 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
+- 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
@@ -45,10 +48,11 @@
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
    trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=obj|elf|flat` 经
    clang/lld 生成产物；`--profile=` 选择 `aarch64-linux-user`/`aarch64-baremetal`/
-   `arm32-baremetal`（`w32` 仅 VM 静态档案），`--device=` 覆盖平台实例设备策略；
+   `arm32-baremetal`/`riscv32-baremetal`（`w32` 仅 VM 静态档案），`--device=` 覆盖
+   平台实例设备策略；
    无后端/工具链映射的档案显式退出 70 且不发布错误产物。不得把部分能力写成“已支持”。
-   S7/S8/S9 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld`、
-   `qemu-system-aarch64` 与 `qemu-system-arm`；缺失时配置失败。
+   S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld`、
+   `qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；缺失时配置失败。
    `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
    llvm-ar/aarch64-elf-ar，且不用于门禁。
 6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
@@ -123,6 +127,7 @@
 | 运行时语义核 / 格式化 / 输入 | `src/runtime/semantics.h`、`format.h`、`input.h` |
 | AArch64 后端 / 目标映射 | `src/backend/aarch64/emit.h`、`emit.c`、`platform_semihost.c`、`platform_baremetal.c`、`start.S`、`link.ld`；`src/backend/common/toolchain.h` |
 | ARM32 后端 / 平台 | `src/backend/arm32/emit.h`、`emit.c`、`emit_abi.c`、`emit_ops.c`、`rt_helpers.c`、`aeabi.c`、`platform_mps2.c`、`start.S`、`link.ld` |
+| RISC-V 32 后端 / 平台 | `src/backend/riscv32/emit.h`、`emit.c`、`emit_abi.c`、`emit_ops.c`、`rt_helpers.c`、`compiler_rt.c`、`platform_virt.c`、`semi.S`、`start.S`、`link.ld` |
 | freestanding 运行时核 / 平台缝 | `src/backend/common/runtime.c`、`rt_abi.h`、`rt_platform.h`；`src/backend/{aarch64,arm32}/platform_*.c` |
 | AOT 工具链驱动 | `src/driver/aot_driver.h`、`aot_driver.c`；`src/driver/cli.h` |
 | VM 接口 / 内存对象 / 解释器 | `src/vm/vm.h`、`src/vm/internal.h`、`src/vm/memory.c`、`src/vm/interp.c` |
@@ -133,6 +138,7 @@
 | S7 差分 / ABI / 工具链 | `tests/conformance/diff/s7_cases.py`、`s7_fuzz.py`；`tests/conformance/abi/s7_abi_cases.py`；`tests/conformance/tools/s7_toolchain_cases.py`、`s7_static_parity.py`；`tests/determinism/s7_determinism.py` |
 | S8 全量差分 / ABI / checked / 一致性 / 产物 | `tests/conformance/diff/s8_cases.py`；`tests/conformance/abi/s8_abi_cases.py`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/diff/s8_*_fuzz.py`；`tests/conformance/checked/s8_checked_cases.py`；`tests/conformance/tools/s8_static_fuzz.py`；`tests/conformance/consistency/s8_consistency_cases.py`；`tests/conformance/tools/s8_artifact_cases.py`；`tests/determinism/s8_determinism.py` |
 | S9 freestanding / ARM32 | `tests/conformance/platform/s9_baremetal_cases.py`；`tests/conformance/platform/s9_arm32_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/tools/s9_static_parity.py`；`tests/conformance/platform/s9_profiles.py`；`tests/determinism/s9_determinism.py` |
+| S10 RISC-V / 长期回归 / 发布审计 | `tests/conformance/platform/s10_riscv32_cases.py`；`tests/conformance/abi/s10_riscv32_interop.py`、`s10_reverse_interop.py`；`tests/conformance/tools/s10_static_parity.py`；`tests/conformance/longterm/s10_longterm.py`；`tests/determinism/s10_determinism.py`；`tests/tools/s10_release_audit.py` |
 | ABI 规则矩阵 / 双向互操作 | `tests/conformance/abi/README.md`；`tests/conformance/abi/s8_interop_cases.py`；`tests/conformance/abi/s9_arm32_interop.py`；`tests/conformance/abi/reverse_interop_cases.py` |
 | ABI mutation / 容量 / 软浮点审计 | `tests/tools/abi_mutation_audit.py`；`tests/tools/s9_capacity_report.py`；`tests/tools/s9_softfloat_audit.py`（手动工具，不进入 ctest） |
 | 运行时 golden | `tests/golden/w32/`、`tests/golden/w64/`、`tests/golden/run.py` |

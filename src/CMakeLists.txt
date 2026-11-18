@@ -27,6 +27,9 @@ add_library(tc_core STATIC
     backend/arm32/emit.c
     backend/arm32/emit_abi.c
     backend/arm32/emit_ops.c
+    backend/riscv32/emit.c
+    backend/riscv32/emit_abi.c
+    backend/riscv32/emit_ops.c
     backend/common/toolchain.c
     # IR representation and shape helpers.
     ir/type.c
@@ -161,12 +164,19 @@ set(TC_AARCH64_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/aarch64/link.ld
 set(TC_ARM32_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/arm32-runtime)
 set(TC_ARM32_RUNTIME_LIB ${TC_ARM32_RUNTIME_DIR}/libtc_arm32_runtime.a)
 set(TC_ARM32_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/backend/arm32/link.ld)
+set(TC_RISCV32_RUNTIME_DIR ${CMAKE_CURRENT_BINARY_DIR}/riscv32-runtime)
+set(TC_RISCV32_RUNTIME_LIB
+    ${TC_RISCV32_RUNTIME_DIR}/libtc_riscv32_runtime.a)
+set(TC_RISCV32_LINKER_SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/riscv32/link.ld)
 target_compile_definitions(tc_core PRIVATE
     TC_AARCH64_RUNTIME_LIB="${TC_AARCH64_RUNTIME_LIB}"
     TC_AARCH64_BAREMETAL_RUNTIME_LIB="${TC_AARCH64_BAREMETAL_RUNTIME_LIB}"
     TC_ARM32_RUNTIME_LIB="${TC_ARM32_RUNTIME_LIB}"
+    TC_RISCV32_RUNTIME_LIB="${TC_RISCV32_RUNTIME_LIB}"
     TC_AARCH64_LINKER_SCRIPT="${TC_AARCH64_LINKER_SCRIPT}"
     TC_ARM32_LINKER_SCRIPT="${TC_ARM32_LINKER_SCRIPT}"
+    TC_RISCV32_LINKER_SCRIPT="${TC_RISCV32_LINKER_SCRIPT}"
     TC_TARGET_ASSEMBLER="${TC_TARGET_CLANG}"
     TC_TARGET_LINKER="${TC_AARCH64_LINKER}")
 
@@ -240,5 +250,43 @@ add_custom_command(
     COMMENT "Building ARM32 freestanding runtime archive"
     VERBATIM)
 add_custom_target(tc_arm32_runtime ALL DEPENDS ${TC_ARM32_RUNTIME_LIB})
+
+set(TC_RISCV32_FLAGS
+    -target riscv32-unknown-elf -march=rv32imafdc -mabi=ilp32
+    -mno-relax -msmall-data-limit=0 -mstrict-align
+    -ffreestanding -nostdlib -O2 -std=c11
+    -ffp-contract=off -fno-vectorize -fno-slp-vectorize
+    -fno-stack-protector)
+tc_compile_runtime_objects(TC_RISCV32_COMMON_OBJECTS
+    ${TC_RISCV32_RUNTIME_DIR}/common ${TC_RISCV32_FLAGS})
+tc_compile_runtime_member(TC_RISCV32_PLATFORM
+    ${TC_RISCV32_RUNTIME_DIR}/platform_virt.o
+    backend/riscv32/platform_virt.c ${TC_RISCV32_RUNTIME_DIR}/common
+    ${TC_RISCV32_FLAGS})
+tc_compile_runtime_member(TC_RISCV32_HELPERS
+    ${TC_RISCV32_RUNTIME_DIR}/rt_helpers.o backend/riscv32/rt_helpers.c
+    ${TC_RISCV32_RUNTIME_DIR}/common ${TC_RISCV32_FLAGS})
+tc_compile_runtime_member(TC_RISCV32_COMPILER_RT
+    ${TC_RISCV32_RUNTIME_DIR}/compiler_rt.o backend/riscv32/compiler_rt.c
+    ${TC_RISCV32_RUNTIME_DIR}/common ${TC_RISCV32_FLAGS})
+tc_compile_runtime_member(TC_RISCV32_SEMI
+    ${TC_RISCV32_RUNTIME_DIR}/semi.o backend/riscv32/semi.S
+    ${TC_RISCV32_RUNTIME_DIR}/common ${TC_RISCV32_FLAGS})
+tc_compile_runtime_member(TC_RISCV32_START
+    ${TC_RISCV32_RUNTIME_DIR}/start.o backend/riscv32/start.S
+    ${TC_RISCV32_RUNTIME_DIR}/common ${TC_RISCV32_FLAGS})
+add_custom_command(
+    OUTPUT ${TC_RISCV32_RUNTIME_LIB}
+    COMMAND ${TC_LLVM_ARCHIVER} rcs ${TC_RISCV32_RUNTIME_LIB}
+            ${TC_RISCV32_COMMON_OBJECTS} ${TC_RISCV32_PLATFORM}
+            ${TC_RISCV32_HELPERS} ${TC_RISCV32_COMPILER_RT}
+            ${TC_RISCV32_SEMI} ${TC_RISCV32_START}
+    DEPENDS ${TC_RISCV32_COMMON_OBJECTS} ${TC_RISCV32_PLATFORM}
+            ${TC_RISCV32_HELPERS} ${TC_RISCV32_COMPILER_RT}
+            ${TC_RISCV32_SEMI} ${TC_RISCV32_START}
+    COMMENT "Building RISC-V 32 freestanding runtime archive"
+    VERBATIM)
+add_custom_target(tc_riscv32_runtime ALL
+    DEPENDS ${TC_RISCV32_RUNTIME_LIB})
 
 add_subdirectory(driver)

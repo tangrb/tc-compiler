@@ -16,15 +16,17 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G7 | S7 AArch64 subset backend, toolchain and differential | **PASS** | [G7](TC-G7门禁报告-0.0.46.md) |
 | G8 | S8 full semantics, runtime and full differential | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
 | G9 | S9 freestanding/bare metal and 32-bit backend | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
+| G10 | S10 multi-target expansion and long-term regression | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 
-**Current status**: G9 passed and S10 is allowed. The front end, CT/IR, runtime
-semantic core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32
-backend, the freestanding target runtime core with the
-`aarch64-baremetal`/`arm32-baremetal` platform instances, all four device
-policies, checked build, bidirectional C-caller/TC-caller AAPCS64/AAPCS32
-interoperability, the full differential suite and 32/64 profile isolation are
-implemented. Coverage is
-636/636; every design §12 item has a suite mapping.
+**Current status**: G10 passed and the 0.0.46 stage exit is complete. The front
+end, CT/IR, runtime semantic core, reference VM, the full W=64 AArch64 backend,
+the W=32 ARM32 backend, the W=32 RISC-V `riscv32-baremetal` backend, the
+freestanding target runtime core with the
+`aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform instances,
+all four device policies, checked build, bidirectional C-caller/TC-caller
+AAPCS64/AAPCS32/RISC-V ILP32 interoperability, the full differential suite,
+32/64 profile isolation, the long-term regression corpus and the release audit
+are implemented. Coverage is 636/636; every design §12 item has a suite mapping.
 
 Reproduce:
 
@@ -66,6 +68,13 @@ python3 tests/tools/s9_softfloat_audit.py --check
 python3 tests/conformance/tools/s9_static_parity.py --check
 python3 tests/conformance/platform/s9_profiles.py --check
 python3 tests/determinism/s9_determinism.py --check
+python3 tests/conformance/platform/s10_riscv32_cases.py --check
+python3 tests/conformance/abi/s10_riscv32_interop.py --check
+python3 tests/conformance/abi/s10_reverse_interop.py --check
+python3 tests/conformance/tools/s10_static_parity.py --check
+python3 tests/conformance/longterm/s10_longterm.py --check
+python3 tests/determinism/s10_determinism.py --check
+python3 tests/tools/s10_release_audit.py --check
 python3 tests/golden/validate.py
 python3 tests/golden/run.py build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check

@@ -16,7 +16,7 @@ kept; historical implementation and tools live in git tags.
   input) and the reference VM (five regions, objects/field sub-objects, pointer
   states, all 51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics); 32/64
   profiles, with the VM able to execute `aarch64-linux-user`, `aarch64-baremetal`,
-  `arm32-baremetal` and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/
+  `arm32-baremetal`, `riscv32-baremetal` and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/
   float/conversion, pointers/memory/struct, all 51 opcodes, AAPCS64 composites/HFA/
   large by-reference composites and indirect returns, `fnptr`/`call_indirect`,
   multi-size and unaligned access, checked build); the freestanding target runtime
@@ -26,14 +26,20 @@ kept; historical implementation and tools live in git tags.
   32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500, AAPCS32/ILP32 softfp, an
   independent ARM32 backend for all 51 opcodes, `int64` helpers, software binary64,
   unaligned
-  access, all four device policies and qemu-system-arm execution); reset entry,
-  region bases, static `.data`, ELF artifacts with ICF disabled and clang/lld
+  access, all four device policies and qemu-system-arm execution); the second
+  32-bit target `riscv32-baremetal` (RV32IMAFDC, ILP32 soft-float ABI, an
+  independent RISC-V backend for all 51 opcodes, `__divdi3`/`__udivdi3` 64-bit
+  helpers, NS16550A UART0 stdout/framed stdin, a semihosting exit record, the
+  SiFive test finisher and qemu-system-riscv32 virt); reset entry, region
+  bases, static `.data`, ELF/flat artifacts with ICF disabled and clang/lld
   driving; the full VM↔AOT differential/ABI/consistency/artifact/determinism
-  suites, bidirectional C-caller/TC-caller AAPCS64/AAPCS32 interoperability,
-  32/64 profile isolation and generated ABI/layout/memory/float fuzz suites.
-- **Not implemented**: later targets such as RISC-V and the optional optimization
-  pipeline (SSA/regalloc/inlining); the 0.0.46 baseline stays zero-pass.
-- Gates: G0–G9 PASS; **G9 allows S10**. See [gate status](docs/gates/README.en.md).
+  suites, bidirectional C-caller/TC-caller AAPCS64/AAPCS32/RISC-V ILP32
+  interoperability, 32/64 profile isolation, the S10 long-term regression
+  corpus and release audit, and generated ABI/layout/memory/float fuzz suites.
+- **Not implemented**: the optional optimization pipeline (SSA/regalloc/
+  inlining); the 0.0.46 baseline stays zero-pass.
+- Gates: G0–G10 PASS; **G10 completes the 0.0.46 stage exit**. See
+  [gate status](docs/gates/README.en.md).
 
 ## Documents
 
@@ -67,7 +73,8 @@ src/                  0.0.46 implementation
   backend/            common (target-neutral freestanding runtime core/target
                       description); aarch64 (full backend + semihosting/PL011
                       platform instances); arm32 (Cortex-M7 backend + MPS2
-                      platform instance); riscv32 later
+                      platform instance); riscv32 (RISC-V 32 backend + QEMU
+                      virt platform instance)
   driver/             tc-vm / tc-aot CLI and AOT driver
 tests/                L0/L1/L2, L3/L4 conformance, harness, traceability, golden, determinism
 ```
@@ -80,9 +87,9 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The S7/S8/S9 differential/toolchain tests require `clang`, `llvm-ar` (or
-`aarch64-elf-ar`), `ld.lld`, `qemu-system-aarch64` and `qemu-system-arm` by
-default; configuration fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
+The S7/S8/S9/S10 differential/toolchain tests require `clang`, `llvm-ar` (or
+`aarch64-elf-ar`), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
+`qemu-system-riscv32` by default; configuration fails when they are missing. `-DTC_ENABLE_AOT_TESTS=OFF` only skips the
 lld/qemu-dependent ctest entries; building the AArch64 runtime still requires
 clang and llvm-ar/aarch64-elf-ar, and this is not a gate build. Tools
 currently support:
@@ -103,15 +110,17 @@ currently support:
   stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf`/`--emit=flat` with
   `--output=<path>` produce `.s`, an ELF relocatable or an ELF executable;
   `--checked` produces a checked build and `--opt=O0|O2` stays the zero-pass
-  baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal` or
-  `arm32-baremetal` (`w32` is a VM-only static profile), and
+  baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal`,
+  `arm32-baremetal` or `riscv32-baremetal` (`w32` is a VM-only static profile), and
   `--device=reject|read|readwrite|volatile` overrides the platform instance's
   device policy. A profile without a backend/toolchain mapping exits 70 without
   publishing a wrong artifact.
 - AOT platform instances: `aarch64-linux-user` uses qemu-system-aarch64 +
   semihosting; `aarch64-baremetal` uses PL011 UART0 (stdout/stdin)/UART1 + PSCI;
   `arm32-baremetal` uses qemu-system-arm MPS2 AN500 (semihosting stdout, CMSDK
-  UART0 exit record). A qemu-user/Linux-user runtime is not on the gate path;
+  UART0 exit record); `riscv32-baremetal` uses qemu-system-riscv32 virt
+  (NS16550A UART0 stdout/stdin, a semihosting exit record and the SiFive test
+  finisher). A qemu-user/Linux-user runtime is not on the gate path;
   differential tests compare program stdout, the first trap code and the exit
   policy, always within one profile.
 
@@ -119,7 +128,8 @@ Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal
 `TC_ERR_OUT_OF_MEMORY`, never a language diagnostic. Documented limits: 4 MiB source,
 16 KiB token, 256 type/block nesting levels; exceeding them returns
 `tc_error_internal` (exit 71). Built-in profiles define their frame region/stack
-(default `D`: 512 hosted, 256 `aarch64-baremetal`/`w32`, 32 `arm32-baremetal`);
+(default `D`: 512 hosted, 256 `aarch64-baremetal`/`w32`,
+32 `arm32-baremetal`, 64 `riscv32-baremetal`);
 exhausting the region with static frame footprints is an implementation error
 (exit 71), not a language diagnostic. Target/ABI/region and runtime-seam
 conventions are in [src/CONTRACTS.md](src/CONTRACTS.md); contract and test

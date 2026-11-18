@@ -263,8 +263,10 @@ def check_cli(tmp: Path, failures: list[str]) -> None:
     if result.returncode != 0 or b"--emit=asm|obj|elf|flat" not in result.stdout:
         failures.append("cli: --help does not document the AOT options")
     result = run([tt, "--version"])
-    if result.returncode != 0 or b"AArch64 backend" not in result.stdout:
-        failures.append("cli: --version does not identify the AArch64 backend")
+    if result.returncode != 0 or b"native backends" not in result.stdout or \
+            b"0.0.46" not in result.stdout:
+        failures.append(
+            "cli: --version does not identify the native backends and version")
 
 
 def main() -> int:

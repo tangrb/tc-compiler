@@ -196,6 +196,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
     if (strcmp(options->profile_name, "aarch64-linux-user") != 0 &&
         strcmp(options->profile_name, "aarch64-baremetal") != 0 &&
         strcmp(options->profile_name, "arm32-baremetal") != 0 &&
+        strcmp(options->profile_name, "riscv32-baremetal") != 0 &&
         strcmp(options->profile_name, "w32") != 0) {
         fprintf(stderr, "%s: unknown profile '%s'\n", tool_name, options->profile_name);
         return TC_CLI_PARSE_ERROR;

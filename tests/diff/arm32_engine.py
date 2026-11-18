@@ -74,6 +74,10 @@ def qemu_aarch64_path() -> str:
     return _tool("qemu-system-aarch64", "TC_AOT_QEMU_SYSTEM")
 
 
+def qemu_riscv32_path() -> str:
+    return _tool("qemu-system-riscv32", "TC_AOT_QEMU_SYSTEM_RISCV32")
+
+
 def runtime_archive(width: int, baremetal: bool = False) -> Path:
     driver = Path(tc_aot_path()).resolve()
     build_src = driver.parent.parent
@@ -82,6 +86,12 @@ def runtime_archive(width: int, baremetal: bool = False) -> Path:
     name = ("libtc_aarch64_baremetal_runtime.a" if baremetal
             else "libtc_aarch64_runtime.a")
     return build_src / "aarch64-runtime" / name
+
+
+def runtime_archive_riscv32() -> Path:
+    driver = Path(tc_aot_path()).resolve()
+    build_src = driver.parent.parent
+    return build_src / "riscv32-runtime" / "libtc_riscv32_runtime.a"
 
 
 @dataclass
@@ -244,6 +254,43 @@ def run_aarch64_baremetal_elf(elf: Path, stdin: bytes,
     )
 
 
+def run_riscv32_elf(elf: Path, stdin: bytes, work: Path) -> Observation:
+    frame = b"TCINTCIN" + struct.pack("<Q", len(stdin)) + stdin
+    argv = [
+        qemu_riscv32_path(),
+        "-M", "virt",
+        "-cpu", "rv32",
+        "-m", "256M",
+        "-bios", "none",
+        "-display", "none",
+        "-monitor", "none",
+        "-serial", "stdio",
+        "-semihosting",
+        "-kernel", str(elf),
+    ]
+    try:
+        proc = subprocess.run(argv, input=frame, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, timeout=120)
+    except subprocess.TimeoutExpired as exc:
+        raise CaseError(
+            f"qemu-system-riscv32 timed out for {elf}; "
+            f"stdout={exc.stdout!r}") from exc
+    text = proc.stderr.decode("utf-8", "replace")
+    try:
+        status, trap = _parse_exit_record(text)
+    except CaseError as exc:
+        raise CaseError(f"{exc}; qemu stdout={proc.stdout!r} "
+                        f"stderr={proc.stderr!r}") from exc
+    return Observation(
+        stdout=proc.stdout,
+        trap=trap,
+        exit=status,
+        stderr=text,
+        diagnostic=text,
+        command=argv,
+    )
+
+
 def run_case(case: Case, profile: str, work: Path) -> tuple[Observation,
                                                            Observation,
                                                            Observation]:
@@ -264,6 +311,8 @@ def run_case(case: Case, profile: str, work: Path) -> tuple[Observation,
         aot = run_arm32_elf(output, case.stdin, work)
     elif profile == "aarch64-baremetal":
         aot = run_aarch64_baremetal_elf(output, case.stdin, work)
+    elif profile == "riscv32-baremetal":
+        aot = run_riscv32_elf(output, case.stdin, work)
     else:
         raise CaseError(f"unsupported S9 profile {profile}")
     return vm, aot, build

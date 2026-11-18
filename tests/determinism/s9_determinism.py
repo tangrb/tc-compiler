@@ -93,6 +93,8 @@ def execute(profile: str, elf: Path, stdin: bytes, work: Path):
     work.mkdir(parents=True, exist_ok=True)
     if profile == "arm32-baremetal":
         return engine.run_arm32_elf(elf, stdin, work)
+    if profile == "riscv32-baremetal":
+        return engine.run_riscv32_elf(elf, stdin, work)
     return engine.run_aarch64_baremetal_elf(elf, stdin, work)
 
 
@@ -126,17 +128,16 @@ def check_profile(profile: str, failures: list[str]) -> None:
             failures.append(
                 f"{CASE_ID}: {profile}: determinism program exited "
                 f"{observations[0][2]} trap {observations[0][1]}")
-        if profile == "arm32-baremetal":
-            checked = emit(root, directory / "checked1.s", profile,
-                           "--checked")
-            checked2 = emit(root, directory / "checked2.s", profile,
-                            "--checked")
-            if checked != checked2:
-                failures.append(
-                    f"{CASE_ID}: {profile}: repeated checked .s differs")
-            if checked == first:
-                failures.append(
-                    f"{CASE_ID}: {profile}: checked .s equals release .s")
+        checked = emit(root, directory / "checked1.s", profile,
+                       "--checked")
+        checked2 = emit(root, directory / "checked2.s", profile,
+                        "--checked")
+        if checked != checked2:
+            failures.append(
+                f"{CASE_ID}: {profile}: repeated checked .s differs")
+        if checked == first:
+            failures.append(
+                f"{CASE_ID}: {profile}: checked .s equals release .s")
     finally:
         shutil.rmtree(directory, ignore_errors=True)
 
