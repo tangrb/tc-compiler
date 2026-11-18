@@ -1,0 +1,10 @@
+id: TC-RT-IO-0017
+profile: w64
+source: root.tc
+spec: "§11.1 committed stdout bytes are retained when a later instruction traps inside a called frame -> TC_RE_DIV_ZERO"
+kind: run
+expect:
+  stdout_hex: "3131310a"
+  trap: TC_RE_DIV_ZERO
+  exit: 1
+  termination: trap

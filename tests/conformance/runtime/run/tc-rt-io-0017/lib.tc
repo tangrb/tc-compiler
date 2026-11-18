@@ -1,0 +1,6 @@
+#lib
+public func crash() int32 then
+var z: int32 = copy int32, 0
+var r: int32 = div int32, 1, z
+_ = return r
+end

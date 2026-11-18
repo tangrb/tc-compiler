@@ -342,9 +342,10 @@ def check_artifacts(tmp: Path, failures: list[str]) -> None:
 
 
 def check_implementation_limits(tmp: Path, failures: list[str]) -> None:
-    """The profile static region bounds both tools; exceeding it is an
-    implementation error (exit 71), not a language diagnostic, and publishes no
-    artifact.  A large but in-budget static object still works."""
+    """The documented implementation limits are implementation errors (exit
+    71), not language diagnostics, in both tools: the profile static region,
+    256 block/type nesting levels, a 16 KiB token and a 4 MiB source file.
+    Each boundary value itself still compiles and runs."""
     directory = tmp / "limits"
     directory.mkdir()
     lib = """#lib
@@ -392,6 +393,82 @@ _ = writeln int32, s.b
             "expected 71")
     if bad_elf.exists():
         failures.append("limits: oversized static object published an artifact")
+
+    def vm(source_path: Path) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [engine.tc_vm_path(), "--profile=aarch64-linux-user",
+             f"--include={directory}", str(source_path)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+
+    def aot_asm(source_path: Path, out: Path) -> subprocess.CompletedProcess:
+        return aot(source_path, directory, "--emit=asm", f"--output={out}")
+
+    def expect_run(name: str, text: str, expected: bytes) -> None:
+        path = write(directory, f"{name}.tc", text)
+        proc = vm(path)
+        if proc.returncode != 0 or proc.stdout != expected:
+            failures.append(
+                f"limits: {name} boundary failed on the VM "
+                f"(exit {proc.returncode}, stdout {proc.stdout!r})")
+        out = directory / f"{name}.s"
+        proc = aot_asm(path, out)
+        if proc.returncode != 0:
+            failures.append(
+                f"limits: {name} boundary failed on the backend "
+                f"(exit {proc.returncode})")
+
+    def expect_impl_error(name: str, text: str) -> None:
+        path = write(directory, f"{name}.tc", text)
+        proc = vm(path)
+        if proc.returncode != 71:
+            failures.append(
+                f"limits: {name} VM exit {proc.returncode}, expected 71")
+        out = directory / f"{name}.s"
+        proc = aot_asm(path, out)
+        if proc.returncode != 71:
+            failures.append(
+                f"limits: {name} AOT exit {proc.returncode}, expected 71")
+        if out.exists():
+            failures.append(f"limits: {name} published an artifact")
+
+    # 256 simultaneously open blocks are allowed; 257 exceed the nesting limit.
+    nest_ok = ("#program\n" + "unsafe then\n" * 256 +
+               "var x: int32 = copy int32, 7\n" +
+               "_ = writeln int32, x\n" + "end\n" * 256)
+    nest_bad = ("#program\n" + "unsafe then\n" * 257 +
+                "var x: int32 = copy int32, 7\n" +
+                "_ = writeln int32, x\n" + "end\n" * 257)
+    expect_run("nest_ok", nest_ok, b"7\n")
+    expect_impl_error("nest_bad", nest_bad)
+
+    # A 256-level ptr chain is allowed; a 257-level chain exceeds the limit.
+    chain = "ptr<" * 256 + "int32" + ">" * 256
+    typ_ok = ("#program\nvar p: " + chain + " = copy " + chain +
+              ", nullptr\n_ = writeln int32, 7\n")
+    chain_bad = "ptr<" * 257 + "int32" + ">" * 257
+    typ_bad = ("#program\nvar p: " + chain_bad + " = copy " + chain_bad +
+               ", nullptr\n_ = writeln int32, 7\n")
+    expect_run("typ_ok", typ_ok, b"7\n")
+    expect_impl_error("typ_bad", typ_bad)
+
+    # A 16384-byte identifier is allowed; a 16385-byte token exceeds the
+    # limit, as does a pathological float digit string.
+    ident = "v" * 16384
+    expect_run("tok_ok",
+               f"#program\nvar {ident}: int32 = copy int32, 7\n"
+               f"_ = writeln int32, {ident}\n", b"7\n")
+    expect_impl_error("tok_bad",
+                      "#program\nvar " + "v" * 16385 + ": int32 = copy int32, 7\n")
+    expect_impl_error("float_bad",
+                      "#program\nvar x: float64 = 1." + "0" * 16390 + "\n")
+
+    # A source file of exactly 4 MiB is allowed; one byte more is an
+    # implementation error detected before lexing.
+    base = "#program\nvar x: int32 = copy int32, 7\n_ = writeln int32, x\n"
+    body = base[len("#program\n"):]
+    pad = 4194304 - len(base)
+    expect_run("src_ok", "#program\n" + " " * pad + body, b"7\n")
+    expect_impl_error("src_bad", "#program\n" + " " * (pad + 1) + body)
 
 
 def main() -> int:

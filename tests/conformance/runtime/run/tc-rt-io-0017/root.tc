@@ -1,0 +1,4 @@
+#program
+import lib
+_ = writeln int32, 111
+_ = call lib.crash

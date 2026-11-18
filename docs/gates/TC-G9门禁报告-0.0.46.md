@@ -17,7 +17,7 @@ ELF/flat 产物；四设备策略、退出策略、checked build 与 32/64 分�
 | G9 准则 | 证据 | 结论 |
 | --- | --- | --- |
 | freestanding 构建/运行门禁通过；符号审计无 libc | `conformance.s9_baremetal`：aarch64-baremetal ELF/区/符号/无未解析符号/无动态段/无 `INTERP`/无 semihosting、UART0 输出与输入、trap、静态 `.data` 字节、四设备策略、ELF/flat；`conformance.s9_arm32`：ARM32 ELF 头/入口/符号/无动态依赖/无 libc 导入；两个目标运行时均由 `-ffreestanding -nostdlib` 构建并链接 | 通过 |
-| 32 位目标选定并有 ABI/后端实现；32 位 ABI/语义套件通过 | 目标 `arm32-baremetal`（Cortex-M7/AAPCS32-ILP32，triple `thumbv7em-none-eabihf`，qemu-system-arm MPS2 AN500）记录于 `src/CONTRACTS.md`；`conformance.s9_arm32` 的 29 个固定语义/ABI 用例与 270 个 S6/S8 同档案语料全部 VM↔AOT 一致；`conformance.s9_arm32_interop` 以 clang 独立 AAPCS32 调用方通过 14 个复合/64 位/浮点/窄值用例；`aot.unit` 与 `conformance.s9_static_parity` 覆盖发射形态与静态一致 | 通过 |
+| 32 位目标选定并有 ABI/后端实现；32 位 ABI/语义套件通过 | 目标 `arm32-baremetal`（Cortex-M7/AAPCS32-ILP32，triple `thumbv7em-none-eabihf`，qemu-system-arm MPS2 AN500）记录于 `src/CONTRACTS.md`；`conformance.s9_arm32` 的 29 个固定语义/ABI 用例与 276 个 S6/S8 同档案语料全部 VM↔AOT 一致；`conformance.s9_arm32_interop` 以 clang 独立 AAPCS32 调用方通过 14 个复合/64 位/浮点/窄值用例；`aot.unit` 与 `conformance.s9_static_parity` 覆盖发射形态与静态一致 | 通过 |
 | 32/64 分档案 golden 与差分隔离 | `conformance.s9_profiles` 钉扎 §13.2.2 的 `sizeof`/字面量范围/`bitcast`/`trunc` 差异；`conformance.s9_static_parity` 分别在 `arm32-baremetal` 与 `aarch64-baremetal` 下比较 VM/AOT 首诊，跨档案不比较；`tests/golden/w32` 与 `w64` 分别执行；所有 S9 差分只比较同一档案 | 通过 |
 | 四种设备策略、退出策略、UART/heap/trap 全部覆盖 | `conformance.s9_baremetal` 的 ELF/flat 产物审计与 reject/read/readwrite/volatile 矩阵（普通/volatile 读与写）与退出记录；PL011 UART0/UART1 分离；4000 位前导零 token 经 freestanding arena（`TC-ARM32-S9-0021`、bare-metal 输入用例）；必选 trap 与 checked build 在 ARM32 上执行（`TC-ARM32-S9-0014`…`0019`）；8 MiB/128 KiB 运行时 arena | 通过 |
 | 32 位 `int64`/`float64` 辅助与未对齐访问用例通过 | `conformance.s9_arm32` 覆盖 `int64`/`uint64` 乘除/移位/比较、binary64 算术/异常/格式化、32 位 `usize`/`isize`/`ptrdiff`/`memmove`/`n×sizeof T`；ARM EABI `__aeabi_uldivmod`/`__aeabi_ldivmod`/内存辅助由独立 `aeabi` 实现；未对齐 `int64`/`float64` 字段访问经共享对象/运行时路径 | 通过 |
@@ -26,7 +26,7 @@ ELF/flat 产物；四设备策略、退出策略、checked build 与 32/64 分�
 ## 覆盖与测试
 
 - 全量 `ctest`：58/58（Debug、Release、ASan+UBSan）。
-- S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（29 固定 + 270 语料）、
+- S9 套件：`conformance.s9_baremetal`、`conformance.s9_arm32`（29 固定 + 276 语料）、
   `conformance.s9_arm32_interop`（14）、`conformance.s9_static_parity`
   （1033 源 × 2 档案）、`conformance.s9_profiles`（7）、`determinism.s9`。
 - 覆盖矩阵：636/636；设计 §12 十五项均有套件映射（第 4/7/14/15 项纳入 S9 用例）。
@@ -58,6 +58,14 @@ python3 tests/tools/docs_cleanup_check.py
 
 ## 补充验证（G9 后）
 
+- 运行时与边界覆盖扩展：S6 运行时语料 115→118（§11.1 已提交 stdout 字节在调用帧内
+  trap 时保留、§6.14 readonly 矩阵——unsafe 写穿/兄弟字段/整块替换/readonly
+  ptr 字段所指对象/副本对象可写/参数对象字段写 → `TC_RE_WRITE_PROTECTED`、
+  §6.7 W=64 未对齐 int32/float64 访问与字节走私读回），S8 差分 155→158 且
+  全部 VM↔AOT 一致，checked 合法集 102→105，ARM32 语料 270→276。
+  实现上限边界在 `s8_artifact_cases` 双工具下钉扎：256 层块/类型嵌套合法而
+  257 层退出 71、16384 字节 token 合法而 16385 字节（含病态 float 数字串）
+  退出 71、4 MiB 源文件合法而超出 1 字节退出 71 且不发布产物。
 - 对抗覆盖扩展：S6 运行时语料 110→115（bool 非规范字节经 `memmove` 走私与规范化、
   `ptrdiff(null,null)=0`、悬垂 `ptrdiff`/比较按原地址、模块实例三导入方共享、
   同名不同路径模块实例分离），S8 差分 150→155 且全部 VM↔AOT 一致，checked 38→39

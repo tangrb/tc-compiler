@@ -1,0 +1,30 @@
+#program
+struct S then
+var c: int64
+end
+struct T then
+var c: int64
+var d: int64
+end
+var s: S = make S, 11259375
+var ps: ptr<int64> = addr int64, s.c
+unsafe then
+var b: ptr<int8> = bitcast ptr<int8>, ps
+var o: ptr<int8> = ptradd int8, b, 1
+var p32: ptr<int32> = bitcast ptr<int32>, o
+_ = store int32, p32, 287454020
+var v: int32 = load int32, p32
+var w: int64 = load int64, ps
+end
+_ = writeln int32, v
+_ = writeln int64, w
+var t: T = make T, 1, 2
+var pt: ptr<int64> = addr int64, t.c
+unsafe then
+var b2: ptr<int8> = bitcast ptr<int8>, pt
+var o2: ptr<int8> = ptradd int8, b2, 2
+var p64: ptr<float64> = bitcast ptr<float64>, o2
+_ = store float64, p64, 2.5
+var f: float64 = load float64, p64
+end
+_ = writeln float64, f

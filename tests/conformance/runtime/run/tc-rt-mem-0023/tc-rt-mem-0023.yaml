@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0023
+profile: w64
+source: root.tc
+spec: "§6.7 unaligned multi-byte access at byte-offset addresses: an int32 store at +1 inside an int64 object and the resulting little-endian byte smear, a float64 store/load at +2"
+kind: run
+expect:
+  stdout_hex: "3238373435343032300a37333538383232393335390a322e350a"
+  trap: null
+  exit: 0
+  termination: normal
