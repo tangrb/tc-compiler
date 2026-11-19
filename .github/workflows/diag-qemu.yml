@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang llvm qemu-system-arm python3
+          sudo apt-get install -y -qq clang llvm lld qemu-system-arm python3
 
       - name: QEMU version
         run: qemu-system-aarch64 --version | head -2
