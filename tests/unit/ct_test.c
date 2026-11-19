@@ -5,6 +5,9 @@
  * cast/trunc/bitcast, exact floating `mod`, sizeof/layout and the 32/64 word
  * width matrix.  The case ids are referenced by the coverage matrix.
  */
+/* mkdtemp is BSD, unlink is POSIX; strict ISO C hides both. */
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

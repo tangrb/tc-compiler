@@ -6,6 +6,9 @@
  * No qemu or linker is required; end-to-end behavior is covered by the L5/L6
  * suites.
  */
+/* unlink is POSIX and hidden in strict ISO C mode. */
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

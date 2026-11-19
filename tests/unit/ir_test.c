@@ -12,6 +12,9 @@
  *
  * Case ids are referenced by the traceability matrix.
  */
+/* mkdtemp is BSD, unlink is POSIX; strict ISO C hides both. */
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

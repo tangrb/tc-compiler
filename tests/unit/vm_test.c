@@ -7,6 +7,9 @@
  * expectation is derived from the standard clauses cited in the section
  * comments, never from implementation output.
  */
+/* mkdtemp is BSD, unlink is POSIX; strict ISO C hides both. */
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

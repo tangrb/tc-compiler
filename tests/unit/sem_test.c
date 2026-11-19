@@ -11,6 +11,9 @@
  *
  * The case ids are referenced by tests/traceability/coverage.generated.json.
  */
+/* mkdtemp is BSD; mkstemp/unlink are POSIX; strict ISO C hides them. */
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

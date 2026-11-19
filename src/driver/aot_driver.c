@@ -5,6 +5,10 @@
  * front end authoritative: it only runs after LEX/SYN/IMPORT/SEM/CT and IR
  * finalization succeeded, and it never reports a language diagnostic.
  */
+/* fork/exec/execvp/waitpid are POSIX; mkstemps is a GNU extension; both are
+ * hidden in strict ISO C mode. */
+#define _GNU_SOURCE
+
 #include "driver/aot_driver.h"
 
 #include <errno.h>
