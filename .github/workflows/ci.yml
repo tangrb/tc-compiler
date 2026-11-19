@@ -53,4 +53,7 @@ jobs:
         run: cmake --build build -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 
       - name: Run full test suite
-        run: ctest --test-dir build --output-on-failure
+        # The 30000-instruction far-branch case peaks near 5 GB RSS during the
+        # AOT build; hosted runners are killed by macOS or lose the agent
+        # under that pressure. It still runs in local full verification.
+        run: ctest --test-dir build --output-on-failure -E conformance.s10_long_branch
