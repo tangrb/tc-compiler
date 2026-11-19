@@ -2,6 +2,9 @@ name: diag-qemu
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["tc-0.0.*"]
+    paths: [".github/workflows/diag-qemu.yml"]
 
 jobs:
   probe-2404:
