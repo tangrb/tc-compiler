@@ -182,3 +182,53 @@ jobs:
           u = src_dir / "uart1.txt"
           print(f"  uart1: {u.read_text()[:120]!r}" if u.exists() else "  uart1: (none)", flush=True)
           EOF
+
+  asan-2604-ovf:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang llvm lld qemu-system-arm qemu-system-riscv
+
+      - name: Build with sanitizers
+        run: |
+          cmake -S . -B build-asan -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-asan -j "$(nproc)"
+
+      - name: Reproduce oversized frame exit
+        run: |
+          python3 - <<'EOF'
+          import pathlib, subprocess, tempfile
+          d = pathlib.Path(tempfile.mkdtemp(prefix="tc-ovf-"))
+          (d / "lib.tc").write_text(
+              "#lib\npublic struct Big then\n"
+              "var a: int32 @padding(200000)\nend\n"
+              "public func f() int32 then\n"
+              "var b: Big = make Big, 7\n_ = return b.a\nend\n",
+              encoding="utf-8")
+          (d / "root.tc").write_text(
+              "#program\nimport lib\nvar r: int32 = call lib.f\n"
+              "_ = writeln int32, r\n", encoding="utf-8")
+          aot = pathlib.Path("build-asan/src/driver/tc-aot").resolve()
+          p = subprocess.run(
+              [str(aot), "--profile=riscv32-baremetal", "--emit=elf",
+               f"--output={d}/out.elf", f"--include={d}",
+               "--ld=" + subprocess.run(["sh", "-c", "command -v ld.lld"],
+                                        capture_output=True,
+                                        text=True).stdout.strip(),
+               str(d / "root.tc")],
+              stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=240)
+          print(f"exit={p.returncode} (expected 71)", flush=True)
+          print("stdout:", flush=True)
+          for line in p.stdout.decode(errors="replace").splitlines():
+              print(f"  {line}", flush=True)
+          print("stderr:", flush=True)
+          for line in p.stderr.decode(errors="replace").splitlines():
+              print(f"  {line}", flush=True)
+          EOF
