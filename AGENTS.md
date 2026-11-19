@@ -105,9 +105,26 @@
    `tests/conformance/platform/s9_arm32_cases.py --check`、
    `tests/conformance/abi/s9_arm32_interop.py --check`、
    `tests/conformance/abi/reverse_interop_cases.py --check`、
+   `tests/tools/abi_mutation_audit.py --check`、
+   `tests/tools/s9_capacity_report.py --check`、
+   `tests/tools/s9_softfloat_audit.py --check`、
    `tests/conformance/tools/s9_static_parity.py --check`、
    `tests/conformance/platform/s9_profiles.py --check`、
-   `tests/determinism/s9_determinism.py --check`、`tests/golden/validate.py`、
+   `tests/determinism/s9_determinism.py --check`、
+   `tests/conformance/platform/s10_riscv32_cases.py --check`、
+   `tests/conformance/platform/s10_limits_cases.py --check`、
+   `tests/conformance/abi/s10_riscv32_interop.py --check`、
+   `tests/conformance/abi/s10_reverse_interop.py --check`、
+   `tests/conformance/abi/s10_abi_fuzz.py --check --seeds 8`、
+   `tests/conformance/tools/s10_static_parity.py --check`、
+   `tests/conformance/tools/s8_static_fuzz.py --check --profile=riscv32-baremetal`、
+   `tests/conformance/tools/s10_frontend_scale.py --check`、
+   `tests/conformance/checked/s10_checked_cases.py --check`、
+   `tests/conformance/platform/s10_long_branch.py --check`、
+   `tests/conformance/longterm/s10_longterm.py --check`、
+   `tests/determinism/s10_determinism.py --check`、
+   `tests/tools/s10_release_audit.py --check`、
+   `tests/golden/validate.py`、
    `tests/golden/run.py build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
    与 `tests/tools/docs_cleanup_check.py` 均通过。
 7. **提交与洁净**：以 `docs(0.0.46): ...` 提交清理结果；确认 `git status` 干净，
