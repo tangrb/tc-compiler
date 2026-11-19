@@ -1,0 +1,54 @@
+name: Feature request / 功能建议
+description: Propose a language, toolchain, or documentation improvement / 提议语言、工具链或文档改进
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Language and semantics changes must remain consistent with the current
+        TC standards reachable from the [documentation map](https://github.com/tangrb/tc-compiler/blob/master/docs/README.md).
+
+        语言与语义变更须与[文档地图](https://github.com/tangrb/tc-compiler/blob/master/docs/README.md)指向的现行标准一致。
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation / 问题与动机
+      description: What problem does this solve? Who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change / 建议方案
+      description: Syntax/semantics sketch, target/profile scope, or doc change. Link related standard sections if known.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area / 主要领域
+      options:
+        - Language / standard / 语言与标准
+        - Frontend (LEX/SEM/CT) / 前端
+        - IR / 中间表示
+        - Reference VM / 参考 VM
+        - Native backends (AArch64/ARM32/RISC-V32) / 原生后端
+        - Platforms & runtime / 平台与运行时
+        - Tests / CI
+        - Documentation / 文档
+        - Other / 其他
+    validations:
+      required: true
+  - type: checkboxes
+    id: docs
+    attributes:
+      label: Spec impact / 规范影响
+      options:
+        - label: Would require updates to the language or compiler standards / 需更新语言或编译器标准
+        - label: Docs-only / tooling-only (no language change) / 仅文档或工具（无语言变更）
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered / 已考虑的替代方案
+      description: Optional — other approaches you evaluated.
