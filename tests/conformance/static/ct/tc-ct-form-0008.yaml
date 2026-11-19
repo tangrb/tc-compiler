@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0008
+profile: common
+source: tc-ct-form-0008/root.tc
+spec: "§3.10 const 中的 bitcast 仅限数值↔数值；指针位重解释 -> CONST_FORM；置于 @unsafe 使指针 bitcast 的安全类别先通过，形态错误唯一"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0008/lib.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

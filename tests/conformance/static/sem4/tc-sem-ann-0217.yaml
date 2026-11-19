@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0217
+profile: common
+source: fixtures/tc-sem-ann-0217/root.tc
+spec: "§8.6 字面量无法定型为形参类型时 LITERAL_RANGE 优先于 ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: fixtures/tc-sem-ann-0217/lib.tc, line: 2, column: 31}
+  related: []
+  diagnostics: exactly-one

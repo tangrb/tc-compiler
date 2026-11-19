@@ -1,0 +1,4 @@
+#program
+var a: int32 = copy int32, 6
+var b: int32 = mul int32, a, 7
+_ = writeln int32, b

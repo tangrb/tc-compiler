@@ -1,0 +1,20 @@
+#program
+var b: bool = copy bool, true
+var p: ptr<bool> = addr bool, b
+var pu: ptr<uint8> = bitcast ptr<uint8>, p
+var u: uint8 = copy uint8, 2
+unsafe then
+_ = store uint8, pu, u
+end
+var x: bool = copy bool, b
+_ = writeln bool, x
+var z: bool = copy bool, false
+var pz: ptr<bool> = addr bool, z
+unsafe then
+_ = store bool, pz, true
+end
+var pzu: ptr<uint8> = bitcast ptr<uint8>, pz
+unsafe then
+var byte: uint8 = load uint8, pzu
+_ = writeln uint8, byte
+end

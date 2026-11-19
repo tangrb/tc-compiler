@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0207
+profile: common
+source: fixtures/tc-sem-ann-0207/root.tc
+spec: "§8.6 @inline/@noinline 互斥 -> ANNOTATION（第二个注解）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0207/lib.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,14 @@
+#program
+import lib
+var fp: fnptr<float64, float64> = funcaddr lib.fm
+unsafe then
+var direct: float64 = call lib.fm, 1.0
+_ = writeln float64, direct
+var indirect: float64 = call_indirect fp, 1.0
+_ = writeln float64, indirect
+var own: float64 = add float64, 1.0, 1.0e16
+var own2: float64 = sub float64, own, 1.0e16
+_ = writeln float64, own2
+var w: float64 = call lib.wrap, 2.0
+_ = writeln float64, w
+end

@@ -1,3 +1,0 @@
-#program
-var a: int8 = 1
-var r: int8 = shl(int8, truncate, a, 1)

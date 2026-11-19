@@ -1,0 +1,4 @@
+#program
+_ = br E
+var x: int32 = copy int64, 1
+label E:

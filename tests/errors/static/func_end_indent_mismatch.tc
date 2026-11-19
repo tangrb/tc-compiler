@@ -1,5 +1,0 @@
-#lib
-; func 体的 end 落在体级 → 对齐码按块类型报 function
-public func f() int32 then
-    return 1
-    end

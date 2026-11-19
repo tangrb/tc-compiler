@@ -1,0 +1,2 @@
+#program
+var x: int8 = bitcast int8, inf

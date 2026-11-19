@@ -1,0 +1,30 @@
+#program
+var a: int32 = copy int32, 11
+var b: int32 = copy int32, 22
+var pa: ptr<int32> = addr int32, a
+var q: ptr<int32> = addr int32, a
+var e: ptr<int32> = copy ptr<int32>, pa
+var f: ptr<int32> = copy ptr<int32>, pa
+unsafe then
+e = ptradd int32, pa, 1
+f = ptrsub int32, e, 1
+_ = store int32, pa, 33
+var x: int32 = load int32, pa
+_ = writeln int32, x
+var y: int32 = load int32, f
+_ = writeln int32, y
+end
+var d: isize = ptrdiff int32, e, pa
+_ = writeln isize, d
+var r_eq: bool = ptreq int32, pa, q
+_ = writeln bool, r_eq
+var r_ne: bool = ptrne int32, pa, e
+_ = writeln bool, r_ne
+var r_lt: bool = ptrlt int32, pa, e
+_ = writeln bool, r_lt
+var r_le: bool = ptrle int32, pa, e
+_ = writeln bool, r_le
+var r_gt: bool = ptrgt int32, e, pa
+_ = writeln bool, r_gt
+var r_ge: bool = ptrge int32, e, pa
+_ = writeln bool, r_ge

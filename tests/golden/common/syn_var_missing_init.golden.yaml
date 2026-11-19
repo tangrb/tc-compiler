@@ -1,0 +1,34 @@
+id: TC-SYN-GOLD-0004
+kind: diagnostic
+profile: common
+spec: "§5.2/§14.3 var 必须带初始化器；§12.3 TC_CE_VAR_MISSING_INIT（含 static var）；§12.5.1 定位到 var 的标识符"
+source_file: syn_var_missing_init.tc
+source: |
+  #lib
+  public static var x: int32
+derivation: |
+  §5.2 requires `var` (including `static var`) to have an initializer;
+  §4.11.3 assigns TC_CE_VAR_MISSING_INIT (SYN) to a missing `=` or missing
+  initializer, and §14.3 shows `static var` uses the same initializer rule.
+  §12.5.1 places TC_CE_VAR_MISSING_INIT at the `var` identifier.
+
+  Line 2 is `public static var x: int32`: `public` 1-6, space 7, `static`
+  8-13, space 14, `var` 15-17, space 18, `x` 19.  Primary position: line 2,
+  column 19.  Exactly one diagnostic is expected (§12.1 fail-fast).  No
+  compiler was run to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: SYN
+  code: TC_CE_VAR_MISSING_INIT
+  primary:
+    line: 2
+    column: 19
+  diagnostics: exactly_one
+  related: []

@@ -1,7 +1,7 @@
-# CD — 按 v* tag 构建并发布 tc-vm / tc-aot 二进制
+# Release — v* tag 触发，构建并发布 tc-vm / tc-aot
 #
-# Linux / macOS 使用系统 gcc/clang；Windows 使用 MSYS2 UCRT64 MinGW
-# （AOT --run 依赖 gcc 风格的 host cc，不能用 MSVC）。
+# 产物按平台前缀命名（tc-vm-linux-x86_64 等），避免跨平台资产重名导致
+# release 资产元数据更新失败。
 
 name: Release
 
@@ -14,15 +14,15 @@ permissions:
   contents: write
 
 jobs:
-  build-unix:
+  build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact: linux-x86_64
-          - os: macos-latest
-            artifact: macos
+          - os: ubuntu-24.04
+            platform: linux-x86_64
+          - os: macos-15
+            platform: macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -34,68 +34,46 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake gcc
+          sudo apt-get install -y -qq clang llvm
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install cmake || true
+        run: |
+          brew install llvm
+          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+
+      - name: Verify required tools
+        run: |
+          for t in clang llvm-ar python3; do
+            if command -v "$t" >/dev/null 2>&1; then echo "OK   $t -> $(command -v "$t")"; else echo "MISS $t"; fi
+          done
 
       - name: Configure and build
         run: |
-          cmake -S . -B build
+          cmake -S . -B build -DCMAKE_C_COMPILER=clang -DTC_ENABLE_AOT_TESTS=OFF
           cmake --build build -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+
+      - name: Smoke test
+        run: |
+          ./build/src/driver/tc-vm --version
+          ./build/src/driver/tc-aot --version
 
       - name: Pack binaries
         run: |
           mkdir -p dist
-          cp build/vm/bin/tc-vm dist/tc-vm
-          cp build/aot/bin/tc-aot dist/tc-aot
-          ./dist/tc-vm --version
+          cp build/src/driver/tc-vm dist/tc-vm-${{ matrix.platform }}
+          cp build/src/driver/tc-aot dist/tc-aot-${{ matrix.platform }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tc-${{ matrix.artifact }}
-          path: dist/
-          retention-days: 14
-
-  build-windows:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up MSYS2 MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: false
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-
-      - name: Configure, build, and pack
-        shell: msys2 {0}
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=gcc
-          cmake --build build -j "$(nproc)"
-          mkdir -p dist
-          cp build/vm/bin/tc-vm.exe dist/tc-vm.exe
-          cp build/aot/bin/tc-aot.exe dist/tc-aot.exe
-          ./dist/tc-vm.exe --version
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tc-windows-x86_64
+          name: tc-${{ matrix.platform }}
           path: dist/
           retention-days: 14
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-unix, build-windows]
+    needs: build
     runs-on: ubuntu-latest
 
     steps:

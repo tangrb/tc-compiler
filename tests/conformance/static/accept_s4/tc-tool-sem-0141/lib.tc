@@ -1,0 +1,11 @@
+#lib
+public const N32: float32 = 1.40129846e-45f
+public const R32: float32 = div float32, Self.N32, 1.5f
+public const X32: int32 = cast int32, Self.R32
+public const N64: float64 = 4.9406564584124654e-324
+public const R64: float64 = div float64, Self.N64, 1.5
+public const X64: int32 = cast int32, Self.R64
+public @fast func a(@align(Self.X32) p: ptr<int32>) void then
+end
+public @fast func b(@align(Self.X64) p: ptr<int32>) void then
+end

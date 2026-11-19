@@ -1,0 +1,10 @@
+id: TC-RT-FP-0026
+profile: w64
+source: root.tc
+spec: "§2.4 decimal literal roundTiesToEven carry across a binade boundary (f64 and f32)"
+kind: run
+expect:
+  stdout_hex: "392e30303732652b31350a392e30303732652b31350a312e3637373732652b30370a312e3135323932652b31380a343834353837333139393035303635333639360a"
+  trap: null
+  exit: 0
+  termination: normal

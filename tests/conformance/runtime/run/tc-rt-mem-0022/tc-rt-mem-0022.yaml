@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0022
+profile: w64
+source: root.tc
+spec: "§6.14 readonly matrix: addr of a readonly field + store writes through in unsafe, the sibling var field stays writable, the whole value can be replaced by make, the pointee of a readonly ptr field is unaffected by the field modifier, a copied local object is writable again, and a store through a parameter object field -> TC_RE_WRITE_PROTECTED"
+kind: run
+expect:
+  stdout_hex: "35300a36300a370a34320a39390a"
+  trap: TC_RE_WRITE_PROTECTED
+  exit: 1
+  termination: trap

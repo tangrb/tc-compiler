@@ -1,0 +1,8 @@
+#program
+struct S then
+    var a: isize
+    var b: ptr<int32>
+    var c: fnptr<void>
+    var d: usize
+end
+var n: usize = sizeof S

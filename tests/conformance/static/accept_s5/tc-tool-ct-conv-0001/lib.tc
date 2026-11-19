@@ -1,0 +1,8 @@
+#lib
+public const A: int64 = cast int64, 7
+public const B: float32 = cast float32, 3.5
+public const C: int16 = trunc int16, 70000
+public const D: uint32 = bitcast uint32, 8
+public const E: float64 = bitcast float64, 4607182418800017408
+public const F: int32 = cast int32, Self.A
+public const G: int16 = trunc int16, Self.A

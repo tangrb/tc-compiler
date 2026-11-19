@@ -1,0 +1,26 @@
+id: TC-RT-GOLD-0103
+kind: run
+profile: w32
+spec: "§11.2/§13.2.1 usize range and unsigned decimal format under W=32"
+source: |
+  #program
+  var u: usize = copy usize, 4294967295
+  _ = writeln usize, u
+derivation: |
+  Under W=32 usize is 32 bits, so 4294967295 = 2^32-1 is in range and prints
+   as an unsigned decimal with no leading zero (standard §13.2.1/§11.2).
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "343239343936373239350a"
+  trap: null
+  exit: 0
+  termination: normal

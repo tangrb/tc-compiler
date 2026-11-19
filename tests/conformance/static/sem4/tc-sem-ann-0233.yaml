@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0233
+profile: common
+source: fixtures/tc-sem-ann-0233/root.tc
+spec: "§8.6/§4.6 @range 的 m.K 必须是 public const；导入 private const -> PRIVATE_ACCESS，位置为成员名并关联声明"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_ACCESS
+  primary: {file: fixtures/tc-sem-ann-0233/user.tc, line: 3, column: 33}
+  related: [{file: fixtures/tc-sem-ann-0233/base.tc, line: 2, column: 15}]
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const Z: S = make S, x: 8
+public const B: bool = eq int32, 8, 8
+public const X: int32 = Z.x
+public const Y: int32 = cast int32, Self.B
+public @fast func a(@align(Self.X) p: ptr<int32>) void then
+end
+public @fast func b(@align(Self.Y) p: ptr<int32>) void then
+end

@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0021
+profile: common
+source: op_br_literal_label.tc
+spec: "§6.15.1 分支标签操作数不是标签记号 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_br_literal_label.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

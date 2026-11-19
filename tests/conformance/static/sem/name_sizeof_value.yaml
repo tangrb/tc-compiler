@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0008
+profile: common
+source: name_sizeof_value.tc
+spec: "§6.13 sizeof 的类型参数解析到已知值名而非类型 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: name_sizeof_value.tc, line: 3, column: 23}
+  related: []
+  diagnostics: exactly-one

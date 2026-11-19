@@ -1,0 +1,10 @@
+id: TC-SEM-VOID-0002
+profile: common
+source: void_ptr.tc
+spec: "§3.5/§3.8 ptr<void> 非法 -> VOID；§12.5.1 void Token"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: void_ptr.tc, line: 2, column: 12}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0005
+profile: common
+source: fixtures/tc-sem-di-0005/root.tc
+spec: "§5.4 已有变量的 read 赋值先要求变量已初始化 -> UNINITIALIZED"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0005/root.tc, line: 5, column: 1}
+  related: []
+  diagnostics: exactly-one

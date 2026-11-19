@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0259
+profile: common
+source: fixtures/tc-sem-ann-0259/root.tc
+spec: "§12.2 #3 same-parameter annotation N error precedes the later ptr<void> type error"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0259/lib.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

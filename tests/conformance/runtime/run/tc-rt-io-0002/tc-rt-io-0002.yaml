@@ -1,0 +1,12 @@
+id: TC-RT-IO-0002
+profile: w64
+source: root.tc
+spec: "§11.3 read: leading whitespace, complete tokens, bool/float spellings"
+kind: run
+run:
+  stdin_hex: "20202d343220302e35207472756520"
+expect:
+  stdout_hex: "2d34320a302e350a747275650a"
+  trap: null
+  exit: 0
+  termination: normal

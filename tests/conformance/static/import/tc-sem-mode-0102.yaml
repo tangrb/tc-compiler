@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0102
+profile: common
+source: fixtures/tc-sem-mode-0102/root.tc
+spec: "§10.2.1 .nuw 只用于无符号整数，@fast 内 signed -> MODE"
+expect:
+  stage: SEM
+  code: TC_CE_MODE
+  primary: {file: fixtures/tc-sem-mode-0102/lib.tc, line: 3, column: 24}
+  related: []
+  diagnostics: exactly-one

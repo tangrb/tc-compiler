@@ -1,0 +1,2 @@
+#program
+_ = br_if 1.0, Missing

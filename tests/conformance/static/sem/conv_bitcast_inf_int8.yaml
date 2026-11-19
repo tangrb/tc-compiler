@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0026
+profile: common
+source: conv_bitcast_inf_int8.tc
+spec: "§6.6.3/§3.11 inf 源类型按目标位宽取 float32/64；int8 不等宽 -> BITCAST_WIDTH"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: conv_bitcast_inf_int8.tc, line: 2, column: 29}
+  related: []
+  diagnostics: exactly-one

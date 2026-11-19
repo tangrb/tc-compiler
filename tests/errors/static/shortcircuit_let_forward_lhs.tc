@@ -1,4 +1,0 @@
-#program
-; 前向 let 不按常量折叠，先由名称阶段拒绝
-var result: bool = and(bool, LATER, true)
-let LATER: bool = false

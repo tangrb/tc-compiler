@@ -1,0 +1,2 @@
+#lib
+public const BAD: float32 = div float32, 1.0f, 0.0f

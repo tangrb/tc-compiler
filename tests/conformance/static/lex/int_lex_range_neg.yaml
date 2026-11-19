@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0016
+profile: common
+source: int_lex_range_neg.tc
+spec: "§2.4 整数字面量词法值范围；§12.3 TC_CE_LITERAL_LEX_RANGE；§12.5.1 负号属于字面量时定位到 -"
+expect:
+  stage: LEX
+  code: TC_CE_LITERAL_LEX_RANGE
+  primary: {file: int_lex_range_neg.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

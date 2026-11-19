@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-SIZEOF-0002
+profile: w32
+source: tc-tool-ct-sizeof-0002/root.tc
+spec: "§3.10/§6.13/§13.2.1 w32 下 sizeof isize/usize/ptr/fnptr 为 4；结果 const、不作为诊断可观察值，接受即证明不误报"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

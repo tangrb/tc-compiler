@@ -1,4 +1,0 @@
-#program
-; 期望：null pointer dereference
-var p: ptr<int32> = nullptr
-var x: int32 = ptr_load(int32, p)

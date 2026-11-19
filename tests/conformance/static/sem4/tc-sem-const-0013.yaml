@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0013
+profile: common
+source: fixtures/tc-sem-const-0013/root.tc
+spec: "§3.10 const_expr 禁止 var 值引用；局部 const = 局部 var -> CONST_FORM（目标 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0013/lib.tc, line: 4, column: 22}
+  related: []
+  diagnostics: exactly-one

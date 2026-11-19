@@ -1,0 +1,6 @@
+#lib
+public @safe func f(p: ptr<int32>) void then
+    unsafe then
+        _ = store int32, p, 1
+    end
+end

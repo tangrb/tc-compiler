@@ -1,0 +1,36 @@
+id: TC-SYN-GOLD-0001
+kind: diagnostic
+profile: common
+spec: "§12.3 TC_CE_MISSING_END（func/struct/unsafe 缺 end）；§12.5.1 多个候选时取源位置最早者"
+source_file: syn_missing_end_earliest.tc
+source: |
+  #program
+  unsafe then
+      unsafe then
+          _ = trap
+derivation: |
+  The file ends while two `unsafe` blocks are open.  Both `unsafe` opening
+  keywords are unpaired candidates for TC_CE_MISSING_END (SYN, §12.3).
+  §12.5.1 requires the primary position to be the unpaired opening keyword,
+  and when several candidates exist, the earliest source position.
+
+  The outer `unsafe` is on line 2 at column 1; the inner one is on line 3 at
+  column 5.  The earliest candidate is therefore line 2, column 1.  The EOF
+  after the last line does not close either block.  Exactly one diagnostic is
+  expected (§12.1 fail-fast).  No compiler was run to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_END
+  primary:
+    line: 2
+    column: 1
+  diagnostics: exactly_one
+  related: []

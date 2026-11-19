@@ -1,4 +1,0 @@
-#lib
-public func extra_answer() int32 then
-    return 42
-end

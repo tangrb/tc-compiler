@@ -1,0 +1,5 @@
+#program
+_ = writeln float64, 2.5
+var infv: float64 = copy float64, inf
+var r: float64 = mod float64, infv, 2.0
+_ = writeln float64, r

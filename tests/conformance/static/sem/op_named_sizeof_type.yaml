@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0014
+profile: common
+source: op_named_sizeof_type.tc
+spec: "§6.1/§6.15.1 命名操作数只允许 call/make；sizeof 类型参数命名 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_named_sizeof_type.tc, line: 5, column: 16}
+  related: []
+  diagnostics: exactly-one

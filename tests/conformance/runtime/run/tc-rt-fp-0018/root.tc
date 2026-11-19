@@ -1,0 +1,2 @@
+#program
+var a: float64 = mul float64, 5.0e-324, 0.5

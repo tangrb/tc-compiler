@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0116
+profile: common
+source: fixtures/tc-sem-safe-0116/root.tc
+spec: "§9.3/§9.8 @safe 函数中的 ptr->int bitcast -> SAFE_VIOLATION"
+expect:
+  stage: SEM
+  code: TC_CE_SAFE_VIOLATION
+  primary: {file: fixtures/tc-sem-safe-0116/lib.tc, line: 3, column: 20}
+  related: []
+  diagnostics: exactly-one

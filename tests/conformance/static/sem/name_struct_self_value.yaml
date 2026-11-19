@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0005
+profile: common
+source: name_struct_self_value.tc
+spec: "§3.7 结构体值字段自引用 -> STRUCT_SELF_VALUE；§12.5.1 自引用字段类型 Token"
+expect:
+  stage: SEM
+  code: TC_CE_STRUCT_SELF_VALUE
+  primary: {file: name_struct_self_value.tc, line: 3, column: 12}
+  related: []
+  diagnostics: exactly-one

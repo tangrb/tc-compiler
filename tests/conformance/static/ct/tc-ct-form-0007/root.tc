@@ -1,0 +1,2 @@
+#program
+const X: int32 = read int32

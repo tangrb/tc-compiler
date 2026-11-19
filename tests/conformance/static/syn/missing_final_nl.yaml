@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0007
+profile: common
+source: missing_final_nl.tc
+spec: "§14.1/§14.3 NL 表示声明/指令结束；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（EOF）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: missing_final_nl.tc, line: 2, column: 29}
+  related: []
+  diagnostics: exactly-one

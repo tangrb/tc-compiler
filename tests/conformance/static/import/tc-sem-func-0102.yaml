@@ -1,0 +1,10 @@
+id: TC-SEM-FUNC-0102
+profile: common
+source: fixtures/tc-sem-func-0102/root.tc
+spec: "§4.6 调用导入的 private 函数 -> PRIVATE_ACCESS"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_ACCESS
+  primary: {file: fixtures/tc-sem-func-0102/root.tc, line: 3, column: 25}
+  related: [{file: fixtures/tc-sem-func-0102/lib.tc, line: 2, column: 14}]
+  diagnostics: exactly-one

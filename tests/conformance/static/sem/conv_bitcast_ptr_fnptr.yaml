@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0022
+profile: common
+source: conv_bitcast_ptr_fnptr.tc
+spec: "§3.11 bitcast 类别矩阵：ptr -> fnptr 禁止 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: conv_bitcast_ptr_fnptr.tc, line: 3, column: 43}
+  related: []
+  diagnostics: exactly-one

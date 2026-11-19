@@ -1,0 +1,10 @@
+id: TC-RT-INT-0023
+profile: w64
+source: root.tc
+spec: "§6.3 int64 wrap and wide-shift paths: neg.wrap(INT64_MIN), shl.wrap k>=n, shr k>=n returns 0 without sign extension, shr k=n-1 is arithmetic"
+kind: run
+expect:
+  stdout_hex: "2d393232333337323033363835343737353830380a300a300a2d310a"
+  trap: null
+  exit: 0
+  termination: normal

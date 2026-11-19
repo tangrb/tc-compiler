@@ -1,0 +1,4 @@
+#program
+struct S then
+    var x: S
+end

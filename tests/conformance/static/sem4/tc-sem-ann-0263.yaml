@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0263
+profile: common
+source: fixtures/tc-sem-ann-0263/root.tc
+spec: "§12.2 #3 non-integer @range placement precedes the later void parameter type error"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0263/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

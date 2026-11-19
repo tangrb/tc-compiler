@@ -1,5 +1,0 @@
-#program
-; 期望：while condition must be bool
-while add(int32, 1, 2) then
-    var x: int32 = 1
-end

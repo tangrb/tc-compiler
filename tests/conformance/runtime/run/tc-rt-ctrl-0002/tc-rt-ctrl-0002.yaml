@@ -1,0 +1,10 @@
+id: TC-RT-CTRL-0002
+profile: w64
+source: root.tc
+spec: "§6.2.8 trap -> TC_RE_TRAP; committed output is not rolled back"
+kind: run
+expect:
+  stdout_hex: "370a"
+  trap: TC_RE_TRAP
+  exit: 1
+  termination: trap

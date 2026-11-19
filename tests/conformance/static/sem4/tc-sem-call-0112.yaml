@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0112
+profile: common
+source: fixtures/tc-sem-call-0112/root.tc
+spec: "§8.8.2 void 调用只能用 `_`；作为 var 初始化器 -> VOID（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: fixtures/tc-sem-call-0112/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

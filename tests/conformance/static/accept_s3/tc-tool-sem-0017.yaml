@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0017
+profile: w64
+source: tc-tool-sem-0017/root.tc
+spec: "§8.6/§13.2.2 @align 的 N 在 64 位地址宽度内为合法 2 的幂"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

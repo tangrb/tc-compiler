@@ -1,0 +1,13 @@
+#program
+var c: bool = copy bool, false
+_ = br_if c, A
+_ = br M
+label A:
+var x: int32 = copy int32, 1
+_ = br M
+label M:
+_ = br E
+label DEAD:
+_ = write int32, noSuchName
+label E:
+_ = writeln int32, 9

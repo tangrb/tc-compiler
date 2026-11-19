@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0110
+profile: common
+source: fixtures/tc-sem-type-0110/root.tc
+spec: "§6.6 trunc 只窄化整数；浮点变量源 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-type-0110/root.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

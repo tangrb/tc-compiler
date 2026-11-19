@@ -1,0 +1,12 @@
+id: TC-RT-IO-0004
+profile: w64
+source: root.tc
+spec: "§11.3 EOF before a complete token -> TC_RE_IO"
+kind: run
+run:
+  stdin_hex: "3432"
+expect:
+  stdout_hex: ""
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

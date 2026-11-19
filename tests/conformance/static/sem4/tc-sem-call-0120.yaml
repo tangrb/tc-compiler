@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0120
+profile: common
+source: fixtures/tc-sem-call-0120/root.tc
+spec: "§8.8.2 实参检查先于接收变量类型：实参字面量错误 -> LITERAL_TYPE，不报结果类型 TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: fixtures/tc-sem-call-0120/root.tc, line: 3, column: 30}
+  related: []
+  diagnostics: exactly-one

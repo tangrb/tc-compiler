@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0003
+profile: common
+source: op_extra_operand.tc
+spec: "§6.15.1 操作数数量不符 -> OPERAND_COUNT；§12.5.1 助记符"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_extra_operand.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

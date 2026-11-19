@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0024
+profile: common
+source: op_named_funcref.tc
+spec: "§6.1/§6.15.1 funcaddr 函数操作数不得命名 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_named_funcref.tc, line: 2, column: 22}
+  related: []
+  diagnostics: exactly-one

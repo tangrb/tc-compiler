@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0004
+profile: w64
+source: conv_bitcast_u32_usize_w64.tc
+spec: "§13.2.2 bitcast usize<->uint32 在 64 位位宽不等 -> BITCAST_WIDTH"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: conv_bitcast_u32_usize_w64.tc, line: 3, column: 33}
+  related: []
+  diagnostics: exactly-one

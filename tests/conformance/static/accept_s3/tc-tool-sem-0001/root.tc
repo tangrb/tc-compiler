@@ -1,0 +1,12 @@
+#program
+struct S then
+    var a: int32
+    readonly b: uint8 @padding(3)
+    var c: float64
+end
+var s: S = make S, 1, 2, 3.5
+var t: S = copy S, s
+var x: int32 = copy int32, t.a
+var n: usize = sizeof S
+_ = write int32, x
+_ = write usize, n

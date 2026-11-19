@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0015
+profile: common
+source: int_lex_range.tc
+spec: "§2.4 整数字面量词法值 0..2^64-1；§12.3 TC_CE_LITERAL_LEX_RANGE；§12.5.1 定位到完整字面量首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_LITERAL_LEX_RANGE
+  primary: {file: int_lex_range.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

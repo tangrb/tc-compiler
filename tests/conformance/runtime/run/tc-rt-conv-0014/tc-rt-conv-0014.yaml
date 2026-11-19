@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0014
+profile: w64
+source: root.tc
+spec: "§6.6.1 int->float cast applies roundTiesToEven (float32 2^24+1); §3.13 equal-width int->float bitcast exposes the minimal binary32 subnormal bit pattern"
+kind: run
+expect:
+  stdout_hex: "312e3637373732652b30370a312e34303133652d34350a"
+  trap: null
+  exit: 0
+  termination: normal

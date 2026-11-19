@@ -1,0 +1,12 @@
+id: TC-TOOL-SYN-0010
+profile: common
+source: switch_named.tc
+spec: "§6.1/§6.2.8/§14.4 switch 多目标、命名实参、命名字段、字段 lvalue/value；LEX/SYN 接受"
+kind: tool
+tool:
+  argv: [tc-vm, --syntax-only, "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

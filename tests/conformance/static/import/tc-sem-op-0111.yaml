@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0111
+profile: common
+source: fixtures/tc-sem-op-0111/root.tc
+spec: "§6.1/§6.15.1 return 操作数不得命名 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-op-0111/lib.tc, line: 3, column: 9}
+  related: []
+  diagnostics: exactly-one

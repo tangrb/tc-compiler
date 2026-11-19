@@ -1,0 +1,16 @@
+#program
+struct S then
+var a: int64
+var b: int64
+end
+var s: S = make S, 7, 9
+var p: ptr<int64> = addr int64, s.a
+unsafe then
+var q: ptr<int64> = ptradd int64, p, 1
+var r: ptr<int64> = ptradd int64, q, 0
+var t: ptr<int64> = ptrsub int64, r, 1
+var v: int64 = load int64, t
+var d: isize = ptrdiff int64, q, p
+end
+_ = writeln int64, v
+_ = writeln isize, d

@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0102
+profile: common
+source: fixtures/tc-sem-safe-0102/root.tc
+spec: "§9.2/§9.8 安全代码中的 store -> UNSAFE_OPERATION"
+expect:
+  stage: SEM
+  code: TC_CE_UNSAFE_OPERATION
+  primary: {file: fixtures/tc-sem-safe-0102/root.tc, line: 3, column: 5}
+  related: []
+  diagnostics: exactly-one

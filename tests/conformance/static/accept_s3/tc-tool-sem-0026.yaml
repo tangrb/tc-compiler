@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0026
+profile: common
+source: tc-tool-sem-0026/root.tc
+spec: "§4.6 PRIVATE_TYPE 只适用于 public 签名/字段/const/static；public 函数体可访问本模块 private 类型"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

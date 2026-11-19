@@ -1,0 +1,3 @@
+#program
+import a
+var a: int32 = copy int32, 1

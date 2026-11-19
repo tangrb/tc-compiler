@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0010
+profile: common
+source: fixtures/tc-sem-di-0010/root.tc
+spec: "§12.2 #2 跨模块按 import 源序深度优先：a.tc 第 5 行的类型错误先于 b.tc 第 2 行的重复形参，即使后者源行更早"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-di-0010/a.tc, line: 5, column: 32}
+  related: []
+  diagnostics: exactly-one

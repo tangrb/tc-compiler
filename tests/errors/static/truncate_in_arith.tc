@@ -1,4 +1,0 @@
-#program
-var a: int8 = 1
-var b: int8 = 2
-var c: int8 = add(int8, truncate, a, b)

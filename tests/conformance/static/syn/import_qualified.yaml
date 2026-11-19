@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0005
+profile: common
+source: import_qualified.tc
+spec: "§14.3 import_decl = import IDENT NL；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: import_qualified.tc, line: 2, column: 9}
+  related: []
+  diagnostics: exactly-one

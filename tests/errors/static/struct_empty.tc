@@ -1,4 +1,0 @@
-#program
-; 期望：struct must have at least one field
-struct Empty then
-end

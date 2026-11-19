@@ -1,0 +1,10 @@
+id: TC-CT-CAST-0001
+profile: common
+source: tc-ct-cast-0001/root.tc
+spec: "§3.10/§6.6.1 整数 cast 越界（2^31 -> int32）-> CONST_CAST；源字面量按 cast 上下文为 int64 且可表示；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_CAST
+  primary: {file: tc-ct-cast-0001/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

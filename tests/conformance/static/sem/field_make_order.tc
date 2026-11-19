@@ -1,0 +1,6 @@
+#program
+struct S then
+    var x: int32
+    var y: int32
+end
+var s: S = make S, y: 2, x: 1

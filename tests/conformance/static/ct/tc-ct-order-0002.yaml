@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0002
+profile: common
+source: tc-ct-order-0002/root.tc
+spec: "§4.7/§5.2 const 自引用 -> UNDEFINED_NAME（SEM）；§12.5.1 未解析标识符（Self. 后的 A）"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: tc-ct-order-0002/lib.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

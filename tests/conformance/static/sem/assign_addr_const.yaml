@@ -1,0 +1,10 @@
+id: TC-SEM-ASSIGN-0002
+profile: common
+source: assign_addr_const.tc
+spec: "§5.5/§9.5 const 不可取址 -> ADDR_OF_CONST；§12.5.1 addr 的 const 目标名"
+expect:
+  stage: SEM
+  code: TC_CE_ADDR_OF_CONST
+  primary: {file: assign_addr_const.tc, line: 3, column: 33}
+  related: []
+  diagnostics: exactly-one

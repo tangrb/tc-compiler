@@ -1,0 +1,7 @@
+#lib
+public struct P then
+    var x: int32
+    var y: bool
+end
+public const A: P = make P, 1, true
+public const B: P = make P, x: 2, y: false

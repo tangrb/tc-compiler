@@ -1,0 +1,5 @@
+#program
+var a: uint32 = shl uint32, 1, 31
+_ = writeln uint32, a
+var b: uint32 = shl.wrap uint32, 3, 31
+_ = writeln uint32, b

@@ -1,0 +1,5 @@
+#program
+var fp: fnptr<int32, int32> = copy fnptr<int32, int32>, nullptr
+unsafe then
+var x: int32 = call_indirect fp, 1
+end

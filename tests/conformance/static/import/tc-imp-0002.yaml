@@ -1,0 +1,10 @@
+id: TC-IMP-0002
+profile: common
+source: fixtures/tc-imp-0002/root.tc
+spec: "§4.5/§4.11.2 导入目标不是 #lib -> IMPORT_NOT_LIB；目标仍 LEX/SYN"
+expect:
+  stage: IMPORT
+  code: TC_CE_IMPORT_NOT_LIB
+  primary: {file: fixtures/tc-imp-0002/root.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

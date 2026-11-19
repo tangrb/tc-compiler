@@ -1,0 +1,39 @@
+id: TC-LEX-GOLD-0001
+kind: diagnostic
+profile: common
+spec: "§2.1 字符集（注释外只允许 ASCII）；§12.3 TC_CE_SYNTAX（LEX）；§12.5.1 列按解码后的 Unicode 标量计数"
+source_file: lex_non_ascii_column.tc
+source: |
+  #program
+  var x: int32 = copy int32, 1 é
+derivation: |
+  Standard §2.1 allows only ASCII outside comments; a decoded non-ASCII scalar
+  outside a comment is TC_CE_SYNTAX in the LEX stage (§12.3).  §2.1 also says
+  comment content may contain Unicode scalars, so `é` is a legal character in
+  the file but not in code.  §12.5.1 defines columns by decoded Unicode scalar
+  values: the two UTF-8 bytes of U+00E9 count as one column.
+
+  Counting 1-based scalar columns on line 2:
+      v=1 a=2 r=3 space=4 x=5 :=6 space=7 i=8 n=9 t=10 3=11 2=12
+      space=13 ==14 space=15 c=16 o=17 p=18 y=19 space=20 i=21 n=22
+      t=23 3=24 2=25 ,=26 space=27 1=28 space=29 é=30
+
+  Therefore the primary position is line 2, column 30.  The first and only
+  lexical error is reported (§12.1 fail-fast), so exactly one diagnostic is
+  expected.  No compiler was run to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary:
+    line: 2
+    column: 30
+  diagnostics: exactly_one
+  related: []

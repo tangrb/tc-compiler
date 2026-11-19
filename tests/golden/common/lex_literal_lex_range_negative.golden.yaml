@@ -1,0 +1,39 @@
+id: TC-LEX-GOLD-0002
+kind: diagnostic
+profile: common
+spec: "§2.4 整数字面量词法值 0..2^64−1；§12.3 TC_CE_LITERAL_LEX_RANGE（LEX）；§12.5.1 负号属于字面量时定位到 -"
+source_file: lex_literal_lex_range_negative.tc
+source: |
+  #program
+  var x: int64 = copy int64, -18446744073709551616
+derivation: |
+  The INT production (§14.2) allows an optional leading minus and a decimal
+  numeral.  §2.4 fixes the lexical value range as 0 <= N <= 2^64-1 for the
+  numeral; 18446744073709551616 = 2^64 is one above the limit, so the token is
+  lexically invalid with TC_CE_LITERAL_LEX_RANGE (LEX), before any expected
+  type is considered (§2.7.3).  The negative sign belongs to the literal, so
+  §12.5.1 places the primary position at the `-`.
+
+  Counting 1-based columns on line 2:
+      v=1 a=2 r=3 space=4 x=5 :=6 space=7 i=8 n=9 t=10 6=11 4=12
+      space=13 ==14 space=15 c=16 o=17 p=18 y=19 space=20 i=21 n=22
+      t=23 6=24 4=25 ,=26 space=27 -=28
+
+  Primary position: line 2, column 28.  Exactly one diagnostic (§12.1
+  fail-fast).  No compiler was run to obtain this expectation.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: independent-agent
+  reviewer_independent: true
+  review_kind: independent derivation audit
+  status: approved
+  date: "2026-11-15"
+  notes: "Independent derivation audit approved on 2026-11-15; no compiler/VM was run."
+expect:
+  stage: LEX
+  code: TC_CE_LITERAL_LEX_RANGE
+  primary:
+    line: 2
+    column: 28
+  diagnostics: exactly_one
+  related: []

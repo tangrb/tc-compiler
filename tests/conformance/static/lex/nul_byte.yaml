@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0027
+profile: common
+source: nul_byte.tc
+spec: "§2.1 U+0000 非法；§12.3 TC_CE_SYNTAX；§12.5.1 非法标量定位到该标量"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: nul_byte.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

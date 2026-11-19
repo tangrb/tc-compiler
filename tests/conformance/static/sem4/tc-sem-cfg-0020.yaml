@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0020
+profile: common
+source: fixtures/tc-sem-cfg-0020/root.tc
+spec: "§7.1/§7.7.1 标签命名空间按函数/程序封闭；跨函数 br 目标 -> LABEL_NOT_FOUND"
+expect:
+  stage: SEM
+  code: TC_CE_LABEL_NOT_FOUND
+  primary: {file: fixtures/tc-sem-cfg-0020/lib.tc, line: 6, column: 12}
+  related: []
+  diagnostics: exactly-one

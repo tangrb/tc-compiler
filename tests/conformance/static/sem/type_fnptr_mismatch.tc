@@ -1,0 +1,3 @@
+#program
+var a: fnptr<void> = copy fnptr<void>, nullptr
+var b: fnptr<int32> = copy fnptr<int32>, a

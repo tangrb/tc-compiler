@@ -1,0 +1,5 @@
+#lib
+public @safe func f(p: ptr<int32>) int32 then
+    var x: int32 = load int32, p
+    _ = return x
+end

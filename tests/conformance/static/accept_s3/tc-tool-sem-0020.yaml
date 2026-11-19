@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0020
+profile: common
+source: tc-tool-sem-0020/root.tc
+spec: "§3.8 fnptr<void> = 零参零返回；fnptr<void, T> 返回 void"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

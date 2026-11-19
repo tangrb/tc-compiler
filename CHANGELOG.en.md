@@ -1,108 +1,200 @@
 # Changelog
 
-[中文](CHANGELOG.md)
+## [0.0.46] - 2026-11-19
 
-All notable changes to this project are documented in this file.
+### Status
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project roughly follows [Semantic Versioning](https://semver.org/) for toolchain releases (`vMAJOR.MINOR.PATCH` tags).
-
-## [Unreleased]
-
-## [0.0.44] - 2026-09-21
-
-### Changed
-
-- GitHub Actions `ci.yml` / `asan.yml` now trigger on **`tc-0.0.44`** push/PR. Coverage collection goes through `scripts/lcov_compat.sh` for lcov 1.x, Ubuntu apt 2.0, and Homebrew 2.5 (`lcov` and `genhtml` probe `--ignore-errors` kinds separately). Root README, CONTRIBUTING, and `docs/README` document the CI branches, the lcov dependency, and the gitignored `build-coverage/` output.
-
-- **Language specification upgraded to 0.0.44** (an errata/convergence release: no new language capabilities, no change to how programs are written; the diagnostic-code set stays at **86** = 74 `TC_CE_*` + 12 `TC_RE_*`). Added `docs/TC语言标准设计说明书-0.0.44.md`. IEEE 754-2019 remains the only external normative reference.
-- **All downstream design documents synced to 0.0.44**: compiler specification, VM design, VM command reference, AOT design, Embed design, and libtc design were renamed to `*-0.0.44.md`, with baseline lines, terminology ("restricted recovery" → "structural-class syntax-stage diagnostic"), and D1–D35 change points realigned; each document gained a "0.0.44 sync status" section (docs-first).
-- `scripts/sync/check_doc_counts.py` now reads the 0.0.44 specification as its fact source, with fixed extraction logic (appendix B boundary; error-kind count taken from the `TcErrorKind` enum); the previously failing gate is green again.
-- Version lines across metadata and navigation surfaces now point at 0.0.44: README (zh/en), `AGENTS.md`, `docs/README` (doc map), `CONTRIBUTING`, `examples/README`, `.cursor` rules and skills; the doc-filename check in `docs/release-checklist` was updated as well.
-- **Documentation cleanup**: removed the closed-out historical process documents (0.0.41 analysis report / fix plan, 0.0.42 debt-cleanup plan) and the 0.0.42 specification text; renamed the errata checklist to the version-less `TC-语言标准一致性勘误清单.md` (it now covers both the 0.0.42 first round and the 0.0.44 second round). Historical content can be recovered from release tags (e.g. `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`), as noted in `docs/README`; all 411 relative links across the repository were re-checked with zero dead links.
-- **`Self.`-only module access inside `#lib` function bodies**: accessing a module-scope `static` from the same module inside a function must be written `Self.<name>`. The implementation previously classified only assignment/`read` targets as `TC_CE_FUNCTION_SCOPE_ACCESS`, degrading every other read position (arithmetic/comparison/logic/bitwise/shift, `return` operand, `if`/`while` condition, output operand) to `UNDEFINED_VARIABLE`, and silently accepted bare names as a `memblock` `N`/`count:`. This batch unifies the classification and adds parsing for `Self.<name> = v` and `Self.<name>.<field> = v` assignment targets (spec §6.2), `TcFieldAssign.base_binding` so VM and AOT share the base resolution (fixing `unresolved struct base`), and excludes `static` slots from a function's definite-initialization analysis (fixing a spurious uninitialized read of a `static var` field).
-- **`static let` sources tightened (D35)**: a `static let` initializer may reference only literals and earlier, already-evaluated `let`/`static let` bindings — never a `static var`; violations report `TC_CE_CONSTANT_EXPRESSION` uniformly in every position (whole RHS, operand, field-read base, `.count` base, constructor field value, `cast`/`bitcast` source, `memblock`'s `N` and `count:`). The same batch fixes four related defects: the diagnostic for a whole-`Self.<name>` reference, `static let` declared-type named `N` never being resolved (`.count` silently read 0), constructor `count: <name>` evaluated before Pass2, and bare `usize_operand` names not falling back to the global table.
-- **New language-spec conformance audit** ([audit report](docs/TC-0.0.44-语言标准符合性审计报告.md)): the six design documents and all of `src/` were checked against the language specification as sole authority. All 9 pre-existing open items were confirmed, plus 70 implementation-side, 48+ documentation-side and 4 specification-side new findings (including two process-level faults: out-of-bounds read/write via forged pointers, and stack overflow in nested type parsing). The audit changed no `src/`, tests, or existing documents.
-- **Implementation fully synced to 0.0.44** (Batch S): (1) **acceptance set** — pointer `cast` is now a pointee re-marking without the equal-width requirement (D14); `bitcast(ptr ↔ float)` is rejected (D10); `Self.<name>` qualified identifiers are accepted as operands (D11); `if`/`while` conditions accept the full §6.1.1 RHS set (read-only field reads, `Self.static let`, pointer comparisons; D29); (2) **diagnostics** — nested calls in `const_rhs` are a syntax rejection (D34); CT-category diagnostics (`TC_CE_CONSTANT_*`) are now **held back** until every SEM-category diagnostic is clear (language spec §11 four-step rule / D19), and derived failures (depending on an already-failed constant) no longer surface as SEM codes; referencing a later-or-self static member in a `static var` initializer yields `TC_CE_UNDEFINED_VARIABLE` (D28); (3) **semantics** — `ptr_load(bool)` normalizes `0x00` → `false`, any other byte → `true` (D16, **fixing a VM/AOT divergence**); `static var` initializers may reference an earlier `static var` and report `TC_RE_*` on preparation failure (D16); the static-boolean three-state atom set is extended to the §5.2.1 atom expressions (D29); (4) **corpus and gates** — 24 VM/AOT corpus entries added or corrected and 26 unit assertions updated, `test-map.md` counts refreshed to 966 VM / 443 AOT, with VM, AOT, unit and all three sync gates green.
-- Fixed cross-document code-count drift: compiler spec "appendix B 85 → **86**", four libtc places "85 language codes / total 86" → "**86 language codes / 87 implementation enum**", `platform.md` enum size 86 → **87**, and `errors.md`.
-- **Toolchain implementation bumped to v0.0.44** (`TC_VERSION_CORE` / `TC_VERSION_EMBED`); CLI `--version` goldens now expect `tc-vm 0.0.44` / `tc-aot 0.0.44`.
-
-## [0.0.43] - 2026-09-01
+- **G10 PASS; the 0.0.46 phase exit is complete**: S8 AArch64 semantics/ABI,
+  S9 freestanding/ARM32 and S10 `riscv32-baremetal` plus long-term regression
+  all passed their gates.
+- Current verification: Debug/Release/ASan+UBSan `ctest` **71/71**; harness
+  **873/873**; coverage **636/636**; `docs.cleanup`, `release.s10_audit` and
+  golden checks all pass.
 
 ### Added
 
-- Open-source repository scaffolding: contributing guides, code of conduct, security policy, issue/PR templates, Dependabot, examples, and documentation index.
-- Bilingual surface docs (zh / en pairs with cross-links).
-- Cursor Agent doc optimization: loading tiers, skill triggers, workflows, and deduplicated routing.
+- **0.0.46 clean-sheet implementation**: a private `tc_core` rewritten from the
+  standard/design, with `tc-vm`/`tc-aot` as the only tool entry points; no C host
+  public library, embedding API or ABI.
+- **Contracts and test infrastructure**: type/IR/object/region/profile/diagnostic/
+  zero-pass contracts; closed 80-code set and first-diagnostic comparator; harness,
+  golden files and coverage matrix; L0/L1 tests.
+- **LEX/SYN and flat parse IR**: UTF-8/comments/continuations/longest match, exact
+  decimal literals, keywords/mnemonics/suffixes/annotations, EBNF, module layers,
+  field paths, named arguments, `switch` targets and spans; the seven LEX/SYN codes.
+- **Module discovery and IMPORT**: import-source-order DFS, importer-directory then
+  include-root search, resolved-path instance keys, `module_order`, the five IMPORT
+  codes and import-name conflicts.
+- **Names, types, conversions and layout**: members/namespaces/visibility, type-table
+  interning and freeze, W-dependent literal typing, `cast`/`trunc`/`bitcast` matrices,
+  struct layout/`@padding`, `sizeof`, field/assignment paths, instruction shapes/types,
+  mode matrix and the 32/64 static profile.
+- **const_expr forms**: the §3.10 positive op set for `const`/`static var`
+  initializers, const-only value references, and `CONST_FORM` for forbidden
+  suffixes, pointer bitcasts and var/parameter/static references.
+- **CFG, DI, returns, calls, safety and annotations**: one closed CFG per
+  program/function, all edges and reachability, `U[n]` initialization and the DI
+  maximum fixed point, `MISSING_RETURN`; labels/control shapes; direct/indirect call
+  order (target → safety → LHS → arguments → receiver) and call safety; safe/unsafe
+  contexts with `@safe` priority; function/parameter/field annotation matrix,
+  `@align`/`@range` endpoint constants (same-type integer `lo`/`hi`,
+  power-of-two `N`), fixed binary32/64 NaN/underflow/cast rules
+  independent of host `fenv`/`long double`, strict failures that never become
+  SEM annotation diagnostics, 64-bit `@align`/`@padding` metadata, and promise violations that
+  are never a static rejection; duplicate labels and malformed branches use
+  conservative fallthrough, and missing labels no longer suppress DI on known
+  edges.
+- **CT evaluation**: compile-time evaluation of `const`/`static var`/local `const`;
+  the §3.10 positive allowlist, §6.3–§6.6 strict integer/float semantics and `CONST_*`
+  mapping, exact `mod`, underflow as tininess-after-rounding; demand-driven in
+  `module_order`/module source order with success/failure caching, the first failure
+  attributed to its target declaration and no cascade; aggregate const field trees and
+  static `TcInitImage` (profile endianness, zero padding, bool 0x00/0x01).
+- **IR finalization and freeze**: materialized `TcIR`/`TcUnit`/`TcBlock`/`TcInstr`;
+  field paths become vreg + field indices, labels/`switch` targets use block ids, named
+  arguments and spans survive; an aggregate const inlines as a use-site `make` and owns
+  no object; static/frame object tables, module instance ids, per-profile layout and the
+  frozen type table; deterministic `tc_ir_print` text dump.
+- **Runtime semantic core and deterministic I/O**: W-aware strict/wrap integers,
+  division/modulo/shift boundaries, fixed binary32/64 rounding and exception
+  priority, exact underflow, `cast`/`trunc`/`bitcast`; CT and the VM share this core
+  (CT maps failures to the six `TC_CE_CONST_*` codes); exact six-significant-digit
+  §11.2 rendering without host `printf`, and §11.3 complete-token input with
+  EOF/short-read/error states.
+- **Reference VM (W=32/64)**: five-region address space, runtime objects and field
+  sub-objects, pointer states, all 51 opcodes, calls/`D`, no tail-call depth change,
+  all-or-nothing I/O, the 15 mandatory `TC_RE_*` traps, and no rollback of output
+  committed before a trap; `--checked` adds UB bounds checks;
+  `aarch64-linux-user`, `aarch64-baremetal` and `w32` profiles.
+- **Full W=64 AArch64 backend and toolchain**: lowering for all 51 opcodes and
+  all value types (integer/bit/comparison, float, conversion, pointer/object,
+  `struct`/`make`/`copy`/`memmove`, direct/indirect calls, `funcaddr`/`funceq`/
+  `funcne`, `sizeof`, I/O, control flow); AAPCS64 composites/HFA/large indirect
+  returns and large by-reference composites, `fnptr`/`call_indirect`, multi-size
+  and unaligned access; frame/static
+  layout at `TcObject` offsets, object descriptor tables, static initializer
+  `.data`, reset entry, region bases, deterministic assembly emission, no
+  regalloc; `tc-aot --emit=asm|obj|elf`, clang/lld driving with `--icf=none` and
+  the `aarch64-none-elf` target-triple mapping; a freestanding AArch64 runtime
+  (startup, semihosting output, deterministic formatting/input, object/pointer
+  checks, checked shadow, trap/exit, depth counter and runtime allocator).
+- **Full runtime and differential/consistency verification**: every W=64 S6
+  runtime case plus new struct/HFA/large-composite/many-argument/indirect-call/
+  pointer/static-byte/`@fast_math` differential cases; full AAPCS64 ABI and an
+  assembly-shape audit; a standard §13.4 eight-item consistency suite; checked
+  build (out-of-object, one-past, dangling and uninitialized) counted separately
+  from mandatory traps without changing the legal program set; ELF entry/region/
+  symbol/static-byte/ICF and determinism suites; the S7 differential/ABI/
+  toolchain/static-parity/zero-pass suites keep passing; byte-identical VM/AOT
+  first diagnostics over every static `.tc`; Release and ASan+UBSan pass.
+- **Freestanding/bare-metal and the 32-bit backend**: a target-neutral
+  freestanding runtime core with platform seams (object-table mandatory and
+  checked traps, all four device policies, deterministic I/O, arena allocator,
+  trap/exit records); `aarch64-baremetal` (PL011 UART0 stdout/framed stdin, UART1 exit
+  record, PSCI SYSTEM_OFF, no semihosting, ELF/flat/symbol/region
+  audit); the first 32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500,
+  `thumbv7em-none-eabihf`, base AAPCS32/ILP32 softfp, an independent ARM32
+  backend for all 51 opcodes, composite arguments as Rule C.4/C.5 memory words,
+  64-bit pair returns/indirect returns, `int64` helpers, software binary64, unaligned
+  access, checked build, ARM EABI `__aeabi_*` division/memory helpers and
+  `qemu-system-arm` execution); `tc-aot --profile=` target dispatch and
+  `--device=` platform-policy override; 32/64 static results, goldens and
+  differentials stay isolated.
+- **S10 multi-target expansion and long-term regression**: the second 32-bit
+  target `riscv32-baremetal` (RV32IMAFDC, ILP32 soft-float ABI,
+  `TcTargetDesc`/`TcABIDesc`, an independent RISC-V 32 backend for all 51
+  opcodes, a0-a7 arguments / 16-byte stack alignment / 2×XLEN by-value
+  composites / larger by-reference composites / hidden-pointer indirect
+  returns, 64-bit division helpers, NS16550A UART0 stdout and framed stdin, a
+  semihosting exit record, the SiFive test finisher and qemu-system-riscv32
+  virt); the S10 RISC-V platform/ELF/device/checked/UART-input suite, 32 C-caller
+  and 14 TC-caller RISC-V ILP32 interoperability cases, 1037 static sources with
+  identical VM/AOT first diagnostics, 149×2 long-term static sources, 16×3
+  differential samples, 15 fuzz regression cases and 3-target platform corpus,
+  plus RISC-V repeat-build/execute and O0/O2 determinism; the release audit
+  checks the closed 80-code set, private `tc_core`, two CLIs, freestanding
+  symbols, version and documentation consistency.
+- **S10 adversarial expansion**: generated ABI fuzz (random scalar/composite/
+  padding signatures, C→TC and TC→C, all three AOT targets), RISC-V
+  implementation-limit/robustness cases (frame and static-region budgets,
+  `D=63/64`, device-window end, empty input, flat execution, long trap-record
+  paths) and a RISC-V static-mutation suite; the trap/exit record buffer grows
+  to 8192 bytes so practical paths retain `TC-EXIT`; C interop harnesses use
+  `-mstrict-align` for unaligned packed composites. The full `ctest` suite grows
+  to 71 tests. The front-end arena no longer rejects a single allocation above
+  4 MiB (a legal source crossing the 32768-token growth step was misreported as
+  OOM); an 800-case switch regression covers the boundary, 39 checked-build UB
+  fixtures are rerun on RISC-V for VM/AOT agreement, and a 30000-instruction
+  far-branch regression covers the auipc/jalr lowering used when a RISC-V
+  branch exceeds the 1 MiB `j`/`b.cond` range. The reset entry zeros BSS before
+  `tc_main`, so ELF and flat images start from a deterministic zero runtime
+  state; AArch64/ARM32 conditionals over far blocks use a conditional skip plus
+  an unconditional transfer. The ARM32 1 MiB code window remains an explicit
+  implementation boundary.
+- **Tool capabilities**: `--syntax-only` (LEX/SYN), `--sem-only` (LEX/SYN/IMPORT/SEM)
+  and `--static-only` (through CT and IR finalization) partial checks; a normal
+  `tc-vm` invocation executes the reference VM and reports the first trap as
+  `error[RT]` with exit 1; a normal `tc-aot` invocation emits target assembly,
+  `--emit=asm|obj|elf|flat` produces assembly, ELF or flat artifacts and
+  `--checked` produces a checked build; `--profile=`/`--device=` select a target profile and device policy;
+  unmapped platform capabilities exit 70 without publishing a wrong artifact.
+- **Tests**: `tc_frontend_test`, `tc_sem_test`, `tc_ct_test`, `tc_ir_test`,
+  `tc_vm_test`, `tc_aot_test`, S1/S2/S3/S4/S5/S6 conformance tables, S7
+  differential/ABI/toolchain/static-parity/determinism suites, S8 full
+  differential/ABI/C-interop/generated-fuzz/checked/consistency/artifact/
+  determinism/static-mutation suites, W=32/64 runtime goldens, S9 bare-metal/
+  ARM32/interop/static-parity/profile-isolation/determinism suites, AAPCS64/
+  AAPCS32 bidirectional interop, ABI mutation audit, capacity report,
+  determinism suites and a fail-closed adapter self-test; currently 71/71
+  `ctest` and 873/873 harness cases (608 compile, 131 tool,
+  133 run, 1 property) in Debug/Release/ASan builds; unit checks: frontend 688,
+  sem 102, ct 370, ir 674, vm 413, aot 81; S9 ARM32 differential: 29 fixed
+  cases plus 296 S6/S8 corpus cases, 14 C-caller AAPCS32 cases, 33 C-caller
+  AAPCS64 cases, 19 reverse ABI cases and 1037 static sources under each of two
+  bare-metal profiles; the S10 RISC-V suite adds 29 fixed cases plus 296 S6/S8
+  corpus cases, 32 C-caller/14 reverse ABI cases, 1037 static sources, 149×2
+  long-term static sources and 15 fuzz cases; 5/5 ABI mutants were found by
+  interop.
 
 ### Changed
 
-- Toolchain and Embed implementation bumped to v0.0.43; language specification design docs remain 0.0.42 (no language semantics change).
+- **Diagnostic closure**: annotations on a bare `NAME` are classified by
+  syntactic type; `@align`/`@nonnull`/`@no_alias` on a non-pointer and `@range`
+  on a non-integer report `TC_CE_ANNOTATION` at the annotation token.  The
+  0-based invalid-UTF-8 byte offset is carried through every diagnostic path
+  (default, `--sem-only`, `--static-only`, `--syntax-only`, AOT).  Added the S4
+  annotation matrix, all-path/malformed/imported/pipe CLI checks and an adapter
+  offset expectation; the harness rejects undeclared offsets and validates the
+  note's file/position/stage; harness is 873/873.
+- **Specification wording clarifications**: §12.2 #9 applies only when the
+  candidate primary positions are identical; fixed-shape errors
+  (`OPERAND_COUNT`/`RETURN_FORM`) precede later-column literals by column;
+  device policy constrains accesses, while pure `ptradd`/`ptrsub` only traps
+  under the reject policy; one-past `ptrsub n=0` stays one-past;
+  `CIRCULAR_IMPORT` relates to the target module header; "cycle before
+  duplicate" is per import edge; `make` fields accept only const value forms
+  (op_form/nested `make` is SYNTAX). No diagnostic code, acceptance set or
+  observable behavior changes.
+- **Runtime/diagnostic fixes**: finite/±inf division no longer reports a false
+  underflow (RT/CT); decimal literals that round across a binade boundary no
+  longer double the value; same-parameter annotation errors precede later type
+  errors by §12.2 #3; each stdout write/writeln record is committed immediately
+  and a failure reports `TC_RE_IO` at that instruction; invalid UTF-8 emits a
+  0-based byte-offset note. Added S6/S4/CLI regressions; the Debug gate is
+  71/71 `ctest` and 873/873 harness cases.
+- SEM validates and freezes the type table; CT and IR finalization run afterwards with
+  read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
+  explicit block edges during IR finalization; `TcFunc.body` pointers are fixed up
+  after the unit array stops growing and point into the final `TcIR.units`.
+- Wrap-up is now fixed process: process/historical documentation is removed and the
+  `docs.cleanup` gate must pass; current conventions and known limits live in
+  `src/CONTRACTS.md`.
+- Diagnostic positions, CT order/cache/error mapping, static layout, IR operand and
+  runtime/VM conventions live in `src/CONTRACTS.md`; `--sem-only`/`--static-only`
+  never claim a valid program, and a normal `tc-vm` run reports only the first trap
+  or normal termination.
 
-## [0.0.42] - 2026-08-30
+### Removed
 
-### Added
-
-- `TC_CE_EXTRA_ARGUMENT` error code (N-13).
-- Deterministic self-implemented float decimal output (FP-4.6).
-
-### Fixed
-
-- Endianness-independent `memblock` / `struct` layout (FP-4.5).
-- Portable no-FENV underflow detection without `__int128` (N-12).
-- Remaining N-12 portability debt (pointer offset, AOT alloc, `.count`).
-
-### Changed
-
-- Design docs and implementation version bumped to v0.0.42; 0.0.42 debt-cleanup closeout.
-
-## [0.0.41] - 2026-08-30
-
-### Added
-
-- Qualified names required for imported structs.
-- End-to-end support for struct `field_access` as an operand.
-
-### Fixed
-
-- Language-standard conformance gaps (P0–P6 closeout).
-- Diamond import / topology, const composite, and `memcopy` index gaps.
-- Const heap free path and const width callbacks.
-- `Self.field` evaluation in static `let` / `var` initializers.
-- Preserve struct `.count` base across `memblock_count` rewrite.
-
-### Changed
-
-- Design docs rebased on language-standard conformance; version bump to v0.0.41.
-
-## [0.0.40] - 2026-08-24
-
-### Changed
-
-- Implementation and design docs bumped to v0.0.40.
-- Cursor agent documentation overhaul and features map split.
-- CI/ASan triggers for the `tc-0.0.40` branch.
-
-## [0.0.39] - 2026-08-22
-
-### Added
-
-- Struct self-reference / pointer types and struct-form compliance work for 0.0.39.
-- Session-scoped `-I` include path support (remaining 0.0.39 gaps).
-
-### Fixed
-
-- `memcopy_unsafe` operates on `ptr<T>` without memblock header offset.
-- Block comments broken by documentation refresh.
-
-### Changed
-
-- Cross-platform CI/CD and test-port integration carried from the 0.0.38 line into the 0.0.39 release train.
-
-[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.44...HEAD
-[0.0.44]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...v0.0.44
-[0.0.43]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...v0.0.43
-[0.0.42]: https://github.com/tangrb/tc-compiler/compare/v0.0.41...v0.0.42
-[0.0.41]: https://github.com/tangrb/tc-compiler/compare/v0.0.40...v0.0.41
-[0.0.40]: https://github.com/tangrb/tc-compiler/compare/v0.0.39...v0.0.40
-[0.0.39]: https://github.com/tangrb/tc-compiler/compare/v0.0.38...v0.0.39
+- Historical implementation, tests, tools, scripts and examples; historical code is
+  available only in git tags.

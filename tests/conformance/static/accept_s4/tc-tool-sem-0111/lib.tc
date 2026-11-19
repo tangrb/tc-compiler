@@ -1,0 +1,5 @@
+#lib
+public const L: int32 = 1
+public const A: int32 = 8
+public @fast func f(@range(Self.L, Self.L) n: int32, @align(Self.A) p: ptr<int32>) void then
+end

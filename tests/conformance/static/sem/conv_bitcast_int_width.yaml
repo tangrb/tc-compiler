@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0037
+profile: common
+source: conv_bitcast_int_width.tc
+spec: "§3.11 整数 -> 整数类别允许但位宽不等 -> BITCAST_WIDTH"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: conv_bitcast_int_width.tc, line: 3, column: 31}
+  related: []
+  diagnostics: exactly-one

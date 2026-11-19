@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0145
+profile: common
+source: tc-tool-sem-0145/root.tc
+spec: "§3.10 const 结构体字段链（Self.KS.x）合法，不报 CONST_FORM"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

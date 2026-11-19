@@ -1,0 +1,5 @@
+#program
+_ = br E
+var x: int32 = copy int32, 1
+_ = write int32, x
+label E:

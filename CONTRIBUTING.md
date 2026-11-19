@@ -1,119 +1,63 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。本文说明如何报告问题、提出改动，以及本地开发与测试要求。
+感谢关注 TC-Compiler。当前分支是 **0.0.46 clean-sheet 分支**：契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计已实现；可选优化管线尚未启用。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
-参与本项目即表示你同意遵守 [行为准则](CODE_OF_CONDUCT.md)（[English](CODE_OF_CONDUCT.en.md)）。安全漏洞请按 [SECURITY.md](SECURITY.md)（[English](SECURITY.en.md)）**私下**报告，不要开公开 Issue。
+参与即表示同意遵守 [行为准则](CODE_OF_CONDUCT.md)（[English](CODE_OF_CONDUCT.en.md)）。安全问题请按 [SECURITY.md](SECURITY.md)（[English](SECURITY.en.md)）私下报告。
 
-## 开发环境
+## 当前可贡献内容
 
-- C99 编译器、CMake、Make
-- Python 3（静态结构检查脚本）
-- TC-AOT `--run` 需要可用的宿主 `cc`（gcc/clang 风格；Windows 请用 MinGW，勿用 MSVC）
-- 覆盖率报告（可选）：`lcov`（见根目录 [README.md](README.md)「测试与质量门禁」）
+- 0.0.46 标准勘误、歧义澄清、诊断/平台档案修订。
+- 原生编译器设计补全（IR、ABI、profile、路线图）。
+- `src/` 冻结契约、模块边界与前端接口。
+- 32/64 字长语义、`usize`/`isize`、`sizeof`/`bitcast`/`trunc`/布局的目标相关规则。
+
+当前**不接受**：
+
+- 恢复历史实现或 C 宿主公共库/嵌入 API。
+- 以旧实现行为为依据、绕过 0.0.46 标准的兼容补丁。
+- 与当前文档任务无关的大规模重构。
+
+## 文档优先
+
+语言/语义/诊断变更必须先更新 [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md)；架构变更同步 [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md)。
+
+## 分支与提交
+
+- 当前开发分支：`tc-0.0.46`。
+- 提交信息建议：`docs(0.0.46): ...`、`design(0.0.46): ...`、`chore(0.0.46): ...`。
+- 不要提交 `build/` 或生成物。
+
+## 构建与测试
 
 ```sh
-make
-./build/vm/bin/tc-vm tests/valid/example.tc
-bash scripts/run_tests.sh --filter example
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-可选安装 git hooks（会剥离 Cursor Co-authored-by trailer 等）：
-
-```sh
-make hooks
-```
-
-教学向示例见 [`examples/`](examples/)。完整符合性用例在 `tests/`。
-
-## 分支约定
-
-| 分支 | 用途 |
-| ---- | ---- |
-| `master` | 主开发线 |
-| `tc-0.0.41` … `tc-0.0.44` | 版本收口 / 发布相关分支 |
-
-`.github/workflows/ci.yml` 与 `asan.yml` 对 **`master` 以及上表版本分支** 的 `push` / `pull_request` 触发（另支持 `workflow_dispatch`）。向未列入 `branches` 的分支直接 push **不会**跑 GitHub CI。
-
-功能与修复请基于最新 `master`（或维护者指定的版本分支）开短生命周期分支，例如 `fix/…`、`feat/…`、`docs/…`。
+构建私有 `tc_core` 与 `tc-vm`/`tc-aot` 入口。工具支持 `--syntax-only`/`--sem-only`/
+`--static-only` 部分检查；普通 `tc-vm` 调用执行参考 VM（正常退出 0，trap 退出 1），
+普通 `tc-aot` 调用发射目标汇编，`--emit=asm|obj|elf|flat` 经 clang/lld 生成
+汇编/ELF/裸二进制产物，
+`--checked` 生成 checked build；当前平台实例外的能力显式退出 70 且不发布错误产物。
+AOT 差分/工具链测试需要 `clang`、`llvm-ar`、`ld.lld`、`qemu-system-aarch64`、
+`qemu-system-arm` 与 `qemu-system-riscv32`。
 
 ## 提 Issue
 
-先搜索已有 Issue 与文档。Bug 报告请尽量包含：
+请先搜索已有 Issue 与文档。报告请包含：
 
-- `tc-vm --version`（或 commit / tag）
-- 操作系统与编译器
-- 最小可复现 `.tc` 与完整命令行
-- 期望输出 vs 实际 stdout/stderr
-- 是否仅 VM、仅 AOT，或两者不一致
-
-语言/语义变更需对照 [TC 语言标准设计说明书](docs/TC语言标准设计说明书-0.0.44.md)；设计书权威高于实现。
-
-使用仓库提供的 [Issue 模板](.github/ISSUE_TEMPLATE/)。
+- 目标文档与章节（标准/设计）；
+- 期望规则 vs 当前文本；
+- 若涉及 32/64：明确字长与示例；
+- 是否有可复现的 TC 片段（可用 `--static-only` 复现静态阶段行为）。
 
 ## 提 Pull Request
 
-1. Fork 并创建分支。
+1. 基于 `tc-0.0.46` 开短生命周期分支。
 2. 做最小必要改动；避免无关格式化。
-3. 按下方清单跑相关测试。
-4. 用户可见变更请更新 [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md) 的 `[Unreleased]`。
-5. 使用仓库 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 填写说明并勾选清单。
-6. 提交信息风格：`feat:` / `fix:` / `refactor:` / `docs:` / `test:` / `chore:` + 一句说明「为什么」。
-7. **不要**在提交中加入 `Co-authored-by: Cursor <cursoragent@cursor.com>`（hook 会剥离；请勿 `--no-verify` 绕过）。
-
-本仓库 **不要求 CLA**。贡献按 [Apache License 2.0](LICENSE) 授权。
-
-## 必测与硬要求
-
-按改动范围选择：
-
-```sh
-bash scripts/run_tests.sh                # VM + AOT + unit
-bash scripts/run_tests.sh --filter <名>  # 缩小 VM 范围时仍建议在 PR 前跑全量或 CI 等价检查
-make test-unit                           # 仅改 tests/unit 时
-make ci                                  # 与远端核心门禁对齐的本地入口
-make ci-coverage                         # 另收集覆盖率（需 lcov）
-```
-
-| 改动类型 | 额外要求 |
-| -------- | -------- |
-| 新 `.tc` 用例 | 注册到 `scripts/vm/run_tests.sh`（AOT 相关再注册 `scripts/aot/run_tests.sh`） |
-| 新 `TcRhsKind` | `python3 scripts/sync/check_rhs_coverage.py` |
-| 新 `TcErrorKind` | `tc_error_kind_name()` + `tests/unit` 对应用例 + 编译器标准 §11.4 |
-| 新 `src/` 模块 | `python3 scripts/sync/check_source_naming.py`（`tc_*.h` ↔ `tc_*.c`） |
-| 类型内核 | `check-types` / `check_type_fact_source.py` |
-| 控制流 / 未初始化 | `test_cfg` + 对应 `.tc` |
-| Embed | `check-embed` / `check-embed-aot` |
-| static 错误用例 | **一文件一错** |
-
-更多映射见 `.cursor/skills/tc-architecture/test-map.md`（维护者 / Agent 导航；贡献者不强制阅读 Cursor 文档）。
-
-## 编码规范（摘要）
-
-- C99；**4 空格缩进**，不用 Tab；`/* … */` 注释，不混用 `//`
-- `{` 行尾（K&R）；`if` / `while` / `for` 始终加大括号
-- 公共函数 `tc_` + 小写下划线；类型 `Tc` + 帕斯卡；枚举值 `TC_` + 大写下划线
-- 实现与头文件同名：`tc_<module>.h` ↔ `tc_<module>.c`
-- `malloc` 失败：返回 `-1`，`TC_ERR_OUT_OF_MEMORY`，消息 `"memory allocation failed"`
-- fail-fast；`TcDiagnostic` 单槽；返回 `0` / `-1`
-
-完整约定见仓库 Cursor rule `coding-standards`（`.cursor/rules/coding-standards.mdc`）与现有 `src/` 风格。
-
-## 文档
-
-- 用户与贡献者导航：[docs/README.md](docs/README.md)（[English](docs/README.en.md)）
-- 变更记录：[CHANGELOG.md](CHANGELOG.md)（[English](CHANGELOG.en.md)）
-- 发版步骤：[docs/release-checklist.md](docs/release-checklist.md)（[English](docs/release-checklist.en.md)）
-
-改语言语义、错误码或公开 API 时，同步更新对应 `docs/*-0.0.44.md`（或当前版本设计书）。CI、覆盖率与 sanitizer 命令见根目录 [README.md](README.md)「测试与质量门禁」。
-
-## Cursor Agent（可选）
-
-使用 Cursor 时，维护者侧上下文见 [AGENTS.md](AGENTS.md) 与 [`.cursor/README.md`](.cursor/README.md)。**这不是贡献前提**；人类贡献者只需本文件与标准 PR 流程。
-
-## 获取帮助
-
-- 一般问题与功能讨论：GitHub Issues
-- 安全：见 [SECURITY.md](SECURITY.md)（[English](SECURITY.en.md)）
-- 维护者：唐荣兵 — yanhuang8923@qq.com
+3. 检查文档内部链接与 `§` 引用。
+4. 用户可见变更更新 [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md)。
+5. 阶段/分支收尾按 [AGENTS.md](AGENTS.md) 的“收尾工作”清理文档，并通过 `ctest -R docs.cleanup`。

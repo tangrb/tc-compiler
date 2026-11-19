@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0019
+profile: common
+source: fixtures/tc-sem-const-0019/root.tc
+spec: "§3.10 const 初始化器禁止裸名引用本模块 static var -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0019/lib.tc, line: 3, column: 25}
+  related: []
+  diagnostics: exactly-one

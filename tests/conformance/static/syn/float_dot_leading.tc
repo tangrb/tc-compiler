@@ -1,0 +1,2 @@
+#program
+var x: float64 = copy float64, .5

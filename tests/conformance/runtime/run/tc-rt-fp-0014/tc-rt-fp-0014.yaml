@@ -1,0 +1,10 @@
+id: TC-RT-FP-0014
+profile: w64
+source: root.tc
+spec: "§6.3.3 mod with b=-inf returns the dividend bit-exactly"
+kind: run
+expect:
+  stdout_hex: "332e350a"
+  trap: null
+  exit: 0
+  termination: normal

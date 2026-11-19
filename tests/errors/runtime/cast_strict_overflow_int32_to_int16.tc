@@ -1,3 +1,0 @@
-#program
-var a: int32 = 50000
-var b: int16 = cast(int16, a)

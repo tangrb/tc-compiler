@@ -1,0 +1,6 @@
+#program
+struct S then
+    var x: int32
+end
+var s: S = make S, 1
+var y: int32 = copy int32, s.nope

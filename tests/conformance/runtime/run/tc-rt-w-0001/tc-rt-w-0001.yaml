@@ -1,0 +1,10 @@
+id: TC-RT-W-0001
+profile: w32
+source: root.tc
+spec: "§13.2.2 isize overflow on the 32-bit profile -> TC_RE_INTEGER_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_INTEGER_OVERFLOW
+  exit: 1
+  termination: trap

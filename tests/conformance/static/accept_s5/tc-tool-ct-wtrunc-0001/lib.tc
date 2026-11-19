@@ -1,0 +1,2 @@
+#lib
+public const X: isize = trunc isize, 4294967296

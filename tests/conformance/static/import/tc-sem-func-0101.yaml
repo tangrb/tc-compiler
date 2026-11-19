@@ -1,0 +1,10 @@
+id: TC-SEM-FUNC-0101
+profile: common
+source: fixtures/tc-sem-func-0101/root.tc
+spec: "§6.15.1 函数操作数形态正确但目标未解析 -> UNDEFINED_FUNCTION；位置函数名"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_FUNCTION
+  primary: {file: fixtures/tc-sem-func-0101/lib.tc, line: 3, column: 30}
+  related: []
+  diagnostics: exactly-one

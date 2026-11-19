@@ -1,0 +1,4 @@
+#program
+var x: int32 = copy int32, 1
+_ = br_if x, L
+label L:

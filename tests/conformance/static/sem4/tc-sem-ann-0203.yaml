@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0203
+profile: common
+source: fixtures/tc-sem-ann-0203/root.tc
+spec: "§8.6 重复注解 -> ANNOTATION；位置为第二次注解 Token"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0203/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

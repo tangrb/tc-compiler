@@ -1,0 +1,3 @@
+#program
+import lib
+var x: int64 = call lib.one, true

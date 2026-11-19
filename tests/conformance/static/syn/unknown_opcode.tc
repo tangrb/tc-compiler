@@ -1,0 +1,2 @@
+#program
+_ = frobnicate int32, 1

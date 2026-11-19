@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0003
+profile: common
+source: tc-ct-order-0003/root.tc
+spec: "§4.10 CT 按模块内源序启动；同模块两个独立失败 A(div0)、B(overflow)时只报源序最早的 A -> CONST_DIV_ZERO；B 不再求值；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_DIV_ZERO
+  primary: {file: tc-ct-order-0003/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

@@ -1,3 +1,0 @@
-#program
-var a: int32 = 10 ; inline comment
-writeln(int32, a)

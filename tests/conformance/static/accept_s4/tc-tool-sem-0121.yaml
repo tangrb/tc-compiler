@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0121
+profile: w64
+source: tc-tool-sem-0121/root.tc
+spec: "§8.6/§13.2.2 @align(N) 按 W 位地址宽度：64 位下 2^63 是合法的 2 的幂"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

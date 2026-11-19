@@ -1,7 +1,0 @@
-#program
-; while 体的 end 比块头深超过一级 → 同样报 while
-var i: int32 = 0
-while lt(int32, i, 1) then
-    i = 1
-        end
-writeln(int32, i)

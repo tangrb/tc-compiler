@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0008
+profile: common
+source: assign_missing_op.tc
+spec: "§14.4 instruction = lhs \"=\" op_form NL；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（行终止符）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: assign_missing_op.tc, line: 3, column: 4}
+  related: []
+  diagnostics: exactly-one

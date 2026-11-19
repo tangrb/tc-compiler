@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0131
+profile: common
+source: fixtures/tc-sem-call-0131/root.tc
+spec: "§3.7/#10 make 重复字段先于未知字段 -> DUPLICATE_FIELD"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_FIELD
+  primary: {file: fixtures/tc-sem-call-0131/root.tc, line: 6, column: 26}
+  related: [{file: fixtures/tc-sem-call-0131/root.tc, line: 6, column: 20}]
+  diagnostics: exactly-one

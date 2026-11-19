@@ -1,0 +1,10 @@
+id: TC-RT-FP-0020
+profile: w64
+source: root.tc
+spec: "§11.2 %g exponent boundary: e=-4 stays fixed, e=-5 goes scientific; 7th digit rounds"
+kind: run
+expect:
+  stdout_hex: "302e3030303132333435360a312e3233343536652d30350a302e3030303132333435370a"
+  trap: null
+  exit: 0
+  termination: normal

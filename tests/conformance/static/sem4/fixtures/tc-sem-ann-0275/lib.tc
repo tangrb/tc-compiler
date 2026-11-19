@@ -1,0 +1,6 @@
+#lib
+public struct S then
+    readonly x: int32
+end
+public @fast func f(@no_alias p: S) void then
+end

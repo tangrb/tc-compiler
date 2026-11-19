@@ -1,0 +1,10 @@
+id: TC-SYN-END-0009
+profile: common
+source: nested_paired_struct.tc
+spec: "§14.3 struct 体只允许字段（不支持嵌套 struct）；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（public）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: nested_paired_struct.tc, line: 4, column: 5}
+  related: []
+  diagnostics: exactly-one

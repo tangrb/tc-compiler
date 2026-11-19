@@ -1,0 +1,6 @@
+id: TC-FZ-LEX-0001
+profile: common
+spec: "§2/§12.1 fail-fast：随机字节不得崩溃/挂起，拒绝时恰好一个 LEX/SYN 诊断；§2/§12.1 模糊/属性"
+kind: property
+property: {name: lex_random, trials: 200, seed: 1}
+expect: {}

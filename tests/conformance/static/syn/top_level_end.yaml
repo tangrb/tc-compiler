@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0006
+profile: common
+source: top_level_end.tc
+spec: "§14.3 #program 顶层语句不含游离 end；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: top_level_end.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

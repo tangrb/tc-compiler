@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0002
+profile: common
+source: tc-ct-form-0002/root.tc
+spec: "§3.10 正向允许集不含参数引用；局部 const 初始化器引用形参 -> CONST_FORM；§12.5.1 目标 Token"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0002/lib.tc, line: 3, column: 22}
+  related: []
+  diagnostics: exactly-one

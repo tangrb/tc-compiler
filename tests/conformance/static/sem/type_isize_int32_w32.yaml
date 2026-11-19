@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0101
+profile: w32
+source: type_isize_int32_w32.tc
+spec: "§3.9/§13.2.2 32 位 isize 与 int32 同宽但不同型 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_isize_int32_w32.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

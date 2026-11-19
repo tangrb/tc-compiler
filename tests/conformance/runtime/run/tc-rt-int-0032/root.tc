@@ -1,0 +1,7 @@
+#program
+var a: int64 = mul int64, 3037000499, 3037000499
+_ = writeln int64, a
+var b: int64 = div int64, 9223372036854775807, 2
+_ = writeln int64, b
+var c: int64 = shl int64, 1, 62
+_ = writeln int64, c

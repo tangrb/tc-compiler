@@ -1,0 +1,10 @@
+id: TC-RT-MEM-0018
+profile: w64
+source: root.tc
+spec: "§3.12/§6.8 field one-past: ptradd n=0, ptrsub back are defined and ptrdiff is the exact byte difference (8 bytes for one int64 element)"
+kind: run
+expect:
+  stdout_hex: "370a380a"
+  trap: null
+  exit: 0
+  termination: normal

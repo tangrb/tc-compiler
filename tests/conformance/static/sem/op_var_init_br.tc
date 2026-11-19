@@ -1,0 +1,3 @@
+#program
+var t: int32 = br L
+label L:

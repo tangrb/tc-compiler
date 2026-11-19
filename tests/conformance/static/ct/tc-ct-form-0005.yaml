@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0005
+profile: common
+source: tc-ct-form-0005/root.tc
+spec: "§3.10 正向允许集不含 call；#program const 调用导入函数 -> CONST_FORM（操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0005/root.tc, line: 3, column: 18}
+  related: []
+  diagnostics: exactly-one

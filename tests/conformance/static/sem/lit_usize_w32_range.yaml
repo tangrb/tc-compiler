@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0101
+profile: w32
+source: lit_usize_w32_range.tc
+spec: "§13.2.2 usize 字面量范围按 W；32 位下 2^32 不可表示 -> LITERAL_RANGE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: lit_usize_w32_range.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

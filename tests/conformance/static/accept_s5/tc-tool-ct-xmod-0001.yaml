@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-XMOD-0001
+profile: common
+source: tc-tool-ct-xmod-0001/root.tc
+spec: "§3.10/§4.10 跨模块 public const 引用 m.K；导入模块内 Self.K 链式"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

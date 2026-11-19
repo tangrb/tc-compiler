@@ -1,0 +1,5 @@
+#lib
+public const M: isize = -1
+public const X: int64 = cast int64, Self.M
+public @fast func f(@range(0, Self.X) n: int64) void then
+end

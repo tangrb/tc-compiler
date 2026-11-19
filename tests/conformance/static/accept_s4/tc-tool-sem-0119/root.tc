@@ -1,0 +1,18 @@
+#program
+var x: int32 = copy int32, 1
+var p: ptr<int32> = addr int32, x
+var f: fnptr<void> = copy fnptr<void>, nullptr
+unsafe then
+    var v: int32 = load int32, p
+    _ = store int32, p, v
+    var lv: int32 = load.volatile int32, p
+    _ = store.volatile int32, p, lv
+    var q: ptr<int32> = ptradd int32, p, 0
+    var r: ptr<int32> = ptrsub int32, p, 0
+    _ = memmove int32, q, r, 1
+    var bits: int64 = bitcast int64, p
+    var back: ptr<int32> = bitcast ptr<int32>, bits
+    var fbits: int64 = bitcast int64, f
+    var ff: fnptr<void> = bitcast fnptr<void>, fbits
+    _ = call_indirect ff
+end

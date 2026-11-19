@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0009
+profile: common
+source: const_missing_eq.tc
+spec: "§14.3 const_decl 需要 \"=\" const_expr；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（行终止符）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: const_missing_eq.tc, line: 2, column: 22}
+  related: []
+  diagnostics: exactly-one

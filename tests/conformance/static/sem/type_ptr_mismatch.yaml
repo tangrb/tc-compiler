@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0105
+profile: common
+source: type_ptr_mismatch.tc
+spec: "§3.9/§3.11 ptr<T> 按 T 等价，不同 T 无隐式转换 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_ptr_mismatch.tc, line: 3, column: 38}
+  related: []
+  diagnostics: exactly-one

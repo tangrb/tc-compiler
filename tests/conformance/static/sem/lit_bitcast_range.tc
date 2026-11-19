@@ -1,0 +1,2 @@
+#program
+var x: int32 = bitcast int32, 4294967295

@@ -1,0 +1,6 @@
+#lib
+public const A: int32 = cast int32, 2147483647
+public const B: int32 = cast int32, -2147483648
+public const C: uint32 = cast uint32, 4294967295
+public const D: float32 = cast float32, 1e30
+public const E: int64 = cast int64, 4294967296

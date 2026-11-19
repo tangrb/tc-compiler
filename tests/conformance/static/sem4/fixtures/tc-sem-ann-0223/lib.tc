@@ -1,0 +1,3 @@
+#lib
+public @fast func f(@unknown(1) p: ptr<int32>) void then
+end

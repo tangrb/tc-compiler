@@ -1,0 +1,8 @@
+#program
+import util
+struct R then
+    var s: util.S
+end
+var s: util.S = make util.S, 1
+var r: R = make R, s
+var x: int32 = copy int32, r.s.a

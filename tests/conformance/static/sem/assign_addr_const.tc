@@ -1,0 +1,3 @@
+#program
+const K: int32 = 1
+var p: ptr<int32> = addr int32, K

@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0208
+profile: common
+source: fixtures/tc-sem-ann-0208/root.tc
+spec: "§8.6 @nonnull 只在 @fast 指针形参上合法；非 @fast 函数 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0208/lib.tc, line: 2, column: 15}
+  related: []
+  diagnostics: exactly-one

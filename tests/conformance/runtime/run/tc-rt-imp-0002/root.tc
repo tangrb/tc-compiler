@@ -1,0 +1,11 @@
+#program
+import a
+import b
+var r1: int32 = call a.fa
+_ = writeln int32, r1
+var r2: int32 = call a.fa
+_ = writeln int32, r2
+var s1: int32 = call b.fb
+_ = writeln int32, s1
+var s2: int32 = call b.fb
+_ = writeln int32, s2

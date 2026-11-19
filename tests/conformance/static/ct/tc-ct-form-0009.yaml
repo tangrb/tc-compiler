@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0009
+profile: common
+source: tc-ct-form-0009/root.tc
+spec: "§3.10 const 中的 bitcast 仅限数值↔数值；fnptr 位重解释 -> CONST_FORM（操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0009/lib.tc, line: 3, column: 29}
+  related: []
+  diagnostics: exactly-one

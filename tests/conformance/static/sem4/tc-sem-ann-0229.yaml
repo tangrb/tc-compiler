@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0229
+profile: common
+source: fixtures/tc-sem-ann-0229/root.tc
+spec: "§2.6/§8.6 @padding 只是字段注解；用于函数 -> ANNOTATION（注解 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0229/lib.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

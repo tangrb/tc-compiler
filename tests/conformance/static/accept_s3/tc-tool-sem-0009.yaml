@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0009
+profile: w32
+source: tc-tool-sem-0009/root.tc
+spec: "§13.2.1 32 位档案：ptr/fnptr/isize/usize 为 4 字节，结构体布局按 W"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

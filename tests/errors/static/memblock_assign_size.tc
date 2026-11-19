@@ -1,4 +1,0 @@
-#program
-; 期望：memblock size mismatch
-var a: memblock<int32, 2> = memblock(int32, count: 2, 1, 2)
-var b: memblock<int32, 3> = a

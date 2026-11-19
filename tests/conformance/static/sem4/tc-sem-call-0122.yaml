@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0122
+profile: common
+source: fixtures/tc-sem-call-0122/root.tc
+spec: "§8.8.2 call_indirect 实参先于接收变量类型；实参合法但接收类型不符 -> TYPE_MISMATCH（调用点）"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-call-0122/root.tc, line: 5, column: 20}
+  related: []
+  diagnostics: exactly-one

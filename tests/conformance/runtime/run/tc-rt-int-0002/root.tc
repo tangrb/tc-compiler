@@ -1,0 +1,19 @@
+#program
+var a: uint8 = add uint8, 255, 1
+_ = writeln uint8, a
+var b: uint8 = sub uint8, 0, 1
+_ = writeln uint8, b
+var c: int8 = add.wrap int8, 127, 1
+_ = writeln int8, c
+var d: int8 = shl.wrap int8, 1, 8
+_ = writeln int8, d
+var e: int8 = neg.wrap int8, -128
+_ = writeln int8, e
+var f: uint32 = add uint32, 4294967295, 1
+_ = writeln uint32, f
+var g: int8 = shl.wrap int8, 1, 7
+_ = writeln int8, g
+var h: int8 = sub.wrap int8, -128, 1
+_ = writeln int8, h
+var j: int8 = mul.wrap int8, 100, 3
+_ = writeln int8, j

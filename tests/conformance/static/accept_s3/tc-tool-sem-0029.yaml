@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0029
+profile: common
+source: tc-tool-sem-0029/root.tc
+spec: "§1.8/§4.11.2.6 布局按导入 DAG 逆向拓扑：钻石交叉边 b->c 时 b 的字段可用 c.S"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

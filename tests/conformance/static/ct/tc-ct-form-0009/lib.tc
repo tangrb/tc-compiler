@@ -1,0 +1,4 @@
+#lib
+public @unsafe func f() void then
+    const P: fnptr<int32> = bitcast fnptr<int32>, 0
+end

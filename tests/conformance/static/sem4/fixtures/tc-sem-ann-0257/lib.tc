@@ -1,0 +1,5 @@
+#lib
+public const F: float32 = div float32, 1.0f, inf
+public const X: int32 = cast int32, Self.F
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

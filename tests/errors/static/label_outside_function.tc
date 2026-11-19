@@ -1,4 +1,0 @@
-#program
-; 期望：label is only allowed inside a function
-var x: int32 = 1
-label target:

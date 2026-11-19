@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0005
+profile: common
+source: field_make_duplicate.tc
+spec: "§6.2.7 make 重复字段 -> DUPLICATE_FIELD；§12.5.1 第二字段名并关联首次"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_FIELD
+  primary: {file: field_make_duplicate.tc, line: 6, column: 26}
+  related: [{file: field_make_duplicate.tc, line: 6, column: 20}]
+  diagnostics: exactly-one

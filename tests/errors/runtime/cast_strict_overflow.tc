@@ -1,3 +1,0 @@
-#program
-var big: int32 = 1000
-var err: int8 = cast(int8, big)

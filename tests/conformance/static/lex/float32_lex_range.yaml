@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0019
+profile: common
+source: float32_lex_range.tc
+spec: "§2.4 f/F -> float32 且精确舍入；有限值舍入为无穷 -> TC_CE_LITERAL_LEX_RANGE；§12.3；§12.5.1 定位到完整字面量首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_LITERAL_LEX_RANGE
+  primary: {file: float32_lex_range.tc, line: 2, column: 32}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,8 @@
+#lib
+public func one(a: int32) int32 then
+    _ = return a
+end
+public @safe func f(p: fnptr<int32, int32>) int32 then
+    var x: int32 = call_indirect p, a: 1
+    _ = return x
+end

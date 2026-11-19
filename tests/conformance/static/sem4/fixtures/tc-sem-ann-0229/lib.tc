@@ -1,0 +1,3 @@
+#lib
+public @padding(4) func f() void then
+end

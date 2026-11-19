@@ -1,7 +1,0 @@
-#program
-; 0.0.31：then 侧不能引用 else 局部变量，统一为 UndefinedVariable。
-if false then
-    writeln(int32, x)
-else
-    var x: int32 = 2
-end

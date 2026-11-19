@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0113
+profile: common
+source: fixtures/tc-sem-call-0113/root.tc
+spec: "§8.8.2 实参先于接收变量类型：实参合法但 var 类型与返回类型不符 -> TYPE_MISMATCH（调用点）"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: fixtures/tc-sem-call-0113/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

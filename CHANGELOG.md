@@ -1,107 +1,138 @@
-# 变更日志
+# Changelog
 
-[English](CHANGELOG.en.md)
+## [0.0.46] - 2026-11-19
 
-本文件记录项目的所有重要变更。
+### 状态
 
-格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
-版本号大致遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)（工具链 tag：`vMAJOR.MINOR.PATCH`）。
-
-## [Unreleased]
-
-## [0.0.44] - 2026-09-21
-
-### Changed
-
-- GitHub Actions `ci.yml` / `asan.yml` 对 **`tc-0.0.44`** 的 push/PR 触发；覆盖率收集经 `scripts/lcov_compat.sh` 兼容 lcov 1.x、Ubuntu apt 2.0 与 Homebrew 2.5（`lcov` 与 `genhtml` 分开探测 `--ignore-errors`）。根 README、CONTRIBUTING、`docs/README` 已同步 CI 分支、lcov 依赖与 `build-coverage/` 产物路径。
-
-- **语言规范升级至 0.0.44**（口径收敛版，不新增语言能力、不改变程序书写方式；诊断码仍 **86** 码 = 74 `TC_CE_*` + 12 `TC_RE_*`）。新增规范文本 `docs/TC语言标准设计说明书-0.0.44.md`。IEEE 754-2019 保留为唯一外部规范性引用。
-- **全部下游设计文档同步至 0.0.44**：编译器标准、VM 详设、VM 命令行参考、AOT 详设、Embed 详设、libtc 设计说明书统一改名为 `*-0.0.44.md`，更新规范基线行、术语（「语法阶段受限恢复」→「结构类语法阶段诊断」）与 D1～D35 变更点（接受集、诊断归属、语义澄清），并为每份文档新增「0.0.44 同步状态」标注（文档先行）。
-- 门禁 `scripts/sync/check_doc_counts.py` 的语言标准事实源改指 0.0.44，并修正提取逻辑（附录 B 终止边界、错误码种类以 `tc_types.h` 的 `TcErrorKind` 为事实源）；**门禁由预先存在失败转为全绿**。
-- 元数据与导航层版本行改指 0.0.44：README（中英）、`AGENTS.md`、`docs/README`（文档地图）、`CONTRIBUTING`、`examples/README`、`.cursor` rules 与 skills；`docs/release-checklist` 的文档文件名核对项同步。
-- **文档面清理**：移除已收口的历史过程文档（0.0.41 分析报告／修复计划、0.0.42 遗留问题清零计划）与 0.0.42 规范文本；勘误清单改名为不带版本号的 `TC-语言标准一致性勘误清单.md`（现同时承载 0.0.42 首轮与 0.0.44 第二轮）。历史内容可用发布标签恢复（如 `git show v0.0.42:docs/TC语言标准设计说明书-0.0.42.md`），`docs/README` 已注明恢复方式；全仓 411 条相对链接复核无死链。
-- **`#lib` 函数体 `Self.` 强制访问**：同模块访问函数外定义的 `static` 必须写 `Self.<名>`；实现原先只在赋值/`read` 目标位置报 `TC_CE_FUNCTION_SCOPE_ACCESS`，其余读位置（运算/比较/逻辑/位运算/移位、`return` 操作数、`if`/`while` 条件、输出操作数）降级为 `UNDEFINED_VARIABLE`，`memblock` 的 `N`/`count:` 更静默接受。本批统一分类，并补 `Self.<名> = v` 与 `Self.<名>.<字段> = v` 赋值目标解析（§6.2）、`TcFieldAssign.base_binding`（VM 与 AOT 共享基址解析，修 `unresolved struct base`）、以及 CFG 不再把 `static` 槽计入函数确定初始化（修函数体内读 `static var` 字段误报未初始化）。
-- **`static let` 来源收紧（D35）**：`static let` 初始化器只可引用字面量与源序更早且已成功求值的 `let`/`static let`，**不得引用 `static var`**；违反时在任一位置（整条 RHS、操作数、字段读基址、`.count` 基址、构造器字段值、`cast`/`bitcast` 源、`memblock` 的 `N` 与 `count:`）统一报 `TC_CE_CONSTANT_EXPRESSION`。同批修复 4 项同族缺陷：整条 `Self.<名>` 的报错码与消息、`static let` 声明类型命名 N 从未解析（`.count` 静默为 0）、构造器 `count: <名>` 早于 Pass2 求值、`usize_operand` 裸名不回退全局表。
-- **新增语言标准符合性审计**（[审计报告](docs/TC-0.0.44-语言标准符合性审计报告.md)）：以语言标准为唯一权威，核对 6 份设计文档与全部 `src/` 实现；确认 9 项既有未关闭项全部成立，并新增实现侧 70 项、文档侧 48+ 项、标准侧 4 项发现（含 2 项进程级故障：伪造指针越界读写、类型嵌套解析栈溢出）。审计未改动任何 `src/`、测试或既有文档。
-- **实现侧全面落地 0.0.44**（Batch S）：① **接受集**——指针 `cast` 改为所指类型重标记、不再要求等宽（D14）；`bitcast(ptr ↔ 浮点)` 改为拒绝（D10）；`Self.<名>` 限定标识符可作运算与输出操作数（D11）；`if`／`while` 条件接受 §6.1.1 RHS 全集（只读字段读取、`Self.static let`、指针比较；D29）；② **诊断**——`const_rhs` 嵌套调用改报语法拒绝（D34）；CT 类诊断（`TC_CE_CONSTANT_*`）改为**挂起**至全部 SEM 类诊断无触发后再报告（语言标准 §11 四步规则／D19），派生失败（依赖已失败常量）不再改报 SEM 码；静态成员初始化器引用源序更晚／自身 → `TC_CE_UNDEFINED_VARIABLE`（D28）；③ **语义**——`ptr_load(bool)` 按 `0x00`／非零 → `0x01` 规范化（D16，**修复 VM 与 AOT 的行为分歧**）；`static var` 初始化器可引用更早 `static var`、准备阶段失败报 `TC_RE_*`（D16）；静态布尔三态判定原子集合扩至 §5.2.1 原子表达式（D29）；④ **语料与门禁**——新增／更正 VM 与 AOT 语料 24 项、单元断言 26 条，`test-map.md` 规模回填 966 VM / 443 AOT；VM／AOT／unit 三层与三项同步门禁全绿。
-- **工具链实现版本升至 v0.0.44**（`TC_VERSION_CORE` / `TC_VERSION_EMBED`）；CLI `--version` 黄金测试同步为 `tc-vm 0.0.44` / `tc-aot 0.0.44`。
-
-## [0.0.43] - 2026-09-01
+- **G10 PASS，0.0.46 阶段出口完成**：S8 AArch64 全量语义/ABI、S9
+  freestanding/ARM32、S10 `riscv32-baremetal` 与长期回归均已通过门禁。
+- 当前验证：Debug/Release/ASan+UBSan `ctest` **71/71**；harness **873/873**；
+  覆盖矩阵 **636/636**；`docs.cleanup`、`release.s10_audit`、golden 全部通过。
 
 ### Added
 
-- 开源仓库脚手架：贡献指南、行为准则、安全策略、Issue/PR 模板、Dependabot、示例与文档索引。
-- 表面文档中英双语配对（文首可切换语言）。
-- Cursor Agent 文档优化：加载分级、Skill 触发条件、工作流与路由去重。
+- **0.0.46 clean-sheet 实现**：按标准与设计重写的私有 `tc_core`，以及 `tc-vm`/`tc-aot`
+  两个唯一工具入口；不提供 C 宿主公共库、嵌入 API/ABI。
+- **契约与测试基建**：类型/IR/对象/区/平台档案/诊断/零 pass 契约；80 码闭集与首诊比较器；
+  harness、golden、覆盖矩阵；L0/L1 测试。
+- **LEX/SYN 与扁平 parse IR**：UTF-8/注释/续行/最长匹配、精确十进制字面量、关键字/助记符/
+  后缀/注解、EBNF、模式/层序、字段路径、命名实参、`switch` 目标、span；七个 LEX/SYN 码。
+- **模块发现与 IMPORT**：import 源序 DFS、导入目录→include roots、解析路径实例键、
+  `module_order`、五个 IMPORT 码与导入名冲突。
+- **名称、类型、转换与布局**：成员/命名空间/可见性、类型表 intern 与冻结、字面量按 W 定型、
+  `cast`/`trunc`/`bitcast` 矩阵、结构体布局/`@padding`、`sizeof`、字段/赋值路径、指令形状/
+  类型、模式矩阵、32/64 静态档案。
+- **const_expr 形态**：`const`/`static var` 初始化器的 §3.10 正向 op 集、
+  const-only 值引用、禁止后缀/指针位重解释/var/参数/static 引用，统一 `CONST_FORM`。
+- **CFG、DI、返回、调用、安全与注解**：每个程序/函数独立封闭 CFG、全边与可达性、
+  `U[n]` 初始化与 DI 最大固定点、`MISSING_RETURN`；标签/控制形态；直接/间接调用的
+  目标→安全→LHS→实参→接收者顺序与调用安全；safe/unsafe 上下文与 `@safe` 优先；
+  函数/形参/字段注解矩阵、`@align`/`@range` 的端点常量（`lo`/`hi` 为同型整数
+  常量、`N` 为正 2 的幂）、固定 binary32/64 的 NaN/下溢/cast 规则（不依赖宿主
+  `fenv`/`long double`）、strict 失败不产生 SEM 注解诊断、64 位 `@align`/`@padding`
+  元数据、承诺违反不静态拒绝；重复标签/畸形分支按保守 fallthrough 参与首诊，
+  缺失标签不再抑制已知边上的 DI。
+- **CT 求值**：`const`/`static var`/局部 `const` 的编译期求值；§3.10 正向 allowlist、
+  §6.3–§6.6 的严格整数/浮点语义与 `CONST_*` 错误映射、精确 `mod`、下溢按
+  tininess-after-rounding 判定；按 `module_order`/模块源序按需求值，成功/失败缓存，
+  首个失败归属目标声明且无级联；聚合 const 字段树、静态初值 `TcInitImage`
+  （按档案端序、padding 为 0、bool 0x00/0x01）。
+- **IR 最终化与冻结**：`TcIR`/`TcUnit`/`TcBlock`/`TcInstr` 物化；字段路径变为
+  vreg+字段索引，标签/`switch` 目标使用块 id，命名实参保留，span 保留；聚合 const
+  在使用处内联为 `make`，`const` 不占对象；静态/帧对象表、模块实例 id、按 profile 的
+  布局与冻结类型表；`tc_ir_print` 确定性文本转储。
+- **运行时语义核与确定性 I/O**：W 相关的 strict/wrap 整数、除/模/移位边界、
+  binary32/64 固定舍入与异常优先级、精确下溢、`cast`/`trunc`/`bitcast`；CT 与 VM
+  共用该语义核（CT 映射到六个 `TC_CE_CONST_*`）；§11.2 六位有效数字精确渲染
+  （不调用宿主 `printf`）与 §11.3 完整 Token 输入（EOF/短读/错误）。
+- **参考 VM（W=32/64）**：五区地址空间、运行时对象与字段子对象、指针状态、
+  全部 51 个 opcode、调用/`D`、尾调用不改变深度、I/O 整条提交、15 个
+  `TC_RE_*` 必选 trap、trap 前已提交输出不回滚；`--checked` 增加 UB 越界检查；
+  `aarch64-linux-user`、`aarch64-baremetal` 与 `w32` 档案。
+- **AArch64 W=64 全量后端与工具链**：全部 51 个 opcode 与全部值类型（整数/位/
+  比较、浮点、转换、指针/对象、`struct`/`make`/`copy`/`memmove`、直接/间接调用、
+  `funcaddr`/`funceq`/`funcne`、`sizeof`、I/O、控制流）的 lowering；AAPCS64
+  复合/HFA/大复合按引用/大 struct 间接返回、`fnptr`/`call_indirect`、多尺寸与未对齐访问；
+  按 `TcObject` 偏移的帧/静态区布局、对象描述符表、静态初值 `.data`、复位入口、
+  区基址、确定性汇编发射、无 regalloc；`tc-aot --emit=asm|obj|elf`、
+  clang/lld 驱动、`--icf=none` 与 `aarch64-none-elf` target triple 映射；
+  freestanding AArch64 运行时（启动、semihosting 输出、确定性格式化/输入、
+  对象/指针检查、checked shadow、trap/退出、深度计数、运行时分配器）。
+- **全量运行时与差分/一致性验证**：S6 W=64 全部运行时用例复用 + struct/HFA/
+  大复合按引用/多参数/递归/间接调用/指针/大偏移/静态字节/`@fast_math` 的新差分用例；
+  全量 AAPCS64 ABI、汇编形态审计与 clang C 调用者互操作；生成式 ABI/布局/内存/
+  浮点 fuzz 与静态变异双工具首诊；标准 §13.4 八项一致性套件；checked build（越界/
+  悬垂/one-past/未初始化）与必选 trap 分离统计、合法程序集合不变；ELF 入口/区布局/
+  符号/静态字节/ICF 与确定性套件；S7 差分/ABI/工具链/静态一致/零 pass 套件继续通过；
+  全部静态 `.tc` 的 VM/AOT 首诊逐字节一致；release 与 ASan+UBSan 均通过。
+- **freestanding/裸机与 32 位后端**：目标无关 freestanding 运行时核与平台缝
+  （对象表/必选定检/checked shadow、全部设备策略、确定性 I/O、分配器、trap/退出记录）；
+  `aarch64-baremetal`（PL011 UART0 stdout/分帧 stdin、UART1 退出记录、PSCI SYSTEM_OFF、
+  无 semihosting、ELF/flat/符号/区布局审计）；首个 32 位目标
+  `arm32-baremetal`（Cortex-M7 MPS2 AN500、`thumbv7em-none-eabihf`、base
+  AAPCS32/ILP32 softfp、独立 ARM32 后端与全部 51 个 opcode、复合实参按
+  Rule C.4/C.5 字传递、64 位返回对/间接返回、`int64` 辅助、软件 binary64、未对齐
+  访问、checked build、ARM EABI `__aeabi_*` 除法/内存辅助、`qemu-system-arm`
+  执行）；`tc-aot --profile=` 目标分派与 `--device=` 平台实例策略覆盖；32/64
+  分档案静态结果、golden 与差分保持隔离。
+- **S10 多目标扩展与长期回归**：新增 `riscv32-baremetal` 目标（RV32IMAFDC、
+  ILP32 soft-float ABI、`TcTargetDesc`/`TcABIDesc`、独立 RISC-V 32 后端与全部
+  51 个 opcode、a0-a7 参数/16 字节栈对齐/2×XLEN 复合按值/更大复合按引用/
+  隐藏指针间接返回、64 位除法辅助、NS16550A UART0 stdout 与分帧 stdin、
+  semihosting 退出记录、SiFive test finisher、`qemu-system-riscv32` virt）；
+  S10 RISC-V 平台/ELF/设备策略/checked/UART 输入套件、32 个 C caller 与 14 个
+  TC caller 的 RISC-V ILP32 互操作用例、1037 个静态源 VM/AOT 首诊一致、
+  149×2 个长期回归静态源、16×3 个差分样本、15 个 fuzz 回归用例与 3 目标平台
+  语料、RISC-V 重复构建/执行与 O0/O2 确定性；发布审计检查 80 码闭集、私有
+  `tc_core`、两个 CLI、freestanding 符号、版本与文档一致性。
+- **S10 对抗性扩展**：新增生成式 ABI fuzz（随机标量/复合/padding 签名，C→TC
+  与 TC→C 双向，三个 AOT 目标）、RISC-V 实现边界/鲁棒性用例（帧与静态区预算、
+  `D=63/64`、设备窗口末端、空输入、flat 执行、长路径 trap 记录）与
+  RISC-V 静态变异套件；
+  长路径 trap/exit 记录缓冲增至 8192 字节以保留 `TC-EXIT`；C 互操作 harness 对
+  未对齐 packed 复合使用 `-mstrict-align`。同时移除前端 arena 对单次分配误加的
+  4 MiB 上限（约 3.3 万 token 的合法源会被误报 OOM），新增 800-case switch
+  前端规模回归，并新增 39 个 RISC-V checked UB 用例的 VM/AOT 一致性套件与
+  30000 指令 far-branch 长跳转回归；RISC-V 的 `br`/`br_if`/`switch`/`return`
+  在超过 1 MiB 距离时使用 auipc/jalr，避免汇编器 fixup 越界；AArch64/ARM32
+  条件远分支改为条件跳过 + 无条件转移。三个目标的复位入口在 `tc_main` 前清零
+  BSS，使 ELF 与 flat 镜像都从确定的零运行时状态开始；ARM32 1 MiB 代码窗口
+  仍是明确实现边界。全量 `ctest` 增至 71 项。
+- **工具能力**：`--syntax-only`（LEX/SYN）、`--sem-only`（LEX/SYN/IMPORT/SEM）与
+  `--static-only`（含 CT 与 IR 最终化）部分检查；普通 `tc-vm` 调用执行参考 VM，
+  首个 trap 以 `error[RT]` 报告并退出 1；普通 `tc-aot` 调用发射目标汇编，
+  `--emit=asm|obj|elf|flat` 生成汇编/ELF/裸二进制产物，`--checked` 生成 checked build，
+  `--profile=`/`--device=` 选择目标档案与设备策略；无映射的平台能力显式退出 70
+  且不发布错误产物。
+- **测试**：`tc_frontend_test`、`tc_sem_test`、`tc_ct_test`、`tc_ir_test`、`tc_vm_test`、
+  `tc_aot_test`、S1/S2/S3/S4/S5/S6 一致性用例表、S7 差分/ABI/工具链/静态一致/
+  确定性套件、S8 全量差分/ABI/C 互操作/生成式 fuzz/checked/一致性/产物/确定性/
+  静态变异套件、W=32/64 运行时 golden、S9 裸机/ARM32/互操作/静态一致/
+  分档案/确定性套件、AAPCS64/AAPCS32 双向 interop、ABI mutation 审计与容量报告、
+  adapter 失败关闭自测；当前 Debug/Release/ASan `ctest` 71/71，
+  harness 873/873（608 编译、131 工具、133 运行、1 属性），单元检查 frontend 688、
+  sem 102、ct 370、ir 674、vm 413、aot 81；S9 ARM32 差分 29 个固定用例 +
+  296 个 S6/S8 语料，C 调用者 AAPCS32 14 例、AAPCS64 33 例，反向 ABI 19 例，
+  1037 个静态源 × 2 个裸机档案；S10 RISC-V 29 个固定用例 + 296 个 S6/S8
+  语料、32 个 C caller/14 个反向 ABI 用例、1037 个静态源、149×2 个长期回归
+  静态源与 15 个 fuzz 用例；5/5 ABI mutant 被 interop 发现。
 
 ### Changed
 
-- 工具链与 Embed 实现版本升至 v0.0.43；语言规范设计书仍为 0.0.42（无语言语义变更）。
+- 诊断收口：裸 `NAME` 的注解按语法类型判定，`@align`/`@nonnull`/`@no_alias`
+  非指针及 `@range` 非整数统一在注解 Token 报 `TC_CE_ANNOTATION`；非法 UTF-8
+  的 0 基字节偏移在默认、`--sem-only`、`--static-only`、`--syntax-only` 与 AOT
+  诊断路径均呈现；新增 S4 注解矩阵、CLI 全路径/畸形序列/导入/管道检查及
+  adapter `byte_offset` 期望，并拒绝未声明 offset、校验 note 的文件/位置/阶段。
+- SEM 完成解析/校验并冻结类型表；CT 与 IR 最终化在其后运行，只使用只读类型查找，
+  不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边；`TcFunc.body`
+  在 unit 数组增长结束后统一校正，稳定指向最终 `TcIR.units`。
+- 收尾流程固化：阶段/分支收尾必须清理过程/历史文档，并通过 `docs.cleanup` 门禁；
+  当前约定与已知限制归并到 `src/CONTRACTS.md`。
+- 诊断位置、CT 顺序/缓存/错误映射、静态布局、IR 操作数与运行时/VM 约定见
+  `src/CONTRACTS.md`；`--sem-only`/`--static-only` 都不宣称程序有效，普通
+  `tc-vm` 运行也只报告首个 trap 或正常终止。
 
-## [0.0.42] - 2026-08-30
+### Removed
 
-### Added
-
-- 新增 `TC_CE_EXTRA_ARGUMENT` 错误码（N-13）。
-- 确定性的自实现浮点十进制输出（FP-4.6）。
-
-### Fixed
-
-- 与端序无关的 `memblock` / `struct` 布局（FP-4.5）。
-- 无 FENV 环境下可移植的下溢检测（不依赖 `__int128`，N-12）。
-- N-12 剩余可移植性债务（指针偏移、AOT 分配、`.count`）。
-
-### Changed
-
-- 设计文档与实现版本升至 v0.0.42；0.0.42 遗留问题清零收口。
-
-## [0.0.41] - 2026-08-30
-
-### Added
-
-- 导入的 struct 须使用限定名。
-- struct `field_access` 作为操作数的全链路支持。
-
-### Fixed
-
-- 语言标准符合性缺口（P0–P6 收口）。
-- 菱形 import / 拓扑、const 复合类型与 `memcopy` 下标缺口。
-- const 堆释放路径与 const 宽度回调。
-- 静态 `let` / `var` 初始化器中 `Self.field` 求值。
-- `memblock_count` 重写后保留 struct `.count` 基址。
-
-### Changed
-
-- 设计文档以语言标准符合性为基线重编；版本升至 v0.0.41。
-
-## [0.0.40] - 2026-08-24
-
-### Changed
-
-- 实现与设计文档升至 v0.0.40。
-- Cursor Agent 文档重构与特性地图拆分。
-- 为 `tc-0.0.40` 分支增加 CI/ASan 触发。
-
-## [0.0.39] - 2026-08-22
-
-### Added
-
-- struct 自引用 / 指针类型与 struct 形式合规（0.0.39）。
-- 会话级 `-I` 包含路径（补齐 0.0.39 剩余缺口）。
-
-### Fixed
-
-- `memcopy_unsafe` 在 `ptr<T>` 上操作时不带 memblock 头偏移。
-- 文档刷新导致的块注释损坏。
-
-### Changed
-
-- 从 0.0.38 线带入跨平台 CI/CD 与测试移植，纳入 0.0.39 发布线。
-
-[Unreleased]: https://github.com/tangrb/tc-compiler/compare/v0.0.44...HEAD
-[0.0.44]: https://github.com/tangrb/tc-compiler/compare/v0.0.43...v0.0.44
-[0.0.43]: https://github.com/tangrb/tc-compiler/compare/v0.0.42...v0.0.43
-[0.0.42]: https://github.com/tangrb/tc-compiler/compare/v0.0.41...v0.0.42
-[0.0.41]: https://github.com/tangrb/tc-compiler/compare/v0.0.40...v0.0.41
-[0.0.40]: https://github.com/tangrb/tc-compiler/compare/v0.0.39...v0.0.40
-[0.0.39]: https://github.com/tangrb/tc-compiler/compare/v0.0.38...v0.0.39
+- 历史实现、旧测试、旧工具、旧脚本与旧示例；历史代码仅在 git tag 中。

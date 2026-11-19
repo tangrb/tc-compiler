@@ -1,0 +1,3 @@
+#program
+import lib
+const X: int32 = call lib.g

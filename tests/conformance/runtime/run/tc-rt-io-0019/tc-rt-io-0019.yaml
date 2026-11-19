@@ -1,0 +1,10 @@
+id: TC-RT-IO-0019
+profile: w64
+source: root.tc
+spec: "§11.1/§11.3 committed stdout bytes are retained when a discarded `_ = read` hits EOF -> TC_RE_IO"
+kind: run
+expect:
+  stdout_hex: "34320a"
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

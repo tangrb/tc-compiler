@@ -1,0 +1,3 @@
+#program
+var z: int32 = copy int32, 0
+var x: int32 = div int32, 1, z

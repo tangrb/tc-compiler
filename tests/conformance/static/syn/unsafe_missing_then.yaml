@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0011
+profile: common
+source: unsafe_missing_then.tc
+spec: "§14.4 unsafe_block 需要 then；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（行终止符）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: unsafe_missing_then.tc, line: 2, column: 7}
+  related: []
+  diagnostics: exactly-one

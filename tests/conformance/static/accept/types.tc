@@ -1,0 +1,7 @@
+#lib
+import util
+public struct S then
+    readonly x: int32
+end
+public func f(a: bool, b: int8, c: int16, d: int32, e: int64, f8: uint8, f16: uint16, f32: uint32, f64: uint64, j: isize, k: usize, l: float32, m: float64, n: ptr<int32>, o: fnptr<int32, ptr<S>, bool>, p: S, q: ptr<ptr<S>>, r: fnptr<void>, s: util.T) void then
+end

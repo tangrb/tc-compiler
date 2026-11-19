@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0021
+profile: common
+source: fixtures/tc-sem-cfg-0021/root.tc
+spec: "§6.6.3/§12.2 #9 switch 的整数字面量先按其源类型（无后缀 int64）定型；2^63 不可表示 -> LITERAL_RANGE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: fixtures/tc-sem-cfg-0021/root.tc, line: 2, column: 12}
+  related: []
+  diagnostics: exactly-one

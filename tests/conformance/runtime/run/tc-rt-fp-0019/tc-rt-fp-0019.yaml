@@ -1,0 +1,10 @@
+id: TC-RT-FP-0019
+profile: w64
+source: root.tc
+spec: "§11.2 %g round-to-even ties at the 7th significant digit and rounding just above"
+kind: run
+expect:
+  stdout_hex: "312e3233343536652b30360a312e3233343534652b30360a312e3233343536652b30360a312e3233343537652b30360a"
+  trap: null
+  exit: 0
+  termination: normal

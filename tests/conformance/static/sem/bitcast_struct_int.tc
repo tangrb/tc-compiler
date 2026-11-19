@@ -1,0 +1,6 @@
+#program
+struct S then
+    var x: int32
+end
+var src: S = make S, 0
+var dst: int32 = bitcast int32, src

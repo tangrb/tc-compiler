@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0103
+profile: w64
+source: type_isize_int64_w64.tc
+spec: "§3.9/§13.2.2 64 位 isize 与 int64 同宽但不同型 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_isize_int64_w64.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

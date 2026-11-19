@@ -1,0 +1,10 @@
+id: TC-RT-FP-0025
+profile: w64
+source: root.tc
+spec: "§6.3.1/§6.3.2 CT const finite/inf is exact zero, not CONST_FLOAT_UNDERFLOW"
+kind: run
+expect:
+  stdout_hex: "300a"
+  trap: null
+  exit: 0
+  termination: normal

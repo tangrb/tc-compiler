@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0018
+profile: w64
+source: tc-tool-sem-0018/root.tc
+spec: "§8.6/§13.2.2 @range 的 isize 参数在 64 位下 2^32 可表示"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

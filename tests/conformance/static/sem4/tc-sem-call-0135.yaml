@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0135
+profile: common
+source: fixtures/tc-sem-call-0135/root.tc
+spec: "§12.2 #3 同行多个未知 make 字段按列号升序取最左者 -> UNKNOWN_FIELD"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_FIELD
+  primary: {file: fixtures/tc-sem-call-0135/root.tc, line: 5, column: 20}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,5 @@
+#program
+var p: ptr<int32> = copy ptr<int32>, nullptr
+unsafe then
+    var t: int32 = memmove int32, p, p, 1
+end

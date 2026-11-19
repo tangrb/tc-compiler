@@ -1,0 +1,2 @@
+#lib
+public const BAD: float64 = mul float64, 1e-200, 1e-200

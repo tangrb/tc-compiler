@@ -1,0 +1,16 @@
+#lib
+public @fast @pure @readonly @nounwind func f(p: ptr<int32>, n: int32) int32 then
+    _ = store int32, p, n
+    var x: int32 = add int32, n, 1
+    _ = trap
+    _ = return n
+end
+public @fast @no_overflow func g(@range(0, 10) n: int32) int32 then
+    var x: int32 = add int32, n, 1
+    _ = return x
+end
+public @fast @nounwind func h(@nonnull @no_alias @align(8) p: ptr<int32>, @range(0, 10) n: int32) int32 then
+    var x: int32 = load int32, p
+    _ = store int32, p, n
+    _ = return x
+end

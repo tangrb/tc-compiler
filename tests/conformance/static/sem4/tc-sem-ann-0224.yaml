@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0224
+profile: common
+source: fixtures/tc-sem-ann-0224/root.tc
+spec: "§8.6 @readonly 只在 @fast 函数上合法 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0224/lib.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

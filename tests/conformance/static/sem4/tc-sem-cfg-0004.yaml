@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0004
+profile: common
+source: fixtures/tc-sem-cfg-0004/root.tc
+spec: "§7.7.3 多个导入模块都缺返回时按 module_order 取最早模块"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0004/a.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0004/a.tc, line: 3, column: 1}]
+  diagnostics: exactly-one

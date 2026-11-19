@@ -1,0 +1,5 @@
+#lib
+public const HI: int32 = 10
+public const LO: int32 = 1
+public @fast func f(@range(Self.HI, Self.LO) n: int32) void then
+end

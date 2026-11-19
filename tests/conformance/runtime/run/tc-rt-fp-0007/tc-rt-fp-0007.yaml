@@ -1,0 +1,10 @@
+id: TC-RT-FP-0007
+profile: w64
+source: root.tc
+spec: "§6.3.2 exact subnormal results do not underflow; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "342e3934303636652d3332340a342e3934303636652d3332340a342e3934303636652d3332340a"
+  trap: null
+  exit: 0
+  termination: normal

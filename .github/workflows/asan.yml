@@ -1,51 +1,51 @@
-# ASan CI — AddressSanitizer 构建与测试
+# ASan — AddressSanitizer + UndefinedBehaviorSanitizer 构建与全量测试
 #
-# 每次推送到 master / tc-0.0.41–tc-0.0.44 或 PR 时，在 ubuntu-latest 上
-# 执行 ASan 构建并运行全部测试。若发现内存错误（泄漏、越界、使用后释放等），CI 将失败。
+# push / PR 到 master、tc-0.0.* 分支或 v* tag 触发；发现内存错误或 UB 时失败。
 
 name: ASan
 
 on:
   push:
-    branches: [master, tc-0.0.41, tc-0.0.42, tc-0.0.43, tc-0.0.44]
+    branches: [master, "tc-0.0.*"]
     tags: ["v*"]
   pull_request:
-    branches: [master, tc-0.0.41, tc-0.0.42, tc-0.0.43, tc-0.0.44]
+    branches: [master, "tc-0.0.*"]
   workflow_dispatch:
-
-env:
-  BUILD_DIR: build-asan
 
 jobs:
   asan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Ubuntu 24.04's qemu 8.2 hangs before the first PL011 byte on
+      # aarch64 virt baremetal ELFs (empty uart1, all CPU/serial variants);
+      # qemu 10.2 runs the same invocation in ~0.1s. Pin 26.04, whose
+      # split packages put riscv in qemu-system-riscv.
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake gcc
+          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-riscv
 
-      - name: Configure with ASan
+      - name: Verify required tools
         run: |
-          cmake -S . -B "$BUILD_DIR" \
-            -DCMAKE_C_FLAGS="-fsanitize=address -g" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
+          for t in clang llvm-ar ld.lld qemu-system-aarch64 qemu-system-arm qemu-system-riscv32 python3; do
+            if command -v "$t" >/dev/null 2>&1; then echo "OK   $t -> $(command -v "$t")"; else echo "MISS $t"; fi
+          done
 
-      - name: Build with ASan
-        run: cmake --build "$BUILD_DIR" -j "$(nproc)"
+      - name: Configure with sanitizers
+        run: |
+          cmake -S . -B build-asan -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
 
-      - name: Run VM conformance tests (ASan)
-        run: bash scripts/vm/run_tests.sh --asan
+      - name: Build with sanitizers
+        run: cmake --build build-asan -j "$(nproc)"
 
-      - name: Run unit tests (ASan)
-        run: cmake --build "$BUILD_DIR" --target check-unit
-
-      - name: Run AOT differential tests
-        env:
-          TC_VM_BIN: "${{ github.workspace }}/build-asan/vm/bin/tc-vm"
-          TC_AOT_BIN: "${{ github.workspace }}/build-asan/aot/bin/tc-aot"
-        run: bash scripts/aot/run_tests.sh
+      - name: Run full test suite with sanitizers
+        # Under sanitizers the 30000-instruction far-branch case multiplies
+        # its ~5 GB peak RSS past what hosted runners can host. It still runs
+        # in local full verification.
+        run: ctest --test-dir build-asan --output-on-failure -E conformance.s10_long_branch

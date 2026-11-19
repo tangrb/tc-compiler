@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-CONV-0001
+profile: common
+source: tc-tool-ct-conv-0001/root.tc
+spec: "§3.10/§6.6 cast/trunc/数值 bitcast：同型与跨型 cast、窄化 trunc、整数↔浮点与整数↔整数等宽 bitcast 均为允许源"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

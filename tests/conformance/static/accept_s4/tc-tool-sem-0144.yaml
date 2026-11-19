@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0144
+profile: common
+source: tc-tool-sem-0144/root.tc
+spec: "§3.10 合法转换源：const 的 cast/trunc/bitcast、const 结构体字段与 static var 由 const 初始化均接受"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

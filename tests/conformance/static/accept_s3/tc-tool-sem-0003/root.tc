@@ -1,0 +1,12 @@
+#program
+var a: int8 = copy int8, -128
+var b: int8 = copy int8, 127
+var c: uint8 = copy uint8, 255
+var d: int64 = copy int64, 9223372036854775807
+var e: uint64 = copy uint64, 18446744073709551615u
+var f: float32 = copy float32, 1.5f
+var g: float64 = copy float64, inf
+var h: float64 = copy float64, -inf
+var i: float64 = copy float64, nan
+var p: ptr<int32> = copy ptr<int32>, nullptr
+var j: int8 = cast int8, 300

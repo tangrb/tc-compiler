@@ -1,0 +1,16 @@
+#lib
+public @unsafe func u(p: ptr<int32>) int32 then
+    var x: int32 = load int32, p
+    var q: ptr<int32> = ptradd int32, p, 1
+    _ = store int32, q, x
+    _ = return x
+end
+public @fast func f(p: ptr<int32>) int64 then
+    var x: int32 = load.volatile int32, p
+    _ = store.volatile int32, p, x
+    var q: ptr<int32> = ptrsub int32, p, 0
+    _ = memmove int32, q, p, 1
+    var v: ptr<int32> = bitcast ptr<int32>, p
+    var n: int64 = bitcast int64, v
+    _ = return n
+end

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0012
+profile: w64
+source: tc-tool-sem-0012/root.tc
+spec: "§13.2.2 read/write 的 isize/usize 按 W；64 位静态上下文接受"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

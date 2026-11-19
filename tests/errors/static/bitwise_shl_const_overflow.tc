@@ -1,2 +1,0 @@
-#program
-let ERR: uint8 = shl(uint8, 1, 8)

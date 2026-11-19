@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0002
+profile: common
+source: fixtures/tc-sem-di-0002/root.tc
+spec: "§5.4 分支汇合取合取：一条路径经过 var，另一条绕过 -> UNINITIALIZED"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0002/root.tc, line: 8, column: 18}
+  related: []
+  diagnostics: exactly-one

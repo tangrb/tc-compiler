@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0209
+profile: common
+source: fixtures/tc-sem-ann-0209/root.tc
+spec: "§8.6 @nonnull 只用于指针形参；整数形参 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0209/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

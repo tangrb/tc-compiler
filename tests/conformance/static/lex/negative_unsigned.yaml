@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0024
+profile: common
+source: negative_unsigned.tc
+spec: "§2.4 - 只与无后缀字面量组合，-42u 非法；§14.2 INT 文法；§12.3 TC_CE_SYNTAX；§12.5.1 非法记号定位到记号首 Token"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: negative_unsigned.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

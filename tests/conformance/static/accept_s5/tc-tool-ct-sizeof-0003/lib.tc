@@ -1,0 +1,5 @@
+#lib
+public const A: usize = sizeof isize
+public const B: usize = sizeof usize
+public const C: usize = sizeof ptr<int32>
+public const D: usize = sizeof fnptr<int32>

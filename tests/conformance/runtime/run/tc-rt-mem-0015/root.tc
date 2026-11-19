@@ -1,0 +1,6 @@
+#program
+var p: ptr<int32> = copy ptr<int32>, nullptr
+var v: int32 = copy int32, 1
+unsafe then
+_ = store.volatile int32, p, v
+end

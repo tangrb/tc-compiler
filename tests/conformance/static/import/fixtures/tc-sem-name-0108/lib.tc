@@ -1,0 +1,5 @@
+#lib
+private struct P then
+    var x: int32
+end
+public const X: int32 = sizeof P

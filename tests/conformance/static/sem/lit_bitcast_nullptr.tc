@@ -1,0 +1,2 @@
+#program
+var x: int64 = bitcast int64, nullptr

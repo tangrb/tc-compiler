@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0030
+profile: common
+source: comment_unicode_nul.tc
+spec: "§2.1 注释内允许 Unicode 标量（U+0000 除外）；§12.3 TC_CE_SYNTAX；§12.5.1 非法标量定位到该标量"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: comment_unicode_nul.tc, line: 2, column: 15}
+  related: []
+  diagnostics: exactly-one

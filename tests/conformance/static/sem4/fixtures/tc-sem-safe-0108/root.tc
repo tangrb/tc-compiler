@@ -1,0 +1,3 @@
+#program
+var f: fnptr<void> = copy fnptr<void>, nullptr
+var x: int64 = bitcast int64, f

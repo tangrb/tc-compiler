@@ -1,0 +1,14 @@
+#program
+struct S then
+    var f: int32
+end
+_ = br_if true, L
+var x: int32 = copy int32, 1
+label L:
+var p: ptr<int32> = addr int32, x
+var s: S = make S, 1
+s.f = copy int32, 2
+_ = write int32, s.f
+unsafe then
+    var v: int32 = load int32, p
+end

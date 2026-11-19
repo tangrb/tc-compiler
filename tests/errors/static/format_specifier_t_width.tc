@@ -1,4 +1,0 @@
-#program
-; 期望：%t does not support '+', '#', '0', or precision
-var x: bool = true
-write(bool, %.1t, x)

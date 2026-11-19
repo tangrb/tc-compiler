@@ -1,0 +1,4 @@
+#program
+struct S then
+    var x: int32 @align(4)
+end

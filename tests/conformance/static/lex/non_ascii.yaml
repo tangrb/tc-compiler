@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0025
+profile: common
+source: non_ascii.tc
+spec: "§2.1 注释外只允许 ASCII；§12.3 TC_CE_SYNTAX；§12.5.1 非法标量定位到该标量"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: non_ascii.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

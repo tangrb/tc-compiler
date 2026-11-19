@@ -1,0 +1,17 @@
+#program
+struct S then
+    var a: int32
+    var b: int32
+    var c: int32
+end
+var s: S = make S, 1, 2, 3
+var t: S = make S, 4, 5, 6
+var ps: ptr<S> = addr S, s
+var pt: ptr<S> = addr S, t
+unsafe then
+_ = memmove S, ps, pt, 1
+_ = memmove S, ps, ps, 1
+end
+_ = writeln int32, s.a
+_ = writeln int32, s.b
+_ = writeln int32, s.c

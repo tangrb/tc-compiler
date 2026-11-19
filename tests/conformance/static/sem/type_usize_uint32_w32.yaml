@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0102
+profile: w32
+source: type_usize_uint32_w32.tc
+spec: "§3.9/§13.2.2 32 位 usize 与 uint32 同宽但不同型 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_usize_uint32_w32.tc, line: 3, column: 30}
+  related: []
+  diagnostics: exactly-one

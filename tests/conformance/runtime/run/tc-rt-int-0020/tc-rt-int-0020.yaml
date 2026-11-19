@@ -1,0 +1,10 @@
+id: TC-RT-INT-0020
+profile: w64
+source: root.tc
+spec: "§6.3 int64 edges: mod(INT64_MIN,-1) is 0; div(INT64_MAX,1) is exact"
+kind: run
+expect:
+  stdout_hex: "300a393232333337323033363835343737353830370a"
+  trap: null
+  exit: 0
+  termination: normal

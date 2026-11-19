@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0011
+profile: common
+source: fixtures/tc-sem-cfg-0011/root.tc
+spec: "§8.3 return 只在函数体内；#program 顶层 -> RETURN_OUTSIDE_FUNCTION；§12.5.1 return 关键字"
+expect:
+  stage: SEM
+  code: TC_CE_RETURN_OUTSIDE_FUNCTION
+  primary: {file: fixtures/tc-sem-cfg-0011/root.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

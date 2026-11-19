@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0005
+profile: common
+source: tc-ct-order-0005/root.tc
+spec: "§4.10 改变 import 源序后 module_order=root,b,a，首个失败随之为 b.B -> CONST_OVERFLOW（a.A 不报）；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_OVERFLOW
+  primary: {file: tc-ct-order-0005/b.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0011
+profile: w32
+source: tc-tool-sem-0011/root.tc
+spec: "§13.2.2 read/write 的 isize/usize 按 W；32 位静态上下文接受"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

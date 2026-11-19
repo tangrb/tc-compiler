@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-CHAIN-0001
+profile: common
+source: tc-tool-ct-chain-0001/root.tc
+spec: "§3.10 const 结构体字段逐层读取（Self.O.a.z，每层中间结果都是 const 结构体）与 make 命名字段"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

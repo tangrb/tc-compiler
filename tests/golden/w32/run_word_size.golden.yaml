@@ -1,0 +1,33 @@
+id: TC-RT-GOLD-0101
+kind: run
+profile: w32
+spec: "§6.13/§13.2.1 sizeof under W=32; §11.2 output"
+source: |
+  #program
+  var a: usize = sizeof ptr<int32>
+  _ = writeln usize, a
+  var b: usize = sizeof isize
+  _ = writeln usize, b
+  var c: usize = sizeof int64
+  _ = writeln usize, c
+  var d: isize = copy isize, 2147483647
+  _ = writeln isize, d
+derivation: |
+  Under W=32 `sizeof ptr<T>`, `sizeof isize` and `sizeof usize` are 4 bytes;
+   int64 remains 8 bytes.  isize INT_MAX is 2^31-1 = 2147483647 (standard
+   §6.13/§13.2.1).
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "340a340a380a323134373438333634370a"
+  trap: null
+  exit: 0
+  termination: normal

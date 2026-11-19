@@ -1,0 +1,5 @@
+#lib
+public const B: bool = eq int32, 1, 2
+public const X: int32 = cast int32, Self.B
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

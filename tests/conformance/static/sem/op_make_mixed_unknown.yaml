@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0026
+profile: common
+source: op_make_mixed_unknown.tc
+spec: "§6.2.7/§12.2 #10 make 混用仍先检查未知字段 -> UNKNOWN_FIELD"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_FIELD
+  primary: {file: op_make_mixed_unknown.tc, line: 7, column: 25}
+  related: []
+  diagnostics: exactly-one

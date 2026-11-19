@@ -1,0 +1,3 @@
+#program
+_ = frobnicate int32, 1
+var x: int64 = copy int64, 99999999999999999999999999999999

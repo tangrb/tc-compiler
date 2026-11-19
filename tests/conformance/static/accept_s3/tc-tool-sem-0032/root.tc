@@ -1,0 +1,5 @@
+#program
+var a: float32 = copy float32, inf
+var b: float32 = copy float32, -inf
+var c: float32 = copy float32, nan
+var d: float64 = copy float64, inf

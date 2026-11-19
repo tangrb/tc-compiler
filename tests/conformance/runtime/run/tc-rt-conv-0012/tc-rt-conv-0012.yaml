@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0012
+profile: w64
+source: root.tc
+spec: "§6.6.1 f64-to-f32 cast of a finite value beyond binary32 range -> TC_RE_CAST_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_CAST_OVERFLOW
+  exit: 1
+  termination: trap

@@ -1,0 +1,8 @@
+#program
+var c: bool = copy bool, true
+_ = br_if c, A
+_ = br M
+label A:
+var x: int32 = copy int32, 1
+label M:
+_ = write int32, x

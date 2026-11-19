@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0023
+profile: common
+source: fixtures/tc-sem-const-0023/root.tc
+spec: "§3.10/§4.10 转换源引用跨模块 public static var -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0023/user.tc, line: 3, column: 42}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-TOOL-SYN-0003
+profile: common
+source: identifiers.tc
+spec: "§2.3/§14.2 IDENT 与 DISCARD：_x/x_/_1/__ 是合法标识符，小写 self 不是关键字；LEX/SYN 接受"
+kind: tool
+tool:
+  argv: [tc-vm, --syntax-only, "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

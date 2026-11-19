@@ -1,0 +1,5 @@
+#lib
+public func f(x: int32) int32 then
+    x = copy int32, 2
+    _ = return x
+end

@@ -1,0 +1,6 @@
+#lib
+public static var C: int32 = 0
+public func bump() int32 then
+Self.C = add int32, Self.C, 1
+_ = return Self.C
+end

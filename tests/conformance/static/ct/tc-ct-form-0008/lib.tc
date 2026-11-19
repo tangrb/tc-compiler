@@ -1,0 +1,4 @@
+#lib
+public @unsafe func f() void then
+    const P: ptr<int32> = bitcast ptr<int32>, 0
+end

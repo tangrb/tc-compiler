@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0008
+profile: common
+source: lit_int8_neg_range.tc
+spec: "§2.4 负值边界外 -> LITERAL_RANGE；负号属于字面量时定位到 -"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: lit_int8_neg_range.tc, line: 2, column: 26}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,4 @@
+#program
+struct S then
+    var x: uint8 @padding(18446744073709551615)
+end

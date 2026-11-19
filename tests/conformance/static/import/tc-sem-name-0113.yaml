@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0113
+profile: common
+source: fixtures/tc-sem-name-0113/root.tc
+spec: "§4.11.3 导入 private 非类型成员出现在类型位置 -> PRIVATE_ACCESS，不得降级为 TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_ACCESS
+  primary: {file: fixtures/tc-sem-name-0113/root.tc, line: 3, column: 27}
+  related: [{file: fixtures/tc-sem-name-0113/lib.tc, line: 2, column: 15}]
+  diagnostics: exactly-one

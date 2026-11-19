@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0015
+profile: common
+source: lit_read_ptr.tc
+spec: "§6.2.9 read 的 T 只支持标量 -> TYPE_MISMATCH；§12.5.1 类型参数"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: lit_read_ptr.tc, line: 2, column: 26}
+  related: []
+  diagnostics: exactly-one

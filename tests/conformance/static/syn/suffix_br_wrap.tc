@@ -1,0 +1,3 @@
+#program
+label L:
+_ = br.wrap L

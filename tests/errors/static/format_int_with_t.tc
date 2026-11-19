@@ -1,4 +1,0 @@
-#program
-; 期望：%t requires bool type
-var a: int32 = 42
-writeln(int32, %t, a)

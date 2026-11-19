@@ -1,0 +1,33 @@
+#program
+import lib
+struct Holder then
+readonly p: ptr<int32>
+end
+var s: lib.Pair = make lib.Pair, 5, 6
+var pro: ptr<int32> = addr int32, s.ro
+unsafe then
+_ = store int32, pro, 50
+end
+var prw: ptr<int32> = addr int32, s.rw
+unsafe then
+_ = store int32, prw, 60
+end
+_ = writeln int32, s.ro
+_ = writeln int32, s.rw
+s = make lib.Pair, 7, 8
+_ = writeln int32, s.ro
+var v: int32 = copy int32, 1
+var pv: ptr<int32> = addr int32, v
+var h: Holder = make Holder, pv
+unsafe then
+_ = store int32, h.p, 42
+end
+_ = writeln int32, v
+var q: lib.Pair = copy lib.Pair, s
+var pq: ptr<int32> = addr int32, q.ro
+unsafe then
+_ = store int32, pq, 99
+end
+_ = writeln int32, q.ro
+var t: int32 = call lib.touch, s
+_ = writeln int32, t

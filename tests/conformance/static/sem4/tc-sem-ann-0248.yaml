@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0248
+profile: common
+source: fixtures/tc-sem-ann-0248/root.tc
+spec: "§6.3 inf+1=inf 合法；比较得到 1，@range(2,1) -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0248/lib.tc, line: 6, column: 31}
+  related: []
+  diagnostics: exactly-one

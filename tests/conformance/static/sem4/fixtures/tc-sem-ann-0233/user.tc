@@ -1,0 +1,4 @@
+#lib
+import base
+public @fast func f(@range(base.K, base.K) n: int32) void then
+end

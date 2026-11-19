@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0254
+profile: w32
+source: fixtures/tc-sem-ann-0254/root.tc
+spec: "§6.6.3 w32 bitcast int32 字面量源位宽=目标位宽；0 -> @align(0) ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0254/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

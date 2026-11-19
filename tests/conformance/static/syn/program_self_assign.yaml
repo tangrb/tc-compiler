@@ -1,0 +1,10 @@
+id: TC-SYN-MODE-0005
+profile: common
+source: program_self_assign.tc
+spec: "§4.2/§4.8 #program 不得使用 Self；§12.3 TC_CE_PROGRAM_MODE_MISUSE；§12.5.1 误用的 Self 关键字"
+expect:
+  stage: SYN
+  code: TC_CE_PROGRAM_MODE_MISUSE
+  primary: {file: program_self_assign.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

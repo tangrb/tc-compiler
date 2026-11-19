@@ -1,0 +1,7 @@
+#program
+var u: usize = copy usize, 4294967295
+_ = writeln usize, u
+var a: int32 = copy int32, 0
+var p: ptr<int32> = addr int32, a
+var nz: bool = ptrne int32, p, nullptr
+_ = writeln bool, nz

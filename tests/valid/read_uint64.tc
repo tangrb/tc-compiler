@@ -1,5 +1,0 @@
-#program
-; uint64 read 正向用例
-var a: uint64 = 0
-read(uint64, a)
-writeln(uint64, a)

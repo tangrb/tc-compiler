@@ -1,0 +1,10 @@
+#lib
+public struct Inner then
+    var z: int32
+end
+public struct Outer then
+    var a: Inner
+end
+public const I: Inner = make Inner, z: 7
+public const O: Outer = make Outer, a: Self.I
+public const Z: int32 = Self.O.a.z

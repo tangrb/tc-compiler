@@ -1,0 +1,2 @@
+#program
+var x: float64 = add.wrap float64, 1.0, 2.0

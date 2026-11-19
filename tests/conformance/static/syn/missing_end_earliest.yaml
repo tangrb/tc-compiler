@@ -1,0 +1,10 @@
+id: TC-SYN-END-0004
+profile: common
+source: missing_end_earliest.tc
+spec: "§12.3 TC_CE_MISSING_END；§12.5.1 多个候选时取源位置最早者"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_END
+  primary: {file: missing_end_earliest.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

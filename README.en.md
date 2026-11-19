@@ -1,464 +1,157 @@
 # TC-Compiler
 
-[中文](README.md)
-
-[![CI](https://github.com/tangrb/tc-compiler/actions/workflows/ci.yml/badge.svg)](https://github.com/tangrb/tc-compiler/actions/workflows/ci.yml)
-[![ASan](https://github.com/tangrb/tc-compiler/actions/workflows/asan.yml/badge.svg)](https://github.com/tangrb/tc-compiler/actions/workflows/asan.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/tangrb/tc-compiler)](https://github.com/tangrb/tc-compiler/releases/latest)
-
-TC-Compiler is a TC language toolchain implemented in C99. It includes:
-
-- **libtc**: an embeddable static library for compilation, static analysis, and execution;
-- **TC-VM**: a command-line tool that directly executes TC source files;
-- **TC-AOT**: an ahead-of-time compiler that transpiles TC source into strict C99;
-- **TC-Embed**: a zero-copy embedded runtime for C host programs calling TC compilation artifacts (v0.0.44).
-
-Current core version: **v0.0.44**, Embed module version: **v0.0.44**. The [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) is the sole authority for language syntax and observable semantics (the language specification and all design documents are **0.0.44**; implementation version is v0.0.44).
-
-## Quick Start
-
-Requirements: a C99 compiler, CMake, and Make. TC-AOT `--run` mode also requires a host `cc` command.
-
-```sh
-make
-./build/vm/bin/tc-vm examples/hello.tc
-# Or a conformance fixture:
-./build/vm/bin/tc-vm tests/valid/example.tc
-```
-
-More teaching examples: [`examples/`](examples/).
-
-Check source without executing it:
-
-```sh
-./build/vm/bin/tc-vm --check tests/valid/example.tc
-```
-
-Transpile TC to C99:
-
-```sh
-./build/aot/bin/tc-aot tests/valid/example.tc
-# Produces tests/valid/example.c
-```
-
-Run the complete standard regression suite:
-
-```sh
-bash scripts/run_tests.sh
-```
-
-## Implemented Capabilities
-
-| Category | Current capabilities |
-| -------- | -------------------- |
-| Types | `int8` / `int16` / `int32` / `int64`, corresponding unsigned integers, `bool`, `float32`, `float64`, `isize` / `usize` (platform word size) |
-| Literals | Decimal, hexadecimal, octal, binary, digit separators, scientific notation, `f` suffix, and `inf` / `nan` |
-| Bindings | Mandatory-initialized `var`; compile-time `let` with no runtime slot |
-| Operations | Integer and floating-point arithmetic, comparisons, short-circuit logic, unary operations, bitwise operations, and shifts |
-| Conversions | Strict numeric `cast`, integer-narrowing `truncate`, and equal-width non-`bool` `bitcast` |
-| Control flow | `if-then-else-end`, `while-then-end`, innermost `break` / `continue`, and restricted `goto` / `label` |
-| Static analysis | 13-stage deterministic compilation pipeline, lexical scope, complete CFG, reachability, static boolean pruning, and fixed-point definite initialization |
-| I/O | `write` / `writeln` / `read` with 13 integer, boolean, and floating-point format specifiers |
-| Backend consistency | VM, AOT, and `let` reuse shared numeric and I/O semantics; AOT differentials lock observable results |
-| Modules/functions | `#program`/`#lib`, `import`, `func`/`funcall`/`return`, acyclic call graph, `static var`/`let` |
-| Compound types | `ptr<T>`, `memblock<T,N>`, `struct` (constructors / field r/w / deep copy; imported structs require `<module>.<Name>`; VM + AOT) |
-| Embed interop | C→TC zero-copy function calls, shared `slots[]` data plane, `ptr<T>` handle encoding, symbol lookup; API-compatible VM and AOT dual mode (v0.0.44) |
-
-Version 0.0.44 does not include strings, a bytecode file format, or JIT. There is no REPL; batch file mode supports full control flow. `goto`/`label` are allowed only inside functions and outside `while`.
-
-## Language Example
-
-A 0.0.44 source file must start with `#program` or `#lib`. Arithmetic and comparisons use explicitly typed builtin calls, not infix operators.
-
-```tc
-#program
-
-var a: int32 = 10
-var b: int32 = 20
-var sum: int32 = add(int32, a, b)
-writeln(int32, %d, sum)
-
-if eq(int32, sum, 30) then
-    writeln(int32, 1)
-else
-    writeln(int32, 0)
-end
-```
-
-Functions in a `#lib` require `public` / `private`. The return type follows the parameter list, and the body is wrapped by `then` / `end`:
-
-```tc
-#lib
-
-public func plus(a: int32, b: int32) int32 then
-    var sum: int32 = add(int32, a, b)
-    return sum
-end
-```
-
-An entry program calls library functions with `import` and `funcall` (named arguments):
-
-```tc
-#program
-import math_lib
-
-var r: float64 = 3.14
-var area: float64 = funcall(math_lib.compute_area, r: r)
-writeln(float64, %f, area)
-```
-
-See the [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) for complete syntax and semantics.
-
-## Build
-
-The root Makefile is a convenience interface to CMake.
-
-```sh
-make                    # Configure and build all default targets: libtc, TC-VM, TC-AOT
-make vm                 # Currently equivalent to make; builds all default targets
-make aot                # Build TC-AOT and its dependencies
-make clean              # Remove build/
-```
-
-To build an exact CMake target:
-
-```sh
-cmake -S . -B build
-cmake --build build --target tc-vm
-cmake --build build --target tc-aot
-cmake --build build --target libtc
-```
-
-The project compiles with `-std=c99 -Wall -Wextra -pedantic`; AOT differential tests additionally use `-Werror` for generated C.
-
-## Usage
-
-### TC-VM
-
-```sh
-./build/vm/bin/tc-vm program.tc          # Compile and execute
-./build/vm/bin/tc-vm --check program.tc  # Compile and statically analyze only
-./build/vm/bin/tc-vm -I ./lib program.tc # Add module search paths
-./build/vm/bin/tc-vm --help
-./build/vm/bin/tc-vm --version
-```
-
-See the [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.44.md) for complete behavior.
-
-### TC-AOT
-
-```sh
-./build/aot/bin/tc-aot source.tc             # Generate source.c (standard mode, with main())
-./build/aot/bin/tc-aot -o output.c source.tc # Select the C output path
-./build/aot/bin/tc-aot --check source.tc      # Static analysis only; emit no C
-./build/aot/bin/tc-aot --run source.tc        # Generate, compile with host cc, and run
-./build/aot/bin/tc-aot --embed source.tc      # Embed library mode: no main(), public symbols + func table
-./build/aot/bin/tc-aot --embed -H out.h source.tc  # Embed mode + generate host header file
-./build/aot/bin/tc-aot --help
-```
-
-`--run` depends on a host C99 toolchain. Pure code generation and `--check` do not make host compiler availability a condition of TC language conformance. `--embed` and `--run` are mutually exclusive.
-
-## Embedding libtc
-
-libtc uses a success-only ownership contract: after successful compilation, the caller must free the `TcTypedProgram`; after compilation failure, the caller did not acquire output ownership and must not free that output.
-
-```c
-#include <stdio.h>
-
-#include "tc_lib.h"
-
-int main(void) {
-    const char *source =
-        "#program\n"
-        "var x: int32 = add(int32, 1, 6)\n"
-        "writeln(int32, %d, x)\n";
-    TcDiagnostic diag;
-    TcTypedProgram program;
-
-    tc_diagnostic_init(&diag);
-
-    if (tc_compile_source(source, "example.tc", &program, &diag) != 0) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    if (tc_run_program(&program, &diag) != 0) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_typed_program_free(&program);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    tc_typed_program_free(&program);
-    tc_diagnostic_clear(&diag);
-    return 0;
-}
-```
-
-The public entry points are `tc_compile_source` (source without paths), `tc_compile_file_opts` (session-scoped `TcCompileOptions` carrying `-I`-equivalent search paths), and `tc_run_program`. See the [libtc Design Document §15 (Embedding API quick reference)](docs/libtc设计说明书-0.0.44.md) for complete ownership, diagnostics, and build details.
-
-## Embedding TC-Embed (v0.0.44)
-
-TC-Embed provides C host programs with zero-copy calling of TC compilation artifacts. C and TC share the same `TcValue slots[]` array, and the `ptr<T>` slot encoding `(slot << 1) | 1` serves as the unified handle for passing variable references between C and TC.
-
-Core headers: `src/vm/embed/tc_embed.h` + `src/vm/embed/tc_value_bridge.h`.
-
-### VM Mode
-
-Compile TC source via libtc, then create an embed context with `tc_embed_create`:
-
-```c
-#include <stdint.h>
-#include <stdio.h>
-
-#include "tc_embed.h"
-#include "tc_lib.h"
-
-int main(void) {
-    const char *src =
-        "#lib\n"
-        "public func plus(a: int32, b: int32) int32 then\n"
-        "    var sum: int32 = add(int32, a, b)\n"
-        "    return sum\n"
-        "end\n";
-    TcDiagnostic diag;
-    TcTypedProgram prog;
-    TcEmbedCtx *ctx;
-    const TcEmbedFuncInfo *info;
-    TcValue result;
-    int32_t ret;
-
-    tc_diagnostic_init(&diag);
-    if (tc_compile_source(src, "plus.tc", &prog, &diag) != 0) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    ctx = tc_embed_create(&prog, &diag);
-    if (ctx == NULL) {
-        tc_diagnostic_print(&diag, stderr);
-        tc_typed_program_free(&prog);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    info = tc_embed_func_info(ctx, NULL, "plus");
-    if (info == NULL ||
-        tc_embed_call_typed(ctx, info,
-                            TC_EMBED_ARGS(tc_embed_arg_i32(3),
-                                          tc_embed_arg_i32(4)),
-                            &result) != 0) {
-        fprintf(stderr, "%s\n", tc_embed_get_error(ctx));
-        tc_embed_destroy(ctx);
-        tc_typed_program_free(&prog);
-        tc_diagnostic_clear(&diag);
-        return 1;
-    }
-
-    tc_value_to_int32(result, &ret);
-    printf("3 + 4 = %d\n", ret);  /* Prints: 3 + 4 = 7 */
-
-    tc_embed_destroy(ctx);
-    tc_typed_program_free(&prog);
-    tc_diagnostic_clear(&diag);
-    return 0;
-}
-```
-
-### AOT Mode
-
-Transpile TC source via `tc-aot --embed` into embed-library C code, compile with host `cc` as a shared library, and load via `tc_embed_create_aot`. The same `tc_embed_call` / `tc_embed_slot_*` / `tc_embed_ptr_*` API is compatible across VM and AOT modes.
-
-```sh
-# Generate embed-library C code and a host header
-./build/aot/bin/tc-aot --embed -o mylib.c -H mylib.h mylib.tc
-```
-
-Link the generated `mylib.c` with the host program, the AOT runtime shim (`tc_aot_rt.c`), and the Embed bridge sources as C99. See [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) §15.6 for the complete file list and `cc` command.
-
-### Value Bridging
-
-`tc_value_bridge.h` provides `tc_value_from_*` / `tc_value_to_*` pure inline helper functions covering `int8`–`int64`, `uint8`–`uint64`, `float32`, `float64`, and `bool`, with no extra compilation units or runtime overhead.
-
-```c
-TcValue v = tc_value_from_int64(42);
-int64_t x;
-tc_value_to_int64(v, &x);
-```
-
-See the [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) for the complete API design.
-
-## Tests and Quality Gates
-
-### Standard Regression
-
-```sh
-bash scripts/run_tests.sh                # VM + AOT + unit
-bash scripts/run_tests.sh --filter foo   # Filters VM only; AOT and unit still run in full
-bash scripts/run_tests.sh --verbose      # Adds VM logging only
-```
-
-The groups can also be run separately:
-
-```sh
-make test-vm
-make test-unit
-make test-aot
-make test
-```
-
-### Static Structure Checks
-
-```sh
-python3 scripts/sync/check_rhs_coverage.py
-python3 scripts/sync/check_source_naming.py
-python3 scripts/sync/check_type_fact_source.py
-python3 scripts/sync/check_doc_counts.py   # VM/AOT registration vs test-map.md
-python3 scripts/sync/check_doc_layering.py # design docs must not cite process records
-```
-
-### Sanitizers and Memory Checks
-
-```sh
-bash scripts/run_asan_all.sh                 # ASan build and full VM/AOT/unit matrix
-
-make build-ubsan
-bash scripts/run_tests.sh --ubsan            # UBSan VM; AOT/unit use the standard build
-
-make test-valgrind                           # Linux; Valgrind VM + standard AOT/unit
-make memcheck-macos                          # macOS; MallocScribble + leaks
-```
-
-`bash scripts/run_tests.sh --asan`, `--ubsan`, `--valgrind`, and `--leaks` pass the mode only to VM tests; AOT and unit still use the standard build. Use `scripts/run_asan_all.sh` when a complete ASan matrix is required.
-
-### Local and Remote CI
-
-```sh
-make ci                  # Build, three test groups, and static checks (RHS, naming, type fact source, doc counts)
-make ci-coverage         # Same, then collect coverage and generate HTML
-```
-
-The local entry point is `scripts/ci.sh`, matching the five core stages in `.github/workflows/ci.yml` (build → VM → unit → AOT → structure checks). `--coverage` / `--full` also produces a `--coverage` build and sources `scripts/lcov_compat.sh`.
-
-GitHub Actions runs on **push / pull_request** to `master`, `tc-0.0.41`, `tc-0.0.42`, `tc-0.0.43`, and `tc-0.0.44` (plus `workflow_dispatch`). The CI workflow additionally includes:
-
-- the standard Ubuntu, macOS, and **Windows (MSYS2 UCRT64 / MinGW gcc)** matrix;
-- Ubuntu UBSan;
-- the no-fenv floating-point fallback;
-- benchmark regression;
-- a coverage job (uploads the HTML artifact);
-- a separate Ubuntu ASan workflow (`.github/workflows/asan.yml`, same trigger branches as CI);
-- Linux / macOS / Windows binaries and a GitHub Release from `release.yml` when a `v*` tag is pushed.
-
-The Windows job uses MinGW rather than MSVC because AOT `--run` needs a gcc-style host `cc`.
-
-#### Coverage
-
-Requires **lcov** (macOS: `brew install lcov`; Debian/Ubuntu: `apt install lcov`). Homebrew currently ships lcov **2.5**; Ubuntu 24.04 apt ships **2.0**; 1.x still appears on some distros. `scripts/lcov_compat.sh` picks the RC name (1.x: `lcov_branch_coverage`; 2.x/3.x: `branch_coverage`) and **probes** `--ignore-errors` kinds separately for `lcov` and `genhtml`, so 2.0 does not hard-fail on kinds such as `unmapped` / `gcov` that only exist (or only apply) on later releases.
-
-The `build-coverage/` tree is gitignored. HTML report: `build-coverage/coverage_html/index.html`.
-
-## Performance Observation
-
-When `TC_BENCH` is set, parse, analyze, and execute timings are written to stderr:
-
-```sh
-TC_BENCH=1 ./build/vm/bin/tc-vm tests/valid/example.tc
-```
-
-Local benchmarks:
-
-```sh
-make bench
-sh scripts/vm/bench.sh --check
-```
-
-Regression limits are stored in `tests/stress/bench_limits.txt`.
-
-## Project Structure
-
-```text
-docs/               Formal language, implementation, CLI, and API documents (see docs/README.md)
-examples/           Teaching examples (not the conformance suite)
-.cursor/            Cursor Agent rules and skills (see AGENTS.md)
-AGENTS.md           Agent entry point (kept minimal); full nav in .cursor/README.md
-src/
-├── libtc/          Embeddable compile/execute library
-├── vm/
-│   ├── lexer/      Lexer
-│   ├── parser/     Parser
-│   ├── analyzer/   Static analysis (CFG, type checking, function/call graph)
-│   ├── executor/   Executor and call frames
-│   ├── runtime/    Runtime (types, semantics, I/O, symbols, diagnostics)
-│   ├── embed/      TC-Embed embedded runtime (v0.0.44)
-│   └── driver/     Entry point and version
-└── aot/            C99 codegen, runtime shim, CLI, embed-mode runtime
-tests/
-├── valid/          Valid programs and observable output
-├── errors/         Static and runtime errors
-├── vm/embed/       TC-Embed integration tests
-├── unit/           C unit tests (20 check-* targets, incl. check-embed / check-embed-aot)
-├── modules/        Module system tests
-└── stress/         Stress and performance scenarios
-scripts/
-├── vm/             VM regression and benchmarks
-├── aot/            AOT differential and embed codegen tests
-└── sync/           RHS dispatch, source naming, type fact source, and doc count checks
-```
-
-## Documentation
-
-For reading order and layers, see [docs/README.md](docs/README.md) ([English map](docs/README.en.md)). Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) ([中文](CHANGELOG.md)).
-
-| Document | Responsibility |
-| -------- | -------------- |
-| [TC Language Specification](docs/TC语言标准设计说明书-0.0.44.md) | Sole authority for 0.0.44 syntax, semantics, and diagnostics |
-| [TC Compiler Specification](docs/TC编译器标准设计说明书-0.0.44.md) | 13-stage pipeline, diagnostic priority, and call-graph spec |
-| [TC-VM Command Reference](docs/TC-VM命令行参考-0.0.44.md) | `tc-vm` usage, output, and exit behavior |
-| [TC-VM Design Document](docs/TC-VM详细设计说明书-0.0.44.md) | VM pipeline, IR, CFG, and executor design |
-| [TC-AOT Design Document](docs/TC-AOT详细设计说明书-0.0.44.md) | C99 generation, runtime shim, and differential verification |
-| [libtc Design Document](docs/libtc设计说明书-0.0.44.md) | libtc architecture, transactions, lifecycle, error contract, and §15 embedding API quick reference |
-| [TC-Embed Design Document](docs/TC-Embed详细设计说明书-0.0.44.md) | C→TC embed interop API, `ptr<T>` handle model, VM/AOT dual-mode design |
-
-## Contributing
-
-Please read the [Contributing Guide](CONTRIBUTING.en.md) ([中文](CONTRIBUTING.md)). Also see:
-
-- [Code of Conduct](CODE_OF_CONDUCT.en.md) ([中文](CODE_OF_CONDUCT.md))
-- [Security Policy](SECURITY.en.md) ([中文](SECURITY.md))
-- [Changelog](CHANGELOG.en.md) ([中文](CHANGELOG.md))
-- [Release checklist](docs/release-checklist.en.md) ([中文](docs/release-checklist.md))
-
-Teaching examples: [`examples/`](examples/).
-
-### Cursor Agent (optional for maintainers)
-
-When using Cursor, **start with** [.cursor/README.md](.cursor/README.md) (loading tiers, skill triggers, workflows) and [AGENTS.md](AGENTS.md). **Do not mix with `docs/` design specs**; human contributors do not need these.
+TC **0.0.46** language/compiler specification and target design for the native
+compiler (TC → ASM → machine code). This is the 0.0.46 clean-sheet branch: only
+the standard, design, test plan and the implementation rewritten from them are
+kept; historical implementation and tools live in git tags.
+
+## Current status
+
+- **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
+  names/types/conversions/layout, static instruction-shape checks, const_expr forms,
+  CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
+  annotation matrix, CT evaluation (demand order/cache, strict error mapping, static
+  initializers), IR finalization/freeze and the deterministic printer; the W-aware
+  runtime semantic core (integer/float/conversions, exact §11.2 formatting, §11.3
+  input) and the reference VM (five regions, objects/field sub-objects, pointer
+  states, all 51 opcodes, calls/`D`, I/O, mandatory traps, commit semantics); 32/64
+  profiles, with the VM able to execute `aarch64-linux-user`, `aarch64-baremetal`,
+  `arm32-baremetal`, `riscv32-baremetal` and `w32`; the full W=64 AArch64 backend (integer/bit/comparison/
+  float/conversion, pointers/memory/struct, all 51 opcodes, AAPCS64 composites/HFA/
+  large by-reference composites and indirect returns, `fnptr`/`call_indirect`,
+  multi-size and unaligned access, checked build); the freestanding target runtime
+  (object table/pointer states/mandatory traps/checked shadow, deterministic I/O,
+  allocator, trap and exit), with `aarch64-baremetal` using PL011 UART0 for stdout and framed stdin,
+  PL011 UART1 for the exit record and PSCI SYSTEM_OFF (no semihosting); the first
+  32-bit target `arm32-baremetal` (Cortex-M7 MPS2 AN500, AAPCS32/ILP32 softfp, an
+  independent ARM32 backend for all 51 opcodes, `int64` helpers, software binary64,
+  unaligned
+  access, all four device policies and qemu-system-arm execution); the second
+  32-bit target `riscv32-baremetal` (RV32IMAFDC, ILP32 soft-float ABI, an
+  independent RISC-V backend for all 51 opcodes, `__divdi3`/`__udivdi3` 64-bit
+  helpers, NS16550A UART0 stdout/framed stdin, a semihosting exit record, the
+  SiFive test finisher and qemu-system-riscv32 virt); reset entry with BSS
+  clearing before `tc_main`, region bases, static `.data`, ELF/flat artifacts
+  with ICF disabled and clang/lld driving; far conditional/switch/return
+  transfers use a local skip plus an unconditional transfer (RISC-V
+  auipc/jalr); the full VM↔AOT differential/ABI/consistency/artifact/
+  determinism suites, bidirectional C-caller/TC-caller AAPCS64/AAPCS32/RISC-V
+  ILP32 interoperability, 32/64 profile isolation, the S10 long-term regression
+  corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
+  implementation-limit/robustness/checked/scale/far-branch regressions.
+- **Not implemented**: the optional optimization pipeline (SSA/regalloc/
+  inlining); the 0.0.46 baseline stays zero-pass.
+- **Current verification**: full `ctest` 71/71; coverage matrix 636/636; G0–G10
+  PASS; **G10 completes the 0.0.46 stage exit**. See
+  [gate status](docs/gates/README.en.md).
+
+## Documents
 
 | Document | Purpose |
 | -------- | ------- |
-| [AGENTS.md](AGENTS.md) | Always-loaded minimal hard limits |
-| [.cursor/README.md](.cursor/README.md) | Navigation authority, L0–L3 tiers, common workflows |
-| `.cursor/skills/` | Task skills: `tc-architecture`, `add-compiler-feature`, `run-tests`, `review-tc-code` |
-| `.cursor/rules/` | Glob-triggered coding, test, and source-routing rules |
+| [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
+| [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
+| [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
+| [Documentation map](docs/README.en.md) | Entry point and reading order |
 
-## Git hooks
+## Scope
 
-Optionally install the repository hooks:
+- **Both 32-bit and 64-bit are targets**; `usize`/`isize` are platform-word types
+  and `ptr<T>`/`fnptr` are `usize` wide.
+- **Closed set of 80 diagnostic codes**: 65 `TC_CE_*` + 15 `TC_RE_*`.
+- No C host public library, embedding API or ABI; `tc-vm`/`tc-aot` are the only
+  tool entry points.
+
+## Repository layout
+
+```text
+docs/                 standard, design, test plan, gate status
+src/                  0.0.46 implementation
+  base/               assert / version
+  contract/           contract checks / zero-pass policy
+  diagnostic/         closed 80-code set / generated table / first diagnostic
+  frontend/           input num lex parse module sem ct irgen
+  ir/                 type instr operand block ir region object address structs pointer_state print
+  runtime/            alloc io trap profile module_loader; semantics/format/input
+  vm/                 vm.h interp memory (regions/objects/pointer states/all opcodes)
+  backend/            common (target-neutral freestanding runtime core/target
+                      description); aarch64 (full backend + semihosting/PL011
+                      platform instances); arm32 (Cortex-M7 backend + MPS2
+                      platform instance); riscv32 (RISC-V 32 backend + QEMU
+                      virt platform instance)
+  driver/             tc-vm / tc-aot CLI and AOT driver
+tests/                L0–L7: unit, static/runtime conformance, differential/ABI/
+                      platform, harness, traceability, golden, determinism
+```
+
+## Build and test
 
 ```sh
-make hooks
-# Or: bash scripts/install-git-hooks.sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
+
+The S7/S8/S9/S10 differential/toolchain tests require `clang`, `llvm-ar` (or the
+matching target ar), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
+`qemu-system-riscv32` by default; configuration fails when they are missing.
+`-DTC_ENABLE_AOT_TESTS=OFF` only skips the lld/qemu-dependent ctest entries;
+building the target runtimes still requires clang and llvm-ar (or the matching
+target ar), and this is not a gate build. Tools currently support:
+
+- `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
+  **not a valid program**.
+- `--sem-only <source>`: LEX/SYN/IMPORT/SEM (including CFG/DI, calls, safety and
+  annotations); exit 0 still does not claim a valid program, since CT, IR and code
+  generation have not run.
+- `--static-only <source>`: all static stages through CT and IR finalization; exit 0
+  still does not claim a valid program, since code generation has not run.
+- A normal `tc-vm` invocation executes the reference VM after the static stages;
+  normal termination exits 0, and the first `TC_RE_*` trap is reported as
+  `<file>:<line>:<column>: error[RT]: <code>: <print-name>` with exit 1.
+  `--profile=w32` selects the 32-bit profile, `--checked` adds UB access checks
+  (mandatory traps are unchanged), and `--opt=O0|O2` stays a zero-pass baseline.
+- A normal `tc-aot` invocation emits target assembly to stdout after the static
+  stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf`/`--emit=flat` with
+  `--output=<path>` produce `.s`, an ELF relocatable/executable or a flat binary;
+  `--checked` produces a checked build and `--opt=O0|O2` stays the zero-pass
+  baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal`,
+  `arm32-baremetal` or `riscv32-baremetal` (`w32` is a VM-only static profile), and
+  `--device=reject|read|readwrite|volatile` overrides the platform instance's
+  device policy. A profile without a backend/toolchain mapping exits 70 without
+  publishing a wrong artifact.
+- AOT platform instances: `aarch64-linux-user` uses qemu-system-aarch64 +
+  semihosting; `aarch64-baremetal` uses PL011 UART0 (stdout/stdin)/UART1 + PSCI;
+  `arm32-baremetal` uses qemu-system-arm MPS2 AN500 (semihosting stdout, CMSDK
+  UART0 exit record); `riscv32-baremetal` uses qemu-system-riscv32 virt
+  (NS16550A UART0 stdout/stdin, a semihosting exit record and the SiFive test
+  finisher). A qemu-user/Linux-user runtime is not on the gate path;
+  differential tests compare program stdout, the first trap code and the exit
+  policy, always within one profile.
+
+Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal`/
+`TC_ERR_OUT_OF_MEMORY`, never a language diagnostic. Documented limits: 4 MiB source,
+16 KiB token, 256 type/block nesting levels; exceeding them returns
+`tc_error_internal` (exit 71). Built-in profiles define their frame region/stack
+(default `D`: 512 hosted, 256 `aarch64-baremetal`/`w32`,
+32 `arm32-baremetal`, 64 `riscv32-baremetal`). VM frames are host-backed; AOT
+additionally enforces `frame_total*(D+1) <= stack_size` before emission and
+rejects an oversized frame with the implementation error (exit 71) and no
+artifact; this is not a language diagnostic. The ARM32 code window is 1 MiB and
+oversized functions are rejected at link time; a 30000-instruction far-branch
+regression exists, but larger single functions depend on host memory and the
+assembler/linker and are not covered by the gate. Target/ABI/region and
+runtime-seam conventions are in [src/CONTRACTS.md](src/CONTRACTS.md); contract and
+test conventions are in [src/CONTRACTS.md](src/CONTRACTS.md) and
+[tests/README.md](tests/README.md).
+
+## Contributing
+
+- [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
+- [SECURITY.en.md](SECURITY.en.md)
+- [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md)
+- [CHANGELOG.en.md](CHANGELOG.en.md)
 
 ## License
 
-This project is released under the Apache License 2.0. See [LICENSE](LICENSE).
-
-## Author
-
-**唐荣兵** ([yanhuang8923@qq.com](mailto:yanhuang8923@qq.com)) — Project creator and maintainer
+See [LICENSE](LICENSE).

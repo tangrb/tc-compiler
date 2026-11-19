@@ -1,0 +1,13 @@
+#lib
+public struct Pair then
+readonly ro: int32
+var rw: int32
+end
+public func touch(p: Pair) int32 then
+var pf: ptr<int32> = addr int32, p.rw
+unsafe then
+_ = store int32, pf, 77
+end
+var r: int32 = copy int32, p.rw
+_ = return r
+end

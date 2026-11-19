@@ -1,0 +1,5 @@
+#program
+var p: ptr<int32> = copy ptr<int32>, nullptr
+unsafe then
+var x: int32 = load.volatile int32, p
+end

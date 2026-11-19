@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0012
+profile: common
+source: block_comment.tc
+spec: "§2.2 只有 /// 行注释；/ 不开始块注释；§12.3 TC_CE_SYNTAX；§12.5.1 注释外 / 定位到首个 /"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: block_comment.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

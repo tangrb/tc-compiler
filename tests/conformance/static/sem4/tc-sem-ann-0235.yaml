@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0235
+profile: common
+source: fixtures/tc-sem-ann-0235/root.tc
+spec: "§8.6 @align 的 const 路径端点值非 2 的幂 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0235/lib.tc, line: 3, column: 28}
+  related: []
+  diagnostics: exactly-one

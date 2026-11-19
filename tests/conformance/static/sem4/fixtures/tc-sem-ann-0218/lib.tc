@@ -1,0 +1,4 @@
+#lib
+public const F: float64 = 1.0
+public @fast func f(@range(Self.F, Self.F) n: int32) void then
+end

@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0225
+profile: common
+source: fixtures/tc-sem-ann-0225/root.tc
+spec: "§8.6 @align(N) 的 N 必须是正整数；负号 -> ANNOTATION（N Token）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0225/lib.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

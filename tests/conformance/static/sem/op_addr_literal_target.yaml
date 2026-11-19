@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0023
+profile: common
+source: op_addr_literal_target.tc
+spec: "§6.15.1 addr 目标必须是可寻址名字 -> OPERAND_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_addr_literal_target.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

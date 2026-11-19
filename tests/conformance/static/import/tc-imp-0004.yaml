@@ -1,0 +1,10 @@
+id: TC-IMP-0004
+profile: common
+source: fixtures/tc-imp-0004/root.tc
+spec: "§4.5 目标在当前递归栈上 -> CIRCULAR_IMPORT（循环优先于重复）；最早 import 边，关联目标模块头"
+expect:
+  stage: IMPORT
+  code: TC_CE_CIRCULAR_IMPORT
+  primary: {file: fixtures/tc-imp-0004/root.tc, line: 2, column: 8}
+  related: [{file: fixtures/tc-imp-0004/root.tc, line: 1, column: 1}]
+  diagnostics: exactly-one

@@ -1,5 +1,0 @@
-#program
-; AOT/VM：Self.<memblock> 深拷贝（§3.8.4）
-import SelfMemblockCopyLib
-var v: int32 = funcall(SelfMemblockCopyLib.orig_after_copy_store)
-writeln(int32, v)

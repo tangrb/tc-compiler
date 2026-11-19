@@ -1,0 +1,4 @@
+#program
+struct Self then
+    readonly x: int32
+end

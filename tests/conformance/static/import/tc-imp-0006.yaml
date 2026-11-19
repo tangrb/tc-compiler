@@ -1,0 +1,10 @@
+id: TC-IMP-0006
+profile: common
+source: fixtures/tc-imp-0006/root.tc
+spec: "§1.8/§12.2 #1 IMPORT 阶段早于 SEM：IMPORT 码优先于被导入模块的 SEM 错误"
+expect:
+  stage: IMPORT
+  code: TC_CE_IMPORT_NOT_FOUND
+  primary: {file: fixtures/tc-imp-0006/root.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

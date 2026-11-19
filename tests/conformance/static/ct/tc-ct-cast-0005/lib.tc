@@ -1,0 +1,6 @@
+#lib
+public const S: usize = sizeof isize
+public const B: usize = mul usize, Self.S, 8
+public const E: usize = sub usize, Self.B, 2
+public const X: usize = shl usize, 1, Self.E
+public const Y: int32 = cast int32, Self.X

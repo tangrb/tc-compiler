@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0009
+profile: common
+source: lit_br_if_condition.tc
+spec: "§6.10/§12.2 #9 br_if 条件字面量按 bool 检查 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_br_if_condition.tc, line: 2, column: 11}
+  related: []
+  diagnostics: exactly-one

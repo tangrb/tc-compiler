@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0137
+profile: common
+source: tc-tool-sem-0137/root.tc
+spec: "§6.3.1 NaN 输入和 mod(inf,·) 属于 CT FLOAT_INVALID；SEM 不得误报"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

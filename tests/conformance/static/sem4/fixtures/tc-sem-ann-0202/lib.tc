@@ -1,0 +1,3 @@
+#lib
+public @inline(1) func f() void then
+end

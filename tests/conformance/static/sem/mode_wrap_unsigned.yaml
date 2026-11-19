@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0001
+profile: common
+source: mode_wrap_unsigned.tc
+spec: "§6.3 无符号整数固定模 2^n，无 .wrap -> MODE；§12.5.1 模式后缀 Token"
+expect:
+  stage: SEM
+  code: TC_CE_MODE
+  primary: {file: mode_wrap_unsigned.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0007
+profile: common
+source: name_sizeof_undefined.tc
+spec: "§6.13 sizeof 类型参数完全未解析 -> UNDEFINED_NAME"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: name_sizeof_undefined.tc, line: 2, column: 23}
+  related: []
+  diagnostics: exactly-one

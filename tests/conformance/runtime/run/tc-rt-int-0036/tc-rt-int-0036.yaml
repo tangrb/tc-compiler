@@ -1,0 +1,10 @@
+id: TC-RT-INT-0036
+profile: w64
+source: root.tc
+spec: "§6.3 k>=n with nonzero a in strict shl -> TC_RE_INTEGER_OVERFLOW after committed output"
+kind: run
+expect:
+  stdout_hex: "390a"
+  trap: TC_RE_INTEGER_OVERFLOW
+  exit: 1
+  termination: trap

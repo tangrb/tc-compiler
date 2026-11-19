@@ -1,3 +1,0 @@
-#program
-; `nullptr` 不参与 `bitcast`（含浮点目标）→ TC_CE_TYPE_MISMATCH
-let bad: float64 = bitcast(float64, nullptr)

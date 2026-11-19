@@ -1,0 +1,5 @@
+#program
+struct S then
+    readonly y: int32
+end
+import m

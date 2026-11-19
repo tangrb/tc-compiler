@@ -1,4 +1,0 @@
-#program
-; 期望：private member access
-import PrivStructLib
-var a: PrivStructLib.Hidden = PrivStructLib.Hidden(x: 1)

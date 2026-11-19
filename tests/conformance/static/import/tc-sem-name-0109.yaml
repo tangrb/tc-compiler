@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0109
+profile: common
+source: fixtures/tc-sem-name-0109/root.tc
+spec: "§4.11.3 导入 private 非函数成员作 call 目标仍报 PRIVATE_ACCESS，不得降级为 UNDEFINED_FUNCTION"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_ACCESS
+  primary: {file: fixtures/tc-sem-name-0109/root.tc, line: 3, column: 25}
+  related: [{file: fixtures/tc-sem-name-0109/lib.tc, line: 2, column: 16}]
+  diagnostics: exactly-one

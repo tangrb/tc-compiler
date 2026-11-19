@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-MAKE-0001
+profile: common
+source: tc-tool-ct-make-0001/root.tc
+spec: "§3.10/§6.2.7 make 位置字段与命名字段两种形式（命名字段保持声明顺序）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0007
+profile: common
+source: fixtures/tc-sem-di-0007/root.tc
+spec: "§5.4 字段读取要求外层对象已初始化 -> UNINITIALIZED；位置为基址标识符"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0007/root.tc, line: 8, column: 18}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-BITCAST-0031
+profile: w64
+source: bitcast_struct_int.tc
+spec: "§3.11 bitcast 类别矩阵：struct -> int 禁止 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: bitcast_struct_int.tc, line: 6, column: 33}
+  related: []
+  diagnostics: exactly-one

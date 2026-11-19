@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0127
+profile: common
+source: fixtures/tc-sem-call-0127/root.tc
+spec: "§6.14/§8.8.2 有结果调用用 `_` 丢弃结果仍做完整实参类型检查 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: fixtures/tc-sem-call-0127/root.tc, line: 3, column: 19}
+  related: []
+  diagnostics: exactly-one

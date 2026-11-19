@@ -1,0 +1,10 @@
+id: TC-RT-INT-0022
+profile: w64
+source: root.tc
+spec: "§6.3 int64 neg(INT64_MIN) overflows -> TC_RE_INTEGER_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_INTEGER_OVERFLOW
+  exit: 1
+  termination: trap

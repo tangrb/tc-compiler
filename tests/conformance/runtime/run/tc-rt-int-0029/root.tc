@@ -1,0 +1,5 @@
+#program
+var a: isize = mod isize, -2147483648, -1
+_ = writeln isize, a
+var b: isize = div isize, 2147483647, 1
+_ = writeln isize, b

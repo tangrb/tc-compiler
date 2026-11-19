@@ -1,0 +1,2 @@
+#program
+var x: uint64 = copy uint64, 18446744073709551616

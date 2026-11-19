@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0010
+profile: common
+source: lit_switch_selector.tc
+spec: "§6.10/§12.2 #9 switch 选择字面量按整数检查 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_switch_selector.tc, line: 2, column: 12}
+  related: []
+  diagnostics: exactly-one

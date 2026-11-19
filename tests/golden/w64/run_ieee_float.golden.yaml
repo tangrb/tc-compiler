@@ -1,0 +1,30 @@
+id: TC-RT-GOLD-0007
+kind: run
+profile: w64
+spec: "§6.3 .ieee floating operations; §11.2 float output"
+source: |
+  #program
+  var a: float64 = copy float64, 1.0e308
+  var x: float64 = add.ieee float64, a, a
+  _ = writeln float64, x
+  var z: float64 = copy float64, 0.0
+  var y: float64 = div.ieee float64, z, z
+  _ = writeln float64, y
+derivation: |
+  1.0e308 + 1.0e308 overflows to +inf in .ieee mode; 0/0 is invalid and
+   produces the canonical quiet NaN, printed as `nan` (standard §6.3/§11.2).
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "696e660a6e616e0a"
+  trap: null
+  exit: 0
+  termination: normal

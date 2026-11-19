@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0114
+profile: common
+source: tc-tool-sem-0114/root.tc
+spec: "§9.1/§9.7 @safe 只含安全指令/调用：addr、ptrdiff、funcaddr、funceq、数值/ptr↔ptr bitcast、read/write、trap"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

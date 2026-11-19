@@ -1,0 +1,6 @@
+#lib
+public const I: int32 = -7
+public const F64: float64 = 1.5
+public const F32: float32 = 2.5f
+public const B: bool = false
+public const P: ptr<int32> = nullptr

@@ -1,8 +1,0 @@
-#lib
-public func f() void then
-    while true then
-        goto outside
-    end
-    label outside:
-    return
-end

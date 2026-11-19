@@ -1,0 +1,25 @@
+#program
+var i: int32 = copy int32, 0
+var s: int32 = copy int32, 0
+label loop:
+var c: bool = lt int32, i, 5
+_ = br_if c, body
+_ = br done
+label body:
+s = add int32, s, i
+i = add int32, i, 1
+_ = br loop
+label done:
+_ = writeln int32, s
+var k: int32 = copy int32, -3
+_ = switch k, l0, l1, ld
+label l0:
+_ = writeln int32, 0
+_ = br fin
+label l1:
+_ = writeln int32, 1
+_ = br fin
+label ld:
+_ = writeln int32, 2
+_ = br fin
+label fin:

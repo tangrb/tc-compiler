@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0112
+profile: w64
+source: fixtures/tc-sem-type-0112/root.tc
+spec: "§6.6.3/§13.2.2 W=64 ptr(64 位) 与 int32 位宽不等 -> BITCAST_WIDTH"
+expect:
+  stage: SEM
+  code: TC_CE_BITCAST_WIDTH
+  primary: {file: fixtures/tc-sem-type-0112/root.tc, line: 4, column: 31}
+  related: []
+  diagnostics: exactly-one

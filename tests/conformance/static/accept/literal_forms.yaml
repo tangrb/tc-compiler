@@ -1,0 +1,12 @@
+id: TC-TOOL-SYN-0004
+profile: common
+source: literal_forms.tc
+spec: "§2.4/§14.2 整数字面量（进制/下划线/u/负值）、浮点（小数/指数/f）、inf/-inf/nan、bool/nullptr；LEX/SYN 接受"
+kind: tool
+tool:
+  argv: [tc-vm, --syntax-only, "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

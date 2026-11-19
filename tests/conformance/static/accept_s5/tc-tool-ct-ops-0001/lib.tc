@@ -1,0 +1,24 @@
+#lib
+public const ADD: int32 = add int32, 7, 3
+public const SUB: int32 = sub int32, 7, 3
+public const MUL: int32 = mul int32, 6, 7
+public const DIV: int32 = div int32, 7, 2
+public const MOD: int32 = mod int32, 7, 2
+public const NEG: int32 = neg int32, 5
+public const ABS: int32 = abs int32, -5
+public const AND: int32 = and int32, 6, 3
+public const OR: int32 = or int32, 6, 3
+public const XOR: int32 = xor int32, 6, 3
+public const NOT: int32 = not int32, 0
+public const SHL: int32 = shl int32, 3, 2
+public const SHR: int32 = shr int32, -8, 1
+public const EQ: bool = eq int32, 1, 1
+public const NE: bool = ne int32, 1, 2
+public const LT: bool = lt int32, 1, 2
+public const LE: bool = le int32, 1, 1
+public const GT: bool = gt int32, 2, 1
+public const GE: bool = ge int32, 2, 2
+public const BAND: bool = and bool, true, false
+public const BOR: bool = or bool, true, false
+public const BXOR: bool = xor bool, true, false
+public const BNOT: bool = not bool, false

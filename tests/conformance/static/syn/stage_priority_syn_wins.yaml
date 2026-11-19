@@ -1,0 +1,10 @@
+id: TC-SYN-SEM-0001
+profile: common
+source: stage_priority_syn_wins.tc
+spec: "§12.2 #1 阶段优先：全部 SYN 诊断先于全部 SEM 诊断；第 2 行 SEM 未定义名与第 4 行 SYN 未知助记符并存时报 SYN；§12.5.1 定位到未知助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: stage_priority_syn_wins.tc, line: 4, column: 16}
+  related: []
+  diagnostics: exactly-one

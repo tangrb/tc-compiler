@@ -1,0 +1,9 @@
+#lib
+public const A: float32 = add float32, nan, 1.0f
+public const B: float32 = mod float32, inf, 2.0f
+public const XA: int32 = cast int32, Self.A
+public const XB: int32 = cast int32, Self.B
+public @fast func a(@align(Self.XA) p: ptr<int32>) void then
+end
+public @fast func b(@align(Self.XB) p: ptr<int32>) void then
+end

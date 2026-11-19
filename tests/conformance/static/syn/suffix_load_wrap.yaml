@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0012
+profile: common
+source: suffix_load_wrap.tc
+spec: "§6.15.1 (load,wrap) 组合从未定义 -> SYN；§12.3 TC_CE_SYNTAX；§12.5.1 定位到助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: suffix_load_wrap.tc, line: 4, column: 16}
+  related: []
+  diagnostics: exactly-one

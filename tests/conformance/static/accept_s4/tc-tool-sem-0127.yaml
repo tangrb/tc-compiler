@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0127
+profile: common
+source: tc-tool-sem-0127/root.tc
+spec: "§6.3 uint64 abs(max)=max；@range(2,max) 合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

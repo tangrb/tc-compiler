@@ -1,0 +1,10 @@
+id: TC-SYN-DISCARD-0005
+profile: common
+source: discard_import_name.tc
+spec: "§2.3/§14.3 DISCARD 不得作导入名；§12.3 TC_CE_SYNTAX；§12.5.1 DISCARD 定位到 _"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: discard_import_name.tc, line: 2, column: 8}
+  related: []
+  diagnostics: exactly-one

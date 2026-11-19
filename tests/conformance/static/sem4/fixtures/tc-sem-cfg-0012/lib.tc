@@ -1,0 +1,5 @@
+#lib
+public func f() int32 then
+    var b: bool = copy bool, true
+    _ = return b
+end

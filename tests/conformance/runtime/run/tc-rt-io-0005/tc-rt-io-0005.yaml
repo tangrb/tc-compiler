@@ -1,0 +1,12 @@
+id: TC-RT-IO-0005
+profile: w32
+source: root.tc
+spec: "§11.3/§13.2 `read isize` range is the 32-bit range"
+kind: run
+run:
+  stdin_hex: "34323934393637323935"
+expect:
+  stdout_hex: ""
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

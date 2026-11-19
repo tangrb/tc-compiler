@@ -1,0 +1,10 @@
+id: TC-RT-INT-0003
+profile: w64
+source: root.tc
+spec: "§6.3 INT_MIN/INT_MAX edges; mod(INT_MIN,-1)=0; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "2d323134373438333634380a323134373438333634370a300a2d393232333337323033363835343737353830380a393232333337323033363835343737353830370a"
+  trap: null
+  exit: 0
+  termination: normal

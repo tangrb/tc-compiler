@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0002
+profile: common
+source: struct_missing_then.tc
+spec: "§14.3 struct_def 需要 then；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（行终止符）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: struct_missing_then.tc, line: 2, column: 9}
+  related: []
+  diagnostics: exactly-one

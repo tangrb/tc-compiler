@@ -1,0 +1,5 @@
+#lib
+public const A: int32 = add int32, 2147483646, 1
+public const B: int32 = add int32, -2147483648, 0
+public const C: int32 = neg int32, -2147483647
+public const D: int32 = abs int32, -2147483647

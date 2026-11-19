@@ -1,0 +1,5 @@
+#lib
+public @safe func f(p: ptr<int32>) int64 then
+    var x: int64 = bitcast int64, p
+    _ = return x
+end

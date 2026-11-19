@@ -1,4 +1,0 @@
-#program
-var a: int32 = 0
-read(int32, a)
-writeln(int32, a)

@@ -1,0 +1,11 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const K: int32 = 1
+public const KS: S = make S, x: Self.K
+public const A: int64 = cast int64, Self.K
+public const B: int16 = trunc int16, Self.K
+public const C: int32 = bitcast int32, Self.K
+public const D: int32 = Self.KS.x
+public static var V: int32 = Self.K

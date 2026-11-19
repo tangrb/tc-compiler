@@ -1,0 +1,20 @@
+#lib
+public struct S then
+    readonly a: int32
+    var b: int32
+end
+public func h(first: int32, second: S) int32 then
+    _ = return first
+end
+public func g(s: S) int32 then
+    var t: S = make S, a: 1, b: 2
+    var x: int32 = call Self.h, first: 1, second: s
+    _ = switch x, L0, L1
+    label L0:
+    _ = br L2
+    label L1:
+    _ = br L2
+    label L2:
+    var y: int32 = copy int32, t.a
+    _ = return y
+end

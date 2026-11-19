@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0110
+profile: common
+source: fixtures/tc-sem-safe-0110/root.tc
+spec: "§9.3/§9.8 @safe 函数不得含任何 unsafe 块（含空块）-> SAFE_VIOLATION；位置为 unsafe 关键字"
+expect:
+  stage: SEM
+  code: TC_CE_SAFE_VIOLATION
+  primary: {file: fixtures/tc-sem-safe-0110/lib.tc, line: 3, column: 5}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0114
+profile: common
+source: fixtures/tc-sem-safe-0114/root.tc
+spec: "§8.6/§9.6 @safe 函数中调用 @fast 函数 -> SAFE_VIOLATION 优先于 FAST_CALL"
+expect:
+  stage: SEM
+  code: TC_CE_SAFE_VIOLATION
+  primary: {file: fixtures/tc-sem-safe-0114/lib.tc, line: 5, column: 9}
+  related: []
+  diagnostics: exactly-one

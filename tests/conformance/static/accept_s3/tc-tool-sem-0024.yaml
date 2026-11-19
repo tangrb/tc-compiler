@@ -1,0 +1,13 @@
+id: TC-TOOL-SEM-0024
+profile: common
+source: tc-tool-sem-0024/root.tc
+spec: "§4.5 模块身份按解析路径：同名 shared.tc 在不同目录是两个实例，各自独立解析"
+include_roots: ["tc-tool-sem-0024/left", "tc-tool-sem-0024/right"]
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

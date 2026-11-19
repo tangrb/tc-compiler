@@ -1,0 +1,4 @@
+#program
+var a: isize = shl isize, 0, 32
+_ = writeln isize, a
+var b: isize = shl isize, 1, 32

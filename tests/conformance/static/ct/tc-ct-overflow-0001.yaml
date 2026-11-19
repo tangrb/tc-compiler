@@ -1,0 +1,10 @@
+id: TC-CT-OVERFLOW-0001
+profile: common
+source: tc-ct-overflow-0001/root.tc
+spec: "§3.10/§6.3 有符号 strict 整数加法溢出 -> CONST_OVERFLOW；§4.10 失败归属目标声明；§12.5.1 主位置为常量声明，约定取声明标识符 BAD 首 Token"
+expect:
+  stage: CT
+  code: TC_CE_CONST_OVERFLOW
+  primary: {file: tc-ct-overflow-0001/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

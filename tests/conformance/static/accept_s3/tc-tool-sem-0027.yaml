@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0027
+profile: common
+source: tc-tool-sem-0027/root.tc
+spec: "§5.1/§5.6 局部值名可与模块成员/结构体名相同；局部优先，模块成员仍需 Self./m."
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

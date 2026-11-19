@@ -1,0 +1,4 @@
+#lib
+public @unsafe func f(p: ptr<int32>) void then
+    const X: int32 = load int32, p
+end

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0021
+profile: common
+source: tc-tool-sem-0021/root.tc
+spec: "§6.6.3 cast 的 u 整数源类型 uint64；静态接受，范围由运行时检查"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

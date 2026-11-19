@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0025
+profile: common
+source: op_make_mixed_missing.tc
+spec: "§6.2.7/§12.2 #10 make 混用位置/命名字段仍先检查缺失 -> MISSING_FIELD"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_FIELD
+  primary: {file: op_make_mixed_missing.tc, line: 7, column: 18}
+  related: []
+  diagnostics: exactly-one

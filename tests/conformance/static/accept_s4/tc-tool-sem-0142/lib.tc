@@ -1,0 +1,10 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const A: usize = sizeof int32
+public const B: int32 = bitcast int32, 8
+public const C: int32 = add int32, 1, 2
+public const D: bool = eq int32, 1, 1
+public const E: int32 = cast int32, Self.D
+public const F: S = make S, x: 8

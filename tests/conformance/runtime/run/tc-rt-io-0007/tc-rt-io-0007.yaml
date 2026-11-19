@@ -1,0 +1,12 @@
+id: TC-RT-IO-0007
+profile: w64
+source: root.tc
+spec: "§11.3 float input accepts inf, -0.0 and exponent tokens; -0 stays negative"
+kind: run
+run:
+  stdin_hex: "696e66202d302e3020316535"
+expect:
+  stdout_hex: "696e660a2d300a3130303030300a"
+  trap: null
+  exit: 0
+  termination: normal

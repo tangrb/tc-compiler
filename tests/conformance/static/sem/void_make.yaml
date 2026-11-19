@@ -1,0 +1,10 @@
+id: TC-SEM-VOID-0004
+profile: common
+source: void_make.tc
+spec: "§3.8 void 不是值类型，不能作为 make 的结构体类型 -> VOID"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: void_make.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

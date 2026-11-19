@@ -1,0 +1,10 @@
+id: TC-RT-INT-0027
+profile: w64
+source: root.tc
+spec: "§6.3 mode matrix: unsigned shl defaults to strict; k=n-1 with a fitting result is exact and shl.wrap on unsigned shl is a defined combination"
+kind: run
+expect:
+  stdout_hex: "323134373438333634380a323134373438333634380a"
+  trap: null
+  exit: 0
+  termination: normal

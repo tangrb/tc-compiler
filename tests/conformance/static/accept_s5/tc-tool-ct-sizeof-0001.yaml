@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-SIZEOF-0001
+profile: common
+source: tc-tool-ct-sizeof-0001/root.tc
+spec: "§3.10/§6.13 sizeof 作为 const_expr：标量/指针/函数指针/结构体大小"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

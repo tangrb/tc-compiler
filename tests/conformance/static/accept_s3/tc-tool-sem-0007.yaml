@@ -1,0 +1,13 @@
+id: TC-TOOL-SEM-0007
+profile: common
+source: tc-tool-sem-0007/root.tc
+spec: "§4.5 include roots 按顺序搜索；导入文件目录之后首个匹配胜出"
+include_roots: ["tc-tool-sem-0007/libs"]
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

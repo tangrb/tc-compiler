@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0009
+profile: common
+source: fixtures/tc-sem-const-0009/root.tc
+spec: "§3.10 const 中指针 bitcast -> CONST_FORM（操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0009/lib.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

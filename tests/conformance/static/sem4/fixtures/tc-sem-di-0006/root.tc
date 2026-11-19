@@ -1,0 +1,10 @@
+#program
+var c: int32 = copy int32, 0
+_ = switch c, A, B
+label A:
+var x: int32 = copy int32, 1
+_ = br E
+label B:
+_ = br E
+label E:
+_ = write int32, x

@@ -1,0 +1,4 @@
+#lib
+public const X: int32 = mod int32, -2147483648, -1
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

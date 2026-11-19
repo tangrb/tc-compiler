@@ -1,0 +1,6 @@
+#lib
+public static var V: int32 = 2
+public func bad() int32 then
+    V = copy int32, 9
+    _ = return 1
+end

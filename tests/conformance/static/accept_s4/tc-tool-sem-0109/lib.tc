@@ -1,0 +1,9 @@
+#lib
+public @fast @fast_math @pure @readonly @nounwind @willreturn @no_overflow func f() void then
+end
+public @safe @inline func g() void then
+end
+public @noinline @unsafe func h() void then
+end
+public @fast func p(@nonnull @no_alias @align(8) a: ptr<int32>, @range(0, 10) n: int32) void then
+end

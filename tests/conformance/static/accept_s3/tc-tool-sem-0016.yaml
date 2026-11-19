@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0016
+profile: w64
+source: tc-tool-sem-0016/root.tc
+spec: "§13.2.2 isize/usize 字面量范围按 W；64 位下 2^31/2^32 可表示"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

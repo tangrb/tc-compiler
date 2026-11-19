@@ -1,0 +1,34 @@
+id: TC-RT-GOLD-0001
+kind: run
+profile: w64
+spec: "§11.2 decimal/bool output formats; §6.3 integer arithmetic"
+source: |
+  #program
+  var a: int8 = copy int8, -128
+  _ = writeln int8, a
+  var u: uint64 = copy uint64, 18446744073709551615u
+  _ = writeln uint64, u
+  var b: bool = copy bool, true
+  _ = writeln bool, b
+  var i: int64 = copy int64, -9223372036854775808
+  _ = writeln int64, i
+derivation: |
+  Signed int8 -128 prints as a minus sign followed by the decimal magnitude
+   128; uint64 2^64-1 has twenty decimal digits with no leading zero; bool prints
+   true; int64 -2^63 is exactly representable and prints as its decimal value
+   (standard §11.2).
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "2d3132380a31383434363734343037333730393535313631350a747275650a2d393232333337323033363835343737353830380a"
+  trap: null
+  exit: 0
+  termination: normal

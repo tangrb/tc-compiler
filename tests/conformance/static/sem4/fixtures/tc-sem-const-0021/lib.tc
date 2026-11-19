@@ -1,0 +1,3 @@
+#lib
+public static var A: int32 = 1
+public const X: int64 = cast int64, Self.A

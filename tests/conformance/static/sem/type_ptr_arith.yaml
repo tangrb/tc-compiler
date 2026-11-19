@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0002
+profile: common
+source: type_ptr_arith.tc
+spec: "§3.13.2/§6.15.2 ptr<T> 进入算术/位运算 -> TYPE_MISMATCH；首个不匹配操作数"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_ptr_arith.tc, line: 3, column: 27}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0007
+profile: w64
+source: root.tc
+spec: "§1.2 depth D=512: exactly 512 active calls succeed and return"
+kind: run
+expect:
+  stdout_hex: "3531310a"
+  trap: null
+  exit: 0
+  termination: normal

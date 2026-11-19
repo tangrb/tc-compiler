@@ -1,0 +1,10 @@
+id: TC-SYN-END-0003
+profile: common
+source: missing_end_unsafe.tc
+spec: "§12.3 TC_CE_MISSING_END（unsafe 缺 end）；§12.5.1 定位到未配对开启关键字"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_END
+  primary: {file: missing_end_unsafe.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,3 @@
+#program
+var s: usize = copy usize, 0
+var x: int32 = trunc int32, s

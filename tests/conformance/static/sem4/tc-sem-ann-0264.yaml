@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0264
+profile: common
+source: fixtures/tc-sem-ann-0264/root.tc
+spec: "§8.6/§12.5.1 bare unresolved NAME is syntactically a struct: @align placement error wins at the annotation Token"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0264/lib.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

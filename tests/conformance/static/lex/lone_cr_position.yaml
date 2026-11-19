@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0029
+profile: common
+source: lone_cr_position.tc
+spec: "§2.5/§14.2 CR 为行终止符；§12.3 TC_CE_SYNTAX；§12.5.1 注释外 ; 定位到 ;"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: lone_cr_position.tc, line: 3, column: 10}
+  related: []
+  diagnostics: exactly-one

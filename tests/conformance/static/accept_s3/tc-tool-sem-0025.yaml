@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0025
+profile: common
+source: tc-tool-sem-0025/root.tc
+spec: "§3.7/§4.11.2 导入模块的结构体在使用者字段中已定义完毕；布局按依赖优先"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

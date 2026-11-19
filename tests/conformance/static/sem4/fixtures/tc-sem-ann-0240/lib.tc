@@ -1,0 +1,8 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const Z: S = make S, x: 0
+public const X: int32 = Z.x
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

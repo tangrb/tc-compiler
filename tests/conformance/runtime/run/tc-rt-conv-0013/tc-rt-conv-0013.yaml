@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0013
+profile: w64
+source: root.tc
+spec: "§6.6 f32-to-f64 widening preserves the binary32 value exactly"
+kind: run
+expect:
+  stdout_hex: "302e310a"
+  trap: null
+  exit: 0
+  termination: normal

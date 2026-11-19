@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0002
+profile: common
+source: name_duplicate_local.tc
+spec: "§5.1 同一函数/程序值名字空间不得重名 -> DUPLICATE_NAME；§12.5.1 第二次声明并关联首次"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_NAME
+  primary: {file: name_duplicate_local.tc, line: 3, column: 5}
+  related: [{file: name_duplicate_local.tc, line: 2, column: 5}]
+  diagnostics: exactly-one

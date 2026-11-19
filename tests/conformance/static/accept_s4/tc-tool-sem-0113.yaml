@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0113
+profile: common
+source: tc-tool-sem-0113/root.tc
+spec: "§9.2/§9.3 unsafe 块与 @unsafe/@fast 函数接受 call_indirect 与 fnptr↔int bitcast；fnptr 不携带形参前置条件"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

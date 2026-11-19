@@ -1,0 +1,4 @@
+#lib
+public func two(a: int32, b: int32) int32 then
+    _ = return a
+end

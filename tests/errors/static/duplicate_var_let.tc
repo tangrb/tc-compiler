@@ -1,3 +1,0 @@
-#program
-var a: int32 = 10
-let a: int32 = 20

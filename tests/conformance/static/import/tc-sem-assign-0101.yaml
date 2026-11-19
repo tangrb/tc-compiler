@@ -1,0 +1,10 @@
+id: TC-SEM-ASSIGN-0101
+profile: common
+source: fixtures/tc-sem-assign-0101/root.tc
+spec: "§5.3/§6.14 对参数赋值 -> PARAMETER_ASSIGNMENT"
+expect:
+  stage: SEM
+  code: TC_CE_PARAMETER_ASSIGNMENT
+  primary: {file: fixtures/tc-sem-assign-0101/lib.tc, line: 3, column: 5}
+  related: []
+  diagnostics: exactly-one

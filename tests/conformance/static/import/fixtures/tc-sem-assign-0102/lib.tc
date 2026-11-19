@@ -1,0 +1,6 @@
+#lib
+public const K: int32 = 1
+public func f() int32 then
+    Self.K = copy int32, 2
+    _ = return 0
+end

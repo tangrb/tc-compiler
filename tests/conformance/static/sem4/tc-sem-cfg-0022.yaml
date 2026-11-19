@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0022
+profile: common
+source: fixtures/tc-sem-cfg-0022/root.tc
+spec: "§12.2 模块内源序：非 void 函数的重复标签与 MISSING_RETURN 并存时，返回类型处的 MISSING_RETURN 是更早首诊"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0022/lib.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0022/lib.tc, line: 5, column: 1}]
+  diagnostics: exactly-one

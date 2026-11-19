@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0009
+profile: common
+source: fixtures/tc-sem-di-0009/root.tc
+spec: "§5.7.1 每个函数是独立 DI 分析单元；函数内 br 跳过 var 后读取 -> UNINITIALIZED（导入模块内）"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0009/lib.tc, line: 6, column: 32}
+  related: []
+  diagnostics: exactly-one

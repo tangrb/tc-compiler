@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0008
+profile: common
+source: field_make_mixed.tc
+spec: "§6.2.7 位置字段与命名字段不得混用 -> FIELD_ORDER；定位首个带名字段"
+expect:
+  stage: SEM
+  code: TC_CE_FIELD_ORDER
+  primary: {file: field_make_mixed.tc, line: 6, column: 23}
+  related: []
+  diagnostics: exactly-one

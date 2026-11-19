@@ -1,0 +1,9 @@
+#program
+var a: float32 = copy float32, 0.1f
+_ = writeln float32, a
+var b: float32 = copy float32, 1.0e-45f
+_ = writeln float32, b
+var c: float32 = copy float32, 3.4028235e38f
+_ = writeln float32, c
+var d: float32 = div float32, 1.0f, 3.0f
+_ = writeln float32, d

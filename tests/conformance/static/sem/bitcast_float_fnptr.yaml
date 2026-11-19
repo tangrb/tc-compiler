@@ -1,0 +1,10 @@
+id: TC-SEM-BITCAST-0011
+profile: w64
+source: bitcast_float_fnptr.tc
+spec: "§3.11 bitcast 类别矩阵：float -> fnptr 禁止 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: bitcast_float_fnptr.tc, line: 6, column: 45}
+  related: []
+  diagnostics: exactly-one

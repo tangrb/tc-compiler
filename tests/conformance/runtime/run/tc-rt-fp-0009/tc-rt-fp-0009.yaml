@@ -1,0 +1,10 @@
+id: TC-RT-FP-0009
+profile: w64
+source: root.tc
+spec: "§11.2 binary32 rendering: 6 significant digits, min subnormal"
+kind: run
+expect:
+  stdout_hex: "302e310a312e34303133652d34350a332e3430323832652b33380a302e3333333333330a"
+  trap: null
+  exit: 0
+  termination: normal

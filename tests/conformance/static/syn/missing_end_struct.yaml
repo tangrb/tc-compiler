@@ -1,0 +1,10 @@
+id: TC-SYN-END-0001
+profile: common
+source: missing_end_struct.tc
+spec: "§12.3 TC_CE_MISSING_END（struct 缺 end）；§12.5.1 定位到未配对开启关键字"
+expect:
+  stage: SYN
+  code: TC_CE_MISSING_END
+  primary: {file: missing_end_struct.tc, line: 2, column: 1}
+  related: []
+  diagnostics: exactly-one

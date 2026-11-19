@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0009
+profile: common
+source: field_make_extra.tc
+spec: "§6.2.7 make 多余位置字段 -> OPERAND_COUNT；§12.5.1 指令助记符"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: field_make_extra.tc, line: 5, column: 12}
+  related: []
+  diagnostics: exactly-one

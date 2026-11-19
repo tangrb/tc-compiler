@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0010
+profile: common
+source: field_struct_duplicate.tc
+spec: "§3.7 结构体内字段名唯一 -> DUPLICATE_FIELD；关联首次声明"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_FIELD
+  primary: {file: field_struct_duplicate.tc, line: 4, column: 9}
+  related: [{file: field_struct_duplicate.tc, line: 3, column: 9}]
+  diagnostics: exactly-one

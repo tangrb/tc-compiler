@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0003
+profile: common
+source: tc-tool-sem-0003/root.tc
+spec: "§2.4/§6.6.3 字面量边界与转换源类型：无后缀/负值/进制/u/f/inf/nan/nullptr"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

@@ -1,0 +1,4 @@
+#program
+unsafe then
+_ = memmove
+end

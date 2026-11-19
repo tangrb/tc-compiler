@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0102
+profile: common
+source: fixtures/tc-sem-name-0102/root.tc
+spec: "§4.8 模块成员命名空间重名 -> DUPLICATE_MEMBER；关联首次声明"
+expect:
+  stage: SEM
+  code: TC_CE_DUPLICATE_MEMBER
+  primary: {file: fixtures/tc-sem-name-0102/lib.tc, line: 5, column: 14}
+  related: [{file: fixtures/tc-sem-name-0102/lib.tc, line: 2, column: 15}]
+  diagnostics: exactly-one

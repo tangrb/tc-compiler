@@ -1,0 +1,5 @@
+#lib
+public const A: int32 = div int32, 1, 2
+public const B: int32 = mod int32, -7, 2
+public const C: float32 = div float32, 1.0f, 2.0f
+public const D: float64 = mod float64, 5.0, 2.0

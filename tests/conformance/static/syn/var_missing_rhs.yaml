@@ -1,0 +1,10 @@
+id: TC-SYN-VAR-0002
+profile: common
+source: var_missing_rhs.tc
+spec: "§5.2/§12.3 TC_CE_VAR_MISSING_INIT；§12.5.1 定位到 var 的标识符"
+expect:
+  stage: SYN
+  code: TC_CE_VAR_MISSING_INIT
+  primary: {file: var_missing_rhs.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

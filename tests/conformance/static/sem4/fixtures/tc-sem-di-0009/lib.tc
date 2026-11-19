@@ -1,0 +1,8 @@
+#lib
+public func f() int32 then
+    _ = br L
+    var x: int32 = copy int32, 1
+    label L:
+    var y: int32 = copy int32, x
+    _ = return y
+end

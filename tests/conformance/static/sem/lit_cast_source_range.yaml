@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0011
+profile: common
+source: lit_cast_source_range.tc
+spec: "§6.6.3 cast 无后缀整数源类型 int64；超出 int64 -> LITERAL_RANGE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_RANGE
+  primary: {file: lit_cast_source_range.tc, line: 2, column: 26}
+  related: []
+  diagnostics: exactly-one

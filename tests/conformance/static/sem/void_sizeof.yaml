@@ -1,0 +1,10 @@
+id: TC-SEM-VOID-0003
+profile: common
+source: void_sizeof.tc
+spec: "§6.13 sizeof void -> VOID；§12.5.1 void Token"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: void_sizeof.tc, line: 2, column: 23}
+  related: []
+  diagnostics: exactly-one

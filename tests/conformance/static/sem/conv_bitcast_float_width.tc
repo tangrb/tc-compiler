@@ -1,0 +1,3 @@
+#program
+var a: float64 = copy float64, 1.0
+var b: float32 = bitcast float32, a

@@ -1,0 +1,5 @@
+#lib
+public @fast func f(x: float64) float64 then
+    var y: float64 = add.nuw float64, x, 1.0
+    _ = return y
+end

@@ -1,3 +1,0 @@
-#program
-; 期望：division by zero（有限非零 mod ±0，strict）
-var c: float64 = mod(float64, 5.0, 0.0)

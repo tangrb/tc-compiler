@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0110
+profile: common
+source: fixtures/tc-sem-name-0110/root.tc
+spec: "§5.6/§6.14 裸名模块 const 作赋值目标 -> FUNCTION_SCOPE_ACCESS（必须 Self.）"
+expect:
+  stage: SEM
+  code: TC_CE_FUNCTION_SCOPE_ACCESS
+  primary: {file: fixtures/tc-sem-name-0110/lib.tc, line: 4, column: 5}
+  related: []
+  diagnostics: exactly-one

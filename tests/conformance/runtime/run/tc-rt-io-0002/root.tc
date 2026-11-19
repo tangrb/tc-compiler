@@ -1,0 +1,7 @@
+#program
+var x: int32 = read int32
+var y: float64 = read float64
+var b: bool = read bool
+_ = writeln int32, x
+_ = writeln float64, y
+_ = writeln bool, b

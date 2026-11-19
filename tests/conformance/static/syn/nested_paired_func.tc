@@ -1,0 +1,5 @@
+#lib
+public func f() void then
+    public func g() void then
+    end
+end

@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0009
+profile: common
+source: fixtures/tc-sem-cfg-0009/root.tc
+spec: "§7.5 switch 值不是整数 -> SWITCH_TYPE；§12.5.1 值操作数"
+expect:
+  stage: SEM
+  code: TC_CE_SWITCH_TYPE
+  primary: {file: fixtures/tc-sem-cfg-0009/root.tc, line: 3, column: 12}
+  related: []
+  diagnostics: exactly-one

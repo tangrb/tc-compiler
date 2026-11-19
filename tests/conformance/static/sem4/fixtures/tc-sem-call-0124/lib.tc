@@ -1,0 +1,4 @@
+#lib
+public @fast func ff() int32 then
+    _ = return 0
+end

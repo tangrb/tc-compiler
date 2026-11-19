@@ -1,0 +1,10 @@
+id: TC-IMP-0007
+profile: common
+source: fixtures/tc-imp-0007/root.tc
+spec: "§1.8/§4.11.1 LEX/SYN 错误立即报告，优先于已记录的 IMPORT 错误"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: fixtures/tc-imp-0007/badsyn.tc, line: 3, column: 20}
+  related: []
+  diagnostics: exactly-one

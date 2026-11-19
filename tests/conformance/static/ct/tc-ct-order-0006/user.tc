@@ -1,0 +1,5 @@
+#lib
+import a
+import b
+public const R: int32 = add int32, b.B1, a.A2
+public const LATER: int32 = mul int32, 2147483647, 2

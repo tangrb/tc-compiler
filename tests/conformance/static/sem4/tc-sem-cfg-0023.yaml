@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0023
+profile: common
+source: fixtures/tc-sem-cfg-0023/root.tc
+spec: "§12.2 模块内源序：非 void 函数的畸形 br_if 与 MISSING_RETURN 并存时，保守 fallthrough 使返回类型处 MISSING_RETURN 更早"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0023/lib.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0023/lib.tc, line: 4, column: 1}]
+  diagnostics: exactly-one

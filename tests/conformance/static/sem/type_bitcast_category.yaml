@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0004
+profile: common
+source: type_bitcast_category.tc
+spec: "§3.11 bitcast 类别矩阵：浮点 -> 指针禁止，先于位宽 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_bitcast_category.tc, line: 3, column: 41}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-IMP-0003
+profile: common
+source: fixtures/tc-imp-0003/root.tc
+spec: "§4.5 同一导入者重复引用同一解析目标 -> DUPLICATE_IMPORT；关联首次导入"
+expect:
+  stage: IMPORT
+  code: TC_CE_DUPLICATE_IMPORT
+  primary: {file: fixtures/tc-imp-0003/root.tc, line: 3, column: 8}
+  related: [{file: fixtures/tc-imp-0003/root.tc, line: 2, column: 8}]
+  diagnostics: exactly-one

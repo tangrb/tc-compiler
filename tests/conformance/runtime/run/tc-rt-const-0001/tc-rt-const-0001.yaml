@@ -1,0 +1,10 @@
+id: TC-RT-CONST-0001
+profile: w64
+source: root.tc
+spec: "§4.7 const/static var initializers are materialized before execution"
+kind: run
+expect:
+  stdout_hex: "380a370a350a747275650a"
+  trap: null
+  exit: 0
+  termination: normal

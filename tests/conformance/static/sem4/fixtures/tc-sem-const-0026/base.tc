@@ -1,0 +1,5 @@
+#lib
+public struct S then
+    var x: int32
+end
+public static var V: S = make S, x: 1

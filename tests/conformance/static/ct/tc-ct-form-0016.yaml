@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0016
+profile: common
+source: tc-ct-form-0016/root.tc
+spec: "§3.10 正向允许集不含 I/O 出向指令：const 初始化器中的 write 不在 const_expr 形态内 -> CONST_FORM（SEM）；§12.5.1 定位到违规 op"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0016/root.tc, line: 2, column: 18}
+  related: []
+  diagnostics: exactly-one

@@ -1,55 +1,44 @@
 # Security Policy
 
-[中文](SECURITY.md)
+This branch is the **0.0.46 clean-sheet documentation/skeleton branch**. It does not contain an executable compiler, VM, AOT runtime, C host public library, or embedding API. Security issues here concern specification/design ambiguities, rules that could lead to unsafe future implementations, and repository/toolchain configuration.
 
-## Supported versions
+## Reporting
 
-| Version | Supported |
-| ------- | --------- |
-| `v0.0.44` (latest release) | Yes |
-| `master` | Yes (development tip) |
-| `v0.0.43` | Security fixes only — please upgrade to v0.0.44 |
-| Older tags (`v0.0.42` and below) | No |
+**Do not open a public Issue for exploitable details.**
 
-Security fixes are applied to `master` and included in the next patch or minor release as appropriate.
-
-## Reporting a vulnerability
-
-**Do not open a public GitHub Issue for security vulnerabilities.**
-
-Please report privately by email to:
+Report privately by email to:
 
 **yanhuang8923@qq.com**
 
-Include as much of the following as possible:
+Please include:
 
-- Affected version (`tc-vm --version` / tag / commit)
-- OS and toolchain (compiler, CMake)
-- Minimal reproduction (preferably a short `.tc` and exact command line)
-- Impact assessment (crash, incorrect codegen, sandbox escape in embed hosts, etc.)
-- Whether the issue appears in TC-VM, TC-AOT, libtc, and/or TC-Embed
+- affected document and section;
+- issue type (spec ambiguity, safety issue, toolchain configuration);
+- for 32/64 issues, the word size and an example;
+- expected rule vs current text;
+- possible security impact (future UB, out-of-bounds, privilege bypass, etc.).
 
-### What to expect
+## What to expect
 
-1. **Acknowledgement** within **7 days** of a clear report.
-2. An initial severity and scope assessment.
-3. A fix or mitigation plan; coordinated disclosure timing agreed with the reporter when practical.
-4. Credit in release notes / `CHANGELOG.md` if desired (opt-out available).
+1. Acknowledgement within **7 days** of a clear report.
+2. Assessment as a specification, design, or repository issue.
+3. A revision or mitigation plan; coordinated disclosure when practical.
+4. Credit in `CHANGELOG` if desired (opt-out available).
 
 ## Scope
 
-In scope examples:
+**In scope**:
 
-- Memory safety issues in the compiler, VM, AOT runtime, or embed API
-- Incorrect code generation that could cause undefined behavior when executed
-- Denial-of-service that is trivial to trigger from untrusted TC source (when that source is intended to be sandboxed by the host)
+- ambiguities in the specification/design that could lead to undefined behavior, memory unsafety, or safety-model bypass in a future implementation;
+- gaps in the safety model (`unsafe`, `@fast`, pointer state, write protection);
+- repository configuration (dependencies, build skeleton) issues.
 
-Out of scope examples (please use a normal Issue or discussion instead):
+**Out of scope**:
 
-- Feature requests and language design proposals
-- Documented diagnostics / intentional fail-fast behavior
-- Issues that require an already-compromised host process
+- feature requests and language-design preferences;
+- documented fail-fast/diagnostic behavior;
+- issues requiring an already-compromised host.
 
-## Prefer private channels
+## Public channels
 
-Public Issues, PRs, and Discussions must not include exploit details for unfixed vulnerabilities. After a fix is released, a public advisory or changelog entry may summarize the issue at a high level.
+Public Issues, PRs, and Discussions must not include exploit details before a fix.

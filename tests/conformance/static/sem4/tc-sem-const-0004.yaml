@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0004
+profile: common
+source: fixtures/tc-sem-const-0004/root.tc
+spec: "§3.10 正向允许集外的 copy 出现在 const 初始化器 -> CONST_FORM（操作码 Token）"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0004/lib.tc, line: 2, column: 25}
+  related: []
+  diagnostics: exactly-one

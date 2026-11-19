@@ -1,0 +1,10 @@
+id: TC-RT-IO-0018
+profile: w64
+source: root.tc
+spec: "§11.3 EOF at the very start of the input stream -> TC_RE_IO"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_IO
+  exit: 1
+  termination: trap

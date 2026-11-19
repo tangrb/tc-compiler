@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0230
+profile: common
+source: fixtures/tc-sem-ann-0230/root.tc
+spec: "§8.6 @safe 只用于函数；用于形参 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0230/lib.tc, line: 2, column: 15}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,3 @@
+#program
+var s: isize = copy isize, 0
+var x: int64 = copy int64, s

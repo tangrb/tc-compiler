@@ -1,0 +1,4 @@
+#program
+var b: bool = copy bool, true
+_ = switch b, L
+label L:

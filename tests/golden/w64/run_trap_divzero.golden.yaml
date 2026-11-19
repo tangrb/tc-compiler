@@ -1,0 +1,28 @@
+id: TC-RT-GOLD-0006
+kind: run
+profile: w64
+spec: "§6.3 integer division by zero -> TC_RE_DIV_ZERO; §11.1/§12.5.2 commit semantics; §11.2 output"
+source: |
+  #program
+  _ = writeln int32, 1
+  var z: int32 = copy int32, 0
+  var x: int32 = div int32, 1, z
+derivation: |
+  The first writeln commits `1\n`.  The div by zero traps at the div
+   instruction; the first trap terminates the program, so no target is committed
+   and the trap exit status is 1 (standard §6.3/§12.5.2).
+  Exit status is the reference profile's TcExitPolicy: normal termination 0,
+  first trap 1 (standard §13.1/§4.9; design §8).  The profile facts are
+  documented in src/CONTRACTS.md.
+review:
+  reviewer: "gate-auditor (independent read-only subagent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent derivation audit"
+  status: approved
+  date: "2026-11-16"
+expect:
+  stdout_hex: "310a"
+  trap: TC_RE_DIV_ZERO
+  exit: 1
+  termination: trap

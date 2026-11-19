@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0002
+profile: common
+source: tc-tool-sem-0002/root.tc
+spec: "§3.11 转换矩阵正例：cast 数值/bool、trunc 窄化、bitcast 等宽数值/指针、ptr<->ptr 重标记"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

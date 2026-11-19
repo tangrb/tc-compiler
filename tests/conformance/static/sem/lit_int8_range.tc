@@ -1,0 +1,2 @@
+#program
+var x: int8 = copy int8, 128

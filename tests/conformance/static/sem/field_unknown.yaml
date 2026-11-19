@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0001
+profile: common
+source: field_unknown.tc
+spec: "§6.14 字段访问未知字段 -> UNKNOWN_FIELD；§12.5.1 字段名"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_FIELD
+  primary: {file: field_unknown.tc, line: 6, column: 30}
+  related: []
+  diagnostics: exactly-one

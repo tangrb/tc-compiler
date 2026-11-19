@@ -1,0 +1,7 @@
+#lib
+public func f() int32 then
+    _ = switch 0, A, D
+    label A:
+    _ = br A
+    label D:
+end

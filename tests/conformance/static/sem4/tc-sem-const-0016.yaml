@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0016
+profile: common
+source: fixtures/tc-sem-const-0016/root.tc
+spec: "§3.10/§4.7 static var 初始化器禁止引用 static var（Self.A）-> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0016/lib.tc, line: 3, column: 35}
+  related: []
+  diagnostics: exactly-one

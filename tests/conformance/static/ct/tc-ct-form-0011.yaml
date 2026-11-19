@@ -1,0 +1,10 @@
+id: TC-CT-FORM-0011
+profile: common
+source: tc-ct-form-0011/root.tc
+spec: "§3.10 const_expr 的 op_form 不得带 .ieee；mul.ieee 形态错误 -> CONST_FORM；§12.5.1 后缀 Token"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: tc-ct-form-0011/lib.tc, line: 2, column: 31}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0006
+profile: common
+source: tc-tool-sem-0006/root.tc
+spec: "§4.11.1 钻石依赖：module_order root,a,c,b；c 只解析一次；重复复用不报错"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

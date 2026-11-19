@@ -1,3 +1,0 @@
-#program
-; 期望：nullptr is only allowed in pointer context
-var x: int32 = nullptr

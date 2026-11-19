@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0105
+profile: common
+source: fixtures/tc-sem-op-0105/root.tc
+spec: "§8.8.2/§12.2 #10 call 多余位置实参/数量不符 -> ARGUMENT_COUNT（助记符）"
+expect:
+  stage: SEM
+  code: TC_CE_ARGUMENT_COUNT
+  primary: {file: fixtures/tc-sem-op-0105/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,2 @@
+#lib
+public const BAD: int32 = shr int32, -8, -1

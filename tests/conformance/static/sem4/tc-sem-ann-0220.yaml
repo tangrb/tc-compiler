@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0220
+profile: common
+source: fixtures/tc-sem-ann-0220/root.tc
+spec: "§8.6 @range 的 const 路径未解析 -> UNDEFINED_NAME"
+expect:
+  stage: SEM
+  code: TC_CE_UNDEFINED_NAME
+  primary: {file: fixtures/tc-sem-ann-0220/lib.tc, line: 2, column: 33}
+  related: []
+  diagnostics: exactly-one

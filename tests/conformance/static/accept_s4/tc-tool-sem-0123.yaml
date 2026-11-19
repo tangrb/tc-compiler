@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0123
+profile: common
+source: tc-tool-sem-0123/root.tc
+spec: "§5.7.1 DI 路径语义：trap 路径终止、不是汇合前驱；仅经 var 的路径到达读取时视为已初始化"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

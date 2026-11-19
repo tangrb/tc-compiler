@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0012
+profile: common
+source: fixtures/tc-sem-cfg-0012/root.tc
+spec: "§8.3 return 操作数类型必须严格等于返回类型 -> RETURN_TYPE；§12.5.1 返回操作数"
+expect:
+  stage: SEM
+  code: TC_CE_RETURN_TYPE
+  primary: {file: fixtures/tc-sem-cfg-0012/lib.tc, line: 4, column: 16}
+  related: []
+  diagnostics: exactly-one

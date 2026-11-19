@@ -1,0 +1,6 @@
+#program
+struct S then
+    var x: int32
+end
+var src: fnptr<void> = copy fnptr<void>, nullptr
+var dst: fnptr<void> = bitcast fnptr<void>, src

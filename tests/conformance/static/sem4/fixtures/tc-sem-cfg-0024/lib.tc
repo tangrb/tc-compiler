@@ -1,0 +1,9 @@
+#lib
+public func f(c: bool) int32 then
+    _ = br_if c, A
+    var x: int32 = copy int32, 1
+    label A:
+    _ = write int32, x
+    label A:
+    _ = return 1
+end

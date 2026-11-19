@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0002
+profile: common
+source: lit_negative_to_unsigned.tc
+spec: "§2.4 负值用于无符号 T -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_negative_to_unsigned.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

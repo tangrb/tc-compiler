@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0239
+profile: common
+source: fixtures/tc-sem-ann-0239/root.tc
+spec: "§3.10/§8.6 比较表达式产生 bool、cast 为整数后作为 @align 端点；X=0 -> ANNOTATION"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0239/lib.tc, line: 4, column: 28}
+  related: []
+  diagnostics: exactly-one

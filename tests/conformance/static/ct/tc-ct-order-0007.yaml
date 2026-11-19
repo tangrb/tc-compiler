@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0007
+profile: common
+source: tc-ct-order-0007/root.tc
+spec: "§4.10 make 的命名字段按书写顺序求值：user.SM 的 x 先引用 a.B1，y 后引用 b.B2；a.B1 除零先失败并归属 a 的声明（user 无级联，b.B2 不报）；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_DIV_ZERO
+  primary: {file: tc-ct-order-0007/a.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

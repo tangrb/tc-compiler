@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0111
+profile: common
+source: fixtures/tc-sem-call-0111/root.tc
+spec: "§9.3/§9.8 @safe 函数调用 @unsafe 函数 -> SAFE_VIOLATION 优先于 UNSAFE_CALL"
+expect:
+  stage: SEM
+  code: TC_CE_SAFE_VIOLATION
+  primary: {file: fixtures/tc-sem-call-0111/lib.tc, line: 5, column: 9}
+  related: []
+  diagnostics: exactly-one

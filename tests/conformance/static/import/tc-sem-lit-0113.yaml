@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0113
+profile: common
+source: fixtures/tc-sem-lit-0113/root.tc
+spec: "§6.7/§12.2 #9 store 值字面量按期望类型检查 -> LITERAL_TYPE，不报 TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: fixtures/tc-sem-lit-0113/root.tc, line: 5, column: 21}
+  related: []
+  diagnostics: exactly-one

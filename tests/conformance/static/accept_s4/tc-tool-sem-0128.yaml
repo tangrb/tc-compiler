@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0128
+profile: common
+source: tc-tool-sem-0128/root.tc
+spec: "§6.3.3 浮点 mod 使用精确有理商；R*1e7 截断为 176696，eq 比较后 @align(1) 接受"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

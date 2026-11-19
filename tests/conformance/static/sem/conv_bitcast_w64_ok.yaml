@@ -1,0 +1,12 @@
+id: TC-SEM-CONV-0011
+profile: w64
+source: conv_bitcast_w64_ok.tc
+spec: "§13.2.2 bitcast isize<->int64 在 64 位等宽合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=aarch64-linux-user", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

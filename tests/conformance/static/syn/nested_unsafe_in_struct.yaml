@@ -1,0 +1,10 @@
+id: TC-SYN-END-0010
+profile: common
+source: nested_unsafe_in_struct.tc
+spec: "§14.3 struct 体只允许字段；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token（unsafe）"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: nested_unsafe_in_struct.tc, line: 4, column: 5}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0003
+profile: common
+source: semicolon.tc
+spec: "§2.1 字符集；§12.3 TC_CE_SYNTAX；§12.5.1 注释外 ; 定位到首个 ;"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: semicolon.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one

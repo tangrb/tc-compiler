@@ -1,0 +1,10 @@
+id: TC-CT-DIVZERO-0001
+profile: common
+source: tc-ct-divzero-0001/root.tc
+spec: "§3.13.2/§3.10 const 初始化器中整数除数为常量 0 -> CONST_DIV_ZERO；§12.5.1 目标声明（声明标识符约定）"
+expect:
+  stage: CT
+  code: TC_CE_CONST_DIV_ZERO
+  primary: {file: tc-ct-divzero-0001/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

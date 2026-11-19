@@ -1,0 +1,4 @@
+#lib
+struct S then
+    readonly x: int32
+end

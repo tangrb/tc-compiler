@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0028
+profile: common
+source: fixtures/tc-sem-cfg-0028/root.tc
+spec: "§12.2 缺失标签的 br 无已知出口；无法证明末尾可达时仍报 LABEL_NOT_FOUND"
+expect:
+  stage: SEM
+  code: TC_CE_LABEL_NOT_FOUND
+  primary: {file: fixtures/tc-sem-cfg-0028/lib.tc, line: 3, column: 12}
+  related: []
+  diagnostics: exactly-one

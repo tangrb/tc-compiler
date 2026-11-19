@@ -1,0 +1,8 @@
+#program
+var a: int32 = copy int32, 1
+var pa: ptr<int32> = addr int32, a
+var pn: ptr<int32> = copy ptr<int32>, nullptr
+var n: usize = copy usize, 0
+unsafe then
+_ = memmove int32, pn, pa, n
+end

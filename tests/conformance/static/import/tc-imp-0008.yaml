@@ -1,0 +1,10 @@
+id: TC-IMP-0008
+profile: common
+source: fixtures/tc-imp-0008/root.tc
+spec: "§5.6 裸名命中本模块 static var 作为赋值目标 -> FUNCTION_SCOPE_ACCESS（必须 Self.）"
+expect:
+  stage: SEM
+  code: TC_CE_FUNCTION_SCOPE_ACCESS
+  primary: {file: fixtures/tc-imp-0008/lib.tc, line: 4, column: 5}
+  related: []
+  diagnostics: exactly-one

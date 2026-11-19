@@ -1,4 +1,0 @@
-#program
-; `static let` 初始化器的合法来源矩阵（§4.3、§5.2.1）
-import StaticLetRuleLib
-funcall(StaticLetRuleLib.report)

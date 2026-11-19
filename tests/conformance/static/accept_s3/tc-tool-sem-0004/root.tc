@@ -1,0 +1,5 @@
+#program
+import lib
+unsafe then
+    var x: int32 = call lib.f
+end

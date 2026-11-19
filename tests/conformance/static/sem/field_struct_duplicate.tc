@@ -1,0 +1,5 @@
+#program
+struct S then
+    var x: int32
+    var x: int32
+end

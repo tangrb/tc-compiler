@@ -1,0 +1,4 @@
+#lib
+public func t3(a: int32, b: int32, c: int32) int32 then
+    _ = return a
+end

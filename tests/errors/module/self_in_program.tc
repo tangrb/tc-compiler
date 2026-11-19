@@ -1,3 +1,0 @@
-; 期望：Self is not allowed in #program
-#program
-var x: int32 = Self.k

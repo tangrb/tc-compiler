@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0001
+profile: common
+source: unknown_opcode.tc
+spec: "§6.15.1 未知助记符属 SYN；§12.3 TC_CE_SYNTAX；§12.5.1 未知 opcode 定位到助记符首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: unknown_opcode.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

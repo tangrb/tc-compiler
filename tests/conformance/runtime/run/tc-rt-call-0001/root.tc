@@ -1,0 +1,4 @@
+#program
+import lib
+var r: int32 = call lib.fact, 5
+_ = writeln int32, r

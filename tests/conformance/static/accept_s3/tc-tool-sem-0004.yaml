@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0004
+profile: common
+source: tc-tool-sem-0004/root.tc
+spec: "§6.3 模式正例：signed .wrap、浮点 .ieee、@fast 内 .nsw/.nuw；§10.2 承诺不在静态拒绝"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

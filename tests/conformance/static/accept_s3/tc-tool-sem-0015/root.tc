@@ -1,0 +1,6 @@
+#program
+var p: ptr<int32> = copy ptr<int32>, nullptr
+unsafe then
+    var u: uint32 = bitcast uint32, p
+    var q: ptr<int32> = bitcast ptr<int32>, u
+end

@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0026
+profile: common
+source: fixtures/tc-sem-cfg-0026/root.tc
+spec: "§6.15.1 无 MISSING_RETURN 竞争时，畸形 br_if 仍报 OPERAND_COUNT"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: fixtures/tc-sem-cfg-0026/lib.tc, line: 3, column: 9}
+  related: []
+  diagnostics: exactly-one

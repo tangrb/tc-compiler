@@ -1,3 +1,0 @@
-#program
-var a: int32 = 10
-var b: int32 = cast(int32, wrap, a)

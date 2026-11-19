@@ -1,0 +1,15 @@
+#lib
+public const F: float32 = bitcast float32, 2143289345
+public const D: float64 = cast float64, Self.F
+public const D64: uint64 = bitcast uint64, Self.D
+public const B1: bool = eq uint64, Self.D64, 9221120237041090560
+public const X1: int32 = cast int32, Self.B1
+public const D2: float64 = bitcast float64, 9221120237041090561
+public const F2: float32 = cast float32, Self.D2
+public const F32: uint32 = bitcast uint32, Self.F2
+public const B2: bool = eq uint32, Self.F32, 2143289344
+public const X2: int32 = cast int32, Self.B2
+public @fast func a(@align(Self.X1) p: ptr<int32>) void then
+end
+public @fast func b(@align(Self.X2) p: ptr<int32>) void then
+end

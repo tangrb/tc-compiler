@@ -1,3 +1,0 @@
-#program
-; 期望：undefined struct（限定名模块未 import）
-var a: BoxLib.Box = BoxLib.Box(x: 1)

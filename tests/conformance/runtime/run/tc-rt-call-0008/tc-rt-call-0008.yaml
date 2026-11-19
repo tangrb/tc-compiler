@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0008
+profile: w64
+source: root.tc
+spec: "§1.2 depth D=512: the call that would create the 513th frame traps -> TC_RE_STACK_OVERFLOW"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_STACK_OVERFLOW
+  exit: 1
+  termination: trap

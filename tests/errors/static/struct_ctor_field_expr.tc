@@ -1,6 +1,0 @@
-#program
-; 期望：结构体构造器字段值只能是 operand（附录 A struct_constructor）
-struct P then
-    var x: int32
-end
-var p: P = P(x: add(int32, 1, 2))

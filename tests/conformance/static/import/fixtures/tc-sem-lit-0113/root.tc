@@ -1,0 +1,6 @@
+#program
+var a: int32 = copy int32, 1
+var p: ptr<int32> = addr int32, a
+unsafe then
+_ = store int32, p, true
+end

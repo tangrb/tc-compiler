@@ -1,0 +1,3 @@
+#program
+import lib
+var r: int32 = call lib.f, a: 1, a: 2, 3

@@ -1,0 +1,4 @@
+#lib
+public func one(a: int32) int32 then
+    _ = return a
+end

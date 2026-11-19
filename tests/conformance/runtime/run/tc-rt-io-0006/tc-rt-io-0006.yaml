@@ -1,0 +1,12 @@
+id: TC-RT-IO-0006
+profile: w64
+source: root.tc
+spec: "§11.3 leading zeros are accepted; `-0` keeps a negative zero float"
+kind: run
+run:
+  stdin_hex: "30303037202d30"
+expect:
+  stdout_hex: "370a2d300a"
+  trap: null
+  exit: 0
+  termination: normal

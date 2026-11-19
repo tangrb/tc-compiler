@@ -1,0 +1,8 @@
+#program
+_ = writeln float64, 9007199254740991.5
+_ = writeln float64, 9007199254740991.9
+_ = writeln float32, 16777215.5f
+_ = writeln float64, 1152921504606846975.1
+var x: float64 = copy float64, 9007199254740991.5
+var b: int64 = bitcast int64, x
+_ = writeln int64, b

@@ -1,5 +1,0 @@
-#program
-; 期望：literal type does not match context
-if eq(int32, true, false) then
-    writeln(int32, %d, 1)
-end

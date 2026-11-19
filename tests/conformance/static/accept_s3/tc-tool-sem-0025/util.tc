@@ -1,0 +1,4 @@
+#lib
+public struct S then
+    var a: int32
+end

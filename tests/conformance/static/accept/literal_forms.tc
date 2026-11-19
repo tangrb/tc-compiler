@@ -1,0 +1,17 @@
+#program
+var a: int32 = copy int32, -42
+var b: uint32 = copy uint32, 42u
+var c: int32 = copy int32, 0x2A
+var d: int32 = copy int32, 0b101010
+var e: int32 = copy int32, 0o52
+var f: int32 = copy int32, 1_000
+var g: float64 = copy float64, 1.5
+var h: float64 = copy float64, 1e10
+var i: float32 = copy float32, 0.5f
+var j: float64 = copy float64, -0.0
+var k: float64 = copy float64, inf
+var l: float64 = copy float64, -inf
+var m: float64 = copy float64, nan
+var n: bool = copy bool, true
+var o: bool = copy bool, false
+var p: ptr<int32> = copy ptr<int32>, nullptr

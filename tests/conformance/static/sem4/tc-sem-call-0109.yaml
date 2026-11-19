@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0109
+profile: common
+source: fixtures/tc-sem-call-0109/root.tc
+spec: "§8.8.2/§9.6 安全代码调用 @fast 函数 -> FAST_CALL"
+expect:
+  stage: SEM
+  code: TC_CE_FAST_CALL
+  primary: {file: fixtures/tc-sem-call-0109/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

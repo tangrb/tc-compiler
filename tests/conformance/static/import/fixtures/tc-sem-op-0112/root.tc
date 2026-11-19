@@ -1,0 +1,3 @@
+#program
+import lib
+var r: int32 = call lib.t3, 1, b: 2, c: 3

@@ -1,0 +1,7 @@
+#lib
+private struct P then
+    var x: int32
+end
+public func f(p: P) int32 then
+    _ = return 0
+end

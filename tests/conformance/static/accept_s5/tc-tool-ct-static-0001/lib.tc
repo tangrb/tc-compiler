@@ -1,0 +1,8 @@
+#lib
+public struct S then
+    var x: int32
+end
+public const K: int32 = 7
+public const CS: S = make S, x: Self.K
+public static var V: int32 = Self.K
+public static var W: S = Self.CS

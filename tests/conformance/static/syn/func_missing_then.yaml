@@ -1,0 +1,10 @@
+id: TC-SYN-GRAM-0003
+profile: common
+source: func_missing_then.tc
+spec: "§14.3 func_def 需要 then；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: func_missing_then.tc, line: 2, column: 22}
+  related: []
+  diagnostics: exactly-one

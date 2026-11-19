@@ -1,0 +1,10 @@
+id: TC-SEM-ANN-0257
+profile: common
+source: fixtures/tc-sem-ann-0257/root.tc
+spec: "§6.3.1 有限非零 / inf 为精确 +0；@align(0) -> ANNOTATION（f32）"
+expect:
+  stage: SEM
+  code: TC_CE_ANNOTATION
+  primary: {file: fixtures/tc-sem-ann-0257/lib.tc, line: 4, column: 28}
+  related: []
+  diagnostics: exactly-one

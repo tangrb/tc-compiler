@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0009
+profile: common
+source: name_sizeof_label.tc
+spec: "§6.13 sizeof 解析到已知标签名而非类型 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: name_sizeof_label.tc, line: 2, column: 23}
+  related: []
+  diagnostics: exactly-one

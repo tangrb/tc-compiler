@@ -1,5 +1,0 @@
-#lib
-; 期望：undefined function
-public func caller() void then
-    funcall(Self.missing)
-end

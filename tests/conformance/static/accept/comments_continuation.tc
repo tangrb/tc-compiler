@@ -1,0 +1,7 @@
+#program
+/// Unicode comment ✓ 中文
+var x: int32 = copy int32, \
+    1
+/// trailing comment
+var y: int32 = add int32, x, \
+    2

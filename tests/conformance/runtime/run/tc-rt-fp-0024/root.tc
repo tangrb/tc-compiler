@@ -1,0 +1,9 @@
+#program
+var a: float64 = copy float64, 1.0
+var b: float64 = copy float64, inf
+var r: float64 = div float64, a, b
+_ = writeln float64, r
+var c: float32 = copy float32, 1.0f
+var d: float32 = copy float32, inf
+var q: float32 = div float32, c, d
+_ = writeln float32, q

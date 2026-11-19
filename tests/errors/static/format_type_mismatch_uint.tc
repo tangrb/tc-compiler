@@ -1,3 +1,0 @@
-#program
-var a: uint8 = 42
-writeln(uint8, %d, a)

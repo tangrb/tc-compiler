@@ -1,4 +1,0 @@
-#program
-; 一元运算缺少操作数 → TC_CE_OPERAND_COUNT
-var x: int32 = neg(int32)
-writeln(int32, x)

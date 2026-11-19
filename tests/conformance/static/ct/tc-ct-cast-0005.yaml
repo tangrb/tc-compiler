@@ -1,0 +1,10 @@
+id: TC-CT-CAST-0005
+profile: w64
+source: tc-ct-cast-0005/root.tc
+spec: "§3.10/§6.6.1/§6.13/§13.2.2 sizeof isize 为 W，故移位指数 sizeof(isize)*8-2 = 30(w32)/62(w64)，X = 2^30/2^62；w64 下 cast int32 越界 -> CONST_CAST，w32 同一源码接受（W 反向翻转）；§12.5.1 目标声明（声明标识符 Y）"
+expect:
+  stage: CT
+  code: TC_CE_CONST_CAST
+  primary: {file: tc-ct-cast-0005/lib.tc, line: 6, column: 14}
+  related: []
+  diagnostics: exactly-one

@@ -1,0 +1,10 @@
+id: TC-SYN-OP-0006
+profile: common
+source: bare_value_assign.tc
+spec: "§6.1/§6.12 赋值必须写 copy 或其它 op，不能是裸值；§12.3 TC_CE_SYNTAX；§12.5.1 @convention 首个不可消费 Token"
+expect:
+  stage: SYN
+  code: TC_CE_SYNTAX
+  primary: {file: bare_value_assign.tc, line: 2, column: 5}
+  related: []
+  diagnostics: exactly-one

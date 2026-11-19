@@ -1,0 +1,7 @@
+#program
+import lib
+var x: int32 = call lib.get
+_ = writeln int32, x
+_ = writeln int32, lib.K
+_ = writeln int32, lib.Z.a
+_ = writeln bool, lib.Z.b

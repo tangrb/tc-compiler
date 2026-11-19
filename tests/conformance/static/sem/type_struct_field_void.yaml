@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0005
+profile: common
+source: type_struct_field_void.tc
+spec: "§3.8 void 不得作结构体字段 -> VOID；§12.5.1 void Token"
+expect:
+  stage: SEM
+  code: TC_CE_VOID
+  primary: {file: type_struct_field_void.tc, line: 3, column: 12}
+  related: []
+  diagnostics: exactly-one

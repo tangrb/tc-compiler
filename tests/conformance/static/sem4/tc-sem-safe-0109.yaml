@@ -1,0 +1,10 @@
+id: TC-SEM-SAFE-0109
+profile: common
+source: fixtures/tc-sem-safe-0109/root.tc
+spec: "§9.3/§9.8 @safe 函数体内的 unsafe 指令 -> SAFE_VIOLATION"
+expect:
+  stage: SEM
+  code: TC_CE_SAFE_VIOLATION
+  primary: {file: fixtures/tc-sem-safe-0109/lib.tc, line: 3, column: 20}
+  related: []
+  diagnostics: exactly-one

@@ -1,8 +1,0 @@
-#program
-; let 编译期逻辑短路（false&&rhs / true||rhs 不求值 rhs）
-let T: bool = true
-let F: bool = false
-let AND_SKIP: bool = and(bool, F, T)
-let OR_SKIP: bool = or(bool, T, F)
-writeln(bool, %t, AND_SKIP)
-writeln(bool, %t, OR_SKIP)

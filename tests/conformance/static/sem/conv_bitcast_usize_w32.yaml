@@ -1,0 +1,12 @@
+id: TC-SEM-CONV-0012
+profile: w32
+source: conv_bitcast_usize_w32.tc
+spec: "§13.2.2 bitcast usize<->uint32 在 32 位等宽合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "--profile=w32", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

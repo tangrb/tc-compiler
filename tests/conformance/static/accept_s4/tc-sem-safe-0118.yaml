@@ -1,0 +1,12 @@
+id: TC-SEM-SAFE-0118
+profile: common
+source: tc-sem-safe-0118/root.tc
+spec: "§3.7/§6.14 整块赋值可替换含 readonly 字段的整个结构体值；同值写回合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

@@ -1,0 +1,10 @@
+id: TC-RT-CALL-0004
+profile: w64
+source: root.tc
+spec: "§6.9 call_indirect nullptr -> TC_RE_NULL_FUNCTION_POINTER"
+kind: run
+expect:
+  stdout_hex: ""
+  trap: TC_RE_NULL_FUNCTION_POINTER
+  exit: 1
+  termination: trap

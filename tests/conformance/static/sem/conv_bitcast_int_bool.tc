@@ -1,0 +1,2 @@
+#program
+var b: bool = bitcast bool, 1

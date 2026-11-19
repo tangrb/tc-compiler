@@ -1,0 +1,10 @@
+id: TC-CT-ORDER-0004
+profile: common
+source: tc-ct-order-0004/root.tc
+spec: "§4.10 CT 启动顺序 module_order=root,a,b；a、b 各有一个独立失败，报遍历中最早的 a.A -> CONST_DIV_ZERO（b.B 不报）；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_DIV_ZERO
+  primary: {file: tc-ct-order-0004/a.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

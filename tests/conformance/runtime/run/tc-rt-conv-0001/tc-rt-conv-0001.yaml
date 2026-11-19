@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0001
+profile: w64
+source: root.tc
+spec: "§6.6 cast/trunc/bitcast; §11.2 output"
+kind: run
+expect:
+  stdout_hex: "343239343936373239350a3235350a2d310a2d310a302e310a747275650a310a"
+  trap: null
+  exit: 0
+  termination: normal

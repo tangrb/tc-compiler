@@ -1,0 +1,5 @@
+#program
+var x: int32 = copy int32, 1
+struct S then
+    readonly y: int32
+end

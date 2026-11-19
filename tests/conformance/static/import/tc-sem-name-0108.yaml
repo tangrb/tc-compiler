@@ -1,0 +1,10 @@
+id: TC-SEM-NAME-0108
+profile: common
+source: fixtures/tc-sem-name-0108/root.tc
+spec: "§4.6 private 类型出现在 public const 初始化器 -> PRIVATE_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_PRIVATE_TYPE
+  primary: {file: fixtures/tc-sem-name-0108/lib.tc, line: 5, column: 32}
+  related: [{file: fixtures/tc-sem-name-0108/lib.tc, line: 2, column: 16}]
+  diagnostics: exactly-one

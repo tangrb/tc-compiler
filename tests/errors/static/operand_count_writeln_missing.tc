@@ -1,3 +1,0 @@
-#program
-; writeln 缺少操作数 → TC_CE_OPERAND_COUNT
-writeln(int32)

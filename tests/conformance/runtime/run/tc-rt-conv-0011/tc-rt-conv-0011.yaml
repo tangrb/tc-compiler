@@ -1,0 +1,10 @@
+id: TC-RT-CONV-0011
+profile: w64
+source: root.tc
+spec: "§6.6.3 int-to-float cast rounds-to-even at the 2^53 and 2^52 boundaries"
+kind: run
+expect:
+  stdout_hex: "392e30303732652b31350a342e35303336652b31350a"
+  trap: null
+  exit: 0
+  termination: normal

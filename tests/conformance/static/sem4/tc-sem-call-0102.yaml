@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0102
+profile: common
+source: fixtures/tc-sem-call-0102/root.tc
+spec: "§8.8.2 命名实参未知 -> UNKNOWN_ARGUMENT；§12.5.1 最早未知实参名"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_ARGUMENT
+  primary: {file: fixtures/tc-sem-call-0102/root.tc, line: 3, column: 36}
+  related: []
+  diagnostics: exactly-one

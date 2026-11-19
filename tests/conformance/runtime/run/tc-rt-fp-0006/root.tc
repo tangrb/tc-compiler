@@ -1,0 +1,16 @@
+#program
+var a: float64 = copy float64, 1.0e308
+var x: float64 = add.ieee float64, a, a
+_ = writeln float64, x
+var z: float64 = copy float64, 0.0
+var y: float64 = div.ieee float64, z, z
+_ = writeln float64, y
+var w: float64 = div.ieee float64, 1.0, z
+_ = writeln float64, w
+var u: float64 = mod.ieee float64, 1.0, z
+_ = writeln float64, u
+var m: float64 = mul.ieee float64, a, a
+_ = writeln float64, m
+var n: float64 = copy float64, -1.0e308
+var sb: float64 = sub.ieee float64, a, n
+_ = writeln float64, sb

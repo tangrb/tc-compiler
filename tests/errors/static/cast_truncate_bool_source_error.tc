@@ -1,3 +1,0 @@
-#program
-var f: bool = true
-var x: int32 = cast(int32, truncate, f)

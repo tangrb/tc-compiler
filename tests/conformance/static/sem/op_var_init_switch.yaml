@@ -1,0 +1,10 @@
+id: TC-SEM-OP-0008
+profile: common
+source: op_var_init_switch.tc
+spec: "§6.15.1 switch 无结果，不能作 var 初始化器 -> OPERAND_COUNT"
+expect:
+  stage: SEM
+  code: TC_CE_OPERAND_COUNT
+  primary: {file: op_var_init_switch.tc, line: 2, column: 16}
+  related: []
+  diagnostics: exactly-one

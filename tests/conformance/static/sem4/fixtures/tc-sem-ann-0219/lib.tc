@@ -1,0 +1,4 @@
+#lib
+public const L: int64 = 1
+public @fast func f(@range(Self.L, Self.L) n: int32) void then
+end

@@ -1,0 +1,10 @@
+id: TC-SYN-LAYER-0001
+profile: common
+source: layer_import_after_struct.tc
+spec: "§4.2 #lib 层序（import 在类型/值之前）；§12.3 TC_CE_MODULE_LAYER；§12.5.1 破坏层序的最早构造首 Token"
+expect:
+  stage: SYN
+  code: TC_CE_MODULE_LAYER
+  primary: {file: layer_import_after_struct.tc, line: 5, column: 1}
+  related: []
+  diagnostics: exactly-one

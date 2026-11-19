@@ -1,0 +1,10 @@
+id: TC-SEM-CFG-0019
+profile: common
+source: fixtures/tc-sem-cfg-0019/root.tc
+spec: "§7.7.1/§8.8.3 call 是调用者 CFG 的原子节点；被调函数缺返回在被调模块报告，不展开到调用者"
+expect:
+  stage: SEM
+  code: TC_CE_MISSING_RETURN
+  primary: {file: fixtures/tc-sem-cfg-0019/lib.tc, line: 2, column: 17}
+  related: [{file: fixtures/tc-sem-cfg-0019/lib.tc, line: 3, column: 1}]
+  diagnostics: exactly-one

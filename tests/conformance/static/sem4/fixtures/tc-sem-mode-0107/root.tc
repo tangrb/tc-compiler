@@ -1,0 +1,2 @@
+#program
+var x: uint32 = neg.wrap uint32, 1

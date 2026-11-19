@@ -1,0 +1,10 @@
+id: TC-SEM-FIELD-0011
+profile: common
+source: field_unknown_vs_readonly.tc
+spec: "§5.7.3 字段存在性先于 readonly 路径 -> UNKNOWN_FIELD（即使前缀 readonly）"
+expect:
+  stage: SEM
+  code: TC_CE_UNKNOWN_FIELD
+  primary: {file: field_unknown_vs_readonly.tc, line: 11, column: 6}
+  related: []
+  diagnostics: exactly-one

@@ -1,8 +1,0 @@
-#lib
-; 期望：parameter conflicts with function name
-public func g() void then
-    return
-end
-public func f(g: int32) void then
-    return
-end

@@ -1,0 +1,7 @@
+#lib
+public const I: float32 = inf
+public const Q: float32 = div float32, Self.I, 0.0f
+public const B: bool = eq float32, Self.Q, inf
+public const X: int32 = cast int32, Self.B
+public @fast func f(@range(2, Self.X) n: int32) void then
+end

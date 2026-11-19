@@ -1,0 +1,12 @@
+id: TC-RT-IO-0012
+profile: w64
+source: root.tc
+spec: "§11.3 input decimal 2^52+0.5 rounds to even at the binary64 boundary"
+kind: run
+run:
+  stdin_hex: "343530333539393632373337303439362e35"
+expect:
+  stdout_hex: "342e35303336652b31350a"
+  trap: null
+  exit: 0
+  termination: normal

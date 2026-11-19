@@ -1,0 +1,10 @@
+id: TC-SEM-TYPE-0106
+profile: common
+source: type_fnptr_mismatch.tc
+spec: "§3.9/§3.11 fnptr 签名逐项等价，不同签名无隐式转换 -> TYPE_MISMATCH"
+expect:
+  stage: SEM
+  code: TC_CE_TYPE_MISMATCH
+  primary: {file: type_fnptr_mismatch.tc, line: 3, column: 42}
+  related: []
+  diagnostics: exactly-one

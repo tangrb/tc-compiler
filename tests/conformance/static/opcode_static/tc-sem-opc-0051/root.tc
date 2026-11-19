@@ -1,0 +1,4 @@
+#program
+unsafe then
+_ = call_indirect
+end

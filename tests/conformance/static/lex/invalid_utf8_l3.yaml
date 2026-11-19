@@ -1,0 +1,11 @@
+id: TC-LEX-SYN-0032
+profile: common
+source: invalid_utf8_l3.tc
+spec: "§2.1/§12.5.1 非法 UTF-8 定位到首个非法字节；行列为最长有效前缀的标量计数；§12.3 TC_CE_SYNTAX"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: invalid_utf8_l3.tc, line: 2, column: 7}
+  related: []
+  byte_offset: 17
+  diagnostics: exactly-one

@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0140
+profile: common
+source: tc-tool-sem-0140/root.tc
+spec: "§6.6.3 bitcast int32 字面量 8 的源类型为 int32；结果 8 合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--sem-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

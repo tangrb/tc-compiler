@@ -1,0 +1,12 @@
+id: TC-TOOL-CT-NOFP-0003
+profile: common
+source: tc-tool-ct-nofp-0003/root.tc
+spec: "§6.3 非负计数：a=0 的 k>=n strict shl 结果 0；shr 大计数为 0；shr 负数算术右移；shl 结果可表示（与 TC-CT-SHIFT-0001 相邻）"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

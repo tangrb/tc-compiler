@@ -1,0 +1,5 @@
+#lib
+public const K: int32 = 1
+public struct S then
+    readonly x: int32
+end

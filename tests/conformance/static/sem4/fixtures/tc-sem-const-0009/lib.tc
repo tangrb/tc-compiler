@@ -1,0 +1,2 @@
+#lib
+public const P: ptr<int32> = bitcast ptr<int32>, 0

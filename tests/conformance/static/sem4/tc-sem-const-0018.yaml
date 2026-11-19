@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0018
+profile: common
+source: fixtures/tc-sem-const-0018/root.tc
+spec: "§3.10/§4.10 跨模块 const 初始化器禁止引用 public static var -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0018/user.tc, line: 3, column: 30}
+  related: []
+  diagnostics: exactly-one

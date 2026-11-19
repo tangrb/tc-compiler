@@ -1,0 +1,10 @@
+id: TC-RT-FP-0015
+profile: w64
+source: root.tc
+spec: "§6.3.3 mod exact rational remainder for a power-of-two dividend: 2^60 mod 3 = 1"
+kind: run
+expect:
+  stdout_hex: "310a2d310a"
+  trap: null
+  exit: 0
+  termination: normal

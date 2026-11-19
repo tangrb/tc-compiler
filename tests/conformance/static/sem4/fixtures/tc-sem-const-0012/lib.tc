@@ -1,0 +1,3 @@
+#lib
+public const P: ptr<int32> = nullptr
+public const X: int64 = bitcast int64, Self.P

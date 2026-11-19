@@ -1,0 +1,10 @@
+id: TC-CT-FLOATUNDERFLOW-0002
+profile: common
+source: tc-ct-floatunderflow-0002/root.tc
+spec: "§3.10/§6.3.2 float64 1e-400 非精确下溢到 0 -> CONST_FLOAT_UNDERFLOW；§12.5.1 目标声明"
+expect:
+  stage: CT
+  code: TC_CE_CONST_FLOAT_UNDERFLOW
+  primary: {file: tc-ct-floatunderflow-0002/lib.tc, line: 2, column: 14}
+  related: []
+  diagnostics: exactly-one

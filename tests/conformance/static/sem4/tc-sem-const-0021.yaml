@@ -1,0 +1,10 @@
+id: TC-SEM-CONST-0021
+profile: common
+source: fixtures/tc-sem-const-0021/root.tc
+spec: "§3.10 转换源名字仍须是 const；cast 源引用模块 static var -> CONST_FORM"
+expect:
+  stage: SEM
+  code: TC_CE_CONST_FORM
+  primary: {file: fixtures/tc-sem-const-0021/lib.tc, line: 3, column: 42}
+  related: []
+  diagnostics: exactly-one

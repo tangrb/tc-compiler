@@ -1,3 +1,0 @@
-#program
-; A let initializer cannot see the binding currently being defined.
-let a: int32 = a

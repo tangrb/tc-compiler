@@ -1,0 +1,3 @@
+#lib
+public const K: int32 = 7
+public const K2: int32 = add int32, Self.K, 1

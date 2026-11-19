@@ -1,0 +1,10 @@
+id: TC-SEM-CONV-0019
+profile: w32
+source: conv_trunc_w32_width.tc
+spec: "§13.2.2 trunc int32,usize 在 32 位报 TRUNC_WIDTH（32 = 32）"
+expect:
+  stage: SEM
+  code: TC_CE_TRUNC_WIDTH
+  primary: {file: conv_trunc_w32_width.tc, line: 3, column: 22}
+  related: []
+  diagnostics: exactly-one

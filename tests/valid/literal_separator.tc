@@ -1,3 +1,0 @@
-#program
-var n: int32 = 1_000_000
-writeln(int32, n)

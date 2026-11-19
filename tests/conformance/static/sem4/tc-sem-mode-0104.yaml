@@ -1,0 +1,10 @@
+id: TC-SEM-MODE-0104
+profile: common
+source: fixtures/tc-sem-mode-0104/root.tc
+spec: "§10.9 .nsw/.nuw 类型/符号不匹配 -> MODE，先于“合法 base 但非 @fast”的 ANNOTATION；§12.5.1 后缀 Token"
+expect:
+  stage: SEM
+  code: TC_CE_MODE
+  primary: {file: fixtures/tc-sem-mode-0104/root.tc, line: 2, column: 21}
+  related: []
+  diagnostics: exactly-one

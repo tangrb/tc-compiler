@@ -1,0 +1,8 @@
+#lib
+public struct S then
+    var x: int32
+end
+public func f() void then
+    var v: int32 = copy int32, 1
+    const C: S = make S, x: v
+end

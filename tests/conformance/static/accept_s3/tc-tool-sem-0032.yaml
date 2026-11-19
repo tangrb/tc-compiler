@@ -1,0 +1,12 @@
+id: TC-TOOL-SEM-0032
+profile: common
+source: tc-tool-sem-0032/root.tc
+spec: "§2.4 inf/nan 源类型由期望浮点类型决定；float32 上下文合法"
+kind: tool
+tool:
+  argv: ["tc-vm", "--static-only", "@source"]
+  repeat: 2
+expect:
+  exit: 0
+  stdout_hex: ""
+  stderr_hex: ""

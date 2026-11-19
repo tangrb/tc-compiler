@@ -1,0 +1,10 @@
+id: TC-SEM-CALL-0126
+profile: common
+source: fixtures/tc-sem-call-0126/root.tc
+spec: "§8.8.2 调用安全先于调用点结果形态：@fast void 调用写在 var 初始化器 -> FAST_CALL，不报 VOID"
+expect:
+  stage: SEM
+  code: TC_CE_FAST_CALL
+  primary: {file: fixtures/tc-sem-call-0126/root.tc, line: 3, column: 16}
+  related: []
+  diagnostics: exactly-one

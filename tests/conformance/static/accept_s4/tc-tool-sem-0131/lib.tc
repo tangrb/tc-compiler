@@ -1,0 +1,4 @@
+#lib
+public const X: isize = cast isize, 4294967304
+public @fast func f(@align(Self.X) p: ptr<int32>) void then
+end

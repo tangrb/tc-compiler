@@ -1,0 +1,10 @@
+id: TC-SEM-LIT-0003
+profile: common
+source: lit_float_to_int.tc
+spec: "§2.4/§6.6.3 浮点字面量不能用于整数上下文 -> LITERAL_TYPE"
+expect:
+  stage: SEM
+  code: TC_CE_LITERAL_TYPE
+  primary: {file: lit_float_to_int.tc, line: 2, column: 28}
+  related: []
+  diagnostics: exactly-one

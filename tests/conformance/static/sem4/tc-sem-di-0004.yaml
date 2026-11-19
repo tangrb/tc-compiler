@@ -1,0 +1,10 @@
+id: TC-SEM-DI-0004
+profile: common
+source: fixtures/tc-sem-di-0004/root.tc
+spec: "§5.4/§5.7.1 已有变量作为赋值目标也要求已确定初始化 -> UNINITIALIZED；§12.5.1 目标标识符"
+expect:
+  stage: SEM
+  code: TC_CE_UNINITIALIZED
+  primary: {file: fixtures/tc-sem-di-0004/root.tc, line: 5, column: 1}
+  related: []
+  diagnostics: exactly-one

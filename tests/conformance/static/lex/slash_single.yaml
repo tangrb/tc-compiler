@@ -1,0 +1,10 @@
+id: TC-LEX-SYN-0002
+profile: common
+source: slash_single.tc
+spec: "§2.1 字符集；§2.2 唯一注释形态；§12.3 TC_CE_SYNTAX；§12.5.1 注释外 / 定位到首个 /"
+expect:
+  stage: LEX
+  code: TC_CE_SYNTAX
+  primary: {file: slash_single.tc, line: 2, column: 30}
+  related: []
+  diagnostics: exactly-one
