@@ -14,7 +14,7 @@ on:
 
 jobs:
   asan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -24,6 +24,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-misc
+
+      - name: Verify required tools
+        run: |
+          for t in clang llvm-ar ld.lld qemu-system-aarch64 qemu-system-arm qemu-system-riscv32 python3; do
+            if command -v "$t" >/dev/null 2>&1; then echo "OK   $t -> $(command -v "$t")"; else echo "MISS $t"; fi
+          done
 
       - name: Configure with sanitizers
         run: |

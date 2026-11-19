@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -38,6 +38,12 @@ jobs:
         run: |
           brew install llvm qemu
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+
+      - name: Verify required tools
+        run: |
+          for t in clang llvm-ar ld.lld qemu-system-aarch64 qemu-system-arm qemu-system-riscv32 python3; do
+            if command -v "$t" >/dev/null 2>&1; then echo "OK   $t -> $(command -v "$t")"; else echo "MISS $t"; fi
+          done
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion"
