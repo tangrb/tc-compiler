@@ -140,6 +140,7 @@
 | 语言语义 / 诊断 / 平台档案 | `docs/TC语言及编译器标准-0.0.46.md` |
 | IR / 运行时 / 后端 / 路线图 | `docs/TC原生编译器设计说明书-0.0.46.md` |
 | 阶段 / 覆盖 / 门禁要求 | `docs/TC开发测试计划-0.0.46.md` |
+| 0.0.47 工具链范围 / 契约 / 里程碑 | `docs/TC开发调试工具链-0.0.47.md` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |
