@@ -1,7 +1,8 @@
 /* TC 0.0.46 module discovery (standard §4.5/§4.11.1). */
 
-/* strdup/realpath/stat are POSIX and hidden in strict ISO C mode. */
-#define _POSIX_C_SOURCE 200809L
+/* strdup/realpath/stat need POSIX/GNU exposure; strict ISO C hides them
+ * (glibc gates realpath on more than POSIX 2008). */
+#define _GNU_SOURCE
 
 #include "frontend/module.h"
 
