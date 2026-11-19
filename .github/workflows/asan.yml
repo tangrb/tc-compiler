@@ -1,0 +1,38 @@
+# ASan — AddressSanitizer + UndefinedBehaviorSanitizer 构建与全量测试
+#
+# push / PR 到 master、tc-0.0.* 分支或 v* tag 触发；发现内存错误或 UB 时失败。
+
+name: ASan
+
+on:
+  push:
+    branches: [master, "tc-0.0.*"]
+    tags: ["v*"]
+  pull_request:
+    branches: [master, "tc-0.0.*"]
+  workflow_dispatch:
+
+jobs:
+  asan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-misc
+
+      - name: Configure with sanitizers
+        run: |
+          cmake -S . -B build-asan -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build with sanitizers
+        run: cmake --build build-asan -j "$(nproc)"
+
+      - name: Run full test suite with sanitizers
+        run: ctest --test-dir build-asan --output-on-failure
