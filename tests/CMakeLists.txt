@@ -390,7 +390,8 @@ add_test(
             ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/s8_static_fuzz.py
             --check)
 set_tests_properties(conformance.s8_static_fuzz PROPERTIES
-                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                     ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>")
 
 add_test(
     NAME harness.conformance

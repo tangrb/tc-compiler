@@ -1207,6 +1207,7 @@ static void emit_unit(TcA64Emitter *emitter, const TcUnit *unit,
     (void)ok;
 
     if (!build_layout(emitter, unit)) {
+        free_layout(emitter);
         return;
     }
     emitter->unit_index = unit_index;

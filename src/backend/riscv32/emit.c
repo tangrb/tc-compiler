@@ -1414,6 +1414,7 @@ static void emit_unit(TcRiscv32Emitter *emitter, const TcUnit *unit,
     size_t b;
     size_t i;
     if (!build_layout(emitter, unit)) {
+        free_layout(emitter);
         return;
     }
     emitter->unit_index = unit_index;
