@@ -14,16 +14,20 @@ on:
 
 jobs:
   asan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Ubuntu 24.04's qemu 8.2 hangs before the first PL011 byte on
+      # aarch64 virt baremetal ELFs (empty uart1, all CPU/serial variants);
+      # qemu 10.2 runs the same invocation in ~0.1s. Pin 26.04, whose
+      # split packages put riscv in qemu-system-riscv.
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-misc
+          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-riscv
 
       - name: Verify required tools
         run: |
