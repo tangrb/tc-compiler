@@ -2,6 +2,13 @@
 
 ## [0.0.46] - 2026-11-19
 
+### 状态
+
+- **G10 PASS，0.0.46 阶段出口完成**：S8 AArch64 全量语义/ABI、S9
+  freestanding/ARM32、S10 `riscv32-baremetal` 与长期回归均已通过门禁。
+- 当前验证：Debug/Release/ASan+UBSan `ctest` **71/71**；harness **873/873**；
+  覆盖矩阵 **636/636**；`docs.cleanup`、`release.s10_audit`、golden 全部通过。
+
 ### Added
 
 - **0.0.46 clean-sheet 实现**：按标准与设计重写的私有 `tc_core`，以及 `tc-vm`/`tc-aot`

@@ -2,6 +2,15 @@
 
 ## [0.0.46] - 2026-11-19
 
+### Status
+
+- **G10 PASS; the 0.0.46 phase exit is complete**: S8 AArch64 semantics/ABI,
+  S9 freestanding/ARM32 and S10 `riscv32-baremetal` plus long-term regression
+  all passed their gates.
+- Current verification: Debug/Release/ASan+UBSan `ctest` **71/71**; harness
+  **873/873**; coverage **636/636**; `docs.cleanup`, `release.s10_audit` and
+  golden checks all pass.
+
 ### Added
 
 - **0.0.46 clean-sheet implementation**: a private `tc_core` rewritten from the
