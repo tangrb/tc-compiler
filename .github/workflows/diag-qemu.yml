@@ -7,7 +7,7 @@ on:
     paths: [".github/workflows/diag-qemu.yml"]
 
 jobs:
-  probe-2404:
+  probe-2404-deep:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -26,10 +26,10 @@ jobs:
           cmake -S . -B build -DCMAKE_C_COMPILER=clang -DTC_ENABLE_AOT_TESTS=OFF
           cmake --build build -j "$(nproc)"
 
-      - name: Reproduce hang and variants
+      - name: Deep hang diagnosis
         run: |
           python3 - <<'EOF'
-          import pathlib, subprocess, sys, tempfile, time
+          import json, pathlib, socket, subprocess, sys, tempfile, time
           sys.path.insert(0, "tests")
           from diff import arm32_engine as engine
 
@@ -44,39 +44,138 @@ jobs:
                f"--output={elf}", f"--include={src_dir}",
                f"--ld={engine.lld_path()}", str(src)],
               capture_output=True, timeout=300)
-          print(f"build: exit={p.returncode} {time.monotonic()-t0:.1f}s "
-                f"stderr={p.stderr.decode(errors='replace')[:200]}")
+          print(f"build: exit={p.returncode} {time.monotonic()-t0:.1f}s", flush=True)
 
-          def run_variant(label, extra):
-              argv = [engine.qemu_aarch64_path(), "-M", "virt", "-cpu", "cortex-a53",
-                      "-m", "256M", "-display", "none", "-monitor", "none",
-                      "-serial", "stdio", "-serial", f"file:{src_dir}/u_{label}.txt",
-                      "-kernel", str(elf)] + extra
+          base = [engine.qemu_aarch64_path(), "-M", "virt", "-cpu", "cortex-a53",
+                  "-m", "256M", "-display", "none", "-monitor", "none",
+                  "-serial", "stdio", "-serial", f"file:{src_dir}/uart1.txt",
+                  "-kernel", str(elf)]
+          frame = b"TCINTCIN" + (0).to_bytes(8, "little")
+
+          def spawn(extra):
+              out = src_dir / "qout.txt"
+              err = src_dir / "qerr.txt"
+              return subprocess.Popen(base + extra, stdin=subprocess.DEVNULL,
+                                      stdout=open(out, "wb"),
+                                      stderr=open(err, "wb"),
+                                      cwd=src_dir)
+
+          def qmp_pc(sock_path):
+              s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+              s.settimeout(5)
+              s.connect(sock_path)
+              f = s.makefile("rwb")
+              greeting = f.readline()
+              f.write(b'{"execute":"qmp_capabilities"}\n'); f.flush()
+              f.readline()
+              f.write(b'{"execute":"query-cpus-fast"}\n'); f.flush()
+              resp = json.loads(f.readline())
+              s.close()
+              return resp
+
+          def query_loop(extra, label):
+              sock = src_dir / f"qmp_{label}.sock"
+              log = src_dir / f"qlog_{label}.log"
+              argv = base + extra + [
+                  "-qmp", f"unix:{sock},server,nowait",
+                  "-D", str(log), "-d", "in_asm,int,cpu_reset"]
+              proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL,
+                                      stdout=open(src_dir / "o.txt", "wb"),
+                                      stderr=open(src_dir / "e.txt", "wb"),
+                                      cwd=src_dir)
+              for i in range(3):
+                  time.sleep(3)
+                  try:
+                      print(f"{label} t={3*(i+1)}s pc: {qmp_pc(str(sock))}", flush=True)
+                  except Exception as e:
+                      print(f"{label} t={3*(i+1)}s qmp-fail: {e!r}", flush=True)
+              proc.terminate(); proc.wait(timeout=10)
+              tail = log.read_text(errors="replace").splitlines()[-15:]
+              print(f"{label} qemu-log tail:", flush=True)
+              for line in tail:
+                  print(f"  {line}", flush=True)
+
+          def run_variant(label, extra, popen=False):
+              if popen:
+                  query_loop(extra, label); return
               t0 = time.monotonic()
               try:
-                  p = subprocess.run(argv, input=b"TCINTCIN" + (0).to_bytes(8, "little"),
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                     timeout=60)
+                  p = subprocess.run(
+                      base + extra,
+                      input=frame, stdin=None,
+                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                      timeout=60)
                   print(f"{label}: exit={p.returncode} {time.monotonic()-t0:.1f}s "
-                        f"out={p.stdout[:80]!r}")
+                        f"out={p.stdout[:80]!r}", flush=True)
               except subprocess.TimeoutExpired:
-                  print(f"{label}: TIMEOUT {time.monotonic()-t0:.1f}s")
-              u = src_dir / f"u_{label}.txt"
-              print(f"  uart1: {u.read_text()[:120]!r}" if u.exists() else "  uart1: (none)")
+                  print(f"{label}: TIMEOUT {time.monotonic()-t0:.1f}s", flush=True)
+              u = src_dir / "uart1.txt"
+              print(f"  uart1: {u.read_text()[:120]!r}" if u.exists()
+                    else "  uart1: (none)", flush=True)
 
-          run_variant("engine_same", [])
-          run_variant("cpu_max", ["-cpu", "max"])
-          run_variant("single_serial", ["-serial", "null"])
+          # 1: exact engine invocation, capture PC and reset/interrupt log
+          run_variant("engine_qmp", ["-serial", f"file:{src_dir}/u0.txt"], popen=True)
+          # 2: no stdin input at all (bisect stdio serial + stdin frame)
+          run_variant("no_stdin", ["-serial", f"file:{src_dir}/u0.txt"])
+          # 3: single-threaded TCG
+          run_variant("single_thread", ["-accel", "tcg,thread=single",
+                                        "-serial", f"file:{src_dir}/u0.txt"])
           EOF
 
-  probe-latest:
+  probe-2604:
     runs-on: ubuntu-latest
     steps:
       - name: OS and qemu package layout
         run: |
           grep PRETTY /etc/os-release
-          apt-cache policy qemu-system-arm qemu-system-aarch64 qemu-system-misc 2>&1 | head -20
           sudo apt-get update -qq
-          sudo apt-get install -y -qq qemu-system-arm qemu-system-misc
-          ls -1 /usr/bin/qemu-system-* | head -20
-          qemu-system-aarch64 --version | head -2 || echo "MISS qemu-system-aarch64"
+          sudo apt-get install -y -qq clang llvm lld qemu-system-arm qemu-system-misc
+          ls -1 /usr/bin/qemu-system-riscv* 2>&1 || true
+          dpkg -L qemu-system-misc 2>/dev/null | grep riscv | head -5 || true
+          qemu-system-aarch64 --version | head -2
+          qemu-system-riscv32 --version 2>/dev/null | head -2 || echo "MISS qemu-system-riscv32"
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -DCMAKE_C_COMPILER=clang -DTC_ENABLE_AOT_TESTS=OFF
+          cmake --build build -j "$(nproc)"
+
+      - name: AOT configure probe
+        run: |
+          cmake -S . -B build-aot -DCMAKE_C_COMPILER=clang -DTC_ENABLE_AOT_TESTS=ON 2>&1 | tail -15 || true
+
+      - name: Run minimal ELF on qemu 10.2
+        run: |
+          python3 - <<'EOF'
+          import pathlib, subprocess, sys, tempfile, time
+          sys.path.insert(0, "tests")
+          from diff import arm32_engine as engine
+
+          src_dir = pathlib.Path(tempfile.mkdtemp(prefix="tc-diag-"))
+          src = src_dir / "root.tc"
+          src.write_text("#program\n_ = writeln int32, 1\n", encoding="utf-8")
+          elf = src_dir / "out.elf"
+
+          p = subprocess.run(
+              [engine.tc_aot_path(), "--profile=aarch64-baremetal", "--emit=elf",
+               f"--output={elf}", f"--include={src_dir}",
+               f"--ld={engine.lld_path()}", str(src)],
+              capture_output=True, timeout=300)
+          print(f"build: exit={p.returncode} stderr={p.stderr.decode(errors='replace')[:200]}", flush=True)
+
+          argv = [engine.qemu_aarch64_path(), "-M", "virt", "-cpu", "cortex-a53",
+                  "-m", "256M", "-display", "none", "-monitor", "none",
+                  "-serial", "stdio", "-serial", f"file:{src_dir}/uart1.txt",
+                  "-kernel", str(elf)]
+          t0 = time.monotonic()
+          try:
+              p = subprocess.run(argv, input=b"TCINTCIN" + (0).to_bytes(8, "little"),
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 timeout=60)
+              print(f"engine_same: exit={p.returncode} {time.monotonic()-t0:.1f}s "
+                    f"out={p.stdout[:80]!r}", flush=True)
+          except subprocess.TimeoutExpired:
+              print(f"engine_same: TIMEOUT {time.monotonic()-t0:.1f}s", flush=True)
+          u = src_dir / "uart1.txt"
+          print(f"  uart1: {u.read_text()[:120]!r}" if u.exists() else "  uart1: (none)", flush=True)
+          EOF
