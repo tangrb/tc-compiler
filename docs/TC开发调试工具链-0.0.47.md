@@ -208,6 +208,8 @@
 `call` 的 `enter` 与 `return` 记录都以调用点指令为位置锚点：`func`/`bb`/`insn`/`span`
 指向调用者的 `call` 指令，`depth` 取该调用点处的调用者深度（不是被调函数的深度）；
 `return` 记录另带 `direction:"return"` 与 `callee`。被调函数的深度由随后的 `ir` 记录体现。
+同一调用点上的记录顺序固定：先 `op=call` 的 `ir` 记录，再 `enter`；被调函数最后一条
+`ir` 记录之后输出 `return`。
 
 函数命名约定（所有工具输出共用：trace、行表、trap 报告、`monitor funcs`/`frames`/`objects`）：
 IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印为 `<name>#<func_id>`。
@@ -256,7 +258,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - `tc-vm --stats`：运行时统计——执行指令总数、按 op 计数、最大抽象深度、五区使用峰值、
   分配次数、I/O 字节数；程序终止后输出，trap 终止同样输出并标注首个 `TC_RE_*`。
 - `tc-aot --stats`：静态统计——函数数、IR 指令数、最大帧大小、静态/设备/代码区需求、
-  按 op 计数；不依赖外部工具链，`--emit=asm` 下同样可用。
+  按 op 计数；在 IR 最终化后、外部工具链调用前输出，clang/lld 缺失导致发射失败
+  （退出 70）时统计仍已输出。
 - 输出到 `stderr`（`--stats-out=<path>` 可改）；首行 `# tc-stats 1 <tool> <profile>`，
   字段顺序固定、只增不改义，供脚本解析。
 - 按 op 计数的键为完整打印名（含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀，与 trace
