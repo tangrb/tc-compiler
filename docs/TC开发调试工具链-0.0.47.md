@@ -122,7 +122,7 @@
 | ---- | ---- | ---- | ---- |
 | `--dump-ir[=<path>]` | ✓ | ✓ | IR 最终化后输出 |
 | `--trace=<kinds>` | ✓ | 拒绝（2） | 指令级观察只属于 VM |
-| `--stats[=<path>]` | ✓ 运行时统计 | ✓ 静态统计 | 两者字段不同（§5.5） |
+| `--stats` | ✓ 运行时统计 | ✓ 静态统计 | 两者字段不同（§5.5） |
 | `--diag-format=text\|json` | ✓ | ✓ | 诊断输出格式 |
 | `--debug` | 拒绝（2） | ✓ | 目标代码调试信息；VM 用 `--gdb-elf-out` |
 | `--debug-path-map=<from>=<to>` | ✓ | ✓ | 归一化前缀重映射，作用于 §5.9 的四处消费者（按工具适用面） |
@@ -379,7 +379,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 端口被占用或绑定失败：环境不可用，退出 70；`--gdb` 参数非法或对 `tc-aot` 使用：退出 2。
 - 调试器经 TCP 通信，不占用程序 `stdin`；程序仍按标准读取自己的输入，`stdout` 不变。
 - 调试器意外断开或校验和连续三次失败：程序停在当前指令边界，stub 关闭该连接并回到
-  监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hex>`。
+  监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hex>`
+  （自然终止与 trap 终止一致）。
   进程不退出。
 - RSP 是开发接口，不属于语言语义，也不进入差分门禁。
 
@@ -404,16 +405,16 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 类别 | 报文 | 行为 |
 | ---- | ---- | ---- |
 | 握手 | `qSupported`、`QStartNoAckMode` | 报告 `PacketSize=4000;vContSupported+;QStartNoAckMode+;qXfer:features:read+;qXfer:memory-map:read+`；支持免应答模式 |
-| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T02thread:1;`（中断），`T0bthread:1;`（TC trap），终止态 `W<hex>` |
+| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T02thread:1;`（中断）；终止态（自然终止或 trap 终止）一律 `W<hex>`，trap 详情经 `monitor trap` 读取 |
 | 中断 | `\x03`（带外字节，不是 `$` 包） | 运行中收到时完成当前指令并停在下一条边界，报告 `T02thread:1;`；未运行时忽略 |
 | 寄存器 | `g`、`p<n>` | `p` 支持；`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc` |
 | 内存 | `m`、`M` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区 |
-| 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略 |
+| 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略；`c` 命中 TC trap 的停止应答为 `T0bthread:1;` |
 | 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个，超出返回 `E01`；`Z1`–`Z4` 返回空 |
 | 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg` | 单一合成线程 `1` |
 | 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义 |
 | 监视 | `qRcmd` | §6.6 的 `monitor` 命令 |
-| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 分离后继续；`R` 复位到入口并保留断点（I/O 语义见 §6.7）；`k`/`vKill` 不支持 |
+| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 分离后继续；`R` 复位到入口并保留断点（I/O 语义见 §6.7）；`k`/`vKill` 不支持，返回空应答 |
 | 退出 | `W<hex>` | 程序自然终止或 trap 终止时以十六进制报告档案退出状态 |
 
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
