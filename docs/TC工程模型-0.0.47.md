@@ -299,18 +299,18 @@ tc --version
 | 嵌套工程/多 manifest 歧义 | 最近祖先规则；不允许"跳过最近 manifest" |
 | 删除 legacy 绝对路径模式 | 0.0.47 清洁设计；旧脚本按新路径契约迁移 |
 
-## 11. 里程碑与成本
+## 11. 里程碑
 
-| 阶段 | 内容 | 依赖 | 成本 |
-| ---- | ---- | ---- | ---- |
-| **P0** 契约 | 三工具入口、manifest v1、测试侧车、路径契约；release audit/AGENTS/README 设计同步 | — | 2 天 |
-| **P1** init/manifest | `tc --init-project`、`tc.project` 解析/根发现、模板、原子写入 | P0 | 4–5 天 |
-| **P2** 路径模型 | display 字段、诊断/IR/trap/trace/linemap、external、跨根 | P1 | 1–1.5 周 |
-| **P3** tc --test | 发现、侧车、私有 core 驱动、报告、过滤、超时 | P2 | 4–5 天 |
-| **P4** AOT/调试 | `.asciz`、`.file`/`.loc`、comp_dir、gdb、跨根产物 | P2 | 1 周 |
-| **P5** 验收 | 仓库测试、harness、release audit、文档/门禁 | P3–P4 | 1 周 |
+| 阶段 | 内容 | 依赖 |
+| ---- | ---- | ---- |
+| **P0** 契约 | 三工具入口、manifest v1、测试侧车、路径契约；release audit/AGENTS/README 设计同步 | — |
+| **P1** init/manifest | `tc --init-project`、`tc.project` 解析/根发现、模板、原子写入 | P0 |
+| **P2** 路径模型 | display 字段、诊断/IR/trap/trace/linemap、external、跨根 | P1 |
+| **P3** tc --test | 发现、侧车、私有 core 驱动、报告、过滤、超时 | P2 |
+| **P4** AOT/调试 | `.asciz`、`.file`/`.loc`、comp_dir、gdb、跨根产物 | P2 |
+| **P5** 验收 | 仓库测试、harness、release audit、文档/门禁 | P3–P4 |
 
-合计约 **4–5 周**（单人，含测试）；与工具链 T1–T3 的路径消费者有重叠，排期以 P0 为前置。
+与工具链 T1–T3 的路径消费者有重叠；P0 是前置。
 
 ## 12. 0.0.48 移交
 
