@@ -7,7 +7,9 @@
 - 本文件规定 0.0.47 分支的工具链范围、接口契约、里程碑与验收。工具链能力属于编译器实现，
   不构成语言可观察行为；任何工具输出都不得改变程序的标准语义。
 - RTOS 能力（单线程平台扩充、中断语义、并发与调度）不在本分支范围，移交 0.0.48（§9）。
-- 交付入口仍只有 `tc-vm` 与 `tc-aot`；不新增公共 C 接口、嵌入 API 或调试器 SDK。
+- 编译器入口仍是 `tc-vm` 与 `tc-aot`；0.0.47 新增工程工具 `tc`（初始化/测试，不编译）。
+  工程布局、`tc.project`、根锚点与工程内测试见
+  [TC 工程模型 0.0.47](TC工程模型-0.0.47.md)。不新增公共 C 接口、嵌入 API 或调试器 SDK。
 
 ## 1. 目标与约束
 
@@ -16,15 +18,15 @@
 
 1. **不改语言**：语言版本、opcode 集合、诊断码集合、零 pass 基线与 ABI 不变。
 2. **不引入非确定性**：同输入同输出，工具输出可做逐字节比较。
-3. **不扩大公共接口**：产品交付入口仍是 `tc-vm` 与 `tc-aot` 两个 CLI；`tc-reduce` 是
-   `tests/tools/` 下的开发脚本，不安装、不分发；GDB RSP 是回环本机开发接口，不是
-   产品 API。内部 API 不安装、不导出。
+3. **不扩大公共接口**：编译器入口仍是 `tc-vm` 与 `tc-aot` 两个 CLI；`tc` 是 0.0.47 新增的
+   工程工具，不编译、不安装为库；`tc-reduce` 是 `tests/tools/` 下的开发脚本，不安装、
+   不分发；GDB RSP 是回环本机开发接口，不是产品 API。内部 API 不安装、不导出。
 
 | 目标 | 含义 | 本分支能力 |
 | ---- | ---- | ---- |
 | 可观测 | 看见编译产物与执行过程 | IR dump、执行 trace、统计、trap 详情 |
 | 可定位 | 缺陷落到源码位置 | 行表/DWARF、AOT 侧 gdb、VM 侧 gdb、抽象帧栈 |
-| 可复现 | 同输入同字节输出 | 路径归一化、确定性 trace、调试信息可复现 |
+| 可复现 | 同输入同字节输出 | 工程根相对路径、确定性 trace、调试信息可复现 |
 | 可自动化 | CI 与本地同一入口 | 诊断 JSON、CTest 标签、预设、失败最小化器 |
 
 工具输出面向两类使用者：**人**（读 trace、单步、下断点）与**工具**（CI、编辑器、最小化器、
@@ -35,7 +37,7 @@
 | 非目标 | 理由 |
 | ---- | ---- |
 | 优化管线（SSA/regalloc/内联） | 不属于工具链；会破坏零 pass 基线 |
-| 公共嵌入 API、调试器 SDK、C 宿主库 | 违反"私有 core + 两个 CLI"契约 |
+| 公共嵌入 API、调试器 SDK、C 宿主库 | 违反"私有 core + 编译器两入口/工程工具边界"契约 |
 | GUI、可视化时间线、Web 调试前端 | 交付面过大，不进入本分支 |
 | 完整 LSP / IDE 插件 | 只提供诊断 JSON，编辑器适配留在外置工具 |
 | 语言特性、opcode、诊断码增删 | 语言版本冻结在 0.0.46 |
@@ -54,7 +56,8 @@
 | 工具链版本 | `0.0.47` | 新增 `TC_TOOLCHAIN_VERSION`、CMake 工程版本 | 本分支交付 |
 | 规范文档 | `*-0.0.46.md` | 标准/设计/测试计划 | 保持冻结；本文件是 0.0.47 工具链的唯一范围来源 |
 
-- `tc-vm`/`tc-aot --version` 同时打印两者，例如
+- `tc`/`tc-vm`/`tc-aot --version` 同时打印两者，例如
+  `tc 0.0.47 (language 0.0.46; project tool)`、
   `tc-vm 0.0.47 (language 0.0.46; reference VM)`、
   `tc-aot 0.0.47 (language 0.0.46; native AOT)`。
 - 契约检查继续断言 `TC_LANGUAGE_VERSION == "0.0.46"` 与 51 个 opcode；工具链版本不参与
@@ -68,34 +71,42 @@
 
 | 编号 | 交付物 | 依赖 | 验收 | 成本 |
 | ---- | ---- | ---- | ---- | ---- |
-| **T0** 治理 | 版本模型贯通；本文件进入文档地图；`CHANGELOG` 增加 0.0.47 条目；发布审计版本断言拆分 | — | 全量门禁除版本断言外零回归；`docs.cleanup` 通过 | 1 天 |
+| **T0** 治理 | 版本模型贯通；三工具入口契约；本文件进入文档地图；`CHANGELOG` 增加 0.0.47 条目；发布审计版本断言拆分 | — | 全量门禁除版本断言外零回归；`docs.cleanup` 通过 | 1 天 |
 | **T1** 可观测 | `--dump-ir`、`--trace`（IR/call/mem/io/trap）、`--stats`、trap 详情 | T0 | trace 重复运行字节一致；正常 stdout 与退出码不变；新增 golden | 3–5 天 |
-| **T2** 源级映射 | AOT `--debug` 发射 `.loc` 与行表；路径归一化；qemu gdbstub 冒烟；`--dump-linemap` | T1 | 每条 IR 指令可映射到源码 span；非 debug 产物字节不变；gdb 断点脚本可复现 | 1–2 周 |
+| **T2** 源级映射 | AOT `--debug` 发射 `.loc` 与行表；根相对路径；qemu gdbstub 冒烟；`--dump-linemap` | T1 | 每条 IR 指令可映射到源码 span；路径根相对；跨根构建产物一致；gdb 断点脚本可复现 | 1–2 周 |
 | **T3** VM 调试 | 观察者 API、合成代码地址、GDB RSP v1（§6）、协议测试客户端 | T1；调试 ELF 另需 T2 | 协议套件通过；断点/单步/内存读/退出状态可断言；无观察者时零开销 | 2–3 周 |
 | **T4** 机器接口 | `--diag-format=json`（JSONL）；诊断 schema；与 80 码表一致 | T1 | 与文本诊断同序同码；schema 稳定并有 golden | 3 天 |
 | **T5** 测试基建 | CMakePresets、CTest 标签、`-L fast`、统一 `tests/run.py`、`tc-reduce` 最小化器 | ∥ T1 | CI 与本地同入口；标签覆盖全部用例；最小化器对种子缺陷收敛 | 3–5 天 |
-| **T6** 可复现发布 | 调试产物可复现（路径/时间戳归一）、发布审计新增工具链检查 | T2 → T3 | 连续两次构建字节一致；审计项通过 | 2 天 |
+| **T6** 可复现发布 | 调试产物可复现（根相对路径/时间戳）、发布审计新增工具链检查 | T2 → T3 | 连续两次构建字节一致；审计项通过 | 2 天 |
+
+工程模型（`tc`、`tc.project`、测试布局、根路径）是独立轨道 P0–P5，见
+[TC 工程模型 0.0.47](TC工程模型-0.0.47.md) §11；P0 先于 T1，P2（路径模型）是 T1/T2
+的前置，P4（AOT `.asciz`/`.file`/`.loc`/comp_dir）是 T2 的前置。本节 T1–T6 只列
+调试/可观测能力，不重复工程工具本身。
 
 ### 4.1 交付物与实现落点
 
 | 里程碑 | 主要落点 |
 | ---- | ---- |
-| T0 | `src/base/version.h`（`TC_TOOLCHAIN_VERSION`）、`CMakeLists.txt`、`src/driver/cli.c`（版本输出）、`tests/tools/s10_release_audit.py`（版本断言）、`CHANGELOG*.md` |
+| T0 | `src/base/version.h`（`TC_TOOLCHAIN_VERSION`）、`CMakeLists.txt`、`src/driver/cli.c`（版本输出）、`tests/tools/s10_release_audit.py`（版本断言与三入口）、`CHANGELOG*.md` |
 | T1 | `src/driver/cli.[ch]`（新开关）、`src/driver/frontend_driver.c`（执行钩子）、`src/vm/observe.[ch]`（新增）、`src/vm/interp.c`（回调点）、`src/ir/print.[ch]`（复用）、`src/backend/*/emit.c`（静态统计） |
-| T2 | `src/debug/linemap.[ch]`（新增，行表与 `.file`/`.loc` 序列化）、`src/backend/{aarch64,arm32,riscv32}/emit.c`（每条 IR 指令前的 `.loc`）、`src/driver/aot_driver.c`（`--debug`/路径映射）、`src/driver/cli.c` |
+| T2 | `src/debug/linemap.[ch]`（新增，行表与 `.file`/`.loc` 序列化）、`src/backend/{aarch64,arm32,riscv32}/emit.c`（每条 IR 指令前的 `.loc`）、`src/driver/aot_driver.c`（`--debug`/根相对路径）、`src/driver/cli.c` |
 | T3 | `src/vm/observe.[ch]`、`src/vm/gdbstub.[ch]`、`src/debug/dbgelf.[ch]`（新增；调试 ELF，§6.8）、`src/vm/vm.h`（调试入口）、`src/driver/tc-vm.c`（`--gdb`）、`tests/conformance/tools/`（协议用例）、`tests/tools/vm_gdb_client.py`（新增） |
 | T4 | `src/diagnostic/diagnostic.[ch]`（JSON 写入）、`src/driver/cli.c`、诊断 golden |
 | T5 | `CMakePresets.json`、`tests/CMakeLists.txt`（标签）、`tests/run.py`、`tests/tools/tc_reduce.py` |
 | T6 | `src/driver/aot_driver.c`（路径归一/编译目录）、`tests/tools/s10_release_audit.py`（工具链产物检查）、确定性套件扩展 |
 
 行表生成器必须是单一实现：AOT 的 `.loc`、trace 的 `span` 字段、VM 调试 ELF 与
-`--dump-linemap` 输出都调用同一模块，禁止各后端自行拼接行号。
+`--dump-linemap` 输出都调用同一模块，禁止各后端自行拼接行号。工程工具与路径模型落点
+见工程模型文档 §8（`src/driver/tc.c`、`src/project/*`、`src/base/path.*`）。
 
 ### 4.2 成本与关键路径
 
 - 表中区间直接相加为 27–41 人日（约 5.5–8 周）；计入评审、门禁与文档收尾，单人串行
   按 7–9 周计；T5 可与 T1 并行，压缩后约 7 周。
-- 关键路径：T1 → T2 → T3；T2 的外部工具链（clang/lld/qemu/gdb）是主要不确定源。
+- 工程模型 P0–P5 另计约 4–5 周，其中 P2 路径模型与 T1/T2 的路径消费者重叠；整体按
+  10–13 周计。
+- 关键路径：P0 → P2，T1 → T2 → T3；T2 的外部工具链（clang/lld/qemu/gdb）是主要不确定源。
 - 估算不含外部工具链版本排障；该部分在 §8.1 的 spike 中先行测量。
 
 ## 5. 接口契约
@@ -103,21 +114,19 @@
 ### 5.1 输出通道与退出码
 
 - `stdout` 承载：`tc-vm` 的被运行程序输出；`tc-aot` 默认 `--emit=asm` 且未给
-  `--output` 时的目标汇编；以及 `--help`/`--version`。所有新增工具输出（IR dump、
-  trace、stats、诊断、调试服务信息）一律走 `stderr` 或显式路径；`tc-vm` 的 stdout
-  字节与 `tc-aot` 的汇编字节不受这些工具输出影响。
+  `--output` 时的目标汇编；`tc` 的 init/test 报告；以及 `--help`/`--version`。
+  所有新增编译器工具输出（IR dump、trace、stats、诊断、调试服务信息）一律走 `stderr`
+  或显式路径；`tc-vm` 的 stdout 字节与 `tc-aot` 的汇编字节不受这些工具输出影响。
+  `tc` 的输出不属于编译器 stderr 排序流，格式见工程模型文档 §5–§6。
 - 多路输出共用 `stderr` 时按阶段时间序排列：`--gdb` 会话行（固定首行，见 §6.1）→
   编译期输出（诊断，其次 `--dump-ir`，再次 `--dump-linemap`）→ trace 记录流（含
   footer）→ trap 报告行 → stats；显式 `--trace-out`/`--stats-out` 分流后互不交错，
   不参与排序。
-- 工具输出必须确定性：默认不含绝对路径、时钟、PID、随机数、宿主地址；地址一律打印为区名
-  加区内偏移。`--trace-paths=abs` 可显式关闭 trace（文本与 JSONL）的路径归一化，
-  仅用于本地排查。
-- 所有新增开关默认关闭；不带开关时，**程序可见行为**与本分支之前一致：`tc-vm` 的
-  stdout 程序输出、`tc-aot` 的汇编/产物字节、退出码与 trap 选择不变。工具自身的
-  stderr 文本与 `--version`/`--help` 的 stdout 文本允许按本文件的既定契约增强
-  （§5.6 的 trap 后缀、§5.9 的路径归一化、版本/帮助文本的新格式）；按旧文本逐字节
-  比较的脚本需要适配。
+- 工具输出必须确定性：不含绝对路径、时钟、PID、随机数、宿主地址；源路径一律工程根
+  相对（§5.9），地址打印为区名加区内偏移。
+- 新增开关默认关闭。0.0.47 按清洁设计**不保留 0.0.46 的绝对路径文本/产物字节**：
+  程序 stdout、退出码、trap 选择与 ABI 语义不变；工具文本与产物中的源路径统一工程根
+  相对（§5.9）。工程模型的默认路径行为不是开关。
 - **退出码不新增**：沿用 `0`（成功）、`1`（语言诊断或 trap）、`2`（用法错误）、`70`
   （能力/环境不可用）、`71`（内部错误）。工具链故障不得借用语言诊断码表达。
 - 开关取值非法（未知 `--trace` kind、未知 `--diag-format` 值、非法数值等）一律按用法
@@ -137,18 +146,19 @@
 | `--stats` | ✓ 运行时统计 | ✓ 静态统计 | 两者字段不同（§5.5） |
 | `--diag-format=text\|json` | ✓ | ✓ | 诊断输出格式 |
 | `--debug` | 拒绝（2） | ✓ | 目标代码调试信息；VM 用 `--gdb-elf-out` |
-| `--debug-path-map=<from>=<to>` | ✓ | ✓ | 归一化前缀重映射，作用于 §5.9 的全部路径消费者（按工具适用面） |
 | `--dump-linemap[=<path>]` | ✓ | ✓ | 共享行表导出（§5.10） |
 | `--gdb[=<port>]` | ✓ | 拒绝（2） | VM 调试会话 |
 | `--gdb-elf-out=<path>` | ✓ | 拒绝（2） | 可选调试 ELF（§6.8） |
 | `--gdb-allow-write` | ✓ | 拒绝（2） | 默认禁写 |
 | `--checked` | ✓ | ✓ | 既有语义，不变 |
 
-辅助开关随主开关的适用面：`--trace-out`/`--trace-format`/`--trace-limit`/`--trace-paths`
-仅在 `tc-vm` 上有效；`--stats-out` 随 `--stats` 适用于两个工具；`--gdb-allow-write`
-随 `--gdb`。主开关被拒时，配套的辅助开关同样退出 2；辅助开关未伴随对应主开关时
+辅助开关随主开关的适用面：`--trace-out`/`--trace-format`/`--trace-limit` 仅在
+`tc-vm` 上有效；`--stats-out` 随 `--stats` 适用于两个工具；`--gdb-allow-write` 随
+`--gdb`。主开关被拒时，配套的辅助开关同样退出 2；辅助开关未伴随对应主开关时
 （如 `--stats-out` 无 `--stats`、`--trace-out` 无 `--trace`、`--gdb-allow-write` 无
-`--gdb`）同样退出 2。
+`--gdb`）同样退出 2。路径由 manifest 或 root 模块目录自动决定；不提供绝对路径开关。
+工程内默认 `profile` 由 `tc.project` 提供，CLI `--profile` 覆盖；`tc --test` 使用 manifest
+profile，不调用 AOT。
 
 #### 5.2.1 与部分检查的组合
 
@@ -171,7 +181,7 @@
 ### 5.3 `--dump-ir[=<path>]`
 
 - 复用 `src/ir/print.h` 的确定性文本；默认写 `stderr`。`modules:` 段的路径按 §5.9
-  归一化后输出（不得出现绝对路径），其余内容与 `tc_ir_print` 一致。
+  输出为工程根相对路径（不得出现绝对路径），其余内容与 `tc_ir_print` 一致。
 - 打印时机：IR 最终化之后、执行/代码生成之前。
 - 与部分检查开关的组合见 §5.2.1：`--syntax-only`/`--sem-only` 下没有最终 IR，`--dump-ir`
   退出 2；`--static-only` 含 CT 与 IR 最终化，正常输出。
@@ -204,7 +214,7 @@
 | `bb` | 整数 | 基本块序号 |
 | `insn` | 整数 | 块内指令序号 |
 | `op` | 字符串 | opcode |
-| `span` | 字符串 | `file:line:col`（归一化路径） |
+| `span` | 字符串 | `file:line:col`（工程根相对路径） |
 | `detail` | 对象 | 仅 `call`/`mem`/`io`/`trap`；键名见下表 |
 
 `detail` 的键名固定（新增键按 §5.11 只增不减，跨版本扩展见 §9）：
@@ -263,8 +273,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   `# tc-trace end <records> <status> dropped=<n>`。
 - 只要 sink 仍可写，`error` 也必须写出 footer/end 行后再按 §5.1 的退出码结束；若 sink
   本身写失败，不输出 footer/end 行，直接按 §5.1 退出 70。
-- `source` 与 §5.10 一致，为 root 模块的归一化路径。
-- 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
+- `source` 与 §5.10 一致，为 root 模块的工程根相对路径。
+- 确定性：`seq` 单调；`span` 使用工程根相对路径；同一程序重复执行产生相同字节。
 
 ### 5.5 `--stats`
 
@@ -292,7 +302,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 - 前缀（`file:line:col`、`error[RT]`、码、打印名）与 0.0.46 一致，脚本按首个
   `TC_RE_*` 匹配不受影响；后缀字段顺序固定、只增不改义。
-- 函数名按 §5.4 约定；`span` 取触发 trap 的指令；路径按 §5.9 归一化。
+- 函数名按 §5.4 约定；`span` 取触发 trap 的指令；路径按 §5.9 根相对。
 - `--diag-format=json` 下 trap 输出一行 JSON：基础字段（§5.7）之后追加 `func`、`bb`、
   `insn`、`op`、`depth`，`stage` 为 `RT`，`code` 为 `TC_RE_*`。
 
@@ -315,7 +325,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 一次运行至多一条 `error` 行：标准只报告首个诊断；note 行紧随其后，不构成第二条诊断。
 - 静态诊断与 RT trap 都使用该格式；trap 行另带 §5.6 的追加字段。
 - 文本与 JSON 必须同序、同码、同位置；顺序由标准 §12.2 首诊总序决定，不由输出格式决定。
-- 文本与 JSON 的文件名都按 §5.9 归一化；两种格式使用同一路径值。
+- 文本与 JSON 的文件名都按 §5.9 根相对；两种格式使用同一路径值。
 - 实现层错误（`TC_ERR_*`、内部错误）不是语言诊断，不进入 JSON：始终以文本行
   `tool: TC_ERR_*: message` 输出，退出码按 §5.1。
 - `json` 模式不输出颜色与人类说明文字。
@@ -324,13 +334,13 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 ### 5.8 源级映射（AOT）
 
 - `tc-aot --debug` 生成带调试信息的汇编：按源文件首次出现顺序分配确定性编号，发射
-  `.file <fileno> "<归一化路径>"`，并在每组 IR 指令之前发射
+  `.file <fileno> "<显示路径>"`，并在每组 IR 指令之前发射
   `.loc <fileno> <line> <column>`；`.loc` 的第一个操作数是**文件编号**，不是路径。
   同时新增 `# source: <file>:<line>` 注释行（当前后端汇编不含源码注释，`--debug` 下为
-  新增输出；非 `--debug` 时不发射），便于无 DWARF 场景对照。
-- `.loc` 的 `column` 直接取 §5.9 归一化 span 的 1-based Unicode 标量计数，不做字节列
+  新增输出；非 `--debug` 时不发射），便于无 DWARF 场景对照。路径按 §5.9 根相对。
+- `.loc` 的 `column` 直接取 §5.9 显示 span 的 1-based Unicode 标量计数，不做字节列
   转换；gdb 的列显示按该数值，行表验收以 `line` 为准、`column` 只作提示。
-- `.file` 路径按汇编字符串规则转义（引号/反斜杠）；`# source:` 注释使用同一归一化路径值，
+- `.file` 路径按汇编字符串规则转义（引号/反斜杠）；`# source:` 注释使用同一根相对路径值，
   不含换行。`--keep-temps` 保留的中间 `.s` 遵循同一规则：`--debug` 时含 `.file`/`.loc`，
   否则不含。
 - 一条 IR 指令 lowering 成多条目标指令时，这些目标指令共享同一个 `.loc`；
@@ -345,35 +355,35 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 汇编器可能把相邻且 `(file,line,column)` 相同的 `.loc` 合并为一条 DWARF 行表记录，因此
   `.debug_line` 的记录数可以少于 IR 指令数；覆盖验收以 linemap 为准，不按
   `.debug_line` 行数计数。
-- 调用 clang 汇编/链接时固定 `-fdebug-compilation-dir=.`（或等价前缀映射），避免
-  `DW_AT_comp_dir` 泄漏绝对构建目录；可复现性由 T6 断言。
-- 行表与 trace 要求每条指令的 `span.file` 非空且已归一化；驱动层的 `<source>` 只是诊断
-  打印的防御回退，行表生成遇到空 `file` 视为实现错误（退出 71）。
-- `tc-aot` 非 `--debug` 产物字节必须与 0.0.46 一致；该断言进入差分套件。
+- 调用 clang 汇编/链接时固定 `-fdebug-compilation-dir=.`，避免 `DW_AT_comp_dir` 泄漏
+  绝对构建目录；gdb 从工程根启动，按根相对路径找源码。
+- 行表与 trace 要求每条指令的 `span.file` 非空且已根相对化；驱动层的 `<source>` 只是
+  诊断打印的防御回退，行表生成遇到空 `file` 视为实现错误（退出 71）。
+- AOT 产物内的源文件路径字符串（`.asciz`）使用 §5.9 显示路径；代码段、数据语义与 ABI
+  不变；两个不同根目录构建同一工程时 asm/ELF/flat 必须逐字节一致。0.0.47 不承诺与
+  0.0.46 的绝对路径产物字节一致。
 - 验证工具：`llvm-dwarfdump --debug-line` 或 `readelf --debug-dump=decodedline`；
   DWARF 版本随工具链，版本号记录在测试说明中。
 - qemu gdbstub 冒烟：以 `qemu-system-* -s -S` 加载 AOT ELF，gdb 连接后按源码行下断点
   并单步，确认行表被真实调试器消费。
 
-### 5.9 路径归一化
+### 5.9 工程根与路径
 
-- 源路径默认相对 root 模块所在目录与 `--include` 根归一化；无法归一时路径值回退为
-  `<basename>`（span 呈现为 `<basename>:<line>:<col>`），并以行表条目的 `external`
-  字段标记（§5.10）；trace、文本诊断、诊断 JSON 与调试 ELF 不承载该标记，使用同一
-  basename 路径值。
-- 若多个 external 源文件的 basename 相同，按其在 IR 全序中的首次出现顺序追加
-  `#<n>`（`n` 从 1 开始；basename 唯一时省略），保证所有输出中可区分且可复现。
-- `--debug-path-map=<from>=<to>` 可重映射前缀，语义等价于编译器常见的调试前缀映射，
-  用于构建机路径与开发机路径不同的场景；可重复传入，对一条路径按出现顺序取**第一条
-  匹配**的规则替换一次，不做链式重写。`<from>` 与 `<to>` 按第一个 `=` 分割，其余 `=`
-  属于 `<to>`。重映射在归一化之前应用。
-- `--trace-paths=abs` 作用于 trace 的文本与 JSONL 输出；不影响行表、诊断 JSON 与
-  调试 ELF。所有路径消费者默认都走归一化路径；`abs` 只关闭 trace 的归一化，
-  `--debug-path-map` 的前缀替换仍然先于打印应用。`--trace-paths` 只接受 `abs`
-  （缺省为归一化）；其他值退出 2。
-- 归一化结果默认进入全部工具可见路径：文本诊断、trap 文本、`--dump-ir` 的 `modules:`
-  段、AOT `.file`/`.loc`、trace、诊断 JSON、行表与调试 ELF；同一路径在这些输出中必须
-  一致（`--trace-paths=abs` 是 trace 的显式例外），由共享行表测试覆盖。
+- 根、manifest、布局、`tc` 工具与测试约定见 [TC 工程模型 0.0.47](TC工程模型-0.0.47.md)。
+- 编译器从 root 模块 canonical 路径向上找最近的 `tc.project`；根 = manifest 目录；找不到
+  manifest 时根 = root 模块所在目录。`tc --test` 从 cwd 向上找 manifest。
+- 内部 canonical 路径只用于模块实例键、去重与 import 解析；所有输出使用工程根相对显示路径。
+- 根外文件用 `../…` 相对路径，并在行表标 `"external":true`；不同卷/不可表示回退
+  `<basename>#<n>`（IR 全序首次出现）。不存在绝对路径输出模式。
+- 路径消费者：文本诊断、诊断 JSON、trap 文本/JSON、`--dump-ir` 的 `modules:`、trace
+  `span`/header、linemap、调试 ELF、AOT `.file`/`.loc`/`# source:`/`.asciz`、板端 trap、
+  `monitor`、`tc --test` 报告；同一路径必须一致。
+- `.file`/`.loc` 用显示路径；clang 调用固定 `-fdebug-compilation-dir=.`；gdb 从工程根
+  启动；不写绝对 `DW_AT_comp_dir`。
+- 0.0.47 不提供 `--debug-path-map`/`--trace-paths=abs` 一类绝对路径/前缀开关；
+  clang/lld 自身诊断中的绝对临时路径属于外部工具输出，不纳入 TC 路径契约。
+- 跨根构建 asm/ELF/flat 逐字节一致；代码/ABI 语义不变；不承诺与 0.0.46 的绝对路径
+  产物字节一致。
 
 ### 5.10 共享行表产物
 
@@ -382,14 +392,14 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - `--dump-linemap[=<path>]` 导出确定性 JSON，默认写 `stderr`：
 
 ```json
-{"format":"tc-linemap","version":1,"profile":"aarch64-linux-user","source":"demo.tc",
- "entries":[{"func":"main","bb":0,"insn":0,"file":"demo.tc","line":3,"col":5}]}
+{"format":"tc-linemap","version":1,"profile":"aarch64-linux-user","source":"src/main.tc",
+ "entries":[{"func":"main","bb":0,"insn":0,"file":"src/main.tc","line":3,"col":5}]}
 ```
 
 - 条目顺序为 IR 最终化的全序；`func` 使用 §5.4 的函数命名约定；`vm_addr` 仅在 VM
   上下文出现（§6.2 的合成地址）。
-- 路径无法归一（§5.9）的条目带 `"external":true`；正常归一的条目不含该字段。
-- 顶层 `source` 是 root 模块的归一化路径；多模块程序中条目各自带 `file`，`source`
+- 根外文件（§5.9）的条目带 `"external":true`；根内条目不含该字段。
+- 顶层 `source` 是 root 模块的根相对路径；多模块程序中条目各自带 `file`，`source`
   不随模块变化。
 - 示例中的折行仅为排版；实际输出为单行紧凑 JSON，golden 按单行逐字节比较。
 
@@ -398,7 +408,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 | 格式 | 版本标识 | 兼容规则 |
 | ---- | ---- | ---- |
 | trace 文本 / JSONL | 文本首行 `# tc-trace 1`；JSONL 首对象 `header.version` | 版本内只追加字段；改义需升版本 |
-| IR dump 文本 | 首行 `tc-ir 0.0.46 profile=…` | 语言版本随标准；字段只增不减，路径按 §5.9 归一化 |
+| IR dump 文本 | 首行 `tc-ir 0.0.46 profile=…` | 语言版本随标准；字段只增不减，路径按 §5.9 根相对 |
 | 诊断 JSON | `error` 行以 `code`、`note` 行以 `note` 为版本锚 | 版本内只追加字段 |
 | 行表 JSON | `"version":1` | 版本内只追加字段；条目顺序为全序 |
 | 调试 ELF | 无版本字段 | 只承载符号与行表；不承诺向后兼容 |
@@ -415,6 +425,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 缩减动作：删除整条语句/声明/未使用 `import`、简化字面量、删除不可达函数；
   每步之后重新解析，保持源文件可解析。
 - 被测程序的 `stdin` 由 `--stdin=<path>` 提供；缺省为空输入（立即 EOF）；trap 复现同样适用。
+- 工程内运行时继承 `tc.project` 的根/profile/include；诊断路径按 §5.9 根相对；指纹仍按
+  首个 code/exit/终止方式，不按路径。
 - 保证：每轮成功缩减严格减少行数或字节数；若不存在可减少的候选，则以当前结果结束
   （可能等于输入），退出 0；同输入同输出。
 - 退出码按 §5.1：正常收敛退出 0；种子首次运行未触发任何诊断或 trap（无指纹可记）为
@@ -435,6 +447,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   `--diag-format=json` 同用时，解析器必须跳过该行，或用 `--trace-out` 等显式路径分流。
 - 端口被占用或绑定失败：环境不可用，退出 70；`--gdb` 参数非法或对 `tc-aot` 使用：退出 2。
 - 调试器经 TCP 通信，不占用程序 `stdin`；程序仍按标准读取自己的输入，`stdout` 不变。
+- 工程内运行时，`monitor` 与调试 ELF 的源码路径按 §5.9 根相对；gdb 从工程根启动。
 - 调试器意外断开或校验和连续三次失败：程序停在当前指令边界，stub 关闭该连接并回到
   监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hh>`
   （自然终止与 trap 终止一致）。
@@ -553,7 +566,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
   `E01`，`monitor regions`/`objects`/`funcs`/`vreg <序号>` 仍可读取终止快照。
 - 终止态下 `monitor next`/`monitor finish` 与 `s`/`c` 相同，直接回 `W<hh>`，不执行新指令。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
-- 输出为纯文本，行尾 `\n`，不依赖终端宽度；同一状态重复查询结果一致。
+- 输出为纯文本，行尾 `\n`，不依赖终端宽度；源码位置与路径按 §5.9 根相对；同一状态重复查询结果一致。
 
 ### 6.7 断点、单步与继续语义
 
@@ -577,6 +590,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 ### 6.8 与 AOT 调试视图的一致性
 
 - AOT 与 VM 共用 §5.10 的行表生成器；同一源程序的 `file:line:col → 指令` 映射一致。
+  调试 ELF 的 `.file` 使用 §5.9 显示路径；gdb 从工程根启动；不写绝对 `DW_AT_comp_dir`。
 - VM 可选生成**调试 ELF**（`--gdb-elf-out=<path>`）：只承载符号与行表，地址使用合成代码
   地址，不含可执行代码；函数符号名按 §5.4 的命名约定。gdb 以 `file <elf>` +
   `target remote` 获得源级断点时，断点地址与 stub 的合成地址一致。
@@ -652,12 +666,17 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
 | `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
+| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、三入口契约与退出码 | `toolchain`, `fast` |
+| `tc.manifest` | `tc.project` 语法、默认值、根发现、非法字段与 include 顺序 | `toolchain`, `fast` |
+| `tc.test_runner` | `tests/*/main.tc` 发现、侧车字节、trap/exit、过滤、超时与失败报告 | `toolchain`, `fast` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap/AOT 字符串根相对、无绝对路径、external | `toolchain` |
+| `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden，两个工具一致 | `toolchain`, `fast` |
 | `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 行含 §5.6 后缀与 JSON 追加字段 | `toolchain`, `fast` |
-| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、路径归一化与 external 标记 | `toolchain` |
-| `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
+| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain` |
+| `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`monitor`/退出/重同步 | `toolchain` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10）；gdb 缺失时显式跳过 | `toolchain` |
@@ -672,13 +691,16 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 
 ### 7.2 0.0.47 退出标准
 
-- T0–T6 全部完成，G11 PASS，`docs/gates/README.md` 更新。
+- T0–T6 与工程模型 P0–P5 全部完成，G11 PASS，`docs/gates/README.md` 更新。
 - 既有门禁零回归：`ctest` 全量、golden、确定性、`docs.cleanup`、发布审计。
 - 新增测试项全部进入 `ctest`；`fast` 子集在 CI 参考机器上两分钟内通过（不作为语义承诺）。
-- 双版本模型生效：`--version` 打印工具链 0.0.47 与语言 0.0.46；契约检查仍断言 51 opcode。
-- 可复现：连续两次 `--debug` 构建的 ELF 字节一致，连续两次 flat 构建字节一致。
-- 文档同步：本文件、`README.md`/`README.en.md`、`docs/README.md`、`docs/gates/README.md`、
-  `AGENTS.md` 导航、`tests/README.md`、`src/README.md`（新增 `src/debug/` 模块边界）、
+- 三入口模型生效：`tc`/`tc-vm`/`tc-aot --version` 打印工具链 0.0.47 与语言 0.0.46；
+  契约检查仍断言 51 opcode；release audit 更新为三入口。
+- 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
+- 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径。
+- 文档同步：本文件、[TC 工程模型 0.0.47](TC工程模型-0.0.47.md)、`README.md`/`README.en.md`、
+  `docs/README.md`、`docs/gates/README.md`、`AGENTS.md` 导航、`tests/README.md`、
+  `src/README.md`（新增 `src/debug/`、`src/project/`、`src/base/path.*` 边界）、
   `src/CONTRACTS.md`（新内部接口与格式约定）、`CHANGELOG`。
 
 ## 8. 风险与限制
@@ -692,8 +714,13 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 调试 ELF 的机器类型/链接方式与 gdb 兼容性 | §8.1 spike 先定案；失败时降级为"仅合成地址调试"，不阻塞 T3 |
 | 行表与实际执行不一致（call 原子性、无内联） | 行表以 IR 指令为单位；以 trace 记录逐条比对 span；call 映射到调用点 |
 | 调试写内存破坏不变量 | 默认禁写；仅 `--gdb-allow-write` 开放，并限定区 |
-| 调试信息破坏可复现 | 路径归一化 + 无时间戳 + 固定编译目录；T6 断言两次构建字节一致 |
+| 调试信息破坏可复现 | 工程根相对路径 + 无时间戳 + `-fdebug-compilation-dir=.`；T6 断言两次构建字节一致 |
 | trace 体积过大 | `--trace-limit` 截断并标记；默认关闭 |
+| 工程根/嵌套工程发现歧义 | 最近 `tc.project` 生效；嵌套工程允许；文档写清 |
+| AOT `.asciz` 路径字符串改变产物字节 | 0.0.47 不承诺 0.0.46 路径字节；代码/ABI 不变；跨根一致为验收 |
+| gdb 不在工程根启动时找不到源 | 文档要求从根启动或设置 `directory`；T2/T6 验证 |
+| `tc` 第三入口改变释放面 | 同步 release audit、AGENTS/README 与门禁；三个工具角色固定 |
+| 外部 clang/lld 诊断含绝对路径 | 属外部工具输出，不纳入 TC 路径契约 |
 | macOS 缺少 gdb | 协议套件不依赖 gdb；端到端测试显式跳过并报告；LLDB 机会性验证 |
 
 ### 8.1 开工前 spike
@@ -712,5 +739,8 @@ T3 开始前用 1–2 天确认以下事实，结论写入本文件对应小节�
   0.0.48 的范围文档；本分支不预埋语言钩子。
 - 本分支的 trace、行表与 VM 调试接口是 0.0.48 验证中断时间线与上下文切换的复用基础；
   0.0.48 不得为 RTOS 改动 0.0.47 已定的工具输出契约，只能增量扩展。
+- 工程模型的移交：`tc.project` v1、`tc` init/test、根相对路径与 `tests/*/main.tc` 侧车
+  是后续 `tc --build/--run`、workspace 与依赖管理的基础；0.0.48 的 board/device 配置
+  不进入 `tc.project`。
 - 移交的可扩展点：trace `kinds` 只增不减、`detail` 为开放对象、`monitor` 命令只增不减、
-  GDB RSP 子集只增不减。
+  GDB RSP 子集只增不减、manifest 字段按版本追加。

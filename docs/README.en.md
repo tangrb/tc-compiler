@@ -1,7 +1,8 @@
 # Documentation map
 
 This directory keeps the 0.0.46 standard, design, development test plan, the
-0.0.47 toolchain scope and current gate status. Chinese: [README.md](README.md).
+0.0.47 toolchain and project model, and current gate status.
+Chinese: [README.md](README.md).
 
 ## Core documents
 
@@ -11,6 +12,7 @@ This directory keeps the 0.0.46 standard, design, development test plan, the
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
 | [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46 |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
