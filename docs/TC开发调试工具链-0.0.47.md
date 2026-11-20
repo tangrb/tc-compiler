@@ -130,6 +130,10 @@
 | `--gdb-allow-write` | ✓ | 拒绝（2） | 默认禁写 |
 | `--checked` | ✓ | ✓ | 既有语义，不变 |
 
+辅助开关随主开关的适用面：`--trace-out`/`--trace-format`/`--trace-limit`/`--trace-paths`
+仅在 `tc-vm` 上有效；`--stats-out` 随 `--stats` 适用于两个工具。主开关被拒时，配套的
+辅助开关同样退出 2。
+
 ### 5.3 `--dump-ir[=<path>]`
 
 - 复用 `src/ir/print.h` 的确定性文本；默认写 `stderr`。
@@ -185,8 +189,9 @@
 
 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
 
-函数命名约定（trace、行表与 `monitor funcs` 共用）：IR 函数名；顶层单元为 `top`；
-不同模块存在同名函数时打印为 `<name>#<func_id>`。
+函数命名约定（所有工具输出共用：trace、行表、trap 报告、`monitor funcs`/`frames`/`objects`）：
+IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印为 `<name>#<func_id>`。
+顶层单元的 `depth` 固定为 0，函数体从 1 开始（示例中的 `main` 为 1）。
 
 ### 5.5 `--stats`
 
@@ -200,7 +205,8 @@
 ### 5.6 trap 报告
 
 `tc-vm` 在既有 `error[RT]` 报告上补齐：诊断码、`span`、函数名、基本块与指令序号、opcode、
-抽象深度。字段顺序固定、只增不改义；与 `--trace=trap` 的 `detail` 同源。
+抽象深度；函数名按 §5.4 约定。字段顺序固定、只增不改义；与 `--trace=trap` 的 `detail`
+同源。
 `--diag-format=json` 下 trap 同样输出一行 JSON，`code` 为 `TC_RE_*`；该行在基础字段之后
 追加 `func`、`bb`、`insn`、`op`、`depth`，追加字段只增不减。
 
@@ -278,7 +284,7 @@
 - 调用：`tc-reduce <source.tc> -- <tool> <args...>`；工具参数中的 `{}` 表示候选源文件，
   缺省时追加到参数末尾。首次运行记录"失败指纹"：首个
   `TC_CE_*`/`TC_RE_*`、退出状态与终止方式；缩减过程中指纹必须保持不变。
-- 缩减动作：删除整条指令/声明/未使用 `import`、简化字面量、删除不可达函数；
+- 缩减动作：删除整条语句/声明/未使用 `import`、简化字面量、删除不可达函数；
   每步之后重新解析，保持源文件可解析。
 - 保证：输出行数或字节数严格减少；同输入同输出；`--timeout` 限制总时长。
 - 非目标：不做语义等价化、不改 include 根、不合成新程序。
@@ -319,7 +325,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 类别 | 报文 | 行为 |
 | ---- | ---- | ---- |
 | 握手 | `qSupported`、`QStartNoAckMode` | 报告 `PacketSize=4000;vContSupported+;QStartNoAckMode+;qXfer:features:read+;qXfer:memory-map:read+`；支持免应答模式 |
-| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T0bthread:1;`（TC trap），终止态 `W<hex>` |
+| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T02thread:1;`（中断），`T0bthread:1;`（TC trap），终止态 `W<hex>` |
+| 中断 | `\x03`（带外字节，不是 `$` 包） | 运行中收到时完成当前指令并停在下一条边界，报告 `T02thread:1;`；未运行时忽略 |
 | 寄存器 | `g`、`p<n>` | `p` 支持；`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc` |
 | 内存 | `m`、`M` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区 |
 | 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略 |
@@ -332,6 +339,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
 - 未列出的报文一律返回空应答；不支持的写操作返回 `E01`，不得静默忽略。
+- `\x03` 是带外中断字节，不属于报文，不受「未列出的报文」规则约束。
 - 超过 `PacketSize` 的报文按协议丢弃并重新同步，不得崩溃或部分执行。
 - 校验和错误的报文以 `-` 请求重发；同一报文连续三次失败按 §6.1 处理：关闭连接、
   程序停在当前指令边界并回到监听。
@@ -356,6 +364,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `depth` | 当前抽象调用深度 |
 | `sp` | 当前帧在帧区内的偏移 |
 | `insn` | 已提交执行的 IR 指令数 |
+
+`g`/`p` 按目标端序编码；现有档案均为小端，每个 64 位寄存器固定 16 个十六进制位（8 字节）。
+未来引入大端档案时按 gdb 的目标端序约定重新确认（§8.1）。
 
 - `target.xml` 不声明 `<architecture>`；架构由调试 ELF（若提供）决定，缺省时 gdb 使用其
   默认架构。寄存器集完全由本描述定义。
@@ -401,7 +412,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - 断点只允许落在指令边界（4 字节对齐）；未对齐地址返回 `E01`。
 - `s`：执行一条 IR 指令。`call` 在调用者 CFG 中是单条原子指令，`s` 停在 `call` 之前，
   下一次 `s` 进入被调函数首条指令（`depth` 加一）。
-- `c`：运行到断点、TC trap 或程序终止。
+- `c`：运行到断点、TC trap、程序终止，或被 `\x03` 中断（停在下一条指令边界并报告
+  `T02thread:1;`）。
 - 跨越调用用 `monitor next`，返回用 `monitor finish`；gdb 的 `next`/`finish` 依赖架构识别
   与栈展开，不作为验收项（§8）。
 - TC trap 先完成 §12.5.2 的提交语义（trap 生效、已提交的 I/O 不回滚），再停止并报告
@@ -439,7 +451,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 - 仓库内提供最小 RSP 客户端（Python，`tests/tools/vm_gdb_client.py`），覆盖：
   帧与校验和、免应答模式、分块 `qXfer`、断点命中地址、单步计数、`monitor next` 跨调用、
-  `monitor finish` 返回、内存读取、trap 停止码、退出状态、`D` 分离后继续、坏校验和重同步。
+  `monitor finish` 返回、运行中 `\x03` 中断（停在边界并报 `T02`）、寄存器读写（`P` 默认
+  `E01`、allow-write 写 `pc`）、内存写拒绝与区边界、`R` 复位重跑、`Z1`–`Z4` 空应答、
+  各 `monitor` 命令、trap 停止码、退出状态、`D` 分离后继续、坏校验和重同步。
 - 上述协议套件不依赖真实 gdb，进入常规 `ctest`。
 - 真实 gdb 端到端脚本作为可选测试：gdb 不存在时显式跳过并记录原因，不记为通过。
 - LLDB 使用同一 RSP，作为机会性验证，不进入门禁。
@@ -485,7 +499,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置 | `toolchain`, `fast` |
 | `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、路径归一化 | `toolchain` |
 | `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
-| `vm.gdb.protocol` | RSP 握手/断点/单步/内存/退出/重同步 | `toolchain` |
+| `vm.gdb.protocol` | RSP 握手/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`monitor`/退出/重同步 | `toolchain` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `toolchain.reduce` | 最小化器收敛且指纹不变 | `toolchain`, `slow` |
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
@@ -511,7 +525,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | ---- | ---- |
 | gdb 版本差异（ack 模式、`vCont`、`qXfer` 分块、自定义寄存器集） | 以最小子集实现；协议套件自测；§8.1 spike 给出兼容矩阵 |
 | gdb 的 `next`/`finish` 依赖架构与栈展开 | 不作为验收项；以 `monitor next`/`monitor finish` 提供等价能力 |
-| VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧中断 |
+| VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧 `\x03` 中断停在指令边界 |
 | 合成地址与语言值域混淆 | 合成区间独立且文档化；调试 ELF 与 trace 均标注为调试视图 |
 | 调试 ELF 的机器类型/链接方式与 gdb 兼容性 | §8.1 spike 先定案；失败时降级为"仅合成地址调试"，不阻塞 T3 |
 | 行表与实际执行不一致（call 原子性、无内联） | 行表以 IR 指令为单位；以 trace 记录逐条比对 span；call 映射到调用点 |
