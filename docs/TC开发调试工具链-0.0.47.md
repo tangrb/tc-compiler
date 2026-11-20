@@ -605,7 +605,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
-| `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
+| `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden，两个工具一致 | `toolchain`, `fast` |
 | `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
@@ -614,6 +614,8 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`monitor`/退出/重同步 | `toolchain` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
+| `vm.gdb.e2e` | 真实 gdb 端到端（§6.10）；gdb 缺失时显式跳过 | `toolchain` |
+| `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
 | `toolchain.reduce` | 最小化器收敛且指纹不变 | `toolchain`, `slow` |
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
 
