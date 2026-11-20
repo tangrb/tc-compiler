@@ -415,7 +415,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - `global_insn_index` 是 IR 最终化后的全局单调指令序号，跨函数连续，确定且可复现。
 - 该地址区间不属于任何平台档案的五个区，不进入 `funcaddr`/`bitcast` 结果，不参与程序行为；
   它是 64 位调试视图，不是目标地址，因此与 W 无关。W=32 档案的程序可见地址仍按 32 位呈现。
-- 启动时校验合成区间与当前档案区表不重叠；重叠则实现错误退出 71，不得退化为歧义地址。
+- `--gdb` 会话启动与 `--gdb-elf-out` 生成时校验合成区间与当前档案区表不重叠；重叠则
+  实现错误退出 71，不得退化为歧义地址。
 - `m` 对合成区间返回全零；断点由 stub 处理（`Z0`），不写内存。
 
 ### 6.3 报文子集（v1）
@@ -606,9 +607,9 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | ---- | ---- | ---- |
 | `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden，两个工具一致 | `toolchain`, `fast` |
-| `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致 | `toolchain`, `fast` |
-| `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段 | `toolchain`, `fast` |
-| `toolchain.diag_json` | 文本/JSON 同序同码同位置 | `toolchain`, `fast` |
+| `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
+| `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
+| `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 行含 §5.6 后缀与 JSON 追加字段 | `toolchain`, `fast` |
 | `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、路径归一化与 external 标记 | `toolchain` |
 | `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`monitor`/退出/重同步 | `toolchain` |
