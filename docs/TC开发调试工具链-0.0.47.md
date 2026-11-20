@@ -102,26 +102,31 @@
 
 ### 5.1 输出通道与退出码
 
-- `stdout` 只承载被运行程序的输出，以及 `--help`/`--version`。
-- 工具自身输出（IR dump、trace、stats、调试服务信息）一律走 `stderr` 或显式路径；保证
-  stdout 字节在有无工具输出时完全一致。
-- 多路输出共用 `stderr` 时按阶段时间序排列：编译期输出（诊断，其次 `--dump-ir`，
-  再次 `--dump-linemap`）→ trace 记录流（含 footer）→ trap 报告行 → stats；显式
-  `--trace-out`/`--stats-out` 分流后互不交错，不参与排序。
+- `stdout` 承载：`tc-vm` 的被运行程序输出；`tc-aot` 默认 `--emit=asm` 且未给
+  `--output` 时的目标汇编；以及 `--help`/`--version`。所有新增工具输出（IR dump、
+  trace、stats、诊断、调试服务信息）一律走 `stderr` 或显式路径；`tc-vm` 的 stdout
+  字节与 `tc-aot` 的汇编字节不受这些工具输出影响。
+- 多路输出共用 `stderr` 时按阶段时间序排列：`--gdb` 会话行（固定首行，见 §6.1）→
+  编译期输出（诊断，其次 `--dump-ir`，再次 `--dump-linemap`）→ trace 记录流（含
+  footer）→ trap 报告行 → stats；显式 `--trace-out`/`--stats-out` 分流后互不交错，
+  不参与排序。
 - 工具输出必须确定性：默认不含绝对路径、时钟、PID、随机数、宿主地址；地址一律打印为区名
   加区内偏移。`--trace-paths=abs` 可显式关闭 trace（文本与 JSONL）的路径归一化，
   仅用于本地排查。
-- 所有新增开关默认关闭；不带开关时 `tc-vm`/`tc-aot` 的行为、产物字节与退出码与本分支
-  之前一致。
+- 所有新增开关默认关闭；不带开关时，**程序可见行为**与本分支之前一致：`tc-vm` 的
+  stdout 程序输出、`tc-aot` 的汇编/产物字节、退出码与 trap 选择不变。工具自身的
+  stderr 文本与 `--version`/`--help` 的 stdout 文本允许按本文件的既定契约增强
+  （§5.6 的 trap 后缀、§5.9 的路径归一化、版本/帮助文本的新格式）；按旧文本逐字节
+  比较的脚本需要适配。
 - **退出码不新增**：沿用 `0`（成功）、`1`（语言诊断或 trap）、`2`（用法错误）、`70`
   （能力/环境不可用）、`71`（内部错误）。工具链故障不得借用语言诊断码表达。
 - 开关取值非法（未知 `--trace` kind、未知 `--diag-format` 值、非法数值等）一律按用法
   错误退出 2（同 `--profile` 的既有行为），不得静默忽略。
 - 工具不适用的开关必须显式拒绝（退出 2），不得静默忽略；这与"部分能力不得写成已支持"
   的既有原则一致。
-- 输出路径（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`）
-  无法创建或写入失败视为环境不可用，退出 70；路径参数形式非法退出 2；多个输出开关
-  指向同一路径同样退出 2。
+- 输出路径（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`、
+  `--output`）无法创建或写入失败视为环境不可用，退出 70；路径参数形式非法退出 2；
+  多个输出开关指向同一路径同样退出 2。
 
 ### 5.2 工具开关矩阵
 
@@ -132,7 +137,7 @@
 | `--stats` | ✓ 运行时统计 | ✓ 静态统计 | 两者字段不同（§5.5） |
 | `--diag-format=text\|json` | ✓ | ✓ | 诊断输出格式 |
 | `--debug` | 拒绝（2） | ✓ | 目标代码调试信息；VM 用 `--gdb-elf-out` |
-| `--debug-path-map=<from>=<to>` | ✓ | ✓ | 归一化前缀重映射，作用于 §5.9 的四处消费者（按工具适用面） |
+| `--debug-path-map=<from>=<to>` | ✓ | ✓ | 归一化前缀重映射，作用于 §5.9 的全部路径消费者（按工具适用面） |
 | `--dump-linemap[=<path>]` | ✓ | ✓ | 共享行表导出（§5.10） |
 | `--gdb[=<port>]` | ✓ | 拒绝（2） | VM 调试会话 |
 | `--gdb-elf-out=<path>` | ✓ | 拒绝（2） | 可选调试 ELF（§6.8） |
@@ -150,7 +155,7 @@
 | 开关 | `--syntax-only`/`--sem-only` | `--static-only`（`tc-aot`） | `--static-only`（`tc-vm`） | 正常模式 |
 | ---- | ---- | ---- | ---- | ---- |
 | `--dump-ir` | 2 | 正常 | 正常 | 正常 |
-| `--stats` | 2 | 正常（静态统计） | 2（不执行） | 正常 |
+| `--stats` | 2 | 正常（仅 IR 派生字段） | 2（不执行） | 正常 |
 | `--dump-linemap` | 2 | 正常 | 正常 | 正常 |
 | `--gdb-elf-out` | 2 | 2（工具不适用） | 正常（只生成 ELF） | 正常（仅 `tc-vm`） |
 | `--trace` | 2 | 2（工具不适用） | 2（不执行） | 正常（仅 `tc-vm`） |
@@ -159,12 +164,14 @@
 
 规则：请求的输出依赖尚未运行的阶段或尚未发生的执行时，按用法错误退出 2，不得静默跳过；
 §5.2 中工具不适用的开关在 `tc-aot` 的所有模式下均退出 2（以 §5.2 为准）；表中未列出的
-输出型开关按同一规则处理。`--static-only` 本身的退出码仍是部分检查语义（无诊断为 0，
-否则为 1）。
+输出型开关按同一规则处理。部分检查模式下显式指定 `--emit` 或 `--output` 同样退出 2
+（二者不产生任何产物；未显式指定时按默认值处理且不产生产物）。`--static-only` 本身的
+退出码仍是部分检查语义（无诊断为 0，否则为 1）。
 
 ### 5.3 `--dump-ir[=<path>]`
 
-- 复用 `src/ir/print.h` 的确定性文本；默认写 `stderr`。
+- 复用 `src/ir/print.h` 的确定性文本；默认写 `stderr`。`modules:` 段的路径按 §5.9
+  归一化后输出（不得出现绝对路径），其余内容与 `tc_ir_print` 一致。
 - 打印时机：IR 最终化之后、执行/代码生成之前。
 - 与部分检查开关的组合见 §5.2.1：`--syntax-only`/`--sem-only` 下没有最终 IR，`--dump-ir`
   退出 2；`--static-only` 含 CT 与 IR 最终化，正常输出。
@@ -180,15 +187,18 @@
   - `trap`：trap 详情。
 - `op` 字段承载完整打印名，包含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀；
   `kinds` 只是过滤族，不改变打印名。
+- `kinds` 的过滤先于计数：被过滤掉的事件不占 `seq`、不计入 `--trace-limit`，也不计入
+  `dropped`。
 - `--trace-out=<path>`：默认 `stderr`；`--trace-format=text|jsonl`。
-- `--trace-limit=<n>`：最多输出 n 条记录，`0`（默认）表示不限；首次截断时输出不带计数的
+- `--trace-limit=<n>`：最多输出 n 条数据记录（控制对象不计入），`0`（默认）表示不限；
+  非法值（负数、非整数）按用法错误退出 2。首次截断时输出不带计数的
   `# tc-trace truncated` 后继续执行，不改变程序行为。最终丢弃数在流的末尾给出（见本节末）。
 
 记录字段（文本与 JSONL 同名）：
 
 | 字段 | 类型 | 说明 |
 | ---- | ---- | ---- |
-| `seq` | 整数 | 从 1 递增，跨 kinds 共用 |
+| `seq` | 整数 | 从 1 递增，只统计实际输出的数据记录；header/truncated/footer 不占 `seq` |
 | `depth` | 整数 | 抽象调用深度 |
 | `func` | 字符串 | IR 函数名；顶层单元为 `top`（与 IR dump 一致）；不同模块同名时打印为 `<name>#<func_id>` |
 | `bb` | 整数 | 基本块序号 |
@@ -203,23 +213,25 @@
 | ---- | ---- |
 | `call` | `direction`（`enter`/`return`）、`callee`（被调函数名，按本约定） |
 | `mem` | `region`（区名）、`offset`（区内偏移）、`size`（字节数；`memmove` 为 `n × sizeof T`） |
-| `io` | `bytes`（本次提交字节数）、`result`（`ok`/`eof`/`error`） |
+| `io` | `bytes`（本次提交字节数；`writeln` 含末尾换行）、`result`（`ok`/`eof`/`error`） |
 | `trap` | `code`（`TC_RE_*`） |
 
 `call` 的 `enter` 与 `return` 记录都以调用点指令为位置锚点：`func`/`bb`/`insn`/`span`
 指向调用者的 `call` 指令，`depth` 取该调用点处的调用者深度（不是被调函数的深度）；
 `return` 记录另带 `direction:"return"` 与 `callee`。被调函数的深度由随后的 `ir` 记录体现。
-同一调用点上的记录顺序固定：先 `op=call` 的 `ir` 记录，再 `enter`；被调函数最后一条
-`ir` 记录之后输出 `return`。
+同一调用点上的记录顺序固定：当 `ir` 与 `call` 同时启用时，先输出 `op=call` 的 `ir`
+记录，再输出 `enter`；只启用 `call` 时直接输出 `enter`。被调函数最后一条 `ir` 记录
+（若启用了 `ir`）之后输出 `return`；`enter` 与 `return` 成对出现。
 
 函数命名约定（所有工具输出共用：trace、行表、trap 报告、`monitor funcs`/`frames`/`objects`）：
 IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印为 `<name>#<func_id>`。
 顶层单元的 `depth` 固定为 0，函数体从 1 开始（示例中的 `main` 为 1）。
 
 文本格式首行 `# tc-trace 1 <tool> <profile> <source>`，末行
-`# tc-trace end <records> <status>`；`detail` 为 `key:value` 逗号列表，其中地址与偏移
-用 `0x` 十六进制，长度、大小、计数用十进制；顶层字段（`seq`/`depth`/`bb`/`insn`）与
-JSON 数值统一为十进制；`records` 为实际输出的记录数。示例：
+`# tc-trace end <records> <status>`；数据记录前缀 `[<seq>]` 为至少 4 位十进制零填充，
+`seq` 超过 9999 时自然加宽；`detail` 为 `key:value` 逗号列表，其中地址与偏移用 `0x`
+十六进制，长度、大小、计数用十进制；顶层字段（`seq`/`depth`/`bb`/`insn`）与 JSON 数值
+统一为十进制；`records` 为实际输出的数据记录数。示例：
 
 ```
 # tc-trace 1 tc-vm aarch64-linux-user demo.tc
@@ -243,9 +255,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 {"type":"footer","records":N,"dropped":M,"status":"ok"}
 ```
 
-- `records` 是实际输出记录数；JSONL footer 的 `dropped` 恒在（`0` 表示未截断），是本次
-  运行因 `--trace-limit` 最终未输出的记录数；文本模式仅在截断时于 end 行追加
-  `dropped=<n>`。
+- `records` 是实际输出的**数据记录**数（不含控制对象）；JSONL footer 的 `dropped` 恒在
+  （`0` 表示未截断），是本次运行因 `--trace-limit` 最终未输出的数据记录数；文本模式仅在
+  截断时于 end 行追加 `dropped=<n>`。
 - `status` 取 `ok`（正常终止）、`trap`（TC trap 终止）、`error`（工具或实现错误）；
   文本模式的 `# tc-trace end <records> <status>` 使用同一词汇；发生截断时为
   `# tc-trace end <records> <status> dropped=<n>`。
@@ -257,10 +269,14 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 ### 5.5 `--stats`
 
 - `tc-vm --stats`：运行时统计——执行指令总数、按 op 计数、最大抽象深度、五区使用峰值、
-  分配次数、I/O 字节数；程序终止后输出，trap 终止同样输出并标注首个 `TC_RE_*`。
-- `tc-aot --stats`：静态统计——函数数、IR 指令数、最大帧大小、静态/设备/代码区需求、
-  按 op 计数；在 IR 最终化后、外部工具链调用前输出，clang/lld 缺失导致发射失败
-  （退出 70）时统计仍已输出。
+  分配次数、I/O 字节数；程序终止后输出。trap 终止同样输出，并在末行追加
+  `first_trap=<TC_RE_*>`（与 `--trace=trap` 的 `code` 同源）。
+- `tc-aot --stats`：静态统计，分两级：
+  - IR 派生（任何含 IR 最终化的模式，`--static-only` 也可用）：函数数、IR 指令数、
+    按 op 计数、静态对象字节；
+  - 目标派生（仅在发生内部代码生成/发射的路径）：最大帧大小、代码区需求；在内部发射后、
+    外部工具链调用前输出，clang/lld 缺失导致发射失败（退出 70）时目标派生统计仍已输出。
+  `--static-only` 下只输出 IR 派生字段，不输出目标派生字段。
 - 输出到 `stderr`（`--stats-out=<path>` 可改）；首行 `# tc-stats 1 <tool> <profile>`，
   字段顺序固定、只增不改义，供脚本解析。
 - 按 op 计数的键为完整打印名（含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀，与 trace
@@ -276,7 +292,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 - 前缀（`file:line:col`、`error[RT]`、码、打印名）与 0.0.46 一致，脚本按首个
   `TC_RE_*` 匹配不受影响；后缀字段顺序固定、只增不改义。
-- 函数名按 §5.4 约定；`span` 取触发 trap 的指令。
+- 函数名按 §5.4 约定；`span` 取触发 trap 的指令；路径按 §5.9 归一化。
 - `--diag-format=json` 下 trap 输出一行 JSON：基础字段（§5.7）之后追加 `func`、`bb`、
   `insn`、`op`、`depth`，`stage` 为 `RT`，`code` 为 `TC_RE_*`。
 
@@ -299,25 +315,38 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 一次运行至多一条 `error` 行：标准只报告首个诊断；note 行紧随其后，不构成第二条诊断。
 - 静态诊断与 RT trap 都使用该格式；trap 行另带 §5.6 的追加字段。
 - 文本与 JSON 必须同序、同码、同位置；顺序由标准 §12.2 首诊总序决定，不由输出格式决定。
+- 文本与 JSON 的文件名都按 §5.9 归一化；两种格式使用同一路径值。
 - 实现层错误（`TC_ERR_*`、内部错误）不是语言诊断，不进入 JSON：始终以文本行
   `tool: TC_ERR_*: message` 输出，退出码按 §5.1。
-- 文件名使用 §5.9 的归一化规则；`json` 模式不输出颜色与人类说明文字。
+- `json` 模式不输出颜色与人类说明文字。
 - 字段只增不减：同一格式版本内新增字段必须追加，删除或改义需提升格式版本。
 
 ### 5.8 源级映射（AOT）
 
-- `tc-aot --debug` 生成带调试信息的汇编：为每个源文件发射 `.file` 表，并在每组 IR 指令
-  之前发射 `.loc <file> <line> <col>`；同时新增 `# source: <file>:<line>` 注释行（当前
-  后端汇编不含源码注释，`--debug` 下为新增输出；非 `--debug` 时不发射），便于无 DWARF
-  场景对照。
+- `tc-aot --debug` 生成带调试信息的汇编：按源文件首次出现顺序分配确定性编号，发射
+  `.file <fileno> "<归一化路径>"`，并在每组 IR 指令之前发射
+  `.loc <fileno> <line> <column>`；`.loc` 的第一个操作数是**文件编号**，不是路径。
+  同时新增 `# source: <file>:<line>` 注释行（当前后端汇编不含源码注释，`--debug` 下为
+  新增输出；非 `--debug` 时不发射），便于无 DWARF 场景对照。
+- `.loc` 的 `column` 直接取 §5.9 归一化 span 的 1-based Unicode 标量计数，不做字节列
+  转换；gdb 的列显示按该数值，行表验收以 `line` 为准、`column` 只作提示。
+- `.file` 路径按汇编字符串规则转义（引号/反斜杠）；`# source:` 注释使用同一归一化路径值，
+  不含换行。`--keep-temps` 保留的中间 `.s` 遵循同一规则：`--debug` 时含 `.file`/`.loc`，
+  否则不含。
 - 一条 IR 指令 lowering 成多条目标指令时，这些目标指令共享同一个 `.loc`；
   映射粒度是 IR 指令，不是目标指令。
 - 汇编仍经 clang 集成汇编；`--emit=obj|elf` 时保留行表；`--emit=asm` 时 `.loc` 可见。
 - `--emit=flat` 不承载调试段：`--debug` 仍生成带 `.loc` 的中间汇编与行表，最终 flat
   不含调试信息，此为文档化行为而非错误。
-- 覆盖要求：行表覆盖 IR 全序的每条指令；同一函数内地址严格递增。行表是静态集合，
-  `--trace=ir` 是动态执行序列（循环会重复、死代码不出现），两者不比较条目数；验收方式
-  是对 trace 的每条记录按 `(func,bb,insn)` 查行表，断言其 `span` 与记录 `span` 相同。
+- 覆盖要求：行表产物（linemap）覆盖 IR 全序的每条指令；同一函数内 `.loc` 地址严格递增。
+  行表是静态集合，`--trace=ir` 是动态执行序列（循环会重复、死代码不出现），两者不比较
+  条目数；验收方式是对 trace 的每条记录按 `(func,bb,insn)` 查行表，断言其 `span` 与记录
+  `span` 相同。
+- 汇编器可能把相邻且 `(file,line,column)` 相同的 `.loc` 合并为一条 DWARF 行表记录，因此
+  `.debug_line` 的记录数可以少于 IR 指令数；覆盖验收以 linemap 为准，不按
+  `.debug_line` 行数计数。
+- 调用 clang 汇编/链接时固定 `-fdebug-compilation-dir=.`（或等价前缀映射），避免
+  `DW_AT_comp_dir` 泄漏绝对构建目录；可复现性由 T6 断言。
 - 行表与 trace 要求每条指令的 `span.file` 非空且已归一化；驱动层的 `<source>` 只是诊断
   打印的防御回退，行表生成遇到空 `file` 视为实现错误（退出 71）。
 - `tc-aot` 非 `--debug` 产物字节必须与 0.0.46 一致；该断言进入差分套件。
@@ -330,16 +359,21 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 - 源路径默认相对 root 模块所在目录与 `--include` 根归一化；无法归一时路径值回退为
   `<basename>`（span 呈现为 `<basename>:<line>:<col>`），并以行表条目的 `external`
-  字段标记（§5.10）；trace、诊断 JSON 与调试 ELF 不承载该标记，使用同一 basename
-  路径值。
+  字段标记（§5.10）；trace、文本诊断、诊断 JSON 与调试 ELF 不承载该标记，使用同一
+  basename 路径值。
+- 若多个 external 源文件的 basename 相同，按其在 IR 全序中的首次出现顺序追加
+  `#<n>`（`n` 从 1 开始；basename 唯一时省略），保证所有输出中可区分且可复现。
 - `--debug-path-map=<from>=<to>` 可重映射前缀，语义等价于编译器常见的调试前缀映射，
-  用于构建机路径与开发机路径不同的场景；可重复传入，按出现顺序依次应用。重映射在
-  归一化之前应用。
+  用于构建机路径与开发机路径不同的场景；可重复传入，对一条路径按出现顺序取**第一条
+  匹配**的规则替换一次，不做链式重写。`<from>` 与 `<to>` 按第一个 `=` 分割，其余 `=`
+  属于 `<to>`。重映射在归一化之前应用。
 - `--trace-paths=abs` 作用于 trace 的文本与 JSONL 输出；不影响行表、诊断 JSON 与
-  调试 ELF。四者默认都走归一化路径；`abs` 只关闭归一化，`--debug-path-map` 的前缀
-  替换仍然先于打印应用。
-- 归一化结果进入 trace、诊断 JSON、行表与调试 ELF 四处，必须一致；该一致性由共享行表
-  测试覆盖。
+  调试 ELF。所有路径消费者默认都走归一化路径；`abs` 只关闭 trace 的归一化，
+  `--debug-path-map` 的前缀替换仍然先于打印应用。`--trace-paths` 只接受 `abs`
+  （缺省为归一化）；其他值退出 2。
+- 归一化结果默认进入全部工具可见路径：文本诊断、trap 文本、`--dump-ir` 的 `modules:`
+  段、AOT `.file`/`.loc`、trace、诊断 JSON、行表与调试 ELF；同一路径在这些输出中必须
+  一致（`--trace-paths=abs` 是 trace 的显式例外），由共享行表测试覆盖。
 
 ### 5.10 共享行表产物
 
@@ -364,6 +398,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 | 格式 | 版本标识 | 兼容规则 |
 | ---- | ---- | ---- |
 | trace 文本 / JSONL | 文本首行 `# tc-trace 1`；JSONL 首对象 `header.version` | 版本内只追加字段；改义需升版本 |
+| IR dump 文本 | 首行 `tc-ir 0.0.46 profile=…` | 语言版本随标准；字段只增不减，路径按 §5.9 归一化 |
 | 诊断 JSON | `error` 行以 `code`、`note` 行以 `note` 为版本锚 | 版本内只追加字段 |
 | 行表 JSON | `"version":1` | 版本内只追加字段；条目顺序为全序 |
 | 调试 ELF | 无版本字段 | 只承载符号与行表；不承诺向后兼容 |
@@ -380,7 +415,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 缩减动作：删除整条语句/声明/未使用 `import`、简化字面量、删除不可达函数；
   每步之后重新解析，保持源文件可解析。
 - 被测程序的 `stdin` 由 `--stdin=<path>` 提供；缺省为空输入（立即 EOF）；trap 复现同样适用。
-- 保证：输出行数或字节数严格减少；同输入同输出。
+- 保证：每轮成功缩减严格减少行数或字节数；若不存在可减少的候选，则以当前结果结束
+  （可能等于输入），退出 0；同输入同输出。
 - 退出码按 §5.1：正常收敛退出 0；种子首次运行未触发任何诊断或 trap（无指纹可记）为
   用法错误，退出 2；`--timeout=<seconds>` 超时视为缩减未收敛：输出当前最佳结果并以
   退出 1 结束。
@@ -394,11 +430,13 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 启动后 stub 在第一条指令执行前阻塞等待调试器连接；未连接时程序不推进，Ctrl-C 终止。
   连接成功后按调试器命令推进程序。
 - 会话信息打印到 `stderr`：`tc-vm: gdbstub on 127.0.0.1:<port>`；该行含动态分配端口，
-  属会话信息，不属于第 1 节确定性约束的逐字节比较对象。
+  属会话信息，不属于第 1 节确定性约束的逐字节比较对象。它固定为 stderr 首行，先于
+  其它任何输出，且不属于 trace、诊断或统计流；与 `--trace-format=jsonl` 或
+  `--diag-format=json` 同用时，解析器必须跳过该行，或用 `--trace-out` 等显式路径分流。
 - 端口被占用或绑定失败：环境不可用，退出 70；`--gdb` 参数非法或对 `tc-aot` 使用：退出 2。
 - 调试器经 TCP 通信，不占用程序 `stdin`；程序仍按标准读取自己的输入，`stdout` 不变。
 - 调试器意外断开或校验和连续三次失败：程序停在当前指令边界，stub 关闭该连接并回到
-  监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hex>`
+  监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hh>`
   （自然终止与 trap 终止一致）。
   进程不退出。
 - RSP 是开发接口，不属于语言语义，也不进入差分门禁。
@@ -425,20 +463,21 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 类别 | 报文 | 行为 |
 | ---- | ---- | ---- |
 | 握手 | `qSupported`、`QStartNoAckMode` | 报告 `PacketSize=4000;vContSupported+;QStartNoAckMode+;qXfer:features:read+;qXfer:memory-map:read+`；支持免应答模式 |
-| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T02thread:1;`（中断）；终止态（自然终止或 trap 终止）一律 `W<hex>`，trap 详情经 `monitor trap` 读取 |
+| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T02thread:1;`（中断）；终止态（自然终止或 trap 终止）一律 `W<hh>`，trap 详情经 `monitor trap` 读取 |
 | 中断 | `\x03`（带外字节，不是 `$` 包） | 运行中收到时完成当前指令并停在下一条边界，报告 `T02thread:1;`；未运行时忽略 |
-| 寄存器 | `g`、`p<n>` | `p` 支持；`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc` |
-| 内存 | `m`、`M` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区 |
+| 寄存器 | `g`、`p<n>` | `p` 支持；`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc`，且必须落在合成代码区间的指令边界，否则 `E01` |
+| 内存 | `m`、`M`、`X` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区；跨区边界或区外的 `M` 返回 `E01`；`X` 不支持，返回空应答 |
 | 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略；执行命中 TC trap 的停止应答为 `T0bthread:1;` |
 | 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个，超出返回 `E01`；`Z1`–`Z4` 返回空 |
-| 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg` | 单一合成线程 `1` |
-| 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义 |
+| 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg`、`qAttached` | 单一合成线程 `1`；`qAttached` 返回 `0`（程序由 stub 创建）；`vCont;s`/`vCont;c` 接受可选 `:1` 后缀，其他线程号返回 `E01` |
+| 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义，分块长度不超过 `PacketSize` |
 | 监视 | `qRcmd` | §6.6 的 `monitor` 命令 |
-| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 分离后继续；`R` 复位到入口并保留断点（I/O 语义见 §6.7）；`k`/`vKill` 不支持，返回空应答 |
-| 退出 | `W<hex>` | 程序自然终止或 trap 终止时以十六进制报告档案退出状态 |
+| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 分离后继续；`R` 复位到入口并保留断点（I/O 语义见 §6.7）；终止态下 `D` 关闭连接，`k`/`vKill` 仍返回空应答 |
+| 退出 | `W<hh>` | 程序自然终止或 trap 终止时按 `W%02x` 报告档案退出状态（0–255）；越界状态属实现错误（退出 71） |
 
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
 - 未列出的报文一律返回空应答；不支持的写操作返回 `E01`，不得静默忽略。
+- 进程终止后 `R` 可复位重跑，`?` 仍回 `W<hh>`，其余报文按未列出处理。
 - `\x03` 是带外中断字节，不属于报文，不受「未列出的报文」规则约束。
 - 超过 `PacketSize` 的报文按协议丢弃并重新同步，不得崩溃或部分执行。
 - 校验和错误的报文以 `-` 请求重发；同一报文连续三次失败按 §6.1 处理：关闭连接、
@@ -506,8 +545,13 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `monitor help` | 命令列表 |
 
 - vreg 只存在于活动帧；跨函数同序号必须写全 `monitor vreg <func>:<序号>`，不支持读取
-  调用者帧。
-- 终止态下 `monitor next`/`monitor finish` 与 `s`/`c` 相同，直接回 `W<hex>`，不执行新指令。
+  调用者帧。`<func>` 与 `<序号>` 以**最后一个** `:` 分隔；函数名中的 `:` 与 `#` 属于
+  名称，`<序号>` 为非负十进制整数。
+- `monitor finish` 在顶层帧（深度 0）返回 `E01`；`monitor next` 在当前指令是 `return`
+  或 `trap` 时执行该终止指令并在调用者/终止态停下，不再寻找同深度指令。
+- `monitor trap` 在首次 trap 之前返回 `E01`；终止态下 `monitor ir` 无地址参数返回
+  `E01`，`monitor regions`/`objects`/`funcs`/`vreg <序号>` 仍可读取终止快照。
+- 终止态下 `monitor next`/`monitor finish` 与 `s`/`c` 相同，直接回 `W<hh>`，不执行新指令。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
 - 输出为纯文本，行尾 `\n`，不依赖终端宽度；同一状态重复查询结果一致。
 
@@ -522,8 +566,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
   与栈展开，不作为验收项（§8）。
 - TC trap 先完成 §12.5.2 的提交语义（trap 生效、已提交的 I/O 不回滚），再停止并报告
   `T0bthread:1;`；此时程序已进入终止态，`monitor trap` 可读取 trap 详情。
-- 程序终止（自然终止或 trap 终止）后 stub 返回 `W<hex>`；退出状态取档案退出策略，
-  与无调试器运行完全一致。终止态下 `s`/`c` 不执行新指令，直接再回 `W<hex>`；`R`
+- 程序终止（自然终止或 trap 终止）后 stub 返回 `W<hh>`；退出状态取档案退出策略，
+  与无调试器运行完全一致。终止态下 `s`/`c` 不执行新指令，直接再回 `W<hh>`；`R`
   可复位重跑。
 - `R` 不重置 I/O：已提交的 `write`/`writeln` 不回滚（宿主逐条提交），`stdin` 为消费式
   读取、不回退；复位后的输出会再次提交，因此 `R` 是显式调试动作，不承诺可复现（§6.9）。
@@ -539,7 +583,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - 调试 ELF 的机器类型与链接方式（段基址等于 §6.2 的合成基址）在 §8.1 spike 中定案；
   目标文件格式只服务于 gdb 加载符号，不用于执行、反汇编或分发。
 - `--gdb-elf-out` 可与 `--gdb` 同用，也可单独使用（生成 ELF 后正常执行），便于先产出
-  调试 ELF 再启动会话。
+  调试 ELF 再启动会话；与 `--static-only` 同用时只生成 ELF、不执行（§5.2.1）。
 - 调试 ELF 的生成复用 AOT 的 `.loc` 管线；两者不一致视为缺陷，由共享行表测试覆盖。
 - 调试 ELF 是可选增量，不阻塞 T3 验收；无调试 ELF 时 gdb 仍可按合成地址下断点。
 
@@ -622,7 +666,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
 
 - 标签集合固定为 `unit`、`conformance`、`toolchain`、`aot`、`slow`、`fast`；每个测试至少
-  一个标签，`fast` 子集目标两分钟内完成。
+  一个标签，`fast` 子集目标两分钟内完成（CI 参考机器；不作为语义承诺）。
 - 可选外部依赖（gdb、qemu、clang、lld）缺失时按既有策略：配置期失败或测试显式跳过，
   不得静默通过。
 
@@ -630,11 +674,12 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 
 - T0–T6 全部完成，G11 PASS，`docs/gates/README.md` 更新。
 - 既有门禁零回归：`ctest` 全量、golden、确定性、`docs.cleanup`、发布审计。
-- 新增测试项全部进入 `ctest`；`fast` 子集在两分钟内通过。
+- 新增测试项全部进入 `ctest`；`fast` 子集在 CI 参考机器上两分钟内通过（不作为语义承诺）。
 - 双版本模型生效：`--version` 打印工具链 0.0.47 与语言 0.0.46；契约检查仍断言 51 opcode。
 - 可复现：连续两次 `--debug` 构建的 ELF 字节一致，连续两次 flat 构建字节一致。
-- 文档同步：本文件、`docs/README.md`、`AGENTS.md` 导航、`tests/README.md`、`src/README.md`
-  （新增 `src/debug/` 模块边界）、`CHANGELOG`。
+- 文档同步：本文件、`README.md`/`README.en.md`、`docs/README.md`、`docs/gates/README.md`、
+  `AGENTS.md` 导航、`tests/README.md`、`src/README.md`（新增 `src/debug/` 模块边界）、
+  `src/CONTRACTS.md`（新内部接口与格式约定）、`CHANGELOG`。
 
 ## 8. 风险与限制
 
