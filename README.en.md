@@ -1,9 +1,13 @@
 # TC-Compiler
 
 TC **0.0.46** language/compiler specification and target design for the native
-compiler (TC → ASM → machine code). This is the 0.0.46 clean-sheet branch: only
-the standard, design, test plan and the implementation rewritten from them are
-kept; historical implementation and tools live in git tags.
+compiler (TC → ASM → machine code). 0.0.46 is the clean-sheet baseline: only the
+standard, design, test plan and the implementation rewritten from them are
+kept; historical implementation and tools live in git tags. The `tc-0.0.47`
+branch delivers the development and debugging toolchain while language
+semantics, opcodes, diagnostics and the ABI stay frozen; its scope and
+contracts are in [docs/TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md).
+RTOS, interrupts and concurrency move to 0.0.48.
 
 ## Current status
 
