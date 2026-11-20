@@ -148,13 +148,14 @@
   - `ir`：每条 IR 指令一条记录；
   - `call`：进入/返回，含抽象深度与被调函数；
   - `mem`：`load`、`store`（含 `.volatile` 形态）与 `memmove`，含区名、区内偏移、字节数；
-  - `io`：`read`/`write` 提交，含字节数与结果；
+  - `io`：`read`/`write`/`writeln` 提交，含字节数与结果；`writeln` 是独立提交流水
+    （附带换行），不是 `write` 的语法糖；
   - `trap`：trap 详情。
 - `op` 字段承载完整打印名，包含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀；
   `kinds` 只是过滤族，不改变打印名。
 - `--trace-out=<path>`：默认 `stderr`；`--trace-format=text|jsonl`。
 - `--trace-limit=<n>`：最多输出 n 条记录，`0`（默认）表示不限；截断时输出
-  `# tc-trace truncated <n>` 后继续执行，不改变程序行为。
+  `# tc-trace truncated <n>`（`<n>` 为未输出记录数）后继续执行，不改变程序行为。
 
 记录字段（文本与 JSONL 同名）：
 
@@ -167,12 +168,28 @@
 | `insn` | 整数 | 块内指令序号 |
 | `op` | 字符串 | opcode |
 | `span` | 字符串 | `file:line:col`（归一化路径） |
-| `detail` | 对象 | 仅 `call`/`mem`/`io`/`trap`：被调函数、区/偏移/长度、I/O 结果 |
+| `detail` | 对象 | 仅 `call`/`mem`/`io`/`trap`；键名见下表 |
+
+`detail` 的键名固定：
+
+| 记录 | `detail` 键 |
+| ---- | ---- |
+| `call` | `direction`（`enter`/`return`）、`callee`（被调函数名，按本约定） |
+| `mem` | `region`（区名）、`offset`（区内偏移）、`size`（字节数；`memmove` 为 `n × sizeof T`） |
+| `io` | `bytes`（本次提交字节数）、`result`（`ok`/`eof`/`error`） |
+| `trap` | `code`（`TC_RE_*`） |
+
+`call` 的 `enter` 与 `return` 记录都以调用点指令为位置锚点：`func`/`bb`/`insn`/`span`
+指向调用者的 `call` 指令；`return` 记录另带 `direction:"return"` 与 `callee`。
+
+函数命名约定（所有工具输出共用：trace、行表、trap 报告、`monitor funcs`/`frames`/`objects`）：
+IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印为 `<name>#<func_id>`。
+顶层单元的 `depth` 固定为 0，函数体从 1 开始（示例中的 `main` 为 1）。
 
 文本格式首行 `# tc-trace 1 <tool> <profile> <source>`，末行
-`# tc-trace end <records> <status>`；`detail` 在文本中为 `key:value` 逗号列表，
-`detail` 中地址与偏移用 `0x` 十六进制，长度、大小、计数用十进制；顶层字段
-（`seq`/`depth`/`bb`/`insn`）与 JSON 数值统一为十进制。示例：
+`# tc-trace end <records> <status>`；`detail` 为 `key:value` 逗号列表，其中地址与偏移
+用 `0x` 十六进制，长度、大小、计数用十进制；顶层字段（`seq`/`depth`/`bb`/`insn`）与
+JSON 数值统一为十进制；`records` 为实际输出的记录数。示例：
 
 ```
 # tc-trace 1 tc-vm aarch64-linux-user demo.tc
@@ -188,11 +205,19 @@
 {"seq":2,"depth":1,"func":"main","bb":0,"insn":1,"op":"load.volatile","span":"demo.tc:4:5","detail":{"region":"device","offset":0,"size":4}}
 ```
 
-确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
+JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达：
 
-函数命名约定（所有工具输出共用：trace、行表、trap 报告、`monitor funcs`/`frames`/`objects`）：
-IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印为 `<name>#<func_id>`。
-顶层单元的 `depth` 固定为 0，函数体从 1 开始（示例中的 `main` 为 1）。
+```json
+{"type":"header","format":"tc-trace","version":1,"tool":"tc-vm","profile":"aarch64-linux-user","source":"demo.tc"}
+{"type":"truncated","dropped":N}
+{"type":"footer","records":N,"status":"ok"}
+```
+
+- `dropped` 是因 `--trace-limit` 未输出的记录数；`records` 是实际输出记录数。
+- `status` 取 `ok`（正常终止）、`trap`（TC trap 终止）、`error`（工具或实现错误）；
+  文本模式的 `# tc-trace end <records> <status>` 使用同一词汇。
+- `source` 与 §5.10 一致，为 root 模块的归一化路径。
+- 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
 
 ### 5.5 `--stats`
 
@@ -205,22 +230,39 @@ IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印�
 
 ### 5.6 trap 报告
 
-`tc-vm` 在既有 `error[RT]` 报告上补齐：诊断码、`span`、函数名、基本块与指令序号、opcode、
-抽象深度；函数名按 §5.4 约定。字段顺序固定、只增不改义；与 `--trace=trap` 的 `detail`
-同源。
-`--diag-format=json` 下 trap 同样输出一行 JSON，`code` 为 `TC_RE_*`；该行在基础字段之后
-追加 `func`、`bb`、`insn`、`op`、`depth`，追加字段只增不减。
+`tc-vm` 的 trap 文本行保留既有 `error[RT]` 前缀，并在末尾追加结构化后缀：
+
+```
+<file>:<line>:<col>: error[RT]: TC_RE_X: PrintName [func=<f> bb=<n> insn=<n> op=<op> depth=<n>]
+```
+
+- 前缀（`file:line:col`、`error[RT]`、码、打印名）与 0.0.46 一致，脚本按首个
+  `TC_RE_*` 匹配不受影响；后缀字段顺序固定、只增不改义。
+- 函数名按 §5.4 约定；`span` 取触发 trap 的指令。
+- `--diag-format=json` 下 trap 输出一行 JSON：基础字段（§5.7）之后追加 `func`、`bb`、
+  `insn`、`op`、`depth`，`stage` 为 `RT`，`code` 为 `TC_RE_*`。
 
 ### 5.7 诊断机器接口
 
-- `--diag-format=text|json`（默认 `text`）。`json` 为 JSONL，每行：
+- `--diag-format=text|json`（默认 `text`）。文本形态固定为
+  `file:line:col: error[<stage>]: <CODE>: <PrintName>`，其后可跟 note 行（见下）。
+- `json` 为 JSONL，字段与文本一一对应，不含自由文本 `message`：
 
 ```json
-{"code":"TC_CE_SYNTAX","severity":"error","message":"...","file":"demo.tc","line":3,"col":5,"length":2}
+{"code":"TC_CE_SYNTAX","severity":"error","stage":"SYN","print_name":"SyntaxError","file":"demo.tc","line":3,"col":5}
 ```
 
-- 静态诊断与 RT trap 都使用该格式；trap 行的 `file`/`line`/`col` 取自触发指令的 span。
+- `stage` 取 `LEX`、`SYN`、`IMPORT`、`SEM`、`CT`、`RT`；`col` 为 1-based Unicode 标量计数
+  （标准 §12.5.1）。
+- note 行同样输出为 JSON 对象，顺序与文本一致：
+  - 相关位置：`{"severity":"note","note":"related position","file":...,"line":...,"col":...}`；
+  - LEX 无效字节：`{"severity":"note","note":"invalid byte offset","offset":N}`（`offset` 为
+    0-based 首个非法字节；与文本的单行 note 对应）。
+- 一次运行至多一条 `error` 行：标准只报告首个诊断；note 行紧随其后，不构成第二条诊断。
+- 静态诊断与 RT trap 都使用该格式；trap 行另带 §5.6 的追加字段。
 - 文本与 JSON 必须同序、同码、同位置；顺序由标准 §12.2 首诊总序决定，不由输出格式决定。
+- 实现层错误（`TC_ERR_*`、内部错误）不是语言诊断，不进入 JSON：始终以文本行
+  `tool: TC_ERR_*: message` 输出，退出码按 §5.1。
 - 文件名使用 §5.9 的归一化规则；`json` 模式不输出颜色与人类说明文字。
 - 字段只增不减：同一格式版本内新增字段必须追加，删除或改义需提升格式版本。
 
@@ -238,9 +280,13 @@ IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印�
 - 覆盖要求：行表覆盖 IR 全序的每条指令；同一函数内地址严格递增。行表是静态集合，
   `--trace=ir` 是动态执行序列（循环会重复、死代码不出现），两者不比较条目数；验收方式
   是对 trace 的每条记录按 `(func,bb,insn)` 查行表，断言其 `span` 与记录 `span` 相同。
+- 行表与 trace 要求每条指令的 `span.file` 非空且已归一化；驱动层的 `<source>` 只是诊断
+  打印的防御回退，行表生成遇到空 `file` 视为实现错误（退出 71）。
 - `tc-aot` 非 `--debug` 产物字节必须与 0.0.46 一致；该断言进入差分套件。
 - 验证工具：`llvm-dwarfdump --debug-line` 或 `readelf --debug-dump=decodedline`；
   DWARF 版本随工具链，版本号记录在测试说明中。
+- qemu gdbstub 冒烟：以 `qemu-system-* -s -S` 加载 AOT ELF，gdb 连接后按源码行下断点
+  并单步，确认行表被真实调试器消费。
 
 ### 5.9 路径归一化
 
@@ -266,6 +312,8 @@ IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印�
 
 - 条目顺序为 IR 最终化的全序；`func` 使用 §5.4 的函数命名约定；`vm_addr` 仅在 VM
   上下文出现（§6.2 的合成地址）。
+- 顶层 `source` 是 root 模块的归一化路径；多模块程序中条目各自带 `file`，`source`
+  不随模块变化。
 
 ### 5.11 输出格式版本策略
 
@@ -287,7 +335,9 @@ IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印�
   `TC_CE_*`/`TC_RE_*`、退出状态与终止方式；缩减过程中指纹必须保持不变。
 - 缩减动作：删除整条语句/声明/未使用 `import`、简化字面量、删除不可达函数；
   每步之后重新解析，保持源文件可解析。
-- 保证：输出行数或字节数严格减少；同输入同输出；`--timeout` 限制总时长。
+- 被测程序的 `stdin` 由 `--stdin=<path>` 提供；缺省为空输入（立即 EOF）；trap 复现同样适用。
+- 保证：输出行数或字节数严格减少；同输入同输出。
+- `--timeout=<seconds>` 超时视为缩减未收敛：输出当前最佳结果并以退出 1 结束。
 - 非目标：不做语义等价化、不改 include 根、不合成新程序。
 
 ## 6. VM 调试器（GDB RSP）
@@ -335,7 +385,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg` | 单一合成线程 `1` |
 | 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义 |
 | 监视 | `qRcmd` | §6.6 的 `monitor` 命令 |
-| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 分离后继续；`R` 复位到入口并保留断点；`k`/`vKill` 不支持 |
+| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 分离后继续；`R` 复位到入口并保留断点（I/O 语义见 §6.7）；`k`/`vKill` 不支持 |
 | 退出 | `W<hex>` | 程序自然终止或 trap 终止时以十六进制报告档案退出状态 |
 
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
@@ -352,9 +402,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 <target version="1.0">
   <feature name="org.tc.ir">
     <reg name="pc"    bitsize="64" regnum="0" type="code_ptr"/>
-    <reg name="depth" bitsize="64" regnum="1" type="data_ptr"/>
-    <reg name="sp"    bitsize="64" regnum="2" type="data_ptr"/>
-    <reg name="insn"  bitsize="64" regnum="3" type="data_ptr"/>
+    <reg name="depth" bitsize="64" regnum="1" type="uint64"/>
+    <reg name="sp"    bitsize="64" regnum="2" type="uint64"/>
+    <reg name="insn"  bitsize="64" regnum="3" type="uint64"/>
   </feature>
 </target>
 ```
@@ -381,6 +431,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - `m` 读取不触发程序语义：直接读取区镜像，不消费设备输入、不改变指针状态、不产生 trap。
 - 代码区在 VM 中只承载函数地址语义，没有指令字节；读取返回全零，函数定位用
   `monitor funcs`。
+- 合成代码区（§6.2）不在内存映射中：它不是程序可访问区，断点由 stub 直接处理。
 - 设备区默认可读但不可写；`--gdb-allow-write` 也不放开设备区写。
 - 写帧/静态/堆区可能破坏语言不变量；checked build 在后续访问处按既有规则 trap，
   调试器会话不因此改变必选 trap 集合。
@@ -405,6 +456,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 - vreg 只存在于活动帧；跨函数同名必须写全 `monitor vreg <func>:<name>`，不支持读取
   调用者帧。
+- 终止态下 `monitor next`/`monitor finish` 与 `s`/`c` 相同，直接回 `W<hex>`，不执行新指令。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
 - 输出为纯文本，行尾 `\n`，不依赖终端宽度；同一状态重复查询结果一致。
 
@@ -422,6 +474,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - 程序终止（自然终止或 trap 终止）后 stub 返回 `W<hex>`；退出状态取档案退出策略，
   与无调试器运行完全一致。终止态下 `s`/`c` 不执行新指令，直接再回 `W<hex>`；`R`
   可复位重跑。
+- `R` 不重置 I/O：已提交的 `write`/`writeln` 不回滚（宿主逐条提交），`stdin` 为消费式
+  读取、不回退；复位后的输出会再次提交，因此 `R` 是显式调试动作，不承诺可复现（§6.9）。
 - 调试暂停不产生程序可观察效果：暂停期间不推进、不超时、不提交 I/O。
 - 运行期间新增/删除断点立即生效；命中已删除断点的陈旧地址不得触发停止。
 
@@ -440,8 +494,15 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 ### 6.9 安全与语义约束
 
-- stub 只读程序状态；唯一可写对象是 `pc`（`--gdb-allow-write`），用于跳转到指令边界。
-- stub 不得改变 stdout 字节、trap 选择与退出状态；有/无调试器的两次运行必须字节一致。
+- stub 默认只读程序状态；`--gdb-allow-write` 下可写 `pc` 与帧/静态/堆区（§6.5），
+  其余写操作返回 `E01`。
+- 被动会话（不写寄存器/内存、不复位）下，stub 不得改变 stdout 字节、trap 选择与退出状态；
+  同一程序有/无调试器运行必须字节一致。
+- 写 `pc`、写内存与 `R` 复位会真实改变执行结果，不承诺可复现：宿主 I/O 逐条提交
+  （`write`/`writeln` 立即 fflush），`R` 重跑会再次提交已提交的输出；`stdin` 为消费式
+  读取，不回退。这些是显式调试动作，结果由调试者负责。
+- 写 `pc` 只改变下一条执行指令，不调整 `depth` 与帧栈；跳入函数体或跨帧跳转会破坏帧
+  一致性，后续访问按既有规则 trap 或产生 UB，stub 不做一致性修复。
 - stub 不得把宿主地址泄漏为目标观察值；程序可见地址按目标字长 W 呈现，合成调试地址
   按 §6.2 的 64 位调试视图呈现，两者不得混用。
 - 单步与断点检查在必选 trap 之前完成；trap 本身仍按 §12.5.2 提交语义执行。
@@ -498,7 +559,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致 | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置 | `toolchain`, `fast` |
-| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、路径归一化 | `toolchain` |
+| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、路径归一化 | `toolchain` |
 | `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`monitor`/退出/重同步 | `toolchain` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
