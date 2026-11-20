@@ -137,12 +137,26 @@
 辅助开关同样退出 2；辅助开关未伴随对应主开关时（如 `--stats-out` 无 `--stats`、
 `--trace-out` 无 `--trace`）同样退出 2。
 
+#### 5.2.1 与部分检查的组合
+
+| 开关 | `--syntax-only`/`--sem-only` | `--static-only`（`tc-aot`） | `--static-only`（`tc-vm`） | 正常模式 |
+| ---- | ---- | ---- | ---- | ---- |
+| `--dump-ir` | 2 | 正常 | 正常 | 正常 |
+| `--stats` | 2 | 正常（静态统计） | 2（不执行） | 正常 |
+| `--dump-linemap` | 2 | 正常 | 正常 | 正常 |
+| `--gdb-elf-out` | 2 | 正常（只生成 ELF） | 正常（只生成 ELF） | 正常 |
+| `--trace` | 2 | 2（不执行） | 2（不执行） | 正常（仅 `tc-vm`） |
+| `--gdb` | 2 | 2（不执行） | 2（不执行） | 正常（仅 `tc-vm`） |
+
+规则：请求的输出依赖尚未运行的阶段或尚未发生的执行时，按用法错误退出 2，不得静默跳过；
+`--static-only` 本身的退出码仍是部分检查语义（无诊断为 0，否则为 1）。
+
 ### 5.3 `--dump-ir[=<path>]`
 
 - 复用 `src/ir/print.h` 的确定性文本；默认写 `stderr`。
 - 打印时机：IR 最终化之后、执行/代码生成之前。
-- `--syntax-only`/`--sem-only` 下 IR 尚未最终化，无 IR 可打印，退出码维持部分检查语义；
-  `--static-only` 含 CT 与 IR 最终化，`--dump-ir` 正常输出。
+- 与部分检查开关的组合见 §5.2.1：`--syntax-only`/`--sem-only` 下没有最终 IR，`--dump-ir`
+  退出 2；`--static-only` 含 CT 与 IR 最终化，正常输出。
 
 ### 5.4 `--trace=<kinds>`
 
@@ -216,11 +230,14 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 {"type":"footer","records":N,"dropped":M,"status":"ok"}
 ```
 
-- `records` 是实际输出记录数，`dropped` 是因 `--trace-limit` 在本次运行中最终未输出的
-  记录数；文本模式在 end 行以 `dropped=<n>` 后缀给出，仅在发生截断时出现。
+- `records` 是实际输出记录数；JSONL footer 的 `dropped` 恒在（`0` 表示未截断），是本次
+  运行因 `--trace-limit` 最终未输出的记录数；文本模式仅在截断时于 end 行追加
+  `dropped=<n>`。
 - `status` 取 `ok`（正常终止）、`trap`（TC trap 终止）、`error`（工具或实现错误）；
   文本模式的 `# tc-trace end <records> <status>` 使用同一词汇；发生截断时为
   `# tc-trace end <records> <status> dropped=<n>`。
+- 只要 sink 仍可写，`error` 也必须写出 footer/end 行后再按 §5.1 的退出码结束；若 sink
+  本身写失败，不输出 footer/end 行，直接按 §5.1 退出 70。
 - `source` 与 §5.10 一致，为 root 模块的归一化路径。
 - 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
 
@@ -232,6 +249,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   按 op 计数；不依赖外部工具链，`--emit=asm` 下同样可用。
 - 输出到 `stderr`（`--stats-out=<path>` 可改）；首行 `# tc-stats 1 <tool> <profile>`，
   字段顺序固定、只增不改义，供脚本解析。
+- 按 op 计数的键为完整打印名（含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀，与 trace
+  的 `op` 一致）；具体字段名以首个 golden 为准，本节只约束语义、顺序与只增不减。
 
 ### 5.6 trap 报告
 
@@ -319,6 +338,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   上下文出现（§6.2 的合成地址）。
 - 顶层 `source` 是 root 模块的归一化路径；多模块程序中条目各自带 `file`，`source`
   不随模块变化。
+- 示例中的折行仅为排版；实际输出为单行紧凑 JSON，golden 按单行逐字节比较。
 
 ### 5.11 输出格式版本策略
 
