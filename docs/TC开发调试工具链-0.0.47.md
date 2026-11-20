@@ -132,7 +132,8 @@
 
 辅助开关随主开关的适用面：`--trace-out`/`--trace-format`/`--trace-limit`/`--trace-paths`
 仅在 `tc-vm` 上有效；`--stats-out` 随 `--stats` 适用于两个工具。主开关被拒时，配套的
-辅助开关同样退出 2。
+辅助开关同样退出 2；辅助开关未伴随对应主开关时（如 `--stats-out` 无 `--stats`、
+`--trace-out` 无 `--trace`）同样退出 2。
 
 ### 5.3 `--dump-ir[=<path>]`
 
