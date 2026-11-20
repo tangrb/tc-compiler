@@ -534,8 +534,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 - AOT 与 VM 共用 §5.10 的行表生成器；同一源程序的 `file:line:col → 指令` 映射一致。
 - VM 可选生成**调试 ELF**（`--gdb-elf-out=<path>`）：只承载符号与行表，地址使用合成代码
-  地址，不含可执行代码。gdb 以 `file <elf>` + `target remote` 获得源级断点时，
-  断点地址与 stub 的合成地址一致。
+  地址，不含可执行代码；函数符号名按 §5.4 的命名约定。gdb 以 `file <elf>` +
+  `target remote` 获得源级断点时，断点地址与 stub 的合成地址一致。
 - 调试 ELF 的机器类型与链接方式（段基址等于 §6.2 的合成基址）在 §8.1 spike 中定案；
   目标文件格式只服务于 gdb 加载符号，不用于执行、反汇编或分发。
 - `--gdb-elf-out` 可与 `--gdb` 同用，也可单独使用（生成 ELF 后正常执行），便于先产出
