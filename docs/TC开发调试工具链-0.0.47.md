@@ -55,7 +55,8 @@
 | 规范文档 | `*-0.0.46.md` | 标准/设计/测试计划 | 保持冻结；本文件是 0.0.47 工具链的唯一范围来源 |
 
 - `tc-vm`/`tc-aot --version` 同时打印两者，例如
-  `tc-vm 0.0.47 (language 0.0.46; reference VM)`。
+  `tc-vm 0.0.47 (language 0.0.46; reference VM)`、
+  `tc-aot 0.0.47 (language 0.0.46; native AOT)`。
 - 契约检查继续断言 `TC_LANGUAGE_VERSION == "0.0.46"` 与 51 个 opcode；工具链版本不参与
   契约检查。
 - 发布审计按"工具链版本 0.0.47、语言版本 0.0.46"分别断言；不得用单一版本号同时代表两者。
@@ -104,6 +105,9 @@
 - `stdout` 只承载被运行程序的输出，以及 `--help`/`--version`。
 - 工具自身输出（IR dump、trace、stats、调试服务信息）一律走 `stderr` 或显式路径；保证
   stdout 字节在有无工具输出时完全一致。
+- 多路输出共用 `stderr` 时按阶段时间序排列：编译期输出（诊断、`--dump-ir`）→ trace
+  记录流（含 footer）→ trap 报告行 → stats；显式 `--trace-out`/`--stats-out` 分流后
+  互不交错，不参与排序。
 - 工具输出必须确定性：默认不含绝对路径、时钟、PID、随机数、宿主地址；地址一律打印为区名
   加区内偏移。`--trace-paths=abs` 可显式关闭 trace（文本与 JSONL）的路径归一化，
   仅用于本地排查。
@@ -111,6 +115,8 @@
   之前一致。
 - **退出码不新增**：沿用 `0`（成功）、`1`（语言诊断或 trap）、`2`（用法错误）、`70`
   （能力/环境不可用）、`71`（内部错误）。工具链故障不得借用语言诊断码表达。
+- 开关取值非法（未知 `--trace` kind、未知 `--diag-format` 值、非法数值等）一律按用法
+  错误退出 2（同 `--profile` 的既有行为），不得静默忽略。
 - 工具不适用的开关必须显式拒绝（退出 2），不得静默忽略；这与"部分能力不得写成已支持"
   的既有原则一致。
 - 输出路径（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`）
@@ -133,9 +139,10 @@
 | `--checked` | ✓ | ✓ | 既有语义，不变 |
 
 辅助开关随主开关的适用面：`--trace-out`/`--trace-format`/`--trace-limit`/`--trace-paths`
-仅在 `tc-vm` 上有效；`--stats-out` 随 `--stats` 适用于两个工具。主开关被拒时，配套的
-辅助开关同样退出 2；辅助开关未伴随对应主开关时（如 `--stats-out` 无 `--stats`、
-`--trace-out` 无 `--trace`）同样退出 2。
+仅在 `tc-vm` 上有效；`--stats-out` 随 `--stats` 适用于两个工具；`--gdb-allow-write`
+随 `--gdb`。主开关被拒时，配套的辅助开关同样退出 2；辅助开关未伴随对应主开关时
+（如 `--stats-out` 无 `--stats`、`--trace-out` 无 `--trace`、`--gdb-allow-write` 无
+`--gdb`）同样退出 2。
 
 #### 5.2.1 与部分检查的组合
 
@@ -189,7 +196,7 @@
 | `span` | 字符串 | `file:line:col`（归一化路径） |
 | `detail` | 对象 | 仅 `call`/`mem`/`io`/`trap`；键名见下表 |
 
-`detail` 的键名固定：
+`detail` 的键名固定（新增键按 §5.11 只增不减，跨版本扩展见 §9）：
 
 | 记录 | `detail` 键 |
 | ---- | ---- |
@@ -317,8 +324,10 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 ### 5.9 路径归一化
 
-- 源路径默认相对 root 模块所在目录与 `--include` 根归一化；无法归一时回退为
-  `<basename>:<line>:<col>` 并标记 `external`。
+- 源路径默认相对 root 模块所在目录与 `--include` 根归一化；无法归一时路径值回退为
+  `<basename>`（span 呈现为 `<basename>:<line>:<col>`），并以行表条目的 `external`
+  字段标记（§5.10）；trace、诊断 JSON 与调试 ELF 不承载该标记，使用同一 basename
+  路径值。
 - `--debug-path-map=<from>=<to>` 可重映射前缀，语义等价于编译器常见的调试前缀映射，
   用于构建机路径与开发机路径不同的场景；重映射在归一化之前应用。
 - `--trace-paths=abs` 作用于 trace 的文本与 JSONL 输出；不影响行表、诊断 JSON 与
@@ -339,6 +348,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 - 条目顺序为 IR 最终化的全序；`func` 使用 §5.4 的函数命名约定；`vm_addr` 仅在 VM
   上下文出现（§6.2 的合成地址）。
+- 路径无法归一（§5.9）的条目带 `"external":true`；正常归一的条目不含该字段。
 - 顶层 `source` 是 root 模块的归一化路径；多模块程序中条目各自带 `file`，`source`
   不随模块变化。
 - 示例中的折行仅为排版；实际输出为单行紧凑 JSON，golden 按单行逐字节比较。
@@ -365,7 +375,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   每步之后重新解析，保持源文件可解析。
 - 被测程序的 `stdin` 由 `--stdin=<path>` 提供；缺省为空输入（立即 EOF）；trap 复现同样适用。
 - 保证：输出行数或字节数严格减少；同输入同输出。
-- `--timeout=<seconds>` 超时视为缩减未收敛：输出当前最佳结果并以退出 1 结束。
+- 退出码按 §5.1：正常收敛退出 0；种子首次运行未触发任何诊断或 trap（无指纹可记）为
+  用法错误，退出 2；`--timeout=<seconds>` 超时视为缩减未收敛：输出当前最佳结果并以
+  退出 1 结束。
 - 非目标：不做语义等价化、不改 include 根、不合成新程序。
 
 ## 6. VM 调试器（GDB RSP）
@@ -409,7 +421,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 中断 | `\x03`（带外字节，不是 `$` 包） | 运行中收到时完成当前指令并停在下一条边界，报告 `T02thread:1;`；未运行时忽略 |
 | 寄存器 | `g`、`p<n>` | `p` 支持；`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc` |
 | 内存 | `m`、`M` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区 |
-| 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略；`c` 命中 TC trap 的停止应答为 `T0bthread:1;` |
+| 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略；执行命中 TC trap 的停止应答为 `T0bthread:1;` |
 | 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个，超出返回 `E01`；`Z1`–`Z4` 返回空 |
 | 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg` | 单一合成线程 `1` |
 | 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义 |
@@ -589,7 +601,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致 | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置 | `toolchain`, `fast` |
-| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、路径归一化 | `toolchain` |
+| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、路径归一化与 external 标记 | `toolchain` |
 | `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`monitor`/退出/重同步 | `toolchain` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
