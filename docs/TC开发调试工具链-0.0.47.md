@@ -113,6 +113,8 @@
   （能力/环境不可用）、`71`（内部错误）。工具链故障不得借用语言诊断码表达。
 - 工具不适用的开关必须显式拒绝（退出 2），不得静默忽略；这与"部分能力不得写成已支持"
   的既有原则一致。
+- 输出路径（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`）
+  无法创建或写入失败视为环境不可用，退出 70；路径参数形式非法退出 2。
 
 ### 5.2 工具开关矩阵
 
@@ -154,8 +156,8 @@
 - `op` 字段承载完整打印名，包含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀；
   `kinds` 只是过滤族，不改变打印名。
 - `--trace-out=<path>`：默认 `stderr`；`--trace-format=text|jsonl`。
-- `--trace-limit=<n>`：最多输出 n 条记录，`0`（默认）表示不限；截断时输出
-  `# tc-trace truncated <n>`（`<n>` 为未输出记录数）后继续执行，不改变程序行为。
+- `--trace-limit=<n>`：最多输出 n 条记录，`0`（默认）表示不限；首次截断时输出不带计数的
+  `# tc-trace truncated` 后继续执行，不改变程序行为。最终丢弃数在流的末尾给出（见本节末）。
 
 记录字段（文本与 JSONL 同名）：
 
@@ -180,7 +182,8 @@
 | `trap` | `code`（`TC_RE_*`） |
 
 `call` 的 `enter` 与 `return` 记录都以调用点指令为位置锚点：`func`/`bb`/`insn`/`span`
-指向调用者的 `call` 指令；`return` 记录另带 `direction:"return"` 与 `callee`。
+指向调用者的 `call` 指令，`depth` 取该调用点处的调用者深度（不是被调函数的深度）；
+`return` 记录另带 `direction:"return"` 与 `callee`。被调函数的深度由随后的 `ir` 记录体现。
 
 函数命名约定（所有工具输出共用：trace、行表、trap 报告、`monitor funcs`/`frames`/`objects`）：
 IR 函数名；顶层单元为 `top`；不同模块存在同名函数时打印为 `<name>#<func_id>`。
@@ -209,13 +212,15 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 ```json
 {"type":"header","format":"tc-trace","version":1,"tool":"tc-vm","profile":"aarch64-linux-user","source":"demo.tc"}
-{"type":"truncated","dropped":N}
-{"type":"footer","records":N,"status":"ok"}
+{"type":"truncated"}
+{"type":"footer","records":N,"dropped":M,"status":"ok"}
 ```
 
-- `dropped` 是因 `--trace-limit` 未输出的记录数；`records` 是实际输出记录数。
+- `records` 是实际输出记录数，`dropped` 是因 `--trace-limit` 在本次运行中最终未输出的
+  记录数；文本模式在 end 行以 `dropped=<n>` 后缀给出，仅在发生截断时出现。
 - `status` 取 `ok`（正常终止）、`trap`（TC trap 终止）、`error`（工具或实现错误）；
-  文本模式的 `# tc-trace end <records> <status>` 使用同一词汇。
+  文本模式的 `# tc-trace end <records> <status>` 使用同一词汇；发生截断时为
+  `# tc-trace end <records> <status> dropped=<n>`。
 - `source` 与 §5.10 一致，为 root 模块的归一化路径。
 - 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
 
@@ -256,8 +261,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   （标准 §12.5.1）。
 - note 行同样输出为 JSON 对象，顺序与文本一致：
   - 相关位置：`{"severity":"note","note":"related position","file":...,"line":...,"col":...}`；
-  - LEX 无效字节：`{"severity":"note","note":"invalid byte offset","offset":N}`（`offset` 为
-    0-based 首个非法字节；与文本的单行 note 对应）。
+  - LEX 无效字节：`{"severity":"note","note":"invalid byte offset","file":...,"line":...,"col":...,"offset":N}`
+    （`offset` 为 0-based 首个非法字节；位置字段与文本 note 行一致）。
 - 一次运行至多一条 `error` 行：标准只报告首个诊断；note 行紧随其后，不构成第二条诊断。
 - 静态诊断与 RT trap 都使用该格式；trap 行另带 §5.6 的追加字段。
 - 文本与 JSON 必须同序、同码、同位置；顺序由标准 §12.2 首诊总序决定，不由输出格式决定。
@@ -319,8 +324,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 | 格式 | 版本标识 | 兼容规则 |
 | ---- | ---- | ---- |
-| trace 文本/JSONL | 首行 `# tc-trace 1` | 版本内只追加字段；改义需升版本 |
-| 诊断 JSON | 每行 `code` 字段稳定 | 版本内只追加字段 |
+| trace 文本 / JSONL | 文本首行 `# tc-trace 1`；JSONL 首对象 `header.version` | 版本内只追加字段；改义需升版本 |
+| 诊断 JSON | `error` 行以 `code`、`note` 行以 `note` 为版本锚 | 版本内只追加字段 |
 | 行表 JSON | `"version":1` | 版本内只追加字段；条目顺序为全序 |
 | 调试 ELF | 无版本字段 | 只承载符号与行表；不承诺向后兼容 |
 | GDB RSP | 协议版本由 `qSupported` 协商 | 子集只增不减；废弃报文先返回空应答再移除 |
