@@ -16,7 +16,9 @@
 
 1. **不改语言**：语言版本、opcode 集合、诊断码集合、零 pass 基线与 ABI 不变。
 2. **不引入非确定性**：同输入同输出，工具输出可做逐字节比较。
-3. **不扩大公共接口**：仍是两个 CLI；内部 API 不安装、不导出。
+3. **不扩大公共接口**：产品交付入口仍是 `tc-vm` 与 `tc-aot` 两个 CLI；`tc-reduce` 是
+   `tests/tools/` 下的开发脚本，不安装、不分发；GDB RSP 是回环本机开发接口，不是
+   产品 API。内部 API 不安装、不导出。
 
 | 目标 | 含义 | 本分支能力 |
 | ---- | ---- | ---- |
@@ -79,8 +81,8 @@
 | ---- | ---- |
 | T0 | `src/base/version.h`（`TC_TOOLCHAIN_VERSION`）、`CMakeLists.txt`、`src/driver/cli.c`（版本输出）、`tests/tools/s10_release_audit.py`（版本断言）、`CHANGELOG*.md` |
 | T1 | `src/driver/cli.[ch]`（新开关）、`src/driver/frontend_driver.c`（执行钩子）、`src/vm/observe.[ch]`（新增）、`src/vm/interp.c`（回调点）、`src/ir/print.[ch]`（复用）、`src/backend/*/emit.c`（静态统计） |
-| T2 | `src/backend/common/linemap.[ch]`（新增，行表与 `.file`/`.loc` 序列化）、`src/backend/{aarch64,arm32,riscv32}/emit.c`（每条 IR 指令前的 `.loc`）、`src/driver/aot_driver.c`（`--debug`/路径映射）、`src/driver/cli.c` |
-| T3 | `src/vm/observe.[ch]`、`src/vm/gdbstub.[ch]`（新增）、`src/vm/vm.h`（调试入口）、`src/driver/tc-vm.c`（`--gdb`）、`tests/conformance/tools/`（协议用例）、`tests/tools/vm_gdb_client.py`（新增） |
+| T2 | `src/debug/linemap.[ch]`（新增，行表与 `.file`/`.loc` 序列化）、`src/backend/{aarch64,arm32,riscv32}/emit.c`（每条 IR 指令前的 `.loc`）、`src/driver/aot_driver.c`（`--debug`/路径映射）、`src/driver/cli.c` |
+| T3 | `src/vm/observe.[ch]`、`src/vm/gdbstub.[ch]`、`src/debug/dbgelf.[ch]`（新增；调试 ELF，§6.8）、`src/vm/vm.h`（调试入口）、`src/driver/tc-vm.c`（`--gdb`）、`tests/conformance/tools/`（协议用例）、`tests/tools/vm_gdb_client.py`（新增） |
 | T4 | `src/diagnostic/diagnostic.[ch]`（JSON 写入）、`src/driver/cli.c`、诊断 golden |
 | T5 | `CMakePresets.json`、`tests/CMakeLists.txt`（标签）、`tests/run.py`、`tests/tools/tc_reduce.py` |
 | T6 | `src/driver/aot_driver.c`（路径归一/编译目录）、`tests/tools/s10_release_audit.py`（工具链产物检查）、确定性套件扩展 |
@@ -90,7 +92,8 @@
 
 ### 4.2 成本与关键路径
 
-- 单人串行约 7–9 周；T5 可与 T1 并行，压缩后约 7 周。
+- 表中区间直接相加为 27–41 人日（约 5.5–8 周）；计入评审、门禁与文档收尾，单人串行
+  按 7–9 周计；T5 可与 T1 并行，压缩后约 7 周。
 - 关键路径：T1 → T2 → T3；T2 的外部工具链（clang/lld/qemu/gdb）是主要不确定源。
 - 估算不含外部工具链版本排障；该部分在 §8.1 的 spike 中先行测量。
 
@@ -102,7 +105,8 @@
 - 工具自身输出（IR dump、trace、stats、调试服务信息）一律走 `stderr` 或显式路径；保证
   stdout 字节在有无工具输出时完全一致。
 - 工具输出必须确定性：默认不含绝对路径、时钟、PID、随机数、宿主地址；地址一律打印为区名
-  加区内偏移。`--trace-paths=abs` 可显式关闭路径归一化，仅用于本地排查。
+  加区内偏移。`--trace-paths=abs` 可显式关闭 trace（文本与 JSONL）的路径归一化，
+  仅用于本地排查。
 - 所有新增开关默认关闭；不带开关时 `tc-vm`/`tc-aot` 的行为、产物字节与退出码与本分支
   之前一致。
 - **退出码不新增**：沿用 `0`（成功）、`1`（语言诊断或 trap）、`2`（用法错误）、`70`
@@ -134,12 +138,14 @@
 
 ### 5.4 `--trace=<kinds>`
 
-- `kinds` 为逗号分隔集合：
+- `kinds` 表示访问/事件族，逗号分隔：
   - `ir`：每条 IR 指令一条记录；
   - `call`：进入/返回，含抽象深度与被调函数；
-  - `mem`：`load`/`store`/`memmove`，含区名、区内偏移、字节数；
+  - `mem`：`load`、`store`（含 `.volatile` 形态）与 `memmove`，含区名、区内偏移、字节数；
   - `io`：`read`/`write` 提交，含字节数与结果；
   - `trap`：trap 详情。
+- `op` 字段承载完整打印名，包含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀；
+  `kinds` 只是过滤族，不改变打印名。
 - `--trace-out=<path>`：默认 `stderr`；`--trace-format=text|jsonl`。
 - `--trace-limit=<n>`：最多输出 n 条记录，`0`（默认）表示不限；截断时输出
   `# tc-trace truncated <n>` 后继续执行，不改变程序行为。
@@ -150,7 +156,7 @@
 | ---- | ---- | ---- |
 | `seq` | 整数 | 从 1 递增，跨 kinds 共用 |
 | `depth` | 整数 | 抽象调用深度 |
-| `func` | 字符串 | 函数名；顶层为 `#program` |
+| `func` | 字符串 | IR 函数名；顶层单元为 `top`（与 IR dump 一致）；不同模块同名时打印为 `<name>#<func_id>` |
 | `bb` | 整数 | 基本块序号 |
 | `insn` | 整数 | 块内指令序号 |
 | `op` | 字符串 | opcode |
@@ -163,16 +169,16 @@
 
 ```
 # tc-trace 1 tc-vm aarch64-linux-user demo.tc
-[0001] depth=1 func=main bb=0 insn=0 op=load.imm span=demo.tc:3:5
-[0002] depth=1 func=main bb=0 insn=1 op=store span=demo.tc:4:5 detail=region:static,offset:0x0,size:8
+[0001] depth=1 func=main bb=0 insn=0 op=copy span=demo.tc:3:5
+[0002] depth=1 func=main bb=0 insn=1 op=load.volatile span=demo.tc:4:5 detail=region:device,offset:0x0,size:4
 # tc-trace end 2 ok
 ```
 
 对应 JSONL：
 
 ```json
-{"seq":1,"depth":1,"func":"main","bb":0,"insn":0,"op":"load.imm","span":"demo.tc:3:5"}
-{"seq":2,"depth":1,"func":"main","bb":0,"insn":1,"op":"store","span":"demo.tc:4:5","detail":{"region":"static","offset":0,"size":8}}
+{"seq":1,"depth":1,"func":"main","bb":0,"insn":0,"op":"copy","span":"demo.tc:3:5"}
+{"seq":2,"depth":1,"func":"main","bb":0,"insn":1,"op":"load.volatile","span":"demo.tc:4:5","detail":{"region":"device","offset":0,"size":4}}
 ```
 
 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
@@ -183,12 +189,14 @@
   分配次数、I/O 字节数；程序终止后输出，trap 终止同样输出并标注首个 `TC_RE_*`。
 - `tc-aot --stats`：静态统计——函数数、IR 指令数、最大帧大小、静态/设备/代码区需求、
   按 op 计数；不依赖外部工具链，`--emit=asm` 下同样可用。
-- 输出到 `stderr`（`--stats-out=<path>` 可改）；字段顺序固定，供脚本解析。
+- 输出到 `stderr`（`--stats-out=<path>` 可改）；首行 `# tc-stats 1 <tool> <profile>`，
+  字段顺序固定、只增不改义，供脚本解析。
 
 ### 5.6 trap 报告
 
 `tc-vm` 在既有 `error[RT]` 报告上补齐：诊断码、`span`、函数名、基本块与指令序号、opcode、
-抽象深度。字段顺序固定，供 golden 与脚本解析；与 `--trace=trap` 的 `detail` 同源。
+抽象深度。字段顺序固定、只增不改义；与 `--trace=trap` 的 `detail` 同源。
+`--diag-format=json` 下 trap 同样输出一行 JSON，`code` 为 `TC_RE_*`。
 
 ### 5.7 诊断机器接口
 
@@ -198,6 +206,7 @@
 {"code":"TC_CE_SYNTAX","severity":"error","message":"...","file":"demo.tc","line":3,"col":5,"length":2}
 ```
 
+- 静态诊断与 RT trap 都使用该格式；trap 行的 `file`/`line`/`col` 取自触发指令的 span。
 - 文本与 JSON 必须同序、同码、同位置；顺序由标准 §12.2 首诊总序决定，不由输出格式决定。
 - 文件名使用 §5.9 的归一化规则；`json` 模式不输出颜色与人类说明文字。
 - 字段只增不减：同一格式版本内新增字段必须追加，删除或改义需提升格式版本。
@@ -205,15 +214,17 @@
 ### 5.8 源级映射（AOT）
 
 - `tc-aot --debug` 生成带调试信息的汇编：为每个源文件发射 `.file` 表，并在每组 IR 指令
-  之前发射 `.loc <file> <line> <col>`；同时保留 `# source: <file>:<line>` 注释行，
-  便于无 DWARF 场景对照。
+  之前发射 `.loc <file> <line> <col>`；同时新增 `# source: <file>:<line>` 注释行（当前
+  后端汇编不含源码注释，`--debug` 下为新增输出；非 `--debug` 时不发射），便于无 DWARF
+  场景对照。
 - 一条 IR 指令 lowering 成多条目标指令时，这些目标指令共享同一个 `.loc`；
   映射粒度是 IR 指令，不是目标指令。
 - 汇编仍经 clang 集成汇编；`--emit=obj|elf` 时保留行表；`--emit=asm` 时 `.loc` 可见。
 - `--emit=flat` 不承载调试段：`--debug` 仍生成带 `.loc` 的中间汇编与行表，最终 flat
   不含调试信息，此为文档化行为而非错误。
-- 覆盖要求：每条 IR 指令至少一条行表条目；同一函数内地址严格递增；行表条目数与
-  `--trace=ir` 的记录数一致（两者都启用时，由同一行表生成器保证）。
+- 覆盖要求：行表覆盖 IR 全序的每条指令；同一函数内地址严格递增。行表是静态集合，
+  `--trace=ir` 是动态执行序列（循环会重复、死代码不出现），两者不比较条目数；验收方式
+  是对 trace 的每条记录按 `(func,bb,insn)` 查行表，断言其 `span` 与记录 `span` 相同。
 - `tc-aot` 非 `--debug` 产物字节必须与 0.0.46 一致；该断言进入差分套件。
 - 验证工具：`llvm-dwarfdump --debug-line` 或 `readelf --debug-dump=decodedline`；
   DWARF 版本随工具链，版本号记录在测试说明中。
@@ -224,8 +235,8 @@
   `<basename>:<line>:<col>` 并标记 `external`。
 - `--debug-path-map=<from>=<to>` 可重映射前缀，语义等价于编译器常见的调试前缀映射，
   用于构建机路径与开发机路径不同的场景；重映射在归一化之前应用。
-- `--trace-paths=abs` 只影响 trace 的人类可读文本，不影响行表与诊断 JSON；四者默认都走
-  归一化路径。
+- `--trace-paths=abs` 作用于 trace 的文本与 JSONL 输出；不影响行表、诊断 JSON 与
+  调试 ELF。四者默认都走归一化路径。
 - 归一化结果进入 trace、诊断 JSON、行表与调试 ELF 四处，必须一致；该一致性由共享行表
   测试覆盖。
 
@@ -251,6 +262,8 @@
 | 行表 JSON | `"version":1` | 版本内只追加字段；条目顺序为全序 |
 | 调试 ELF | 无版本字段 | 只承载符号与行表；不承诺向后兼容 |
 | GDB RSP | 协议版本由 `qSupported` 协商 | 子集只增不减；废弃报文先返回空应答再移除 |
+| `--stats` 文本 | 首行 `# tc-stats 1` | 字段只增不减；字段名与含义稳定 |
+| trap 报告文本 | 沿用诊断文本格式 | 字段顺序固定、只增不改义；不单独版本化 |
 
 ### 5.12 `tc-reduce` 契约
 
@@ -273,6 +286,8 @@
 - 会话信息打印到 `stderr`：`tc-vm: gdbstub on 127.0.0.1:<port>`。
 - 端口被占用或绑定失败：环境不可用，退出 70；`--gdb` 参数非法或对 `tc-aot` 使用：退出 2。
 - 调试器经 TCP 通信，不占用程序 `stdin`；程序仍按标准读取自己的输入，`stdout` 不变。
+- 调试器意外断开或校验和连续三次失败：程序停在当前指令边界，stub 关闭该连接并回到
+  监听；重新连接后 `?` 报告暂停（`T05thread:1;`）。进程不退出。
 - RSP 是开发接口，不属于语言语义，也不进入差分门禁。
 
 ### 6.2 合成代码地址空间
@@ -310,7 +325,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
 - 未列出的报文一律返回空应答；不支持的写操作返回 `E01`，不得静默忽略。
 - 超过 `PacketSize` 的报文按协议丢弃并重新同步，不得崩溃或部分执行。
-- 校验和错误的报文以 `-` 请求重发；同一报文连续三次失败则断开会话，程序不推进。
+- 校验和错误的报文以 `-` 请求重发；同一报文连续三次失败按 §6.1 处理：关闭连接、
+  程序停在当前指令边界并回到监听。
 
 ### 6.4 target.xml 与架构
 
@@ -362,11 +378,13 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `monitor next` | 执行到下一条同深度指令，跨越整个 `call` |
 | `monitor finish` | 运行到当前帧返回（深度减一） |
 | `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span） |
-| `monitor vreg <name>` | 读取 vreg 值（标量与指针按 W 打印） |
+| `monitor vreg [<func>:]<name>` | 读取活动帧的 vreg 值（标量与指针按 W 打印）；省略 `<func>` 时在当前函数内解析，未找到返回 `E01` |
 | `monitor stats` | 与 `--stats` 相同的运行时计数 |
 | `monitor trap` | 最近一次 TC trap 的码、span、指令 |
 | `monitor help` | 命令列表 |
 
+- vreg 只存在于活动帧；跨函数同名必须写全 `monitor vreg <func>:<name>`，不支持读取
+  调用者帧。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
 - 输出为纯文本，行尾 `\n`，不依赖终端宽度；同一状态重复查询结果一致。
 
@@ -378,8 +396,11 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - `c`：运行到断点、TC trap 或程序终止。
 - 跨越调用用 `monitor next`，返回用 `monitor finish`；gdb 的 `next`/`finish` 依赖架构识别
   与栈展开，不作为验收项（§8）。
-- 程序终止后 stub 返回 `W<hex>`；退出状态取档案退出策略（正常或 trap），与无调试器
-  运行完全一致。
+- TC trap 先完成 §12.5.2 的提交语义（trap 生效、已提交的 I/O 不回滚），再停止并报告
+  `T0bthread:1;`；此时程序已进入终止态，`monitor trap` 可读取 trap 详情。
+- 程序终止（自然终止或 trap 终止）后 stub 返回 `W<hex>`；退出状态取档案退出策略，
+  与无调试器运行完全一致。终止态下 `s`/`c` 不执行新指令，直接再回 `W<hex>`；`R`
+  可复位重跑。
 - 调试暂停不产生程序可观察效果：暂停期间不推进、不超时、不提交 I/O。
 - 运行期间新增/删除断点立即生效；命中已删除断点的陈旧地址不得触发停止。
 
@@ -409,8 +430,8 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 ### 6.10 测试策略
 
 - 仓库内提供最小 RSP 客户端（Python，`tests/tools/vm_gdb_client.py`），覆盖：
-  帧与校验和、免应答模式、分块 `qXfer`、断点命中地址、单步计数、跨调用 `next`、
-  返回 `finish`、内存读取、trap 停止码、退出状态、`D` 分离后继续、坏校验和重同步。
+  帧与校验和、免应答模式、分块 `qXfer`、断点命中地址、单步计数、`monitor next` 跨调用、
+  `monitor finish` 返回、内存读取、trap 停止码、退出状态、`D` 分离后继续、坏校验和重同步。
 - 上述协议套件不依赖真实 gdb，进入常规 `ctest`。
 - 真实 gdb 端到端脚本作为可选测试：gdb 不存在时显式跳过并记录原因，不记为通过。
 - LLDB 使用同一 RSP，作为机会性验证，不进入门禁。
@@ -454,7 +475,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致 | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置 | `toolchain`, `fast` |
-| `toolchain.linemap` | 行表唯一性、覆盖每条 IR 指令、路径归一化 | `toolchain` |
+| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、路径归一化 | `toolchain` |
 | `toolchain.debug_invariance` | 非 `--debug` 产物字节与基线一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/断点/单步/内存/退出/重同步 | `toolchain` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
@@ -484,7 +505,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧中断 |
 | 合成地址与语言值域混淆 | 合成区间独立且文档化；调试 ELF 与 trace 均标注为调试视图 |
 | 调试 ELF 的机器类型/链接方式与 gdb 兼容性 | §8.1 spike 先定案；失败时降级为"仅合成地址调试"，不阻塞 T3 |
-| 行表与实际执行不一致（call 原子性、无内联） | 行表以 IR 指令为单位；call 映射到调用点；限制写入文档 |
+| 行表与实际执行不一致（call 原子性、无内联） | 行表以 IR 指令为单位；以 trace 记录逐条比对 span；call 映射到调用点 |
 | 调试写内存破坏不变量 | 默认禁写；仅 `--gdb-allow-write` 开放，并限定区 |
 | 调试信息破坏可复现 | 路径归一化 + 无时间戳 + 固定编译目录；T6 断言两次构建字节一致 |
 | trace 体积过大 | `--trace-limit` 截断并标记；默认关闭 |
