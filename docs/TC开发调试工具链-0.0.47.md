@@ -494,12 +494,12 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `monitor next` | 执行到下一条同深度指令，跨越整个 `call` |
 | `monitor finish` | 运行到当前帧返回（深度减一） |
 | `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span） |
-| `monitor vreg [<func>:]<name>` | 读取活动帧的 vreg 值（标量与指针按 W 打印）；省略 `<func>` 时在当前函数内解析，未找到返回 `E01` |
+| `monitor vreg [<func>:]<序号>` | 读取活动帧的 vreg 值（标量与指针按 W 打印）；`<序号>` 为 vreg 序号的十进制字符串，即 `monitor ir` 显示的 `%N`（IR 操作数不携带源名）；省略 `<func>` 时在当前函数的 vreg 空间内解析，未找到返回 `E01` |
 | `monitor stats` | 与 `--stats` 相同的运行时计数 |
 | `monitor trap` | 最近一次 TC trap 的码、span、指令 |
 | `monitor help` | 命令列表 |
 
-- vreg 只存在于活动帧；跨函数同名必须写全 `monitor vreg <func>:<name>`，不支持读取
+- vreg 只存在于活动帧；跨函数同序号必须写全 `monitor vreg <func>:<序号>`，不支持读取
   调用者帧。
 - 终止态下 `monitor next`/`monitor finish` 与 `s`/`c` 相同，直接回 `W<hex>`，不执行新指令。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
