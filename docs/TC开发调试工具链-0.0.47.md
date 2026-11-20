@@ -123,7 +123,7 @@
 | `--stats[=<path>]` | ✓ 运行时统计 | ✓ 静态统计 | 两者字段不同（§5.5） |
 | `--diag-format=text\|json` | ✓ | ✓ | 诊断输出格式 |
 | `--debug` | 拒绝（2） | ✓ | 目标代码调试信息；VM 用 `--gdb-elf-out` |
-| `--debug-path-map=<from>=<to>` | ✓（trace/诊断） | ✓ | 路径重映射 |
+| `--debug-path-map=<from>=<to>` | ✓ | ✓ | 归一化前缀重映射，作用于 §5.9 的四处消费者（按工具适用面） |
 | `--dump-linemap[=<path>]` | ✓ | ✓ | 共享行表导出（§5.10） |
 | `--gdb[=<port>]` | ✓ | 拒绝（2） | VM 调试会话 |
 | `--gdb-elf-out=<path>` | ✓ | 拒绝（2） | 可选调试 ELF（§6.8） |
@@ -134,7 +134,8 @@
 
 - 复用 `src/ir/print.h` 的确定性文本；默认写 `stderr`。
 - 打印时机：IR 最终化之后、执行/代码生成之前。
-- 与 `--syntax-only`/`--sem-only` 组合时无 IR 可打印，退出码维持部分检查语义。
+- `--syntax-only`/`--sem-only` 下 IR 尚未最终化，无 IR 可打印，退出码维持部分检查语义；
+  `--static-only` 含 CT 与 IR 最终化，`--dump-ir` 正常输出。
 
 ### 5.4 `--trace=<kinds>`
 
@@ -165,7 +166,8 @@
 
 文本格式首行 `# tc-trace 1 <tool> <profile> <source>`，末行
 `# tc-trace end <records> <status>`；`detail` 在文本中为 `key:value` 逗号列表，
-值为十进制或 `0x` 十六进制。示例：
+`detail` 中地址与偏移用 `0x` 十六进制，长度、大小、计数用十进制；顶层字段
+（`seq`/`depth`/`bb`/`insn`）与 JSON 数值统一为十进制。示例：
 
 ```
 # tc-trace 1 tc-vm aarch64-linux-user demo.tc
@@ -183,6 +185,9 @@
 
 确定性：`seq` 单调；`span` 使用归一化路径；同一程序重复执行产生相同字节。
 
+函数命名约定（trace、行表与 `monitor funcs` 共用）：IR 函数名；顶层单元为 `top`；
+不同模块存在同名函数时打印为 `<name>#<func_id>`。
+
 ### 5.5 `--stats`
 
 - `tc-vm --stats`：运行时统计——执行指令总数、按 op 计数、最大抽象深度、五区使用峰值、
@@ -196,7 +201,8 @@
 
 `tc-vm` 在既有 `error[RT]` 报告上补齐：诊断码、`span`、函数名、基本块与指令序号、opcode、
 抽象深度。字段顺序固定、只增不改义；与 `--trace=trap` 的 `detail` 同源。
-`--diag-format=json` 下 trap 同样输出一行 JSON，`code` 为 `TC_RE_*`。
+`--diag-format=json` 下 trap 同样输出一行 JSON，`code` 为 `TC_RE_*`；该行在基础字段之后
+追加 `func`、`bb`、`insn`、`op`、`depth`，追加字段只增不减。
 
 ### 5.7 诊断机器接口
 
@@ -251,7 +257,8 @@
  "entries":[{"func":"main","bb":0,"insn":0,"file":"demo.tc","line":3,"col":5}]}
 ```
 
-- 条目顺序为 IR 最终化的全序；`vm_addr` 仅在 VM 上下文出现（§6.2 的合成地址）。
+- 条目顺序为 IR 最终化的全序；`func` 使用 §5.4 的函数命名约定；`vm_addr` 仅在 VM
+  上下文出现（§6.2 的合成地址）。
 
 ### 5.11 输出格式版本策略
 
@@ -287,7 +294,8 @@
 - 端口被占用或绑定失败：环境不可用，退出 70；`--gdb` 参数非法或对 `tc-aot` 使用：退出 2。
 - 调试器经 TCP 通信，不占用程序 `stdin`；程序仍按标准读取自己的输入，`stdout` 不变。
 - 调试器意外断开或校验和连续三次失败：程序停在当前指令边界，stub 关闭该连接并回到
-  监听；重新连接后 `?` 报告暂停（`T05thread:1;`）。进程不退出。
+  监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hex>`。
+  进程不退出。
 - RSP 是开发接口，不属于语言语义，也不进入差分门禁。
 
 ### 6.2 合成代码地址空间
@@ -311,7 +319,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 类别 | 报文 | 行为 |
 | ---- | ---- | ---- |
 | 握手 | `qSupported`、`QStartNoAckMode` | 报告 `PacketSize=4000;vContSupported+;QStartNoAckMode+;qXfer:features:read+;qXfer:memory-map:read+`；支持免应答模式 |
-| 停止原因 | `?` | `T05thread:1;`（断点/单步），`T0bthread:1;`（TC trap） |
+| 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T0bthread:1;`（TC trap），终止态 `W<hex>` |
 | 寄存器 | `g`、`p<n>` | `p` 支持；`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc` |
 | 内存 | `m`、`M` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区 |
 | 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略 |
@@ -372,7 +380,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 命令 | 内容 |
 | ---- | ---- |
 | `monitor regions` | 五区基址/长度/当前使用量 |
-| `monitor funcs` | 函数表：`funcaddr` 值、名称、指令区间、合成地址范围 |
+| `monitor funcs` | 函数表：`funcaddr` 值、名称（按 §5.4 约定）、指令区间、合成地址范围 |
 | `monitor objects` | 对象表：对象 id、区、偏移、大小、生命期状态 |
 | `monitor frames` | 抽象帧栈：深度、函数、指令序号、源码位置 |
 | `monitor next` | 执行到下一条同深度指令，跨越整个 `call` |
@@ -494,7 +502,8 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 - 新增测试项全部进入 `ctest`；`fast` 子集在两分钟内通过。
 - 双版本模型生效：`--version` 打印工具链 0.0.47 与语言 0.0.46；契约检查仍断言 51 opcode。
 - 可复现：连续两次 `--debug` 构建的 ELF 字节一致，连续两次 flat 构建字节一致。
-- 文档同步：本文件、`docs/README.md`、`AGENTS.md` 导航、`tests/README.md`、`CHANGELOG`。
+- 文档同步：本文件、`docs/README.md`、`AGENTS.md` 导航、`tests/README.md`、`src/README.md`
+  （新增 `src/debug/` 模块边界）、`CHANGELOG`。
 
 ## 8. 风险与限制
 
