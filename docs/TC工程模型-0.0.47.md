@@ -207,7 +207,8 @@ next: tc --test
 - 每个测试独立执行：全新的 frontend/IR/VM 状态；cwd = 工程根；profile = manifest 的
   `profile`；不调用 AOT/clang/lld。
 - `tc` 直接复用私有 core 的加载与 `tc_vm_run`，不 exec `tc-vm`；不导出公共 API。
-- 单测试超时 30 秒；超时计为失败（退出 1），不挂死。
+- 默认不设 wall-clock 超时；`tc --test --test-timeout=<seconds>` 可选设置单测试超时
+  （正整数秒），超时计为失败（退出 1）。默认由调用者/CI 的作业超时兜底；`0` 表示不限。
 - 实际输出与期望逐字节比较；失败时打印测试名、stdout 差异、trap/exit 差异；全部路径
   root 相对，不含绝对路径。
 - 不生成 build 产物；不向 `tests/` 写文件。
@@ -229,12 +230,13 @@ FAIL tests/exit: trap expected TC_RE_DIV_ZERO, got none
 
 ```sh
 tc --init-project project_name
-tc --test [test_name...]
+tc --test [--test-timeout=<seconds>] [test_name...]
 tc --help
 tc --version
 ```
 
-- `tc` 不编译、不运行 entry；编译仍由 `tc-vm`/`tc-aot` 完成。
+- `tc` 不编译、不运行 entry；编译仍由 `tc-vm`/`tc-aot` 完成。`--test-timeout` 只属于
+  `--test`；未给出时不设单测试超时。
 - `--init-project` 与 `--test` 不能同时出现；未知参数/多余参数 → 2。
 - 未来 `--build`/`--run` 若加入，复用 `entry`/`profile`；0.0.47 不实现。
 
@@ -280,7 +282,8 @@ tc --version
 - 从工程根、子目录、工程外调用 `tc-vm`/`tc-aot`，诊断/trap/IR/trace/linemap 路径一致且
   根相对；无 `/Users/`、`/home/`、`/private/` 等绝对路径。
 - 两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；代码/ABI 语义不变。
-- `tc --test`：stdout/stdin 精确字节、trap/exit 侧车、失败报告、过滤、无测试、超时。
+- `tc --test`：stdout/stdin 精确字节、trap/exit 侧车、失败报告、过滤、无测试、
+  以及显式 `--test-timeout` 的超时失败。
 - gdb 从工程根按源码行断点；调试 ELF 的 `.file` 根相对。
 - `tc --version`、三入口 release audit、AGENTS/README/docs map 同步。
 
@@ -296,6 +299,7 @@ tc --version
 | 测试侧车是二进制 | init 生成 `.gitattributes`（`*.bin -text`）；仓库同样标注；文档提示 |
 | `tc` 复用私有 core 造成重复驱动逻辑 | 抽出私有 `run_source` 辅助，`tc` 与 `tc-vm` 共用；不导出 API |
 | 侧车/工程目录写入失败 | init 回滚本次新建；test 不写源目录 |
+| 测试程序不终止 | 默认无 wall-clock 超时；CI 用作业超时或 `--test-timeout` 兜底；不把固定时长写成契约 |
 | 嵌套工程/多 manifest 歧义 | 最近祖先规则；不允许"跳过最近 manifest" |
 | 删除 legacy 绝对路径模式 | 0.0.47 清洁设计；旧脚本按新路径契约迁移 |
 

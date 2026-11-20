@@ -682,7 +682,8 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
 
 - 标签集合固定为 `unit`、`conformance`、`toolchain`、`aot`、`slow`、`fast`；每个测试至少
-  一个标签，`fast` 子集目标两分钟内完成（CI 参考机器；不作为语义承诺）。
+  一个标签。`fast` 表示不依赖外部工具链（gdb、qemu、clang、lld）且不含 scale/longterm/
+  slow 的测试集合，用于预提交；不以固定时长为契约。
 - 可选外部依赖（gdb、qemu、clang、lld）缺失时按既有策略：配置期失败或测试显式跳过，
   不得静默通过。
 
@@ -690,7 +691,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 
 - T0–T6 与工程模型 P0–P5 全部完成，G11 PASS，`docs/gates/README.md` 更新。
 - 既有门禁零回归：`ctest` 全量、golden、确定性、`docs.cleanup`、发布审计。
-- 新增测试项全部进入 `ctest`；`fast` 子集在 CI 参考机器上两分钟内通过（不作为语义承诺）。
+- 新增测试项全部进入 `ctest`；`fast` 子集在 CI 上通过；不以固定时长为契约。
 - 三入口模型生效：`tc`/`tc-vm`/`tc-aot --version` 打印工具链 0.0.47 与语言 0.0.46；
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
