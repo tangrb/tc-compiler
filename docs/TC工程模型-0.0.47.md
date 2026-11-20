@@ -47,7 +47,8 @@
 │       ├── trap             # 期望 "TC_RE_*"
 │       └── exit             # 期望退出码（十进制文本）
 ├── build/                   # 生成物；.gitignore 忽略
-└── .gitignore
+├── .gitignore
+└── .gitattributes           # *.bin 标记为二进制，避免换行转换
 ```
 
 约定：
@@ -156,7 +157,8 @@ tc --init-project project_name
   - `src/main.tc`：最小合法 `#program` 模板（`_ = writeln int32, 1`）；
   - `tests/smoke/main.tc` 与 `tests/smoke/stdout.bin`：与模板一致的 smoke 测试
     （stdout 字节为 `31 0a`，即 `1\n`）；
-  - `.gitignore`：`build/`。
+  - `.gitignore`：`build/`；
+  - `.gitattributes`：`*.bin -text`（测试侧车是精确字节）。
 - 不创建 `build/`，不调用编译器，不写任何绝对路径。
 - 输出：stdout 打印 `created`/`skipped` 的**相对路径**，最后打印 `next: tc --test`；不含
   cwd 绝对路径。
@@ -174,6 +176,7 @@ created src/main.tc
 created tests/smoke/main.tc
 created tests/smoke/stdout.bin
 created .gitignore
+created .gitattributes
 next: tc --test
 ```
 
@@ -270,7 +273,8 @@ tc --version
 
 ### 9.2 验收
 
-- `tc --init-project` 在临时目录生成完整工程；生成文件无绝对路径；smoke 通过 `tc --test`。
+- `tc --init-project` 在临时目录生成完整工程；生成文件无绝对路径；`.gitattributes` 覆盖
+  `*.bin`；smoke 通过 `tc --test`。
 - 已有 `tc.project`、非法名称、非空目录、已有文件、symlink、权限失败均有确定行为。
 - manifest 的版本/未知键/重复键/绝对路径/非法 profile 全部退出 2；include 顺序确定。
 - 从工程根、子目录、工程外调用 `tc-vm`/`tc-aot`，诊断/trap/IR/trace/linemap 路径一致且
@@ -289,7 +293,7 @@ tc --version
 | gdb 从非工程根启动找不到源 | 文档要求从根启动或设置 `directory`；T2/T6 验证 |
 | AOT `.asciz` 改变产物字节 | 0.0.47 不承诺与 0.0.46 路径字节一致；代码/ABI 不变；跨根一致为验收 |
 | 外部 clang/lld 诊断含绝对路径 | 属于外部工具输出，不纳入 TC 路径契约 |
-| 测试侧车是二进制 | 仓库 `.gitattributes` 标注 `*.bin -text`；文档提示 |
+| 测试侧车是二进制 | init 生成 `.gitattributes`（`*.bin -text`）；仓库同样标注；文档提示 |
 | `tc` 复用私有 core 造成重复驱动逻辑 | 抽出私有 `run_source` 辅助，`tc` 与 `tc-vm` 共用；不导出 API |
 | 侧车/工程目录写入失败 | init 回滚本次新建；test 不写源目录 |
 | 嵌套工程/多 manifest 歧义 | 最近祖先规则；不允许"跳过最近 manifest" |
