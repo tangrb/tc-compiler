@@ -435,7 +435,7 @@ tc --version
 | ---- | ---- | ---- |
 | `tc` CLI：init/version/help/退出码、`--test-timeout` 取值、操作顺序、操作前 `--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
 | manifest：语法、引号内 `#`、空值、CRLF、默认值、大小上限 4 MiB、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
-| 工程测试 runner：发现与 symlink、侧车缺失/不可用/格式、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
+| 工程测试 runner：发现与根内 symlink、根外 2、侧车缺失/不可用/格式、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
 | 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、root/import 非普通文件 70、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
 | AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
 | 跨根可复现 asm/ELF/flat | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
