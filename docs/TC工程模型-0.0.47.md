@@ -237,7 +237,7 @@ tc --init-project [--] project_name
 - 不创建 `build/`，不调用编译器，不写任何绝对路径。
 - 输出：先打印 `initialized project "<name>"`，再按固定目标顺序打印 `created`/`skipped` 的
   **相对路径**，最后打印 `next: tc --test`；不含 cwd 绝对路径。
-- 退出码：0 成功（含 skipped）；2 已有工程/名称非法；70 IO/环境；71 内部。
+- 退出码：0 成功（含 skipped）；2 已有工程/名称非法/`tests` 非真实目录；70 IO/环境；71 内部。
 - 写入失败：删除本次新建的文件及本次新建的空目录，保留原有文件/目录，退出 70。
 - cwd 为 symlink：canonical 化后写目标目录。
 
