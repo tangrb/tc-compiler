@@ -415,8 +415,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - `.loc` 的 `column` 直接取 §5.9 显示 span 的 1-based Unicode 标量计数，不做字节列
   转换；gdb 的列显示按该数值，行表验收以 `line` 为准、`column` 只作提示。
 - `.file` 与 `.asciz` 路径按汇编字符串规则转义（引号/反斜杠）；`# source:` 注释使用同一
-  根相对路径值，不含换行（路径含 LF/CR 在 §5.9 已被拒绝）。`--keep-temps` 保留的中间
-  `.s` 遵循同一规则：`--debug` 时含 `.file`/`.loc`，否则不含。
+  根相对路径值，不含换行（路径含 Cc/Cf/Zl/Zp 在 §5.9 已被拒绝）。`--keep-temps` 保留的
+  中间 `.s` 遵循同一规则：`--debug` 时含 `.file`/`.loc`，否则不含。
 - 一条 IR 指令 lowering 成多条目标指令时，这些目标指令共享同一个 `.loc`；
   映射粒度是 IR 指令，不是目标指令。
 - 汇编仍经 clang 集成汇编；`--emit=obj|elf` 时保留行表；`--emit=asm` 时 `.loc` 可见。
@@ -462,10 +462,10 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   编译内永不复用或重排，分配后诊断、linemap、trace 使用同一编号。`<basename>` 取 canonical
   路径最后一段；不同编译模式因已发现文件集不同，编号可以不同。回退项同样标
   `"external":true`，部分检查模式同样适用。不存在绝对路径输出模式。
-- 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 LF/CR。失败时按来源
-  退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按工程模型 §5/§6.1 为 2；仅由
-  文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与汇编字符串依赖该
-  约束；引号与反斜杠仍按各格式规则转义。
+- 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 Unicode Cc/Cf/Zl/Zp。
+  失败时按来源退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按工程模型 §5/§6.1
+  为 2；仅由文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与汇编字符串
+  依赖该约束；引号与反斜杠仍按各格式规则转义。
 - import 名是 ASCII 标识符（标准 §2.3、§4.11.2），其路径组件只有 `<ident>.tc`；本规则
   的“用户提供路径”只覆盖 CLI 参数与 manifest 值，include 根与导入者目录链按各自的来源
   （CLI/manifest 或文件系统发现）处理。
@@ -866,7 +866,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `tc.manifest` | `tc.project` 语法、默认值、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 symlink、侧车缺失/不可用/格式、trap/exit、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
-| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap 与 AOT 汇编字符串根相对、无绝对路径、external；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap 与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径 | `toolchain`, `aot` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden，两个工具一致 | `toolchain`, `fast` |
@@ -903,7 +903,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
 - 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径；路径组件
-  为合法 UTF-8 且不含 LF/CR；回退 `<basename>#<n>` 在同一编译内稳定。
+  为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；回退 `<basename>#<n>` 在同一编译内稳定。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
   多模块 import 保留、候选名避开闭包 import（含未解析 import 名）；超时与候选中 70/71
   按 §5.12 输出当前最佳（种子 70/71 或无法启动不输出；种子超时输出输入）。
@@ -918,7 +918,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | ---- | ---- |
 | gdb 版本差异（ack 模式、`vCont`、`qXfer` 分块、自定义寄存器集） | 以最小子集实现；协议套件自测；§8.1 spike 给出兼容矩阵 |
 | gdb 把 `T0b` 显示为 SIGSEGV | 有意选择；§8.1 spike 验证 `?`/`c` 与退出状态；终止态仍由 `?` 报 `W<hh>`；必要时降级 `T05` + `monitor trap` |
-| 路径含换行/非 UTF-8 破坏文本或 JSON | §5.9 路径组件校验；CLI/manifest 与名称违反 2，其它发现路径违反 70 |
+| 路径含控制/格式字符或非 UTF-8 破坏文本或 JSON | §5.9 路径组件校验；CLI/manifest 与名称违反 2，其它发现路径违反 70 |
 | `tc --test` 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；失败详情截断并标记；临时文件统一清理 |
 | `tc --test` 侧车/`main.tc` 是 symlink/FIFO | 只读路径跟随 symlink；解析后必须是普通文件；不可用/读取失败 70 |
 | gdb 的 `next`/`finish` 依赖架构与栈展开 | 不作为验收项；以 `monitor next`/`monitor finish` 提供等价能力 |

@@ -159,10 +159,10 @@ profile = "aarch64-linux-user"
   固定，后续诊断、linemap、trace 不会改变它。`<basename>` 是 canonical 路径的最后一个
   组件；不同编译模式因已发现文件集不同，编号可以不同，但书写规则一致。回退项同样标
   `"external":true`。部分检查模式同样适用，不依赖最终 IR 是否生成。
-- 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 LF/CR。失败时按来源
-  退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按 §5/§6.1 的名称规则 → 2；
-  仅由文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与汇编字符串依赖
-  该约束；引号与反斜杠仍按各格式规则转义。
+- 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 Unicode Cc/Cf/Zl/Zp。
+  失败时按来源退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按 §5/§6.1 的
+  名称规则 → 2；仅由文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与
+  汇编字符串依赖该约束；引号与反斜杠仍按各格式规则转义。
 - import 名是 ASCII 标识符（标准 §2.3、§4.11.2），其路径组件只有 `<ident>.tc`；本规则
   的“用户提供路径”只覆盖 CLI 参数与 manifest 值，include 根与导入者目录链按各自的来源
   （CLI/manifest 或文件系统发现）处理。
@@ -423,7 +423,7 @@ tc --version
 | `tc` CLI：init/version/help/退出码、`--test-timeout` 取值、操作顺序、操作前 `--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
 | manifest：语法、引号内 `#`、空值、CRLF、默认值、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
 | 工程测试 runner：发现与 symlink、侧车缺失/不可用/格式、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
-| 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
+| 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
 | AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
 | 跨根可复现 asm/ELF/flat | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
 | 三入口/release audit | `tests/tools/s10_release_audit.py`、`tests/tools/cli_contract_test.py` | `toolchain` |
@@ -451,8 +451,8 @@ tc --version
   `--static-only`、缺失源文件与 impl/IO 错误同样不泄露绝对源路径；侧车/`tests` 布局错误
   路径也 root 相对；源读取/宿主 IO 为 70，实现内部/上限为 71，且 `tc`/`tc-vm` 一致。
   回退 `<basename>#<n>` 在同一编译内稳定（诊断与 linemap/trace 一致），不同编译模式可
-  不同；路径含非 UTF-8 或 LF/CR 时 CLI/manifest 为 2、缺省工程名/测试目录名按名称规则
-  为 2、其它发现路径为 70。
+  不同；路径含非 UTF-8 或 Cc/Cf/Zl/Zp 时 CLI/manifest 为 2、缺省工程名/测试目录名按
+  名称规则为 2、其它发现路径为 70。
 - 两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；代码/ABI 语义不变。
 - `tc --test`：stdout/stdin 精确字节、trap/exit 侧车、失败报告、过滤、无测试；测试目录
   作为 include 根先于 manifest 的 include，worker 不继承终端 stdin；stderr 不参与判定、
@@ -488,7 +488,7 @@ tc --version
 | `tests` 布局异常或测试名不可打印 | `tests` 非目录、测试名含 Cc/Cf/Zl/Zp 或非法 UTF-8 退出 2；不生成歧义报告 |
 | 最近 `tc.project` 损坏或不可读 | 以目录项存在为准，最近锚点不跳过；70/2 退出，不回退外层工程 |
 | 回退编号跨阶段漂移 | 首次进入显示路径时分配，同一编译内永不复用/重排；不同模式允许不同 |
-| 路径含换行/非 UTF-8 破坏文本或 JSON | 路径组件校验：CLI/manifest 与名称违反 2，其它发现路径违反 70 |
+| 路径含控制/格式字符或非 UTF-8 破坏文本或 JSON | 路径组件校验：CLI/manifest 与名称违反 2，其它发现路径违反 70 |
 | 测试侧车或 `main.tc` 是 symlink/FIFO | 只读路径跟随 symlink；解析后必须是普通文件，不可用/读取失败 70 |
 | 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；失败详情截断并标记 |
 | gdb 从非工程根启动找不到源 | 文档要求从根启动或设置 `directory`；T2/T6 验证 |
