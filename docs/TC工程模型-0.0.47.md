@@ -257,10 +257,11 @@ next: tc --test
 - 仅发现 `tests/*/main.tc`（一层）。`tc --test` 只读，发现与读取路径可跟随根内 symlink；
   这与 `--init-project` 的写路径"不跟随、不写穿"规则不同，二者按各自语义执行。测试输入
   （`tests`、`tests/<name>`、`main.tc`、全部侧车）canonical 化后必须位于 canonical 工程根
-  内；越界 symlink 按布局错误退出 2，不读取目标，不执行测试；报告只使用根内入口路径，
-  不打印外部目标绝对路径。`tests` 的 `lstat` 返回 ENOENT/ENOTDIR → 无测试目录；返回其它
-  错误 → 退出 70；条目存在但不能解析为目录（dangling symlink、普通文件等）或解析到根外
-  → 退出 2；目录枚举失败 → 退出 70。
+  内；越界 symlink 按布局错误退出 2，不读取目标；对应测试不执行（发现阶段越界则整体
+  不执行）；报告只使用根内入口路径，不打印外部目标绝对路径。外部 fixture 必须复制或
+  链接到工程根内；0.0.47 不提供越界读取开关。`tests` 的 `lstat` 返回 ENOENT/ENOTDIR →
+  无测试目录；返回其它错误 → 退出 70；条目存在但不能解析为目录（dangling symlink、
+  普通文件等）或解析到根外 → 退出 2；目录枚举失败 → 退出 70。
 - `tests/<name>/main.tc` 的 `lstat` 返回 ENOENT/ENOTDIR → 非测试目录；返回其它错误 →
   退出 70；存在即视为测试目录（名字取入口目录名）。测试目录或 `main.tc` 的 canonical
   目标在根外 → 退出 2；根内 `main.tc` 必须是可读普通文件，`stat` 失败、dangling symlink、
