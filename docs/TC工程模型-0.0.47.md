@@ -94,6 +94,7 @@ profile = "aarch64-linux-user"
   但必须用引号写作字符串。空文件或只有注释/空行的文件按缺少 `tc-project` 退出 2。
 - `tc.project` 解析后必须是普通文件；目录、FIFO、设备或 dangling symlink → 70，不打开
   可能阻塞的非普通文件。
+- `tc.project` 单文件大小上限 4 MiB；超过按文档化实现上限退出 71，不整体读入内存。
 - manifest 读取/IO 错误 → 70；解析、字段或路径错误 → 2。编译器与 `tc --test` 使用同一
   映射，不把无效 manifest 静默当作缺省配置。
 
@@ -424,7 +425,7 @@ tc --version
 | 内容 | 位置 | 标签 |
 | ---- | ---- | ---- |
 | `tc` CLI：init/version/help/退出码、`--test-timeout` 取值、操作顺序、操作前 `--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
-| manifest：语法、引号内 `#`、空值、CRLF、默认值、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
+| manifest：语法、引号内 `#`、空值、CRLF、默认值、大小上限 4 MiB、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
 | 工程测试 runner：发现与 symlink、侧车缺失/不可用/格式、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
 | 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
 | AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
@@ -443,9 +444,10 @@ tc --version
 - `tc` 的操作必须是第一个参数；`tc -- --init-project x`、`tc --test-timeout=5 --test`
   退出 2；`tc --test -- --foo` 把 `--foo` 当测试名，未知时退出 2。
 - manifest 的版本/未知键/重复键/空值/绝对路径/非法转义/非法 profile/非法缺省名称全部
-  退出 2；读取/IO 错误退出 70；include 顺序与基准确定（manifest 根相对、CLI cwd 相对），
-  import 仍先查导入者目录；引号内 `#`、引号外注释与 LF/CRLF 行尾按 §3.1 解析；版本只有
-  `1` 合法（`01`/`+1` 为 2），最后一行可无行尾；空文件/仅注释为 2。
+  退出 2；读取/IO 错误退出 70、超过 4 MiB 退出 71；include 顺序与基准确定
+  （manifest 根相对、CLI cwd 相对），import 仍先查导入者目录；引号内 `#`、引号外注释与
+  LF/CRLF 行尾按 §3.1 解析；版本只有 `1` 合法（`01`/`+1` 为 2），最后一行可无行尾；
+  空文件/仅注释为 2。
 - 最近 `tc.project` 为目录/dangling/不可读时退出 70，不跳过继续向外；`tc.project` 为
   symlink 时工程根为其所在目录；`tc.project` 为 FIFO/设备时退出 70。
 - manifest `profile = "w32"` 在 `tc-vm`/`tc --test` 可用；在 `tc-aot` 退出 70 且不生成产物。
@@ -486,6 +488,7 @@ tc --version
 | 已有 `.gitattributes`/`.gitignore` 缺少规则 | init 不修改已有文件；工程需自行保留 `*.bin -text` 与 `build/` 忽略；新建文件场景由验收覆盖 |
 | 根外 include 显示 `../` | 外部文件在行表标 `external:true`；不同卷回退 `#<n>` |
 | manifest 的注释/空值/换行歧义 | §3.1 固定引号内 `#`、空值非法、LF/CRLF；测试覆盖 |
+| manifest 无界读取 | §3.1 单文件 4 MiB 上限，超限 71 |
 | `profile` 与工具不兼容 | `w32` 仅 VM；`tc-aot` 退出 70，不回退 |
 | 侧车格式错误被误报为测试失败 | 父进程在 fork 前校验；格式错误退出 2，停止后续测试 |
 | `tests` 布局异常或测试名不可打印 | `tests` 非目录、测试名含 Cc/Cf/Zl/Zp 或非法 UTF-8 退出 2；不生成歧义报告 |
