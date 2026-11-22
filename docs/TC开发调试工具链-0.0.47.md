@@ -126,7 +126,8 @@
 ### 5.1 输出通道与退出码
 
 - `stdout` 承载：`tc-vm` 的被运行程序输出；`tc-aot` 默认 `--emit=asm` 且未给
-  `--output` 时的目标汇编；`tc` 的 init/test 报告；以及 `--help`/`--version`。
+  `--output` 时的目标汇编；`tc` 的 init/test 报告；`tc-reduce` 未给 `--output` 时的最终
+  最佳源（§5.12）；以及 `--help`/`--version`。
   所有新增编译器工具输出（IR dump、trace、stats、诊断、调试服务信息）一律走 `stderr`
   或显式路径；`tc-vm` 的 stdout 字节与 `tc-aot` 的汇编字节不受这些工具输出影响。
   `tc` 的输出不属于编译器 stderr 排序流，格式见工程模型文档 §5–§6。
@@ -163,6 +164,10 @@
   非超时的 worker 异常终止或结果协议损坏退出 71。timeout 报告不含实际耗时、PID 或临时路径。
 - 开关取值非法（未知 `--trace` kind、未知 `--diag-format` 值、非法数值等）一律按用法
   错误退出 2（同 `--profile` 的既有行为），不得静默忽略。
+- 无符号十进制参数（`--test-timeout`、`--trace-limit`、`--gdb=<port>`、`tc-reduce
+  --timeout` 等）只接受 ASCII 数字，至少一位，不接收符号、空格或小数；先按 uint64
+  解析，超过 `UINT64_MAX` 为溢出并退出 2；各开关再校验自己的值域（如端口 0–65535）。
+  由秒换算的 deadline 饱和到可表示上限，不因乘法溢出提前到期。
 - 本文件新增的可带值开关（`--trace`、`--trace-format`、`--trace-out`、`--trace-limit`、
   `--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb`、`--gdb-elf-out`、`--diag-format`）
   重复出现 → 2；`--include` 仍是唯一可重复的路径开关。无值开关（`--stats`、`--debug`、
@@ -172,6 +177,7 @@
 - 输出路径（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`、
   `--output`）无法创建或写入失败视为环境不可用，退出 70；路径参数形式非法退出 2；
   多个输出开关指向同一路径同样退出 2。
+- `tc-reduce --output` 的结果文件写入失败同样 70；其形式/重复规则见 §5.12。
 
 ### 5.2 工具开关矩阵
 
@@ -408,9 +414,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   新增输出；非 `--debug` 时不发射），便于无 DWARF 场景对照。路径按 §5.9 根相对。
 - `.loc` 的 `column` 直接取 §5.9 显示 span 的 1-based Unicode 标量计数，不做字节列
   转换；gdb 的列显示按该数值，行表验收以 `line` 为准、`column` 只作提示。
-- `.file` 路径按汇编字符串规则转义（引号/反斜杠）；`# source:` 注释使用同一根相对路径值，
-  不含换行。`--keep-temps` 保留的中间 `.s` 遵循同一规则：`--debug` 时含 `.file`/`.loc`，
-  否则不含。
+- `.file` 与 `.asciz` 路径按汇编字符串规则转义（引号/反斜杠）；`# source:` 注释使用同一
+  根相对路径值，不含换行（路径含 LF/CR 在 §5.9 已被拒绝）。`--keep-temps` 保留的中间
+  `.s` 遵循同一规则：`--debug` 时含 `.file`/`.loc`，否则不含。
 - 一条 IR 指令 lowering 成多条目标指令时，这些目标指令共享同一个 `.loc`；
   映射粒度是 IR 指令，不是目标指令。
 - 汇编仍经 clang 集成汇编；`--emit=obj|elf` 时保留行表；`--emit=asm` 时 `.loc` 可见。
@@ -427,9 +433,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   绝对构建目录；gdb 从工程根启动，按根相对路径找源码。
 - 行表与 trace 要求每条指令的 `span.file` 非空且已根相对化；驱动层的 `<source>` 只是
   诊断打印的防御回退，行表生成遇到空 `file` 视为实现错误（退出 71）。
-- AOT 产物内的源文件路径字符串（`.asciz`）使用 §5.9 显示路径；代码段、数据语义与 ABI
-  不变；两个不同根目录构建同一工程时 asm/ELF/flat 必须逐字节一致。0.0.47 不承诺与
-  0.0.46 的绝对路径产物字节一致。
+- AOT 产物内的源文件路径字符串（`.asciz`）使用 §5.9 显示路径并按汇编字符串规则转义；
+  代码段、数据语义与 ABI 不变；两个不同根目录构建同一工程时 asm/ELF/flat 必须逐字节一致。
+  0.0.47 不承诺与 0.0.46 的绝对路径产物字节一致。
 - 验证工具：`llvm-dwarfdump --debug-line` 或 `readelf --debug-dump=decodedline`；
   DWARF 版本随工具链，版本号记录在测试说明中。
 - qemu gdbstub 冒烟：以 `qemu-system-* -s -S` 加载 AOT ELF，gdb 连接后按源码行下断点
@@ -438,23 +444,37 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 ### 5.9 工程根与路径
 
 - 根、manifest、布局、`tc` 工具与测试约定见 [TC 工程模型 0.0.47](TC工程模型-0.0.47.md)。
-- 编译器从 root 模块 canonical 路径向上找最近的 `tc.project`；根 = manifest canonical 路径
-  所在目录；找不到 manifest 时根 = root 模块所在目录。root 模块不存在时，用其父目录的
-  canonical 路径（父目录也不存在时，取最近存在祖先的 canonical 路径并拼接剩余组件）作为
-  根发现起点；该情况仍按源读取错误退出 70。`tc --test` 的 cwd 先 canonical 化，再向上找
-  manifest。
+- 编译器从 root 模块 canonical 路径所在目录开始向上逐级搜索 `tc.project`。搜索以目录项
+  存在为准：`lstat` 返回 ENOENT/ENOTDIR 时继续向上；返回其它错误（如 EACCES/ELOOP/EIO）
+  → 70。存在 `tc.project` 条目的最近目录即工程根；读取/解析失败按 70/2 退出，不跳过它
+  继续向外层工程回退。工程根 = 包含该目录项的目录的 canonical 路径；`tc.project` 是 symlink
+  时只跟随其内容，不改变工程根。`tc.project` 解析后必须是普通文件（拒绝目录、FIFO、
+  设备等），否则 70。找不到 manifest 时根 = root 模块所在目录；root 模块不存在时用其父
+  目录的 canonical 路径（父目录也不存在时，取最近存在祖先的 canonical 路径并拼接剩余
+  组件）作为根发现起点，该情况仍按源读取错误退出 70。`tc --test` 的 cwd 先 canonical 化，
+  再按同一规则向上找 manifest；无 manifest → 2。
 - 内部 canonical 路径用于模块实例键、去重、import 解析与显示路径求相对；显示路径以
   canonical 工程根为基准对 canonical 文件目标求相对；源文件不存在时用最近存在祖先的
   canonical 路径拼接剩余词法组件；所有输出使用工程根相对显示路径，symlink 书写形式不进入
   显示。
 - 根外文件用 `../…` 相对路径，并在行表标 `"external":true`；不同卷/不可表示回退
-  `<basename>#<n>`，编号按已知源文件 canonical 路径字节序确定，回退项同样标
+  `<basename>#<n>`。回退编号只对需要回退的文件分配：首次进入显示路径时从 1 递增，同一
+  编译内永不复用或重排，分配后诊断、linemap、trace 使用同一编号。`<basename>` 取 canonical
+  路径最后一段；不同编译模式因已发现文件集不同，编号可以不同。回退项同样标
   `"external":true`，部分检查模式同样适用。不存在绝对路径输出模式。
+- 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 LF/CR。失败时按来源
+  退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按工程模型 §5/§6.1 为 2；仅由
+  文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与汇编字符串依赖该
+  约束；引号与反斜杠仍按各格式规则转义。
+- import 名是 ASCII 标识符（标准 §2.3、§4.11.2），其路径组件只有 `<ident>.tc`；本规则
+  的“用户提供路径”只覆盖 CLI 参数与 manifest 值，include 根与导入者目录链按各自的来源
+  （CLI/manifest 或文件系统发现）处理。
 - 路径消费者：文本诊断、诊断 JSON、实现/IO 错误源路径、trap 文本/JSON、`--dump-ir` 的
   `modules:`、trace `span`/header、linemap、调试 ELF、AOT `.file`/`.loc`/`# source:`/`.asciz`、
   板端 trap、`monitor`、`tc --test` 失败诊断/侧车与布局错误路径、`tc --init-project`
-  输出/错误；所有编译模式（含部分检查）同一路径必须一致。`tc --test` 报告中的 `<test>`
-  是逻辑 `tests/<目录名>`，不是源文件 display 路径。
+  输出/错误；同一编译内所有输出（含部分检查）对同一文件使用同一路径；不同编译模式因
+  已发现文件集不同，回退 `#<n>` 可以不同。`tc --test` 报告中的 `<test>` 是逻辑
+  `tests/<目录名>`，不是源文件 display 路径。
 - `tc --test` worker 的 fork/pipe/临时捕获路径、PID 与实际耗时不属于路径消费者；报告
   只用测试名与根相对测试路径。
 - `.file`/`.loc` 用显示路径；clang 调用固定 `-fdebug-compilation-dir=.`；gdb 从工程根
@@ -501,25 +521,40 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 ### 5.12 `tc-reduce` 契约
 
 - 用途：把触发某个诊断或 trap 的源程序缩到最小复现，服务于缺陷定位与回归语料。
-- 调用：`tc-reduce <source.tc> [--timeout=<seconds>] [--stdin=<path>] -- <tool> <args...>`；
-  工具参数中的 `{}` 表示候选源文件，可出现多次并替换为同一路径；不含 `{}` 时追加到参数
-  末尾。首次运行记录"失败指纹"：首个 `TC_CE_*`/`TC_RE_*`、退出状态与终止方式；缩减过程中
-  指纹必须保持不变。
+- 调用：`tc-reduce <source.tc> [--timeout=<seconds>] [--stdin=<path>] [--output=<path>] --
+  <tool> <args...>`；工具参数中的 `{}` 表示候选源文件，可出现多次并替换为同一路径；
+  不含 `{}` 时追加到参数末尾。首次运行记录"失败指纹"：首个 `TC_CE_*`/`TC_RE_*`、退出
+  状态与终止方式；缩减过程中指纹必须保持不变。
+- `--timeout`、`--stdin`、`--output` 各至多一次；`--stdin`/`--output` 只接受
+  `--opt=<path>` 形式，`--timeout` 只接受 `--timeout=<seconds>` 形式；空值或重复 → 2。
+- 候选位置：种子运行使用原始 `<source.tc>`；后续候选写入其 canonical 目录下的
+  `tc_reduce_<n>.tc`（合法标识符、`.tc` 扩展名、`O_EXCL` 创建；不得与源中任何 import 名、
+  已有文件或 `--output` 路径同名）。同目录保证 `tc.project` 根发现、manifest include 与
+  相对 import 解析不变；不得写入工程外临时目录，不得修改原文件。无法创建/写入候选 →
+  70。候选文件在每轮结束及退出时删除；其路径/文件名不进入指纹、结果或诊断。
+- 结果交付：默认把当前最佳源文本按原字节写 stdout；进度/诊断写 stderr，stdout 不含其它
+  内容。`--output=<path>` 显式指定结果文件（临时文件 + rename 原子写，写失败 70），指定
+  后 stdout 不写结果。0.0.47 不隐式就地覆盖 `<source.tc>`；`--output` 等于源文件时按
+  显式破坏性写入处理。不要用 stdout 重定向到输入文件。
 - 缩减动作：删除整条语句/声明/未使用 `import`、简化字面量、删除不可达函数；
   每步之后重新解析，保持源文件可解析。
-- 被测程序的 `stdin` 由 `--stdin=<path>` 提供；缺省为空输入（立即 EOF）；trap 复现同样适用。
+- 被测程序的 `stdin` 由 `--stdin=<path>` 提供；该路径解析后必须是普通文件（FIFO/设备等
+  → 70）；每次重跑（种子与每个候选）都重新打开该文件并从头读取；缺省为空输入（每次
+  立即 EOF）；trap 复现同样适用。
 - 工程内运行时继承 `tc.project` 的根/profile/include；诊断路径按 §5.9 根相对；指纹仍按
   首个 code/exit/终止方式，不按路径。
-- 保证：每轮成功缩减严格减少行数或字节数；若不存在可减少的候选，则以当前结果结束
-  （可能等于输入），退出 0。不启用 `--timeout` 且被测工具确定性时同输入同输出；
-  启用后到期与否取决于运行时序（§5.1），缩减结果不参与逐字节确定性门禁。
+- 保证：当前最佳结果初始为输入；每轮成功缩减严格减少行数或字节数；若不存在可减少的
+  候选，则以当前结果结束（可能等于输入），退出 0。不启用 `--timeout` 且被测工具确定性时
+  同输入同输出；启用后到期与否取决于运行时序（§5.1），缩减结果不参与逐字节确定性门禁。
 - 退出码按 §5.1：正常收敛退出 0；种子首次运行未触发任何诊断或 trap（无指纹可记）为
   用法错误，退出 2。`--timeout=<seconds>` 是**整个缩减过程**的 deadline：从首次调用被测
   工具开始计时，覆盖种子运行、候选生成与全部重跑；`<seconds>` 只含 ASCII 十进制数字、
   非负、不接收符号/空格/小数，溢出 → 2；缺省或 `0` 表示不限。到期后终止当前被测工具
-  进程，输出当前最佳结果并以退出 1 结束；种子运行超时同样按 1 结束，不按无指纹的 2。
-- 被测工具返回 70/71 或无法启动时，`tc-reduce` 以相同退出码结束并保留当前最佳结果；
-  这类失败不建立指纹，也不作为可接受候选。`--stdin` 路径读取/打开失败 → 70。
+  进程，按结果交付输出当前最佳结果并以退出 1 结束；种子运行超时同样输出输入（当前最佳）
+  并按 1 结束，不按无指纹的 2。任何情况下结果写 stdout 或 `--output` 失败 → 70。
+- 被测工具返回 70/71 或无法启动时，`tc-reduce` 以相同退出码结束：已建立指纹时按结果
+  交付输出当前最佳结果；种子运行返回 70/71 或无法启动、尚未建立指纹时不输出结果。这类
+  失败不建立指纹，也不作为可接受候选。`--stdin` 路径读取/打开失败 → 70。
 - `tc-reduce --timeout` 只约束缩减过程，不是 `tc --test --test-timeout` 的别名；两个
   开关互不适用，用于另一工具时按 §5.1 退出 2。
 - 非目标：不做语义等价化、不改 include 根、不合成新程序。
@@ -542,7 +577,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 调试器经 TCP 通信，不占用程序 `stdin`；程序仍按标准读取自己的输入，`stdout` 不变。
 - 工程内运行时，`monitor` 与调试 ELF 的源码路径按 §5.9 根相对；gdb 从工程根启动。
 - 调试器意外断开或校验和连续三次失败：程序停在当前指令边界，stub 关闭该连接并回到
-  监听；重新连接后 `?` 按 §6.7 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hh>`
+  监听；重新连接后 `?` 按 §6.3 的状态报告：暂停中为 `T05thread:1;`，已终止为 `W<hh>`
   （自然终止与 trap 终止一致）。
   进程不退出。
 - RSP 是开发接口，不属于语言语义，也不进入差分门禁。
@@ -558,6 +593,10 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 ```
 
 - `global_insn_index` 是 IR 最终化后的全局单调指令序号，跨函数连续，确定且可复现。
+- 合成代码区间是 `[TC_DEBUG_CODE_BASE, TC_DEBUG_CODE_BASE + 4 * N)`，`N` 为 IR 最终化后的
+  全局指令数；有效指令地址恰为 `TC_DEBUG_CODE_BASE + 4 * i`（`0 <= i < N`）。`Z0`、
+  `P pc`、`monitor ir` 的地址必须是有效指令地址，否则 `E01`；`m` 允许区间内任意字节
+  地址，越界或跨出区间边界 → `E01`。
 - 该地址区间不属于任何平台档案的五个区，不进入 `funcaddr`/`bitcast` 结果，不参与程序行为；
   它是 64 位调试视图，不是目标地址，因此与 W 无关。W=32 档案的程序可见地址仍按 32 位呈现。
 - `--gdb` 会话启动与 `--gdb-elf-out` 生成时校验合成区间与当前档案区表不重叠；重叠则
@@ -574,14 +613,18 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 寄存器 | `g`、`p<n>` | `g` 与 `p<n>` 均支持；`g` 按 regnum 顺序返回 4 个寄存器的十六进制串（共 64 个十六进制字符），`p<n>` 仅接受 `n=0..3`，其他编号返回 `E01`；编码见 §6.4。`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许写 `pc`，且必须落在合成代码区间的指令边界，否则 `E01` |
 | 内存 | `m`、`M`、`X` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区；跨区边界或区外的 `M` 返回 `E01`；`X` 不支持，返回空应答 |
 | 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c`、`vCont?` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略；执行命中 TC trap 的停止应答为 `T0bthread:1;`；`vCont?` 返回 `vCont;s;c` |
-| 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个，超出返回 `E01`；`Z1`–`Z4` 返回空 |
+| 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个唯一地址；同址重复 `Z0` 幂等（回 `OK`，不占新槽），`z0` 对未设置地址回 `OK`；超出或非法地址返回 `E01`；`Z1`–`Z4` 返回空 |
 | 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg`、`qAttached` | 单一合成线程 `1`；`qC` 返回 `QC1`；`qfThreadInfo` 首次返回 `m1`、再次返回 `l`；`qsThreadInfo` 返回 `l`；`Hc1`/`Hg1` 返回 `OK`，其他 `Hc`/`Hg` 返回 `E01`；`qAttached` 返回 `0`（程序由 stub 创建）；`vCont;s`/`vCont;c` 接受可选 `:1` 后缀，其他线程号返回 `E01` |
 | 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义，分块长度不超过 `PacketSize` |
-| 监视 | `qRcmd` | §6.6 的 `monitor` 命令 |
-| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 回 `OK`：运行态分离后程序继续、stub 关闭连接；终止态关闭连接，进程以最近一次运行的退出状态退出。`R` 无应答，复位到入口并保留断点；仅扩展模式下可用；本次运行的帧、trap 记录、trace/stats 段清空，I/O 语义见 §6.7。`k` 无应答：运行态不改变程序状态（v1 不支持调试器主动杀死），终止态关闭连接并退出。`vKill` 运行态回 `E01`，终止态回 `OK` 并退出 |
-| 退出 | `W<hh>` | 程序自然终止或 trap 终止时按 `W%02x` 报告档案退出状态（0–255）；越界状态属实现错误（退出 71） |
+| 监视 | `qRcmd` | §6.6 的 `monitor` 命令；应答为 `O` 分块 + `OK`/`E01`，不以 `W` 应答 |
+| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 回 `OK`：stopped/running 态分离后程序继续；终止态以最近一次运行的退出状态退出；两种情况都先回 `OK` 再关闭连接。`R` 无应答，复位到入口并保留断点；仅扩展模式下可用；本次运行的帧、trap 记录、trace/stats 段清空，I/O 语义见 §6.7。`k` 无应答：stopped/running 态不改变程序状态（v1 不支持调试器主动杀死），终止态关闭连接并退出。`vKill` 在 stopped/running 态回 `E01`，终止态回 `OK` 并退出 |
+| 退出 | `W<hh>` | `W<hh>` 只在自然终止或终止态出现：自然终止的执行报文、终止态下的执行报文与终止态下的 `?` 回 `W%02x`（0–255）；命中 TC trap 的执行报文先回 `T0b`（§6.7），之后的 `?`/执行报文按终止态回 `W<hh>`。`W` 只作为执行报文与 `?` 的停止应答；越界状态属实现错误（退出 71） |
 
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
+- 会话只有 running、stopped、terminated 三态。running（`c`/`s`/`vCont` 执行中）只处理
+  带外 `\x03` 与本节的 `D`/`k`/`vKill`；其它报文（`qRcmd`、`m`、`Z0`、`g` 等）不解析、
+  不应答，留待停止后处理。客户端不得在 running 发送这些报文；qRcmd 的 `O`/`OK` 不能插在
+  停止应答之前。协议套件只断言 running 下的 `\x03` 与生命周期子集。
 - `vCont` 只接受单动作 `s`/`c`（可带 `:1`）；多动作、其他动作或空动作返回空应答，已支持
   动作的其他线程号返回 `E01`。
 - 未列出的报文一律返回空应答；不支持的写操作返回 `E01`，不得静默忽略。
@@ -659,42 +702,60 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `monitor funcs` | 函数表：`funcaddr` 值（按区名+区内偏移）、名称（按 §5.4 约定）、指令区间（全局指令序号）、合成地址范围 |
 | `monitor objects` | 对象表：对象 id、区、偏移（字节）、大小（字节）、生命期状态 |
 | `monitor frames` | 抽象帧栈：深度、函数、全局指令序号（§6.2）、源码位置 |
-| `monitor next` | 执行到下一条同深度指令，跨越整个 `call` |
-| `monitor finish` | 运行到当前帧返回（深度减一） |
-| `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span）；地址越界或未对齐返回 `E01` |
-| `monitor vreg [<func>:]<序号>` | 读取当前帧的 vreg 值：标量按 W 位宽打印为 `0x` 十六进制位模式（W=32 为 8 位、W=64 为 16 位），指针打印为区名+区内偏移（空指针为 `null`，不可表示时按 W 位模式）；聚合与未初始化 vreg 返回 `E01`。`<序号>` 为 vreg 序号的十进制字符串，即 `monitor ir` 显示的 `%N`（IR 操作数不携带源名）；省略 `<func>` 时在当前函数的 vreg 空间内解析，未找到返回 `E01` |
+| `monitor next` | 执行到下一条同深度指令，跨越整个 `call`；途中命中用户断点、TC trap、终止或 `\x03` 时提前停止 |
+| `monitor finish` | 运行到当前帧返回（深度减一）；途中命中用户断点、TC trap、终止或 `\x03` 时提前停止 |
+| `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span）；地址越界、未对齐或不对应指令返回 `E01` |
+| `monitor vreg [<func>:]<序号>` | 读取当前帧的 vreg 值：标量按 vreg 自身类型的位宽打印为 `0x` 十六进制位模式，宽度取 `tc_type_bits(type, W)`：`int8`/`uint8`/`bool` 2 个十六进制数字、`int16`/`uint16` 4 个、`int32`/`uint32`/`float32` 8 个、`int64`/`uint64`/`float64` 16 个，`isize`/`usize` 随档案字长（W=32 为 8 个、W=64 为 16 个）；指针/fnptr 打印为区名+区内偏移（空指针为 `null`，不可表示时按 W 位模式）；聚合与未初始化 vreg 返回 `E01`。`<序号>` 为 vreg 序号的十进制字符串，即 `monitor ir` 显示的 `%N`（IR 操作数不携带源名）；省略 `<func>` 时在当前函数的 vreg 空间内解析，未找到返回 `E01` |
 | `monitor stats` | §5.5 的 `tc-vm` 运行时字段，每行 `key=value`，不含 `# tc-stats` 头 |
 | `monitor trap` | 最近一次 TC trap 的码、span、`func`/`bb`/`insn`/`op`/`depth` |
 | `monitor help` | 命令列表 |
 
 - vreg 只存在于当前帧：暂停中的活动帧，或 trap 终止时保留的触发帧。跨函数同序号必须写全
   `monitor vreg <func>:<序号>`；`<func>` 必须等于当前帧函数，指向其他函数返回 `E01`，
-  不支持读取调用者帧。`<func>` 与 `<序号>` 以**最后一个** `:` 分隔；函数名中的 `:` 与 `#`
-  属于名称，`<序号>` 为非负十进制整数，溢出或未知序号返回 `E01`。
+  不支持读取调用者帧。`<func>` 与 `<序号>` 以**最后一个** `:` 分隔；`<func>` 是 §5.4 的
+  函数显示名，可含同名消歧的 `#<func_id>`；函数名是 ASCII 标识符，不含 `:`，因此 `:`
+  始终是分隔符。`<序号>` 为非负十进制整数，溢出或未知序号返回 `E01`。
 - `monitor finish` 在顶层帧（深度 0）返回 `E01`；`monitor next` 在当前指令是 `return`
   或 `trap` 时执行该终止指令并在调用者/终止态停下，不再寻找同深度指令。
+- `monitor next`/`monitor finish` 与 `c` 一样在每个指令边界检查用户断点；进入命令时若
+  当前 pc 处于已设置断点，先执行该指令一次（step-over），避免在同一地址立即停止。执行
+  途中命中用户断点、TC trap、程序终止或 `\x03` 时提前结束：qRcmd 回 `OK`，停止状态由
+  `?` 报 `T05`/`T02`/`W`，trap 详情用 `monitor trap`。qRcmd 的 `OK` 只表示本次执行请求
+  结束，不保证到达目标；命令不保存未达目标，重新发起时从当前 pc/depth 重新计算。目标
+  指令本身有断点时，到达目标即停止，后续 `c` 按 step-over 规则处理。
 - `monitor trap` 在首次 trap 之前返回 `E01`。终止态下 `monitor ir` 无地址参数返回
   `E01`，`monitor regions`/`objects`/`funcs` 仍可读取终止快照；trap 终止保留触发帧，
   `monitor frames`/`monitor vreg` 按该帧读取；自然终止没有当前帧，二者返回 `E01`。
-- 终止态下 `monitor next`/`monitor finish` 与 `s`/`c` 相同，直接回 `W<hh>`，不执行新指令。
+- 终止态下 `monitor next`/`monitor finish` 不执行新指令：qRcmd 以 `O` 文本说明程序已
+  终止后回 `OK`，终止状态由 `?` 报 `W<hh>`；`W<hh>` 不得作为 qRcmd 的应答。
 - `qRcmd` 的 command 为十六进制编码；输出按 `O<hex>` 分块，最后 `OK`；非十六进制或奇数
-  长度 → `E01`。`monitor next`/`monitor finish` 的 qRcmd 应答只表示命令完成，停止原因由
-  随后的 `?` 报告。
+  长度 → `E01`。`monitor next`/`monitor finish` 的 qRcmd 应答只表示命令完成；停止后
+  `?` 报当前状态（`T05` 暂停、`T02` 中断、`W<hh>` 终止），trap 详情用 `monitor trap`。
+- 所有 `monitor` 命令只在 stopped 或 terminated 态执行；running 态按 §6.3 处理。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
 - 输出为纯文本，行尾 `\n`，不依赖终端宽度；源码位置与路径按 §5.9 根相对；同一状态重复查询结果一致。
 
 ### 6.7 断点、单步与继续语义
 
-- 断点地址必须落在合成代码区间（§6.2）内且 4 字节对齐；越界或未对齐地址返回 `E01`。
+- 断点地址必须是 §6.2 的有效指令地址（`BASE + 4i`，`0 <= i < N`）；越界、未对齐或不对应
+  指令返回 `E01`。
 - `s`：执行一条 IR 指令。`call` 在调用者 CFG 中是单条原子指令：当前停在 `call` 的前一条
   指令时，`s` 停在 `call`（尚未进入被调函数）；当前停在 `call` 时，`s` 执行该调用并停在
   被调函数首条指令（`depth` 加一）。
 - `c`：运行到断点、TC trap、程序终止，或被 `\x03` 中断（停在下一条指令边界并报告
   `T02thread:1;`）。
+- 断点命中后 pc 停在断点指令（尚未执行）。若该地址仍有断点，再次 `c` 时先静默执行该
+  地址的一条 IR 指令（step-over），再从新 pc 正常检查断点，因此同一地址不会立即重触发；
+  step-over 指令 trap 时按 `T0b` 停止，收到 `\x03` 时完成该指令后按 `T02` 停止。`s` 不做
+  step-over：执行一条指令后停在下一条。
 - 跨越调用用 `monitor next`，返回用 `monitor finish`；gdb 的 `next`/`finish` 依赖架构识别
   与栈展开，不作为验收项（§8）。
 - TC trap 先完成 §12.5.2 的提交语义（trap 生效、已提交的 I/O 不回滚），再停止并报告
-  `T0bthread:1;`；此时程序已进入终止态，`monitor trap` 可读取 trap 详情。
+  `T0bthread:1;`；此时程序已进入终止态，`monitor trap` 可读取 trap 详情。T0b（SIGSEGV）
+  是有意选择：TC trap 是程序故障，不用 T05 以免与断点/单步混淆；gdb 可能显示
+  "Program received signal SIGSEGV"，属表现层，`?` 随后按终止态报 `W<hh>`。T0b 只作为
+  执行报文（`c`/`s`/`C`/`S`/`vCont`）的直接停止应答；`monitor next`/`finish` 触发的 trap
+  用 `?` + `monitor trap` 读取。
 - 程序终止（自然终止或 trap 终止）后 stub 返回 `W<hh>`；退出状态取档案退出策略，
   与无调试器运行完全一致。终止态下 `s`/`c` 不执行新指令，直接再回 `W<hh>`；`R`
   可复位重跑。终止后进程保持存活以支持 `R`；`D` 关闭连接并按该退出状态退出，
@@ -706,7 +767,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
   同一 `--trace-out`/`--stats-out` sink 继续写入、不截断已有字节，按 header 分段；
   `--gdb` 会话行只在进程启动时输出一次。
 - 调试暂停不产生程序可观察效果：暂停期间不推进、不超时、不提交 I/O。
-- 运行期间新增/删除断点立即生效；命中已删除断点的陈旧地址不得触发停止。
+- 断点表的增删在 stopped 或 terminated 态立即生效；后续 `c` 与 `monitor next`/
+  `monitor finish` 使用最新断点表，`s` 仍按单步语义执行一条指令。running 态的报文处理
+  见 §6.3；命中已删除断点的陈旧地址不得触发停止。
 
 ### 6.8 与 AOT 调试视图的一致性
 
@@ -743,10 +806,15 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 - 仓库内提供最小 RSP 客户端（Python，`tests/tools/vm_gdb_client.py`），覆盖：
   帧与校验和、免应答模式、分块 `qXfer`、断点命中地址、单步计数、`monitor next` 跨调用、
-  `monitor finish` 返回、运行中 `\x03` 中断（停在边界并报 `T02`）、寄存器读写（`P` 默认
-  `E01`、allow-write 写 `pc`）、内存读写拒绝与区边界、断点命中与越界拒绝、`!` 扩展模式、
+  `monitor finish` 返回、`monitor next`/`finish` 入口断点 step-over、途中断点与目标处
+  断点、命中后重发、运行中 `\x03` 中断（停在边界并报 `T02`）、寄存器读写（`P` 默认
+  `E01`、allow-write 写 `pc`）、内存读写拒绝与区边界、断点命中、越界拒绝与删除后陈旧
+  地址不触发、`!` 扩展模式、
   `vCont?`、`R` 无应答与复位重跑、`D` 回 `OK` 并分离后继续、`k`/`vKill` 应答、
-  `Z1`–`Z4` 空应答、各 `monitor` 命令、trap 停止码、退出状态、坏校验和重同步。
+  `Z1`–`Z4` 空应答、同址重复 `Z0`/`z0` 幂等、断点处连续 `c` 的 step-over、step-over 中
+  `\x03`、合成区间越界/非指令地址拒绝、终止态 `monitor next` 的 `OK` + `?`=`W`、vreg
+  类型宽度（W=32/64，含 W=32 的 int64/float64 与 W=64 的 float32）、各 `monitor` 命令、
+  trap 停止码、退出状态、坏校验和重同步。
 - 上述协议套件不依赖真实 gdb，进入常规 `ctest`。
 - 真实 gdb 端到端脚本作为可选测试：gdb 不存在时显式跳过并记录原因，不记为通过。
 - LLDB 使用同一 RSP，作为机会性验证，不进入门禁。
@@ -788,28 +856,30 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
 | `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
-| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、`--test-timeout` 取值与非法值、三入口契约与退出码 | `toolchain`, `fast` |
-| `tc.manifest` | `tc.project` 语法、默认值、根发现、非法字段与 include 顺序 | `toolchain`, `fast` |
-| `tc.test_runner` | `tests/*/main.tc` 发现、侧车字节、trap/exit、过滤、timeout 报告与失败详情 | `toolchain`, `fast` |
+| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
+| `tc.manifest` | `tc.project` 语法、默认值、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
+| `tc.test_runner` | `tests/*/main.tc` 发现与 symlink、侧车缺失/不可用/格式、trap/exit、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
-| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap/AOT 字符串根相对、无绝对路径、external | `toolchain` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap 与 AOT 汇编字符串根相对、无绝对路径、external；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
+| `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径 | `toolchain`, `aot` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden，两个工具一致 | `toolchain`, `fast` |
 | `toolchain.trace_golden` | trace 文本/JSONL golden；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 行含 §5.6 后缀与 JSON 追加字段 | `toolchain`, `fast` |
-| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain` |
+| `toolchain.linemap` | 行表覆盖 IR 全序、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain`, `fast` |
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
-| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/断点/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`/退出/重同步 | `toolchain` |
+| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10）；gdb 缺失时显式跳过 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
-| `toolchain.reduce` | 最小化器收敛且指纹不变 | `toolchain`, `slow` |
+| `toolchain.reduce` | 最小化器收敛且指纹不变；候选同目录、临时文件清理、stdout/`--output` 结果、多模块 import 保留、stdin 每轮从头读取、选项重复/空值 2 | `toolchain`, `slow` |
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
 
 - 标签集合固定为 `unit`、`conformance`、`toolchain`、`aot`、`slow`、`fast`；每个测试至少
   一个标签。`fast` 表示不依赖外部工具链（gdb、qemu、clang、lld）且不含 scale/longterm/
-  slow 的测试集合，用于预提交；不以固定时长为契约。
+  slow 的测试集合，用于预提交；不以固定时长为契约。`fast` 与 `slow` 互斥，同一测试
+  不得同时带这两个标签。
 - 可选外部依赖（gdb、qemu、clang、lld）缺失时按既有策略：配置期失败或测试显式跳过，
   不得静默通过。
 
@@ -818,13 +888,19 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 - T0–T6 与工程模型 P0–P5 全部完成，G11 PASS，`docs/gates/README.md` 更新。
 - 既有门禁零回归：`ctest` 全量、golden、确定性、`docs.cleanup`、发布审计。
 - 新增测试项全部进入 `ctest`；`fast` 子集在 CI 上通过；不以固定时长为契约。
-- `tc --test` worker/超时：所有测试 fork；stdin 不继承终端；`--test-timeout` 到期失败 1
-  且后续继续，缺省/`0` 不限，非 ASCII 数字或缺值、单独出现/与 `--init-project` 同现为 2；
-  fork 失败 70，worker 非超时异常/协议损坏 71；结束后无残留进程或临时文件。
+- `tc --test` worker/超时/输出：所有测试 fork；stdin 不继承终端；`--test-timeout` 到期
+  失败 1 且后续继续，缺省/`0` 不限，非 ASCII 数字、溢出或缺值、单独出现/与
+  `--init-project` 同现为 2；操作前 `--` 为 2；header/0 tests/中止输出、侧车缺失/不可用、
+  symlink 与捕获上限按工程模型 §6.1–§6.4；fork 失败 70，worker 非超时异常/协议损坏 71；
+  结束后无残留进程或临时文件。
 - 三入口模型生效：`tc`/`tc-vm`/`tc-aot --version` 打印工具链 0.0.47 与语言 0.0.46；
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
-- 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径。
+- 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径；路径组件
+  为合法 UTF-8 且不含 LF/CR；回退 `<basename>#<n>` 在同一编译内稳定。
+- `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
+  多模块 import 保留；超时与候选中 70/71 按 §5.12 输出当前最佳（种子 70/71 或无法启动
+  不输出；种子超时输出输入）。
 - 文档同步：本文件、[TC 工程模型 0.0.47](TC工程模型-0.0.47.md)、`README.md`/`README.en.md`、
   `docs/README.md`、`docs/gates/README.md`、`AGENTS.md` 导航、`tests/README.md`、
   `src/README.md`（新增 `src/debug/`、`src/project/`、`src/base/path.*` 边界）、
@@ -835,6 +911,10 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 风险 | 处理 |
 | ---- | ---- |
 | gdb 版本差异（ack 模式、`vCont`、`qXfer` 分块、自定义寄存器集） | 以最小子集实现；协议套件自测；§8.1 spike 给出兼容矩阵 |
+| gdb 把 `T0b` 显示为 SIGSEGV | 有意选择；§8.1 spike 验证 `?`/`c` 与退出状态；终止态仍由 `?` 报 `W<hh>`；必要时降级 `T05` + `monitor trap` |
+| 路径含换行/非 UTF-8 破坏文本或 JSON | §5.9 路径组件校验；CLI/manifest 与名称违反 2，其它发现路径违反 70 |
+| `tc --test` 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；失败详情截断并标记；临时文件统一清理 |
+| `tc --test` 侧车/`main.tc` 是 symlink/FIFO | 只读路径跟随 symlink；解析后必须是普通文件；不可用/读取失败 70 |
 | gdb 的 `next`/`finish` 依赖架构与栈展开 | 不作为验收项；以 `monitor next`/`monitor finish` 提供等价能力 |
 | VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧 `\x03` 中断停在指令边界 |
 | 合成地址与语言值域混淆 | 合成区间独立且文档化；调试 ELF 与 trace 均标注为调试视图 |
@@ -844,6 +924,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 调试器主动 kill 请求 | v1 不主动杀死进程：`k` 无应答空操作，`vKill` 运行态回 `E01`；用 `D` 分离或 Ctrl-C 结束 |
 | 调试信息破坏可复现 | 工程根相对路径 + 无时间戳 + `-fdebug-compilation-dir=.`；T6 断言两次构建字节一致 |
 | trace 体积过大 | `--trace-limit` 截断并标记；默认关闭 |
+| `tc-reduce` 候选位置改变根/import | 候选与源同 canonical 目录、不写工程外临时目录；多模块 import 回归 |
 | 工程根/嵌套工程发现歧义 | 最近 `tc.project` 生效；嵌套工程允许；文档写清 |
 | AOT `.asciz` 路径字符串改变产物字节 | 0.0.47 不承诺 0.0.46 路径字节；代码/ABI 不变；跨根一致为验收 |
 | gdb 不在工程根启动时找不到源 | 文档要求从根启动或设置 `directory`；T2/T6 验证 |
@@ -864,7 +945,9 @@ T3 开始前确认以下事实，结论写入本文件对应小节，不改变�
 3. 调试 ELF 的可行机器类型、段基址设置与 gdb 符号加载结果；
 4. `qXfer` 分块、`QStartNoAckMode`、`vCont`/`vCont?`、扩展模式 `!` 与 `R` 在目标 gdb
    版本上的实际交互；
-5. LLDB 对同一 RSP 子集的可用性。
+5. LLDB 对同一 RSP 子集的可用性；
+6. `T0b`（SIGSEGV）在目标 gdb 版本上的显示、`?`/`c` 后的退出状态，以及 `monitor next`/
+   `finish` 触发 trap 时的表现；确认 T0b 只作直接停止应答、终止态由 `?` 报 `W<hh>`。
 
 ## 9. 0.0.48 移交
 

@@ -92,6 +92,8 @@ profile = "aarch64-linux-user"
   引号外控制字符或格式错误 → 退出 2，不静默忽略；`include` 可重复。
 - 工程文件中的路径必须是相对路径；绝对路径 → 退出 2。`name` 允许 `#`/`=` 等普通字符，
   但必须用引号写作字符串。空文件或只有注释/空行的文件按缺少 `tc-project` 退出 2。
+- `tc.project` 解析后必须是普通文件；目录、FIFO、设备或 dangling symlink → 70，不打开
+  可能阻塞的非普通文件。
 - manifest 读取/IO 错误 → 70；解析、字段或路径错误 → 2。编译器与 `tc --test` 使用同一
   映射，不把无效 manifest 静默当作缺省配置。
 
@@ -114,7 +116,8 @@ profile = "aarch64-linux-user"
 - `include` 允许 `..`；根外文件进入"外部文件"路径规则（§4.2）。
 - `entry` 在 0.0.47 只做元数据；`tc-vm`/`tc-aot` 仍以命令行 source 为准。
 - `name`（显式或缺省）必须满足 §5 的 `project_name` 约束（非空、合法 UTF-8、拒绝
-  控制字符、`/`、`\`、`"`，且名称不得为 `.` 或 `..`）；缺省取工程根目录名，不满足 → 2。
+  Unicode Cc/Cf/Zl/Zp、`/`、`\`、`"`，且名称不得为 `.` 或 `..`）；缺省取工程根目录名，
+  不满足 → 2。
 - manifest 中的 `profile` 始终按已实现档案校验；CLI `--profile` 覆盖只选择本次运行的档案，
   不使非法 manifest 变合法。
 - `w32` 只有 VM 静态档案；`tc-aot` 使用它按无后端映射退出 70，不回退到其它档案。`tc --test`
@@ -124,12 +127,18 @@ profile = "aarch64-linux-user"
 
 ### 4.1 根发现
 
-- 编译器（`tc-vm`/`tc-aot`）：从 **root 模块 canonical 路径**向上找最近的 `tc.project`；
-  工程根 = manifest canonical 路径所在目录。找不到 manifest 时，工程根 = root 模块所在目录。
-  root 模块不存在时，用其父目录的 canonical 路径（父目录也不存在时，取最近存在祖先的
-  canonical 路径并拼接剩余组件）作为根发现起点；该情况仍按源读取错误退出 70。
-- `tc --test`：cwd 先 canonical 化，再向上找最近的 `tc.project`；找不到 → 退出 2（工程测试
-  必须在工程内）。
+- 编译器（`tc-vm`/`tc-aot`）：从 **root 模块 canonical 路径所在目录**开始向上逐级搜索
+  `tc.project`。搜索以目录项存在为准：`lstat` 返回 ENOENT/ENOTDIR 时继续向上；返回其它
+  错误（如 EACCES/ELOOP/EIO）→ 退出 70，不跳过。某个目录存在名为 `tc.project` 的条目
+  （普通文件、symlink 或其它类型）时，它就是最近锚点；读取/解析失败按 §3.1 退出 70 或 2，
+  不得跳过它继续向外层工程回退。工程根 = 包含该目录项的目录的 canonical 路径；
+  `tc.project` 是 symlink 时只跟随其内容，不把工程根改到链接目标所在目录。`tc.project`
+  解析后必须是普通文件（拒绝目录、FIFO、设备等），否则退出 70。
+- 找不到 manifest 时，工程根 = root 模块所在目录。root 模块不存在时，用其父目录的
+  canonical 路径（父目录也不存在时，取最近存在祖先的 canonical 路径并拼接剩余组件）作为
+  根发现起点；该情况仍按源读取错误退出 70。
+- `tc --test`：cwd 先 canonical 化，再按同一规则向上找最近的 `tc.project`；找不到 → 退出 2
+  （工程测试必须在工程内）；最近的 `tc.project` 损坏时按 70/2 退出，不回退到外层工程。
 - 嵌套工程允许：最近祖先生效；`tc --init-project` 可在已有工程内创建子工程（子工程有
   自己的 `tc.project`）。这是"每个工程一个锚点"，不是"整个文件树一个锚点"。
 - manifest、根路径与存在的源路径都先 canonical 化；源文件不存在时按 §4.1 的根发现起点
@@ -145,9 +154,18 @@ profile = "aarch64-linux-user"
   存在时，用其最近存在祖先的 canonical 路径拼接剩余词法组件后再求相对；symlink 的书写
   形式不进入显示。根内文件形如 `src/main.tc`、`tests/smoke/main.tc`。
 - 根外文件（import/include 指到根外）：使用 `../…` 相对路径，并在行表条目标
-  `"external":true`；不同卷或不可表示的路径回退 `<basename>#<n>`，编号按本次编译已知源
-  文件的 canonical 路径字节序确定；回退项同样标 `"external":true`。部分检查模式同样适用，
-  不依赖最终 IR 是否生成。
+  `"external":true`；不同卷或不可表示的路径回退 `<basename>#<n>`。回退编号只对需要回退的
+  文件分配：文件首次进入显示路径时从 1 递增，同一编译内永不复用或重排；编号一经分配即
+  固定，后续诊断、linemap、trace 不会改变它。`<basename>` 是 canonical 路径的最后一个
+  组件；不同编译模式因已发现文件集不同，编号可以不同，但书写规则一致。回退项同样标
+  `"external":true`。部分检查模式同样适用，不依赖最终 IR 是否生成。
+- 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 LF/CR。失败时按来源
+  退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按 §5/§6.1 的名称规则 → 2；
+  仅由文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与汇编字符串依赖
+  该约束；引号与反斜杠仍按各格式规则转义。
+- import 名是 ASCII 标识符（标准 §2.3、§4.11.2），其路径组件只有 `<ident>.tc`；本规则
+  的“用户提供路径”只覆盖 CLI 参数与 manifest 值，include 根与导入者目录链按各自的来源
+  （CLI/manifest 或文件系统发现）处理。
 
 ### 4.3 路径消费者
 
@@ -188,7 +206,7 @@ tc --init-project [--] project_name
 ```
 
 - 当前目录就是工程根；不创建 `project_name/` 子目录；`project_name` 只写入 `name`。
-- `project_name`：非空、合法 UTF-8；拒绝 `/`、`\`、控制字符（Unicode Cc）与 `"`；
+- `project_name`：非空、合法 UTF-8；拒绝 `/`、`\`、Unicode Cc/Cf/Zl/Zp 与 `"`；
   名称为 `.` 或 `..` 时拒绝，含其它 `.` 的名称允许；允许空格与普通 UTF-8。
 - 当前目录已有 `tc.project` → 退出 2。
 - 当前目录非空 → 允许；只创建缺失文件，不覆盖已有 `src/main.tc`、`tests/...`、`.gitignore`、
@@ -228,15 +246,21 @@ next: tc --test
 
 ### 6.1 发现
 
-- 仅发现 `tests/*/main.tc`（一层）；`tests/` 解析后必须是目录，否则退出 2。包含普通文件
-  `main.tc` 的子目录是测试目录；其目录名必须是合法 UTF-8 且不含控制字符（Unicode Cc），
-  否则退出 2（避免不可解析的报告）。其它子目录忽略；按目录名的 UTF-8 字节序（逐字节
-  无符号比较）排序。
+- 仅发现 `tests/*/main.tc`（一层）。`tc --test` 只读，因此发现与读取路径跟随 symlink；
+  这与 `--init-project` 的写路径"不跟随、不写穿"规则不同，二者按各自语义执行。`tests`
+  的 `lstat` 返回 ENOENT/ENOTDIR → 无测试目录；返回其它错误 → 退出 70；条目存在但不能
+  解析为目录（dangling symlink、普通文件等）→ 退出 2；目录枚举失败 → 退出 70。
+- `tests/<name>/main.tc` 的 `lstat` 返回 ENOENT/ENOTDIR → 非测试目录；返回其它错误 →
+  退出 70；存在即视为测试目录（名字取入口目录名）。`main.tc` 解析后必须是可读普通文件；
+  `stat` 失败、dangling symlink、目录、FIFO 或读取失败 → 退出 70，不当作测试失败。
+  其它子目录忽略。测试目录名必须是合法 UTF-8 且不含 Unicode Cc/Cf/Zl/Zp，否则退出 2
+  （避免不可解析或被伪装的报告）。按目录名的 UTF-8 字节序（逐字节无符号比较）排序。
 - 测试名 = 目录名，按字节精确匹配。
   无参数执行全部，带参数筛选（重复名称只执行一次），筛选后仍按同一顺序执行；所有筛选
   参数先校验，任一未知名称 → 退出 2 且不执行任何测试。
-- `tests/` 不存在：无筛选参数时 0 个测试，退出 0 并打印 `0 tests`；带筛选参数时所有名称
-  均为未知，退出 2。目录枚举/读取失败退出 70；测试源读取失败退出 70，不当作测试失败。
+- `tests` 的 `lstat` 缺失（按本节首条判定）：无筛选参数时 0 个测试，退出 0 并打印
+  `0 tests`；带筛选参数时所有名称均为未知，退出 2。目录枚举/读取失败退出 70；测试源
+  读取失败退出 70，不当作测试失败。
 
 ### 6.2 侧车文件
 
@@ -247,8 +271,10 @@ next: tc --test
 | `trap` | 期望首个 `TC_RE_*`（UTF-8/ASCII 文本；去掉至多一个 LF 或 CRLF 行尾后精确匹配） | 无 trap |
 | `exit` | 期望退出码（ASCII 无符号十进制，0..255；可带一个 LF/CRLF 行尾） | 有 `trap` 时为档案 trap 状态（当前 1），否则 0 |
 
-- `stdout.bin`/`stdin.bin` 是二进制精确字节；不使用文本换行转换；侧车路径必须是普通文件，
-  读取/存在性错误退出 70。
+- `stdout.bin`/`stdin.bin` 是二进制精确字节；不使用文本换行转换。`tc --test` 只读，侧车
+  路径跟随 symlink，但解析后必须是普通文件。侧车 `lstat` 返回 ENOENT/ENOTDIR → 取缺省
+  值；返回其它错误 → 退出 70；条目存在但 `stat` 失败（dangling symlink、ELOOP）、解析后
+  非普通文件（目录、FIFO、设备等）或打开/读取失败 → 退出 70。只有格式错误退出 2。
 - `trap`/`exit` 只去掉至多一个行尾 LF 或 CRLF；其它空白保留，不做 trim 或数值归一化。
 - `trap` 必须是合法 UTF-8 的单行文本、以 `TC_RE_` 开头；去掉至多一个行尾后不得为空，
   不得再含 LF/CR；非法 UTF-8 按格式错误退出 2。
@@ -260,7 +286,8 @@ next: tc --test
 - `trap`/`exit` 的实际值取自 worker 的运行结果（首个 trap 码与退出状态），不扫描
   stdout/stderr；程序输出中的 `TC_RE_*` 文本不参与判定。
 - 测试目录本身是 include 根（优先于 manifest 的 `include`，import 仍先查导入者目录），
-  再叠加 manifest 的 include 顺序。
+  再叠加 manifest 的 include 顺序。测试目录是 symlink 时使用其解析后的 canonical 目录
+  作为 include 根；目标在根外时源路径按 §4.2 外部规则显示，测试名仍取入口名。
 - 测试入口必须能通过静态阶段；编译诊断按普通诊断格式输出，测试计为失败。
 
 ### 6.3 执行
@@ -272,17 +299,26 @@ next: tc --test
   做根发现。worker 的 cwd = 工程根；stdin 始终来自 `stdin.bin`（缺省为空，立即 EOF），
   不继承调用者终端；stdout/stderr 由父进程捕获。stdout 与 `stdout.bin` 比较；stderr 不
   参与通过判定，仅作为失败详情输出。每个测试使用全新的 frontend/IR/CT/VM 状态。
-- 父进程在 fork 前读取并校验当前测试的侧车；读取/存在性错误退出 70，格式错误退出 2；
-  两者均停止后续测试并保留已输出报告。deadline 不覆盖父进程的侧车读取与结果比较。
+- 父进程在 fork 前读取并校验当前测试的侧车；缺失取缺省值，存在但不可用或读取失败退出
+  70，格式错误退出 2；70/2 均停止后续测试并保留已输出报告。deadline 不覆盖父进程的
+  侧车读取与结果比较。
 - 默认不设 deadline；`tc --test --test-timeout=<seconds>` 可选设置单测试 deadline。
-  `<seconds>` 只含 ASCII 十进制数字、非负、不接收符号/空格/小数；缺省或 `0` 表示不限，
-  正数从 worker 开始执行时计时，覆盖加载、CT/IR 与 VM 执行。父进程用单调时钟计时；
-  到期后向 worker 发送 SIGKILL 并回收，测试计为失败（退出 1），报告稳定的 timeout 文本
-  并继续后续测试。超时前捕获的 stdout 只用于失败详情，不作为通过依据。
+  `<seconds>` 只含 ASCII 十进制数字、非负、不接收符号/空格/小数，按 uint64 解析，超过
+  `UINT64_MAX` 视为溢出并退出 2；缺省或 `0` 表示不限，正数从 worker 开始执行时计时，
+  覆盖加载、CT/IR 与 VM 执行；deadline 换算饱和，不因乘法溢出提前到期。父进程用单调
+  时钟计时；到期后向 worker 发送 SIGKILL 并回收，测试计为失败（退出 1），报告稳定的
+  timeout 文本并继续后续测试。超时前捕获的 stdout 只用于失败详情，不作为通过依据。
 - `stdin.bin` 以只读文件描述符直接作为 worker stdin（或等价地并发写入），不因大输入
   阻塞父进程的 stdout/stderr 排空。
-- 实际输出与期望逐字节比较；失败时打印测试名、stdout 差异、stderr、trap/exit 差异；
-  TC 生成的路径字段 root 相对，不含绝对路径；测试程序输出本身按原字节保留，不做路径改写。
+- 父进程并发排空 stdout/stderr；stdout 与 `stdout.bin` 流式逐字节比较，比较始终使用
+  完整字节，但只为失败详情保留前 1 MiB 与总字节数；stderr 保留前 64 KiB 与总字节数，
+  其余继续排空后丢弃。捕获上限不改变通过判定。
+- 失败详情按流限长：stdout 差异与 stderr 各最多输出 64 KiB，每个失败测试合计不超过
+  128 KiB；超出部分不输出，并在该流末尾追加一行 `... truncated: <n> bytes omitted`
+  （n 为未输出字节数）。stdout 差异先给出 `first difference at offset <k>, expected
+  <n> bytes, got <m> bytes`，再给受限上下文。上限只作用于报告，不作用于捕获与比较。
+- TC 生成的路径字段 root 相对，不含绝对路径；测试程序输出本身按原字节保留（报告截断
+  除外），不做路径改写。
 - 不生成 build 产物；不向 `tests/` 写文件。worker 的管道/临时捕获文件位于工程外，
   其宿主路径不进入报告或诊断。
 
@@ -290,13 +326,26 @@ next: tc --test
 
 ```text
 project "demo" (aarch64-linux-user)
-ok   tests/smoke
 FAIL tests/exit: trap expected TC_RE_DIV_ZERO, got none
+ok   tests/smoke
 1 passed, 1 failed
 ```
 
+示例只展示 stdout；失败详情（差异/stderr）另在 stderr。
+
 - 报告中的 `<test>` 是逻辑测试路径 `tests/<目录名>`；筛选、排序与报告用它，源位置/失败
   诊断仍用 §4.3 的 display 路径。
+- stdout 每个测试一行报告：`ok   <test>` 或 `FAIL <test>: <简短原因>`，按执行顺序输出，
+  即测试名字节序；不缓冲后排序。完整的 stdout 差异、stderr 原文与 trap/exit 细节写
+  stderr，也按执行顺序输出；跨流相对顺序不构成契约。
+- 报告是面向人的文本，不提供机器解析语法；脚本以退出码和逐字节 golden 为准，不解析
+  `<test>` 字段。
+- header `project "<name>" (<profile>)` 在 manifest/根解析、测试发现与筛选校验通过后、
+  执行第一个测试前打印一次。0 个测试时在其后打印 `0 tests`，不打印 passed/failed 行。
+  CLI 用法错误、未知筛选名、`tests` 布局错误发生在 header 之前，不打印 header；执行期
+  的侧车/IO/内部错误发生在 header 之后，header 已打印。
+- 正常执行完所有选中测试后打印 `<n> passed, <m> failed`；因 2/70/71 提前终止时不打印
+  汇总行，已输出的 ok/FAIL 行保留，终止原因写 stderr。0 个测试用 `0 tests` 代替汇总行。
 - 成功：0；有失败：1；用法/无工程/未知测试名/`tests` 布局或侧车格式错误：2；环境或 IO：
   70；内部：71。stdout/trap/exit/编译诊断/timeout 失败计 1 并继续后续测试；2/70/71 停止。
 - timeout 报告为 `FAIL <test>: timeout after <seconds>s`；`<seconds>` 是参数原文，不打印
@@ -306,9 +355,9 @@ FAIL tests/exit: trap expected TC_RE_DIV_ZERO, got none
   非超时的 worker 异常终止、内部错误或结果协议损坏：退出 71，停止后续测试并保留已输出
   的报告。
 - 报告与汇总写 stdout；编译诊断与失败详情写 stderr；TC 生成的路径字段没有绝对路径、
-  颜色或时间戳。测试程序 stdout 按原字节与 `stdout.bin` 比较；stderr 按原字节保留，只在
-  失败详情中输出；0.0.47 没有 stderr 侧车，二者都不做路径改写。成功测试的 stderr 不输出。
-  父进程写出的 stdout 与 stderr 行各自按测试名排序，跨流相对顺序不构成契约。
+  颜色或时间戳。测试程序 stdout 按原字节与 `stdout.bin` 比较；stderr 按原字节保留（受
+  §6.3 捕获上限约束），只在失败详情中输出；0.0.47 没有 stderr 侧车，二者都不做路径改写。
+  成功测试的 stderr 不输出。失败详情按 §6.3 的上限截断，截断标记不改变退出码。
 
 ## 7. `tc` CLI
 
@@ -320,14 +369,17 @@ tc --version
 ```
 
 - `tc` 不编译、不运行用户 entry；`--test` 内部编译/运行的是测试入口；用户程序仍由
-  `tc-vm`/`tc-aot` 编译。`--test-timeout` 只属于 `--test`，与 `--init-project` 同时出现
-  或单独出现 → 2；未给出时不设单测试超时；只接受 `--test-timeout=<seconds>` 形式。
+  `tc-vm`/`tc-aot` 编译。操作必须是第一个参数；操作之前出现任何参数（含 `--`）→ 2。
+  `--test-timeout` 只属于 `--test`，必须出现在 `--test` 之后；与 `--init-project` 同时
+  出现、出现在 `--test` 之前或单独出现 → 2；未给出时不设单测试超时；只接受
+  `--test-timeout=<seconds>` 形式。
 - `--init-project` 与 `--test` 不能同时出现；`--help`/`--version` 必须单独使用，与任何
   工程操作或其它参数同时出现 → 2；未知参数/多余参数/没有操作 → 2。
 - `--init-project`、`--test`、`--help`、`--version`、`--test-timeout` 不得重复；违反 → 2。
-- `--` 结束选项解析，其后参数即使以 `-` 开头也按位置参数处理；选项解析中的 `--` 至多
-  一次，只用于 `--init-project` 或 `--test` 的参数中；违反 → 2。`--` 之后的 `--` 是
-  位置参数，不受此限。`--test` 后选项与测试名可任意顺序。
+- `--` 结束选项解析，其后参数即使以 `-` 开头也按位置参数处理；`--` 只能出现在已识别的
+  `--init-project` 或 `--test` 之后，且至多一次；操作之前出现 `--`（如
+  `tc -- --init-project x`）或重复 → 2。`--` 之后的 `--` 是位置参数，不受此限。`--test`
+  之后的选项与测试名可任意顺序，直到 `--` 为止。
 - 未来 `--build`/`--run` 若加入，复用 `entry`/`profile`；0.0.47 不实现。
 
 ## 8. 实现落点
@@ -336,10 +388,10 @@ tc --version
 | ---- | ---- |
 | `src/driver/tc.c` | `tc` 入口、`--init-project`/`--test`/`--help`/`--version`、`--test-timeout` 解析、退出码 |
 | `src/project/manifest.[ch]` | `tc.project` 解析、根发现、字段校验、默认值 |
-| `src/project/init.[ch]` | 模板与原子写入、名称校验、skipped 报告 |
-| `src/project/test_run.[ch]` | 测试发现、侧车读取与格式校验、父进程调度/捕获/超时/回收、比较与报告 |
+| `src/project/init.[ch]` | 模板与原子写入、名称校验（Cc/Cf/Zl/Zp）、skipped 报告 |
+| `src/project/test_run.[ch]` | 测试发现、侧车缺失/不可用/格式校验、父进程调度/捕获/超时/回收、流式比较、捕获上限与报告截断 |
 | `src/project/test_worker.[ch]` | fork 后的 worker 入口、fd/stdio 捕获、结果协议、`_exit` 与 FD 清理 |
-| `src/base/path.[ch]` | root/canonical/display、外部 `../`、`#<n>`、路径一致性 |
+| `src/base/path.[ch]` | root/canonical/display、外部 `../`、`#<n>` 编号、路径字符校验、路径一致性 |
 | 前端 | `TcSpan` 增加 display；`TcModuleInfo`/`TcParseModule`/`TcModule` 增加 `display_path`；lex/parse/module/sem 诊断统一用 display |
 | 编译器驱动 | `tc-vm`/`tc-aot` 读 manifest、确定根（含部分检查模式）、`--include` 顺序、错误码；诊断/impl/IO 源路径统一 display |
 | 后端 | 三后端统一 `tc_span_display()`；`.asciz`、`.file`/`.loc`、`# source:` |
@@ -368,10 +420,11 @@ tc --version
 
 | 内容 | 位置 | 标签 |
 | ---- | ---- | ---- |
-| `tc` CLI：init/version/help/退出码、`--test-timeout` 取值、`--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
-| manifest：语法、引号内 `#`、空值、CRLF、默认值、根发现、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
-| 工程测试 runner：发现、侧车格式、过滤预校验、失败、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、大输出 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
-| 路径：诊断/trap/IR/trace/linemap/AOT 字符串、部分检查模式、impl/IO 错误 | `tests/project/path_test.py` | `toolchain` |
+| `tc` CLI：init/version/help/退出码、`--test-timeout` 取值、操作顺序、操作前 `--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
+| manifest：语法、引号内 `#`、空值、CRLF、默认值、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
+| 工程测试 runner：发现与 symlink、侧车缺失/不可用/格式、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
+| 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
+| AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
 | 跨根可复现 asm/ELF/flat | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
 | 三入口/release audit | `tests/tools/s10_release_audit.py`、`tests/tools/cli_contract_test.py` | `toolchain` |
 | harness adapter 的 root 解析 | `tests/adapters/`、`tests/harness/` | `conformance` |
@@ -380,18 +433,26 @@ tc --version
 
 - `tc --init-project` 在临时目录生成完整工程；生成文件无绝对路径；`.gitattributes` 覆盖
   `*.bin`；smoke 通过 `tc --test`。
-- 已有 `tc.project`、非法名称、非空目录、已有文件、最终/中间 symlink、权限失败均有确定
-  行为；`src`/`tests` 为 symlink 时不写穿，外部目标保持不变；`tc --init-project -- -demo`
-  可初始化以 `-` 开头的合法名称；含其它 `.` 的名称（非 `.`/`..`）可初始化。
+- 已有 `tc.project`、非法名称（含 Cc/Cf/Zl/Zp）、非空目录、已有文件、最终/中间 symlink、
+  权限失败均有确定行为；`src`/`tests` 为 symlink 时不写穿，外部目标保持不变；
+  `tc --init-project -- -demo` 可初始化以 `-` 开头的合法名称；含其它 `.` 的名称
+  （非 `.`/`..`）可初始化。
+- `tc` 的操作必须是第一个参数；`tc -- --init-project x`、`tc --test-timeout=5 --test`
+  退出 2；`tc --test -- --foo` 把 `--foo` 当测试名，未知时退出 2。
 - manifest 的版本/未知键/重复键/空值/绝对路径/非法转义/非法 profile/非法缺省名称全部
   退出 2；读取/IO 错误退出 70；include 顺序与基准确定（manifest 根相对、CLI cwd 相对），
   import 仍先查导入者目录；引号内 `#`、引号外注释与 LF/CRLF 行尾按 §3.1 解析；版本只有
   `1` 合法（`01`/`+1` 为 2），最后一行可无行尾；空文件/仅注释为 2。
+- 最近 `tc.project` 为目录/dangling/不可读时退出 70，不跳过继续向外；`tc.project` 为
+  symlink 时工程根为其所在目录；`tc.project` 为 FIFO/设备时退出 70。
 - manifest `profile = "w32"` 在 `tc-vm`/`tc --test` 可用；在 `tc-aot` 退出 70 且不生成产物。
 - 从工程根、子目录、工程外调用 `tc-vm`/`tc-aot`，诊断/trap/IR/trace/linemap 路径一致且
   根相对；无 `/Users/`、`/home/`、`/private/` 等绝对路径；`--syntax-only`/`--sem-only`/
   `--static-only`、缺失源文件与 impl/IO 错误同样不泄露绝对源路径；侧车/`tests` 布局错误
   路径也 root 相对；源读取/宿主 IO 为 70，实现内部/上限为 71，且 `tc`/`tc-vm` 一致。
+  回退 `<basename>#<n>` 在同一编译内稳定（诊断与 linemap/trace 一致），不同编译模式可
+  不同；路径含非 UTF-8 或 LF/CR 时 CLI/manifest 为 2、缺省工程名/测试目录名按名称规则
+  为 2、其它发现路径为 70。
 - 两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；代码/ABI 语义不变。
 - `tc --test`：stdout/stdin 精确字节、trap/exit 侧车、失败报告、过滤、无测试；测试目录
   作为 include 根先于 manifest 的 include，worker 不继承终端 stdin；stderr 不参与判定、
@@ -399,11 +460,15 @@ tc --version
   `--test-timeout` 对不终止测试返回 1、报告 timeout 文本且后续测试继续；缺省/`0` 不限；
   负数、带符号/空格/小数、非整数、溢出、缺值、单独出现或与 `--init-project` 同现退出 2；
   结束后无残留 worker/临时文件。
+- `tc --test` 的 0 tests 打印 header 与 `0 tests`；2/70/71 提前终止不打印汇总行；侧车缺失
+  取缺省，存在但不可用/读取失败 70；`tests`/测试目录/`main.tc`/侧车按 §6.1–§6.2 跟随
+  symlink。
 - `tc --test` 的侧车格式错误（空/非 `TC_RE_`/非法 UTF-8 的 `trap`、非法 `exit`、额外
-  行尾）退出 2 并停止后续测试，出错测试不执行；`tests` 为普通文件、测试名含 Cc 控制字符
+  行尾）退出 2 并停止后续测试，出错测试不执行；`tests` 为普通文件、测试名含 Cc/Cf/Zl/Zp
   或非法 UTF-8 退出 2；未知筛选名在 fork 前整体拒绝；`--` 后以 `-` 开头的目录名可按测试名
   执行；程序输出中的 `TC_RE_*` 文本不被当作 trap 结果。
-- `tc --test` 的大 stdout/大 stdin 不因管道阻塞；fork 失败退出 70；worker 非超时异常终止
+- `tc --test` 的大 stdout/大 stdin 不因管道阻塞；捕获上限（stdout 1 MiB、stderr 64 KiB）
+  与失败详情截断（每流 64 KiB）按 §6.3 执行；fork 失败退出 70；worker 非超时异常终止
   或结果协议损坏退出 71，且不产生伪通过。
 - gdb 可用时从工程根按源码行断点；调试 ELF 的 `.file` 根相对；gdb 缺失按工具链
   §7.1/§8 显式跳过并记录原因。
@@ -420,7 +485,12 @@ tc --version
 | manifest 的注释/空值/换行歧义 | §3.1 固定引号内 `#`、空值非法、LF/CRLF；测试覆盖 |
 | `profile` 与工具不兼容 | `w32` 仅 VM；`tc-aot` 退出 70，不回退 |
 | 侧车格式错误被误报为测试失败 | 父进程在 fork 前校验；格式错误退出 2，停止后续测试 |
-| `tests` 布局异常或测试名不可打印 | `tests` 非目录、测试名含 ASCII 控制字符或非法 UTF-8 退出 2；不生成歧义报告 |
+| `tests` 布局异常或测试名不可打印 | `tests` 非目录、测试名含 Cc/Cf/Zl/Zp 或非法 UTF-8 退出 2；不生成歧义报告 |
+| 最近 `tc.project` 损坏或不可读 | 以目录项存在为准，最近锚点不跳过；70/2 退出，不回退外层工程 |
+| 回退编号跨阶段漂移 | 首次进入显示路径时分配，同一编译内永不复用/重排；不同模式允许不同 |
+| 路径含换行/非 UTF-8 破坏文本或 JSON | 路径组件校验：CLI/manifest 与名称违反 2，其它发现路径违反 70 |
+| 测试侧车或 `main.tc` 是 symlink/FIFO | 只读路径跟随 symlink；解析后必须是普通文件，不可用/读取失败 70 |
+| 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；失败详情截断并标记 |
 | gdb 从非工程根启动找不到源 | 文档要求从根启动或设置 `directory`；T2/T6 验证 |
 | AOT `.asciz` 改变产物字节 | 0.0.47 不承诺与 0.0.46 路径字节一致；代码/ABI 不变；跨根一致为验收 |
 | 外部 clang/lld 诊断含绝对路径 | 属于外部工具输出，不纳入 TC 路径契约 |
