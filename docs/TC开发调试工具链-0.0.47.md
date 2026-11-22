@@ -461,8 +461,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   canonical 路径拼接剩余词法组件；所有输出使用工程根相对显示路径，symlink 书写形式不进入
   显示。
 - root 模块与每个 import 目标必须是普通文件；目录、FIFO、设备、socket 或 dangling
-  symlink → 70，不以可能阻塞的方式打开。实现以 `open`+`fstat` 或等价方式校验类型，不把
-  `lstat`-then-`open` 作为唯一防线。
+  symlink → 70，不以可能阻塞的方式打开。单源文件读取上限 4 MiB，超出按文档化实现上限
+  71。实现以 `open`+`fstat` 或等价方式校验类型，不把 `lstat`-then-`open` 作为唯一防线。
 - 根外文件用 `../…` 相对路径，并在行表标 `"external":true`；不同卷/不可表示回退
   `<basename>#<n>`。回退编号只对需要回退的文件分配：首次进入显示路径时从 1 递增，同一
   编译内永不复用或重排，分配后诊断、linemap、trace 使用同一编号。`<basename>` 取 canonical
@@ -911,8 +911,8 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
 - 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径；路径组件
-  为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root/import 源路径为 FIFO/设备 → 70；回退
-  `<basename>#<n>` 在同一编译内稳定。
+  为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root/import 源路径为 FIFO/设备 → 70，单源文件超过
+  4 MiB → 71；回退 `<basename>#<n>` 在同一编译内稳定。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
   多模块 import 保留、候选名按 canonical 路径避开闭包 import（含未解析 import 名）与
   `--stdin`/`--output` 路径、n 从 1 递增；超时与候选中 70/71 按 §5.12 输出当前最佳

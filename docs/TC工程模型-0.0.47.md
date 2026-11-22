@@ -186,7 +186,8 @@ profile = "aarch64-linux-user"
 - `tc --init-project` 的输出与错误消息中的工程路径。
 
 - root 模块与每个 import 目标解析后必须是普通文件；目录、FIFO、设备、socket 或
-  dangling symlink → 退出 70，不以可能阻塞的方式打开。
+  dangling symlink → 退出 70，不以可能阻塞的方式打开。单源文件读取上限 4 MiB，超出
+  按文档化实现上限退出 71。
 - 路径检查与打开必须基于同一描述符或等价原子操作（`open`+`fstat`；init 使用
   `O_CREAT`/`O_EXCL`/`O_NOFOLLOW`），不得把 `lstat`-then-`open` 作为唯一防线。
 
@@ -439,7 +440,7 @@ tc --version
 | `tc` CLI：init/version/help/退出码、`--test-timeout` 取值、操作顺序、操作前 `--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
 | manifest：语法、引号内 `#`、空值、CRLF、默认值、大小上限 4 MiB、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
 | 工程测试 runner：发现与根内 symlink、根外 2、侧车缺失/不可用/格式、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
-| 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、root/import 非普通文件 70、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
+| 路径：诊断/trap/IR/trace/linemap/AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、root/import 非普通文件 70、源文件 4 MiB 上限 71、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
 | AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
 | 跨根可复现 asm/ELF/flat | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
 | 三入口/release audit | `tests/tools/s10_release_audit.py`、`tests/tools/cli_contract_test.py` | `toolchain` |
@@ -467,7 +468,7 @@ tc --version
   根相对；无 `/Users/`、`/home/`、`/private/` 等绝对路径；`--syntax-only`/`--sem-only`/
   `--static-only`、缺失源文件、root/import 源路径为 FIFO/设备（70）与 impl/IO 错误同样
   不泄露绝对源路径；侧车/`tests` 布局错误路径也 root 相对；源读取/宿主 IO/内存耗尽为
-  70，实现内部/上限为 71，且 `tc`/`tc-vm` 一致。
+  70，单源文件超过 4 MiB/实现内部/上限为 71，且 `tc`/`tc-vm` 一致。
   回退 `<basename>#<n>` 在同一编译内稳定（诊断与 linemap/trace 一致），不同编译模式可
   不同；路径含非 UTF-8 或 Cc/Cf/Zl/Zp 时 CLI/manifest 为 2、缺省工程名/测试目录名按
   名称规则为 2、其它发现路径为 70。
