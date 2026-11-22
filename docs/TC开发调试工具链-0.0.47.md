@@ -170,7 +170,8 @@
   由秒换算的 deadline 饱和到可表示上限，不因乘法溢出提前到期。
 - 本文件新增的可带值开关（`--trace`、`--trace-format`、`--trace-out`、`--trace-limit`、
   `--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb`、`--gdb-elf-out`、`--diag-format`）
-  重复出现 → 2；`--include` 仍是唯一可重复的路径开关。无值开关（`--stats`、`--debug`、
+  重复出现 → 2；`--include` 仍是唯一可重复的路径开关，至多 32 个，且与 manifest include
+  合计不超过 32（工程模型 §3.2）；超出 → 2。无值开关（`--stats`、`--debug`、
   `--gdb-allow-write`）重复出现按幂等处理，不视为错误。
 - 工具不适用的开关必须显式拒绝（退出 2），不得静默忽略；这与"部分能力不得写成已支持"
   的既有原则一致。
@@ -399,9 +400,11 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - 静态诊断与 RT trap 都使用该格式；trap 行另带 §5.6 的追加字段。
 - 文本与 JSON 必须同序、同码、同位置；顺序由标准 §12.2 首诊总序决定，不由输出格式决定。
 - 文本与 JSON 的文件名都按 §5.9 根相对；两种格式使用同一路径值。
-- 实现层错误（`TC_ERR_*`、内部错误）不是语言诊断，不进入 JSON：始终以文本行
-  `tool: TC_ERR_*: message[: detail]` 输出；`detail` 存在时同样只含工程根相对源路径
-  （§5.9），不得含绝对路径；退出码按 §5.1。
+- 实现层错误不是语言诊断，不进入 JSON：始终以文本行
+  `tool: <impl-error>: message[: detail]` 输出；`<impl-error>` 取 `tc_error_usage`、
+  `tc_error_io`、`tc_error_unavailable`、`tc_error_internal`，内存耗尽取标准 §12.5.3 的
+  `TC_ERR_OUT_OF_MEMORY`。`detail` 存在时同样只含工程根相对源路径（§5.9），不得含绝对
+  路径；退出码按 §5.1。
 - `json` 模式不输出颜色与人类说明文字。
 - 字段只增不减：同一格式版本内新增字段必须追加，删除或改义需提升格式版本。
 
@@ -457,6 +460,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   canonical 工程根为基准对 canonical 文件目标求相对；源文件不存在时用最近存在祖先的
   canonical 路径拼接剩余词法组件；所有输出使用工程根相对显示路径，symlink 书写形式不进入
   显示。
+- root 模块与每个 import 目标必须是普通文件；目录、FIFO、设备、socket 或 dangling
+  symlink → 70，不以可能阻塞的方式打开。
 - 根外文件用 `../…` 相对路径，并在行表标 `"external":true`；不同卷/不可表示回退
   `<basename>#<n>`。回退编号只对需要回退的文件分配：首次进入显示路径时从 1 递增，同一
   编译内永不复用或重排，分配后诊断、linemap、trace 使用同一编号。`<basename>` 取 canonical
@@ -537,9 +542,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   去 `.tc` 后比较，路径比较前按 §5.9 规则 canonical 化（不存在路径用最近存在祖先拼接）。
   递归解析使用与编译器相同的导入者目录优先、include 根按序规则；缩减动作只删除
   import，种子闭包覆盖候选闭包，因此检查种子闭包足够。同目录保证 `tc.project` 根发现、
-  manifest include 与相对 import 解析不变；不得写入工程外临时目录，不得修改原文件。
-  无法创建/写入候选 → 70。候选文件在每轮结束及退出时删除；其路径/文件名不进入指纹、
-  结果或诊断。
+  manifest include 与相对 import 解析不变；不得写入工程外临时目录，缩减过程中不得修改
+  原文件（`--output` 等于源文件的显式破坏性写入除外，见下条）。无法创建/写入候选 →
+  70。候选文件在每轮结束及退出时删除；其路径/文件名不进入指纹、结果或诊断。
 - 结果交付：默认把当前最佳源文本按原字节写 stdout；进度/诊断写 stderr，stdout 不含其它
   内容。`--output=<path>` 显式指定结果文件（临时文件 + rename 原子写，写失败 70），指定
   后 stdout 不写结果。0.0.47 不隐式就地覆盖 `<source.tc>`；`--output` 等于源文件时按
@@ -625,7 +630,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg`、`qAttached` | 单一合成线程 `1`；`qC` 返回 `QC1`；`qfThreadInfo` 首次返回 `m1`、再次返回 `l`；`qsThreadInfo` 返回 `l`；`Hc1`/`Hg1` 返回 `OK`，其他 `Hc`/`Hg` 返回 `E01`；`qAttached` 返回 `0`（程序由 stub 创建）；`vCont;s`/`vCont;c` 接受可选 `:1` 后缀，其他线程号返回 `E01` |
 | 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | `target.xml`（4 个寄存器）与五区内存映射；支持分块读取 `m`/`l` 语义，分块长度不超过 `PacketSize` |
 | 监视 | `qRcmd` | §6.6 的 `monitor` 命令；应答为 `O` 分块 + `OK`/`E01`，不以 `W` 应答 |
-| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 回 `OK`：stopped/running 态分离后程序继续；终止态以最近一次运行的退出状态退出；两种情况都先回 `OK` 再关闭连接。`R` 无应答，复位到入口并保留断点；仅扩展模式下可用；本次运行的帧、trap 记录、trace/stats 段清空，I/O 语义见 §6.7。`k` 无应答：stopped/running 态不改变程序状态（v1 不支持调试器主动杀死），终止态关闭连接并退出。`vKill` 在 stopped/running 态回 `E01`，终止态回 `OK` 并退出 |
+| 生命周期 | `D`、`R`、`k`、`vKill` | `D` 回 `OK`：stopped/running 态分离后程序继续；终止态以最近一次运行的退出状态退出；两种情况都先回 `OK` 再关闭连接。`R` 成功时无应答，复位到入口并保留断点；仅扩展模式下可用，未启用扩展模式时回 `E01`；本次运行的帧、trap 记录、trace/stats 段清空，I/O 语义见 §6.7。`k` 无应答：stopped/running 态不改变程序状态（v1 不支持调试器主动杀死），终止态关闭连接并退出。`vKill` 在 stopped/running 态回 `E01`，终止态回 `OK` 并退出 |
 | 退出 | `W<hh>` | `W<hh>` 只在自然终止或终止态出现：自然终止的执行报文、终止态下的执行报文与终止态下的 `?` 回 `W%02x`（0–255）；命中 TC trap 的执行报文先回 `T0b`（§6.7），之后的 `?`/执行报文按终止态回 `W<hh>`。`W` 只作为执行报文与 `?` 的停止应答；越界状态属实现错误（退出 71） |
 
 - 帧格式按协议：`$<payload>#<checksum>`；在免应答模式之前，每个报文都需 `+`/`-` 应答。
@@ -864,9 +869,9 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
 | `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
-| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
-| `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
-| `tc.test_runner` | `tests/*/main.tc` 发现与 symlink、侧车缺失/不可用/格式、trap/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
+| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、`--test-timeout` 取值与非法值、`--include` 数量上限 32、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
+| `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
+| `tc.test_runner` | `tests/*/main.tc` 发现与根内 symlink、根外 symlink 2、侧车缺失/不可用/格式、trap/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
 | `toolchain.project_paths` | 诊断/trap/IR/trace/linemap 与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径 | `toolchain`, `aot` |
@@ -905,7 +910,8 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
 - 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径；路径组件
-  为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；回退 `<basename>#<n>` 在同一编译内稳定。
+  为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root/import 源路径为 FIFO/设备 → 70；回退
+  `<basename>#<n>` 在同一编译内稳定。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
   多模块 import 保留、候选名按 canonical 路径避开闭包 import（含未解析 import 名）与
   `--stdin`/`--output` 路径、n 从 1 递增；超时与候选中 70/71 按 §5.12 输出当前最佳
@@ -923,7 +929,9 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | gdb 把 `T0b` 显示为 SIGSEGV | 有意选择；§8.1 spike 验证 `?`/`c` 与退出状态；终止态仍由 `?` 报 `W<hh>`；必要时降级 `T05` + `monitor trap` |
 | 路径含控制/格式字符或非 UTF-8 破坏文本或 JSON | §5.9 路径组件校验；CLI/manifest 与名称违反 2，其它发现路径违反 70 |
 | `tc --test` 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；trap/exit 单文件 4 KiB；失败详情截断并标记；临时文件统一清理 |
-| `tc --test` 侧车/`main.tc` 是 symlink/FIFO | 只读路径跟随 symlink；解析后必须是普通文件；不可用/读取失败 70 |
+| `tc --test` 侧车/`main.tc` 是 symlink/FIFO | 只读路径跟随根内 symlink；根外 2；解析后必须是普通文件；不可用/读取失败 70 |
+| `tc --test` 路径检查/打开竞态 | 项目目录视为可信；实现使用 open/fstat 或 openat/O_NOFOLLOW 等原子校验 |
+| root/import 源路径是 FIFO/设备 | 解析后必须是普通文件；否则 70，不以阻塞方式打开 |
 | gdb 的 `next`/`finish` 依赖架构与栈展开 | 不作为验收项；以 `monitor next`/`monitor finish` 提供等价能力 |
 | VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧 `\x03` 中断停在指令边界 |
 | 合成地址与语言值域混淆 | 合成区间独立且文档化；调试 ELF 与 trace 均标注为调试视图 |
