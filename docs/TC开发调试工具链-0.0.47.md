@@ -866,7 +866,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
 | `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
 | `tc.manifest` | `tc.project` 语法、默认值、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
-| `tc.test_runner` | `tests/*/main.tc` 发现与 symlink、侧车缺失/不可用/格式、trap/exit、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
+| `tc.test_runner` | `tests/*/main.tc` 发现与 symlink、侧车缺失/不可用/格式、trap/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
 | `toolchain.project_paths` | 诊断/trap/IR/trace/linemap 与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径 | `toolchain`, `aot` |
@@ -922,7 +922,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | gdb 版本差异（ack 模式、`vCont`、`qXfer` 分块、自定义寄存器集） | 以最小子集实现；协议套件自测；§8.1 spike 给出兼容矩阵 |
 | gdb 把 `T0b` 显示为 SIGSEGV | 有意选择；§8.1 spike 验证 `?`/`c` 与退出状态；终止态仍由 `?` 报 `W<hh>`；必要时降级 `T05` + `monitor trap` |
 | 路径含控制/格式字符或非 UTF-8 破坏文本或 JSON | §5.9 路径组件校验；CLI/manifest 与名称违反 2，其它发现路径违反 70 |
-| `tc --test` 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；失败详情截断并标记；临时文件统一清理 |
+| `tc --test` 大输出耗尽内存或磁盘 | stdout 流式比较并限量保留；stderr 限量捕获；trap/exit 单文件 4 KiB；失败详情截断并标记；临时文件统一清理 |
 | `tc --test` 侧车/`main.tc` 是 symlink/FIFO | 只读路径跟随 symlink；解析后必须是普通文件；不可用/读取失败 70 |
 | gdb 的 `next`/`finish` 依赖架构与栈展开 | 不作为验收项；以 `monitor next`/`monitor finish` 提供等价能力 |
 | VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧 `\x03` 中断停在指令边界 |
