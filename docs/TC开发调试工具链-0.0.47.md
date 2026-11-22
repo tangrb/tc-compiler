@@ -531,13 +531,15 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   未知/重复选项或多余位置参数 → 2；`--` 后的参数全部作为 `<tool>` 及其参数，不再解析
   `tc-reduce` 选项。
 - 候选位置：种子运行使用原始 `<source.tc>`；后续候选写入其 canonical 目录下的
-  `tc_reduce_<n>.tc`（合法标识符、`.tc` 扩展名、`O_EXCL` 创建）。候选名不得与缩减器
-  从种子源递归解析出的全部模块的 import 名（含未解析成功的 import 名）、已有文件或
-  `--output` 路径同名；递归解析使用与编译器相同的导入者目录优先、include 根按序规则。
-  缩减动作只删除 import，种子闭包覆盖候选闭包，因此检查种子闭包足够。同目录保证
-  `tc.project` 根发现、manifest include 与相对 import 解析不变；不得写入工程外临时
-  目录，不得修改原文件。无法创建/写入候选 → 70。候选文件在每轮结束及退出时删除；
-  其路径/文件名不进入指纹、结果或诊断。
+  `tc_reduce_<n>.tc`（合法标识符、`.tc` 扩展名、`O_EXCL` 创建）。`n` 从 1 开始递增，
+  取第一个不与缩减器递归闭包中的 import 名（含未解析成功的 import 名）、已有条目
+  （文件或目录）、`--stdin` 或 `--output` 的解析路径冲突的值；import 名与候选 basename
+  去 `.tc` 后比较，路径比较前按 §5.9 规则 canonical 化（不存在路径用最近存在祖先拼接）。
+  递归解析使用与编译器相同的导入者目录优先、include 根按序规则；缩减动作只删除
+  import，种子闭包覆盖候选闭包，因此检查种子闭包足够。同目录保证 `tc.project` 根发现、
+  manifest include 与相对 import 解析不变；不得写入工程外临时目录，不得修改原文件。
+  无法创建/写入候选 → 70。候选文件在每轮结束及退出时删除；其路径/文件名不进入指纹、
+  结果或诊断。
 - 结果交付：默认把当前最佳源文本按原字节写 stdout；进度/诊断写 stderr，stdout 不含其它
   内容。`--output=<path>` 显式指定结果文件（临时文件 + rename 原子写，写失败 70），指定
   后 stdout 不写结果。0.0.47 不隐式就地覆盖 `<source.tc>`；`--output` 等于源文件时按
@@ -879,7 +881,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10）；gdb 缺失时显式跳过 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
-| `toolchain.reduce` | 最小化器收敛且指纹不变；候选同目录、临时文件清理、stdout/`--output` 结果、多模块 import 保留、候选名闭包 import 冲突（含未解析 import 名）、stdin 每轮从头读取、缺 `--`/`<tool>`/`<source.tc>` 2、source 非首位 2、未知/多余参数 2、选项重复/空值 2 | `toolchain`, `slow` |
+| `toolchain.reduce` | 最小化器收敛且指纹不变；候选同目录、临时文件清理、stdout/`--output` 结果、多模块 import 保留、候选名闭包 import 冲突（含未解析 import 名）、候选 n 从 1 递增、`--stdin`/`--output` 路径冲突、stdin 每轮从头读取、缺 `--`/`<tool>`/`<source.tc>` 2、source 非首位 2、未知/多余参数 2、选项重复/空值 2 | `toolchain`, `slow` |
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
 
 - 标签集合固定为 `unit`、`conformance`、`toolchain`、`aot`、`slow`、`fast`；每个测试至少
@@ -905,8 +907,9 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 - 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径；路径组件
   为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；回退 `<basename>#<n>` 在同一编译内稳定。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
-  多模块 import 保留、候选名避开闭包 import（含未解析 import 名）；超时与候选中 70/71
-  按 §5.12 输出当前最佳（种子 70/71 或无法启动不输出；种子超时输出输入）。
+  多模块 import 保留、候选名按 canonical 路径避开闭包 import（含未解析 import 名）与
+  `--stdin`/`--output` 路径、n 从 1 递增；超时与候选中 70/71 按 §5.12 输出当前最佳
+  （种子 70/71 或无法启动不输出；种子超时输出输入）。
 - 文档同步：本文件、[TC 工程模型 0.0.47](TC工程模型-0.0.47.md)、`README.md`/`README.en.md`、
   `docs/README.md`、`docs/gates/README.md`、`AGENTS.md` 导航、`tests/README.md`、
   `src/README.md`（新增 `src/debug/`、`src/project/`、`src/base/path.*` 边界）、
