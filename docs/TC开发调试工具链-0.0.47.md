@@ -191,7 +191,7 @@
 | `--debug` | 拒绝（2） | ✓ | 目标代码调试信息；VM 用 `--gdb-elf-out` |
 | `--dump-linemap[=<path>]` | ✓ | ✓ | 共享行表导出（§5.10） |
 | `--gdb[=<port>]` | ✓ | 拒绝（2） | VM 调试会话 |
-| `--gdb-elf-out=<path>` | ✓ | 拒绝（2） | 可选 VM 调试 ELF（内部 writer；`w32` 见 §6.8） |
+| `--gdb-elf-out=<path>` | ✓ | 拒绝（2） | 可选 VM 调试 ELF（内部 writer；`w32` 70，见 §6.8） |
 | `--gdb-allow-write` | ✓ | 拒绝（2） | 默认禁写 |
 | `--checked` | ✓ | ✓ | 既有语义，不变 |
 
@@ -212,7 +212,7 @@ trace/gdb/debug/stats/dump-* 等编译器观察开关。
 | `--dump-ir` | 2 | 正常 | 正常 | 正常 |
 | `--stats` | 2 | 正常（仅 IR 派生字段） | 2（不执行） | 正常 |
 | `--dump-linemap` | 2 | 正常 | 正常 | 正常 |
-| `--gdb-elf-out` | 2 | 2（工具不适用） | 正常（只生成 ELF；`w32` 2） | 正常（仅 `tc-vm`；`w32` 2） |
+| `--gdb-elf-out` | 2 | 2（工具不适用） | 正常（只生成 ELF；`w32` 70） | 正常（仅 `tc-vm`；`w32` 70） |
 | `--trace` | 2 | 2（工具不适用） | 2（不执行） | 正常（仅 `tc-vm`） |
 | `--gdb` | 2 | 2（工具不适用） | 2（不执行） | 正常（仅 `tc-vm`） |
 | `--debug` | 2 | 2（不生成代码） | 2（工具不适用） | 正常（仅 `tc-aot`） |
@@ -837,8 +837,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `riscv32-baremetal` | `ELFCLASS32` | `ELFDATA2LSB` | `EM_RISCV` (243) | 4 |
 
 - `w32` 是 target-independent VM static profile，没有具体 `e_machine`；`w32` 的
-  `--gdb-elf-out` 退出 2，不生成调试 ELF。`w32` 的 `--gdb` 仍可用 `target.xml`（不声明
-  architecture，gdb 使用默认架构或显式 `set architecture`），但不提供源级符号 ELF。
+  `--gdb-elf-out` 退出 70（profile 能力不可用），不生成调试 ELF。`w32` 的 `--gdb` 仍可用
+  `target.xml`（不声明 architecture，gdb 使用默认架构或显式 `set architecture`），但不提供
+  源级符号 ELF。
 - VM 调试 ELF 与 AOT `.loc` 共用 §5.10 的行表生成器映射，但**不**调用 AOT 的 clang/lld/
   assembler/linker 管线；两边的 `file:line → 指令` 映射一致由共享行表测试覆盖。
 - `--gdb-elf-out` 可与 `--gdb` 同用，也可单独使用（生成 ELF 后正常执行），便于先产出
@@ -915,7 +916,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
-| `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、编译器 CLI `--include` 数量上限 32、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
+| `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、编译器 CLI `--include` 数量上限 32、§5.2.1 组合矩阵（含 `w32 --gdb-elf-out` 70）的退出码断言 | `toolchain`, `fast` |
 | `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、init 的 `tests` 真实目录预检、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
 | `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 `tests` 树内 symlink、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
@@ -930,7 +931,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.linemap` | 行表覆盖 IR 全序、`kind` 四元组唯一、顶层 `<top>`/函数名、v2、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain`, `fast` |
 | `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`<top>`、call `callee` 同名消歧、trap 的 `kind` 与字段顺序、`monitor funcs` 排除单元、`monitor frames`/`vreg`/`trap` 选择器、VM 调试 ELF 源码符号（内部 writer/内部解析）、IR dump 结构名 | `toolchain`, `fast` |
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
-| `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70 | `toolchain`, `fast` |
+| `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70，`w32` 70 | `toolchain`, `fast` |
 | `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`<top>` 选择器）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
