@@ -871,8 +871,8 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
-| `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
-| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、init 的 `tests` 真实目录预检、`--test-timeout` 取值与非法值、`--include` 数量上限 32、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
+| `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、编译器 CLI `--include` 数量上限 32、§5.2.1 组合矩阵的退出码断言 | `toolchain`, `fast` |
+| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、init 的 `tests` 真实目录预检、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
 | `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 `tests` 树内 symlink、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
