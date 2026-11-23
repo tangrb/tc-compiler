@@ -937,7 +937,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 `tests` 树内 symlink、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
-| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、`module`/`callee_module`、`monitor funcs`/`frames`/`trap` 的 module 路径、`monitor vreg` 选择器的 external/`../`/`<basename>#<n>` 回退（含空格/`]`）、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb-elf-out`，不调用 clang/lld/gdb/readelf | `toolchain`, `fast` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、`module`/`callee_module`、`monitor funcs`/`frames`/`trap` 的 module 路径、`monitor vreg` 选择器的 external/`../`/`<basename>#<n>` 回退（含空格/`]`）、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb`/`--gdb-elf-out`，不调用外部 clang/lld/gdb/readelf | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径；AOT ELF 符号为内部 `tc_main`/`tc_function_<func_id>` | `toolchain`, `aot` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden（结构化 `top`/`f<id>`/`m<id>`/`struct#id`/`c<id>`/`o<id>` 段），两个工具一致；`o<id>`/`c<id>` 只在完整 dump 出现 | `toolchain`, `fast` |
