@@ -147,9 +147,8 @@ artifact; this is not a language diagnostic. The ARM32 code window is 1 MiB and
 oversized functions are rejected at link time; a 30000-instruction far-branch
 regression exists, but larger single functions depend on host memory and the
 assembler/linker and are not covered by the gate. Target/ABI/region and
-runtime-seam conventions are in [src/CONTRACTS.md](src/CONTRACTS.md); contract and
-test conventions are in [src/CONTRACTS.md](src/CONTRACTS.md) and
-[tests/README.md](tests/README.md).
+runtime-seam conventions, along with contract and test conventions, are in
+[src/CONTRACTS.md](src/CONTRACTS.md) and [tests/README.md](tests/README.md).
 
 ## Contributing
 
