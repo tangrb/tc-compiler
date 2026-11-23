@@ -272,7 +272,7 @@ trace/gdb/debug/stats/dump-* 等编译器观察开关。
 
 | 记录 | `detail` 键 |
 | ---- | ---- |
-| `call` | `direction`（`enter`/`return`）、`callee`（被调函数名；`callee` 总是 `kind=function`，顶层单元不可作为 callee） |
+| `call` | `direction`（`enter`/`return`）、`callee`（被调函数名，按 §5.4 函数显示名；跨模块同名时 `<name>#<func_id>`；`callee` 总是 `kind=function`，顶层单元不可作为 callee） |
 | `mem` | `load`/`store`：`region`（区名）、`offset`（区内偏移）、`size`（字节数）；`memmove`：`dst_region`、`dst_offset`、`src_region`、`src_offset`、`size`（`n × sizeof T` 的总字节数） |
 | `io` | `bytes`（本次提交字节数；`writeln` 含末尾换行）、`result`（`ok`/`eof`/`error`） |
 | `trap` | `code`（`TC_RE_*`） |
@@ -306,11 +306,11 @@ IR dump 的 `units` 段使用结构化的 `top`/`f<id>`，不属于本显示命�
 文本格式首行 `# tc-trace 2 <tool> <profile> <source>`，末行
 `# tc-trace end <records> <status>`；数据记录前缀 `[<seq>]` 为至少 4 位十进制零填充，
 `seq` 超过 9999 时自然加宽；`detail` 为 `key:value` 逗号列表，其中地址与偏移用 `0x`
-十六进制，长度、大小、计数用十进制；顶层字段（`seq`/`depth`/`kind`/`bb`/`insn`）
-除 `kind` 为字符串外均为十进制；`records` 为实际输出的数据记录数。header 的 `source` 是 `<profile>` 之后的
-整行剩余部分，可含空格。文本 `span` 为 `file:line:col`，`file` 可含 `:`，line/col 从右侧
-两个 `:` 解析。文本模式是面向人的视图；路径含空格、逗号或换行时文本字段有歧义，机器
-解析必须使用 JSONL。示例：
+十六进制，长度、大小、计数用十进制；顶层数值字段 `seq`/`depth`/`bb`/`insn` 为十进制；
+`kind`/`func`/`op`/`span` 为字符串；JSONL 中 `detail` 为对象。`records` 为实际输出的数据
+记录数。header 的 `source` 是 `<profile>` 之后的整行剩余部分，可含空格。文本 `span` 为
+`file:line:col`，`file` 可含 `:`，line/col 从右侧两个 `:` 解析。文本模式是面向人的视图；
+路径含空格、逗号或换行时文本字段有歧义，机器解析必须使用 JSONL。示例：
 
 ```
 # tc-trace 2 tc-vm aarch64-linux-user demo.tc
@@ -904,19 +904,19 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 `tests` 树内 symlink、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
-| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap 与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
-| `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径 | `toolchain`, `aot` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`，不调用 clang/lld | `toolchain`, `fast` |
+| `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径；AOT ELF 符号为内部 `tc_main`/`tc_function_<func_id>` | `toolchain`, `aot` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden（结构化 `top`/`f<id>`），两个工具一致 | `toolchain`, `fast` |
 | `toolchain.trace_golden` | trace 文本/JSONL golden（`kind`、顶层 `<top>`、v2）；同一指令 `ir`+事件/`call` 的 `enter`+`return` 多对一；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 旧字段顺序保持、`kind` 追加，JSON 追加字段顺序断言 | `toolchain`, `fast` |
 | `toolchain.linemap` | 行表覆盖 IR 全序、`kind` 四元组唯一、顶层 `<top>`/函数名、v2、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain`, `fast` |
-| `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`<top>`、trap 的 `kind` 与字段顺序、`monitor funcs` 排除单元、`monitor frames`/`vreg`/`trap` 选择器、VM 调试 ELF 源码符号、AOT ELF 内部符号、IR dump 结构名 | `toolchain`, `fast` |
+| `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`<top>`、call `callee` 同名消歧、trap 的 `kind` 与字段顺序、`monitor funcs` 排除单元、`monitor frames`/`vreg`/`trap` 选择器、VM 调试 ELF 源码符号、IR dump 结构名 | `toolchain`, `fast` |
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
 | `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`<top>` 选择器）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
-| `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、调试 ELF `break top`）；gdb 缺失时显式跳过 | `toolchain` |
+| `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、VM 调试 ELF `break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中）；gdb 缺失时显式跳过 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
 | `toolchain.reduce` | 最小化器收敛且指纹不变；候选同目录、临时文件清理、stdout/`--output` 结果、多模块 import 保留、候选名闭包 import 冲突（含未解析 import 名）、候选 n 从 1 递增、`--stdin`/`--output` 路径冲突、stdin 每轮从头读取、缺 `--`/`<tool>`/`<source.tc>` 2、source 非首位 2、未知/多余参数 2、选项重复/空值 2 | `toolchain`, `slow` |
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
@@ -949,8 +949,9 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   `func` 为源码名/`<name>#<func_id>`；linemap 中 `(kind,func,bb,insn)` 唯一，trace 以 `seq`
   唯一且同一四元组可多条（多对一）；trap/monitor 同步；调试 ELF 保留源码函数符号
   （VM `--gdb-elf-out` 的 `break top` 可用；跨模块同名函数用 `break <file>:<line>`；AOT ELF
-  仍用内部 `tc_main`/`tc_function_<id>`），IR dump 保持结构化 `top`/`f<id>`；由
-  `toolchain.debug_names` 覆盖。
+  仍用内部 `tc_main`/`tc_function_<id>`），IR dump 保持结构化 `top`/`f<id>`；trace/linemap/
+  trap/monitor、VM 调试 ELF 与 IR dump 由 `toolchain.debug_names` 覆盖；AOT ELF 内部符号由
+  `toolchain.project_paths_aot` 覆盖。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
   多模块 import 保留、候选名按 canonical 路径避开闭包 import（含未解析 import 名）与
   `--stdin`/`--output` 路径、n 从 1 递增；超时与候选中 70/71 按 §5.12 输出当前最佳
