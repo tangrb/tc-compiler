@@ -258,7 +258,8 @@ trace/gdb/debug/stats/dump-* 等编译器观察开关。
 | `seq` | 整数 | 从 1 递增，只统计实际输出的数据记录；header/truncated/footer 不占 `seq` |
 | `depth` | 整数 | 抽象调用深度 |
 | `kind` | 字符串 | `unit`（顶层单元）或 `function`（普通函数） |
-| `func` | 字符串 | `kind=unit` 时为字面 `<top>`；`kind=function` 时为源码函数名，不同模块同名时打印为 `<name>#<func_id>`，`func_id` 取 IR 最终化后的全局 `TcFunc.id` |
+| `module` | 字符串 | 根相对 canonical 模块路径；顶层单元为 root 模块路径 |
+| `func` | 字符串 | `kind=unit` 时为字面 `<top>`；`kind=function` 时为源码函数名；跨模块同名由 `module` 区分，不再拼接 `#func_id` |
 | `bb` | 整数 | 基本块序号 |
 | `insn` | 整数 | 块内指令序号 |
 | `op` | 字符串 | opcode |
@@ -272,7 +273,7 @@ trace/gdb/debug/stats/dump-* 等编译器观察开关。
 
 | 记录 | `detail` 键 |
 | ---- | ---- |
-| `call` | `direction`（`enter`/`return`）、`callee`（被调函数名，按 §5.4 函数显示名；跨模块同名时 `<name>#<func_id>`；`callee` 总是 `kind=function`，顶层单元不可作为 callee） |
+| `call` | `direction`（`enter`/`return`）、`callee`（被调函数源码名）、`callee_module`（被调函数模块路径）；`callee` 总是 `kind=function`，顶层单元不可作为 callee |
 | `mem` | `load`/`store`：`region`（区名）、`offset`（区内偏移）、`size`（字节数）；`memmove`：`dst_region`、`dst_offset`、`src_region`、`src_offset`、`size`（`n × sizeof T` 的总字节数） |
 | `io` | `bytes`（本次提交字节数；`writeln` 含末尾换行）、`result`（`ok`/`eof`/`error`） |
 | `trap` | `code`（`TC_RE_*`） |
@@ -288,7 +289,8 @@ trace/gdb/debug/stats/dump-* 等编译器观察开关。
 
 `call` 的 `enter` 与 `return` 记录都以调用点指令为位置锚点：`func`/`bb`/`insn`/`span`
 指向调用者的 `call` 指令，`depth` 取该调用点处的调用者深度（不是被调函数的深度）；
-`return` 记录另带 `direction:"return"` 与 `callee`。被调函数的深度由随后的 `ir` 记录体现。
+`return` 记录另带 `direction:"return"`、`callee` 与 `callee_module`。被调函数的深度由随后的
+`ir` 记录体现。
 同一调用点上的记录顺序固定：当 `ir` 与 `call` 同时启用时，先输出 `op=call` 的 `ir`
 记录，再输出 `enter`；只启用 `call` 时直接输出 `enter`。被调函数最后一条 `ir` 记录
 （若启用了 `ir`）之后输出 `return`。正常返回时 `enter` 与 `return` 成对；被调函数发生
@@ -297,39 +299,41 @@ trap、程序终止或 `--trace-limit` 截断时不补发缺失的 `return`。
 `mem` → `io` → `call` → `trap`；未启用 `ir` 时事件记录直接输出。
 
 调试显示命名约定（trace、行表、trap 报告、`monitor funcs`/`frames`/`vreg`/`trap` 共用）：
-- `kind=unit`，`func=<top>`：顶层单元。`<top>` 是字面 token，不是 TC 标识符；不改变标准 §2.3，也不禁止用户声明 `func top`。
-- `kind=function`，`func=<源码函数名>`：普通函数；不同模块存在同名函数时打印为 `<name>#<func_id>`。函数 `top` 仍显示为 `top`，没有额外的名字特判。
-- `(kind,func,bb,insn)` 是 IR 指令/linemap 键；`kind` 显式区分单元/函数，`<top>` 保证顶层单元不会与任何源码函数名冲突。trace 记录以 `seq` 唯一，同一四元组可有多条记录（`ir`+事件、`call` 的 `enter`/`return`），trace→linemap 为多对一。
-IR dump 的 `units` 段使用结构化的 `top`/`f<id>`，不属于本显示命名，也不随本约定改变。
+- `kind=unit`，`module=<root 模块路径>`，`func=<top>`：顶层单元。`<top>` 是字面 token，不是 TC 标识符；不改变标准 §2.3，也不禁止用户声明 `func top`。
+- `kind=function`，`module=<模块路径>`，`func=<源码函数名>`：普通函数；不同模块同名由 `module` 区分，函数 `top` 仍显示为 `top`，没有额外名字特判。
+- `(kind,module,func,bb,insn)` 是 IR 指令/linemap 键；`kind` 区分单元/函数，`module` 区分跨模块同名成员。trace 记录以 `seq` 唯一，同一五元组可有多条记录（`ir`+事件、`call` 的 `enter`/`return`），trace→linemap 为多对一。
+- 未进入当前调试面的模块成员继续按各自命名空间处理：`const`/`static var`/`struct` 若未来暴露，使用 `(member_kind,module,name)`；结构体字段使用 `(module,owner_struct,field_path)`；局部变量使用 `(module,function,scope,name)`。当前 trace/linemap/trap/monitor/ELF 只暴露 `unit`/`function`，不暴露这些名字。
+- `TcFunc.id` 只用于 IR dump/AOT 内部符号，不进入 trace/linemap/trap/monitor/调试 ELF 的用户可见身份；object id 同理，`monitor objects` 的对象 id 是内部标识。
+IR dump 的 `units`/`funcs`/`structs`/`consts`/`objects` 段使用结构化的 `top`/`f<id>`/`m<id>`/`struct#id`/`c<id>`/`o<id>`，不属于本显示命名，也不随本约定改变。
 顶层单元的 `depth` 固定为 0，函数体从 1 开始（示例中的 `main` 为 1）。
 
-文本格式首行 `# tc-trace 2 <tool> <profile> <source>`，末行
+文本格式首行 `# tc-trace 3 <tool> <profile> <source>`，末行
 `# tc-trace end <records> <status>`；数据记录前缀 `[<seq>]` 为至少 4 位十进制零填充，
 `seq` 超过 9999 时自然加宽；`detail` 为 `key:value` 逗号列表，其中地址与偏移用 `0x`
 十六进制，长度、大小、计数用十进制；顶层数值字段 `seq`/`depth`/`bb`/`insn` 为十进制；
-`kind`/`func`/`op`/`span` 为字符串；JSONL 中 `detail` 为对象。`records` 为实际输出的数据
+`kind`/`module`/`func`/`op`/`span` 为字符串；JSONL 中 `detail` 为对象。`records` 为实际输出的数据
 记录数。header 的 `source` 是 `<profile>` 之后的整行剩余部分，可含空格。文本 `span` 为
 `file:line:col`，`file` 可含 `:`，line/col 从右侧两个 `:` 解析。文本模式是面向人的视图；
 路径含空格、逗号或换行时文本字段有歧义，机器解析必须使用 JSONL。示例：
 
 ```
-# tc-trace 2 tc-vm aarch64-linux-user demo.tc
-[0001] depth=1 kind=function func=main bb=0 insn=0 op=copy span=demo.tc:3:5
-[0002] depth=1 kind=function func=main bb=0 insn=1 op=load.volatile span=demo.tc:4:5 detail=region:device,offset:0x0,size:4
+# tc-trace 3 tc-vm aarch64-linux-user demo.tc
+[0001] depth=1 kind=function module=demo.tc func=main bb=0 insn=0 op=copy span=demo.tc:3:5
+[0002] depth=1 kind=function module=demo.tc func=main bb=0 insn=1 op=load.volatile span=demo.tc:4:5 detail=region:device,offset:0x0,size:4
 # tc-trace end 2 ok
 ```
 
 对应 JSONL：
 
 ```json
-{"seq":1,"depth":1,"kind":"function","func":"main","bb":0,"insn":0,"op":"copy","span":"demo.tc:3:5"}
-{"seq":2,"depth":1,"kind":"function","func":"main","bb":0,"insn":1,"op":"load.volatile","span":"demo.tc:4:5","detail":{"region":"device","offset":0,"size":4}}
+{"seq":1,"depth":1,"kind":"function","module":"demo.tc","func":"main","bb":0,"insn":0,"op":"copy","span":"demo.tc:3:5"}
+{"seq":2,"depth":1,"kind":"function","module":"demo.tc","func":"main","bb":0,"insn":1,"op":"load.volatile","span":"demo.tc:4:5","detail":{"region":"device","offset":0,"size":4}}
 ```
 
 JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达：
 
 ```json
-{"type":"header","format":"tc-trace","version":2,"tool":"tc-vm","profile":"aarch64-linux-user","source":"demo.tc"}
+{"type":"header","format":"tc-trace","version":3,"tool":"tc-vm","profile":"aarch64-linux-user","source":"demo.tc"}
 {"type":"truncated"}
 {"type":"footer","records":N,"dropped":M,"status":"ok"}
 ```
@@ -337,8 +341,8 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 顶层单元与函数 `top` 的显示形态（`<top>` 为字面 token）：
 
 ```
-[0003] depth=0 kind=unit func=<top> bb=0 insn=0 op=call span=demo.tc:2:5
-[0004] depth=1 kind=function func=top bb=0 insn=0 op=copy span=lib.tc:2:5
+[0003] depth=0 kind=unit module=demo.tc func=<top> bb=0 insn=0 op=call span=demo.tc:2:5
+[0004] depth=1 kind=function module=lib.tc func=top bb=0 insn=0 op=copy span=lib.tc:2:5
 ```
 
 - `records` 是实际输出的**数据记录**数（不含控制对象）；JSONL footer 的 `dropped` 恒在
@@ -384,18 +388,19 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 `tc-vm` 的 trap 文本行保留既有 `error[RT]` 前缀，并在末尾追加结构化后缀：
 
 ```
-<file>:<line>:<col>: error[RT]: TC_RE_X: PrintName [func=<top|name> bb=<n> insn=<n> op=<op> depth=<n> kind=<unit|function>]
+<file>:<line>:<col>: error[RT]: TC_RE_X: PrintName [func=<top|name> bb=<n> insn=<n> op=<op> depth=<n> kind=<unit|function> module=<path>]
 ```
 
 - 前缀（`file:line:col`、`error[RT]`、码、打印名）与 0.0.46 一致，脚本按首个
   `TC_RE_*` 匹配不受影响；后缀字段顺序固定、只增不改义。
-- 实体显示名与 `kind` 按 §5.4：顶层单元 `func=<top>`、`kind=unit`；函数 `func=<name>`/
-  `<name>#<func_id>`、`kind=function`。`func`/`kind` 分别为 `<top>`/`unit` 与 `top`/`function`
+- 实体显示名、`kind` 与 `module` 按 §5.4：顶层单元 `func=<top>`、`kind=unit`；函数
+  `func=<源码名>`、`kind=function`；跨模块同名由 `module` 区分，不拼接 `#func_id`。
+  `func`/`kind`/`module` 分别为 `<top>`/`unit`/root 模块路径与 `top`/`function`/函数模块路径
   时可直接区分。`op` 是完整打印名（含 `.wrap`/`.ieee`/`.volatile`/`.nsw`/`.nuw` 后缀，与 trace
   一致）；`span` 取触发 trap 的指令；路径按 §5.9 根相对。
 - `--diag-format=json` 下 trap 输出一行 JSON：基础字段（§5.7）之后按旧顺序追加 `func`、
-  `bb`、`insn`、`op`、`depth`，最后追加 `kind`；`stage` 为 `RT`，`code` 为 `TC_RE_*`。
-  旧字段相对顺序不变，`kind` 是追加字段。
+  `bb`、`insn`、`op`、`depth`，再追加 `kind` 与 `module`；`stage` 为 `RT`，`code` 为
+  `TC_RE_*`。旧字段相对顺序不变，`kind`/`module` 是追加字段。
 
 ### 5.7 诊断机器接口
 
@@ -444,9 +449,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   不含调试信息，此为文档化行为而非错误。
 - 覆盖要求：行表产物（linemap）覆盖 IR 全序的每条指令；同一函数内 `.loc` 地址严格递增。
   行表是静态集合，`--trace=ir` 是动态执行序列（循环会重复、死代码不出现），两者不比较
-  条目数；验收方式是对 trace 的每条记录按 `(kind,func,bb,insn)` 查行表（多对一），断言其
-  `span` 与记录 `span` 相同。`kind`/`func` 使用 §5.4 的单元/函数显示命名；trace 记录本身
-  由 `seq` 唯一。
+  条目数；验收方式是对 trace 的每条记录按 `(kind,module,func,bb,insn)` 查行表（多对一），
+  断言其 `span` 与记录 `span` 相同。`kind`/`module`/`func` 使用 §5.4 的单元/函数显示命名；
+  trace 记录本身由 `seq` 唯一。
 - 汇编器可能把相邻且 `(file,line,column)` 相同的 `.loc` 合并为一条 DWARF 行表记录，因此
   `.debug_line` 的记录数可以少于 IR 指令数；覆盖验收以 linemap 为准，不按
   `.debug_line` 行数计数。
@@ -517,15 +522,16 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 - `--dump-linemap[=<path>]` 导出确定性 JSON，默认写 `stderr`：
 
 ```json
-{"format":"tc-linemap","version":2,"profile":"aarch64-linux-user","source":"src/main.tc",
- "entries":[{"kind":"function","func":"main","bb":0,"insn":0,"file":"src/main.tc","line":3,"col":5}]}
+{"format":"tc-linemap","version":3,"profile":"aarch64-linux-user","source":"src/main.tc",
+ "entries":[{"kind":"function","module":"src/main.tc","func":"main","bb":0,"insn":0,"file":"src/main.tc","line":3,"col":5}]}
 ```
 
-- 条目顺序为 IR 最终化的全序；`kind`/`func` 使用 §5.4 的调试显示命名：顶层单元
-  `kind="unit"`、`func="<top>"`；函数 `kind="function"`、`func` 为源码名/`<name>#<func_id>`。
-  条目的键顺序固定为 `kind`、`func`、`bb`、`insn`、`file`、`line`、`col`；`(kind,func,bb,insn)`
-  是 linemap 条目的唯一主键。仅 VM 上下文追加 `vm_addr`，仅根外条目追加 `external`，二者按此顺序出现
-  在 `col` 之后，缺省键不占位。
+- 条目顺序为 IR 最终化的全序；`kind`/`module`/`func` 使用 §5.4 的调试显示命名：顶层单元
+  `kind="unit"`、`module` 为 root 模块路径、`func="<top>"`；函数 `kind="function"`、
+  `module` 为模块路径、`func` 为源码名。条目的键顺序固定为 `kind`、`module`、`func`、`bb`、
+  `insn`、`file`、`line`、`col`；`(kind,module,func,bb,insn)` 是 linemap 条目的唯一主键。
+  仅 VM 上下文追加 `vm_addr`，仅根外条目追加 `external`，二者按此顺序出现在 `col` 之后，
+  缺省键不占位。
 - `vm_addr` 是 §6.2 合成地址的十进制 JSON 整数；`tc-vm --dump-linemap`（含
   `--static-only`）输出该键，`tc-aot --dump-linemap` 不输出。
 - 根外文件（§5.9）的条目带 `"external":true`；根内条目不含该字段。
@@ -537,10 +543,10 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
 
 | 格式 | 版本标识 | 兼容规则 |
 | ---- | ---- | ---- |
-| trace 文本 / JSONL | 文本首行 `# tc-trace 2`；JSONL 首对象 `header.version` | 版本内只追加字段；改义需升版本 |
+| trace 文本 / JSONL | 文本首行 `# tc-trace 3`；JSONL 首对象 `header.version` | 版本内只追加字段；改义需升版本 |
 | IR dump 文本 | 首行 `tc-ir 0.0.46 profile=…` | 语言版本随标准；字段只增不减，路径按 §5.9 根相对 |
 | 诊断 JSON | `error` 行以 `code`、`note` 行以 `note` 为版本锚 | 版本内只追加字段 |
-| 行表 JSON | `"version":2` | 版本内只追加字段；条目顺序为全序 |
+| 行表 JSON | `"version":3` | 版本内只追加字段；条目顺序为全序 |
 | 调试 ELF | 无 TC 格式版本字段；DWARF v4 固定（§6.8） | 只承载符号与行表；不承诺向后兼容 |
 | GDB RSP | 协议版本由 `qSupported` 协商 | 子集只增不减；废弃报文先返回空应答再移除 |
 | `--stats` 文本 | 首行 `# tc-stats 1` | 字段只增不减；字段名、含义与顺序见 §5.5 |
@@ -737,23 +743,27 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | 命令 | 内容 |
 | ---- | ---- |
 | `monitor regions` | 五区基址/长度/当前使用量（字节） |
-| `monitor funcs` | 函数表：`funcaddr` 值（按区名+区内偏移）、源码函数名（不同模块同名时为 `<name>#<func_id>`）、指令区间（全局指令序号）、合成地址范围；顶层单元不是函数，不列入 |
-| `monitor objects` | 对象表：对象 id、区、偏移（字节）、大小（字节）、生命期状态 |
-| `monitor frames` | 抽象帧栈：深度、实体 `kind`（`unit`/`function`）、实体显示名（顶层 `<top>`，函数源码名/`<name>#<func_id>`）、全局指令序号（§6.2）、源码位置 |
+| `monitor funcs` | 函数表：`module`（根相对模块路径）、源码函数名、`funcaddr` 值（按区名+区内偏移）、指令区间（全局指令序号）、合成地址范围；顶层单元不是函数，不列入 |
+| `monitor objects` | 对象表：对象 id、区、偏移（字节）、大小（字节）、生命期状态；对象 id 是内部标识，不承诺跨构建稳定 |
+| `monitor frames` | 抽象帧栈：深度、实体 `kind`（`unit`/`function`）、`module`、`func`（顶层 `<top>`，函数源码名）、全局指令序号（§6.2）、源码位置 |
 | `monitor next` | 执行到下一条同深度指令，跨越整个 `call`；途中命中用户断点、TC trap、终止或 `\x03` 时提前停止 |
 | `monitor finish` | 运行到当前帧返回（深度减一）；途中命中用户断点、TC trap、终止或 `\x03` 时提前停止 |
 | `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span）；地址越界、未对齐或不对应指令返回 `E01` |
-| `monitor vreg [<func>:]<序号>` | 读取当前帧的 vreg 值：标量按 vreg 自身类型的位宽打印为 `0x` 十六进制位模式，宽度取 `tc_type_bits(type, W)`：`int8`/`uint8`/`bool` 2 个十六进制数字、`int16`/`uint16` 4 个、`int32`/`uint32`/`float32` 8 个、`int64`/`uint64`/`float64` 16 个，`isize`/`usize` 随档案字长（W=32 为 8 个、W=64 为 16 个）；指针/fnptr 打印为区名+区内偏移（空指针为 `null`，不可表示时按 W 位模式）；聚合与未初始化 vreg 返回 `E01`。`<序号>` 为 vreg 序号的十进制字符串，即 `monitor ir` 显示的 `%N`（IR 操作数不携带源名）；省略 `<func>` 时在当前实体的 vreg 空间内解析，未找到返回 `E01` |
+| `monitor vreg [<selector>:]<序号>` | 读取当前帧的 vreg 值：标量按 vreg 自身类型的位宽打印为 `0x` 十六进制位模式，宽度取 `tc_type_bits(type, W)`：`int8`/`uint8`/`bool` 2 个十六进制数字、`int16`/`uint16` 4 个、`int32`/`uint32`/`float32` 8 个、`int64`/`uint64`/`float64` 16 个，`isize`/`usize` 随档案字长（W=32 为 8 个、W=64 为 16 个）；指针/fnptr 打印为区名+区内偏移（空指针为 `null`，不可表示时按 W 位模式）；聚合与未初始化 vreg 返回 `E01`。`<序号>` 为 vreg 序号的十进制字符串，即 `monitor ir` 显示的 `%N`（IR 操作数不携带源名）；省略选择器时在当前实体的 vreg 空间内解析，未找到返回 `E01` |
 | `monitor stats` | §5.5 的 `tc-vm` 运行时字段，每行 `key=value`，不含 `# tc-stats` 头 |
-| `monitor trap` | 最近一次 TC trap 的码、span、`kind`、`func`、`bb`、`insn`、`op`、`depth` |
+| `monitor trap` | 最近一次 TC trap 的码、span、`kind`、`module`、`func`、`bb`、`insn`、`op`、`depth` |
 | `monitor help` | 命令列表 |
 
 - vreg 只存在于当前帧：暂停中的活动帧，或 trap 终止时保留的触发帧。跨实体同序号必须写全
-  `monitor vreg <func>:<序号>`；`<func>` 必须等于当前帧实体，指向其他实体返回 `E01`，
-  不支持读取调用者帧。`<func>` 与 `<序号>` 以**最后一个** `:` 分隔；`<func>` 是 §5.4 的
-  实体显示名：顶层单元为字面 `<top>`，函数为源码名/`<name>#<func_id>`；可含 `<`、`>`、
-  `#`，不含 `:`，因此 `:` 始终是分隔符。`<top>` 是字面 token；在 shell 中传递时需引用。
-  `<序号>` 为非负十进制整数，溢出或未知序号返回 `E01`。
+  选择器：顶层单元 `monitor vreg <top>:<序号>`；函数 `monitor vreg <module>:<func>:<序号>`。
+  选择器必须等于当前帧实体，指向其他实体返回 `E01`，不支持读取调用者帧。函数选择器以
+  **最后一个** `:` 分隔 `<序号>`，再以**倒数第二个** `:` 分隔 `<module>` 与 `<func>`；
+  函数名不含 `:`，模块路径可以含 `:`，因此从右解析安全。`<top>` 是字面 token；在 shell
+  中传递时需引用。`<序号>` 为非负十进制整数，溢出或未知序号返回 `E01`。
+- `monitor funcs` 只列函数；`const`/`static var`/`struct` 不是函数，不进入函数表。若未来增加
+  成员级调试命令，使用 `(member_kind,module,name)`；结构体字段使用
+  `(module,owner_struct,field_path)`；局部变量使用 `(module,function,scope,name)`。
+- `monitor objects` 的对象 id 是内部标识，不承诺跨构建稳定；不要把它当作源码成员身份。
 - `monitor finish` 在顶层帧（深度 0）返回 `E01`；`monitor next` 在当前指令是 `return`
   或 `trap` 时执行该终止指令并在调用者/终止态停下，不再寻找同深度指令。
 - `monitor next`/`monitor finish` 与 `c` 一样在每个指令边界检查用户断点；进入命令时若
@@ -818,8 +828,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
   生成，只承载符号与行表，地址使用合成代码地址，不含可执行代码；不调用 clang、lld、
   gdb、readelf 或其它外部工具。调试 ELF 的函数符号使用源码函数名，不追加 `#<func_id>`；
   不同模块同名函数由 DWARF `file:line` 区分，`break <name>` 不保证唯一，源级断点用
-  `break <file>:<line>`。顶层单元不是函数符号，不写入 ELF。§5.4 的 `<top>`/`kind` 仅用于
-  trace、linemap、trap 与 monitor 显示，不写入 `.symtab`/DWARF。gdb 以 `file <elf>` +
+  `break <file>:<line>`。顶层单元不是函数符号，不写入 ELF。TC 调试身份 `(module,func)`
+  与 gdb 源级 `file:line` 是两层：`module`/`func`/`kind`/`<top>` 不写入 `.symtab`/DWARF；
+  模块路径通过 DWARF `decl_file`/行表体现。gdb 以 `file <elf>` +
   `target remote` 获得源级断点时，断点地址与 stub 的合成地址一致；单个 `top` 函数仍可
   用 `break top` 下源级断点。
 - `tc-aot --debug --emit=elf` 的 ELF 符号仍是后端内部 `tc_main`/`tc_function_<func_id>`；
@@ -925,14 +936,15 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径；AOT ELF 符号为内部 `tc_main`/`tc_function_<func_id>` | `toolchain`, `aot` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden（结构化 `top`/`f<id>`），两个工具一致 | `toolchain`, `fast` |
-| `toolchain.trace_golden` | trace 文本/JSONL golden（`kind`、顶层 `<top>`、v2）；同一指令 `ir`+事件/`call` 的 `enter`+`return` 多对一；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
+| `toolchain.trace_golden` | trace 文本/JSONL golden（`kind`/`module`/`func`、顶层 `<top>`、v3）；同一指令 `ir`+事件/`call` 的 `enter`+`return` 多对一；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
-| `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 旧字段顺序保持、`kind` 追加，JSON 追加字段顺序断言 | `toolchain`, `fast` |
-| `toolchain.linemap` | 行表覆盖 IR 全序、`kind` 四元组唯一、顶层 `<top>`/函数名、v2、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain`, `fast` |
-| `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`<top>`、call `callee` 同名消歧、trap 的 `kind` 与字段顺序、`monitor funcs` 排除单元、`monitor frames`/`vreg`/`trap` 选择器、VM 调试 ELF 源码符号（内部 writer/内部解析）、IR dump 结构名 | `toolchain`, `fast` |
+| `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 旧字段顺序保持、`kind`/`module` 追加，JSON 追加字段顺序断言 | `toolchain`, `fast` |
+| `toolchain.linemap` | 行表覆盖 IR 全序、`(kind,module,func,bb,insn)` 唯一、顶层 `<top>`/函数名、v3、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain`, `fast` |
+| `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`module`/`<top>`、call `callee`/`callee_module`、trap 的 `kind`/`module` 与字段顺序、`monitor funcs` 排除单元、`monitor frames`/`vreg`/`trap` 的 module 选择器、VM 调试 ELF 源码符号（内部 writer/内部解析）、IR dump 结构名；新增无关函数后身份不变 | `toolchain`, `fast` |
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
+| `toolchain.member_identity` | 跨模块同名 `func`/`const`/`static`/`struct` 夹具：调试面只暴露函数；`monitor funcs` 不列成员/单元；`monitor objects` 不出现源码名且 object id 标记内部；IR dump 保持 `m<id>`/`struct#id`/`c<id>`/`o<id>`/`f<id>` 结构名；结构体同名字段由 owner type 区分（IR dump 结构输出） | `toolchain`, `fast` |
 | `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70，`w32` 70 | `toolchain`, `fast` |
-| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`<top>` 选择器）/退出/重同步 | `toolchain`, `fast` |
+| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、模块路径含 `:` 时从右解析）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
@@ -964,9 +976,10 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root 源路径为 FIFO/设备 → 70；import 非普通候选
   跳过，全部无匹配报 `TC_CE_IMPORT_NOT_FOUND`；单源文件超过 4 MiB → 71；回退
   `<basename>#<n>` 在同一编译内稳定。
-- 调试实体：trace/linemap v2；顶层单元 `kind=unit`、`func=<top>`；函数 `kind=function`、
-  `func` 为源码名/`<name>#<func_id>`；linemap 中 `(kind,func,bb,insn)` 唯一，trace 以 `seq`
-  唯一且同一四元组可多条（多对一）；trap/monitor 同步；调试 ELF 保留源码函数符号
+- 调试实体：trace/linemap v3；顶层单元 `kind=unit`、`module` 为 root 模块路径、`func=<top>`；
+  函数 `kind=function`、`module` 为模块路径、`func` 为源码名；linemap 中
+  `(kind,module,func,bb,insn)` 唯一，trace 以 `seq` 唯一且同一五元组可多条（多对一）；
+  `callee`/`callee_module`、trap/monitor 同步；空 `module`/`func` 视为实现错误；调试 ELF 保留源码函数符号
   （VM `--gdb-elf-out` 的 `break top` 可用；跨模块同名函数用 `break <file>:<line>`；AOT ELF
   仍用内部 `tc_main`/`tc_function_<id>`），IR dump 保持结构化 `top`/`f<id>`。VM
   `--gdb-elf-out` 由内部最小 writer 生成，不调用 clang/lld/gdb/readelf；writer 与
@@ -999,8 +1012,12 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 合成地址与语言值域混淆 | 合成区间独立且文档化；调试 ELF 与 trace 均标注为调试视图 |
 | VM 调试 ELF 内部 writer 的 e_type/节布局与 gdb 兼容性 | class/machine 按 §6.8 表固定；§8.1 spike 确认 e_type/节布局/基址与 gdb 加载；只调整内部 writer，不改为外部 linker |
 | 行表与实际执行不一致（call 原子性、无内联） | 行表以 IR 指令为单位；以 trace 记录逐条比对 span；call 映射到调用点 |
-| 顶层单元与函数 `top` 同名 | 顶层单元 `<top>`/`kind=unit`，函数源码名/`kind=function`；linemap 键为 `(kind,func,bb,insn)`，trace 以 `seq` 唯一 |
-| 显示名 `#id` 污染 DWARF 符号 | VM 调试 ELF 只写源码函数名；AOT ELF 符号为内部 `tc_main`/`tc_function_<id>`；显示名仅用于 trace/linemap/trap/monitor |
+| 顶层单元与函数 `top` 同名 | 顶层单元 `<top>`/`kind=unit`，函数源码名/`kind=function`；linemap 键为 `(kind,module,func,bb,insn)`，trace 以 `seq` 唯一 |
+| 调试显示名污染 DWARF 符号 | `module`/`func`/`kind`/`<top>` 仅用于 trace/linemap/trap/monitor；VM 调试 ELF 只写源码函数名；AOT ELF 符号为内部 `tc_main`/`tc_function_<id>` |
+| 跨模块同名成员身份漂移 | `module` 为根相对 canonical 路径；trace/linemap v3 使用 `(kind,module,func,bb,insn)`；`TcFunc.id` 不进入调试显示 |
+| 结构体同名字段被误当模块成员 | 字段身份为 `(module,owner_struct,field_path)`；当前不进入调试面；IR dump 的 struct/fields 仍是结构输出 |
+| object id 被当作稳定源码身份 | `monitor objects` 明确 object id 为内部标识，不承诺跨构建稳定；未来源码对象用 `module` + object path |
+| 模块路径含 `:`/空格破坏 monitor 选择器 | 选择器从右解析，函数名不含 `:`；模块路径按 §5.9；shell 引用；机器接口优先 JSON/内部 API |
 | 调试写内存破坏不变量 | 默认禁写；仅 `--gdb-allow-write` 开放，并限定区 |
 | 调试器主动 kill 请求 | v1 不主动杀死进程：`k` 无应答空操作，`vKill` 运行态回 `E01`；用 `D` 分离或 Ctrl-C 结束 |
 | 调试信息破坏可复现 | 工程根相对路径 + 无时间戳 + `-fdebug-compilation-dir=.`；T6 断言两次构建字节一致 |
