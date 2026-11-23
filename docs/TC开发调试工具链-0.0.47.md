@@ -977,7 +977,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 - 三入口模型生效：`tc`/`tc-vm`/`tc-aot --version` 打印工具链 0.0.47 与语言 0.0.46；
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
-- 路径：诊断/trap/IR/trace/linemap、`module`/`callee_module`、`monitor funcs`/`frames`/`trap` 的 module、AOT 字符串均为工程根相对，不出现绝对路径；路径组件
+- 路径：诊断/trap/IR/trace/linemap、`module`/`callee_module`、`monitor funcs`/`frames`/`trap` 的 module、`monitor vreg` 的 module 选择器、AOT 字符串均为工程根相对，不出现绝对路径；路径组件
   为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root 源路径为 FIFO/设备 → 70；import 非普通候选
   跳过，全部无匹配报 `TC_CE_IMPORT_NOT_FOUND`；单源文件超过 4 MiB → 71；回退
   `<basename>#<n>` 在同一编译内稳定。
