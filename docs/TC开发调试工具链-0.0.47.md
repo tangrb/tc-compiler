@@ -301,6 +301,7 @@ trap、程序终止或 `--trace-limit` 截断时不补发缺失的 `return`。
 调试显示命名约定（trace、行表、trap 报告、`monitor funcs`/`frames`/`vreg`/`trap` 共用）：
 - `kind=unit`，`module=<root 模块显示路径>`，`func=<top>`：顶层单元。`<top>` 是字面 token，不是 TC 标识符；不改变标准 §2.3，也不禁止用户声明 `func top`。
 - `kind=function`，`module=<模块显示路径>`，`func=<源码函数名>`：普通函数；不同模块同名由 `module` 区分，函数 `top` 仍显示为 `top`，没有额外名字特判。
+- `module`/`callee_module` 与 `span.file` 使用同一显示路径；外部 `<basename>#<n>` 回退编号按 §5.9 在编译内稳定，不同编译模式可不同，不承诺跨模式稳定。
 - `(kind,module,func,bb,insn)` 是 IR 指令/linemap 键；`kind` 区分单元/函数，`module` 区分跨模块同名成员。trace 记录以 `seq` 唯一，同一五元组可有多条记录（`ir`+事件、`call` 的 `enter`/`return`），trace→linemap 为多对一。
 - 未进入当前调试面的模块成员继续按各自命名空间处理：`const`/`static var`/`struct` 若未来暴露，使用 `(member_kind,module,name)`；结构体字段使用 `(module,owner_struct,field_path)`；局部变量使用 `(module,function,scope,name)`。当前 trace/linemap/trap/monitor/ELF 只暴露 `unit`/`function`，不暴露这些名字。
 - `TcFunc.id` 只用于 IR dump/AOT 内部符号，不进入 trace/linemap/trap/monitor/调试 ELF 的用户可见身份；`monitor ir` 是原始 IR 文本，可能含 `f<id>`/`o<id>`/`struct#id`/`c<id>` 等结构操作数，不构成调试实体身份；object id 同理，`monitor objects` 的对象 id 是内部标识。
@@ -1029,6 +1030,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | object id 被当作稳定源码身份 | `monitor objects` 明确 object id 为内部标识，不承诺跨构建稳定；未来源码对象用 `module` + object path |
 | 模块路径含 `:`/空格破坏 monitor 选择器 | selector 是 `vreg` 后的原始剩余串，允许空格；从右解析，函数名不含 `:`；模块路径按 §5.9 显示路径；机器接口优先 JSON/内部 API |
 | trap 文本的 `module` 路径含空格/`]` 破坏后缀解析 | trap 文本是 human view；机器解析必须用 `--diag-format=json`；测试覆盖空格/`]`/回退路径 |
+| external/回退 module 身份跨编译模式变化 | `<basename>#<n>` 按 §5.9 编译内稳定、跨模式可不同；不承诺跨模式稳定；普通根内/`../` 路径稳定 |
 | `monitor ir` 的 `f<id>` 被当成实体身份 | `monitor ir` 是原始 IR 文本；调试身份只用 `(module,func)`/`kind`，`f<id>` 是结构操作数 |
 | 调试写内存破坏不变量 | 默认禁写；仅 `--gdb-allow-write` 开放，并限定区 |
 | 调试器主动 kill 请求 | v1 不主动杀死进程：`k` 无应答空操作，`vKill` 运行态回 `E01`；用 `D` 分离或 Ctrl-C 结束 |
