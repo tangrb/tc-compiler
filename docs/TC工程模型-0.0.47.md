@@ -178,7 +178,8 @@ profile = "aarch64-linux-user"
 - 实现错误、源读取/IO 错误与路径解析 note 中的源路径。
 - VM trap 文本与 JSON trap 行。
 - `--dump-ir` 的 `modules:` 段。
-- trace 的 `span` 与 header `source`；linemap 的 `source`/`file`。
+- trace 的 `span`、header `source` 与 `module`/`callee_module`；linemap 的 `source`/`file`/`module`。
+- trap 文本/JSON 的 `module`；`monitor funcs`/`frames`/`trap`/`vreg` 的 `module` 字段或选择器。
 - 调试 ELF 的 `.file` 与符号所在源文件；AOT `.file`/`.loc`/`# source:`。
 - AOT 产物内的源文件字符串（`.asciz`）与目标运行时 trap 记录。
 - `monitor frames`/`ir`/`funcs` 的源码位置。
