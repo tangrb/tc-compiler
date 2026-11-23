@@ -139,7 +139,7 @@
   不参与排序。
 - 工具输出必须确定性：不含绝对路径、时钟、PID、临时路径、随机数、宿主地址；源路径一律
   工程根相对（§5.9），程序可见地址打印为区名加区内偏移。GDB 合成代码地址与调试 ELF
-  地址是 §6.2 定义的固定 64 位调试视图，不属于该地址规则。`--gdb` 会话行（§6.1）含系统
+  地址是 §6.2 定义的按档案 W 选择的合成调试视图（W=64/W=32 各自区间），不属于该地址规则。`--gdb` 会话行（§6.1）含系统
   分配的端口，以及 `tc --test`/`tc-reduce` 显式 timeout 是否到期，取决于运行时序，
   不参与逐字节比较；timeout 报告文本本身仍不含实际耗时、PID 或临时路径。
 - JSON/JSONL 对象的键按各自 schema 示例的顺序输出；键顺序与字段顺序一样属于逐字节
@@ -315,7 +315,7 @@ IR dump 的 `units`/`funcs`/`structs`/`consts`/`objects` 段使用结构化的 `
 `kind`/`module`/`func`/`op`/`span` 为字符串；JSONL 中 `detail` 为对象。`records` 为实际输出的数据
 记录数。header 的 `source` 是 `<profile>` 之后的整行剩余部分，可含空格。文本 `span` 为
 `file:line:col`，`file` 可含 `:`，line/col 从右侧两个 `:` 解析。文本模式是面向人的视图；
-路径含空格、逗号或换行时文本字段有歧义，机器解析必须使用 JSONL。示例：
+路径含空格、`]` 或逗号时文本字段有歧义，机器解析必须使用 JSONL。示例：
 
 ```
 # tc-trace 3 tc-vm aarch64-linux-user demo.tc
@@ -789,6 +789,9 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - 所有 `monitor` 命令只在 stopped 或 terminated 态执行；running 态按 §6.3 处理。
 - 未知命令返回 `E01` 并附 `monitor help` 提示；命令解析失败不影响程序状态。
 - 输出为纯文本，行尾 `\n`，不依赖终端宽度；源码位置与路径按 §5.9 根相对；同一状态重复查询结果一致。
+- `monitor` 输出是面向人的视图。`module` 是显示路径，可含空格、`]`、逗号等合法字符，按
+  空白或固定分隔符做通用行解析会产生歧义；monitor 不提供 JSON 通道。机器消费方必须使用
+  已知测试夹具与固定字段顺序，不能把 monitor 文本当作稳定机器接口。
 
 ### 6.7 断点、单步与继续语义
 
@@ -874,7 +877,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - 写 `pc` 只改变下一条执行指令，不调整 `depth` 与帧栈；跳入函数体或跨帧跳转会破坏帧
   一致性，后续访问按既有规则 trap 或产生 UB，stub 不做一致性修复。
 - stub 不得把宿主地址泄漏为目标观察值；程序可见地址按目标字长 W 呈现，合成调试地址
-  按 §6.2 的 64 位调试视图呈现，两者不得混用。
+  按 §6.2 的当前档案 W 调试视图呈现（W=64/W=32 各自区间），两者不得混用。
 - 单步与断点检查在必选 trap 之前完成；trap 本身仍按 §12.5.2 提交语义执行。
 - 威胁模型：只服务本机开发者，绑定回环、无认证、单客户端；不支持远程调试，
   文档不得把它描述成可远程使用的调试服务。
@@ -910,8 +913,9 @@ $ gdb -q
 # 需要 R 复位时改用 target extended-remote 127.0.0.1:53412
 (gdb) break demo.tc:7
 (gdb) continue
-# 无调试 ELF 时按合成地址下断点：
+# 无调试 ELF 时按合成地址下断点（W=64 档案）：
 (gdb) break *0x544300000010
+# W=32 档案对应：break *0x54430010
 (gdb) monitor frames
 (gdb) monitor objects
 (gdb) continue
@@ -949,7 +953,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
 | `toolchain.member_identity` | 跨模块同名 `func`/`const`/`static`/`struct` 夹具：调试面只暴露函数；`monitor funcs` 不列成员/单元；`monitor objects` 不出现源码名且 object id 标记内部；IR dump 保持 `m<id>`/`struct#id`/`c<id>`/`o<id>`/`f<id>` 结构名；结构体同名字段由 owner type 区分（IR dump 结构输出）；`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 为结构操作数（内部 RSP 客户端，连接/命令超时）；完整 `--dump-ir` 的 `o<id>`/`c<id>` 仍为结构段 | `toolchain`, `fast` |
 | `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70，`w32` 70 | `toolchain`, `fast` |
-| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、monitor funcs/frames/trap 的 module 输出路径、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor vreg` selector 的 external/`../`/`<basename>#<n>` 回退、`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 结构操作数；内部 RSP 客户端带连接/命令超时）/退出/重同步 | `toolchain`, `fast` |
+| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、monitor funcs/frames/trap 的 module 输出路径（含空格/`]` 的固定字段顺序 golden）、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor vreg` selector 的 external/`../`/`<basename>#<n>` 回退、`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 结构操作数；内部 RSP 客户端带连接/命令超时）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
@@ -996,8 +1000,10 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   字段按 `(module,owner_struct,field_path)`，局部按 `(module,function,scope,name)`；
   `monitor objects` 的 object id 明确为内部标识。`toolchain.member_identity` 覆盖这些边界。
 - `module`/`callee_module` 使用 §5.9 显示路径，包含 external、`../` 与 `<basename>#<n>` 回退；
-  trap 文本是 human view，路径含空格/`]`/逗号时机器解析必须用 JSON；`monitor vreg`
-  selector 是 `vreg` 后的原始剩余串，允许空格；`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 是结构操作数。
+  trap 文本是 human view，路径含空格/`]`/逗号时机器解析必须用 JSON；`monitor` 输出同样是
+  human view，module 路径歧义时机器消费方按已知夹具/字段顺序断言，不依赖通用空白切分；
+  `monitor vreg` selector 是 `vreg` 后的原始剩余串，允许空格；`monitor ir` 的
+  `%N`/`f<id>`/`struct#id`/label 是结构操作数。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
   多模块 import 保留、候选名按 canonical 路径避开闭包 import（含未解析 import 名）与
   `--stdin`/`--output` 路径、n 从 1 递增；超时与候选中 70/71 按 §5.12 输出当前最佳
@@ -1029,6 +1035,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 结构体同名字段被误当模块成员 | 字段身份为 `(module,owner_struct,field_path)`；当前不进入调试面；IR dump 的 struct/fields 仍是结构输出 |
 | object id 被当作稳定源码身份 | `monitor objects` 明确 object id 为内部标识，不承诺跨构建稳定；未来源码对象用 `module` + object path |
 | 模块路径含 `:`/空格破坏 monitor 选择器 | selector 是 `vreg` 后的原始剩余串，允许空格；从右解析，函数名不含 `:`；模块路径按 §5.9 显示路径；机器接口优先 JSON/内部 API |
+| monitor 文本的 module 路径含空格/`]`/逗号 | monitor 输出是 human view；机器消费方按已知夹具/字段顺序断言，不做通用空白切分；monitor 无 JSON 通道 |
 | trap 文本的 `module` 路径含空格/`]` 破坏后缀解析 | trap 文本是 human view；机器解析必须用 `--diag-format=json`；测试覆盖空格/`]`/回退路径 |
 | external/回退 module 身份跨编译模式变化 | `<basename>#<n>` 按 §5.9 编译内稳定、跨模式可不同；不承诺跨模式稳定；普通根内/`../` 路径稳定 |
 | `monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 被当成实体身份 | `monitor ir` 是原始 IR 文本；调试身份只用 `(module,func)`/`kind`，这些都是结构操作数；`o<id>`/`c<id>` 只在完整 `--dump-ir` |

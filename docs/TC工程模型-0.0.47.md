@@ -455,7 +455,7 @@ tc --version
 | manifest：语法、引号内 `#`、空值、CRLF、默认值、大小上限 4 MiB、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
 | 工程测试 runner：`tests` 真实目录、测试目录在 `tests` 树内、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/字节比较、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
 | 路径：诊断/trap/IR/trace/linemap、`module`/`callee_module`（含 external/`../`/`<basename>#<n>`、空格/`]`）、AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、root 非普通文件 70、import 非普通候选跳过、源文件 4 MiB 上限 71、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
-| monitor 路径：`monitor funcs`/`frames`/`trap` 的 module、`monitor vreg` 的 module 选择器（external/`../`/`<basename>#<n>`、空格/`]`） | 工具链 `vm.gdb.protocol`（内部 RSP 客户端，连接/命令超时） | `toolchain`, `fast` |
+| monitor 路径：`monitor funcs`/`frames`/`trap` 的 module、`monitor vreg` 的 module 选择器（external/`../`/`<basename>#<n>`、空格/`]`） | `tests/conformance/tools/`（协议用例；客户端 `tests/tools/vm_gdb_client.py`；待实现） | `toolchain`, `fast` |
 | AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
 | 跨根可复现 asm/ELF/flat | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
 | 三入口/release audit | `tests/tools/s10_release_audit.py`、`tests/tools/cli_contract_test.py` | `toolchain` |
