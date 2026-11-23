@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **0.0.46 clean-sheet branch**: contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit are implemented; the optional optimization pipeline is not enabled.
+Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled; this branch delivers the development/debug toolchain and the engineering model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)).
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -25,8 +25,8 @@ Language/semantic/diagnostic changes must first update the [TC Language and Comp
 
 ## Branch and commits
 
-- Development branch: `tc-0.0.46`.
-- Suggested commit subjects: `docs(0.0.46): ...`, `design(0.0.46): ...`, `chore(0.0.46): ...`.
+- Development branch: `tc-0.0.47`.
+- Suggested commit subjects: `docs(0.0.47): ...`, `design(0.0.47): ...`, `chore(0.0.47): ...`.
 - Do not commit `build/` or generated files.
 
 ## Build and test
@@ -59,7 +59,7 @@ Please search existing issues and documents first. Include:
 
 ## Pull requests
 
-1. Branch from `tc-0.0.46` with a short-lived branch.
+1. Branch from `tc-0.0.47` with a short-lived branch.
 2. Keep the change minimal; avoid unrelated formatting.
 3. Check internal links and `§` references.
 4. Update [CHANGELOG.md](CHANGELOG.md) / [CHANGELOG.en.md](CHANGELOG.en.md) for user-visible changes.

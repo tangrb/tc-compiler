@@ -61,7 +61,7 @@
    `qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；缺失时配置失败。
    `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
    llvm-ar（或对应 target ar），且不用于门禁。
-6. **提交信息**：`docs(0.0.46): ...` 或 `chore(0.0.46): ...`，说明 clean-sheet。
+6. **提交信息**：`docs(0.0.47): ...` 或 `chore(0.0.47): ...`。
 7. **代码注释边界**：注释只解释代码本身、引用标准/设计条款或自包含事实；不得引用阶段编号、
    门禁报告、测试计划或审计结果。测试用例 id 只用于测试/覆盖追溯。
 8. **收尾即清理**：每个阶段或分支收尾必须执行下方“收尾工作”；文档清理是门禁的一部分，
@@ -129,7 +129,7 @@
    `tests/golden/validate.py`、
    `tests/golden/run.py build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
    与 `tests/tools/docs_cleanup_check.py` 均通过。
-7. **提交与洁净**：以 `docs(0.0.46): ...` 提交清理结果；确认 `git status` 干净，
+7. **提交与洁净**：以 `docs(0.0.47): ...` 提交清理结果；确认 `git status` 干净，
    `build/` 与生成物未入库。
 
 `docs.cleanup`（`tests/tools/docs_cleanup_check.py`）是上述清理的固定门禁：
