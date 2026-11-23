@@ -301,10 +301,10 @@ trap、程序终止或 `--trace-limit` 截断时不补发缺失的 `return`。
 调试显示命名约定（trace、行表、trap 报告、`monitor funcs`/`frames`/`vreg`/`trap` 共用）：
 - `kind=unit`，`module=<root 模块显示路径>`，`func=<top>`：顶层单元。`<top>` 是字面 token，不是 TC 标识符；不改变标准 §2.3，也不禁止用户声明 `func top`。
 - `kind=function`，`module=<模块显示路径>`，`func=<源码函数名>`：普通函数；不同模块同名由 `module` 区分，函数 `top` 仍显示为 `top`，没有额外名字特判。
-- `module`/`callee_module` 与 `span.file` 使用同一显示路径；外部 `<basename>#<n>` 回退编号按 §5.9 在编译内稳定，不同编译模式可不同，不承诺跨模式稳定。
+- `module`/`callee_module`/`span.file` 使用同一显示路径**格式**；`module` 是当前实体模块，`callee_module` 是被调函数模块，`span.file` 是当前记录的源码位置。跨模块调用时 `callee_module` 不必等于 `span.file`。外部 `<basename>#<n>` 回退编号按 §5.9 在编译内稳定，不同编译模式可不同，不承诺跨模式稳定。
 - `(kind,module,func,bb,insn)` 是 IR 指令/linemap 键；`kind` 区分单元/函数，`module` 区分跨模块同名成员。trace 记录以 `seq` 唯一，同一五元组可有多条记录（`ir`+事件、`call` 的 `enter`/`return`），trace→linemap 为多对一。
 - 未进入当前调试面的模块成员继续按各自命名空间处理：`const`/`static var`/`struct` 若未来暴露，使用 `(member_kind,module,name)`；结构体字段使用 `(module,owner_struct,field_path)`；局部变量使用 `(module,function,scope,name)`。当前 trace/linemap/trap/monitor/ELF 只暴露 `unit`/`function`，不暴露这些名字。
-- `TcFunc.id` 只用于 IR dump/AOT 内部符号，不进入 trace/linemap/trap/monitor/调试 ELF 的用户可见身份；`monitor ir` 是原始 IR 文本，可能含 `f<id>`/`o<id>`/`struct#id`/`c<id>` 等结构操作数，不构成调试实体身份；object id 同理，`monitor objects` 的对象 id 是内部标识。
+- `TcFunc.id` 只作为 IR dump/AOT 内部符号与 `monitor ir` 的原始结构操作数（`f<id>`）出现；`monitor ir` 还可含 `o<id>`/`struct#id`/`c<id>`，这些都不是 trace/linemap/trap/monitor 的调试实体身份。`monitor objects` 的对象 id 同样是内部标识。
 IR dump 的 `units`/`funcs`/`structs`/`consts`/`objects` 段使用结构化的 `top`/`f<id>`/`m<id>`/`struct#id`/`c<id>`/`o<id>`，不属于本显示命名，也不随本约定改变。
 顶层单元的 `depth` 固定为 0，函数体从 1 开始（示例中的 `main` 为 1）。
 
@@ -937,7 +937,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 `tests` 树内 symlink、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
-| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、`module`/`callee_module`（含 external/`../`/`<basename>#<n>` 回退、空格/`]`）、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb-elf-out`，不调用 clang/lld/gdb/readelf | `toolchain`, `fast` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、`module`/`callee_module`、`monitor funcs`/`frames`/`trap` 的 module 路径（含 external/`../`/`<basename>#<n>` 回退、空格/`]`）、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb-elf-out`，不调用 clang/lld/gdb/readelf | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径；AOT ELF 符号为内部 `tc_main`/`tc_function_<func_id>` | `toolchain`, `aot` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden（结构化 `top`/`f<id>`），两个工具一致 | `toolchain`, `fast` |
@@ -945,11 +945,11 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.stats` | VM 运行时统计与 AOT 静态统计字段；发射失败（70）时统计仍已输出 | `toolchain`, `fast` |
 | `toolchain.diag_json` | 文本/JSON 同序同码同位置；trap 旧字段顺序保持、`kind`/`module` 追加，JSON 追加字段顺序断言；module 含空格/`]`/external 回退时文本标记歧义、JSON 仍可解析 | `toolchain`, `fast` |
 | `toolchain.linemap` | 行表覆盖 IR 全序、`(kind,module,func,bb,insn)` 唯一、顶层 `<top>`/函数名、v3、module 的 external/`../`/回退/空格路径、trace 逐条 span 比对、空 span 视为实现错误、根相对路径与 external 标记 | `toolchain`, `fast` |
-| `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`module`/`<top>`、call `callee`/`callee_module`（含 `call_indirect` 跨模块目标）、trap 的 `kind`/`module` 与字段顺序、`monitor funcs` 的 `module`/`func`/`funcaddr` 顺序与排除单元、模块显示路径含 `:` 的两个同名函数、`monitor frames`/`vreg`/`trap` 的 module 选择器、`monitor ir` 的 `f<id>` 结构操作数、VM 调试 ELF 源码符号（内部 writer/内部解析）、IR dump 结构名；新增无关函数后身份不变 | `toolchain`, `fast` |
+| `toolchain.debug_names` | top 单元 + `#lib public func top` + 跨模块同名函数：trace/linemap 的 `kind`/`module`/`<top>`、call `callee`/`callee_module`（含 `call_indirect` 跨模块目标；`callee_module` 与调用点 `span.file`/`module` 不同）、trap 的 `kind`/`module` 与字段顺序、`monitor funcs` 的 `module`/`func`/`funcaddr` 顺序与排除单元、模块显示路径含 `:` 的两个同名函数、`monitor frames`/`vreg`/`trap` 的 module 选择器、`monitor ir` 的 `f<id>`/`o<id>`/`struct#id`/`c<id>` 结构操作数、VM 调试 ELF 源码符号（内部 writer/内部解析）、IR dump 结构名；新增无关函数后身份不变 | `toolchain`, `fast` |
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
-| `toolchain.member_identity` | 跨模块同名 `func`/`const`/`static`/`struct` 夹具：调试面只暴露函数；`monitor funcs` 不列成员/单元；`monitor objects` 不出现源码名且 object id 标记内部；IR dump 保持 `m<id>`/`struct#id`/`c<id>`/`o<id>`/`f<id>` 结构名；结构体同名字段由 owner type 区分（IR dump 结构输出）；`monitor ir` 的 `f<id>` 明确为结构操作数 | `toolchain`, `fast` |
+| `toolchain.member_identity` | 跨模块同名 `func`/`const`/`static`/`struct` 夹具：调试面只暴露函数；`monitor funcs` 不列成员/单元；`monitor objects` 不出现源码名且 object id 标记内部；IR dump 保持 `m<id>`/`struct#id`/`c<id>`/`o<id>`/`f<id>` 结构名；结构体同名字段由 owner type 区分（IR dump 结构输出）；`monitor ir` 的 `f<id>`/`o<id>`/`struct#id`/`c<id>` 明确为结构操作数 | `toolchain`, `fast` |
 | `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70，`w32` 70 | `toolchain`, `fast` |
-| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、module 含空格/`:` 的原始剩余串解析、`monitor ir` 的 `f<id>` 结构操作数）/退出/重同步 | `toolchain`, `fast` |
+| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor ir` 的 `f<id>`/`o<id>`/`struct#id`/`c<id>` 结构操作数）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
@@ -977,7 +977,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 - 三入口模型生效：`tc`/`tc-vm`/`tc-aot --version` 打印工具链 0.0.47 与语言 0.0.46；
   契约检查仍断言 51 opcode；release audit 更新为三入口。
 - 可复现：两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；`tc --test` 报告稳定。
-- 路径：诊断/trap/IR/trace/linemap/AOT 字符串均为工程根相对，不出现绝对路径；路径组件
+- 路径：诊断/trap/IR/trace/linemap、`module`/`callee_module`、`monitor funcs`/`frames`/`trap` 的 module、AOT 字符串均为工程根相对，不出现绝对路径；路径组件
   为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root 源路径为 FIFO/设备 → 70；import 非普通候选
   跳过，全部无匹配报 `TC_CE_IMPORT_NOT_FOUND`；单源文件超过 4 MiB → 71；回退
   `<basename>#<n>` 在同一编译内稳定。
@@ -997,7 +997,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   `monitor objects` 的 object id 明确为内部标识。`toolchain.member_identity` 覆盖这些边界。
 - `module`/`callee_module` 使用 §5.9 显示路径，包含 external、`../` 与 `<basename>#<n>` 回退；
   trap 文本是 human view，路径含空格/`]`/逗号时机器解析必须用 JSON；`monitor vreg`
-  selector 是 `vreg` 后的原始剩余串，允许空格；`monitor ir` 的 `f<id>` 是结构操作数。
+  selector 是 `vreg` 后的原始剩余串，允许空格；`monitor ir` 的 `f<id>`/`o<id>`/`struct#id`/`c<id>` 是结构操作数。
 - `tc-reduce`：候选与源同 canonical 目录、临时文件清理；stdout/`--output` 结果按原字节；
   多模块 import 保留、候选名按 canonical 路径避开闭包 import（含未解析 import 名）与
   `--stdin`/`--output` 路径、n 从 1 递增；超时与候选中 70/71 按 §5.12 输出当前最佳
@@ -1031,7 +1031,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 模块路径含 `:`/空格破坏 monitor 选择器 | selector 是 `vreg` 后的原始剩余串，允许空格；从右解析，函数名不含 `:`；模块路径按 §5.9 显示路径；机器接口优先 JSON/内部 API |
 | trap 文本的 `module` 路径含空格/`]` 破坏后缀解析 | trap 文本是 human view；机器解析必须用 `--diag-format=json`；测试覆盖空格/`]`/回退路径 |
 | external/回退 module 身份跨编译模式变化 | `<basename>#<n>` 按 §5.9 编译内稳定、跨模式可不同；不承诺跨模式稳定；普通根内/`../` 路径稳定 |
-| `monitor ir` 的 `f<id>` 被当成实体身份 | `monitor ir` 是原始 IR 文本；调试身份只用 `(module,func)`/`kind`，`f<id>` 是结构操作数 |
+| `monitor ir` 的 `f<id>`/`o<id>`/`struct#id`/`c<id>` 被当成实体身份 | `monitor ir` 是原始 IR 文本；调试身份只用 `(module,func)`/`kind`，这些都是结构操作数 |
 | 调试写内存破坏不变量 | 默认禁写；仅 `--gdb-allow-write` 开放，并限定区 |
 | 调试器主动 kill 请求 | v1 不主动杀死进程：`k` 无应答空操作，`vKill` 运行态回 `E01`；用 `D` 分离或 Ctrl-C 结束 |
 | 调试信息破坏可复现 | 工程根相对路径 + 无时间戳 + `-fdebug-compilation-dir=.`；T6 断言两次构建字节一致 |
