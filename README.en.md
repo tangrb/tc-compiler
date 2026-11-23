@@ -63,8 +63,10 @@ RTOS, interrupts and concurrency move to 0.0.48.
 - **Both 32-bit and 64-bit are targets**; `usize`/`isize` are platform-word types
   and `ptr<T>`/`fnptr` are `usize` wide.
 - **Closed set of 80 diagnostic codes**: 65 `TC_CE_*` + 15 `TC_RE_*`.
-- No C host public library, embedding API or ABI; `tc-vm`/`tc-aot` are the only
-  tool entry points.
+- No C host public library, embedding API or ABI; the current implementation's
+  compiler entry points are `tc-vm`/`tc-aot`; the 0.0.47 design adds the `tc`
+  project tool (init/test), see
+  [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 
 ## Repository layout
 
