@@ -642,7 +642,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 - `global_insn_index` 是 IR 最终化后的全局单调指令序号，跨函数连续，确定且可复现。
 - 合成代码区间是 `[TC_DEBUG_CODE_BASE, TC_DEBUG_CODE_BASE + 4 * N)`，`N` 为 IR 最终化后的
   全局指令数；有效指令地址恰为 `TC_DEBUG_CODE_BASE + 4 * i`（`0 <= i < N`）。`Z0`、
-  `P pc`、`monitor ir` 的地址必须是有效指令地址，否则 `E01`；`m` 允许区间内任意字节
+  `P pc`、`monitor ir` 的地址必须是有效指令地址，否则 `E01`；`monitor ir` 的地址字面格式见 §6.6；`m` 允许区间内任意字节
   地址，越界或跨出区间边界 → `E01`。
 - 该地址区间不属于任何平台档案的五个区，不进入 `funcaddr`/`bitcast` 结果，不参与程序行为；
   它是当前档案 W 的调试视图，不是目标地址：W=64 使用 64 位区间，W=32 使用 32 位区间，
@@ -758,7 +758,7 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 | `monitor frames` | 抽象帧栈：深度、实体 `kind`（`unit`/`function`）、`module`、`func`（顶层 `<top>`，函数源码名）、全局指令序号（§6.2）、源码位置 |
 | `monitor next` | 执行到下一条同深度指令，跨越整个 `call`；途中命中用户断点、TC trap、终止或 `\x03` 时提前停止 |
 | `monitor finish` | 运行到当前帧返回（深度减一）；途中命中用户断点、TC trap、终止或 `\x03` 时提前停止 |
-| `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span；可能含 `%N`/`f<id>`/`struct#id`/label 等结构操作数，不是调试实体身份）；地址越界、未对齐或不对应指令返回 `E01` |
+| `monitor ir [<addr>]` | 指定地址或当前 pc 的 IR 文本（含操作数与 span；可能含 `%N`/`f<id>`/`struct#id`/label 等结构操作数，不是调试实体身份）；`<addr>` 必须是 `0x` 前缀的 1–16 位 ASCII 十六进制字面量（大小写数字均可，无符号/空白/下划线；不接受 `0X`、裸十六进制或十进制），按 64 位无符号解析；W=32 时高 32 位必须为 0 且落在 32 位合成区间；地址越界、未对齐、不对应指令或字面非法返回 `E01`；省略时使用当前 pc |
 | `monitor vreg [<selector>:]<序号>` | 读取当前帧的 vreg 值：标量按 vreg 自身类型的位宽打印为 `0x` 十六进制位模式，宽度取 `tc_type_bits(type, W)`：`int8`/`uint8`/`bool` 2 个十六进制数字、`int16`/`uint16` 4 个、`int32`/`uint32`/`float32` 8 个、`int64`/`uint64`/`float64` 16 个，`isize`/`usize` 随档案字长（W=32 为 8 个、W=64 为 16 个）；指针/fnptr 打印为区名+区内偏移（空指针为 `null`，不可表示时按 W 位模式）；聚合与未初始化 vreg 返回 `E01`。`<序号>` 为 vreg 序号的十进制字符串，即 `monitor ir` 显示的 `%N`（IR 操作数不携带源名）；省略选择器时在当前实体的 vreg 空间内解析，未找到返回 `E01` |
 | `monitor stats` | §5.5 的 `tc-vm` 运行时字段，每行 `key=value`，不含 `# tc-stats` 头 |
 | `monitor trap` | 最近一次 TC trap 的码、span、`kind`、`module`、`func`、`bb`、`insn`、`op`、`depth` |
@@ -959,7 +959,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
 | `toolchain.member_identity` | 跨模块同名 `func`/`const`/`static`/`struct` 夹具：调试面只暴露函数；`monitor funcs` 不列成员/单元；`monitor objects` 不出现源码名且 object id 标记内部；IR dump 保持 `m<id>`/`struct#id`/`c<id>`/`o<id>`/`f<id>` 结构名；结构体同名字段由 owner type 区分（IR dump 结构输出）；`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 为结构操作数（内部 RSP 客户端，连接/命令超时）；完整 `--dump-ir` 的 `o<id>`/`c<id>` 仍为结构段 | `toolchain`, `fast` |
 | `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70，`w32` 70 | `toolchain`, `fast` |
-| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写（W=32 仍为 64 位/16 hex，`pc` 高 32 位为 0；`P pc`/`Z0` 高 32 位非 0 返回 `E01`）/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、monitor funcs/frames/trap 的 module 输出路径（含空格/`]` 的固定字段顺序 golden）、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor vreg` selector 的 external/`../`/`<basename>#<n>` 回退、`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 结构操作数；内部 RSP 客户端带连接/命令超时）/退出/重同步 | `toolchain`, `fast` |
+| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写（W=32 仍为 64 位/16 hex，`pc` 高 32 位为 0；`P pc`/`Z0` 高 32 位非 0 返回 `E01`）/内存写禁区/`R` 复位/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、monitor funcs/frames/trap 的 module 输出路径（含空格/`]` 的固定字段顺序 golden）、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor vreg` selector 的 external/`../`/`<basename>#<n>` 回退、`monitor ir` 的 `0x` 十六进制地址字面量（1–16 位、大小写、无 `0X`/裸 hex/十进制/下划线、W=32 高 32 位非 0 → `E01`）与 `%N`/`f<id>`/`struct#id`/label 结构操作数；内部 RSP 客户端带连接/命令超时）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
 | `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
@@ -991,6 +991,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
   为合法 UTF-8 且不含 Cc/Cf/Zl/Zp；root 源路径为 FIFO/设备 → 70；import 非普通候选
   跳过，全部无匹配报 `TC_CE_IMPORT_NOT_FOUND`；单源文件超过 4 MiB → 71；回退
   `<basename>#<n>` 在同一编译内稳定。
+- `monitor ir <addr>` 只接受 `0x` 前缀的 1–16 位十六进制；`0X`/裸 hex/十进制/下划线/溢出返回 `E01`，W=32 高 32 位必须为 0；省略参数使用当前 pc。
 - RSP 寄存器恒为 64 位编码；W=32 下 `pc` 值域为 32 位合成区间，但 `g`/`p` 仍为 16 hex/寄存器，
   `P pc`/`Z0` 高 32 位非 0 或越界返回 `E01`；`m`/`M` 地址同理按 32 位有效地址零扩展。
 - 调试实体：trace/linemap v3；顶层单元 `kind=unit`、`module` 为 root 模块显示路径、`func=<top>`；
@@ -1035,6 +1036,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | gdb 的 `next`/`finish` 依赖架构与栈展开 | 不作为验收项；以 `monitor next`/`monitor finish` 提供等价能力 |
 | VM 单步性能（每指令一次往返） | 单步仅用于定位；批量观察用 `--trace`；失控由调试器侧 `\x03` 中断停在指令边界 |
 | 合成地址与语言值域混淆 | 合成区间独立且文档化；调试 ELF 与 trace 均标注为调试视图 |
+| `monitor ir` 地址字面量实现各自选择 | 固定为 `0x` + 1–16 位 hex；拒绝 `0X`/裸 hex/十进制/下划线；`vm.gdb.protocol` 覆盖 |
 | W=32 RSP 寄存器编码被误缩为 32 位 | `target.xml` 恒为 64 位；`pc` 值域收缩但编码不变；`vm.gdb.protocol` 覆盖高 32 位为零/越界 E01 |
 | VM 调试 ELF 内部 writer 的 e_type/节布局与 gdb 兼容性 | class/machine 按 §6.8 表固定；§8.1 spike 确认 e_type/节布局/基址与 gdb 加载；只调整内部 writer，不改为外部 linker |
 | 行表与实际执行不一致（call 原子性、无内联） | 行表以 IR 指令为单位；以 trace 记录逐条比对 span；call 映射到调用点 |
