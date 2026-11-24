@@ -116,6 +116,10 @@ profile = "aarch64-linux-user"
 - import 查找遵守标准 §4.5/§4.11.2：先查导入文件所在目录，再按 include 根顺序查找；
   include 根不改变这一优先关系。无 manifest 时 include 根仅来自 CLI（可为零）。
 - `include` 允许 `..`；根外文件进入"外部文件"路径规则（§4.2）。
+- 不存在的 include 根是合法的空候选根：只能用最近存在祖先的 canonical 路径拼接剩余词法
+  组件做显示；搜索时跳过（与无匹配候选相同），不报路径错误；全部根仍无匹配才报
+  `TC_CE_IMPORT_NOT_FOUND`。缺省 `include="src"` 且 `src` 不存在同此规则；只有路径字符/
+  语法非法才按来源退出 2。
 - `entry` 在 0.0.47 只做元数据；`tc-vm`/`tc-aot` 仍以命令行 source 为准。
 - `name`（显式或缺省）必须满足 §5 的 `project_name` 约束（非空、合法 UTF-8、拒绝
   Unicode Cc/Cf/Zl/Zp、`/`、`\`、`"`，且名称不得为 `.` 或 `..`）；缺省取工程根目录名，
@@ -157,8 +161,9 @@ profile = "aarch64-linux-user"
   存在时，用其最近存在祖先的 canonical 路径拼接剩余词法组件后再求相对；symlink 的书写
   形式不进入显示。根内文件形如 `src/main.tc`、`tests/smoke/main.tc`。
 - 根外文件（import/include 指到根外）：使用 `../…` 相对路径，并在行表条目标
-  `"external":true`；不同卷或不可表示的路径回退 `<basename>#<n>`。回退编号只对需要回退的
-  文件分配：文件首次进入显示路径时从 1 递增，同一编译内永不复用或重排；编号一经分配即
+  `"external":true`；不同卷或不可表示的路径回退 `./<basename>#<n>`。回退编号只对需要回退的
+  文件分配：文件首次进入显示路径时从 1 递增，同一编译内永不复用或重排；`./` 是回退命名空间
+  保留前缀，正常显示路径由 canonical 相对路径归一化后不以 `./` 开头；编号一经分配即
   固定，后续诊断、linemap、trace 不会改变它。`<basename>` 是 canonical 路径的最后一个
   组件；不同编译模式因已发现文件集不同，编号可以不同，但书写规则一致。回退项同样标
   `"external":true`。部分检查模式同样适用，不依赖最终 IR 是否生成。
@@ -239,7 +244,8 @@ tc --init-project [--] project_name
 - 输出：先打印 `initialized project "<name>"`，再按固定目标顺序打印 `created`/`skipped` 的
   **相对路径**，最后打印 `next: tc --test`；不含 cwd 绝对路径。
 - 退出码：0 成功（含 skipped）；2 已有工程/名称非法/`tests` 非真实目录；70 IO/环境；71 内部。
-- 写入失败：删除本次新建的文件及本次新建的空目录，保留原有文件/目录，退出 70。
+- 写入失败：删除本次新建的文件及本次新建的空目录，保留原有文件/目录，退出 70；按 create/write/close
+  故障注入验证完整树差异，部分 close 失败也不得留下半成品；外部 symlink 目标不变。
 - cwd 为 symlink：canonical 化后写目标目录。
 
 示例：
@@ -319,6 +325,8 @@ next: tc --test
   再叠加 manifest 的 include 顺序。测试目录是 symlink 时使用其解析后的 canonical 目录
   作为 include 根；该目标必须在 `tests` 树内；测试名仍取入口名。
 - 测试入口必须能通过静态阶段；编译诊断按普通诊断格式输出，测试计为失败。
+- `#lib` 根不是合法的测试入口：它是实现/API 错误，不产生语言诊断，测试 runner 统一按
+  测试布局/用法错误退出 2，不得映射为普通测试失败 1；`#program` 入口仍按编译诊断失败 1。
 
 ### 6.3 执行
 
@@ -454,8 +462,9 @@ tc --version
 | `tc` CLI：init/version/help/退出码、init 的 `tests` 真实目录预检、`--test-timeout` 取值、操作顺序、操作前 `--` 与组合参数 | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
 | manifest：语法、引号内 `#`、空值、CRLF、默认值、大小上限 4 MiB、根发现（含不可读/损坏 manifest 不跳过）、非法项 | `tests/project/manifest_test.py` | `toolchain`, `fast` |
 | 工程测试 runner：`tests` 真实目录、测试目录在 `tests` 树内、`tests` 树外/跨测试目录 2、侧车缺失/不可用/格式、trap 字符集/空白/字节比较、过滤预校验、header/0 tests/中止输出、worker 隔离、timeout、stdin EOF/大输入、stderr 判定、捕获上限与报告截断 | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
-| 路径：诊断/trap/IR/trace/linemap、`module`/`callee_module`（含 external/`../`/`<basename>#<n>`、空格/`]`）、AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、root 非普通文件 70、import 非普通候选跳过、源文件 4 MiB 上限 71、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
-| monitor 路径：`monitor funcs`/`frames`/`trap` 的 module、`monitor vreg` 的 module 选择器（external/`../`/`<basename>#<n>`、空格/`]`） | `tests/conformance/tools/`（协议用例；客户端 `tests/tools/vm_gdb_client.py`；待实现） | `toolchain`, `fast` |
+| init 失败回滚：按 create/write/close 固定顺序注入失败，断言原有树字节不变、本次新建文件/目录全部清除、外部 symlink 目标不变 | `tests/project/init_fault_test.py` | `toolchain`, `fast` |
+| 路径：诊断/trap/IR/trace/linemap、`module`/`callee_module`（含 external/`../`/`./<basename>#<n>`、空格/`]`、根内 `lib.tc#1` 与回退 `./lib.tc#1` 消歧）、include 根不存在/空候选、`#lib` 测试入口 2、AOT 汇编字符串、部分检查模式、路径字符（Cc/Cf/Zl/Zp）、root 非普通文件 70、import 非普通候选跳过、源文件 4 MiB 上限 71、impl/IO 错误 | `tests/project/path_test.py` | `toolchain`, `fast` |
+| monitor 路径：`monitor funcs`/`frames`/`trap` 的 module、`monitor vreg` 的 module 选择器（external/`../`/`./<basename>#<n>`、空格/`]`） | `tests/conformance/tools/`（协议用例；客户端 `tests/tools/vm_gdb_client.py`；待实现） | `toolchain`, `fast` |
 | AOT 路径：ELF/flat 源字符串与板端 trap 记录 | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
 | 跨根可复现 asm/ELF/flat | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
 | 三入口/release audit | `tests/tools/s10_release_audit.py`、`tests/tools/cli_contract_test.py` | `toolchain` |
@@ -487,7 +496,7 @@ tc --version
   （全部无匹配报 `TC_CE_IMPORT_NOT_FOUND`）与 impl/IO 错误同样不泄露绝对源路径；
   侧车/`tests` 布局错误路径也 root 相对；源读取/宿主 IO/内存耗尽为 70，单源文件超过
   4 MiB/实现内部/上限为 71，且 `tc`/`tc-vm` 一致。
-  回退 `<basename>#<n>` 在同一编译内稳定（诊断与 linemap/trace 一致），不同编译模式可
+  回退 `./<basename>#<n>` 在同一编译内稳定（诊断与 linemap/trace 一致），不同编译模式可
   不同；路径含非 UTF-8 或 Cc/Cf/Zl/Zp 时 CLI/manifest 为 2、缺省工程名/测试目录名按
   名称规则为 2、其它发现路径为 70。
 - 两个不同根目录构建同一工程，asm/ELF/flat 逐字节一致；代码/ABI 语义不变。
