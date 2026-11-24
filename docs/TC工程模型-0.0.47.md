@@ -430,7 +430,7 @@ tc --version
 | `src/project/init.[ch]` | 模板与原子写入、名称校验（Cc/Cf/Zl/Zp）、skipped 报告 |
 | `src/project/test_run.[ch]` | 测试发现、侧车缺失/不可用/格式校验、父进程调度/捕获/超时/回收、流式比较、捕获上限与报告截断 |
 | `src/project/test_worker.[ch]` | fork 后的 worker 入口、fd/stdio 捕获、结果协议、`_exit` 与 FD 清理 |
-| `src/base/path.[ch]` | root/canonical/display、外部 `../`、`#<n>` 编号、路径字符校验、路径一致性 |
+| `src/base/path.[ch]` | root/canonical/display、外部 `../`、`./<basename>#<n>` 回退编号、路径字符校验、路径一致性 |
 | 前端 | `TcSpan` 增加 display；`TcModuleInfo`/`TcParseModule`/`TcModule` 增加 `display_path`；lex/parse/module/sem 诊断统一用 display |
 | 编译器驱动 | `tc-vm`/`tc-aot` 读 manifest、确定根（含部分检查模式）、`--include` 顺序、错误码；诊断/impl/IO 源路径统一 display |
 | 后端 | 三后端统一 `tc_span_display()`；`.asciz`、`.file`/`.loc`、`# source:` |
@@ -475,7 +475,8 @@ tc --version
 - `tc --init-project` 在临时目录生成完整工程；生成文件无绝对路径；`.gitattributes` 覆盖
   `*.bin`；smoke 通过 `tc --test`。
 - 已有 `tc.project`、非法名称（含 Cc/Cf/Zl/Zp）、非空目录、已有文件、最终/中间 symlink、
-  权限失败均有确定行为；`src` 为 symlink 时 skipped、不写穿；`tests` 为 symlink/非目录时
+  权限失败均有确定行为；init 的 create/write/close 故障注入必须完整回滚，保留原树、清除本次
+  新建文件/空目录、外部 symlink 目标不变，退出 70；`src` 为 symlink 时 skipped、不写穿；`tests` 为 symlink/非目录时
   退出 2、不写任何目标，外部目标保持不变；
   `tc --init-project -- -demo` 可初始化以 `-` 开头的合法名称；含其它 `.` 的名称
   （非 `.`/`..`）可初始化。
@@ -527,7 +528,7 @@ tc --version
 | 根发现依赖最近 manifest | 嵌套工程明确允许，最近祖先生效；文档写清 |
 | 缺失源文件无法 canonical 化 | 用父目录/最近存在祖先的 canonical 路径作为根发现与显示起点；源读取仍 70，不泄露绝对路径 |
 | 已有 `.gitattributes`/`.gitignore` 缺少规则 | init 不修改已有文件；工程需自行保留 `*.bin -text` 与 `build/` 忽略；新建文件场景由验收覆盖 |
-| 根外 include 显示 `../` | 外部文件在行表标 `external:true`；不同卷回退 `#<n>` |
+| 根外 include 显示 `../` | 外部文件在行表标 `external:true`；不同卷回退 `./<basename>#<n>` |
 | manifest 的注释/空值/换行歧义 | §3.1 固定引号内 `#`、空值非法、LF/CRLF；测试覆盖 |
 | manifest 无界读取 | §3.1 单文件 4 MiB 上限，超限 71 |
 | `profile` 与工具不兼容 | `w32` 仅 VM；`tc-aot` 退出 70，不回退 |

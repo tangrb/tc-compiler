@@ -504,6 +504,9 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   路径最后一段；不同编译模式因已发现文件集不同，编号可以不同。回退项同样标
   `"external":true`，部分检查模式同样适用。`./` 是回退命名空间保留前缀：正常显示路径由
   canonical 相对路径归一化后不以 `./` 开头；因此回退名不会与普通根内/根外路径碰撞。
+- 不存在的 include 根是合法空候选根：用最近存在祖先的 canonical 路径拼接剩余词法组件做
+  显示/匹配起点；import 搜索跳过（与无匹配候选相同），不报路径错误；全部根无匹配才报
+  `TC_CE_IMPORT_NOT_FOUND`；只有路径字符/语法非法才按来源退出 2。
 - 显示路径中出现的源路径与 include 根组件必须是合法 UTF-8 且不含 Unicode Cc/Cf/Zl/Zp。
   失败时按来源退出：CLI 参数或 manifest 值 → 2；缺省工程名与测试目录名按工程模型 §5/§6.1
   为 2；仅由文件系统枚举发现的其它路径 → 70。文本诊断、JSON、`# source:` 与汇编字符串
@@ -516,7 +519,7 @@ JSONL 不使用 `#` 控制行，头、截断与尾以带 `type` 的对象表达�
   `.file`/`.loc`/`# source:`/`.asciz`、板端 trap、`monitor funcs`/`frames`/`trap`/`vreg`
   的 `module` 选择器、`tc --test` 失败诊断/侧车与布局错误路径、`tc --init-project`
   输出/错误；同一编译内所有输出（含部分检查）对同一文件使用同一路径；不同编译模式因
-  已发现文件集不同，回退 `#<n>` 可以不同。`tc --test` 报告中的 `<test>` 是逻辑
+  已发现文件集不同，回退 `./<basename>#<n>` 可以不同。`tc --test` 报告中的 `<test>` 是逻辑
   `tests/<目录名>`，不是源文件 display 路径。
 - `tc --test` worker 的 fork/pipe/临时捕获路径、PID 与实际耗时不属于路径消费者；报告
   只用测试名与根相对测试路径。
@@ -959,11 +962,11 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | 测试项 | 内容 | 标签 |
 | ---- | ---- | ---- |
 | `toolchain.cli_matrix` | §5.2 工具适用面矩阵、辅助开关随主开关与孤儿拒绝、开关取值非法、编译器 CLI `--include` 数量上限 32、§5.2.1 组合矩阵（含 `w32 --gdb-elf-out` 70）的退出码断言 | `toolchain`, `fast` |
-| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、init 的 `tests` 真实目录预检、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
+| `tc.cli` | `tc --init-project`/`--test`/`--version`/`--help`、init 的 `tests` 真实目录预检、init create/write/close 故障回滚、`--test-timeout` 取值与非法值、操作顺序与操作前 `--`、三入口契约与退出码 | `toolchain`, `fast` |
 | `tc.manifest` | `tc.project` 语法、默认值、大小上限 4 MiB、include 总数上限 32、根发现（含不可读/损坏 manifest 不跳过）、非法字段与 include 顺序 | `toolchain`, `fast` |
 | `tc.test_runner` | `tests/*/main.tc` 发现与 `tests` 树内 symlink、`tests` 树外/跨测试目录 2、`#lib` 根入口 2、侧车缺失/不可用/格式、trap 字符集/空白/exit 与 4 KiB 上限、过滤、header/0 tests/中止输出、timeout 报告、失败详情与捕获上限 | `toolchain`, `fast` |
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
-| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、`module`/`callee_module` 的 external/`../`/`./<basename>#<n>` 回退（含空格/`]`）、根内路径 `lib.tc#1` 与回退 `./lib.tc#1` 的消歧、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb-elf-out`，不调用 clang/lld/gdb/readelf | `toolchain`, `fast` |
+| `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、include 根不存在/空候选（跳过，非路径错误）、`module`/`callee_module` 的 external/`../`/`./<basename>#<n>` 回退（含空格/`]`）、根内路径 `lib.tc#1` 与回退 `./lib.tc#1` 的消歧、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb-elf-out`，不调用 clang/lld/gdb/readelf | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径；AOT ELF 符号为内部 `tc_main`/`tc_function_<func_id>` | `toolchain`, `aot` |
 | `toolchain.output_aliases` | 多个输出开关：字符串相同、symlink、hardlink、相对路径形式、输出与源/manifest/stdin 别名均 2；不存在目标按规范化父目录判断；写前复核与写入同 fd | `toolchain`, `fast` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
