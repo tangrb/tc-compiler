@@ -93,7 +93,7 @@
 | T0 | `src/base/version.h`（`TC_TOOLCHAIN_VERSION`）、`CMakeLists.txt`、`src/driver/cli.[ch]`（版本输出、`tc_impl_error_exit`）、`src/driver/frontend_driver.c`、`src/driver/aot_driver.c`（改用统一映射）、`tests/tools/s10_release_audit.py`（版本断言与三入口）、退出码 CLI 测试、`CHANGELOG*.md` |
 | T1 | `src/driver/cli.[ch]`（新开关）、`src/driver/frontend_driver.c`（执行钩子、输出路径错误统一映射）、`src/vm/observe.[ch]`（新增）、`src/vm/interp.c`（回调点）、`src/ir/print.[ch]`（复用）、`src/backend/*/emit.c`（静态统计） |
 | T2 | `src/debug/linemap.[ch]`（新增，行表与 `.file`/`.loc` 序列化）、`src/backend/{aarch64,arm32,riscv32}/emit.{h,c}`（每条 IR 指令前的 `.loc`；可区分 OOM 状态）、`src/driver/aot_driver.c`（`--debug`/根相对路径/OOM→70）、`src/driver/cli.c` |
-| T3 | `src/vm/observe.[ch]`、`src/vm/gdbstub.[ch]`、`src/debug/dbgelf.[ch]`（新增；调试 ELF，§6.8）、`src/vm/vm.h`（调试入口）、`src/vm/interp.c`/`src/vm/internal.h`（续行/帧快照/逐 vreg defined 状态）、`src/driver/tc-vm.c`（`--gdb`）、`tests/conformance/tools/`（协议用例）、`tests/tools/vm_gdb_client.py`（新增） |
+| T3 | `src/vm/observe.[ch]`、`src/vm/gdbstub.[ch]`、`src/debug/dbgelf.[ch]`（新增；调试 ELF，§6.8）、`src/vm/vm.h`（调试入口）、`src/vm/interp.c`/`src/vm/internal.h`（仅在 `--gdb`/observer 启用时维护续行/帧快照/逐 vreg defined 状态；无观察者零额外分配）、`src/driver/tc-vm.c`（`--gdb`）、`tests/conformance/tools/`（协议用例）、`tests/tools/vm_gdb_client.py`（新增） |
 | T4 | `src/diagnostic/diagnostic.[ch]`（JSON 写入）、`src/driver/cli.c`、诊断 golden |
 | T5 | `CMakePresets.json`、`tests/CMakeLists.txt`（标签）、`tests/run.py`、`tests/tools/tc_reduce.py` |
 | T6 | `src/driver/aot_driver.c`（路径归一/编译目录）、`tests/tools/s10_release_audit.py`（工具链产物检查）、确定性套件扩展 |
@@ -178,8 +178,11 @@
 - 输出路径（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`、
   `--output`）无法创建或写入失败视为环境不可用，退出 70；路径参数形式非法退出 2。
 - 输出目标身份不等同于字符串相等：已存在目标用 `fstat` 的 `(st_dev,st_ino)` 判断；
-  不存在目标用规范化父目录 + 最终组件判断；symlink/hardlink 别名、输出与输出别名、输出与
-  源文件/manifest/stdin 的别名均退出 2。写前复核与写入必须使用同一描述符，避免 TOCTOU。
+  不存在目标用规范化父目录 + 最终组件判断；symlink/hardlink 别名、输出与输出别名均退出 2。
+  编译器输出开关（`--trace-out`、`--stats-out`、`--dump-ir`、`--dump-linemap`、`--gdb-elf-out`、
+  `tc-aot --output`）与源/manifest/stdin 的别名退出 2；`tc-reduce --output` 等于源文件时
+  按 §5.12 显式破坏性写入，但其 symlink/hardlink 别名仍退出 2。写前复核与写入必须使用
+  同一描述符，避免 TOCTOU。
 - `tc-reduce --output` 的结果文件写入失败同样 70；其形式/重复规则见 §5.12。
 
 ### 5.2 工具开关矩阵
@@ -968,7 +971,7 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `tc.test_worker` | 每个测试 fork worker、stdin 来自 `stdin.bin`/空输入 EOF、输出捕获、超时终止与后续继续、大输入/大输出、非超时异常/协议损坏 | `toolchain`, `fast` |
 | `toolchain.project_paths` | 诊断/trap/IR/trace/linemap、include 根不存在/空候选（跳过，非路径错误）、`module`/`callee_module` 的 external/`../`/`./<basename>#<n>` 回退（含空格/`]`）、根内路径 `lib.tc#1` 与回退 `./lib.tc#1` 的消歧、VM 调试 ELF `.file`/行表与 AOT 汇编字符串根相对、无绝对路径、external、路径字符（Cc/Cf/Zl/Zp）；只使用 `--emit=asm`/`--static-only`/`--gdb-elf-out`，不调用 clang/lld/gdb/readelf | `toolchain`, `fast` |
 | `toolchain.project_paths_aot` | ELF/flat 源字符串与板端 trap 记录根相对、无绝对路径；AOT ELF 符号为内部 `tc_main`/`tc_function_<func_id>` | `toolchain`, `aot` |
-| `toolchain.output_aliases` | 多个输出开关：字符串相同、symlink、hardlink、相对路径形式、输出与源/manifest/stdin 别名均 2；不存在目标按规范化父目录判断；写前复核与写入同 fd | `toolchain`, `fast` |
+| `toolchain.output_aliases` | 编译器输出开关：字符串相同、symlink、hardlink、相对路径形式、输出与源/manifest/stdin 别名均 2；`tc-reduce --output` 等于源文件时允许显式破坏性写入，但其 symlink/hardlink 别名仍 2；不存在目标按规范化父目录判断；写前复核与写入同 fd | `toolchain`, `fast` |
 | `toolchain.project_repro` | 两个不同根目录构建 asm/ELF/flat 逐字节一致 | `toolchain`, `slow` |
 | `toolchain.ir_dump` | `--dump-ir` 文本 golden（结构化 `top`/`f<id>`/`m<id>`/`struct#id`/`c<id>`/`o<id>` 段），两个工具一致；`o<id>`/`c<id>` 只在完整 dump 出现 | `toolchain`, `fast` |
 | `toolchain.trace_golden` | trace 文本/JSONL golden（含失败访问只 trap 无 mem；read io.bytes 逻辑消费）（`kind`/`module`/`func`、顶层 `<top>`、v3）；同一指令 `ir`+事件/`call` 的 `enter`+`return` 多对一；重复运行字节一致；多输出共用 stderr 的时间序（§5.1） | `toolchain`, `fast` |
@@ -979,9 +982,9 @@ LLDB 等价入口：`lldb -o "gdb-remote 127.0.0.1:53412"`。
 | `toolchain.codegen_invariance` | 代码段/ABI 语义与基线一致；源路径字符串根相对；跨根产物一致 | `toolchain`, `aot` |
 | `toolchain.member_identity` | 跨模块同名 `func`/`const`/`static`/`struct` 夹具：调试面只暴露函数；`monitor funcs` 不列成员/单元；`monitor objects` 不出现源码名且 object id 标记内部；IR dump 保持 `m<id>`/`struct#id`/`c<id>`/`o<id>`/`f<id>` 结构名；结构体同名字段由 owner type 区分（IR dump 结构输出）；`monitor ir` 的 `%N`/`f<id>`/`struct#id`/label 为结构操作数（内部 RSP 客户端，连接/命令超时）；完整 `--dump-ir` 的 `o<id>`/`c<id>` 仍为结构段 | `toolchain`, `fast` |
 | `toolchain.debug_elf` | VM `--gdb-elf-out` 内部最小 ELF writer：§6.8 表 class/machine、e_type/节布局（spike 记录）、symtab/行表、独立解码器或 byte-exact golden（非 writer 自序列化）、确定性字节；PATH 去除 clang/lld/gdb/readelf 仍可生成；输出失败 70，`w32` 70 | `toolchain`, `fast` |
-| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/PacketSize=0x4000 与 qXfer 前缀/长度边界/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写（W=32 仍为 64 位/16 hex，`pc` 高 32 位为 0；`P pc`/`Z0` 高 32 位非 0 返回 `E01`）/内存写禁区/`RXX` 复位（旧 trace 段 abandoned、不补 footer）/running 非法帧丢弃/重同步/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、monitor funcs/frames/trap 的 module 输出路径（含空格/`]` 的固定字段顺序 golden）、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor vreg` selector 的 external/`../`/`./<basename>#<n>` 回退、深层调用暂停/继续、`monitor next`/`finish`、trap 帧保留、未写 vreg E01、`monitor ir` 的 `0x` 十六进制地址字面量（1–16 位、大小写、无 `0X`/裸 hex/十进制/下划线、W=32 高 32 位非 0 → `E01`）与 `%N`/`f<id>`/`struct#id`/label 结构操作数；内部 RSP 客户端带连接/命令超时）/退出/重同步 | `toolchain`, `fast` |
+| `vm.gdb.protocol` | RSP 握手/扩展模式 `!`/PacketSize=0x4000 与 qXfer 前缀/长度边界/线程选择（`Hg0`/`Hc-1`）/断点（含同址重复、step-over、停止/终止态增删、`monitor next`/`finish` 断点交互）/单步/`\x03` 中断/寄存器读写（W=32 仍为 64 位/16 hex，`pc` 高 32 位为 0；`P pc`/`Z0` 高 32 位非 0 返回 `E01`）/内存写禁区/`RXX` 复位（旧 trace 段 abandoned、不补 footer）/running 非法帧丢弃/重同步/`D` 与 `k`/`vKill` 生命周期/`monitor`（含 vreg 类型宽度、`kind`/`module`/`<top>` 选择器、monitor funcs/frames/trap 的 module 输出路径（含空格/`]` 的固定字段顺序 golden）、module 含空格/`:`/`]`/逗号的原始剩余串解析、`monitor vreg` selector 的 external/`../`/`./<basename>#<n>` 回退、无观察者零额外分配、深层调用暂停/继续、`monitor next`/`finish`、trap 帧保留、未写 vreg E01、`monitor ir` 的 `0x` 十六进制地址字面量（1–16 位、大小写、无 `0X`/裸 hex/十进制/下划线、W=32 高 32 位非 0 → `E01`）与 `%N`/`f<id>`/`struct#id`/label 结构操作数；内部 RSP 客户端带连接/命令超时）/退出/重同步 | `toolchain`, `fast` |
 | `vm.gdb.semantics` | 有/无调试器三种场景语义一致 | `toolchain`, `slow` |
-| `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中、真实 gdb restart `RXX`）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
+| `vm.gdb.e2e` | 真实 gdb 端到端（§6.10，含 `Hg0`/`Hc-1`、加载 VM 调试 ELF `.symtab`/`.debug_line`、`break top`、跨模块同名函数 `break <name>` 非唯一与 `break <file>:<line>` 命中、真实 gdb `target extended-remote` restart `RXX`；普通 `target remote` 不承诺 restart）；gdb 缺失时显式跳过并在 release audit 记录 | `toolchain` |
 | `toolchain.debug_smoke` | qemu gdbstub 冒烟（§5.8）；gdb/qemu 缺失时显式跳过 | `toolchain` |
 | `toolchain.reduce` | 最小化器收敛且指纹不变；候选同目录、临时文件清理、stdout/`--output` 结果、多模块 import 保留、候选名闭包 import 冲突（含未解析 import 名）、候选 n 从 1 递增、`--stdin`/`--output` 路径冲突、stdin 每轮从头读取、超时终止整组（含后代/管道）、候选生成 deadline、清理失败、缺 `--`/`<tool>`/`<source.tc>` 2、source 非首位 2、未知/多余参数 2、选项重复/空值 2 | `toolchain`, `slow` |
 | `toolchain.presets` | CMakePresets 可配置 + `-L fast` 子集通过 | `toolchain`, `fast` |
