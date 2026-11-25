@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.47] - Unreleased
+
+### Status
+
+- The development/debugging toolchain and project-model designs meet the freeze
+  criteria; implementation has not started and T0–T6/P0–P5 are incomplete.
+- P4b VM debug-ELF internal layout is implementation verification with evidence
+  only and does not write back to the specification. New tools, interfaces and
+  tests in the designs are delivery targets, not current capabilities.
+
 ## [0.0.46] - 2026-11-19
 
 ### Status

@@ -4,13 +4,19 @@ TC **0.0.46** language/compiler specification and target design for the native
 compiler (TC → ASM → machine code). 0.0.46 is the clean-sheet baseline: only the
 standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
-branch delivers the development and debugging toolchain while language
-semantics, opcodes, diagnostics and the ABI stay frozen; its scope and
-contracts are in [docs/TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md).
+branch targets delivery of the development/debugging toolchain and project model
+while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
+designs meet the freeze criteria, but implementation has not started and
+T0–T6/P0–P5 are incomplete. Scope and contracts are in
+[TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
+and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
 
 ## Current status
 
+- **0.0.47 design**: the toolchain and project-model designs meet the freeze
+  criteria; implementation has not started. New tools, interfaces and tests are
+  delivery targets, not current capabilities.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -56,6 +62,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; implementation not started |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; implementation not started |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope

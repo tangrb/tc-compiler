@@ -18,10 +18,10 @@ Chinese: [README.md](README.md).
 
 ## Current status
 
-- The 0.0.47 branch targets the development and debugging toolchain (see
-  [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md));
-  language semantics, opcodes, diagnostics and ABI stay frozen at 0.0.46, and
-  RTOS work moves to 0.0.48.
+- The 0.0.47 toolchain and project-model designs meet the freeze criteria;
+  implementation has not started and T0–T6/P0–P5 are incomplete. New tools,
+  interfaces and tests are delivery targets. Language semantics, opcodes,
+  diagnostics and the ABI stay frozen at 0.0.46, and RTOS work moves to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
   exit**; full `ctest` 71/71 and coverage matrix 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
@@ -42,7 +42,7 @@ Chinese: [README.md](README.md).
 | Document | Purpose |
 | -------- | ------- |
 | [README.en.md](../README.en.md) | Project entry, build and current status |
-| [CHANGELOG.en.md](../CHANGELOG.en.md) | 0.0.46 changes |
+| [CHANGELOG.en.md](../CHANGELOG.en.md) | 0.0.46 changes and 0.0.47 design status |
 | [CONTRIBUTING.en.md](../CONTRIBUTING.en.md) | Contribution workflow |
 | [CODE_OF_CONDUCT.en.md](../CODE_OF_CONDUCT.en.md) | Code of conduct |
 | [SECURITY.en.md](../SECURITY.en.md) | Security reporting |

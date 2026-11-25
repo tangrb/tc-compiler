@@ -17,9 +17,9 @@ English: [README.en.md](README.en.md)。
 
 ## 当前状态
 
-- 0.0.47 分支目标是开发调试工具链（见
-  [TC 开发调试工具链-0.0.47.md](TC开发调试工具链-0.0.47.md)）；语言语义、opcode、诊断码与
-  ABI 保持 0.0.46 冻结，RTOS 能力移交 0.0.48。
+- 0.0.47 工具链与工程模型两份设计达到冻结条件；实现尚未开始，T0–T6/P0–P5 均未完成，
+  新增工具、接口与测试均为交付目标。语言语义、opcode、诊断码与 ABI 保持 0.0.46 冻结，
+  RTOS 能力移交 0.0.48。
 - S0–S10 已实现并通过 G0–G10；**G10 完成 0.0.46 阶段出口**；全量
   `ctest` 71/71，覆盖矩阵 636/636。
 - 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64、
@@ -37,7 +37,7 @@ English: [README.en.md](README.en.md)。
 | 文档 | 用途 |
 | ---- | ---- |
 | [README.md](../README.md)（[English](../README.en.md)） | 项目入口、构建与当前状态 |
-| [CHANGELOG.md](../CHANGELOG.md)（[English](../CHANGELOG.en.md)） | 0.0.46 变更 |
+| [CHANGELOG.md](../CHANGELOG.md)（[English](../CHANGELOG.en.md)） | 0.0.46 变更与 0.0.47 设计状态 |
 | [CONTRIBUTING.md](../CONTRIBUTING.md)（[English](../CONTRIBUTING.en.md)） | 贡献流程 |
 | [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)（[English](../CODE_OF_CONDUCT.en.md)） | 行为准则 |
 | [SECURITY.md](../SECURITY.md)（[English](../SECURITY.en.md)） | 安全问题报告 |

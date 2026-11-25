@@ -4,6 +4,10 @@
 [TC 开发测试计划 0.0.46](../docs/TC开发测试计划-0.0.46.md)；当前门禁状态见
 [门禁状态](../docs/gates/README.md)。
 
+0.0.47 的测试布局见[工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
+[工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，属于规划映射；在实现并注册前不得作为
+当前套件或 PASS 证据。
+
 | Suite | Location | Level | Content |
 | --- | --- | --- | --- |
 | Contract/unit | `unit/` | L0/L1/L2 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例）；`tc_ct_test`（CT 向量/缓存/局部 const）；`tc_ir_test`（最终 IR 形态/CFG/打印）；`tc_vm_test`（语义核、格式化、输入、内存/指针、trap/位置、调用/`D`、设备策略、W 矩阵） |

@@ -35,6 +35,10 @@ implementation-limit/scale/far-branch regressions, ELF/symbol audits and 32/64
 profile isolation are tested.  Frozen contract
 ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
+The 0.0.47 designs add the `tc` project tool and debugging interfaces, but their
+implementation has not started. The current tree still has only `tc-vm` and
+`tc-aot`; design targets are not listed here as implemented modules.
+
 ```text
 src/
   base/         assert version (shared foundations, no language semantics)
