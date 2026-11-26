@@ -13,8 +13,10 @@ manifest/include/profile 消费、错误优先级、非阻塞有界源读取与 
 P3 新增 `project.test_runner`，覆盖发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射；P4a 新增
 `linemap.unit` 与 `p4a.debug`，覆盖共享 JSON v3 行表、IR 到 `.loc`/源注释顺序、
-最小 DWARF v4、跨根确定性、非 debug 字节与 VM/AOT 输出保护边界。所有临时脚本、
-fixture 与编译产物置于项目 `.tmp/`，版本控制测试源仍位于 `tests/`。
+最小 DWARF v4、跨根确定性、非 debug 字节与 VM/AOT 输出保护边界；T1 新增
+`t1.observe`，覆盖 VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap` 的
+text/jsonl/limit/output、VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/预留保护
+与确定性观测输出。所有临时脚本、fixture 与编译产物置于项目 `.tmp/`，版本控制测试源仍位于 `tests/`。
 上述测试标签为 `unit`/`toolchain`/`fast`，发布审计为 `toolchain`/`aot`/`slow`。其余测试布局见
 [工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
 [工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，在实现并注册前不得作为当前套件或
@@ -28,7 +30,7 @@ PASS 证据。
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、root-module `--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查、矩阵 case id 存在性交叉检查 |
 | Golden | `golden/` | L3/L4 | 规范推导的期望值及规范来源；`validate.py` 校验诊断与运行时 golden，`run.py` 执行 w32/w64 运行时 golden |
-| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 发现/筛选与失败关闭、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；S10 发布审计（80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
+| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 发现/筛选与失败关闭、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；T1 `t1.observe`（IR/trace/stats、trap 上下文、输出身份/预留保护与确定性）；S10 发布审计（80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
 | Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON（S1/S2-S3/S4/S5/S6）；S7/S8/S9/S10 零 pass/ELF 构建/执行稳定性与 checked/release 分离 |
 | Docs | `tools/docs_cleanup_check.py` | — | 文档收尾门禁：无过程/历史叙事、门禁记录简短、changelog 版本不重复 |
 
@@ -37,15 +39,15 @@ PASS 证据。
 ```sh
 cmake -S . -B .tmp/build && cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-# P1/P2/P3/P4a 工程模型与调试测试
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.' --output-on-failure
+# P1/P2/P3/P4a/T1 工程模型与调试测试
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.' --output-on-failure
 ctest --test-dir .tmp/build -L 'unit;toolchain;fast' --output-on-failure
 ```
 
 `project.manifest`、`project.init`、`project.init_fault` 与更新的 `cli.contract`
 共同构成 P1 当前回归入口；`project.paths_unit`、`project.paths` 与
 `project.paths_aot` 构成 P2 当前回归入口；`project.test_runner` 构成 P3 当前回归入口；`linemap.unit` 与 `p4a.debug` 构成 P4a
-当前回归入口；标签筛选使用 CTest 的标签匹配语法。
+当前回归入口；`t1.observe` 构成 T1 当前回归入口；标签筛选使用 CTest 的标签匹配语法。
 
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
 每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
@@ -103,10 +105,10 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-0.0.47 CTest 注册总数 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；Debug、Release
-与 ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46 已验收
-harness 873/873（608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、
-sem 102、ct 370、ir 674、vm 413、aot 81、oom 366。S9 平台套件另有 29 个固定 ARM32 用例、
+0.0.47 CTest 注册总数 83（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项）；
+T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83 与全部收尾检查。0.0.46 已验收 harness 873/873
+（608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、ct 370、
+ir 674、vm 514、aot 81、oom 383。S9 平台套件另有 29 个固定 ARM32 用例、
 305 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
 19 个反向 ABI 用例与 1072×2 个静态源一致性检查；S10 另有 29 个固定 RISC-V
 用例、305 个同档案语料、32 个 C 调用者用例、14 个反向 ABI 用例、1072 个 RISC-V

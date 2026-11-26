@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "backend/common/emit_stats.h"
 #include "backend/common/rt_abi.h"
 #include "backend/riscv32/emit.h"
 #include "ir/ir.h"
@@ -91,6 +92,8 @@ typedef struct TcRiscv32Emitter {
     uint64_t incoming_stack_offset;
     int unit_has_read;
     uint64_t frame_desc_count;
+    uint64_t frame_max;
+    TcEmitCounter emit_counter;
 } TcRiscv32Emitter;
 
 typedef enum {

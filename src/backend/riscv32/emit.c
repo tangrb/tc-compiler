@@ -56,9 +56,19 @@ void tc_riscv32_write(TcRiscv32Emitter *emitter, const char *format, ...) {
         return;
     }
     va_start(ap, format);
-    if (vfprintf(emitter->out, format, ap) < 0) {
-        emitter->output_failed = 1;
-        emitter->failed = 1;
+    {
+        int result = tc_emit_stats_write(emitter->out, format, ap,
+                                         &emitter->emit_counter);
+        if (result != 0) {
+            emitter->failed = 1;
+            if (result == -1) {
+                emitter->output_failed = 1;
+            } else if (result == -2) {
+                emitter->oom_failed = 1;
+            } else {
+                emitter->internal_error = 1;
+            }
+        }
     }
     va_end(ap);
 }
@@ -251,8 +261,25 @@ uint32_t tc_riscv32_type_id(TcRiscv32Emitter *emitter, const TcType *type) {
 
 void tc_riscv32_move_immediate(TcRiscv32Emitter *emitter, unsigned reg,
                                uint32_t value) {
-    tc_riscv32_write(emitter, "  li %s, 0x%08x\n", tc_riscv32_reg_name(reg),
-                     (unsigned)value);
+    const char *name = tc_riscv32_reg_name(reg);
+    if (value <= 2047u || value >= UINT32_C(0xfffff800)) {
+        tc_riscv32_write(emitter, "  addi %s, zero, %d\n", name,
+                         (int32_t)value);
+        return;
+    }
+    {
+        uint32_t high = (value + UINT32_C(0x800)) >> 12;
+        uint32_t low = value & UINT32_C(0xfff);
+        tc_riscv32_write(emitter, "  lui %s, 0x%x\n", name, (unsigned)high);
+        if (low != 0u) {
+            int32_t signed_low = (int32_t)low;
+            if (signed_low >= 2048) {
+                signed_low -= 4096;
+            }
+            tc_riscv32_write(emitter, "  addi %s, %s, %d\n", name, name,
+                             signed_low);
+        }
+    }
 }
 
 void tc_riscv32_load_symbol(TcRiscv32Emitter *emitter, unsigned reg,
@@ -1166,6 +1193,9 @@ static int build_layout(TcRiscv32Emitter *emitter, const TcUnit *unit) {
     emitter->incoming_stack_offset =
         emitter->frame_total - emitter->outgoing_size -
         TC_RISCV32_SAVED_AREA;
+    if (emitter->frame_total > emitter->frame_max) {
+        emitter->frame_max = emitter->frame_total;
+    }
     {
         uint64_t stack_limit = emitter->profile->stack_size;
         uint64_t depth = emitter->profile->depth_D != 0
@@ -2085,7 +2115,8 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
                                         const TcTargetDesc *target,
                                         const TcLineMap *linemap,
                                         char *error_message,
-                                        size_t error_capacity) {
+                                        size_t error_capacity,
+                                        TcTargetStats *target_stats) {
     TcRiscv32Emitter emitter;
     size_t u;
     int saw_top = 0;
@@ -2112,6 +2143,11 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
         return TC_RISCV32_EMIT_INTERNAL;
     }
     memset(&emitter, 0, sizeof(emitter));
+    if (target_stats != NULL) {
+        memset(target_stats, 0, sizeof(*target_stats));
+        emitter.emit_counter.active = 1;
+        emitter.emit_counter.target = TC_EMIT_TARGET_RISCV32;
+    }
     emitter.ir = ir;
     emitter.linemap = linemap;
     emitter.profile = profile;
@@ -2147,6 +2183,7 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
             impl = tc_debug_emit_begin(out);
         }
         if (impl != TC_IMPL_OK) {
+            tc_emit_stats_free(&emitter.emit_counter);
             emitter.alloc->free(emitter.alloc->ctx, emitter.types);
             emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
             if (impl == TC_IMPL_IO) {
@@ -2203,6 +2240,7 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
         tc_riscv32_write(&emitter,
                          "\n  .section .note.GNU-stack,\"\",@progbits\n");
     }
+    tc_emit_stats_free(&emitter.emit_counter);
     emitter.alloc->free(emitter.alloc->ctx, emitter.types);
     emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
     if (emitter.failed) {
@@ -2214,6 +2252,13 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
     }
     if (ferror(out)) {
         return TC_RISCV32_EMIT_IO;
+    }
+    if (emitter.emit_counter.code_bytes == UINT64_MAX) {
+        return TC_RISCV32_EMIT_INTERNAL;
+    }
+    if (target_stats != NULL) {
+        target_stats->frame_max = emitter.frame_max;
+        target_stats->code_bytes = emitter.emit_counter.code_bytes;
     }
     return TC_RISCV32_EMIT_OK;
 }

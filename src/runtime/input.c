@@ -41,11 +41,21 @@ void tc_input_destroy(TcInput *input) {
     input->token_len = 0;
 }
 
+static int consume_byte(TcInput *input, uint8_t *out) {
+    if (input->consumed == UINT64_MAX) {
+        input->consumed_overflow = 1;
+        input->error = 1;
+        return -1;
+    }
+    input->consumed++;
+    *out = input->buffer[input->pos++];
+    return 1;
+}
+
 /* Fetch one byte.  Returns 1 with the byte, 0 at EOF, -1 at source error. */
 static int next_byte(TcInput *input, uint8_t *out) {
     if (input->pos < input->len) {
-        *out = input->buffer[input->pos++];
-        return 1;
+        return consume_byte(input, out);
     }
     if (input->eof || input->error || input->src == NULL ||
         input->src->read == NULL) {
@@ -74,8 +84,7 @@ static int next_byte(TcInput *input, uint8_t *out) {
             return 0;
         }
     }
-    *out = input->buffer[input->pos++];
-    return 1;
+    return consume_byte(input, out);
 }
 
 static TcInputStatus append_token(TcInput *input, char byte) {
@@ -261,8 +270,8 @@ done:
     return ok;
 }
 
-TcInputStatus tc_input_read_scalar(TcInput *input, unsigned W,
-                                   const TcType *type, uint64_t *bits) {
+static TcInputStatus read_scalar_impl(TcInput *input, unsigned W,
+                                      const TcType *type, uint64_t *bits) {
     int saw_any = 0;
 
     if (input == NULL || type == NULL || bits == NULL ||
@@ -333,4 +342,24 @@ TcInputStatus tc_input_read_scalar(TcInput *input, unsigned W,
         }
     }
     return TC_INPUT_OK;
+}
+
+TcInputStatus tc_input_read_scalar(TcInput *input, unsigned W,
+                                   const TcType *type, uint64_t *bits) {
+    TcInputStatus status;
+    uint64_t start = input != NULL ? input->consumed : 0u;
+    if (input != NULL) {
+        input->last_consumed = 0u;
+        input->last_eof = 0;
+    }
+    status = read_scalar_impl(input, W, type, bits);
+    if (input != NULL) {
+        if (status == TC_INPUT_OK) {
+            input->last_consumed = input->consumed - start;
+        } else {
+            input->last_eof = status == TC_INPUT_IO && input->eof &&
+                              !input->error && input->token_len == 0u;
+        }
+    }
+    return status;
 }

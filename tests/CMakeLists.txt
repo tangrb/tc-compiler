@@ -148,7 +148,12 @@ add_test(
     NAME cli.contract
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cli_contract_test.py
             $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot> $<TARGET_FILE:tc>)
-set_tests_properties(contract.unit cli.contract oom.unit release.audit_selftest
+add_test(
+    NAME t1.observe
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/t1_observe_test.py
+            $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
+set_tests_properties(t1.observe PROPERTIES LABELS "unit;toolchain;fast")
+set_tests_properties(contract.unit cli.contract t1.observe oom.unit release.audit_selftest
                     project.manifest project.init project.init_fault
                     project.test_runner
                     project.paths_unit project.paths

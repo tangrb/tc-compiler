@@ -4,14 +4,14 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 0.0.46 为 clean-sheet 实现基线：只保留标准、设计、测试计划与按设计重写的实现；
 历史实现与旧工具已移除，需要时从 git tag 获取。
 `tc-0.0.47` 分支目标是在语言语义、opcode、诊断码与 ABI 不变的前提下交付开发调试工具链
-与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3 与 P4a 已完成，
-P4b、P5 与 T1–T6 尚未开始。
+与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3、P4a 与 T1 已完成，
+P4b、P5 与 T2–T6 尚未开始。
 范围与契约见 [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) 与
 [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md)；RTOS、中断与并发移交 0.0.48。
 
 ## 当前状态
 
-- **0.0.47 P0–P4a**：工具链版本 0.0.47 与语言/契约版本 0.0.46/1 分离；私有 `tc_core` 链接
+- **0.0.47 工具链与 T1 观测**：工具链版本 0.0.47 与语言/契约版本 0.0.46/1 分离；私有 `tc_core` 链接
   `tc`/`tc-vm`/`tc-aot` 三个入口；实现级错误统一映射为 0/2/70/71。
   `tc` 已实现工程 CLI 语法、`--help`/`--version` 与 `--init-project` 完整模板、
   原子写入、回滚和身份检查。编译器已消费 `tc.project` v1、canonical 工程根、有序
@@ -21,8 +21,12 @@ P4b、P5 与 T1–T6 尚未开始。
   快照、串行 fork worker、超时、流捕获、结构化结果、报告与退出映射。
   P4a 已实现共享确定性行表与私有 AOT 调试发射：`.file`/`.asciz`/`.loc`、源注释、
   最小 DWARF v4 CU 与 clang `.debug_line`；诊断、输入/输出身份与 stdio 保护在发布前完成。
-- **后续阶段**：P4b VM 调试 ELF、P5 及 T1–T6 尚未开始；公开 `tc-aot --debug` 与
-  `--dump-linemap` 不属于 P4a。
+  T1 已实现 VM/AOT `--dump-ir[=<path>]`、VM `--trace=ir,call,mem,io,trap`
+  （`text`/`jsonl`、`--trace-limit=<n>` 与 `--trace-out=<path>`）、VM/AOT `--stats`
+  与 `--stats-out=<path>`、结构化 trap 上下文、显式输出身份检查与预留保护，以及
+  确定性观测输出；证据入口为 `t1.observe`。
+- **后续阶段**：P4b VM 调试 ELF、P5 与 T2–T6 尚未开始；公开 `tc-aot --debug` 与
+  `--dump-linemap` 尚未开始。
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
   CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
@@ -49,9 +53,9 @@ P4b、P5 与 T1–T6 尚未开始。
   发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
   长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-  P4b、P5 与 T1–T6 不在当前完成范围内。
-- **当前验证**：0.0.47 CTest 注册总数 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；
-  Debug、Release 与 ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46
+  P4b、P5 与 T2–T6 不在当前完成范围内。
+- **当前验证**：0.0.47 CTest 注册总数 83（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项）；
+  T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83 与全部收尾检查。0.0.46 已验收 harness 873/873、
   覆盖矩阵 636/636，G0–G10 PASS；**G10 完成 0.0.46 阶段出口，G11 未完成**。
   详见 [门禁状态](docs/gates/README.md)。
 
@@ -62,8 +66,8 @@ P4b、P5 与 T1–T6 尚未开始。
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 语言语义、诊断、编译器实现要求与平台档案的唯一权威 |
 | [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、运行时、平台档案、后端与分期路线 |
 | [TC 开发测试计划 0.0.46](docs/TC开发测试计划-0.0.46.md) | 阶段、门禁、覆盖与可追溯性 |
-| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a 已实现 |
-| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 已实现 |
+| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a 与 T1 已实现 |
+| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 与 T1 已实现 |
 | [文档地图](docs/README.md) | 文档入口与阅读顺序 |
 
 ## 目标口径
@@ -124,6 +128,8 @@ clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
   `TC_RE_*` trap 以 `<file>:<line>:<column>: error[RT]: <code>: <print-name>`
   报出并退出 1。`--profile=w32` 选择 32 位档案，`--checked` 增加 UB 访问检查
   （不改变必选 trap），`--opt=O0|O2` 为零 pass 基线、语义一致。
+  T1 观测支持 `--dump-ir[=<path>]`、`--trace=ir,call,mem,io,trap`（text/jsonl、
+  limit/output）与 `--stats`（含独立输出）。
 - 普通 `tc-aot` 调用：静态阶段通过后发射目标汇编到 stdout；`--emit=asm`
   （默认）/`--emit=obj`/`--emit=elf`/`--emit=flat` 与 `--output=<path>` 生成
   `.s`/ELF 目标文件/ELF 可执行文件/裸二进制
@@ -131,6 +137,7 @@ clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
   `--profile=` 选择 `aarch64-linux-user`/`aarch64-baremetal`/`arm32-baremetal`/
   `riscv32-baremetal`（`w32` 仅 VM 静态档案），
   `--device=reject|read|readwrite|volatile` 覆盖平台实例的设备区策略。
+  T1 观测支持 `--dump-ir[=<path>]` 与 `--stats`（含独立输出）。
   无后端/工具链映射的档案显式退出 70，不发布错误产物。
 - AOT 平台实例：`aarch64-linux-user` 使用 qemu-system-aarch64 + semihosting；
   `aarch64-baremetal` 使用 PL011 UART0（stdout/stdin）/UART1 + PSCI；`arm32-baremetal` 使用

@@ -52,6 +52,11 @@ static TcVmFlow do_call(TcVm *vm, uint32_t caller_frame, const TcFunc *callee,
     size_t i;
     uint32_t callee_frame = 0;
     TcVmFlow flow;
+    const TcUnit *caller_unit;
+    const TcInstr *caller_instr;
+    TcSpan caller_span;
+    uint32_t caller_bb;
+    uint32_t caller_insn;
 
     if (callee == NULL || callee->body == NULL) {
         tc_vm_impl(vm, TC_IMPL_INTERNAL);
@@ -107,11 +112,26 @@ static TcVmFlow do_call(TcVm *vm, uint32_t caller_frame, const TcFunc *callee,
         }
     }
     tc_vm_free(vm, values);
+    caller_unit = vm->current_unit;
+    caller_instr = vm->current_instr;
+    caller_span = vm->current_span;
+    caller_bb = vm->current_bb;
+    caller_insn = vm->current_insn;
+    tc_vm_observe_call(vm, instr, callee, 0);
     vm->depth++;
+    if (vm->stats != NULL && vm->depth > vm->stats->depth_max) {
+        vm->stats->depth_max = vm->depth;
+    }
     flow = tc_vm_execute(vm, callee_frame, ret, has_ret);
     if (flow == TC_VM_FLOW_FAIL) {
         return flow;
     }
+    vm->current_unit = caller_unit;
+    vm->current_instr = caller_instr;
+    vm->current_span = caller_span;
+    vm->current_bb = caller_bb;
+    vm->current_insn = caller_insn;
+    tc_vm_observe_call(vm, instr, callee, 1);
     vm->depth--;
     tc_vm_pop_frame(vm);
     if (callee->sig.ret != NULL && callee->sig.ret->tag != TC_TY_VOID &&
@@ -145,11 +165,19 @@ static int do_write(TcVm *vm, TcVmFrame *frame, const TcInstr *instr,
         }
         text[len++] = '\n';
     }
-    if (vm->profile->io == NULL || vm->profile->io->out == NULL ||
-        vm->profile->io->out->write == NULL ||
-        vm->profile->io->out->write(vm->profile->io->out->ctx,
-                                    (const uint8_t *)text, len) != 0) {
-        return tc_vm_trap(vm, &instr->span, TC_EK_IO);
+    {
+        int written = vm->profile->io == NULL ||
+                      vm->profile->io->out == NULL ||
+                      vm->profile->io->out->write == NULL
+                          ? -1
+                          : vm->profile->io->out->write(
+                                vm->profile->io->out->ctx,
+                                (const uint8_t *)text, len);
+        if (written != 0) {
+            tc_vm_observe_io(vm, 0u, "error");
+            return tc_vm_trap(vm, &instr->span, TC_EK_IO);
+        }
+        tc_vm_observe_io(vm, (uint64_t)len, "ok");
     }
     return 1;
 }
@@ -159,12 +187,19 @@ static int do_read(TcVm *vm, TcVmFrame *frame, const TcInstr *instr) {
     TcInputStatus status;
     memset(&value, 0, sizeof(value));
     status = tc_input_read_scalar(&vm->input, vm->W, instr->type, &value.bits);
+    if (vm->input.consumed_overflow) {
+        tc_vm_observe_io(vm, 0u, "error");
+        return tc_vm_impl(vm, TC_IMPL_INTERNAL);
+    }
     if (status == TC_INPUT_OOM) {
+        tc_vm_observe_io(vm, 0u, "error");
         return tc_vm_impl(vm, TC_IMPL_OOM);
     }
     if (status != TC_INPUT_OK) {
+        tc_vm_observe_io(vm, 0u, vm->input.last_eof ? "eof" : "error");
         return tc_vm_trap(vm, &instr->span, TC_EK_IO);
     }
+    tc_vm_observe_io(vm, vm->input.last_consumed, "ok");
     if (instr->dst.kind == TC_OP_DISCARD) {
         return 1;
     }
@@ -269,6 +304,11 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
         }
         instr = &instrs->instrs[pc];
         vm->current_span = instr->span;
+        vm->current_unit = unit;
+        vm->current_instr = instr;
+        vm->current_bb = block;
+        vm->current_insn = (uint32_t)pc;
+        tc_vm_observe_ir(vm, instr);
 
         switch (instr->op) {
         case TC_ADD:
@@ -820,8 +860,12 @@ const char *tc_vm_status_symbol(TcVmStatus status) {
     }
 }
 
-TcVmStatus tc_vm_run(const TcIR *ir, const TcPlatformProfile *profile,
-                     TcVmResult *out_result, TcImplError *out_impl) {
+static TcVmStatus tc_vm_run_internal(const TcIR *ir,
+                                     const TcPlatformProfile *profile,
+                                     TcVmResult *out_result,
+                                     TcImplError *out_impl,
+                                     const TcVmObserver *observer,
+                                     TcVmStats *out_stats) {
     TcVm vm;
     TcVmStatus status;
     uint32_t top_unit = UINT32_MAX;
@@ -837,6 +881,34 @@ TcVmStatus tc_vm_run(const TcIR *ir, const TcPlatformProfile *profile,
         status = TC_VM_STATUS_IMPL;
         tc_vm_teardown(&vm);
         return status;
+    }
+    if (observer != NULL) {
+        vm.observer = observer;
+        if (observer->trace != NULL && observer->linemap == NULL) {
+            tc_vm_impl(&vm, TC_IMPL_INTERNAL);
+            tc_vm_teardown(&vm);
+            return TC_VM_STATUS_IMPL;
+        }
+        if (observer->stats) {
+            if (out_stats == NULL) {
+                tc_vm_impl(&vm, TC_IMPL_INTERNAL);
+                tc_vm_teardown(&vm);
+                return TC_VM_STATUS_IMPL;
+            }
+            memset(out_stats, 0, sizeof(*out_stats));
+            vm.stats = out_stats;
+            out_stats->region_peak[TC_REG_CODE] =
+                ((uint64_t)ir->nfuncs + 1u) * 16u;
+            for (i = 0u; i < ir->nobjects; i++) {
+                const TcObject *object = &ir->objects[i];
+                if (object->region == TC_REG_STATIC &&
+                    object->offset + object->size >
+                        out_stats->region_peak[TC_REG_STATIC]) {
+                    out_stats->region_peak[TC_REG_STATIC] =
+                        object->offset + object->size;
+                }
+            }
+        }
     }
     for (i = 0; i < ir->nunits; i++) {
         if (ir->units[i].func_id == TC_UNIT_TOP_LEVEL) {
@@ -856,6 +928,7 @@ TcVmStatus tc_vm_run(const TcIR *ir, const TcPlatformProfile *profile,
         tc_vm_teardown(&vm);
         return status;
     }
+    tc_vm_trace_header(&vm);
     flow = tc_vm_execute(&vm, frame_index, &ret_value, &has_ret);
     if (flow == TC_VM_FLOW_FAIL) {
         status = out_result != NULL && out_result->trapped
@@ -874,10 +947,40 @@ TcVmStatus tc_vm_run(const TcIR *ir, const TcPlatformProfile *profile,
     if (vm.impl != TC_IMPL_OK) {
         status = TC_VM_STATUS_IMPL;
     }
+    if (vm.stats != NULL) {
+        vm.stats->trapped = out_result != NULL && out_result->trapped;
+        vm.stats->first_trap = out_result != NULL ? out_result->kind
+                                                  : (TcErrorKind)0;
+    }
+    tc_vm_trace_footer(&vm, status == TC_VM_STATUS_OK ? "ok"
+                               : status == TC_VM_STATUS_TRAP ? "trap"
+                                                             : "error");
+    if (vm.trace_failed) {
+        tc_vm_impl(&vm, TC_IMPL_IO);
+    } else if (vm.count_overflow) {
+        tc_vm_impl(&vm, TC_IMPL_INTERNAL);
+    }
+    if (vm.impl != TC_IMPL_OK) {
+        status = TC_VM_STATUS_IMPL;
+    }
     tc_vm_teardown(&vm);
     if (out_impl != NULL && status == TC_VM_STATUS_IMPL &&
         *out_impl == TC_IMPL_OK) {
         *out_impl = TC_IMPL_INTERNAL;
     }
     return status;
+}
+
+TcVmStatus tc_vm_run(const TcIR *ir, const TcPlatformProfile *profile,
+                     TcVmResult *out_result, TcImplError *out_impl) {
+    return tc_vm_run_internal(ir, profile, out_result, out_impl, NULL, NULL);
+}
+
+TcVmStatus tc_vm_run_observed(const TcIR *ir,
+                              const TcPlatformProfile *profile,
+                              TcVmResult *out_result, TcImplError *out_impl,
+                              const TcVmObserver *observer,
+                              TcVmStats *out_stats) {
+    return tc_vm_run_internal(ir, profile, out_result, out_impl, observer,
+                              out_stats);
 }

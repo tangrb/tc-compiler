@@ -7,6 +7,7 @@
 #define TC_DRIVER_CLI_H
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include "contract/optimizer.h"
@@ -20,6 +21,12 @@
 
 #define TC_CLI_MAX_INCLUDE_ROOTS 32
 
+#define TC_CLI_TRACE_IR (1u << 0)
+#define TC_CLI_TRACE_CALL (1u << 1)
+#define TC_CLI_TRACE_MEM (1u << 2)
+#define TC_CLI_TRACE_IO (1u << 3)
+#define TC_CLI_TRACE_TRAP (1u << 4)
+
 typedef struct {
     const char *source;
     const char *profile_name;
@@ -31,6 +38,21 @@ typedef struct {
     const char *linker_script; /* target linker script override */
     const char *device_name;   /* optional device-policy override */
     int keep_temps;            /* keep intermediate .s/.o/.elf files */
+    const char *dump_ir;        /* NULL = disabled; "" = stderr */
+    int dump_ir_seen;
+    uint32_t trace_kinds;
+    const char *trace_out;
+    const char *trace_format;
+    uint64_t trace_limit;
+    int trace_seen;
+    int trace_out_seen;
+    int trace_format_seen;
+    int trace_limit_seen;
+    int stats;
+    const char *stats_out;
+    int stats_out_seen;
+    const char *diag_format;
+    int diag_format_seen;
     const char *include_roots[TC_CLI_MAX_INCLUDE_ROOTS];
     size_t ninclude_roots;
     TcOptLevel opt;

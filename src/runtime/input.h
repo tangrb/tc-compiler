@@ -31,6 +31,10 @@ typedef struct {
     char *token;
     size_t token_cap;
     size_t token_len;
+    uint64_t consumed;
+    uint64_t last_consumed;
+    int last_eof;
+    int consumed_overflow;
 } TcInput;
 
 typedef enum {

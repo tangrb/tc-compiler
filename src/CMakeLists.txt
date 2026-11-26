@@ -32,6 +32,7 @@ add_library(tc_core STATIC
     backend/riscv32/emit_ops.c
     backend/common/toolchain.c
     backend/common/debug_emit.c
+    backend/common/emit_stats.c
     # IR representation and shape helpers.
     ir/type.c
     ir/instr.c
@@ -49,6 +50,7 @@ add_library(tc_core STATIC
     # Reference VM: memory/objects and interpreter.
     vm/memory.c
     vm/interp.c
+    vm/observe.c
     # Project model.
     project/name.c
     project/manifest.c
@@ -59,6 +61,7 @@ add_library(tc_core STATIC
     driver/cli.c
     driver/frontend_driver.c
     driver/aot_driver.c
+    driver/observe.c
     driver/profile_select.c
     driver/test_runner.c
 )

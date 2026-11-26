@@ -6,15 +6,15 @@ standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
-designs meet the freeze criteria. P0/T0, P1, P2, P3 and P4a are complete;
-P4b, P5 and T1–T6 have not started. Scope and contracts are in
+designs meet the freeze criteria. P0/T0, P1, P2, P3, P4a and T1 are complete;
+P4b, P5 and T2–T6 have not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
 
 ## Current status
 
-- **0.0.47 P0–P4a**: toolchain version 0.0.47 is separate from language/contract
+- **0.0.47 toolchain and T1 observation**: toolchain version 0.0.47 is separate from language/contract
   version 0.0.46/1. The private `tc_core` links three entry points:
   `tc`, `tc-vm` and `tc-aot`. Implementation errors share the 0/2/70/71 mapping.
   `tc` implements project CLI grammar, `--help`, `--version` and the full
@@ -30,8 +30,13 @@ RTOS, interrupts and concurrency move to 0.0.48.
   P4a adds the shared deterministic line map and private AOT debug emission:
   `.file`/`.asciz`/`.loc`, source comments, a minimal DWARF v4 CU and clang's
   `.debug_line`, with input/output identity and stdio guards before publication.
-- **Later stages**: P4b VM debug ELF, P5 and T1–T6 have not started. Public
-  `tc-aot --debug` and `--dump-linemap` are outside P4a.
+  T1 adds VM/AOT `--dump-ir[=<path>]`, VM `--trace=ir,call,mem,io,trap` with
+  `text`/`jsonl`, `--trace-limit=<n>` and `--trace-out=<path>`, VM/AOT `--stats`
+  with `--stats-out=<path>`, structured trap context, explicit output identity and
+  reservation guards, and deterministic observation output; its evidence entry
+  point is `t1.observe`.
+- **Later stages**: P4b VM debug ELF, P5 and T2–T6 have not started. Public
+  `tc-aot --debug` and `--dump-linemap` have not started.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -65,13 +70,15 @@ RTOS, interrupts and concurrency move to 0.0.48.
   corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
   implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
-  inlining); the 0.0.46 baseline stays zero-pass. P4b, P5 and T1–T6 are outside
+  inlining); the 0.0.46 baseline stays zero-pass. P4b, P5 and T2–T6 are outside
   the current completion scope.
-- **Current verification**: 82 registered 0.0.47 CTests (73 at P0, three P1 tests,
-  three P2 tests, one P3 test and two P4a tests). Debug, Release and ASan+UBSan
-  full CTest runs each pass 82/82, and all 50 required closing checks pass. The 0.0.46 coverage
-  matrix is 636/636 and G0–G10 PASS. **G10 completes the 0.0.46 stage exit; G11 is
-  incomplete**. See [gate status](docs/gates/README.en.md).
+- **Current verification**: 83 registered 0.0.47 CTests (73 at P0, three P1 tests,
+  three P2 tests, one P3 test, two P4a tests and one T1 test). T1 implementation
+  and focused tests are complete; Debug, Release and ASan+UBSan full CTest runs each
+  passed 83/83, and all closing checks passed. The accepted
+  0.0.46 baseline remains harness 873/873 and coverage 636/636, with G0–G10 PASS.
+  **G10 completes the 0.0.46 stage exit; G11 is incomplete**. See
+  [gate status](docs/gates/README.en.md).
 
 ## Documents
 
@@ -80,8 +87,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4a implemented |
-| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a implemented |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4a and T1 implemented |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1 implemented |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope
@@ -152,6 +159,8 @@ target ar), and this is not a gate build. Tools currently support:
   `<file>:<line>:<column>: error[RT]: <code>: <print-name>` with exit 1.
   `--profile=w32` selects the 32-bit profile, `--checked` adds UB access checks
   (mandatory traps are unchanged), and `--opt=O0|O2` stays a zero-pass baseline.
+  T1 observation supports `--dump-ir[=<path>]`, `--trace=ir,call,mem,io,trap`
+  (text/jsonl, limit/output) and `--stats` with a separate output destination.
 - A normal `tc-aot` invocation emits target assembly to stdout after the static
   stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf`/`--emit=flat` with
   `--output=<path>` produce `.s`, an ELF relocatable/executable or a flat binary;
@@ -159,7 +168,8 @@ target ar), and this is not a gate build. Tools currently support:
   baseline. `--profile=` selects `aarch64-linux-user`, `aarch64-baremetal`,
   `arm32-baremetal` or `riscv32-baremetal` (`w32` is a VM-only static profile), and
   `--device=reject|read|readwrite|volatile` overrides the platform instance's
-  device policy. A profile without a backend/toolchain mapping exits 70 without
+  device policy. T1 observation supports `--dump-ir[=<path>]` and `--stats` with a
+  separate output destination. A profile without a backend/toolchain mapping exits 70 without
   publishing a wrong artifact.
 - AOT platform instances: `aarch64-linux-user` uses qemu-system-aarch64 +
   semihosting; `aarch64-baremetal` uses PL011 UART0 (stdout/stdin)/UART1 + PSCI;

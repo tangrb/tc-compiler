@@ -9,6 +9,7 @@
 #include "runtime/input.h"
 #include "runtime/profile.h"
 #include "runtime/trap.h"
+#include "vm/observe.h"
 #include "vm/vm.h"
 
 typedef struct {
@@ -87,6 +88,18 @@ typedef struct TcVm {
     TcInput input;
     unsigned depth;
     TcSpan current_span;
+    const TcUnit *current_unit;
+    const TcInstr *current_instr;
+    uint32_t current_bb;
+    uint32_t current_insn;
+    const TcVmObserver *observer;
+    TcVmStats *stats;
+    uint64_t trace_records;
+    uint64_t trace_dropped;
+    int trace_started;
+    int trace_truncated;
+    int trace_failed;
+    int count_overflow;
 } TcVm;
 
 /* Allocation helpers; failure sets vm->impl and returns NULL. */
@@ -98,6 +111,17 @@ void tc_vm_free(TcVm *vm, void *ptr);
 int tc_vm_trap(TcVm *vm, const TcSpan *span, TcErrorKind kind);
 int tc_vm_impl(TcVm *vm, TcImplError error);
 int tc_vm_failed(const TcVm *vm);
+
+void tc_vm_observe_ir(TcVm *vm, const TcInstr *instr);
+void tc_vm_observe_mem(TcVm *vm, uint64_t address, uint64_t size);
+void tc_vm_observe_memmove(TcVm *vm, uint64_t dst, uint64_t src,
+                           uint64_t size);
+void tc_vm_observe_io(TcVm *vm, uint64_t bytes, const char *result);
+void tc_vm_observe_call(TcVm *vm, const TcInstr *instr,
+                        const TcFunc *callee, int returning);
+void tc_vm_observe_trap(TcVm *vm, TcErrorKind kind);
+void tc_vm_trace_header(TcVm *vm);
+void tc_vm_trace_footer(TcVm *vm, const char *status);
 
 /* Type size under the bound profile (standard §6.13). */
 uint64_t tc_vm_type_size(TcVm *vm, const TcType *type, int *ok);

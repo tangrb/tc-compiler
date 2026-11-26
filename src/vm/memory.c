@@ -68,6 +68,27 @@ int tc_vm_trap(TcVm *vm, const TcSpan *span, TcErrorKind kind) {
         vm->result->trapped = 1;
         vm->result->kind = kind;
         vm->result->span = *where;
+        vm->result->depth = vm->depth;
+        if (vm->current_unit != NULL) {
+            const TcUnit *unit = vm->current_unit;
+            const TcFunc *func = NULL;
+            vm->result->bb = vm->current_bb;
+            vm->result->insn = vm->current_insn;
+            vm->result->op = vm->current_instr != NULL
+                                 ? vm->current_instr->op
+                                 : TC_OPCODE_COUNT;
+            if (unit->func_id == TC_UNIT_TOP_LEVEL) {
+                vm->result->entity_kind = 0;
+                vm->result->module = vm->ir->modules[0].path;
+                vm->result->func = "<top>";
+            } else if (unit->func_id < vm->ir->nfuncs) {
+                func = &vm->ir->funcs[unit->func_id];
+                vm->result->entity_kind = 1;
+                vm->result->module = vm->ir->modules[func->module].path;
+                vm->result->func = func->name;
+            }
+        }
+        tc_vm_observe_trap(vm, kind);
         if (vm->profile->trap != NULL && vm->profile->trap->trap != NULL) {
             vm->profile->trap->trap(vm->profile->trap->ctx, kind,
                                     (int)where->line);
@@ -516,36 +537,37 @@ static int device_allows(TcVm *vm, int write, int volatile_access) {
     }
 }
 
-/* Check an access and return its host pointer.  address != 0 is assumed. */
-static int check_access(TcVm *vm, uint64_t address, uint64_t size,
-                        const TcType *type, int write, int volatile_access,
-                        uint8_t **out_host) {
+typedef struct {
     TcRegionKind region;
+    uint8_t *host;
+    TcVmObject *object;
+    int contained;
+} TcVmAccess;
+
+static int resolve_access(TcVm *vm, uint64_t address, uint64_t size,
+                          const TcType *type, TcVmAccess *out) {
     uint8_t *host = NULL;
     int ok = 0;
-
-    if (!region_of_address(vm, address, &region)) {
+    memset(out, 0, sizeof(*out));
+    if (!region_of_address(vm, address, &out->region)) {
         return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
     }
-    if (region == TC_REG_DEVICE) {
-        if (!device_allows(vm, write, volatile_access)) {
-            return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
-        }
+    if (out->region == TC_REG_DEVICE) {
         host = storage_host(vm, address, size, &ok);
         if (!ok) {
             return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
         }
-        *out_host = host;
+        out->host = host;
         return 1;
     }
-    if (region == TC_REG_CODE || region == TC_REG_HEAP) {
+    if (out->region == TC_REG_CODE || out->region == TC_REG_HEAP) {
         /* Code is not a language object; this implementation creates no heap
          * objects in the core (the allocation API is a runtime-library
          * concern).  Both are ADDR_UNAVAILABLE rather than an unchecked host
          * access. */
         return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
     }
-    if (region == TC_REG_FRAME) {
+    if (out->region == TC_REG_FRAME) {
         size_t frame_index;
         if (!frame_index_for_address(vm, address, &frame_index)) {
             return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
@@ -555,21 +577,59 @@ static int check_access(TcVm *vm, uint64_t address, uint64_t size,
     if (!ok) {
         return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
     }
-    {
-        int contained = 0;
-        TcVmObject *object = find_access_object(vm, address, size, type,
-                                                &contained);
-        if (object != NULL && contained) {
-            if (write && !object->writable) {
-                return tc_vm_trap(vm, NULL, TC_EK_WRITE_PROTECTED);
-            }
-        } else if (vm->profile->checked_build) {
-            /* One-past dereference or an access outside every object is UB;
-             * only a checked build traps. */
-            return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
-        }
+    out->host = host;
+    out->object = find_access_object(vm, address, size, type, &out->contained);
+    return 1;
+}
+
+static int access_allowed(TcVm *vm, const TcVmAccess *access, int write,
+                          int volatile_access) {
+    if (access->region == TC_REG_DEVICE) {
+        return device_allows(vm, write, volatile_access)
+                   ? 1
+                   : tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
     }
-    *out_host = host;
+    if (access->object != NULL && access->contained) {
+        if (write && !access->object->writable) {
+            return tc_vm_trap(vm, NULL, TC_EK_WRITE_PROTECTED);
+        }
+    } else if (vm->profile->checked_build) {
+        /* One-past dereference or an access outside every object is UB;
+         * only a checked build traps. */
+        return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
+    }
+    return 1;
+}
+
+static void observe_device_peak(TcVm *vm, uint64_t address, uint64_t size) {
+    uint64_t end;
+    if (vm->stats == NULL || size == 0) {
+        return;
+    }
+    end = address - vm->device_base + size;
+    if (end > vm->stats->region_peak[TC_REG_DEVICE]) {
+        vm->stats->region_peak[TC_REG_DEVICE] = end;
+    }
+}
+
+/* Check an access and return its host pointer.  address != 0 is assumed. */
+static int check_access(TcVm *vm, uint64_t address, uint64_t size,
+                        const TcType *type, int write, int volatile_access,
+                        int observe, uint8_t **out_host) {
+    TcVmAccess access;
+    if (!resolve_access(vm, address, size, type, &access)) {
+        return 0;
+    }
+    if (observe && (access.region == TC_REG_DEVICE || access.object != NULL)) {
+        tc_vm_observe_mem(vm, address, size);
+    }
+    if (!access_allowed(vm, &access, write, volatile_access)) {
+        return 0;
+    }
+    if (access.region == TC_REG_DEVICE) {
+        observe_device_peak(vm, address, size);
+    }
+    *out_host = access.host;
     return 1;
 }
 
@@ -936,7 +996,7 @@ int tc_vm_load_value(TcVm *vm, uint64_t address, const TcType *type,
     if (!ok || size == 0) {
         return tc_vm_impl(vm, TC_IMPL_INTERNAL);
     }
-    if (!check_access(vm, address, size, type, 0, volatile_access, &host)) {
+    if (!check_access(vm, address, size, type, 0, volatile_access, 1, &host)) {
         return 0;
     }
     if (vm->profile->checked_build && !vm_range_defined(vm, address, size)) {
@@ -957,7 +1017,7 @@ int tc_vm_store_value(TcVm *vm, uint64_t address, const TcType *type,
     if (!ok || size == 0) {
         return tc_vm_impl(vm, TC_IMPL_INTERNAL);
     }
-    if (!check_access(vm, address, size, type, 1, volatile_access, &host)) {
+    if (!check_access(vm, address, size, type, 1, volatile_access, 1, &host)) {
         return 0;
     }
     {
@@ -1001,13 +1061,28 @@ int tc_vm_memmove(TcVm *vm, uint64_t dst, uint64_t src, uint64_t count,
         if ((!dst_ok || !src_ok) && vm->profile->checked_build) {
             return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
         }
+        if (dst_ok && src_ok) {
+            tc_vm_observe_memmove(vm, dst, src, bytes);
+        }
         return 1;
     }
-    if (!check_access(vm, dst, bytes, type, 1, 0, &dst_host)) {
-        return 0;
-    }
-    if (!check_access(vm, src, bytes, type, 0, 0, &src_host)) {
-        return 0;
+    {
+        TcVmAccess dst_access;
+        TcVmAccess src_access;
+        if (!resolve_access(vm, dst, bytes, type, &dst_access) ||
+            !resolve_access(vm, src, bytes, type, &src_access)) {
+            return 0;
+        }
+        if ((dst_access.region == TC_REG_DEVICE || dst_access.object != NULL) &&
+            (src_access.region == TC_REG_DEVICE || src_access.object != NULL)) {
+            tc_vm_observe_memmove(vm, dst, src, bytes);
+        }
+        if (!access_allowed(vm, &dst_access, 1, 0) ||
+            !access_allowed(vm, &src_access, 0, 0)) {
+            return 0;
+        }
+        dst_host = dst_access.host;
+        src_host = src_access.host;
     }
     if (vm->profile->checked_build && !vm_range_defined(vm, src, bytes)) {
         return tc_vm_trap(vm, NULL, TC_EK_ADDR_UNAVAILABLE);
@@ -1020,6 +1095,12 @@ int tc_vm_memmove(TcVm *vm, uint64_t dst, uint64_t src, uint64_t count,
     memcpy(dst_host, temp, (size_t)bytes);
     tc_vm_free(vm, temp);
     vm_define_range(vm, dst, bytes);
+    if (dst >= vm->device_base && dst - vm->device_base < vm->device_size) {
+        observe_device_peak(vm, dst, bytes);
+    }
+    if (src >= vm->device_base && src - vm->device_base < vm->device_size) {
+        observe_device_peak(vm, src, bytes);
+    }
     return 1;
 }
 
@@ -1300,6 +1381,9 @@ int tc_vm_push_frame(TcVm *vm, const TcUnit *unit, uint32_t func_id,
     frame->valid = 1;
     vm->frame_top = base + info->frame_size -
                     vm->profile->region[TC_REG_FRAME].base;
+    if (vm->stats != NULL && vm->frame_top > vm->stats->region_peak[TC_REG_FRAME]) {
+        vm->stats->region_peak[TC_REG_FRAME] = vm->frame_top;
+    }
     if (out_index != NULL) {
         *out_index = (uint32_t)vm->nframes;
     }

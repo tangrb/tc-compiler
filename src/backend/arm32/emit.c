@@ -29,9 +29,19 @@ void tc_arm32_write(TcArm32Emitter *emitter, const char *format, ...) {
         return;
     }
     va_start(ap, format);
-    if (vfprintf(emitter->out, format, ap) < 0) {
-        emitter->output_failed = 1;
-        emitter->failed = 1;
+    {
+        int result = tc_emit_stats_write(emitter->out, format, ap,
+                                         &emitter->emit_counter);
+        if (result != 0) {
+            emitter->failed = 1;
+            if (result == -1) {
+                emitter->output_failed = 1;
+            } else if (result == -2) {
+                emitter->oom_failed = 1;
+            } else {
+                emitter->internal_error = 1;
+            }
+        }
     }
     va_end(ap);
 }
@@ -1111,6 +1121,12 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
     }
     emitter->frame_size = cursor;
     emitter->incoming_stack_offset = 40u + emitter->frame_size;
+    {
+        uint64_t total = 4u + cursor + emitter->outgoing_size;
+        if (total > emitter->frame_max) {
+            emitter->frame_max = total;
+        }
+    }
     return 1;
 }
 
@@ -1898,7 +1914,8 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
                                     const TcTargetDesc *target,
                                     const TcLineMap *linemap,
                                     char *error_message,
-                                    size_t error_capacity) {
+                                    size_t error_capacity,
+                                    TcTargetStats *target_stats) {
     TcArm32Emitter emitter;
     size_t u;
     int saw_top = 0;
@@ -1924,6 +1941,11 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
         return TC_ARM32_EMIT_INTERNAL;
     }
     memset(&emitter, 0, sizeof(emitter));
+    if (target_stats != NULL) {
+        memset(target_stats, 0, sizeof(*target_stats));
+        emitter.emit_counter.active = 1;
+        emitter.emit_counter.target = TC_EMIT_TARGET_FIXED4;
+    }
     emitter.ir = ir;
     emitter.linemap = linemap;
     emitter.profile = profile;
@@ -1960,6 +1982,7 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
             impl = tc_debug_emit_begin(out);
         }
         if (impl != TC_IMPL_OK) {
+            tc_emit_stats_free(&emitter.emit_counter);
             emitter.alloc->free(emitter.alloc->ctx, emitter.types);
             emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
             if (impl == TC_IMPL_IO) {
@@ -2016,6 +2039,7 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
         tc_arm32_write(&emitter,
                        "\n  .section .note.GNU-stack,\"\",%%progbits\n");
     }
+    tc_emit_stats_free(&emitter.emit_counter);
     emitter.alloc->free(emitter.alloc->ctx, emitter.types);
     emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
     if (emitter.failed) {
@@ -2027,6 +2051,13 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
     }
     if (ferror(out)) {
         return TC_ARM32_EMIT_IO;
+    }
+    if (emitter.emit_counter.code_bytes == UINT64_MAX) {
+        return TC_ARM32_EMIT_INTERNAL;
+    }
+    if (target_stats != NULL) {
+        target_stats->frame_max = emitter.frame_max;
+        target_stats->code_bytes = emitter.emit_counter.code_bytes;
     }
     return TC_ARM32_EMIT_OK;
 }

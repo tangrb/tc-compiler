@@ -25,6 +25,14 @@ typedef struct {
     int trapped;
     TcErrorKind kind; /* valid only when trapped != 0 */
     TcSpan span;      /* triggering instruction */
+    /* Borrowed from ir; valid until the IR is destroyed. */
+    const char *module;
+    const char *func;
+    uint32_t bb;
+    uint32_t insn;
+    TcOpcode op;
+    unsigned depth;
+    int entity_kind; /* 0 = top-level unit, 1 = function */
 } TcVmResult;
 
 typedef enum {

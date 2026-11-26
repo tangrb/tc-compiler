@@ -16,6 +16,9 @@
 #include "frontend/sem.h"
 #include "runtime/profile.h"
 
+typedef struct TcAotOutputs TcAotOutputs;
+typedef struct TcAotStdio TcAotStdio;
+
 /* Run code generation for an accepted analysis.  Returns a process exit
  * status: 0 on success, 2 on usage errors, 70 on I/O, OOM, unavailable
  * platform instances or toolchains, and 71 on internal failures. */
@@ -29,13 +32,41 @@ int tc_aot_driver_run_with_inputs(const TcAnalysis *analysis,
                                   size_t nextra_inputs);
 
 typedef struct {
+    int fd;
+    int created;
+    char *path;
+    struct stat identity;
+} TcAotOutput;
+
+#define TC_AOT_OUTPUT_DUMP 0u
+#define TC_AOT_OUTPUT_TRACE 1u
+#define TC_AOT_OUTPUT_STATS 2u
+#define TC_AOT_OUTPUT_RESULT 3u
+#define TC_AOT_OUTPUT_COUNT 4u
+
+struct TcAotOutputs {
+    TcAotOutput output[TC_AOT_OUTPUT_COUNT];
+};
+
+void tc_aot_outputs_init(TcAotOutputs *outputs);
+TcImplError tc_aot_outputs_discard(TcAotOutputs *outputs);
+TcImplError tc_aot_outputs_release(TcAotOutputs *outputs);
+TcImplError tc_aot_outputs_release_observations(TcAotOutputs *outputs);
+TcImplError tc_aot_outputs_verify(const TcAotStdio *stdio,
+                                  const TcAnalysis *analysis,
+                                  const char *const *extra_inputs,
+                                  size_t nextra_inputs,
+                                  int aot,
+                                  const TcAotOutputs *outputs);
+
+typedef struct {
     int open;
     struct stat identity;
 } TcAotStdioDescriptor;
 
-typedef struct {
+struct TcAotStdio {
     TcAotStdioDescriptor descriptors[3];
-} TcAotStdio;
+};
 
 int tc_aot_driver_run_with_stdio(const TcAotStdio *stdio,
                                  const TcAnalysis *analysis,
@@ -43,6 +74,13 @@ int tc_aot_driver_run_with_stdio(const TcAotStdio *stdio,
                                  const TcCliOptions *options,
                                  const char *const *extra_inputs,
                                  size_t nextra_inputs);
+int tc_aot_driver_run_prepared(const TcAotStdio *stdio,
+                               const TcAnalysis *analysis,
+                               const TcPlatformProfile *profile,
+                               const TcCliOptions *options,
+                               const char *const *extra_inputs,
+                               size_t nextra_inputs,
+                               TcAotOutputs *outputs);
 void tc_aot_stdio_capture(TcAotStdio *stdio);
 TcImplError tc_aot_driver_stderr_guard(const TcAotStdio *stdio,
                                        const TcAnalysis *analysis,
@@ -63,5 +101,16 @@ TcImplError tc_aot_driver_guard(const TcAotStdio *stdio,
                                 size_t ninclude_roots,
                                 int aot,
                                 int create_output);
+TcImplError tc_aot_outputs_preflight(const TcAotStdio *stdio,
+                                     const TcAnalysis *analysis,
+                                     TcAnalysisStatus analysis_status,
+                                     const TcCliOptions *options,
+                                     const char *const *extra_inputs,
+                                     size_t nextra_inputs,
+                                     const char *source,
+                                     const char *const *include_roots,
+                                     size_t ninclude_roots,
+                                     int aot, int create_result,
+                                     TcAotOutputs *outputs);
 
 #endif /* TC_DRIVER_AOT_DRIVER_H */

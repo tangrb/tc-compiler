@@ -17,19 +17,21 @@ English: [README.en.md](README.en.md)。
 
 ## 当前状态
 
-- 0.0.47 工具链与工程模型两份设计达到冻结条件；P0/T0、P1、P2、P3 与 P4a 已完成。
+- 0.0.47 工具链与工程模型两份设计达到冻结条件；P0/T0、P1、P2、P3、P4a 与 T1 已完成。
   `tc --init-project` 已实现完整模板、原子写入、回滚与身份检查；编译器已消费
   `tc.project`、canonical 根、有序 include 根与 manifest 缺省 profile，并将
   canonical 路径与工程根相对显示路径分离。诊断、IR、VM trap 与 AOT 源字符串
   使用显示路径；模块身份由绑定父目录和实际目录项名组成，源读取采用非阻塞有界 fd。
   `tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、
   fork worker、超时、流捕获、结构化结果、报告与退出映射。P4a 已实现共享确定性
-  行表与私有 AOT `.loc`/源注释、最小 DWARF v4 CU 和 clang `.debug_line`；公开
-  `--debug`/`--dump-linemap`、P4b、P5 与 T1–T6 尚未开始，G11 未完成；语言/契约
-  保持 0.0.46/1，RTOS、中断与并发移交 0.0.48。
+  行表与私有 AOT `.loc`/源注释、最小 DWARF v4 CU 和 clang `.debug_line`。T1 已实现
+  VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap`（text/jsonl、limit/output）、
+  VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/预留保护与确定性观测输出，
+  证据入口为 `t1.observe`。公开 `tc-aot --debug`/`--dump-linemap`、P4b、P5 与
+  T2–T6 尚未开始，G11 未完成；语言/契约保持 0.0.46/1，RTOS、中断与并发移交 0.0.48。
 - S0–S10 已实现并通过 G0–G10；**G10 完成 0.0.46 阶段出口**。0.0.47 CTest
-  注册总数为 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；Debug、Release 与
-  ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46 覆盖矩阵为 636/636。
+  注册总数为 83（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项）；
+  T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83 与全部收尾检查。0.0.46 覆盖矩阵为 636/636。
 - 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64、
   W=32 ARM32 与 W=32 RISC-V 全量后端/工具链（全量 ABI、checked build、
   ELF/区布局、复位入口 BSS 清零、远距离分支长跳转）、freestanding 目标运行时核与

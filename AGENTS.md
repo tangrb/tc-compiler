@@ -3,7 +3,7 @@
 0.0.46 为 clean-sheet 实现基线。实现与验证以标准/设计/测试计划为准；历史实现、工具与测试
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
-两份设计已达到冻结条件；P0/T0、P1、P2、P3 与 P4a 已完成，P4b、P5 与 T1–T6 尚未开始。
+两份设计已达到冻结条件；P0/T0、P1、P2、P3、P4a 与 T1 已完成，P4b、P5 与 T2–T6 尚未开始。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
 回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
@@ -44,12 +44,15 @@ RTOS/中断/并发移交 0.0.48。
   筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、流捕获、
   结构化结果、报告与退出映射；P4a 完成共享确定性行表、私有 AOT `.loc`/源注释与
   最小 DWARF v4 CU（clang 生成 `.debug_line`），并在发布诊断/产物前保护 stdio、
-  项目输入与输出保留身份。公开 `tc-aot --debug`/`--dump-linemap`、P4b、P5 与 T1–T6 尚未开始。
+  项目输入与输出保留身份。T1 完成 VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap`
+  （text/jsonl、limit/output）、VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/
+  预留保护与确定性观测输出，证据入口为 `t1.observe`。公开 `tc-aot --debug`/
+  `--dump-linemap`、P4b、P5 与 T2–T6 尚未开始。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
-  已注册 CTest 总数 82；Debug、Release 与 ASan+UBSan 全量 CTest 均为 82/82，50 项
-  收尾检查全部通过，见 `docs/gates/README.md`。
+  已注册 CTest 总数 83；T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83
+  与全部收尾检查，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。三个入口只链接私有静态 `tc_core`。
@@ -169,6 +172,7 @@ RTOS/中断/并发移交 0.0.48。
 | 工程名称 / manifest / 初始化 / 路径 | `src/project/name.h`、`manifest.h`、`init.h`、`paths.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault`，P2 入口 `project.paths_unit`/`project.paths`/`project.paths_aot` |
 | 工程测试 runner / `tc --test` | `src/driver/test_runner.h`、`test_runner.c`；P3 入口 `project.test_runner` |
 | 共享行表 / AOT 调试信息 | `src/ir/linemap.h`、`linemap.c`、`src/driver/aot_driver.c`；P4a 入口 `linemap.unit`/`p4a.debug` |
+| VM/AOT 观测 | `src/driver/observe.h`、`observe.c`、`src/vm/observe.h`、`observe.c`、`src/backend/common/emit_stats.h`、`emit_stats.c`；T1 入口 `t1.observe` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |

@@ -249,14 +249,14 @@ static size_t emit_backend(Backend backend, const TcAnalysis *analysis,
     const TcIR *ir = tc_analysis_ir(analysis);
     if (backend == BACKEND_AARCH64) {
         return (size_t)tc_aarch64_emit_asm(out, ir, profile, profile->target, NULL,
-                                          error, error_capacity);
+                                          error, error_capacity, NULL);
     }
     if (backend == BACKEND_ARM32) {
         return (size_t)tc_arm32_emit_asm(out, ir, profile, profile->target, NULL,
-                                        error, error_capacity);
+                                        error, error_capacity, NULL);
     }
     return (size_t)tc_riscv32_emit_asm(out, ir, profile, profile->target, NULL,
-                                      error, error_capacity);
+                                      error, error_capacity, NULL);
 }
 
 static size_t oom_status(Backend backend) {

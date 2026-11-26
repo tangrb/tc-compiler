@@ -1,0 +1,48 @@
+id: TC-T1-OBS-GOLD-0001
+kind: observe
+profile: w64
+tool: tc-aot
+spec: "工具链 0.0.47 §5.1, §5.2, §5.2.1, §5.5, §5.9; 语言标准 0.0.46 §4.1–§4.3, §4.9, §6.2.9, §7.1, §11; 原生编译器设计 0.0.46 §3, §10.1"
+derivation: |
+  The root is a valid #program containing one executable instruction,
+  `_ = writeln int32, 7`. The scalar type and operand match, and the discard
+  result is required for writeln. The program's first executable instruction
+  is its entry and EOF terminates the top-level control flow; no synthetic
+  main, return, or function is introduced. Flat source lowers directly to flat
+  IR with zero transformation passes, so finalized IR has one instruction and
+  no functions or static objects.
+
+  The toolchain permits tc-aot --static-only --stats and directs stats to the
+  explicit --stats-out path. Static-only performs CT and IR finalization but
+  neither execution nor target emission. Therefore program stdout is empty,
+  no runtime `7\n` is produced, no assembly is published, and the valid source
+  produces no diagnostic, so stderr is empty and the partial-check exit is 0.
+
+  Section 5.5 fixes the header as `# tc-stats 1 tc-aot
+  aarch64-linux-user`. The fixed fields follow in order: funcs excludes the
+  top-level unit and there are no functions, giving 0; the single finalized
+  instruction gives ir_instrs=1; there are no storage objects or static
+  initializers, giving static_bytes=0. Static-only omits frame_max and
+  code_bytes. The sole opcode's normative full print name is `writeln`, with
+  no suffix, so the sorted op section contains only `op.writeln=1`.
+review:
+  reviewer: "T1 independent derivation reviewer (read-only agent)"
+  reviewer_kind: "independent-agent"
+  reviewer_independent: true
+  review_kind: "independent specification derivation"
+  status: approved
+  date: "2026-11-27"
+  notes: "Re-derived all bytes from frozen clauses without running either compiler or inspecting implementation output."
+source: |
+  #program
+  _ = writeln int32, 7
+expect:
+  stdout_hex: ""
+  stderr_hex: ""
+  exit: 0
+  stats: |
+    # tc-stats 1 tc-aot aarch64-linux-user
+    funcs=0
+    ir_instrs=1
+    static_bytes=0
+    op.writeln=1

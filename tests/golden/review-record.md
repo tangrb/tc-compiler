@@ -428,6 +428,23 @@ nothing was backfilled from implementation output.
         "termination": "normal"
       },
       "notes": "Independently re-derived TC-RT-GOLD-0103 from the cited standard/design clauses and the documented reference profile; no tc-vm run was used to produce the expectation."
+    },
+    {
+      "artifact": "tests/golden/w64/observe_aot_static_writeln.golden.yaml",
+      "author_role": "T1 observation/test author",
+      "reviewer": "T1 independent derivation reviewer (read-only agent)",
+      "reviewer_kind": "independent-agent",
+      "reviewer_independent": true,
+      "review_kind": "independent specification derivation",
+      "status": "approved",
+      "date": "2026-11-27",
+      "derived": {
+        "stdout_hex": "",
+        "stderr_hex": "",
+        "exit": 0,
+        "stats": "# tc-stats 1 tc-aot aarch64-linux-user\nfuncs=0\nir_instrs=1\nstatic_bytes=0\nop.writeln=1\n"
+      },
+      "notes": "Approved from frozen toolchain sections 5.1/5.2/5.2.1/5.5/5.9 and language/design clauses 4.1-4.3/4.9/6.2.9/7.1/11 and design 3/10.1; no compiler or VM run and no implementation-output backfill."
     }
   ],
   "validator": {

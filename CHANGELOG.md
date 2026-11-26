@@ -23,6 +23,10 @@
 - **P4a 测试**：新增并注册 `linemap.unit` 与 `p4a.debug`；覆盖 JSON v3 稳定顺序、外部
   回退路径、IR 到 `.loc`/源注释顺序、DWARF v4 验证、非 debug 字节、跨根确定性与
   VM/AOT 输出保护边界。测试临时脚本与编译产物统一置于项目 `.tmp/`。
+- **T1 观测能力**：VM/AOT `--dump-ir[=<path>]`；VM `--trace=ir,call,mem,io,trap`，
+  支持 `text`/`jsonl`、`--trace-limit=<n>` 与 `--trace-out=<path>`；VM/AOT `--stats`
+  与 `--stats-out=<path>`；结构化 trap 上下文、显式输出身份检查与预留保护，以及确定性观测输出。
+- **T1 测试**：新增并注册 `t1.observe`，覆盖 IR/trace/stats、trap 上下文、输出安全与确定性。
 - **统一实现级错误**：所有入口共用 `TcImplError` 退出码映射；宿主 IO、能力不可用
   与实际 OOM 退出 70，用法错误退出 2，内部契约破坏与实现上限退出 71。
 - **契约验证**：三入口精确版本输出、`tc` 参数/终止符/uint64 超时语法、
@@ -39,11 +43,12 @@
 
 ### 状态
 
-- 0.0.47 CTest 注册总数 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；Debug、
-  Release 与 ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46 已验收
-  harness 873/873、覆盖矩阵 636/636，全部收尾检查与发布审计通过。
-- P0/T0、P1、P2、P3 与 P4a 已完成；P4b、P5 与 T1–T6 尚未开始，G11 未完成。
-  `tc --init-project`、编译器路径消费与 `tc --test` 已可用；P4a 调试发射为私有实现路径。
+- 0.0.47 CTest 注册总数 83（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项）；
+  T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83 与全部收尾检查。0.0.46 已验收 harness 873/873、覆盖矩阵
+  636/636，全部收尾检查与发布审计通过。
+- P0/T0、P1、P2、P3、P4a 与 T1 已完成；P4b、P5 与 T2–T6 尚未开始，G11 未完成。
+  `tc --init-project`、编译器路径消费与 `tc --test` 已可用；P4a 调试发射为私有实现路径，
+  公开 `tc-aot --debug`/`--dump-linemap` 尚未开始。
 - P4b 的 VM 调试 ELF 内部布局不得回写冻结规范。
 
 ## [0.0.46] - 2026-11-19

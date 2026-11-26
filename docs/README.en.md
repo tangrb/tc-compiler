@@ -19,7 +19,7 @@ Chinese: [README.md](README.md).
 ## Current status
 
 - The 0.0.47 toolchain and project-model designs meet the freeze criteria.
-  P0/T0, P1, P2, P3 and P4a are complete. `tc --init-project` implements the full
+  P0/T0, P1, P2, P3, P4a and T1 are complete. `tc --init-project` implements the full
   template, atomic writes, rollback and identity checks. The compiler consumes
   `tc.project`, canonical roots, ordered include roots and the manifest default
   profile, while keeping canonical paths separate from project-root-relative
@@ -30,13 +30,18 @@ Chinese: [README.md](README.md).
   strict sidecars, private read-only snapshots, fork workers, timeouts, stream
   capture, structured results, reports and exit mapping. P4a adds the shared
   deterministic line map plus private AOT `.loc`/source comments, a minimal
-  DWARF v4 CU and clang-generated `.debug_line`. Public `--debug`/`--dump-linemap`,
-  P4b, P5 and T1–T6 have not started, and G11 is incomplete. Language/contract
-  versions remain 0.0.46/1; RTOS, interrupts and concurrency move to 0.0.48.
+  DWARF v4 CU and clang-generated `.debug_line`. T1 adds VM/AOT `--dump-ir`, VM
+  `--trace=ir,call,mem,io,trap` with text/jsonl, limits and output selection,
+  VM/AOT `--stats`, structured trap context, explicit output identity/reservation
+  guards and deterministic observation output; its evidence entry point is
+  `t1.observe`. Public `tc-aot --debug`/`--dump-linemap`, P4b, P5 and T2–T6 have not
+  started, and G11 is incomplete. Language/contract versions remain 0.0.46/1;
+  RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**. There are 82 registered 0.0.47 CTests (73 at P0, three P1 tests, three
-  P2 tests, one P3 test and two P4a tests). Debug, Release and ASan+UBSan full CTest
-  runs each pass 82/82, and all 50 required closing checks pass. The 0.0.46 coverage
+  exit**. There are 83 registered 0.0.47 CTests (73 at P0, three P1 tests, three
+  P2 tests, one P3 test, two P4a tests and one T1 test). T1 implementation and
+  focused tests are complete; Debug, Release and ASan+UBSan full CTest runs each
+  passed 83/83, and all closing checks passed. The 0.0.46 coverage
   matrix is 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
   (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V

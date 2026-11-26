@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include "backend/arm32/emit.h"
+#include "backend/common/emit_stats.h"
 #include "backend/common/rt_abi.h"
 #include "ir/ir.h"
 #include "runtime/profile.h"
@@ -83,6 +84,8 @@ typedef struct TcArm32Emitter {
     uint64_t incoming_stack_offset;
     int unit_has_read;
     uint64_t frame_desc_count;
+    uint64_t frame_max;
+    TcEmitCounter emit_counter;
 } TcArm32Emitter;
 
 typedef enum {

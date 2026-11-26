@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "backend/common/emit_stats.h"
 #include "ir/ir.h"
 #include "ir/linemap.h"
 #include "runtime/profile.h"
@@ -36,7 +37,8 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
                                     const TcTargetDesc *target,
                                     const TcLineMap *linemap,
                                     char *error_message,
-                                    size_t error_message_capacity);
+                                    size_t error_message_capacity,
+                                    TcTargetStats *target_stats);
 
 #define TC_ARM32_TOP_LEVEL_SYMBOL "tc_main"
 

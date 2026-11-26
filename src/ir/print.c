@@ -208,6 +208,22 @@ static void print_instruction(FILE *out, const TcIR *ir, const TcInstr *instr) {
     fprintf(out, " @%u:%u", instr->span.line, instr->span.column);
 }
 
+const char *tc_ir_op_name(TcOpcode op) {
+    return (unsigned)op < TC_OPCODE_COUNT ? tc_opcode_names[op] : "?";
+}
+
+const char *tc_ir_instr_name(const TcInstr *instr, char *buffer, size_t capacity) {
+    const char *op = instr != NULL ? tc_ir_op_name(instr->op) : "?";
+    const char *suffix = instr != NULL ? tc_mode_suffix(instr->mode) : "";
+    if (instr == NULL || buffer == NULL || capacity == 0u) {
+        return op;
+    }
+    if (snprintf(buffer, capacity, "%s%s", op, suffix) < 0) {
+        buffer[0] = '\0';
+    }
+    return buffer;
+}
+
 static void print_flags(FILE *out, TcFuncFlags flags) {
     static const struct {
         TcFuncFlags bit;
@@ -408,5 +424,5 @@ int tc_ir_print(const TcIR *ir, FILE *out) {
             }
         }
     }
-    return 0;
+    return ferror(out) ? -1 : 0;
 }

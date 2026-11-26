@@ -29,7 +29,7 @@ CODES_PATH = HERE.parent / "traceability" / "codes.json"
 ALLOWED_TOP = {
     "id", "kind", "profile", "profiles", "spec", "source", "source_file",
     "derivation", "review", "expect", "compare", "normalize", "link", "uart",
-    "device", "run",
+    "device", "run", "tool",
 }
 ALLOWED_REVIEW = {
     "reviewer", "reviewer_kind", "reviewer_independent", "review_kind",
@@ -39,6 +39,7 @@ ALLOWED_EXPECT_DIAG = {
     "stage", "code", "primary", "related", "diagnostics",
 }
 ALLOWED_EXPECT_RUN = {"stdout_hex", "trap", "exit", "termination"}
+ALLOWED_EXPECT_OBSERVE = {"stdout_hex", "stderr_hex", "stats", "exit"}
 
 
 class YamlError(ValueError):
@@ -362,10 +363,27 @@ def validate_file(path: Path, root: Path, code_map: dict[str, dict] | None = Non
                 f"{path}: expect.trap and expect.termination disagree"
             )
         return errors
+    if kind == "observe":
+        if profile != "w64":
+            errors.append(f"{path}: observe golden profile must be w64")
+        if data.get("tool") != "tc-aot":
+            errors.append(f"{path}: observe golden tool must be tc-aot")
+        if not isinstance(expect, dict):
+            errors.append(f"{path}: observe golden needs an 'expect' mapping")
+            return errors
+        _reject_unknown(expect, ALLOWED_EXPECT_OBSERVE, "expect", errors, path)
+        for field in ("stdout_hex", "stderr_hex"):
+            if not is_hex(expect.get(field)):
+                errors.append(f"{path}: 'expect.{field}' must be a hex string")
+        if not isinstance(expect.get("stats"), str):
+            errors.append(f"{path}: 'expect.stats' must be a string")
+        if not isinstance(expect.get("exit"), int) or isinstance(expect.get("exit"), bool):
+            errors.append(f"{path}: 'expect.exit' must be an integer")
+        return errors
     if kind != "diagnostic":
         errors.append(
             f"{path}: unsupported golden kind {kind!r}; "
-            "accepted kinds are diagnostic and run"
+            "accepted kinds are diagnostic, run and observe"
         )
         return errors
     if not isinstance(expect, dict):

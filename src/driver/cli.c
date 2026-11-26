@@ -76,6 +76,15 @@ int tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --runtime=<path>    freestanding target runtime archive\n"
             "  --linker-script=<path> target image linker script\n"
             "  --keep-temps        keep tc-aot intermediate files\n"
+            "  --debug             emit tc-aot source-level debug information\n"
+            "  --dump-ir[=<path>]  dump finalized IR (default stderr)\n"
+            "  --trace=<kinds>     tc-vm events: ir,call,mem,io,trap\n"
+            "  --trace-out=<path>  trace destination (default stderr)\n"
+            "  --trace-format=text|jsonl  trace encoding (default text)\n"
+            "  --trace-limit=<n>   maximum trace data records (0 = unlimited)\n"
+            "  --stats             emit runtime or static statistics\n"
+            "  --stats-out=<path>  statistics destination (default stderr)\n"
+            "  --diag-format=text|json  diagnostic encoding (default text)\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n"
             "\n"
@@ -87,6 +96,63 @@ int tc_cli_print_usage(FILE *stream, const char *tool_name) {
         return -1;
     }
     return 0;
+}
+
+static int parse_uint64(const char *value, uint64_t *out) {
+    uint64_t parsed = 0u;
+    const unsigned char *cursor = (const unsigned char *)value;
+    if (*cursor == '\0') {
+        return 0;
+    }
+    while (*cursor != '\0') {
+        unsigned int digit;
+        if (*cursor < (unsigned char)'0' || *cursor > (unsigned char)'9') {
+            return 0;
+        }
+        digit = (unsigned int)(*cursor - (unsigned char)'0');
+        if (parsed > (UINT64_MAX - digit) / 10u) {
+            return 0;
+        }
+        parsed = parsed * 10u + digit;
+        cursor++;
+    }
+    *out = parsed;
+    return 1;
+}
+
+static int parse_trace_kinds(const char *value, uint32_t *out) {
+    uint32_t kinds = 0u;
+    size_t start = 0u;
+    size_t length = strlen(value);
+    size_t i;
+    if (length == 0u) {
+        return 0;
+    }
+    for (i = 0u; i <= length; i++) {
+        if (i == length || value[i] == ',') {
+            size_t item_length = i - start;
+            if (item_length == 2u && memcmp(value + start, "ir", 2u) == 0) {
+                kinds |= TC_CLI_TRACE_IR;
+            } else if (item_length == 4u &&
+                       memcmp(value + start, "call", 4u) == 0) {
+                kinds |= TC_CLI_TRACE_CALL;
+            } else if (item_length == 3u &&
+                       memcmp(value + start, "mem", 3u) == 0) {
+                kinds |= TC_CLI_TRACE_MEM;
+            } else if (item_length == 2u &&
+                       memcmp(value + start, "io", 2u) == 0) {
+                kinds |= TC_CLI_TRACE_IO;
+            } else if (item_length == 4u &&
+                       memcmp(value + start, "trap", 4u) == 0) {
+                kinds |= TC_CLI_TRACE_TRAP;
+            } else {
+                return 0;
+            }
+            start = i + 1u;
+        }
+    }
+    *out = kinds;
+    return 1;
 }
 
 static void parse_error(TcCliOptions *options, const char *format, ...) {
@@ -228,6 +294,105 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
             options->keep_temps = 1;
             continue;
         }
+        if (!only_positional && strcmp(arg, "--debug") == 0) {
+            options->debug = 1;
+            continue;
+        }
+        if (!only_positional && strcmp(arg, "--dump-ir") == 0) {
+            if (options->dump_ir_seen) {
+                parse_error(options, "%s: --dump-ir cannot repeat\n", tool_name);
+            }
+            options->dump_ir = "";
+            options->dump_ir_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--dump-ir=", 10) == 0) {
+            if (options->dump_ir_seen) {
+                parse_error(options, "%s: --dump-ir cannot repeat\n", tool_name);
+            } else if (arg[10] == '\0') {
+                parse_error(options, "%s: missing value for --dump-ir\n",
+                            tool_name);
+            }
+            options->dump_ir = arg + 10;
+            options->dump_ir_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--trace=", 8) == 0) {
+            if (options->trace_seen) {
+                parse_error(options, "%s: --trace cannot repeat\n", tool_name);
+            } else if (!parse_trace_kinds(arg + 8, &options->trace_kinds)) {
+                parse_error(options, "%s: invalid --trace kinds '%s'\n",
+                            tool_name, arg + 8);
+            }
+            options->trace_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--trace-out=", 12) == 0) {
+            if (options->trace_out_seen) {
+                parse_error(options, "%s: --trace-out cannot repeat\n",
+                            tool_name);
+            } else if (arg[12] == '\0') {
+                parse_error(options, "%s: missing value for --trace-out\n",
+                            tool_name);
+            }
+            options->trace_out = arg + 12;
+            options->trace_out_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--trace-format=", 15) == 0) {
+            if (options->trace_format_seen) {
+                parse_error(options, "%s: --trace-format cannot repeat\n",
+                            tool_name);
+            } else if (strcmp(arg + 15, "text") != 0 &&
+                       strcmp(arg + 15, "jsonl") != 0) {
+                parse_error(options, "%s: invalid --trace-format value '%s'\n",
+                            tool_name, arg + 15);
+            }
+            options->trace_format = arg + 15;
+            options->trace_format_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--trace-limit=", 14) == 0) {
+            if (options->trace_limit_seen) {
+                parse_error(options, "%s: --trace-limit cannot repeat\n",
+                            tool_name);
+            } else if (!parse_uint64(arg + 14, &options->trace_limit)) {
+                parse_error(options,
+                            "%s: --trace-limit requires nonnegative uint64\n",
+                            tool_name);
+            }
+            options->trace_limit_seen = 1;
+            continue;
+        }
+        if (!only_positional && strcmp(arg, "--stats") == 0) {
+            options->stats = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--stats-out=", 12) == 0) {
+            if (options->stats_out_seen) {
+                parse_error(options, "%s: --stats-out cannot repeat\n",
+                            tool_name);
+            } else if (arg[12] == '\0') {
+                parse_error(options, "%s: missing value for --stats-out\n",
+                            tool_name);
+            }
+            options->stats_out = arg + 12;
+            options->stats_out_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--diag-format=", 14) == 0) {
+            if (options->diag_format_seen) {
+                parse_error(options, "%s: --diag-format cannot repeat\n",
+                            tool_name);
+            } else if (strcmp(arg + 14, "text") != 0 &&
+                       strcmp(arg + 14, "json") != 0) {
+                parse_error(options, "%s: invalid --diag-format value '%s'\n",
+                            tool_name, arg + 14);
+            }
+            options->diag_format = arg + 14;
+            options->diag_format_seen = 1;
+            continue;
+        }
         if (!only_positional && arg[0] == '-' && arg[1] != '\0') {
             parse_error(options, "%s: unknown option '%s'\n", tool_name, arg);
             continue;
@@ -255,6 +420,51 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         strcmp(options->profile_name, "w32") != 0) {
         parse_error(options, "%s: unknown profile '%s'\n", tool_name,
                     options->profile_name);
+        return TC_CLI_PARSE_ERROR;
+    }
+    if ((options->trace_out_seen || options->trace_format_seen ||
+         options->trace_limit_seen) && !options->trace_seen) {
+        parse_error(options, "%s: trace auxiliary options require --trace\n",
+                    tool_name);
+    } else if (options->stats_out_seen && !options->stats) {
+        parse_error(options, "%s: --stats-out requires --stats\n", tool_name);
+    } else if (strcmp(tool_name, "tc-aot") == 0 &&
+               (options->trace_seen || options->trace_out_seen ||
+                options->trace_format_seen || options->trace_limit_seen)) {
+        parse_error(options, "%s: trace is only available in tc-vm\n",
+                    tool_name);
+    } else if (strcmp(tool_name, "tc-vm") == 0 && options->debug) {
+        parse_error(options, "%s: --debug is only available in tc-aot\n",
+                    tool_name);
+    } else if (strcmp(tool_name, "tc-vm") == 0 &&
+               (options->emit_seen || options->output_seen)) {
+        parse_error(options,
+                    "%s: --emit and --output are only available in tc-aot\n",
+                    tool_name);
+    } else if ((options->syntax_only || options->sem_only) &&
+               (options->dump_ir_seen || options->stats || options->trace_seen ||
+                options->debug)) {
+        parse_error(options,
+                    "%s: observation options require finalized IR or execution\n",
+                    tool_name);
+    } else if (options->static_only && strcmp(tool_name, "tc-vm") == 0 &&
+               (options->stats || options->trace_seen || options->debug)) {
+        parse_error(options,
+                    "%s: stats/trace/debug are not available with --static-only\n",
+                    tool_name);
+    } else if (options->static_only && strcmp(tool_name, "tc-aot") == 0 &&
+               options->debug) {
+        parse_error(options,
+                    "%s: --debug is not available with --static-only\n",
+                    tool_name);
+    } else if ((options->syntax_only || options->sem_only ||
+                options->static_only) &&
+               (options->emit_seen || options->output_seen)) {
+        parse_error(options,
+                    "%s: --emit and --output are not valid with partial checks\n",
+                    tool_name);
+    }
+    if (options->parse_error[0] != '\0') {
         return TC_CLI_PARSE_ERROR;
     }
     return TC_CLI_PARSE_OK;

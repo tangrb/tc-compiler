@@ -18,20 +18,26 @@
 | G10 | S10 多目标扩展与长期回归 | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 | G11 | 0.0.47 工具链与工程模型 | **未完成** | 本页当前状态 |
 
-**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0/T0、P1、P2、P3 与 P4a
-已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、发布审计、
-`tc --init-project` 完整模板/原子写入/回滚/身份检查、`tc.project` v1 解析与最近根
-发现，以及 manifest/include/profile 的编译器消费。canonical 路径与工程根相对显示
-路径已分离，诊断、IR、VM trap 与 AOT 源字符串统一使用显示路径；模块身份使用
-绑定父目录与实际目录项名，源读取采用非阻塞有界 fd。`tc --test` 已完成一层发现/
-筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、流捕获、
-结构化结果、报告与退出映射，证据入口为 `tests/project/test_runner_test.py` 与
-`project.test_runner`。P4a 已完成共享确定性行表、私有 AOT `.loc`/源注释与最小
+**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0/T0、P1、P2、P3、
+P4a 与 T1 已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、
+发布审计、`tc --init-project` 完整模板/原子写入/回滚/身份检查、`tc.project` v1
+解析与最近根发现，以及 manifest/include/profile 的编译器消费。canonical 路径与
+工程根相对显示路径已分离，诊断、IR、VM trap 与 AOT 源字符串统一使用显示路径；
+模块身份使用绑定父目录与实际目录项名，源读取采用非阻塞有界 fd。`tc --test` 已完成
+一层发现/筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、
+流捕获、结构化结果、报告与退出映射，证据入口为 `tests/project/test_runner_test.py`
+与 `project.test_runner`。P4a 已完成共享确定性行表、私有 AOT `.loc`/源注释与最小
 DWARF v4 CU（clang 生成 `.debug_line`），并在发布诊断/产物前保护 stdio、项目输入
 与输出保留身份；证据入口为 `linemap.unit`、`tests/conformance/tools/p4a_debug_cases.py`
-与 `p4a.debug`。公开 `--debug`/`--dump-linemap`、P4b、P5 与 T1–T6 尚未开始，G11 未完成。
-0.0.47 CTest 注册总数 82；Debug、Release 与 ASan+UBSan 全量 CTest 均为 82/82，
-50 项收尾检查全部通过。0.0.46 已验收 harness 873/873。
+与 `p4a.debug`。T1 已完成 VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap`
+（text/jsonl、limit/output）、VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/
+预留保护与确定性观测输出，证据入口为 `t1.observe`。公开 `tc-aot --debug`/
+`--dump-linemap`、P4b、P5 与 T2–T6 尚未开始，G11 未完成。
+0.0.47 CTest 注册总数 83；T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83
+与全部收尾检查。macOS 不支持 ASan leak 检测，sanitizer 运行使用
+`ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` 与
+`UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`。
+0.0.46 已验收 harness 873/873。
 前端、CT/IR、运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、
 W=32 RISC-V `riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、
 四设备策略、checked build、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32
@@ -45,7 +51,7 @@ design §12 十五项均有套件映射。
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

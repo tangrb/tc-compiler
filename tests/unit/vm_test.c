@@ -76,6 +76,9 @@ typedef struct {
     TcErrorKind trap_kind;
     int trap_line;
     int traps;
+    int trap_has_module;
+    int trap_has_func;
+    int trap_func_top;
     TcPlatformProfile profile;
     char dir[1024];
     int dir_ok;
@@ -213,6 +216,9 @@ static int run_source(Harness *h, const char *source, TcVmResult *result,
     h->traps = 0;
     h->trap_kind = (TcErrorKind)0;
     h->trap_line = 0;
+    h->trap_has_module = 0;
+    h->trap_has_func = 0;
+    h->trap_func_top = 0;
     h->in_pos = 0;
     snprintf(path, sizeof(path), "%s/root.tc", h->dir);
     if (!write_text(path, source)) {
@@ -236,6 +242,12 @@ static int run_source(Harness *h, const char *source, TcVmResult *result,
         return 0;
     }
     *status = tc_vm_run(ir, &h->profile, result, &impl);
+    if (*status == TC_VM_STATUS_TRAP) {
+        h->trap_has_module = result->module != NULL;
+        h->trap_has_func = result->func != NULL;
+        h->trap_func_top = result->func != NULL &&
+                           strcmp(result->func, "<top>") == 0;
+    }
     if (h->out_len < sizeof(h->out)) {
         h->out[h->out_len] = '\0';
     }
@@ -270,6 +282,10 @@ static void expect_trap(Harness *h, const char *source, TcErrorKind kind,
     CHECK_EQ_INT(result.trapped, 1);
     CHECK_EQ_INT(result.kind, kind);
     CHECK_EQ_INT(result.span.line, line);
+    CHECK(h->trap_has_module);
+    CHECK(h->trap_has_func);
+    CHECK(result.op < TC_OPCODE_COUNT);
+    CHECK_EQ_INT(result.entity_kind, h->trap_func_top ? 0 : 1);
     CHECK_EQ_INT(h->traps, 1);
     CHECK_EQ_INT(h->trap_kind, kind);
 }
@@ -684,6 +700,39 @@ static void test_input(TcTypeTable *types) {
     CHECK(read_token(types, 64, "   ", 0, 0, i32, &bits) == TC_INPUT_IO);
     CHECK(read_token(types, 64, "", 0, 0, i32, &bits) == TC_INPUT_IO);
     CHECK(read_token(types, 64, "1", 1, 0, i32, &bits) == TC_INPUT_IO);
+
+    {
+        FakeSrc src;
+        TcIoSrc seam;
+        TcInput input;
+        src.bytes = (const uint8_t *)" -42 7";
+        src.size = 6;
+        src.pos = 0;
+        src.chunk = 1;
+        src.error = 0;
+        seam.read = fake_read;
+        seam.ctx = &src;
+        tc_input_init(&input, &seam, tc_allocator_libc());
+        CHECK(tc_input_read_scalar(&input, 64, i32, &bits) == TC_INPUT_OK);
+        CHECK_EQ_INT(input.last_consumed, 5);
+        CHECK_EQ_INT(input.last_eof, 0);
+        CHECK(tc_input_read_scalar(&input, 64, i32, &bits) == TC_INPUT_OK);
+        CHECK_EQ_INT(bits, 7);
+        CHECK_EQ_INT(input.last_consumed, 1);
+        CHECK_EQ_INT(input.last_eof, 0);
+        CHECK(tc_input_read_scalar(&input, 64, i32, &bits) == TC_INPUT_IO);
+        CHECK_EQ_INT(input.last_consumed, 0);
+        CHECK_EQ_INT(input.last_eof, 1);
+        input.consumed = UINT64_MAX;
+        input.eof = 0;
+        input.pos = 0;
+        input.len = 0;
+        src.pos = 0;
+        CHECK(tc_input_read_scalar(&input, 64, i32, &bits) == TC_INPUT_IO);
+        CHECK_EQ_INT(input.consumed_overflow, 1);
+        CHECK_EQ_INT(input.last_eof, 0);
+        tc_input_destroy(&input);
+    }
 }
 
 /* ------------------------------------------------------------------------- */

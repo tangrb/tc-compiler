@@ -16,6 +16,7 @@
 #include <stdio.h>
 
 #include "backend/aarch64/emit.h"
+#include "backend/common/emit_stats.h"
 #include "backend/common/rt_abi.h"
 #include "ir/ir.h"
 #include "runtime/profile.h"
@@ -75,6 +76,8 @@ typedef struct TcA64Emitter {
     int unit_has_read;
     uint64_t max_outgoing; /* largest stack-argument area of one call site */
     uint64_t frame_desc_count; /* base objects plus field sub-objects */
+    uint64_t frame_max;
+    TcEmitCounter emit_counter;
 } TcA64Emitter;
 
 /* ABI argument location. */

@@ -16,6 +16,7 @@ Implementation errors are never language diagnostics.
 
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 import sys
@@ -24,6 +25,13 @@ from pathlib import Path
 
 FAILS = 0
 DIAG_PREFIX = ": error["
+TMP_ROOT = Path(__file__).resolve().parents[2] / ".tmp"
+
+
+def test_environment() -> dict[str, str]:
+    return {"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "TMPDIR": str(TMP_ROOT)}
 
 
 def check(cond: bool, msg: str) -> None:
@@ -40,7 +48,7 @@ def run(tool: str, args: list[str], cwd: Path) -> subprocess.CompletedProcess:
         capture_output=True,
         text=True,
         timeout=20,
-        env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC", "PATH": "/usr/bin:/bin"},
+        env=test_environment(),
     )
 
 
@@ -52,7 +60,7 @@ def run_closed(tool: str, args: list[str], cwd: Path,
         cwd=cwd,
         capture_output=True,
         timeout=20,
-        env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC", "PATH": "/usr/bin:/bin"},
+        env=test_environment(),
     )
 
 
@@ -130,7 +138,7 @@ def check_project_cli(tool: str, cwd: Path,
         check(tree_snapshot(cwd) == before,
               f"tc {args!r} must not change project files")
     for args in valid_init:
-        with tempfile.TemporaryDirectory(prefix="tc-init-cli-") as init_tmp:
+        with tempfile.TemporaryDirectory(prefix="tc-init-cli-", dir=TMP_ROOT) as init_tmp:
             init_cwd = Path(init_tmp)
             result = run(tool, args, init_cwd)
             check(result.returncode == 0,
@@ -187,7 +195,8 @@ def main() -> int:
         return 2
     tools = sys.argv[1:3]
     project_tool = sys.argv[3]
-    with tempfile.TemporaryDirectory(prefix="tc-cli-") as tmp:
+    TMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="tc-cli-", dir=TMP_ROOT) as tmp:
         cwd = Path(tmp)
         source = cwd / "main.tc"
         source.write_text("#program\nvar x: int32 = copy int32, 1\n", encoding="utf-8")
@@ -261,7 +270,8 @@ def main() -> int:
                   f"tc {args!r} closed stderr exit {result.returncode}")
             check(result.stdout == b"",
                   f"tc {args!r} closed stderr must not write stdout")
-        with tempfile.TemporaryDirectory(prefix="tc-init-closed-stderr-") as init_tmp:
+        with tempfile.TemporaryDirectory(
+                prefix="tc-init-closed-stderr-", dir=TMP_ROOT) as init_tmp:
             init_cwd = Path(init_tmp)
             result = run_closed(project_tool, ["--init-project", "demo"],
                                 init_cwd, 2)
@@ -270,7 +280,8 @@ def main() -> int:
                   "tc init with closed stderr succeeds")
             check((init_cwd / "tc.project").is_file(),
                   "tc init with closed stderr commits files")
-        with tempfile.TemporaryDirectory(prefix="tc-init-closed-stdout-") as init_tmp:
+        with tempfile.TemporaryDirectory(
+                prefix="tc-init-closed-stdout-", dir=TMP_ROOT) as init_tmp:
             init_cwd = Path(init_tmp)
             result = run_closed(project_tool, ["--init-project", "demo"],
                                 init_cwd, 1)
@@ -439,8 +450,7 @@ def main() -> int:
                     capture_output=True,
                     text=True,
                     timeout=30,
-                    env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
-                         "PATH": "/usr/bin:/bin"},
+                    env=test_environment(),
                 )
                 check(
                     broken_pipe.returncode == 1
@@ -458,8 +468,7 @@ def main() -> int:
                     capture_output=True,
                     text=True,
                     timeout=20,
-                    env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
-                         "PATH": "/usr/bin:/bin"},
+                    env=test_environment(),
                 )
                 check(
                     closed.returncode == 1

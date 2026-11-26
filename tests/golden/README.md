@@ -33,7 +33,7 @@ Every `*.golden.yaml` must contain:
 
 ```yaml
 id: TC-LEX-...            # unique
-kind: diagnostic          # diagnostic or run (see below)
+kind: diagnostic          # diagnostic, run or observe (see below)
 profile: common           # common | w32 | w64; must match the directory
 spec: "§2.1 ...; §12.3 ...; §12.5.1 ..."
 derivation: |
@@ -71,11 +71,19 @@ complete `#program`; the runtime golden runner executes `tc-vm` explicitly with
 compares stdout bytes, trap, exit and termination.  Floating expectations are derived with an independent exact
 decimal renderer, never from VM output.
 
+For T1 observation goldens, use `kind: observe` under `w64/` with
+`tool: tc-aot`. The runner invokes `tc-aot --static-only --stats` with an
+explicit stats path and compares exact stdout, stderr, exit status and stats
+bytes. Expectations derive from the frozen 0.0.47 toolchain §§5.1/5.2.1/5.5
+and the language clauses that determine the finalized IR, not from captured
+tool output.
+
 ## Derivation and review rules
 
-1. **`spec` is mandatory.**  Cite the exact standard section(s) that determine
-   the expectation, plus the diagnostic position rule (§12.5.1) when a code is
-   involved.  “The implementation does X” is never a spec citation.
+1. **`spec` is mandatory.**  Cite the exact standard or frozen toolchain
+   section(s) that determine the expectation, plus the diagnostic position rule
+   (§12.5.1) when a code is involved.  “The implementation does X” is never a
+   spec citation.
 2. **`derivation` is a computation, not a summary.**  Show how the expected
    value follows from the cited clauses: token order, field widths + padding +
    W, the §12.2 first-diagnostic order, or the §11 output algorithm.
@@ -106,8 +114,9 @@ stage/code/primary/diagnostics data.  For the repository tree it also
 cross-checks the required reviewer/status/date and independence metadata in
 `review-record.md`.  Exit code 1 means the golden library is not usable.
 `tests/golden/selftest.py` exercises the positive and negative validator paths.
-`tests/golden/run.py` is the L4 execution gate for the `kind: run` goldens;
-`w32` and `w64` are executed separately and never compared with each other.
+`tests/golden/run.py` is the L4 execution gate for `kind: run` and `kind: observe`
+goldens; `w32` and `w64` runtime libraries are executed separately and never
+compared with each other.
 
 ## Golden samples
 

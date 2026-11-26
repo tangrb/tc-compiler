@@ -105,7 +105,7 @@ static char *emit_fixture_ex(const Fixture *fixture, int checked,
     }
     *out_status = tc_aarch64_emit_asm(
         stream, tc_analysis_ir(analysis), &profile, profile.target, NULL,
-        error_message, error_message_capacity);
+        error_message, error_message_capacity, NULL);
     fclose(stream);
     tc_analysis_destroy(analysis);
     *out_len = length;
@@ -448,7 +448,7 @@ static char *emit_arm32_fixture(const Fixture *fixture,
     }
     *out_status = tc_arm32_emit_asm(
         stream, tc_analysis_ir(analysis), &profile, profile.target, NULL,
-        error_message, error_message_capacity);
+        error_message, error_message_capacity, NULL);
     fclose(stream);
     tc_analysis_destroy(analysis);
     return buffer;
@@ -515,7 +515,7 @@ static void test_abi_descriptor_match(void) {
     }
     emit_status = tc_aarch64_emit_asm(
         stream, tc_analysis_ir(analysis), &profile, &target, NULL, error_message,
-        sizeof(error_message));
+        sizeof(error_message), NULL);
     fclose(stream);
     tc_analysis_destroy(analysis);
     free(buffer);

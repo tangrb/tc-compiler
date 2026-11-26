@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "backend/common/emit_stats.h"
 #include "ir/ir.h"
 #include "ir/linemap.h"
 #include "runtime/profile.h"
@@ -35,7 +36,8 @@ typedef enum {
 TcAArch64EmitStatus tc_aarch64_emit_asm(
     FILE *out, const TcIR *ir, const TcPlatformProfile *profile,
     const TcTargetDesc *target, const TcLineMap *linemap,
-    char *error_message, size_t error_message_capacity);
+    char *error_message, size_t error_message_capacity,
+    TcTargetStats *target_stats);
 
 /* Symbol names used by the emitted assembly and supplied by the AArch64
  * runtime below.  Kept here so the toolchain driver can audit the link. */

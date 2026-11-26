@@ -146,7 +146,11 @@ contract check.
   is checked. Missing outputs use `O_CREAT|O_EXCL|O_NOFOLLOW` reservations; the
   same reserved descriptor is used for delivery after an identity recheck.
   Final output symlink chains allow missing referents, resolve relative targets
-  and reject cycles before reservation.
+  and reject cycles before reservation. A replaced reservation is preserved and
+  makes cleanup fail with 70. Observation outputs commit independently of the
+  formal AOT result; a trap or external-tool failure does not revoke them. A
+  preflight error is printed only after its diagnostic descriptor is proven
+  safe, otherwise the mapped implementation status is returned silently.
 - When analysis fails before the graph can enumerate all loaded modules, a
   breadth-first scan follows actual `import <ident>` statements, not
   arbitrary `.tc` files. It preserves logical-line continuations, continues
@@ -168,7 +172,19 @@ contract check.
   `-gdwarf-4 -fdebug-compilation-dir=.` produces `.debug_line`. `DW_AT_comp_dir`
   is `.`, `DW_AT_name` is the root display path, and code bounds use fixed local
   labels. `.debug_str` uses relocations rather than hardcoded offsets. Public
-  `--debug` and `--dump-linemap` remain outside this milestone.
+  `--debug` and `--dump-linemap`; public CLI integration remains outside T1.
+- VM observation output is deterministic and stays on stderr or an explicit
+  path, never program stdout. Shared-stderr order is diagnostics, IR dump,
+  line map, trace/footer, trap, then stats. VM region peaks measure logical
+  byte high-water marks: frame allocations, static objects, successful device
+  accesses and code mapping slots (including the reserved first slot); the core
+  creates no heap objects.
+- AOT `code_bytes` is the pre-emission text-section demand, not linked object
+  size. Fixed-four-byte targets count each emitted instruction as four bytes;
+  RISC-V counts `call`/`tail` as eight and other instructions as four. Padding
+  counts only inside `.text`; data/debug alignment does not. Thumb and RISC-V C
+  compression can make the final `.text` smaller. With target statistics off,
+  emitters bypass counter formatting and pending-line allocation.
 - Builds and all generated test fixtures, temporary files and artifacts belong
   under project-local `.tmp/`; CTest exports `TMPDIR=${PROJECT_SOURCE_DIR}/.tmp`.
   The test runner prefers `TMPDIR`, with `/tmp` only as the product fallback when

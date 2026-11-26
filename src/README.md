@@ -51,9 +51,13 @@ one-level discovery/filtering, fd-anchored beneath resolution, strict sidecars,
 private read-only snapshots, serial fork workers, timeouts, stream capture,
 structured results, reports and exit mapping. P4a adds the shared deterministic
 line map, private AOT `.file`/`.asciz`/`.loc` and source-comment emission, and a
-minimal DWARF v4 CU with clang-generated `.debug_line`; public debug/dump CLI
-flags, P4b, P5 and T1–T6 have not started. Compiler output guards protect stdio,
-project inputs, explicit outputs and reservations before publishing diagnostics
+minimal DWARF v4 CU with clang-generated `.debug_line`. T1 adds VM/AOT
+`--dump-ir[=<path>]`, VM `--trace=ir,call,mem,io,trap` with text/jsonl encoding,
+limits and output selection, VM/AOT `--stats` with output selection, structured trap
+context, explicit output identity/reservation guards and deterministic observation
+output; its evidence entry point is `t1.observe`. Public `tc-aot --debug`/`--dump-linemap`,
+P4b, P5 and T2–T6 have not started. Compiler and observation output guards protect
+stdio, project inputs, explicit outputs and reservations before publishing diagnostics
 or artifacts.
 
 ```text
@@ -71,16 +75,17 @@ src/
   runtime/      alloc io trap profile module_loader (platform seams);
                 semantics (W-aware integer/float/conversion core);
                 format (exact §11.2 scalar rendering); input (§11.3 tokens)
-  vm/           vm.h interp memory (regions/objects/pointer state/all opcodes)
+  vm/           vm.h interp memory observe (regions/objects/pointer state/all opcodes,
+                deterministic tracing/statistics/trap context)
   backend/      common (target-neutral freestanding runtime core, ABI data,
-                toolchain mapping); aarch64 (emitter/AAPCS64 classifier,
+                toolchain mapping, emission statistics); aarch64 (emitter/AAPCS64 classifier,
                 semihosting + PL011/PSCI platform instances, linker script);
                 arm32 (independent Cortex-M7 emitter/AAPCS32 classifier, ARM
                 EABI helpers, MPS2 platform, linker script); riscv32
                 (independent RV32IMAFDC emitter/ILP32 classifier, compiler
                 runtime helpers, QEMU virt platform, linker script)
-  driver/       tc tc-vm tc-aot + shared CLI/profile selection, AOT driver and
-                project test runner
+  driver/       tc tc-vm tc-aot + shared CLI/profile selection, observation output,
+                AOT driver and project test runner
   project/      name validation, tc.project v1 parser/root discovery, compiler path
                 binding/profile/include consumption, atomic init
 ```

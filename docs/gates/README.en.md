@@ -20,7 +20,7 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
 
 **Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0, P1,
-P2, P3 and P4a of `tc-0.0.47` are complete: split versions, three private entry
+P2, P3, P4a and T1 of `tc-0.0.47` are complete: split versions, three private entry
 points, the shared implementation-error exit mapping, the `tc` CLI contract,
 release audit, full `tc --init-project` templates with atomic writes/rollback/
 identity checks, `tc.project` v1 parsing with nearest-ancestor root discovery,
@@ -36,9 +36,15 @@ P4a adds the shared deterministic line map, private AOT `.loc`/source comments
 and a minimal DWARF v4 CU with clang-generated `.debug_line`, plus stdio/project-
 input/output-reservation guards before diagnostics or artifacts; evidence entry
 points are `linemap.unit`, `tests/conformance/tools/p4a_debug_cases.py` and
-`p4a.debug`. Public `--debug`/`--dump-linemap`, P4b, P5 and T1–T6 have not started,
-and G11 is incomplete. There are 82 registered 0.0.47 CTests; Debug, Release and
-ASan+UBSan full CTest runs each pass 82/82, and all 50 required closing checks pass. The accepted 0.0.46 harness remains 873/873.
+`p4a.debug`. T1 adds VM/AOT `--dump-ir`, VM `--trace=ir,call,mem,io,trap` with
+text/jsonl, limits and output selection, VM/AOT `--stats`, structured trap context,
+explicit output identity/reservation guards and deterministic observation output;
+its evidence entry point is `t1.observe`. Public `tc-aot --debug`/`--dump-linemap`,
+P4b, P5 and T2–T6 have not started, and G11 is incomplete. There are 83 registered
+0.0.47 CTests; Debug, Release and ASan+UBSan full CTest runs each passed 83/83,
+and all closing checks passed. macOS does not support ASan leak detection, so the
+sanitizer run used `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` and
+`UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The accepted 0.0.46 harness remains 873/873.
 The front end, CT/IR, runtime semantic
 core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
 W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core
@@ -56,7 +62,7 @@ Reproduce:
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

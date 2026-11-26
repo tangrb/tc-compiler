@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Execute the specification-derived VM runtime goldens.
+"""Execute the specification-derived runtime and observation goldens.
 
 Each `kind: run` golden under `w64/` and `w32/` is run with `tc-vm` under the
 matching profile and compared byte-for-byte with the reviewed expectation:
-stdout bytes, the first `TC_RE_*` trap, and the exit status.  The two profile
-libraries are never compared with each other.
+stdout bytes, the first `TC_RE_*` trap, and the exit status.  `kind: observe`
+uses `tc-aot` from the same build directory and compares static observation
+output.  The two profile libraries are never compared with each other.
 
 Usage: python3 tests/golden/run.py <tc-vm>
 """
@@ -19,13 +20,15 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+TMP_ROOT = HERE.parents[1] / ".tmp"
 sys.path.insert(0, str(HERE))
 
 from validate import YamlError, parse_yaml  # noqa: E402
 
 RT_RE = re.compile(
     r"^(?P<file>.*):(?P<line>[0-9]+):(?P<column>[0-9]+): "
-    r"error\[RT\]: (?P<code>TC_RE_[A-Z0-9_]+): (?P<name>[^:\n]*)$"
+    r"error\[RT\]: (?P<code>TC_RE_[A-Z0-9_]+): (?P<name>[^:\n]*?)"
+    r"(?: \[[^\n]*\])?$"
 )
 
 
@@ -33,11 +36,42 @@ def bytes_from_hex(value: str) -> bytes:
     return bytes.fromhex("".join(value.split()))
 
 
+def run_observe(vm: str, data: dict) -> list[str]:
+    with tempfile.TemporaryDirectory(prefix="tc-golden-observe-", dir=TMP_ROOT) as tmp:
+        root = Path(tmp)
+        source = root / "root.tc"
+        stats = root / "stats.txt"
+        source.write_text(data["source"], encoding="utf-8")
+        argv = [str(Path(vm).with_name("tc-aot")),
+                "--profile=aarch64-linux-user", "--static-only", "--stats",
+                f"--stats-out={stats}", str(source)]
+        proc = subprocess.run(
+            argv, capture_output=True, timeout=30,
+            env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
+                 "TMPDIR": str(TMP_ROOT),
+                 "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+        )
+        expect = data["expect"]
+        problems = []
+        if proc.stdout != bytes_from_hex(expect["stdout_hex"]):
+            problems.append("stdout differs")
+        if proc.stderr != bytes_from_hex(expect["stderr_hex"]):
+            problems.append(f"stderr {proc.stderr!r}")
+        if proc.returncode != expect["exit"]:
+            problems.append(f"exit {proc.returncode} != {expect['exit']}")
+        if not stats.is_file():
+            problems.append("stats output is missing")
+        elif stats.read_text(encoding="utf-8") != expect["stats"]:
+            problems.append("stats differ")
+        return problems
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: run.py <tc-vm>", file=sys.stderr)
         return 2
     tool = sys.argv[1]
+    TMP_ROOT.mkdir(parents=True, exist_ok=True)
     failures = 0
     checked = 0
     for profile in ("w64", "w32"):
@@ -49,7 +83,16 @@ def main() -> int:
                 print(f"FAIL {path}: cannot parse: {exc}")
                 failures += 1
                 continue
-            if not isinstance(data, dict) or data.get("kind") != "run":
+            if not isinstance(data, dict):
+                continue
+            if data.get("kind") == "observe":
+                checked += 1
+                problems = run_observe(tool, data)
+                if problems:
+                    print(f"FAIL {data.get('id')} ({path.name}): {'; '.join(problems)}")
+                    failures += 1
+                continue
+            if data.get("kind") != "run":
                 continue
             checked += 1
             expect = data["expect"]
@@ -61,7 +104,8 @@ def main() -> int:
                 if data.get("profile") == "w32"
                 else "--profile=aarch64-linux-user"
             )
-            with tempfile.TemporaryDirectory(prefix="tc-golden-") as tmp:
+            with tempfile.TemporaryDirectory(
+                    prefix="tc-golden-", dir=TMP_ROOT) as tmp:
                 source = Path(tmp) / "root.tc"
                 source.write_text(data["source"], encoding="utf-8")
                 argv.append(str(source))
@@ -74,6 +118,7 @@ def main() -> int:
                         "LC_ALL": "C",
                         "LANG": "C",
                         "TZ": "UTC",
+                        "TMPDIR": str(TMP_ROOT),
                         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
                     },
                 )
@@ -115,9 +160,9 @@ def main() -> int:
                 print(f"FAIL {data.get('id')} ({path.name}): {'; '.join(problems)}")
                 failures += 1
     if failures:
-        print(f"golden.run: {failures} failure(s) of {checked} run golden(s)")
+        print(f"golden.run: {failures} failure(s) of {checked} runtime/observation golden(s)")
         return 1
-    print(f"golden.run: {checked} runtime golden(s) passed")
+    print(f"golden.run: {checked} runtime/observation golden(s) passed")
     return 0
 
 
