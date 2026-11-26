@@ -144,6 +144,7 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                                    tool_name);
             }
             options->profile_name = arg + 10;
+            options->profile_seen = 1;
             continue;
         }
         if (!only_positional && strncmp(arg, "--device=", 9) == 0) {

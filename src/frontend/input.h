@@ -54,6 +54,8 @@ typedef struct {
 } TcSourceBytes;
 
 TcImplError tc_source_read(const char *path, TcSourceBytes *out);
+/* Consumes fd after a bounded, regular-file-only read. */
+TcImplError tc_source_read_fd(int fd, TcSourceBytes *out);
 void tc_source_free(TcSourceBytes *source);
 
 /* Implementation-limit check used by the lexer; returns NULL when the source

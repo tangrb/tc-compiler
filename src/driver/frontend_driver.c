@@ -3,14 +3,18 @@
 
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "diagnostic/diagnostic.h"
 #include "driver/aot_driver.h"
 #include "driver/profile_select.h"
 #include "frontend/input.h"
+#include "frontend/module.h"
 #include "frontend/parse.h"
 #include "frontend/sem.h"
+#include "project/paths.h"
 #include "vm/vm.h"
 
 static const char *stage_name(TcStage stage) {
@@ -202,24 +206,50 @@ static int print_vm_trap(const char *tool_name, const TcVmResult *result) {
 }
 
 static int run_syntax_only(const char *tool_name,
-                           const TcCliOptions *options) {
+                           const TcProjectPaths *paths) {
     TcSourceBytes source;
     TcParseModule *module = NULL;
     TcFrontendDiag diag;
     TcImplError impl = TC_IMPL_OK;
     TcImplError read_error;
+    const char *display = tc_path_display(paths->context, paths->source);
+    const TcPathFile *bound_file;
+    char *bound_path = NULL;
+    int fd = -1;
+    int status;
     int parsed;
-    read_error = tc_source_read(options->source, &source);
-    if (read_error != TC_IMPL_OK) {
-        return print_impl_error(tool_name, read_error, options->source);
+    status = tc_module_bind_root(paths->source, &fd, &bound_path);
+    if (status < 0) {
+        return print_impl_error(tool_name, TC_IMPL_OOM, display);
     }
-    parsed = tc_parse_source(options->source, source.bytes, source.size,
+    if (status != 1) {
+        return print_impl_error(tool_name, TC_IMPL_IO, display);
+    }
+    if (!tc_path_text_valid(bound_path)) {
+        (void)close(fd);
+        free(bound_path);
+        return print_impl_error(tool_name, TC_IMPL_IO, display);
+    }
+    bound_file = tc_path_context_add(paths->context, bound_path);
+    if (bound_file == NULL) {
+        (void)close(fd);
+        free(bound_path);
+        return print_impl_error(tool_name, TC_IMPL_OOM, display);
+    }
+    display = bound_file->display;
+    read_error = tc_source_read_fd(fd, &source);
+    if (read_error != TC_IMPL_OK) {
+        free(bound_path);
+        return print_impl_error(tool_name, read_error, display);
+    }
+    parsed = tc_parse_source(display, source.bytes, source.size,
                              &module, &diag, &impl);
     tc_source_free(&source);
+    free(bound_path);
     if (parsed != 0) {
         return print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
                                                               : TC_IMPL_INTERNAL,
-                                options->source);
+                                display);
     }
     if (module == NULL) {
         return print_frontend_diag(&diag);
@@ -229,7 +259,8 @@ static int run_syntax_only(const char *tool_name,
     return TC_EXIT_OK;
 }
 
-int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
+static int run_prepared(const char *tool_name, const TcCliOptions *options,
+                        const TcProjectPaths *paths) {
     TcPlatformProfile profile;
     TcAnalysis *analysis;
 #ifdef SIGPIPE
@@ -241,15 +272,19 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
     TcAnalysisDiag diag;
     TcImplError impl = TC_IMPL_OK;
     int result;
+    const char *display = tc_path_display(paths->context, paths->source);
     if (options == NULL || options->source == NULL) {
         return print_impl_error(tool_name, TC_IMPL_USAGE, NULL);
     }
     if (options->syntax_only) {
-        return run_syntax_only(tool_name, options);
+        return run_syntax_only(tool_name, paths);
     }
-    if (!tc_driver_select_profile(options->profile_name, &profile)) {
+    if (!tc_driver_select_profile(options->profile_seen ? options->profile_name
+                                                        : paths->manifest->profile,
+                                  &profile)) {
         return print_impl_error(tool_name, TC_IMPL_USAGE,
-                                options->profile_name);
+                                options->profile_seen ? options->profile_name
+                                                      : paths->manifest->profile);
     }
     if (options->device_name != NULL &&
         !tc_driver_apply_device(&profile, options->device_name)) {
@@ -260,26 +295,28 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
      * the same profile instance drives analysis and code generation. */
     profile.checked_build = options->checked ? 1 : 0;
     if (options->sem_only) {
-        analysis = tc_analyze_sem_only(options->source, profile.addr_width,
-                                       options->include_roots,
-                                       options->ninclude_roots, &status, &diag,
-                                       &impl);
+        analysis = tc_analyze_sem_only_with_paths(
+            paths->source, profile.addr_width,
+            (const char *const *)paths->includes,
+            paths->ninclude_roots, paths->context, &status, &diag, &impl);
     } else {
-        analysis = tc_analyze_with_profile(
-            options->source, &profile, profile.addr_width,
-            options->include_roots, options->ninclude_roots, &status, &diag,
-            &impl);
+        analysis = tc_analyze_with_paths(
+            paths->source, &profile, profile.addr_width,
+            (const char *const *)paths->includes,
+            paths->ninclude_roots, paths->context, &status, &diag, &impl);
     }
     if (analysis == NULL) {
         return print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
                                                               : TC_IMPL_INTERNAL,
-                                options->source);
+                                display);
     }
     if (status == TC_ANALYSIS_IMPL) {
-        tc_analysis_destroy(analysis);
-        return print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
+        const char *failure = tc_analysis_failure_path(analysis);
+        result = print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
                                                               : TC_IMPL_INTERNAL,
-                                options->source);
+                                  failure != NULL ? failure : display);
+        tc_analysis_destroy(analysis);
+        return result;
     }
     if (status == TC_ANALYSIS_ROOT_NOT_PROGRAM) {
         tc_analysis_destroy(analysis);
@@ -333,5 +370,27 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
     }
     result = tc_aot_driver_run(analysis, &profile, options);
     tc_analysis_destroy(analysis);
+    return result;
+}
+
+int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
+    TcProjectPaths *paths = NULL;
+    TcProjectPathError path_error;
+    int result;
+    if (options == NULL || options->source == NULL) {
+        return print_impl_error(tool_name, TC_IMPL_USAGE, NULL);
+    }
+    if (!tc_project_paths_prepare(options->source, options->include_roots,
+                                  options->ninclude_roots, &paths,
+                                  &path_error)) {
+        result = print_impl_error(tool_name, path_error.impl,
+                                  path_error.detail != NULL
+                                      ? path_error.detail
+                                      : path_error.message);
+        tc_project_path_error_destroy(&path_error);
+        return result;
+    }
+    result = run_prepared(tool_name, options, paths);
+    tc_project_paths_destroy(paths);
     return result;
 }

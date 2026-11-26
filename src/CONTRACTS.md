@@ -25,7 +25,7 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Struct/layout | `ir/structs.h` | SEM | field order/padding/readonly; per-profile `offset`/`size`; layout is never cached in `TcType` | SEM, CT, VM, AOT |
 | Object/address | `ir/object.h`, `ir/address.h`, `ir/region.h` | SEM + runtime | five regions; object is the single boundary/lifetime/DI fact source; region+offset is not object identity; address 0 is reserved | VM, checked build, AOT |
 | Pointer state | `ir/pointer_state.h`, `ir/pointer_state.c` | SEM + VM + AOT | §3.12 null/live/one-past/dangling permission matrix; one-past `ptradd`/`ptrsub` zero stays one-past; shared by addr/ptrdiff/memmove/bounds checks | SEM, VM, AOT |
-| IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module identity is resolved path; frozen type table; per-profile consts/objects/units | VM, AOT |
+| IR root | `ir/ir.h` | IR | `TcIR` binds exactly one profile; module metadata uses display paths while module ids retain loader identity; frozen type table; per-profile consts/objects/units | VM, AOT |
 | CT results | `frontend/ct.h` | frontend/CT | typed CT value table (scalar bits / struct field tree), demand order and success/failure cache, target-declaration failure position, target-endian `TcInitImage` | IR finalization, L1/L3 tests |
 | Runtime semantic core | `runtime/semantics.h`, `runtime/semantics.c`, `runtime/wide.h`, `runtime/wide.c`, `runtime/rt_memory.h` | runtime | W-aware strict/wrap integer arithmetic, division/shift boundaries, binary32/64 arithmetic with fixed exception priority and exact underflow, exact `mod`, `cast`/`trunc`/`bitcast`; failures are the 15 `TcErrorKind` values; freestanding-safe (no libc/math.h); exact 128-bit comparisons use `TcWide`, not `__int128`, so the same source builds for W=32 and W=64. VM and both target runtimes share one implementation of rounding and exception rules | CT (maps to `TC_CE_CONST_*`), VM, AOT |
 | Deterministic scalar I/O | `runtime/format.h`, `runtime/input.h`, corresponding `.c`; `frontend/num.c`, `frontend/arena.c` | runtime | exact six-significant-digit `%g` rendering from the binary value, target integer/bool text, §11.3 complete-token parsing with EOF/short-read/error states; the same freestanding-safe formatter/parser/decimal converter serve the VM and both target runtimes | VM, AOT, tests |
@@ -36,7 +36,8 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Diagnostics | `diagnostic/codes.h`, `diagnostic/diagnostic.h`, `diagnostic/diagnostic.c`, generated `diagnostic/table.c` | diagnostic (cross-cutting) | closed 80 codes (65 `TC_CE_*` + 15 `TC_RE_*`); stage and report stage; 1-based positions; first-diagnostic comparator; `TC_ERR_OUT_OF_MEMORY` separate | all phases, VM |
 | Zero pass | `contract/optimizer.h`, `contract/optimizer.c` | contract (frontend/backend consumers) | O0 and O2 run zero IR passes; `@fast`/`@fast_math` recorded only; `@inline`/`@noinline` stored only | VM, AOT |
 | Build/CLI | `driver/cli.h`, `driver/cli.c`, `driver/tc.c`, `driver/profile_select.h`, `src/CMakeLists.txt` | build | private static `tc_core`; exactly `tc`/`tc-vm`/`tc-aot`; no install/public C ABI; one implementation-error exit mapping | tools, tests |
-| Project model | `project/name.h`, `project/manifest.h`, `project/manifest.c`, `project/init.h`, `project/init.c` | project | private project-name validation; `tc.project` v1 parsing/defaults/bounded reads; nearest-ancestor discovery; init template, nofollow creation, identity preflight and rollback; no compiler consumers for manifest/path APIs yet | `tc`, P1 tests |
+| Project model | `project/name.h`, `project/manifest.h`, `project/manifest.c`, `project/paths.h`, `project/init.h`, `project/init.c` | project | private project-name validation; `tc.project` v1 parsing/defaults/bounded reads; nearest-ancestor discovery; canonical/display path binding; init template, nofollow creation, identity preflight and rollback | `tc`, compiler drivers, project tests |
+| Project test runner | `driver/test_runner.h`, `driver/test_runner.c` | driver/project | one-level discovery; fd-anchored beneath resolution; private read-only snapshots; ordered sidecars; serial fork workers; streaming capture, deadline and structured result frame; report/error precedence | `tc --test`, `project.test_runner` |
 | AArch64 backend | `backend/aarch64/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `start.S`, `link.ld`, `platform_semihost.c`, `platform_baremetal.c`; `backend/common/toolchain.h` | backend | W=64 full lowering and deterministic assembly; AAPCS64 composites/HFA/indirect returns; object-table memory helpers; frame/static layout, static `.data`, reset entry with BSS clearing and region facts; far conditional/switch transfers use a local skip plus `b`; semihosting and bare-metal platform instances; ICF disabled; platform-instance capability limits rejected before emission | `tc-aot`, L5/L6 tests |
 | ARM32 backend | `backend/arm32/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `rt_helpers.c`, `aeabi.c`, `aeabi_glue.S`, `platform_mps2.c`, `start.S`, `link.ld` | backend | Independent W=32 Cortex-M7 lowering; base AAPCS32/ILP32 softfp classifier (core-register pairs for int64/float64; composites marshalled as memory words with Rule C.4/C.5 split; >4-byte returns indirect); object-table helpers, frame/static layout, reset vector with BSS clearing, 1 MiB code window, ICF disabled | `tc-aot`, L5/L6 tests |
 | RISC-V 32 backend | `backend/riscv32/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `rt_helpers.c`, `compiler_rt.c`, `semi.S`, `platform_virt.c`, `start.S`, `link.ld` | backend | Independent RV32IMAFDC lowering; base ILP32 soft-float classifier (a0-a7, aligned 64-bit pairs, 2*XLEN by-value aggregates with the one-register split, >2*XLEN by reference, indirect returns); far `br`/`br_if`/`switch`/`return` use auipc/jalr; reset entry with BSS clearing; NS16550A UART0 stdout/stdin, semihosting exit record, SiFive test finisher; RV32 compiler-runtime 64-bit division helpers; ICF disabled | `tc-aot`, L5/L6 tests |
@@ -74,9 +75,9 @@ contract check.
 - `tc` is a project tool, not a compiler/run entry. Its operation must be first;
   help/version stand alone; operations and timeout cannot repeat; `--` terminates
   options only after a recognized operation. `--test-timeout=<seconds>` is
-  test-only, nonempty ASCII decimal and uint64-bounded. `--init-project` is
-  implemented; a valid `--test` invocation still reports `tc_error_unavailable`
-  and exits 70 without filesystem or test execution side effects.
+  test-only, nonempty ASCII decimal and uint64-bounded. `--init-project` and
+  `--test` are implemented; neither operation invokes an external compiler,
+  AOT toolchain or public embedding API.
 
 ### Project model conventions (implemented)
 
@@ -84,8 +85,29 @@ contract check.
   nearest-ancestor discovery. Discovery canonicalizes the start directory and
   stops at the first existing `tc.project` entry; a manifest symlink supplies
   content but does not move the project root. With no manifest, the start
-  directory is the root and no include root is added. These APIs have no compiler
-  consumers yet; path consumption belongs to the later project work.
+  directory is the root and no include root is added.
+- `project/paths.c` binds the canonical root source, manifest include roots and
+  caller-cwd-relative CLI include roots in that order, plus the manifest default
+  profile. At most 32 roots are accepted before host canonicalization. Missing
+  include roots remain empty candidates; non-directory/dangling/loop failures are
+  usage errors, while source and host I/O failures map to 70. An existing regular
+  source does not mask a bad manifest; a missing/non-regular source does.
+- `base/path.c` owns canonical/display separation. Display paths are relative to
+  the canonical project root, use `../` externally and deterministic
+  `./<basename>#<n>` fallback names. Display text is valid UTF-8 without Unicode
+  Cc/Cf/Zl/Zp. Diagnostics, IR metadata, VM traps and AOT source strings consume
+  display paths; canonical strings stay internal.
+- A module instance is keyed by its bound parent-directory identity and actual
+  final entry name, not its canonical string or inode. Symlink aliases merge;
+  distinct hardlink names and case-sensitive entries remain separate. Import
+  search starts beside the importer, then follows the ordered include roots with
+  canonicalized parent directories, directory-fd-anchored nofollow queries and
+  opens. Known non-regular candidates are rejected before open; a bound candidate
+  is parsed from the same descriptor; observed-then-missing candidates and
+  identity changes retry once before I/O failure.
+- Root and import source reads use `O_NONBLOCK`, require a regular file and cap
+  input at 4 MiB plus one growth-detection byte. Type/size/growth changes map to
+  71; host I/O and actual allocation failures map to 70.
 - Manifest I/O is nonblocking and bounded at 4 MiB. Host I/O failures and actual
   OOM map to 70, malformed/field/path input maps to 2, and size/growth limit
   failures map to 71. A bad nearest manifest is an error, not a reason to search
@@ -108,6 +130,40 @@ contract check.
   preserved and reported as `cleanup failed: <path>`; stdout stays empty. The
   created/skipped report is post-commit: its I/O failure exits 70 without rolling
   back committed files.
+- `tc --test` discovers only `tests/*/main.tc`, validates every filter and entry
+  name before execution, and sorts selected tests by name bytes. Discovery,
+  test-directory, main and sidecar resolution stay anchored to bound directory
+  fds; absolute or intermediate beneath escapes are usage errors. Main and
+  sidecar fingerprints are rechecked before use, then copied to unlinked private
+  snapshots with a separate read-only descriptor. Linux binds the reader through
+  `/proc/self/fd`; platforms whose fd-link open preserves the writer access mode
+  bind it before unlinking the private path. Recursive imports are not snapshotted.
+- Sidecars are validated strictly as `stdout.bin`, `stdin.bin`, `trap`, `exit`.
+  Main input is capped at 4 MiB (71); text sidecars at 4 KiB (2). Worker stdin is
+  always a private snapshot or immediate EOF. stdout is compared exactly and
+  streamed to a private capture; stderr keeps its first 64 KiB plus total size.
+  Timeout starts at the worker boundary, uses a saturated monotonic deadline,
+  kills only an unreaped worker, discards stdout and retains stderr.
+- Original fd0/fd1/fd2 identities are recorded before internal descriptors are
+  opened. Import candidates for the joint output-alias preflight are collected
+  with LEX per logical line; continuations preserve token boundaries and a LEX
+  error does not suppress later logical lines. Candidate identities are recorded
+  before type/size filtering. fd2 sharing fd0 or a project input is a silent usage
+  error; a closed standard descriptor is an environment failure and is never
+  reused internally.
+- Each test runs in a fresh private `fork()` worker with fresh frontend/IR/CT/VM
+  state. The worker changes to the bound project root, closes all non-whitelisted
+  descriptors and never execs `tc-vm`. An inherited ignored `SIGCHLD` disposition
+  stays displaced until the parent reaps the worker. Its fixed 24-byte result
+  frame contains
+  six native 32-bit fields in order `magic=0x54435452`, `version=1`, `status`,
+  `impl`, `trap`, `exit_status`; statuses are 0 normal, 1 compile diagnostic, 2
+  implementation failure and 3 root-mode anomaly. The parent requires the exact
+  frame with no trailing byte and validates all field combinations. Corruption,
+  worker anomaly or snapshot change is 71; environment/OOM/fork failure is 70.
+- Test failure precedence is compile diagnostic, timeout, trap mismatch, exit
+  mismatch, then stdout mismatch. Reports contain no PID, temporary path or
+  elapsed time. A timeout reason preserves the original ASCII seconds argument.
 
 首诊比较键序：一般位置为 `origin`（标准 §12.2 #9，操作数内部优先）→
 `same_site_rank`（#4，同 origin 类内专用码）→ `clause_rank`（#5）；在
@@ -236,7 +292,7 @@ diagnostic:
 
 | Area | Files | Facts |
 | --- | --- | --- |
-| Module discovery | `frontend/module.h`, `module.c` | root must be `#program`; import DFS in source order; importer directory then include roots in order; canonical resolved path is the instance key; `module_order` fixed before IMPORT/SEM; `#program` import target is parsed but not recursed |
+| Module discovery | `frontend/module.h`, `module.c` | root must be `#program`; import DFS in source order; importer directory then include roots in order; bound parent-directory identity plus actual final entry name is the instance key; `module_order` fixed before IMPORT/SEM; `#program` import target is parsed but not recursed |
 | IMPORT | `frontend/module.c`, `sem.c` | the five `TC_CE_IMPORT_*` codes report in the IMPORT stage; duplicate/circular priority; import names occupy the module namespace; imported private access; diamond reuse keeps one instance |
 | Names/members | `frontend/sem.h`, `sem.c` | value/type/label namespaces; module `Self`/`m`; bare value member is `FUNCTION_SCOPE_ACCESS`; struct name in value position is `TYPE_MISMATCH`; duplicate member/parameter/local diagnostics; public/private and `PRIVATE_TYPE` positions |
 | Types/literals | `frontend/sem.c` | one interned type table per Analyze, scalar singletons, `ptr`/`fnptr` interning, nominal structs; `isize`/`usize` independent of fixed-width types; literal category/suffix/sign/range per W |

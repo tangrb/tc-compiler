@@ -36,17 +36,25 @@ profile isolation are tested.  Frozen contract
 ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
 The 0.0.47 toolchain implements split language/toolchain versions, three private
-entry points, one implementation-error exit mapping and P1 project initialization.
-`tc --init-project` generates the complete template in the canonical current
-directory with pre-write identity checks and rollback. `project/manifest.c`
-provides the private `tc.project` v1 parser and nearest-ancestor root-discovery
-APIs; compiler path consumers do not use them yet. `tc --test` explicitly returns
-unavailable (70). P2–P5/T1–T6, including path consumption and the test runner,
-have not started.
+entry points, one implementation-error exit mapping, project initialization,
+compiler path consumption and the project test runner. `tc --init-project`
+generates the complete template in the canonical current directory with pre-write
+identity checks and rollback. `project/manifest.c` provides the private
+`tc.project` v1 parser and nearest-ancestor root-discovery APIs.
+`project/paths.c` and `base/path.c` bind the canonical source, ordered
+manifest/CLI include roots, manifest default profile and project-root-relative
+display paths into `tc-vm` and `tc-aot`; diagnostics, IR metadata, VM traps and
+AOT source strings consume those display paths. Module identity uses bound parent
+directories and actual entry names, and root/import sources are parsed from their
+bound descriptors with nonblocking bounded reads. `driver/test_runner.c` implements
+one-level discovery/filtering, fd-anchored beneath resolution, strict sidecars,
+private read-only snapshots, serial fork workers, timeouts, stream capture,
+structured results, reports and exit mapping. P4a/P4b, P5 and T1–T6 have not started.
 
 ```text
 src/
-  base/         assert version (shared foundations, no language semantics)
+  base/         assert version, canonical/display path context (shared foundations,
+                no language semantics)
   contract/     frozen-contract check + zero-pass optimization policy
   diagnostic/   closed 80-code set, generated table, first-diagnostic selection
   frontend/     input arena num lex parse; module (discovery/IMPORT); sem (names/
@@ -66,8 +74,10 @@ src/
                 EABI helpers, MPS2 platform, linker script); riscv32
                 (independent RV32IMAFDC emitter/ILP32 classifier, compiler
                 runtime helpers, QEMU virt platform, linker script)
-  driver/       tc tc-vm tc-aot + shared CLI/profile selection and AOT driver
-  project/      name validation, tc.project v1 parser/root discovery, atomic init
+  driver/       tc tc-vm tc-aot + shared CLI/profile selection, AOT driver and
+                project test runner
+  project/      name validation, tc.project v1 parser/root discovery, compiler path
+                binding/profile/include consumption, atomic init
 ```
 
 `base/`, `contract/` and `diagnostic/` are shared **infrastructure**, not
@@ -101,10 +111,11 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
   metadata/root discovery and initialization. Do not create a second
   table, profile instance or diagnostic code set in another directory.
 - `tc`, `tc-vm` and `tc-aot` are the only tool entry points. `tc` does not compile
-  or run user programs. Its `--init-project` operation creates missing project
-  targets with pre-write identity checks and rollback; `--test` still fails
-  explicitly as unavailable (70). `--syntax-only`, `--sem-only` and `--static-only`
-  are partial checks:
+  or run user programs itself. Its `--init-project` operation creates missing project
+  targets with pre-write identity checks and rollback; `--test` discovers and runs
+  project tests with strict sidecars, private read-only snapshots, fork workers,
+  timeout/stream capture, structured results, reports and exit mapping.
+  `--syntax-only`, `--sem-only` and `--static-only` are partial checks:
   exit 0 never claims a
   valid program.  A normal `tc-vm` invocation executes the finalized program on
   the reference VM.  A normal `tc-aot` invocation emits target assembly

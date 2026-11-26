@@ -4,30 +4,40 @@
 
 ### Added
 
-- **P0/T0 治理**：工具链版本 0.0.47 与语言版本 0.0.46 分离；新增私有 `tc`
+- **P0/T0 治理**：工具链版本 0.0.47 与语言/契约版本 0.0.46/1 分离；新增私有 `tc`
   工程工具入口，提供 CLI 语法、`--help` 与 `--version`。
 - **P1 工程初始化**：`tc --init-project` 在当前 canonical 目录生成完整工程模板，
   仅创建缺失目标，支持写入前身份联合检查、失败回滚与提交后报告。
 - **P1 manifest API**：`src/project/manifest.c` 实现 `tc.project` v1 解析、缺省值、
-  有界读取与最近祖先根发现；该私有 API 尚未接入编译器路径消费。
+  有界读取与最近祖先根发现。
+- **P2 路径模型**：编译器消费 manifest/include/profile，分离 canonical 与工程根
+  相对显示路径；诊断、IR、VM trap 与 AOT 源字符串使用显示路径。模块身份绑定
+  父目录与实际目录项名，根/import 源从绑定 fd 非阻塞有界读取。
+- **P3 工程测试 runner**：`tc --test` 实现一层发现/筛选、fd 锚定 beneath 解析、
+  严格侧车校验、私有只读快照、串行 fork worker、超时、流捕获、结构化结果、
+  报告与退出映射。
 - **统一实现级错误**：所有入口共用 `TcImplError` 退出码映射；宿主 IO、能力不可用
   与实际 OOM 退出 70，用法错误退出 2，内部契约破坏与实现上限退出 71。
 - **契约验证**：三入口精确版本输出、`tc` 参数/终止符/uint64 超时语法、
-  `--test` 显式不可用且无副作用、缺文件与输出 IO、发布审计与测试标签。
+  `--test` 发现/筛选与失败关闭行为、缺文件与输出 IO、发布审计与测试标签。
 - **P1 测试**：新增并注册 `project.manifest`、`project.init`、`project.init_fault`，
   更新 `cli.contract`；覆盖 manifest/根发现、完整模板、预检/身份/别名与逐故障点回滚。
+- **P2 测试**：新增并注册 `project.paths_unit`、`project.paths`、`project.paths_aot`，
+  覆盖根相对/外部/回退显示、模块身份、include/profile、错误优先级、源边界与 AOT 路径。
+- **P3 测试**：新增并注册 `project.test_runner`，覆盖发现/筛选、路径边界、严格侧车、
+  私有快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
 - **故障路径验证**：SEM、VM 与三个后端逐分配点 OOM 故障注入及分配清理校验、关闭 stdout/stderr
   与无副作用检查、发布审计变异自测；OOM 统一映射与未来扩展边界记入
   `src/CONTRACTS.md`。
 
 ### 状态
 
-- 0.0.47 CTest 注册总数 76（P0 基线 73 + P1 三项）；P1 的
-  Debug/Release/ASan+UBSan 全量回归均为 76/76。0.0.46 已验收 harness 873/873、
-  覆盖矩阵 636/636，全部收尾检查与发布审计通过。
-- P0/T0 与 P1 已完成；P2–P5/T1–T6 尚未开始，G11 未完成。
-  `tc --init-project` 已可用；manifest 尚未接入编译器消费，`tc --test` 仍显式退出 70。
-- P4b 的 VM 调试 ELF 内部布局只作实现验证并提交证据，不回写规范。
+- 0.0.47 CTest 注册总数 80（P0 基线 73 + P1 三项 + P2 三项 + P3 一项）；Debug、
+  Release 与 ASan+UBSan 全量 CTest 均为 80/80，51 项收尾检查全部通过。0.0.46 已验收
+  harness 873/873、覆盖矩阵 636/636，全部收尾检查与发布审计通过。
+- P0/T0、P1、P2 与 P3 已完成；P4a/P4b、P5 与 T1–T6 尚未开始，G11 未完成。
+  `tc --init-project`、编译器路径消费与 `tc --test` 已可用。
+- P4b 的 VM 调试 ELF 内部布局不得回写冻结规范。
 
 ## [0.0.46] - 2026-11-19
 

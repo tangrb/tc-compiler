@@ -6,24 +6,29 @@ standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
-designs meet the freeze criteria. P0/T0 and P1 are complete; P2–P5/T1–T6 have
-not started. Scope and contracts are in
+designs meet the freeze criteria. P0/T0, P1, P2 and P3 are complete;
+P4a/P4b, P5 and T1–T6 have not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
 
 ## Current status
 
-- **0.0.47 P0/P1**: toolchain version 0.0.47 is separate from frozen language
-  version 0.0.46. The private `tc_core` links three entry points:
+- **0.0.47 P0–P3**: toolchain version 0.0.47 is separate from language/contract
+  version 0.0.46/1. The private `tc_core` links three entry points:
   `tc`, `tc-vm` and `tc-aot`. Implementation errors share the 0/2/70/71 mapping.
   `tc` implements project CLI grammar, `--help`, `--version` and the full
   `--init-project` template with atomic writes, rollback and identity checks.
-  `src/project/manifest.c` provides `tc.project` v1 parsing and nearest-root
-  discovery APIs, but the compiler does not consume them yet.
-- **Later stages**: P2 path consumers, the P3 test runner and debugging/
-  observability features are not implemented. `tc --test` still explicitly exits
-  70 without executing tests.
+  `tc-vm` and `tc-aot` consume `tc.project`, canonical roots, ordered include
+  roots and the manifest default profile. Canonical paths remain internal while
+  diagnostics, IR metadata, VM traps and AOT source strings use
+  project-root-relative display paths. Module identity is bound to parent
+  directories and actual entry names; source reads are nonblocking and bounded.
+  `tc --test` implements one-level discovery/filtering, fd-anchored beneath
+  resolution, strict sidecar validation, private read-only snapshots, serial fork
+  workers, timeouts, stream capture, structured results, reports and exit mapping.
+- **Later stages**: P4a/P4b debug information and VM debug ELF, P5 and T1–T6 have
+  not started.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -57,12 +62,12 @@ RTOS, interrupts and concurrency move to 0.0.48.
   corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
   implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
-  inlining); the 0.0.46 baseline stays zero-pass. P2–P5/T1–T6 path consumption,
-  the test runner and debugging capabilities are outside the current completion scope.
-- **Current verification**: 76 registered 0.0.47 CTests (73 at P0 plus three P1
-  tests), with P1 full Debug/Release/ASan+UBSan regressions each passing 76/76;
-  the 0.0.46 coverage matrix is
-  636/636 and G0–G10 PASS. **G10 completes the 0.0.46 stage exit; G11 is
+  inlining); the 0.0.46 baseline stays zero-pass. P4a/P4b, P5 and T1–T6 are outside
+  the current completion scope.
+- **Current verification**: 80 registered 0.0.47 CTests (73 at P0, three P1 tests,
+  three P2 tests and one P3 test). Debug, Release and ASan+UBSan full CTest runs
+  each pass 80/80, and all 51 required closing checks pass. The 0.0.46 coverage
+  matrix is 636/636 and G0–G10 PASS. **G10 completes the 0.0.46 stage exit; G11 is
   incomplete**. See [gate status](docs/gates/README.en.md).
 
 ## Documents
@@ -72,8 +77,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0 complete |
-| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0/P1 implemented, P2/P3 not started |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P3 implemented |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P3 implemented |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope
@@ -90,7 +95,7 @@ RTOS, interrupts and concurrency move to 0.0.48.
 ```text
 docs/                 standard, design, test plan, gate status
 src/                  0.0.46 implementation
-  base/               assert / version
+  base/               assert / version / canonical and display path context
   contract/           contract checks / zero-pass policy
   diagnostic/         closed 80-code set / generated table / first diagnostic
   frontend/           input num lex parse module sem ct irgen
@@ -102,8 +107,9 @@ src/                  0.0.46 implementation
                       platform instances); arm32 (Cortex-M7 backend + MPS2
                       platform instance); riscv32 (RISC-V 32 backend + QEMU
                       virt platform instance)
-  driver/             tc / tc-vm / tc-aot CLI and AOT driver
-  project/            name validation, manifest/root discovery, atomic init
+  driver/             tc / tc-vm / tc-aot CLI, AOT driver and test runner
+  project/            name validation, manifest/root discovery, path binding,
+                      atomic init
 tests/                L0–L7: unit, static/runtime conformance, differential/ABI/
                       platform, harness, traceability, golden, determinism
 ```
@@ -126,8 +132,10 @@ target ar), and this is not a gate build. Tools currently support:
 - `tc --help`/`--version`: project-tool help and dual-version output.
   `tc --init-project [--] <name>` generates the full template in the canonical
   current directory, creates only missing targets, and supports identity
-  preflight and failure rollback. `tc --test` is not implemented yet and still
-  explicitly exits 70 without executing tests.
+  preflight and failure rollback. `tc --test [--test-timeout=<seconds>] [--]
+  [test_name...]` runs `tests/*/main.tc` inside the project root in name-byte
+  order, with private snapshots, timeout/stream capture, structured results and
+  pass/fail reports; an omitted or zero timeout has no deadline.
 - `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
   **not a valid program**.
 - `--sem-only <source>`: LEX/SYN/IMPORT/SEM (including CFG/DI, calls, safety and

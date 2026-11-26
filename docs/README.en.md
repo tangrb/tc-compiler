@@ -12,23 +12,30 @@ Chinese: [README.md](README.md).
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
 | [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46 |
-| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0/P1 implemented, P2/P3 not started |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P3 implemented |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
 ## Current status
 
 - The 0.0.47 toolchain and project-model designs meet the freeze criteria.
-  P0/T0 and P1 are complete. `tc --init-project` implements the full template,
-  atomic writes, rollback and identity checks. `src/project/manifest.c` provides
-  the `tc.project` v1 parser and nearest-root discovery APIs, but the compiler
-  does not consume them yet. P2–P5/T1–T6 have not started, `tc --test` still
-  explicitly exits 70, and G11 is incomplete. Language semantics, opcodes,
-  diagnostics and the ABI stay frozen at 0.0.46, and RTOS work moves to 0.0.48.
+  P0/T0, P1, P2 and P3 are complete. `tc --init-project` implements the full
+  template, atomic writes, rollback and identity checks. The compiler consumes
+  `tc.project`, canonical roots, ordered include roots and the manifest default
+  profile, while keeping canonical paths separate from project-root-relative
+  display paths. Diagnostics, IR metadata, VM traps and AOT source strings use
+  display paths; module identity uses bound parent directories and actual entry
+  names, and source reads are nonblocking and descriptor-bound. `tc --test`
+  implements one-level discovery/filtering, fd-anchored beneath resolution,
+  strict sidecars, private read-only snapshots, fork workers, timeouts, stream
+  capture, structured results, reports and exit mapping. P4a/P4b, P5 and T1–T6
+  have not started, and G11 is incomplete. Language/contract versions remain
+  0.0.46/1; RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**. There are 76 registered 0.0.47 CTests (73 at P0 plus three P1 tests);
-  P1 full Debug/Release/ASan+UBSan regressions each pass 76/76. The 0.0.46 coverage
-  matrix is 636/636.
+  exit**. There are 80 registered 0.0.47 CTests (73 at P0, three P1 tests, three
+  P2 tests and one P3 test). Debug, Release and ASan+UBSan full CTest runs each
+  pass 80/80, and all 51 required closing checks pass. The 0.0.46 coverage matrix
+  is 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
   (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V
   backends/toolchains (full ABI, checked build, ELF/region layout, reset-entry
@@ -39,7 +46,8 @@ Chinese: [README.md](README.md).
   implementation-limit/checked/scale/far-branch regressions, the S10 long-term
   regression corpus and the release audit.
 - Not implemented: the optional optimization pipeline (SSA/regalloc/inlining).
-- No C host public library, embedding API or ABI.
+- No C host public library, embedding API or ABI; the only private entry points
+  are `tc`/`tc-vm`/`tc-aot`.
 - Both 32/64 are targets; `usize`/`isize` are platform-word types (§13.2.1/§13.2.2).
 
 ## Repository documents

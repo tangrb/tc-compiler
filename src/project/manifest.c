@@ -52,6 +52,8 @@ static int set_error(TcProjectError *error, TcImplError impl, const char *messag
     return 0;
 }
 
+static char *join_manifest_path(const char *directory);
+
 static char *duplicate_string(const char *text) {
     size_t size = strlen(text) + 1u;
     char *copy = malloc(size);
@@ -225,9 +227,8 @@ static TcImplError read_error(TcProjectError *error, TcImplError impl,
     return impl;
 }
 
-static TcImplError read_manifest(const char *path, unsigned char **out,
-                                 size_t *out_size, TcProjectError *error) {
-    int fd;
+static TcImplError read_manifest_fd(int fd, unsigned char **out,
+                                    size_t *out_size, TcProjectError *error) {
     struct stat before;
     struct stat after;
     unsigned char *bytes;
@@ -238,35 +239,25 @@ static TcImplError read_manifest(const char *path, unsigned char **out,
 
     *out = NULL;
     *out_size = 0u;
-    fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-    if (fd < 0) {
-        return read_error(error, errno == ENOMEM ? TC_IMPL_OOM : TC_IMPL_IO,
-                          "cannot open tc.project");
-    }
     if (fstat(fd, &before) != 0) {
         failure_errno = errno;
-        (void)close(fd);
         return read_error(error,
                           failure_errno == ENOMEM ? TC_IMPL_OOM : TC_IMPL_IO,
                           "cannot inspect tc.project");
     }
     if (!S_ISREG(before.st_mode)) {
-        (void)close(fd);
         return read_error(error, TC_IMPL_IO, "tc.project is not a regular file");
     }
     if (before.st_size < 0) {
-        (void)close(fd);
         return read_error(error, TC_IMPL_IO, "invalid tc.project size");
     }
     if ((uintmax_t)before.st_size > (uintmax_t)TC_PROJECT_MAX_MANIFEST_BYTES) {
-        (void)close(fd);
         return read_error(error, TC_IMPL_INTERNAL,
                           "tc.project exceeds the 4 MiB limit");
     }
     expected = (size_t)before.st_size;
     bytes = malloc(expected + 1u);
     if (bytes == NULL) {
-        (void)close(fd);
         return read_error(error, TC_IMPL_OOM,
                           "out of memory reading tc.project");
     }
@@ -301,20 +292,14 @@ static TcImplError read_manifest(const char *path, unsigned char **out,
         failed = 1;
         failure_errno = errno;
     } else if (!S_ISREG(after.st_mode) || after.st_size != before.st_size ||
+               after.st_dev != before.st_dev || after.st_ino != before.st_ino ||
                total > expected) {
         /* Size changes and a non-EOF bounded read are implementation-limit
          * failures, never an invitation to parse a partial manifest. */
         free(bytes);
-        (void)close(fd);
         return read_error(error, TC_IMPL_INTERNAL,
                           "tc.project changed or grew while being read");
     } else if (total < expected) {
-        failed = 1;
-    }
-    if (close(fd) != 0) {
-        if (!failed) {
-            failure_errno = errno;
-        }
         failed = 1;
     }
     if (failed) {
@@ -620,8 +605,8 @@ static int apply_defaults(TcProjectManifest *manifest, int include_default,
     return 1;
 }
 
-int tc_project_manifest_load(const char *manifest_path, const char *project_root,
-                             TcProjectManifest **out, TcProjectError *error) {
+int tc_project_manifest_load_fd(int fd, const char *project_root,
+                                TcProjectManifest **out, TcProjectError *error) {
     TcProjectManifest *manifest;
     unsigned char *bytes;
     size_t size;
@@ -631,7 +616,7 @@ int tc_project_manifest_load(const char *manifest_path, const char *project_root
     }
     *out = NULL;
     clear_error(error);
-    if (manifest_path == NULL || project_root == NULL || project_root[0] == '\0') {
+    if (fd < 0 || project_root == NULL || project_root[0] == '\0') {
         return set_error(error, TC_IMPL_INTERNAL, "invalid manifest arguments",
                          NULL, 0u);
     }
@@ -640,12 +625,12 @@ int tc_project_manifest_load(const char *manifest_path, const char *project_root
         return set_error(error, TC_IMPL_OOM, "out of memory", NULL, 0u);
     }
     manifest->root = duplicate_string(project_root);
-    manifest->manifest_path = duplicate_string(manifest_path);
+    manifest->manifest_path = join_manifest_path(project_root);
     if (manifest->root == NULL || manifest->manifest_path == NULL) {
         tc_project_manifest_destroy(manifest);
         return set_error(error, TC_IMPL_OOM, "out of memory", NULL, 0u);
     }
-    impl = read_manifest(manifest_path, &bytes, &size, error);
+    impl = read_manifest_fd(fd, &bytes, &size, error);
     if (impl != TC_IMPL_OK) {
         tc_project_manifest_destroy(manifest);
         return 0;
@@ -663,6 +648,28 @@ int tc_project_manifest_load(const char *manifest_path, const char *project_root
     }
     *out = manifest;
     return 1;
+}
+
+int tc_project_manifest_load(const char *manifest_path, const char *project_root,
+                             TcProjectManifest **out, TcProjectError *error) {
+    int fd;
+    int ok;
+    if (manifest_path == NULL || project_root == NULL || project_root[0] == '\0') {
+        return set_error(error, TC_IMPL_INTERNAL, "invalid manifest arguments",
+                         NULL, 0u);
+    }
+    fd = open(manifest_path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    if (fd < 0) {
+        return set_error(error, errno == ENOMEM ? TC_IMPL_OOM : TC_IMPL_IO,
+                         "cannot open tc.project", NULL, 0u);
+    }
+    ok = tc_project_manifest_load_fd(fd, project_root, out, error);
+    if (close(fd) != 0 && ok) {
+        tc_project_manifest_destroy(*out);
+        *out = NULL;
+        return set_error(error, TC_IMPL_IO, "cannot close tc.project", NULL, 0u);
+    }
+    return ok;
 }
 
 static char *join_manifest_path(const char *directory) {

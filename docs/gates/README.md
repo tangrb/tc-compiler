@@ -18,18 +18,22 @@
 | G10 | S10 多目标扩展与长期回归 | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 | G11 | 0.0.47 工具链与工程模型 | **未完成** | 本页当前状态 |
 
-**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0/T0 与 P1
+**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0/T0、P1、P2 与 P3
 已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、发布审计、
-`tc --init-project` 完整模板/原子写入/回滚/身份检查，以及 `tc.project` v1 解析与
-最近根发现 API 均已落地。manifest 尚未接入编译器消费；P2–P5/T1–T6 尚未开始，
-`tc --test` 仍显式退出 70，G11 未完成。0.0.47 CTest 注册总数 76，P1 的
-Debug/Release/ASan+UBSan 全量回归均为 76/76；
-0.0.46 已验收 harness 873/873。前端、CT/IR、
-运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、W=32 RISC-V
-`riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、四设备策略、
-checked build、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32 互操作、
-全量差分/生成式 ABI 对抗测试、实现边界/规模/长跳转回归、复位入口 BSS 清零、
-32/64 分档案隔离、长期回归语料与发布审计均已实现。覆盖矩阵 636/636；
+`tc --init-project` 完整模板/原子写入/回滚/身份检查、`tc.project` v1 解析与最近根
+发现，以及 manifest/include/profile 的编译器消费。canonical 路径与工程根相对显示
+路径已分离，诊断、IR、VM trap 与 AOT 源字符串统一使用显示路径；模块身份使用
+绑定父目录与实际目录项名，源读取采用非阻塞有界 fd。`tc --test` 已完成一层发现/
+筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、流捕获、
+结构化结果、报告与退出映射，证据入口为 `tests/project/test_runner_test.py` 与
+`project.test_runner`。P4a/P4b、P5 与 T1–T6 尚未开始，G11 未完成。0.0.47 CTest
+注册总数 80；Debug、Release 与 ASan+UBSan 全量 CTest 均为 80/80，51 项收尾检查全部通过。
+0.0.46 已验收 harness 873/873。
+前端、CT/IR、运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、
+W=32 RISC-V `riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、
+四设备策略、checked build、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32
+互操作、全量差分/生成式 ABI 对抗测试、实现边界/规模/长跳转回归、复位入口 BSS
+清零、32/64 分档案隔离、长期回归语料与发布审计均已实现。覆盖矩阵 636/636；
 design §12 十五项均有套件映射。
 
 复现：

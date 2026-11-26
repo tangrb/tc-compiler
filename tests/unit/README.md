@@ -17,6 +17,9 @@ CTest entries:
   token input, regions/objects/pointer states, all mandatory traps and their
   positions, calls/`D`, device policies, I/O source states, checked build and
   the W=32/W=64 matrix (L1/L2).
+- `project.paths_unit` (`tc_path_test`): canonical/display path text and
+  allocation, internal/external/fallback display, IR module display metadata,
+  fd-bound hardlink/symlink module identity and symlink-parent root binding (P2).
 - `aot.unit` (`tc_aot_test`): AArch64 lowering shape for integer/float/memory
   helpers, frame alignment, HFA and indirect-return ABI, checked-build shadow
   and define tracking, static initializer emission, deterministic assembly,

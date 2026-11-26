@@ -84,9 +84,16 @@ def _strict_diagnostics(text, case, mode):
     source = os.path.realpath(harness["source_path"])
     case_file = os.path.realpath(harness.get("case_file", source))
     case_dir = os.path.dirname(case_file)
+    reported_root = os.path.dirname(source)
     expect = case.get("expect") or {}
 
     def resolve_reported(path):
+        path = os.path.normpath(path)
+        if not os.path.isabs(path):
+            path = os.path.normpath(os.path.join(reported_root, path))
+        return os.path.realpath(path)
+
+    def resolve_expected(path):
         path = os.path.normpath(path)
         if not os.path.isabs(path):
             path = os.path.normpath(os.path.join(case_dir, path))
@@ -95,10 +102,10 @@ def _strict_diagnostics(text, case, mode):
     allowed_primary = {source}
     expected_primary = (expect.get("primary") or {}).get("file")
     if isinstance(expected_primary, str):
-        allowed_primary.add(resolve_reported(expected_primary))
+        allowed_primary.add(resolve_expected(expected_primary))
     for entry in expect.get("related") or []:
         if isinstance(entry, dict) and isinstance(entry.get("file"), str):
-            allowed_primary.add(resolve_reported(entry["file"]))
+            allowed_primary.add(resolve_expected(entry["file"]))
     for line in text.splitlines():
         if not line.strip():
             continue
@@ -172,12 +179,16 @@ def _parse_diagnostics(text, case, mode):
     source = os.path.realpath(harness["source_path"])
     case_file = os.path.realpath(harness.get("case_file", source))
     case_dir = os.path.dirname(case_file)
+    reported_root = os.path.dirname(source)
 
-    def rel(path):
+    def resolve_reported(path):
         path = os.path.normpath(path)
         if not os.path.isabs(path):
-            path = os.path.normpath(os.path.join(case_dir, path))
-        path = os.path.realpath(path)
+            path = os.path.normpath(os.path.join(reported_root, path))
+        return os.path.realpath(path)
+
+    def rel(path):
+        path = resolve_reported(path)
         if path == source:
             return case["source"]
         return os.path.relpath(path, case_dir).replace(os.sep, "/")

@@ -4,24 +4,38 @@
 
 ### Added
 
-- **P0/T0 governance**: toolchain version 0.0.47 is separate from language version
-  0.0.46; a private `tc` project-tool entry point provides CLI grammar, `--help`
+- **P0/T0 governance**: toolchain version 0.0.47 is separate from language/contract
+  version 0.0.46/1; a private `tc` project-tool entry point provides CLI grammar, `--help`
   and `--version`.
 - **P1 project initialization**: `tc --init-project` generates the full project
   template in the canonical current directory, creates only missing targets, and
   supports joint pre-write identity checks, failure rollback and post-commit reporting.
 - **P1 manifest APIs**: `src/project/manifest.c` implements `tc.project` v1 parsing,
-  defaults, bounded reads and nearest-ancestor root discovery. These private APIs
-  are not yet consumed by compiler path handling.
+  defaults, bounded reads and nearest-ancestor root discovery.
+- **P2 path model**: the compiler consumes manifest/include/profile data and keeps
+  canonical paths separate from project-root-relative display paths. Diagnostics,
+  IR metadata, VM traps and AOT source strings use display paths. Module identity
+  binds parent directories and actual entry names; root/import sources use
+  nonblocking bounded reads from bound descriptors.
+- **P3 project test runner**: `tc --test` implements one-level discovery/filtering,
+  fd-anchored beneath resolution, strict sidecar validation, private read-only
+  snapshots, serial fork workers, timeouts, stream capture, structured results,
+  reports and exit mapping.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
   usage exits 2; internal contract violations and documented limits exit 71.
 - **Contract verification**: exact three-entry version output, `tc` option/
-  terminator/uint64-timeout grammar, side-effect-free unavailable `--test`,
-  missing-file/output-I/O behavior, release audit and test labels.
+  terminator/uint64-timeout grammar, `--test` discovery/filtering and fail-closed
+  behavior, missing-file/output-I/O behavior, release audit and test labels.
 - **P1 tests**: register `project.manifest`, `project.init` and
   `project.init_fault`, and update `cli.contract`; cover manifest/root discovery,
   the full template, preflight/identity/alias checks and rollback at every fault point.
+- **P2 tests**: register `project.paths_unit`, `project.paths` and
+  `project.paths_aot`; cover root-relative/external/fallback display, module
+  identity, include/profile handling, error precedence, source bounds and AOT paths.
+- **P3 tests**: register `project.test_runner`; cover discovery/filtering, path
+  boundaries, strict sidecars, private snapshots, fork workers, timeouts, stream
+  capture, structured results, reports and exit mapping.
 - **Failure-path verification**: allocation-by-allocation OOM injection and cleanup
   checks for SEM, the VM and all three backends, closed stdout/stderr and
   side-effect checks,
@@ -30,15 +44,16 @@
 
 ### Status
 
-- There are 76 registered 0.0.47 CTests (73 at P0 plus three P1 tests). P1
-  full Debug/Release/ASan+UBSan regressions each pass 76/76. The accepted 0.0.46
-  baseline remains harness 873/873, coverage 636/636, with all closing checks
-  and release audits passing.
-- P0/T0 and P1 are complete; P2–P5/T1–T6 have not started and G11 is incomplete.
-  `tc --init-project` is available; the manifest is not yet consumed by the
-  compiler, and `tc --test` still explicitly exits 70.
-- P4b VM debug-ELF internal layout is implementation verification with evidence
-  only and does not write back to the specification.
+- There are 80 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests
+  and one P3 test). Debug, Release and ASan+UBSan full CTest runs each pass 80/80,
+  and all 51 required closing checks pass. The accepted 0.0.46 baseline remains
+  harness 873/873, coverage 636/636, with all closing checks and release audits
+  passing.
+- P0/T0, P1, P2 and P3 are complete; P4a/P4b, P5 and T1–T6 have not started and
+  G11 is incomplete. `tc --init-project`, compiler path consumption and `tc --test`
+  are available.
+- The P4b VM debug-ELF internal layout must not be written back to the frozen
+  specification.
 
 ## [0.0.46] - 2026-11-19
 

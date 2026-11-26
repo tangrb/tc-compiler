@@ -31,6 +31,8 @@ typedef struct {
  * A manifest symlink is followed for content, never for the project root. */
 int tc_project_manifest_load(const char *manifest_path, const char *project_root,
                              TcProjectManifest **out, TcProjectError *error);
+int tc_project_manifest_load_fd(int fd, const char *project_root,
+                                TcProjectManifest **out, TcProjectError *error);
 
 /* start_directory is canonicalized, then tc.project entries are searched from
  * that directory through its parents.  With no entry, root is start_directory

@@ -4335,6 +4335,8 @@ static TcAnalysis *analyze_impl(const char *root_path,
                                 unsigned addr_width,
                                 const char *const *include_roots,
                                 size_t ninclude_roots, int sem_only,
+                                TcPathContext *paths,
+                                const TcModuleRootSource *source,
                                 TcAnalysisStatus *out_status,
                                 TcAnalysisDiag *out_diag, TcImplError *out_impl) {
     const TcAllocator *alloc;
@@ -4367,7 +4369,11 @@ static TcAnalysis *analyze_impl(const char *root_path,
     }
     memset(out_diag, 0, sizeof(*out_diag));
     *out_impl = TC_IMPL_OK;
-    graph = tc_module_graph_load(root_path, include_roots, ninclude_roots);
+    graph = source != NULL
+                ? tc_module_graph_load_source(source, include_roots,
+                                              ninclude_roots, paths)
+                : tc_module_graph_load_with_paths(root_path, include_roots,
+                                                  ninclude_roots, paths);
     if (graph == NULL) {
         *out_status = TC_ANALYSIS_IMPL;
         *out_impl = TC_IMPL_OOM;
@@ -4513,7 +4519,42 @@ TcAnalysis *tc_analyze_with_profile(const char *root_path,
                                     TcAnalysisDiag *out_diag,
                                     TcImplError *out_impl) {
     return analyze_impl(root_path, profile, addr_width, include_roots,
-                        ninclude_roots, 0, out_status, out_diag, out_impl);
+                        ninclude_roots, 0, NULL, NULL, out_status, out_diag,
+                        out_impl);
+}
+
+TcAnalysis *tc_analyze_with_paths(const char *root_path,
+                                  const TcPlatformProfile *profile,
+                                  unsigned addr_width,
+                                  const char *const *include_roots,
+                                  size_t ninclude_roots,
+                                  TcPathContext *paths,
+                                  TcAnalysisStatus *out_status,
+                                  TcAnalysisDiag *out_diag,
+                                  TcImplError *out_impl) {
+    return analyze_impl(root_path, profile, addr_width, include_roots,
+                        ninclude_roots, 0, paths, NULL, out_status, out_diag,
+                        out_impl);
+}
+
+TcAnalysis *tc_analyze_source(const TcModuleRootSource *source,
+                              const TcPlatformProfile *profile,
+                              unsigned addr_width,
+                              const char *const *include_roots,
+                              size_t ninclude_roots,
+                              TcPathContext *paths,
+                              TcAnalysisStatus *out_status,
+                              TcAnalysisDiag *out_diag,
+                              TcImplError *out_impl) {
+    if (source == NULL) {
+        if (out_impl != NULL) {
+            *out_impl = TC_IMPL_USAGE;
+        }
+        return NULL;
+    }
+    return analyze_impl(source->path, profile, addr_width, include_roots,
+                        ninclude_roots, 0, paths, source, out_status, out_diag,
+                        out_impl);
 }
 
 TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
@@ -4521,7 +4562,8 @@ TcAnalysis *tc_analyze(const char *root_path, unsigned addr_width,
                        size_t ninclude_roots, TcAnalysisStatus *out_status,
                        TcAnalysisDiag *out_diag, TcImplError *out_impl) {
     return analyze_impl(root_path, NULL, addr_width, include_roots,
-                        ninclude_roots, 0, out_status, out_diag, out_impl);
+                        ninclude_roots, 0, NULL, NULL, out_status, out_diag,
+                        out_impl);
 }
 
 TcAnalysis *tc_analyze_sem_only(const char *root_path, unsigned addr_width,
@@ -4531,7 +4573,18 @@ TcAnalysis *tc_analyze_sem_only(const char *root_path, unsigned addr_width,
                                 TcAnalysisDiag *out_diag,
                                 TcImplError *out_impl) {
     return analyze_impl(root_path, NULL, addr_width, include_roots,
-                        ninclude_roots, 1, out_status, out_diag, out_impl);
+                        ninclude_roots, 1, NULL, NULL, out_status, out_diag,
+                        out_impl);
+}
+
+TcAnalysis *tc_analyze_sem_only_with_paths(
+    const char *root_path, unsigned addr_width,
+    const char *const *include_roots, size_t ninclude_roots,
+    TcPathContext *paths, TcAnalysisStatus *out_status,
+    TcAnalysisDiag *out_diag, TcImplError *out_impl) {
+    return analyze_impl(root_path, NULL, addr_width, include_roots,
+                        ninclude_roots, 1, paths, NULL, out_status, out_diag,
+                        out_impl);
 }
 
 void tc_analysis_destroy(TcAnalysis *analysis) {
@@ -4553,6 +4606,12 @@ void tc_analysis_destroy(TcAnalysis *analysis) {
 
 const TcIR *tc_analysis_ir(const TcAnalysis *analysis) {
     return analysis == NULL ? NULL : analysis->ir;
+}
+
+const char *tc_analysis_failure_path(const TcAnalysis *analysis) {
+    return analysis == NULL || analysis->graph == NULL
+               ? NULL
+               : analysis->graph->failed_display;
 }
 
 const TcTypeTable *tc_analysis_type_table(const TcAnalysis *analysis) {

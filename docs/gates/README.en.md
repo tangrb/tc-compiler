@@ -19,15 +19,22 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G10 | S10 multi-target expansion and long-term regression | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 | G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
 
-**Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0 and
-P1 of `tc-0.0.47` are complete: split versions, three private entry points, the
-shared implementation-error exit mapping, the `tc` CLI contract, release audit,
+**Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0, P1,
+P2 and P3 of `tc-0.0.47` are complete: split versions, three private entry points,
+the shared implementation-error exit mapping, the `tc` CLI contract, release audit,
 full `tc --init-project` templates with atomic writes/rollback/identity checks,
-and `tc.project` v1 parsing with nearest-ancestor root discovery. The manifest is
-not yet consumed by the compiler. P2–P5/T1–T6 have not started, `tc --test` still
-explicitly exits 70, and G11 is incomplete. There are 76 registered 0.0.47 CTests;
-P1 full Debug/Release/ASan+UBSan regressions each pass 76/76. The accepted 0.0.46
-harness remains 873/873.
+`tc.project` v1 parsing with nearest-ancestor root discovery, and compiler
+consumption of manifest/include/profile data. Canonical and project-root-relative
+display paths are separate; diagnostics, IR metadata, VM traps and AOT source
+strings use display paths. Module identity uses bound parent directories and actual
+entry names, and source reads are nonblocking and descriptor-bound. `tc --test`
+now implements one-level discovery/filtering, fd-anchored beneath resolution,
+strict sidecars, private read-only snapshots, fork workers, timeouts, stream capture,
+structured results, reports and exit mapping; evidence entry points are
+`tests/project/test_runner_test.py` and `project.test_runner`. P4a/P4b, P5 and T1–T6
+have not started, and G11 is incomplete. There are 80 registered 0.0.47 CTests;
+Debug, Release and ASan+UBSan full CTest runs each pass 80/80, and all 51 required
+closing checks pass. The accepted 0.0.46 harness remains 873/873.
 The front end, CT/IR, runtime semantic
 core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
 W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core

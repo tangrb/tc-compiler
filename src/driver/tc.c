@@ -6,6 +6,7 @@
 #include "contract/contract.h"
 #include "diagnostic/diagnostic.h"
 #include "driver/cli.h"
+#include "driver/test_runner.h"
 #include "project/init.h"
 
 typedef enum {
@@ -19,9 +20,7 @@ static int print_usage(FILE *stream) {
             "usage: tc --init-project [--] project_name\n"
             "       tc --test [--test-timeout=<seconds>] [--] [test_name...]\n"
             "       tc --help\n"
-            "       tc --version\n"
-            "\n"
-            "Project test execution is not yet available.\n");
+            "       tc --version\n");
 }
 
 static int usage_error(const char *detail) {
@@ -38,19 +37,8 @@ static int usage_error(const char *detail) {
     return tc_impl_error_exit(TC_IMPL_USAGE);
 }
 
-static int unavailable(const char *operation) {
-    int failed = tc_cli_write(stderr, "tc: %s: %s: %s\n",
-                              tc_impl_error_symbol(TC_IMPL_UNAVAILABLE),
-                              tc_impl_error_message(TC_IMPL_UNAVAILABLE),
-                              operation);
-    if (failed != 0 || tc_cli_flush(stderr) != 0) {
-        return tc_impl_error_exit(TC_IMPL_IO);
-    }
-    return tc_impl_error_exit(TC_IMPL_UNAVAILABLE);
-}
-
-static int parse_timeout(const char *value) {
-    uint64_t seconds = 0;
+static int parse_timeout(const char *value, uint64_t *out_seconds) {
+    uint64_t parsed = 0;
     const unsigned char *cursor = (const unsigned char *)value;
     if (*cursor == '\0') {
         return 0;
@@ -61,19 +49,22 @@ static int parse_timeout(const char *value) {
             return 0;
         }
         digit = (unsigned int)(*cursor - (unsigned char)'0');
-        if (seconds > (UINT64_MAX - digit) / 10u) {
+        if (parsed > (UINT64_MAX - digit) / 10u) {
             return 0;
         }
-        seconds = seconds * 10u + digit;
+        parsed = parsed * 10u + digit;
         cursor++;
     }
+    *out_seconds = parsed;
     return 1;
 }
 
 static int run(int argc, char **argv) {
     TcProjectOperation operation = TC_PROJECT_NONE;
-    const char *operation_name = NULL;
     const char *project_name = NULL;
+    const char *timeout_text = NULL;
+    uint64_t timeout_seconds = 0;
+    size_t ntest_names = 0;
     int timeout_seen = 0;
     int terminated = 0;
     int i;
@@ -103,16 +94,14 @@ static int run(int argc, char **argv) {
     }
     if (strcmp(argv[1], "--init-project") == 0) {
         operation = TC_PROJECT_INIT;
-        operation_name = "--init-project";
     } else if (strcmp(argv[1], "--test") == 0) {
         operation = TC_PROJECT_TEST;
-        operation_name = "--test";
     } else {
         return usage_error("operation must be the first argument");
     }
 
     for (i = 2; i < argc; i++) {
-        const char *arg = argv[i];
+        char *arg = argv[i];
         if (!terminated && strcmp(arg, "--") == 0) {
             terminated = 1;
             continue;
@@ -137,10 +126,12 @@ static int run(int argc, char **argv) {
             if (timeout_seen) {
                 return usage_error("--test-timeout cannot repeat");
             }
-            if (!parse_timeout(arg + sizeof("--test-timeout=") - 1)) {
+            if (!parse_timeout(arg + sizeof("--test-timeout=") - 1,
+                               &timeout_seconds)) {
                 return usage_error("--test-timeout requires nonnegative uint64 seconds");
             }
             timeout_seen = 1;
+            timeout_text = arg + sizeof("--test-timeout=") - 1;
             continue;
         }
         if (!terminated && arg[0] == '-' && arg[1] != '\0') {
@@ -151,6 +142,8 @@ static int run(int argc, char **argv) {
                 return usage_error("--init-project accepts exactly one project name");
             }
             project_name = arg;
+        } else {
+            argv[2 + ntest_names++] = arg;
         }
     }
     if (operation == TC_PROJECT_INIT && project_name == NULL) {
@@ -159,7 +152,8 @@ static int run(int argc, char **argv) {
     if (operation == TC_PROJECT_INIT) {
         return tc_impl_error_exit(tc_project_init(project_name, stdout, stderr));
     }
-    return unavailable(operation_name);
+    return tc_test_runner_run((const char *const *)(argv + 2), ntest_names,
+                              timeout_seconds, timeout_text);
 }
 
 int main(int argc, char **argv) {

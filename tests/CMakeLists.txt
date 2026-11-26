@@ -55,6 +55,13 @@ target_link_libraries(tc_project_init_fault_test PRIVATE tc_core)
 target_include_directories(tc_project_init_fault_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_project_init_fault_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
+add_executable(tc_path_test unit/path_test.c)
+target_link_libraries(tc_path_test PRIVATE tc_core)
+target_include_directories(tc_path_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_definitions(tc_path_test PRIVATE
+    TC_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_options(tc_path_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 add_executable(tc_dump_codes unit/dump_codes.c)
 target_link_libraries(tc_dump_codes PRIVATE tc_core)
 target_include_directories(tc_dump_codes PRIVATE ${PROJECT_SOURCE_DIR}/src)
@@ -76,6 +83,15 @@ add_test(NAME project.init
          COMMAND ${Python3_EXECUTABLE}
                  ${CMAKE_CURRENT_SOURCE_DIR}/project/tc_cli_test.py
                  $<TARGET_FILE:tc>)
+add_test(NAME project.test_runner
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/project/test_runner_test.py --check
+                 $<TARGET_FILE:tc>)
+add_test(NAME project.paths_unit COMMAND tc_path_test)
+add_test(NAME project.paths
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/project/path_test.py --check
+                 $<TARGET_FILE:tc-vm>)
 add_test(NAME project.init_fault
          COMMAND ${Python3_EXECUTABLE}
                  ${CMAKE_CURRENT_SOURCE_DIR}/project/init_fault_test.py
@@ -120,6 +136,8 @@ add_test(
             $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot> $<TARGET_FILE:tc>)
 set_tests_properties(contract.unit cli.contract oom.unit release.audit_selftest
                     project.manifest project.init project.init_fault
+                    project.test_runner
+                    project.paths_unit project.paths
                     PROPERTIES LABELS "unit;toolchain;fast")
 
 # --- traceability / golden / harness checks ----------------------------------
@@ -186,6 +204,11 @@ if(TC_ENABLE_AOT_TESTS AND
         "-DTC_ENABLE_AOT_TESTS=OFF")
 endif()
 if(TC_ENABLE_AOT_TESTS)
+    add_test(NAME project.paths_aot
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/project/path_aot_test.py --check
+                     $<TARGET_FILE:tc-aot> ${TC_LLD} ${TC_QEMU_SYSTEM_AARCH64})
+    set_tests_properties(project.paths_aot PROPERTIES LABELS "toolchain;aot")
     add_test(NAME conformance.s7_diff
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/diff/s7_cases.py

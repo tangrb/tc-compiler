@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0/T0 治理与三入口契约已完成，P1 的工程初始化与 manifest/根发现 API 亦已完成。manifest 尚未接入编译器消费，P2–P5/T1–T6 尚未开始；`tc --test` 仍显式退出 70。
+感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0/T0 治理与三入口契约、P1 工程初始化与 manifest/根发现 API、P2 canonical/显示路径与编译器路径消费、P3 工程测试 runner 均已完成。P4a/P4b、P5 与 T1–T6 尚未开始。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -44,9 +44,12 @@ ctest --test-dir build --output-on-failure
 汇编/ELF/裸二进制产物，
 `--checked` 生成 checked build；当前平台实例外的能力显式退出 70 且不发布错误产物。
 `tc --init-project` 已在当前 canonical 目录实现完整模板、原子写入、回滚与身份检查；
-manifest 解析/最近根发现 API 尚未接入编译器消费，`tc --test` 仍显式退出 70，
-不执行测试。P1 测试入口为 `project.manifest`、`project.init`、`project.init_fault`，
-可用 `ctest --test-dir build -R '^project\.' --output-on-failure` 运行。
+编译器已消费 manifest 解析/最近根发现、canonical/显示路径、include 与 profile；
+`tc --test` 已实现发现/筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、
+fork worker、超时、流捕获、结构化结果、报告与退出映射。P1/P2/P3 测试入口为
+`project.manifest`、`project.init`、`project.init_fault`、`project.paths_unit`、
+`project.paths`、`project.paths_aot` 与 `project.test_runner`，可用
+`ctest --test-dir build -R '^project\.' --output-on-failure` 运行。
 AOT 差分/工具链测试需要 `clang`、`llvm-ar`、`ld.lld`、`qemu-system-aarch64`、
 `qemu-system-arm` 与 `qemu-system-riscv32`。
 

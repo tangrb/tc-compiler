@@ -358,7 +358,7 @@ static void build_modules(IrBuild *b) {
         size_t i;
         for (i = 0; i < an->nmodules; i++) {
             b->ir->modules[i].id = (uint32_t)i;
-            b->ir->modules[i].path = an->modules[i].info->path;
+            b->ir->modules[i].path = an->modules[i].info->display_path;
         }
     }
 }

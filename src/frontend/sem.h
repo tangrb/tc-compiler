@@ -13,8 +13,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "base/path.h"
 #include "diagnostic/diagnostic.h"
 #include "frontend/diag.h"
+#include "frontend/module.h"
 #include "ir/ir.h"
 #include "ir/structs.h"
 #include "ir/type.h"
@@ -57,6 +59,26 @@ TcAnalysis *tc_analyze_with_profile(const char *root_path,
                                     TcAnalysisDiag *out_diag,
                                     TcImplError *out_impl);
 
+TcAnalysis *tc_analyze_with_paths(const char *root_path,
+                                  const TcPlatformProfile *profile,
+                                  unsigned addr_width,
+                                  const char *const *include_roots,
+                                  size_t ninclude_roots,
+                                  TcPathContext *paths,
+                                  TcAnalysisStatus *out_status,
+                                  TcAnalysisDiag *out_diag,
+                                  TcImplError *out_impl);
+
+TcAnalysis *tc_analyze_source(const TcModuleRootSource *source,
+                              const TcPlatformProfile *profile,
+                              unsigned addr_width,
+                              const char *const *include_roots,
+                              size_t ninclude_roots,
+                              TcPathContext *paths,
+                              TcAnalysisStatus *out_status,
+                              TcAnalysisDiag *out_diag,
+                              TcImplError *out_impl);
+
 /* Partial static check through SEM: type table frozen, CT/IR/codegen not run.
  * Exit status OK never claims the program is valid (CT diagnostics are not
  * computed). */
@@ -67,11 +89,18 @@ TcAnalysis *tc_analyze_sem_only(const char *root_path, unsigned addr_width,
                                 TcAnalysisDiag *out_diag,
                                 TcImplError *out_impl);
 
+TcAnalysis *tc_analyze_sem_only_with_paths(
+    const char *root_path, unsigned addr_width,
+    const char *const *include_roots, size_t ninclude_roots,
+    TcPathContext *paths, TcAnalysisStatus *out_status,
+    TcAnalysisDiag *out_diag, TcImplError *out_impl);
+
 void tc_analysis_destroy(TcAnalysis *analysis);
 
 const TcTypeTable *tc_analysis_type_table(const TcAnalysis *analysis);
 /* Finalized IR for an OK analysis (NULL for SEM-only or failed analyses). */
 const TcIR *tc_analysis_ir(const TcAnalysis *analysis);
+const char *tc_analysis_failure_path(const TcAnalysis *analysis);
 int tc_analysis_type_table_frozen(const TcAnalysis *analysis);
 unsigned tc_analysis_addr_width(const TcAnalysis *analysis);
 

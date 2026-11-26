@@ -3,10 +3,12 @@
 0.0.46 为 clean-sheet 实现基线。实现与验证以标准/设计/测试计划为准；历史实现、工具与测试
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
-两份设计已达到冻结条件；P0/T0 与 P1 已完成，P2–P5/T1–T6 尚未开始。
+两份设计已达到冻结条件；P0/T0、P1、P2 与 P3 已完成，P4a/P4b、P5 与 T1–T6 尚未开始。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
-回滚与身份检查。`src/project/manifest.c` 提供 `tc.project` v1 解析与最近根发现 API，
-但尚未接入编译器消费；`tc --test` 仍显式退出 70。RTOS/中断/并发移交 0.0.48。
+回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
+私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
+编译器已消费 `tc.project`、canonical 根、有序 include 根与工程根相对显示路径。
+RTOS/中断/并发移交 0.0.48。
 
 ## 当前事实
 
@@ -35,15 +37,17 @@
   与范围限制见 `tests/conformance/abi/README.md`。代码在 `src/frontend/`、`src/ir/`、
   `src/runtime/`、`src/vm/`、`src/backend/` 与 `src/driver/`。
 - 0.0.47 当前实现：P0/T0 完成版本拆分、三入口 CLI 契约与私有 `TcImplError` 退出码映射；
-  P1 完成 `tc --init-project` 的完整模板、原子写入、回滚与身份检查，并在
-  `src/project/manifest.c` 实现 `tc.project` v1 解析与最近根发现 API。manifest 尚未接入
-  编译器消费；P2 路径消费者、P3 测试 runner 与可观测/调试接口、P4b VM 调试 ELF
-  尚未实现，`tc --test` 仍显式退出 70，不得写成已支持。
+  P1 完成 `tc --init-project` 的完整模板、原子写入、回滚与身份检查，以及 `tc.project` v1
+  解析与最近根发现 API；P2 完成 manifest/include/profile 的编译器消费、canonical 与显示
+  路径分离、父目录 fd 锚定的模块身份、非阻塞有界源读取和 import 候选绑定。诊断、IR、
+  VM trap 与 AOT 源字符串均使用工程根相对显示路径。P3 完成 `tc --test` 的一层发现/
+  筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、流捕获、
+  结构化结果、报告与退出映射。P4a/P4b、P5 与 T1–T6 尚未开始。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
-  已注册 CTest 总数 76，P1 的 Debug/Release/ASan+UBSan 全量回归均为 76/76；
-  见 `docs/gates/README.md`。
+  已注册 CTest 总数 80；Debug、Release 与 ASan+UBSan 全量 CTest 均为 80/80，51 项
+  收尾检查全部通过，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。三个入口只链接私有静态 `tc_core`。
@@ -157,7 +161,8 @@
 | 阶段 / 覆盖 / 门禁要求 | `docs/TC开发测试计划-0.0.46.md` |
 | 0.0.47 工具链范围 / 契约 / 里程碑 | `docs/TC开发调试工具链-0.0.47.md` |
 | 0.0.47 工程模型 / tc / 测试布局 | `docs/TC工程模型-0.0.47.md` |
-| 工程名称 / manifest / 初始化 | `src/project/name.h`、`manifest.h`、`init.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault` |
+| 工程名称 / manifest / 初始化 / 路径 | `src/project/name.h`、`manifest.h`、`init.h`、`paths.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault`，P2 入口 `project.paths_unit`/`project.paths`/`project.paths_aot` |
+| 工程测试 runner / `tc --test` | `src/driver/test_runner.h`、`test_runner.c`；P3 入口 `project.test_runner` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |

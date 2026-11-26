@@ -65,7 +65,7 @@ def tree_snapshot(cwd: Path) -> dict[str, bytes]:
 
 def check_project_cli(tool: str, cwd: Path,
                       before: dict[str, bytes]) -> None:
-    valid_unavailable = [
+    valid_projectless = [
         ["--test"],
         ["--test", "--test-timeout=0"],
         ["--test", "alpha", "--test-timeout=18446744073709551615", "beta"],
@@ -122,14 +122,11 @@ def check_project_cli(tool: str, cwd: Path,
         ["--test", "--test-timeout=1", "--test-timeout=2"],
         ["--init-project", "demo", "--test-timeout=1"],
     ]
-    for args in valid_unavailable:
+    for args in valid_projectless:
         result = run(tool, args, cwd)
-        check(result.returncode == 70, f"tc {args!r} unavailable exit {result.returncode}")
-        check(result.stdout == "", f"tc {args!r} unavailable stdout")
-        check(
-            result.stderr.startswith("tc: tc_error_unavailable: "),
-            f"tc {args!r} unavailable error channel",
-        )
+        check(result.returncode == 2, f"tc {args!r} projectless exit {result.returncode}")
+        check(result.stdout == "", f"tc {args!r} projectless stdout")
+        check(result.stderr == "", f"tc {args!r} projectless stderr")
         check(tree_snapshot(cwd) == before,
               f"tc {args!r} must not change project files")
     for args in valid_init:

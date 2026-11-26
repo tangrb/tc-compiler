@@ -4,6 +4,7 @@
 
 add_library(tc_core STATIC
     # Cross-cutting frozen contracts.
+    base/path.c
     contract/contract.c
     contract/optimizer.c
     # Closed diagnostic set, table and first-diagnostic selection.
@@ -49,6 +50,7 @@ add_library(tc_core STATIC
     # Project model.
     project/name.c
     project/manifest.c
+    project/paths.c
     project/init.c
 
     # Code shared by the tool entry points.
@@ -56,6 +58,7 @@ add_library(tc_core STATIC
     driver/frontend_driver.c
     driver/aot_driver.c
     driver/profile_select.c
+    driver/test_runner.c
 )
 
 target_include_directories(tc_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

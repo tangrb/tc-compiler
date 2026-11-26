@@ -35,6 +35,7 @@ typedef struct {
     size_t ninclude_roots;
     TcOptLevel opt;
     int checked;
+    int profile_seen;
     int syntax_only; /* partial LEX/SYN check; not a valid-program claim */
     int sem_only;    /* partial LEX/SYN/IMPORT/SEM check; CT/IR/codegen not run */
     int static_only; /* static stages through CT + IR finalization; no codegen */
