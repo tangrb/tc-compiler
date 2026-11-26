@@ -46,6 +46,7 @@ typedef struct {
 
 typedef struct TcArm32Emitter {
     const TcIR *ir;
+    const TcLineMap *linemap;
     const TcPlatformProfile *profile;
     const TcAllocator *alloc;
     FILE *out;

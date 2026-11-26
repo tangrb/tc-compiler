@@ -50,7 +50,7 @@ static int checks = 0;
 static TcAnalysis *analyze_text(const char *text, unsigned width,
                                 TcAnalysisStatus *status,
                                 TcAnalysisDiag *diag) {
-    char path[] = "/tmp/tc-sem-XXXXXX";
+    char path[] = TC_TEST_TMP_ROOT "/tc-sem-XXXXXX";
     int fd = mkstemp(path);
     FILE *file;
     TcImplError impl = TC_IMPL_OK;
@@ -100,7 +100,7 @@ static int write_text_file(const char *path, const char *text) {
 static TcAnalysis *analyze_lib_text(const char *text, unsigned width,
                                     TcAnalysisStatus *status,
                                     TcAnalysisDiag *diag) {
-    char dir[] = "/tmp/tc-sem-lib-XXXXXX";
+    char dir[] = TC_TEST_TMP_ROOT "/tc-sem-lib-XXXXXX";
     char lib_path[512];
     char root_path[512];
     static const char *root = "#program\nimport lib\n";

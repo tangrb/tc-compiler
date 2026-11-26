@@ -3,7 +3,7 @@
 0.0.46 为 clean-sheet 实现基线。实现与验证以标准/设计/测试计划为准；历史实现、工具与测试
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
-两份设计已达到冻结条件；P0/T0、P1、P2 与 P3 已完成，P4a/P4b、P5 与 T1–T6 尚未开始。
+两份设计已达到冻结条件；P0/T0、P1、P2、P3 与 P4a 已完成，P4b、P5 与 T1–T6 尚未开始。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
 回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
@@ -42,11 +42,13 @@ RTOS/中断/并发移交 0.0.48。
   路径分离、父目录 fd 锚定的模块身份、非阻塞有界源读取和 import 候选绑定。诊断、IR、
   VM trap 与 AOT 源字符串均使用工程根相对显示路径。P3 完成 `tc --test` 的一层发现/
   筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、流捕获、
-  结构化结果、报告与退出映射。P4a/P4b、P5 与 T1–T6 尚未开始。
+  结构化结果、报告与退出映射；P4a 完成共享确定性行表、私有 AOT `.loc`/源注释与
+  最小 DWARF v4 CU（clang 生成 `.debug_line`），并在发布诊断/产物前保护 stdio、
+  项目输入与输出保留身份。公开 `tc-aot --debug`/`--dump-linemap`、P4b、P5 与 T1–T6 尚未开始。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
-  已注册 CTest 总数 80；Debug、Release 与 ASan+UBSan 全量 CTest 均为 80/80，51 项
+  已注册 CTest 总数 82；Debug、Release 与 ASan+UBSan 全量 CTest 均为 82/82，50 项
   收尾检查全部通过，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
@@ -66,7 +68,9 @@ RTOS/中断/并发移交 0.0.48。
 3. **文档改动最小化**：只改相关章节；不要凭旧实现行为反推语义。
 4. **32/64 同时考虑**：`usize`/`isize`、`sizeof`、`bitcast`/`trunc`、布局与诊断的字长差异
    必须显式处理。
-5. **构建与测试**：`cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`。
+5. **构建与测试**：`cmake -S . -B .tmp/build && cmake --build .tmp/build && ctest --test-dir .tmp/build --output-on-failure`。
+   CTest 将 `TMPDIR` 固定为项目 `.tmp/`；临时测试脚本、fixture 与编译产物均置于 `.tmp/`，
+   版本控制测试源仍位于 `tests/`。不得提交 `build/`、`.tmp/` 或生成物。
    `--syntax-only`/`--sem-only`/`--static-only` 都是部分检查，退出 0 不表示程序有效；
    `--static-only` 含 CT 与 IR 最终化。普通 `tc-vm` 调用执行参考 VM（正常退出 0，
    trap 退出 1）；普通 `tc-aot` 调用发射目标汇编，`--emit=asm|obj|elf|flat` 经
@@ -75,7 +79,8 @@ RTOS/中断/并发移交 0.0.48。
    平台实例设备策略；
    无后端/工具链映射的档案显式退出 70 且不发布错误产物。不得把部分能力写成“已支持”。
    S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld`、
-   `qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；缺失时配置失败。
+   `qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；P4a DWARF 校验另需
+   `llvm-dwarfdump`；缺失时配置失败。
    `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
    llvm-ar（或对应 target ar），且不用于门禁。
 6. **提交信息**：`docs(0.0.47): ...` 或 `chore(0.0.47): ...`。
@@ -104,7 +109,7 @@ RTOS/中断/并发移交 0.0.48。
 5. **同步当前状态**：更新 README/AGENTS/CONTRIBUTING/文档地图/测试 README 的当前能力、
    测试计数、门禁状态与链接；CHANGELOG 按发布版本收敛为当前条目。
 6. **全量验证**：执行
-   `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`，
+   `cmake -S . -B .tmp/build && cmake --build .tmp/build && ctest --test-dir .tmp/build --output-on-failure`，
    并确认 `tests/conformance/static/*_cases.py --check`、
    `tests/conformance/runtime/s6_cases.py --check`、
    `tests/conformance/static/s6_static_cases.py --check`、
@@ -144,10 +149,10 @@ RTOS/中断/并发移交 0.0.48。
    `tests/determinism/s10_determinism.py --check`、
    `tests/tools/s10_release_audit.py --check`、
    `tests/golden/validate.py`、
-   `tests/golden/run.py build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
+   `tests/golden/run.py .tmp/build/src/driver/tc-vm`、`tests/traceability/coverage.py --check`
    与 `tests/tools/docs_cleanup_check.py` 均通过。
 7. **提交与洁净**：以 `docs(0.0.47): ...` 提交清理结果；确认 `git status` 干净，
-   `build/` 与生成物未入库。
+   `build/`、`.tmp/` 与生成物未入库。
 
 `docs.cleanup`（`tests/tools/docs_cleanup_check.py`）是上述清理的固定门禁：
 出现审计/勘误/commit pin、门禁记录超长或 changelog 版本重复时失败。
@@ -163,6 +168,7 @@ RTOS/中断/并发移交 0.0.48。
 | 0.0.47 工程模型 / tc / 测试布局 | `docs/TC工程模型-0.0.47.md` |
 | 工程名称 / manifest / 初始化 / 路径 | `src/project/name.h`、`manifest.h`、`init.h`、`paths.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault`，P2 入口 `project.paths_unit`/`project.paths`/`project.paths_aot` |
 | 工程测试 runner / `tc --test` | `src/driver/test_runner.h`、`test_runner.c`；P3 入口 `project.test_runner` |
+| 共享行表 / AOT 调试信息 | `src/ir/linemap.h`、`linemap.c`、`src/driver/aot_driver.c`；P4a 入口 `linemap.unit`/`p4a.debug` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |

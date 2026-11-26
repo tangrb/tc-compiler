@@ -130,6 +130,50 @@ contract check.
   preserved and reported as `cleanup failed: <path>`; stdout stays empty. The
   created/skipped report is post-commit: its I/O failure exits 70 without rolling
   back committed files.
+### Compiler output and debug conventions
+
+- `tc-vm` and `tc-aot` snapshot original fd0/fd1/fd2 identities before opening
+  internal descriptors. Internal descriptors stay above fd2. Closed standard
+  descriptors are not aliases; the eventual diagnostic/result/artifact write
+  determines the I/O result (70).
+- Confirmed stdin/stderr aliases and VM fd1/fd2 mixing are silent usage errors (2).
+  Explicit output aliases and output type errors are usage errors (2); host
+  open/create/reservation failures are 70. These checks precede cached source
+  diagnostics. A failed reservation cleanup is 70 and overrides an otherwise
+  returnable usage error.
+- Output identity is `(st_dev, st_ino)`, including root/import/manifest inputs.
+  Non-regular outputs are opened without blocking and the returned descriptor
+  is checked. Missing outputs use `O_CREAT|O_EXCL|O_NOFOLLOW` reservations; the
+  same reserved descriptor is used for delivery after an identity recheck.
+  Final output symlink chains allow missing referents, resolve relative targets
+  and reject cycles before reservation.
+- When analysis fails before the graph can enumerate all loaded modules, a
+  breadth-first scan follows actual `import <ident>` statements, not
+  arbitrary `.tc` files. It preserves logical-line continuations, continues
+  after per-line LEX errors, searches beside each canonical importer and then
+  through ordered include roots, stops at the first existing candidate and
+  deduplicates regular referents by inode. Failed roots and failed symlink
+  imports retain their canonical paths for this scan.
+- CLI argument errors are cached rather than printed during parsing. Parsing
+  continues only to establish the source/include safety set; the first error is
+  printed after stdio and potential-input identity checks. Help/version stdout
+  uses the same guard. Partial checks reject explicit `--emit`/`--output`
+  before frontend work.
+- The shared deterministic line map emits `tc-linemap` version 3 with stable key
+  order and external markers for `../`, `./` and cross-volume fallback display
+  paths. AOT debug assembly uses those final-IR spans in instruction order for
+  source comments and `.loc`; source strings remain project-root display paths.
+- Private AOT debug mode emits `.file`, `.asciz`, `.loc`, source comments and a
+  minimal DWARF v4 CU (`.debug_info`, `.debug_abbrev`, `.debug_str`); clang's
+  `-gdwarf-4 -fdebug-compilation-dir=.` produces `.debug_line`. `DW_AT_comp_dir`
+  is `.`, `DW_AT_name` is the root display path, and code bounds use fixed local
+  labels. `.debug_str` uses relocations rather than hardcoded offsets. Public
+  `--debug` and `--dump-linemap` remain outside this milestone.
+- Builds and all generated test fixtures, temporary files and artifacts belong
+  under project-local `.tmp/`; CTest exports `TMPDIR=${PROJECT_SOURCE_DIR}/.tmp`.
+  The test runner prefers `TMPDIR`, with `/tmp` only as the product fallback when
+  no environment setting is provided. Version-controlled test sources remain
+  under `tests/`; neither `build/` nor `.tmp/` is committed.
 - `tc --test` discovers only `tests/*/main.tc`, validates every filter and entry
   name before execution, and sorts selected tests by name bytes. Discovery,
   test-directory, main and sidecar resolution stay anchored to bound directory

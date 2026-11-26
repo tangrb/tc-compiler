@@ -4,14 +4,14 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 0.0.46 为 clean-sheet 实现基线：只保留标准、设计、测试计划与按设计重写的实现；
 历史实现与旧工具已移除，需要时从 git tag 获取。
 `tc-0.0.47` 分支目标是在语言语义、opcode、诊断码与 ABI 不变的前提下交付开发调试工具链
-与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2 与 P3 已完成，
-P4a/P4b、P5 与 T1–T6 尚未开始。
+与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3 与 P4a 已完成，
+P4b、P5 与 T1–T6 尚未开始。
 范围与契约见 [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) 与
 [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md)；RTOS、中断与并发移交 0.0.48。
 
 ## 当前状态
 
-- **0.0.47 P0–P3**：工具链版本 0.0.47 与语言/契约版本 0.0.46/1 分离；私有 `tc_core` 链接
+- **0.0.47 P0–P4a**：工具链版本 0.0.47 与语言/契约版本 0.0.46/1 分离；私有 `tc_core` 链接
   `tc`/`tc-vm`/`tc-aot` 三个入口；实现级错误统一映射为 0/2/70/71。
   `tc` 已实现工程 CLI 语法、`--help`/`--version` 与 `--init-project` 完整模板、
   原子写入、回滚和身份检查。编译器已消费 `tc.project` v1、canonical 工程根、有序
@@ -19,7 +19,10 @@ P4a/P4b、P5 与 T1–T6 尚未开始。
   源字符串使用工程根相对显示路径，源文件与 import 候选按绑定 fd 非阻塞有界读取。
   `tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车校验、私有只读
   快照、串行 fork worker、超时、流捕获、结构化结果、报告与退出映射。
-- **后续阶段**：P4a/P4b 调试信息与 VM 调试 ELF、P5 及 T1–T6 尚未开始。
+  P4a 已实现共享确定性行表与私有 AOT 调试发射：`.file`/`.asciz`/`.loc`、源注释、
+  最小 DWARF v4 CU 与 clang `.debug_line`；诊断、输入/输出身份与 stdio 保护在发布前完成。
+- **后续阶段**：P4b VM 调试 ELF、P5 及 T1–T6 尚未开始；公开 `tc-aot --debug` 与
+  `--dump-linemap` 不属于 P4a。
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
   CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
@@ -46,9 +49,9 @@ P4a/P4b、P5 与 T1–T6 尚未开始。
   发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
   长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-  P4a/P4b、P5 与 T1–T6 不在当前完成范围内。
-- **当前验证**：0.0.47 CTest 注册总数 80（P0 基线 73 + P1 三项 + P2 三项 + P3 一项）；
-  Debug、Release 与 ASan+UBSan 全量 CTest 均为 80/80，51 项收尾检查全部通过。0.0.46
+  P4b、P5 与 T1–T6 不在当前完成范围内。
+- **当前验证**：0.0.47 CTest 注册总数 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；
+  Debug、Release 与 ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46
   覆盖矩阵 636/636，G0–G10 PASS；**G10 完成 0.0.46 阶段出口，G11 未完成**。
   详见 [门禁状态](docs/gates/README.md)。
 
@@ -59,8 +62,8 @@ P4a/P4b、P5 与 T1–T6 尚未开始。
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 语言语义、诊断、编译器实现要求与平台档案的唯一权威 |
 | [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、运行时、平台档案、后端与分期路线 |
 | [TC 开发测试计划 0.0.46](docs/TC开发测试计划-0.0.46.md) | 阶段、门禁、覆盖与可追溯性 |
-| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P3 已实现 |
-| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P3 已实现 |
+| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a 已实现 |
+| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 已实现 |
 | [文档地图](docs/README.md) | 文档入口与阅读顺序 |
 
 ## 目标口径
@@ -96,14 +99,14 @@ tests/                L0–L7：单元、静态/运行时一致性、差分/ABI/
 ## 构建与测试
 
 ```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake -S . -B .tmp/build
+cmake --build .tmp/build
+ctest --test-dir .tmp/build --output-on-failure
 ```
 
 S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`（或对应 target ar）、
 `ld.lld`、`qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；
-工具缺失时配置失败。
+P4a 的 DWARF 校验另需 `llvm-dwarfdump`；工具缺失时配置失败。
 `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭依赖 lld/qemu 的 ctest 项；构建目标运行时仍需要
 clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
 工具当前支持：

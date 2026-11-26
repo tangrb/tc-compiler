@@ -86,7 +86,7 @@ def copy_tree(target: Path) -> None:
     shutil.copytree(
         ROOT, target,
         ignore=shutil.ignore_patterns(
-            ".git", "build", "build-*", "__pycache__", "*.pyc", "*.pyo"))
+            ".git", ".tmp", "build", "build-*", "__pycache__", "*.pyc", "*.pyo"))
 
 
 def configure_and_build(source: Path, build: Path) -> tuple[bool, str]:

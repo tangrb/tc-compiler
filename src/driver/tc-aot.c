@@ -36,10 +36,13 @@ int main(int argc, char **argv) {
         if (parsed == TC_CLI_PARSE_IO) {
             return tc_impl_error_exit(TC_IMPL_IO);
         }
-        if (tc_cli_print_usage(stderr, "tc-aot") != 0) {
-            return tc_impl_error_exit(TC_IMPL_IO);
+        return tc_driver_report_cli_error("tc-aot", &options);
+    }
+    if (options.help || options.version) {
+        int guard = tc_driver_cli_guard(&options);
+        if (guard != TC_EXIT_OK) {
+            return guard;
         }
-        return TC_EXIT_USAGE;
     }
     if (options.help) {
         if (tc_cli_print_usage(stdout, "tc-aot") != 0) {
@@ -56,6 +59,10 @@ int main(int argc, char **argv) {
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {
+        int guard = tc_driver_cli_guard(&options);
+        if (guard != TC_EXIT_OK) {
+            return guard;
+        }
         if (tc_cli_write(
                 stderr,
                 "tc-aot: tc_error_internal: built-in profile is invalid\n") !=

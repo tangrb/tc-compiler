@@ -3,6 +3,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 
+#include "base/fd.h"
 #include "project/init_internal.h"
 
 #include <errno.h>
@@ -91,12 +92,12 @@ static int default_mkdir(int parent_fd, const char *name, mode_t mode) {
 }
 
 static int default_create(int parent_fd, const char *name, mode_t mode) {
-    return openat(parent_fd, name,
+    return tc_fd_openat(parent_fd, name,
                   O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, mode);
 }
 
 static int default_open_dir(int parent_fd, const char *name) {
-    return openat(parent_fd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    return tc_fd_openat(parent_fd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
 }
 
 static ssize_t default_write(int fd, const void *data, size_t length) {
@@ -641,7 +642,7 @@ static TcImplError init_impl(InitContext *ctx) {
         return ctx->error;
     }
     ctx->root_fd = relocate_internal_fd(
-        ctx, open(canonical,
+        ctx, tc_fd_open(canonical,
                   O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC), NULL);
     free(canonical);
     if (ctx->root_fd < 0) {

@@ -77,7 +77,7 @@ typedef struct {
     int trap_line;
     int traps;
     TcPlatformProfile profile;
-    char dir[128];
+    char dir[1024];
     int dir_ok;
 } Harness;
 
@@ -162,7 +162,7 @@ static int harness_init(Harness *h, unsigned W, TcDevicePolicy device,
     if (depth_D != 0) {
         h->profile.depth_D = depth_D;
     }
-    strcpy(h->dir, "/tmp/tc-vm-unit-XXXXXX");
+    strcpy(h->dir, TC_TEST_TMP_ROOT "/tc-vm-unit-XXXXXX");
     if (mkdtemp(h->dir) == NULL) {
         return 0;
     }
@@ -177,7 +177,7 @@ static void harness_cleanup(Harness *h) {
         return;
     }
     for (i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
-        char path[256];
+        char path[1536];
         snprintf(path, sizeof(path), "%s/%s", h->dir, names[i]);
         unlink(path);
     }
@@ -202,7 +202,7 @@ static int write_text(const char *path, const char *text) {
  * caller before invoking this helper. */
 static int run_source(Harness *h, const char *source, TcVmResult *result,
                       TcVmStatus *status) {
-    char path[256];
+    char path[1536];
     TcAnalysis *an;
     TcAnalysisStatus astatus;
     TcAnalysisDiag diag;
@@ -759,7 +759,7 @@ static void test_program_trap_positions(Harness *h) {
         "end\n"
         "_ = return x\n"
         "end\n";
-    char path[256];
+    char path[1536];
 
     harness_cleanup(h);
     CHECK(harness_init(h, 64, TC_DEV_REJECT, 0, 0));
@@ -837,7 +837,7 @@ static void test_program_depth(void) {
         "_ = return n\n"
         "end\n";
     char root[256];
-    char path[256];
+    char path[1536];
 
     CHECK(harness_init(&local, 64, TC_DEV_REJECT, 0, 3));
     snprintf(path, sizeof(path), "%s/lib.tc", local.dir);

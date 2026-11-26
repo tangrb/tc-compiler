@@ -6,15 +6,15 @@ standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
-designs meet the freeze criteria. P0/T0, P1, P2 and P3 are complete;
-P4a/P4b, P5 and T1–T6 have not started. Scope and contracts are in
+designs meet the freeze criteria. P0/T0, P1, P2, P3 and P4a are complete;
+P4b, P5 and T1–T6 have not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
 
 ## Current status
 
-- **0.0.47 P0–P3**: toolchain version 0.0.47 is separate from language/contract
+- **0.0.47 P0–P4a**: toolchain version 0.0.47 is separate from language/contract
   version 0.0.46/1. The private `tc_core` links three entry points:
   `tc`, `tc-vm` and `tc-aot`. Implementation errors share the 0/2/70/71 mapping.
   `tc` implements project CLI grammar, `--help`, `--version` and the full
@@ -27,8 +27,11 @@ RTOS, interrupts and concurrency move to 0.0.48.
   `tc --test` implements one-level discovery/filtering, fd-anchored beneath
   resolution, strict sidecar validation, private read-only snapshots, serial fork
   workers, timeouts, stream capture, structured results, reports and exit mapping.
-- **Later stages**: P4a/P4b debug information and VM debug ELF, P5 and T1–T6 have
-  not started.
+  P4a adds the shared deterministic line map and private AOT debug emission:
+  `.file`/`.asciz`/`.loc`, source comments, a minimal DWARF v4 CU and clang's
+  `.debug_line`, with input/output identity and stdio guards before publication.
+- **Later stages**: P4b VM debug ELF, P5 and T1–T6 have not started. Public
+  `tc-aot --debug` and `--dump-linemap` are outside P4a.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -62,11 +65,11 @@ RTOS, interrupts and concurrency move to 0.0.48.
   corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
   implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
-  inlining); the 0.0.46 baseline stays zero-pass. P4a/P4b, P5 and T1–T6 are outside
+  inlining); the 0.0.46 baseline stays zero-pass. P4b, P5 and T1–T6 are outside
   the current completion scope.
-- **Current verification**: 80 registered 0.0.47 CTests (73 at P0, three P1 tests,
-  three P2 tests and one P3 test). Debug, Release and ASan+UBSan full CTest runs
-  each pass 80/80, and all 51 required closing checks pass. The 0.0.46 coverage
+- **Current verification**: 82 registered 0.0.47 CTests (73 at P0, three P1 tests,
+  three P2 tests, one P3 test and two P4a tests). Debug, Release and ASan+UBSan
+  full CTest runs each pass 82/82, and all 50 required closing checks pass. The 0.0.46 coverage
   matrix is 636/636 and G0–G10 PASS. **G10 completes the 0.0.46 stage exit; G11 is
   incomplete**. See [gate status](docs/gates/README.en.md).
 
@@ -77,8 +80,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P3 implemented |
-| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P3 implemented |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4a implemented |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a implemented |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope
@@ -117,14 +120,15 @@ tests/                L0–L7: unit, static/runtime conformance, differential/AB
 ## Build and test
 
 ```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake -S . -B .tmp/build
+cmake --build .tmp/build
+ctest --test-dir .tmp/build --output-on-failure
 ```
 
 The S7/S8/S9/S10 differential/toolchain tests require `clang`, `llvm-ar` (or the
 matching target ar), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
-`qemu-system-riscv32` by default; configuration fails when they are missing.
+`qemu-system-riscv32` by default; P4a DWARF verification also needs
+`llvm-dwarfdump`. Configuration fails when a required tool is missing.
 `-DTC_ENABLE_AOT_TESTS=OFF` only skips the lld/qemu-dependent ctest entries;
 building the target runtimes still requires clang and llvm-ar (or the matching
 target ar), and this is not a gate build. Tools currently support:

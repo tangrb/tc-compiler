@@ -9,6 +9,9 @@
 #ifndef TC_DRIVER_AOT_DRIVER_H
 #define TC_DRIVER_AOT_DRIVER_H
 
+#include <stddef.h>
+#include <sys/stat.h>
+
 #include "driver/cli.h"
 #include "frontend/sem.h"
 #include "runtime/profile.h"
@@ -19,5 +22,46 @@
 int tc_aot_driver_run(const TcAnalysis *analysis,
                       const TcPlatformProfile *profile,
                       const TcCliOptions *options);
+int tc_aot_driver_run_with_inputs(const TcAnalysis *analysis,
+                                  const TcPlatformProfile *profile,
+                                  const TcCliOptions *options,
+                                  const char *const *extra_inputs,
+                                  size_t nextra_inputs);
+
+typedef struct {
+    int open;
+    struct stat identity;
+} TcAotStdioDescriptor;
+
+typedef struct {
+    TcAotStdioDescriptor descriptors[3];
+} TcAotStdio;
+
+int tc_aot_driver_run_with_stdio(const TcAotStdio *stdio,
+                                 const TcAnalysis *analysis,
+                                 const TcPlatformProfile *profile,
+                                 const TcCliOptions *options,
+                                 const char *const *extra_inputs,
+                                 size_t nextra_inputs);
+void tc_aot_stdio_capture(TcAotStdio *stdio);
+TcImplError tc_aot_driver_stderr_guard(const TcAotStdio *stdio,
+                                       const TcAnalysis *analysis,
+                                       TcAnalysisStatus analysis_status,
+                                       const char *const *extra_inputs,
+                                       size_t nextra_inputs,
+                                       const char *source,
+                                       const char *const *include_roots,
+                                       size_t ninclude_roots);
+TcImplError tc_aot_driver_guard(const TcAotStdio *stdio,
+                                const TcAnalysis *analysis,
+                                TcAnalysisStatus analysis_status,
+                                const TcCliOptions *options,
+                                const char *const *extra_inputs,
+                                size_t nextra_inputs,
+                                const char *source,
+                                const char *const *include_roots,
+                                size_t ninclude_roots,
+                                int aot,
+                                int create_output);
 
 #endif /* TC_DRIVER_AOT_DRIVER_H */

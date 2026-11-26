@@ -16,6 +16,13 @@
 - **P3 工程测试 runner**：`tc --test` 实现一层发现/筛选、fd 锚定 beneath 解析、
   严格侧车校验、私有只读快照、串行 fork worker、超时、流捕获、结构化结果、
   报告与退出映射。
+- **P4a AOT 调试路径**：共享确定性行表与跨工程根相对/外部显示路径；私有 AOT 调试模式
+  按最终 IR 顺序发射 `.file`/`.asciz`/`.loc`、源注释与最小 DWARF v4 CU，clang 生成
+  `.debug_line`；固定 `comp_dir=.`、root display name、局部代码边界标签与 `.debug_str`
+  重定位，并加固诊断/输出别名优先级、关闭 fd、保留输出清理与潜在 import 保护。
+- **P4a 测试**：新增并注册 `linemap.unit` 与 `p4a.debug`；覆盖 JSON v3 稳定顺序、外部
+  回退路径、IR 到 `.loc`/源注释顺序、DWARF v4 验证、非 debug 字节、跨根确定性与
+  VM/AOT 输出保护边界。测试临时脚本与编译产物统一置于项目 `.tmp/`。
 - **统一实现级错误**：所有入口共用 `TcImplError` 退出码映射；宿主 IO、能力不可用
   与实际 OOM 退出 70，用法错误退出 2，内部契约破坏与实现上限退出 71。
 - **契约验证**：三入口精确版本输出、`tc` 参数/终止符/uint64 超时语法、
@@ -32,11 +39,11 @@
 
 ### 状态
 
-- 0.0.47 CTest 注册总数 80（P0 基线 73 + P1 三项 + P2 三项 + P3 一项）；Debug、
-  Release 与 ASan+UBSan 全量 CTest 均为 80/80，51 项收尾检查全部通过。0.0.46 已验收
+- 0.0.47 CTest 注册总数 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；Debug、
+  Release 与 ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46 已验收
   harness 873/873、覆盖矩阵 636/636，全部收尾检查与发布审计通过。
-- P0/T0、P1、P2 与 P3 已完成；P4a/P4b、P5 与 T1–T6 尚未开始，G11 未完成。
-  `tc --init-project`、编译器路径消费与 `tc --test` 已可用。
+- P0/T0、P1、P2、P3 与 P4a 已完成；P4b、P5 与 T1–T6 尚未开始，G11 未完成。
+  `tc --init-project`、编译器路径消费与 `tc --test` 已可用；P4a 调试发射为私有实现路径。
 - P4b 的 VM 调试 ELF 内部布局不得回写冻结规范。
 
 ## [0.0.46] - 2026-11-19

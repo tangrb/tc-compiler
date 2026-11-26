@@ -37,6 +37,8 @@ int tc_project_manifest_load_fd(int fd, const char *project_root,
 /* start_directory is canonicalized, then tc.project entries are searched from
  * that directory through its parents.  With no entry, root is start_directory
  * and only command-line include roots apply (ninclude_roots is zero). */
+int tc_project_manifest_locate(const char *start_directory, char **out_path,
+                               TcProjectError *error);
 int tc_project_discover(const char *start_directory, TcProjectManifest **out,
                         TcProjectError *error);
 

@@ -51,6 +51,7 @@ typedef struct {
 
 typedef struct TcRiscv32Emitter {
     const TcIR *ir;
+    const TcLineMap *linemap;
     const TcPlatformProfile *profile;
     const TcAllocator *alloc;
     FILE *out;

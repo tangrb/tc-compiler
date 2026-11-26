@@ -28,7 +28,7 @@ rendered as covered.
 Usage:
     python3 tests/traceability/coverage.py            # regenerate committed files
     python3 tests/traceability/coverage.py --check    # fail if committed files are stale
-    python3 tests/traceability/coverage.py --out-dir /tmp/tc-coverage
+    python3 tests/traceability/coverage.py --out-dir .tmp/coverage
 """
 
 from __future__ import annotations

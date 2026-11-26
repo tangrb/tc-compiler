@@ -448,7 +448,7 @@ static char *read_image_hex(const TcInitImage *image) {
 }
 
 static void run_vector(const CtVector *vector) {
-    char dir[] = "/tmp/tc-ct-XXXXXX";
+    char dir[] = TC_TEST_TMP_ROOT "/tc-ct-XXXXXX";
     char lib_path[512];
     char root_path[512];
     char source[8192];
@@ -573,7 +573,7 @@ static void run_vector(const CtVector *vector) {
 /* Cache and demand-order tests (standard §4.10). */
 static TcAnalysis *analyze_diamond(TcAnalysisStatus *status,
                                    TcAnalysisDiag *diag) {
-    char dir[] = "/tmp/tc-ct-cache-XXXXXX";
+    char dir[] = TC_TEST_TMP_ROOT "/tc-ct-cache-XXXXXX";
     char root[512];
     char a[512];
     char b[512];
@@ -627,7 +627,7 @@ static void test_ct_cache(void) {
 }
 
 static void test_ct_failure_cache(void) {
-    char dir[] = "/tmp/tc-ct-fail-XXXXXX";
+    char dir[] = TC_TEST_TMP_ROOT "/tc-ct-fail-XXXXXX";
     char lib[512];
     char root[512];
     TcAnalysisStatus status;
@@ -666,7 +666,7 @@ static void test_ct_failure_cache(void) {
 
 /* Local const evaluation and its cache (standard §5.2). */
 static void test_local_const(void) {
-    char dir[] = "/tmp/tc-ct-local-XXXXXX";
+    char dir[] = TC_TEST_TMP_ROOT "/tc-ct-local-XXXXXX";
     char lib[512];
     char root[512];
     TcAnalysisStatus status;

@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include "base/fd.h"
 #include "frontend/input.h"
 
 #include <errno.h>
@@ -110,7 +111,7 @@ TcImplError tc_source_read(const char *path, TcSourceBytes *out) {
     if (path == NULL) {
         return TC_IMPL_IO;
     }
-    fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    fd = tc_fd_open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
     if (fd < 0) {
         return fd_error(errno);
     }

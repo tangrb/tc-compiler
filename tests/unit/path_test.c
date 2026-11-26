@@ -124,7 +124,7 @@ static int write_fixture(const char *path, const char *text) {
 }
 
 static void check_module_identity(void) {
-    char directory[] = "/tmp/tc-path-identity-XXXXXX";
+    char directory[] = TC_TEST_TMP_ROOT "/tc-path-identity-XXXXXX";
     char *root = NULL;
     char *a = NULL;
     char *b = NULL;
@@ -186,7 +186,7 @@ static void check_module_identity(void) {
 }
 
 static void check_symlink_parent(void) {
-    char directory[] = "/tmp/tc-path-parent-XXXXXX";
+    char directory[] = TC_TEST_TMP_ROOT "/tc-path-parent-XXXXXX";
     char *real = NULL;
     char *alias = NULL;
     char *source = NULL;

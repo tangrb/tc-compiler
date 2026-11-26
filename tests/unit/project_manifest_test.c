@@ -556,7 +556,7 @@ int main(void) {
     char pattern[PATH_MAX];
     char invalid_root[PATH_MAX];
     char invalid_manifest[PATH_MAX];
-    (void)snprintf(pattern, sizeof(pattern), "/tmp/tc-project-manifest-XXXXXX");
+    (void)snprintf(pattern, sizeof(pattern), TC_TEST_TMP_ROOT "/tc-project-manifest-XXXXXX");
     if (mkdtemp(pattern) == NULL) {
         printf("FAIL: cannot create temporary directory\n");
         return 1;

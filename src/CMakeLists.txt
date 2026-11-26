@@ -31,11 +31,13 @@ add_library(tc_core STATIC
     backend/riscv32/emit_abi.c
     backend/riscv32/emit_ops.c
     backend/common/toolchain.c
+    backend/common/debug_emit.c
     # IR representation and shape helpers.
     ir/type.c
     ir/instr.c
     ir/pointer_state.c
     ir/print.c
+    ir/linemap.c
     # Runtime semantic core, deterministic I/O, platform profiles and seams.
     runtime/alloc.c
     runtime/format.c

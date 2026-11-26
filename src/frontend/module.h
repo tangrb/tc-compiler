@@ -53,6 +53,7 @@ typedef struct {
     int root_not_program;       /* API error, never a language diagnostic */
     TcImplError impl;
     const char *failed_display; /* arena-owned failing module display path */
+    const char *failed_path;    /* canonical failing module path */
 } TcModuleGraph;
 
 /* Load the root module and its transitive imports.  `include_roots` are the

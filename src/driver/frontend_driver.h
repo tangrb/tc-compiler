@@ -22,5 +22,8 @@
  *   71 internal contract violation or documented implementation limit
  * `tool_name` is used in stderr messages and must be "tc-vm" or "tc-aot". */
 int tc_driver_frontend(const char *tool_name, const TcCliOptions *options);
+int tc_driver_cli_guard(const TcCliOptions *options);
+int tc_driver_report_cli_error(const char *tool_name,
+                               const TcCliOptions *options);
 
 #endif /* TC_DRIVER_FRONTEND_DRIVER_H */

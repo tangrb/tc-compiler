@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "base/path.h"
 #include "diagnostic/diagnostic.h"
 #include "driver/aot_driver.h"
 #include "driver/profile_select.h"
@@ -14,6 +15,7 @@
 #include "frontend/module.h"
 #include "frontend/parse.h"
 #include "frontend/sem.h"
+#include "project/manifest.h"
 #include "project/paths.h"
 #include "vm/vm.h"
 
@@ -116,6 +118,98 @@ static int print_impl_error(const char *tool_name, TcImplError error,
         return tc_impl_error_exit(TC_IMPL_IO);
     }
     return tc_impl_error_exit(error);
+}
+
+static int guard_stderr(const TcAotStdio *stdio, const TcAnalysis *analysis,
+                        TcAnalysisStatus analysis_status,
+                        const TcProjectPaths *paths) {
+    const char *extra_inputs[] = { paths->manifest->manifest_present
+                                       ? paths->manifest->manifest_path
+                                       : NULL };
+    size_t nextra_inputs = paths->manifest->manifest_present ? 1u : 0u;
+    TcImplError impl = tc_aot_driver_stderr_guard(
+        stdio, analysis, analysis_status, extra_inputs, nextra_inputs,
+        paths->source, (const char *const *)paths->includes,
+        paths->ninclude_roots);
+    return impl == TC_IMPL_OK ? TC_EXIT_OK : tc_impl_error_exit(impl);
+}
+
+int tc_driver_cli_guard(const TcCliOptions *options) {
+    TcAotStdio stdio;
+    char *directory = NULL;
+    char *manifest_path = NULL;
+    const char *extra_inputs[] = { NULL };
+    size_t nextra_inputs = 0u;
+    TcImplError impl = TC_IMPL_OK;
+    int located = 0;
+    tc_aot_stdio_capture(&stdio);
+    if (options != NULL && options->source != NULL) {
+        impl = tc_path_directory(options->source, &directory);
+        if (impl == TC_IMPL_OK) {
+            TcProjectError locate_error;
+            located = tc_project_manifest_locate(directory, &manifest_path,
+                                                 &locate_error);
+            if (located < 0) {
+                impl = locate_error.impl;
+            } else if (located == 1) {
+                extra_inputs[0] = manifest_path;
+                nextra_inputs = 1u;
+            }
+        }
+    }
+    if (impl == TC_IMPL_OK) {
+        impl = tc_aot_driver_guard(
+            &stdio, NULL, TC_ANALYSIS_IMPL, options, extra_inputs,
+            nextra_inputs, options != NULL ? options->source : NULL,
+            options != NULL ? options->include_roots : NULL,
+            options != NULL ? options->ninclude_roots : 0u, 0, 0);
+    }
+    free(directory);
+    free(manifest_path);
+    return tc_impl_error_exit(impl);
+}
+
+int tc_driver_report_cli_error(const char *tool_name,
+                               const TcCliOptions *options) {
+    int result = tc_driver_cli_guard(options);
+    int failed;
+    if (result != TC_EXIT_OK) {
+        return result;
+    }
+    failed = tc_cli_write(stderr, "%s", options->parse_error);
+    if (failed == 0) {
+        failed = tc_cli_print_usage(stderr, tool_name);
+    }
+    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+        return tc_impl_error_exit(TC_IMPL_IO);
+    }
+    return TC_EXIT_USAGE;
+}
+
+static int guard_outputs(const char *tool_name, const TcAotStdio *stdio,
+                         const TcAnalysis *analysis,
+                         TcAnalysisStatus analysis_status,
+                         const TcCliOptions *options,
+                         const TcProjectPaths *paths, int create_output) {
+    const char *extra_inputs[] = { paths->manifest->manifest_present
+                                       ? paths->manifest->manifest_path
+                                       : NULL };
+    size_t nextra_inputs = paths->manifest->manifest_present ? 1u : 0u;
+    TcImplError impl;
+    int result = guard_stderr(stdio, analysis, analysis_status, paths);
+    if (result != TC_EXIT_OK) {
+        return result;
+    }
+    impl = tc_aot_driver_guard(
+        stdio, analysis, analysis_status, options, extra_inputs,
+        nextra_inputs, paths->source,
+        (const char *const *)paths->includes, paths->ninclude_roots,
+        strcmp(tool_name, "tc-aot") == 0, create_output);
+    if (impl == TC_IMPL_USAGE) {
+        return TC_EXIT_USAGE;
+    }
+    return impl == TC_IMPL_OK ? TC_EXIT_OK
+                              : print_impl_error(tool_name, impl, NULL);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -260,7 +354,7 @@ static int run_syntax_only(const char *tool_name,
 }
 
 static int run_prepared(const char *tool_name, const TcCliOptions *options,
-                        const TcProjectPaths *paths) {
+                        const TcProjectPaths *paths, const TcAotStdio *stdio) {
     TcPlatformProfile profile;
     TcAnalysis *analysis;
 #ifdef SIGPIPE
@@ -268,32 +362,49 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
      * VM's per-record sink then reports TC_RE_IO at the failed instruction. */
     (void)signal(SIGPIPE, SIG_IGN);
 #endif
-    TcAnalysisStatus status;
+    TcAnalysisStatus status = TC_ANALYSIS_IMPL;
     TcAnalysisDiag diag;
     TcImplError impl = TC_IMPL_OK;
+    const char *usage_detail = NULL;
     int result;
     const char *display = tc_path_display(paths->context, paths->source);
     if (options == NULL || options->source == NULL) {
         return print_impl_error(tool_name, TC_IMPL_USAGE, NULL);
     }
-    if (options->syntax_only) {
-        return run_syntax_only(tool_name, paths);
-    }
-    if (!tc_driver_select_profile(options->profile_seen ? options->profile_name
+    if ((options->syntax_only || options->sem_only || options->static_only) &&
+        (options->emit_seen || options->output_seen)) {
+        usage_detail = "--emit and --output are not valid with partial checks";
+    } else if (!tc_driver_select_profile(options->profile_seen ? options->profile_name
                                                         : paths->manifest->profile,
                                   &profile)) {
-        return print_impl_error(tool_name, TC_IMPL_USAGE,
-                                options->profile_seen ? options->profile_name
-                                                      : paths->manifest->profile);
+        usage_detail = options->profile_seen ? options->profile_name
+                                             : paths->manifest->profile;
+    } else if (options->device_name != NULL &&
+               !tc_driver_apply_device(&profile, options->device_name)) {
+        usage_detail = options->device_name;
+    } else if (strcmp(tool_name, "tc-aot") == 0 &&
+               options->emit_kind != NULL &&
+               strcmp(options->emit_kind, "asm") != 0 &&
+               options->output == NULL) {
+        usage_detail = "--output is required for --emit=obj/elf/flat";
     }
-    if (options->device_name != NULL &&
-        !tc_driver_apply_device(&profile, options->device_name)) {
-        return print_impl_error(tool_name, TC_IMPL_USAGE,
-                                options->device_name);
+    if (usage_detail != NULL) {
+        result = guard_stderr(stdio, NULL, TC_ANALYSIS_IMPL, paths);
+        return result == TC_EXIT_OK
+                   ? print_impl_error(tool_name, TC_IMPL_USAGE, usage_detail)
+                   : result;
     }
     /* Checked build is an execution option of the selected platform instance:
      * the same profile instance drives analysis and code generation. */
     profile.checked_build = options->checked ? 1 : 0;
+    result = guard_outputs(tool_name, stdio, NULL, TC_ANALYSIS_IMPL, options,
+                           paths, 0);
+    if (result != TC_EXIT_OK) {
+        return result;
+    }
+    if (options->syntax_only) {
+        return run_syntax_only(tool_name, paths);
+    }
     if (options->sem_only) {
         analysis = tc_analyze_sem_only_with_paths(
             paths->source, profile.addr_width,
@@ -306,37 +417,50 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
             paths->ninclude_roots, paths->context, &status, &diag, &impl);
     }
     if (analysis == NULL) {
-        return print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
-                                                              : TC_IMPL_INTERNAL,
-                                display);
+        result = guard_outputs(tool_name, stdio, NULL, status, options, paths,
+                               strcmp(tool_name, "tc-aot") == 0);
+        if (result == TC_EXIT_OK) {
+            result = print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
+                                                                  : TC_IMPL_INTERNAL,
+                                      display);
+        }
+        return result;
     }
     if (status == TC_ANALYSIS_IMPL) {
         const char *failure = tc_analysis_failure_path(analysis);
-        result = print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
-                                                              : TC_IMPL_INTERNAL,
-                                  failure != NULL ? failure : display);
+        result = guard_outputs(tool_name, stdio, analysis, status, options,
+                               paths, strcmp(tool_name, "tc-aot") == 0);
+        if (result == TC_EXIT_OK) {
+            result = print_impl_error(tool_name, impl != TC_IMPL_OK ? impl
+                                                                  : TC_IMPL_INTERNAL,
+                                      failure != NULL ? failure : display);
+        }
         tc_analysis_destroy(analysis);
         return result;
     }
     if (status == TC_ANALYSIS_ROOT_NOT_PROGRAM) {
+        result = guard_outputs(tool_name, stdio, analysis, status, options,
+                               paths, strcmp(tool_name, "tc-aot") == 0);
         tc_analysis_destroy(analysis);
-        return print_impl_error(tool_name, TC_IMPL_USAGE,
-                                "root module must be #program");
+        return result == TC_EXIT_OK
+                   ? print_impl_error(tool_name, TC_IMPL_USAGE,
+                                      "root module must be #program")
+                   : result;
     }
     if (status == TC_ANALYSIS_DIAGNOSTIC) {
-        result = print_analysis_diag(&diag);
+        result = guard_outputs(tool_name, stdio, analysis, status, options,
+                               paths, strcmp(tool_name, "tc-aot") == 0);
+        if (result == TC_EXIT_OK) {
+            result = print_analysis_diag(&diag);
+        }
         tc_analysis_destroy(analysis);
         return result;
     }
-    if (options->sem_only) {
-        /* IMPORT/SEM accepted; CT and code generation were not run. */
+    if (options->sem_only || options->static_only) {
+        result = guard_outputs(tool_name, stdio, analysis, status, options,
+                               paths, 0);
         tc_analysis_destroy(analysis);
-        return TC_EXIT_OK;
-    }
-    if (options->static_only) {
-        /* LEX/SYN/IMPORT/SEM/CT and IR finalization accepted; no codegen. */
-        tc_analysis_destroy(analysis);
-        return TC_EXIT_OK;
+        return result;
     }
     if (strcmp(tool_name, "tc-vm") == 0) {
         TcIo io;
@@ -346,7 +470,14 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
         TcVmResult vm_result;
         TcImplError vm_impl = TC_IMPL_OK;
         TcVmStatus vm_status;
-        const TcIR *ir = tc_analysis_ir(analysis);
+        const TcIR *ir;
+        result = guard_outputs(tool_name, stdio, analysis, status, options,
+                               paths, 0);
+        if (result != TC_EXIT_OK) {
+            tc_analysis_destroy(analysis);
+            return result;
+        }
+        ir = tc_analysis_ir(analysis);
         install_host_vm_seams(&profile, &io, &sink, &src, &trap);
         if (ir == NULL) {
             tc_analysis_destroy(analysis);
@@ -368,7 +499,14 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
         tc_analysis_destroy(analysis);
         return result;
     }
-    result = tc_aot_driver_run(analysis, &profile, options);
+    {
+        const char *extra_inputs[] = { paths->manifest->manifest_present
+                                           ? paths->manifest->manifest_path
+                                           : NULL };
+        size_t nextra_inputs = paths->manifest->manifest_present ? 1u : 0u;
+        result = tc_aot_driver_run_with_stdio(
+            stdio, analysis, &profile, options, extra_inputs, nextra_inputs);
+    }
     tc_analysis_destroy(analysis);
     return result;
 }
@@ -376,21 +514,48 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
 int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
     TcProjectPaths *paths = NULL;
     TcProjectPathError path_error;
+    TcAotStdio stdio;
     int result;
+    tc_aot_stdio_capture(&stdio);
     if (options == NULL || options->source == NULL) {
         return print_impl_error(tool_name, TC_IMPL_USAGE, NULL);
     }
     if (!tc_project_paths_prepare(options->source, options->include_roots,
                                   options->ninclude_roots, &paths,
                                   &path_error)) {
-        result = print_impl_error(tool_name, path_error.impl,
-                                  path_error.detail != NULL
-                                      ? path_error.detail
-                                      : path_error.message);
+        char *directory = NULL;
+        char *manifest_path = NULL;
+        TcProjectError locate_error;
+        const char *extra_inputs[] = { NULL };
+        size_t nextra_inputs = 0u;
+        TcImplError safety = TC_IMPL_INTERNAL;
+        int located;
+        if (tc_path_directory(options->source, &directory) == TC_IMPL_OK) {
+            located = tc_project_manifest_locate(directory, &manifest_path,
+                                                 &locate_error);
+            if (located == 1) {
+                extra_inputs[0] = manifest_path;
+                nextra_inputs = 1u;
+            }
+            if (located >= 0) {
+                safety = tc_aot_driver_stderr_guard(
+                    &stdio, NULL, TC_ANALYSIS_IMPL, extra_inputs, nextra_inputs,
+                    options->source, options->include_roots,
+                    options->ninclude_roots);
+            }
+        }
+        free(directory);
+        free(manifest_path);
+        result = safety == TC_IMPL_OK
+                     ? print_impl_error(tool_name, path_error.impl,
+                                        path_error.detail != NULL
+                                            ? path_error.detail
+                                            : path_error.message)
+                     : tc_impl_error_exit(path_error.impl);
         tc_project_path_error_destroy(&path_error);
         return result;
     }
-    result = run_prepared(tool_name, options, paths);
+    result = run_prepared(tool_name, options, paths, &stdio);
     tc_project_paths_destroy(paths);
     return result;
 }

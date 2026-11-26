@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0/T0 governance and the three-entry contract, P1 project initialization and manifest/root-discovery APIs, P2 canonical/display paths plus compiler path consumption, and the P3 project test runner are complete. P4a/P4b, P5 and T1–T6 have not started.
+Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0/T0 governance and the three-entry contract, P1 project initialization and manifest/root-discovery APIs, P2 canonical/display paths plus compiler path consumption, the P3 project test runner, and P4a AOT line maps/debug information are complete. P4b, P5 and T1–T6 have not started.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -33,9 +33,9 @@ Language/semantic/diagnostic changes must first update the [TC Language and Comp
 ## Build and test
 
 ```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake -S . -B .tmp/build
+cmake --build .tmp/build
+ctest --test-dir .tmp/build --output-on-failure
 ```
 
 Builds the private `tc_core` library and the `tc`/`tc-vm`/`tc-aot` entry points.
@@ -52,10 +52,12 @@ discovery/filtering, fd-anchored beneath resolution, strict sidecars, private
 read-only snapshots, fork workers, timeouts, stream capture, structured results,
 reports and exit mapping. The P1/P2/P3 test entry points are `project.manifest`,
 `project.init`, `project.init_fault`, `project.paths_unit`, `project.paths`,
-`project.paths_aot` and `project.test_runner`, runnable with
-`ctest --test-dir build -R '^project\.' --output-on-failure`.
+`project.paths_aot`, `project.test_runner`, `linemap.unit` and `p4a.debug`, runnable
+with `ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.'
+--output-on-failure`.
 The S7/S8/S9/S10 differential/toolchain tests need `clang`, `llvm-ar`, `ld.lld`,
-`qemu-system-aarch64`, `qemu-system-arm` and `qemu-system-riscv32`.
+`qemu-system-aarch64`, `qemu-system-arm` and `qemu-system-riscv32`; P4a also needs
+`llvm-dwarfdump`.
 
 ## Issues
 

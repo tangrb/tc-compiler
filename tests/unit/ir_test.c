@@ -18,7 +18,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "temp_file.h"
 
 #include "frontend/sem.h"
 #include "ir/print.h"
@@ -61,14 +62,14 @@ static int write_text_file(const char *path, const char *text) {
 }
 
 typedef struct {
-    char dir[64];
-    char root[128];
-    char lib[128];
+    char dir[1024];
+    char root[1536];
+    char lib[1536];
 } Fixture;
 
 static int make_fixture(Fixture *fixture, const char *root_text,
                         const char *lib_text) {
-    snprintf(fixture->dir, sizeof(fixture->dir), "/tmp/tc-ir-XXXXXX");
+    snprintf(fixture->dir, sizeof(fixture->dir), TC_TEST_TMP_ROOT "/tc-ir-XXXXXX");
     if (mkdtemp(fixture->dir) == NULL) {
         return 0;
     }
@@ -857,7 +858,7 @@ static int write_named(const char *dir, const char *name, const char *text) {
 /* Static layout: import-DAG reverse topological order (importers first, ties
  * by module_order), then module source order (standard §13.3). */
 static void test_ir_static_layout(void) {
-    char dir[] = "/tmp/tc-ir-layout-XXXXXX";
+    char dir[] = TC_TEST_TMP_ROOT "/tc-ir-layout-XXXXXX";
     char root[512];
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
@@ -927,7 +928,7 @@ static void test_ir_static_layout(void) {
 
 static char *print_to_string(const TcIR *ir) {
     static char buffer[65536];
-    FILE *file = tmpfile();
+    FILE *file = tc_test_tmpfile();
     size_t size;
     if (file == NULL) {
         return NULL;
@@ -1009,8 +1010,8 @@ static void test_ir_print(void) {
 
 static void test_ir_sem_only(void) {
     static const char *root = "#program\n";
-    char dir[] = "/tmp/tc-ir-sem-XXXXXX";
-    char path[256];
+    char dir[] = TC_TEST_TMP_ROOT "/tc-ir-sem-XXXXXX";
+    char path[1536];
     TcAnalysisStatus status;
     TcAnalysisDiag diag;
     TcAnalysis *an;

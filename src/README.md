@@ -49,7 +49,12 @@ directories and actual entry names, and root/import sources are parsed from thei
 bound descriptors with nonblocking bounded reads. `driver/test_runner.c` implements
 one-level discovery/filtering, fd-anchored beneath resolution, strict sidecars,
 private read-only snapshots, serial fork workers, timeouts, stream capture,
-structured results, reports and exit mapping. P4a/P4b, P5 and T1–T6 have not started.
+structured results, reports and exit mapping. P4a adds the shared deterministic
+line map, private AOT `.file`/`.asciz`/`.loc` and source-comment emission, and a
+minimal DWARF v4 CU with clang-generated `.debug_line`; public debug/dump CLI
+flags, P4b, P5 and T1–T6 have not started. Compiler output guards protect stdio,
+project inputs, explicit outputs and reservations before publishing diagnostics
+or artifacts.
 
 ```text
 src/

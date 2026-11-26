@@ -32,9 +32,9 @@ static int checks = 0;
     } while (0)
 
 typedef struct {
-    char dir[64];
-    char root[128];
-    char lib[128];
+    char dir[1024];
+    char root[1536];
+    char lib[1536];
 } Fixture;
 
 static int write_text(const char *path, const char *text) {
@@ -51,7 +51,7 @@ static int write_text(const char *path, const char *text) {
 }
 
 static int make_fixture(Fixture *fixture, const char *root, const char *lib) {
-    snprintf(fixture->dir, sizeof(fixture->dir), "/tmp/tc-aot-XXXXXX");
+    snprintf(fixture->dir, sizeof(fixture->dir), TC_TEST_TMP_ROOT "/tc-aot-XXXXXX");
     if (mkdtemp(fixture->dir) == NULL) {
         return 0;
     }
@@ -104,7 +104,7 @@ static char *emit_fixture_ex(const Fixture *fixture, int checked,
         return NULL;
     }
     *out_status = tc_aarch64_emit_asm(
-        stream, tc_analysis_ir(analysis), &profile, profile.target,
+        stream, tc_analysis_ir(analysis), &profile, profile.target, NULL,
         error_message, error_message_capacity);
     fclose(stream);
     tc_analysis_destroy(analysis);
@@ -447,7 +447,7 @@ static char *emit_arm32_fixture(const Fixture *fixture,
         return NULL;
     }
     *out_status = tc_arm32_emit_asm(
-        stream, tc_analysis_ir(analysis), &profile, profile.target,
+        stream, tc_analysis_ir(analysis), &profile, profile.target, NULL,
         error_message, error_message_capacity);
     fclose(stream);
     tc_analysis_destroy(analysis);
@@ -514,7 +514,7 @@ static void test_abi_descriptor_match(void) {
         return;
     }
     emit_status = tc_aarch64_emit_asm(
-        stream, tc_analysis_ir(analysis), &profile, &target, error_message,
+        stream, tc_analysis_ir(analysis), &profile, &target, NULL, error_message,
         sizeof(error_message));
     fclose(stream);
     tc_analysis_destroy(analysis);

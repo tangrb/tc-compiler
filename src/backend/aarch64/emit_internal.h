@@ -38,6 +38,7 @@ typedef struct {
 
 typedef struct TcA64Emitter {
     const TcIR *ir;
+    const TcLineMap *linemap;
     const TcPlatformProfile *profile;
     const TcAllocator *alloc;
     FILE *out;

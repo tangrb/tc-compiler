@@ -11,7 +11,10 @@ OOM 故障注入、报告写失败与审计变异自测；P1 新增 `project.man
 `project.paths`、`project.paths_aot`，覆盖 canonical/显示路径、外部/回退、模块身份、
 manifest/include/profile 消费、错误优先级、非阻塞有界源读取与 AOT 路径消费者；
 P3 新增 `project.test_runner`，覆盖发现/筛选、fd 锚定 beneath 解析、严格侧车、
-私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
+私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射；P4a 新增
+`linemap.unit` 与 `p4a.debug`，覆盖共享 JSON v3 行表、IR 到 `.loc`/源注释顺序、
+最小 DWARF v4、跨根确定性、非 debug 字节与 VM/AOT 输出保护边界。所有临时脚本、
+fixture 与编译产物置于项目 `.tmp/`，版本控制测试源仍位于 `tests/`。
 上述测试标签为 `unit`/`toolchain`/`fast`，发布审计为 `toolchain`/`aot`/`slow`。其余测试布局见
 [工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
 [工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，在实现并注册前不得作为当前套件或
@@ -19,7 +22,7 @@ PASS 证据。
 
 | Suite | Location | Level | Content |
 | --- | --- | --- | --- |
-| Project | `project/` | L0/L2 | P1：`project.manifest`（`tc.project` v1/缺省/错误/最近根发现）、`project.init`（完整模板、预检、身份/别名、报告失败）、`project.init_fault`（逐故障点原子回滚与清理残留）；P2：`project.paths_unit`、`project.paths`、`project.paths_aot`（路径显示/身份/源边界与 VM/AOT 消费者）；P3：`project.test_runner`（发现/筛选、路径边界、严格侧车、私有快照、fork worker、超时、流捕获、结构化结果、报告与退出映射）；标签 `unit`/`toolchain`/`fast` |
+| Project | `project/` | L0/L2 | P1：`project.manifest`（`tc.project` v1/缺省/错误/最近根发现）、`project.init`（完整模板、预检、身份/别名、报告失败）、`project.init_fault`（逐故障点原子回滚与清理残留）；P2：`project.paths_unit`、`project.paths`、`project.paths_aot`（路径显示/身份/源边界与 VM/AOT 消费者）；P3：`project.test_runner`（发现/筛选、路径边界、严格侧车、私有快照/fork worker/超时/流捕获/结构化结果/报告与退出映射）；P4a：`linemap.unit`、`p4a.debug`（JSON v3/IR 行序/DWARF v4/跨根确定性/非 debug 字节/输出保护）；标签 `unit`/`toolchain`/`fast` |
 | Contract/unit | `unit/` | L0/L1/L2 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例）；`tc_ct_test`（CT 向量/缓存/局部 const）；`tc_ir_test`（最终 IR 形态/CFG/打印）；`tc_vm_test`（语义核、格式化、输入、内存/指针、trap/位置、调用/`D`、设备策略、W 矩阵）；`tc_oom_test`（SEM、VM 与三后端逐分配点 OOM 故障注入及分配清理校验） |
 | Conformance | `conformance/` | L3/L4/L5/L6 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解/CT 用例、接受工具用例、属性用例；VM 运行时用例（`runtime/`）；S7/S8 VM↔AOT 差分（`diff/`）、AAPCS64 ABI（`abi/`）、checked build（`checked/`）、§13.4 八项一致性（`consistency/`）、工具链/ELF/静态一致（`tools/`）；S9 freestanding/裸机与 ARM32 平台（`platform/`）、AAPCS32 互操作（`abi/s9_*`）、双档案静态一致（`tools/s9_*`）；S10 RISC-V 32 平台/ABI/静态一致、checked/规模/长跳转、长期回归语料（`platform/s10_*`、`abi/s10_*`、`tools/s10_*`、`checked/s10_*`、`longterm/`）；见 [conformance/README.md](conformance/README.md) |
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、root-module `--syntax-only`/`--static-only` adapter |
@@ -32,17 +35,17 @@ PASS 证据。
 运行：
 
 ```sh
-cmake -S . -B build && cmake --build build
-ctest --test-dir build --output-on-failure
-# P1/P2/P3 工程模型测试
-ctest --test-dir build -R '^project\.' --output-on-failure
-ctest --test-dir build -L 'unit;toolchain;fast' --output-on-failure
+cmake -S . -B .tmp/build && cmake --build .tmp/build
+ctest --test-dir .tmp/build --output-on-failure
+# P1/P2/P3/P4a 工程模型与调试测试
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.' --output-on-failure
+ctest --test-dir .tmp/build -L 'unit;toolchain;fast' --output-on-failure
 ```
 
 `project.manifest`、`project.init`、`project.init_fault` 与更新的 `cli.contract`
 共同构成 P1 当前回归入口；`project.paths_unit`、`project.paths` 与
-`project.paths_aot` 构成 P2 当前回归入口；`project.test_runner` 构成 P3 当前回归入口；
-标签筛选使用 CTest 的标签匹配语法。
+`project.paths_aot` 构成 P2 当前回归入口；`project.test_runner` 构成 P3 当前回归入口；`linemap.unit` 与 `p4a.debug` 构成 P4a
+当前回归入口；标签筛选使用 CTest 的标签匹配语法。
 
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
 每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
@@ -92,16 +95,16 @@ checked/必选 trap 分离、UART 分帧 stdin、flat 产物、1072 个静态源
 ABI 用例、重复构建/执行与 O0/O2 确定性，以及标准条款/边界/差分/fuzz/平台长期
 回归语料。RISC-V ABI 规则见 [conformance/abi/README.md](conformance/abi/README.md)。
 AOT 构建/测试默认要求 `clang`、`llvm-ar`（或对应 target ar）、`ld.lld`、
-`qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；缺失时 CMake
-配置失败。
+`qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；P4a 的 DWARF
+校验另需 `llvm-dwarfdump`；缺失时 CMake 配置失败。
 `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
 llvm-ar（或对应 target ar）。32/64 结果分档案保存；差分只在同一档案内比较 VM 与 AOT。
 S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑使用
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-0.0.47 CTest 注册总数 80（P0 基线 73 + P1 三项 + P2 三项 + P3 一项）；Debug、Release
-与 ASan+UBSan 全量 CTest 均为 80/80，51 项收尾检查全部通过。0.0.46 已验收
+0.0.47 CTest 注册总数 82（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项）；Debug、Release
+与 ASan+UBSan 全量 CTest 均为 82/82，50 项收尾检查全部通过。0.0.46 已验收
 harness 873/873（608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、
 sem 102、ct 370、ir 674、vm 413、aot 81、oom 366。S9 平台套件另有 29 个固定 ARM32 用例、
 305 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、

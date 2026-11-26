@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include "ir/ir.h"
+#include "ir/linemap.h"
 #include "runtime/profile.h"
 
 typedef enum {
@@ -33,6 +34,7 @@ typedef enum {
 TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
                                         const TcPlatformProfile *profile,
                                         const TcTargetDesc *target,
+                                        const TcLineMap *linemap,
                                         char *error_message,
                                         size_t error_message_capacity);
 

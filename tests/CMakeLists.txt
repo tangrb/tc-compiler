@@ -3,6 +3,9 @@
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
+file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/.tmp)
+add_compile_definitions(TC_TEST_TMP_ROOT="${PROJECT_SOURCE_DIR}/.tmp")
+
 add_executable(tc_contract_test unit/contract_test.c)
 target_link_libraries(tc_contract_test PRIVATE tc_core)
 target_include_directories(tc_contract_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
@@ -24,6 +27,16 @@ add_executable(tc_ir_test unit/ir_test.c)
 target_link_libraries(tc_ir_test PRIVATE tc_core)
 target_include_directories(tc_ir_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_ir_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_linemap_test unit/linemap_test.c)
+target_link_libraries(tc_linemap_test PRIVATE tc_core)
+target_include_directories(tc_linemap_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_linemap_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_debug_fixture unit/debug_fixture.c)
+target_link_libraries(tc_debug_fixture PRIVATE tc_core)
+target_include_directories(tc_debug_fixture PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_debug_fixture PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_ct_test unit/ct_test.c)
 target_link_libraries(tc_ct_test PRIVATE tc_core)
@@ -72,6 +85,7 @@ add_test(NAME frontend.unit COMMAND tc_frontend_test)
 add_test(NAME sem.unit COMMAND tc_sem_test)
 add_test(NAME ct.unit COMMAND tc_ct_test)
 add_test(NAME ir.unit COMMAND tc_ir_test)
+add_test(NAME linemap.unit COMMAND tc_linemap_test)
 add_test(NAME vm.unit COMMAND tc_vm_test)
 add_test(NAME aot.unit COMMAND tc_aot_test)
 add_test(NAME oom.unit COMMAND tc_oom_test)
@@ -194,16 +208,24 @@ find_program(TC_QEMU_SYSTEM_ARM NAMES qemu-system-arm)
 find_program(TC_QEMU_SYSTEM_RISCV32 NAMES qemu-system-riscv32)
 find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
              /usr/local/opt/llvm/bin /opt/homebrew/bin)
+find_program(TC_LLVM_DWARFDUMP NAMES llvm-dwarfdump
+             HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
 option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
 if(TC_ENABLE_AOT_TESTS AND
    (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_QEMU_SYSTEM_ARM OR
-    NOT TC_QEMU_SYSTEM_RISCV32 OR NOT TC_LLD))
+    NOT TC_QEMU_SYSTEM_RISCV32 OR NOT TC_LLD OR NOT TC_LLVM_DWARFDUMP))
     message(FATAL_ERROR
         "S7/S9/S10 AOT tests need qemu-system-aarch64, qemu-system-arm, "
-        "qemu-system-riscv32 and ld.lld; install them or configure with "
-        "-DTC_ENABLE_AOT_TESTS=OFF")
+        "qemu-system-riscv32, ld.lld and llvm-dwarfdump; install them or "
+        "configure with -DTC_ENABLE_AOT_TESTS=OFF")
 endif()
 if(TC_ENABLE_AOT_TESTS)
+    add_test(NAME p4a.debug
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/p4a_debug_cases.py
+                     --check $<TARGET_FILE:tc_debug_fixture>
+                     ${TC_LLVM_DWARFDUMP})
+    set_tests_properties(p4a.debug PROPERTIES LABELS "toolchain;aot")
     add_test(NAME project.paths_aot
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/project/path_aot_test.py --check
@@ -468,3 +490,13 @@ add_test(
             --adapter ${CMAKE_BINARY_DIR}/tc_adapter.py
             --json-out ${CMAKE_BINARY_DIR}/harness-report.json)
 set_tests_properties(harness.conformance PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+get_property(tc_test_names DIRECTORY PROPERTY TESTS)
+foreach(tc_test_name IN LISTS tc_test_names)
+    get_test_property(${tc_test_name} ENVIRONMENT tc_test_environment)
+    if(tc_test_environment STREQUAL "tc_test_environment-NOTFOUND")
+        set(tc_test_environment "")
+    endif()
+    set_tests_properties(${tc_test_name} PROPERTIES
+        ENVIRONMENT "${tc_test_environment};TMPDIR=${PROJECT_SOURCE_DIR}/.tmp")
+endforeach()

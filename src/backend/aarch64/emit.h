@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include "ir/ir.h"
+#include "ir/linemap.h"
 #include "runtime/profile.h"
 
 typedef enum {
@@ -33,8 +34,8 @@ typedef enum {
  * `error_message_capacity` is non-zero. */
 TcAArch64EmitStatus tc_aarch64_emit_asm(
     FILE *out, const TcIR *ir, const TcPlatformProfile *profile,
-    const TcTargetDesc *target, char *error_message,
-    size_t error_message_capacity);
+    const TcTargetDesc *target, const TcLineMap *linemap,
+    char *error_message, size_t error_message_capacity);
 
 /* Symbol names used by the emitted assembly and supplied by the AArch64
  * runtime below.  Kept here so the toolchain driver can audit the link. */

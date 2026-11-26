@@ -21,6 +21,16 @@
   fd-anchored beneath resolution, strict sidecar validation, private read-only
   snapshots, serial fork workers, timeouts, stream capture, structured results,
   reports and exit mapping.
+- **P4a AOT debug paths**: a shared deterministic line map with project-root-relative
+  and external display paths; private AOT debug mode emits `.file`/`.asciz`/`.loc`,
+  source comments and a minimal DWARF v4 CU in final IR order, with clang generating
+  `.debug_line`. Compilation directory, root display name, local code-bound labels
+  and relocated `.debug_str` are deterministic. Diagnostic/output alias precedence,
+  closed descriptors, reservation cleanup and potential-import protection are hardened.
+- **P4a tests**: register `linemap.unit` and `p4a.debug`; cover JSON v3 key ordering,
+  external fallback paths, IR-to-`.loc`/comment order, DWARF v4 verification, non-debug
+  bytes, cross-root determinism and VM/AOT output guards. Temporary test scripts and
+  compiled artifacts stay under project-local `.tmp/`.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
   usage exits 2; internal contract violations and documented limits exit 71.
@@ -44,14 +54,14 @@
 
 ### Status
 
-- There are 80 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests
-  and one P3 test). Debug, Release and ASan+UBSan full CTest runs each pass 80/80,
-  and all 51 required closing checks pass. The accepted 0.0.46 baseline remains
-  harness 873/873, coverage 636/636, with all closing checks and release audits
-  passing.
-- P0/T0, P1, P2 and P3 are complete; P4a/P4b, P5 and T1–T6 have not started and
+- There are 82 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
+  one P3 test and two P4a tests). Debug, Release and ASan+UBSan full CTest runs each
+  pass 82/82, and all 50 required closing checks pass. The accepted 0.0.46 baseline
+  remains harness 873/873, coverage 636/636, with all closing checks and release
+  audits passing.
+- P0/T0, P1, P2, P3 and P4a are complete; P4b, P5 and T1–T6 have not started and
   G11 is incomplete. `tc --init-project`, compiler path consumption and `tc --test`
-  are available.
+  are available; P4a debug emission remains a private implementation path.
 - The P4b VM debug-ELF internal layout must not be written back to the frozen
   specification.
 

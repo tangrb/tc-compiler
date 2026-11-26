@@ -20,21 +20,25 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
 
 **Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0, P1,
-P2 and P3 of `tc-0.0.47` are complete: split versions, three private entry points,
-the shared implementation-error exit mapping, the `tc` CLI contract, release audit,
-full `tc --init-project` templates with atomic writes/rollback/identity checks,
-`tc.project` v1 parsing with nearest-ancestor root discovery, and compiler
-consumption of manifest/include/profile data. Canonical and project-root-relative
-display paths are separate; diagnostics, IR metadata, VM traps and AOT source
-strings use display paths. Module identity uses bound parent directories and actual
-entry names, and source reads are nonblocking and descriptor-bound. `tc --test`
-now implements one-level discovery/filtering, fd-anchored beneath resolution,
-strict sidecars, private read-only snapshots, fork workers, timeouts, stream capture,
-structured results, reports and exit mapping; evidence entry points are
-`tests/project/test_runner_test.py` and `project.test_runner`. P4a/P4b, P5 and T1–T6
-have not started, and G11 is incomplete. There are 80 registered 0.0.47 CTests;
-Debug, Release and ASan+UBSan full CTest runs each pass 80/80, and all 51 required
-closing checks pass. The accepted 0.0.46 harness remains 873/873.
+P2, P3 and P4a of `tc-0.0.47` are complete: split versions, three private entry
+points, the shared implementation-error exit mapping, the `tc` CLI contract,
+release audit, full `tc --init-project` templates with atomic writes/rollback/
+identity checks, `tc.project` v1 parsing with nearest-ancestor root discovery,
+and compiler consumption of manifest/include/profile data. Canonical and
+project-root-relative display paths are separate; diagnostics, IR metadata, VM
+traps and AOT source strings use display paths. Module identity uses bound parent
+directories and actual entry names, and source reads are nonblocking and
+descriptor-bound. `tc --test` implements one-level discovery/filtering, fd-anchored
+beneath resolution, strict sidecars, private read-only snapshots, fork workers,
+timeouts, stream capture, structured results, reports and exit mapping; evidence
+entry points are `tests/project/test_runner_test.py` and `project.test_runner`.
+P4a adds the shared deterministic line map, private AOT `.loc`/source comments
+and a minimal DWARF v4 CU with clang-generated `.debug_line`, plus stdio/project-
+input/output-reservation guards before diagnostics or artifacts; evidence entry
+points are `linemap.unit`, `tests/conformance/tools/p4a_debug_cases.py` and
+`p4a.debug`. Public `--debug`/`--dump-linemap`, P4b, P5 and T1–T6 have not started,
+and G11 is incomplete. There are 82 registered 0.0.47 CTests; Debug, Release and
+ASan+UBSan full CTest runs each pass 82/82, and all 50 required closing checks pass. The accepted 0.0.46 harness remains 873/873.
 The front end, CT/IR, runtime semantic
 core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
 W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core
@@ -49,10 +53,10 @@ long-term regression corpus and the release audit are implemented. Coverage is
 Reproduce:
 
 ```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
-ctest --test-dir build -R '^project\.' --output-on-failure
+cmake -S . -B .tmp/build
+cmake --build .tmp/build
+ctest --test-dir .tmp/build --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

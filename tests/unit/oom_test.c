@@ -10,7 +10,9 @@
 #include "backend/arm32/emit.h"
 #include "backend/riscv32/emit.h"
 #include "frontend/sem.h"
+#include "ir/linemap.h"
 #include "runtime/profile.h"
+#include "temp_file.h"
 #include "vm/vm.h"
 
 typedef struct {
@@ -246,14 +248,14 @@ static size_t emit_backend(Backend backend, const TcAnalysis *analysis,
                            char *error, size_t error_capacity) {
     const TcIR *ir = tc_analysis_ir(analysis);
     if (backend == BACKEND_AARCH64) {
-        return (size_t)tc_aarch64_emit_asm(out, ir, profile, profile->target,
+        return (size_t)tc_aarch64_emit_asm(out, ir, profile, profile->target, NULL,
                                           error, error_capacity);
     }
     if (backend == BACKEND_ARM32) {
-        return (size_t)tc_arm32_emit_asm(out, ir, profile, profile->target,
+        return (size_t)tc_arm32_emit_asm(out, ir, profile, profile->target, NULL,
                                         error, error_capacity);
     }
-    return (size_t)tc_riscv32_emit_asm(out, ir, profile, profile->target,
+    return (size_t)tc_riscv32_emit_asm(out, ir, profile, profile->target, NULL,
                                       error, error_capacity);
 }
 
@@ -311,7 +313,7 @@ static void test_backend_oom(const char *root, FailAllocator *allocator,
         }
         return;
     }
-    out = tmpfile();
+    out = tc_test_tmpfile();
     CHECK(out != NULL);
     if (out == NULL) {
         tc_analysis_destroy(analysis);
@@ -329,7 +331,7 @@ static void test_backend_oom(const char *root, FailAllocator *allocator,
     CHECK(baseline != 0);
     for (i = 0; i < baseline; i++) {
         size_t result;
-        out = tmpfile();
+        out = tc_test_tmpfile();
         CHECK(out != NULL);
         if (out == NULL) {
             break;
@@ -347,8 +349,54 @@ static void test_backend_oom(const char *root, FailAllocator *allocator,
     CHECK(allocator->live == 0);
 }
 
+static void test_linemap_oom(FailAllocator *allocator) {
+    TcPlatformProfile profile;
+    TcModule module = {0};
+    TcInstr instr;
+    TcBlock block = {0};
+    TcUnit unit = {0};
+    TcIR ir = {0};
+    TcLineMap *linemap;
+    size_t baseline;
+    size_t i;
+    memset(&instr, 0, sizeof(instr));
+    instr.span.file = "src/main.tc";
+    instr.span.line = 1u;
+    instr.span.column = 1u;
+    module.path = "src/main.tc";
+    block.instrs = &instr;
+    block.n = 1u;
+    unit.func_id = TC_UNIT_TOP_LEVEL;
+    unit.blocks = &block;
+    unit.nblocks = 1u;
+    ir.modules = &module;
+    ir.nmodules = 1u;
+    ir.units = &unit;
+    ir.nunits = 1u;
+    CHECK(tc_profile_init_aarch64_linux_user(&profile));
+    init_allocator(allocator, &profile);
+    ir.profile = &profile;
+    disarm_failure(allocator);
+    allocator->calls = 0;
+    linemap = NULL;
+    CHECK(tc_linemap_build(&ir, &linemap) == TC_IMPL_OK);
+    CHECK(linemap != NULL);
+    tc_linemap_destroy(linemap);
+    CHECK(allocator->live == 0);
+    baseline = allocator->calls;
+    CHECK(baseline != 0);
+    for (i = 0; i < baseline; i++) {
+        arm_failure(allocator, i);
+        linemap = NULL;
+        CHECK(tc_linemap_build(&ir, &linemap) == TC_IMPL_OOM);
+        disarm_failure(allocator);
+        CHECK(linemap == NULL);
+        CHECK(allocator->live == 0);
+    }
+}
+
 int main(void) {
-    char directory[] = "/tmp/tc-oom-XXXXXX";
+    char directory[] = TC_TEST_TMP_ROOT "/tc-oom-XXXXXX";
     char root[512];
     char lib[512];
     FailAllocator allocator;
@@ -390,6 +438,7 @@ int main(void) {
         return 1;
     }
     test_analysis_oom(root, &allocator);
+    test_linemap_oom(&allocator);
     test_vm_oom(root, &allocator);
     test_backend_oom(root, &allocator, BACKEND_AARCH64);
     test_backend_oom(root, &allocator, BACKEND_ARM32);

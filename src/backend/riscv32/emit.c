@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "backend/common/debug_emit.h"
 #include "diagnostic/diagnostic.h"
 #include "ir/type_width.h"
 #include "runtime/trap.h"
@@ -1528,6 +1529,21 @@ static void emit_unit(TcRiscv32Emitter *emitter, const TcUnit *unit,
     for (b = 0; b < unit->nblocks; b++) {
         tc_riscv32_write(emitter, ".L%zu_block%zu:\n", unit_index, b);
         for (i = 0; i < unit->blocks[b].n; i++) {
+            if (emitter->linemap != NULL) {
+                TcImplError impl = tc_debug_emit_location(
+                    emitter->out, emitter->linemap,
+                    &unit->blocks[b].instrs[i]);
+                if (impl != TC_IMPL_OK) {
+                    if (impl == TC_IMPL_IO) {
+                        emitter->output_failed = 1;
+                    } else {
+                        emitter->internal_error = 1;
+                    }
+                    emitter->failed = 1;
+                    free_layout(emitter);
+                    return;
+                }
+            }
             tc_riscv32_emit_instruction(emitter,
                                         &unit->blocks[b].instrs[i]);
             if (emitter->failed) {
@@ -2067,6 +2083,7 @@ static int abi_matches_classifier(const TcABIDesc *abi) {
 TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
                                         const TcPlatformProfile *profile,
                                         const TcTargetDesc *target,
+                                        const TcLineMap *linemap,
                                         char *error_message,
                                         size_t error_capacity) {
     TcRiscv32Emitter emitter;
@@ -2096,6 +2113,7 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
     }
     memset(&emitter, 0, sizeof(emitter));
     emitter.ir = ir;
+    emitter.linemap = linemap;
     emitter.profile = profile;
     emitter.alloc = profile->alloc != NULL ? profile->alloc
                                            : tc_allocator_libc();
@@ -2123,6 +2141,20 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
                      profile->target != NULL && profile->target->name != NULL
                          ? profile->target->name
                          : "?");
+    if (linemap != NULL) {
+        TcImplError impl = tc_debug_emit_files(out, linemap);
+        if (impl == TC_IMPL_OK) {
+            impl = tc_debug_emit_begin(out);
+        }
+        if (impl != TC_IMPL_OK) {
+            emitter.alloc->free(emitter.alloc->ctx, emitter.types);
+            emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
+            if (impl == TC_IMPL_IO) {
+                return TC_RISCV32_EMIT_IO;
+            }
+            return TC_RISCV32_EMIT_INTERNAL;
+        }
+    }
     for (u = 0; u < ir->nunits; u++) {
         if (ir->units[u].func_id == TC_UNIT_TOP_LEVEL) {
             saw_top = 1;
@@ -2130,6 +2162,18 @@ TcRiscv32EmitStatus tc_riscv32_emit_asm(FILE *out, const TcIR *ir,
         emit_unit(&emitter, &ir->units[u], u);
         if (emitter.failed) {
             break;
+        }
+    }
+    if (!emitter.failed && linemap != NULL) {
+        TcImplError impl = tc_debug_emit_end(out, linemap,
+                                             target->addr_width / 8u);
+        if (impl != TC_IMPL_OK) {
+            emitter.failed = 1;
+            if (impl == TC_IMPL_IO) {
+                emitter.output_failed = 1;
+            } else {
+                emitter.internal_error = 1;
+            }
         }
     }
     if (!emitter.failed && !saw_top) {

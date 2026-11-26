@@ -21,6 +21,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "base/fd.h"
 #include "base/path.h"
 #include "driver/cli.h"
 #include "driver/profile_select.h"
@@ -133,6 +134,16 @@ static const char *const sidecar_names[4] = {
 
 static int same_identity(const struct stat *a, const struct stat *b) {
     return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
+}
+
+static int private_temp_path(char path[PATH_MAX]) {
+    const char *directory = getenv("TMPDIR");
+    int length;
+    if (directory == NULL || directory[0] == '\0') {
+        directory = "/tmp";
+    }
+    length = snprintf(path, PATH_MAX, "%s/tc-test-XXXXXX", directory);
+    return length >= 0 && (size_t)length < PATH_MAX;
 }
 
 static int missing_errno(int error_number) {
@@ -295,7 +306,7 @@ static int dir_within(int dir_fd, int boundary_fd) {
             result = 1;
             break;
         }
-        parent = openat(current, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC |
+        parent = tc_fd_openat(current, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC |
                                          O_NOFOLLOW);
         (void)close(current);
         if (parent < 0) {
@@ -362,7 +373,7 @@ static TcResolveStatus resolve_path(int anchor_fd, int boundary_fd,
             return TC_RESOLVE_USAGE;
         }
         (void)close(current);
-        current = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+        current = tc_fd_open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     }
     if (current < 0) {
         return resolve_error(errno);
@@ -393,7 +404,7 @@ static TcResolveStatus resolve_path(int anchor_fd, int boundary_fd,
             continue;
         }
         if (strcmp(component, "..") == 0) {
-            int parent = openat(current, "..", O_RDONLY | O_DIRECTORY |
+            int parent = tc_fd_openat(current, "..", O_RDONLY | O_DIRECTORY |
                                                  O_CLOEXEC | O_NOFOLLOW);
             if (parent < 0) {
                 result = resolve_error(errno);
@@ -431,7 +442,7 @@ static TcResolveStatus resolve_path(int anchor_fd, int boundary_fd,
                     goto done;
                 }
                 (void)close(current);
-                current = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC |
+                current = tc_fd_open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC |
                                          O_NOFOLLOW);
                 if (current < 0) {
                     result = resolve_error(errno);
@@ -461,7 +472,7 @@ static TcResolveStatus resolve_path(int anchor_fd, int boundary_fd,
             queue = joined;
             continue;
         } else if (remainder[0] != '\0') {
-            int child = openat(current, component,
+            int child = tc_fd_openat(current, component,
                                O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
             if (child < 0) {
                 result = resolve_error(errno);
@@ -475,7 +486,7 @@ static TcResolveStatus resolve_path(int anchor_fd, int boundary_fd,
             (void)close(current);
             current = child;
         } else {
-            int fd = openat(current, component,
+            int fd = tc_fd_openat(current, component,
                             O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
             if (fd < 0) {
                 if (errno == ELOOP) {
@@ -716,7 +727,7 @@ static int scan_source_bytes(const unsigned char *bytes, size_t size,
             if (search_fd < 0) {
                 continue;
             }
-            fd = openat(search_fd, named,
+            fd = tc_fd_openat(search_fd, named,
                         O_RDONLY | O_NONBLOCK | O_CLOEXEC);
             if (fd < 0) {
                 int error_number = errno;
@@ -1082,9 +1093,9 @@ static int bind_private_snapshot(const char *path, int writer_fd,
         return 0;
     }
     (void)snprintf(fd_link, sizeof(fd_link), "/proc/self/fd/%d", writer_fd);
-    fd = open(fd_link, O_RDONLY | O_CLOEXEC);
+    fd = tc_fd_open(fd_link, O_RDONLY | O_CLOEXEC);
 #else
-    fd = open(path, O_RDONLY | O_CLOEXEC);
+    fd = tc_fd_open(path, O_RDONLY | O_CLOEXEC);
     if (fd >= 0 && unlink(path) != 0) {
         int error_number = errno;
         (void)close(fd);
@@ -1112,7 +1123,7 @@ static int bind_private_snapshot(const char *path, int writer_fd,
 static int snapshot_from_fd(TcSnapshot *snapshot, int source_fd,
                             uint64_t limit, TcImplError mutation_error,
                             TcTestRunner *runner) {
-    char path[] = "/tmp/tc-test-XXXXXX";
+    char path[PATH_MAX];
     struct stat before;
     struct stat after;
     int fd = -1;
@@ -1135,7 +1146,11 @@ static int snapshot_from_fd(TcSnapshot *snapshot, int source_fd,
                                ? "source exceeds 4 MiB"
                                : "sidecar exceeds 4 KiB");
     }
-    fd = mkstemp(path);
+    if (!private_temp_path(path)) {
+        return runner_fail(runner, TC_IMPL_IO,
+                           "temporary directory path is too long");
+    }
+    fd = tc_fd_relocate(mkstemp(path));
     if (fd < 0) {
         return runner_fail(runner, errno == ENOMEM ? TC_IMPL_OOM
                                                    : TC_IMPL_IO,
@@ -1692,7 +1707,7 @@ static int discover_tests(TcTestRunner *runner) {
 }
 
 static int discover_project(TcTestRunner *runner) {
-    int current = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    int current = tc_fd_open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     if (current < 0) {
         return runner_fail(runner, errno == ENOMEM ? TC_IMPL_OOM
                                                    : TC_IMPL_IO,
@@ -1720,7 +1735,7 @@ static int discover_project(TcTestRunner *runner) {
                                "cannot search for tc.project");
         }
         if (found) {
-            int manifest_fd = openat(current, "tc.project",
+            int manifest_fd = tc_fd_openat(current, "tc.project",
                                      O_RDONLY | O_NONBLOCK | O_CLOEXEC);
             int ok;
             if (manifest_fd < 0) {
@@ -1756,7 +1771,7 @@ static int discover_project(TcTestRunner *runner) {
         }
         free(root);
         {
-            int parent = openat(current, "..",
+            int parent = tc_fd_openat(current, "..",
                                 O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
             if (parent < 0) {
                 (void)close(current);
@@ -1864,7 +1879,7 @@ static int prepare_runner(TcTestRunner *runner, const char *const *filters,
                                                    : TC_IMPL_IO,
                            "cannot inspect tests directory");
     }
-    runner->tests_fd = openat(runner->root_fd, "tests",
+    runner->tests_fd = tc_fd_openat(runner->root_fd, "tests",
                               O_RDONLY | O_DIRECTORY | O_NONBLOCK |
                                   O_CLOEXEC | O_NOFOLLOW);
     if (runner->tests_fd < 0) {
@@ -2251,9 +2266,14 @@ send:
 }
 
 static int empty_snapshot(TcSnapshot *snapshot, TcTestRunner *runner) {
-    char path[] = "/tmp/tc-test-XXXXXX";
-    int fd = mkstemp(path);
+    char path[PATH_MAX];
+    int fd;
     int readonly_fd = -1;
+    if (!private_temp_path(path)) {
+        return runner_fail(runner, TC_IMPL_IO,
+                           "temporary directory path is too long");
+    }
+    fd = tc_fd_relocate(mkstemp(path));
     if (fd < 0) {
         return runner_fail(runner, errno == ENOMEM ? TC_IMPL_OOM
                                                    : TC_IMPL_IO,
@@ -2564,7 +2584,7 @@ static int reopen_test(TcTestRunner *runner, const TcTestCase *test,
 
 static int make_capture(TcCapture *capture, int expected_fd,
                         TcTestRunner *runner) {
-    char path[] = "/tmp/tc-test-XXXXXX";
+    char path[PATH_MAX];
     struct stat st;
     memset(capture, 0, sizeof(*capture));
     capture->expected_fd = expected_fd;
@@ -2573,7 +2593,11 @@ static int make_capture(TcCapture *capture, int expected_fd,
         return runner_fail(runner, TC_IMPL_IO, "cannot inspect stdout.bin");
     }
     capture->expected_size = (uint64_t)st.st_size;
-    capture->actual_fd = mkstemp(path);
+    if (!private_temp_path(path)) {
+        return runner_fail(runner, TC_IMPL_IO,
+                           "temporary directory path is too long");
+    }
+    capture->actual_fd = tc_fd_relocate(mkstemp(path));
     if (capture->actual_fd < 0) {
         return runner_fail(runner, errno == ENOMEM ? TC_IMPL_OOM
                                                    : TC_IMPL_IO,

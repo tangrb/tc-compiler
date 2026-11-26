@@ -1,6 +1,7 @@
 # Build artifacts
 /build/
 /build-*/
+/.tmp/
 
 # Objects / libraries
 *.o

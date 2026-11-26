@@ -4638,6 +4638,26 @@ const char *tc_analysis_module_path(const TcAnalysis *analysis, size_t index) {
     return analysis->modules[index].info->path;
 }
 
+size_t tc_analysis_input_count(const TcAnalysis *analysis) {
+    return analysis == NULL || analysis->graph == NULL
+               ? 0u
+               : analysis->graph->nmodules +
+                     (analysis->graph->failed_path != NULL ? 1u : 0u);
+}
+
+const char *tc_analysis_input_path(const TcAnalysis *analysis, size_t index) {
+    if (analysis == NULL || analysis->graph == NULL) {
+        return NULL;
+    }
+    if (index < analysis->graph->nmodules) {
+        return analysis->graph->modules[index].path;
+    }
+    if (index == analysis->graph->nmodules) {
+        return analysis->graph->failed_path;
+    }
+    return NULL;
+}
+
 const TcStructDef *tc_analysis_find_struct(const TcAnalysis *analysis,
                                            const char *module_path,
                                            const char *struct_name) {

@@ -106,6 +106,8 @@ unsigned tc_analysis_addr_width(const TcAnalysis *analysis);
 
 size_t tc_analysis_module_count(const TcAnalysis *analysis);
 const char *tc_analysis_module_path(const TcAnalysis *analysis, size_t index);
+size_t tc_analysis_input_count(const TcAnalysis *analysis);
+const char *tc_analysis_input_path(const TcAnalysis *analysis, size_t index);
 
 /* Lookup helpers for unit tests and later stages.  Struct identity is
  * (module instance path, declaration name). */

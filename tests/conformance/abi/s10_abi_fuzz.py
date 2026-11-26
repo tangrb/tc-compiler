@@ -383,8 +383,8 @@ def run_one(seed: int, profile: str, codegen, runner, expected: int,
         except Exception as exc:  # noqa: BLE001 - report generated-case failure
             text = (f"seed {seed} profile {profile}: exception {exc!r}")
             if keep:
-                target = Path(f"/tmp/tc-abifuzz-fail-{seed}-"
-                              f"{profile.replace('/', '_')}")
+                target = Path(tempfile.gettempdir()) / (
+                    f"tc-abifuzz-fail-{seed}-{profile.replace('/', '_')}")
                 shutil.rmtree(target, ignore_errors=True)
                 shutil.copytree(directory, target)
                 text += f"\nkept {target}"
@@ -396,7 +396,8 @@ def run_one(seed: int, profile: str, codegen, runner, expected: int,
                     f"stdout={actual!r} expected={wanted!r}\n"
                     f"diagnostic={diagnostic!r}")
             if keep:
-                target = Path(f"/tmp/tc-abifuzz-fail-{seed}-{profile.replace('/','_')}")
+                target = Path(tempfile.gettempdir()) / (
+                    f"tc-abifuzz-fail-{seed}-{profile.replace('/', '_')}")
                 shutil.rmtree(target, ignore_errors=True)
                 shutil.copytree(directory, target)
                 text += f"\nkept {target}"

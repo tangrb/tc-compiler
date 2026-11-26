@@ -1,6 +1,8 @@
 /* Private tc.project parser and nearest-ancestor root discovery. */
 #define _GNU_SOURCE
 
+#include "base/fd.h"
+#include "base/path.h"
 #include "project/manifest.h"
 
 #include <errno.h>
@@ -658,7 +660,7 @@ int tc_project_manifest_load(const char *manifest_path, const char *project_root
         return set_error(error, TC_IMPL_INTERNAL, "invalid manifest arguments",
                          NULL, 0u);
     }
-    fd = open(manifest_path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    fd = tc_fd_open(manifest_path, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
     if (fd < 0) {
         return set_error(error, errno == ENOMEM ? TC_IMPL_OOM : TC_IMPL_IO,
                          "cannot open tc.project", NULL, 0u);
@@ -686,6 +688,93 @@ static char *join_manifest_path(const char *directory) {
     }
     memcpy(path + length, name, sizeof(name));
     return path;
+}
+
+int tc_project_manifest_locate(const char *start_directory, char **out_path,
+                               TcProjectError *error) {
+    char *resolved;
+    char *current;
+    struct stat st;
+    int missing = 0;
+    if (out_path == NULL) {
+        return set_error(error, TC_IMPL_INTERNAL, "missing output", NULL, 0u);
+    }
+    *out_path = NULL;
+    clear_error(error);
+    if (start_directory == NULL || start_directory[0] == '\0') {
+        return set_error(error, TC_IMPL_INTERNAL, "missing start directory", NULL,
+                         0u);
+    }
+    {
+        TcImplError impl = tc_path_resolve(start_directory, 1, &resolved,
+                                           &missing);
+        if (impl != TC_IMPL_OK) {
+            return set_error(error, impl, "cannot canonicalize start directory",
+                             NULL, 0u);
+        }
+    }
+    (void)missing;
+    if (!missing && stat(resolved, &st) != 0) {
+        int error_number = errno;
+        free(resolved);
+        return set_error(error, error_number == ENOMEM ? TC_IMPL_OOM : TC_IMPL_IO,
+                         "cannot inspect start directory", NULL, 0u);
+    }
+    if (!missing && !S_ISDIR(st.st_mode)) {
+        free(resolved);
+        return set_error(error, TC_IMPL_IO, "start path is not a directory", NULL,
+                         0u);
+    }
+    current = resolved;
+    for (;;) {
+        char *candidate = join_manifest_path(current);
+        struct stat entry;
+        int found;
+        if (candidate == NULL) {
+            free(current);
+            return set_error(error, TC_IMPL_OOM, "out of memory", NULL, 0u);
+        }
+        found = lstat(candidate, &entry) == 0;
+        if (!found && errno != ENOENT && errno != ENOTDIR) {
+            int error_number = errno;
+            free(candidate);
+            free(current);
+            return set_error(error,
+                             error_number == ENOMEM ? TC_IMPL_OOM : TC_IMPL_IO,
+                             "cannot search for tc.project", NULL, 0u);
+        }
+        if (found) {
+            char *canonical = NULL;
+            int missing = 0;
+            TcImplError impl = tc_path_resolve(candidate, 1, &canonical, &missing);
+            free(candidate);
+            free(current);
+            if (impl != TC_IMPL_OK || missing) {
+                free(canonical);
+                return set_error(error, impl == TC_IMPL_OK ? TC_IMPL_USAGE : impl,
+                                 "cannot resolve tc.project", NULL, 0u);
+            }
+            *out_path = canonical;
+            return 1;
+        }
+        free(candidate);
+        if (strcmp(current, "/") == 0) {
+            free(current);
+            return 0;
+        }
+        {
+            char *slash = strrchr(current, '/');
+            if (slash == current) {
+                current[1] = '\0';
+            } else if (slash != NULL) {
+                *slash = '\0';
+            } else {
+                free(current);
+                return set_error(error, TC_IMPL_INTERNAL, "invalid canonical root",
+                                 NULL, 0u);
+            }
+        }
+    }
 }
 
 int tc_project_discover(const char *start_directory, TcProjectManifest **out,

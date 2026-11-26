@@ -4,6 +4,7 @@
  * (glibc gates realpath on more than POSIX 2008). */
 #define _GNU_SOURCE
 
+#include "base/fd.h"
 #include "frontend/module.h"
 
 #include <errno.h>
@@ -70,7 +71,7 @@ static int candidate_open_at(int dir_fd, const char *name, int *out_fd) {
                 return TC_IMPORT_IO;
             }
         }
-        fd = openat(dir_fd, name, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        fd = tc_fd_openat(dir_fd, name, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         if (fd < 0) {
             int error_number = errno;
             if (query_error == 0) {
@@ -104,7 +105,7 @@ static int candidate_open_at(int dir_fd, const char *name, int *out_fd) {
     return TC_IMPORT_IO;
 }
 
-static int candidate_open(const char *candidate, int *out_fd) {
+static int candidate_tc_fd_open(const char *candidate, int *out_fd) {
     char *directory = NULL;
     char *canonical_directory = NULL;
     const char *name;
@@ -123,7 +124,7 @@ static int candidate_open(const char *candidate, int *out_fd) {
     }
     name = strrchr(candidate, '/');
     name = name == NULL ? candidate : name + 1u;
-    dir_fd = open(canonical_directory,
+    dir_fd = tc_fd_open(canonical_directory,
                   O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     free(canonical_directory);
     if (dir_fd < 0) {
@@ -296,7 +297,7 @@ static int candidate_identity(int fd, const char *canonical, char **out,
         free(path);
         return errno == ENOMEM ? -1 : TC_IMPORT_IO;
     }
-    parent_fd = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    parent_fd = tc_fd_open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (parent_fd < 0) {
         free(path);
         return errno == ENOMEM ? -1 : TC_IMPORT_IO;
@@ -316,7 +317,7 @@ static int candidate_identity(int fd, const char *canonical, char **out,
         struct stat child_st;
         if (slash != NULL) {
             *slash = '\0';
-            child_fd = openat(parent_fd, cursor,
+            child_fd = tc_fd_openat(parent_fd, cursor,
                               O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
             if (child_fd < 0) {
                 status = errno == ENOMEM ? -1 : TC_IMPORT_IO;
@@ -384,7 +385,7 @@ int tc_module_bind_root(const char *path, int *out_fd, char **out_path) {
     }
     *out_fd = -1;
     *out_path = NULL;
-    status = candidate_open(path, &fd);
+    status = candidate_tc_fd_open(path, &fd);
     if (status <= 0) {
         return status == 0 ? TC_IMPORT_IO : status;
     }
@@ -518,7 +519,7 @@ static int try_candidate_fd(const char *candidate, int *out_fd,
     }
     name = strrchr(candidate, '/');
     name = name == NULL ? candidate : name + 1u;
-    dir_fd = open(canonical_directory,
+    dir_fd = tc_fd_open(canonical_directory,
                   O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     free(canonical_directory);
     if (dir_fd < 0) {
@@ -593,7 +594,7 @@ int tc_module_resolve_import_at_fd(
                 continue;
             }
         } else if (dir_fd < 0) {
-            dir_fd = open(include_roots[i],
+            dir_fd = tc_fd_open(include_roots[i],
                           O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
             if (dir_fd < 0) {
                 int error_number = errno;
@@ -943,12 +944,19 @@ static int load_module(TcLoader *loader, const char *path, const char *identity,
         loader_oom(loader);
         return 0;
     }
+    graph->failed_path = tc_arena_strdup(&graph->arena, path);
+    if (graph->failed_path == NULL) {
+        (void)close(fd);
+        loader_oom(loader);
+        return 0;
+    }
     display_path = display_owned;
     graph->failed_display = display_path;
     if (!parse_module_file(loader, display_path, fd, is_root, &parse)) {
         return 0;
     }
     graph->failed_display = NULL;
+    graph->failed_path = NULL;
     memset(&info, 0, sizeof(info));
     info.path = tc_arena_strdup(&graph->arena, path);
     info.identity = tc_arena_strdup(&graph->arena, identity);
@@ -1011,6 +1019,15 @@ static int load_module(TcLoader *loader, const char *path, const char *identity,
                 graph->failed_display = failed_file->display;
             } else {
                 graph->failed_display = module->display_path;
+            }
+            if (failed_candidate != NULL) {
+                graph->failed_path = tc_arena_strdup(&graph->arena,
+                                                      failed_candidate);
+                if (graph->failed_path == NULL) {
+                    (void)close(resolved_fd);
+                    loader_oom(loader);
+                    break;
+                }
             }
             graph->impl = TC_IMPL_IO;
             loader->failed = 1;
