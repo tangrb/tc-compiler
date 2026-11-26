@@ -206,7 +206,7 @@ def check_profile_limits(tmp: Path, failures: list[str]) -> None:
     if result.returncode != 70:
         failures.append(
             f"w32 profile: exit {result.returncode}, expected 70")
-    if w32_out.exists() and w32_out.stat().st_size != 0:
+    if w32_out.exists():
         failures.append("w32 profile published an artifact")
     baremetal_out = tmp / "aarch64-baremetal.s"
     result = aot(tmp, valid, "--emit=asm", "--profile=aarch64-baremetal",
@@ -263,10 +263,9 @@ def check_cli(tmp: Path, failures: list[str]) -> None:
     if result.returncode != 0 or b"--emit=asm|obj|elf|flat" not in result.stdout:
         failures.append("cli: --help does not document the AOT options")
     result = run([tt, "--version"])
-    if result.returncode != 0 or b"native backends" not in result.stdout or \
-            b"0.0.46" not in result.stdout:
-        failures.append(
-            "cli: --version does not identify the native backends and version")
+    if result.returncode != 0 or result.stdout != \
+            b"tc-aot 0.0.47 (language 0.0.46; native AOT)\n" or result.stderr:
+        failures.append("cli: --version does not identify native AOT and both versions")
 
 
 def main() -> int:

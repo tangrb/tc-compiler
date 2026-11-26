@@ -1,4 +1,4 @@
-# 门禁状态（0.0.46）
+# 门禁状态（0.0.46 / 0.0.47）
 
 本目录只保留每个已完成阶段的**当前门禁结论与可复现证据入口**。逐轮审计记录、缺陷修复过程、
 历史 commit/环境快照不进入分支；需要追溯时使用 git 历史。
@@ -16,11 +16,15 @@
 | G8 | S8 全量语义、运行时与全量差分 | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
 | G9 | S9 freestanding/裸机与 32 位后端 | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 | G10 | S10 多目标扩展与长期回归 | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
+| G11 | 0.0.47 工具链与工程模型 | **未完成** | 本页当前状态 |
 
-**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 工具链与
-[工程模型](../TC工程模型-0.0.47.md)两份设计达到冻结条件，但实现尚未开始，T0–T6/P0–P5
-均未完成，暂无 0.0.47 门禁记录（自 G11 起）；全量 `ctest` 71/71，
-harness 873/873。前端、CT/IR、
+**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0/T0 与 P1
+已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、发布审计、
+`tc --init-project` 完整模板/原子写入/回滚/身份检查，以及 `tc.project` v1 解析与
+最近根发现 API 均已落地。manifest 尚未接入编译器消费；P2–P5/T1–T6 尚未开始，
+`tc --test` 仍显式退出 70，G11 未完成。0.0.47 CTest 注册总数 76，P1 的
+Debug/Release/ASan+UBSan 全量回归均为 76/76；
+0.0.46 已验收 harness 873/873。前端、CT/IR、
 运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、W=32 RISC-V
 `riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、四设备策略、
 checked build、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32 互操作、
@@ -34,6 +38,7 @@ design §12 十五项均有套件映射。
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
+ctest --test-dir build -R '^project\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

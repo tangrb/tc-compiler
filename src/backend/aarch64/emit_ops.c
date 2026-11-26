@@ -942,9 +942,9 @@ static void emit_call(TcA64Emitter *emitter, const TcInstr *instr) {
             return;
         }
         if (nargs != 0) {
-            params = (const TcType **)calloc(nargs, sizeof(*params));
+            params = (const TcType **)tc_allocator_calloc(emitter->alloc, nargs, sizeof(*params));
             if (params == NULL) {
-                tc_a64_error(emitter, "out of memory");
+                tc_a64_oom(emitter, "out of memory");
                 return;
             }
             for (i = 0; i < nargs; i++) {
@@ -973,9 +973,9 @@ static void emit_call(TcA64Emitter *emitter, const TcInstr *instr) {
             return;
         }
         if (nargs != 0) {
-            params = (const TcType **)calloc(nargs, sizeof(*params));
+            params = (const TcType **)tc_allocator_calloc(emitter->alloc, nargs, sizeof(*params));
             if (params == NULL) {
-                tc_a64_error(emitter, "out of memory");
+                tc_a64_oom(emitter, "out of memory");
                 return;
             }
             for (i = 0; i < nargs; i++) {
@@ -986,7 +986,7 @@ static void emit_call(TcA64Emitter *emitter, const TcInstr *instr) {
     }
     tc_a64_plan_arguments(emitter, params, nargs, &plan);
     if (emitter->failed) {
-        free(params);
+        emitter->alloc->free(emitter->alloc->ctx, params);
         tc_a64_free_argument_plan(&plan);
         return;
     }
@@ -997,12 +997,12 @@ static void emit_call(TcA64Emitter *emitter, const TcInstr *instr) {
     for (i = 0; i < nargs; i++) {
         emit_argument(emitter, &instr->args[i + 1u], params[i], &plan.slots[i]);
         if (emitter->failed) {
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             tc_a64_free_argument_plan(&plan);
             return;
         }
     }
-    free(params);
+    emitter->alloc->free(emitter->alloc->ctx, params);
     tc_a64_free_argument_plan(&plan);
     if (ret_plan.kind == TC_A64_RET_INDIRECT) {
         if (instr->dst.kind == TC_OP_DISCARD) {

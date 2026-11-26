@@ -39,11 +39,13 @@ typedef struct {
 typedef struct TcA64Emitter {
     const TcIR *ir;
     const TcPlatformProfile *profile;
+    const TcAllocator *alloc;
     FILE *out;
     char *error_message;
     size_t error_capacity;
     int failed;
     int internal_error; /* capability limit of the platform instance */
+    int oom_failed;
     int output_failed;
     unsigned next_label;
 
@@ -94,6 +96,7 @@ typedef struct {
 } TcA64ArgSlot;
 
 typedef struct {
+    const TcAllocator *alloc;
     TcA64ArgSlot *slots;
     size_t count;
     uint64_t stack_bytes;
@@ -119,6 +122,8 @@ typedef struct {
 void tc_a64_write(TcA64Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 void tc_a64_error(TcA64Emitter *emitter, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+void tc_a64_oom(TcA64Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 /* Record a platform-instance capacity limit: the tool reports an internal
  * implementation error rather than an unsupported language capability. */

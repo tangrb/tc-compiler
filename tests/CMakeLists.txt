@@ -5,36 +5,59 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 add_executable(tc_contract_test unit/contract_test.c)
 target_link_libraries(tc_contract_test PRIVATE tc_core)
+target_include_directories(tc_contract_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_contract_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_frontend_test unit/frontend_test.c)
 target_link_libraries(tc_frontend_test PRIVATE tc_core)
+target_include_directories(tc_frontend_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_frontend_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_sem_test unit/sem_test.c)
 target_link_libraries(tc_sem_test PRIVATE tc_core)
+target_include_directories(tc_sem_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_sem_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 target_compile_definitions(tc_sem_test PRIVATE
     TC_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(tc_ir_test unit/ir_test.c)
 target_link_libraries(tc_ir_test PRIVATE tc_core)
+target_include_directories(tc_ir_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_ir_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_ct_test unit/ct_test.c)
 target_link_libraries(tc_ct_test PRIVATE tc_core)
+target_include_directories(tc_ct_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_ct_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_vm_test unit/vm_test.c)
 target_link_libraries(tc_vm_test PRIVATE tc_core)
+target_include_directories(tc_vm_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_vm_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_aot_test unit/aot_test.c)
 target_link_libraries(tc_aot_test PRIVATE tc_core)
+target_include_directories(tc_aot_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_aot_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_oom_test unit/oom_test.c)
+target_link_libraries(tc_oom_test PRIVATE tc_core)
+target_include_directories(tc_oom_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_oom_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_project_manifest_test unit/project_manifest_test.c)
+target_link_libraries(tc_project_manifest_test PRIVATE tc_core)
+target_include_directories(tc_project_manifest_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_project_manifest_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_project_init_fault_test project/init_fault_driver.c)
+target_link_libraries(tc_project_init_fault_test PRIVATE tc_core)
+target_include_directories(tc_project_init_fault_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_project_init_fault_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_executable(tc_dump_codes unit/dump_codes.c)
 target_link_libraries(tc_dump_codes PRIVATE tc_core)
+target_include_directories(tc_dump_codes PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_dump_codes PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 add_test(NAME contract.unit COMMAND tc_contract_test)
@@ -44,6 +67,23 @@ add_test(NAME ct.unit COMMAND tc_ct_test)
 add_test(NAME ir.unit COMMAND tc_ir_test)
 add_test(NAME vm.unit COMMAND tc_vm_test)
 add_test(NAME aot.unit COMMAND tc_aot_test)
+add_test(NAME oom.unit COMMAND tc_oom_test)
+add_test(NAME project.manifest
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/project/manifest_test.py --check
+                 $<TARGET_FILE:tc_project_manifest_test>)
+add_test(NAME project.init
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/project/tc_cli_test.py
+                 $<TARGET_FILE:tc>)
+add_test(NAME project.init_fault
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/project/init_fault_test.py
+                 $<TARGET_FILE:tc_project_init_fault_test>)
+add_test(NAME release.audit_selftest
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/s10_release_audit.py
+                 --selftest)
 add_test(NAME contract.dump_codes COMMAND tc_dump_codes)
 add_test(NAME conformance.s2s3_cases
          COMMAND ${Python3_EXECUTABLE}
@@ -77,7 +117,10 @@ add_test(
 add_test(
     NAME cli.contract
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cli_contract_test.py
-            $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
+            $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot> $<TARGET_FILE:tc>)
+set_tests_properties(contract.unit cli.contract oom.unit release.audit_selftest
+                    project.manifest project.init project.init_fault
+                    PROPERTIES LABELS "unit;toolchain;fast")
 
 # --- traceability / golden / harness checks ----------------------------------
 
@@ -293,6 +336,7 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/s10_release_audit.py
                      --check)
+    set_tests_properties(release.s10_audit PROPERTIES LABELS "toolchain;aot;slow")
     set_tests_properties(
         conformance.s7_diff conformance.s7_fuzz conformance.s7_abi
         conformance.s7_tools determinism.s7 conformance.s7_static_parity
@@ -312,7 +356,7 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s10_long_branch release.s10_audit
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        ENVIRONMENT "TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_QEMU_SYSTEM_RISCV32=${TC_QEMU_SYSTEM_RISCV32};TC_AOT_LINKER=${TC_LLD}")
+        ENVIRONMENT "TC_PROJECT=$<TARGET_FILE:tc>;TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_QEMU_SYSTEM_RISCV32=${TC_QEMU_SYSTEM_RISCV32};TC_AOT_LINKER=${TC_LLD}")
 endif()
 
 # --- LEX/SYN front-end conformance ------------------------------------------

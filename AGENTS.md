@@ -3,8 +3,10 @@
 0.0.46 为 clean-sheet 实现基线。实现与验证以标准/设计/测试计划为准；历史实现、工具与测试
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
-两份设计已达到冻结条件，但实现尚未开始，T0–T6/P0–P5 均未完成。当前实现仍是两个编译器入口，
-`tc` 工程工具将按 0.0.47 设计接入。RTOS/中断/并发移交 0.0.48。
+两份设计已达到冻结条件；P0/T0 与 P1 已完成，P2–P5/T1–T6 尚未开始。
+当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
+回滚与身份检查。`src/project/manifest.c` 提供 `tc.project` v1 解析与最近根发现 API，
+但尚未接入编译器消费；`tc --test` 仍显式退出 70。RTOS/中断/并发移交 0.0.48。
 
 ## 当前事实
 
@@ -32,13 +34,21 @@
   far-branch 长跳转、32/64 分档案隔离、S10 长期回归语料/发布审计；ABI 参考版本、规则矩阵
   与范围限制见 `tests/conformance/abi/README.md`。代码在 `src/frontend/`、`src/ir/`、
   `src/runtime/`、`src/vm/`、`src/backend/` 与 `src/driver/`。
-- 0.0.47 设计：工具链与工程模型达到冻结条件；实现未开始。P4b 的 VM 调试 ELF 内部布局
-  只作实现验证并提交证据，不回写规范；设计中的新增入口、接口和测试不得写成已实现。
+- 0.0.47 当前实现：P0/T0 完成版本拆分、三入口 CLI 契约与私有 `TcImplError` 退出码映射；
+  P1 完成 `tc --init-project` 的完整模板、原子写入、回滚与身份检查，并在
+  `src/project/manifest.c` 实现 `tc.project` v1 解析与最近根发现 API。manifest 尚未接入
+  编译器消费；P2 路径消费者、P3 测试 runner 与可观测/调试接口、P4b VM 调试 ELF
+  尚未实现，`tc --test` 仍显式退出 70，不得写成已支持。
+- 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-- 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；见 `docs/gates/README.md`。
+- 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
+  已注册 CTest 总数 76，P1 的 Debug/Release/ASan+UBSan 全量回归均为 76/76；
+  见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
-- 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。
+- 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。三个入口只链接私有静态 `tc_core`。
+- 实现级退出码只由 `tc_impl_error_exit` 映射：OK→0、USAGE→2、IO/UNAVAILABLE/OOM→70、
+  INTERNAL→71；源/输出 IO、能力不可用与实际 OOM 不得映射为 71。
 - 文档化实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
   超出是 `tc_error_internal`（退出 71），不是语言诊断。AOT 还检查
   `frame_total*(D+1) <= stack_size`（VM 宿主帧不受此限），ARM32 代码窗口
@@ -147,6 +157,7 @@
 | 阶段 / 覆盖 / 门禁要求 | `docs/TC开发测试计划-0.0.46.md` |
 | 0.0.47 工具链范围 / 契约 / 里程碑 | `docs/TC开发调试工具链-0.0.47.md` |
 | 0.0.47 工程模型 / tc / 测试布局 | `docs/TC工程模型-0.0.47.md` |
+| 工程名称 / manifest / 初始化 | `src/project/name.h`、`manifest.h`、`init.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |

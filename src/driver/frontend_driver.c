@@ -33,62 +33,85 @@ static const char *stage_name(TcStage stage) {
     }
 }
 
-static void print_byte_offset_note(const TcSpan *span) {
-    if (span->invalid_byte_offset != TC_SPAN_NO_INVALID_BYTE) {
-        fprintf(stderr, "%s:%u:%u: note: invalid byte offset %u\n",
-                span->file != NULL ? span->file : "<source>",
-                span->line, span->column, span->invalid_byte_offset);
+static int print_byte_offset_note(const TcSpan *span) {
+    if (span->invalid_byte_offset == TC_SPAN_NO_INVALID_BYTE) {
+        return 0;
     }
+    return tc_cli_write(stderr, "%s:%u:%u: note: invalid byte offset %u\n",
+                        span->file != NULL ? span->file : "<source>",
+                        span->line, span->column, span->invalid_byte_offset);
 }
 
-static void print_frontend_diag(const TcFrontendDiag *diag) {
+static int print_frontend_diag(const TcFrontendDiag *diag) {
     const TcDiagInfo *info = tc_diag_info(diag->code);
-    fprintf(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
-            diag->span.file != NULL ? diag->span.file : "<source>",
-            diag->span.line, diag->span.column, stage_name(diag->stage),
-            info != NULL ? info->symbol : "TC_CE_SYNTAX",
-            info != NULL ? info->print_name : "SyntaxError");
-    if (diag->stage == TC_STAGE_LEX) {
-        print_byte_offset_note(&diag->span);
+    int failed = tc_cli_write(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
+                              diag->span.file != NULL ? diag->span.file
+                                                      : "<source>",
+                              diag->span.line, diag->span.column,
+                              stage_name(diag->stage),
+                              info != NULL ? info->symbol : "TC_CE_SYNTAX",
+                              info != NULL ? info->print_name : "SyntaxError");
+    if (failed == 0 && diag->stage == TC_STAGE_LEX) {
+        failed = print_byte_offset_note(&diag->span);
     }
+    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+        return tc_impl_error_exit(TC_IMPL_IO);
+    }
+    return TC_EXIT_DIAGNOSTIC;
 }
 
-static void print_analysis_diag(const TcAnalysisDiag *diag) {
+static int print_analysis_diag(const TcAnalysisDiag *diag) {
     const TcDiagInfo *info = tc_diag_info(diag->code);
-    fprintf(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
-            diag->span.file != NULL ? diag->span.file : "<source>",
-            diag->span.line, diag->span.column, stage_name(diag->stage),
-            info != NULL ? info->symbol : "TC_CE_SYNTAX",
-            info != NULL ? info->print_name : "SyntaxError");
-    if (diag->has_related) {
-        fprintf(stderr, "%s:%u:%u: note: related position\n",
-                diag->related.file != NULL ? diag->related.file : "<source>",
-                diag->related.line, diag->related.column);
+    int failed = tc_cli_write(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
+                              diag->span.file != NULL ? diag->span.file
+                                                      : "<source>",
+                              diag->span.line, diag->span.column,
+                              stage_name(diag->stage),
+                              info != NULL ? info->symbol : "TC_CE_SYNTAX",
+                              info != NULL ? info->print_name : "SyntaxError");
+    if (failed == 0 && diag->has_related) {
+        failed = tc_cli_write(stderr, "%s:%u:%u: note: related position\n",
+                              diag->related.file != NULL ? diag->related.file
+                                                         : "<source>",
+                              diag->related.line, diag->related.column);
     }
-    if (diag->stage == TC_STAGE_LEX) {
-        print_byte_offset_note(&diag->span);
+    if (failed == 0 && diag->stage == TC_STAGE_LEX) {
+        failed = print_byte_offset_note(&diag->span);
     }
+    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+        return tc_impl_error_exit(TC_IMPL_IO);
+    }
+    return TC_EXIT_DIAGNOSTIC;
 }
 
 static int print_impl_error(const char *tool_name, TcImplError error,
                             const char *detail) {
     const char *symbol = tc_impl_error_symbol(error);
     const char *message = tc_impl_error_message(error);
-    if (error == TC_IMPL_INTERNAL) {
-        /* Internal failures include the documented front-end implementation
-         * limits (source/token size, nesting).  They are never language
-         * diagnostics (standard §12.5.3/§13.5) and are distinct from OOM/I/O. */
-        message = "internal error or documented implementation limit exceeded";
-    }
-    if (detail != NULL) {
-        fprintf(stderr, "%s: %s: %s: %s\n", tool_name, symbol, message, detail);
+    int failed;
+    if (error == TC_IMPL_OOM) {
+        failed = tc_cli_write(stderr, "%s: %s: %s: %s\n", tool_name,
+                              tc_impl_error_symbol(error),
+                              tc_impl_error_print_name(error), message);
     } else {
-        fprintf(stderr, "%s: %s: %s\n", tool_name, symbol, message);
+        if (error == TC_IMPL_INTERNAL) {
+            /* Internal failures include the documented front-end
+             * implementation limits and are distinct from OOM/I/O. */
+            message =
+                "internal error or documented implementation limit exceeded";
+        }
+        if (detail != NULL) {
+            failed = tc_cli_write(stderr, "%s: %s: %s: %s\n", tool_name,
+                                  symbol, message, detail);
+        } else {
+            failed = tc_cli_write(stderr, "%s: %s: %s\n", tool_name, symbol,
+                                  message);
+        }
     }
-    if (error == TC_IMPL_USAGE) {
-        return TC_EXIT_USAGE;
+    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+        return tc_impl_error_exit(TC_IMPL_IO);
     }
-    return TC_EXIT_INTERNAL;
+    return tc_impl_error_exit(error);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -160,16 +183,21 @@ static void install_host_vm_seams(TcPlatformProfile *profile, TcIo *io,
 
 static int print_vm_trap(const char *tool_name, const TcVmResult *result) {
     const TcDiagInfo *info;
+    int failed;
     if (result == NULL || !result->trapped) {
         return TC_EXIT_INTERNAL;
     }
     info = tc_diag_info((TcDiagCode)result->kind);
-    fprintf(stderr, "%s:%u:%u: error[RT]: %s: %s\n",
-            result->span.file != NULL ? result->span.file : "<source>",
-            result->span.line, result->span.column,
-            info != NULL ? info->symbol : "TC_RE_TRAP",
-            info != NULL ? info->print_name : "Trap");
+    failed = tc_cli_write(stderr, "%s:%u:%u: error[RT]: %s: %s\n",
+                          result->span.file != NULL ? result->span.file
+                                                   : "<source>",
+                          result->span.line, result->span.column,
+                          info != NULL ? info->symbol : "TC_RE_TRAP",
+                          info != NULL ? info->print_name : "Trap");
     (void)tool_name;
+    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+        return tc_impl_error_exit(TC_IMPL_IO);
+    }
     return TC_EXIT_DIAGNOSTIC;
 }
 
@@ -194,8 +222,7 @@ static int run_syntax_only(const char *tool_name,
                                 options->source);
     }
     if (module == NULL) {
-        print_frontend_diag(&diag);
-        return TC_EXIT_DIAGNOSTIC;
+        return print_frontend_diag(&diag);
     }
     tc_parse_module_destroy(module);
     /* Partial capability: LEX/SYN accepted, not a valid-program claim. */
@@ -260,9 +287,9 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
                                 "root module must be #program");
     }
     if (status == TC_ANALYSIS_DIAGNOSTIC) {
-        print_analysis_diag(&diag);
+        result = print_analysis_diag(&diag);
         tc_analysis_destroy(analysis);
-        return TC_EXIT_DIAGNOSTIC;
+        return result;
     }
     if (options->sem_only) {
         /* IMPORT/SEM accepted; CT and code generation were not run. */
@@ -295,8 +322,7 @@ int tc_driver_frontend(const char *tool_name, const TcCliOptions *options) {
         if (vm_status == TC_VM_STATUS_OK) {
             result = profile.exit.normal_status;
         } else if (vm_status == TC_VM_STATUS_TRAP) {
-            print_vm_trap(tool_name, &vm_result);
-            result = profile.exit.trap_status;
+            result = print_vm_trap(tool_name, &vm_result);
         } else {
             result = print_impl_error(
                 tool_name, vm_impl != TC_IMPL_OK ? vm_impl : TC_IMPL_INTERNAL,

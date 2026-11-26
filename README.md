@@ -4,14 +4,20 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 0.0.46 为 clean-sheet 实现基线：只保留标准、设计、测试计划与按设计重写的实现；
 历史实现与旧工具已移除，需要时从 git tag 获取。
 `tc-0.0.47` 分支目标是在语言语义、opcode、诊断码与 ABI 不变的前提下交付开发调试工具链
-与工程模型；两份设计已达到冻结条件，但实现尚未开始，T0–T6/P0–P5 均未完成。
+与工程模型；两份设计已达到冻结条件，P0/T0 与 P1 已完成，
+P2–P5/T1–T6 尚未开始。
 范围与契约见 [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) 与
 [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md)；RTOS、中断与并发移交 0.0.48。
 
 ## 当前状态
 
-- **0.0.47 设计**：工具链与工程模型两份设计达到冻结条件；实现尚未开始，新增工具、接口与
-  测试均为交付目标，不是当前能力。
+- **0.0.47 P0/P1**：工具链版本与 0.0.46 语言版本分离；私有 `tc_core` 链接
+  `tc`/`tc-vm`/`tc-aot` 三个入口；实现级错误统一映射为 0/2/70/71。
+  `tc` 已实现工程 CLI 语法、`--help`/`--version` 与 `--init-project` 完整模板、
+  原子写入、回滚和身份检查。`src/project/manifest.c` 提供 `tc.project` v1 解析与
+  最近根发现 API，但尚未接入编译器消费。
+- **后续阶段**：P2 路径消费者、P3 测试 runner 与调试/可观测能力尚未实现；
+  `tc --test` 仍显式退出 70，不执行测试。
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
   CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
@@ -38,8 +44,10 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
   长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-- **当前验证**：全量 `ctest` 71/71；覆盖矩阵 636/636；G0–G10 PASS；
-  **G10 完成 0.0.46 阶段出口**。详见 [门禁状态](docs/gates/README.md)。
+  P2–P5/T1–T6 的路径消费、测试 runner 与调试能力不在当前完成范围内。
+- **当前验证**：0.0.47 CTest 注册总数 76（P0 基线 73 + P1 三项），
+  P1 的 Debug/Release/ASan+UBSan 全量回归均为 76/76；0.0.46 覆盖矩阵 636/636，G0–G10 PASS；
+  **G10 完成 0.0.46 阶段出口，G11 未完成**。详见 [门禁状态](docs/gates/README.md)。
 
 ## 文档
 
@@ -48,16 +56,16 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 语言语义、诊断、编译器实现要求与平台档案的唯一权威 |
 | [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、运行时、平台档案、后端与分期路线 |
 | [TC 开发测试计划 0.0.46](docs/TC开发测试计划-0.0.46.md) | 阶段、门禁、覆盖与可追溯性 |
-| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；实现未开始 |
-| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；实现未开始 |
+| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0 已完成 |
+| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0/P1 已实现，P2/P3 未开始 |
 | [文档地图](docs/README.md) | 文档入口与阅读顺序 |
 
 ## 目标口径
 
 - **32/64 位均为目标**；`usize`/`isize` 为平台字长类型，`ptr<T>`/`fnptr` 宽度为 `usize`。
 - **80 码闭集**：65 个 `TC_CE_*` + 15 个 `TC_RE_*`；不得增删。
-- 不提供 C 宿主公共库、嵌入 API/ABI；当前实现的编译器入口是 `tc-vm`/`tc-aot`；
-  0.0.47 设计新增 `tc` 工程工具（初始化/测试），见
+- 不提供 C 宿主公共库、嵌入 API/ABI；私有入口为 `tc-vm`/`tc-aot` 两个编译器入口
+  与 `tc` 工程工具，见
   [TC 工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)。
 
 ## 仓库结构
@@ -76,7 +84,8 @@ src/                  0.0.46 实现
                       aarch64（全量后端 + semihosting/PL011 平台实例）
                       arm32（Cortex-M7 后端 + MPS2 平台实例）
                       riscv32（RISC-V 32 后端 + QEMU virt 平台实例）
-  driver/             tc-vm / tc-aot CLI 与 AOT 驱动
+  driver/             tc / tc-vm / tc-aot CLI 与 AOT 驱动
+  project/            名称校验、manifest/根发现、原子工程初始化
 tests/                L0–L7：单元、静态/运行时一致性、差分/ABI/平台、harness、
                       可追溯性、golden、确定性
 ```
@@ -96,6 +105,9 @@ S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`（或对应 
 clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
 工具当前支持：
 
+- `tc --help`/`--version`：工程工具帮助与双版本输出；`tc --init-project [--] <name>`
+  在当前 canonical 目录生成完整模板，仅创建缺失目标，支持身份预检与失败回滚。
+  `tc --test` 尚未实现，仍显式退出 70，不执行测试。
 - `--syntax-only <source>`：只做 LEX/SYN；退出 0 表示无 LEX/SYN 诊断，**不是程序有效**。
 - `--sem-only <source>`：执行 LEX/SYN/IMPORT/SEM（含 CFG/DI、调用、安全与注解）；
   退出 0 仍不代表程序有效，CT/IR/代码生成未运行。
@@ -121,8 +133,10 @@ clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
   qemu-user/Linux-user 用户态运行时不在本阶段的门禁路径内；差分比较程序 stdout、
   首个 trap 码与退出策略，且只在同一档案内进行。
 
-文件/资源失败的实现级错误使用 `tc_error_io`/`tc_error_internal`/`TC_ERR_OUT_OF_MEMORY`，
-不伪装成语言诊断。实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
+实现级错误不伪装成语言诊断，统一映射为：`TC_IMPL_OK`→0、`TC_IMPL_USAGE`→2、
+`TC_IMPL_IO`/`TC_IMPL_UNAVAILABLE`/`TC_IMPL_OOM`→70、`TC_IMPL_INTERNAL`→71。
+OOM 固定输出 `<tool>: TC_ERR_OUT_OF_MEMORY: OutOfMemory: memory allocation failed`。
+实现上限：单源文件 4 MiB、单 Token 16 KiB、类型/块嵌套 256 层；
 超出返回 `tc_error_internal`（退出 71）。内置档案的帧区/栈按平台实例定义
 （默认 `D`：hosted 512、`aarch64-baremetal`/`w32` 256、`arm32-baremetal` 32、
 `riscv32-baremetal` 64）。VM 的帧由宿主内存承载；AOT 额外检查

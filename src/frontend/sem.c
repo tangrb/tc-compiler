@@ -4337,7 +4337,7 @@ static TcAnalysis *analyze_impl(const char *root_path,
                                 size_t ninclude_roots, int sem_only,
                                 TcAnalysisStatus *out_status,
                                 TcAnalysisDiag *out_diag, TcImplError *out_impl) {
-    const TcAllocator *alloc = tc_allocator_libc();
+    const TcAllocator *alloc;
     TcAnalysis *an;
     TcModuleGraph *graph;
     TcPlatformProfile fallback;
@@ -4360,6 +4360,7 @@ static TcAnalysis *analyze_impl(const char *root_path,
         }
         profile = &fallback;
     }
+    alloc = profile->alloc != NULL ? profile->alloc : tc_allocator_libc();
     if (profile->addr_width != addr_width) {
         *out_impl = TC_IMPL_USAGE;
         return NULL;
@@ -4384,6 +4385,12 @@ static TcAnalysis *analyze_impl(const char *root_path,
     tc_arena_init(&an->arena, alloc);
     an->W = addr_width;
     an->graph = graph;
+    jumped = setjmp(an->env);
+    if (jumped != 0) {
+        *out_status = TC_ANALYSIS_IMPL;
+        *out_impl = an->impl != TC_IMPL_OK ? an->impl : TC_IMPL_INTERNAL;
+        return an;
+    }
     an->profile = (TcPlatformProfile *)an_alloc(an, sizeof(TcPlatformProfile));
     *an->profile = *profile;
     if (profile->include_roots != NULL && profile->ninclude_roots != 0) {
@@ -4405,12 +4412,6 @@ static TcAnalysis *analyze_impl(const char *root_path,
         *out_status = TC_ANALYSIS_IMPL;
         *out_impl = TC_IMPL_OOM;
         return NULL;
-    }
-    jumped = setjmp(an->env);
-    if (jumped != 0) {
-        *out_status = TC_ANALYSIS_IMPL;
-        *out_impl = an->impl != TC_IMPL_OK ? an->impl : TC_IMPL_INTERNAL;
-        return an;
     }
     if (graph->impl != TC_IMPL_OK) {
         *out_status = TC_ANALYSIS_IMPL;

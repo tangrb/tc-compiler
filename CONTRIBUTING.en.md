@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria, but implementation has not started; the `tc` tool will be integrated according to the design.
+Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0/T0 governance and the three-entry contract are complete, and P1 project initialization plus the manifest/root-discovery APIs are also complete. The manifest is not yet consumed by the compiler, P2–P5/T1–T6 have not started, and `tc --test` still explicitly exits 70.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -38,16 +38,21 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Builds the private `tc_core` library and the `tc-vm`/`tc-aot` entry points. The tools
-support `--syntax-only`/`--sem-only`/`--static-only` partial checks; a normal `tc-vm`
+Builds the private `tc_core` library and the `tc`/`tc-vm`/`tc-aot` entry points.
+The compilers support `--syntax-only`/`--sem-only`/`--static-only` partial checks; a normal `tc-vm`
 invocation executes the reference VM (exit 0 on normal termination, 1 on the first
 trap), while a normal `tc-aot` invocation emits target assembly;
 `--emit=asm|obj|elf|flat` drives clang/lld to assembly, ELF or flat artifacts and `--checked`
 produces a checked
 build. Capabilities outside the current platform instance exit 70
-without publishing a wrong artifact. The S7/S8/S9/S10 differential/toolchain
-tests need `clang`, `llvm-ar`, `ld.lld`, `qemu-system-aarch64`,
-`qemu-system-arm` and `qemu-system-riscv32`.
+`tc --init-project` implements the full template, atomic writes, rollback and
+identity checks in the canonical current directory. Manifest parsing and
+nearest-root discovery APIs are not yet consumed by the compiler; `tc --test`
+still explicitly exits 70 without running tests. The P1 test entry points are
+`project.manifest`, `project.init` and `project.init_fault`, runnable with
+`ctest --test-dir build -R '^project\.' --output-on-failure`.
+The S7/S8/S9/S10 differential/toolchain tests need `clang`, `llvm-ar`, `ld.lld`,
+`qemu-system-aarch64`, `qemu-system-arm` and `qemu-system-riscv32`.
 
 ## Issues
 

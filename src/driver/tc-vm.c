@@ -14,31 +14,54 @@
 #include "driver/profile_select.h"
 
 int main(int argc, char **argv) {
-    const char *violation = tc_contract_check();
+    const char *violation;
     TcPlatformProfile profile;
     TcCliOptions options;
     TcCliParseResult parsed;
+    tc_cli_ignore_sigpipe();
+    violation = tc_contract_check();
     if (violation != NULL) {
-        fprintf(stderr, "tc-vm: tc_error_internal: %s\n", violation);
-        return TC_EXIT_INTERNAL;
+        if (tc_cli_write(stderr, "tc-vm: tc_error_internal: %s\n", violation) !=
+                0 ||
+            tc_cli_flush(stderr) != 0) {
+            return tc_impl_error_exit(TC_IMPL_IO);
+        }
+        return tc_impl_error_exit(TC_IMPL_INTERNAL);
     }
     tc_cli_options_init(&options);
     parsed = tc_cli_parse(argc, argv, &options, "tc-vm");
     if (parsed != TC_CLI_PARSE_OK) {
-        tc_cli_print_usage(stderr, "tc-vm");
+        if (parsed == TC_CLI_PARSE_IO) {
+            return tc_impl_error_exit(TC_IMPL_IO);
+        }
+        if (tc_cli_print_usage(stderr, "tc-vm") != 0) {
+            return tc_impl_error_exit(TC_IMPL_IO);
+        }
         return TC_EXIT_USAGE;
     }
     if (options.help) {
-        tc_cli_print_usage(stdout, "tc-vm");
+        if (tc_cli_print_usage(stdout, "tc-vm") != 0) {
+            return tc_impl_error_exit(TC_IMPL_IO);
+        }
         return TC_EXIT_OK;
     }
     if (options.version) {
-        printf("tc-vm %s (reference VM)\n", TC_LANGUAGE_VERSION);
+        if (tc_cli_write(stdout, "tc-vm %s (language %s; reference VM)\n",
+                         TC_TOOLCHAIN_VERSION, TC_LANGUAGE_VERSION) != 0 ||
+            tc_cli_flush(stdout) != 0) {
+            return tc_impl_error_exit(TC_IMPL_IO);
+        }
         return TC_EXIT_OK;
     }
     if (!tc_driver_select_profile(options.profile_name, &profile)) {
-        fprintf(stderr, "tc-vm: tc_error_internal: built-in profile is invalid\n");
-        return TC_EXIT_INTERNAL;
+        if (tc_cli_write(
+                stderr,
+                "tc-vm: tc_error_internal: built-in profile is invalid\n") !=
+                0 ||
+            tc_cli_flush(stderr) != 0) {
+            return tc_impl_error_exit(TC_IMPL_IO);
+        }
+        return tc_impl_error_exit(TC_IMPL_INTERNAL);
     }
     return tc_driver_frontend("tc-vm", &options);
 }

@@ -52,11 +52,13 @@ typedef struct {
 typedef struct TcRiscv32Emitter {
     const TcIR *ir;
     const TcPlatformProfile *profile;
+    const TcAllocator *alloc;
     FILE *out;
     char *error_message;
     size_t error_capacity;
     int failed;
     int internal_error;
+    int oom_failed;
     int output_failed;
     unsigned next_label;
 
@@ -111,6 +113,7 @@ typedef struct {
 } TcRiscv32ArgSlot;
 
 typedef struct {
+    const TcAllocator *alloc;
     TcRiscv32ArgSlot *slots;
     size_t count;
     uint64_t stack_bytes;
@@ -136,6 +139,8 @@ const char *tc_riscv32_reg_name(unsigned reg);
 void tc_riscv32_write(TcRiscv32Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 void tc_riscv32_error(TcRiscv32Emitter *emitter, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+void tc_riscv32_oom(TcRiscv32Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 void tc_riscv32_internal_error(TcRiscv32Emitter *emitter,
                                const char *format, ...)

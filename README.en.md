@@ -6,17 +6,24 @@ standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
-designs meet the freeze criteria, but implementation has not started and
-T0–T6/P0–P5 are incomplete. Scope and contracts are in
+designs meet the freeze criteria. P0/T0 and P1 are complete; P2–P5/T1–T6 have
+not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
 
 ## Current status
 
-- **0.0.47 design**: the toolchain and project-model designs meet the freeze
-  criteria; implementation has not started. New tools, interfaces and tests are
-  delivery targets, not current capabilities.
+- **0.0.47 P0/P1**: toolchain version 0.0.47 is separate from frozen language
+  version 0.0.46. The private `tc_core` links three entry points:
+  `tc`, `tc-vm` and `tc-aot`. Implementation errors share the 0/2/70/71 mapping.
+  `tc` implements project CLI grammar, `--help`, `--version` and the full
+  `--init-project` template with atomic writes, rollback and identity checks.
+  `src/project/manifest.c` provides `tc.project` v1 parsing and nearest-root
+  discovery APIs, but the compiler does not consume them yet.
+- **Later stages**: P2 path consumers, the P3 test runner and debugging/
+  observability features are not implemented. `tc --test` still explicitly exits
+  70 without executing tests.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -50,10 +57,13 @@ RTOS, interrupts and concurrency move to 0.0.48.
   corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
   implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
-  inlining); the 0.0.46 baseline stays zero-pass.
-- **Current verification**: full `ctest` 71/71; coverage matrix 636/636; G0–G10
-  PASS; **G10 completes the 0.0.46 stage exit**. See
-  [gate status](docs/gates/README.en.md).
+  inlining); the 0.0.46 baseline stays zero-pass. P2–P5/T1–T6 path consumption,
+  the test runner and debugging capabilities are outside the current completion scope.
+- **Current verification**: 76 registered 0.0.47 CTests (73 at P0 plus three P1
+  tests), with P1 full Debug/Release/ASan+UBSan regressions each passing 76/76;
+  the 0.0.46 coverage matrix is
+  636/636 and G0–G10 PASS. **G10 completes the 0.0.46 stage exit; G11 is
+  incomplete**. See [gate status](docs/gates/README.en.md).
 
 ## Documents
 
@@ -62,8 +72,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; implementation not started |
-| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; implementation not started |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0 complete |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0/P1 implemented, P2/P3 not started |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope
@@ -71,9 +81,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 - **Both 32-bit and 64-bit are targets**; `usize`/`isize` are platform-word types
   and `ptr<T>`/`fnptr` are `usize` wide.
 - **Closed set of 80 diagnostic codes**: 65 `TC_CE_*` + 15 `TC_RE_*`.
-- No C host public library, embedding API or ABI; the current implementation's
-  compiler entry points are `tc-vm`/`tc-aot`; the 0.0.47 design adds the `tc`
-  project tool (init/test), see
+- No C host public library, embedding API or ABI; private entry points are the
+  `tc-vm`/`tc-aot` compilers and the `tc` project tool, see
   [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 
 ## Repository layout
@@ -93,7 +102,8 @@ src/                  0.0.46 implementation
                       platform instances); arm32 (Cortex-M7 backend + MPS2
                       platform instance); riscv32 (RISC-V 32 backend + QEMU
                       virt platform instance)
-  driver/             tc-vm / tc-aot CLI and AOT driver
+  driver/             tc / tc-vm / tc-aot CLI and AOT driver
+  project/            name validation, manifest/root discovery, atomic init
 tests/                L0–L7: unit, static/runtime conformance, differential/ABI/
                       platform, harness, traceability, golden, determinism
 ```
@@ -113,6 +123,11 @@ matching target ar), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
 building the target runtimes still requires clang and llvm-ar (or the matching
 target ar), and this is not a gate build. Tools currently support:
 
+- `tc --help`/`--version`: project-tool help and dual-version output.
+  `tc --init-project [--] <name>` generates the full template in the canonical
+  current directory, creates only missing targets, and supports identity
+  preflight and failure rollback. `tc --test` is not implemented yet and still
+  explicitly exits 70 without executing tests.
 - `--syntax-only <source>`: LEX/SYN only; exit 0 means no LEX/SYN diagnostic,
   **not a valid program**.
 - `--sem-only <source>`: LEX/SYN/IMPORT/SEM (including CFG/DI, calls, safety and
@@ -143,8 +158,11 @@ target ar), and this is not a gate build. Tools currently support:
   differential tests compare program stdout, the first trap code and the exit
   policy, always within one profile.
 
-Implementation-level file/resource failures use `tc_error_io`/`tc_error_internal`/
-`TC_ERR_OUT_OF_MEMORY`, never a language diagnostic. Documented limits: 4 MiB source,
+Implementation errors never use the language-diagnostic channel. The shared
+mapping is `TC_IMPL_OK`→0, `TC_IMPL_USAGE`→2,
+`TC_IMPL_IO`/`TC_IMPL_UNAVAILABLE`/`TC_IMPL_OOM`→70, `TC_IMPL_INTERNAL`→71.
+OOM prints exactly `<tool>: TC_ERR_OUT_OF_MEMORY: OutOfMemory: memory allocation failed`.
+Documented limits: 4 MiB source,
 16 KiB token, 256 type/block nesting levels; exceeding them returns
 `tc_error_internal` (exit 71). Built-in profiles define their frame region/stack
 (default `D`: 512 hosted, 256 `aarch64-baremetal`/`w32`,

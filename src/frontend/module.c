@@ -254,10 +254,12 @@ static int parse_module_file(TcLoader *loader, const char *path, int is_root,
     TcSourceBytes source;
     TcFrontendDiag diag;
     TcImplError impl = TC_IMPL_OK;
+    TcImplError read_error;
     TcParseModule *parse = NULL;
     int parsed;
-    if (tc_source_read(path, &source) != TC_IMPL_OK) {
-        loader->graph->impl = TC_IMPL_IO;
+    read_error = tc_source_read(path, &source);
+    if (read_error != TC_IMPL_OK) {
+        loader->graph->impl = read_error;
         loader->failed = 1;
         return 0;
     }

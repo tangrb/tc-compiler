@@ -7,9 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "base/version.h"
 #include "contract/contract.h"
 #include "diagnostic/diagnostic.h"
 #include "contract/optimizer.h"
+#include "driver/cli.h"
 #include "ir/block.h"
 #include "ir/instr.h"
 #include "ir/ir.h"
@@ -48,6 +50,9 @@ static void test_contract_and_code_table(void) {
     size_t import_codes = 0;
     CHECK(tc_contract_check() == NULL);
     CHECK(tc_diag_contract_violation() == NULL);
+    CHECK(strcmp(TC_LANGUAGE_VERSION, "0.0.46") == 0);
+    CHECK(strcmp(TC_TOOLCHAIN_VERSION, "0.0.47") == 0);
+    CHECK_EQ_INT(TC_CONTRACT_VERSION, 1);
     CHECK_EQ_INT(80, TC_DIAG_CODE_COUNT);
     CHECK_EQ_INT(65, TC_DIAG_CE_COUNT);
     CHECK_EQ_INT(15, TC_DIAG_RE_COUNT);
@@ -90,6 +95,13 @@ static void test_contract_and_code_table(void) {
     CHECK(strcmp(tc_impl_error_print_name(TC_IMPL_OOM), "OutOfMemory") == 0);
     CHECK(strcmp(tc_impl_error_message(TC_IMPL_OOM), "memory allocation failed") == 0);
     CHECK(strcmp(tc_impl_error_symbol(TC_IMPL_OOM), TC_ERR_OUT_OF_MEMORY_SYMBOL) == 0);
+    CHECK_EQ_INT(0, tc_impl_error_exit(TC_IMPL_OK));
+    CHECK_EQ_INT(2, tc_impl_error_exit(TC_IMPL_USAGE));
+    CHECK_EQ_INT(70, tc_impl_error_exit(TC_IMPL_IO));
+    CHECK_EQ_INT(70, tc_impl_error_exit(TC_IMPL_OOM));
+    CHECK_EQ_INT(70, tc_impl_error_exit(TC_IMPL_UNAVAILABLE));
+    CHECK_EQ_INT(71, tc_impl_error_exit(TC_IMPL_INTERNAL));
+    CHECK_EQ_INT(71, tc_impl_error_exit((TcImplError)99));
 }
 
 static void test_type_table(void) {

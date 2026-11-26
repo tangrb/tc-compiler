@@ -479,27 +479,27 @@ static void emit_call(TcRiscv32Emitter *emitter, const TcInstr *instr) {
     uint64_t *ref_offsets = NULL;
     tc_riscv32_function_signature(emitter, instr, &params, &nparams, &ret);
     if (emitter->failed) {
-        free(params);
+        emitter->alloc->free(emitter->alloc->ctx, params);
         return;
     }
     if (indirect) {
         if (instr->nargs - 1u != nparams) {
             tc_riscv32_error(emitter,
                              "call_indirect argument count mismatch");
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             return;
         }
     } else {
         if (instr->nargs < 1 || instr->args[0].value.kind != TC_OP_FUNC) {
             tc_riscv32_error(emitter,
                              "direct call without a function operand");
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             return;
         }
         func_id = instr->args[0].value.func;
         if (instr->nargs - 1u != nparams) {
             tc_riscv32_error(emitter, "call argument count mismatch");
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             return;
         }
     }
@@ -508,15 +508,15 @@ static void emit_call(TcRiscv32Emitter *emitter, const TcInstr *instr) {
         emitter, params, nparams,
         ret_plan.kind == TC_RISCV32_RET_INDIRECT ? 1 : 0, &plan);
     if (emitter->failed) {
-        free(params);
+        emitter->alloc->free(emitter->alloc->ctx, params);
         tc_riscv32_free_argument_plan(&plan);
         return;
     }
     if (nparams != 0) {
-        ref_offsets = (uint64_t *)calloc(nparams, sizeof(*ref_offsets));
+        ref_offsets = (uint64_t *)tc_allocator_calloc(emitter->alloc, nparams, sizeof(*ref_offsets));
         if (ref_offsets == NULL) {
-            tc_riscv32_error(emitter, "out of memory");
-            free(params);
+            tc_riscv32_oom(emitter, "out of memory");
+            emitter->alloc->free(emitter->alloc->ctx, params);
             tc_riscv32_free_argument_plan(&plan);
             return;
         }
@@ -678,8 +678,8 @@ static void emit_call(TcRiscv32Emitter *emitter, const TcInstr *instr) {
     }
     emit_depth_leave(emitter);
     store_call_result(emitter, instr, ret, &ret_plan);
-    free(ref_offsets);
-    free(params);
+    emitter->alloc->free(emitter->alloc->ctx, ref_offsets);
+    emitter->alloc->free(emitter->alloc->ctx, params);
     tc_riscv32_free_argument_plan(&plan);
 }
 

@@ -12,18 +12,23 @@ Chinese: [README.md](README.md).
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
 | [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46 |
-| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0/P1 implemented, P2/P3 not started |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
 ## Current status
 
-- The 0.0.47 toolchain and project-model designs meet the freeze criteria;
-  implementation has not started and T0–T6/P0–P5 are incomplete. New tools,
-  interfaces and tests are delivery targets. Language semantics, opcodes,
+- The 0.0.47 toolchain and project-model designs meet the freeze criteria.
+  P0/T0 and P1 are complete. `tc --init-project` implements the full template,
+  atomic writes, rollback and identity checks. `src/project/manifest.c` provides
+  the `tc.project` v1 parser and nearest-root discovery APIs, but the compiler
+  does not consume them yet. P2–P5/T1–T6 have not started, `tc --test` still
+  explicitly exits 70, and G11 is incomplete. Language semantics, opcodes,
   diagnostics and the ABI stay frozen at 0.0.46, and RTOS work moves to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**; full `ctest` 71/71 and coverage matrix 636/636.
+  exit**. There are 76 registered 0.0.47 CTests (73 at P0 plus three P1 tests);
+  P1 full Debug/Release/ASan+UBSan regressions each pass 76/76. The 0.0.46 coverage
+  matrix is 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
   (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V
   backends/toolchains (full ABI, checked build, ELF/region layout, reset-entry
@@ -42,7 +47,7 @@ Chinese: [README.md](README.md).
 | Document | Purpose |
 | -------- | ------- |
 | [README.en.md](../README.en.md) | Project entry, build and current status |
-| [CHANGELOG.en.md](../CHANGELOG.en.md) | 0.0.46 changes and 0.0.47 design status |
+| [CHANGELOG.en.md](../CHANGELOG.en.md) | 0.0.46 implementation and current 0.0.47 delivery status |
 | [CONTRIBUTING.en.md](../CONTRIBUTING.en.md) | Contribution workflow |
 | [CODE_OF_CONDUCT.en.md](../CODE_OF_CONDUCT.en.md) | Code of conduct |
 | [SECURITY.en.md](../SECURITY.en.md) | Security reporting |

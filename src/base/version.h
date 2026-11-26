@@ -7,6 +7,7 @@
 #define TC_BASE_VERSION_H
 
 #define TC_LANGUAGE_VERSION "0.0.46"
+#define TC_TOOLCHAIN_VERSION "0.0.47"
 #define TC_CONTRACT_VERSION 1
 
 #endif /* TC_BASE_VERSION_H */

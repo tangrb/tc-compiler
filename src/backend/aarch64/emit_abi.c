@@ -100,11 +100,12 @@ void tc_a64_plan_arguments(TcA64Emitter *emitter, const TcType **param_types,
     uint64_t nsaa = 0;
     size_t i;
     memset(out, 0, sizeof(*out));
+    out->alloc = emitter->alloc;
     out->count = count;
     if (count != 0) {
-        out->slots = (TcA64ArgSlot *)calloc(count, sizeof(*out->slots));
+        out->slots = (TcA64ArgSlot *)tc_allocator_calloc(emitter->alloc, count, sizeof(*out->slots));
         if (out->slots == NULL) {
-            tc_a64_error(emitter, "out of memory planning arguments");
+            tc_a64_oom(emitter, "out of memory planning arguments");
             return;
         }
     }
@@ -254,10 +255,13 @@ void tc_a64_plan_return(TcA64Emitter *emitter, const TcType *ret,
 }
 
 void tc_a64_free_argument_plan(TcA64ArgPlan *plan) {
+    const TcAllocator *alloc;
     if (plan == NULL) {
         return;
     }
-    free(plan->slots);
+    alloc = plan->alloc != NULL ? plan->alloc : tc_allocator_libc();
+    alloc->free(alloc->ctx, plan->slots);
     plan->slots = NULL;
+    plan->alloc = NULL;
     plan->count = 0;
 }

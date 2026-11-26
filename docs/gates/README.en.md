@@ -1,4 +1,4 @@
-# Gate status (0.0.46)
+# Gate status (0.0.46 / 0.0.47)
 
 This directory keeps only the current gate conclusion and reproducible evidence
 entry points. Round-by-round audits, defect-fix logs and historical commit or
@@ -17,12 +17,18 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G8 | S8 full semantics, runtime and full differential | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
 | G9 | S9 freestanding/bare metal and 32-bit backend | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 | G10 | S10 multi-target expansion and long-term regression | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
+| G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
 
-**Current status**: G10 passed and the 0.0.46 stage exit is complete. The
-`tc-0.0.47` toolchain and [project model](../TC工程模型-0.0.47.md) designs meet
-the freeze criteria, but implementation has not started; T0–T6/P0–P5 are
-incomplete and no 0.0.47 gate records exist yet (starting with G11). Full
-`ctest` is 71/71, harness 873/873. The front end, CT/IR, runtime semantic
+**Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0 and
+P1 of `tc-0.0.47` are complete: split versions, three private entry points, the
+shared implementation-error exit mapping, the `tc` CLI contract, release audit,
+full `tc --init-project` templates with atomic writes/rollback/identity checks,
+and `tc.project` v1 parsing with nearest-ancestor root discovery. The manifest is
+not yet consumed by the compiler. P2–P5/T1–T6 have not started, `tc --test` still
+explicitly exits 70, and G11 is incomplete. There are 76 registered 0.0.47 CTests;
+P1 full Debug/Release/ASan+UBSan regressions each pass 76/76. The accepted 0.0.46
+harness remains 873/873.
+The front end, CT/IR, runtime semantic
 core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
 W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core
 with the `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform
@@ -39,6 +45,7 @@ Reproduce:
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
+ctest --test-dir build -R '^project\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

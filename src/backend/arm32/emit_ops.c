@@ -461,26 +461,26 @@ static void emit_call(TcArm32Emitter *emitter, const TcInstr *instr) {
     uint32_t func_id = 0;
     tc_arm32_function_signature(emitter, instr, &params, &nparams, &ret);
     if (emitter->failed) {
-        free(params);
+        emitter->alloc->free(emitter->alloc->ctx, params);
         return;
     }
     if (indirect) {
         /* args[0] is the function pointer; parameters start at args[1]. */
         if (instr->nargs - 1u != nparams) {
             tc_arm32_error(emitter, "call_indirect argument count mismatch");
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             return;
         }
     } else {
         if (instr->nargs < 1 || instr->args[0].value.kind != TC_OP_FUNC) {
             tc_arm32_error(emitter, "direct call without a function operand");
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             return;
         }
         func_id = instr->args[0].value.func;
         if (instr->nargs - 1u != nparams) {
             tc_arm32_error(emitter, "call argument count mismatch");
-            free(params);
+            emitter->alloc->free(emitter->alloc->ctx, params);
             return;
         }
     }
@@ -489,7 +489,7 @@ static void emit_call(TcArm32Emitter *emitter, const TcInstr *instr) {
         emitter, params, nparams,
         ret_plan.kind == TC_ARM32_RET_INDIRECT ? 1 : 0, &plan);
     if (emitter->failed) {
-        free(params);
+        emitter->alloc->free(emitter->alloc->ctx, params);
         tc_arm32_free_argument_plan(&plan);
         return;
     }
@@ -605,7 +605,7 @@ static void emit_call(TcArm32Emitter *emitter, const TcInstr *instr) {
     }
     emit_depth_leave(emitter);
     store_call_result(emitter, instr, ret, &ret_plan);
-    free(params);
+    emitter->alloc->free(emitter->alloc->ctx, params);
     tc_arm32_free_argument_plan(&plan);
 }
 

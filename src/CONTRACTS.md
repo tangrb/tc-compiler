@@ -1,7 +1,8 @@
-# TC 0.0.46 frozen contracts
+# TC frozen contracts and toolchain governance
 
-**Status: frozen for the 0.0.46 clean-sheet implementation.** This file is the
-review index for the frozen contract deliverables. Language legality, diagnostics
+**Language status: frozen at 0.0.46. Toolchain version: 0.0.47.** This file is the
+index for frozen language contracts and current private implementation conventions.
+Language legality, diagnostics
 and observable behavior remain governed only by
 [the 0.0.46 standard](../docs/TC语言及编译器标准-0.0.46.md); architecture is
 governed by [the design](../docs/TC原生编译器设计说明书-0.0.46.md).
@@ -15,7 +16,7 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 
 | Contract | Header(s) | Owner | Frozen facts | Consumers |
 | --- | --- | --- | --- | --- |
-| Foundation | `base/assert.h`, `base/version.h` | contract/build | compile-time assertions; language/contract version | all modules |
+| Foundation | `base/assert.h`, `base/version.h` | contract/build | compile-time assertions; language 0.0.46, contract 1, toolchain 0.0.47 | all modules |
 | Type identity | `ir/type.h` | IR + SEM | scalar singletons; interned `ptr`/`fnptr`/struct nodes; pointer equality; no W-dependent layout in a type; freeze after Analyze | SEM, CT, VM, AOT |
 | Span | `ir/span.h` | LEX/SYN | file + 1-based line/column (Unicode scalar column); LEX valid-prefix bytes + 0-based invalid byte offset; `TC_SPAN_NO_INVALID_BYTE` | all diagnostics |
 | Operands/args | `ir/operand.h` | SYN + SEM | VREG/FIELD/CONST/LABEL/FUNC/STRUCT/DISCARD; `_` is LHS-only; `TcArg.name == NULL` means positional; field names disappear after SEM | SEM, IR freeze, VM, AOT |
@@ -34,7 +35,8 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 | Runtime seams | `runtime/io.h`, `runtime/alloc.h`, `runtime/trap.h`, `runtime/module_loader.h` | runtime | all-or-nothing sink; short-read/EOF/error source; allocator sizes are target-W; trap gets first error + line; device runtime resolves no imports | VM, AOT, freestanding |
 | Diagnostics | `diagnostic/codes.h`, `diagnostic/diagnostic.h`, `diagnostic/diagnostic.c`, generated `diagnostic/table.c` | diagnostic (cross-cutting) | closed 80 codes (65 `TC_CE_*` + 15 `TC_RE_*`); stage and report stage; 1-based positions; first-diagnostic comparator; `TC_ERR_OUT_OF_MEMORY` separate | all phases, VM |
 | Zero pass | `contract/optimizer.h`, `contract/optimizer.c` | contract (frontend/backend consumers) | O0 and O2 run zero IR passes; `@fast`/`@fast_math` recorded only; `@inline`/`@noinline` stored only | VM, AOT |
-| Build/CLI | `driver/cli.h`, `driver/cli.c`, `driver/profile_select.h`, `src/CMakeLists.txt` | build | private `tc_core`; only `tc-vm`/`tc-aot`; no install, no public C ABI; unavailable capabilities fail explicitly with exit 70 | tools, tests |
+| Build/CLI | `driver/cli.h`, `driver/cli.c`, `driver/tc.c`, `driver/profile_select.h`, `src/CMakeLists.txt` | build | private static `tc_core`; exactly `tc`/`tc-vm`/`tc-aot`; no install/public C ABI; one implementation-error exit mapping | tools, tests |
+| Project model | `project/name.h`, `project/manifest.h`, `project/manifest.c`, `project/init.h`, `project/init.c` | project | private project-name validation; `tc.project` v1 parsing/defaults/bounded reads; nearest-ancestor discovery; init template, nofollow creation, identity preflight and rollback; no compiler consumers for manifest/path APIs yet | `tc`, P1 tests |
 | AArch64 backend | `backend/aarch64/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `start.S`, `link.ld`, `platform_semihost.c`, `platform_baremetal.c`; `backend/common/toolchain.h` | backend | W=64 full lowering and deterministic assembly; AAPCS64 composites/HFA/indirect returns; object-table memory helpers; frame/static layout, static `.data`, reset entry with BSS clearing and region facts; far conditional/switch transfers use a local skip plus `b`; semihosting and bare-metal platform instances; ICF disabled; platform-instance capability limits rejected before emission | `tc-aot`, L5/L6 tests |
 | ARM32 backend | `backend/arm32/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `rt_helpers.c`, `aeabi.c`, `aeabi_glue.S`, `platform_mps2.c`, `start.S`, `link.ld` | backend | Independent W=32 Cortex-M7 lowering; base AAPCS32/ILP32 softfp classifier (core-register pairs for int64/float64; composites marshalled as memory words with Rule C.4/C.5 split; >4-byte returns indirect); object-table helpers, frame/static layout, reset vector with BSS clearing, 1 MiB code window, ICF disabled | `tc-aot`, L5/L6 tests |
 | RISC-V 32 backend | `backend/riscv32/emit.h`, `emit_internal.h`, `emit.c`, `emit_abi.c`, `emit_ops.c`, `rt_helpers.c`, `compiler_rt.c`, `semi.S`, `platform_virt.c`, `start.S`, `link.ld` | backend | Independent RV32IMAFDC lowering; base ILP32 soft-float classifier (a0-a7, aligned 64-bit pairs, 2*XLEN by-value aggregates with the one-register split, >2*XLEN by reference, indirect returns); far `br`/`br_if`/`switch`/`return` use auipc/jalr; reset entry with BSS clearing; NS16550A UART0 stdout/stdin, semihosting exit record, SiFive test finisher; RV32 compiler-runtime 64-bit division helpers; ICF disabled | `tc-aot`, L5/L6 tests |
@@ -42,7 +44,70 @@ runtime trap seam).  `frontend/` owns the LEX/SYN/IMPORT/SEM pipeline.
 
 `tc_contract_check()` in `contract/contract.c` is the startup/L0 aggregate
 check. It must return `NULL`; any violation is an internal error, never a
-language diagnostic.
+language diagnostic. The toolchain version is not part of this frozen language
+contract check.
+
+## Toolchain governance
+
+- `TC_LANGUAGE_VERSION` is `0.0.46`, `TC_CONTRACT_VERSION` is `1`, and
+  `TC_TOOLCHAIN_VERSION` is `0.0.47`. Version output identifies both versions and
+  the tool role; the three exact lines are asserted by the CLI and release tests.
+- `tc_impl_error_exit()` in `driver/cli.c` is the only private implementation-error
+  mapping: `TC_IMPL_OK`→0, `TC_IMPL_USAGE`→2, `TC_IMPL_IO`→70,
+  `TC_IMPL_UNAVAILABLE`→70, `TC_IMPL_OOM`→70, `TC_IMPL_INTERNAL`→71. An unknown
+  enum value fails closed as 71. Entry points and drivers must not add local
+  non-usage→71 mappings.
+- Source/import reads, diagnostic/output/temp-file writes, unavailable external
+  tools or platform capabilities, and actual allocation failure are environment
+  or capability failures (70). Contract violations and documented implementation
+  limits remain internal failures (71). Implementation errors never enter the
+  80-code language diagnostic table or diagnostic JSON.
+- OOM prints exactly
+  `<tool>: TC_ERR_OUT_OF_MEMORY: OutOfMemory: memory allocation failed`.
+  Other implementation errors print `<tool>: <impl-error>: message[: detail]`.
+- Frontend, VM and AOT allocation failures use this single external OOM class
+  (`TC_IMPL_OOM`, exit 70). Backend `TC_*_EMIT_OOM` statuses and emitter OOM flags
+  are private propagation details; the AOT driver must collapse them before
+  reporting. If a later release exposes allocation subcategories, it must add
+  them below this boundary without changing the frozen language diagnostic set
+  or the current external name, message and exit status.
+- `tc` is a project tool, not a compiler/run entry. Its operation must be first;
+  help/version stand alone; operations and timeout cannot repeat; `--` terminates
+  options only after a recognized operation. `--test-timeout=<seconds>` is
+  test-only, nonempty ASCII decimal and uint64-bounded. `--init-project` is
+  implemented; a valid `--test` invocation still reports `tc_error_unavailable`
+  and exits 70 without filesystem or test execution side effects.
+
+### Project model conventions (implemented)
+
+- `project/` owns private project-name validation, `tc.project` v1 parsing and
+  nearest-ancestor discovery. Discovery canonicalizes the start directory and
+  stops at the first existing `tc.project` entry; a manifest symlink supplies
+  content but does not move the project root. With no manifest, the start
+  directory is the root and no include root is added. These APIs have no compiler
+  consumers yet; path consumption belongs to the later project work.
+- Manifest I/O is nonblocking and bounded at 4 MiB. Host I/O failures and actual
+  OOM map to 70, malformed/field/path input maps to 2, and size/growth limit
+  failures map to 71. A bad nearest manifest is an error, not a reason to search
+  outward again.
+- Init canonicalizes cwd and never creates a child directory named after the
+  project. Its fixed order is name validation, `tc.project` precheck, `tests`
+  precheck, joint fd1/fd2/target identity checks, directory creation, six target
+  file creations, then the report. Existing files and symlinks are skipped;
+  existing non-directory/symlink `tests` entries are usage errors. Directory
+  prefixes are not followed.
+- Init compares `(st_dev, st_ino)` for stdout, stderr, all six targets and
+  resolvable skipped referents before any mutation or cached diagnostic output.
+  An alias is a usage error (2) and does not replace an already determined first
+  error. A closed fd is not itself an alias; report-time I/O determines the result.
+  Internal descriptors are relocated above fd2 so they cannot reuse closed stdio.
+  If a target identity cannot be resolved, stderr is treated as unsafe and cached
+  diagnostics are discarded without changing the original error class.
+- A create/write/close failure rolls back the current transaction in reverse
+  creation order, rechecking identity before unlink/rmdir. Replaced entries are
+  preserved and reported as `cleanup failed: <path>`; stdout stays empty. The
+  created/skipped report is post-commit: its I/O failure exits 70 without rolling
+  back committed files.
 
 首诊比较键序：一般位置为 `origin`（标准 §12.2 #9，操作数内部优先）→
 `same_site_rank`（#4，同 origin 类内专用码）→ `clause_rank`（#5）；在

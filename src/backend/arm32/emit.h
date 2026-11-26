@@ -24,6 +24,7 @@ typedef enum {
     TC_ARM32_EMIT_OK = 0,
     TC_ARM32_EMIT_UNSUPPORTED,
     TC_ARM32_EMIT_INTERNAL,
+    TC_ARM32_EMIT_OOM,
     TC_ARM32_EMIT_IO
 } TcArm32EmitStatus;
 

@@ -140,13 +140,14 @@ void tc_riscv32_plan_arguments(TcRiscv32Emitter *emitter,
     uint64_t nsaa = 0;
     size_t i;
     memset(out, 0, sizeof(*out));
+    out->alloc = emitter->alloc;
     out->sret = start_word != 0;
     out->count = count;
     if (count != 0) {
         out->slots =
-            (TcRiscv32ArgSlot *)calloc(count, sizeof(*out->slots));
+            (TcRiscv32ArgSlot *)tc_allocator_calloc(emitter->alloc, count, sizeof(*out->slots));
         if (out->slots == NULL) {
-            tc_riscv32_error(emitter, "out of memory planning arguments");
+            tc_riscv32_oom(emitter, "out of memory planning arguments");
             return;
         }
     }
@@ -192,10 +193,13 @@ void tc_riscv32_plan_return(TcRiscv32Emitter *emitter, const TcType *ret,
 }
 
 void tc_riscv32_free_argument_plan(TcRiscv32ArgPlan *plan) {
+    const TcAllocator *alloc;
     if (plan == NULL) {
         return;
     }
-    free(plan->slots);
+    alloc = plan->alloc != NULL ? plan->alloc : tc_allocator_libc();
+    alloc->free(alloc->ctx, plan->slots);
     plan->slots = NULL;
+    plan->alloc = NULL;
     plan->count = 0;
 }

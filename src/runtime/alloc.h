@@ -20,6 +20,7 @@ typedef struct TcAllocator {
 /* Process-wide hosted allocator instance.  Never used by a freestanding
  * profile's runtime. */
 const TcAllocator *tc_allocator_libc(void);
+void *tc_allocator_calloc(const TcAllocator *alloc, size_t count, size_t size);
 
 /* A well-formed allocator has all three callbacks non-NULL. */
 int tc_allocator_is_valid(const TcAllocator *alloc);

@@ -1,8 +1,7 @@
-/* TC 0.0.46 contract: shared CLI contract for tc-vm / tc-aot (design §11).
+/* Shared private CLI contract for tc / tc-vm / tc-aot.
  *
- * The tools are the only entry points.  Argument parsing, profile selection
- * and contract checks are real; the front-end and code generation may be
- * unavailable (exit 70), never silently "supported".
+ * Capabilities that are unavailable fail explicitly with exit 70, never
+ * silently "supported".
  */
 #ifndef TC_DRIVER_CLI_H
 #define TC_DRIVER_CLI_H
@@ -11,6 +10,7 @@
 #include <stdio.h>
 
 #include "contract/optimizer.h"
+#include "diagnostic/diagnostic.h"
 
 #define TC_EXIT_OK 0
 #define TC_EXIT_DIAGNOSTIC 1
@@ -44,12 +44,18 @@ typedef struct {
 
 typedef enum {
     TC_CLI_PARSE_OK = 0,
-    TC_CLI_PARSE_ERROR
+    TC_CLI_PARSE_ERROR,
+    TC_CLI_PARSE_IO
 } TcCliParseResult;
 
 void tc_cli_options_init(TcCliOptions *options);
 TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                               const char *tool_name);
-void tc_cli_print_usage(FILE *stream, const char *tool_name);
+int tc_cli_write(FILE *stream, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+int tc_cli_flush(FILE *stream);
+void tc_cli_ignore_sigpipe(void);
+int tc_cli_print_usage(FILE *stream, const char *tool_name);
+int tc_impl_error_exit(TcImplError error);
 
 #endif /* TC_DRIVER_CLI_H */

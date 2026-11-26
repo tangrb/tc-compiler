@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """S10 release audit (test plan S10 / design §12/§14/§15).
 
-Checks the release surface of the 0.0.46 branch:
+Checks the release surface of the 0.0.47 toolchain with frozen 0.0.46
+language contracts:
 
   * closed diagnostic set (65 TC_CE_* + 15 TC_RE_*), no extra codes;
   * private tc_core static library, no install/export rule, hidden symbols;
-  * exactly two tool entry points (tc-vm, tc-aot), no C host public library or
-    embedding API;
+  * exactly three private tool entry points (tc, tc-vm, tc-aot), no C host
+    public library or embedding API;
   * documented implementation limits use the internal-error channel, not
     TC_ERR_OUT_OF_MEMORY;
   * the freestanding RISC-V image has no undefined/libc symbols;
@@ -20,6 +21,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -63,21 +65,47 @@ def llvm_tool(name: str) -> str | None:
     return None
 
 
+def run_nm(command: list[str], failures: list[str],
+           label: str) -> bytes | None:
+    proc = subprocess.run(command, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, timeout=60)
+    if proc.returncode != 0:
+        detail = proc.stderr.decode("utf-8", "replace").strip()
+        failures.append(f"{CASE_ID}: {label} failed: {detail}")
+        return None
+    return proc.stdout
+
+
 def check_codes(failures: list[str]) -> None:
+    sys.path.insert(0, str(ROOT / "tests" / "traceability"))
+    from gen_codes import parse_standard_codes  # noqa: E402
+
+    standard_codes = {
+        entry["code"]
+        for entry in parse_standard_codes(read("docs/TC语言及编译器标准-0.0.46.md"))
+    }
     codes = read("src/diagnostic/codes.inc")
     ce = re.findall(r"\bTC_CE_[A-Z0-9_]+\b", codes)
     re_codes = re.findall(r"\bTC_RE_[A-Z0-9_]+\b", codes)
+    implementation_codes = set(ce) | set(re_codes)
     if len(set(ce)) != 65:
         failures.append(f"{CASE_ID}: {len(set(ce))} TC_CE_* codes, expected 65")
     if len(set(re_codes)) != 15:
         failures.append(
             f"{CASE_ID}: {len(set(re_codes))} TC_RE_* codes, expected 15")
-    json_codes = re.findall(r'"TC_[A-Z0-9_]+"', read("tests/traceability/codes.json"))
-    if len(set(json_codes)) != 80:
+    if implementation_codes != standard_codes:
         failures.append(
-            f"{CASE_ID}: traceability code table has {len(set(json_codes))} "
-            "entries, expected 80")
-    if "TC_ERR_OUT_OF_MEMORY" in codes:
+            f"{CASE_ID}: implementation diagnostic names differ from the standard: "
+            f"missing={sorted(standard_codes - implementation_codes)}, "
+            f"extra={sorted(implementation_codes - standard_codes)}")
+    payload = json.loads(read("tests/traceability/codes.json"))
+    json_codes = {entry["code"] for entry in payload["codes"]}
+    if json_codes != standard_codes:
+        failures.append(
+            f"{CASE_ID}: traceability diagnostic names differ from the standard: "
+            f"missing={sorted(standard_codes - json_codes)}, "
+            f"extra={sorted(json_codes - standard_codes)}")
+    if "TC_ERR_OUT_OF_MEMORY" in implementation_codes:
         failures.append(f"{CASE_ID}: TC_ERR_OUT_OF_MEMORY entered the language set")
 
 
@@ -87,6 +115,10 @@ def check_release_surface(failures: list[str]) -> None:
         failures.append(f"{CASE_ID}: tc_core is not a static private library")
     if "C_VISIBILITY_PRESET hidden" not in cmake:
         failures.append(f"{CASE_ID}: tc_core symbols are not hidden")
+    if re.search(
+            r"target_include_directories\s*\(\s*tc_core\s+[^)]*\b(?:PUBLIC|INTERFACE)\b",
+            cmake, re.S):
+        failures.append(f"{CASE_ID}: tc_core exposes internal include requirements")
     for relative in ("CMakeLists.txt", "src/CMakeLists.txt",
                      "src/driver/CMakeLists.txt", "tests/CMakeLists.txt"):
         text = read(relative)
@@ -96,20 +128,21 @@ def check_release_surface(failures: list[str]) -> None:
     if re.search(r"add_library\([^)]*SHARED", host):
         failures.append(f"{CASE_ID}: a shared host library is built")
     driver = read("src/driver/CMakeLists.txt")
-    if driver.count("add_executable(") != 2:
+    if driver.count("add_executable(") != 3:
         failures.append(
             f"{CASE_ID}: src/driver builds {driver.count('add_executable(')} "
-            "executables, expected 2")
-    if "add_executable(tc-vm" not in driver or \
-            "add_executable(tc-aot" not in driver:
-        failures.append(f"{CASE_ID}: the two CLI entry points changed")
+            "executables, expected 3")
+    for name in ("tc", "tc-vm", "tc-aot"):
+        if f"add_executable({name} " not in driver:
+            failures.append(f"{CASE_ID}: missing CLI entry point {name}")
     sources = list((ROOT / "src").rglob("*.c"))
     mains = []
     for path in sources:
         text = path.read_text(encoding="utf-8", errors="ignore")
         if re.search(r"\bint\s+main\s*\(", text):
             mains.append(str(path.relative_to(ROOT)))
-    if sorted(mains) != ["src/driver/tc-aot.c", "src/driver/tc-vm.c"]:
+    if sorted(mains) != ["src/driver/tc-aot.c", "src/driver/tc-vm.c",
+                         "src/driver/tc.c"]:
         failures.append(f"{CASE_ID}: unexpected main() definitions: {mains}")
     if (ROOT / "src/include").exists() or (ROOT / "include").exists():
         failures.append(f"{CASE_ID}: a public include directory exists")
@@ -156,10 +189,12 @@ def check_artifacts(failures: list[str]) -> None:
         if data[:4] != b"\x7fELF" or data[4] != 1:
             failures.append(f"{CASE_ID}: release image is not ELF32")
         nm = llvm_tool("llvm-nm") or "nm"
-        proc = subprocess.run([nm, "-u", str(elf)], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, timeout=60)
+        output = run_nm([nm, "-u", str(elf)], failures,
+                        "undefined-symbol audit")
+        if output is None:
+            return
         undefined = [line.split()[-1] for line in
-                     proc.stdout.decode("utf-8", "replace").splitlines()
+                     output.decode("utf-8", "replace").splitlines()
                      if line.split()[:1] == ["U"]]
         if undefined:
             failures.append(
@@ -167,10 +202,11 @@ def check_artifacts(failures: list[str]) -> None:
                 f"{undefined[:8]}")
         forbidden = {"printf", "malloc", "free", "strlen", "memcmp",
                      "abort", "exit", "__libc_start_main"}
-        proc = subprocess.run([nm, str(elf)], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, timeout=60)
+        output = run_nm([nm, str(elf)], failures, "defined-symbol audit")
+        if output is None:
+            return
         defined = {line.split()[-1] for line in
-                   proc.stdout.decode("utf-8", "replace").splitlines()
+                   output.decode("utf-8", "replace").splitlines()
                    if len(line.split()) >= 3}
         leaked = forbidden & defined
         if leaked:
@@ -179,14 +215,18 @@ def check_artifacts(failures: list[str]) -> None:
                 f"{sorted(leaked)}")
     finally:
         shutil.rmtree(directory, ignore_errors=True)
-    for name in ("tc-vm", "tc-aot"):
-        proc = subprocess.run([tool(name, "TC_VM" if name == "tc-vm"
-                                    else "TC_AOT"), "--version"],
+    versions = {
+        "tc": ("TC_PROJECT", "tc 0.0.47 (language 0.0.46; project tool)\n"),
+        "tc-vm": ("TC_VM", "tc-vm 0.0.47 (language 0.0.46; reference VM)\n"),
+        "tc-aot": ("TC_AOT", "tc-aot 0.0.47 (language 0.0.46; native AOT)\n"),
+    }
+    for name, (env, expected) in versions.items():
+        proc = subprocess.run([tool(name, env), "--version"],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               timeout=30)
-        text = proc.stdout.decode("utf-8", "replace")
-        if "0.0.46" not in text:
-            failures.append(f"{CASE_ID}: {name} version is not 0.0.46")
+        if proc.returncode != 0 or proc.stderr or \
+                proc.stdout.decode("utf-8", "replace") != expected:
+            failures.append(f"{CASE_ID}: {name} has an incorrect dual-version line")
 
 
 def check_docs(failures: list[str]) -> None:
@@ -205,6 +245,8 @@ def check_docs(failures: list[str]) -> None:
         for needle in needles:
             if needle not in text:
                 failures.append(f"{CASE_ID}: {relative} lacks {needle!r}")
+    if "TC开发调试工具链-0.0.47.md" not in read("docs/README.md"):
+        failures.append(f"{CASE_ID}: docs/README.md lacks the toolchain design link")
     stale = {
         "README.md": ["未实现**：RISC-V", "RISC-V 等后续目标"],
         "README.en.md": ["Not implemented: later targets such as RISC-V"],
@@ -221,14 +263,20 @@ def check_docs(failures: list[str]) -> None:
     if not gate.is_file():
         failures.append(f"{CASE_ID}: missing G10 gate record")
     version_h = read("src/base/version.h")
-    if '"0.0.46"' not in version_h:
+    if '#define TC_LANGUAGE_VERSION "0.0.46"' not in version_h:
         failures.append(f"{CASE_ID}: language version is not 0.0.46")
-    if "VERSION 0.0.46" not in read("CMakeLists.txt"):
-        failures.append(f"{CASE_ID}: CMake project version is not 0.0.46")
+    if '#define TC_TOOLCHAIN_VERSION "0.0.47"' not in version_h:
+        failures.append(f"{CASE_ID}: toolchain version is not 0.0.47")
+    if not re.search(r"(?m)^\s*project\s*\([^)]*\bVERSION\s+0\.0\.47(?:\s|\))",
+                     read("CMakeLists.txt")):
+        failures.append(f"{CASE_ID}: CMake project version is not 0.0.47")
     for changelog in ("CHANGELOG.md", "CHANGELOG.en.md"):
         text = read(changelog)
         if "0.0.46" not in text:
-            failures.append(f"{CASE_ID}: {changelog} lacks 0.0.46")
+            failures.append(f"{CASE_ID}: {changelog} lacks the language version")
+        if len(re.findall(r"(?m)^## \[0\.0\.47\](?:\s|$)", text)) != 1:
+            failures.append(
+                f"{CASE_ID}: {changelog} lacks one exact 0.0.47 heading")
         headings = re.findall(r"(?m)^#{1,3} .*?(\d+\.\d+\.\d+)", text)
         duplicates = {item for item in headings if headings.count(item) > 1}
         if duplicates:
@@ -245,12 +293,81 @@ def check_docs(failures: list[str]) -> None:
                     f"{CASE_ID}: {relative} has a broken link {target!r}")
 
 
+def selftest() -> int:
+    original_read = read
+
+    def run_with_read(target: str, replacement, checker) -> list[str]:
+        failures: list[str] = []
+
+        def mutated(relative: str) -> str:
+            text = original_read(relative)
+            return replacement(text) if relative == target else text
+
+        globals()["read"] = mutated
+        try:
+            checker(failures)
+        finally:
+            globals()["read"] = original_read
+        return failures
+
+    for checker in (check_codes, check_release_surface, check_docs):
+        failures: list[str] = []
+        checker(failures)
+        if failures:
+            for failure in failures:
+                print(failure)
+            return 1
+
+    mutations = (
+        ("src/diagnostic/codes.inc",
+         lambda text: re.sub(r"\bTC_CE_[A-Z0-9_]+\b", "TC_CE_MUTATED",
+                             text, count=1), check_codes),
+        ("src/CMakeLists.txt",
+         lambda text: text.replace("target_include_directories(tc_core PRIVATE",
+                                   "target_include_directories(tc_core PUBLIC"),
+         check_release_surface),
+        ("CMakeLists.txt",
+         lambda text: text.replace("VERSION 0.0.47", "VERSION 0.0.470"),
+         check_docs),
+        ("CHANGELOG.md",
+         lambda text: text.replace("## [0.0.47]", "### [0.0.47]"),
+         check_docs),
+        ("CHANGELOG.en.md",
+         lambda text: text.replace("## [0.0.47]", "### [0.0.47]"),
+         check_docs),
+        ("docs/README.md",
+         lambda text: text.replace("TC开发调试工具链-0.0.47.md", "missing.md"),
+         check_docs),
+    )
+    for target, replacement, checker in mutations:
+        failures = run_with_read(target, replacement, checker)
+        if not failures:
+            print(f"release audit selftest: mutation was not rejected: {target}")
+            return 1
+
+    original_run = subprocess.run
+    failures = []
+    try:
+        subprocess.run = lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 1, stdout=b"", stderr=b"nm failed")
+        output = run_nm(["nm"], failures, "undefined-symbol audit")
+    finally:
+        subprocess.run = original_run
+    if output is not None or not failures:
+        print("release audit selftest: nm failure was not rejected")
+        return 1
+    print("release audit selftest: all mutations rejected")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument("--selftest", action="store_true")
     args = parser.parse_args()
-    if not args.check:
-        parser.error("use --check")
+    if args.selftest:
+        return selftest()
     failures: list[str] = []
     check_codes(failures)
     check_release_surface(failures)
@@ -261,7 +378,7 @@ def main() -> int:
             print(item)
         print(f"{CASE_ID}: {len(failures)} release-audit failure(s)")
         return 1
-    print(f"{CASE_ID}: release audit passed (codes, private core, two CLIs, "
+    print(f"{CASE_ID}: release audit passed (codes, private core, three CLIs, "
           "freestanding symbols, docs)")
     return 0
 

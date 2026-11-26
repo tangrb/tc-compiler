@@ -119,23 +119,31 @@ static int select_instance(const TcPlatformProfile *profile,
 }
 
 static int report(TcImplError error, const char *detail) {
-    fprintf(stderr, "tc-aot: %s: %s", tc_impl_error_symbol(error),
-            tc_impl_error_message(error));
-    if (detail != NULL) {
-        fprintf(stderr, ": %s", detail);
+    int failed;
+    if (error == TC_IMPL_OOM) {
+        failed = tc_cli_write(stderr, "tc-aot: %s: %s: %s\n",
+                              tc_impl_error_symbol(error),
+                              tc_impl_error_print_name(error),
+                              tc_impl_error_message(error));
+    } else {
+        failed = tc_cli_write(stderr, "tc-aot: %s: %s",
+                              tc_impl_error_symbol(error),
+                              tc_impl_error_message(error));
+        if (failed == 0 && detail != NULL) {
+            failed = tc_cli_write(stderr, ": %s", detail);
+        }
+        if (failed == 0) {
+            failed = tc_cli_write(stderr, "\n");
+        }
     }
-    fputc('\n', stderr);
-    return error == TC_IMPL_USAGE ? 2 : 71;
+    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+        return tc_impl_error_exit(TC_IMPL_IO);
+    }
+    return tc_impl_error_exit(error);
 }
 
 static int report_unavailable(const char *detail) {
-    fprintf(stderr, "tc-aot: %s: %s", tc_impl_error_symbol(TC_IMPL_UNAVAILABLE),
-            tc_impl_error_message(TC_IMPL_UNAVAILABLE));
-    if (detail != NULL) {
-        fprintf(stderr, ": %s", detail);
-    }
-    fputc('\n', stderr);
-    return 70;
+    return report(TC_IMPL_UNAVAILABLE, detail);
 }
 
 static int run_tool(char *const argv[]) {
@@ -219,6 +227,7 @@ static int emit_assembly_to(const TcIR *ir,
     FILE *output_file;
     int unsupported = 0;
     int io_error = 0;
+    int oom_error = 0;
     int ok = 0;
     *is_unsupported = 0;
     output_file = path == NULL ? stdout : fopen(path, "wb");
@@ -231,6 +240,7 @@ static int emit_assembly_to(const TcIR *ir,
                               error_message, error_capacity);
         unsupported = status == TC_ARM32_EMIT_UNSUPPORTED;
         io_error = status == TC_ARM32_EMIT_IO;
+        oom_error = status == TC_ARM32_EMIT_OOM;
         ok = status == TC_ARM32_EMIT_OK;
     } else if (instance->is_riscv32) {
         TcRiscv32EmitStatus status =
@@ -238,6 +248,7 @@ static int emit_assembly_to(const TcIR *ir,
                                 error_message, error_capacity);
         unsupported = status == TC_RISCV32_EMIT_UNSUPPORTED;
         io_error = status == TC_RISCV32_EMIT_IO;
+        oom_error = status == TC_RISCV32_EMIT_OOM;
         ok = status == TC_RISCV32_EMIT_OK;
     } else {
         TcAArch64EmitStatus status =
@@ -245,18 +256,25 @@ static int emit_assembly_to(const TcIR *ir,
                                 error_message, error_capacity);
         unsupported = status == TC_AARCH64_EMIT_UNSUPPORTED;
         io_error = status == TC_AARCH64_EMIT_IO;
+        oom_error = status == TC_AARCH64_EMIT_OOM;
         ok = status == TC_AARCH64_EMIT_OK;
     }
     if (output_file != stdout && fclose(output_file) != 0) {
         return report(TC_IMPL_IO, path);
     }
+    if (output_file == stdout && tc_cli_flush(stdout) != 0) {
+        return report(TC_IMPL_IO, "cannot write assembly to stdout");
+    }
     if (unsupported) {
         *is_unsupported = 1;
-        return 70;
+        return tc_impl_error_exit(TC_IMPL_UNAVAILABLE);
     }
     if (io_error) {
         return report(TC_IMPL_IO,
                       error_message[0] != '\0' ? error_message : NULL);
+    }
+    if (oom_error) {
+        return report(TC_IMPL_OOM, NULL);
     }
     if (!ok) {
         return report(TC_IMPL_INTERNAL,

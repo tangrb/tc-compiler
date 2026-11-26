@@ -4,18 +4,24 @@
 [TC 开发测试计划 0.0.46](../docs/TC开发测试计划-0.0.46.md)；当前门禁状态见
 [门禁状态](../docs/gates/README.md)。
 
-0.0.47 的测试布局见[工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
-[工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，属于规划映射；在实现并注册前不得作为
-当前套件或 PASS 证据。
+0.0.47 已注册 P0/T0 的三入口版本、CLI 语法、退出码与发布审计测试，并覆盖
+OOM 故障注入、报告写失败与审计变异自测；P1 新增 `project.manifest`、
+`project.init`、`project.init_fault` 并更新 `cli.contract`，覆盖 manifest/根发现、
+完整模板、预检/身份/别名与逐故障点回滚。上述测试标签为 `unit`/`toolchain`/`fast`，
+发布审计为 `toolchain`/`aot`/`slow`。其余测试布局见
+[工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
+[工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，在实现并注册前不得作为当前套件或
+PASS 证据。
 
 | Suite | Location | Level | Content |
 | --- | --- | --- | --- |
-| Contract/unit | `unit/` | L0/L1/L2 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例）；`tc_ct_test`（CT 向量/缓存/局部 const）；`tc_ir_test`（最终 IR 形态/CFG/打印）；`tc_vm_test`（语义核、格式化、输入、内存/指针、trap/位置、调用/`D`、设备策略、W 矩阵） |
+| Project | `project/` | L0/L2 | P1：`project.manifest`（`tc.project` v1/缺省/错误/最近根发现）、`project.init`（完整模板、预检、身份/别名、报告失败）、`project.init_fault`（逐故障点原子回滚与清理残留）；标签 `unit`/`toolchain`/`fast` |
+| Contract/unit | `unit/` | L0/L1/L2 | 契约检查；`tc_frontend_test`（LEX/SYN、parse IR、位置/限制）；`tc_sem_test`（类型身份、布局、W 尺寸、冻结、模块顺序/实例）；`tc_ct_test`（CT 向量/缓存/局部 const）；`tc_ir_test`（最终 IR 形态/CFG/打印）；`tc_vm_test`（语义核、格式化、输入、内存/指针、trap/位置、调用/`D`、设备策略、W 矩阵）；`tc_oom_test`（SEM、VM 与三后端逐分配点 OOM 故障注入及分配清理校验） |
 | Conformance | `conformance/` | L3/L4/L5/L6 | 静态 LEX/SYN/IMPORT/SEM/CFG-DI/调用/安全/注解/CT 用例、接受工具用例、属性用例；VM 运行时用例（`runtime/`）；S7/S8 VM↔AOT 差分（`diff/`）、AAPCS64 ABI（`abi/`）、checked build（`checked/`）、§13.4 八项一致性（`consistency/`）、工具链/ELF/静态一致（`tools/`）；S9 freestanding/裸机与 ARM32 平台（`platform/`）、AAPCS32 互操作（`abi/s9_*`）、双档案静态一致（`tools/s9_*`）；S10 RISC-V 32 平台/ABI/静态一致、checked/规模/长跳转、长期回归语料（`platform/s10_*`、`abi/s10_*`、`tools/s10_*`、`checked/s10_*`、`longterm/`）；见 [conformance/README.md](conformance/README.md) |
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、root-module `--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查、矩阵 case id 存在性交叉检查 |
 | Golden | `golden/` | L3/L4 | 规范推导的期望值及规范来源；`validate.py` 校验诊断与运行时 golden，`run.py` 执行 w32/w64 运行时 golden |
-| Tools | `tools/` | L6 | `tc-vm`/`tc-aot` CLI 契约（用法、档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝）；S10 发布审计（80 码闭集、私有 core、两个 CLI、freestanding 符号、文档/版本一致性） |
+| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 不可用且无副作用、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；S10 发布审计（80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
 | Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON（S1/S2-S3/S4/S5/S6）；S7/S8/S9/S10 零 pass/ELF 构建/执行稳定性与 checked/release 分离 |
 | Docs | `tools/docs_cleanup_check.py` | — | 文档收尾门禁：无过程/历史叙事、门禁记录简短、changelog 版本不重复 |
 
@@ -24,7 +30,13 @@
 ```sh
 cmake -S . -B build && cmake --build build
 ctest --test-dir build --output-on-failure
+# P1 工程模型测试
+ctest --test-dir build -R '^project\.' --output-on-failure
+ctest --test-dir build -L 'unit;toolchain;fast' --output-on-failure
 ```
+
+`project.manifest`、`project.init`、`project.init_fault` 与更新的 `cli.contract`
+共同构成 P1 当前回归入口；标签筛选使用 CTest 的标签匹配语法。
 
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
 每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
@@ -54,9 +66,9 @@ S9 套件在 `conformance/platform/`、`conformance/abi/s9_arm32_interop.py`、
 与 `determinism/s9_determinism.py`：
 `aarch64-baremetal` 的 ELF/flat、PL011 UART0 输出与分帧输入、trap、静态字节、
 四设备策略与符号审计，
-`arm32-baremetal` 的 29 个固定语义/ABI 用例 + 296 个 S6/S8 语料同档案
+`arm32-baremetal` 的 29 个固定语义/ABI 用例 + 305 个 S6/S8 语料同档案
 VM↔AOT 差分、14 个 C 调用者 AAPCS32 互操作用例、19 个 TC caller → C callee
-反向 ABI 用例、1037 个静态源 × 2 个裸机档案的 VM/AOT 首诊逐字节一致、
+反向 ABI 用例、1072 个静态源 × 2 个裸机档案的 VM/AOT 首诊逐字节一致、
 32/64 分档案隔离与重复构建/执行确定性。AAPCS64/AAPCS32 的参考版本、规则矩阵
 与明确不支持的 over-aligned/bit-field/vector/variadic 形态见
 [conformance/abi/README.md](conformance/abi/README.md)。
@@ -68,8 +80,8 @@ S10 套件在 `conformance/platform/s10_riscv32_cases.py`、
 `conformance/longterm/s10_longterm.py`、
 `determinism/s10_determinism.py` 与 `tools/s10_release_audit.py`：
 `riscv32-baremetal` 的 ELF32/EM_RISCV/区符号/无动态依赖/无未定义符号审计、
-29 个固定语义/ABI 用例 + 296 个 S6/S8 语料同档案 VM↔AOT 差分、四设备策略、
-checked/必选 trap 分离、UART 分帧 stdin、flat 产物、1037 个静态源的 VM/AOT
+29 个固定语义/ABI 用例 + 305 个 S6/S8 语料同档案 VM↔AOT 差分、四设备策略、
+checked/必选 trap 分离、UART 分帧 stdin、flat 产物、1072 个静态源的 VM/AOT
 首诊一致、32 个 C 调用者 RISC-V ILP32 互操作、14 个 TC caller → C callee 反向
 ABI 用例、重复构建/执行与 O0/O2 确定性，以及标准条款/边界/差分/fuzz/平台长期
 回归语料。RISC-V ABI 规则见 [conformance/abi/README.md](conformance/abi/README.md)。
@@ -82,13 +94,14 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-当前全量：`ctest` 71/71（Debug/Release/ASan+UBSan）；harness 873/873
+0.0.47 CTest 注册总数 76（P0 基线 73 + P1 三项），P1 的
+Debug/Release/ASan+UBSan 全量回归均为 76/76。0.0.46 已验收 harness 873/873
 （608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、
-ct 370、ir 674、vm 413、aot 81。S9 平台套件另有 29 个固定 ARM32 用例、
-296 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
-19 个反向 ABI 用例与 1037×2 个静态源一致性检查；S10 另有 29 个固定 RISC-V
-用例、296 个同档案语料、32 个 C 调用者用例、14 个反向 ABI 用例、1037 个 RISC-V
-静态源一致性与 149×2 个长期回归静态源。
+ct 370、ir 674、vm 413、aot 81、oom 366。S9 平台套件另有 29 个固定 ARM32 用例、
+305 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、
+19 个反向 ABI 用例与 1072×2 个静态源一致性检查；S10 另有 29 个固定 RISC-V
+用例、305 个同档案语料、32 个 C 调用者用例、14 个反向 ABI 用例、1072 个 RISC-V
+静态源一致性与 154×2 个长期回归静态源。
 S10 对抗套件另含：
 
 - 48 个生成式 ABI 用例（8 seeds × 3 目标 × C→TC/TC→C；可 `--seeds` 长跑）；

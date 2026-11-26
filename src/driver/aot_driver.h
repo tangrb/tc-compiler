@@ -14,8 +14,8 @@
 #include "runtime/profile.h"
 
 /* Run code generation for an accepted analysis.  Returns a process exit
- * status: 0 on success, 2 on usage errors, 70 when the platform instance is
- * unsupported or the toolchain is unavailable, 71 on internal/I/O failures. */
+ * status: 0 on success, 2 on usage errors, 70 on I/O, OOM, unavailable
+ * platform instances or toolchains, and 71 on internal failures. */
 int tc_aot_driver_run(const TcAnalysis *analysis,
                       const TcPlatformProfile *profile,
                       const TcCliOptions *options);

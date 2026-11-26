@@ -1,9 +1,46 @@
-/* TC 0.0.46 contract: shared CLI parsing. */
+/* Shared compiler CLI parsing and implementation-error exit mapping. */
 #include "driver/cli.h"
 
+#include <signal.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "contract/contract.h"
+
+int tc_cli_write(FILE *stream, const char *format, ...) {
+    va_list ap;
+    int result;
+    va_start(ap, format);
+    result = vfprintf(stream, format, ap);
+    va_end(ap);
+    return result < 0 ? -1 : 0;
+}
+
+int tc_cli_flush(FILE *stream) {
+    return fflush(stream) == 0 ? 0 : -1;
+}
+
+void tc_cli_ignore_sigpipe(void) {
+#ifdef SIGPIPE
+    (void)signal(SIGPIPE, SIG_IGN);
+#endif
+}
+
+int tc_impl_error_exit(TcImplError error) {
+    switch (error) {
+    case TC_IMPL_OK:
+        return TC_EXIT_OK;
+    case TC_IMPL_USAGE:
+        return TC_EXIT_USAGE;
+    case TC_IMPL_IO:
+    case TC_IMPL_OOM:
+    case TC_IMPL_UNAVAILABLE:
+        return TC_EXIT_UNAVAILABLE;
+    case TC_IMPL_INTERNAL:
+    default:
+        return TC_EXIT_INTERNAL;
+    }
+}
 
 void tc_cli_options_init(TcCliOptions *options) {
     if (options == NULL) {
@@ -15,8 +52,8 @@ void tc_cli_options_init(TcCliOptions *options) {
     options->checked = 0;
 }
 
-void tc_cli_print_usage(FILE *stream, const char *tool_name) {
-    fprintf(stream,
+int tc_cli_print_usage(FILE *stream, const char *tool_name) {
+    int failed = tc_cli_write(stream,
             "usage: %s [options] <source.tc>\n"
             "\n"
             "options:\n"
@@ -46,6 +83,22 @@ void tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "tc-aot invocation emits target assembly; --emit=obj/elf/flat also\n"
             "assembles/links with the bundled freestanding target runtime.\n",
             tool_name);
+    if (failed != 0 || tc_cli_flush(stream) != 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static TcCliParseResult parse_error(const char *format, ...) {
+    va_list ap;
+    int failed;
+    va_start(ap, format);
+    failed = vfprintf(stderr, format, ap) < 0;
+    va_end(ap);
+    if (fflush(stderr) != 0) {
+        failed = 1;
+    }
+    return failed ? TC_CLI_PARSE_IO : TC_CLI_PARSE_ERROR;
 }
 
 TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
@@ -87,44 +140,43 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         }
         if (!only_positional && strncmp(arg, "--profile=", 10) == 0) {
             if (arg[10] == '\0') {
-                fprintf(stderr, "%s: missing value for --profile\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --profile\n",
+                                   tool_name);
             }
             options->profile_name = arg + 10;
             continue;
         }
         if (!only_positional && strncmp(arg, "--device=", 9) == 0) {
             if (arg[9] == '\0') {
-                fprintf(stderr, "%s: missing value for --device\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --device\n",
+                                   tool_name);
             }
             options->device_name = arg + 9;
             continue;
         }
         if (!only_positional && strncmp(arg, "--include=", 10) == 0) {
             if (arg[10] == '\0') {
-                fprintf(stderr, "%s: missing value for --include\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --include\n",
+                                   tool_name);
             }
             if (options->ninclude_roots >= TC_CLI_MAX_INCLUDE_ROOTS) {
-                fprintf(stderr, "%s: too many include roots (max %d)\n", tool_name,
-                        TC_CLI_MAX_INCLUDE_ROOTS);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: too many include roots (max %d)\n",
+                                   tool_name, TC_CLI_MAX_INCLUDE_ROOTS);
             }
             options->include_roots[options->ninclude_roots++] = arg + 10;
             continue;
         }
         if (!only_positional && strncmp(arg, "--opt=", 6) == 0) {
             if (!tc_opt_level_parse(arg + 6, &options->opt)) {
-                fprintf(stderr, "%s: invalid optimization level '%s'\n", tool_name, arg + 6);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: invalid optimization level '%s'\n",
+                                   tool_name, arg + 6);
             }
             continue;
         }
         if (!only_positional && strncmp(arg, "--output=", 9) == 0) {
             if (arg[9] == '\0') {
-                fprintf(stderr, "%s: missing value for --output\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --output\n",
+                                   tool_name);
             }
             options->output = arg + 9;
             continue;
@@ -132,42 +184,38 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         if (!only_positional && strncmp(arg, "--emit=", 7) == 0) {
             if (strcmp(arg + 7, "asm") != 0 && strcmp(arg + 7, "obj") != 0 &&
                 strcmp(arg + 7, "elf") != 0 && strcmp(arg + 7, "flat") != 0) {
-                fprintf(stderr, "%s: invalid --emit value '%s'\n",
-                        tool_name, arg + 7);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: invalid --emit value '%s'\n",
+                                   tool_name, arg + 7);
             }
             options->emit_kind = arg + 7;
             continue;
         }
         if (!only_positional && strncmp(arg, "--cc=", 5) == 0) {
             if (arg[5] == '\0') {
-                fprintf(stderr, "%s: missing value for --cc\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --cc\n", tool_name);
             }
             options->assembler = arg + 5;
             continue;
         }
         if (!only_positional && strncmp(arg, "--ld=", 5) == 0) {
             if (arg[5] == '\0') {
-                fprintf(stderr, "%s: missing value for --ld\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --ld\n", tool_name);
             }
             options->linker = arg + 5;
             continue;
         }
         if (!only_positional && strncmp(arg, "--runtime=", 10) == 0) {
             if (arg[10] == '\0') {
-                fprintf(stderr, "%s: missing value for --runtime\n", tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --runtime\n",
+                                   tool_name);
             }
             options->runtime_path = arg + 10;
             continue;
         }
         if (!only_positional && strncmp(arg, "--linker-script=", 16) == 0) {
             if (arg[16] == '\0') {
-                fprintf(stderr, "%s: missing value for --linker-script\n",
-                        tool_name);
-                return TC_CLI_PARSE_ERROR;
+                return parse_error("%s: missing value for --linker-script\n",
+                                   tool_name);
             }
             options->linker_script = arg + 16;
             continue;
@@ -177,12 +225,10 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
             continue;
         }
         if (!only_positional && arg[0] == '-' && arg[1] != '\0') {
-            fprintf(stderr, "%s: unknown option '%s'\n", tool_name, arg);
-            return TC_CLI_PARSE_ERROR;
+            return parse_error("%s: unknown option '%s'\n", tool_name, arg);
         }
         if (options->source != NULL) {
-            fprintf(stderr, "%s: more than one source file\n", tool_name);
-            return TC_CLI_PARSE_ERROR;
+            return parse_error("%s: more than one source file\n", tool_name);
         }
         options->source = arg;
     }
@@ -190,16 +236,15 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
         return TC_CLI_PARSE_OK;
     }
     if (options->source == NULL) {
-        fprintf(stderr, "%s: missing source file\n", tool_name);
-        return TC_CLI_PARSE_ERROR;
+        return parse_error("%s: missing source file\n", tool_name);
     }
     if (strcmp(options->profile_name, "aarch64-linux-user") != 0 &&
         strcmp(options->profile_name, "aarch64-baremetal") != 0 &&
         strcmp(options->profile_name, "arm32-baremetal") != 0 &&
         strcmp(options->profile_name, "riscv32-baremetal") != 0 &&
         strcmp(options->profile_name, "w32") != 0) {
-        fprintf(stderr, "%s: unknown profile '%s'\n", tool_name, options->profile_name);
-        return TC_CLI_PARSE_ERROR;
+        return parse_error("%s: unknown profile '%s'\n", tool_name,
+                           options->profile_name);
     }
     return TC_CLI_PARSE_OK;
 }

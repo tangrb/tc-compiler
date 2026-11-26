@@ -1,8 +1,8 @@
-# 0.0.46 implementation layout
+# Compiler and toolchain implementation layout
 
 This directory is the **target module layout** from
 [TC Native Compiler Design 0.0.46](../docs/TC原生编译器设计说明书-0.0.46.md) §14.
-Implemented: the private `tc_core` library, the `tc-vm`/`tc-aot` entry points,
+Implemented: the private `tc_core` library, the `tc`/`tc-vm`/`tc-aot` entry points,
 the frozen headers, the `frontend/` reader/lexer/parser/module-loader/analyzer
 (LEX/SYN, IMPORT, names, types, conversions, layout, static instruction checks,
 const_expr form, CFG/reachability/DI, missing returns, call ordering/safety,
@@ -35,9 +35,14 @@ implementation-limit/scale/far-branch regressions, ELF/symbol audits and 32/64
 profile isolation are tested.  Frozen contract
 ownership is indexed in [CONTRACTS.md](CONTRACTS.md).
 
-The 0.0.47 designs add the `tc` project tool and debugging interfaces, but their
-implementation has not started. The current tree still has only `tc-vm` and
-`tc-aot`; design targets are not listed here as implemented modules.
+The 0.0.47 toolchain implements split language/toolchain versions, three private
+entry points, one implementation-error exit mapping and P1 project initialization.
+`tc --init-project` generates the complete template in the canonical current
+directory with pre-write identity checks and rollback. `project/manifest.c`
+provides the private `tc.project` v1 parser and nearest-ancestor root-discovery
+APIs; compiler path consumers do not use them yet. `tc --test` explicitly returns
+unavailable (70). P2–P5/T1–T6, including path consumption and the test runner,
+have not started.
 
 ```text
 src/
@@ -61,7 +66,8 @@ src/
                 EABI helpers, MPS2 platform, linker script); riscv32
                 (independent RV32IMAFDC emitter/ILP32 classifier, compiler
                 runtime helpers, QEMU virt platform, linker script)
-  driver/       tc-vm tc-aot + shared CLI/profile selection and AOT driver
+  driver/       tc tc-vm tc-aot + shared CLI/profile selection and AOT driver
+  project/      name validation, tc.project v1 parser/root discovery, atomic init
 ```
 
 `base/`, `contract/` and `diagnostic/` are shared **infrastructure**, not
@@ -91,17 +97,24 @@ IR from parse IR + SEM + CT).  `ir/`, `runtime/`, `vm/`, `backend/` and
 - Each source file has one module owner: `base/` + `contract/` are frozen
   infrastructure; `diagnostic/` owns the single diagnostic fact source;
   `ir/` owns representation; `runtime/` owns platform seams/profiles;
-  `driver/` owns only CLI parsing and tool policy.  Do not create a second
+  `driver/` owns only CLI parsing and tool policy; `project/` owns project
+  metadata/root discovery and initialization. Do not create a second
   table, profile instance or diagnostic code set in another directory.
-- `tc-vm` and `tc-aot` are the only tool entry points.  `--syntax-only`,
-  `--sem-only` and `--static-only` are partial checks: exit 0 never claims a
+- `tc`, `tc-vm` and `tc-aot` are the only tool entry points. `tc` does not compile
+  or run user programs. Its `--init-project` operation creates missing project
+  targets with pre-write identity checks and rollback; `--test` still fails
+  explicitly as unavailable (70). `--syntax-only`, `--sem-only` and `--static-only`
+  are partial checks:
+  exit 0 never claims a
   valid program.  A normal `tc-vm` invocation executes the finalized program on
   the reference VM.  A normal `tc-aot` invocation emits target assembly
   (AArch64, ARM32 or RISC-V 32);
   `--emit=asm|obj|elf|flat` assembles/links with the bundled freestanding target
   runtime.
   Capabilities outside the bound platform instance fail explicitly with exit 70
-  and publish no wrong artifact.
+  and publish no wrong artifact. `tc_impl_error_exit` is the only private
+  implementation-error mapping: OK→0, USAGE→2, IO/UNAVAILABLE/OOM→70,
+  INTERNAL→71.
 - Parse IR (`frontend/parse.h`) is intentionally not the frozen final IR:
   source names/type syntax stay until SEM, and field paths keep the
   `TcFieldRef` shape.  SEM resolves and validates them and owns the frozen type

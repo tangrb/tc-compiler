@@ -1,7 +1,6 @@
-# TC 0.0.46 implementation.
-#
-# The frozen contracts build the private tc_core library plus the two tool
-# entry points.  No install rule, no exported headers, no host ABI.
+# The frozen 0.0.46 language contracts and 0.0.47 toolchain build the private
+# tc_core library plus three tool entry points.  No install rule, no exported
+# headers, no host ABI.
 
 add_library(tc_core STATIC
     # Cross-cutting frozen contracts.
@@ -47,14 +46,19 @@ add_library(tc_core STATIC
     # Reference VM: memory/objects and interpreter.
     vm/memory.c
     vm/interp.c
-    # Code shared by the two tool entry points.
+    # Project model.
+    project/name.c
+    project/manifest.c
+    project/init.c
+
+    # Code shared by the tool entry points.
     driver/cli.c
     driver/frontend_driver.c
     driver/aot_driver.c
     driver/profile_select.c
 )
 
-target_include_directories(tc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(tc_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 if(UNIX AND NOT APPLE)
     # fmod/fmodf for the exact SEM constant evaluator.
     target_link_libraries(tc_core PUBLIC m)

@@ -46,7 +46,8 @@ char *tc_arena_strdup(TcArena *arena, const char *text);
 
 /* Read a whole source file.  Path is copied by the caller as needed; the
  * returned bytes are owned by the caller and released with tc_source_free().
- * Returns TC_IMPL_OK, TC_IMPL_IO (open/read failure) or TC_IMPL_OOM. */
+ * Returns TC_IMPL_OK, TC_IMPL_IO (open/read failure), TC_IMPL_OOM or
+ * TC_IMPL_INTERNAL (documented source-size limit). */
 typedef struct {
     uint8_t *bytes;
     size_t size;

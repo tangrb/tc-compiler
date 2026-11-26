@@ -104,12 +104,13 @@ void tc_arm32_plan_arguments(TcArm32Emitter *emitter,
     uint64_t nsaa = 0;
     size_t i;
     memset(out, 0, sizeof(*out));
+    out->alloc = emitter->alloc;
     out->sret = start_word != 0;
     out->count = count;
     if (count != 0) {
-        out->slots = (TcArm32ArgSlot *)calloc(count, sizeof(*out->slots));
+        out->slots = (TcArm32ArgSlot *)tc_allocator_calloc(emitter->alloc, count, sizeof(*out->slots));
         if (out->slots == NULL) {
-            tc_arm32_error(emitter, "out of memory planning arguments");
+            tc_arm32_oom(emitter, "out of memory planning arguments");
             return;
         }
     }
@@ -148,10 +149,13 @@ void tc_arm32_plan_return(TcArm32Emitter *emitter, const TcType *ret,
 }
 
 void tc_arm32_free_argument_plan(TcArm32ArgPlan *plan) {
+    const TcAllocator *alloc;
     if (plan == NULL) {
         return;
     }
-    free(plan->slots);
+    alloc = plan->alloc != NULL ? plan->alloc : tc_allocator_libc();
+    alloc->free(alloc->ctx, plan->slots);
     plan->slots = NULL;
+    plan->alloc = NULL;
     plan->count = 0;
 }

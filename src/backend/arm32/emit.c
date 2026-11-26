@@ -48,6 +48,20 @@ void tc_arm32_error(TcArm32Emitter *emitter, const char *format, ...) {
     }
 }
 
+void tc_arm32_oom(TcArm32Emitter *emitter, const char *format, ...) {
+    va_list ap;
+    if (emitter == NULL || emitter->failed) {
+        return;
+    }
+    emitter->failed = 1;
+    emitter->oom_failed = 1;
+    if (emitter->error_message != NULL && emitter->error_capacity != 0) {
+        va_start(ap, format);
+        vsnprintf(emitter->error_message, emitter->error_capacity, format, ap);
+        va_end(ap);
+    }
+}
+
 void tc_arm32_internal_error(TcArm32Emitter *emitter, const char *format,
                              ...) {
     va_list ap;
@@ -177,18 +191,18 @@ uint32_t tc_arm32_type_id(TcArm32Emitter *emitter, const TcType *type) {
         size_t capacity = emitter->type_capacity == 0
                               ? 64u
                               : emitter->type_capacity * 2u;
-        const TcType **types = (const TcType **)realloc(
+        const TcType **types = (const TcType **)emitter->alloc->realloc(emitter->alloc->ctx,
             emitter->types, capacity * sizeof(*types));
         uint32_t *ids;
         if (types == NULL) {
-            tc_arm32_error(emitter, "out of memory while interning type ids");
+            tc_arm32_oom(emitter, "out of memory while interning type ids");
             return 0;
         }
         emitter->types = types;
-        ids = (uint32_t *)realloc(emitter->type_ids,
+        ids = (uint32_t *)emitter->alloc->realloc(emitter->alloc->ctx,  emitter->type_ids,
                                   capacity * sizeof(*ids));
         if (ids == NULL) {
-            tc_arm32_error(emitter, "out of memory while interning type ids");
+            tc_arm32_oom(emitter, "out of memory while interning type ids");
             return 0;
         }
         emitter->type_ids = ids;
@@ -752,9 +766,9 @@ void tc_arm32_function_signature(TcArm32Emitter *emitter,
         *out_ret = callee->sig.ret;
         if (*out_count != 0) {
             const TcType **params =
-                (const TcType **)calloc(*out_count, sizeof(**out_params));
+                (const TcType **)tc_allocator_calloc(emitter->alloc, *out_count, sizeof(**out_params));
             if (params == NULL) {
-                tc_arm32_error(emitter, "out of memory");
+                tc_arm32_oom(emitter, "out of memory");
                 return;
             }
             for (i = 0; i < *out_count; i++) {
@@ -781,9 +795,9 @@ void tc_arm32_function_signature(TcArm32Emitter *emitter,
         *out_ret = signature->fnptr.ret;
         if (*out_count != 0) {
             const TcType **params =
-                (const TcType **)calloc(*out_count, sizeof(**out_params));
+                (const TcType **)tc_allocator_calloc(emitter->alloc, *out_count, sizeof(**out_params));
             if (params == NULL) {
-                tc_arm32_error(emitter, "out of memory");
+                tc_arm32_oom(emitter, "out of memory");
                 return;
             }
             for (i = 0; i < *out_count; i++) {
@@ -804,11 +818,11 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
     size_t i;
     emitter->unit = unit;
     emitter->slot_count = unit->nvregs;
-    emitter->slots = (TcArm32Slot *)calloc(unit->nvregs == 0 ? 1u
+    emitter->slots = (TcArm32Slot *)tc_allocator_calloc(emitter->alloc, unit->nvregs == 0 ? 1u
                                                               : unit->nvregs,
                                            sizeof(TcArm32Slot));
     if (emitter->slots == NULL) {
-        tc_arm32_error(emitter, "out of memory while laying out %u vregs",
+        tc_arm32_oom(emitter, "out of memory while laying out %u vregs",
                        (unsigned)unit->nvregs);
         return 0;
     }
@@ -903,7 +917,7 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
                 const TcType *ret = NULL;
                 TcArm32RetPlan ret_plan;
                 tc_arm32_function_signature(emitter, instr, &params, &nparams, &ret);
-                free(params);
+                emitter->alloc->free(emitter->alloc->ctx, params);
                 if (emitter->failed) {
                     return 0;
                 }
@@ -987,10 +1001,10 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
             if (type != NULL && type->tag == TC_TY_STRUCT) {
                 if (pending + 1u > capacity) {
                     capacity = 8u;
-                    stack = (const TcType **)calloc(capacity,
+                    stack = (const TcType **)tc_allocator_calloc(emitter->alloc, capacity,
                                                     sizeof(*stack));
                     if (stack == NULL) {
-                        tc_arm32_error(emitter, "out of memory");
+                        tc_arm32_oom(emitter, "out of memory");
                         return 0;
                     }
                 }
@@ -1002,7 +1016,7 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
                         tc_arm32_struct_def(emitter->ir, current);
                     size_t k;
                     if (def == NULL) {
-                        free(stack);
+                        emitter->alloc->free(emitter->alloc->ctx, stack);
                         tc_arm32_error(emitter, "invalid struct type");
                         return 0;
                     }
@@ -1013,11 +1027,11 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
                             if (pending == capacity) {
                                 const TcType **grown;
                                 capacity *= 2u;
-                                grown = (const TcType **)realloc(
+                                grown = (const TcType **)emitter->alloc->realloc(emitter->alloc->ctx,
                                     stack, capacity * sizeof(*stack));
                                 if (grown == NULL) {
-                                    free(stack);
-                                    tc_arm32_error(emitter, "out of memory");
+                                    emitter->alloc->free(emitter->alloc->ctx, stack);
+                                    tc_arm32_oom(emitter, "out of memory");
                                     return 0;
                                 }
                                 stack = grown;
@@ -1026,7 +1040,7 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
                         }
                     }
                 }
-                free(stack);
+                emitter->alloc->free(emitter->alloc->ctx, stack);
             } else {
                 count = 1;
             }
@@ -1052,14 +1066,14 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
                 TcArm32RetPlan ret_plan;
                 tc_arm32_function_signature(emitter, instr, &params, &nparams, &ret);
                 if (emitter->failed) {
-                    free(params);
+                    emitter->alloc->free(emitter->alloc->ctx, params);
                     return 0;
                 }
                 tc_arm32_plan_return(emitter, ret, &ret_plan);
                 tc_arm32_plan_arguments(
                     emitter, params, nparams,
                     ret_plan.kind == TC_ARM32_RET_INDIRECT ? 1 : 0, &plan);
-                free(params);
+                emitter->alloc->free(emitter->alloc->ctx, params);
                 if (emitter->failed) {
                     tc_arm32_free_argument_plan(&plan);
                     return 0;
@@ -1100,7 +1114,7 @@ static int build_layout(TcArm32Emitter *emitter, const TcUnit *unit) {
 }
 
 static void free_layout(TcArm32Emitter *emitter) {
-    free(emitter->slots);
+    emitter->alloc->free(emitter->alloc->ctx, emitter->slots);
     emitter->slots = NULL;
     emitter->slot_count = 0;
     emitter->unit = NULL;
@@ -1117,9 +1131,9 @@ static void emit_parameter_setup(TcArm32Emitter *emitter,
     size_t nparams = func->sig.nparams;
     size_t i;
     if (nparams != 0) {
-        params = (const TcType **)calloc(nparams, sizeof(*params));
+        params = (const TcType **)tc_allocator_calloc(emitter->alloc, nparams, sizeof(*params));
         if (params == NULL) {
-            tc_arm32_error(emitter, "out of memory");
+            tc_arm32_oom(emitter, "out of memory");
             return;
         }
         for (i = 0; i < nparams; i++) {
@@ -1133,7 +1147,7 @@ static void emit_parameter_setup(TcArm32Emitter *emitter,
             emitter, params, nparams,
             ret_plan.kind == TC_ARM32_RET_INDIRECT ? 1 : 0, &plan);
     }
-    free(params);
+    emitter->alloc->free(emitter->alloc->ctx, params);
     if (emitter->failed) {
         return;
     }
@@ -1373,10 +1387,11 @@ typedef struct {
     size_t capacity;
 } TcArm32DescList;
 
-static int desc_push(TcArm32DescList *list, TcRtObjectDesc desc) {
+static int desc_push(TcArm32Emitter *emitter, TcArm32DescList *list,
+                     TcRtObjectDesc desc) {
     if (list->count == list->capacity) {
         size_t capacity = list->capacity == 0 ? 16u : list->capacity * 2u;
-        TcRtObjectDesc *items = (TcRtObjectDesc *)realloc(
+        TcRtObjectDesc *items = (TcRtObjectDesc *)emitter->alloc->realloc(emitter->alloc->ctx,
             list->items, capacity * sizeof(*items));
         if (items == NULL) {
             return 0;
@@ -1409,8 +1424,8 @@ static int add_field_descs(TcArm32Emitter *emitter, TcArm32DescList *list,
         desc.size = size;
         desc.type_id = tc_arm32_type_id(emitter, field->type);
         desc.flags = writable ? TC_RT_OBJECT_WRITABLE : 0;
-        if (!desc_push(list, desc)) {
-            tc_arm32_error(emitter, "out of memory while building descriptors");
+        if (!desc_push(emitter, list, desc)) {
+            tc_arm32_oom(emitter, "out of memory while building descriptors");
             return 0;
         }
         if (!add_field_descs(emitter, list, desc.offset, field->type,
@@ -1459,8 +1474,8 @@ static void emit_unit_descriptors(TcArm32Emitter *emitter,
         desc.size = object->size;
         desc.type_id = tc_arm32_type_id(emitter, object->type);
         desc.flags = object->writable ? TC_RT_OBJECT_WRITABLE : 0;
-        if (!desc_push(&list, desc)) {
-            tc_arm32_error(emitter, "out of memory while building descriptors");
+        if (!desc_push(emitter, &list, desc)) {
+            tc_arm32_oom(emitter, "out of memory while building descriptors");
             break;
         }
         if (!add_field_descs(emitter, &list, object->offset, object->type,
@@ -1485,7 +1500,7 @@ static void emit_unit_descriptors(TcArm32Emitter *emitter,
                            (unsigned)list.items[i].flags);
         }
     }
-    free(list.items);
+    emitter->alloc->free(emitter->alloc->ctx, list.items);
 }
 
 static int emit_static_region(TcArm32Emitter *emitter) {
@@ -1511,9 +1526,9 @@ static int emit_static_region(TcArm32Emitter *emitter) {
         tc_arm32_error(emitter, "static data is too large");
         return 0;
     }
-    bytes = (uint8_t *)calloc((size_t)(size == 0 ? 1u : size), 1u);
+    bytes = (uint8_t *)tc_allocator_calloc(emitter->alloc, (size_t)(size == 0 ? 1u : size), 1u);
     if (bytes == NULL) {
-        tc_arm32_error(emitter, "out of memory while building static data");
+        tc_arm32_oom(emitter, "out of memory while building static data");
         return 0;
     }
     for (i = 0; i < emitter->ir->nobjects; i++) {
@@ -1523,13 +1538,13 @@ static int emit_static_region(TcArm32Emitter *emitter) {
         }
         if (object->init->size > object->size ||
             object->init->size > size - object->offset) {
-            free(bytes);
+            emitter->alloc->free(emitter->alloc->ctx, bytes);
             tc_arm32_error(emitter, "static object initializer overflows");
             return 0;
         }
         if (object->init->size != 0) {
             if (object->init->bytes == NULL) {
-                free(bytes);
+                emitter->alloc->free(emitter->alloc->ctx, bytes);
                 tc_arm32_error(emitter, "static initializer has no bytes");
                 return 0;
             }
@@ -1562,7 +1577,7 @@ static int emit_static_region(TcArm32Emitter *emitter) {
     }
     tc_arm32_write(emitter, "  .globl %s\n%s:\n",
                    TC_RT_SYM_STATIC_END, TC_RT_SYM_STATIC_END);
-    free(bytes);
+    emitter->alloc->free(emitter->alloc->ctx, bytes);
     memset(&list, 0, sizeof(list));
     for (i = 0; i < emitter->ir->nobjects; i++) {
         const TcObject *object = &emitter->ir->objects[i];
@@ -1575,12 +1590,14 @@ static int emit_static_region(TcArm32Emitter *emitter) {
         desc.type_id = tc_arm32_type_id(emitter, object->type);
         desc.flags = (object->writable ? TC_RT_OBJECT_WRITABLE : 0) |
                      (object->init != NULL ? TC_RT_OBJECT_HAS_INIT : 0);
-        if (!desc_push(&list, desc)) {
-            tc_arm32_error(emitter, "out of memory");
+        if (!desc_push(emitter, &list, desc)) {
+            tc_arm32_oom(emitter, "out of memory");
+            emitter->alloc->free(emitter->alloc->ctx, list.items);
             return 0;
         }
         if (!add_field_descs(emitter, &list, object->offset, object->type,
                              object->writable)) {
+            emitter->alloc->free(emitter->alloc->ctx, list.items);
             return 0;
         }
     }
@@ -1604,7 +1621,7 @@ static int emit_static_region(TcArm32Emitter *emitter) {
                    TC_RT_SYM_STATIC_OBJECT_COUNT,
                    TC_RT_SYM_STATIC_OBJECT_COUNT,
                    (unsigned long long)list.count);
-    free(list.items);
+    emitter->alloc->free(emitter->alloc->ctx, list.items);
     return 1;
 }
 
@@ -1892,12 +1909,20 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
     memset(&emitter, 0, sizeof(emitter));
     emitter.ir = ir;
     emitter.profile = profile;
+    emitter.alloc = profile->alloc != NULL ? profile->alloc
+                                           : tc_allocator_libc();
     emitter.out = out;
     emitter.error_message = error_message;
     emitter.error_capacity = error_capacity;
     if (!preflight_ir(&emitter)) {
-        free(emitter.types);
-        free(emitter.type_ids);
+        emitter.alloc->free(emitter.alloc->ctx, emitter.types);
+        emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
+        if (emitter.output_failed || ferror(out)) {
+            return TC_ARM32_EMIT_IO;
+        }
+        if (emitter.oom_failed) {
+            return TC_ARM32_EMIT_OOM;
+        }
         if (emitter.internal_error) {
             return TC_ARM32_EMIT_INTERNAL;
         }
@@ -1947,12 +1972,14 @@ TcArm32EmitStatus tc_arm32_emit_asm(FILE *out, const TcIR *ir,
         tc_arm32_write(&emitter,
                        "\n  .section .note.GNU-stack,\"\",%%progbits\n");
     }
-    free(emitter.types);
-    free(emitter.type_ids);
+    emitter.alloc->free(emitter.alloc->ctx, emitter.types);
+    emitter.alloc->free(emitter.alloc->ctx, emitter.type_ids);
     if (emitter.failed) {
-        return emitter.output_failed || ferror(out)
-                   ? TC_ARM32_EMIT_IO
-                   : TC_ARM32_EMIT_INTERNAL;
+        if (emitter.output_failed || ferror(out)) {
+            return TC_ARM32_EMIT_IO;
+        }
+        return emitter.oom_failed ? TC_ARM32_EMIT_OOM
+                                  : TC_ARM32_EMIT_INTERNAL;
     }
     if (ferror(out)) {
         return TC_ARM32_EMIT_IO;

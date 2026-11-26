@@ -47,11 +47,13 @@ typedef struct {
 typedef struct TcArm32Emitter {
     const TcIR *ir;
     const TcPlatformProfile *profile;
+    const TcAllocator *alloc;
     FILE *out;
     char *error_message;
     size_t error_capacity;
     int failed;
     int internal_error;
+    int oom_failed;
     int output_failed;
     unsigned next_label;
 
@@ -101,6 +103,7 @@ typedef struct {
 } TcArm32ArgSlot;
 
 typedef struct {
+    const TcAllocator *alloc;
     TcArm32ArgSlot *slots;
     size_t count;
     uint64_t stack_bytes;
@@ -125,6 +128,8 @@ typedef struct {
 void tc_arm32_write(TcArm32Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 void tc_arm32_error(TcArm32Emitter *emitter, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+void tc_arm32_oom(TcArm32Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 void tc_arm32_internal_error(TcArm32Emitter *emitter, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
