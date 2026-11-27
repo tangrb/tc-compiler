@@ -38,8 +38,8 @@
   decoding, symbol/top-level/empty-function boundaries, shared line-map order, CLI and
   output identity/write failures, plus real-gdb debug ELF, source breakpoints, 64-bit
   `tc_ir_pc` reads, IR single-step and program-semantic regressions across all four
-  profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architecture PCs remain 32-bit
-  `code_ptr`, and ARM/RISC-V Z0 kind=2 is accepted.
+  profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architectural PCs remain
+  `code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted.
 - **G11 evidence infrastructure**: add `toolchain.g11_evidence`, evidence collection
   and structural validation, an exact suite/case/profile matrix, repository-qualified
   signer workflow, provenance source-commit/subject checks, release-audit
@@ -97,7 +97,9 @@
   and one G11 evidence test). G11 evidence collection/validation and a manual signing
   job are wired, and local real-gdb validation passed across all four profiles. A real
   signed artifact from fixed Linux CI remains pending, so P4b formal acceptance and
-  G11 are incomplete. The accepted 0.0.46 baseline remains harness 873/873, coverage
+  G11 are incomplete. The ARM32 blocker fix passed full CTest 92/92 and closing checks
+  51/51 in the current Debug tree, plus 15 real-gdb e2e checks each for ARM32 and RISC-V32.
+  The accepted 0.0.46 baseline remains harness 873/873, coverage
   636/636, with all closing checks and release audits passing.
 - P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete. P4b implementation and local
   real-gdb validation across all four profiles are complete, and G11 evidence

@@ -29,7 +29,7 @@ python3 tests/traceability/check_codes.py
 # Optional: compare a TSV dump of the C code table.  Columns are
 # code, print_name, stage, report_stage, w_sensitive, group.  The argument may
 # be a TSV file or an executable that writes the TSV to stdout.
-python3 tests/traceability/check_codes.py --c-table-dump build/tests/tc_dump_codes
+python3 tests/traceability/check_codes.py --c-table-dump .tmp/build/tests/tc_dump_codes
 
 # Regenerate sources after a deliberate, reviewed standard change.
 python3 tests/traceability/gen_codes.py
@@ -45,11 +45,11 @@ python3 tests/traceability/coverage.py
 python3 tests/traceability/coverage.py --check
 
 # 4. Write a gate report elsewhere without touching the committed skeleton.
-python3 tests/traceability/coverage.py --out-dir build/coverage
+python3 tests/traceability/coverage.py --out-dir .tmp/build/coverage
 
 # 5. Golden library validation and runtime golden execution.
 python3 tests/golden/validate.py
-python3 tests/golden/run.py build/src/driver/tc-vm
+python3 tests/golden/run.py .tmp/build/src/driver/tc-vm
 ```
 
 `coverage.py --check` proves the JSON and Markdown are current; it does not

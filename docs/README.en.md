@@ -11,8 +11,8 @@ Chinese: [README.md](README.md).
 | [TC Language and Compiler Specification 0.0.46](TC语言及编译器标准-0.0.46.md) | Sole authority for syntax, semantics, diagnostics, compiler requirements and platform profiles (§0–§14; 80 codes) |
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4a and T1–T3 implemented, P4b acceptance pending |
-| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1–T3 implemented, P4b acceptance pending |
+| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4a, T1–T3 and the P4b local implementation/four-profile real-gdb validation are complete, while P4b formal acceptance and G11 remain incomplete |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and the toolchain P4b local implementation are complete, while P4b formal acceptance and G11 remain incomplete |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
@@ -48,7 +48,8 @@ Chinese: [README.md](README.md).
   all four profiles. `toolchain.debug_elf` passes real-gdb debug ELF, source
   breakpoints, 64-bit `tc_ir_pc` reads, IR single-step and program-semantic
   regressions across all four profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`,
-  architecture PCs remain 32-bit `code_ptr`, and ARM/RISC-V Z0 kind=2 is accepted.
+  architectural PCs remain `code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32),
+  and ARM/RISC-V Z0 kind=2 is accepted.
   G11 evidence collection/validation and a manual signing job are wired. A real
   signed artifact from fixed Linux CI remains pending, so P4b formal acceptance
   and G11 are incomplete; P5 and T4–T6 have not started.

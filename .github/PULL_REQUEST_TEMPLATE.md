@@ -5,7 +5,7 @@
 
 ## Test plan / 测试清单
 
-- [ ] Full verification: `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`
+- [ ] Full verification: `cmake -S . -B .tmp/build && cmake --build .tmp/build && ctest --test-dir .tmp/build --output-on-failure`
 - [ ] New conformance cases registered under `tests/conformance/**` with traceability ids
 - [ ] Diagnostics unchanged, or updated together with the standard's §12.3 (or N/A)
 - [ ] `usize`/`isize` and 32/64-bit profile differences considered where relevant (or N/A)

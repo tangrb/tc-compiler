@@ -28,7 +28,7 @@ Language/semantic/diagnostic changes must first update the [TC Language and Comp
 
 - Development branch: `tc-0.0.47`.
 - Suggested commit subjects: `docs(0.0.47): ...`, `design(0.0.47): ...`, `chore(0.0.47): ...`.
-- Do not commit `build/` or generated files.
+- Do not commit `build/`, `.tmp/` or generated files.
 
 ## Build and test
 
@@ -61,8 +61,8 @@ monitor/extended restart, an atomic stdout journal, resumable stdin and optional
 restricted writes. P4b adds `tc-vm --gdb-elf-out=<path>`, independent ELF/DWARF
 validation for all four profiles, and real-gdb debug ELF, source breakpoints,
 64-bit `tc_ir_pc` reads, IR single-step and program-semantic regressions across all
-four profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architecture PCs remain
-32-bit `code_ptr`, and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need
+four profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architectural PCs remain
+`code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need
 `set arm force-mode thumb`; the GDB 18.1 ARM `stepi` limitation is covered by
 verifying the same RSP step with maintenance packet `s` and a register-cache flush.
 The P1/P2/P3/P4a/P4b/T1/T2/T3 test entry points are

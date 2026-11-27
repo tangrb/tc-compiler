@@ -347,7 +347,7 @@ failures.
 - `harness.selftest` is the harness self-test entry.  The current
   `harness.conformance` gate is registered by
   `tests/CMakeLists.txt`, which configures
-  `build/tc_adapter.py` from `tests/adapters/tc_adapter.py.in` with the tool
+  `.tmp/build/tc_adapter.py` from `tests/adapters/tc_adapter.py.in` with the tool
   paths of that build tree, and the gate invokes `runner.py` with no
   `--allow-not-implemented`.
 - Conformance gates invoke `runner.py` with an adapter and no
@@ -358,8 +358,9 @@ failures.
 - Adapter callables use `(case, action)`; object/mapping adapters use one
   argument per method.  A combined diff action is `diff(case)` returning
   `{"vm": ..., "aot": ...}`.
-- Work directories are created under the system temp directory and deleted
-  after each case.  Artifact paths are relative to that work directory.
+- Work directories are created below `TMPDIR` and deleted after each case.
+  CTest sets `TMPDIR` to the project-local `.tmp/`; direct runs should do the same.
+  Artifact paths are relative to that work directory.
 - The JSON report is sorted by case id and contains no timestamps, so repeated
   runs can be compared byte-for-byte when adapter output is deterministic.
 
@@ -392,8 +393,8 @@ failures.
 - A hard timeout kills the worker.  Default 10 seconds; `timeout_s` in the case
   overrides the CLI default.  Harness stdout/stderr are captured from the worker
   and included in failure details as `captured_stdout` / `captured_stderr`.
-- Each case gets a fresh temporary directory below the system temp directory.
-  The directory is removed after the case.
+- Each case gets a fresh temporary directory below `TMPDIR`; CTest fixes this to
+  the project-local `.tmp/`.  The directory is removed after the case.
 - The harness itself performs no network access and removes proxy variables by
   clearing the environment.  Adapters must not depend on network access.
 

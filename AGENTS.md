@@ -61,8 +61,8 @@ RTOS/中断/并发移交 0.0.48。
   只含符号与 DWARF v4 行表的 ELF，支持 AArch64、ARM32 与 RISC-V32 档案；
   四种档案均经独立语义解码，`toolchain.debug_elf` 已在四种 profile 通过真实 gdb
   调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序语义回归。合成
-  `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位 `code_ptr`，ARM/RISC-V 的
-  Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
+  `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`（AArch64 64 位，
+  ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
   `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet `s` 与 flush
   register-cache 验证同一 RSP 单步。§6.10 固定 Linux CI 真实签名 artifact 尚未完成，
   P4b 正式验收与 G11 均未完成。P5 与 T4–T6 尚未开始。
@@ -72,7 +72,9 @@ RTOS/中断/并发移交 0.0.48。
   G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成，
   固定 Linux CI 真实签名 artifact 仍待完成，P4b 正式验收与 G11 未完成。已注册
   CTest 总数 92；P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量
-  CTest 92/92 与收尾检查 51/51，见 `docs/gates/README.md`。
+  CTest 92/92 与收尾检查 51/51；ARM32 阻塞修复已在当前 Debug 树通过全量
+  CTest 92/92、收尾检查 51/51，以及 ARM32/RISC-V32 真实 gdb e2e 各 15 checks，
+  见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。三个入口只链接私有静态 `tc_core`。

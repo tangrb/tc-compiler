@@ -29,8 +29,8 @@
 - **P4b 测试**：新增并注册 `toolchain.debug_elf`，覆盖独立 ELF/DWARF 语义解码、
   符号/顶层/空函数边界、共享 linemap 全序、CLI 与输出身份/写失败，以及四种
   profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序
-  语义回归；合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位 `code_ptr`，
-  ARM/RISC-V 的 Z0 kind=2 已被接受。
+  语义回归；合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`
+  （AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。
 - **G11 证据基础设施**：新增 `toolchain.g11_evidence`、证据收集/结构校验、精确
   suite/case/profile 矩阵、仓库限定 signer workflow、provenance 源提交与 subject
   校验、发布审计 `--require-g11-evidence`，以及要求钉住容器 digest 并匹配仓库批准
@@ -71,6 +71,8 @@
 - 0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）。
   G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成；
   固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。
+  ARM32 阻塞修复已在当前 Debug 树通过全量 CTest 92/92、收尾检查 51/51，以及
+  ARM32/RISC-V32 真实 gdb e2e 各 15 checks。
   0.0.46 已验收 harness 873/873、覆盖矩阵 636/636，全部收尾检查与发布审计通过。
 - P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成；P4b 本地实现与四种 profile 的
   真实 gdb 验证已完成，G11 证据基础设施已接入；固定 Linux CI 真实签名 artifact

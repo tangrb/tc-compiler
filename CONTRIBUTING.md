@@ -28,7 +28,7 @@ English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
 - 当前开发分支：`tc-0.0.47`。
 - 提交信息建议：`docs(0.0.47): ...`、`design(0.0.47): ...`、`chore(0.0.47): ...`。
-- 不要提交 `build/` 或生成物。
+- 不要提交 `build/`、`.tmp/` 或生成物。
 
 ## 构建与测试
 
@@ -55,8 +55,8 @@ qemu gdbstub/gdb 冒烟。T3 已实现 `tc-vm --gdb[=<port>]`（默认 0，仅 l
 restart、原子 stdout journal、可恢复 stdin 与可选受限写入。P4b 已实现
 `tc-vm --gdb-elf-out=<path>` 的私有调试 ELF writer、四种档案独立语义解码与
 四种 profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步及
-程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位
-`code_ptr`，ARM/RISC-V 的 Z0 kind=2 已被接受；ARM 客户端需 `set arm force-mode thumb`，
+程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`
+（AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受；ARM 客户端需 `set arm force-mode thumb`，
 GDB 18.1 的 ARM `stepi` 限制由 maintenance packet `s` 与 flush register-cache
 的同一 RSP 单步验证覆盖。
 P1/P2/P3/P4a/P4b/T1/T2/T3 测试入口为 `project.manifest`、`project.init`、

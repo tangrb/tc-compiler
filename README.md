@@ -38,8 +38,8 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   直接生成只含符号与 DWARF v4 行表的 ELF，支持 AArch64、ARM32 与 RISC-V32 档案，
   不调用外部工具；四种档案均经独立语义解码，`toolchain.debug_elf` 已在四种
   profile 通过真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与
-  程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位
-  `code_ptr`，ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需
+  程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`
+  （AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需
   `set arm force-mode thumb`；GDB 18.1 的 ARM `stepi` 因未建模 sp 不可直接使用，
   测试通过 maintenance packet `s` 与 flush register-cache 验证同一 RSP 单步。
 - **后续阶段**：P4b 正式验收尚待 §6.10 固定 Linux CI 真实签名证据；
@@ -84,8 +84,8 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 语言语义、诊断、编译器实现要求与平台档案的唯一权威 |
 | [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、运行时、平台档案、后端与分期路线 |
 | [TC 开发测试计划 0.0.46](docs/TC开发测试计划-0.0.46.md) | 阶段、门禁、覆盖与可追溯性 |
-| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a、T1–T3 已实现，P4b 验收未完成 |
-| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 已实现，P4b 验收未完成 |
+| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a、T1–T3 与 P4b 本地实现/四 profile 真实 gdb 验证已完成，P4b 正式验收与 G11 未完成 |
+| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 与工具链 P4b 本地实现已完成，P4b 正式验收与 G11 未完成 |
 | [文档地图](docs/README.md) | 文档入口与阅读顺序 |
 
 ## 目标口径

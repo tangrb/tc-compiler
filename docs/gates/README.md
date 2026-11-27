@@ -43,14 +43,16 @@ qemu gdbstub 已验证 `info line`、源码断点与单步，证据入口为 `t2
 `vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。P4b 已完成私有 VM 调试 ELF writer
 与四种 profile 的本地真实 gdb 验证：`tc-vm --gdb-elf-out=<path>` 复用共享行表与
 合成地址，`toolchain.debug_elf` 已验证调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、
-IR 单步与程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位
-`code_ptr`，ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；
+IR 单步与程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为
+`code_ptr`（AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；
 GDB 18.1 的 ARM `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet
 `s` 与 flush register-cache 验证同一 RSP 单步。G11 证据收集/校验与手动签名作业
 已接入；固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 未完成，
 P5 与 T4–T6 尚未开始。
 0.0.47 CTest 注册总数 92；P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan
-全量 CTest 92/92 与收尾检查 51/51。macOS 不支持 ASan leak 检测，sanitizer 运行使用
+全量 CTest 92/92 与收尾检查 51/51；ARM32 阻塞修复已在当前 Debug 树通过全量
+CTest 92/92、收尾检查 51/51，以及 ARM32/RISC-V32 真实 gdb e2e 各 15 checks。
+macOS 不支持 ASan leak 检测，sanitizer 运行使用
 `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` 与
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`。
 0.0.46 已验收 harness 873/873。
@@ -67,7 +69,7 @@ design §12 十五项均有套件映射。
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.debug_elf|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
@@ -116,7 +118,7 @@ python3 tests/conformance/longterm/s10_longterm.py --check
 python3 tests/determinism/s10_determinism.py --check
 python3 tests/tools/s10_release_audit.py --check
 python3 tests/golden/validate.py
-python3 tests/golden/run.py build/src/driver/tc-vm
+python3 tests/golden/run.py .tmp/build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check
 python3 tests/tools/docs_cleanup_check.py
 ```

@@ -195,12 +195,12 @@ Positive tool cases use `TC-TOOL-SYN-NNNN`; the property case uses
 ## Running
 
 The harness requires an adapter.  `tests/CMakeLists.txt` configures
-`build/tc_adapter.py` with this build tree's `tc-vm` path and registers:
+`.tmp/build/tc_adapter.py` with this build tree's `tc-vm` path and registers:
 
 ```sh
-ctest --test-dir build -R harness.conformance --output-on-failure
-ctest --test-dir build -R 'determinism.s1|determinism.s2s3|determinism.s4' --output-on-failure
-ctest --test-dir build -R 'sem.unit|conformance.s2s3_cases|conformance.s4_cases' --output-on-failure
+ctest --test-dir .tmp/build -R harness.conformance --output-on-failure
+ctest --test-dir .tmp/build -R 'determinism.s1|determinism.s2s3|determinism.s4' --output-on-failure
+ctest --test-dir .tmp/build -R 'sem.unit|conformance.s2s3_cases|conformance.s4_cases' --output-on-failure
 ```
 
 `adapter.selftest` uses fake tc-vm scripts to prove the adapter is fail-closed

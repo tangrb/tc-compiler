@@ -56,8 +56,8 @@ P4b completes the private VM debug ELF writer and local real-gdb validation acro
 all four profiles: `tc-vm --gdb-elf-out=<path>` reuses the shared line map and
 synthetic addresses, and `toolchain.debug_elf` verifies debug ELF, source breakpoints,
 64-bit `tc_ir_pc` reads, IR single-step and program-semantic regressions. Synthetic
-`tc_ir_pc` is a 64-bit `uint64`, architecture PCs remain 32-bit `code_ptr`, and
-ARM/RISC-V Z0 kind=2 is accepted. ARM clients need `set arm force-mode thumb`;
+`tc_ir_pc` is a 64-bit `uint64`, architectural PCs remain `code_ptr` (64-bit on
+AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need `set arm force-mode thumb`;
 GDB 18.1 ARM `stepi` cannot be used directly because sp is not modelled, so tests
 verify the same RSP step with maintenance packet `s` and a register-cache flush.
 G11 evidence collection/validation and a manual signing job are wired. A real signed
@@ -65,6 +65,8 @@ artifact from fixed Linux CI remains pending, so P4b formal acceptance and G11 a
 incomplete; P5 and T4–T6 have not started.
 There are 92 registered 0.0.47 CTests; the P4b/G11 infrastructure checkpoint passed
 Debug, Release and ASan+UBSan full CTest runs at 92/92, and closing checks passed 51/51.
+The ARM32 blocker fix passed full CTest 92/92 and closing checks 51/51 in the current
+Debug tree, plus 15 real-gdb e2e checks each for ARM32 and RISC-V32.
 macOS does not support ASan leak detection, so the
 sanitizer run used `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` and
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The accepted 0.0.46 harness remains 873/873.
@@ -85,7 +87,7 @@ Reproduce:
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.debug_elf|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check
@@ -134,7 +136,7 @@ python3 tests/conformance/longterm/s10_longterm.py --check
 python3 tests/determinism/s10_determinism.py --check
 python3 tests/tools/s10_release_audit.py --check
 python3 tests/golden/validate.py
-python3 tests/golden/run.py build/src/driver/tc-vm
+python3 tests/golden/run.py .tmp/build/src/driver/tc-vm
 python3 tests/traceability/coverage.py --check
 python3 tests/tools/docs_cleanup_check.py
 ```

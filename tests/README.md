@@ -23,6 +23,9 @@ T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（242 checks�
 `vm.gdb.semantics` 与 `vm.gdb.e2e`，覆盖原子 stdout journal、可恢复 stdin、
 协议、只读/受限写入、AArch64/w32/ARM32/RISC-V32 合成地址与 `target.xml`、
 断点/单步/继续、monitor、extended restart、trap/退出一致性与真实 gdb 端到端调试。
+P4b 新增 `toolchain.debug_elf`，覆盖四种档案的独立 ELF/DWARF 解码与真实 gdb
+调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步和程序语义回归；G11 新增
+`toolchain.g11_evidence`，覆盖证据 schema、精确用例矩阵、摘要与 provenance 校验。
 所有临时脚本、fixture 与编译产物置于项目 `.tmp/`，版本控制测试源仍位于 `tests/`。
 T3 前四项为 `unit`/`toolchain`/`fast`，`vm.gdb.e2e` 为 `toolchain`/`aot` 且不属于 fast；
 [工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
@@ -37,7 +40,7 @@ PASS 证据。
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、root-module `--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查、矩阵 case id 存在性交叉检查 |
 | Golden | `golden/` | L3/L4 | 规范推导的期望值及规范来源；`validate.py` 校验诊断与运行时 golden，`run.py` 执行 w32/w64 运行时 golden |
-| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 发现/筛选与失败关闭、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；T1 `t1.observe`（IR/trace/stats、trap 上下文、输出身份/预留保护与确定性）；T2 `t2.debug`/`t2.gdb`（共享行表、公开 debug/DWARF v4、输出安全、真实 qemu/gdb 断点与单步）；T3 `vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e`（协议、语义与真实 gdb；e2e 非 fast）；S10 发布审计（80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
+| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 发现/筛选与失败关闭、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；T1 `t1.observe`（IR/trace/stats、trap 上下文、输出身份/预留保护与确定性）；T2 `t2.debug`/`t2.gdb`（共享行表、公开 debug/DWARF v4、输出安全、真实 qemu/gdb 断点与单步）；T3 `vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e`（协议、语义与真实 gdb；e2e 非 fast）；P4b `toolchain.debug_elf`（四种档案 ELF/DWARF 与真实 gdb）；G11 `toolchain.g11_evidence`（证据结构、矩阵、摘要与 provenance）；S10 发布审计（80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
 | Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON（S1/S2-S3/S4/S5/S6）；S7/S8/S9/S10 零 pass/ELF 构建/执行稳定性与 checked/release 分离 |
 | Docs | `tools/docs_cleanup_check.py` | — | 文档收尾门禁：无过程/历史叙事、门禁记录简短、changelog 版本不重复 |
 
@@ -46,8 +49,8 @@ PASS 证据。
 ```sh
 cmake -S . -B .tmp/build && cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-# P1/P2/P3/P4a/T1/T2/T3 工程模型与调试测试
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+# P1/P2/P3/P4a/P4b/T1/T2/T3/G11 工程模型与调试测试
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
 ctest --test-dir .tmp/build -L 'unit;toolchain;fast' --output-on-failure
 ```
 
@@ -57,7 +60,8 @@ ctest --test-dir .tmp/build -L 'unit;toolchain;fast' --output-on-failure
 当前回归入口；`t1.observe` 构成 T1 当前回归入口；`t2.debug` 与 `t2.gdb` 构成 T2
 当前回归入口；T3 的 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol` 与
 `vm.gdb.semantics` 构成 fast 回归入口，`vm.gdb.e2e` 为非 fast 的端到端回归入口；
-标签筛选使用 CTest 的标签匹配语法。
+`toolchain.debug_elf` 构成 P4b 回归入口，`toolchain.g11_evidence` 构成 G11 证据基础设施
+回归入口；标签筛选使用 CTest 的标签匹配语法。
 
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
 每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
@@ -119,8 +123,8 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 0.0.47 的 `toolchain.debug_elf` 独立解码 ELF/DWARF，校验四种档案映射、符号/行表与
 共享 linemap 全序一致、空函数与顶层单元边界、CLI/输出身份/写失败，并以真实 gdb
 验证四种 profile 的调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序语义回归。
-合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位 `code_ptr`，ARM/RISC-V 的
-Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
+合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`（AArch64 64 位，
+ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
 `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet `s` 与 flush
 register-cache 验证同一 RSP 单步。
 `toolchain.g11_evidence` 校验证据 schema、transcript 逐用例断言、SKIP、artifact 摘要与
@@ -129,7 +133,9 @@ provenance 源提交；发布审计可通过 `--require-g11-evidence=<artifact-d
 固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 仍未完成。
 
 0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）；
-P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 92/92 与收尾检查 51/51。0.0.46 已验收 harness 873/873
+P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 92/92 与收尾检查 51/51；
+ARM32 阻塞修复已在当前 Debug 树通过全量 CTest 92/92、收尾检查 51/51，以及 ARM32/RISC-V32
+真实 gdb e2e 各 15 checks。0.0.46 已验收 harness 873/873
 （608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、ct 370、
 ir 674、vm 514、aot 81、oom 383。S9 平台套件另有 29 个固定 ARM32 用例、
 305 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、

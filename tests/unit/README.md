@@ -50,8 +50,8 @@ specific contract assertions; they are not conformance `.tc` cases.
 Run directly:
 
 ```sh
-./build/tests/tc_contract_test
-ctest --test-dir build -R contract.unit --output-on-failure
+./.tmp/build/tests/tc_contract_test
+ctest --test-dir .tmp/build -R contract.unit --output-on-failure
 ```
 
 
@@ -99,9 +99,9 @@ currently runs 102 checks.
 Run directly:
 
 ```sh
-./build/tests/tc_frontend_test
-./build/tests/tc_sem_test
-ctest --test-dir build -R 'frontend.unit|sem.unit' --output-on-failure
+./.tmp/build/tests/tc_frontend_test
+./.tmp/build/tests/tc_sem_test
+ctest --test-dir .tmp/build -R 'frontend.unit|sem.unit' --output-on-failure
 ```
 
 
@@ -123,7 +123,7 @@ the 32/64 matrix), never from compiler output.
 ## L1/L2 VM tests (`tc_vm_test`)
 
 `tc_vm_test` links the private runtime/VM interfaces and also analyzes complete
-programs with an in-memory I/O harness.  It currently runs 413 checks.
+programs with an in-memory I/O harness.  It currently runs 514 checks.
 
 | Case ID | Function | Pins |
 | --- | --- | --- |
