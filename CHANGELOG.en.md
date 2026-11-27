@@ -31,6 +31,12 @@
   external fallback paths, IR-to-`.loc`/comment order, DWARF v4 verification, non-debug
   bytes, cross-root determinism and VM/AOT output guards. Temporary test scripts and
   compiled artifacts stay under project-local `.tmp/`.
+- **P4b VM debug ELF**: add `tc-vm --gdb-elf-out=<path>`. A private internal writer
+  emits symbols and DWARF v4 lines for AArch64, ARM32 and RISC-V32 profiles without
+  external tools and shares synthetic-range validation with the GDB stub.
+- **P4b tests**: register `toolchain.debug_elf`; cover independent ELF/DWARF semantic
+  decoding, symbol/top-level/empty-function boundaries, shared line-map order, CLI and
+  output identity/write failures, and a real gdb source breakpoint.
 - **T1 observation**: VM/AOT `--dump-ir[=<path>]`; VM
   `--trace=ir,call,mem,io,trap` with `text`/`jsonl`, `--trace-limit=<n>` and
   `--trace-out=<path>`; VM/AOT `--stats` with `--stats-out=<path>`; structured trap
@@ -52,7 +58,7 @@
   extended restart, an atomic stdout journal and resumable stdin. The default is
   read-only; `--gdb-allow-write` enables restricted writes.
 - **T3 tests**: register `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`
-  (232 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast,
+  (235 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast,
   while e2e is not fast.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
@@ -77,16 +83,20 @@
 
 ### Status
 
-- There are 90 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
-  one P3 test, two P4a tests, one T1 test, two T2 tests and five T3 tests). T3 Debug, Release and
-  ASan+UBSan full CTest runs each passed 90/90, and all closing checks passed.
+- There are 91 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
+  one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests and five T3 tests). The P4b
+  implementation checkpoint passed Debug, Release and ASan+UBSan full CTest runs at 91/91, and all
+  closing checks passed.
   The accepted 0.0.46 baseline remains harness 873/873, coverage 636/636, with all
   closing checks and release audits passing.
-- P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete; P4b, P5 and T4–T6 have not started
-  and G11 is incomplete. `tc --init-project`, compiler path consumption and
-  `tc --test` are available. VM/AOT `--dump-linemap` and public `tc-aot --debug`
-  are available, and the real qemu-gdbstub/gdb smoke test passed. The VM GDB stub
-  provides an atomic stdout journal and resumable stdin.
+- P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete. P4b implementation and local
+  AArch64 gdb validation are complete, with 32-bit real-gdb compatibility and §6.10
+  fixed Linux CI signed evidence pending; P5 and T4–T6 have not started and G11 is incomplete.
+  `tc --init-project`, compiler path consumption and `tc --test` are available.
+  VM/AOT `--dump-linemap` and public `tc-aot --debug` are available, and the real
+  qemu-gdbstub/gdb smoke test passed. The VM GDB stub provides an atomic stdout
+  journal and resumable stdin. The VM debug ELF passes independent semantic decoding
+  for all four profiles and an AArch64 real-gdb source breakpoint.
 - The P4b VM debug-ELF internal layout must not be written back to the frozen
   specification.
 

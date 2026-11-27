@@ -975,7 +975,7 @@ TcImplError tc_aot_outputs_release_observations(TcAotOutputs *outputs) {
     if (outputs == NULL) {
         return TC_IMPL_OK;
     }
-    for (i = TC_AOT_OUTPUT_DUMP; i <= TC_AOT_OUTPUT_STATS; i++) {
+    for (i = TC_AOT_OUTPUT_DUMP; i <= TC_AOT_OUTPUT_GDB_ELF; i++) {
         TcImplError current = release_output(&outputs->output[i]);
         if (impl == TC_IMPL_OK && current != TC_IMPL_OK) {
             impl = current;
@@ -1117,10 +1117,11 @@ TcImplError tc_aot_outputs_preflight(const TcAotStdio *stdio,
                                      TcAotOutputs *outputs) {
     static const size_t slots[] = {
         TC_AOT_OUTPUT_DUMP, TC_AOT_OUTPUT_LINEMAP, TC_AOT_OUTPUT_TRACE,
-        TC_AOT_OUTPUT_STATS, TC_AOT_OUTPUT_RESULT
+        TC_AOT_OUTPUT_STATS, TC_AOT_OUTPUT_GDB_ELF, TC_AOT_OUTPUT_RESULT
     };
-    const char *paths[TC_AOT_OUTPUT_COUNT] = { NULL, NULL, NULL, NULL, NULL };
-    int enabled[TC_AOT_OUTPUT_COUNT] = { 0, 0, 0, 0, 0 };
+    const char *paths[TC_AOT_OUTPUT_COUNT] = { NULL, NULL, NULL,
+                                               NULL, NULL, NULL };
+    int enabled[TC_AOT_OUTPUT_COUNT] = { 0, 0, 0, 0, 0, 0 };
     TcImplError impl = TC_IMPL_OK;
     size_t i;
     if (stdio == NULL || options == NULL || outputs == NULL ||
@@ -1160,6 +1161,10 @@ TcImplError tc_aot_outputs_preflight(const TcAotStdio *stdio,
     if (options->stats) {
         paths[TC_AOT_OUTPUT_STATS] = options->stats_out;
         enabled[TC_AOT_OUTPUT_STATS] = 1;
+    }
+    if (options->gdb_elf_out_seen) {
+        paths[TC_AOT_OUTPUT_GDB_ELF] = options->gdb_elf_out;
+        enabled[TC_AOT_OUTPUT_GDB_ELF] = 1;
     }
     if (aot) {
         paths[TC_AOT_OUTPUT_RESULT] = options->output;

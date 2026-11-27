@@ -4,8 +4,9 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 0.0.46 为 clean-sheet 实现基线：只保留标准、设计、测试计划与按设计重写的实现；
 历史实现与旧工具已移除，需要时从 git tag 获取。
 `tc-0.0.47` 分支目标是在语言语义、opcode、诊断码与 ABI 不变的前提下交付开发调试工具链
-与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成，
-P4b、P5 与 T4–T6 尚未开始。
+与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3、P4a、T1、T2 与 T3
+已完成，P4b 实现与 AArch64 本地 gdb 验证已完成；32 位真实 gdb 兼容性裁定与固定
+Linux CI 签名证据待完成；P5 与 T4–T6 尚未开始。
 范围与契约见 [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) 与
 [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md)；RTOS、中断与并发移交 0.0.48。
 
@@ -32,9 +33,13 @@ P4b、P5 与 T4–T6 尚未开始。
   `--gdb-stdout-journal=<dir>`；提供合成 IR 地址、`target.xml`/内存映射、
   断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin。
   `--gdb-allow-write` 才允许受限写入；证据入口为 `gdb_journal.unit`、
-  `gdb_rsp.unit`、`vm.gdb.protocol`（232 checks）、`vm.gdb.semantics` 与
-  `vm.gdb.e2e`。
-- **后续阶段**：P4b VM 调试 ELF、P5 与 T4–T6 尚未开始，G11 未完成。
+  `gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、`vm.gdb.semantics` 与
+  `vm.gdb.e2e`。P4b 已实现 `tc-vm --gdb-elf-out=<path>`：私有内部 writer
+  直接生成只含符号与 DWARF v4 行表的 ELF，支持 AArch64、ARM32 与 RISC-V32 档案，
+  不调用外部工具；四种档案均经独立语义解码，AArch64 真实 gdb 源级断点入口为
+  `toolchain.debug_elf`，32 位真实 gdb 兼容性尚待裁定。
+- **后续阶段**：P4b 的 32 位真实 gdb 兼容性裁定、§6.10 固定 Linux CI 签名证据、
+  P5 与 T4–T6 尚未完成，G11 未完成。
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
   CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
@@ -61,9 +66,9 @@ P4b、P5 与 T4–T6 尚未开始。
   发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
   长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-  P4b、P5 与 T4–T6 不在当前完成范围内。
-- **当前验证**：0.0.47 CTest 注册总数 90（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项 + T3 五项）；
-  T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90 与全部收尾检查。0.0.46 已验收 harness 873/873、
+  P4b 固定 Linux CI 证据、P5 与 T4–T6 不在当前完成范围内。
+- **当前验证**：0.0.47 CTest 注册总数 91（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项）；
+  P4b 实现检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 91/91 与全部收尾检查。0.0.46 已验收 harness 873/873、
   覆盖矩阵 636/636，G0–G10 PASS；**G10 完成 0.0.46 阶段出口，G11 未完成**。
   详见 [门禁状态](docs/gates/README.md)。
 
@@ -74,8 +79,8 @@ P4b、P5 与 T4–T6 尚未开始。
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 语言语义、诊断、编译器实现要求与平台档案的唯一权威 |
 | [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、运行时、平台档案、后端与分期路线 |
 | [TC 开发测试计划 0.0.46](docs/TC开发测试计划-0.0.46.md) | 阶段、门禁、覆盖与可追溯性 |
-| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a、T1–T3 已实现 |
-| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 与 T1–T3 已实现 |
+| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4b、T1–T3 已实现 |
+| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4b 与 T1–T3 已实现 |
 | [文档地图](docs/README.md) | 文档入口与阅读顺序 |
 
 ## 目标口径

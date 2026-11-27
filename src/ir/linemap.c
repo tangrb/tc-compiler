@@ -180,10 +180,12 @@ TcImplError tc_linemap_build(const TcIR *ir, TcLineMap **out) {
         const TcUnit *unit = &ir->units[i];
         const char *func;
         const char *module;
+        uint32_t func_id;
         size_t b;
         if (unit->func_id == TC_UNIT_TOP_LEVEL) {
             func = "<top>";
             module = ir->modules[0].path;
+            func_id = TC_UNIT_TOP_LEVEL;
         } else {
             const TcFunc *definition;
             if (unit->func_id >= ir->nfuncs) {
@@ -198,6 +200,7 @@ TcImplError tc_linemap_build(const TcIR *ir, TcLineMap **out) {
             }
             func = definition->name;
             module = ir->modules[definition->module].path;
+            func_id = definition->id;
         }
         for (b = 0u; b < unit->nblocks; b++) {
             const TcBlock *block = &unit->blocks[b];
@@ -221,6 +224,7 @@ TcImplError tc_linemap_build(const TcIR *ir, TcLineMap **out) {
                 }
                 entry->module = module;
                 entry->func = func;
+                entry->func_id = func_id;
                 entry->span = &block->instrs[j].span;
                 entry->instr = &block->instrs[j];
                 entry->bb = block->id;

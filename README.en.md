@@ -6,8 +6,10 @@ standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
-designs meet the freeze criteria. P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete;
-P4b, P5 and T4–T6 have not started. Scope and contracts are in
+designs meet the freeze criteria. P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are
+complete; P4b implementation and local AArch64 gdb validation are complete, while
+32-bit real-gdb compatibility and fixed Linux CI signed evidence are pending.
+P5 and T4–T6 have not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
@@ -44,8 +46,14 @@ RTOS, interrupts and concurrency move to 0.0.48.
   breakpoints/step/continue, monitor, extended restart, an atomic stdout journal
   and resumable stdin. `--gdb-allow-write` enables restricted writes. Evidence
   entry points are `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`
-  (232 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
-- **Later stages**: P4b VM debug ELF, P5 and T4–T6 have not started; G11 is incomplete.
+  (235 checks), `vm.gdb.semantics` and `vm.gdb.e2e`. P4b adds
+  `tc-vm --gdb-elf-out=<path>`: a private internal writer emits symbols and
+  DWARF v4 lines without external tools for AArch64, ARM32 and RISC-V32 profiles.
+  Independent semantic decoding covers all four profiles, and AArch64 real-gdb
+  source breakpoints are covered by `toolchain.debug_elf`; 32-bit real-gdb
+  compatibility remains unresolved.
+- **Later stages**: P4b 32-bit real-gdb compatibility, fixed Linux CI signed
+  evidence, P5 and T4–T6 remain incomplete; G11 is incomplete.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -79,12 +87,12 @@ RTOS, interrupts and concurrency move to 0.0.48.
   corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
   implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
-  inlining); the 0.0.46 baseline stays zero-pass. P4b, P5 and T4–T6 are outside
-  the current completion scope.
-- **Current verification**: 90 registered 0.0.47 CTests (73 at P0, three P1 tests,
-  three P2 tests, one P3 test, two P4a tests, one T1 test, two T2 tests and five T3 tests). T3
-  Debug, Release and ASan+UBSan full CTest runs each passed 90/90, and all closing
-  checks passed. The accepted
+  inlining); the 0.0.46 baseline stays zero-pass. P4b fixed Linux CI evidence, P5
+  and T4–T6 are outside the current completion scope.
+- **Current verification**: 91 registered 0.0.47 CTests (73 at P0, three P1 tests,
+  three P2 tests, one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests and five T3 tests). The
+  P4b implementation checkpoint passed Debug, Release and ASan+UBSan full CTest runs at 91/91, and all
+  closing checks passed. The accepted
   0.0.46 baseline remains harness 873/873 and coverage 636/636, with G0–G10 PASS.
   **G10 completes the 0.0.46 stage exit; G11 is incomplete**. See
   [gate status](docs/gates/README.en.md).
@@ -96,8 +104,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4a and T1–T3 implemented |
-| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1–T3 implemented |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4b and T1–T3 implemented |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4b and T1–T3 implemented |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope

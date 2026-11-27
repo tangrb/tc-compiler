@@ -51,6 +51,7 @@ add_library(tc_core STATIC
     vm/memory.c
     vm/interp.c
     vm/observe.c
+    vm/debug_elf.c
     vm/gdb.c
     vm/gdb_journal.c
     vm/gdb_rsp.c

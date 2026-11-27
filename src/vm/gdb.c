@@ -21,6 +21,7 @@
 #include "ir/print.h"
 #include "runtime/input.h"
 #include "runtime/semantics.h"
+#include "vm/debug_elf.h"
 #include "vm/gdb_journal.h"
 #include "vm/gdb_rsp.h"
 #include "vm/internal.h"
@@ -863,7 +864,7 @@ static int handle_register_write(TcGdbSession *session, const uint8_t *data,
 static int handle_q_xfer(TcGdbSession *session, const uint8_t *data, size_t len) {
     char *xml = NULL;
     const char *annex = NULL;
-    const uint8_t *last_colon = NULL;
+    const uint8_t *last_separator = NULL;
     const uint8_t *middle_colon = NULL;
     uint64_t offset;
     uint64_t length;
@@ -873,21 +874,23 @@ static int handle_q_xfer(TcGdbSession *session, const uint8_t *data, size_t len)
     TcGdbText response = {0};
     int ok;
     for (size_t i = 0u; i < len; i++) {
-        if (data[i] == (uint8_t)':') {
-            last_colon = &data[i];
+        if (data[i] == (uint8_t)':' || data[i] == (uint8_t)',') {
+            last_separator = &data[i];
         }
     }
-    if (last_colon == NULL) {
+    if (last_separator == NULL) {
         return send_error(session);
     }
-    for (size_t i = 0u; i < (size_t)(last_colon - data); i++) {
+    for (size_t i = 0u; i < (size_t)(last_separator - data); i++) {
         if (data[i] == (uint8_t)':') {
             middle_colon = &data[i];
         }
     }
     if (middle_colon == NULL ||
-        !payload_hex(middle_colon + 1, (size_t)(last_colon - middle_colon - 1), &offset) ||
-        !payload_hex(last_colon + 1, (size_t)(data + len - last_colon - 1), &length)) {
+        !payload_hex(middle_colon + 1,
+                     (size_t)(last_separator - middle_colon - 1), &offset) ||
+        !payload_hex(last_separator + 1,
+                     (size_t)(data + len - last_separator - 1), &length)) {
         return send_error(session);
     }
     if (len > 31u && memcmp(data, "qXfer:features:read:target.xml:", 31u) == 0) {
@@ -1864,12 +1867,12 @@ static int dispatch_packet(TcGdbSession *session, const uint8_t *data,
     if (data[0] == 0x03u) {
         return 1;
     }
-    if (len == 10u && memcmp(data, "qSupported", 10u) == 0) {
+    if (len >= 10u && memcmp(data, "qSupported", 10u) == 0) {
         return send_text(session,
             "PacketSize=4000;vContSupported+;QStartNoAckMode+;"
             "qXfer:features:read+;qXfer:memory-map:read+");
     }
-    if (memcmp(data, "QStartNoAckMode", 15u) == 0 && len == 15u) {
+    if (len >= 15u && memcmp(data, "QStartNoAckMode", 15u) == 0) {
         int ok = send_ok(session);
         if (ok) {
             session->no_ack = 1;
@@ -2448,30 +2451,9 @@ TcVmStatus tc_vm_run_gdb(const TcIR *ir, const TcPlatformProfile *profile,
     vm.debug = &session.hooks;
     vm.debug_linemap = linemap;
     vm.debug_code_base = vm.W == 64u ? TC_DEBUG_CODE_BASE64 : TC_DEBUG_CODE_BASE32;
-    if (linemap->count > (UINT64_MAX - vm.debug_code_base - 4u) / 4u) {
+    if (tc_vm_debug_code_size(profile, linemap, &code_size) != TC_IMPL_OK) {
         tc_vm_impl(&vm, TC_IMPL_INTERNAL);
         goto done;
-    }
-    code_size = (uint64_t)linemap->count * 4u;
-    if ((vm.W == 32u && code_size > UINT64_C(0x100000000) -
-                               vm.debug_code_base) ||
-        code_size + 4u > UINT64_MAX - vm.debug_code_base) {
-        tc_vm_impl(&vm, TC_IMPL_INTERNAL);
-        goto done;
-    }
-    for (size_t i = 0u; i < (unsigned)TC_REGION_COUNT; i++) {
-        const TcRegionDesc *desc = &profile->region[i];
-        uint64_t region_end;
-        if (desc->size > UINT64_MAX - desc->base) {
-            tc_vm_impl(&vm, TC_IMPL_INTERNAL);
-            goto done;
-        }
-        region_end = desc->base + desc->size;
-        if (vm.debug_code_base < region_end &&
-            desc->base < vm.debug_code_base + code_size) {
-            tc_vm_impl(&vm, TC_IMPL_INTERNAL);
-            goto done;
-        }
     }
     if (out_stats == NULL) {
         tc_vm_impl(&vm, TC_IMPL_INTERNAL);

@@ -249,6 +249,12 @@ if(TC_ENABLE_AOT_TESTS AND
         "and gdb; install them or configure with -DTC_ENABLE_AOT_TESTS=OFF")
 endif()
 if(TC_ENABLE_AOT_TESTS)
+    add_test(NAME toolchain.debug_elf
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/debug_elf_test.py
+                     $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>
+                     ${TC_LLVM_DWARFDUMP} "${TC_GDB}")
+    set_tests_properties(toolchain.debug_elf PROPERTIES LABELS "toolchain;aot" TIMEOUT 120)
     add_test(NAME p4a.debug
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/tools/p4a_debug_cases.py

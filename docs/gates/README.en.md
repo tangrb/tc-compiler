@@ -50,12 +50,17 @@ defaults to port 0 and binds loopback only, with mandatory
 `target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
 an atomic stdout journal and resumable stdin. The default is read-only;
 `--gdb-allow-write` enables only restricted writes. Evidence entry points are
-`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (232 checks),
+`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (235 checks),
 `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast, while e2e is not.
-P4b, P5 and T4–T6 have not started, and G11 is incomplete.
-There are 90 registered 0.0.47 CTests; T3 Debug, Release and ASan+UBSan full CTest
-runs each passed 90/90,
-and all closing checks passed. macOS does not support ASan leak detection, so the
+P4b completes the private VM debug ELF writer: `tc-vm --gdb-elf-out=<path>` reuses
+the shared line map and synthetic addresses for AArch64, ARM32 and RISC-V32;
+`toolchain.debug_elf` performs independent ELF/DWARF decoding for all four profiles
+and an AArch64 real gdb source breakpoint. The 32-bit real-gdb compatibility and
+fixed Linux CI signed evidence required by §6.10 remain pending; P4b, P5 and T4–T6
+remain incomplete, and G11 is incomplete.
+There are 91 registered 0.0.47 CTests; the P4b implementation checkpoint passed
+Debug, Release and ASan+UBSan full CTest runs at 91/91, and all closing checks passed.
+macOS does not support ASan leak detection, so the
 sanitizer run used `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` and
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The accepted 0.0.46 harness remains 873/873.
 The front end, CT/IR, runtime semantic
@@ -75,7 +80,7 @@ Reproduce:
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.debug_elf|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

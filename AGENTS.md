@@ -4,7 +4,8 @@
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
 两份设计已达到冻结条件；P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成，
-P4b、P5 与 T4–T6 尚未开始。
+P4b 实现与 AArch64 本地 gdb 验证已完成；32 位真实 gdb 兼容性裁定与固定 Linux CI
+签名证据待完成；P5 与 T4–T6 尚未开始。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
 回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
@@ -55,12 +56,16 @@ RTOS/中断/并发移交 0.0.48。
   `--gdb-stdout-journal=<dir>`；支持合成 IR 地址、`target.xml`/内存映射、
   断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin，
   `--gdb-allow-write` 才开放受限写入。证据入口为 `gdb_journal.unit`、
-  `gdb_rsp.unit`、`vm.gdb.protocol`（232 checks）、`vm.gdb.semantics` 与
-  `vm.gdb.e2e`。P4b、P5 与 T4–T6 尚未开始。
+  `gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、`vm.gdb.semantics` 与
+  `vm.gdb.e2e`。P4b 完成 `tc-vm --gdb-elf-out=<path>`：私有内部 writer 生成
+  只含符号与 DWARF v4 行表的 ELF，支持 AArch64、ARM32 与 RISC-V32 档案；
+  四种档案均经独立语义解码，AArch64 真实 gdb 源级断点入口为
+  `toolchain.debug_elf`；32 位真实 gdb 兼容性裁定与 §6.10 固定 Linux CI
+  签名证据尚未完成，P4b 与 G11 均未完成。P5 与 T4–T6 尚未开始。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
-  已注册 CTest 总数 90；T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90
+  已注册 CTest 总数 91；P4b 实现检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 91/91
   与全部收尾检查，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
@@ -181,7 +186,7 @@ RTOS/中断/并发移交 0.0.48。
 | 工程名称 / manifest / 初始化 / 路径 | `src/project/name.h`、`manifest.h`、`init.h`、`paths.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault`，P2 入口 `project.paths_unit`/`project.paths`/`project.paths_aot` |
 | 工程测试 runner / `tc --test` | `src/driver/test_runner.h`、`test_runner.c`；P3 入口 `project.test_runner` |
 | 共享行表 / AOT 调试信息 | `src/ir/linemap.h`、`linemap.c`、`src/driver/aot_driver.c`；P4a 入口 `linemap.unit`/`p4a.debug`，T2 入口 `t2.debug`/`t2.gdb` |
-| VM GDBstub / stdout journal | `src/vm/gdb.h`、`gdb.c`、`gdb_rsp.h`、`gdb_rsp.c`、`gdb_journal.h`、`gdb_journal.c`；T3 入口 `gdb_journal.unit`/`gdb_rsp.unit`/`vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e` |
+| VM 调试 ELF / GDBstub | `src/vm/debug_elf.h`、`debug_elf.c`、`gdb.h`、`gdb.c`、`gdb_rsp.h`、`gdb_rsp.c`、`gdb_journal.h`、`gdb_journal.c`；P4b 入口 `toolchain.debug_elf`，T3 入口 `gdb_journal.unit`/`gdb_rsp.unit`/`vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e` |
 | VM/AOT 观测 | `src/driver/observe.h`、`observe.c`、`src/vm/observe.h`、`observe.c`、`src/backend/common/emit_stats.h`、`emit_stats.c`；T1 入口 `t1.observe` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |

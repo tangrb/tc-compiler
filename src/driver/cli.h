@@ -59,6 +59,8 @@ typedef struct {
     const char *gdb_stdout_journal;
     int gdb_stdout_journal_seen;
     int gdb_allow_write;
+    const char *gdb_elf_out;
+    int gdb_elf_out_seen;
     const char *diag_format;
     int diag_format_seen;
     const char *include_roots[TC_CLI_MAX_INCLUDE_ROOTS];

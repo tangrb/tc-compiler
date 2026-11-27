@@ -183,6 +183,15 @@ contract check.
   modes reject the switch; VM rejects `--debug` and AOT rejects debug with any
   partial check (2). Observation destinations share output identity/reservation
   guards and shared-stderr ordering.
+- VM `--gdb-elf-out=<path>` uses the same final-IR line map and synthetic addresses.
+  The private writer emits a little-endian `ET_REL` image with no program headers or
+  executable sections: `.symtab`/`.strtab`, `.shstrtab`, `.debug_abbrev`,
+  `.debug_info` and `.debug_line`. Function symbols are global `STT_FUNC`/`SHN_ABS`
+  entries named from source; top-level and instruction-free functions have no
+  function symbol, while top-level instruction rows remain in the line table. The
+  complete image is built before the preflighted output is truncated. Unsupported
+  target machines and allocation failures map to 70; invalid synthetic ranges and
+  representability limits map to 71.
 - VM `--gdb[=<port>]` defaults to port 0 and binds loopback only;
   `--gdb-stdout-journal=<dir>` is mandatory. The private listener runs before each
   instruction and mirrors program stdout to an atomic journal while keeping
@@ -190,6 +199,14 @@ contract check.
 - The GDB view uses the shared synthetic IR addresses and profile register width;
   `target.xml` and the memory map describe only that private view. Memory writes
   are rejected by default; `--gdb-allow-write` enables only restricted writes.
+  `qSupported` accepts a negotiated feature suffix, and `qXfer` accepts the GDB
+  comma-separated `offset,length` form as well as the original colon form.
+- Local GDB 18 narrows a 32-bit architecture `code_ptr` register to 32 bits even
+  when `target.xml` declares 64 bits. ARM32/RISC-V32 real-GDB source breakpoints
+  therefore remain unverified against the frozen 64-bit `tc_ir_pc` contract;
+  their ELF/DWARF semantics and RSP register layouts are independently tested.
+  AArch64 real-GDB tests mark the synthetic range writable in the client so GDB
+  selects `Z0`; the stub still implements breakpoints without code-memory writes.
 - GDB execution is passive with respect to program stdout, trap and exit parity.
   Extended restart (`RXX`) preserves committed I/O and unconsumed input but resets
   execution state.

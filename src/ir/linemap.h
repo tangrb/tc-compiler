@@ -15,6 +15,7 @@
 typedef struct {
     const char *module;
     const char *func;
+    uint32_t func_id;
     const TcSpan *span;
     const TcInstr *instr;
     uint32_t bb;

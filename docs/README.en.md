@@ -11,8 +11,8 @@ Chinese: [README.md](README.md).
 | [TC Language and Compiler Specification 0.0.46](TC语言及编译器标准-0.0.46.md) | Sole authority for syntax, semantics, diagnostics, compiler requirements and platform profiles (§0–§14; 80 codes) |
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4a and T1–T3 implemented |
-| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1–T3 implemented |
+| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4b and T1–T3 implemented |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4b and T1–T3 implemented |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
@@ -43,15 +43,18 @@ Chinese: [README.md](README.md).
   `target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
   an atomic stdout journal and resumable stdin; restricted writes require
   `--gdb-allow-write`. Evidence entry points are `gdb_journal.unit`, `gdb_rsp.unit`,
-  `vm.gdb.protocol` (232 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
-  P4b, P5 and T4–T6 have not started, and G11 is incomplete.
+  `vm.gdb.protocol` (235 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
+  P4b adds `tc-vm --gdb-elf-out=<path>`, with independent ELF/DWARF decoding for
+  all four profiles and an AArch64 real gdb source breakpoint in
+  `toolchain.debug_elf`. P4b 32-bit real-gdb compatibility and fixed Linux CI
+  signed evidence are pending, so P4b, P5 and T4–T6 remain incomplete and G11 is incomplete.
   Language/contract versions remain 0.0.46/1;
   RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**. There are 90 registered 0.0.47 CTests (73 at P0, three P1 tests, three
-  P2 tests, one P3 test, two P4a tests, one T1 test, two T2 tests and five T3 tests). T3 Debug,
-  Release and ASan+UBSan full CTest runs each passed 90/90, and all closing checks
-  passed. The 0.0.46 coverage
+  exit**. There are 91 registered 0.0.47 CTests (73 at P0, three P1 tests, three
+  P2 tests, one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests and five T3 tests). The P4b
+  implementation checkpoint passed Debug, Release and ASan+UBSan full CTest runs at 91/91, and all closing
+  checks passed. The 0.0.46 coverage
   matrix is 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
   (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V

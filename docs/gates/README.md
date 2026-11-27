@@ -39,9 +39,13 @@ qemu gdbstub 已验证 `info line`、源码断点与单步，证据入口为 `t2
 强制 `--gdb-stdout-journal=<dir>`；支持合成 IR 地址、`target.xml`/内存映射、
 断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin，
 默认只读且 `--gdb-allow-write` 仅开放受限写入。证据入口为 `gdb_journal.unit`、
-`gdb_rsp.unit`、`vm.gdb.protocol`（232 checks）、`vm.gdb.semantics` 与
-`vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。P4b、P5 与 T4–T6 尚未开始，G11 未完成。
-0.0.47 CTest 注册总数 90；T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90
+`gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、`vm.gdb.semantics` 与
+`vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。P4b 已完成私有 VM 调试 ELF writer：
+`tc-vm --gdb-elf-out=<path>` 复用共享行表与合成地址，支持 AArch64、ARM32 与
+RISC-V32，四种档案均经独立 ELF/DWARF 语义解码，AArch64 真实 gdb 源级断点入口为
+`toolchain.debug_elf`。32 位真实 gdb 兼容性裁定与 §6.10 固定 Linux CI 签名证据
+尚未完成，P4b、P5 与 T4–T6 未完成，G11 未完成。
+0.0.47 CTest 注册总数 91；P4b 实现检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 91/91
 与全部收尾检查。macOS 不支持 ASan leak 检测，sanitizer 运行使用
 `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` 与
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`。
@@ -59,7 +63,7 @@ design §12 十五项均有套件映射。
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.debug_elf|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

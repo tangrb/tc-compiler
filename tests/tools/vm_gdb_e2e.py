@@ -36,6 +36,8 @@ def main() -> int:
                 "set pagination off\nset confirm off\n"
                 "set architecture aarch64\n"
                 f"target remote 127.0.0.1:{stub.port}\n"
+                # Unmapped synthetic addresses are read-only in GDB; the stub implements Z0.
+                f"mem {BASE:#x} {BASE + 4 * (len(entries) + 1):#x} rw\n"
                 "printf \"INITIAL_PC=0x%lx\\n\", $pc\n"
                 f"break *{address:#x}\ncontinue\n"
                 "printf \"STOP_PC=0x%lx\\n\", $pc\n"

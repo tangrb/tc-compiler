@@ -19,7 +19,7 @@ text/jsonl/limit/output、VM/AOT `--stats`、结构化 trap 上下文、显式�
 与确定性观测输出；T2 新增 `t2.debug` 与 `t2.gdb`，覆盖 VM/AOT `--dump-linemap`、
 公开 `tc-aot --debug`、全 IR 行表映射、VM 合成地址、稳定键序/external、trace 多对一、
 跨根确定性、输出安全，以及 qemu gdbstub 上真实 gdb 的 `info line`、源码断点与单步；
-T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（232 checks）、
+T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、
 `vm.gdb.semantics` 与 `vm.gdb.e2e`，覆盖原子 stdout journal、可恢复 stdin、
 协议、只读/受限写入、AArch64/w32/ARM32/RISC-V32 合成地址与 `target.xml`、
 断点/单步/继续、monitor、extended restart、trap/退出一致性与真实 gdb 端到端调试。
@@ -116,8 +116,15 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 `python3 tests/conformance/diff/s8_abi_fuzz.py --check --seeds 256`（layout/mem/fp
 同理）扩大样本，不改变 ctest 的默认时间。
 
-0.0.47 CTest 注册总数 90（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项 + T3 五项）；
-T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90 与全部收尾检查。0.0.46 已验收 harness 873/873
+0.0.47 的 `toolchain.debug_elf` 独立解码 ELF/DWARF，校验四种档案映射、符号/行表与
+共享 linemap 全序一致、空函数与顶层单元边界、CLI/输出身份/写失败，并以真实 gdb
+验证 AArch64 源级断点地址。ARM32/RISC-V32 的真实 gdb 用例显式 SKIP：本地 GDB 18
+将 32 位 `code_ptr` 缩为 32 位，与冻结的 64 位 `tc_ir_pc` 描述冲突；两种档案的
+ELF/DWARF 语义与 RSP 寄存器布局仍分别独立验证。P4b 的 §6.10 固定 Linux CI
+签名证据与 32 位真实 gdb 兼容性裁定尚未完成，阶段与 G11 仍未完成。
+
+0.0.47 CTest 注册总数 91（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项）；
+P4b 实现检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 91/91 与全部收尾检查。0.0.46 已验收 harness 873/873
 （608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、ct 370、
 ir 674、vm 514、aot 81、oom 383。S9 平台套件另有 29 个固定 ARM32 用例、
 305 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、

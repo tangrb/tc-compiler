@@ -166,9 +166,17 @@ def protocol(tool: str, base: Path) -> None:
         check(c.send_packet(b"qSupported") ==
               b"PacketSize=4000;vContSupported+;QStartNoAckMode+;"
               b"qXfer:features:read+;qXfer:memory-map:read+", "qSupported contract")
+        check(c.send_packet(
+            b"qSupported:multiprocess+;swbreak+;qXfer:features:read+") ==
+            b"PacketSize=4000;vContSupported+;QStartNoAckMode+;"
+            b"qXfer:features:read+;qXfer:memory-map:read+",
+            "qSupported accepts negotiated feature list")
         check(c.send_packet(b"?") == b"T05thread:1;", "initial stop reason")
         check(c.send_packet(b"R00") == b"E01", "restart requires extended mode")
         xml = c.q_xfer("features:read:target.xml", length=97)
+        gdb_xml = c.send_packet(b"qXfer:features:read:target.xml:0,1000")
+        check(gdb_xml[:1] == b"l" and ET.fromstring(gdb_xml[1:]).tag == "target",
+              "qXfer accepts GDB comma-separated range")
         tree = ET.fromstring(xml)
         check(tree.findtext("architecture") == "aarch64", "target architecture")
         regs = tree.findall("./feature/reg")
@@ -176,6 +184,10 @@ def protocol(tool: str, base: Path) -> None:
         check([int(reg.attrib["regnum"]) for reg in regs] == list(range(38)),
               "target register numbering")
         memory_xml = ET.fromstring(c.q_xfer("memory-map:read", length=113))
+        gdb_memory = c.send_packet(b"qXfer:memory-map:read::0,1000")
+        check(gdb_memory[:1] == b"l" and
+              ET.fromstring(gdb_memory[1:]).tag == "memory-map",
+              "GDB memory-map qXfer syntax")
         memory_nodes = memory_xml.findall("memory")
         check([node.attrib["type"] for node in memory_nodes] ==
               ["ram", "ram", "rom", "ram", "rom"], "memory-map order and types")

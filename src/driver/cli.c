@@ -88,6 +88,7 @@ int tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --gdb[=<port>]      serve the VM GDB RSP stub on 127.0.0.1\n"
             "  --gdb-stdout-journal=<dir>  atomic stdout journal (required with --gdb)\n"
             "  --gdb-allow-write   allow debugger PC and frame/static/heap writes\n"
+            "  --gdb-elf-out=<path>  write VM symbols and DWARF v4 line information\n"
             "  --diag-format=text|json  diagnostic encoding (default text)\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n"
@@ -450,6 +451,18 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
             options->gdb_allow_write = 1;
             continue;
         }
+        if (!only_positional && strncmp(arg, "--gdb-elf-out=", 14) == 0) {
+            if (options->gdb_elf_out_seen) {
+                parse_error(options, "%s: --gdb-elf-out cannot repeat\n",
+                            tool_name);
+            } else if (arg[14] == '\0') {
+                parse_error(options, "%s: missing value for --gdb-elf-out\n",
+                            tool_name);
+            }
+            options->gdb_elf_out = arg + 14;
+            options->gdb_elf_out_seen = 1;
+            continue;
+        }
         if (!only_positional && strncmp(arg, "--diag-format=", 14) == 0) {
             if (options->diag_format_seen) {
                 parse_error(options, "%s: --diag-format cannot repeat\n",
@@ -545,6 +558,16 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                                options->static_only)) {
         parse_error(options,
                     "%s: --gdb requires execution rather than a partial check\n",
+                    tool_name);
+    }
+    if (options->gdb_elf_out_seen &&
+        strcmp(tool_name, "tc-vm") != 0) {
+        parse_error(options, "%s: --gdb-elf-out is only available in tc-vm\n",
+                    tool_name);
+    } else if (options->gdb_elf_out_seen &&
+               (options->syntax_only || options->sem_only)) {
+        parse_error(options,
+                    "%s: --gdb-elf-out requires finalized IR rather than a partial check\n",
                     tool_name);
     }
     if (options->parse_error[0] != '\0') {

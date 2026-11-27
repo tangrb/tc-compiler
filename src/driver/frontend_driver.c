@@ -18,6 +18,7 @@
 #include "frontend/sem.h"
 #include "project/manifest.h"
 #include "project/paths.h"
+#include "vm/debug_elf.h"
 #include "vm/gdb.h"
 #include "vm/observe.h"
 #include "vm/vm.h"
@@ -615,15 +616,19 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 goto done;
             }
         }
-        if (options->dump_linemap_seen) {
+        if (options->dump_linemap_seen || options->gdb_elf_out_seen) {
             TcLineMap *linemap = NULL;
             impl = tc_linemap_build(tc_analysis_ir(analysis), &linemap);
-            if (impl == TC_IMPL_OK) {
+            if (impl == TC_IMPL_OK && options->dump_linemap_seen) {
                 impl = tc_observe_dump_linemap(
                     linemap, &outputs, !aot,
                     aot ? 0u : (profile.addr_width == 64u
                                     ? TC_DEBUG_CODE_BASE64
                                     : TC_DEBUG_CODE_BASE32));
+            }
+            if (impl == TC_IMPL_OK && options->gdb_elf_out_seen) {
+                impl = tc_vm_write_debug_elf(
+                    outputs.output[TC_AOT_OUTPUT_GDB_ELF].fd, linemap, &profile);
             }
             tc_linemap_destroy(linemap);
             if (impl != TC_IMPL_OK) {
@@ -676,7 +681,8 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 goto done;
             }
         }
-        if (options->trace_seen || options->dump_linemap_seen || options->gdb) {
+        if (options->trace_seen || options->dump_linemap_seen || options->gdb ||
+            options->gdb_elf_out_seen) {
             impl = tc_linemap_build(ir, &linemap);
             if (impl != TC_IMPL_OK) {
                 result = print_impl_error(tool_name, impl, NULL);
@@ -688,6 +694,15 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 linemap, &outputs, 1,
                 profile.addr_width == 64u ? TC_DEBUG_CODE_BASE64
                                          : TC_DEBUG_CODE_BASE32);
+            if (impl != TC_IMPL_OK) {
+                tc_linemap_destroy(linemap);
+                result = print_impl_error(tool_name, impl, NULL);
+                goto done;
+            }
+        }
+        if (options->gdb_elf_out_seen) {
+            impl = tc_vm_write_debug_elf(
+                outputs.output[TC_AOT_OUTPUT_GDB_ELF].fd, linemap, &profile);
             if (impl != TC_IMPL_OK) {
                 tc_linemap_destroy(linemap);
                 result = print_impl_error(tool_name, impl, NULL);

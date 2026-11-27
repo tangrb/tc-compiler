@@ -42,8 +42,9 @@ typedef struct {
 #define TC_AOT_OUTPUT_LINEMAP 1u
 #define TC_AOT_OUTPUT_TRACE 2u
 #define TC_AOT_OUTPUT_STATS 3u
-#define TC_AOT_OUTPUT_RESULT 4u
-#define TC_AOT_OUTPUT_COUNT 5u
+#define TC_AOT_OUTPUT_GDB_ELF 4u
+#define TC_AOT_OUTPUT_RESULT 5u
+#define TC_AOT_OUTPUT_COUNT 6u
 
 struct TcAotOutputs {
     TcAotOutput output[TC_AOT_OUTPUT_COUNT];
