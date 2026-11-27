@@ -45,14 +45,14 @@ python3 tests/harness/runner.py tests/conformance --list
 # Run every case; without --adapter every case is not_implemented.
 python3 tests/harness/runner.py tests/conformance
 
-# Run with an adapter and write the gate report.
+# Run with the CMake-configured adapter and write the gate report.
 python3 tests/harness/runner.py tests/conformance \
-    --adapter tests/adapters/tc_adapter.py \
-    --json-out build/harness-report.json
+    --adapter .tmp/build/tc_adapter.py \
+    --json-out .tmp/build/harness-report.json
 
 # One ID family; use quotes so the shell does not expand *.
 python3 tests/harness/runner.py tests/conformance --filter 'TC-RT-FP-*' \
-    --adapter tests/adapters/tc_adapter.py
+    --adapter .tmp/build/tc_adapter.py
 
 # Explicitly allow placeholder cases (still not counted as pass).
 python3 tests/harness/runner.py tests/conformance --allow-not-implemented
@@ -429,7 +429,7 @@ add_test(
     COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/harness/runner.py
             ${CMAKE_CURRENT_SOURCE_DIR}/conformance
-            --adapter ${CMAKE_CURRENT_SOURCE_DIR}/adapters/tc_adapter.py
+            --adapter ${CMAKE_BINARY_DIR}/tc_adapter.py
             --json-out ${CMAKE_BINARY_DIR}/harness-report.json)
 set_tests_properties(
     harness.conformance

@@ -13,6 +13,12 @@ CTest entries:
   identity, types and profile, flat operands/field paths, CFG edges, named
   arguments, const inlining, word-size layout and the deterministic printer
   (L1).
+- `linemap.unit` (`tc_linemap_test`): deterministic shared line-map generation,
+  VM synthetic addresses and JSON v3 encoding (P4a/T2).
+- `gdb_journal.unit` (`tc_gdb_journal_test`): atomic stdout journals and
+  resumable stdin (T3).
+- `gdb_rsp.unit` (`tc_gdb_rsp_test`): GDB RSP encoding, decoding and register
+  layouts (T3).
 - `vm.unit` (`tc_vm_test`): runtime semantic core, exact scalar formatting,
   token input, regions/objects/pointer states, all mandatory traps and their
   positions, calls/`D`, device policies, I/O source states, checked build and
@@ -25,6 +31,8 @@ CTest entries:
   and define tracking, static initializer emission, deterministic assembly,
   large-function-safe conditional/switch lowering, and explicit rejection of
   unsupported platform instances (L1).
+- `oom.unit` (`tc_oom_test`): allocation-failure injection and cleanup across
+  SEM, the VM and all three backends.
 
 ## L0 case ids
 

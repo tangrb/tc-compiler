@@ -49,12 +49,7 @@ GDB 18.1 的 ARM `stepi` 因未建模 sp 不可直接使用，测试通过 maint
 `s` 与 flush register-cache 验证同一 RSP 单步。G11 证据收集/校验与手动签名作业
 已接入；固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 未完成，
 P5 与 T4–T6 尚未开始。
-0.0.47 CTest 注册总数 92；P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan
-全量 CTest 92/92 与收尾检查 51/51；ARM32 阻塞修复已在当前 Debug 树通过全量
-CTest 92/92、收尾检查 51/51，以及 ARM32/RISC-V32 真实 gdb e2e 各 15 checks。
-macOS 不支持 ASan leak 检测，sanitizer 运行使用
-`ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` 与
-`UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`。
+0.0.47 CTest 注册总数 92，收尾检查 51 项。
 0.0.46 已验收 harness 873/873。
 前端、CT/IR、运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、
 W=32 RISC-V `riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、

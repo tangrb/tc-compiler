@@ -97,10 +97,7 @@
   and one G11 evidence test). G11 evidence collection/validation and a manual signing
   job are wired, and local real-gdb validation passed across all four profiles. A real
   signed artifact from fixed Linux CI remains pending, so P4b formal acceptance and
-  G11 are incomplete. The ARM32 blocker fix passed full CTest 92/92 and closing checks
-  51/51 in the current Debug tree, plus 15 real-gdb e2e checks each for ARM32 and RISC-V32.
-  The accepted 0.0.46 baseline remains harness 873/873, coverage
-  636/636, with all closing checks and release audits passing.
+  G11 are incomplete.
 - P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete. P4b implementation and local
   real-gdb validation across all four profiles are complete, and G11 evidence
   infrastructure is wired. A real signed artifact from fixed Linux CI remains

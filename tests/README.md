@@ -132,10 +132,8 @@ provenance 源提交；发布审计可通过 `--require-g11-evidence=<artifact-d
 手动 CI 作业要求输入钉住的容器 digest，并为 `result.json` 与 `transcript.log` 生成 attestation。
 固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 仍未完成。
 
-0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）；
-P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 92/92 与收尾检查 51/51；
-ARM32 阻塞修复已在当前 Debug 树通过全量 CTest 92/92、收尾检查 51/51，以及 ARM32/RISC-V32
-真实 gdb e2e 各 15 checks。0.0.46 已验收 harness 873/873
+0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项），收尾检查 51 项。
+0.0.46 harness 873/873
 （608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、ct 370、
 ir 674、vm 514、aot 81、oom 383。S9 平台套件另有 29 个固定 ARM32 用例、
 305 个 S6/S8 语料、14 个 AAPCS32 互操作用例、33 个 AAPCS64 互操作用例、

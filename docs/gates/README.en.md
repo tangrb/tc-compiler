@@ -63,13 +63,7 @@ verify the same RSP step with maintenance packet `s` and a register-cache flush.
 G11 evidence collection/validation and a manual signing job are wired. A real signed
 artifact from fixed Linux CI remains pending, so P4b formal acceptance and G11 are
 incomplete; P5 and T4–T6 have not started.
-There are 92 registered 0.0.47 CTests; the P4b/G11 infrastructure checkpoint passed
-Debug, Release and ASan+UBSan full CTest runs at 92/92, and closing checks passed 51/51.
-The ARM32 blocker fix passed full CTest 92/92 and closing checks 51/51 in the current
-Debug tree, plus 15 real-gdb e2e checks each for ARM32 and RISC-V32.
-macOS does not support ASan leak detection, so the
-sanitizer run used `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` and
-`UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The accepted 0.0.46 harness remains 873/873.
+There are 92 registered 0.0.47 CTests and 51 closing checks.
 The front end, CT/IR, runtime semantic
 core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
 W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core
