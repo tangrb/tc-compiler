@@ -46,6 +46,14 @@
   key order, many-to-one trace mapping, cross-root determinism, partial-check
   combinations, output safety, and real gdb `info line`, source breakpoints and
   single-step through the qemu gdbstub.
+- **T3 VM GDB debugging**: `tc-vm --gdb[=<port>]` defaults to port 0 and binds
+  loopback only, with mandatory `--gdb-stdout-journal=<dir>`. It provides synthetic
+  IR addresses, `target.xml`/memory map, breakpoints/step/continue, monitor,
+  extended restart, an atomic stdout journal and resumable stdin. The default is
+  read-only; `--gdb-allow-write` enables restricted writes.
+- **T3 tests**: register `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`
+  (232 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast,
+  while e2e is not fast.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
   usage exits 2; internal contract violations and documented limits exit 71.
@@ -69,15 +77,16 @@
 
 ### Status
 
-- There are 85 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
-  one P3 test, two P4a tests, one T1 test and two T2 tests). T2 Debug, Release and
-  ASan+UBSan full CTest runs each passed 85/85, and all closing checks passed.
+- There are 90 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
+  one P3 test, two P4a tests, one T1 test, two T2 tests and five T3 tests). T3 Debug, Release and
+  ASan+UBSan full CTest runs each passed 90/90, and all closing checks passed.
   The accepted 0.0.46 baseline remains harness 873/873, coverage 636/636, with all
   closing checks and release audits passing.
-- P0/T0, P1, P2, P3, P4a, T1 and T2 are complete; P4b, P5 and T3–T6 have not started
+- P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete; P4b, P5 and T4–T6 have not started
   and G11 is incomplete. `tc --init-project`, compiler path consumption and
   `tc --test` are available. VM/AOT `--dump-linemap` and public `tc-aot --debug`
-  are available, and the real qemu-gdbstub/gdb smoke test passed.
+  are available, and the real qemu-gdbstub/gdb smoke test passed. The VM GDB stub
+  provides an atomic stdout journal and resumable stdin.
 - The P4b VM debug-ELF internal layout must not be written back to the frozen
   specification.
 

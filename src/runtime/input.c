@@ -36,9 +36,17 @@ void tc_input_destroy(TcInput *input) {
         input->alloc->free != NULL) {
         input->alloc->free(input->alloc->ctx, input->token);
     }
+    if (input->replay != NULL && input->alloc != NULL &&
+        input->alloc->free != NULL) {
+        input->alloc->free(input->alloc->ctx, input->replay);
+    }
     input->token = NULL;
     input->token_cap = 0;
     input->token_len = 0;
+    input->replay = NULL;
+    input->replay_cap = 0;
+    input->replay_len = 0;
+    input->replay_pos = 0;
 }
 
 static int consume_byte(TcInput *input, uint8_t *out) {
@@ -48,12 +56,19 @@ static int consume_byte(TcInput *input, uint8_t *out) {
         return -1;
     }
     input->consumed++;
-    *out = input->buffer[input->pos++];
+    if (input->replay_pos < input->replay_len) {
+        *out = (uint8_t)input->replay[input->replay_pos++];
+    } else {
+        *out = input->buffer[input->pos++];
+    }
     return 1;
 }
 
 /* Fetch one byte.  Returns 1 with the byte, 0 at EOF, -1 at source error. */
 static int next_byte(TcInput *input, uint8_t *out) {
+    if (input->replay_pos < input->replay_len) {
+        return consume_byte(input, out);
+    }
     if (input->pos < input->len) {
         return consume_byte(input, out);
     }
@@ -68,6 +83,9 @@ static int next_byte(TcInput *input, uint8_t *out) {
                                   sizeof(input->buffer), &n, &status);
         input->pos = 0;
         input->len = 0;
+        if (status == TC_IO_AGAIN && rc == 0 && n == 0u) {
+            return -2;
+        }
         if (rc != 0 || status == TC_IO_ERROR) {
             input->error = 1;
             return -1;
@@ -280,9 +298,13 @@ static TcInputStatus read_scalar_impl(TcInput *input, unsigned W,
     }
     input->token_len = 0;
     input->token[0] = '\0';
+    input->token_committed = 0;
     for (;;) {
         uint8_t byte;
         int rc = next_byte(input, &byte);
+        if (rc == -2) {
+            return TC_INPUT_PAUSE;
+        }
         if (rc < 0) {
             return TC_INPUT_IO;
         }
@@ -313,11 +335,13 @@ static TcInputStatus read_scalar_impl(TcInput *input, unsigned W,
         if (input->token_len == 4 &&
             tc_rt_memcmp(input->token, "true", 4) == 0) {
             *bits = 1;
+            input->token_committed = 1;
             return TC_INPUT_OK;
         }
         if (input->token_len == 5 &&
             tc_rt_memcmp(input->token, "false", 5) == 0) {
             *bits = 0;
+            input->token_committed = 1;
             return TC_INPUT_OK;
         }
         return TC_INPUT_IO;
@@ -328,7 +352,11 @@ static TcInputStatus read_scalar_impl(TcInput *input, unsigned W,
         if (rc < 0) {
             return TC_INPUT_OOM;
         }
-        return rc == 1 ? TC_INPUT_OK : TC_INPUT_IO;
+        if (rc == 1) {
+            input->token_committed = 1;
+            return TC_INPUT_OK;
+        }
+        return TC_INPUT_IO;
     }
     if (!tc_type_is_integer(type)) {
         return TC_INPUT_IO;
@@ -341,6 +369,7 @@ static TcInputStatus read_scalar_impl(TcInput *input, unsigned W,
             return TC_INPUT_IO;
         }
     }
+    input->token_committed = 1;
     return TC_INPUT_OK;
 }
 
@@ -362,4 +391,66 @@ TcInputStatus tc_input_read_scalar(TcInput *input, unsigned W,
         }
     }
     return status;
+}
+
+int tc_input_restart(TcInput *input) {
+    size_t replay_remaining;
+    size_t buffer_remaining;
+    size_t token_remaining;
+    size_t combined;
+    size_t offset = 0u;
+    char *replay;
+    if (input == NULL) {
+        return -1;
+    }
+    replay_remaining = input->replay != NULL
+                           ? input->replay_len - input->replay_pos
+                           : 0u;
+    buffer_remaining = input->len - input->pos;
+    token_remaining = !input->token_committed ? input->token_len : 0u;
+    if (replay_remaining > SIZE_MAX - buffer_remaining ||
+        token_remaining > SIZE_MAX - replay_remaining - buffer_remaining) {
+        return -1;
+    }
+    combined = token_remaining + replay_remaining + buffer_remaining;
+    if (combined != 0u) {
+        replay = (char *)input->alloc->alloc(input->alloc->ctx, combined);
+        if (replay == NULL) {
+            return -1;
+        }
+        if (token_remaining != 0u) {
+            tc_rt_memcpy(replay, input->token, token_remaining);
+            offset = token_remaining;
+        }
+        if (replay_remaining != 0u) {
+            tc_rt_memcpy(replay + offset,
+                         input->replay + input->replay_pos, replay_remaining);
+            offset += replay_remaining;
+        }
+        if (buffer_remaining != 0u) {
+            tc_rt_memcpy(replay + offset, input->buffer + input->pos,
+                         buffer_remaining);
+        }
+        if (input->replay != NULL) {
+            input->alloc->free(input->alloc->ctx, input->replay);
+        }
+        input->replay = replay;
+        input->replay_cap = combined;
+        input->replay_len = combined;
+    } else {
+        input->replay_len = 0u;
+    }
+    input->replay_pos = 0u;
+    input->pos = 0u;
+    input->len = 0u;
+    input->token_len = 0;
+    if (input->token != NULL) {
+        input->token[0] = '\0';
+    }
+    input->token_committed = 0;
+    input->consumed = 0;
+    input->last_consumed = 0;
+    input->last_eof = 0;
+    input->consumed_overflow = 0;
+    return 0;
 }

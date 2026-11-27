@@ -35,12 +35,18 @@ typedef struct {
     uint64_t last_consumed;
     int last_eof;
     int consumed_overflow;
+    char *replay;
+    size_t replay_cap;
+    size_t replay_len;
+    size_t replay_pos;
+    int token_committed;
 } TcInput;
 
 typedef enum {
     TC_INPUT_OK = 0,
     TC_INPUT_IO, /* invalid token, range error, EOF or source error */
-    TC_INPUT_OOM
+    TC_INPUT_OOM,
+    TC_INPUT_PAUSE
 } TcInputStatus;
 
 void tc_input_init(TcInput *input, const TcIoSrc *src,
@@ -51,5 +57,6 @@ void tc_input_destroy(TcInput *input);
  * pattern (bool is normalized to 0/1). */
 TcInputStatus tc_input_read_scalar(TcInput *input, unsigned W,
                                    const TcType *type, uint64_t *bits);
+int tc_input_restart(TcInput *input);
 
 #endif /* TC_RUNTIME_INPUT_H */

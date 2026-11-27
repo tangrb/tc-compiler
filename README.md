@@ -4,8 +4,8 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 0.0.46 为 clean-sheet 实现基线：只保留标准、设计、测试计划与按设计重写的实现；
 历史实现与旧工具已移除，需要时从 git tag 获取。
 `tc-0.0.47` 分支目标是在语言语义、opcode、诊断码与 ABI 不变的前提下交付开发调试工具链
-与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3、P4a、T1 与 T2 已完成，
-P4b、P5 与 T3–T6 尚未开始。
+与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成，
+P4b、P5 与 T4–T6 尚未开始。
 范围与契约见 [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) 与
 [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md)；RTOS、中断与并发移交 0.0.48。
 
@@ -28,7 +28,13 @@ P4b、P5 与 T3–T6 尚未开始。
   `--dump-linemap[=<path>]` 与公开 `tc-aot --debug`，复用最终 IR 共享行表输出
   JSON v3、VM 合成地址、`.loc`/源注释与 DWARF v4 CU，并以 qemu gdbstub 和真实
   gdb 验证 `info line`、源码断点与单步；证据入口为 `t2.debug` 与 `t2.gdb`。
-- **后续阶段**：P4b VM 调试 ELF、P5 与 T3–T6 尚未开始，G11 未完成。
+  T3 已实现 `tc-vm --gdb[=<port>]`（默认 0，仅 loopback），并要求
+  `--gdb-stdout-journal=<dir>`；提供合成 IR 地址、`target.xml`/内存映射、
+  断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin。
+  `--gdb-allow-write` 才允许受限写入；证据入口为 `gdb_journal.unit`、
+  `gdb_rsp.unit`、`vm.gdb.protocol`（232 checks）、`vm.gdb.semantics` 与
+  `vm.gdb.e2e`。
+- **后续阶段**：P4b VM 调试 ELF、P5 与 T4–T6 尚未开始，G11 未完成。
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
   CT 求值（按需求值/缓存、严格错误映射、静态初值）、IR 最终化/冻结与确定性打印；
@@ -55,9 +61,9 @@ P4b、P5 与 T3–T6 尚未开始。
   发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
   长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-  P4b、P5 与 T3–T6 不在当前完成范围内。
-- **当前验证**：0.0.47 CTest 注册总数 85（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项）；
-  T2 已通过 Debug/Release/ASan+UBSan 全量 CTest 85/85 与全部收尾检查。0.0.46 已验收 harness 873/873、
+  P4b、P5 与 T4–T6 不在当前完成范围内。
+- **当前验证**：0.0.47 CTest 注册总数 90（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项 + T3 五项）；
+  T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90 与全部收尾检查。0.0.46 已验收 harness 873/873、
   覆盖矩阵 636/636，G0–G10 PASS；**G10 完成 0.0.46 阶段出口，G11 未完成**。
   详见 [门禁状态](docs/gates/README.md)。
 
@@ -68,8 +74,8 @@ P4b、P5 与 T3–T6 尚未开始。
 | [TC 语言及编译器标准 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | 语言语义、诊断、编译器实现要求与平台档案的唯一权威 |
 | [TC 原生编译器设计说明书 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、运行时、平台档案、后端与分期路线 |
 | [TC 开发测试计划 0.0.46](docs/TC开发测试计划-0.0.46.md) | 阶段、门禁、覆盖与可追溯性 |
-| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a、T1 与 T2 已实现 |
-| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 与 T1 已实现 |
+| [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) | 工具链范围、接口契约、里程碑与验收；P0/T0–P4a、T1–T3 已实现 |
+| [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md) | 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 与 T1–T3 已实现 |
 | [文档地图](docs/README.md) | 文档入口与阅读顺序 |
 
 ## 目标口径
@@ -91,7 +97,7 @@ src/                  0.0.46 实现
   frontend/           input num lex parse module sem ct irgen
   ir/                 type instr operand block ir region object address structs pointer_state print
   runtime/            alloc io trap profile module_loader；semantics/format/input
-  vm/                 vm.h interp memory（五区/对象/指针状态/全部 opcode）
+  vm/                 vm.h interp memory observe gdb gdb_rsp gdb_journal（五区/对象/指针状态/全部 opcode/GDBstub）
   backend/            common（目标无关 freestanding 运行时核/target 描述）
                       aarch64（全量后端 + semihosting/PL011 平台实例）
                       arm32（Cortex-M7 后端 + MPS2 平台实例）
@@ -112,7 +118,7 @@ ctest --test-dir .tmp/build --output-on-failure
 
 S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`（或对应 target ar）、
 `ld.lld`、`qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；
-P4a 的 DWARF 校验另需 `llvm-dwarfdump`，T2 真实 gdb 冒烟另需 `gdb`（或
+P4a 的 DWARF 校验另需 `llvm-dwarfdump`，T2/T3 真实 gdb 冒烟另需 `gdb`（或
 `gdb-multiarch`）；工具缺失时配置失败。
 `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭依赖 lld/qemu 的 ctest 项；构建目标运行时仍需要
 clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
@@ -134,6 +140,9 @@ clang 与 llvm-ar（或对应 target ar），且不用于门禁构建。
   T1 观测支持 `--dump-ir[=<path>]`、`--trace=ir,call,mem,io,trap`（text/jsonl、
   limit/output）与 `--stats`（含独立输出）；T2 支持 `--dump-linemap[=<path>]`，
   JSON v3 按最终 IR 全局指令序输出，VM 额外给出档案对应的合成指令地址。
+  T3 支持 `--gdb[=<port>]`（默认 0，仅 loopback），必须同时给出
+  `--gdb-stdout-journal=<dir>`；提供断点/单步/继续、monitor、extended restart、
+  原子 stdout journal 与可恢复 stdin，默认只读，`--gdb-allow-write` 开放受限写入。
 - 普通 `tc-aot` 调用：静态阶段通过后发射目标汇编到 stdout；`--emit=asm`
   （默认）/`--emit=obj`/`--emit=elf`/`--emit=flat` 与 `--output=<path>` 生成
   `.s`/ELF 目标文件/ELF 可执行文件/裸二进制

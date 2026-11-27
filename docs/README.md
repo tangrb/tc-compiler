@@ -10,14 +10,14 @@ English: [README.en.md](README.en.md)。
 | [TC 语言及编译器标准-0.0.46.md](TC语言及编译器标准-0.0.46.md) | 0.0.46 语法、语义、诊断、编译器实现要求与平台档案的唯一权威（§0–§14；80 码） |
 | [TC 原生编译器设计说明书-0.0.46.md](TC原生编译器设计说明书-0.0.46.md) | 目标架构：扁平 TAC IR、语义运行时、平台档案、后端与分期路线 |
 | [TC开发测试计划-0.0.46.md](TC开发测试计划-0.0.46.md) | S0–S10 阶段、门禁、80 码/opcode/章节覆盖与可追溯性 |
-| [TC 开发调试工具链-0.0.47.md](TC开发调试工具链-0.0.47.md) | 0.0.47 工具链范围、接口契约、里程碑与验收；语言语义仍为 0.0.46 |
-| [TC 工程模型-0.0.47.md](TC工程模型-0.0.47.md) | 0.0.47 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a 已实现 |
+| [TC 开发调试工具链-0.0.47.md](TC开发调试工具链-0.0.47.md) | 0.0.47 工具链范围、接口契约、里程碑与验收；语言语义仍为 0.0.46；P0/T0–P4a、T1–T3 已实现 |
+| [TC 工程模型-0.0.47.md](TC工程模型-0.0.47.md) | 0.0.47 工程布局、`tc.project`、`tc` 初始化/测试、根锚点与路径规则；P0–P4a、T1–T3 已实现 |
 | [门禁状态](gates/README.md) | 已完成门禁的当前结论、证据入口与后续阶段边界 |
 | [ABI 规则矩阵](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 参考版本、双向 C/TC 互操作、规则覆盖与明确范围限制 |
 
 ## 当前状态
 
-- 0.0.47 工具链与工程模型两份设计达到冻结条件；P0/T0、P1、P2、P3、P4a、T1 与 T2 已完成。
+- 0.0.47 工具链与工程模型两份设计达到冻结条件；P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成。
   `tc --init-project` 已实现完整模板、原子写入、回滚与身份检查；编译器已消费
   `tc.project`、canonical 根、有序 include 根与 manifest 缺省 profile，并将
   canonical 路径与工程根相对显示路径分离。诊断、IR、VM trap 与 AOT 源字符串
@@ -30,11 +30,16 @@ English: [README.en.md](README.en.md)。
   证据入口为 `t1.observe`。T2 已实现 VM/AOT `--dump-linemap[=<path>]` 与公开
   `tc-aot --debug`，复用最终 IR 共享行表输出 JSON v3、VM 合成地址、`.loc`/源注释
   与 DWARF v4 CU，并以 qemu gdbstub 和真实 gdb 验证 `info line`、源码断点与
-  单步，证据入口为 `t2.debug` 与 `t2.gdb`。P4b、P5 与 T3–T6 尚未开始，G11 未完成；
+  单步，证据入口为 `t2.debug` 与 `t2.gdb`。T3 已实现 `tc-vm --gdb[=<port>]`
+  （默认 0，仅 loopback）与强制 `--gdb-stdout-journal=<dir>`，支持合成 IR 地址、
+  `target.xml`/内存映射、断点/单步/继续、monitor、extended restart、原子 stdout
+  journal 与可恢复 stdin；`--gdb-allow-write` 才开放受限写入，证据入口为
+  `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（232 checks）、
+  `vm.gdb.semantics` 与 `vm.gdb.e2e`。P4b、P5 与 T4–T6 尚未开始，G11 未完成；
   语言/契约保持 0.0.46/1，RTOS、中断与并发移交 0.0.48。
 - S0–S10 已实现并通过 G0–G10；**G10 完成 0.0.46 阶段出口**。0.0.47 CTest
-  注册总数为 85（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项）；
-  T2 已通过 Debug/Release/ASan+UBSan 全量 CTest 85/85 与全部收尾检查。0.0.46 覆盖矩阵为 636/636。
+  注册总数为 90（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项 + T3 五项）；
+  T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90 与全部收尾检查。0.0.46 覆盖矩阵为 636/636。
 - 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64、
   W=32 ARM32 与 W=32 RISC-V 全量后端/工具链（全量 ABI、checked build、
   ELF/区布局、复位入口 BSS 清零、远距离分支长跳转）、freestanding 目标运行时核与

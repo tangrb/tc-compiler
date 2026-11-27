@@ -33,6 +33,12 @@
 - **T2 测试**：新增并注册 `t2.debug` 与 `t2.gdb`，覆盖全 IR 映射、external/键序、
   trace 多对一、跨根确定性、部分检查组合、输出安全，以及 qemu gdbstub 上真实 gdb 的
   `info line`、源码断点与单步。
+- **T3 VM GDB 调试**：`tc-vm --gdb[=<port>]` 默认监听 0 端口且仅绑定 loopback，
+  强制 `--gdb-stdout-journal=<dir>`；提供合成 IR 地址、`target.xml`/内存映射、
+  断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin。
+  默认只读，`--gdb-allow-write` 开放受限写入。
+- **T3 测试**：新增并注册 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`
+  （232 checks）、`vm.gdb.semantics` 与 `vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。
 - **统一实现级错误**：所有入口共用 `TcImplError` 退出码映射；宿主 IO、能力不可用
   与实际 OOM 退出 70，用法错误退出 2，内部契约破坏与实现上限退出 71。
 - **契约验证**：三入口精确版本输出、`tc` 参数/终止符/uint64 超时语法、
@@ -49,12 +55,13 @@
 
 ### 状态
 
-- 0.0.47 CTest 注册总数 85（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项）；
-  T2 已通过 Debug/Release/ASan+UBSan 全量 CTest 85/85 与全部收尾检查。0.0.46 已验收 harness 873/873、覆盖矩阵
+- 0.0.47 CTest 注册总数 90（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + T1 一项 + T2 两项 + T3 五项）；
+  T3 已通过 Debug/Release/ASan+UBSan 全量 CTest 90/90 与全部收尾检查。0.0.46 已验收 harness 873/873、覆盖矩阵
   636/636，全部收尾检查与发布审计通过。
-- P0/T0、P1、P2、P3、P4a、T1 与 T2 已完成；P4b、P5 与 T3–T6 尚未开始，G11 未完成。
+- P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成；P4b、P5 与 T4–T6 尚未开始，G11 未完成。
   `tc --init-project`、编译器路径消费与 `tc --test` 已可用；VM/AOT `--dump-linemap`
-  与公开 `tc-aot --debug` 已可用，真实 qemu gdbstub/gdb 冒烟已通过。
+  与公开 `tc-aot --debug` 已可用，真实 qemu gdbstub/gdb 冒烟已通过；VM GDBstub
+  已提供原子 stdout journal 与可恢复 stdin。
 - P4b 的 VM 调试 ELF 内部布局不得回写冻结规范。
 
 ## [0.0.46] - 2026-11-19

@@ -183,6 +183,16 @@ contract check.
   modes reject the switch; VM rejects `--debug` and AOT rejects debug with any
   partial check (2). Observation destinations share output identity/reservation
   guards and shared-stderr ordering.
+- VM `--gdb[=<port>]` defaults to port 0 and binds loopback only;
+  `--gdb-stdout-journal=<dir>` is mandatory. The private listener runs before each
+  instruction and mirrors program stdout to an atomic journal while keeping
+  resumable stdin available to the debugger.
+- The GDB view uses the shared synthetic IR addresses and profile register width;
+  `target.xml` and the memory map describe only that private view. Memory writes
+  are rejected by default; `--gdb-allow-write` enables only restricted writes.
+- GDB execution is passive with respect to program stdout, trap and exit parity.
+  Extended restart (`RXX`) preserves committed I/O and unconsumed input but resets
+  execution state.
 - VM observation output is deterministic and stays on stderr or an explicit
   path, never program stdout. Shared-stderr order is diagnostics, IR dump,
   line map, trace/footer, trap, then stats. VM region peaks measure logical

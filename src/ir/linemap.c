@@ -274,6 +274,21 @@ const TcLineMapEntry *tc_linemap_find_instr(const TcLineMap *linemap,
     return NULL;
 }
 
+int tc_linemap_instr_index(const TcLineMap *linemap, const TcInstr *instr,
+                           size_t *out_index) {
+    const TcLineMapEntry *entry;
+    if (out_index == NULL) {
+        return 0;
+    }
+    *out_index = 0u;
+    entry = tc_linemap_find_instr(linemap, instr);
+    if (entry == NULL) {
+        return 0;
+    }
+    *out_index = (size_t)(entry - linemap->entries);
+    return 1;
+}
+
 static int json_string(FILE *out, const char *text) {
     const unsigned char *cursor = (const unsigned char *)text;
     if (fputc('"', out) == EOF) {

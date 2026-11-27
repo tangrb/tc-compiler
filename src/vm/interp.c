@@ -25,6 +25,98 @@ static int write_result(TcVm *vm, TcVmFrame *frame, const TcInstr *instr,
     return tc_vm_write_operand(vm, frame, &instr->dst, value);
 }
 
+int tc_vm_debug_address(const TcVm *vm, const TcInstr *instr, uint64_t *out) {
+    size_t index;
+    if (out == NULL || vm == NULL || vm->debug_linemap == NULL ||
+        !tc_linemap_instr_index(vm->debug_linemap, instr, &index) ||
+        index > (UINT64_MAX - vm->debug_code_base) / 4u) {
+        return 0;
+    }
+    *out = vm->debug_code_base + (uint64_t)index * 4u;
+    return 1;
+}
+
+uint64_t tc_vm_debug_pc(const TcVm *vm) {
+    const TcLineMapEntry *entry;
+    if (vm == NULL) {
+        return 0u;
+    }
+    if (vm->current_instr != NULL && vm->debug_linemap != NULL) {
+        entry = tc_linemap_find_instr(vm->debug_linemap, vm->current_instr);
+        if (entry != NULL) {
+            return vm->debug_code_base +
+                   (uint64_t)(entry - vm->debug_linemap->entries) * 4u;
+        }
+    }
+    return vm->debug_pc;
+}
+
+static void debug_save(TcVm *vm, uint32_t frame_index, uint32_t block,
+                       size_t pc) {
+    TcVmFrame *frame = &vm->frames[frame_index];
+    frame->resume_block = block;
+    frame->resume_pc = pc;
+    frame->has_resume = 1;
+    vm->debug_frame = frame_index;
+}
+
+static int debug_save_next(TcVm *vm, uint32_t frame_index, uint32_t block,
+                           size_t pc) {
+    TcVmFrame *frame = &vm->frames[frame_index];
+    debug_save(vm, frame_index, block, pc);
+    vm->current_instr = NULL;
+    while (block < frame->unit->nblocks) {
+        const TcBlock *instructions = &frame->unit->blocks[block];
+        if (pc < instructions->n) {
+            uint64_t address;
+            vm->current_unit = frame->unit;
+            vm->current_bb = block;
+            vm->current_insn = (uint32_t)pc;
+            vm->current_instr = &instructions->instrs[pc];
+            vm->current_span = vm->current_instr->span;
+            if (!tc_vm_debug_address(vm, vm->current_instr, &address)) {
+                return 0;
+            }
+            vm->debug_pc = address;
+            return 1;
+        }
+        block++;
+        pc = 0u;
+    }
+    vm->debug_pc = vm->debug_code_base +
+                   (uint64_t)vm->debug_linemap->count * 4u;
+    return 1;
+}
+
+static int debug_boundary(TcVm *vm, uint32_t frame_index, uint32_t block,
+                          size_t pc) {
+    TcVmFrame *frame = &vm->frames[frame_index];
+    const TcInstr *instr;
+    uint64_t address;
+    unsigned flags;
+    if (vm->debug == NULL) {
+        return 1;
+    }
+    instr = &frame->unit->blocks[block].instrs[pc];
+    if (!tc_vm_debug_address(vm, instr, &address)) {
+        tc_vm_impl(vm, TC_IMPL_INTERNAL);
+        return -1;
+    }
+    vm->debug_pc = address;
+    vm->debug_frame = frame_index;
+    if (vm->debug_stop != 0u) {
+        debug_save(vm, frame_index, block, pc);
+        return 0;
+    }
+    flags = vm->debug->boundary(vm->debug->ctx, vm, frame_index, address);
+    if (flags != 0u) {
+        vm->debug_stop = flags;
+        debug_save(vm, frame_index, block, pc);
+        return 0;
+    }
+    return 1;
+}
+
 static int is_float_op(const TcType *type) {
     return type != NULL && tc_type_is_float(type);
 }
@@ -52,6 +144,8 @@ static TcVmFlow do_call(TcVm *vm, uint32_t caller_frame, const TcFunc *callee,
     size_t i;
     uint32_t callee_frame = 0;
     TcVmFlow flow;
+    TcVmValue call_ret;
+    int call_has_ret = 0;
     const TcUnit *caller_unit;
     const TcInstr *caller_instr;
     TcSpan caller_span;
@@ -117,15 +211,35 @@ static TcVmFlow do_call(TcVm *vm, uint32_t caller_frame, const TcFunc *callee,
     caller_span = vm->current_span;
     caller_bb = vm->current_bb;
     caller_insn = vm->current_insn;
+    frame = &vm->frames[caller_frame];
+    frame->pending_callee = callee_frame;
+    frame->pending_call = instr;
+    frame->resume_block = caller_bb;
+    frame->resume_pc = caller_insn;
+    frame->has_resume = 1;
+    memset(&call_ret, 0, sizeof(call_ret));
     tc_vm_observe_call(vm, instr, callee, 0);
     vm->depth++;
     if (vm->stats != NULL && vm->depth > vm->stats->depth_max) {
         vm->stats->depth_max = vm->depth;
     }
-    flow = tc_vm_execute(vm, callee_frame, ret, has_ret);
-    if (flow == TC_VM_FLOW_FAIL) {
+    if (vm->debug_single) {
+        vm->debug_stop |= TC_VM_DEBUG_STOP;
+    }
+    flow = tc_vm_execute(vm, callee_frame, &call_ret, &call_has_ret);
+    frame = &vm->frames[caller_frame];
+    if (flow == TC_VM_FLOW_FAIL || flow == TC_VM_FLOW_PAUSE) {
         return flow;
     }
+    if (ret != NULL) {
+        *ret = call_ret;
+    }
+    if (has_ret != NULL) {
+        *has_ret = call_has_ret;
+    }
+    frame->pending_callee = UINT32_MAX;
+    frame->pending_call = NULL;
+    frame->has_resume = 0;
     vm->current_unit = caller_unit;
     vm->current_instr = caller_instr;
     vm->current_span = caller_span;
@@ -194,6 +308,9 @@ static int do_read(TcVm *vm, TcVmFrame *frame, const TcInstr *instr) {
     if (status == TC_INPUT_OOM) {
         tc_vm_observe_io(vm, 0u, "error");
         return tc_vm_impl(vm, TC_IMPL_OOM);
+    }
+    if (status == TC_INPUT_PAUSE) {
+        return -2;
     }
     if (status != TC_INPUT_OK) {
         tc_vm_observe_io(vm, 0u, vm->input.last_eof ? "eof" : "error");
@@ -271,6 +388,7 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
                        int *has_ret) {
     uint32_t block;
     size_t pc = 0;
+    TcVmFrame *starting_frame;
 
     if (has_ret != NULL) {
         *has_ret = 0;
@@ -282,7 +400,14 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
         tc_vm_impl(vm, TC_IMPL_INTERNAL);
         return TC_VM_FLOW_FAIL;
     }
-    block = vm->frames[frame_index].unit->entry;
+    starting_frame = &vm->frames[frame_index];
+    if (starting_frame->has_resume) {
+        block = starting_frame->resume_block;
+        pc = starting_frame->resume_pc;
+        starting_frame->has_resume = 0;
+    } else {
+        block = starting_frame->unit->entry;
+    }
     for (;;) {
         TcVmFrame *frame = &vm->frames[frame_index];
         const TcUnit *unit = frame->unit;
@@ -308,7 +433,26 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
         vm->current_instr = instr;
         vm->current_bb = block;
         vm->current_insn = (uint32_t)pc;
-        tc_vm_observe_ir(vm, instr);
+        if (vm->debug != NULL) {
+            int boundary = debug_boundary(vm, frame_index, block, pc);
+            if (boundary < 0) {
+                return TC_VM_FLOW_FAIL;
+            }
+            if (boundary == 0) {
+                return TC_VM_FLOW_PAUSE;
+            }
+        }
+        if (vm->debug == NULL || !frame->debug_counted) {
+            tc_vm_observe_ir(vm, instr);
+            if (vm->debug != NULL) {
+                frame->debug_counted = 1;
+                if (vm->debug_insns != UINT64_MAX) {
+                    vm->debug_insns++;
+                } else {
+                    vm->count_overflow = 1;
+                }
+            }
+        }
 
         switch (instr->op) {
         case TC_ADD:
@@ -618,7 +762,7 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
             callee = &vm->ir->funcs[instr->args[0].value.func];
             flow = do_call(vm, frame_index, callee, instr, 1, 0, &ret_value,
                            &has_ret);
-            if (flow == TC_VM_FLOW_FAIL) {
+            if (flow == TC_VM_FLOW_FAIL || flow == TC_VM_FLOW_PAUSE) {
                 return flow;
             }
             if (instr->dst.kind != TC_OP_DISCARD && has_ret) {
@@ -666,7 +810,7 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
             callee = &vm->ir->funcs[func_id];
             flow = do_call(vm, frame_index, callee, instr, 1, 1, &ret_value,
                            &has_ret);
-            if (flow == TC_VM_FLOW_FAIL) {
+            if (flow == TC_VM_FLOW_FAIL || flow == TC_VM_FLOW_PAUSE) {
                 return flow;
             }
             if (instr->dst.kind != TC_OP_DISCARD && has_ret) {
@@ -827,11 +971,18 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
         case TC_TRAP:
             tc_vm_trap(vm, &instr->span, TC_EK_TRAP);
             return TC_VM_FLOW_FAIL;
-        case TC_READ:
-            if (!do_read(vm, frame, instr)) {
+        case TC_READ: {
+            int read_status = do_read(vm, frame, instr);
+            if (read_status == -2) {
+                debug_save(vm, frame_index, block, pc);
+                vm->debug_stop |= TC_VM_DEBUG_INTERRUPT;
+                return TC_VM_FLOW_PAUSE;
+            }
+            if (read_status <= 0) {
                 return TC_VM_FLOW_FAIL;
             }
             break;
+        }
         case TC_WRITE:
         case TC_WRITELN:
             if (!do_write(vm, frame, instr, instr->op == TC_WRITELN)) {
@@ -844,6 +995,96 @@ TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
         }
         if (!jumped) {
             pc++;
+        }
+        if (vm->debug != NULL) {
+            frame = &vm->frames[frame_index];
+            frame->debug_counted = 0;
+            if (vm->debug_single || vm->debug_stop != 0u) {
+                if (!debug_save_next(vm, frame_index, block, pc)) {
+                    return TC_VM_FLOW_FAIL;
+                }
+                return TC_VM_FLOW_PAUSE;
+            }
+        }
+    }
+}
+
+static int complete_paused_call(TcVm *vm, uint32_t callee_frame,
+                                const TcVmValue *returned, int has_returned) {
+    TcVmFrame *caller;
+    TcVmFrame *callee;
+    const TcInstr *instr;
+    const TcFunc *func;
+    if (callee_frame == 0u || callee_frame >= vm->nframes) {
+        return tc_vm_impl(vm, TC_IMPL_INTERNAL);
+    }
+    caller = &vm->frames[callee_frame - 1u];
+    callee = &vm->frames[callee_frame];
+    instr = caller->pending_call;
+    if (caller->pending_callee != callee_frame || instr == NULL ||
+        callee->func_id >= vm->ir->nfuncs) {
+        return tc_vm_impl(vm, TC_IMPL_INTERNAL);
+    }
+    func = &vm->ir->funcs[callee->func_id];
+    vm->current_unit = caller->unit;
+    vm->current_instr = instr;
+    vm->current_span = instr->span;
+    vm->current_bb = caller->resume_block;
+    vm->current_insn = (uint32_t)caller->resume_pc;
+    tc_vm_observe_call(vm, instr, func, 1);
+    vm->depth--;
+    tc_vm_pop_frame(vm);
+    caller = &vm->frames[callee_frame - 1u];
+    caller->pending_callee = UINT32_MAX;
+    caller->pending_call = NULL;
+    caller->resume_pc++;
+    caller->has_resume = 1;
+    caller->debug_counted = 0;
+    if (func->sig.ret != NULL && func->sig.ret->tag != TC_TY_VOID &&
+        !has_returned) {
+        return tc_vm_impl(vm, TC_IMPL_INTERNAL);
+    }
+    if (instr->dst.kind != TC_OP_DISCARD && has_returned) {
+        if (!tc_vm_write_operand(vm, caller, &instr->dst, returned)) {
+            if (returned->ptr != NULL) {
+                tc_vm_free(vm, returned->ptr);
+            }
+            return 0;
+        }
+    }
+    if (returned->ptr != NULL) {
+        tc_vm_free(vm, returned->ptr);
+    }
+    return 1;
+}
+
+TcVmFlow tc_vm_execute_resume(TcVm *vm, uint32_t frame_index, int single) {
+    vm->debug_single = single;
+    vm->debug_stop = 0u;
+    for (;;) {
+        TcVmValue ret;
+        int has_ret = 0;
+        TcVmFlow flow;
+        memset(&ret, 0, sizeof(ret));
+        flow = tc_vm_execute(vm, frame_index, &ret, &has_ret);
+        if (flow != TC_VM_FLOW_RETURN && flow != TC_VM_FLOW_END) {
+            return flow;
+        }
+        if (frame_index == 0u) {
+            return flow;
+        }
+        if (!complete_paused_call(vm, frame_index, &ret, has_ret)) {
+            return TC_VM_FLOW_FAIL;
+        }
+        frame_index--;
+        vm->debug_frame = frame_index;
+        if (vm->debug_single || vm->debug_stop != 0u) {
+            TcVmFrame *caller = &vm->frames[frame_index];
+            if (!debug_save_next(vm, frame_index, caller->resume_block,
+                                 caller->resume_pc)) {
+                return TC_VM_FLOW_FAIL;
+            }
+            return TC_VM_FLOW_PAUSE;
         }
     }
 }

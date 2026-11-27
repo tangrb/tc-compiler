@@ -17,6 +17,20 @@ typedef struct {
     uint8_t *ptr;  /* struct value storage (borrowed) */
 } TcVmValue;
 
+struct TcVm;
+typedef unsigned (*TcVmDebugBoundary)(void *ctx, struct TcVm *vm,
+                                      uint32_t frame_index, uint64_t address);
+
+typedef struct {
+    void *ctx;
+    TcVmDebugBoundary boundary;
+} TcVmDebugHooks;
+
+#define TC_VM_DEBUG_STOP UINT32_C(0x01)
+#define TC_VM_DEBUG_INTERRUPT UINT32_C(0x02)
+#define TC_VM_DEBUG_DISCONNECT UINT32_C(0x04)
+#define TC_VM_DEBUG_DETACH UINT32_C(0x08)
+
 typedef struct {
     uint32_t ir_object; /* original TcObject id; UINT32_MAX for synthetic */
     TcRegionKind region;
@@ -50,6 +64,12 @@ typedef struct {
     uint32_t *vreg_obj; /* per vreg runtime object index, UINT32_MAX if none */
     uint32_t first_object;
     int valid;
+    uint32_t resume_block;
+    size_t resume_pc;
+    int has_resume;
+    int debug_counted;
+    uint32_t pending_callee;
+    const TcInstr *pending_call;
 } TcVmFrame;
 
 typedef struct TcVm {
@@ -100,6 +120,15 @@ typedef struct TcVm {
     int trace_truncated;
     int trace_failed;
     int count_overflow;
+    const TcVmDebugHooks *debug;
+    const TcLineMap *debug_linemap;
+    uint64_t debug_code_base;
+    uint64_t debug_pc;
+    uint64_t debug_insns;
+    uint32_t debug_frame;
+    unsigned debug_stop;
+    int debug_single;
+    int debug_terminated;
 } TcVm;
 
 /* Allocation helpers; failure sets vm->impl and returns NULL. */
@@ -168,10 +197,16 @@ void tc_vm_teardown(TcVm *vm);
 typedef enum {
     TC_VM_FLOW_RETURN = 0,
     TC_VM_FLOW_END, /* fell off the end of the unit */
-    TC_VM_FLOW_FAIL
+    TC_VM_FLOW_FAIL,
+    TC_VM_FLOW_PAUSE
 } TcVmFlow;
 
 TcVmFlow tc_vm_execute(TcVm *vm, uint32_t frame_index, TcVmValue *ret,
                        int *has_ret);
+TcVmFlow tc_vm_execute_resume(TcVm *vm, uint32_t frame_index, int single);
+int tc_vm_debug_address(const TcVm *vm, const TcInstr *instr, uint64_t *out);
+uint64_t tc_vm_debug_pc(const TcVm *vm);
+int tc_vm_debug_push_top(TcVm *vm, uint32_t *out_frame);
+int tc_vm_reset(TcVm *vm);
 
 #endif /* TC_VM_INTERNAL_H */

@@ -59,7 +59,16 @@ output; its evidence entry point is `t1.observe`. T2 exposes VM/AOT
 `--dump-linemap[=<path>]` and public `tc-aot --debug`, reusing one final-IR
 line map for JSON v3, synthetic VM addresses, `.loc`, source comments and the
 DWARF v4 CU. Its evidence entry points are `t2.debug` and the real
-qemu-gdbstub/gdb smoke `t2.gdb`. P4b, P5 and T3–T6 have not started. Compiler and observation output guards protect
+qemu-gdbstub/gdb smoke `t2.gdb`. T3 adds the private VM GDB stub
+(`vm/gdb.c`, `gdb_rsp.c`, `gdb_journal.c`): `tc-vm --gdb[=<port>]` defaults to
+port 0 and binds loopback only, with mandatory `--gdb-stdout-journal=<dir>`.
+It exposes synthetic IR addresses and `target.xml`/memory map, supports
+breakpoints/step/continue, monitor and extended restart, and provides an atomic
+stdout journal plus resumable stdin. Writes are rejected by default;
+`--gdb-allow-write` enables restricted writes. Evidence entry points are
+`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (232 checks),
+`vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast, while e2e is not.
+P4b, P5 and T4–T6 have not started. Compiler and observation output guards protect
 stdio, project inputs, explicit outputs and reservations before publishing diagnostics
 or artifacts.
 
@@ -78,8 +87,9 @@ src/
   runtime/      alloc io trap profile module_loader (platform seams);
                 semantics (W-aware integer/float/conversion core);
                 format (exact §11.2 scalar rendering); input (§11.3 tokens)
-  vm/           vm.h interp memory observe (regions/objects/pointer state/all opcodes,
-                deterministic tracing/statistics/trap context)
+  vm/           vm.h interp memory observe gdb gdb_rsp gdb_journal
+                (regions/objects/pointer state/all opcodes, deterministic
+                tracing/statistics/trap context, private GDB stub/stdout journal)
   backend/      common (target-neutral freestanding runtime core, ABI data,
                 toolchain mapping, emission statistics); aarch64 (emitter/AAPCS64 classifier,
                 semihosting + PL011/PSCI platform instances, linker script);

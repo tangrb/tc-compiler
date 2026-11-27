@@ -20,7 +20,7 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
 
 **Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0, P1,
-P2, P3, P4a, T1 and T2 of `tc-0.0.47` are complete: split versions, three private entry
+P2, P3, P4a, T1, T2 and T3 of `tc-0.0.47` are complete: split versions, three private entry
 points, the shared implementation-error exit mapping, the `tc` CLI contract,
 release audit, full `tc --init-project` templates with atomic writes/rollback/
 identity checks, `tc.project` v1 parsing with nearest-ancestor root discovery,
@@ -44,9 +44,17 @@ its evidence entry point is `t1.observe`. T2 completes VM/AOT
 one final-IR line-map entry for JSON v3, synthetic VM addresses, `.loc`/source
 comments and the DWARF v4 CU. Real gdb through the qemu gdbstub verifies
 `info line`, source breakpoints and single-step; evidence entry points are
-`t2.debug` and `t2.gdb`. P4b, P5 and T3–T6 have not started, and G11 is incomplete.
-There are 85 registered 0.0.47 CTests; T2 Debug, Release and ASan+UBSan full CTest
-runs each passed 85/85,
+`t2.debug` and `t2.gdb`. T3 completes the VM GDB stub: `tc-vm --gdb[=<port>]`
+defaults to port 0 and binds loopback only, with mandatory
+`--gdb-stdout-journal=<dir>`. It supports synthetic IR addresses,
+`target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
+an atomic stdout journal and resumable stdin. The default is read-only;
+`--gdb-allow-write` enables only restricted writes. Evidence entry points are
+`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (232 checks),
+`vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast, while e2e is not.
+P4b, P5 and T4–T6 have not started, and G11 is incomplete.
+There are 90 registered 0.0.47 CTests; T3 Debug, Release and ASan+UBSan full CTest
+runs each passed 90/90,
 and all closing checks passed. macOS does not support ASan leak detection, so the
 sanitizer run used `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` and
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The accepted 0.0.46 harness remains 873/873.
@@ -67,7 +75,7 @@ Reproduce:
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

@@ -6,8 +6,8 @@ standard, design, test plan and the implementation rewritten from them are
 kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
-designs meet the freeze criteria. P0/T0, P1, P2, P3, P4a, T1 and T2 are complete;
-P4b, P5 and T3–T6 have not started. Scope and contracts are in
+designs meet the freeze criteria. P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete;
+P4b, P5 and T4–T6 have not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
@@ -38,8 +38,14 @@ RTOS, interrupts and concurrency move to 0.0.48.
   `tc-aot --debug`, reusing the final-IR line map for JSON v3, synthetic VM
   addresses, `.loc`/source comments and the DWARF v4 CU. Real gdb through the
   qemu gdbstub verifies `info line`, source breakpoints and single-step;
-  evidence entry points are `t2.debug` and `t2.gdb`.
-- **Later stages**: P4b VM debug ELF, P5 and T3–T6 have not started; G11 is incomplete.
+  evidence entry points are `t2.debug` and `t2.gdb`. T3 adds
+  `tc-vm --gdb[=<port>]` (default 0, loopback only) with mandatory
+  `--gdb-stdout-journal=<dir>`, synthetic IR addresses, `target.xml`/memory map,
+  breakpoints/step/continue, monitor, extended restart, an atomic stdout journal
+  and resumable stdin. `--gdb-allow-write` enables restricted writes. Evidence
+  entry points are `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`
+  (232 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
+- **Later stages**: P4b VM debug ELF, P5 and T4–T6 have not started; G11 is incomplete.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
   CFG/reachability/DI, missing returns, call ordering/safety, safety contexts and the
@@ -73,11 +79,11 @@ RTOS, interrupts and concurrency move to 0.0.48.
   corpus and release audit, generated ABI/layout/memory/float fuzz suites, and
   implementation-limit/robustness/checked/scale/far-branch regressions.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
-  inlining); the 0.0.46 baseline stays zero-pass. P4b, P5 and T3–T6 are outside
+  inlining); the 0.0.46 baseline stays zero-pass. P4b, P5 and T4–T6 are outside
   the current completion scope.
-- **Current verification**: 85 registered 0.0.47 CTests (73 at P0, three P1 tests,
-  three P2 tests, one P3 test, two P4a tests, one T1 test and two T2 tests). T2
-  Debug, Release and ASan+UBSan full CTest runs each passed 85/85, and all closing
+- **Current verification**: 90 registered 0.0.47 CTests (73 at P0, three P1 tests,
+  three P2 tests, one P3 test, two P4a tests, one T1 test, two T2 tests and five T3 tests). T3
+  Debug, Release and ASan+UBSan full CTest runs each passed 90/90, and all closing
   checks passed. The accepted
   0.0.46 baseline remains harness 873/873 and coverage 636/636, with G0–G10 PASS.
   **G10 completes the 0.0.46 stage exit; G11 is incomplete**. See
@@ -90,8 +96,8 @@ RTOS, interrupts and concurrency move to 0.0.48.
 | [TC Language and Compiler Specification 0.0.46](docs/TC语言及编译器标准-0.0.46.md) | Sole authority for language semantics, diagnostics, compiler requirements and platform profiles |
 | [TC Native Compiler Design 0.0.46](docs/TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](docs/TC开发测试计划-0.0.46.md) | Stages, gates, coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4a, T1 and T2 implemented |
-| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1 implemented |
+| [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md) | Toolchain scope, contracts, milestones and acceptance; P0/T0–P4a and T1–T3 implemented |
+| [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md) | Project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1–T3 implemented |
 | [Documentation map](docs/README.en.md) | Entry point and reading order |
 
 ## Scope
@@ -114,7 +120,8 @@ src/                  0.0.46 implementation
   frontend/           input num lex parse module sem ct irgen
   ir/                 type instr operand block ir region object address structs pointer_state print
   runtime/            alloc io trap profile module_loader; semantics/format/input
-  vm/                 vm.h interp memory (regions/objects/pointer states/all opcodes)
+  vm/                 vm.h interp memory observe gdb gdb_rsp gdb_journal
+                      (regions/objects/pointer states/all opcodes/GDB stub)
   backend/            common (target-neutral freestanding runtime core/target
                       description); aarch64 (full backend + semihosting/PL011
                       platform instances); arm32 (Cortex-M7 backend + MPS2
@@ -138,7 +145,7 @@ ctest --test-dir .tmp/build --output-on-failure
 The S7/S8/S9/S10 differential/toolchain tests require `clang`, `llvm-ar` (or the
 matching target ar), `ld.lld`, `qemu-system-aarch64`, `qemu-system-arm` and
 `qemu-system-riscv32` by default; P4a DWARF verification also needs
-`llvm-dwarfdump`, and the T2 real-gdb smoke needs `gdb` (or `gdb-multiarch`).
+`llvm-dwarfdump`, and the T2/T3 real-gdb smoke needs `gdb` (or `gdb-multiarch`).
 Configuration fails when a required tool is missing.
 `-DTC_ENABLE_AOT_TESTS=OFF` only skips the lld/qemu-dependent ctest entries;
 building the target runtimes still requires clang and llvm-ar (or the matching
@@ -167,6 +174,10 @@ target ar), and this is not a gate build. Tools currently support:
   (text/jsonl, limit/output) and `--stats` with a separate output destination.
   T2 adds `--dump-linemap[=<path>]`: JSON v3 follows final global IR instruction
   order, with profile-specific synthetic instruction addresses on the VM.
+  T3 adds `--gdb[=<port>]` (default 0, loopback only) with mandatory
+  `--gdb-stdout-journal=<dir>`, breakpoints/step/continue, monitor, extended
+  restart, an atomic stdout journal and resumable stdin. It is read-only by
+  default; `--gdb-allow-write` enables restricted writes.
 - A normal `tc-aot` invocation emits target assembly to stdout after the static
   stages. `--emit=asm` (default)/`--emit=obj`/`--emit=elf`/`--emit=flat` with
   `--output=<path>` produce `.s`, an ELF relocatable/executable or a flat binary;

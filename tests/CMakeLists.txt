@@ -48,6 +48,16 @@ target_link_libraries(tc_vm_test PRIVATE tc_core)
 target_include_directories(tc_vm_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(tc_vm_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
+add_executable(tc_gdb_journal_test unit/gdb_journal_test.c)
+target_link_libraries(tc_gdb_journal_test PRIVATE tc_core)
+target_include_directories(tc_gdb_journal_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_gdb_journal_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
+add_executable(tc_gdb_rsp_test unit/gdb_rsp_test.c)
+target_link_libraries(tc_gdb_rsp_test PRIVATE tc_core)
+target_include_directories(tc_gdb_rsp_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(tc_gdb_rsp_test PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 add_executable(tc_aot_test unit/aot_test.c)
 target_link_libraries(tc_aot_test PRIVATE tc_core)
 target_include_directories(tc_aot_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
@@ -87,6 +97,18 @@ add_test(NAME ct.unit COMMAND tc_ct_test)
 add_test(NAME ir.unit COMMAND tc_ir_test)
 add_test(NAME linemap.unit COMMAND tc_linemap_test)
 add_test(NAME vm.unit COMMAND tc_vm_test)
+add_test(NAME gdb_journal.unit COMMAND tc_gdb_journal_test)
+add_test(NAME gdb_rsp.unit COMMAND tc_gdb_rsp_test)
+add_test(NAME vm.gdb.protocol
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/vm_gdb_protocol_test.py
+                 $<TARGET_FILE:tc-vm>)
+add_test(NAME vm.gdb.semantics
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/vm_gdb_semantics_test.py
+                 $<TARGET_FILE:tc-vm>)
+set_tests_properties(gdb_journal.unit gdb_rsp.unit vm.gdb.protocol vm.gdb.semantics
+                    PROPERTIES LABELS "unit;toolchain;fast" TIMEOUT 180)
 add_test(NAME aot.unit COMMAND tc_aot_test)
 add_test(NAME oom.unit COMMAND tc_oom_test)
 add_test(NAME project.manifest
@@ -222,7 +244,7 @@ if(TC_ENABLE_AOT_TESTS AND
     NOT TC_QEMU_SYSTEM_RISCV32 OR NOT TC_LLD OR NOT TC_LLVM_DWARFDUMP OR
     NOT TC_GDB))
     message(FATAL_ERROR
-        "S7/S9/S10 and T2 AOT tests need qemu-system-aarch64, "
+        "S7/S9/S10 and T2/T3 AOT tests need qemu-system-aarch64, "
         "qemu-system-arm, qemu-system-riscv32, ld.lld, llvm-dwarfdump "
         "and gdb; install them or configure with -DTC_ENABLE_AOT_TESTS=OFF")
 endif()
@@ -245,6 +267,11 @@ if(TC_ENABLE_AOT_TESTS)
                      $<TARGET_FILE:tc-aot> ${TC_QEMU_SYSTEM_AARCH64}
                      "${TC_GDB}")
     set_tests_properties(t2.gdb PROPERTIES LABELS "toolchain;aot")
+    add_test(NAME vm.gdb.e2e
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/vm_gdb_e2e.py
+                     $<TARGET_FILE:tc-vm> "${TC_GDB}")
+    set_tests_properties(vm.gdb.e2e PROPERTIES LABELS "toolchain;aot" TIMEOUT 120)
     add_test(NAME project.paths_aot
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/project/path_aot_test.py --check

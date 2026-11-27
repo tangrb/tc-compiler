@@ -11,15 +11,15 @@ Chinese: [README.md](README.md).
 | [TC Language and Compiler Specification 0.0.46](TC语言及编译器标准-0.0.46.md) | Sole authority for syntax, semantics, diagnostics, compiler requirements and platform profiles (§0–§14; 80 codes) |
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46 |
-| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a implemented |
+| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4a and T1–T3 implemented |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1–T3 implemented |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
 ## Current status
 
 - The 0.0.47 toolchain and project-model designs meet the freeze criteria.
-  P0/T0, P1, P2, P3, P4a, T1 and T2 are complete. `tc --init-project` implements the full
+  P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete. `tc --init-project` implements the full
   template, atomic writes, rollback and identity checks. The compiler consumes
   `tc.project`, canonical roots, ordered include roots and the manifest default
   profile, while keeping canonical paths separate from project-root-relative
@@ -38,13 +38,19 @@ Chinese: [README.md](README.md).
   reusing the final-IR line map for JSON v3, synthetic VM addresses,
   `.loc`/source comments and the DWARF v4 CU. Real gdb through the qemu gdbstub
   verifies `info line`, source breakpoints and single-step; evidence entry points
-  are `t2.debug` and `t2.gdb`. P4b, P5 and T3–T6 have not started, and G11 is incomplete.
+  are `t2.debug` and `t2.gdb`. T3 adds `tc-vm --gdb[=<port>]` (default 0,
+  loopback only) with mandatory `--gdb-stdout-journal=<dir>`, synthetic IR addresses,
+  `target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
+  an atomic stdout journal and resumable stdin; restricted writes require
+  `--gdb-allow-write`. Evidence entry points are `gdb_journal.unit`, `gdb_rsp.unit`,
+  `vm.gdb.protocol` (232 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
+  P4b, P5 and T4–T6 have not started, and G11 is incomplete.
   Language/contract versions remain 0.0.46/1;
   RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**. There are 85 registered 0.0.47 CTests (73 at P0, three P1 tests, three
-  P2 tests, one P3 test, two P4a tests, one T1 test and two T2 tests). T2 Debug,
-  Release and ASan+UBSan full CTest runs each passed 85/85, and all closing checks
+  exit**. There are 90 registered 0.0.47 CTests (73 at P0, three P1 tests, three
+  P2 tests, one P3 test, two P4a tests, one T1 test, two T2 tests and five T3 tests). T3 Debug,
+  Release and ASan+UBSan full CTest runs each passed 90/90, and all closing checks
   passed. The 0.0.46 coverage
   matrix is 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM

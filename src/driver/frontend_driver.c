@@ -18,6 +18,7 @@
 #include "frontend/sem.h"
 #include "project/manifest.h"
 #include "project/paths.h"
+#include "vm/gdb.h"
 #include "vm/observe.h"
 #include "vm/vm.h"
 
@@ -675,7 +676,7 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 goto done;
             }
         }
-        if (options->trace_seen || options->dump_linemap_seen) {
+        if (options->trace_seen || options->dump_linemap_seen || options->gdb) {
             impl = tc_linemap_build(ir, &linemap);
             if (impl != TC_IMPL_OK) {
                 result = print_impl_error(tool_name, impl, NULL);
@@ -702,7 +703,26 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 goto done;
             }
         }
-        if (observed) {
+        if (options->gdb) {
+            TcGdbOptions gdb_options;
+            memset(&gdb_options, 0, sizeof(gdb_options));
+            gdb_options.stdout_journal = options->gdb_stdout_journal;
+            gdb_options.allow_write = options->gdb_allow_write;
+            gdb_options.gdb_port = options->gdb_port;
+            if (observed) {
+                observer.linemap = linemap;
+                observer.kinds = options->trace_kinds;
+                observer.limit = options->trace_limit;
+                observer.jsonl = options->trace_format != NULL &&
+                                 strcmp(options->trace_format, "jsonl") == 0;
+                observer.trace = options->trace_seen ? trace_stream.file : NULL;
+                observer.stats = options->stats;
+                observer.stats_out = &vm_stats;
+            }
+            vm_status = tc_vm_run_gdb(ir, &profile, &vm_result, &vm_impl,
+                                      observed ? &observer : NULL, &vm_stats,
+                                      linemap, &gdb_options);
+        } else if (observed) {
             observer.linemap = linemap;
             observer.kinds = options->trace_kinds;
             observer.limit = options->trace_limit;

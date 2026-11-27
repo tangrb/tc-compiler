@@ -85,6 +85,9 @@ int tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --trace-limit=<n>   maximum trace data records (0 = unlimited)\n"
             "  --stats             emit runtime or static statistics\n"
             "  --stats-out=<path>  statistics destination (default stderr)\n"
+            "  --gdb[=<port>]      serve the VM GDB RSP stub on 127.0.0.1\n"
+            "  --gdb-stdout-journal=<dir>  atomic stdout journal (required with --gdb)\n"
+            "  --gdb-allow-write   allow debugger PC and frame/static/heap writes\n"
             "  --diag-format=text|json  diagnostic encoding (default text)\n"
             "  --version           print version and exit\n"
             "  --help              print this help and exit\n"
@@ -118,6 +121,15 @@ static int parse_uint64(const char *value, uint64_t *out) {
         cursor++;
     }
     *out = parsed;
+    return 1;
+}
+
+static int parse_port(const char *value, unsigned *out) {
+    uint64_t parsed = 0u;
+    if (!parse_uint64(value, &parsed) || parsed > 65535u) {
+        return 0;
+    }
+    *out = (unsigned)parsed;
     return 1;
 }
 
@@ -400,6 +412,44 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
             options->stats_out_seen = 1;
             continue;
         }
+        if (!only_positional && strcmp(arg, "--gdb") == 0) {
+            if (options->gdb_seen) {
+                parse_error(options, "%s: --gdb cannot repeat\n", tool_name);
+            }
+            options->gdb = 1;
+            options->gdb_port = 0u;
+            options->gdb_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--gdb=", 6) == 0) {
+            if (options->gdb_seen) {
+                parse_error(options, "%s: --gdb cannot repeat\n", tool_name);
+            } else if (!parse_port(arg + 6, &options->gdb_port)) {
+                parse_error(options, "%s: invalid --gdb port '%s'\n",
+                            tool_name, arg + 6);
+            }
+            options->gdb = 1;
+            options->gdb_seen = 1;
+            continue;
+        }
+        if (!only_positional &&
+            strncmp(arg, "--gdb-stdout-journal=", 21) == 0) {
+            if (options->gdb_stdout_journal_seen) {
+                parse_error(options, "%s: --gdb-stdout-journal cannot repeat\n",
+                            tool_name);
+            } else if (arg[21] == '\0') {
+                parse_error(options,
+                            "%s: missing value for --gdb-stdout-journal\n",
+                            tool_name);
+            }
+            options->gdb_stdout_journal = arg + 21;
+            options->gdb_stdout_journal_seen = 1;
+            continue;
+        }
+        if (!only_positional && strcmp(arg, "--gdb-allow-write") == 0) {
+            options->gdb_allow_write = 1;
+            continue;
+        }
         if (!only_positional && strncmp(arg, "--diag-format=", 14) == 0) {
             if (options->diag_format_seen) {
                 parse_error(options, "%s: --diag-format cannot repeat\n",
@@ -482,6 +532,19 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                (options->emit_seen || options->output_seen)) {
         parse_error(options,
                     "%s: --emit and --output are not valid with partial checks\n",
+                    tool_name);
+    }
+    if ((options->gdb_stdout_journal_seen || options->gdb_allow_write) &&
+        !options->gdb) {
+        parse_error(options, "%s: GDB auxiliary options require --gdb\n",
+                    tool_name);
+    } else if (options->gdb && strcmp(tool_name, "tc-vm") != 0) {
+        parse_error(options, "%s: --gdb is only available in tc-vm\n",
+                    tool_name);
+    } else if (options->gdb && (options->syntax_only || options->sem_only ||
+                               options->static_only)) {
+        parse_error(options,
+                    "%s: --gdb requires execution rather than a partial check\n",
                     tool_name);
     }
     if (options->parse_error[0] != '\0') {

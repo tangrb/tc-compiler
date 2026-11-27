@@ -1285,6 +1285,7 @@ int tc_vm_push_frame(TcVm *vm, const TcUnit *unit, uint32_t func_id,
     }
     frame = &vm->frames[vm->nframes];
     memset(frame, 0, sizeof(*frame));
+    frame->pending_callee = UINT32_MAX;
     frame->unit = unit;
     frame->info = info;
     frame->func_id = func_id;
@@ -1690,7 +1691,7 @@ int tc_vm_setup(TcVm *vm, const TcIR *ir, const TcPlatformProfile *profile,
     return 1;
 }
 
-void tc_vm_teardown(TcVm *vm) {
+static void clear_frames(TcVm *vm) {
     size_t i;
     if (vm->frames != NULL) {
         for (i = 0; i < vm->nframes; i++) {
@@ -1701,6 +1702,82 @@ void tc_vm_teardown(TcVm *vm) {
             tc_vm_free(vm, vm->frames[i].vreg_obj);
         }
         tc_vm_free(vm, vm->frames);
+    }
+    vm->frames = NULL;
+    vm->nframes = 0;
+    vm->cap_frames = 0;
+}
+
+int tc_vm_debug_push_top(TcVm *vm, uint32_t *out_frame) {
+    size_t i;
+    if (vm == NULL || out_frame == NULL) {
+        return 0;
+    }
+    for (i = 0; i < vm->ir->nunits; i++) {
+        if (vm->ir->units[i].func_id == TC_UNIT_TOP_LEVEL) {
+            return tc_vm_push_frame(vm, &vm->ir->units[i], TC_UNIT_TOP_LEVEL,
+                                    out_frame);
+        }
+    }
+    return tc_vm_impl(vm, TC_IMPL_INTERNAL);
+}
+
+int tc_vm_reset(TcVm *vm) {
+    if (vm == NULL || vm->ir == NULL || vm->profile == NULL) {
+        return 0;
+    }
+    clear_frames(vm);
+    tc_vm_free(vm, vm->objects);
+    tc_vm_free(vm, vm->static_index);
+    tc_vm_free(vm, vm->static_mem);
+    tc_vm_free(vm, vm->static_defined);
+    tc_vm_free(vm, vm->device_mem);
+    vm->objects = NULL;
+    vm->static_index = NULL;
+    vm->static_mem = NULL;
+    vm->static_defined = NULL;
+    vm->device_mem = NULL;
+    vm->nobjects = 0;
+    vm->cap_objects = 0;
+    vm->frame_top = 0;
+    vm->depth = 0;
+    memset(&vm->current_span, 0, sizeof(vm->current_span));
+    vm->current_unit = NULL;
+    vm->current_instr = NULL;
+    vm->current_bb = 0;
+    vm->current_insn = 0;
+    vm->debug_pc = vm->debug_code_base;
+    vm->debug_insns = 0;
+    vm->debug_frame = UINT32_MAX;
+    vm->debug_stop = 0u;
+    vm->debug_single = 0;
+    vm->debug_terminated = 0;
+    vm->trace_records = 0;
+    vm->trace_dropped = 0;
+    vm->trace_started = 0;
+    vm->trace_truncated = 0;
+    if (vm->result != NULL) {
+        memset(vm->result, 0, sizeof(*vm->result));
+    }
+    if (vm->out_impl != NULL) {
+        *vm->out_impl = TC_IMPL_OK;
+    }
+    vm->impl = TC_IMPL_OK;
+    if (vm->stats != NULL) {
+        memset(vm->stats, 0, sizeof(*vm->stats));
+    }
+    if (tc_input_restart(&vm->input) != 0) {
+        return tc_vm_impl(vm, TC_IMPL_OOM);
+    }
+    if (!build_static_storage(vm) || !build_device_storage(vm)) {
+        return 0;
+    }
+    return 1;
+}
+
+void tc_vm_teardown(TcVm *vm) {
+    if (vm->frames != NULL) {
+        clear_frames(vm);
     }
     free_unit_infos(vm);
     tc_vm_free(vm, vm->objects);

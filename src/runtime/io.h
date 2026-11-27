@@ -21,7 +21,8 @@ typedef struct TcIoSink {
 typedef enum {
     TC_IO_OK = 0,
     TC_IO_EOF,
-    TC_IO_ERROR
+    TC_IO_ERROR,
+    TC_IO_AGAIN
 } TcIoStatus;
 
 typedef struct TcIoSrc {

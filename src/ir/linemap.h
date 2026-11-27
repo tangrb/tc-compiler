@@ -44,6 +44,8 @@ TcImplError tc_linemap_build(const TcIR *ir, TcLineMap **out);
 void tc_linemap_destroy(TcLineMap *linemap);
 const TcLineMapEntry *tc_linemap_find_instr(const TcLineMap *linemap,
                                            const TcInstr *instr);
+int tc_linemap_instr_index(const TcLineMap *linemap, const TcInstr *instr,
+                           size_t *out_index);
 TcImplError tc_linemap_write_json(const TcLineMap *linemap, FILE *out,
                                   int include_vm_addr, uint64_t vm_code_base);
 
