@@ -11,8 +11,8 @@ Chinese: [README.md](README.md).
 | [TC Language and Compiler Specification 0.0.46](TC语言及编译器标准-0.0.46.md) | Sole authority for syntax, semantics, diagnostics, compiler requirements and platform profiles (§0–§14; 80 codes) |
 | [TC Native Compiler Design 0.0.46](TC原生编译器设计说明书-0.0.46.md) | Target architecture: flat TAC IR, semantic runtime, platform profiles, backend and phasing |
 | [TC Development Test Plan 0.0.46](TC开发测试计划-0.0.46.md) | S0–S10 stages, gates, code/opcode/chapter coverage and traceability |
-| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4b and T1–T3 implemented |
-| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4b and T1–T3 implemented |
+| [TC Development and Debugging Toolchain 0.0.47](TC开发调试工具链-0.0.47.md) | 0.0.47 toolchain scope, interface contracts, milestones and acceptance; language semantics remain 0.0.46; P0/T0–P4a and T1–T3 implemented, P4b acceptance pending |
+| [TC Project Model 0.0.47](TC工程模型-0.0.47.md) | 0.0.47 project layout, `tc.project`, `tc` init/test, root anchor and path rules; P0–P4a and T1–T3 implemented, P4b acceptance pending |
 | [Gate status](gates/README.en.md) | Current conclusions, evidence entry points and later-stage boundaries |
 | [ABI rule matrix](../tests/conformance/abi/README.md) | AAPCS64/AAPCS32/RISC-V ILP32 reference editions, bidirectional C/TC interop, rule coverage and explicit scope limits |
 
@@ -48,8 +48,9 @@ Chinese: [README.md](README.md).
   all four profiles and an AArch64 real gdb source breakpoint in
   `toolchain.debug_elf`. G11 evidence collection/validation and a manual signing job
   are wired. Local GDB 18.1 narrows 32-bit `code_ptr` to 4 bytes, conflicting with
-  the frozen 64-bit `tc_ir_pc`; this is blocked pending a design ruling, a real signed
-  artifact remains pending, and P4b, P5, T4–T6 and G11 remain incomplete.
+  the frozen 64-bit `tc_ir_pc`; no compliant XML-only representation exists, a
+  design revision and a real signed artifact remain pending, and P4b, P5, T4–T6
+  and G11 remain incomplete.
   Language/contract versions remain 0.0.46/1;
   RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage

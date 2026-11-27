@@ -27,12 +27,13 @@
   生成只含符号与 DWARF v4 行表的 ELF；支持 AArch64、ARM32 与 RISC-V32 档案，
   不调用外部工具，并与 GDBstub 共用合成地址区间校验。
 - **P4b 测试**：新增并注册 `toolchain.debug_elf`，覆盖独立 ELF/DWARF 语义解码、
-  符号/顶层/空函数边界、共享 linemap 全序、CLI 与输出身份/写失败，以及真实 gdb
-  源级断点。
-- **G11 证据基础设施**：新增 `toolchain.g11_evidence`、证据收集/结构校验、provenance
-  源提交与 subject 校验、发布审计 `--require-g11-evidence`，以及要求钉住容器 digest 的
-  手动 Linux 签名作业；本地 GDB 18.1 的 32 位 `code_ptr` 冲突已记录为阻塞，
-  真实签名 artifact 仍待完成。
+  符号/顶层/空函数边界、共享 linemap 全序、CLI 与输出身份/写失败，以及 AArch64
+  真实 gdb 源级断点。
+- **G11 证据基础设施**：新增 `toolchain.g11_evidence`、证据收集/结构校验、精确
+  suite/case/profile 矩阵、仓库限定 signer workflow、provenance 源提交与 subject
+  校验、发布审计 `--require-g11-evidence`，以及要求钉住容器 digest 并匹配仓库批准
+  变量、在签名后实际验证的手动 Linux 作业；本地 GDB 18.1 的 32 位 `code_ptr`
+  冲突已记录为阻塞，真实签名 artifact 仍待完成。
 - **T1 观测能力**：VM/AOT `--dump-ir[=<path>]`；VM `--trace=ir,call,mem,io,trap`，
   支持 `text`/`jsonl`、`--trace-limit=<n>` 与 `--trace-out=<path>`；VM/AOT `--stats`
   与 `--stats-out=<path>`；结构化 trap 上下文、显式输出身份检查与预留保护，以及确定性观测输出。

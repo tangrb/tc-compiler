@@ -314,7 +314,7 @@ def check_docs(failures: list[str]) -> None:
 def check_g11_evidence(failures: list[str], artifact_dir: Path,
                        repo: str) -> None:
     sys.path.insert(0, str(HERE))
-    from g11_evidence import SIGNER_WORKFLOW, verify_evidence  # noqa: E402
+    from g11_evidence import signer_workflow, verify_evidence  # noqa: E402
 
     try:
         proc = subprocess.run(["git", "rev-parse", "HEAD"],
@@ -327,7 +327,12 @@ def check_g11_evidence(failures: list[str], artifact_dir: Path,
     if proc.returncode != 0 or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
         failures.append(f"{CASE_ID}: cannot determine audited commit")
         return
-    failures.extend(verify_evidence(artifact_dir, repo, SIGNER_WORKFLOW, commit))
+    try:
+        workflow = signer_workflow(repo)
+    except ValueError as error:
+        failures.append(f"{CASE_ID}: {error}")
+        return
+    failures.extend(verify_evidence(artifact_dir, repo, workflow, commit))
 
 
 def selftest() -> int:

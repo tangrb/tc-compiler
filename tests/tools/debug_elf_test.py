@@ -502,6 +502,8 @@ def main() -> int:
         cli_checks(vm, aot, cwd)
         gdb_check(vm, gdb, cwd)
     print(f"debug ELF checks: {CHECKS - FAILS}/{CHECKS}")
+    print("evidence-result=toolchain.debug_elf/debug-elf:four-profile-semantic-decode "
+          f"assertions={CHECKS - FAILS}")
     return 1 if FAILS else 0
 
 

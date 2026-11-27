@@ -25,14 +25,43 @@ REQUIRED_PROFILES = {
     "arm32-baremetal",
     "riscv32-baremetal",
 }
-REQUIRED_SUITES = {
-    "toolchain.debug_elf",
-    "vm.gdb.e2e",
-    "toolchain.aot_debug",
-    "toolchain.debug_smoke",
+REQUIRED_SUITE_CASES = {
+    "toolchain.debug_elf": {
+        "debug-elf:four-profile-semantic-decode": REQUIRED_PROFILES,
+    },
+    "vm.gdb.e2e": {
+        "aarch64-linux-user:synthetic-address-breakpoint": {"aarch64-linux-user"},
+        "aarch64-baremetal:synthetic-address-breakpoint": {"aarch64-baremetal"},
+        "arm32-baremetal:synthetic-address-breakpoint": {"arm32-baremetal"},
+        "riscv32-baremetal:synthetic-address-breakpoint": {"riscv32-baremetal"},
+    },
+    "toolchain.aot_debug": {
+        "aot-debug:four-profile-dwarf": REQUIRED_PROFILES,
+    },
+    "toolchain.debug_smoke": {
+        "aarch64-baremetal:qemu-gdbstub-source-breakpoint": {"aarch64-baremetal"},
+    },
 }
+REQUIRED_SUITES = set(REQUIRED_SUITE_CASES)
 SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}\Z")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
+REPO_RE = re.compile(r"[^/\s]+/[^/\s]+\Z")
+GDB_BANNER_RE = re.compile(
+    r"\AGNU gdb \([^)\r\n]+\) [^\r\n]+(?:\r?\n|\Z)")
+
+
+def signer_workflow(repo: str) -> str:
+    if REPO_RE.fullmatch(repo) is None:
+        raise ValueError("repository must be in owner/repo format")
+    return f"{repo}/{SIGNER_WORKFLOW}"
+
+
+def required_suite_profiles(name: str) -> list[str]:
+    return sorted(set().union(*REQUIRED_SUITE_CASES[name].values()))
+
+
+def valid_gdb_banner(value: object) -> bool:
+    return isinstance(value, str) and GDB_BANNER_RE.match(value) is not None
 
 
 def sha256_file(path: Path) -> str:
@@ -59,8 +88,8 @@ def validate_result(data: object, failures: list[str]) -> dict | None:
             SHA256_RE.fullmatch(container_digest) is None:
         failures.append(f"{CASE_ID}: container_digest must be sha256:<64 hex>")
     gdb_version = data.get("gdb_version")
-    if not isinstance(gdb_version, str) or "GNU gdb" not in gdb_version:
-        failures.append(f"{CASE_ID}: gdb_version must contain the raw GNU gdb banner")
+    if not valid_gdb_banner(gdb_version):
+        failures.append(f"{CASE_ID}: gdb_version must begin with a raw GNU gdb banner")
     profiles = data.get("profiles")
     if not isinstance(profiles, list) or not all(isinstance(item, str) for item in profiles):
         failures.append(f"{CASE_ID}: profiles must be a string array")
@@ -85,16 +114,29 @@ def validate_result(data: object, failures: list[str]) -> dict | None:
         else:
             names.append(name)
         suite_profiles = suite.get("profiles")
-        if not isinstance(suite_profiles, list) or not suite_profiles or \
-                not all(isinstance(item, str) and item in REQUIRED_PROFILES
-                        for item in suite_profiles) or \
-                len(set(suite_profiles)) != len(suite_profiles):
+        valid_profiles = isinstance(suite_profiles, list) and bool(suite_profiles) and \
+            all(isinstance(item, str) and item in REQUIRED_PROFILES
+                for item in suite_profiles) and \
+            len(set(suite_profiles)) == len(suite_profiles)
+        if not valid_profiles:
             failures.append(f"{CASE_ID}: {label}.profiles is invalid")
         cases = suite.get("cases")
-        if not isinstance(cases, list) or not cases or \
-                not all(isinstance(item, str) and item and "SKIP" not in item.upper()
-                        for item in cases) or len(set(cases)) != len(cases):
+        valid_cases = isinstance(cases, list) and bool(cases) and \
+            all(isinstance(item, str) and item and "SKIP" not in item.upper()
+                for item in cases) and len(set(cases)) == len(cases)
+        if not valid_cases:
             failures.append(f"{CASE_ID}: {label}.cases must contain unique non-SKIP names")
+        expected_cases = REQUIRED_SUITE_CASES.get(name) if isinstance(name, str) else None
+        if expected_cases is None:
+            failures.append(f"{CASE_ID}: {label}.name is not a required suite")
+        else:
+            expected_profiles = set().union(*expected_cases.values())
+            if not valid_profiles or set(suite_profiles) != expected_profiles:
+                failures.append(
+                    f"{CASE_ID}: {name} must cover exactly {sorted(expected_profiles)}")
+            if not valid_cases or set(cases) != set(expected_cases):
+                failures.append(
+                    f"{CASE_ID}: {name} cases must be exactly {sorted(expected_cases)}")
         count = suite.get("assertions")
         if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
             failures.append(f"{CASE_ID}: {label}.assertions must be a positive integer")
@@ -103,17 +145,6 @@ def validate_result(data: object, failures: list[str]) -> dict | None:
     if set(names) != REQUIRED_SUITES or len(names) != len(REQUIRED_SUITES):
         failures.append(
             f"{CASE_ID}: suites must be exactly {sorted(REQUIRED_SUITES)}")
-    by_name = {
-        suite["name"]: suite
-        for suite in suites
-        if isinstance(suite, dict) and isinstance(suite.get("name"), str)
-    }
-    for name in ("toolchain.debug_elf", "vm.gdb.e2e"):
-        suite = by_name.get(name)
-        profiles = suite.get("profiles") if isinstance(suite, dict) else None
-        if not isinstance(profiles, list) or \
-                set(profiles) != REQUIRED_PROFILES or len(profiles) != len(REQUIRED_PROFILES):
-            failures.append(f"{CASE_ID}: {name} must cover all four profiles")
     total = data.get("assertions")
     if isinstance(total, bool) or not isinstance(total, int) or total != assertions:
         failures.append(f"{CASE_ID}: assertions does not match the suite total")
@@ -203,8 +234,16 @@ def validate_transcript(transcript: str, data: dict,
         for case in suite["cases"]:
             expected_cases.add(f"{suite['name']}/{case}")
     actual_cases: dict[str, int] = {}
+    actual_results: dict[str, int] = {}
     actual_suites: dict[str, int] = {}
     for line in lines:
+        match = re.fullmatch(r"evidence-result=(.+) assertions=(\d+)", line)
+        if match is not None:
+            name, count = match.group(1), int(match.group(2))
+            if name in actual_results:
+                failures.append(f"{CASE_ID}: duplicate transcript result {name}")
+            actual_results[name] = count
+            continue
         match = re.fullmatch(r"evidence-case=(.+) assertions=(\d+)", line)
         if match is not None:
             name, count = match.group(1), int(match.group(2))
@@ -220,11 +259,16 @@ def validate_transcript(transcript: str, data: dict,
             actual_suites[name] = count
     if set(actual_cases) != set(expected_cases):
         failures.append(f"{CASE_ID}: transcript cases do not match result.json")
+    if set(actual_results) != set(expected_cases):
+        failures.append(f"{CASE_ID}: transcript results do not match result.json")
     if set(actual_suites) != set(expected_suites):
         failures.append(f"{CASE_ID}: transcript suites do not match result.json")
     for name, count in actual_cases.items():
         if count <= 0:
             failures.append(f"{CASE_ID}: transcript case {name} has no assertions")
+    for name, count in actual_results.items():
+        if actual_cases.get(name) != count:
+            failures.append(f"{CASE_ID}: transcript result {name} total does not match case")
     for name, count in actual_suites.items():
         if expected_suites.get(name) != count:
             failures.append(f"{CASE_ID}: transcript suite {name} total does not match result.json")
@@ -313,6 +357,14 @@ def assertion_count(output: str) -> int:
     return sum(int(item) for item in matches)
 
 
+def evidence_result_count(output: str, name: str) -> int:
+    matches = re.findall(
+        rf"(?m)^evidence-result={re.escape(name)} assertions=(\d+)$", output)
+    if len(matches) != 1:
+        return 0
+    return int(matches[0])
+
+
 def collect_evidence(build_dir: Path, output_dir: Path,
                      container_digest: str) -> int:
     failures: list[str] = []
@@ -333,26 +385,21 @@ def collect_evidence(build_dir: Path, output_dir: Path,
     version = subprocess.run([gdb, "--version"], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, timeout=30)
     gdb_version = (version.stdout + version.stderr).decode("utf-8", "replace")
-    if version.returncode != 0 or "GNU gdb" not in gdb_version:
-        raise RuntimeError("gdb --version did not report a GNU gdb banner")
+    if version.returncode != 0 or not valid_gdb_banner(gdb_version):
+        raise RuntimeError("gdb --version did not report a raw GNU gdb banner")
     python = sys.executable
     specs = (
         {
             "name": "toolchain.debug_elf",
-            "profiles": sorted(REQUIRED_PROFILES),
-            "cases": ["debug-elf:four-profile-semantic-decode"],
+            "profiles": required_suite_profiles("toolchain.debug_elf"),
+            "cases": list(REQUIRED_SUITE_CASES["toolchain.debug_elf"]),
             "commands": [[python, str(ROOT / "tests" / "tools" / "debug_elf_test.py"),
                           str(vm), str(aot), dwarfdump, gdb]],
         },
         {
             "name": "vm.gdb.e2e",
-            "profiles": sorted(REQUIRED_PROFILES),
-            "cases": [
-                "aarch64-linux-user:source-breakpoint",
-                "aarch64-baremetal:source-breakpoint",
-                "arm32-baremetal:source-breakpoint",
-                "riscv32-baremetal:source-breakpoint",
-            ],
+            "profiles": required_suite_profiles("vm.gdb.e2e"),
+            "cases": list(REQUIRED_SUITE_CASES["vm.gdb.e2e"]),
             "commands": [
                 [python, str(ROOT / "tests" / "tools" / "vm_gdb_e2e.py"),
                  str(vm), gdb, "--profile=aarch64-linux-user"],
@@ -366,16 +413,16 @@ def collect_evidence(build_dir: Path, output_dir: Path,
         },
         {
             "name": "toolchain.aot_debug",
-            "profiles": sorted(REQUIRED_PROFILES),
-            "cases": ["aot-debug:four-profile-dwarf"],
+            "profiles": required_suite_profiles("toolchain.aot_debug"),
+            "cases": list(REQUIRED_SUITE_CASES["toolchain.aot_debug"]),
             "commands": [[python, str(ROOT / "tests" / "conformance" / "tools" /
                                       "p4a_debug_cases.py"), "--check",
                           str(fixture), dwarfdump]],
         },
         {
             "name": "toolchain.debug_smoke",
-            "profiles": ["aarch64-baremetal"],
-            "cases": ["aarch64-baremetal:qemu-gdbstub-source-breakpoint"],
+            "profiles": required_suite_profiles("toolchain.debug_smoke"),
+            "cases": list(REQUIRED_SUITE_CASES["toolchain.debug_smoke"]),
             "commands": [[python, str(ROOT / "tests" / "tools" / "t2_gdb_test.py"),
                           str(aot), qemu, gdb]],
         },
@@ -407,12 +454,13 @@ def collect_evidence(build_dir: Path, output_dir: Path,
                     failures.append(f"{spec['name']}/{case}: command failed")
                 if "SKIP:" in output:
                     failures.append(f"{spec['name']}/{case}: SKIP is not PASS")
-                count = assertion_count(output)
+                count = evidence_result_count(output, f"{spec['name']}/{case}")
                 checks = re.search(r"debug ELF checks: (\d+)/(\d+)", output)
                 if checks is not None and checks.group(1) != checks.group(2):
                     failures.append(f"{spec['name']}/{case}: incomplete assertion run")
                 if count <= 0:
-                    failures.append(f"{spec['name']}/{case}: no assertion count was reported")
+                    failures.append(
+                        f"{spec['name']}/{case}: missing or invalid evidence-result marker")
                 suite_assertions += count
                 transcript.write(
                     f"evidence-case={spec['name']}/{case} assertions={count}\n")
@@ -451,11 +499,12 @@ def collect_evidence(build_dir: Path, output_dir: Path,
 def valid_fixture(directory: Path) -> dict:
     suites = []
     for name in sorted(REQUIRED_SUITES):
+        case_profiles = REQUIRED_SUITE_CASES[name]
         suites.append({
             "name": name,
-            "profiles": sorted(REQUIRED_PROFILES),
-            "cases": [f"{name}:source-breakpoint"],
-            "assertions": 1,
+            "profiles": required_suite_profiles(name),
+            "cases": list(case_profiles),
+            "assertions": len(case_profiles),
         })
     gdb_version = "GNU gdb (GDB) 18.1\n"
     lines = [
@@ -467,8 +516,10 @@ def valid_fixture(directory: Path) -> dict:
     for suite in suites:
         for case in suite["cases"]:
             lines.append(
+                f"evidence-result={suite['name']}/{case} assertions=1")
+            lines.append(
                 f"evidence-case={suite['name']}/{case} assertions=1")
-        lines.append(f"evidence-suite={suite['name']} assertions=1")
+        lines.append(f"evidence-suite={suite['name']} assertions={suite['assertions']}")
     transcript = directory / "transcript.log"
     transcript.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {
@@ -479,7 +530,7 @@ def valid_fixture(directory: Path) -> dict:
         "gdb_version": gdb_version,
         "profiles": sorted(REQUIRED_PROFILES),
         "suites": suites,
-        "assertions": len(suites),
+        "assertions": sum(suite["assertions"] for suite in suites),
         "transcript_sha256": sha256_file(transcript),
     }
 
@@ -492,13 +543,21 @@ def write_fixture(directory: Path, data: dict) -> None:
 def selftest() -> int:
     if assertion_count("debug ELF checks: 7/8") != 7 or \
             assertion_count("suite passed: 11 checks") != 11 or \
-            assertion_count("SKIP: no checks") != 0:
+            assertion_count("SKIP: no checks") != 0 or \
+            evidence_result_count(
+                "evidence-result=suite/case assertions=9\n", "suite/case") != 9 or \
+            evidence_result_count(
+                "evidence-result=suite/other assertions=9\n", "suite/case") != 0 or \
+            evidence_result_count(
+                "evidence-result=suite/case assertions=9\n"
+                "evidence-result=suite/case assertions=9\n", "suite/case") != 0:
         print("release evidence selftest: assertion counter is incorrect")
         return 1
     (ROOT / ".tmp").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="g11-evidence-", dir=ROOT / ".tmp") as tmp:
         directory = Path(tmp)
         data = valid_fixture(directory)
+        workflow = signer_workflow("owner/repo")
         write_fixture(directory, data)
         failures: list[str] = []
         validate_result(data, failures)
@@ -511,13 +570,21 @@ def selftest() -> int:
             lambda value: value.update(commit="short"),
             lambda value: value.update(container_digest="sha256:bad"),
             lambda value: value.update(gdb_version="unknown"),
+            lambda value: value.update(gdb_version="prefix GNU gdb (GDB) 18.1\n"),
             lambda value: value.update(profiles=["aarch64-linux-user"]),
             lambda value: value.update(suites=value["suites"][:-1]),
             lambda value: value["suites"][0].update(assertions=0),
             lambda value: value["suites"][0].update(cases=["SKIP: gdb"]),
+            lambda value: value["suites"][0].update(cases=["fabricated:pass"]),
             lambda value: value["suites"][0].update(name=[]),
             lambda value: value["suites"][0].update(
                 profiles=sorted(REQUIRED_PROFILES) + ["arm32-baremetal"]),
+            lambda value: next(suite for suite in value["suites"]
+                               if suite["name"] == "vm.gdb.e2e").update(
+                                   cases=["arm32-baremetal:source-breakpoint"]),
+            lambda value: next(suite for suite in value["suites"]
+                               if suite["name"] == "toolchain.debug_smoke").update(
+                                   profiles=sorted(REQUIRED_PROFILES)),
             lambda value: value.update(assertions=value["assertions"] + 1),
             lambda value: value.update(transcript_sha256="0" * 64),
         )
@@ -537,6 +604,14 @@ def selftest() -> int:
         transcript_mutations = (
             transcript.replace("assertions=1", "assertions=0", 1),
             transcript.replace("evidence-suite=toolchain.aot_debug assertions=1\n", ""),
+            transcript.replace(
+                "evidence-result=toolchain.aot_debug/"
+                "aot-debug:four-profile-dwarf assertions=1\n", ""),
+            transcript.replace(
+                "evidence-result=toolchain.aot_debug/"
+                "aot-debug:four-profile-dwarf assertions=1\n",
+                "evidence-result=toolchain.aot_debug/"
+                "aot-debug:four-profile-dwarf assertions=2\n"),
             transcript.replace('gdb_version_json="GNU gdb (GDB) 18.1\\n"',
                                'gdb_version_json="unknown"'),
             transcript + "evidence-case=toolchain.aot_debug/aot-debug:four-profile-dwarf assertions=1\n",
@@ -551,7 +626,7 @@ def selftest() -> int:
         try:
             subprocess.run = lambda *args, **kwargs: subprocess.CompletedProcess(
                 args[0], 1, stdout=b"", stderr=b"signature invalid")
-            failures = verify_evidence(directory, "owner/repo", ".github/workflows/ci.yml")
+            failures = verify_evidence(directory, "owner/repo", workflow)
         finally:
             subprocess.run = original_run
         if not failures:
@@ -562,10 +637,14 @@ def selftest() -> int:
         def verified_run(*args, **kwargs):
             command = args[0]
             path = Path(command[3])
-            if "--source-digest" not in command or \
+            if "--repo" not in command or \
+                    command[command.index("--repo") + 1] != "owner/repo" or \
+                    "--signer-workflow" not in command or \
+                    command[command.index("--signer-workflow") + 1] != workflow or \
+                    "--source-digest" not in command or \
                     command[command.index("--source-digest") + 1] != "a" * 40:
                 return subprocess.CompletedProcess(
-                    command, 1, stdout=b"", stderr=b"source digest missing")
+                    command, 1, stdout=b"", stderr=b"attestation policy mismatch")
             payload = [{
                 "verificationResult": {
                     "statement": {
@@ -582,7 +661,7 @@ def selftest() -> int:
         try:
             shutil.which = lambda name: "/usr/bin/gh" if name == "gh" else original_which(name)
             subprocess.run = verified_run
-            failures = verify_evidence(directory, "owner/repo", ".github/workflows/ci.yml")
+            failures = verify_evidence(directory, "owner/repo", workflow)
         finally:
             subprocess.run = original_run
             shutil.which = original_which
@@ -599,7 +678,7 @@ def selftest() -> int:
                         },
                     },
                 }]).encode(), stderr=b"")
-            failures = verify_evidence(directory, "owner/repo", ".github/workflows/ci.yml")
+            failures = verify_evidence(directory, "owner/repo", workflow)
         finally:
             subprocess.run = original_run
             shutil.which = original_which
@@ -636,8 +715,13 @@ def main() -> int:
     if not args.repo:
         print(f"{CASE_ID}: --repo or GITHUB_REPOSITORY is required")
         return 2
+    try:
+        workflow = signer_workflow(args.repo)
+    except ValueError as error:
+        print(f"{CASE_ID}: {error}")
+        return 2
     failures = verify_evidence(args.check.resolve(), args.repo,
-                               SIGNER_WORKFLOW, args.commit)
+                               workflow, args.commit)
     if failures:
         for failure in failures:
             print(failure)

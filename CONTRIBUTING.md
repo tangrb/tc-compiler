@@ -53,7 +53,8 @@ VM/AOT `--dump-linemap[=<path>]`、公开 `tc-aot --debug`、DWARF v4 CU 与真�
 qemu gdbstub/gdb 冒烟。T3 已实现 `tc-vm --gdb[=<port>]`（默认 0，仅 loopback）、
 强制 stdout journal、合成 IR 地址/`target.xml`、断点/单步/继续、monitor/extended
 restart、原子 stdout journal、可恢复 stdin 与可选受限写入。P4b 已实现
-`tc-vm --gdb-elf-out=<path>` 的私有调试 ELF writer 与真实 gdb 源级验收。
+`tc-vm --gdb-elf-out=<path>` 的私有调试 ELF writer、四种档案独立语义解码与
+AArch64 真实 gdb 源级验收；32 位真实 gdb 验收仍受冻结契约冲突阻塞。
 P1/P2/P3/P4a/P4b/T1/T2/T3 测试入口为 `project.manifest`、`project.init`、
 `project.init_fault`、`project.paths_unit`、`project.paths`、`project.paths_aot`、
 `project.test_runner`、`linemap.unit`、`p4a.debug`、`toolchain.debug_elf`、

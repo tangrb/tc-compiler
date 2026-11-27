@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       container_digest:
-        description: Pinned ubuntu:26.04 manifest digest (sha256:<64 hex>)
+        description: Pinned ubuntu:26.04 digest matching TC_GDB_CONTAINER_DIGEST repository variable
         required: true
         type: string
 
@@ -41,7 +41,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-riscv gdb
+          sudo apt-get install -y -qq clang lld llvm qemu-system-aarch64 qemu-system-arm qemu-system-riscv gdb
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -85,9 +85,15 @@ jobs:
       - name: Collect real GDB evidence
         env:
           TC_CONTAINER_DIGEST: ${{ inputs.container_digest }}
+          TC_APPROVED_CONTAINER_DIGEST: ${{ vars.TC_GDB_CONTAINER_DIGEST }}
         run: |
           if [[ ! "$TC_CONTAINER_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "container_digest must be sha256:<64 lowercase hex>" >&2
+            exit 2
+          fi
+          if [[ ! "$TC_APPROVED_CONTAINER_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || \
+             [[ "$TC_CONTAINER_DIGEST" != "$TC_APPROVED_CONTAINER_DIGEST" ]]; then
+            echo "container_digest must match the approved TC_GDB_CONTAINER_DIGEST repository variable" >&2
             exit 2
           fi
           docker run --rm \
@@ -116,6 +122,19 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: build/gdb-e2e/transcript.log
+
+      - name: Verify signed evidence and release audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang lld llvm gh
+          mkdir -p .tmp
+          sudo chown "$(id -u):$(id -g)" .tmp
+          TMPDIR="$PWD/.tmp" python3 tests/tools/s10_release_audit.py \
+            --check \
+            --require-g11-evidence=build/gdb-e2e \
+            --g11-repo="$GITHUB_REPOSITORY"
 
       - name: Upload GDB evidence
         uses: actions/upload-artifact@v4

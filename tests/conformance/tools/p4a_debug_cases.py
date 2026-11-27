@@ -543,6 +543,8 @@ def main() -> int:
     shutil.rmtree(temporary, ignore_errors=True)
     print(f"{CASE_ID}: shared line map, AOT locations, DWARF v4 and "
           f"cross-root artifacts passed ({CHECKS} checks)")
+    print("evidence-result=toolchain.aot_debug/aot-debug:four-profile-dwarf "
+          f"assertions={CHECKS}")
     return 0
 
 

@@ -202,9 +202,17 @@ contract check.
   `qSupported` accepts a negotiated feature suffix, and `qXfer` accepts the GDB
   comma-separated `offset,length` form as well as the original colon form.
 - Local GDB 18.1 narrows a 32-bit architecture `code_ptr` register to 4 bytes even
-  when `target.xml` declares 64 bits. Under the frozen 64-bit `tc_ir_pc` contract,
-  ARM32/RISC-V32 real-GDB sessions are therefore blocked pending a design ruling;
-  changing the register to `uint64` is not an implementation-only workaround.
+  when `target.xml` declares 64 bits. GDB maps the predefined `code_ptr` type to
+  the architecture's builtin function-pointer type; the register `bitsize`
+  controls the RSP byte layout, not that type's width. Target descriptions can
+  define composite types but not replacement fundamental pointer types. Under
+  the frozen 64-bit `tc_ir_pc` contract, ARM32/RISC-V32 real-GDB sessions are
+  therefore blocked with no compliant XML-only representation. Changing the
+  register to `uint64` or renaming a composite type is a design revision, not an
+  implementation-only workaround. The minimal future revision is to permit
+  `uint64` for the synthetic `tc_ir_pc` register only, retaining its 64-bit width,
+  register numbers and 100/164-byte 32-bit `g` packets while architectural `pc`
+  remains 32-bit `code_ptr`; this revision is not approved or applied here.
   Their ELF/DWARF semantics and RSP register layouts remain independently tested.
   AArch64 real-GDB tests mark the synthetic range writable in the client so GDB
   selects `Z0`; the stub still implements breakpoints without code-memory writes.

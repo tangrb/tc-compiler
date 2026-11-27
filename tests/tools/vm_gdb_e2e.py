@@ -77,6 +77,8 @@ def main() -> int:
         finally:
             stub.close()
     print(f"vm.gdb.e2e: {protocol.CHECKS} checks passed ({args.profile})")
+    print(f"evidence-result=vm.gdb.e2e/{args.profile}:synthetic-address-breakpoint "
+          f"assertions={protocol.CHECKS}")
     return 0
 
 

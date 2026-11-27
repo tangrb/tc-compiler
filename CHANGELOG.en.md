@@ -36,12 +36,14 @@
   external tools and shares synthetic-range validation with the GDB stub.
 - **P4b tests**: register `toolchain.debug_elf`; cover independent ELF/DWARF semantic
   decoding, symbol/top-level/empty-function boundaries, shared line-map order, CLI and
-  output identity/write failures, and a real gdb source breakpoint.
+  output identity/write failures, and an AArch64 real gdb source breakpoint.
 - **G11 evidence infrastructure**: add `toolchain.g11_evidence`, evidence collection
-  and structural validation, provenance source-commit/subject checks, release-audit
-  `--require-g11-evidence`, and a manual Linux signing job requiring a pinned container
-  digest. Local GDB 18.1 has a recorded 32-bit `code_ptr` conflict, and a real signed
-  artifact remains pending.
+  and structural validation, an exact suite/case/profile matrix, repository-qualified
+  signer workflow, provenance source-commit/subject checks, release-audit
+  `--require-g11-evidence`, and a manual Linux job requiring a pinned container digest
+  that matches an approved repository variable and verifying signatures after
+  attestation. Local GDB 18.1 has a recorded 32-bit `code_ptr` conflict, and a real
+  signed artifact remains pending.
 - **T1 observation**: VM/AOT `--dump-ir[=<path>]`; VM
   `--trace=ir,call,mem,io,trap` with `text`/`jsonl`, `--trace-limit=<n>` and
   `--trace-out=<path>`; VM/AOT `--stats` with `--stats-out=<path>`; structured trap

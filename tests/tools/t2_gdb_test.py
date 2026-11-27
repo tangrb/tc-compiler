@@ -142,6 +142,9 @@ def main() -> int:
                   f"qemu smoke failed: {qemu_process.returncode} "
                   f"{qemu_stdout!r} {qemu_stderr!r}")
     print(f"T2 real gdb smoke passed: {CHECKS} checks")
+    print("evidence-result=toolchain.debug_smoke/"
+          "aarch64-baremetal:qemu-gdbstub-source-breakpoint "
+          f"assertions={CHECKS}")
     return 0
 
 

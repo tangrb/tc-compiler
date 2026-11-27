@@ -467,11 +467,11 @@ def journal_failure(tool: str, base: Path) -> None:
 
 def profile_views(tool: str, base: Path) -> None:
     profiles = (
-        ("w32", "aarch64", 38, 0x20, 8),
-        ("arm32-baremetal", "arm", 21, 0x0F, 4),
-        ("riscv32-baremetal", "riscv:rv32", 37, 0x20, 4),
+        ("w32", "aarch64", 38, 0x20, 8, 300),
+        ("arm32-baremetal", "arm", 21, 0x0F, 4, 100),
+        ("riscv32-baremetal", "riscv:rv32", 37, 0x20, 4, 164),
     )
-    for profile, architecture, register_count, pc_reg, pc_size in profiles:
+    for profile, architecture, register_count, pc_reg, pc_size, g_size in profiles:
         root = base / f"profile-{profile}"
         stub = Stub(tool, root, profile=profile, allow_write=True)
         try:
@@ -492,8 +492,14 @@ def profile_views(tool: str, base: Path) -> None:
             check(pc_reply == BASE32.to_bytes(pc_size, "little").hex().encode(),
                   f"{profile} architectural PC width and synthetic base: {pc_reply!r}")
             tc_pc = c.send_packet(f"p{register_count - 4:x}".encode())
-            check(tc_pc == BASE32.to_bytes(8, "little").hex().encode(),
-                  f"{profile} 64-bit TC IR PC")
+            tc_pc_reg = next(reg for reg in regs if reg.attrib["name"] == "tc_ir_pc")
+            g_packet = c.send_packet(b"g")
+            check(tc_pc == BASE32.to_bytes(8, "little").hex().encode() and
+                  tc_pc_reg.attrib["bitsize"] == "64" and
+                  tc_pc_reg.attrib["type"] == "code_ptr" and
+                  len(g_packet) == g_size * 2,
+                  f"{profile} frozen TC IR PC register and {g_size}-byte g packet: "
+                  f"{tc_pc!r}, {tc_pc_reg.attrib}, g={len(g_packet) // 2}")
             memory_xml = ET.fromstring(c.q_xfer("memory-map:read", length=113))
             nodes = memory_xml.findall("memory")
             check(len(nodes) == 5 and
