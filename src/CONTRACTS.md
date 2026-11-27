@@ -204,18 +204,17 @@ contract check.
 - Local GDB 18.1 narrows a 32-bit architecture `code_ptr` register to 4 bytes even
   when `target.xml` declares 64 bits. GDB maps the predefined `code_ptr` type to
   the architecture's builtin function-pointer type; the register `bitsize`
-  controls the RSP byte layout, not that type's width. Target descriptions can
-  define composite types but not replacement fundamental pointer types. Under
-  the frozen 64-bit `tc_ir_pc` contract, ARM32/RISC-V32 real-GDB sessions are
-  therefore blocked with no compliant XML-only representation. Changing the
-  register to `uint64` or renaming a composite type is a design revision, not an
-  implementation-only workaround. The minimal future revision is to permit
-  `uint64` for the synthetic `tc_ir_pc` register only, retaining its 64-bit width,
-  register numbers and 100/164-byte 32-bit `g` packets while architectural `pc`
-  remains 32-bit `code_ptr`; this revision is not approved or applied here.
-  Their ELF/DWARF semantics and RSP register layouts remain independently tested.
-  AArch64 real-GDB tests mark the synthetic range writable in the client so GDB
-  selects `Z0`; the stub still implements breakpoints without code-memory writes.
+  controls the RSP byte layout, not that type's width. The synthetic `tc_ir_pc`
+  therefore uses `uint64` on every profile, retaining its 64-bit width, register
+  numbers and 100/164-byte 32-bit `g` packets; architectural `pc` remains 32-bit
+  `code_ptr` on ARM32/RISC-V32. ELF/DWARF semantics and RSP register layouts are
+  independently tested. Real-GDB tests mark the synthetic range writable in the
+  client so GDB selects `Z0`; the stub accepts kind=4 and the kind=2 sent by ARM
+  Thumb and RISC-V compressed-instruction clients, but maps both to 4-byte IR
+  boundaries without code-memory writes. ARM clients force Thumb mode when
+  loading the debug ELF. GDB 18.1's ARM `stepi` requires an unavailable `sp`,
+  so the ARM real-GDB test sends the RSP `s` packet and flushes GDB's register
+  cache instead of fabricating architectural registers.
 - GDB execution is passive with respect to program stdout, trap and exit parity.
   Extended restart (`RXX`) preserves committed I/O and unconsumed input but resets
   execution state.

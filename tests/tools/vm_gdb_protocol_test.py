@@ -467,11 +467,11 @@ def journal_failure(tool: str, base: Path) -> None:
 
 def profile_views(tool: str, base: Path) -> None:
     profiles = (
-        ("w32", "aarch64", 38, 0x20, 8, 300),
-        ("arm32-baremetal", "arm", 21, 0x0F, 4, 100),
-        ("riscv32-baremetal", "riscv:rv32", 37, 0x20, 4, 164),
+        ("w32", "aarch64", 38, 0x20, 8, 300, 4),
+        ("arm32-baremetal", "arm", 21, 0x0F, 4, 100, 2),
+        ("riscv32-baremetal", "riscv:rv32", 37, 0x20, 4, 164, 2),
     )
-    for profile, architecture, register_count, pc_reg, pc_size, g_size in profiles:
+    for profile, architecture, register_count, pc_reg, pc_size, g_size, bp_kind in profiles:
         root = base / f"profile-{profile}"
         stub = Stub(tool, root, profile=profile, allow_write=True)
         try:
@@ -496,9 +496,9 @@ def profile_views(tool: str, base: Path) -> None:
             g_packet = c.send_packet(b"g")
             check(tc_pc == BASE32.to_bytes(8, "little").hex().encode() and
                   tc_pc_reg.attrib["bitsize"] == "64" and
-                  tc_pc_reg.attrib["type"] == "code_ptr" and
+                  tc_pc_reg.attrib["type"] == "uint64" and
                   len(g_packet) == g_size * 2,
-                  f"{profile} frozen TC IR PC register and {g_size}-byte g packet: "
+                  f"{profile} 64-bit TC IR PC register and {g_size}-byte g packet: "
                   f"{tc_pc!r}, {tc_pc_reg.attrib}, g={len(g_packet) // 2}")
             memory_xml = ET.fromstring(c.q_xfer("memory-map:read", length=113))
             nodes = memory_xml.findall("memory")
@@ -508,11 +508,18 @@ def profile_views(tool: str, base: Path) -> None:
                   f"{profile} five-region 32-bit memory map")
             check(c.send_packet(f"m{BASE32:x},4".encode()) == b"00000000",
                   f"{profile} synthetic code reads as zero")
-            check(c.send_packet(f"Z0,{call_address:x},4".encode()) == b"OK",
-                  f"{profile} instruction breakpoint")
+            check(c.send_packet(f"Z0,{call_address:x},{bp_kind}".encode()) == b"OK",
+                  f"{profile} instruction breakpoint kind {bp_kind}")
+            check(c.send_packet(f"Z0,{call_address:x},3".encode()) == b"E01",
+                  f"{profile} rejects unsupported breakpoint kind")
+            check(c.send_packet(f"Z0,{call_address:x},".encode()) == b"E01",
+                  f"{profile} rejects missing breakpoint kind")
+            if bp_kind == 4:
+                check(c.send_packet(f"Z0,{call_address:x},2".encode()) == b"E01",
+                      f"{profile} rejects non-native breakpoint kind")
             check(c.send_packet(b"c") == b"T05thread:1;",
                   f"{profile} breakpoint stop")
-            check(c.send_packet(f"z0,{call_address:x},4".encode()) == b"OK",
+            check(c.send_packet(f"z0,{call_address:x},{bp_kind}".encode()) == b"OK",
                   f"{profile} breakpoint removal")
             check(c.send_packet(b"D") == b"OK", f"{profile} detach")
             c.close()

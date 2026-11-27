@@ -43,14 +43,15 @@ Chinese: [README.md](README.md).
   `target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
   an atomic stdout journal and resumable stdin; restricted writes require
   `--gdb-allow-write`. Evidence entry points are `gdb_journal.unit`, `gdb_rsp.unit`,
-  `vm.gdb.protocol` (235 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
+  `vm.gdb.protocol` (242 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
   P4b adds `tc-vm --gdb-elf-out=<path>`, with independent ELF/DWARF decoding for
-  all four profiles and an AArch64 real gdb source breakpoint in
-  `toolchain.debug_elf`. G11 evidence collection/validation and a manual signing job
-  are wired. Local GDB 18.1 narrows 32-bit `code_ptr` to 4 bytes, conflicting with
-  the frozen 64-bit `tc_ir_pc`; no compliant XML-only representation exists, a
-  design revision and a real signed artifact remain pending, and P4b, P5, T4–T6
-  and G11 remain incomplete.
+  all four profiles. `toolchain.debug_elf` passes real-gdb debug ELF, source
+  breakpoints, 64-bit `tc_ir_pc` reads, IR single-step and program-semantic
+  regressions across all four profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`,
+  architecture PCs remain 32-bit `code_ptr`, and ARM/RISC-V Z0 kind=2 is accepted.
+  G11 evidence collection/validation and a manual signing job are wired. A real
+  signed artifact from fixed Linux CI remains pending, so P4b formal acceptance
+  and G11 are incomplete; P5 and T4–T6 have not started.
   Language/contract versions remain 0.0.46/1;
   RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage

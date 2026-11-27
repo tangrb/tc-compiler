@@ -66,15 +66,17 @@ It exposes synthetic IR addresses and `target.xml`/memory map, supports
 breakpoints/step/continue, monitor and extended restart, and provides an atomic
 stdout journal plus resumable stdin. Writes are rejected by default;
 `--gdb-allow-write` enables restricted writes. Evidence entry points are
-`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (235 checks),
+`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (242 checks),
 `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast, while e2e is not.
 P4b adds `vm/debug_elf.c`, a private ELF/DWARF writer for
 `tc-vm --gdb-elf-out=<path>`. It reuses the shared line map and synthetic addresses,
 emits source function symbols and DWARF v4 lines without external tools, and covers
 AArch64, ARM32 and RISC-V32 profiles. Its evidence entry point is
 `toolchain.debug_elf`. G11 evidence collection/validation and a manual signing job
-are wired through `tests/tools/g11_evidence.py`; 32-bit real-GDB compatibility and a
-real signed artifact remain pending, so P4b remains incomplete; P5 and T4–T6 have not started. Compiler and observation output guards protect
+are wired through `tests/tools/g11_evidence.py`; local real-GDB validation passed across
+all four profiles, but a real signed artifact from fixed Linux CI remains pending, so
+P4b formal acceptance is incomplete; P5 and T4–T6 have not started. Compiler and
+observation output guards protect
 stdio, project inputs, explicit outputs and reservations before publishing diagnostics
 or artifacts.
 

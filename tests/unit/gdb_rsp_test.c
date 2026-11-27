@@ -68,7 +68,7 @@ static void check_target_xml(void) {
     CHECK(strstr(xml, "org.gnu.gdb.aarch64.core") != NULL);
     CHECK(strstr(xml, "name=\"pc\" bitsize=\"64\" type=\"code_ptr\" regnum=\"32\"") !=
           NULL);
-    CHECK(strstr(xml, "name=\"tc_ir_pc\" bitsize=\"64\" type=\"code_ptr\" "
+    CHECK(strstr(xml, "name=\"tc_ir_pc\" bitsize=\"64\" type=\"uint64\" "
                       "regnum=\"34\"") != NULL);
     CHECK(strstr(xml, "org.tc.ir") != NULL);
 
@@ -78,14 +78,16 @@ static void check_target_xml(void) {
     CHECK(strstr(xml, "org.gnu.gdb.arm.m-profile") != NULL);
     CHECK(strstr(xml, "name=\"pc\" bitsize=\"32\" type=\"code_ptr\" regnum=\"15\"") !=
           NULL);
-    CHECK(strstr(xml, "name=\"tc_ir_pc\" bitsize=\"64\" type=\"code_ptr\" "
+    CHECK(strstr(xml, "name=\"tc_ir_pc\" bitsize=\"64\" type=\"uint64\" "
                       "regnum=\"17\"") != NULL);
 
     CHECK(tc_profile_init_riscv32_baremetal(&profile));
     CHECK(tc_gdb_rsp_target_xml(&profile, xml, sizeof(xml)) == 0);
     CHECK(strstr(xml, "<architecture>riscv:rv32</architecture>") != NULL);
     CHECK(strstr(xml, "org.gnu.gdb.riscv.cpu") != NULL);
-    CHECK(strstr(xml, "name=\"tc_ir_pc\" bitsize=\"64\" type=\"code_ptr\" "
+    CHECK(strstr(xml, "name=\"pc\" bitsize=\"32\" type=\"code_ptr\" regnum=\"32\"") !=
+          NULL);
+    CHECK(strstr(xml, "name=\"tc_ir_pc\" bitsize=\"64\" type=\"uint64\" "
                       "regnum=\"33\"") != NULL);
 
     CHECK(tc_profile_init_generic_w32(&profile));

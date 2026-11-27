@@ -5,9 +5,8 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
 历史实现与旧工具已移除，需要时从 git tag 获取。
 `tc-0.0.47` 分支目标是在语言语义、opcode、诊断码与 ABI 不变的前提下交付开发调试工具链
 与工程模型；两份设计已达到冻结条件，P0/T0、P1、P2、P3、P4a、T1、T2 与 T3
-已完成，P4b 实现与 AArch64 本地 gdb 验证已完成；本地 GDB 18.1 的 32 位
-`code_ptr` 与冻结的 64 位 `tc_ir_pc` 冲突已裁定为阻塞，固定 Linux CI 签名证据
-待完成；P5 与 T4–T6 尚未开始。
+已完成，P4b 本地实现与四种 profile 的真实 gdb 验证已完成；固定 Linux CI
+真实签名 artifact 待完成，P4b 正式验收与 G11 未完成；P5 与 T4–T6 尚未开始。
 范围与契约见 [TC 开发调试工具链 0.0.47](docs/TC开发调试工具链-0.0.47.md) 与
 [TC 工程模型 0.0.47](docs/TC工程模型-0.0.47.md)；RTOS、中断与并发移交 0.0.48。
 
@@ -34,13 +33,16 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   `--gdb-stdout-journal=<dir>`；提供合成 IR 地址、`target.xml`/内存映射、
   断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin。
   `--gdb-allow-write` 才允许受限写入；证据入口为 `gdb_journal.unit`、
-  `gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、`vm.gdb.semantics` 与
+  `gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、`vm.gdb.semantics` 与
   `vm.gdb.e2e`。P4b 已实现 `tc-vm --gdb-elf-out=<path>`：私有内部 writer
   直接生成只含符号与 DWARF v4 行表的 ELF，支持 AArch64、ARM32 与 RISC-V32 档案，
-  不调用外部工具；四种档案均经独立语义解码，AArch64 真实 gdb 源级断点入口为
-  `toolchain.debug_elf`，本地 GDB 18.1 的 32 位 `code_ptr` 与冻结的 64 位
-  `tc_ir_pc` 冲突已裁定为阻塞。
-- **后续阶段**：P4b 的冻结契约冲突需设计修订、§6.10 固定 Linux CI 签名证据、
+  不调用外部工具；四种档案均经独立语义解码，`toolchain.debug_elf` 已在四种
+  profile 通过真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与
+  程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位
+  `code_ptr`，ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需
+  `set arm force-mode thumb`；GDB 18.1 的 ARM `stepi` 因未建模 sp 不可直接使用，
+  测试通过 maintenance packet `s` 与 flush register-cache 验证同一 RSP 单步。
+- **后续阶段**：P4b 正式验收尚待 §6.10 固定 Linux CI 真实签名证据；
   P5 与 T4–T6 尚未完成，G11 未完成。
 - **已实现**：契约层、LEX/SYN 与扁平 parse IR、模块发现/IMPORT、名称/类型/转换/布局、
   静态指令形状检查、const_expr 形态、CFG/可达性/DI、缺返回、调用顺序/安全、安全上下文与注解矩阵；
@@ -68,10 +70,10 @@ TC **0.0.46** 语言及编译器规范 + 原生编译器（TC → ASM → 机器
   发布审计、生成式 ABI/布局/内存/浮点 fuzz、实现边界/鲁棒性/checked/规模/
   长跳转回归。
 - **未实现**：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
-  P4b 固定 Linux CI 证据、P5 与 T4–T6 不在当前完成范围内。
+  P4b 正式验收所需的固定 Linux CI 证据、P5 与 T4–T6 不在当前完成范围内。
 - **当前验证**：0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）；
-  G11 证据收集/校验与手动签名作业已接入，本地 GDB 18.1 的 32 位 `code_ptr` 冲突
-  已记录为阻塞，真实签名 artifact 仍待完成。
+  G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成，
+  固定 Linux CI 真实签名 artifact 仍待完成，P4b 正式验收与 G11 未完成。
   0.0.46 已验收 harness 873/873、覆盖矩阵 636/636，G0–G10 PASS；**G10 完成 0.0.46 阶段出口，G11 未完成**。
   详见 [门禁状态](docs/gates/README.md)。
 

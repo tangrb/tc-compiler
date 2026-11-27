@@ -34,12 +34,14 @@ English: [README.en.md](README.en.md)。
   （默认 0，仅 loopback）与强制 `--gdb-stdout-journal=<dir>`，支持合成 IR 地址、
   `target.xml`/内存映射、断点/单步/继续、monitor、extended restart、原子 stdout
   journal 与可恢复 stdin；`--gdb-allow-write` 才开放受限写入，证据入口为
-  `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、
+  `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、
   `vm.gdb.semantics` 与 `vm.gdb.e2e`。P4b 已实现 `tc-vm --gdb-elf-out=<path>`，
-  由私有 writer 生成符号与 DWARF v4 行表，四种档案均经独立语义解码，AArch64
-  真实 gdb 源级断点入口为 `toolchain.debug_elf`。G11 证据收集/校验与手动签名作业
-  已接入；本地 GDB 18.1 的 32 位 `code_ptr` 与冻结的 64 位 `tc_ir_pc` 冲突已裁定
-  为阻塞，真实签名 artifact 尚未完成，P4b、P5 与 T4–T6 未完成，G11 未完成；
+  由私有 writer 生成符号与 DWARF v4 行表，四种档案均经独立语义解码；
+  `toolchain.debug_elf` 已在四种 profile 通过真实 gdb 调试 ELF、源级断点、
+  64 位 `tc_ir_pc` 读取、IR 单步与程序语义回归。合成 `tc_ir_pc` 使用 64 位
+  `uint64`，架构 pc 保持 32 位 `code_ptr`，ARM/RISC-V 的 Z0 kind=2 已被接受。
+  G11 证据收集/校验与手动签名作业已接入；固定 Linux CI 真实签名 artifact
+  尚未完成，P4b 正式验收与 G11 未完成，P5 与 T4–T6 尚未开始；
   语言/契约保持 0.0.46/1，RTOS、中断与并发移交 0.0.48。
 - S0–S10 已实现并通过 G0–G10；**G10 完成 0.0.46 阶段出口**。0.0.47 CTest
   注册总数为 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）。

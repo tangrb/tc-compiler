@@ -19,7 +19,7 @@ text/jsonl/limit/output、VM/AOT `--stats`、结构化 trap 上下文、显式�
 与确定性观测输出；T2 新增 `t2.debug` 与 `t2.gdb`，覆盖 VM/AOT `--dump-linemap`、
 公开 `tc-aot --debug`、全 IR 行表映射、VM 合成地址、稳定键序/external、trace 多对一、
 跨根确定性、输出安全，以及 qemu gdbstub 上真实 gdb 的 `info line`、源码断点与单步；
-T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、
+T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、
 `vm.gdb.semantics` 与 `vm.gdb.e2e`，覆盖原子 stdout journal、可恢复 stdin、
 协议、只读/受限写入、AArch64/w32/ARM32/RISC-V32 合成地址与 `target.xml`、
 断点/单步/继续、monitor、extended restart、trap/退出一致性与真实 gdb 端到端调试。
@@ -118,13 +118,15 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 
 0.0.47 的 `toolchain.debug_elf` 独立解码 ELF/DWARF，校验四种档案映射、符号/行表与
 共享 linemap 全序一致、空函数与顶层单元边界、CLI/输出身份/写失败，并以真实 gdb
-验证 AArch64 源级断点地址。本地 GDB 18.1 将 32 位 `code_ptr` 缩为 4 字节，与冻结的
-64 位 `tc_ir_pc` 描述冲突；在冻结契约下 ARM32/RISC-V32 真实 gdb 会话已裁定为阻塞，
-不得通过改成 `uint64` 绕过，两种档案的 ELF/DWARF 语义与 RSP 寄存器布局仍分别独立验证。
+验证四种 profile 的调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序语义回归。
+合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位 `code_ptr`，ARM/RISC-V 的
+Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
+`stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet `s` 与 flush
+register-cache 验证同一 RSP 单步。
 `toolchain.g11_evidence` 校验证据 schema、transcript 逐用例断言、SKIP、artifact 摘要与
 provenance 源提交；发布审计可通过 `--require-g11-evidence=<artifact-dir>` 强制校验两份签名。
 手动 CI 作业要求输入钉住的容器 digest，并为 `result.json` 与 `transcript.log` 生成 attestation。
-真实签名 artifact 尚未完成，P4b 与 G11 仍未完成。
+固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 仍未完成。
 
 0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）；
 P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 92/92 与收尾检查 51/51。0.0.46 已验收 harness 873/873

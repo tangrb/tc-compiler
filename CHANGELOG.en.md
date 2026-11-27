@@ -36,14 +36,16 @@
   external tools and shares synthetic-range validation with the GDB stub.
 - **P4b tests**: register `toolchain.debug_elf`; cover independent ELF/DWARF semantic
   decoding, symbol/top-level/empty-function boundaries, shared line-map order, CLI and
-  output identity/write failures, and an AArch64 real gdb source breakpoint.
+  output identity/write failures, plus real-gdb debug ELF, source breakpoints, 64-bit
+  `tc_ir_pc` reads, IR single-step and program-semantic regressions across all four
+  profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architecture PCs remain 32-bit
+  `code_ptr`, and ARM/RISC-V Z0 kind=2 is accepted.
 - **G11 evidence infrastructure**: add `toolchain.g11_evidence`, evidence collection
   and structural validation, an exact suite/case/profile matrix, repository-qualified
   signer workflow, provenance source-commit/subject checks, release-audit
   `--require-g11-evidence`, and a manual Linux job requiring a pinned container digest
   that matches an approved repository variable and verifying signatures after
-  attestation. Local GDB 18.1 has a recorded 32-bit `code_ptr` conflict, and a real
-  signed artifact remains pending.
+  attestation. A real signed artifact from fixed Linux CI remains pending.
 - **T1 observation**: VM/AOT `--dump-ir[=<path>]`; VM
   `--trace=ir,call,mem,io,trap` with `text`/`jsonl`, `--trace-limit=<n>` and
   `--trace-out=<path>`; VM/AOT `--stats` with `--stats-out=<path>`; structured trap
@@ -65,7 +67,7 @@
   extended restart, an atomic stdout journal and resumable stdin. The default is
   read-only; `--gdb-allow-write` enables restricted writes.
 - **T3 tests**: register `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`
-  (235 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast,
+  (242 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast,
   while e2e is not fast.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
@@ -93,19 +95,21 @@
 - There are 92 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
   one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests, five T3 tests
   and one G11 evidence test). G11 evidence collection/validation and a manual signing
-  job are wired; local GDB 18.1 has a recorded 32-bit `code_ptr` conflict, and a real
-  signed artifact remains pending.
-  The accepted 0.0.46 baseline remains harness 873/873, coverage 636/636, with all
-  closing checks and release audits passing.
+  job are wired, and local real-gdb validation passed across all four profiles. A real
+  signed artifact from fixed Linux CI remains pending, so P4b formal acceptance and
+  G11 are incomplete. The accepted 0.0.46 baseline remains harness 873/873, coverage
+  636/636, with all closing checks and release audits passing.
 - P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete. P4b implementation and local
-  AArch64 gdb validation are complete, and G11 evidence infrastructure is wired;
-  local GDB 18.1 has a recorded 32-bit `code_ptr` conflict, and a real signed
-  artifact remains pending. P5 and T4–T6 have not started and G11 is incomplete.
-  `tc --init-project`, compiler path consumption and `tc --test` are available.
+  real-gdb validation across all four profiles are complete, and G11 evidence
+  infrastructure is wired. A real signed artifact from fixed Linux CI remains
+  pending, so P4b formal acceptance and G11 are incomplete; P5 and T4–T6 have not
+  started. `tc --init-project`, compiler path consumption and `tc --test` are available.
   VM/AOT `--dump-linemap` and public `tc-aot --debug` are available, and the real
   qemu-gdbstub/gdb smoke test passed. The VM GDB stub provides an atomic stdout
   journal and resumable stdin. The VM debug ELF passes independent semantic decoding
-  for all four profiles and an AArch64 real-gdb source breakpoint.
+  for all four profiles plus real-gdb debug ELF, source breakpoints, 64-bit
+  `tc_ir_pc` reads, IR single-step and program-semantic regressions across all four
+  profiles.
 - The P4b VM debug-ELF internal layout must not be written back to the frozen
   specification.
 

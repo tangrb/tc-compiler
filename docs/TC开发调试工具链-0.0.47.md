@@ -821,13 +821,13 @@ addr(insn) = TC_DEBUG_CODE_BASE + 4 * global_insn_index
 
 | 类别 | 报文 | 行为 |
 | ---- | ---- | ---- |
-| 握手 | `qSupported`、`QStartNoAckMode`、`!` | 报告 `PacketSize=4000;vContSupported+;QStartNoAckMode+;qXfer:features:read+;qXfer:memory-map:read+`（`4000` 为十六进制 0x4000=16384 个 data 字符）；支持免应答模式；`!` 启用扩展模式并回 `OK`，`RXX` 仅在扩展模式可用；v1 扩展模式只提供 restart，不支持 extended-remote 的 `D` 分离 |
+| 握手 | `qSupported`、`QStartNoAckMode`、`!` | 报告 `PacketSize=4000;vContSupported+;QStartNoAckMode+;qXfer:features:read+;qXfer:memory-map:read+`（`4000` 为十六进制 0x4000=16384 个 data 字符）；支持免应答模式与 `Z0` 软断点；`!` 启用扩展模式并回 `OK`，`RXX` 仅在扩展模式可用；v1 扩展模式只提供 restart，不支持 extended-remote 的 `D` 分离 |
 | 停止原因 | `?` | `T05thread:1;`（断点/单步/暂停），`T02thread:1;`（中断）；终止态（自然终止或 trap 终止）一律 `W<hh>`，trap 详情经 `monitor trap` 读取 |
 | 中断 | `\x03`（带外字节，不是 `$` 包） | 运行中收到时完成当前指令并停在下一条边界，报告 `T02thread:1;`；当前指令阻塞于宿主输入时按可恢复输入规则挂起；阻塞于宿主输出提交时延迟到该记录提交结束后再停，不提供中途挂起；未运行时忽略 |
 | 寄存器 | `g`、`p<n>`、`P` | `g` 按 regnum 顺序返回档案对应的完整核心寄存器集与 4 个 TC 寄存器；未建模核心寄存器返回 RSP unavailable 编码，`p<n>` 使用 §6.4 的编号与位宽。`P` 默认返回 `E01`，`--gdb-allow-write` 下仅允许在非终止态写架构 `pc`，且必须落在合成代码区间的指令边界，否则 `E01`；`G` 返回 `E01` |
 | 内存 | `m`、`M`、`X` | 读五区与合成代码区；写默认 `E01`，`--gdb-allow-write` 下仅限帧/静态/堆区；跨区边界或区外的 `M` 返回 `E01`；`X` 不支持，返回 `E01` |
 | 执行 | `s`、`S`、`c`、`C`、`vCont;s`、`vCont;c`、`vCont?` | 单步、继续；单步粒度为一条 IR 指令；`S`/`C` 的信号参数忽略；执行命中 TC trap 的停止应答为 `T0bthread:1;`；`vCont?` 返回 `vCont;s;c` |
-| 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个唯一地址；同址重复 `Z0` 幂等（回 `OK`，不占新槽），`z0` 对未设置地址回 `OK`；超出或非法地址返回 `E01`；`Z1`–`Z4` 返回空 |
+| 断点 | `Z0`、`z0` | 指令边界断点，最多 64 个唯一地址；`kind` 接受 4，ARM M-profile 与 RISC-V32 另接受 GDB 使用的 Thumb/压缩指令 `kind=2`，二者都只记录 4 字节 IR 边界、不写代码内存；同址重复 `Z0` 幂等（回 `OK`，不占新槽），`z0` 对未设置地址回 `OK`；超出或非法地址返回 `E01`；`Z1`–`Z4` 返回空 |
 | 线程 | `qC`、`qfThreadInfo`、`qsThreadInfo`、`Hc`/`Hg`、`qAttached` | 单一合成线程 `1`；`qC` 返回 `QC1`；`qfThreadInfo` 首次返回 `m1`、再次返回 `l`；`qsThreadInfo` 返回 `l`；`Hg0`（any thread）、`Hc-1`（all threads）与 `Hc1`/`Hg1` 都等价于合成线程 1，返回 `OK`；其他 `Hc`/`Hg` 返回 `E01`；`qAttached` 返回 `0`（程序由 stub 创建）；`vCont;s`/`vCont;c` 接受可选 `:1` 后缀，其他线程号返回 `E01` |
 | 特性 | `qXfer:features:read`、`qXfer:memory-map:read` | §6.4 的 profile 对应 `target.xml`（完整核心寄存器集 + 4 个 TC 寄存器）与五区内存映射；`offset`/`length` 为十六进制；支持分块读取 `m`/`l` 语义。`PacketSize` 是 stub 接受的入站 data 字符上限；TC 对 qXfer 应答也采用同一上限。`m`/`l` 前缀各计 1 字符，有效数据 ≤ `PacketSize-1`；仍有后续数据时必须用 `m`，只有确认已无剩余数据时才用 `l`（offset 已在 annex 末尾时可返回空 `l`） |
 | 监视 | `qRcmd` | §6.6 的 `monitor` 命令；应答为 `O` 分块 + `OK`/`E01`，不以 `W` 应答；每个输出包 data 不超过 `PacketSize`，`O` 前缀计 1 字符，十六进制内容按偶数边界分块且最多 16382 字符，最终 `OK`/`E01` 单独发送 |
@@ -927,8 +927,10 @@ RSP 的 `g`/`p` 寄存器编号由 `target.xml` 定义；`regnum` 只是 RSP 编
   标准 feature 与 `org.tc.ir` feature。各 feature 内寄存器顺序、名称、位宽、类型与显式
   `regnum` 固定；AArch64 的 `cpsr` 使用 `<flags id="cpsr_flags" size="4">`，其中
   `<field name="mode" start="0" end="4"/>`，`cpsr` 本身为 32 位、`regnum="33"`、
-  `type="cpsr_flags"`；四个 TC 寄存器均为 64 位，`tc_ir_pc` 为 `code_ptr`，其余为
-  `uint64`。ARM/RISC-V 按同表生成。属性顺序与缩进不是跨实现字节契约；测试独立解析
+  `type="cpsr_flags"`；四个 TC 寄存器均为 64 位 `uint64`。合成 `tc_ir_pc` 不使用
+  `code_ptr`，因为 GDB 会把 32 位架构的预定义 `code_ptr` 缩为架构指针宽度，破坏
+  64 位 RSP 布局；架构 `pc` 仍按上表使用 `code_ptr`。ARM/RISC-V 按同表生成。
+  属性顺序与缩进不是跨实现字节契约；测试独立解析
   architecture、feature、flags/field、regnum、位宽与寄存器总数，不只比较 XML 字符串。
 
 - `g` 按 `regnum` 升序返回全部 raw 寄存器，寄存器数据按目标端序、每字节两个十六进制

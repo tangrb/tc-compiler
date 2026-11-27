@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import resource
 import signal
 import socket
@@ -420,10 +421,13 @@ def cli_checks(vm: str, aot: str, cwd: Path) -> None:
 
 
 def gdb_check(vm: str, gdb: str, cwd: Path) -> None:
-    for profile in ("arm32-baremetal", "riscv32-baremetal"):
-        print(f"SKIP: real gdb {profile}: GDB sizes 32-bit code_ptr registers "
-              "differently from the frozen 64-bit tc_ir_pc contract")
-    for profile in ("aarch64-linux-user", "aarch64-baremetal"):
+    profiles = {
+        "aarch64-linux-user": (0x544300000000, "aarch64"),
+        "aarch64-baremetal": (0x544300000000, "aarch64"),
+        "arm32-baremetal": (0x54430000, "arm"),
+        "riscv32-baremetal": (0x54430000, "riscv:rv32"),
+    }
+    for profile, (base, architecture) in profiles.items():
         elf = cwd / f"gdb-{profile}.elf"
         result = run(vm, ["--static-only", f"--profile={profile}",
                           f"--gdb-elf-out={elf}", "root.tc"], cwd)
@@ -451,23 +455,44 @@ def gdb_check(vm: str, gdb: str, cwd: Path) -> None:
                         break
                 except OSError:
                     time.sleep(0.02)
-            # GDB treats unmapped synthetic addresses as read-only; the stub implements Z0.
+            commands = [
+                gdb, "-q", "-nx", "-batch", "-ex", "set pagination off",
+                "-ex", "set tcp connect-timeout 3", "-ex", f"file {elf}",
+                "-ex", f"set architecture {architecture}",
+            ]
+            if architecture == "arm":
+                commands += ["-ex", "set arm force-mode thumb"]
+            commands += [
+                "-ex", f"target remote 127.0.0.1:{port}",
+                "-ex", f"mem {base:#x} {base + 0x100000:#x} rw",
+                "-ex", "info line add7", "-ex", "break root.tc:5",
+                "-ex", "info break", "-ex", "continue",
+                "-ex", "printf \"TC_IR_PC=0x%lx\\n\", $tc_ir_pc",
+            ]
+            if architecture == "arm":
+                commands += ["-ex", "maintenance packet s",
+                             "-ex", "maintenance flush register-cache"]
+            else:
+                commands += ["-ex", "stepi"]
+            commands += ["-ex", "printf \"STEP_TC_IR_PC=0x%lx\\n\", $tc_ir_pc"]
+            if architecture != "arm":
+                commands += ["-ex", "bt"]
+            commands += ["-ex", "detach"]
             transcript = subprocess.run(
-                [gdb, "-q", "-nx", "-batch", "-ex", "set pagination off",
-                 "-ex", "set tcp connect-timeout 3", "-ex", f"file {elf}",
-                 "-ex", f"target remote 127.0.0.1:{port}",
-                 "-ex", "mem 0x544300000000 0x544310000000 rw",
-                 "-ex", "info line add7", "-ex", "break root.tc:5",
-                 "-ex", "info break", "-ex", "continue", "-ex", "bt", "-ex", "detach"],
-                cwd=cwd, capture_output=True, timeout=20, env=environment())
+                commands, cwd=cwd, capture_output=True, timeout=20, env=environment())
             output = transcript.stdout + transcript.stderr
-            address = b"0x544300000004"
+            address = f"0x{base + 4:x}".encode()
             check(transcript.returncode == 0,
                   f"real gdb exit {profile}: {transcript.returncode}: {output!r}")
             check(b"Breakpoint 1 at " + address + b": file root.tc, line 5." in output,
                   f"real gdb source breakpoint address {profile}: {output!r}")
             check(b"Breakpoint 1," in output and b"root.tc:5" in output,
                   f"real gdb stops at source breakpoint {profile}: {output!r}")
+            check(b"TC_IR_PC=" + address in output,
+                  f"real gdb reads 64-bit synthetic PC {profile}: {output!r}")
+            step_pc = re.search(rb"STEP_TC_IR_PC=(0x[0-9a-f]+)", output)
+            check(step_pc is not None and int(step_pc.group(1), 16) != int(address, 16),
+                  f"real gdb single-steps synthetic IR {profile}: {output!r}")
         finally:
             try:
                 stdout, stderr = proc.communicate(timeout=3)

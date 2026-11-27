@@ -1669,9 +1669,16 @@ static int handle_breakpoint(TcGdbSession *session, int insert,
                              const uint8_t *data, size_t len) {
     uint64_t address;
     int index;
+    int arch = arch_kind(session->profile);
     const uint8_t *comma = (const uint8_t *)memchr(data, ',', len);
     if (comma != NULL) {
-        if ((size_t)(data + len - comma - 1) != 1u || comma[1] != (uint8_t)'4') {
+        uint8_t kind;
+        if ((size_t)(data + len - comma - 1) != 1u) {
+            return send_error(session);
+        }
+        kind = comma[1];
+        if (kind != (uint8_t)'4' &&
+            !((arch == 1 || arch == 2) && kind == (uint8_t)'2')) {
             return send_error(session);
         }
         len = (size_t)(comma - data);

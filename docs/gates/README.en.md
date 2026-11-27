@@ -50,16 +50,19 @@ defaults to port 0 and binds loopback only, with mandatory
 `target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
 an atomic stdout journal and resumable stdin. The default is read-only;
 `--gdb-allow-write` enables only restricted writes. Evidence entry points are
-`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (235 checks),
+`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (242 checks),
 `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast, while e2e is not.
-P4b completes the private VM debug ELF writer: `tc-vm --gdb-elf-out=<path>` reuses
-the shared line map and synthetic addresses for AArch64, ARM32 and RISC-V32;
-`toolchain.debug_elf` performs independent ELF/DWARF decoding for all four profiles
-and an AArch64 real gdb source breakpoint. G11 evidence collection/validation and a
-manual signing job are wired. Local GDB 18.1 narrows 32-bit `code_ptr` to 4 bytes,
-conflicting with the frozen 64-bit `tc_ir_pc`; ARM32/RISC-V32 real-gdb sessions are
-therefore blocked under the frozen contract, and a real signed artifact remains
-pending. P4b, P5 and T4–T6 remain incomplete, and G11 is incomplete.
+P4b completes the private VM debug ELF writer and local real-gdb validation across
+all four profiles: `tc-vm --gdb-elf-out=<path>` reuses the shared line map and
+synthetic addresses, and `toolchain.debug_elf` verifies debug ELF, source breakpoints,
+64-bit `tc_ir_pc` reads, IR single-step and program-semantic regressions. Synthetic
+`tc_ir_pc` is a 64-bit `uint64`, architecture PCs remain 32-bit `code_ptr`, and
+ARM/RISC-V Z0 kind=2 is accepted. ARM clients need `set arm force-mode thumb`;
+GDB 18.1 ARM `stepi` cannot be used directly because sp is not modelled, so tests
+verify the same RSP step with maintenance packet `s` and a register-cache flush.
+G11 evidence collection/validation and a manual signing job are wired. A real signed
+artifact from fixed Linux CI remains pending, so P4b formal acceptance and G11 are
+incomplete; P5 and T4–T6 have not started.
 There are 92 registered 0.0.47 CTests; the P4b/G11 infrastructure checkpoint passed
 Debug, Release and ASan+UBSan full CTest runs at 92/92, and closing checks passed 51/51.
 macOS does not support ASan leak detection, so the

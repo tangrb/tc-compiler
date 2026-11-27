@@ -27,13 +27,15 @@
   生成只含符号与 DWARF v4 行表的 ELF；支持 AArch64、ARM32 与 RISC-V32 档案，
   不调用外部工具，并与 GDBstub 共用合成地址区间校验。
 - **P4b 测试**：新增并注册 `toolchain.debug_elf`，覆盖独立 ELF/DWARF 语义解码、
-  符号/顶层/空函数边界、共享 linemap 全序、CLI 与输出身份/写失败，以及 AArch64
-  真实 gdb 源级断点。
+  符号/顶层/空函数边界、共享 linemap 全序、CLI 与输出身份/写失败，以及四种
+  profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序
+  语义回归；合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位 `code_ptr`，
+  ARM/RISC-V 的 Z0 kind=2 已被接受。
 - **G11 证据基础设施**：新增 `toolchain.g11_evidence`、证据收集/结构校验、精确
   suite/case/profile 矩阵、仓库限定 signer workflow、provenance 源提交与 subject
   校验、发布审计 `--require-g11-evidence`，以及要求钉住容器 digest 并匹配仓库批准
-  变量、在签名后实际验证的手动 Linux 作业；本地 GDB 18.1 的 32 位 `code_ptr`
-  冲突已记录为阻塞，真实签名 artifact 仍待完成。
+  变量、在签名后实际验证的手动 Linux 作业；固定 Linux CI 真实签名 artifact
+  仍待完成。
 - **T1 观测能力**：VM/AOT `--dump-ir[=<path>]`；VM `--trace=ir,call,mem,io,trap`，
   支持 `text`/`jsonl`、`--trace-limit=<n>` 与 `--trace-out=<path>`；VM/AOT `--stats`
   与 `--stats-out=<path>`；结构化 trap 上下文、显式输出身份检查与预留保护，以及确定性观测输出。
@@ -49,7 +51,7 @@
   断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin。
   默认只读，`--gdb-allow-write` 开放受限写入。
 - **T3 测试**：新增并注册 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`
-  （235 checks）、`vm.gdb.semantics` 与 `vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。
+  （242 checks）、`vm.gdb.semantics` 与 `vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。
 - **统一实现级错误**：所有入口共用 `TcImplError` 退出码映射；宿主 IO、能力不可用
   与实际 OOM 退出 70，用法错误退出 2，内部契约破坏与实现上限退出 71。
 - **契约验证**：三入口精确版本输出、`tc` 参数/终止符/uint64 超时语法、
@@ -67,16 +69,17 @@
 ### 状态
 
 - 0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）。
-  G11 证据收集/校验与手动签名作业已接入，本地 GDB 18.1 的 32 位 `code_ptr` 冲突
-  已记录为阻塞，真实签名 artifact 待完成。
+  G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成；
+  固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。
   0.0.46 已验收 harness 873/873、覆盖矩阵 636/636，全部收尾检查与发布审计通过。
-- P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成；P4b 实现与 AArch64 本地 gdb
-  验证已完成，G11 证据基础设施已接入；本地 GDB 18.1 的 32 位 `code_ptr` 冲突已
-  记录为阻塞，真实签名 artifact 待完成，P5 与 T4–T6 尚未开始，G11 未完成。
+- P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成；P4b 本地实现与四种 profile 的
+  真实 gdb 验证已完成，G11 证据基础设施已接入；固定 Linux CI 真实签名 artifact
+  待完成，P4b 正式验收与 G11 未完成，P5 与 T4–T6 尚未开始。
   `tc --init-project`、编译器路径消费与 `tc --test` 已可用；VM/AOT `--dump-linemap`
   与公开 `tc-aot --debug` 已可用，真实 qemu gdbstub/gdb 冒烟已通过；VM GDBstub
   已提供原子 stdout journal 与可恢复 stdin；VM 调试 ELF 已通过四种档案的独立
-  语义解码与 AArch64 真实 gdb 源级断点验证。
+  语义解码，以及四种 profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc`
+  读取、IR 单步与程序语义回归。
 - P4b 的 VM 调试 ELF 内部布局不得回写冻结规范。
 
 ## [0.0.46] - 2026-11-19

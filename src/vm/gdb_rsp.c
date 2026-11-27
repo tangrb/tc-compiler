@@ -351,7 +351,7 @@ int tc_gdb_rsp_target_xml(const TcPlatformProfile *profile, char *out,
 
     if (appendf(out, out_cap, &len,
                 "  <feature name=\"org.tc.ir\">\n") != 0 ||
-        append_reg(out, out_cap, &len, "tc_ir_pc", 64u, "code_ptr", tc_base) != 0 ||
+        append_reg(out, out_cap, &len, "tc_ir_pc", 64u, "uint64", tc_base) != 0 ||
         append_reg(out, out_cap, &len, "tc_ir_depth", 64u, "uint64",
                    tc_base + 1u) != 0 ||
         append_reg(out, out_cap, &len, "tc_ir_sp", 64u, "uint64",

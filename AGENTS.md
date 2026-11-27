@@ -4,9 +4,8 @@
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
 两份设计已达到冻结条件；P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成，
-P4b 实现与 AArch64 本地 gdb 验证已完成；本地 GDB 18.1 的 32 位 `code_ptr`
-与冻结的 64 位 `tc_ir_pc` 冲突已裁定为阻塞，固定 Linux CI 签名证据待完成；
-P5 与 T4–T6 尚未开始。
+P4b 本地实现与四种 profile 的真实 gdb 验证已完成；固定 Linux CI 真实签名
+artifact 待完成，P4b 正式验收与 G11 未完成；P5 与 T4–T6 尚未开始。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
 回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
@@ -57,20 +56,23 @@ RTOS/中断/并发移交 0.0.48。
   `--gdb-stdout-journal=<dir>`；支持合成 IR 地址、`target.xml`/内存映射、
   断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin，
   `--gdb-allow-write` 才开放受限写入。证据入口为 `gdb_journal.unit`、
-  `gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、`vm.gdb.semantics` 与
+  `gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、`vm.gdb.semantics` 与
   `vm.gdb.e2e`。P4b 完成 `tc-vm --gdb-elf-out=<path>`：私有内部 writer 生成
   只含符号与 DWARF v4 行表的 ELF，支持 AArch64、ARM32 与 RISC-V32 档案；
-  四种档案均经独立语义解码，AArch64 真实 gdb 源级断点入口为
-  `toolchain.debug_elf`；本地 GDB 18.1 的 32 位 `code_ptr` 与冻结的 64 位
-  `tc_ir_pc` 冲突已裁定为阻塞，§6.10 固定 Linux CI 签名证据尚未完成，P4b 与 G11
-  均未完成。P5 与 T4–T6 尚未开始。
+  四种档案均经独立语义解码，`toolchain.debug_elf` 已在四种 profile 通过真实 gdb
+  调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序语义回归。合成
+  `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 保持 32 位 `code_ptr`，ARM/RISC-V 的
+  Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
+  `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet `s` 与 flush
+  register-cache 验证同一 RSP 单步。§6.10 固定 Linux CI 真实签名 artifact 尚未完成，
+  P4b 正式验收与 G11 均未完成。P5 与 T4–T6 尚未开始。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
-  G11 证据收集/校验与手动签名作业已接入，本地 GDB 18.1 的 32 位 `code_ptr` 冲突
-  已记录为阻塞，真实签名 artifact 仍待完成。已注册 CTest 总数 92；
-  P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 92/92
-  与收尾检查 51/51，见 `docs/gates/README.md`。
+  G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成，
+  固定 Linux CI 真实签名 artifact 仍待完成，P4b 正式验收与 G11 未完成。已注册
+  CTest 总数 92；P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan 全量
+  CTest 92/92 与收尾检查 51/51，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。三个入口只链接私有静态 `tc_core`。
