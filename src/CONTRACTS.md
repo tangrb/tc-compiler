@@ -201,15 +201,23 @@ contract check.
   are rejected by default; `--gdb-allow-write` enables only restricted writes.
   `qSupported` accepts a negotiated feature suffix, and `qXfer` accepts the GDB
   comma-separated `offset,length` form as well as the original colon form.
-- Local GDB 18 narrows a 32-bit architecture `code_ptr` register to 32 bits even
-  when `target.xml` declares 64 bits. ARM32/RISC-V32 real-GDB source breakpoints
-  therefore remain unverified against the frozen 64-bit `tc_ir_pc` contract;
-  their ELF/DWARF semantics and RSP register layouts are independently tested.
+- Local GDB 18.1 narrows a 32-bit architecture `code_ptr` register to 4 bytes even
+  when `target.xml` declares 64 bits. Under the frozen 64-bit `tc_ir_pc` contract,
+  ARM32/RISC-V32 real-GDB sessions are therefore blocked pending a design ruling;
+  changing the register to `uint64` is not an implementation-only workaround.
+  Their ELF/DWARF semantics and RSP register layouts remain independently tested.
   AArch64 real-GDB tests mark the synthetic range writable in the client so GDB
   selects `Z0`; the stub still implements breakpoints without code-memory writes.
 - GDB execution is passive with respect to program stdout, trap and exit parity.
   Extended restart (`RXX`) preserves committed I/O and unconsumed input but resets
   execution state.
+- G11 evidence uses schema version 1 and records the full source commit, pinned
+  container digest, raw GDB banner, four profiles, suite/case names and positive
+  per-case assertion counts. Verification rejects SKIP, transcript/result mismatch,
+  artifact digest mismatch, and provenance whose source commit differs from the
+  evidence. Both `result.json` and `transcript.log` must be attested by the fixed
+  `.github/workflows/ci.yml` signer workflow; ordinary release audits do not require
+  the artifact unless `--require-g11-evidence` is supplied.
 - VM observation output is deterministic and stays on stderr or an explicit
   path, never program stdout. Shared-stderr order is diagnostics, IR dump,
   line map, trace/footer, trap, then stats. VM region peaks measure logical

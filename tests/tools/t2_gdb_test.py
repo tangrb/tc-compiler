@@ -19,9 +19,12 @@ var x: int32 = copy int32, 7
 _ = writeln int32, x
 _ = writeln int32, x
 """
+CHECKS = 0
 
 
 def check(condition: bool, message: str) -> None:
+    global CHECKS
+    CHECKS += 1
     if not condition:
         raise AssertionError(message)
 
@@ -138,7 +141,7 @@ def main() -> int:
             check(qemu_process.returncode in (0, -15),
                   f"qemu smoke failed: {qemu_process.returncode} "
                   f"{qemu_stdout!r} {qemu_stderr!r}")
-    print("T2 real gdb smoke passed")
+    print(f"T2 real gdb smoke passed: {CHECKS} checks")
     return 0
 
 

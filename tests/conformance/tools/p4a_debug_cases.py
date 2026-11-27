@@ -16,6 +16,7 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 CASE_ID = "TC-AOT-DEBUG-P4A-0001"
+CHECKS = 0
 SOURCE_NAME = 'src/ma"in\\lib.tc'
 SOURCE = """#program
 import lib
@@ -39,6 +40,8 @@ PROFILES = {
 
 
 def check(condition: bool, message: str) -> None:
+    global CHECKS
+    CHECKS += 1
     if not condition:
         raise AssertionError(message)
 
@@ -539,7 +542,7 @@ def main() -> int:
         return 1
     shutil.rmtree(temporary, ignore_errors=True)
     print(f"{CASE_ID}: shared line map, AOT locations, DWARF v4 and "
-          "cross-root artifacts passed")
+          f"cross-root artifacts passed ({CHECKS} checks)")
     return 0
 
 

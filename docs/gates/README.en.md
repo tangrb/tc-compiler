@@ -55,11 +55,13 @@ an atomic stdout journal and resumable stdin. The default is read-only;
 P4b completes the private VM debug ELF writer: `tc-vm --gdb-elf-out=<path>` reuses
 the shared line map and synthetic addresses for AArch64, ARM32 and RISC-V32;
 `toolchain.debug_elf` performs independent ELF/DWARF decoding for all four profiles
-and an AArch64 real gdb source breakpoint. The 32-bit real-gdb compatibility and
-fixed Linux CI signed evidence required by §6.10 remain pending; P4b, P5 and T4–T6
-remain incomplete, and G11 is incomplete.
-There are 91 registered 0.0.47 CTests; the P4b implementation checkpoint passed
-Debug, Release and ASan+UBSan full CTest runs at 91/91, and all closing checks passed.
+and an AArch64 real gdb source breakpoint. G11 evidence collection/validation and a
+manual signing job are wired. Local GDB 18.1 narrows 32-bit `code_ptr` to 4 bytes,
+conflicting with the frozen 64-bit `tc_ir_pc`; ARM32/RISC-V32 real-gdb sessions are
+therefore blocked under the frozen contract, and a real signed artifact remains
+pending. P4b, P5 and T4–T6 remain incomplete, and G11 is incomplete.
+There are 92 registered 0.0.47 CTests; the P4b/G11 infrastructure checkpoint passed
+Debug, Release and ASan+UBSan full CTest runs at 92/92, and closing checks passed 51/51.
 macOS does not support ASan leak detection, so the
 sanitizer run used `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` and
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The accepted 0.0.46 harness remains 873/873.

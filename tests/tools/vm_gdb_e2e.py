@@ -9,35 +9,44 @@ import re
 import subprocess
 import tempfile
 
-from vm_gdb_protocol_test import BASE, ROOT, SOURCE, Stub, check, environment, linemap
+import vm_gdb_protocol_test as protocol
+from vm_gdb_protocol_test import BASE, BASE32, ROOT, SOURCE, Stub, check, environment, linemap
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("tc-vm")
     parser.add_argument("gdb")
-    parser.add_argument("--profile", default="aarch64-linux-user")
+    parser.add_argument("--profile", default="aarch64-linux-user",
+                        choices=("aarch64-linux-user", "aarch64-baremetal",
+                                 "arm32-baremetal", "riscv32-baremetal"))
     args = parser.parse_args()
     if not args.gdb:
         print("SKIP: real gdb is unavailable")
         return 77
     tool = str(Path(getattr(args, "tc-vm")).resolve())
     gdb = str(Path(args.gdb).resolve())
+    if args.profile == "arm32-baremetal":
+        base, architecture = BASE32, "arm"
+    elif args.profile == "riscv32-baremetal":
+        base, architecture = BASE32, "riscv:rv32"
+    else:
+        base, architecture = BASE, "aarch64"
     (ROOT / ".tmp").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="vm-gdb-e2e-", dir=ROOT / ".tmp") as tmp:
         root = Path(tmp)
-        stub = Stub(tool, root, SOURCE)
+        stub = Stub(tool, root, SOURCE, profile=args.profile)
         try:
             entries = linemap(tool, root, args.profile)["entries"]
-            address = BASE + 4 * next(i for i, item in enumerate(entries)
+            address = base + 4 * next(i for i, item in enumerate(entries)
                                       if item["module"] == "main.tc" and item["insn"] == 1)
             commands = root / "smoke.gdb"
             commands.write_text(
                 "set pagination off\nset confirm off\n"
-                "set architecture aarch64\n"
+                f"set architecture {architecture}\n"
                 f"target remote 127.0.0.1:{stub.port}\n"
                 # Unmapped synthetic addresses are read-only in GDB; the stub implements Z0.
-                f"mem {BASE:#x} {BASE + 4 * (len(entries) + 1):#x} rw\n"
+                f"mem {base:#x} {base + 4 * (len(entries) + 1):#x} rw\n"
                 "printf \"INITIAL_PC=0x%lx\\n\", $pc\n"
                 f"break *{address:#x}\ncontinue\n"
                 "printf \"STOP_PC=0x%lx\\n\", $pc\n"
@@ -54,7 +63,7 @@ def main() -> int:
             initial = re.search(r"INITIAL_PC=(0x[0-9a-f]+)", output)
             stop = re.search(r"STOP_PC=(0x[0-9a-f]+)", output)
             step = re.search(r"STEP_PC=(0x[0-9a-f]+)", output)
-            check(initial is not None and int(initial.group(1), 16) == BASE,
+            check(initial is not None and int(initial.group(1), 16) == base,
                   f"initial PC mismatch: {output}")
             check(stop is not None and int(stop.group(1), 16) == address,
                   f"breakpoint PC mismatch: {output}")
@@ -67,7 +76,7 @@ def main() -> int:
                   "real gdb run changed program semantics")
         finally:
             stub.close()
-    print(f"vm.gdb.e2e: real gdb passed ({args.profile})")
+    print(f"vm.gdb.e2e: {protocol.CHECKS} checks passed ({args.profile})")
     return 0
 
 

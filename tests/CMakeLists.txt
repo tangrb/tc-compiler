@@ -136,6 +136,10 @@ add_test(NAME release.audit_selftest
          COMMAND ${Python3_EXECUTABLE}
                  ${CMAKE_CURRENT_SOURCE_DIR}/tools/s10_release_audit.py
                  --selftest)
+add_test(NAME toolchain.g11_evidence
+         COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/g11_evidence.py
+                 --selftest)
 add_test(NAME contract.dump_codes COMMAND tc_dump_codes)
 add_test(NAME conformance.s2s3_cases
          COMMAND ${Python3_EXECUTABLE}
@@ -176,6 +180,7 @@ add_test(
             $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
 set_tests_properties(t1.observe PROPERTIES LABELS "unit;toolchain;fast")
 set_tests_properties(contract.unit cli.contract t1.observe oom.unit release.audit_selftest
+                    toolchain.g11_evidence
                     project.manifest project.init project.init_fault
                     project.test_runner
                     project.paths_unit project.paths

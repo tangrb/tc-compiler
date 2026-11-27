@@ -15,6 +15,11 @@ on:
   pull_request:
     branches: [master, "tc-0.0.*"]
   workflow_dispatch:
+    inputs:
+      container_digest:
+        description: Pinned ubuntu:26.04 manifest digest (sha256:<64 hex>)
+        required: true
+        type: string
 
 jobs:
   test:
@@ -62,3 +67,59 @@ jobs:
         # AOT build; hosted runners are killed by macOS or lose the agent
         # under that pressure. It still runs in local full verification.
         run: ctest --test-dir build --output-on-failure -E conformance.s10_long_branch
+
+  gdb-evidence:
+    # Manual until the frozen 32-bit code_ptr conflict is resolved and signed evidence can pass.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Collect real GDB evidence
+        env:
+          TC_CONTAINER_DIGEST: ${{ inputs.container_digest }}
+        run: |
+          if [[ ! "$TC_CONTAINER_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "container_digest must be sha256:<64 lowercase hex>" >&2
+            exit 2
+          fi
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e GITHUB_SHA \
+            -e TC_CONTAINER_DIGEST \
+            "ubuntu:26.04@${TC_CONTAINER_DIGEST}" \
+            bash -lc '
+              set -e
+              apt-get update -qq
+              apt-get install -y -qq ca-certificates clang cmake git lld llvm python3 qemu-system-aarch64 qemu-system-arm qemu-system-riscv gdb-multiarch
+              cmake -S . -B build -DCMAKE_C_COMPILER=clang
+              cmake --build build -j "$(nproc)"
+              python3 tests/tools/g11_evidence.py \
+                --collect build/gdb-e2e \
+                --build-dir build \
+                --container-digest "$TC_CONTAINER_DIGEST"
+            '
+
+      - name: Attest result.json
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: build/gdb-e2e/result.json
+
+      - name: Attest transcript.log
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: build/gdb-e2e/transcript.log
+
+      - name: Upload GDB evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdb-e2e-evidence
+          path: build/gdb-e2e/
+          retention-days: 30

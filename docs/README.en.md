@@ -46,16 +46,16 @@ Chinese: [README.md](README.md).
   `vm.gdb.protocol` (235 checks), `vm.gdb.semantics` and `vm.gdb.e2e`.
   P4b adds `tc-vm --gdb-elf-out=<path>`, with independent ELF/DWARF decoding for
   all four profiles and an AArch64 real gdb source breakpoint in
-  `toolchain.debug_elf`. P4b 32-bit real-gdb compatibility and fixed Linux CI
-  signed evidence are pending, so P4b, P5 and T4–T6 remain incomplete and G11 is incomplete.
+  `toolchain.debug_elf`. G11 evidence collection/validation and a manual signing job
+  are wired. Local GDB 18.1 narrows 32-bit `code_ptr` to 4 bytes, conflicting with
+  the frozen 64-bit `tc_ir_pc`; this is blocked pending a design ruling, a real signed
+  artifact remains pending, and P4b, P5, T4–T6 and G11 remain incomplete.
   Language/contract versions remain 0.0.46/1;
   RTOS, interrupts and concurrency move to 0.0.48.
 - S0–S10 are implemented and G0–G10 passed; **G10 completes the 0.0.46 stage
-  exit**. There are 91 registered 0.0.47 CTests (73 at P0, three P1 tests, three
-  P2 tests, one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests and five T3 tests). The P4b
-  implementation checkpoint passed Debug, Release and ASan+UBSan full CTest runs at 91/91, and all closing
-  checks passed. The 0.0.46 coverage
-  matrix is 636/636.
+  exit**. There are 92 registered 0.0.47 CTests (73 at P0, three P1 tests, three
+  P2 tests, one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests,
+  five T3 tests and one G11 evidence test). The 0.0.46 coverage matrix is 636/636.
 - Implemented: the front end, CT/IR, the runtime semantic core, the reference VM
   (32/64 profiles), the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V
   backends/toolchains (full ABI, checked build, ELF/region layout, reset-entry

@@ -37,12 +37,13 @@ English: [README.en.md](README.en.md)。
   `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（235 checks）、
   `vm.gdb.semantics` 与 `vm.gdb.e2e`。P4b 已实现 `tc-vm --gdb-elf-out=<path>`，
   由私有 writer 生成符号与 DWARF v4 行表，四种档案均经独立语义解码，AArch64
-  真实 gdb 源级断点入口为 `toolchain.debug_elf`。P4b 的 32 位真实 gdb 兼容性裁定
-  与 §6.10 固定 Linux CI 签名证据尚未完成，P4b、P5 与 T4–T6 未完成，G11 未完成；
+  真实 gdb 源级断点入口为 `toolchain.debug_elf`。G11 证据收集/校验与手动签名作业
+  已接入；本地 GDB 18.1 的 32 位 `code_ptr` 与冻结的 64 位 `tc_ir_pc` 冲突已裁定
+  为阻塞，真实签名 artifact 尚未完成，P4b、P5 与 T4–T6 未完成，G11 未完成；
   语言/契约保持 0.0.46/1，RTOS、中断与并发移交 0.0.48。
 - S0–S10 已实现并通过 G0–G10；**G10 完成 0.0.46 阶段出口**。0.0.47 CTest
-  注册总数为 91（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项）；
-  P4b 实现检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 91/91 与全部收尾检查。0.0.46 覆盖矩阵为 636/636。
+  注册总数为 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）。
+  0.0.46 覆盖矩阵为 636/636。
 - 已实现：前端、CT/IR、运行时语义核与参考 VM（32/64 档案）、W=64 AArch64、
   W=32 ARM32 与 W=32 RISC-V 全量后端/工具链（全量 ABI、checked build、
   ELF/区布局、复位入口 BSS 清零、远距离分支长跳转）、freestanding 目标运行时核与

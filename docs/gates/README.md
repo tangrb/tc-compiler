@@ -43,10 +43,12 @@ qemu gdbstub 已验证 `info line`、源码断点与单步，证据入口为 `t2
 `vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。P4b 已完成私有 VM 调试 ELF writer：
 `tc-vm --gdb-elf-out=<path>` 复用共享行表与合成地址，支持 AArch64、ARM32 与
 RISC-V32，四种档案均经独立 ELF/DWARF 语义解码，AArch64 真实 gdb 源级断点入口为
-`toolchain.debug_elf`。32 位真实 gdb 兼容性裁定与 §6.10 固定 Linux CI 签名证据
-尚未完成，P4b、P5 与 T4–T6 未完成，G11 未完成。
-0.0.47 CTest 注册总数 91；P4b 实现检查点已通过 Debug/Release/ASan+UBSan 全量 CTest 91/91
-与全部收尾检查。macOS 不支持 ASan leak 检测，sanitizer 运行使用
+`toolchain.debug_elf`。G11 证据收集/校验与手动签名作业已接入；本地 GDB 18.1 将
+32 位 `code_ptr` 缩为 4 字节，与冻结的 64 位 `tc_ir_pc` 冲突，ARM32/RISC-V32 真实
+gdb 会话在冻结契约下裁定为阻塞，真实签名 artifact 尚未完成；P4b、P5 与 T4–T6
+未完成，G11 未完成。
+0.0.47 CTest 注册总数 92；P4b/G11 基础设施检查点已通过 Debug/Release/ASan+UBSan
+全量 CTest 92/92 与收尾检查 51/51。macOS 不支持 ASan leak 检测，sanitizer 运行使用
 `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1` 与
 `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`。
 0.0.46 已验收 harness 873/873。

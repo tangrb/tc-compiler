@@ -7,9 +7,10 @@ kept; historical implementation and tools live in git tags. The `tc-0.0.47`
 branch targets delivery of the development/debugging toolchain and project model
 while language semantics, opcodes, diagnostics and the ABI stay frozen. Both
 designs meet the freeze criteria. P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are
-complete; P4b implementation and local AArch64 gdb validation are complete, while
-32-bit real-gdb compatibility and fixed Linux CI signed evidence are pending.
-P5 and T4–T6 have not started. Scope and contracts are in
+complete; P4b implementation and local AArch64 gdb validation are complete. Local
+GDB 18.1 narrows 32-bit `code_ptr` to 4 bytes, conflicting with the frozen 64-bit
+`tc_ir_pc`; this is blocked pending a design ruling, and fixed Linux CI signed
+evidence remains pending. P5 and T4–T6 have not started. Scope and contracts are in
 [TC Development and Debugging Toolchain 0.0.47](docs/TC开发调试工具链-0.0.47.md)
 and [TC Project Model 0.0.47](docs/TC工程模型-0.0.47.md).
 RTOS, interrupts and concurrency move to 0.0.48.
@@ -50,9 +51,10 @@ RTOS, interrupts and concurrency move to 0.0.48.
   `tc-vm --gdb-elf-out=<path>`: a private internal writer emits symbols and
   DWARF v4 lines without external tools for AArch64, ARM32 and RISC-V32 profiles.
   Independent semantic decoding covers all four profiles, and AArch64 real-gdb
-  source breakpoints are covered by `toolchain.debug_elf`; 32-bit real-gdb
-  compatibility remains unresolved.
-- **Later stages**: P4b 32-bit real-gdb compatibility, fixed Linux CI signed
+  source breakpoints are covered by `toolchain.debug_elf`; local GDB 18.1 narrows
+  32-bit `code_ptr` to 4 bytes, so the frozen 64-bit `tc_ir_pc` contract is blocked
+  pending a design ruling.
+- **Later stages**: the frozen-contract conflict, fixed Linux CI signed
   evidence, P5 and T4–T6 remain incomplete; G11 is incomplete.
 - **Implemented**: contracts, LEX/SYN and flat parse IR, module discovery/IMPORT,
   names/types/conversions/layout, static instruction-shape checks, const_expr forms,
@@ -89,10 +91,11 @@ RTOS, interrupts and concurrency move to 0.0.48.
 - **Not implemented**: the optional optimization pipeline (SSA/regalloc/
   inlining); the 0.0.46 baseline stays zero-pass. P4b fixed Linux CI evidence, P5
   and T4–T6 are outside the current completion scope.
-- **Current verification**: 91 registered 0.0.47 CTests (73 at P0, three P1 tests,
-  three P2 tests, one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests and five T3 tests). The
-  P4b implementation checkpoint passed Debug, Release and ASan+UBSan full CTest runs at 91/91, and all
-  closing checks passed. The accepted
+- **Current verification**: 92 registered 0.0.47 CTests (73 at P0, three P1 tests,
+  three P2 tests, one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests,
+  five T3 tests and one G11 evidence test). G11 evidence collection/validation and a
+  manual signing job are wired; local GDB 18.1 has a recorded 32-bit `code_ptr`
+  conflict, and a real signed artifact remains pending. The accepted
   0.0.46 baseline remains harness 873/873 and coverage 636/636, with G0–G10 PASS.
   **G10 completes the 0.0.46 stage exit; G11 is incomplete**. See
   [gate status](docs/gates/README.en.md).

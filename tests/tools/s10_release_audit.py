@@ -311,6 +311,25 @@ def check_docs(failures: list[str]) -> None:
                     f"{CASE_ID}: {relative} has a broken link {target!r}")
 
 
+def check_g11_evidence(failures: list[str], artifact_dir: Path,
+                       repo: str) -> None:
+    sys.path.insert(0, str(HERE))
+    from g11_evidence import SIGNER_WORKFLOW, verify_evidence  # noqa: E402
+
+    try:
+        proc = subprocess.run(["git", "rev-parse", "HEAD"],
+                              cwd=ROOT, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, timeout=30)
+    except (OSError, subprocess.SubprocessError) as error:
+        failures.append(f"{CASE_ID}: cannot determine audited commit: {error}")
+        return
+    commit = proc.stdout.decode("ascii", "replace").strip()
+    if proc.returncode != 0 or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        failures.append(f"{CASE_ID}: cannot determine audited commit")
+        return
+    failures.extend(verify_evidence(artifact_dir, repo, SIGNER_WORKFLOW, commit))
+
+
 def selftest() -> int:
     original_read = read
 
@@ -392,6 +411,8 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--selftest", action="store_true")
+    parser.add_argument("--require-g11-evidence", type=Path)
+    parser.add_argument("--g11-repo", default=os.environ.get("GITHUB_REPOSITORY"))
     args = parser.parse_args()
     if args.selftest:
         return selftest()
@@ -400,6 +421,14 @@ def main() -> int:
     check_release_surface(failures)
     check_artifacts(failures)
     check_docs(failures)
+    if args.require_g11_evidence is not None:
+        if not args.g11_repo:
+            failures.append(
+                f"{CASE_ID}: --g11-repo or GITHUB_REPOSITORY is required with "
+                "--require-g11-evidence")
+        else:
+            check_g11_evidence(failures, args.require_g11_evidence.resolve(),
+                               args.g11_repo)
     if failures:
         for item in failures:
             print(item)

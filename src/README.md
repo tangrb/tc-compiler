@@ -72,8 +72,9 @@ P4b adds `vm/debug_elf.c`, a private ELF/DWARF writer for
 `tc-vm --gdb-elf-out=<path>`. It reuses the shared line map and synthetic addresses,
 emits source function symbols and DWARF v4 lines without external tools, and covers
 AArch64, ARM32 and RISC-V32 profiles. Its evidence entry point is
-`toolchain.debug_elf`. Its 32-bit real-GDB compatibility and fixed Linux CI signed
-evidence are pending, so P4b remains incomplete; P5 and T4–T6 have not started. Compiler and observation output guards protect
+`toolchain.debug_elf`. G11 evidence collection/validation and a manual signing job
+are wired through `tests/tools/g11_evidence.py`; 32-bit real-GDB compatibility and a
+real signed artifact remain pending, so P4b remains incomplete; P5 and T4–T6 have not started. Compiler and observation output guards protect
 stdio, project inputs, explicit outputs and reservations before publishing diagnostics
 or artifacts.
 
