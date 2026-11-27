@@ -97,6 +97,28 @@ TcImplError tc_observe_dump_ir(const TcIR *ir, TcAotOutputs *outputs) {
     return stream.failed ? TC_IMPL_IO : TC_IMPL_OK;
 }
 
+TcImplError tc_observe_dump_linemap(const TcLineMap *linemap,
+                                    TcAotOutputs *outputs,
+                                    int include_vm_addr,
+                                    uint64_t vm_code_base) {
+    TcObserveStream stream;
+    TcImplError impl;
+    if (linemap == NULL || outputs == NULL) {
+        return TC_IMPL_INTERNAL;
+    }
+    impl = stream_begin(&outputs->output[TC_AOT_OUTPUT_LINEMAP], stderr,
+                        &stream);
+    if (impl != TC_IMPL_OK) {
+        return impl;
+    }
+    impl = tc_linemap_write_json(linemap, stream.file, include_vm_addr,
+                                 vm_code_base);
+    if (tc_observe_stream_finish(&stream) != TC_IMPL_OK && impl == TC_IMPL_OK) {
+        impl = TC_IMPL_IO;
+    }
+    return impl;
+}
+
 typedef struct {
     char name[64];
     uint64_t count;

@@ -614,6 +614,22 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 goto done;
             }
         }
+        if (options->dump_linemap_seen) {
+            TcLineMap *linemap = NULL;
+            impl = tc_linemap_build(tc_analysis_ir(analysis), &linemap);
+            if (impl == TC_IMPL_OK) {
+                impl = tc_observe_dump_linemap(
+                    linemap, &outputs, !aot,
+                    aot ? 0u : (profile.addr_width == 64u
+                                    ? TC_DEBUG_CODE_BASE64
+                                    : TC_DEBUG_CODE_BASE32));
+            }
+            tc_linemap_destroy(linemap);
+            if (impl != TC_IMPL_OK) {
+                result = print_impl_error(tool_name, impl, NULL);
+                goto done;
+            }
+        }
         if (aot) {
             TcAotObserveStats stats;
             impl = tc_observe_stats_begin_ir(tc_analysis_ir(analysis), &profile,
@@ -659,13 +675,26 @@ static int run_prepared(const char *tool_name, const TcCliOptions *options,
                 goto done;
             }
         }
-        install_host_vm_seams(&profile, &io, &sink, &src, &trap);
-        if (options->trace_seen) {
+        if (options->trace_seen || options->dump_linemap_seen) {
             impl = tc_linemap_build(ir, &linemap);
             if (impl != TC_IMPL_OK) {
                 result = print_impl_error(tool_name, impl, NULL);
                 goto done;
             }
+        }
+        if (options->dump_linemap_seen) {
+            impl = tc_observe_dump_linemap(
+                linemap, &outputs, 1,
+                profile.addr_width == 64u ? TC_DEBUG_CODE_BASE64
+                                         : TC_DEBUG_CODE_BASE32);
+            if (impl != TC_IMPL_OK) {
+                tc_linemap_destroy(linemap);
+                result = print_impl_error(tool_name, impl, NULL);
+                goto done;
+            }
+        }
+        install_host_vm_seams(&profile, &io, &sink, &src, &trap);
+        if (options->trace_seen) {
             impl = tc_observe_trace_begin(&outputs, &trace_stream);
             if (impl != TC_IMPL_OK) {
                 tc_linemap_destroy(linemap);

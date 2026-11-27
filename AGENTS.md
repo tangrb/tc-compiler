@@ -3,7 +3,8 @@
 0.0.46 为 clean-sheet 实现基线。实现与验证以标准/设计/测试计划为准；历史实现、工具与测试
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
-两份设计已达到冻结条件；P0/T0、P1、P2、P3、P4a 与 T1 已完成，P4b、P5 与 T2–T6 尚未开始。
+两份设计已达到冻结条件；P0/T0、P1、P2、P3、P4a、T1 与 T2 已完成，
+P4b、P5 与 T3–T6 尚未开始。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
 回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
@@ -46,12 +47,15 @@ RTOS/中断/并发移交 0.0.48。
   最小 DWARF v4 CU（clang 生成 `.debug_line`），并在发布诊断/产物前保护 stdio、
   项目输入与输出保留身份。T1 完成 VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap`
   （text/jsonl、limit/output）、VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/
-  预留保护与确定性观测输出，证据入口为 `t1.observe`。公开 `tc-aot --debug`/
-  `--dump-linemap`、P4b、P5 与 T2–T6 尚未开始。
+  预留保护与确定性观测输出，证据入口为 `t1.observe`。T2 完成 VM/AOT
+  `--dump-linemap[=<path>]` 与公开 `tc-aot --debug`，复用最终 IR 共享行表生成
+  JSON v3、VM 合成地址、`.loc`/源注释与 DWARF v4 CU，并以 qemu gdbstub 和真实
+  gdb 验证 `info line`、源码断点与单步，证据入口为 `t2.debug` 与 `t2.gdb`。
+  P4b、P5 与 T3–T6 尚未开始。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
-  已注册 CTest 总数 83；T1 已通过 Debug/Release/ASan+UBSan 全量 CTest 83/83
+  已注册 CTest 总数 85；T2 已通过 Debug/Release/ASan+UBSan 全量 CTest 85/85
   与全部收尾检查，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
@@ -83,7 +87,7 @@ RTOS/中断/并发移交 0.0.48。
    无后端/工具链映射的档案显式退出 70 且不发布错误产物。不得把部分能力写成“已支持”。
    S7/S8/S9/S10 差分/工具链测试默认要求 `clang`、`llvm-ar`、`ld.lld`、
    `qemu-system-aarch64`、`qemu-system-arm` 与 `qemu-system-riscv32`；P4a DWARF 校验另需
-   `llvm-dwarfdump`；缺失时配置失败。
+   `llvm-dwarfdump`，T2 真实 gdb 冒烟另需 `gdb`（或 `gdb-multiarch`）；缺失时配置失败。
    `-DTC_ENABLE_AOT_TESTS=OFF` 只关闭 lld/qemu 测试项；运行时构建仍需 clang 与
    llvm-ar（或对应 target ar），且不用于门禁。
 6. **提交信息**：`docs(0.0.47): ...` 或 `chore(0.0.47): ...`。
@@ -171,7 +175,7 @@ RTOS/中断/并发移交 0.0.48。
 | 0.0.47 工程模型 / tc / 测试布局 | `docs/TC工程模型-0.0.47.md` |
 | 工程名称 / manifest / 初始化 / 路径 | `src/project/name.h`、`manifest.h`、`init.h`、`paths.h`；P1 测试入口 `project.manifest`/`project.init`/`project.init_fault`，P2 入口 `project.paths_unit`/`project.paths`/`project.paths_aot` |
 | 工程测试 runner / `tc --test` | `src/driver/test_runner.h`、`test_runner.c`；P3 入口 `project.test_runner` |
-| 共享行表 / AOT 调试信息 | `src/ir/linemap.h`、`linemap.c`、`src/driver/aot_driver.c`；P4a 入口 `linemap.unit`/`p4a.debug` |
+| 共享行表 / AOT 调试信息 | `src/ir/linemap.h`、`linemap.c`、`src/driver/aot_driver.c`；P4a 入口 `linemap.unit`/`p4a.debug`，T2 入口 `t2.debug`/`t2.gdb` |
 | VM/AOT 观测 | `src/driver/observe.h`、`observe.c`、`src/vm/observe.h`、`observe.c`、`src/backend/common/emit_stats.h`、`emit_stats.c`；T1 入口 `t1.observe` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |

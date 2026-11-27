@@ -40,6 +40,8 @@ typedef struct {
     int keep_temps;            /* keep intermediate .s/.o/.elf files */
     const char *dump_ir;        /* NULL = disabled; "" = stderr */
     int dump_ir_seen;
+    const char *dump_linemap;   /* NULL = disabled; "" = stderr */
+    int dump_linemap_seen;
     uint32_t trace_kinds;
     const char *trace_out;
     const char *trace_format;

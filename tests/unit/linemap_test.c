@@ -1,9 +1,11 @@
 #define _DEFAULT_SOURCE
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "backend/common/debug_emit.h"
+#include "driver/observe.h"
 #include "temp_file.h"
 
 #include "frontend/sem.h"
@@ -83,6 +85,7 @@ static void check_json(void) {
     TcLineMap *linemap = NULL;
     TcInstr unrelated;
     FILE *out = tc_test_tmpfile();
+    FILE *vm_out;
     char buffer[2048];
     size_t size;
     const char *expected =
@@ -96,6 +99,19 @@ static void check_json(void) {
         "\"col\":2,\"external\":true},"
         "{\"kind\":\"function\",\"module\":\"src/main.tc\",\"func\":\"f\","
         "\"bb\":0,\"insn\":0,\"file\":\"src/main.tc\",\"line\":11,\"col\":1}]}\n";
+    const char *expected_vm =
+        "{\"format\":\"tc-linemap\",\"version\":3,"
+        "\"profile\":\"aarch64-linux-user\",\"source\":\"src/main.tc\","
+        "\"entries\":["
+        "{\"kind\":\"unit\",\"module\":\"src/main.tc\",\"func\":\"<top>\","
+        "\"bb\":0,\"insn\":0,\"file\":\"src/main.tc\",\"line\":3,\"col\":5,"
+        "\"vm_addr\":%" PRIu64 "},"
+        "{\"kind\":\"unit\",\"module\":\"src/main.tc\",\"func\":\"<top>\","
+        "\"bb\":1,\"insn\":0,\"file\":\"../li\\\"b\\\\x.tc\",\"line\":7,"
+        "\"col\":2,\"vm_addr\":%" PRIu64 ",\"external\":true},"
+        "{\"kind\":\"function\",\"module\":\"src/main.tc\",\"func\":\"f\","
+        "\"bb\":0,\"insn\":0,\"file\":\"src/main.tc\",\"line\":11,\"col\":1,"
+        "\"vm_addr\":%" PRIu64 "}]}\n";
 
     init_fixture(&fixture);
     CHECK(tc_linemap_build(&fixture.ir, &linemap) == TC_IMPL_OK);
@@ -122,12 +138,35 @@ static void check_json(void) {
           &linemap->entries[2]);
     memset(&unrelated, 0, sizeof(unrelated));
     CHECK(tc_linemap_find_instr(linemap, &unrelated) == NULL);
-    CHECK(tc_linemap_write_json(linemap, out) == TC_IMPL_OK);
+    CHECK(tc_linemap_write_json(linemap, out, 0, 0u) == TC_IMPL_OK);
     rewind(out);
     size = fread(buffer, 1u, sizeof(buffer) - 1u, out);
     buffer[size] = '\0';
     CHECK(strcmp(buffer, expected) == 0);
-    CHECK(tc_linemap_write_json(linemap, NULL) == TC_IMPL_INTERNAL);
+    vm_out = tc_test_tmpfile();
+    CHECK(vm_out != NULL);
+    if (vm_out != NULL) {
+        char vm_expected[2048];
+        (void)snprintf(vm_expected, sizeof(vm_expected), expected_vm,
+                       TC_DEBUG_CODE_BASE64, TC_DEBUG_CODE_BASE64 + 4u,
+                       TC_DEBUG_CODE_BASE64 + 8u);
+        CHECK(tc_linemap_write_json(linemap, vm_out, 1,
+                                    TC_DEBUG_CODE_BASE64) == TC_IMPL_OK);
+        rewind(vm_out);
+        size = fread(buffer, 1u, sizeof(buffer) - 1u, vm_out);
+        buffer[size] = '\0';
+        CHECK(strcmp(buffer, vm_expected) == 0);
+        CHECK(tc_linemap_write_json(linemap, vm_out, 1, UINT64_MAX) ==
+              TC_IMPL_INTERNAL);
+        {
+            TcAotOutputs outputs;
+            tc_aot_outputs_init(&outputs);
+            CHECK(tc_observe_dump_linemap(linemap, &outputs, 1, UINT64_MAX) ==
+                  TC_IMPL_INTERNAL);
+        }
+        fclose(vm_out);
+    }
+    CHECK(tc_linemap_write_json(linemap, NULL, 0, 0u) == TC_IMPL_INTERNAL);
     fclose(out);
     tc_linemap_destroy(linemap);
 }

@@ -38,6 +38,14 @@
   observation output.
 - **T1 tests**: register `t1.observe` for IR/trace/stats, trap context, output safety
   and determinism.
+- **T2 source mapping**: VM/AOT `--dump-linemap[=<path>]` and public `tc-aot --debug`.
+  The final-IR line map drives stable JSON v3, synthetic VM addresses, per-instruction
+  `.loc`/source comments and a minimal DWARF v4 CU, with explicit output identity,
+  alias and write-error guards.
+- **T2 tests**: register `t2.debug` and `t2.gdb` for full IR mapping, external markers,
+  key order, many-to-one trace mapping, cross-root determinism, partial-check
+  combinations, output safety, and real gdb `info line`, source breakpoints and
+  single-step through the qemu gdbstub.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
   usage exits 2; internal contract violations and documented limits exit 71.
@@ -61,15 +69,15 @@
 
 ### Status
 
-- There are 83 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
-  one P3 test, two P4a tests and one T1 test). T1 implementation and focused tests
-  are complete; Debug, Release and ASan+UBSan full CTest runs each passed 83/83,
-  and all closing checks passed. The accepted 0.0.46 baseline remains
-  harness 873/873, coverage 636/636, with all closing checks and release audits passing.
-- P0/T0, P1, P2, P3, P4a and T1 are complete; P4b, P5 and T2–T6 have not started and
-  G11 is incomplete. `tc --init-project`, compiler path consumption and `tc --test`
-  are available; P4a debug emission remains a private implementation path, while
-  public `tc-aot --debug`/`--dump-linemap` has not started.
+- There are 85 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
+  one P3 test, two P4a tests, one T1 test and two T2 tests). T2 Debug, Release and
+  ASan+UBSan full CTest runs each passed 85/85, and all closing checks passed.
+  The accepted 0.0.46 baseline remains harness 873/873, coverage 636/636, with all
+  closing checks and release audits passing.
+- P0/T0, P1, P2, P3, P4a, T1 and T2 are complete; P4b, P5 and T3–T6 have not started
+  and G11 is incomplete. `tc --init-project`, compiler path consumption and
+  `tc --test` are available. VM/AOT `--dump-linemap` and public `tc-aot --debug`
+  are available, and the real qemu-gdbstub/gdb smoke test passed.
 - The P4b VM debug-ELF internal layout must not be written back to the frozen
   specification.
 

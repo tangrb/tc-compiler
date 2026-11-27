@@ -2,6 +2,7 @@
 #include "ir/linemap.h"
 #include "runtime/alloc.h"
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -295,11 +296,19 @@ static int json_string(FILE *out, const char *text) {
     return fputc('"', out) != EOF;
 }
 
-TcImplError tc_linemap_write_json(const TcLineMap *linemap, FILE *out) {
+TcImplError tc_linemap_write_json(const TcLineMap *linemap, FILE *out,
+                                  int include_vm_addr, uint64_t vm_code_base) {
     size_t i;
     if (linemap == NULL || out == NULL || linemap->source == NULL ||
         linemap->profile == NULL) {
         return TC_IMPL_INTERNAL;
+    }
+    if (include_vm_addr) {
+        for (i = 0u; i < linemap->count; i++) {
+            if (i > (UINT64_MAX - vm_code_base) / 4u) {
+                return TC_IMPL_INTERNAL;
+            }
+        }
     }
     if (fprintf(out,
                 "{\"format\":\"tc-linemap\",\"version\":%u,\"profile\":",
@@ -323,6 +332,11 @@ TcImplError tc_linemap_write_json(const TcLineMap *linemap, FILE *out) {
             !json_string(out, entry->span->file) ||
             fprintf(out, ",\"line\":%u,\"col\":%u",
                     entry->span->line, entry->span->column) < 0) {
+            return TC_IMPL_IO;
+        }
+        if (include_vm_addr &&
+            fprintf(out, ",\"vm_addr\":%" PRIu64,
+                    vm_code_base + 4u * (uint64_t)i) < 0) {
             return TC_IMPL_IO;
         }
         if (entry->external && fputs(",\"external\":true", out) == EOF) {

@@ -27,6 +27,10 @@ typedef struct {
 
 int tc_observe_json_string(FILE *out, const char *value);
 TcImplError tc_observe_dump_ir(const TcIR *ir, TcAotOutputs *outputs);
+TcImplError tc_observe_dump_linemap(const TcLineMap *linemap,
+                                    TcAotOutputs *outputs,
+                                    int include_vm_addr,
+                                    uint64_t vm_code_base);
 TcImplError tc_observe_stats_begin_ir(const TcIR *ir,
                                       const TcPlatformProfile *profile,
                                       const TcCliOptions *options,

@@ -78,6 +78,7 @@ int tc_cli_print_usage(FILE *stream, const char *tool_name) {
             "  --keep-temps        keep tc-aot intermediate files\n"
             "  --debug             emit tc-aot source-level debug information\n"
             "  --dump-ir[=<path>]  dump finalized IR (default stderr)\n"
+            "  --dump-linemap[=<path>]  dump IR source map (default stderr)\n"
             "  --trace=<kinds>     tc-vm events: ir,call,mem,io,trap\n"
             "  --trace-out=<path>  trace destination (default stderr)\n"
             "  --trace-format=text|jsonl  trace encoding (default text)\n"
@@ -317,6 +318,25 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
             options->dump_ir_seen = 1;
             continue;
         }
+        if (!only_positional && strcmp(arg, "--dump-linemap") == 0) {
+            if (options->dump_linemap_seen) {
+                parse_error(options, "%s: --dump-linemap cannot repeat\n", tool_name);
+            }
+            options->dump_linemap = "";
+            options->dump_linemap_seen = 1;
+            continue;
+        }
+        if (!only_positional && strncmp(arg, "--dump-linemap=", 15) == 0) {
+            if (options->dump_linemap_seen) {
+                parse_error(options, "%s: --dump-linemap cannot repeat\n", tool_name);
+            } else if (arg[15] == '\0') {
+                parse_error(options, "%s: missing value for --dump-linemap\n",
+                            tool_name);
+            }
+            options->dump_linemap = arg + 15;
+            options->dump_linemap_seen = 1;
+            continue;
+        }
         if (!only_positional && strncmp(arg, "--trace=", 8) == 0) {
             if (options->trace_seen) {
                 parse_error(options, "%s: --trace cannot repeat\n", tool_name);
@@ -442,8 +462,8 @@ TcCliParseResult tc_cli_parse(int argc, char **argv, TcCliOptions *options,
                     "%s: --emit and --output are only available in tc-aot\n",
                     tool_name);
     } else if ((options->syntax_only || options->sem_only) &&
-               (options->dump_ir_seen || options->stats || options->trace_seen ||
-                options->debug)) {
+               (options->dump_ir_seen || options->dump_linemap_seen ||
+                options->stats || options->trace_seen || options->debug)) {
         parse_error(options,
                     "%s: observation options require finalized IR or execution\n",
                     tool_name);

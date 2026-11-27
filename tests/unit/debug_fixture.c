@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
         } else {
             impl = tc_linemap_build(tc_analysis_ir(analysis), &linemap);
             if (impl == TC_IMPL_OK) {
-                impl = tc_linemap_write_json(linemap, out);
+                impl = tc_linemap_write_json(linemap, out, 0, 0u);
             }
             if (fclose(out) != 0) {
                 impl = TC_IMPL_IO;

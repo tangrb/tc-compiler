@@ -215,14 +215,16 @@ find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
              /usr/local/opt/llvm/bin /opt/homebrew/bin)
 find_program(TC_LLVM_DWARFDUMP NAMES llvm-dwarfdump
              HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
+find_program(TC_GDB NAMES gdb gdb-multiarch)
 option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
 if(TC_ENABLE_AOT_TESTS AND
    (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_QEMU_SYSTEM_ARM OR
-    NOT TC_QEMU_SYSTEM_RISCV32 OR NOT TC_LLD OR NOT TC_LLVM_DWARFDUMP))
+    NOT TC_QEMU_SYSTEM_RISCV32 OR NOT TC_LLD OR NOT TC_LLVM_DWARFDUMP OR
+    NOT TC_GDB))
     message(FATAL_ERROR
-        "S7/S9/S10 AOT tests need qemu-system-aarch64, qemu-system-arm, "
-        "qemu-system-riscv32, ld.lld and llvm-dwarfdump; install them or "
-        "configure with -DTC_ENABLE_AOT_TESTS=OFF")
+        "S7/S9/S10 and T2 AOT tests need qemu-system-aarch64, "
+        "qemu-system-arm, qemu-system-riscv32, ld.lld, llvm-dwarfdump "
+        "and gdb; install them or configure with -DTC_ENABLE_AOT_TESTS=OFF")
 endif()
 if(TC_ENABLE_AOT_TESTS)
     add_test(NAME p4a.debug
@@ -231,6 +233,18 @@ if(TC_ENABLE_AOT_TESTS)
                      --check $<TARGET_FILE:tc_debug_fixture>
                      ${TC_LLVM_DWARFDUMP})
     set_tests_properties(p4a.debug PROPERTIES LABELS "toolchain;aot")
+    add_test(NAME t2.debug
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/t2_debug_test.py
+                     $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>
+                     ${TC_LLVM_DWARFDUMP})
+    set_tests_properties(t2.debug PROPERTIES LABELS "toolchain;aot")
+    add_test(NAME t2.gdb
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/t2_gdb_test.py
+                     $<TARGET_FILE:tc-aot> ${TC_QEMU_SYSTEM_AARCH64}
+                     "${TC_GDB}")
+    set_tests_properties(t2.gdb PROPERTIES LABELS "toolchain;aot")
     add_test(NAME project.paths_aot
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/project/path_aot_test.py --check

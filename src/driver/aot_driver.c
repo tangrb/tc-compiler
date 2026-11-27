@@ -1116,11 +1116,11 @@ TcImplError tc_aot_outputs_preflight(const TcAotStdio *stdio,
                                      int aot, int create_result,
                                      TcAotOutputs *outputs) {
     static const size_t slots[] = {
-        TC_AOT_OUTPUT_DUMP, TC_AOT_OUTPUT_TRACE, TC_AOT_OUTPUT_STATS,
-        TC_AOT_OUTPUT_RESULT
+        TC_AOT_OUTPUT_DUMP, TC_AOT_OUTPUT_LINEMAP, TC_AOT_OUTPUT_TRACE,
+        TC_AOT_OUTPUT_STATS, TC_AOT_OUTPUT_RESULT
     };
-    const char *paths[TC_AOT_OUTPUT_COUNT] = { NULL, NULL, NULL, NULL };
-    int enabled[TC_AOT_OUTPUT_COUNT] = { 0, 0, 0, 0 };
+    const char *paths[TC_AOT_OUTPUT_COUNT] = { NULL, NULL, NULL, NULL, NULL };
+    int enabled[TC_AOT_OUTPUT_COUNT] = { 0, 0, 0, 0, 0 };
     TcImplError impl = TC_IMPL_OK;
     size_t i;
     if (stdio == NULL || options == NULL || outputs == NULL ||
@@ -1147,6 +1147,11 @@ TcImplError tc_aot_outputs_preflight(const TcAotStdio *stdio,
         paths[TC_AOT_OUTPUT_DUMP] = options->dump_ir[0] != '\0'
                                        ? options->dump_ir : NULL;
         enabled[TC_AOT_OUTPUT_DUMP] = 1;
+    }
+    if (options->dump_linemap_seen) {
+        paths[TC_AOT_OUTPUT_LINEMAP] = options->dump_linemap[0] != '\0'
+                                          ? options->dump_linemap : NULL;
+        enabled[TC_AOT_OUTPUT_LINEMAP] = 1;
     }
     if (options->trace_seen) {
         paths[TC_AOT_OUTPUT_TRACE] = options->trace_out;
@@ -1708,9 +1713,23 @@ int tc_aot_driver_run_prepared(const TcAotStdio *stdio,
             return tc_impl_error_exit(impl);
         }
     }
+    if (options->debug || options->dump_linemap_seen) {
+        impl = tc_linemap_build(tc_analysis_ir(analysis), &linemap);
+        if (impl != TC_IMPL_OK) {
+            return tc_impl_error_exit(impl);
+        }
+    }
+    if (options->dump_linemap_seen) {
+        impl = tc_observe_dump_linemap(linemap, outputs, 0, 0u);
+        if (impl != TC_IMPL_OK) {
+            tc_linemap_destroy(linemap);
+            return tc_impl_error_exit(impl);
+        }
+    }
     impl = tc_observe_stats_begin_ir(tc_analysis_ir(analysis), profile, options,
                                      outputs, &observe_stats);
     if (impl != TC_IMPL_OK) {
+        tc_linemap_destroy(linemap);
         return tc_impl_error_exit(impl);
     }
     if (options->static_only) {
@@ -1718,18 +1737,8 @@ int tc_aot_driver_run_prepared(const TcAotStdio *stdio,
         if (impl == TC_IMPL_OK) {
             impl = tc_aot_outputs_release_observations(outputs);
         }
+        tc_linemap_destroy(linemap);
         return tc_impl_error_exit(impl);
-    }
-    if (options->debug) {
-        impl = tc_linemap_build(tc_analysis_ir(analysis), &linemap);
-        if (impl != TC_IMPL_OK) {
-            TcImplError stats_impl = tc_observe_stats_finish_aot(&observe_stats,
-                                                                 NULL);
-            if (stats_impl == TC_IMPL_OK) {
-                stats_impl = tc_aot_outputs_release_observations(outputs);
-            }
-            return report(stats_impl != TC_IMPL_OK ? stats_impl : impl, NULL);
-        }
     }
     result = run_aot(analysis, profile, options, linemap, outputs,
                      &observe_stats);

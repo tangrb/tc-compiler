@@ -231,14 +231,17 @@ def check_artifacts(failures: list[str]) -> None:
 
 def check_docs(failures: list[str]) -> None:
     required = {
-        "README.md": ["riscv32-baremetal", "RISC-V"],
-        "README.en.md": ["riscv32", "RISC-V"],
-        "AGENTS.md": ["riscv32", "S10"],
-        "src/README.md": ["riscv32"],
-        "tests/README.md": ["S10", "riscv32"],
-        "docs/README.md": ["RISC-V", "riscv32"],
-        "docs/gates/README.md": ["G10", "PASS"],
-        "src/CONTRACTS.md": ["riscv32"],
+        "README.md": ["riscv32-baremetal", "RISC-V", "t2.debug", "t2.gdb",
+                      "--dump-linemap"],
+        "README.en.md": ["riscv32", "RISC-V", "t2.debug", "t2.gdb",
+                         "--dump-linemap"],
+        "AGENTS.md": ["riscv32", "S10", "t2.debug", "t2.gdb"],
+        "src/README.md": ["riscv32", "--dump-linemap", "DWARF v4"],
+        "tests/README.md": ["S10", "riscv32", "t2.debug", "t2.gdb"],
+        "docs/README.md": ["RISC-V", "riscv32", "t2.debug", "t2.gdb"],
+        "docs/gates/README.md": ["G10", "PASS", "t2.debug", "t2.gdb"],
+        "src/CONTRACTS.md": ["riscv32", "TC_DEBUG_CODE_BASE",
+                             "--dump-linemap"],
     }
     for relative, needles in required.items():
         text = read(relative)
@@ -248,10 +251,19 @@ def check_docs(failures: list[str]) -> None:
     if "TC开发调试工具链-0.0.47.md" not in read("docs/README.md"):
         failures.append(f"{CASE_ID}: docs/README.md lacks the toolchain design link")
     stale = {
-        "README.md": ["未实现**：RISC-V", "RISC-V 等后续目标"],
-        "README.en.md": ["Not implemented: later targets such as RISC-V"],
-        "AGENTS.md": ["未实现：RISC-V"],
-        "src/README.md": ["riscv32 not implemented", "remains a future target"],
+        "README.md": ["未实现**：RISC-V", "RISC-V 等后续目标",
+                      "P4b、P5 与 T2–T6 尚未开始",
+                      "`--dump-linemap` 尚未开始"],
+        "README.en.md": ["Not implemented: later targets such as RISC-V",
+                         "P4b, P5 and T2–T6 have not started",
+                         "`--dump-linemap` have not started"],
+        "AGENTS.md": ["未实现：RISC-V", "P4b、P5 与 T2–T6 尚未开始"],
+        "src/README.md": ["riscv32 not implemented", "remains a future target",
+                          "Public `tc-aot --debug`/`--dump-linemap`"],
+        "tests/README.md": ["0.0.47 CTest 注册总数 83"],
+        "docs/README.md": ["T2–T6 尚未开始"],
+        "CONTRIBUTING.md": ["P4b、P5 与 T2–T6 尚未开始"],
+        "CONTRIBUTING.en.md": ["P4b, P5 and T2–T6 have not started"],
     }
     for relative, needles in stale.items():
         text = read(relative)
@@ -337,6 +349,12 @@ def selftest() -> int:
          check_docs),
         ("docs/README.md",
          lambda text: text.replace("TC开发调试工具链-0.0.47.md", "missing.md"),
+         check_docs),
+        ("README.md",
+         lambda text: text.replace("t2.gdb", "missing-t2-gdb"),
+         check_docs),
+        ("tests/README.md",
+         lambda text: text.replace("t2.debug", "missing-t2-debug"),
          check_docs),
     )
     for target, replacement, checker in mutations:

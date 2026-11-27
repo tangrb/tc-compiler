@@ -55,8 +55,11 @@ minimal DWARF v4 CU with clang-generated `.debug_line`. T1 adds VM/AOT
 `--dump-ir[=<path>]`, VM `--trace=ir,call,mem,io,trap` with text/jsonl encoding,
 limits and output selection, VM/AOT `--stats` with output selection, structured trap
 context, explicit output identity/reservation guards and deterministic observation
-output; its evidence entry point is `t1.observe`. Public `tc-aot --debug`/`--dump-linemap`,
-P4b, P5 and T2–T6 have not started. Compiler and observation output guards protect
+output; its evidence entry point is `t1.observe`. T2 exposes VM/AOT
+`--dump-linemap[=<path>]` and public `tc-aot --debug`, reusing one final-IR
+line map for JSON v3, synthetic VM addresses, `.loc`, source comments and the
+DWARF v4 CU. Its evidence entry points are `t2.debug` and the real
+qemu-gdbstub/gdb smoke `t2.gdb`. P4b, P5 and T3–T6 have not started. Compiler and observation output guards protect
 stdio, project inputs, explicit outputs and reservations before publishing diagnostics
 or artifacts.
 

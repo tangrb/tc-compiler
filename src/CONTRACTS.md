@@ -167,12 +167,22 @@ contract check.
   order and external markers for `../`, `./` and cross-volume fallback display
   paths. AOT debug assembly uses those final-IR spans in instruction order for
   source comments and `.loc`; source strings remain project-root display paths.
-- Private AOT debug mode emits `.file`, `.asciz`, `.loc`, source comments and a
+- Public `tc-aot --debug` emits `.file`, `.asciz`, `.loc`, source comments and a
   minimal DWARF v4 CU (`.debug_info`, `.debug_abbrev`, `.debug_str`); clang's
   `-gdwarf-4 -fdebug-compilation-dir=.` produces `.debug_line`. `DW_AT_comp_dir`
   is `.`, `DW_AT_name` is the root display path, and code bounds use fixed local
-  labels. `.debug_str` uses relocations rather than hardcoded offsets. Public
-  `--debug` and `--dump-linemap`; public CLI integration remains outside T1.
+  labels. `.debug_str` uses relocations rather than hardcoded offsets. Every IR
+  instruction consumes one shared line-map entry in final global IR order.
+  `--flat` has no final debug sections, while retained assembly keeps `.loc`.
+- VM/AOT `--dump-linemap[=<path>]` writes the same JSON v3 map; the default is
+  stderr. AOT never emits `vm_addr`. VM appends `vm_addr` after `col`, using
+  `TC_DEBUG_CODE_BASE + 4 * global_insn_index` (`0x544300000000` for W=64 and
+  `0x54430000` for W=32). External entries append `external:true` after the
+  preceding key. Overflow in this synthetic address is internal failure (71);
+  writer and observer cleanup failures remain I/O (70). Syntax/semantic-only
+  modes reject the switch; VM rejects `--debug` and AOT rejects debug with any
+  partial check (2). Observation destinations share output identity/reservation
+  guards and shared-stderr ordering.
 - VM observation output is deterministic and stays on stderr or an explicit
   path, never program stdout. Shared-stderr order is diagnostics, IR dump,
   line map, trace/footer, trap, then stats. VM region peaks measure logical

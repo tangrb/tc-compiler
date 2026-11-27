@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0/T0 治理与三入口契约、P1 工程初始化与 manifest/根发现 API、P2 canonical/显示路径与编译器路径消费、P3 工程测试 runner、P4a AOT 行表/调试信息、T1 VM/AOT 观测均已完成，G11 未完成。P4b、P5 与 T2–T6 尚未开始；公开 `tc-aot --debug`/`--dump-linemap` 尚未开始。
+感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0/T0 治理与三入口契约、P1 工程初始化与 manifest/根发现 API、P2 canonical/显示路径与编译器路径消费、P3 工程测试 runner、P4a AOT 行表/调试信息、T1 VM/AOT 观测与 T2 源级映射均已完成，G11 未完成。P4b、P5 与 T3–T6 尚未开始。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -48,15 +48,16 @@ ctest --test-dir .tmp/build --output-on-failure
 `tc --test` 已实现发现/筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、
 fork worker、超时、流捕获、结构化结果、报告与退出映射。T1 已实现 VM/AOT
 `--dump-ir`、VM `--trace=ir,call,mem,io,trap`（text/jsonl、limit/output）、VM/AOT
-`--stats`、结构化 trap 上下文、显式输出身份/预留保护与确定性观测输出。
-P1/P2/P3/P4a/T1 测试入口为 `project.manifest`、`project.init`、
+`--stats`、结构化 trap 上下文、显式输出身份/预留保护与确定性观测输出。T2 已实现
+VM/AOT `--dump-linemap[=<path>]`、公开 `tc-aot --debug`、DWARF v4 CU 与真实
+qemu gdbstub/gdb 冒烟。P1/P2/P3/P4a/T1/T2 测试入口为 `project.manifest`、`project.init`、
 `project.init_fault`、`project.paths_unit`、`project.paths`、`project.paths_aot`、
-`project.test_runner`、`linemap.unit`、`p4a.debug` 与 `t1.observe`，可用
-`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.'
---output-on-failure` 运行。当前注册 83 项，T1 已通过 Debug/Release/ASan+UBSan
-全量 CTest 83/83 与全部收尾检查。
+`project.test_runner`、`linemap.unit`、`p4a.debug`、`t1.observe`、`t2.debug` 与 `t2.gdb`，可用
+`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.'
+--output-on-failure` 运行。当前注册 85 项，T2 已通过 Debug/Release/ASan+UBSan
+全量 CTest 85/85 与全部收尾检查。
 AOT 差分/工具链测试需要 `clang`、`llvm-ar`、`ld.lld`、`qemu-system-aarch64`、
-`qemu-system-arm` 与 `qemu-system-riscv32`；P4a 另需 `llvm-dwarfdump`。
+`qemu-system-arm` 与 `qemu-system-riscv32`；P4a 另需 `llvm-dwarfdump`，T2 另需 `gdb`。
 
 ## 提 Issue
 

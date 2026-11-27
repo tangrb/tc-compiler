@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0/T0 governance and the three-entry contract, P1 project initialization and manifest/root-discovery APIs, P2 canonical/display paths plus compiler path consumption, the P3 project test runner, and P4a AOT line maps/debug information are complete. T1 VM/AOT observation is also complete, and G11 is incomplete. P4b, P5 and T2–T6 have not started; public `tc-aot --debug`/`--dump-linemap` has not started.
+Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0/T0 governance and the three-entry contract, P1 project initialization and manifest/root-discovery APIs, P2 canonical/display paths plus compiler path consumption, the P3 project test runner, P4a AOT line maps/debug information, T1 VM/AOT observation and T2 source mapping are complete, and G11 is incomplete. P4b, P5 and T3–T6 have not started.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -53,16 +53,18 @@ read-only snapshots, fork workers, timeouts, stream capture, structured results,
 reports and exit mapping. T1 adds VM/AOT `--dump-ir`, VM
 `--trace=ir,call,mem,io,trap` with text/jsonl, limits and output selection, VM/AOT
 `--stats`, structured trap context, explicit output identity/reservation guards and
-deterministic observation output. The P1/P2/P3/P4a/T1 test entry points are
+deterministic observation output. T2 adds VM/AOT `--dump-linemap[=<path>]`, public
+`tc-aot --debug`, the DWARF v4 CU and a real qemu-gdbstub/gdb smoke test.
+The P1/P2/P3/P4a/T1/T2 test entry points are
 `project.manifest`, `project.init`, `project.init_fault`, `project.paths_unit`,
 `project.paths`, `project.paths_aot`, `project.test_runner`, `linemap.unit`,
-`p4a.debug` and `t1.observe`, runnable with
-`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.'
---output-on-failure`. There are 83 registered tests; Debug, Release and ASan+UBSan
-full CTest runs each passed 83/83, and all closing checks passed.
+`p4a.debug`, `t1.observe`, `t2.debug` and `t2.gdb`, runnable with
+`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^t1\.|^t2\.'
+--output-on-failure`. There are 85 registered tests; T2 Debug, Release and
+ASan+UBSan full CTest runs each passed 85/85, and all closing checks passed.
 The S7/S8/S9/S10 differential/toolchain tests need `clang`, `llvm-ar`, `ld.lld`,
 `qemu-system-aarch64`, `qemu-system-arm` and `qemu-system-riscv32`; P4a also needs
-`llvm-dwarfdump`.
+`llvm-dwarfdump`, and T2 needs `gdb`.
 
 ## Issues
 
