@@ -46,7 +46,7 @@ jobs:
 
       - name: Run targeted test runner with leak diagnostics
         env:
-          ASAN_OPTIONS: detect_leaks=1:log_path=$RUNNER_TEMP/tc-lsan
+          ASAN_OPTIONS: detect_leaks=1:log_path=${{ runner.temp }}/tc-lsan
         run: |
           set +e
           ctest --test-dir build-asan -R '^project\.test_runner$' --output-on-failure
